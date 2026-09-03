@@ -15,7 +15,7 @@ fresh clone has none, and that is expected.
 narrow way editing, the data of *Cythera* (Ambrosia Software, 1999) and of
 classic Mac OS files generally. Published at
 <https://ratlizard.github.io/grimoire/>. The whole of it is `explorer.html`,
-`mobile.html`, `canvas.html`, `js/` and `utilities/`.
+`canvas.html`, `js/` and `utilities/`.
 
 It is one of three repositories under the same organisation, and the other
 two are read from here, never written to:
@@ -49,12 +49,10 @@ Do not write a name, an email address or a home-directory path into the tree.
 
 ## Working beside the forks
 
-Three other repositories are read while working here and none of them is ever
+Two other repositories are read while working here and neither is ever
 written to. **delvmod** is the correctness oracle for Cythera's own formats;
 **systemless** is where running the game moved, and its HFS reader is what the
-disk-image writer is round-tripped through; **infinite-mac** is the emulator
-`mobile.html` embeds, and `mobile_api_check.mjs` reads the embed contract out
-of its source. All three are forks under `ratlizard/`. They are inputs: a fix to
+disk-image writer is round-tripped through. Both are forks under `ratlizard/`. They are inputs: a fix to
 one of them belongs in that repository, on a branch there, and never as an
 edit made from inside this tree — a decoder that has been edited to agree with
 this one has stopped being an oracle, which is the whole of what
@@ -67,9 +65,9 @@ with no configuration at all:
 | where | how it gets there |
 |---|---|
 | `delvmod/` | the submodule, for a checkout that ran `git submodule update --init` |
-| `../delvmod`, `../systemless`, `../infinite-mac` | plain sibling clones — what a Claude Code web session has, since those clone each repository flat into one directory |
+| `../delvmod`, `../systemless` | plain sibling clones — what a Claude Code web session has, since those clone each repository flat into one directory |
 
-`$DELVMOD`, `$SYSTEMLESS` and `$INFINITE_MAC` override for a copy kept
+`$DELVMOD` and `$SYSTEMLESS` override for a copy kept
 anywhere else. Every candidate is resolved against the repository root, so the
 suite gives the same answer from `grimoire/` and from the directory above it —
 which it did not before August 2026, and a session whose working directory is
@@ -109,14 +107,10 @@ the reasoning is here and the file is four lines.
 
 ```
 explorer.html               Delver archive + resource fork viewer (Grimoire itself)
-mobile.html                 Cythera in an infinite-mac emulator iframe
 canvas.html                 colour-cycling paint studio
-coi-serviceworker.js        the two headers GitHub Pages cannot send (mobile.html only)
 js/                         classic scripts, two tiers (see below)
 utilities/                  the site's Node + Python harnesses and converters
-utilities/browser/          the Playwright drivers, outside the suite (see its README)
 res/                        the four game-derived files the pages fetch at run time
-MOBILE.md                   mobile.html: what was measured, and what must not be undone
 NEXT-SESSION.md             the handoff, untracked: present only where the work happens
 reference/                  gitignored: the game, and what a person or a model reads while working
 delvmod/                    submodule, the correctness oracle (see below)
@@ -208,8 +202,8 @@ nothing to point at. The cost of all of it is the same and is honest: **this is
 a folder now, not a file you can email.** Re-inlining the ten would be
 mechanical and no harness would notice.
 
-`mobile.html` and `canvas.html` do **not** use `js/` — each is self-contained
-with a single inline script.
+`canvas.html` does **not** use `js/` — it is self-contained with a single
+inline script.
 
 **Two classic scripts share one global scope, so a name can only mean one
 thing.** When the resource browser's decoders came into `js/`, two of its
@@ -253,7 +247,7 @@ python3 -m http.server 8000
 ```sh
 node utilities/check_all.mjs            # everything, one table, ~75s
 node utilities/check_all.mjs --quick    # skip the slow browser-ish smokes
-node utilities/check_all.mjs viewer     # one page: viewer | browser | mobile
+node utilities/check_all.mjs viewer     # the one page there is
 ```
 
 `check_all.mjs` is the entry point: it does the setup (extracting data and
@@ -287,11 +281,6 @@ outside the repository.
   submodule is walked past to a sibling clone at `../delvmod`. Set `$DELVMOD`
   to point at a working copy kept anywhere else.
 
-- **infinite-mac** — a checkout of `mihaip/infinite-mac`, used by
-  `mobile_api_check.mjs`. Large, and **gitignored** on purpose, so this check
-  skips by default. Put it at `infinite-mac`, beside the repo as
-  `../infinite-mac`, or point `$INFINITE_MAC` at it.
-
 - **systemless** — a checkout of `ratlizard/systemless`, used by `hfs_check.mjs`
   for the disk-image round trip. Found at `systemless` or `../systemless`, or
   through `$SYSTEMLESS`; without it the structural half of that check still
@@ -300,11 +289,9 @@ outside the repository.
   `--quick` skips it.
 
 A check whose inputs are genuinely missing is reported as **skip**, not fail.
-A clean run is **18 ok, 0 failed, 1 skipped** — the skip being infinite-mac
-(with a checkout beside the repo it runs too, for 19 ok and no skips).
-Anything else is a regression. Without the game in `reference/` the count
-drops to 9 ok / 10 skipped, and `delvmod write` and `disk image` are the two
-checks with an oracle still running — its synthetic archives are built on the fly. `dialogue vs
+A clean run is **13 ok, 0 failed, 0 skipped**. Anything else is a
+regression. Without the game in `reference/` most checks skip, and `delvmod
+write` and `disk image` are the two checks with an oracle still running — its synthetic archives are built on the fly. `dialogue vs
 guides` has a second, optional input of its own — the community's dialogue
 collection at `reference/www_cytheraguides_com/dialogue/Dialogue` (the ZIP
 from cytheraguides.com, unpacked) — and runs its structural half without it.
@@ -326,9 +313,8 @@ to add a line to the snapshot rather than to trust the green result.
 
 No harness in `utilities/` drives a browser: they run the page's real
 JavaScript inside a `node:vm` against a hand-written DOM stub, so the suite
-stays dependency-free and runs anywhere Node does. The drivers that do use a
-browser are walled off in `utilities/browser/` — see **Driving the real pages in
-a browser** below.
+stays dependency-free and runs anywhere Node does. The Playwright drivers that
+once did live with the retired mobile shell in `ratlizard/alchemy`.
 
 - `page_scripts.mjs` — collects the scripts a page actually runs, in document
   order (inline plus `<script src>`), and throws on a module script. Use
@@ -424,49 +410,9 @@ a browser** below.
   reader — so the check that matters most is the one no harness can do, which
   is that a real Mac OS mounts the volume. That was done by hand in the
   emulator and what it settled is written down in `js/mac-hfs.js`.
-- `mobile_install_check.mjs` — the one-tap mod install, which is a contract
-  between two pages that cannot see each other: `explorer.html` writes the
-  disk's name and the script's onto the image, `mobile.html` types them at the
-  emulated Finder. It compares both, checks the typed prefixes actually select
-  what they are meant to (and could not select the other), pins the order of
-  the keystrokes, asserts nothing in the sequence aims at a pixel, and builds
-  a disk through the page's own code to confirm the script is on it as
-  `TEXT`/`ToyS`.
-- `mobile_handoff_check.mjs` — the second contract between the two pages: the
-  disk explorer.html hands to mobile.html through IndexedDB. Four names have to
-  agree (database, version, store, key) and a browser says nothing when they
-  stop agreeing — the read returns undefined and the card never appears. It
-  also pins the three things that went wrong or nearly did: the handoff must
-  not travel on `?disk=`, which mobile.html has read as the *system disk to
-  boot* since long before this existed; the handoff and the remembered archive
-  must be different stores, because one is deleted on collection and the other
-  is meant to outlive the visit; and every `createObjectStore` in the version-2
-  upgrade must be guarded by a `contains()` test, or a visitor still on
-  version 1 gets a `ConstraintError` that takes their remembered archive with
-  it.
-- `mobile_input_check.mjs`, `mobile_undither_check.mjs`, `mobile_api_check.mjs`
-  — cover `mobile.html`'s pointer/keyboard handling, its dedither path, and its
-  use of infinite-mac's documented embed API. The undither check reads `UD`,
-  `LINE_REACH` and `detect()` back out of the viewer through `pageSource()`; it
-  used to read the HTML file as text and stopped finding them the moment the
-  filter moved into `js/delv-graphics.js`.
 - Python converters: `binhex_decode.py`, `resource_fork_parser.py`,
   `quickdraw_pict_decoder.py`, `pictscan.py`, `qtma2midi.py`, `midi2wav.py`,
   `delv_graphics_ref.py`.
-
-### Driving the real pages in a browser
-
-`check_all.mjs` does not do this and must not learn to — the suite stays
-dependency-free Node. The end-to-end proof in `MOBILE.md` was obtained by
-driving both pages in a real headless Chromium, and the drivers are kept in
-**`utilities/browser/`**, needing Playwright and a Chromium.
-`utilities/browser/README.md` is their front door: how to run them, the path
-through the game click by click, and every obstacle met, each of which cost
-twenty minutes to an hour and none of which is guessable. Read it before
-driving a page. Those drivers were written in a cloud sandbox with no GPU and
-no network from the browser; the mirror and the SwiftShader flag exist for that
-environment, and a local Mac with Playwright's Chromium installed does not need
-the mirror.
 
 ### Traps inside the `node:vm` harnesses
 
@@ -780,7 +726,7 @@ Read the comment above a constant before correcting it.
   `js/mac-containers.js`, the one container the site can produce as well as
   open, checked structurally and round-trip by `loader_test.mjs` — and an
   HFS **disk image**, which is the one of the three the emulator will take —
-  and which **Send that disk to mobile.html** hands over directly, through a
+  and which **Send that disk to the retired mobile shell** hands over directly, through a
   `handoff` store in the page's own IndexedDB, so the bytes never go near the
   file system. `buildEditedDiskImage` is split out from
   `downloadEditedDiskImage` for that reason: two callers, provably one disk.
@@ -790,7 +736,7 @@ Read the comment above a constant before correcting it.
   archive with both its forks and its Finder type, a Read Me, and an
   AppleScript called **Install and Play** — `buildInstallScript`, written as
   a `TEXT` file with creator `ToyS`, which is what makes the Finder open it
-  in Script Editor. Dragging the disk onto `mobile.html`'s emulator mounts
+  in Script Editor. Dragging the disk onto `the retired mobile shell`'s emulator mounts
   it as "Cythera Export"; that page's **Install** button then does the rest
   without a pointer (see its notes). The script finds the folder holding a
   Cythera application on any mounted disk rather than naming it, so it works
@@ -877,61 +823,6 @@ Read the comment above a constant before correcting it.
   dialogs, menus, sounds and cursors — taken from the installer when the game
   came in that way, and otherwise fetched from `reference/Cythera.hqx` on request.
 
-### `mobile.html`
-
-A touch shell around an [infinitemac.org](https://infinitemac.org) embed. Almost
-everything it does is defined by a project that lives somewhere else, which is
-why `mobile_api_check.mjs` extracts the contract from four of infinite-mac's
-source files and checks every message the page actually posts against it. Run
-against an early version it reported ten failures. What that bought, and what
-must not be undone:
-
-- The URL parameter is **`paused`**, not `pause`. Misspelled, the emulator boots
-  and runs behind the TAP TO START overlay.
-- **There is no volume or mute in the embed API** — it is pause/unpause, mouse,
-  key and `load_disk`, and nothing else.
-- **Messages sent before `emulator_loaded` are lost**, so they are held and
-  flushed when the emulator reports in.
-- Every key goes through `pressKey`/`releaseKey` over a `heldKeys` set, and
-  everything is released on `pointercancel`, on pause, on mode change and when
-  the page is hidden. A stuck `Numpad8` in Cythera is a character who walks away
-  on their own.
-- The gesture recogniser's tests are a table, ordered longest-shape-first,
-  because loosest-first made three of the seven gestures unreachable. The help
-  panel's legend is generated from that same table, so a gesture cannot be
-  documented but unrecognised.
-- `postMessage` is targeted at `EMBED_ORIGIN`, and inbound messages are checked
-  for it.
-
-**`reference/Cythera.hqx` and `Cythera Data.hqx` cannot be handed to the
-emulator by this page.** `emulator_load_disk` takes a URL that infinitemac.org's
-own Cloudflare worker fetches server-side in ranges, so a `blob:` URL, a
-`file://` path and a private address are all equally unreachable from there;
-and infinite-mac's client-side upload is reached by dropping onto *its*
-document, which is a cross-origin iframe this page cannot synthesise a drop
-into. Dropping the file on the emulator is the supported path, the page steps
-its overlay aside for the duration of a drag so that can work, and the help
-panel explains it. Do not spend an afternoon rediscovering this. What the
-viewer's `.dsk` export changes is only what is *worth* dropping: a disk image
-mounts as a disk, where a `.hqx` lands in Downloads still wrapped.
-
-**Everything measured about this page beyond the contract above is in
-`MOBILE.md`, and it is read before touching `mobile.html`, not after:** how a
-patch travels as keystrokes and why bytes go as hex, the typing speed limit,
-file mode and the `screenSize` parameter, the zip layout Basilisk II's ExtFS
-takes, where the emulator's speed went (cross-origin isolation, measured at
-thirty times), the pointer-free installer, the four failure messages the Mac
-gives when the export chain is broken, and the end-to-end run that read an
-edit back off the emulated screen. Re-run that chain by hand after touching
-the archive writer, the disk-image writer, the installer script or the
-encryption; no harness covers all four at once.
-
-The undither filter is **the viewer's**, ported to three GPU passes because the
-JS implementation costs 5.8 s for a 640×480 frame. `mobile_undither_check.mjs`
-reads the constants back out of `explorer.html` and fails on drift —
-two copies of one filter is exactly the arrangement where a tuning change lands
-in one of them only.
-
 ## Licensing
 
 `LICENSE` is GPL-3.0-or-later and covers the work here (it was MIT until
@@ -966,7 +857,7 @@ exists or is wanted, saying which of the two a new file is in its header.
 long header comments recording the reasoning, the bug that motivated the design,
 and what was tried and rejected — see `js/mac-bytes.js`,
 `utilities/check_all.mjs`, `utilities/dom_stub.mjs` and
-`utilities/mobile_input_check.mjs`. When you make a non-obvious choice, write
+`utilities/loader_test.mjs`. When you make a non-obvious choice, write
 down why, in that voice. Do not strip these comments.
 
 **Commit messages are prose, not conventional-commits.** They read like a

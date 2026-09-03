@@ -92,10 +92,6 @@ const DELV = firstHolding('delv/archive.py', process.env.DELVMOD, 'delvmod',
 // one rather than in it; $SYSTEMLESS overrides. Without it hfs_check still
 // runs its structural half, which is most of it.
 const SYSLESS = firstHolding('src/disk_image/hfs.rs', process.env.SYSTEMLESS, 'systemless', '../systemless');
-// mihaip/infinite-mac, which mobile.html embeds. It is a large checkout and is
-// gitignored on purpose, so this check skips more often than not; $INFINITE_MAC
-// lets a copy kept outside the repository be used without moving it in.
-const INFMAC = firstHolding('src/embed-types.ts', process.env.INFINITE_MAC, 'infinite-mac', '../infinite-mac');
 const GFX_REF = `${TMP}/gfx_ref.json`;
 const EXPORTS = `${TMP}/check_all_exports`;
 
@@ -192,15 +188,6 @@ const CHECKS = [
    cmd: ['utilities/hfs_check.mjs', 'explorer.html', SYSLESS],
    grep: /\d+ volumes, \d+ structural checks[^\n]*/},
 
-  {page: 'mobile', name: 'static', cmd: ['utilities/verify_viewer.mjs', 'mobile.html']},
-  {page: 'mobile', name: 'input', cmd: ['utilities/mobile_input_check.mjs', 'mobile.html']},
-  {page: 'mobile', name: 'undither', cmd: ['utilities/mobile_undither_check.mjs', 'mobile.html', 'explorer.html']},
-  // The one-tap install is a contract between the two pages: explorer.html
-  // writes the names on the disk, mobile.html types them at the Finder.
-  {page: 'mobile', name: 'install', cmd: ['utilities/mobile_install_check.mjs', 'mobile.html', 'explorer.html']},
-  {page: 'mobile', name: 'handoff', cmd: ['utilities/mobile_handoff_check.mjs', 'mobile.html', 'explorer.html']},
-  {page: 'mobile', name: 'infinite-mac api', want: [INFMAC],
-   cmd: ['utilities/mobile_api_check.mjs', 'mobile.html', INFMAC]},
 ];
 
 // ---- run -------------------------------------------------------------------

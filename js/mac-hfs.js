@@ -7,7 +7,7 @@
    already open the archive, edit a resource and serialise the whole thing back
    out through `writeDelverArchive`, but what came out was a file on a modern
    computer, and the game that reads it lives inside an emulator. A disk image
-   is the only container mobile.html's emulator will take.
+   is the only container the mobile shell (now in ratlizard/alchemy)'s emulator will take.
 
    WHERE THE FORMAT CAME FROM
 
@@ -85,7 +85,7 @@
    Everything on the volume is there and readable -- the window lists it all,
    which is also what says the index nodes above are right -- so this was
    written down as cosmetic. It is not. **The alert is modal**: it holds the
-   keyboard until someone presses OK, and mobile.html's Install drives the
+   keyboard until someone presses OK, and the mobile shell (now in ratlizard/alchemy)'s Install drives the
    Finder by typing at it, so every keystroke goes into a dialog that ignores
    them and the install silently does nothing. That was found by running the
    thing end to end, and by nothing else: every test until then had used a
@@ -94,7 +94,7 @@
    So the line matters, and it is exactly one catalog leaf: with names this
    length, three files. explorer.html writes two -- the archive and the script
    -- and its Read Me was folded into the script's comments to stay under it.
-   mobile.html sends Return before anything else, which presses the alert's OK
+   the mobile shell (now in ratlizard/alchemy) sends Return before anything else, which presses the alert's OK
    if one is up; both halves, because a larger export than the current one
    should still install.
 

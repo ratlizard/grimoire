@@ -27,7 +27,7 @@
 // file -- and it catches it without a browser or an emulator.
 //
 // The check neither of these can be is "does a real Mac mount it", and that
-// one was done by hand, in the emulator mobile.html embeds. What it settled is
+// one was done by hand, in the emulator the retired mobile shell embedded. What it settled is
 // recorded in js/mac-hfs.js: the index-record layout, which cost three volumes,
 // and the desktop-file alert, which cost rather more and turned out not to be
 // this writer's doing.

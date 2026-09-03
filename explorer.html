@@ -4048,17 +4048,10 @@ function setStatus(msg, failed) {
 // IndexedDB is refused on some file:// origins, so every call degrades to a
 // no-op rather than blocking the load.
 const ARCHIVE_DB = 'cythera-viewer', ARCHIVE_STORE = 'archive', ARCHIVE_KEY = 'current';
-/* The handoff to mobile.html lives in the same database and a different store.
-   Same database because the two pages are the same origin and a second one
-   buys nothing; a different store because the two records have opposite
-   lifetimes -- the remembered archive is meant to outlive the visit, and a
-   disk image on its way to the emulator is consumed and deleted the moment
-   mobile.html has it.
-
-   These four names are a contract between two pages that cannot see each
-   other, exactly like the disk and script names the installer types.
-   mobile.html opens the database by the same names and
-   utilities/mobile_handoff_check.mjs fails if either side changes one. */
+/* A second object store, 'handoff', is created alongside the archive's. It
+   carried an exported disk to the mobile shell that is now retired to
+   ratlizard/alchemy; the store stays declared so that a browser already at
+   database version 2 upgrades cleanly, and nothing writes to it. */
 const HANDOFF_STORE = 'handoff', HANDOFF_KEY = 'disk', ARCHIVE_DB_VERSION = 2;
 function idbOpen() {
   return new Promise((resolve, reject) => {
@@ -4088,7 +4081,6 @@ function idbTx(mode, fn, store) {
     tx.oncomplete = () => db.close();
   }));
 }
-function handoffPut(rec) { return idbTx('readwrite', s => s.put(rec, HANDOFF_KEY), HANDOFF_STORE); }
 function archiveCacheGet() { return idbTx('readonly', s => s.get(ARCHIVE_KEY)); }
 function archiveCachePut(rec) { return idbTx('readwrite', s => s.put(rec, ARCHIVE_KEY)); }
 function archiveCacheClear() {
@@ -9216,30 +9208,18 @@ function renderChangesSheet() {
     row.appendChild(t);
     box.appendChild(row);
   }
-  const patchOk = !!buildResourcePatch();
-  let onPhone = false;
-  try { onPhone = matchMedia('(hover: none)').matches; } catch (e) {}
   const groups = [
-    { title: 'to the emulator page, on this phone', routes: [
-        { label: 'Send the change as keystrokes', fn: () => sendPatchToMobile(), off: !patchOk,
-          note: patchOk
-            ? 'typed into the game’s own Cythera Data by mobile.html; no file, no disk, no picker'
-            : 'only while every edit keeps its resource the same length; one of these did not, ' +
-              'so the change has to travel as a file' } ] },
-    { title: 'to the emulator page, on a computer', routes: [
-        { label: 'Send as a zip', fn: () => sendZipToMobile(),
-          note: 'both forks, about half the size of the disk image; the installer is typed' },
-        { label: 'Send as a disk image', fn: () => sendEditedDiskToMobile(),
-          note: 'mounts in the emulator and carries its own installer' },
-        { label: 'Download the zip', fn: () => downloadEditedForkZip(), note: '.zip, the same file' },
-        { label: 'Download the disk image', fn: () => downloadEditedDiskImage(), note: '.dsk, the same disk' } ] },
+    { title: 'to an emulator', routes: [
+        { label: 'Download the disk image', fn: () => downloadEditedDiskImage(),
+          note: '.dsk — mounts in an emulated Mac and carries its own installer; infinitemac.org takes it by drag and drop' },
+        { label: 'Download the zip', fn: () => downloadEditedForkZip(),
+          note: '.zip — both forks in the layout Basilisk II and infinitemac.org unpack, about half the size of the disk' } ] },
     { title: 'to a real Mac, or another tool', routes: [
         { label: 'Download as MacBinary', fn: () => downloadEditedMacBinary(),
           note: '.bin — both forks under the file’s own Finder identity; the emulator would need StuffIt Expander for it' },
         { label: 'Download the data fork', fn: () => downloadEditedArchive(),
           note: '.data — bare; delvmod and this page read it, the game needs the fork beside it' } ] }
   ];
-  if (!onPhone) groups.push(groups.shift());
   for (const g of groups) {
     const sec = document.createElement('div');
     sec.className = 'changesGroup';
@@ -9327,7 +9307,6 @@ function renderToolsSheet() {
   d.appendChild(db);
   const pages = sec('The other pages', '');
   for (const [href, label, note] of [
-    ['mobile.html', 'Cythera Mobile (experimental)', 'the game in an emulator, on a phone; an edit made here can be sent to it'],
     ['canvas.html', 'Colour-cycling canvas', 'a paint studio for the palette animation Cythera uses for water and fire'],
     ['https://github.com/ratlizard/grimoire', 'The repository', 'where this page and its checks live']]) {
     const a = document.createElement('a');
@@ -10504,7 +10483,7 @@ function downloadEditedMacBinary() {
 /* The names on the exported disk, and the script that uses them.
    ==========================================================================
 
-   These three constants are a contract with mobile.html, which types the disk
+   These three constants are a contract with the retired mobile shell, which types the disk
    and the script's names at the emulated Finder to select them -- so they are
    named here rather than spelled inline, and `mobile_install_check.mjs`
    fails if the two pages stop agreeing about them.
@@ -10518,7 +10497,7 @@ function downloadEditedMacBinary() {
    Editor, and Command-R runs it.
 
    So the whole install is five keystroke groups with no pointer at all, which
-   is what mobile.html's Install button sends. It was worked out against a
+   is what the retired mobile shell's Install button sends. It was worked out against a
    real Mac OS 7.6 and every line of the script below was compiled by it;
    three things it taught, so they are not rediscovered:
 
@@ -10573,7 +10552,7 @@ function buildInstallScript(archiveName, note) {
     '-- Finds the folder holding the Cythera application on any mounted disk,',
     '-- replaces the "' + archiveName + '" in it with the edited one on this',
     '-- disk, and starts the game. Press Run, or Command-R -- or press Install',
-    '-- in mobile.html, which does all of that without a pointer.',
+    '-- from the disk itself, so no pointer is needed inside the Mac.',
     '--',
     '-- Keep a backup of the original first: the replacement is not undoable.',
     '-- By hand instead: drag "' + archiveName + '" into the game\u2019s folder.',
@@ -10608,7 +10587,7 @@ function buildInstallScript(archiveName, note) {
    emulator will take.
 
    The .bin above is the right file to hand a real Mac, and the wrong one to
-   hand mobile.html: infinite-mac mounts disk images, and a MacBinary file
+   hand the retired mobile shell: infinite-mac mounts disk images, and a MacBinary file
    dropped on it lands in the Downloads folder still wrapped, needing a
    StuffIt Expander round trip inside the emulated Mac before the game can see
    it. A .dsk mounts as a disk, with the archive on it as an ordinary file
@@ -10624,7 +10603,7 @@ function buildInstallScript(archiveName, note) {
    the header of js/mac-hfs.js has the detail. Dismiss it -- the files are
    there. */
 /* Building the disk and doing something with it are two jobs, and there are
-   two things to do with it now -- save it, or hand it to mobile.html. They
+   two things to do with it now -- save it, or hand it to the retired mobile shell. They
    have to be the same bytes, so the build is here and the callers are thin. */
 function buildEditedDiskImage() {
   if (!fileBytes) return null;
@@ -10646,9 +10625,9 @@ function buildEditedDiskImage() {
      catalog past one 512-byte leaf node, a volume with more than one leaf
      makes the Finder put up its "could not rebuild the desktop file" alert on
      every mount, and that alert is MODAL. It holds the keyboard, so
-     mobile.html's Install types its keystrokes into a dialog that ignores
+     the retired mobile shell's Install types its keystrokes into a dialog that ignores
      them and nothing happens at all. Two files fit in one leaf and no alert
-     appears. mobile.html dismisses one defensively as well, so a larger
+     appears. the retired mobile shell dismisses one defensively as well, so a larger
      export than this still installs -- but the disk this page writes should
      not be raising it in the first place. */
   const note = [
@@ -10688,7 +10667,7 @@ function buildEditedDiskImage() {
    triples -- for one word of dialogue, measured, a single byte.
 
    That is small enough to travel in a URL, which is what makes it the only
-   route onto a phone: mobile.html can type it into the emulated Mac as an
+   route onto a phone: the retired mobile shell can type it into the emulated Mac as an
    AppleScript, and nothing has to cross the file system at all.
 
    Returns null when a patch cannot describe the edit -- which is any edit
@@ -10732,22 +10711,6 @@ function encodeResourcePatch(runs) {
   return runs.map(r => r.offset.toString(16) + ':' + hex(r.old) + ':' + hex(r.now)).join(',');
 }
 
-function sendPatchToMobile() {
-  const runs = buildResourcePatch();
-  if (!runs) {
-    setStatus('This edit cannot travel as a patch — it changed a resource\u2019s length, so every ' +
-      'later resource moved and the difference is the whole file. Use the disk image instead.', true);
-    return;
-  }
-  const encoded = encodeResourcePatch(runs);
-  const bytes = runs.reduce((n, r) => n + r.now.length, 0);
-  const url = 'mobile.html?patch=' + encodeURIComponent(encoded);
-  window.open(url, '_blank');
-  setStatus('Sent a patch of ' + bytes + ' byte(s) in ' + runs.length + ' run(s) to mobile.html. ' +
-    'It types the change straight into the game\u2019s own Cythera Data — no disk, no file, ' +
-    'and it works on a phone.');
-}
-
 /* The same archive as a zip infinite-mac already knows how to unpack.
 
    Its `uploadsFromFile` checks two conventions before anything else, and the
@@ -10767,7 +10730,7 @@ function sendPatchToMobile() {
    What it does NOT do is arrive somewhere the Finder can reach in one step:
    the contents land in The Outside World, under Downloads, in a folder named
    after the zip. That is why the installer for this route is typed rather than
-   opened -- mobile.html's script searches for the folder instead of
+   opened -- the retired mobile shell's script searches for the folder instead of
    navigating to it. */
 function finderInfoBytes(type, creator) {
   // FInfo is 16 bytes -- type, creator, flags, location, folder -- and FXInfo
@@ -10824,30 +10787,7 @@ async function downloadEditedForkZip() {
     return;
   }
   setStatus('Wrote a ' + size + ' zip \u2014 both forks, and less than half the size of the disk ' +
-    'image. In mobile.html: File, then Load File, choose it, then Install from a file.');
-}
-
-async function sendZipToMobile() {
-  const built = await buildForkZip();
-  if (!built) return;
-  const win = window.open('mobile.html?handoff=1', '_blank');
-  const bytes = new Uint8Array(await built.blob.arrayBuffer());
-  handoffPut({ name: ZIP_FOLDER_NAME + '.zip', bytes: bytes, when: Date.now(), volume: ZIP_FOLDER_NAME })
-    .then(() => {
-      if (!win) {
-        setStatus('The zip is waiting for mobile.html, but this browser blocked the new tab. ' +
-          'Open mobile.html?handoff=1 yourself and it will be there.', true);
-        return;
-      }
-      setStatus('Sent a ' + fmtBytes(bytes.length) + ' zip to mobile.html' +
-        (built.forkWarning ? ' \u2014 but ' + built.forkWarning : '. Save it, then Load File, then ' +
-         'Install from a file.'), !!built.forkWarning);
-    })
-    .catch(err => {
-      if (win) win.close();
-      setStatus('Could not hand the zip to mobile.html (' +
-        (err && err.message ? err.message : err) + '). Use the download button instead.', true);
-    });
+    'image. Emulators that unpack the Basilisk II layout, infinitemac.org among them, take it as an upload.');
 }
 
 function downloadEditedDiskImage() {
@@ -10858,49 +10798,9 @@ function downloadEditedDiskImage() {
     setStatus('Wrote a ' + fmtBytes(built.image.length) + ' disk image, but ' + built.forkWarning, true);
     return;
   }
-  setStatus('Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on the emulated Mac in ' +
-    'mobile.html and press Install — it mounts as \u201c' + DISK_VOLUME_NAME + '\u201d, replaces the ' +
-    'archive in the game\u2019s folder and starts Cythera, without a single click inside the Mac.');
-}
-
-/* The same disk, handed to mobile.html without going through the file system.
-
-   This is as far as a page can carry it, and the reason is worth stating
-   because it looks like an oversight. The last hop -- from mobile.html into
-   the emulator -- cannot be automated at all: the embed API's
-   emulator_load_disk takes a URL that infinitemac.org's own server fetches
-   (its Mac.tsx calls getCDROMInfo, which PUTs /CD-ROM/<base64> to its worker),
-   so a blob: URL made here is unreachable from there, and the only route a
-   local file has is a real drop onto the iframe, which is the iframe's own
-   document's event and cannot be synthesised across origins. What this button
-   removes is the file-system round trip on THIS side: the bytes reach the
-   other page, and the person does one short drag instead of a download, a
-   trip to the Downloads folder and a drag from there. */
-function sendEditedDiskToMobile() {
-  const built = buildEditedDiskImage();
-  if (!built) return;
-  // Opened before the write, because a pop-up blocker only trusts a window
-  // opened synchronously in the click that asked for it.
-  const win = window.open('mobile.html?handoff=1', '_blank');
-  handoffPut({ name: built.fileName, bytes: built.image, when: Date.now(),
-               volume: DISK_VOLUME_NAME })
-    .then(() => {
-      if (!win) {
-        setStatus('The disk image is waiting for mobile.html, but this browser blocked the new ' +
-          'tab. Open mobile.html?handoff=1 yourself and it will be there.', true);
-        return;
-      }
-      setStatus('Sent a ' + fmtBytes(built.image.length) + ' disk image to mobile.html' +
-        (built.forkWarning ? ' \u2014 but ' + built.forkWarning : '.'), !!built.forkWarning);
-    })
-    .catch(err => {
-      if (win) win.close();
-      // IndexedDB is refused on some file:// origins, which is exactly where
-      // someone is most likely to be trying this.
-      setStatus('Could not hand the disk to mobile.html (' +
-        (err && err.message ? err.message : err) + '). Use the download button instead and ' +
-        'drop the file on the emulator.', true);
-    });
+  setStatus('Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac \u2014 ' +
+    'it mounts as \u201c' + DISK_VOLUME_NAME + '\u201d and carries an Install and Play script that replaces the ' +
+    'archive in the game\u2019s folder and starts Cythera.');
 }
 
 // General MIDI program names (1-128), used to label decoded QTMA parts.

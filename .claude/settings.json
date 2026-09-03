@@ -1,11 +1,10 @@
 {
   "permissions": {
-    "additionalDirectories": ["../delvmod", "../systemless", "../infinite-mac"],
+    "additionalDirectories": ["../delvmod", "../systemless"],
     "deny": [
       "Edit(./delvmod/**)",
       "Edit(../delvmod/**)",
-      "Edit(../systemless/**)",
-      "Edit(../infinite-mac/**)"
+      "Edit(../systemless/**)"
     ]
   }
 }
