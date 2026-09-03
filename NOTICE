@@ -1,0 +1,44 @@
+# What the licence covers, and what it does not
+
+The work in this repository — `explorer.html`, `mobile.html`, `canvas.html`,
+`js/`, `utilities/`, `tools/`, `port/`, `deprecated/`, and the documentation
+alongside them — is copyright (c) 2026 e-z-g and licensed under the GNU
+General Public License, **version 3 or (at your option) any later version**.
+`LICENSE` holds the full text.
+
+It was MIT until August 2026, relicensed by its sole author. GPL matches the
+two projects this repository actually exchanges code with — delvmod (GPLv3)
+and systemless (GPL-3.0-or-later) — so code can now be ported from either,
+with attribution, instead of only reimplemented from their descriptions.
+Contributions from here to systemless remain as easy as they were under MIT.
+Any copy of the earlier MIT-licensed revisions that someone already took
+remains under MIT; everything from the relicensing commit on is GPL.
+
+## Not covered
+
+**Cythera itself.** *Cythera: Fate of Alaric* is copyright Ambrosia Software,
+Inc. and/or Glenn Andreas. "Cythera" and "Delver" are their trademarks. The
+game, its data, its installers, its documentation and everything shipped with
+it are **not** in this repository — they live in `reference/`, which is
+gitignored. Nothing here is distributed with or derived from a licence to
+redistribute the game, and nothing here will download it for you. Use your own
+copy.
+
+`port/` contains no Ambrosia Software or Glenn Andreas code or data. It loads
+the forks of a copy of the game that you supply, and interprets the original
+binary rather than reproducing it.
+
+**Four files in `res/`.** `ArgosANouveau.ttf`, `ArgosANouveau.woff2`,
+`Dialogue_Background.png` and `cythera_0x8F00.png` are the pages' own
+furniture, and they came out of the game's resources. They are kept here so the
+published page looks like itself. They are Ambrosia's or their respective
+authors', not ours, and the licence grant above does not extend to them.
+
+**`delvmod/`** is a submodule, so this repository stores only a pointer to it.
+It is an independent work by Bryce Schroeder, licensed **GPLv3**, and is used
+here for data inspection and as a correctness oracle. Its licence governs it.
+
+**`reference/`** is not part of this repository at all. It holds material this
+project reads but does not own — the game, Apple's *Inside Macintosh* volumes,
+third-party applications, archived fan sites and wikis, and text extracted from
+the game's binary. Each of those belongs to its own author under its own terms.

@@ -1,0 +1,3 @@
+[submodule "delvmod"]
+	path = delvmod
+	url = https://github.com/ratlizard/delvmod
