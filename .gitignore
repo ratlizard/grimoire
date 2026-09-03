@@ -274,3 +274,7 @@ SUMMARY.txt
 # The site's handoff is a working file for the local machine, not part of
 # the published tree.
 /NEXT-SESSION.md
+
+# A local symlink to a copy of the game kept elsewhere is the usual layout;
+# the pattern above only matches a directory, so the link needs its own line.
+/reference
