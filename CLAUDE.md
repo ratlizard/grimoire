@@ -895,7 +895,30 @@ about:
   reads it. `unar` preserves the resource fork, reachable at
   `<file>/..namedfork/rsrc`.
 - **The patches** are modded archives, which are the case `smartDecrypt`'s
-  heuristic fallback exists for and which nothing currently exercises.
+  heuristic fallback exists for. `utilities/addons_check.mjs` is the check that
+  opens them, and it also does the thing worth more: it clears the three
+  tables inside the sandbox and re-runs the real `smartDecrypt` over the
+  shipped archive, so the tables become a labelled corpus of 1,558 resources
+  and the fallback can be scored against them.
+
+  **It scores 62.5%**, and the breakdown says where: the structure test
+  (`dvmPlausibleContainer`, `dvmNamedScript`) gets 840 of 920 right, and the
+  printable-ratio-minus-entropy score gets **130 of 635** — worse than
+  deciding at random. A modded archive is read substantially wrong today, and
+  widening the structure test at the score test's expense is what would fix
+  it. The check's floor is set at the measured number so a change that makes
+  it worse fails rather than passing quietly.
+
+  Seven of the add-ons are Delver archives, and all seven survive
+  `delverArchiveSpec` → `writeDelverArchive` with every resource intact. They
+  do **not** come back byte-identical, and should not be expected to: byte
+  identity holds for the shipped archive because the writer's layout matches
+  Ambrosia's, and it is a property of that file rather than of the format.
+
+  **`describeDelverArchive` refuses all seven.** It requires eight populated
+  subindexes, which is right for the game archive (`DelS`) and wrong for a
+  player file (`DelP`), which has six — so `explorer.html` cannot open a
+  Cythera saved game at all, including `I.M.Cheater`. That is unfixed.
 
 ## Gotchas
 

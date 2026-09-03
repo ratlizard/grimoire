@@ -47,8 +47,15 @@ const found = ctx.sniffViseInstaller(bin);
 check('the file is recognised as an installer', !!found, found ? found.archive.versionName : 'not recognised');
 if (!found) process.exit(1);
 const { container, archive } = found;
-check('it arrived as MacBinary of an APPL/VIS3 file',
-      !!container && container.kind === 'MacBinary' && container.type === 'APPL' && container.creator === 'VIS3',
+// Cythera.bin is MacBinary wrapped around the installer; the .sit archives
+// hold the same application as a StuffIt entry, and that is what
+// fetch_game.mjs leaves behind on a checkout with no game of its own. Both
+// are containers explorer.html opens, so which one is asserted follows what
+// the caller passed rather than being fixed.
+const isSit = !!container && /StuffIt/i.test(container.kind);
+check(`it arrived as ${isSit ? 'StuffIt' : 'MacBinary'} of an APPL/VIS3 file`,
+      !!container && container.type === 'APPL' && container.creator === 'VIS3'
+        && (isSit || container.kind === 'MacBinary'),
       container ? `${container.kind} "${container.name}" ${container.type}/${container.creator}` : 'bare');
 check('53 catalog entries (48 files, 5 directories)',
       archive.entries.length === 48 && archive.dirs.length === 5,
@@ -175,10 +182,18 @@ if (refAppRsrc) check('Cythera: resource fork identical outside the reserved hea
 function refuses(bytes) { try { ctx.sniffViseInstaller(bytes); return false; } catch (e) { return true; } }
 check('junk is not an installer', ctx.sniffViseInstaller(new TextEncoder().encode('hello world, not SVCT')) === null);
 check('a bare Cythera Data is not an installer', !refData || ctx.sniffViseInstaller(refData) === null);
-// A MacBinary cut short is not a container at all (its fork lengths overrun),
-// so it is "not an installer"; a bare SVCT fork cut short says why.
-check('a truncated MacBinary is simply not recognised', ctx.sniffViseInstaller(bin.subarray(0, 4096)) === null);
-check('a truncated SVCT fork is refused with a message', refuses(bin.subarray(128, 128 + 4096)));
+// How a cut-short file is reported depends on the container it came in, so
+// these follow the input too. A MacBinary cut short is not a container at all
+// (its fork lengths overrun), so it is "not an installer"; a bare SVCT fork
+// cut short says why. A StuffIt catalog cut short still parses far enough to
+// name the entry it cannot reach, so it is refused with a message rather than
+// going unrecognised.
+if (isSit) {
+  check('a truncated StuffIt archive is refused with a message', refuses(bin.subarray(0, 4096)));
+} else {
+  check('a truncated MacBinary is simply not recognised', ctx.sniffViseInstaller(bin.subarray(0, 4096)) === null);
+  check('a truncated SVCT fork is refused with a message', refuses(bin.subarray(128, 128 + 4096)));
+}
 
 console.log(failures ? `\nFAIL — ${failures} check(s) failed` : `\nAll installer checks passed: ${archive.entries.length} files, ${extracted} extracted, ${crcBad} CRC mismatches`);
 process.exit(failures ? 1 : 0);

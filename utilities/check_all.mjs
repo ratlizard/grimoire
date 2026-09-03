@@ -5,7 +5,7 @@
 //   node utilities/check_all.mjs --quick     (skip the slow ones)
 //   node utilities/check_all.mjs viewer      (one page: viewer | browser | mobile)
 //
-// There are fourteen harnesses across three pages, each with its own argument
+// There are fifteen harnesses across three pages, each with its own argument
 // list, spread across three handoff documents. Nobody runs all of them by hand
 // every time, and it showed: two coverage gaps in decoder_snapshot.mjs went
 // unnoticed because a change was verified with the two checks that seemed
@@ -74,8 +74,14 @@ const APP_HQX = firstExisting('reference/game/Cythera.hqx',
 // The 1.0.4 installer as Bryce Schroeder serves it (www.bryce.pw/Cythera.bin),
 // a MacBinary of the Installer VISE application: what explorer.html now
 // fetches by default, and what vise_check.mjs opens.
+// The last candidate is where fetch_game.mjs caches the archive it downloads,
+// so a checkout without the game runs this check too rather than skipping it:
+// vise_check.mjs takes a .sit as readily as a .bin, since sniffViseInstaller
+// opens both. It resolves to that path whether or not the file is there yet --
+// `want` is tested after the setup step has had its chance to create it.
 const VISE_BIN = firstExisting('reference/game/installers/Cythera.bin',
-  'reference/original_installers/Cythera.bin', 'reference/Cythera.bin');
+  'reference/original_installers/Cythera.bin', 'reference/Cythera.bin',
+  `${TMP}/Cythera installers (archive.org).sit`);
 // archive.org's four-in-one StuffIt archive of the installers, the page's
 // first default; the UI smoke drives the version switch with it and falls
 // back to the .bin when it is not there.
@@ -96,6 +102,10 @@ const DELV = firstHolding('delv/archive.py', process.env.DELVMOD, 'delvmod',
 // one rather than in it; $SYSTEMLESS overrides. Without it hfs_check still
 // runs its structural half, which is most of it.
 const SYSLESS = firstHolding('src/disk_image/hfs.rs', process.env.SYSTEMLESS, 'systemless', '../systemless');
+// The community's add-ons. Not required: without them addons_check.mjs still
+// scores the heuristic against the shipped archive, which is the half that
+// matters most.
+const ADDONS = firstExisting('reference/community/addons', 'reference/user_addons');
 const GFX_REF = `${TMP}/gfx_ref.json`;
 const EXPORTS = `${TMP}/check_all_exports`;
 
@@ -104,14 +114,30 @@ process.chdir(ROOT);
 function say(s) { process.stdout.write(s + '\n'); }
 
 // ---- setup -----------------------------------------------------------------
-function ensureForks() {
+// The local copies first: extracting a .hqx that is already on disk costs a
+// second and needs no network. When one is not there, fall back to fetching
+// the installer from archive.org and reading it with the page's own two
+// tiers -- see utilities/fetch_game.mjs for why, and for what that does and
+// does not prove. $NO_FETCH skips the fallback for anyone who wants the old
+// behaviour of skipping instead.
+async function ensureForks() {
   const need = [[HQX, DATA], [APP_HQX, APP_RSRC]];
+  let missing = false;
   for (const [src, out] of need) {
     if (existsSync(out)) continue;
-    if (!existsSync(src)) { say(`  ! ${src} is missing; some checks will be skipped`); continue; }
+    if (!existsSync(src)) { missing = true; continue; }
     say(`  extracting ${src} …`);
     execFileSync('python3', ['utilities/binhex_decode.py', src, TMP], {stdio: 'ignore'});
   }
+  if (!missing) return;
+  if (process.env.NO_FETCH) {
+    say('  ! the game is not in reference/ and $NO_FETCH is set; some checks will be skipped');
+    return;
+  }
+  say('  ! the game is not in reference/ — fetching it instead');
+  const {fetchGame} = await import('./fetch_game.mjs');
+  if (!await fetchGame(TMP, say))
+    say('  ! could not get the game; some checks will be skipped');
 }
 
 function ensureGraphicsRef() {
@@ -167,6 +193,12 @@ const CHECKS = [
   {page: 'viewer', name: 'installer', want: [VISE_BIN],
    cmd: ['utilities/vise_check.mjs', VISE_BIN, DATA, DATA_RSRC, APP_DATA, APP_RSRC],
    grep: /\d+ files, \d+ extracted, \d+ CRC mismatches/},
+  // The heuristic half of smartDecrypt, scored against the tables that
+  // normally answer for it, plus the community's add-ons -- the only Cythera
+  // archives here that nobody in this project made.
+  {page: 'viewer', name: 'addons + heuristic', want: [DATA],
+   cmd: ['utilities/addons_check.mjs', 'explorer.html', DATA, ADDONS],
+   grep: /heuristic [\d.]+% vs the tables \([^)]*\)/},
   {page: 'viewer', name: 'ui smoke', want: [DATA], slow: true,
    cmd: ['utilities/viewer_smoke.mjs', 'explorer.html', DATA, '', VISE_ALL],
    grep: /\d+ galleries, [\d,]+ tiles/},
@@ -196,7 +228,7 @@ const CHECKS = [
 
 // ---- run -------------------------------------------------------------------
 say(`\n  Cythera checks — ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`);
-ensureForks();
+await ensureForks();
 if (!only || only === 'viewer') ensureGraphicsRef();
 mkdirSync(EXPORTS, {recursive: true});
 
