@@ -17,22 +17,21 @@ classic Mac OS files generally. Published at
 <https://ratlizard.github.io/grimoire/>. The whole of it is `explorer.html`,
 `canvas.html`, `js/` and `utilities/`.
 
-It is one of three repositories under the same organisation, and the other
-two are read from here, never written to:
+### The repositories
 
-- **`systemless`**, the fork of benletchford/systemless where running the game
-  happens. Its HFS reader is what the disk-image writer here is round-tripped
-  through, and its WebAssembly build is the intended future of "play" on this
-  site.
-- **`delvmod`**, the fork of Bryce Schroeder's reference implementation of the
-  Delver formats, the correctness oracle for Cythera's own formats (see
-  **delvmod is the correctness oracle**). It is the submodule.
+The work is split across six, checked out flat beside each other. A session
+that clones one gets none of the rest, so paths across them are never assumed.
+**You are in `grimoire`.** Every other repository is read from here, never
+written to:
 
-A fourth, private, repository holds what used to share this tree: a retired
-native port of the game (C++, kept as a reference implementation of the
-Toolbox calls), the Python tools that analyse the executable, and the notes
-and handoffs of the systemless work. Nothing here depends on it. Where this
-file says the port decodes a format differently, the detail is recorded there.
+| | |
+|---|---|
+| **`ratlizard/grimoire`** | **public, GitHub Pages. This one.** |
+| `ratlizard/alchemy` | public. Two superseded attempts at running the game: `port/`, the retired native PowerPC port, and `mobile/`, the emulator shell that used to be `mobile.html` here. Where this file says the port decodes a format differently, the detail is there. |
+| `ratlizard/cythera-tools` | private. The Python tools that analyse the executable, and the notes and handoffs of the systemless work. Nothing here depends on it. |
+| `ratlizard/systemless` | public fork of benletchford/systemless, where running the game happens. Its HFS reader is what the disk-image writer here is round-tripped through, and its WebAssembly build is the intended future of "play" on this site. |
+| `ratlizard/delvmod` | public fork of Bryce Schroeder's reference implementation of the Delver formats — the correctness oracle for Cythera's own (see **delvmod is the correctness oracle**). It is the submodule. |
+| `e-z-g/cythera-reference` | private. The game, its documentation, the community's writing and the cited Apple documentation. Expected here as `reference/`, gitignored; the snapshot and oracle checks need it. |
 
 **The site has no build step.** No `package.json`, no lockfile, no
 `requirements.txt`, no `.github/workflows`. `.nojekyll` at the root disables
