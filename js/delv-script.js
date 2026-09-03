@@ -248,7 +248,7 @@ function dvmSym(table, code) {
 // Character status-flag numbers. These are NOT in delvmod and NOT read from
 // the archive: they were worked out on the Ambrosia board by cross-referencing
 // SetFlag / TestFlag / StatusEffect call sites against item and spell
-// behaviour (Wizard, forum t2432 -- see reference/cythera_forums/
+// behaviour (Wizard, forum t2432 -- see reference/community/forum-writing/
 // CYTHERA-COMPENDIUM.md, "CHARACTER STATUS FLAGS"). Rings set their flag from
 // the ring's data2 field. Flag 23 is why Eioneus can cross lava: his own
 // dialogue script sets it, which these labels make visible in the decoder.

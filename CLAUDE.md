@@ -28,7 +28,7 @@ written to:
 |---|---|
 | **`ratlizard/grimoire`** | **public, GitHub Pages. This one.** |
 | `ratlizard/alchemy` | public. Two superseded attempts at running the game: `port/`, the retired native PowerPC port, and `mobile/`, the emulator shell that used to be `mobile.html` here. Where this file says the port decodes a format differently, the detail is there. |
-| `ratlizard/cythera-tools` | private. The Python tools that analyse the executable, and the notes and handoffs of the systemless work. Nothing here depends on it. |
+| `ratlizard/cythera-workbench` | private. The Python tools that analyse the executable, and the notes and handoffs of the systemless work. Nothing here depends on it. |
 | `ratlizard/systemless` | public fork of benletchford/systemless, where running the game happens. Its HFS reader is what the disk-image writer here is round-tripped through, and its WebAssembly build is the intended future of "play" on this site. |
 | `ratlizard/delvmod` | public fork of Bryce Schroeder's reference implementation of the Delver formats — the correctness oracle for Cythera's own (see **delvmod is the correctness oracle**). It is the submodule. |
 | `e-z-g/cythera-reference` | private. The game, its documentation, the community's writing and the cited Apple documentation. Expected here as `reference/`, gitignored; the snapshot and oracle checks need it. |
@@ -127,13 +127,22 @@ forums and guides, the game's own documentation, Apple's Inside Macintosh
 volumes. Nothing in `reference/` is fetched by a page, and nothing should
 start being.
 
+It is `e-z-g/cythera-reference`, private; a symlink to a checkout of it under
+the name `reference` is the usual arrangement.
+
 ```
 reference/  (gitignored — supplied by you)
-        Cythera Data.hqx, Cythera.hqx   the game, both forks, BinHex
-        original_installers/            the 1.0.x installers, and the archive.org copies
-        CombatAI/, user_addons/         as shipped / as the community made them
-        cythera_forums/, www_cytheraguides_com/, delver_homepage_archive/
-        official_documentation/, apple_official_documentation/
+    game/
+        Cythera Data.hqx, Cythera.hqx  the game, both forks, BinHex
+        installers/                    the 1.0.x installers, the archive.org copies
+        installed-folders/             the .sit folders systemless launches from
+        combat-ai/, manuals/           the shipped .ai scripts; Ambrosia's PDFs
+    community/
+        dialogue/Dialogue/             the verified dialogue, the oracle below
+        guides-site/, fandom-wiki/, delver-homepage/, forum-writing/
+        addons/, editors/              player-made add-ons; ACE
+    apple-documentation/               the cited Inside Macintosh and technical notes
+    saves/, screenshots/
 ```
 
 ## The hard constraint: classic scripts, `file://`-safe
@@ -250,7 +259,7 @@ node utilities/check_all.mjs viewer     # the one page there is
 ```
 
 `check_all.mjs` is the entry point: it does the setup (extracting data and
-resource forks from `reference/Cythera Data.hqx` and `.../Cythera.hqx`
+resource forks from `reference/game/Cythera Data.hqx` and `.../Cythera.hqx`
 into `$TMPDIR`,
 and building the delvmod graphics reference), runs the individual
 harnesses, validates exported ZIPs with `unzip -t`, and prints a single
@@ -292,7 +301,7 @@ A clean run is **13 ok, 0 failed, 0 skipped**. Anything else is a
 regression. Without the game in `reference/` most checks skip, and `delvmod
 write` and `disk image` are the two checks with an oracle still running — its synthetic archives are built on the fly. `dialogue vs
 guides` has a second, optional input of its own — the community's dialogue
-collection at `reference/www_cytheraguides_com/dialogue/Dialogue` (the ZIP
+collection at `reference/community/dialogue/Dialogue` (the ZIP
 from cytheraguides.com, unpacked) — and runs its structural half without it.
 
 Two of the checks print a hash rather than a verdict, so a deliberate change can
@@ -354,7 +363,7 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   drives the default path: the installer dropped, the installer served at the
   default URL, and an installer with no archive in it refused by name.
 - `vise_check.mjs` — `js/mac-vise.js` over the real installer
-  (`reference/original_installers/Cythera.bin`): every file's two forks
+  (`reference/game/installers/Cythera.bin`): every file's two forks
   inflate to the lengths the catalog declares and match the CRC-32 the
   catalog carries for each — the format's own checksum, which is what makes
   this a check rather than a snapshot — and Cythera Data and Cythera come
@@ -388,7 +397,7 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   `js/delv-script.js`) against two things. Structurally, against the archive:
   109 of the 121 characters must yield topics, Naxos's inheritance chain must
   be exactly House Comana → Cademia → Human, and the Seldane chains must end
-  at their own root. And, when `reference/www_cytheraguides_com/dialogue/`
+  at their own root. And, when `reference/community/dialogue/`
   holds the unpacked collection from cytheraguides.com, against the
   community's verified in-play transcription: extracted response text must be
   findable in it (362/385 as of this writing) and each character's
@@ -820,7 +829,7 @@ Read the comment above a constant before correcting it.
   **Resource Fork (all types)** with `js/mac-rsrc-types.js`. That gallery also
   browses the *application's* fork — 339 resources across 52 types, the icons,
   dialogs, menus, sounds and cursors — taken from the installer when the game
-  came in that way, and otherwise fetched from `reference/Cythera.hqx` on request.
+  came in that way, and otherwise fetched from `reference/game/Cythera.hqx` on request.
 
 ## Licensing
 
@@ -873,7 +882,7 @@ Match that register. No `feat:` / `fix:` prefixes, no scope tags.
 `utilities/` runs on stock Node and Python with nothing installed. Write it by
 hand, as everything there does.
 
-**`reference/user_addons/` needs `unar` to open.** Twelve player-made addons —
+**`reference/community/addons/` needs `unar` to open.** Twelve player-made addons —
 patches, a saved game, mods — every one a StuffIt archive (`.sit`, `.sitx`,
 `.sea`) that `7z` cannot read and macOS ships no extractor for. `brew install
 unar`, then `unar` on the file (decode the `.hqx` wrapper with
@@ -903,7 +912,7 @@ about:
   the relative paths under `reference/` and before giving up. The rest is
   the path that always worked: an IndexedDB copy of whatever last opened, a
   file dropped or picked anywhere on the page, or `?src=<url>`.
-- The archives are `reference/Cythera Data.hqx` and `Cythera.hqx`, both BinHex,
+- The archives are `reference/game/Cythera Data.hqx` and `Cythera.hqx`, both BinHex,
   both carrying two forks. There is no bare data fork in the repository any
   more; `check_all.mjs` extracts one into `$TMPDIR` because the harnesses want
   bytes, not because anything ships one. A rename that only changes case will

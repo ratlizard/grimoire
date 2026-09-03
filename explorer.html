@@ -3393,7 +3393,8 @@ function rsrcViewFork() {
 // own hosted copies, which is what lets the application's 339 resources
 // (its icons, dialogs, PICTs, cursors) be browsed from a phone.
 const APP_HQX_CANDIDATES = [
-  'Cythera.hqx', 'reference/Cythera.hqx', 'res/Cythera.hqx'
+  'Cythera.hqx', 'reference/game/Cythera.hqx', 'reference/Cythera.hqx',
+  'res/Cythera.hqx'
 ];
 async function loadApplicationFork() {
   if (window.APP_RSRC || window.APP_RSRC_STATE === 'loading') return window.APP_RSRC;
@@ -4159,10 +4160,10 @@ const DEFAULT_ARCHIVE_URL = REMOTE_ARCHIVE_URLS[0];
 // nothing. The bare "Cythera Data" names stay last for anyone who has a data
 // fork of their own lying beside the page; they open, minus the resource fork.
 const LOCAL_ARCHIVE_CANDIDATES = [
-  'reference/original_installers/Cythera installers (archive.org).sit',
-  'Cythera.bin', 'reference/original_installers/Cythera.bin',
-  'reference/original_installers/Cythera_1.0.4_Installer.sit',
-  'Cythera Data.hqx', 'reference/Cythera Data.hqx', 'res/Cythera Data.hqx',
+  'reference/game/installers/Cythera installers (archive.org).sit',
+  'Cythera.bin', 'reference/game/installers/Cythera.bin',
+  'reference/game/installers/Cythera_1.0.4_Installer.sit',
+  'Cythera Data.hqx', 'reference/game/Cythera Data.hqx', 'res/Cythera Data.hqx',
   'Cythera Data', 'reference/Cythera Data', 'res/Cythera Data'
 ];
 

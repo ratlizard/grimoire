@@ -3,11 +3,11 @@
 // MacBinary / AppleSingle / AppleDouble unwrappers, the "is this actually a
 // Delver archive" test, and the messages produced when it is not.
 //
-//   python3 utilities/binhex_decode.py "reference/Cythera Data.hqx" "$TMPDIR"
+//   python3 utilities/binhex_decode.py "reference/game/Cythera Data.hqx" "$TMPDIR"
 //   node utilities/loader_test.mjs explorer.html \
-//        "reference/Cythera Data.hqx" "$TMPDIR/Cythera Data.data" \
-//        "$TMPDIR/Cythera Data.rsrc" "reference/Cythera.hqx" \
-//        reference/original_installers/Cythera.bin
+//        "reference/game/Cythera Data.hqx" "$TMPDIR/Cythera Data.data" \
+//        "$TMPDIR/Cythera Data.rsrc" "reference/game/Cythera.hqx" \
+//        reference/game/installers/Cythera.bin
 //
 // The last argument, the installer, is optional; with it the check also
 // drives the path the page takes by default now -- the whole game arriving

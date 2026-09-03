@@ -3,7 +3,7 @@
 // deterministic snapshot. Diff two snapshots to see whether a change altered
 // any decoded output.
 //
-//   python3 utilities/binhex_decode.py "reference/Cythera Data.hqx" /tmp
+//   python3 utilities/binhex_decode.py "reference/game/Cythera Data.hqx" /tmp
 //   node utilities/decoder_snapshot.mjs explorer.html "/tmp/Cythera Data.data"
 //
 // The viewer is a browser single-file app, so the script body is evaluated in a

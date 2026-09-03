@@ -3,7 +3,7 @@
 // verified in play?
 //
 //   node utilities/dialogue_check.mjs explorer.html "$TMPDIR/Cythera Data.data" \
-//        [reference/www_cytheraguides_com/dialogue/Dialogue]
+//        [reference/community/dialogue/Dialogue]
 //
 // dvmConversation (js/delv-script.js) claims to turn a dialogue script's
 // conversation_response chain into topics, responses and an inheritance
@@ -42,7 +42,7 @@ import { makeSandbox } from './dom_stub.mjs';
 import { pageSource } from './page_scripts.mjs';
 
 const [htmlPath = 'explorer.html', dataPath, oracleDir =
-  'reference/www_cytheraguides_com/dialogue/Dialogue'] = process.argv.slice(2);
+  'reference/community/dialogue/Dialogue'] = process.argv.slice(2);
 
 let failures = 0;
 const fail = (what, why) => { failures++; console.error(`FAIL ${what}: ${why}`); };

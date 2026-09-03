@@ -3,7 +3,7 @@
 // cannot start under this machine's sandbox (ProcessSingleton binds a unix
 // socket and bind() returns EPERM -- see utilities/browser_smoke.mjs).
 //
-//   python3 utilities/binhex_decode.py "reference/Cythera Data.hqx" "$TMPDIR"
+//   python3 utilities/binhex_decode.py "reference/game/Cythera Data.hqx" "$TMPDIR"
 //   node utilities/viewer_smoke.mjs explorer.html "$TMPDIR/Cythera Data.data"
 //
 // decoder_snapshot.mjs proves the decoders still produce the same bytes. This

@@ -67,16 +67,20 @@ function firstHolding(marker, ...paths) {
   return `${paths[paths.length - 1]}/${marker}`;
 }
 
-const HQX = firstExisting('reference/Cythera Data.hqx', 'sources/Cythera Data.hqx');
-const APP_HQX = firstExisting('reference/Cythera.hqx', 'sources/Cythera.hqx');
+const HQX = firstExisting('reference/game/Cythera Data.hqx',
+  'reference/Cythera Data.hqx', 'sources/Cythera Data.hqx');
+const APP_HQX = firstExisting('reference/game/Cythera.hqx',
+  'reference/Cythera.hqx', 'sources/Cythera.hqx');
 // The 1.0.4 installer as Bryce Schroeder serves it (www.bryce.pw/Cythera.bin),
 // a MacBinary of the Installer VISE application: what explorer.html now
 // fetches by default, and what vise_check.mjs opens.
-const VISE_BIN = firstExisting('reference/original_installers/Cythera.bin', 'reference/Cythera.bin');
+const VISE_BIN = firstExisting('reference/game/installers/Cythera.bin',
+  'reference/original_installers/Cythera.bin', 'reference/Cythera.bin');
 // archive.org's four-in-one StuffIt archive of the installers, the page's
 // first default; the UI smoke drives the version switch with it and falls
 // back to the .bin when it is not there.
-const VISE_ALL = firstExisting('reference/original_installers/Cythera installers (archive.org).sit', VISE_BIN);
+const VISE_ALL = firstExisting('reference/game/installers/Cythera installers (archive.org).sit',
+  'reference/original_installers/Cythera installers (archive.org).sit', VISE_BIN);
 const APP_DATA = `${TMP}/Cythera.data`;
 
 // delvmod is the reference implementation this project's knowledge of the

@@ -7,7 +7,7 @@
 // beside it (js/mac-stuffit.js): the mirrors must give back the same
 // installer, and the compressed ones must be refused by method name.
 //
-//   node utilities/vise_check.mjs reference/original_installers/Cythera.bin \
+//   node utilities/vise_check.mjs reference/game/installers/Cythera.bin \
 //        "$TMPDIR/Cythera Data.data" "$TMPDIR/Cythera Data.rsrc" \
 //        "$TMPDIR/Cythera.data" "$TMPDIR/Cythera.rsrc"
 //

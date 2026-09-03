@@ -6,7 +6,7 @@
 // edit did not change what these render is to run the real decoders over a
 // real resource fork and hash the result -- text and pixels alike.
 //
-//   python3 utilities/binhex_decode.py "reference/Cythera.hqx" "$TMPDIR"
+//   python3 utilities/binhex_decode.py "reference/game/Cythera.hqx" "$TMPDIR"
 //   node utilities/rsrc_snapshot.mjs explorer.html "$TMPDIR/Cythera.rsrc"
 //
 // It used to name resource_fork_browser.html, which owned these decoders and
