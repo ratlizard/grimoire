@@ -2,12 +2,13 @@
 
 Guidance for AI assistants working in this repository.
 
-**If `NEXT-SESSION.md` exists at the root, read it in full before doing
-anything else.** It is the handoff: untracked, gitignored, kept only on the
-machine the work happens on. A global SessionStart hook
-(`~/.claude/hooks/print-handoff.sh`) prints it when it is present; if there is
-no `=== HANDOFF:` block in context and the file exists, read it yourself. A
-fresh clone has none, and that is expected.
+**If `NEXT-SESSION.md` exists one level up, in the workspace directory this
+repository is checked out into, read it in full before doing anything else.**
+It is the handoff, and it covers all six repositories: untracked, in no
+repository, kept only on the machine the work happens on. A global SessionStart
+hook (`~/.claude/hooks/print-handoff.sh`) prints it when the session starts in
+that directory; if there is no `=== HANDOFF:` block in context and the file
+exists, read it yourself. A fresh clone has none, and that is expected.
 
 ## What this is
 
@@ -110,7 +111,6 @@ canvas.html                 colour-cycling paint studio
 js/                         classic scripts, two tiers (see below)
 utilities/                  the site's Node + Python harnesses and converters
 res/                        the four game-derived files the pages fetch at run time
-NEXT-SESSION.md             the handoff, untracked: present only where the work happens
 reference/                  gitignored: the game, and what a person or a model reads while working
 delvmod/                    submodule, the correctness oracle (see below)
 ```

@@ -373,7 +373,7 @@ if (!SYSTEMLESS) {
   // and where it lives, rather than letting `cargo build --example hfs_dump`
   // fail and reporting the oracle as a build error.
   console.log('  skip round trip — no examples/hfs_dump.rs in ' + SYSTEMLESS
-    + " (it is on e-z-g/systemless's cythera-detailed branch)");
+    + " (it is on ratlizard/systemless's cythera-detailed branch)");
 } else {
   const bin = join(SYSTEMLESS, 'target/debug/examples/hfs_dump');
   try {

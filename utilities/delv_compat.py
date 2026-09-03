@@ -13,7 +13,7 @@ oracle and an oracle you have patched is not one.
     keeps the rest of delv working. **This one is still required.**
   * **inspect.getargspec**, removed in 3.11, which rdasm.py used at import time
     to derive assembler operand rules. The checkout this repository points at
-    -- e-z-g/delvmod, the maintainer's fork -- fixes this internally at rdasm.py:65, so
+    -- ratlizard/delvmod, the maintainer's fork -- fixes this internally at rdasm.py:65, so
     the shim below is dead code against it and is kept only so that $DELVMOD
     can point at an unpatched upstream checkout and still work.
 

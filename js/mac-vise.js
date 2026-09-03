@@ -15,7 +15,7 @@
    This is the case CLAUDE.md's licensing note names: copy freely where there
    is no oracle role. The catalog layout, the byte-substitution table and the
    fact that what is left after it is a raw DEFLATE stream were read from
-   `src/game/vise.rs` in e-z-g/systemless (GPL-3.0-or-later), which in turn
+   `src/game/vise.rs` in ratlizard/systemless (GPL-3.0-or-later), which in turn
    credits ScummVM's `common/compression/vise.cpp` for the table. The
    DelvTechWiki page on the installer (delvmod/wiki/) documents the same
    catalog fields from the community side, and identified the CRC.
