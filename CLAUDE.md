@@ -2,86 +2,50 @@
 
 Guidance for AI assistants working in this repository.
 
-**After a compaction or resume: read `NEXT-SESSION.md` in full before doing
-anything else.** The compaction summary is not a substitute for it. A global
-SessionStart hook (`~/.claude/hooks/print-handoff.sh`) prints it
-automatically; if there is no `=== HANDOFF:` block in context, read the file.
-**If the session is about running the game under systemless** (the fork, `port/`,
-`tools/`), also read `port/doc/SYSTEMLESS-NEXT.md` in full — that is the handoff
-for that front; `NEXT-SESSION.md` is the site's.
+**If `NEXT-SESSION.md` exists at the root, read it in full before doing
+anything else.** It is the handoff: untracked, gitignored, kept only on the
+machine the work happens on. A global SessionStart hook
+(`~/.claude/hooks/print-handoff.sh`) prints it when it is present; if there is
+no `=== HANDOFF:` block in context and the file exists, read it yourself. A
+fresh clone has none, and that is expected.
 
 ## What this is
 
-Two programs that read the same 1999 Macintosh game from opposite ends, plus
-the shared material both of them need.
+**Grimoire** is a GitHub Pages static site of tools for reading, and in a
+narrow way editing, the data of *Cythera* (Ambrosia Software, 1999) and of
+classic Mac OS files generally. Published at
+<https://ratlizard.github.io/grimoire/>. The whole of it is `explorer.html`,
+`mobile.html`, `canvas.html`, `js/` and `utilities/`.
 
-**The site** — a GitHub Pages static site of tools for reading, and eventually
-editing, the data of *Cythera* (Ambrosia Software, 1999) and of classic Mac OS
-files generally. Published at <https://e-z-g.github.io/cythera/>. This is
-`explorer.html`, `mobile.html`, `canvas.html`, `js/` and `utilities/`.
+It is one of three repositories under the same organisation, and the other
+two are read from here, never written to:
 
-**The port** — `port/`, a native arm64 port of the same game for modern macOS,
-built without its source: it loads the original PowerPC executable, interprets
-it, and reimplements the Mac OS Toolbox underneath. C++20, CMake and SDL2. It
-reaches Cythera's start screen and is not yet playable. `port/README.md` is its
-front door and `port/POWERPC-NOTES.md` its working state.
+- **`systemless`**, the fork of benletchford/systemless where running the game
+  happens. Its HFS reader is what the disk-image writer here is round-tripped
+  through, and its WebAssembly build is the intended future of "play" on this
+  site.
+- **`delvmod`**, the fork of Bryce Schroeder's reference implementation of the
+  Delver formats, the correctness oracle for Cythera's own formats (see
+  **delvmod is the correctness oracle**). It is the submodule.
 
-They are worth keeping in one repository because each is a check on the other.
-The site decodes PICT, NFNT and resource forks in JavaScript; the port decodes
-the same formats in C++ and has them validated the hard way, by the original
-binary running against them. See **Two implementations, one format** below.
-
-### Current direction — read this before starting work on `port/`
-
-**As of August 2026 the plan changed.** `benletchford/systemless` is an
-independent, ROM-free high-level runtime that does what `port/` set out to do,
-for both 68K and PowerPC, and is further along. Active work on running the
-game moved to the fork `e-z-g/systemless`, branch `cythera-detailed`, checked
-out beside this repository; `SYSTEMLESS.md` is the record of that work and
-`port/doc/SYSTEMLESS-NEXT.md` its handoff. This repository's contribution is
-its Cythera and Delver knowledge — the delvmod cross-checks, the format work in
-`explorer.html`, the forum compendium, the disassembly tools in `tools/` — fed
-into systemless.
-
-**`port/` is retired as a development target** and stays as a reference
-implementation: it serves every Toolbox call on the load-a-saved-game path
-against the PowerPC calling convention, which is the nearest worked answer for
-the 72 `InterfaceLib` imports systemless's PowerPC loader lacks. It still builds
-and passes its ten smoke invariants. Do not delete it, and do not resume feature
-work in it without deciding, in writing, why systemless is no longer the better
-host.
-
-**systemless runs Cythera's 68K slice; `port/` and `port/POWERPC-NOTES.md`
-describe the PowerPC one.** Addresses and findings from the PowerPC slice must
-be re-derived from the `CODE` resources before being asserted about systemless.
-`SYSTEMLESS.md` § "Which slice runs" has the detail and the one-line PowerPC
-check.
-
-### Rules are per-tree
-
-**The constraints below are not uniform across this repository, and assuming
-they are will send you in the wrong direction.** The site has a hard technical
-constraint about how its JavaScript may be written (see **The hard constraint**)
-and genuinely has no build step. The port is an ordinary compiled C++ project
-with a CMake build, and that is fine.
-
-An older version of this file said *"do not add tooling"* as a blanket rule for
-the whole repository. That was written when the repository was only the site.
-It is retired: add what a tree actually needs. What survives is narrower and
-still binding — **the published pages must keep working from `file://`**,
-which is a fact about browsers rather than a preference, and `utilities/` and
-`tools/` stay dependency-free Node and Python because nothing has needed more.
+A fourth, private, repository holds what used to share this tree: a retired
+native port of the game (C++, kept as a reference implementation of the
+Toolbox calls), the Python tools that analyse the executable, and the notes
+and handoffs of the systemless work. Nothing here depends on it. Where this
+file says the port decodes a format differently, the detail is recorded there.
 
 **The site has no build step.** No `package.json`, no lockfile, no
 `requirements.txt`, no `.github/workflows`. `.nojekyll` at the root disables
 Jekyll processing, so every file is served exactly as committed. There is no
-`index.html` either — each page is reached by its own filename, and the links
-that point here are absolute.
+`index.html` either — each page is reached by its own filename.
 
 **Pushing to `main` deploys the site.** Whatever lands in `main` is live within
 a minute or two. There is no staging environment and nothing catches a broken
-page for you — run the checks below before pushing. Nothing deploys the port;
-it is built and run locally.
+page for you — run the checks below before pushing.
+
+**Nobody is named here.** The maintainer is "the maintainer" in every file and
+every commit; commits are authored `e-z-g <e-z-g@users.noreply.github.com>`.
+Do not write a name, an email address or a home-directory path into the tree.
 
 ## Working beside the forks
 
@@ -90,7 +54,7 @@ written to. **delvmod** is the correctness oracle for Cythera's own formats;
 **systemless** is where running the game moved, and its HFS reader is what the
 disk-image writer is round-tripped through; **infinite-mac** is the emulator
 `mobile.html` embeds, and `mobile_api_check.mjs` reads the embed contract out
-of its source. All three are forks under `e-z-g/`. They are inputs: a fix to
+of its source. All three are forks under `ratlizard/`. They are inputs: a fix to
 one of them belongs in that repository, on a branch there, and never as an
 edit made from inside this tree — a decoder that has been edited to agree with
 this one has stopped being an oracle, which is the whole of what
@@ -107,7 +71,7 @@ with no configuration at all:
 
 `$DELVMOD`, `$SYSTEMLESS` and `$INFINITE_MAC` override for a copy kept
 anywhere else. Every candidate is resolved against the repository root, so the
-suite gives the same answer from `cythera/` and from the directory above it —
+suite gives the same answer from `grimoire/` and from the directory above it —
 which it did not before August 2026, and a session whose working directory is
 the parent of all four checkouts is the ordinary case now.
 
@@ -144,7 +108,7 @@ the reasoning is here and the file is four lines.
 ## Layout
 
 ```
-explorer.html               Delver archive + resource fork viewer
+explorer.html               Delver archive + resource fork viewer (Grimoire itself)
 mobile.html                 Cythera in an infinite-mac emulator iframe
 canvas.html                 colour-cycling paint studio
 coi-serviceworker.js        the two headers GitHub Pages cannot send (mobile.html only)
@@ -153,75 +117,33 @@ utilities/                  the site's Node + Python harnesses and converters
 utilities/browser/          the Playwright drivers, outside the suite (see its README)
 res/                        the four game-derived files the pages fetch at run time
 MOBILE.md                   mobile.html: what was measured, and what must not be undone
-SYSTEMLESS.md               Cythera under systemless: what is known, what the fork changes
-NEXT-SESSION.md             the site's handoff, untracked (gitignored, local); port/doc/SYSTEMLESS-NEXT.md is systemless's
-port/                       the native macOS port: C++20, CMake, SDL2 (reference implementation)
-tools/                      the port's Python analysis tools (PEF, forks, cold map, A5 map)
-workspace/CLAUDE.md         the workspace-root CLAUDE.md, symlinked from ~/e-z-g-cythera
+NEXT-SESSION.md             the handoff, untracked: present only where the work happens
 reference/                  gitignored: the game, and what a person or a model reads while working
 delvmod/                    submodule, the correctness oracle (see below)
 ```
-
-**`utilities/` and `tools/` are both Python-and-friends directories at the root,
-and the split is by owner, not by subject.** `utilities/` is the site's: the
-harnesses `check_all.mjs` runs, plus the converters they grew out of. `tools/`
-came in with the port and analyses the *executable* — PEF containers, PowerPC
-opcode censuses, resource fork inventories, framebuffer dumps. A few of them
-overlap in subject with `utilities/` and that is expected. Exactly two files
-are shared across the boundary, one in each direction, and both deliberately:
-`tools/delv_compat.py` (the site's delvmod harnesses import it) and
-`utilities/binhex_decode.py` (the port's `run.sh` and `smoke.sh` call it to
-extract the forks). That is the pattern for sharing: name a specific file and
-let both owners call it, rather than merging the trees. The three directories
-have been considered for merging and left apart on purpose — `js/` is what
-the pages execute at run time, `utilities/` is the site's harness, `tools/`
-is the port's analysis kit; the subject overlap (three fork parsers, say) is
-each owner keeping a small dependency-free tool of its own, which is cheaper
-than the coupling a shared library would create between two trees whose
-suites do not run each other.
 
 **`res/` and `reference/` are different kinds of thing.** `res/` is the four
 game-derived files a page fetches at run time — the Argos font, the dialogue
 frame, the plank tile — and `NOTICE` lists them. Everything else that is
 Cythera's — the game, its data, the installers, the community add-ons — lives
 in `reference/`, which is gitignored: none of it is ours to publish, so supply
-your own copy of the game and put it there. Nothing in the repository will
-fetch it for you, and that is deliberate. `reference/` is also what you read
-while working: the scraped forums and guides, the game's own documentation,
-Apple's under `reference/apple_official_documentation/`. Retired experiments
-are in `deprecated/` at the root. Nothing in `reference/` is fetched by a page,
-and nothing should start being.
-
-**`reference/apple_official_documentation/` is the port's structure oracle**,
-and it earns that name the same way delvmod does for the archive formats. Every
-Mac OS record the port builds — `ListRec`, `DialogRecord`, `ControlRecord`,
-`WindowRecord` — is defined there, and guessing at one is how a field ends up
-in the wrong place and stays wrong silently. `MacintoshToolboxEssentials.pdf`
-covers the Window, Control, Dialog and Menu Managers; `MoreMacintoshToolbox.pdf`
-has the List Manager and the Resource Manager; `Inside Macintosh (additional)/`
-has the rest of the 1990s set. Look for each chapter's **assembly-language
-summary**, which prints byte offsets directly instead of leaving you to add up
-Pascal field widths. There are no PDF tools installed; `pypdf` in a scratchpad
-venv is enough to search and extract text.
-
-It has already paid for itself once: the port had `contrlVis` set to 1 where
-Inside Macintosh says 255, which every "visible?" test comparing against zero
-would accept and every one comparing against 255 would silently reject.
+your own copy of the game and put it there (a symlink to a copy kept elsewhere
+is fine). Nothing in the repository will fetch it for you, and that is
+deliberate. `reference/` is also what you read while working: the scraped
+forums and guides, the game's own documentation, Apple's Inside Macintosh
+volumes. Nothing in `reference/` is fetched by a page, and nothing should
+start being.
 
 ```
 reference/  (gitignored — supplied by you)
         Cythera Data.hqx, Cythera.hqx   the game, both forks, BinHex
-        Cythera Installed Folder.sit    what systemless needs
-        cythera_symbols.txt             the PowerPC slice's 1,877 function names
-        CombatAI/, user_addons/, original_installers/   as shipped/installed
+        original_installers/            the 1.0.x installers, and the archive.org copies
+        CombatAI/, user_addons/         as shipped / as the community made them
         cythera_forums/, www_cytheraguides_com/, delver_homepage_archive/
-        official_documentation/, apple_official_documentation/, apple_official_qtma_code/
+        official_documentation/, apple_official_documentation/
 ```
 
 ## The hard constraint: classic scripts, `file://`-safe
-
-**This governs the site only — `js/` and the three HTML pages. It does not
-apply to `port/`, which is compiled C++ and has nothing to do with browsers.**
 
 **This is not a style preference.** `js/*.js` are classic scripts — no
 `type="module"`, no `import`, no `export`. Everything is declared at top level
@@ -323,23 +245,7 @@ The pages open fine from `file://`. For a server:
 python3 -m http.server 8000
 ```
 
-The port builds and runs from its own directory. It needs CMake and SDL2
-(`brew install cmake sdl2`); `run.sh` extracts the forks it needs out of
-`reference/` on first use and leaves them in `port/build/extract/`.
-
-```sh
-cd port && ./run.sh         # extract, build, run
-cd port && ./smoke.sh       # build and check ten invariants, about a minute
-```
-
 ## Checks
-
-There are two suites, one per tree, and they share nothing but the archives in
-`reference/`. `node utilities/check_all.mjs` covers the site; `port/smoke.sh` covers
-the port, by building it and running the real game headless. Neither knows
-about the other, and a change to one tree does not need the other's suite run
-— except when you touch a decoder that both trees implement, which is the case
-**Two implementations, one format** is about.
 
 `utilities/` holds the site's test suite. Everything runs on plain Node 18+
 (`.mjs`, no dependencies) or Python 3. Run from the repository root:
@@ -386,7 +292,7 @@ outside the repository.
   skips by default. Put it at `infinite-mac`, beside the repo as
   `../infinite-mac`, or point `$INFINITE_MAC` at it.
 
-- **systemless** — a checkout of `e-z-g/systemless`, used by `hfs_check.mjs`
+- **systemless** — a checkout of `ratlizard/systemless`, used by `hfs_check.mjs`
   for the disk-image round trip. Found at `systemless` or `../systemless`, or
   through `$SYSTEMLESS`; without it the structural half of that check still
   runs. It builds `examples/hfs_dump` on first use, which takes about a minute
@@ -649,13 +555,10 @@ Two things to know before extending it:
   (`inspect.getargspec` is gone, and `rdasm.py` imports `parsley`).
   `delv_crosscheck.mjs` therefore *parses* its source rather than importing it,
   which has a second virtue worth keeping: it compares the tables as literally
-  written, with nothing executed. `delv_graphics_ref.py` does need the library
-  running, and gets it from **`tools/delv_compat.py`**, installed from outside
-  so nothing in the checkout is ever modified. That file is the one thing
-  `utilities/` and `tools/` share; it arrived with the port, which had solved
-  the same problem independently, and the two copies were folded together
-  rather than left to drift. Import it and `import delv.archive` works.
-- **The submodule is `e-z-g/delvmod`, not upstream** — a fork that already
+  written, with nothing executed. gets it from **`utilities/delv_compat.py`**, installed from outside
+  so nothing in the checkout is ever modified. Import it and `import delv.archive`
+  works.
+- **The submodule is `ratlizard/delvmod`, not upstream** — a fork that already
   carries the `getargspec` fix internally, so only the parsley stub in
   `delv_compat.py` is doing real work here; the getargspec half is kept for
   an unpatched checkout reached through `$DELVMOD`. Fixes to delvmod belong in
@@ -670,38 +573,18 @@ Two things to know before extending it:
 ## Two implementations, one format
 
 `js/mac-resfork.js` and `js/mac-rsrc-types.js` decode resource forks, PICT and
-NFNT in JavaScript. `port/src/resfork.cpp`, `port/src/mac/pict.cpp` and
-`port/src/mac/font_mgr.cpp` decode the same three formats in C++. They were
-written separately, and the port's were validated in the least forgiving way
-available: the original binary runs against them and its own artwork either
-appears or does not.
-
-**This matters because the mac-* tier has no oracle otherwise.** delvmod covers
-Cythera's Delver formats and says nothing at all about classic-Mac ones, so
+NFNT in JavaScript, and **the mac-\* tier has no oracle**: delvmod covers
+Cythera's Delver formats and says nothing about classic-Mac ones, so
 `rsrc_snapshot.mjs` is all that guards them — and a snapshot proves a decoder
-*unchanged*, never *right*. The port is the second opinion that tier never had.
-
-Three differences are known and none is resolved. They are recorded here and in
-`port/POWERPC-NOTES.md` so that neither side rediscovers them. On the first,
-systemless has since cast the deciding vote — its `src/trap/pict.rs` renders
-`0x0090`/`0x0091` as the port does, so the JavaScript is the outlier and the
-fix has two references (see `SYSTEMLESS.md` § What each tree can lend the
-other):
-
-- **PICT `0x0090`/`0x0091`** (uncompressed BitsRect/BitsRgn) are rendered by
-  `port/src/mac/pict.cpp` and skipped by `js/mac-rsrc-types.js`, which walks
-  past them to stay aligned and draws only the first *packed* image opcode it
-  finds. A picture made of several `CopyBits` is complete in the port and
-  partial in the browser.
-- **PICT `0x8200`/`0x8201`** (QuickTime-compressed) are the reverse: handled in
-  JavaScript, thrown on by the port. None of the 21 pictures the port has
-  verified against uses one.
-- **NFNT metrics.** The port parses the offset/width table; the JavaScript
-  reads `owTLoc` into its result and never uses it, so the gallery shows glyph
-  images with no advance width or bearing. The two traps are written down in
-  `port/README.md` — the table has one fewer entry than the location table, and
-  `owTLoc` is a word offset from its own field carrying a bearing relative to
-  `kernMax`.
+*unchanged*, never *right*. The second opinion is the retired native port in
+the private repository, whose C++ decoders were validated the hard way, by the
+original binary running against them, and systemless, which renders the same
+formats in Rust. Three differences are known and recorded there rather than
+here; the one that is a bug on this side is **PICT `0x0090`/`0x0091`**
+(uncompressed BitsRect/BitsRgn), which `js/mac-rsrc-types.js` skips, so a
+picture made of several `CopyBits` is partial in the browser and complete
+everywhere else. Both the port and systemless render it, so the fix has two
+references and no guessing.
 
 **The HFS writer is the exception that proves the rule, and it is labelled as
 one.** `js/mac-hfs.js` was written *from* systemless's `src/disk_image/hfs.rs`
@@ -710,24 +593,18 @@ header record — which the licensing note below explicitly allows, HFS being
 infrastructure this tree lacked entirely. So it cannot cross-check systemless
 and `utilities/hfs_check.mjs` does not claim to: the round trip through that
 reader catches an offset written one field along, and the thing it cannot
-catch was settled by mounting the volumes in a real Mac OS. One piece of the
-format the reader could not settle at all, because it walks the catalog's leaf
-chain and never opens an index node: an index record's four-byte node pointer
-sits at `align_even(1 + keyLengthByte)`, exactly where a leaf record's data
-sits. That is worth carrying back to systemless if its reader ever grows a
-writer.
+catch was settled by mounting the volumes in a real Mac OS. `js/mac-vise.js`
+and `js/mac-stuffit.js` are the same case, ported from systemless and from
+Ben Letchford's stuffit-rs, and each says so in its header.
 
-Going the other way, `port/src/resfork.cpp` is the only resource fork *writer*
-in the repository, round-tripped through its own reader by
-`port/tests/resfork_test.cpp` — and the site's stated direction is reading "and
-eventually editing". The *Delver archive* now has a JavaScript writer too:
-`writeDelverArchive` in `js/delv-archive.js`, proven byte-identical to
-delvmod's `Archive.to_file` by `delv_write_check.mjs` — over synthetic
-archives and over the real one, all 1,558 resources. `explorer.html`'s Edit
-Bytes path is its first caller; see the per-page notes.
+The *Delver archive* has a JavaScript writer, `writeDelverArchive` in
+`js/delv-archive.js`, proven byte-identical to delvmod's `Archive.to_file` by
+`delv_write_check.mjs` — over synthetic archives and over the real one, all
+1,558 resources. `explorer.html`'s Edit Bytes path is its first caller; see the
+per-page notes.
 
-**If you change a decoder on one side, say in the commit message whether the
-other side has the same bug.** Neither suite will tell you.
+**If you change a decoder here, say in the commit message whether the other
+implementations have the same bug.** No suite will tell you.
 
 ## Things that look wrong and are not
 
@@ -877,7 +754,7 @@ Read the comment above a constant before correcting it.
 - **CORS decides which remote copy works, and it is why archive.org is
   first.** Its `/download/` path, old.mac.gdn and `www.bryce.pw` all serve
   the installer without an `Access-Control-Allow-Origin` header (checked
-  2 September 2026), and a browser on `e-z-g.github.io` or `file://`
+  2 September 2026), and a browser on `ratlizard.github.io` or `file://`
   discards such a response. archive.org's `/cors/` path serves the same
   bytes *with* the header, so that is the default. Bryce's URL is kept
   second, for the day his server sends the header and as the file to
@@ -1088,12 +965,9 @@ exists or is wanted, saying which of the two a new file is in its header.
 **Comments explain *why*, at length.** This codebase's distinguishing habit is
 long header comments recording the reasoning, the bug that motivated the design,
 and what was tried and rejected — see `js/mac-bytes.js`,
-`utilities/check_all.mjs`, `utilities/dom_stub.mjs`,
-`utilities/mobile_input_check.mjs`, and on the port's side `port/src/pef.cpp`
-and the format notes at the end of `port/README.md`. It is one habit across
-both trees, and the C++ holds to it as firmly as the JavaScript. When you make
-a non-obvious choice, write down why, in that voice. Do not strip these
-comments.
+`utilities/check_all.mjs`, `utilities/dom_stub.mjs` and
+`utilities/mobile_input_check.mjs`. When you make a non-obvious choice, write
+down why, in that voice. Do not strip these comments.
 
 **Commit messages are prose, not conventional-commits.** They read like a
 sentence describing the change from the user's side:
@@ -1104,13 +978,10 @@ sentence describing the change from the user's side:
 
 Match that register. No `feat:` / `fix:` prefixes, no scope tags.
 
-**Add tooling only where the tree already has some.** The site has no build
-step and does not want one: no `package.json`, no bundler, no formatter config,
-no transpile step, and `utilities/` runs on stock Node and Python with nothing
-installed. Write it by hand, as everything there does. The port is a CMake
-project and already depends on SDL2 — adding to it is ordinary work, and its
-one standing rule is that `smoke.sh` must stay at ten passes and zero compiler
-warnings.
+**Do not add tooling.** The site has no build step and does not want one: no
+`package.json`, no bundler, no formatter config, no transpile step, and
+`utilities/` runs on stock Node and Python with nothing installed. Write it by
+hand, as everything there does.
 
 **`reference/user_addons/` needs `unar` to open.** Twelve player-made addons —
 patches, a saved game, mods — every one a StuffIt archive (`.sit`, `.sitx`,
@@ -1122,15 +993,10 @@ about:
 - **`606_CheaterSavedGame`** unpacks to `I.M.Cheater`, the only complete
   Cythera player file in the repository: type `DelP`, a 332 KB Delver Archive
   in the data fork, and a resource fork with the `PICT` save preview. delvmod
-  reads it, and so does the port — it is what `port/POWERPC-NOTES.md` §1b is about,
-  and it takes the port deeper into the game than creating a character does.
-  `unar` preserves the resource fork, reachable at
+  reads it. `unar` preserves the resource fork, reachable at
   `<file>/..namedfork/rsrc`.
 - **The patches** are modded archives, which are the case `smartDecrypt`'s
   heuristic fallback exists for and which nothing currently exercises.
-
-**`deprecated/`** holds retired work (`documentation_to_pdf/`, a graphics tone
-experiment). Read it for context; do not extend it.
 
 ## Gotchas
 
@@ -1139,7 +1005,7 @@ experiment). Read it for context; do not extend it.
   check `js/` first — a Delver format is more likely to be there now.
 - **`explorer.html` fetches one thing from outside the repository: the
   installer.** It used to pull its default archive, font and dialogue
-  background from `raw.githubusercontent.com/e-z-g/cythera/main/res/...`; the
+  background from the old repository on `raw.githubusercontent.com`; the
   game left the repository, so those URLs would 404 and they are gone. The
   default is now archive.org's copy of the installer through its `/cors/`
   path, with Bryce Schroeder's `Cythera.bin` after it (blocked by CORS until
@@ -1154,20 +1020,6 @@ experiment). Read it for context; do not extend it.
   not reach git on a case-insensitive filesystem — this file stayed
   `Cythera Data.Hqx` in git for a while after someone had renamed it.
 - `repomix_output.md`, `.DS_Store`, `sources/`, `__pycache__/` and
-  `infinite-mac` are gitignored. So is `build/` — which catches `port/build/`,
-  where the port's objects, its extracted forks and its run logs all live. That
-  directory reaches tens of gigabytes if instruction traces are left in it
-  (`--trace` writes gigabytes a minute); it is entirely regenerable, so delete
-  it freely. A CMake cache also pins the absolute path it was configured at, so
-  a build tree copied from elsewhere must have `CMakeCache.txt` and
-  `CMakeFiles/` removed before it will configure.
-- **`cythera_symbols.txt` lives in `reference/`**, gitignored with the game.
-  `run.sh`, `smoke.sh` and `drive.sh` look for it there (and at the repository
-  root) and pass `--symbols` only when it is present; `tools/opcensus.py` and
-  `tools/pefdisasm.py` require it outright. It was produced once by walking
-  the binary's traceback tables; `PefImage::symbolizeFromTracebacks` in
-  `port/src/pef.cpp` is that walk, but records every symbol at `codeBase_`
-  rather than the function's own address, so it will not regenerate the file
-  as-is.
+  `infinite-mac` are gitignored.
 - Empty `catch` blocks are common and mostly deliberate — "this optional decode
   failed, fall back" — but none of them say so on screen. 52 in explorer.html.

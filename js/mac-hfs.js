@@ -123,7 +123,7 @@
    before the name is used, and the ordering below is then exactly right rather
    than approximately right. Everything this exports is named in ASCII anyway.
 
-   Part of https://github.com/e-z-g/cythera -- GPL-3.0-or-later.
+   Part of https://github.com/ratlizard/grimoire -- GPL-3.0-or-later.
    Depends on js/mac-bytes.js (encodeMacRoman).
 */
 

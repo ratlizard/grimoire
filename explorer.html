@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cythera Graphics Browser (v87)</title>
+<title>Grimoire — Cythera’s data</title>
 <style>
   body { background:#1a1a1a; color:#eee; font-family: system-ui, sans-serif; padding:16px; font-size:16px; line-height:1.5; }
   input[type=file] { margin-bottom:12px; }
@@ -9329,7 +9329,7 @@ function renderToolsSheet() {
   for (const [href, label, note] of [
     ['mobile.html', 'Cythera Mobile (experimental)', 'the game in an emulator, on a phone; an edit made here can be sent to it'],
     ['canvas.html', 'Colour-cycling canvas', 'a paint studio for the palette animation Cythera uses for water and fire'],
-    ['https://github.com/e-z-g/cythera', 'The repository', 'where this page and its checks live']]) {
+    ['https://github.com/ratlizard/grimoire', 'The repository', 'where this page and its checks live']]) {
     const a = document.createElement('a');
     a.href = href; a.target = '_blank'; a.rel = 'noopener';
     a.className = 'sv-chip';
@@ -10568,7 +10568,7 @@ function missingForkWarning(rsrc) {
 function buildInstallScript(archiveName, note) {
   return [
     '-- ' + DISK_SCRIPT_NAME,
-    '-- Written by the Cythera explorer, https://e-z-g.github.io/cythera/',
+    '-- Written by Grimoire, https://ratlizard.github.io/grimoire/',
     '--',
     '-- Finds the folder holding the Cythera application on any mounted disk,',
     '-- replaces the "' + archiveName + '" in it with the edited one on this',

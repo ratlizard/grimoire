@@ -749,15 +749,15 @@ function swStub() {
       return answered;
     };
     const untouched = [
-      ['https://e-z-g.github.io/cythera/explorer.html', 'navigate'],
-      ['https://e-z-g.github.io/cythera/canvas.html', 'navigate'],
-      ['https://e-z-g.github.io/cythera/js/mac-hfs.js', 'no-cors'],
+      ['https://ratlizard.github.io/grimoire/explorer.html', 'navigate'],
+      ['https://ratlizard.github.io/grimoire/canvas.html', 'navigate'],
+      ['https://ratlizard.github.io/grimoire/js/mac-hfs.js', 'no-cors'],
       ['https://infinitemac.org/embed?disk=Mac%20OS%207.6', 'navigate'],
     ];
     const meddled = untouched.filter(([u, m]) => fetchOf(u, m) !== null).map(([u]) => u);
     check(meddled.length === 0, 'it leaves every other request alone', meddled.join(', ') || '4 checked');
 
-    const answered = fetchOf('https://e-z-g.github.io/cythera/mobile.html', 'navigate');
+    const answered = fetchOf('https://ratlizard.github.io/grimoire/mobile.html', 'navigate');
     check(answered !== null, 'it answers the navigation to mobile.html');
     if (answered) {
       const res = await answered;
@@ -766,7 +766,7 @@ function swStub() {
       check(coop === 'same-origin' && coep === 'require-corp',
             'with the two headers cross-origin isolation needs',
             `COOP ${coop}, COEP ${coep}`);
-      check(res.body === 'BODY:https://e-z-g.github.io/cythera/mobile.html',
+      check(res.body === 'BODY:https://ratlizard.github.io/grimoire/mobile.html',
             'and the page itself, unchanged');
     }
   }
