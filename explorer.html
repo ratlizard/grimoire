@@ -4032,6 +4032,8 @@ function resetDerivedCaches() {
   window.ROOF_MANUAL = false;
   zoneMapCache.clear();
   worldThumbs.clear();
+  window.WORLD_PRELOAD = false;
+  window.WORLD_PRELOAD_DONE = 0;
   window.PROP_BLOCK = null;
   window.LIVING_PROPTYPES = null;
   window.SCHEDULES = null;
@@ -7558,6 +7560,7 @@ function applyMapTransform() {
        what stays on the settle is the painting, which is not. */
     checkWorldCrossing();
     updateRoofFade();
+    slideWorldOverlay();
     scheduleWorldScene();
   }
   // Thin 1px detail -- the wavy streaks in the Expanse void tiles are only
@@ -8438,18 +8441,29 @@ function zoneMapCanvas(resid) {
    from a smudge on the coast to its own streets, and the crossing stops being
    a substitution of one picture for another.
 
-   Roofed, because a town seen from above is roofs. That is also what makes it
-   read as a plan rather than as a floor plan with the lids off, and it is the
-   same layer that fades away again on the way in (see updateRoofFade).
-
-   The thumbnail is small -- THUMB_MAX on its longest side -- and the full
-   render it is made from is thrown away immediately. All 24 destinations at
-   full size measure 275 MB, which is why they are not all kept; all 24 as
-   thumbnails is about 6 MB, which is why these are.
+   Two sizes of each, and both roofed and bare, which is what makes the
+   approach continuous rather than one blurry step. A town is drawn from the
+   smallest level that is at least as big as it is on screen, so it sharpens
+   as the view comes in instead of being one 192-pixel picture magnified
+   towards a cross-fade; and the roofs lift on the way in (ROOF_LIFT) by
+   cross-fading the bare level over the roofed one, so by the time the view
+   crosses, the roofs are already coming off and updateRoofFade carries on
+   from where this left it. A town seen from far off is roofs; a town you are
+   walking into is not.
 
    Only open-edged destinations get one. A cave's inside is not what is at
-   that spot on the world map, and painting it there would say it was. */
-const THUMB_MAX = 192;
+   that spot on the world map, and painting it there would say it was.
+
+   Level 1 is built for every town on idle; level 2 only for the one the view
+   is beside, because it is nine times the pixels. Both come from a single
+   render, which is then thrown away: the bare variants are taken off the
+   clean canvas, the roofs are painted on, and the roofed variants are taken
+   off the same canvas afterwards. All 24 destinations at FULL size measures
+   275 MB, which is why they are not all kept unless the reader asks for it
+   (see toggleWorldPreload); all of them as thumbnails is a few megabytes,
+   which is why these are.
+--------------------------------------------------------------------------- */
+const THUMB_LEVELS = [192, 448];
 
 /* How much bigger than its own footprint a town is drawn, and the least it is
    ever drawn at. The multiplier is so the miniature's solid middle covers the
@@ -8459,45 +8473,66 @@ const THUMB_MAX = 192;
 const THUMB_SPREAD = 1.7;
 const THUMB_MIN_SQUARES = 4;
 
-/* A town, scaled into a thumbnail, feathered at the edges.
+/* Screen pixels per world square over which the roofs come off a town while
+   the view is still outside it. It ends short of WORLD_ENTER_AT so that the
+   crossing lands on a town whose roofs are already going, rather than on a
+   change of subject. */
+const ROOF_LIFT = [30, 52];
+
+function thumbKey(resid, size, roofed) { return resid + ':' + size + ':' + (roofed ? 'r' : 'b'); }
+
+/* Build every variant of one town from a single render.
 
    The feather is two destination-in passes, a horizontal ramp and then a
    vertical one, so the alphas multiply into a rectangular vignette. A hard
    edge would put a framed picture on the world map; the ramp lets the town's
    own outskirts run into the country the world map draws around it, which at
-   Cademia is the same red rock on both sides. */
-function worldThumb(gw) {
-  if (!gw || gw.sealed) return null;
-  if (worldThumbs.has(gw.destResid)) return worldThumbs.get(gw.destResid);
-  let thumb = null;
+   Cademia is the same red rock on both sides.
+
+   Never through mapRenderFor: the roofs below are painted onto this canvas,
+   and a cached entry is the one the panel puts on screen. */
+function buildThumbsFor(gw, sizes) {
+  if (!gw || gw.sealed) return;
+  const need = sizes.filter(sz => !worldThumbs.has(thumbKey(gw.destResid, sz, true)));
+  if (!need.length) return;
   try {
-    // Never through the cache: the roofs below are painted onto this canvas.
     const e = renderMapUncached(gw.destResid);
-    if (e && e.result) {
-      const src = e.result.canvas;
-      const rc = e.result.canvas.getContext('2d');
-      if (rc) paintRoofsInto(rc, e.result.tileSize, e.result.m, mapRoofSections(gw.destResid));
-      const k = THUMB_MAX / Math.max(src.width, src.height);
+    if (!e || !e.result) return;
+    const src = e.result.canvas;
+    const shrink = (sz) => {
+      const k = sz / Math.max(src.width, src.height);
       const w = Math.max(1, Math.round(src.width * k)), h = Math.max(1, Math.round(src.height * k));
-      thumb = document.createElement('canvas');
-      thumb.width = w; thumb.height = h;
-      const tc = thumb.getContext('2d');
-      if (tc) {
-        tc.imageSmoothingEnabled = true;
-        tc.drawImage(src, 0, 0, w, h);
-        tc.globalCompositeOperation = 'destination-in';
-        const ramp = (g0) => { g0.addColorStop(0, 'rgba(0,0,0,0)'); g0.addColorStop(0.22, 'rgba(0,0,0,1)');
-                               g0.addColorStop(0.78, 'rgba(0,0,0,1)'); g0.addColorStop(1, 'rgba(0,0,0,0)'); return g0; };
-        tc.fillStyle = ramp(tc.createLinearGradient(0, 0, w, 0));
-        tc.fillRect(0, 0, w, h);
-        tc.fillStyle = ramp(tc.createLinearGradient(0, 0, 0, h));
-        tc.fillRect(0, 0, w, h);
-        tc.globalCompositeOperation = 'source-over';
-      } else thumb = null;
-    }
-  } catch (e) {}
-  worldThumbs.set(gw.destResid, thumb);
-  return thumb;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const tc = c.getContext('2d');
+      if (!tc) return null;
+      tc.imageSmoothingEnabled = true;
+      tc.drawImage(src, 0, 0, w, h);
+      tc.globalCompositeOperation = 'destination-in';
+      const ramp = (g0) => { g0.addColorStop(0, 'rgba(0,0,0,0)'); g0.addColorStop(0.22, 'rgba(0,0,0,1)');
+                             g0.addColorStop(0.78, 'rgba(0,0,0,1)'); g0.addColorStop(1, 'rgba(0,0,0,0)'); return g0; };
+      tc.fillStyle = ramp(tc.createLinearGradient(0, 0, w, 0));
+      tc.fillRect(0, 0, w, h);
+      tc.fillStyle = ramp(tc.createLinearGradient(0, 0, 0, h));
+      tc.fillRect(0, 0, w, h);
+      tc.globalCompositeOperation = 'source-over';
+      return c;
+    };
+    // Bare first, off the clean canvas; then the roofs go on and the same
+    // sizes are taken again. One render, every variant.
+    for (const sz of need) worldThumbs.set(thumbKey(gw.destResid, sz, false), shrink(sz));
+    const rc = src.getContext('2d');
+    if (rc) paintRoofsInto(rc, e.result.tileSize, e.result.m, mapRoofSections(gw.destResid));
+    for (const sz of need) worldThumbs.set(thumbKey(gw.destResid, sz, true), shrink(sz));
+  } catch (err) {}
+}
+
+// Kept for the checks and for anything that wants one picture of a town.
+function worldThumb(gw, size, roofed) {
+  const sz = size || THUMB_LEVELS[0];
+  const key = thumbKey(gw && gw.destResid, sz, roofed !== false);
+  if (!worldThumbs.has(key)) buildThumbsFor(gw, [sz]);
+  return worldThumbs.get(key) || null;
 }
 
 /* Where a town's miniature sits, in screen pixels: centred on its own
@@ -8515,28 +8550,147 @@ function thumbRect(gw, thumb, cm) {
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 
+/* Draw a town into a rectangle, from the best level it has.
+
+   The smallest level at least as wide as the rectangle, so a town sharpens as
+   the view comes in rather than being magnified; the biggest it has when it
+   has nothing big enough yet. `roofT` is how much roof is left: the bare
+   level goes down first and the roofed one over it at that strength, which is
+   an ordinary cross-fade because the roofed picture is the bare one with
+   roofs added. */
+function drawTown(ctx, gw, rect, alpha, roofT) {
+  let lvl = null;
+  for (const sz of THUMB_LEVELS) {
+    if (!worldThumbs.get(thumbKey(gw.destResid, sz, true))) continue;
+    lvl = sz;
+    if (sz >= rect.w) break;
+  }
+  if (lvl === null) return false;
+  const roofed = worldThumbs.get(thumbKey(gw.destResid, lvl, true));
+  const bare = worldThumbs.get(thumbKey(gw.destResid, lvl, false));
+  ctx.imageSmoothingEnabled = true;
+  if (bare && roofT < 0.98) {
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(bare, rect.x, rect.y, rect.w, rect.h);
+    if (roofT > 0.02) {
+      ctx.globalAlpha = alpha * roofT;
+      ctx.drawImage(roofed, rect.x, rect.y, rect.w, rect.h);
+    }
+  } else {
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(roofed, rect.x, rect.y, rect.w, rect.h);
+  }
+  ctx.globalAlpha = 1;
+  return true;
+}
+
 /* Build the miniatures a few at a time, while nothing else is happening.
 
-   One per idle slice: each one is a whole map rendered and thrown away, and a
-   loop over 24 of them would be a visible stall on the first zoom. They
+   One town per idle slice: each one is a whole map rendered and thrown away,
+   and a loop over 19 of them would be a visible stall on the first zoom. They
    arrive over a second or two of an ordinary visit, and the world map
    repaints as each lands. */
 let thumbQueue = null;
 function buildWorldThumbs() {
   if (thumbQueue) return;
-  const todo = worldGateways().filter(g => !g.sealed && !worldThumbs.has(g.destResid));
+  const todo = worldGateways().filter(g => !g.sealed &&
+    !worldThumbs.has(thumbKey(g.destResid, THUMB_LEVELS[0], true)));
   if (!todo.length) return;
   const step = () => {
     thumbQueue = null;
     const gw = todo.shift();
     if (!gw) return;
-    worldThumb(gw);
+    buildThumbsFor(gw, [THUMB_LEVELS[0]]);
     if (window.CUR_SUBN === 'WORLD') scheduleWorldScene(0);
     if (todo.length) buildWorldThumbs();
   };
   thumbQueue = 1;
   if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(step, { timeout: 2000 });
   else setTimeout(step, 120);
+}
+
+/* The bigger level, for the one town the view is beside. Nine times the
+   pixels of the first, so it is not built for the other eighteen. */
+let levelQueue = null;
+function buildNearThumbs(gw) {
+  if (levelQueue || !gw || gw.sealed) return;
+  if (worldThumbs.has(thumbKey(gw.destResid, THUMB_LEVELS[1], true))) return;
+  const step = () => {
+    levelQueue = null;
+    buildThumbsFor(gw, [THUMB_LEVELS[1]]);
+    if (window.CUR_SUBN === 'WORLD') scheduleWorldScene(0);
+  };
+  levelQueue = 1;
+  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(step, { timeout: 2000 });
+  else setTimeout(step, 200);
+}
+
+/* ---------------------------------------------------------------------------
+   Loading the whole world at once
+   ---------------------------------------------------------------------------
+   Everything above is careful with memory because the numbers are large: the
+   24 distinct destinations, rendered whole, measure 275 MB. So by default a
+   town is rendered as the view arrives beside it, the cache keeps a few, and
+   the miniatures stand in for the rest.
+
+   A reader who would rather spend the memory can say so, and then nothing is
+   rendered during a movement ever again: every destination is drawn once, in
+   the background, and kept -- the cache stops evicting, and both thumbnail
+   levels are built for every town, so the zoom is sharp the whole way in and
+   the crossing is instant. The cost is stated on the button rather than
+   discovered, and it is reversible: Free drops back to the ordinary cache.
+--------------------------------------------------------------------------- */
+window.WORLD_PRELOAD = false;
+window.WORLD_PRELOAD_DONE = 0;
+let preloadQueue = null;
+
+function worldPreloadTotal() {
+  const seen = new Set();
+  for (const g of worldGateways()) seen.add(g.destResid);
+  return seen.size;
+}
+
+function toggleWorldPreload() {
+  if (window.WORLD_PRELOAD) {
+    window.WORLD_PRELOAD = false;
+    preloadQueue = null;
+    // Back to the ordinary cache: keep the world map, which is pinned, and
+    // whatever the LRU would have kept anyway.
+    for (const k of Array.from(zoneMapCache.keys()))
+      if (k !== WORLD_MAP_RESID && zoneMapCache.size >= ZONE_CACHE_KEEP) zoneMapCache.delete(k);
+    for (const k of Array.from(worldThumbs.keys()))
+      if (k.endsWith(':' + THUMB_LEVELS[1] + ':r') || k.endsWith(':' + THUMB_LEVELS[1] + ':b'))
+        worldThumbs.delete(k);
+    window.WORLD_PRELOAD_DONE = 0;
+  } else {
+    window.WORLD_PRELOAD = true;
+    window.WORLD_PRELOAD_DONE = 0;
+    startWorldPreload();
+  }
+  renderWorldBar();
+}
+
+function startWorldPreload() {
+  if (preloadQueue) return;
+  const todo = worldGateways().slice();
+  const seen = new Set();
+  const step = () => {
+    preloadQueue = null;
+    if (!window.WORLD_PRELOAD) return;
+    let gw = todo.shift();
+    while (gw && seen.has(gw.destResid)) gw = todo.shift();
+    if (!gw) { renderWorldBar(); return; }
+    seen.add(gw.destResid);
+    buildThumbsFor(gw, THUMB_LEVELS);        // both levels, both roofed and bare
+    mapRenderFor(gw.destResid, true);        // and the whole thing, kept
+    window.WORLD_PRELOAD_DONE = seen.size;
+    renderWorldBar();
+    if (window.CUR_SUBN === 'WORLD') scheduleWorldScene(0);
+    startWorldPreload();
+  };
+  preloadQueue = 1;
+  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(step, { timeout: 3000 });
+  else setTimeout(step, 60);
 }
 
 /* Render the place the reader is about to walk into, before they walk into
@@ -8575,6 +8729,7 @@ function ensureWorldOverlay() {
     // viewport, and an inline declaration outranks a bare selector.
     el.style.cssText = 'position:absolute; top:0; left:0; pointer-events:none; z-index:6; ' +
                        'display:none; max-width:none; max-height:none; opacity:0; ' +
+                       'transform-origin:0 0; ' +
                        'transition:opacity ' + WORLD_FADE_MS + 'ms ease;';
     vp.appendChild(el);
   }
@@ -8585,7 +8740,11 @@ function hideWorldGate() {
   if (worldGateTimer) { clearTimeout(worldGateTimer); worldGateTimer = null; }
   window.WORLD_GATE = null;
   const el = document.getElementById('worldOverlay');
-  if (el && !window.WORLD_FADE) { el.style.display = 'none'; el.style.opacity = '0'; el.width = 0; el.height = 0; }
+  if (el && !window.WORLD_FADE) {
+    el.style.display = 'none'; el.style.opacity = '0'; el.style.transform = '';
+    el.width = 0; el.height = 0;
+    gateView = { x: 0, y: 0, scale: 0 };
+  }
 }
 
 // Painted off the same settle the detail lens uses, for the same reason: a
@@ -8808,36 +8967,44 @@ function paintWorldGate() {
   }
   shown.sort((a, b) => b.area - a.area || a.gw.port - b.gw.port);
 
+  // How much roof is left on a town at this distance. It reaches nothing
+  // before the crossing does, so the view arrives on a town already opening
+  // rather than on a different picture; updateRoofFade carries on inside.
+  const roofT = Math.max(0, Math.min(1, (ROOF_LIFT[1] - k) / (ROOF_LIFT[1] - ROOF_LIFT[0])));
   if (thumbAlpha > 0.01) {
     for (const it of shown) {
-      const th = worldThumbs.get(it.gw.destResid);
-      if (!th) continue;
-      const r = thumbRect(it.gw, th, cm);
-      ctx.globalAlpha = thumbAlpha;
-      ctx.imageSmoothingEnabled = r.w < th.width;
-      ctx.drawImage(th, r.x, r.y, r.w, r.h);
-      ctx.globalAlpha = 1;
+      const any = worldThumbs.get(thumbKey(it.gw.destResid, THUMB_LEVELS[0], true));
+      if (!any) continue;
+      drawTown(ctx, it.gw, thumbRect(it.gw, any, cm), thumbAlpha, roofT);
     }
   }
 
-  /* The names. A place you cannot find is a place you cannot go to, and 26
-     of them are scattered over 65,536 squares. Kept at one screen size
-     whatever the zoom, and dropped rather than overlapped: at the widest view
-     that leaves the handful there is room for, and every one of them is in
-     the gazetteer besides. */
-  ctx.font = '600 12px Archivo, system-ui, sans-serif';
+  /* The names, in the game's own letters and small.
+
+     A place you cannot find is a place you cannot go to, and 26 of them are
+     scattered over 65,536 squares. They hang off the miniature rather than
+     off the viewport: the drop below the footprint is in world squares, so a
+     name belongs to its town the way a caption belongs to a picture, and
+     slideWorldOverlay carries the whole overlay with the map between repaints
+     so nothing drifts against the ground under a pan.
+
+     Dropped rather than overlapped, biggest footprint first, so a collision
+     loses the smaller place and the choice does not flicker as the view
+     moves. At the widest view that leaves the handful there is room for, and
+     every one of them is in the gazetteer besides. */
+  ctx.font = '13px Argos, Georgia, serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const placed = [];
   for (const it of shown) {
-    const tw = ctx.measureText(it.gw.name).width + 12;
-    const cx = it.x + it.w / 2;
-    const ty = it.y + it.h + 14;
-    const box = { x0: cx - tw / 2, y0: ty - 12, x1: cx + tw / 2, y1: ty + 4 };
+    const tw = Math.round(ctx.measureText(it.gw.name).width) + 10;
+    const cx = Math.round(it.x + it.w / 2);
+    const ty = Math.round(it.y + it.h + Math.max(k * 0.5, 10));
+    const box = { x0: cx - tw / 2, y0: ty - 11, x1: cx + tw / 2, y1: ty + 4 };
     if (placed.some(q => box.x0 < q.x1 && box.x1 > q.x0 && box.y0 < q.y1 && box.y1 > q.y0)) continue;
     placed.push(box);
-    ctx.fillStyle = 'rgba(8,7,5,.78)';
-    ctx.fillRect(box.x0, box.y0, tw, 16);
+    ctx.fillStyle = 'rgba(8,7,5,.7)';
+    ctx.fillRect(box.x0, box.y0, tw, 15);
     ctx.fillStyle = it.gw.sealed ? '#c9bb92' : '#e8dfc0';
     ctx.fillText(it.gw.name, cx, ty);
   }
@@ -8857,25 +9024,47 @@ function paintWorldGate() {
     // header rather than from a list of names.
     const hint = gw.sealed ? 'click to enter' : focus.near >= 1 ? '' : 'keep zooming to enter';
     if (hint) {
-      const label = gw.name + ' — ' + hint;
-      const tw = ctx.measureText(label).width + 14;
-      const ty = Math.max(13, r.y - pad - 7);
-      ctx.fillStyle = 'rgba(8,7,5,.85)';
-      ctx.fillRect(r.x + r.w / 2 - tw / 2, ty - 12, tw, 16);
-      ctx.fillStyle = '#e8dfc0';
-      ctx.fillText(label, r.x + r.w / 2, ty);
+      const tw = Math.round(ctx.measureText(hint).width) + 12;
+      const ty = Math.round(Math.max(12, r.y - pad - 6));
+      ctx.fillStyle = 'rgba(8,7,5,.8)';
+      ctx.fillRect(Math.round(r.x + r.w / 2) - tw / 2, ty - 11, tw, 15);
+      ctx.fillStyle = '#c9bb92';
+      ctx.fillText(hint, Math.round(r.x + r.w / 2), ty);
     }
-    // The reader is beside it and looking at its name; render it now, while
-    // nothing else is happening, so that crossing over is a fade and not a wait.
+    // The reader is beside it and looking at its name; render it and its
+    // bigger miniature now, while nothing else is happening, so that coming
+    // closer is sharper and crossing over is a fade rather than a wait.
     prefetchZone(gw.destResid);
+    buildNearThumbs(gw);
     window.WORLD_GATE = { gw, rect: r };
   } else window.WORLD_GATE = null;
 
   el.style.display = '';
   el.style.opacity = '1';
+  // Painted for this view, and slid to follow the map until the next repaint.
+  el.style.transform = '';
+  gateView = { x: mapView.x, y: mapView.y, scale: mapView.scale };
   // The miniatures arrive over the first second or two of a visit and this
   // repaints as each one lands.
   buildWorldThumbs();
+}
+
+/* Keep what is painted registered with the map while the view moves.
+
+   The overlay is repainted on the settle, but the map itself moves
+   continuously under a CSS transform -- so between the two the miniatures and
+   the names sat still in screen space while the ground slid out from under
+   them, then snapped back. That is the drift, and it is the same problem the
+   detail lens has: the pixels were painted for gateView and belong under
+   mapView, which is an ordinary similarity, and a similarity is exactly what
+   a CSS transform is. A pan is a pure translate, so a pan is now exact. */
+let gateView = { x: 0, y: 0, scale: 0 };
+function slideWorldOverlay() {
+  const el = document.getElementById('worldOverlay');
+  if (!el || el.style.display === 'none' || !gateView.scale || window.WORLD_FADE) return;
+  const r = mapView.scale / gateView.scale;
+  el.style.transform = 'translate(' + (mapView.x - r * gateView.x) + 'px,' +
+                       (mapView.y - r * gateView.y) + 'px) scale(' + r + ')';
 }
 
 
@@ -9019,6 +9208,8 @@ function crossfadeToZone(resid, arriveX, arriveY) {
   ctx.drawImage(dest, v.x, v.y, dest.width * v.scale, dest.height * v.scale);
   el.style.display = '';
   el.style.opacity = '0';
+  el.style.transform = '';          // the fade paints the viewport, not the map
+  gateView = { x: 0, y: 0, scale: 0 };
   window.WORLD_FADE = { resid, x: arriveX, y: arriveY,
                         timer: setTimeout(finishWorldFade, WORLD_FADE_MS + 20) };
   // Two frames, not one: display has to have taken effect before opacity
@@ -9174,10 +9365,17 @@ function renderWorldBar() {
   bar.style.display = '';
   if (here === WORLD_MAP_RESID) {
     const n = worldGateways().length;
+    const total = worldPreloadTotal();
+    const done = window.WORLD_PRELOAD_DONE || 0;
+    // The cost is on the button rather than discovered afterwards.
+    const load = !window.WORLD_PRELOAD
+      ? '⤓ Load every place — ' + total + ' maps, about 275 MB'
+      : (done < total ? '… loading ' + done + ' of ' + total : '✓ Every place loaded — free it');
     bar.innerHTML = '<span class="wbWhere">The world of Cythera</span>' +
       '<span class="wbNote">256×256 squares, ' + n + ' ways off it. Zoom in on a town, a farm ' +
       'or a ruin and the view crosses into it, keeping the country around it; the caves and ' +
-      'Land King Hall are sealed and open on a click. Any square says what is on it.</span>';
+      'Land King Hall are sealed and open on a click. Any square says what is on it.</span>' +
+      '<button class="crumbBtn" onclick="toggleWorldPreload()">' + load + '</button>';
     return;
   }
   const a = window.WORLD_ARRIVE;

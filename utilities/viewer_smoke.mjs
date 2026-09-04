@@ -955,13 +955,18 @@ try {
   if (cad) {
     ctx.showCategory('WORLD');
     peek('buildWorldThumbs')();
-    const th = peek('worldThumb')(cad);
+    const LEVELS = peek('THUMB_LEVELS');
+    const th = peek('worldThumb')(cad, LEVELS[0], true);
     if (!th || !th.width) fail('world tab', 'no miniature was built for Cademia');
-    else if (Math.max(th.width, th.height) !== peek('THUMB_MAX'))
-      fail('world tab', `Cademia's miniature is ${th.width}x${th.height}, not THUMB_MAX on its long side`);
+    else if (Math.max(th.width, th.height) !== LEVELS[0])
+      fail('world tab', `Cademia's miniature is ${th.width}x${th.height}, not ${LEVELS[0]} on its long side`);
+    else if (!peek('worldThumb')(cad, LEVELS[0], false))
+      // Both roofed and bare, off one render, so the roofs can be lifted by
+      // cross-fading one over the other on the way in.
+      fail('world tab', 'no bare variant — the roofs cannot lift on approach');
     else {
       const lkh = gws.find(g => g.name === 'Land King Hall');
-      if (peek('worldThumb')(lkh))
+      if (peek('worldThumb')(lkh, LEVELS[0], true))
         fail('world tab', 'a sealed destination was drawn onto the world map');
       else if (!(() => {
         /* A miniature paints roofs onto the canvas it shrinks, so it must
@@ -970,12 +975,14 @@ try {
            towns whose miniature happened to have been built. Observable as a
            render: rebuilding a thumbnail for an already-cached map has to
            cost one, not reuse what is being displayed. */
-        peek('worldThumbs').delete(cad.destResid);
+        for (const sz of LEVELS) for (const r2 of [true, false])
+          peek('worldThumbs').delete(peek('thumbKey')(cad.destResid, sz, r2));
         peek('mapRenderFor')(cad.destResid, true);        // certainly cached now
         const real = ctx.renderMapVisual;
         let n = 0;
         ctx.renderMapVisual = function () { n++; return real.apply(null, arguments); };
-        try { peek('worldThumb')(cad); } finally { ctx.renderMapVisual = real; }
+        try { peek('buildThumbsFor')(cad, LEVELS); } finally { ctx.renderMapVisual = real; }
+        // One render for every variant at every level, and not the cached one.
         return n === 1;
       })())
         fail('world tab', 'a miniature reused the cached render -- it would roof the panel');
@@ -992,6 +999,78 @@ try {
                          ' towns drawn as themselves on the world map, ' +
                          Math.round(r.w) + 'px over a ' + Math.round(foot) + 'px icon');
       }
+    }
+  }
+
+  /* The levels, and the slide.
+
+     Two things the reader sees rather than any single assertion: a town has
+     to sharpen as the view comes in, instead of one 192-pixel picture being
+     magnified all the way to the crossing; and nothing painted over the map
+     may drift against it while the map is being panned, which is what
+     happened while the overlay was repainted only on the settle. */
+  if (cad) {
+    ctx.showCategory('WORLD');
+    const LV = peek('THUMB_LEVELS');
+    peek('buildThumbsFor')(cad, LV);
+    const cmL = peek('CUR_MAP');
+    const pick = (ppt) => {
+      centreOn(cad, ppt);
+      const any = peek('worldThumbs').get(peek('thumbKey')(cad.destResid, LV[0], true));
+      const r = peek('thumbRect')(cad, any, cmL);
+      let chosen = null;
+      const spy = { globalAlpha: 1, imageSmoothingEnabled: false,
+                    drawImage(img) { if (!chosen) chosen = img.width; } };
+      peek('drawTown')(spy, cad, r, 1, 0);
+      return { level: chosen, rect: r };
+    };
+    const near = pick(14), far = pick(45);
+    if (!near.level || !far.level) fail('world tab', 'no level was chosen for Cademia');
+    else if (!(far.rect.w > near.rect.w)) fail('world tab', 'the miniature did not grow with the zoom');
+    else if (!(far.level > near.level))
+      fail('world tab', `the same ${near.level}px level served a ${Math.round(near.rect.w)}px and a ` +
+                        `${Math.round(far.rect.w)}px town — it can only be magnified, not sharpened`);
+    else console.log('  world tab: the miniature sharpens, ' + near.level + 'px at ' +
+                     Math.round(near.rect.w) + ' then ' + far.level + 'px at ' + Math.round(far.rect.w));
+
+    // The slide. Painted for one view, then the map is panned: what is on the
+    // overlay must be carried the same distance, or it sits still in screen
+    // space while the ground moves out from under it.
+    centreOn(cad, 30);
+    peek('paintWorldScene')();
+    const ov = REGISTRY.get('worldOverlay');
+    if (!ov || ov.style.transform) fail('world tab', 'a fresh paint left a stale slide on the overlay');
+    else {
+      mv.x -= 60; mv.y -= 25;
+      ctx.applyMapTransform();
+      const t = ov.style.transform || '';
+      if (!/translate\(-60px,\s*-25px\)/.test(t) || /scale\((?!1\))/.test(t))
+        fail('world tab', `a 60x25 pan should slide the overlay by exactly that, got "${t}"`);
+      else console.log('  world tab: the overlay is carried with the map between repaints');
+    }
+  }
+
+  /* Loading the whole world is opt-in, reversible, and stops the cache
+     evicting while it is on -- there is no point rendering everything if the
+     next crossing throws it away again. */
+  {
+    ctx.showCategory('WORLD');
+    const total = peek('worldPreloadTotal')();
+    if (total < 20) fail('world tab', `preload would cover only ${total} maps`);
+    ctx.toggleWorldPreload();
+    if (!ctx.WORLD_PRELOAD) fail('world tab', 'the preload did not turn on');
+    else {
+      peek('startWorldPreload')();
+      const kept = peek('zoneMapCache').size;
+      ctx.toggleWorldPreload();
+      if (ctx.WORLD_PRELOAD) fail('world tab', 'the preload did not turn off');
+      else if (peek('zoneMapCache').size > peek('ZONE_CACHE_KEEP'))
+        fail('world tab', `freeing left ${peek('zoneMapCache').size} whole maps cached, ` +
+                          `over the ordinary ${peek('ZONE_CACHE_KEEP')}`);
+      else if (!peek('zoneMapCache').has(0x8001))
+        fail('world tab', 'freeing dropped the world map, which is pinned');
+      else console.log('  world tab: loading every place is opt-in over ' + total +
+                       ' maps and frees back to ' + peek('zoneMapCache').size);
     }
   }
 

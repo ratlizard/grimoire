@@ -363,9 +363,11 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   trip with the browser's back button not walking in again, the miniatures
   (built, sized to cover the pictogram, absent for sealed places, and rendered
   on their own canvas rather than the panel's), the roofs arriving on and
-  lifting on approach with the checkbox outranking both, and — by counting
-  `renderMapVisual` calls rather than timing anything — that a crossing costs
-  **one** map render and a return or a revisit none.
+  lifting on approach with the checkbox outranking both, the level ladder
+  sharpening rather than magnifying, a 60×25 pan sliding the overlay by
+  exactly that, the opt-in preload turning on and freeing back to the ordinary
+  cache, and — by counting `renderMapVisual` calls rather than timing anything
+  — that a crossing costs **one** map render and a return or a revisit none.
 - `loader_test.mjs` — the orchestration around the decoders: BinHex/MacBinary/
   AppleSingle unwrapping, archive validation, the refusal messages, deep-link
   parsing, and `loadDefaultArchive` driven to total failure. Every other harness
@@ -625,31 +627,57 @@ Read the comment above a constant before correcting it.
   detail lens at native 32px, the marks, the roofs, the inhabitants, the
   square inspector. The cross-fade is the transition, not a second and poorer
   map viewer, and nothing in it is reimplemented.
-  **The towns are drawn as themselves.** Above `THUMB_FADE` the pictogram is
-  replaced by the town scaled into the same few squares — `worldThumb`, a
-  `THUMB_MAX`-pixel render **with its roofs on**, feathered by two
-  `destination-in` gradient passes so its outskirts run into the country the
-  world map draws around it rather than sitting on it as a framed picture.
-  `THUMB_SPREAD`/`THUMB_MIN_SQUARES` size it: bigger than the footprint, or
-  the sprite's corners show through. Below `THUMB_FADE` the game's own
-  pictogram wins, because it was drawn to be read at that size and a town
-  scaled into four squares is a smudge. **Only open-edged destinations get
-  one** — a cave's inside is not what is at that spot, and painting it there
-  would say it was. They are built one per idle slice (`buildWorldThumbs`),
-  because each is a whole map rendered and thrown away; all 24 at full size is
-  275 MB, all 24 as thumbnails is about 6 MB.
-  **`worldThumb` must render its own copy** (`renderMapUncached`, never
-  `mapRenderFor`): it paints roofs straight onto the canvas it shrinks, and
-  handed a cached entry it would roof the copy the panel puts on screen —
-  permanently, and only for the towns whose miniature happened to have been
-  built. The smoke test pins that by counting renders.
-  **Every gateway is named on the map** (`paintWorldGate`), at one screen size
-  whatever the zoom, biggest footprint first so a collision drops the smaller
-  place and the choice stays stable as the view moves. A place you cannot find
-  is a place you cannot go to, and there are 26 of them over 65,536 squares.
-  **Roofs fade on approach** (`updateRoofFade`, `ROOF_FADE`). A town at a
-  distance is roofs — that is what its miniature shows, and arriving on
-  something different would be a change of subject rather than of scale. Close
+  **The towns are drawn as themselves, at `THUMB_LEVELS` sizes.** Above
+  `THUMB_FADE` the pictogram is replaced by the town scaled into the same few
+  squares, feathered by two `destination-in` gradient passes so its outskirts
+  run into the country the world map draws around it rather than sitting on it
+  as a framed picture. `THUMB_SPREAD`/`THUMB_MIN_SQUARES` size it: bigger than
+  the footprint, or the sprite's corners show through. Below `THUMB_FADE` the
+  game's own pictogram wins, because it was drawn to be read at that size and
+  a town scaled into four squares is a smudge. **Only open-edged destinations
+  get one** — a cave's inside is not what is at that spot.
+  Two levels, each **roofed and bare**, and `drawTown` takes the smallest at
+  least as wide as the rectangle — so a town *sharpens* as the view comes in
+  rather than one 192-pixel picture being magnified all the way to the
+  crossing, and the roofs **lift on approach** (`ROOF_LIFT`) by cross-fading
+  the bare level over the roofed one, ending short of `WORLD_ENTER_AT` so the
+  crossing lands on a town already opening and `updateRoofFade` carries on
+  from there. Level 1 is built for every town on idle (`buildWorldThumbs`),
+  level 2 only for the one the view is beside (`buildNearThumbs`) — it is nine
+  times the pixels. **All variants come off one render** (`buildThumbsFor`):
+  the bare ones are taken from the clean canvas, the roofs are painted on, and
+  the roofed ones are taken from the same canvas afterwards.
+  **It must be `renderMapUncached`, never `mapRenderFor`**: the roofs are
+  painted onto the canvas being shrunk, and handed a cached entry that would
+  roof the copy the panel puts on screen — permanently, and only for the towns
+  whose miniature happened to have been built. The smoke test pins it by
+  counting renders.
+  **Every gateway is named on the map** (`paintWorldGate`), small and in the
+  game's own Argos, hung off the miniature by a drop measured in *world
+  squares* rather than screen pixels, biggest footprint first so a collision
+  drops the smaller place and the choice does not flicker as the view moves. A
+  place you cannot find is a place you cannot go to, and there are 26 of them
+  over 65,536 squares.
+  **`slideWorldOverlay` is why nothing drifts.** The overlay is repainted on
+  the settle while the map moves continuously under a CSS transform, so
+  between the two the miniatures and the names sat still in screen space while
+  the ground slid out from under them and then snapped back. The pixels were
+  painted for `gateView` and belong under `mapView`, which is an ordinary
+  similarity — the same fix, and the same reasoning, as `slideLens`. A pan is
+  a pure translate, so a pan is now exact.
+  **Loading every place is opt-in** (`toggleWorldPreload`, the button in
+  `#worldBar`). Everything above is careful with memory because the numbers
+  are large — the 24 distinct destinations rendered whole measure **275 MB** —
+  so by default a town is rendered as the view arrives beside it and the
+  miniatures stand in for the rest. A reader who would rather spend the memory
+  says so and gets both thumbnail levels and every whole map, kept: the cache
+  stops evicting while it is on, nothing is rendered during a movement again,
+  and the cost is stated on the button rather than discovered. Reversible, and
+  freeing drops back to the ordinary LRU with the world map still pinned.
+  **Roofs go on fading inside** (`updateRoofFade`, `ROOF_FADE`), picking up
+  where `ROOF_LIFT` left off outside. A town at a distance is roofs — that is
+  what its miniature shows, and arriving on something different would be a
+  change of subject rather than of scale. Close
   up they are the thing in the way. The layer's opacity carries the middle,
   but the ends switch `MAP_ROOFS` outright: the detail lens draws roofs from
   that flag rather than from the element's opacity and would otherwise put
