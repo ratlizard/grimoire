@@ -2,7 +2,7 @@
 // Compares the viewer's Delver archive WRITER against delvmod's, byte for
 // byte.
 //
-//   node utilities/delv_write_check.mjs explorer.html delvmod \
+//   node utilities/delv_write_check.mjs index.html delvmod \
 //        ["$TMPDIR/Cythera Data.data"]
 //
 // writeDelverArchive in js/delv-archive.js is a port of delvmod's
@@ -29,7 +29,7 @@ import vm from 'node:vm';
 import {pageSource} from './page_scripts.mjs';
 import {makeSandbox} from './dom_stub.mjs';
 
-const [htmlPath = 'explorer.html', delvDir = 'delvmod', dataPath] = process.argv.slice(2);
+const [htmlPath = 'index.html', delvDir = 'delvmod', dataPath] = process.argv.slice(2);
 if (!existsSync(delvDir)) {
   console.error('missing: ' + delvDir);
   process.exit(2);

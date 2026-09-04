@@ -15,7 +15,7 @@ exists, read it yourself. A fresh clone has none, and that is expected.
 **Grimoire** is a GitHub Pages static site of tools for reading, and in a
 narrow way editing, the data of *Cythera* (Ambrosia Software, 1999) and of
 classic Mac OS files generally. Published at
-<https://ratlizard.github.io/grimoire/>. The whole of it is `explorer.html`,
+<https://ratlizard.github.io/grimoire/>. The whole of it is `index.html`,
 `canvas.html`, `js/` and `utilities/`.
 
 ### The repositories
@@ -36,8 +36,14 @@ written to:
 
 **The site has no build step.** No `package.json`, no lockfile, no
 `requirements.txt`, no `.github/workflows`. `.nojekyll` at the root disables
-Jekyll processing, so every file is served exactly as committed. There is no
-`index.html` either — each page is reached by its own filename.
+Jekyll processing, so every file is served exactly as committed.
+
+**The viewer is `index.html`**, so the site is reached at `/grimoire` rather
+than `/grimoire/explorer.html`. It was `explorer.html` until September 2026;
+that name is still a file, and is now a five-line redirect that carries the
+hash over — a saved link is usually a link to one resource (`#c=135&r=8801`)
+rather than to the page, and breaking those to tidy a URL would be a poor
+trade. Every other page is still reached by its own filename.
 
 **Pushing to `main` deploys the site.** Whatever lands in `main` is live within
 a minute or two. There is no staging environment and nothing catches a broken
@@ -106,7 +112,7 @@ the reasoning is here and the file is four lines.
 ## Layout
 
 ```
-explorer.html               Delver archive + resource fork viewer (Grimoire itself)
+index.html               Delver archive + resource fork viewer (Grimoire itself)
 canvas.html                 colour-cycling paint studio
 js/                         classic scripts, two tiers (see below)
 utilities/                  the site's Node + Python harnesses and converters
@@ -165,7 +171,7 @@ Consequences you must respect:
 belongs.
 
 **Generic classic-Mac formats** — nothing here knows Cythera exists, and that
-is worth keeping true even though only one page loads them now. `explorer.html`
+is worth keeping true even though only one page loads them now. `index.html`
 loads all nine, in this order, before its own inline script:
 
 | File | Purpose |
@@ -180,7 +186,7 @@ loads all nine, in this order, before its own inline script:
 | `js/mac-stuffit.js` | `parseStuffItArchive()` / `stuffItStoredFork()` — the catalog of a StuffIt 5 or classic `SIT!` archive and its *stored* entries; not a decompressor, and says which method a compressed fork would need |
 | `js/mac-vise.js` | `parseViseArchive()` / `viseExtract()` — an Installer VISE 3 archive (Cythera's installer), every file with both forks; its own raw DEFLATE inflater. `sniffViseInstaller` finds one bare, in a container, or stored in a StuffIt archive |
 
-**Cythera's own formats** — loaded after those nine, by `explorer.html`:
+**Cythera's own formats** — loaded after those nine, by `index.html`:
 
 | File | Purpose |
 |---|---|
@@ -429,7 +435,7 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   of this repository's decoding in exactly the way delvmod is, which is what
   makes it an oracle rather than a fixture.
 - `hfs_check.mjs` — `writeHfsImage` in `js/mac-hfs.js`, the disk-image writer
-  `explorer.html` exports with. Structural on its own (the MDB, the bitmap and
+  `index.html` exports with. Structural on its own (the MDB, the bitmap and
   both B-trees read back and audited against the arithmetic that produced
   them); with a systemless checkout beside this one it also round-trips every
   volume through **that project's HFS reader**, comparing paths, Finder types
@@ -575,7 +581,7 @@ Ben Letchford's stuffit-rs, and each says so in its header.
 The *Delver archive* has a JavaScript writer, `writeDelverArchive` in
 `js/delv-archive.js`, proven byte-identical to delvmod's `Archive.to_file` by
 `delv_write_check.mjs` — over synthetic archives and over the real one, all
-1,558 resources. `explorer.html`'s Edit Bytes path is its first caller; see the
+1,558 resources. `index.html`'s Edit Bytes path is its first caller; see the
 per-page notes.
 
 **If you change a decoder here, say in the commit message whether the other
@@ -604,7 +610,7 @@ Read the comment above a constant before correcting it.
 
 ## Per-page notes
 
-### `explorer.html`
+### `index.html`
 
 - The Delver-format half of it lives in `js/delv-archive.js`,
   `js/delv-graphics.js` and `js/delv-script.js`; the page holds the UI, the
@@ -640,10 +646,32 @@ Read the comment above a constant before correcting it.
   and the prop editor stay in Entities › Regions, which is untouched; a square
   in the atlas offers to open its map there. Reproducing the panel would have
   made this a second copy of it.
-  **Not done yet**: nested nodes (an underground under a town is not placed in
-  the scene), characters are not drawn on it (the hover finds them, nothing
-  paints them), the palette animation does not run on it, and its view is not
-  in the deep link.
+  **It goes below the world too.** `mapDescents` reads the same join off any
+  map — only the types that are portals anywhere, so a `large city` prop
+  standing as a building inside Cademia is not mistaken for a way out of it —
+  and places what it finds on the mouth that leads there, `DESCENT_SPAN`
+  squares across. That span is presentation and says so: the world→town scale
+  is *measured* because the pictogram states it, but a stair says where, not
+  how big, and a cellar is not spatially inside the room anyway. 39 nodes, 37
+  of the 42 maps, three levels deep. A place is placed once, because the map
+  graph has cycles (the Sewers come back up into Cademia) and a scene has to
+  be a tree.
+  **`gatewayRatio` trusts a footprint only when both axes say so.** A block of
+  props placed two or four squares each way is somebody stating a size; a
+  single sprite that happens to be two tiles tall is not — a cave mouth is
+  drawn 1×2 because that is the shape of a picture of a cave mouth, and
+  reading it as a size gave the same Underground three sizes depending on
+  which of its three mouths was asked.
+  **People are drawn on whichever node they stand on**, above
+  `ATLAS_PEOPLE_AT`. `charactersOnLevel` is written against `window.CUR_MAP`,
+  so the atlas lends it one node at a time and puts it back — a borrow rather
+  than a design, and the one place the atlas leans on the panel's assumptions
+  instead of replacing them.
+  **The animation is a frame counter.** The panel repaints animated squares
+  into the base *and* again into the lens, because those are two pictures kept
+  in step; the atlas redraws everything each frame anyway, so
+  `paintMapBaseRegion` gained a `frame` argument and that is the whole of it.
+  **Not done yet**: the atlas's view is not in the deep link.
 - **The World tab is the landing view, and it is not a gallery.** One view:
   the world map (`0x8001`, 256×256 squares) with every way off it live. It
   stands first in `TAB_TREE` and `parseArchiveBytes` picks it explicitly, so
@@ -1313,7 +1341,7 @@ about:
 
   **`describeDelverArchive` refuses all seven.** It requires eight populated
   subindexes, which is right for the game archive (`DelS`) and wrong for a
-  player file (`DelP`), which has six — so `explorer.html` cannot open a
+  player file (`DelP`), which has six — so `index.html` cannot open a
   Cythera saved game at all, including `I.M.Cheater`. That is unfixed.
 
 ## Gotchas
@@ -1321,7 +1349,7 @@ about:
 - Editing `*.html` here means editing files of 2k–10k lines. Use targeted
   `grep` + `sed -n` to locate a region rather than reading the whole file, and
   check `js/` first — a Delver format is more likely to be there now.
-- **`explorer.html` fetches one thing from outside the repository: the
+- **`index.html` fetches one thing from outside the repository: the
   installer.** It used to pull its default archive, font and dialogue
   background from the old repository on `raw.githubusercontent.com`; the
   game left the repository, so those URLs would 404 and they are gone. The
@@ -1340,4 +1368,4 @@ about:
 - `repomix_output.md`, `.DS_Store`, `sources/`, `__pycache__/` and
   `infinite-mac` are gitignored.
 - Empty `catch` blocks are common and mostly deliberate — "this optional decode
-  failed, fall back" — but none of them say so on screen. 52 in explorer.html.
+  failed, fall back" — but none of them say so on screen. 52 in index.html.

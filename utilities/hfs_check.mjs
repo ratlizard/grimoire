@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Checks writeHfsImage -- the HFS disk-image writer explorer.html exports
+// Checks writeHfsImage -- the HFS disk-image writer index.html exports
 // with -- two ways.
 //
-//   node utilities/hfs_check.mjs explorer.html [systemless-checkout]
+//   node utilities/hfs_check.mjs index.html [systemless-checkout]
 //
 // FIRST, STRUCTURALLY, AND THAT HALF ALWAYS RUNS. The master directory block,
 // the volume bitmap and the two B-trees are all read back and audited against
@@ -39,7 +39,7 @@ import {execFileSync} from 'node:child_process';
 import vm from 'node:vm';
 import {collectPageScripts} from './page_scripts.mjs';
 
-const [pagePath = 'explorer.html', systemlessPath] = process.argv.slice(2);
+const [pagePath = 'index.html', systemlessPath] = process.argv.slice(2);
 if (!existsSync(pagePath)) { console.error('missing: ' + pagePath); process.exit(2); }
 
 let failures = 0, passed = 0, roundTripped = 0;
@@ -298,7 +298,7 @@ const CASES = [
     entries: [{name: 'Read Me', type: 'TEXT', creator: 'ttxt', data: enc('hello\r'), rsrc: new Uint8Array(0)}],
   },
   {
-    // The shape explorer.html exports: the archive with both forks, and a note.
+    // The shape index.html exports: the archive with both forks, and a note.
     label: 'the export shape',
     volumeName: 'Cythera Export',
     dirCount: 0,

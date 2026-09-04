@@ -2,7 +2,7 @@
 // Does the conversation extractor read out of the code what the community
 // verified in play?
 //
-//   node utilities/dialogue_check.mjs explorer.html "$TMPDIR/Cythera Data.data" \
+//   node utilities/dialogue_check.mjs index.html "$TMPDIR/Cythera Data.data" \
 //        [reference/community/dialogue/Dialogue]
 //
 // dvmConversation (js/delv-script.js) claims to turn a dialogue script's
@@ -41,7 +41,7 @@ import vm from 'node:vm';
 import { makeSandbox } from './dom_stub.mjs';
 import { pageSource } from './page_scripts.mjs';
 
-const [htmlPath = 'explorer.html', dataPath, oracleDir =
+const [htmlPath = 'index.html', dataPath, oracleDir =
   'reference/community/dialogue/Dialogue'] = process.argv.slice(2);
 
 let failures = 0;

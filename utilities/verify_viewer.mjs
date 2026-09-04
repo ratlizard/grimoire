@@ -6,8 +6,8 @@
 // an inline handler naming a function that no longer exists, and JS reaching for
 // an element id that is not in the markup.
 //
-//   node utilities/verify_viewer.mjs explorer.html
-//   node utilities/verify_viewer.mjs --baseline .backups/x.html explorer.html
+//   node utilities/verify_viewer.mjs index.html
+//   node utilities/verify_viewer.mjs --baseline .backups/x.html index.html
 //
 // Exits non-zero if a hard check fails (syntax, missing handler, missing id).
 

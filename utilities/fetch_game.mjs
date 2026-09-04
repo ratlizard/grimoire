@@ -12,7 +12,7 @@
 // a fresh clone reported four of thirteen checks as "skip", including both
 // snapshot checks. A skip reads like a clean result, which means a cloud or
 // web session could not see a decoder regression at all. Everything needed to
-// avoid that was already here: explorer.html has fetched its own input from
+// avoid that was already here: index.html has fetched its own input from
 // archive.org since the installer session, and js/mac-vise.js and
 // js/mac-stuffit.js open it. This runs the same chain under Node.
 //
@@ -73,7 +73,7 @@ export async function fetchGame(outDir, say = () => {}) {
     writeFileSync(sitPath, sit);
   }
 
-  // The same two tiers explorer.html uses, in the same order: StuffIt to find
+  // The same two tiers index.html uses, in the same order: StuffIt to find
   // the installer, VISE to read it. sniffViseInstaller does both and picks the
   // newest release when the archive holds several, which this one does.
   const ctx = vm.createContext({TextDecoder, TextEncoder, console});

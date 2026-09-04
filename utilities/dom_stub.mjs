@@ -7,7 +7,7 @@
 // getContext() returned null.
 //
 // That was harmless for years, because none of these three checks look at
-// pixels. Then explorer.html gained the animated colour-cycling
+// pixels. Then index.html gained the animated colour-cycling
 // footer scene, which asks for a 2D context while the script body is still
 // being evaluated -- so all three began failing at load with
 //

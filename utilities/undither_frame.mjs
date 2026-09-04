@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs explorer.html's own undither() over a captured screen frame.
+// Runs index.html's own undither() over a captured screen frame.
 //
 //   node utilities/undither_frame.mjs <in.rgba> <W> <H> <out.rgba> [key=value ...]
 //
@@ -41,13 +41,13 @@ const W = Number(Wr), H = Number(Hr);
 
 const {sandbox} = makeSandbox();
 const ctx = vm.createContext(sandbox);
-vm.runInContext(pageSource(join(ROOT, 'explorer.html')), ctx, {filename: 'explorer.html'});
+vm.runInContext(pageSource(join(ROOT, 'index.html')), ctx, {filename: 'index.html'});
 
 // Top-level const/let are not properties of a vm global; a function declaration
 // is. UD is a const, so it has to come back through an eval in that scope.
 const peek = name => vm.runInContext(`(typeof ${name} !== 'undefined') ? ${name} : undefined`, ctx);
 const UD = peek('UD');
-if (!UD) { console.error('no UD in explorer.html'); process.exit(2); }
+if (!UD) { console.error('no UD in index.html'); process.exit(2); }
 
 const p = Object.assign({}, UD);
 for (const kv of overrides) {

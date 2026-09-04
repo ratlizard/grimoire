@@ -72,7 +72,7 @@ const HQX = firstExisting('reference/game/Cythera Data.hqx',
 const APP_HQX = firstExisting('reference/game/Cythera.hqx',
   'reference/Cythera.hqx', 'sources/Cythera.hqx');
 // The 1.0.4 installer as Bryce Schroeder serves it (www.bryce.pw/Cythera.bin),
-// a MacBinary of the Installer VISE application: what explorer.html now
+// a MacBinary of the Installer VISE application: what index.html now
 // fetches by default, and what vise_check.mjs opens.
 // The last candidate is where fetch_game.mjs caches the archive it downloads,
 // so a checkout without the game runs this check too rather than skipping it:
@@ -157,37 +157,37 @@ function ensureGraphicsRef() {
 // is missing the check is skipped and said to be skipped, rather than failing
 // in a way that looks like a real problem.
 const CHECKS = [
-  {page: 'viewer', name: 'static', cmd: ['utilities/verify_viewer.mjs', 'explorer.html']},
+  {page: 'viewer', name: 'static', cmd: ['utilities/verify_viewer.mjs', 'index.html']},
   {page: 'viewer', name: 'decoder snapshot', want: [DATA],
-   cmd: ['utilities/decoder_snapshot.mjs', 'explorer.html', DATA], grep: /SNAPSHOT \w+/},
+   cmd: ['utilities/decoder_snapshot.mjs', 'index.html', DATA], grep: /SNAPSHOT \w+/},
   {page: 'viewer', name: 'delvmod tables', want: [DATA, DELV],
-   cmd: ['utilities/delv_crosscheck.mjs', 'explorer.html', DELV, DATA]},
+   cmd: ['utilities/delv_crosscheck.mjs', 'index.html', DELV, DATA]},
   {page: 'viewer', name: 'delvmod graphics', want: [DATA, GFX_REF],
-   cmd: ['utilities/delv_graphics_check.mjs', 'explorer.html', DATA, GFX_REF],
+   cmd: ['utilities/delv_graphics_check.mjs', 'index.html', DATA, GFX_REF],
    grep: /identical pixels : \d+/},
   // The writer's oracle needs only delvmod -- its synthetic archives are
   // built on the fly -- so unlike the read checks it runs on a checkout
   // without the game. DATA is passed anyway: when the game is there the
   // check also proves the real archive re-serializes byte-identically.
   {page: 'viewer', name: 'delvmod write', want: [DELV],
-   cmd: ['utilities/delv_write_check.mjs', 'explorer.html', DELV, DATA],
+   cmd: ['utilities/delv_write_check.mjs', 'index.html', DELV, DATA],
    grep: /all comparisons passed/},
   // ddasm's Disassembler RUN against dvmDisassemble, decode event by decode
   // event, over every script in the archive -- the walk check that
   // delv_crosscheck's table comparison never was. It spawns its own Python
   // reference (delv_dasm_ref.py), so delvmod and the archive are all it needs.
   {page: 'viewer', name: 'delvmod disassembly', want: [DATA, DELV],
-   cmd: ['utilities/delv_dasm_check.mjs', 'explorer.html', DELV, DATA],
+   cmd: ['utilities/delv_dasm_check.mjs', 'index.html', DELV, DATA],
    grep: /\d+ functions compared[^\n]*/},
   // The conversation extractor against the community's verified dialogue
   // collection (cytheraguides.com, gathered in play). The oracle directory
   // is gitignored -- when it is absent the harness still runs its
   // structural half against the archive and passes on that alone.
   {page: 'viewer', name: 'dialogue vs guides', want: [DATA],
-   cmd: ['utilities/dialogue_check.mjs', 'explorer.html', DATA],
+   cmd: ['utilities/dialogue_check.mjs', 'index.html', DATA],
    grep: /\d+ characters, [\d,]+ topics.*/},
   {page: 'viewer', name: 'archive loading', want: [HQX, DATA, DATA_RSRC, APP_HQX],
-   cmd: ['utilities/loader_test.mjs', 'explorer.html', HQX, DATA, DATA_RSRC, APP_HQX, VISE_BIN]},
+   cmd: ['utilities/loader_test.mjs', 'index.html', HQX, DATA, DATA_RSRC, APP_HQX, VISE_BIN]},
   // The installer: js/mac-vise.js against the catalog's own CRC for every
   // file, and against the BinHex copies for the two files the suite knows.
   {page: 'viewer', name: 'installer', want: [VISE_BIN],
@@ -197,31 +197,31 @@ const CHECKS = [
   // normally answer for it, plus the community's add-ons -- the only Cythera
   // archives here that nobody in this project made.
   {page: 'viewer', name: 'addons + heuristic', want: [DATA],
-   cmd: ['utilities/addons_check.mjs', 'explorer.html', DATA, ADDONS],
+   cmd: ['utilities/addons_check.mjs', 'index.html', DATA, ADDONS],
    grep: /heuristic [\d.]+% vs the tables \([^)]*\)/},
   {page: 'viewer', name: 'ui smoke', want: [DATA], slow: true,
-   cmd: ['utilities/viewer_smoke.mjs', 'explorer.html', DATA, '', VISE_ALL],
+   cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL],
    grep: /\d+ galleries, [\d,]+ tiles/},
   {page: 'viewer', name: 'zip export', want: [DATA], slow: true,
-   cmd: ['utilities/export_test.mjs', 'explorer.html', DATA, EXPORTS], zips: EXPORTS},
+   cmd: ['utilities/export_test.mjs', 'index.html', DATA, EXPORTS], zips: EXPORTS},
 
   // The classic-Mac resource decoders used to be a page of their own
   // (resource_fork_browser.html) with three checks against it. The page is
   // gone -- it was more general-purpose than this repository -- and the
-  // decoders are js/mac-rsrc-types.js, read by explorer.html. The snapshot
+  // decoders are js/mac-rsrc-types.js, read by index.html. The snapshot
   // moved with them and its hash did not change, which is what says nothing
   // was lost on the way; the two UI checks it had are now the fork sections
   // of viewer_smoke.mjs.
   {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
-   cmd: ['utilities/rsrc_snapshot.mjs', 'explorer.html', APP_RSRC, DATA_RSRC],
+   cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
    grep: /SNAPSHOT \w+/},
 
-  // The HFS disk-image writer explorer.html exports with. Structural on its
+  // The HFS disk-image writer index.html exports with. Structural on its
   // own; with a systemless checkout beside this one it also round-trips every
   // volume through that project's reader. Slow only the first time, when it
   // has to build the reader's example binary.
   {page: 'viewer', name: 'disk image', slow: true,
-   cmd: ['utilities/hfs_check.mjs', 'explorer.html', SYSLESS],
+   cmd: ['utilities/hfs_check.mjs', 'index.html', SYSLESS],
    grep: /\d+ volumes, \d+ structural checks[^\n]*/},
 
 ];

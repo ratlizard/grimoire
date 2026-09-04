@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Does the viewer's disassembler walk the bytecode the way delvmod's does?
 //
-//   node utilities/delv_dasm_check.mjs explorer.html delvmod "$TMPDIR/Cythera Data.data"
+//   node utilities/delv_dasm_check.mjs index.html delvmod "$TMPDIR/Cythera Data.data"
 //
 // delv_crosscheck.mjs proves the two OPCODE TABLES identical -- mnemonics,
 // operand widths, expectation counts, all eight symbol tables. What it never
@@ -38,7 +38,7 @@ import vm from 'node:vm';
 import { makeSandbox } from './dom_stub.mjs';
 import { pageSource } from './page_scripts.mjs';
 
-const [htmlPath = 'explorer.html', delvPath = 'delvmod', dataPath] =
+const [htmlPath = 'index.html', delvPath = 'delvmod', dataPath] =
   process.argv.slice(2);
 const verbose = process.env.DASM_VERBOSE === '1';
 

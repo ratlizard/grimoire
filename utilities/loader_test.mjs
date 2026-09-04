@@ -4,7 +4,7 @@
 // Delver archive" test, and the messages produced when it is not.
 //
 //   python3 utilities/binhex_decode.py "reference/game/Cythera Data.hqx" "$TMPDIR"
-//   node utilities/loader_test.mjs explorer.html \
+//   node utilities/loader_test.mjs index.html \
 //        "reference/game/Cythera Data.hqx" "$TMPDIR/Cythera Data.data" \
 //        "$TMPDIR/Cythera Data.rsrc" "reference/game/Cythera.hqx" \
 //        reference/game/installers/Cythera.bin

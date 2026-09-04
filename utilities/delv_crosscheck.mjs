@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Checks explorer.html against delvmod, the reference implementation
+// Checks index.html against delvmod, the reference implementation
 // this project's knowledge of the Cythera archive came from.
 //
-//   node utilities/delv_crosscheck.mjs explorer.html \
+//   node utilities/delv_crosscheck.mjs index.html \
 //        delvmod "$TMPDIR/Cythera Data.data"
 //
 // The viewer carries copies of several tables that delvmod worked out first:
@@ -30,7 +30,7 @@ import vm from 'node:vm';
 import {pageSource} from './page_scripts.mjs';
 import {makeSandbox} from './dom_stub.mjs';
 
-const [htmlPath = 'explorer.html',
+const [htmlPath = 'index.html',
        delvPath = 'delvmod',
        dataPath] = process.argv.slice(2);
 for (const p of [htmlPath, delvPath]) {

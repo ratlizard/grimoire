@@ -4,7 +4,7 @@
 // any decoded output.
 //
 //   python3 utilities/binhex_decode.py "reference/game/Cythera Data.hqx" /tmp
-//   node utilities/decoder_snapshot.mjs explorer.html "/tmp/Cythera Data.data"
+//   node utilities/decoder_snapshot.mjs index.html "/tmp/Cythera Data.data"
 //
 // The viewer is a browser single-file app, so the script body is evaluated in a
 // vm with just enough DOM stubbed for the top-level to run. Only pure decode

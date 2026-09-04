@@ -3,7 +3,7 @@
 // that normally answer for it are taken away? And do third-party archives
 // open at all?
 //
-//   node utilities/addons_check.mjs explorer.html "$TMPDIR/Cythera Data.data" \
+//   node utilities/addons_check.mjs index.html "$TMPDIR/Cythera Data.data" \
 //        [reference/community/addons] [unpack dir]
 //
 // WHY. js/delv-archive.js decides whether a resource is encrypted from three
@@ -46,7 +46,7 @@ import vm from 'node:vm';
 import {makeSandbox} from './dom_stub.mjs';
 import {pageSource} from './page_scripts.mjs';
 
-const [htmlPath = 'explorer.html', dataPath,
+const [htmlPath = 'index.html', dataPath,
        addonDir = 'reference/community/addons',
        unpackDir = join(process.env.TMPDIR || '/tmp', 'cythera_addons')] = process.argv.slice(2);
 
@@ -243,7 +243,7 @@ if (files.length) {
   // Reported, not failed: it is a limitation of the page, recorded here
   // because this is the only check that looks at a player file.
   if (notOpenable.length)
-    console.log(`  note: ${notOpenable.length} of them explorer.html would refuse ` +
+    console.log(`  note: ${notOpenable.length} of them index.html would refuse ` +
       `(describeDelverArchive wants 8 populated subindexes): ${notOpenable.join(', ')}`);
 }
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Compares explorer.html's graphics decoder against delvmod's, pixel
+// Compares index.html's graphics decoder against delvmod's, pixel
 // for pixel, over every image in the archive.
 //
 //   python3 utilities/delv_graphics_ref.py delvmod \
 //           "$TMPDIR/Cythera Data.data" > "$TMPDIR/gfx_ref.json" 2>/dev/null
-//   node utilities/delv_graphics_check.mjs explorer.html \
+//   node utilities/delv_graphics_check.mjs index.html \
 //        "$TMPDIR/Cythera Data.data" "$TMPDIR/gfx_ref.json"
 //
 // (It will run the Python itself if the reference file is not supplied.)
@@ -28,7 +28,7 @@ import vm from 'node:vm';
 import {pageSource} from './page_scripts.mjs';
 import {makeSandbox} from './dom_stub.mjs';
 
-const [htmlPath = 'explorer.html', dataPath, refPath] = process.argv.slice(2);
+const [htmlPath = 'index.html', dataPath, refPath] = process.argv.slice(2);
 if (!dataPath) {
   console.error('usage: delv_graphics_check.mjs <viewer.html> <Cythera Data.data> [gfx_ref.json]');
   process.exit(2);

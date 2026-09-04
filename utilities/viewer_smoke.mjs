@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Drives explorer.html's user interface in Node, because Chrome
+// Drives index.html's user interface in Node, because Chrome
 // cannot start under this machine's sandbox (ProcessSingleton binds a unix
 // socket and bind() returns EPERM -- see utilities/browser_smoke.mjs).
 //
 //   python3 utilities/binhex_decode.py "reference/game/Cythera Data.hqx" "$TMPDIR"
-//   node utilities/viewer_smoke.mjs explorer.html "$TMPDIR/Cythera Data.data"
+//   node utilities/viewer_smoke.mjs index.html "$TMPDIR/Cythera Data.data"
 //
 // decoder_snapshot.mjs proves the decoders still produce the same bytes. This
 // proves the page around them still works: it feeds the archive through the
@@ -1531,8 +1531,9 @@ try {
   const av = peek('atlasView');
   const vpA = REGISTRY.get('mapViewport');
   if (!sc) fail('atlas', 'no scene was built');
-  else if (sc.nodes.length !== ctx.worldGateways().length + 1)
-    fail('atlas', `the scene has ${sc.nodes.length} nodes for ${ctx.worldGateways().length} gateways`);
+  else if (sc.nodes.filter(n => n.depth === 1).length !== ctx.worldGateways().length)
+    fail('atlas', `the world has ${sc.nodes.filter(n => n.depth === 1).length} children ` +
+                  `for ${ctx.worldGateways().length} gateways`);
   else {
     const cad = sc.nodes.find(n => n.resid === 0x8008);
     const b = peek('contentBox')(0x8008);
@@ -1581,6 +1582,51 @@ try {
     if (!out || out.node.depth !== 0)
       fail('atlas', 'zooming out did not come back to the world');
     else console.log('  atlas: zooming out is the way back up — no stack, no held gateway');
+
+    /* The scene goes below the world, because most of Cythera is under it.
+       A place is placed once -- the map graph has cycles (the Sewers come
+       back up into Cademia) and a scene has to be a tree -- and the same map
+       reached by several mouths has to come out the same size, which is what
+       gatewayRatio reading one axis of a sprite got wrong. */
+    const deep = sc.nodes.filter(n => n.depth >= 2);
+    if (!deep.length) fail('atlas', 'nothing below the world was placed');
+    else if (!deep.some(n => n.resid === 0x8015))
+      fail('atlas', 'the Sewers are not in the scene');
+    else if (new Set(sc.nodes.map(n => n.key)).size !== sc.nodes.length)
+      fail('atlas', 'two nodes share a key');
+    else {
+      const und = sc.nodes.filter(n => n.resid === 0x8009);
+      const spans = new Set(und.map(n => (n.w * n.s).toFixed(2)));
+      if (spans.size !== 1)
+        fail('atlas', `the same Underground is ${spans.size} different sizes: ${[...spans]}`);
+      else {
+        const sewers = deep.find(n => n.resid === 0x8015);
+        const cad2 = sc.nodes.find(n => n.resid === 0x8008);
+        // and it is under the town it is under, not somewhere else
+        if (sewers.ox < cad2.ox || sewers.ox > cad2.ox + cad2.w * cad2.s)
+          fail('atlas', 'the Sewers are not inside Cademia');
+        else console.log('  atlas: ' + sc.nodes.length + ' nodes, ' +
+                         new Set(sc.nodes.map(n => n.resid)).size + ' of 42 maps, ' +
+                         (Math.max(...sc.nodes.map(n => n.depth)) + 1) + ' levels deep; ' +
+                         'the Sewers sit under Cademia and one Underground is one size');
+      }
+    }
+
+    /* People are drawn on whichever node they stand on. charactersOnLevel is
+       written against the open map, so the atlas lends it one -- and has to
+       put it back, or the panel finds a map it never opened. */
+    {
+      const before = peek('CUR_MAP');
+      const cadN = sc.nodes.find(n => n.resid === 0x8002);   // Odemia, populated
+      let painted = 0;
+      const spy = { globalAlpha: 1, imageSmoothingEnabled: false, drawImage() { painted++; } };
+      peek('atlasPeople')(spy, cadN, { x: 0, y: 0, w: 2000, h: 2000 }, 40);
+      if (!painted) fail('atlas', 'nobody was drawn on a populated node');
+      else if (peek('CUR_MAP') !== before)
+        fail('atlas', 'drawing people left the borrowed map behind');
+      else console.log('  atlas: ' + painted + ' people drawn on Odemia, ' +
+                       'and the borrowed CUR_MAP put back');
+    }
 
     // Painting must not throw, and must reach the canvas.
     peek('paintAtlas')();

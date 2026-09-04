@@ -50,7 +50,7 @@ const { container, archive } = found;
 // Cythera.bin is MacBinary wrapped around the installer; the .sit archives
 // hold the same application as a StuffIt entry, and that is what
 // fetch_game.mjs leaves behind on a checkout with no game of its own. Both
-// are containers explorer.html opens, so which one is asserted follows what
+// are containers index.html opens, so which one is asserted follows what
 // the caller passed rather than being fixed.
 const isSit = !!container && /StuffIt/i.test(container.kind);
 check(`it arrived as ${isSit ? 'StuffIt' : 'MacBinary'} of an APPL/VIS3 file`,

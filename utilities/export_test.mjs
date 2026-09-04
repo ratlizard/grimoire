@@ -4,7 +4,7 @@
 // local headers and central directory it writes by hand.
 //
 //   python3 utilities/binhex_decode.py "reference/game/Cythera Data.hqx" "$TMPDIR"
-//   node utilities/export_test.mjs explorer.html "$TMPDIR/Cythera Data.data" "$TMPDIR/exports"
+//   node utilities/export_test.mjs index.html "$TMPDIR/Cythera Data.data" "$TMPDIR/exports"
 //
 // The payloads are the genuine ones -- indexed PNGs from encodeIndexedPNG,
 // WAVs from the sound decoder, MIDI from qtmaToMidi, disassembly from

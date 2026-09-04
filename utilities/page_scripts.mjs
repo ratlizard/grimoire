@@ -9,7 +9,7 @@
 // obvious one.
 //
 //   import {collectPageScripts, pageSource} from './page_scripts.mjs';
-//   const code = pageSource('explorer.html');   // ready to eval
+//   const code = pageSource('index.html');   // ready to eval
 //
 // It also enforces the constraint that makes the split safe in the first
 // place: these must be CLASSIC scripts. A `type="module"` script is fetched
