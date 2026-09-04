@@ -366,8 +366,11 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   lifting on approach with the checkbox outranking both, the level ladder
   sharpening rather than magnifying, a 60×25 pan sliding the overlay by
   exactly that, the opt-in preload turning on and freeing back to the ordinary
-  cache, and — by counting `renderMapVisual` calls rather than timing anything
-  — that a crossing costs **one** map render and a return or a revisit none.
+  cache, the lens engaging at 1.6× where the old absolute rule would not have,
+  the surround plate being sharper than the base it replaces and centred on
+  its own gateway, and — by counting `renderMapVisual` calls rather than
+  timing anything — that a crossing costs **one** map render and a return or a
+  revisit none.
 - `loader_test.mjs` — the orchestration around the decoders: BinHex/MacBinary/
   AppleSingle unwrapping, archive validation, the refusal messages, deep-link
   parsing, and `loadDefaultArchive` driven to total failure. Every other harness
@@ -658,6 +661,14 @@ Read the comment above a constant before correcting it.
   drops the smaller place and the choice does not flicker as the view moves. A
   place you cannot find is a place you cannot go to, and there are 26 of them
   over 65,536 squares.
+  **The country around a town is painted at the world's own art size**
+  (`surroundPlate`, `SURROUND_PLATE_TS`), not by magnifying the budgeted base
+  — which on a phone is four pixels a tile and looked like it. It is
+  `SURROUND_PLATE_SQUARES` of world around the gateway put through the detail
+  lens's own `paintMapBaseRegion`, which now takes the map to paint as an
+  argument rather than always reading `CUR_MAP`. The blurred whole-world draw
+  stays underneath it, so anything past the plate's edge still has ground
+  rather than a hole.
   **`slideWorldOverlay` is why nothing drifts.** The overlay is repainted on
   the settle while the map moves continuously under a CSS transform, so
   between the two the miniatures and the names sat still in screen space while
@@ -999,6 +1010,18 @@ Read the comment above a constant before correcting it.
   anonymous; `dialogue_check.mjs` re-verifies them against the community's
   collection). The twelve one-liner characters, and anything whose nested
   subroutines defeat the disassembler, fall back to the flat string list.
+- **`lensActive` engages on MAGNIFICATION, not on an absolute screen size,
+  and the difference is a phone.** It used to be `screen px per tile >= 16`,
+  which is a number for one budget rather than a rule: the base tile size is
+  chosen to fit a per-device canvas budget, so the 256×256 world map comes
+  back at TS=8 on a desktop — where 16 px a tile is exactly 2× and the old
+  test was right — and at **TS=4 on iOS**, where 16 px a tile is 4×. A phone
+  therefore spent the whole range from 4 to 16 px a tile looking at four real
+  pixels stretched over each one with no lens in sight, which is what the
+  world map looked like there. `mapView.scale >= 1.5` is the same intent
+  stated as what it always meant, and it is right at every budget — on a map
+  whose base is already TS=20 it correctly waits far longer than the old rule
+  did, rather than painting a sharper copy of something already sharp.
 - **The map view budgets its canvases, and the detail lens is what makes
   that painless.** The base terrain canvas and the character/roof/mark/
   lighting layers are each full-map bitmaps; on iOS (every browser there is

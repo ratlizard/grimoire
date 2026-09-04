@@ -1050,6 +1050,47 @@ try {
     }
   }
 
+  /* The detail lens has to engage on MAGNIFICATION, not on an absolute
+     screen size. The base's tile size is budgeted per device -- TS=8 for the
+     world map on a desktop, TS=4 on iOS -- so the old `>= 16 screen px a
+     tile` was 2x on one and 4x on the other, and a phone spent the whole
+     range from 4 to 16 px a tile looking at four real pixels stretched over
+     each one with no lens in sight. */
+  {
+    ctx.showCategory('WORLD');
+    const cmL = peek('CUR_MAP');
+    mv.scale = 1.6; ctx.applyMapTransform();
+    const on = peek('lensActive')();
+    mv.scale = 1.2; ctx.applyMapTransform();
+    const off = peek('lensActive')();
+    if (!on) fail('world tab', `the lens is off at 1.6x magnification (base TS=${cmL.TS})`);
+    else if (off) fail('world tab', 'the lens is on below any real magnification');
+    else if (1.6 * cmL.TS >= 16)
+      fail('world tab', 'this check no longer distinguishes the old absolute rule from the new one');
+    else console.log('  world tab: the lens engages on magnification (1.6x, ' +
+                     (1.6 * cmL.TS).toFixed(1) + 'px a tile) not on 16px');
+  }
+
+  /* The country around a town is painted at the world's own art size, not by
+     magnifying the budgeted base -- which on a phone is four pixels a tile
+     and looked like it. */
+  if (cad) {
+    const plate = peek('surroundPlate')(cad);
+    if (!plate || !plate.canvas.width) fail('world tab', 'no sharp plate for the country around Cademia');
+    else if (plate.TS !== peek('SURROUND_PLATE_TS'))
+      fail('world tab', `the plate is TS=${plate.TS}, not SURROUND_PLATE_TS`);
+    else if (plate.TS <= peek('CUR_MAP').TS)
+      fail('world tab', `the plate (TS=${plate.TS}) is no sharper than the base it replaces`);
+    else {
+      const half = peek('SURROUND_PLATE_SQUARES') / 2;
+      const cx = (cad.x0 + cad.x1 + 1) / 2;
+      if (Math.abs((plate.x0 + half) - cx) > 1.5)
+        fail('world tab', `the plate is centred at ${plate.x0 + half}, not on Cademia at ${cx}`);
+      else console.log('  world tab: the country around a town is painted at TS=' + plate.TS +
+                       ', not the base TS=' + peek('CUR_MAP').TS + ' magnified');
+    }
+  }
+
   /* Loading the whole world is opt-in, reversible, and stops the cache
      evicting while it is on -- there is no point rendering everything if the
      next crossing throws it away again. */

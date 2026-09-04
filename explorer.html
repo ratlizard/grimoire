@@ -4032,6 +4032,7 @@ function resetDerivedCaches() {
   window.ROOF_MANUAL = false;
   zoneMapCache.clear();
   worldThumbs.clear();
+  surroundPlates.clear();
   window.WORLD_PRELOAD = false;
   window.WORLD_PRELOAD_DONE = 0;
   window.PROP_BLOCK = null;
@@ -7216,9 +7217,26 @@ function lensGeometry(vw, vh) {
   return { dpr, f, mx: Math.round(vw * f), my: Math.round(vh * f) };
 }
 
+/* When the lens is worth painting: when the base canvas is being MAGNIFIED,
+   which is the only condition under which a TS=32 repaint can show anything
+   the base cannot.
+
+   This used to be an absolute `screen pixels per tile >= 16`, and that was a
+   number for one budget rather than a rule. The base's tile size is chosen to
+   fit a per-device canvas budget (see renderMapVisual): the 256x256 world map
+   comes back at TS=8 on a desktop, where 16 px a tile is exactly 2x and the
+   old test was right -- and at **TS=4 on iOS**, where 16 px a tile is 4x, so
+   the reader spent the whole range from 4 to 16 px a tile looking at four
+   real pixels stretched over each one with no lens in sight. That is what the
+   world map looked like on a phone, and it looked like mush.
+
+   Expressed as the magnification it always meant, it is right at every
+   budget: 1.5 is where a stretched pixel starts to show, and on a map whose
+   base is already TS=20 it correctly waits much longer than the old rule did
+   rather than painting a sharper copy of something already sharp. */
 function lensActive() {
   const cm = window.CUR_MAP;
-  return !!(cm && cm.m && cm.TS < LENS_TS && mapView.scale * cm.TS >= 16);
+  return !!(cm && cm.m && cm.TS < LENS_TS && mapView.scale >= 1.5);
 }
 
 function ensureDetailLens() {
@@ -7359,8 +7377,12 @@ function scheduleLensPaint(delay) {
 // The props come from cm.props -- the full render already decided visibility
 // and draw order (delvmod's per-square priority sort), so repainting them in
 // stored order reproduces the exact same stacking.
-function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1) {
-  const cm = window.CUR_MAP;
+/* `src` is the map to paint, shaped like CUR_MAP -- m, mapData, props,
+   allProps, backdrop. It defaults to the open map, which is what the detail
+   lens wants; the World tab passes the world map while a town is open, to
+   build the sharp country around it. */
+function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src) {
+  const cm = src || window.CUR_MAP;
   if (!cm || !cm.m || !cm.mapData) return;
   const m = cm.m, mapData = cm.mapData;
   const faux = getFauxProps();
@@ -8929,7 +8951,18 @@ function worldGateFocus() {
    into four squares is a smudge and the game's own pictogram, which was drawn
    to be read at that size, is the better picture. Above it the town is the
    better picture, and it is the same town the crossing lands on. */
-const THUMB_FADE = [10, 20];      // screen px per world square: none, then full
+/* Screen pixels per world square over which the game's own pictogram gives
+   way to the town itself.
+
+   Later than it was. The pictogram used to be handed over at 10 because
+   below that it was mush -- but that was the budgeted base being magnified
+   without the lens, not the pictogram. Now that lensActive engages on
+   magnification rather than on an absolute size, the world map is sharp from
+   about 6 px a square on a phone, and the sprite Ambrosia drew is worth
+   looking at for a while before the miniature takes it over. That is the
+   stage the ladder was missing: coarse whole world, then the sharp world map
+   with its own icons, then the town, then the town's streets. */
+const THUMB_FADE = [22, 34];      // screen px per world square: none, then full
 
 function paintWorldGate() {
   worldGateTimer = null;
@@ -9088,6 +9121,61 @@ function enteredBy() {
   return worldGateways().find(g => g.port === t.port) || null;
 }
 
+/* ---------------------------------------------------------------------------
+   The country around a town, painted properly
+   ---------------------------------------------------------------------------
+   The scenery used to be the world map's own base canvas, magnified. On a
+   desktop that is TS=8 stretched three or four times; on a phone it is TS=4,
+   and it looked like a photograph of a lawn taken through a window. The
+   world map's own art is 32 pixels a tile and none of it was being used.
+
+   So the surround is its own plate now: SURROUND_PLATE_SQUARES of world
+   around the gateway, painted through the detail lens's own region painter at
+   SURROUND_PLATE_TS, once, and kept. It is drawn over the old blurred base
+   rather than instead of it, so anything past the plate's edge still has
+   ground under it rather than a hole.
+
+   Its size is the same trade every canvas here makes: big enough that a town
+   zoomed out to the point of leaving still sits inside it, small enough that
+   two of them are not a problem on a phone. */
+const SURROUND_PLATE_SQUARES = 72;
+const SURROUND_PLATE_TS = IS_IOS_WEBKIT ? 12 : 16;
+const surroundPlates = new Map();
+
+function surroundPlate(gw) {
+  if (!gw) return null;
+  if (surroundPlates.has(gw.port)) return surroundPlates.get(gw.port);
+  let plate = null;
+  try {
+    const e = mapRenderFor(WORLD_MAP_RESID, true);
+    if (e && e.result) {
+      const src = { m: e.result.m, mapData: e.mapData, props: e.result.props,
+                    allProps: e.result.allProps, backdrop: e.result.backdrop, backdropFrame: 0 };
+      const half = SURROUND_PLATE_SQUARES / 2;
+      const cx = (gw.x0 + gw.x1 + 1) / 2, cy = (gw.y0 + gw.y1 + 1) / 2;
+      const x0 = Math.max(0, Math.round(cx - half)), y0 = Math.max(0, Math.round(cy - half));
+      const x1 = Math.min(src.m.width - 1, x0 + SURROUND_PLATE_SQUARES - 1);
+      const y1 = Math.min(src.m.height - 1, y0 + SURROUND_PLATE_SQUARES - 1);
+      const TS = SURROUND_PLATE_TS;
+      const c = document.createElement('canvas');
+      c.width = (x1 - x0 + 1) * TS; c.height = (y1 - y0 + 1) * TS;
+      const pc = c.getContext('2d');
+      if (pc) {
+        // The painter works in whole-map coordinates, so the plate's own
+        // origin is put under the region rather than the region moved.
+        pc.translate(-x0 * TS, -y0 * TS);
+        paintMapBaseRegion(pc, TS, x0, y0, x1, y1, src);
+        pc.setTransform(1, 0, 0, 1, 0, 0);
+        plate = { canvas: c, x0, y0, TS };
+      }
+    }
+  } catch (err) {}
+  // Two: the town being looked at, and the one just left.
+  while (surroundPlates.size >= 2) surroundPlates.delete(surroundPlates.keys().next().value);
+  surroundPlates.set(gw.port, plate);
+  return plate;
+}
+
 /* Where the world sits behind a town, in screen pixels.
 
    The town's canvas occupies (view.x, view.y, cw*scale, ch*scale). The
@@ -9102,9 +9190,11 @@ function surroundPlacement(gw, cw, ch, view) {
   const ts = window.WORLD_BASE_TS || 8;
   const k = pitch / ts;
   const cx = view.x + cw * view.scale / 2, cy = view.y + ch * view.scale / 2;
-  return { base, k,
-           x: cx - ((gw.x0 + gw.x1 + 1) / 2) * pitch,
-           y: cy - ((gw.y0 + gw.y1 + 1) / 2) * pitch };
+  // originX/originY are where world square (0,0) lands on screen, which is
+  // what both the blurred whole-world draw and the sharp plate hang off.
+  const originX = cx - ((gw.x0 + gw.x1 + 1) / 2) * pitch;
+  const originY = cy - ((gw.y0 + gw.y1 + 1) / 2) * pitch;
+  return { base, k, pitch, originX, originY, x: originX, y: originY };
 }
 
 /* Paint the world behind a town.
@@ -9119,7 +9209,18 @@ function paintSurroundInto(ctx, vw, vh, gw, cw, ch, view) {
   const p = surroundPlacement(gw, cw, ch, view);
   if (!p) return false;
   ctx.imageSmoothingEnabled = true;
+  // The whole world first, as ground: past the plate's edge this is all there
+  // is, and a hole would be worse than a blur.
   ctx.drawImage(p.base, p.x, p.y, p.base.width * p.k, p.base.height * p.k);
+  // Then the same country again at the world's own art size, over the part of
+  // it anyone is actually looking at.
+  const plate = surroundPlate(gw);
+  if (plate) {
+    const pitch = p.pitch;
+    ctx.drawImage(plate.canvas,
+      p.originX + plate.x0 * pitch, p.originY + plate.y0 * pitch,
+      (plate.canvas.width / plate.TS) * pitch, (plate.canvas.height / plate.TS) * pitch);
+  }
   return true;
 }
 
@@ -9372,9 +9473,10 @@ function renderWorldBar() {
       ? '⤓ Load every place — ' + total + ' maps, about 275 MB'
       : (done < total ? '… loading ' + done + ' of ' + total : '✓ Every place loaded — free it');
     bar.innerHTML = '<span class="wbWhere">The world of Cythera</span>' +
-      '<span class="wbNote">256×256 squares, ' + n + ' ways off it. Zoom in on a town, a farm ' +
-      'or a ruin and the view crosses into it, keeping the country around it; the caves and ' +
-      'Land King Hall are sealed and open on a click. Any square says what is on it.</span>' +
+      // Short, because on a phone every line of this is a line of map. The
+      // long version of all of it is the gazetteer under the map.
+      '<span class="wbNote">256×256 squares, ' + n + ' ways off it. Zoom into a town to enter ' +
+      'it; caves open on a click. Any square says what is on it.</span>' +
       '<button class="crumbBtn" onclick="toggleWorldPreload()">' + load + '</button>';
     return;
   }
