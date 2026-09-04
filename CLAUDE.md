@@ -646,16 +646,32 @@ Read the comment above a constant before correcting it.
   and the prop editor stay in Entities › Regions, which is untouched; a square
   in the atlas offers to open its map there. Reproducing the panel would have
   made this a second copy of it.
-  **It goes below the world too.** `mapDescents` reads the same join off any
-  map — only the types that are portals anywhere, so a `large city` prop
-  standing as a building inside Cademia is not mistaken for a way out of it —
-  and places what it finds on the mouth that leads there, `DESCENT_SPAN`
-  squares across. That span is presentation and says so: the world→town scale
-  is *measured* because the pictogram states it, but a stair says where, not
-  how big, and a cellar is not spatially inside the room anyway. 39 nodes, 37
-  of the 42 maps, three levels deep. A place is placed once, because the map
-  graph has cycles (the Sewers come back up into Cademia) and a scene has to
-  be a tree.
+  **It places what the archive locates, and nothing else.** A map header's
+  four edge fields say where walking off each side puts you; where one lands
+  on the world map, the archive is making a spatial statement — *this map is
+  contiguous with the world at that square* — and that is what makes a map
+  placeable. **23 of the 42 say it**: every town, farm, vineyard, ruin and
+  stronghold, the Sitia bridge, and two whose names mislead (the Underground
+  under Catamarca and Pnyx upstairs both have edges to the world). The other
+  17 — Land King Hall, the Sewers, the Iron Mine, the Volcano, the Tomb, the
+  Caves, Below Cademia, the Dungeon, the Cove — say nothing of the kind: what
+  the file gives for each is a **doorway, not an extent**. A stair says where
+  you go in, not where the place reaches, and the Sewers do not lie under any
+  particular nine squares of Cademia.
+  An earlier version placed 37 of the 42 at an invented scale and the invented
+  part was visible. It is the difference between a map and a graph, and
+  drawing a graph as a map is a claim the file does not support. A located map
+  with no pictogram is placed at the world square its own edge exit names,
+  which is the same statement from the other side.
+  **The other 17 are reached through a mouth** (`atlasMouths`,
+  `atlasDescend`): a ring on the square the archive does give, and a *step*
+  rather than a zoom, after which that map is shown on its own with the strip
+  describing the **connection** rather than asserting a position — "through
+  the arch at (163,20) in Cademia", never "below Cademia". `ATLAS_BELOW` is a
+  stack because the underworld is a graph and two mouths deep is ordinary; it
+  is the only state in this renderer, and it is honest state, because which
+  unlocated map you are looking at genuinely is not derivable from a position
+  on the world.
   **`gatewayRatio` trusts a footprint only when both axes say so.** A block of
   props placed two or four squares each way is somebody stating a size; a
   single sprite that happens to be two tiles tall is not — a cave mouth is

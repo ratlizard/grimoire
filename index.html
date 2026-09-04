@@ -4046,7 +4046,10 @@ function resetDerivedCaches() {
   window.WORLD_TRAIL = null;
   window.WORLD_STACK = [];
   window.ATLAS_SCENE = null;
+  window.ATLAS_BELOW = [];
   atlasTransforms.clear();
+  belowScenes.clear();
+  locatedCache.clear();
   window.WORLD_ZONE = null;
   window.WORLD_ARRIVE = null;
   window.WORLD_GATE_HOLD = null;
@@ -10137,8 +10140,23 @@ function renderWorldBar() {
   if (!bar) return;
   if (window.CUR_SUBN !== 'WORLD') { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   const cm = window.CUR_MAP;
-  // The atlas has no open map: you are looking at the world, always, and how
-  // close you are to a place in it is a matter of zoom rather than of state.
+  /* In the atlas you are looking at the world, always -- except where the
+     archive does not locate a place, and then you are looking at that place
+     on its own and the strip has to say how you got there. Describing the
+     connection is the honest form of it: the file gives a doorway, not a
+     position, so "through the arch from the world map" is what can be said
+     and "below Cademia" is not. */
+  const below = window.ATLAS ? atlasBelowTop() : null;
+  if (below) {
+    bar.style.display = '';
+    bar.innerHTML = '<button class="crumbBtn" onclick="atlasAscend()">↰ ' +
+      svEsc(below.fromName) + '</button>' +
+      '<span class="wbWhere">' + svEsc(below.name) + '</span>' +
+      '<span class="wbNote">Through the ' + svEsc(below.kind) + ' at (' + below.at.x + ',' +
+      below.at.y + ') in ' + svEsc(below.fromName) + '. The archive does not say where this ' +
+      'sits, only how it is reached — so it is shown on its own. Zoom out to leave.</span>';
+    return;
+  }
   const here = window.ATLAS ? WORLD_MAP_RESID : (cm ? cm.resid : WORLD_MAP_RESID);
   bar.style.display = '';
   if (here === WORLD_MAP_RESID) {
@@ -10211,7 +10229,15 @@ function renderGazetteer() {
   for (const gw of gws) {
     const b = document.createElement('button');
     b.className = 'gazRow';
-    b.onclick = () => { if (window.ATLAS) atlasGoTo(gw.port); else enterGateway(gw); };
+    b.onclick = () => {
+      if (!window.ATLAS) { enterGateway(gw); return; }
+      // A located place is somewhere to fly to; an unlocated one is somewhere
+      // to step into, from the mouth on the world map that leads there.
+      if (mapIsLocated(gw.destResid)) atlasGoTo(gw.port);
+      else atlasDescend({ dest: { resid: gw.destResid, x: gw.destX, y: gw.destY },
+                          name: gw.name, kind: gw.kind, x: gw.x0, y: gw.y0 },
+                        (atlasScene() || {}).root || { name: 'the world' });
+    };
     b.title = gw.name + ' — ' + gw.kind + ' at (' + gw.x0 + ',' + gw.y0 + '), arriving at (' +
               gw.destX + ',' + gw.destY + ')';
     const c = document.createElement('canvas');
@@ -10345,31 +10371,70 @@ function mapDescents(resid) {
       if (!dest || dest.resid === resid || seen.has(dest.resid)) continue;
       if (!refExists(dest.resid)) continue;
       seen.add(dest.resid);
-      out.push({ dest, x: r.x, y: r.y });
+      out.push({ dest, x: r.x, y: r.y,
+                 name: zoneNameFor(dest.resid) || dest.name,
+                 kind: (propTypeName(r.proptype) || 'way down').toLowerCase() });
     }
   } catch (e) {}
   return out;
 }
 
-/* How big a place below is drawn, relative to the place above it.
+/* ---------------------------------------------------------------------------
+   What the archive locates, and what it does not
+   ---------------------------------------------------------------------------
+   A map header's four edge fields say where walking off each side puts you.
+   Where one of them lands on the world map, the archive is making a spatial
+   statement -- *this map is contiguous with the world at that square* -- and
+   that is what makes it placeable. 23 of the 42 maps say it: every town,
+   farm, vineyard, ruin and stronghold, the Sitia bridge, and a couple whose
+   names are misleading (the Underground under Catamarca and Pnyx upstairs
+   both have edges to the world).
 
-   The world-to-town scale is measured -- the pictogram states it. Nothing
-   states this one: a stair down to a cellar says where, not how big, and the
-   cellar is not spatially inside the room anyway. So this is presentation and
-   is named as such. The built part of the place below covers
-   DESCENT_SPAN squares of the place above, which is about the size of a
-   building, so descending reads as going into the thing you were looking at
-   rather than as the ground opening. */
-const DESCENT_SPAN = 9;
+   The other 17 say nothing of the kind. Land King Hall, the Sewers, the Iron
+   Mine, the Volcano, the Tomb, the Caves, Below Cademia, the Dungeon, the
+   Cove: what the archive gives for each is a doorway, not an extent. A stair
+   says where you go in, not where the place reaches, and the Sewers do not
+   lie under any particular nine squares of Cademia.
 
-/* The scene: the world, everything placed on it, and everything below those.
+   So the atlas places what the archive locates and no more. The rest is
+   reached through it rather than drawn in it -- see atlasDescend. An earlier
+   version put all 37 into the scene at an invented scale, and the invented
+   part was visible: it is the difference between a map and a graph, and
+   drawing a graph as a map is a claim the file does not support.
+--------------------------------------------------------------------------- */
+const locatedCache = new Map();
+function mapWorldAnchor(resid) {
+  if (locatedCache.has(resid)) return locatedCache.get(resid);
+  let anchor = null;
+  try {
+    const raw = getResourceBytes(resid);
+    if (raw) {
+      let { data, wasDecrypted } = smartDecrypt(raw, resid);
+      let m = parseDelverMap(data);
+      if (!m) { const alt = wasDecrypted ? raw : decryptResource(raw, resid); m = parseDelverMap(alt); }
+      if (m) {
+        for (const idx of [m.exitZoneportNorth, m.exitZoneportEast,
+                           m.exitZoneportSouth, m.exitZoneportWest]) {
+          if (!idx) continue;
+          const z = zoneportInfo(idx);
+          if (z && z.resid === WORLD_MAP_RESID) { anchor = { x: z.x, y: z.y }; break; }
+        }
+      }
+    }
+  } catch (e) {}
+  locatedCache.set(resid, anchor);
+  return anchor;
+}
+function mapIsLocated(resid) { return !!mapWorldAnchor(resid); }
 
-   Built once per archive. Sealed destinations are placed like any other --
-   the distinction that used to matter (whether the world could be drawn
-   around them) is gone, because the world is simply the parent node and is
-   always there. */
-const ATLAS_MAX_DEPTH = 3;
-function atlasScene() {
+/* The surface: the world, and the maps the archive puts on it.
+
+   A gateway's pictogram gives both a position and an extent, and those are
+   preferred. A located map with no pictogram -- the bridge, Pnyx upstairs --
+   is placed at the world square its own edge exit names, at the measured
+   median scale, because the archive has said where it is even though nothing
+   on the world map draws it. */
+function surfaceScene() {
   if (window.ATLAS_SCENE) return window.ATLAS_SCENE;
   const nodes = [];
   const world = mapRenderFor(WORLD_MAP_RESID, true);
@@ -10380,45 +10445,82 @@ function atlasScene() {
   nodes.push(root);
   const placed = new Set([WORLD_MAP_RESID]);
   for (const gw of worldGateways()) {
+    if (!mapIsLocated(gw.destResid) || placed.has(gw.destResid)) continue;
     const t = gatewayTransform(gw);
     if (!t) continue;
+    placed.add(gw.destResid);
     nodes.push({ resid: gw.destResid, gw, s: t.s, ox: t.ox, oy: t.oy,
                  w: t.w, h: t.h, ts: t.ts, name: gw.name, depth: 1,
-                 sealed: gw.sealed, key: 'g' + gw.port });
-    placed.add(gw.destResid);
+                 key: 'g' + gw.port });
   }
-  /* Then whatever those lead down to, and so on. A place is placed once: the
-     archive's map graph has cycles in it -- the Sewers come back up into
-     Cademia -- and a scene has to be a tree. First one wins, which is the
-     shallowest way in. */
-  for (let depth = 1; depth < ATLAS_MAX_DEPTH; depth++) {
-    for (const parent of nodes.filter(n => n.depth === depth)) {
-      for (const d of mapDescents(parent.resid)) {
-        if (placed.has(d.dest.resid)) continue;
-        const e = mapRenderFor(d.dest.resid, true);
-        if (!e || !e.result) continue;
-        const b = contentBox(d.dest.resid) ||
-                  { x0: 0, y0: 0, x1: e.result.width - 1, y1: e.result.height - 1 };
-        // The built part covers DESCENT_SPAN of the parent's squares, and its
-        // middle sits on the mouth that leads down to it.
-        const s = parent.s * (DESCENT_SPAN / Math.max(1, b.x1 - b.x0 + 1, b.y1 - b.y0 + 1));
-        placed.add(d.dest.resid);
-        nodes.push({
-          resid: d.dest.resid, gw: null, s,
-          ox: parent.ox + (d.x + 0.5) * parent.s - ((b.x0 + b.x1 + 1) / 2) * s,
-          oy: parent.oy + (d.y + 0.5) * parent.s - ((b.y0 + b.y1 + 1) / 2) * s,
-          w: e.result.width, h: e.result.height, ts: e.result.tileSize,
-          name: zoneNameFor(d.dest.resid) || d.dest.name, depth: depth + 1,
-          key: 'd' + parent.resid + ':' + d.dest.resid
-        });
-      }
-    }
+  for (let n = 0; n < 0x100; n++) {
+    const resid = 0x8000 | n;
+    if (placed.has(resid) || !refExists(resid)) continue;
+    const a = mapWorldAnchor(resid);
+    if (!a) continue;
+    const e = mapRenderFor(resid, true);
+    if (!e || !e.result) continue;
+    const b = contentBox(resid) || { x0: 0, y0: 0, x1: e.result.width - 1, y1: e.result.height - 1 };
+    const sc = 1 / worldSquareRatio();
+    placed.add(resid);
+    nodes.push({ resid, gw: null, s: sc,
+                 ox: a.x - ((b.x0 + b.x1 + 1) / 2) * sc,
+                 oy: a.y - ((b.y0 + b.y1 + 1) / 2) * sc,
+                 w: e.result.width, h: e.result.height, ts: e.result.tileSize,
+                 name: zoneNameFor(resid) || labelFor(resid) || ('0x' + resid.toString(16)),
+                 depth: 1, key: 'a' + resid });
   }
-  // Deepest last, so a child is drawn over its parent without sorting later.
   nodes.sort((a, b) => a.depth - b.depth);
-  return (window.ATLAS_SCENE = { root, nodes });
+  return (window.ATLAS_SCENE = { root, nodes, surface: true });
 }
 
+/* A place the archive does not locate, shown on its own.
+
+   One node, at its own scale, filling the view -- because there is no honest
+   answer to where it sits and the right thing is not to imply one. How you
+   got here is written in the strip rather than drawn on the ground. */
+const belowScenes = new Map();
+function belowScene(resid) {
+  if (belowScenes.has(resid)) return belowScenes.get(resid);
+  const e = mapRenderFor(resid, true);
+  let sc = null;
+  if (e && e.result) {
+    const root = { resid, gw: null, s: 1, ox: 0, oy: 0,
+                   w: e.result.width, h: e.result.height, ts: e.result.tileSize,
+                   name: zoneNameFor(resid) || labelFor(resid) || ('0x' + resid.toString(16)),
+                   depth: 0, key: 'b' + resid };
+    sc = { root, nodes: [root], surface: false };
+  }
+  belowScenes.set(resid, sc);
+  return sc;
+}
+
+/* Where you are: the surface, or somewhere reached through it.
+
+   A stack, because the underworld is a graph and going two mouths deep is an
+   ordinary thing to do. It is state, but it is the only state in this
+   renderer -- and it is honest state, because "which unlocated map am I
+   looking at" genuinely is not derivable from a position on the world. */
+window.ATLAS_BELOW = [];
+function atlasBelowTop() {
+  const st = window.ATLAS_BELOW;
+  return (st && st.length) ? st[st.length - 1] : null;
+}
+function atlasScene() {
+  const b = atlasBelowTop();
+  return b ? belowScene(b.resid) : surfaceScene();
+}
+
+/* The mouths on a node: the ways from it into somewhere the archive does not
+   locate. Drawn as a ring and a name where the node is big enough to see
+   them, and that is the whole of the affordance -- a mouth is a connection,
+   so it gets a mark rather than a place. */
+function atlasMouths(node) {
+  if (node._mouths) return node._mouths;
+  return (node._mouths = mapDescents(node.resid).filter(d => !mapIsLocated(d.dest.resid)));
+}
+
+// Where a node lands on screen
 // Where a node lands on screen, in pixels, at the current view.
 function atlasRect(node, view) {
   return { x: view.x + node.ox * view.Z, y: view.y + node.oy * view.Z,
@@ -10499,8 +10601,10 @@ function paintAtlas() {
       drawn.push({ node, r });
     }
   }
+  const mouths = atlasPaintMouths(ctx, drawn, vw, vh);
   atlasLabels(ctx, drawn, vw, vh);
   window.ATLAS_DRAWN = drawn;
+  window.ATLAS_MOUTHS = mouths;
 }
 
 /* One node, at the best resolution it has.
@@ -10616,6 +10720,39 @@ function atlasPeople(ctx, node, r, ppt) {
   }
 }
 
+/* The ways down, marked where they are.
+
+   A mouth is a connection rather than a place, so it gets a ring on the
+   square it is on and its name beside it -- not a picture of what is behind
+   it, which would be putting an unlocated map on located ground. Only where
+   the node is big enough for the ring to mean a square. */
+const ATLAS_MOUTH_AT = 7;                // screen px per node square
+function atlasPaintMouths(ctx, drawn, vw, vh) {
+  const out = [];
+  ctx.font = '12px Argos, Georgia, serif';
+  ctx.textAlign = 'left';
+  for (const { node, r } of drawn) {
+    const per = r.w / node.w;
+    if (per < ATLAS_MOUTH_AT) continue;
+    for (const m of atlasMouths(node)) {
+      const x = r.x + (m.x + 0.5) * per, y = r.y + (m.y + 0.5) * per;
+      if (x < -60 || y < -20 || x > vw + 60 || y > vh + 20) continue;
+      const rad = Math.max(5, per * 0.7);
+      ctx.strokeStyle = 'rgba(196,164,100,.85)';
+      ctx.lineWidth = Math.max(1.5, per / 12);
+      ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.stroke();
+      const tw = Math.round(ctx.measureText(m.name).width);
+      ctx.fillStyle = 'rgba(8,7,5,.78)';
+      ctx.fillRect(x + rad + 3, y - 8, tw + 8, 15);
+      ctx.fillStyle = '#e8dfc0';
+      ctx.fillText(m.name, x + rad + 7, y + 3);
+      out.push({ m, node, x, y, rad: Math.max(rad, 11) });
+    }
+  }
+  ctx.textAlign = 'center';
+  return out;
+}
+
 /* The names.
 
    Drawn last, over everything, biggest node first so a collision drops the
@@ -10701,6 +10838,58 @@ function atlasAt(px, py) {
   return best;
 }
 
+/* Through a mouth, and back out again.
+
+   Going down is a step rather than a zoom, and that is the honest shape of
+   it: the archive gives a doorway, so what happens when you take it is that
+   you are somewhere else, not that you are closer to where you were. Coming
+   back restores the view you left, so the surface is where you put it down.
+
+   Zooming out of an unlocated map also comes back, because that is the one
+   gesture worth having in both directions and it costs a line. */
+function atlasDescend(m, node) {
+  const b = atlasBelowTop();
+  window.ATLAS_BELOW.push({
+    resid: m.dest.resid,
+    name: m.name,
+    fromName: node.name, kind: m.kind,
+    at: { x: m.x, y: m.y },
+    view: { x: atlasView.x, y: atlasView.y, Z: atlasView.Z },
+    wasBelow: !!b
+  });
+  const sc = atlasScene();
+  const vp = document.getElementById('mapViewport');
+  if (sc && vp && vp.clientWidth > 40) {
+    // Arrive on the square the zoneport puts you on, at a zoom that shows the
+    // room around it rather than the whole map: you came through a door.
+    atlasView.Z = Math.min(atlasMaxZ(), sc.root.ts * 0.75);
+    atlasView.x = vp.clientWidth / 2 - (m.dest.x + 0.5) * atlasView.Z;
+    atlasView.y = vp.clientHeight / 2 - (m.dest.y + 0.5) * atlasView.Z;
+  }
+  atlasSyncZoomLabel();
+  renderWorldBar();
+  paintAtlas();
+}
+
+function atlasAscend() {
+  const prev = window.ATLAS_BELOW.pop();
+  if (!prev) return;
+  if (prev.view) { atlasView.x = prev.view.x; atlasView.y = prev.view.y; atlasView.Z = prev.view.Z; }
+  atlasSyncZoomLabel();
+  renderWorldBar();
+  paintAtlas();
+}
+
+// Zoomed far enough out of a place that has no outside, come back up.
+function atlasCheckAscend() {
+  if (!atlasBelowTop()) return;
+  const sc = atlasScene();
+  const vp = document.getElementById('mapViewport');
+  if (!sc || !vp || vp.clientWidth < 40) return;
+  const fit = Math.min(vp.clientWidth / sc.root.w, vp.clientHeight / sc.root.h);
+  if (atlasView.Z < fit * 0.72) atlasAscend();
+}
+
 /* Moving about in it.
 
    Pan and zoom act on the three numbers and the scene is redrawn. There is no
@@ -10713,8 +10902,12 @@ function atlasZoomAround(newZ, px, py) {
   const vp = document.getElementById('mapViewport');
   // The floor is the whole world in the panel: there is nothing further out.
   let minZ = 0.5;
-  if (sc && vp && vp.clientWidth > 40)
-    minZ = Math.min(vp.clientWidth / sc.root.w, vp.clientHeight / sc.root.h) * 0.9;
+  if (sc && vp && vp.clientWidth > 40) {
+    const fit = Math.min(vp.clientWidth / sc.root.w, vp.clientHeight / sc.root.h);
+    // Below ground there is a little further out to go, because going further
+    // out is how you leave.
+    minZ = fit * (atlasBelowTop() ? 0.6 : 0.9);
+  }
   newZ = Math.max(minZ, Math.min(maxZ, newZ));
   const wx = (px - atlasView.x) / atlasView.Z, wy = (py - atlasView.y) / atlasView.Z;
   atlasView.Z = newZ;
@@ -10722,6 +10915,7 @@ function atlasZoomAround(newZ, px, py) {
   atlasView.y = py - wy * atlasView.Z;
   atlasSyncZoomLabel();
   paintAtlas();
+  atlasCheckAscend();
 }
 
 function atlasPanBy(dx, dy) {
@@ -10825,7 +11019,14 @@ function setupAtlasInteraction() {
     const had = pts.has(e.pointerId);
     pts.delete(e.pointerId);
     if (pts.size < 2) pinchDist = 0;
-    if (had && moved < 6) { const p = local(e); atlasInspect(p.x, p.y); }
+    if (had && moved < 6) {
+      const p = local(e);
+      // A mouth first: it is a small target drawn over the ground, and a tap
+      // on it means the way down rather than the square it sits on.
+      const hit = (window.ATLAS_MOUTHS || []).find(q =>
+        Math.hypot(p.x - q.x, p.y - q.y) <= q.rad);
+      if (hit) atlasDescend(hit.m, hit.node); else atlasInspect(p.x, p.y);
+    }
   };
   vp.addEventListener('pointerup', up);
   vp.addEventListener('pointercancel', e => { pts.delete(e.pointerId); });
@@ -10917,6 +11118,7 @@ function toggleAtlas() {
 // at the zoom its own art is worth, which is the same thing zooming to it by
 // hand arrives at.
 function atlasGoTo(port) {
+  window.ATLAS_BELOW = [];                 // flying somewhere is leaving here
   const sc = atlasScene();
   const vp = document.getElementById('mapViewport');
   if (!sc || !vp) return;

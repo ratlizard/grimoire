@@ -1531,9 +1531,16 @@ try {
   const av = peek('atlasView');
   const vpA = REGISTRY.get('mapViewport');
   if (!sc) fail('atlas', 'no scene was built');
-  else if (sc.nodes.filter(n => n.depth === 1).length !== ctx.worldGateways().length)
-    fail('atlas', `the world has ${sc.nodes.filter(n => n.depth === 1).length} children ` +
-                  `for ${ctx.worldGateways().length} gateways`);
+  else if (sc.nodes.some(n => n.depth && !ctx.mapIsLocated(n.resid)))
+    /* The scene places what the archive locates and no more. A map's edge
+       exit landing on the world is a spatial statement -- this map is
+       contiguous with the world at that square -- and it is the only one the
+       file makes. A stair or a cave mouth says where you go in, not where the
+       place reaches, so drawing the Sewers under nine squares of Cademia was
+       a claim the archive does not support. */
+    fail('atlas', 'the scene places a map the archive does not locate: ' +
+                  sc.nodes.filter(n => n.depth && !ctx.mapIsLocated(n.resid))
+                     .map(n => n.name).join(', '));
   else {
     const cad = sc.nodes.find(n => n.resid === 0x8008);
     const b = peek('contentBox')(0x8008);
@@ -1583,33 +1590,60 @@ try {
       fail('atlas', 'zooming out did not come back to the world');
     else console.log('  atlas: zooming out is the way back up — no stack, no held gateway');
 
-    /* The scene goes below the world, because most of Cythera is under it.
-       A place is placed once -- the map graph has cycles (the Sewers come
-       back up into Cademia) and a scene has to be a tree -- and the same map
-       reached by several mouths has to come out the same size, which is what
-       gatewayRatio reading one axis of a sprite got wrong. */
-    const deep = sc.nodes.filter(n => n.depth >= 2);
-    if (!deep.length) fail('atlas', 'nothing below the world was placed');
-    else if (!deep.some(n => n.resid === 0x8015))
-      fail('atlas', 'the Sewers are not in the scene');
-    else if (new Set(sc.nodes.map(n => n.key)).size !== sc.nodes.length)
+    /* Everything the archive locates IS in the scene -- the rule cuts both
+       ways, and a scene missing the bridge or Pnyx upstairs would be as wrong
+       as one containing the Sewers. Those two have no pictogram on the world
+       map at all; they are placed at the world square their own edge exit
+       names, which is the same statement in the other direction. */
+    let located = 0;
+    for (let n = 0; n < 0x100; n++) {
+      const rid = 0x8000 | n;
+      if (rid === 0x8001 || !ctx.refExists(rid) || !ctx.mapIsLocated(rid)) continue;
+      located++;
+      if (!sc.nodes.some(q => q.resid === rid))
+        fail('atlas', `0x${rid.toString(16)} is located by the archive and missing from the scene`);
+    }
+    if (new Set(sc.nodes.map(n => n.key)).size !== sc.nodes.length)
       fail('atlas', 'two nodes share a key');
-    else {
-      const und = sc.nodes.filter(n => n.resid === 0x8009);
-      const spans = new Set(und.map(n => (n.w * n.s).toFixed(2)));
-      if (spans.size !== 1)
-        fail('atlas', `the same Underground is ${spans.size} different sizes: ${[...spans]}`);
+    else console.log('  atlas: ' + sc.nodes.length + ' nodes — the world and all ' + located +
+                     ' maps the archive locates, and nothing it does not');
+
+    /* The 17 it does not locate are reached through a mouth: a ring on the
+       square the archive gives, and a step rather than a zoom, because a
+       doorway is what the file says and a position is not. */
+    {
+      const cadN = sc.nodes.find(n => n.resid === 0x8008);
+      const mouths = peek('atlasMouths')(cadN);
+      if (!mouths.length) fail('atlas', 'Cademia has no way down');
+      else if (mouths.some(m => ctx.mapIsLocated(m.dest.resid)))
+        fail('atlas', 'a mouth leads somewhere already in the scene');
       else {
-        const sewers = deep.find(n => n.resid === 0x8015);
-        const cad2 = sc.nodes.find(n => n.resid === 0x8008);
-        // and it is under the town it is under, not somewhere else
-        if (sewers.ox < cad2.ox || sewers.ox > cad2.ox + cad2.w * cad2.s)
-          fail('atlas', 'the Sewers are not inside Cademia');
-        else console.log('  atlas: ' + sc.nodes.length + ' nodes, ' +
-                         new Set(sc.nodes.map(n => n.resid)).size + ' of 42 maps, ' +
-                         (Math.max(...sc.nodes.map(n => n.depth)) + 1) + ' levels deep; ' +
-                         'the Sewers sit under Cademia and one Underground is one size');
+        const sewers = mouths.find(m => m.dest.resid === 0x8015);
+        if (!sewers) fail('atlas', 'the Sewers are not a mouth in Cademia');
+        else {
+          ctx.atlasDescend(sewers, cadN);
+          const bs = peek('atlasScene')();
+          if (!bs || bs.root.resid !== 0x8015)
+            fail('atlas', 'taking the mouth did not arrive in the Sewers');
+          else if (bs.surface !== false)
+            fail('atlas', 'an unlocated place was shown as part of the surface');
+          else if (!ctx.ATLAS_BELOW.length)
+            fail('atlas', 'nothing recorded how the Sewers were reached');
+          else {
+            // and back out again, to exactly where it was left
+            const before = { x: ctx.ATLAS_BELOW[0].view.x, Z: ctx.ATLAS_BELOW[0].view.Z };
+            ctx.atlasAscend();
+            const now = peek('atlasView');
+            if (peek('atlasScene')().root.resid !== 0x8001)
+              fail('atlas', 'coming back up did not reach the surface');
+            else if (Math.abs(now.Z - before.Z) > 0.001 || Math.abs(now.x - before.x) > 0.001)
+              fail('atlas', 'coming back up did not restore the view it left');
+            else console.log('  atlas: ' + mouths.length + ' ways down from Cademia; the Sewers ' +
+                             'are a step through a mouth and back to the same view');
+          }
+        }
       }
+      ctx.ATLAS_BELOW = [];
     }
 
     /* People are drawn on whichever node they stand on. charactersOnLevel is
@@ -1617,7 +1651,7 @@ try {
        put it back, or the panel finds a map it never opened. */
     {
       const before = peek('CUR_MAP');
-      const cadN = sc.nodes.find(n => n.resid === 0x8002);   // Odemia, populated
+      const cadN = peek('atlasScene')().nodes.find(n => n.resid === 0x8002);   // Odemia
       let painted = 0;
       const spy = { globalAlpha: 1, imageSmoothingEnabled: false, drawImage() { painted++; } };
       peek('atlasPeople')(spy, cadN, { x: 0, y: 0, w: 2000, h: 2000 }, 40);
