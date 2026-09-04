@@ -38,6 +38,7 @@
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
+import { execFileSync } from 'node:child_process';
 import { makeSandbox } from './dom_stub.mjs';
 import { pageSource } from './page_scripts.mjs';
 
@@ -65,14 +66,22 @@ const chars = ev(`(() => {
     const c = dvmConversation(smartDecrypt(raw, rid).data, rid);
     if (!c) continue;
     const texts = [];
-    const walk = list => { for (const e of list) { for (const t of e.text) texts.push(t.str); walk(e.sub); } };
+    // Keywords are collected from the whole tree, nested entries included,
+    // because the delvmod comparison below is over the set a character has
+    // rather than over where they sit in the chain.
+    const kws = [];
+    const walk = list => { for (const e of list) {
+      if (e.kw != null && e.kw !== '') kws.push(String(e.kw));
+      for (const t of e.text) texts.push(t.str); walk(e.sub); } };
     walk(c.entries);
-    out[n] = { topics: c.entries.length, groups: c.groups, groupsAll: c.groupsAll, texts,
+    out[n] = { topics: c.entries.length, groups: c.groups, groupsAll: c.groupsAll, texts, kws,
                name: (DVM_SYM.character[String(n)] || '').replace(/_/g, ' ') };
   }
   return out;
 })()`);
 const groupNames = ev('DIALOGUE_GROUP_NAMES');
+const charKeywords = Object.fromEntries(
+  Object.entries(chars).map(([n, c]) => [n, c.kws || []]));
 
 const withTopics = Object.values(chars).filter(c => c.topics > 0);
 const topics = withTopics.reduce((a, c) => a + c.topics, 0);
@@ -170,6 +179,60 @@ if (existsSync(oracleDir)) {
   oracleNote = `text ${hit}/${tried} found in the collection, affiliations ${agree}/${compared} agree`;
 }
 
-console.log(`${withTopics.length} characters, ${topics} topics; ${oracleNote}`);
+// ---- AGAINST DELVMOD: a second implementation, not a second source --------
+// The community collection is independent DATA; delvmod is an independent
+// DECODER. They catch different things. A disagreement with the collection is
+// a coverage question -- it once turned out to be ten profanity keywords the
+// transcribers left out, which is no fault in the decoder. A disagreement
+// with delvmod is a decoding bug in one of the two walks, which is what this
+// section is for.
+//
+// delvmod could not decode a conversation on Python 3 at all until delvmod
+// ae4b3b1; see utilities/delv_conversation_ref.py, which also explains why
+// the characters need ClassContainer rather than Script.
+//
+// Compared as a keyword multiset per character, sorted: the two sides nest
+// and order their entries differently on purpose, so what must agree is which
+// prompts each character has, not the shape of the tree they hang in.
+let delvmodNote = 'delvmod not run';
+const delvPath = process.env.DELVMOD ||
+  (existsSync('delvmod/delv') ? 'delvmod' : null);
+if (delvPath && dataPath) {
+  let ref = null;
+  try {
+    ref = JSON.parse(execFileSync('python3',
+      ['utilities/delv_conversation_ref.py', delvPath, dataPath],
+      { maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] }).toString());
+  } catch (e) {
+    delvmodNote = `delvmod reference did not run (${String(e.message).split('\n')[0]})`;
+  }
+  if (ref) {
+    const ours = {};
+    for (const [n, c] of Object.entries(charKeywords)) ours[(0x1800 | Number(n)).toString(16).toUpperCase().padStart(4, '0')] = c;
+    let both = 0, same = 0; const diffs = [];
+    for (const [rid, events] of Object.entries(ref)) {
+      const theirs = events.map(e => e[1]).sort();
+      const mine = (ours[rid] || []).slice().sort();
+      if (!ours[rid]) continue;
+      both++;
+      if (JSON.stringify(theirs) === JSON.stringify(mine)) same++;
+      else if (diffs.length < 4) {
+        const missing = theirs.filter(k => !mine.includes(k)).slice(0, 4);
+        const extra = mine.filter(k => !theirs.includes(k)).slice(0, 4);
+        diffs.push(`${rid}: delvmod-only [${missing}] ours-only [${extra}]`);
+      }
+    }
+    if (both < 100) fail('delvmod', `only ${both} characters could be compared`);
+    // Measured 108 of 108 on the shipped archive, so the floor is exact
+    // agreement: these are two walks over the same bytes and there is no
+    // reason for either to see a keyword the other does not. A single
+    // character diverging means one of them has desynced.
+    if (same !== both)
+      fail('delvmod', `${same}/${both} characters agree; ` + diffs.join(' | '));
+    delvmodNote = `delvmod agrees on ${same}/${both} characters`;
+  }
+}
+
+console.log(`${withTopics.length} characters, ${topics} topics; ${oracleNote}; ${delvmodNote}`);
 if (failures) { console.error(`${failures} failure(s)`); process.exit(1); }
 console.log('dialogue extraction verified');
