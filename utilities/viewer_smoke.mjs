@@ -1525,7 +1525,21 @@ try {
    I in" is read off the view, and every position on screen comes from one
    transform -- so the checks are about that transform being the only one. */
 try {
+  /* Regions, as it is before the atlas has ever touched the panel. The two
+     share one, and this snapshot is the requirement -- "Entities > Regions
+     does not change" -- stated as something a machine can check. It has to be
+     taken here, before the first showCategory('WORLD'): taken later it would
+     be comparing two post-atlas states, which is a test that cannot fail. */
+  const watch = peek('ATLAS_HIDDEN').concat(['mapViewport', 'mapStage']);
+  const snapRegions = () => watch.map(id => {
+    const el = REGISTRY.get(id);
+    return id + '=' + el.style.display + '/' + (el.style.height || '') +
+           '/' + (el.style.padding || '');
+  });
   ctx.ATLAS = true;
+  ctx.jumpToResource(0x8002);
+  const regionsBefore = snapRegions();
+
   ctx.showCategory('WORLD');
   const sc = peek('atlasScene')();
   const av = peek('atlasView');
@@ -1660,6 +1674,46 @@ try {
         fail('atlas', 'drawing people left the borrowed map behind');
       else console.log('  atlas: ' + painted + ' people drawn on Odemia, ' +
                        'and the borrowed CUR_MAP put back');
+    }
+
+    /* The furniture out of the way for the atlas -- and Entities > Regions
+       left EXACTLY as it was.
+
+       The two share one panel, and the first attempt at putting it back
+       restored by setting `display:''` across the list, which is not the same
+       thing: half of those elements are hidden and shown by other code for
+       its own reasons, so blanket-clearing them turned the World tab's strip
+       on inside Regions. What this compares is a snapshot of Regions taken
+       before the atlas ever ran against the same view after it, which is the
+       requirement stated directly rather than a guess at which of them ought
+       to be hidden. */
+    {
+      ctx.ATLAS_BELOW = [];
+      ctx.showCategory('WORLD');               // the atlas has the panel
+      const hidden = peek('ATLAS_HIDDEN').filter(id => REGISTRY.get(id).style.display !== 'none');
+      if (hidden.length)
+        fail('atlas', 'the panel left its furniture on screen: ' + hidden.join(', '));
+      else if (REGISTRY.get('mapViewport').style.height !== '80vh')
+        fail('atlas', 'the map did not take the room the furniture was using');
+      else {
+        ctx.jumpToResource(0x8002);            // and gives it back
+        const after = snapRegions();
+        const diff = after.filter((v, i) => v !== regionsBefore[i]);
+        if (diff.length)
+          fail('atlas', 'the atlas left residue in Regions: ' +
+                        diff.map((v, i) => regionsBefore[after.indexOf(v)] + ' -> ' + v).join(', '));
+        else if (REGISTRY.get('mapCanvasWrap').style.display === 'none')
+          /* The one that shipped: renderAtlasView hid the panel's own canvas
+             wrapper and nothing put it back, so every map opened in Entities >
+             Regions after a visit to the World tab drew into a hidden box.
+             Named separately from the snapshot above because it is the
+             specific failure, and a broad comparison is easy to render
+             vacuous by taking its baseline a moment too late. */
+          fail('atlas', 'Regions maps draw into a hidden wrapper after the atlas has had the panel');
+        else console.log('  atlas: the panel is stripped for the atlas and Regions gets it ' +
+                         'back exactly as it was');
+      }
+      ctx.showCategory('WORLD');
     }
 
     // Painting must not throw, and must reach the canvas.

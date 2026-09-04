@@ -641,6 +641,26 @@ Read the comment above a constant before correcting it.
   world↔zone transform — the miniature's size, the country's scale, the
   landing view, two of which disagreed and produced the jump on entry — are
   one function.
+  **It borrows the map panel and must give it back.** `setAtlasChrome` hides
+  the furniture the atlas does not use — the walls/roofs/marks switches drive
+  layers it does not draw, the PNG export saves the open map and there is no
+  open map, the title names one too — and takes the room they were using.
+  Two mistakes were made putting it back, and both are worth not repeating.
+  It must restore **the value it saved**, not a blanket `display:''`, or the
+  World tab's own strip turns on inside Regions; and it must restore **in
+  `setModeImpl`, before the view fills the panel**, not inside
+  `renderMapResource` afterwards, or it overwrites what the caller has just
+  set — which showed as the resource nav vanishing from Regions. The shipped
+  version restored nothing at all, so every map opened in Regions after a
+  visit to the World tab drew into a hidden wrapper. The smoke test names that
+  one directly as well as comparing a snapshot, because a broad comparison is
+  easy to render vacuous by taking its baseline a moment too late — which the
+  first version of it was.
+  **The sea outside the world** (`paintAtlasGround`): Cythera is an island and
+  the world map's border is 434 squares of tile `0x8`, so the ground beyond it
+  is water rather than the panel's grey, laid in the world's own grid at the
+  world's own scale so it runs into the sea inside without a seam. Not drawn
+  below ground, where there is no world outside to continue.
   **The seam is deliberate and is what keeps it small.** The atlas navigates
   and identifies. Walls, roofs, marks, walk-the-day, lighting, the PNG export
   and the prop editor stay in Entities › Regions, which is untouched; a square

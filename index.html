@@ -1150,7 +1150,7 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
   <!-- Every way off the world map, listed: the one-click route, where the
        zoom is the deliberate one. -->
   <div id="worldGaz" style="display:none"></div>
-  <div style="margin-top:8px;">
+  <div id="mapSaveRow" style="margin-top:8px;">
     <button class="secondary" onclick="downloadMapPNG()">Save Map as PNG</button>
   </div>
   <div id="charControls">
@@ -3941,6 +3941,15 @@ function stopAllViewActivity() {
 
 function setModeImpl(m) {
   stopAllViewActivity();
+  /* Give the panel back before anything decides what to put in it.
+
+     The atlas borrows this panel and hides the furniture it does not use; the
+     restore has to happen here rather than inside renderMapResource, because
+     by then the caller has already set its own display values and putting the
+     saved ones back overwrites them -- which showed up as the resource nav
+     vanishing from Entities > Regions after a visit to the World tab. First,
+     then whatever this view wants. */
+  if (window.CUR_SUBN !== 'WORLD' && typeof setAtlasChrome === 'function') setAtlasChrome(false);
   window.DETAIL_VIEW = null;   // a detail view is what we are leaving
   if (currentMode === 'sheet' && m === 'single') lastSheetScrollY = window.scrollY;
   currentMode = m;
@@ -8504,6 +8513,8 @@ function renderMapResource(resid) {
     document.getElementById('zoomControls').style.display = 'none';
     document.getElementById('singlePreview').style.display = 'none';
     document.getElementById('textPreview').style.display = 'none';
+    const ac = document.getElementById('atlasCanvas');
+    if (ac) { ac.style.display = 'none'; }
 
     const lbl = labelFor(resid);
     const result = entry.result;
@@ -10178,12 +10189,7 @@ function renderWorldBar() {
       // long version of all of it is the gazetteer under the map.
       '<span class="wbNote">256×256 squares, ' + n + ' ways off it. Zoom into a town to enter ' +
       'it; caves open on a click. Any square says what is on it.</span>' +
-      '<button class="crumbBtn" onclick="toggleWorldPreload()">' + load + '</button>' + fr +
-      // While both renderers exist, the switch has to be reachable from the
-      // device the bugs get found on, which has no console.
-      '<button class="crumbBtn" onclick="toggleAtlas()">' +
-      (window.ATLAS ? '⇄ Atlas — switch to the old view' : '⇄ Old view — switch to the atlas') +
-      '</button>';
+      '<button class="crumbBtn" onclick="toggleWorldPreload()">' + load + '</button>' + fr;
     return;
   }
   const a = window.WORLD_ARRIVE;
@@ -10580,8 +10586,7 @@ function paintAtlas() {
   const ctx = cv.getContext('2d');
   if (!ctx) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = '#222';
-  ctx.fillRect(0, 0, vw, vh);
+  paintAtlasGround(ctx, vw, vh);
 
   const drawn = [];
   for (const node of sc.nodes) {
@@ -10803,6 +10808,39 @@ function stopAtlasAnimation() {
   if (atlasAnimTimer) { clearInterval(atlasAnimTimer); atlasAnimTimer = null; }
 }
 
+/* What is outside the map.
+
+   Cythera is an island and the world map's border is 434 squares of tile 0x8
+   -- open water -- so the ground beyond it is sea, not the panel's grey. The
+   pattern is laid in the world's own grid at the world's own scale, so the
+   sea outside runs into the sea inside without a seam at the edge, and it
+   cycles with the palette like every other water tile because the scene is
+   repainted anyway.
+
+   Only under the surface: below ground there is no world outside to continue,
+   and a cave floating in the sea would be the same kind of lie the placement
+   rules were written to avoid. */
+const ATLAS_SEA_TILE = 0x8;
+function paintAtlasGround(ctx, vw, vh) {
+  ctx.fillStyle = '#222';
+  ctx.fillRect(0, 0, vw, vh);
+  const sc = atlasScene();
+  if (!sc || !sc.surface) return;
+  const tile = getTileCanvas(ATLAS_SEA_TILE, false, mapAnimFrame || 8, 0);
+  if (!tile) return;
+  const pat = ctx.createPattern(tile, 'repeat');
+  if (!pat) return;
+  // One world square is atlasView.Z pixels and the tile is 32, so the whole
+  // fill is done in a space scaled by Z/32 and offset to world (0,0).
+  const k = atlasView.Z / 32;
+  ctx.save();
+  ctx.translate(atlasView.x, atlasView.y);
+  ctx.scale(k, k);
+  ctx.fillStyle = pat;
+  ctx.fillRect(-atlasView.x / k, -atlasView.y / k, vw / k, vh / k);
+  ctx.restore();
+}
+
 function ensureAtlasCanvas() {
   const vp = document.getElementById('mapViewport');
   if (!vp) return null;
@@ -10814,6 +10852,8 @@ function ensureAtlasCanvas() {
                        'max-width:none; max-height:none;';
     vp.appendChild(cv);
   }
+  // renderMapResource hides it when Regions takes the panel back.
+  cv.style.display = '';
   return cv;
 }
 
@@ -10916,6 +10956,32 @@ function atlasZoomAround(newZ, px, py) {
   atlasSyncZoomLabel();
   paintAtlas();
   atlasCheckAscend();
+  atlasCheckDescend();
+}
+
+/* Zoomed all the way onto a mouth, go through it.
+
+   The same gesture that opens a town opens a cave, which is what makes the
+   two feel like one interaction even though only one of them is a zoom in the
+   geometry. Wanting it centred is what keeps a pinch from falling through
+   whichever mouth happened to be near the edge of the screen. */
+const ATLAS_DESCEND_RADIUS = 0.14;      // of the viewport's shorter side
+function atlasCheckDescend() {
+  if (window._atlasDescending) return;
+  const vp = document.getElementById('mapViewport');
+  const mouths = window.ATLAS_MOUTHS || [];
+  if (!vp || !mouths.length) return;
+  if (atlasView.Z < atlasMaxZ() * 0.92) return;
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  const reach = Math.min(vw, vh) * ATLAS_DESCEND_RADIUS;
+  let best = null, bestD = Infinity;
+  for (const q of mouths) {
+    const d = Math.hypot(q.x - vw / 2, q.y - vh / 2);
+    if (d < bestD) { bestD = d; best = q; }
+  }
+  if (!best || bestD > reach) return;
+  window._atlasDescending = true;
+  try { atlasDescend(best.m, best.node); } finally { window._atlasDescending = false; }
 }
 
 function atlasPanBy(dx, dy) {
@@ -11070,6 +11136,60 @@ function atlasHover(clientX, clientY) {
   placeMapHover(el, vp, px, py);
 }
 
+/* The panel's furniture, hidden while the atlas has the panel.
+
+   None of it applies: the walls, roofs, marks and lighting switches drive
+   layers the atlas does not draw, the PNG export saves the open map and there
+   is no open map, and the title names one too. Leaving controls on screen
+   that do nothing is worse than not having them, and they were taking a third
+   of a phone. Restored by renderMapResource, which is the only other thing
+   that uses this panel. */
+const ATLAS_HIDDEN = ['mapLabel', 'mapParts', 'worldBar', 'worldGaz', 'charControls',
+                      'markLegend', 'mapSaveRow', 'singleControls', 'propFilterWrap',
+                      'resourceNav', 'worldSurround', 'worldOverlay', 'mapCanvasWrap'];
+/* Put back exactly what was taken, and nothing else.
+
+   The first version of this restored by setting `display:''` on the whole
+   list, which is not the same thing: half of these are hidden and shown by
+   other code for its own reasons -- the gallery filter, the resource nav, the
+   World tab's own strip -- and blanket-clearing them turned those on inside
+   Entities > Regions, which is a panel this renderer has no business
+   touching. What is stored is the value that was there, and what is restored
+   is that value; a thing the atlas never hid is never given one. */
+function setAtlasChrome(on) {
+  for (const id of ATLAS_HIDDEN) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    if (on) {
+      if (el.dataset.atlasHid === undefined) el.dataset.atlasHid = el.style.display || '';
+      el.style.display = 'none';
+    } else if (el.dataset.atlasHid !== undefined) {
+      el.style.display = el.dataset.atlasHid;
+      delete el.dataset.atlasHid;
+    }
+  }
+  // With the furniture gone the map can have the room it was taking.
+  const stage = document.getElementById('mapStage');
+  const vp = document.getElementById('mapViewport');
+  if (on) {
+    if (stage && stage.dataset.atlasPad === undefined) {
+      stage.dataset.atlasPad = stage.style.padding || '';
+      stage.style.padding = '8px';
+    }
+    if (vp && vp.dataset.atlasH === undefined) {
+      vp.dataset.atlasH = vp.style.height || '';
+      vp.style.height = '80vh';
+    }
+  } else {
+    if (stage && stage.dataset.atlasPad !== undefined) {
+      stage.style.padding = stage.dataset.atlasPad; delete stage.dataset.atlasPad;
+    }
+    if (vp && vp.dataset.atlasH !== undefined) {
+      vp.style.height = vp.dataset.atlasH; delete vp.dataset.atlasH;
+    }
+  }
+}
+
 /* Opening the tab on the atlas: hide the panel's own furniture, show one
    canvas, fit the world. The panel is not torn down -- Regions still owns it
    and it is exactly as it was. */
@@ -11077,23 +11197,15 @@ function renderAtlasView() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
   if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
-  for (const id of ['singleControls', 'propFilterWrap', 'resourceNav', 'mapParts',
-                    'worldSurround', 'worldOverlay', 'mapCanvasWrap']) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  }
+  setAtlasChrome(true);
   document.getElementById('mapPreview').style.display = 'block';
   document.getElementById('zoomControls').style.display = 'none';
   document.getElementById('singlePreview').style.display = 'none';
   document.getElementById('textPreview').style.display = 'none';
   hideDetailLens(true);
-  const lbl = document.getElementById('mapLabel');
-  if (lbl) lbl.textContent = 'The world of Cythera — zoom in to open a place';
   window.CUR_MAP = null;
   ensureAtlasCanvas();
   setupAtlasInteraction();
-  renderWorldBar();
-  renderGazetteer();
   const start = () => {
     const vp = document.getElementById('mapViewport');
     if (!vp || vp.clientWidth < 40) { setTimeout(start, 50); return; }
@@ -11106,6 +11218,10 @@ function renderAtlasView() {
   start();
 }
 
+/* The switch is off the strip now: the atlas is the World tab and the strip
+   it lived on is not drawn there any more. The other renderer is still in the
+   file and still checked, and this still selects it -- from the console, or
+   by putting `cythera.atlas` to `0` in localStorage -- until it goes. */
 function toggleAtlas() {
   window.ATLAS = !window.ATLAS;
   try { localStorage.setItem('cythera.atlas', window.ATLAS ? '1' : '0'); } catch (e) {}
