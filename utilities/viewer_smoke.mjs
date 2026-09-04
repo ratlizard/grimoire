@@ -811,6 +811,7 @@ try {
 // traps in it, since coming back out leaves the view at the zoom that opened
 // the town, and the hash the back button lands on has no zone in it at all.
 try {
+  let worldPptAtCrossing = 0, th0 = null;
   const gws = ctx.worldGateways();
   if (gws.length < 20) fail('world tab', `only ${gws.length} gateways off the world map`);
   const cad = gws.find(g => g.destResid === 0x8008);
@@ -864,7 +865,10 @@ try {
 
     // Far enough, and centred: the view cross-fades into Cademia. The fade is
     // a timer, so it is run to its end here rather than waited on.
-    centreOn(cad, 70);                        // past WORLD_ENTER_AT: crosses on the transform itself
+    peek('buildThumbsFor')(cad, [peek('THUMB_LEVELS')[0]]);
+    th0 = peek('worldThumbs').get(peek('thumbKey')(cad.destResid, peek('THUMB_LEVELS')[0], true));
+    centreOn(cad, 70);                        // past WORLD_ENTER_AT
+    worldPptAtCrossing = 70;                  // px a world square, by construction: crosses on the transform itself
     if (!ctx.WORLD_FADE && peek('CUR_MAP').resid === 0x8001)
       fail('world tab', 'past WORLD_ENTER_AT nothing happened');
     if (ctx.WORLD_FADE) ctx.finishWorldFade();
@@ -897,13 +901,20 @@ try {
     if (!sur || sur.style.display === 'none')
       fail('world tab', 'no world scenery behind an open-edged town');
     else {
+      /* The country around a town has to be at the world map's OWN scale, or
+         the crossing changes the background under the reader -- which was the
+         big jump on entering. The surround's pitch is checked against the
+         world map's px-a-square at the moment the view crossed: the same
+         number, or the world visibly changes size as the town opens. */
       const cmC = peek('CUR_MAP');
-      const pl = peek('surroundPlacement')(cad, cmC.canvas.width, cmC.canvas.height, mv);
-      const pitch = (cmC.canvas.width * mv.scale) / peek('SURROUND_SPAN');
-      const midX = pl.x + ((cad.x0 + cad.x1 + 1) / 2) * pitch;
-      const townMidX = mv.x + cmC.canvas.width * mv.scale / 2;
-      if (Math.abs(midX - townMidX) > 1)
-        fail('world tab', `the scenery is not centred on Cademia's own icon (${midX} vs ${townMidX})`);
+      const pl = peek('surroundPlacement')(cad, cmC.canvas.width, cmC.canvas.height, mv, cmC.TS);
+      if (Math.abs(pl.pitch - worldPptAtCrossing) > 0.5)
+        fail('world tab', `the country is drawn at ${pl.pitch.toFixed(1)}px a world square ` +
+                          `where the world map had it at ${worldPptAtCrossing.toFixed(1)} — ` +
+                          'crossing changes the background');
+      else if (Math.abs(pl.x + ((cad.x0 + cad.x1 + 1) / 2) * pl.pitch -
+                        (mv.x + ((th0.x0 + th0.x1 + 1) / 2) * cmC.TS * mv.scale)) > 1)
+        fail('world tab', "the country is not anchored on the crop the miniature showed");
       else if (!REGISTRY.get('mapCanvasWrap').dataset.feathered)
         // The tiles at a region's edge are the same ground the world map
         // describes at that spot, so a hard cut announces a boundary the
@@ -1403,6 +1414,40 @@ try {
     }
     ctx.goUpOneLevel();
     if (ctx.WORLD_FADE) ctx.finishWorldFade();
+  }
+
+  /* The animation repaint has to be windowed to the screen. The world map has
+     41,631 animated tiles -- it is mostly sea -- and repainting all of them
+     seven times a second is 42 megapixels a frame at the native tile size,
+     which is what stood between full resolution and being usable. */
+  {
+    ctx.showCategory('WORLD');
+    const cmA = peek('CUR_MAP');
+    const all = cmA.animCells.length;
+    if (all < 1000) fail('anim', `the world map reports only ${all} animated tiles`);
+    else {
+      mv.scale = 2; mv.x = -400; mv.y = -300;
+      const w = peek('animWindow')(cmA);
+      if (!w) fail('anim', 'no window was worked out for a laid-out viewport');
+      else {
+        const inside = cmA.animCells.filter(([x, y]) =>
+          x >= w.x0 && x <= w.x1 && y >= w.y0 && y <= w.y1).length;
+        if (inside >= all * 0.2)
+          fail('anim', `the window still covers ${inside} of ${all} animated tiles`);
+        else console.log('  anim: ' + inside + ' of ' + all +
+                         ' animated tiles repainted per frame, not all of them');
+      }
+    }
+  }
+
+  /* The heavy defaults are refused on a phone whatever else is true, and are
+     never offered where the browser will not actually hand out the canvas. */
+  {
+    const auto = ctx.autoHeavyDefault();
+    if (auto !== ctx.fullResPossible())
+      fail('world tab', 'the automatic default disagrees with what the browser can do');
+    else console.log('  world tab: heavy defaults ' + (auto ? 'on' : 'refused') +
+                     ' for this browser, and gated on an actual allocation');
   }
 
   /* Who that is, under the pointer. Nothing else would notice the hover card

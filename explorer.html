@@ -4052,6 +4052,7 @@ function resetDerivedCaches() {
   window.WORLD_PRELOAD = false;
   window.WORLD_PRELOAD_DONE = 0;
   window.FULL_RES = false;
+  window._AUTO_HEAVY_DONE = false;
   window.PROP_BLOCK = null;
   window.LIVING_PROPTYPES = null;
   window.SCHEDULES = null;
@@ -5484,6 +5485,24 @@ let mapAnimFrame = 0;
 function stopMapAnimation() {
   if (mapAnimTimer) { clearInterval(mapAnimTimer); mapAnimTimer = null; }
 }
+/* The squares of a map that are on screen, in its own coordinates, with a
+   margin so a small pan does not immediately expose an unrepainted edge.
+   Null when the viewport has not been laid out, which means "all of them". */
+function animWindow(cm) {
+  const vp = document.getElementById('mapViewport');
+  if (!vp || !cm || !cm.TS) return null;
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  if (vw < 40 || vh < 40) return null;
+  const spt = cm.TS * mapView.scale;
+  if (!(spt > 0)) return null;
+  return {
+    x0: Math.max(0, Math.floor(-mapView.x / spt) - 3),
+    y0: Math.max(0, Math.floor(-mapView.y / spt) - 3),
+    x1: Math.min(cm.tilesW - 1, Math.ceil((vw - mapView.x) / spt) + 3),
+    y1: Math.min(cm.tilesH - 1, Math.ceil((vh - mapView.y) / spt) + 3)
+  };
+}
+
 function startMapAnimation() {
   stopMapAnimation();
   const cm = window.CUR_MAP;
@@ -5505,8 +5524,25 @@ function startMapAnimation() {
       mapAnimFrame = (mapAnimFrame + 1) % 8;
       const ctx = cm.canvas.getContext('2d');
       const TS = cm.TS;
-      for (const [tx, ty, t] of cm.animCells)
+      /* Only the squares on screen.
+
+         The world map has 41,631 animated tiles -- it is mostly sea -- and
+         this loop repainted every one of them seven times a second whether or
+         not it was anywhere near the viewport. At the budgeted TS=8 that is
+         41,631 blits a frame for a few hundred visible ones; at the native 32
+         it is 42 megapixels a frame, which is not affordable at all and is
+         what stood between full resolution and being usable.
+
+         A pan reveals squares that missed the last frame, and they are
+         repainted on the next one 140ms later, which is not a thing anybody
+         can see. Nothing else changes: the whole map is still animated, just
+         not the parts of it nobody is looking at. */
+      const win = animWindow(cm);
+      const inWin = (tx, ty) => !win || (tx >= win.x0 && tx <= win.x1 && ty >= win.y0 && ty <= win.y1);
+      for (const [tx, ty, t] of cm.animCells) {
+        if (!inWin(tx, ty)) continue;
         drawTileAt(ctx, t, tx*TS, ty*TS, false, TS, mapAnimFrame || 8);
+      }
       // The backdrop behind the void: two frames of wavy space, swapped
       // every eight palette frames, repainted only under the transparent
       // squares that show it. The props over those squares are in the
@@ -5516,6 +5552,7 @@ function startMapAnimation() {
         const pat = backdropPattern(ctx, cm.backdrop[cm.backdropFrame], TS);
         if (pat) {
           for (const [tx, ty, t] of cm.backdropCells) {
+            if (!inWin(tx, ty)) continue;
             ctx.fillStyle = '#000';
             ctx.fillRect(tx*TS, ty*TS, TS, TS);   // the pattern has holes; the old frame must not show through them
             ctx.fillStyle = pat;
@@ -5528,8 +5565,12 @@ function startMapAnimation() {
       // at the same palette frame so shore art with animated colours cycles
       // with the water instead of being erased by it.
       if (cm.animReplay)
-        for (const [t, px, py, tr, sz, rot] of cm.animReplay)
+        for (const [t, px, py, tr, sz, rot] of cm.animReplay) {
+          // These carry base-canvas pixels rather than squares, so the window
+          // is applied to the square they land on.
+          if (!inWin(Math.floor(px / TS), Math.floor(py / TS))) continue;
           drawTileAt(ctx, t, px, py, tr, sz, mapAnimFrame || 8, rot);
+        }
       // The base is what was just repainted, and whenever the detail lens is
       // showing the base is not what anyone is looking at -- so the water
       // stood still until a drag forced the lens to repaint, which is exactly
@@ -7665,6 +7706,16 @@ function clampMapPan() {
   const viewport = document.getElementById('mapViewport');
   const canvas = document.getElementById('mapTerrainCanvas');
   if (!canvas) return;
+  /* A town standing in the world is not a map in a box.
+
+     This function keeps a map from being dragged off the edge of the panel,
+     and centres one smaller than the viewport -- both right when the panel's
+     background is nothing. In the World tab, with the country drawn around
+     it, they are wrong: the whole point is that the place sits where its icon
+     was, which is off-centre, and that you can pan off it onto the ground
+     around it. Centring a town the moment it became smaller than the panel is
+     what threw the view sideways on arrival. */
+  if (worldSurroundShowing()) return;
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
   const cw = canvas.width * mapView.scale, ch = canvas.height * mapView.scale;
   // Allow panning until the map edge reaches the viewport edge, plus a
@@ -8561,20 +8612,21 @@ const WORLD_ZOOM_CEILING = 76;
    cut. */
 const WORLD_FADE_MS = 700;
 
-/* How much of the world the scenery around an open-edged town stands for,
-   measured as the town's own on-screen width in world squares.
+/* The scenery's scale is not chosen at all: it is the world map's own.
 
-   There is no true answer here and it is important not to pretend there is:
-   Cademia's map is 128 squares across and its pictogram on the world map is
-   four, so no single scale relates the two. What this number buys is the
-   thing that IS true -- the terrain around that spot really is the terrain
-   around that spot -- rendered as scenery rather than as a second map. 20 is
-   chosen so the neighbourhood reads as a neighbourhood: the coast, the river
-   and the forest that surround the town are recognisably the ones next to its
-   icon, magnified enough to be soft rather than to be measured against. It is
-   drawn dimmed and upsampled for the same reason, and it is never drawn
-   around a sealed destination, where the world outside would be a lie. */
-const SURROUND_SPAN = 20;
+   It used to be a constant -- the town's width standing for 20 world squares
+   -- and that constant was the big jump on entering a place. A miniature
+   occupies `crop / gatewayRatio` world squares, which for Cademia is about
+   4.6; the surround then redrew the same country as though the town were 20
+   squares wide, four times more magnified. So the moment the view crossed,
+   the country around it changed scale by a factor of four, and no amount of
+   care about where the map landed could hide that.
+
+   With the pitch derived from the same ratio the miniature was sized by,
+   `pitch = ratio * ts * scale`, the country is at exactly the scale the world
+   map was drawing it at a moment earlier, and the crossing changes nothing in
+   the background at all. It is never drawn around a sealed destination, where
+   the world outside would be a lie. */
 
 window.WORLD_ZONE = null;       // the map open in the World tab
 window.WORLD_TRAIL = null;      // how it was reached, when it was not the world
@@ -9059,6 +9111,54 @@ function fullResPossible() {
     } catch (e) { ok = false; }
   }
   return (window._FULL_RES_OK = ok);
+}
+
+/* Should the heavy options be on without being asked for?
+
+   Full resolution plus every place kept is about 627 MB of canvas -- the
+   world map alone is 256 MB of that, and most towns are already at the native
+   32 px a tile under the ordinary budget, so what the rest buys is Cademia,
+   the Underground and the world. On a desktop with memory to spare that is
+   the version of this page worth having: no lens, no repaint on settle, no
+   render during a crossing, nothing that changes while you look at it.
+
+   It is worth being clear that **nothing is downloaded** for any of this.
+   Every map is drawn from the archive that is already in memory, so the cost
+   is RAM and a few seconds of idle CPU rather than bandwidth. saveData and a
+   2G connection are read anyway, not because the bytes matter but because a
+   browser that reports them is telling us it is on a device being careful,
+   and that is the same answer.
+
+   Refused on anything touch-first, on a browser reporting less than 8 GB, and
+   on any browser that will not actually hand out the canvas (fullResPossible
+   allocates one and reads a pixel back). The button says what is on and turns
+   it off. */
+function autoHeavyDefault() {
+  if (IS_IOS_WEBKIT) return false;
+  const nav = (typeof navigator !== 'undefined') ? navigator : {};
+  try {
+    if ((nav.maxTouchPoints || 0) > 0 && matchMedia('(pointer: coarse)').matches) return false;
+  } catch (e) {}
+  const conn = nav.connection || {};
+  if (conn.saveData) return false;
+  if (/2g/.test(conn.effectiveType || '')) return false;
+  if (typeof nav.deviceMemory === 'number' && nav.deviceMemory < 8) return false;
+  return fullResPossible();
+}
+
+/* Turned on once per archive, off the idle queue so that nothing here is in
+   the way of the first thing the reader sees. */
+function maybeAutoLoadEverything() {
+  if (window._AUTO_HEAVY_DONE) return;
+  window._AUTO_HEAVY_DONE = true;
+  if (!autoHeavyDefault()) return;
+  const go = () => {
+    if (window.FULL_RES || window.WORLD_PRELOAD) return;   // the reader got there first
+    toggleFullRes();                                       // native art everywhere, no lens
+    if (!window.WORLD_PRELOAD) toggleWorldPreload();        // and keep every place
+  };
+  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(go, { timeout: 4000 });
+  else setTimeout(go, 800);
 }
 
 function toggleFullRes() {
@@ -9603,13 +9703,22 @@ function surroundPlate(gw) {
    and one world square is drawn SURROUND_SPAN-th of the town's width -- so
    the two move as one scene under a pan or a zoom, and the coast that was
    beside the icon is still beside the town. */
-function surroundPlacement(gw, cw, ch, view) {
+function surroundPlacement(gw, cw, ch, view, destTS) {
   const base = worldBaseCanvas();
   if (!base || !gw) return null;
-  const pitch = (cw * view.scale) / SURROUND_SPAN;
-  const ts = window.WORLD_BASE_TS || 8;
-  const k = pitch / ts;
-  const cx = view.x + cw * view.scale / 2, cy = view.y + ch * view.scale / 2;
+  const ts = destTS || (window.CUR_MAP && window.CUR_MAP.TS) || 32;
+  const pitch = gatewayRatio(gw) * ts * view.scale;
+  const wts = window.WORLD_BASE_TS || 8;
+  const k = pitch / wts;
+  /* Anchored on the crop the miniature showed, not on the middle of the map.
+     The miniature was centred on the pictogram, and the crop's middle is not
+     the map's middle -- pinning the wrong one puts the country a few squares
+     out, which reads as the town having shuffled sideways on arrival. */
+  const thumb = worldThumbs.get(thumbKey(gw.destResid, THUMB_LEVELS[0], true));
+  const cropCx = thumb ? (thumb.x0 + thumb.x1 + 1) / 2 : (cw / ts) / 2;
+  const cropCy = thumb ? (thumb.y0 + thumb.y1 + 1) / 2 : (ch / ts) / 2;
+  const cx = view.x + cropCx * ts * view.scale;
+  const cy = view.y + cropCy * ts * view.scale;
   // originX/originY are where world square (0,0) lands on screen, which is
   // what both the blurred whole-world draw and the sharp plate hang off.
   const originX = cx - ((gw.x0 + gw.x1 + 1) / 2) * pitch;
@@ -9625,8 +9734,8 @@ function surroundPlacement(gw, cw, ch, view) {
    the town looked like a dialog over the world rather than a place in it. The
    softness of the upsample is enough to keep it from being read square by
    square. */
-function paintSurroundInto(ctx, vw, vh, gw, cw, ch, view) {
-  const p = surroundPlacement(gw, cw, ch, view);
+function paintSurroundInto(ctx, vw, vh, gw, cw, ch, view, destTS) {
+  const p = surroundPlacement(gw, cw, ch, view, destTS);
   if (!p) return false;
   ctx.imageSmoothingEnabled = true;
   // The whole world first, as ground: past the plate's edge this is all there
@@ -9658,6 +9767,15 @@ function ensureWorldSurround() {
     vp.appendChild(el);
   }
   return el;
+}
+
+// Is the map currently sitting inside the world rather than in a panel?
+function worldSurroundShowing() {
+  if (window.CUR_SUBN !== 'WORLD') return false;
+  const cm = window.CUR_MAP;
+  if (!cm || cm.resid === WORLD_MAP_RESID) return false;
+  const gw = enteredBy();
+  return !!(gw && !gw.sealed);
 }
 
 function hideWorldSurround() {
@@ -9710,7 +9828,7 @@ function paintWorldSurround() {
   if (!ctx) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, vw, vh);
-  if (paintSurroundInto(ctx, vw, vh, gw, cm.canvas.width, cm.canvas.height, mapView)) {
+  if (paintSurroundInto(ctx, vw, vh, gw, cm.canvas.width, cm.canvas.height, mapView, cm.TS)) {
     el.style.display = '';
     el.style.transform = '';
     surroundView = { x: mapView.x, y: mapView.y, scale: mapView.scale };
@@ -9787,7 +9905,9 @@ function crossfadeToZone(resid, arriveX, arriveY) {
   // Painting anything else here is a flash of a third thing between two
   // views that are meant to be one place.
   const gwTo = (resid !== WORLD_MAP_RESID) ? enteredBy() : null;
-  if (!gwTo || gwTo.sealed || !paintSurroundInto(ctx, vw, vh, gwTo, dest.width, dest.height, v)) {
+  const destTS = (mapRenderFor(resid, true) || { result: {} }).result.tileSize;
+  if (!gwTo || gwTo.sealed ||
+      !paintSurroundInto(ctx, vw, vh, gwTo, dest.width, dest.height, v, destTS)) {
     ctx.fillStyle = '#222';
     ctx.fillRect(0, 0, vw, vh);
   }
@@ -9936,7 +10056,7 @@ function worldOpenZone(resid, x, y, quiet) {
   window.WORLD_ZONE = resid;
   // Standing on the world map is standing at the top: there is nothing above
   // it to go back up to.
-  if (resid === WORLD_MAP_RESID) window.WORLD_STACK = [];
+  if (resid === WORLD_MAP_RESID) { window.WORLD_STACK = []; maybeAutoLoadEverything(); }
   // The world map's own render is pinned in the cache (see mapRenderFor), so
   // the scenery behind a town and the way back out both reuse the bitmap the
   // world map was already drawn from rather than making a second one.
@@ -9995,13 +10115,13 @@ function renderWorldBar() {
     const done = window.WORLD_PRELOAD_DONE || 0;
     // The cost is on the button rather than discovered afterwards.
     const load = !window.WORLD_PRELOAD
-      ? '⤓ Load every place — ' + total + ' maps, about 275 MB'
-      : (done < total ? '… loading ' + done + ' of ' + total : '✓ Every place loaded — free it');
+      ? '⤓ Load every place — ' + total + ' maps'
+      : (done < total ? '… loading ' + done + ' of ' + total : '✓ All ' + total + ' places loaded — free them');
     // Offered only where it can actually be done, and with the cost on it.
     const fr = fullResPossible()
       ? '<button class="crumbBtn" onclick="toggleFullRes()">' +
         (window.FULL_RES ? '✓ Full resolution — back to normal'
-                         : '◈ Full resolution — no zoom transitions, ~270 MB') + '</button>'
+                         : '◈ Full resolution — no zoom transitions') + '</button>'
       : '';
     bar.innerHTML = '<span class="wbWhere">The world of Cythera</span>' +
       // Short, because on a phone every line of this is a line of map. The

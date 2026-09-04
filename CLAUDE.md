@@ -755,7 +755,16 @@ Read the comment above a constant before correcting it.
   have. It is a percentage, not a pixel count, because the detail lens is a
   sibling of the wrap and is not masked — by the zoom the lens engages at, the
   edge is off screen.
-  **Full resolution is a desktop opt-in** (`toggleFullRes`): every map at the
+  **The animation repaint is windowed to the screen** (`animWindow`). The
+  world map has **41,631 animated tiles** — it is mostly sea — and the loop
+  repainted every one of them seven times a second whether or not it was near
+  the viewport: 42 megapixels a frame at the native tile size, which is what
+  stood between full resolution and being usable. 702 of 41,631 now. A pan
+  reveals squares that missed the last frame and they are repainted 140ms
+  later, which nobody can see.
+  **Full resolution is on by default where the device allows**
+  (`autoHeavyDefault`, `maybeAutoLoadEverything`) and otherwise a desktop
+  opt-in (`toggleFullRes`): every map at the
   native 32 px a tile, the world map included, which is an 8192×8192 canvas
   at 268 MB. What it buys is that `lensActive` turns itself off — the lens is
   the only thing on this page that changes resolution while you are looking
@@ -766,7 +775,14 @@ Read the comment above a constant before correcting it.
   is what was asked for. Never offered on trust: `fullResPossible` allocates
   the exact canvas and reads a pixel back out of the far corner, because a
   browser that cannot do it hands back one that draws nothing rather than
-  saying so.
+  saying so. Full resolution **plus** every place kept is about **627 MB**, of
+  which the world map alone is 256; most towns are already native under the
+  ordinary budget, so what the rest buys is Cademia, the Underground and the
+  world. Turned on automatically off the idle queue unless the device is
+  touch-first, reports under 8 GB, or sets `saveData`/2G. Worth being clear
+  that **nothing is downloaded** for any of it — every map is drawn from the
+  archive already in memory, so the cost is RAM and a few seconds of idle CPU;
+  the connection hints are read as a signal about the device, not the bytes.
   **Loading every place is opt-in** (`toggleWorldPreload`, the button in
   `#worldBar`). Everything above is careful with memory because the numbers
   are large — the 24 distinct destinations rendered whole measure **275 MB** —
@@ -814,18 +830,28 @@ Read the comment above a constant before correcting it.
   the way in and the way out are the same gesture, which is what stops the
   tab reading as a set of rooms. **Sealed**: the ring says *click to enter*,
   zooming never opens it, and the button is the way back.
-  **The scenery is scenery, and the comment above `SURROUND_SPAN` says so.**
-  There is no true scale relating a 128-square town map to its four-square
-  pictogram, so the surround does not pretend to one: it pins the gateway's
-  footprint centre to the middle of the town and draws one world square at a
-  twentieth of the town's width, upsampled. What it buys is the part that *is*
-  true — the coast, the river and the forest beside Cademia really are the
-  ones beside its icon — without inviting a square-by-square comparison the
-  two scales cannot survive. It is **not dimmed**: a wash over it was tried
-  and read as a modal backdrop, making the town look like a dialog over the
-  world rather than a place in it, and the softness of the upsample is enough
-  on its own. It is never drawn around a sealed destination, where the world
-  outside would be a lie.
+  **The scenery is at the world map's own scale, and that is what makes the
+  crossing invisible.** `pitch = gatewayRatio(gw) × ts × scale` — the same
+  ratio the miniature was sized by — so the country around a town is drawn at
+  exactly the scale the world map was drawing it at a moment earlier. It was a
+  constant before (the town standing for 20 world squares) and that constant
+  **was the big jump on entering a place**: a miniature occupies `crop ÷ ratio`
+  world squares, about 4.6 for Cademia, so the surround redrew the same
+  country four times more magnified and the background changed scale the
+  instant the view crossed. The smoke test pins the pitch against the world's
+  own px-a-square at the moment of crossing; with the old constant restored it
+  reports 16.8 against 70. It is anchored on the **crop the miniature showed**,
+  not the middle of the map, or the town appears to shuffle sideways on
+  arrival. It is **not dimmed**: a wash read as a modal backdrop, making the
+  town look like a dialog over the world rather than a place in it. Never
+  drawn around a sealed destination, where the world outside would be a lie.
+  **`clampMapPan` stands down while it is showing** (`worldSurroundShowing`).
+  It keeps a map from being dragged off the panel and centres one smaller than
+  the viewport — both right when the background is nothing, both wrong when a
+  town is standing in the world: the place is *meant* to sit where its icon
+  was, which is off-centre, and you are meant to be able to pan off it onto
+  the ground around it. Centring the moment a town became smaller than the
+  panel was the other half of the jump on arrival.
   **`mapRenderFor` is why a crossing is quick, and the double render it
   removed is why one was not.** A town used to be drawn twice on the way in —
   once into the overlay that fades up, once into the panel the overlay
