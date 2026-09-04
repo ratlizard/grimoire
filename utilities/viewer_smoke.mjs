@@ -804,6 +804,311 @@ try {
   peek('scheduleLensPaint')(0);
 } catch (e) { fail('detail lens', e); }
 
+// The World tab: the world map with every way off it live, and the cross-fade
+// that carries the view into a town. Nothing else would notice the gateway
+// index going empty, the gazetteer rendering nothing, or the transition
+// failing to land on the destination map -- and the landing is the part with
+// traps in it, since coming back out leaves the view at the zoom that opened
+// the town, and the hash the back button lands on has no zone in it at all.
+try {
+  const gws = ctx.worldGateways();
+  if (gws.length < 20) fail('world tab', `only ${gws.length} gateways off the world map`);
+  const cad = gws.find(g => g.destResid === 0x8008);
+  if (!cad) fail('world tab', 'no gateway to Cademia');
+  else if (cad.x0 !== 170 || cad.y0 !== 95 || cad.x1 !== 173 || cad.y1 !== 98)
+    // The footprint is the squares the icons DRAW over, not the squares the
+    // four records name: a multi-square sprite stores only its bottom-right
+    // corner, so a footprint read straight off the records would be (171,96)
+    // and the ring would go through the middle of the pictogram.
+    fail('world tab', `Cademia's footprint is (${cad.x0},${cad.y0})-(${cad.x1},${cad.y1}), ` +
+                      'expected (170,95)-(173,98)');
+  else if (cad.destX !== 6 || cad.destY !== 62)
+    fail('world tab', `Cademia's zoneport arrives at (${cad.destX},${cad.destY}), expected (6,62)`);
+
+  ctx.showCategory('WORLD');
+  const cm0 = peek('CUR_MAP');
+  if (!cm0 || cm0.resid !== 0x8001) fail('world tab', 'the tab did not open on the world map');
+  const gaz = REGISTRY.get('worldGaz');
+  if (!gaz || gaz.style.display === 'none') fail('world tab', 'the gazetteer is not showing');
+  else if (!/Ways off the world map/.test(gaz.innerHTML)) fail('world tab', 'the gazetteer rendered nothing');
+  else console.log('  world tab: world map open, ' + gws.length + ' gateways in the gazetteer');
+
+  // `ppt` -- screen pixels per world square -- is what drives the ring and
+  // the crossing, so the scale is derived from the base canvas's own budgeted
+  // tile size rather than assumed.
+  const mv = peek('mapView');
+  const vp = REGISTRY.get('mapViewport');
+  // Through applyMapTransform, which is the real path: the crossing is
+  // tested on every transform rather than on the settle, so that a wheel spun
+  // steadily into a town carries the view in under the reader's hand instead
+  // of waiting for them to stop.
+  const centreOn = (gw, ppt) => {
+    const base = peek('CUR_MAP');
+    mv.scale = ppt / base.TS;
+    mv.x = vp.clientWidth / 2 - ((gw.x0 + gw.x1 + 1) / 2) * base.TS * mv.scale;
+    mv.y = vp.clientHeight / 2 - ((gw.y0 + gw.y1 + 1) / 2) * base.TS * mv.scale;
+    ctx.applyMapTransform();
+  };
+  if (cad) {
+    // Zoomed in but not far enough: the gateway is named on screen and the
+    // world map is otherwise left exactly as it was. Crossing over must not
+    // be the first thing that happens.
+    centreOn(cad, 34);                        // between WORLD_HINT_AT and WORLD_ENTER_AT
+    peek('paintWorldScene')();
+    const g1 = ctx.WORLD_GATE;
+    if (!g1) fail('world tab', 'no gateway ringed at 34 screen pixels a square');
+    else if (g1.gw.destResid !== 0x8008) fail('world tab', 'the ring picked the wrong gateway');
+    else if (peek('CUR_MAP').resid !== 0x8001)
+      fail('world tab', 'the view crossed over before reaching WORLD_ENTER_AT');
+    else console.log('  world tab: Cademia ringed at 34px a square, world map untouched');
+
+    // Far enough, and centred: the view cross-fades into Cademia. The fade is
+    // a timer, so it is run to its end here rather than waited on.
+    centreOn(cad, 70);                        // past WORLD_ENTER_AT: crosses on the transform itself
+    if (!ctx.WORLD_FADE && peek('CUR_MAP').resid === 0x8001)
+      fail('world tab', 'past WORLD_ENTER_AT nothing happened');
+    if (ctx.WORLD_FADE) ctx.finishWorldFade();
+    const cm1 = peek('CUR_MAP');
+    if (!cm1 || cm1.resid !== 0x8008)
+      fail('world tab', 'the cross-fade did not land on Cademia (0x' +
+                        (cm1 ? cm1.resid.toString(16) : '?') + ')');
+    else if (ctx.CUR_SUBN !== 'WORLD')
+      fail('world tab', 'entering a town left the World tab');
+    else {
+      const ov = REGISTRY.get('worldOverlay');
+      if (ov && ov.style.display !== 'none')
+        fail('world tab', 'the overlay outlived the transition it covered');
+      else console.log('  world tab: cross-faded into Cademia, ' + cm1.tilesW + 'x' + cm1.tilesH +
+                       ' squares, without leaving the tab');
+    }
+
+    // The link, written on the way in. Crossing into a town writes `z`, not
+    // `r` -- a bare &r=8008 would send applyDeepLink through jumpToResource,
+    // which switches the tab to Entities > Regions.
+    if (ctx.location.hash !== '#c=WORLD&z=8008')
+      fail('world tab', `entering a town wrote "${ctx.location.hash}", expected #c=WORLD&z=8008`);
+
+    // The scenery. An open-edged town keeps the world around it, which is
+    // what stops the tab reading as a set of separate rooms -- and it must be
+    // the world beside THAT town, so the placement is checked rather than
+    // just the fact that something was drawn.
+    if (cad.sealed) fail('world tab', 'Cademia was read as sealed');
+    const sur = REGISTRY.get('worldSurround');
+    if (!sur || sur.style.display === 'none')
+      fail('world tab', 'no world scenery behind an open-edged town');
+    else {
+      const cmC = peek('CUR_MAP');
+      const pl = peek('surroundPlacement')(cad, cmC.canvas.width, cmC.canvas.height, mv);
+      const pitch = (cmC.canvas.width * mv.scale) / peek('SURROUND_SPAN');
+      const midX = pl.x + ((cad.x0 + cad.x1 + 1) / 2) * pitch;
+      const townMidX = mv.x + cmC.canvas.width * mv.scale / 2;
+      if (Math.abs(midX - townMidX) > 1)
+        fail('world tab', `the scenery is not centred on Cademia's own icon (${midX} vs ${townMidX})`);
+      else console.log("  world tab: the world's own scenery sits behind Cademia, on its icon");
+    }
+
+    // Back out by the button. It lands just SHORT of the crossing zoom,
+    // looking at the town's icon -- so zooming in again crosses back, which
+    // is the whole point of the way in being a zoom. Landing exactly where
+    // the crossing happened would need the hold to be doing the work instead.
+    ctx.backToWorldMap();
+    if (ctx.WORLD_FADE) ctx.finishWorldFade();
+    const cm2 = peek('CUR_MAP');
+    if (!cm2 || cm2.resid !== 0x8001) fail('world tab', 'the way back to the world map failed');
+    else {
+      const ppt = cm2.TS * mv.scale;
+      if (!(ppt > 0 && ppt < peek('WORLD_ENTER_AT')))
+        fail('world tab', `came out of the town at ${ppt}px a square, which is still inside it`);
+      else if (peek('MAP_VIEW_MEMORY')[0x8008])
+        // Leaving by zooming out must not be remembered as "where you were",
+        // or the next visit restores a view already under the leaving
+        // threshold and bounces straight back out.
+        fail('world tab', "the zoomed-out view was remembered as Cademia's own");
+      else {
+        centreOn(cad, 70);
+        if (ctx.WORLD_FADE) ctx.finishWorldFade();
+        if (peek('CUR_MAP').resid !== 0x8008)
+          fail('world tab', 'zooming back in after leaving did not cross back into the town');
+        else console.log('  world tab: out by zooming out, back in by zooming in');
+      }
+    }
+
+    // The browser's own back button is the case the hold exists for: it
+    // restores the world map's remembered view, which IS the zoom that opened
+    // the town, so without the hold the tab crosses straight back in and the
+    // button can never escape. And a `#c=WORLD` with no `z` has to mean the
+    // world map rather than "keep whatever was open".
+    ctx.applyDeepLink({ c: 'WORLD' });
+    if (ctx.WORLD_FADE) ctx.finishWorldFade();
+    if (peek('CUR_MAP').resid !== 0x8001)
+      fail('world tab', 'the back button did not put the world map back');
+    else if (ctx.location.hash !== '#c=WORLD')
+      fail('world tab', `back left the hash at "${ctx.location.hash}"`);
+    else console.log('  world tab: #c=WORLD&z=8008 round-trips, and back does not walk in again');
+  }
+
+  /* The towns, on the world map. Each open-edged gateway's pictogram is
+     replaced above THUMB_FADE by the town itself, roofed and scaled into the
+     same few squares, so the crossing is a change of scale rather than a
+     substitution of one picture for another. Sealed destinations keep their
+     icon: a cave's inside is not what is at that spot. */
+  if (cad) {
+    ctx.showCategory('WORLD');
+    peek('buildWorldThumbs')();
+    const th = peek('worldThumb')(cad);
+    if (!th || !th.width) fail('world tab', 'no miniature was built for Cademia');
+    else if (Math.max(th.width, th.height) !== peek('THUMB_MAX'))
+      fail('world tab', `Cademia's miniature is ${th.width}x${th.height}, not THUMB_MAX on its long side`);
+    else {
+      const lkh = gws.find(g => g.name === 'Land King Hall');
+      if (peek('worldThumb')(lkh))
+        fail('world tab', 'a sealed destination was drawn onto the world map');
+      else if (!(() => {
+        /* A miniature paints roofs onto the canvas it shrinks, so it must
+           render its own. Handed the cached entry it would have roofed the
+           copy the panel puts on screen -- permanently, and only for the
+           towns whose miniature happened to have been built. Observable as a
+           render: rebuilding a thumbnail for an already-cached map has to
+           cost one, not reuse what is being displayed. */
+        peek('worldThumbs').delete(cad.destResid);
+        peek('mapRenderFor')(cad.destResid, true);        // certainly cached now
+        const real = ctx.renderMapVisual;
+        let n = 0;
+        ctx.renderMapVisual = function () { n++; return real.apply(null, arguments); };
+        try { peek('worldThumb')(cad); } finally { ctx.renderMapVisual = real; }
+        return n === 1;
+      })())
+        fail('world tab', 'a miniature reused the cached render -- it would roof the panel');
+      else {
+        // Big enough to cover the pictogram it stands in for -- a miniature
+        // the exact size of the footprint leaves the sprite's corners showing.
+        const cmw = peek('CUR_MAP');
+        centreOn(cad, 30);
+        const r = peek('thumbRect')(cad, th, cmw);
+        const foot = (cad.x1 - cad.x0 + 1) * cmw.TS * mv.scale;
+        if (!(r.w > foot))
+          fail('world tab', `the miniature (${r.w}px) does not cover its ${foot}px pictogram`);
+        else console.log('  world tab: ' + gws.filter(g => !g.sealed).length +
+                         ' towns drawn as themselves on the world map, ' +
+                         Math.round(r.w) + 'px over a ' + Math.round(foot) + 'px icon');
+      }
+    }
+  }
+
+  /* Roofs on the way in, off once you are close. Arriving on a roofless town
+     when the miniature was roofed would be a change of subject rather than a
+     change of scale; staying roofed would put the streets and the people
+     under a lid. */
+  if (cad) {
+    ctx.showCategory('WORLD');
+    centreOn(cad, 70);
+    if (ctx.WORLD_FADE) ctx.finishWorldFade();
+    const cmT = peek('CUR_MAP');
+    if (!cmT || cmT.resid !== 0x8008) fail('world tab', 'could not get into Cademia for the roof check');
+    else {
+      const setPpt = (ppt) => { mv.scale = ppt / cmT.TS; ctx.applyMapTransform(); };
+      setPpt(6);                                     // arrived, whole town in view
+      const near = !!ctx.MAP_ROOFS;
+      setPpt(40);                                    // close in
+      const far = !!ctx.MAP_ROOFS;
+      if (!near) fail('world tab', 'the town arrived without its roofs');
+      else if (far) fail('world tab', 'the roofs did not lift on the way in');
+      else {
+        // An explicit choice outranks the zoom, for as long as the map is open.
+        ctx.toggleRoofsByHand(true);
+        setPpt(6);
+        setPpt(40);
+        if (!ctx.MAP_ROOFS) fail('world tab', 'the zoom overrode the Roofs checkbox');
+        else { ctx.ROOF_MANUAL = false; console.log('  world tab: roofs on arrival, lifted on approach, ' +
+                                                    'and the checkbox outranks both'); }
+      }
+    }
+    ctx.backToWorldMap();
+    if (ctx.WORLD_FADE) ctx.finishWorldFade();
+  }
+
+  /* A crossing must cost ONE render of the destination, not two.
+
+     It used to cost two: once into the overlay that fades up and once into
+     the panel the overlay uncovers, both inside the transition -- so the fade
+     was covering a 128x128 map being drawn rather than covering a change of
+     place, and that is what made it feel slow. The overlay and the panel are
+     handed the same render now, and the world map is pinned in the cache so
+     coming back out costs none at all. renderMapVisual is counted directly
+     because a timing assertion would be a flake and this is the property that
+     actually matters. */
+  {
+    const od = gws.find(g => g.destResid === 0x8002);      // Odemia, not yet drawn
+    ctx.forgetZoneRender(0x8002);
+    const real = ctx.renderMapVisual;
+    let n = 0;
+    ctx.renderMapVisual = function () { n++; return real.apply(null, arguments); };
+    try {
+      ctx.enterGateway(od);
+      if (ctx.WORLD_FADE) ctx.finishWorldFade();
+      const inbound = n;
+      ctx.backToWorldMap();
+      if (ctx.WORLD_FADE) ctx.finishWorldFade();
+      const outbound = n - inbound;
+      ctx.enterGateway(od);
+      if (ctx.WORLD_FADE) ctx.finishWorldFade();
+      const again = n - inbound - outbound;
+      ctx.backToWorldMap();
+      if (ctx.WORLD_FADE) ctx.finishWorldFade();
+      if (inbound !== 1)
+        fail('world tab', `crossing into a town cost ${inbound} map renders, expected 1`);
+      else if (outbound !== 0)
+        fail('world tab', `coming back out re-rendered the world map ${outbound}x — it is pinned`);
+      else if (again !== 0)
+        fail('world tab', `a second visit re-rendered the town ${again}x`);
+      else console.log('  world tab: a crossing costs one map render, a return and a revisit none');
+    } finally { ctx.renderMapVisual = real; }
+  }
+
+  // Land King Hall and the caves are the sealed-edge maps: there is no world
+  // immediately outside them, so they are entered by a click and never by
+  // zooming. mapIsSealed reads that off each destination's own header, so a
+  // modded archive gets its own answer rather than this one.
+  {
+    const sealed = gws.filter(g => g.sealed).map(g => g.name).sort();
+    const want = ['Caves', 'Cove', 'Land King Hall', 'Underground', 'Underground',
+                  'Underground', 'Volcano'];
+    if (String(sealed) !== String(want))
+      fail('world tab', `sealed destinations are [${sealed}], expected [${want}]`);
+    else {
+      const lkh = gws.find(g => g.name === 'Land King Hall');
+      ctx.showCategory('WORLD');
+      centreOn(lkh, 90);                     // well past WORLD_ENTER_AT
+      if (ctx.WORLD_FADE) ctx.finishWorldFade();
+      if (peek('CUR_MAP').resid !== 0x8001)
+        fail('world tab', 'zooming opened a sealed destination');
+      else console.log('  world tab: ' + sealed.length + ' sealed destinations, ' +
+                       'and zooming does not open Land King Hall');
+    }
+  }
+
+  // The join itself, on the square. A settlement icon must name its
+  // destination and offer the crossing; EXIT_PROPS does not name the city
+  // props and must not -- they are ordinary buildings on nine other maps --
+  // so this is propTravelsTo's scoping working, not a widened regex.
+  if (cad) {
+    ctx.showCategory('WORLD');
+    if (peek('CUR_MAP').resid !== 0x8001)
+      fail('world tab', 'the tab did not come back to the world map');
+    ctx.inspectMapSquare(cad.x1, cad.y1);
+    const insp = REGISTRY.get('mapInspect');
+    if (!new RegExp('enterGatewayByPort\\(' + cad.port + '\\)').test(insp.innerHTML))
+      fail('world tab', "Cademia's icon offers no way in from the square inspector");
+    else if (!/Leads to/.test(insp.innerHTML))
+      fail('world tab', "Cademia's icon does not say where it leads");
+    else console.log('  world tab: the city icon names Cademia and links to it');
+    // And the same reading must NOT fire off the world map, where a `ruins`
+    // prop is a building and its data2 lands on an unrelated zone.
+    const stray = ctx.propTravelsTo({ proptype: 65, d2: 7 }, 0x8102);
+    if (stray) fail('world tab', 'a settlement icon was read as a portal off the world map');
+  }
+} catch (e) { fail('world tab', e); }
+
 // Opening a second archive must not leave the first one's derived tables
 // behind. Sentinels survive only if something is not being reset.
 try {
