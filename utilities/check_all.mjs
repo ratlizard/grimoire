@@ -206,6 +206,14 @@ const CHECKS = [
   {page: 'viewer', name: 'addons + heuristic', want: [DATA],
    cmd: ['utilities/addons_check.mjs', 'index.html', DATA, ADDONS],
    grep: /heuristic [\d.]+% vs the tables \([^)]*\)/},
+  /* The undither, scored against a known original. It needs no archive: the
+     sources are synthetic and the forward process is the page's own
+     ditherizer, so this is the one check here that measures a decoder against
+     the thing it is trying to recover rather than against another decoder or
+     against yesterday's output. */
+  {page: 'viewer', name: 'undither vs truth',
+   cmd: ['utilities/undither_check.mjs', 'index.html'],
+   grep: /measured is [\d.]+% better overall for [\d.]+% at edges/},
   {page: 'viewer', name: 'ui smoke', want: [DATA], slow: true,
    cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL],
    grep: /\d+ galleries, [\d,]+ tiles/},

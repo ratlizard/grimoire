@@ -297,6 +297,45 @@ const UD = {
   nlm:0, nlmPatch:2, nlmSearch:4, upscale:2, supersample:true, scaler:"guided",
   filter:"notch", quantise:"off", quantiseK:2, lockAnimated:true, protectCutout:true
 };
+
+/* A second set of settings, and why there are two.
+ *
+ * UD above was tuned by eye and by a cleaning-versus-detail-loss ratio over
+ * six portraits. Both are real measures and neither is "is this the picture
+ * the artist drew", because the continuous-tone original is not in the
+ * archive and never was.
+ *
+ * utilities/undither_check.mjs makes one. ditherToCytheraPalette is the
+ * forward process this repository already carries, so an image put through it
+ * has a KNOWN original and the filter can be scored against the thing it is
+ * trying to recover. Over four sources -- a smooth ramp, a grey-to-warm hue
+ * sweep at constant lightness, fine linework, and a lit sphere -- the settings
+ * above come 34th of the 36 combinations tried. These come first: RMSE 10.81
+ * against 11.95, a tenth better, for 3% more error at edges.
+ *
+ * Both are offered rather than one replacing the other, because the two
+ * measures disagree honestly. The ground truth here is recovery from THIS
+ * dither; Ambrosia's artwork was made by another, and the portraits the
+ * original was tuned on are the class with least dither in them (3.4% of
+ * pixels textured, against 17.9% for the misc graphics). Which looks right on
+ * the real art is a question for the person looking at it, so the page asks.
+ *
+ * passes is 1 here and that is not a compromise: checkerNotch takes a `guide`
+ * argument and never reads it, so every pass after the first recomputes an
+ * identical result. The sweep shows it exactly -- 11.945 for one pass, two,
+ * three and four. UD keeps 3 so that its output is the byte-for-byte thing it
+ * always was; this one does the same work once.
+ */
+const UD_MEASURED = Object.assign({}, UD, {
+  strength: 0.9, sens: 0.8, passes: 1
+});
+
+const UD_PRESETS = { original: UD, measured: UD_MEASURED };
+// The page sets this; anything else loading these files gets the settled one.
+function activeUD() {
+  const p = (typeof window !== 'undefined' && window.UNDITHER_PRESET) || 'original';
+  return UD_PRESETS[p] || UD;
+}
 const LINE_REACH = 3;
 const AXES_STRAIGHT = [[1,0],[0,1]];
 const AXES_ALL      = [[1,0],[0,1],[1,1],[1,-1]];
@@ -823,6 +862,10 @@ function undither(rgba, W, H, p, locked, cls){
 // work to repeat for a picture that has not changed.
 const UNDITHER_CACHE = new Map();
 function unditherIndexed(W, H, image, transparentIndex, palette, key) {
+  // The preset belongs in the key: the same pixels under the other settings
+  // are a different picture, and a gallery that switched would show the one
+  // it had already made.
+  if (key) key = ((typeof window !== 'undefined' && window.UNDITHER_PRESET) || 'original') + ':' + key;
   if (key && UNDITHER_CACHE.has(key)) return UNDITHER_CACHE.get(key);
   const P = palette || PAL_RGB;
   const t = (transparentIndex === undefined || transparentIndex === null) ? -1 : transparentIndex;
@@ -834,8 +877,9 @@ function unditherIndexed(W, H, image, transparentIndex, palette, key) {
     const c = P[v] || [0,0,0];
     rgba[i*4]=c[0]; rgba[i*4+1]=c[1]; rgba[i*4+2]=c[2]; rgba[i*4+3]=255;
   }
-  const locked = buildLockedMask(image, UD, rgba, W, H);
-  const r = undither(rgba, W, H, UD, locked, null);
+  const P2 = activeUD();
+  const locked = buildLockedMask(image, P2, rgba, W, H);
+  const r = undither(rgba, W, H, P2, locked, null);
   const out = new ImageData(new Uint8ClampedArray(r.out), r.outW, r.outH);
   if (key) {
     if (UNDITHER_CACHE.size > 400) UNDITHER_CACHE.clear();

@@ -4861,6 +4861,26 @@ function drawToCanvas(canvas, W, H, image, transparentIndex, palette) {
   if (unditherOn() && W*H > 0) queueUndither(canvas, W, H, image, t, P);
 }
 
+/* Which of the two sets of undither settings is in force.
+
+   Remembered, because it is a preference about how every image on the page
+   looks rather than a thing to re-choose each visit. Changing it drops the
+   cache and redraws: the same pixels under the other settings are a different
+   picture, and a gallery that kept the old one would show it. */
+function unditherPreset() {
+  if (window.UNDITHER_PRESET) return window.UNDITHER_PRESET;
+  let v = null;
+  try { v = localStorage.getItem('cythera.undither.preset'); } catch (e) {}
+  return (window.UNDITHER_PRESET = (v === 'measured' ? 'measured' : 'original'));
+}
+function setUnditherPreset(id) {
+  window.UNDITHER_PRESET = (id === 'measured') ? 'measured' : 'original';
+  try { localStorage.setItem('cythera.undither.preset', window.UNDITHER_PRESET); } catch (e) {}
+  cancelUndither();
+  if (typeof UNDITHER_CACHE !== 'undefined') UNDITHER_CACHE.clear();
+  if (typeof setMode === 'function') setMode(currentMode);
+}
+
 // One at a time, yielding between, so the page stays responsive while a whole
 // gallery is reprocessed. Superseded jobs are dropped: switching category or
 // turning the option off bumps the generation and everything older is
@@ -11695,6 +11715,35 @@ function renderToolsSheet() {
   lab.appendChild(master);
   lab.appendChild(document.createTextNode(' Undither every image'));
   u.appendChild(lab);
+
+  /* Two sets of settings, because the two ways of judging them disagree.
+
+     The first was tuned by eye and by a cleaning-versus-detail-loss ratio over
+     six portraits. The second was scored against a known original --
+     utilities/undither_check.mjs dithers an image with this page's own
+     ditherizer and asks the filter to get it back -- where the first comes
+     34th of 36 combinations and the second comes 1st.
+     Neither settles it. The ground truth is recovery from THIS dither and
+     Ambrosia's artwork was made by another; and the portraits the first was
+     tuned on are the class with the least dither in them. So the page offers
+     both and the reader decides on the art itself. */
+  const pu = sec('Which undither',
+    'Two sets of settings. “As tuned by eye” is the original, judged on how much dither came ' +
+    'out against how much sharpness went with it, over six portraits. “Measured” was scored ' +
+    'against a known original — an image put through this page’s own ditherizer and asked for ' +
+    'back — where it recovers about a tenth more of it, at three per cent more error along ' +
+    'edges. The larger, more heavily dithered pictures are where they differ most: the misc ' +
+    'graphics carry dither on 17.9% of their pixels, the portraits on 3.4%.');
+  const prow = document.createElement('div');
+  prow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px';
+  for (const [id, label] of [['original', 'As tuned by eye'], ['measured', 'Measured']]) {
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.textContent = (unditherPreset() === id ? '\u2713 ' : '') + label;
+    b.onclick = () => { setUnditherPreset(id); renderToolsSheet(); };
+    prow.appendChild(b);
+  }
+  pu.appendChild(prow);
   const d = sec('Ditherizer', 'Any image in, Cythera-palette checkerboard art out — the undither run ' +
     'backwards. It lives on the Portraits gallery because that is where a result can be written ' +
     'straight into a portrait resource.');
