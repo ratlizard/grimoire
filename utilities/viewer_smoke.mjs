@@ -967,7 +967,24 @@ try {
                        'and the borrowed CUR_MAP put back');
     }
 
-    /* The atlas has its own container, and that is the fix for the seam that
+    /* The panel needs its rules as much as its markup.
+
+     A sweep that deleted an old full-bleed CSS block ran from one comment to
+     the next and took the atlas panel's rules with it. Nothing failed: the
+     markup was there, the script was there, every id resolved and the suite
+     stayed green -- but #atlasViewport had no height, so the World tab
+     collapsed to a zoom slider and an empty box. Style is not checkable the
+     way script is, so the rules the panel cannot live without are checked the
+     only way they can be: by looking for them. */
+  {
+    const need = [/#atlasViewport\s*\{[^}]*height\s*:/, /#atlasHover\s*\{[^}]*display\s*:\s*none/];
+    if (need.some(re => !re.test(html)))
+      fail('atlas', 'the atlas panel has lost its stylesheet rules — ' +
+                    'a viewport with no height shows nothing');
+    else console.log('  atlas: the panel keeps the rules it cannot live without');
+  }
+
+  /* The atlas has its own container, and that is the fix for the seam that
        produced every regression this tab has had -- CUR_MAP, then the panel's
        own elements, then the class that unframed the sheet. Sharing was the
        cause each time, so the check is that nothing is shared: a full pass
@@ -992,8 +1009,22 @@ try {
           fail('atlas', 'the atlas panel outstayed the tab');
         else if (ctx.document.getElementById('tabSheet').style.display === 'none')
           fail('atlas', 'the sheet did not come back');
-        else console.log('  atlas: its own panel — Regions comes back bit for bit, and the ' +
-                         'only thing shared is which of the two is showing');
+        else {
+          /* The panel must be gone from EVERY other tab, not just the one
+             checked above. It carries a zoom slider, and a stray zoom slider
+             under a gallery of portraits is how this was reported. */
+          const showing = [];
+          for (const v of ['CHARACTERS', '135', 'TOOLS', 'DATAFORK', '127', '23']) {
+            if (!ctx.showCategory(v)) continue;
+            const ap2 = ctx.document.getElementById('atlasPanel');
+            if (ap2 && ap2.style.display !== 'none') showing.push(v);
+          }
+          if (showing.length)
+            fail('atlas', 'the atlas panel is showing under ' + showing.join(', '));
+          else console.log('  atlas: its own panel — gone from every other tab, and Regions ' +
+                           'comes back bit for bit');
+          ctx.showCategory('WORLD');
+        }
       }
       ctx.showCategory('WORLD');
     }

@@ -750,6 +750,46 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 #mapInspect .inspRows dt { color:#9b8850; }
 #mapInspect .inspRows dd { margin:0; font-family:ui-monospace,Menlo,Consolas,monospace; }
 #mapInspect .inspActs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+/* The atlas's own panel. No frame of its own: the folder behind it is the
+   ground, and the map is the page. These rules were lost once already -- a
+   sweep that deleted the old full-bleed block ran from one comment to the
+   next and took them with it, which left the viewport zero pixels high and
+   the World tab showing nothing at all. */
+#atlasPanel { margin:0; }
+#atlasViewport { position:relative; width:100%; height:78vh; overflow:hidden;
+  touch-action:none; cursor:grab; background:transparent; }
+#atlasViewport canvas { display:block; }
+#atlasBar { padding:7px 12px; margin:0 0 6px; text-align:left;
+  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px;
+  font-size:13px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+#atlasBar .wbWhere { color:var(--gold); font-weight:600; }
+#atlasBar .wbNote { color:#9b8850; font-size:12px; }
+#atlasInspect { max-width:720px; margin:8px auto 0; padding:10px 14px; text-align:left;
+  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:13px; }
+#atlasInspect .inspHead { color:var(--gold); font-weight:600; margin-bottom:8px; }
+#atlasInspect .inspCard { border-top:1px solid rgba(155,136,80,.35); padding:6px 0; }
+#atlasInspect .inspDim { color:#9b8850; font-size:12px; }
+#atlasInspect .inspActs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+#atlasHover { position:absolute; z-index:7; pointer-events:none; display:none;
+  background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
+  padding:5px 9px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,.55);
+  font-family:Argos, Georgia, serif; font-size:12px; color:#e8dfc0; white-space:nowrap;
+  align-items:center; gap:7px; max-width:260px; }
+#atlasHover canvas { image-rendering:pixelated; width:32px; height:32px; flex:none;
+  background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
+#atlasHover .hvName { color:var(--gold); font-weight:600; display:block; }
+#atlasHover .hvWhat { color:#9b8850; font-size:11px; display:block; }
+/* TEMPORARY: the tuning strip. See renderAtlasTune. */
+#atlasTune { max-width:720px; margin:6px auto 0; padding:8px 12px; text-align:left;
+  background:rgba(20,18,14,.92); border:1px dashed var(--edge); border-radius:8px;
+  font-size:12px; color:#c9bb92; }
+#atlasTune .tuneRow { display:flex; align-items:center; gap:8px; margin:3px 0; }
+#atlasTune .tuneRow label { flex:0 0 9.5em; color:#e8dfc0; }
+#atlasTune .tuneRow input { flex:1 1 auto; }
+#atlasTune .tuneRow .tuneVal { flex:0 0 3.5em; text-align:right;
+  font-family:ui-monospace,Menlo,Consolas,monospace; }
+#atlasTune .tuneWhy { color:#9b8850; margin:2px 0 8px 0; }
+
 /* Who that is, under the pointer. */
 #mapHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
