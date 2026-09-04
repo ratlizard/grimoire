@@ -750,26 +750,6 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 #mapInspect .inspRows dt { color:#9b8850; }
 #mapInspect .inspRows dd { margin:0; font-family:ui-monospace,Menlo,Consolas,monospace; }
 #mapInspect .inspActs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-/* The World tab is the sheet.
-
-   Everywhere else the sheet is the game's own dialogue box -- the PNG's 4/8px
-   band, the blue checkerboard, the plank showing through -- and that is the
-   right frame for a page of text or a gallery of tiles. It is the wrong frame
-   for a map of the world: the map IS the page there, and a border around it
-   is a border around the only thing on screen. So the World tab takes the
-   sheet's own area, and the panel inside it drops its padding, its background
-   and its border too. */
-body.atlasFull .tabSheet { border:0; border-image:none; background:none; padding:0; }
-body.atlasFull #mapPreview { padding:0 !important; background:none !important;
-  border:0 !important; border-radius:0 !important; margin-top:0 !important; }
-/* No 720px cap on the World tab. That width is right for a page of text and
-   for a gallery of tiles, and wrong for a map: the further in you zoom the
-   more of the world there is to put somewhere, and on a wide screen the map
-   was sitting in a column with the folder either side of it doing nothing. */
-body.atlasFull #mapStage { padding:0 !important; max-width:none !important; }
-body.atlasFull #mapViewport { border:0 !important; border-radius:0 !important; }
-body.atlasFull #navSub { margin-bottom:2px; }
-
 /* Who that is, under the pointer. */
 #mapHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
@@ -780,29 +760,6 @@ body.atlasFull #navSub { margin-bottom:2px; }
   background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
 #mapHover .hvName { color:var(--gold); font-weight:600; display:block; }
 #mapHover .hvWhat { color:#9b8850; font-size:11px; display:block; }
-
-/* The World tab's own strip and its gazetteer. */
-#worldBar { max-width:720px; margin:0 auto 8px; padding:8px 12px; text-align:left;
-  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px;
-  font-size:13px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-#worldBar .wbWhere { color:var(--gold); font-weight:600; }
-#worldBar .wbNote { color:#9b8850; font-size:12px; }
-#worldGaz { max-width:720px; margin:8px auto 0; padding:10px 14px; text-align:left;
-  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:13px; }
-#worldGaz h3 { margin:0 0 2px; font-size:14px; color:var(--gold); }
-#worldGaz .gazNote { color:#9b8850; font-size:12px; margin:0 0 8px; }
-#worldGaz .gazList { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; }
-#worldGaz .gazRow { display:flex; align-items:center; gap:8px; width:auto; margin:0;
-  min-height:0 !important; padding:4px 10px 4px 4px !important; border-radius:6px !important;
-  clip-path:none !important; text-align:left;
-  background:rgba(12,10,7,.88) !important; background-image:none !important;
-  border:1px solid rgba(196,164,100,.45) !important; color:#e8dfc0 !important;
-  text-shadow:none !important; font-size:12px !important; font-weight:400 !important;
-  letter-spacing:0; font-family:Argos, Georgia, serif; }
-#worldGaz .gazRow:hover { border-color:var(--gold) !important; color:var(--gold) !important; filter:none; }
-#worldGaz .gazRow canvas { image-rendering:pixelated; border-radius:3px; flex:none;
-  background:#111; width:34px; height:34px; }
-#worldGaz .gazRow .gazKind { display:block; color:#9b8850; font-size:11px; }
 
 /* An opened container, the way the game shows one: the zoomrect graphic for
    that kind of container with what is inside laid out on it. */
@@ -1157,9 +1114,6 @@ body.atlasFull #navSub { margin-bottom:2px; }
 <div id="mapPreview" style="display:none; margin-top:12px; padding:14px; background:var(--panel); border:1px solid var(--edge); border-radius:8px; text-align:center;">
   <div id="mapLabel" style="margin-bottom:8px; font-weight:600;"></div>
   <div id="mapParts"></div>
-  <!-- The World tab's own strip: where you are in the world, and the way
-       back out of a zone it walked you into. Hidden everywhere else. -->
-  <div id="worldBar" style="display:none"></div>
   <div id="mapStage" style="position:relative; width:100%; max-width:720px; margin:0 auto 6px; padding:22px;">
 <div id="mapViewport" style="position:relative; width:100%; height:62vh; margin:0; overflow:hidden; border:1px solid var(--edge); background:#222; touch-action:none; cursor:grab; border-radius:6px;">
     <div id="mapCanvasWrap" style="position:absolute; top:0; left:0; transform-origin:0 0; z-index:1;"></div>
@@ -1178,9 +1132,6 @@ body.atlasFull #navSub { margin-bottom:2px; }
   </div>
   <div id="markLegend" style="font-size:12px; margin-top:6px; min-height:16px;"></div>
   <div id="mapInspect" style="display:none"></div>
-  <!-- Every way off the world map, listed: the one-click route, where the
-       zoom is the deliberate one. -->
-  <div id="worldGaz" style="display:none"></div>
   <div id="mapSaveRow" style="margin-top:8px;">
     <button class="secondary" onclick="downloadMapPNG()">Save Map as PNG</button>
   </div>
@@ -1309,6 +1260,30 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
 </div>
 <div id="sheetGrid" role="group" aria-label="Resource gallery"></div>
 <pre id="output" role="status" aria-live="polite">Load the archive to begin...</pre>
+        </div>
+        <!-- The atlas's own panel, beside the sheet rather than inside it.
+
+             It used to borrow the map panel and hide the furniture it did not
+             want, and that sharing produced every regression the World tab
+             has had: first CUR_MAP, then the panel's own elements, then the
+             class that unframed the sheet. Nothing here is shared with
+             anything, so there is nothing to put back. Being a sibling of the
+             sheet is also what puts the folder behind the map, which is the
+             right ground for it: the sheet is the game's dialogue box, and a
+             map of the world is not a line of dialogue. -->
+        <div id="atlasPanel" style="display:none">
+          <div id="atlasBar" style="display:none"></div>
+          <div id="atlasViewport"><div id="atlasHover"></div></div>
+          <div id="atlasZoomRow" class="zoomrow">
+            <span style="white-space:nowrap">Zoom</span>
+            <input type="range" id="atlasZoomSlider" min="1" max="64" value="3"
+                   aria-label="Zoom" oninput="atlasZoomFromSlider()">
+            <span id="atlasZoomLabel" style="min-width:74px; text-align:right"></span>
+            <button class="secondary" style="width:auto;margin:0;padding:8px 14px"
+                    onclick="atlasFitAndPaint()">Whole world</button>
+          </div>
+          <div id="atlasTune" style="display:none"></div>
+          <div id="atlasInspect"></div>
         </div>
       </div>
     </div>
@@ -3978,9 +3953,12 @@ function setModeImpl(m) {
      saved ones back overwrites them -- which showed up as the resource nav
      vanishing from Entities > Regions after a visit to the World tab. First,
      then whatever this view wants. */
-  if (window.CUR_SUBN !== 'WORLD' && typeof setAtlasChrome === 'function') {
-    setAtlasChrome(false);
-    if (document.body && document.body.classList) document.body.classList.remove('atlasFull');
+  // Coming back from the atlas: the sheet returns and the atlas panel goes.
+  if (window.CUR_SUBN !== 'WORLD') {
+    const sheet = document.getElementById('tabSheet');
+    if (sheet) sheet.style.display = '';
+    const ap = document.getElementById('atlasPanel');
+    if (ap) ap.style.display = 'none';
   }
   window.DETAIL_VIEW = null;   // a detail view is what we are leaving
   if (currentMode === 'sheet' && m === 'single') lastSheetScrollY = window.scrollY;
@@ -8533,8 +8511,6 @@ function renderMapResource(resid) {
       (usedFallback ? '  |  (auto-decrypt guess corrected)' : '');
     const mp = document.getElementById('mapParts');
     if (mp) mp.innerHTML = partsStrip('Made of', mapParts(resid, result.propResid));
-    renderWorldBar();
-    renderGazetteer();
     out.textContent = "Rendered map 0x" + resid.toString(16).toUpperCase() +
       (lbl ? " (" + lbl + ")" : "") + " with " + result.propCount + " props";
     currentResid = resid;
@@ -8673,14 +8649,6 @@ function zoneMapCanvas(resid) {
    which is why these are.
 --------------------------------------------------------------------------- */
 const THUMB_LEVELS = [192, 448];
-
-/* How much bigger than its own footprint a town is drawn, and the least it is
-   ever drawn at. The multiplier is so the miniature's solid middle covers the
-   pictogram it replaces rather than leaving its corners showing; the floor is
-   for the one-square gateways, whose footprint is too small to see a town in
-   at any zoom. Both are in world squares. */
-const THUMB_SPREAD = 1.7;
-const THUMB_MIN_SQUARES = 4;
 
 /* Screen pixels per world square over which the roofs come off a town while
    the view is still outside it, so that a town opens with its roofs already
@@ -8992,7 +8960,7 @@ function toggleWorldPreload() {
     window.WORLD_PRELOAD_DONE = 0;
     startWorldPreload();
   }
-  renderWorldBar();
+  renderAtlasBar();
 }
 
 /* The queue lives out here, and that is the whole of the fix.
@@ -9093,7 +9061,6 @@ function maybeAutoLoadEverything() {
 
 function toggleFullRes() {
   if (!window.FULL_RES && !fullResPossible()) {
-    const bar = document.getElementById('worldBar');
     if (bar) bar.insertAdjacentHTML('beforeend',
       '<span class="wbNote">This browser will not give out a canvas that big.</span>');
     return;
@@ -9117,12 +9084,12 @@ function startWorldPreload() {
     if (!window.WORLD_PRELOAD) return;
     let gw = preloadTodo.shift();
     while (gw && preloadSeen.has(gw.destResid)) gw = preloadTodo.shift();
-    if (!gw) { preloadTodo = null; renderWorldBar(); return; }
+    if (!gw) { preloadTodo = null; renderAtlasBar(); return; }
     preloadSeen.add(gw.destResid);
     buildThumbsFor(gw, THUMB_LEVELS);        // both levels, both roofed and bare
     mapRenderFor(gw.destResid, true);        // and the whole thing, kept
     window.WORLD_PRELOAD_DONE = preloadSeen.size;
-    renderWorldBar();
+    renderAtlasBar();
     if (window.CUR_SUBN === 'WORLD') paintAtlas();
     startWorldPreload();                     // arm the next slice, same queue
   };
@@ -9336,10 +9303,10 @@ function enterGatewayByPort(port) {
    line of map could be. Inside somewhere the archive does not locate, there
    is exactly one thing to say -- how you got in, and the way back -- because
    that is the part the ground cannot show you. */
-function renderWorldBar() {
-  const bar = document.getElementById('worldBar');
+function renderAtlasBar() {
+  const bar = document.getElementById('atlasBar');
   if (!bar) return;
-  const below = (window.CUR_SUBN === 'WORLD') ? atlasBelowTop() : null;
+  const below = atlasBelowTop();
   if (!below) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   bar.style.display = '';
   bar.innerHTML = '<button class="crumbBtn" onclick="atlasAscend()">\u21b0 ' +
@@ -9350,65 +9317,92 @@ function renderWorldBar() {
     'sits, only how it is reached \u2014 so it is shown on its own. Zoom out to leave.</span>';
 }
 
-/* Every way off the world map, listed.
+/* ---------------------------------------------------------------------------
+   TEMPORARY: the tuning strip
+   ---------------------------------------------------------------------------
+   Five numbers decide how the atlas behaves, and not one of them can be
+   settled from here: they are all "does this feel right on a real screen",
+   which is a question for the person looking at it. They live in one object
+   so they can be moved while the map is on screen, and this strip is how.
 
-   The ring is for reading the map; this is for when you already know where
-   you want to go, and it is the one-click route -- the zoom is deliberate and
-   a row of this is immediate. Each row carries the pictogram itself, cropped
-   straight out of the world map's own canvas rather than redrawn, so what the
-   row shows is exactly what is on the map at that spot, multi-square sprites
-   and all. Hidden while a zone is open, because it is a list of ways off the
-   world map and there is no world map on screen. */
-function renderGazetteer() {
-  const host = document.getElementById('worldGaz');
+   It is meant to be deleted once the numbers are chosen -- at which point
+   they go back to being constants with a comment saying why, like every other
+   decision in this file.
+--------------------------------------------------------------------------- */
+const ATLAS_TUNE_ROWS = [
+  ['nodeFadeFrom', 'Place appears', 4, 60, 1,
+   'How wide a place must be on screen, in pixels, before it starts to be drawn as itself. ' +
+   'Below this you see the pictogram the world map draws, which was made to be read small.'],
+  ['nodeFadeTo', 'Place solid', 8, 120, 1,
+   'And how wide before the place has fully replaced that pictogram. The gap between the two ' +
+   'is the cross-fade.'],
+  ['mouthAt', 'Mouths appear', 2, 40, 1,
+   'Screen pixels per square of a map before the rings that mark its ways down are drawn. ' +
+   'Too low and the world is a field of rings; too high and you have to hunt for them.'],
+  ['descendRadius', 'Mouth reach', 0.04, 0.4, 0.01,
+   'How near the middle of the screen a mouth has to be, as a fraction of the shorter side, ' +
+   'before zooming all the way in goes through it. Small means deliberate; large means a ' +
+   'pinch can fall through whichever mouth was nearest the edge.'],
+  ['peopleAt', 'People appear', 2, 40, 1,
+   'Screen pixels per square before the inhabitants are drawn on a place. Below this a ' +
+   'person is smaller than the outline of their own sprite.'],
+  ['maxPpt', 'Closest zoom', 24, 160, 1,
+   'The most magnification anything is worth, in screen pixels per square of its own map. ' +
+   'The art is 32 pixels a square, so past about twice that there is nothing further in ' +
+   'the file to show.']
+];
+
+function renderAtlasTune() {
+  const host = document.getElementById('atlasTune');
   if (!host) return;
-  const cm = window.CUR_MAP;
-  const onWorld = window.ATLAS ? true : !!(cm && cm.resid === WORLD_MAP_RESID);
-  if (window.CUR_SUBN !== 'WORLD' || !onWorld) {
-    host.style.display = 'none'; host.innerHTML = ''; return;
+  if (!window.ATLAS_TUNE_OPEN) {
+    host.style.display = 'block';
+    host.innerHTML = '<button class="linkbtn" onclick="toggleAtlasTune()">⚙ Tune the atlas ' +
+      '(temporary)</button>';
+    return;
   }
-  const gws = worldGateways();
-  host.style.display = '';
-  host.innerHTML = '<h3>Ways off the world map</h3>' +
-    '<p class="gazNote">Each is a prop on the world map whose zoneport (0xF00C) names a ' +
-    'destination and the square you arrive on. ' + gws.length + ' of them.</p>' +
-    '<div class="gazList" id="gazList"></div>';
-  const list = document.getElementById('gazList');
-  for (const gw of gws) {
-    const b = document.createElement('button');
-    b.className = 'gazRow';
-    // A located place is somewhere to fly to; an unlocated one is somewhere to
-    // step into, from the mouth on the world map that leads there.
-    b.onclick = () => {
-      if (mapIsLocated(gw.destResid)) atlasGoTo(gw.port);
-      else atlasDescend({ dest: { resid: gw.destResid, x: gw.destX, y: gw.destY },
-                          name: gw.name, kind: gw.kind, x: gw.x0, y: gw.y0 },
-                        (atlasScene() || {}).root || { name: 'the world' });
-    };
-    b.title = gw.name + ' — ' + gw.kind + ' at (' + gw.x0 + ',' + gw.y0 + '), arriving at (' +
-              gw.destX + ',' + gw.destY + ')';
-    const c = document.createElement('canvas');
-    c.width = 34; c.height = 34;
-    const cx = c.getContext('2d');
-    const wr = window.ATLAS ? (mapRenderFor(WORLD_MAP_RESID, true) || {}).result : null;
-    const src = window.ATLAS ? (wr && wr.canvas) : (cm && cm.canvas);
-    const srcTS = window.ATLAS ? (wr && wr.tileSize) : (cm && cm.TS);
-    if (cx && src) {
-      const cm = { canvas: src, TS: srcTS };          // whichever world we have
-      const w = (gw.x1 - gw.x0 + 1) * cm.TS, h = (gw.y1 - gw.y0 + 1) * cm.TS;
-      // A square crop about the footprint's middle, so a one-square cave and
-      // a four-square town both come out the same size in the list.
-      const side = Math.max(w, h);
-      const sx = (gw.x0 * cm.TS) - (side - w) / 2, sy = (gw.y0 * cm.TS) - (side - h) / 2;
-      cx.imageSmoothingEnabled = false;
-      try { cx.drawImage(cm.canvas, sx, sy, side, side, 0, 0, 34, 34); } catch (e) {}
-    }
-    const txt = document.createElement('span');
-    txt.innerHTML = svEsc(gw.name) + '<span class="gazKind">' + svEsc(gw.kind) + ' · ' +
-                    gw.x0 + ',' + gw.y0 + '</span>';
-    b.appendChild(c); b.appendChild(txt);
-    list.appendChild(b);
+  host.style.display = 'block';
+  const t = window.ATLAS_TUNE;
+  let h = '<button class="linkbtn" onclick="toggleAtlasTune()">⚙ Tune the atlas — hide</button>' +
+    '<p class="tuneWhy">Temporary. These are the numbers that decide how the atlas behaves, ' +
+    'and none of them can be settled without looking at a real screen. Move them, then say ' +
+    'which values you want and they go back to being constants.</p>';
+  for (const [key, label, min, max, step, why] of ATLAS_TUNE_ROWS) {
+    h += '<div class="tuneRow"><label for="tune_' + key + '">' + svEsc(label) + '</label>' +
+      '<input id="tune_' + key + '" type="range" min="' + min + '" max="' + max + '" step="' + step +
+      '" value="' + t[key] + '" oninput="setAtlasTune(\'' + key + '\', this.value)">' +
+      '<span class="tuneVal" id="tuneval_' + key + '">' + t[key] + '</span></div>' +
+      '<div class="tuneWhy">' + svEsc(why) + '</div>';
   }
+  h += '<button class="secondary" style="width:auto;margin:4px 0 0;padding:6px 12px" ' +
+       'onclick="resetAtlasTune()">Back to the defaults</button>' +
+       '<div class="tuneWhy" id="tuneDump"></div>';
+  host.innerHTML = h;
+  atlasTuneDump();
+}
+
+function toggleAtlasTune() { window.ATLAS_TUNE_OPEN = !window.ATLAS_TUNE_OPEN; renderAtlasTune(); }
+
+function setAtlasTune(key, value) {
+  window.ATLAS_TUNE[key] = +value;
+  const v = document.getElementById('tuneval_' + key);
+  if (v) v.textContent = value;
+  atlasTuneDump();
+  paintAtlas();
+}
+
+function resetAtlasTune() {
+  window.ATLAS_TUNE = Object.assign({}, ATLAS_TUNE_DEFAULTS);
+  renderAtlasTune();
+  paintAtlas();
+}
+
+// What to tell me, so the numbers can go back to being constants.
+function atlasTuneDump() {
+  const el = document.getElementById('tuneDump');
+  if (!el) return;
+  const t = window.ATLAS_TUNE;
+  el.textContent = 'Current: ' + ATLAS_TUNE_ROWS.map(([k]) => k + ' ' + t[k]).join(', ');
 }
 
 /* ===========================================================================
@@ -9683,7 +9677,7 @@ const atlasView = { x: 0, y: 0, Z: 2, dragging: false, lastX: 0, lastY: 0 };
 
 // The whole world in the panel, which is where a visit starts.
 function atlasFit() {
-  const vp = document.getElementById('mapViewport');
+  const vp = document.getElementById('atlasViewport');
   const sc = atlasScene();
   if (!vp || !sc || vp.clientWidth < 40) return;
   const vw = vp.clientWidth, vh = vp.clientHeight;
@@ -9695,12 +9689,12 @@ function atlasFit() {
 /* The most a node is worth magnifying: its own art is 32 pixels a square, so
    past twice that there is nothing further in the file to show. The zoom
    stops where the deepest thing under the middle of the view runs out. */
-const ATLAS_MAX_PPT = 64;
 function atlasMaxZ() {
   const sc = atlasScene();
   if (!sc) return 64;
-  let best = ATLAS_MAX_PPT;                       // the world itself
-  for (const n of sc.nodes) if (n.depth) best = Math.max(best, ATLAS_MAX_PPT / n.s);
+  const cap = window.ATLAS_TUNE.maxPpt;
+  let best = cap;                                 // the world itself
+  for (const n of sc.nodes) if (n.depth) best = Math.max(best, cap / n.s);
   return best;
 }
 
@@ -9711,9 +9705,24 @@ function atlasMaxZ() {
    levels, then its whole render, then its own art a window at a time -- and
    fades in over the pictogram it stands on as it becomes large enough to read.
    That fade is the only threshold left in the renderer. */
-const ATLAS_NODE_FADE = [18, 34];        // screen px across, before / after
+/* The numbers that decide how the atlas behaves.
+
+   TEMPORARY in this form: they are constants in spirit and are written here
+   as defaults, but every one of them is a "does this feel right on a real
+   screen" question, so while they are being settled they live in an object
+   the tuning strip can move. Once chosen they go back to being consts with a
+   comment each saying why. */
+const ATLAS_TUNE_DEFAULTS = {
+  nodeFadeFrom: 18,      // px across: a place begins to replace its pictogram
+  nodeFadeTo: 34,        // px across: and has fully replaced it
+  mouthAt: 7,            // px per square before a place's mouths are ringed
+  descendRadius: 0.14,   // of the shorter side: how centred a mouth must be
+  peopleAt: 6,           // px per square before the inhabitants are drawn
+  maxPpt: 64             // px per square: the most magnification worth having
+};
+window.ATLAS_TUNE = Object.assign({}, ATLAS_TUNE_DEFAULTS);
 function paintAtlas() {
-  const vp = document.getElementById('mapViewport');
+  const vp = document.getElementById('atlasViewport');
   const cv = ensureAtlasCanvas();
   const sc = atlasScene();
   if (!vp || !cv || !sc) return;
@@ -9736,10 +9745,10 @@ function paintAtlas() {
     const ppt = atlasNodePpt(node, atlasView);
     // Below a couple of pixels a square there is nothing to see and the
     // pictogram the parent draws is the better picture.
-    if (node.depth && r.w < ATLAS_NODE_FADE[0]) continue;
+    if (node.depth && r.w < window.ATLAS_TUNE.nodeFadeFrom) continue;
     const alpha = !node.depth ? 1
-      : Math.max(0, Math.min(1, (r.w - ATLAS_NODE_FADE[0]) /
-                                (ATLAS_NODE_FADE[1] - ATLAS_NODE_FADE[0])));
+      : Math.max(0, Math.min(1, (r.w - window.ATLAS_TUNE.nodeFadeFrom) /
+                (window.ATLAS_TUNE.nodeFadeTo - window.ATLAS_TUNE.nodeFadeFrom)));
     if (drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh)) {
       ctx.globalAlpha = alpha;
       atlasPeople(ctx, node, r, ppt);
@@ -9837,9 +9846,8 @@ function paintAtlasDetail(ctx, node, r, vw, vh) {
    Only worth doing when a square is big enough to hold a person: below that
    they are smaller than the sprite's own outline and the node is a picture of
    a town rather than a place with anybody in it. */
-const ATLAS_PEOPLE_AT = 6;              // screen px per node square
 function atlasPeople(ctx, node, r, ppt) {
-  if (ppt < ATLAS_PEOPLE_AT) return;
+  if (ppt < window.ATLAS_TUNE.peopleAt) return;
   const e = mapRenderFor(node.resid, true);
   if (!e || !e.result) return;
   const per = r.w / node.w;
@@ -9872,14 +9880,13 @@ function atlasPeople(ctx, node, r, ppt) {
    square it is on and its name beside it -- not a picture of what is behind
    it, which would be putting an unlocated map on located ground. Only where
    the node is big enough for the ring to mean a square. */
-const ATLAS_MOUTH_AT = 7;                // screen px per node square
 function atlasPaintMouths(ctx, drawn, vw, vh) {
   const out = [];
   ctx.font = '12px Argos, Georgia, serif';
   ctx.textAlign = 'left';
   for (const { node, r } of drawn) {
     const per = r.w / node.w;
-    if (per < ATLAS_MOUTH_AT) continue;
+    if (per < window.ATLAS_TUNE.mouthAt) continue;
     for (const m of atlasMouths(node)) {
       const x = r.x + (m.x + 0.5) * per, y = r.y + (m.y + 0.5) * per;
       if (x < -60 || y < -20 || x > vw + 60 || y > vh + 20) continue;
@@ -9965,8 +9972,56 @@ function paintAtlasGround(ctx, vw, vh) {
   ctx.clearRect(0, 0, vw, vh);
 }
 
+function hideAtlasHover() {
+  const el = document.getElementById('atlasHover');
+  if (el) { el.style.display = 'none'; atlasHoverKey = ''; }
+}
+// Up and to the right of the pointer, and never off the edge of the panel.
+function placeAtlasHover(el, vp, px, py) {
+  const w = el.offsetWidth || 150, h = el.offsetHeight || 40;
+  let x = px + 14, y = py - h - 10;
+  if (x + w > vp.clientWidth - 4) x = px - w - 14;
+  if (x < 4) x = 4;
+  if (y < 4) y = py + 18;
+  el.style.left = Math.round(x) + 'px';
+  el.style.top = Math.round(y) + 'px';
+}
+
+/* Opening the tab on the atlas.
+
+   Two elements, and they are the whole of the handover: the sheet steps aside
+   and the atlas panel takes its place in the folder. Nothing belonging to the
+   map panel is touched, so there is nothing to give back -- which is the
+   point. Sharing that panel produced every regression the World tab has had:
+   first CUR_MAP, then the panel's own elements, then the class that unframed
+   the sheet. */
+function renderAtlasView() {
+  stopAllViewActivity();
+  const sheet = document.getElementById('tabSheet');
+  if (sheet) sheet.style.display = 'none';
+  const panel = document.getElementById('atlasPanel');
+  if (panel) panel.style.display = 'block';
+  window.CUR_MAP = null;
+  ensureAtlasCanvas();
+  setupAtlasInteraction();
+  renderAtlasBar();
+  renderAtlasTune();
+  const start = () => {
+    const vp = document.getElementById('atlasViewport');
+    if (!vp || vp.clientWidth < 40) { setTimeout(start, 50); return; }
+    atlasFit();
+    atlasSyncZoomLabel();
+    paintAtlas();
+    buildWorldThumbs();
+    startAtlasAnimation();
+  };
+  start();
+}
+
+function atlasFitAndPaint() { atlasFit(); atlasSyncZoomLabel(); paintAtlas(); }
+
 function ensureAtlasCanvas() {
-  const vp = document.getElementById('mapViewport');
+  const vp = document.getElementById('atlasViewport');
   if (!vp) return null;
   let cv = document.getElementById('atlasCanvas');
   if (!cv) {
@@ -9993,7 +10048,7 @@ function atlasAt(px, py) {
   for (const node of sc.nodes) {
     const r = atlasRect(node, atlasView);
     if (px < r.x || py < r.y || px > r.x + r.w || py > r.y + r.h) continue;
-    if (node.depth && r.w < ATLAS_NODE_FADE[0]) continue;
+    if (node.depth && r.w < window.ATLAS_TUNE.nodeFadeFrom) continue;
     if (!best || node.depth >= best.node.depth) {
       const per = r.w / node.w;
       best = { node, r, tx: Math.floor((px - r.x) / per), ty: Math.floor((py - r.y) / per) };
@@ -10022,7 +10077,7 @@ function atlasDescend(m, node) {
     wasBelow: !!b
   });
   const sc = atlasScene();
-  const vp = document.getElementById('mapViewport');
+  const vp = document.getElementById('atlasViewport');
   if (sc && vp && vp.clientWidth > 40) {
     // Arrive on the square the zoneport puts you on, at a zoom that shows the
     // room around it rather than the whole map: you came through a door.
@@ -10031,7 +10086,7 @@ function atlasDescend(m, node) {
     atlasView.y = vp.clientHeight / 2 - (m.dest.y + 0.5) * atlasView.Z;
   }
   atlasSyncZoomLabel();
-  renderWorldBar();
+  renderAtlasBar();
   paintAtlas();
 }
 
@@ -10040,7 +10095,7 @@ function atlasAscend() {
   if (!prev) return;
   if (prev.view) { atlasView.x = prev.view.x; atlasView.y = prev.view.y; atlasView.Z = prev.view.Z; }
   atlasSyncZoomLabel();
-  renderWorldBar();
+  renderAtlasBar();
   paintAtlas();
 }
 
@@ -10048,7 +10103,7 @@ function atlasAscend() {
 function atlasCheckAscend() {
   if (!atlasBelowTop()) return;
   const sc = atlasScene();
-  const vp = document.getElementById('mapViewport');
+  const vp = document.getElementById('atlasViewport');
   if (!sc || !vp || vp.clientWidth < 40) return;
   const fit = Math.min(vp.clientWidth / sc.root.w, vp.clientHeight / sc.root.h);
   if (atlasView.Z < fit * 0.72) atlasAscend();
@@ -10063,7 +10118,7 @@ function atlasCheckAscend() {
 function atlasZoomAround(newZ, px, py) {
   const maxZ = atlasMaxZ();
   const sc = atlasScene();
-  const vp = document.getElementById('mapViewport');
+  const vp = document.getElementById('atlasViewport');
   // The floor is the whole world in the panel: there is nothing further out.
   let minZ = 0.5;
   if (sc && vp && vp.clientWidth > 40) {
@@ -10089,15 +10144,14 @@ function atlasZoomAround(newZ, px, py) {
    two feel like one interaction even though only one of them is a zoom in the
    geometry. Wanting it centred is what keeps a pinch from falling through
    whichever mouth happened to be near the edge of the screen. */
-const ATLAS_DESCEND_RADIUS = 0.14;      // of the viewport's shorter side
 function atlasCheckDescend() {
   if (window._atlasDescending) return;
-  const vp = document.getElementById('mapViewport');
+  const vp = document.getElementById('atlasViewport');
   const mouths = window.ATLAS_MOUTHS || [];
   if (!vp || !mouths.length) return;
   if (atlasView.Z < atlasMaxZ() * 0.92) return;
   const vw = vp.clientWidth, vh = vp.clientHeight;
-  const reach = Math.min(vw, vh) * ATLAS_DESCEND_RADIUS;
+  const reach = Math.min(vw, vh) * window.ATLAS_TUNE.descendRadius;
   let best = null, bestD = Infinity;
   for (const q of mouths) {
     const d = Math.hypot(q.x - vw / 2, q.y - vh / 2);
@@ -10116,17 +10170,17 @@ function atlasPanBy(dx, dy) {
 // The slider and its label speak in "screen pixels per world square", which
 // is the only zoom number in this renderer that means anything.
 function atlasSyncZoomLabel() {
-  const lab = document.getElementById('mapZoomLabel');
+  const lab = document.getElementById('atlasZoomLabel');
   if (lab) lab.textContent = atlasView.Z.toFixed(1) + ' px/sq';
-  const sl = document.getElementById('mapZoomSlider');
+  const sl = document.getElementById('atlasZoomSlider');
   if (sl) {
     sl.min = 1; sl.max = Math.round(atlasMaxZ());
     sl.value = Math.max(1, Math.min(+sl.max, Math.round(atlasView.Z)));
   }
 }
 function atlasZoomFromSlider() {
-  const sl = document.getElementById('mapZoomSlider');
-  const vp = document.getElementById('mapViewport');
+  const sl = document.getElementById('atlasZoomSlider');
+  const vp = document.getElementById('atlasViewport');
   if (!sl || !vp) return;
   atlasZoomAround(+sl.value, vp.clientWidth / 2, vp.clientHeight / 2);
 }
@@ -10138,7 +10192,7 @@ function atlasZoomFromSlider() {
    Entities > Regions untouched. The card here says what is on the square and
    offers to open that map there. */
 function atlasInspect(px, py) {
-  const host = document.getElementById('mapInspect');
+  const host = document.getElementById('atlasInspect');
   const hit = atlasAt(px, py);
   if (!host) return;
   if (!hit) { host.innerHTML = '<span class="inspDim">Nothing here.</span>';
@@ -10170,7 +10224,7 @@ function atlasInspect(px, py) {
 // Pointer handling, kept apart from the panel's so neither has to know about
 // the other. Wired once, on the same viewport.
 function setupAtlasInteraction() {
-  const vp = document.getElementById('mapViewport');
+  const vp = document.getElementById('atlasViewport');
   if (!vp || vp.dataset.atlasWired) return;
   vp.dataset.atlasWired = '1';
   const pts = new Map();
@@ -10220,7 +10274,7 @@ function setupAtlasInteraction() {
   };
   vp.addEventListener('pointerup', up);
   vp.addEventListener('pointercancel', e => { pts.delete(e.pointerId); });
-  vp.addEventListener('pointerleave', () => { if (window.ATLAS) hideMapHover(); });
+  vp.addEventListener('pointerleave', () => { if (window.ATLAS) hideAtlasHover(); });
   vp.addEventListener('wheel', e => {
     if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
     e.preventDefault();
@@ -10233,15 +10287,15 @@ function setupAtlasInteraction() {
    whichever node the pointer is over rather than from the open map. */
 let atlasHoverKey = '';
 function atlasHover(clientX, clientY) {
-  const el = document.getElementById('mapHover');
-  const vp = document.getElementById('mapViewport');
+  const el = document.getElementById('atlasHover');
+  const vp = document.getElementById('atlasViewport');
   if (!el || !vp) return;
   const r = vp.getBoundingClientRect();
   const px = clientX - r.left, py = clientY - r.top;
   const hit = atlasAt(px, py);
-  if (!hit) { hideMapHover(); atlasHoverKey = ''; return; }
+  if (!hit) { hideAtlasHover(); atlasHoverKey = ''; return; }
   const key = hit.node.resid + ':' + hit.tx + ',' + hit.ty;
-  if (key === atlasHoverKey) { if (el.style.display !== 'none') placeMapHover(el, vp, px, py); return; }
+  if (key === atlasHoverKey) { if (el.style.display !== 'none') placeAtlasHover(el, vp, px, py); return; }
   atlasHoverKey = key;
   let people = [];
   try {
@@ -10257,106 +10311,7 @@ function atlasHover(clientX, clientY) {
   try { drawTileToCanvas(cvv, getPropTileList()[c.proptype] + c.aspect, 32, c.rotated); } catch (e) {}
   el.appendChild(cvv);
   el.style.display = 'flex';
-  placeMapHover(el, vp, px, py);
-}
-
-/* The panel's furniture, hidden while the atlas has the panel.
-
-   None of it applies: the walls, roofs, marks and lighting switches drive
-   layers the atlas does not draw, the PNG export saves the open map and there
-   is no open map, and the title names one too. Leaving controls on screen
-   that do nothing is worse than not having them, and they were taking a third
-   of a phone. Restored by renderMapResource, which is the only other thing
-   that uses this panel. */
-const ATLAS_HIDDEN = ['mapLabel', 'mapParts', 'worldBar', 'worldGaz', 'charControls',
-                      'markLegend', 'mapSaveRow', 'singleControls', 'propFilterWrap',
-                      'resourceNav', 'worldSurround', 'worldOverlay', 'mapCanvasWrap'];
-/* Put back exactly what was taken, and nothing else.
-
-   The first version of this restored by setting `display:''` on the whole
-   list, which is not the same thing: half of these are hidden and shown by
-   other code for its own reasons -- the gallery filter, the resource nav, the
-   World tab's own strip -- and blanket-clearing them turned those on inside
-   Entities > Regions, which is a panel this renderer has no business
-   touching. What is stored is the value that was there, and what is restored
-   is that value; a thing the atlas never hid is never given one. */
-function setAtlasChrome(on) {
-  for (const id of ATLAS_HIDDEN) {
-    const el = document.getElementById(id);
-    if (!el) continue;
-    if (on) {
-      if (el.dataset.atlasHid === undefined) el.dataset.atlasHid = el.style.display || '';
-      el.style.display = 'none';
-    } else if (el.dataset.atlasHid !== undefined) {
-      el.style.display = el.dataset.atlasHid;
-      delete el.dataset.atlasHid;
-    }
-  }
-  // With the furniture gone the map can have the room it was taking.
-  const stage = document.getElementById('mapStage');
-  const vp = document.getElementById('mapViewport');
-  if (on) {
-    if (stage && stage.dataset.atlasPad === undefined) {
-      stage.dataset.atlasPad = stage.style.padding || '';
-      stage.style.padding = '8px';
-    }
-    if (vp && vp.dataset.atlasH === undefined) {
-      vp.dataset.atlasH = vp.style.height || '';
-      vp.style.height = '80vh';
-    }
-  } else {
-    if (stage && stage.dataset.atlasPad !== undefined) {
-      stage.style.padding = stage.dataset.atlasPad; delete stage.dataset.atlasPad;
-    }
-    if (vp && vp.dataset.atlasH !== undefined) {
-      vp.style.height = vp.dataset.atlasH; delete vp.dataset.atlasH;
-    }
-  }
-}
-
-/* Opening the tab on the atlas: hide the panel's own furniture, show one
-   canvas, fit the world. The panel is not torn down -- Regions still owns it
-   and it is exactly as it was. */
-function renderAtlasView() {
-  stopAllViewActivity();
-  const grid = document.getElementById('sheetGrid');
-  if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
-  setAtlasChrome(true);
-  if (document.body && document.body.classList) document.body.classList.add('atlasFull');
-  document.getElementById('mapPreview').style.display = 'block';
-  document.getElementById('zoomControls').style.display = 'none';
-  document.getElementById('singlePreview').style.display = 'none';
-  document.getElementById('textPreview').style.display = 'none';
-  hideDetailLens(true);
-  window.CUR_MAP = null;
-  ensureAtlasCanvas();
-  setupAtlasInteraction();
-  const start = () => {
-    const vp = document.getElementById('mapViewport');
-    if (!vp || vp.clientWidth < 40) { setTimeout(start, 50); return; }
-    atlasFit();
-    atlasSyncZoomLabel();
-    paintAtlas();
-    buildWorldThumbs();
-    startAtlasAnimation();
-  };
-  start();
-}
-// The gazetteer's rows, in the atlas: put the place in the middle of the view
-// at the zoom its own art is worth, which is the same thing zooming to it by
-// hand arrives at.
-function atlasGoTo(port) {
-  window.ATLAS_BELOW = [];                 // flying somewhere is leaving here
-  const sc = atlasScene();
-  const vp = document.getElementById('mapViewport');
-  if (!sc || !vp) return;
-  const node = sc.nodes.find(n => n.gw && n.gw.port === port);
-  if (!node) return;
-  atlasView.Z = Math.min(atlasMaxZ(), (node.ts * 0.9) / node.s);
-  atlasView.x = vp.clientWidth / 2 - (node.ox + node.w * node.s / 2) * atlasView.Z;
-  atlasView.y = vp.clientHeight / 2 - (node.oy + node.h * node.s / 2) * atlasView.Z;
-  atlasSyncZoomLabel();
-  paintAtlas();
+  placeAtlasHover(el, vp, px, py);
 }
 
 function downloadMapPNG() {

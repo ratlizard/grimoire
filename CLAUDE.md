@@ -661,13 +661,28 @@ Read the comment above a constant before correcting it.
   with the world's own border water asserts that the sea goes on, which is the
   same class of claim as putting an underground on the world: the file says
   what is inside the 256×256 grid and nothing about what is outside it.
-- **It borrows the map panel and must give it back.** `setAtlasChrome` hides
-  the furniture the atlas does not use and `body.atlasFull` takes the sheet's
-  own frame; both come off in `setModeImpl`, **before** the next view fills
-  the panel. Three regressions have come from this seam — `CUR_MAP`, then the
-  panel's elements, then the sheet class — and each has a check named after
-  it. It is the one place the atlas can still reach into shared state, and if
-  a fourth appears the seam wants making structural rather than guarded again.
+- **It has its own container, and that is the fix for a seam that produced
+  every regression this tab has had.** `#atlasPanel` is a sibling of
+  `#tabSheet` inside the folder, with its own viewport, canvas, strip,
+  inspector and hover card. The atlas borrowed the map panel for three
+  versions and each time the borrowing broke Entities › Regions: first
+  `CUR_MAP`, then the panel's own elements (maps drew into a hidden wrapper),
+  then the body class that unframed the sheet. Guards were added each time,
+  which is patching a pattern. **The whole handover is now two elements**: the
+  sheet steps aside, the panel appears, and nothing is shared but which of the
+  two is showing. Being a sibling of the sheet is also what puts the folder
+  behind the map — the sheet is the game's dialogue box, and a map of the
+  world is not a line of dialogue. The smoke test takes a snapshot of Regions
+  *before the atlas has ever run* (a baseline taken later compares two
+  post-atlas states and cannot fail) and requires it back bit for bit.
+- **TEMPORARY: `window.ATLAS_TUNE` and the tuning strip.** Six numbers decide
+  how the atlas behaves and not one can be settled without looking at a real
+  screen, so while they are being chosen they live in an object the strip can
+  move rather than as constants. `ATLAS_TUNE_ROWS` drives the UI and the smoke
+  test checks every knob it offers is one the renderer reads — a slider that
+  changes nothing returns an answer about the wrong thing. **When the values
+  are settled, delete the strip and put them back as consts**, each with a
+  comment saying why, like every other decision in this file.
 - **Navigation is a tree of folder tabs, three deep, and the split at the top
   is the point.** `TAB_TREE` (in the page, beside `navIconCanvas`) is
   World / Entities / Components / Data: what the game assembles, what the archive

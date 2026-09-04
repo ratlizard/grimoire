@@ -817,7 +817,9 @@ try {
      does not change" -- stated as something a machine can check. It has to be
      taken here, before the first showCategory('WORLD'): taken later it would
      be comparing two post-atlas states, which is a test that cannot fail. */
-  const watch = peek('ATLAS_HIDDEN').concat(['mapViewport', 'mapStage']);
+  const watch = ['mapLabel', 'mapParts', 'charControls', 'markLegend', 'mapSaveRow',
+                 'singleControls', 'propFilterWrap', 'resourceNav', 'mapCanvasWrap',
+                 'mapPreview', 'mapViewport', 'mapStage', 'mapInspect'];
   const snapRegions = () => watch.map(id => {
     // The stub answers with null for an id the markup does not carry; the
     // point here is the comparison, and an absent element compares equal.
@@ -965,49 +967,61 @@ try {
                        'and the borrowed CUR_MAP put back');
     }
 
-    /* The furniture out of the way for the atlas -- and Entities > Regions
-       left EXACTLY as it was.
-
-       The two share one panel, and the first attempt at putting it back
-       restored by setting `display:''` across the list, which is not the same
-       thing: half of those elements are hidden and shown by other code for
-       its own reasons, so blanket-clearing them turned the World tab's strip
-       on inside Regions. What this compares is a snapshot of Regions taken
-       before the atlas ever ran against the same view after it, which is the
-       requirement stated directly rather than a guess at which of them ought
-       to be hidden. */
+    /* The atlas has its own container, and that is the fix for the seam that
+       produced every regression this tab has had -- CUR_MAP, then the panel's
+       own elements, then the class that unframed the sheet. Sharing was the
+       cause each time, so the check is that nothing is shared: a full pass
+       through the atlas must leave Entities > Regions bit for bit as it was,
+       and the baseline has to be taken before the atlas has ever run or it
+       compares two post-atlas states and cannot fail. */
     {
       ctx.ATLAS_BELOW = [];
-      ctx.showCategory('WORLD');               // the atlas has the panel
-      const hidden = peek('ATLAS_HIDDEN')
-        .filter(id => { const e = ctx.document.getElementById(id);
-                        return e && e.style.display !== 'none'; });
-      if (hidden.length)
-        fail('atlas', 'the panel left its furniture on screen: ' + hidden.join(', '));
-      else if ((ctx.document.getElementById('mapViewport') || { style: {} }).style.height !== '80vh')
-        fail('atlas', 'the map did not take the room the furniture was using');
+      ctx.showCategory('WORLD');
+      const ap = ctx.document.getElementById('atlasPanel');
+      const sheet = ctx.document.getElementById('tabSheet');
+      if (!ap || ap.style.display !== 'block') fail('atlas', 'the atlas panel did not open');
+      else if (!sheet || sheet.style.display !== 'none')
+        fail('atlas', 'the sheet did not step aside for the atlas');
       else {
-        ctx.jumpToResource(0x8002);            // and gives it back
+        ctx.jumpToResource(0x8002);
         const after = snapRegions();
         const diff = after.filter((v, i) => v !== regionsBefore[i]);
         if (diff.length)
-          fail('atlas', 'the atlas left residue in Regions: ' +
-                        diff.map((v, i) => regionsBefore[after.indexOf(v)] + ' -> ' + v).join(', '));
-        else if (ctx.document.body.classList.contains('atlasFull'))
-          // The frameless sheet is the World tab's, and only its.
-          fail('atlas', 'Regions is still wearing the atlas\'s frameless sheet');
-        else if ((ctx.document.getElementById('mapCanvasWrap') || { style: {} }).style.display === 'none')
-          /* The one that shipped: renderAtlasView hid the panel's own canvas
-             wrapper and nothing put it back, so every map opened in Entities >
-             Regions after a visit to the World tab drew into a hidden box.
-             Named separately from the snapshot above because it is the
-             specific failure, and a broad comparison is easy to render
-             vacuous by taking its baseline a moment too late. */
-          fail('atlas', 'Regions maps draw into a hidden wrapper after the atlas has had the panel');
-        else console.log('  atlas: the panel is stripped for the atlas and Regions gets it ' +
-                         'back exactly as it was');
+          fail('atlas', 'the atlas left residue in Regions: ' + diff.join(', '));
+        else if (ctx.document.getElementById('atlasPanel').style.display !== 'none')
+          fail('atlas', 'the atlas panel outstayed the tab');
+        else if (ctx.document.getElementById('tabSheet').style.display === 'none')
+          fail('atlas', 'the sheet did not come back');
+        else console.log('  atlas: its own panel — Regions comes back bit for bit, and the ' +
+                         'only thing shared is which of the two is showing');
       }
       ctx.showCategory('WORLD');
+    }
+
+    /* TEMPORARY, with the tuning strip: every number the strip offers has to
+       be one the renderer actually reads, or moving it does nothing and the
+       answer that comes back is about the wrong thing. */
+    {
+      const rows = peek('ATLAS_TUNE_ROWS').map(r => r[0]).sort();
+      const keys = Object.keys(peek('ATLAS_TUNE_DEFAULTS')).sort();
+      if (String(rows) !== String(keys))
+        fail('atlas', `the tuning strip offers [${rows}] for [${keys}]`);
+      else {
+        // and moving one has to change what is drawn
+        const before = peek('atlasScene')().nodes.filter(n => n.depth).length;
+        ctx.ATLAS_TUNE.nodeFadeFrom = 1;
+        peek('paintAtlas')();
+        const wide = (ctx.ATLAS_DRAWN || []).length;
+        ctx.ATLAS_TUNE.nodeFadeFrom = 4000;
+        peek('paintAtlas')();
+        const none = (ctx.ATLAS_DRAWN || []).filter(d => d.node.depth).length;
+        ctx.ATLAS_TUNE = Object.assign({}, peek('ATLAS_TUNE_DEFAULTS'));
+        peek('paintAtlas')();
+        if (!(wide > 1) || none !== 0)
+          fail('atlas', `the tuning knob did not reach the renderer (${wide} then ${none})`);
+        else console.log('  atlas: ' + rows.length + ' tunable numbers, all of them read by ' +
+                         'the renderer (temporary)');
+      }
     }
 
     // Painting must not throw, and must reach the canvas.
