@@ -69,7 +69,10 @@
 html, body { min-height:100%; }
 /* Base text is white-ish; --gold is reserved for what responds to a click. */
 body { color:#e4e1d7; font-family:Argos, Georgia, serif;
-  padding:16px 16px calc(96px + env(safe-area-inset-bottom));
+  /* The top inset clears the two fixed controls -- the data file on the left,
+     Search on the right -- and nothing more. It was 16px plus a row for the
+     links, which is most of a thumb on a phone spent on nothing. */
+  padding:30px 16px calc(96px + env(safe-area-inset-bottom));
   background-color:#211c16;
   /* The texture is resource 0x8F00, decoded from the archive at load time and
      installed as a data: URL (see installBackgroundTexture). No remote image,
@@ -428,8 +431,16 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 #tabShell[data-depth="2"] #tabRow3, #tabShell[data-depth="0"] .ftabRow { display:none; }
 #tabShell[data-depth="2"] #tabFolder3, #tabShell[data-depth="0"] .folder
   { padding:0; background:none; box-shadow:none; border-radius:0; }
-#topLinks { display:flex; justify-content:flex-end; gap:12px; margin:0 0 2px; min-height:0; }
-#topLinks button { min-height:0 !important; padding:4px 10px !important; font-size:12.5px !important;
+/* Pinned opposite the data-file button and sized to match it, rather than
+   taking a row of its own above the tabs. The row was most of the empty space
+   at the top of the page, and the two are the same kind of thing: the page's
+   own controls, out of the way of the thing you came to look at. */
+#topLinks { position:fixed; top:8px; right:8px; z-index:41;
+  display:flex; justify-content:flex-end; gap:12px; margin:0; min-height:0; }
+#topLinks button { min-height:0 !important; padding:5px 16px !important; font-size:11.5px !important;
+  letter-spacing:.06em; opacity:.62; }
+#topLinks button:hover { opacity:1; }
+#topLinks button.legacy { min-height:0 !important; padding:4px 10px !important; font-size:12.5px !important;
   width:auto; margin:0; }
 #navSub { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-bottom:8px; }
 .navChip { background:#1d1a15; border:1px solid var(--edge); color:#bdb28c; border-radius:13px;
@@ -739,6 +750,22 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 #mapInspect .inspRows dt { color:#9b8850; }
 #mapInspect .inspRows dd { margin:0; font-family:ui-monospace,Menlo,Consolas,monospace; }
 #mapInspect .inspActs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+/* The World tab is the sheet.
+
+   Everywhere else the sheet is the game's own dialogue box -- the PNG's 4/8px
+   band, the blue checkerboard, the plank showing through -- and that is the
+   right frame for a page of text or a gallery of tiles. It is the wrong frame
+   for a map of the world: the map IS the page there, and a border around it
+   is a border around the only thing on screen. So the World tab takes the
+   sheet's own area, and the panel inside it drops its padding, its background
+   and its border too. */
+body.atlasFull .tabSheet { border:0; border-image:none; background:none; padding:0; }
+body.atlasFull #mapPreview { padding:0 !important; background:none !important;
+  border:0 !important; border-radius:0 !important; margin-top:0 !important; }
+body.atlasFull #mapStage { padding:0 !important; }
+body.atlasFull #mapViewport { border:0 !important; border-radius:0 !important; }
+body.atlasFull #navSub { margin-bottom:2px; }
+
 /* Who that is, under the pointer. */
 #mapHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
@@ -906,7 +933,7 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
   #appShell { max-width:1280px; padding:48px 44px calc(112px + env(safe-area-inset-bottom)); }
   html { font-size:18px; }
   button, select { font-size:1rem !important; }
-  #topLinks button { font-size:16px !important; padding:5px 12px !important; }
+  #topLinks button { font-size:15px !important; padding:5px 16px !important; }
   #archiveMenuBtn { font-size:15px !important; opacity:.9; }
   #archiveMenuBtn.urgent { font-size:17px !important; }
   #archiveMenu .amNote { font-size:14px; color:#c9bd93; }
@@ -983,7 +1010,7 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
       strings, resource symbols); where there is none, the cell says so.</span></span></label>
 </div>
 <div id="topLinks" style="display:none">
-  <button id="searchLink" onclick="openSearch()" title="/">Search the scripts</button>
+  <button id="searchLink" onclick="openSearch()" title="Search the scripts (/)">Search</button>
 </div>
 <!-- The folder-tab shell. Three tab rows, each the lip of a folder, nested;
      the innermost folder holds the sheet everything below is drawn on. The
@@ -3949,7 +3976,10 @@ function setModeImpl(m) {
      saved ones back overwrites them -- which showed up as the resource nav
      vanishing from Entities > Regions after a visit to the World tab. First,
      then whatever this view wants. */
-  if (window.CUR_SUBN !== 'WORLD' && typeof setAtlasChrome === 'function') setAtlasChrome(false);
+  if (window.CUR_SUBN !== 'WORLD' && typeof setAtlasChrome === 'function') {
+    setAtlasChrome(false);
+    if (document.body && document.body.classList) document.body.classList.remove('atlasFull');
+  }
   window.DETAIL_VIEW = null;   // a detail view is what we are leaving
   if (currentMode === 'sheet' && m === 'single') lastSheetScrollY = window.scrollY;
   currentMode = m;
@@ -11198,6 +11228,7 @@ function renderAtlasView() {
   const grid = document.getElementById('sheetGrid');
   if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
   setAtlasChrome(true);
+  if (document.body && document.body.classList) document.body.classList.add('atlasFull');
   document.getElementById('mapPreview').style.display = 'block';
   document.getElementById('zoomControls').style.display = 'none';
   document.getElementById('singlePreview').style.display = 'none';

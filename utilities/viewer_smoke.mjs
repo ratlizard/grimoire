@@ -1702,6 +1702,9 @@ try {
         if (diff.length)
           fail('atlas', 'the atlas left residue in Regions: ' +
                         diff.map((v, i) => regionsBefore[after.indexOf(v)] + ' -> ' + v).join(', '));
+        else if (ctx.document.body.classList.contains('atlasFull'))
+          // The frameless sheet is the World tab's, and only its.
+          fail('atlas', 'Regions is still wearing the atlas\'s frameless sheet');
         else if (REGISTRY.get('mapCanvasWrap').style.display === 'none')
           /* The one that shipped: renderAtlasView hid the panel's own canvas
              wrapper and nothing put it back, so every map opened in Entities >

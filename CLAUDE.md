@@ -656,6 +656,13 @@ Read the comment above a constant before correcting it.
   one directly as well as comparing a snapshot, because a broad comparison is
   easy to render vacuous by taking its baseline a moment too late — which the
   first version of it was.
+  **The World tab is the sheet** (`body.atlasFull`). Everywhere else the sheet
+  is the game's own dialogue box — the PNG's 4/8px band, the blue
+  checkerboard, the plank showing through — which is the right frame for a
+  page of text or a gallery of tiles and the wrong one for a map of the world,
+  where the map *is* the page and a border round it is a border round the only
+  thing on screen. The class comes off in `setModeImpl` with the rest of the
+  panel; the smoke test checks Regions is not left wearing it.
   **The sea outside the world** (`paintAtlasGround`): Cythera is an island and
   the world map's border is 434 squares of tile `0x8`, so the ground beyond it
   is water rather than the panel's grey, laid in the world's own grid at the
