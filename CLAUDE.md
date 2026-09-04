@@ -669,6 +669,15 @@ Read the comment above a constant before correcting it.
   argument rather than always reading `CUR_MAP`. The blurred whole-world draw
   stays underneath it, so anything past the plate's edge still has ground
   rather than a hole.
+  **The palette animation has to reach the lens** (`repaintLensAnim`, called
+  from the map animation loop). The loop repaints the *base*, and whenever the
+  lens is showing the base is not what anyone is looking at — so the water
+  stood still until a drag forced a lens repaint, which is exactly how it was
+  reported. Only the animated squares are redone, plus the art over them
+  (`lensAnimArt`: water is opaque, so repainting it erases the shoreline
+  drawn on top — the base keeps `animReplay` for this, but those blits are
+  recorded at the base's tile size and the lens paints at 32, so what it needs
+  is the prop records). Skipped while the lens is mid-slide.
   **`slideWorldOverlay` is why nothing drifts.** The overlay is repainted on
   the settle while the map moves continuously under a CSS transform, so
   between the two the miniatures and the names sat still in screen space while
@@ -676,6 +685,39 @@ Read the comment above a constant before correcting it.
   painted for `gateView` and belong under `mapView`, which is an ordinary
   similarity — the same fix, and the same reasoning, as `slideLens`. A pan is
   a pure translate, so a pan is now exact.
+  **Every gateway is entered by zooming, sealed or not**, and the arrival is
+  centred on the square the zoneport lands on, at the zoom the crossing
+  happened at (`enterGateway` writes it into `MAP_VIEW_MEMORY` so the overlay
+  and `restoreOrFitMap` agree). The reader was aiming at a tunnel mouth, and
+  that is where they come out; fitting the whole map answered a question
+  nobody asked. `sealed` now decides only whether the world's own country is
+  drawn around the place, which for the inside of a cave it must not be.
+  **The world map stops at `WORLD_ZOOM_CEILING`** (76 screen px a square).
+  Its art is 32 px a tile like everything else, so past about twice that
+  there is nothing further to see and a long way still to drag. Comfortably
+  above `WORLD_ENTER_AT`, so every gateway is still reachable. The ordinary
+  ceiling (`400 × 32 / TS`) still applies to every other map.
+  **A zone's edge is feathered into the country around it**
+  (`setMapEdgeFeather`): a mask on the wrap, so the layers over it are cut
+  back with it. The tiles at a region's edge are the ordinary ones — open
+  water, grass, rock — and broadly the same ones the world map has at that
+  spot, because they are the same ground described twice, so a hard
+  rectangular cut announces a boundary the pixels either side of it do not
+  have. It is a percentage, not a pixel count, because the detail lens is a
+  sibling of the wrap and is not masked — by the zoom the lens engages at, the
+  edge is off screen.
+  **Full resolution is a desktop opt-in** (`toggleFullRes`): every map at the
+  native 32 px a tile, the world map included, which is an 8192×8192 canvas
+  at 268 MB. What it buys is that `lensActive` turns itself off — the lens is
+  the only thing on this page that changes resolution while you are looking
+  at it, so with it goes the settle repaint and the soft moment before it
+  lands. **`layerGeom` caps the overlay layers** so they do not follow the
+  base up; five copies of that canvas would be 1.3 GB, and a sprite drawn at
+  16 and shown at 32 is the right thing to give up when the terrain under it
+  is what was asked for. Never offered on trust: `fullResPossible` allocates
+  the exact canvas and reads a pixel back out of the far corner, because a
+  browser that cannot do it hands back one that draws nothing rather than
+  saying so.
   **Loading every place is opt-in** (`toggleWorldPreload`, the button in
   `#worldBar`). Everything above is careful with memory because the numbers
   are large — the 24 distinct destinations rendered whole measure **275 MB** —
@@ -685,6 +727,12 @@ Read the comment above a constant before correcting it.
   stops evicting while it is on, nothing is rendered during a movement again,
   and the cost is stated on the button rather than discovered. Reversible, and
   freeing drops back to the ordinary LRU with the world map still pinned.
+  **Its queue is module state, and that is not incidental.** It used to be
+  built inside `startWorldPreload`, and each slice re-armed by calling that
+  function again — which rebuilt the list and an empty `seen`, did the first
+  gateway over, and left the counter on "1 of 24" for ever with nothing in the
+  console to show for it. A slice re-arms itself now; the queue is drained,
+  not rebuilt. The smoke test checks the same array survives a second call.
   **Roofs go on fading inside** (`updateRoofFade`, `ROOF_FADE`), picking up
   where `ROOF_LIFT` left off outside. A town at a distance is roofs — that is
   what its miniature shows, and arriving on something different would be a

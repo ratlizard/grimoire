@@ -904,7 +904,13 @@ try {
       const townMidX = mv.x + cmC.canvas.width * mv.scale / 2;
       if (Math.abs(midX - townMidX) > 1)
         fail('world tab', `the scenery is not centred on Cademia's own icon (${midX} vs ${townMidX})`);
-      else console.log("  world tab: the world's own scenery sits behind Cademia, on its icon");
+      else if (!REGISTRY.get('mapCanvasWrap').dataset.feathered)
+        // The tiles at a region's edge are the same ground the world map
+        // describes at that spot, so a hard cut announces a boundary the
+        // pixels either side of it do not have.
+        fail('world tab', "the town's edge was not softened into the country around it");
+      else console.log("  world tab: the world's own scenery sits behind Cademia, " +
+                       'on its icon, with the edge softened into it');
     }
 
     // Back out by the button. It lands just SHORT of the crossing zoom,
@@ -1093,7 +1099,14 @@ try {
 
   /* Loading the whole world is opt-in, reversible, and stops the cache
      evicting while it is on -- there is no point rendering everything if the
-     next crossing throws it away again. */
+     next crossing throws it away again.
+
+     The queue has to be module state. It used to be built inside
+     startWorldPreload, and each slice re-armed by calling that function
+     again -- so every slice rebuilt the list and an empty `seen`, did the
+     first gateway over, and the counter sat on "1 of 24" for ever with
+     nothing in the console to show for it. Same array on a second call is
+     exactly what that bug could not do. */
   {
     ctx.showCategory('WORLD');
     const total = peek('worldPreloadTotal')();
@@ -1101,7 +1114,11 @@ try {
     ctx.toggleWorldPreload();
     if (!ctx.WORLD_PRELOAD) fail('world tab', 'the preload did not turn on');
     else {
+      const q1 = peek('preloadTodo');
       peek('startWorldPreload')();
+      if (!q1 || !q1.length) fail('world tab', 'the preload armed with no queue');
+      else if (peek('preloadTodo') !== q1)
+        fail('world tab', 'the preload rebuilt its queue instead of draining it — it will stick at 1');
       const kept = peek('zoneMapCache').size;
       ctx.toggleWorldPreload();
       if (ctx.WORLD_PRELOAD) fail('world tab', 'the preload did not turn off');
@@ -1113,6 +1130,51 @@ try {
       else console.log('  world tab: loading every place is opt-in over ' + total +
                        ' maps and frees back to ' + peek('zoneMapCache').size);
     }
+  }
+
+  /* Full resolution: every map at the native 32 px a tile, which turns the
+     detail lens off outright -- that is the whole of what it buys, since the
+     lens is the only thing on the page that changes resolution while you are
+     looking at it. The overlay layers must NOT follow the base up, or five
+     copies of a 268 MB canvas go with it. */
+  {
+    ctx.showCategory('WORLD');
+    const before = peek('CUR_MAP').TS;
+    ctx.FULL_RES = true;
+    peek('zoneMapCache').clear();
+    ctx.worldOpenZone(0x8001, null, null, true);
+    const cmF = peek('CUR_MAP');
+    if (cmF.TS !== 32)
+      fail('world tab', `full resolution gave the world map TS=${cmF.TS}, not the native 32`);
+    else if (peek('lensActive')())
+      fail('world tab', 'the lens is still on at full resolution — there is nothing left to sharpen');
+    else {
+      const L = peek('layerGeom')(cmF);
+      if (L.w * L.h > peek('LAYER_MAX_PX') * 1.02)
+        fail('world tab', `an overlay layer would be ${L.w}x${L.h}, over the cap`);
+      else if (L.w >= cmF.width)
+        fail('world tab', 'the overlay layers followed the base up to full size');
+      else console.log('  world tab: full resolution is TS=32 with no lens, layers capped at ' +
+                       L.w + 'x' + L.h + ' of ' + cmF.width + 'x' + cmF.height);
+    }
+    ctx.FULL_RES = false;
+    peek('zoneMapCache').clear();
+    ctx.worldOpenZone(0x8001, null, null, true);
+    if (peek('CUR_MAP').TS !== before) fail('world tab', 'turning full resolution off did not restore the budget');
+  }
+
+  /* The world map's own art runs out at 32 px a square; past the ceiling
+     there is nothing further to see and a long way still to drag. */
+  {
+    ctx.showCategory('WORLD');
+    const cmZ = peek('CUR_MAP');
+    const zs = REGISTRY.get('mapZoomSlider');
+    const ceilPx = (+zs.max / 100) * cmZ.TS;
+    if (Math.abs(ceilPx - peek('WORLD_ZOOM_CEILING')) > 1)
+      fail('world tab', `the world map zooms to ${ceilPx.toFixed(0)}px a square, not WORLD_ZOOM_CEILING`);
+    else if (ceilPx <= peek('WORLD_ENTER_AT'))
+      fail('world tab', 'the ceiling is below the zoom that crosses into a place');
+    else console.log('  world tab: the world map stops at ' + Math.round(ceilPx) + 'px a square');
   }
 
   /* Roofs on the way in, off once you are close. Arriving on a roofless town
@@ -1185,10 +1247,15 @@ try {
     } finally { ctx.renderMapVisual = real; }
   }
 
-  // Land King Hall and the caves are the sealed-edge maps: there is no world
-  // immediately outside them, so they are entered by a click and never by
-  // zooming. mapIsSealed reads that off each destination's own header, so a
-  // modded archive gets its own answer rather than this one.
+  /* Every gateway is entered by zooming, sealed or not -- a tunnel mouth
+     opens the same way a town gate does. What `sealed` still decides is
+     whether the world's own country is drawn around the place, which for the
+     inside of a cave it must not be.
+
+     And the arrival is centred on the square the zoneport lands on, at the
+     zoom the crossing happened at, rather than fitting the whole map: the
+     reader was aiming at a tunnel mouth, and that is where they should come
+     out. */
   {
     const sealed = gws.filter(g => g.sealed).map(g => g.name).sort();
     const want = ['Caves', 'Cove', 'Land King Hall', 'Underground', 'Underground',
@@ -1198,12 +1265,31 @@ try {
     else {
       const lkh = gws.find(g => g.name === 'Land King Hall');
       ctx.showCategory('WORLD');
+      const worldTS = peek('CUR_MAP').TS;
       centreOn(lkh, 90);                     // well past WORLD_ENTER_AT
       if (ctx.WORLD_FADE) ctx.finishWorldFade();
-      if (peek('CUR_MAP').resid !== 0x8001)
-        fail('world tab', 'zooming opened a sealed destination');
-      else console.log('  world tab: ' + sealed.length + ' sealed destinations, ' +
-                       'and zooming does not open Land King Hall');
+      const cmS = peek('CUR_MAP');
+      if (!cmS || cmS.resid !== lkh.destResid)
+        fail('world tab', 'zooming did not open the sealed destination');
+      else {
+        // Where the tunnel puts you, in the middle of the view.
+        const vpS = REGISTRY.get('mapViewport');
+        const midX = (0 - mv.x) / mv.scale + (vpS.clientWidth / 2) / mv.scale;
+        const sqX = midX / cmS.TS;
+        if (Math.abs(sqX - (lkh.destX + 0.5)) > 1)
+          fail('world tab', `arrived centred on square ${sqX.toFixed(1)}, not the entrance at ${lkh.destX}`);
+        else if (Math.abs(cmS.TS * mv.scale - 90) > 1)
+          fail('world tab', `arrived at ${(cmS.TS * mv.scale).toFixed(1)}px a square, ` +
+                            'not the 90 the crossing happened at');
+        else if (REGISTRY.get('worldSurround').style.display !== 'none')
+          fail('world tab', 'the world was drawn around the inside of a sealed place');
+        else console.log('  world tab: a sealed place opens to a zoom too, centred on its ' +
+                         'entrance at ' + lkh.destX + ',' + lkh.destY + ' and still at ' +
+                         Math.round(cmS.TS * mv.scale) + 'px a square');
+      }
+      ctx.backToWorldMap();
+      if (ctx.WORLD_FADE) ctx.finishWorldFade();
+      if (worldTS !== peek('CUR_MAP').TS) fail('world tab', 'the world map changed tile size');
     }
   }
 

@@ -4035,6 +4035,7 @@ function resetDerivedCaches() {
   surroundPlates.clear();
   window.WORLD_PRELOAD = false;
   window.WORLD_PRELOAD_DONE = 0;
+  window.FULL_RES = false;
   window.PROP_BLOCK = null;
   window.LIVING_PROPTYPES = null;
   window.SCHEDULES = null;
@@ -5304,7 +5305,7 @@ function buildCharacterLayer() {
   } else if (ov.parentNode !== wrap) {
     wrap.appendChild(ov);
   }
-  ov.width = cm.width; ov.height = cm.height;
+  { const L = layerGeom(cm); ov.width = L.w; ov.height = L.h; }
   ov.style.width = cm.width + 'px'; ov.style.height = cm.height + 'px';
   drawCharacterLayer();
   drawLighting();
@@ -5351,12 +5352,12 @@ function drawCharacterLayer(lensCtx, lensTS) {
       return;
     }
     if (ov.width !== cm.width || ov.height !== cm.height) {
-      ov.width = cm.width; ov.height = cm.height;
+      { const L = layerGeom(cm); ov.width = L.w; ov.height = L.h; }
       ov.style.width = cm.width + 'px'; ov.style.height = cm.height + 'px';
     }
     ctx = ov.getContext('2d');
     ctx.clearRect(0, 0, ov.width, ov.height);
-    TS = cm.TS;
+    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at its own scale
   }
   const people = charactersOnLevel(cm.level, window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR);
   deconflictPositions(people);
@@ -5512,6 +5513,12 @@ function startMapAnimation() {
       if (cm.animReplay)
         for (const [t, px, py, tr, sz, rot] of cm.animReplay)
           drawTileAt(ctx, t, px, py, tr, sz, mapAnimFrame || 8, rot);
+      // The base is what was just repainted, and whenever the detail lens is
+      // showing the base is not what anyone is looking at -- so the water
+      // stood still until a drag forced the lens to repaint, which is exactly
+      // how it was reported. Only the animated squares are redone, so this is
+      // a fraction of a settle repaint.
+      repaintLensAnim(mapAnimFrame || 8);
       painted = true;
     }
     if (window.MAP_WALK) {
@@ -5894,6 +5901,21 @@ function mapRoofSections(mapResid) {
              .map(r => ({ block: r.proptype, x: r.x, y: r.y, aspect: r.aspect }));
 }
 
+/* The overlay layers -- characters, roofs, marks, lighting -- are each a
+   full-map canvas the size of the base, so a base at 268 MB would be five of
+   those. They are capped instead: the canvas is smaller and the CSS box stays
+   the base's, so the browser scales it. A sprite drawn at 16 and shown at 32
+   is softer than one drawn at 32, and that is the right thing to give up
+   here -- the terrain under it is what full resolution was asked for. Below
+   the cap, which is every ordinary render, this is 1 and nothing changes. */
+const LAYER_MAX_PX = 1.7e7;
+function layerGeom(cm) {
+  const px = cm.width * cm.height;
+  const f = px > LAYER_MAX_PX ? Math.sqrt(LAYER_MAX_PX / px) : 1;
+  return { w: Math.max(1, Math.round(cm.width * f)), h: Math.max(1, Math.round(cm.height * f)),
+           TS: cm.TS * f };
+}
+
 function ensureRoofLayer() {
   const wrap = document.getElementById('mapCanvasWrap');
   if (!wrap) return null;
@@ -5929,11 +5951,11 @@ function drawRoofLayer(lensCtx, lensTS) {
       scheduleLensPaint();
       return;
     }
-    rc.width = cm.width; rc.height = cm.height;
+    { const L = layerGeom(cm); rc.width = L.w; rc.height = L.h; }
     rc.style.width = cm.width + 'px'; rc.style.height = cm.height + 'px';
     ctx = rc.getContext('2d');
     ctx.clearRect(0, 0, rc.width, rc.height);
-    TS = cm.TS;
+    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at its own scale
   }
   cm.roofTilesDrawn = paintRoofsInto(ctx, TS, cm.m, cm.roofSections);
   if (!lensCtx) scheduleLensPaint();
@@ -6139,11 +6161,11 @@ function drawMapMarks(lensCtx, lensTS) {
       scheduleLensPaint();
       return;
     }
-    mc.width = cm.width; mc.height = cm.height;
+    { const L = layerGeom(cm); mc.width = L.w; mc.height = L.h; }
     mc.style.width = cm.width + 'px'; mc.style.height = cm.height + 'px';
     ctx = mc.getContext('2d');
     ctx.clearRect(0, 0, mc.width, mc.height);
-    TS = cm.TS;
+    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at its own scale
   }
   const colours = { doors: '#ffd166', secret: '#8fd4ff', chest: '#a8e06a', exits: '#ff9ad5' };
   // Ring the SQUARES, not the sprites. This used to subtract the prop's draw
@@ -6436,11 +6458,11 @@ function drawLighting(lensCtx, lensTS, rect) {
       scheduleLensPaint();
       return;
     }
-    lc.width = cm.width; lc.height = cm.height;
+    { const L = layerGeom(cm); lc.width = L.w; lc.height = L.h; }
     lc.style.width = cm.width + 'px'; lc.style.height = cm.height + 'px';
     ctx = lc.getContext('2d');
     ctx.clearRect(0, 0, lc.width, lc.height);
-    TS = cm.TS;
+    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at its own scale
     washX = 0; washY = 0; washW = lc.width; washH = lc.height;
   }
   const t = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
@@ -6893,7 +6915,16 @@ function renderMapVisual(resid, mapData, opts) {
   // native 32px tile size whenever the map is zoomed in, on every platform
   // -- which is also what finally shows the 256x256 world map at full
   // detail on desktop, where the budget alone had capped it at TS=8.
-  const MAX_CANVAS_PX = IS_IOS_WEBKIT ? 2.2e6 : 6e6;
+  /* Full resolution is a desktop opt-in (see toggleFullRes): the budget goes
+     up far enough that every map, the 256x256 world included, comes back at
+     the native 32 px a tile -- which turns the detail lens off entirely,
+     because there is nothing left for it to sharpen. That is the whole point
+     of it: no lens means no repaint on settle and no change of resolution
+     while zooming, at the cost of a 268 MB canvas for the world map. It is
+     never offered until fullResPossible() has actually allocated one and read
+     a pixel back out of the far corner. */
+  const MAX_CANVAS_PX = (window.FULL_RES && !IS_IOS_WEBKIT) ? 7e7
+                        : (IS_IOS_WEBKIT ? 2.2e6 : 6e6);
   let TS = 32;
   if (opts && opts.forceTS) TS = opts.forceTS;   // downloadMapPNG: the file, not the screen
   else while (TS > 4 && (m.width * TS) * (m.height * TS) > MAX_CANVAS_PX) TS -= 4;
@@ -7459,6 +7490,68 @@ function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src) {
       ctx.strokeStyle = 'rgba(190,175,130,.42)';
     }
     ctx.restore();
+  }
+}
+
+/* The art that has to be put back over an animated square.
+
+   Water is opaque, so repainting it erases whatever was drawn on top -- the
+   shoreline, a jetty, a tree overhanging the bank. The base canvas keeps a
+   list of the exact blits for this (animReplay), but those are recorded at
+   the base's own tile size and the lens paints at 32, so what the lens needs
+   is the prop records rather than the blits. Worked out once per map. */
+function lensAnimArt(cm) {
+  if (cm._lensAnimArt) return cm._lensAnimArt;
+  const key = new Set();
+  for (const [x, y] of (cm.animCells || [])) key.add(y * 4096 + x);
+  for (const [x, y] of (cm.backdropCells || [])) key.add(y * 4096 + x);
+  const out = [];
+  for (const d of (cm.props || []))
+    if ((d.cells || []).some(([x, y]) => key.has(y * 4096 + x))) out.push(d);
+  return (cm._lensAnimArt = out);
+}
+
+/* One palette frame, into the lens, over the squares that cycle.
+
+   Skipped while the lens is mid-slide: those pixels are being carried to
+   follow a moving map and are about to be replaced by the settle repaint, and
+   painting into them at a stale transform would put water in the wrong place. */
+function repaintLensAnim(frame) {
+  const cm = window.CUR_MAP;
+  const lens = document.getElementById('mapDetailLens');
+  const vp = document.getElementById('mapViewport');
+  if (!cm || !cm.m || !lens || !vp || !lens.width) return;
+  if (lens.style.display === 'none' || lens.style.transform) return;
+  if (!cm.animCells || !cm.animCells.length) return;
+  const ctx = lens.getContext('2d');
+  if (!ctx) return;
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  const geom = lensGeometry(vw, vh);
+  const dpr = geom.dpr, mx = geom.mx, my = geom.my;
+  const k = (cm.TS * mapView.scale / LENS_TS) * dpr;
+  ctx.setTransform(k, 0, 0, k, (mapView.x + mx) * dpr, (mapView.y + my) * dpr);
+  ctx.imageSmoothingEnabled = false;
+  const spt = cm.TS * mapView.scale;
+  const x0 = Math.max(0, Math.floor(-(mapView.x + mx) / spt) - 2);
+  const y0 = Math.max(0, Math.floor(-(mapView.y + my) / spt) - 2);
+  const x1 = Math.min(cm.tilesW - 1, Math.ceil((vw + mx - mapView.x) / spt) + 2);
+  const y1 = Math.min(cm.tilesH - 1, Math.ceil((vh + my - mapView.y) / spt) + 2);
+  const faux = getFauxProps(), fauxTiles = getPropTileList();
+  for (const [tx, ty, t] of cm.animCells) {
+    if (tx < x0 || tx > x1 || ty < y0 || ty > y1) continue;
+    drawTileAt(ctx, t, tx * LENS_TS, ty * LENS_TS, false, LENS_TS, frame);
+    const fp = faux.get(t);
+    if (!fp) continue;
+    const base = fauxTiles[fp.proptype];
+    if (base === undefined) continue;
+    const [ox, oy] = propOffsetFor(fp.proptype, fp.aspect, fp.rotated);
+    drawPropAt(ctx, LENS_TS, tx, ty, base + fp.aspect, fp.rotated, ox, oy, cm.m.width, cm.m.height);
+  }
+  for (const d of lensAnimArt(cm)) {
+    const r = d.rec;
+    if (r.x < x0 - 4 || r.x > x1 + 4 || r.y < y0 - 4 || r.y > y1 + 4) continue;
+    const [ox, oy] = propOffsetFor(r.proptype, r.aspect, r.rotated);
+    drawPropAt(ctx, LENS_TS, r.x, r.y, d.tileId, r.rotated, ox, oy, cm.m.width, cm.m.height);
   }
 }
 
@@ -8269,7 +8362,15 @@ function renderMapResource(resid) {
     // deserves 1600% to reach the same place -- and the detail lens renders
     // that at the real art, not an 8px blur.
     const zs = document.getElementById('mapZoomSlider');
-    if (zs) zs.max = Math.round(400 * 32 / result.tileSize);
+    // 400% of a TS=32 map is 128 screen px a tile, so a map below native gets
+    // the ceiling that reaches the same place. The world map is the exception:
+    // its own art runs out at 32 px a square like everything else, and past
+    // WORLD_ZOOM_CEILING there is nothing further to see -- only the same art
+    // stretched, and a long way still to drag. Every gateway is entered before
+    // then, so the ceiling costs nothing.
+    if (zs) zs.max = (resid === WORLD_MAP_RESID && window.CUR_SUBN === 'WORLD')
+      ? Math.round(100 * WORLD_ZOOM_CEILING / result.tileSize)
+      : Math.round(400 * 32 / result.tileSize);
     clearMapInspector();
     startMapAnimation();
     toggleRoofs(window.MAP_ROOFS);   // draws the layer and updates the note
@@ -8351,6 +8452,11 @@ const WORLD_ENTER_AT = 56;
    putting the place in the middle of the screen. */
 const WORLD_ENTER_RADIUS = 0.22;
 
+// The most magnification the world map is worth, in screen pixels a square.
+// Its art is 32 px a tile; past about twice that there is nothing more to
+// see. Comfortably above WORLD_ENTER_AT so a gateway can still be reached.
+const WORLD_ZOOM_CEILING = 76;
+
 /* The cross-fade is deliberately unhurried. It is not a page turn -- it is
    the same place being looked at more closely -- and at 320ms it read as a
    cut. */
@@ -8406,9 +8512,14 @@ function mapRenderFor(resid, cache) {
   }
   const entry = renderMapUncached(resid);
   if (cache && entry && entry.result) {
-    for (const k of zoneMapCache.keys()) {
-      if (zoneMapCache.size < ZONE_CACHE_KEEP) break;
-      if (k !== WORLD_MAP_RESID) zoneMapCache.delete(k);
+    // Nothing is evicted while the reader has asked for every place to be
+    // kept: rendering them all and then throwing them away again as the view
+    // moves is the one thing that option must not do.
+    if (!window.WORLD_PRELOAD) {
+      for (const k of zoneMapCache.keys()) {
+        if (zoneMapCache.size < ZONE_CACHE_KEEP) break;
+        if (k !== WORLD_MAP_RESID) zoneMapCache.delete(k);
+      }
     }
     zoneMapCache.set(resid, entry);
   }
@@ -8499,7 +8610,7 @@ const THUMB_MIN_SQUARES = 4;
    the view is still outside it. It ends short of WORLD_ENTER_AT so that the
    crossing lands on a town whose roofs are already going, rather than on a
    change of subject. */
-const ROOF_LIFT = [30, 52];
+const ROOF_LIFT = [18, 44];
 
 function thumbKey(resid, size, roofed) { return resid + ':' + size + ':' + (roofed ? 'r' : 'b'); }
 
@@ -8676,6 +8787,7 @@ function toggleWorldPreload() {
   if (window.WORLD_PRELOAD) {
     window.WORLD_PRELOAD = false;
     preloadQueue = null;
+    preloadTodo = null; preloadSeen = null;
     // Back to the ordinary cache: keep the world map, which is pinned, and
     // whatever the LRU would have kept anyway.
     for (const k of Array.from(zoneMapCache.keys()))
@@ -8692,23 +8804,88 @@ function toggleWorldPreload() {
   renderWorldBar();
 }
 
+/* The queue lives out here, and that is the whole of the fix.
+
+   It used to be built inside startWorldPreload, and the last thing each slice
+   did was call startWorldPreload again to arm the next one -- which built a
+   fresh list and a fresh empty `seen`, so every slice did the first gateway
+   over again and the counter sat on "1 of 24" for ever. Nothing failed, no
+   request was made, and there was nothing in the console to see, which is
+   exactly how it was reported. A slice re-arms itself now; the queue is
+   drained, not rebuilt. */
+let preloadTodo = null;
+let preloadSeen = null;
+
+/* ---------------------------------------------------------------------------
+   Full resolution
+   ---------------------------------------------------------------------------
+   Every map at the native 32 pixels a tile, including the 256x256 world map,
+   which is an 8192x8192 canvas -- 268 MB. What it buys is that the detail
+   lens turns itself off (lensActive needs a base below 32) and with it goes
+   the only thing on this page that changes resolution while you are looking
+   at it: no repaint on settle, no soft moment before it lands, nothing that
+   shifts. The overlay layers are capped rather than following the base up
+   (layerGeom), or five of them would be 1.3 GB.
+
+   Desktop only, and never offered on trust: fullResPossible allocates the
+   exact canvas the world map would need and reads a pixel back out of the far
+   corner, because a browser that cannot do it does not say so -- it hands
+   back a canvas that draws nothing, and the map would come out black.
+--------------------------------------------------------------------------- */
+function fullResPossible() {
+  if (window._FULL_RES_OK !== undefined) return window._FULL_RES_OK;
+  let ok = false;
+  if (!IS_IOS_WEBKIT) {
+    try {
+      const c = document.createElement('canvas');
+      c.width = 8192; c.height = 8192;
+      const x = c.getContext('2d');
+      if (x) {
+        x.fillStyle = 'rgb(18,52,86)';
+        x.fillRect(8160, 8160, 32, 32);
+        const d = x.getImageData(8176, 8176, 1, 1).data;
+        ok = (d[0] === 18 && d[1] === 52 && d[2] === 86);
+      }
+      c.width = 0; c.height = 0;             // give it straight back
+    } catch (e) { ok = false; }
+  }
+  return (window._FULL_RES_OK = ok);
+}
+
+function toggleFullRes() {
+  if (!window.FULL_RES && !fullResPossible()) {
+    const bar = document.getElementById('worldBar');
+    if (bar) bar.insertAdjacentHTML('beforeend',
+      '<span class="wbNote">This browser will not give out a canvas that big.</span>');
+    return;
+  }
+  window.FULL_RES = !window.FULL_RES;
+  // Every kept picture was made at the other tile size, so none of them are
+  // the right answer any more.
+  zoneMapCache.clear(); worldThumbs.clear(); surroundPlates.clear();
+  window.WORLD_PRELOAD = false; window.WORLD_PRELOAD_DONE = 0;
+  preloadQueue = null; preloadTodo = null; preloadSeen = null;
+  const here = window.WORLD_ZONE || WORLD_MAP_RESID;
+  delete window.MAP_VIEW_MEMORY[here];       // the old pan and zoom were in the old pixels
+  worldOpenZone(here, null, null, true);
+}
+
 function startWorldPreload() {
   if (preloadQueue) return;
-  const todo = worldGateways().slice();
-  const seen = new Set();
+  if (!preloadTodo) { preloadTodo = worldGateways().slice(); preloadSeen = new Set(); }
   const step = () => {
     preloadQueue = null;
     if (!window.WORLD_PRELOAD) return;
-    let gw = todo.shift();
-    while (gw && seen.has(gw.destResid)) gw = todo.shift();
-    if (!gw) { renderWorldBar(); return; }
-    seen.add(gw.destResid);
+    let gw = preloadTodo.shift();
+    while (gw && preloadSeen.has(gw.destResid)) gw = preloadTodo.shift();
+    if (!gw) { preloadTodo = null; renderWorldBar(); return; }
+    preloadSeen.add(gw.destResid);
     buildThumbsFor(gw, THUMB_LEVELS);        // both levels, both roofed and bare
     mapRenderFor(gw.destResid, true);        // and the whole thing, kept
-    window.WORLD_PRELOAD_DONE = seen.size;
+    window.WORLD_PRELOAD_DONE = preloadSeen.size;
     renderWorldBar();
     if (window.CUR_SUBN === 'WORLD') scheduleWorldScene(0);
-    startWorldPreload();
+    startWorldPreload();                     // arm the next slice, same queue
   };
   preloadQueue = 1;
   if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(step, { timeout: 3000 });
@@ -8796,7 +8973,7 @@ function scheduleWorldScene(delay) {
    Touching the Roofs checkbox turns this off for as long as the map stays
    open: an explicit choice outranks a zoom, and rediscovering that it does
    not is the sort of thing that makes a page feel possessed. */
-const ROOF_FADE = [12, 22];
+const ROOF_FADE = [8, 18];
 
 function updateRoofFade() {
   const cm = window.CUR_MAP;
@@ -8831,7 +9008,7 @@ function checkWorldCrossing() {
       const gw = focus.gw;
       if (window.WORLD_GATE_HOLD === gw.port) {
         if (focus.ppt < WORLD_ENTER_AT) window.WORLD_GATE_HOLD = null;
-      } else if (!gw.sealed && focus.ppt >= WORLD_ENTER_AT && focus.centred) {
+      } else if (focus.ppt >= WORLD_ENTER_AT && focus.centred) {
         enterGateway(gw);
       }
     } else checkZoomOutReturn();
@@ -9055,15 +9232,9 @@ function paintWorldGate() {
     // is no world outside Land King Hall or a cave to be continuous with, so
     // the way in is a click. mapIsSealed reads that off the destination's own
     // header rather than from a list of names.
-    const hint = gw.sealed ? 'click to enter' : focus.near >= 1 ? '' : 'keep zooming to enter';
-    if (hint) {
-      const tw = Math.round(ctx.measureText(hint).width) + 12;
-      const ty = Math.round(Math.max(12, r.y - pad - 6));
-      ctx.fillStyle = 'rgba(8,7,5,.8)';
-      ctx.fillRect(Math.round(r.x + r.w / 2) - tw / 2, ty - 11, tw, 15);
-      ctx.fillStyle = '#c9bb92';
-      ctx.fillText(hint, Math.round(r.x + r.w / 2), ty);
-    }
+    // No instructions. The ring and the name are the whole of what needs
+    // saying, and every gateway now behaves the same way when zoomed into --
+    // a tooltip explaining a gesture the reader is already making is noise.
     // The reader is beside it and looking at its name; render it and its
     // bigger miniature now, while nothing else is happening, so that coming
     // closer is sharper and crossing over is a fade rather than a wait.
@@ -9243,6 +9414,7 @@ function ensureWorldSurround() {
 function hideWorldSurround() {
   const el = document.getElementById('worldSurround');
   if (el) { el.style.display = 'none'; el.width = 0; el.height = 0; }
+  setMapEdgeFeather(false);
 }
 
 /* Repainted off the same settle as everything else over the map. Only for an
@@ -9265,9 +9437,48 @@ function paintWorldSurround() {
   if (!ctx) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, vw, vh);
-  if (paintSurroundInto(ctx, vw, vh, gw, cm.canvas.width, cm.canvas.height, mapView))
+  if (paintSurroundInto(ctx, vw, vh, gw, cm.canvas.width, cm.canvas.height, mapView)) {
     el.style.display = '';
-  else hideWorldSurround();
+    setMapEdgeFeather(true);
+  } else { hideWorldSurround(); setMapEdgeFeather(false); }
+}
+
+/* Soften the rectangle a zone map ends on, so it runs into the country drawn
+   around it.
+
+   The tiles at a region's edge are the ordinary ones -- open water, grass,
+   rock -- and they are broadly the same tiles the world map has at that spot,
+   because they are the same ground described twice. A hard rectangular cut
+   between the two therefore announces a boundary that the pixels either side
+   of it do not actually have. A ramp over the outermost few per cent of the
+   map lets one become the other.
+
+   A mask on the wrap rather than on the canvas, so the layers over it --
+   characters, roofs, marks -- are cut back with it and nothing hangs over the
+   edge on its own. The detail lens is a sibling of the wrap and is not
+   masked, which is why this is a percentage and not a pixel count: by the
+   zoom at which the lens engages the edge is well off screen. */
+function setMapEdgeFeather(on) {
+  const wrap = document.getElementById('mapCanvasWrap');
+  if (!wrap) return;
+  if (!on) {
+    if (wrap.dataset.feathered) {
+      wrap.style.webkitMaskImage = ''; wrap.style.maskImage = '';
+      wrap.style.webkitMaskComposite = ''; wrap.style.maskComposite = '';
+      delete wrap.dataset.feathered;
+    }
+    return;
+  }
+  if (wrap.dataset.feathered) return;
+  const ramp = (dir) => 'linear-gradient(to ' + dir + ', transparent 0%, #000 4%, ' +
+                        '#000 96%, transparent 100%)';
+  const img = ramp('right') + ', ' + ramp('bottom');
+  wrap.style.webkitMaskImage = img; wrap.style.maskImage = img;
+  // Intersect the two ramps. The -webkit- spelling of the value differs from
+  // the standard one and Safari wants its own, so both are set.
+  wrap.style.webkitMaskComposite = 'source-in';
+  wrap.style.maskComposite = 'intersect';
+  wrap.dataset.feathered = '1';
 }
 
 /* Cross-fade the map panel to another map.
@@ -9357,9 +9568,35 @@ function finishWorldFade() {
 
 // Cross into a gateway: the zoom reaching WORLD_ENTER_AT, a row of the
 // gazetteer, or the button on the square's own inspector card.
+/* Cross into a gateway, landing on the way in rather than on the whole map.
+
+   The view arrives centred on the square the zoneport actually puts you on --
+   the mouth of the tunnel, the gate of the town -- at the same number of
+   screen pixels per square the world was being read at when it crossed. The
+   zoom does not jump, so what happens is that the place opened where the
+   reader was already looking, which is what zooming into it was asking for.
+   Fitting the whole map instead, which is what this did before, answered a
+   question nobody had asked and threw away the spot they were aiming at.
+
+   Written into MAP_VIEW_MEMORY rather than applied, because that is what
+   restoreOrFitMap will read and what crossfadeToZone paints the overlay at:
+   the two have to agree or the swap shows as a jump. */
 function enterGateway(gw) {
   window.WORLD_GATE_HOLD = gw.port;
   window.WORLD_TRAIL = { port: gw.port, name: gw.name, x: gw.x0, y: gw.y0 };
+  const cm = window.CUR_MAP;
+  const vp = document.getElementById('mapViewport');
+  const dest = mapRenderFor(gw.destResid, true);
+  if (cm && vp && vp.clientWidth > 40 && dest && dest.result) {
+    const ppt = cm.TS * mapView.scale;
+    const ts = dest.result.tileSize;
+    const scale = Math.max(0.05, ppt / ts);
+    window.MAP_VIEW_MEMORY[gw.destResid] = {
+      scale,
+      x: vp.clientWidth / 2 - (gw.destX + 0.5) * ts * scale,
+      y: vp.clientHeight / 2 - (gw.destY + 0.5) * ts * scale
+    };
+  }
   crossfadeToZone(gw.destResid, gw.destX, gw.destY);
 }
 
@@ -9472,12 +9709,18 @@ function renderWorldBar() {
     const load = !window.WORLD_PRELOAD
       ? '⤓ Load every place — ' + total + ' maps, about 275 MB'
       : (done < total ? '… loading ' + done + ' of ' + total : '✓ Every place loaded — free it');
+    // Offered only where it can actually be done, and with the cost on it.
+    const fr = fullResPossible()
+      ? '<button class="crumbBtn" onclick="toggleFullRes()">' +
+        (window.FULL_RES ? '✓ Full resolution — back to normal'
+                         : '◈ Full resolution — no zoom transitions, ~270 MB') + '</button>'
+      : '';
     bar.innerHTML = '<span class="wbWhere">The world of Cythera</span>' +
       // Short, because on a phone every line of this is a line of map. The
       // long version of all of it is the gazetteer under the map.
       '<span class="wbNote">256×256 squares, ' + n + ' ways off it. Zoom into a town to enter ' +
       'it; caves open on a click. Any square says what is on it.</span>' +
-      '<button class="crumbBtn" onclick="toggleWorldPreload()">' + load + '</button>';
+      '<button class="crumbBtn" onclick="toggleWorldPreload()">' + load + '</button>' + fr;
     return;
   }
   const a = window.WORLD_ARRIVE;
