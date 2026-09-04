@@ -616,64 +616,24 @@ Read the comment above a constant before correcting it.
   `js/delv-graphics.js` and `js/delv-script.js`; the page holds the UI, the
   rendering, and the ~7,700 lines that need a document. See **Where new code
   goes** above before adding to either side.
-- **The World tab has two renderers, and is moving to the second.** `ATLAS`
-  picks (remembered in `localStorage`, switchable from a button in the strip
-  because the device the bugs get found on has no console). Everything below
-  describes the **old** one, which is intact and still checked — a path
-  nothing exercises rots, and the point of keeping it is that the two can be
-  compared on a real device.
-  **The atlas** is the world as one scene rather than a sequence of views: one
-  coordinate system (world squares), a tree of maps placed in it by
-  `gatewayTransform`, and a full redraw every frame. It exists because the old
-  renderer borrowed the map panel — a thing correctly built around one map at
-  a time — and then spent **425 lines** persuading it to behave like a
-  continuous world: a cross-fade, a landing calculation, a stack, a hold, four
-  thresholds in and two out, a second copy of the world drawn behind each
-  town, and three separate implementations of "keep this layer registered with
-  the map while it moves". *Every* display bug reported against the World tab
-  was in that layer rather than in the feature, which is the sign the
-  compensation had outgrown the thing it compensated for.
-  What the atlas deletes is structural, not tidied: there is no crossing, so
-  nothing to fade, land, hold or pop; nothing is painted once in screen space,
-  so nothing has to be slid to catch up; the world is simply the parent node,
-  so there is no surround; and "which place am I in" is read off the view by
-  whichever node fills it rather than stored. The three expressions of the
-  world↔zone transform — the miniature's size, the country's scale, the
-  landing view, two of which disagreed and produced the jump on entry — are
-  one function.
-  **It borrows the map panel and must give it back.** `setAtlasChrome` hides
-  the furniture the atlas does not use — the walls/roofs/marks switches drive
-  layers it does not draw, the PNG export saves the open map and there is no
-  open map, the title names one too — and takes the room they were using.
-  Two mistakes were made putting it back, and both are worth not repeating.
-  It must restore **the value it saved**, not a blanket `display:''`, or the
-  World tab's own strip turns on inside Regions; and it must restore **in
-  `setModeImpl`, before the view fills the panel**, not inside
-  `renderMapResource` afterwards, or it overwrites what the caller has just
-  set — which showed as the resource nav vanishing from Regions. The shipped
-  version restored nothing at all, so every map opened in Regions after a
-  visit to the World tab drew into a hidden wrapper. The smoke test names that
-  one directly as well as comparing a snapshot, because a broad comparison is
-  easy to render vacuous by taking its baseline a moment too late — which the
-  first version of it was.
-  **The World tab is the sheet** (`body.atlasFull`). Everywhere else the sheet
-  is the game's own dialogue box — the PNG's 4/8px band, the blue
-  checkerboard, the plank showing through — which is the right frame for a
-  page of text or a gallery of tiles and the wrong one for a map of the world,
-  where the map *is* the page and a border round it is a border round the only
-  thing on screen. The class comes off in `setModeImpl` with the rest of the
-  panel; the smoke test checks Regions is not left wearing it.
-  **The sea outside the world** (`paintAtlasGround`): Cythera is an island and
-  the world map's border is 434 squares of tile `0x8`, so the ground beyond it
-  is water rather than the panel's grey, laid in the world's own grid at the
-  world's own scale so it runs into the sea inside without a seam. Not drawn
-  below ground, where there is no world outside to continue.
-  **The seam is deliberate and is what keeps it small.** The atlas navigates
-  and identifies. Walls, roofs, marks, walk-the-day, lighting, the PNG export
-  and the prop editor stay in Entities › Regions, which is untouched; a square
-  in the atlas offers to open its map there. Reproducing the panel would have
-  made this a second copy of it.
-  **It places what the archive locates, and nothing else.** A map header's
+- **The World tab is the atlas: the world as one scene.** One coordinate
+  system (world squares), a view of three numbers, a tree of maps placed in it
+  by `gatewayTransform`, and a full redraw every frame — the whole scene is a
+  couple of dozen `drawImage` calls, so there is no reason to be clever.
+  It replaced a renderer that borrowed the map panel — a thing correctly built
+  around one map at a time — and then spent **425 lines** persuading it to
+  behave like a continuous world: a cross-fade, a landing calculation, a
+  stack, a hold, four thresholds in and two out, a second copy of the world
+  drawn behind each town, and three separate implementations of "keep this
+  layer registered with the map while it moves". *Every* display bug reported
+  against the World tab was in that layer rather than in the feature. Deleting
+  it took **1,515 lines out for 84 in**, and what went with it is structural:
+  there is no crossing, so nothing to fade, land, hold or pop; nothing is
+  painted once in screen space, so nothing has to be slid to catch up; the
+  world is simply the parent node, so there is no surround; and *which place
+  am I in* is read off the view rather than stored where it can disagree with
+  what is drawn.
+- **It places what the archive locates, and nothing else.** A map header's
   four edge fields say where walking off each side puts you; where one lands
   on the world map, the archive is making a spatial statement — *this map is
   contiguous with the world at that square* — and that is what makes a map
@@ -682,356 +642,32 @@ Read the comment above a constant before correcting it.
   under Catamarca and Pnyx upstairs both have edges to the world). The other
   17 — Land King Hall, the Sewers, the Iron Mine, the Volcano, the Tomb, the
   Caves, Below Cademia, the Dungeon, the Cove — say nothing of the kind: what
-  the file gives for each is a **doorway, not an extent**. A stair says where
-  you go in, not where the place reaches, and the Sewers do not lie under any
-  particular nine squares of Cademia.
-  An earlier version placed 37 of the 42 at an invented scale and the invented
-  part was visible. It is the difference between a map and a graph, and
-  drawing a graph as a map is a claim the file does not support. A located map
-  with no pictogram is placed at the world square its own edge exit names,
-  which is the same statement from the other side.
-  **The other 17 are reached through a mouth** (`atlasMouths`,
-  `atlasDescend`): a ring on the square the archive does give, and a *step*
-  rather than a zoom, after which that map is shown on its own with the strip
-  describing the **connection** rather than asserting a position — "through
-  the arch at (163,20) in Cademia", never "below Cademia". `ATLAS_BELOW` is a
-  stack because the underworld is a graph and two mouths deep is ordinary; it
-  is the only state in this renderer, and it is honest state, because which
-  unlocated map you are looking at genuinely is not derivable from a position
-  on the world.
-  **`gatewayRatio` trusts a footprint only when both axes say so.** A block of
-  props placed two or four squares each way is somebody stating a size; a
-  single sprite that happens to be two tiles tall is not — a cave mouth is
-  drawn 1×2 because that is the shape of a picture of a cave mouth, and
-  reading it as a size gave the same Underground three sizes depending on
-  which of its three mouths was asked.
-  **People are drawn on whichever node they stand on**, above
-  `ATLAS_PEOPLE_AT`. `charactersOnLevel` is written against `window.CUR_MAP`,
-  so the atlas lends it one node at a time and puts it back — a borrow rather
-  than a design, and the one place the atlas leans on the panel's assumptions
-  instead of replacing them.
-  **The animation is a frame counter.** The panel repaints animated squares
-  into the base *and* again into the lens, because those are two pictures kept
-  in step; the atlas redraws everything each frame anyway, so
-  `paintMapBaseRegion` gained a `frame` argument and that is the whole of it.
-  **Not done yet**: the atlas's view is not in the deep link.
-- **The World tab is the landing view, and it is not a gallery.** One view:
-  the world map (`0x8001`, 256×256 squares) with every way off it live. It
-  stands first in `TAB_TREE` and `parseArchiveBytes` picks it explicitly, so
-  a visit that arrives without a hash starts there. The tab is a leaf at the
-  top level, like Tools, because there is one world and nothing to browse.
-  **Zooming into a town opens the town, and what that cannot be is a matter
-  of measurement.** The world map does not contain the towns: Cademia is a
-  pictogram four squares across, and Cademia's own map is 128×128 squares.
-  Sliding every zone map over the world grid at every offset, the best
-  tile-for-tile agreement any of them reaches is 44%, and that is the Sitia
-  bridge matching open water — so no zone map is embedded in the world map,
-  a town cannot be revealed by magnifying it, and pasting one onto the world
-  grid at 1:1 would put a quarter of the continent under Cademia and assert
-  a geography the archive does not contain. So the world map is **left
-  exactly as it is** and the move into a town is a *transition*, which is
-  also how the game itself moves between zones. Past `WORLD_HINT_AT` screen
-  pixels per world square (22 — screen pixels rather than zoom percent,
-  because the base tile size is budgeted per device) the gateway nearest the
-  middle of the view is ringed and named, so that crossing over is legible
-  before it happens; past `WORLD_ENTER_AT` (56), with the gateway centred,
-  the view **cross-fades** (`WORLD_FADE_MS`, 700ms — 320 read as a cut) to
-  that town's own map. From there the whole existing panel applies — the
-  detail lens at native 32px, the marks, the roofs, the inhabitants, the
-  square inspector. The cross-fade is the transition, not a second and poorer
-  map viewer, and nothing in it is reimplemented.
-  **The towns are drawn as themselves, at `THUMB_LEVELS` sizes.** Above
-  `THUMB_FADE` the pictogram is replaced by the town scaled into the same few
-  squares, feathered by two `destination-in` gradient passes so its outskirts
-  run into the country the world map draws around it rather than sitting on it
-  as a framed picture. `THUMB_SPREAD`/`THUMB_MIN_SQUARES` size it: bigger than
-  the footprint, or the sprite's corners show through. Below `THUMB_FADE` the
-  game's own pictogram wins, because it was drawn to be read at that size and
-  a town scaled into four squares is a smudge. **Only open-edged destinations
-  get one** — a cave's inside is not what is at that spot.
-  **Cropped to the built part and sized off the archive's own scale.**
-  `contentBox` is the trimmed bounding box of a map's props — what a
-  settlement is, as against the field of rock the map is padded out with:
-  Cademia's map is 128 squares and its town is 107, so drawing the whole map
-  into a pictogram's footprint drew mostly empty ground. `worldSquareRatio`
-  then measures how many region squares one world square stands for, off the
-  gateways whose pictogram covers more than one square (Cademia is four `small
-  city` props deliberately placed in a 4×4 block, so it says ~27; Catamarca
-  27, Kosha 22, Pnyx 21) — median ~21, and a modded archive gets its own.
-  `gatewayRatio` prefers a place's **own** icon where it has one, because the
-  world map is stating how big *that* place is and it should land on its own
-  icon rather than on everyone else's average; a one-square icon is a symbol
-  rather than a measurement (one `large city` prop stands for both the Farm at
-  26 squares and the Encampment at 35), so those fall back to the median.
-  Two levels, each **roofed and bare**, and `drawTown` takes the smallest at
-  least as wide as the rectangle — so a town *sharpens* as the view comes in
-  rather than one 192-pixel picture being magnified all the way to the
-  crossing, and the roofs **lift on approach** (`ROOF_LIFT`) by cross-fading
-  the bare level over the roofed one, ending short of `WORLD_ENTER_AT` so the
-  crossing lands on a town already opening and `updateRoofFade` carries on
-  from there. Level 1 is built for every town on idle (`buildWorldThumbs`),
-  level 2 only for the one the view is beside (`buildNearThumbs`) — it is nine
-  times the pixels. **All variants come off one render** (`buildThumbsFor`):
-  the bare ones are taken from the clean canvas, the roofs are painted on, and
-  the roofed ones are taken from the same canvas afterwards.
-  **It must be `renderMapUncached`, never `mapRenderFor`**: the roofs are
-  painted onto the canvas being shrunk, and handed a cached entry that would
-  roof the copy the panel puts on screen — permanently, and only for the towns
-  whose miniature happened to have been built. The smoke test pins it by
-  counting renders.
-  **Every gateway is named on the map** (`paintWorldGate`), small and in the
-  game's own Argos, hung off the miniature by a drop measured in *world
-  squares* rather than screen pixels, biggest footprint first so a collision
-  drops the smaller place and the choice does not flicker as the view moves. A
-  place you cannot find is a place you cannot go to, and there are 26 of them
-  over 65,536 squares.
-  **The country around a town is painted at the world's own art size**
-  (`surroundPlate`, `SURROUND_PLATE_TS`), not by magnifying the budgeted base
-  — which on a phone is four pixels a tile and looked like it. It is
-  `SURROUND_PLATE_SQUARES` of world around the gateway put through the detail
-  lens's own `paintMapBaseRegion`, which now takes the map to paint as an
-  argument rather than always reading `CUR_MAP`. The blurred whole-world draw
-  stays underneath it, so anything past the plate's edge still has ground
-  rather than a hole.
-  **The palette animation has to reach the lens** (`repaintLensAnim`, called
-  from the map animation loop). The loop repaints the *base*, and whenever the
-  lens is showing the base is not what anyone is looking at — so the water
-  stood still until a drag forced a lens repaint, which is exactly how it was
-  reported. Only the animated squares are redone, plus the art over them
-  (`lensAnimArt`: water is opaque, so repainting it erases the shoreline
-  drawn on top — the base keeps `animReplay` for this, but those blits are
-  recorded at the base's tile size and the lens paints at 32, so what it needs
-  is the prop records). Skipped while the lens is mid-slide.
-  **Everything drawn over the map is slid between repaints**
-  (`slideWorldOverlay` for the miniatures and names, `slideWorldSurround` for
-  the scenery, `slideLens` for the lens). The scenery was the one that was
-  not, and it is the one that could least afford it: every point on it is
-  placed relative to its gateway, and Cademia's is **171 squares** from the
-  corner of the world, so a pitch one zoom step stale moved the country by 171
-  times that error — hundreds of pixels sideways, snapping back on the settle.
-  A pan was survivable; a zoom was not. The algebra says the map's own
-  transform is the right one: a surround point sits at
-  `S'(w) = r·S(w) + (x' − r·x)`, a translate and a scale about the element's
-  own origin.
-  **`slideWorldOverlay` is why nothing drifts.** The overlay is repainted on
-  the settle while the map moves continuously under a CSS transform, so
-  between the two the miniatures and the names sat still in screen space while
-  the ground slid out from under them and then snapped back. The pixels were
-  painted for `gateView` and belong under `mapView`, which is an ordinary
-  similarity — the same fix, and the same reasoning, as `slideLens`. A pan is
-  a pure translate, so a pan is now exact.
-  **`WORLD_STACK` is where you came from, and it is a stack for a reason.**
-  A single trail was enough while everything was entered from the world map;
-  it is not enough for a sewer under Cademia, where *back* is the town above
-  rather than the world — and with one trail, zooming out of an underground
-  did nothing at all. `pushWorldStack` records the map, its view and its trail
-  on every way in; `goUpOneLevel` pops one, and `checkZoomOutReturn` calls it
-  whenever the stack is non-empty, which is what makes zooming out of a cave
-  work like zooming out of a town. Coming out **onto the world map** keeps its
-  own rule — land just short of the crossing zoom, or the hold would be the
-  only thing keeping the view out — while coming out into another map restores
-  the view it was left at, which was not a crossing and so cannot loop.
-  **Every gateway is entered by zooming, and the crossing moves nothing but
-  the resolution.** A town has been on screen as a miniature for the whole
-  approach, at a definite place and size, so `enterGateway` puts the real map
-  exactly there: the same crop, over the same rectangle. Fitting the whole
-  map, or re-centring on the arrival square, is a *snap* — and a snap is what
-  makes it read as a different screen rather than the same place closer up.
-  A **sealed** destination has no miniature, because there is no cave to draw
-  on the world map, so that one lands centred on the square the zoneport puts
-  you on at the zoom the crossing happened at — the tunnel mouth the reader
-  was aiming into. That is the only case that re-centres. `sealed` otherwise
-  decides only whether the world's own country is drawn around the place,
-  which for the inside of a cave it must not be. The view is written into
-  `MAP_VIEW_MEMORY` rather than applied, because that is what
-  `restoreOrFitMap` reads and what `crossfadeToZone` paints the overlay at:
-  the two have to agree or the swap shows as a jump after all.
-  **The world map stops at `WORLD_ZOOM_CEILING`** (76 screen px a square).
-  Its art is 32 px a tile like everything else, so past about twice that
-  there is nothing further to see and a long way still to drag. Comfortably
-  above `WORLD_ENTER_AT`, so every gateway is still reachable. The ordinary
-  ceiling (`400 × 32 / TS`) still applies to every other map.
-  **A zone's edge is feathered into the country around it**
-  (`setMapEdgeFeather`): a mask on the wrap, so the layers over it are cut
-  back with it. The tiles at a region's edge are the ordinary ones — open
-  water, grass, rock — and broadly the same ones the world map has at that
-  spot, because they are the same ground described twice, so a hard
-  rectangular cut announces a boundary the pixels either side of it do not
-  have. It is a percentage, not a pixel count, because the detail lens is a
-  sibling of the wrap and is not masked — by the zoom the lens engages at, the
-  edge is off screen.
-  **The animation repaint is windowed to the screen** (`animWindow`). The
-  world map has **41,631 animated tiles** — it is mostly sea — and the loop
-  repainted every one of them seven times a second whether or not it was near
-  the viewport: 42 megapixels a frame at the native tile size, which is what
-  stood between full resolution and being usable. 702 of 41,631 now. A pan
-  reveals squares that missed the last frame and they are repainted 140ms
-  later, which nobody can see.
-  **Full resolution is on by default where the device allows**
-  (`autoHeavyDefault`, `maybeAutoLoadEverything`) and otherwise a desktop
-  opt-in (`toggleFullRes`): every map at the
-  native 32 px a tile, the world map included, which is an 8192×8192 canvas
-  at 268 MB. What it buys is that `lensActive` turns itself off — the lens is
-  the only thing on this page that changes resolution while you are looking
-  at it, so with it goes the settle repaint and the soft moment before it
-  lands. **`layerGeom` caps the overlay layers** so they do not follow the
-  base up; five copies of that canvas would be 1.3 GB, and a sprite drawn at
-  16 and shown at 32 is the right thing to give up when the terrain under it
-  is what was asked for. Never offered on trust: `fullResPossible` allocates
-  the exact canvas and reads a pixel back out of the far corner, because a
-  browser that cannot do it hands back one that draws nothing rather than
-  saying so. Full resolution **plus** every place kept is about **627 MB**, of
-  which the world map alone is 256; most towns are already native under the
-  ordinary budget, so what the rest buys is Cademia, the Underground and the
-  world. Turned on automatically off the idle queue unless the device is
-  touch-first, reports under 8 GB, or sets `saveData`/2G. Worth being clear
-  that **nothing is downloaded** for any of it — every map is drawn from the
-  archive already in memory, so the cost is RAM and a few seconds of idle CPU;
-  the connection hints are read as a signal about the device, not the bytes.
-  **Loading every place is opt-in** (`toggleWorldPreload`, the button in
-  `#worldBar`). Everything above is careful with memory because the numbers
-  are large — the 24 distinct destinations rendered whole measure **275 MB** —
-  so by default a town is rendered as the view arrives beside it and the
-  miniatures stand in for the rest. A reader who would rather spend the memory
-  says so and gets both thumbnail levels and every whole map, kept: the cache
-  stops evicting while it is on, nothing is rendered during a movement again,
-  and the cost is stated on the button rather than discovered. Reversible, and
-  freeing drops back to the ordinary LRU with the world map still pinned.
-  **Its queue is module state, and that is not incidental.** It used to be
-  built inside `startWorldPreload`, and each slice re-armed by calling that
-  function again — which rebuilt the list and an empty `seen`, did the first
-  gateway over, and left the counter on "1 of 24" for ever with nothing in the
-  console to show for it. A slice re-arms itself now; the queue is drained,
-  not rebuilt. The smoke test checks the same array survives a second call.
-  **Roofs go on fading inside** (`updateRoofFade`, `ROOF_FADE`), picking up
-  where `ROOF_LIFT` left off outside. A town at a distance is roofs — that is
-  what its miniature shows, and arriving on something different would be a
-  change of subject rather than of scale. Close
-  up they are the thing in the way. The layer's opacity carries the middle,
-  but the ends switch `MAP_ROOFS` outright: the detail lens draws roofs from
-  that flag rather than from the element's opacity and would otherwise put
-  them back at full strength exactly where they are meant to have gone.
-  Touching the Roofs checkbox (`toggleRoofsByHand`) sets `ROOF_MANUAL` and
-  stops the zoom driving them for as long as the map stays open.
-  **The crossing is tested on every transform, not on the settle**
-  (`checkWorldCrossing`, called from `applyMapTransform`). It used to wait for
-  the 140ms debounce, so a wheel spun steadily into a town carried on past the
-  threshold and the view only followed once the reader stopped — which read as
-  the tab lagging behind the hand rather than as walking into a place. The
-  test is a loop over 26 gateways and some arithmetic; what stays on the
-  settle is the painting, which is not. `finishWorldFade` calls it again on
-  landing, which is what tells "left by zooming out, land below the threshold,
-  lift the hold" apart from "came back with the browser button, land above it,
-  keep the hold" — by where the view is, not by which route got there.
-  **`mapIsSealed` decides how a place behaves, and it is the archive's own
-  answer.** A map whose four edge zoneports are all zero cannot be left by
-  walking off it — that is the difference between somewhere out in the world
-  and somewhere inside something, and it splits the 26 gateways 19/7 with no
-  list of names: every town, farm, vineyard, ruin and stronghold is
-  open-edged, and the seven sealed ones are Land King Hall, the Volcano and
-  the caves. **Open-edged**: entered by zooming, keeps the world's own
-  scenery around it (`paintWorldSurround`), and is left by zooming back out
-  (`checkZoomOutReturn`, at `WORLD_LEAVE_FACTOR` of the town's own fit) —
-  the way in and the way out are the same gesture, which is what stops the
-  tab reading as a set of rooms. **Sealed**: the ring says *click to enter*,
-  zooming never opens it, and the button is the way back.
-  **The scenery is at the world map's own scale, and that is what makes the
-  crossing invisible.** `pitch = gatewayRatio(gw) × ts × scale` — the same
-  ratio the miniature was sized by — so the country around a town is drawn at
-  exactly the scale the world map was drawing it at a moment earlier. It was a
-  constant before (the town standing for 20 world squares) and that constant
-  **was the big jump on entering a place**: a miniature occupies `crop ÷ ratio`
-  world squares, about 4.6 for Cademia, so the surround redrew the same
-  country four times more magnified and the background changed scale the
-  instant the view crossed. The smoke test pins the pitch against the world's
-  own px-a-square at the moment of crossing; with the old constant restored it
-  reports 16.8 against 70. It is anchored on the **crop the miniature showed**,
-  not the middle of the map, or the town appears to shuffle sideways on
-  arrival. It is **not dimmed**: a wash read as a modal backdrop, making the
-  town look like a dialog over the world rather than a place in it. Never
-  drawn around a sealed destination, where the world outside would be a lie.
-  **`clampMapPan` stands down while it is showing** (`worldSurroundShowing`).
-  It keeps a map from being dragged off the panel and centres one smaller than
-  the viewport — both right when the background is nothing, both wrong when a
-  town is standing in the world: the place is *meant* to sit where its icon
-  was, which is off-centre, and you are meant to be able to pan off it onto
-  the ground around it. Centring the moment a town became smaller than the
-  panel was the other half of the jump on arrival.
-  **`mapRenderFor` is why a crossing is quick, and the double render it
-  removed is why one was not.** A town used to be drawn twice on the way in —
-  once into the overlay that fades up, once into the panel the overlay
-  uncovers — and both inside the transition, so the fade was covering a
-  128×128 map being rendered rather than covering a change of place. The
-  overlay and the panel are handed the same render now, `prefetchZone` has
-  usually made it on an idle callback while the gateway was merely *ringed*,
-  and the world map's own render is **pinned** in the cache, so a return costs
-  nothing and doubles as the bitmap the scenery is drawn from. The cache is
-  `ZONE_CACHE_KEEP` entries (4, or 2 on iOS) and not more: these are whole-map
-  bitmaps budgeted to 6 megapixels, and holding all 24 distinct destinations
-  at once measures **275 MB**, so "pre-load everything" is not available and
-  pre-loading the one place the reader is standing next to is. `renderMapResource`
-  only caches when the World tab is what is open — the gallery walks all 42
-  maps and must not keep them. `rerenderMapTerrain` (the walls toggle) calls
-  `forgetZoneRender`, because it swaps the panel's canvas out from under a
-  kept entry and that entry was drawn under the other setting.
-  **Leaving forgets where you were.** `leaveToWorldAt` deletes the town's
-  `MAP_VIEW_MEMORY` entry, because the view being remembered is the
-  zoomed-out one that triggered the exit — restore it next visit and the town
-  bounces the reader straight back out on arrival. It also writes the world's
-  own remembered view, landing just *short* of `WORLD_ENTER_AT` and centred
-  on the gateway, so zooming in again crosses back in rather than needing the
-  hold to hold.
-  **`fitViewFor` exists for the cross-fade.** It is the pan-and-zoom
-  arithmetic split out of `fitMapToView`, because `crossfadeToZone` paints
-  the destination into an overlay, fades it up over the live map and swaps
-  the panel underneath *while the overlay is opaque* — so the overlay has to
-  land on exactly the geometry the real view will adopt (the remembered view
-  for a town visited before, the fit for one that has not been) or the swap
-  shows as a jump the moment the overlay goes. **Everything in
-  `finishWorldFade` happens before the overlay is dropped**, and that
-  ordering is the whole job: `WORLD_FADE` stays set while the panel is
-  rebuilt so `hideWorldGate` leaves the cover alone, `restoreOrFitMap` is
-  called outright rather than left to its animation frame, and the scenery is
-  painted before the last line — uncover any of it early and there is a flash
-  of grey between two views meant to be one place. It is reachable by name so
-  a harness can run the transition to its end without waiting on wall-clock
-  time; `PREFERS_REDUCED_MOTION` switches outright instead. Arriving does **not** move the view onto the
-  arrival square — the cross-fade just showed the whole town, and panning
-  away from that immediately would undo it; the square is ringed and
-  inspected where it stands, and `#worldBar` names it.
-  **The join is `worldGateways()`, and it is the archive's own.** A prop's
-  `data2` is a zoneport index (`0xF00C`) resolving to a destination map and
-  the square you arrive on — the field the cave and mineshaft props already
-  used for `Leads to`. The settlement icons carry it too and the reading
-  round-trips: of the 26 gateways found, 19 have a destination whose edge
-  exits point back at a world zoneport within a couple of squares of the
-  icon; the other seven are sealed-edge maps (the caves, the Volcano, Land
-  King Hall) with nothing to round-trip against. `propTravelsTo` scopes the
-  settlement reading **to the world map**, and must keep doing so: `large
-  city` and `ruins` are ordinary buildings on nine other maps where the
-  field lands on an unrelated zone. A square inside a footprint gets the
-  crossing as the *first* card of its inspector (`enterGatewayByPort`), and
-  the gazetteer under the map is the one-click route — the zoom is the
-  deliberate one. `arch` is trusted everywhere because it
-  pairs both ways unaided — the world's arch at (163,20) → Land King Hall
-  (62,32), Land King Hall's arch at (63,32) → world (164,20). `EXIT_PROPS`
-  is deliberately untouched, so the map marks did not change. The footprint
-  is the squares the icons *draw over*, not the squares the records name: a
-  multi-square sprite stores only its bottom-right corner, so Cademia's four
-  records at (171,96)..(173,98) cover (170,95)..(173,98), and a footprint
-  read straight off the records cuts the pictogram in half.
-  **Two navigation traps, both paid for.** The zone is carried in the hash as
-  `&z=`, never `&r=`: a bare `&r=8008` sends `applyDeepLink` through
-  `jumpToResource`, which switches the tab to Entities › Regions. And coming
-  back out of a town restores the world map's remembered view, which is the
-  zoom that opened the town, centred on it — so `WORLD_BLOOM_HOLD` keeps that
-  one gateway shut until the view leaves it, and `applyDeepLink` treats a
-  `#c=WORLD` with no `z` as *the world map* rather than "keep what was open".
-  Without either, the browser's own back button could not escape the town.
-  `WORLD_GATE_HOLD` is set by `backToWorldMap` as well as by the crossing, and
-  is deliberately *not* cleared by `renderWorldView`, which is the function
-  the back button arrives through.
-  The `world tab` section of `viewer_smoke.mjs` drives all of it.
+  the file gives for each is a **doorway, not an extent**. An earlier version
+  placed 37 of them at an invented scale and the invented part was visible.
+  The 17 are reached through a **mouth** (`atlasMouths`, `atlasDescend`): a
+  ring on the square the archive does give, and a *step* rather than a zoom,
+  after which that map is shown on its own with the strip describing the
+  **connection** rather than asserting a position. `ATLAS_BELOW` is a stack,
+  and is the only state in the renderer.
+- **Sizing is measured, not chosen.** `contentBox` is the built part of a map
+  (Cademia's map is 128 squares and its town is 107); `worldSquareRatio`
+  measures how many region squares one world square stands for from the
+  gateways whose pictogram covers more than one square; `gatewayRatio` prefers
+  a place's **own** icon where it has one, and requires **both axes** — a
+  block of props placed two or four squares each way is a decision, a cave
+  mouth drawn 1×2 is just the shape of a picture of a cave mouth, and reading
+  the latter as a size gave the same Underground three different sizes.
+- **What is outside the map is the folder it lies on**, not sea. Filling it
+  with the world's own border water asserts that the sea goes on, which is the
+  same class of claim as putting an underground on the world: the file says
+  what is inside the 256×256 grid and nothing about what is outside it.
+- **It borrows the map panel and must give it back.** `setAtlasChrome` hides
+  the furniture the atlas does not use and `body.atlasFull` takes the sheet's
+  own frame; both come off in `setModeImpl`, **before** the next view fills
+  the panel. Three regressions have come from this seam — `CUR_MAP`, then the
+  panel's elements, then the sheet class — and each has a check named after
+  it. It is the one place the atlas can still reach into shared state, and if
+  a fourth appears the seam wants making structural rather than guarded again.
 - **Navigation is a tree of folder tabs, three deep, and the split at the top
   is the point.** `TAB_TREE` (in the page, beside `navIconCanvas`) is
   World / Entities / Components / Data: what the game assembles, what the archive

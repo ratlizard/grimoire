@@ -762,7 +762,11 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 body.atlasFull .tabSheet { border:0; border-image:none; background:none; padding:0; }
 body.atlasFull #mapPreview { padding:0 !important; background:none !important;
   border:0 !important; border-radius:0 !important; margin-top:0 !important; }
-body.atlasFull #mapStage { padding:0 !important; }
+/* No 720px cap on the World tab. That width is right for a page of text and
+   for a gallery of tiles, and wrong for a map: the further in you zoom the
+   more of the world there is to put somewhere, and on a wide screen the map
+   was sitting in a column with the folder either side of it doing nothing. */
+body.atlasFull #mapStage { padding:0 !important; max-width:none !important; }
 body.atlasFull #mapViewport { border:0 !important; border-radius:0 !important; }
 body.atlasFull #navSub { margin-bottom:2px; }
 
@@ -1184,7 +1188,7 @@ body.atlasFull #navSub { margin-bottom:2px; }
     <div class="mapToggleGroup">
       <span class="mtgLabel">Show</span>
       <label><input type="checkbox" id="chkWalls" checked onchange="toggleWalls(this.checked)"> Walls</label>
-      <label><input type="checkbox" id="chkRoofs" onchange="toggleRoofsByHand(this.checked)"> Roofs</label>
+      <label><input type="checkbox" id="chkRoofs" onchange="toggleRoofs(this.checked)"> Roofs</label>
       <label><input type="checkbox" id="chkChars" checked onchange="toggleCharacters(this.checked)"> Inhabitants</label>
       <label><input type="checkbox" id="chkCharNames" checked onchange="toggleCharNames(this.checked)"> Names</label>
       <label><input type="checkbox" id="chkLighting" onchange="toggleLighting(this.checked)"> Lighting</label>
@@ -3958,8 +3962,6 @@ function stopAllViewActivity() {
   stopMapAnimation();
   stopPaletteAnimation();
   if (typeof hideDetailLens === 'function') hideDetailLens(true);
-  if (typeof hideWorldGate === 'function') hideWorldGate();
-  if (typeof hideWorldSurround === 'function') hideWorldSurround();
   if (typeof hideMapHover === 'function') hideMapHover();
   if (typeof stopAtlasAnimation === 'function') stopAtlasAnimation();
   const audio = document.getElementById('audioPlayer');
@@ -4003,12 +4005,7 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
   if (window.CUR_SUBN === 'CHANGES') { renderChangesSheet(); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
-  if (window.CUR_SUBN === 'WORLD') {
-    // Two renderers, one tab. window.ATLAS picks; the other is untouched and
-    // still works, so the two can be compared on a real device.
-    if (window.ATLAS) renderAtlasView(); else renderWorldView();
-    return;
-  }
+  if (window.CUR_SUBN === 'WORLD') { renderAtlasView(); return; }
   if (window.CUR_SUBN === 'INSTALLER') { renderInstallerSheet(); return; }
   if ((window.CUR_SUBN === 'AISCRIPTS' || window.CUR_SUBN === 'AIRULES') && window.INSTALLER) { renderCombatAISheet(window.CUR_SUBN); return; }
   if (PLACEHOLDER_TABS[window.CUR_SUBN]) { renderPlaceholderSheet(PLACEHOLDER_TABS[window.CUR_SUBN] + NO_INSTALLER_HINT); return; }
@@ -6098,11 +6095,6 @@ function paintRoofsInto(ctx, TS, m, sections) {
   }
   return drawn;
 }
-
-// `manual` is set by the checkbox itself: from then on the zoom stops
-// driving the roofs for as long as this map is open (see updateRoofFade).
-function toggleRoofsByHand(on) { window.ROOF_MANUAL = true; toggleRoofs(on); }
-
 function toggleRoofs(on) {
   window.MAP_ROOFS = on;
   drawRoofLayer();
@@ -7760,16 +7752,6 @@ function clampMapPan() {
   const viewport = document.getElementById('mapViewport');
   const canvas = document.getElementById('mapTerrainCanvas');
   if (!canvas) return;
-  /* A town standing in the world is not a map in a box.
-
-     This function keeps a map from being dragged off the edge of the panel,
-     and centres one smaller than the viewport -- both right when the panel's
-     background is nothing. In the World tab, with the country drawn around
-     it, they are wrong: the whole point is that the place sits where its icon
-     was, which is off-centre, and that you can pan off it onto the ground
-     around it. Centring a town the moment it became smaller than the panel is
-     what threw the view sideways on arrival. */
-  if (worldSurroundShowing()) return;
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
   const cw = canvas.width * mapView.scale, ch = canvas.height * mapView.scale;
   // Allow panning until the map edge reaches the viewport edge, plus a
@@ -7786,21 +7768,7 @@ function applyMapTransform() {
   const wrap = document.getElementById('mapCanvasWrap');
   wrap.style.transform = 'translate(' + mapView.x + 'px,' + mapView.y + 'px) scale(' + mapView.scale + ')';
   scheduleLensPaint();
-  if (window.CUR_SUBN === 'WORLD') {
-    /* The crossing is tested on every transform, not on the settle.
 
-       It used to wait for the 140ms debounce, so a wheel spun steadily into a
-       town carried on scrolling past the threshold and the view only followed
-       once the reader stopped -- which read as the tab lagging behind the
-       hand rather than as walking into a place. The test is a loop over 26
-       gateways and some arithmetic, cheap enough to run on every wheel tick;
-       what stays on the settle is the painting, which is not. */
-    checkWorldCrossing();
-    updateRoofFade();
-    slideWorldOverlay();
-    slideWorldSurround();
-    scheduleWorldScene();
-  }
   // Thin 1px detail -- the wavy streaks in the Expanse void tiles are only
   // ~37 pixels per tile -- is destroyed by nearest-neighbour when the map is
   // shown below 100%. Smooth only when downscaling; keep crisp pixels at or
@@ -8479,7 +8447,7 @@ function inspectMapSquare(tx, ty) {
     {
       const dest = propTravelsTo(p.rec, window.CUR_MAP ? window.CUR_MAP.resid : 0);
       if (dest && refExists(dest.resid))
-        acts.push('<button class="sv-chip" onclick="enterZoneFromWorld(' + dest.resid + ',' + dest.x + ',' + dest.y +
+        acts.push('<button class="sv-chip" onclick="showSquareOnMap(' + dest.resid + ',' + dest.x + ',' + dest.y +
                   ')">&#8594; ' + svEsc(zoneNameFor(dest.resid) || dest.name) + '</button>');
     }
     const contents = containerContents(p.rec);
@@ -9069,7 +9037,7 @@ function buildWorldThumbs() {
     const gw = todo.shift();
     if (!gw) return;
     buildThumbsFor(gw, [THUMB_LEVELS[0]]);
-    if (window.CUR_SUBN === 'WORLD') scheduleWorldScene(0);
+    if (window.CUR_SUBN === 'WORLD') paintAtlas();
     if (todo.length) buildWorldThumbs();
   };
   thumbQueue = 1;
@@ -9086,7 +9054,7 @@ function buildNearThumbs(gw) {
   const step = () => {
     levelQueue = null;
     buildThumbsFor(gw, [THUMB_LEVELS[1]]);
-    if (window.CUR_SUBN === 'WORLD') scheduleWorldScene(0);
+    if (window.CUR_SUBN === 'WORLD') paintAtlas();
   };
   levelQueue = 1;
   if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(step, { timeout: 2000 });
@@ -9248,9 +9216,9 @@ function toggleFullRes() {
   zoneMapCache.clear(); worldThumbs.clear(); surroundPlates.clear();
   window.WORLD_PRELOAD = false; window.WORLD_PRELOAD_DONE = 0;
   preloadQueue = null; preloadTodo = null; preloadSeen = null;
-  const here = window.WORLD_ZONE || WORLD_MAP_RESID;
-  delete window.MAP_VIEW_MEMORY[here];       // the old pan and zoom were in the old pixels
-  worldOpenZone(here, null, null, true);
+  // Every picture was made at the other tile size, so the scene is rebuilt
+  // and refitted rather than redrawn from what it had.
+  if (window.CUR_SUBN === 'WORLD') { atlasFit(); atlasSyncZoomLabel(); paintAtlas(); }
 }
 
 function startWorldPreload() {
@@ -9267,7 +9235,7 @@ function startWorldPreload() {
     mapRenderFor(gw.destResid, true);        // and the whole thing, kept
     window.WORLD_PRELOAD_DONE = preloadSeen.size;
     renderWorldBar();
-    if (window.CUR_SUBN === 'WORLD') scheduleWorldScene(0);
+    if (window.CUR_SUBN === 'WORLD') paintAtlas();
     startWorldPreload();                     // arm the next slice, same queue
   };
   preloadQueue = 1;
@@ -9295,48 +9263,6 @@ function prefetchZone(resid) {
   if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: 1500 });
   else setTimeout(run, 300);
 }
-
-// The overlay the ring and the cross-fade are painted on. Above the detail
-// lens, and like it pointer-events:none -- a click on it is handled by the
-// viewport's own handler, which knows which square it landed on.
-function ensureWorldOverlay() {
-  const vp = document.getElementById('mapViewport');
-  if (!vp) return null;
-  let el = document.getElementById('worldOverlay');
-  if (!el) {
-    el = document.createElement('canvas');
-    el.id = 'worldOverlay';
-    // max-width/max-height inline for the same reason the detail lens carries
-    // them: #appShell's blanket max-width:100% reaches anything inside the
-    // viewport, and an inline declaration outranks a bare selector.
-    el.style.cssText = 'position:absolute; top:0; left:0; pointer-events:none; z-index:6; ' +
-                       'display:none; max-width:none; max-height:none; opacity:0; ' +
-                       'transform-origin:0 0; ' +
-                       'transition:opacity ' + WORLD_FADE_MS + 'ms ease;';
-    vp.appendChild(el);
-  }
-  return el;
-}
-
-function hideWorldGate() {
-  if (worldGateTimer) { clearTimeout(worldGateTimer); worldGateTimer = null; }
-  window.WORLD_GATE = null;
-  const el = document.getElementById('worldOverlay');
-  if (el && !window.WORLD_FADE) {
-    el.style.display = 'none'; el.style.opacity = '0'; el.style.transform = '';
-    el.width = 0; el.height = 0;
-    gateView = { x: 0, y: 0, scale: 0 };
-  }
-}
-
-// Painted off the same settle the detail lens uses, for the same reason: a
-// drag would otherwise repaint on every pointermove.
-function scheduleWorldScene(delay) {
-  if (worldGateTimer) { clearTimeout(worldGateTimer); worldGateTimer = null; }
-  if (window.CUR_SUBN !== 'WORLD' || window.WORLD_FADE) { hideWorldGate(); return; }
-  worldGateTimer = setTimeout(paintWorldScene, delay == null ? 140 : delay);
-}
-
 /* Roofs on the way in, and off once you are close.
 
    A town at a distance is roofs -- that is what the miniature on the world
@@ -9358,58 +9284,9 @@ function scheduleWorldScene(delay) {
    not is the sort of thing that makes a page feel possessed. */
 const ROOF_FADE = [8, 18];
 
-function updateRoofFade() {
-  const cm = window.CUR_MAP;
-  if (window.CUR_SUBN !== 'WORLD' || !cm || cm.resid === WORLD_MAP_RESID ||
-      window.ROOF_MANUAL || !cm.roofSections || !cm.roofSections.length) return;
-  const k = cm.TS * mapView.scale;
-  const t = Math.max(0, Math.min(1, (ROOF_FADE[1] - k) / (ROOF_FADE[1] - ROOF_FADE[0])));
-  const want = t > 0.02;
-  if (want !== !!window.MAP_ROOFS) {
-    const box = document.getElementById('chkRoofs');
-    if (box) box.checked = want;
-    toggleRoofs(want);
-  }
-  const rc = document.getElementById('roofLayer');
-  if (rc && want) rc.style.opacity = String(t);
-}
-
-/* Cross into, or back out of, whatever the view is now on -- run live from
-   applyMapTransform rather than from the settle, so the transition happens
-   under the reader's hand. Guarded against re-entry, because crossing rebuilds
-   the panel and that lands another transform. */
-let _crossing = false;
-function checkWorldCrossing() {
-  if (_crossing || window.WORLD_FADE || window.CUR_SUBN !== 'WORLD') return;
-  const cm = window.CUR_MAP;
-  if (!cm) return;
-  _crossing = true;
-  try {
-    if (cm.resid === WORLD_MAP_RESID) {
-      const focus = worldGateFocus();
-      if (!focus) return;
-      const gw = focus.gw;
-      if (window.WORLD_GATE_HOLD === gw.port) {
-        if (focus.ppt < WORLD_ENTER_AT) window.WORLD_GATE_HOLD = null;
-      } else if (focus.ppt >= WORLD_ENTER_AT && focus.centred) {
-        enterGateway(gw);
-      }
-    } else checkZoomOutReturn();
-  } finally { _crossing = false; }
-}
-
 /* The world map rings its gateways; a town shows the world around it and
    watches for the reader zooming back out of it. One settle, because they are
    two halves of one continuous view rather than two screens. */
-function paintWorldScene() {
-  worldGateTimer = null;
-  if (window.CUR_SUBN !== 'WORLD' || window.WORLD_FADE) return;
-  const cm = window.CUR_MAP;
-  if (!cm || cm.resid === WORLD_MAP_RESID) { hideWorldSurround(); paintWorldGate(); return; }
-  hideWorldGate();
-  paintWorldSurround();
-}
-
 /* Zooming out of anywhere goes back up a level.
 
    This is what keeps the tab from feeling like a set of rooms: the way in is
@@ -9424,18 +9301,6 @@ function paintWorldScene() {
    smaller than the panel and you have left it. */
 const WORLD_LEAVE_FACTOR = 0.62;
 
-function checkZoomOutReturn() {
-  const cm = window.CUR_MAP;
-  const vp = document.getElementById('mapViewport');
-  if (!cm || !vp || window.WORLD_FADE) return;
-  if (!(window.WORLD_STACK && window.WORLD_STACK.length)) return;
-  const vw = vp.clientWidth, vh = vp.clientHeight;
-  if (vw < 40 || vh < 40) return;
-  const fit = fitViewFor(cm.canvas.width, cm.canvas.height, vw, vh);
-  if (mapView.scale > fit.scale * WORLD_LEAVE_FACTOR) return;
-  goUpOneLevel();
-}
-
 /* Where you were before this place, and how you got here.
 
    One trail was enough while everything was entered from the world map. It
@@ -9443,26 +9308,7 @@ function checkZoomOutReturn() {
    "back" from there is the room above, not the world, and with a single trail
    there was no way to say so -- zooming out of an underground did nothing at
    all, which is how it was reported. */
-function pushWorldStack() {
-  const cm = window.CUR_MAP;
-  if (!cm) return;
-  window.WORLD_STACK = window.WORLD_STACK || [];
-  window.WORLD_STACK.push({
-    resid: cm.resid, trail: window.WORLD_TRAIL,
-    view: { scale: mapView.scale, x: mapView.x, y: mapView.y }
-  });
-  if (window.WORLD_STACK.length > 12) window.WORLD_STACK.shift();
-}
-
 // What the way back is called, for the button that offers it.
-function upOneLevelName() {
-  const st = window.WORLD_STACK || [];
-  if (!st.length) return null;
-  const r = st[st.length - 1].resid;
-  return r === WORLD_MAP_RESID ? 'The world'
-    : (zoneNameFor(r) || labelFor(r) || ('0x' + r.toString(16).toUpperCase()));
-}
-
 /* Up one level: back to wherever this place was entered from.
 
    Coming out onto the world map is the case with a rule of its own. Landing
@@ -9476,69 +9322,12 @@ function upOneLevelName() {
    Either way the view is written before the fade, because that is what
    crossfadeToZone paints the overlay at: the two have to agree or the swap
    shows as a jump. */
-function goUpOneLevel() {
-  const st = window.WORLD_STACK || [];
-  const prev = st.pop();
-  if (!prev) return;
-  const gw = enteredBy();
-  /* Forget where the reader was in the place they are leaving.
-
-     MAP_VIEW_MEMORY exists so that following a link out of a map and coming
-     back does not re-fit it. Leaving by zooming out is the one case where
-     that is wrong: the view being remembered is the zoomed-out one that
-     triggered the exit, so restoring it on the next visit would put the map
-     straight back under the leaving threshold and bounce the reader out again
-     the moment they arrived. */
-  const cm = window.CUR_MAP;
-  if (cm) delete window.MAP_VIEW_MEMORY[cm.resid];
-  window.WORLD_TRAIL = prev.trail || null;
-  const vp = document.getElementById('mapViewport');
-  if (prev.resid === WORLD_MAP_RESID && gw && vp && vp.clientWidth > 40) {
-    const ts = window.WORLD_BASE_TS || 8;
-    const scale = (WORLD_ENTER_AT * 0.8) / ts;
-    window.MAP_VIEW_MEMORY[WORLD_MAP_RESID] = {
-      scale,
-      x: vp.clientWidth / 2 - ((gw.x0 + gw.x1 + 1) / 2) * ts * scale,
-      y: vp.clientHeight / 2 - ((gw.y0 + gw.y1 + 1) / 2) * ts * scale
-    };
-  } else if (prev.view) window.MAP_VIEW_MEMORY[prev.resid] = prev.view;
-  if (gw) window.WORLD_GATE_HOLD = gw.port;
-  crossfadeToZone(prev.resid);
-}
-
 // The button under the map. Same landing as zooming out, so the two ways up
 // agree about where they put you.
-function backToWorldMap() { goUpOneLevel(); }
-
 /* Which gateway the view is on, and how close it is to crossing.
 
    Only one at a time, and it is the one nearest the middle: two rings at once
    says nothing about which one zooming further would open. */
-function worldGateFocus() {
-  const cm = window.CUR_MAP;
-  const vp = document.getElementById('mapViewport');
-  if (!cm || !vp || cm.resid !== WORLD_MAP_RESID) return null;
-  const ppt = cm.TS * mapView.scale;
-  if (ppt < WORLD_HINT_AT) return null;
-  const vw = vp.clientWidth, vh = vp.clientHeight;
-  if (vw < 40 || vh < 40) return null;
-  let best = null, bestD = Infinity;
-  for (const gw of worldGateways()) {
-    const sx = mapView.x + ((gw.x0 + gw.x1 + 1) / 2) * cm.TS * mapView.scale;
-    const sy = mapView.y + ((gw.y0 + gw.y1 + 1) / 2) * cm.TS * mapView.scale;
-    if (sx < 0 || sy < 0 || sx > vw || sy > vh) continue;
-    const d = Math.hypot(sx - vw / 2, sy - vh / 2);
-    if (d < bestD) { bestD = d; best = gw; }
-  }
-  if (!best) return null;
-  const k = cm.TS * mapView.scale;
-  const rect = { x: mapView.x + best.x0 * k, y: mapView.y + best.y0 * k,
-                 w: (best.x1 - best.x0 + 1) * k, h: (best.y1 - best.y0 + 1) * k };
-  return { gw: best, rect, ppt,
-           near: Math.min(1, (ppt - WORLD_HINT_AT) / (WORLD_ENTER_AT - WORLD_HINT_AT)),
-           centred: bestD <= Math.min(vw, vh) * WORLD_ENTER_RADIUS };
-}
-
 /* What the World tab draws over the world map: the towns themselves in place
    of their pictograms, a name on every way off the map, and a ring on the one
    the view is about to cross into.
@@ -9564,118 +9353,6 @@ function worldGateFocus() {
    with its own icons, then the town, then the town's streets. */
 const THUMB_FADE = [22, 34];      // screen px per world square: none, then full
 
-function paintWorldGate() {
-  worldGateTimer = null;
-  if (window.CUR_SUBN !== 'WORLD' || window.WORLD_FADE) return;
-  const cm = window.CUR_MAP;
-  const vp = document.getElementById('mapViewport');
-  if (!cm || !vp || cm.resid !== WORLD_MAP_RESID) { hideWorldGate(); return; }
-  const vw = vp.clientWidth, vh = vp.clientHeight;
-  if (vw < 40 || vh < 40) { hideWorldGate(); return; }
-  const el = ensureWorldOverlay();
-  if (!el) return;
-  const dpr = Math.min((typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1, 2);
-  el.width = Math.round(vw * dpr); el.height = Math.round(vh * dpr);
-  el.style.width = vw + 'px'; el.style.height = vh + 'px';
-  const ctx = el.getContext('2d');
-  if (!ctx) return;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, vw, vh);
-
-  const focus = worldGateFocus();
-  const k = cm.TS * mapView.scale;
-  const thumbAlpha = Math.max(0, Math.min(1, (k - THUMB_FADE[0]) / (THUMB_FADE[1] - THUMB_FADE[0])));
-
-  /* Which gateways are worth drawing at all: the ones whose footprint is on
-     screen, plus a margin so a name is not cut off at the edge. Sorted by
-     footprint area, biggest first, so that when two labels collide it is the
-     smaller place that gives way -- and so the choice is stable as the view
-     moves rather than flickering with the iteration order. */
-  const shown = [];
-  for (const gw of worldGateways()) {
-    const x = mapView.x + gw.x0 * k, y = mapView.y + gw.y0 * k;
-    const w = (gw.x1 - gw.x0 + 1) * k, h = (gw.y1 - gw.y0 + 1) * k;
-    if (x + w < -80 || y + h < -40 || x > vw + 80 || y > vh + 40) continue;
-    shown.push({ gw, x, y, w, h, area: w * h });
-  }
-  shown.sort((a, b) => b.area - a.area || a.gw.port - b.gw.port);
-
-  // How much roof is left on a town at this distance. It reaches nothing
-  // before the crossing does, so the view arrives on a town already opening
-  // rather than on a different picture; updateRoofFade carries on inside.
-  const roofT = Math.max(0, Math.min(1, (ROOF_LIFT[1] - k) / (ROOF_LIFT[1] - ROOF_LIFT[0])));
-  if (thumbAlpha > 0.01) {
-    for (const it of shown) {
-      const any = worldThumbs.get(thumbKey(it.gw.destResid, THUMB_LEVELS[0], true));
-      if (!any) continue;
-      drawTown(ctx, it.gw, thumbRect(it.gw, any, cm), thumbAlpha, roofT);
-    }
-  }
-
-  /* The names, in the game's own letters and small.
-
-     A place you cannot find is a place you cannot go to, and 26 of them are
-     scattered over 65,536 squares. They hang off the miniature rather than
-     off the viewport: the drop below the footprint is in world squares, so a
-     name belongs to its town the way a caption belongs to a picture, and
-     slideWorldOverlay carries the whole overlay with the map between repaints
-     so nothing drifts against the ground under a pan.
-
-     Dropped rather than overlapped, biggest footprint first, so a collision
-     loses the smaller place and the choice does not flicker as the view
-     moves. At the widest view that leaves the handful there is room for, and
-     every one of them is in the gazetteer besides. */
-  ctx.font = '13px Argos, Georgia, serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  const placed = [];
-  for (const it of shown) {
-    const tw = Math.round(ctx.measureText(it.gw.name).width) + 10;
-    const cx = Math.round(it.x + it.w / 2);
-    const ty = Math.round(it.y + it.h + Math.max(k * 0.5, 10));
-    const box = { x0: cx - tw / 2, y0: ty - 11, x1: cx + tw / 2, y1: ty + 4 };
-    if (placed.some(q => box.x0 < q.x1 && box.x1 > q.x0 && box.y0 < q.y1 && box.y1 > q.y0)) continue;
-    placed.push(box);
-    ctx.fillStyle = 'rgba(8,7,5,.7)';
-    ctx.fillRect(box.x0, box.y0, tw, 15);
-    ctx.fillStyle = it.gw.sealed ? '#c9bb92' : '#e8dfc0';
-    ctx.fillText(it.gw.name, cx, ty);
-  }
-
-  /* The ring, on the one the view is closest to crossing into. It exists so
-     that crossing over is never a surprise: by the time the view is close
-     enough, the place it will cross into has been named for a while. */
-  if (focus) {
-    const gw = focus.gw, r = focus.rect;
-    const pad = Math.max(4, r.w * 0.28);
-    ctx.strokeStyle = 'rgba(196,164,100,' + (0.4 + 0.45 * focus.near).toFixed(3) + ')';
-    ctx.lineWidth = Math.max(1.5, 1 + focus.near * 2);
-    ctx.strokeRect(r.x - pad, r.y - pad, r.w + pad * 2, r.h + pad * 2);
-    // A sealed destination says so, because zooming will never open it: there
-    // is no world outside Land King Hall or a cave to be continuous with, so
-    // the way in is a click. mapIsSealed reads that off the destination's own
-    // header rather than from a list of names.
-    // No instructions. The ring and the name are the whole of what needs
-    // saying, and every gateway now behaves the same way when zoomed into --
-    // a tooltip explaining a gesture the reader is already making is noise.
-    // The reader is beside it and looking at its name; render it and its
-    // bigger miniature now, while nothing else is happening, so that coming
-    // closer is sharper and crossing over is a fade rather than a wait.
-    prefetchZone(gw.destResid);
-    buildNearThumbs(gw);
-    window.WORLD_GATE = { gw, rect: r };
-  } else window.WORLD_GATE = null;
-
-  el.style.display = '';
-  el.style.opacity = '1';
-  // Painted for this view, and slid to follow the map until the next repaint.
-  el.style.transform = '';
-  gateView = { x: mapView.x, y: mapView.y, scale: mapView.scale };
-  // The miniatures arrive over the first second or two of a visit and this
-  // repaints as each one lands.
-  buildWorldThumbs();
-}
-
 /* Keep what is painted registered with the map while the view moves.
 
    The overlay is repainted on the settle, but the map itself moves
@@ -9686,35 +9363,13 @@ function paintWorldGate() {
    mapView, which is an ordinary similarity, and a similarity is exactly what
    a CSS transform is. A pan is a pure translate, so a pan is now exact. */
 let gateView = { x: 0, y: 0, scale: 0 };
-function slideWorldOverlay() {
-  const el = document.getElementById('worldOverlay');
-  if (!el || el.style.display === 'none' || !gateView.scale || window.WORLD_FADE) return;
-  const r = mapView.scale / gateView.scale;
-  el.style.transform = 'translate(' + (mapView.x - r * gateView.x) + 'px,' +
-                       (mapView.y - r * gateView.y) + 'px) scale(' + r + ')';
-}
-
-
 /* The world's own bitmap, for the scenery around a town.
 
    This is the render the world map itself was drawn from -- pinned in
    zoneMapCache, so the scenery costs no second copy of a 2048x2048 canvas. A
    deep link that opens straight into a town never drew one, and mapRenderFor
    makes it on demand and then pins it like any other. */
-function worldBaseCanvas() {
-  const e = mapRenderFor(WORLD_MAP_RESID, true);
-  if (!e || !e.result) return null;
-  window.WORLD_BASE_TS = e.result.tileSize;
-  return e.result.canvas;
-}
-
 // The gateway a town was entered by, when it was one.
-function enteredBy() {
-  const t = window.WORLD_TRAIL;
-  if (!t || t.port == null) return null;
-  return worldGateways().find(g => g.port === t.port) || null;
-}
-
 /* ---------------------------------------------------------------------------
    The country around a town, painted properly
    ---------------------------------------------------------------------------
@@ -9736,40 +9391,6 @@ const SURROUND_PLATE_SQUARES = 72;
 const SURROUND_PLATE_TS = IS_IOS_WEBKIT ? 12 : 16;
 const surroundPlates = new Map();
 
-function surroundPlate(gw) {
-  if (!gw) return null;
-  if (surroundPlates.has(gw.port)) return surroundPlates.get(gw.port);
-  let plate = null;
-  try {
-    const e = mapRenderFor(WORLD_MAP_RESID, true);
-    if (e && e.result) {
-      const src = { m: e.result.m, mapData: e.mapData, props: e.result.props,
-                    allProps: e.result.allProps, backdrop: e.result.backdrop, backdropFrame: 0 };
-      const half = SURROUND_PLATE_SQUARES / 2;
-      const cx = (gw.x0 + gw.x1 + 1) / 2, cy = (gw.y0 + gw.y1 + 1) / 2;
-      const x0 = Math.max(0, Math.round(cx - half)), y0 = Math.max(0, Math.round(cy - half));
-      const x1 = Math.min(src.m.width - 1, x0 + SURROUND_PLATE_SQUARES - 1);
-      const y1 = Math.min(src.m.height - 1, y0 + SURROUND_PLATE_SQUARES - 1);
-      const TS = SURROUND_PLATE_TS;
-      const c = document.createElement('canvas');
-      c.width = (x1 - x0 + 1) * TS; c.height = (y1 - y0 + 1) * TS;
-      const pc = c.getContext('2d');
-      if (pc) {
-        // The painter works in whole-map coordinates, so the plate's own
-        // origin is put under the region rather than the region moved.
-        pc.translate(-x0 * TS, -y0 * TS);
-        paintMapBaseRegion(pc, TS, x0, y0, x1, y1, src);
-        pc.setTransform(1, 0, 0, 1, 0, 0);
-        plate = { canvas: c, x0, y0, TS };
-      }
-    }
-  } catch (err) {}
-  // Two: the town being looked at, and the one just left.
-  while (surroundPlates.size >= 2) surroundPlates.delete(surroundPlates.keys().next().value);
-  surroundPlates.set(gw.port, plate);
-  return plate;
-}
-
 /* Where the world sits behind a town, in screen pixels.
 
    The town's canvas occupies (view.x, view.y, cw*scale, ch*scale). The
@@ -9777,29 +9398,6 @@ function surroundPlate(gw) {
    and one world square is drawn SURROUND_SPAN-th of the town's width -- so
    the two move as one scene under a pan or a zoom, and the coast that was
    beside the icon is still beside the town. */
-function surroundPlacement(gw, cw, ch, view, destTS) {
-  const base = worldBaseCanvas();
-  if (!base || !gw) return null;
-  const ts = destTS || (window.CUR_MAP && window.CUR_MAP.TS) || 32;
-  const pitch = gatewayRatio(gw) * ts * view.scale;
-  const wts = window.WORLD_BASE_TS || 8;
-  const k = pitch / wts;
-  /* Anchored on the crop the miniature showed, not on the middle of the map.
-     The miniature was centred on the pictogram, and the crop's middle is not
-     the map's middle -- pinning the wrong one puts the country a few squares
-     out, which reads as the town having shuffled sideways on arrival. */
-  const thumb = worldThumbs.get(thumbKey(gw.destResid, THUMB_LEVELS[0], true));
-  const cropCx = thumb ? (thumb.x0 + thumb.x1 + 1) / 2 : (cw / ts) / 2;
-  const cropCy = thumb ? (thumb.y0 + thumb.y1 + 1) / 2 : (ch / ts) / 2;
-  const cx = view.x + cropCx * ts * view.scale;
-  const cy = view.y + cropCy * ts * view.scale;
-  // originX/originY are where world square (0,0) lands on screen, which is
-  // what both the blurred whole-world draw and the sharp plate hang off.
-  const originX = cx - ((gw.x0 + gw.x1 + 1) / 2) * pitch;
-  const originY = cy - ((gw.y0 + gw.y1 + 1) / 2) * pitch;
-  return { base, k, pitch, originX, originY, x: originX, y: originY };
-}
-
 /* Paint the world behind a town.
 
    Upsampled, and left at its own brightness. It was dimmed at first, on the
@@ -9808,57 +9406,7 @@ function surroundPlacement(gw, cw, ch, view, destTS) {
    the town looked like a dialog over the world rather than a place in it. The
    softness of the upsample is enough to keep it from being read square by
    square. */
-function paintSurroundInto(ctx, vw, vh, gw, cw, ch, view, destTS) {
-  const p = surroundPlacement(gw, cw, ch, view, destTS);
-  if (!p) return false;
-  ctx.imageSmoothingEnabled = true;
-  // The whole world first, as ground: past the plate's edge this is all there
-  // is, and a hole would be worse than a blur.
-  ctx.drawImage(p.base, p.x, p.y, p.base.width * p.k, p.base.height * p.k);
-  // Then the same country again at the world's own art size, over the part of
-  // it anyone is actually looking at.
-  const plate = surroundPlate(gw);
-  if (plate) {
-    const pitch = p.pitch;
-    ctx.drawImage(plate.canvas,
-      p.originX + plate.x0 * pitch, p.originY + plate.y0 * pitch,
-      (plate.canvas.width / plate.TS) * pitch, (plate.canvas.height / plate.TS) * pitch);
-  }
-  return true;
-}
-
-// The canvas the scenery is painted on: a sibling of #mapCanvasWrap inside
-// the viewport, underneath it, so the map and its layers sit on top.
-function ensureWorldSurround() {
-  const vp = document.getElementById('mapViewport');
-  if (!vp) return null;
-  let el = document.getElementById('worldSurround');
-  if (!el) {
-    el = document.createElement('canvas');
-    el.id = 'worldSurround';
-    el.style.cssText = 'position:absolute; top:0; left:0; pointer-events:none; z-index:0; ' +
-                       'display:none; max-width:none; max-height:none; transform-origin:0 0;';
-    vp.appendChild(el);
-  }
-  return el;
-}
-
 // Is the map currently sitting inside the world rather than in a panel?
-function worldSurroundShowing() {
-  if (window.CUR_SUBN !== 'WORLD') return false;
-  const cm = window.CUR_MAP;
-  if (!cm || cm.resid === WORLD_MAP_RESID) return false;
-  const gw = enteredBy();
-  return !!(gw && !gw.sealed);
-}
-
-function hideWorldSurround() {
-  const el = document.getElementById('worldSurround');
-  if (el) { el.style.display = 'none'; el.style.transform = ''; el.width = 0; el.height = 0; }
-  surroundView = { x: 0, y: 0, scale: 0 };
-  setMapEdgeFeather(false);
-}
-
 /* Carry the scenery with the map between repaints.
 
    This is the one layer over the map that was not slid, and it is the one
@@ -9874,42 +9422,6 @@ function hideWorldSurround() {
    and a scale about the element's own origin -- the same shape as slideLens,
    with no margin to account for. */
 let surroundView = { x: 0, y: 0, scale: 0 };
-function slideWorldSurround() {
-  const el = document.getElementById('worldSurround');
-  if (!el || el.style.display === 'none' || !surroundView.scale || window.WORLD_FADE) return;
-  const r = mapView.scale / surroundView.scale;
-  el.style.transform = 'translate(' + (mapView.x - r * surroundView.x) + 'px,' +
-                       (mapView.y - r * surroundView.y) + 'px) scale(' + r + ')';
-}
-
-/* Repainted off the same settle as everything else over the map. Only for an
-   open-edged destination reached from the world: a cave has no world outside
-   it to show, and Land King Hall is indoors. */
-function paintWorldSurround() {
-  const cm = window.CUR_MAP;
-  const vp = document.getElementById('mapViewport');
-  const gw = enteredBy();
-  if (window.CUR_SUBN !== 'WORLD' || !cm || !vp || !gw || gw.sealed ||
-      cm.resid === WORLD_MAP_RESID) { hideWorldSurround(); return; }
-  const vw = vp.clientWidth, vh = vp.clientHeight;
-  if (vw < 40 || vh < 40) { hideWorldSurround(); return; }
-  const el = ensureWorldSurround();
-  if (!el) return;
-  const dpr = Math.min((typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1, 2);
-  el.width = Math.round(vw * dpr); el.height = Math.round(vh * dpr);
-  el.style.width = vw + 'px'; el.style.height = vh + 'px';
-  const ctx = el.getContext('2d');
-  if (!ctx) return;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, vw, vh);
-  if (paintSurroundInto(ctx, vw, vh, gw, cm.canvas.width, cm.canvas.height, mapView, cm.TS)) {
-    el.style.display = '';
-    el.style.transform = '';
-    surroundView = { x: mapView.x, y: mapView.y, scale: mapView.scale };
-    setMapEdgeFeather(true);
-  } else { hideWorldSurround(); setMapEdgeFeather(false); }
-}
-
 /* Soften the rectangle a zone map ends on, so it runs into the country drawn
    around it.
 
@@ -9925,29 +9437,6 @@ function paintWorldSurround() {
    edge on its own. The detail lens is a sibling of the wrap and is not
    masked, which is why this is a percentage and not a pixel count: by the
    zoom at which the lens engages the edge is well off screen. */
-function setMapEdgeFeather(on) {
-  const wrap = document.getElementById('mapCanvasWrap');
-  if (!wrap) return;
-  if (!on) {
-    if (wrap.dataset.feathered) {
-      wrap.style.webkitMaskImage = ''; wrap.style.maskImage = '';
-      wrap.style.webkitMaskComposite = ''; wrap.style.maskComposite = '';
-      delete wrap.dataset.feathered;
-    }
-    return;
-  }
-  if (wrap.dataset.feathered) return;
-  const ramp = (dir) => 'linear-gradient(to ' + dir + ', transparent 0%, #000 4%, ' +
-                        '#000 96%, transparent 100%)';
-  const img = ramp('right') + ', ' + ramp('bottom');
-  wrap.style.webkitMaskImage = img; wrap.style.maskImage = img;
-  // Intersect the two ramps. The -webkit- spelling of the value differs from
-  // the standard one and Safari wants its own, so both are set.
-  wrap.style.webkitMaskComposite = 'source-in';
-  wrap.style.maskComposite = 'intersect';
-  wrap.dataset.feathered = '1';
-}
-
 /* Cross-fade the map panel to another map.
 
    The destination is painted into the overlay at the geometry the real view
@@ -9955,52 +9444,6 @@ function setMapEdgeFeather(on) {
    is swapped underneath while the overlay is opaque. finishWorldFade is the
    second half, on a timer -- and is reachable by name so a harness can run
    the transition to its end without waiting on wall-clock time. */
-function crossfadeToZone(resid, arriveX, arriveY) {
-  const vp = document.getElementById('mapViewport');
-  const el = ensureWorldOverlay();
-  const dest = zoneMapCanvas(resid);
-  const vw = vp ? vp.clientWidth : 0, vh = vp ? vp.clientHeight : 0;
-  const ctx = el ? el.getContext('2d') : null;
-  // No overlay, nothing to fade, or a reader who has asked for less motion:
-  // switch outright. The destination is the same either way.
-  if (!vp || !el || !ctx || !dest || vw < 40 || vh < 40 || PREFERS_REDUCED_MOTION) {
-    worldOpenZone(resid, arriveX, arriveY);
-    return;
-  }
-  if (window.WORLD_FADE) finishWorldFade();
-  const v = window.MAP_VIEW_MEMORY[resid] || fitViewFor(dest.width, dest.height, vw, vh);
-  const dpr = Math.min((typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1, 2);
-  el.width = Math.round(vw * dpr); el.height = Math.round(vh * dpr);
-  el.style.width = vw + 'px'; el.style.height = vh + 'px';
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, vw, vh);
-  // Whatever the panel will have around the map when the overlay goes: the
-  // world's own scenery for an open-edged town, the panel's ground otherwise.
-  // Painting anything else here is a flash of a third thing between two
-  // views that are meant to be one place.
-  const gwTo = (resid !== WORLD_MAP_RESID) ? enteredBy() : null;
-  const destTS = (mapRenderFor(resid, true) || { result: {} }).result.tileSize;
-  if (!gwTo || gwTo.sealed ||
-      !paintSurroundInto(ctx, vw, vh, gwTo, dest.width, dest.height, v, destTS)) {
-    ctx.fillStyle = '#222';
-    ctx.fillRect(0, 0, vw, vh);
-  }
-  ctx.imageSmoothingEnabled = v.scale < 0.999;
-  ctx.drawImage(dest, v.x, v.y, dest.width * v.scale, dest.height * v.scale);
-  el.style.display = '';
-  el.style.opacity = '0';
-  el.style.transform = '';          // the fade paints the viewport, not the map
-  gateView = { x: 0, y: 0, scale: 0 };
-  window.WORLD_FADE = { resid, x: arriveX, y: arriveY,
-                        timer: setTimeout(finishWorldFade, WORLD_FADE_MS + 20) };
-  // Two frames, not one: display has to have taken effect before opacity
-  // changes, or there is nothing for the transition to run from. The detail
-  // lens fades in the same way and for the same reason.
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    if (window.WORLD_FADE) el.style.opacity = '1';
-  }));
-}
-
 /* The second half of the transition: swap the panel, then uncover it.
 
    Every step here happens before the overlay goes, and that ordering is the
@@ -10011,30 +9454,6 @@ function crossfadeToZone(resid, arriveX, arriveY) {
    and the scenery is painted before the last line rather than on the next
    settle. Uncovering even one of those early is a flash of grey between two
    views that are meant to be one place. */
-function finishWorldFade() {
-  const f = window.WORLD_FADE;
-  if (!f) return;
-  if (f.timer) clearTimeout(f.timer);
-  worldOpenZone(f.resid, f.x, f.y);
-  restoreOrFitMap(f.resid);
-  window.WORLD_FADE = null;
-  /* Re-read the landing before uncovering it.
-
-     The hold is set on the way out of a town and lifted once the view is no
-     longer inside that gateway -- and the transform that lands the reader
-     back on the world map runs while WORLD_FADE is still set, so nothing had
-     looked at it since. Leaving by zooming out lands just SHORT of the
-     crossing zoom and must lift the hold, or the first zoom back in would be
-     refused; the browser's back button restores the view that opened the town
-     and must not. This one call tells those apart by where the view actually
-     is, rather than by which of them got here. */
-  checkWorldCrossing();
-  updateRoofFade();
-  paintWorldScene();
-  const el = document.getElementById('worldOverlay');
-  if (el) { el.style.opacity = '0'; el.style.display = 'none'; el.width = 0; el.height = 0; }
-}
-
 // Cross into a gateway: the zoom reaching WORLD_ENTER_AT, a row of the
 // gazetteer, or the button on the square's own inspector card.
 /* Cross into a gateway with nothing moving but the resolution.
@@ -10056,40 +9475,16 @@ function finishWorldFade() {
    Written into MAP_VIEW_MEMORY rather than applied, because that is what
    restoreOrFitMap will read and what crossfadeToZone paints the overlay at:
    the two have to agree or the swap shows as a jump after all. */
-function enterGateway(gw) {
-  pushWorldStack();
-  window.WORLD_GATE_HOLD = gw.port;
-  window.WORLD_TRAIL = { port: gw.port, name: gw.name, x: gw.x0, y: gw.y0 };
-  const cm = window.CUR_MAP;
-  const vp = document.getElementById('mapViewport');
-  const dest = mapRenderFor(gw.destResid, true);
-  if (cm && vp && vp.clientWidth > 40 && dest && dest.result) {
-    const ts = dest.result.tileSize;
-    const thumb = worldThumbs.get(thumbKey(gw.destResid, THUMB_LEVELS[0], true));
-    let view = null;
-    if (thumb && cm.resid === WORLD_MAP_RESID) {
-      // The rectangle the miniature is occupying, and the crop it is of.
-      const r = thumbRect(gw, thumb, cm);
-      const scale = r.w / ((thumb.x1 - thumb.x0 + 1) * ts);
-      if (scale > 0.02 && isFinite(scale))
-        view = { scale, x: r.x - thumb.x0 * ts * scale, y: r.y - thumb.y0 * ts * scale };
-    }
-    if (!view) {
-      const scale = Math.max(0.05, (cm.TS * mapView.scale) / ts);
-      view = { scale,
-               x: vp.clientWidth / 2 - (gw.destX + 0.5) * ts * scale,
-               y: vp.clientHeight / 2 - (gw.destY + 0.5) * ts * scale };
-    }
-    window.MAP_VIEW_MEMORY[gw.destResid] = view;
-  }
-  crossfadeToZone(gw.destResid, gw.destX, gw.destY);
-}
-
 // The gazetteer's rows and the inspector's card both come here by port, so
 // neither has to carry a gateway object through an inline handler.
+/* The gateway chip on a world square, from the map panel's own inspector.
+
+   The panel is Entities > Regions now, so this opens the destination there --
+   which is what every other chip in that inspector does. The atlas has its
+   own way in, and it is the map itself. */
 function enterGatewayByPort(port) {
   const gw = worldGateways().find(g => g.port === port);
-  if (gw) enterGateway(gw);
+  if (gw) showSquareOnMap(gw.destResid, gw.destX, gw.destY);
 }
 
 /* The `-> Cademia` chip on a square, wherever the square is.
@@ -10098,144 +9493,30 @@ function enterGatewayByPort(port) {
    does not change under the reader; anywhere else this is exactly the
    showSquareOnMap it replaced, which switches to Entities > Regions and opens
    the map there. */
-function enterZoneFromWorld(resid, x, y) {
-  if (window.CUR_SUBN === 'WORLD') {
-    const cm = window.CUR_MAP;
-    if (cm && cm.resid === WORLD_MAP_RESID) {
-      const gw = worldGateways().find(g => g.destResid === resid && g.destX === x && g.destY === y);
-      if (gw) { enterGateway(gw); return; }
-      pushWorldStack();
-      window.WORLD_TRAIL = { name: zoneNameFor(resid) || ('0x' + resid.toString(16).toUpperCase()) };
-    } else pushWorldStack();
-    crossfadeToZone(resid, x, y);
-    return;
-  }
-  showSquareOnMap(resid, x, y);
-}
-
 /* One map, opened inside the World tab.
 
    `quiet` is for a deep link being applied: the hash is already what it
    should be, and writing it again would push a second history entry for the
    page the reader just navigated to.
+/* The one strip the atlas shows, and only where it is needed.
 
-   The arrival square is selected and inspected but the view is NOT moved onto
-   it. The cross-fade showed the whole town, so moving the view immediately
-   afterwards would undo the thing the transition just established; and the
-   panel's own remembered view is what the overlay was painted at, so a pan
-   here would be a jump out of a picture the reader has only just been given.
-   Where the square is, is what the inspector and the ring are for. */
-function worldOpenZone(resid, x, y, quiet) {
-  hideWorldGate();
-  window.WORLD_ZONE = resid;
-  // Standing on the world map is standing at the top: there is nothing above
-  // it to go back up to.
-  if (resid === WORLD_MAP_RESID) { window.WORLD_STACK = []; maybeAutoLoadEverything(); }
-  // The world map's own render is pinned in the cache (see mapRenderFor), so
-  // the scenery behind a town and the way back out both reuse the bitmap the
-  // world map was already drawn from rather than making a second one.
-  if (resid === WORLD_MAP_RESID) window.WORLD_TRAIL = null;
-  else if (!window.WORLD_TRAIL) window.WORLD_TRAIL = { name: zoneNameFor(resid) || null };
-  window.WORLD_ARRIVE = (x != null && y != null) ? { resid, x, y } : null;
-  window.ROOF_MANUAL = false;     // a new place, and the zoom drives the roofs again
-  renderMapResource(resid);
-  renderWorldBar();
-  renderGazetteer();
-  if (!quiet) syncDeepLink();
-  if (x != null && y != null) {
-    // restoreOrFitMap retries until the panel has a measurable size, so the
-    // selection has to wait for it rather than race it.
-    setTimeout(() => {
-      const cm = window.CUR_MAP;
-      if (!cm || cm.resid !== resid) return;
-      inspectMapSquare(x, y);
-      setMapSelection(x, y);
-    }, 900);
-  }
-}
-
-
-
-// The tab itself.
-function renderWorldView() {
-  stopAllViewActivity();
-  const grid = document.getElementById('sheetGrid');
-  if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
-  document.getElementById('singleControls').style.display = 'none';
-  document.getElementById('propFilterWrap').style.display = 'none';
-  document.getElementById('resourceNav').style.display = 'none';
-  /* WORLD_GATE_HOLD is deliberately not cleared here. Coming back out of a
-     town arrives through this function, with the world map's remembered pan
-     and zoom about to be restored -- which is the zoom that opened the town,
-     centred on it. Clearing the hold at that moment would cross straight back
-     in, and the browser's own back button could never escape. paintWorldGate
-     lifts the hold instead, as soon as the view is no longer inside that
-     gateway. */
-  worldOpenZone(window.WORLD_ZONE || WORLD_MAP_RESID, null, null, true);
-}
-
-// Where you are, and the way back. Hidden outside the World tab, so the two
-// callers of renderMapResource can share one function.
+   On the surface there is nothing to say: you are looking at the world, the
+   places are named on it, and a summary bar would be a line of prose where a
+   line of map could be. Inside somewhere the archive does not locate, there
+   is exactly one thing to say -- how you got in, and the way back -- because
+   that is the part the ground cannot show you. */
 function renderWorldBar() {
   const bar = document.getElementById('worldBar');
   if (!bar) return;
-  if (window.CUR_SUBN !== 'WORLD') { bar.style.display = 'none'; bar.innerHTML = ''; return; }
-  const cm = window.CUR_MAP;
-  /* In the atlas you are looking at the world, always -- except where the
-     archive does not locate a place, and then you are looking at that place
-     on its own and the strip has to say how you got there. Describing the
-     connection is the honest form of it: the file gives a doorway, not a
-     position, so "through the arch from the world map" is what can be said
-     and "below Cademia" is not. */
-  const below = window.ATLAS ? atlasBelowTop() : null;
-  if (below) {
-    bar.style.display = '';
-    bar.innerHTML = '<button class="crumbBtn" onclick="atlasAscend()">↰ ' +
-      svEsc(below.fromName) + '</button>' +
-      '<span class="wbWhere">' + svEsc(below.name) + '</span>' +
-      '<span class="wbNote">Through the ' + svEsc(below.kind) + ' at (' + below.at.x + ',' +
-      below.at.y + ') in ' + svEsc(below.fromName) + '. The archive does not say where this ' +
-      'sits, only how it is reached — so it is shown on its own. Zoom out to leave.</span>';
-    return;
-  }
-  const here = window.ATLAS ? WORLD_MAP_RESID : (cm ? cm.resid : WORLD_MAP_RESID);
+  const below = (window.CUR_SUBN === 'WORLD') ? atlasBelowTop() : null;
+  if (!below) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   bar.style.display = '';
-  if (here === WORLD_MAP_RESID) {
-    const n = worldGateways().length;
-    const total = worldPreloadTotal();
-    const done = window.WORLD_PRELOAD_DONE || 0;
-    // The cost is on the button rather than discovered afterwards.
-    const load = !window.WORLD_PRELOAD
-      ? '⤓ Load every place — ' + total + ' maps'
-      : (done < total ? '… loading ' + done + ' of ' + total : '✓ All ' + total + ' places loaded — free them');
-    // Offered only where it can actually be done, and with the cost on it.
-    const fr = fullResPossible()
-      ? '<button class="crumbBtn" onclick="toggleFullRes()">' +
-        (window.FULL_RES ? '✓ Full resolution — back to normal'
-                         : '◈ Full resolution — no zoom transitions') + '</button>'
-      : '';
-    bar.innerHTML = '<span class="wbWhere">The world of Cythera</span>' +
-      // Short, because on a phone every line of this is a line of map. The
-      // long version of all of it is the gazetteer under the map.
-      '<span class="wbNote">256×256 squares, ' + n + ' ways off it. Zoom into a town to enter ' +
-      'it; caves open on a click. Any square says what is on it.</span>' +
-      '<button class="crumbBtn" onclick="toggleWorldPreload()">' + load + '</button>' + fr;
-    return;
-  }
-  const a = window.WORLD_ARRIVE;
-  const gw = enteredBy();
-  // An open-edged place is left the way it was entered, by zooming; the
-  // button is the convenience rather than the exit, so the note names the
-  // gesture first. A sealed one has no such gesture and the button is the way.
-  const out = 'Zoom out to leave.';
-  const up = upOneLevelName() || 'The world';
-  bar.innerHTML = '<button class="crumbBtn" onclick="goUpOneLevel()">↰ ' + svEsc(up) + '</button>' +
-    '<span class="wbWhere">' + svEsc(zoneNameFor(here) || labelFor(here) ||
-      ('0x' + here.toString(16).toUpperCase())) + '</span>' +
-    (cm ? '<span class="wbNote">' + cm.tilesW + '×' + cm.tilesH + ' squares' +
-      (a && a.resid === here ? ', arriving at (' + a.x + ',' + a.y + ')' : '') +
-      (gw ? ', off the world map at (' + gw.x0 + ',' + gw.y0 + ')' : '') +
-      (out ? ' — ' + out : '') + '</span>' : '');
+  bar.innerHTML = '<button class="crumbBtn" onclick="atlasAscend()">\u21b0 ' +
+    svEsc(below.fromName) + '</button>' +
+    '<span class="wbWhere">' + svEsc(below.name) + '</span>' +
+    '<span class="wbNote">Through the ' + svEsc(below.kind) + ' at (' + below.at.x + ',' +
+    below.at.y + ') in ' + svEsc(below.fromName) + '. The archive does not say where this ' +
+    'sits, only how it is reached \u2014 so it is shown on its own. Zoom out to leave.</span>';
 }
 
 /* Every way off the world map, listed.
@@ -10265,10 +9546,9 @@ function renderGazetteer() {
   for (const gw of gws) {
     const b = document.createElement('button');
     b.className = 'gazRow';
+    // A located place is somewhere to fly to; an unlocated one is somewhere to
+    // step into, from the mouth on the world map that leads there.
     b.onclick = () => {
-      if (!window.ATLAS) { enterGateway(gw); return; }
-      // A located place is somewhere to fly to; an unlocated one is somewhere
-      // to step into, from the mouth on the world map that leads there.
       if (mapIsLocated(gw.destResid)) atlasGoTo(gw.port);
       else atlasDescend({ dest: { resid: gw.destResid, x: gw.destX, y: gw.destY },
                           name: gw.name, kind: gw.kind, x: gw.x0, y: gw.y0 },
@@ -10838,37 +10118,20 @@ function stopAtlasAnimation() {
   if (atlasAnimTimer) { clearInterval(atlasAnimTimer); atlasAnimTimer = null; }
 }
 
-/* What is outside the map.
+/* What is outside the map: the folder it is lying on.
 
-   Cythera is an island and the world map's border is 434 squares of tile 0x8
-   -- open water -- so the ground beyond it is sea, not the panel's grey. The
-   pattern is laid in the world's own grid at the world's own scale, so the
-   sea outside runs into the sea inside without a seam at the edge, and it
-   cycles with the palette like every other water tile because the scene is
-   repainted anyway.
+   The first version of this filled it with the world's own border water --
+   Cythera is an island and 434 squares of its border are tile 0x8 -- and it
+   was a worse idea than it sounds. Painting sea beyond the edge of the map
+   asserts that the sea goes on, which is the same class of claim as putting
+   an underground on the world: the file says what is inside the 256x256 grid
+   and nothing whatever about what is outside it. The manila of the folder
+   says the honest thing, which is that the map stops here.
 
-   Only under the surface: below ground there is no world outside to continue,
-   and a cave floating in the sea would be the same kind of lie the placement
-   rules were written to avoid. */
-const ATLAS_SEA_TILE = 0x8;
+   So the canvas is simply cleared, and what shows through is the sheet the
+   World tab is drawn on. */
 function paintAtlasGround(ctx, vw, vh) {
-  ctx.fillStyle = '#222';
-  ctx.fillRect(0, 0, vw, vh);
-  const sc = atlasScene();
-  if (!sc || !sc.surface) return;
-  const tile = getTileCanvas(ATLAS_SEA_TILE, false, mapAnimFrame || 8, 0);
-  if (!tile) return;
-  const pat = ctx.createPattern(tile, 'repeat');
-  if (!pat) return;
-  // One world square is atlasView.Z pixels and the tile is 32, so the whole
-  // fill is done in a space scaled by Z/32 and offset to world (0,0).
-  const k = atlasView.Z / 32;
-  ctx.save();
-  ctx.translate(atlasView.x, atlasView.y);
-  ctx.scale(k, k);
-  ctx.fillStyle = pat;
-  ctx.fillRect(-atlasView.x / k, -atlasView.y / k, vw / k, vh / k);
-  ctx.restore();
+  ctx.clearRect(0, 0, vw, vh);
 }
 
 function ensureAtlasCanvas() {
@@ -11248,19 +10511,6 @@ function renderAtlasView() {
   };
   start();
 }
-
-/* The switch is off the strip now: the atlas is the World tab and the strip
-   it lived on is not drawn there any more. The other renderer is still in the
-   file and still checked, and this still selects it -- from the console, or
-   by putting `cythera.atlas` to `0` in localStorage -- until it goes. */
-function toggleAtlas() {
-  window.ATLAS = !window.ATLAS;
-  try { localStorage.setItem('cythera.atlas', window.ATLAS ? '1' : '0'); } catch (e) {}
-  window.WORLD_ZONE = WORLD_MAP_RESID;
-  window.WORLD_STACK = []; window.WORLD_TRAIL = null;
-  setMode('sheet');
-}
-
 // The gazetteer's rows, in the atlas: put the place in the middle of the view
 // at the zoom its own art is worth, which is the same thing zooming to it by
 // hand arrives at.
@@ -12618,6 +11868,34 @@ function renderToolsSheet() {
     box.appendChild(d);
     return d;
   };
+  /* The World tab's two memory switches. They lived on a strip over the map
+     until the map took the whole sheet, and this is where the page's own
+     switches live -- the undither one has been here for the same reason. */
+  if (typeof fullResPossible === 'function') {
+    const w = sec('The world map', 'Every place drawn at the native 32 pixels a tile, and every '
+      + 'one of them kept, so that nothing is rendered or re-rendered while you are moving. '
+      + 'About 627 MB of pictures; nothing is downloaded for it, since every map is drawn from '
+      + 'the archive already in memory. On by default where the machine looks able.');
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px';
+    if (fullResPossible()) {
+      const b1 = document.createElement('button');
+      b1.className = 'secondary';
+      b1.textContent = window.FULL_RES ? '\u2713 Full resolution \u2014 turn off' : 'Full resolution';
+      b1.onclick = () => { toggleFullRes(); renderToolsSheet(); };
+      row.appendChild(b1);
+    }
+    const b2 = document.createElement('button');
+    b2.className = 'secondary';
+    const done = window.WORLD_PRELOAD_DONE || 0, tot = worldPreloadTotal();
+    b2.textContent = !window.WORLD_PRELOAD ? 'Keep every place'
+      : (done < tot ? '\u2026 loading ' + done + ' of ' + tot
+                    : '\u2713 All ' + tot + ' kept \u2014 free them');
+    b2.onclick = () => { toggleWorldPreload(); renderToolsSheet(); };
+    row.appendChild(b2);
+    w.appendChild(row);
+  }
+
   const u = sec('Every image', 'Cythera’s art is dithered for a 256-colour screen. Undithering ' +
     'reconstructs continuous tone from the checkerboards; it is slower, and it is a reading of ' +
     'the pixels rather than the pixels. Any gallery can preview the other way for a moment.');
