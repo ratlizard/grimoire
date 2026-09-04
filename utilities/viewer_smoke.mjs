@@ -958,18 +958,25 @@ try {
      same few squares, so the crossing is a change of scale rather than a
      substitution of one picture for another. Sealed destinations keep their
      icon: a cave's inside is not what is at that spot. */
+  let lastRect = null, centreOnStash = null;
   if (cad) {
     ctx.showCategory('WORLD');
     peek('buildWorldThumbs')();
     const LEVELS = peek('THUMB_LEVELS');
     const th = peek('worldThumb')(cad, LEVELS[0], true);
-    if (!th || !th.width) fail('world tab', 'no miniature was built for Cademia');
-    else if (Math.max(th.width, th.height) !== LEVELS[0])
-      fail('world tab', `Cademia's miniature is ${th.width}x${th.height}, not ${LEVELS[0]} on its long side`);
+    if (!th || !th.canvas.width) fail('world tab', 'no miniature was built for Cademia');
+    else if (Math.max(th.canvas.width, th.canvas.height) !== LEVELS[0])
+      fail('world tab', `Cademia's miniature is ${th.canvas.width}x${th.canvas.height}, ` +
+                        `not ${LEVELS[0]} on its long side`);
     else if (!peek('worldThumb')(cad, LEVELS[0], false))
       // Both roofed and bare, off one render, so the roofs can be lifted by
       // cross-fading one over the other on the way in.
       fail('world tab', 'no bare variant — the roofs cannot lift on approach');
+    else if (th.x1 - th.x0 + 1 >= 128)
+      // Cropped to the built part: Cademia's map is 128 squares and its town
+      // is 107 of them, so drawing the whole map put the town, small, in the
+      // middle of a field of rock.
+      fail('world tab', `the miniature is the whole ${th.x1 - th.x0 + 1}-square map, not the town`);
     else {
       const lkh = gws.find(g => g.name === 'Land King Hall');
       if (peek('worldThumb')(lkh, LEVELS[0], true))
@@ -995,15 +1002,45 @@ try {
       else {
         // Big enough to cover the pictogram it stands in for -- a miniature
         // the exact size of the footprint leaves the sprite's corners showing.
+        /* Sized by the measured ratio, and the point of measuring it is that
+           the result lands ON the icon rather than near it. Cademia is the
+           case the ratio is largely derived from -- four `small city` props
+           in a 4x4 block over 107 squares of town -- so its miniature has to
+           come out about four world squares across. Within half a square. */
         const cmw = peek('CUR_MAP');
         centreOn(cad, 30);
         const r = peek('thumbRect')(cad, th, cmw);
-        const foot = (cad.x1 - cad.x0 + 1) * cmw.TS * mv.scale;
-        if (!(r.w > foot))
-          fail('world tab', `the miniature (${r.w}px) does not cover its ${foot}px pictogram`);
+        const k = cmw.TS * mv.scale;
+        const inSquares = r.w / k;
+        const foot = cad.x1 - cad.x0 + 1;
+        if (Math.abs(inSquares - foot) > 1.2)
+          fail('world tab', `Cademia's miniature is ${inSquares.toFixed(1)} world squares ` +
+                            `across against a ${foot}-square pictogram`);
         else console.log('  world tab: ' + gws.filter(g => !g.sealed).length +
-                         ' towns drawn as themselves on the world map, ' +
-                         Math.round(r.w) + 'px over a ' + Math.round(foot) + 'px icon');
+                         ' towns sized off the archive at 1:' + Math.round(peek('worldSquareRatio')()) +
+                         '; Cademia is ' + inSquares.toFixed(1) + ' squares over a ' + foot + '-square icon');
+
+        /* And the crossing puts the real map exactly where the miniature was:
+           same crop, same rectangle, so nothing moves but the resolution.
+           Anything else is the snap that makes it read as a different screen
+           rather than the same place closer up. */
+        lastRect = peek('thumbRect')(cad, th, cmw);
+        centreOn(cad, 70);
+        lastRect = peek('thumbRect')(cad, th, peek('CUR_MAP').resid === 0x8001 ? peek('CUR_MAP') : cmw);
+        if (ctx.WORLD_FADE) ctx.finishWorldFade();
+        const cmA = peek('CUR_MAP');
+        if (!cmA || cmA.resid !== 0x8008) fail('world tab', 'could not cross for the landing check');
+        else {
+          const landedX = mv.x + th.x0 * cmA.TS * mv.scale;
+          const landedW = (th.x1 - th.x0 + 1) * cmA.TS * mv.scale;
+          centreOnStash = null;
+          if (Math.abs(landedW - lastRect.w) > 2 || Math.abs(landedX - lastRect.x) > 2)
+            fail('world tab', `the town landed at ${landedX.toFixed(0)}/${landedW.toFixed(0)} ` +
+                              `where its miniature was ${lastRect.x.toFixed(0)}/${lastRect.w.toFixed(0)}`);
+          else console.log('  world tab: the crossing lands the map exactly on its own miniature');
+        }
+        ctx.backToWorldMap();
+        if (ctx.WORLD_FADE) ctx.finishWorldFade();
       }
     }
   }
@@ -1291,6 +1328,48 @@ try {
       if (ctx.WORLD_FADE) ctx.finishWorldFade();
       if (worldTS !== peek('CUR_MAP').TS) fail('world tab', 'the world map changed tile size');
     }
+  }
+
+  /* Who that is, under the pointer. Nothing else would notice the hover card
+     naming the wrong person, or naming nobody on a square with somebody on
+     it -- and it has to agree with the click, because the click is what opens
+     the dossier the card is advertising. */
+  {
+    ctx.showCategory('127');
+    ctx.jumpToResource(0x8002);                       // Odemia, well populated
+    const cmH = peek('CUR_MAP');
+    const vpH = REGISTRY.get('mapViewport');
+    const mvH = peek('mapView');
+    mvH.scale = 1; mvH.x = 0; mvH.y = 0;
+    const folk = ctx.charactersOnLevel(cmH.level, ctx.MAP_HOUR);
+    if (!folk.length) fail('hover', 'nobody is on Odemia to hover over');
+    else {
+      const c = folk[0];
+      const rect = vpH.getBoundingClientRect();
+      // The middle of their square, in client coordinates.
+      const cx = rect.left + (Math.round(c.x) + 0.5) * cmH.TS * mvH.scale + mvH.x;
+      const cy = rect.top + (Math.round(c.y) + 0.5) * cmH.TS * mvH.scale + mvH.y;
+      ctx.updateMapHover(cx, cy);
+      const el = REGISTRY.get('mapHover');
+      const name = c.name || ('Character ' + c.index);
+      if (el.style.display === 'none') fail('hover', `no card over ${name} at ${c.x},${c.y}`);
+      else if (!el.innerHTML.includes(name))
+        fail('hover', `the card over ${name} says "${el.innerHTML.replace(/<[^>]*>/g, ' ').trim()}"`);
+      else {
+        // ...and empty ground says nothing.
+        let bare = null;
+        for (let ty = 0; ty < cmH.tilesH && !bare; ty++)
+          for (let tx = 0; tx < cmH.tilesW; tx++)
+            if (!folk.some(p => Math.round(p.x) === tx && Math.round(p.y) === ty)) { bare = [tx, ty]; break; }
+        ctx.updateMapHover(rect.left + (bare[0] + 0.5) * cmH.TS + mvH.x,
+                           rect.top + (bare[1] + 0.5) * cmH.TS + mvH.y);
+        if (REGISTRY.get('mapHover').style.display !== 'none')
+          fail('hover', 'a card appeared over a square with nobody on it');
+        else console.log('  hover: ' + folk.length + ' on Odemia; the card names ' + name +
+                         ' and says nothing over bare ground');
+      }
+    }
+    ctx.hideMapHover();
   }
 
   // The join itself, on the square. A settlement icon must name its

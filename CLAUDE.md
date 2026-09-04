@@ -366,7 +366,11 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   lifting on approach with the checkbox outranking both, the level ladder
   sharpening rather than magnifying, a 60×25 pan sliding the overlay by
   exactly that, the opt-in preload turning on and freeing back to the ordinary
-  cache, the lens engaging at 1.6× where the old absolute rule would not have,
+  cache, Cademia's miniature landing within about half a square of its own
+  4-square pictogram and the crossing putting the real map exactly on that
+  miniature, the hover card naming the right person and staying quiet over
+  bare ground, the lens engaging at 1.6× where the old absolute rule would not
+  have,
   the surround plate being sharper than the base it replaces and centred on
   its own gateway, and — by counting `renderMapVisual` calls rather than
   timing anything — that a crossing costs **one** map render and a return or a
@@ -639,6 +643,20 @@ Read the comment above a constant before correcting it.
   game's own pictogram wins, because it was drawn to be read at that size and
   a town scaled into four squares is a smudge. **Only open-edged destinations
   get one** — a cave's inside is not what is at that spot.
+  **Cropped to the built part and sized off the archive's own scale.**
+  `contentBox` is the trimmed bounding box of a map's props — what a
+  settlement is, as against the field of rock the map is padded out with:
+  Cademia's map is 128 squares and its town is 107, so drawing the whole map
+  into a pictogram's footprint drew mostly empty ground. `worldSquareRatio`
+  then measures how many region squares one world square stands for, off the
+  gateways whose pictogram covers more than one square (Cademia is four `small
+  city` props deliberately placed in a 4×4 block, so it says ~27; Catamarca
+  27, Kosha 22, Pnyx 21) — median ~21, and a modded archive gets its own.
+  `gatewayRatio` prefers a place's **own** icon where it has one, because the
+  world map is stating how big *that* place is and it should land on its own
+  icon rather than on everyone else's average; a one-square icon is a symbol
+  rather than a measurement (one `large city` prop stands for both the Farm at
+  26 squares and the Encampment at 35), so those fall back to the median.
   Two levels, each **roofed and bare**, and `drawTown` takes the smallest at
   least as wide as the rectangle — so a town *sharpens* as the view comes in
   rather than one 192-pixel picture being magnified all the way to the
@@ -685,13 +703,21 @@ Read the comment above a constant before correcting it.
   painted for `gateView` and belong under `mapView`, which is an ordinary
   similarity — the same fix, and the same reasoning, as `slideLens`. A pan is
   a pure translate, so a pan is now exact.
-  **Every gateway is entered by zooming, sealed or not**, and the arrival is
-  centred on the square the zoneport lands on, at the zoom the crossing
-  happened at (`enterGateway` writes it into `MAP_VIEW_MEMORY` so the overlay
-  and `restoreOrFitMap` agree). The reader was aiming at a tunnel mouth, and
-  that is where they come out; fitting the whole map answered a question
-  nobody asked. `sealed` now decides only whether the world's own country is
-  drawn around the place, which for the inside of a cave it must not be.
+  **Every gateway is entered by zooming, and the crossing moves nothing but
+  the resolution.** A town has been on screen as a miniature for the whole
+  approach, at a definite place and size, so `enterGateway` puts the real map
+  exactly there: the same crop, over the same rectangle. Fitting the whole
+  map, or re-centring on the arrival square, is a *snap* — and a snap is what
+  makes it read as a different screen rather than the same place closer up.
+  A **sealed** destination has no miniature, because there is no cave to draw
+  on the world map, so that one lands centred on the square the zoneport puts
+  you on at the zoom the crossing happened at — the tunnel mouth the reader
+  was aiming into. That is the only case that re-centres. `sealed` otherwise
+  decides only whether the world's own country is drawn around the place,
+  which for the inside of a cave it must not be. The view is written into
+  `MAP_VIEW_MEMORY` rather than applied, because that is what
+  `restoreOrFitMap` reads and what `crossfadeToZone` paints the overlay at:
+  the two have to agree or the swap shows as a jump after all.
   **The world map stops at `WORLD_ZOOM_CEILING`** (76 screen px a square).
   Its art is 32 px a tile like everything else, so past about twice that
   there is nothing further to see and a long way still to drag. Comfortably
@@ -1085,6 +1111,18 @@ Read the comment above a constant before correcting it.
   `applyMapTransform`, and is the `detail lens` section of
   `viewer_smoke.mjs`. Lighting gets a scratch canvas in lens mode: its
   destination-out light circles would otherwise erase the map itself.
+- **A pointer resting on somebody says who they are** (`updateMapHover`,
+  `#mapHover`). The map has known who is standing where since the schedules
+  were read, and the only way to ask was to click a square; on a map with
+  sixty people that is sixty clicks to find one. **Mouse only, deliberately**:
+  there is no hover on a touch screen, a `pointermove` there is a drag, and a
+  card under a finger covers the thing it describes — a tap already opens the
+  inspector. The square is matched the way the inspector matches it, by the
+  record's own coordinate rather than where the sprite is drawn, or the card
+  would name a different person from the one the click is about to open. The
+  words are markup and the sprite is appended after them with `order:-1`;
+  built the other way round the card's own `innerHTML` said nothing, which no
+  harness could then check.
 - **`resetDerivedCaches()` is the one place archive-keyed memoisation is
   cleared. Add to it whenever you memoise anything.** The list used to be
   inline and had drifted by nine caches, so a second archive was drawn with the

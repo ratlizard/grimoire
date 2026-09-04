@@ -739,6 +739,17 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 #mapInspect .inspRows dt { color:#9b8850; }
 #mapInspect .inspRows dd { margin:0; font-family:ui-monospace,Menlo,Consolas,monospace; }
 #mapInspect .inspActs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+/* Who that is, under the pointer. */
+#mapHover { position:absolute; z-index:7; pointer-events:none; display:none;
+  background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
+  padding:5px 9px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,.55);
+  font-family:Argos, Georgia, serif; font-size:12px; color:#e8dfc0; white-space:nowrap;
+  display:flex; align-items:center; gap:7px; max-width:260px; }
+#mapHover canvas { image-rendering:pixelated; width:32px; height:32px; flex:none;
+  background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
+#mapHover .hvName { color:var(--gold); font-weight:600; display:block; }
+#mapHover .hvWhat { color:#9b8850; font-size:11px; display:block; }
+
 /* The World tab's own strip and its gazetteer. */
 #worldBar { max-width:720px; margin:0 auto 8px; padding:8px 12px; text-align:left;
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px;
@@ -1121,6 +1132,7 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
   <div id="mapStage" style="position:relative; width:100%; max-width:720px; margin:0 auto 6px; padding:22px;">
 <div id="mapViewport" style="position:relative; width:100%; height:62vh; margin:0; overflow:hidden; border:1px solid var(--edge); background:#222; touch-action:none; cursor:grab; border-radius:6px;">
     <div id="mapCanvasWrap" style="position:absolute; top:0; left:0; transform-origin:0 0; z-index:1;"></div>
+    <div id="mapHover"></div>
   </div>
 <button class="mapArrowBtn" id="mapArrowUp"    onclick="panMapByArrow(0,-1)"  style="position:absolute; top:2px; left:50%; transform:translateX(-50%);">&#9650;</button>
 <button class="mapArrowBtn" id="mapArrowDown"  onclick="panMapByArrow(0,1)"   style="position:absolute; bottom:2px; left:50%; transform:translateX(-50%);">&#9660;</button>
@@ -3921,6 +3933,7 @@ function stopAllViewActivity() {
   if (typeof hideDetailLens === 'function') hideDetailLens(true);
   if (typeof hideWorldGate === 'function') hideWorldGate();
   if (typeof hideWorldSurround === 'function') hideWorldSurround();
+  if (typeof hideMapHover === 'function') hideMapHover();
   const audio = document.getElementById('audioPlayer');
   if (audio && !audio.paused) audio.pause();
 }
@@ -4033,6 +4046,8 @@ function resetDerivedCaches() {
   zoneMapCache.clear();
   worldThumbs.clear();
   surroundPlates.clear();
+  contentBoxes.clear();
+  window._WORLD_RATIO = null;
   window.WORLD_PRELOAD = false;
   window.WORLD_PRELOAD_DONE = 0;
   window.FULL_RES = false;
@@ -7897,6 +7912,9 @@ function setupMapViewportInteraction() {
     }
   });
   viewport.addEventListener('pointermove', e => {
+    // Hover is for a pointer that is resting, not one that is dragging, and
+    // only where hovering is a thing the device does.
+    if (e.pointerType === 'mouse' && !activePointers.size) updateMapHover(e.clientX, e.clientY);
     if (!activePointers.has(e.pointerId)) return;
     const rect = viewport.getBoundingClientRect();
     activePointers.set(e.pointerId, { x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -7921,6 +7939,7 @@ function setupMapViewportInteraction() {
       if (sq) inspectMapSquare(sq.tx, sq.ty);
     }
   };
+  viewport.addEventListener('pointerleave', () => hideMapHover());
   viewport.addEventListener('pointerup', clearPointer);
   viewport.addEventListener('pointercancel', clearPointer);
   viewport.addEventListener('pointerleave', clearPointer);
@@ -7951,6 +7970,83 @@ function clearMapInspector() {
   // map answers questions when you click it.
   el.innerHTML = '<span class="inspDim">Click any square to see the props and people on it.</span>';
   el.style.display = 'block';
+}
+
+/* ---------------------------------------------------------------------------
+   Who that is
+   ---------------------------------------------------------------------------
+   The map has known who is standing where since the schedules were read, and
+   the only way to ask was to click a square and read the card underneath. On
+   a map with sixty people on it that is sixty clicks to find one. A pointer
+   resting on somebody now says who they are and what they are doing, and the
+   click still opens the dossier.
+
+   Mouse only, and deliberately: there is no hover on a touch screen, a
+   pointermove there is a drag, and a card that appeared under a finger would
+   cover the thing it was describing. A tap already opens the inspector.
+
+   The square under the pointer is matched the way the inspector matches it --
+   the record's own coordinate, not where the sprite is drawn, which can be
+   the best part of a square up and to the left of it. Doing otherwise would
+   name a different person from the one the click is about to open.
+--------------------------------------------------------------------------- */
+let hoverSquare = '';
+function hideMapHover() {
+  const el = document.getElementById('mapHover');
+  if (el) { el.style.display = 'none'; hoverSquare = ''; }
+}
+
+function updateMapHover(clientX, clientY) {
+  const el = document.getElementById('mapHover');
+  const vp = document.getElementById('mapViewport');
+  const cm = window.CUR_MAP;
+  if (!el || !vp || !cm) return;
+  const sq = mapSquareFromClient(clientX, clientY);
+  if (!sq) { hideMapHover(); return; }
+  const key = cm.resid + ':' + sq.tx + ',' + sq.ty;
+  const rect = vp.getBoundingClientRect();
+  const px = clientX - rect.left, py = clientY - rect.top;
+  if (key === hoverSquare) {
+    // Same square, so only the card moves: rebuilding it on every pixel of
+    // pointer travel would re-decode a sprite several hundred times a second.
+    if (el.style.display !== 'none') placeMapHover(el, vp, px, py);
+    return;
+  }
+  hoverSquare = key;
+  let people = [];
+  try {
+    people = charactersOnLevel(cm.level, window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR)
+      .filter(c => Math.round(c.x) === sq.tx && Math.round(c.y) === sq.ty);
+  } catch (e) { people = []; }
+  if (!people.length) { el.style.display = 'none'; return; }
+  const c = people[0];
+  const what = c.walking ? 'walking'
+    : c.sitting ? ('sitting, facing ' + ['north', 'east', 'south', 'west'][(c.aspect >> 2) & 3])
+    : String(c.mode || 'here');
+  // The words as markup and the sprite appended after it, with the canvas
+  // ordered back in front by CSS. Built the other way round -- canvas first,
+  // words in an appended element -- the card's own innerHTML said nothing,
+  // which is a thing no harness could then check.
+  el.innerHTML = '<div><span class="hvName">' + svEsc(c.name || ('Character ' + c.index)) +
+                 '</span><span class="hvWhat">' + svEsc(what) +
+                 (people.length > 1 ? ' &mdash; and ' + (people.length - 1) + ' more here' : '') +
+                 '</span></div>';
+  const cv = document.createElement('canvas');
+  try { drawTileToCanvas(cv, getPropTileList()[c.proptype] + c.aspect, 32, c.rotated); } catch (e) {}
+  el.appendChild(cv);
+  el.style.display = 'flex';
+  placeMapHover(el, vp, px, py);
+}
+
+// Up and to the right of the pointer, and never off the edge of the panel.
+function placeMapHover(el, vp, px, py) {
+  const w = el.offsetWidth || 150, h = el.offsetHeight || 40;
+  let x = px + 14, y = py - h - 10;
+  if (x + w > vp.clientWidth - 4) x = px - w - 14;
+  if (x < 4) x = 4;
+  if (y < 4) y = py + 18;
+  el.style.left = Math.round(x) + 'px';
+  el.style.top = Math.round(y) + 'px';
 }
 
 // Viewport pixel -> map square, undoing translate(x,y) scale(s) on the wrapper.
@@ -8614,6 +8710,93 @@ const ROOF_LIFT = [18, 44];
 
 function thumbKey(resid, size, roofed) { return resid + ':' + size + ':' + (roofed ? 'r' : 'b'); }
 
+/* The built part of a map: where the town actually is, inside the field of
+   rock or grass the map is padded out with.
+
+   Cademia's map is 128x128 squares and its town is 107 of them; the Farm's
+   is 32x32 and its farm is 26 by 11. Drawing the whole map into a pictogram's
+   footprint therefore drew mostly empty ground and put the town, small, in
+   the middle of it. The bounding box of the props is what a settlement is:
+   walls, doors, furniture, crops. Trimmed to the 2nd and 98th percentile on
+   each axis, so one lamp-post out on the moor does not double the box. */
+const contentBoxes = new Map();
+function contentBox(resid) {
+  if (contentBoxes.has(resid)) return contentBoxes.get(resid);
+  let box = null;
+  try {
+    const raw = getResourceBytes(resid + 0x100);
+    const recs = raw ? parseDelverPropList(smartDecrypt(raw, resid + 0x100).data)
+      .filter(r => r.onMap && r.flags !== 0xFF && !(r.flags & 0x58) &&
+                   r.flags !== 0x42 && r.flags !== 0x44) : [];
+    if (recs.length >= 8) {
+      const xs = recs.map(r => r.x).sort((a, b) => a - b);
+      const ys = recs.map(r => r.y).sort((a, b) => a - b);
+      const q = (a, p) => a[Math.min(a.length - 1, Math.max(0, Math.round((a.length - 1) * p)))];
+      box = { x0: q(xs, 0.02), y0: q(ys, 0.02), x1: q(xs, 0.98), y1: q(ys, 0.98) };
+    }
+  } catch (e) {}
+  contentBoxes.set(resid, box);
+  return box;
+}
+
+/* How many squares of a region map one square of the world map stands for.
+
+   Not a guess and not a constant: it is measured off the archive. The
+   gateways whose pictogram covers more than one square are the ones whose
+   icon says something about size -- Cademia is four `small city` props
+   deliberately placed in a 4x4 block, and its town is 107 squares across, so
+   the world map is drawn at about one square to twenty-seven. Catamarca says
+   27, Kosha 22, Pnyx 21, Odemia 24. The median of all of them is the ratio,
+   so a modded archive gets its own answer.
+
+   Used to size every miniature, including the ones whose footprint is a
+   single square: a `large city` prop is a symbol rather than a measurement,
+   so the Farm and the Encampment should not come out the same size when one
+   is 26 squares of content and the other is 35. */
+function worldSquareRatio() {
+  if (window._WORLD_RATIO) return window._WORLD_RATIO;
+  const rs = [];
+  for (const gw of worldGateways()) {
+    if (gw.sealed) continue;
+    const fw = gw.x1 - gw.x0 + 1, fh = gw.y1 - gw.y0 + 1;
+    if (fw < 2 && fh < 2) continue;                 // a one-square icon says nothing
+    const b = contentBox(gw.destResid);
+    if (!b) continue;
+    if (fw >= 2) rs.push((b.x1 - b.x0 + 1) / fw);
+    if (fh >= 2) rs.push((b.y1 - b.y0 + 1) / fh);
+  }
+  rs.sort((a, b) => a - b);
+  const median = rs.length ? rs[rs.length >> 1] : 24;
+  return (window._WORLD_RATIO = Math.max(4, Math.min(64, median)));
+}
+
+/* The ratio for one place.
+
+   Where its own pictogram covers more than one square, that pictogram is the
+   answer and the median is not: the world map is stating how big this place
+   is, and a place should land on its own icon rather than on the average of
+   everyone else's. Cademia is four `small city` props in a 4x4 block over 107
+   squares of town, so its ratio is about 27 while the median of every place
+   is 21 -- and using 21 drew Cademia half again as wide as the thing it was
+   standing on.
+
+   A one-square icon is a symbol rather than a measurement -- a single `large
+   city` prop stands for the Farm and for the Encampment alike, which are 26
+   and 35 squares of content -- so those fall back to the measured median and
+   come out at their real relative sizes. */
+function gatewayRatio(gw) {
+  const fw = gw.x1 - gw.x0 + 1, fh = gw.y1 - gw.y0 + 1;
+  const b = contentBox(gw.destResid);
+  if (b && (fw >= 2 || fh >= 2)) {
+    const rs = [];
+    if (fw >= 2) rs.push((b.x1 - b.x0 + 1) / fw);
+    if (fh >= 2) rs.push((b.y1 - b.y0 + 1) / fh);
+    const r = rs.reduce((a, c) => a + c, 0) / rs.length;
+    if (r > 2) return r;
+  }
+  return worldSquareRatio();
+}
+
 /* Build every variant of one town from a single render.
 
    The feather is two destination-in passes, a horizontal ramp and then a
@@ -8632,15 +8815,28 @@ function buildThumbsFor(gw, sizes) {
     const e = renderMapUncached(gw.destResid);
     if (!e || !e.result) return;
     const src = e.result.canvas;
+    const TS = e.result.tileSize;
+    // The crop: the built part, with a margin so the outskirts are not cut
+    // off hard, clamped to the map.
+    const b = contentBox(gw.destResid);
+    const mw = e.result.width, mh = e.result.height;
+    let cx0 = 0, cy0 = 0, cx1 = mw - 1, cy1 = mh - 1;
+    if (b) {
+      const pad = Math.max(2, Math.round(Math.max(b.x1 - b.x0, b.y1 - b.y0) * 0.08));
+      cx0 = Math.max(0, b.x0 - pad); cy0 = Math.max(0, b.y0 - pad);
+      cx1 = Math.min(mw - 1, b.x1 + pad); cy1 = Math.min(mh - 1, b.y1 + pad);
+    }
+    const sx = cx0 * TS, sy = cy0 * TS;
+    const sw = (cx1 - cx0 + 1) * TS, sh = (cy1 - cy0 + 1) * TS;
     const shrink = (sz) => {
-      const k = sz / Math.max(src.width, src.height);
-      const w = Math.max(1, Math.round(src.width * k)), h = Math.max(1, Math.round(src.height * k));
+      const k = sz / Math.max(sw, sh);
+      const w = Math.max(1, Math.round(sw * k)), h = Math.max(1, Math.round(sh * k));
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
       const tc = c.getContext('2d');
       if (!tc) return null;
       tc.imageSmoothingEnabled = true;
-      tc.drawImage(src, 0, 0, w, h);
+      tc.drawImage(src, sx, sy, sw, sh, 0, 0, w, h);
       tc.globalCompositeOperation = 'destination-in';
       const ramp = (g0) => { g0.addColorStop(0, 'rgba(0,0,0,0)'); g0.addColorStop(0.22, 'rgba(0,0,0,1)');
                              g0.addColorStop(0.78, 'rgba(0,0,0,1)'); g0.addColorStop(1, 'rgba(0,0,0,0)'); return g0; };
@@ -8649,7 +8845,10 @@ function buildThumbsFor(gw, sizes) {
       tc.fillStyle = ramp(tc.createLinearGradient(0, 0, 0, h));
       tc.fillRect(0, 0, w, h);
       tc.globalCompositeOperation = 'source-over';
-      return c;
+      // The crop is carried with the picture: it is what sizes the miniature
+      // on the world map, and what lets the crossing land the real map
+      // exactly where the miniature was.
+      return { canvas: c, x0: cx0, y0: cy0, x1: cx1, y1: cy1, TS };
     };
     // Bare first, off the clean canvas; then the roofs go on and the same
     // sizes are taken again. One render, every variant.
@@ -8668,16 +8867,22 @@ function worldThumb(gw, size, roofed) {
   return worldThumbs.get(key) || null;
 }
 
-/* Where a town's miniature sits, in screen pixels: centred on its own
-   footprint, THUMB_SPREAD times its size and never below THUMB_MIN_SQUARES,
-   with the map's own aspect kept. */
+/* Where a town's miniature sits, in screen pixels.
+
+   Sized by the measured ratio rather than by the footprint: the built part of
+   the map, divided by however many region squares one world square stands
+   for, is how many world squares the place occupies. Cademia's 107 squares
+   of town over a ratio of about 27 is four world squares, which is exactly
+   the block of pictogram props the world map draws there -- so it lands on
+   its own icon rather than near it. A Vineyard 45 by 14 comes out as the wide
+   strip it is, where sizing by a one-square footprint made it a small square.
+
+   Centred on the footprint, which is where the world map put the place. */
 function thumbRect(gw, thumb, cm) {
   const k = cm.TS * mapView.scale;
-  const fw = (gw.x1 - gw.x0 + 1), fh = (gw.y1 - gw.y0 + 1);
-  const span = Math.max(fw, fh, THUMB_MIN_SQUARES / THUMB_SPREAD) * THUMB_SPREAD;
-  const ratio = thumb.width / thumb.height;
-  let w = span * k, h = w / ratio;
-  if (ratio < 1) { h = span * k; w = h * ratio; }
+  const ratio = gatewayRatio(gw);
+  const w = ((thumb.x1 - thumb.x0 + 1) / ratio) * k;
+  const h = ((thumb.y1 - thumb.y0 + 1) / ratio) * k;
   const cx = mapView.x + ((gw.x0 + gw.x1 + 1) / 2) * k;
   const cy = mapView.y + ((gw.y0 + gw.y1 + 1) / 2) * k;
   return { x: cx - w / 2, y: cy - h / 2, w, h };
@@ -8694,9 +8899,10 @@ function thumbRect(gw, thumb, cm) {
 function drawTown(ctx, gw, rect, alpha, roofT) {
   let lvl = null;
   for (const sz of THUMB_LEVELS) {
-    if (!worldThumbs.get(thumbKey(gw.destResid, sz, true))) continue;
+    const t = worldThumbs.get(thumbKey(gw.destResid, sz, true));
+    if (!t) continue;
     lvl = sz;
-    if (sz >= rect.w) break;
+    if (t.canvas.width >= rect.w) break;
   }
   if (lvl === null) return false;
   const roofed = worldThumbs.get(thumbKey(gw.destResid, lvl, true));
@@ -8704,14 +8910,14 @@ function drawTown(ctx, gw, rect, alpha, roofT) {
   ctx.imageSmoothingEnabled = true;
   if (bare && roofT < 0.98) {
     ctx.globalAlpha = alpha;
-    ctx.drawImage(bare, rect.x, rect.y, rect.w, rect.h);
+    ctx.drawImage(bare.canvas, rect.x, rect.y, rect.w, rect.h);
     if (roofT > 0.02) {
       ctx.globalAlpha = alpha * roofT;
-      ctx.drawImage(roofed, rect.x, rect.y, rect.w, rect.h);
+      ctx.drawImage(roofed.canvas, rect.x, rect.y, rect.w, rect.h);
     }
   } else {
     ctx.globalAlpha = alpha;
-    ctx.drawImage(roofed, rect.x, rect.y, rect.w, rect.h);
+    ctx.drawImage(roofed.canvas, rect.x, rect.y, rect.w, rect.h);
   }
   ctx.globalAlpha = 1;
   return true;
@@ -9568,19 +9774,25 @@ function finishWorldFade() {
 
 // Cross into a gateway: the zoom reaching WORLD_ENTER_AT, a row of the
 // gazetteer, or the button on the square's own inspector card.
-/* Cross into a gateway, landing on the way in rather than on the whole map.
+/* Cross into a gateway with nothing moving but the resolution.
 
-   The view arrives centred on the square the zoneport actually puts you on --
-   the mouth of the tunnel, the gate of the town -- at the same number of
-   screen pixels per square the world was being read at when it crossed. The
-   zoom does not jump, so what happens is that the place opened where the
-   reader was already looking, which is what zooming into it was asking for.
-   Fitting the whole map instead, which is what this did before, answered a
-   question nobody had asked and threw away the spot they were aiming at.
+   A town has been on screen as a miniature for the whole approach, at a
+   definite place and a definite size. The real map is therefore put exactly
+   where that miniature was: the same crop of it, over the same rectangle. The
+   scale does not jump, the place does not jump, and what the reader sees is
+   the picture they were already looking at stop being a picture. Anything
+   else -- fitting the whole map, or re-centring on the arrival square -- is a
+   snap, and a snap is what makes it feel like a different screen rather than
+   the same place closer up.
+
+   A sealed destination has no miniature, because there is no cave to draw on
+   the world map. That one lands centred on the square the zoneport puts you
+   on, at the zoom the crossing happened at, which is the tunnel mouth the
+   reader was aiming into.
 
    Written into MAP_VIEW_MEMORY rather than applied, because that is what
    restoreOrFitMap will read and what crossfadeToZone paints the overlay at:
-   the two have to agree or the swap shows as a jump. */
+   the two have to agree or the swap shows as a jump after all. */
 function enterGateway(gw) {
   window.WORLD_GATE_HOLD = gw.port;
   window.WORLD_TRAIL = { port: gw.port, name: gw.name, x: gw.x0, y: gw.y0 };
@@ -9588,14 +9800,23 @@ function enterGateway(gw) {
   const vp = document.getElementById('mapViewport');
   const dest = mapRenderFor(gw.destResid, true);
   if (cm && vp && vp.clientWidth > 40 && dest && dest.result) {
-    const ppt = cm.TS * mapView.scale;
     const ts = dest.result.tileSize;
-    const scale = Math.max(0.05, ppt / ts);
-    window.MAP_VIEW_MEMORY[gw.destResid] = {
-      scale,
-      x: vp.clientWidth / 2 - (gw.destX + 0.5) * ts * scale,
-      y: vp.clientHeight / 2 - (gw.destY + 0.5) * ts * scale
-    };
+    const thumb = worldThumbs.get(thumbKey(gw.destResid, THUMB_LEVELS[0], true));
+    let view = null;
+    if (thumb && cm.resid === WORLD_MAP_RESID) {
+      // The rectangle the miniature is occupying, and the crop it is of.
+      const r = thumbRect(gw, thumb, cm);
+      const scale = r.w / ((thumb.x1 - thumb.x0 + 1) * ts);
+      if (scale > 0.02 && isFinite(scale))
+        view = { scale, x: r.x - thumb.x0 * ts * scale, y: r.y - thumb.y0 * ts * scale };
+    }
+    if (!view) {
+      const scale = Math.max(0.05, (cm.TS * mapView.scale) / ts);
+      view = { scale,
+               x: vp.clientWidth / 2 - (gw.destX + 0.5) * ts * scale,
+               y: vp.clientHeight / 2 - (gw.destY + 0.5) * ts * scale };
+    }
+    window.MAP_VIEW_MEMORY[gw.destResid] = view;
   }
   crossfadeToZone(gw.destResid, gw.destX, gw.destY);
 }
