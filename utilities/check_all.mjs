@@ -160,6 +160,13 @@ const CHECKS = [
   {page: 'viewer', name: 'static', cmd: ['utilities/verify_viewer.mjs', 'index.html']},
   {page: 'viewer', name: 'decoder snapshot', want: [DATA],
    cmd: ['utilities/decoder_snapshot.mjs', 'index.html', DATA], grep: /SNAPSHOT \w+/},
+  // Synthetic on purpose: none of Cythera's twenty-one PICTs uses the
+  // uncompressed 1-bit opcodes, so no snapshot over the game's resources can
+  // notice this path breaking. The viewer opens any resource fork, not only
+  // this game's.
+  {page: 'viewer', name: 'PICT BitsRect',
+   cmd: ['utilities/pict_bits_check.mjs', 'index.html'],
+   grep: /\d+ synthetic pictures/},
   {page: 'viewer', name: 'delvmod tables', want: [DATA, DELV],
    cmd: ['utilities/delv_crosscheck.mjs', 'index.html', DELV, DATA]},
   {page: 'viewer', name: 'delvmod graphics', want: [DATA, GFX_REF],

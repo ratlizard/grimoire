@@ -479,7 +479,7 @@ const PICT_FIXED_LEN = {
 const PICT_LEN_PREFIXED_2 = new Set([0x0024,0x0025,0x0026,0x0027,0x002C,0x002D,0x002E,0x002F,0x0092,0x0093,0x0094,0x0095,0x0096,0x0097,0x009C,0x009D,0x009E,0x009F]);
 const PICT_REGION_OPS = new Set([0x0001,0x0080,0x0081,0x0082,0x0083,0x0084,0x0085,0x0086,0x0087]);
 const PICT_POLY_OPS = new Set([0x0070,0x0071,0x0072,0x0073,0x0074,0x0075,0x0076]);
-const PICT_IMAGE_OPS = new Set([0x0098,0x0099,0x009A,0x009B]);
+const PICT_IMAGE_OPS = new Set([0x0090,0x0091,0x0098,0x0099,0x009A,0x009B]);
 // Walk the opcode stream (skipping every opcode we don't render) until we
 // reach a bitmap opcode. This replaces a byte-by-byte signature scan, which
 // could false-match inside pixel/text data and silently mis-locate images.
@@ -518,13 +518,6 @@ function findPictImageOpcode(data){
       }
       continue;
     }
-    if(op===0x0090||op===0x0091){ // BitsRect/BitsRgn (unpacked 1-bit bitmap, no color table)
-      const rowWord=u16be(data,p); const rowBytes=rowWord&0x3fff; p+=2;
-      const bounds=readRect(data,p); p+=8; p+=8+8+2;
-      if(op===0x0091){ const rs=u16be(data,p); p+=rs; }
-      p += rowBytes*(bounds.bottom-bounds.top);
-      continue;
-    }
     if(PICT_IMAGE_OPS.has(op)) return {op,p};
     if(op===0x00A1){ p+=2; const size=u16be(data,p); p+=2+size; if(p%2)p+=1; continue; } // LongComment
     if(op===0x00FF) return null; // end of picture, nothing to draw
@@ -544,6 +537,29 @@ function decodePictPackBits(data,pre){
   const found = (pre && !pre.quicktime) ? pre : findPictImageOpcode(data);
   if(!found||found.quicktime) throw new Error('No PackBitsRect/PackBitsRgn/DirectBitsRect/DirectBitsRgn image opcode found in this PICT.');
   const foundOp=found.op; let p=found.p;
+  if(foundOp===0x0090||foundOp===0x0091){
+    // BitsRect/BitsRgn: an old-style 1-bit BitMap whose rows are stored
+    // UNPACKED, which is the only thing separating them from 0x98/0x99. The
+    // header is identical -- rowBytes, bounds, srcRect, dstRect, mode -- and
+    // there is no colour table. These were walked past for alignment and
+    // never drawn, so a picture built from several CopyBits came out partial
+    // in the browser and complete everywhere else; systemless renders them in
+    // src/trap/pict.rs (parse_bits_rect) and alchemy/port in pict.cpp, so the
+    // layout below has two references and is not inferred from the data.
+    const rowBytes=u16be(data,p)&0x3fff; p+=2;
+    const bounds=readRect(data,p); p+=8;
+    p+=8; const dst=readRect(data,p); p+=8; const mode=u16be(data,p); p+=2;
+    if(foundOp===0x0091){ const rgnSize=u16be(data,p); p+=rgnSize; }
+    const W=bounds.right-bounds.left, H=bounds.bottom-bounds.top;
+    if(W<=0||H<=0||rowBytes<=0) throw new Error(`Unsupported BitMap (${W}×${H})`);
+    if(p+rowBytes*H>data.length) throw new Error('PICT bitmap data ends unexpectedly');
+    const rows=[];
+    for(let y=0;y<H;y++){ rows.push(data.slice(p,p+rowBytes)); p+=rowBytes; }
+    const pm1={rowBytes,bounds,pixelSize:1};
+    // QuickDraw 1-bit: set bit = black.
+    const canvas=renderPictIndexed(pm1,[[255,255,255],[0,0,0]],rows);
+    return {canvas,width:W,height:H,pixelSize:1,mode,opcode:foundOp,opcodeOffset:found.p-2,colorSpace:'1-bit bitmap'};
+  }
   if(foundOp===0x0098||foundOp===0x0099){
     // PackBitsRect/Rgn may carry either a PixMap (high bit of rowBytes set) or
     // an old-style 1-bit BitMap. The BitMap header is only rowBytes+bounds and
