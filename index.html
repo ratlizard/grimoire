@@ -4079,21 +4079,13 @@ function resetDerivedCaches() {
   window.ZONE_NAMES = null;
   window.ZONEPORTS = null;
   window.WORLD_GATEWAYS = null;
-  window.WORLD_TRAIL = null;
-  window.WORLD_STACK = [];
   window.ATLAS_SCENE = null;
   window.ATLAS_BELOW = [];
   atlasTransforms.clear();
   belowScenes.clear();
   locatedCache.clear();
-  window.WORLD_ZONE = null;
-  window.WORLD_ARRIVE = null;
-  window.WORLD_GATE_HOLD = null;
-  window.WORLD_BASE_TS = null;
-  window.ROOF_MANUAL = false;
   zoneMapCache.clear();
   worldThumbs.clear();
-  surroundPlates.clear();
   contentBoxes.clear();
   window._WORLD_RATIO = null;
   window.WORLD_PRELOAD = false;
@@ -4501,10 +4493,6 @@ function viewLabel(hash) {
     } catch (e) {}
     return kind + ' ' + id;
   }
-  if (q.z) {
-    const zr = parseInt(q.z, 16);
-    return (zoneNameFor(zr) || labelFor(zr) || ('0x' + q.z.toUpperCase())) + ', in the world';
-  }
   if (q.r) {
     const rid = parseInt(q.r, 16);
     const l = labelFor(rid);
@@ -4559,12 +4547,6 @@ function syncDeepLink() {
   if (d && DETAIL_OPENERS[d.kind]) h += '&d=' + d.kind + ':' + d.id;
   const r = currentMode === 'single' ? currentSelectedResid() : null;
   if (r != null) h += '&r=' + r.toString(16).toUpperCase();
-  // The World tab keeps its zone in `z` rather than `r`, because `r` means
-  // "the resource open in this category's gallery" and the World tab has no
-  // gallery: a bare &r=8008 would send applyDeepLink through jumpToResource,
-  // which switches the tab to Entities > Regions. See worldOpenZone.
-  if (window.CUR_SUBN === 'WORLD' && window.WORLD_ZONE && window.WORLD_ZONE !== WORLD_MAP_RESID)
-    h += '&z=' + window.WORLD_ZONE.toString(16).toUpperCase();
   if (h === location.hash) return;
   // The view being left is the one to come back to -- every view, a gallery
   // included. Galleries used to be left out ("the gallery button already
@@ -4635,18 +4617,7 @@ function applyDeepLink(q) {
     const id = rest.join(':');
     if (open && showCategory(q.c)) { open(STRING_DETAIL_IDS.has(kind) ? id : parseInt(id, 10)); return true; }
   }
-  /* The World tab keeps its zone in `z` -- see syncDeepLink -- and the zone
-     is set BEFORE the category, which matters twice over. The tab then opens
-     on the right map first time rather than opening the world and replacing
-     it; and a hash with no `z`, which is exactly what the browser's back
-     button lands on after walking into a town, puts the world map back
-     instead of reopening the town that was just left. */
-  if (q.c === 'WORLD') {
-    const zr = q.z ? parseInt(q.z, 16) : WORLD_MAP_RESID;
-    window.WORLD_ZONE = Number.isFinite(zr) ? zr : WORLD_MAP_RESID;
-    if (window.WORLD_ZONE === WORLD_MAP_RESID) window.WORLD_TRAIL = null;
-    if (showCategory('WORLD')) return true;
-  }
+  if (q.c === 'WORLD' && showCategory('WORLD')) return true;
   if (q.r) {
     const resid = parseInt(q.r, 16);
     if (Number.isFinite(resid) && jumpToResource(resid)) return true;
@@ -6098,12 +6069,8 @@ function paintRoofsInto(ctx, TS, m, sections) {
 function toggleRoofs(on) {
   window.MAP_ROOFS = on;
   drawRoofLayer();
-  // Only the World tab's zoom fade leaves this layer part-transparent, and
-  // only while it is the thing driving it. Everywhere else -- the gallery's
-  // map view, or this map once the checkbox has been touched -- the roofs are
-  // either on or off, so a leftover opacity from another view is cleared.
   const rc = document.getElementById('roofLayer');
-  if (rc && (window.CUR_SUBN !== 'WORLD' || window.ROOF_MANUAL)) rc.style.opacity = '1';
+  if (rc) rc.style.opacity = '1';
   const note = document.getElementById('roofNote');
   const cm = window.CUR_MAP;
   if (note) {
@@ -8548,15 +8515,7 @@ function renderMapResource(resid) {
     // deserves 1600% to reach the same place -- and the detail lens renders
     // that at the real art, not an 8px blur.
     const zs = document.getElementById('mapZoomSlider');
-    // 400% of a TS=32 map is 128 screen px a tile, so a map below native gets
-    // the ceiling that reaches the same place. The world map is the exception:
-    // its own art runs out at 32 px a square like everything else, and past
-    // WORLD_ZOOM_CEILING there is nothing further to see -- only the same art
-    // stretched, and a long way still to drag. Every gateway is entered before
-    // then, so the ceiling costs nothing.
-    if (zs) zs.max = (resid === WORLD_MAP_RESID && window.CUR_SUBN === 'WORLD')
-      ? Math.round(100 * WORLD_ZOOM_CEILING / result.tileSize)
-      : Math.round(400 * 32 / result.tileSize);
+    if (zs) zs.max = Math.round(400 * 32 / result.tileSize);
     clearMapInspector();
     startMapAnimation();
     toggleRoofs(window.MAP_ROOFS);   // draws the layer and updates the note
@@ -8584,91 +8543,21 @@ function renderMapResource(resid) {
 
 
 /* ---------------------------------------------------------------------------
-   The World tab
+   The maps the World tab draws with
    ---------------------------------------------------------------------------
-   One view: the world map (0x8001), 256x256 squares, with every way off it
-   live. It is a tab rather than a gallery because there is nothing to browse
-   -- there is one world -- and because the thing worth doing here is moving
-   around it, not picking a resource out of a list.
+   Renders, thumbnails and the measurements that place them. The Atlas section
+   below is what puts them on screen; this is what it puts there.
 
-   Zooming into a town opens the town, and what that cannot be is a matter of
-   fact rather than of taste. The Gateways comment above worldGateways has the
-   measurement: the world map draws Cademia as a pictogram four squares
-   across, and Cademia's own map is 128x128 squares. No zone map is embedded
-   in the world map -- the best tile-for-tile agreement any of them reaches at
-   any offset is 44%, and that is open water -- so a town cannot be revealed
-   by magnifying the world map, and it must not be pasted onto the world grid
-   at 1:1 either: Cademia would cover a quarter of the continent and swallow
-   its neighbours, asserting a geography the archive does not contain.
-
-   So the world map is left exactly as it is, and moving between it and a town
-   is a transition rather than a magnification -- which is also how the game
-   itself moves between zones. Past WORLD_HINT_AT screen pixels per world
-   square the gateway nearest the middle of the view is ringed and named, so
-   that what is about to happen is legible before it happens; past
-   WORLD_ENTER_AT the view cross-fades to that town's own map. From there the
-   whole of the existing map panel applies: the detail lens paints the native
-   32-pixel art, the marks, the roofs, the walls toggle, the inhabitants
-   walking their day, and a click on any square naming everything on it. The
-   cross-fade is the transition; it is not a second, poorer map viewer, and
-   nothing in it is reimplemented.
-
-   The cross-fade paints the destination into an overlay over the live world,
-   fades it up, and swaps the panel underneath while the overlay is opaque.
-   That is why fitViewFor exists: the overlay has to land on exactly the pan
-   and zoom the real view is about to adopt -- which is the remembered view
-   for a town visited before, and the fit for one that has not been -- or the
-   swap shows as a jump the moment the overlay goes.
+   The one fact everything here rests on, and it was measured before any of it
+   was built: the world map does not contain the towns. It draws Cademia as a
+   pictogram four squares across, and Cademia's own map is 128x128 squares.
+   Sliding every zone map over the world grid at every offset, the best
+   tile-for-tile agreement any of them reaches is 44%, and that is the 24x16
+   Sitia bridge matching open water. So a town cannot be revealed by
+   magnifying the world map, and it must not be pasted onto the world grid at
+   1:1 either -- Cademia would cover a quarter of the continent. What relates
+   the two is the pictogram's own size, which gatewayRatio measures.
 --------------------------------------------------------------------------- */
-
-/* Screen pixels per world square at which a gateway is ringed, and at which
-   the view crosses into it.
-
-   In screen pixels rather than in the zoom percentage the slider shows,
-   because the base canvas's tile size is budgeted per device -- TS=8 on a
-   desktop, TS=4 on iOS, see renderMapVisual -- so 300% is a different
-   magnification on two machines while 22 pixels a square is the same one. */
-const WORLD_HINT_AT = 22;
-const WORLD_ENTER_AT = 56;
-
-/* How near the middle of the view a gateway has to be, as a fraction of the
-   viewport's shorter side, before it is the one being ringed and entered.
-   Without this, panning across the map at town-entering zoom would walk into
-   every town it crossed; with it, crossing over takes the deliberate act of
-   putting the place in the middle of the screen. */
-const WORLD_ENTER_RADIUS = 0.22;
-
-// The most magnification the world map is worth, in screen pixels a square.
-// Its art is 32 px a tile; past about twice that there is nothing more to
-// see. Comfortably above WORLD_ENTER_AT so a gateway can still be reached.
-const WORLD_ZOOM_CEILING = 76;
-
-/* The cross-fade is deliberately unhurried. It is not a page turn -- it is
-   the same place being looked at more closely -- and at 320ms it read as a
-   cut. */
-const WORLD_FADE_MS = 700;
-
-/* The scenery's scale is not chosen at all: it is the world map's own.
-
-   It used to be a constant -- the town's width standing for 20 world squares
-   -- and that constant was the big jump on entering a place. A miniature
-   occupies `crop / gatewayRatio` world squares, which for Cademia is about
-   4.6; the surround then redrew the same country as though the town were 20
-   squares wide, four times more magnified. So the moment the view crossed,
-   the country around it changed scale by a factor of four, and no amount of
-   care about where the map landed could hide that.
-
-   With the pitch derived from the same ratio the miniature was sized by,
-   `pitch = ratio * ts * scale`, the country is at exactly the scale the world
-   map was drawing it at a moment earlier, and the crossing changes nothing in
-   the background at all. It is never drawn around a sealed destination, where
-   the world outside would be a lie. */
-
-window.WORLD_ZONE = null;       // the map open in the World tab
-window.WORLD_TRAIL = null;      // how it was reached, when it was not the world
-window.WORLD_GATE = null;       // the gateway ringed on screen, if any
-window.WORLD_GATE_HOLD = null;  // a gateway not to cross into again just yet
-window.WORLD_FADE = null;       // a cross-fade in flight
 let worldGateTimer = null;
 const zoneMapCache = new Map();
 const worldThumbs = new Map();
@@ -8765,7 +8654,7 @@ function zoneMapCanvas(resid) {
    approach continuous rather than one blurry step. A town is drawn from the
    smallest level that is at least as big as it is on screen, so it sharpens
    as the view comes in instead of being one 192-pixel picture magnified
-   towards a cross-fade; and the roofs lift on the way in (ROOF_LIFT) by
+   towards the crossing; and the roofs lift on the way in (ROOF_LIFT) by
    cross-fading the bare level over the roofed one, so by the time the view
    crosses, the roofs are already coming off and updateRoofFade carries on
    from where this left it. A town seen from far off is roofs; a town you are
@@ -8794,9 +8683,8 @@ const THUMB_SPREAD = 1.7;
 const THUMB_MIN_SQUARES = 4;
 
 /* Screen pixels per world square over which the roofs come off a town while
-   the view is still outside it. It ends short of WORLD_ENTER_AT so that the
-   crossing lands on a town whose roofs are already going, rather than on a
-   change of subject. */
+   the view is still outside it, so that a town opens with its roofs already
+   coming off rather than as a change of subject. */
 const ROOF_LIFT = [18, 44];
 
 function thumbKey(resid, size, roofed) { return resid + ':' + size + ':' + (roofed ? 'r' : 'b'); }
@@ -9213,7 +9101,7 @@ function toggleFullRes() {
   window.FULL_RES = !window.FULL_RES;
   // Every kept picture was made at the other tile size, so none of them are
   // the right answer any more.
-  zoneMapCache.clear(); worldThumbs.clear(); surroundPlates.clear();
+  zoneMapCache.clear(); worldThumbs.clear();
   window.WORLD_PRELOAD = false; window.WORLD_PRELOAD_DONE = 0;
   preloadQueue = null; preloadTodo = null; preloadSeen = null;
   // Every picture was made at the other tile size, so the scene is rebuilt
@@ -9263,27 +9151,6 @@ function prefetchZone(resid) {
   if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: 1500 });
   else setTimeout(run, 300);
 }
-/* Roofs on the way in, and off once you are close.
-
-   A town at a distance is roofs -- that is what the miniature on the world
-   map shows, and arriving on something different would be a change of subject
-   rather than a change of scale. Close up, roofs are the thing in the way:
-   the streets, the rooms and the people are all under them. So the roof layer
-   is opaque up to ROOF_FADE[0] screen pixels a square and gone by ROOF_FADE[1],
-   which is a little before the detail lens engages.
-
-   The layer's own opacity carries the fade, but at the ends the layer is
-   switched outright -- deflated when it reaches nothing, so a full-map canvas
-   is not held for something invisible, and because the detail lens draws
-   roofs from window.MAP_ROOFS rather than from this element's opacity and
-   would otherwise put them back at full strength exactly where they are meant
-   to have gone.
-
-   Touching the Roofs checkbox turns this off for as long as the map stays
-   open: an explicit choice outranks a zoom, and rediscovering that it does
-   not is the sort of thing that makes a page feel possessed. */
-const ROOF_FADE = [8, 18];
-
 /* The world map rings its gateways; a town shows the world around it and
    watches for the reader zooming back out of it. One settle, because they are
    two halves of one continuous view rather than two screens. */
@@ -9309,19 +9176,6 @@ const WORLD_LEAVE_FACTOR = 0.62;
    there was no way to say so -- zooming out of an underground did nothing at
    all, which is how it was reported. */
 // What the way back is called, for the button that offers it.
-/* Up one level: back to wherever this place was entered from.
-
-   Coming out onto the world map is the case with a rule of its own. Landing
-   exactly where the crossing happened would put the view straight back over
-   the threshold, so the hold would be the only thing keeping it out; landing
-   just below instead means the reader is simply outside again, looking at the
-   place's icon, free to zoom either way. Coming out into another map -- a
-   town above a sewer -- restores the view it was left at, which was not a
-   crossing and so cannot loop.
-
-   Either way the view is written before the fade, because that is what
-   crossfadeToZone paints the overlay at: the two have to agree or the swap
-   shows as a jump. */
 // The button under the map. Same landing as zooming out, so the two ways up
 // agree about where they put you.
 /* Which gateway the view is on, and how close it is to crossing.
@@ -9389,7 +9243,6 @@ let gateView = { x: 0, y: 0, scale: 0 };
    two of them are not a problem on a phone. */
 const SURROUND_PLATE_SQUARES = 72;
 const SURROUND_PLATE_TS = IS_IOS_WEBKIT ? 12 : 16;
-const surroundPlates = new Map();
 
 /* Where the world sits behind a town, in screen pixels.
 
@@ -9447,34 +9300,12 @@ let surroundView = { x: 0, y: 0, scale: 0 };
 /* The second half of the transition: swap the panel, then uncover it.
 
    Every step here happens before the overlay goes, and that ordering is the
-   whole job. WORLD_FADE is still set while the panel is rebuilt, so
    hideWorldGate leaves the cover alone; restoreOrFitMap is called outright
    rather than waited for, because renderMapResource schedules it on an
    animation frame and a frame is long enough to show the panel mid-landing;
    and the scenery is painted before the last line rather than on the next
    settle. Uncovering even one of those early is a flash of grey between two
    views that are meant to be one place. */
-// Cross into a gateway: the zoom reaching WORLD_ENTER_AT, a row of the
-// gazetteer, or the button on the square's own inspector card.
-/* Cross into a gateway with nothing moving but the resolution.
-
-   A town has been on screen as a miniature for the whole approach, at a
-   definite place and a definite size. The real map is therefore put exactly
-   where that miniature was: the same crop of it, over the same rectangle. The
-   scale does not jump, the place does not jump, and what the reader sees is
-   the picture they were already looking at stop being a picture. Anything
-   else -- fitting the whole map, or re-centring on the arrival square -- is a
-   snap, and a snap is what makes it feel like a different screen rather than
-   the same place closer up.
-
-   A sealed destination has no miniature, because there is no cave to draw on
-   the world map. That one lands centred on the square the zoneport puts you
-   on, at the zoom the crossing happened at, which is the tunnel mouth the
-   reader was aiming into.
-
-   Written into MAP_VIEW_MEMORY rather than applied, because that is what
-   restoreOrFitMap will read and what crossfadeToZone paints the overlay at:
-   the two have to agree or the swap shows as a jump after all. */
 // The gazetteer's rows and the inspector's card both come here by port, so
 // neither has to carry a gateway object through an inline handler.
 /* The gateway chip on a world square, from the map panel's own inspector.
