@@ -4038,6 +4038,7 @@ function resetDerivedCaches() {
   window.ZONEPORTS = null;
   window.WORLD_GATEWAYS = null;
   window.WORLD_TRAIL = null;
+  window.WORLD_STACK = [];
   window.WORLD_ZONE = null;
   window.WORLD_ARRIVE = null;
   window.WORLD_GATE_HOLD = null;
@@ -5366,8 +5367,9 @@ function drawCharacterLayer(lensCtx, lensTS) {
       scheduleLensPaint();
       return;
     }
-    if (ov.width !== cm.width || ov.height !== cm.height) {
-      { const L = layerGeom(cm); ov.width = L.w; ov.height = L.h; }
+    const L0 = layerGeom(cm);
+    if (ov.width !== L0.w || ov.height !== L0.h) {
+      ov.width = L0.w; ov.height = L0.h;
       ov.style.width = cm.width + 'px'; ov.style.height = cm.height + 'px';
     }
     ctx = ov.getContext('2d');
@@ -7691,6 +7693,7 @@ function applyMapTransform() {
     checkWorldCrossing();
     updateRoofFade();
     slideWorldOverlay();
+    slideWorldSurround();
     scheduleWorldScene();
   }
   // Thin 1px detail -- the wavy streaks in the Expanse void tiles are only
@@ -9233,65 +9236,105 @@ function paintWorldScene() {
   paintWorldSurround();
 }
 
-/* Zooming out of an open-edged town leaves it.
+/* Zooming out of anywhere goes back up a level.
 
    This is what keeps the tab from feeling like a set of rooms: the way in is
    a zoom, so the way out is the same gesture reversed, and the button below
-   the map is a convenience rather than the only exit. A sealed destination
-   has no such gesture -- there is no world immediately outside a cave -- and
-   keeps the button.
+   the map is a convenience rather than the only exit. It applies to a cave
+   and a cellar as much as to a town -- an underground reached down a stair
+   from Cademia zooms back out into Cademia, not into the world, because up a
+   level is where you came from rather than where the tab started.
 
-   The threshold is a fraction of the town's own fit, so it is the same
-   gesture on a 16-square house and on Cademia: zoom out until the map is
-   comfortably smaller than the panel and you are back in the world. */
+   The threshold is a fraction of the map's own fit, so it is the same gesture
+   on a 16-square house and on Cademia: zoom out until the map is comfortably
+   smaller than the panel and you have left it. */
 const WORLD_LEAVE_FACTOR = 0.62;
 
 function checkZoomOutReturn() {
   const cm = window.CUR_MAP;
   const vp = document.getElementById('mapViewport');
-  const gw = enteredBy();
-  if (!cm || !vp || !gw || gw.sealed || window.WORLD_FADE) return;
+  if (!cm || !vp || window.WORLD_FADE) return;
+  if (!(window.WORLD_STACK && window.WORLD_STACK.length)) return;
   const vw = vp.clientWidth, vh = vp.clientHeight;
   if (vw < 40 || vh < 40) return;
   const fit = fitViewFor(cm.canvas.width, cm.canvas.height, vw, vh);
   if (mapView.scale > fit.scale * WORLD_LEAVE_FACTOR) return;
-  leaveToWorldAt(gw);
+  goUpOneLevel();
 }
 
-/* Come back out of a town at the place it was entered, and just short of the
-   zoom that would cross back in.
+/* Where you were before this place, and how you got here.
 
-   Landing exactly where the crossing happened would put the view straight
-   back over the threshold, so the hold would be the only thing keeping it
-   out; landing just below instead means the reader is simply outside again,
-   looking at the town's icon, free to zoom either way. The remembered view is
-   written before the fade because that is what crossfadeToZone paints the
-   overlay at -- the two have to agree or the swap shows as a jump. */
-function leaveToWorldAt(gw) {
+   One trail was enough while everything was entered from the world map. It
+   is not enough for a cellar under a farmhouse or a sewer under Cademia:
+   "back" from there is the room above, not the world, and with a single trail
+   there was no way to say so -- zooming out of an underground did nothing at
+   all, which is how it was reported. */
+function pushWorldStack() {
+  const cm = window.CUR_MAP;
+  if (!cm) return;
+  window.WORLD_STACK = window.WORLD_STACK || [];
+  window.WORLD_STACK.push({
+    resid: cm.resid, trail: window.WORLD_TRAIL,
+    view: { scale: mapView.scale, x: mapView.x, y: mapView.y }
+  });
+  if (window.WORLD_STACK.length > 12) window.WORLD_STACK.shift();
+}
+
+// What the way back is called, for the button that offers it.
+function upOneLevelName() {
+  const st = window.WORLD_STACK || [];
+  if (!st.length) return null;
+  const r = st[st.length - 1].resid;
+  return r === WORLD_MAP_RESID ? 'The world'
+    : (zoneNameFor(r) || labelFor(r) || ('0x' + r.toString(16).toUpperCase()));
+}
+
+/* Up one level: back to wherever this place was entered from.
+
+   Coming out onto the world map is the case with a rule of its own. Landing
+   exactly where the crossing happened would put the view straight back over
+   the threshold, so the hold would be the only thing keeping it out; landing
+   just below instead means the reader is simply outside again, looking at the
+   place's icon, free to zoom either way. Coming out into another map -- a
+   town above a sewer -- restores the view it was left at, which was not a
+   crossing and so cannot loop.
+
+   Either way the view is written before the fade, because that is what
+   crossfadeToZone paints the overlay at: the two have to agree or the swap
+   shows as a jump. */
+function goUpOneLevel() {
+  const st = window.WORLD_STACK || [];
+  const prev = st.pop();
+  if (!prev) return;
+  const gw = enteredBy();
+  /* Forget where the reader was in the place they are leaving.
+
+     MAP_VIEW_MEMORY exists so that following a link out of a map and coming
+     back does not re-fit it. Leaving by zooming out is the one case where
+     that is wrong: the view being remembered is the zoomed-out one that
+     triggered the exit, so restoring it on the next visit would put the map
+     straight back under the leaving threshold and bounce the reader out again
+     the moment they arrived. */
+  const cm = window.CUR_MAP;
+  if (cm) delete window.MAP_VIEW_MEMORY[cm.resid];
+  window.WORLD_TRAIL = prev.trail || null;
   const vp = document.getElementById('mapViewport');
-  const ts = window.WORLD_BASE_TS || 8;
-  if (vp && vp.clientWidth > 40) {
+  if (prev.resid === WORLD_MAP_RESID && gw && vp && vp.clientWidth > 40) {
+    const ts = window.WORLD_BASE_TS || 8;
     const scale = (WORLD_ENTER_AT * 0.8) / ts;
     window.MAP_VIEW_MEMORY[WORLD_MAP_RESID] = {
       scale,
       x: vp.clientWidth / 2 - ((gw.x0 + gw.x1 + 1) / 2) * ts * scale,
       y: vp.clientHeight / 2 - ((gw.y0 + gw.y1 + 1) / 2) * ts * scale
     };
-  }
-  /* Forget where the reader was in the town they are leaving.
-
-     MAP_VIEW_MEMORY exists so that following a link out of a map and coming
-     back does not re-fit it. Leaving by zooming out is the one case where
-     that is wrong: the view being remembered is the zoomed-out one that
-     triggered the exit, so restoring it on the next visit would put the town
-     straight back under the leaving threshold and bounce the reader out
-     again the moment they arrived. */
-  const cm = window.CUR_MAP;
-  if (cm && cm.resid !== WORLD_MAP_RESID) delete window.MAP_VIEW_MEMORY[cm.resid];
-  window.WORLD_GATE_HOLD = gw.port;
-  window.WORLD_TRAIL = null;
-  crossfadeToZone(WORLD_MAP_RESID);
+  } else if (prev.view) window.MAP_VIEW_MEMORY[prev.resid] = prev.view;
+  if (gw) window.WORLD_GATE_HOLD = gw.port;
+  crossfadeToZone(prev.resid);
 }
+
+// The button under the map. Same landing as zooming out, so the two ways up
+// agree about where they put you.
+function backToWorldMap() { goUpOneLevel(); }
 
 /* Which gateway the view is on, and how close it is to crossing.
 
@@ -9611,7 +9654,7 @@ function ensureWorldSurround() {
     el = document.createElement('canvas');
     el.id = 'worldSurround';
     el.style.cssText = 'position:absolute; top:0; left:0; pointer-events:none; z-index:0; ' +
-                       'display:none; max-width:none; max-height:none;';
+                       'display:none; max-width:none; max-height:none; transform-origin:0 0;';
     vp.appendChild(el);
   }
   return el;
@@ -9619,8 +9662,32 @@ function ensureWorldSurround() {
 
 function hideWorldSurround() {
   const el = document.getElementById('worldSurround');
-  if (el) { el.style.display = 'none'; el.width = 0; el.height = 0; }
+  if (el) { el.style.display = 'none'; el.style.transform = ''; el.width = 0; el.height = 0; }
+  surroundView = { x: 0, y: 0, scale: 0 };
   setMapEdgeFeather(false);
+}
+
+/* Carry the scenery with the map between repaints.
+
+   This is the one layer over the map that was not slid, and it is the one
+   that could least afford not to be. Everything on it is placed as
+   `origin + worldSquare x pitch`, and the origin is pinned to the gateway --
+   Cademia's is 171 squares from the corner of the world -- so a pitch one
+   zoom step stale moves the picture by 171 times that error. Panning was
+   survivable; zooming threw the country a few hundred pixels to the left and
+   snapped it back on the settle, which is exactly how it was reported.
+
+   The map's own transform is the correct one, and the algebra says so: a
+   surround point sits at S'(w) = r*S(w) + (x' - r*x), which is a translate
+   and a scale about the element's own origin -- the same shape as slideLens,
+   with no margin to account for. */
+let surroundView = { x: 0, y: 0, scale: 0 };
+function slideWorldSurround() {
+  const el = document.getElementById('worldSurround');
+  if (!el || el.style.display === 'none' || !surroundView.scale || window.WORLD_FADE) return;
+  const r = mapView.scale / surroundView.scale;
+  el.style.transform = 'translate(' + (mapView.x - r * surroundView.x) + 'px,' +
+                       (mapView.y - r * surroundView.y) + 'px) scale(' + r + ')';
 }
 
 /* Repainted off the same settle as everything else over the map. Only for an
@@ -9645,6 +9712,8 @@ function paintWorldSurround() {
   ctx.clearRect(0, 0, vw, vh);
   if (paintSurroundInto(ctx, vw, vh, gw, cm.canvas.width, cm.canvas.height, mapView)) {
     el.style.display = '';
+    el.style.transform = '';
+    surroundView = { x: mapView.x, y: mapView.y, scale: mapView.scale };
     setMapEdgeFeather(true);
   } else { hideWorldSurround(); setMapEdgeFeather(false); }
 }
@@ -9794,6 +9863,7 @@ function finishWorldFade() {
    restoreOrFitMap will read and what crossfadeToZone paints the overlay at:
    the two have to agree or the swap shows as a jump after all. */
 function enterGateway(gw) {
+  pushWorldStack();
   window.WORLD_GATE_HOLD = gw.port;
   window.WORLD_TRAIL = { port: gw.port, name: gw.name, x: gw.x0, y: gw.y0 };
   const cm = window.CUR_MAP;
@@ -9840,8 +9910,9 @@ function enterZoneFromWorld(resid, x, y) {
     if (cm && cm.resid === WORLD_MAP_RESID) {
       const gw = worldGateways().find(g => g.destResid === resid && g.destX === x && g.destY === y);
       if (gw) { enterGateway(gw); return; }
+      pushWorldStack();
       window.WORLD_TRAIL = { name: zoneNameFor(resid) || ('0x' + resid.toString(16).toUpperCase()) };
-    }
+    } else pushWorldStack();
     crossfadeToZone(resid, x, y);
     return;
   }
@@ -9863,6 +9934,9 @@ function enterZoneFromWorld(resid, x, y) {
 function worldOpenZone(resid, x, y, quiet) {
   hideWorldGate();
   window.WORLD_ZONE = resid;
+  // Standing on the world map is standing at the top: there is nothing above
+  // it to go back up to.
+  if (resid === WORLD_MAP_RESID) window.WORLD_STACK = [];
   // The world map's own render is pinned in the cache (see mapRenderFor), so
   // the scenery behind a town and the way back out both reuse the bitmap the
   // world map was already drawn from rather than making a second one.
@@ -9886,14 +9960,7 @@ function worldOpenZone(resid, x, y, quiet) {
   }
 }
 
-// The button under the map, and the same landing as zooming out, so the two
-// ways out of a town agree about where they put you.
-function backToWorldMap() {
-  const gw = enteredBy();
-  if (gw) { leaveToWorldAt(gw); return; }
-  window.WORLD_TRAIL = null;
-  crossfadeToZone(WORLD_MAP_RESID);
-}
+
 
 // The tab itself.
 function renderWorldView() {
@@ -9949,8 +10016,9 @@ function renderWorldBar() {
   // An open-edged place is left the way it was entered, by zooming; the
   // button is the convenience rather than the exit, so the note names the
   // gesture first. A sealed one has no such gesture and the button is the way.
-  const out = (gw && !gw.sealed) ? 'Zoom out to leave.' : '';
-  bar.innerHTML = '<button class="crumbBtn" onclick="backToWorldMap()">↰ The world</button>' +
+  const out = 'Zoom out to leave.';
+  const up = upOneLevelName() || 'The world';
+  bar.innerHTML = '<button class="crumbBtn" onclick="goUpOneLevel()">↰ ' + svEsc(up) + '</button>' +
     '<span class="wbWhere">' + svEsc(zoneNameFor(here) || labelFor(here) ||
       ('0x' + here.toString(16).toUpperCase())) + '</span>' +
     (cm ? '<span class="wbNote">' + cm.tilesW + '×' + cm.tilesH + ' squares' +

@@ -917,7 +917,7 @@ try {
     // looking at the town's icon -- so zooming in again crosses back, which
     // is the whole point of the way in being a zoom. Landing exactly where
     // the crossing happened would need the hold to be doing the work instead.
-    ctx.backToWorldMap();
+    ctx.goUpOneLevel();
     if (ctx.WORLD_FADE) ctx.finishWorldFade();
     const cm2 = peek('CUR_MAP');
     if (!cm2 || cm2.resid !== 0x8001) fail('world tab', 'the way back to the world map failed');
@@ -1039,7 +1039,7 @@ try {
                               `where its miniature was ${lastRect.x.toFixed(0)}/${lastRect.w.toFixed(0)}`);
           else console.log('  world tab: the crossing lands the map exactly on its own miniature');
         }
-        ctx.backToWorldMap();
+        ctx.goUpOneLevel();
         if (ctx.WORLD_FADE) ctx.finishWorldFade();
       }
     }
@@ -1242,7 +1242,7 @@ try {
                                                     'and the checkbox outranks both'); }
       }
     }
-    ctx.backToWorldMap();
+    ctx.goUpOneLevel();
     if (ctx.WORLD_FADE) ctx.finishWorldFade();
   }
 
@@ -1266,13 +1266,13 @@ try {
       ctx.enterGateway(od);
       if (ctx.WORLD_FADE) ctx.finishWorldFade();
       const inbound = n;
-      ctx.backToWorldMap();
+      ctx.goUpOneLevel();
       if (ctx.WORLD_FADE) ctx.finishWorldFade();
       const outbound = n - inbound;
       ctx.enterGateway(od);
       if (ctx.WORLD_FADE) ctx.finishWorldFade();
       const again = n - inbound - outbound;
-      ctx.backToWorldMap();
+      ctx.goUpOneLevel();
       if (ctx.WORLD_FADE) ctx.finishWorldFade();
       if (inbound !== 1)
         fail('world tab', `crossing into a town cost ${inbound} map renders, expected 1`);
@@ -1324,10 +1324,85 @@ try {
                          'entrance at ' + lkh.destX + ',' + lkh.destY + ' and still at ' +
                          Math.round(cmS.TS * mv.scale) + 'px a square');
       }
-      ctx.backToWorldMap();
+      ctx.goUpOneLevel();
       if (ctx.WORLD_FADE) ctx.finishWorldFade();
       if (worldTS !== peek('CUR_MAP').TS) fail('world tab', 'the world map changed tile size');
     }
+  }
+
+  /* Two levels down, and back up one at a time.
+
+     A single trail was enough while everything was entered from the world
+     map. It is not enough for a sewer under Cademia: back from there is the
+     town above, not the world, and with one trail zooming out of an
+     underground did nothing at all. */
+  {
+    ctx.showCategory('WORLD');
+    const cad2 = gws.find(g => g.destResid === 0x8008);
+    ctx.enterGateway(cad2);
+    if (ctx.WORLD_FADE) ctx.finishWorldFade();
+    // Down a second level, the way the square inspector's chip does it.
+    ctx.enterZoneFromWorld(0x8015, 8, 59);            // the Sewers, under Cademia
+    if (ctx.WORLD_FADE) ctx.finishWorldFade();
+    const deep = peek('CUR_MAP');
+    if (!deep || deep.resid !== 0x8015) fail('world tab', 'could not get two levels down');
+    else if (ctx.WORLD_STACK.length !== 2)
+      fail('world tab', `two levels down left a stack of ${ctx.WORLD_STACK.length}`);
+    else if (peek('upOneLevelName')() !== 'Cademia')
+      fail('world tab', `up from the Sewers is "${peek('upOneLevelName')()}", not Cademia`);
+    else {
+      // Zoom out of the underground: up is the town above, not the world.
+      const vpD = REGISTRY.get('mapViewport');
+      const fit = peek('fitViewFor')(deep.canvas.width, deep.canvas.height,
+                                     vpD.clientWidth, vpD.clientHeight);
+      mv.scale = fit.scale * (peek('WORLD_LEAVE_FACTOR') - 0.05);
+      ctx.applyMapTransform();
+      if (ctx.WORLD_FADE) ctx.finishWorldFade();
+      if (peek('CUR_MAP').resid !== 0x8008)
+        fail('world tab', 'zooming out of the underground did not come up into Cademia (0x' +
+                          peek('CUR_MAP').resid.toString(16) + ')');
+      else if (ctx.WORLD_STACK.length !== 1)
+        fail('world tab', 'coming up a level did not pop the stack');
+      else {
+        ctx.goUpOneLevel();
+        if (ctx.WORLD_FADE) ctx.finishWorldFade();
+        if (peek('CUR_MAP').resid !== 0x8001)
+          fail('world tab', 'the second way up did not reach the world map');
+        else if (ctx.WORLD_STACK.length !== 0)
+          fail('world tab', 'the world map is the top and should leave an empty stack');
+        else console.log('  world tab: world > Cademia > Sewers, and zooming out comes back up ' +
+                         'one level at a time');
+      }
+    }
+  }
+
+  /* The scenery has to be carried with the map like everything else over it.
+     It is the layer that could least afford not to be: every point on it is
+     placed relative to the gateway, and Cademia's is 171 squares from the
+     corner of the world, so a pitch one zoom step stale threw the country
+     hundreds of pixels sideways and snapped it back on the settle. */
+  {
+    ctx.showCategory('WORLD');
+    const cad3 = gws.find(g => g.destResid === 0x8008);
+    ctx.enterGateway(cad3);
+    if (ctx.WORLD_FADE) ctx.finishWorldFade();
+    peek('paintWorldScene')();
+    const sur = REGISTRY.get('worldSurround');
+    if (!sur || sur.style.display === 'none') fail('world tab', 'no scenery to slide');
+    else if (sur.style.transform) fail('world tab', 'a fresh paint left a stale slide on the scenery');
+    else {
+      const s0 = mv.scale;
+      mv.x -= 40; mv.y -= 15; mv.scale = s0 * 1.5;
+      ctx.applyMapTransform();
+      const t = sur.style.transform || '';
+      const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)\s*scale\(([-\d.]+)\)/.exec(t);
+      if (!m) fail('world tab', `the scenery was not slid by a zoom ("${t}")`);
+      else if (Math.abs(+m[3] - 1.5) > 0.001)
+        fail('world tab', `the scenery slid at scale ${m[3]}, not the 1.5 the map moved by`);
+      else console.log('  world tab: the scenery is carried with the map through a zoom, not left behind');
+    }
+    ctx.goUpOneLevel();
+    if (ctx.WORLD_FADE) ctx.finishWorldFade();
   }
 
   /* Who that is, under the pointer. Nothing else would notice the hover card

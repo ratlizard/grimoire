@@ -369,8 +369,9 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   cache, Cademia's miniature landing within about half a square of its own
   4-square pictogram and the crossing putting the real map exactly on that
   miniature, the hover card naming the right person and staying quiet over
-  bare ground, the lens engaging at 1.6× where the old absolute rule would not
-  have,
+  bare ground, world › Cademia › Sewers coming back up one level at a time,
+  the scenery being carried through a zoom rather than left behind, the lens
+  engaging at 1.6× where the old absolute rule would not have,
   the surround plate being sharper than the base it replaces and centred on
   its own gateway, and — by counting `renderMapVisual` calls rather than
   timing anything — that a crossing costs **one** map render and a return or a
@@ -696,6 +697,17 @@ Read the comment above a constant before correcting it.
   drawn on top — the base keeps `animReplay` for this, but those blits are
   recorded at the base's tile size and the lens paints at 32, so what it needs
   is the prop records). Skipped while the lens is mid-slide.
+  **Everything drawn over the map is slid between repaints**
+  (`slideWorldOverlay` for the miniatures and names, `slideWorldSurround` for
+  the scenery, `slideLens` for the lens). The scenery was the one that was
+  not, and it is the one that could least afford it: every point on it is
+  placed relative to its gateway, and Cademia's is **171 squares** from the
+  corner of the world, so a pitch one zoom step stale moved the country by 171
+  times that error — hundreds of pixels sideways, snapping back on the settle.
+  A pan was survivable; a zoom was not. The algebra says the map's own
+  transform is the right one: a surround point sits at
+  `S'(w) = r·S(w) + (x' − r·x)`, a translate and a scale about the element's
+  own origin.
   **`slideWorldOverlay` is why nothing drifts.** The overlay is repainted on
   the settle while the map moves continuously under a CSS transform, so
   between the two the miniatures and the names sat still in screen space while
@@ -703,6 +715,17 @@ Read the comment above a constant before correcting it.
   painted for `gateView` and belong under `mapView`, which is an ordinary
   similarity — the same fix, and the same reasoning, as `slideLens`. A pan is
   a pure translate, so a pan is now exact.
+  **`WORLD_STACK` is where you came from, and it is a stack for a reason.**
+  A single trail was enough while everything was entered from the world map;
+  it is not enough for a sewer under Cademia, where *back* is the town above
+  rather than the world — and with one trail, zooming out of an underground
+  did nothing at all. `pushWorldStack` records the map, its view and its trail
+  on every way in; `goUpOneLevel` pops one, and `checkZoomOutReturn` calls it
+  whenever the stack is non-empty, which is what makes zooming out of a cave
+  work like zooming out of a town. Coming out **onto the world map** keeps its
+  own rule — land just short of the crossing zoom, or the hold would be the
+  only thing keeping the view out — while coming out into another map restores
+  the view it was left at, which was not a crossing and so cannot loop.
   **Every gateway is entered by zooming, and the crossing moves nothing but
   the resolution.** A town has been on screen as a miniature for the whole
   approach, at a definite place and size, so `enterGateway` puts the real map
