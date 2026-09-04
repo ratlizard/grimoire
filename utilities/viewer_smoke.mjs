@@ -811,6 +811,9 @@ try {
 // traps in it, since coming back out leaves the view at the zoom that opened
 // the town, and the hash the back button lands on has no zone in it at all.
 try {
+  // The old renderer is still here and still checked: the atlas is switchable
+  // precisely so the two can be compared, and a path nothing exercises rots.
+  ctx.ATLAS = false;
   let worldPptAtCrossing = 0, th0 = null;
   const gws = ctx.worldGateways();
   if (gws.length < 20) fail('world tab', `only ${gws.length} gateways off the world map`);
@@ -1512,7 +1515,81 @@ try {
     const stray = ctx.propTravelsTo({ proptype: 65, d2: 7 }, 0x8102);
     if (stray) fail('world tab', 'a settlement icon was read as a portal off the world map');
   }
-} catch (e) { fail('world tab', e); }
+} catch (e) { fail('world tab', e); } finally { ctx.ATLAS = true; }
+
+/* The atlas: the world as one scene rather than a sequence of views.
+
+   What is worth checking is exactly what the old renderer needed 425 lines to
+   arrange, and what it therefore must NOT need here: no crossing, no landing,
+   no stack, no held gateway. A place is a node that got big, "which place am
+   I in" is read off the view, and every position on screen comes from one
+   transform -- so the checks are about that transform being the only one. */
+try {
+  ctx.ATLAS = true;
+  ctx.showCategory('WORLD');
+  const sc = peek('atlasScene')();
+  const av = peek('atlasView');
+  const vpA = REGISTRY.get('mapViewport');
+  if (!sc) fail('atlas', 'no scene was built');
+  else if (sc.nodes.length !== ctx.worldGateways().length + 1)
+    fail('atlas', `the scene has ${sc.nodes.length} nodes for ${ctx.worldGateways().length} gateways`);
+  else {
+    const cad = sc.nodes.find(n => n.resid === 0x8008);
+    const b = peek('contentBox')(0x8008);
+    const gwC = ctx.worldGateways().find(g => g.destResid === 0x8008);
+    /* One transform, and it is the same one the miniature and the country and
+       the landing were three separate expressions of. Cademia's built part
+       has to land on Cademia's pictogram: that is the whole claim, and in the
+       old renderer it was made three times and two of them disagreed. */
+    const cx = cad.ox + ((b.x0 + b.x1 + 1) / 2) * cad.s;
+    const want = (gwC.x0 + gwC.x1 + 1) / 2;
+    if (Math.abs(cx - want) > 0.01)
+      fail('atlas', `Cademia's middle sits at world ${cx.toFixed(2)}, its icon at ${want}`);
+    else if (Math.abs((b.x1 - b.x0 + 1) * cad.s - (gwC.x1 - gwC.x0 + 1)) > 1.2)
+      fail('atlas', 'Cademia does not cover its own pictogram');
+    else console.log('  atlas: ' + sc.nodes.length + ' nodes; Cademia sits on its icon ' +
+                     'through one transform');
+
+    // Fit, then zoom: the view is three numbers and a node's place on screen
+    // follows from them. Nothing is "entered", so nothing can be out of step.
+    peek('atlasFit')();
+    const wide = peek('atlasRect')(cad, av);
+    peek('atlasZoomAround')(av.Z * 4, vpA.clientWidth / 2, vpA.clientHeight / 2);
+    const close = peek('atlasRect')(cad, av);
+    if (!(close.w > wide.w * 3.5))
+      fail('atlas', `zooming 4x grew Cademia from ${wide.w.toFixed(0)} to ${close.w.toFixed(0)}`);
+    else console.log('  atlas: zoom is one number; Cademia goes ' + wide.w.toFixed(0) +
+                     'px to ' + close.w.toFixed(0) + 'px with nothing entered');
+
+    /* "Which place am I in" is read off the view rather than stored. Put
+       Cademia's middle under a point and the deepest node covering it is
+       Cademia -- no state, so no way for it to disagree with what is drawn. */
+    const r = peek('atlasRect')(cad, av);
+    const hit = peek('atlasAt')(r.x + r.w / 2, r.y + r.h / 2);
+    if (!hit) fail('atlas', 'nothing was found under the middle of Cademia');
+    else if (hit.node.resid !== 0x8008)
+      fail('atlas', `the deepest node under Cademia is 0x${hit.node.resid.toString(16)}`);
+    else if (hit.tx < 0 || hit.tx >= cad.w)
+      fail('atlas', `the square under it is ${hit.tx},${hit.ty}, outside a ${cad.w}-square map`);
+    else console.log('  atlas: what is under the pointer is derived, not stored — ' +
+                     'square ' + hit.tx + ',' + hit.ty + ' of Cademia');
+
+    // And zooming out again puts the world back under the same point, which
+    // is the whole of "up a level" in this renderer.
+    peek('atlasFit')();
+    const out = peek('atlasAt')(vpA.clientWidth / 2, vpA.clientHeight / 2);
+    if (!out || out.node.depth !== 0)
+      fail('atlas', 'zooming out did not come back to the world');
+    else console.log('  atlas: zooming out is the way back up — no stack, no held gateway');
+
+    // Painting must not throw, and must reach the canvas.
+    peek('paintAtlas')();
+    const cvA = REGISTRY.get('atlasCanvas');
+    if (!cvA || !cvA.width) fail('atlas', 'the scene painted nothing');
+    else console.log('  atlas: the scene paints into one ' + cvA.width + 'x' + cvA.height +
+                     ' canvas, redrawn rather than slid');
+  }
+} catch (e) { fail('atlas', e); }
 
 // Opening a second archive must not leave the first one's derived tables
 // behind. Sentinels survive only if something is not being reset.

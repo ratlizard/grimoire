@@ -1141,9 +1141,9 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 </div>
   <div class="zoomrow" style="max-width:720px; margin:10px auto 0;">
     <span style="white-space:nowrap;">Zoom:</span>
-    <input type="range" id="mapZoomSlider" min="5" max="400" value="100" oninput="applyMapZoom(true)">
+    <input type="range" id="mapZoomSlider" min="5" max="400" value="100" oninput="onMapZoomSlider()">
     <span id="mapZoomLabel" style="min-width:52px; text-align:right;">100%</span>
-    <button class="secondary" style="width:auto; margin:0; padding:8px 14px;" onclick="fitMapToView()">Fit</button>
+    <button class="secondary" style="width:auto; margin:0; padding:8px 14px;" onclick="onMapFit()">Fit</button>
   </div>
   <div id="markLegend" style="font-size:12px; margin-top:6px; min-height:16px;"></div>
   <div id="mapInspect" style="display:none"></div>
@@ -3963,7 +3963,12 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
   if (window.CUR_SUBN === 'CHANGES') { renderChangesSheet(); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
-  if (window.CUR_SUBN === 'WORLD') { renderWorldView(); return; }
+  if (window.CUR_SUBN === 'WORLD') {
+    // Two renderers, one tab. window.ATLAS picks; the other is untouched and
+    // still works, so the two can be compared on a real device.
+    if (window.ATLAS) renderAtlasView(); else renderWorldView();
+    return;
+  }
   if (window.CUR_SUBN === 'INSTALLER') { renderInstallerSheet(); return; }
   if ((window.CUR_SUBN === 'AISCRIPTS' || window.CUR_SUBN === 'AIRULES') && window.INSTALLER) { renderCombatAISheet(window.CUR_SUBN); return; }
   if (PLACEHOLDER_TABS[window.CUR_SUBN]) { renderPlaceholderSheet(PLACEHOLDER_TABS[window.CUR_SUBN] + NO_INSTALLER_HINT); return; }
@@ -4039,6 +4044,8 @@ function resetDerivedCaches() {
   window.WORLD_GATEWAYS = null;
   window.WORLD_TRAIL = null;
   window.WORLD_STACK = [];
+  window.ATLAS_SCENE = null;
+  atlasTransforms.clear();
   window.WORLD_ZONE = null;
   window.WORLD_ARRIVE = null;
   window.WORLD_GATE_HOLD = null;
@@ -7755,6 +7762,12 @@ function applyMapTransform() {
   if (mc) mc.style.imageRendering = (mapView.scale < 0.999) ? 'auto' : 'pixelated';
 }
 
+// One slider, two renderers.
+function onMapZoomSlider() {
+  if (window.ATLAS && window.CUR_SUBN === 'WORLD') atlasZoomFromSlider();
+  else applyMapZoom(true);
+}
+
 function applyMapZoom(fromSlider) {
   const slider = document.getElementById('mapZoomSlider');
   const pct = parseInt(slider.value);
@@ -7830,6 +7843,12 @@ function restoreOrFitMap(resid, _retry) {
     return setTimeout(() => restoreOrFitMap(resid, (_retry || 0) + 1), 50);
   }
   if (!restoreMapView(resid)) fitMapToView();
+}
+
+function onMapFit() {
+  if (window.ATLAS && window.CUR_SUBN === 'WORLD') {
+    atlasFit(); atlasSyncZoomLabel(); paintAtlas();
+  } else fitMapToView();
 }
 
 /* The pan and zoom that shows the whole of a canvas in a viewport.
@@ -10107,7 +10126,9 @@ function renderWorldBar() {
   if (!bar) return;
   if (window.CUR_SUBN !== 'WORLD') { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   const cm = window.CUR_MAP;
-  const here = cm ? cm.resid : WORLD_MAP_RESID;
+  // The atlas has no open map: you are looking at the world, always, and how
+  // close you are to a place in it is a matter of zoom rather than of state.
+  const here = window.ATLAS ? WORLD_MAP_RESID : (cm ? cm.resid : WORLD_MAP_RESID);
   bar.style.display = '';
   if (here === WORLD_MAP_RESID) {
     const n = worldGateways().length;
@@ -10128,7 +10149,12 @@ function renderWorldBar() {
       // long version of all of it is the gazetteer under the map.
       '<span class="wbNote">256×256 squares, ' + n + ' ways off it. Zoom into a town to enter ' +
       'it; caves open on a click. Any square says what is on it.</span>' +
-      '<button class="crumbBtn" onclick="toggleWorldPreload()">' + load + '</button>' + fr;
+      '<button class="crumbBtn" onclick="toggleWorldPreload()">' + load + '</button>' + fr +
+      // While both renderers exist, the switch has to be reachable from the
+      // device the bugs get found on, which has no console.
+      '<button class="crumbBtn" onclick="toggleAtlas()">' +
+      (window.ATLAS ? '⇄ Atlas — switch to the old view' : '⇄ Old view — switch to the atlas') +
+      '</button>';
     return;
   }
   const a = window.WORLD_ARRIVE;
@@ -10160,7 +10186,8 @@ function renderGazetteer() {
   const host = document.getElementById('worldGaz');
   if (!host) return;
   const cm = window.CUR_MAP;
-  if (window.CUR_SUBN !== 'WORLD' || !cm || cm.resid !== WORLD_MAP_RESID) {
+  const onWorld = window.ATLAS ? true : !!(cm && cm.resid === WORLD_MAP_RESID);
+  if (window.CUR_SUBN !== 'WORLD' || !onWorld) {
     host.style.display = 'none'; host.innerHTML = ''; return;
   }
   const gws = worldGateways();
@@ -10173,13 +10200,17 @@ function renderGazetteer() {
   for (const gw of gws) {
     const b = document.createElement('button');
     b.className = 'gazRow';
-    b.onclick = () => enterGateway(gw);
+    b.onclick = () => { if (window.ATLAS) atlasGoTo(gw.port); else enterGateway(gw); };
     b.title = gw.name + ' — ' + gw.kind + ' at (' + gw.x0 + ',' + gw.y0 + '), arriving at (' +
               gw.destX + ',' + gw.destY + ')';
     const c = document.createElement('canvas');
     c.width = 34; c.height = 34;
     const cx = c.getContext('2d');
-    if (cx && cm.canvas) {
+    const wr = window.ATLAS ? (mapRenderFor(WORLD_MAP_RESID, true) || {}).result : null;
+    const src = window.ATLAS ? (wr && wr.canvas) : (cm && cm.canvas);
+    const srcTS = window.ATLAS ? (wr && wr.tileSize) : (cm && cm.TS);
+    if (cx && src) {
+      const cm = { canvas: src, TS: srcTS };          // whichever world we have
       const w = (gw.x1 - gw.x0 + 1) * cm.TS, h = (gw.y1 - gw.y0 + 1) * cm.TS;
       // A square crop about the footprint's middle, so a one-square cave and
       // a four-square town both come out the same size in the list.
@@ -10194,6 +10225,556 @@ function renderGazetteer() {
     b.appendChild(c); b.appendChild(txt);
     list.appendChild(b);
   }
+}
+
+/* ===========================================================================
+   The Atlas: the world as one continuous picture
+   ===========================================================================
+   The World tab's second renderer, and the one this file is moving to. It
+   exists because the first one borrowed the map panel -- a thing built, quite
+   correctly, around one map at a time -- and then spent 425 lines persuading
+   it to behave like a continuous world: a cross-fade, a landing calculation,
+   a stack, a hold, four thresholds to cross and two to come back, a second
+   copy of the world drawn behind each town, and three separate
+   implementations of "keep this layer registered with the map while it
+   moves". Every display bug reported against the World tab was in that layer
+   rather than in the feature, which is the sign the compensation had outgrown
+   the thing it was compensating for.
+
+   What replaces it is a scene rather than a sequence of views.
+
+   ONE COORDINATE SYSTEM. Everything is placed in world squares -- the 256x256
+   grid of map 0x8001 -- and the view is three numbers: `x`, `y` and `Z`,
+   where a world square is Z screen pixels and world square w lands at
+   `x + w*Z`. Every node, every label, every hit test goes through that and
+   nothing else.
+
+   A TREE OF PLACED MAPS. The world is the root. Each gateway places its
+   destination as a child, scaled by gatewayTransform so its built part covers
+   the pictogram the world map draws there. Cademia is not somewhere you go;
+   it is a node that becomes large as you approach it.
+
+   REDRAW, DO NOT SLIDE. The whole scene is a couple of dozen drawImage calls,
+   so every frame is painted fresh. There is nothing to keep registered, which
+   is why the entire class of bug that produced "the labels slide when I pan"
+   and "the country splits off to the left" cannot occur here: those were
+   layers painted once in screen space and transformed to catch up. Nothing
+   here is painted once.
+
+   NO CROSSING. There is no moment when one map is exchanged for another, so
+   there is nothing to fade, nothing to land, nothing to hold, and nothing to
+   pop off a stack. Zooming in makes a town bigger; zooming out makes it
+   smaller. Which place you are "in" is not state -- it is read off the view
+   by whichever node fills it.
+
+   What it deliberately does NOT do is the map panel's job. Walls, roofs,
+   marks, walk-the-day, lighting, the PNG export and the prop editor stay in
+   Entities > Regions, which is untouched; a square here offers to open its
+   map there. This renderer navigates and identifies. That is the seam, and
+   keeping it is what makes this a few hundred lines instead of a second copy
+   of the panel.
+=========================================================================== */
+
+// The old renderer is still here and still works; this switches between them
+// so the two can be compared on a real device, which is where every bug in
+// this feature has been found. Once the atlas has earned it, the other one
+// and its 425 lines of compensation go.
+window.ATLAS = (() => {
+  try { const v = localStorage.getItem('cythera.atlas'); if (v !== null) return v === '1'; } catch (e) {}
+  return true;
+})();
+
+/* How many world squares a node's built part covers, and where.
+
+   One function, and that is the point: the miniature's size, the country's
+   scale and the landing view were three separate expressions of this same
+   transform, two of them disagreed, and the disagreement was the jump on
+   entering a town. There is one answer now and everything asks it.
+
+   `s` is world squares per node square; `ox, oy` place node square (0,0) in
+   world coordinates. A node point p is therefore at world `ox + p*s`. */
+const atlasTransforms = new Map();
+function gatewayTransform(gw) {
+  if (atlasTransforms.has(gw.port)) return atlasTransforms.get(gw.port);
+  let t = null;
+  const e = mapRenderFor(gw.destResid, true);
+  if (e && e.result) {
+    const b = contentBox(gw.destResid) ||
+              { x0: 0, y0: 0, x1: e.result.width - 1, y1: e.result.height - 1 };
+    const s = 1 / gatewayRatio(gw);
+    // The built part's middle sits on the pictogram's middle.
+    const pcx = (b.x0 + b.x1 + 1) / 2, pcy = (b.y0 + b.y1 + 1) / 2;
+    t = { s,
+          ox: (gw.x0 + gw.x1 + 1) / 2 - pcx * s,
+          oy: (gw.y0 + gw.y1 + 1) / 2 - pcy * s,
+          w: e.result.width, h: e.result.height, ts: e.result.tileSize };
+  }
+  atlasTransforms.set(gw.port, t);
+  return t;
+}
+
+/* The scene: the world, and every place placed on it.
+
+   Built once per archive. Sealed destinations are placed like any other --
+   the distinction that used to matter (whether the world could be drawn
+   around them) is gone, because the world is simply the parent node and is
+   always there. */
+function atlasScene() {
+  if (window.ATLAS_SCENE) return window.ATLAS_SCENE;
+  const nodes = [];
+  const world = mapRenderFor(WORLD_MAP_RESID, true);
+  if (!world || !world.result) return null;
+  const root = { resid: WORLD_MAP_RESID, gw: null, s: 1, ox: 0, oy: 0,
+                 w: world.result.width, h: world.result.height,
+                 ts: world.result.tileSize, name: 'Cythera', depth: 0 };
+  nodes.push(root);
+  for (const gw of worldGateways()) {
+    const t = gatewayTransform(gw);
+    if (!t) continue;
+    nodes.push({ resid: gw.destResid, gw, s: t.s, ox: t.ox, oy: t.oy,
+                 w: t.w, h: t.h, ts: t.ts, name: gw.name, depth: 1,
+                 sealed: gw.sealed });
+  }
+  // Deepest last, so a child is drawn over its parent without sorting later.
+  nodes.sort((a, b) => a.depth - b.depth);
+  return (window.ATLAS_SCENE = { root, nodes });
+}
+
+// Where a node lands on screen, in pixels, at the current view.
+function atlasRect(node, view) {
+  return { x: view.x + node.ox * view.Z, y: view.y + node.oy * view.Z,
+           w: node.w * node.s * view.Z, h: node.h * node.s * view.Z };
+}
+
+// Screen pixels per square of this node's own map -- what decides the
+// resolution it is worth drawing at, and whether it is worth drawing at all.
+function atlasNodePpt(node, view) { return node.s * view.Z; }
+
+/* The view. Three numbers, and every other position on screen is derived. */
+const atlasView = { x: 0, y: 0, Z: 2, dragging: false, lastX: 0, lastY: 0 };
+
+// The whole world in the panel, which is where a visit starts.
+function atlasFit() {
+  const vp = document.getElementById('mapViewport');
+  const sc = atlasScene();
+  if (!vp || !sc || vp.clientWidth < 40) return;
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  atlasView.Z = Math.min(vw / sc.root.w, vh / sc.root.h);
+  atlasView.x = (vw - sc.root.w * atlasView.Z) / 2;
+  atlasView.y = (vh - sc.root.h * atlasView.Z) / 2;
+}
+
+/* The most a node is worth magnifying: its own art is 32 pixels a square, so
+   past twice that there is nothing further in the file to show. The zoom
+   stops where the deepest thing under the middle of the view runs out. */
+const ATLAS_MAX_PPT = 64;
+function atlasMaxZ() {
+  const sc = atlasScene();
+  if (!sc) return 64;
+  let best = ATLAS_MAX_PPT;                       // the world itself
+  for (const n of sc.nodes) if (n.depth) best = Math.max(best, ATLAS_MAX_PPT / n.s);
+  return best;
+}
+
+/* Draw the scene.
+
+   Every frame, from scratch, in one pass. A node is drawn from the smallest
+   picture that is at least as big as it needs to be -- the two thumbnail
+   levels, then its whole render, then its own art a window at a time -- and
+   fades in over the pictogram it stands on as it becomes large enough to read.
+   That fade is the only threshold left in the renderer. */
+const ATLAS_NODE_FADE = [18, 34];        // screen px across, before / after
+function paintAtlas() {
+  const vp = document.getElementById('mapViewport');
+  const cv = ensureAtlasCanvas();
+  const sc = atlasScene();
+  if (!vp || !cv || !sc) return;
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  if (vw < 40 || vh < 40) return;
+  const dpr = Math.min((typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1, 2);
+  if (cv.width !== Math.round(vw * dpr) || cv.height !== Math.round(vh * dpr)) {
+    cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
+    cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
+  }
+  const ctx = cv.getContext('2d');
+  if (!ctx) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(0, 0, vw, vh);
+
+  const drawn = [];
+  for (const node of sc.nodes) {
+    const r = atlasRect(node, atlasView);
+    if (r.x + r.w < -40 || r.y + r.h < -40 || r.x > vw + 40 || r.y > vh + 40) continue;
+    const ppt = atlasNodePpt(node, atlasView);
+    // Below a couple of pixels a square there is nothing to see and the
+    // pictogram the parent draws is the better picture.
+    if (node.depth && r.w < ATLAS_NODE_FADE[0]) continue;
+    const alpha = !node.depth ? 1
+      : Math.max(0, Math.min(1, (r.w - ATLAS_NODE_FADE[0]) /
+                                (ATLAS_NODE_FADE[1] - ATLAS_NODE_FADE[0])));
+    if (drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh)) drawn.push({ node, r });
+  }
+  atlasLabels(ctx, drawn, vw, vh);
+  window.ATLAS_DRAWN = drawn;
+}
+
+/* One node, at the best resolution it has.
+
+   The ladder is the same one the old renderer used and it is kept: two
+   thumbnail levels, then the whole render, then -- when even that is being
+   magnified -- the node's own art painted a window at a time through the map
+   panel's own region painter. That last step is what the detail lens was, with
+   the difference that it is drawn straight into the scene rather than being a
+   second canvas kept in step with a first. */
+function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
+  ctx.globalAlpha = alpha;
+  ctx.imageSmoothingEnabled = true;
+  let ok = false;
+  // Native art, when the node is being magnified past its own render.
+  if (ppt > node.ts * 1.2) ok = paintAtlasDetail(ctx, node, r, vw, vh);
+  if (!ok) {
+    const e = mapRenderFor(node.resid, true);
+    if (e && e.result && r.w >= 448) {
+      ctx.drawImage(e.result.canvas, r.x, r.y, r.w, r.h);
+      ok = true;
+    } else if (node.gw) {
+      // The roofs come off as the node grows: a town at a distance is roofs,
+      // and close up they are the thing in the way.
+      const roofT = Math.max(0, Math.min(1, (node.ts * 12 - ppt) / (node.ts * 12 - node.ts * 4)));
+      ok = drawTown(ctx, node.gw, atlasCropRect(node, r), 1, roofT);
+    } else if (e && e.result) {
+      ctx.drawImage(e.result.canvas, r.x, r.y, r.w, r.h);
+      ok = true;
+    }
+  }
+  ctx.globalAlpha = 1;
+  return ok;
+}
+
+// Where a node's cropped thumbnail sits, given where the whole node sits.
+function atlasCropRect(node, r) {
+  const th = worldThumbs.get(thumbKey(node.resid, THUMB_LEVELS[0], true));
+  if (!th) return r;
+  const per = r.w / node.w;                 // screen px per node square
+  return { x: r.x + th.x0 * per, y: r.y + th.y0 * per,
+           w: (th.x1 - th.x0 + 1) * per, h: (th.y1 - th.y0 + 1) * per };
+}
+
+/* The node's own art, for the part of it on screen.
+
+   paintMapBaseRegion draws at `square * TS`, so the context is put into the
+   node's own pixel space first and the region asked for is whatever the
+   viewport covers. This is the detail lens's job without the detail lens:
+   there is no second canvas, no margin to budget, nothing to slide, and no
+   settle to wait for -- it is simply what this node looks like this frame. */
+function paintAtlasDetail(ctx, node, r, vw, vh) {
+  const e = mapRenderFor(node.resid, true);
+  if (!e || !e.result || !e.result.m) return false;
+  const TS = 32;
+  const per = r.w / node.w;                 // screen px per node square
+  const x0 = Math.max(0, Math.floor((0 - r.x) / per) - 1);
+  const y0 = Math.max(0, Math.floor((0 - r.y) / per) - 1);
+  const x1 = Math.min(node.w - 1, Math.ceil((vw - r.x) / per) + 1);
+  const y1 = Math.min(node.h - 1, Math.ceil((vh - r.y) / per) + 1);
+  if (x1 < x0 || y1 < y0) return false;
+  const src = { m: e.result.m, mapData: e.mapData, props: e.result.props,
+                allProps: e.result.allProps, backdrop: e.result.backdrop, backdropFrame: 0,
+                TS: e.result.tileSize };
+  ctx.save();
+  ctx.translate(r.x, r.y);
+  ctx.scale(per / TS, per / TS);
+  ctx.imageSmoothingEnabled = false;
+  paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src);
+  ctx.restore();
+  return true;
+}
+
+/* The names.
+
+   Drawn last, over everything, biggest node first so a collision drops the
+   smaller place; a node too small to have been drawn at all is not named. */
+function atlasLabels(ctx, drawn, vw, vh) {
+  ctx.font = '13px Argos, Georgia, serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  const placed = [];
+  const named = drawn.filter(d => d.node.depth).sort((a, b) => b.r.w - a.r.w);
+  for (const { node, r } of named) {
+    const tw = Math.round(ctx.measureText(node.name).width) + 10;
+    const cx = Math.round(r.x + r.w / 2);
+    const ty = Math.round(r.y + r.h + 14);
+    if (cx < -tw || cx > vw + tw || ty < 0 || ty > vh) continue;
+    const box = { x0: cx - tw / 2, y0: ty - 11, x1: cx + tw / 2, y1: ty + 4 };
+    if (placed.some(q => box.x0 < q.x1 && box.x1 > q.x0 && box.y0 < q.y1 && box.y1 > q.y0)) continue;
+    placed.push(box);
+    ctx.fillStyle = 'rgba(8,7,5,.7)';
+    ctx.fillRect(box.x0, box.y0, tw, 15);
+    ctx.fillStyle = node.sealed ? '#c9bb92' : '#e8dfc0';
+    ctx.fillText(node.name, cx, ty);
+  }
+}
+
+function ensureAtlasCanvas() {
+  const vp = document.getElementById('mapViewport');
+  if (!vp) return null;
+  let cv = document.getElementById('atlasCanvas');
+  if (!cv) {
+    cv = document.createElement('canvas');
+    cv.id = 'atlasCanvas';
+    cv.style.cssText = 'position:absolute; top:0; left:0; z-index:2; ' +
+                       'max-width:none; max-height:none;';
+    vp.appendChild(cv);
+  }
+  return cv;
+}
+
+/* What is under a point on screen: the deepest node covering it, and the
+   square of that node's own map.
+
+   Deepest wins, which is the whole of "which place am I in" -- there is no
+   state to consult, and no way for it to be out of step with what is drawn. */
+function atlasAt(px, py) {
+  const sc = atlasScene();
+  if (!sc) return null;
+  let best = null;
+  for (const node of sc.nodes) {
+    const r = atlasRect(node, atlasView);
+    if (px < r.x || py < r.y || px > r.x + r.w || py > r.y + r.h) continue;
+    if (node.depth && r.w < ATLAS_NODE_FADE[0]) continue;
+    if (!best || node.depth >= best.node.depth) {
+      const per = r.w / node.w;
+      best = { node, r, tx: Math.floor((px - r.x) / per), ty: Math.floor((py - r.y) / per) };
+    }
+  }
+  return best;
+}
+
+/* Moving about in it.
+
+   Pan and zoom act on the three numbers and the scene is redrawn. There is no
+   transform to compose, no layer to keep in step and no settle to wait for,
+   which is why this is fifteen lines where the panel's equivalent is a
+   hundred and fifty. */
+function atlasZoomAround(newZ, px, py) {
+  const maxZ = atlasMaxZ();
+  const sc = atlasScene();
+  const vp = document.getElementById('mapViewport');
+  // The floor is the whole world in the panel: there is nothing further out.
+  let minZ = 0.5;
+  if (sc && vp && vp.clientWidth > 40)
+    minZ = Math.min(vp.clientWidth / sc.root.w, vp.clientHeight / sc.root.h) * 0.9;
+  newZ = Math.max(minZ, Math.min(maxZ, newZ));
+  const wx = (px - atlasView.x) / atlasView.Z, wy = (py - atlasView.y) / atlasView.Z;
+  atlasView.Z = newZ;
+  atlasView.x = px - wx * atlasView.Z;
+  atlasView.y = py - wy * atlasView.Z;
+  atlasSyncZoomLabel();
+  paintAtlas();
+}
+
+function atlasPanBy(dx, dy) {
+  atlasView.x += dx; atlasView.y += dy;
+  paintAtlas();
+}
+
+// The slider and its label speak in "screen pixels per world square", which
+// is the only zoom number in this renderer that means anything.
+function atlasSyncZoomLabel() {
+  const lab = document.getElementById('mapZoomLabel');
+  if (lab) lab.textContent = atlasView.Z.toFixed(1) + ' px/sq';
+  const sl = document.getElementById('mapZoomSlider');
+  if (sl) {
+    sl.min = 1; sl.max = Math.round(atlasMaxZ());
+    sl.value = Math.max(1, Math.min(+sl.max, Math.round(atlasView.Z)));
+  }
+}
+function atlasZoomFromSlider() {
+  const sl = document.getElementById('mapZoomSlider');
+  const vp = document.getElementById('mapViewport');
+  if (!sl || !vp) return;
+  atlasZoomAround(+sl.value, vp.clientWidth / 2, vp.clientHeight / 2);
+}
+
+/* A click identifies what is under it, and offers the map panel for the rest.
+
+   This renderer navigates and names; walls, roofs, marks, walk-the-day,
+   lighting, the export and the prop editor are the panel's job and stay in
+   Entities > Regions untouched. The card here says what is on the square and
+   offers to open that map there. */
+function atlasInspect(px, py) {
+  const host = document.getElementById('mapInspect');
+  const hit = atlasAt(px, py);
+  if (!host) return;
+  if (!hit) { host.innerHTML = '<span class="inspDim">Nothing here.</span>';
+              host.style.display = 'block'; return; }
+  const { node, tx, ty } = hit;
+  const e = mapRenderFor(node.resid, true);
+  const parts = ['<div class="inspHead">' + svEsc(node.name) +
+    ' &nbsp;·&nbsp; square ' + tx + ', ' + ty + '</div>'];
+  if (e && e.result) {
+    const tileId = e.result.m ? mapTileAt(e.result.m, tx, ty) : 0;
+    const terrain = tileId ? (terrainNameFor(tileId) || compositeTileName(tileId)) : null;
+    if (tileId) parts.push('<div class="inspCard"><b>' + svEsc(terrain || 'terrain') + '</b> ' +
+      '<span class="inspDim">tile 0x' + tileId.toString(16).toUpperCase() + '</span></div>');
+    const hits = (e.result.props || []).filter(p => p.cells.some(c => c[0] === tx && c[1] === ty));
+    for (const p of hits.slice(0, 6))
+      parts.push('<div class="inspCard"><b>' +
+        svEsc(propDisplayName(p.rec.proptype) || ('prop 0x' + p.rec.proptype.toString(16))) +
+        '</b></div>');
+  }
+  // Everything this renderer does not do lives one click away, where it
+  // already worked and still does.
+  parts.push('<div class="inspActs">' +
+    '<button class="sv-chip" onclick="jumpToResource(' + node.resid + ')">Open ' +
+    svEsc(node.name) + ' in Regions</button></div>');
+  host.innerHTML = parts.join('');
+  host.style.display = 'block';
+}
+
+// Pointer handling, kept apart from the panel's so neither has to know about
+// the other. Wired once, on the same viewport.
+function setupAtlasInteraction() {
+  const vp = document.getElementById('mapViewport');
+  if (!vp || vp.dataset.atlasWired) return;
+  vp.dataset.atlasWired = '1';
+  const pts = new Map();
+  let pinchDist = 0, pinchZ = 0, moved = 0;
+  const local = e => { const r = vp.getBoundingClientRect();
+                       return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  vp.addEventListener('pointerdown', e => {
+    if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
+    pts.set(e.pointerId, local(e));
+    moved = 0;
+    if (pts.size === 2) {
+      const p = Array.from(pts.values());
+      pinchDist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+      pinchZ = atlasView.Z;
+    }
+  });
+  vp.addEventListener('pointermove', e => {
+    if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
+    if (e.pointerType === 'mouse' && !pts.size) { atlasHover(e.clientX, e.clientY); return; }
+    const prev = pts.get(e.pointerId);
+    if (!prev) return;
+    const now = local(e);
+    pts.set(e.pointerId, now);
+    if (pts.size === 2) {
+      const p = Array.from(pts.values());
+      const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+      if (pinchDist > 0)
+        atlasZoomAround(pinchZ * (d / pinchDist), (p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2);
+    } else {
+      moved += Math.abs(now.x - prev.x) + Math.abs(now.y - prev.y);
+      atlasPanBy(now.x - prev.x, now.y - prev.y);
+    }
+  });
+  const up = e => {
+    if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
+    const had = pts.has(e.pointerId);
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinchDist = 0;
+    if (had && moved < 6) { const p = local(e); atlasInspect(p.x, p.y); }
+  };
+  vp.addEventListener('pointerup', up);
+  vp.addEventListener('pointercancel', e => { pts.delete(e.pointerId); });
+  vp.addEventListener('pointerleave', () => { if (window.ATLAS) hideMapHover(); });
+  vp.addEventListener('wheel', e => {
+    if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
+    e.preventDefault();
+    const p = local(e);
+    atlasZoomAround(atlasView.Z * (e.deltaY > 0 ? 0.9 : 1.1), p.x, p.y);
+  }, { passive: false });
+}
+
+/* Who that is, under the pointer -- the same card the panel shows, fed from
+   whichever node the pointer is over rather than from the open map. */
+let atlasHoverKey = '';
+function atlasHover(clientX, clientY) {
+  const el = document.getElementById('mapHover');
+  const vp = document.getElementById('mapViewport');
+  if (!el || !vp) return;
+  const r = vp.getBoundingClientRect();
+  const px = clientX - r.left, py = clientY - r.top;
+  const hit = atlasAt(px, py);
+  if (!hit) { hideMapHover(); atlasHoverKey = ''; return; }
+  const key = hit.node.resid + ':' + hit.tx + ',' + hit.ty;
+  if (key === atlasHoverKey) { if (el.style.display !== 'none') placeMapHover(el, vp, px, py); return; }
+  atlasHoverKey = key;
+  let people = [];
+  try {
+    people = charactersOnLevel(hit.node.resid & 0xFF,
+      window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR)
+      .filter(c => Math.round(c.x) === hit.tx && Math.round(c.y) === hit.ty);
+  } catch (e) { people = []; }
+  if (!people.length) { el.style.display = 'none'; return; }
+  const c = people[0];
+  el.innerHTML = '<div><span class="hvName">' + svEsc(c.name || ('Character ' + c.index)) +
+                 '</span><span class="hvWhat">' + svEsc(hit.node.name) + '</span></div>';
+  const cvv = document.createElement('canvas');
+  try { drawTileToCanvas(cvv, getPropTileList()[c.proptype] + c.aspect, 32, c.rotated); } catch (e) {}
+  el.appendChild(cvv);
+  el.style.display = 'flex';
+  placeMapHover(el, vp, px, py);
+}
+
+/* Opening the tab on the atlas: hide the panel's own furniture, show one
+   canvas, fit the world. The panel is not torn down -- Regions still owns it
+   and it is exactly as it was. */
+function renderAtlasView() {
+  stopAllViewActivity();
+  const grid = document.getElementById('sheetGrid');
+  if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
+  for (const id of ['singleControls', 'propFilterWrap', 'resourceNav', 'mapParts',
+                    'worldSurround', 'worldOverlay', 'mapCanvasWrap']) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
+  document.getElementById('mapPreview').style.display = 'block';
+  document.getElementById('zoomControls').style.display = 'none';
+  document.getElementById('singlePreview').style.display = 'none';
+  document.getElementById('textPreview').style.display = 'none';
+  hideDetailLens(true);
+  const lbl = document.getElementById('mapLabel');
+  if (lbl) lbl.textContent = 'The world of Cythera — zoom in to open a place';
+  window.CUR_MAP = null;
+  ensureAtlasCanvas();
+  setupAtlasInteraction();
+  renderWorldBar();
+  renderGazetteer();
+  const start = () => {
+    const vp = document.getElementById('mapViewport');
+    if (!vp || vp.clientWidth < 40) { setTimeout(start, 50); return; }
+    atlasFit();
+    atlasSyncZoomLabel();
+    paintAtlas();
+    buildWorldThumbs();
+  };
+  start();
+}
+
+function toggleAtlas() {
+  window.ATLAS = !window.ATLAS;
+  try { localStorage.setItem('cythera.atlas', window.ATLAS ? '1' : '0'); } catch (e) {}
+  window.WORLD_ZONE = WORLD_MAP_RESID;
+  window.WORLD_STACK = []; window.WORLD_TRAIL = null;
+  setMode('sheet');
+}
+
+// The gazetteer's rows, in the atlas: put the place in the middle of the view
+// at the zoom its own art is worth, which is the same thing zooming to it by
+// hand arrives at.
+function atlasGoTo(port) {
+  const sc = atlasScene();
+  const vp = document.getElementById('mapViewport');
+  if (!sc || !vp) return;
+  const node = sc.nodes.find(n => n.gw && n.gw.port === port);
+  if (!node) return;
+  atlasView.Z = Math.min(atlasMaxZ(), (node.ts * 0.9) / node.s);
+  atlasView.x = vp.clientWidth / 2 - (node.ox + node.w * node.s / 2) * atlasView.Z;
+  atlasView.y = vp.clientHeight / 2 - (node.oy + node.h * node.s / 2) * atlasView.Z;
+  atlasSyncZoomLabel();
+  paintAtlas();
 }
 
 function downloadMapPNG() {

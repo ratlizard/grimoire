@@ -610,6 +610,40 @@ Read the comment above a constant before correcting it.
   `js/delv-graphics.js` and `js/delv-script.js`; the page holds the UI, the
   rendering, and the ~7,700 lines that need a document. See **Where new code
   goes** above before adding to either side.
+- **The World tab has two renderers, and is moving to the second.** `ATLAS`
+  picks (remembered in `localStorage`, switchable from a button in the strip
+  because the device the bugs get found on has no console). Everything below
+  describes the **old** one, which is intact and still checked — a path
+  nothing exercises rots, and the point of keeping it is that the two can be
+  compared on a real device.
+  **The atlas** is the world as one scene rather than a sequence of views: one
+  coordinate system (world squares), a tree of maps placed in it by
+  `gatewayTransform`, and a full redraw every frame. It exists because the old
+  renderer borrowed the map panel — a thing correctly built around one map at
+  a time — and then spent **425 lines** persuading it to behave like a
+  continuous world: a cross-fade, a landing calculation, a stack, a hold, four
+  thresholds in and two out, a second copy of the world drawn behind each
+  town, and three separate implementations of "keep this layer registered with
+  the map while it moves". *Every* display bug reported against the World tab
+  was in that layer rather than in the feature, which is the sign the
+  compensation had outgrown the thing it compensated for.
+  What the atlas deletes is structural, not tidied: there is no crossing, so
+  nothing to fade, land, hold or pop; nothing is painted once in screen space,
+  so nothing has to be slid to catch up; the world is simply the parent node,
+  so there is no surround; and "which place am I in" is read off the view by
+  whichever node fills it rather than stored. The three expressions of the
+  world↔zone transform — the miniature's size, the country's scale, the
+  landing view, two of which disagreed and produced the jump on entry — are
+  one function.
+  **The seam is deliberate and is what keeps it small.** The atlas navigates
+  and identifies. Walls, roofs, marks, walk-the-day, lighting, the PNG export
+  and the prop editor stay in Entities › Regions, which is untouched; a square
+  in the atlas offers to open its map there. Reproducing the panel would have
+  made this a second copy of it.
+  **Not done yet**: nested nodes (an underground under a town is not placed in
+  the scene), characters are not drawn on it (the hover finds them, nothing
+  paints them), the palette animation does not run on it, and its view is not
+  in the deep link.
 - **The World tab is the landing view, and it is not a gallery.** One view:
   the world map (`0x8001`, 256×256 squares) with every way off it live. It
   stands first in `TAB_TREE` and `parseArchiveBytes` picks it explicitly, so
