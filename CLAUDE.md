@@ -303,7 +303,7 @@ outside the repository.
   `--quick` skips it.
 
 A check whose inputs are genuinely missing is reported as **skip**, not fail.
-A clean run is **13 ok, 0 failed, 0 skipped**. Anything else is a
+A clean run is **16 ok, 0 failed, 0 skipped**. Anything else is a
 regression. Without the game in `reference/` most checks skip, and `delvmod
 write` and `disk image` are the two checks with an oracle still running — its synthetic archives are built on the fly. `dialogue vs
 guides` has a second, optional input of its own — the community's dialogue
@@ -561,11 +561,16 @@ Cythera's Delver formats and says nothing about classic-Mac ones, so
 the private repository, whose C++ decoders were validated the hard way, by the
 original binary running against them, and systemless, which renders the same
 formats in Rust. Three differences are known and recorded there rather than
-here; the one that is a bug on this side is **PICT `0x0090`/`0x0091`**
-(uncompressed BitsRect/BitsRgn), which `js/mac-rsrc-types.js` skips, so a
-picture made of several `CopyBits` is partial in the browser and complete
-everywhere else. Both the port and systemless render it, so the fix has two
-references and no guessing.
+here. The one that was a bug on this side — **PICT `0x0090`/`0x0091`**,
+uncompressed BitsRect/BitsRgn, which `js/mac-rsrc-types.js` parsed only to
+stay aligned and then walked past — is **fixed**: a picture whose artwork is a
+plain BitsRect drew nothing here while the port and systemless both rendered
+it. The layout was taken from `systemless/src/trap/pict.rs` and the port's
+`src/mac/pict.cpp` rather than inferred from the data, and
+`utilities/pict_bits_check.mjs` guards it with synthetic pictures, because
+**not one of the twenty-one PICTs in Cythera and Cythera Data reaches those
+opcodes** — they are all `0x0098`, `0x0099` or `0x009B` — so neither snapshot
+can prove the path works or notice it breaking.
 
 **The HFS writer is the exception that proves the rule, and it is labelled as
 one.** `js/mac-hfs.js` was written *from* systemless's `src/disk_image/hfs.rs`
