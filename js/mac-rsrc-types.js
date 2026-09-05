@@ -395,9 +395,21 @@ function renderIndexedPixels(data,pixOff,rowBytes,W,H,pixelSize,palette,maskBits
 // negative origin into ~65000 and yields nonsense widths.
 function s16(b,i){const v=(b[i]<<8)|b[i+1];return v>32767?v-65536:v;}
 function readRect(data,p){return {top:s16(data,p),left:s16(data,p+2),bottom:s16(data,p+4),right:s16(data,p+6)};}
+// A colour table is ctSeed, ctFlags, ctSize-1, then (value, r, g, b) entries.
+// With the high bit of ctFlags clear the `value` field is the pixel value the
+// entry stands for; with it set the table is a device colour table, every
+// `value` is written 0, and the entry's POSITION is its pixel value. Four of
+// the nineteen PICTs in Cythera Data are that second kind -- 131, 512 and 513
+// (8-bit, in the game's own palette) came out as one colour, since every
+// entry landed on palette[0] and the other 255 pixel values fell to the
+// magenta placeholder. Inside Macintosh: Imaging With QuickDraw, "Color
+// Tables" (ctFlags), is the reference, and both other implementations
+// already did this: systemless's src/trap/pict.rs picks the index when the
+// flag is set and the value otherwise, and alchemy/port's pict.cpp the same.
 function readColorTable(data,p){
-  p+=4; p+=2; const count=u16be(data,p)+1;p+=2; const pal=[];
-  for(let i=0;i<count;i++){const val=u16be(data,p);pal[val]=[u16be(data,p+2)>>8,u16be(data,p+4)>>8,u16be(data,p+6)>>8];p+=8;}
+  p+=4; const flags=u16be(data,p); p+=2; const count=u16be(data,p)+1;p+=2; const pal=[];
+  const byPosition=(flags&0x8000)!==0;
+  for(let i=0;i<count;i++){const val=byPosition?i:u16be(data,p);pal[val]=[u16be(data,p+2)>>8,u16be(data,p+4)>>8,u16be(data,p+6)>>8];p+=8;}
   return {palette:pal,p};
 }
 // hasBaseAddr: DirectBits opcodes (0x9A/0x9B) store a 4-byte placeholder Ptr
@@ -451,12 +463,32 @@ function decodeDirectBitsRows(data,p,pm){
       const base = cmpCount===4 ? W : 0; // skip alpha plane when present
       for(let c=0;c<3;c++) planes.push(flat.subarray(base+c*W, base+(c+1)*W));
       rows.push({planes});
+    } else if(pm.packType===3){
+      // packType 3 is PackBits over 16-bit PIXELS: a literal run is count
+      // words and a repeat run repeats one word, so the byte unpacker above
+      // reads every count as half what it is and the row comes out as a
+      // smear. PICT 129 in Cythera Data is the one such picture there and
+      // was the one that drew as noise. systemless (pict.rs,
+      // unpack_bits_chunk16_data_into) and alchemy/port (pict.cpp, "Sixteen-
+      // bit direct pixels repeat two bytes at a time") both unpack it this
+      // way, so the layout has two references.
+      const plen = rowBytes>250?u16be(data,p):data[p]; p += rowBytes>250?2:1;
+      rows.push(unpackBitsPictWords(data,p,plen,rowBytes)); p+=plen;
     } else {
       const plen = rowBytes>250?u16be(data,p):data[p]; p += rowBytes>250?2:1;
       rows.push(unpackBitsPict(data,p,plen,rowBytes)); p+=plen;
     }
   }
   return {rows,p};
+}
+function unpackBitsPictWords(data,p,packedLen,want){
+  const src=data.slice(p,p+packedLen),out=new Uint8Array(want);let si=0,oi=0;
+  while(si<src.length&&oi<want){
+    const n=i8(src,si++);
+    if(n>=0){ let ct=(n+1)*2; while(ct--&&si<src.length&&oi<want) out[oi++]=src[si++]; }
+    else if(n!==-128){ if(si+1>=src.length) break; const hi=src[si++],lo=src[si++]; let ct=1-n; while(ct--&&oi+1<want){ out[oi++]=hi; out[oi++]=lo; } }
+  }
+  return out;
 }
 const PICT_FIXED_LEN = {
   0x0002:8,0x0003:2,0x0004:2,0x0005:2,0x0006:4,0x0007:4,0x0008:2,0x0009:8,
@@ -558,7 +590,7 @@ function decodePictPackBits(data,pre){
     const pm1={rowBytes,bounds,pixelSize:1};
     // QuickDraw 1-bit: set bit = black.
     const canvas=renderPictIndexed(pm1,[[255,255,255],[0,0,0]],rows);
-    return {canvas,width:W,height:H,pixelSize:1,mode,opcode:foundOp,opcodeOffset:found.p-2,colorSpace:'1-bit bitmap'};
+    return {canvas,width:W,height:H,pixelSize:1,mode,opcode:foundOp,opcodeOffset:found.p-2,colorSpace:'1-bit bitmap',dst,end:p};
   }
   if(foundOp===0x0098||foundOp===0x0099){
     // PackBitsRect/Rgn may carry either a PixMap (high bit of rowBytes set) or
@@ -580,7 +612,7 @@ function decodePictPackBits(data,pre){
       const pm1={rowBytes,bounds,pixelSize:1};
       // QuickDraw 1-bit: set bit = black.
       const canvas=renderPictIndexed(pm1,[[255,255,255],[0,0,0]],rows);
-      return {canvas,width:W,height:H,pixelSize:1,mode,opcode:foundOp,opcodeOffset:found.p-2,colorSpace:'1-bit bitmap'};
+      return {canvas,width:W,height:H,pixelSize:1,mode,opcode:foundOp,opcodeOffset:found.p-2,colorSpace:'1-bit bitmap',dst,end:p};
     }
     const pm=readPictPixmap(data,p,false); p=pm.p;
     const ct=readColorTable(data,p); p=ct.p;
@@ -595,7 +627,7 @@ function decodePictPackBits(data,pre){
       if(p+packedLen>data.length) throw new Error('PICT row data ends unexpectedly');
       rows.push(unpackBitsPict(data,p,packedLen,pm.rowBytes)); p+=packedLen;
     }
-    return {canvas:renderPictIndexed(pm,ct.palette,rows),width:W,height:H,pixelSize:pm.pixelSize,mode,opcode:foundOp,opcodeOffset:found.p-2,colorSpace:`${pm.pixelSize}-bit indexed`};
+    return {canvas:renderPictIndexed(pm,ct.palette,rows),width:W,height:H,pixelSize:pm.pixelSize,mode,opcode:foundOp,opcodeOffset:found.p-2,colorSpace:`${pm.pixelSize}-bit indexed`,dst,end:p};
   } else {
     // DirectBitsRect (0x9A) / DirectBitsRgn (0x9B): true-color pixels, no palette.
     const pm=readPictPixmap(data,p,true); p=pm.p;
@@ -604,8 +636,8 @@ function decodePictPackBits(data,pre){
     const W=pm.bounds.right-pm.bounds.left, H=pm.bounds.bottom-pm.bounds.top;
     if(W<=0||H<=0||pm.rowBytes<=0) throw new Error(`Unsupported DirectBits PixMap (${W}×${H})`);
     if(pm.pixelSize!==16 && pm.pixelSize!==32) throw new Error(`Unsupported DirectBits pixel depth (${pm.pixelSize}-bit)`);
-    const {rows}=decodeDirectBitsRows(data,p,pm);
-    return {canvas:renderPictDirect(pm,rows),width:W,height:H,pixelSize:pm.pixelSize,mode,opcode:foundOp,opcodeOffset:found.p-2,colorSpace:`${pm.pixelSize}-bit direct`};
+    const {rows,end}=decodeDirectBitsRows(data,p,pm);
+    return {canvas:renderPictDirect(pm,rows),width:W,height:H,pixelSize:pm.pixelSize,mode,opcode:foundOp,opcodeOffset:found.p-2,colorSpace:`${pm.pixelSize}-bit direct`,dst,end};
   }
 }
 

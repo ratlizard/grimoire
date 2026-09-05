@@ -329,7 +329,7 @@ be told from an accident. As of this writing:
 | Check | Hash |
 |---|---|
 | `viewer / decoder snapshot` | `SNAPSHOT e417960b5595f5f9` |
-| `viewer / resource snapshot` | `SNAPSHOT 4d4c7cf6e1b1` |
+| `viewer / resource snapshot` | `SNAPSHOT 3850dee3cd55` |
 
 If one of those moves and you did not intend it, you changed what a decoder
 outputs. If one of them *doesn't* move after you changed a decoder, the snapshot
@@ -585,7 +585,14 @@ it. The layout was taken from `systemless/src/trap/pict.rs` and the port's
 `utilities/pict_bits_check.mjs` guards it with synthetic pictures, because
 **not one of the twenty-one PICTs in Cythera and Cythera Data reaches those
 opcodes** — they are all `0x0098`, `0x0099` or `0x009B` — so neither snapshot
-can prove the path works or notice it breaking.
+can prove the path works or notice it breaking. Two more were found on
+5 September 2026 by looking at every PICT the forks hold: a device colour
+table (`ctFlags` high bit set) was read by its `value` fields, which are all
+zero in that kind, so three 8-bit pictures came out as one colour; and a
+16-bit picture packed with `packType` 3 was unpacked by bytes where the runs
+count words. Both other implementations already had both right, so these
+were this side's alone; the resource snapshot moved from `4d4c7cf6e1b1` to
+`3850dee3cd55` for exactly those four pictures.
 
 **The HFS writer is the exception that proves the rule, and it is labelled as
 one.** `js/mac-hfs.js` was written *from* systemless's `src/disk_image/hfs.rs`
