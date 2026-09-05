@@ -3452,7 +3452,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.5.0';
+const GRIMOIRE_VERSION = '1.6.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -12971,6 +12971,148 @@ function statusRules() {
   return { applies, cures };
 }
 
+/* A data value in a script, read as JavaScript. A `data` block (0x45, a
+   16-bit length) holds an array: 0x90, a count, then 4-byte entries, each
+   either a pointer (0x98, a byte, a 16-bit offset into the same resource)
+   to a C string or to another array, or a 28-bit number. The shops' goods
+   lists, the trainers' menus and the bark lists are all this shape; read
+   here once so each reader gets the same strings, numbers and nesting. */
+function dvmDataValue(d, at, depth) {
+  depth = depth || 0;
+  if (depth > 6 || at + 2 > d.length) return null;
+  if (d[at] === 0x90) {
+    const n = d[at + 1], out = [];
+    for (let k = 0; k < n; k++) {
+      const p = at + 2 + k * 4;
+      if (p + 4 > d.length) break;
+      if (d[p] === 0x98) out.push(dvmDataValue(d, u16be(d, p + 2), depth + 1));
+      else { let w = u32be(d, p) & 0x0FFFFFFF; if (w & 0x08000000) w -= 0x10000000; out.push(w); }
+    }
+    return out;
+  }
+  let e = at; while (e < d.length && d[e] !== 0) e++;
+  return decodeMacRoman(d.subarray(at, e));
+}
+// The data blocks in the operands of a call at ops[k], as values, and the
+// blocks in the ops before it (a menu built into a local), for a caller
+// that wants either.
+function dvmCallData(d, off, ops, k, before) {
+  const out = [];
+  if (before) { for (let j = Math.max(0, k - 60); j < k; j++) if (ops[j][2] === 'data') out.push(dvmDataValue(d, off + ops[j][0] + 3)); }
+  else for (let j = k + 1; j < Math.min(ops.length, k + 14); j++) {
+    if (ops[j][2] === 'end' && ops[j][1] <= ops[k][1]) break;
+    if (ops[j][2] === 'data') out.push(dvmDataValue(d, off + ops[j][0] + 3));
+  }
+  return out;
+}
+// Every call of `resid` in every script, with the caller and the ops around it.
+function dvmCallSites(target) {
+  const out = [];
+  if (!masterIndexGlobal) return out;
+  for (let subn = 0; subn < 256; subn++) {
+    const mi = masterIndexGlobal[subn];
+    if (!mi || !mi[0] || XREF_SKIP_SUBN.has(subn)) continue;
+    const count = subindexCount(subn);
+    for (let ri = 0; ri < count; ri++) {
+      const resid = ((subn + 1) << 8) | ri;
+      let data;
+      try { const raw = getResourceBytes(resid); if (!raw || !raw.length) continue; data = smartDecrypt(raw, resid).data; if (dvmNamedScript(data)) continue; } catch (e) { continue; }
+      let disc; try { disc = dvmDiscover(data, resid); } catch (e) { continue; }
+      if (disc.tableOffset === null) continue;
+      const offs = Object.keys(disc.kinds).map(Number).sort((x, y) => x - y);
+      for (const off of offs) {
+        if (disc.kinds[off] !== 'function') continue;
+        let end = data.length; for (const o2 of offs) if (o2 > off && o2 < end) end = o2;
+        let ops; try { ops = dvmDisassemble(data.slice(off, end), 3).ops; } catch (e) { continue; }
+        const want = new RegExp('0x' + target.toString(16).toUpperCase().padStart(3, '0') + '\\b|\\(0x' + target.toString(16).toUpperCase() + '\\)', 'i');
+        ops.forEach((op, k) => { if (op[2] === 'call_resource' && want.test(String(op[3]))) out.push({ resid, subn, data, off, ops, k }); });
+      }
+    }
+  }
+  return out;
+}
+
+/* LOCKPICKING. One helper, PickLock (0xE43), takes a key or a pick, a key
+   number (255 for a pick) and the lock. A key fits when the lock's number
+   is the key's plus the number given. A pick succeeds when the picker's
+   reflex plus a roll of 0 to 19 is at least 20 plus another roll of 0 to
+   19 plus 5 for every 20 of the lock's difficulty, and breaks otherwise;
+   the lockpick item refuses to be used at all without the Lock Picking
+   skill (0x1109). The difficulty is the placed lock's own data1; the
+   classes carry a lock parameter of their own, shown as stored. */
+function lockRules() {
+  const idx = buildScriptTextIndex();
+  const pick = idx.find(e => e.resid === 0xE43);
+  const item = idx.find(e => e.resid === 0x1109);
+  const rule = pick ? { breaks: /The lockpick broke/.test(pick.text), keyFits: /The key doesn't fit/.test(pick.text),
+    formula: /get_field reflex/.test(pick.text) && /get_field data1 \(0x6\)[\s\S]{0,120}byte 0x14[\s\S]{0,60}div[\s\S]{0,60}byte 0x05[\s\S]{0,40}mul/.test(pick.text) } : null;
+  const needsSkill = !!(item && /GetSkill[\s\S]{0,140}short 0x00D5/.test(item.text));
+  const classes = [];
+  for (let pt = 1; pt < 512; pt++) {
+    const cls = parseItemClass(pt); if (!cls) continue;
+    const f = cls.data.find(x => x.key === 0x34);
+    if (f) classes.push({ pt, name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)), words: f.words.map(w => w & 0x0FFFFFFF) });
+  }
+  return { rule, needsSkill, classes };
+}
+
+/* SHOPS. Every vendor calls one helper, 0xEA5, with a name for the shop, a
+   list of goods -- each a prop word, a name, a price and a count -- and
+   four bargaining figures of its own. The helper's arithmetic is the
+   game's; what is shown is what each vendor lists and at what price, and
+   that the Haggling skill (0xCC) takes a further roll of 0 to 5 off the
+   vendor's figure, which the helper's own code says. */
+function shopRules() {
+  const shops = [];
+  for (const site of dvmCallSites(0xEA5)) {
+    const { resid, subn, data, off, ops, k } = site;
+    const title = ops[k + 1] && ops[k + 1][2] === 'string' ? (() => { try { return JSON.parse(ops[k + 1][3]); } catch (e) { return ''; } })() : '';
+    const blocks = dvmCallData(data, off, ops, k, false);
+    const goods = (blocks.find(b => Array.isArray(b) && b.length && Array.isArray(b[0])) || []).filter(g => Array.isArray(g) && g.length >= 3)
+      .map(g => ({ word: g[0], name: String(g[1]), price: g[2], count: g[3] }));
+    const terms = blocks.find(b => Array.isArray(b) && b.length === 4 && b.every(x => typeof x === 'number')) || null;
+    if (goods.length) shops.push({ resid, who: subn === 23 ? resid & 0xFF : null, title, goods, terms });
+  }
+  const helper = buildScriptTextIndex().find(e => e.resid === 0xEA5);
+  const haggling = !!(helper && /GetSkill[\s\S]{0,80}short 0x00CC[\s\S]{0,120}sys Random\s+[0-9A-F]*\s*byte 0x00\s+[0-9A-F]*\s*byte 0x05/.test(helper.text));
+  return { shops, haggling };
+}
+
+/* TRAINING. Every teacher calls one helper, 0xEB1, with the pupil, their
+   own name, a skill and whether they teach it to mastery; a skill named as
+   a constant is one lesson on offer, and a menu of them is a data list of
+   name-and-skill pairs built just before the call. A lesson costs one
+   training point (0xEAF): a character is made with 4 (the hero's script),
+   gains 6 less the difficulty level with each level (0xE86), and a skill
+   is mastered at level 15. */
+function trainingRules() {
+  const byTeacher = new Map();
+  for (const site of dvmCallSites(0xEB1)) {
+    const { resid, subn, data, off, ops, k } = site;
+    const who = subn === 23 ? resid & 0xFF : null;
+    const key = resid;
+    if (!byTeacher.has(key)) byTeacher.set(key, { resid, who, skills: new Map() });
+    const t = byTeacher.get(key);
+    const args = ops.slice(k + 1, k + 8);
+    const mastery = args.some(o => o[2] === 'word' && /True/.test(String(o[3])));
+    const constant = args.find(o => o[2] === 'short');
+    if (constant) { const id = parseInt(constant[3], 16); if (id >= 0xC0 && id <= 0xD6) t.skills.set(id, mastery || t.skills.get(id) || false); continue; }
+    for (const b of dvmCallData(data, off, ops, k, true)) {
+      if (!Array.isArray(b)) continue;
+      for (const e of b) if (Array.isArray(e) && e.length === 2 && typeof e[1] === 'number' && e[1] >= 0xC0 && e[1] <= 0xD6) t.skills.set(e[1], mastery || t.skills.get(e[1]) || false);
+    }
+  }
+  const idx = buildScriptTextIndex();
+  const lvl = idx.find(e => e.resid === 0xE86), hero = idx.find(e => e.resid === 0x1801), lesson = idx.find(e => e.resid === 0xEAF);
+  const points = {
+    perLevel: lvl && /set_field training[\s\S]{0,200}byte 0x06[\s\S]{0,80}DifficultyLevel[\s\S]{0,60}sub/.test(lvl.text) ? '6 less the difficulty level' : null,
+    atStart: hero && /set_field training[\s\S]{0,120}byte 0x04/.test(hero.text) ? 4 : null,
+    perLesson: lesson && /set_field training[\s\S]{0,200}byte 0x01[\s\S]{0,60}sub/.test(lesson.text) ? 1 : null,
+    mastery: lesson && /byte 0x0F/.test(lesson.text) ? 15 : null
+  };
+  return { teachers: [...byTeacher.values()], points };
+}
+
 function renderMechanicsSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -13143,9 +13285,59 @@ function renderMechanicsSheet() {
     tsec.appendChild(scroll);
   }
 
-  const more = sec('Not derived yet', 'Lockpicking, shop prices, training. The spell costs and the combat rolls are in the executable, not the scripts.');
+  // ---- lockpicking ----
+  const lk = lockRules();
+  const lsec = sec('Locks and lockpicks', lk.rule
+    ? 'One helper (0xE43) tries a key or a pick against a lock. A key fits when the lock’s number matches the key’s. ' +
+      (lk.rule.formula ? 'A pick opens the lock when the picker’s <b>reflex plus a roll of 0 to 19</b> is at least <b>20 plus another roll of 0 to 19 plus 5 for every 20 of the lock’s difficulty</b>' : 'A pick is tested against the lock’s difficulty') +
+      (lk.rule.breaks ? ', and breaks otherwise.' : '.') + (lk.needsSkill ? ' The lockpick refuses to be used at all without the Lock Picking skill.' : '') +
+      ' The difficulty is the placed lock’s own; the classes carry a lock parameter, shown as stored.'
+    : 'The lock helper (0xE43) is not in this archive.');
+  if (lk.classes.length) {
+    const strip = document.createElement('div');
+    strip.className = 'partsStrip';
+    strip.innerHTML = '<span class="partsTitle">Lock parameter</span>' + lk.classes.map(c =>
+      '<button class="relChip" onclick="showPropTypeDetail(' + c.pt + ')"><span class="relText"><span class="relMain">' + svEsc(c.name) + '</span><span class="relSub">' + c.words.join(' ') + '</span></span></button>').join('');
+    lsec.appendChild(strip);
+  }
+
+  // ---- shops ----
+  const sh = shopRules();
+  const hsec = sec('Shops', sh.shops.length
+    ? sh.shops.length + ' shops, each a call of one helper (0xEA5) with what the vendor lists and at what price. The helper bargains from the listed price with four figures of the vendor’s own, shown as stored' +
+      (sh.haggling ? ', and the Haggling skill takes a further roll of 0 to 5 off the vendor’s figure.' : '.')
+    : 'No script in this archive opens a shop.');
+  if (sh.shops.length) {
+    const rows = sh.shops.map(sp => '<tr><td>' + (sp.who !== null && loadCharacterTable()[sp.who] ? characterChip(sp.who) : svChip(sp.resid)) +
+      (sp.title ? '<div class="inspDim">“' + svEsc(sp.title) + '”</div>' : '') + '</td><td>' +
+      sp.goods.map(g => svEsc(g.name) + ' <span class="inspDim">' + g.price + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') +
+      '</td><td class="num">' + (sp.terms ? sp.terms.join(' ') : '') + '</td></tr>');
+    const scroll = document.createElement('div');
+    scroll.className = 'tableScroll';
+    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>vendor</th><th>goods, at the listed price in obols</th><th>terms</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    hsec.appendChild(scroll);
+  }
+
+  // ---- training ----
+  const tr = trainingRules();
+  const rsec = sec('Training', tr.teachers.length
+    ? tr.teachers.length + ' teachers, each a call of one helper (0xEB1) naming the skill. A lesson raises the skill one level' +
+      (tr.points.perLesson ? ' and costs one training point' : '') + (tr.points.atStart !== null ? '; a character is made with ' + tr.points.atStart : '') +
+      (tr.points.perLevel ? ' and gains ' + tr.points.perLevel + ' with each level' : '') + (tr.points.mastery ? '; a skill is mastered at level ' + tr.points.mastery : '') +
+      '. A teacher marked <i>to mastery</i> teaches past the first lessons.'
+    : 'No script in this archive teaches a skill.');
+  if (tr.teachers.length) {
+    const rows = tr.teachers.map(t => '<tr><td>' + (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + '</td><td>' +
+      [...t.skills.entries()].sort((a, b) => a[0] - b[0]).map(([id, m]) => (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16)), 0x1A00 + id) : 'skill 0x' + id.toString(16)) + (m ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') + '</td></tr>');
+    const scroll = document.createElement('div');
+    scroll.className = 'tableScroll';
+    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>teacher</th><th>teaches</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    rsec.appendChild(scroll);
+  }
+
+  const more = sec('Not in the scripts', 'The spell costs, the combat rolls, the hunger rate and how long a balloon stays up are in the executable, not the scripts.');
   grid.appendChild(box);
-  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot: the dice game, the weapon and armour numbers, what each skill is asked about, every move of karma, how experience becomes levels, what food and potions do, and every status put on and taken off.';
+  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot: the dice game, the weapon and armour numbers, what each skill is asked about, every move of karma, how experience becomes levels, what food and potions do, every status put on and taken off, locks and picks, every shop’s prices, and every teacher’s lessons.';
 }
 
 function renderPlaceholderSheet(note) {

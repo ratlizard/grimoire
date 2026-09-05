@@ -912,7 +912,35 @@ Read the comment above a constant before correcting it.
   12 statuses, sleep for 4,096 from Soporiferousness, cleared by Free
   Motion among others. The smoke test pins the cap and the doubling, a
   100-point award, Antidote and Healing, the foodstuff variants, and
-  sleep's 4,096 with a cure for poison.
+  sleep's 4,096 with a cure for poison. And the last three from the
+  scripts, the same evening, on one shared reader: **`dvmDataValue`**
+  reads a `data` block as JavaScript — an array header 0x90 and a count,
+  then 4-byte entries that are a pointer (0x98, a byte, a 16-bit offset in
+  the same resource) to a C string or another array, or a 28-bit number —
+  and `dvmCallSites` finds every call of a helper with the ops around it,
+  so a reader of shops, trainers or barks is a few lines over the same
+  shapes. **Locks** (`lockRules`): `PickLock` `0xE43` — a key fits when
+  the lock's number is the key's plus the number given; a pick succeeds
+  when reflex plus a roll of 0 to 19 is at least 20 plus another roll of
+  0 to 19 plus 5 for every 20 of the lock's difficulty, and breaks
+  otherwise; the lockpick item (`0x1109`) refuses without the Lock Picking
+  skill; the difficulty is the placed lock's own `data1`, and the classes'
+  lock parameter (key 0x34: chest 15, oak door 10, stone door 255) is
+  shown as stored. **Shops** (`shopRules`): every call of `0xEA5` — a
+  title, a goods list of [prop word, name, price, count] records, and four
+  bargaining figures of the vendor's own — 23 shops from Atreus's gems to
+  Eteocles's bomb at 200; the helper bargains from the listed price and
+  the Haggling skill takes a further roll of 0 to 5 off the vendor's
+  figure, which its code says. **Training** (`trainingRules`): every call
+  of `0xEB1` — pupil, the teacher's name, a skill as a constant or a menu
+  of [name, skill] pairs built just before, and whether to mastery — 10
+  teachers; a lesson costs one training point (`0xEAF`), a character is
+  made with 4 (`0x1801`), gains 6 less the difficulty level with each
+  level (`0xE86`), and a skill is mastered at level 15. The smoke test
+  pins the chest's 15 and the lock formula, Milcom's sword at 45 with the
+  haggling roll, and Thersites teaching axe and mace with the points rule.
+  What is left is not in the scripts: spell costs, the combat rolls, the
+  hunger rate, how long a balloon stays up.
 - **The joins between the two halves are resource-id rules, and they are
   written down once, in the `Parts and uses` section beside the tree.** A
   character's dossier carries a *Made of* row (`characterParts`): dialogue
