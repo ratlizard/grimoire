@@ -396,7 +396,12 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   the surround plate being sharper than the base it replaces and centred on
   its own gateway, and — by counting `renderMapVisual` calls rather than
   timing anything — that a crossing costs **one** map render and a return or a
-  revisit none. Its `saved game` section opens a Cythera player file through
+  revisit none; and, since 5 September 2026, that five pans in a frame are
+  one paint at the frame, that a magnified node's native art is rasterised
+  once and blitted after, that the square card names the person, stays
+  quiet over bare ground for a passing pointer and gives the ground to a
+  held finger, and that full screen pins and unpins the panel where the
+  browser offers no element full screen. Its `saved game` section opens a Cythera player file through
   `adoptArchive` — the path that refused every one of them until
   September 2026 — and checks what a visitor sees (see the per-page notes).
   Its fork section checks the grouped gallery has its headings, that a
@@ -689,6 +694,42 @@ Read the comment above a constant before correcting it.
   after which that map is shown on its own with the strip describing the
   **connection** rather than asserting a position. `ATLAS_BELOW` is a stack,
   and is the only state in the renderer.
+- **It paints once a frame, and cheaply, because a phone could not keep
+  up.** An iPhone 15 juddered: a finger reports its position up to 120
+  times a second and every report painted the whole scene at two device
+  pixels per CSS pixel, with the magnified node's native art rasterised
+  square by square and everybody's position on it worked out from the
+  schedules, all before the next report was read. Four things fixed it,
+  none of them a change to what is drawn: a move changes the three view
+  numbers and asks for a paint (`schedulePaintAtlas`), so many moves in a
+  frame are one paint at the frame; while a finger is down the canvas is
+  one device pixel per CSS pixel (`atlasView.touching`) and is painted
+  sharp the moment it lifts; the native-art window is rasterised once into
+  a canvas of its own six squares wider than the screen needs and blitted
+  until the view leaves it (`atlasDetailWindow`), rebuilt on the palette
+  frame only when the window holds a square that animates; and the people
+  on a node are worked out once per node and hour (`atlasFolk`). The
+  seven-frames-a-second palette cycle waits while a finger is down and
+  while the tab is hidden. The smoke test counts: five pans in a frame are
+  one paint, and a repaint at the same view rasterises nothing.
+- **Full screen** (`atlasToggleFull`). The panel is asked to go full screen
+  where the browser allows an element to — desktop browsers, Chrome on
+  Android — and is pinned over the page (`body.atlasFull`) where it does
+  not, which on an iPhone is every browser: they allow it for video only,
+  so the address bar stays, and that is as full as the OS permits. Either
+  way the zoom row and the inspector stay under the viewport and the
+  canvas resizes through the check `paintAtlas` already makes. Escape
+  leaves the pinned mode as it does the real one.
+- **Press and hold is the hover on a touch screen**, on the atlas and on
+  the map panel alike. There is no pointer resting over anything on a
+  phone, so a finger that stays put for a third of a second asks what a
+  resting mouse asks, and the card follows the finger until it lifts;
+  sliding first is a pan, a tap is still a tap, and the hold neither pans
+  nor opens the inspector. **The card says what is on the square, not only
+  who** (`squareCard`, shared by both panels so they agree): the person
+  and what they are doing, what is placed there, and — only for a held
+  finger, which has asked — the ground; a passing mouse stays quiet over
+  bare ground, since a card over every blade of grass is noise.
 - **Sizing is measured, not chosen.** `contentBox` is the built part of a map
   (Cademia's map is 128 squares and its town is 107); `worldSquareRatio`
   measures how many region squares one world square stands for from the
@@ -956,15 +997,16 @@ Read the comment above a constant before correcting it.
   `applyMapTransform`, and is the `detail lens` section of
   `viewer_smoke.mjs`. Lighting gets a scratch canvas in lens mode: its
   destination-out light circles would otherwise erase the map itself.
-- **A pointer resting on somebody says who they are** (`updateMapHover`,
-  `#mapHover`). The map has known who is standing where since the schedules
-  were read, and the only way to ask was to click a square; on a map with
-  sixty people that is sixty clicks to find one. **Mouse only, deliberately**:
-  there is no hover on a touch screen, a `pointermove` there is a drag, and a
-  card under a finger covers the thing it describes — a tap already opens the
-  inspector. The square is matched the way the inspector matches it, by the
-  record's own coordinate rather than where the sprite is drawn, or the card
-  would name a different person from the one the click is about to open. The
+- **A pointer resting on a square says what is there** (`updateMapHover`,
+  `#mapHover`, `squareCard`). The map has known who is standing where since
+  the schedules were read, and the only way to ask was to click a square; on
+  a map with sixty people that is sixty clicks to find one. A mouse gets it
+  by resting; a finger gets it by pressing and holding (see the World tab
+  notes above — the same gesture on both panels), since a `pointermove` on
+  a touch screen is a drag and a tap already opens the inspector. The
+  square is matched the way the inspector matches it, by the record's own
+  coordinate rather than where the sprite is drawn, or the card would name
+  a different person from the one the click is about to open. The
   words are markup and the sprite is appended after them with `order:-1`;
   built the other way round the card's own `innerHTML` said nothing, which no
   harness could then check.

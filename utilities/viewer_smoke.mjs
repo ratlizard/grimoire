@@ -1106,6 +1106,87 @@ try {
     if (!cvA || !cvA.width) fail('atlas', 'the scene painted nothing');
     else console.log('  atlas: the scene paints into one ' + cvA.width + 'x' + cvA.height +
                      ' canvas, redrawn rather than slid');
+
+    // A pan asks for a paint rather than painting: many moves in one frame
+    // are one paint, drawn when the frame comes.
+    let paints = 0;
+    const realPaint = ctx.paintAtlas;
+    ctx.paintAtlas = function () { paints++; return realPaint.apply(this, arguments); };
+    drainRaf(); paints = 0;
+    for (let i = 0; i < 5; i++) peek('atlasPanBy')(1, 0);
+    const before = paints;
+    drainRaf();
+    if (before !== 0 || paints !== 1) fail('atlas', `five pans painted ${before} times before the frame and ${paints} after`);
+    else console.log('  atlas: five pans in a frame are one paint, at the frame');
+    ctx.paintAtlas = realPaint;
+
+    // Magnified past its own render, a node's native art is a cached window:
+    // the second frame at the same view rasterises no square at all.
+    const av2 = peek('atlasView');
+    const cad2 = peek('atlasScene')().nodes.find(n => n.resid === 0x8008);
+    peek('atlasFit')();
+    for (let k = 0; k < 16 && peek('atlasNodePpt')(cad2, av2) <= cad2.ts * 1.2; k++) {
+      const rc = peek('atlasRect')(cad2, av2);
+      peek('atlasZoomAround')(av2.Z * 2, rc.x + rc.w / 2, rc.y + rc.h / 2);
+    }
+    drainRaf();
+    if (peek('atlasNodePpt')(cad2, av2) > cad2.ts * 1.2) {
+      let regions = 0;
+      const realRegion = ctx.paintMapBaseRegion;
+      ctx.paintMapBaseRegion = function () { regions++; return realRegion.apply(this, arguments); };
+      peek('atlasDetailWindows').clear();      // the zoom's own frame built one already
+      peek('paintAtlas')();
+      const first = regions;
+      peek('paintAtlas')();
+      const second = regions - first;
+      peek('atlasPanBy')(3, 2); drainRaf();
+      const third = regions - first - second;
+      ctx.paintMapBaseRegion = realRegion;
+      if (!first || second || third) fail('atlas', `native art rasterised ${first}, then ${second}, then ${third} times after a small pan`);
+      else console.log('  atlas: the native-art window is rasterised once and blitted after — ' +
+                       peek('atlasDetailWindows').size + ' window(s) kept');
+      // The people on the node are worked out once for the hour.
+      const folkKeys = peek('atlasFolkCache').size;
+      peek('paintAtlas')();
+      if (peek('atlasFolkCache').size !== folkKeys) fail('atlas', 'a repaint recomputed the schedules');
+    } else console.log('  note: could not magnify Cademia past its render in a 300px panel; window cache not exercised' +
+                       ` (Z ${av2.Z.toFixed(2)}, s ${cad2.s}, ppt ${peek('atlasNodePpt')(cad2, av2).toFixed(1)}, ts ${cad2.ts}, maxZ ${peek('atlasMaxZ')().toFixed(1)}, below ${(ctx.ATLAS_BELOW || []).length})`);
+
+    // The card over a square: who, what, and -- only when asked -- the ground.
+    const ode = peek('atlasScene')().nodes.find(n => n.resid === 0x8002) || cad2;
+    const eO = peek('mapRenderFor')(ode.resid, true);
+    const folk = peek('atlasFolk')(ode);
+    const someone = folk[0];
+    const cardP = someone && ctx.squareCard(ode.resid & 0xFF, eO, Math.round(someone.x), Math.round(someone.y), ode.name, false);
+    if (!cardP || !cardP.html.includes(ctx.svEsc(someone.name))) fail('square card', 'a square with somebody on it did not name them');
+    let bare = null;
+    for (let y = 0; y < ode.h && !bare; y++) for (let x = 0; x < ode.w; x++) {
+      if (folk.some(c => Math.round(c.x) === x && Math.round(c.y) === y)) continue;
+      if ((eO.result.props || []).some(p => p.cells.some(c => c[0] === x && c[1] === y))) continue;
+      bare = { x, y }; break;
+    }
+    if (bare) {
+      const quiet = ctx.squareCard(ode.resid & 0xFF, eO, bare.x, bare.y, ode.name, false);
+      const asked = ctx.squareCard(ode.resid & 0xFF, eO, bare.x, bare.y, ode.name, true);
+      if (quiet) fail('square card', 'a passing pointer got a card over bare ground');
+      else if (!asked || !/hvWhat/.test(asked.html)) fail('square card', 'a held finger got no ground');
+      else console.log('  square card: names ' + someone.name + '; quiet over bare ground; a held finger gets the ground');
+    }
+    const propSq = (eO.result.props || []).find(p => p.cells.length && !folk.some(c => Math.round(c.x) === p.cells[0][0] && Math.round(c.y) === p.cells[0][1]));
+    if (propSq) {
+      const cardQ = ctx.squareCard(ode.resid & 0xFF, eO, propSq.cells[0][0], propSq.cells[0][1], ode.name, false);
+      if (!cardQ || !/hvName/.test(cardQ.html)) fail('square card', 'a square with a prop on it got no card');
+    }
+
+    // Full screen, in a browser with no element full screen: the panel is
+    // pinned over the page and the button says how to leave.
+    ctx.atlasToggleFull();
+    const fullOn = ctx.document.body.classList.contains('atlasFull') && /Leave/.test(REGISTRY.get('atlasFullBtn').textContent);
+    ctx.atlasToggleFull();
+    const fullOff = !ctx.document.body.classList.contains('atlasFull') && !/Leave/.test(REGISTRY.get('atlasFullBtn').textContent);
+    if (!fullOn || !fullOff) fail('atlas', 'full screen did not pin and unpin the panel');
+    else console.log('  atlas: full screen pins the panel where the browser offers no better, and unpins');
+    drainRaf();
   }
 } catch (e) { fail('atlas', e); }
 
