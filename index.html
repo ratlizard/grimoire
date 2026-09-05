@@ -666,11 +666,6 @@ pre.sv-code { background:#090806; color:#f9f86f; padding:11px; overflow:auto; ma
 .kindNote { display:block; margin:4px 0 2px; font-size:12px; line-height:1.4; color:#c9bd94;
   letter-spacing:0; text-transform:none; font-weight:400; }
 .kindNote .navChip { margin-left:6px; }
-.dollBlock { grid-column:1/-1; display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;
-  padding:8px 4px 12px; }
-.dollBlock canvas { image-rendering:pixelated; width:160px; height:260px; border:1px solid #6b6b6b; background:#fff; }
-.dollBlock ol { margin:0; padding-left:22px; font-size:13px; line-height:1.5; columns:2; column-gap:24px; }
-.dollBlock .amNote { flex-basis:100%; }
 .vocabTable { border-collapse:collapse; font-size:12.5px; margin:0 0 10px; }
 .vocabTable th { text-align:left; color:#c9bd94; font-weight:600; padding:2px 10px 2px 0; vertical-align:top; white-space:nowrap; }
 .vocabTable td { padding:2px 0; vertical-align:top; }
@@ -802,9 +797,15 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
    pinned over the page where it does not (see atlasToggleFull). */
 #atlasPanel:fullscreen, #atlasPanel:-webkit-full-screen, body.atlasFull #atlasPanel {
   position:fixed; inset:0; z-index:60; margin:0; padding:0 4px; background:#0f0d09;
-  display:flex; flex-direction:column; overflow:hidden; }
+  display:flex !important; flex-direction:column; overflow:hidden; }
+/* !important on the display, because renderAtlasView sets display:block
+   inline to show the panel, and inline beats the sheet: without it the
+   column never formed, the viewport's auto height was nothing, and full
+   screen was a zoom row and an inspector with no map between them. The
+   viewport also keeps a floor of half the screen, so a browser that gives
+   the column less than the screen still shows a map. */
 #atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport,
-body.atlasFull #atlasPanel #atlasViewport { flex:1 1 auto; height:auto; min-height:0; }
+body.atlasFull #atlasPanel #atlasViewport { flex:1 1 auto; height:auto; min-height:50vh; }
 #atlasPanel:fullscreen #atlasInspect, #atlasPanel:-webkit-full-screen #atlasInspect,
 body.atlasFull #atlasPanel #atlasInspect { max-height:28vh; overflow:auto; }
 body.atlasFull { overflow:hidden; }
@@ -923,13 +924,19 @@ body.atlasFull { overflow:hidden; }
 #sheetGrid.listView .cell.charCell .portraitBox > canvas.portrait { width:56px !important; height:56px !important; }
 #sheetGrid.listView .cell.charCell .portraitBox > canvas.walker { display:none; }
 #sheetGrid.listView .cellChars { width:96px; height:58px; font-size:10px; line-height:1.28; }
-#sheetGrid.listView .cell canvas { max-height:72px; }
+/* A cell sizes its canvas inline for the tile grid (84 wide, 96 high at
+   most); in a row that height was clamped to 72 while the width stayed, and
+   every picture came out squashed. Both sides are freed here and only the
+   box is bounded, so the browser keeps the canvas's own proportions. */
+#sheetGrid.listView .cell canvas { width:auto !important; height:auto !important;
+  max-width:96px; max-height:72px; }
 #sheetGrid.listView .lbl { margin-top:0 !important; font-size:15px; -webkit-line-clamp:2; }
 #sheetGrid.listView .resid { margin-top:0; text-align:right; white-space:nowrap; }
 #sheetGrid.listView .propHead { display:none; }
 @media (max-width:520px) {
   #sheetGrid.listView .cell { grid-template-columns:64px 1fr; }
   #sheetGrid.listView .cellimgwrap, #sheetGrid.listView .cellChars { width:64px; }
+  #sheetGrid.listView .cell canvas { max-width:64px; max-height:56px; }
   #sheetGrid.listView .resid { grid-column:2; text-align:left; }
 }
 
@@ -3102,50 +3109,6 @@ function inventoryItemList() {
 
 const ITEM_GROUP_ORDER = ['Weapons & armour', 'Containers', 'Carried goods'];
 
-/* Where an item is worn. The body with a line to each place is PICT 129 in
-   Cythera Data's resource fork, and the names of the places are STR# 501 in
-   the application's -- ten of them, two hands and two rings among them. The
-   two are in different files and nothing in either says which line is which
-   name, so they are shown side by side and not joined line to name. The
-   application's fork is used when it is already here and not fetched for
-   this: opening Items should not cost a download. */
-function paperDollBlock() {
-  const fork = window.CYTHERA_RSRC;
-  if (!fork) return null;
-  const entry = (fork.resourcesByType['PICT'] || []).find(e => e.id === 129);
-  if (!entry) return null;
-  const pic = rsrcArtifacts(fork, 'PICT', entry).find(a => a.canvas && a.canvas.width);
-  if (!pic) return null;
-  const box = document.createElement('div');
-  box.className = 'dollBlock';
-  const h = document.createElement('div');
-  h.className = 'propHead';
-  h.style.cssText = 'flex-basis:100%;';
-  h.textContent = 'Where things are worn';
-  box.appendChild(h);
-  const cv = document.createElement('canvas');
-  cv.width = pic.canvas.width; cv.height = pic.canvas.height;
-  cv.getContext('2d').drawImage(pic.canvas, 0, 0);
-  cv.title = 'PICT 129 in Cythera Data’s resource fork';
-  box.appendChild(cv);
-  const slots = forkStringList(window.APP_RSRC, 501);
-  if (slots && slots.length) {
-    const ol = document.createElement('ol');
-    for (const nm of slots) { const li = document.createElement('li'); li.textContent = nm; ol.appendChild(li); }
-    box.appendChild(ol);
-    const n = document.createElement('div');
-    n.className = 'amNote';
-    n.textContent = 'The figure is PICT 129 in Cythera Data’s resource fork; the ten places are STR# 501 in the application’s. Neither file says which line is which name.';
-    box.appendChild(n);
-  } else {
-    const n = document.createElement('div');
-    n.className = 'amNote';
-    n.textContent = 'The figure is PICT 129 in Cythera Data’s resource fork. The names of the ten places are STR# 501 in the application’s, which is not loaded — Cythera (App) › Resource Fork fetches it.';
-    box.appendChild(n);
-  }
-  return box;
-}
-
 function renderItemSheet() {
   stopSpriteAnimations();
   const grid = document.getElementById('sheetGrid');
@@ -3161,8 +3124,6 @@ function renderItemSheet() {
     ((a.name ? 0 : 1) - (b.name ? 0 : 1)) ||
     (a.name || '').localeCompare(b.name || '') || a.pt - b.pt);
 
-  const doll = paperDollBlock();
-  if (doll) grid.appendChild(doll);
   let heading = null;
   for (const e of entries) {
     if (e.group !== heading) {
@@ -3434,7 +3395,7 @@ function showItemDetail(pt) {
    says what each kind is for and where on the site it is shown: the title
    and menu screens under Graphics, the fonts under Text, the string lists
    under Labels, the editor's zone list beside every map's name, the default
-   conversation keywords on the Dialogue gallery, the paper doll under Items,
+   conversation keywords on the Dialogue gallery,
    the Finder icons on the installer's rows, and the page's own face, which
    is the sfnt in this fork (installGameFont). What needs Cythera's tile
    system is the four types that are Delver's own:
@@ -3484,7 +3445,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.0.0';
+const GRIMOIRE_VERSION = '1.0.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -10324,13 +10285,13 @@ function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
   if (!ok) {
     const e = mapRenderFor(node.resid, true);
     if (e && e.result && r.w >= 448) {
-      ctx.drawImage(e.result.canvas, r.x, r.y, r.w, r.h);
+      drawRenderWithMargin(ctx, node, r, e.result.canvas, alpha, roofT);
       ok = true;
     } else if (node.gw && worldThumbs.get(thumbKey(node.resid, THUMB_LEVELS[0], true))) {
       ok = drawTown(ctx, node.gw, atlasCropRect(node, r), alpha, roofT);
       viaTown = true;
     } else if (e && e.result) {
-      ctx.drawImage(e.result.canvas, r.x, r.y, r.w, r.h);
+      drawRenderWithMargin(ctx, node, r, e.result.canvas, alpha, roofT);
       ok = true;
     }
   }
@@ -10351,6 +10312,33 @@ function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
 // none from 540, and a straight fade between -- the band sits on the 448 px
 // step where they used to cut.
 function atlasRoofT(w) { return Math.max(0, Math.min(1, (540 - w) / (540 - 360))); }
+
+/* The outer part of a region fades in as the roofs fade out.
+
+   A town's map is bigger than the town: Cademia's is 128 squares and the
+   built part 107, and the rest is the unbuilt margin of the grid. The
+   miniature is cropped to the built part, so at the step to the render the
+   margin used to appear all at once around a town that had just lost its
+   roofs. Now the built part is always drawn whole and the margin at what
+   the roofs have given up -- the same band, run the other way -- so the
+   two changes are one change: the place resolves and its ground with it.
+   Both the render and the native-art window go through this. */
+function drawWithMargin(ctx, node, r, alpha, roofT, draw) {
+  const b = contentBox(node.resid);
+  if (!b || roofT <= 0.02) { ctx.globalAlpha = alpha; draw(); return; }
+  const per = r.w / node.w;
+  if (roofT < 0.98) { ctx.globalAlpha = alpha * (1 - roofT); draw(); }
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(r.x + b.x0 * per, r.y + b.y0 * per, (b.x1 - b.x0 + 1) * per, (b.y1 - b.y0 + 1) * per);
+  ctx.clip();
+  ctx.globalAlpha = alpha;
+  draw();
+  ctx.restore();
+}
+function drawRenderWithMargin(ctx, node, r, canvas, alpha, roofT) {
+  drawWithMargin(ctx, node, r, alpha, roofT, () => ctx.drawImage(canvas, r.x, r.y, r.w, r.h));
+}
 
 // Where a node's cropped thumbnail sits, given where the whole node sits.
 function atlasCropRect(node, r) {
@@ -10384,14 +10372,21 @@ function paintAtlasDetail(ctx, node, r, vw, vh) {
   const win = atlasDetailWindow(node, src, x0, y0, x1, y1, mapAnimFrame || 8);
   ctx.save();
   ctx.imageSmoothingEnabled = false;
+  const alpha = ctx.globalAlpha;
   if (win) {
-    // One scaled blit of the cached window; the cache handles the frame.
-    ctx.drawImage(win.canvas, r.x + win.x0 * per, r.y + win.y0 * per,
-                  (win.x1 - win.x0 + 1) * per, (win.y1 - win.y0 + 1) * per);
+    // One scaled blit of the cached window; the cache handles the frame,
+    // drawWithMargin the fade of the unbuilt part.
+    drawWithMargin(ctx, node, r, alpha, atlasRoofT(r.w), () =>
+      ctx.drawImage(win.canvas, r.x + win.x0 * per, r.y + win.y0 * per,
+                    (win.x1 - win.x0 + 1) * per, (win.y1 - win.y0 + 1) * per));
   } else {
-    ctx.translate(r.x, r.y);
-    ctx.scale(per / TS, per / TS);
-    paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, mapAnimFrame || 8);
+    drawWithMargin(ctx, node, r, alpha, atlasRoofT(r.w), () => {
+      ctx.save();
+      ctx.translate(r.x, r.y);
+      ctx.scale(per / TS, per / TS);
+      paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, mapAnimFrame || 8);
+      ctx.restore();
+    });
   }
   ctx.restore();
   return true;

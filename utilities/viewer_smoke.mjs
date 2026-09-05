@@ -1398,11 +1398,6 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     ctx.showCategory('AIRULES');
     const vocab = REGISTRY.get('sheetGrid').children.find(c => /vocabTable/.test(c.innerHTML || ''));
     if (!vocab || !/HasSpell|IsSpecies/.test(vocab.innerHTML)) fail('combat vocabulary', 'the Rules tab did not draw the AI string lists');
-    // The paper doll under Items, with the ten places named from the application.
-    ctx.showCategory('ITEMS');
-    const doll = REGISTRY.get('sheetGrid').children.find(c => c.className === 'dollBlock');
-    if (!doll) fail('paper doll', 'Items has no paper doll block');
-    else if (!doll.children.some(c => c.tagName === 'OL' && c.children.length === 10)) fail('paper doll', 'the ten places are not listed');
     // A Finder icon on the installer's rows for the four bundled types.
     const icons = { APPL: ctx.finderIconFor('APPL'), DelS: ctx.finderIconFor('DelS'), DelP: ctx.finderIconFor('DelP'), TEXT: ctx.finderIconFor('TEXT') };
     if (!icons.APPL || !icons.DelS || !icons.DelP) fail('finder icons', 'bundle gave ' + JSON.stringify(Object.fromEntries(Object.entries(icons).map(([k, v]) => [k, !!v]))));

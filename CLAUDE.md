@@ -418,8 +418,7 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   zone list is aligned to the map numbers, and that the two-fork views draw
   from the data file's fork alone when the application's is absent; the
   installer section then requires every fork-backed view to draw, the
-  Rules tab to carry the AI vocabulary, the paper doll to list ten places,
-  and the bundle to give the application, the data file and a saved game an
+  Rules tab to carry the AI vocabulary, and the bundle to give the application, the data file and a saved game an
   icon and a TEXT file none. Its DOM stub moves a re-appended node rather
   than copying it, as of 5 September 2026: `applyGalleryArrangement`
   re-appends the gallery's cells to order them, and every tile count the
@@ -720,7 +719,11 @@ Read the comment above a constant before correcting it.
   miniature to the render, 448 screen pixels across, which the maintainer
   found the right distance and the wrong manner; `atlasRoofT` fades them
   from 360 to 540 px across, and a town drawn from its render or its own
-  art gets its roofed miniature laid over at what is left. The zoom row
+  art gets its roofed miniature laid over at what is left. **The unbuilt
+  margin of a region fades in as the roofs fade out** (`drawWithMargin`):
+  the miniature is cropped to the built part, so the margin used to appear
+  all at once at the step to the render; now the built part is always
+  drawn whole and the margin at what the roofs have given up. The zoom row
   under the map wraps and has the bar's dark ground, since its buttons ran
   off the right of a phone and its words sat on the planks.
 - **It paints once a frame, and cheaply, because a phone could not keep
@@ -748,7 +751,11 @@ Read the comment above a constant before correcting it.
   so the address bar stays, and that is as full as the OS permits. Either
   way the zoom row and the inspector stay under the viewport and the
   canvas resizes through the check `paintAtlas` already makes. Escape
-  leaves the pinned mode as it does the real one.
+  leaves the pinned mode as it does the real one. The panel's `display` in
+  that mode is `!important`, because `renderAtlasView` shows the panel
+  with an inline `display:block` and inline beats the sheet: the first
+  version formed no column, the viewport's auto height was nothing, and
+  full screen on an iPhone was a zoom row and an inspector with no map.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a
@@ -1114,7 +1121,10 @@ Read the comment above a constant before correcting it.
   strikes, the `TxSt` styles that assign a face to each kind of text); Text
   › Labels › **Strings** (every `STR#` in both forks); Audio › SFX ›
   **Application sounds**; and Cythera (App) › **Interface** (menus, dialogs
-  and windows, cursors, icons). Beyond the galleries, five joins: the
+  and windows, cursors, icons). Beyond the galleries, four joins (a fifth,
+  the paper doll with the ten equipment slots at the head of Items, was
+  taken out the same day at the maintainer's request; the picture is under
+  Screens and the slots under Strings): the
   editor's zone list (`STR#` 135, `loadEditorZoneNames`) names every map by
   number, one ahead of its list index, and stands beside a map's label
   wherever the script's name is the generic one — "Tomb" is "Tyrant's Tomb"
@@ -1123,9 +1133,7 @@ Read the comment above a constant before correcting it.
   combat AI vocabulary (`STR#` 9300–9308, with the strategies and the
   buttons) is drawn on Data › Combat AI › Rules out of the application's
   fork, which is why that tab is no longer faded once the fork is here from
-  anywhere; the paper doll (`PICT` 129) and the ten equipment slots (`STR#`
-  501) head the Items gallery, side by side and not joined line to name,
-  since nothing in either file says which is which; and the Finder icon for
+  anywhere; and the Finder icon for
   each of the installer's files comes out of the bundle (`finderIconFor`:
   `BNDL` → `FREF` → `ICN#`), so a TEXT file gets none rather than a wrong
   one. **The page's own face is the file's.** `installGameFont` takes
