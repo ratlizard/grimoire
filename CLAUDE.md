@@ -278,9 +278,17 @@ pass/skip/fail table. Use `$TMPDIR` for scratch, never `/tmp` directly.
 
 ### Data setup
 
-The game data needs nothing: `check_all.mjs` finds its inputs itself, reading
-the archives straight out of `reference/`, which you have to put there. Two further inputs come from
-outside the repository.
+The game data needs nothing: `check_all.mjs` finds its inputs itself. It
+reads the archives straight out of `reference/` when you have put a copy of
+the game there, and when you have not it falls back to
+`utilities/fetch_game.mjs`, which downloads the 28 MB installer from
+archive.org's `cythera-installers` item — the page's own first default,
+through the `/cors/` path — and builds the four fork files out of it in
+`$TMPDIR`, cached, so a second run costs nothing. That is a **convenience,
+not an oracle**: the bytes are the same game, so it gives no independent
+evidence about any decoder, and `vise_check.mjs` is what actually proves the
+installer path against the CRCs the catalog carries. Two further inputs come
+from outside the repository.
 
 - **delvmod** — the reference implementation, used by `delv_crosscheck.mjs` and
   `delv_graphics_check.mjs`. It is a **submodule**, so a fresh checkout needs
