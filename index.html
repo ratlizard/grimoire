@@ -3491,7 +3491,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.8.0';
+const GRIMOIRE_VERSION = '1.9.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -13368,16 +13368,25 @@ function renderMechanicsSheet() {
   const st = statusRules();
   const statusNames = new Set([...st.applies.keys(), ...st.cures.keys()]);
   add('status', 'Status effects', { icon: 31 }, '',
-    st.applies.size ? 'Every place a script puts a status on somebody, with the duration the call gives — the unit is the engine’s — and every place one is cleared, which is what a cure is.' : 'No script in this archive applies a status.',
+    st.applies.size ? 'Every place a script puts a status on somebody, with the duration the call gives — in clock units, 4096 to the game hour, see below — and every place one is cleared, which is what a cure is.' : 'No script in this archive applies a status.',
     [], table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
       (st.applies.get(nm) || []).map(a => svChip(a.resid, a.duration !== null ? 'for ' + a.duration : '')).join(' ') + '</td><td>' +
       [...(st.cures.get(nm) || [])].map(r => svChip(r)).join(' ') + '</td></tr>')), '');
 
-  // ---- hunger ----
+  // ---- hunger, and healing with it ----
+  // The rate is the executable's, not the file's: TGameViewer::DoTicks
+  // (workbench doc/game-clock.md). The scripts' side is read here.
   const hg = hungerNotes();
-  add('hunger', 'Hunger', { icon: 69 }, '',
-    hg.falls ? 'A script lowers nutrition somewhere in this archive.' : 'No script lowers nutrition: the fall is the engine’s, and its rate is not in the file.',
-    [(hg.complains !== null ? 'The idle script complains below <b>' + hg.complains + '</b>.' : ''), (hg.ceiling !== null ? 'The fountain and Nutrient add only up to <b>' + hg.ceiling + '</b>.' : '')].filter(Boolean), '', '');
+  add('hunger', 'Hunger and healing', { icon: 69 }, '',
+    'Nutrition is a byte on the character, 0 to 100. No script lowers it: the executable’s tick routine takes <b>one off every game hour</b>, and the same routine heals a fed character.',
+    [
+      'Every hour of the clock, nutrition falls by 1 for every character on the map; the fall is not in the file, only the reads of it.',
+      (hg.complains !== null ? 'The idle script complains below <b>' + hg.complains + '</b>.' : ''),
+      (hg.ceiling !== null ? 'The fountain and Nutrient add only up to <b>' + hg.ceiling + '</b>; a food adds its own figure, listed above.' : ''),
+      'While nutrition is above 0, <b>health and magic each rise by 1</b> at a rate set by the level: every hour at level 1, every half hour at 2 and 3, every 20 minutes at 4 and 5, every quarter hour at 6 and 7, every 12 minutes from 8 up. Nothing rises past full.',
+      'At 0 there is no healing, and nothing else: the executable takes no health for hunger, so the scripts’ complaint is the whole penalty.'
+    ].filter(Boolean),
+    '<div class="mechStats">' + stat(100, 'nutrition at most') + stat('1 an hour', 'the fall') + stat('about 4 days', 'from full to empty') + '</div>', '');
 
   // ---- locks ----
   const lk = lockRules();
@@ -13420,7 +13429,15 @@ function renderMechanicsSheet() {
      barks.length ? barks.length + ' places in this archive’s scripts set one; the words are under Text › Barks.' : 'No script in this archive sets one.'],
     '', '<span class="partsTitle">The words</span><button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>');
 
-  add('elsewhere', 'Not in the scripts', { tile: 0x231 }, '', 'The rate at which hunger falls is the executable’s and not the file’s: no script lowers nutrition, and the routine that does it in the executable has not been found.', [], '', '');
+  // ---- the clock ----
+  add('clock', 'The clock, poison and time', { tile: 0x231 }, '',
+    'The game keeps one clock in units of <b>1/4096 of an hour</b>, about 0.9 seconds of game time; twenty-four hours make a day. Every duration a script hands the engine is in these units. This is read from the executable, not the file.',
+    [
+      'A step costs one unit; looking costs 2, taking 4, and a spell 10 plus twice its level. The monsters move while the player’s time is spent.',
+      'A status duration of <b>4096 is one hour</b>, 1024 a quarter of an hour, 409 six minutes.',
+      'A <b>poisoned</b> character loses 1 health every six minutes and <b>dies</b> when the next point would take them below 1; a <b>regenerating</b> one gains 1 every six minutes; one who is both takes a coin toss each time.',
+      'Lighting is recomputed every quarter hour, and the schedules every hour.'
+    ], '', '');
 
   // The contents, first: a chip a section, in the order above.
   const toc = document.createElement('nav');

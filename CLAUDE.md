@@ -977,8 +977,21 @@ Read the comment above a constant before correcting it.
   tick count has reached (the trace is in
   `cythera-workbench/doc/talk-balloons.md`; neither routine is reached by
   a direct `bl`, so a scan for callers finds none — read `ShowBarks`).
-  What is left in the executable: the hunger rate; no symbol is named for
-  it and the tick routines showed no decrement in the time given.
+  **The hunger rate and the clock, v1.9.0**, read from the executable the
+  same night (workbench `doc/game-clock.md`): the clock counts 1/4096 of
+  an hour, a step is one unit, and `TGameViewer::DoTicks` takes one off
+  nutrition (byte 27 of the character record, script field 40) every
+  hour; while nutrition is above 0 it also adds one health and one magic
+  at a period by level (hour, half hour, 20 min, quarter hour, 12 min),
+  and every six minutes takes one health from the poisoned (death at 1)
+  and gives one to the regenerating. The Hunger section became "Hunger
+  and healing" and a "The clock, poison and time" section replaced the
+  "Not in the scripts" one, so nothing on the sheet is put down to the
+  executable unread any more. Finding it needed the field jump tables
+  from the data section, which the workbench simulator expanded wrongly
+  until that night (opcodes 3 and 4); it is fixed, and `r2 = 0x808000` is
+  now confirmed by the entry vector too. The smoke test pins "one off
+  every game hour" and "4096 is one hour".
   **The sheet's layout, v1.8.0**: one `add(id, title, icon, from, lede,
   rules, html, chips)` per section, in that order — a game tile or a nav
   icon, the title, chips to the scripts it was read from (`mechFrom`), a
