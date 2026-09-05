@@ -1213,6 +1213,23 @@ try {
   }
 } catch (e) { fail('atlas', e); }
 
+// Mechanics: two rules read out of the scripts on the spot. The balloon
+// catalogue must find the lines the trace found by hand, and the dice
+// section must state the payout the script pays.
+try {
+  ctx.showCategory('MECHANICS');
+  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const dice = ctx.diceGame();
+  const barks = ctx.buildBarkCatalogue();
+  const words = new Set(barks.flatMap(b => b.words));
+  const need = ['Yum', 'Spare an obol?', 'Zzzz...', 'More wine!', 'Hot Kabobs!', 'Poisoned!'];
+  const missing = need.filter(w => !words.has(w));
+  if (barks.length < 40 || missing.length) fail('mechanics', `${barks.length} balloon sites; missing ${missing.join(', ') || 'nothing'}`);
+  else if (!dice || dice.wins !== 96 || dice.pushes !== 50 || dice.losses !== 70) fail('mechanics', 'the dice enumeration is not 96/50/70: ' + JSON.stringify(dice && [dice.wins, dice.pushes, dice.losses]));
+  else if (!/win 2 oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
+  else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated`);
+} catch (e) { fail('mechanics', e); }
+
 // Opening a second archive must not leave the first one's derived tables
 // behind. Sentinels survive only if something is not being reset.
 try {

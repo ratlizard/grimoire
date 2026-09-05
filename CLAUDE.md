@@ -813,10 +813,9 @@ Read the comment above a constant before correcting it.
   `syncTabsTo` draws the rows and the chip row for whichever leaf holds it,
   and `showCategory` is only the "is it a category?" check in front. A leaf
   with several galleries shows them as chips. `wip: true` fades a tab whose
-  join is not traced yet (the PEF; Mechanics, a placeholder until the rules
-  are derived from the code rather than listed from the tables; and the
-  Combat AI pair until the installer has brought the files, when
-  `syncInstallerTabs` unfades them); a faded tab still opens. The top row's three
+  join is not traced yet (the PEF; and the Combat AI pair until the
+  installer has brought the files, when `syncInstallerTabs` unfades
+  them); a faded tab still opens. The top row's three
   folders carry a `tileOpen` frame, drawn when selected. A fourth top-level
   tab, Tools, is the page's own switches and its sister pages
   (`renderToolsSheet`): the undither switch lives there and nowhere else —
@@ -843,6 +842,29 @@ Read the comment above a constant before correcting it.
   (`.sv-chip`, which the action chips still use). Restyled 5 September
   2026 at the maintainer's request; whether it reads right on a real
   screen is his to say.
+- **Mechanics is rules read out of the scripts on the spot**
+  (`renderMechanicsSheet`), since 5 September 2026, and not a table. Two
+  so far. **The dice game** (`diceGame`): one function in the inn's shared
+  dialogue `0x812`, offered by the three innkeepers; the rules are read
+  from it — a match with the innkeeper's first die wins 2 oboloi, a white
+  die outside the two black ones wins the distance to the nearer, inside
+  loses an obol, a win of 1 is a push; Gambling gives the white die a one
+  in six chance of being set to the first black one; the script pays one
+  less than it announces and takes one on a loss — enumerated over all
+  216 throws (96 win, 50 push, 70 lose; +0.306 obols a game for the
+  player, +0.421 with the skill; the house loses), and the innkeeper's own
+  explanation from the same script is quoted beside the rules. **The talk
+  balloons** (`buildBarkCatalogue`): every `set_field talk_balloon` in
+  every script with the string that follows it, and every call of the two
+  tavern helpers `0xC84`/`0xC85` with the lists they pick from — a list is
+  a `data` block, 0x45, a length, an array header 0x90 and a count, then
+  4-byte entries whose last two bytes are the offset of a C string in the
+  resource, which is how the words come out exact — who says it where the
+  script is theirs, "anyone" where it is shared. 43 sites, 57 distinct
+  lines in the shipped archive. The engine's side — `TBark`, a 128×32
+  rounded balloon with a tail, the text anti-aliased in the game's own
+  style — is traced in `cythera-workbench/doc/talk-balloons.md`. The smoke
+  test requires six named lines and the 96/50/70 enumeration.
 - **The joins between the two halves are resource-id rules, and they are
   written down once, in the `Parts and uses` section beside the tree.** A
   character's dossier carries a *Made of* row (`characterParts`): dialogue

@@ -669,6 +669,8 @@ pre.sv-code { background:#090806; color:#f9f86f; padding:11px; overflow:auto; ma
 .vocabTable { border-collapse:collapse; font-size:12.5px; margin:0 0 10px; }
 .vocabTable th { text-align:left; color:#c9bd94; font-weight:600; padding:2px 10px 2px 0; vertical-align:top; white-space:nowrap; }
 .vocabTable td { padding:2px 0; vertical-align:top; }
+.barkTable td { padding:4px 10px 4px 0; border-bottom:1px solid rgba(155,136,80,.2); }
+.barkTable .inspDim { color:#9b8850; font-size:11.5px; }
 .forkTable td.icon { width:36px; padding:2px 4px; }
 .forkTable td.icon canvas { width:32px; height:32px; image-rendering:pixelated; display:block; }
 .installerOpen .installerOpenName { color:var(--gold); font-size:17px; font-weight:600; }
@@ -1191,7 +1193,7 @@ body.atlasFull { overflow:hidden; }
         <option value="APPPEF">Cythera application: data fork (PEF)</option>
         <option value="AISCRIPTS">Combat AI scripts (.ai)</option>
         <option value="AIRULES">Combat AI rules</option>
-        <option value="MECHANICS">Mechanics (not derived yet)</option>
+        <option value="MECHANICS">Mechanics (read out of the scripts)</option>
         <option value="TOOLS">Tools</option>
       </optgroup>
     </select>
@@ -3449,7 +3451,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.1.0';
+const GRIMOIRE_VERSION = '1.2.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4329,6 +4331,7 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
   if (window.CUR_SUBN === 'CHANGES') { renderChangesSheet(); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
+  if (window.CUR_SUBN === 'MECHANICS') { renderMechanicsSheet(); return; }
   if (window.CUR_SUBN === 'WORLD') { renderAtlasView(); return; }
   if (window.CUR_SUBN === 'INSTALLER') { renderInstallerSheet(); return; }
   if ((window.CUR_SUBN === 'AISCRIPTS' && window.INSTALLER) ||
@@ -4398,6 +4401,7 @@ function resetDerivedCaches() {
   window.STORE_SYMBOLS = null;
   window.XREF_INDEX = null;
   window.SCRIPT_TEXT = null;
+  window.BARKS = null;
   window.CONV_CACHE = null;
   window.MONSTER_STATS = null;
   window.RESOURCE_SYMBOLS = null;
@@ -5152,7 +5156,7 @@ function onCategoryChangeImpl() {
   // even without the installer; fetch the fork if it is not here yet.
   if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
   // The Data tab's own views: not subindexes, no resources to list.
-  if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' ||
+  if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' ||
       rawval === 'WORLD' || PLACEHOLDER_TABS[rawval]) {
     window.CUR_SUBN = rawval;
     window.CUR_RESIDS = [];
@@ -11814,11 +11818,10 @@ const TAB_TREE = [
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
       { id: 'regions',    label: 'Regions',    tile: 0x590, values: ['127'] },         // a small town, as the world map draws one (prop 286)
       { id: 'skills',     label: 'Skills',     tile: 0x21F, values: ['25', '137'] },   // the grimoire
-      // Mechanics is not a table: the rules the code implies -- the dice
-      // game, damage and resistance, what a skill does -- are not derived
-      // yet, so the tab says so. The tables they would be derived from are
-      // under Data.
-      { id: 'mechanics',  label: 'Mechanics',  tile: 0x82F, wip: true, values: ['MECHANICS'] } ] },   // dice
+      // Mechanics is not a table: the rules the code implies, read out of
+      // the scripts on the spot (renderMechanicsSheet). The dice game and
+      // the talk balloons so far; damage, resistance and skills not yet.
+      { id: 'mechanics',  label: 'Mechanics',  tile: 0x82F, values: ['MECHANICS'] } ] },   // dice
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
       { id: 'text', label: 'Text', tile: 0x3AE, children: [                                   // the tombstone, second frame
           { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['1', 'STRINGS'] },                     // a poster; the forks' string lists beside the archive's
@@ -11880,11 +11883,6 @@ const PLACEHOLDER_TABS = {
     'form, subindex 3 — AI Combat Scripts, under Components › Functions › Actors.',
   AIRULES: 'The rules those scripts are written against — the AI Scripting Document that ' +
     'ships with them — is a text file beside the game, not inside the archive.',
-  MECHANICS: 'Nothing here yet. What this tab is for is the rules the game’s code implies — ' +
-    'how the dice game pays out, how damage is resisted, what a skill changes — read out of ' +
-    'the scripts rather than listed. That derivation is not done. The tables the rules would ' +
-    'be derived from are under Data › Cythera Data › Data Fork, and the resistance rules that ' +
-    'have been worked out are written up on each monster’s page.'
 };
 
 // Added to a placeholder when the file it describes would have come with the
@@ -12572,6 +12570,214 @@ function renderChangesSheet() {
   grid.appendChild(box);
   out.textContent = edited.length + ' edited resource' + (edited.length === 1 ? '' : 's') +
     '; the archive on screen is the rebuilt one every route below writes.';
+}
+
+/* ---- Entities > Mechanics ---------------------------------------------------
+   The rules the scripts imply, read out of them rather than listed. Two so
+   far, both worked out on 5 September 2026 (the workbench's
+   doc/talk-balloons.md has the trace): the talk balloons, and the dice game.
+   Each section is built from the open archive on the spot, so a modded file
+   shows its own words and its own rules or says that it has none.
+
+   TALK BALLOONS. A character record has a field at 0x26, delvmod's
+   `talk_balloon`; a script assigns a string to it and the engine draws the
+   words over the character's head, in a 128x32 rounded balloon with a tail
+   (TBark in the executable). The catalogue below is every `set_field
+   talk_balloon` in every script, with the string that follows it, plus
+   every call of the two tavern helpers 0xC84 and 0xC85, which take a list
+   of shouts and a list of replies and pick one of each. A list is a `data`
+   block the disassembler does not open, so its words are the printable runs
+   of its bytes -- which is what they are, length-prefixed. Who says it is
+   the character whose dialogue script it is in; a line in a shared or an
+   object script is anyone's. */
+function buildBarkCatalogue() {
+  if (window.BARKS) return window.BARKS;
+  const out = [];
+  const runsOf = bytes => {
+    const r = []; let cur = '';
+    for (const b of bytes) { if (b >= 0x20 && b < 0x7F) cur += String.fromCharCode(b); else { if (cur.length >= 3) r.push(cur); cur = ''; } }
+    if (cur.length >= 3) r.push(cur);
+    return r;
+  };
+  if (!masterIndexGlobal) return (window.BARKS = out);
+  for (let subn = 0; subn < 256; subn++) {
+    const mi = masterIndexGlobal[subn];
+    if (!mi || !mi[0] || XREF_SKIP_SUBN.has(subn)) continue;
+    const count = subindexCount(subn);
+    for (let ri = 0; ri < count; ri++) {
+      const resid = ((subn + 1) << 8) | ri;
+      let data;
+      try {
+        const raw = getResourceBytes(resid);
+        if (!raw || !raw.length) continue;
+        data = smartDecrypt(raw, resid).data;
+        if (dvmNamedScript(data)) continue;
+      } catch (e) { continue; }
+      let disc;
+      try { disc = dvmDiscover(data, resid); } catch (e) { continue; }
+      if (disc.tableOffset === null) continue;
+      const offs = Object.keys(disc.kinds).map(Number).sort((x, y) => x - y);
+      for (const off of offs) {
+        if (disc.kinds[off] !== 'function') continue;
+        let end = data.length;
+        for (const o2 of offs) if (o2 > off && o2 < end) end = o2;
+        let ops;
+        try { ops = dvmDisassemble(data.slice(off, end), 3).ops; } catch (e) { continue; }
+        // The words in the data block at ops[k]. A block is 0x45, a 16-bit
+        // length, then an array header 0x90 and a count, then one 4-byte
+        // entry per element whose last two bytes are the offset, within the
+        // resource, of a NUL-terminated string. Read that way the words come
+        // out exact; a block of another shape falls back to its printable
+        // runs, which is what they are minus the odd length byte.
+        const dataWords = k => {
+          const at = off + ops[k][0];
+          const len = u16be(data, at + 1), body = at + 3;
+          if (data[body] === 0x90 && body + 2 + data[body + 1] * 4 <= at + 3 + len) {
+            const n = data[body + 1], words = [];
+            for (let i = 0; i < n; i++) {
+              const so = u16be(data, body + 2 + i * 4 + 2);
+              if (so >= data.length) continue;
+              let e = so; while (e < data.length && data[e] !== 0) e++;
+              const w = decodeMacRoman(data.subarray(so, e));
+              if (w) words.push(w);
+            }
+            if (words.length) return words;
+          }
+          return runsOf(data.subarray(at + 1, Math.min(data.length, at + 1 + 2 + len)));
+        };
+        const who = subn === 23 ? ri : null;
+        for (let k = 0; k < ops.length; k++) {
+          const [, depth, mn, txt] = ops[k];
+          if (mn === 'set_field' && /talk_balloon/.test(String(txt))) {
+            // The value is the first string after the target's `end`; a
+            // list is a local set from a data block a little earlier.
+            // The first operand is the character; the value is what comes
+            // after that operand's `end`. A leaf target (arg, local) is one
+            // op and an end; a cast is two.
+            let words = null, how = 'says';
+            for (let j = k + 2; j < Math.min(ops.length, k + 12); j++) {
+              if (ops[j - 1][2] !== 'end') continue;
+              if (ops[j][2] === 'string' || ops[j][2] === 'string(implicit)') { words = [JSON.parse(ops[j][3])]; break; }
+              if (ops[j][2] === 'local') {
+                for (let m = k; m >= Math.max(0, k - 60); m--) if (ops[m][2] === 'data') { words = dataWords(m); how = 'one of'; break; }
+              }
+              break;
+            }
+            if (words && words.length) out.push({ resid, who, how, words });
+          } else if (mn === 'call_resource' && /0xC8[45]\b|\(0xC8[45]\)/i.test(String(txt))) {
+            const lists = [];
+            for (let j = k + 1; j < ops.length; j++) {
+              if (ops[j][1] <= depth && ops[j][2] === 'end') break;
+              if (ops[j][2] === 'data') lists.push(dataWords(j));
+            }
+            if (lists[0] && lists[0].length) out.push({ resid, who, how: 'one of', words: lists[0], then: lists[1] || null,
+              helper: /C84/i.test(String(txt)) ? 'wine' : 'food' });
+          }
+        }
+      }
+    }
+  }
+  return (window.BARKS = out);
+}
+
+/* THE DICE GAME. Innkeepers offer it (Parium, Crito, Apis: "a game of
+   @dice"), and the game is one function in the inn's shared dialogue,
+   0x812. The rules below are read from that function, and the section
+   quotes the innkeeper's own explanation from the same script beside them,
+   so the two can be compared. The expected value is enumerated here over
+   all 216 rolls, with and without the Gambling skill (0xCF). */
+function diceGame() {
+  const text = buildScriptTextIndex().find(e => e.resid === 0x812);
+  if (!text || !/three dice/.test(text.text)) return null;
+  const m = /string\(implicit\) ("\\"It's very simple[^\n]*)/.exec(text.text);
+  let explain = '';
+  try { explain = m ? JSON.parse(m[1]) : ''; } catch (e) { explain = ''; }
+  const payout = (a, b, c) => {
+    if (a === b) return 2;
+    if (a < c) { if (b < a) return a - b; if (b > c) return b - c; return 0; }
+    if (b < c) return c - b; if (b > a) return b - a; return 0;
+  };
+  const net = n => n === 0 ? -1 : n - 1;
+  let fair = 0, skilled = 0, wins = 0, pushes = 0, losses = 0;
+  for (let a = 0; a < 6; a++) for (let b = 0; b < 6; b++) for (let c = 0; c < 6; c++) {
+    const n = payout(a, b, c);
+    fair += net(n); if (n > 1) wins++; else if (n === 1) pushes++; else losses++;
+    skilled += a !== b ? net(payout(a, a, c)) / 6 + net(n) * 5 / 6 : net(n);
+  }
+  return { explain, fair: fair / 216, skilled: skilled / 216, wins, pushes, losses };
+}
+
+function renderMechanicsSheet() {
+  stopAllViewActivity();
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  document.getElementById('singleControls').style.display = 'none';
+  const box = document.createElement('div');
+  box.className = 'changesView';
+  const sec = (title, note) => {
+    const d = document.createElement('div');
+    d.className = 'changesGroup';
+    d.innerHTML = '<div class="changesGroupTitle">' + svEsc(title) + '</div>' +
+      (note ? '<div class="changesNote" style="margin-left:0">' + note + '</div>' : '');
+    box.appendChild(d);
+    return d;
+  };
+
+  // ---- the dice game ----
+  const dice = diceGame();
+  const dsec = sec('The dice game', dice
+    ? 'Offered at the inns. Three dice: the innkeeper’s two are black, yours is white, and each shows one to six. ' +
+      'The innkeeper throws one, you throw yours. <b>Match it and you win 2 oboloi.</b> Otherwise the innkeeper throws the second: ' +
+      'if yours lies <b>outside</b> the two black dice you win the distance to the nearer one, and if it lies between them, or on one, you lose an obol. ' +
+      'A win of 1 is a push and the game goes again. The script pays one obol less than it announces, the one being your stake, and takes one on a loss. ' +
+      '<b>Gambling</b> (skill 0xCF) gives your die a one in six chance of being set to the innkeeper’s first, when they differed. ' +
+      'Over all 216 throws: ' + dice.wins + ' win, ' + dice.pushes + ' push, ' + dice.losses + ' lose; ' +
+      '<b>' + (dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3) + ' obols a game</b> in your favour without the skill, ' +
+      (dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3) + ' with it. The house loses.'
+    : 'The inn’s dialogue script (0x812) is not in this archive, or does not carry the game.');
+  if (dice && dice.explain) {
+    const q = document.createElement('div');
+    q.className = 'changesNote';
+    q.style.cssText = 'margin:6px 0 0; font-style:italic; color:#d3c9a6';
+    q.textContent = 'The innkeeper’s own account: ' + dice.explain.replace(/\*/g, ' ');
+    dsec.appendChild(q);
+  }
+  const dchips = document.createElement('div');
+  dchips.className = 'partsStrip';
+  dchips.innerHTML = '<span class="partsTitle">In the file</span>' +
+    (refExists(0x812) ? partChip('The game', 0x812) : '') +
+    (refExists(0x1148) ? partChip('The dice', 0x1148) : '') +
+    (refExists(0x1ACF) ? partChip('Gambling', 0x1ACF) : '') +
+    [40, 41, 42].filter(i => loadCharacterTable()[i]).map(characterChip).join('');
+  dsec.appendChild(dchips);
+
+  // ---- talk balloons ----
+  const barks = buildBarkCatalogue();
+  const bsec = sec('Talk balloons', 'The short lines over a character’s head. A script writes them into the character’s ' +
+    '<code>talk_balloon</code> field and the engine draws them in a 128×32 rounded balloon with a tail. ' +
+    (barks.length ? barks.length + ' places in this archive’s scripts set one; the words are below, with who says them where the script is theirs.'
+                  : 'No script in this archive sets one.'));
+  if (barks.length) {
+    const rows = [];
+    for (const b of barks) {
+      const who = b.who !== null && loadCharacterTable()[b.who] ? characterChip(b.who)
+        : '<span class="inspDim">anyone — </span>' + svChip(b.resid);
+      const words = b.words.map(w => '“' + svEsc(w) + '”').join(', ');
+      rows.push('<tr><td>' + who + '</td><td>' + (b.how === 'one of' ? '<span class="inspDim">one of</span> ' : '') + words +
+        (b.then && b.then.length ? '<div class="inspDim">then, when the ' + b.helper + ' comes: ' + b.then.map(w => '“' + svEsc(w) + '”').join(', ') + '</div>' : '') +
+        '</td><td>' + (b.who !== null ? svChip(b.resid) : '') + '</td></tr>');
+    }
+    const scroll = document.createElement('div');
+    scroll.className = 'tableScroll';
+    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>who</th><th>says</th><th>where</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    bsec.appendChild(scroll);
+  }
+
+  const more = sec('Not derived yet', 'How damage is resisted, what each skill changes, how a shop prices. The tables those would be read from are under Data › Cythera Data › Data Fork, and the resistance rules worked out so far are on each monster’s page.');
+  grid.appendChild(box);
+  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot: the dice game from 0x812, the talk balloons from every script that sets one.';
 }
 
 function renderPlaceholderSheet(note) {
