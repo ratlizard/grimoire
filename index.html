@@ -636,6 +636,7 @@ pre.sv-code { background:#090806; color:#f9f86f; padding:11px; overflow:auto; ma
      the label. They are decoration on an element this small, so drop them and
      keep the words legible. */
   .sv-chip { font-size:11px !important; padding:4px 14px !important; }
+  .relChip { font-size:11.5px; padding:4px 9px 4px 5px; }
   .sv-chip::before { display:none; }
 }
 @media (max-width:380px) {
@@ -684,9 +685,26 @@ pre.sv-code { background:#090806; color:#f9f86f; padding:11px; overflow:auto; ma
 .changesNote { color:#e0d6b4; font-size:12px; margin:0 0 2px 14px; }
 .changesWarn { color:#e8b66a; font-size:12.5px; margin-top:12px; }
 /* The joins. A row of chips under an entity naming the components it is made
-   of, and under a component naming what uses it (partsStrip). */
-.partsStrip { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:8px 0 2px; }
-.partsTitle { color:#d3c9a6; font-size:12px; margin-right:4px; }
+   of, and under a component naming what uses it (partsStrip). The chips are
+   relation chips (relChip): icon, name, kind, quiet id. */
+.partsStrip { display:flex; flex-wrap:wrap; align-items:center; gap:6px 7px; margin:8px 0 4px; }
+.partsTitle { color:#9d9270; font-size:10.5px; text-transform:uppercase; letter-spacing:1.1px;
+  margin-right:6px; flex-basis:7.5em; }
+.relChip { display:inline-flex; align-items:center; gap:7px; width:auto; margin:0; min-height:0;
+  padding:4px 10px 4px 6px; border-radius:15px; background:#1a1712; border:1px solid var(--edge);
+  color:#e8dfc0; font-family:'ArgosGame', Argos, Georgia, serif; font-size:12.5px; line-height:1.15;
+  text-align:left; cursor:pointer; clip-path:none; box-shadow:none; text-shadow:none;
+  letter-spacing:0; font-weight:400; transition:border-color .12s, background .12s; }
+.relChip::before, .relChip::after { display:none; }
+.relChip:hover, .relChip:focus-visible { background:#26211a; border-color:var(--gold); color:var(--gold); }
+.relIcon { width:16px; height:16px; image-rendering:pixelated; flex:none; opacity:.92; }
+.relChip:hover .relIcon { opacity:1; }
+.relText { display:flex; flex-direction:column; min-width:0; }
+.relMain { color:inherit; }
+.relSub { color:#9d9270; font-size:10.5px; margin-top:1px; }
+.relHex, .relNote { color:#7d745a; font-size:10.5px; font-family:ui-monospace,Menlo,monospace; margin-left:2px; }
+.relNote { font-family:inherit; }
+.relChip:hover .relSub, .relChip:hover .relHex { color:#bdb28c; }
 .partsNote { color:#d3c9a6; font-size:12px; flex-basis:100%; line-height:1.4; }
 #mapParts { max-width:720px; margin:0 auto 6px; text-align:left; }
 #artUsage .partsStrip { margin:4px 0; }
@@ -11160,11 +11178,71 @@ function jumpToResource(resid) {
   return true;
 }
 
+/* A link from one thing to a related thing, everywhere the site draws one.
+
+   These used to be monospace chips with the hex id first -- "0x8801
+   Portrait" -- which read as code rather than as a way to the thing. A
+   relation chip reads the other way round: the icon of the tab the target
+   lives under, then what it is called, then what it is, and the hex id as
+   a quiet tail for the reader who wants it. The icon is the same game tile
+   the tab bar draws, so a chip to a portrait wears the mirror and a chip to
+   a map wears the town, and a reader learns where a click will land before
+   making it. Data URLs, cached per tile, so a strip of thirty chips costs
+   one small draw per distinct icon and not thirty canvases. */
+const _relIconURLs = new Map();
+function relIconURL(spec) {
+  const key = spec && spec.tile !== undefined ? 't' + spec.tile : spec && spec.icon !== undefined ? 'p' + spec.icon : '';
+  if (!key) return '';
+  if (_relIconURLs.has(key)) return _relIconURLs.get(key);
+  let url = '';
+  try { const c = navIconCanvas(spec, 16); url = c.width ? c.toDataURL('image/png') : ''; } catch (e) { url = ''; }
+  _relIconURLs.set(key, url);
+  return url;
+}
+// The tab a resource is shown under, for its icon; a character is its own
+// sprite, and a resource with no tab has no icon rather than a wrong one.
+function relIconFor(resid) {
+  const subn = Math.floor(resid / 0x100) - 1;
+  const leaf = TAB_LEAF_FOR.get(String(subn));
+  return leaf ? relIconURL({ tile: leaf.tile, icon: leaf.icon }) : '';
+}
+function relChip(o) {
+  const hex = o.resid !== undefined ? '0x' + o.resid.toString(16).toUpperCase().padStart(4, '0') : '';
+  const onclick = o.js || ('jumpToResource(' + o.resid + ')');
+  const icon = o.icon !== undefined ? o.icon : (o.resid !== undefined ? relIconFor(o.resid) : '');
+  return '<button class="relChip" onclick="' + onclick + '"' +
+    (o.title ? ' title="' + svEsc(o.title) + '"' : '') + '>' +
+    (icon ? '<img class="relIcon" src="' + icon + '" alt="" width="16" height="16">' : '') +
+    '<span class="relText"><span class="relMain">' + svEsc(o.main) + '</span>' +
+    (o.sub ? '<span class="relSub">' + svEsc(o.sub) + '</span>' : '') + '</span>' +
+    (hex && o.main !== hex ? '<span class="relHex">' + hex + '</span>' : '') +
+    (o.note ? '<span class="relNote">' + svEsc(o.note) + '</span>' : '') +
+    '</button>';
+}
+
+// What a resource is, in a word or two, for the second line of a chip:
+// "portrait", "zone script", "tile sheet". The gallery names are plural
+// and long; these are the same things said the way a caption says them.
+const RESOURCE_KIND = { 0: 'symbols', 1: 'text', 2: 'script', 3: 'combat AI', 4: 'creation stats',
+  7: 'group dialogue', 8: 'script', 9: 'effect', 10: 'script', 11: 'popup', 12: 'popup', 13: 'popup',
+  14: 'script', 15: 'object text', 16: 'object script', 19: 'zone script', 20: 'region script',
+  23: 'dialogue', 24: 'monster class', 25: 'skill', 26: 'room description', 27: 'room description',
+  29: 'teleport script', 47: 'action script', 127: 'map', 128: 'prop list', 131: 'landscape',
+  135: 'portrait', 137: 'skill icon', 141: 'tile sheet', 142: 'graphic', 143: 'music', 144: 'sound',
+  239: 'table' };
+function resourceKindName(resid) {
+  const subn = Math.floor(resid / 0x100) - 1;
+  return RESOURCE_KIND[subn] || (CATEGORY_NAMES[subn] ? CATEGORY_NAMES[subn].toLowerCase() : '');
+}
+// A resource named by what it is called, with what it is under that.
 function svChip(resid, note) {
   const lbl = labelFor(resid);
-  return '<button class="sv-chip" onclick="jumpToResource(' + resid + ')">0x' +
-         resid.toString(16).toUpperCase().padStart(4, '0') + (lbl ? ' <i>' + svEsc(lbl) + '</i>' : '') +
-         (note ? ' <em>' + svEsc(note) + '</em>' : '') + '</button>';
+  let what = '';
+  try { what = refDescription(resid) || ''; } catch (e) { what = ''; }
+  const hex = '0x' + resid.toString(16).toUpperCase().padStart(4, '0');
+  const kind = resourceKindName(resid);
+  const main = lbl || (what && what !== hex ? what : hex);
+  return relChip({ resid, main, sub: kind && kind !== main.toLowerCase() ? kind : '', note, title: trailForResid(resid) });
 }
 
 function buildScriptView(o) {
@@ -12552,12 +12630,11 @@ function trailForResid(resid) {
   return leaf ? tabTrail(leaf) : '';
 }
 
+// A part of a thing: the relation first ("Portrait"), then what the part is
+// called, then its id.
 function partChip(label, resid) {
   const lbl = labelFor(resid);
-  const hex = '0x' + resid.toString(16).toUpperCase().padStart(4, '0');
-  return '<button class="sv-chip" onclick="jumpToResource(' + resid + ')" title="' +
-    svEsc(trailForResid(resid)) + '">' + svEsc(label) + ' <i>' + hex +
-    (lbl ? ' ' + svEsc(lbl) : '') + '</i></button>';
+  return relChip({ resid, main: label, sub: lbl || '', title: trailForResid(resid) });
 }
 
 function actionChip(label, js, note) {
@@ -12578,8 +12655,17 @@ function openCharacter(i) {
   showCharacterDetail(i);
 }
 
+// A person, wearing their own sprite.
 function characterChip(i) {
-  return actionChip(characterName(i), 'openCharacter(' + i + ')', 'character ' + i);
+  let icon = '';
+  try {
+    const c = loadCharacterTable()[i];
+    const base = c ? getPropTileList()[c.proptype] : undefined;
+    if (base !== undefined) icon = relIconURL({ tile: base + (c.aspect || 0) });
+  } catch (e) { icon = ''; }
+  if (!icon) { const leaf = TAB_BY_ID.get('characters'); icon = leaf ? relIconURL({ tile: leaf.tile }) : ''; }
+  return relChip({ js: 'openCharacter(' + i + ')', main: characterName(i), sub: 'character ' + i, icon,
+                   title: 'Entities › Characters' });
 }
 
 function characterParts(i, d) {

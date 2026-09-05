@@ -792,6 +792,17 @@ Read the comment above a constant before correcting it.
   `Dialogue_Background.png`, and each `.tabSheet` is that box again — the
   same border, the same one-pixel checkerboard of rgb(31,0,183) over nothing
   — drawn over the 0x8F00 planks. Text on the sheet needs its shadow.
+- **A link to a related thing is a relation chip** (`relChip`; `svChip`,
+  `partChip` and `characterChip` build one). It reads icon, name, kind, id:
+  the icon is the game tile of the tab the target lives under, drawn once
+  per tile into a data URL, so a chip to a portrait wears the mirror and a
+  chip to a map wears the town, and a reader knows where a click lands
+  before making it; a person wears their own sprite. The name leads, what
+  it is (`RESOURCE_KIND`) sits under it, and the hex id is a quiet
+  monospace tail. They replaced monospace chips that led with the hex
+  (`.sv-chip`, which the action chips still use). Restyled 5 September
+  2026 at the maintainer's request; whether it reads right on a real
+  screen is his to say.
 - **The joins between the two halves are resource-id rules, and they are
   written down once, in the `Parts and uses` section beside the tree.** A
   character's dossier carries a *Made of* row (`characterParts`): dialogue
