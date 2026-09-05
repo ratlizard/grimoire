@@ -3452,7 +3452,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.3.0';
+const GRIMOIRE_VERSION = '1.4.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -12750,6 +12750,99 @@ function renderBarksSheet() {
     : 'No script in this archive sets a talk balloon.';
 }
 
+/* WEAPONS AND ARMOUR. Every item class script carries a keyed table
+   (parseItemClass, ITEM_FIELD_INFO), and the combat keys 0x2A-0x2F are
+   the weapon, ammunition, armour and shield parameters. Armour's one
+   number is points of protection, which the wiki establishes; the others
+   are not published anywhere, so the table shows them as stored and says
+   the one thing the data itself shows: the first melee number orders the
+   weapons as their damage would. */
+function gearTable() {
+  const rows = [];
+  for (let pt = 1; pt < 512; pt++) {
+    const cls = parseItemClass(pt);
+    if (!cls) continue;
+    const f = k => { const e = cls.data.find(x => x.key === k); return e ? e.words.map(w => (w & 0xF0000000) ? '→' : String(w & 0x0FFFFFFF)) : null; };
+    const row = { pt, name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)), weight: itemWeight(pt),
+                  melee: f(0x2A), thrown: f(0x2B), armour: f(0x2C), ammo: f(0x2D), ranged: f(0x2E), shield: f(0x2F) };
+    if (row.melee || row.thrown || row.armour || row.ammo || row.ranged || row.shield) rows.push(row);
+  }
+  return rows;
+}
+
+/* WHAT EACH SKILL IS CONSULTED FOR. A script asks `GetSkill(who, skill)`;
+   where the skill is a constant the question is about that skill -- the
+   dice game asks about Gambling -- and where it is an argument the script
+   is a helper that checks whichever skill it is handed. Skill n's own
+   script is 0x1A00 + n, which is where its name comes from. */
+function skillConsultations() {
+  const by = new Map(); let generic = 0;
+  for (const e of buildScriptTextIndex()) {
+    const lines = e.text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (!/sys GetSkill\b/.test(lines[i])) continue;
+      const m = /short 0x([0-9A-F]{4})/i.exec((lines[i + 1] || '') + ' ' + (lines[i + 2] || ''));
+      if (!m) { generic++; continue; }
+      const id = parseInt(m[1], 16);
+      if (!by.has(id)) by.set(id, new Set());
+      by.get(id).add(e.resid);
+    }
+  }
+  return { by, generic };
+}
+
+/* KARMA. A global the scripts add to and subtract from, read here as
+   every write: a literal step, a call of the two helpers 0xF11 (down) and
+   0xF12 (up), the assignment at creation, and one table of steps by the
+   victim's alignment when something is killed (0xE8D: a data block of
+   28-bit words, read as signed). The reads are the thresholds. */
+function karmaRules() {
+  const writes = [], reads = [];
+  const val = t => { const m = /(byte|short|word) (0x[0-9A-F]+|\d+)/i.exec(t || ''); return m ? parseInt(m[2]) : null; };
+  for (const e of buildScriptTextIndex()) {
+    const lines = e.text.split('\n');
+    // The occasion: the nearest line the script prints, looking back first
+    // (the deed is usually said before its price) and then ahead.
+    const near = i => {
+      const grab = j => { const m = /string(?:\(implicit\))? "(.{3,90}?)(?:\\n)?"/.exec(lines[j] || ''); return m ? m[1].replace(/\\"/g, '"').replace(/\*/g, ' ').trim() : ''; };
+      for (let j = i - 1; j >= Math.max(0, i - 7); j--) { const t = grab(j); if (t) return t; }
+      for (let j = i; j < Math.min(lines.length, i + 8); j++) { const t = grab(j); if (t) return t; }
+      return '';
+    };
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (/set_global Karma/.test(l)) {
+        const a = lines[i + 1] || '', b = lines[i + 2] || '', c = lines[i + 3] || '';
+        if (/global Karma/.test(a) && /\b(add|sub)\b/.test(c)) {
+          const n = val(b);
+          if (n !== null) writes.push({ resid: e.resid, change: (/sub/.test(c) ? -n : n), note: near(i + 4) });
+          else if (/local|index/.test(b) || /index/.test(c)) writes.push({ resid: e.resid, change: null, note: near(i + 4), why: 'by an amount the script works out' });
+        } else if (val(a) !== null && !/global Karma/.test(a)) writes.push({ resid: e.resid, set: val(a), note: near(i + 2) });
+      } else if (/call_resource 0xF1[12]\b/.test(l)) {
+        const n = val(lines[i + 1]); const down = /0xF11/.test(l);
+        writes.push({ resid: e.resid, change: n === null ? null : (down ? -n : n), note: near(i + 2), why: n === null ? (down ? 'down by an amount the script works out' : 'up by an amount the script works out') : '' });
+      } else if (/global Karma/.test(l) && !/set_global/.test(l) && /(lt|gt|le|ge|eq)\b/.test(lines[i + 2] || '')) {
+        const n = val(lines[i + 1]);
+        if (n !== null) reads.push({ resid: e.resid, test: (/lt|le/.test(lines[i + 2]) ? 'below ' : 'above ') + n, note: near(i + 3) });
+      }
+    }
+  }
+  // The kill table: 0xE8D's data block, indexed by the victim's alignment.
+  let byAlignment = null;
+  try {
+    const raw = getResourceBytes(0xE8D);
+    const d = raw ? smartDecrypt(raw, 0xE8D).data : null;
+    if (d) for (let i = 0; i + 5 < d.length; i++) {
+      if (d[i] === 0x45 && d[i + 3] === 0x90 && d[i + 4] >= 2 && d[i + 4] <= 8 && u16be(d, i + 1) === 2 + d[i + 4] * 4) {
+        byAlignment = [];
+        for (let k = 0; k < d[i + 4]; k++) { let w = u32be(d, i + 5 + k * 4) & 0x0FFFFFFF; if (w & 0x08000000) w -= 0x10000000; byAlignment.push(w); }
+        break;
+      }
+    }
+  } catch (e) { byAlignment = null; }
+  return { writes, reads, byAlignment };
+}
+
 function renderMechanicsSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -12808,9 +12901,63 @@ function renderMechanicsSheet() {
     '<button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>';
   bsec.appendChild(bchips);
 
-  const more = sec('Not derived yet', 'How damage is resisted, what each skill changes, how a shop prices. The tables those would be read from are under Data › Cythera Data › Data Fork, and the resistance rules worked out so far are on each monster’s page.');
+  // ---- weapons and armour ----
+  const gear = gearTable();
+  const gsec = sec('Weapons and armour', gear.length
+    ? gear.length + ' item classes carry combat parameters. Armour’s number is points of protection. The weapon numbers are shown as the file stores them, since nothing published names the fields; ' +
+      'what the data itself shows is that the first melee number orders the weapons as their damage would.'
+    : 'No item class in this archive carries combat parameters.');
+  if (gear.length) {
+    const cols = [['melee', 'melee'], ['thrown', 'thrown'], ['ranged', 'ranged'], ['ammo', 'ammunition'], ['armour', 'armour'], ['shield', 'shield']];
+    const order = r => cols.findIndex(([k]) => r[k]);
+    gear.sort((a, b) => order(a) - order(b) || ((b.melee ? +b.melee[0] : 0) - (a.melee ? +a.melee[0] : 0)) || a.name.localeCompare(b.name));
+    const rows = gear.map(r => '<tr><td><button class="relChip" onclick="showPropTypeDetail(' + r.pt + ')">' +
+      '<span class="relText"><span class="relMain">' + svEsc(r.name) + '</span><span class="relSub">prop 0x' + r.pt.toString(16).toUpperCase() + '</span></span></button></td>' +
+      '<td class="num">' + (r.weight !== null ? r.weight : '') + '</td>' +
+      cols.map(([k]) => '<td class="num">' + (r[k] ? r[k].join(' ') : '') + '</td>').join('') + '</tr>');
+    const scroll = document.createElement('div');
+    scroll.className = 'tableScroll';
+    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>item</th><th>weight</th>' + cols.map(([, h]) => '<th>' + h + '</th>').join('') +
+      '</tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    gsec.appendChild(scroll);
+  }
+
+  // ---- skills ----
+  const sk = skillConsultations();
+  const ssec = sec('What each skill is consulted for', sk.by.size
+    ? 'Where a script asks whether the player has a skill, and which. ' + (sk.generic ? sk.generic + ' further checks are in helpers that test whichever skill they are handed.' : '')
+    : 'No script in this archive asks about a skill by name.');
+  if (sk.by.size) {
+    const rows = [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
+      '<tr><td>' + (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16).toUpperCase()), 0x1A00 + id) : 'skill 0x' + id.toString(16).toUpperCase()) +
+      '</td><td>' + [...resids].sort((a, b) => a - b).map(r => svChip(r)).join(' ') + '</td></tr>');
+    const scroll = document.createElement('div');
+    scroll.className = 'tableScroll';
+    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>skill</th><th>asked about by</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    ssec.appendChild(scroll);
+  }
+
+  // ---- karma ----
+  const km = karmaRules();
+  const start = km.writes.find(w => w.set !== undefined);
+  const ksec = sec('Karma', km.writes.length
+    ? 'A number the scripts move. ' + (start ? 'It starts at ' + start.set + ' when a character is made. ' : '') +
+      (km.byAlignment ? 'Killing something moves it by the victim’s alignment, values 0 to ' + (km.byAlignment.length - 1) + ' in turn: ' + km.byAlignment.map(v => (v > 0 ? '+' : '') + v).join(', ') + '. ' : '') +
+      (km.reads.length ? 'It is tested ' + km.reads.map(r => r.test).filter((v, i, a) => a.indexOf(v) === i).join(' and ') + '.' : '')
+    : 'No script in this archive moves karma.');
+  if (km.writes.length) {
+    const rows = km.writes.filter(w => w.set === undefined).map(w => '<tr><td class="num">' +
+      (w.change !== null && w.change !== undefined ? (w.change > 0 ? '+' : '') + w.change : svEsc(w.why || '')) + '</td><td>' + svEsc(w.note || '') + '</td><td>' + svChip(w.resid) + '</td></tr>')
+      .concat(km.reads.map(r => '<tr><td class="num">' + svEsc(r.test) + '</td><td>' + svEsc(r.note || '') + '</td><td>' + svChip(r.resid) + '</td></tr>'));
+    const scroll = document.createElement('div');
+    scroll.className = 'tableScroll';
+    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>change</th><th>occasion</th><th>where</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    ksec.appendChild(scroll);
+  }
+
+  const more = sec('Not derived yet', 'Experience and levels, what food and potions do, the status effects, lockpicking, shop prices, training. The spell costs and the combat rolls are in the executable, not the scripts.');
   grid.appendChild(box);
-  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot: the dice game from 0x812, the talk balloons from every script that sets one.';
+  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot: the dice game from 0x812, the weapon and armour numbers from the item classes, what each skill is asked about, and every move of karma.';
 }
 
 function renderPlaceholderSheet(note) {

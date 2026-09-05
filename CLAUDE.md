@@ -869,7 +869,25 @@ Read the comment above a constant before correcting it.
   with a tail, the text anti-aliased in the game's own style — is traced
   in `cythera-workbench/doc/talk-balloons.md`. The smoke test requires six
   named lines, Hot Kabobs on the Barks tab with its speaker, Yum on
-  Alaric's dossier, and the 96/50/70 enumeration.
+  Alaric's dossier, and the 96/50/70 enumeration. Three more the same
+  day, each read on the spot. **Weapons and armour** (`gearTable`): every
+  item class with a combat key 0x2A–0x2F, its weight and its parameters as
+  stored; armour's one number is points of protection (the wiki's), the
+  weapon fields are not published anywhere, and the one thing the data
+  shows is said — the first melee number orders the weapons as their
+  damage would (mystic spear 35, sword 30, axe 22, sword 20, mace 15).
+  **What each skill is consulted for** (`skillConsultations`): every
+  `GetSkill` with a constant skill, by skill, with the scripts that ask —
+  Gambling by the dice game, Cooking by the stove scripts, Persuasion by
+  three merchants — and a count of the helpers that test whichever skill
+  they are handed; skill n's name is its own script `0x1A00 + n`.
+  **Karma** (`karmaRules`): every write — a literal step, the helpers
+  `0xF11` down and `0xF12` up, the assignment to 55 at creation in the
+  hero's script, and the kill table in `0xE8D`, four 28-bit words read as
+  signed and indexed by the victim's alignment: +1, +4, −10, 0 — with the
+  nearest line the script prints as the occasion, and every read as a
+  threshold: the four Seldane priests refuse below 40. The smoke test pins
+  the axe's 22, Gambling's asker, the 55 and the kill table.
 - **The joins between the two halves are resource-id rules, and they are
   written down once, in the `Parts and uses` section beside the tree.** A
   character's dossier carries a *Made of* row (`characterParts`): dialogue

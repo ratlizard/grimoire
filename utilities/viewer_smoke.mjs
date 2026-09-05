@@ -1233,7 +1233,10 @@ try {
   if (barks.length < 40 || missing.length) fail('mechanics', `${barks.length} balloon sites; missing ${missing.join(', ') || 'nothing'}`);
   else if (!dice || dice.wins !== 96 || dice.pushes !== 50 || dice.losses !== 70) fail('mechanics', 'the dice enumeration is not 96/50/70: ' + JSON.stringify(dice && [dice.wins, dice.pushes, dice.losses]));
   else if (!/win 2 oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
-  else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated`);
+  else if (!ctx.gearTable().some(r => r.name === 'axe' && r.melee && r.melee[0] === '22')) fail('mechanics', 'the gear table does not give the axe its 22');
+  else if (!(ctx.skillConsultations().by.get(0xCF) || new Set()).has(0x812)) fail('mechanics', 'Gambling is not listed as asked about by the dice game');
+  else if (!ctx.karmaRules().writes.some(w => w.set === 55) || JSON.stringify(ctx.karmaRules().byAlignment) !== '[1,4,-10,0]') fail('mechanics', 'karma does not start at 55 or the kill table is not 1,4,-10,0: ' + JSON.stringify(ctx.karmaRules().byAlignment));
+  else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes`);
 } catch (e) { fail('mechanics', e); }
 
 // Opening a second archive must not leave the first one's derived tables
