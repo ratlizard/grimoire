@@ -647,7 +647,7 @@ try {
 
   // Characters stand where their schedule puts them, which is not where the
   // prop list puts anything, so they need their own probe.
-  let peopleProbes = 0, peopleNamed = 0;
+  let peopleProbes = 0, peopleNamed = 0, peopleFaced = 0;
   for (const [resid] of maps) {
     ctx.openResource(resid);
     const cm = ctx.CUR_MAP;
@@ -658,11 +658,13 @@ try {
       const html = REGISTRY.get('mapInspect').innerHTML;
       peopleProbes++;
       if (html.includes('Dossier') && html.includes('showCharacterDetail(' + c.index + ')')) peopleNamed++;
+      if (html.includes('class="inspFace"')) peopleFaced++;
     }
   }
   if (!peopleProbes) fail('map inspector', 'no scheduled characters found on any of the first maps');
   else if (peopleNamed !== peopleProbes) fail('map inspector', `${peopleProbes - peopleNamed} of ${peopleProbes} inhabited squares did not link the character`);
-  else console.log(`  map inspector: ${peopleProbes} inhabited squares, all linked to their dossier`);
+  else if (!peopleFaced) fail('map inspector', 'no inhabited square showed the character’s portrait');
+  else console.log(`  map inspector: ${peopleProbes} inhabited squares, all linked to their dossier, ${peopleFaced} with a portrait`);
   // A square outside everything must say so rather than throw.
   ctx.inspectMapSquare(0, 0);
   ctx.clearMapInspector();
@@ -1179,6 +1181,7 @@ try {
     const someone = folk[0];
     const cardP = someone && ctx.squareCard(ode.resid & 0xFF, eO, Math.round(someone.x), Math.round(someone.y), ode.name, false);
     if (!cardP || !cardP.html.includes(ctx.svEsc(someone.name))) fail('square card', 'a square with somebody on it did not name them');
+    else if (!ctx.characterFace(someone.index)) fail('square card', someone.name + ' has no face to show');
     let bare = null;
     for (let y = 0; y < ode.h && !bare; y++) for (let x = 0; x < ode.w; x++) {
       if (folk.some(c => Math.round(c.x) === x && Math.round(c.y) === y)) continue;

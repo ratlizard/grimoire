@@ -765,7 +765,11 @@ Read the comment above a constant before correcting it.
   who** (`squareCard`, shared by both panels so they agree): the person
   and what they are doing, what is placed there, and — only for a held
   finger, which has asked — the ground; a passing mouse stays quiet over
-  bare ground, since a card over every blade of grass is noise.
+  bare ground, since a card over every blade of grass is noise. **A person
+  is shown by their portrait**, on the card and on both inspectors'
+  cards (`characterFace`: `0x8800 + index − 1`, the dossier's join, kept as
+  a canvas and a data URL), and by the sprite only where there is none: the
+  sprite names a class, the face names the person.
 - **Sizing is measured, not chosen.** `contentBox` is the built part of a map
   (Cademia's map is 128 squares and its town is 107); `worldSquareRatio`
   measures how many region squares one world square stands for from the

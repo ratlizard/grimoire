@@ -782,6 +782,10 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
   display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
 #mapInspect .inspClose { margin-left:auto; font-size:12px; }
 #mapInspect .inspCard { border-top:1px solid rgba(155,136,80,.35); padding:8px 0; }
+/* A person's card carries their face, the portrait where there is one. */
+.inspCard.person { display:flex; gap:10px; align-items:flex-start; }
+.inspFace { width:48px; height:48px; flex:none; image-rendering:pixelated; border:1px solid var(--edge); border-radius:3px; }
+#atlasHover canvas.hvFace, #mapHover canvas.hvFace { width:44px; height:44px; border:1px solid var(--edge); border-radius:3px; }
 #mapInspect .inspDim { color:#9b8850; font-size:12px; }
 #mapInspect .inspRows { display:grid; grid-template-columns:auto 1fr; gap:2px 12px; margin:6px 0 0; }
 #mapInspect .inspRows dt { color:#9b8850; }
@@ -3445,7 +3449,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.0.1';
+const GRIMOIRE_VERSION = '1.1.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4405,6 +4409,7 @@ function resetDerivedCaches() {
   window.ATLAS_BELOW = [];
   atlasDetailWindows.clear();
   atlasFolkCache.clear();
+  _faceCache.clear();
   atlasTransforms.clear();
   belowScenes.clear();
   locatedCache.clear();
@@ -8497,11 +8502,7 @@ function updateMapHover(clientX, clientY, asked) {
   const card = squareCard(cm.level, { result: { m: cm.m, props: cm.props } }, sq.tx, sq.ty, null, asked);
   if (!card) { el.style.display = 'none'; return; }
   el.innerHTML = card.html;
-  if (card.person) {
-    const cv = document.createElement('canvas');
-    try { drawTileToCanvas(cv, getPropTileList()[card.person.proptype] + card.person.aspect, 32, card.person.rotated); } catch (e) {}
-    el.appendChild(cv);
-  }
+  if (card.person) appendFaceOrSprite(el, card.person);
   el.style.display = 'flex';
   placeMapHover(el, vp, px, py);
 }
@@ -8785,7 +8786,10 @@ function inspectMapSquare(tx, ty) {
   }
 
   for (const c of people) {
-    parts.push('<div class="inspCard"><b>' + svEsc(c.name || ('Character ' + c.index)) + '</b>' +
+    const face = characterFace(c.index);
+    parts.push('<div class="inspCard person">' +
+      (face && face.url ? '<img class="inspFace" src="' + face.url + '" alt="" width="64" height="64">' : '') +
+      '<div><b>' + svEsc(c.name || ('Character ' + c.index)) + '</b>' +
       ' <span class="inspDim">' + (c.walking ? 'walking'
           : c.sitting ? ('sitting, facing ' + ['north','east','south','west'][(c.aspect >> 2) & 3] +
               ' — ' + svEsc(c.seat ? c.seat.why : ''))
@@ -8796,7 +8800,7 @@ function inspectMapSquare(tx, ty) {
       // so this is index - 1; it used to open the next character's face.
       '<button class="sv-chip" onclick="jumpToResource(' + (0x8800 + c.index - 1) + ')">Portrait</button>' +
       '<button class="sv-chip" onclick="jumpToResource(' + (0x1800 + c.index) + ')">Dialogue</button>' +
-      '</div></div>');
+      '</div></div></div>');
   }
 
   const boxes = [];
@@ -10902,6 +10906,15 @@ function atlasInspect(px, py) {
       parts.push('<div class="inspCard"><b>' +
         svEsc(propDisplayName(p.rec.proptype) || ('prop 0x' + p.rec.proptype.toString(16))) +
         '</b></div>');
+    // Whoever is standing here, with their face and the way to their page.
+    for (const c of atlasFolk(node).filter(c => Math.round(c.x) === tx && Math.round(c.y) === ty)) {
+      const face = characterFace(c.index);
+      parts.push('<div class="inspCard person">' +
+        (face && face.url ? '<img class="inspFace" src="' + face.url + '" alt="" width="64" height="64">' : '') +
+        '<div><b>' + svEsc(c.name || ('Character ' + c.index)) + '</b> <span class="inspDim">' +
+        svEsc(c.walking ? 'walking' : c.sitting ? 'sitting' : String(c.mode || 'here')) + '</span>' +
+        '<div class="inspActs"><button class="sv-chip" onclick="openCharacter(' + c.index + ')">Dossier</button></div></div></div>');
+    }
   }
   // Everything this renderer does not do lives one click away, where it
   // already worked and still does.
@@ -11042,6 +11055,46 @@ function squareCard(level, e, tx, ty, placeName, asked) {
   return { html: '<div>' + lines.join('') + '</div>', person: c };
 }
 
+/* A character's face, for the card and the inspector: the portrait where
+   there is one -- 0x8800 + index - 1, the same join the dossier makes -- and
+   the sprite where there is not. A selected character used to be shown by
+   the sprite alone, which names a class ("a man") where the face names the
+   person. Decoded once per character and kept as a canvas and as a data
+   URL, since the inspector's cards are strings. Dropped with the derived
+   tables. */
+const _faceCache = new Map();
+function characterFace(i) {
+  if (_faceCache.has(i)) return _faceCache.get(i);
+  let out = null;
+  try {
+    const raw = getResourceBytes(0x8800 + (i - 1));
+    if (raw) {
+      const dec = decodeResource(raw, 135);
+      if (dec && dec.W) {
+        const c = document.createElement('canvas');
+        drawToCanvas(c, dec.W, dec.H, dec.image, 0);
+        out = { canvas: c, url: '' };
+        try { out.url = c.toDataURL('image/png'); } catch (e) { out.url = ''; }
+      }
+    }
+  } catch (e) { out = null; }
+  _faceCache.set(i, out);
+  return out;
+}
+// The card's picture: the face, else the sprite.
+function appendFaceOrSprite(el, c) {
+  const face = c && c.index !== undefined ? characterFace(c.index) : null;
+  const cv = document.createElement('canvas');
+  if (face) {
+    cv.width = face.canvas.width; cv.height = face.canvas.height;
+    cv.getContext('2d').drawImage(face.canvas, 0, 0);
+    cv.className = 'hvFace';
+  } else {
+    try { drawTileToCanvas(cv, getPropTileList()[c.proptype] + c.aspect, 32, c.rotated); } catch (e) {}
+  }
+  el.appendChild(cv);
+}
+
 let atlasHoverKey = '';
 function atlasHover(clientX, clientY, asked) {
   const el = document.getElementById('atlasHover');
@@ -11058,11 +11111,7 @@ function atlasHover(clientX, clientY, asked) {
   const card = squareCard(hit.node.resid & 0xFF, e, hit.tx, hit.ty, hit.node.name, asked);
   if (!card) { el.style.display = 'none'; return; }
   el.innerHTML = card.html;
-  if (card.person) {
-    const cvv = document.createElement('canvas');
-    try { drawTileToCanvas(cvv, getPropTileList()[card.person.proptype] + card.person.aspect, 32, card.person.rotated); } catch (err) {}
-    el.appendChild(cvv);
-  }
+  if (card.person) appendFaceOrSprite(el, card.person);
   el.style.display = 'flex';
   placeAtlasHover(el, vp, px, py);
 }
