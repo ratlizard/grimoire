@@ -99,7 +99,7 @@ function exportArtifacts(fork, type, entry, data){
     const f=decodeNFNT(data); txt(f.info); cvs(f.canvas,'strike');
     f.glyphs.forEach(g=>cvs(g.canvas, g.missing?'missing':'char'+g.code));
   }
-  else if(type==='sfnt') out.push({ext:'ttf', bytes:data});
+  else if(type==='sfnt') out.push({ext:'ttf', bytes:sfntToTrueType(data)});   // with the OS/2 table a browser insists on
   else if(type==='snd ') out.push({ext:'wav', blob:decodeSndToWav(data).blob});
   else if(type==='PICT'){
     const r=decodePict(data);
@@ -773,6 +773,79 @@ function decodeCodeResource(type, id, data){
   lines.push('  This browser does not disassemble 68K. The bytes are below, and');
   lines.push('  "Save raw" writes them out for something that does.');
   return lines.join('\n');
+}
+
+// An 'sfnt' resource is a TrueType font as it sits in the file: the table
+// directory and the tables, nothing else. A browser will load one from bytes
+// (FontFace), but Chrome and Firefox pass every font through OTS first, and
+// OTS refuses a TrueType font with no OS/2 table -- which is what a font made
+// on a classic Mac usually lacks, the Mac having never read that table.
+// Cythera's Argos A Nouveau is one: cmap, cvt, fpgm, glyf, head, hhea, hmtx,
+// loca, maxp, name, post, prep, and no OS/2. This adds one when it is missing,
+// filled from hhea, head and hmtx (the ascent and descent, the em, the mean
+// advance), rebuilds the directory in tag order with fresh checksums, and
+// hands back a font a browser accepts. A font that already has the table is
+// returned as it came, so this is safe to call on any sfnt.
+function sfntToTrueType(data){
+  const numTables=u16be(data,4);
+  const tables=[];
+  for(let i=0;i<numTables;i++){
+    const p=12+i*16;
+    const tag=String.fromCharCode(data[p],data[p+1],data[p+2],data[p+3]);
+    const off=u32be(data,p+8), len=u32be(data,p+12);
+    if(off+len>data.length) throw new Error('sfnt table '+tag+' runs past the end of the resource');
+    tables.push({tag, bytes:data.slice(off,off+len)});
+  }
+  const find=t=>tables.find(x=>x.tag===t);
+  if(find('OS/2')) return data;
+  const head=find('head'), hhea=find('hhea'), hmtx=find('hmtx'), maxp=find('maxp');
+  if(!head||!hhea||!hmtx||!maxp) throw new Error('sfnt is missing a required table');
+  const unitsPerEm=u16be(head.bytes,18);
+  const ascender=s16(hhea.bytes,4), descender=s16(hhea.bytes,6), lineGap=s16(hhea.bytes,8);
+  const numHMetrics=u16be(hhea.bytes,34), numGlyphs=u16be(maxp.bytes,4);
+  let sum=0, n=0;
+  for(let i=0;i<numHMetrics;i++){ const w=u16be(hmtx.bytes,i*4); if(w){ sum+=w; n++; } }
+  const os2=new Uint8Array(96); const dv=new DataView(os2.buffer);
+  dv.setUint16(0,3);                              // version 3
+  dv.setInt16(2,n?Math.round(sum/n):0);           // xAvgCharWidth
+  dv.setUint16(4,400); dv.setUint16(6,5);         // usWeightClass normal, usWidthClass medium
+  dv.setUint16(8,0);                              // fsType: installable
+  const sub=Math.round(unitsPerEm*0.65), subOff=Math.round(unitsPerEm*0.14);
+  [sub,sub,0,subOff,sub,sub,0,Math.round(unitsPerEm*0.48)].forEach((v,i)=>dv.setInt16(10+i*2,v));
+  dv.setInt16(26,Math.round(unitsPerEm*0.05)); dv.setInt16(28,Math.round(unitsPerEm*0.26)); // strikeout
+  // sFamilyClass 0, panose all 0, unicode ranges: Basic Latin + Latin-1
+  dv.setUint32(42,0x00000003);
+  os2.set([0x20,0x20,0x20,0x20],58);              // achVendID: blank
+  dv.setUint16(62,0x0040);                        // fsSelection: REGULAR
+  dv.setUint16(64,0x0020); dv.setUint16(66,0x00FF); // usFirstCharIndex, usLastCharIndex
+  dv.setInt16(68,ascender); dv.setInt16(70,descender); dv.setInt16(72,lineGap);
+  dv.setUint16(74,Math.max(0,ascender)); dv.setUint16(76,Math.max(0,-descender)); // usWinAscent/Descent
+  dv.setUint32(78,0x00000001);                    // ulCodePageRange1: Latin 1
+  dv.setInt16(86,Math.round(unitsPerEm*0.5)); dv.setInt16(88,Math.round(unitsPerEm*0.7)); // sxHeight, sCapHeight
+  dv.setUint16(90,0); dv.setUint16(92,0x20); dv.setUint16(94,1); // usDefaultChar, usBreakChar, usMaxContext
+  tables.push({tag:'OS/2', bytes:os2});
+  tables.sort((a,b)=>a.tag<b.tag?-1:a.tag>b.tag?1:0);
+  // head.checkSumAdjustment must be zero while the checksums are taken.
+  const headOut=Uint8Array.from(head.bytes); headOut.fill(0,8,12); find('head').bytes=headOut;
+  const pad4=n=>(n+3)&~3;
+  const checksum=b=>{ let s=0; for(let i=0;i<b.length;i+=4) s=(s+(((b[i]||0)<<24)|((b[i+1]||0)<<16)|((b[i+2]||0)<<8)|(b[i+3]||0)))>>>0; return s>>>0; };
+  const dirLen=12+tables.length*16;
+  let total=dirLen; for(const t of tables) total+=pad4(t.bytes.length);
+  const out=new Uint8Array(total); const odv=new DataView(out.buffer);
+  out.set(data.subarray(0,4),0);                  // the scaler type, as it came
+  odv.setUint16(4,tables.length);
+  let es=1, esl=0; while(es*2<=tables.length){ es*=2; esl++; }
+  odv.setUint16(6,es*16); odv.setUint16(8,esl); odv.setUint16(10,tables.length*16-es*16);
+  let off=dirLen;
+  tables.forEach((t,i)=>{
+    const p=12+i*16;
+    for(let k=0;k<4;k++) out[p+k]=t.tag.charCodeAt(k);
+    odv.setUint32(p+4,checksum(t.bytes)); odv.setUint32(p+8,off); odv.setUint32(p+12,t.bytes.length);
+    out.set(t.bytes,off); t.off=off; off+=pad4(t.bytes.length);
+  });
+  const headT=tables.find(t=>t.tag==='head');
+  odv.setUint32(headT.off+8,(0xB1B0AFBA-checksum(out))>>>0);
+  return out;
 }
 
 function decodeSfntInfo(data){

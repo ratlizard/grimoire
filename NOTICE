@@ -31,7 +31,9 @@ binary rather than reproducing it.
 **Four files in `res/`.** `ArgosANouveau.ttf`, `ArgosANouveau.woff2`,
 `Dialogue_Background.png` and `cythera_0x8F00.png` are the pages' own
 furniture, and they came out of the game's resources. They are kept here so the
-published page looks like itself. They are Ambrosia's or their respective
+published page looks like itself before a copy of the game is open; once one
+is, the page takes the font and the plank tile out of that file's own
+resources instead. They are Ambrosia's or their respective
 authors', not ours, and the licence grant above does not extend to them.
 
 **`delvmod/`** is a submodule, so this repository stores only a pointer to it.

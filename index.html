@@ -60,15 +60,19 @@
 #mapStage .mapArrowBtn { position:absolute; }
 #mapViewport:active { cursor:grabbing; }
 
-/* Argos A Nouveau is the game's own face, taken out of its resources. It is
-   one of the four files still in res/ -- the page's own furniture, kept so the
-   published page looks like itself. Everything else the game owns is in
+/* Argos A Nouveau is the game's own face. Since September 2026 the page takes
+   it out of the open file itself: the 'sfnt' resource in Cythera Data's fork
+   is the TrueType font, sfntToTrueType (js/mac-rsrc-types.js) adds the OS/2
+   table a browser's sanitiser insists on, and installGameFont registers it as
+   'ArgosGame', which every font stack below names first. The copy in res/ is
+   the fallback for the moments before an archive is open -- the first visit's
+   download -- and for a bare data fork, which carries no fork to read it from. Everything else the game owns is in
    reference/, which is not in the repository at all. */
 @font-face { font-family: 'Argos'; src: url('res/ArgosANouveau.woff2') format('woff2'); font-display: swap; }
 :root { --gold: rgb(249,248,111); --panel: rgba(20,18,14,.86); --edge: #9b8850; }
 html, body { min-height:100%; }
 /* Base text is white-ish; --gold is reserved for what responds to a click. */
-body { color:#e4e1d7; font-family:Argos, Georgia, serif;
+body { color:#e4e1d7; font-family:'ArgosGame', Argos, Georgia, serif;
   /* The top inset clears the two fixed controls -- the data file on the left,
      Search on the right -- and nothing more. It was 16px plus a row for the
      links, which is most of a thumb on a phone spent on nothing. */
@@ -102,7 +106,7 @@ body::before { content:''; position:fixed; inset:7px; pointer-events:none; z-ind
   border-image:url('res/Dialogue_Background.png') 4 8 stretch;
   opacity:.5; }
 #frameFill { display:none !important; }
-h2, .cell .lbl, .cell .resid, #soundLabel { color:var(--gold) !important; font-family:Argos, Georgia, serif; }
+h2, .cell .lbl, .cell .resid, #soundLabel { color:var(--gold) !important; font-family:'ArgosGame', Argos, Georgia, serif; }
 #soundPreview, pre { background:var(--panel); border-color:var(--edge) !important; }
 #singlePreview { background:transparent !important; border:0 !important; }
 #singleControls, #pickerWrap { background:transparent !important; border:none !important; }
@@ -111,7 +115,7 @@ h2, .cell .lbl, .cell .resid, #soundLabel { color:var(--gold) !important; font-f
  * text, everything you only read is white-ish; no carved-stone plaques, no
  * clip paths, no bevels. Interactive = coloured, not decorated. The old
  * hexagonal stone buttons live in git history if the look is ever missed. */
-button { color:var(--gold); font-family:Argos, Georgia, serif; letter-spacing:.04em;
+button { color:var(--gold); font-family:'ArgosGame', Argos, Georgia, serif; letter-spacing:.04em;
   position:relative; border:0; border-radius:4px; padding:10px 14px; min-height:44px;
   background:transparent;
   font-weight:600; font-size:15px; cursor:pointer;
@@ -123,7 +127,7 @@ button.secondary, .modebtns button.inactive {
     linear-gradient(180deg, rgba(255,255,255,.12) 0 2px, rgba(255,255,255,0) 3px),
     linear-gradient(160deg,#797365 0%,#575147 30%,#413d36 60%,#5f594e 100%);
   color:#e2d6ab; }
-select, input[type=file] { color:var(--gold); background:rgba(25,22,17,.94); border:1px solid var(--edge); font-family:Argos, Georgia, serif; }
+select, input[type=file] { color:var(--gold); background:rgba(25,22,17,.94); border:1px solid var(--edge); font-family:'ArgosGame', Argos, Georgia, serif; }
 
 /* Custom-styled dropdowns (categorySelect + residSelect) matching the
    parchment/gold theme, replacing the plain OS-default select look. */
@@ -179,7 +183,7 @@ select option { background:#181410; color:var(--gold); padding:8px; }
   background-clip:padding-box; }
 
 select, option { line-height:1.4 !important; min-height:42px; padding-top:8px !important; padding-bottom:8px !important; }
-select { font-family:Argos, Georgia, serif; }
+select { font-family:'ArgosGame', Argos, Georgia, serif; }
 /* ---- Flat controls -----------------------------------------------------
    The stone plaques are gone by request: anything clickable is YELLOW text,
    anything you only read is white-ish, and nothing is carved, bevelled or
@@ -319,7 +323,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 /* 8px monospace in an 84px box fits a lot of characters and none of them can
    be read. Prose gets the page's own serif at a size a person can take in at a
    glance, and the tail is faded out rather than chopped square. */
-.cellChars { font:11px/1.32 Argos, Georgia, serif; color:#e0d6b4;
+.cellChars { font:11px/1.32 'ArgosGame', Argos, Georgia, serif; color:#e0d6b4;
   background:#12100c; border:1px solid #4a432f; border-radius:4px;
   width:84px; height:84px; padding:5px 6px; overflow:hidden; word-break:normal;
   overflow-wrap:break-word; hyphens:auto;
@@ -374,7 +378,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
      seam at the join, because the tab's foot and the folder's head were
      different stops of the same gradient. */
   padding:6px 12px 5px !important; min-height:0 !important; line-height:1.2 !important;
-  font-family:Argos, Georgia, serif; font-size:12.5px !important; font-weight:600 !important;
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:12.5px !important; font-weight:600 !important;
   letter-spacing:0; color:#4a3616 !important; text-shadow:none !important; text-decoration:none;
   border:0 !important; border-radius:0 !important; box-shadow:none !important;
   background:repeating-linear-gradient(98deg, rgba(122,94,44,.11) 0 2px, rgba(255,248,220,.05) 2px 4px),
@@ -466,7 +470,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
   width:100%; box-sizing:border-box; padding:12px 14px; border-radius:8px;
   border:1px solid var(--edge); background:rgba(25,22,17,.94); color:var(--gold);
   -webkit-text-fill-color:var(--gold);
-  font-family:Argos, Georgia, serif; font-size:18px; line-height:1.35; }
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:18px; line-height:1.35; }
 #searchBox::-webkit-search-decoration, #propFilter::-webkit-search-decoration { -webkit-appearance:none; }
 #searchBox::placeholder, #propFilter::placeholder {
   color:#7d745a; font-size:15px; font-style:italic; -webkit-text-fill-color:#7d745a; }
@@ -521,7 +525,7 @@ pre.pane { background:#090806; color:#f9f86f; padding:12px; overflow:auto; max-h
 #textEdit .dtPanel { background:#1d1a14; border:1px solid #5a5142; border-radius:8px;
   padding:14px 16px; width:min(92vw, 560px); }
 #textEdit textarea { width:100%; min-height:120px; box-sizing:border-box; margin:8px 0;
-  font-family:Argos, Georgia, serif; font-size:14px; line-height:1.5;
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:14px; line-height:1.5;
   background:rgba(0,0,0,.3); color:#e4e1d7; border:1px solid rgba(255,255,255,.25); }
 .dlgEdit { min-height:0; padding:0 6px; font-size:11px; opacity:.6; }
 .dlgEdit:hover { opacity:1; }
@@ -540,7 +544,7 @@ span.refdead { color:#e07a5f; }
 span.refself { color:#7d745a; }
 .linksum { background:#141210; border:1px solid var(--edge); border-radius:5px; padding:9px 11px;
   margin-bottom:10px; font-size:12px; line-height:1.7; color:#cfc4a0;
-  font-family:Argos, Georgia, serif; white-space:normal; }
+  font-family:'ArgosGame', Argos, Georgia, serif; white-space:normal; }
 .linksum b { color:#9d9270; font-size:11px; text-transform:uppercase; letter-spacing:1px;
   margin-right:6px; }
 /* Loading a custom archive is a rare, expert action, so it reads as a quiet
@@ -651,6 +655,21 @@ pre.sv-code { background:#090806; color:#f9f86f; padding:11px; overflow:auto; ma
 .installerVersions .amNote, .installerOpen .amNote { color:#d3c9a6; font-size:12px; }
 .installerOpen { grid-column:1/-1; text-align:left; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; margin:0 0 6px; }
 .installerOpen .propHead { grid-column:auto; margin:0; border:0; padding:0; }
+/* A sentence under a kind's heading in the fork galleries, in the running
+   text's face rather than the heading's small caps. */
+.kindNote { display:block; margin:4px 0 2px; font-size:12px; line-height:1.4; color:#c9bd94;
+  letter-spacing:0; text-transform:none; font-weight:400; }
+.kindNote .navChip { margin-left:6px; }
+.dollBlock { grid-column:1/-1; display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;
+  padding:8px 4px 12px; }
+.dollBlock canvas { image-rendering:pixelated; width:160px; height:260px; border:1px solid #6b6b6b; background:#fff; }
+.dollBlock ol { margin:0; padding-left:22px; font-size:13px; line-height:1.5; columns:2; column-gap:24px; }
+.dollBlock .amNote { flex-basis:100%; }
+.vocabTable { border-collapse:collapse; font-size:12.5px; margin:0 0 10px; }
+.vocabTable th { text-align:left; color:#c9bd94; font-weight:600; padding:2px 10px 2px 0; vertical-align:top; white-space:nowrap; }
+.vocabTable td { padding:2px 0; vertical-align:top; }
+.forkTable td.icon { width:36px; padding:2px 4px; }
+.forkTable td.icon canvas { width:32px; height:32px; image-rendering:pixelated; display:block; }
 .installerOpen .installerOpenName { color:var(--gold); font-size:17px; font-weight:600; }
 .installerText { grid-column:1/-1; text-align:left; white-space:pre-wrap; word-break:break-word;
   font:12px/1.45 ui-monospace,Menlo,Consolas,monospace; color:#d8d0b4; background:rgba(0,0,0,.35);
@@ -681,7 +700,7 @@ pre.sv-code { background:#090806; color:#f9f86f; padding:11px; overflow:auto; ma
   background:#1d1a15 !important; background-image:none !important;
   border:1px solid var(--edge) !important; box-shadow:none !important;
   color:#e8dfc0 !important; text-shadow:none !important; font-size:12.5px !important;
-  font-weight:400 !important; letter-spacing:0; font-family:Argos, Georgia, serif; }
+  font-weight:400 !important; letter-spacing:0; font-family:'ArgosGame', Argos, Georgia, serif; }
 .crumbBtn::before, .crumbBtn::after { display:none !important; }
 .crumbBtn:hover { color:var(--gold) !important; border-color:var(--gold) !important; filter:none; }
 .crumbNote { color:#7d745a; font-size:11.5px; }
@@ -719,7 +738,7 @@ body.dropping::after { content:'Drop the Cythera installer (.sit or .bin) or a C
   position:fixed; inset:14px; z-index:60; pointer-events:none;
   border:3px dashed var(--gold); border-radius:10px;
   background:rgba(10,8,5,.55); color:var(--gold);
-  font-family:Argos, Georgia, serif; font-size:22px;
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:22px;
   display:flex; align-items:center; justify-content:center; }
 
 /* A text link that is a <button> because it does something rather than going
@@ -773,7 +792,7 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 #atlasHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
   padding:5px 9px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,.55);
-  font-family:Argos, Georgia, serif; font-size:12px; color:#e8dfc0; white-space:nowrap;
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:12px; color:#e8dfc0; white-space:nowrap;
   align-items:center; gap:7px; max-width:260px; }
 #atlasHover canvas { image-rendering:pixelated; width:32px; height:32px; flex:none;
   background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
@@ -794,7 +813,7 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 #mapHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
   padding:5px 9px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,.55);
-  font-family:Argos, Georgia, serif; font-size:12px; color:#e8dfc0; white-space:nowrap;
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:12px; color:#e8dfc0; white-space:nowrap;
   display:flex; align-items:center; gap:7px; max-width:260px; }
 #mapHover canvas { image-rendering:pixelated; width:32px; height:32px; flex:none;
   background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
@@ -815,7 +834,7 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
   background:rgba(12,10,7,.88) !important; background-image:none !important;
   border:1px solid rgba(196,164,100,.7) !important; box-shadow:0 1px 3px rgba(0,0,0,.5) !important;
   color:#e8dfc0 !important; text-shadow:none !important; font-size:12px !important;
-  font-weight:400 !important; letter-spacing:0; font-family:Argos, Georgia, serif; }
+  font-weight:400 !important; letter-spacing:0; font-family:'ArgosGame', Argos, Georgia, serif; }
 .zoomRect .zrItem:hover { border-color:var(--gold) !important; color:var(--gold) !important; filter:none; }
 .zoomRect .zrItem::before, .zoomRect .zrItem::after { display:none !important; }
 .zoomRect .zrCap { margin:4px 0 0; font-size:11px; color:#9b8850; text-align:center; }
@@ -1066,12 +1085,16 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
       <optgroup label="Graphics">
         <option value="141">Tile Sheets (4x4 grid of 16 tiles)</option>
         <option value="142">General Graphics (variable size)</option>
+        <option value="SCREENS">Screens (resource fork)</option>
         <option value="COMPOSITE">Composite Tiles (stitched from fragments)</option>
         <option value="143">Music (0x90xx, QTMA, raw only)</option>
         <option value="144">Sounds (playable audio)</option>
+        <option value="APPSND">Application sounds (resource fork)</option>
       </optgroup>
       <optgroup label="Text & dialogue">
         <option value="1">Text & Names (0x02xx)</option>
+        <option value="STRINGS">Strings (resource forks)</option>
+        <option value="FONTS">Fonts (resource fork)</option>
         <option value="23">Character Dialogue (0x18xx)</option>
         <option value="0">Global Symbols & Scripts (0x01xx)</option>
       </optgroup>
@@ -1105,6 +1128,10 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
         <option value="CHANGES">Changes this session</option>
         <option value="INSTALLER">The installer: every file in it</option>
         <option value="APPRSRC">Cythera application: resource fork</option>
+        <option value="UIMENUS">Menus</option>
+        <option value="UIDIALOGS">Dialogs & windows</option>
+        <option value="UICURSORS">Cursors</option>
+        <option value="UIICONS">Finder & command icons</option>
         <option value="APPPEF">Cythera application: data fork (PEF)</option>
         <option value="AISCRIPTS">Combat AI scripts (.ai)</option>
         <option value="AIRULES">Combat AI rules</option>
@@ -1460,6 +1487,65 @@ function labelForResource(subn, n, resid) {
   return null;
 }
 
+/* The resource forks, read by kind rather than by type code.
+
+   Cythera Data's fork holds 113 resources of 18 types and the application's
+   339 of 52, and a flat gallery of type codes says nothing about what any of
+   them is for. This table does: each kind names the four-letter types that
+   make it up, says in a sentence what they are (from looking at every one of
+   them, September 2026), and says where else on the site the kind is shown.
+   Both fork galleries group by it, and the views in FORK_VIEWS below are the
+   same renderer filtered to one or two kinds, which is how a screen or a
+   font or a cursor gets a place under Components without a second decoder.
+   A type in no kind falls under "Other". */
+const RSRC_KINDS = [
+  { id: 'screens', label: 'Screens', types: ['PICT'],
+    note: 'Whole pictures. In Cythera Data: the title screen (130), the main menu (132) with its seven plank labels (139–145) and six torch frames (133–138), the DELVER stone (131), two night-dark title scenes (512, 513) and the paper doll (129). In the application: the two Ambrosia logos.',
+    view: 'SCREENS' },
+  { id: 'fonts', label: 'Fonts', types: ['sfnt', 'NFNT', 'FOND', 'TxSt'],
+    note: 'Argos A Nouveau as a TrueType font (sfnt 7289, the face this page is set in), the Seldane script as two bitmap strikes (NFNT 25740 and 25746, 12 and 18 point), the family records that tie them together, and the text styles (TxSt) that say which face and size each kind of text is drawn in — “Labels”, “Stats”, “Text”, three Seldane sizes.',
+    view: 'FONTS' },
+  { id: 'strings', label: 'Strings', types: ['STR#', 'STR ', 'TEXT', 'styl'],
+    note: 'String lists. In Cythera Data: the four default conversation keywords (128), the editor’s palette categories (134), the editor’s list of every zone (135), the credits (255). In the application: the equipment slots (501), the combat buttons (500), the seven strategies (502), the help balloons (503), and the combat AI vocabulary in seven lists (9300–9308).',
+    view: 'STRINGS' },
+  { id: 'sounds', label: 'Sounds', types: ['snd '],
+    note: 'The application’s own sounds, named for when they play: get, use, look, talk, attack. The game’s sound effects and music are in the archive, under Audio.',
+    view: 'APPSND' },
+  { id: 'icons', label: 'Finder and command icons', types: ['ICN#', 'icl4', 'icl8', 'ics#', 'ics4', 'ics8', 'cicn', 'BNDL', 'FREF'],
+    note: 'The Finder icons for the application, the data file, a saved game and a patch — the bundle (BNDL) and file references (FREF) say which is which — and the command icons the game draws: move, take, look, talk, attack.',
+    view: 'UIICONS' },
+  { id: 'cursors', label: 'Cursors', types: ['crsr', 'CURS', 'acur'],
+    note: 'The pointer in every state: eight walking directions in two weights, the hand, the eye, the speech bubble, the sword, the magnifier, the pointing finger, and the spinning ball the animated cursor (acur) cycles through.',
+    view: 'UICURSORS' },
+  { id: 'menus', label: 'Menus', types: ['MENU', 'MBAR', 'xmnu', 'CMNU', 'mctb', 'MDEF'],
+    note: 'Every menu the game can show, item by item, with the key equivalents and which items are enabled at rest; the two menu bars; and the colour table for the File menu.',
+    view: 'UIMENUS' },
+  { id: 'dialogs', label: 'Dialogs and windows', types: ['DLOG', 'DITL', 'ALRT', 'WIND', 'CNTL', 'dctb', 'actb', 'nrct', 'CDEF', 'WDEF', 'LDEF', 'ppat', 'pltt', 'clut'],
+    note: 'The dialog boxes and alerts (a DLOG or ALRT names its DITL, the item list), the window templates, the controls, their colour tables, the backdrop patterns (ppat: the default and black), and the palettes.',
+    view: 'UIDIALOGS' },
+  { id: 'editor', label: 'Editor', types: ['eSTM', 'eBRS', 'MSta', 'FILT', 'LINF', 'DATA', 'PORT', 'RMAP', 'TMPL'],
+    note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three named 64-byte records (MSta: “Base”, “Plague Cured”, “Olpheltius Murdered”), seven FILT records, and the ResEdit templates. The structure of MSta, FILT, LINF, DATA and PORT is not read.',
+    view: 'RSRC' },
+  { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
+    note: 'What the executable reads about itself: 25 light tables (Lite: a side length n, then n×n bytes of falloff), the help pages (Page), the two preference defaults (volume and music), the version records, the memory sizes, the code fragment map and the nine 68K CODE segments.',
+    view: null }
+];
+const RSRC_KIND_OF = new Map();
+for (const k of RSRC_KINDS) for (const t of k.types) RSRC_KIND_OF.set(t, k);
+// A category value that is a fork gallery filtered to some kinds. `source`
+// is which fork: the data file's, the application's, or both, one after the
+// other. The application's fork is fetched on first use, as for APPRSRC.
+const FORK_VIEWS = {
+  SCREENS:   { source: 'both', kinds: ['screens'] },
+  FONTS:     { source: 'both', kinds: ['fonts'] },
+  STRINGS:   { source: 'both', kinds: ['strings'] },
+  APPSND:    { source: 'app',  kinds: ['sounds'] },
+  UIICONS:   { source: 'app',  kinds: ['icons'] },
+  UICURSORS: { source: 'app',  kinds: ['cursors'] },
+  UIMENUS:   { source: 'app',  kinds: ['menus'] },
+  UIDIALOGS: { source: 'app',  kinds: ['dialogs'] }
+};
+
 const CATEGORY_NAMES = { 0:"Global Symbols & Scripts", 1:"Text & Names", 135:"Character Portraits", 137:"Skill Icons", 141:"Tile Graphics", 131:"Landscape Graphics", 142:"General Graphics", 144:"Sounds", 127:"Maps", 128:"Prop Lists", 239:"Game Data Tables",
   143:"Music (QTMA)", 2:"Unclassified (0x03xx)", 3:"AI Combat Scripts", 4:"Character Creation Stats", 7:"Generic Group Dialogue", 8:"Unclassified Scripts (0x09xx)", 9:"Eating & Potion Effects", 10:"Unclassified (0x0Bxx)", 14:"Unclassified Scripts (0x0Fxx)", 11:"Popup Dialogue A", 12:"Popup Dialogue B", 13:"Action Result Popups", 15:"Object Interaction Text", 16:"Object Scripts", 19:"Zone Entry Scripts", 20:"Zone Region Scripts", 23:"Character Dialogue", 24:"Monster Class Scripts", 25:"Skill & Spell Descriptions", 26:"Room Descriptions A", 27:"Room Descriptions B", 29:"Teleport Script (0x1Exx)", 47:"Character Action Scripts"
 };
@@ -1492,7 +1578,9 @@ const RESHINTS = {
   0xF012:"Prop-aspect Y offsets", 0xF015:"Persistence Store Symbols"
 };
 // Fallback zone names, used only until loadZoneNames() pulls the game's own
-// strings out of the 0x14xx entry scripts. Reconciled against the wiki's
+// strings out of the 0x14xx entry scripts, and behind the editor's own list
+// in the resource fork (loadEditorZoneNames), which is where these came from
+// in the first place. Reconciled against the wiki's
 // subindex 19 listing: 0x8015 is Sewers (not "Under Cademia") and 0x801C is
 // Below Cademia (not "Machaon's Workshop"). The remaining names are the
 // community's descriptive labels for maps the wiki lists only generically
@@ -1515,6 +1603,45 @@ for (let n=0;n<ZONES.length;n++) { RESHINTS[0x8000+n]=ZONES[n]; RESHINTS[0x8100+
 // names ("Land King Hall", "Kosha Grotto", "Omen's Test") instead of the
 // hand-annotated guesses we were shipping.
 window.ZONE_NAMES = null;
+/* A second set of names, the editor's, from the resource fork: STR# 135 in
+   Cythera Data lists every zone in map order, one entry per map from map 1
+   -- entry 0 is the world, map 1; map 0, the editor's blank "Map", has none.
+   Where the entry script's string is the name the player is shown, this is
+   the name the map was made under, and for the seventeen maps whose script
+   says only "Ruins", "Tomb", "Temple", "Cove", "Caves", "Stronghold" it is
+   the specific one: "Headwater Ruins", "Tyrant's Tomb", "Scylla Temple",
+   "Crab Cove", "Eioneus Cave", "Tavara Fortress". Spellings are the
+   file's -- "North Short Vinyard", "Inner Broutherhood Dungeon" [sic] --
+   and stay so. The alignment was checked entry by entry against the script
+   names (LKH / Land King Hall, Catamarca Springs / the underground under
+   Catamarca, Cademia Sewers / Sewers, and so on down the list).
+
+   These replace the ZONES table above wherever the fork is open: the table
+   is the same list as the community wrote it down, and this is the game's
+   own copy, so a label drawn from it is data rather than a built-in. The
+   script name still leads where there is one; the editor's name is shown
+   beside it when it differs. */
+window.EDITOR_ZONE_NAMES = null;
+function loadEditorZoneNames() {
+  if (window.EDITOR_ZONE_NAMES) return window.EDITOR_ZONE_NAMES;
+  const names = {};
+  const list = forkStringList(window.CYTHERA_RSRC, 135);
+  if (list) list.forEach((nm, i) => { if (nm) names[i + 1] = nm; });
+  return (window.EDITOR_ZONE_NAMES = names);
+}
+function editorZoneName(resid) {
+  const subn = Math.floor(resid / 0x100) - 1;
+  if (subn !== 127 && subn !== 128 && subn !== 19) return null;
+  return loadEditorZoneNames()[resid % 0x100] || null;
+}
+// " (Tyrant's Tomb in the editor's list)" after a map's label, when the
+// editor named it something else; nothing when the two agree or there is
+// no fork.
+function editorNameSuffix(resid, shown) {
+  const ez = editorZoneName(resid);
+  if (!ez || (shown && shown.toLowerCase() === ez.toLowerCase())) return '';
+  return ' (' + ez + ' in the editor’s list)';
+}
 // Zoneports (wiki: Zoneport page) are indices into 0xF00C. Each entry is
 // 4 bytes: map ID (uint8) then an xy24 position. A map header's four exit
 // fields are zoneport indices, so they resolve to a real destination.
@@ -1581,6 +1708,7 @@ function labelSource(resid) {
   // not -- it stays flagged with the dagger.
   if (subn === 25 && selfNameFor(resid)) return 'data';
   if (zoneNameFor(resid)) return 'data';
+  if (editorZoneName(resid)) return 'data';
   return labelFor(resid) ? 'builtin' : null;
 }
 function applyLabel(el, resid) {
@@ -1590,6 +1718,8 @@ function applyLabel(el, resid) {
   // Still recorded in the tooltip -- just not in the colour of the text.
   if (txt && labelSource(resid) === 'builtin')
     el.title = 'Name supplied by this tool, not found in the archive';
+  else if (txt && editorNameSuffix(resid, txt))
+    el.title = editorNameSuffix(resid, txt).replace(/^ \(|\)$/g, '');
   else el.removeAttribute('title');
   return txt;
 }
@@ -1646,6 +1776,9 @@ function setBuiltinLabels(on) {
 function labelForUnnormalized(resid) {
   const zn = zoneNameFor(resid);
   if (zn) return zn;
+  // A map whose entry script names nothing still has the editor's name.
+  const ez = editorZoneName(resid);
+  if (ez) return ez;
   // The archive names many of its own resources; prefer that over our tables.
   // They are code identifiers -- "LKH_Guard", "Od_Trough1" -- so the
   // underscores become spaces for display. The symbol itself is untouched.
@@ -2513,7 +2646,7 @@ function propFrameFill(tile) {
    no per-gallery code. That is what makes "a search bar on every gallery"
    one function rather than a dozen. */
 window.PROP_FILTER = '';
-const REBUILDING_GALLERIES = new Set(['PROPS', 'ITEMS', 'RSRC', 'MACRSRC']);
+const REBUILDING_GALLERIES = new Set(['PROPS', 'ITEMS', 'RSRC', 'MACRSRC', ...Object.keys(FORK_VIEWS)]);
 function setPropFilter(v) {
   window.PROP_FILTER = v;
   if (window.CUR_SUBN === 'ITEMS') renderItemSheet();
@@ -2922,6 +3055,50 @@ function inventoryItemList() {
 
 const ITEM_GROUP_ORDER = ['Weapons & armour', 'Containers', 'Carried goods'];
 
+/* Where an item is worn. The body with a line to each place is PICT 129 in
+   Cythera Data's resource fork, and the names of the places are STR# 501 in
+   the application's -- ten of them, two hands and two rings among them. The
+   two are in different files and nothing in either says which line is which
+   name, so they are shown side by side and not joined line to name. The
+   application's fork is used when it is already here and not fetched for
+   this: opening Items should not cost a download. */
+function paperDollBlock() {
+  const fork = window.CYTHERA_RSRC;
+  if (!fork) return null;
+  const entry = (fork.resourcesByType['PICT'] || []).find(e => e.id === 129);
+  if (!entry) return null;
+  const pic = rsrcArtifacts(fork, 'PICT', entry).find(a => a.canvas && a.canvas.width);
+  if (!pic) return null;
+  const box = document.createElement('div');
+  box.className = 'dollBlock';
+  const h = document.createElement('div');
+  h.className = 'propHead';
+  h.style.cssText = 'flex-basis:100%;';
+  h.textContent = 'Where things are worn';
+  box.appendChild(h);
+  const cv = document.createElement('canvas');
+  cv.width = pic.canvas.width; cv.height = pic.canvas.height;
+  cv.getContext('2d').drawImage(pic.canvas, 0, 0);
+  cv.title = 'PICT 129 in Cythera Data’s resource fork';
+  box.appendChild(cv);
+  const slots = forkStringList(window.APP_RSRC, 501);
+  if (slots && slots.length) {
+    const ol = document.createElement('ol');
+    for (const nm of slots) { const li = document.createElement('li'); li.textContent = nm; ol.appendChild(li); }
+    box.appendChild(ol);
+    const n = document.createElement('div');
+    n.className = 'amNote';
+    n.textContent = 'The figure is PICT 129 in Cythera Data’s resource fork; the ten places are STR# 501 in the application’s. Neither file says which line is which name.';
+    box.appendChild(n);
+  } else {
+    const n = document.createElement('div');
+    n.className = 'amNote';
+    n.textContent = 'The figure is PICT 129 in Cythera Data’s resource fork. The names of the ten places are STR# 501 in the application’s, which is not loaded — Cythera (App) › Resource Fork fetches it.';
+    box.appendChild(n);
+  }
+  return box;
+}
+
 function renderItemSheet() {
   stopSpriteAnimations();
   const grid = document.getElementById('sheetGrid');
@@ -2937,6 +3114,8 @@ function renderItemSheet() {
     ((a.name ? 0 : 1) - (b.name ? 0 : 1)) ||
     (a.name || '').localeCompare(b.name || '') || a.pt - b.pt);
 
+  const doll = paperDollBlock();
+  if (doll) grid.appendChild(doll);
   let heading = null;
   for (const e of entries) {
     if (e.group !== heading) {
@@ -3203,17 +3382,23 @@ function showItemDetail(pt) {
    AppleSingle container carries both forks, and binhexSplitForks already
    decoded the second one before extractDelverArchive threw it away.
 
-   Most of it is ordinary Mac resources -- PICT, NFNT, clut, STR#, vers -- which
-   resource_fork_browser.html reads better than this file ever will. What that
-   tool cannot do is the four types that are Delver's own, because reading them
-   needs Cythera's tile system:
+   Most of it is ordinary Mac resources -- PICT, NFNT, clut, STR#, vers --
+   which js/mac-rsrc-types.js decodes, and RSRC_KINDS (beside CATEGORY_NAMES)
+   says what each kind is for and where on the site it is shown: the title
+   and menu screens under Graphics, the fonts under Text, the string lists
+   under Labels, the editor's zone list beside every map's name, the default
+   conversation keywords on the Dialogue gallery, the paper doll under Items,
+   the Finder icons on the installer's rows, and the page's own face, which
+   is the sfnt in this fork (installGameFont). What needs Cythera's tile
+   system is the four types that are Delver's own:
 
      eSTM  16  editor stamps: an 8x8 patch of terrain the map editor could
                stamp down in one go, with names like "Forest Medium 1"
      eBRS  25  editor brushes: 16 tiles the editor joined up automatically to
                draw a river or a wall, named "Adobe Wall, Grass" and so on
-     MSta   3  unknown
-     FILT   7  unknown
+     MSta   3  64 bytes each, named "Base", "Plague Cured" and "Olpheltius
+               Murdered" -- the names are world events; the bytes are unread
+     FILT   7  6,180 or 8,228 bytes each, unnamed; unread
 
    Stamps and brushes are documented on the wiki's "Delver editor stamp" and
    "Delver editor brush" pages, and both are editor-only -- deleting them has no
@@ -3239,11 +3424,40 @@ function openCytheraResourceFork(bytes) {
   return window.CYTHERA_RSRC;
 }
 
+/* The page's face, from the file itself. Argos A Nouveau is sfnt 7289 in
+   Cythera Data's resource fork (FOND 1046 names it); a browser loads a font
+   from bytes through FontFace, once sfntToTrueType has given it the OS/2
+   table OTS requires. It is registered under its own family name,
+   'ArgosGame', which the stylesheet names ahead of the res/ copy, so the
+   file's own font wins whenever there is a file and the shipped copy stands
+   in until then. Failure is recorded, not reported: the fallback is the same
+   face. */
+window.GAME_FONT = null;
+window.GAME_FONT_STATE = '';
+function installGameFont() {
+  window.GAME_FONT = null;
+  const fork = window.CYTHERA_RSRC;
+  if (!fork) { window.GAME_FONT_STATE = 'no resource fork is open'; return; }
+  const entry = (fork.resourcesByType['sfnt'] || [])[0];
+  if (!entry) { window.GAME_FONT_STATE = 'the resource fork holds no sfnt'; return; }
+  let ttf;
+  try { ttf = sfntToTrueType(fork.dataOf('sfnt', entry)); }
+  catch (e) { window.GAME_FONT_STATE = 'sfnt #' + entry.id + ' could not be made into a TrueType file: ' + e.message; return; }
+  window.GAME_FONT_TTF = ttf;
+  if (typeof FontFace === 'undefined' || !document.fonts) { window.GAME_FONT_STATE = 'this browser cannot load a font from bytes'; return; }
+  try {
+    const face = new FontFace('ArgosGame', ttf.buffer.slice(ttf.byteOffset, ttf.byteOffset + ttf.byteLength));
+    window.GAME_FONT_STATE = 'loading';
+    face.load().then(f => { document.fonts.add(f); window.GAME_FONT = (entry.name || 'sfnt') + ' #' + entry.id; window.GAME_FONT_STATE = ''; })
+               .catch(e => { window.GAME_FONT_STATE = 'the browser refused sfnt #' + entry.id + ': ' + (e && e.message || e); });
+  } catch (e) { window.GAME_FONT_STATE = 'FontFace: ' + e.message; }
+}
+
 const RSRC_DELVER_TYPES = {
   eSTM: 'editor stamp',
   eBRS: 'editor brush',
-  MSta: 'unknown ("MSta")',
-  FILT: 'unknown ("FILT")'
+  MSta: 'named record, unread ("MSta")',
+  FILT: 'unread ("FILT")'
 };
 
 // A stamp declares its own dimensions; a brush is a flat run of tiles.
@@ -3487,7 +3701,7 @@ const APP_HQX_CANDIDATES = [
 async function loadApplicationFork() {
   if (window.APP_RSRC || window.APP_RSRC_STATE === 'loading') return window.APP_RSRC;
   window.APP_RSRC_STATE = 'loading';
-  renderMacRsrcSheet();
+  rerenderForkView();
   let lastErr = '';
   const forcedApp = new URLSearchParams(location.search).get('app');
   const candidates = forcedApp ? [forcedApp].concat(APP_HQX_CANDIDATES) : APP_HQX_CANDIDATES;
@@ -3498,12 +3712,14 @@ async function loadApplicationFork() {
       if (!c || !c.rsrc || !c.rsrc.length) { lastErr = 'no resource fork in ' + url; continue; }
       window.APP_RSRC = openResourceFork(c.rsrc);
       window.APP_RSRC_STATE = '';
-      renderMacRsrcSheet();
+      syncInstallerTabs();
+      syncTabsTo(document.getElementById('categorySelect').value);
+      rerenderForkView();
       return window.APP_RSRC;
     } catch (e) { lastErr = e.message; }
   }
   window.APP_RSRC_STATE = 'Could not load the application: ' + lastErr;
-  renderMacRsrcSheet();
+  rerenderForkView();
   return null;
 }
 
@@ -3537,85 +3753,155 @@ function rsrcTypeLabel(type) {
 // Which fork this gallery shows used to be a pair of buttons at the top of
 // it; it is the pair of Resource Fork tabs now, one under Cythera Data and one
 // under Cythera, and the category (MACRSRC / APPRSRC) sets RSRC_SOURCE.
+// One string list out of a fork, or null when the fork or the list is absent.
+function forkStringList(fork, id) {
+  if (!fork) return null;
+  const entry = (fork.resourcesByType['STR#'] || []).find(e => e.id === id);
+  if (!entry) return null;
+  try { return decodeSTRList(fork.dataOf('STR#', entry)); } catch (e) { return null; }
+}
+
+// Which views re-render when the application's fork arrives, or the filter
+// changes: everything drawn from a fork rather than the archive.
+function rerenderForkView() {
+  const v = window.CUR_SUBN;
+  if (currentMode !== 'sheet') return;
+  if (v === 'MACRSRC' || FORK_VIEWS[v] || v === 'AIRULES' || v === 'ITEMS' || v === 'INSTALLER') setMode('sheet');
+}
+
+// The fork gallery. With no view it is one fork, whole, grouped by kind
+// (RSRC_KINDS); with a view (FORK_VIEWS[CUR_SUBN]) it is the kinds that view
+// names, from one fork or both. Either way a cell is the same cell and opens
+// the same detail view, which is what makes a Screens tab cheap: it is this
+// gallery filtered, not a second renderer.
 function renderMacRsrcSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
   const out = document.getElementById('output');
   grid.style.display = '';
   grid.innerHTML = '';
-
-  const fork = rsrcViewFork();
-  if (!fork) {
-    out.textContent = window.APP_RSRC_STATE === 'loading'
-      ? 'Loading the application…'
-      : window.APP_RSRC_STATE ||
-        (window.RSRC_SOURCE === 'app'
-          ? 'The application’s fork is not loaded yet.'
-          : 'No resource fork. It comes from the container the archive was in — a .hqx, ' +
-            'MacBinary or AppleSingle file carries both forks, a bare data fork does not.');
-    return;
-  }
-
+  const view = FORK_VIEWS[window.CUR_SUBN] || null;
+  const kinds = view ? view.kinds.map(id => RSRC_KINDS.find(k => k.id === id)) : null;
+  const sources = view ? (view.source === 'both' ? ['data', 'app'] : [view.source]) : [window.RSRC_SOURCE === 'app' ? 'app' : 'data'];
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
-  const list = macRsrcList(fork).filter(it =>
-    !q || it.type.toLowerCase().includes(q) || String(it.entry.id).includes(q) ||
-    (it.entry.name || '').toLowerCase().includes(q) ||
-    rsrcTypeLabel(it.type).toLowerCase().includes(q));
+  const forkName = src => src === 'app' ? 'Cythera (application)' : 'Cythera Data';
+  let drawable = 0, textual = 0, raw = 0, shown = 0, total = 0;
+  const typesSeen = new Set();
+  const missing = [];
 
-  let drawable = 0, textual = 0, raw = 0;
-  for (const it of list) {
-    const cell = document.createElement('div');
-    cell.className = 'cell';
-    const imgwrap = document.createElement('div');
-    imgwrap.className = 'cellimgwrap';
-    const canvas = document.createElement('canvas');
-    imgwrap.appendChild(canvas);
-    cell.appendChild(imgwrap);
-
-    const lbl = document.createElement('div');
-    lbl.className = it.entry.name ? 'lbl' : 'lbl nolabel';
-    lbl.textContent = it.entry.name || rsrcTypeLabel(it.type) || '(unnamed)';
-    cell.appendChild(lbl);
-
-    const rid = document.createElement('div');
-    rid.className = 'resid';
-    rid.textContent = it.type + ' #' + it.entry.id;
-    cell.appendChild(rid);
-
-    lazyTile(cell, () => {
-      const arts = rsrcArtifacts(fork, it.type, it.entry);
-      const pic = arts.find(a => a.canvas && a.canvas.width);
-      if (pic) {
-        drawable++;
-        canvas.width = pic.canvas.width; canvas.height = pic.canvas.height;
-        canvas.getContext('2d').drawImage(pic.canvas, 0, 0);
-        const scale = Math.min(84 / canvas.width, 96 / canvas.height, 4);
-        canvas.style.width = Math.round(canvas.width * scale) + 'px';
-        canvas.style.height = Math.round(canvas.height * scale) + 'px';
-      } else {
-        imgwrap.removeChild(canvas);
+  for (const src of sources) {
+    const fork = src === 'app' ? window.APP_RSRC : window.CYTHERA_RSRC;
+    if (!fork) {
+      missing.push(src === 'app'
+        ? (window.APP_RSRC_STATE === 'loading' ? 'Loading the application…'
+           : window.APP_RSRC_STATE || 'The application’s fork is not loaded yet.')
+        : 'No resource fork came with the archive. It comes from the container the archive was in — a .hqx, MacBinary or AppleSingle file carries both forks, a bare data fork does not.');
+      continue;
+    }
+    total += fork.total();
+    for (const t of fork.typeList) typesSeen.add(t.type);
+    // Cells by kind, in the table's order; a type in no kind last.
+    const byKind = new Map();
+    for (const it of macRsrcList(fork)) {
+      if (q && !(it.type.toLowerCase().includes(q) || String(it.entry.id).includes(q) ||
+                 (it.entry.name || '').toLowerCase().includes(q) ||
+                 rsrcTypeLabel(it.type).toLowerCase().includes(q))) continue;
+      const k = RSRC_KIND_OF.get(it.type) || null;
+      if (kinds && !kinds.includes(k)) continue;
+      const key = k ? k.id : 'other';
+      if (!byKind.has(key)) byKind.set(key, []);
+      byKind.get(key).push(it);
+    }
+    const order = (kinds || RSRC_KINDS).map(k => k.id).concat(kinds ? [] : ['other']);
+    for (const key of order) {
+      const items = byKind.get(key);
+      if (!items || !items.length) continue;
+      const k = RSRC_KINDS.find(x => x.id === key);
+      const h = document.createElement('div');
+      h.className = 'propHead';
+      h.textContent = (sources.length > 1 ? forkName(src) + ' — ' : '') + (k ? k.label : 'Other') + ' (' + items.length + ')';
+      if (k && k.note) {
         const note = document.createElement('div');
-        const txt = arts.find(a => a.text);
-        if (txt) { textual++; note.textContent = txt.text.slice(0, 120); }
-        else { raw++; note.textContent = fmtBytes(fork.sizeOf(it.type, it.entry)); }
-        note.style.cssText = 'font-size:11px;color:#9b8850;padding:6px;max-height:96px;overflow:hidden;white-space:pre-wrap';
-        imgwrap.appendChild(note);
+        note.className = 'kindNote';
+        note.textContent = k.note;
+        if (k.view && k.view !== window.CUR_SUBN && !view) {
+          const leaf = TAB_LEAF_FOR.get(k.view);
+          if (leaf) {
+            const b = document.createElement('button');
+            b.className = 'navChip';
+            b.textContent = 'Shown under ' + tabTrail(leaf);
+            b.onclick = () => showCategory(k.view);
+            note.appendChild(document.createTextNode(' '));
+            note.appendChild(b);
+          }
+        }
+        h.appendChild(note);
       }
-    });
-    cell.title = 'Open ' + it.type + ' #' + it.entry.id;
-    cell.onclick = () => showMacRsrcDetail(it.type, it.entry.id);
-    grid.appendChild(cell);
+      grid.appendChild(h);
+      for (const it of items) {
+        shown++;
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        const imgwrap = document.createElement('div');
+        imgwrap.className = 'cellimgwrap';
+        const canvas = document.createElement('canvas');
+        imgwrap.appendChild(canvas);
+        cell.appendChild(imgwrap);
+        const lbl = document.createElement('div');
+        lbl.className = it.entry.name ? 'lbl' : 'lbl nolabel';
+        lbl.textContent = it.entry.name || rsrcTypeLabel(it.type) || '(unnamed)';
+        cell.appendChild(lbl);
+        const rid = document.createElement('div');
+        rid.className = 'resid';
+        rid.textContent = it.type + ' #' + it.entry.id;
+        cell.appendChild(rid);
+        lazyTile(cell, () => {
+          const arts = rsrcArtifacts(fork, it.type, it.entry);
+          const pic = arts.find(a => a.canvas && a.canvas.width);
+          if (pic) {
+            drawable++;
+            canvas.width = pic.canvas.width; canvas.height = pic.canvas.height;
+            canvas.getContext('2d').drawImage(pic.canvas, 0, 0);
+            const scale = Math.min(84 / canvas.width, 96 / canvas.height, 4);
+            canvas.style.width = Math.round(canvas.width * scale) + 'px';
+            canvas.style.height = Math.round(canvas.height * scale) + 'px';
+          } else {
+            imgwrap.removeChild(canvas);
+            const note = document.createElement('div');
+            const txt = arts.find(a => a.text);
+            if (txt) { textual++; note.textContent = txt.text.slice(0, 120); }
+            else { raw++; note.textContent = fmtBytes(fork.sizeOf(it.type, it.entry)); }
+            note.style.cssText = 'font-size:11px;color:#9b8850;padding:6px;max-height:96px;overflow:hidden;white-space:pre-wrap';
+            imgwrap.appendChild(note);
+          }
+        });
+        cell.title = 'Open ' + it.type + ' #' + it.entry.id;
+        cell.onclick = () => showMacRsrcDetail(it.type, it.entry.id, src);
+        grid.appendChild(cell);
+      }
+    }
   }
 
-  const which = window.RSRC_SOURCE === 'app' ? 'Cythera (application)' : 'Cythera Data';
-  out.textContent = which + ' resource fork: ' + fork.total() + ' resources in ' +
-    fork.typeList.length + ' types' + (q ? ', ' + list.length + ' shown' : '') +
-    '. These are ordinary classic-Mac resources; the Delver-only stamps and ' +
-    'brushes have their own gallery under Editor Stamps & Brushes.';
+  if (missing.length && !shown) { out.textContent = missing.join(' '); return; }
+  if (view) {
+    const label = optionLabel(window.CUR_SUBN).replace(/ \(resource forks?\)$/, '');
+    out.textContent = label + ': ' + shown + ' resource' + (shown === 1 ? '' : 's') + ' from ' +
+      sources.filter(src => src === 'app' ? window.APP_RSRC : window.CYTHERA_RSRC).map(forkName).join(' and ') +
+      (missing.length ? '. ' + missing.join(' ') : '.') +
+      (q ? ' (filtered)' : '');
+  } else {
+    out.textContent = forkName(sources[0]) + ' resource fork: ' + total + ' resources in ' +
+      typesSeen.size + ' types' + (q ? ', ' + shown + ' shown' : '') +
+      ', grouped by what they are for. A kind that has a place elsewhere on the site says so.';
+  }
 }
 
-function showMacRsrcDetail(type, id) {
-  markDetailView('macrsrc', type + ':' + id);
+function showMacRsrcDetail(type, id, source) {
+  // A view over both forks names the fork in the link; a one-fork view keeps
+  // the older `TYPE:id` form, so saved links to it still open.
+  const both = FORK_VIEWS[window.CUR_SUBN] && FORK_VIEWS[window.CUR_SUBN].source === 'both';
+  if (source) window.RSRC_SOURCE = source === 'app' ? 'app' : 'data';
+  markDetailView('macrsrc', (both ? window.RSRC_SOURCE + ':' : '') + type + ':' + id);
   stopAllViewActivity();
   const fork = rsrcViewFork();
   const grid = document.getElementById('sheetGrid');
@@ -4018,14 +4304,15 @@ function setModeImpl(m) {
     renderRsrcSheet();
     return;
   }
-  if (window.CUR_SUBN === 'MACRSRC') { renderMacRsrcSheet(); return; }
+  if (window.CUR_SUBN === 'MACRSRC' || FORK_VIEWS[window.CUR_SUBN]) { renderMacRsrcSheet(); return; }
   if (window.CUR_SUBN === 'MONSTERS') { renderMonsterSheet(); return; }
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
   if (window.CUR_SUBN === 'CHANGES') { renderChangesSheet(); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
   if (window.CUR_SUBN === 'WORLD') { renderAtlasView(); return; }
   if (window.CUR_SUBN === 'INSTALLER') { renderInstallerSheet(); return; }
-  if ((window.CUR_SUBN === 'AISCRIPTS' || window.CUR_SUBN === 'AIRULES') && window.INSTALLER) { renderCombatAISheet(window.CUR_SUBN); return; }
+  if ((window.CUR_SUBN === 'AISCRIPTS' && window.INSTALLER) ||
+      (window.CUR_SUBN === 'AIRULES' && (window.INSTALLER || window.APP_RSRC))) { renderCombatAISheet(window.CUR_SUBN); return; }
   if (PLACEHOLDER_TABS[window.CUR_SUBN]) { renderPlaceholderSheet(PLACEHOLDER_TABS[window.CUR_SUBN] + NO_INSTALLER_HINT); return; }
   const isComposite = window.CUR_SUBN === 'COMPOSITE';
   // The resource dropdown stays visible in both gallery and detail view now
@@ -4095,6 +4382,7 @@ function resetDerivedCaches() {
   window.MONSTER_STATS = null;
   window.RESOURCE_SYMBOLS = null;
   window.ZONE_NAMES = null;
+  window.EDITOR_ZONE_NAMES = null;
   window.ZONEPORTS = null;
   window.WORLD_GATEWAYS = null;
   window.ATLAS_SCENE = null;
@@ -4471,7 +4759,9 @@ const DETAIL_OPENERS = {
   item: i => showItemDetail(i),
   // The only detail view whose id is not a number.
   rsrc: v => { const [t, id] = String(v).split(':'); showRsrcDetail(t, Number(id)); },
-  macrsrc: v => { const [t, id] = String(v).split(':'); showMacRsrcDetail(t, Number(id)); }
+  macrsrc: v => { const parts = String(v).split(':');
+                  if (parts.length === 3) showMacRsrcDetail(parts[1], Number(parts[2]), parts[0]);
+                  else showMacRsrcDetail(parts[0], Number(parts[1])); }
 };
 // The openers above whose id is a "TYPE:number" string rather than an index.
 const STRING_DETAIL_IDS = new Set(['rsrc', 'macrsrc']);
@@ -4718,6 +5008,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     masterIndexGlobal = masterIndex;
     resetDerivedCaches();
     openCytheraResourceFork(meta.rsrc);
+    installGameFont();
     loadDerivedNames();
     installBackgroundTexture();
     document.getElementById('pickerWrap').style.display = 'block';
@@ -4813,6 +5104,19 @@ function onCategoryChangeImpl() {
     setMode('sheet');
     return;
   }
+  // The fork galleries filtered to a kind (FORK_VIEWS): the same renderer.
+  if (FORK_VIEWS[rawval]) {
+    window.RSRC_SOURCE = FORK_VIEWS[rawval].source === 'app' ? 'app' : 'data';
+    window.CUR_SUBN = rawval;
+    window.CUR_RESIDS = [];
+    document.getElementById('residSelect').innerHTML = '';
+    if (FORK_VIEWS[rawval].source !== 'data' && !window.APP_RSRC) loadApplicationFork();
+    setMode('sheet');
+    return;
+  }
+  // The Rules tab draws the combat vocabulary out of the application's fork
+  // even without the installer; fetch the fork if it is not here yet.
+  if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
   // The Data tab's own views: not subindexes, no resources to list.
   if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' ||
       rawval === 'WORLD' || PLACEHOLDER_TABS[rawval]) {
@@ -4869,6 +5173,13 @@ function onCategoryChangeImpl() {
   window.CUR_RESIDS = resids;
   window.CUR_SUBN = subn;
   out.textContent = "Found " + resids.length + " resources in " + (CATEGORY_NAMES[subn] || 'Unknown Category') + " (subindex " + subn + ").";
+  // The four words every conversation answers are not in any script: they
+  // are STR# 128 in the resource fork, and the game supplies them.
+  if (subn === 23) {
+    const kw = forkStringList(window.CYTHERA_RSRC, 128);
+    if (kw && kw.length) out.textContent += ' Every conversation also answers ' +
+      kw.map(w => '“' + w + '”').join(', ') + ' — the default keywords, STR# 128 in the resource fork.';
+  }
   document.getElementById('singlePreview').style.display = 'none';
   document.getElementById('zoomControls').style.display = 'none';
   document.getElementById('soundPreview').style.display = 'none';
@@ -8586,7 +8897,7 @@ function renderMapResource(resid) {
     setupMapViewportInteraction();
     requestAnimationFrame(() => restoreOrFitMap(resid));
     document.getElementById('mapLabel').textContent =
-      '0x' + resid.toString(16).toUpperCase() + (lbl ? ' - ' + lbl : '') +
+      '0x' + resid.toString(16).toUpperCase() + (lbl ? ' - ' + lbl : '') + editorNameSuffix(resid, lbl) +
       '  |  ' + result.width + 'x' + result.height + ' tiles' +
       '  |  ' + result.propCount + ' props drawn' +
       (window.CUR_MAP.roofSections.length
@@ -9975,7 +10286,7 @@ function atlasPeople(ctx, node, r, ppt) {
    the node is big enough for the ring to mean a square. */
 function atlasPaintMouths(ctx, drawn, vw, vh) {
   const out = [];
-  ctx.font = '12px Argos, Georgia, serif';
+  ctx.font = '12px ArgosGame, Argos, Georgia, serif';
   ctx.textAlign = 'left';
   for (const { node, r } of drawn) {
     const per = r.w / node.w;
@@ -10004,7 +10315,7 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
    Drawn last, over everything, biggest node first so a collision drops the
    smaller place; a node too small to have been drawn at all is not named. */
 function atlasLabels(ctx, drawn, vw, vh) {
-  ctx.font = '13px Argos, Georgia, serif';
+  ctx.font = '13px ArgosGame, Argos, Georgia, serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const placed = [];
@@ -11036,14 +11347,14 @@ const TAB_TREE = [
   // galleries but one view, the 256x256 world map with every way off it
   // live. It stands first because it is where a visit starts -- see the
   // World tab section for what it does and why it is not a gallery.
-  { id: 'world', label: 'World', tile: 0x01A, values: ['WORLD'] },   // coastline: land, beach and sea
+  { id: 'world', label: 'World', tile: 0x265, values: ['WORLD'] },   // the map of Cythera, rolled (prop 378)
   // The top row's three folders open when selected: chest, crate and book
   // each have a closed and an open frame, and `tileOpen` is the second.
   { id: 'entities', label: 'Entities', tile: 0x285, tileOpen: 0x284, children: [      // the large chest
       { id: 'characters', label: 'Characters', tile: 0x719, values: ['CHARACTERS'] },  // the king, standing, facing the reader
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
-      { id: 'regions',    label: 'Regions',    tile: 0x265, values: ['127'] },         // the map scroll (prop 0x17A)
+      { id: 'regions',    label: 'Regions',    tile: 0x590, values: ['127'] },         // a small town, as the world map draws one (prop 286)
       { id: 'skills',     label: 'Skills',     tile: 0x21F, values: ['25', '137'] },   // the grimoire
       // Mechanics is not a table: the rules the code implies -- the dice
       // game, damage and resistance, what a skill does -- are not derived
@@ -11052,23 +11363,29 @@ const TAB_TREE = [
       { id: 'mechanics',  label: 'Mechanics',  tile: 0x82F, wip: true, values: ['MECHANICS'] } ] },   // dice
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
       { id: 'text', label: 'Text', tile: 0x3AE, children: [                                   // the tombstone, second frame
-          { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['1'] },                                // a poster
+          { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['1', 'STRINGS'] },                     // a poster; the forks' string lists beside the archive's
           { id: 'dialogue', label: 'Dialogue', tile: 0x4E2, values: ['23', '7', '11', '12', '13', '15'] },  // the bearded bust: a head that speaks
-          { id: 'writings', label: 'Writings', tile: 0x263, values: ['26', '27'] } ] },                     // the scroll
+          { id: 'writings', label: 'Writings', tile: 0x263, values: ['26', '27'] },                         // the scroll
+          // The faces the text is set in: Argos A Nouveau and the Seldane
+          // script, out of the resource fork, and the styles that assign them.
+          { id: 'fonts',    label: 'Fonts',    tile: 0x260, values: ['FONTS'] } ] },                          // a scroll with writing on it (prop 134, paper)
       { id: 'graphics', label: 'Graphics', tile: 0x861, children: [                           // the easel, with its painting
           { id: 'portraits',  label: 'Portraits',  tile: 0x33F, values: ['135'] },                      // the mirror
           { id: 'landscapes', label: 'Landscapes', tile: 0x890, values: ['131'] },                      // the landscape painting
           { id: 'tilesets',   label: 'Tilesets',   tile: 0x0D5, values: ['141', 'PROPS'] },             // the quartered blue floor; sprites by prop type are a way of viewing the same tiles
           { id: 'composites', label: 'Composites', tile: 0x0D4, values: ['COMPOSITE', 'RSRC'] },        // grass meeting sand
-          { id: 'misc',       label: 'Misc',       tile: 0x2F1, values: ['142'] } ] },                  // the urn, second frame
+          { id: 'misc',       label: 'Misc',       tile: 0x2F1, values: ['142'] },                      // the urn, second frame
+          // The whole screens in the resource fork: the title, the main menu
+          // and its parts, the DELVER stone, the paper doll.
+          { id: 'screens',    label: 'Screens',    tile: 0x7E0, values: ['SCREENS'] } ] },                // a fresco (prop 280): a picture on a wall
       { id: 'audio', label: 'Audio', tile: 0x215, children: [                                 // the strange rod
           { id: 'music', label: 'Music', tile: 0x2BD, values: ['143'] },                                // a lute
-          { id: 'sfx',   label: 'SFX',   tile: 0x1B2, values: ['144'] } ] },                            // the explosion, sheet 0x8E1B
-      { id: 'functions', label: 'Functions', tile: 0x2B4, children: [                         // the spinning wheel
-          { id: 'actors',  label: 'Actors',  tile: 0x525, values: ['47', '24', '3'] },                  // the ratlizard: something that acts
-          { id: 'objects', label: 'Objects', tile: 0x391, values: ['16'] },                             // a stove
+          { id: 'sfx',   label: 'SFX',   tile: 0x1B2, values: ['144', 'APPSND'] } ] },                  // the explosion, sheet 0x8E1B; the application's own sounds beside the archive's
+      { id: 'functions', label: 'Functions', tile: 0x3CB, children: [                         // a lever: pull it and something happens (prop 187)
+          { id: 'actors',  label: 'Actors',  tile: 0x6F0, values: ['47', '24', '3'] },                  // the fighter mid-swing: something that acts (prop 116)
+          { id: 'objects', label: 'Objects', tile: 0x233, values: ['16'] },                             // a key: a thing that is used (prop 66)
           { id: 'places',  label: 'Places',  tile: 0x4A0, values: ['19', '20', '29'] },                 // a signpost
-          { id: 'effects', label: 'Effects', tile: 0x87B, values: ['9'] },                              // the swirling orb
+          { id: 'effects', label: 'Effects', tile: 0x3DA, values: ['9'] },                              // the distiller's flasks: eating and potion effects (prop 233)
           { id: 'shared',  label: 'Shared',  tile: 0x332, values: ['0', '8', '14', '2', '10'] } ] } ] },// a bookshelf: the common library
   // Data opens on Cythera Data (`last`), whatever comes first in the row:
   // the installer is first because it is where the rest came from, not the
@@ -11084,7 +11401,10 @@ const TAB_TREE = [
           { id: 'changes',  label: 'Changes',       tile: 0x2EE, values: ['CHANGES'] } ] },   // blacksmith's hammer
       { id: 'cythera', label: 'Cythera (App)', tile: 0x231, children: [                       // the lit torch
           { id: 'apppef',  label: 'Data Fork',     tile: 0x237, wip: true, values: ['APPPEF'] },
-          { id: 'apprsrc', label: 'Resource Fork', tile: 0x238, values: ['APPRSRC'] } ] },
+          { id: 'apprsrc', label: 'Resource Fork', tile: 0x238, values: ['APPRSRC'] },
+          // The same fork read as what it is for: the menus, the dialogs and
+          // windows, the cursors that are the game's verbs, the icons.
+          { id: 'interface', label: 'Interface', tile: 0x770, values: ['UIMENUS', 'UIDIALOGS', 'UICURSORS', 'UIICONS'] } ] },   // the strange device (prop 262): a thing to operate
       { id: 'combatai', label: 'Combat AI', tile: 0x2D1, wip: true, children: [               // the rolling pin
           { id: 'aiscripts', label: 'Scripts', tile: 0x220, wip: true, values: ['AISCRIPTS'] },  // a scroll
           { id: 'airules',   label: 'Rules',   tile: 0x811, wip: true, values: ['AIRULES'] } ] } ] },  // the hay target
@@ -11119,7 +11439,9 @@ function syncInstallerTabs() {
   const on = !!window.INSTALLER;
   for (const id of ['combatai', 'aiscripts', 'airules']) {
     const n = TAB_BY_ID.get(id);
-    if (n) n.wip = !on;
+    // Rules has half its content -- the vocabulary -- in the application's
+    // fork, so it is unfaded as soon as that fork is here from anywhere.
+    if (n) n.wip = !(on || (id === 'airules' && window.APP_RSRC));
   }
 }
 
@@ -11498,6 +11820,53 @@ function switchInstaller(name) {
     setStatus('Could not open ' + name + ': ' + lastArchiveError, true);
   else showCategory('INSTALLER');
 }
+/* The icon the Finder shows for a file of this type, from the application's
+   own bundle: a BNDL maps local ids to FREF and ICN# resources, each FREF
+   names a file type and a local icon id, and the icon families (icl8, icl4,
+   ICN#) share the ICN# id. Cythera's bundle has four: the application, the
+   data file, a saved game (DelP) and a patch (Temp). Anything else gets no
+   icon rather than a wrong one. */
+function finderIconFor(type) {
+  const fork = window.APP_RSRC;
+  if (!fork) return null;
+  if (!window._FINDER_ICONS) {
+    const map = {};
+    try {
+      const bndl = (fork.resourcesByType['BNDL'] || [])[0];
+      const b = bndl ? fork.dataOf('BNDL', bndl) : null;
+      const arrays = {};
+      if (b) {
+        let p = 6; const n = u16be(b, p) + 1; p += 2;
+        for (let i = 0; i < n; i++) {
+          const t = String.fromCharCode(b[p], b[p + 1], b[p + 2], b[p + 3]); p += 4;
+          const cnt = u16be(b, p) + 1; p += 2;
+          arrays[t] = {};
+          for (let k = 0; k < cnt; k++) { arrays[t][u16be(b, p)] = u16be(b, p + 2); p += 4; }
+        }
+      }
+      for (const [local, frefId] of Object.entries(arrays['FREF'] || {})) {
+        const fe = (fork.resourcesByType['FREF'] || []).find(e => e.id === frefId);
+        if (!fe) continue;
+        const d = fork.dataOf('FREF', fe);
+        const ftype = String.fromCharCode(d[0], d[1], d[2], d[3]);
+        const iconLocal = u16be(d, 4);
+        const iconId = (arrays['ICN#'] || {})[iconLocal];
+        if (iconId !== undefined) map[ftype] = iconId;
+      }
+    } catch (e) {}
+    window._FINDER_ICONS = map;
+  }
+  const id = window._FINDER_ICONS[type];
+  if (id === undefined) return null;
+  for (const t of ['icl8', 'icl4', 'ICN#']) {
+    const e = (fork.resourcesByType[t] || []).find(x => x.id === id);
+    if (!e) continue;
+    const pic = rsrcArtifacts(fork, t, e).find(a => a.canvas && a.canvas.width);
+    if (pic) return pic.canvas;
+  }
+  return null;
+}
+
 function renderInstallerSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -11538,7 +11907,7 @@ function renderInstallerSheet() {
   const table = document.createElement('table');
   table.className = 'forkTable';
   const thead = document.createElement('thead');
-  thead.innerHTML = '<tr><th>file</th><th>type</th><th>creator</th>' +
+  thead.innerHTML = '<tr><th></th><th>file</th><th>type</th><th>creator</th>' +
     '<th class="num">data fork</th><th class="num">resource fork</th><th></th></tr>';
   table.appendChild(thead);
   const tbody = document.createElement('tbody');
@@ -11553,7 +11922,11 @@ function renderInstallerSheet() {
     const acts = [];
     if (installerIsText(e)) acts.push('<button class="navChip" onclick="showInstallerText(' + e.index + ')">Read</button>');
     acts.push('<button class="navChip" onclick="downloadInstallerFile(' + e.index + ')">.bin</button>');
-    tr.innerHTML = '<td>' + svEsc(e.path).replace(/\r/g, '¬') + role + '</td>' +
+    // The Finder's icon for the file's type, out of the application's
+    // bundle (finderIconFor); an <img> so the row is one string.
+    const ic = finderIconFor(e.type);
+    tr.innerHTML = '<td class="icon">' + (ic ? '<img src="' + ic.toDataURL('image/png') + '" alt="" width="32" height="32">' : '') + '</td>' +
+      '<td>' + svEsc(e.path).replace(/\r/g, '¬') + role + '</td>' +
       '<td class="num">' + svEsc(e.type.replace(/\0/g, '·')) + '</td><td class="num">' + svEsc(e.creator.replace(/\0/g, '·')) + '</td>' +
       '<td class="num">' + (e.dataLen ? fmtBytes(e.dataLen) : '—') + '</td>' +
       '<td class="num">' + (e.rsrcLen ? fmtBytes(e.rsrcLen) : '—') + '</td>' +
@@ -11586,11 +11959,36 @@ function renderCombatAISheet(which) {
   grid.style.display = '';
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
-  const arc = window.INSTALLER.archive;
+  // The words the combat AI is written in are string lists in the
+  // application's resource fork -- the objects, groups, tests, actions and
+  // modifiers the .ai files and the compiled scripts both use -- so the
+  // Rules tab draws them first, from the fork, and the document after, from
+  // the installer, and has the tables even when the installer is not here.
+  if (which === 'AIRULES') {
+    const app = window.APP_RSRC;
+    const lists = [[9300, 'Objects'], [9301, 'Groups'], [9304, 'Tests'], [9305, 'Actions'], [9303, 'Modifiers'],
+                   [9307, 'Scenario AI tests'], [9308, 'Scenario AI actions'], [9320, 'Health states'],
+                   [9321, 'Object flags'], [502, 'Strategies'], [500, 'Combat buttons']];
+    const rows = [];
+    for (const [id, what] of lists) {
+      const l = forkStringList(app, id);
+      if (l && l.length) rows.push('<tr><th>' + svEsc(what) + ' <span class="amNote">STR# ' + id + '</span></th><td>' +
+        l.map(svEsc).join(', ') + '</td></tr>');
+    }
+    const box = document.createElement('div');
+    box.style.cssText = 'grid-column:1/-1';
+    box.innerHTML = '<div class="propHead">The vocabulary, from the application’s resource fork' +
+      (rows.length ? '' : (app ? ' — none of the lists is in this fork' :
+        (window.APP_RSRC_STATE === 'loading' ? ' — loading the application…' :
+         ' — ' + (window.APP_RSRC_STATE || 'the application’s fork is not loaded')))) + '</div>' +
+      (rows.length ? '<div class="tableScroll"><table class="vocabTable">' + rows.join('') + '</table></div>' : '');
+    grid.appendChild(box);
+  }
+  const arc = window.INSTALLER ? window.INSTALLER.archive : null;
   const want = which === 'AIRULES'
     ? e => /AI Scripting Document/i.test(e.name)
     : e => /\.ai$/i.test(e.name);
-  const files = arc.entries.filter(e => e.type === 'TEXT' && want(e));
+  const files = arc ? arc.entries.filter(e => e.type === 'TEXT' && want(e)) : [];
   for (const e of files) {
     const pre = document.createElement('pre');
     pre.className = 'installerText';
@@ -11601,9 +11999,11 @@ function renderCombatAISheet(which) {
   }
   out.textContent = files.length
     ? (which === 'AIRULES'
-        ? 'The AI Scripting Document, from the installer’s CombatAI folder: the rules the .ai scripts are written against.'
+        ? 'The words the scripts are written in, from the application’s resource fork; then the AI Scripting Document, from the installer’s CombatAI folder: the rules the .ai scripts are written against.'
         : files.length + ' Combat AI scripts from the installer’s CombatAI folder. The compiled form the engine runs is subindex 3, under Components › Functions › Actors.')
-    : 'The installer has no ' + (which === 'AIRULES' ? 'AI Scripting Document' : '.ai scripts') + ' in it.';
+    : (which === 'AIRULES' && !arc)
+      ? 'The words the scripts are written in, from the application’s resource fork. The AI Scripting Document itself ships beside the game, not inside it.' + NO_INSTALLER_HINT
+      : 'The installer has no ' + (which === 'AIRULES' ? 'AI Scripting Document' : '.ai scripts') + ' in it.';
 }
 
 /* ---- Data > Cythera Data > Changes --------------------------------------
@@ -11836,8 +12236,20 @@ function renderToolsSheet() {
     a.innerHTML = svEsc(label) + ' <i>' + svEsc(note) + '</i>';
     pages.appendChild(a);
   }
+  // Where the page's face came from: the open file's own sfnt, or the copy
+  // in res/ while there is no file or the browser refused the bytes. A
+  // person can tell in a glance here what no harness can -- whether the
+  // font the browser is drawing with is the one out of the file.
+  const font = sec('The face this page is set in', '');
+  const fn = document.createElement('div');
+  fn.className = 'amNote';
+  fn.textContent = window.GAME_FONT
+    ? 'Argos A Nouveau, out of the open file: ' + window.GAME_FONT + ' in Cythera Data’s resource fork, made into a TrueType the browser accepts.'
+    : 'The copy shipped with the page, in res/. ' + (window.GAME_FONT_STATE === 'loading' ? 'The file’s own is still loading.'
+        : window.GAME_FONT_STATE ? 'The file’s own could not be used: ' + window.GAME_FONT_STATE + '.' : '');
+  font.appendChild(fn);
   grid.appendChild(box);
-  out.textContent = 'Settings and links; nothing here is read from the archive.';
+  out.textContent = 'Settings and links; nothing here is read from the archive except the font.';
 }
 
 /* ---- A tile on a sheet opens what uses it ------------------------------------

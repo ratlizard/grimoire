@@ -107,6 +107,15 @@ class El {
   get innerHTML() { return this._html; }
   appendChild(c) {
     if (!c || !(c instanceof El)) throw new TypeError('appendChild called with ' + c);
+    // A node that already has a parent MOVES, as in a browser. Without this
+    // applyGalleryArrangement, which re-appends the gallery's own cells to
+    // put them in order, left the grid holding every cell twice per pass --
+    // four copies after a category walk -- and every tile count and every
+    // heading count read from the grid was inflated by it.
+    if (c.parentNode && c.parentNode.children) {
+      const i = c.parentNode.children.indexOf(c);
+      if (i >= 0) c.parentNode.children.splice(i, 1);
+    }
     c.parentNode = this;
     this.children.push(c);
     if (this.tagName === 'SELECT' && c.tagName === 'OPTION') this.options.push(c);
@@ -433,6 +442,36 @@ if (!rsrcFork) {
       ctx.showCategory('MACRSRC');
       const macText = REGISTRY.get('output').textContent || '';
       if (!/resource fork: /.test(macText)) fail('mac resources', 'gallery said: ' + macText.slice(0, 80));
+      // Grouped by kind: a heading per kind that has members, in the
+      // table's order, and every type in the fork accounted for.
+      const heads = (REGISTRY.get('sheetGrid').children || []).filter(c => c.className === 'propHead').map(c => c.textContent);
+      if (heads.length < 5) fail('mac resources', 'the fork gallery is not grouped by kind: ' + heads.join(' / '));
+      else console.log('  mac resources: grouped as ' + heads.map(h => h.split(' (')[0]).join(', '));
+      // The page's own face, from the file: sfntToTrueType has run on the
+      // fork's sfnt and produced a font with the table a browser insists on.
+      const ttf = ctx.GAME_FONT_TTF;
+      if (!ttf || !ttf.length) fail('game font', 'no TrueType was made from the fork: ' + ctx.GAME_FONT_STATE);
+      else {
+        const n = (ttf[4] << 8) | ttf[5]; const tags = [];
+        for (let i = 0; i < n; i++) { const p = 12 + i * 16; tags.push(String.fromCharCode(ttf[p], ttf[p + 1], ttf[p + 2], ttf[p + 3])); }
+        const sorted = tags.every((t, i) => !i || tags[i - 1] < t);
+        if (!tags.includes('OS/2') || !tags.includes('glyf') || !sorted) fail('game font', 'tables ' + tags.join(' '));
+        else console.log(`  game font: ${ttf.length} bytes, ${n} tables in order, OS/2 added`);
+      }
+      // The editor's zone list, out of STR# 135, names the maps the scripts
+      // only describe -- and by the map number, not the list index.
+      const ez = ctx.loadEditorZoneNames();
+      if (ez[3] !== 'LKH' || !/Tomb/.test(ez[25] || '') || ez[1] !== 'World')
+        fail('editor zone names', 'misaligned: 1=' + ez[1] + ' 3=' + ez[3] + ' 25=' + ez[25]);
+      else console.log(`  editor zone names: ${Object.keys(ez).length} maps named; 0x8019 is “${ez[25]}” beside the script's “${ctx.zoneNameFor(0x8019)}”`);
+      // The two-fork views draw from this fork alone when the application's
+      // is not here, and say so rather than drawing nothing.
+      for (const v of ['SCREENS', 'FONTS', 'STRINGS']) {
+        ctx.showCategory(v);
+        const cells = (REGISTRY.get('sheetGrid').children || []).filter(c => c.className === 'cell').length;
+        const txt = REGISTRY.get('output').textContent || '';
+        if (!cells || !/Cythera Data/.test(txt)) fail('fork view ' + v, cells + ' cells; said: ' + txt.slice(0, 90));
+      }
       const pict = ctx.macRsrcList(fork).find(i => i.type === 'PICT');
       ctx.location.hash = `#c=MACRSRC&d=macrsrc:PICT:${pict.entry.id}`;
       if (!ctx.applyDeepLink()) fail('mac resources', 'the deep link to a PICT was not applied');
@@ -1240,7 +1279,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     if (!ctx.adoptArchive(bin, 'Cythera.bin', {})) throw new Error(peek('lastArchiveError'));
     if (!ctx.INSTALLER) throw new Error('INSTALLER not set after adopting the installer');
     const drawn = {};
-    for (const v of ['INSTALLER', 'AISCRIPTS', 'AIRULES', 'APPRSRC']) {
+    for (const v of ['INSTALLER', 'AISCRIPTS', 'AIRULES', 'APPRSRC', 'APPSND', 'UIMENUS', 'UIDIALOGS', 'UICURSORS', 'UIICONS', 'SCREENS', 'FONTS', 'STRINGS']) {
       if (!ctx.showCategory(v)) { fail('installer view ' + v, 'refused'); continue; }
       const grid = REGISTRY.get('sheetGrid');
       const n = (grid.children || []).length;
@@ -1248,6 +1287,20 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       if (!n) fail('installer view ' + v, 'drew nothing: ' + REGISTRY.get('output').textContent.slice(0, 80));
     }
     const rows = (REGISTRY.get('sheetGrid').children || []);
+    // The Rules tab has the vocabulary out of the application's fork.
+    ctx.showCategory('AIRULES');
+    const vocab = REGISTRY.get('sheetGrid').children.find(c => /vocabTable/.test(c.innerHTML || ''));
+    if (!vocab || !/HasSpell|IsSpecies/.test(vocab.innerHTML)) fail('combat vocabulary', 'the Rules tab did not draw the AI string lists');
+    // The paper doll under Items, with the ten places named from the application.
+    ctx.showCategory('ITEMS');
+    const doll = REGISTRY.get('sheetGrid').children.find(c => c.className === 'dollBlock');
+    if (!doll) fail('paper doll', 'Items has no paper doll block');
+    else if (!doll.children.some(c => c.tagName === 'OL' && c.children.length === 10)) fail('paper doll', 'the ten places are not listed');
+    // A Finder icon on the installer's rows for the four bundled types.
+    const icons = { APPL: ctx.finderIconFor('APPL'), DelS: ctx.finderIconFor('DelS'), DelP: ctx.finderIconFor('DelP'), TEXT: ctx.finderIconFor('TEXT') };
+    if (!icons.APPL || !icons.DelS || !icons.DelP) fail('finder icons', 'bundle gave ' + JSON.stringify(Object.fromEntries(Object.entries(icons).map(([k, v]) => [k, !!v]))));
+    else if (icons.TEXT) fail('finder icons', 'a TEXT file got an icon the bundle does not give it');
+    else console.log('  finder icons: application, data file and saved game drawn from the bundle; TEXT has none');
     // Read the licence through the button the table offers, then take a file away.
     ctx.showCategory('INSTALLER');
     const arc = ctx.INSTALLER.archive;

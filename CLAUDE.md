@@ -128,7 +128,9 @@ delvmod/                    submodule, the correctness oracle (see below)
 
 **`res/` and `reference/` are different kinds of thing.** `res/` is the four
 game-derived files a page fetches at run time — the Argos font, the dialogue
-frame, the plank tile — and `NOTICE` lists them. Everything else that is
+frame, the plank tile — and `NOTICE` lists them. Since 5 September 2026 the
+font is also read out of the open file itself (`installGameFont`), so the
+copy in `res/` is the fallback for the moments before a file is open. Everything else that is
 Cythera's — the game, its data, the installers, the community add-ons — lives
 in `reference/`, which is gitignored: none of it is ours to publish, so supply
 your own copy of the game and put it there (a symlink to a copy kept elsewhere
@@ -397,6 +399,17 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   revisit none. Its `saved game` section opens a Cythera player file through
   `adoptArchive` — the path that refused every one of them until
   September 2026 — and checks what a visitor sees (see the per-page notes).
+  Its fork section checks the grouped gallery has its headings, that a
+  TrueType with `OS/2` came out of the fork's `sfnt`, that the editor's
+  zone list is aligned to the map numbers, and that the two-fork views draw
+  from the data file's fork alone when the application's is absent; the
+  installer section then requires every fork-backed view to draw, the
+  Rules tab to carry the AI vocabulary, the paper doll to list ten places,
+  and the bundle to give the application, the data file and a saved game an
+  icon and a TEXT file none. Its DOM stub moves a re-appended node rather
+  than copying it, as of 5 September 2026: `applyGalleryArrangement`
+  re-appends the gallery's cells to order them, and every tile count the
+  stub reported before was four times the truth.
 - `loader_test.mjs` — the orchestration around the decoders: BinHex/MacBinary/
   AppleSingle unwrapping, archive validation, the refusal messages, deep-link
   parsing, and `loadDefaultArchive` driven to total failure. Every other harness
@@ -992,10 +1005,60 @@ Read the comment above a constant before correcting it.
   Delver-only types (`eSTM` stamps, `eBRS` brushes) are drawn with the game's
   own tiles under **Editor Stamps & Brushes**; everything else in it — PICT,
   NFNT, clut, STR#, sfnt — is an ordinary Mac resource and is read under
-  **Resource Fork (all types)** with `js/mac-rsrc-types.js`. That gallery also
-  browses the *application's* fork — 339 resources across 52 types, the icons,
-  dialogs, menus, sounds and cursors — taken from the installer when the game
-  came in that way, and otherwise fetched from `reference/game/Cythera.hqx` on request.
+  **Resource Fork** with `js/mac-rsrc-types.js`. A second gallery of the same
+  shape browses the *application's* fork — 339 resources across 52 types —
+  taken from the installer when the game came in that way, and otherwise
+  fetched from `reference/game/Cythera.hqx` on request.
+- **The forks are read by kind, and each kind has a place in the tree.**
+  `RSRC_KINDS` (beside `CATEGORY_NAMES`) names the four-letter types that
+  make up each kind, says in a sentence what they are — written after
+  looking at every one of the 452 resources on 5 September 2026 — and says
+  where the kind is shown. Both fork galleries group by it, and
+  `FORK_VIEWS` is the same renderer (`renderMacRsrcSheet`) filtered to one
+  or two kinds from one fork or both: that is all a Screens or Fonts or
+  Cursors tab is, so no kind needed a second decoder. The places: Graphics ›
+  **Screens** (the title screen, the main menu with its plank labels and
+  torch frames, the DELVER stone, the paper doll, the Ambrosia logos); Text ›
+  **Fonts** (Argos A Nouveau as `sfnt`, the Seldane script as two `NFNT`
+  strikes, the `TxSt` styles that assign a face to each kind of text); Text
+  › Labels › **Strings** (every `STR#` in both forks); Audio › SFX ›
+  **Application sounds**; and Cythera (App) › **Interface** (menus, dialogs
+  and windows, cursors, icons). Beyond the galleries, five joins: the
+  editor's zone list (`STR#` 135, `loadEditorZoneNames`) names every map by
+  number, one ahead of its list index, and stands beside a map's label
+  wherever the script's name is the generic one — "Tomb" is "Tyrant's Tomb"
+  in the editor's list — with the file's spellings kept; the four default
+  conversation keywords (`STR#` 128) are stated on the Dialogue gallery; the
+  combat AI vocabulary (`STR#` 9300–9308, with the strategies and the
+  buttons) is drawn on Data › Combat AI › Rules out of the application's
+  fork, which is why that tab is no longer faded once the fork is here from
+  anywhere; the paper doll (`PICT` 129) and the ten equipment slots (`STR#`
+  501) head the Items gallery, side by side and not joined line to name,
+  since nothing in either file says which is which; and the Finder icon for
+  each of the installer's files comes out of the bundle (`finderIconFor`:
+  `BNDL` → `FREF` → `ICN#`), so a TEXT file gets none rather than a wrong
+  one. **The page's own face is the file's.** `installGameFont` takes
+  `sfnt` 7289 out of the fork, `sfntToTrueType` in `js/mac-rsrc-types.js`
+  adds the `OS/2` table a browser's sanitiser insists on (the resource has
+  twelve tables and not that one), and the result is registered as
+  `ArgosGame`, named first in every font stack with the `res/` copy behind
+  it. Two decoder bugs came out of looking at every picture — a device
+  colour table read by its value fields, and 16-bit `packType` 3 unpacked
+  by bytes — and are recorded under **Two implementations, one format**.
+  The tab icons were chosen by looking at a sheet of candidates and
+  checked for repeats: World is the rolled map, Regions a small town,
+  Functions a lever with the fighter, the key and the distiller's flasks
+  under it, Fonts a written scroll, Screens a fresco, Interface the strange
+  device; only the two fork pairs share a tile, on purpose.
+- **Not yet done, and the shape of it.** The `sfnt` could go the other
+  way — another TrueType put in its place would change the face the game
+  itself draws, since the styles name the family and not the file — but
+  that needs a resource-fork *writer*, and `js/mac-resfork.js` only reads.
+  The `Lite` tables (25 of them, a side length then that many squared bytes
+  of falloff) are the game's own light cones, and the map's lighting layer
+  still draws its own gradients. The Seldane strikes decode; nothing yet
+  sets Seldane text in them. `MSta`, `FILT`, `LINF`, `DATA` and `PORT` are
+  listed and unread.
 
 ## Licensing
 
