@@ -109,6 +109,36 @@ check('rsrc fork is rejected', refRsrc ? !describe(refRsrc).ok : true,
       refRsrc ? describe(refRsrc).reason : 'skipped');
 check('raw BinHex ASCII is rejected', !describe(hqx).ok, describe(hqx).reason);
 check('a short buffer is rejected', !describe(new Uint8Array(64)).ok);
+check('the scenario carries no saved-game name', d.player === '', JSON.stringify(d.player));
+
+// The test is structural, not a count -- see the comment above
+// describeDelverArchive. One populated subindex is enough, and one stray
+// entry is too many. Both are made from the real file so that the rest of
+// the header is exactly what the game writes.
+{
+  const mi = peek('delverMasterIndexExtent')(refData);
+  const populatedAt = [];
+  for (let i = 0; i < mi.count; i++) {
+    const p = mi.first + i * 8;
+    if (refData[p] | refData[p + 1] | refData[p + 2] | refData[p + 3]) populatedAt.push(p);
+  }
+  const one = Uint8Array.from(refData);
+  for (const p of populatedAt.slice(1)) one.fill(0, p, p + 8);
+  const d1 = describe(one);
+  check('one populated subindex is enough', d1.ok && d1.populated === 1, d1.ok ? d1.populated + ' subindex' : d1.reason);
+  const stray = Uint8Array.from(refData);
+  new DataView(stray.buffer).setUint32(populatedAt[1], stray.length);   // an offset past the end
+  const d2 = describe(stray);
+  check('a master index entry outside the file is rejected', !d2.ok && /master index entry/.test(d2.reason), d2.reason);
+  const strayRes = Uint8Array.from(refData);
+  const dv = new DataView(strayRes.buffer);
+  const sub0 = dv.getUint32(populatedAt[0]);
+  let slot = sub0;                                                        // the subindex's first resource
+  while (!dv.getUint32(slot) && slot < sub0 + 2048) slot += 8;
+  dv.setUint32(slot, strayRes.length);
+  const d3 = describe(strayRes);
+  check('a resource entry outside the file is rejected', !d3.ok && /outside the file/.test(d3.reason), d3.reason);
+}
 
 // ---- 4. extractDelverArchive: unwrapping and legible refusals --------------
 const extract = peek('extractDelverArchive');

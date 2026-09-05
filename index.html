@@ -4671,13 +4671,23 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   // be re-opened from itself.
   window.ARCHIVE_SOURCE_NAME = sourceName;
   window.CYTHERA_RSRC_RAW = (meta.rsrc && meta.rsrc.length) ? meta.rsrc : null;
+  // The pstring at 0x20 is what delvmod calls `player_name`; the scenario
+  // leaves it empty and every saved game in the community's add-ons carries
+  // the name the file was saved under. It is what tells a saved game from
+  // the scenario here, since nothing else in the header does.
+  const savedAs = (bytes[0x20] >= 1 && bytes[0x20] <= 31) ? pstring(bytes, 0x20) : '';
   // meta.finder is absent on a rebuild (via:'edit'), a cached load and a bare
-  // .data file; keep what a container said earlier, and fall back to the
-  // identity the real file ships with -- the type/creator the refusal
-  // message in extractDelverArchive also states.
+  // .data file. A rebuild keeps what the container said, since it is the same
+  // file; a bare file gets the identity its header supports -- a saved game
+  // is 'DelP' under its own name, anything else the type/creator the real
+  // file ships with, which the refusal message in extractDelverArchive also
+  // states. Deriving it on every bare open rather than only the first is
+  // deliberate: a save dropped after Cythera Data must not be exported as
+  // "Cythera Data", and the reverse held too.
   if (meta.finder) window.ARCHIVE_FINDER = meta.finder;
-  else if (!window.ARCHIVE_FINDER)
-    window.ARCHIVE_FINDER = { name: 'Cythera Data', type: 'DelS', creator: 'Delv' };
+  else if (meta.via !== 'edit' || !window.ARCHIVE_FINDER)
+    window.ARCHIVE_FINDER = savedAs ? { name: savedAs, type: 'DelP', creator: 'Delv' }
+                                    : { name: 'Cythera Data', type: 'DelS', creator: 'Delv' };
   const out = document.getElementById('output');
   const arrivedOn = parseDeepLink();   // before anything can overwrite it
   try {
@@ -4719,7 +4729,8 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     const populated = masterIndex.filter(m => m[0]).length;
     ss.appendChild(document.createTextNode(
       'Loaded: ' + sourceName + ' — ' + fmtBytes(fileBytes.length) + ', ' +
-      populated + ' subindexes' + (meta.via && meta.via !== 'data fork' ? ', unwrapped from ' + meta.via : '') +
+      populated + ' subindexes' + (savedAs ? ', a saved game (“' + savedAs + '”)' : '') +
+      (meta.via && meta.via !== 'data fork' ? ', unwrapped from ' + meta.via : '') +
       (window.CYTHERA_RSRC ? ', plus a ' + window.CYTHERA_RSRC.total() + '-resource fork' : '') +
       (window.INSTALLER ? ', with ' + (window.INSTALLER.archive.entries.length - 1) + ' other files under Data › Installer' +
         (window.INSTALLER.installers && window.INSTALLER.installers.length > 1
@@ -4736,10 +4747,17 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     // otherwise -- applyDeepLink below overrides this whenever there is a
     // hash. Without the explicit pick this would open on whatever option
     // happens to come first in the hidden <select>, which is a detail of the
-    // markup and not a decision.
-    if (!showCategory('WORLD')) onCategoryChange();
-    out.textContent = 'Title: ' + title + ' — ' + sourceName;
-    applyDeepLink(arrivedOn);
+    // markup and not a decision. The world, when the file has one; a saved
+    // game has no world map -- it holds only what play changed -- and the
+    // atlas over it would be a zoom slider over nothing, so such a file
+    // opens on the Data Fork sheet, which lists what it does hold and where
+    // each part is shown.
+    const hasWorld = !!getResourceBytes(WORLD_MAP_RESID);
+    if (!showCategory(hasWorld ? 'WORLD' : 'DATAFORK')) onCategoryChange();
+    out.textContent = 'Title: ' + title + (savedAs ? ' — saved game “' + savedAs + '”' : '') + ' — ' + sourceName;
+    // A link to the world -- or the World tab carried across a swap, which
+    // is the same hash -- names nothing in a file that has no world.
+    if (!(arrivedOn && arrivedOn.c === 'WORLD' && !hasWorld)) applyDeepLink(arrivedOn);
   } catch(err) { out.textContent = 'Archive error: ' + err.message; setStatus('Could not load archive: ' + err.message, true); }
 }
 
@@ -9366,6 +9384,15 @@ function enterGatewayByPort(port) {
 function renderAtlasBar() {
   const bar = document.getElementById('atlasBar');
   if (!bar) return;
+  // No world map, no world: a saved game holds only what play changed, and
+  // the panel would otherwise be a zoom slider over nothing.
+  if (!atlasScene()) {
+    bar.style.display = '';
+    bar.innerHTML = '<span class="wbNote">This file has no world map (resource 0x' +
+      WORLD_MAP_RESID.toString(16).toUpperCase() + '), so there is no world to draw. ' +
+      'A saved game carries only what changed in play; Data \u203a Data Fork lists what it holds.</span>';
+    return;
+  }
   const below = atlasBelowTop();
   if (!below) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   bar.style.display = '';

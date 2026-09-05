@@ -26,8 +26,13 @@
 //
 // 2. THIRD-PARTY ARCHIVES OPEN AND ROUND-TRIP. The add-ons are the only
 //    Cythera archives here that nobody in this project made. Each must be
-//    recognised, and must survive delverArchiveSpec -> writeDelverArchive
-//    byte-identically.
+//    recognised by describeDelverArchive -- the page's own gate, which
+//    refused all seven until September 2026 because it counted subindexes
+//    and a saved game has six -- and must survive delverArchiveSpec ->
+//    writeDelverArchive with every resource intact. The same walk is the
+//    negative corpus: every file in the add-ons that is NOT an archive (the
+//    patcher applications, a TEXT file, JPEGs, an .rtf) must be refused, or
+//    the gate has been loosened into accepting junk.
 //
 //    Note what that does NOT prove. The cipher is an XOR keystream, so it is
 //    an involution: a resource wrongly judged encrypted is decrypted on read
@@ -179,29 +184,27 @@ function unpackAddons() {
 }
 
 const files = unpackAddons();
-let archives = 0, roundTripped = 0, bytewise = 0;
-const notOpenable = [];
+let archives = 0, roundTripped = 0, bytewise = 0, refused = 0;
+const saves = [];
 for (const p of files) {
   const bytes = new Uint8Array(readFileSync(p));
   sandbox.__a = bytes;
-  // describeDelverArchive requires eight populated subindexes, which is right
-  // for the game archive (DelS) and wrong for a player file (DelP): the saved
-  // games and the patches built from them have six, and the page therefore
-  // refuses to open them. Recognise an archive here by the two things that are
-  // true of both -- a readable title at byte 0 and a usable master index --
-  // so this check covers the files the add-ons actually contain.
+  const label = p.slice(unpackDir.length + 1);
+  // The page's own gate decides. A file that has a title and a master index
+  // pair but is still refused is the case this check exists to catch: it is
+  // what every saved game looked like to the old count-based rule.
   const info = ev(`(() => {
     const d = describeDelverArchive(__a);
-    if (d.ok) return {ok: true, title: d.title, populated: d.populated, opensInPage: true};
-    if (!d.title) return {ok: false};
-    const mi = delverMasterIndexExtent(__a);
-    if (!mi) return {ok: false};
-    return {ok: true, title: d.title, populated: d.populated || 0, opensInPage: false};
+    if (d.ok) return {ok: true, title: d.title, player: d.player, populated: d.populated};
+    return {ok: false, reason: d.reason, looksLikeOne: !!(d.title && delverMasterIndexExtent(__a))};
   })()`);
-  if (!info || !info.ok) continue;               // most files in an add-on are not archives
+  if (!info.ok) {
+    if (info.looksLikeOne) fail('recognising ' + label, info.reason);
+    else refused++;                              // most files in an add-on are not archives
+    continue;
+  }
   archives++;
-  const label = p.slice(unpackDir.length + 1);
-  if (!info.opensInPage) notOpenable.push(`${label} (${info.populated} subindexes)`);
+  if (info.player) saves.push(info.player);
   // Round trip. The assertion is that every resource survives -- same ids,
   // same plaintext -- NOT that the file comes back byte-identical.
   // delv_write_check.mjs proves byte-identity for the shipped archive, and it
@@ -238,13 +241,11 @@ for (const p of files) {
 }
 
 if (files.length) {
-  if (archives > 0) ok(`${archives} third-party archive(s) opened`, `${roundTripped} kept every resource through a rewrite, ${bytewise} byte-identical`);
+  if (archives > 0) ok(`${archives} third-party archive(s) opened`, `${roundTripped} kept every resource through a rewrite, ${bytewise} byte-identical; ` +
+     `${saves.length} saved game(s): ${saves.map(n => '“' + n + '”').join(', ')}`);
   else fail('the add-ons', `unpacked ${files.length} files and none was a Delver archive`);
-  // Reported, not failed: it is a limitation of the page, recorded here
-  // because this is the only check that looks at a player file.
-  if (notOpenable.length)
-    console.log(`  note: ${notOpenable.length} of them index.html would refuse ` +
-      `(describeDelverArchive wants 8 populated subindexes): ${notOpenable.join(', ')}`);
+  if (refused > 0) ok(`${refused} other file(s) in the add-ons refused`);
+  else fail('the negative corpus', 'nothing in the add-ons was refused, so the gate was not tested against a non-archive');
 }
 
 console.log(failures

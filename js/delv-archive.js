@@ -126,10 +126,32 @@ function delverMasterIndexExtent(bytes) {
   return { off, len, first: off + 8, count: Math.min(256, len / 8 - 1), dataStart: off + len };
 }
 
-// Does this buffer actually hold a Delver archive? A real master index has
-// dozens of entries that point inside the file and are whole numbers of
-// 8-byte records. Checking that is what tells a data fork from a resource
-// fork, from BinHex ASCII, from an unrelated file.
+// Does this buffer actually hold a Delver archive? The answer is read from
+// the structure the archive is built out of, and from nothing else: a title,
+// a master index whose every entry is either empty or a whole number of
+// 8-byte records inside the file, and inside every subindex it names, resource
+// entries that are likewise either empty or inside the file. That is the
+// shape delvmod's load_header/load_index walks, and it is what tells a data
+// fork from a resource fork, from BinHex ASCII, from an unrelated file.
+//
+// It used to demand eight populated subindexes as well, which was a count
+// standing in for a check. The shipped Cythera Data has 34, so eight looked
+// safe; a Cythera SAVED GAME has six (the party's records, its combat-AI
+// scripts, the prop list of the zone the player stands in, one portrait, and
+// two subindexes the scenario never has), and a patch file -- Magpie's Pumpkin Patch, twelve
+// tile sheets -- has two. Every one of them was refused, so the page could
+// not open a player file at all: utilities/addons_check.mjs opens all seven
+// third-party archives in the community's add-ons, and all seven were on its
+// refused list. The rule above accepts all seven and the shipped archive, and refuses
+// every other file in the same corpus: the application's PEF data fork, both
+// resource forks, the BinHex texts, the installers, JPEGs, an .rtf, a TEXT
+// file. What made the eight seem necessary was that the entries were only
+// COUNTED: a stray value that happened to pass was tolerated, so the count
+// had to be high enough that stray values could not reach it. Requiring that
+// no entry be stray is the stronger test and needs no threshold.
+//
+// The player name is the pstring at 0x20 -- delvmod's `player_name`, empty in
+// the scenario file -- so a caller can say what it opened.
 function describeDelverArchive(bytes) {
   if (!bytes || bytes.length < 0x888)
     return { ok: false, reason: 'only ' + (bytes ? bytes.length : 0) + ' bytes, too small to hold a master index' };
@@ -148,15 +170,30 @@ function describeDelverArchive(bytes) {
   if (!title) return { ok: false, title: '', reason: 'no title string at byte 0' };
   const mi = delverMasterIndexExtent(bytes);
   if (!mi) return { ok: false, title, reason: 'no usable master index (offset,length) pair at 0x80' };
+  const player = (bytes[0x20] >= 1 && bytes[0x20] <= 31) ? pstring(bytes, 0x20) : '';
   let populated = 0;
   for (let i = 0; i < mi.count; i++) {
     const off = u32be(bytes, mi.first + i*8), len = u32be(bytes, mi.first + i*8 + 4);
-    if (off >= mi.dataStart && len > 0 && len % 8 === 0 && off + len <= bytes.length) populated++;
+    if (!off && !len) continue;
+    if (!(off >= mi.dataStart && len > 0 && len % 8 === 0 && off + len <= bytes.length))
+      return { ok: false, title, player, populated, reason: 'master index entry ' + i + ' at 0x' +
+        (mi.first + i*8).toString(16).toUpperCase() + ' is neither empty nor a subindex inside the file' };
+    // Every entry of the subindex, too: a resource is (offset,length) and
+    // both lie past the index and inside the file, or the entry is empty.
+    const n = Math.min(256, len / 8);
+    for (let k = 0; k < n; k++) {
+      const roff = u32be(bytes, off + k*8), rlen = u32be(bytes, off + k*8 + 4);
+      if (!roff && !rlen) continue;
+      if (roff < mi.dataStart || roff + rlen > bytes.length)
+        return { ok: false, title, player, populated, reason: 'subindex ' + i + ' entry ' + k +
+          ' points outside the file' };
+    }
+    populated++;
   }
-  if (populated < 8)
-    return { ok: false, title, populated, reason: 'the master index at 0x' + mi.first.toString(16).toUpperCase() +
-      ' yields ' + populated + ' usable subindexes' };
-  return { ok: true, title, populated };
+  if (!populated)
+    return { ok: false, title, player, populated, reason: 'the master index at 0x' + mi.first.toString(16).toUpperCase() +
+      ' names no subindex at all' };
+  return { ok: true, title, player, populated };
 }
 
 function extractDelverArchive(bytes, opts) {
@@ -207,7 +244,7 @@ function extractDelverArchive(bytes, opts) {
     throw new Error('That is a ' + kind + ' file' + (forks.name ? ' holding "' + forks.name + '"' : '') +
       (t ? " (type '" + t + "', creator '" + c + "')" : '') +
       (t === 'APPL' ? ' — the Cythera application, not its data.' : '.') +
-      " The archive this tool reads is “Cythera Data”, type 'DelS', creator 'Delv'. [" + notes.join('; ') + ']');
+      " The archives this tool reads are “Cythera Data” (type 'DelS', creator 'Delv') and a Cythera saved game (type 'DelP'). [" + notes.join('; ') + ']');
   }
   throw new Error('Not a Delver archive: ' + notes.join('; ') +
     '. Expected "Cythera Data" itself, a .hqx / MacBinary / AppleSingle wrapper around it, ' +

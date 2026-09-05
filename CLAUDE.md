@@ -394,7 +394,9 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   the surround plate being sharper than the base it replaces and centred on
   its own gateway, and — by counting `renderMapVisual` calls rather than
   timing anything — that a crossing costs **one** map render and a return or a
-  revisit none.
+  revisit none. Its `saved game` section opens a Cythera player file through
+  `adoptArchive` — the path that refused every one of them until
+  September 2026 — and checks what a visitor sees (see the per-page notes).
 - `loader_test.mjs` — the orchestration around the decoders: BinHex/MacBinary/
   AppleSingle unwrapping, archive validation, the refusal messages, deep-link
   parsing, and `loadDefaultArchive` driven to total failure. Every other harness
@@ -953,6 +955,27 @@ Read the comment above a constant before correcting it.
   fails if a new cache is added and forgotten.
 - `stopAllViewActivity()` is the matching rule for anything a view starts:
   intervals, animation frames, audio, the shared `IntersectionObserver`.
+- **A saved game opens, and is called one.** A Cythera player file (`DelP`)
+  is a Delver archive with the same header and six subindexes: the party's
+  records (`0xF009`), the prop list of the zone the player stands in
+  (`0x81xx`), one portrait, three combat-AI resources, and two subindexes the
+  scenario never has (`0x82xx`, `0xF3xx`), which delvmod's tables say nothing
+  about and are left to `smartDecrypt`'s heuristic. The pstring at `0x20` —
+  delvmod's `player_name`, empty in the scenario — is the name the game was
+  saved under, and in all six saves in the add-ons it equals the file name;
+  the status line and the title say "saved game" with it. Such a file
+  **lands on Data › Data Fork** rather than the world: it has no world map,
+  the atlas over it would be a zoom slider over nothing, and the sheet lists
+  what it does hold with a chip to where each part is shown. The World tab
+  says why when opened anyway (`renderAtlasBar`). A bare save gets the
+  Finder identity `DelP` under its own name (`ARCHIVE_FINDER`), derived on
+  every bare open rather than only the first, so a save dropped after
+  Cythera Data is not exported as "Cythera Data" and the reverse does not
+  hold either. Nothing draws the save *over* the scenario — that needs two
+  archives open at once, which the delv-\* files cannot do (see **The
+  delv-\* files are not a library**). The `saved game` section of
+  `viewer_smoke.mjs` drives all of this over `I.M.Cheater`, which
+  `addons_check.mjs` unpacks first.
 - **It wants a container, never a bare data fork, and that is deliberate.**
   The installer, a `.hqx` or a MacBinary all carry the *resource* fork, which
   a bare data fork cannot. Editor Stamps & Brushes had been in the page for a
@@ -1051,10 +1074,20 @@ about:
   identity holds for the shipped archive because the writer's layout matches
   Ambrosia's, and it is a property of that file rather than of the format.
 
-  **`describeDelverArchive` refuses all seven.** It requires eight populated
-  subindexes, which is right for the game archive (`DelS`) and wrong for a
-  player file (`DelP`), which has six — so `index.html` cannot open a
-  Cythera saved game at all, including `I.M.Cheater`. That is unfixed.
+  **All seven open, since 4 September 2026.** `describeDelverArchive` used
+  to require eight populated subindexes, which was a count standing in for a
+  check: right for the game archive (34) and wrong for a saved game (six)
+  and for a patch (two), so `index.html` refused every Cythera player file,
+  `I.M.Cheater` included. The gate is structural now — a title, and a master
+  index whose every entry, and every entry of every subindex it names, is
+  either empty or inside the file — with no threshold; the comment above the
+  function says why the count seemed necessary. `addons_check.mjs` fails if a
+  file with a title and an index pair is refused, and it counts the files in
+  the add-ons that are *not* archives and fails if none is refused, so the
+  gate is tested in both directions on every run. `loader_test.mjs` proves
+  the rule on the real file: one populated subindex is enough, one stray
+  entry is too many. What the page does with a saved game once it is in is
+  under **`index.html`** in the per-page notes.
 
 ## Gotchas
 

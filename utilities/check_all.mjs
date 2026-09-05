@@ -106,6 +106,12 @@ const SYSLESS = firstHolding('src/disk_image/hfs.rs', process.env.SYSTEMLESS, 's
 // scores the heuristic against the shipped archive, which is the half that
 // matters most.
 const ADDONS = firstExisting('reference/community/addons', 'reference/user_addons');
+// A Cythera saved game, for the smoke test's saved-game section. It is the
+// one complete player file in the add-ons, and addons_check.mjs unpacks it
+// here on its run, which comes first in the list; without unar, or without
+// the add-ons, the section notes the absence and the rest of the smoke test
+// runs as before.
+const SAVE = `${TMP}/cythera_addons/606_CheaterSavedGame/I.M.Cheater`;
 const GFX_REF = `${TMP}/gfx_ref.json`;
 const EXPORTS = `${TMP}/check_all_exports`;
 
@@ -215,7 +221,7 @@ const CHECKS = [
    cmd: ['utilities/undither_check.mjs', 'index.html'],
    grep: /measured is [\d.]+% better overall for [\d.]+% at edges/},
   {page: 'viewer', name: 'ui smoke', want: [DATA], slow: true,
-   cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL],
+   cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL, SAVE],
    grep: /\d+ galleries, [\d,]+ tiles/},
   {page: 'viewer', name: 'zip export', want: [DATA], slow: true,
    cmd: ['utilities/export_test.mjs', 'index.html', DATA, EXPORTS], zips: EXPORTS},

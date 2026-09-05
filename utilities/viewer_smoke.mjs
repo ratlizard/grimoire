@@ -23,9 +23,9 @@ import vm from 'node:vm';
 import {pageSource, describeScripts} from './page_scripts.mjs';
 import {makeCanvasContext} from './dom_stub.mjs';
 
-const [htmlPath, dataPath, onlyCat, visePath] = process.argv.slice(2);
+const [htmlPath, dataPath, onlyCat, visePath, savePath] = process.argv.slice(2);
 if (!htmlPath || !dataPath) {
-  console.error('usage: viewer_smoke.mjs <viewer.html> <Cythera Data.data> [category] [Cythera.bin]');
+  console.error('usage: viewer_smoke.mjs <viewer.html> <Cythera Data.data> [category] [Cythera.bin] [a saved game]');
   process.exit(2);
 }
 const html = readFileSync(htmlPath, 'utf8');
@@ -1168,6 +1168,65 @@ try {
     fail('ditherize', 'rebuilt archive does not decode the dithered portrait back');
   else console.log('  ditherize: a dithered 64x64 portrait wrote into 0x8805 and decoded back exactly');
 } catch (e) { fail('ditherize', e); }
+
+// A saved game. The page refused every Cythera player file until September
+// 2026 -- describeDelverArchive wanted eight populated subindexes and a save
+// has six -- so nothing had ever driven the page over one. Opened through
+// adoptArchive, the path a dropped file takes, which is the path that refused
+// it. What is checked is what a visitor sees: the status calls it a saved
+// game under its own name; the landing is the Data Fork sheet, listing every
+// subindex the file holds, rather than an atlas with no world in it; the
+// World tab says why; every gallery draws or says why not without throwing;
+// the prop list of the zone the player stands in opens and parses; and the
+// identity the exports carry is 'DelP'. Cythera Data is reopened at the end
+// so the sections after this one see the archive they expect.
+if (savePath && !onlyCat) {
+  if (!existsSync(savePath)) console.log('  (no saved game at ' + savePath + '; the saved-game section is skipped)');
+  else try {
+    const save = new Uint8Array(readFileSync(savePath));
+    const name = savePath.replace(/^.*\//, '');
+    // Dropped while the World tab is up, which is where a visit starts: the
+    // page carries the current view across a swap through the hash, and a
+    // world link names nothing in a file with no world, so this is the case
+    // the landing rule has to win.
+    ctx.location.hash = '#c=WORLD';
+    if (!ctx.adoptArchive(save, name, {})) throw new Error(peek('lastArchiveError'));
+    const st = REGISTRY.get('sourceStatus').textContent;
+    const m = /a saved game \(“([^”]+)”\)/.exec(st);
+    if (!m) fail('saved game', 'the status does not call it a saved game: ' + st.slice(0, 100));
+    const savedAs = m ? m[1] : '';
+    if (REGISTRY.get('categorySelect').value !== 'DATAFORK')
+      fail('saved game', 'did not land on the Data Fork sheet: ' + REGISTRY.get('categorySelect').value);
+    const populated = peek('masterIndexGlobal').filter(x => x[0]).length;
+    // The body rows are nodes; the head row is innerHTML, which this stub
+    // does not parse into nodes, so the count is the body alone.
+    const rows = (function count(el) { return (el.tagName === 'TR' ? 1 : 0) + (el.children || []).reduce((n, c) => n + count(c), 0); })(REGISTRY.get('sheetGrid'));
+    if (rows !== populated) fail('saved game', `the Data Fork sheet lists ${rows} subindexes for a file with ${populated}`);
+    const f = ctx.ARCHIVE_FINDER;
+    if (!f || f.type !== 'DelP' || f.creator !== 'Delv' || f.name !== savedAs)
+      fail('saved game', 'the Finder identity for exports is ' + JSON.stringify(f) + ', expected DelP under “' + savedAs + '”');
+    ctx.showCategory('WORLD');
+    const bar = REGISTRY.get('atlasBar');
+    if (!bar || !/no world map/.test(bar.innerHTML)) fail('saved game', 'the World tab does not say there is no world map');
+    let bad = 0;
+    for (const v of CATEGORY_VALUES) { try { if (!ctx.showCategory(v)) bad++; } catch (e) { bad++; if (bad <= 2) fail('saved game gallery ' + v, e); } }
+    if (bad) fail('saved game', bad + ' galleries failed');
+    ctx.showCategory('128');
+    const lists = (ctx.CUR_RESIDS || []).map(r => r[0]);
+    let records = 0;
+    if (!lists.length || !ctx.openResource(lists[0])) fail('saved game', 'the prop list of the zone the player stands in did not open');
+    else records = ctx.parseDelverPropList(ctx.smartDecrypt(ctx.getResourceBytes(lists[0]), lists[0]).data).length;
+    if (!records) fail('saved game', 'the prop list parsed to no records');
+    console.log(`  saved game: “${savedAs}” opened, ${populated} subindexes listed, ` +
+                `zone prop list 0x${(lists[0] || 0).toString(16).toUpperCase()} with ${records} records, exports as DelP`);
+    // Back to the game archive, and the identity goes back with it. With no
+    // hash to carry a view across, the landing is the default one.
+    ctx.location.hash = '';
+    ctx.parseArchiveBytes(archive, 'Cythera Data (after the saved game)', { via: 'data fork', rsrc: rsrcFork });
+    if (ctx.ARCHIVE_FINDER.type !== 'DelS') fail('saved game', 'Cythera Data reopened as ' + JSON.stringify(ctx.ARCHIVE_FINDER));
+    if (REGISTRY.get('categorySelect').value !== 'WORLD') fail('saved game', 'Cythera Data did not land back on the world');
+  } catch (e) { fail('saved game', e); }
+}
 
 // The installer. The page's default input is the whole game as one file,
 // and three views exist only when it arrived that way: Data › Installer, and
