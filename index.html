@@ -2950,12 +2950,17 @@ const ITEM_FIELD_INFO = {
   0x26: { scalar:true, gloss:'Equipment slot this occupies when worn or wielded.' },
   0x27: { scalar:true, hex:true, gloss:'Bit flags. The individual bits are not documented.' },
   0x28: { scalar:true, gloss:'How many fit in one inventory slot.' },
-  0x2A: { gloss:'Melee parameters. The elements are not decoded; the last is a reference into this same resource.' },
-  0x2B: { gloss:'Thrown-weapon parameters. Not decoded.' },
+  // The combat fields were decoded on 5 September 2026 by following the
+  // routines that read them: the attack resolver 0xE87 (type, skill, the
+  // two sounds, the hit effect), the AI's weapon choice 0x3042 (reach,
+  // squared against the distance), the bow scripts 0x903-0x988
+  // (ammunition class and range) and the weapon describer 0xEB2 (damage).
+  0x2A: { gloss:'Melee: damage, reach in squares, damage type, the skill it is swung with, the miss sound, the hit sound, and the hit effect (a reference into this resource).' },
+  0x2B: { gloss:'Thrown: damage, range, the effect, the sound.' },
   0x2C: { scalar:true, gloss:'Points of protection this armour contributes.' },
-  0x2D: { gloss:'Ammunition parameters. Not decoded.' },
-  0x2E: { gloss:'Ranged-weapon parameters. Not decoded.' },
-  0x2F: { gloss:'Shield parameters. Not decoded.' },
+  0x2D: { gloss:'Ammunition: the class a launcher must match, damage, damage type.' },
+  0x2E: { gloss:'Ranged: the ammunition class it fires, range in squares, then sounds.' },
+  0x2F: { gloss:'Shield: how much it blocks, and the skill (Shield) added to the block.' },
   0x30: { scalar:true, gloss:'Reagent number, used by alchemy.' },
   0x32: { gloss:'Light this item casts.' },
   0x34: { gloss:'Lock parameters -- what a key or a lockpick is tested against.' },
@@ -3452,7 +3457,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.6.0';
+const GRIMOIRE_VERSION = '1.7.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -12762,10 +12767,18 @@ function gearTable() {
   for (let pt = 1; pt < 512; pt++) {
     const cls = parseItemClass(pt);
     if (!cls) continue;
-    const f = k => { const e = cls.data.find(x => x.key === k); return e ? e.words.map(w => (w & 0xF0000000) ? '→' : String(w & 0x0FFFFFFF)) : null; };
-    const row = { pt, name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)), weight: itemWeight(pt),
-                  melee: f(0x2A), thrown: f(0x2B), armour: f(0x2C), ammo: f(0x2D), ranged: f(0x2E), shield: f(0x2F) };
-    if (row.melee || row.thrown || row.armour || row.ammo || row.ranged || row.shield) rows.push(row);
+    const f = k => { const e = cls.data.find(x => x.key === k); return e ? e.words.map(w => (w & 0xF0000000) ? null : (w & 0x0FFFFFFF)) : null; };
+    const melee = f(0x2A), thrown = f(0x2B), armour = f(0x2C), ammo = f(0x2D), ranged = f(0x2E), shield = f(0x2F);
+    if (!(melee || thrown || armour || ammo || ranged || shield)) continue;
+    const skillName = id => (id !== null && id !== undefined && refExists(0x1A00 + id) && selfNameFor(0x1A00 + id)) || (id !== null && id !== undefined ? 'skill ' + id : '');
+    rows.push({ pt, name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)), weight: itemWeight(pt),
+      melee, thrown, armour, ammo, ranged, shield,
+      damage: melee ? melee[0] : thrown ? thrown[0] : ammo ? ammo[1] : null,
+      reach: melee ? melee[1] : thrown ? thrown[1] : ranged ? ranged[1] : null,
+      type: melee ? melee[2] : ammo ? ammo[2] : null,
+      skill: melee ? skillName(melee[3]) : shield ? skillName(shield[1]) : '',
+      ammoClass: ranged ? ranged[0] : ammo ? ammo[0] : null,
+      block: shield ? shield[0] : null, protection: armour ? armour[0] : null });
   }
   return rows;
 }
@@ -13113,6 +13126,70 @@ function trainingRules() {
   return { teachers: [...byTeacher.values()], points };
 }
 
+/* COMBAT. Three routines. 0xE88 (melee) and 0xE89 (missile) work out the
+   attacker's margin: reflex -- body, for a monster flagged so -- plus the
+   weapon's skill (Barehand for no weapon, Missile for a launcher) plus a
+   roll of 0 to 29, less the defender's reflex plus a roll of 0 to 29, plus
+   the attacker's Attack skill less the defender's Defence (0xE84, each a
+   class figure where the skill is absent). 0xE87 resolves it: every shield
+   the defender wears blocks a roll of 0 to its block plus the Shield skill,
+   and a margin under that is parried; the weapon's enchantment and skill
+   are added to the margin and the skill to the damage; a margin of nothing
+   or less misses; a hit does a roll of 0 to the damage figure plus the
+   enchantment, named grazed, hit, hit hard, very hard, extremely hard,
+   crushed, smashed, ground to dust or shredded by thresholds of 3, 6, 9,
+   12, 16, 20, 25 and 35; ResistDamage takes the type; experience follows. */
+function combatRules() {
+  const idx = buildScriptTextIndex();
+  const melee = idx.find(e => e.resid === 0xE88), missile = idx.find(e => e.resid === 0xE89), resolve = idx.find(e => e.resid === 0xE87);
+  if (!melee || !missile || !resolve) return null;
+  const d30 = /sys Random[\s\S]{0,40}byte 0x00[\s\S]{0,40}byte 0x1E/.test(melee.text) && /byte 0x1E/.test(missile.text);
+  const barehand = /short 0x00C7/.test(melee.text), missileSkill = /short 0x00C8/.test(missile.text);
+  const parry = /parries/.test(resolve.text) && /class_member 0x2F00/.test(resolve.text) && /class_member 0x2F01/.test(resolve.text);
+  const words = [...resolve.text.matchAll(/byte 0x([0-9A-F]{2})\s+[0-9A-F]*\s*lt[\s\S]{0,80}?string "([a-z]+)"(?:[\s\S]{0,80}?string " ([a-z ]+)")?/g)]
+    .map(m => ({ below: parseInt(m[1], 16), word: m[2] + (m[3] ? ' ' + m[3] : '') }));
+  return { d30, barehand, missileSkill, parry, words };
+}
+
+/* SPELLS. Every spell script casts through one helper, CastSpell (0xEA1),
+   with the spell's level and its cost in magic points, so the two are read
+   off each script's call. The helper says the rest: a cost above the
+   caster's magic fails with "The spell requires more power than you
+   currently have"; the cost is taken, the caster's timing rises by 10 plus
+   twice the level, and the casting fails when two rolls of 0 to the
+   caster's Casting figure (the skill, else a class figure) together fall
+   short of a roll of 0 to the level. Nothing else about a spell -- what
+   it does -- is a rule; that is the spell's own script. */
+function spellRules() {
+  const idx = buildScriptTextIndex();
+  const helper = idx.find(e => e.resid === 0xEA1);
+  const rule = helper ? { power: /requires more power/.test(helper.text), failure: /You failed to cast/.test(helper.text),
+    timing: /byte 0x0A\s+[0-9A-F]*\s*byte 0x02[\s\S]{0,60}mul[\s\S]{0,20}add/.test(helper.text), casting: /short 0x00C3/.test((idx.find(e => e.resid === 0xE85) || { text: '' }).text) } : null;
+  const spells = [];
+  for (const e of idx.filter(e => e.subn === 25)) {
+    const lines = e.text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (!/call_resource CastSpell\b/.test(lines[i])) continue;
+      const a = /byte (0x[0-9A-F]+)/i.exec(lines[i + 3] || ''), b = /byte (0x[0-9A-F]+)/i.exec(lines[i + 4] || '');
+      if (a && b) { spells.push({ resid: e.resid, name: selfNameFor(e.resid) || labelFor(e.resid) || ('0x' + e.resid.toString(16)), level: parseInt(a[1]), cost: parseInt(b[1]) }); break; }
+    }
+  }
+  spells.sort((x, y) => x.level - y.level || x.cost - y.cost || x.name.localeCompare(y.name));
+  return { rule, spells };
+}
+
+/* HUNGER. Nothing in the scripts lowers nutrition; the fall is the
+   engine's. The scripts read it: the idle script complains below 4, the
+   fountain and Nutrient add up to a ceiling of 100. */
+function hungerNotes() {
+  const idx = buildScriptTextIndex();
+  const falls = idx.some(e => /set_field nutrition[\s\S]{0,120}sub/.test(e.text));
+  const idle = idx.find(e => e.resid === 0x3020);
+  const complains = idle ? (/get_field nutrition[\s\S]{0,30}byte 0x04[\s\S]{0,20}lt/.exec(idle.text) ? 4 : null) : null;
+  const ceiling = idx.some(e => /get_field nutrition[\s\S]{0,30}byte 0x64[\s\S]{0,20}lt/.test(e.text)) ? 100 : null;
+  return { falls, complains, ceiling };
+}
+
 function renderMechanicsSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -13174,21 +13251,19 @@ function renderMechanicsSheet() {
   // ---- weapons and armour ----
   const gear = gearTable();
   const gsec = sec('Weapons and armour', gear.length
-    ? gear.length + ' item classes carry combat parameters. Armour’s number is points of protection. The weapon numbers are shown as the file stores them, since nothing published names the fields; ' +
-      'what the data itself shows is that the first melee number orders the weapons as their damage would.'
+    ? gear.length + ' item classes carry combat parameters, named here from the routines that read them: the attack resolver takes damage type, skill and sounds, the AI’s weapon choice squares reach against distance, the bow scripts match an ammunition class and a range, and armour’s number is points of protection. ' +
+      'Damage is the most a blow can do before the skill is added: the resolver rolls 0 to that.'
     : 'No item class in this archive carries combat parameters.');
   if (gear.length) {
-    const cols = [['melee', 'melee'], ['thrown', 'thrown'], ['ranged', 'ranged'], ['ammo', 'ammunition'], ['armour', 'armour'], ['shield', 'shield']];
-    const order = r => cols.findIndex(([k]) => r[k]);
-    gear.sort((a, b) => order(a) - order(b) || ((b.melee ? +b.melee[0] : 0) - (a.melee ? +a.melee[0] : 0)) || a.name.localeCompare(b.name));
+    const kind = r => r.melee ? 0 : r.thrown ? 1 : r.ranged ? 2 : r.ammo ? 3 : r.armour ? 4 : 5;
+    gear.sort((a, b) => kind(a) - kind(b) || ((b.damage || 0) - (a.damage || 0)) || ((b.protection || b.block || 0) - (a.protection || a.block || 0)) || a.name.localeCompare(b.name));
+    const cell = v => '<td class="num">' + (v === null || v === undefined || v === '' ? '' : svEsc(String(v))) + '</td>';
     const rows = gear.map(r => '<tr><td><button class="relChip" onclick="showPropTypeDetail(' + r.pt + ')">' +
-      '<span class="relText"><span class="relMain">' + svEsc(r.name) + '</span><span class="relSub">prop 0x' + r.pt.toString(16).toUpperCase() + '</span></span></button></td>' +
-      '<td class="num">' + (r.weight !== null ? r.weight : '') + '</td>' +
-      cols.map(([k]) => '<td class="num">' + (r[k] ? r[k].join(' ') : '') + '</td>').join('') + '</tr>');
+      '<span class="relText"><span class="relMain">' + svEsc(r.name) + '</span><span class="relSub">' + ['melee', 'thrown', 'ranged', 'ammunition', 'armour', 'shield'][kind(r)] + ' · prop 0x' + r.pt.toString(16).toUpperCase() + '</span></span></button></td>' +
+      cell(r.weight) + cell(r.damage) + cell(r.reach) + cell(r.type) + cell(r.skill) + cell(r.ammoClass) + cell(r.protection) + cell(r.block) + '</tr>');
     const scroll = document.createElement('div');
     scroll.className = 'tableScroll';
-    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>item</th><th>weight</th>' + cols.map(([, h]) => '<th>' + h + '</th>').join('') +
-      '</tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>item</th><th>weight</th><th>damage</th><th>reach</th><th>type</th><th>skill</th><th>ammo class</th><th>protection</th><th>block</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
     gsec.appendChild(scroll);
   }
 
@@ -13335,9 +13410,42 @@ function renderMechanicsSheet() {
     rsec.appendChild(scroll);
   }
 
-  const more = sec('Not in the scripts', 'The spell costs, the combat rolls, the hunger rate and how long a balloon stays up are in the executable, not the scripts.');
+  // ---- combat ----
+  const cb = combatRules();
+  const csec = sec('Combat', cb
+    ? 'Three routines. The attacker’s margin (0xE88 for a blow, 0xE89 for a missile) is <b>reflex</b>' + (cb.d30 ? ' <b>plus a roll of 0 to 29</b>' : '') +
+      ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')') +
+      ', <b>less the defender’s reflex' + (cb.d30 ? ' plus a roll of 0 to 29' : '') + '</b>, plus the attacker’s Attack less the defender’s Defence, each a class figure where the skill is absent. ' +
+      'Then (0xE87): ' + (cb.parry ? 'every shield the defender wears blocks a roll of 0 to its block plus the Shield skill, and a margin under that is <b>parried</b>; ' : '') +
+      'the weapon’s enchantment and skill are added to the margin and the skill to the damage; a margin of nothing or less <b>misses</b>; a hit does <b>a roll of 0 to the damage figure, plus the enchantment</b>, ' +
+      'the defender’s resistance takes the damage type, and the blow is named by its size' + (cb.words.length ? ': ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + w.below).join(', ') + ', and <i>shredded to pieces</i> above.' : '.')
+    : 'The combat routines (0xE87–0xE89) are not in this archive.');
+
+  // ---- spells ----
+  const sp = spellRules();
+  const psec = sec('Spells', sp.spells.length
+    ? sp.spells.length + ' spells, each cast through one helper (0xEA1) with a level and a cost in magic points, read off each spell’s own call. ' +
+      (sp.rule && sp.rule.power ? 'A cost above the caster’s magic fails outright. ' : '') +
+      (sp.rule && sp.rule.timing ? 'The cost is taken and the cast costs 10 plus twice the level in time' : 'The cost is taken') +
+      (sp.rule && sp.rule.failure ? ', and the casting <b>fails when two rolls of 0 to the caster’s Casting figure together fall short of a roll of 0 to the level</b>' + (sp.rule.casting ? ' — Casting the skill, else a class figure.' : '.') : '.') +
+      ' What a spell does is its own script.'
+    : 'No spell in this archive casts through the helper.');
+  if (sp.spells.length) {
+    const rows = sp.spells.map(x => '<tr><td>' + partChip(x.name, x.resid) + '</td><td class="num">' + x.level + '</td><td class="num">' + x.cost + '</td></tr>');
+    const scroll = document.createElement('div');
+    scroll.className = 'tableScroll';
+    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>spell</th><th>level</th><th>cost</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    psec.appendChild(scroll);
+  }
+
+  // ---- hunger ----
+  const hg = hungerNotes();
+  sec('Hunger', (hg.falls ? 'A script lowers nutrition somewhere in this archive. ' : 'No script lowers nutrition: the fall is the engine’s, and its rate is not in the file. ') +
+    'The scripts read it' + (hg.complains !== null ? ': the idle script complains below ' + hg.complains : '') + (hg.ceiling !== null ? ', and the fountain and Nutrient add only up to ' + hg.ceiling : '') + '.');
+
+  const more = sec('Not in the scripts', 'The rate at which hunger falls, and how long a balloon stays up, are the executable’s.');
   grid.appendChild(box);
-  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot: the dice game, the weapon and armour numbers, what each skill is asked about, every move of karma, how experience becomes levels, what food and potions do, every status put on and taken off, locks and picks, every shop’s prices, and every teacher’s lessons.';
+  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot: the dice game, weapons and armour, what each skill is asked about, karma, experience and levels, food and potions, status effects, locks, shops, training, combat, spells, and what is known of hunger.';
 }
 
 function renderPlaceholderSheet(note) {

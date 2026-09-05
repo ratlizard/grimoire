@@ -939,8 +939,40 @@ Read the comment above a constant before correcting it.
   level (`0xE86`), and a skill is mastered at level 15. The smoke test
   pins the chest's 15 and the lock formula, Milcom's sword at 45 with the
   haggling roll, and Thersites teaching axe and mace with the points rule.
-  What is left is not in the scripts: spell costs, the combat rolls, the
-  hunger rate, how long a balloon stays up.
+  Three of the four I had put down to the executable turned out to be
+  scripts, read the same evening. **Combat** (`combatRules`): `0xE88`
+  (a blow) and `0xE89` (a missile) make the attacker's margin — reflex,
+  or body for a monster flagged so, plus the weapon's skill (Barehand
+  with none, Missile for a launcher), plus a roll of 0 to 29, less the
+  defender's reflex plus a roll of 0 to 29, plus Attack less Defence
+  (`0xE84`, class figures where the skill is absent) — and `0xE87`
+  resolves it: every shield blocks a roll of 0 to its block plus the
+  Shield skill and a margin under that is parried; enchantment and skill
+  go on the margin and skill on the damage; a margin of nothing or less
+  misses; a hit does a roll of 0 to the damage figure plus the
+  enchantment, named by thresholds 3, 6, 9, 12, 16, 20, 25, 35 (the words
+  are read off the script). Following those routines named the weapon
+  fields, and `ITEM_FIELD_INFO` and `gearTable` now say what each is:
+  melee [damage, reach, type, skill, miss sound, hit sound, effect],
+  thrown [damage, range, effect, sound], ranged [ammunition class, range,
+  sounds], ammunition [class, damage, type], shield [block, skill];
+  reach from the AI's weapon choice `0x3042`, which squares it against
+  the distance, the ammunition class and range from the bow scripts
+  `0x903`–`0x988`. **Spells** (`spellRules`): every spell script casts
+  through `CastSpell` `0xEA1` with its level and cost, so the table of 49
+  is read off the calls (Directed Nexus 1 for 1, Fireball 5 for 20, Charm
+  6 for 18); the helper says the rule — a cost above the caster's magic
+  fails outright, the cast costs 10 plus twice the level in time, and the
+  casting fails when two rolls of 0 to the caster's Casting figure
+  (`0xE85`) together fall short of a roll of 0 to the level. **Hunger**
+  (`hungerNotes`): no script lowers nutrition, so the fall is the
+  engine's; the scripts read it — the idle script complains below 4, the
+  fountain and Nutrient add up to 100. The smoke test pins the axe's
+  damage and skill, the spear's reach, the bow's class and range, the
+  0-to-29 rolls with the parry and the eight blow words, Fireball at level
+  5 for 20 with the failure rule, and that nothing lowers nutrition. What
+  is left in the executable: the hunger rate and how long a balloon stays
+  up.
 - **The joins between the two halves are resource-id rules, and they are
   written down once, in the `Parts and uses` section beside the tree.** A
   character's dossier carries a *Made of* row (`characterParts`): dialogue
