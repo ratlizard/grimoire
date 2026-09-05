@@ -3491,7 +3491,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.10.0';
+const GRIMOIRE_VERSION = '1.10.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -13323,7 +13323,19 @@ function sleepRules() {
   const owner = /Out of my bed/.test(h);
   const toss = /toss and turn/.test(h);
   const soundly = /sleep soundly/.test(h);
-  return { own, quarter, hours, half, owner, toss, soundly };
+  // The inn's quality: the bed reads global resource 0x301's array at a
+  // slot the innkeeper's dialogue wrote when the room was paid for.
+  const store = idx.find(e => e.resid === 0x301);
+  const am = store && /obj_0000 = \[([\d, ]+)\]/.exec(strip(store.text));
+  const table = am ? am[1].split(',').map(x => parseInt(x.trim())) : null;
+  const inns = [];
+  for (const e of idx) {
+    if (e.resid < 0x1800 || e.resid >= 0x1A00) continue;
+    const m = /write_far_word 0x03010016\s+byte (0x[0-9A-F]+|\d+)/i.exec(strip(e.text));
+    if (m) { const slot = parseInt(m[1]); inns.push({ who: e.resid - 0x1800, slot, quality: table && table[slot] !== undefined ? table[slot] : null }); }
+  }
+  inns.sort((a, b) => a.who - b.who);
+  return { own, quarter, hours, half, owner, toss, soundly, table, inns };
 }
 function renderMechanicsSheet() {
   stopAllViewActivity();
@@ -13548,13 +13560,15 @@ function renderMechanicsSheet() {
   add('sleep', 'Sleeping', { tile: 0x100E }, src('the bed', 0x100E) + src('the night', 0xE93),
     sl ? 'A bed is a class script that picks a quality for the sleep and hands the hours to one helper, which passes the night and then multiplies what the engine healed during it.' : 'The bed class (0x100E) or the sleep helper (0xE93) is not in this archive.',
     sl ? [
-      sl.own !== null ? 'Your own bed in Land King Hall has quality <b>' + sl.own + '</b>; an inn’s bed takes a figure of the innkeeper’s from a table the payment fills, and a bed nobody paid for is refused.' : '',
+      sl.own !== null ? 'Your own bed in Land King Hall has quality <b>' + sl.own + '</b>; an inn’s bed takes its innkeeper’s figure from a table in the global store (0x301), at the slot the innkeeper’s dialogue wrote when the room was paid for, and a bed nobody paid for is refused.' : '',
       sl.quarter && sl.hours ? 'The night passes <b>a quarter of an hour at a time</b>, four to the hour asked for' + (sl.owner ? ', and the bed’s owner turning up throws you out (“Hey! Out of my bed!”)' : '') + '.' : '',
       sl.half ? 'Then, when the quality is not 0' + (sl.soundly ? ' (“You sleep soundly”)' : '') + ', every party member gets <b>what they healed during the night times the quality over 2</b> on top, for health and for magic, up to full. <b>Quality 4 is three times the engine’s rate.</b>' : '',
       sl.toss ? 'Quality 0 is “You toss and turn” and the engine’s rate alone.' : '',
       'The engine’s rate is the one under Hunger and healing: a fed character’s level rate, plus the six-minute regeneration where a worn item grants it, and nothing at all for a hungry one. A player’s 2012 measurements of 12, 10, 42, 30 and 35 an hour in different beds are exactly these rules.',
       'The magic branch compares magic against <i>full health</i> in two places, a bug kept as stored.'
-    ].filter(Boolean) : [], '', '');
+    ].filter(Boolean) : [],
+    sl && sl.inns.length ? table(['bed', 'where', '#quality', 'healing'], [(sl.own !== null ? '<tr><td>your own</td><td>Land King Hall</td>' + num(sl.own) + '<td>× ' + (1 + sl.own / 2) + '</td></tr>' : '')].concat(
+      sl.inns.map(x => '<tr><td>' + (loadCharacterTable()[x.who] ? characterChip(x.who) : 'character ' + x.who) + '</td><td>' + svEsc((loadCharacterTable()[x.who] && zoneDisplayName(loadCharacterTable()[x.who].zone)) || '') + '</td>' + num(x.quality) + '<td>' + (x.quality !== null ? '× ' + (1 + x.quality / 2) : '') + '</td></tr>'))) : '', '');
 
   // ---- the clock ----
   add('clock', 'The clock, poison and time', { tile: 0x231 }, '',

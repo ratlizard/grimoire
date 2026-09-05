@@ -1014,6 +1014,14 @@ Read the comment above a constant before correcting it.
   `doc/game-clock.md`, "Sleep"). The smoke test pins Fireball 25 + 0–10
   fire at the target square, Death Strike 200, Lesser Healing 5 + 1–5,
   Tremor's two rolls to every enemy, and the bed's quality 4.
+  **The inn qualities, v1.10.1**: a far word is (resource, offset), and
+  `0x0301 0x0012` is the array `[2, 3, 1, 1]` in the global-store script
+  `0x301`, indexed by the slot the innkeeper's dialogue writes to
+  `0x0301 0x0016` when the room is paid for (Parium 2, Crito 1, Apis 3),
+  so Crito's Titan's Head in Odemia is quality 3 (× 2.5, the 2012
+  figure), the Green Goat and the Two-Tailed Rat quality 1 (× 1.5). The
+  Sleeping section carries a bed table; the smoke test pins Crito at 3
+  and three inns.
   **The sheet's layout, v1.8.0**: one `add(id, title, icon, from, lede,
   rules, html, chips)` per section, in that order — a game tile or a nav
   icon, the title, chips to the scripts it was read from (`mechFrom`), a
