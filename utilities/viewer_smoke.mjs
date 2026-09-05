@@ -455,8 +455,14 @@ if (!rsrcFork) {
         const n = (ttf[4] << 8) | ttf[5]; const tags = [];
         for (let i = 0; i < n; i++) { const p = 12 + i * 16; tags.push(String.fromCharCode(ttf[p], ttf[p + 1], ttf[p + 2], ttf[p + 3])); }
         const sorted = tags.every((t, i) => !i || tags[i - 1] < t);
-        if (!tags.includes('OS/2') || !tags.includes('glyf') || !sorted) fail('game font', 'tables ' + tags.join(' '));
-        else console.log(`  game font: ${ttf.length} bytes, ${n} tables in order, OS/2 added`);
+        // And a Unicode cmap subtable: the resource has only a Mac Roman one,
+        // and a browser given that alone drew ASCII and lost the rest.
+        const ci = tags.indexOf('cmap');
+        const cp = ci >= 0 ? ((ttf[12 + ci*16 + 8] << 24) | (ttf[12 + ci*16 + 9] << 16) | (ttf[12 + ci*16 + 10] << 8) | ttf[12 + ci*16 + 11]) >>> 0 : -1;
+        let unicode = false;
+        if (cp >= 0) { const nsub = (ttf[cp + 2] << 8) | ttf[cp + 3]; for (let i = 0; i < nsub; i++) if (((ttf[cp + 4 + i*8] << 8) | ttf[cp + 5 + i*8]) === 3) unicode = true; }
+        if (!tags.includes('OS/2') || !tags.includes('glyf') || !sorted || !unicode) fail('game font', 'tables ' + tags.join(' ') + (unicode ? '' : ', no Unicode cmap'));
+        else console.log(`  game font: ${ttf.length} bytes, ${n} tables in order, OS/2 and a Unicode cmap added`);
       }
       // The editor's zone list, out of STR# 135, names the maps the scripts
       // only describe -- and by the map number, not the list index.

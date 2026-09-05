@@ -784,8 +784,9 @@ function decodeCodeResource(type, id, data){
 // loca, maxp, name, post, prep, and no OS/2. This adds one when it is missing,
 // filled from hhea, head and hmtx (the ascent and descent, the em, the mean
 // advance), rebuilds the directory in tag order with fresh checksums, and
-// hands back a font a browser accepts. A font that already has the table is
-// returned as it came, so this is safe to call on any sfnt.
+// hands back a font a browser accepts; and it gives the cmap a Unicode
+// subtable when it has only a Mac Roman one (see below). A font that already
+// has both is returned as it came, so this is safe to call on any sfnt.
 function sfntToTrueType(data){
   const numTables=u16be(data,4);
   const tables=[];
@@ -797,9 +798,46 @@ function sfntToTrueType(data){
     tables.push({tag, bytes:data.slice(off,off+len)});
   }
   const find=t=>tables.find(x=>x.tag===t);
-  if(find('OS/2')) return data;
+  const cmap=find('cmap');
+  const hasUnicodeCmap=cmap&&(()=>{ const n=u16be(cmap.bytes,2); for(let i=0;i<n;i++){ const pl=u16be(cmap.bytes,4+i*8); if(pl===0||pl===3) return true; } return false; })();
+  if(find('OS/2')&&hasUnicodeCmap) return data;
   const head=find('head'), hhea=find('hhea'), hmtx=find('hmtx'), maxp=find('maxp');
   if(!head||!hhea||!hmtx||!maxp) throw new Error('sfnt is missing a required table');
+  // A browser looks glyphs up by Unicode, and a font made on a classic Mac
+  // usually maps only Mac Roman bytes: Argos's cmap is one format 0 table
+  // for platform 1. Loaded as it stood, Chrome on iOS drew ASCII and lost or
+  // misdrew the rest, curly quotes and dashes first. A format 4 Unicode
+  // subtable is built from the Mac Roman one -- each byte's code point from
+  // MACROMAN_HIGH, one segment per code point, idDelta doing the mapping --
+  // and offered twice, as (0,3) and (3,1), which is what the copy in res/
+  // that did work carries. The Mac Roman table stays for the Mac.
+  if(cmap&&!hasUnicodeCmap){
+    const c=cmap.bytes; const n=u16be(c,2); let mac=null;
+    for(let i=0;i<n;i++){ const p=4+i*8; const off=u32be(c,p+4); if(u16be(c,p)===1&&u16be(c,off)===0) mac=c.slice(off,off+262); }
+    if(mac){
+      const pairs=[];
+      for(let b=0x20;b<256;b++){ const g=mac[6+b]; if(!g) continue; const cp=b<0x80?b:MACROMAN_HIGH[b-0x80]; if(cp!==undefined&&cp<0xFFFF) pairs.push([cp,g]); }
+      // A no-break space is a space; the Mac table has no byte for it.
+      if(mac[6+0x20]&&!pairs.some(p=>p[0]===0xA0)) pairs.push([0xA0,mac[6+0x20]]);
+      pairs.sort((a,b)=>a[0]-b[0]);
+      const segs=pairs.map(([cp,g])=>({start:cp,end:cp,delta:(g-cp)&0xFFFF})).concat([{start:0xFFFF,end:0xFFFF,delta:1}]);
+      const sc=segs.length, len=16+sc*8;
+      const f4=new Uint8Array(len); const dv=new DataView(f4.buffer);
+      let es=1, esl=0; while(es*2<=sc){ es*=2; esl++; }
+      dv.setUint16(0,4); dv.setUint16(2,len); dv.setUint16(4,0);
+      dv.setUint16(6,sc*2); dv.setUint16(8,es*2); dv.setUint16(10,esl); dv.setUint16(12,sc*2-es*2);
+      segs.forEach((sg,i)=>{ dv.setUint16(14+i*2,sg.end); dv.setUint16(16+sc*2+i*2,sg.start); dv.setUint16(16+sc*4+i*2,sg.delta); dv.setUint16(16+sc*6+i*2,0); });
+      // Three records, platform-ordered: (0,3) and (3,1) share the new
+      // subtable, (1,0) keeps the old one.
+      const out=new Uint8Array(4+3*8+f4.length+mac.length); const odv=new DataView(out.buffer);
+      odv.setUint16(0,0); odv.setUint16(2,3);
+      const uniOff=4+24, macOff=uniOff+f4.length;
+      [[0,3,uniOff],[1,0,macOff],[3,1,uniOff]].forEach(([pl,en,off],i)=>{ odv.setUint16(4+i*8,pl); odv.setUint16(6+i*8,en); odv.setUint32(8+i*8,off); });
+      out.set(f4,uniOff); out.set(mac,macOff);
+      cmap.bytes=out;
+    }
+  }
+  if(find('OS/2')) return rebuildSfnt(data,tables);
   const unitsPerEm=u16be(head.bytes,18);
   const ascender=s16(hhea.bytes,4), descender=s16(hhea.bytes,6), lineGap=s16(hhea.bytes,8);
   const numHMetrics=u16be(hhea.bytes,34), numGlyphs=u16be(maxp.bytes,4);
@@ -824,9 +862,16 @@ function sfntToTrueType(data){
   dv.setInt16(86,Math.round(unitsPerEm*0.5)); dv.setInt16(88,Math.round(unitsPerEm*0.7)); // sxHeight, sCapHeight
   dv.setUint16(90,0); dv.setUint16(92,0x20); dv.setUint16(94,1); // usDefaultChar, usBreakChar, usMaxContext
   tables.push({tag:'OS/2', bytes:os2});
+  return rebuildSfnt(data,tables);
+}
+// The table directory in tag order with fresh checksums, and the whole-font
+// checksum adjustment in head, over whatever tables are handed in.
+function rebuildSfnt(data,tables){
+  const find=t=>tables.find(x=>x.tag===t);
+  const head=find('head');
   tables.sort((a,b)=>a.tag<b.tag?-1:a.tag>b.tag?1:0);
   // head.checkSumAdjustment must be zero while the checksums are taken.
-  const headOut=Uint8Array.from(head.bytes); headOut.fill(0,8,12); find('head').bytes=headOut;
+  const headOut=Uint8Array.from(head.bytes); headOut.fill(0,8,12); head.bytes=headOut;
   const pad4=n=>(n+3)&~3;
   const checksum=b=>{ let s=0; for(let i=0;i<b.length;i+=4) s=(s+(((b[i]||0)<<24)|((b[i+1]||0)<<16)|((b[i+2]||0)<<8)|(b[i+3]||0)))>>>0; return s>>>0; };
   const dirLen=12+tables.length*16;
