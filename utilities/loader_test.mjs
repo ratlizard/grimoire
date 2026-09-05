@@ -305,6 +305,18 @@ if (visePath) {
         appFork && appFork.typeList ? `${appFork.typeList.length} types` : 'not open: ' + (ctx.window.APP_RSRC_STATE || '(no reason recorded)'));
   const status = ctx.document.getElementById('sourceStatus').textContent || '';
   check('the status line says where it came from', /Installer VISE/.test(status) && /47 other files/.test(status), status.slice(0, 120));
+  // A return visit: the remembered record is the installer with `rsrc: null`
+  // (it carries its own fork), handed back through adoptArchive exactly as
+  // loadDefaultArchive hands it. That null used to override the fork the
+  // unwrap had just produced, so the first visit had a resource fork and
+  // every later one did not.
+  const firstVisitFork = ctx.window.CYTHERA_RSRC_RAW ? ctx.window.CYTHERA_RSRC_RAW.length : 0;
+  ctx.window.CYTHERA_RSRC_RAW = null;
+  peek('adoptArchive')(vise, 'Cythera.bin', { cached: true, savedAt: 1, rsrc: null, pick: undefined });
+  const returnVisitFork = ctx.window.CYTHERA_RSRC_RAW ? ctx.window.CYTHERA_RSRC_RAW.length : 0;
+  check('a remembered installer comes back with its resource fork',
+        firstVisitFork > 0 && returnVisitFork === firstVisitFork && !!ctx.window.CYTHERA_RSRC,
+        `first visit ${firstVisitFork} bytes, return visit ${returnVisitFork}`);
 
   // Through the default URL: archive.org's four-in-one StuffIt archive, when
   // it is beside the .bin, else the .bin itself standing in for it.

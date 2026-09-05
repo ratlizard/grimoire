@@ -4336,7 +4336,13 @@ function adoptArchive(raw, sourceName, opts) {
   window.INSTALLER = found.installer
     ? Object.assign({ sourceName, raw, url: opts.url || null }, found.installer) : null;
   if (found.installer) sourceName = found.forks.name || sourceName;
-  parseArchiveBytes(found.bytes, sourceName, Object.assign({ via: found.via, rsrc, finder }, opts));
+  // opts first, then what the unwrap found. The other way round, a remembered
+  // installer -- stored with `rsrc: null` because the installer carries its
+  // own fork -- had that null override the fork just taken out of it, so the
+  // first visit had a resource fork and every return visit did not: Data ›
+  // Data Fork said "no resource fork came with it" and the fork gallery was
+  // empty, for the same bytes that had worked the day before.
+  parseArchiveBytes(found.bytes, sourceName, Object.assign({}, opts, { via: found.via, rsrc, finder }));
   // After parseArchiveBytes, not before: resetDerivedCaches() drops the
   // application's fork along with everything else keyed to the old archive.
   if (found.installer) {
