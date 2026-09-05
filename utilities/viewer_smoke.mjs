@@ -1220,6 +1220,12 @@ try {
   ctx.showCategory('MECHANICS');
   const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const dice = ctx.diceGame();
+  ctx.showCategory('BARKS');
+  const bhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  if (!/Hot Kabobs!/.test(bhtml) || !/openCharacter\(2\)/.test(bhtml)) fail('barks', 'the Barks tab does not list the lines with their speakers');
+  ctx.showCharacterDetail(2);
+  const dossier = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  if (!/Says/.test(dossier) || !/Yum/.test(dossier)) fail('barks', 'Alaric’s dossier does not say “Yum”');
   const barks = ctx.buildBarkCatalogue();
   const words = new Set(barks.flatMap(b => b.words));
   const need = ['Yum', 'Spare an obol?', 'Zzzz...', 'More wine!', 'Hot Kabobs!', 'Poisoned!'];

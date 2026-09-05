@@ -1153,6 +1153,7 @@ body.atlasFull { overflow:hidden; }
         <option value="1">Text & Names (0x02xx)</option>
         <option value="STRINGS">Strings (resource forks)</option>
         <option value="FONTS">Fonts (resource fork)</option>
+        <option value="BARKS">Barks (the lines over a character's head)</option>
         <option value="23">Character Dialogue (0x18xx)</option>
         <option value="0">Global Symbols & Scripts (0x01xx)</option>
       </optgroup>
@@ -2706,7 +2707,7 @@ function propFrameFill(tile) {
    no per-gallery code. That is what makes "a search bar on every gallery"
    one function rather than a dozen. */
 window.PROP_FILTER = '';
-const REBUILDING_GALLERIES = new Set(['PROPS', 'ITEMS', 'RSRC', 'MACRSRC', ...Object.keys(FORK_VIEWS)]);
+const REBUILDING_GALLERIES = new Set(['PROPS', 'ITEMS', 'RSRC', 'MACRSRC', 'BARKS', ...Object.keys(FORK_VIEWS)]);
 function setPropFilter(v) {
   window.PROP_FILTER = v;
   if (window.CUR_SUBN === 'ITEMS') renderItemSheet();
@@ -3451,7 +3452,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.2.0';
+const GRIMOIRE_VERSION = '1.3.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4191,7 +4192,7 @@ function showCharacterDetail(i) {
   // under Components. The dossier used to draw the portrait and the sprite
   // sheet without ever saying which resources they were.
   const parts = document.createElement('div');
-  parts.innerHTML = partsStrip('Made of', characterParts(i, d));
+  parts.innerHTML = partsStrip('Made of', characterParts(i, d)) + characterSays(i);
   panel.appendChild(parts);
 
   const sh = document.createElement('div');
@@ -4332,6 +4333,7 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'CHANGES') { renderChangesSheet(); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
   if (window.CUR_SUBN === 'MECHANICS') { renderMechanicsSheet(); return; }
+  if (window.CUR_SUBN === 'BARKS') { renderBarksSheet(); return; }
   if (window.CUR_SUBN === 'WORLD') { renderAtlasView(); return; }
   if (window.CUR_SUBN === 'INSTALLER') { renderInstallerSheet(); return; }
   if ((window.CUR_SUBN === 'AISCRIPTS' && window.INSTALLER) ||
@@ -5156,7 +5158,7 @@ function onCategoryChangeImpl() {
   // even without the installer; fetch the fork if it is not here yet.
   if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
   // The Data tab's own views: not subindexes, no resources to list.
-  if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' ||
+  if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' ||
       rawval === 'WORLD' || PLACEHOLDER_TABS[rawval]) {
     window.CUR_SUBN = rawval;
     window.CUR_RESIDS = [];
@@ -11829,7 +11831,10 @@ const TAB_TREE = [
           { id: 'writings', label: 'Writings', tile: 0x263, values: ['26', '27'] },                         // the scroll
           // The faces the text is set in: Argos A Nouveau and the Seldane
           // script, out of the resource fork, and the styles that assign them.
-          { id: 'fonts',    label: 'Fonts',    tile: 0x260, values: ['FONTS'] } ] },                          // a scroll with writing on it (prop 134, paper)
+          { id: 'fonts',    label: 'Fonts',    tile: 0x260, values: ['FONTS'] },                              // a scroll with writing on it (prop 134, paper)
+          // The short lines a character says over their head, read out of
+          // every script that sets one (buildBarkCatalogue).
+          { id: 'barks',    label: 'Barks',    tile: 0x488, values: ['BARKS'] } ] },                          // a bell (prop 193): a thing that speaks up
       { id: 'graphics', label: 'Graphics', tile: 0x861, children: [                           // the easel, with its painting
           { id: 'portraits',  label: 'Portraits',  tile: 0x33F, values: ['135'] },                      // the mirror
           { id: 'landscapes', label: 'Landscapes', tile: 0x890, values: ['131'] },                      // the landscape painting
@@ -12707,6 +12712,44 @@ function diceGame() {
   return { explain, fair: fair / 216, skilled: skilled / 216, wins, pushes, losses };
 }
 
+/* ---- Components > Text > Barks ------------------------------------------
+   The catalogue buildBarkCatalogue makes, as a table: who says it, the
+   words, and the script it is in. A person is a chip to their dossier; a
+   line in a shared or an object script is anyone's and is a chip to the
+   script. The rule the lines obey is under Entities > Mechanics. */
+function renderBarksSheet() {
+  stopAllViewActivity();
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  document.getElementById('singleControls').style.display = 'none';
+  const barks = buildBarkCatalogue();
+  const q = (window.PROP_FILTER || '').trim().toLowerCase();
+  const shown = barks.filter(b => !q || b.words.concat(b.then || []).some(w => w.toLowerCase().includes(q)) ||
+    (b.who !== null && characterName(b.who).toLowerCase().includes(q)));
+  const rows = [];
+  for (const b of shown) {
+    const who = b.who !== null && loadCharacterTable()[b.who] ? characterChip(b.who)
+      : '<span class="inspDim">anyone — </span>' + svChip(b.resid);
+    const words = b.words.map(w => '“' + svEsc(w) + '”').join(', ');
+    rows.push('<tr><td>' + who + '</td><td>' + (b.how === 'one of' ? '<span class="inspDim">one of</span> ' : '') + words +
+      (b.then && b.then.length ? '<div class="inspDim">then, when the ' + b.helper + ' comes: ' + b.then.map(w => '“' + svEsc(w) + '”').join(', ') + '</div>' : '') +
+      '</td><td>' + (b.who !== null ? svChip(b.resid) : '') + '</td></tr>');
+  }
+  const scroll = document.createElement('div');
+  scroll.className = 'tableScroll';
+  scroll.innerHTML = rows.length
+    ? '<table class="vocabTable barkTable"><thead><tr><th>who</th><th>says</th><th>where</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>'
+    : '<div class="changesNote">' + (barks.length ? 'Nothing matches the filter.' : 'No script in this archive sets a talk balloon.') + '</div>';
+  grid.appendChild(scroll);
+  const distinct = new Set(barks.flatMap(b => b.words.concat(b.then || []))).size;
+  out.textContent = barks.length
+    ? barks.length + ' places in the scripts put a line over a character’s head, ' + distinct + ' distinct lines' +
+      (q ? '; ' + shown.length + ' shown' : '') + '. How the balloon works is under Entities › Mechanics.'
+    : 'No script in this archive sets a talk balloon.';
+}
+
 function renderMechanicsSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -12753,27 +12796,17 @@ function renderMechanicsSheet() {
     [40, 41, 42].filter(i => loadCharacterTable()[i]).map(characterChip).join('');
   dsec.appendChild(dchips);
 
-  // ---- talk balloons ----
+  // ---- talk balloons: the rule here, the words under Text › Barks ----
   const barks = buildBarkCatalogue();
-  const bsec = sec('Talk balloons', 'The short lines over a character’s head. A script writes them into the character’s ' +
-    '<code>talk_balloon</code> field and the engine draws them in a 128×32 rounded balloon with a tail. ' +
-    (barks.length ? barks.length + ' places in this archive’s scripts set one; the words are below, with who says them where the script is theirs.'
-                  : 'No script in this archive sets one.'));
-  if (barks.length) {
-    const rows = [];
-    for (const b of barks) {
-      const who = b.who !== null && loadCharacterTable()[b.who] ? characterChip(b.who)
-        : '<span class="inspDim">anyone — </span>' + svChip(b.resid);
-      const words = b.words.map(w => '“' + svEsc(w) + '”').join(', ');
-      rows.push('<tr><td>' + who + '</td><td>' + (b.how === 'one of' ? '<span class="inspDim">one of</span> ' : '') + words +
-        (b.then && b.then.length ? '<div class="inspDim">then, when the ' + b.helper + ' comes: ' + b.then.map(w => '“' + svEsc(w) + '”').join(', ') + '</div>' : '') +
-        '</td><td>' + (b.who !== null ? svChip(b.resid) : '') + '</td></tr>');
-    }
-    const scroll = document.createElement('div');
-    scroll.className = 'tableScroll';
-    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>who</th><th>says</th><th>where</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-    bsec.appendChild(scroll);
-  }
+  const bsec = sec('Talk balloons', 'The short lines over a character’s head are a field on the character, <code>talk_balloon</code>, ' +
+    'that a script writes a string into; the engine draws it in a 128×32 rounded balloon with a tail and clears it after a while. ' +
+    'A line is a literal, or one picked at random from a list; two tavern helpers take a list of shouts and a list of replies for when the food or wine comes. ' +
+    (barks.length ? barks.length + ' places in this archive’s scripts set one.' : 'No script in this archive sets one.'));
+  const bchips = document.createElement('div');
+  bchips.className = 'partsStrip';
+  bchips.innerHTML = '<span class="partsTitle">The words</span>' +
+    '<button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>';
+  bsec.appendChild(bchips);
 
   const more = sec('Not derived yet', 'How damage is resisted, what each skill changes, how a shop prices. The tables those would be read from are under Data › Cythera Data › Data Fork, and the resistance rules worked out so far are on each monster’s page.');
   grid.appendChild(box);
@@ -13033,6 +13066,17 @@ function characterChip(i) {
   if (!icon) { const leaf = TAB_BY_ID.get('characters'); icon = leaf ? relIconURL({ tile: leaf.tile }) : ''; }
   return relChip({ js: 'openCharacter(' + i + ')', main: characterName(i), sub: 'character ' + i, icon,
                    title: 'Entities › Characters' });
+}
+
+// What a person says over their head, from the bark catalogue: their own
+// lines, and the shared idle script's where their dialogue hands off to it.
+function characterSays(i) {
+  let mine = [];
+  try { mine = buildBarkCatalogue().filter(b => b.who === i); } catch (e) { mine = []; }
+  if (!mine.length) return '';
+  const lines = mine.flatMap(b => b.words).map(w => '“' + svEsc(w) + '”');
+  return partsStrip('Says', ['<button class="navChip" onclick="showCategory(\'BARKS\')">Barks</button>'],
+    lines.join(', '));
 }
 
 function characterParts(i, d) {

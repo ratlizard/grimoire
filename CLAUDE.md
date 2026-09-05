@@ -861,10 +861,15 @@ Read the comment above a constant before correcting it.
   4-byte entries whose last two bytes are the offset of a C string in the
   resource, which is how the words come out exact — who says it where the
   script is theirs, "anyone" where it is shared. 43 sites, 57 distinct
-  lines in the shipped archive. The engine's side — `TBark`, a 128×32
-  rounded balloon with a tail, the text anti-aliased in the game's own
-  style — is traced in `cythera-workbench/doc/talk-balloons.md`. The smoke
-  test requires six named lines and the 96/50/70 enumeration.
+  lines in the shipped archive. **The words are Text › Barks**
+  (`renderBarksSheet`, the maintainer's call on 5 September: the lines are
+  text the game speaks, a component; Mechanics keeps the rule and points
+  there), and a person's own lines are a *Says* row on their dossier
+  (`characterSays`). The engine's side — `TBark`, a 128×32 rounded balloon
+  with a tail, the text anti-aliased in the game's own style — is traced
+  in `cythera-workbench/doc/talk-balloons.md`. The smoke test requires six
+  named lines, Hot Kabobs on the Barks tab with its speaker, Yum on
+  Alaric's dossier, and the 96/50/70 enumeration.
 - **The joins between the two halves are resource-id rules, and they are
   written down once, in the `Parts and uses` section beside the tree.** A
   character's dossier carries a *Made of* row (`characterParts`): dialogue
@@ -1174,7 +1179,7 @@ Read the comment above a constant before correcting it.
   checked for repeats: World is the rolled map, Regions a small town,
   Functions a lever with the fighter, the key and the distiller's flasks
   under it, Fonts a written scroll, Screens a fresco, Interface the strange
-  device; only the two fork pairs share a tile, on purpose.
+  device, Barks a bell; only the two fork pairs share a tile, on purpose.
 - **Not yet done, and the shape of it.** The `sfnt` could go the other
   way — another TrueType put in its place would change the face the game
   itself draws, since the styles name the family and not the file — but
