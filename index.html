@@ -798,6 +798,40 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
    sweep that deleted the old full-bleed block ran from one comment to the
    next and took them with it, which left the viewport zero pixels high and
    the World tab showing nothing at all. */
+/* ---- Entities > Mechanics: the rules, sectioned --------------------------
+   A contents strip, then a section per rule: a game tile, a title, chips to
+   the scripts it was read from, one line saying what it is, the rule as
+   short items, and the table under it. Numbers sit in stat pills. */
+.mechView { grid-column:1/-1; text-align:left; max-width:920px; margin:0 auto; }
+.mechToc { display:flex; flex-wrap:wrap; gap:5px 6px; align-items:center; margin:4px 0 6px; padding:8px 10px;
+  background:rgba(20,18,14,.55); border:1px solid var(--edge); border-radius:8px; }
+.mechToc .navChip { margin:0; }
+.mechSec { margin:18px 0 0; padding:12px 12px 10px; background:rgba(20,18,14,.42); border:1px solid rgba(155,136,80,.35); border-radius:8px; }
+.mechHead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 4px; }
+.mechHead canvas { width:22px !important; height:22px !important; image-rendering:pixelated; flex:none; margin:0 !important; }
+.mechHead h3 { margin:0; font-size:17px; color:var(--gold); font-weight:600; letter-spacing:.01em; }
+.mechFrom { display:inline-flex; gap:5px; flex-wrap:wrap; margin-left:auto; }
+.mechFrom .relChip { padding:2px 8px 2px 5px; font-size:11.5px; }
+.mechLede { margin:2px 0 6px; color:#e0d6b4; font-size:13.5px; line-height:1.45; }
+.ruleList { margin:0 0 8px; padding-left:20px; color:#d3c9a6; font-size:13px; line-height:1.5; }
+.ruleList li { margin:2px 0; }
+.ruleList b { color:#f0e6c8; font-weight:600; }
+.mechStats { display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; margin:4px 0 8px; }
+.mechStat { display:inline-block; padding:3px 10px; border:1px solid rgba(155,136,80,.45); border-radius:14px; background:#1a1712;
+  color:#c9bd94; font-size:12px; }
+.mechStat b { color:var(--gold); font-size:14px; margin-right:4px; }
+.mechStatNote { color:#7d745a; font-size:11.5px; }
+.mechQuote { margin:6px 0 4px; padding:6px 12px; border-left:3px solid rgba(155,136,80,.5); color:#d3c9a6; font-size:12.5px; font-style:italic; line-height:1.45; }
+.mechQuote footer { font-style:normal; color:#7d745a; font-size:11px; margin-top:2px; }
+.mechSub { color:#9d9270; font-size:11px; text-transform:uppercase; letter-spacing:1.1px; margin:8px 0 2px; }
+.mechTable { width:100%; }
+.mechTable th { border-bottom:1px solid rgba(155,136,80,.45); padding-bottom:4px; }
+.mechTable th.num, .mechTable td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; padding-right:10px; }
+.mechTable tbody tr:nth-child(even) td { background:rgba(255,248,220,.025); }
+.mechTable td { padding:4px 10px 4px 0; }
+.mechPrice { color:var(--gold); font-variant-numeric:tabular-nums; }
+.mechSec .partsStrip { margin-top:6px; }
+@media (max-width:640px) { .mechSec { padding:10px 8px 8px; } .mechHead h3 { font-size:15.5px; } .mechFrom { margin-left:0; } }
 #atlasPanel { margin:0; }
 /* Full screen: the real thing where the browser allows it, and the panel
    pinned over the page where it does not (see atlasToggleFull). */
@@ -3457,7 +3491,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.7.0';
+const GRIMOIRE_VERSION = '1.8.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -13198,254 +13232,209 @@ function renderMechanicsSheet() {
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
   const box = document.createElement('div');
-  box.className = 'changesView';
-  const sec = (title, note) => {
-    const d = document.createElement('div');
-    d.className = 'changesGroup';
-    d.innerHTML = '<div class="changesGroupTitle">' + svEsc(title) + '</div>' +
-      (note ? '<div class="changesNote" style="margin-left:0">' + note + '</div>' : '');
-    box.appendChild(d);
-    return d;
+  box.className = 'mechView';
+  const table = (heads, rows, cls) => rows.length
+    ? '<div class="tableScroll"><table class="vocabTable barkTable mechTable' + (cls ? ' ' + cls : '') + '"><thead><tr>' +
+      heads.map(h => '<th' + (/^#/.test(h) ? ' class="num"' : '') + '>' + h.replace(/^#/, '') + '</th>').join('') +
+      '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>' : '';
+  const num = v => '<td class="num">' + (v === null || v === undefined || v === '' ? '' : svEsc(String(v))) + '</td>';
+  const stat = (n, what) => '<span class="mechStat"><b>' + svEsc(String(n)) + '</b> ' + svEsc(what) + '</span>';
+  const sections = [];
+  // One section: an icon, a title, where it was read from, a line saying what
+  // it is, the rule as short items, and the table or strip under it.
+  const add = (id, title, icon, from, lede, rules, html, chips) => {
+    const sec = document.createElement('section');
+    sec.className = 'mechSec';
+    sec.id = 'mech-' + id;
+    const head = document.createElement('div');
+    head.className = 'mechHead';
+    try { head.appendChild(navIconCanvas(icon, 22)); } catch (e) {}
+    head.innerHTML += '<h3>' + svEsc(title) + '</h3>' + (from ? '<span class="mechFrom">' + from + '</span>' : '');
+    sec.appendChild(head);
+    if (lede) { const p = document.createElement('p'); p.className = 'mechLede'; p.innerHTML = lede; sec.appendChild(p); }
+    if (rules && rules.length) { const ul = document.createElement('ul'); ul.className = 'ruleList'; ul.innerHTML = rules.map(r => '<li>' + r + '</li>').join(''); sec.appendChild(ul); }
+    if (html) { const d = document.createElement('div'); d.className = 'mechBody'; d.innerHTML = html; sec.appendChild(d); }
+    if (chips) { const d = document.createElement('div'); d.className = 'partsStrip'; d.innerHTML = chips; sec.appendChild(d); }
+    box.appendChild(sec);
+    sections.push({ id, title });
   };
+  const src = (label, resid) => refExists(resid) ? partChip(label, resid) : '';
+  const chipOf = i => loadCharacterTable()[i] ? characterChip(i) : '';
+  const propChip = (pt, name, sub) => '<button class="relChip" onclick="showPropTypeDetail(' + pt + ')"><span class="relText"><span class="relMain">' + svEsc(name) + '</span>' + (sub ? '<span class="relSub">' + svEsc(sub) + '</span>' : '') + '</span></button>';
 
   // ---- the dice game ----
   const dice = diceGame();
-  const dsec = sec('The dice game', dice
-    ? 'Offered at the inns. Three dice: the innkeeper’s two are black, yours is white, and each shows one to six. ' +
-      'The innkeeper throws one, you throw yours. <b>Match it and you win 2 oboloi.</b> Otherwise the innkeeper throws the second: ' +
-      'if yours lies <b>outside</b> the two black dice you win the distance to the nearer one, and if it lies between them, or on one, you lose an obol. ' +
-      'A win of 1 is a push and the game goes again. The script pays one obol less than it announces, the one being your stake, and takes one on a loss. ' +
-      '<b>Gambling</b> (skill 0xCF) gives your die a one in six chance of being set to the innkeeper’s first, when they differed. ' +
-      'Over all 216 throws: ' + dice.wins + ' win, ' + dice.pushes + ' push, ' + dice.losses + ' lose; ' +
-      '<b>' + (dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3) + ' obols a game</b> in your favour without the skill, ' +
-      (dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3) + ' with it. The house loses.'
-    : 'The inn’s dialogue script (0x812) is not in this archive, or does not carry the game.');
-  if (dice && dice.explain) {
-    const q = document.createElement('div');
-    q.className = 'changesNote';
-    q.style.cssText = 'margin:6px 0 0; font-style:italic; color:#d3c9a6';
-    q.textContent = 'The innkeeper’s own account: ' + dice.explain.replace(/\*/g, ' ');
-    dsec.appendChild(q);
-  }
-  const dchips = document.createElement('div');
-  dchips.className = 'partsStrip';
-  dchips.innerHTML = '<span class="partsTitle">In the file</span>' +
-    (refExists(0x812) ? partChip('The game', 0x812) : '') +
-    (refExists(0x1148) ? partChip('The dice', 0x1148) : '') +
-    (refExists(0x1ACF) ? partChip('Gambling', 0x1ACF) : '') +
-    [40, 41, 42].filter(i => loadCharacterTable()[i]).map(characterChip).join('');
-  dsec.appendChild(dchips);
+  add('dice', 'The dice game', { tile: 0x82F }, src('the game', 0x812),
+    dice ? 'Played at the inns: three dice, the innkeeper’s two black and your one white, each showing one to six.'
+         : 'The inn’s dialogue script (0x812) is not in this archive, or does not carry the game.',
+    dice ? [
+      'The innkeeper throws one die, you throw yours. <b>Match it and you win 2 oboloi.</b>',
+      'Otherwise the innkeeper throws the second. Yours <b>outside</b> the two black dice wins the distance to the nearer; <b>between</b> them, or on one, loses an obol.',
+      'A win of 1 is a push and the game goes again.',
+      'The script pays one obol less than it announces, the one being your stake, and takes one on a loss.',
+      '<b>Gambling</b> gives your die a one in six chance of being set to the innkeeper’s first, when they differed.'
+    ] : [],
+    dice ? '<div class="mechStats">' + stat(dice.wins, 'win') + stat(dice.pushes, 'push') + stat(dice.losses, 'lose') + '<span class="mechStatNote">of 216 throws</span>' +
+           stat((dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3), 'obols a game, without the skill') + stat((dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3), 'with it') + '</div>' +
+           (dice.explain ? '<blockquote class="mechQuote">' + svEsc(dice.explain.replace(/\*/g, ' ')) + '<footer>the innkeeper, in the same script</footer></blockquote>' : '') : '',
+    dice ? '<span class="partsTitle">In the file</span>' + src('The game', 0x812) + src('The dice', 0x1148) + src('Gambling', 0x1ACF) + [40, 41, 42].map(chipOf).join('') : '');
 
-  // ---- talk balloons: the rule here, the words under Text › Barks ----
-  const barks = buildBarkCatalogue();
-  const bsec = sec('Talk balloons', 'The short lines over a character’s head are a field on the character, <code>talk_balloon</code>, ' +
-    'that a script writes a string into; the engine draws it in a 128×32 rounded balloon with a tail and clears it after a while. ' +
-    'A line is a literal, or one picked at random from a list; two tavern helpers take a list of shouts and a list of replies for when the food or wine comes. ' +
-    (barks.length ? barks.length + ' places in this archive’s scripts set one.' : 'No script in this archive sets one.'));
-  const bchips = document.createElement('div');
-  bchips.className = 'partsStrip';
-  bchips.innerHTML = '<span class="partsTitle">The words</span>' +
-    '<button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>';
-  bsec.appendChild(bchips);
+  // ---- combat ----
+  const cb = combatRules();
+  add('combat', 'Combat', { icon: 98 }, src('a blow', 0xE88) + src('a missile', 0xE89) + src('the outcome', 0xE87),
+    cb ? 'Three routines: one makes the attacker’s margin for a blow, one for a missile, and one turns the margin into a parry, a miss or a hit.'
+       : 'The combat routines (0xE87–0xE89) are not in this archive.',
+    cb ? [
+      'The margin is the attacker’s <b>reflex</b>' + (cb.d30 ? ' <b>plus a roll of 0 to 29</b>' : '') + ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')') +
+        ', <b>less the defender’s reflex' + (cb.d30 ? ' plus a roll of 0 to 29' : '') + '</b>, plus Attack less Defence. A monster flagged so uses body for reflex.',
+      cb.parry ? 'Every shield the defender wears blocks a roll of 0 to its block plus the Shield skill. A margin under that is <b>parried</b>.' : '',
+      'The weapon’s enchantment and skill go on the margin, and the skill on the damage. A margin of nothing or less <b>misses</b>.',
+      'A hit does <b>a roll of 0 to the damage figure, plus the enchantment</b>, and the defender’s resistance takes the damage type.',
+      cb.words.length ? 'The blow is named by its size: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + w.below).join(', ') + ', and <i>shredded to pieces</i> above.' : ''
+    ].filter(Boolean) : [], '', '');
 
   // ---- weapons and armour ----
   const gear = gearTable();
-  const gsec = sec('Weapons and armour', gear.length
-    ? gear.length + ' item classes carry combat parameters, named here from the routines that read them: the attack resolver takes damage type, skill and sounds, the AI’s weapon choice squares reach against distance, the bow scripts match an ammunition class and a range, and armour’s number is points of protection. ' +
-      'Damage is the most a blow can do before the skill is added: the resolver rolls 0 to that.'
-    : 'No item class in this archive carries combat parameters.');
-  if (gear.length) {
-    const kind = r => r.melee ? 0 : r.thrown ? 1 : r.ranged ? 2 : r.ammo ? 3 : r.armour ? 4 : 5;
-    gear.sort((a, b) => kind(a) - kind(b) || ((b.damage || 0) - (a.damage || 0)) || ((b.protection || b.block || 0) - (a.protection || a.block || 0)) || a.name.localeCompare(b.name));
-    const cell = v => '<td class="num">' + (v === null || v === undefined || v === '' ? '' : svEsc(String(v))) + '</td>';
-    const rows = gear.map(r => '<tr><td><button class="relChip" onclick="showPropTypeDetail(' + r.pt + ')">' +
-      '<span class="relText"><span class="relMain">' + svEsc(r.name) + '</span><span class="relSub">' + ['melee', 'thrown', 'ranged', 'ammunition', 'armour', 'shield'][kind(r)] + ' · prop 0x' + r.pt.toString(16).toUpperCase() + '</span></span></button></td>' +
-      cell(r.weight) + cell(r.damage) + cell(r.reach) + cell(r.type) + cell(r.skill) + cell(r.ammoClass) + cell(r.protection) + cell(r.block) + '</tr>');
-    const scroll = document.createElement('div');
-    scroll.className = 'tableScroll';
-    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>item</th><th>weight</th><th>damage</th><th>reach</th><th>type</th><th>skill</th><th>ammo class</th><th>protection</th><th>block</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-    gsec.appendChild(scroll);
-  }
+  const kind = r => r.melee ? 0 : r.thrown ? 1 : r.ranged ? 2 : r.ammo ? 3 : r.armour ? 4 : 5;
+  gear.sort((a, b) => kind(a) - kind(b) || ((b.damage || 0) - (a.damage || 0)) || ((b.protection || b.block || 0) - (a.protection || a.block || 0)) || a.name.localeCompare(b.name));
+  add('gear', 'Weapons and armour', { icon: 107 }, src('the classes', 0x1000),
+    gear.length ? gear.length + ' item classes carry combat parameters, named here from the routines that read them.' : 'No item class in this archive carries combat parameters.',
+    gear.length ? [
+      '<b>Damage</b> is the most a blow can do before the skill is added; the resolver rolls 0 to it.',
+      '<b>Reach</b> is in squares: the AI squares it against the distance before it swings. A launcher’s <b>range</b> is the same column.',
+      'A launcher fires the <b>ammunition class</b> its arrows or stones carry.',
+      'Armour gives <b>protection</b> in points; a shield <b>blocks</b> a roll of 0 to its figure plus the Shield skill.'
+    ] : [],
+    table(['item', '#weight', '#damage', '#reach', '#type', 'skill', '#ammo class', '#protection', '#block'],
+      gear.map(r => '<tr><td>' + propChip(r.pt, r.name, ['melee', 'thrown', 'ranged', 'ammunition', 'armour', 'shield'][kind(r)]) + '</td>' +
+        num(r.weight) + num(r.damage) + num(r.reach) + num(r.type) + '<td>' + svEsc(r.skill) + '</td>' + num(r.ammoClass) + num(r.protection) + num(r.block) + '</tr>')), '');
+
+  // ---- spells ----
+  const sp = spellRules();
+  add('spells', 'Spells', { tile: 0x87B }, src('the casting', 0xEA1),
+    sp.spells.length ? sp.spells.length + ' spells, each cast through one helper with a level and a cost in magic points, read off the spell’s own call.' : 'No spell in this archive casts through the helper.',
+    sp.spells.length ? [
+      sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
+      sp.rule && sp.rule.timing ? 'The cost is taken, and the cast costs <b>10 plus twice the level</b> in time.' : 'The cost is taken.',
+      sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls of 0 to the caster’s Casting figure together fall short of a roll of 0 to the level</b>' + (sp.rule.casting ? ' — Casting the skill, else a class figure.' : '.') : '',
+      'What a spell does is its own script.'
+    ].filter(Boolean) : [],
+    table(['spell', '#level', '#cost'], sp.spells.map(x => '<tr><td>' + partChip(x.name, x.resid) + '</td>' + num(x.level) + num(x.cost) + '</tr>')), '');
 
   // ---- skills ----
   const sk = skillConsultations();
-  const ssec = sec('What each skill is consulted for', sk.by.size
-    ? 'Where a script asks whether the player has a skill, and which. ' + (sk.generic ? sk.generic + ' further checks are in helpers that test whichever skill they are handed.' : '')
-    : 'No script in this archive asks about a skill by name.');
-  if (sk.by.size) {
-    const rows = [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
+  add('skills', 'What each skill is asked about', { tile: 0x21F }, '',
+    sk.by.size ? 'Where a script asks whether the player has a skill, and which.' + (sk.generic ? ' ' + sk.generic + ' further checks are in helpers that test whichever skill they are handed.' : '') : 'No script in this archive asks about a skill by name.',
+    [], table(['skill', 'asked about by'], [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
       '<tr><td>' + (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16).toUpperCase()), 0x1A00 + id) : 'skill 0x' + id.toString(16).toUpperCase()) +
-      '</td><td>' + [...resids].sort((a, b) => a - b).map(r => svChip(r)).join(' ') + '</td></tr>');
-    const scroll = document.createElement('div');
-    scroll.className = 'tableScroll';
-    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>skill</th><th>asked about by</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-    ssec.appendChild(scroll);
-  }
+      '</td><td>' + [...resids].sort((a, b) => a - b).map(r => svChip(r)).join(' ') + '</td></tr>')), '');
+
+  // ---- experience and levels ----
+  const xp = experienceRules();
+  add('experience', 'Experience and levels', { icon: 261 }, src('every award', 0xE8B) + src('a new level', 0xE86),
+    xp.rule ? 'Every award goes through one helper, and a level is a threshold on the total.' : 'The experience helper (0xE8B) is not in this archive.',
+    xp.rule ? [
+      'Experience is added' + (xp.rule.cap ? ', <b>capped at 65,535</b>' : '') + (xp.rule.doubling ? ', and the level rises by one when it passes <b>100 × 2 to the power of the level less one</b>: above 100 for level 2, 200 for 3, 400 for 4, 800, 1,600, doubling.' : '.'),
+      'A new level recomputes full health as <b>body + reflex ÷ 2 + level, plus Defence × 5 × reflex ÷ 15</b> — Defence the skill where the character has it, else a class figure — with health scaled to match, and full magic as <b>mind + Mana</b> the same way.',
+      'Striking something earns the attacker the damage dealt, up to the victim’s level above theirs plus one, and one point for a blow bigger than the gap the other way.',
+      'A shared award is split across the party.'
+    ] : [],
+    xp.awards.length ? '<div class="mechSub">The fixed awards, ' + xp.awards.length + ' of them</div>' + table(['#points', 'occasion', 'where'], xp.awards.map(a => '<tr>' + num(a.amount) + '<td>' + svEsc(a.note) + '</td><td>' + svChip(a.resid) + '</td></tr>')) : '', '');
 
   // ---- karma ----
   const km = karmaRules();
   const start = km.writes.find(w => w.set !== undefined);
-  const ksec = sec('Karma', km.writes.length
-    ? 'A number the scripts move. ' + (start ? 'It starts at ' + start.set + ' when a character is made. ' : '') +
-      (km.byAlignment ? 'Killing something moves it by the victim’s alignment, values 0 to ' + (km.byAlignment.length - 1) + ' in turn: ' + km.byAlignment.map(v => (v > 0 ? '+' : '') + v).join(', ') + '. ' : '') +
-      (km.reads.length ? 'It is tested ' + km.reads.map(r => r.test).filter((v, i, a) => a.indexOf(v) === i).join(' and ') + '.' : '')
-    : 'No script in this archive moves karma.');
-  if (km.writes.length) {
-    const rows = km.writes.filter(w => w.set === undefined).map(w => '<tr><td class="num">' +
-      (w.change !== null && w.change !== undefined ? (w.change > 0 ? '+' : '') + w.change : svEsc(w.why || '')) + '</td><td>' + svEsc(w.note || '') + '</td><td>' + svChip(w.resid) + '</td></tr>')
-      .concat(km.reads.map(r => '<tr><td class="num">' + svEsc(r.test) + '</td><td>' + svEsc(r.note || '') + '</td><td>' + svChip(r.resid) + '</td></tr>'));
-    const scroll = document.createElement('div');
-    scroll.className = 'tableScroll';
-    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>change</th><th>occasion</th><th>where</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-    ksec.appendChild(scroll);
-  }
-
-  // ---- experience and levels ----
-  const xp = experienceRules();
-  const xsec = sec('Experience and levels', xp.rule
-    ? 'Every award goes through one helper (0xE8B): experience is added' + (xp.rule.cap ? ', capped at 65,535' : '') +
-      (xp.rule.doubling ? ', and the level rises by one when it passes <b>100 × 2 to the power of the level less one</b>: above 100 for level 2, 200 for 3, 400 for 4, 800, 1,600, 3,200, and so on, doubling.' : '.') +
-      ' On a new level full health is recomputed as body + reflex ÷ 2 + level, plus Defence × 5 × reflex ÷ 15 — Defence being the skill where the character has it, else a class figure of nothing, half the level, the level or twice it — with health scaled to match, and full magic as mind + Mana the same way. ' +
-      'Striking something (0xEB8) earns the attacker the damage dealt, up to the victim’s level above theirs plus one, and one point for a blow bigger than the gap the other way. A shared award (0xE8E) is split across the party.'
-    : 'The experience helper (0xE8B) is not in this archive.');
-  if (xp.awards.length) {
-    const rows = xp.awards.map(a => '<tr><td class="num">' + a.amount + '</td><td>' + svEsc(a.note) + '</td><td>' + svChip(a.resid) + '</td></tr>');
-    const scroll = document.createElement('div');
-    scroll.className = 'tableScroll';
-    scroll.innerHTML = '<div class="changesNote" style="margin:6px 0 2px">The fixed awards, ' + xp.awards.length + ' of them:</div>' +
-      '<table class="vocabTable barkTable"><thead><tr><th>points</th><th>occasion</th><th>where</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-    xsec.appendChild(scroll);
-  }
+  add('karma', 'Karma', { icon: 178 }, src('a kill', 0xE8D),
+    km.writes.length ? 'A number the scripts move, and test.' : 'No script in this archive moves karma.',
+    km.writes.length ? [
+      start ? 'It starts at <b>' + start.set + '</b> when a character is made.' : '',
+      km.byAlignment ? 'Killing something moves it by the victim’s alignment, values 0 to ' + (km.byAlignment.length - 1) + ' in turn: <b>' + km.byAlignment.map(v => (v > 0 ? '+' : '') + v).join(', ') + '</b>. Nothing in the file names the four.' : '',
+      km.reads.length ? 'It is tested <b>' + km.reads.map(r => r.test).filter((v, i, a) => a.indexOf(v) === i).join('</b> and <b>') + '</b>.' : ''
+    ].filter(Boolean) : [],
+    table(['#change', 'occasion', 'where'], km.writes.filter(w => w.set === undefined).map(w => '<tr>' + num(w.change !== null && w.change !== undefined ? (w.change > 0 ? '+' : '') + w.change : (w.why || '')) + '<td>' + svEsc(w.note || '') + '</td><td>' + svChip(w.resid) + '</td></tr>')
+      .concat(km.reads.map(r => '<tr>' + num(r.test) + '<td>' + svEsc(r.note || '') + '</td><td>' + svChip(r.resid) + '</td></tr>'))), '');
 
   // ---- food and potions ----
   const fd = foodRules();
-  const fsec = sec('Food and potions', fd.potions.length || fd.foods.length
-    ? 'A potion’s colour is its aspect, and the aspect picks one of eight effect scripts (0xA00 + aspect); the potion class names the eight and the scripts say what they do. A food adds to nutrition when used: a fixed amount, or for the general foodstuff class an amount per variant.'
-    : 'No potion class or food in this archive.');
-  if (fd.potions.length) {
-    const rows = fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + svEsc(p.does.join('; ') || '—') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>');
-    const scroll = document.createElement('div');
-    scroll.className = 'tableScroll';
-    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>potion</th><th>does</th><th>effect</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-    fsec.appendChild(scroll);
-  }
-  if (fd.foods.length) {
-    const rows = [];
-    for (const f of fd.foods) {
-      const chip = '<button class="relChip" onclick="showPropTypeDetail(' + f.pt + ')"><span class="relText"><span class="relMain">' + svEsc(f.name) + '</span><span class="relSub">prop 0x' + f.pt.toString(16).toUpperCase() + '</span></span></button>';
-      if (f.variants) for (const v of f.variants) rows.push('<tr><td>' + chip + '</td><td>' + svEsc(v.name || ('variant ' + v.aspect)) + '</td><td class="num">+' + v.plus + '</td></tr>');
-      else rows.push('<tr><td>' + chip + '</td><td></td><td class="num">' + (f.plus !== null ? '+' + f.plus : 'an amount the script works out') + '</td></tr>');
-    }
-    const scroll = document.createElement('div');
-    scroll.className = 'tableScroll';
-    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>food</th><th>variant</th><th>nutrition</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-    fsec.appendChild(scroll);
-  }
+  add('food', 'Food and potions', { tile: 0x3DA }, src('the potion', 0x101F),
+    fd.potions.length || fd.foods.length ? 'A potion’s colour is its aspect, and the aspect picks one of eight effect scripts; a food adds to nutrition when used.' : 'No potion class or food in this archive.',
+    [],
+    (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + svEsc(p.does.join('; ') || '—') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : '') +
+    (fd.foods.length ? '<div class="mechSub">Foods</div>' + table(['food', 'variant', '#nutrition'], fd.foods.flatMap(f => f.variants
+      ? f.variants.map(v => '<tr><td>' + propChip(f.pt, f.name) + '</td><td>' + svEsc(v.name || ('variant ' + v.aspect)) + '</td>' + num('+' + v.plus) + '</tr>')
+      : ['<tr><td>' + propChip(f.pt, f.name) + '</td><td></td>' + num(f.plus !== null ? '+' + f.plus : 'an amount the script works out') + '</tr>'])) : ''), '');
 
   // ---- status effects ----
   const st = statusRules();
-  const tsec = sec('Status effects', st.applies.size
-    ? 'Every place a script puts a status on somebody, by status, with the duration the call gives — the unit is the engine’s — and every place one is cleared, which is what a cure is.'
-    : 'No script in this archive applies a status.');
-  if (st.applies.size) {
-    const names = new Set([...st.applies.keys(), ...st.cures.keys()]);
-    const rows = [...names].sort().map(nm => {
-      const ap = (st.applies.get(nm) || []).map(a => svChip(a.resid, a.duration !== null ? 'for ' + a.duration : '')).join(' ');
-      const cu = [...(st.cures.get(nm) || [])].map(r => svChip(r)).join(' ');
-      return '<tr><td>' + svEsc(nm) + '</td><td>' + ap + '</td><td>' + cu + '</td></tr>';
-    });
-    const scroll = document.createElement('div');
-    scroll.className = 'tableScroll';
-    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>status</th><th>applied by</th><th>cleared by</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-    tsec.appendChild(scroll);
-  }
-
-  // ---- lockpicking ----
-  const lk = lockRules();
-  const lsec = sec('Locks and lockpicks', lk.rule
-    ? 'One helper (0xE43) tries a key or a pick against a lock. A key fits when the lock’s number matches the key’s. ' +
-      (lk.rule.formula ? 'A pick opens the lock when the picker’s <b>reflex plus a roll of 0 to 19</b> is at least <b>20 plus another roll of 0 to 19 plus 5 for every 20 of the lock’s difficulty</b>' : 'A pick is tested against the lock’s difficulty') +
-      (lk.rule.breaks ? ', and breaks otherwise.' : '.') + (lk.needsSkill ? ' The lockpick refuses to be used at all without the Lock Picking skill.' : '') +
-      ' The difficulty is the placed lock’s own; the classes carry a lock parameter, shown as stored.'
-    : 'The lock helper (0xE43) is not in this archive.');
-  if (lk.classes.length) {
-    const strip = document.createElement('div');
-    strip.className = 'partsStrip';
-    strip.innerHTML = '<span class="partsTitle">Lock parameter</span>' + lk.classes.map(c =>
-      '<button class="relChip" onclick="showPropTypeDetail(' + c.pt + ')"><span class="relText"><span class="relMain">' + svEsc(c.name) + '</span><span class="relSub">' + c.words.join(' ') + '</span></span></button>').join('');
-    lsec.appendChild(strip);
-  }
-
-  // ---- shops ----
-  const sh = shopRules();
-  const hsec = sec('Shops', sh.shops.length
-    ? sh.shops.length + ' shops, each a call of one helper (0xEA5) with what the vendor lists and at what price. The helper bargains from the listed price with four figures of the vendor’s own, shown as stored' +
-      (sh.haggling ? ', and the Haggling skill takes a further roll of 0 to 5 off the vendor’s figure.' : '.')
-    : 'No script in this archive opens a shop.');
-  if (sh.shops.length) {
-    const rows = sh.shops.map(sp => '<tr><td>' + (sp.who !== null && loadCharacterTable()[sp.who] ? characterChip(sp.who) : svChip(sp.resid)) +
-      (sp.title ? '<div class="inspDim">“' + svEsc(sp.title) + '”</div>' : '') + '</td><td>' +
-      sp.goods.map(g => svEsc(g.name) + ' <span class="inspDim">' + g.price + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') +
-      '</td><td class="num">' + (sp.terms ? sp.terms.join(' ') : '') + '</td></tr>');
-    const scroll = document.createElement('div');
-    scroll.className = 'tableScroll';
-    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>vendor</th><th>goods, at the listed price in obols</th><th>terms</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-    hsec.appendChild(scroll);
-  }
-
-  // ---- training ----
-  const tr = trainingRules();
-  const rsec = sec('Training', tr.teachers.length
-    ? tr.teachers.length + ' teachers, each a call of one helper (0xEB1) naming the skill. A lesson raises the skill one level' +
-      (tr.points.perLesson ? ' and costs one training point' : '') + (tr.points.atStart !== null ? '; a character is made with ' + tr.points.atStart : '') +
-      (tr.points.perLevel ? ' and gains ' + tr.points.perLevel + ' with each level' : '') + (tr.points.mastery ? '; a skill is mastered at level ' + tr.points.mastery : '') +
-      '. A teacher marked <i>to mastery</i> teaches past the first lessons.'
-    : 'No script in this archive teaches a skill.');
-  if (tr.teachers.length) {
-    const rows = tr.teachers.map(t => '<tr><td>' + (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + '</td><td>' +
-      [...t.skills.entries()].sort((a, b) => a[0] - b[0]).map(([id, m]) => (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16)), 0x1A00 + id) : 'skill 0x' + id.toString(16)) + (m ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') + '</td></tr>');
-    const scroll = document.createElement('div');
-    scroll.className = 'tableScroll';
-    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>teacher</th><th>teaches</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-    rsec.appendChild(scroll);
-  }
-
-  // ---- combat ----
-  const cb = combatRules();
-  const csec = sec('Combat', cb
-    ? 'Three routines. The attacker’s margin (0xE88 for a blow, 0xE89 for a missile) is <b>reflex</b>' + (cb.d30 ? ' <b>plus a roll of 0 to 29</b>' : '') +
-      ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')') +
-      ', <b>less the defender’s reflex' + (cb.d30 ? ' plus a roll of 0 to 29' : '') + '</b>, plus the attacker’s Attack less the defender’s Defence, each a class figure where the skill is absent. ' +
-      'Then (0xE87): ' + (cb.parry ? 'every shield the defender wears blocks a roll of 0 to its block plus the Shield skill, and a margin under that is <b>parried</b>; ' : '') +
-      'the weapon’s enchantment and skill are added to the margin and the skill to the damage; a margin of nothing or less <b>misses</b>; a hit does <b>a roll of 0 to the damage figure, plus the enchantment</b>, ' +
-      'the defender’s resistance takes the damage type, and the blow is named by its size' + (cb.words.length ? ': ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + w.below).join(', ') + ', and <i>shredded to pieces</i> above.' : '.')
-    : 'The combat routines (0xE87–0xE89) are not in this archive.');
-
-  // ---- spells ----
-  const sp = spellRules();
-  const psec = sec('Spells', sp.spells.length
-    ? sp.spells.length + ' spells, each cast through one helper (0xEA1) with a level and a cost in magic points, read off each spell’s own call. ' +
-      (sp.rule && sp.rule.power ? 'A cost above the caster’s magic fails outright. ' : '') +
-      (sp.rule && sp.rule.timing ? 'The cost is taken and the cast costs 10 plus twice the level in time' : 'The cost is taken') +
-      (sp.rule && sp.rule.failure ? ', and the casting <b>fails when two rolls of 0 to the caster’s Casting figure together fall short of a roll of 0 to the level</b>' + (sp.rule.casting ? ' — Casting the skill, else a class figure.' : '.') : '.') +
-      ' What a spell does is its own script.'
-    : 'No spell in this archive casts through the helper.');
-  if (sp.spells.length) {
-    const rows = sp.spells.map(x => '<tr><td>' + partChip(x.name, x.resid) + '</td><td class="num">' + x.level + '</td><td class="num">' + x.cost + '</td></tr>');
-    const scroll = document.createElement('div');
-    scroll.className = 'tableScroll';
-    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>spell</th><th>level</th><th>cost</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-    psec.appendChild(scroll);
-  }
+  const statusNames = new Set([...st.applies.keys(), ...st.cures.keys()]);
+  add('status', 'Status effects', { icon: 31 }, '',
+    st.applies.size ? 'Every place a script puts a status on somebody, with the duration the call gives — the unit is the engine’s — and every place one is cleared, which is what a cure is.' : 'No script in this archive applies a status.',
+    [], table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
+      (st.applies.get(nm) || []).map(a => svChip(a.resid, a.duration !== null ? 'for ' + a.duration : '')).join(' ') + '</td><td>' +
+      [...(st.cures.get(nm) || [])].map(r => svChip(r)).join(' ') + '</td></tr>')), '');
 
   // ---- hunger ----
   const hg = hungerNotes();
-  sec('Hunger', (hg.falls ? 'A script lowers nutrition somewhere in this archive. ' : 'No script lowers nutrition: the fall is the engine’s, and its rate is not in the file. ') +
-    'The scripts read it' + (hg.complains !== null ? ': the idle script complains below ' + hg.complains : '') + (hg.ceiling !== null ? ', and the fountain and Nutrient add only up to ' + hg.ceiling : '') + '.');
+  add('hunger', 'Hunger', { icon: 69 }, '',
+    hg.falls ? 'A script lowers nutrition somewhere in this archive.' : 'No script lowers nutrition: the fall is the engine’s, and its rate is not in the file.',
+    [(hg.complains !== null ? 'The idle script complains below <b>' + hg.complains + '</b>.' : ''), (hg.ceiling !== null ? 'The fountain and Nutrient add only up to <b>' + hg.ceiling + '</b>.' : '')].filter(Boolean), '', '');
 
-  const more = sec('Not in the scripts', 'The rate at which hunger falls, and how long a balloon stays up, are the executable’s.');
+  // ---- locks ----
+  const lk = lockRules();
+  add('locks', 'Locks and lockpicks', { tile: 0x233 }, src('a key or a pick', 0xE43) + src('the lockpick', 0x1109),
+    lk.rule ? 'One helper tries a key or a pick against a lock.' : 'The lock helper (0xE43) is not in this archive.',
+    lk.rule ? [
+      lk.rule.keyFits ? 'A key fits when the lock’s number matches the key’s.' : '',
+      lk.rule.formula ? 'A pick opens the lock when the picker’s <b>reflex plus a roll of 0 to 19</b> is at least <b>20 plus another roll of 0 to 19 plus 5 for every 20 of the lock’s difficulty</b>' + (lk.rule.breaks ? ', and <b>breaks</b> otherwise.' : '.') : '',
+      lk.needsSkill ? 'The lockpick refuses to be used at all without the <b>Lock Picking</b> skill.' : '',
+      'The difficulty is the placed lock’s own; the classes carry a parameter of their own, shown as stored.'
+    ].filter(Boolean) : [], '',
+    lk.classes.length ? '<span class="partsTitle">Lock parameter</span>' + lk.classes.map(c => propChip(c.pt, c.name, c.words.join(' '))).join('') : '');
+
+  // ---- shops ----
+  const sh = shopRules();
+  add('shops', 'Shops', { icon: 130 }, src('the counter', 0xEA5),
+    sh.shops.length ? sh.shops.length + ' shops, each one call of the same helper with what the vendor lists and at what price.' : 'No script in this archive opens a shop.',
+    sh.shops.length ? ['The helper bargains from the listed price with four figures of the vendor’s own, shown as stored.', sh.haggling ? 'The <b>Haggling</b> skill takes a further roll of 0 to 5 off the vendor’s figure.' : ''].filter(Boolean) : [],
+    table(['vendor', 'goods, at the listed price in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.who !== null && loadCharacterTable()[spn.who] ? characterChip(spn.who) : svChip(spn.resid)) +
+      (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
+      spn.goods.map(g => svEsc(g.name) + ' <span class="mechPrice">' + g.price + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') + '</td>' + num(spn.terms ? spn.terms.join(' ') : '') + '</tr>')), '');
+
+  // ---- training ----
+  const tr = trainingRules();
+  add('training', 'Training', { icon: 76 }, src('a lesson', 0xEB1),
+    tr.teachers.length ? tr.teachers.length + ' teachers, each one call of the same helper naming the skill.' : 'No script in this archive teaches a skill.',
+    tr.teachers.length ? [
+      'A lesson raises the skill one level' + (tr.points.perLesson ? ' and costs <b>one training point</b>' : '') + '.',
+      (tr.points.atStart !== null ? 'A character is made with <b>' + tr.points.atStart + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + tr.points.perLevel + '</b> with each level' : '') + '.',
+      tr.points.mastery ? 'A skill is mastered at level <b>' + tr.points.mastery + '</b>; a teacher marked <i>to mastery</i> teaches past the first lessons.' : ''
+    ].filter(Boolean) : [],
+    table(['teacher', 'teaches'], tr.teachers.map(t => '<tr><td>' + (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + '</td><td>' +
+      [...t.skills.entries()].sort((a, b) => a[0] - b[0]).map(([id, m]) => (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16)), 0x1A00 + id) : 'skill 0x' + id.toString(16)) + (m ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') + '</td></tr>')), '');
+
+  // ---- talk balloons ----
+  const barks = buildBarkCatalogue();
+  add('balloons', 'Talk balloons', { tile: 0x488 }, '',
+    'The short lines over a character’s head are a field on the character that a script writes a string into; the engine draws it in a 128×32 rounded balloon with a tail, and takes it down <b>four seconds</b> later: the routine that puts it up returns the tick count plus 240, and the one that shows the balloons each frame removes it once the tick count reaches that. Both are the executable’s, not the file’s.',
+    ['A line is a literal, or one picked at random from a list.', 'Two tavern helpers take a list of shouts and a list of replies for when the food or wine comes.',
+     barks.length ? barks.length + ' places in this archive’s scripts set one; the words are under Text › Barks.' : 'No script in this archive sets one.'],
+    '', '<span class="partsTitle">The words</span><button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>');
+
+  add('elsewhere', 'Not in the scripts', { tile: 0x231 }, '', 'The rate at which hunger falls is the executable’s and not the file’s: no script lowers nutrition, and the routine that does it in the executable has not been found.', [], '', '');
+
+  // The contents, first: a chip a section, in the order above.
+  const toc = document.createElement('nav');
+  toc.className = 'mechToc';
+  toc.innerHTML = '<span class="partsTitle">Rules</span>' + sections.map(sn => '<button class="navChip" onclick="mechGo(\'' + sn.id + '\')">' + svEsc(sn.title) + '</button>').join('');
+  box.insertBefore(toc, box.firstChild);
   grid.appendChild(box);
-  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot: the dice game, weapons and armour, what each skill is asked about, karma, experience and levels, food and potions, status effects, locks, shops, training, combat, spells, and what is known of hunger.';
+  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot — ' + sections.length + ' sections. Each says which script it was read from.';
+}
+// Scroll a Mechanics section into view; a plain anchor would rewrite the
+// hash, which is the page's deep link.
+function mechGo(id) {
+  const el = document.getElementById('mech-' + id);
+  if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderPlaceholderSheet(note) {

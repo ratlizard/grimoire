@@ -970,9 +970,27 @@ Read the comment above a constant before correcting it.
   fountain and Nutrient add up to 100. The smoke test pins the axe's
   damage and skill, the spear's reach, the bow's class and range, the
   0-to-29 rolls with the parry and the eight blow words, Fireball at level
-  5 for 20 with the failure rule, and that nothing lowers nutrition. What
-  is left in the executable: the hunger rate and how long a balloon stays
-  up.
+  5 for 20 with the failure rule, and that nothing lowers nutrition.
+  **A balloon stays up four seconds**, read from the executable the same
+  night: `TBark::SetBark` returns `TickCount()` plus 240 and
+  `TActiveMonster::ShowBarks`, each frame, removes a bark whose expiry the
+  tick count has reached (the trace is in
+  `cythera-workbench/doc/talk-balloons.md`; neither routine is reached by
+  a direct `bl`, so a scan for callers finds none — read `ShowBarks`).
+  What is left in the executable: the hunger rate; no symbol is named for
+  it and the tick routines showed no decrement in the time given.
+  **The sheet's layout, v1.8.0**: one `add(id, title, icon, from, lede,
+  rules, html, chips)` per section, in that order — a game tile or a nav
+  icon, the title, chips to the scripts it was read from (`mechFrom`), a
+  one-line lede, the rule as a `ruleList` of short items with the numbers
+  in bold, then the table (`mechTable`: zebra rows, `th.num`/`td.num`
+  right-aligned with tabular figures; a `#` prefix on a heading marks the
+  column numeric) or a stat strip (`mechStat` pills), then a `partsStrip`
+  of chips. A `mechToc` strip of `navChip`s at the top scrolls to each
+  section through `mechGo(id)` — `scrollIntoView`, not an anchor, since
+  the hash is the deep link. The smoke test requires the four seconds,
+  fourteen `mechGo` chips and fourteen `mechSec` elements, counted while
+  the sheet is showing (the grid is re-used by the next check).
 - **The joins between the two halves are resource-id rules, and they are
   written down once, in the `Parts and uses` section beside the tree.** A
   character's dossier carries a *Made of* row (`characterParts`): dialogue
