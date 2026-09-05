@@ -366,6 +366,11 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    would let a button look like card. `.ftab` rather than `.tab` because the
    text viewer's Decoded/Strings/Hex row already owns `.tab`. */
 #tabShell { margin:6px 0 10px; }
+/* The site's name and version, at the top between the two fixed buttons. */
+#brand { text-align:center; margin:0 0 4px; font-size:13px; letter-spacing:.14em; color:#9d9270;
+  text-transform:uppercase; }
+#brand .brandName { color:var(--gold); }
+#brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:11px; letter-spacing:.04em; color:#7d745a; }
 .ftabRow { display:flex; align-items:flex-end; padding:0 0 0 8px; overflow-x:auto; overflow-y:hidden;
   scrollbar-width:none; -webkit-overflow-scrolling:touch; }
 .ftabRow::-webkit-scrollbar { display:none; }
@@ -804,7 +809,17 @@ body.atlasFull #atlasPanel #atlasViewport { flex:1 1 auto; height:auto; min-heig
 body.atlasFull #atlasPanel #atlasInspect { max-height:28vh; overflow:auto; }
 body.atlasFull { overflow:hidden; }
 #atlasViewport { position:relative; width:100%; height:78vh; overflow:hidden;
-  touch-action:none; cursor:grab; background:transparent; }
+  touch-action:none; cursor:grab; background:transparent;
+  -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+#atlasViewport canvas, #mapViewport canvas { -webkit-user-drag:none; }
+#mapViewport { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+/* The row under the map sat straight on the planks and its two buttons ran
+   off the right of a phone: it wraps now, and has the bar's own dark ground. */
+#atlasZoomRow { flex-wrap:wrap; row-gap:6px; margin:6px 0 0; padding:6px 10px;
+  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; color:#e8dfc0; }
+#atlasZoomRow input[type=range] { flex:1 1 120px; min-width:90px; }
+#atlasZoomLabel { color:#c9bd94; font-variant-numeric:tabular-nums; }
+#atlasZoomRow button { flex:0 0 auto; }
 #atlasViewport canvas { display:block; }
 #atlasBar { padding:7px 12px; margin:0 0 6px; text-align:left;
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px;
@@ -1040,6 +1055,7 @@ body.atlasFull { overflow:hidden; }
 <div id="frameFill" aria-hidden="true"></div>
 <div id="appShell">
 <a href="#sheetGrid" class="skipToGallery">Skip to the gallery</a>
+<div id="brand" aria-label="Grimoire"></div>
 <input type="file" id="fileInput" accept="*/*" onchange="loadArchive()" style="display:none">
 <button id="archiveMenuBtn" class="secondary" onclick="toggleArchiveMenu()"
         aria-haspopup="dialog" aria-expanded="false" aria-controls="archiveMenu">Data file</button>
@@ -3463,6 +3479,14 @@ function openCytheraResourceFork(bytes) {
    file's own font wins whenever there is a file and the shipped copy stands
    in until then. Failure is recorded, not reported: the fallback is the same
    face. */
+/* The version. Started at 1.0.0 on 5 September 2026, when the site had
+   been public for two days and the maintainer asked for one; the number is
+   bumped by hand in the commit that changes what a visitor sees -- the
+   middle number for a feature, the last for a fix -- and shown at the top
+   of the page. Nothing else reads it. */
+const GRIMOIRE_VERSION = '1.0.0';
+{ const b = document.getElementById('brand');   // the element precedes the script
+  if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
 window.GAME_FONT_STATE = '';
 function installGameFont() {
@@ -4423,6 +4447,7 @@ function resetDerivedCaches() {
   atlasTransforms.clear();
   belowScenes.clear();
   locatedCache.clear();
+  surfaceCache.clear();
   zoneMapCache.clear();
   worldThumbs.clear();
   contentBoxes.clear();
@@ -4745,6 +4770,16 @@ async function loadDefaultArchive() {
 // Drop a file anywhere on the page. Previously the only way in was the
 // hairline "data file" link pinned to the bottom-right corner.
 function installArchiveDropTarget() {
+  // A touch screen has nothing to drag a file with, and on an iPhone a
+  // finger held on the map started a drag of the canvas instead, which is
+  // what the press-and-hold hover needed. So there is no drop target on a
+  // device with no fine pointer, and a drag that starts inside either map
+  // viewport is refused everywhere.
+  for (const id of ['atlasViewport', 'mapViewport']) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('dragstart', e => e.preventDefault());
+  }
+  try { if (matchMedia('(hover: none) and (pointer: coarse)').matches) return; } catch (e) {}
   const kill = e => { e.preventDefault(); e.stopPropagation(); };
   window.addEventListener('dragover', e => { kill(e); document.body.classList.add('dropping'); });
   window.addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('dropping'); });
@@ -10016,6 +10051,48 @@ function mapWorldAnchor(resid) {
 }
 function mapIsLocated(resid) { return !!mapWorldAnchor(resid); }
 
+/* Located is not the same as on the surface, and the difference was
+   visible: Scylla Temple, whose edge exit does land on the world, was drawn
+   spread over the ground beside its cave mouth, and the Sitia bridge, which
+   nothing on the world map draws, was placed at the square its edge names
+   and looked off-centre because that square is not its middle.
+
+   Three things the archive says decide it, and a map must say all three
+   to be drawn on the world. Its edge leads to the world (located). Its
+   entry script sets a landscape strip rather than one of the engine's own
+   backdrops -- a horizon is what the player sees from an outdoor place,
+   and the Temple's script sets -16, a backdrop, which is the file saying
+   "inside". And the world map draws it, with a pictogram that is a place
+   rather than a way in: a town, a ruin, a farm; not a cave mouth or a hole,
+   which the world draws where something is entered, not where it lies.
+
+   Everything else is reached through a mouth, the bridge included: a ring
+   on the square the archive does give, and a step. That is what the
+   maintainer asked for on 5 September 2026 -- treat it like a tunnel rather
+   than mask the data -- and it is the file's own reading. 17 maps make the
+   surface; 6 that are located do not: the Temple, Harpy Abyss, the bridge,
+   Pnyx upstairs, Tavara without its fortress, and the underground under
+   Catamarca. The mouths are named from the editor's list where it has a
+   name (editorZoneName), since the scripts call Tavara without its
+   fortress "Cythera" and the Harpy Abyss "Mountains". */
+// A mineshaft is not here: the Mining Camp is an outdoor camp around one,
+// with a horizon in its script, and the shaft is how the world draws it.
+const ENTRANCE_PICTOGRAMS = /cave|hole|stair|trapdoor|door|arch|ladder/;
+const surfaceCache = new Map();
+function mapIsSurface(resid) {
+  if (surfaceCache.has(resid)) return surfaceCache.get(resid);
+  let on = false;
+  try {
+    if (mapIsLocated(resid)) {
+      const gw = worldGateways().find(g => g.destResid === resid);
+      const land = zoneLandscapeArg(resid & 0xFF);
+      on = !!gw && !ENTRANCE_PICTOGRAMS.test(gw.kind) && (land === null || land === undefined || land >= 0);
+    }
+  } catch (e) { on = false; }
+  surfaceCache.set(resid, on);
+  return on;
+}
+
 /* The surface: the world, and the maps the archive puts on it.
 
    A gateway's pictogram gives both a position and an extent, and those are
@@ -10034,7 +10111,7 @@ function surfaceScene() {
   nodes.push(root);
   const placed = new Set([WORLD_MAP_RESID]);
   for (const gw of worldGateways()) {
-    if (!mapIsLocated(gw.destResid) || placed.has(gw.destResid)) continue;
+    if (!mapIsSurface(gw.destResid) || placed.has(gw.destResid)) continue;
     const t = gatewayTransform(gw);
     if (!t) continue;
     placed.add(gw.destResid);
@@ -10042,23 +10119,9 @@ function surfaceScene() {
                  w: t.w, h: t.h, ts: t.ts, name: gw.name, depth: 1,
                  key: 'g' + gw.port });
   }
-  for (let n = 0; n < 0x100; n++) {
-    const resid = 0x8000 | n;
-    if (placed.has(resid) || !refExists(resid)) continue;
-    const a = mapWorldAnchor(resid);
-    if (!a) continue;
-    const e = mapRenderFor(resid, true);
-    if (!e || !e.result) continue;
-    const b = contentBox(resid) || { x0: 0, y0: 0, x1: e.result.width - 1, y1: e.result.height - 1 };
-    const sc = 1 / worldSquareRatio();
-    placed.add(resid);
-    nodes.push({ resid, gw: null, s: sc,
-                 ox: a.x - ((b.x0 + b.x1 + 1) / 2) * sc,
-                 oy: a.y - ((b.y0 + b.y1 + 1) / 2) * sc,
-                 w: e.result.width, h: e.result.height, ts: e.result.tileSize,
-                 name: zoneNameFor(resid) || labelFor(resid) || ('0x' + resid.toString(16)),
-                 depth: 1, key: 'a' + resid });
-  }
+  // A located map with no pictogram used to be placed here at the square
+  // its edge names, at the median scale. It is a mouth now (atlasMouths):
+  // the square is the file's, the extent was ours.
   nodes.sort((a, b) => a.depth - b.depth);
   return (window.ATLAS_SCENE = { root, nodes, surface: true });
 }
@@ -10106,7 +10169,28 @@ function atlasScene() {
    so it gets a mark rather than a place. */
 function atlasMouths(node) {
   if (node._mouths) return node._mouths;
-  return (node._mouths = mapDescents(node.resid).filter(d => !mapIsLocated(d.dest.resid)));
+  const out = mapDescents(node.resid).filter(d => !mapIsSurface(d.dest.resid))
+    .map(d => Object.assign({}, d, { name: editorZoneName(d.dest.resid) || d.name }));
+  // On the world, the maps whose edge leads here but which the world draws
+  // nothing for -- the bridge, Pnyx upstairs -- are mouths at that square:
+  // the one thing the file says about where they are.
+  if (node.resid === WORLD_MAP_RESID) {
+    const have = new Set(out.map(d => d.dest.resid));
+    for (let n = 0; n < 0x100; n++) {
+      const resid = 0x8000 | n;
+      if (resid === WORLD_MAP_RESID || have.has(resid) || !refExists(resid)) continue;
+      if (mapIsSurface(resid)) continue;
+      const a = mapWorldAnchor(resid);
+      if (!a) continue;
+      const e = mapRenderFor(resid, true);
+      if (!e || !e.result) continue;
+      out.push({ x: a.x, y: a.y,
+                 dest: { resid, x: Math.floor(e.result.width / 2), y: Math.floor(e.result.height / 2) },
+                 name: editorZoneName(resid) || zoneNameFor(resid) || labelFor(resid) || ('0x' + resid.toString(16)),
+                 kind: 'map’s edge' });
+    }
+  }
+  return (node._mouths = out);
 }
 
 // Where a node lands on screen
@@ -10228,24 +10312,45 @@ function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
   let ok = false;
   // Native art, when the node is being magnified past its own render.
   if (ppt > node.ts * 1.2) ok = paintAtlasDetail(ctx, node, r, vw, vh);
+  // The roofs come off as the node grows: a town at a distance is roofs,
+  // and close up they are the thing in the way. They used to vanish at the
+  // step from the miniature to the render, at 448 screen pixels across,
+  // which the maintainer found the right distance and the wrong manner; so
+  // they fade over a band centred on it (atlasRoofT), and a town drawn from
+  // its render or its own art gets its roofed miniature laid over at what
+  // is left of them.
+  const roofT = atlasRoofT(r.w);
+  let viaTown = false;
   if (!ok) {
     const e = mapRenderFor(node.resid, true);
     if (e && e.result && r.w >= 448) {
       ctx.drawImage(e.result.canvas, r.x, r.y, r.w, r.h);
       ok = true;
     } else if (node.gw && worldThumbs.get(thumbKey(node.resid, THUMB_LEVELS[0], true))) {
-      // The roofs come off as the node grows: a town at a distance is roofs,
-      // and close up they are the thing in the way.
-      const roofT = Math.max(0, Math.min(1, (node.ts * 12 - ppt) / (node.ts * 12 - node.ts * 4)));
-      ok = drawTown(ctx, node.gw, atlasCropRect(node, r), 1, roofT);
+      ok = drawTown(ctx, node.gw, atlasCropRect(node, r), alpha, roofT);
+      viaTown = true;
     } else if (e && e.result) {
       ctx.drawImage(e.result.canvas, r.x, r.y, r.w, r.h);
       ok = true;
     }
   }
+  if (ok && !viaTown && node.gw && roofT > 0.02) {
+    const roofed = worldThumbs.get(thumbKey(node.resid, THUMB_LEVELS[1], true)) ||
+                   worldThumbs.get(thumbKey(node.resid, THUMB_LEVELS[0], true));
+    if (roofed) {
+      const cr = atlasCropRect(node, r);
+      ctx.globalAlpha = alpha * roofT;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(roofed.canvas, cr.x, cr.y, cr.w, cr.h);
+    }
+  }
   ctx.globalAlpha = 1;
   return ok;
 }
+// How much roof is left at a width on screen: all of it up to 360 px across,
+// none from 540, and a straight fade between -- the band sits on the 448 px
+// step where they used to cut.
+function atlasRoofT(w) { return Math.max(0, Math.min(1, (540 - w) / (540 - 360))); }
 
 // Where a node's cropped thumbnail sits, given where the whole node sits.
 function atlasCropRect(node, r) {
@@ -12549,6 +12654,18 @@ function renderToolsSheet() {
   // in res/ while there is no file or the browser refused the bytes. A
   // person can tell in a glance here what no harness can -- whether the
   // font the browser is drawing with is the one out of the file.
+  const cred = sec('Credits', '');
+  const cr = document.createElement('div');
+  cr.className = 'amNote';
+  cr.style.lineHeight = '1.5';
+  cr.innerHTML = 'Grimoire v' + svEsc(GRIMOIRE_VERSION) + ' is made by <b>EgadZoundsGadzooks</b>. ' +
+    'It leans on the work of the Cythera community: <b>Bryce Schroeder</b> (delvmod, the Delver formats and disassembler, the compendium); ' +
+    '<b>BreadWorldMercy453</b> (the complete dialogue, asked of every character); ' +
+    '<b>Cythera Guides</b> at cytheraguides.com, and the sites it keeps in its archives, <b>Slayer</b>’s among them; ' +
+    'the editors of the <b>Cythera wiki</b>; the writers of the <b>Cythera web board</b>; ' +
+    'the add-on authors, <b>Wizard</b>, <b>Magpie</b>, <b>Talos</b> and the rest; ' +
+    '<b>Ben Letchford</b> (systemless, where the game runs); and <b>Glenn Andreas</b> and <b>Ambrosia Software</b>, who made Cythera.';
+  cred.appendChild(cr);
   const font = sec('The face this page is set in', '');
   const fn = document.createElement('div');
   fn.className = 'amNote';

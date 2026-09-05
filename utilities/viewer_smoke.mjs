@@ -881,15 +881,16 @@ try {
   const av = peek('atlasView');
   const vpA = REGISTRY.get('mapViewport');
   if (!sc) fail('atlas', 'no scene was built');
-  else if (sc.nodes.some(n => n.depth && !ctx.mapIsLocated(n.resid)))
-    /* The scene places what the archive locates and no more. A map's edge
-       exit landing on the world is a spatial statement -- this map is
-       contiguous with the world at that square -- and it is the only one the
-       file makes. A stair or a cave mouth says where you go in, not where the
-       place reaches, so drawing the Sewers under nine squares of Cademia was
-       a claim the archive does not support. */
-    fail('atlas', 'the scene places a map the archive does not locate: ' +
-                  sc.nodes.filter(n => n.depth && !ctx.mapIsLocated(n.resid))
+  else if (sc.nodes.some(n => n.depth && !ctx.mapIsSurface(n.resid)))
+    /* The scene places what the archive puts on the surface and no more: a
+       map whose edge leads to the world, whose entry script sets a horizon
+       rather than an indoor backdrop, and which the world map draws as a
+       place rather than a way in (mapIsSurface). A stair or a cave mouth
+       says where you go in, not where the place reaches, so drawing the
+       Sewers under nine squares of Cademia, or the Temple beside its cave,
+       was a claim the archive does not support. */
+    fail('atlas', 'the scene places a map the archive does not put on the surface: ' +
+                  sc.nodes.filter(n => n.depth && !ctx.mapIsSurface(n.resid))
                      .map(n => n.name).join(', '));
   else {
     const cad = sc.nodes.find(n => n.resid === 0x8008);
@@ -940,23 +941,42 @@ try {
       fail('atlas', 'zooming out did not come back to the world');
     else console.log('  atlas: zooming out is the way back up — no stack, no held gateway');
 
-    /* Everything the archive locates IS in the scene -- the rule cuts both
-       ways, and a scene missing the bridge or Pnyx upstairs would be as wrong
-       as one containing the Sewers. Those two have no pictogram on the world
-       map at all; they are placed at the world square their own edge exit
-       names, which is the same statement in the other direction. */
-    let located = 0;
+    /* Everything on the surface IS in the scene -- the rule cuts both ways
+       -- and what is located but not on the surface is a mouth on the world:
+       the Temple at its cave, the bridge and Pnyx upstairs at the square
+       their own edge names, since the world draws nothing for them. */
+    let surface = 0, edgeMouths = 0;
+    const worldMouths = peek('atlasMouths')(sc.nodes[0]);
     for (let n = 0; n < 0x100; n++) {
       const rid = 0x8000 | n;
       if (rid === 0x8001 || !ctx.refExists(rid) || !ctx.mapIsLocated(rid)) continue;
-      located++;
-      if (!sc.nodes.some(q => q.resid === rid))
-        fail('atlas', `0x${rid.toString(16)} is located by the archive and missing from the scene`);
+      if (ctx.mapIsSurface(rid)) {
+        surface++;
+        if (!sc.nodes.some(q => q.resid === rid))
+          fail('atlas', `0x${rid.toString(16)} is on the surface by the archive and missing from the scene`);
+      } else {
+        edgeMouths++;
+        if (!worldMouths.some(m => m.dest.resid === rid))
+          fail('atlas', `0x${rid.toString(16)} is located but not on the surface, and is not a mouth on the world`);
+      }
     }
+    if (ctx.mapIsSurface(0x801A)) fail('atlas', 'the Temple is on the surface: its script sets an indoor backdrop');
+    if (ctx.mapIsSurface(0x8026)) fail('atlas', 'the bridge is on the surface: the world draws nothing for it');
+    if (!ctx.mapIsSurface(0x8008) || !ctx.mapIsSurface(0x8016)) fail('atlas', 'Cademia or the Flax Farm is off the surface');
     if (new Set(sc.nodes.map(n => n.key)).size !== sc.nodes.length)
       fail('atlas', 'two nodes share a key');
-    else console.log('  atlas: ' + sc.nodes.length + ' nodes — the world and all ' + located +
-                     ' maps the archive locates, and nothing it does not');
+    else console.log('  atlas: ' + sc.nodes.length + ' nodes — the world and the ' + surface +
+                     ' maps it puts on the surface; ' + edgeMouths + ' located maps are mouths instead, the Temple and the bridge among them');
+    // The roofs fade over a band rather than cut at a step.
+    const rt = peek('atlasRoofT');
+    if (!(rt(200) === 1 && rt(700) === 0 && rt(450) > 0.3 && rt(450) < 0.7 && rt(400) > rt(500)))
+      fail('atlas', 'the roof fade is not a band around the old step: ' + [200, 400, 450, 500, 700].map(w => rt(w).toFixed(2)).join(' '));
+    else console.log('  atlas: roofs fade from 360 to 540 px across, centred on the old 448 px step');
+    // The version, at the top.
+    const brand = REGISTRY.get('brand');
+    if (!brand || !/Grimoire/.test(brand.innerHTML) || !/v\d+\.\d+\.\d+/.test(brand.innerHTML))
+      fail('brand', 'the page does not say its name and version at the top: ' + (brand && brand.innerHTML));
+    else console.log('  brand: ' + brand.innerHTML.replace(/<[^>]+>/g, ''));
 
     /* The 17 it does not locate are reached through a mouth: a ring on the
        square the archive gives, and a step rather than a zoom, because a
@@ -965,7 +985,7 @@ try {
       const cadN = sc.nodes.find(n => n.resid === 0x8008);
       const mouths = peek('atlasMouths')(cadN);
       if (!mouths.length) fail('atlas', 'Cademia has no way down');
-      else if (mouths.some(m => ctx.mapIsLocated(m.dest.resid)))
+      else if (mouths.some(m => ctx.mapIsSurface(m.dest.resid)))
         fail('atlas', 'a mouth leads somewhere already in the scene');
       else {
         const sewers = mouths.find(m => m.dest.resid === 0x8015);

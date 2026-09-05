@@ -52,6 +52,15 @@ page for you — run the checks below before pushing.
 **Nobody is named here.** The maintainer is "the maintainer" in every file and
 every commit; commits are authored `e-z-g <e-z-g@users.noreply.github.com>`.
 Do not write a name, an email address or a home-directory path into the tree.
+The one exception is the handle **EgadZoundsGadzooks**, which the maintainer
+asked on 5 September 2026 to be credited under on the Tools tab; it is a
+handle, not a name, and it appears there and nowhere else.
+
+**The site has a version**, `GRIMOIRE_VERSION` in `index.html`, shown at the
+top of the page as "Grimoire v1.0.0". It began at 1.0.0 on 5 September 2026,
+two days after the site went public. Bump it by hand in the commit that
+changes what a visitor sees: the middle number for a feature, the last for a
+fix. The smoke test requires the line to be there.
 
 ## Working beside the forks
 
@@ -681,19 +690,39 @@ Read the comment above a constant before correcting it.
 - **It places what the archive locates, and nothing else.** A map header's
   four edge fields say where walking off each side puts you; where one lands
   on the world map, the archive is making a spatial statement — *this map is
-  contiguous with the world at that square* — and that is what makes a map
-  placeable. **23 of the 42 say it**: every town, farm, vineyard, ruin and
-  stronghold, the Sitia bridge, and two whose names mislead (the Underground
-  under Catamarca and Pnyx upstairs both have edges to the world). The other
-  17 — Land King Hall, the Sewers, the Iron Mine, the Volcano, the Tomb, the
-  Caves, Below Cademia, the Dungeon, the Cove — say nothing of the kind: what
-  the file gives for each is a **doorway, not an extent**. An earlier version
-  placed 37 of them at an invented scale and the invented part was visible.
-  The 17 are reached through a **mouth** (`atlasMouths`, `atlasDescend`): a
-  ring on the square the archive does give, and a *step* rather than a zoom,
-  after which that map is shown on its own with the strip describing the
-  **connection** rather than asserting a position. `ATLAS_BELOW` is a stack,
-  and is the only state in the renderer.
+  contiguous with the world at that square* — and 23 of the 42 say it. But
+  located is not on the surface, and since 5 September 2026 a map is drawn
+  on the world only when the archive says **three** things about it
+  (`mapIsSurface`): its edge leads to the world; its entry script sets a
+  landscape strip rather than one of the engine's own backdrops, which is
+  the file saying *outdoors* — Scylla Temple's script sets −16, a backdrop,
+  and it was being drawn spread beside its cave mouth; and the world map
+  draws it with a pictogram that is a place (a town, a ruin, a farm, the
+  Mining Camp's shaft) rather than a way in (a cave, a hole). **17 make the
+  surface.** Six that are located do not — the Temple, Harpy Abyss, the
+  Sitia bridge, Pnyx upstairs, Tavara without its fortress, the underground
+  under Catamarca — and the 19 that are not located say nothing of the
+  kind: what the file gives for each is a **doorway, not an extent**. All
+  25 are reached through a **mouth** (`atlasMouths`, `atlasDescend`): a
+  ring on the square the archive does give — a portal prop's, or for the
+  four the world draws nothing for, the square their own edge names — and a
+  *step* rather than a zoom, after which that map is shown on its own with
+  the strip describing the **connection** rather than asserting a
+  position. The bridge was placed at its edge square before and looked
+  off-centre, because that square is not its middle; the maintainer's rule
+  was *treat it like a tunnel rather than mask the data*. Mouths are named
+  from the editor's list, since the scripts call Tavara without its
+  fortress "Cythera". An earlier version placed 37 maps at an invented
+  scale and the invented part was visible. `ATLAS_BELOW` is a stack, and is
+  the only state in the renderer.
+- **Roofs fade where they used to cut.** A town at a distance is roofs and
+  close up they are in the way. They used to vanish at the step from the
+  miniature to the render, 448 screen pixels across, which the maintainer
+  found the right distance and the wrong manner; `atlasRoofT` fades them
+  from 360 to 540 px across, and a town drawn from its render or its own
+  art gets its roofed miniature laid over at what is left. The zoom row
+  under the map wraps and has the bar's dark ground, since its buttons ran
+  off the right of a phone and its words sat on the planks.
 - **It paints once a frame, and cheaply, because a phone could not keep
   up.** An iPhone 15 juddered: a finger reports its position up to 120
   times a second and every report painted the whole scene at two device
@@ -1049,6 +1078,15 @@ Read the comment above a constant before correcting it.
   delv-\* files are not a library**). The `saved game` section of
   `viewer_smoke.mjs` drives all of this over `I.M.Cheater`, which
   `addons_check.mjs` unpacks first.
+- **No drag and drop on a touch screen.** The page-wide drop target is not
+  installed on a device with no fine pointer, and a drag that starts in
+  either map viewport is refused: on an iPhone a finger held on the map
+  started a native drag of the canvas, which is the gesture press-and-hold
+  needed. The viewports also switch off the long-press callout and text
+  selection.
+- **The Tools tab carries the credits**: the maintainer's handle and the
+  community work the site leans on. The list was drawn up on 5 September
+  2026 from what `reference/` holds and is the maintainer's to edit.
 - **It wants a container, never a bare data fork, and that is deliberate.**
   The installer, a `.hqx` or a MacBinary all carry the *resource* fork, which
   a bare data fork cannot. Editor Stamps & Brushes had been in the page for a
