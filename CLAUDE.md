@@ -992,6 +992,28 @@ Read the comment above a constant before correcting it.
   until that night (opcodes 3 and 4); it is fixed, and `r2 = 0x808000` is
   now confirmed by the entry vector too. The smoke test pins "one off
   every game hour" and "4096 is one hour".
+  **Spell effects and sleeping, v1.10.0** (`spellEffects`, `sleepRules`).
+  Every damage call in a spell script (`0xEB8`: victim, amount, type,
+  source) and every write to health is read off the script; the amount
+  is a stack expression evaluated by `dvmAmountExpr` (constants,
+  `Random(a,b)` rolls, `add`; `amountWords` says "25 + a roll of 0 to
+  10"), the type is named from its bits by `damageTypeName` (0x03 edged,
+  0x04 blunt, 0x08 fire, 0x20 electric, 0xC0 magical), and the victim is
+  "the target", "every enemy", "everything in the effect", or — when the
+  lines before the call compare the victim's square with the target's —
+  "the one on the target square", which is Fireball: it hurts only the
+  character it is aimed at, no splash, against its own description. The
+  Spells table has a fourth column, "does". A heal's expression starts
+  from the current health, so the evaluator is seeded with a zero.
+  **Sleeping** is its own section: the bed class `0x100E` picks a
+  quality (4 in room 2, the player's own bed; an inn's from a far-word
+  table the payment fills), the helper `0xE93` passes the night a quarter
+  hour at a time and then adds what the engine healed times quality/2,
+  so quality 4 is three times the engine's rate; the 2012 web-board bed
+  measurements (12, 10, 42, 30, 35 an hour) reproduce exactly (workbench
+  `doc/game-clock.md`, "Sleep"). The smoke test pins Fireball 25 + 0–10
+  fire at the target square, Death Strike 200, Lesser Healing 5 + 1–5,
+  Tremor's two rolls to every enemy, and the bed's quality 4.
   **The sheet's layout, v1.8.0**: one `add(id, title, icon, from, lede,
   rules, html, chips)` per section, in that order — a game tile or a nav
   icon, the title, chips to the scripts it was read from (`mechFrom`), a
