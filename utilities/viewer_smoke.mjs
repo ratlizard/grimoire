@@ -1236,7 +1236,11 @@ try {
   else if (!ctx.gearTable().some(r => r.name === 'axe' && r.melee && r.melee[0] === '22')) fail('mechanics', 'the gear table does not give the axe its 22');
   else if (!(ctx.skillConsultations().by.get(0xCF) || new Set()).has(0x812)) fail('mechanics', 'Gambling is not listed as asked about by the dice game');
   else if (!ctx.karmaRules().writes.some(w => w.set === 55) || JSON.stringify(ctx.karmaRules().byAlignment) !== '[1,4,-10,0]') fail('mechanics', 'karma does not start at 55 or the kill table is not 1,4,-10,0: ' + JSON.stringify(ctx.karmaRules().byAlignment));
-  else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes`);
+  else if (!(ctx.experienceRules().rule && ctx.experienceRules().rule.cap && ctx.experienceRules().rule.doubling) || !ctx.experienceRules().awards.some(a => a.amount === 100)) fail('mechanics', 'the experience rule or a 100-point award was not read');
+  else if (!ctx.foodRules().potions.some(p => /Antidote/.test(p.name) && p.does.some(d => /clears poison/.test(d))) || !ctx.foodRules().potions.some(p => /Healing/.test(p.name) && p.does.some(d => /health \+10/.test(d)))) fail('mechanics', 'the potions were not read: ' + JSON.stringify(ctx.foodRules().potions.map(p => [p.name, p.does])));
+  else if (!ctx.foodRules().foods.some(f => f.variants && f.variants.length > 5)) fail('mechanics', 'the foodstuff class did not give a value per variant');
+  else if (!(ctx.statusRules().applies.get('sleep') || []).some(a => a.duration === 4096) || !(ctx.statusRules().cures.get('poison') || new Set()).size) fail('mechanics', 'status effects were not read: sleep for 4096, poison cleared');
+  else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses`);
 } catch (e) { fail('mechanics', e); }
 
 // Opening a second archive must not leave the first one's derived tables

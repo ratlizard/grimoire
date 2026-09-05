@@ -3452,7 +3452,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.4.0';
+const GRIMOIRE_VERSION = '1.5.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -12843,6 +12843,134 @@ function karmaRules() {
   return { writes, reads, byAlignment };
 }
 
+/* EXPERIENCE AND LEVELS. One helper, GainExp (0xE8B), takes every award:
+   it adds, caps at 65535, and raises the level by one when experience
+   passes 100 x 2^(level-1). AdjCharLevel (0xE86) then recomputes full
+   health -- body + reflex/2 + level, plus Defense x 5 x reflex / 15, Defense
+   being the skill where the character has it and otherwise a class figure
+   of nothing, half the level, the level or twice it (0xE95) -- and full
+   magic as mind + Mana the same way (0xE83, 0xE96). The damage helper
+   0xEB8 awards the attacker the damage dealt, up to the victim's level
+   above theirs plus one; a shared award (0xE8E) is split across the party.
+   The fixed awards are every GainExp with a constant. */
+function experienceRules() {
+  const idx = buildScriptTextIndex();
+  const gain = idx.find(e => e.resid === 0xE8B);
+  const rule = gain ? { cap: /word 65535/.test(gain.text), doubling: /left_shift[\s\S]{0,40}byte 0x64[\s\S]{0,20}mul/.test(gain.text) } : null;
+  const awards = [];
+  for (const e of idx) {
+    const lines = e.text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (!/call_resource GainExp\b/.test(lines[i])) continue;
+      const m = /(byte|short|word) (0x[0-9A-F]+|\d+)/i.exec(lines[i + 2] || '');
+      if (!m) continue;
+      let note = '';
+      for (let j = i - 1; j >= Math.max(0, i - 8) && !note; j--) { const t = /string(?:\(implicit\))? "(.{3,90}?)(?:\\n)?"/.exec(lines[j]); if (t) note = t[1].replace(/\\"/g, '"').replace(/\*/g, ' ').trim(); }
+      for (let j = i + 3; j < Math.min(lines.length, i + 10) && !note; j++) { const t = /string(?:\(implicit\))? "(.{3,90}?)(?:\\n)?"/.exec(lines[j]); if (t) note = t[1].replace(/\\"/g, '"').replace(/\*/g, ' ').trim(); }
+      awards.push({ resid: e.resid, amount: parseInt(m[2]), note });
+    }
+  }
+  return { rule, awards };
+}
+
+/* FOOD AND POTIONS. A potion's aspect picks its effect: the potion class
+   (0x101F) calls 0xA00 + aspect, and its own text names the eight, so the
+   names line up with the eight effect scripts, each read for what it sets,
+   clears or applies. A food's Use method adds to nutrition: a constant,
+   or for the general foodstuff class a value per variant from a data
+   block, the variant being named by its tile. */
+function effectSummary(text) {
+  const out = [];
+  const lines = text.split('\n').map(l => l.replace(/^\s*[0-9A-F]{4}\s+/, ''));   // offsets off, so runs of ops match
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i], next = lines.slice(i + 1, i + 12).join(' ');
+    if (/set_field nutrition/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); if (m) out.push('nutrition set to ' + parseInt(m[1])); }
+    else if (/set_field health/.test(l)) { const m = /byte (0x[0-9A-F]+)[\s\S]*?add[\s\S]*?sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(next); out.push(m ? 'health +' + parseInt(m[1]) + ' plus a roll of ' + parseInt(m[2]) + ' to ' + parseInt(m[3]) : 'health changed'); }
+    else if (/set_field magic \(/.test(l) && !/full_magic/.test(l)) out.push('magic restored');
+    else if (/sys ClearFlag/.test(l)) { const m = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || ''); if (m) out.push('clears ' + m[1].trim()); }
+    else if (/sys StatusEffect/.test(l)) {
+      const m = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || '');
+      const c = /byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)\s+sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(lines.slice(i + 3, i + 9).join(' '));
+      out.push((m ? m[1].trim() : 'a status') + (c ? ' for ' + parseInt(c[1]) + ' plus ' + parseInt(c[2]) + ' times a roll of ' + parseInt(c[3]) + ' to ' + parseInt(c[4]) : ''));
+    }
+    else if (/sys SpecialView/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); out.push('a special view' + (m ? ' (' + parseInt(m[1]) + ')' : '')); }
+  }
+  const said = /string\(implicit\) "([^"\\]{3,80})/.exec(text);
+  return { does: [...new Set(out)], says: said ? said[1] : '' };
+}
+function foodRules() {
+  const idx = buildScriptTextIndex();
+  const potion = idx.find(e => e.resid === 0x101F);
+  const names = potion ? [...potion.text.matchAll(/\/\/\s+\+0x[0-9A-F]+: "([^"]+ Potion)"/g)].map(m => m[1]) : [];
+  const potions = [];
+  for (let n = 0; n < 8; n++) {
+    const fx = idx.find(e => e.resid === 0xA00 + n);
+    if (!fx) continue;
+    potions.push(Object.assign({ resid: 0xA00 + n, name: names[n] || ('potion ' + n) }, effectSummary(fx.text)));
+  }
+  // Foods: every item class whose code sets nutrition.
+  const foods = [];
+  const tiles = getPropTileList();
+  for (const e of idx.filter(e => e.subn === 15)) {
+    if (!/set_field nutrition/.test(e.text)) continue;
+    const pt = e.resid - 0x1000;
+    const name = propDisplayName(pt) || ('prop 0x' + pt.toString(16));
+    const lines = e.text.split('\n').map(l => l.replace(/^\s*[0-9A-F]{4}\s+/, ''));
+    const i = lines.findIndex(l => /set_field nutrition/.test(l));
+    const after = lines.slice(i, i + 14).join(' ');
+    const flat = /byte (0x[0-9A-F]+)\s+add/i.exec(after);
+    if (flat && !/index/.test(after)) { foods.push({ pt, name, plus: parseInt(flat[1]) }); continue; }
+    if (/index[\s\S]*?byte (0x[0-9A-F]+)\s+mul/i.test(after)) {
+      // A value per variant, from the data block: 0x45, length, 0x90, count, then 4-byte words.
+      const mul = parseInt(/index[\s\S]*?byte (0x[0-9A-F]+)\s+mul/i.exec(after)[1]);
+      let table = null;
+      try {
+        const raw = getResourceBytes(e.resid); const d = smartDecrypt(raw, e.resid).data;
+        for (let k = 0; k + 5 < d.length; k++) if (d[k] === 0x45 && d[k + 3] === 0x90 && u16be(d, k + 1) === 2 + d[k + 4] * 4) {
+          table = []; for (let q = 0; q < d[k + 4]; q++) table.push(u32be(d, k + 5 + q * 4) & 0x0FFFFFFF); break;
+        }
+      } catch (err) { table = null; }
+      const base = tiles[pt];
+      const variants = table ? table.map((v, a) => ({ aspect: a, name: base !== undefined ? (terrainNameFor(base + a) || '') : '', plus: v * mul })) : [];
+      foods.push({ pt, name, variants, mul });
+      continue;
+    }
+    foods.push({ pt, name, plus: null });
+  }
+  return { potions, foods };
+}
+
+/* STATUS EFFECTS. Every StatusEffect call, by flag -- the disassembler
+   names the flags (DVM_FLAG_NAMES) -- with the duration the call gives and
+   who gives it: a spell, a trap, a potion, a place. And every ClearFlag,
+   which is what cures. The unit of a duration is the engine's; only the
+   numbers are the scripts'. */
+function statusRules() {
+  const applies = new Map(), cures = new Map();
+  for (const e of buildScriptTextIndex()) {
+    const lines = e.text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (/sys StatusEffect/.test(l)) {
+        const f = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || '');
+        const nm = f ? f[1].trim() : (/byte (0x[0-9A-F]+)/i.exec(lines[i + 2] || '') ? 'flag ' + parseInt(/byte (0x[0-9A-F]+)/i.exec(lines[i + 2])[1]) : 'a status');
+        const d = /(?:word|short|byte) (0x[0-9A-F]+|\d+)/i.exec(lines[i + 3] || '');
+        // A duration with a roll in it is reported as computed, not as its base.
+        const dur = d && !/sys Random/.test(lines.slice(i + 4, i + 9).join(' ')) ? parseInt(d[1]) : null;
+        if (!applies.has(nm)) applies.set(nm, []);
+        applies.get(nm).push({ resid: e.resid, duration: dur });
+      } else if (/sys ClearFlag/.test(l)) {
+        const f = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || '');
+        if (!f) continue;
+        const nm = f[1].trim();
+        if (!cures.has(nm)) cures.set(nm, new Set());
+        cures.get(nm).add(e.resid);
+      }
+    }
+  }
+  return { applies, cures };
+}
+
 function renderMechanicsSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -12955,9 +13083,69 @@ function renderMechanicsSheet() {
     ksec.appendChild(scroll);
   }
 
-  const more = sec('Not derived yet', 'Experience and levels, what food and potions do, the status effects, lockpicking, shop prices, training. The spell costs and the combat rolls are in the executable, not the scripts.');
+  // ---- experience and levels ----
+  const xp = experienceRules();
+  const xsec = sec('Experience and levels', xp.rule
+    ? 'Every award goes through one helper (0xE8B): experience is added' + (xp.rule.cap ? ', capped at 65,535' : '') +
+      (xp.rule.doubling ? ', and the level rises by one when it passes <b>100 × 2 to the power of the level less one</b>: above 100 for level 2, 200 for 3, 400 for 4, 800, 1,600, 3,200, and so on, doubling.' : '.') +
+      ' On a new level full health is recomputed as body + reflex ÷ 2 + level, plus Defence × 5 × reflex ÷ 15 — Defence being the skill where the character has it, else a class figure of nothing, half the level, the level or twice it — with health scaled to match, and full magic as mind + Mana the same way. ' +
+      'Striking something (0xEB8) earns the attacker the damage dealt, up to the victim’s level above theirs plus one, and one point for a blow bigger than the gap the other way. A shared award (0xE8E) is split across the party.'
+    : 'The experience helper (0xE8B) is not in this archive.');
+  if (xp.awards.length) {
+    const rows = xp.awards.map(a => '<tr><td class="num">' + a.amount + '</td><td>' + svEsc(a.note) + '</td><td>' + svChip(a.resid) + '</td></tr>');
+    const scroll = document.createElement('div');
+    scroll.className = 'tableScroll';
+    scroll.innerHTML = '<div class="changesNote" style="margin:6px 0 2px">The fixed awards, ' + xp.awards.length + ' of them:</div>' +
+      '<table class="vocabTable barkTable"><thead><tr><th>points</th><th>occasion</th><th>where</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    xsec.appendChild(scroll);
+  }
+
+  // ---- food and potions ----
+  const fd = foodRules();
+  const fsec = sec('Food and potions', fd.potions.length || fd.foods.length
+    ? 'A potion’s colour is its aspect, and the aspect picks one of eight effect scripts (0xA00 + aspect); the potion class names the eight and the scripts say what they do. A food adds to nutrition when used: a fixed amount, or for the general foodstuff class an amount per variant.'
+    : 'No potion class or food in this archive.');
+  if (fd.potions.length) {
+    const rows = fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + svEsc(p.does.join('; ') || '—') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>');
+    const scroll = document.createElement('div');
+    scroll.className = 'tableScroll';
+    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>potion</th><th>does</th><th>effect</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    fsec.appendChild(scroll);
+  }
+  if (fd.foods.length) {
+    const rows = [];
+    for (const f of fd.foods) {
+      const chip = '<button class="relChip" onclick="showPropTypeDetail(' + f.pt + ')"><span class="relText"><span class="relMain">' + svEsc(f.name) + '</span><span class="relSub">prop 0x' + f.pt.toString(16).toUpperCase() + '</span></span></button>';
+      if (f.variants) for (const v of f.variants) rows.push('<tr><td>' + chip + '</td><td>' + svEsc(v.name || ('variant ' + v.aspect)) + '</td><td class="num">+' + v.plus + '</td></tr>');
+      else rows.push('<tr><td>' + chip + '</td><td></td><td class="num">' + (f.plus !== null ? '+' + f.plus : 'an amount the script works out') + '</td></tr>');
+    }
+    const scroll = document.createElement('div');
+    scroll.className = 'tableScroll';
+    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>food</th><th>variant</th><th>nutrition</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    fsec.appendChild(scroll);
+  }
+
+  // ---- status effects ----
+  const st = statusRules();
+  const tsec = sec('Status effects', st.applies.size
+    ? 'Every place a script puts a status on somebody, by status, with the duration the call gives — the unit is the engine’s — and every place one is cleared, which is what a cure is.'
+    : 'No script in this archive applies a status.');
+  if (st.applies.size) {
+    const names = new Set([...st.applies.keys(), ...st.cures.keys()]);
+    const rows = [...names].sort().map(nm => {
+      const ap = (st.applies.get(nm) || []).map(a => svChip(a.resid, a.duration !== null ? 'for ' + a.duration : '')).join(' ');
+      const cu = [...(st.cures.get(nm) || [])].map(r => svChip(r)).join(' ');
+      return '<tr><td>' + svEsc(nm) + '</td><td>' + ap + '</td><td>' + cu + '</td></tr>';
+    });
+    const scroll = document.createElement('div');
+    scroll.className = 'tableScroll';
+    scroll.innerHTML = '<table class="vocabTable barkTable"><thead><tr><th>status</th><th>applied by</th><th>cleared by</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+    tsec.appendChild(scroll);
+  }
+
+  const more = sec('Not derived yet', 'Lockpicking, shop prices, training. The spell costs and the combat rolls are in the executable, not the scripts.');
   grid.appendChild(box);
-  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot: the dice game from 0x812, the weapon and armour numbers from the item classes, what each skill is asked about, and every move of karma.';
+  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot: the dice game, the weapon and armour numbers, what each skill is asked about, every move of karma, how experience becomes levels, what food and potions do, and every status put on and taken off.';
 }
 
 function renderPlaceholderSheet(note) {

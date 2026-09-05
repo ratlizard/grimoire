@@ -887,7 +887,32 @@ Read the comment above a constant before correcting it.
   signed and indexed by the victim's alignment: +1, +4, −10, 0 — with the
   nearest line the script prints as the occasion, and every read as a
   threshold: the four Seldane priests refuse below 40. The smoke test pins
-  the axe's 22, Gambling's asker, the 55 and the kill table.
+  the axe's 22, Gambling's asker, the 55 and the kill table. And three
+  more, later the same day. **Experience and levels**
+  (`experienceRules`): one helper takes every award (`0xE8B`) — added,
+  capped at 65,535, the level rising when it passes 100 × 2^(level − 1) —
+  and `0xE86` recomputes full health as body + reflex ÷ 2 + level plus
+  Defence × 5 × reflex ÷ 15 (the skill, else a class figure from `0xE95`)
+  and magic as mind + Mana likewise; the damage helper `0xEB8` pays the
+  attacker the damage dealt up to the victim's level above theirs plus
+  one; `0xE8E` splits a shared award across the party; and every `GainExp`
+  with a constant is a row, 34 of them, with the nearest printed line as
+  the occasion. **Food and potions** (`foodRules`, `effectSummary`): a
+  potion's aspect picks its effect — the class `0x101F` calls `0xA00 +
+  aspect` and its own text names the eight, which line up with the eight
+  effect scripts, each read for what it sets, clears or applies
+  (Sustenance sets nutrition to 24, Healing adds 10 plus a roll of 1 to
+  10, Antidote clears poison, Smith's Friend is fire protection for 100
+  plus 10 times a roll); a food's Use adds to nutrition, a constant or,
+  for the general foodstuff class, a value per variant from a data block
+  of words, the variant named by its tile (flatbread 6, meat pie 16,
+  steak 20). **Status effects** (`statusRules`): every `StatusEffect` by
+  flag — the disassembler's `DVM_FLAG_NAMES` — with the duration the call
+  gives, computed where a roll is in it, and every `ClearFlag` as a cure;
+  12 statuses, sleep for 4,096 from Soporiferousness, cleared by Free
+  Motion among others. The smoke test pins the cap and the doubling, a
+  100-point award, Antidote and Healing, the foodstuff variants, and
+  sleep's 4,096 with a cure for poison.
 - **The joins between the two halves are resource-id rules, and they are
   written down once, in the `Parts and uses` section beside the tree.** A
   character's dossier carries a *Made of* row (`characterParts`): dialogue
