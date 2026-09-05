@@ -87,14 +87,19 @@ a failure:
   project's HFS reader, so a checkout sitting on the default branch has the
   reader (`src/disk_image/hfs.rs`) and no way to call it. The check names the
   missing file and still runs its structural half, which is most of it.
-- **The game is in none of them.** `reference/` is gitignored, so a session
-  that was handed only the repositories has no Cythera in it and every check
-  with an archive behind it skips. **9 ok, 0 failed, 9 skipped is the clean
-  run there** — `delvmod write` and `disk image` are the two that still have
-  an oracle, because both build what they compare on the fly. The decoder
-  snapshots and the delvmod read checks are the ones lost, so a change to a
-  decoder is not believed until it has been run somewhere `reference/` is
-  populated.
+- **The game is in none of them, and the suite now feeds itself anyway.**
+  `reference/` is gitignored, so a session that was handed only the
+  repositories has no Cythera in it. `utilities/fetch_game.mjs` pulls the
+  28 MB installer from archive.org's `/cors/` path into `$TMPDIR` and builds
+  the four fork files out of it, so a checkout with no `reference/` runs
+  **14 ok, 0 failed, 2 skipped** (measured 4 September, with the delvmod and
+  systemless siblings beside it) — both snapshots among the ones that run,
+  which is the whole point: a skip reads like a clean result, so before this a
+  cloud or web session could not see a decoder regression at all. The two that
+  still skip want files rather than bytes: `archive loading` wants the `.hqx`
+  pair and `installer` wants the `.sit`. Without the network the fetch is
+  reported and is not fatal, and the archive-backed checks skip as they did
+  before.
 - **Nothing in the three is on this repository's branch.** They are checked
   out at whatever their own work needs; do not push to them from here, and do
   not read a divergence between them and this tree as something to reconcile
