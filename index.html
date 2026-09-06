@@ -849,6 +849,19 @@ body.atlasFull #atlasPanel #atlasViewport { flex:1 1 auto; height:auto; min-heig
 #atlasPanel:fullscreen #atlasInspect, #atlasPanel:-webkit-full-screen #atlasInspect,
 body.atlasFull #atlasPanel #atlasInspect { max-height:28vh; overflow:auto; }
 body.atlasFull { overflow:hidden; }
+/* In full screen the map is the whole thing: the zoom row, the inspector,
+   the strip and the tuning rows go, and one small overlay in the corner
+   says where you are and is the way out (and, below ground, the way up). */
+#atlasPanel:fullscreen #atlasZoomRow, #atlasPanel:-webkit-full-screen #atlasZoomRow, body.atlasFull #atlasPanel #atlasZoomRow,
+#atlasPanel:fullscreen #atlasInspect, #atlasPanel:-webkit-full-screen #atlasInspect, body.atlasFull #atlasPanel #atlasInspect,
+#atlasPanel:fullscreen #atlasBar, #atlasPanel:-webkit-full-screen #atlasBar, body.atlasFull #atlasPanel #atlasBar,
+#atlasPanel:fullscreen #atlasTune, #atlasPanel:-webkit-full-screen #atlasTune, body.atlasFull #atlasPanel #atlasTune { display:none !important; }
+#atlasPanel:fullscreen, #atlasPanel:-webkit-full-screen, body.atlasFull #atlasPanel { padding:0; }
+#atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport, body.atlasFull #atlasPanel #atlasViewport { height:100%; min-height:100%; }
+#atlasFullOverlay { position:absolute; top:10px; left:10px; z-index:61; align-items:center; gap:8px;
+  padding:6px 8px 6px 12px; background:rgba(8,7,5,.74); border:1px solid rgba(155,136,80,.5); border-radius:9px;
+  color:#e8dfc0; font-size:14px; font-family:ArgosGame, Argos, Georgia, serif; pointer-events:auto; }
+#atlasFullOverlay .secondary { font-size:12px; }
 #atlasViewport { position:relative; width:100%; height:78vh; overflow:hidden;
   touch-action:none; cursor:grab; background:transparent;
   -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
@@ -1434,6 +1447,11 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
         <div id="atlasPanel" style="display:none">
           <div id="atlasBar" style="display:none"></div>
           <div id="atlasViewport"><div id="atlasHover"></div></div>
+          <div id="atlasFullOverlay" style="display:none">
+            <button class="secondary" id="atlasFullUp" style="display:none;width:auto;margin:0;padding:5px 9px" onclick="atlasAscend()">↰</button>
+            <span id="atlasFullWhere"></span>
+            <button class="secondary" style="width:auto;margin:0;padding:5px 9px" onclick="atlasToggleFull()">Leave</button>
+          </div>
           <div id="atlasZoomRow" class="zoomrow">
             <span style="white-space:nowrap">Zoom</span>
             <input type="range" id="atlasZoomSlider" min="1" max="64" value="3"
@@ -3491,7 +3509,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.10.3';
+const GRIMOIRE_VERSION = '1.11.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4452,6 +4470,7 @@ function resetDerivedCaches() {
   window.WORLD_GATEWAYS = null;
   window.ATLAS_SCENE = null;
   window.ATLAS_BELOW = [];
+  atlasNameCounts = null;
   atlasDetailWindows.clear();
   atlasFolkCache.clear();
   _faceCache.clear();
@@ -9832,6 +9851,10 @@ const ATLAS_TUNE_ROWS = [
   ['mouthAt', 'Mouths appear', 2, 40, 1,
    'Screen pixels per square of a map before the rings that mark its ways down are drawn. ' +
    'Too low and the world is a field of rings; too high and you have to hunt for them.'],
+  ['descendAt', 'Mouths open', 8, 64, 1,
+   'Screen pixels per square of the map a mouth is on before zooming in on it goes through. ' +
+   'It used to need the last notch of the zoom, which on a phone was a long pinch and, on a ' +
+   'big map, never came.'],
   ['descendRadius', 'Mouth reach', 0.04, 0.4, 0.01,
    'How near the middle of the screen a mouth has to be, as a fraction of the shorter side, ' +
    'before zooming all the way in goes through it. Small means deliberate; large means a ' +
@@ -10087,6 +10110,10 @@ function mapIsLocated(resid) { return !!mapWorldAnchor(resid); }
    fortress "Cythera" and the Harpy Abyss "Mountains". */
 // A mineshaft is not here: the Mining Camp is an outdoor camp around one,
 // with a horizon in its script, and the shaft is how the world draws it.
+// Land King Hall is drawn by an arch, and it is an interior by the file's
+// other two tests as well: its entry script sets a backdrop (-1), and its
+// header's exits do not land on the world. So it is a mouth, named from
+// its own script "Land King Hall", and its hall is entered through it.
 const ENTRANCE_PICTOGRAMS = /cave|hole|stair|trapdoor|door|arch|ladder/;
 const surfaceCache = new Map();
 function mapIsSurface(resid) {
@@ -10126,7 +10153,7 @@ function surfaceScene() {
     if (!t) continue;
     placed.add(gw.destResid);
     nodes.push({ resid: gw.destResid, gw, s: t.s, ox: t.ox, oy: t.oy,
-                 w: t.w, h: t.h, ts: t.ts, name: gw.name, depth: 1,
+                 w: t.w, h: t.h, ts: t.ts, name: atlasMapName(gw.destResid) || gw.name, depth: 1,
                  key: 'g' + gw.port });
   }
   // A located map with no pictogram used to be placed here at the square
@@ -10149,7 +10176,7 @@ function belowScene(resid) {
   if (e && e.result) {
     const root = { resid, gw: null, s: 1, ox: 0, oy: 0,
                    w: e.result.width, h: e.result.height, ts: e.result.tileSize,
-                   name: zoneNameFor(resid) || labelFor(resid) || ('0x' + resid.toString(16)),
+                   name: atlasMapName(resid),
                    depth: 0, key: 'b' + resid };
     sc = { root, nodes: [root], surface: false };
   }
@@ -10173,14 +10200,40 @@ function atlasScene() {
   return b ? belowScene(b.resid) : surfaceScene();
 }
 
+/* What the atlas calls a map: the name the game shows the player, read off
+   the map's entry script (zoneNameFor), and only where that name is shared
+   by more than one map in the archive -- two "Ruins", two "Caves" -- the
+   editor's more specific name after it, so "Caves · Harpy Cave". The
+   editor's list is the file's too, but it is not what the player sees:
+   its "LKH" is the game's "Land King Hall". */
+let atlasNameCounts = null;
+function atlasMapName(resid) {
+  const own = zoneNameFor(resid) || labelFor(resid) || null;
+  if (!own) return editorZoneName(resid) || ('0x' + resid.toString(16));
+  if (!atlasNameCounts) {
+    atlasNameCounts = new Map();
+    for (let n = 0; n < 0x100; n++) {
+      const r = 0x8000 | n;
+      let nm = null;
+      try { if (refExists(r)) nm = zoneNameFor(r) || labelFor(r); } catch (e) {}
+      if (nm) atlasNameCounts.set(nm, (atlasNameCounts.get(nm) || 0) + 1);
+    }
+  }
+  const ez = editorZoneName(resid);
+  if ((atlasNameCounts.get(own) || 0) > 1 && ez && ez.toLowerCase() !== own.toLowerCase()) return own + ' · ' + ez;
+  return own;
+}
+
 /* The mouths on a node: the ways from it into somewhere the archive does not
    locate. Drawn as a ring and a name where the node is big enough to see
    them, and that is the whole of the affordance -- a mouth is a connection,
    so it gets a mark rather than a place. */
 function atlasMouths(node) {
   if (node._mouths) return node._mouths;
-  const out = mapDescents(node.resid).filter(d => !mapIsSurface(d.dest.resid))
-    .map(d => Object.assign({}, d, { name: editorZoneName(d.dest.resid) || d.name }));
+  // Not the world: an exit to the surface is the way out, and zooming out
+  // takes it, so it is never a ring to go down through.
+  const out = mapDescents(node.resid).filter(d => !mapIsSurface(d.dest.resid) && d.dest.resid !== WORLD_MAP_RESID)
+    .map(d => Object.assign({}, d, { name: atlasMapName(d.dest.resid) || d.name }));
   // On the world, the maps whose edge leads here but which the world draws
   // nothing for -- the bridge, Pnyx upstairs -- are mouths at that square:
   // the one thing the file says about where they are.
@@ -10196,7 +10249,7 @@ function atlasMouths(node) {
       if (!e || !e.result) continue;
       out.push({ x: a.x, y: a.y,
                  dest: { resid, x: Math.floor(e.result.width / 2), y: Math.floor(e.result.height / 2) },
-                 name: editorZoneName(resid) || zoneNameFor(resid) || labelFor(resid) || ('0x' + resid.toString(16)),
+                 name: atlasMapName(resid),
                  kind: 'map’s edge' });
     }
   }
@@ -10258,7 +10311,8 @@ const ATLAS_TUNE_DEFAULTS = {
   nodeFadeFrom: 18,      // px across: a place begins to replace its pictogram
   nodeFadeTo: 34,        // px across: and has fully replaced it
   mouthAt: 7,            // px per square before a place's mouths are ringed
-  descendRadius: 0.14,   // of the shorter side: how centred a mouth must be
+  descendAt: 20,         // px per square of the mouth's map before zooming in on it goes through
+  descendRadius: 0.2,    // of the shorter side: how centred a mouth must be
   peopleAt: 6,           // px per square before the inhabitants are drawn
   maxPpt: 64             // px per square: the most magnification worth having
 };
@@ -10306,6 +10360,7 @@ function paintAtlas() {
   atlasLabels(ctx, drawn, vw, vh);
   window.ATLAS_DRAWN = drawn;
   window.ATLAS_MOUTHS = mouths;
+  if (atlasIsFull()) atlasUpdateFullOverlay(drawn);
 }
 
 /* One node, at the best resolution it has.
@@ -10569,7 +10624,7 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
       ctx.fillRect(x + rad + 3, y - 8, tw + 8, 15);
       ctx.fillStyle = '#e8dfc0';
       ctx.fillText(m.name, x + rad + 7, y + 3);
-      out.push({ m, node, x, y, rad: Math.max(rad, 11) });
+      out.push({ m, node, x, y, per, rad: Math.max(rad, 11) });
     }
   }
   ctx.textAlign = 'center';
@@ -10731,8 +10786,35 @@ function atlasToggleFull() {
 }
 function atlasAfterFullChange() {
   const b = document.getElementById('atlasFullBtn');
-  if (b) b.textContent = atlasIsFull() ? 'Leave full screen' : 'Full screen';
+  const full = atlasIsFull();
+  if (b) b.textContent = full ? 'Leave full screen' : 'Full screen';
+  const ov = document.getElementById('atlasFullOverlay');
+  if (ov) ov.style.display = full ? 'flex' : 'none';
+  if (full) atlasUpdateFullOverlay(window.ATLAS_DRAWN || []);
   if (window.CUR_SUBN === 'WORLD') schedulePaintAtlas();
+}
+/* The overlay's one line: where the middle of the screen is. Below ground it
+   is the place you came into; on the surface it is the deepest place drawn
+   under the middle of the view, else the island. */
+function atlasCurrentPlaceName(drawn) {
+  const b = atlasBelowTop();
+  if (b) return b.name;
+  const vp = document.getElementById('atlasViewport');
+  if (!vp) return 'Cythera';
+  const cx = vp.clientWidth / 2, cy = vp.clientHeight / 2;
+  let best = null;
+  for (const { node, r } of drawn || []) {
+    if (!node.depth) continue;
+    if (cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h && (!best || node.depth > best.node.depth)) best = { node, r };
+  }
+  return best ? best.node.name : 'Cythera';
+}
+function atlasUpdateFullOverlay(drawn) {
+  const w = document.getElementById('atlasFullWhere'), up = document.getElementById('atlasFullUp');
+  if (!w) return;
+  const b = atlasBelowTop();
+  w.textContent = atlasCurrentPlaceName(drawn);
+  if (up) { up.style.display = b ? '' : 'none'; up.title = b ? 'Back up to ' + b.fromName : ''; }
 }
 if (typeof document !== 'undefined' && document.addEventListener) {
   document.addEventListener('fullscreenchange', atlasAfterFullChange);
@@ -10860,22 +10942,28 @@ function atlasZoomAround(newZ, px, py) {
   atlasCheckDescend();
 }
 
-/* Zoomed all the way onto a mouth, go through it.
+/* Zoomed in on a mouth, go through it.
 
    The same gesture that opens a town opens a cave, which is what makes the
    two feel like one interaction even though only one of them is a zoom in the
    geometry. Wanting it centred is what keeps a pinch from falling through
-   whichever mouth happened to be near the edge of the screen. */
+   whichever mouth happened to be near the edge of the screen. It goes
+   through once the mouth's own map is drawn at descendAt pixels a square,
+   wherever the zoom slider is: the old rule wanted the last notch of the
+   zoom, which on a town inside the world is a long way past the point where
+   the ring is plainly the thing you are zooming at, and inside Land King
+   Hall, whose squares are the world's, was never reached at all. */
 function atlasCheckDescend() {
   if (window._atlasDescending) return;
   const vp = document.getElementById('atlasViewport');
   const mouths = window.ATLAS_MOUTHS || [];
   if (!vp || !mouths.length) return;
-  if (atlasView.Z < atlasMaxZ() * 0.92) return;
   const vw = vp.clientWidth, vh = vp.clientHeight;
   const reach = Math.min(vw, vh) * window.ATLAS_TUNE.descendRadius;
   let best = null, bestD = Infinity;
   for (const q of mouths) {
+    // Big enough that the ring is a square you meant, not a dot you passed.
+    if (q.per < window.ATLAS_TUNE.descendAt) continue;
     const d = Math.hypot(q.x - vw / 2, q.y - vh / 2);
     if (d < bestD) { bestD = d; best = q; }
   }

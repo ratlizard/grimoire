@@ -1209,6 +1209,43 @@ try {
     const fullOff = !ctx.document.body.classList.contains('atlasFull') && !/Leave/.test(REGISTRY.get('atlasFullBtn').textContent);
     if (!fullOn || !fullOff) fail('atlas', 'full screen did not pin and unpin the panel');
     else console.log('  atlas: full screen pins the panel where the browser offers no better, and unpins');
+    // The names are the game's own: the mouth into Land King Hall says so,
+    // not the editor's "LKH"; and two "Ruins" are told apart by the
+    // editor's name after the game's.
+    {
+      const sc2 = peek('surfaceScene')();
+      const wm = peek('atlasMouths')(sc2.root);
+      const lkh = wm.find(m => m.dest.resid === 0x8003);
+      const names = sc2.nodes.map(n => n.name).concat(wm.map(m => m.name));
+      if (!lkh || lkh.name !== 'Land King Hall' || names.some(n => /\bLKH\b/.test(n))) fail('atlas', 'the world still says LKH: ' + (lkh && lkh.name));
+      // (This section runs without the fork -- the deep-link check above
+      // re-opened the data fork alone -- so the editor's name is only
+      // expected when the fork is there.)
+      else if (!sc2.nodes.some(n => n.name === (peek('window.CYTHERA_RSRC') ? 'Ruins · Headwater Ruins' : 'Ruins'))) fail('atlas', 'a shared name is not told apart by the editor’s: ' + names.join(', '));
+      else {
+        // Through the arch into the hall, then zoomed onto the hole at
+        // (50,5) at 24 px a square -- nowhere near the last notch of the
+        // zoom -- goes down into the Underground. Full screen's overlay
+        // names where you are.
+        ctx.atlasDescend(lkh, sc2.root);
+        const vp2 = REGISTRY.get('atlasViewport');
+        const vw = vp2.clientWidth || 300, vh = vp2.clientHeight || 300;
+        const av = peek('atlasView');
+        av.Z = 24; av.x = vw / 2 - 50.5 * 24; av.y = vh / 2 - 5.5 * 24;
+        ctx.paintAtlas();
+        const holes = (peek('ATLAS_MOUTHS') || []).map(q => q.m.dest.resid.toString(16));
+        ctx.atlasCheckDescend();
+        const top = peek('atlasBelowTop')();
+        ctx.atlasToggleFull();
+        const where = REGISTRY.get('atlasFullWhere').textContent;
+        ctx.atlasToggleFull();
+        if (!top || top.resid !== 0x8009) fail('atlas', 'zooming onto the hole in Land King Hall did not go down: at ' + (top && top.resid.toString(16)) + ', mouths ' + holes.join(' '));
+        else if (where !== 'Underground') fail('atlas', 'the full-screen overlay does not say where you are: ' + JSON.stringify(where));
+        else console.log('  atlas: the world says Land King Hall, not LKH; the hole in the hall opens at 24 px a square; full screen names the place');
+        while (peek('atlasBelowTop')()) ctx.atlasAscend();
+        ctx.atlasFitAndPaint();
+      }
+    }
     drainRaf();
   }
 } catch (e) { fail('atlas', e); }

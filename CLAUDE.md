@@ -756,6 +756,30 @@ Read the comment above a constant before correcting it.
   with an inline `display:block` and inline beats the sheet: the first
   version formed no column, the viewport's auto height was nothing, and
   full screen on an iPhone was a zoom row and an inspector with no map.
+- **Full screen is the map alone, v1.11.0** (6 September 2026): in full
+  screen the zoom row, the inspector, the strip and the tuning rows are
+  hidden by CSS and one overlay in the corner (`#atlasFullOverlay`)
+  says where the middle of the view is — `atlasCurrentPlaceName`: below
+  ground the place you came into, on the surface the deepest drawn
+  place under the middle, else Cythera — with a Leave button and, below
+  ground, a ↰ back up. `paintAtlas` refreshes it. **Names are the game's
+  own**: `atlasMapName(resid)` is the entry script's name, and only where
+  that name is shared by more than one map ("Ruins", "Caves",
+  "Stronghold", "Vineyard", "Underground", "Mountains") the editor's
+  more specific name follows it, "Ruins · Headwater Ruins"; the mouth into
+  Land King Hall says "Land King Hall", not the editor's "LKH". Land King
+  Hall stays a mouth, by the file's own reading: its entry script sets a
+  backdrop (−1) and its header's exits do not land on the world, and the
+  arch is an entrance pictogram. **Mouths open sooner**: `descendAt` (20
+  px per square of the mouth's map) replaces the old "92 % of the maximum
+  zoom" rule, which on a town inside the world was a long pinch past the
+  point where the ring was plainly the target and inside Land King Hall,
+  whose squares are the world's, was never reached; `descendRadius` is
+  0.2. An exit to the world is never a mouth. The smoke test pins the
+  name, the hall's hole opening at 24 px a square, and the overlay's
+  text; the atlas section of the smoke runs without the fork (the
+  deep-link check re-opens the data fork alone), so the editor's suffix
+  is asserted only when the fork is there.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a
