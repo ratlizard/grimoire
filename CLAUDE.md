@@ -101,8 +101,8 @@ a failure:
   repositories has no Cythera in it. `utilities/fetch_game.mjs` pulls the
   28 MB installer from archive.org's `/cors/` path into `$TMPDIR` and builds
   the four fork files out of it, so a checkout with no `reference/` runs
-  **14 ok, 0 failed, 2 skipped** (measured 4 September, with the delvmod and
-  systemless siblings beside it) — both snapshots among the ones that run,
+  **15 ok, 0 failed, 2 skipped** (measured 4 September, with the delvmod and
+  systemless siblings beside it; 14 before `rule models` was added) — both snapshots among the ones that run,
   which is the whole point: a skip reads like a clean result, so before this a
   cloud or web session could not see a decoder regression at all. The two that
   still skip want files rather than bytes: `archive loading` wants the `.hqx`
@@ -209,6 +209,7 @@ loads all nine, in this order, before its own inline script:
 | `js/delv-archive.js` | master index, `getResourceBytes`, `smartDecrypt`, and the record parsers (maps, prop lists, schedules, string tables) |
 | `js/delv-graphics.js` | `PALETTE`, `decompressDCG`, `decodeResource`, the undither filter |
 | `js/delv-script.js` | the Delver VM: `dvmWord`, the opcode table, the symbol tables, `dvmDisassemble`, `dvmRender` |
+| `js/delv-mechanics.js` | the *rules* as models — the dice game enumerated, the combat margin convolved, the lock and casting odds, the clock's healing and a night's sleep. Numbers to numbers, no DOM and no archive; the figures that draw them are in the page. Cross-checked by `utilities/mech_check.mjs` |
 
 **The delv-* files are not a library, and saying so out loud matters.**
 `getResourceBytes` reads the open archive out of `fileBytes` and
@@ -327,7 +328,7 @@ from outside the repository.
   `--quick` skips it.
 
 A check whose inputs are genuinely missing is reported as **skip**, not fail.
-A clean run is **16 ok, 0 failed, 0 skipped**. Anything else is a
+A clean run is **17 ok, 0 failed, 0 skipped**. Anything else is a
 regression. Without the game in `reference/` most checks skip, and `delvmod
 write` and `disk image` are the two checks with an oracle still running — its synthetic archives are built on the fly. `dialogue vs
 guides` has a second, optional input of its own — the community's dialogue
@@ -475,6 +476,23 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   BreadWorldMercy453 by asking every character every word — it is independent
   of this repository's decoding in exactly the way delvmod is, which is what
   makes it an oracle rather than a fixture.
+- `mech_check.mjs` (+ `mech_ref.mjs`) — the Mechanics sheet's probabilities,
+  and the one part of that sheet that never had an oracle. Every other number
+  on it is read off the archive, so delvmod and the disassembly check stand
+  behind it; nothing in the file says how often a blow lands, and a closed
+  form draws a plausible curve whatever it computes. So the rules are
+  implemented twice — `js/delv-mechanics.js` convolves distributions,
+  `mech_ref.mjs` rolls dice 200,000 times and counts, written from the sheet's
+  prose without reading the other — and the check requires them to agree, to
+  four standard errors, outcome by outcome rather than on the totals. It also
+  pins the two figures that came from outside this project entirely: the dice
+  enumerating to 96 wins, 50 pushes and 70 losses of 216, and a player's five
+  March 2012 bed measurements (12, 42, 30, 10, 35 health an hour). Agreement
+  proves the two agree about the rule **as the sheet states it** and nothing
+  about whether the sheet reads the bytecode rightly; where the prose was
+  ambiguous both take the same documented reading, with the alternative named
+  on both sides. It needs no archive, no delvmod and no network, so unlike
+  almost everything here it never skips.
 - `hfs_check.mjs` — `writeHfsImage` in `js/mac-hfs.js`, the disk-image writer
   `index.html` exports with. Structural on its own (the MDB, the bitmap and
   both B-trees read back and audited against the arithmetic that produced
@@ -920,6 +938,70 @@ Read the comment above a constant before correcting it.
   "the hole" are the same thing. The smoke pins the GIF header and loop
   block, the two frames' holes, the Seldane count and the setting's
   flags.
+- **The rules are drawn, and three of them were read wrong, v1.17.0**
+  (6 September 2026). Mechanics stated every rule in prose and drew none of
+  them, which is exactly enough to be exact and not enough to be understood:
+  "your die outside the two black ones wins the distance to the nearer" says
+  nothing about whether the game is worth playing. **Every section now carries
+  a figure**, and the arithmetic behind them is `js/delv-mechanics.js` —
+  numbers to numbers, no DOM, no archive — with the chart builders
+  (`mechFig`, `mechBars`, `mechStackBar`, `mechColumns`, `mechPlot`,
+  `mechNumberLine`, `mechDiceMatrix`) in the page beside the sheet, because
+  markup and class names are the page's. **The charts are HTML and CSS**, not
+  SVG with text in it: an SVG scaled to the column scales its type with it, so
+  bars, stacks, cell grids and number lines are percentages and every word on
+  them is page text at the page's own size. `mechPlot` keeps an SVG for the
+  curve alone — a 0..100 box with `preserveAspectRatio="none"`, which stretches
+  data that has no aspect, and `vector-effect="non-scaling-stroke"` so the
+  stroke does not stretch with it — and hangs the ticks, dots and annotations
+  around it as HTML.
+  Two of the figures are played rather than read. **The dice game is all 216
+  throws at once** (`mechDiceMatrix`): the innkeeper's first die down the side,
+  the second across, your six faces inside each cell, red for the lost obol
+  and green by size — the whole game in one picture, and it shows why the house
+  loses. Under it a **simulator** (`diceSimPlay`, `DICE_SIM`) throws one game
+  or a hundred thousand through the script's own arithmetic, lays what it
+  played over the exact distribution as a dashed rule, and draws the running
+  average against the exact `+0.306`. **Combat is a bench** (`combatSimControls`,
+  `combatSimHtml`): the archive's own weapons in a menu, sliders for the skill
+  and the two reflexes, a shield to switch off, and the answer as the
+  miss/parry/hit split, the margin's triangle and how often each of the eight
+  blow words would be printed. The rest are one figure each: the weapons
+  ordered by damage, the casting-failure curves by level, the doubling
+  experience thresholds against the 65,535 cap (the eleventh level is the last
+  reachable), karma's number line, food as hours of walking, statuses against
+  the game hour, five days of hunger, the lock staircase, what the shops ask,
+  training points against the fifteen a mastery costs, the balloon at the size
+  the engine draws it, and the bed table with the 2012 measurements on it.
+  **`utilities/mech_check.mjs` is the new oracle** and the section above says
+  what it does and does not prove.
+  **Reading the bytecode to draw it found three things the prose had wrong**,
+  each verified twice (delvmod's `ddasm` and the page's own `dvmDisassemble`
+  agreeing byte for byte, and the raw decrypted bytes where it mattered):
+  **`Random(a, b)` stops one short of `b`** — settled in the executable, where
+  `cbrnd` is `a + (rand mod (b - a))` and returns `a` when `a >= b`, and
+  corroborated by the 31 places a script writes `Random(0, len(array))` and
+  indexes that array with it. So `amountWords` and `effectSummary` printed
+  every generated roll a point too generous ("25 + a roll of 0 to 10" for
+  Fireball, now 0 to 9) and `rollWords` is the one place that formats them
+  now. **The miss test comes before the parry** in the resolver `0xE87`, not
+  after it, so a blow that would have missed is never parried and the parry
+  share comes entirely out of the hits. **A hit does `1 + Random(0, figure)`**,
+  one to the figure rather than nothing to it, with the weapon's skill
+  widening the figure before the roll and the enchantment a flat addend after
+  it; the blow word names that raw roll, before `ResistDamage`. And the
+  **lock difficulty rounds up** — `(data1 + 19) / 20 * 5`, so a lock of 1
+  already costs the full five and only a difficulty of nothing is free — with
+  both its rolls 0 to 18 rather than 0 to 19. `doc/game-clock.md` in the
+  workbench carried the inclusive reading and is corrected there.
+  **One thing found and not resolved**, recorded here so it is not
+  rediscovered: in `0xE87` the melee weapon-skill term reads
+  `class_member 0x2A03` off **`local Var02`**, the defender's exhausted
+  `EquipmentIterator` variable, rather than off the weapon argument — the raw
+  byte is `02` where an argument read would be `32`, and both disassemblers
+  agree. What it contributes therefore depends on what the iterator leaves
+  behind, which no script says; the figure's skill slider is drawn as the
+  rule intends and the caption says so.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a
@@ -1066,7 +1148,7 @@ Read the comment above a constant before correcting it.
   aspect` and its own text names the eight, which line up with the eight
   effect scripts, each read for what it sets, clears or applies
   (Sustenance sets nutrition to 24, Healing adds 10 plus a roll of 1 to
-  10, Antidote clears poison, Smith's Friend is fire protection for 100
+  9, Antidote clears poison, Smith's Friend is fire protection for 100
   plus 10 times a roll); a food's Use adds to nutrition, a constant or,
   for the general foodstuff class, a value per variant from a data block
   of words, the variant named by its tile (flatbread 6, meat pie 16,
@@ -1161,7 +1243,7 @@ Read the comment above a constant before correcting it.
   source) and every write to health is read off the script; the amount
   is a stack expression evaluated by `dvmAmountExpr` (constants,
   `Random(a,b)` rolls, `add`; `amountWords` says "25 + a roll of 0 to
-  10"), the type is named from its bits by `damageTypeName` (0x03 edged,
+  9" — see **v1.17.0** below for why the top is one short of the operand), the type is named from its bits by `damageTypeName` (0x03 edged,
   0x04 blunt, 0x08 fire, 0x20 electric, 0xC0 magical), and the victim is
   "the target", "every enemy", "everything in the effect", or — when the
   lines before the call compare the victim's square with the target's —
@@ -1175,8 +1257,8 @@ Read the comment above a constant before correcting it.
   hour at a time and then adds what the engine healed times quality/2,
   so quality 4 is three times the engine's rate; the 2012 web-board bed
   measurements (12, 10, 42, 30, 35 an hour) reproduce exactly (workbench
-  `doc/game-clock.md`, "Sleep"). The smoke test pins Fireball 25 + 0–10
-  fire at the target square, Death Strike 200, Lesser Healing 5 + 1–5,
+  `doc/game-clock.md`, "Sleep"). The smoke test pins Fireball 25 + 0–9
+  fire at the target square, Death Strike 200, Lesser Healing 5 + 1–4,
   Tremor's two rolls to every enemy, and the bed's quality 4.
   **The inn qualities, v1.10.1**: a far word is (resource, offset), and
   `0x0301 0x0012` is the array `[2, 3, 1, 1]` in the global-store script

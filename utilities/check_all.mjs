@@ -220,6 +220,17 @@ const CHECKS = [
   {page: 'viewer', name: 'undither vs truth',
    cmd: ['utilities/undither_check.mjs', 'index.html'],
    grep: /measured is [\d.]+% better overall for [\d.]+% at edges/},
+  /* The Mechanics sheet's probabilities: the closed-form models in
+     js/delv-mechanics.js against a Monte Carlo simulation of the same rules
+     in utilities/mech_ref.mjs, written from the sheet's prose rather than
+     from the models. Every other number on that sheet is read off the
+     archive and has delvmod or the disassembly behind it; the odds had
+     nothing at all, and a closed form draws a plausible curve whatever it
+     computes. It needs no archive, no delvmod and no network, so unlike
+     almost everything here it never skips. */
+  {page: 'viewer', name: 'rule models',
+   cmd: ['utilities/mech_check.mjs', 'js/delv-mechanics.js'],
+   grep: /\d+ comparisons agree[^\n]*/},
   {page: 'viewer', name: 'ui smoke', want: [DATA], slow: true,
    cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL, SAVE],
    grep: /\d+ galleries, [\d,]+ tiles/},

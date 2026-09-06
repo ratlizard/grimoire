@@ -832,6 +832,87 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 .mechPrice { color:var(--gold); font-variant-numeric:tabular-nums; }
 .mechSec .partsStrip { margin-top:6px; }
 @media (max-width:640px) { .mechSec { padding:10px 8px 8px; } .mechHead h3 { font-size:15.5px; } .mechFrom { margin-left:0; } }
+/* ---- the figures on the Mechanics sheet ----------------------------------
+   Charts here are HTML and CSS, not SVG with text in it, and that is a
+   decision rather than a habit. An SVG scaled to the column's width scales
+   its type with it: legible on a phone means enormous on a desktop, and the
+   other way round. Bars, stacks, cell grids and number lines are laid out
+   with percentages instead, so every word on them is ordinary page text at
+   the page's own size and reflows like the rest. The one thing HTML cannot
+   draw is a curve, so `mechPlot` keeps an SVG for the line alone -- plotted
+   in a 0..100 box with preserveAspectRatio="none", which stretches the data
+   to fit exactly as intended, with vector-effect="non-scaling-stroke" so the
+   stroke does not stretch with it -- and puts the axis labels, the dots and
+   the annotations around it as HTML. */
+.mechFig { margin:10px 0 4px; }
+.mechFig figcaption { color:#8d8368; font-size:11.5px; line-height:1.45; margin-top:6px; }
+.mechFig figcaption b { color:#b9ad8a; font-weight:600; }
+.mechFigTitle { color:#9d9270; font-size:10.5px; text-transform:uppercase; letter-spacing:1.1px; margin:0 0 5px; }
+.mechBars { display:grid; grid-template-columns:auto 1fr auto; gap:3px 8px; align-items:center; font-size:12px; }
+.mechBars .bLabel { color:#d3c9a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:44vw; }
+.mechBars .bTrack { background:rgba(255,248,220,.05); border-radius:2px; height:11px; position:relative; overflow:hidden; }
+.mechBars .bFill { position:absolute; top:0; bottom:0; border-radius:2px; }
+.mechBars .bVal { color:var(--gold); font-variant-numeric:tabular-nums; font-size:11.5px; white-space:nowrap; }
+.mechStack { display:flex; height:18px; border-radius:3px; overflow:hidden; border:1px solid rgba(155,136,80,.35); }
+.mechStack i { display:block; height:100%; }
+.mechKeys { display:flex; flex-wrap:wrap; gap:3px 12px; margin-top:5px; font-size:11.5px; color:#b9ad8a; align-items:center; }
+.mechKeys i { width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:5px; vertical-align:-1px; }
+.mechKeys b { color:var(--gold); font-weight:600; font-variant-numeric:tabular-nums; }
+/* The columns stretch to the row's height: a flex item sized by its content
+   is one pixel tall, and a percentage height inside it then resolves to
+   nothing -- which is exactly how the first version of this drew an empty
+   box with the dashed sample rules lying on the floor. */
+.mechCols { display:flex; align-items:stretch; gap:3px; }
+.mechCols .cCol { flex:1; height:100%; position:relative; display:flex; flex-direction:column; justify-content:flex-end; }
+.mechCols .cFill { display:block; width:100%; border-radius:2px 2px 0 0; min-height:1px; }
+.mechCols .cMark { position:absolute; left:-1px; right:-1px; height:0; border-top:2px dashed var(--gold); }
+.mechColLabels { display:flex; gap:3px; margin-top:4px; }
+.mechColLabels span { flex:1; text-align:center; font-size:10.5px; color:#9d9270; }
+.mechPlot { display:grid; grid-template-columns:auto 1fr; align-items:stretch; }
+.mechPlot .pY { grid-area:1/1; position:relative; width:38px; }
+.mechPlot .pY span { position:absolute; right:5px; transform:translateY(-50%); font-size:10px; color:#7d745a; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.mechPlot .pArea { grid-area:1/2; position:relative; border-left:1px solid rgba(155,136,80,.45); border-bottom:1px solid rgba(155,136,80,.45); }
+.mechPlot .pArea svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.mechPlot .pX { grid-area:2/2; position:relative; height:15px; margin-top:3px; }
+.mechPlot .pX span { position:absolute; transform:translateX(-50%); font-size:10px; color:#7d745a; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.mechPlot .pMark { position:absolute; transform:translate(-50%,-50%); font-size:10.5px; color:var(--gold); white-space:nowrap; pointer-events:none; }
+.mechPlot .pMark.right { transform:translate(-100%,-50%); }
+.mechPlot .pMark.left { transform:translate(0,-50%); }
+.mechPlot .pMark b { font-weight:600; text-shadow:0 0 4px #14120e, 0 0 4px #14120e; }
+.mechPlot .pDot { display:block; width:7px; height:7px; border-radius:50%; margin:0 auto; }
+.mechPlot .pAxisName { grid-area:2/1; font-size:10px; color:#7d745a; text-align:right; padding-right:5px; }
+.mechDice { display:grid; grid-template-columns:auto repeat(6,1fr); gap:3px 6px; font-size:10px; color:#9d9270; align-items:center; }
+.mechDice .dHead { text-align:center; color:#7d745a; }
+.mechDice .dSide { text-align:right; padding-right:3px; color:#7d745a; }
+.mechDice .dCell { display:flex; gap:1px; height:16px; padding:1px; background:rgba(0,0,0,.35); border-radius:2px; }
+.mechDice .dCell i { flex:1; border-radius:1px; }
+.mechDice .dHead svg, .mechDice .dSide svg { display:block; margin:0 auto; }
+.mechLine { position:relative; height:34px; margin:2px 0 4px; }
+.mechLine .lRule { position:absolute; left:0; right:0; top:16px; height:1px; background:rgba(155,136,80,.45); }
+.mechLine .lBand { position:absolute; top:11px; height:11px; border-radius:2px; opacity:.55; }
+.mechLine .lTick { position:absolute; top:9px; width:1px; height:15px; background:rgba(155,136,80,.6); }
+.mechLine .lLab { position:absolute; transform:translateX(-50%); font-size:10px; color:#b9ad8a; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.mechLine .lLab.below { top:20px; }
+.mechLine .lLab.above { top:0; color:var(--gold); }
+.mechCtl { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; margin:6px 0 8px; font-size:12px; color:#b9ad8a; }
+.mechCtl label { display:inline-flex; align-items:center; gap:5px; }
+.mechCtl input[type=range] { width:104px; accent-color:#9b8850; }
+.mechCtl select { font-size:12px; padding:2px 4px; max-width:46vw; }
+/* The base stylesheet gives every button width:100% and a bottom margin --
+   the page was sized for a phone, where a button is a row. A control strip
+   has to opt out of both, as the toolbars and the atlas rows do. */
+.mechCtl button { width:auto; margin:0; padding:4px 11px !important; min-height:30px !important; font-size:12px !important; }
+.mechCtl b { color:var(--gold); font-variant-numeric:tabular-nums; min-width:2ch; display:inline-block; }
+/* The dice are drawn rather than typed. U+2680..2685 are the obvious way to
+   put a die on a page and they are not in Argos, so on the maintainer's own
+   font they came out as six empty boxes; a browser that has to substitute a
+   font for them picks a different one on every platform. Seven circles is
+   less code than deciding which fallback stack to trust. */
+.mechDiceFaces { display:flex; gap:10px; align-items:center; margin:2px 0 4px; }
+.mechVerdict { font-size:12.5px; color:#d3c9a6; margin-top:2px; }
+.mechVerdict b { color:var(--gold); }
+.mechBalloon { display:block; margin:4px 0 0; }
+@media (max-width:640px) { .mechBars .bLabel { max-width:38vw; } .mechPlot .pY { width:32px; } }
 .skillCard .skillKey { color:#9d9270; font-size:11px; text-transform:uppercase; letter-spacing:1px; white-space:nowrap; width:1%; padding-right:14px; vertical-align:top; }
 .lessonList { color:#d3c9a6; font-style:italic; }
 #atlasPanel { margin:0; background:#000; }
@@ -1534,6 +1615,10 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
 <script src="js/delv-archive.js"></script>
 <script src="js/delv-graphics.js"></script>
 <script src="js/delv-script.js"></script>
+<!-- The rules as models: the arithmetic behind the Mechanics sheet, in
+     numbers rather than markup, and cross-checked against an independent
+     simulation by utilities/mech_check.mjs. Last, since it needs nothing. -->
+<script src="js/delv-mechanics.js"></script>
 
 <script>
 let currentMode = 'sheet';
@@ -3579,7 +3664,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.16.0';
+const GRIMOIRE_VERSION = '1.17.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4536,6 +4621,7 @@ function resetDerivedCaches() {
   window.BARKS = null;
   window.CONV_CACHE = null;
   window.MONSTER_STATS = null;
+  window.MECH_WEAPONS = null;
   window.RESOURCE_SYMBOLS = null;
   window.ZONE_NAMES = null;
   window.EDITOR_ZONE_NAMES = null;
@@ -13581,13 +13667,13 @@ function effectSummary(text) {
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i], next = lines.slice(i + 1, i + 12).join(' ');
     if (/set_field nutrition/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); if (m) out.push('nutrition set to ' + parseInt(m[1])); }
-    else if (/set_field health/.test(l)) { const m = /byte (0x[0-9A-F]+)[\s\S]*?add[\s\S]*?sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(next); out.push(m ? 'health +' + parseInt(m[1]) + ' plus a roll of ' + parseInt(m[2]) + ' to ' + parseInt(m[3]) : 'health changed'); }
+    else if (/set_field health/.test(l)) { const m = /byte (0x[0-9A-F]+)[\s\S]*?add[\s\S]*?sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(next); out.push(m ? 'health +' + parseInt(m[1]) + ' plus ' + rollWords([parseInt(m[2]), parseInt(m[3])]) : 'health changed'); }
     else if (/set_field magic \(/.test(l) && !/full_magic/.test(l)) out.push('magic restored');
     else if (/sys ClearFlag/.test(l)) { const m = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || ''); if (m) out.push('clears ' + m[1].trim()); }
     else if (/sys StatusEffect/.test(l)) {
       const m = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || '');
       const c = /byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)\s+sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(lines.slice(i + 3, i + 9).join(' '));
-      out.push((m ? m[1].trim() : 'a status') + (c ? ' for ' + parseInt(c[1]) + ' plus ' + parseInt(c[2]) + ' times a roll of ' + parseInt(c[3]) + ' to ' + parseInt(c[4]) : ''));
+      out.push((m ? m[1].trim() : 'a status') + (c ? ' for ' + parseInt(c[1]) + ' plus ' + parseInt(c[2]) + ' times ' + rollWords([parseInt(c[3]), parseInt(c[4])]) : ''));
     }
     else if (/sys SpecialView/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); out.push('a special view' + (m ? ' (' + parseInt(m[1]) + ')' : '')); }
   }
@@ -13893,17 +13979,31 @@ function dvmAmountExpr(tokens) {
   }
   return st.length === 1 ? st[0] : null;
 }
+/* A roll in words. `Random(a, b)` yields a to b MINUS ONE -- `cbrnd` in the
+   executable is `a + (rand mod (b - a))`, and 31 places in the archive write
+   `Random(0, len(array))` and index that array with it -- so the operands are
+   not the ends of the range and printing them as if they were overstates
+   every roll on the sheet by a point. It said "a roll of 0 to 10" for
+   Fireball's `Random(0, 10)` until 6 September 2026. Where a script passes a
+   pair it cannot roll between (`a >= b`, which the routine answers with `a`),
+   the one value is printed rather than a backwards range. */
+function rollWords(r) {
+  const lo = r[0], hi = r[1] - 1;
+  return hi <= lo ? 'a fixed ' + lo : 'a roll of ' + lo + ' to ' + hi;
+}
 function amountWords(a) {
   if (!a) return '';
   const parts = [];
   if (a.base || !a.rolls.length) parts.push(String(a.base));
   const same = a.rolls.length && a.rolls.every(r => r[0] === a.rolls[0][0] && r[1] === a.rolls[0][1]);
-  if (a.rolls.length === 1) parts.push('a roll of ' + a.rolls[0][0] + ' to ' + a.rolls[0][1]);
-  else if (a.rolls.length > 1 && same) parts.push(['two', 'three', 'four'][a.rolls.length - 2] + ' rolls of ' + a.rolls[0][0] + ' to ' + a.rolls[0][1]);
-  else a.rolls.forEach(r => parts.push('a roll of ' + r[0] + ' to ' + r[1]));
+  if (a.rolls.length === 1) parts.push(rollWords(a.rolls[0]));
+  else if (a.rolls.length > 1 && same) parts.push(['two', 'three', 'four'][a.rolls.length - 2] + ' ' + rollWords(a.rolls[0]).replace(/^a roll of/, 'rolls of').replace(/^a fixed/, 'times'));
+  else a.rolls.forEach(r => parts.push(rollWords(r)));
   return parts.join(' + ');
 }
-function amountRange(a) { return a ? [a.base + a.rolls.reduce((s, r) => s + r[0], 0), a.base + a.rolls.reduce((s, r) => s + r[1], 0)] : null; }
+// The range an amount can come out at, the top end one short of the operand
+// for the same reason rollWords is.
+function amountRange(a) { return a ? [a.base + a.rolls.reduce((s, r) => s + r[0], 0), a.base + a.rolls.reduce((s, r) => s + Math.max(r[0], r[1] - 1), 0)] : null; }
 // The damage type is a bit set: 0x03 edged or piercing, 0x04 blunt, 0x08
 // fire, 0x20 electric, 0xC0 magic (Rules › resistance, 0x100 and 0x3040).
 function damageTypeName(t) {
@@ -13986,8 +14086,667 @@ function sleepRules() {
   inns.sort((a, b) => a.who - b.who);
   return { own, quarter, hours, half, owner, toss, soundly, table, inns };
 }
+/* ---- the pictures on the Mechanics sheet ---------------------------------
+   The sheet states each rule in prose and then, since 6 September 2026, draws
+   it. The reason is the dice game: "your die outside the two black ones wins
+   the distance to the nearer" is exact, complete, and tells nobody whether
+   the game is worth playing. The 216 throws drawn as 216 coloured cells
+   answer that at a glance, and every other rule here had the same gap between
+   being stated and being understood -- how often a blow lands, what a shield
+   is worth, why a lock of difficulty 19 is a lock of difficulty 0, how much
+   of a spell's failure is the caster and how much the spell.
+
+   Two rules govern what is drawn. **Nothing is invented**: every number in
+   every figure is either read out of the open archive by the functions above,
+   or computed from those numbers by js/delv-mechanics.js, which is checked
+   against an independent simulation by utilities/mech_check.mjs. And **a
+   figure must say something the table does not**; where it would only repeat
+   a column, there is no figure. Weapons get bars because the ordering is the
+   point, shops get a price distribution because the range is the point, and
+   the skill table gets none.
+
+   The chart builders are here rather than in js/ because they emit markup and
+   the class names are the page's; the arithmetic they draw is in js/ because
+   it is numbers and can be checked. That is the same line as everywhere else
+   in this repository, drawn in the same place. */
+
+const MECH_INK = {
+  gold: 'rgb(249,248,111)', ink: '#d3c9a6', dim: '#7d745a',
+  hit: '#9ec254', miss: '#8a7f63', parry: '#6ba8bf',
+  win: '#9ec254', push: '#6e6952', lose: '#c0684f',
+  cool: '#6ba8bf', warm: '#c0684f', leaf: '#9ec254', violet: '#b08fd0'
+};
+// Series colours, chosen by eye against the planks: the page's own gold
+// first, then three that stay apart from it and from each other on a dark
+// ground. Not the game's CLUT -- that palette is Cythera's artwork and
+// reading a chart is not looking at the game.
+const MECH_SERIES = [MECH_INK.gold, MECH_INK.cool, MECH_INK.warm, MECH_INK.leaf, MECH_INK.violet];
+
+function mechFig(title, body, caption) {
+  return '<figure class="mechFig">' + (title ? '<div class="mechFigTitle">' + svEsc(title) + '</div>' : '') +
+    body + (caption ? '<figcaption>' + caption + '</figcaption>' : '') + '</figure>';
+}
+// Horizontal bars: a label, a track, a figure. `rows` are {label, value,
+// colour, text, html}; the value sets the width and `text` overrides what is
+// printed at the end of it.
+function mechBars(rows, opts) {
+  opts = opts || {};
+  const max = opts.max || rows.reduce((m, r) => Math.max(m, Math.abs(r.value) || 0), 0) || 1;
+  return '<div class="mechBars">' + rows.map(r =>
+    '<span class="bLabel" title="' + svEsc(r.title || r.label) + '">' + (r.html || svEsc(r.label)) + '</span>' +
+    '<span class="bTrack"><span class="bFill" style="left:0;width:' + (100 * Math.min(1, Math.abs(r.value || 0) / max)).toFixed(2) +
+      '%;background:' + (r.colour || opts.colour || MECH_INK.gold) + '"></span></span>' +
+    '<span class="bVal">' + svEsc(r.text !== undefined ? r.text : String(r.value)) + '</span>').join('') + '</div>';
+}
+// One bar cut into shares, with a key under it. The shares are drawn in the
+// order given and the key prints each as a percentage.
+function mechStackBar(parts) {
+  const total = parts.reduce((s, p) => s + Math.max(0, p.value), 0) || 1;
+  return '<div class="mechStack">' + parts.map(p =>
+      '<i style="width:' + (100 * Math.max(0, p.value) / total).toFixed(3) + '%;background:' + p.colour + '" title="' + svEsc(p.label) + '"></i>').join('') + '</div>' +
+    '<div class="mechKeys">' + parts.map(p =>
+      '<span><i style="background:' + p.colour + '"></i>' + svEsc(p.label) + ' <b>' + (100 * p.value / total).toFixed(1) + '%</b></span>').join('') + '</div>';
+}
+// Columns, for a distribution. A bin may carry a second value, drawn as a
+// dashed rule across the column: that is how a sampled result is laid over
+// the exact one without a second chart.
+function mechColumns(bins, opts) {
+  opts = opts || {};
+  const max = opts.max || bins.reduce((m, b) => Math.max(m, b.value, b.mark === undefined ? 0 : b.mark), 0) || 1;
+  return '<div class="mechCols" style="height:' + (opts.height || 96) + 'px">' + bins.map(b =>
+      '<span class="cCol" title="' + svEsc(b.title || (b.label + ': ' + b.value)) + '">' +
+      (b.mark === undefined ? '' : '<i class="cMark" style="bottom:' + (100 * b.mark / max).toFixed(2) + '%"></i>') +
+      '<i class="cFill" style="height:' + (100 * b.value / max).toFixed(2) + '%;background:' + (b.colour || opts.colour || MECH_INK.gold) + '"></i></span>').join('') +
+    '</div><div class="mechColLabels">' + bins.map(b => '<span>' + svEsc(b.label) + '</span>').join('') + '</div>';
+}
+/* A plot: the curves in an SVG stretched to the box, everything with words on
+   it in HTML around and over it. `x` and `y` are {min, max, ticks, log};
+   `series` are {points, colour, name, dash}; `marks` are {x, y, label, dot}
+   placed over the plot in page coordinates. */
+function mechPlot(spec) {
+  const X = spec.x, Y = spec.y;
+  const fx = X.log ? Math.log10 : (v => v), fy = Y.log ? Math.log10 : (v => v);
+  const x0 = fx(X.min), x1 = fx(X.max), y0 = fy(Y.min), y1 = fy(Y.max);
+  const sx = v => 100 * (fx(v) - x0) / ((x1 - x0) || 1);
+  const sy = v => 100 - 100 * (fy(v) - y0) / ((y1 - y0) || 1);
+  const grid = (Y.ticks || []).map(t => '<line x1="0" x2="100" y1="' + sy(t.v).toFixed(3) + '" y2="' + sy(t.v).toFixed(3) +
+    '" stroke="rgba(155,136,80,.2)" stroke-width="1" vector-effect="non-scaling-stroke"/>').join('');
+  const lines = (spec.series || []).map(s => {
+    const pts = s.points.map(p => sx(p[0]).toFixed(3) + ',' + sy(p[1]).toFixed(3)).join(' ');
+    return '<polyline points="' + pts + '" fill="none" stroke="' + (s.colour || MECH_INK.gold) + '" stroke-width="' + (s.width || 1.6) + '"' +
+      (s.dash ? ' stroke-dasharray="' + s.dash + '"' : '') + ' stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
+  }).join('');
+  // A label at the very edge of the plot would be cut off, so a mark can say
+  // which side of its point to sit on, and can be nudged down the page to get
+  // out of the way of the one before it.
+  const marks = (spec.marks || []).map(m => '<span class="pMark' + (m.side ? ' ' + m.side : '') + '" style="left:' + sx(m.x).toFixed(2) + '%;top:' + sy(m.y).toFixed(2) + '%' +
+    (m.dy ? ';margin-top:' + m.dy + 'px' : '') + (m.colour ? ';color:' + m.colour : '') + '">' +
+    (m.dot ? '<i class="pDot" style="background:' + (m.colour || MECH_INK.gold) + '"></i>' : '') +
+    (m.label ? '<b>' + svEsc(m.label) + '</b>' : '') + '</span>').join('');
+  const named = (spec.series || []).filter(s => s.name);
+  return '<div class="mechPlot">' +
+    '<div class="pY">' + (Y.ticks || []).map(t => '<span style="top:' + sy(t.v).toFixed(2) + '%">' + svEsc(t.label) + '</span>').join('') + '</div>' +
+    '<div class="pArea" style="height:' + (spec.height || 150) + 'px"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' +
+      grid + lines + '</svg>' + marks + '</div>' +
+    '<div class="pX">' + (X.ticks || []).map(t => '<span style="left:' + sx(t.v).toFixed(2) + '%">' + svEsc(t.label) + '</span>').join('') + '</div>' +
+    '</div>' + (named.length ? '<div class="mechKeys">' + named.map(s =>
+      '<span><i style="background:' + (s.colour || MECH_INK.gold) + '"></i>' + svEsc(s.name) + '</span>').join('') + '</div>' : '');
+}
+// A number line, for the things that are one number on a scale rather than a
+// distribution: what a lesson costs, how long a status lasts, where karma
+// starts. Labels alternate above and below so two close marks do not collide.
+function mechNumberLine(spec) {
+  const f = spec.log ? Math.log10 : (v => v);
+  const a = f(spec.min), b = f(spec.max);
+  const at = v => 100 * (f(Math.max(spec.min, Math.min(spec.max, v))) - a) / ((b - a) || 1);
+  return '<div class="mechLine">' +
+    '<div class="lRule"></div>' +
+    (spec.bands || []).map(bd => '<div class="lBand" style="left:' + at(bd.from).toFixed(2) + '%;width:' +
+      Math.max(0.4, at(bd.to) - at(bd.from)).toFixed(2) + '%;background:' + bd.colour + '" title="' + svEsc(bd.label || '') + '"></div>').join('') +
+    (spec.marks || []).map((m, i) => '<div class="lTick" style="left:' + at(m.v).toFixed(2) + '%' + (m.colour ? ';background:' + m.colour : '') + '"></div>' +
+      '<div class="lLab ' + (m.above || (i % 2 === 0 && !m.below) ? 'above' : 'below') + '" style="left:' + at(m.v).toFixed(2) + '%' +
+      (m.colour ? ';color:' + m.colour : '') + '">' + svEsc(m.label) + '</div>').join('') +
+    '</div>';
+}
+
+/* THE DICE GAME, ALL 216 THROWS AT ONCE. Six rows for the innkeeper's first
+   die, six columns for the second, and inside each cell the six faces your
+   own die could show, left to right. Red is a lost obol, grey a push, green
+   a win and the brighter the more. Nothing is sampled and nothing is
+   rounded: this is the whole game, and what it shows is that the winning
+   cells are the ones where the innkeeper's two dice are close together --
+   which is why the house loses. */
+function mechNetColour(n) {
+  return n < 0 ? '#8c4034' : n === 0 ? '#4a4636' : ['#5d7a3a', '#79a044', '#a3c455', '#cfe86b'][Math.min(3, n - 1)];
+}
+// A die, drawn: the face as pips on a rounded square. See the note by
+// .mechDiceFaces for why these are not the Unicode die characters.
+const MECH_PIPS = [[[1, 1]], [[0, 0], [2, 2]], [[0, 0], [1, 1], [2, 2]],
+  [[0, 0], [2, 0], [0, 2], [2, 2]], [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]],
+  [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]]];
+function mechDieFace(n, size, ink) {
+  const s = size || 14, face = ink || '#efeade';
+  return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 12 12" role="img" aria-label="a die showing ' + (n + 1) + '">' +
+    '<rect x="0.5" y="0.5" width="11" height="11" rx="2.5" fill="' + face + '" stroke="rgba(0,0,0,.55)"/>' +
+    MECH_PIPS[n].map(q => '<circle cx="' + (3 + q[0] * 3) + '" cy="' + (3 + q[1] * 3) + '" r="1.15" fill="#2a2419"/>').join('') + '</svg>';
+}
+function mechDiceMatrix(cells) {
+  const name = n => 'a ' + (n + 1);
+  let h = '<div class="mechDice"><span class="dSide"></span>' +
+    [0, 1, 2, 3, 4, 5].map(c => '<span class="dHead">' + mechDieFace(c, 13) + '</span>').join('');
+  for (let a = 0; a < 6; a++) {
+    h += '<span class="dSide">' + mechDieFace(a, 13) + '</span>';
+    for (let c = 0; c < 6; c++) {
+      const cell = cells.find(x => x.a === a && x.c === c);
+      h += '<span class="dCell">' + cell.row.map((n, b) =>
+        '<i style="background:' + mechNetColour(n) + '" title="' + name(a) + ' and ' + name(c) + ' against your ' + (b + 1) + ': ' +
+        (n > 0 ? '+' + n : n) + ' obol' + (Math.abs(n) === 1 ? '' : 's') + '"></i>').join('') + '</span>';
+    }
+  }
+  return h + '</div>';
+}
+
+/* THE SIMULATOR. The exact enumeration says the player wins about three
+   tenths of an obol a game; the simulator is there because that sentence
+   persuades nobody who has just lost four in a row, and because watching the
+   running average wander and then settle is the only honest way to show what
+   an edge that small feels like. It plays the script's own arithmetic --
+   mechDicePlay in js/delv-mechanics.js, the same function the exact
+   enumeration is built from -- so the two cannot drift apart. */
+let DICE_SIM = { gambling: false, tally: null, last: null };
+function diceSimRoll() { return Math.floor(Math.random() * 6); }
+function diceSimSet(on) { DICE_SIM = { gambling: !!on, tally: null, last: null }; diceSimRefresh(); }
+function diceSimReset() { DICE_SIM.tally = null; DICE_SIM.last = null; diceSimRefresh(); }
+function diceSimPlay(n) {
+  const opts = { gambling: DICE_SIM.gambling, track: 240 };
+  if (n === 1) {
+    DICE_SIM.last = mechDicePlay(diceSimRoll, opts);
+    if (!DICE_SIM.tally) DICE_SIM.tally = { games: 0, wins: 0, pushes: 0, losses: 0, net: 0, dist: new Map(), curve: [], mean: 0 };
+    const t = DICE_SIM.tally, g = DICE_SIM.last;
+    t.games++; t.net += g.net;
+    if (g.net > 0) t.wins++; else if (g.net === 0) t.pushes++; else t.losses++;
+    t.dist.set(g.net, (t.dist.get(g.net) || 0) + 1);
+    t.mean = t.net / t.games;
+    t.curve.push([t.games, t.mean]);
+    if (t.curve.length > 240) t.curve = t.curve.filter((p, i) => i % 2 === 0 || i === t.curve.length - 1);
+  } else {
+    const run = mechDiceRun(diceSimRoll, n, opts);
+    const t = DICE_SIM.tally;
+    if (!t) DICE_SIM.tally = run;
+    else {
+      // Adding a run to what is already there: the curve is re-based so the
+      // line stays one continuous history rather than starting again.
+      const base = t.games;
+      t.games += run.games; t.net += run.net; t.wins += run.wins; t.pushes += run.pushes; t.losses += run.losses;
+      for (const [k, v] of run.dist) t.dist.set(k, (t.dist.get(k) || 0) + v);
+      t.mean = t.net / t.games;
+      t.curve = t.curve.concat(run.curve.map(p => [base + p[0], p[1]]));
+      if (t.curve.length > 480) t.curve = t.curve.filter((p, i) => i % 2 === 0 || i === t.curve.length - 1);
+    }
+    DICE_SIM.last = null;
+  }
+  diceSimRefresh();
+}
+function diceSimRefresh() { const el = document.getElementById('diceSim'); if (el) el.innerHTML = diceSimHtml(); }
+function diceSimHtml() {
+  const exact = mechDiceExact({ gambling: DICE_SIM.gambling });
+  const t = DICE_SIM.tally;
+  const nets = [-1, 0, 1, 2, 3, 4];
+  const bins = nets.map(n => ({
+    label: n > 0 ? '+' + n : String(n),
+    value: 100 * (exact.dist.get(n) || 0),
+    mark: t ? 100 * ((t.dist.get(n) || 0) / t.games) : undefined,
+    colour: mechNetColour(n),
+    title: (n > 0 ? '+' + n : n) + ' obols: ' + (100 * (exact.dist.get(n) || 0)).toFixed(1) + '% of throws' + (t ? ', ' + (100 * (t.dist.get(n) || 0) / t.games).toFixed(1) + '% played' : '')
+  }));
+  let out = '';
+  if (DICE_SIM.last) {
+    const g = DICE_SIM.last;
+    out += '<div class="mechDiceFaces">' + mechDieFace(g.a, 34, '#3b362b') + mechDieFace(g.b, 34) + mechDieFace(g.c, 34, '#3b362b') + '</div>' +
+      '<div class="mechVerdict">' + (g.helped ? '<b>Gambling</b> set your die to the innkeeper’s first. ' : '') +
+      (g.net > 0 ? 'You win <b>' + g.net + '</b> obol' + (g.net === 1 ? '' : 's') + '.' : g.net === 0 ? 'A push: your stake back.' : 'You lose <b>an obol</b>.') + '</div>';
+  }
+  out += mechFig('Where the obols go, exactly and as played',
+    mechColumns(bins, { height: 84 }) +
+    '<div class="mechKeys"><span><i style="background:' + MECH_INK.dim + '"></i>the columns are the exact chance of each result</span>' +
+    (t ? '<span><i style="background:' + MECH_INK.gold + '"></i>the dashed rule is what your ' + t.games.toLocaleString() + ' games did</span>' : '') + '</div>',
+    t ? 'After <b>' + t.games.toLocaleString() + '</b> games you are <b>' + (t.net > 0 ? '+' : '') + t.net.toLocaleString() +
+        '</b> obols, <b>' + (t.mean >= 0 ? '+' : '') + t.mean.toFixed(3) + '</b> a game against the exact <b>' +
+        (exact.mean >= 0 ? '+' : '') + exact.mean.toFixed(3) + '</b>.'
+      : 'Nothing played yet. The exact figure is <b>' + (exact.mean >= 0 ? '+' : '') + exact.mean.toFixed(3) + '</b> obols a game.');
+  if (t && t.curve.length > 2) {
+    const ys = t.curve.map(p => p[1]);
+    const lo = Math.min(-0.6, Math.min.apply(null, ys)), hi = Math.max(0.9, Math.max.apply(null, ys));
+    out += mechFig('The running average, game by game', mechPlot({
+      height: 110,
+      x: { min: 1, max: t.games, ticks: [{ v: 1, label: '1' }, { v: t.games, label: t.games.toLocaleString() }] },
+      // The zero tick is dropped when the exact figure sits almost on top of
+      // it, which at three tenths of an obol on a range of one and a half it
+      // very nearly does: two labels a few pixels apart read as one smudged
+      // number and neither can be trusted.
+      y: { min: lo, max: hi, ticks: [{ v: hi, label: hi.toFixed(1) }, { v: exact.mean, label: exact.mean.toFixed(2) }]
+        .concat(Math.abs(exact.mean) / (hi - lo) > 0.09 ? [{ v: 0, label: '0' }] : [])
+        .concat([{ v: lo, label: lo.toFixed(1) }]) },
+      series: [
+        { points: [[1, exact.mean], [t.games, exact.mean]], colour: 'rgba(249,248,111,.45)', dash: '3 3', name: 'the exact figure' },
+        { points: t.curve, colour: MECH_INK.cool, name: 'your games so far' }
+      ]
+    }), 'An edge of three tenths of an obol takes hundreds of games to show through the noise, which is what makes it a game rather than a swindle.');
+  }
+  return out;
+}
+
+/* COMBAT, WITH THE NUMBERS TURNED UP AND DOWN. The rule is six terms and two
+   rolls, and no amount of restating it says what a shield is worth or how
+   much of a fight is the weapon. So the terms are controls and the picture
+   answers: the share of blows that miss, are parried and land; the margin's
+   own distribution, which is the triangle two rolls always make, with the
+   parry eating into it from the left; and how often each of the game's eight
+   words for a blow would be printed.
+
+   The weapon list is the archive's own -- gearTable(), the same rows the
+   table under this shows -- so a modded archive tunes the sliders to its own
+   weapons. It is rebuilt on every render of the sheet rather than memoised
+   for the session, and cleared with everything else archive-keyed. */
+function mechWeapons() {
+  if (!window.MECH_WEAPONS) {
+    try {
+      window.MECH_WEAPONS = gearTable().filter(g => g.damage !== null && g.damage !== undefined && g.damage > 0)
+        .sort((a, b) => b.damage - a.damage);
+    } catch (e) { window.MECH_WEAPONS = []; }
+  }
+  return window.MECH_WEAPONS;
+}
+function mechShields() {
+  try { return gearTable().filter(g => g.block !== null && g.block !== undefined).sort((a, b) => b.block - a.block); }
+  catch (e) { return []; }
+}
+function combatSimParams() {
+  const el = id => document.getElementById(id);
+  const val = (id, dflt) => { const e = el(id); return e && e.value !== undefined && e.value !== '' ? Number(e.value) : dflt; };
+  const ws = mechWeapons();
+  const pt = val('cbWeapon', ws.length ? ws[0].pt : 0);
+  const weapon = ws.find(w => w.pt === pt) || ws[0] || { name: 'a bare hand', damage: 3, skill: 'Barehand' };
+  const shields = mechShields();
+  const shieldOn = (() => { const e = el('cbShield'); return e ? !!e.checked : true; })();
+  const shield = shields.length ? shields[0] : null;
+  return {
+    weapon, shield: shieldOn ? shield : null,
+    attackerReflex: val('cbAtkRef', 20), defenderReflex: val('cbDefRef', 20),
+    weaponSkill: val('cbSkill', 8), attackSkill: val('cbAtk', 4), defenceSkill: val('cbDef', 4),
+    enchant: 0
+  };
+}
+function combatSimHtml(p, words) {
+  const model = {
+    attackerReflex: p.attackerReflex, defenderReflex: p.defenderReflex, weaponSkill: p.weaponSkill,
+    attackSkill: p.attackSkill, defenceSkill: p.defenceSkill, enchant: p.enchant || 0,
+    damage: p.weapon.damage, shieldBlock: p.shield ? p.shield.block : null, shieldSkill: p.shield ? p.weaponSkill : 0
+  };
+  const x = mechCombatExact(model, words);
+  const pairs = mechDistPairs(x.margin);
+  const lo = pairs[0][0], hi = pairs[pairs.length - 1][0], peak = Math.max.apply(null, pairs.map(q => q[1]));
+  // The bar and the number beside it are the same quantity -- the share of
+  // ALL exchanges, not of the hits. They were not, for one afternoon, and a
+  // bar twice the length of its own label is the sort of thing a reader
+  // notices before the author does.
+  const blows = x.words.filter(w => w.p > 0.0005).map((w, i) => ({
+    label: w.word, value: 100 * w.p, text: (100 * w.p).toFixed(1) + '%',
+    colour: MECH_SERIES[i % MECH_SERIES.length], title: w.word + (w.below ? ' — under ' + w.below + ' points' : ' — 35 points or more')
+  }));
+  return mechFig('One exchange: ' + p.weapon.name + (p.shield ? ' against a ' + p.shield.name : ', unshielded'),
+    mechStackBar([
+      { label: 'lands', value: x.hit, colour: MECH_INK.hit },
+      { label: 'parried', value: x.parry, colour: MECH_INK.parry },
+      { label: 'misses', value: x.miss, colour: MECH_INK.miss }
+    ]),
+    'A blow that lands does <b>' + x.meanDamage.toFixed(1) + '</b> points on average, so an exchange is worth <b>' +
+    (x.meanDamage * x.hit).toFixed(1) + '</b>.' + (p.shield ? ' A blow that would have missed is never parried — the resolver tests the miss first — so every parry here is a blow the shield took out of the hits.' : '')) +
+  mechFig('The margin, and where it is spent', mechPlot({
+    height: 130,
+    x: { min: lo, max: hi, ticks: [{ v: lo, label: String(lo) }, { v: 0, label: '0' }, { v: hi, label: '+' + hi }] },
+    y: { min: 0, max: peak * 1.08, ticks: [{ v: peak, label: (100 * peak).toFixed(1) + '%' }, { v: 0, label: '0' }] },
+    series: [{ points: pairs, colour: MECH_INK.gold, name: 'the margin' }],
+    marks: [{ x: 0, y: peak * 1.02, label: 'nothing or less misses' }]
+  }), 'Two rolls of 0 to 29 make a triangle; the six other terms only slide it. Here it is centred on <b>' +
+    (x.constant > 0 ? '+' : '') + x.constant + '</b>.') +
+  (blows.length ? mechFig('What the game would print', mechBars(blows),
+    'Of the blows that land, as a share of all exchanges. The words are read off the resolver, not written here, and each names the <b>raw roll</b> — the defender’s resistance is taken afterwards, so a blow that ground you to dust can still come to nothing.') : '');
+}
+function combatSimUpdate() {
+  const el = document.getElementById('combatOut');
+  if (!el) return;
+  let words = null;
+  try { const cb = combatRules(); words = cb && cb.words && cb.words.length ? cb.words : null; } catch (e) {}
+  el.innerHTML = combatSimHtml(combatSimParams(), words);
+  for (const id of ['cbSkill', 'cbAtkRef', 'cbDefRef']) {
+    const out = document.getElementById(id + 'V'), src = document.getElementById(id);
+    if (out && src) out.textContent = src.value;
+  }
+}
+function combatSimControls() {
+  const ws = mechWeapons(), sh = mechShields();
+  const slider = (id, label, min, max, v) => '<label>' + svEsc(label) +
+    ' <input type="range" id="' + id + '" min="' + min + '" max="' + max + '" value="' + v + '" oninput="combatSimUpdate()"><b id="' + id + 'V">' + v + '</b></label>';
+  return '<div class="mechCtl">' +
+    (ws.length ? '<label>weapon <select id="cbWeapon" onchange="combatSimUpdate()">' +
+      ws.map(w => '<option value="' + w.pt + '">' + svEsc(w.name) + ' (' + w.damage + ')</option>').join('') + '</select></label>' : '') +
+    slider('cbSkill', 'your skill', 0, 15, 8) +
+    slider('cbAtkRef', 'your reflex', 5, 40, 20) +
+    slider('cbDefRef', 'their reflex', 5, 40, 20) +
+    (sh.length ? '<label><input type="checkbox" id="cbShield" checked onchange="combatSimUpdate()"> they carry a ' + svEsc(sh[0].name) + '</label>' : '') +
+    '</div>';
+}
+
+/* The rest of the sheet's figures, one function each, all of the same shape:
+   they are handed what the reader functions above have already read out of
+   the archive and return markup. None of them reads a resource itself. */
+
+// Weapons ordered by what they do, which the table's row order cannot show
+// as quickly, with the armour and the shields beside them on their own
+// scales -- three different quantities, so three groups rather than one.
+function mechGearFigure(gear) {
+  const hue = {};
+  const skills = [...new Set(gear.map(g => g.skill).filter(Boolean))];
+  skills.forEach((s, i) => { hue[s] = MECH_SERIES[i % MECH_SERIES.length]; });
+  const arms = gear.filter(g => g.damage).sort((a, b) => b.damage - a.damage)
+    .map(g => ({ label: g.name, value: g.damage, colour: hue[g.skill] || MECH_INK.dim, text: String(g.damage), title: g.name + ' — ' + (g.skill || 'no skill') }));
+  const armour = gear.filter(g => g.protection).sort((a, b) => b.protection - a.protection)
+    .map(g => ({ label: g.name, value: g.protection, colour: MECH_INK.cool, text: String(g.protection) }));
+  const shields = gear.filter(g => g.block).sort((a, b) => b.block - a.block)
+    .map(g => ({ label: g.name, value: g.block, colour: MECH_INK.parry, text: String(g.block) }));
+  if (!arms.length) return '';
+  return mechFig('Damage, the most a blow can do before the skill',
+    mechBars(arms) + '<div class="mechKeys">' + skills.map(s => '<span><i style="background:' + hue[s] + '"></i>' + svEsc(s) + '</span>').join('') + '</div>',
+    'The resolver rolls <b>1 to this figure</b> and adds the enchantment; the weapon’s skill widens the figure before the roll rather than being added after it. Colour is the skill the weapon is swung with.') +
+    (armour.length ? mechFig('Armour, in points of protection', mechBars(armour)) : '') +
+    (shields.length ? mechFig('Shields, the roll they block', mechBars(shields),
+      'A blow that would have landed is parried when the margin is under a roll of <b>0 to this plus the Shield skill</b>, summed over every shielding thing worn — so a shield is worth more against a weak attacker than a strong one, and never saves a blow that was going to miss.') : '');
+}
+
+// The casting rule is two rolls against one, which is not a shape anybody
+// reads off the sentence: the first few points of Casting are worth more
+// than the next ten, and a level-8 spell is a coin toss for a middling
+// caster. One curve per level, over the whole range of the figure.
+function mechSpellFigures(sp) {
+  if (!sp.spells.length) return '';
+  const levels = [...new Set(sp.spells.map(s => s.level))].sort((a, b) => a - b);
+  const shown = levels.filter((l, i) => levels.length <= 5 || i === 0 || i === levels.length - 1 || i % Math.ceil(levels.length / 4) === 0);
+  const series = shown.map((l, i) => ({
+    name: 'level ' + l, colour: MECH_SERIES[i % MECH_SERIES.length],
+    points: Array.from({ length: 26 }, (_, c) => [c, 100 * mechCastFailure(c, l)])
+  }));
+  const cost = sp.spells.map(s => ({ x: s.level, y: s.cost }));
+  const maxCost = Math.max.apply(null, cost.map(c => c.y));
+  return mechFig('How often a cast fails, by the caster’s Casting figure', mechPlot({
+    height: 150, series,
+    x: { min: 0, max: 25, ticks: [{ v: 0, label: '0' }, { v: 5, label: '5' }, { v: 10, label: '10' }, { v: 15, label: '15' }, { v: 20, label: '20' }, { v: 25, label: '25' }] },
+    y: { min: 0, max: 100, ticks: [{ v: 100, label: '100%' }, { v: 50, label: '50%' }, { v: 25, label: '25%' }, { v: 0, label: '0' }] }
+  }), 'Two rolls under the caster’s Casting figure against one under the level. A <b>level 1 spell never fails</b> — its roll is <i>Random(0, 1)</i>, which is always nothing — and the magic points are spent either way, which is what makes a high-level spell expensive twice over.') +
+  mechFig('What each spell costs, against its level', mechPlot({
+    height: 120,
+    x: { min: 0, max: Math.max.apply(null, levels) + 1, ticks: levels.map(l => ({ v: l, label: String(l) })) },
+    y: { min: 0, max: maxCost * 1.1, ticks: [{ v: maxCost, label: String(maxCost) }, { v: Math.round(maxCost / 2), label: String(Math.round(maxCost / 2)) }, { v: 0, label: '0' }] },
+    series: [],
+    marks: cost.map(c => ({ x: c.x, y: c.y, dot: true, colour: 'rgba(107,168,191,.85)' }))
+  }), '<b>' + sp.spells.length + '</b> spells. The cost rises with the level but not by any rule the scripts state — each spell names its own.');
+}
+
+// The levels double, so the only honest axis is a logarithmic one, and drawn
+// that way the cap becomes visible: experience stops at 65,535 and the
+// twelfth threshold is 102,400, so the eleventh level is the last one.
+function mechExperienceFigure() {
+  const levels = Array.from({ length: 12 }, (_, i) => i + 1);
+  const cap = mechExpCap();
+  return mechFig('What each level costs', mechPlot({
+    height: 140,
+    x: { min: 1, max: 12, ticks: [2, 4, 6, 8, 10, 12].map(l => ({ v: l, label: String(l) })) },
+    y: { log: true, min: 100, max: 200000, ticks: [{ v: 100, label: '100' }, { v: 1000, label: '1k' }, { v: 10000, label: '10k' }, { v: 100000, label: '100k' }] },
+    series: [
+      { points: levels.map(l => [l, mechLevelThreshold(l)]), colour: MECH_INK.gold, name: 'the threshold to pass' },
+      { points: [[1, cap], [12, cap]], colour: MECH_INK.warm, dash: '3 3', name: 'the cap, 65,535' }
+    ],
+    marks: [{ x: 11, y: mechLevelThreshold(11), dot: true, colour: MECH_INK.warm }]
+  }), 'Each level costs as much as every level before it put together. The eleventh is the last: its threshold is 51,200 and the next is <b>102,400</b>, which experience cannot reach.');
+}
+
+// Karma is a line from nothing to a hundred with the player put on it at 55,
+// and the only two things that move it far are killing the wrong thing and
+// the helpers. The kill table is four numbers and reads as a picture.
+function mechKarmaFigure(km) {
+  if (!km.writes.length) return '';
+  const start = km.writes.find(w => w.set !== undefined);
+  const thresholds = km.reads.map(r => ({ n: parseInt(String(r.test).replace(/\D+/g, ''), 10), test: r.test }))
+    .filter(t => !isNaN(t.n)).filter((t, i, a) => a.findIndex(x => x.n === t.n) === i);
+  const marks = thresholds.map(t => ({ v: t.n, label: String(t.n), below: true, colour: MECH_INK.warm }));
+  if (start) marks.push({ v: start.set, label: 'you start at ' + start.set, above: true });
+  const kills = (km.byAlignment || []).map((v, i) => ({
+    label: 'alignment ' + i, value: Math.abs(v), text: (v > 0 ? '+' : '') + v,
+    colour: v > 0 ? MECH_INK.leaf : v < 0 ? MECH_INK.lose : MECH_INK.dim
+  }));
+  return mechFig('The scale, and where you stand on it',
+    mechNumberLine({ min: 0, max: 100, marks, bands: thresholds.map(t => ({ from: 0, to: t.n, colour: 'rgba(192,104,79,.3)', label: t.test })) }),
+    'The band is what a threshold shuts you out of — the four Seldane priests refuse below <b>40</b>.') +
+    (kills.length ? mechFig('What a kill is worth, by the victim’s alignment', mechBars(kills),
+      'Four numbers in the kill helper’s own data block, read as signed. Nothing in the file names the four alignments; killing the third kind is <b>ten</b> times worse than killing the second is good.') : '');
+}
+
+// Nutrition falls one an hour, so a food's figure is also the hours it buys.
+// Saying that in the caption is the whole point of the figure.
+function mechFoodFigure(fd) {
+  const rows = [];
+  for (const f of fd.foods) {
+    if (f.variants) for (const v of f.variants) { if (v.plus) rows.push({ label: v.name || (f.name + ' ' + v.aspect), value: v.plus }); }
+    else if (f.plus) rows.push({ label: f.name, value: f.plus });
+  }
+  if (!rows.length) return '';
+  rows.sort((a, b) => b.value - a.value);
+  return mechFig('What a meal is worth, in nutrition and so in hours',
+    mechBars(rows.map(r => ({ label: r.label, value: r.value, text: r.value + ' h', colour: MECH_INK.leaf })), { max: 100 }),
+    'Against a belly of <b>100</b> that falls by one an hour. The bars are drawn on that scale, so the whole row is four days of walking.');
+}
+
+// A duration is a number of 4096ths of an hour, which is unreadable as
+// stored. Drawn against the hour it is obvious which of these is a spell you
+// walk away from and which lasts a moment.
+function mechStatusFigure(st) {
+  const rows = [];
+  for (const [name, list] of st.applies) {
+    const durs = list.map(a => a.duration).filter(d => d !== null && d !== undefined);
+    if (!durs.length) continue;
+    rows.push({ label: name, value: Math.max.apply(null, durs) });
+  }
+  if (!rows.length) return '';
+  rows.sort((a, b) => b.value - a.value);
+  const unit = mechClockUnitsPerHour();
+  return mechFig('How long a status lasts, against the game hour',
+    mechBars(rows.map(r => ({ label: r.label, value: r.value, colour: MECH_INK.violet,
+      text: r.value >= unit ? (r.value / unit).toFixed(r.value % unit ? 1 : 0) + ' h' : Math.round(60 * r.value / unit) + ' min' })), { max: Math.max(unit, rows[0].value) }),
+    'The longest duration each status is given anywhere in the archive; a call with a roll in it is left out, since it has no one number. <b>4096</b> units is an hour.');
+}
+
+// The clock's own arithmetic, over four days: the belly empties in a hundred
+// hours and everything else follows from whether it is empty.
+function mechHungerFigure() {
+  const hours = 120;
+  const fed = mechHungerRun({ hours, level: 6, nutrition: 100, health: 20, fullHealth: 100 });
+  const ring = mechHungerRun({ hours, level: 6, nutrition: 100, health: 20, fullHealth: 100, regenerating: true });
+  const pt = r => r.series.map(s => [s.hour, s.health]);
+  return mechFig('Five days without a meal, at level 6', mechPlot({
+    height: 150,
+    x: { min: 0, max: hours, ticks: [0, 24, 48, 72, 96, 120].map(h => ({ v: h, label: h ? h / 24 + 'd' : '0' })) },
+    y: { min: 0, max: 100, ticks: [{ v: 100, label: '100' }, { v: 50, label: '50' }, { v: 0, label: '0' }] },
+    series: [
+      { points: fed.series.map(s => [s.hour, s.nutrition]), colour: MECH_INK.warm, name: 'nutrition' },
+      { points: pt(fed), colour: MECH_INK.gold, name: 'health, healing' },
+      { points: pt(ring), colour: MECH_INK.cool, name: 'health, with Omen’s ring' }
+    ],
+    marks: [{ x: 100, y: 8, label: 'the belly is empty', colour: MECH_INK.warm }]
+  }), 'Health rises <b>four</b> times an hour at this level and stops dead when nutrition reaches zero; the ring’s <b>ten</b> an hour does not care. Starving costs nothing but the healing — the engine takes no health for it.');
+}
+
+// The staircase. A lock's difficulty is divided by twenty before it is used,
+// so it moves in five steps and a difficulty of 19 is a difficulty of 0 --
+// which no reading of the formula makes as plain as the picture does.
+function mechLockFigure(lk) {
+  if (!lk.rule || !lk.rule.formula) return '';
+  const xs = Array.from({ length: 52 }, (_, i) => i * 5);
+  const series = [10, 20, 30].map((reflex, i) => ({
+    name: 'reflex ' + reflex, colour: MECH_SERIES[i],
+    points: xs.map(d => [d, 100 * mechLockChance(reflex, d)])
+  }));
+  // One dot per distinct difficulty rather than one per class: eight of the
+  // classes carry 15, and eight labels on one point is a smudge. The names
+  // are joined, the labels alternate down the page so two nearby dots do not
+  // collide, and a dot near the right edge hangs its label to the left.
+  const byDiff = new Map();
+  for (const c of (lk.classes || [])) {
+    const d = c.words && c.words[0];
+    if (d === undefined || d === null || d > 255) continue;
+    if (!byDiff.has(d)) byDiff.set(d, []);
+    byDiff.get(d).push(c.name);
+  }
+  const marks = [...byDiff.entries()].sort((a, b) => a[0] - b[0]).map(([d, names], i) => ({
+    x: d, y: 100 * mechLockChance(20, d), dot: true, colour: MECH_INK.ink,
+    label: names.slice(0, 3).join(', ') + (names.length > 3 ? ' …' : '') + ' (' + d + ')',
+    dy: 11 + (i % 2) * 13, side: d > 190 ? 'right' : 'left'
+  }));
+  return mechFig('The chance a pick opens it, by the lock’s difficulty', mechPlot({
+    height: 150, series, marks,
+    x: { min: 0, max: 255, ticks: [0, 60, 120, 180, 255].map(v => ({ v, label: String(v) })) },
+    y: { min: 0, max: 100, ticks: [{ v: 100, label: '100%' }, { v: 50, label: '50%' }, { v: 0, label: '0' }] }
+  }), 'Five points are added for <b>every twenty of difficulty, rounded up</b>, so the curve is a staircase: a lock of 1 is already a lock of 20, and only a difficulty of nothing is free. The dots are the classes’ own parameters at reflex 20; the difficulty a placed lock actually uses is its own <b>data1</b>. Every failure breaks the pick.');
+}
+
+// What a shop asks. The interesting thing is the range -- three orders of
+// magnitude between a loaf and the bomb -- so the axis is logarithmic and
+// the dearest few are named.
+function mechShopFigure(sh) {
+  const goods = [];
+  for (const s of sh.shops) for (const g of s.goods) if (g.price > 0) goods.push({ name: g.name, price: g.price, who: s.who });
+  if (goods.length < 4) return '';
+  const buckets = [[1, 2], [3, 5], [6, 10], [11, 25], [26, 50], [51, 100], [101, 250], [251, 1000]];
+  const bins = buckets.map(b => ({
+    label: b[0] >= 1000 ? '1k' : String(b[0]), value: goods.filter(g => g.price >= b[0] && g.price <= b[1]).length,
+    colour: MECH_INK.gold, title: b[0] + ' to ' + b[1] + ' obols: ' + goods.filter(g => g.price >= b[0] && g.price <= b[1]).length + ' items'
+  }));
+  const dear = goods.slice().sort((a, b) => b.price - a.price).slice(0, 8)
+    .map(g => ({ label: g.name, value: g.price, text: g.price + ' ob', colour: MECH_INK.warm }));
+  return mechFig('What the shops ask, ' + goods.length + ' items in all', mechColumns(bins, { height: 80 }),
+    'By price in obols, each column the items from that figure up to the next. Most of what is for sale is small change.') +
+    mechFig('The dearest things on any counter', mechBars(dear),
+      'Before bargaining: the vendor’s own four figures move the price, and <b>Haggling</b> takes a further roll of 0 to 5 off it.');
+}
+
+// A lesson costs a point, a level earns a few, and mastery is fifteen
+// lessons. Drawn against the levels, the question the sheet's numbers pose
+// -- can you master anything? -- has a visible answer.
+function mechTrainingFigure(tr) {
+  if (!tr.points.perLevel || tr.points.atStart === null) return '';
+  const levels = Array.from({ length: 11 }, (_, i) => i + 1);
+  const series = [1, 2, 3, 4].map((difficulty, i) => ({
+    name: 'difficulty ' + difficulty, colour: MECH_SERIES[i],
+    points: levels.map(l => [l, tr.points.atStart + (l - 1) * Math.max(0, 6 - difficulty)])
+  }));
+  const mastery = tr.points.mastery || 15;
+  return mechFig('Training points earned, against what mastery costs', mechPlot({
+    height: 140, series,
+    x: { min: 1, max: 11, ticks: levels.filter(l => l % 2).map(l => ({ v: l, label: String(l) })) },
+    y: { min: 0, max: 60, ticks: [{ v: 60, label: '60' }, { v: 30, label: '30' }, { v: mastery, label: String(mastery) }, { v: 0, label: '0' }] },
+    marks: [{ x: 6, y: mastery + 3, label: 'one skill mastered', colour: MECH_INK.ink }]
+  }), 'A character is made with <b>' + tr.points.atStart + '</b> and gains <b>6 less the difficulty level</b> with each level; a lesson costs one and a skill is mastered at <b>' + mastery + '</b>. On the hardest setting a whole career pays for two skills and a little.');
+}
+
+// The balloon itself, at the size the engine draws it, because the sheet
+// says 128 by 32 and a rounded box with a tail and that is a picture rather
+// than a fact. The geometry is the workbench's trace of TBark.
+function mechBalloonFigure(barks) {
+  const line = (barks && barks.length ? (barks.find(b => b.text && b.text.length < 16) || barks[0]).text : 'Hot Kabobs!');
+  return mechFig('The balloon, at the size the engine draws it',
+    '<svg class="mechBalloon" width="256" height="76" viewBox="0 0 128 38" style="max-width:100%;height:auto" role="img" aria-label="a talk balloon">' +
+    '<rect x="0.5" y="0.5" width="127" height="31" rx="8" ry="8" fill="#efeade" stroke="#2a2419" stroke-width="1"/>' +
+    '<path d="M56 31.5 L60 37.5 L68 31.5 Z" fill="#efeade" stroke="#2a2419" stroke-width="1"/>' +
+    '<text x="64" y="20" text-anchor="middle" font-size="11" fill="#2a2419" font-family="Georgia,serif">' + svEsc(String(line).slice(0, 22)) + '</text>' +
+    '</svg>' +
+    mechNumberLine({ min: 0, max: 6, marks: [{ v: 0, label: 'said', above: true }, { v: 4, label: 'gone, 240 ticks', below: true }],
+      bands: [{ from: 0, to: 4, colour: 'rgba(249,248,111,.28)', label: 'four seconds' }] }),
+    '128 by 32 with a tail, and the tick count plus <b>240</b> for how long it stays — both read from the executable rather than the archive.');
+}
+
+// The bed table as a chart, with the 2012 measurements laid over it. This is
+// the only figure on the sheet whose numbers can be checked against
+// somebody's actual play, so the measurements are drawn as marks rather than
+// mentioned in the caption.
+function mechSleepFigure(sl) {
+  if (!sl) return '';
+  const level = 6;
+  const rows = [];
+  if (sl.own !== null) rows.push({ name: 'your own bed', quality: sl.own });
+  // The innkeeper by name, the way the table under this names them: a
+  // character record has no name field, the name is the page's own lookup.
+  for (const inn of sl.inns) if (inn.quality !== null) {
+    let who = 'character ' + inn.who;
+    try { who = characterName(inn.who) || who; } catch (e) {}
+    rows.push({ name: who + '’s inn', quality: inn.quality });
+  }
+  rows.push({ name: 'the bare ground', quality: 0 });
+  if (rows.length < 2) return '';
+  const bars = rows.map(r => ({
+    label: r.name, value: mechBedRate(level, r.quality), colour: r.quality >= 4 ? MECH_INK.gold : r.quality ? MECH_INK.cool : MECH_INK.dim,
+    text: mechBedRate(level, r.quality) + ' /h', title: r.name + ' — quality ' + r.quality
+  }));
+  const withRing = rows.map(r => ({
+    label: r.name, value: mechBedRate(level, r.quality, { regenerating: true }), colour: MECH_INK.violet,
+    text: mechBedRate(level, r.quality, { regenerating: true }) + ' /h'
+  }));
+  return mechFig('Health an hour asleep, at level 6',
+    mechBars(bars, { max: Math.max.apply(null, withRing.map(w => w.value)) }) +
+    '<div class="mechSub">and the same with Omen’s ring</div>' +
+    mechBars(withRing, { max: Math.max.apply(null, withRing.map(w => w.value)) }),
+    'The engine heals four an hour at this level and the bed multiplies it by <b>1 + quality/2</b>. A player measured <b>12</b>, <b>10</b>, <b>42</b>, <b>30</b> and <b>35</b> an hour in these beds in March 2012 and every one of them is on this chart — which is as close to an experiment as this sheet gets.');
+}
+
+// The clock, on one line and logarithmic, because the numbers it deals in
+// run from one unit to four thousand and a linear axis would show a step and
+// nothing else.
+function mechClockFigure(sp) {
+  const unit = mechClockUnitsPerHour();
+  const spell = sp && sp.spells.length ? sp.spells[0] : null;
+  const marks = [
+    { v: 1, label: 'a step', above: true },
+    { v: 4, label: 'taking', below: true },
+    { v: 20, label: 'a spell', above: true },
+    { v: 409, label: 'six minutes: poison, the ring', below: true },
+    { v: 1024, label: 'a quarter hour: the light', above: true },
+    { v: unit, label: 'an hour: hunger, the schedules', below: true }
+  ];
+  return mechFig('Everything the clock counts, in units of a 4096th of an hour',
+    mechNumberLine({ min: 1, max: unit, log: true, marks,
+      bands: [{ from: 1, to: 20, colour: 'rgba(249,248,111,.22)', label: 'what an action costs' }] }),
+    'A step is <b>one</b> unit, so an hour of game time is four thousand steps and a night’s sleep is passed rather than walked. A spell costs <b>10 plus twice its level</b>.');
+}
+
+// How much of the archive's own code asks about each skill: the table names
+// the scripts, this says which skills the game actually leans on.
+function mechSkillsFigure(sk) {
+  const rows = [];
+  for (const [id, resids] of sk.by) {
+    let name = 'skill 0x' + id.toString(16).toUpperCase();
+    try { if (refExists(0x1A00 + id)) name = selfNameFor(0x1A00 + id) || name; } catch (e) {}
+    rows.push({ label: name, value: resids.size, text: String(resids.size) });
+  }
+  if (rows.length < 2) return '';
+  rows.sort((a, b) => b.value - a.value);
+  return mechFig('How many scripts ask about each skill', mechBars(rows, { colour: MECH_INK.cool }),
+    'Only the questions that name a skill outright' + (sk.generic ? '; <b>' + sk.generic + '</b> more are in helpers that test whichever skill they are handed' : '') + '.');
+}
+
 function renderMechanicsSheet() {
   stopAllViewActivity();
+  // The figures' weapon list is derived, so it is dropped here and rebuilt
+  // with the sheet rather than kept for the session; resetDerivedCaches()
+  // drops it too, for the archive that is swapped while it is not showing.
+  window.MECH_WEAPONS = null;
   const grid = document.getElementById('sheetGrid');
   const out = document.getElementById('output');
   grid.style.display = '';
@@ -14038,7 +14797,17 @@ function renderMechanicsSheet() {
     ] : [],
     dice ? '<div class="mechStats">' + stat(dice.wins, 'win') + stat(dice.pushes, 'push') + stat(dice.losses, 'lose') + '<span class="mechStatNote">of 216 throws</span>' +
            stat((dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3), 'obols a game, without the skill') + stat((dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3), 'with it') + '</div>' +
-           (dice.explain ? '<blockquote class="mechQuote">' + svEsc(dice.explain.replace(/\*/g, ' ')) + '<footer>the innkeeper, in the same script</footer></blockquote>' : '') : '',
+           (dice.explain ? '<blockquote class="mechQuote">' + svEsc(dice.explain.replace(/\*/g, ' ')) + '<footer>the innkeeper, in the same script</footer></blockquote>' : '') +
+           mechFig('Every throw there is: the innkeeper’s first die down the side, the second across, your own six faces inside each cell',
+             mechDiceMatrix(mechDiceExact({}).cells),
+             'Red is the obol you lose, grey a push, green a win and the brighter the bigger. The game is winnable because the innkeeper’s two dice are often <b>close together</b>, and every face of yours outside them pays.') +
+           '<div class="mechCtl">' +
+             '<button onclick="diceSimPlay(1)">Throw</button>' +
+             '<button onclick="diceSimPlay(1000)">1,000 games</button>' +
+             '<button onclick="diceSimPlay(100000)">100,000</button>' +
+             '<label><input type="checkbox" onchange="diceSimSet(this.checked)"> with <b>Gambling</b></label>' +
+             '<button onclick="diceSimReset()">Reset</button>' +
+           '</div><div id="diceSim">' + diceSimHtml() + '</div>' : '',
     dice ? '<span class="partsTitle">In the file</span>' + src('The game', 0x812) + src('The dice', 0x1148) + src('Gambling', 0x1ACF) + [40, 41, 42].map(chipOf).join('') : '');
 
   // ---- combat ----
@@ -14049,11 +14818,13 @@ function renderMechanicsSheet() {
     cb ? [
       'The margin is the attacker’s <b>reflex</b>' + (cb.d30 ? ' <b>plus a roll of 0 to 29</b>' : '') + ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')') +
         ', <b>less the defender’s reflex' + (cb.d30 ? ' plus a roll of 0 to 29' : '') + '</b>, plus Attack less Defence. A monster flagged so uses body for reflex.',
-      cb.parry ? 'Every shield the defender wears blocks a roll of 0 to its block plus the Shield skill. A margin under that is <b>parried</b>.' : '',
-      'The weapon’s enchantment and skill go on the margin, and the skill on the damage. A margin of nothing or less <b>misses</b>.',
-      'A hit does <b>a roll of 0 to the damage figure, plus the enchantment</b>, and the defender’s resistance takes the damage type.',
+      'The weapon’s enchantment and skill go on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
+        (cb.parry ? 'what is left is offered to the shields — each shielding thing the defender wears rolls <b>0 to its block plus the Shield skill</b>, the rolls are added up, and a margin under the total is <b>parried</b>' : 'what is left lands') +
+        '. A blow that would have missed is therefore never parried.',
+      'A hit does <b>1 plus a roll of 0 to the damage figure, plus the enchantment</b> — one to the figure, not nothing to it — with the skill widening the figure before the roll. The defender’s resistance takes the damage type afterwards, so the word the game prints can be bigger than what is felt.',
       cb.words.length ? 'The blow is named by its size: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + w.below).join(', ') + ', and <i>shredded to pieces</i> above.' : ''
-    ].filter(Boolean) : [], '', '');
+    ].filter(Boolean) : [],
+    cb ? combatSimControls() + '<div id="combatOut">' + combatSimHtml(combatSimParams(), cb.words) + '</div>' : '', '');
 
   // ---- weapons and armour ----
   const gear = gearTable();
@@ -14069,7 +14840,8 @@ function renderMechanicsSheet() {
     ] : [],
     table(['item', '#weight', '#damage', '#reach', '#type', 'skill', '#ammo class', '#protection', '#block'],
       gear.map(r => '<tr><td>' + propChip(r.pt, r.name, ['melee', 'thrown', 'ranged', 'ammunition', 'armour', 'shield'][kind(r)]) + '</td>' +
-        num(r.weight) + num(r.damage) + num(r.reach) + num(r.type) + '<td>' + svEsc(r.skill) + '</td>' + num(r.ammoClass) + num(r.protection) + num(r.block) + '</tr>')), '');
+        num(r.weight) + num(r.damage) + num(r.reach) + num(r.type) + '<td>' + svEsc(r.skill) + '</td>' + num(r.ammoClass) + num(r.protection) + num(r.block) + '</tr>')) +
+    mechGearFigure(gear), '');
 
   // ---- spells ----
   const sp = spellRules();
@@ -14089,20 +14861,21 @@ function renderMechanicsSheet() {
     sp.spells.length ? [
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
       sp.rule && sp.rule.timing ? 'The cost is taken, and the cast costs <b>10 plus twice the level</b> in time.' : 'The cost is taken.',
-      sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls of 0 to the caster’s Casting figure together fall short of a roll of 0 to the level</b>' + (sp.rule.casting ? ' — Casting the skill, else a class figure.' : '.') : '',
+      sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls under the caster’s Casting figure together fall short of a roll under the level</b>' + (sp.rule.casting ? ' — Casting the skill, else a class figure' : '') + '. Both are <i>Random</i> calls and so stop one short, which means a <b>level 1 spell can never fail</b>.' : '',
       'Damage goes through the same helper as a blow: the victim’s resistance takes the type first, and the caster earns experience by the usual rule.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn to a radius of five and the script walks everyone inside it, but the damage call runs for the one on the target square alone; the spell’s own description says it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => PROP_TYPE_NAMES[r.proptype] || ('class ' + r.proptype)); } catch (e) {} return ms.length ? 'Damage without the magic bit — fire, electric, blunt, edged — is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
       'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the executable’s enemy iterator; workbench doc/tremor-and-enemies.md). Tremor shakes the screen and hurts enemies you cannot see.',
       'A spell with nothing in the last column changes something other than health: a status (above), the light, a lock, a rune, or the map.'
     ].filter(Boolean) : [],
+    mechSpellFigures(sp) +
     table(['spell', '#level', '#cost', 'does'], sp.spells.map(x => '<tr><td>' + partChip(x.name, x.resid) + '</td>' + num(x.level) + num(x.cost) + '<td>' + doesCell(x) + '</td></tr>')), '');
 
   // ---- skills ----
   const sk = skillConsultations();
   add('skills', 'What each skill is asked about', { tile: 0x21F }, '',
     sk.by.size ? 'Where a script asks whether the player has a skill, and which.' + (sk.generic ? ' ' + sk.generic + ' further checks are in helpers that test whichever skill they are handed.' : '') : 'No script in this archive asks about a skill by name.',
-    [], table(['skill', 'asked about by'], [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
+    [], mechSkillsFigure(sk) + table(['skill', 'asked about by'], [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
       '<tr><td>' + (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16).toUpperCase()), 0x1A00 + id) : 'skill 0x' + id.toString(16).toUpperCase()) +
       '</td><td>' + [...resids].sort((a, b) => a - b).map(r => svChip(r)).join(' ') + '</td></tr>')), '');
 
@@ -14116,7 +14889,8 @@ function renderMechanicsSheet() {
       'Striking something earns the attacker the damage dealt, up to the victim’s level above theirs plus one, and one point for a blow bigger than the gap the other way.',
       'A shared award is split across the party.'
     ] : [],
-    xp.awards.length ? '<div class="mechSub">The fixed awards, ' + xp.awards.length + ' of them</div>' + table(['#points', 'occasion', 'where'], xp.awards.map(a => '<tr>' + num(a.amount) + '<td>' + svEsc(a.note) + '</td><td>' + svChip(a.resid) + '</td></tr>')) : '', '');
+    (xp.rule ? mechExperienceFigure() : '') +
+    (xp.awards.length ? '<div class="mechSub">The fixed awards, ' + xp.awards.length + ' of them</div>' + table(['#points', 'occasion', 'where'], xp.awards.map(a => '<tr>' + num(a.amount) + '<td>' + svEsc(a.note) + '</td><td>' + svChip(a.resid) + '</td></tr>')) : ''), '');
 
   // ---- karma ----
   const km = karmaRules();
@@ -14128,6 +14902,7 @@ function renderMechanicsSheet() {
       km.byAlignment ? 'Killing something moves it by the victim’s alignment, values 0 to ' + (km.byAlignment.length - 1) + ' in turn: <b>' + km.byAlignment.map(v => (v > 0 ? '+' : '') + v).join(', ') + '</b>. Nothing in the file names the four.' : '',
       km.reads.length ? 'It is tested <b>' + km.reads.map(r => r.test).filter((v, i, a) => a.indexOf(v) === i).join('</b> and <b>') + '</b>.' : ''
     ].filter(Boolean) : [],
+    mechKarmaFigure(km) +
     table(['#change', 'occasion', 'where'], km.writes.filter(w => w.set === undefined).map(w => '<tr>' + num(w.change !== null && w.change !== undefined ? (w.change > 0 ? '+' : '') + w.change : (w.why || '')) + '<td>' + svEsc(w.note || '') + '</td><td>' + svChip(w.resid) + '</td></tr>')
       .concat(km.reads.map(r => '<tr>' + num(r.test) + '<td>' + svEsc(r.note || '') + '</td><td>' + svChip(r.resid) + '</td></tr>'))), '');
 
@@ -14139,14 +14914,15 @@ function renderMechanicsSheet() {
     (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + svEsc(p.does.join('; ') || '—') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : '') +
     (fd.foods.length ? '<div class="mechSub">Foods</div>' + table(['food', 'variant', '#nutrition'], fd.foods.flatMap(f => f.variants
       ? f.variants.map(v => '<tr><td>' + propChip(f.pt, f.name) + '</td><td>' + svEsc(v.name || ('variant ' + v.aspect)) + '</td>' + num('+' + v.plus) + '</tr>')
-      : ['<tr><td>' + propChip(f.pt, f.name) + '</td><td></td>' + num(f.plus !== null ? '+' + f.plus : 'an amount the script works out') + '</tr>'])) : ''), '');
+      : ['<tr><td>' + propChip(f.pt, f.name) + '</td><td></td>' + num(f.plus !== null ? '+' + f.plus : 'an amount the script works out') + '</tr>'])) : '') +
+    mechFoodFigure(fd), '');
 
   // ---- status effects ----
   const st = statusRules();
   const statusNames = new Set([...st.applies.keys(), ...st.cures.keys()]);
   add('status', 'Status effects', { icon: 31 }, '',
     st.applies.size ? 'Every place a script puts a status on somebody, with the duration the call gives — in clock units, 4096 to the game hour, see below — and every place one is cleared, which is what a cure is.' : 'No script in this archive applies a status.',
-    [], table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
+    [], mechStatusFigure(st) + table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
       (st.applies.get(nm) || []).map(a => svChip(a.resid, a.duration !== null ? 'for ' + a.duration : '')).join(' ') + '</td><td>' +
       [...(st.cures.get(nm) || [])].map(r => svChip(r)).join(' ') + '</td></tr>')), '');
 
@@ -14163,7 +14939,8 @@ function renderMechanicsSheet() {
       'While nutrition is above 0, <b>health and magic each rise by 1</b> at a rate set by the level: every hour at level 1, every half hour at 2 and 3, every 20 minutes at 4 and 5, every quarter hour at 6 and 7, every 12 minutes from 8 up. Nothing rises past full.',
       'At 0 there is no healing, and nothing else: the executable takes no health for hunger, so the scripts’ complaint is the whole penalty.'
     ].filter(Boolean),
-    '<div class="mechStats">' + stat(100, 'nutrition at most') + stat('1 an hour', 'the fall') + stat('about 4 days', 'from full to empty') + '</div>', '');
+    '<div class="mechStats">' + stat(100, 'nutrition at most') + stat('1 an hour', 'the fall') + stat('about 4 days', 'from full to empty') + '</div>' +
+    mechHungerFigure(), '');
 
   // ---- locks ----
   const lk = lockRules();
@@ -14171,10 +14948,10 @@ function renderMechanicsSheet() {
     lk.rule ? 'One helper tries a key or a pick against a lock.' : 'The lock helper (0xE43) is not in this archive.',
     lk.rule ? [
       lk.rule.keyFits ? 'A key fits when the lock’s number matches the key’s.' : '',
-      lk.rule.formula ? 'A pick opens the lock when the picker’s <b>reflex plus a roll of 0 to 19</b> is at least <b>20 plus another roll of 0 to 19 plus 5 for every 20 of the lock’s difficulty</b>' + (lk.rule.breaks ? ', and <b>breaks</b> otherwise.' : '.') : '',
+      lk.rule.formula ? 'A pick opens the lock when the picker’s <b>reflex plus a roll of 0 to 18</b> is at least <b>20 plus another roll of 0 to 18 plus 5 for every 20 of the lock’s difficulty, rounded up</b>' + (lk.rule.breaks ? ', and <b>breaks</b> otherwise.' : '.') + ' Rounded up: a difficulty of 1 costs the same 5 as a difficulty of 20, so the locks in the archive fall into a dozen classes rather than a hundred.' : '',
       lk.needsSkill ? 'The lockpick refuses to be used at all without the <b>Lock Picking</b> skill.' : '',
       'The difficulty is the placed lock’s own; the classes carry a parameter of their own, shown as stored.'
-    ].filter(Boolean) : [], '',
+    ].filter(Boolean) : [], mechLockFigure(lk),
     lk.classes.length ? '<span class="partsTitle">Lock parameter</span>' + lk.classes.map(c => propChip(c.pt, c.name, c.words.join(' '))).join('') : '');
 
   // ---- shops ----
@@ -14182,6 +14959,7 @@ function renderMechanicsSheet() {
   add('shops', 'Shops', { icon: 130 }, src('the counter', 0xEA5),
     sh.shops.length ? sh.shops.length + ' shops, each one call of the same helper with what the vendor lists and at what price.' : 'No script in this archive opens a shop.',
     sh.shops.length ? ['The helper bargains from the listed price with four figures of the vendor’s own, shown as stored.', sh.haggling ? 'The <b>Haggling</b> skill takes a further roll of 0 to 5 off the vendor’s figure.' : ''].filter(Boolean) : [],
+    mechShopFigure(sh) +
     table(['vendor', 'goods, at the listed price in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.who !== null && loadCharacterTable()[spn.who] ? characterChip(spn.who) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
       spn.goods.map(g => svEsc(g.name) + ' <span class="mechPrice">' + g.price + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') + '</td>' + num(spn.terms ? spn.terms.join(' ') : '') + '</tr>')), '');
@@ -14195,6 +14973,7 @@ function renderMechanicsSheet() {
       (tr.points.atStart !== null ? 'A character is made with <b>' + tr.points.atStart + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + tr.points.perLevel + '</b> with each level' : '') + '.',
       tr.points.mastery ? 'A skill is mastered at level <b>' + tr.points.mastery + '</b>; a teacher marked <i>to mastery</i> teaches past the first lessons.' : ''
     ].filter(Boolean) : [],
+    mechTrainingFigure(tr) +
     table(['teacher', 'teaches'], tr.teachers.map(t => '<tr><td>' + (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + '</td><td>' +
       [...t.skills.entries()].sort((a, b) => a[0] - b[0]).map(([id, m]) => (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16)), 0x1A00 + id) : 'skill 0x' + id.toString(16)) + (m ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') + '</td></tr>')), '');
 
@@ -14204,7 +14983,7 @@ function renderMechanicsSheet() {
     'The short lines over a character’s head are a field on the character that a script writes a string into; the engine draws it in a 128×32 rounded balloon with a tail, and takes it down <b>four seconds</b> later: the routine that puts it up returns the tick count plus 240, and the one that shows the balloons each frame removes it once the tick count reaches that. Both are the executable’s, not the file’s.',
     ['A line is a literal, or one picked at random from a list.', 'Two tavern helpers take a list of shouts and a list of replies for when the food or wine comes.',
      barks.length ? barks.length + ' places in this archive’s scripts set one; the words are under Text › Barks.' : 'No script in this archive sets one.'],
-    '', '<span class="partsTitle">The words</span><button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>');
+    mechBalloonFigure(barks), '<span class="partsTitle">The words</span><button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>');
 
   // ---- sleep ----
   const sl = sleepRules();
@@ -14218,8 +14997,9 @@ function renderMechanicsSheet() {
       'The engine’s rate is the one under Hunger and healing: a fed character’s level rate, plus the six-minute regeneration where a worn item grants it, and nothing at all for a hungry one. A player’s 2012 measurements of 12, 10, 42, 30 and 35 an hour in different beds are exactly these rules.',
       'The magic branch compares magic against <i>full health</i> in two places, a bug kept as stored.'
     ].filter(Boolean) : [],
-    sl && sl.inns.length ? table(['bed', 'where', '#quality', 'healing'], [(sl.own !== null ? '<tr><td>your own</td><td>Land King Hall</td>' + num(sl.own) + '<td>× ' + (1 + sl.own / 2) + '</td></tr>' : '')].concat(
-      sl.inns.map(x => '<tr><td>' + (loadCharacterTable()[x.who] ? characterChip(x.who) : 'character ' + x.who) + '</td><td>' + svEsc((loadCharacterTable()[x.who] && zoneDisplayName(loadCharacterTable()[x.who].zone)) || '') + '</td>' + num(x.quality) + '<td>' + (x.quality !== null ? '× ' + (1 + x.quality / 2) : '') + '</td></tr>'))) : '', '');
+    (sl ? mechSleepFigure(sl) : '') +
+    (sl && sl.inns.length ? table(['bed', 'where', '#quality', 'healing'], [(sl.own !== null ? '<tr><td>your own</td><td>Land King Hall</td>' + num(sl.own) + '<td>× ' + (1 + sl.own / 2) + '</td></tr>' : '')].concat(
+      sl.inns.map(x => '<tr><td>' + (loadCharacterTable()[x.who] ? characterChip(x.who) : 'character ' + x.who) + '</td><td>' + svEsc((loadCharacterTable()[x.who] && zoneDisplayName(loadCharacterTable()[x.who].zone)) || '') + '</td>' + num(x.quality) + '<td>' + (x.quality !== null ? '× ' + (1 + x.quality / 2) : '') + '</td></tr>'))) : ''), '');
 
   // ---- the clock ----
   add('clock', 'The clock, poison and time', { tile: 0x231 }, '',
@@ -14229,7 +15009,7 @@ function renderMechanicsSheet() {
       'A status duration of <b>4096 is one hour</b>, 1024 a quarter of an hour, 409 six minutes.',
       'A <b>poisoned</b> character (flag 9) loses 1 health every six minutes and <b>dies</b> when the next point would take them below 1; a <b>regenerating</b> one (flag 12, what Omen’s ring grants) gains 1 every six minutes; one who is both takes a coin toss each time.',
       'Lighting is recomputed every quarter hour, and the schedules every hour.'
-    ], '', '');
+    ], mechClockFigure(sp), '');
 
   // The contents, first: a chip a section, in the order above.
   const toc = document.createElement('nav');

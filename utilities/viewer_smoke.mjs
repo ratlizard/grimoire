@@ -1310,7 +1310,7 @@ try {
   else console.log(`  skills: ${skills.length} in the block, ${skills.filter(x => x.kind !== 'command').length} skills and ${skills.filter(x => x.kind === 'command').length} commands, each a card`);
   ctx.showCategory('SPELLS');
   const sphtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-  if (!/Fireball/.test(sphtml) || !/25 \+ a roll of 0 to 10/.test(sphtml) || !/burst of flame/.test(sphtml) || !/Level 8/.test(sphtml)) fail('spells', 'the Spells sheet does not show Fireball with its damage and description by level');
+  if (!/Fireball/.test(sphtml) || !/25 \+ a roll of 0 to 9/.test(sphtml) || !/burst of flame/.test(sphtml) || !/Level 8/.test(sphtml)) fail('spells', 'the Spells sheet does not show Fireball with its damage and description by level');
   else console.log('  spells: each a card, by level, with its damage and description');
   // GIF: a header, the right size, and a frame per palette when the picture cycles.
   {
@@ -1363,7 +1363,7 @@ try {
   else if (!ctx.gearTable().some(r => r.name === 'axe' && r.damage === 22 && r.skill === 'Axe') || !ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2) || !ctx.gearTable().some(r => r.name === 'bow' && r.ammoClass === 1 && r.reach === 5)) fail('mechanics', 'the gear table does not name the axe’s damage and skill, the spear’s reach, or the bow’s ammunition and range');
   else if (!(ctx.combatRules() && ctx.combatRules().d30 && ctx.combatRules().parry && ctx.combatRules().words.length >= 8)) fail('mechanics', 'the combat rules were not read: ' + JSON.stringify(ctx.combatRules()));
   else if (ctx.spellRules().spells.length < 35 || !ctx.spellRules().spells.some(x => /Fireball/.test(x.name) && x.level === 5 && x.cost === 20) || !(ctx.spellRules().rule && ctx.spellRules().rule.failure)) fail('mechanics', 'the spells were not read: ' + ctx.spellRules().spells.length);
-  else if ((function () { const fx = ctx.spellEffects(); const sp = ctx.spellRules().spells; const by = n => fx.get((sp.find(x => x.name === n) || {}).resid); const fb = by('Fireball'), ds = by('Death Strike'), lh = by('Lesser Healing'), tr = by('Tremor'); return !(fb && fb.damage[0] && fb.damage[0].amount.base === 25 && fb.damage[0].amount.rolls[0][1] === 10 && fb.damage[0].type === 8 && /target square/.test(fb.damage[0].who)) || !(ds && ds.damage[0].amount.base === 200) || !(lh && lh.heals[0] && /health \+ 5 \+ a roll of 1 to 5/.test(lh.heals[0].text)) || !(tr && tr.damage[0].amount.rolls.length === 2 && tr.damage[0].who === 'every enemy'); })()) fail('mechanics', 'the spell effects were misread: ' + JSON.stringify([...ctx.spellEffects()].slice(0, 3)))
+  else if ((function () { const fx = ctx.spellEffects(); const sp = ctx.spellRules().spells; const by = n => fx.get((sp.find(x => x.name === n) || {}).resid); const fb = by('Fireball'), ds = by('Death Strike'), lh = by('Lesser Healing'), tr = by('Tremor'); return !(fb && fb.damage[0] && fb.damage[0].amount.base === 25 && fb.damage[0].amount.rolls[0][1] === 10 && fb.damage[0].type === 8 && /target square/.test(fb.damage[0].who)) || !(ds && ds.damage[0].amount.base === 200) || !(lh && lh.heals[0] && /health \+ 5 \+ a roll of 1 to 4/.test(lh.heals[0].text)) || !(tr && tr.damage[0].amount.rolls.length === 2 && tr.damage[0].who === 'every enemy'); })()) fail('mechanics', 'the spell effects were misread: ' + JSON.stringify([...ctx.spellEffects()].slice(0, 3)))
   else if (!(ctx.sleepRules() && ctx.sleepRules().own === 4 && ctx.sleepRules().half && ctx.sleepRules().quarter && ctx.sleepRules().inns.some(x => x.who === 41 && x.quality === 3) && ctx.sleepRules().inns.length === 3)) fail('mechanics', 'the sleep rule was misread: ' + JSON.stringify(ctx.sleepRules()))
   else if (ctx.hungerNotes().falls || ctx.hungerNotes().complains !== 4) fail('mechanics', 'hunger was misread: ' + JSON.stringify(ctx.hungerNotes()));
   else if (!(ctx.skillConsultations().by.get(0xCF) || new Set()).has(0x812)) fail('mechanics', 'Gambling is not listed as asked about by the dice game');
@@ -1375,7 +1375,36 @@ try {
   else if (!(ctx.lockRules().rule && ctx.lockRules().rule.formula && ctx.lockRules().needsSkill) || !ctx.lockRules().classes.some(c => c.name === 'chest' && c.words[0] === 15)) fail('mechanics', 'the lock rule or the chest’s parameter was not read');
   else if (!ctx.shopRules().shops.some(sp => sp.who === 30 && sp.goods.some(g => g.name === 'Sword' && g.price === 45)) || !ctx.shopRules().haggling) fail('mechanics', 'Milcom’s sword at 45 or the haggling roll was not read');
   else if (!ctx.trainingRules().teachers.some(t => t.who === 101 && t.skills.has(0xC5) && t.skills.has(0xC6)) || ctx.trainingRules().points.atStart !== 4 || !ctx.trainingRules().points.perLevel) fail('mechanics', 'Thersites’ axe and mace or the training points were not read: ' + JSON.stringify(ctx.trainingRules().points));
-  else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);
+  // The figures, and the models under them. Everything below this line was
+  // added with the charts on 6 September 2026: a figure that silently draws
+  // nothing looks exactly like a figure that is not there, and the sheet is
+  // long enough that nobody would notice for a month.
+  else if ((html.match(/class="dCell"/g) || []).length !== 36) fail('mechanics', `the dice matrix is not 36 cells: ${(html.match(/class="dCell"/g) || []).length}`);
+  else if ((html.match(/class="mechFig"/g) || []).length < 12) fail('mechanics', `only ${(html.match(/class="mechFig"/g) || []).length} figures on the sheet`);
+  else if (!/preserveAspectRatio="none"/.test(html) || !/<polyline/.test(html)) fail('mechanics', 'no plotted curve reached the sheet');
+  else if (!/class="mechStack"/.test(html) || !/class="mechBars"/.test(html) || !/class="mechLine"/.test(html)) fail('mechanics', 'a stack, a bar group or a number line is missing');
+  // The models agree with the page's own enumeration of the same game. Two
+  // implementations of the dice payout, so a change to either shows here.
+  else if (Math.round(ctx.mechDiceExact({}).wins * 216) !== 96 || Math.round(ctx.mechDiceExact({}).losses * 216) !== 70) fail('mechanics', 'the model does not enumerate 96/70: ' + JSON.stringify([ctx.mechDiceExact({}).wins * 216, ctx.mechDiceExact({}).losses * 216]));
+  else if (Math.abs(ctx.mechDiceExact({}).mean - dice.fair) > 1e-9 || Math.abs(ctx.mechDiceExact({ gambling: true }).mean - dice.skilled) > 1e-9) fail('mechanics', `the model and diceGame() disagree about the edge: ${ctx.mechDiceExact({}).mean} vs ${dice.fair}`);
+  // The simulator plays the same arithmetic and tallies what it played.
+  else if ((function () { ctx.diceSimReset(); ctx.diceSimPlay(500); const t = peek('DICE_SIM').tally; return !(t && t.games === 500 && t.wins + t.pushes + t.losses === 500); })()) fail('mechanics', 'the dice simulator did not play 500 games');
+  else if (!/500 games/.test(ctx.diceSimHtml())) fail('mechanics', 'the simulator does not say what it played');
+  // The staircase the lock figure exists to show, and which way it rounds:
+  // the difficulty term is (data1 + 19) / 20 * 5, so 1 through 20 are one
+  // lock and only a difficulty of nothing is free.
+  else if (!(ctx.mechLockChance(20, 1) === ctx.mechLockChance(20, 20) && ctx.mechLockChance(20, 1) < ctx.mechLockChance(20, 0) && ctx.mechLockChance(20, 21) < ctx.mechLockChance(20, 20))) fail('mechanics', 'the lock chance is not a staircase rounding up in steps of twenty');
+  // The five 2012 bed measurements, which the sleep figure is drawn from.
+  else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
+    .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true }, o)) !== want)) fail('mechanics', 'the bed rates do not reproduce the 2012 measurements');
+  // The combat figure over the archive's own weapons: the three outcomes
+  // must account for every exchange and the blow words for every hit.
+  else if ((function () {
+    const p = ctx.combatSimParams(), x = ctx.mechCombatExact({ attackerReflex: 20, defenderReflex: 20, weaponSkill: 8, attackSkill: 4, defenceSkill: 4, enchant: 0, damage: p.weapon.damage, shieldBlock: p.shield ? p.shield.block : null, shieldSkill: 8 });
+    return !(p.weapon && p.weapon.damage > 0 && Math.abs(x.miss + x.parry + x.hit - 1) < 1e-9 && Math.abs(x.words.reduce((s, w) => s + w.p, 0) - x.hit) < 1e-9);
+  })()) fail('mechanics', 'the combat model does not account for every exchange: ' + JSON.stringify(ctx.combatSimParams().weapon));
+  else if (!/lands/.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules().words)) || !/grazed|shredded/.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules().words))) fail('mechanics', 'the combat figure names neither the outcome nor a blow');
+  else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${(html.match(/class="mechFig"/g) || []).length} figures drawn; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);
 } catch (e) { fail('mechanics', e); }
 
 // Opening a second archive must not leave the first one's derived tables
