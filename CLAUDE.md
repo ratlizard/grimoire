@@ -443,6 +443,12 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   whichever of the six `.sit` files are beside it — Ambrosia's four
   installers and the two mirrors — the stored ones yielding the same
   installer as the `.bin`, the compressed ones refused by method name.
+  A sixth argument, `reference/game/installed-folders/Cythera Installed
+  Folder with Preferences & License.sit`, is the one input anywhere with
+  **nested folders** in it and so the only thing that exercises the folder
+  walk: nine folders and forty-two files must come out, entries must be
+  found both inside the folder and beside it, and the real `Cythera
+  Preferences` must be there with an empty data fork and type `pref`.
 - `delv_crosscheck.mjs` / `delv_graphics_check.mjs` /
   `delv_dasm_check.mjs` (+ `delv_dasm_ref.py`) — see below.
 - `delv_write_check.mjs` (+ `delv_write_ref.py`) — `writeDelverArchive`
@@ -1057,12 +1063,24 @@ Read the comment above a constant before correcting it.
   install does; the Finder type `pref` is a guess, since the game finds the
   file by name and the real one's type is inside a StuffIt archive whose
   forks this page cannot decompress; and it replaces rather than merges.
-  **Two things were learned about `js/mac-stuffit.js` on the way** and
-  neither is fixed: its StuffIt 5 walk follows the first folder's subtree and
-  then loses its place, so `Cythera Installed Folder with Preferences &
-  License.sit` lists 12 entries rather than the whole tree; and every fork in
-  those installed-folder archives is method 13, so even a fixed walk would
-  not open the real preferences file without a decompressor.
+  **Looking for the real file to compare against found a bug in
+  `js/mac-stuffit.js`, and fixing it answered two of the three guesses.**
+  Its StuffIt 5 walk descended into the first folder it met and never came
+  back up — a folder's header gives the offset of its first child and the
+  walk jumped there with nowhere to keep the folder's own next-entry
+  pointer, so `Cythera Installed Folder with Preferences & License.sit`
+  listed 12 entries of 51. The six single-file archives the parser was
+  written against have no nested folders at all, which is why nothing
+  noticed for a year. One stack, one pop per end-of-folder marker, and the
+  whole tree comes out: nine folders, forty-two files — and the real
+  **`Cythera Preferences`** among them, with an **empty data fork**, Finder
+  type **`pref`** and a 638-byte resource fork. So the type was right and
+  the creator was not: it is four zero bytes, not `Delv`, and
+  `PREFS_CREATOR` says so. The fork is method 13 and stays shut, so what is
+  in those three resources is still the executable's word rather than the
+  file's. `vise_check.mjs` takes the installed-folder archive as a sixth
+  argument now and pins all of it, including the method — so the day a
+  decompressor lands, that check says so rather than staying quiet.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a

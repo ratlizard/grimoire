@@ -23,7 +23,7 @@ import {dirname, join} from 'node:path';
 import vm from 'node:vm';
 import {createHash} from 'node:crypto';
 
-const [binPath, dataPath, dataRsrcPath, appDataPath, appRsrcPath] = process.argv.slice(2);
+const [binPath, dataPath, dataRsrcPath, appDataPath, appRsrcPath, folderSitPath] = process.argv.slice(2);
 if (!binPath) {
   console.error('usage: vise_check.mjs <Cythera.bin> [Cythera Data.data] [Cythera Data.rsrc] [Cythera.data] [Cythera.rsrc]');
   process.exit(2);
@@ -175,6 +175,47 @@ if (refAppRsrc) check('Cythera: resource fork identical outside the reserved hea
       }
       check(name + ' extracts whole, every CRC verifying', !!rv && good === total && total > 40, rv ? `${good} of ${total}${firstErr ? '; ' + firstErr : ''}` : 'not picked');
     }
+  }
+}
+
+/* THE FOLDER WALK, which the six installers above cannot exercise: each of
+   them is one file in one archive, and js/mac-stuffit.js descended into the
+   first folder it met and never came back up. Nothing noticed for a year.
+   An installed-folder archive is the case that shows it -- a real Cythera
+   folder with nine folders and forty-two files in it -- and it is worth a
+   check of its own because the fix is a stack whose absence looks exactly
+   like a small archive.
+
+   It also pins two facts the preferences file in index.html is built on,
+   which is the whole reason the walk was fixed: the real Cythera Preferences
+   has an EMPTY data fork and the Finder type `pref`. Its resource fork is
+   method 13 and this page cannot open it, so what is inside stays the
+   executable's word rather than the file's. */
+const folderSit = folderSitPath;
+if (folderSit) {
+  let fb = null;
+  try { fb = new Uint8Array(readFileSync(folderSit)); } catch (e) {}
+  if (fb) {
+    let arc = null, err = '';
+    try { arc = ctx.parseStuffItArchive(fb); } catch (e) { err = e.message; }
+    const files = arc ? arc.entries.filter(e => !e.isFolder) : [];
+    const folders = arc ? arc.entries.filter(e => e.isFolder) : [];
+    check('an installed folder walks past its first folder',
+          !!arc && folders.length >= 5 && files.length >= 30,
+          arc ? `${folders.length} folders, ${files.length} files` : err);
+    const paths = files.map(e => e.path);
+    check('and reaches what is beside the folder as well as inside it',
+          paths.some(p => /\//.test(p)) && paths.some(p => !/\//.test(p)),
+          `${paths.filter(p => /\//.test(p)).length} nested, ${paths.filter(p => !/\//.test(p)).length} at the root`);
+    const prefs = files.find(e => e.name === 'Cythera Preferences');
+    check('the real preferences file is in it, with an empty data fork and type pref',
+          !!prefs && prefs.dataLen === 0 && prefs.type === 'pref',
+          prefs ? `type ${prefs.type}, data ${prefs.dataLen}, rsrc ${prefs.rsrcLen} (method ${prefs.rsrcMethod})` : 'not found');
+    // And the thing that still cannot be done, stated as a check so that the
+    // day a decompressor lands, this says so rather than staying quiet.
+    check('its resource fork is still compressed beyond this page',
+          !!prefs && prefs.rsrcMethod === 13,
+          prefs ? 'method ' + prefs.rsrcMethod : '');
   }
 }
 

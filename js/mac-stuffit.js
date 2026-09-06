@@ -99,6 +99,16 @@ function parseStuffIt5(bytes) {
   let remaining = u16be(bytes, 92);
   const entries = [];
   const dirs = new Map();
+  /* Where to carry on after each folder ends. A folder's header gives the
+     offset of its first child, and the walk jumps there -- so without
+     somewhere to put the folder's OWN next-entry pointer, the walk descends
+     into the first folder it meets and never comes back up. That is not
+     hypothetical: `Cythera Installed Folder with Preferences & License.sit`
+     listed 12 entries of 51, everything in it stopping at the end of the
+     first folder, and the six single-file archives this page was written
+     against have no nested folders at all so nothing noticed for a year.
+     One stack entry per open folder, popped by the folder's end marker. */
+  const resume = [];
   while (remaining > 0 && at + 48 <= bytes.length) {
     const start = at;
     if (u32be(bytes, at) !== 0xA5A5A5A5) throw new Error('StuffIt 5 entry marker missing at 0x' + at.toString(16));
@@ -116,8 +126,14 @@ function parseStuffIt5(bytes) {
     const name = decodeMacRoman(bytes.subarray(at, at + nameLen));
     at += nameLen;
     if (isFolder && nameLen === 0) {            // end-of-folder marker
-      if (nextOff) at = nextOff; else break;
-      continue;
+      // The stack first, the marker's own pointer as a fallback, and never a
+      // jump to zero: a folder with nothing after it at its level has a null
+      // next-entry pointer, and following it would land on the header at
+      // offset 0 and throw on the marker check.
+      const back = resume.length ? resume.pop() : 0;
+      const to = back || nextOff;
+      if (to) { at = to; continue; }
+      break;
     }
     if (at < start + headerSize) {              // a comment
       const commentLen = u16be(bytes, at);
@@ -144,7 +160,7 @@ function parseStuffIt5(bytes) {
                      dataLen: 0, dataPackedLen: 0, dataMethod: 0, dataOffset: 0,
                      rsrcLen: 0, rsrcPackedLen: 0, rsrcMethod: 0, rsrcOffset: 0 });
       remaining += childCount;
-      if (dataLen && dataLen !== 0xFFFFFFFF) at = dataLen;   // first child
+      if (dataLen && dataLen !== 0xFFFFFFFF) { resume.push(nextOff); at = dataLen; }   // first child
     } else {
       entries.push({ path, name, isFolder: false, type, creator, finderFlags,
                      rsrcLen, rsrcPackedLen, rsrcMethod, rsrcOffset: at,
