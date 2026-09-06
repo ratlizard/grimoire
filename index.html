@@ -1128,9 +1128,11 @@ body.atlasFull { overflow:hidden; }
        here. They are the Changes tab now, under Data > Cythera Data, grouped
        by where the file is going (renderChangesSheet). -->
   <label><input type="checkbox" id="chkBuiltinLabels" onchange="setBuiltinLabels(this.checked)">
-    <span>Names this tool supplies
+    <span>Names from outside the game’s own text
       <span class="amNote">Hand-identified labels from the delvmod wiki &mdash; resource names,
-      tile-sheet names and the prop-type list the Items, Props and Monsters galleries draw on.
+      tile-sheet names and the prop-type list the Items, Props and Monsters galleries draw on; and on
+      the World map, one name per place from the editor’s list where the game calls several maps the
+      same thing (“Headwater Ruins” rather than the game’s “Ruins”).
       Off, every gallery shows only names the file itself carries (0xF004 tile names, zone-entry
       strings, resource symbols); where there is none, the cell says so.</span></span></label>
 </div>
@@ -1448,7 +1450,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
           <div id="atlasBar" style="display:none"></div>
           <div id="atlasViewport"><div id="atlasHover"></div></div>
           <div id="atlasFullOverlay" style="display:none">
-            <button class="secondary" id="atlasFullUp" style="display:none;width:auto;margin:0;padding:5px 9px" onclick="atlasAscend()">↰</button>
+            <button class="secondary" id="atlasFullUp" style="display:none;width:auto;margin:0;padding:5px 9px" onclick="atlasRiseOut()">↰</button>
             <span id="atlasFullWhere"></span>
             <button class="secondary" style="width:auto;margin:0;padding:5px 9px" onclick="atlasToggleFull()">Leave</button>
           </div>
@@ -1870,10 +1872,11 @@ function residLink(resid, text) {
 // ZONES fallbacks, TILE_SHEET_HINTS, CYTHERA_LANDSCAPES and the character-name
 // fallback are all hand-identified from the wiki -- good guesses, but guesses,
 // and they used to be indistinguishable from the archive's own strings except
-// for a dagger nobody reads. They are off by default now and switched on from
-// the archive menu; with them off the gallery shows only what the file
-// actually says. Generic numbering ("Sound 12") is not an override and stays.
-window.SHOW_BUILTIN_LABELS = false;
+// for a dagger nobody reads. They were off by default until 6 September
+// 2026 and are on by default since (the maintainer's call: one name per
+// place); switched from the archive menu, and with them off the gallery
+// shows only what the file actually says. Generic numbering ("Sound 12") is not an override and stays.
+window.SHOW_BUILTIN_LABELS = true;   // on by default since 6 September 2026 (the maintainer's call)
 try {
   const st = localStorage.getItem('cythera.builtinLabels');
   if (st !== null) window.SHOW_BUILTIN_LABELS = st === '1';
@@ -1881,6 +1884,8 @@ try {
 function setBuiltinLabels(on) {
   window.SHOW_BUILTIN_LABELS = !!on;
   try { localStorage.setItem('cythera.builtinLabels', on ? '1' : '0'); } catch (e) {}
+  // The atlas names its places once, when the scene is built.
+  try { window.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) {}
   if (window.masterIndexGlobal || typeof masterIndexGlobal !== 'undefined') {
     try { onCategoryChange(); } catch (e) {}
   }
@@ -3509,7 +3514,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.11.0';
+const GRIMOIRE_VERSION = '1.12.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -9821,7 +9826,7 @@ function renderAtlasBar() {
   const below = atlasBelowTop();
   if (!below) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   bar.style.display = '';
-  bar.innerHTML = '<button class="crumbBtn" onclick="atlasAscend()">\u21b0 ' +
+  bar.innerHTML = '<button class="crumbBtn" onclick="atlasRiseOut()">\u21b0 ' +
     svEsc(below.fromName) + '</button>' +
     '<span class="wbWhere">' + svEsc(below.name) + '</span>' +
     '<span class="wbNote">Through the ' + svEsc(below.kind) + ' at (' + below.at.x + ',' +
@@ -9851,10 +9856,12 @@ const ATLAS_TUNE_ROWS = [
   ['mouthAt', 'Mouths appear', 2, 40, 1,
    'Screen pixels per square of a map before the rings that mark its ways down are drawn. ' +
    'Too low and the world is a field of rings; too high and you have to hunt for them.'],
-  ['descendAt', 'Mouths open', 8, 64, 1,
-   'Screen pixels per square of the map a mouth is on before zooming in on it goes through. ' +
-   'It used to need the last notch of the zoom, which on a phone was a long pinch and, on a ' +
-   'big map, never came.'],
+  ['descendFill', 'Mouths open', 0.03, 0.5, 0.01,
+   'How much of the shorter side of the screen a mouth’s square must fill before a zoom that ' +
+   'ends on it goes through. A tenth is a hole you plainly meant; a fiftieth was every pinch.'],
+  ['animMs', 'Fall-in time', 0, 1500, 50,
+   'How long the fall into a mouth and the rise out of it take, in milliseconds. Nought is ' +
+   'a cut.'],
   ['descendRadius', 'Mouth reach', 0.04, 0.4, 0.01,
    'How near the middle of the screen a mouth has to be, as a fraction of the shorter side, ' +
    'before zooming all the way in goes through it. Small means deliberate; large means a ' +
@@ -10208,19 +10215,26 @@ function atlasScene() {
    its "LKH" is the game's "Land King Hall". */
 let atlasNameCounts = null;
 function atlasMapName(resid) {
-  const own = zoneNameFor(resid) || labelFor(resid) || null;
-  if (!own) return editorZoneName(resid) || ('0x' + resid.toString(16));
+  const own = zoneNameFor(resid) || null;
+  if (!own) return editorZoneName(resid) || labelFor(resid) || ('0x' + resid.toString(16));
   if (!atlasNameCounts) {
     atlasNameCounts = new Map();
     for (let n = 0; n < 0x100; n++) {
       const r = 0x8000 | n;
       let nm = null;
-      try { if (refExists(r)) nm = zoneNameFor(r) || labelFor(r); } catch (e) {}
+      try { if (refExists(r)) nm = zoneNameFor(r); } catch (e) {}
       if (nm) atlasNameCounts.set(nm, (atlasNameCounts.get(nm) || 0) + 1);
     }
   }
-  const ez = editorZoneName(resid);
-  if ((atlasNameCounts.get(own) || 0) > 1 && ez && ez.toLowerCase() !== own.toLowerCase()) return own + ' · ' + ez;
+  // A shared name is never doubled up. With the outside names on (the
+  // default) the editor's one stands in for it; off, the game's own stands,
+  // twice on the map if that is what the game says.
+  if ((atlasNameCounts.get(own) || 0) > 1 && window.SHOW_BUILTIN_LABELS) {
+    const ez = editorZoneName(resid);
+    if (ez && ez.toLowerCase() !== own.toLowerCase()) return ez;
+    const lb = labelFor(resid);
+    if (lb && lb.toLowerCase() !== own.toLowerCase()) return lb;
+  }
   return own;
 }
 
@@ -10311,8 +10325,9 @@ const ATLAS_TUNE_DEFAULTS = {
   nodeFadeFrom: 18,      // px across: a place begins to replace its pictogram
   nodeFadeTo: 34,        // px across: and has fully replaced it
   mouthAt: 7,            // px per square before a place's mouths are ringed
-  descendAt: 20,         // px per square of the mouth's map before zooming in on it goes through
+  descendFill: 0.1,      // of the shorter side: how much of the screen a mouth's square fills before a zoom onto it goes through
   descendRadius: 0.2,    // of the shorter side: how centred a mouth must be
+  animMs: 550,           // ms: the fall into a mouth, and the rise out of it
   peopleAt: 6,           // px per square before the inhabitants are drawn
   maxPpt: 64             // px per square: the most magnification worth having
 };
@@ -10870,24 +10885,31 @@ function atlasAt(px, py) {
 
    Zooming out of an unlocated map also comes back, because that is the one
    gesture worth having in both directions and it costs a line. */
-function atlasDescend(m, node) {
+function atlasDescend(m, node, arriveZ) {
   const b = atlasBelowTop();
   window.ATLAS_BELOW.push({
     resid: m.dest.resid,
     name: m.name,
-    fromName: node.name, kind: m.kind,
+    fromName: node.name, fromResid: node.resid, kind: m.kind,
     at: { x: m.x, y: m.y },
+    arrive: { x: m.dest.x, y: m.dest.y },
     view: { x: atlasView.x, y: atlasView.y, Z: atlasView.Z },
     wasBelow: !!b
   });
   const sc = atlasScene();
   const vp = document.getElementById('atlasViewport');
   if (sc && vp && vp.clientWidth > 40) {
-    // Arrive on the square the zoneport puts you on, at a zoom that shows the
-    // room around it rather than the whole map: you came through a door.
-    atlasView.Z = Math.min(atlasMaxZ(), sc.root.ts * 0.75);
-    atlasView.x = vp.clientWidth / 2 - (m.dest.x + 0.5) * atlasView.Z;
-    atlasView.y = vp.clientHeight / 2 - (m.dest.y + 0.5) * atlasView.Z;
+    // Arrive on the square the zoneport puts you on: at half the zoom you
+    // fell in at, or, taken by a tap, at a zoom that shows the room around
+    // it rather than the whole map -- you came through a door.
+    const vw = vp.clientWidth, vh = vp.clientHeight;
+    const fit = Math.min(vw / sc.root.w, vh / sc.root.h);
+    const zEnd = Math.max(fit * 0.6, Math.min(atlasMaxZ(), arriveZ || sc.root.ts * 0.75));
+    const ax = m.dest.x + 0.5, ay = m.dest.y + 0.5;
+    atlasView.Z = zEnd / 60; atlasView.x = vw / 2 - ax * atlasView.Z; atlasView.y = vh / 2 - ay * atlasView.Z;
+    renderAtlasBar();
+    atlasAnimateTo(e => atlasZoomOnto(ax, ay, zEnd / 60, zEnd, e, vw, vh, atlasView.x, atlasView.y), arriveZ ? window.ATLAS_TUNE.animMs : 0, () => { atlasSyncZoomLabel(); paintAtlas(); });
+    return;
   }
   atlasSyncZoomLabel();
   renderAtlasBar();
@@ -10905,12 +10927,12 @@ function atlasAscend() {
 
 // Zoomed far enough out of a place that has no outside, come back up.
 function atlasCheckAscend() {
-  if (!atlasBelowTop()) return;
+  if (!atlasBelowTop() || window._atlasAnimating) return;
   const sc = atlasScene();
   const vp = document.getElementById('atlasViewport');
   if (!sc || !vp || vp.clientWidth < 40) return;
   const fit = Math.min(vp.clientWidth / sc.root.w, vp.clientHeight / sc.root.h);
-  if (atlasView.Z < fit * 0.72) atlasAscend();
+  if (atlasView.Z < fit * 0.72) atlasRiseOut();
 }
 
 /* Moving about in it.
@@ -10919,7 +10941,105 @@ function atlasCheckAscend() {
    transform to compose, no layer to keep in step and no settle to wait for,
    which is why this is fifteen lines where the panel's equivalent is a
    hundred and fifty. */
+/* A zoom is judged when the gesture ends, not on every notch of it.
+
+   A pinch or a drag is one gesture from the first finger down to the last
+   finger up; a run of wheel clicks, or of slider moves, is one gesture until
+   a pause. At the end, and only then, a zoom that went in is asked whether it
+   ended on a mouth, and one that went out whether it left a place. Panning
+   never asks. Judging every notch was what made a mouth re-open the moment
+   you had zoomed out of it: the hole was still centred and still big. */
+const atlasGesture = { active: false, z0: null, timer: null };
+function atlasGestureBegin() {
+  if (atlasGesture.active) return;
+  atlasGesture.active = true; atlasGesture.z0 = atlasView.Z;
+}
+function atlasGestureEnd() {
+  if (!atlasGesture.active) return;
+  atlasGesture.active = false;
+  const z0 = atlasGesture.z0; atlasGesture.z0 = null;
+  if (window._atlasAnimating || z0 === null) return;
+  if (atlasView.Z > z0 * 1.001) atlasCheckDescend();
+  else if (atlasView.Z < z0 * 0.999) atlasCheckAscend();
+}
+// A wheel click or a slider move: part of a gesture that ends with a pause.
+function atlasGestureTouch() {
+  atlasGestureBegin();
+  if (atlasGesture.timer) clearTimeout(atlasGesture.timer);
+  atlasGesture.timer = setTimeout(() => { atlasGesture.timer = null; atlasGestureEnd(); }, 180);
+}
+
+/* The fall into a mouth, and the rise out of it.
+
+   Going down: the view zooms onto the hole, drawing it to the middle as it
+   grows, until its black square fills the screen; then the place below opens
+   from nothing, centred on the square you arrive on, and settles at half the
+   magnification the hole's map had when you went in. Coming up: the place
+   shrinks to nothing around the square you arrived on, and the map above
+   opens out from the blank middle of the hole, settling at half the
+   magnification you went in at -- so the hole is there, and smaller, and a
+   zoom in would have to mean it again. animMs of nought is a cut, which is
+   also what a browser without animation frames gets. */
+function atlasAnimateTo(fn, ms, done) {
+  if (!ms || typeof requestAnimationFrame !== 'function' || window.ATLAS_NO_ANIM) {
+    fn(1); paintAtlas(); if (done) done(); return;
+  }
+  window._atlasAnimating = true;
+  const t0 = Date.now();
+  const step = () => {
+    const t = Math.min(1, (Date.now() - t0) / ms);
+    const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    fn(e); paintAtlas();
+    if (t < 1) requestAnimationFrame(step);
+    else { window._atlasAnimating = false; if (done) done(); }
+  };
+  requestAnimationFrame(step);
+}
+// Zoom the view from z0 to z1 while a scene point (hx,hy: px at Z=1) drifts
+// from where it is to the middle of the screen.
+function atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0) {
+  const z = z0 * Math.pow(z1 / z0, e);
+  const cx0 = x0 + hx * z0, cy0 = y0 + hy * z0;
+  const cx = cx0 + (vw / 2 - cx0) * e, cy = cy0 + (vh / 2 - cy0) * e;
+  atlasView.Z = z; atlasView.x = cx - hx * z; atlasView.y = cy - hy * z;
+}
+function atlasFallInto(m, node) {
+  const vp = document.getElementById('atlasViewport');
+  if (!vp || vp.clientWidth < 40) { atlasDescend(m, node); return; }
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  const per0 = node.s * atlasView.Z;                  // px per square of the mouth's map now
+  const z0 = atlasView.Z, x0 = atlasView.x, y0 = atlasView.y;
+  const hx = node.ox + (m.x + 0.5) * node.s, hy = node.oy + (m.y + 0.5) * node.s;
+  const z1 = Math.max(vw, vh) * 1.15 / node.s;        // the hole's square covers the screen
+  atlasAnimateTo(e => atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0), window.ATLAS_TUNE.animMs, () => {
+    atlasView.Z = z0; atlasView.x = x0; atlasView.y = y0;   // the view you left, for coming back
+    atlasDescend(m, node, per0 / 2);
+  });
+}
+function atlasRiseOut() {
+  const b = atlasBelowTop();
+  const vp = document.getElementById('atlasViewport');
+  if (!b || !vp || vp.clientWidth < 40) { atlasAscend(); return; }
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  const ax = (b.arrive ? b.arrive.x : 0) + 0.5, ay = (b.arrive ? b.arrive.y : 0) + 0.5;   // the below root is at s=1
+  const z0 = atlasView.Z, x0 = atlasView.x, y0 = atlasView.y;
+  atlasAnimateTo(e => atlasZoomOnto(ax, ay, z0, z0 / 60, e, vw, vh, x0, y0), window.ATLAS_TUNE.animMs, () => {
+    const prev = window.ATLAS_BELOW.pop();
+    renderAtlasBar();
+    const sc = atlasScene();
+    const node = (sc && sc.nodes.find(n => n.resid === prev.fromResid)) || (sc && sc.root);
+    if (!sc || !node || !prev.view) { if (prev.view) { atlasView.x = prev.view.x; atlasView.y = prev.view.y; atlasView.Z = prev.view.Z; } atlasSyncZoomLabel(); paintAtlas(); return; }
+    const hx = node.ox + (prev.at.x + 0.5) * node.s, hy = node.oy + (prev.at.y + 0.5) * node.s;
+    const zBig = Math.max(vw, vh) * 1.15 / node.s;
+    const fit = Math.min(vw / sc.root.w, vh / sc.root.h);
+    const zEnd = Math.max(fit * (atlasBelowTop() ? 0.6 : 0.9), prev.view.Z / 2);
+    atlasView.Z = zBig; atlasView.x = vw / 2 - hx * zBig; atlasView.y = vh / 2 - hy * zBig;
+    atlasAnimateTo(e => atlasZoomOnto(hx, hy, zBig, zEnd, e, vw, vh, atlasView.x, atlasView.y), window.ATLAS_TUNE.animMs, () => { atlasSyncZoomLabel(); paintAtlas(); });
+  });
+}
+
 function atlasZoomAround(newZ, px, py) {
+  if (window._atlasAnimating) return;
   const maxZ = atlasMaxZ();
   const sc = atlasScene();
   const vp = document.getElementById('atlasViewport');
@@ -10938,8 +11058,6 @@ function atlasZoomAround(newZ, px, py) {
   atlasView.y = py - wy * atlasView.Z;
   atlasSyncZoomLabel();
   schedulePaintAtlas();
-  atlasCheckAscend();
-  atlasCheckDescend();
 }
 
 /* Zoomed in on a mouth, go through it.
@@ -10954,7 +11072,7 @@ function atlasZoomAround(newZ, px, py) {
    the ring is plainly the thing you are zooming at, and inside Land King
    Hall, whose squares are the world's, was never reached at all. */
 function atlasCheckDescend() {
-  if (window._atlasDescending) return;
+  if (window._atlasDescending || window._atlasAnimating) return;
   const vp = document.getElementById('atlasViewport');
   const mouths = window.ATLAS_MOUTHS || [];
   if (!vp || !mouths.length) return;
@@ -10962,17 +11080,19 @@ function atlasCheckDescend() {
   const reach = Math.min(vw, vh) * window.ATLAS_TUNE.descendRadius;
   let best = null, bestD = Infinity;
   for (const q of mouths) {
-    // Big enough that the ring is a square you meant, not a dot you passed.
-    if (q.per < window.ATLAS_TUNE.descendAt) continue;
+    // Big enough that the hole is a thing you meant: its square fills a
+    // tenth of the screen, not a dot you passed on the way somewhere.
+    if (q.per < Math.min(vw, vh) * window.ATLAS_TUNE.descendFill) continue;
     const d = Math.hypot(q.x - vw / 2, q.y - vh / 2);
     if (d < bestD) { bestD = d; best = q; }
   }
   if (!best || bestD > reach) return;
   window._atlasDescending = true;
-  try { atlasDescend(best.m, best.node); } finally { window._atlasDescending = false; }
+  try { atlasFallInto(best.m, best.node); } finally { window._atlasDescending = false; }
 }
 
 function atlasPanBy(dx, dy) {
+  if (window._atlasAnimating) return;
   atlasView.x += dx; atlasView.y += dy;
   schedulePaintAtlas();
 }
@@ -11010,6 +11130,7 @@ function atlasZoomFromSlider() {
   const sl = document.getElementById('atlasZoomSlider');
   const vp = document.getElementById('atlasViewport');
   if (!sl || !vp) return;
+  atlasGestureTouch();
   atlasZoomAround(+sl.value, vp.clientWidth / 2, vp.clientHeight / 2);
 }
 
@@ -11082,6 +11203,7 @@ function setupAtlasInteraction() {
                        return { x: e.clientX - r.left, y: e.clientY - r.top }; };
   vp.addEventListener('pointerdown', e => {
     if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
+    if (!pts.size) atlasGestureBegin();
     pts.set(e.pointerId, local(e));
     moved = 0;
     endHold(); peeking = false;
@@ -11137,16 +11259,19 @@ function setupAtlasInteraction() {
       // on it means the way down rather than the square it sits on.
       const hit = (window.ATLAS_MOUTHS || []).find(q =>
         Math.hypot(p.x - q.x, p.y - q.y) <= q.rad);
-      if (hit) atlasDescend(hit.m, hit.node); else atlasInspect(p.x, p.y);
+      if (hit) { atlasGesture.active = false; atlasDescend(hit.m, hit.node); return; }
+      atlasInspect(p.x, p.y);
     }
+    if (!pts.size) atlasGestureEnd();
   };
   vp.addEventListener('pointerup', up);
-  vp.addEventListener('pointercancel', e => { pts.delete(e.pointerId); endHold(); peeking = false; hideAtlasHover(); if (!pts.size) setTouching(false); });
+  vp.addEventListener('pointercancel', e => { pts.delete(e.pointerId); endHold(); peeking = false; hideAtlasHover(); if (!pts.size) { setTouching(false); atlasGestureEnd(); } });
   vp.addEventListener('pointerleave', () => { if (window.ATLAS) hideAtlasHover(); });
   vp.addEventListener('wheel', e => {
     if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
     e.preventDefault();
     const p = local(e);
+    atlasGestureTouch();
     atlasZoomAround(atlasView.Z * (e.deltaY > 0 ? 0.9 : 1.1), p.x, p.y);
   }, { passive: false });
 }

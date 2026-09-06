@@ -780,6 +780,35 @@ Read the comment above a constant before correcting it.
   text; the atlas section of the smoke runs without the fork (the
   deep-link check re-opens the data fork alone), so the editor's suffix
   is asserted only when the fork is there.
+- **A zoom is judged when it ends, and the fall is drawn, v1.12.0**
+  (6 September 2026, after the maintainer found v1.11.0 "way too
+  sensitive" and unable to leave a tunnel — it re-entered at once). A
+  gesture is a pinch or drag from first finger to last (`atlasGestureBegin`
+  / `atlasGestureEnd` on the pointer events), or a run of wheel clicks or
+  slider moves until a 180 ms pause (`atlasGestureTouch`). Only at its end,
+  and only in the direction it went: a net zoom-in asks `atlasCheckDescend`,
+  a net zoom-out `atlasCheckAscend`, a pan asks nothing. `atlasZoomAround`
+  no longer checks. A mouth opens when its square fills `descendFill` (a
+  tenth) of the shorter side and sits within `descendRadius` of the middle.
+  **The fall** (`atlasFallInto`): the view zooms onto the hole, drawing it
+  to the middle, until its square covers the screen; then `atlasDescend(m,
+  node, arriveZ)` opens the place below from a sixtieth of its final zoom,
+  centred on the arrival square, to half the px-per-square the hole's map
+  had — the stack entry keeps `fromResid`, `arrive` and the view left.
+  **The rise** (`atlasRiseOut`, also the bar's ↰ and the overlay's): the
+  place shrinks to nothing around the arrival square, then the map above
+  opens out from the blank middle of the hole to half the zoom it was
+  entered at, so the hole is there, smaller, and only another zoom-in
+  means it. `atlasAnimateTo` runs the frames (`animMs`, 550; 0 is a cut,
+  and the smoke sets 0 since the stub queues frames and never runs them);
+  input is ignored mid-animation. **Names from outside the game's text are
+  on by default now** (`SHOW_BUILTIN_LABELS` true; the archive-menu
+  checkbox "Names from outside the game’s own text"), and on the World
+  map `atlasMapName` never doubles a name: with the option on a shared
+  script name is replaced by the editor's ("Headwater Ruins"), off it
+  stands as the game gives it, twice. The smoke pins the fall to half
+  zoom, the rise to half zoom, a pan staying put, and a second zoom-in
+  re-opening.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a
