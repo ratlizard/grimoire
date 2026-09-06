@@ -228,6 +228,14 @@ const CHECKS = [
      nothing at all, and a closed form draws a plausible curve whatever it
      computes. It needs no archive, no delvmod and no network, so unlike
      almost everything here it never skips. */
+  /* The resource-fork WRITER against the two forks Apple's own Resource
+     Manager wrote in 1999 and this repository happens to hold: read each,
+     hand it straight back, require the bytes identical. No specification was
+     trusted for it -- four orders and five as-found fields were each found by
+     failing this. The synthetic half needs no game and never skips. */
+  {page: 'viewer', name: 'resource fork write',
+   cmd: ['utilities/resfork_write_check.mjs', 'index.html', DATA_RSRC, APP_RSRC],
+   grep: /\d+ shipped fork\(s\) rewritten byte for byte[^\n]*/},
   {page: 'viewer', name: 'rule models',
    cmd: ['utilities/mech_check.mjs', 'js/delv-mechanics.js'],
    grep: /\d+ comparisons agree[^\n]*/},

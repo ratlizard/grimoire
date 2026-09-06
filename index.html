@@ -3664,7 +3664,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.17.0';
+const GRIMOIRE_VERSION = '1.18.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -15135,6 +15135,47 @@ function renderToolsSheet() {
   db.textContent = 'Open the ditherizer';
   db.onclick = () => { showCategory('135'); openDitherTool(); };
   d.appendChild(db);
+  /* The preferences file, which is the only thing on this page that changes
+     how the GAME behaves rather than how this page reads it. Two bits: the
+     smooth movement Cythera has always had and gates on a preference, and the
+     gate on the cheat keys, which nothing in the game ever sets. The long
+     comment above buildCytheraPreferences says where each came from and, just
+     as plainly, that this file has never been put in front of the game. */
+  const pf = sec('Cythera’s preferences file',
+    'Two bits in ‘Pref’ 130 “UI Prefs”, which lives in the System Folder’s Preferences folder. ' +
+    'Smoother movement is in the shipped game and turned off by the default the game picks for a ' +
+    '68040; the other bit is the gate on the cheat keys — option-j to jump anywhere, option-s to ' +
+    'conjure any object, option-w to walk through walls — which nothing in the game ever sets, so a ' +
+    'shipped copy cannot enter cheat mode however long you type ©gra at it.');
+  const prefsRow = document.createElement('div');
+  prefsRow.style.cssText = 'display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin:8px 0 6px';
+  prefsRow.innerHTML =
+    '<label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="prefSmooth" checked> Smoother movement</label>' +
+    '<label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="prefCheats" checked> Allow the cheat keys</label>';
+  pf.appendChild(prefsRow);
+  const pbtns = document.createElement('div');
+  pbtns.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+  for (const [label, kind, title] of [
+    ['Disk image, for an emulator', 'dsk', 'Mounts as “' + PREFS_VOLUME_NAME + '” with an ' + PREFS_SCRIPT_NAME + ' script beside the file'],
+    ['MacBinary, for a real Mac', 'bin', 'Unwrap it and drag the file into System Folder ▸ Preferences']]) {
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.style.cssText = 'width:auto;margin:0';
+    b.textContent = label;
+    b.title = title;
+    b.onclick = () => downloadCytheraPrefs(kind);
+    pbtns.appendChild(b);
+  }
+  pf.appendChild(pbtns);
+  const pnote = document.createElement('div');
+  pnote.className = 'changesNote';
+  pnote.style.cssText = 'margin-left:0;margin-top:8px';
+  pnote.innerHTML = '<b>Untried.</b> The four bytes are evidence — a stored record of ' +
+    '<code>18800001</code> was watched to print “Cheat mode activated.”, and the movement bit was ' +
+    'measured frame by frame — but a preferences file <i>this page wrote</i> has never been put in ' +
+    'front of the game. It replaces any settings already stored. If you try it, say whether it worked.';
+  pf.appendChild(pnote);
+
   const pages = sec('The other pages', '');
   for (const [href, label, note] of [
     ['canvas.html', 'Colour-cycling canvas', 'a paint studio for the palette animation Cythera uses for water and fire'],
@@ -16415,6 +16456,134 @@ function missingForkWarning(rsrc) {
   return 'This archive was loaded without its resource fork, so the disk cannot ' +
          'run in the game — Cythera refuses it with “Unable to open RT”. Open the ' +
          '.hqx (or a MacBinary copy) instead of a bare data fork, and export again.';
+}
+
+/* ---- Cythera's preferences file -----------------------------------------
+   The game keeps its settings in `Cythera Preferences`, in the System Folder's
+   Preferences folder: a file with an empty data fork and three `'Pref'`
+   resources in its resource fork. One of them, **130 "UI Prefs"**, is four
+   bytes, and two bits in it are worth a visitor's while.
+
+   **Bit 7 of the first byte is smooth movement, and the game has always had
+   it.** Cythera implements quarter-tile sub-pixel movement in shipped code
+   and gates it on this preference: every object's record carries a 2-bit x
+   and y offset in byte 6, and the renderer tests this bit before applying it
+   at all. Bit 1 asks for four sub-steps a tile rather than two. The whole of
+   `0x9A` is what the game's own Preferences dialog writes for "Smoother
+   Movement". With no stored preference the game picks a default by CPU class,
+   and the 68040 default is `0x18` -- one 32-pixel jump a tile, the character
+   teleporting from square to square. That is measured, not inferred: the
+   workbench's `doc/smooth-movement.md` has the filmstrip, five sampled
+   positions eight pixels apart.
+
+   **Bit 0 of the fourth byte is the gate on cheat mode.** The map window
+   keeps the last four keys in a rolling word, and typing `©gra` -- option-g,
+   then g, r, a -- toggles the cheat flag *only* when that bit is set. Nothing
+   in the game ever sets it: `TApPrefWindow::SaveSettings` writes bytes 0 and
+   1 and no more, and all three CPU-class defaults have byte 3 clear. So a
+   shipped copy cannot enter cheat mode however long you type at it, which is
+   presumably how TCRF's "potential cheat mode" stayed potential. With the bit
+   on, the keys are: option-j to jump to any level and square, option-s to
+   conjure any object, option-w to walk through anything, option-t to pass a
+   quarter of an hour, option-r for the regeneration Omen's ring grants,
+   option-shift-x for vision of night. The workbench's `doc/cythera_keys.md`
+   has the full table, read out of `TMapWindow::KeyRoutine`.
+
+   **This file is written, and has not yet been tried.** The bytes are
+   evidence -- `18800001` in a stored preferences file was verified to print
+   "Cheat mode activated." on 5 September 2026, and `0x9A` was measured the
+   same week -- but a preferences file *this page produced* has never been put
+   in front of the game, on a real Mac or in the emulator. What would settle
+   it is five minutes with either. Until somebody does, the section on the
+   Tools tab says so in as many words, which is the least this can do.
+
+   Three things are deliberately left out. There is no `CurScen` and no
+   `CurPlayer`, the two other `'Pref'` resources a played copy has, so the
+   start screen will say "No Player Selected" exactly as a fresh install does
+   -- this file is a switch, not a saved session. The Finder type is `pref`
+   with Cythera's own creator, which is a guess: the game finds the file by
+   *name* through `FSMakeFSSpec`, so nothing reads the type, and the real
+   file's type is inside a StuffIt archive whose forks this page cannot
+   decompress. And the file is offered on its own disk rather than added to
+   the archive's export disk, because a third file on that volume pushes its
+   catalog past one leaf node and raises a modal Finder alert that breaks the
+   automated install -- see buildEditedDiskImage, where that was paid for. */
+const PREFS_FILE_NAME = 'Cythera Preferences';
+const PREFS_VOLUME_NAME = 'Cythera Prefs';
+const PREFS_SCRIPT_NAME = 'Install Preferences';
+
+// The four bytes, with bytes 1 and 2 as every observed record has them.
+function cytheraPrefsRecord(opts) {
+  const o = opts || {};
+  return new Uint8Array([o.smooth ? 0x9A : 0x18, 0x80, 0x00, o.cheats ? 0x01 : 0x00]);
+}
+function buildCytheraPreferences(opts) {
+  return writeResourceFork([
+    { type: 'Pref', id: 130, name: 'UI Prefs', data: cytheraPrefsRecord(opts) }
+  ]);
+}
+function prefsInstallScript(opts) {
+  const o = opts || {};
+  return [
+    '-- ' + PREFS_SCRIPT_NAME,
+    '-- Written by Grimoire, https://ratlizard.github.io/grimoire/',
+    '--',
+    '-- Puts "' + PREFS_FILE_NAME + '" into the System Folder’s Preferences',
+    '-- folder, replacing whatever is there. Press Run, or Command-R.',
+    '--',
+    '-- It replaces the file, so any settings already stored are lost with it.',
+    '-- Move the old one aside first if you care about them.',
+    '--',
+    '-- Smoother movement: ' + (o.smooth ? 'ON' : 'off') +
+      '. Cheat keys allowed: ' + (o.cheats ? 'ON — type ©gra in the map window' : 'off') + '.',
+    '--',
+    'tell application "Finder"',
+    '\tset src to file "' + PREFS_FILE_NAME + '" of disk "' + PREFS_VOLUME_NAME + '"',
+    '\ttry',
+    '\t\tduplicate src to folder "Preferences" of system folder with replacing',
+    '\t\tdisplay dialog "Put ' + PREFS_FILE_NAME + ' in the Preferences folder. ' +
+      'Start Cythera." buttons {"OK"} default button 1',
+    '\ton error',
+    '\t\tdisplay dialog "Could not write to the Preferences folder. Drag ' +
+      PREFS_FILE_NAME + ' there by hand." buttons {"OK"} default button 1',
+    '\tend try',
+    'end tell',
+    ''
+  ].join('\r');   // classic Mac line endings, as buildInstallScript uses
+}
+// The two files on one volume, which is the most a catalog leaf holds.
+function buildPrefsDiskImage(opts) {
+  return writeHfsImage({
+    volumeName: PREFS_VOLUME_NAME,
+    entries: [
+      { name: PREFS_FILE_NAME, type: 'pref', creator: 'Delv',
+        data: new Uint8Array(0), rsrc: buildCytheraPreferences(opts) },
+      { name: PREFS_SCRIPT_NAME, type: 'TEXT', creator: 'ToyS',
+        data: encodeMacRoman(prefsInstallScript(opts)), rsrc: new Uint8Array(0) }
+    ]
+  });
+}
+function prefsOptionsFromUI() {
+  const on = id => { const e = document.getElementById(id); return e ? !!e.checked : false; };
+  return { smooth: on('prefSmooth'), cheats: on('prefCheats') };
+}
+function downloadCytheraPrefs(kind) {
+  const opts = prefsOptionsFromUI();
+  const how = [opts.smooth ? 'smoother movement' : 'the stepped movement',
+               opts.cheats ? 'the cheat keys allowed' : 'no cheat keys'].join(', ');
+  if (kind === 'dsk') {
+    const image = buildPrefsDiskImage(opts);
+    dlBlob(new Blob([image], { type: 'application/octet-stream' }), PREFS_VOLUME_NAME + '.dsk');
+    setStatus('Wrote a ' + fmtBytes(image.length) + ' disk image with ' + how + '. Drop it on an ' +
+      'emulated Mac; it mounts as “' + PREFS_VOLUME_NAME + '” and carries an ' +
+      PREFS_SCRIPT_NAME + ' script. Untried — tell the maintainer whether it works.');
+    return;
+  }
+  const bin = writeMacBinary({ name: PREFS_FILE_NAME, type: 'pref', creator: 'Delv',
+                               data: new Uint8Array(0), rsrc: buildCytheraPreferences(opts) });
+  dlBlob(new Blob([bin], { type: 'application/octet-stream' }), PREFS_FILE_NAME + '.bin');
+  setStatus('Wrote ' + PREFS_FILE_NAME + '.bin with ' + how + '. Unwrap it on a real Mac and put it ' +
+    'in the System Folder’s Preferences folder. Untried — tell the maintainer whether it works.');
 }
 
 function buildInstallScript(archiveName, note) {

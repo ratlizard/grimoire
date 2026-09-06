@@ -1407,6 +1407,20 @@ try {
   else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${(html.match(/class="mechFig"/g) || []).length} figures drawn; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);
 } catch (e) { fail('mechanics', e); }
 
+/* The preferences file, on the Tools tab. The bytes are pinned by
+   resfork_write_check; what this adds is that the section renders, that the
+   two switches are there for a visitor to reach, and that the page does not
+   quietly stop saying the file has never been tried. */
+try {
+  ctx.showCategory('TOOLS');
+  const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  if (!/id="prefSmooth"/.test(tools) || !/id="prefCheats"/.test(tools)) fail('preferences', 'the two switches are not on the Tools tab');
+  else if (!/Untried/.test(tools)) fail('preferences', 'the section no longer says the file has never been put in front of the game');
+  else if (!/©gra/.test(tools)) fail('preferences', 'the section does not name the code');
+  else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
+  else console.log(`  preferences: both switches on the Tools tab, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork, still labelled untried`);
+} catch (e) { fail('preferences', e); }
+
 // Opening a second archive must not leave the first one's derived tables
 // behind. Sentinels survive only if something is not being reset.
 try {
