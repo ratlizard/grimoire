@@ -1146,6 +1146,13 @@ body.atlasFull { overflow:hidden; }
   <!-- The seven ways an edit leaves the page used to be a stack of buttons
        here. They are the Changes tab now, under Data > Cythera Data, grouped
        by where the file is going (renderChangesSheet). -->
+  <div id="animModeWrap">Animation
+    <label><input type="radio" name="animMode" value="all" onchange="setAnimMode(this.value)"> everything on screen</label>
+    <label><input type="radio" name="animMode" value="graphics" onchange="setAnimMode(this.value)"> graphics only, not the maps</label>
+    <label><input type="radio" name="animMode" value="tiles" onchange="setAnimMode(this.value)"> tile sheets only</label>
+    <label><input type="radio" name="animMode" value="off" onchange="setAnimMode(this.value)"> off</label>
+    <span class="amNote">The palette cycling the game uses for water, lava and magic, and the walking and
+    turning of sprites in the galleries. One setting for the whole page.</span></div>
   <label><input type="checkbox" id="chkBuiltinLabels" onchange="setBuiltinLabels(this.checked)">
     <span>Names from outside the game’s own text
       <span class="amNote">Hand-identified labels from the delvmod wiki &mdash; resource names,
@@ -1302,6 +1309,7 @@ body.atlasFull { overflow:hidden; }
 <div id="singlePreview" style="display:none">
   <div id="canvasViewport"><canvas id="canvas" width="64" height="64"></canvas></div>
   <button class="secondary" onclick="downloadCurrentPNG()">Save as PNG</button>
+  <button class="secondary" onclick="downloadCurrentGIF()">Save as GIF</button>
   <button class="secondary" id="unditherBtn" style="display:none" onclick="toggleUnditherPreview()">Preview undithered</button>
 </div>
 <div id="artUsage" style="display:none"></div>
@@ -1339,7 +1347,7 @@ body.atlasFull { overflow:hidden; }
       <label><input type="checkbox" id="chkChars" checked onchange="toggleCharacters(this.checked)"> Inhabitants</label>
       <label><input type="checkbox" id="chkCharNames" checked onchange="toggleCharNames(this.checked)"> Names</label>
       <label><input type="checkbox" id="chkLighting" onchange="toggleLighting(this.checked)"> Lighting</label>
-      <label><input type="checkbox" id="chkMapAnim" checked onchange="toggleMapAnim(this.checked)"> Tile animation</label>
+
     </div>
     <div class="mapToggleGroup">
       <span class="mtgLabel">Mark</span>
@@ -1399,9 +1407,6 @@ body.atlasFull { overflow:hidden; }
 
 <div id="zoomControls" style="display:none">
   <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:6px;flex-wrap:wrap">
-    <label id="palAnimLabel" style="display:none;align-items:center;gap:6px;font-size:14px;">
-      <input type="checkbox" id="chkPalAnim" checked onchange="togglePaletteAnim(this.checked)" style="width:auto;min-height:0;margin:0"> Palette animation
-    </label>
     <span id="animNote" style="display:none;font-size:12px;color:#c9bd90;">cycling 0xE0&ndash;0xFB</span>
   </div>
   <div class="zoomrow">
@@ -2469,7 +2474,7 @@ function animateSpriteTile(host, info, rec) {
   // Scenery wearing a character record does not walk. Aeneas is a corpse, and
   // WHICH corpse is his stored aspect -- frame 1 of sheet 0x5E, not frame 0.
   const staticFrame = (rec && rec.aspect) || 0;
-  if (info.isStatic || info.present.length < 2 || PREFERS_REDUCED_MOTION) {
+  if (info.isStatic || info.present.length < 2 || !window.SPRITE_ANIM) {
     c.style.left = 'calc(100% - ' + Math.round(SIZE * 0.55) + 'px)';
     c.style.top  = 'calc(100% - ' + Math.round(SIZE * 0.55) + 'px)';
     const f = info.present.indexOf(staticFrame) >= 0 ? staticFrame : restingFrame(info);
@@ -2969,6 +2974,13 @@ function showPropTypeDetail(pt) {
       (run.frames.length === 1 ? ' ' + run.frames[0] : 's ' + run.frames[0] + '\u2013' + run.frames[run.frames.length-1]) +
       (own ? '' : ' \u2014 a neighbour on this sheet, not this prop');
     panel.appendChild(runHead);
+    if (own) {
+      const gb = document.createElement('button');
+      gb.className = 'secondary'; gb.style.cssText = 'width:auto;margin:0 0 4px;padding:4px 10px;font-size:12px';
+      gb.textContent = run.frames.length > 1 ? 'Save these frames as an animated GIF' : 'Save as GIF';
+      gb.onclick = () => downloadPropGIF(base, run.frames);
+      panel.appendChild(gb);
+    }
     const colours = null;   // the colour words ("cobalt", "pale") were removed by request
     const sheet = document.createElement('div');
     sheet.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px';
@@ -3271,7 +3283,7 @@ function renderItemSheet() {
     // An item with several frames shows them all, in turn: one jittered
     // timer per multi-frame cell, on the same registry the character
     // gallery's walkers use, so navigation stops every one of them.
-    if (spr && own.length > 1 && !PREFERS_REDUCED_MOTION) {
+    if (spr && own.length > 1 && window.SPRITE_ANIM) {
       let fi = 0;
       spriteTimers.push(setInterval(() => {
         if (!spr.canvas.isConnected) return;
@@ -3567,7 +3579,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.15.0';
+const GRIMOIRE_VERSION = '1.16.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -5389,7 +5401,29 @@ const PREFERS_REDUCED_MOTION = (() => {
   try { return matchMedia('(prefers-reduced-motion: reduce)').matches; }
   catch (e) { return false; }
 })();
-window.PALETTE_ANIM = !PREFERS_REDUCED_MOTION;
+/* One animation setting for the page, since 6 September 2026 (the
+   maintainer: one global option, not a checkbox on every panel).
+     all      -- the maps' and the atlas's palette cycling, the tile sheets',
+                 and the galleries' walking and turning sprites
+     graphics -- everything but the maps
+     tiles    -- the tile sheets' palette cycling alone
+     off      -- nothing moves
+   The three flags below are what the rest of the page reads; they are set
+   from the mode and nowhere else. */
+window.ANIM_MODE = PREFERS_REDUCED_MOTION ? 'off' : 'all';
+try { const v = localStorage.getItem('cythera.animMode'); if (v) window.ANIM_MODE = v; } catch (e) {}
+window.PALETTE_ANIM = window.ANIM_MODE !== 'off';
+window.SPRITE_ANIM = window.ANIM_MODE === 'all' || window.ANIM_MODE === 'graphics';
+function setAnimMode(mode) {
+  window.ANIM_MODE = mode;
+  try { localStorage.setItem('cythera.animMode', mode); } catch (e) {}
+  window.PALETTE_ANIM = mode !== 'off';
+  window.MAP_ANIM = mode === 'all';
+  window.SPRITE_ANIM = mode === 'all' || mode === 'graphics';
+  if (!window.PALETTE_ANIM) stopPaletteAnimation();
+  if (!window.SPRITE_ANIM) stopSpriteAnimations();
+  try { if (typeof onCategoryChange === 'function' && window.masterIndexGlobal) onCategoryChange(); } catch (e) {}
+}
 window.UNDITHER = false;
 
 // ===================== end Undither =====================================
@@ -6059,7 +6093,7 @@ function togglePaletteAnim(on) {
 }
 
 let mapAnimTimer = null;
-window.MAP_ANIM = !PREFERS_REDUCED_MOTION;
+window.MAP_ANIM = window.ANIM_MODE === 'all';
 window.MAP_WALK = false;
 window.MAP_TIME = 12;          // continuous hours, so people can be mid-stride
 let mapAnimFrame = 0;
@@ -10748,6 +10782,29 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
       out.push({ m, node, x, y, per, rad: Math.max(rad, 11) });
     }
   }
+  // The eggs: records with flags 0x42, which delvmod names EGG and which
+  // are scripted triggers rather than props -- the disturbed sand on the
+  // island in the lake near Kosha is one (the way down to Omen's test, by
+  // the community's walkthroughs). A faint dotted ring at close zoom, no
+  // name, because the file does not name what an egg does.
+  for (const { node, r } of drawn) {
+    const per = r.w / node.w;
+    if (per < 12) continue;
+    if (!node._eggs) {
+      try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42 && p.proptype === 0); }
+      catch (e) { node._eggs = []; }
+    }
+    for (const g of node._eggs) {
+      const x = r.x + (g.x + 0.5) * per, y = r.y + (g.y + 0.5) * per;
+      if (x < -20 || y < -20 || x > vw + 20 || y > vh + 20) continue;
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = 'rgba(220,220,255,.55)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x, y, per * 0.45, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+  }
   ctx.textAlign = 'center';
   return out;
 }
@@ -11558,6 +11615,13 @@ function downloadMapPNG() {
   // -- getContext comes back null, or the render throws -- try half that.
   // iOS keeps the screen size: it tears the tab down for canvases this size.
   let wantTS = IS_IOS_WEBKIT ? cm.TS : 32;
+  // On iOS the full-size file is written a strip at a time instead (above):
+  // no whole-map canvas, so no tab torn down, and the native 32 px a square.
+  if (IS_IOS_WEBKIT && cm.TS < 32 && typeof CompressionStream !== 'undefined') {
+    downloadMapPNGStreamed(cm, 32, name).catch(e => { setStatus('Could not write the full-size map (' + e.message + '); saving the screen size instead.', true); downloadMapPNG._fallback = true; downloadMapPNG(); });
+    if (!downloadMapPNG._fallback) return;
+    downloadMapPNG._fallback = false;
+  }
   if (wantTS > cm.TS) {
     let full = null;
     for (const tryTS of [wantTS, 16]) {
@@ -16220,8 +16284,6 @@ function renderImage() {
       canvas.onclick = ev => tileSheetClick(ev, resid);
     } else { canvas.style.cursor = ''; canvas.title = ''; canvas.onclick = null; }
     startPaletteAnimation(canvas, W, H, image, transparentIndexFor(subn));
-    const pal = document.getElementById('palAnimLabel');
-    if (pal) pal.style.display = PALETTE_CYCLE_SUBN.has(subn) ? 'flex' : 'none';
     const z = autoZoom(W,H);
     document.getElementById('zoomSlider').value = z;
     applyZoom();
@@ -16236,6 +16298,192 @@ function renderImage() {
 // The indexed-PNG writer, the zlib stream and the metadata stripper are in
 // js/mac-media.js -- resource_fork_browser.html writes PNGs too, and used to
 // do it with canvas.toBlob(), which loses the palette.
+
+/* ---------------------------------------------------------------------------
+   GIF, with Cythera's own palette.
+
+   A GIF is the one common format that keeps an indexed palette and can hold
+   frames, which is what the game's pictures are: 256 colours, and motion by
+   cycling the palette or by turning a sprite. encodeGIF writes GIF89a with a
+   global colour table from the first frame and a local one on any frame whose
+   palette differs (that is how palette cycling comes out: eight frames of the
+   same pixels under eight rotated palettes), a Netscape loop block, and a
+   graphic-control extension per frame for the delay and the transparent slot.
+   The LZW is the plain variable-code-size encoder the format asks for.
+--------------------------------------------------------------------------- */
+function gifLZW(indexed, minCodeSize) {
+  const clearCode = 1 << minCodeSize, endCode = clearCode + 1;
+  let codeSize = minCodeSize + 1, next = endCode + 1;
+  let dict = new Map();
+  const out = [];
+  let acc = 0, nbits = 0;
+  const emit = code => {
+    acc |= code << nbits; nbits += codeSize;
+    while (nbits >= 8) { out.push(acc & 0xFF); acc >>>= 8; nbits -= 8; }
+  };
+  emit(clearCode);
+  let prefix = -1;
+  for (let i = 0; i < indexed.length; i++) {
+    const k = indexed[i];
+    if (prefix < 0) { prefix = k; continue; }
+    const key = prefix * 256 + k;
+    const found = dict.get(key);
+    if (found !== undefined) { prefix = found; continue; }
+    emit(prefix);
+    if (next < 4096) {
+      dict.set(key, next++);
+      if (next - 1 === (1 << codeSize) && codeSize < 12) codeSize++;
+    } else {
+      emit(clearCode); dict = new Map(); codeSize = minCodeSize + 1; next = endCode + 1;
+    }
+    prefix = k;
+  }
+  if (prefix >= 0) emit(prefix);
+  emit(endCode);
+  if (nbits > 0) out.push(acc & 0xFF);
+  return out;
+}
+function encodeGIF(W, H, frames, opts) {
+  const o = opts || {};
+  const delay = Math.max(2, Math.round((o.delayMs || 100) / 10));
+  const tr = (o.transparentIndex === undefined) ? null : o.transparentIndex;
+  const bytes = [];
+  const u16 = v => { bytes.push(v & 0xFF, (v >> 8) & 0xFF); };
+  const table = pal => { for (let i = 0; i < 256; i++) { const c = pal[i] || [0, 0, 0]; bytes.push(c[0] & 0xFF, c[1] & 0xFF, c[2] & 0xFF); } };
+  for (const ch of 'GIF89a') bytes.push(ch.charCodeAt(0));
+  u16(W); u16(H);
+  bytes.push(0xF7);          // global table, 8 bits, 256 entries
+  bytes.push(0, 0);
+  const gpal = frames[0].palette;
+  table(gpal);
+  if (frames.length > 1) {
+    bytes.push(0x21, 0xFF, 0x0B);
+    for (const ch of 'NETSCAPE2.0') bytes.push(ch.charCodeAt(0));
+    bytes.push(3, 1, 0, 0, 0);
+  }
+  for (const f of frames) {
+    bytes.push(0x21, 0xF9, 0x04, (frames.length > 1 ? 0x08 : 0) | (tr !== null ? 1 : 0));   // dispose to background; transparency
+    u16(delay); bytes.push(tr !== null ? tr : 0, 0);
+    bytes.push(0x2C); u16(0); u16(0); u16(W); u16(H);
+    const local = f.palette !== gpal && f.palette.some((c, i) => !gpal[i] || c[0] !== gpal[i][0] || c[1] !== gpal[i][1] || c[2] !== gpal[i][2]);
+    bytes.push(local ? 0x87 : 0);
+    if (local) table(f.palette);
+    bytes.push(8);
+    const data = gifLZW(f.indexed, 8);
+    for (let i = 0; i < data.length; i += 255) { const n = Math.min(255, data.length - i); bytes.push(n); for (let j = 0; j < n; j++) bytes.push(data[i + j]); }
+    bytes.push(0);
+  }
+  bytes.push(0x3B);
+  return new Uint8Array(bytes);
+}
+// A canvas painted in palette colours, back to indices: an exact match on
+// the colour, index 0 (white, the transparent slot) only for see-through
+// pixels, and the nearest palette colour for anything a filter moved.
+let _palLookup = null;
+function canvasToIndexed(canvas) {
+  if (!_palLookup) { _palLookup = new Map(); for (let i = 255; i >= 1; i--) { const c = PAL_RGB[i]; _palLookup.set((c[0] << 16) | (c[1] << 8) | c[2], i); } }
+  const W = canvas.width, H = canvas.height;
+  const d = canvas.getContext('2d').getImageData(0, 0, W, H).data;
+  const out = new Uint8Array(W * H);
+  for (let i = 0, p = 0; i < out.length; i++, p += 4) {
+    if (d[p + 3] < 128) { out[i] = 0; continue; }
+    const k = (d[p] << 16) | (d[p + 1] << 8) | d[p + 2];
+    let v = _palLookup.get(k);
+    if (v === undefined) {
+      let best = 1, bd = Infinity;
+      for (let j = 1; j < 256; j++) { const c = PAL_RGB[j]; const dd = (c[0] - d[p]) ** 2 + (c[1] - d[p + 1]) ** 2 + (c[2] - d[p + 2]) ** 2; if (dd < bd) { bd = dd; best = j; } }
+      v = best; _palLookup.set(k, v);
+    }
+    out[i] = v;
+  }
+  return { W, H, indexed: out };
+}
+function downloadGIF(W, H, frames, delayMs, filename) {
+  const gif = encodeGIF(W, H, frames, { delayMs, transparentIndex: 0 });
+  dlBlob(new Blob([gif], { type: 'image/gif' }), filename);
+}
+// The single view: the picture as it is, or -- where it is a tile sheet the
+// game cycles and the animation setting allows -- eight frames of it.
+function downloadCurrentGIF() {
+  const canvas = document.getElementById('canvas');
+  if (!canvas) return;
+  const name = currentResid ? ('cythera_0x' + currentResid.toString(16).toUpperCase() + '.gif') : 'cythera_image.gif';
+  const meta = canvas.__cythIndexed;
+  let W, H, image;
+  if (meta && meta.image && meta.W > 0) { W = meta.W; H = meta.H; image = meta.image; }
+  else { const c = canvasToIndexed(canvas); W = c.W; H = c.H; image = c.indexed; }
+  const cycles = window.PALETTE_ANIM && PALETTE_CYCLE_SUBN.has(window.CUR_SUBN) && imageUsesAnimatedColors(image);
+  const frames = cycles ? Array.from({ length: 8 }, (_, f) => ({ indexed: image, palette: cycledPalette(f) })) : [{ indexed: image, palette: PAL_RGB }];
+  downloadGIF(W, H, frames, 140, name);
+}
+// A prop's frames, in turn: one canvas per frame at the art's own size.
+function downloadPropGIF(base, frames) {
+  const cvs = frames.map(f => { const spr = drawPropSprite(base + f, 32); return spr && spr.canvas; }).filter(Boolean);
+  if (!cvs.length) return;
+  const W = Math.max(...cvs.map(c => c.width)), H = Math.max(...cvs.map(c => c.height));
+  const out = cvs.map(c => {
+    if (c.width === W && c.height === H) return canvasToIndexed(c);
+    const pad = document.createElement('canvas'); pad.width = W; pad.height = H;
+    pad.getContext('2d').drawImage(c, 0, H - c.height);
+    return canvasToIndexed(pad);
+  }).map(x => ({ indexed: x.indexed, palette: PAL_RGB }));
+  downloadGIF(W, H, out, 700, 'cythera_tile_0x' + base.toString(16).toUpperCase() + '.gif');
+}
+
+/* ---------------------------------------------------------------------------
+   A map at the native 32 px a square, on a phone.
+
+   iOS tears the tab down for a canvas the size of the world map (8192 square,
+   67 million pixels), so the file used to be the screen's reduced bitmap
+   there. The map is now rendered a row of squares at a time into a canvas one
+   square tall, and each strip's pixels are fed to a deflate stream as they
+   come, so no bitmap of the whole map ever exists: the PNG is written
+   truecolour, filter None, and only the compressed bytes are held. The
+   terrain, the roofs, the characters and the marks go in; the lighting layer
+   does not, since its painter works on the whole map at once.
+--------------------------------------------------------------------------- */
+async function downloadMapPNGStreamed(cm, TS, name) {
+  const W = cm.tilesW, H = cm.tilesH;
+  const pw = W * TS;
+  const strip = document.createElement('canvas');
+  strip.width = pw; strip.height = TS;
+  const sc = strip.getContext('2d', { willReadFrequently: true });
+  if (!sc) throw new Error('no strip canvas');
+  const cs = (typeof CompressionStream !== 'undefined') ? new CompressionStream('deflate') : null;
+  if (!cs) throw new Error('no CompressionStream');
+  const writer = cs.writable.getWriter();
+  const collected = [];
+  const readAll = async function () { const rd = cs.readable.getReader(); for (;;) { const { done, value } = await rd.read(); if (done) break; collected.push(value); } };
+  const reading = readAll();
+  const row = new Uint8Array(1 + pw * 3);
+  for (let y = 0; y < H; y++) {
+    sc.setTransform(1, 0, 0, 1, 0, 0);
+    sc.fillStyle = '#333'; sc.fillRect(0, 0, pw, TS);
+    sc.setTransform(1, 0, 0, 1, 0, -y * TS);
+    try { paintMapBaseRegion(sc, TS, 0, y, W - 1, y, cm, 0); } catch (e) {}
+    try { if (window.SHOW_ROOFS) drawRoofLayer(sc, TS); } catch (e) {}
+    try { if (window.SHOW_CHARACTERS) drawCharacterLayer(sc, TS); } catch (e) {}
+    try { drawMapMarks(sc, TS); } catch (e) {}
+    const d = sc.getImageData(0, 0, pw, TS).data;
+    for (let yy = 0; yy < TS; yy++) {
+      row[0] = 0;
+      for (let x = 0, p = yy * pw * 4, q = 1; x < pw; x++, p += 4, q += 3) { row[q] = d[p]; row[q + 1] = d[p + 1]; row[q + 2] = d[p + 2]; }
+      await writer.ready; writer.write(row.slice());
+    }
+    if ((y & 15) === 0) { setStatus('Writing the map at full size… ' + Math.round(100 * y / H) + '%'); await new Promise(r => setTimeout(r, 0)); }
+  }
+  await writer.close();
+  await reading;
+  let total = 0; for (const c of collected) total += c.length;
+  const idat = new Uint8Array(total); let o = 0; for (const c of collected) { idat.set(c, o); o += c.length; }
+  const ihdr = new Uint8Array(13); const dv = new DataView(ihdr.buffer);
+  dv.setUint32(0, pw); dv.setUint32(4, H * TS); ihdr[8] = 8; ihdr[9] = 2;
+  const parts = [new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), pngChunk('IHDR', ihdr), pngChunk('IDAT', idat), pngChunk('IEND', new Uint8Array(0))];
+  let n = 0; for (const q of parts) n += q.length;
+  const out = new Uint8Array(n); o = 0; for (const q of parts) { out.set(q, o); o += q.length; }
+  setStatus('Map written at ' + pw + '×' + (H * TS) + '.');
+  dlBlob(new Blob([out], { type: 'image/png' }), name);
+}
 
 function downloadCurrentPNG() {
   const canvas = document.getElementById('canvas');
@@ -16805,13 +17053,19 @@ function openDitherTool() {
     '<input type="file" id="dtFile" accept="image/*">' +
     '<div class="dtRow"><label>Mode <select id="dtMode">' +
       '<option value="portrait">64×64 portrait (cover crop)</option>' +
+      '<option value="frame:887E">64×64 in the frame of 0x887E, its middle cleared</option>' +
+      '<option value="frame:88A2">64×64 in the frame of 0x88A2</option>' +
+      '<option value="frame:88F2">64×64 in the frame of 0x88F2</option>' +
       '<option value="free">original size (up to 512px)</option></select></label>' +
     '<label>Checker <input type="range" id="dtChecker" min="0" max="100" value="60"></label>' +
     '<label><input type="checkbox" id="dtAnim"> allow animated ramps</label></div>' +
+    '<div class="dtRow"><label id="dtInsetWrap">Frame inset <input type="range" id="dtInset" min="2" max="24" value="6"></label>' +
+    '<label><input type="checkbox" id="dtSeldane"> Seldane colours only <span class="inspDim">(the palette of portraits 0x8877–0x887B)</span></label></div>' +
     '<div class="dtRow"><canvas id="dtSrc" width="64" height="64"></canvas>' +
     '<canvas id="dtOut" width="64" height="64"></canvas></div>' +
     '<div class="dtRow">' +
     '<button class="secondary" onclick="ditherDownloadPNG()">Download indexed PNG</button>' +
+    '<button class="secondary" onclick="ditherDownloadGIF()">Download GIF</button>' +
     '<label>into <select id="dtTarget">' +
       portraits.map(r => '<option value="' + r + '">0x' + r.toString(16).toUpperCase() +
         (labelFor(r) ? ' — ' + svEsc(labelFor(r)) : '') + '</option>').join('') +
@@ -16833,13 +17087,72 @@ function openDitherTool() {
   document.getElementById('dtMode').onchange = renderDither;
   document.getElementById('dtChecker').oninput = renderDither;
   document.getElementById('dtAnim').onchange = renderDither;
+  document.getElementById('dtInset').oninput = renderDither;
+  document.getElementById('dtSeldane').onchange = renderDither;
+}
+
+/* A frame from the archive to set a picture in. 0x88A2 and 0x88F2 are
+   frames with a hole: the hole is the run of index 0 (white, the cut-out
+   slot) that does not touch the outside. 0x887E is a framed portrait with
+   somebody already in it, so its hole is a rectangle inset from the edge by
+   the slider. The picture is cover-cropped into the hole's box and the
+   frame painted over it. */
+function ditherFrameMask(resid, inset) {
+  const b = getResourceBytes(resid);
+  const d = decodeResource(b, 135, resid);
+  const W = d.W, H = d.H, img = d.image;
+  const hole = new Uint8Array(W * H);
+  if (resid === 0x887E) {
+    for (let y = inset; y < H - inset; y++) for (let x = inset; x < W - inset; x++) hole[y * W + x] = 1;
+  } else {
+    // outside = index 0 reachable from the border; hole = the other index 0
+    const outside = new Uint8Array(W * H);
+    const stack = [];
+    for (let x = 0; x < W; x++) { stack.push(x); stack.push((H - 1) * W + x); }
+    for (let y = 0; y < H; y++) { stack.push(y * W); stack.push(y * W + W - 1); }
+    while (stack.length) {
+      const i = stack.pop();
+      if (outside[i] || img[i] !== 0) continue;
+      outside[i] = 1;
+      const x = i % W, y = (i - x) / W;
+      if (x > 0) stack.push(i - 1); if (x < W - 1) stack.push(i + 1);
+      if (y > 0) stack.push(i - W); if (y < H - 1) stack.push(i + W);
+    }
+    for (let i = 0; i < W * H; i++) if (img[i] === 0 && !outside[i]) hole[i] = 1;
+  }
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (hole[y * W + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  return { W, H, frame: img, hole, box: x1 >= 0 ? { x0, y0, x1, y1 } : null };
+}
+// The colours the five Seldane portraits are made of, and nothing else.
+let _seldanePalette = null;
+function seldanePalette() {
+  if (_seldanePalette) return _seldanePalette;
+  const set = new Set();
+  for (let r = 0x8877; r <= 0x887B; r++) { try { const d = decodeResource(getResourceBytes(r), 135, r); for (const v of d.image) if (v) set.add(v); } catch (e) {} }
+  return (_seldanePalette = [...set].sort((a, b) => a - b));
+}
+function ditherDownloadGIF() {
+  const d = window.DITHER_RESULT;
+  if (!d) return;
+  const anim = document.getElementById('dtAnim').checked && imageUsesAnimatedColors(d.indexed);
+  const frames = anim ? Array.from({ length: 8 }, (_, f) => ({ indexed: d.indexed, palette: cycledPalette(f) })) : [{ indexed: d.indexed, palette: PAL_RGB }];
+  downloadGIF(d.W, d.H, frames, 140, 'cythera_dithered.gif');
 }
 
 function renderDither() {
   if (!_ditherSrc) return;
-  const portrait = document.getElementById('dtMode').value === 'portrait';
+  const mode = document.getElementById('dtMode').value;
+  const frameMode = /^frame:/.test(mode);
+  const portrait = mode === 'portrait' || frameMode;
+  const insetWrap = document.getElementById('dtInsetWrap');
+  if (insetWrap) insetWrap.style.display = mode === 'frame:887E' ? '' : 'none';
   const img = _ditherSrc;
   let W, H, sx = 0, sy = 0, sw = img.width, sh = img.height;
+  let fm = null;
+  if (frameMode) {
+    try { fm = ditherFrameMask(parseInt(mode.slice(6), 16), +document.getElementById('dtInset').value); } catch (e) { fm = null; }
+  }
   if (portrait) {
     W = H = 64;
     // Cover crop: take the largest centred square.
@@ -16854,12 +17167,24 @@ function renderDither() {
   const work = document.createElement('canvas');
   work.width = W; work.height = H;
   const wc = work.getContext('2d', { willReadFrequently: true });
-  wc.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+  if (fm && fm.box) {
+    // the picture goes into the hole's box, cover-cropped to its shape
+    const bw = fm.box.x1 - fm.box.x0 + 1, bh = fm.box.y1 - fm.box.y0 + 1;
+    const k = Math.max(bw / img.width, bh / img.height);
+    const cw = bw / k, ch = bh / k;
+    wc.drawImage(img, (img.width - cw) / 2, (img.height - ch) / 2, cw, ch, fm.box.x0, fm.box.y0, bw, bh);
+  } else wc.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
   const rgba = wc.getImageData(0, 0, W, H).data;
-  const indexed = ditherToCytheraPalette(rgba, W, H, {
+  let indexed = ditherToCytheraPalette(rgba, W, H, {
     checker: (+document.getElementById('dtChecker').value) / 100,
-    allowAnimated: document.getElementById('dtAnim').checked
+    allowAnimated: document.getElementById('dtAnim').checked,
+    usable: document.getElementById('dtSeldane').checked ? seldanePalette() : null
   });
+  if (fm) {
+    const out = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) out[i] = fm.hole[i] ? indexed[i] : fm.frame[i];
+    indexed = out;
+  }
   window.DITHER_RESULT = { indexed, W, H, portrait };
   const srcC = document.getElementById('dtSrc'), outC = document.getElementById('dtOut');
   srcC.width = W; srcC.height = H;
@@ -17410,12 +17735,7 @@ document.addEventListener('DOMContentLoaded', () => {
   slider.addEventListener('pointermove', e => { if(e.buttons){ const r=slider.getBoundingClientRect(); const min=+slider.min,max=+slider.max; slider.value=Math.round(min+(e.clientX-r.left)/r.width*(max-min)); applyZoom(); } });
   installArchiveDropTarget();
   installKeyboardShortcuts();
-  if (PREFERS_REDUCED_MOTION) {
-    for (const id of ['chkPalAnim', 'chkMapAnim']) {
-      const cb = document.getElementById(id);
-      if (cb) cb.checked = false;     // the markup ships them checked
-    }
-  }
+  try { for (const r of document.querySelectorAll('input[name="animMode"]')) r.checked = r.value === window.ANIM_MODE; } catch (e) {}
   window.addEventListener('hashchange', () => {
     if (_hashWrite) return;
     // Back or forward. Back to the trail's top pops it; anywhere else --

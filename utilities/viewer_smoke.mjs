@@ -1312,6 +1312,39 @@ try {
   const sphtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/Fireball/.test(sphtml) || !/25 \+ a roll of 0 to 10/.test(sphtml) || !/burst of flame/.test(sphtml) || !/Level 8/.test(sphtml)) fail('spells', 'the Spells sheet does not show Fireball with its damage and description by level');
   else console.log('  spells: each a card, by level, with its damage and description');
+  // GIF: a header, the right size, and a frame per palette when the picture cycles.
+  {
+    const gif = ctx.encodeGIF(4, 3, [{ indexed: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]), palette: ctx.__peek('PAL_RGB') }], { delayMs: 100, transparentIndex: 0 });
+    const head = String.fromCharCode(...gif.slice(0, 6));
+    const w = gif[6] | (gif[7] << 8), h = gif[8] | (gif[9] << 8);
+    const gif2 = ctx.encodeGIF(2, 2, Array.from({ length: 8 }, (_, f) => ({ indexed: new Uint8Array([0xE0, 0xE1, 0xE2, 0xE3]), palette: ctx.cycledPalette(f) })), { delayMs: 140, transparentIndex: 0 });
+    if (head !== 'GIF89a' || w !== 4 || h !== 3 || gif[gif.length - 1] !== 0x3B) fail('gif', 'the GIF header or trailer is wrong: ' + head + ' ' + w + 'x' + h);
+    else if (!(gif2.length > gif.length && String.fromCharCode(...gif2.slice(0x30D, 0x30D + 3)) === '!\xff\x0b'.replace('\\xff', '\xff'))) fail('gif', 'an eight-frame GIF has no loop block after its global table: ' + gif2.length);
+    else console.log('  gif: GIF89a, ' + gif.length + ' bytes for a 4x3, and a looping eight-frame one for a cycling picture');
+  }
+  // The ditherizer's frames: a hole with a box inside the picture, and the Seldane palette.
+  {
+    const fm = ctx.ditherFrameMask(0x88A2, 6);
+    const fm2 = ctx.ditherFrameMask(0x887E, 6);
+    const sel = ctx.seldanePalette();
+    if (!(fm.box && fm.box.x0 > 2 && fm.box.y0 > 2 && fm.box.x1 < 62 && fm.box.y1 < 62 && fm.box.x1 - fm.box.x0 > 30)) fail('dither', 'the frame 0x88A2 has no sensible hole: ' + JSON.stringify(fm.box));
+    else if (!(fm2.box && fm2.box.x0 === 6 && fm2.box.x1 === 57)) fail('dither', 'the inset frame is not the slider’s rectangle: ' + JSON.stringify(fm2.box));
+    else if (!(sel.length > 40 && sel.length < 120 && !sel.includes(0))) fail('dither', 'the Seldane palette is not a few dozen indices without 0: ' + sel.length);
+    else console.log('  dither: frame 0x88A2 holds a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' picture, the inset frame the slider’s, the Seldane palette ' + sel.length + ' colours');
+  }
+  // One animation setting drives the three flags.
+  {
+    const before = ctx.ANIM_MODE;
+    ctx.setAnimMode('tiles');
+    const a = [ctx.PALETTE_ANIM, ctx.MAP_ANIM, ctx.SPRITE_ANIM];
+    ctx.setAnimMode('graphics');
+    const b = [ctx.PALETTE_ANIM, ctx.MAP_ANIM, ctx.SPRITE_ANIM];
+    ctx.setAnimMode('off');
+    const c = [ctx.PALETTE_ANIM, ctx.MAP_ANIM, ctx.SPRITE_ANIM];
+    ctx.setAnimMode(before || 'all');
+    if (JSON.stringify([a, b, c]) !== '[[true,false,false],[true,false,true],[false,false,false]]') fail('animation', 'the setting does not set the flags as documented: ' + JSON.stringify([a, b, c]));
+    else console.log('  animation: one setting — tiles, graphics, off — sets the three flags');
+  }
   ctx.showCategory('BARKS');
   const bhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/Hot Kabobs!/.test(bhtml) || !/openCharacter\(2\)/.test(bhtml)) fail('barks', 'the Barks tab does not list the lines with their speakers');

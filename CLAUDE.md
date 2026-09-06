@@ -886,6 +886,40 @@ Read the comment above a constant before correcting it.
   leads down into (the springs under Catamarca, Pnyx upstairs are rings
   in their towns now); the smoke's located-map check accepts a ring on
   any surface place.
+- **v1.16.0** (6 September 2026, five asks from the phone). **One
+  animation setting** (`ANIM_MODE`: all / graphics / tiles / off, radio
+  buttons in the data-file menu, `cythera.animMode`; `setAnimMode` sets
+  the three flags the page reads — `PALETTE_ANIM`, `MAP_ANIM`,
+  `SPRITE_ANIM` — and nothing else sets them; the map panel's "Tile
+  animation" and the single view's "Palette animation" checkboxes are
+  gone). Radio buttons, not a `<select>`: the smoke's markup stub takes
+  the first select in the page for the category list. **Eggs** (flags
+  0x42, proptype 0 — delvmod's EGG, scripted triggers) are dotted rings
+  on the atlas from 12 px a square, unnamed; the one on the sand island
+  in the lake near Kosha at (138,176) is the dig spot down to Omen's
+  test, by the community's own walkthroughs, and was what the maintainer
+  remembered seeing there. **GIF** (`encodeGIF`, `gifLZW`,
+  `canvasToIndexed`, `downloadGIF`): GIF89a with the game's palette as
+  the global table, a local table on frames whose palette differs (that
+  is palette cycling: eight frames of one picture under `cycledPalette`),
+  a loop block, transparency on index 0. "Save as GIF" beside the single
+  view's PNG (eight frames when the sheet cycles and the setting allows),
+  on each frame run of a prop's detail (the frames in turn, 700 ms), and
+  in the ditherizer. **The map PNG on iOS** is written by
+  `downloadMapPNGStreamed`: a row of squares at a time into a one-square-
+  tall canvas, RGB rows fed to a `CompressionStream('deflate')` as they
+  come, so no whole-map canvas exists; terrain, roofs, characters and
+  marks, not the lighting layer. **The ditherizer** gained three frame
+  modes (`ditherFrameMask`: 0x88A2 and 0x88F2 have a hole, the index-0
+  run not touching the outside; 0x887E is a framed portrait, so its hole
+  is the slider's inset rectangle; the picture is cover-cropped into the
+  hole's box and the frame painted over) and "Seldane colours only"
+  (`seldanePalette`, the 90 indices the five Seldane portraits
+  0x8877–0x887B use; `ditherToCytheraPalette` takes `opts.usable`). Index
+  0 of `PAL_RGB` is white and the transparent slot, so "replace white" and
+  "the hole" are the same thing. The smoke pins the GIF header and loop
+  block, the two frames' holes, the Seldane count and the setting's
+  flags.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a

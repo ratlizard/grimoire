@@ -994,11 +994,16 @@ function ditherToCytheraPalette(rgba, W, H, opts) {
   const allowAnimated = !!o.allowAnimated;
   // Pair must beat flat by this factor: checker 0 -> impossible, 1 -> any win.
   const pairFactor = checker <= 0 ? 0 : 0.4 + 0.6 * checker;
+  // opts.usable: the only palette indices to draw with, when given -- the
+  // Seldane portraits' colours, say -- and animated ramps still excluded
+  // unless allowed.
   const usable = [];
-  for (let i = 1; i < 256; i++) {
+  for (const i of (o.usable && o.usable.length ? o.usable : Array.from({ length: 255 }, (_, k) => k + 1))) {
+    if (i < 1 || i > 255) continue;
     if (!allowAnimated && i >= 0xE0 && i <= 0xFB) continue;
     usable.push(i);
   }
+  if (!usable.length) usable.push(255);
   const dist = (r, g, b, c) =>
     2 * (r - c[0]) * (r - c[0]) + 4 * (g - c[1]) * (g - c[1]) + 3 * (b - c[2]) * (b - c[2]);
   const luma = i => PAL_RGB[i][0] * 3 + PAL_RGB[i][1] * 6 + PAL_RGB[i][2];
