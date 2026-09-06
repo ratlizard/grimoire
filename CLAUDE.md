@@ -820,8 +820,8 @@ Read the comment above a constant before correcting it.
   cropped off the rendered world (`atlasWaterTile`, cached with the other
   derived tables), laid as a pattern on the world's grid at the current
   zoom over the whole viewport before the scene is drawn; below ground the
-  ground is black. The stub canvas has no getImageData, so in the smoke
-  the water tile is null and the ground is black there.
+  ground is black. The stub's canvas does answer getImageData, and the
+  harness finds the world's 8 px water tile.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a
