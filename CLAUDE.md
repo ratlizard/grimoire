@@ -1179,6 +1179,15 @@ Read the comment above a constant before correcting it.
   difference between the two files — Alaric at 9,600 experience in both, the
   hero's health 0 in the scenario and 25 in a played game — is the clearest
   statement of what a save actually is.
+  **It has been put in front of the game, which no harness here can do.**
+  Two copies of I.M.Cheater teleported through this sheet's own writers —
+  Land King Hall to Kosha, and to the Hall of Truth — both load under
+  systemless and draw the player where the edit put them, and the file the
+  game writes back at exit reads out with the edited values again. So the
+  round trip closes outside this repository: Grimoire wrote it, Cythera read
+  it, Cythera wrote it, Grimoire read it. The workbench's `doc/save-warp.md`
+  is the run, the screenshots and the half that failed (walking the player
+  from a script, which does not step on the 0.38 build).
   **The names are borrowed, and the sheet says so.** A save is a thin file:
   the records, one zone's props, its 512-byte map memory, one portrait, the
   compiled combat AI and 256 KB of persistence — no 0x0201, so on its own
