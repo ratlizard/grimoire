@@ -1022,6 +1022,15 @@ Read the comment above a constant before correcting it.
   figure), the Green Goat and the Two-Tailed Rat quality 1 (× 1.5). The
   Sleeping section carries a bed table; the smoke test pins Crito at 3
   and three inns.
+  **Why Tremor "does nothing", v1.10.2** (workbench
+  `doc/tremor-and-enemies.md`): the Spells rules now say that damage
+  without the magic bit is nothing to a monster flagged 0x0100 (the list
+  is computed from `parseMonsterStats`: king, seldane, ghost, demon,
+  lich), that a damage call prints nothing, and that "every enemy" is
+  the executable's enemy iterator — every character on the loaded map
+  whose alignment the 4×4 table at `r2 + 852` calls hostile, on screen
+  or not. The smoke test requires the lich in that list. The balloon
+  trace's "turn stamp" was wrong: the global is the interpreter's None.
   **The sheet's layout, v1.8.0**: one `add(id, title, icon, from, lede,
   rules, html, chips)` per section, in that order — a game tile or a nav
   icon, the title, chips to the scripts it was read from (`mechFrom`), a

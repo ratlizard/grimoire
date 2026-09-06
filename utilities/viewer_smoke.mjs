@@ -1234,6 +1234,7 @@ try {
   if (barks.length < 40 || missing.length) fail('mechanics', `${barks.length} balloon sites; missing ${missing.join(', ') || 'nothing'}`);
   else if (!dice || dice.wins !== 96 || dice.pushes !== 50 || dice.losses !== 70) fail('mechanics', 'the dice enumeration is not 96/50/70: ' + JSON.stringify(dice && [dice.wins, dice.pushes, dice.losses]));
   else if (!/win 2 oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
+  else if (!/resists non-magical weapons: [^<]*lich/.test(html)) fail('mechanics', 'the spells section does not name the monsters immune to non-magical damage')
   else if (!/four seconds/.test(html) || !/one off every game hour/.test(html) || !/4096 is one hour/.test(html) || (html.match(/mechGo\(/g) || []).length < 15 || mechSecs < 15) fail('mechanics', `the balloon lifetime, the contents strip or the sections are missing: ${mechSecs} sections`);
   else if (!ctx.gearTable().some(r => r.name === 'axe' && r.damage === 22 && r.skill === 'Axe') || !ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2) || !ctx.gearTable().some(r => r.name === 'bow' && r.ammoClass === 1 && r.reach === 5)) fail('mechanics', 'the gear table does not name the axe’s damage and skill, the spear’s reach, or the bow’s ammunition and range');
   else if (!(ctx.combatRules() && ctx.combatRules().d30 && ctx.combatRules().parry && ctx.combatRules().words.length >= 8)) fail('mechanics', 'the combat rules were not read: ' + JSON.stringify(ctx.combatRules()));

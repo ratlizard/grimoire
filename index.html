@@ -3491,7 +3491,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.10.1';
+const GRIMOIRE_VERSION = '1.10.2';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -13443,6 +13443,8 @@ function renderMechanicsSheet() {
       sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls of 0 to the caster’s Casting figure together fall short of a roll of 0 to the level</b>' + (sp.rule.casting ? ' — Casting the skill, else a class figure.' : '.') : '',
       'Damage goes through the same helper as a blow: the victim’s resistance takes the type first, and the caster earns experience by the usual rule.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn to a radius of five and the script walks everyone inside it, but the damage call runs for the one on the target square alone; the spell’s own description says it engulfs all within.' : '',
+      (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => PROP_TYPE_NAMES[r.proptype] || ('class ' + r.proptype)); } catch (e) {} return ms.length ? 'Damage without the magic bit — fire, electric, blunt, edged — is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
+      'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the executable’s enemy iterator; workbench doc/tremor-and-enemies.md). Tremor shakes the screen and hurts enemies you cannot see.',
       'A spell with nothing in the last column changes something other than health: a status (above), the light, a lock, a rune, or the map.'
     ].filter(Boolean) : [],
     table(['spell', '#level', '#cost', 'does'], sp.spells.map(x => '<tr><td>' + partChip(x.name, x.resid) + '</td>' + num(x.level) + num(x.cost) + '<td>' + doesCell(x) + '</td></tr>')), '');
