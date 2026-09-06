@@ -1628,9 +1628,10 @@ if (savePath && !onlyCat) {
     const m = /a saved game \(“([^”]+)”\)/.exec(st);
     if (!m) fail('saved game', 'the status does not call it a saved game: ' + st.slice(0, 100));
     const savedAs = m ? m[1] : '';
-    if (REGISTRY.get('categorySelect').value !== 'DATAFORK')
-      fail('saved game', 'did not land on the Data Fork sheet: ' + REGISTRY.get('categorySelect').value);
+    if (REGISTRY.get('categorySelect').value !== 'SAVEGAME')
+      fail('saved game', 'did not land on the Saved Game sheet: ' + REGISTRY.get('categorySelect').value);
     const populated = peek('masterIndexGlobal').filter(x => x[0]).length;
+    ctx.showCategory('DATAFORK');
     // The body rows are nodes; the head row is innerHTML, which this stub
     // does not parse into nodes, so the count is the body alone.
     const rows = (function count(el) { return (el.tagName === 'TR' ? 1 : 0) + (el.children || []).reduce((n, c) => n + count(c), 0); })(REGISTRY.get('sheetGrid'));
@@ -1652,6 +1653,49 @@ if (savePath && !onlyCat) {
     if (!records) fail('saved game', 'the prop list parsed to no records');
     console.log(`  saved game: “${savedAs}” opened, ${populated} subindexes listed, ` +
                 `zone prop list 0x${(lists[0] || 0).toString(16).toUpperCase()} with ${records} records, exports as DelP`);
+
+    /* The Saved Game sheet, and the edit that is the whole point of it. Judged
+       by what the REBUILT archive holds rather than by what the form returned:
+       every commit re-serializes the table, rebuilds the archive and re-enters
+       parseArchiveBytes, so a changed field is only changed if it comes back
+       out of the rebuilt file. The names are the borrowed ones -- this run
+       opened Cythera Data first, which is also how a visitor gets here -- so
+       the sheet has to say so. */
+    ctx.showCategory('SAVEGAME');
+    const sheet = REGISTRY.get('sheetGrid').innerHTML || '';
+    const heroBefore = ctx.loadCharacterTable()[1];
+    if (!heroBefore) fail('saved game sheet', 'no character record 1');
+    else {
+      const where = ctx.zoneDisplayName(heroBefore.zone);
+      if (!sheet.includes(where)) fail('saved game sheet', 'the head does not say where the player is: ' + where);
+      if (!ctx.namesAreBorrowed() || !/come from the scenario opened earlier/.test(sheet))
+        fail('saved game sheet', 'the borrowed names are not admitted');
+      if (!sheet.includes('0xF307')) fail('saved game sheet', 'the parts table does not list the persistent store');
+      // I.M.Cheater is the community's cheated save and its hero carries 255
+      // training points; if that stops being true the file is not the one.
+      if (heroBefore.training !== 255)
+        fail('saved game sheet', 'I.M.Cheater\u2019s hero has ' + heroBefore.training + ' training points, expected 255');
+      const wasMagic = heroBefore.magic, wasMax = heroBefore.magicMax;
+      ctx.applyCharacterRecordEdit(1, { level: 7, health: 99, healthMax: 99, zone: heroBefore.zone });
+      const heroAfter = ctx.loadCharacterTable()[1];
+      if (heroAfter.level !== 7 || heroAfter.health !== 99 || heroAfter.healthMax !== 99)
+        fail('saved game sheet', 'the edit did not reach the rebuilt archive: ' + JSON.stringify(heroAfter));
+      else if (heroAfter.magic !== wasMagic || heroAfter.magicMax !== wasMax ||
+               heroAfter.training !== 255 || heroAfter.nutrition !== heroBefore.nutrition)
+        fail('saved game sheet', 'the edit moved a field it was not given');
+      else if (REGISTRY.get('categorySelect').value !== 'SAVEGAME')
+        fail('saved game sheet', 'the rebuild left the sheet: ' + REGISTRY.get('categorySelect').value);
+      else if (!(ctx.EDITED_RESIDS || new Set()).has(0xF009))
+        fail('saved game sheet', '0xF009 is not on the session\u2019s dirty list');
+      else {
+        ctx.healCharacterRecord(1);
+        const well = ctx.loadCharacterTable()[1];
+        if (well.health !== well.healthMax || well.nutrition !== 24)
+          fail('saved game sheet', 'Make them well left ' + well.health + '/' + well.healthMax + ', food ' + well.nutrition);
+        else console.log('  saved game sheet: the player placed and named, 255 training points read back, ' +
+                         'a three-field edit through the rebuild, and a full stomach');
+      }
+    }
     // Back to the game archive, and the identity goes back with it. With no
     // hash to carry a view across, the landing is the default one.
     ctx.location.hash = '';

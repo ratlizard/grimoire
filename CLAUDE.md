@@ -207,7 +207,7 @@ loads all nine, in this order, before its own inline script:
 
 | File | Purpose |
 |---|---|
-| `js/delv-archive.js` | master index, `getResourceBytes`, `smartDecrypt`, and the record parsers (maps, prop lists, schedules, string tables) |
+| `js/delv-archive.js` | master index, `getResourceBytes`, `smartDecrypt`, the record parsers (maps, prop lists, character records, schedules, string tables) and the writers that invert them |
 | `js/delv-graphics.js` | `PALETTE`, `decompressDCG`, `decodeResource`, the undither filter |
 | `js/delv-script.js` | the Delver VM: `dvmWord`, the opcode table, the symbol tables, `dvmDisassemble`, `dvmRender` |
 | `js/delv-mechanics.js` | the *rules* as models — the dice game enumerated, the combat margin convolved, the lock and casting odds, the clock's healing and a night's sleep. Numbers to numbers, no DOM and no archive; the figures that draw them are in the page. Cross-checked by `utilities/mech_check.mjs` |
@@ -421,7 +421,12 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   it was pointed at, and an undo putting the erased record back.
   Its `saved game` section opens a Cythera player file through
   `adoptArchive` — the path that refused every one of them until
-  September 2026 — and checks what a visitor sees (see the per-page notes).
+  September 2026 — and checks what a visitor sees (see the per-page notes);
+  its `saved game sheet` half then drives the editor: the head naming where
+  the player stands, the borrowed names admitted, I.M.Cheater's 255 training
+  points read back off the record, a three-field edit arriving through the
+  rebuild with every field it was not given left alone, and Make them well
+  filling health and the stomach.
   Its fork section checks the grouped gallery has its headings, that a
   TrueType with `OS/2` came out of the fork's `sfnt`, that the editor's
   zone list is aligned to the map numbers, and that the two-fork views draw
@@ -462,7 +467,14 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   against delvmod's `Archive.to_file`, byte for byte, over synthetic archives
   delvmod builds on each run (and over the real archive when it is present).
   This is the writer getting the same oracle `decompressDCG` has, from day
-  one rather than after the fact.
+  one rather than after the fact. It also holds the three record-level
+  writers to their own parsers over the real tables: every prop list, four
+  squares of all 42 maps with every other byte identical, and **0xF009's 512
+  character records** — rewritten byte for byte out of the shipped table and
+  out of a saved game's, with the further requirement that a two-field edit
+  moves **exactly two bytes**, since eleven of the record's thirty-two are
+  unidentified and ride through on the record's own copy of itself. It takes
+  the saved game as a fourth argument.
 
   **Read what it claims about the real archive carefully**, because it is
   easy to read as more.  `real archive: 1558 resources re-serialized
@@ -1137,6 +1149,53 @@ Read the comment above a constant before correcting it.
   encrypted**, so it cannot happen there — but a modded archive is exactly
   what the fallback is for, and on one of those the tools refuse and say so
   rather than writing to the wrong bytes.
+- **The saved game is read and edited, v1.20.0** (6 September 2026). The
+  page had opened Cythera player files since September 2026 and then had
+  almost nothing to say about one: a `DelP` file landed on the Data Fork
+  sheet, which listed its six subindexes and left the reader to a 16 KB hex
+  dump. Everything a player would want to change is in one of them —
+  **0xF009, the character records** — and Data › Saved Game
+  (`renderSaveSheet`) is that table with the names on it: who is where, at
+  what level, with how much health, magic, food and how many training points,
+  and an Edit form per record that writes it back.
+  **The parser and its writer are in `js/delv-archive.js`**
+  (`parseDelverCharacterRecords` / `writeDelverCharacterRecords`), from
+  delvmod's wiki page for F009 — worked out there by diffing the shipped
+  table against saves taken either side of a change — plus **nutrition at
+  byte 27**, which is the executable's (`TGameViewer::DoTicks` takes one off
+  it every game hour; the workbench's `doc/game-clock.md` has the trace).
+  **The unidentified bytes are kept as bytes, not as a hex tail.** The prop
+  record's six unknowns are contiguous, so `tail` works there; here what is
+  not understood is scattered — 6–7, 22–26, 29–31, and a second appearance
+  word at 20–21 that is usually but *not* always the one at 4–5 (I.M.Cheater's
+  hero differs: aspect 13 against 0). So each record keeps `raw`, its own 32
+  bytes, and the writer lays the named fields back over that copy. That makes
+  the round trip exact for any record and makes an edit touch only the bytes
+  the edit is about, which `delv_write_check.mjs` requires in both
+  directions.
+  **The sheet opens on `Cythera Data` too**, where the same table is where
+  everybody *starts* rather than where they are. That is not a courtesy: it
+  is what makes the sheet testable in a checkout with no save in it, and the
+  difference between the two files — Alaric at 9,600 experience in both, the
+  hero's health 0 in the scenario and 25 in a played game — is the clearest
+  statement of what a save actually is.
+  **The names are borrowed, and the sheet says so.** A save is a thin file:
+  the records, one zone's props, its 512-byte map memory, one portrait, the
+  compiled combat AI and 256 KB of persistence — no 0x0201, so on its own
+  every row would read "Character 12". `SCENARIO_NAMES` and
+  `SCENARIO_ZONE_NAMES` keep the last tables any archive gave, across a swap
+  and deliberately out of `resetDerivedCaches`; a character index means the
+  same person in every Cythera file, so those are the right answer. **Two
+  string tables carried over is not two archives open at once** (see **The
+  delv-\* files are not a library**): nothing decodes from the scenario, the
+  page only reads back words it already had.
+  **Not read, and why it is listed anyway.** 0x82zz is 512 bytes beside a
+  64×64 map, which is exactly one bit a square, and delvmod's wiki guesses
+  it is the automap's memory of what has been explored; the one save in hand
+  has it all zero, so the arithmetic is the whole of the evidence and the
+  sheet says as much. 0xF307, the 256 KB persistent store Andrew Welch
+  described enlarging on usenet, is listed and unread. So is slot 0 of the
+  character table, which is not a character.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a
@@ -1680,9 +1739,10 @@ Read the comment above a constant before correcting it.
   delvmod's `player_name`, empty in the scenario — is the name the game was
   saved under, and in all six saves in the add-ons it equals the file name;
   the status line and the title say "saved game" with it. Such a file
-  **lands on Data › Data Fork** rather than the world: it has no world map,
-  the atlas over it would be a zoom slider over nothing, and the sheet lists
-  what it does hold with a chip to where each part is shown. The World tab
+  **lands on Data › Saved Game** rather than the world (on Data Fork until
+  v1.20.0): it has no world map, the atlas over it would be a zoom slider
+  over nothing, and that sheet reads the one subindex that matters — see
+  **The saved game is read and edited** below. The World tab
   says why when opened anyway (`renderAtlasBar`). A bare save gets the
   Finder identity `DelP` under its own name (`ARCHIVE_FINDER`), derived on
   every bare open rather than only the first, so a save dropped after

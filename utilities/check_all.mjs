@@ -187,7 +187,7 @@ const CHECKS = [
   // without the game. DATA is passed anyway: when the game is there the
   // check also proves the real archive re-serializes byte-identically.
   {page: 'viewer', name: 'delvmod write', want: [DELV],
-   cmd: ['utilities/delv_write_check.mjs', 'index.html', DELV, DATA],
+   cmd: ['utilities/delv_write_check.mjs', 'index.html', DELV, DATA, SAVE],
    grep: /all comparisons passed/},
   // ddasm's Disassembler RUN against dvmDisassemble, decode event by decode
   // event, over every script in the archive -- the walk check that
