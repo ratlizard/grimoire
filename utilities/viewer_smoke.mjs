@@ -1239,43 +1239,47 @@ try {
         // zoom -- goes down into the Underground. Full screen's overlay
         // names where you are.
         ctx.ATLAS_TUNE.animMs = 0;                 // the stub has no frames to animate in
-        ctx.atlasDescend(lkh, sc2.root);
         const vp2 = REGISTRY.get('atlasViewport');
         const vw = vp2.clientWidth || 300, vh = vp2.clientHeight || 300;
         const av = peek('atlasView');
-        // A zoom that ends with the hole filling a tenth of the screen, centred
-        av.Z = 40; av.x = vw / 2 - 50.5 * 40; av.y = vh / 2 - 5.5 * 40;
-        ctx.paintAtlas();
-        const holes = (peek('ATLAS_MOUTHS') || []).map(q => q.m.dest.resid.toString(16));
-        peek('atlasGesture').active = true; peek('atlasGesture').z0 = 20;   // it came in from 20
-        ctx.atlasGestureEnd();
-        const top = peek('atlasBelowTop')();
-        // and half the zoom you fell in at: 40 px a square became 20
-        const arrivedZ = av.Z;
-        // a zoom-out gesture that ends far enough out rises; a pan does not re-enter
-        const below = peek('atlasScene')();
-        const fit2 = Math.min(vw / below.root.w, vh / below.root.h);
-        peek('atlasGesture').active = true; peek('atlasGesture').z0 = av.Z; av.Z = fit2 * 0.5;
-        ctx.atlasGestureEnd();
-        const rose = peek('atlasBelowTop')();
-        const zAfterRise = av.Z;
-        peek('atlasGesture').active = true; peek('atlasGesture').z0 = av.Z;   // a pan: same zoom, ends
-        ctx.atlasGestureEnd();
-        const stayed = peek('atlasBelowTop')();
-        if (Math.abs(arrivedZ - 20) > 0.5) fail('atlas', 'did not arrive at half the zoom it fell in at: ' + arrivedZ);
-        else if (!rose || rose.resid !== 0x8003) fail('atlas', 'zooming out did not rise back to the hall: ' + (rose && rose.resid.toString(16)));
-        else if (Math.abs(zAfterRise - 20) > 0.5) fail('atlas', 'the rise did not end at half the zoom it went in at: ' + zAfterRise);
-        else if (!stayed || stayed.resid !== 0x8003) fail('atlas', 'a gesture with no zoom re-entered the hole');
-        av.Z = 40; av.x = vw / 2 - 50.5 * 40; av.y = vh / 2 - 5.5 * 40; ctx.paintAtlas();
+        // A zoom onto the hole into the hall goes nowhere by itself
+        av.Z = 40; av.x = vw / 2 - 163.5 * 40; av.y = vh / 2 - 20.5 * 40; ctx.paintAtlas();
         peek('atlasGesture').active = true; peek('atlasGesture').z0 = 20; ctx.atlasGestureEnd();
+        const stayedUp = !peek('atlasBelowTop')();
+        // A tap on its ring falls in from that view and arrives at half the zoom
+        const q = (peek('ATLAS_MOUTHS') || []).find(q => q.m.dest.resid === 0x8003);
+        if (q) ctx.atlasTakeMouth(q.m, q.node);
+        const inHall = peek('atlasBelowTop')();
+        const arrivedZ = av.Z;
+        // In the hall the arch to the world is a blue ring; the hole down is gold
+        av.Z = 24; av.x = vw / 2 - 50.5 * 24; av.y = vh / 2 - 5.5 * 24; ctx.paintAtlas();
+        const hallRoot = peek('atlasScene')().root;
+        const rings = peek('atlasMouths')(hallRoot).map(m => ({ m, node: hallRoot }));   // the arch is off screen at this view
+        const hole = rings.find(q => q.m.dest.resid === 0x8009), arch = rings.find(q => q.m.dest.resid === 0x8001);
+        if (hole) ctx.atlasTakeMouth(hole.m, hole.node);
+        const top = peek('atlasBelowTop')();
+        // and a tap on a blue ring rises to the map it names
+        ctx.paintAtlas();
+        const ugRoot = peek('atlasScene')().root;
+        const upRing = peek('atlasMouths')(ugRoot).filter(m => m.up && m.dest.resid === 0x8003).map(m => ({ m, node: ugRoot }))[0];
+        let rose = null;
+        if (upRing) { ctx.atlasTakeMouth(upRing.m, upRing.node); rose = peek('atlasBelowTop')(); }
+        if (!stayedUp) fail('atlas', 'a zoom onto the hole went through it by itself');
+        else if (!q || !inHall || inHall.resid !== 0x8003) fail('atlas', 'tapping the ring into the hall did not go in: ' + (inHall && inHall.resid.toString(16)));
+        else if (Math.abs(arrivedZ - 20) > 0.5) fail('atlas', 'did not arrive at half the zoom it fell in at: ' + arrivedZ);
+        else if (!hole || !arch || !arch.m.up || hole.m.up) fail('atlas', 'the hall’s rings are not one gold down and one blue up: ' + JSON.stringify(rings.map(r => [r.m.name, !!r.m.up])));
+        else if (!top || top.resid !== 0x8009) fail('atlas', 'tapping the hole did not go down: ' + (top && top.resid.toString(16)));
+        else if (!upRing || !rose || rose.resid !== 0x8003) fail('atlas', 'tapping the blue ring did not rise to the hall: ' + (rose && rose.resid.toString(16)));
+        // back down for the overlay check
+        if (hole && rose && rose.resid === 0x8003) { const r2 = peek('atlasScene')().root; const h2 = peek('atlasMouths')(r2).find(m => m.dest.resid === 0x8009); if (h2) ctx.atlasTakeMouth(h2, r2); }
         const top2 = peek('atlasBelowTop')();
-        if (!top2 || top2.resid !== 0x8009) fail('atlas', 'the hole did not open again on a second zoom-in');
+        if (!top2 || top2.resid !== 0x8009) fail('atlas', 'the hole did not open again on a second tap');
         ctx.atlasToggleFull();
         const where = REGISTRY.get('atlasFullWhere').textContent;
         ctx.atlasToggleFull();
         if (!top || top.resid !== 0x8009) fail('atlas', 'zooming onto the hole in Land King Hall did not go down: at ' + (top && top.resid.toString(16)) + ', mouths ' + holes.join(' '));
         else if (where !== 'Underground') fail('atlas', 'the full-screen overlay does not say where you are: ' + JSON.stringify(where));
-        else console.log('  atlas: the world says Land King Hall, not LKH; a zoom ending on the hole in the hall falls in and arrives at half the zoom, a zoom out rises to half, a pan stays; full screen names the place');
+        else console.log('  atlas: the world says Land King Hall, not LKH; a zoom goes nowhere, a tap on a gold ring falls in at half the zoom, a tap on a blue ring rises; full screen names the place');
         while (peek('atlasBelowTop')()) ctx.atlasAscend();
         ctx.atlasFitAndPaint();
       }

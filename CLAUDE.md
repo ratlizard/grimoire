@@ -836,6 +836,28 @@ Read the comment above a constant before correcting it.
   not always black; `animMs` is 1000. **A place opens from a dot**: the
   whole map four pixels across with its arrival square on the middle of
   the screen, growing on that square. The smoke pins the gate.
+- **v1.14.0** (6 September 2026, from the phone): **a zoom goes nowhere
+  by itself.** Even judged at the gesture's end it fell through holes the
+  maintainer was only looking at, so `atlasGestureEnd` is a no-op and
+  `atlasCheckDescend`/`atlasCheckAscend` and the two tuning numbers for
+  them are gone; **a ring is taken by a tap** (`atlasTakeMouth`), from
+  wherever the view is. **Rings go both ways below ground**: `atlasMouths`
+  on a below root lists every exit, and marks `up` the ones to the world,
+  to a surface map, or back to the map you came through; up rings are
+  blue with an arrow, down rings gold. `atlasRiseVia(m, node)` is the rise
+  through a ring: shrink to a dot around the ring's own square, pop the
+  stack (all the way for a surface destination, to the named map
+  otherwise), then open the destination from the square you come out on
+  — at half the zoom you went in at when it is the map you came through,
+  else a zoom that shows it. The strip's ↰ and the overlay's still use
+  `atlasRiseOut` (one level, the arrival square). **The world is drawn
+  whole**: `drawWithMargin` applies the prop-box clip only to depth ≥ 1
+  nodes — clipping the world cut forty rows off the top of the island and
+  twenty off the bottom at the zoomed-out view, which the sea fill made
+  visible. **The sea is one plain colour**: `atlasWaterTile` averages the
+  non-black pixels of the ring 2–6 squares inside the world's black frame
+  and `paintAtlasGround` fills with it on the surface (black below). The
+  stub's canvas returns grey, so the colour is only checked in a browser.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a
