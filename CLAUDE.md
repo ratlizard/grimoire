@@ -858,6 +858,34 @@ Read the comment above a constant before correcting it.
   non-black pixels of the ring 2–6 squares inside the world's black frame
   and `paintAtlasGround` fills with it on the surface (black below). The
   stub's canvas returns grey, so the colour is only checked in a browser.
+- **Skills and Spells are sheets, v1.15.0** (6 September 2026; the
+  maintainer: a skill in Entities "needs a coherency where each skill is
+  a distinct unit", and skills distinct from spells). `renderSkillsSheet`
+  (`SKILLS`) and `renderSpellsSheet` (`SPELLS`) replace the gallery of
+  subindexes 25 and 137 under Entities › Skills; Spells is its own tab
+  (tile 0x87B). `skillCatalogue()` walks 0x1AC0–0x1AFF: name, kind
+  (attribute 0x1AC0–3, weapon 0x1AC4–9, special, command from 0x1AF0),
+  description (`dvmDescriptionOf`: the strings of the script's "This
+  skill…" function, with the game's inline alternative — a 0x10 byte
+  before a string, or `\x10…\x02m…\x02u…` inside one — shown as
+  "[aptitude / training]"; `dvmCleanText` unescapes the renderer's
+  `\uXXXX`, drops the `0b\x03A` style code and the "ãA" tail), the
+  teacher's lesson lines in order (`dvmLessonLines`), teachers from
+  `trainingRules`, askers from `skillConsultations`, weapons from
+  `gearTable`, and a chip to the Mechanics section its rule lives in
+  (`SKILL_RULES`, `mechLink`). Spells: level, cost, description, damage
+  and heals from `spellEffects`, statuses from `statusRules`, grouped by
+  level. Both reuse the Mechanics card styles (`.skillCard`). The smoke
+  pins Sword (Hadrian, six weapons, "[aptitude / ability] to use a
+  sword"), Gambling asked by 0x812 with lessons, Attack's inline
+  alternative, and Fireball's card. **Items**: `framesSharingName` now
+  drops any frame that is another prop type's base tile (`propBaseTileSet`)
+  — the rolled map was cycling into the flat map two tiles on, and 22
+  types had a neighbour's base among their frames. **World**: an
+  edge-placed mouth is not made for a map some surface place already
+  leads down into (the springs under Catamarca, Pnyx upstairs are rings
+  in their towns now); the smoke's located-map check accepts a ring on
+  any surface place.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a

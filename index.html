@@ -832,6 +832,8 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 .mechPrice { color:var(--gold); font-variant-numeric:tabular-nums; }
 .mechSec .partsStrip { margin-top:6px; }
 @media (max-width:640px) { .mechSec { padding:10px 8px 8px; } .mechHead h3 { font-size:15.5px; } .mechFrom { margin-left:0; } }
+.skillCard .skillKey { color:#9d9270; font-size:11px; text-transform:uppercase; letter-spacing:1px; white-space:nowrap; width:1%; padding-right:14px; vertical-align:top; }
+.lessonList { color:#d3c9a6; font-style:italic; }
 #atlasPanel { margin:0; background:#000; }
 /* The gate: one screen before anything is downloaded. */
 #landingGate { position:fixed; inset:0; z-index:200; background:rgba(8,7,5,.92); display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -1261,6 +1263,8 @@ body.atlasFull { overflow:hidden; }
         <option value="AISCRIPTS">Combat AI scripts (.ai)</option>
         <option value="AIRULES">Combat AI rules</option>
         <option value="MECHANICS">Mechanics (read out of the scripts)</option>
+        <option value="SKILLS">Skills (each one, with everything the file says about it)</option>
+        <option value="SPELLS">Spells (each one, with what it does)</option>
         <option value="TOOLS">Tools</option>
       </optgroup>
     </select>
@@ -2631,11 +2635,26 @@ function itemNameHTML(pt, base) { return propNameHTML(pt, base); }
 // listed (aspects do run past a run boundary -- the rope is aspect 3 of
 // "post"), they are just not what the prop is shown AS, and the detail view
 // now names each one from the archive.
+let _propBaseTiles = null;
+function propBaseTileSet() {
+  if (_propBaseTiles) return _propBaseTiles;
+  const set = new Set();
+  try { for (const t of getPropTileList()) if (t) set.add(t); } catch (e) {}
+  return (_propBaseTiles = set);
+}
 function framesSharingName(base, present) {
   const own = terrainNameFor(base);
-  if (!own) return present;
-  const same = present.filter(f => terrainNameFor(base + f) === own);
-  return same.length ? same : present;
+  // A frame that is the base tile of another prop type is that type's, not
+  // this one's: the rolled map (0x265, type 378) has the flat map (0x267,
+  // type 273) two tiles on, both called "map", and the Items gallery used
+  // to show one map turning into the other. Found 6 September 2026; the
+  // same rule keeps a doorway from cycling into an archway and a sword
+  // into the next sword.
+  const bases = propBaseTileSet();
+  const mine = present.filter(f => !f || !bases.has(base + f));
+  if (!own) return mine;
+  const same = mine.filter(f => terrainNameFor(base + f) === own);
+  return same.length ? same : mine;
 }
 
 // The same frames, cut into runs by the name 0xF004 gives each one. Prop type
@@ -3548,7 +3567,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.14.0';
+const GRIMOIRE_VERSION = '1.15.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4430,6 +4449,8 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'CHANGES') { renderChangesSheet(); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
   if (window.CUR_SUBN === 'MECHANICS') { renderMechanicsSheet(); return; }
+  if (window.CUR_SUBN === 'SKILLS') { renderSkillsSheet(); return; }
+  if (window.CUR_SUBN === 'SPELLS') { renderSpellsSheet(); return; }
   if (window.CUR_SUBN === 'BARKS') { renderBarksSheet(); return; }
   if (window.CUR_SUBN === 'WORLD') { renderAtlasView(); return; }
   if (window.CUR_SUBN === 'INSTALLER') { renderInstallerSheet(); return; }
@@ -5288,7 +5309,7 @@ function onCategoryChangeImpl() {
   // even without the installer; fetch the fork if it is not here yet.
   if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
   // The Data tab's own views: not subindexes, no resources to list.
-  if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' ||
+  if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' || rawval === 'SKILLS' || rawval === 'SPELLS' ||
       rawval === 'WORLD' || PLACEHOLDER_TABS[rawval]) {
     window.CUR_SUBN = rawval;
     window.CUR_RESIDS = [];
@@ -10321,6 +10342,13 @@ function atlasMouths(node) {
   // the one thing the file says about where they are.
   if (node.resid === WORLD_MAP_RESID) {
     const have = new Set(out.map(d => d.dest.resid));
+    // A map some surface place already leads down into -- the springs under
+    // Catamarca, the upstairs of Pnyx -- is that place's ring, not a ring
+    // out on the world at the square its own edge happens to name.
+    try {
+      const sc = window.ATLAS_SCENE;
+      if (sc) for (const n of sc.nodes) if (n.depth) for (const d of mapDescents(n.resid)) have.add(d.dest.resid);
+    } catch (e) {}
     for (let n = 0; n < 0x100; n++) {
       const resid = 0x8000 | n;
       if (resid === WORLD_MAP_RESID || have.has(resid) || !refExists(resid)) continue;
@@ -12207,7 +12235,8 @@ const TAB_TREE = [
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
       { id: 'regions',    label: 'Regions',    tile: 0x590, values: ['127'] },         // a small town, as the world map draws one (prop 286)
-      { id: 'skills',     label: 'Skills',     tile: 0x21F, values: ['25', '137'] },   // the grimoire
+      { id: 'skills',     label: 'Skills',     tile: 0x21F, values: ['SKILLS'] },   // the grimoire
+      { id: 'spells',     label: 'Spells',     tile: 0x87B, values: ['SPELLS'] },   // the scroll
       // Mechanics is not a table: the rules the code implies, read out of
       // the scripts on the spot (renderMechanicsSheet). The dice game and
       // the talk balloons so far; damage, resistance and skills not yet.
@@ -13105,6 +13134,213 @@ function diceGame() {
    words, and the script it is in. A person is a chip to their dossier; a
    line in a shared or an object script is anyone's and is a chip to the
    script. The rule the lines obey is under Entities > Mechanics. */
+/* ---------------------------------------------------------------------------
+   Entities > Skills and Entities > Spells: each one a unit.
+
+   The 0x1A00 block holds the spells (0x1A00-0x1A30) and, from 0x1AC0, the
+   skills (Attack to Thievery) and the Do menu's commands (Estimate Time to
+   Pass). A gallery of those resources was a row of script icons under
+   subindex headings, which the maintainer found no way to read a skill from.
+   Each card here gathers what the file says about the one thing: its own
+   description (the script's text, with the game's inline "aptitude /
+   training" alternative shown as one), the lines a teacher says lesson by
+   lesson, who teaches it, which scripts ask whether you have it, the weapons
+   swung with it, and the rule on the Mechanics sheet it takes part in.
+   Spells the same way: level, cost, what it does to health, the status it
+   applies. Nothing here is typed in; it is all read on the spot.
+--------------------------------------------------------------------------- */
+function dvmCleanText(t) {
+  // The game's inline codes: 0x10 opens an alternative, 0x02+letter marks
+  // each branch; the rest is style bytes. "[aptitude / training]" keeps
+  // both branches visible, since which the player sees depends on level.
+  let x = String(t || '');
+  // The renderer writes control bytes as \uXXXX; put them back first.
+  x = x.replace(/\\u([0-9a-fA-F]{4})/g, (m, h) => String.fromCharCode(parseInt(h, 16)));
+  x = x.replace(/\x10[^\x02]*\x02.([^\x02]*)\x02.(\S+)/g, '[$1 / $2]');
+  x = x.replace(/.?0b\x03A/g, '');            // a style code: printable bytes around a control
+  x = x.replace(/[^\x20-\x7E\n‘’“”—–]/g, '');
+  x = x.replace(/\\+$/, '').replace(/\s*A$/, '').trim();
+  return x;
+}
+// The description a skill or spell script returns: the strings of the
+// function whose first string starts "This skill" / "This spell", or the
+// one data string that does.
+function dvmDescriptionOf(resid) {
+  const e = buildScriptTextIndex().find(x => x.resid === resid);
+  if (!e) return '';
+  const ls = e.text.split('\n').map(l => l.replace(/^\s*[0-9A-F]{4}\s+/, '')).filter(Boolean);
+  for (let i = 0; i < ls.length; i++) {
+    const m = /^(?:string(?:\(implicit\))?|obj_[0-9A-F]+ =) "((?:This (?:skill|spell))[^"]*)"/.exec(ls[i]);
+    if (!m) continue;
+    if (/^obj_/.test(ls[i])) return dvmCleanText(m[1].replace(/\\n/g, ' '));
+    const parts = [m[1]];
+    let alt = null;   // the string after a 0x10, waiting for the string it is an alternative to
+    for (let j = i + 1; j < ls.length; j++) {
+      const l = ls[j];
+      if (/^byte 0x10$/.test(l)) { alt = ''; continue; }
+      const sm = /^string(?:\(implicit\))? "([^"]*)"/.exec(l);
+      if (sm) {
+        if (alt === '') { alt = sm[1]; continue; }
+        if (alt) {
+          // "[aptitude / ability] to use a sword": the alternative is to the
+          // first word of what follows, and the rest of it is common
+          const w = /^(\S+)([\s\S]*)$/.exec(sm[1]) || [null, sm[1], ''];
+          parts.push('[' + alt + ' / ' + w[1] + ']' + w[2]); alt = null; continue;
+        }
+        parts.push(sm[1]); continue;
+      }
+      if (/^(byte 0x00|end|\}|return)/.test(l)) break;
+    }
+    if (alt) parts.push('[' + alt + ']');
+    return dvmCleanText(parts.join('').replace(/\\n/g, ' '));
+  }
+  return '';
+}
+// The other quoted strings of a skill script, in order: what a teacher says
+// at each lesson, "*"-separated in the file, here as one line a lesson.
+function dvmLessonLines(resid) {
+  const e = buildScriptTextIndex().find(x => x.resid === resid);
+  if (!e) return [];
+  const out = [];
+  for (const m of e.text.matchAll(/obj_[0-9A-F]+ = "((?:[^"\\]|\\.)*)"/g)) {
+    const t = m[1].replace(/\\n/g, ' ').replace(/\\"/g, '"');
+    if (/^This (?:skill|spell)/.test(t) || t === '*' || !t.trim()) continue;
+    out.push(dvmCleanText(t));
+  }
+  return out;
+}
+const SKILL_KINDS = [[0x1AC0, 0x1AC3, 'attribute'], [0x1AC4, 0x1AC9, 'weapon'], [0x1ACA, 0x1AEF, 'special'], [0x1AF0, 0x1AFF, 'command']];
+function skillKind(resid) { const k = SKILL_KINDS.find(k => resid >= k[0] && resid <= k[1]); return k ? k[2] : 'skill'; }
+// Which Mechanics section a skill takes part in, by what its rule is read from.
+const SKILL_RULES = { Attack: 'combat', Defense: 'combat', Sword: 'combat', Axe: 'combat', Mace: 'combat', Barehand: 'combat', Missile: 'combat', Shield: 'combat',
+  Mana: 'experience', Casting: 'spells', Gambling: 'dice', Haggling: 'shops', 'Lock Picking': 'locks' };
+function skillCatalogue() {
+  const out = [];
+  const tr = trainingRules(), sk = skillConsultations(), gear = gearTable();
+  for (let r = 0x1AC0; r < 0x1B00; r++) {
+    if (!refExists(r)) continue;
+    const name = selfNameFor(r) || ('0x' + r.toString(16).toUpperCase());
+    const id = r - 0x1A00;
+    out.push({ resid: r, id, name, kind: skillKind(r),
+      description: dvmDescriptionOf(r),
+      lessons: dvmLessonLines(r),
+      teachers: tr.teachers.filter(t => t.skills.has(id)).map(t => ({ who: t.who, resid: t.resid, mastery: !!t.skills.get(id) })),
+      askedBy: [...(sk.by.get(id) || [])].sort((a, b) => a - b),
+      weapons: gear.filter(g => g.skill === name) });
+  }
+  return out;
+}
+function mechLink(id, label) {
+  return '<button class="navChip" onclick="showCategory(\'MECHANICS\'); setTimeout(function(){ mechGo(\'' + id + '\'); }, 60)">' + svEsc(label) + '</button>';
+}
+function renderSkillsSheet() {
+  stopAllViewActivity();
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  document.getElementById('singleControls').style.display = 'none';
+  const q = (window.PROP_FILTER || '').trim().toLowerCase();
+  const all = skillCatalogue();
+  const shown = all.filter(x => !q || x.name.toLowerCase().includes(q) || x.description.toLowerCase().includes(q));
+  const box = document.createElement('div');
+  box.className = 'mechView';
+  const kinds = [['attribute', 'Attributes', 'The four figures every character has a number for: what a class figure stands in for when the skill is absent.'],
+                 ['weapon', 'Weapon skills', 'One per kind of weapon; the skill goes on the blow’s margin and its damage.'],
+                 ['special', 'Special skills', 'Learned from a teacher, and asked about by the scripts that need them.'],
+                 ['command', 'Commands', 'The Do menu, kept in the same block of the file as the skills; not skills, but read the same way.']];
+  const propChip = (pt, name) => '<button class="relChip" onclick="showPropTypeDetail(' + pt + ')"><span class="relText"><span class="relMain">' + svEsc(name) + '</span></span></button>';
+  let count = 0;
+  for (const [kind, title, note] of kinds) {
+    const list = shown.filter(x => x.kind === kind);
+    if (!list.length) continue;
+    const h = document.createElement('div'); h.className = 'propHead'; h.innerHTML = svEsc(title) + ' <span class="inspDim" style="font-weight:normal">' + svEsc(note) + '</span>';
+    box.appendChild(h);
+    for (const x of list) {
+      count++;
+      const sec = document.createElement('section');
+      sec.className = 'mechSec skillCard';
+      sec.id = 'skill-' + x.resid.toString(16);
+      const head = document.createElement('div'); head.className = 'mechHead';
+      try { head.appendChild(navIconCanvas({ tile: 0x21F }, 22)); } catch (e) {}
+      head.innerHTML += '<h3>' + svEsc(x.name) + '</h3><span class="mechFrom">' + partChip('the script', x.resid) + '</span>';
+      sec.appendChild(head);
+      if (x.description) { const p = document.createElement('p'); p.className = 'mechLede'; p.innerHTML = svEsc(x.description); sec.appendChild(p); }
+      const rows = [];
+      if (kind !== 'command') {
+        rows.push(['Taught by', x.teachers.length ? x.teachers.map(t => (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + (t.mastery ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') : '<span class="inspDim">no teacher in this archive</span>']);
+        if (x.askedBy.length) rows.push(['Asked about by', x.askedBy.map(r => svChip(r)).join(' ')]);
+        if (x.weapons.length) rows.push(['Swung with it', x.weapons.map(w => propChip(w.pt, w.name)).join(' ')]);
+        const rule = SKILL_RULES[x.name];
+        rows.push(['The rule', (rule ? mechLink(rule, 'Mechanics › ' + rule) + ' ' : '') + mechLink('training', 'Mechanics › training')]);
+      }
+      if (rows.length) {
+        const d = document.createElement('div'); d.className = 'mechBody';
+        d.innerHTML = '<table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
+        sec.appendChild(d);
+      }
+      if (x.lessons.length) {
+        const sub = document.createElement('div'); sub.className = 'mechSub'; sub.textContent = kind === 'command' ? 'What it says' : 'What a teacher says, lesson by lesson';
+        sec.appendChild(sub);
+        const ol = document.createElement('ol'); ol.className = 'ruleList lessonList';
+        ol.innerHTML = x.lessons.map(l => '<li>' + svEsc(l) + '</li>').join('');
+        sec.appendChild(ol);
+      }
+      box.appendChild(sec);
+    }
+  }
+  grid.appendChild(box);
+  out.textContent = count + ' of ' + all.length + ' in the file’s skill block' + (q ? ' matching “' + q + '”' : '') + ', each read off its own script and the scripts that use it.';
+}
+function renderSpellsSheet() {
+  stopAllViewActivity();
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  document.getElementById('singleControls').style.display = 'none';
+  const q = (window.PROP_FILTER || '').trim().toLowerCase();
+  const sp = spellRules();
+  const fx = spellEffects();
+  const st = statusRules();
+  const applies = new Map();
+  for (const [nm, arr] of st.applies) for (const a of arr) (applies.get(a.resid) || applies.set(a.resid, []).get(a.resid)).push(nm + (a.duration !== null ? ' for ' + a.duration : ''));
+  const spells = sp.spells.map(x => Object.assign({}, x, { description: dvmDescriptionOf(x.resid), fx: fx.get(x.resid), status: applies.get(x.resid) || [] }))
+    .sort((a, b) => a.level - b.level || a.cost - b.cost || a.name.localeCompare(b.name));
+  const shown = spells.filter(x => !q || x.name.toLowerCase().includes(q) || x.description.toLowerCase().includes(q));
+  const box = document.createElement('div');
+  box.className = 'mechView';
+  const intro = document.createElement('p'); intro.className = 'mechLede';
+  intro.innerHTML = spells.length + ' spells, each cast through one helper with a level and a cost in magic points. A cast costs 10 plus twice the level in time and fails when two rolls of 0 to the caster’s Casting fall short of a roll of 0 to the level ' + mechLink('spells', 'Mechanics › spells') + '.';
+  box.appendChild(intro);
+  let level = null, count = 0;
+  for (const x of shown) {
+    if (x.level !== level) { level = x.level; const h = document.createElement('div'); h.className = 'propHead'; h.innerHTML = 'Level ' + level; box.appendChild(h); }
+    count++;
+    const sec = document.createElement('section');
+    sec.className = 'mechSec skillCard';
+    sec.id = 'spell-' + x.resid.toString(16);
+    const head = document.createElement('div'); head.className = 'mechHead';
+    try { head.appendChild(navIconCanvas({ tile: 0x87B }, 22)); } catch (e) {}
+    head.innerHTML += '<h3>' + svEsc(x.name) + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + x.level + '</b> level</span><span class="mechStat"><b>' + x.cost + '</b> magic</span></span><span class="mechFrom">' + partChip('the script', x.resid) + '</span>';
+    sec.appendChild(head);
+    if (x.description) { const p = document.createElement('p'); p.className = 'mechLede'; p.innerHTML = svEsc(x.description); sec.appendChild(p); }
+    const rows = [];
+    if (x.fx) {
+      for (const d of x.fx.damage) rows.push(['Damage', '<b>' + (amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.who]);
+      for (const h of x.fx.heals) rows.push(['Heals', '<b>' + svEsc(h.text) + '</b>']);
+    }
+    if (x.status.length) rows.push(['Applies', x.status.map(svEsc).join(', ') + ' <span class="inspDim">(clock units; 4096 is an hour)</span>']);
+    if (!rows.length) rows.push(['Does', '<span class="inspDim">something other than health: the light, a lock, a rune, the map, or a look — its script says</span>']);
+    const d = document.createElement('div'); d.className = 'mechBody';
+    d.innerHTML = '<table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
+    sec.appendChild(d);
+    box.appendChild(sec);
+  }
+  grid.appendChild(box);
+  out.textContent = count + ' of ' + spells.length + ' spells' + (q ? ' matching “' + q + '”' : '') + ', each read off its own script.';
+}
+
 function renderBarksSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');

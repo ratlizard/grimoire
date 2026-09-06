@@ -944,11 +944,13 @@ try {
     else console.log('  atlas: zooming out is the way back up — no stack, no held gateway');
 
     /* Everything on the surface IS in the scene -- the rule cuts both ways
-       -- and what is located but not on the surface is a mouth on the world:
-       the Temple at its cave, the bridge and Pnyx upstairs at the square
-       their own edge names, since the world draws nothing for them. */
+       -- and what is located but not on the surface is a mouth somewhere on
+       the surface: the Temple at its cave and the bridge at the square its
+       own edge names, on the world; the springs under Catamarca and the
+       upstairs of Pnyx as rings inside those towns, since 6 September 2026,
+       not out on the world at the square their edge happens to name. */
     let surface = 0, edgeMouths = 0;
-    const worldMouths = peek('atlasMouths')(sc.nodes[0]);
+    const worldMouths = sc.nodes.flatMap(n => peek('atlasMouths')(n));
     for (let n = 0; n < 0x100; n++) {
       const rid = 0x8000 | n;
       if (rid === 0x8001 || !ctx.refExists(rid) || !ctx.mapIsLocated(rid)) continue;
@@ -959,7 +961,7 @@ try {
       } else {
         edgeMouths++;
         if (!worldMouths.some(m => m.dest.resid === rid))
-          fail('atlas', `0x${rid.toString(16)} is located but not on the surface, and is not a mouth on the world`);
+          fail('atlas', `0x${rid.toString(16)} is located but not on the surface, and is not a mouth anywhere on the surface`);
       }
     }
     if (ctx.mapIsSurface(0x801A)) fail('atlas', 'the Temple is on the surface: its script sets an indoor backdrop');
@@ -1296,6 +1298,20 @@ try {
   const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const dice = ctx.diceGame();
   const mechSecs = (function count(el) { return (el.className === 'mechSec' ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
+  // Skills and Spells: each one a card, read off its own script.
+  ctx.showCategory('SKILLS');
+  const skhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const skills = ctx.skillCatalogue();
+  const sword = skills.find(x => x.name === 'Sword'), gambling = skills.find(x => x.name === 'Gambling'), attack = skills.find(x => x.name === 'Attack');
+  if (!(sword && sword.teachers.some(t => t.who === 4) && sword.weapons.length && /\[aptitude \/ ability\] to use a sword/.test(sword.description))) fail('skills', 'Sword is not a unit: ' + JSON.stringify(sword && [sword.description, sword.teachers, sword.weapons.length]));
+  else if (!(gambling && gambling.askedBy.includes(0x812) && gambling.lessons.length >= 2)) fail('skills', 'Gambling does not say the dice game asks about it, or has no lessons: ' + JSON.stringify(gambling && [gambling.askedBy, gambling.lessons]));
+  else if (!(attack && /\[aptitude \/ training\]/.test(attack.description))) fail('skills', 'the inline alternative was not read: ' + (attack && attack.description));
+  else if (!/openCharacter\(4\)/.test(skhtml) || !/Thievery/.test(skhtml) || !/Regroup/.test(skhtml)) fail('skills', 'the Skills sheet does not show the teacher chip, Thievery, or the commands');
+  else console.log(`  skills: ${skills.length} in the block, ${skills.filter(x => x.kind !== 'command').length} skills and ${skills.filter(x => x.kind === 'command').length} commands, each a card`);
+  ctx.showCategory('SPELLS');
+  const sphtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  if (!/Fireball/.test(sphtml) || !/25 \+ a roll of 0 to 10/.test(sphtml) || !/burst of flame/.test(sphtml) || !/Level 8/.test(sphtml)) fail('spells', 'the Spells sheet does not show Fireball with its damage and description by level');
+  else console.log('  spells: each a card, by level, with its damage and description');
   ctx.showCategory('BARKS');
   const bhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/Hot Kabobs!/.test(bhtml) || !/openCharacter\(2\)/.test(bhtml)) fail('barks', 'the Barks tab does not list the lines with their speakers');
