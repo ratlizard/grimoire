@@ -1107,6 +1107,21 @@ body.atlasFull { overflow:hidden; }
   text-transform:uppercase; color:#9b8850; }
 .mapToggleGroup label { display:flex; align-items:center; gap:5px; cursor:pointer;
   white-space:nowrap; }
+/* ---- the saved-game sheet -------------------------------------------------
+   The head is a portrait beside a sentence, the rest is the fork table's own
+   look, so this adds five rules rather than a second table style. */
+.saveHead { display:flex; gap:12px; align-items:flex-start; margin:2px 0 10px; }
+.saveFace { width:64px; height:64px; image-rendering:pixelated; border:1px solid rgba(155,136,80,.5);
+  border-radius:4px; background:rgba(0,0,0,.35); flex:0 0 auto; }
+.saveHead h3 { margin:0 0 4px; font-size:16px; }
+.saveH4 { margin:14px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:#9b8850; }
+.saveNote { font-size:11.5px; color:#8d8368; line-height:1.5; margin:6px 2px 8px; }
+.forkTable tr.saveHero td { background:rgba(249,248,111,.10); }
+/* Ten columns is what fits: body, reflex and mind are in the row's own form
+   rather than in the table, since the eleventh column pushed Edit off the
+   right of the panel. */
+.forkTable td.who { min-width:96px; }
+.forkTable tr.saveEditRow td { padding:0; border-bottom:none; }
 /* ---- the map editor's toolbar --------------------------------------------
    The tools are buttons rather than a checkbox because only one can be armed
    at a time and one of them -- Look -- is the map as it has always behaved,
@@ -1362,6 +1377,7 @@ body.atlasFull { overflow:hidden; }
            so that the tabs, the deep links and the smoke test treat them like
            any other category. -->
       <optgroup label="Data">
+        <option value="SAVEGAME">Saved game: the party and everyone else</option>
         <option value="DATAFORK">Data fork (every subindex)</option>
         <option value="CHANGES">Changes this session</option>
         <option value="INSTALLER">The installer: every file in it</option>
@@ -1673,6 +1689,18 @@ function skillNameForIcon(n) { return selfNameFor(0x1A00 | n); }
 // Reading them from the archive means a modified or translated Cythera
 // labels itself correctly instead of inheriting our hardcoded list.
 window.DERIVED_NAMES = null;
+/* The last table any archive gave us, kept ACROSS a swap and deliberately not
+   dropped by resetDerivedCaches. A saved game holds no 0x0201 at all -- it is
+   a thin file: the character records, one zone's props, one portrait, the
+   combat AI and the persistence store -- so a save opened on its own can only
+   call its people "Character 12". A character index means the same person in
+   every Cythera file, so the names from the scenario opened earlier in the
+   session are the right answer and the Saved Game sheet says where they came
+   from. This is two string tables carried over, not two archives open at
+   once (see **The delv-* files are not a library**): nothing here decodes
+   from the scenario, it only reads back words it already had. */
+window.SCENARIO_NAMES = null;
+window.SCENARIO_ZONE_NAMES = null;
 function loadDerivedNames() {
   window.DERIVED_NAMES = null;
   try {
@@ -1680,9 +1708,13 @@ function loadDerivedNames() {
     if (!raw) return;
     const { data } = smartDecrypt(raw, 0x0201);
     const t = parseDelverStringTable(data);
-    if (t && t.length > 16) window.DERIVED_NAMES = t;
+    if (t && t.length > 16) window.SCENARIO_NAMES = window.DERIVED_NAMES = t;
   } catch (e) { /* fall back to the built-in table */ }
 }
+// The names the open file gives, or the last file that gave any. `borrowed`
+// says which, so a sheet can admit it.
+function nameTable() { return window.DERIVED_NAMES || window.SCENARIO_NAMES || null; }
+function namesAreBorrowed() { return !window.DERIVED_NAMES && !!window.SCENARIO_NAMES; }
 function derivedCharacterName(n) {
   const t = window.DERIVED_NAMES;
   if (!t) return null;
@@ -1954,7 +1986,15 @@ function loadZoneNames() {
       if (data[j] === 0x00 && str.length >= 2) { names[n] = str; break; }
     }
   }
+  if (Object.keys(names).length) window.SCENARIO_ZONE_NAMES = names;
   return (window.ZONE_NAMES = names);
+}
+// The same borrowing for the zone names: a save's zone byte is the low byte
+// of a map resource id, and the map itself is in the scenario rather than in
+// the save, so without this every zone reads "zone 3 (unnamed)".
+function zoneNameTable() {
+  const own = loadZoneNames();
+  return Object.keys(own).length ? own : (window.SCENARIO_ZONE_NAMES || own);
 }
 function zoneNameFor(resid) {
   const subn = Math.floor(resid / 0x100) - 1;
@@ -2442,7 +2482,7 @@ function showCompositeDetail(tileId, entry, builtCanvas) {
 // isn't placed.
 function zoneDisplayName(zone) {
   if (!zone) return 'not placed in a zone';
-  const zn = loadZoneNames()[zone];
+  const zn = zoneNameTable()[zone];
   if (zn && zn !== 'Map') return zn;
   const lbl = labelFor(0x8000 | zone);
   if (lbl && lbl !== 'Map') return lbl;
@@ -3689,7 +3729,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.19.0';
+const GRIMOIRE_VERSION = '1.20.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4414,8 +4454,8 @@ function showCharacterDetail(i) {
     // a character with no placement gets no location line at all.
     statLine([['Level', r.level], ['XP', r.xp], ['Training', r.training]]) +
     statLine([['Body', r.body], ['Reflex', r.reflex], ['Mind', r.mind]]) +
-    statLine([['Health', r.hpMax ? r.hp + '/' + r.hpMax : 0],
-              ['Magic', r.mpMax ? r.mp + '/' + r.mpMax : 0]]) +
+    statLine([['Health', r.healthMax ? r.health + '/' + r.healthMax : 0],
+              ['Magic', r.magicMax ? r.magic + '/' + r.magicMax : 0]]) +
     (r.zone ? '<b>Home</b> ' + d.homeZone + ' at (' + r.x + ', ' + r.y + ')<br>' : '') +
     '<b>Sprite</b> ' + (sprInfo.none ? '<span style="color:#e07a5f">none</span>'
       : (sprInfo.staticKind ? sprInfo.staticKind + ', ' : '') +
@@ -4567,6 +4607,7 @@ function setModeImpl(m) {
   }
   if (window.CUR_SUBN === 'MACRSRC' || FORK_VIEWS[window.CUR_SUBN]) { renderMacRsrcSheet(); return; }
   if (window.CUR_SUBN === 'MONSTERS') { renderMonsterSheet(); return; }
+  if (window.CUR_SUBN === 'SAVEGAME') { renderSaveSheet(); return; }
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
   if (window.CUR_SUBN === 'CHANGES') { renderChangesSheet(); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
@@ -5399,7 +5440,13 @@ function parseArchiveBytes(bytes, sourceName, meta) {
        says where we are, go straight there. */
     const backTo = arrivedOn || (meta && meta.via === 'edit' ? standingOn : null);
     const restoring = !!(meta && meta.via === 'edit' && backTo && (backTo.c || backTo.r));
-    if (!restoring && !showCategory(hasWorld ? 'WORLD' : 'DATAFORK')) onCategoryChange();
+    /* A saved game opens on its own sheet. It has no world map, so the atlas
+       over it would be a zoom slider over nothing, and the Data Fork sheet --
+       where such a file landed until now -- lists six subindexes and says
+       nothing about any of them. The Saved Game sheet reads the one that
+       matters. */
+    const landOn = hasWorld ? 'WORLD' : (savedAs && getResourceBytes(0xF009) ? 'SAVEGAME' : 'DATAFORK');
+    if (!restoring && !showCategory(landOn)) onCategoryChange();
     out.textContent = 'Title: ' + title + (savedAs ? ' — saved game “' + savedAs + '”' : '') + ' — ' + sourceName;
     // A link to the world -- or the World tab carried across a swap, which
     // is the same hash -- names nothing in a file that has no world.
@@ -5472,6 +5519,7 @@ function onCategoryChangeImpl() {
   if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
   // The Data tab's own views: not subindexes, no resources to list.
   if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' || rawval === 'SKILLS' || rawval === 'SPELLS' ||
+      rawval === 'SAVEGAME' ||
       rawval === 'WORLD' || PLACEHOLDER_TABS[rawval]) {
     window.CUR_SUBN = rawval;
     window.CUR_RESIDS = [];
@@ -6037,28 +6085,18 @@ function characterProptypes() {
   return (window._CHAR_PROPTYPES = s);
 }
 
+/* The field map lives in `js/delv-archive.js` now, with the writer that is
+   its exact inverse -- the records are what a saved game is made of, and
+   editing one needs both halves (see parseDelverCharacterRecords). This is
+   the memoised read of the open archive's copy. It is deliberately NOT
+   decrypted through smartDecrypt's fallback path: 0xF009 is in delvmod's
+   known-clear table, so the verdict is a table lookup in both files that
+   have one. */
 function loadCharacterTable() {
   if (window.CHAR_TABLE) return window.CHAR_TABLE;
   const raw = getResourceBytes(0xF009);
   if (!raw) return (window.CHAR_TABLE = []);
-  // Field map from the delvmod wiki's F009 page, confirmed against the
-  // archive: byte 0 is the zone, bytes 1-3 an xy24 pair (Alaric reads 19,21 --
-  // exactly his 0-hour schedule position), bytes 4-5 aspect<<10 | proptype.
-  const out = [];
-  for (let i = 0; i + 32 <= raw.length; i += 32) {
-    const ap = u16be(raw, i+4);
-    const xy = (raw[i+1] << 16) | u16be(raw, i+2);
-    out.push({
-      proptype: ap & 0x03FF, aspect: ap >> 10,
-      zone: raw[i], x: xy >> 12, y: xy & 0xFFF,
-      body: raw[i+9], reflex: raw[i+10], mind: raw[i+11],
-      xp: u16be(raw, i+12),
-      hp: raw[i+14], hpMax: raw[i+15],
-      mp: raw[i+16], mpMax: raw[i+17],
-      level: raw[i+19], training: raw[i+28]
-    });
-  }
-  return (window.CHAR_TABLE = out);
+  return (window.CHAR_TABLE = parseDelverCharacterRecords(smartDecrypt(raw, 0xF009).data));
 }
 
 // Entries with mode 0 carry no placement: they are auxiliary records attached
@@ -6075,7 +6113,7 @@ function activeScheduleEntry(entries, hour) {
 }
 
 function characterName(i) {
-  const t = window.DERIVED_NAMES;
+  const t = nameTable();
   const nm = (t && t[i] ? String(t[i]).trim() : '');
   return (nm && nm !== '???' && nm !== 'x') ? nm : ('Character ' + i);
 }
@@ -12823,6 +12861,11 @@ const TAB_TREE = [
           { id: 'datafork', label: 'Data Fork',     tile: 0x237, values: ['DATAFORK', '128', '239', '4'] },
           { id: 'rsrcfork', label: 'Resource Fork', tile: 0x238, values: ['MACRSRC'] },
           { id: 'changes',  label: 'Changes',       tile: 0x2EE, values: ['CHANGES'] } ] },   // blacksmith's hammer
+      // A saved game is its own file, like the two below it. The tile is a
+      // sheet of paper by 0xF004's name table -- chosen from the names
+      // rather than by looking at a sheet of candidates, which is how every
+      // other icon here was picked, so it is the one to check on a screen.
+      { id: 'savegame', label: 'Saved Game', tile: 0x263, values: ['SAVEGAME'] },
       { id: 'cythera', label: 'Cythera (App)', tile: 0x231, children: [                       // the lit torch
           { id: 'apppef',  label: 'Data Fork',     tile: 0x237, wip: true, values: ['APPPEF'] },
           { id: 'apprsrc', label: 'Resource Fork', tile: 0x238, values: ['APPRSRC'] },
@@ -13124,6 +13167,244 @@ function tileHasTransparency(t) {
    somewhere, the tab it shows it under. This is the map from the archive's
    own structure to the tree above it, and it is the view to start from when
    a subindex is not where you expected. */
+/* ---- Data > Saved Game ----------------------------------------------------
+   A Cythera player file read as what it is, and edited a field at a time.
+
+   The page has opened saves since September 2026 and then had almost nothing
+   to say about one: a `DelP` file landed on the Data Fork sheet, which listed
+   its six subindexes and left the reader to open a 16 KB hex dump. Everything
+   a player would want to change is in one of those subindexes -- 0xF009, the
+   character records -- and the format of that table has been public on
+   delvmod's wiki for years. This sheet is that table with the names on it.
+
+   IT IS THE SAME EDIT SEAM AS EVERYTHING ELSE. Apply re-parses 0xF009,
+   changes the fields the form names, re-serializes the whole table with
+   `writeDelverCharacterRecords` -- proven the exact inverse of its parser
+   over both real tables by `delv_write_check.mjs` -- and hands the bytes to
+   `applyResourceEdit`, which rebuilds the archive and re-enters
+   `parseArchiveBytes`. So what the sheet shows after an edit is read back out
+   of the rebuilt file, and Data > Cythera Data > Changes is where the edited
+   save leaves the page: a MacBinary for a real Mac, a disk image for the
+   emulator, or the bare data fork.
+
+   IT ALSO OPENS ON `Cythera Data`, where the same table is where everybody
+   STARTS rather than where they are. That is not a courtesy: it is how the
+   sheet is testable without a saved game in the checkout, and the difference
+   between the two files -- Alaric at 9,600 experience in both, the hero's
+   health 0 in the scenario and 25 in a played game -- is the clearest
+   statement of what a save actually is.
+
+   THE NAMES ARE BORROWED AND THE SHEET SAYS SO. A save holds no 0x0201, so
+   without the scenario opened earlier in the session every row would read
+   "Character 12"; see the comment above SCENARIO_NAMES for why carrying two
+   string tables is not the same as holding two archives open. */
+window.SAVE_EDIT_OPEN = null;   // the record whose form is unfolded, kept across a rebuild
+window.SAVE_SHOW_ALL = false;   // slots that are marked but hold nobody
+
+// The parts of a player file, in the order a reader meets them. Only the ones
+// the open file actually has are listed.
+function savedGameParts() {
+  const out = [];
+  const add = (rid, what) => { if (refExists(rid)) out.push({ rid, what }); };
+  add(0xF009, 'the character records: everybody’s position, stats and condition');
+  const hero = loadCharacterTable()[1];
+  if (hero && hero.zone) {
+    add(0x8100 | hero.zone, 'the props of the zone the player stands in, as they were left');
+      // 0x82zz is 512 bytes beside a 64x64 map, which is exactly one bit a
+    // square, and delvmod's wiki guesses it is the automap's memory of what
+    // has been explored. The one save in hand has it all zero, so the
+    // arithmetic is the whole of the evidence and the sheet says as much.
+    add(0x8200 | hero.zone, 'the same zone’s map memory: 512 bytes beside a 64×64 map, which is one bit a square — all zeros here, so what it records is not settled');
+  }
+  add(0x8800, 'the player’s own portrait, which is why a mod can change it without touching the scenario');
+  add(0x0400, 'the compiled combat AI');
+  add(0xF306, 'more of the scripting system’s persistence');
+  add(0xF307, 'the scripting system’s persistent store — 256 KB of it, unread here');
+  return out;
+}
+
+function renderSaveSheet() {
+  stopAllViewActivity();
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  document.getElementById('singleControls').style.display = 'none';
+  const recs = loadCharacterTable();
+  if (!recs.length) {
+    grid.innerHTML = '<div class="changesView"><p>This file has no 0xF009 character table, ' +
+      'so there is nothing here to read. A Cythera player file always has one; so does ' +
+      'Cythera Data.</p></div>';
+    out.textContent = 'No character records in this file.';
+    return;
+  }
+  const isSave = (window.ARCHIVE_FINDER || {}).type === 'DelP';
+  const hero = recs[1];
+  // Built as one markup string into the grid rather than into a detached
+  // node: ids inside innerHTML only become findable once the element they are
+  // set on is in the document, and the edit form is found by id.
+  let h = '';
+
+  // Who and where.
+  const face = characterFace(1);
+  h += '<div class="saveHead">' +
+    (face ? '<img class="saveFace" src="' + face.url + '" alt="">' : '') +
+    '<div><h3>' + svEsc(isSave ? ((window.ARCHIVE_FINDER.name || 'A saved game')) : 'Cythera Data’s own character table') + '</h3>' +
+    '<div class="mechLede">' +
+    (isSave
+      ? 'A Cythera player file: the state of the world as the game left it. ' +
+        (hero && hero.zone
+          ? svEsc(characterName(1)) + ' stands in ' + svEsc(zoneDisplayName(hero.zone)) +
+            ' at (' + hero.x + ', ' + hero.y + '), ' + hero.health + ' of ' + hero.healthMax + ' health.'
+          : 'The hero’s record names no zone.')
+      : 'Where everybody <b>starts</b>, before a game has been played — the same 32-byte records a ' +
+        'saved game carries, which is what makes this sheet the same sheet.') +
+    '</div></div></div>';
+
+  if (namesAreBorrowed())
+    h += '<div class="saveNote">The names here come from the scenario opened earlier this ' +
+      'session, not from this file: a saved game holds no name table, and a character index ' +
+      'means the same person in every Cythera file.</div>';
+
+  // What the file holds.
+  const parts = savedGameParts();
+  if (parts.length) {
+    h += '<h4 class="saveH4">What this file holds</h4><div class="tableScroll"><table class="forkTable">' +
+      '<thead><tr><th>resource</th><th>what it is</th><th>bytes</th></tr></thead><tbody>' +
+      parts.map(p => {
+        let n = 0; try { n = (getResourceBytes(p.rid) || []).length; } catch (e) {}
+        return '<tr><td class="num">0x' + p.rid.toString(16).toUpperCase().padStart(4, '0') + '</td>' +
+          '<td>' + svEsc(p.what) + '</td><td class="num">' + fmtBytes(n) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
+  // Everybody.
+  const inUse = recs.filter(delverCharacterInUse);
+  const marked = recs.filter(r => !delverCharacterInUse(r) && (r.zone || r.raw.some(b => b))).length;
+  const shown = window.SAVE_SHOW_ALL ? recs.filter(r => r.zone || r.raw.some(b => b)) : inUse;
+  h += '<h4 class="saveH4">The records</h4>' +
+    '<div class="saveNote">' + inUse.length + ' of the 512 slots hold somebody' +
+    (marked ? ', and ' + marked + ' more are marked with a zone and nothing else' : '') +
+    '; what the game does with slot 0 is not known. ' +
+    actionChip(window.SAVE_SHOW_ALL ? 'Only the ones in use' : 'Show every marked slot',
+               'toggleSaveShowAll()') + '</div>';
+  h += '<div class="tableScroll"><table class="forkTable"><thead><tr>' +
+    '<th class="num">#</th><th>who</th><th>where</th><th class="num">lv</th><th class="num">xp</th>' +
+    '<th class="num">health</th><th class="num">magic</th>' +
+    '<th class="num">food</th><th class="num">train</th><th></th></tr></thead><tbody>';
+  for (const r of shown) {
+    const i = r.index;
+    h += '<tr' + (i === 1 ? ' class="saveHero"' : '') + '>' +
+      '<td class="num">' + i + '</td>' +
+      '<td class="who">' + svEsc(i ? characterName(i) : 'slot 0 — not a character') + '</td>' +
+      '<td>' + svEsc(r.zone ? zoneDisplayName(r.zone) + ' (' + r.x + ', ' + r.y + ')' : '—') + '</td>' +
+      '<td class="num">' + r.level + '</td><td class="num">' + r.xp + '</td>' +
+      '<td class="num">' + r.health + '/' + r.healthMax + '</td>' +
+      '<td class="num">' + r.magic + '/' + r.magicMax + '</td>' +
+      '<td class="num">' + r.nutrition + '</td><td class="num">' + r.training + '</td>' +
+      '<td>' + actionChip('Edit', 'toggleCharEdit(' + i + ')') + '</td></tr>' +
+      '<tr class="saveEditRow"><td colspan="10"><div class="propEdit" id="charEdit-' + i + '" style="display:none"></div></td></tr>';
+  }
+  h += '</tbody></table></div>';
+  h += '<div class="saveNote">Every field above is a byte or two of the record, and the ' +
+    'eleven bytes this project has not identified are shown with it when a row is opened. ' +
+    'Editing rebuilds the whole archive in memory; nothing on disk changes, and ' +
+    actionChip('Changes', "showCategory('CHANGES')") + ' is where an edited file leaves the page.</div>';
+  grid.innerHTML = '<div class="changesView">' + h + '</div>';
+  out.textContent = (isSave ? 'Saved game' : 'Character records') + ': ' +
+    inUse.length + ' of 512 slots in use' + (hero && hero.zone ? ', the player in ' + zoneDisplayName(hero.zone) : '') + '.';
+  // An edit's rebuild redraws this sheet; put the reader back at the row they
+  // were working in rather than folding it away under them.
+  if (window.SAVE_EDIT_OPEN != null) {
+    const keep = window.SAVE_EDIT_OPEN;
+    window.SAVE_EDIT_OPEN = null;
+    toggleCharEdit(keep);
+  }
+}
+
+function toggleSaveShowAll() { window.SAVE_SHOW_ALL = !window.SAVE_SHOW_ALL; renderSaveSheet(); }
+
+/* One record's form. The fields this project can name are inputs; the eleven
+   bytes it cannot are shown as hex and are not editable here -- Edit Bytes on
+   the resource itself is the tool for those, and pretending a slider knows
+   what byte 22 means would be worse than saying it does not. */
+const SAVE_FIELDS = [
+  ['zone', 'zone', 10, 0xFF, 'the low byte of the map’s resource id'],
+  ['x', 'x', 10, 0xFFF, ''], ['y', 'y', 10, 0xFFF, ''],
+  ['proptype', 'sprite class', 10, 0x3FF, 'which prop class draws them — 32 is the hero, 33 the heroine'],
+  ['aspect', 'aspect', 10, 0x3F, 'the frame within that class'],
+  ['body', 'body', 10, 0xFF, ''], ['reflex', 'reflex', 10, 0xFF, ''], ['mind', 'mind', 10, 0xFF, ''],
+  ['level', 'level', 10, 0xFF, ''], ['xp', 'experience', 10, 0xFFFF, 'the engine caps it at 65,535'],
+  ['health', 'health', 10, 0xFF, ''], ['healthMax', 'full health', 10, 0xFF, ''],
+  ['magic', 'magic', 10, 0xFF, ''], ['magicMax', 'full magic', 10, 0xFF, ''],
+  ['nutrition', 'food', 10, 0xFF, 'one comes off every game hour; a full stomach is 24'],
+  ['training', 'training points', 10, 0xFF, 'a lesson costs one, a mastery fifteen'],
+  ['party', 'party byte', 16, 0xFF, '0 before Hector joins and 5 after'],
+  ['state', 'state byte', 16, 0xFF, 'C0/D0/80 on the placed; movement and orientation'],
+];
+function toggleCharEdit(index) {
+  const host = document.getElementById('charEdit-' + index);
+  if (!host) return;
+  if (host.style.display !== 'none') {
+    host.style.display = 'none'; host.innerHTML = '';
+    if (window.SAVE_EDIT_OPEN === index) window.SAVE_EDIT_OPEN = null;
+    return;
+  }
+  const rec = loadCharacterTable()[index];
+  if (!rec) return;
+  const fld = ([key, label, base, max, note]) =>
+    '<label title="' + svEsc(note || '') + '">' + svEsc(label) + ' ' +
+    (base === 16 ? '0x' : '') +
+    '<input id="ce-' + index + '-' + key + '" value="' +
+    (base === 16 ? rec[key].toString(16).toUpperCase().padStart(2, '0') : rec[key]) +
+    '" size="' + (max > 0xFF ? 5 : 4) + '" spellcheck="false"></label>';
+  host.innerHTML = SAVE_FIELDS.map(fld).join('') +
+    '<button class="sv-chip" onclick="applyCharEditForm(' + index + ')">Apply</button>' +
+    (index === 1 ? actionChip('Make them well', 'healCharacterRecord(1)',
+                              'health, magic and a full stomach') : '') +
+    '<div class="inspDim">The 32 bytes as stored: <code>' +
+    Array.from(rec.raw).map(b => b.toString(16).padStart(2, '0')).join(' ') +
+    '</code><br>Bytes 6–7, 20–26 and 29–31 are not identified and are carried through ' +
+    'an edit unchanged; 20–21 is a second appearance word that is usually, but not ' +
+    'always, the one at 4–5. Apply rebuilds the whole archive.</div>';
+  host.style.display = '';
+  window.SAVE_EDIT_OPEN = index;
+}
+
+function applyCharEditForm(index) {
+  const fields = {};
+  for (const [key, label, base, max] of SAVE_FIELDS) {
+    const el = document.getElementById('ce-' + index + '-' + key);
+    if (!el) return;
+    const v = parseInt(el.value, base);
+    if (!Number.isInteger(v) || v < 0 || v > max) {
+      setStatus('Bad value for ' + label + ' — nothing changed.', true); return;
+    }
+    fields[key] = v;
+  }
+  applyCharacterRecordEdit(index, fields);
+}
+
+// Health, magic and a full stomach: the one convenience offered, because it
+// is the three fields anybody opening a save is here to change and each is
+// its own byte with a maximum the record already states.
+function healCharacterRecord(index) {
+  const rec = loadCharacterTable()[index];
+  if (!rec) return;
+  applyCharacterRecordEdit(index, { health: rec.healthMax, magic: rec.magicMax, nutrition: 24 });
+}
+
+function applyCharacterRecordEdit(index, fields) {
+  const raw = getResourceBytes(0xF009);
+  if (!raw) { setStatus('This file has no character table.', true); return false; }
+  const records = parseDelverCharacterRecords(smartDecrypt(raw, 0xF009).data);
+  if (!records[index]) return false;
+  Object.assign(records[index], fields);
+  const ok = applyResourceEdit(0xF009, writeDelverCharacterRecords(records));
+  if (ok) setStatus('Record ' + index + ' (' + characterName(index) + ') rewritten.');
+  return ok;
+}
+
 function renderDataForkSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');

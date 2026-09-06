@@ -29,7 +29,7 @@ import vm from 'node:vm';
 import {pageSource} from './page_scripts.mjs';
 import {makeSandbox} from './dom_stub.mjs';
 
-const [htmlPath = 'index.html', delvDir = 'delvmod', dataPath] = process.argv.slice(2);
+const [htmlPath = 'index.html', delvDir = 'delvmod', dataPath, savePath] = process.argv.slice(2);
 if (!existsSync(delvDir)) {
   console.error('missing: ' + delvDir);
   process.exit(2);
@@ -80,6 +80,32 @@ window.__propListIdentityFor = (archiveB64, resid) => {
    the roof block and the twelve bytes of padding nothing here understands
    with it, and one that wrote the wrong offset would corrupt a square it was
    never pointed at. */
+window.__charRecordIdentity = (archiveB64) => {
+  const arch = new Uint8Array(Buffer.from(archiveB64, 'base64'));
+  const spec = delverArchiveSpec(arch);
+  const res = spec.resources.find(r => r.resid === 0xF009);
+  if (!res) return { ok: false, detail: 'missing' };
+  const records = parseDelverCharacterRecords(res.data);
+  const back = writeDelverCharacterRecords(records);
+  const same = back.length === res.data.length && back.every((b, i) => b === res.data[i]);
+  // And an edit touches only the bytes the edit is about: give record 1 a
+  // level of 7 and nothing else in the table may move.
+  const edited = parseDelverCharacterRecords(res.data);
+  edited[1].level = 7; edited[1].health = 99;
+  const out = writeDelverCharacterRecords(edited);
+  let moved = 0;
+  for (let i = 0; i < out.length; i++) if (out[i] !== res.data[i]) moved++;
+  const readBack = parseDelverCharacterRecords(out)[1];
+  return {
+    ok: same, detail: same ? '' : (res.data.length + 'B in, ' + back.length + 'B out'),
+    count: records.length, inUse: records.filter(delverCharacterInUse).length,
+    moved, level: readBack.level, health: readBack.health,
+    // 32+19 and 32+14 are the two bytes changed; a third means a field is
+    // being written from somewhere it was not read.
+    where: [32 + 19, 32 + 14].every(k => out[k] !== res.data[k])
+  };
+};
+
 window.__mapTilePatch = (archiveB64, resid) => {
   const arch = new Uint8Array(Buffer.from(archiveB64, 'base64'));
   const spec = delverArchiveSpec(arch);
@@ -209,6 +235,30 @@ if (REF.real && REF.real.bytes) {
     if (!r.ok) { bad++; fail(`map 0x${(0x8000 + n).toString(16).toUpperCase()} (${r.size}): ${r.detail}`); }
   }
   if (!bad) ok(`map tiles: ${done} maps patched four squares each, every other byte identical`);
+}
+
+
+// ---- the character records ------------------------------------------------
+// 0xF009 is what a saved game is made of, so its parser needs the same
+// evidence the prop list's has: the table it came from, written back byte for
+// byte. And, because the record is only two thirds identified, that an edit
+// moves ONLY the bytes it names -- the eleven unexplained ones ride through
+// on the record's own copy of its 32 bytes.
+{
+  // The saved game is read straight off disk rather than through the Python
+  // reference: this check is the writer against its own parser over a real
+  // table, and delvmod has nothing to say about it that the round trip does
+  // not. Without one the shipped table alone still runs.
+  const saveB64 = (savePath && existsSync(savePath)) ? readFileSync(savePath).toString('base64') : null;
+  for (const [label, b64] of [['shipped', REF.real && REF.real.bytes], ['saved game', saveB64]]) {
+    if (!b64) continue;
+    const r = ctx.__charRecordIdentity(b64);
+    if (!r.ok) fail(`character records (${label}): rewrite differs (${r.detail})`);
+    else if (r.moved !== 2 || !r.where) fail(`character records (${label}): a two-field edit moved ${r.moved} bytes`);
+    else if (r.level !== 7 || r.health !== 99) fail(`character records (${label}): the edit did not read back`);
+    else ok(`character records (${label}): ${r.count} records rewrite byte-identical, ${r.inUse} in use, ` +
+            `and a two-field edit moves exactly two bytes`);
+  }
 }
 
 // ---- the DCG literal encoder ----------------------------------------------

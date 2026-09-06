@@ -935,6 +935,94 @@ function delverPropsAtSquare(records, x, y) {
  * prop list in the real archive. Records are 16 bytes; a list whose length
  * is not a multiple of 16 keeps its trailing fragment only if the caller
  * re-appends it (none in the shipped archive has one). */
+/* ---- the character records, 0xF009 ---------------------------------------
+   512 fixed 32-byte records, one per character index -- the same index that
+   names them in 0x0201, talks for them in 0x18nn and schedules them in
+   0xF00B. In `Cythera Data` they are where everybody starts; in a **saved
+   game** they are the live state of the world, which is why they are the
+   whole of what a save editor edits.
+
+   The field map is delvmod's wiki page for F009, which was worked out by
+   diffing the shipped table against saves taken either side of a change
+   (Hector before and after joining the party is the worked example there).
+   Two fields are not from it: **nutrition at byte 27**, read out of the
+   executable -- `TGameViewer::DoTicks` takes one off byte 27 of this record
+   every game hour (the trace is in the private workbench's `doc/game-clock.md`,
+   and the sheet's Hunger section is drawn from it) -- and byte 28's
+   neighbours, left unnamed. In I.M.Cheater, the community's cheated save,
+   the hero's byte 27 is 24 (a full stomach) and byte 28 is 0xFF (255
+   training points), which is exactly what the file is famous for.
+
+   THE UNKNOWN BYTES ARE KEPT AS BYTES, not as a hex tail. `parseDelverPropList`
+   keeps its six unexplained bytes in a `tail` string because they are
+   contiguous; here what is not understood is scattered through the record --
+   6..7, 22..26, 29..31, and a second appearance word at 20..21 that is
+   usually but NOT always the same as the one at 4..5 (the hero's differ in
+   I.M.Cheater: aspect 13 against 0). So each record keeps `raw`, its own 32
+   bytes, and the writer starts from that copy and lays the named fields back
+   over it. That makes `write(parse(x))` exactly `x` for any record, named
+   fields or not, and it makes an edit touch only the bytes the edit is
+   about -- which for a file whose format is two thirds understood is the
+   only honest way to write one back.
+
+   `delv_write_check.mjs` requires the round trip byte for byte over the
+   shipped table and over a saved game's when one is present. */
+const DELV_CHAR_RECORD = 32;
+function parseDelverCharacterRecords(data) {
+  const out = [];
+  for (let i = 0; i + DELV_CHAR_RECORD <= data.length; i += DELV_CHAR_RECORD) {
+    const raw = data.slice(i, i + DELV_CHAR_RECORD);
+    const ap = (raw[4] << 8) | raw[5];
+    const xy = (raw[1] << 16) | (raw[2] << 8) | raw[3];
+    out.push({
+      index: out.length, raw,
+      zone: raw[0], x: xy >> 12, y: xy & 0xFFF,
+      proptype: ap & 0x3FF, aspect: ap >> 10,
+      state: raw[8],                       // C0/D0/80 on the placed, 00 otherwise
+      body: raw[9], reflex: raw[10], mind: raw[11],
+      xp: (raw[12] << 8) | raw[13],
+      health: raw[14], healthMax: raw[15],
+      magic: raw[16], magicMax: raw[17],
+      party: raw[18],                      // 0 until Hector joins, 5 after
+      level: raw[19],
+      nutrition: raw[27], training: raw[28]
+    });
+  }
+  // Both tables in hand are an exact multiple of 32, but a fragment at the
+  // end would be lost silently, so it rides along on the array and the writer
+  // puts it back -- the prop-list writer's rule made safe rather than
+  // written down.
+  out.tail = data.slice(out.length * DELV_CHAR_RECORD);
+  return out;
+}
+// True where a record is in use at all: an unused slot is 32 zero bytes, and
+// a slot that is only a zone byte (the tail of the shipped table) is not a
+// character either.
+function delverCharacterInUse(r) { return !!(r && (r.proptype || r.healthMax || r.body)); }
+function writeDelverCharacterRecords(records) {
+  const tail = records.tail || new Uint8Array(0);
+  const out = new Uint8Array(records.length * DELV_CHAR_RECORD + tail.length);
+  out.set(tail, records.length * DELV_CHAR_RECORD);
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i], p = i * DELV_CHAR_RECORD;
+    out.set(r.raw, p);
+    out[p] = r.zone & 0xFF;
+    const xy = ((r.x & 0xFFF) << 12) | (r.y & 0xFFF);
+    out[p+1] = (xy >> 16) & 0xFF; out[p+2] = (xy >> 8) & 0xFF; out[p+3] = xy & 0xFF;
+    const ap = ((r.aspect & 0x3F) << 10) | (r.proptype & 0x3FF);
+    out[p+4] = (ap >> 8) & 0xFF; out[p+5] = ap & 0xFF;
+    out[p+8] = r.state & 0xFF;
+    out[p+9] = r.body & 0xFF; out[p+10] = r.reflex & 0xFF; out[p+11] = r.mind & 0xFF;
+    out[p+12] = (r.xp >> 8) & 0xFF; out[p+13] = r.xp & 0xFF;
+    out[p+14] = r.health & 0xFF; out[p+15] = r.healthMax & 0xFF;
+    out[p+16] = r.magic & 0xFF; out[p+17] = r.magicMax & 0xFF;
+    out[p+18] = r.party & 0xFF;
+    out[p+19] = r.level & 0xFF;
+    out[p+27] = r.nutrition & 0xFF; out[p+28] = r.training & 0xFF;
+  }
+  return out;
+}
+
 function writeDelverPropList(records) {
   const out = new Uint8Array(records.length * 16);
   for (let i = 0; i < records.length; i++) {
