@@ -833,6 +833,14 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 .mechSec .partsStrip { margin-top:6px; }
 @media (max-width:640px) { .mechSec { padding:10px 8px 8px; } .mechHead h3 { font-size:15.5px; } .mechFrom { margin-left:0; } }
 #atlasPanel { margin:0; background:#000; }
+/* The gate: one screen before anything is downloaded. */
+#landingGate { position:fixed; inset:0; z-index:200; background:rgba(8,7,5,.92); display:flex; align-items:center; justify-content:center; padding:20px; }
+.gateCard { max-width:520px; background:#1a1712; border:1px solid var(--edge); border-radius:12px; padding:22px 24px; color:#e4e1d7; line-height:1.45; box-shadow:0 8px 30px rgba(0,0,0,.6); }
+.gateCard h2 { margin:0 0 10px; color:var(--gold); font-size:26px; font-weight:600; }
+.gateCard p { margin:8px 0; font-size:15px; }
+.gateCard .gateHint { color:#c9bd94; font-size:13.5px; border-top:1px solid rgba(155,136,80,.35); padding-top:8px; margin-top:12px; }
+.gateRow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.gateRow button { width:auto; margin:0; padding:10px 16px; }
 /* The World tab is black to its edges: the sea outside the island is drawn
    in, and the fall into a hole ends on black, so the page around the map
    must not be paper. */
@@ -871,6 +879,10 @@ body.atlasFull { overflow:hidden; }
   touch-action:none; cursor:grab; background:#000;
   -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
 #atlasViewport canvas, #mapViewport canvas { -webkit-user-drag:none; }
+/* Black laid over the map during the fall into a hole and the rise out of
+   one: the middle pixel of a hole is not always black, so the zoom does not
+   end on black by itself. Opacity follows the animation. */
+#atlasFade { position:absolute; inset:0; background:#000; opacity:0; pointer-events:none; z-index:5; }
 #mapViewport { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
 /* The row under the map sat straight on the planks and its two buttons ran
    off the right of a phone: it wraps now, and has the bar's own dark ground. */
@@ -1451,9 +1463,26 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
              sheet is also what puts the folder behind the map, which is the
              right ground for it: the sheet is the game's dialogue box, and a
              map of the world is not a line of dialogue. -->
+        <div id="landingGate" style="display:none" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+          <div class="gateCard">
+            <h2 id="gateTitle">Grimoire</h2>
+            <p>A reader for the files of <i>Cythera</i>, the 1999 Macintosh game: its world, its
+              people, its scripts and its rules, read straight out of the game’s own data.</p>
+            <p><b>Nothing is loaded yet.</b> Opening it downloads the game’s installer from
+              archive.org, about <b>28&nbsp;MB</b>, and keeps a copy in this browser so the next
+              visit is instant. You can forget that copy at any time from the data-file menu.</p>
+            <p class="gateHint">On the map: <b>pinch</b> or scroll to zoom, <b>drag</b> to move,
+              zoom onto a <b>ring</b> to go inside a cave or a town, and <b>hold</b> on anyone to
+              see who they are.</p>
+            <div class="gateRow">
+              <button id="gateGo" onclick="landingGateAnswer('download')">Download and open</button>
+              <button class="secondary" onclick="landingGateAnswer('own')">I have the game’s files</button>
+            </div>
+          </div>
+        </div>
         <div id="atlasPanel" style="display:none">
           <div id="atlasBar" style="display:none"></div>
-          <div id="atlasViewport"><div id="atlasHover"></div></div>
+          <div id="atlasViewport"><div id="atlasHover"></div><div id="atlasFade"></div></div>
           <div id="atlasFullOverlay" style="display:none">
             <button class="secondary" id="atlasFullUp" style="display:none;width:auto;margin:0;padding:5px 9px" onclick="atlasRiseOut()">↰</button>
             <span id="atlasFullWhere"></span>
@@ -3519,7 +3548,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.12.1';
+const GRIMOIRE_VERSION = '1.13.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4777,6 +4806,25 @@ function loadArchive() {
   ingestArchiveFile(document.getElementById('fileInput').files[0]);
 }
 
+// The gate: shown until one of its buttons is pressed; resolves with which.
+let landingGateResolve = null;
+function landingGate() {
+  // A harness that walks the load path has no one to click: it says its
+  // answer in advance and the gate steps aside.
+  if (window.LANDING_GATE_ANSWER) return Promise.resolve(window.LANDING_GATE_ANSWER);
+  const g = document.getElementById('landingGate');
+  if (!g) return Promise.resolve('download');
+  g.style.display = 'flex';
+  try { document.body.classList.add('gated'); } catch (e) {}
+  return new Promise(res => { landingGateResolve = res; });
+}
+function landingGateAnswer(which) {
+  const g = document.getElementById('landingGate');
+  if (g) g.style.display = 'none';
+  try { document.body.classList.remove('gated'); } catch (e) {}
+  const r = landingGateResolve; landingGateResolve = null;
+  if (r) r(which);
+}
 async function loadDefaultArchive() {
   const params = new URLSearchParams(location.search);
   const forced = params.get('src');
@@ -4792,20 +4840,32 @@ async function loadDefaultArchive() {
     } catch (e) { /* no IndexedDB here; carry on to the network */ }
   }
 
-  const urls = forced ? [forced] : LOCAL_ARCHIVE_CANDIDATES.concat(REMOTE_ARCHIVE_URLS);
+  // No remembered copy and no file of the visitor's: before the network,
+  // the gate. It says what is about to be downloaded and how big it is,
+  // and it cannot be passed without a click. Chosen by the maintainer on
+  // 6 September 2026 over a banner that would have started the download
+  // anyway. A copy served beside the page (LOCAL_ARCHIVE_CANDIDATES) is
+  // not a download worth asking about, so the gate only stands when the
+  // page would go to the network.
   const failures = [];
-  for (const u of urls) {
+  const tryUrl = async u => {
     const remote = /^https?:/i.test(u);
     const label = remote ? 'Downloading the archive' : 'Looking for ' + u;
     try {
       setStatus(label + '…');
       const raw = await fetchWithProgress(u, label);
-      if (adoptArchive(raw, decodeURIComponent(u.replace(/^.*\//, '')) || u, { url: u, store: true })) return;
+      if (adoptArchive(raw, decodeURIComponent(u.replace(/^.*\//, '')) || u, { url: u, store: true })) return true;
       failures.push(u + ' — ' + lastArchiveError);
     } catch (err) {
       failures.push(u + ' — ' + err.message);
     }
-  }
+    return false;
+  };
+  if (forced) { if (!(await tryUrl(forced))) archiveLoadFailed(failures); return; }
+  for (const u of LOCAL_ARCHIVE_CANDIDATES) if (await tryUrl(u)) return;
+  const gate = await landingGate();
+  if (gate === 'own') { openArchiveMenu(true); setStatus('Choose or drop the Cythera installer (.sit or .bin) or a "Cythera Data" file.'); return; }
+  for (const u of REMOTE_ARCHIVE_URLS) if (await tryUrl(u)) return;
   archiveLoadFailed(failures);
 }
 
@@ -10334,7 +10394,7 @@ const ATLAS_TUNE_DEFAULTS = {
   mouthAt: 7,            // px per square before a place's mouths are ringed
   descendFill: 0.1,      // of the shorter side: how much of the screen a mouth's square fills before a zoom onto it goes through
   descendRadius: 0.2,    // of the shorter side: how centred a mouth must be
-  animMs: 550,           // ms: the fall into a mouth, and the rise out of it
+  animMs: 1000,          // ms: the fall into a mouth, and the rise out of it
   peopleAt: 6,           // px per square before the inhabitants are drawn
   maxPpt: 64             // px per square: the most magnification worth having
 };
@@ -10967,9 +11027,15 @@ function atlasDescend(m, node, arriveZ) {
     const fit = Math.min(vw / sc.root.w, vh / sc.root.h);
     const zEnd = Math.max(fit * 0.6, Math.min(atlasMaxZ(), arriveZ || sc.root.ts * 0.75));
     const ax = m.dest.x + 0.5, ay = m.dest.y + 0.5;
-    atlasView.Z = zEnd / 60; atlasView.x = vw / 2 - ax * atlasView.Z; atlasView.y = vh / 2 - ay * atlasView.Z;
+    // From a dot: the whole map four pixels across, its arrival square on
+    // the middle of the screen, and it stays on that square as it grows.
+    const zDot = Math.min(zEnd / 60, 4 / Math.max(sc.root.w, sc.root.h));
+    atlasView.Z = zDot; atlasView.x = vw / 2 - ax * zDot; atlasView.y = vh / 2 - ay * zDot;
+    const sx = atlasView.x, sy = atlasView.y;
     renderAtlasBar();
-    atlasAnimateTo(e => atlasZoomOnto(ax, ay, zEnd / 60, zEnd, e, vw, vh, atlasView.x, atlasView.y), arriveZ ? window.ATLAS_TUNE.animMs : 0, () => { atlasSyncZoomLabel(); paintAtlas(); }, 'out');
+    const ms = arriveZ ? window.ATLAS_TUNE.animMs : 0;
+    if (ms) atlasFadeTo(1);
+    atlasAnimateTo(e => { atlasZoomOnto(ax, ay, zDot, zEnd, e, vw, vh, sx, sy); if (ms) atlasFadeTo(1 - e); }, ms, () => { atlasFadeTo(0); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
     return;
   }
   atlasSyncZoomLabel();
@@ -11061,6 +11127,10 @@ function atlasAnimateTo(fn, ms, done, curve) {
 }
 // Zoom the view from z0 to z1 while a scene point (hx,hy: px at Z=1) drifts
 // from where it is to the middle of the screen.
+function atlasFadeTo(op) {
+  const f = document.getElementById('atlasFade');
+  if (f) f.style.opacity = String(Math.max(0, Math.min(1, op)));
+}
 function atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0) {
   const z = z0 * Math.pow(z1 / z0, e);
   const cx0 = x0 + hx * z0, cy0 = y0 + hy * z0;
@@ -11078,7 +11148,7 @@ function atlasFallInto(m, node) {
   // itself, still gathering speed.
   const hx = node.ox + (m.x + 0.5) * node.s, hy = node.oy + (m.y + 0.5) * node.s;
   const z1 = Math.max(vw, vh) * 1.15 * (node.ts || 32) / node.s;
-  atlasAnimateTo(e => atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0), window.ATLAS_TUNE.animMs, () => {
+  atlasAnimateTo(e => { atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0); atlasFadeTo(e); }, window.ATLAS_TUNE.animMs, () => {
     atlasView.Z = z0; atlasView.x = x0; atlasView.y = y0;   // the view you left, for coming back
     atlasDescend(m, node, per0 / 2);
   }, 'in');
@@ -11090,19 +11160,21 @@ function atlasRiseOut() {
   const vw = vp.clientWidth, vh = vp.clientHeight;
   const ax = (b.arrive ? b.arrive.x : 0) + 0.5, ay = (b.arrive ? b.arrive.y : 0) + 0.5;   // the below root is at s=1
   const z0 = atlasView.Z, x0 = atlasView.x, y0 = atlasView.y;
-  atlasAnimateTo(e => atlasZoomOnto(ax, ay, z0, z0 / 60, e, vw, vh, x0, y0), window.ATLAS_TUNE.animMs, () => {
+  const zDot = Math.min(z0 / 60, 4 / Math.max(atlasScene().root.w, atlasScene().root.h));
+  atlasAnimateTo(e => { atlasZoomOnto(ax, ay, z0, zDot, e, vw, vh, x0, y0); atlasFadeTo(e); }, window.ATLAS_TUNE.animMs, () => {
     // shrunk to nothing; now the map above, from the blank middle of the hole
     const prev = window.ATLAS_BELOW.pop();
     renderAtlasBar();
     const sc = atlasScene();
     const node = (sc && sc.nodes.find(n => n.resid === prev.fromResid)) || (sc && sc.root);
-    if (!sc || !node || !prev.view) { if (prev.view) { atlasView.x = prev.view.x; atlasView.y = prev.view.y; atlasView.Z = prev.view.Z; } atlasSyncZoomLabel(); paintAtlas(); return; }
+    if (!sc || !node || !prev.view) { atlasFadeTo(0); if (prev.view) { atlasView.x = prev.view.x; atlasView.y = prev.view.y; atlasView.Z = prev.view.Z; } atlasSyncZoomLabel(); paintAtlas(); return; }
     const hx = node.ox + (prev.at.x + 0.5) * node.s, hy = node.oy + (prev.at.y + 0.5) * node.s;
     const zBig = Math.max(vw, vh) * 1.15 * (node.ts || 32) / node.s;   // one pixel of the hole fills the screen
     const fit = Math.min(vw / sc.root.w, vh / sc.root.h);
     const zEnd = Math.max(fit * (atlasBelowTop() ? 0.6 : 0.9), prev.view.Z / 2);
     atlasView.Z = zBig; atlasView.x = vw / 2 - hx * zBig; atlasView.y = vh / 2 - hy * zBig;
-    atlasAnimateTo(e => atlasZoomOnto(hx, hy, zBig, zEnd, e, vw, vh, atlasView.x, atlasView.y), window.ATLAS_TUNE.animMs, () => { atlasSyncZoomLabel(); paintAtlas(); }, 'out');
+    const sx = atlasView.x, sy = atlasView.y;
+    atlasAnimateTo(e => { atlasZoomOnto(hx, hy, zBig, zEnd, e, vw, vh, sx, sy); atlasFadeTo(1 - e); }, window.ATLAS_TUNE.animMs, () => { atlasFadeTo(0); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
   }, 'in');
 }
 

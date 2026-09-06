@@ -216,6 +216,9 @@ ctx.location.hash = '';
   // fetch rejects in this sandbox, so every candidate URL fails and the run has
   // to end in archiveLoadFailed. What matters is that it gets there without
   // throwing, and says what it tried.
+  // Since v1.13.0 a gate stands between the local candidates and the
+  // network and waits for a click; the harness answers it in advance.
+  ctx.LANDING_GATE_ANSWER = 'download';
   let threw = null;
   try { await peek('loadDefaultArchive')(); }
   catch (e) { threw = e; }

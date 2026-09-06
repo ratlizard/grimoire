@@ -822,6 +822,20 @@ Read the comment above a constant before correcting it.
   zoom over the whole viewport before the scene is drawn; below ground the
   ground is black. The stub's canvas does answer getImageData, and the
   harness finds the world's 8 px water tile.
+- **v1.13.0**: **the gate** (`#landingGate`, `landingGate()` /
+  `landingGateAnswer`): `loadDefaultArchive` tries the remembered copy
+  and the copies served beside the page, and before it goes to the
+  network it shows one screen — what this is, that the installer is about
+  28 MB from archive.org and stays in the browser, the map's gestures —
+  with "Download and open" and "I have the game’s files" (which opens the
+  data-file menu instead). It cannot be passed without a click; the
+  maintainer chose that over a banner that starts the download anyway.
+  `?src=` skips it. **The fall fades to black** (`#atlasFade` over the
+  viewport, `atlasFadeTo`; opacity follows the fall and the shrink, and
+  falls back from 1 as a place opens), because the hole's middle pixel is
+  not always black; `animMs` is 1000. **A place opens from a dot**: the
+  whole map four pixels across with its arrival square on the middle of
+  the screen, growing on that square. The smoke pins the gate.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a

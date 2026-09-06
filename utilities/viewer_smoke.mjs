@@ -1209,6 +1209,17 @@ try {
     const fullOff = !ctx.document.body.classList.contains('atlasFull') && !/Leave/.test(REGISTRY.get('atlasFullBtn').textContent);
     if (!fullOn || !fullOff) fail('atlas', 'full screen did not pin and unpin the panel');
     else console.log('  atlas: full screen pins the panel where the browser offers no better, and unpins');
+    // The gate before a download: shown until answered, and the answer is
+    // what the caller gets.
+    {
+      const pr = ctx.landingGate();
+      const shown = REGISTRY.get('landingGate').style.display === 'flex';
+      ctx.landingGateAnswer('own');
+      const ans = await pr;
+      const hidden = REGISTRY.get('landingGate').style.display === 'none';
+      if (!shown || !hidden || ans !== 'own') fail('gate', 'the landing gate did not show, hide, or answer: ' + JSON.stringify([shown, hidden, ans]));
+      else console.log('  gate: stands before the download, and answers with the button pressed');
+    }
     // The names are the game's own: the mouth into Land King Hall says so,
     // not the editor's "LKH"; and two "Ruins" are told apart by the
     // editor's name after the game's.
