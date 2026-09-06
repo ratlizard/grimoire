@@ -88,6 +88,10 @@ const VISE_BIN = firstExisting('reference/game/installers/Cythera.bin',
 const VISE_ALL = firstExisting('reference/game/installers/Cythera installers (archive.org).sit',
   'reference/original_installers/Cythera installers (archive.org).sit', VISE_BIN);
 const APP_DATA = `${TMP}/Cythera.data`;
+/* A real installed Cythera folder, as a StuffIt archive: the one input here
+   with nested folders in it, and so the only one that exercises the folder
+   walk in js/mac-stuffit.js. Optional, like everything under reference/. */
+const INSTALLED_SIT = 'reference/game/installed-folders/Cythera Installed Folder with Preferences & License.sit';
 
 // delvmod is the reference implementation this project's knowledge of the
 // archive came from, and two checks read its Python to catch the copies here
@@ -204,7 +208,7 @@ const CHECKS = [
   // The installer: js/mac-vise.js against the catalog's own CRC for every
   // file, and against the BinHex copies for the two files the suite knows.
   {page: 'viewer', name: 'installer', want: [VISE_BIN],
-   cmd: ['utilities/vise_check.mjs', VISE_BIN, DATA, DATA_RSRC, APP_DATA, APP_RSRC],
+   cmd: ['utilities/vise_check.mjs', VISE_BIN, DATA, DATA_RSRC, APP_DATA, APP_RSRC, INSTALLED_SIT],
    grep: /\d+ files, \d+ extracted, \d+ CRC mismatches/},
   // The heuristic half of smartDecrypt, scored against the tables that
   // normally answer for it, plus the community's add-ons -- the only Cythera

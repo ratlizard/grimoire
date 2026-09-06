@@ -3664,7 +3664,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.18.0';
+const GRIMOIRE_VERSION = '1.18.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -16500,15 +16500,23 @@ function missingForkWarning(rsrc) {
    Three things are deliberately left out. There is no `CurScen` and no
    `CurPlayer`, the two other `'Pref'` resources a played copy has, so the
    start screen will say "No Player Selected" exactly as a fresh install does
-   -- this file is a switch, not a saved session. The Finder type is `pref`
-   with Cythera's own creator, which is a guess: the game finds the file by
-   *name* through `FSMakeFSSpec`, so nothing reads the type, and the real
-   file's type is inside a StuffIt archive whose forks this page cannot
-   decompress. And the file is offered on its own disk rather than added to
+   -- this file is a switch, not a saved session. The Finder identity is
+   **read rather than guessed**, which it was for an hour: fixing the StuffIt
+   5 folder walk made `Cythera Installed Folder with Preferences & License.sit`
+   list its whole tree, and the real `Cythera Preferences` is in it -- type
+   `pref`, creator four zero bytes, an **empty data fork** and a 638-byte
+   resource fork. Type and empty data fork are what this writes; the creator
+   was `Delv` here and is four zeros now, to match. The fork itself is method
+   13 and stays shut, so the three resources inside it are still unread and
+   the record below is still the executable's word rather than the file's.
+   And the file is offered on its own disk rather than added to
    the archive's export disk, because a third file on that volume pushes its
    catalog past one leaf node and raises a modal Finder alert that breaks the
    automated install -- see buildEditedDiskImage, where that was paid for. */
 const PREFS_FILE_NAME = 'Cythera Preferences';
+// Four zero bytes, as the real file has: it belongs to no application, and
+// the Finder shows it the generic document icon accordingly.
+const PREFS_CREATOR = '\u0000\u0000\u0000\u0000';
 const PREFS_VOLUME_NAME = 'Cythera Prefs';
 const PREFS_SCRIPT_NAME = 'Install Preferences';
 
@@ -16556,7 +16564,7 @@ function buildPrefsDiskImage(opts) {
   return writeHfsImage({
     volumeName: PREFS_VOLUME_NAME,
     entries: [
-      { name: PREFS_FILE_NAME, type: 'pref', creator: 'Delv',
+      { name: PREFS_FILE_NAME, type: 'pref', creator: PREFS_CREATOR,
         data: new Uint8Array(0), rsrc: buildCytheraPreferences(opts) },
       { name: PREFS_SCRIPT_NAME, type: 'TEXT', creator: 'ToyS',
         data: encodeMacRoman(prefsInstallScript(opts)), rsrc: new Uint8Array(0) }
@@ -16579,7 +16587,7 @@ function downloadCytheraPrefs(kind) {
       PREFS_SCRIPT_NAME + ' script. Untried — tell the maintainer whether it works.');
     return;
   }
-  const bin = writeMacBinary({ name: PREFS_FILE_NAME, type: 'pref', creator: 'Delv',
+  const bin = writeMacBinary({ name: PREFS_FILE_NAME, type: 'pref', creator: PREFS_CREATOR,
                                data: new Uint8Array(0), rsrc: buildCytheraPreferences(opts) });
   dlBlob(new Blob([bin], { type: 'application/octet-stream' }), PREFS_FILE_NAME + '.bin');
   setStatus('Wrote ' + PREFS_FILE_NAME + '.bin with ' + how + '. Unwrap it on a real Mac and put it ' +
