@@ -809,6 +809,19 @@ Read the comment above a constant before correcting it.
   stands as the game gives it, twice. The smoke pins the fall to half
   zoom, the rise to half zoom, a pan staying put, and a second zoom-in
   re-opening.
+- **v1.12.1**: the fall accelerates all the way (`atlasAnimateTo` takes a
+  curve: 'in' is t³, 'out' its mirror; the fall and the shrink are 'in',
+  the openings 'out') and goes on until **one art pixel of the hole's
+  sprite fills the screen** (z1 = max(vw,vh) × ts / node.s), so the black
+  closes over still gathering speed; the rise starts from the same. **The
+  World tab is black** (`body.worldTab` on the folder, the panel and the
+  viewport), and **the sea is drawn outside the island**
+  (`paintAtlasGround`): the commonest tile along the world map's border,
+  cropped off the rendered world (`atlasWaterTile`, cached with the other
+  derived tables), laid as a pattern on the world's grid at the current
+  zoom over the whole viewport before the scene is drawn; below ground the
+  ground is black. The stub canvas has no getImageData, so in the smoke
+  the water tile is null and the ground is black there.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a

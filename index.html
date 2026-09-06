@@ -832,7 +832,12 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 .mechPrice { color:var(--gold); font-variant-numeric:tabular-nums; }
 .mechSec .partsStrip { margin-top:6px; }
 @media (max-width:640px) { .mechSec { padding:10px 8px 8px; } .mechHead h3 { font-size:15.5px; } .mechFrom { margin-left:0; } }
-#atlasPanel { margin:0; }
+#atlasPanel { margin:0; background:#000; }
+/* The World tab is black to its edges: the sea outside the island is drawn
+   in, and the fall into a hole ends on black, so the page around the map
+   must not be paper. */
+body.worldTab .folder { background:#000; box-shadow:none; }
+body.worldTab #atlasPanel #atlasZoomRow { background:#000; }
 /* Full screen: the real thing where the browser allows it, and the panel
    pinned over the page where it does not (see atlasToggleFull). */
 #atlasPanel:fullscreen, #atlasPanel:-webkit-full-screen, body.atlasFull #atlasPanel {
@@ -863,7 +868,7 @@ body.atlasFull { overflow:hidden; }
   color:#e8dfc0; font-size:14px; font-family:ArgosGame, Argos, Georgia, serif; pointer-events:auto; }
 #atlasFullOverlay .secondary { font-size:12px; }
 #atlasViewport { position:relative; width:100%; height:78vh; overflow:hidden;
-  touch-action:none; cursor:grab; background:transparent;
+  touch-action:none; cursor:grab; background:#000;
   -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
 #atlasViewport canvas, #mapViewport canvas { -webkit-user-drag:none; }
 #mapViewport { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
@@ -3514,7 +3519,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.12.0';
+const GRIMOIRE_VERSION = '1.12.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4343,6 +4348,7 @@ function onCategoryChange() { clearPropFilter(); onCategoryChangeImpl(); syncDee
 // page. The map cycle and the audio element had the same problem: sound went
 // on playing from a panel that was no longer on screen.
 function stopAllViewActivity() {
+  try { document.body.classList.remove('worldTab'); } catch (e) {}
   stopLazyTiles();
   stopSpriteAnimations();
   stopMapAnimation();
@@ -4476,6 +4482,7 @@ function resetDerivedCaches() {
   window.ATLAS_SCENE = null;
   window.ATLAS_BELOW = [];
   atlasNameCounts = null;
+  atlasWaterCache = null;
   atlasDetailWindows.clear();
   atlasFolkCache.clear();
   _faceCache.clear();
@@ -10709,8 +10716,61 @@ function stopAtlasAnimation() {
 
    So the canvas is simply cleared, and what shows through is the sheet the
    World tab is drawn on. */
+/* The ground under everything: black below ground, and on the surface the
+   sea. The world map is a rectangle and Cythera is an island in it, so
+   outside the rectangle the view is filled with the world's own water tile,
+   laid on the world's grid at the current zoom, and the map's edge stops
+   being an edge. The tile is whichever tile is commonest along the world's
+   border, read off the rendered map, so it is the file's sea and not ours. */
+let atlasWaterCache = null;
+function atlasWaterTile() {
+  if (atlasWaterCache !== null) return atlasWaterCache || null;
+  atlasWaterCache = false;
+  try {
+    const e = mapRenderFor(WORLD_MAP_RESID, true);
+    const cv = e && e.result && e.result.canvas;
+    const ts = e && e.result && e.result.tileSize;
+    if (!cv || !ts || !cv.getContext) return null;
+    const g = cv.getContext('2d');
+    const W = e.result.width, H = e.result.height;
+    const seen = new Map();
+    const key = (tx, ty) => {
+      const d = g.getImageData(tx * ts + (ts >> 2), ty * ts + (ts >> 2), 2, 2).data;
+      return Array.from(d).join(',');
+    };
+    const cells = [];
+    for (let x = 0; x < W; x += 3) { cells.push([x, 0]); cells.push([x, H - 1]); }
+    for (let y = 0; y < H; y += 3) { cells.push([0, y]); cells.push([W - 1, y]); }
+    for (const [x, y] of cells) { const k = key(x, y); const v = seen.get(k) || { n: 0, x, y }; v.n++; seen.set(k, v); }
+    let best = null;
+    for (const v of seen.values()) if (!best || v.n > best.n) best = v;
+    if (!best) return null;
+    const t = document.createElement('canvas');
+    t.width = ts; t.height = ts;
+    t.getContext('2d').drawImage(cv, best.x * ts, best.y * ts, ts, ts, 0, 0, ts, ts);
+    atlasWaterCache = { canvas: t, ts };
+  } catch (e) { atlasWaterCache = false; }
+  return atlasWaterCache || null;
+}
 function paintAtlasGround(ctx, vw, vh) {
-  ctx.clearRect(0, 0, vw, vh);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, vw, vh);
+  const sc = atlasScene();
+  if (!sc || !sc.surface) return;
+  const w = atlasWaterTile();
+  if (!w) return;
+  const Z = atlasView.Z;
+  let pat = null;
+  try { pat = ctx.createPattern(w.canvas, 'repeat'); } catch (e) { pat = null; }
+  if (!pat) return;
+  ctx.save();
+  const k = Z / w.ts;
+  const ox = ((atlasView.x % Z) + Z) % Z, oy = ((atlasView.y % Z) + Z) % Z;
+  ctx.translate(ox, oy);
+  ctx.scale(k, k);
+  ctx.fillStyle = pat;
+  ctx.fillRect(-w.ts * 2, -w.ts * 2, vw / k + w.ts * 4, vh / k + w.ts * 4);
+  ctx.restore();
 }
 
 function hideAtlasHover() {
@@ -10738,6 +10798,7 @@ function placeAtlasHover(el, vp, px, py) {
    the sheet. */
 function renderAtlasView() {
   stopAllViewActivity();
+  try { document.body.classList.add('worldTab'); } catch (e) {}
   const sheet = document.getElementById('tabSheet');
   if (sheet) sheet.style.display = 'none';
   const panel = document.getElementById('atlasPanel');
@@ -10908,7 +10969,7 @@ function atlasDescend(m, node, arriveZ) {
     const ax = m.dest.x + 0.5, ay = m.dest.y + 0.5;
     atlasView.Z = zEnd / 60; atlasView.x = vw / 2 - ax * atlasView.Z; atlasView.y = vh / 2 - ay * atlasView.Z;
     renderAtlasBar();
-    atlasAnimateTo(e => atlasZoomOnto(ax, ay, zEnd / 60, zEnd, e, vw, vh, atlasView.x, atlasView.y), arriveZ ? window.ATLAS_TUNE.animMs : 0, () => { atlasSyncZoomLabel(); paintAtlas(); });
+    atlasAnimateTo(e => atlasZoomOnto(ax, ay, zEnd / 60, zEnd, e, vw, vh, atlasView.x, atlasView.y), arriveZ ? window.ATLAS_TUNE.animMs : 0, () => { atlasSyncZoomLabel(); paintAtlas(); }, 'out');
     return;
   }
   atlasSyncZoomLabel();
@@ -10980,7 +11041,10 @@ function atlasGestureTouch() {
    magnification you went in at -- so the hole is there, and smaller, and a
    zoom in would have to mean it again. animMs of nought is a cut, which is
    also what a browser without animation frames gets. */
-function atlasAnimateTo(fn, ms, done) {
+// curve: 'in' accelerates all the way (the fall, which should still be
+// gathering speed as the black closes over), 'out' starts fast and settles
+// (a place opening from nothing).
+function atlasAnimateTo(fn, ms, done, curve) {
   if (!ms || typeof requestAnimationFrame !== 'function' || window.ATLAS_NO_ANIM) {
     fn(1); paintAtlas(); if (done) done(); return;
   }
@@ -10988,7 +11052,7 @@ function atlasAnimateTo(fn, ms, done) {
   const t0 = Date.now();
   const step = () => {
     const t = Math.min(1, (Date.now() - t0) / ms);
-    const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const e = curve === 'in' ? t * t * t : curve === 'out' ? 1 - Math.pow(1 - t, 3) : (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
     fn(e); paintAtlas();
     if (t < 1) requestAnimationFrame(step);
     else { window._atlasAnimating = false; if (done) done(); }
@@ -11009,12 +11073,15 @@ function atlasFallInto(m, node) {
   const vw = vp.clientWidth, vh = vp.clientHeight;
   const per0 = node.s * atlasView.Z;                  // px per square of the mouth's map now
   const z0 = atlasView.Z, x0 = atlasView.x, y0 = atlasView.y;
+  // The middle pixel of the hole's sprite, and the zoom goes on until that
+  // one pixel fills the screen: the fall ends on the black of the hole
+  // itself, still gathering speed.
   const hx = node.ox + (m.x + 0.5) * node.s, hy = node.oy + (m.y + 0.5) * node.s;
-  const z1 = Math.max(vw, vh) * 1.15 / node.s;        // the hole's square covers the screen
+  const z1 = Math.max(vw, vh) * 1.15 * (node.ts || 32) / node.s;
   atlasAnimateTo(e => atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0), window.ATLAS_TUNE.animMs, () => {
     atlasView.Z = z0; atlasView.x = x0; atlasView.y = y0;   // the view you left, for coming back
     atlasDescend(m, node, per0 / 2);
-  });
+  }, 'in');
 }
 function atlasRiseOut() {
   const b = atlasBelowTop();
@@ -11024,18 +11091,19 @@ function atlasRiseOut() {
   const ax = (b.arrive ? b.arrive.x : 0) + 0.5, ay = (b.arrive ? b.arrive.y : 0) + 0.5;   // the below root is at s=1
   const z0 = atlasView.Z, x0 = atlasView.x, y0 = atlasView.y;
   atlasAnimateTo(e => atlasZoomOnto(ax, ay, z0, z0 / 60, e, vw, vh, x0, y0), window.ATLAS_TUNE.animMs, () => {
+    // shrunk to nothing; now the map above, from the blank middle of the hole
     const prev = window.ATLAS_BELOW.pop();
     renderAtlasBar();
     const sc = atlasScene();
     const node = (sc && sc.nodes.find(n => n.resid === prev.fromResid)) || (sc && sc.root);
     if (!sc || !node || !prev.view) { if (prev.view) { atlasView.x = prev.view.x; atlasView.y = prev.view.y; atlasView.Z = prev.view.Z; } atlasSyncZoomLabel(); paintAtlas(); return; }
     const hx = node.ox + (prev.at.x + 0.5) * node.s, hy = node.oy + (prev.at.y + 0.5) * node.s;
-    const zBig = Math.max(vw, vh) * 1.15 / node.s;
+    const zBig = Math.max(vw, vh) * 1.15 * (node.ts || 32) / node.s;   // one pixel of the hole fills the screen
     const fit = Math.min(vw / sc.root.w, vh / sc.root.h);
     const zEnd = Math.max(fit * (atlasBelowTop() ? 0.6 : 0.9), prev.view.Z / 2);
     atlasView.Z = zBig; atlasView.x = vw / 2 - hx * zBig; atlasView.y = vh / 2 - hy * zBig;
-    atlasAnimateTo(e => atlasZoomOnto(hx, hy, zBig, zEnd, e, vw, vh, atlasView.x, atlasView.y), window.ATLAS_TUNE.animMs, () => { atlasSyncZoomLabel(); paintAtlas(); });
-  });
+    atlasAnimateTo(e => atlasZoomOnto(hx, hy, zBig, zEnd, e, vw, vh, atlasView.x, atlasView.y), window.ATLAS_TUNE.animMs, () => { atlasSyncZoomLabel(); paintAtlas(); }, 'out');
+  }, 'in');
 }
 
 function atlasZoomAround(newZ, px, py) {
