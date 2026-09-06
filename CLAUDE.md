@@ -101,8 +101,9 @@ a failure:
   repositories has no Cythera in it. `utilities/fetch_game.mjs` pulls the
   28 MB installer from archive.org's `/cors/` path into `$TMPDIR` and builds
   the four fork files out of it, so a checkout with no `reference/` runs
-  **15 ok, 0 failed, 2 skipped** (measured 4 September, with the delvmod and
-  systemless siblings beside it; 14 before `rule models` was added) — both snapshots among the ones that run,
+  **16 ok, 0 failed, 2 skipped** (measured 4 September, with the delvmod and
+  systemless siblings beside it; 14 before `rule models` and `resource fork
+  write` were added) — both snapshots among the ones that run,
   which is the whole point: a skip reads like a clean result, so before this a
   cloud or web session could not see a decoder regression at all. The two that
   still skip want files rather than bytes: `archive loading` wants the `.hqx`
@@ -194,7 +195,7 @@ loads all nine, in this order, before its own inline script:
 |---|---|
 | `js/mac-bytes.js` | big-endian readers, Mac Roman, CRC-32, `safeFileName`. **First** — everything else needs it. |
 | `js/mac-containers.js` | BinHex 4.0 (`.hqx`), MacBinary, AppleSingle/Double unwrapping → `{kind, name, type, creator, data, rsrc}` |
-| `js/mac-resfork.js` | `openResourceFork(bytes)` → a fork object (not globals, so two forks can be open at once) |
+| `js/mac-resfork.js` | `openResourceFork(bytes)` → a fork object (not globals, so two forks can be open at once), and since 6 September 2026 `writeResourceFork(resources)` / `resourceForkSpec(fork)` the other way — both of the game's forks re-serialize byte for byte |
 | `js/mac-media.js` | decoded pixels/samples → WAV and hand-written indexed PNG (colour-type 3 + PLTE/tRNS, so the CLUT survives byte for byte) |
 | `js/mac-rsrc-types.js` | decoders for what is *inside* a fork: PICT, snd, NFNT, clut, cicn, crsr, ICN#, STR#, vers, DITL, MENU, cfrg, 68K CODE… |
 | `js/mac-export.js` | store-only ZIP writer + browser download helpers |
@@ -328,7 +329,7 @@ from outside the repository.
   `--quick` skips it.
 
 A check whose inputs are genuinely missing is reported as **skip**, not fail.
-A clean run is **17 ok, 0 failed, 0 skipped**. Anything else is a
+A clean run is **18 ok, 0 failed, 0 skipped**. Anything else is a
 regression. Without the game in `reference/` most checks skip, and `delvmod
 write` and `disk image` are the two checks with an oracle still running — its synthetic archives are built on the fly. `dialogue vs
 guides` has a second, optional input of its own — the community's dialogue
@@ -476,6 +477,20 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   BreadWorldMercy453 by asking every character every word — it is independent
   of this repository's decoding in exactly the way delvmod is, which is what
   makes it an oracle rather than a fixture.
+- `resfork_write_check.mjs` — `writeResourceFork`, against the strongest
+  evidence any writer here has: **the two forks Apple's own Resource Manager
+  wrote in 1999**, which this repository happens to hold. Read each, hand what
+  comes out straight back, require the bytes identical — 452 resources across
+  70 types, 2.25 MB. Nothing about the layout was taken on trust, and four
+  orders and five as-found fields were each found by failing this rather than
+  by reading a specification: the data area's order is not the type list's,
+  the reference list's is not the data area's, the name list's is neither,
+  names are **not** pooled (two resources sharing one have an entry each —
+  exactly the 19 bytes Cythera Data came back short), and the reserved 240,
+  the map's header copy, the next-map handle, the file reference number and
+  every reference entry's handle are memory rather than data, zeroed in a
+  fresh fork and carried through a rewrite. Its synthetic half builds a fork
+  from nothing, which is what every real caller does, and needs no game.
 - `mech_check.mjs` (+ `mech_ref.mjs`) — the Mechanics sheet's probabilities,
   and the one part of that sheet that never had an oracle. Every other number
   on it is read off the archive, so delvmod and the disassembly check stand
@@ -1002,6 +1017,52 @@ Read the comment above a constant before correcting it.
   agree. What it contributes therefore depends on what the iterator leaves
   behind, which no script says; the figure's skill slider is drawn as the
   rule intends and the caption says so.
+- **A resource fork can be written now, and the first thing written with it
+  is the switch on the cheat keys, v1.18.0** (6 September 2026).
+  `js/mac-resfork.js` had read forks since the beginning and could not make
+  one, which is what stood between this repository and three things: the
+  `sfnt` swap above, Cythera's preferences file, and being able to produce
+  the other half of a Mac file at all. `writeResourceFork` and
+  `resourceForkSpec` are the two halves of it and
+  `utilities/resfork_write_check.mjs` is what makes the claim, described in
+  the checks section: both of the game's own forks go out byte for byte.
+  **The preferences file is on the Tools tab** (`buildCytheraPreferences`,
+  `buildPrefsDiskImage`, `downloadCytheraPrefs`). Cythera keeps its settings
+  in `Cythera Preferences` in the System Folder's Preferences folder, and two
+  bits of `'Pref'` 130 "UI Prefs" are worth a visitor's while. **Bit 7 of the
+  first byte is smooth movement**, which the shipped game implements in code
+  and gates on this preference — the whole first byte is `0x9A` for
+  "Smoother Movement" and `0x18` for the 68040 default, which is the one
+  32-pixel jump a tile that systemless gets (workbench
+  `doc/smooth-movement.md`, with the filmstrip). **Bit 0 of the fourth byte
+  is the gate on the cheat keys**: `©gra` in the map window toggles cheat
+  mode only when it is set, `TApPrefWindow::SaveSettings` writes bytes 0 and
+  1 and no more, and all three CPU-class defaults have byte 3 clear — so a
+  shipped copy cannot enter cheat mode however long you type at it, which is
+  presumably how TCRF's "potential cheat mode" stayed potential (workbench
+  `doc/cythera_keys.md` has the whole key table). The page offers the file as
+  a MacBinary for a real Mac and as its own small disk image for an emulator,
+  with an `Install Preferences` AppleScript beside it — **its own** disk
+  rather than a third file on the archive's export disk, because a third file
+  there pushes the catalog past one leaf node and raises the modal Finder
+  alert that breaks the automated install (see `buildEditedDiskImage`, where
+  that was paid for once already).
+  **It is untried, and says so on the tab.** The four bytes are evidence —
+  a stored record of `18800001` was watched to print "Cheat mode activated."
+  on 5 September — but a preferences file *this page wrote* has never been
+  put in front of the game, on a real Mac or in the emulator, and five
+  minutes with either would settle it. Three things are left out on purpose
+  and the comment above `buildCytheraPreferences` says why: no `CurScen` or
+  `CurPlayer`, so the start screen reads "No Player Selected" as a fresh
+  install does; the Finder type `pref` is a guess, since the game finds the
+  file by name and the real one's type is inside a StuffIt archive whose
+  forks this page cannot decompress; and it replaces rather than merges.
+  **Two things were learned about `js/mac-stuffit.js` on the way** and
+  neither is fixed: its StuffIt 5 walk follows the first folder's subtree and
+  then loses its place, so `Cythera Installed Folder with Preferences &
+  License.sit` lists 12 entries rather than the whole tree; and every fork in
+  those installed-folder archives is method 13, so even a fixed walk would
+  not open the real preferences file without a decompressor.
 - **Press and hold is the hover on a touch screen**, on the atlas and on
   the map panel alike. There is no pointer resting over anything on a
   phone, so a finger that stays put for a third of a second asks what a
@@ -1610,8 +1671,12 @@ Read the comment above a constant before correcting it.
   device, Barks a bell; only the two fork pairs share a tile, on purpose.
 - **Not yet done, and the shape of it.** The `sfnt` could go the other
   way — another TrueType put in its place would change the face the game
-  itself draws, since the styles name the family and not the file — but
-  that needs a resource-fork *writer*, and `js/mac-resfork.js` only reads.
+  itself draws, since the styles name the family and not the file. The
+  resource-fork *writer* that was blocking it exists as of 6 September 2026
+  (`writeResourceFork`, and `resourceForkSpec` to take a fork apart into
+  what it wants), so what is left is a TrueType → `sfnt` conversion, which
+  is `sfntToTrueType` run backwards: strip the `OS/2` table the browser
+  insisted on and put the rest back as a resource.
   The `Lite` tables (25 of them, a side length then that many squared bytes
   of falloff) are the game's own light cones, and the map's lighting layer
   still draws its own gradients. The Seldane strikes decode; nothing yet
