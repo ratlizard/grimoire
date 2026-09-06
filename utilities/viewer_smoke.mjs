@@ -1421,6 +1421,82 @@ try {
   else console.log(`  preferences: both switches on the Tools tab, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork, still labelled untried`);
 } catch (e) { fail('preferences', e); }
 
+/* The map editor. Four tools over a real map in the shipped archive, each
+   driven the way a pointer drives it and each judged by what the REBUILT
+   ARCHIVE holds -- not by what the tool returned, and not by what the panel
+   happens to have drawn. That is the whole point of the edit path:
+   applyResourceEdit re-serializes the archive and re-enters
+   parseArchiveBytes, so a painted square is only painted if the rebuilt file
+   has it.
+
+   The smallest map in the archive is used, and there are four commits rather
+   than the seven a fuller pass would want, because each one re-enters
+   parseArchiveBytes and the page redraws the open map behind it: on Odemia
+   (64x64, 641 props) that put five minutes on this check for no more
+   evidence than 32x32 gives. */
+try {
+  ctx.showCategory('127');
+  // 0x8005 is the smallest map in the archive -- 8x8 with two props -- and
+  // every commit below redraws whatever map is open, so it is also the
+  // cheapest place to prove the path. (0x8000 is 32x32 and has no prop list
+  // at all, which is its own guard case rather than a test bed.)
+  ctx.openResource(0x8005);
+  const cm = ctx.CUR_MAP;
+  // Read the tile out of the ARCHIVE, not out of the panel: the claim being
+  // checked is about the rebuilt file.
+  const tileAt = (x, y) => {
+    const c = ctx.CUR_MAP;
+    const d = ctx.smartDecrypt(ctx.getResourceBytes(c.resid), c.resid).data;
+    const m = ctx.parseDelverMap(d);
+    return ctx.u16be(d, m.mapDataOffset + (x + y * m.width) * 2);
+  };
+  const props = () => ctx.parseDelverPropList(ctx.smartDecrypt(ctx.getResourceBytes(ctx.CUR_MAP.propResid), ctx.CUR_MAP.propResid).data);
+  if (!cm || !cm.m || cm.propResid === undefined) fail('map editor', 'no map open to edit');
+  else {
+    const was = tileAt(1, 1), propsWere = props().length;
+    const pal = ctx.mapEditPalette(8);
+    const want = (pal.find(p => p.tile !== was) || {}).tile;
+    // Paint: three squares in one stroke, one commit, a fourth left alone.
+    ctx.setMapTool('paint');
+    ctx.setMapPaintTile(want);
+    ctx.mapEditTouch(1, 1); ctx.mapEditTouch(2, 1); ctx.mapEditTouch(3, 1);
+    const pending = ctx.MAP_EDIT.pending.size;
+    ctx.mapEditStrokeEnd();
+    const painted = [tileAt(1, 1), tileAt(2, 1), tileAt(3, 1)], spared = tileAt(4, 1);
+    // The eyedropper takes the tile off a square and arms Paint with it.
+    ctx.setMapTool('pick');
+    ctx.mapEditTouch(4, 1);
+    const picked = ctx.MAP_EDIT.tile === spared && ctx.MAP_EDIT.tool === 'paint';
+    // Place: one record appended, on the map, where it was asked for.
+    ctx.setMapTool('place');
+    ctx.MAP_EDIT.proptype = 0x20;
+    ctx.mapEditTouch(2, 3);
+    const placedList = props(), placed = placedList[placedList.length - 1];
+    // Erase: the record stays, its flags become 0xFF, and the list does not
+    // shorten -- which is what keeps every containment index valid.
+    ctx.setMapTool('erase');
+    ctx.mapEditTouch(2, 3);
+    const erasedList = props(), erased = erasedList[erasedList.length - 1];
+    const undoDepth = ctx.mapEditUndoDepth();
+    ctx.mapEditUndo();
+    const undoneFlags = props()[erasedList.length - 1].flags;
+
+    if (pending !== 3) fail('map editor', `a three-square stroke collected ${pending} squares`);
+    else if (!painted.every(t => t === want)) fail('map editor', `the stroke did not reach the rebuilt archive: ${painted.map(t => '0x' + t.toString(16))}`);
+    else if (spared === want && was !== want) fail('map editor', 'a square outside the stroke was painted too');
+    else if (!picked) fail('map editor', 'the eyedropper did not arm Paint with the square it was pointed at');
+    else if (placedList.length !== propsWere + 1 || placed.proptype !== 0x20 || placed.x !== 2 || placed.y !== 3 || !placed.onMap)
+      fail('map editor', 'Place did not append the record it was asked for: ' + JSON.stringify(placed && [placed.proptype, placed.x, placed.y, placed.onMap]));
+    else if (erasedList.length !== placedList.length || erased.flags !== 0xFF || erased.onMap)
+      fail('map editor', `Erase should mark flags 0xFF and keep the record: ${erasedList.length} records, flags 0x${erased.flags.toString(16)}`);
+    else if (undoDepth !== 3) fail('map editor', `three commits left ${undoDepth} undo step(s)`);
+    else if (undoneFlags !== 0 || ctx.mapEditUndoDepth() !== 2)
+      fail('map editor', `undo did not put the erase back: flags 0x${undoneFlags.toString(16)}, ${ctx.mapEditUndoDepth()} step(s) left`);
+    else console.log(`  map editor: a three-square stroke as one edit, the eyedropper, a prop placed and erased to flags 0xFF without shortening the list, and an undo`);
+  }
+  ctx.setMapTool('pan');
+} catch (e) { fail('map editor', e); }
+
 // Opening a second archive must not leave the first one's derived tables
 // behind. Sentinels survive only if something is not being reset.
 try {

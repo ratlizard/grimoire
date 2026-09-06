@@ -863,6 +863,67 @@ function delverArchiveSpec(bytes) {
   return spec;
 }
 
+/* ---- editing a map -------------------------------------------------------
+   Two writers for the map editor in index.html, and they are deliberately the
+   smallest two that could work.
+
+   A map resource is a header, a roof block and then one big-endian tile word
+   per square, so **painting terrain is a patch, not a re-serialization**:
+   `writeDelverMapTiles` copies the resource and writes two bytes per square
+   changed. Nothing else in the resource is touched, and that is the property
+   `delv_write_check.mjs` requires -- every other byte identical, the changed
+   squares reading back as asked. A whole-map serializer would have to
+   reproduce the roof block and the twelve bytes of padding at 20..31 that
+   nothing in this project understands, and would risk all of it to move one
+   tile.
+
+   The prop list is the other way round: `writeDelverPropList` above already
+   re-serializes the whole list and is proven the exact inverse of the parser
+   over all 14,485 records in the shipped archive, so adding and removing go
+   through it. `makeDelverPropRecord` exists so the page never has to invent
+   the fields a fresh record needs -- particularly `tail`, six bytes the
+   parser keeps as hex and nothing here understands.
+
+   REMOVING A PROP DOES NOT REMOVE THE RECORD, and that is the important part.
+   A record can be inside another prop in the same list, and the link is that
+   prop's INDEX -- so splicing an entry out silently re-points every
+   containment link after it. The file's own answer is a record whose flags
+   are 0xFF: delvmod's `show_in_map` drops one (`if self.flags == 0xFF: return
+   False`), this file's parser drops one, and the shipped archive carries
+   exactly five. So Erase writes 0xFF and leaves the record where it is, every
+   index intact. */
+function writeDelverMapTiles(data, m, edits) {
+  if (!m || !edits || !edits.length) return data;
+  const out = data.slice();
+  for (const e of edits) {
+    const x = e.x | 0, y = e.y | 0;
+    if (x < 0 || y < 0 || x >= m.width || y >= m.height) continue;
+    const o = m.mapDataOffset + (x + y * m.width) * 2;
+    if (o + 1 >= out.length) continue;
+    out[o] = (e.tile >> 8) & 0xFF;
+    out[o + 1] = e.tile & 0xFF;
+  }
+  return out;
+}
+// A prop record with every field a fresh one needs and nothing invented: the
+// six tail bytes are zero, which is what an unplaced record in the archive
+// has, and the flags default to 0 -- on the map, not takeable.
+function makeDelverPropRecord(p) {
+  return {
+    flags: p.flags === undefined ? 0 : (p.flags & 0xFF),
+    x: p.x & 0xFFF, y: p.y & 0xFFF,
+    aspect: (p.aspect || 0) & 0x1F, rotated: p.rotated ? 0x20 : 0,
+    proptype: p.proptype & 0x3FF,
+    d3: (p.d3 || 0) & 0xFFFF, storeref: (p.storeref || 0) & 0xFFFF,
+    tail: '000000000000'
+  };
+}
+// The record a square shows, topmost first: the list is drawn in order, so
+// the LAST record on a square is the one on top of the pile.
+function delverPropsAtSquare(records, x, y) {
+  return records.filter(r => r.onMap && r.x === x && r.y === y).reverse();
+}
+
 /* The inverse of parseDelverPropList, record for record. It can be exact
  * because the parse is lossless even where it looks lossy: x and y jointly
  * carry all 24 bits of the location word (holder links included -- a carried

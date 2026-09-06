@@ -74,6 +74,45 @@ window.__propListIdentityFor = (archiveB64, resid) => {
   return { ok: same, count: records.length,
            detail: same ? '' : (res.data.length + 'B in, ' + back.length + 'B out') };
 };
+/* The map editor's terrain writer. It claims to be a PATCH: the resource
+   comes back byte for byte except the squares asked for, which read back as
+   asked. Both halves matter -- a writer that reshaped the resource would take
+   the roof block and the twelve bytes of padding nothing here understands
+   with it, and one that wrote the wrong offset would corrupt a square it was
+   never pointed at. */
+window.__mapTilePatch = (archiveB64, resid) => {
+  const arch = new Uint8Array(Buffer.from(archiveB64, 'base64'));
+  const spec = delverArchiveSpec(arch);
+  const res = spec.resources.find(r => r.resid === resid);
+  if (!res) return { ok: false, detail: 'missing' };
+  const m = parseDelverMap(res.data);
+  if (!m) return { ok: false, detail: 'does not parse as a map' };
+  // Four squares spread across the grid, and a tile no square is likely to
+  // already hold, so "unchanged" cannot pass by coincidence.
+  const edits = [{ x: 0, y: 0 }, { x: m.width - 1, y: 0 },
+                 { x: 0, y: m.height - 1 }, { x: m.width - 1, y: m.height - 1 }]
+    .map((e, i) => ({ x: e.x, y: e.y, tile: 0x0BAD + i }));
+  // The writer must copy rather than patch in place: a caller keeping the old
+  // bytes for undo depends on it, and the map editor does exactly that.
+  const source = res.data.slice();
+  const out = writeDelverMapTiles(res.data, m, edits);
+  if (out.length !== res.data.length) return { ok: false, detail: 'length changed' };
+  const touched = new Set(edits.map(e => {
+    const o = m.mapDataOffset + (e.x + e.y * m.width) * 2;
+    return o + ',' + (o + 1);
+  }).flatMap(k => k.split(',').map(Number)));
+  let moved = 0;
+  for (let i = 0; i < out.length; i++) if (out[i] !== res.data[i] && !touched.has(i)) moved++;
+  const readBack = edits.every(e => {
+    const o = m.mapDataOffset + (e.x + e.y * m.width) * 2;
+    return ((out[o] << 8) | out[o + 1]) === e.tile;
+  });
+  const sourceIntact = res.data.length === source.length && res.data.every((b, i) => b === source[i]);
+  return { ok: moved === 0 && readBack && sourceIntact, size: m.width + 'x' + m.height,
+           detail: moved ? moved + ' byte(s) changed outside the squares asked for'
+                         : !readBack ? 'a square did not read back'
+                         : !sourceIntact ? 'the writer patched its source in place' : '' };
+};
 window.__dcgEncode = (b64) => {
   const pixels = new Uint8Array(Buffer.from(b64, 'base64'));
   return Buffer.from(encodeDCGLiterals(pixels)).toString('base64');
@@ -155,6 +194,23 @@ for (const c of REF.cases) {
   if (out !== synth) fail('prop list: synthetic round trip is not the identity');
   else ok('prop list: synthetic parse -> write is the identity');
 }
+// ---- the map editor's terrain patch ---------------------------------------
+// Over every map in the shipped archive: four corners rewritten, everything
+// else byte for byte. A synthetic map is not enough here -- the roof block is
+// what a whole-map serializer would get wrong, and only the real maps have
+// one.
+if (REF.real && REF.real.bytes) {
+  let done = 0, bad = 0;
+  for (let n = 0; n < 256; n++) {
+    const r = ctx.__mapTilePatch(REF.real.bytes, 0x8000 + n);
+    if (r.detail === 'missing') continue;
+    if (r.detail === 'does not parse as a map') continue;
+    done++;
+    if (!r.ok) { bad++; fail(`map 0x${(0x8000 + n).toString(16).toUpperCase()} (${r.size}): ${r.detail}`); }
+  }
+  if (!bad) ok(`map tiles: ${done} maps patched four squares each, every other byte identical`);
+}
+
 // ---- the DCG literal encoder ----------------------------------------------
 // encodeDCGLiterals claims any indexed image it emits decodes back exactly, in
 // BOTH implementations of the format. Prove it on the dithered gradient the

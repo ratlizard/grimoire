@@ -1107,6 +1107,29 @@ body.atlasFull { overflow:hidden; }
   text-transform:uppercase; color:#9b8850; }
 .mapToggleGroup label { display:flex; align-items:center; gap:5px; cursor:pointer;
   white-space:nowrap; }
+/* ---- the map editor's toolbar --------------------------------------------
+   The tools are buttons rather than a checkbox because only one can be armed
+   at a time and one of them -- Look -- is the map as it has always behaved,
+   so the row reads as a mode selector and there is always somewhere obvious
+   to go back to. The base stylesheet gives every button width:100% (the page
+   was sized for a phone, where a button is a row), so this opts out the way
+   every other control strip here does. */
+#mapEditBar { max-width:720px; margin:8px auto 0; text-align:left; }
+#mapEditBar .mapToggleGroup { margin-bottom:6px; }
+#mapEditBar button { width:auto; margin:0; padding:5px 12px !important; min-height:32px !important;
+  font-size:13px !important; }
+#mapEditBar button[disabled] { opacity:.42; cursor:default; text-decoration:none; }
+.mapToolBtn.on { background:rgba(249,248,111,.16) !important; box-shadow:inset 0 0 0 1px rgba(249,248,111,.6); }
+.mapEditNote { font-size:11.5px; color:#8d8368; line-height:1.45; margin:4px 2px 6px; }
+.mapEditNote b { color:#b9ad8a; }
+.mapPalette { display:flex; flex-wrap:wrap; gap:4px; padding:7px 8px;
+  background:rgba(20,18,14,.72); border:1px solid rgba(155,136,80,.45); border-radius:7px; }
+.tileSwatch { width:auto !important; margin:0 !important; padding:2px !important; min-height:0 !important;
+  line-height:0; border:1px solid rgba(155,136,80,.35) !important; border-radius:3px !important;
+  background:rgba(0,0,0,.35) !important; cursor:pointer; }
+.tileSwatch img { width:26px; height:26px; display:block; image-rendering:pixelated; }
+.tileSwatch.on { box-shadow:0 0 0 2px var(--gold); border-color:var(--gold) !important; }
+@media (max-width:640px) { .tileSwatch img { width:30px; height:30px; } }
 .mapToggleGroup input[type=checkbox] { width:auto; min-height:0; margin:0; accent-color:#c4a464; }
 .mapToggleGroup select { width:auto; min-height:30px !important; margin:0;
   padding:2px 26px 2px 8px !important; font-size:12px !important; }
@@ -1416,6 +1439,8 @@ body.atlasFull { overflow:hidden; }
     <button class="secondary" style="width:auto; margin:0; padding:8px 14px;" onclick="onMapFit()">Fit</button>
   </div>
   <div id="markLegend" style="font-size:12px; margin-top:6px; min-height:16px;"></div>
+  <!-- The map editor's toolbar, built by renderMapEditBar when a map opens. -->
+  <div id="mapEditBar" style="display:none"></div>
   <div id="mapInspect" style="display:none"></div>
   <div id="mapSaveRow" style="margin-top:8px;">
     <button class="secondary" onclick="downloadMapPNG()">Save Map as PNG</button>
@@ -3664,7 +3689,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.18.1';
+const GRIMOIRE_VERSION = '1.19.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4609,6 +4634,13 @@ function resetDerivedCaches() {
   window.MAP_VIEW_MEMORY = Object.create(null);
   window.MAP_SEL_MEMORY = Object.create(null);
   window.MAP_SEL = null;
+  /* The map editor's tool and its undo stack. Both are keyed to the open
+     archive -- an undo step is a copy of one resource's bytes -- so a
+     different archive arriving here must not inherit them. mapEditCommit
+     carries them across its OWN rebuild by hand, exactly as EDITED_RESIDS
+     is carried, since that rebuild is the same file rather than another. */
+  window.MAP_EDIT = null;
+  window.MAP_EDIT_UNDO = [];
   window.MAP_ROPES = null;
   window.MAP_SEATS = null;
   window.MAP_ITEM_SPOTS = null;
@@ -5275,6 +5307,22 @@ function parseArchiveBytes(bytes, sourceName, meta) {
                                     : { name: 'Cythera Data', type: 'DelS', creator: 'Delv' };
   const out = document.getElementById('output');
   const arrivedOn = parseDeepLink();   // before anything can overwrite it
+  /* And where the visitor is actually standing, read the same three ways
+     syncDeepLink writes that hash. The hash is normally the same answer, but
+     it is not always there to read: an origin that refuses
+     history.replaceState leaves it empty (some file:// ones do, and the test
+     stub is another), and an edit's rebuild must go back to the open view
+     whether or not the URL happens to record it. */
+  const standingOn = (function () {
+    const cat = document.getElementById('categorySelect');
+    if (!cat || !cat.value) return null;
+    const q = { c: cat.value };
+    const d = window.DETAIL_VIEW;
+    if (d && DETAIL_OPENERS[d.kind]) q.d = d.kind + ':' + d.id;
+    try { const r = currentMode === 'single' ? currentSelectedResid() : null;
+          if (r != null) q.r = r.toString(16).toUpperCase(); } catch (e) {}
+    return q;
+  })();
   try {
     const r = new BinReader(fileBytes);
     const title = r.pstring(0);
@@ -5339,11 +5387,27 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     // opens on the Data Fork sheet, which lists what it does hold and where
     // each part is shown.
     const hasWorld = !!getResourceBytes(WORLD_MAP_RESID);
-    if (!showCategory(hasWorld ? 'WORLD' : 'DATAFORK')) onCategoryChange();
+    /* An EDIT's rebuild is the same file arriving again, and the visitor is
+       standing somewhere in it -- mid-stroke on a map, usually. Opening the
+       world first and letting applyDeepLink walk back from it was both wrong
+       and expensive: `showCategory('WORLD')` builds the whole atlas scene,
+       and every one of those was thrown away on the next line. With the map
+       editor committing a stroke at a time that is the difference between an
+       edit costing a moment and costing a second; in the UI smoke, where the
+       stub draws everything the slow way, it was 27 seconds an edit.
+       Where the hash -- or, when there is none, the open view itself --
+       says where we are, go straight there. */
+    const backTo = arrivedOn || (meta && meta.via === 'edit' ? standingOn : null);
+    const restoring = !!(meta && meta.via === 'edit' && backTo && (backTo.c || backTo.r));
+    if (!restoring && !showCategory(hasWorld ? 'WORLD' : 'DATAFORK')) onCategoryChange();
     out.textContent = 'Title: ' + title + (savedAs ? ' — saved game “' + savedAs + '”' : '') + ' — ' + sourceName;
     // A link to the world -- or the World tab carried across a swap, which
     // is the same hash -- names nothing in a file that has no world.
-    if (!(arrivedOn && arrivedOn.c === 'WORLD' && !hasWorld)) applyDeepLink(arrivedOn);
+    let landed = false;
+    if (!(backTo && backTo.c === 'WORLD' && !hasWorld)) landed = applyDeepLink(backTo);
+    // If the hash did not take us back after all, redraw where we already
+    // are rather than leaving the previous archive's view on screen.
+    if (restoring && !landed) onCategoryChange();
   } catch(err) { out.textContent = 'Archive error: ' + err.message; setStatus('Could not load archive: ' + err.message, true); }
 }
 
@@ -5475,7 +5539,18 @@ function onCategoryChangeImpl() {
   document.getElementById('textPreview').style.display = 'none';
   document.getElementById('mapPreview').style.display = 'none';
   if (resids.length) select.selectedIndex = 0;
-  renderContactSheet();
+  /* A gallery nobody is going to look at. jumpToResource switches category and
+     then opens one resource, and setMode('single') empties #sheetGrid on the
+     very next line -- so the contact sheet built here is thrown away entire.
+     In a browser that mostly costs the cells rather than the art, since the
+     IntersectionObserver that decodes each tile does not deliver before the
+     grid is cleared; in the test stub, whose observer fires at once by
+     design, it is the whole gallery decoded and discarded, and on Regions --
+     42 maps -- that was nineteen seconds every time an edit rebuilt the
+     archive under an open map. The flag is cleared by jumpToResource itself,
+     which draws the sheet after all if the resource turns out not to be
+     there. */
+  if (window.PENDING_SINGLE == null) renderContactSheet();
   updateUnditherBar();
 }
 
@@ -7105,6 +7180,7 @@ function drawMapMarks(lensCtx, lensTS) {
   }
 
   drawMapSelection(ctx, TS);
+  drawMapEditPending(ctx, TS);
 
   if (legend) {
     const parts = [];
@@ -8638,6 +8714,7 @@ function setupMapViewportInteraction() {
     applyMapTransform();
   };
   const onUp = () => { mapView.dragging = false; rememberMapView(); };
+  let painting = false;
 
   viewport.addEventListener('pointerdown', e => {
     viewport.setPointerCapture(e.pointerId);
@@ -8651,6 +8728,16 @@ function setupMapViewportInteraction() {
       const mid = midpoint(pts[0], pts[1]);
       pinchStartMidX = mid.x; pinchStartMidY = mid.y;
     } else if (activePointers.size === 1) {
+      // A tool takes the single pointer: no pan, no press-and-hold peek, and
+      // the square under the finger is touched at once so a tap is enough.
+      // Two fingers still pinch, which is the only way to zoom while a tool
+      // is armed -- and is why "Look" is a tool rather than a checkbox.
+      if (mapEditing()) {
+        painting = true;
+        const sq = mapSquareFromClient(e.clientX, e.clientY);
+        if (sq) mapEditTouch(sq.tx, sq.ty);
+        return;
+      }
       onDown(e.clientX, e.clientY);
       endHold(); peeking = false;
       if (e.pointerType !== 'mouse') {
@@ -8674,6 +8761,11 @@ function setupMapViewportInteraction() {
     if (peeking) { updateMapHover(e.clientX, e.clientY, true); return; }
     const rect = viewport.getBoundingClientRect();
     activePointers.set(e.pointerId, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+    if (painting) {
+      const sq = mapSquareFromClient(e.clientX, e.clientY);
+      if (sq) mapEditTouch(sq.tx, sq.ty);
+      return;
+    }
     if (moved >= 6) endHold();
     if (activePointers.size === 2) {
       const pts = Array.from(activePointers.values());
@@ -8689,6 +8781,7 @@ function setupMapViewportInteraction() {
   const clearPointer = e => {
     const wasDragging = mapView.dragging;
     activePointers.delete(e.pointerId);
+    if (painting && !activePointers.size) { painting = false; mapEditStrokeEnd(); return; }
     if (activePointers.size < 2) { pinchStartDist = 0; }
     if (activePointers.size === 0) onUp();
     endHold();
@@ -8996,6 +9089,300 @@ function buildContainerView(rec, contents) {
   return wrap;
 }
 
+/* ---------------------------------------------------------------------------
+   Editing the map
+   ---------------------------------------------------------------------------
+   The third structured editor, after the prop record's field form and the
+   ditherizer, and the first one that edits by pointing at the thing. Four
+   tools over the map that is already drawn: **paint** a terrain tile, **pick**
+   one off the map to paint with, **place** a prop, **erase** the prop on a
+   square -- with **look**, the map as it has always behaved, as the fifth and
+   the way back. Walls, in Cythera, are terrain -- so knocking one through is
+   painting the floor over it, and that is the same tool as laying a path.
+
+   IT GOES THROUGH THE SAME SEAM AS EVERYTHING ELSE. Every commit ends in
+   `applyResourceEdit`, which re-serializes the whole archive with
+   `writeDelverArchive` and re-enters `parseArchiveBytes` as though the rebuilt
+   file had just been opened. There is no patched-in-place `fileBytes` and
+   there must not be: what is on screen after an edit is provably what the
+   Changes tab will hand you. The map redraws from the rebuilt archive, so a
+   painted square is a square the rebuilt file actually has.
+
+   A STROKE IS ONE EDIT. That rebuild is five megabytes of work, and a paint
+   stroke crosses a dozen squares, so the squares are collected while the
+   pointer is down and committed once when it lifts. Until then they are drawn
+   as an overlay on the marks layer -- rectangles, not artwork, because the
+   real tile art arrives with the rebuild a moment later and drawing it twice
+   in two different ways is how the two come to disagree.
+
+   PAINTING PATCHES BYTES; PLACING RE-SERIALIZES. A map resource is a header,
+   a roof block and one big-endian word per square, so `writeDelverMapTiles`
+   copies the resource and writes two bytes per square -- nothing else in it
+   is touched, and `delv_write_check.mjs` requires exactly that. The prop list
+   goes through `writeDelverPropList`, which is proven the exact inverse of
+   the parser over all 14,485 records in the shipped archive.
+
+   ERASING SETS FLAGS TO 0xFF RATHER THAN REMOVING THE RECORD, because a
+   contained prop is linked to its container by INDEX and splicing an entry
+   out re-points every link after it. delvmod drops a record whose flags are
+   0xFF (`show_in_map`), this page's parser drops one, and the shipped archive
+   carries five. See the comment above `writeDelverMapTiles`.
+
+   THE ONE REFUSAL. The bytes painted are the ones `delverArchiveSpec` will
+   write back, not the ones the renderer happened to draw from: the renderer
+   has a fallback for a map whose decrypt verdict `smartDecrypt` guesses
+   wrong, and painting through that fallback would patch a plaintext the
+   writer is not going to use. All 42 maps in the shipped archive parse
+   straight from `smartDecrypt` and none of them is encrypted, so this cannot
+   happen there -- but a modded archive is exactly what the fallback is for,
+   and on one of those the tools refuse rather than write to the wrong bytes.
+--------------------------------------------------------------------------- */
+window.MAP_EDIT = null;
+window.MAP_EDIT_UNDO = [];
+const MAP_EDIT_UNDO_MAX = 24;
+
+function mapEditState() {
+  if (!window.MAP_EDIT) window.MAP_EDIT = { tool: 'pan', tile: null, proptype: null, pending: new Map() };
+  if (!window.MAP_EDIT.pending) window.MAP_EDIT.pending = new Map();
+  return window.MAP_EDIT;
+}
+function mapEditing() { const e = window.MAP_EDIT; return !!(e && e.tool && e.tool !== 'pan'); }
+function mapEditUndoDepth() { return (window.MAP_EDIT_UNDO || []).length; }
+
+/* The plaintext the archive writer will use, and the header read from it.
+   Null means the renderer and the writer disagree about this resource -- see
+   THE ONE REFUSAL above. */
+function mapEditBytes(resid) {
+  const raw = getResourceBytes(resid);
+  if (!raw) return null;
+  const dec = smartDecrypt(raw, resid);
+  const m = parseDelverMap(dec.data);
+  return m ? { data: dec.data, m } : null;
+}
+function propListBytes(resid) {
+  const raw = getResourceBytes(resid);
+  if (!raw) return null;
+  return parseDelverPropList(smartDecrypt(raw, resid).data);
+}
+
+/* One commit. The tool and the undo stack are state about the session rather
+   than tables derived from the archive, so they are carried across the
+   rebuild by hand exactly as EDITED_RESIDS is -- resetDerivedCaches drops
+   them, correctly, because a DIFFERENT archive arriving there must not
+   inherit an undo stack of another file's bytes. */
+function mapEditCommit(resid, newData, what) {
+  const before = (function () { const raw = getResourceBytes(resid); return raw ? smartDecrypt(raw, resid).data : null; })();
+  const tool = window.MAP_EDIT, stack = (window.MAP_EDIT_UNDO || []).slice();
+  const ok = applyResourceEdit(resid, newData);
+  window.MAP_EDIT = tool;
+  if (window.MAP_EDIT) window.MAP_EDIT.pending = new Map();
+  if (ok && before) { stack.push({ resid, data: before, what }); window.MAP_EDIT_UNDO = stack.slice(-MAP_EDIT_UNDO_MAX); }
+  else window.MAP_EDIT_UNDO = stack;
+  renderMapEditBar();
+  return ok;
+}
+function mapEditUndo() {
+  const stack = (window.MAP_EDIT_UNDO || []).slice();
+  const last = stack.pop();
+  if (!last) { setStatus('Nothing to undo.', true); return false; }
+  const tool = window.MAP_EDIT;
+  const ok = applyResourceEdit(last.resid, last.data);
+  window.MAP_EDIT = tool;
+  if (window.MAP_EDIT) window.MAP_EDIT.pending = new Map();
+  window.MAP_EDIT_UNDO = stack;
+  if (ok) setStatus('Undid: ' + last.what + '. ' + stack.length + ' step(s) left to undo.');
+  renderMapEditBar();
+  return ok;
+}
+
+// The tiles this map is made of, commonest first: a palette of what is
+// already here rather than a catalogue of every tile in the game, because
+// "grass like the grass next to it" is what painting a map actually wants.
+function mapEditPalette(limit) {
+  const cm = window.CUR_MAP;
+  if (!cm || !cm.m || !cm.mapData) return [];
+  const counts = new Map();
+  const n = cm.m.width * cm.m.height;
+  for (let i = 0; i < n; i++) {
+    const t = u16be(cm.mapData, cm.m.mapDataOffset + i * 2);
+    counts.set(t, (counts.get(t) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])
+    .slice(0, limit || 36).map(([tile, count]) => ({ tile, count }));
+}
+
+/* Choosing a tool selects it; it does not toggle. An earlier version turned
+   the armed tool off when it was tapped again, which reads as clever and is
+   not: Pick arms Paint when it has taken a tile, so tapping Paint afterwards
+   -- the obvious thing to do -- silently disarmed the row and the next drag
+   panned instead of painting. Look is the off switch, and it is right there. */
+function setMapTool(tool) {
+  const e = mapEditState();
+  e.tool = tool;
+  e.pending = new Map();
+  if (e.tool === 'paint' && e.tile === null) { const p = mapEditPalette(1); e.tile = p.length ? p[0].tile : 0; }
+  if (e.tool === 'place' && e.proptype === null) e.proptype = mapEditPropChoices()[0] ? mapEditPropChoices()[0].pt : 0;
+  const vp = document.getElementById('mapViewport');
+  if (vp) vp.style.cursor = mapEditing() ? 'crosshair' : 'grab';
+  renderMapEditBar();
+  drawMapMarks();
+}
+function setMapPaintTile(t) { mapEditState().tile = t | 0; renderMapEditBar(); }
+function setMapPlaceProp(sel) { mapEditState().proptype = parseInt(sel.value, 10) || 0; }
+
+// Prop types that have a name and artwork, which is what can sensibly be put
+// on a map by pointing at it.
+function mapEditPropChoices() {
+  const out = [];
+  try {
+    const tiles = getPropTileList();
+    for (let pt = 1; pt < tiles.length; pt++) {
+      if (!tiles[pt]) continue;
+      const name = propDisplayName(pt);
+      if (name) out.push({ pt, name, tile: tiles[pt] });
+    }
+  } catch (e) {}
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+
+function renderMapEditBar() {
+  const host = document.getElementById('mapEditBar');
+  const cm = window.CUR_MAP;
+  if (!host) return;
+  if (!cm || !fileBytes) { host.style.display = 'none'; host.innerHTML = ''; return; }
+  const e = mapEditState();
+  const btn = (tool, label, title) =>
+    '<button class="secondary mapToolBtn' + (e.tool === tool ? ' on' : '') + '" title="' + svEsc(title) +
+    '" onclick="setMapTool(\'' + tool + '\')">' + svEsc(label) + '</button>';
+  let h = '<div class="mapToggleGroup mapTools"><span class="mtgLabel">Edit</span>' +
+    btn('pan', 'Look', 'Drag to pan, tap a square to inspect it — the map as it has always been') +
+    btn('paint', 'Paint', 'Drag to lay the chosen terrain tile over the squares you cross') +
+    btn('pick', 'Pick', 'Tap a square to paint with the tile that is already on it') +
+    btn('place', 'Place', 'Tap a square to put the chosen prop on it') +
+    btn('erase', 'Erase', 'Tap a square to take the topmost prop off it') +
+    '<button class="secondary" onclick="mapEditUndo()"' + (mapEditUndoDepth() ? '' : ' disabled') +
+    '>Undo' + (mapEditUndoDepth() ? ' (' + mapEditUndoDepth() + ')' : '') + '</button></div>';
+  if (e.tool === 'pick') {
+    h += '<div class="mapEditNote">Tap a square and its tile becomes the one Paint lays down.</div>';
+  } else if (e.tool === 'paint') {
+    const pal = mapEditPalette();
+    h += '<div class="mapPalette">' + pal.map(p =>
+      '<button class="tileSwatch' + (p.tile === e.tile ? ' on' : '') + '" title="tile 0x' +
+      p.tile.toString(16).toUpperCase() + (terrainNameFor(p.tile) ? ' — ' + svEsc(terrainNameFor(p.tile)) : '') +
+      ', ' + p.count + ' square' + (p.count === 1 ? '' : 's') + ' on this map"' +
+      ' onclick="setMapPaintTile(' + p.tile + ')"><img src="' + relIconURL({ tile: p.tile }) + '" alt=""></button>').join('') +
+      '</div><div class="mapEditNote">The tiles this map is made of, commonest first. Paint drags.</div>';
+  } else if (e.tool === 'place') {
+    const choices = mapEditPropChoices();
+    h += '<div class="mapToggleGroup"><span class="mtgLabel">Prop</span>' +
+      '<select id="mapPlaceSelect" onchange="setMapPlaceProp(this)">' +
+      choices.map(c => '<option value="' + c.pt + '"' + (c.pt === e.proptype ? ' selected' : '') + '>' +
+        svEsc(c.name) + ' (0x' + c.pt.toString(16).toUpperCase() + ')</option>').join('') +
+      '</select></div><div class="mapEditNote">A fresh record is appended to this map’s prop list, ' +
+      'on the map and not takeable.</div>';
+  } else if (e.tool === 'erase') {
+    h += '<div class="mapEditNote">The topmost prop on the square is marked deleted — flags 0xFF, ' +
+      'which is what the five already-deleted records in the shipped archive carry. The record stays ' +
+      'where it is, so nothing contained in another prop loses its link.</div>';
+  }
+  if (mapEditing()) h += '<div class="mapEditNote"><b>Every stroke rebuilds the archive in memory.</b> ' +
+    'Nothing on disk changes; Data › Cythera Data › Changes is where an edit leaves the page.</div>';
+  host.innerHTML = h;
+  host.style.display = '';
+}
+
+/* The squares a stroke has touched but not yet committed, drawn over the
+   marks layer so the pointer leaves a visible trail. Rectangles rather than
+   the tile's own artwork: the real thing arrives with the rebuild a moment
+   later, and two ways of drawing the same square is how they come to
+   disagree. */
+function drawMapEditPending(ctx, TS) {
+  const e = window.MAP_EDIT;
+  if (!e || !e.pending || !e.pending.size) return;
+  ctx.save();
+  ctx.fillStyle = 'rgba(249,248,111,.45)';
+  ctx.strokeStyle = 'rgba(249,248,111,.95)';
+  ctx.lineWidth = Math.max(1, TS / 12);
+  for (const key of e.pending.keys()) {
+    const [x, y] = key.split(',').map(Number);
+    ctx.fillRect(x * TS, y * TS, TS, TS);
+    ctx.strokeRect(x * TS + 0.5, y * TS + 0.5, TS - 1, TS - 1);
+  }
+  ctx.restore();
+}
+
+// One square, under the pointer. Paint collects; place and erase act at once,
+// since neither is a stroke.
+function mapEditTouch(tx, ty) {
+  const cm = window.CUR_MAP, e = mapEditState();
+  if (!cm || !cm.m) return;    // a map whose header did not parse has no squares to edit
+  if (e.tool === 'paint') {
+    if (tx < 0 || ty < 0 || tx >= cm.m.width || ty >= cm.m.height) return;
+    const key = tx + ',' + ty;
+    if (e.pending.has(key)) return;
+    e.pending.set(key, e.tile);
+    drawMapMarks();
+  } else if (e.tool === 'pick') {
+    // The eyedropper, and the reason the palette can be short: it offers the
+    // 36 commonest tiles on the map, and this reaches the other ones without
+    // a catalogue of every tile in the game.
+    if (tx < 0 || ty < 0 || tx >= cm.m.width || ty >= cm.m.height) return;
+    const t = mapTileAt(Object.assign({ raw: cm.mapData }, cm.m), tx, ty);
+    setMapPaintTile(t);
+    setMapTool('paint');
+    setStatus('Painting with tile 0x' + t.toString(16).toUpperCase() +
+      (terrainNameFor(t) ? ' — ' + terrainNameFor(t) : '') + ', picked off ' + tx + ',' + ty + '.');
+  } else if (e.tool === 'place') {
+    mapEditPlace(tx, ty);
+  } else if (e.tool === 'erase') {
+    mapEditErase(tx, ty);
+  }
+}
+function mapEditStrokeEnd() {
+  const cm = window.CUR_MAP, e = window.MAP_EDIT;
+  if (!cm || !e || !e.pending || !e.pending.size) return;
+  const edits = [...e.pending.entries()].map(([k, tile]) => {
+    const [x, y] = k.split(',').map(Number);
+    return { x, y, tile };
+  });
+  e.pending = new Map();
+  const src = mapEditBytes(cm.resid);
+  if (!src) {
+    drawMapMarks();
+    setStatus('This map is not readable the way the archive writer would write it back, so painting is refused. ' +
+      'The renderer fell back to the other decrypt reading; patching the wrong plaintext would corrupt the map.', true);
+    return;
+  }
+  const painted = writeDelverMapTiles(src.data, src.m, edits);
+  mapEditCommit(cm.resid, painted,
+    edits.length + ' square' + (edits.length === 1 ? '' : 's') + ' painted with tile 0x' + (edits[0].tile).toString(16).toUpperCase());
+}
+function mapEditPlace(tx, ty) {
+  const cm = window.CUR_MAP, e = mapEditState();
+  if (!cm || cm.propResid === undefined || cm.propResid === null) {
+    setStatus('This map has no prop list to add to.', true); return;
+  }
+  const records = propListBytes(cm.propResid);
+  if (!records) { setStatus('The prop list is not readable.', true); return; }
+  records.push(makeDelverPropRecord({ proptype: e.proptype, x: tx, y: ty }));
+  const name = propDisplayName(e.proptype) || ('prop 0x' + e.proptype.toString(16).toUpperCase());
+  mapEditCommit(cm.propResid, writeDelverPropList(records),
+    'placed ' + name + ' at ' + tx + ',' + ty);
+}
+function mapEditErase(tx, ty) {
+  const cm = window.CUR_MAP;
+  if (!cm || cm.propResid === undefined || cm.propResid === null) return;
+  const records = propListBytes(cm.propResid);
+  if (!records) return;
+  const hit = delverPropsAtSquare(records, tx, ty)[0];
+  if (!hit) { setStatus('Nothing on ' + tx + ',' + ty + ' to erase — the square is bare, or what you can see is terrain rather than a prop.', true); return; }
+  const name = propDisplayName(hit.proptype) || ('prop 0x' + hit.proptype.toString(16).toUpperCase());
+  records[hit.index].flags = 0xFF;
+  mapEditCommit(cm.propResid, writeDelverPropList(records),
+    'erased ' + name + ' at ' + tx + ',' + ty);
+}
+
 function inspectMapSquare(tx, ty) {
   const host = document.getElementById('mapInspect');
   const cm = window.CUR_MAP;
@@ -9211,6 +9598,7 @@ function renderMapResource(resid) {
     const zs = document.getElementById('mapZoomSlider');
     if (zs) zs.max = Math.round(400 * 32 / result.tileSize);
     clearMapInspector();
+    renderMapEditBar();
     startMapAnimation();
     toggleRoofs(window.MAP_ROOFS);   // draws the layer and updates the note
     drawMapMarks();
@@ -11893,8 +12281,11 @@ function jumpToResource(resid) {
   let value = null;
   for (const o of cat.options) if (parseInt(o.value) === subn) { value = o.value; break; }
   if (value === null) return false;
-  if (!showCategory(value)) return false;
-  if (!openResource(resid)) return false;
+  window.PENDING_SINGLE = resid;   // see the end of onCategoryChangeImpl
+  try {
+    if (!showCategory(value)) return false;
+    if (!openResource(resid)) { renderContactSheet(); return false; }
+  } finally { window.PENDING_SINGLE = null; }
   window.scrollTo(0, 0);
   return true;
 }
