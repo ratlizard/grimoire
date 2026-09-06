@@ -1452,6 +1452,40 @@ Read the comment above a constant before correcting it.
   sets Seldane text in them. `MSta`, `FILT`, `LINF`, `DATA` and `PORT` are
   listed and unread.
 
+### `canvas.html`
+
+- **One page, three columns, no paragraphs.** A toolbox of seven icons on
+  the left, the picture, and one panel on the right holding the ink and
+  the options of the tool in hand — its name and one line at the top, then
+  only the fields it reads (`USES`). Everything a control does is a hover
+  `title`; the long form is the "?" dialog and nowhere else. The previous
+  layout (6 September 2026) had a tool picker dialog, a floating tip under a
+  row of eight creatures, and a paragraph beside half the controls, and the
+  maintainer called it a hot mess. On a phone the dock along the bottom is
+  the ink row and the tool row, and the options open as a sheet over the
+  picture (`body.sheet`), which is the arrangement that keeps the canvas
+  the same size whatever is opened.
+- **Two creatures, and they are the game's own sprites.** Giant Slug (prop
+  type 208, sheet 0x8E58, eight frames as four facings of two) and Hydra
+  Polyp (prop type 277, tile 0x7D4 on sheet 0x8E7D, four frames of the
+  arms waving) travel as their indexed pixels, deflated and base64'd like
+  the example scenes (`SLUG_Z`, `POLYP_Z`), and are drawn through the
+  game's CLUT so a depth change never recolours the toolbox. Off, a
+  creature is the outline of its silhouette in the muted ink; on, the
+  sprite in colour, stepping through its frames on a beat of its own
+  (`CREATURES`, `drawCreature`, `paintCreatures`). The six other creatures
+  — ratlizard, chicken, crab, crystal ball, ghost, skeleton — are gone, and
+  with them every branch they put in `lay()`, `dab()`, `divert()` and
+  `frameMap()`. The pixels were extracted with the viewer's own decoders
+  driven the way `decoder_snapshot.mjs` drives them; re-extract the same
+  way if a frame is ever wrong.
+- **No harness covers it.** `check_all.mjs` runs nothing against this page.
+  What was done instead, on 6 September 2026, was to drive it in Chromium
+  through Playwright — every tool under both inks, both creatures on and
+  off, the menus, the four dialogs, three themes, and screenshots at
+  desktop, phone portrait and phone landscape — and read the screenshots.
+  Do the same before pushing a change to it.
+
 ## Licensing
 
 `LICENSE` is GPL-3.0-or-later and covers the work here (it was MIT until
