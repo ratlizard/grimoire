@@ -252,10 +252,14 @@ function dvmSym(table, code) {
 // CYTHERA-COMPENDIUM.md, "CHARACTER STATUS FLAGS"). Rings set their flag from
 // the ring's data2 field. Flag 23 is why Eioneus can cross lava: his own
 // dialogue script sets it, which these labels make visible in the decoder.
+// Flag 12, regeneration, is from the executable (5 September 2026): AddAbility
+// maps it to status bit 4, the bit the tick routine reads for one health every
+// six minutes, and the cheat key option-r toggles it (workbench
+// doc/cythera_keys.md, doc/game-clock.md).
 // Kept separate from DVM_SYM, whose tables delv_crosscheck.mjs proves against
 // delvmod line by line -- this one has no delvmod counterpart to prove
 // against, so it must not sit inside the oracle-checked object.
-const DVM_FLAG_NAMES = {0:'embrightenment',9:'poison',13:'fear',14:'paralysis',
+const DVM_FLAG_NAMES = {0:'embrightenment',9:'poison',12:'regeneration',13:'fear',14:'paralysis',
   17:'charm',18:'vision of night',20:'resist blows',21:'confusion',22:'sleep',
   23:'fire/lava protection',27:'fear protection',28:'second stronghold visible',
   29:'ascertainment',31:'swamp-poison protection'};

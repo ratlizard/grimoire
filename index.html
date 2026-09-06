@@ -3491,7 +3491,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.10.2';
+const GRIMOIRE_VERSION = '1.10.3';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -13578,7 +13578,7 @@ function renderMechanicsSheet() {
     [
       'A step costs one unit; looking costs 2, taking 4, and a spell 10 plus twice its level. The monsters move while the player’s time is spent.',
       'A status duration of <b>4096 is one hour</b>, 1024 a quarter of an hour, 409 six minutes.',
-      'A <b>poisoned</b> character loses 1 health every six minutes and <b>dies</b> when the next point would take them below 1; a <b>regenerating</b> one gains 1 every six minutes; one who is both takes a coin toss each time.',
+      'A <b>poisoned</b> character (flag 9) loses 1 health every six minutes and <b>dies</b> when the next point would take them below 1; a <b>regenerating</b> one (flag 12, what Omen’s ring grants) gains 1 every six minutes; one who is both takes a coin toss each time.',
       'Lighting is recomputed every quarter hour, and the schedules every hour.'
     ], '', '');
 

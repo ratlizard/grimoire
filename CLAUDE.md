@@ -1031,6 +1031,15 @@ Read the comment above a constant before correcting it.
   whose alignment the 4×4 table at `r2 + 852` calls hostile, on screen
   or not. The smoke test requires the lich in that list. The balloon
   trace's "turn stamp" was wrong: the global is the interpreter's None.
+  **Flag 12 is regeneration, v1.10.3**: `DVM_FLAG_NAMES` in
+  `js/delv-script.js` gained it from the executable (`AddAbility` maps
+  flag 12 to status bit 4; the cheat key option-r toggles it), the one
+  entry in that table not from the community's list; the clock section
+  names flags 9 and 12. The cheat keys are all read now (workbench
+  `doc/cythera_keys.md`, "Cheat keys"): the code `©gra` works only when
+  bit 0 of byte 3 of the four-byte "UI Prefs" record is set, which
+  nothing in the game sets, so a shipped copy cannot enter cheat mode
+  without the preferences file being edited.
   **The sheet's layout, v1.8.0**: one `add(id, title, icon, from, lede,
   rules, html, chips)` per section, in that order — a game tile or a nav
   icon, the title, chips to the scripts it was read from (`mechFrom`), a
