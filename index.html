@@ -1852,7 +1852,7 @@ const RSRC_KINDS = [
     note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three named 64-byte records (MSta: “Base”, “Plague Cured”, “Olpheltius Murdered”), seven FILT records, and the ResEdit templates. The structure of MSta, FILT, LINF, DATA and PORT is not read.',
     view: 'RSRC' },
   { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
-    note: 'What the executable reads about itself: 25 light tables (Lite: a side length n, then n×n bytes of falloff), the help pages (Page), the two preference defaults (volume and music), the version records, the memory sizes, the code fragment map and the nine 68K CODE segments.',
+    note: 'What the executable reads about itself: the 25 light cones (Lite: one byte of side, then that many squared bytes of brightness, 0 to 32 — drawn here as the shapes they are, sides 8 to 120), the help pages (Page), the two preference defaults (volume and music), the version records, the memory sizes, the code fragment map and the nine 68K CODE segments.',
     view: null }
 ];
 const RSRC_KIND_OF = new Map();
@@ -3754,7 +3754,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.23.1';
+const GRIMOIRE_VERSION = '1.24.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;

@@ -1404,6 +1404,25 @@ try {
     else console.log('  guards: a link to a character that is not there says so, and an empty GIF is refused');
     ctx.showCharacterDetail(2);
   }
+  // The engine's light cones, listed and unread until now.
+  {
+    const fs = await import('node:fs');
+    let app = null;
+    try { app = ctx.openResourceFork(new Uint8Array(fs.readFileSync(process.env.TMPDIR + '/Cythera.rsrc'))); } catch (e) {}
+    const list = app && app.resourcesByType['Lite'];
+    if (!list) console.log('  light cones: no application fork on this machine, not checked');
+    else {
+      const sides = [];
+      let drawn = 0;
+      for (const e of list) {
+        const l = ctx.decodeLite(app.dataOf('Lite', e));
+        if (l && l.canvas.width === l.side && l.canvas.height === l.side && l.max === 32 && l.centre === 32) { drawn++; sides.push(l.side); }
+      }
+      if (drawn !== list.length) fail('light cones', drawn + ' of ' + list.length + ' decoded');
+      else if (Math.min(...sides) !== 8 || Math.max(...sides) !== 120) fail('light cones', 'the sides are not 8 to 120: ' + sides.join(','));
+      else console.log('  light cones: all ' + drawn + ' decoded and drawn, sides ' + Math.min(...sides) + ' to ' + Math.max(...sides) + ', brightest 32 at the middle');
+    }
+  }
   ctx.showCategory('BARKS');
   const bhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/Hot Kabobs!/.test(bhtml) || !/openCharacter\(2\)/.test(bhtml)) fail('barks', 'the Barks tab does not list the lines with their speakers');

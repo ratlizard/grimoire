@@ -2006,6 +2006,20 @@ Read the comment above a constant before correcting it.
   1,034 character, prop and monster detail views in the shipped archive
   without another one throwing.
 
+- **The light cones are read, v1.24.0.** The 25 `Lite` resources in the
+  application's fork were listed and unread. The format is one byte of
+  side, then side x side bytes of brightness, 0 to 32 — 32 at the middle,
+  1 or 2 at the rim of the circle, 0 in the corners outside it. Two
+  families: 128–133 at sides 10 to 22, and 140–158 stepping 8, 14, 20, 26
+  and on to 120. `decodeLite` in `js/mac-rsrc-types.js` draws each as the
+  warm round shape it is and writes the middle row and an ASCII map
+  beside it, so the Engine kind of the application's fork gallery now
+  shows light rather than a byte count. **The join is still not made**:
+  the map's lighting layer draws its own gradients, and which table a
+  given light uses — presumably by its reach — is not read. A trap worth
+  remembering: the side is ONE byte, and reading it as a big-endian short
+  made every table look like a misfit.
+
 ## Licensing
 
 `LICENSE` is GPL-3.0-or-later and covers the work here (it was MIT until

@@ -57,9 +57,52 @@ function tagIndexed(canvas, W, H, indices, palette, maskBits){
 
 // What files can this resource become? One list, so the ZIP export and the
 // preview cannot drift apart about which types are decodable.
+/* The engine's light cones.
+
+   25 `Lite` resources in the application's fork, listed and unread until
+   7 September 2026. One byte of side, then side x side bytes of brightness,
+   0 to 32: 32 at the middle, falling to 1 or 2 at the edge of the circle and
+   0 in the corners outside it. Two families -- 128-133 at sides 10 to 22, and
+   140-158 stepping 8, 14, 20, 26 up to 120 -- which is a torch, a lamp, a
+   spell and the rest, by their reach in half-squares.
+
+   Drawn here as the shape it is, so a reader can see the falloff rather than
+   read that one exists. The map's lighting layer still draws its own
+   gradients; joining these to it needs the rule that picks a table for a
+   light, which is not read yet. */
+function decodeLite(data){
+  if(!data||data.length<2) return null;
+  const n=data[0];
+  if(!n||data.length!==1+n*n) return null;
+  const c=document.createElement('canvas');
+  c.width=n; c.height=n;
+  const ctx=c.getContext('2d');
+  if(!ctx) return null;
+  const img=ctx.createImageData(n,n);
+  let mx=0; for(let i=1;i<data.length;i++) if(data[i]>mx) mx=data[i];
+  for(let y=0;y<n;y++) for(let x=0;x<n;x++){
+    const v=data[1+y*n+x], p=(y*n+x)*4, t=mx?v/mx:0;
+    // A light, so warm rather than grey: the game's torchlight.
+    img.data[p]=Math.round(255*Math.min(1,t*1.1));
+    img.data[p+1]=Math.round(226*t);
+    img.data[p+2]=Math.round(150*t*t);
+    img.data[p+3]=255;
+  }
+  ctx.putImageData(img,0,0);
+  const mid=n>>1;
+  const row=[]; for(let x=0;x<n;x++) row.push(data[1+mid*n+x]);
+  return { canvas:c, side:n, max:mx, centre:data[1+mid*n+mid],
+    text:'A light cone '+n+' squares across, brightness 0 to '+mx+'.\n'+
+      'Middle row: '+row.join(' ')+'\n\n'+
+      Array.from({length:n},(_,y)=>Array.from({length:n},(_,x)=>{
+        const v=data[1+y*n+x];
+        return v===0?' ':v>=mx*0.75?'#':v>=mx*0.5?'+':v>=mx*0.25?'.':'·';
+      }).join('')).join('\n') };
+}
 function exportArtifacts(fork, type, entry, data){
   const out=[], txt=s=>out.push({ext:'txt', text:s}), cvs=(c,tag)=>out.push({ext:'png', canvas:c, tag});
-  if(type==='STR#') txt(decodeSTRList(data).map((s,i)=>`[${i}] ${s}`).join('\n'));
+  if(type==='Lite') { const l=decodeLite(data); if(l){ cvs(l.canvas,'cone'); txt(l.text); } }
+  else if(type==='STR#') txt(decodeSTRList(data).map((s,i)=>`[${i}] ${s}`).join('\n'));
   else if(type==='STR ') txt(decodeSTR(data));
   else if(type==='TEXT') txt(decodeTEXT(data));
   else if(type==='vers') txt(decodeVers(data));
