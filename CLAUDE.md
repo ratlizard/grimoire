@@ -1974,6 +1974,27 @@ Read the comment above a constant before correcting it.
   carries a platform-1 subtable, and that undo restores the fork byte for
   byte.
 
+- **The search answers questions, v1.23.0** (7 September 2026). A question
+  is not a text search: "who teaches axe" is the training table filtered by
+  skill, not a hunt for the word. `ASK_SHAPES` holds nine shapes — who
+  teaches, who sells, what a thing costs, what a spell or skill does, what
+  clears a status, who says a line, what a monster resists, where a thing
+  or person is, who somebody is — each naming a table the page already
+  builds and the column the question fixes. `answerQuestion(q)` tries
+  **every** shape that matches the sentence, not just the first, because
+  "what does fireball do" reads as both the price question and the
+  what-does-it-do one; the first shape that finds its subject in the file
+  answers, and anything else returns null and falls through to the text
+  search. `runSearch` calls it before decoding the scripts, and the answer
+  carries a link to search the text anyway. No model: every one of these
+  is a filter, and these same shapes are the retrieval a model would need
+  handed to it, so this is that half built first. Two traps worth
+  remembering: `PROP_TYPE_NAMES` is a top-level const and **not** a
+  property of `window`, so `window.PROP_TYPE_NAMES` is undefined and a
+  name test against it matched everything; and a substring test must
+  reject the empty name for the same reason. The smoke asks eight
+  questions and checks three word searches still fall through.
+
 ## Licensing
 
 `LICENSE` is GPL-3.0-or-later and covers the work here (it was MIT until

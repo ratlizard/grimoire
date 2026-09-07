@@ -913,6 +913,8 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 .mechVerdict b { color:var(--gold); }
 .mechBalloon { display:block; margin:4px 0 0; }
 @media (max-width:640px) { .mechBars .bLabel { max-width:38vw; } .mechPlot .pY { width:32px; } }
+.askCard { margin-top:0; }
+.askAnswer .sv-note { margin-top:8px; }
 .skillCard .skillKey { color:#9d9270; font-size:11px; text-transform:uppercase; letter-spacing:1px; white-space:nowrap; width:1%; padding-right:14px; vertical-align:top; }
 .lessonList { color:#d3c9a6; font-style:italic; }
 #atlasPanel { margin:0; background:#000; }
@@ -1327,7 +1329,7 @@ body.atlasFull { overflow:hidden; }
   <p class="sv-why" style="text-align:center;margin-bottom:8px">Searches every decoded script at once
   &mdash; instruction names, engine calls and the text the player sees. Use it when a resource is not
   referenced by id but is clearly related to something, which is most of them.</p>
-  <input id="searchBox" type="search" placeholder="fire, TakeDamage, locked&hellip;" oninput="queueSearch()">
+  <input id="searchBox" type="search" placeholder="fire, TakeDamage, who teaches axe&hellip;" oninput="queueSearch()">
   <div id="searchPresets" class="sv-chips" style="justify-content:center;margin-top:8px"></div>
   <div id="searchResults"></div>
 </div>
@@ -12699,6 +12701,173 @@ function queueSearch() {
   _searchTimer = setTimeout(runSearch, 220);
 }
 
+/* ---------------------------------------------------------------------------
+   Asking a question, answered from the tables the page already holds.
+
+   The search finds text. A question is not a text search: "who teaches axe"
+   is not a hunt for the word "axe", it is the training table filtered by
+   skill, and the answer is a row rather than a list of hits. Nine shapes are
+   recognised, each naming a table this page already builds on the spot and
+   which column the question fixes. Anything that fits none of them falls
+   through to the ordinary search, which is also where a recognised question
+   goes if its subject is not in the file.
+
+   No model is involved and none is needed: every one of these is a filter.
+   The same shapes are what a model would have to be handed anyway, so this
+   is the retrieval half built first and on its own.
+--------------------------------------------------------------------------- */
+const ASK_SHAPES = [
+  { id: 'teaches', re: /^(?:who|where can i|where do i)\s+(?:can\s+)?(?:teach(?:es)?|learn|train(?:s|ed)?(?:\s+in)?)\s+(?:me\s+)?(.+?)\??$/i,
+    what: 'who teaches a skill' },
+  { id: 'sells',   re: /^(?:who\s+sells|where (?:can i (?:buy|get)|do i buy))\s+(?:an?\s+|the\s+)?(.+?)\??$/i,
+    what: 'who sells a thing' },
+  { id: 'cost',    re: /^(?:how much (?:is|does .* cost|for)|what does)\s+(?:an?\s+|the\s+)?(.+?)(?:\s+cost)?\??$/i,
+    what: 'what a thing costs' },
+  { id: 'does',    re: /^what does\s+(?:the\s+)?(.+?)\s+do\??$/i, what: 'what a spell or skill does' },
+  { id: 'cures',   re: /^(?:what|how do i)\s+(?:cures?|cure|fix(?:es)?)\s+(.+?)\??$/i, what: 'what clears a status' },
+  { id: 'says',    re: /^who says\s+["“']?(.+?)["”']?\??$/i, what: 'who says a line' },
+  { id: 'resists', re: /^what (?:is|are)\s+(?:the\s+|an?\s+)?(.+?)\s+(?:immune to|resistant to|proof against)\??$/i,
+    what: 'what a monster resists' },
+  { id: 'where',   re: /^where (?:is|are|can i find)\s+(?:the\s+|an?\s+)?(.+?)\??$/i, what: 'where a thing or a person is' },
+  { id: 'who',     re: /^who (?:is|was)\s+(?:the\s+)?(.+?)\??$/i, what: 'who somebody is' }
+];
+function askNorm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function askRow(k, v) { return '<tr><td class="skillKey">' + k + '</td><td>' + v + '</td></tr>'; }
+function askCard(title, note, rows, chips) {
+  return '<section class="mechSec askCard"><div class="mechHead"><h3>' + svEsc(title) + '</h3></div>' +
+    (note ? '<p class="mechLede">' + note + '</p>' : '') +
+    (rows && rows.length ? '<div class="mechBody"><table class="vocabTable barkTable mechTable"><tbody>' + rows.join('') + '</tbody></table></div>' : '') +
+    (chips ? '<div class="partsStrip">' + chips + '</div>' : '') + '</section>';
+}
+function askCharacterChip(who, fallback) {
+  try { if (who !== null && who !== undefined && loadCharacterTable()[who]) return characterChip(who); } catch (e) {}
+  return fallback || '';
+}
+/* One question. Returns HTML, or null when the shape was not recognised or
+   its subject is not in this archive -- in both cases the caller falls back
+   to searching the text, which is the honest thing to do with a question
+   this cannot answer. */
+function answerQuestion(q) {
+  // Several shapes can match one sentence -- "what does fireball do" reads as
+  // both the price question and the what-does-it-do one -- so each is tried
+  // in turn and the first that finds its subject in the file answers.
+  for (const sh of ASK_SHAPES) {
+    const hit = sh.re.exec(q.trim());
+    if (!hit) continue;
+    const out = askOneShape(sh, hit);
+    if (out) return out;
+  }
+  return null;
+}
+function askOneShape(shape, hit) {
+  const m = { sh: shape, hit };
+  // Articles are not part of the name: "a lich", "the sword".
+  const subject = askNorm(m.hit[1]).replace(/^(?:an?|the|some)\s+/, '');
+  if (!subject) return null;
+  const like = name => { const n = askNorm(name); return !!n && (n === subject || n.includes(subject) || subject.includes(n)); };
+  try {
+    if (m.sh.id === 'teaches') {
+      const skills = skillCatalogue().filter(x => like(x.name) && x.kind !== 'command');
+      if (!skills.length) return null;
+      return skills.map(x => askCard('Who teaches ' + x.name,
+        x.teachers.length ? 'From the training helper: every script that teaches it.' : 'Nobody in this archive teaches it. It is learned some other way, or not at all.',
+        x.teachers.map(t => askRow(t.mastery ? 'to mastery' : 'teaches',
+          askCharacterChip(t.who, svChip(t.resid)))),
+        partChip(x.name, x.resid))).join('');
+    }
+    if (m.sh.id === 'sells' || m.sh.id === 'cost') {
+      const rows = [];
+      for (const sp of shopRules().shops)
+        for (const g of sp.goods)
+          if (like(g.name)) rows.push(askRow(g.price + ' obols' + (g.count > 1 ? ' for ' + g.count : ''),
+            askCharacterChip(sp.who, svChip(sp.resid)) + (sp.title ? ' <span class="inspDim">“' + svEsc(sp.title) + '”</span>' : '')));
+      if (!rows.length) return null;
+      return askCard(m.sh.id === 'cost' ? 'What ' + m.hit[1].trim() + ' costs' : 'Who sells ' + m.hit[1].trim(),
+        'The listed price, before the vendor bargains. Haggling takes a further roll of 0 to 5 off.',
+        rows, mechLink('shops', 'Mechanics › shops'));
+    }
+    if (m.sh.id === 'does') {
+      const sp = spellRules().spells.find(x => like(x.name));
+      if (sp) {
+        const fx = spellEffects().get(sp.resid);
+        const rows = [askRow('level', String(sp.level)), askRow('costs', sp.cost + ' magic')];
+        if (fx) {
+          for (const d of fx.damage) rows.push(askRow('damage', '<b>' + (amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.who));
+          for (const h of fx.heals) rows.push(askRow('heals', '<b>' + svEsc(h.text) + '</b>'));
+        }
+        return askCard(sp.name, svEsc(dvmDescriptionOf(sp.resid) || ''), rows, partChip(sp.name, sp.resid) + mechLink('spells', 'Mechanics › spells'));
+      }
+      const sk = skillCatalogue().find(x => like(x.name));
+      if (sk) return askCard(sk.name, svEsc(sk.description || ''),
+        [askRow('taught by', sk.teachers.map(t => askCharacterChip(t.who, svChip(t.resid))).join(' ') || '<span class="inspDim">nobody in this archive</span>')]
+          .concat(sk.askedBy.length ? [askRow('asked about by', sk.askedBy.map(r => svChip(r)).join(' '))] : [])
+          .concat(sk.weapons.length ? [askRow('swung with it', sk.weapons.map(w => svEsc(w.name)).join(', '))] : []),
+        partChip(sk.name, sk.resid));
+      return null;
+    }
+    if (m.sh.id === 'cures') {
+      const st = statusRules();
+      const name = [...st.cures.keys()].find(like);
+      if (!name) return null;
+      const by = [...(st.cures.get(name) || [])];
+      return askCard('What clears ' + name,
+        'Every script that takes it off. A potion, a spell, or somebody who does it for you.',
+        by.map(r => askRow(selfNameFor(r) || ('0x' + r.toString(16).toUpperCase()), svChip(r))),
+        mechLink('status', 'Mechanics › status effects'));
+    }
+    if (m.sh.id === 'says') {
+      const hits = buildBarkCatalogue().filter(b => b.words.concat(b.then || []).some(w => askNorm(w).includes(subject)));
+      if (!hits.length) return null;
+      return askCard('Who says “' + m.hit[1].trim() + '”', 'From the balloon lines in the scripts.',
+        hits.slice(0, 12).map(b => askRow(b.words.filter(w => askNorm(w).includes(subject)).map(w => '“' + svEsc(w) + '”').join(', '),
+          askCharacterChip(b.who, '<span class="inspDim">anyone — </span>' + svChip(b.resid)))),
+        '<button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>');
+    }
+    if (m.sh.id === 'resists') {
+      const N = PROP_TYPE_NAMES;
+      const ms = parseMonsterStats().filter(r => r.proptype && like(N[r.proptype] || ''));
+      if (!ms.length) return null;
+      return askCard('What ' + m.hit[1].trim() + ' resists', 'From the monster record’s flag word, as the default resistance script reads it.',
+        ms.slice(0, 6).map(r => askRow(N[r.proptype] || ('class ' + r.proptype),
+          svEsc(monsterFlagsText(r.flags)) + ' <span class="inspDim">· armour ' + r.armor + ', ' + r.hp + ' health</span>')),
+        mechLink('combat', 'Mechanics › combat'));
+    }
+    if (m.sh.id === 'where' || m.sh.id === 'who') {
+      const tab = loadCharacterTable();
+      const idx = [];
+      for (let i = 1; i < tab.length; i++) if (tab[i] && like(characterName(i))) idx.push(i);
+      if (idx.length) return askCard(m.sh.id === 'who' ? 'Who ' + m.hit[1].trim() + ' is' : 'Where ' + m.hit[1].trim() + ' is',
+        'From the character table and the schedules.',
+        idx.slice(0, 6).map(i => askRow(characterName(i),
+          askCharacterChip(i, '') + ' <span class="inspDim">' + svEsc(zoneDisplayName(tab[i].zone)) + ' (' + tab[i].x + ',' + tab[i].y + '), level ' + tab[i].level + '</span>')), '');
+      if (m.sh.id === 'where') {
+        // A thing: the item classes with that name, and the maps they lie on.
+        const N = PROP_TYPE_NAMES;
+        const pts = Object.keys(N).map(Number).filter(pt => like(N[pt]));
+        if (!pts.length) return null;
+        const rows = [];
+        for (const pt of pts.slice(0, 3)) {
+          const where = [];
+          for (let n = 0; n < 0x100 && where.length < 6; n++) {
+            const mr = 0x8000 + n;
+            let recs = null;
+            try { const raw = getResourceBytes(mr + 0x100); if (raw) recs = parseDelverPropList(smartDecrypt(raw, mr + 0x100).data); } catch (e) {}
+            if (!recs) continue;
+            const hit = recs.find(r => r.proptype === pt && r.onMap && r.flags !== 0xFF && r.flags !== 0x42 && r.flags !== 0x44);
+            if (hit) where.push('<button class="sv-chip" onclick="showSquareOnMap(' + mr + ',' + hit.x + ',' + hit.y + ')">' + svEsc(atlasMapName(mr)) + ' (' + hit.x + ',' + hit.y + ')</button>');
+          }
+          rows.push(askRow(N[pt], where.join(' ') || '<span class="inspDim">not lying anywhere; carried, or made by a script</span>'));
+        }
+        return askCard('Where ' + m.hit[1].trim() + ' is', 'The first few places one is lying on the ground.', rows, '');
+      }
+      return null;
+    }
+  } catch (e) { return null; }
+  return null;
+}
+// The text search, when a question was answered but the reader wanted the
+// hits after all.
+function askSearchAnyway() { window.ASK_SKIP = true; runSearch(); window.ASK_SKIP = false; }
 function runSearch() {
   const q = document.getElementById('searchBox').value.trim();
   const host = document.getElementById('searchResults');
@@ -12721,6 +12890,17 @@ function runSearch() {
     }
     host.innerHTML = '<div class="sv-warn">No resource 0x' +
       rid.toString(16).toUpperCase().padStart(4, '0') + ' in this archive.</div>';
+    return;
+  }
+  // A question first: nine shapes that name a table rather than a word to
+  // look for. Anything else, and anything whose subject is not in the file,
+  // falls through to searching the text.
+  let answer = null;
+  try { answer = window.ASK_SKIP ? null : answerQuestion(q); } catch (e) { answer = null; }
+  if (answer) {
+    host.innerHTML = '<div class="mechView askAnswer">' + answer +
+      '<div class="sv-note">Read out of this archive, not looked up. ' +
+      '<button class="linkbtn" onclick="askSearchAnyway()">Search the text for “' + svEsc(q) + '” instead</button></div></div>';
     return;
   }
   host.innerHTML = '<div class="sv-note">Decoding every script&hellip;</div>';

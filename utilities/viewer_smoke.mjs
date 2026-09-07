@@ -1378,6 +1378,19 @@ try {
     else if (!tried) console.log('  font swap: no test font on this machine, only the refusal checked');
     else console.log('  font swap: ' + tried + ' font(s) put in the fork and taken back out, each with a Mac Roman map');
   }
+  // Questions, answered from the tables rather than by searching the text.
+  {
+    const ask = q => { let a = null; try { a = ctx.answerQuestion(q); } catch (e) { a = null; } return a ? String(a).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ') : null; };
+    const want = [['who teaches axe', /Thersites/], ['what does fireball do', /burst of flame/],
+                  ['what cures poison', /clears poison/], ['who says Yum', /Alaric/],
+                  ['what is a lich immune to', /non-magical/], ['who is Alaric', /Land King Hall/],
+                  ['how much is a sword', /45/], ['what does haggling do', /haggle better/]];
+    const bad = want.filter(([q, re]) => { const a = ask(q); return !a || !re.test(a); }).map(x => x[0]);
+    const through = ['fire', 'who teaches basketry', 'what does xyzzy do'].filter(q => ask(q));
+    if (bad.length) fail('ask', 'these questions were not answered from the file: ' + bad.join('; '));
+    else if (through.length) fail('ask', 'these should have fallen through to the text search: ' + through.join('; '));
+    else console.log('  ask: ' + want.length + ' question shapes answered off the tables, and a word search still falls through');
+  }
   ctx.showCategory('BARKS');
   const bhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/Hot Kabobs!/.test(bhtml) || !/openCharacter\(2\)/.test(bhtml)) fail('barks', 'the Barks tab does not list the lines with their speakers');
