@@ -224,6 +224,15 @@ const CHECKS = [
   {page: 'viewer', name: 'undither vs truth',
    cmd: ['utilities/undither_check.mjs', 'index.html'],
    grep: /measured is [\d.]+% better overall for [\d.]+% at edges/},
+  /* ...and the half that check cannot see. Its sources are synthetic and
+     entirely dithered, so it says nothing about a picture that is dither in
+     one part and pixel art in another -- which is every portrait in the game.
+     This one holds the frame exactly and requires the face inside it to still
+     be reduced, from the real archive, because the evidence for which is
+     which is the corpus itself. */
+  {page: 'viewer', name: 'portrait frame lock', want: [DATA],
+   cmd: ['utilities/frame_lock_check.mjs', 'index.html', DATA],
+   grep: /the vintner's grapes: \d+\/\d+ pixels exactly as drawn/},
   /* The Mechanics sheet's probabilities: the closed-form models in
      js/delv-mechanics.js against a Monte Carlo simulation of the same rules
      in utilities/mech_ref.mjs, written from the sheet's prose rather than

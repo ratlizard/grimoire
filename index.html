@@ -3752,7 +3752,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.22.0';
+const GRIMOIRE_VERSION = '1.23.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4873,6 +4873,12 @@ function resetDerivedCaches() {
   window.EDITED_RESIDS = new Set();
   window.SOUND_USAGE = null;
   window.ZONE_BACKDROPS = null;
+  /* The undither's frame lock reads the whole portrait corpus to decide which
+     pixels one portrait shares with another, so both it and the undithered
+     images it produced are keyed to the open archive even though each is
+     memoised on pixels alone. A modded archive has different frames. */
+  if (typeof resetSharedArt === 'function') resetSharedArt();
+  if (typeof UNDITHER_CACHE !== 'undefined') UNDITHER_CACHE.clear();
   // CYTHERA_RSRC is not reset here: it is set from the container by
   // parseArchiveBytes immediately after this runs, and clearing it afterwards
   // would throw the fork away every load.

@@ -295,7 +295,8 @@ const UD = {
   radius:1, sens:0.67, lock:true, diagonals:false, strength:0.67, edge:64, passes:3,
   detail:0.5, speck:0, speckPasses:2, speckLiterals:false, stray:40, strayRegion:0.65,
   nlm:0, nlmPatch:2, nlmSearch:4, upscale:2, supersample:true, scaler:"guided",
-  filter:"notch", quantise:"off", quantiseK:2, lockAnimated:true, protectCutout:true
+  filter:"notch", quantise:"off", quantiseK:2, lockAnimated:true, protectCutout:true,
+  lockSharedArt:true
 };
 
 /* A second set of settings, and why there are two.
@@ -343,6 +344,95 @@ const AXES_ALL      = [[1,0],[0,1],[1,1],[1,-1]];
 function isAnimatedIndex(n){ return n >= 0xE0 && n < 0xFC; }
 
 /* ------------------------------------------------------------
+   Shared art: the frame around a portrait is not dithered.
+
+   Every Cythera portrait is a face inside a frame, and the two
+   are different kinds of picture. The face is continuous tone
+   put into 256 colours by dithering, which is exactly what this
+   filter exists to undo. The frame is pixel art -- masonry,
+   gems, crossed swords, a vine with grape clusters -- drawn a
+   pixel at a time, and where it alternates two colours it is
+   doing so deliberately, as a pattern. Averaging that is not
+   reconstruction, it is damage: the vintner's grapes came out
+   as two flat magenta blobs.
+
+   Nothing in a pixel tells you which it is, and every local
+   test tried confuses them -- a checkerboard of two magentas is
+   a checkerboard of two magentas whether a hand or a dither put
+   it there. So the evidence is taken from the archive instead:
+   a frame is DRAWN ONCE AND REUSED across the portraits that
+   share it, and a face never is. Ambrosia's artists worked that
+   way, and the file still shows it.
+
+   The test is therefore whether a pixel's whole neighbourhood
+   appears identically, at the same coordinates, in some other
+   portrait. 5x5 rather than 3x3, which was tried first and is
+   too weak: flat highlights on two different faces agree over
+   3x3 by coincidence often enough to lock parts of a cheek. At
+   5x5 that stops, and what is left is the frame, the vine and
+   the grapes, with the face untouched.
+
+   It is measured from the corpus rather than listed, so a
+   modded archive gets its own frames and nothing here has a
+   table to go stale. A portrait whose frame is unique to it
+   locks nothing, which is the right answer: there is then no
+   evidence, and the filter's old behaviour is what it gets.
+   ------------------------------------------------------------ */
+const SHARED_ART_R = 2;              /* the 5x5 above */
+const PORTRAIT_SUBN = 135;
+let _portraitCorpus = null, _sharedArtCache = new Map();
+
+/* Cleared by resetDerivedCaches() in the page, like everything else
+   keyed to the open archive -- the corpus IS the open archive. */
+function resetSharedArt(){ _portraitCorpus = null; _sharedArtCache = new Map(); }
+
+function portraitCorpus(){
+  if (_portraitCorpus) return _portraitCorpus;
+  _portraitCorpus = [];
+  /* Ambient, exactly as getResourceBytes is everywhere else in this tier;
+     and absent in a harness that hands bytes straight to the decoders, where
+     the answer is simply an empty corpus and no lock. */
+  try {
+    const mi = (typeof masterIndexGlobal !== 'undefined') ? masterIndexGlobal : null;
+    if (!mi || !mi[PORTRAIT_SUBN]) return _portraitCorpus;
+    const cnt = mi[PORTRAIT_SUBN][1] | 0;
+    for (let i = 0; i < cnt / 8; i++) {
+      const resid = ((PORTRAIT_SUBN + 1) << 8) | i;
+      try {
+        const b = getResourceBytes(resid); if (!b) continue;
+        const d = decodeResource(b, PORTRAIT_SUBN, resid);
+        if (d && d.image) _portraitCorpus.push(d);
+      } catch (e) {}
+    }
+  } catch (e) { _portraitCorpus = []; }
+  return _portraitCorpus;
+}
+
+function sharedArtMask(image, W, H){
+  const corpus = portraitCorpus();
+  if (!corpus.length) return null;
+  const R = SHARED_ART_R, N = W * H;
+  const m = new Uint8Array(N), eq = new Uint8Array(N);
+  let any = 0;
+  for (const q of corpus) {
+    if (q.W !== W || q.H !== H || q.image === image) continue;
+    let same = 0;
+    for (let i = 0; i < N; i++) { const e = q.image[i] === image[i] ? 1 : 0; eq[i] = e; same += e; }
+    /* A portrait cannot be evidence about itself, and a duplicate resource
+       would otherwise lock the whole picture. */
+    if (same === N) continue;
+    for (let y = R; y < H - R; y++) for (let x = R; x < W - R; x++) {
+      const i = y * W + x; if (m[i]) continue;
+      let ok = 1;
+      for (let dy = -R; dy <= R && ok; dy++) for (let dx = -R; dx <= R; dx++)
+        if (!eq[i + dy * W + dx]) { ok = 0; break; }
+      if (ok) { m[i] = 1; any++; }
+    }
+  }
+  return any ? m : null;
+}
+
+/* ------------------------------------------------------------
    Protected pixels.
 
    Two things are never touched by any stage:
@@ -369,6 +459,17 @@ function buildLockedMask(indexPlane, opt, rgba, W, H){
   for(let i=0;i<N;i++){
     if(opt.protectCutout!==false && rgba && rgba[i*4+3]===0){ locked[i]=1; continue; }
     if(opt.lockAnimated && indexPlane && isAnimatedIndex(indexPlane[i])){ locked[i]=1; continue; }
+  }
+  /* Third, and the only one that has to look outside this picture: art this
+     portrait shares with another, which is its frame. See the block above
+     buildLockedMask's neighbour, sharedArtMask. Memoised on the pixels, since
+     a gallery redraws constantly and the answer depends on nothing else. */
+  if(opt.lockSharedArt!==false && indexPlane && W && H && indexPlane.length===W*H){
+    const k = W + 'x' + H + ':' + hashIndices(indexPlane);
+    let m;
+    if(_sharedArtCache.has(k)) m = _sharedArtCache.get(k);
+    else { m = sharedArtMask(indexPlane, W, H); _sharedArtCache.set(k, m); }
+    if(m) for(let i=0;i<N;i++) if(m[i]) locked[i]=1;
   }
   return locked;
 }

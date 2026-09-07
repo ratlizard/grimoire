@@ -329,7 +329,7 @@ from outside the repository.
   `--quick` skips it.
 
 A check whose inputs are genuinely missing is reported as **skip**, not fail.
-A clean run is **18 ok, 0 failed, 0 skipped**. Anything else is a
+A clean run is **19 ok, 0 failed, 0 skipped**. Anything else is a
 regression. Without the game in `reference/` most checks skip, and `delvmod
 write` and `disk image` are the two checks with an oracle still running — its synthetic archives are built on the fly. `dialogue vs
 guides` has a second, optional input of its own — the community's dialogue
@@ -521,6 +521,12 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   every reference entry's handle are memory rather than data, zeroed in a
   fresh fork and carried through a rewrite. Its synthetic half builds a fork
   from nothing, which is what every real caller does, and needs no game.
+- `frame_lock_check.mjs` — the half `undither_check.mjs` cannot see. Its
+  sources are synthetic and dithered throughout, so it says nothing about a
+  picture that is dither in one part and pixel art in another, which is every
+  portrait in the game. This runs the real filter over the real archive and
+  requires the frame back byte for byte **and** the face inside it still
+  reduced. See **The undither holds the frame** in the per-page notes.
 - `mech_check.mjs` (+ `mech_ref.mjs`) — the Mechanics sheet's probabilities,
   and the one part of that sheet that never had an oracle. Every other number
   on it is read off the archive, so delvmod and the disassembly check stand
@@ -1105,6 +1111,42 @@ Read the comment above a constant before correcting it.
   file's. `vise_check.mjs` takes the installed-folder archive as a sixth
   argument now and pins all of it, including the method — so the day a
   decompressor lands, that check says so rather than staying quiet.
+- **The undither holds the frame, v1.23.0** (7 September 2026). Every
+  portrait is two kinds of picture at once: a face, which is continuous tone
+  dithered into 256 colours and is exactly what the filter exists to undo,
+  and a frame, which is pixel art — masonry, gems, crossed swords, a vine
+  with grape clusters — drawn a pixel at a time. Where the frame alternates
+  two colours it means to, as a pattern, and averaging that is damage rather
+  than reconstruction: the vintner's grapes (0x8811) came out as two flat
+  magenta blobs. The maintainer pointed at that portrait.
+  **Nothing local can tell the two apart**, and every local test tried
+  confuses them — a checkerboard of two magentas is a checkerboard of two
+  magentas whether a hand or a dither put it there. So the evidence is taken
+  from the archive: **a frame is drawn once and reused across the portraits
+  that share it, and a face never is.** `sharedArtMask` in
+  `js/delv-graphics.js` locks a pixel whose whole **5×5** neighbourhood
+  appears identically, at the same coordinates, in another portrait; 3×3 was
+  tried first and is too weak, since flat highlights on two different faces
+  agree over 3×3 often enough to lock parts of a cheek. `buildLockedMask`
+  folds it in beside the cut-out and animated-index locks, which `undither`
+  already honours — `detect` zeroes a locked pixel's gradient and
+  `guidedUpscale` refuses to blend across a lock boundary — so the frame
+  comes back byte for byte. It holds 940, 572 and 1,204 pixels of the three
+  portraits the check names (23%, 14%, 29%).
+  **It is measured from the corpus rather than listed**, so a modded archive
+  gets its own frames and there is no table to go stale; a portrait whose
+  frame is unique to it locks nothing, which is the right answer — with no
+  evidence the filter behaves as it always did. Both the corpus and
+  `UNDITHER_CACHE` are dropped by `resetDerivedCaches()`: each is memoised on
+  pixels alone, but the answer depends on which archive is open.
+  `utilities/frame_lock_check.mjs` is the new check and it holds the rule
+  from **both** ends, because a lock that grows too eager is as wrong as no
+  lock and neither shows in a snapshot: every locked pixel identical, **and**
+  more than half the unlocked pixels still moving. The grapes are pinned by
+  their own palette indices — 55 of 82 exactly as drawn, against 9 with the
+  lock off. One trap paid for: the first version of that assertion counted
+  *colours* on the cluster and is backwards, since averaging a two-colour
+  checker into a gradient raises the count.
 - **The map is editable, v1.19.0** (6 September 2026). The third structured
   editor, after the prop record's field form and the ditherizer, and the
   first that edits by **pointing at the thing**. A toolbar under the map
