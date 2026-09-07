@@ -1107,6 +1107,28 @@ body.atlasFull { overflow:hidden; }
   text-transform:uppercase; color:#9b8850; }
 .mapToggleGroup label { display:flex; align-items:center; gap:5px; cursor:pointer;
   white-space:nowrap; }
+/* ---- the Cheats sheet -----------------------------------------------------
+   Two-column tables of key and effect, so the key caps line up down the left
+   and the prose wraps under its own heading rather than beside it. */
+.cheatH { margin:2px 0 6px; font-size:16px; }
+.cheatH4 { margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:#9b8850; }
+.cheatNote { font-size:11.5px; color:#8d8368; line-height:1.55; margin:6px 2px; }
+.cheatNote b { color:#b9ad8a; }
+.cheatTable { min-width:0; }
+.cheatTable td { vertical-align:top; }
+.cheatCombo { width:150px; white-space:normal; }
+.cheatKey { display:inline-block; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px;
+  padding:2px 6px; border:1px solid rgba(155,136,80,.55); border-bottom-width:2px; border-radius:4px;
+  background:rgba(20,18,14,.7); color:#e8dcb4; }
+.cheatGlyph { color:#c4a464; font-size:14px; margin-left:4px; }
+.cheatCode { display:block; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:10.5px; color:#7f7760; margin-top:3px; }
+.cheatDoes { font-size:12px; color:#a89d7c; line-height:1.5; margin-top:2px; }
+.cheatSprites { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+.cheatSprite { font-size:11.5px; color:#a89d7c; background:rgba(20,18,14,.55);
+  border:1px solid rgba(155,136,80,.3); border-radius:4px; padding:2px 7px; }
+.cheatSprite b { color:#e8dcb4; font-family:ui-monospace,Menlo,Consolas,monospace; }
+.cheatSprite.isMonster { border-color:rgba(190,120,90,.4); }
+.cheatSprite.isMonster b { color:#e0b48c; }
 /* ---- the saved-game sheet -------------------------------------------------
    The head is a portrait beside a sentence, the rest is the fork table's own
    look, so this adds five rules rather than a second table style. */
@@ -1378,6 +1400,7 @@ body.atlasFull { overflow:hidden; }
            any other category. -->
       <optgroup label="Data">
         <option value="SAVEGAME">Saved game: the party and everyone else</option>
+        <option value="CHEATS">Cheat mode: the keys and the gate</option>
         <option value="DATAFORK">Data fork (every subindex)</option>
         <option value="CHANGES">Changes this session</option>
         <option value="INSTALLER">The installer: every file in it</option>
@@ -3729,7 +3752,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.20.1';
+const GRIMOIRE_VERSION = '1.21.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4608,6 +4631,7 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'MACRSRC' || FORK_VIEWS[window.CUR_SUBN]) { renderMacRsrcSheet(); return; }
   if (window.CUR_SUBN === 'MONSTERS') { renderMonsterSheet(); return; }
   if (window.CUR_SUBN === 'SAVEGAME') { renderSaveSheet(); return; }
+  if (window.CUR_SUBN === 'CHEATS') { renderCheatsSheet(); return; }
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
   if (window.CUR_SUBN === 'CHANGES') { renderChangesSheet(); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
@@ -5519,7 +5543,7 @@ function onCategoryChangeImpl() {
   if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
   // The Data tab's own views: not subindexes, no resources to list.
   if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' || rawval === 'SKILLS' || rawval === 'SPELLS' ||
-      rawval === 'SAVEGAME' ||
+      rawval === 'SAVEGAME' || rawval === 'CHEATS' ||
       rawval === 'WORLD' || PLACEHOLDER_TABS[rawval]) {
     window.CUR_SUBN = rawval;
     window.CUR_RESIDS = [];
@@ -12871,6 +12895,9 @@ const TAB_TREE = [
           { id: 'apprsrc', label: 'Resource Fork', tile: 0x238, values: ['APPRSRC'] },
           // The same fork read as what it is for: the menus, the dialogs and
           // windows, the cursors that are the game's verbs, the icons.
+          // A key: what the application does that the archive knows nothing
+          // about, read out of its own key routine.
+          { id: 'cheats', label: 'Cheats', tile: 0x236, values: ['CHEATS'] },
           { id: 'interface', label: 'Interface', tile: 0x770, values: ['UIMENUS', 'UIDIALOGS', 'UICURSORS', 'UIICONS'] } ] },   // the strange device (prop 262): a thing to operate
       { id: 'combatai', label: 'Combat AI', tile: 0x2D1, wip: true, children: [               // the rolling pin
           { id: 'aiscripts', label: 'Scripts', tile: 0x220, wip: true, values: ['AISCRIPTS'] },  // a scroll
@@ -13167,6 +13194,159 @@ function tileHasTransparency(t) {
    somewhere, the tab it shows it under. This is the map from the archive's
    own structure to the tree above it, and it is the view to start from when
    a subindex is not where you expected. */
+/* ---- Data > Cythera (App) > Cheats ---------------------------------------
+   Cythera has a cheat mode, and until 5 September 2026 nobody could reach it.
+   The Cutting Room Floor lists a "potential cheat mode" and stops there; this
+   is why it stayed potential, and what is behind it.
+
+   THE WHOLE TABLE IS READ OUT OF THE EXECUTABLE, not collected. The map
+   window's `TMapWindow::KeyRoutine` (PowerPC `0x0437BC`) is one switch over
+   the key byte; the strings and the called routines were resolved through the
+   TOC, and the private workbench's `doc/cythera_keys.md` is the walk. Two
+   things follow that no amount of playing would have shown: the gate is a
+   preferences bit the game itself never sets, and `option-x` is broken —
+   it toggles a flag on character 0, which is nobody.
+
+   The gate is why this page can offer the mode at all: `writeResourceFork`
+   arrived in v1.18.0 and the Tools tab writes a `Cythera Preferences` file
+   with that bit set. Verified once in systemless on 5 September 2026 — the
+   code typed, "Cheat mode activated." printed, and option-shift-/ answering
+   with the player's position in hex.
+
+   Mac Roman codes; the option-letter is the US layout. `myprintf` writes to
+   the status window and `mygetnum` reads a number typed there. */
+const CHEAT_KEYS = [
+  ['∆',  '$C6', 'option-j',        'Jump',            'Prints “Jump from [level,x,y]:”, asks Level, X and Y in hex, then calls TGameViewer::GoToLocation — teleport anywhere in the game.'],
+  ['Ô',  '$EF', 'option-shift-j',  'Take teleporter', 'Asks a teleporter number in decimal, then TGameSys::TeleportTo(1, n, 0).'],
+  ['ß',  '$A7', 'option-s',        'Create a prop',   'Asks a prop number in hex, Data1 in decimal and Data2 in hex; NewProp makes it, the owner is set to character 1 and the inventory redraws — the object lands in the hero’s pack.'],
+  ['π',  '$B9', 'option-p',        'What prop is this?', 'Asks a prop index and prints its record: class and state bytes, position, Data1, Data2. Then falls straight through into the option-r toggle below — a missing branch in the game’s own switch.'],
+  ['¿',  '$C0', 'option-shift-/',  'Where am I?',     'Prints the player’s x and y.'],
+  ['ˇ',  '$FF', 'option-shift-t',  'What time is it?', 'Prints “Current time = <clock>, day <n>”.'],
+  ['†',  '$A0', 'option-t',        'Pass the time',   'Passes a quarter of an hour — DoTicks(1024) — and redraws.'],
+  ['< >', '',   '',                'Darken / brighten', 'DarkenLight and BrightenLight: the ambient light of the level, a step at a time.'],
+  ['√',  '$C3', 'option-v',        'Magic map',       'MakeZone then MagicMap around the player, shown until the mouse button is pressed.'],
+  ['Ω',  '$BD', 'option-z',        'Show the zone bitmap', 'Copies MagicMap’s own buffer to the window, offset to the player, until the button is pressed.'],
+  ['µ',  '$B5', 'option-m',        'Show the other bitmap', 'The same for MakeBitMap’s buffer.'],
+  ['∑',  '$B7', 'option-w',        'Walk through anything', 'Toggles the viewer byte that TGameSys::CanMove and TryMove test first, so nothing blocks.'],
+  ['˙',  '$FA', 'option-h',        'Everyone is hostile', 'Toggles the byte GetEnemyStatus tests first: every character becomes every other’s enemy.'],
+  ['˛',  '$FE', 'option-shift-x',  'See in the dark', 'Toggles flag 18, vision of night, on the player.'],
+  ['®',  '$A8', 'option-r',        'Regenerate',      'Toggles flag 12 on the player, which AddAbility maps to status bit 4 — the six-minute regeneration Omen’s ring grants.'],
+  ['≈',  '$C5', 'option-x',        'Swamp protection (broken)', 'Meant to toggle flag 31, swamp-poison protection. It reads byte 26 of record 0 rather than the player’s, so it toggles a flag on nobody and does nothing.'],
+];
+// In the same routine and NOT behind the cheat flag: anyone can type these.
+const CHEAT_OPEN_KEYS = [
+  ['', '$CA', 'option-space', 'Turn-based movement', 'Toggles it, printing “Enabling/Disabling turn-based movement.”'],
+  ['¡', '$C1', 'option-1', 'Speed limiter', 'SLEnable / SLDisable. The PowerPC code compares $C1, which is option-1 on a US layout — the “option-l” of the older 68K reading is worth trying on a real keyboard.'],
+  ['1–8', '', '', 'A party member’s window', 'Opens the character window for that member.'],
+  ['Z', '', '', 'Z stats', 'PrintZStats.'],
+  ['{ }', '', '', 'CD volume', 'Down and up by 10, over 0–255.'],
+  ['', '', 'play stop paus next prev ejec', 'CD transport', 'The same rolling four-byte word as the cheat code, matched against those six words when a CD is present. The routines are unnamed in the symbol table and are read from their argument shapes: the words are certain, the verbs are the obvious reading.'],
+];
+
+/* Every prop class some character record wears, named from the archive. This
+   is the trick the community did with Pandora's Box — search the running
+   game for the short 32, change it, and be a chicken — turned into a field:
+   the Saved Game sheet edits `sprite class` on any record, and these are the
+   numbers that mean somebody. BreadWorldMercy453's 1999 list was gathered by
+   trying values; this one is read off 0xF009, so it cannot drift. */
+function cheatSpriteClasses() {
+  const seen = new Map();
+  const add = (pt, kind) => {
+    if (!pt || seen.has(pt)) return;
+    let nm = null;
+    try { nm = propDisplayName(pt); } catch (e) {}
+    if (nm) seen.set(pt, { pt, name: nm, kind });
+  };
+  // The people first, then the monsters: 0xF009 says which classes a named
+  // character wears, 0xF008 which ones a monster does.
+  try { for (const pt of [...characterProptypes()].sort((a, b) => a - b)) add(pt, 'person'); } catch (e) {}
+  try { for (const m of parseMonsterStats()) if (!m.blank) add(m.proptype, 'monster'); } catch (e) {}
+  return [...seen.values()].sort((a, b) => a.pt - b.pt);
+}
+
+function renderCheatsSheet() {
+  stopAllViewActivity();
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  document.getElementById('singleControls').style.display = 'none';
+  const key = k => k ? '<kbd class="cheatKey">' + svEsc(k) + '</kbd>' : '';
+  const rows = list => list.map(([glyph, code, combo, what, does]) =>
+    '<tr><td class="cheatCombo">' + key(combo || glyph) +
+      (combo && glyph ? ' <span class="cheatGlyph">' + svEsc(glyph) + '</span>' : '') +
+      (code ? '<span class="cheatCode">' + svEsc(code) + '</span>' : '') + '</td>' +
+    '<td><b>' + svEsc(what) + '</b><div class="cheatDoes">' + svEsc(does) + '</div></td></tr>').join('');
+
+  let h = '<h3 class="cheatH">Cheat mode</h3>' +
+    '<div class="mechLede">Cythera has one, and no shipped copy can reach it. Everything on this ' +
+    'page is read out of the application’s own <code>TMapWindow::KeyRoutine</code> — one switch over ' +
+    'the key byte — rather than collected from players, which is how two things below are known that ' +
+    'no amount of playing would show.</div>';
+
+  h += '<div class="mechSec"><h4 class="cheatH4">The gate</h4><ul class="ruleList">' +
+    '<li>The map window keeps the last four key bytes in a rolling word. When that word is ' +
+    '<b>©gra</b> — option-g, then <b>g</b>, <b>r</b>, <b>a</b> on a US layout — <i>and</i> ' +
+    '<b>bit 0 of byte 3</b> of the four-byte “UI Prefs” record is set, the cheat flag flips and the ' +
+    'status window prints “Cheat mode activated.”</li>' +
+    '<li><b>Nothing in the game sets that bit.</b> <code>TApPrefWindow::SaveSettings</code> writes ' +
+    'bytes 0 and 1 and no more, and all three defaults — chosen by CPU type at first run — have byte 3 ' +
+    'clear. So on a shipped copy you can type the code for ever and nothing happens.</li>' +
+    '<li>The bit has one other reader: <code>main</code> busy-waits two seconds at startup when it is set.</li>' +
+    '<li>The letters of the code arm targeting modes as they go, so the tab reads ATTACK afterwards until ' +
+    'you press <b>M</b>.</li></ul>' +
+    '<div class="cheatNote">This page can write the preferences file with that bit set — ' +
+    actionChip('Tools › Cythera Preferences', "showCategory('TOOLS')") +
+    ' — as a MacBinary for a real Mac or a small disk image for an emulator. It was tried once, in ' +
+    'systemless on 5 September 2026: the code typed, “Cheat mode activated.” printed, and ' +
+    'option-shift-/ answered with the player’s position in hex.</div></div>';
+
+  h += '<div class="mechSec"><h4 class="cheatH4">With the cheat flag on</h4>' +
+    '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + rows(CHEAT_KEYS) +
+    '</tbody></table></div></div>';
+
+  h += '<div class="mechSec"><h4 class="cheatH4">In the same routine, and not gated at all</h4>' +
+    '<div class="cheatNote">These work in any copy of the game, cheat mode or not.</div>' +
+    '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + rows(CHEAT_OPEN_KEYS) +
+    '</tbody></table></div></div>';
+
+  const sprites = cheatSpriteClasses();
+  if (sprites.length) {
+    h += '<div class="mechSec"><h4 class="cheatH4">Be somebody else</h4>' +
+      '<div class="cheatNote">The oldest Cythera cheat is Pandora’s Box: search the running game for ' +
+      'the number <b>32</b>, the hero’s sprite class, and write another one over it. ' +
+      'The Saved Game sheet does it in the file instead — the <b>sprite class</b> field on any ' +
+      'record — and these are the ' + sprites.length + ' classes somebody in the shipped ' +
+      'archive actually wears — the people out of 0xF009, the monsters out of 0xF008 — rather than ' +
+      'found by trying values. ' +
+      actionChip('Saved Game', "showCategory('SAVEGAME')") + '</div>' +
+      '<div class="cheatSprites">' + sprites.map(s =>
+        '<span class="cheatSprite' + (s.kind === 'monster' ? ' isMonster' : '') + '"><b>' + s.pt +
+        '</b> ' + svEsc(s.name) + '</span>').join('') +
+      '</div></div>';
+  }
+
+  h += '<div class="mechSec"><h4 class="cheatH4">Cheats that need no cheat mode</h4>' +
+    '<div class="cheatNote">What this page can change on its own, and hand back as a file the game ' +
+    'will open. Every one of them rebuilds the whole archive and shows you the result, so what you ' +
+    'see is what the export carries.</div><ul class="ruleList">' +
+    '<li><b>The party’s records.</b> Where they stand, how strong, how well fed, how many training ' +
+    'points — 32 bytes each. ' + actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li>' +
+    '<li><b>The map.</b> Paint terrain, place a prop, take one off — walls in Cythera are terrain, so ' +
+    'a wall is removed by painting the floor over it. ' + actionChip('Regions', "showCategory('127')") + '</li>' +
+    '<li><b>Any resource, as hex</b>, through Edit Bytes on the resource itself.</li>' +
+    '<li><b>Where it all comes out.</b> ' + actionChip('Changes', "showCategory('CHANGES')") + '</li></ul></div>';
+
+  h += '<div class="cheatNote" style="margin-top:14px">One thing the table above says that the ' +
+    'community’s lists could not: <b>option-x is broken</b>. It means to toggle swamp-poison ' +
+    'protection and reads byte 26 of record 0 — nobody — so it protects no one. And option-p falls ' +
+    'through into option-r’s toggle, so asking what a prop is also flips the player’s regeneration.</div>';
+
+  grid.innerHTML = '<div class="changesView">' + h + '</div>';
+  out.textContent = 'Cheat mode: ' + CHEAT_KEYS.length + ' keys behind the gate, ' +
+    CHEAT_OPEN_KEYS.length + ' in the same routine without it.';
+}
+
 /* ---- Data > Saved Game ----------------------------------------------------
    A Cythera player file read as what it is, and edited a field at a time.
 

@@ -1407,6 +1407,36 @@ try {
   else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${(html.match(/class="mechFig"/g) || []).length} figures drawn; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);
 } catch (e) { fail('mechanics', e); }
 
+/* The Cheats sheet. Its two key tables are constants read out of the
+   executable, so what is worth checking is that they reach the page whole and
+   that the one part built from the ARCHIVE -- the sprite classes -- is really
+   read off 0xF009 and 0xF008 rather than hardcoded. The hero's own class, 32,
+   has to be in it: that is the number Pandora's Box searched for. */
+try {
+  if (!ctx.showCategory('CHEATS')) fail('cheats', 'the Cheats tab refused to open');
+  else {
+    const html = REGISTRY.get('sheetGrid').innerHTML || '';
+    // Both tables are top-level consts, so they are not vm-global properties.
+    const keys = peek('CHEAT_KEYS').length, open = peek('CHEAT_OPEN_KEYS').length;
+    const sprites = ctx.cheatSpriteClasses();
+    const hero = sprites.find(s => s.pt === 32);
+    const rows = (html.match(/<tr>/g) || []).length;
+    if (!/©gra/.test(html) || !/bit 0 of byte 3/.test(html))
+      fail('cheats', 'the gate is not stated');
+    else if (rows !== keys + open)
+      fail('cheats', `${rows} key rows drawn for ${keys} + ${open} keys`);
+    else if (!/option-x/.test(html) || !/broken/.test(html))
+      fail('cheats', 'the broken swamp-protection key is not called broken');
+    else if (!hero || !/hero/i.test(hero.name))
+      fail('cheats', 'class 32 is not in the sprite list as the hero: ' + JSON.stringify(hero));
+    else if (sprites.length < 40 || !sprites.some(s => s.kind === 'monster'))
+      fail('cheats', `only ${sprites.length} sprite classes, monsters ` +
+           (sprites.some(s => s.kind === 'monster') ? 'present' : 'missing'));
+    else console.log(`  cheats: the ©gra gate stated, ${keys} keys behind it and ${open} beside it, ` +
+                     `${sprites.length} sprite classes read off the archive with 32 the hero`);
+  }
+} catch (e) { fail('cheats', e); }
+
 /* The preferences file, on the Tools tab. The bytes are pinned by
    resfork_write_check; what this adds is that the section renders, that the
    two switches are there for a visitor to reach, and that the page does not

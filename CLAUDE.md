@@ -412,7 +412,12 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   once and blitted after, that the square card names the person, stays
   quiet over bare ground for a passing pointer and gives the ground to a
   held finger, and that full screen pins and unpins the panel where the
-  browser offers no element full screen. Its `map editor` section drives the
+  browser offers no element full screen. Its `cheats` section requires the
+  ©gra gate stated, a key row for every entry of both tables, `option-x`
+  called broken, and the sprite classes to be **read off the archive** — class
+  32 present and named the hero, forty or more classes with monsters among
+  them — so a hardcoded list would fail it.
+  Its `map editor` section drives the
   four editing tools over the archive's smallest map and judges each by what
   the REBUILT archive holds:
   a three-square stroke arriving as one edit with a fourth square untouched,
@@ -1149,6 +1154,33 @@ Read the comment above a constant before correcting it.
   encrypted**, so it cannot happen there — but a modded archive is exactly
   what the fallback is for, and on one of those the tools refuse and say so
   rather than writing to the wrong bytes.
+- **The cheats are all on one sheet, v1.21.0** (7 September 2026). Data ›
+  Cythera (App) › Cheats (`renderCheatsSheet`), because everything on it is
+  read out of the **application** rather than the archive: the map window's
+  `TMapWindow::KeyRoutine` is one switch over the key byte, and the workbench's
+  `doc/cythera_keys.md` § *Cheat keys* is the walk that resolved its strings
+  and callees through the TOC. `CHEAT_KEYS` (16, behind the gate) and
+  `CHEAT_OPEN_KEYS` (6, in the same routine and not gated) are that table
+  transcribed.
+  **The gate is the point.** `©gra` typed in the map window flips cheat mode
+  only when bit 0 of byte 3 of the four-byte "UI Prefs" record is set, and
+  **nothing in the game sets it** — which is presumably how TCRF's "potential
+  cheat mode" stayed potential. The sheet says so and points at Tools, where
+  v1.18.0's preferences writer will make the file with that bit on.
+  **Two things a played-through list could not know**: `option-x` means to
+  toggle swamp-poison protection and reads byte 26 of *record 0*, which is
+  nobody, so it protects no one; and `option-p` falls through into
+  `option-r`'s toggle, so asking what a prop is also flips the player's
+  regeneration.
+  **One section is read off the archive, not transcribed.** *Be somebody
+  else* is the Pandora's Box trick — search the running game for 32, the
+  hero's sprite class, and write another number over it — turned into a
+  field, since the Saved Game sheet edits `sprite class` on any record.
+  `cheatSpriteClasses()` derives the 51 classes somebody actually wears from
+  0xF009 and 0xF008 rather than copying BreadWorldMercy453's 1999 list, so it
+  cannot drift; the smoke test requires class 32 to be in it and to be named
+  the hero. The last section is the page's own editors as cheats — the party's
+  records, the map, Edit Bytes — with a chip to each.
 - **The saved game is read and edited, v1.20.0** (6 September 2026). The
   page had opened Cythera player files since September 2026 and then had
   almost nothing to say about one: a `DelP` file landed on the Data Fork
