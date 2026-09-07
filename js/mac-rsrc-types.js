@@ -864,6 +864,139 @@ function sfntToTrueType(data){
   tables.push({tag:'OS/2', bytes:os2});
   return rebuildSfnt(data,tables);
 }
+/* The other direction: a TrueType font from today, made fit for the game.
+
+   sfntToTrueType gives a browser a font the classic Mac made. This gives the
+   classic Mac a font the modern world made, which is a different problem: the
+   Mac addresses glyphs by MAC ROMAN BYTE through a platform-1 cmap subtable,
+   and a font built this century almost always carries a Unicode cmap and
+   nothing else. Loaded as it stands such a font draws nothing at all in
+   Cythera -- every byte the game passes misses.
+
+   So: read whatever Unicode subtable the font has, look up the code point
+   each Mac Roman byte stands for (MACROMAN_HIGH again, the same table read
+   the other way round), and write a platform-1 subtable of the results. Format
+   0 is the 1984 one every Mac understands and holds a byte per glyph, so it
+   can only name the first 256 glyphs; a font whose Latin-1 accents live above
+   that gets format 6 instead, which is also in the 1990 specification and
+   which the Font Manager reads. The Unicode subtable is kept alongside, so the
+   same bytes still preview in a browser.
+
+   Layout tables (GPOS, GSUB, GDEF) and the digital signature are dropped:
+   the classic rasteriser reads none of them, and they are most of the weight
+   of a modern font. The name table is left as it came, since a classic Mac
+   takes the family name from the FOND resource rather than from the font. */
+function sfntUnicodeLookup(c){
+  const n=u16be(c,2); const subs=[];
+  for(let i=0;i<n;i++){ const p=4+i*8; subs.push({pl:u16be(c,p), enc:u16be(c,p+2), off:u32be(c,p+4)}); }
+  // Best first: Unicode full repertoire, then BMP, then Windows symbol.
+  const rank=s=>(s.pl===3&&s.enc===10)?0:(s.pl===0)?1:(s.pl===3&&s.enc===1)?2:(s.pl===3&&s.enc===0)?3:9;
+  subs.sort((a,b)=>rank(a)-rank(b));
+  for(const s of subs){
+    if(rank(s)===9) continue;
+    const o=s.off, fmt=u16be(c,o);
+    if(fmt===4){
+      const segX2=u16be(c,o+6), seg=segX2/2;
+      const endO=o+14, startO=endO+segX2+2, deltaO=startO+segX2, rangeO=deltaO+segX2;
+      return cp=>{
+        if(cp>0xFFFF) return 0;
+        for(let i=0;i<seg;i++){
+          if(u16be(c,endO+i*2)<cp) continue;
+          const st=u16be(c,startO+i*2);
+          if(st>cp) return 0;
+          const ro=u16be(c,rangeO+i*2);
+          if(!ro) return (cp+s16(c,deltaO+i*2))&0xFFFF;
+          const gi=rangeO+i*2+ro+(cp-st)*2;
+          if(gi+1>=c.length) return 0;
+          const g=u16be(c,gi);
+          return g?((g+s16(c,deltaO+i*2))&0xFFFF):0;
+        }
+        return 0;
+      };
+    }
+    if(fmt===12){
+      const groups=u32be(c,o+12);
+      return cp=>{
+        for(let i=0;i<groups;i++){
+          const g=o+16+i*12, a=u32be(c,g), b=u32be(c,g+4);
+          if(cp>=a&&cp<=b) return u32be(c,g+8)+(cp-a);
+        }
+        return 0;
+      };
+    }
+    if(fmt===6){
+      const first=u16be(c,o+6), count=u16be(c,o+8);
+      return cp=>(cp>=first&&cp<first+count)?u16be(c,o+10+(cp-first)*2):0;
+    }
+    if(fmt===0) return cp=>(cp<256?c[o+6+cp]:0);
+  }
+  return null;
+}
+const SFNT_DROP_TABLES = ['GPOS','GSUB','GDEF','DSIG','FFTM','LTSH','VDMX','hdmx','gasp','BASE','JSTF','MATH'];
+function trueTypeToSfnt(data){
+  if(data.length<12) throw new Error('that file is too short to be a font');
+  const scaler=String.fromCharCode(data[0],data[1],data[2],data[3]);
+  const ver=u32be(data,0);
+  if(scaler==='ttcf') throw new Error('that is a font collection (.ttc). Save one face out of it as a .ttf first.');
+  if(scaler==='OTTO') throw new Error('that font draws with PostScript outlines (OpenType CFF). The classic Mac only rasterises TrueType outlines, so it needs a .ttf rather than an .otf.');
+  if(ver!==0x00010000&&scaler!=='true') throw new Error('that file does not begin like a TrueType font');
+  const numTables=u16be(data,4);
+  const tables=[];
+  for(let i=0;i<numTables;i++){
+    const p=12+i*16;
+    const tag=String.fromCharCode(data[p],data[p+1],data[p+2],data[p+3]);
+    const off=u32be(data,p+8), len=u32be(data,p+12);
+    if(off+len>data.length) throw new Error('the font’s '+tag+' table runs past the end of the file');
+    if(SFNT_DROP_TABLES.indexOf(tag)>=0) continue;
+    tables.push({tag, bytes:data.slice(off,off+len)});
+  }
+  const find=t=>tables.find(x=>x.tag===t);
+  for(const need of ['head','hhea','hmtx','maxp','glyf','loca','cmap'])
+    if(!find(need)) throw new Error('the font has no '+need+' table, so the Mac cannot draw with it'+(need==='glyf'?' (it is probably an .otf renamed)':''));
+  const c=find('cmap').bytes;
+  const look=sfntUnicodeLookup(c);
+  if(!look) throw new Error('the font’s character map is in a form this page cannot read');
+  // Mac Roman byte -> glyph, for every byte the game can pass.
+  const gid=new Array(256).fill(0);
+  let widest=0, mapped=0;
+  for(let b=0x20;b<256;b++){
+    const cp=b<0x80?b:MACROMAN_HIGH[b-0x80];
+    if(cp===undefined) continue;
+    const g=look(cp);
+    if(!g) continue;
+    gid[b]=g; mapped++;
+    if(g>widest) widest=g;
+  }
+  if(mapped<32) throw new Error('the font has fewer than 32 of the characters the game uses, so it would draw mostly blanks');
+  let macSub;
+  if(widest<256){
+    macSub=new Uint8Array(262); const dv=new DataView(macSub.buffer);
+    dv.setUint16(0,0); dv.setUint16(2,262); dv.setUint16(4,0);
+    for(let b=0;b<256;b++) macSub[6+b]=gid[b];
+  } else {
+    const first=0x20, count=0x100-first;
+    macSub=new Uint8Array(10+count*2); const dv=new DataView(macSub.buffer);
+    dv.setUint16(0,6); dv.setUint16(2,macSub.length); dv.setUint16(4,0);
+    dv.setUint16(6,first); dv.setUint16(8,count);
+    for(let i=0;i<count;i++) dv.setUint16(10+i*2,gid[first+i]);
+  }
+  // The best Unicode subtable, kept as it came, so a browser can still read
+  // the font out of the archive afterwards.
+  const n=u16be(c,2); let uni=null;
+  for(let i=0;i<n;i++){ const p=4+i*8, pl=u16be(c,p), en=u16be(c,p+2), off=u32be(c,p+4);
+    if((pl===3&&(en===1||en===10))||pl===0){ const fmt=u16be(c,off); const len=fmt===12?u32be(c,off+4):u16be(c,off+2);
+      if(off+len<=c.length&&(!uni||fmt===4)) uni={pl:pl===0?0:3, en:pl===0?3:en, bytes:c.slice(off,off+len)}; } }
+  const recs=[{pl:1,en:0,bytes:macSub}];
+  if(uni) recs.push({pl:uni.pl,en:uni.en,bytes:uni.bytes});
+  recs.sort((a,b)=>a.pl-b.pl||a.en-b.en);
+  let need=4+recs.length*8; const offs=[];
+  for(const r of recs){ offs.push(need); need+=r.bytes.length; }
+  const out=new Uint8Array(need); const odv=new DataView(out.buffer);
+  odv.setUint16(0,0); odv.setUint16(2,recs.length);
+  recs.forEach((r,i)=>{ odv.setUint16(4+i*8,r.pl); odv.setUint16(6+i*8,r.en); odv.setUint32(8+i*8,offs[i]); out.set(r.bytes,offs[i]); });
+  find('cmap').bytes=out;
+  return { bytes: rebuildSfnt(data,tables), mapped, format: widest<256?0:6, dropped: numTables-tables.length };
+}
 // The table directory in tag order with fresh checksums, and the whole-font
 // checksum adjustment in head, over whatever tables are handed in.
 function rebuildSfnt(data,tables){

@@ -1154,7 +1154,7 @@ Read the comment above a constant before correcting it.
   encrypted**, so it cannot happen there — but a modded archive is exactly
   what the fallback is for, and on one of those the tools refuse and say so
   rather than writing to the wrong bytes.
-- **The cheats are all on one sheet, v1.21.0** (7 September 2026). Data ›
+- **The cheats are all on one sheet, v1.22.0** (7 September 2026). Data ›
   Cythera (App) › Cheats (`renderCheatsSheet`), because everything on it is
   read out of the **application** rather than the archive: the map window's
   `TMapWindow::KeyRoutine` is one switch over the key byte, and the workbench's
@@ -1903,6 +1903,34 @@ Read the comment above a constant before correcting it.
   still draws its own gradients. The Seldane strikes decode; nothing yet
   sets Seldane text in them. `MSta`, `FILT`, `LINF`, `DATA` and `PORT` are
   listed and unread.
+
+
+- **The game's font can be swapped, v1.22.0** (7 September 2026) — the top
+  of the feature list since 5 September, and it was waiting on the fork
+  writer that landed on the 6th. `trueTypeToSfnt(data)` in
+  `js/mac-rsrc-types.js` is the mirror of `sfntToTrueType`: a font made
+  this century carries a Unicode cmap and nothing else, and the game
+  addresses glyphs by **Mac Roman byte**, so a platform-1 subtable is
+  built from whatever Unicode subtable the font has (`sfntUnicodeLookup`
+  reads formats 4, 12, 6 and 0) — format 0 when every glyph the game
+  needs is in the first 256, format 6 when it is not, which is the usual
+  case for a modern font. Layout and signature tables are dropped
+  (`SFNT_DROP_TABLES`); the name table is left alone, since a classic Mac
+  takes the family name from the FOND. An `.otf` is refused with the
+  reason (PostScript outlines, which the classic rasteriser cannot draw),
+  as is a `.ttc`. `swapGameFont(bytes, name)` replaces **sfnt 7289**'s
+  data in a `resourceForkSpec` of the open fork, writes the fork back,
+  re-opens it to prove it reads, and puts it in `CYTHERA_RSRC_RAW` —
+  which the disk image and MacBinary exports already carry, so the swap
+  leaves by the paths that existed. `ARCHIVE_ORIGINAL_RSRC` keeps the
+  fork as it arrived so `undoFontSwap()` can put it back. Both re-run
+  `installGameFont`, which now deletes the previously added FontFace
+  first, so **the page itself changes to the new font**: the preview is
+  the whole site. The panel is at the head of Fonts (`fontSwapPanel`).
+  The smoke swaps Andale Mono and the game's own font round-tripped,
+  checks each reads back as a font, converts out again for a browser and
+  carries a platform-1 subtable, and that undo restores the fork byte for
+  byte.
 
 ## Licensing
 

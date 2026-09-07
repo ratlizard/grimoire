@@ -3752,11 +3752,120 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.21.2';
+const GRIMOIRE_VERSION = '1.22.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
 window.GAME_FONT_STATE = '';
+/* ---------------------------------------------------------------------------
+   Swapping the game's own font.
+
+   The first thing this page does that changes how the GAME looks rather than
+   reporting on it, and the last thing on the feature list that was waiting on
+   somebody else: it needed a resource-fork writer, which arrived on
+   6 September 2026.
+
+   The game draws its text with `sfnt` 7289, which `FOND` 1046 names
+   "ArgosANouveau". Replacing the sfnt's bytes and leaving both ids alone
+   leaves every reference in the file pointing at the same place, so the game
+   asks for the same family and gets different outlines. The incoming font is
+   put through trueTypeToSfnt first, which is what gives it the Mac Roman
+   character map the game addresses glyphs by; without that the game draws
+   nothing at all.
+
+   The new fork replaces window.CYTHERA_RSRC_RAW, which is what the disk image
+   and the MacBinary export already carry, so the swapped font leaves the page
+   by the paths that were already there. Nothing is written to disk here and
+   the archive on the server is untouched: this is the copy in the browser.
+--------------------------------------------------------------------------- */
+window.FONT_SWAP = null;      // {name, mapped, format, from, bytes} once swapped
+function gameFontResource() {
+  const fork = window.CYTHERA_RSRC;
+  const list = fork && fork.resourcesByType && fork.resourcesByType['sfnt'];
+  if (!list || !list.length) return null;
+  return list.find(e => e.id === 7289) || list[0];
+}
+function swapGameFont(bytes, filename) {
+  const fork = window.CYTHERA_RSRC;
+  const target = gameFontResource();
+  if (!fork) throw new Error('no resource fork is open, so there is no font to replace');
+  if (!target) throw new Error('this fork has no sfnt resource');
+  const made = trueTypeToSfnt(bytes);
+  const spec = resourceForkSpec(fork);
+  let hit = 0;
+  for (const r of spec.resources)
+    if (r.type === 'sfnt' && r.id === target.id) { r.data = made.bytes; hit++; }
+  if (!hit) throw new Error('could not find sfnt ' + target.id + ' to replace');
+  const raw = writeResourceFork(spec);
+  const reopened = openResourceFork(raw);     // it must read back, or it is not written
+  window.CYTHERA_RSRC_RAW = raw;
+  window.CYTHERA_RSRC = reopened;
+  window.EDITOR_ZONE_NAMES = null;            // named out of the fork
+  window.FONT_SWAP = { name: filename || 'a font', mapped: made.mapped, format: made.format,
+                       from: target.id, bytes: made.bytes.length, was: bytes.length };
+  // The page is set in the game's font, so it now shows the new one: the
+  // preview is the whole site, which is as close to seeing it in the game as
+  // a browser gets.
+  try { installGameFont(); } catch (e) {}
+  return window.FONT_SWAP;
+}
+function fontSwapPanel() {
+  const box = document.createElement('div');
+  box.className = 'mechView';
+  const target = gameFontResource();
+  const sw = window.FONT_SWAP;
+  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Put another font in the game</h3></div>' +
+    (target
+      ? '<p class="mechLede">The game draws its text with <b>sfnt ' + target.id + '</b>, which the family record names ' +
+        svEsc(target.name || 'ArgosANouveau') + '. Choose a TrueType font (<b>.ttf</b>) and it takes that resource’s place in the copy of the archive ' +
+        'in this browser. The font is given the Mac Roman character map the game looks glyphs up by, and its layout and signature tables are dropped, ' +
+        'since the classic rasteriser reads none of them.</p>' +
+        '<ul class="ruleList"><li>Nothing is written to your disk here and nothing on the server changes.</li>' +
+        '<li>To play with it: <b>Data file › the disk image</b>, which carries the fork, then run the script on it in the emulator.</li>' +
+        '<li>A <b>.otf</b> will be refused. Those draw with PostScript outlines, which the classic Mac cannot rasterise.</li></ul>' +
+        '<div class="mechStats"><input type="file" id="fontSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
+        (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoFontSwap()">Put the game’s own font back</button>' : '') +
+        '</div>' +
+        (sw ? '<blockquote class="mechQuote">' + svEsc(sw.name) + ' is in the archive now, as sfnt ' + sw.from + ': ' +
+              sw.mapped + ' of the characters the game uses were found, in a format ' + sw.format + ' character map, ' +
+              (sw.bytes / 1024).toFixed(0) + ' KB of outlines. Export the disk image to play with it.</blockquote>' : '') +
+        '<div id="fontSwapNote" class="mechSub"></div>'
+      : '<p class="mechLede">No font resource is open, so there is nothing to replace. Open Cythera Data from a container that carries its resource fork — a .hqx, MacBinary or AppleSingle file.</p>') +
+    '</section>';
+  setTimeout(() => {
+    const f = document.getElementById('fontSwapFile');
+    if (!f) return;
+    // The verifier reads "async () =>" as a call to a function named async,
+    // so the read is done with a promise instead.
+    f.onchange = function () {
+      const file = f.files && f.files[0];
+      const note = document.getElementById('fontSwapNote');
+      if (!file) return;
+      const fail = e => {
+        if (note) note.textContent = 'That font could not be used: ' + e.message;
+        setStatus('That font could not be used: ' + e.message, true);
+      };
+      file.arrayBuffer().then(buf => {
+        const r = swapGameFont(new Uint8Array(buf), file.name);
+        setStatus(file.name + ' is now the game’s font in this copy — ' + r.mapped + ' characters mapped. Export the disk image to play with it.');
+        renderMacRsrcSheet();
+      }).catch(fail);
+    };
+  }, 0);
+  return box;
+}
+function undoFontSwap() {
+  const rec = window.ARCHIVE_ORIGINAL_RSRC;
+  if (!rec) { setStatus('The original fork was not kept; re-open the archive to get it back.', true); return; }
+  window.CYTHERA_RSRC_RAW = rec;
+  window.CYTHERA_RSRC = openResourceFork(rec);
+  window.FONT_SWAP = null;
+  window.EDITOR_ZONE_NAMES = null;
+  try { installGameFont(); } catch (e) {}
+  setStatus('The game’s own font is back.');
+  renderMacRsrcSheet();
+}
+
 function installGameFont() {
   window.GAME_FONT = null;
   const fork = window.CYTHERA_RSRC;
@@ -3769,9 +3878,13 @@ function installGameFont() {
   window.GAME_FONT_TTF = ttf;
   if (typeof FontFace === 'undefined' || !document.fonts) { window.GAME_FONT_STATE = 'this browser cannot load a font from bytes'; return; }
   try {
+    // A second face under the same family name would not replace the first,
+    // so a re-install after a font swap takes the old one out first.
+    try { if (window.GAME_FONT_FACE) document.fonts.delete(window.GAME_FONT_FACE); } catch (e) {}
+    window.GAME_FONT_FACE = null;
     const face = new FontFace('ArgosGame', ttf.buffer.slice(ttf.byteOffset, ttf.byteOffset + ttf.byteLength));
     window.GAME_FONT_STATE = 'loading';
-    face.load().then(f => { document.fonts.add(f); window.GAME_FONT = (entry.name || 'sfnt') + ' #' + entry.id; window.GAME_FONT_STATE = ''; })
+    face.load().then(f => { document.fonts.add(f); window.GAME_FONT_FACE = f; window.GAME_FONT = (entry.name || 'sfnt') + ' #' + entry.id; window.GAME_FONT_STATE = ''; })
                .catch(e => { window.GAME_FONT_STATE = 'the browser refused sfnt #' + entry.id + ': ' + (e && e.message || e); });
   } catch (e) { window.GAME_FONT_STATE = 'FontFace: ' + e.message; }
 }
@@ -4104,6 +4217,7 @@ function renderMacRsrcSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   const view = FORK_VIEWS[window.CUR_SUBN] || null;
+  if (window.CUR_SUBN === 'FONTS') grid.appendChild(fontSwapPanel());
   const kinds = view ? view.kinds.map(id => RSRC_KINDS.find(k => k.id === id)) : null;
   const sources = view ? (view.source === 'both' ? ['data', 'app'] : [view.source]) : [window.RSRC_SOURCE === 'app' ? 'app' : 'data'];
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
@@ -5353,6 +5467,8 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   // be re-opened from itself.
   window.ARCHIVE_SOURCE_NAME = sourceName;
   window.CYTHERA_RSRC_RAW = (meta.rsrc && meta.rsrc.length) ? meta.rsrc : null;
+  // Kept so a font swap can be undone without re-opening the archive.
+  if (meta.via !== 'edit') { window.ARCHIVE_ORIGINAL_RSRC = window.CYTHERA_RSRC_RAW; window.FONT_SWAP = null; }
   // The pstring at 0x20 is what delvmod calls `player_name`; the scenario
   // leaves it empty and every saved game in the community's add-ons carries
   // the name the file was saved under. It is what tells a saved game from

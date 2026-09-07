@@ -1345,6 +1345,39 @@ try {
     if (JSON.stringify([a, b, c]) !== '[[true,false,false],[true,false,true],[false,false,false]]') fail('animation', 'the setting does not set the flags as documented: ' + JSON.stringify([a, b, c]));
     else console.log('  animation: one setting — tiles, graphics, off — sets the three flags');
   }
+  // The font swap: a font from today, made fit for the game, into the fork.
+  {
+    const fs = await import('node:fs');
+    // The deep-link check above re-opened the data fork alone; the swap needs
+    // the resource fork, so the archive is opened once more with it.
+    if (!peek('window.CYTHERA_RSRC') && rsrcFork) ctx.parseArchiveBytes(archive, 'Cythera Data (for the font swap)', { via: 'data fork', rsrc: rsrcFork });
+    const paths = ['/System/Library/Fonts/Supplemental/Andale Mono.ttf', process.env.TMPDIR + '/Argos_from_fork.ttf'];
+    let tried = 0;
+    for (const path of paths) {
+      let b; try { b = new Uint8Array(fs.readFileSync(path)); } catch (e) { continue; }
+      tried++;
+      const before = peek('window.CYTHERA_RSRC_RAW').length;
+      const r = ctx.swapGameFont(b, path.replace(/^.*\//, ''));
+      const fork = peek('window.CYTHERA_RSRC');
+      const e = fork.resourcesByType['sfnt'].find(x => x.id === r.from);
+      const back = fork.dataOf('sfnt', e);
+      // it must read back as a font, and out again for a browser
+      const tt = ctx.sfntToTrueType(back);
+      // and it must carry a Mac Roman subtable, which is the whole point
+      const c = (function () { const n = ((back[4] << 8) | back[5]); for (let i = 0; i < n; i++) { const p = 12 + i * 16; if (String.fromCharCode(back[p], back[p + 1], back[p + 2], back[p + 3]) === 'cmap') return back.subarray((back[p + 8] << 24 >>> 0) + (back[p + 9] << 16) + (back[p + 10] << 8) + back[p + 11]); } return null; })();
+      const macSub = c && (function () { const n = (c[2] << 8) | c[3]; for (let i = 0; i < n; i++) { const p = 4 + i * 8; if (((c[p] << 8) | c[p + 1]) === 1) return true; } return false; })();
+      if (!(r.mapped > 60 && back.length > 1000 && tt.length > 1000 && macSub)) fail('font swap', path + ': ' + JSON.stringify([r.mapped, back.length, tt.length, macSub]));
+      else if (peek('window.CYTHERA_RSRC_RAW').length === before && b.length > 30000) fail('font swap', 'the fork did not change size');
+      ctx.undoFontSwap();
+      if (peek('window.CYTHERA_RSRC_RAW').length !== before) fail('font swap', 'undo did not put the original fork back');
+    }
+    let refused = '';
+    try { ctx.trueTypeToSfnt(new Uint8Array([0x4F, 0x54, 0x54, 0x4F, 0, 1, 0, 0, 0, 0, 0, 0])); } catch (e) { refused = e.message; }
+    if (!peek('window.CYTHERA_RSRC')) fail('font swap', 'no resource fork to swap a font into');
+    else if (!/PostScript/.test(refused)) fail('font swap', 'an .otf was not refused with a reason: ' + refused);
+    else if (!tried) console.log('  font swap: no test font on this machine, only the refusal checked');
+    else console.log('  font swap: ' + tried + ' font(s) put in the fork and taken back out, each with a Mac Roman map');
+  }
   ctx.showCategory('BARKS');
   const bhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/Hot Kabobs!/.test(bhtml) || !/openCharacter\(2\)/.test(bhtml)) fail('barks', 'the Barks tab does not list the lines with their speakers');
