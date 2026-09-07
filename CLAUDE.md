@@ -718,6 +718,16 @@ Read the comment above a constant before correcting it.
   247 (`b56d45` vs `b46c44`). Both are absorbed: `scale6to8` is
   `round((v >> 2) * 255 / 63)`, and the `>> 2` discards exactly those bits, so
   the rendered pixels are identical. Do not "fix" it.
+- **The palette is not injective, so there is no reverse map.** 28 of its 256
+  entries share a colour with another entry — `fcfcfc` is 0x0F and 0x10,
+  `545454` is 0x08 and 0x1A, `540000` is 0x2F and 0x3F, and so on. Building a
+  colour→index table to compare a rendered PNG against a decoder's indices
+  therefore reports differences that are not there: the two agree on every
+  pixel and disagree on which of two equal slots produced it. Compare indices
+  against indices, or pixels against pixels, never one against the other.
+  `canvasToIndexed` builds such a table on purpose (`_palLookup`, counted down
+  from 255 so the lowest index above 0 wins a shared colour), and it is for
+  taking a painted canvas back to indices, not for checking a decode.
 - **`PALETTE` and `MAC_4BIT_PAL`/`MAC_8BIT_PAL` in `js/mac-rsrc-types.js` are
   not duplication.** Those are Apple's standard tables; this is Cythera's own
   CLUT. Sharing them would be a mistake, and the two-tier `js/` says which is
