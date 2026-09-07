@@ -538,10 +538,33 @@ function byteEntropy(data) {
 const DELV_ENCRYPTED_SUBN = new Set([1,2,4,7,8,9,10,11,12,13,14,15,16,19,20,23,24,25,26,27,29,47]);
 const DELV_CLEAR_SUBN = new Set([0,3,127,128,131,135,137,141,142,143,144,187,239,254]);
 const DELV_CLEAR_RESID = new Set([0x0210]);
+/* The two subindexes only a PLAYER FILE has, and they are kept apart from the
+   three tables above on purpose: those are delvmod's, compared against
+   delvmod's own source by `delv_crosscheck.mjs`, and adding to them would
+   turn the oracle into a mirror. This one is ours, and it is read out of the
+   executable rather than guessed.
+
+   Every segment the engine writes into a player file goes through
+   `TCachedSegFiles::SaveSegment` / `TSegFile::SaveSegment`, which do not
+   encrypt: `SaveLevelProps` writes 0x81zz, 0x82zz and 0xF306, `SaveGlobals`
+   writes 0xF009 and 0xF00E, `THeap::Save` writes 0xF307 and 0xF308,
+   `TToDo::SaveToDo` 0x0401, `TStatusWindow::SaveMacros` 0x0404,
+   `CreatePlayer` 0x8800 and `TDelverApp::SaveToFile` 0x0400. The one routine
+   that encrypts, `SaveEncryptedSegment`, has exactly one caller —
+   `TInterp::DoInterpAt`, the script interpreter writing a script resource
+   back — so in a player file the script subindexes are encrypted and nothing
+   else is. 129 (0x82zz, the map memory) and 242 (0xF3zz, the script heap)
+   never occur in a scenario, so naming them clear here costs the scenario
+   nothing.
+
+   It mattered: both are zero-filled early in a game, the heuristic below
+   scores zeros worse than the noise they would decrypt to, and a saved game's
+   map memory and heap were being served as garbage. */
+const DELV_PLAYER_CLEAR_SUBN = new Set([129, 242]);
 
 function smartDecrypt(data, resid) {
   const subn = Math.floor(resid / 0x100) - 1;
-  if (DELV_CLEAR_RESID.has(resid) || DELV_CLEAR_SUBN.has(subn)) {
+  if (DELV_CLEAR_RESID.has(resid) || DELV_CLEAR_SUBN.has(subn) || DELV_PLAYER_CLEAR_SUBN.has(subn)) {
     return { data: data, wasDecrypted: false, rawScore: 0, decScore: 0, exempt: true, known: true };
   }
   if (DELV_ENCRYPTED_SUBN.has(subn)) {
@@ -559,11 +582,18 @@ function smartDecrypt(data, resid) {
   // 0x0540 were all being shown as raw garbage.
   let allZero = decrypted.length > 0;
   for (let i = 0; i < decrypted.length; i++) if (decrypted[i] !== 0) { allZero = false; break; }
-  if (allZero) {
-    let rawZero = true;
-    for (let i = 0; i < data.length; i++) if (data[i] !== 0) { rawZero = false; break; }
-    if (!rawZero) return { data: decrypted, wasDecrypted: true, rawScore: 0, decScore: 0, allZero: true };
-  }
+  let rawZero = data.length > 0;
+  for (let i = 0; i < data.length; i++) if (data[i] !== 0) { rawZero = false; break; }
+  if (allZero && !rawZero) return { data: decrypted, wasDecrypted: true, rawScore: 0, decScore: 0, allZero: true };
+  /* And the same certainty the other way round, which was missing until
+     7 September 2026. A resource that is ALREADY nothing but zero bytes
+     cannot be ciphertext: the keystream is never all zeros, so no plaintext
+     encrypts to this. The scoring heuristic cannot see that either -- zeros
+     have no printable characters, so the noise it would decrypt to wins --
+     and a saved game is where it showed: three of a player file's own
+     subindexes (0x82zz map memory, 0xF307 and 0xF308, the script heap) are
+     zero-filled in an early save and were all being served as garbage. */
+  if (rawZero) return { data: data, wasDecrypted: false, rawScore: 0, decScore: 0, allZero: true };
   const rawScore = printableRatio(data) - byteEntropy(data) / 32;
   const decScore = printableRatio(decrypted) - byteEntropy(decrypted) / 32;
   // Byte statistics alone get it wrong for small script resources: 0x1050 and

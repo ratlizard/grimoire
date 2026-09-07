@@ -3729,7 +3729,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.20.0';
+const GRIMOIRE_VERSION = '1.20.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -13201,25 +13201,30 @@ function tileHasTransparency(t) {
 window.SAVE_EDIT_OPEN = null;   // the record whose form is unfolded, kept across a rebuild
 window.SAVE_SHOW_ALL = false;   // slots that are marked but hold nobody
 
-// The parts of a player file, in the order a reader meets them. Only the ones
-// the open file actually has are listed.
+/* The parts of a player file, and what each is, traced through the
+   executable rather than guessed: every one of these is written by a named
+   routine in Cythera's own save path (`TDelverApp::SaveToFile` and what it
+   calls), which is also where the comment above DELV_PLAYER_CLEAR_SUBN gets
+   its rule that none of them is encrypted. Only the ones the open file
+   actually has are listed. */
 function savedGameParts() {
   const out = [];
   const add = (rid, what) => { if (refExists(rid)) out.push({ rid, what }); };
-  add(0xF009, 'the character records: everybody’s position, stats and condition');
+  add(0xF009, 'the character records — everybody’s position, stats and condition (SaveGlobals)');
+  add(0xF00E, 'field 20, status_flags: one 16-bit word per object, so poison and sleep survive a save (SaveGlobals)');
   const hero = loadCharacterTable()[1];
   if (hero && hero.zone) {
-    add(0x8100 | hero.zone, 'the props of the zone the player stands in, as they were left');
-      // 0x82zz is 512 bytes beside a 64x64 map, which is exactly one bit a
-    // square, and delvmod's wiki guesses it is the automap's memory of what
-    // has been explored. The one save in hand has it all zero, so the
-    // arithmetic is the whole of the evidence and the sheet says as much.
-    add(0x8200 | hero.zone, 'the same zone’s map memory: 512 bytes beside a 64×64 map, which is one bit a square — all zeros here, so what it records is not settled');
+    add(0x8100 | hero.zone, 'the props of the zone the player stands in, from record 256 up (SaveLevelProps)');
+    add(0x8200 | hero.zone, 'that zone’s map memory: ⌈width∕8⌉ × height bytes, one bit a square (SaveLevelProps)');
   }
-  add(0x8800, 'the player’s own portrait, which is why a mod can change it without touching the scenario');
-  add(0x0400, 'the compiled combat AI');
-  add(0xF306, 'more of the scripting system’s persistence');
-  add(0xF307, 'the scripting system’s persistent store — 256 KB of it, unread here');
+  add(0xF306, 'the first 256 prop records — the characters as they stand on that zone (SaveLevelProps)');
+  add(0x8800, 'the player’s own portrait, written when the character was made (CreatePlayer)');
+  add(0x0400, 'the live actors, streamed as tagged blocks — “Char”, “Mons”, “Grem” (SaveToFile)');
+  add(0x0401, 'the To Do list (SaveToDo)');
+  add(0x0404, 'the twenty macro slots; 0xFF is unassigned (SaveMacros)');
+  add(0xF307, 'the script system’s persistent heap — 256 KB, an allocator header at the top (THeap::Save)');
+  add(0xF308, 'the heap’s second segment (THeap::Save)');
+  for (let n = 0; n < 256; n++) add(0xE000 | n, 'a journal segment (TJournalSegment::Flush)');
   return out;
 }
 

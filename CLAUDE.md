@@ -1719,6 +1719,26 @@ Read the comment above a constant before correcting it.
   words are markup and the sprite is appended after them with `order:-1`;
   built the other way round the card's own `innerHTML` said nothing, which no
   harness could then check.
+- **A resource that is already all zeros is not ciphertext, v1.20.1.**
+  `smartDecrypt` had the certainty in one direction — a resource that
+  *decrypts* to nothing but zeros is an empty placeholder, whatever the
+  score says — and not in the other. The keystream is never all zeros, so
+  nothing encrypts to a zero-filled block either, and the scoring heuristic
+  cannot see it: zeros carry no printable characters, so the noise they would
+  decrypt to wins. It showed in a **saved game**, where three of the file's
+  own subindexes are zero-filled early in a game and were all being served as
+  garbage. Two rules fix it: the raw-all-zero certainty, and
+  `DELV_PLAYER_CLEAR_SUBN` — subindexes 129 (`0x82zz`, the map memory) and
+  242 (`0xF3zz`, the script heap), which occur in no scenario. **That set is
+  kept apart from delvmod's three tables on purpose**: those are the oracle,
+  compared against delvmod's own source by `delv_crosscheck.mjs`, and adding
+  to them would turn it into a mirror. This one is read out of the
+  executable instead — every segment Cythera's save path writes goes through
+  `SaveSegment`, which does not encrypt, and the one routine that does,
+  `SaveEncryptedSegment`, has exactly one caller: the script interpreter
+  writing a script resource back. The workbench's `doc/save-format.md` is
+  that walk, and the Saved Game sheet's parts table now names each segment
+  and the routine that writes it.
 - **A gallery nobody will look at is not drawn.** `jumpToResource` changes
   category and then opens one resource, and `setMode('single')` empties
   `#sheetGrid` on the next line — so the contact sheet the category change
@@ -1909,10 +1929,12 @@ about:
   shipped archive, so the tables become a labelled corpus of 1,558 resources
   and the fallback can be scored against them.
 
-  **It scores 62.5%**, and the breakdown says where: the structure test
-  (`dvmPlausibleContainer`, `dvmNamedScript`) gets 840 of 920 right, and the
-  printable-ratio-minus-entropy score gets **130 of 635** — worse than
-  deciding at random. A modded archive is read substantially wrong today, and
+  **It scores 63.3%**, and the breakdown says where: the structure test
+  (`dvmPlausibleContainer`, `dvmNamedScript`) gets 840 of 918 right, and the
+  printable-ratio-minus-entropy score gets **130 of 624** — worse than
+  deciding at random. (It was 62.5% over 920 and 635 until 7 September 2026,
+  when the raw-all-zero certainty below took a handful of resources out of
+  the scored population entirely.) A modded archive is read substantially wrong today, and
   widening the structure test at the score test's expense is what would fix
   it. The check's floor is set at the measured number so a change that makes
   it worse fails rather than passing quietly.
