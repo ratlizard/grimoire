@@ -1995,6 +1995,17 @@ Read the comment above a constant before correcting it.
   reject the empty name for the same reason. The smoke asks eight
   questions and checks three word searches still fall through.
 
+- **A walk cycle saves as a GIF, and two guards, v1.23.1.** A sprite sheet
+  is four facings of four poses laid a facing to a row, so the walk is the
+  first row whose four frames are all drawn; the dossier's button saves it
+  at 180 ms a frame (`downloadPropGIF` takes `delayMs` and `name` now).
+  Two things a sweep of every view turned up: `showCharacterDetail` threw
+  on an id the archive does not have, which a shared link or a saved game
+  can easily name, and now says so with a way back; and `encodeGIF` threw
+  on an empty frame list rather than refusing it. The sweep opened all
+  1,034 character, prop and monster detail views in the shipped archive
+  without another one throwing.
+
 ## Licensing
 
 `LICENSE` is GPL-3.0-or-later and covers the work here (it was MIT until

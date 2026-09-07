@@ -1391,6 +1391,19 @@ try {
     else if (through.length) fail('ask', 'these should have fallen through to the text search: ' + through.join('; '));
     else console.log('  ask: ' + want.length + ' question shapes answered off the tables, and a word search still falls through');
   }
+  // A link can name what the file does not have, and a GIF needs a frame.
+  {
+    let threw = null;
+    try { ctx.showCharacterDetail(999); } catch (e) { threw = e.message; }
+    const said = /no character 999/i.test(REGISTRY.get('sheetGrid').textContent || '');
+    let gifRefused = '';
+    try { ctx.encodeGIF(2, 2, [], {}); } catch (e) { gifRefused = e.message; }
+    if (threw) fail('guards', 'a character the file does not have threw: ' + threw);
+    else if (!said) fail('guards', 'a character the file does not have said nothing');
+    else if (!/at least one frame/.test(gifRefused)) fail('guards', 'an empty GIF was not refused: ' + gifRefused);
+    else console.log('  guards: a link to a character that is not there says so, and an empty GIF is refused');
+    ctx.showCharacterDetail(2);
+  }
   ctx.showCategory('BARKS');
   const bhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/Hot Kabobs!/.test(bhtml) || !/openCharacter\(2\)/.test(bhtml)) fail('barks', 'the Barks tab does not list the lines with their speakers');

@@ -3754,7 +3754,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.23.0';
+const GRIMOIRE_VERSION = '1.23.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4544,6 +4544,24 @@ function showCharacterDetail(i) {
   // onto its own line and made the whole panel look squashed to the left.
   document.getElementById('sheetGrid').style.display = 'block';
   const d = characterDossier(i);
+  // A link can name a character this archive does not have -- a saved game
+  // holds only what play changed, and a shared link outlives the file it was
+  // made from. Say so rather than throwing on the way to the first field.
+  if (!d) {
+    const g = document.getElementById('sheetGrid');
+    g.innerHTML = '';
+    const back = document.createElement('button');
+    back.className = 'secondary';
+    back.textContent = '\u25a6 All characters';
+    back.onclick = renderCharacterSheet;
+    g.appendChild(back);
+    const note = document.createElement('div');
+    note.className = 'sv-warn';
+    note.textContent = 'This file has no character ' + i + '. A saved game carries only what play changed, and a link outlives the file it was made from.';
+    g.appendChild(note);
+    document.getElementById('output').textContent = 'No character ' + i + ' in this archive.';
+    return;
+  }
   const grid = document.getElementById('sheetGrid');
   const out = document.getElementById('output');
   grid.innerHTML = '';
@@ -4579,6 +4597,25 @@ function showCharacterDetail(i) {
     sheet.appendChild(cv);
   }
   art.append(pc, sheet);
+  /* The walk, as a GIF. A sheet is four facings of four poses, laid out a
+     facing to a row, so a walk cycle is one row -- the first row whose four
+     frames are all drawn. At 180 ms a frame it walks at about the pace the
+     game does. */
+  const facings = [];
+  for (let f = 0; f + 3 < sprInfo.slots; f += 4) {
+    const row = [f, f + 1, f + 2, f + 3];
+    if (row.every(x => sprInfo.present.indexOf(x) >= 0)) facings.push(row);
+  }
+  if (facings.length) {
+    const gb = document.createElement('button');
+    gb.className = 'secondary';
+    gb.style.cssText = 'width:auto;margin:6px 0 0;padding:5px 12px;font-size:12px';
+    gb.textContent = 'Save the walk as a GIF';
+    gb.title = facings.length > 1 ? facings.length + ' facings are drawn; this saves the first' : '';
+    gb.onclick = () => downloadPropGIF(sprInfo.base, facings[0],
+      { delayMs: 180, name: safeFileName('cythera_' + (characterName(i) || ('character ' + i)) + ' walking') + '.gif' });
+    art.appendChild(gb);
+  }
   panel.appendChild(art);
 
   const r = d.rec;
@@ -18472,6 +18509,8 @@ function gifLZW(indexed, minCodeSize) {
 }
 function encodeGIF(W, H, frames, opts) {
   const o = opts || {};
+  if (!frames || !frames.length) throw new Error('a GIF needs at least one frame');
+  if (!(W > 0 && H > 0)) throw new Error('a GIF needs a size');
   const delay = Math.max(2, Math.round((o.delayMs || 100) / 10));
   const tr = (o.transparentIndex === undefined) ? null : o.transparentIndex;
   const bytes = [];
@@ -18544,7 +18583,10 @@ function downloadCurrentGIF() {
   downloadGIF(W, H, frames, 140, name);
 }
 // A prop's frames, in turn: one canvas per frame at the art's own size.
-function downloadPropGIF(base, frames) {
+// opts.delayMs sets the pace -- 700 for a strip of variants, 180 for a walk
+// cycle, which is four poses of one facing -- and opts.name the file.
+function downloadPropGIF(base, frames, opts) {
+  const o = opts || {};
   const cvs = frames.map(f => { const spr = drawPropSprite(base + f, 32); return spr && spr.canvas; }).filter(Boolean);
   if (!cvs.length) return;
   const W = Math.max(...cvs.map(c => c.width)), H = Math.max(...cvs.map(c => c.height));
@@ -18554,7 +18596,7 @@ function downloadPropGIF(base, frames) {
     pad.getContext('2d').drawImage(c, 0, H - c.height);
     return canvasToIndexed(pad);
   }).map(x => ({ indexed: x.indexed, palette: PAL_RGB }));
-  downloadGIF(W, H, out, 700, 'cythera_tile_0x' + base.toString(16).toUpperCase() + '.gif');
+  downloadGIF(W, H, out, o.delayMs || 700, o.name || ('cythera_tile_0x' + base.toString(16).toUpperCase() + '.gif'));
 }
 
 /* ---------------------------------------------------------------------------
