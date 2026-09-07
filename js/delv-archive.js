@@ -1045,8 +1045,8 @@ function delverPropsAtSquare(records, x, y) {
    (Hector before and after joining the party is the worked example there).
    Two fields are not from it: **nutrition at byte 27**, read out of the
    executable -- `TGameViewer::DoTicks` takes one off byte 27 of this record
-   every game hour (the trace is in the private workbench's `doc/game-clock.md`,
-   and the sheet's Hunger section is drawn from it) -- and byte 28's
+   every game hour (the sheet's Hunger section is drawn from that trace) --
+   and byte 28's
    neighbours, left unnamed. In I.M.Cheater, the community's cheated save,
    the hero's byte 27 is 24 (a full stomach) and byte 28 is 0xFF (255
    training points), which is exactly what the file is famous for.

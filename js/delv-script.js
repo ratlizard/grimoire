@@ -254,8 +254,7 @@ function dvmSym(table, code) {
 // dialogue script sets it, which these labels make visible in the decoder.
 // Flag 12, regeneration, is from the executable (5 September 2026): AddAbility
 // maps it to status bit 4, the bit the tick routine reads for one health every
-// six minutes, and the cheat key option-r toggles it (workbench
-// doc/cythera_keys.md, doc/game-clock.md).
+// six minutes, and the cheat key option-r toggles it.
 // Kept separate from DVM_SYM, whose tables delv_crosscheck.mjs proves against
 // delvmod line by line -- this one has no delvmod counterpart to prove
 // against, so it must not sit inside the oracle-checked object.

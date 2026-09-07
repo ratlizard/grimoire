@@ -2,14 +2,6 @@
 
 Guidance for AI assistants working in this repository.
 
-**If `NEXT-SESSION.md` exists one level up, in the workspace directory this
-repository is checked out into, read it in full before doing anything else.**
-It is the handoff, and it covers all seven repositories: untracked, in no
-repository, kept only on the machine the work happens on. A global SessionStart
-hook (`~/.claude/hooks/print-handoff.sh`) prints it when the session starts in
-that directory; if there is no `=== HANDOFF:` block in context and the file
-exists, read it yourself. A fresh clone has none, and that is expected.
-
 ## What this is
 
 **Grimoire** is a GitHub Pages static site of tools for reading, and in a
@@ -33,7 +25,16 @@ written to:
 | `ratlizard/wolflizard` | public fork of benletchford/systemless, where running the game happens. Its HFS reader is what the disk-image writer here is round-tripped through, and its WebAssembly build is what `ratlizard.github.io` runs. |
 | `ratlizard/ratlizard.github.io` | public, GitHub Pages. The browser player — the game running on the fork's WebAssembly build, at the bare `https://ratlizard.github.io/`. It was `alchemy/web/` until 8 September 2026, and it is where "play" lives now rather than here. |
 | `ratlizard/delvmod` | public fork of Bryce Schroeder's reference implementation of the Delver formats — the correctness oracle for Cythera's own (see **delvmod is the correctness oracle**). It is the submodule. |
-| `e-z-g/cythera-reference` | private. The game, its documentation, the community's writing and the cited Apple documentation. Expected here as `reference/`, gitignored; the snapshot and oracle checks need it. |
+
+Findings quoted here as read "out of the executable" — the game clock, the
+cheat-key table, the bark timings, the save format — were traced from
+Cythera's own binary with disassembly tooling kept outside this repository.
+What those traces established is written down here, at the point it is used;
+the tooling is not needed to read, run or check anything in this tree.
+
+`reference/` is the directory you put your own copy of the game into. It is
+gitignored and supplied by you; the snapshot and oracle checks read it, and
+fall back to fetching the installer when it is absent.
 
 **The site has no build step.** No `package.json`, no lockfile, no
 `requirements.txt`, no `.github/workflows`. `.nojekyll` at the root disables
@@ -183,9 +184,6 @@ deliberate. `reference/` is also what you read while working: the scraped
 forums and guides, the game's own documentation, Apple's Inside Macintosh
 volumes. Nothing in `reference/` is fetched by a page, and nothing should
 start being.
-
-It is `e-z-g/cythera-reference`, private; a symlink to a checkout of it under
-the name `reference` is the usual arrangement.
 
 ```
 reference/  (gitignored — supplied by you)
@@ -720,7 +718,7 @@ NFNT in JavaScript, and **the mac-\* tier has no oracle**: delvmod covers
 Cythera's Delver formats and says nothing about classic-Mac ones, so
 `rsrc_snapshot.mjs` is all that guards them — and a snapshot proves a decoder
 *unchanged*, never *right*. The second opinion is the retired native port in
-the private repository, whose C++ decoders were validated the hard way, by the
+`ratlizard/alchemy`, whose C++ decoders were validated the hard way, by the
 original binary running against them, and systemless, which renders the same
 formats in Rust. Three differences are known and recorded there rather than
 here. The one that was a bug on this side — **PICT `0x0090`/`0x0091`**,
@@ -1117,8 +1115,8 @@ Read the comment above a constant before correcting it.
   it; the blow word names that raw roll, before `ResistDamage`. And the
   **lock difficulty rounds up** — `(data1 + 19) / 20 * 5`, so a lock of 1
   already costs the full five and only a difficulty of nothing is free — with
-  both its rolls 0 to 18 rather than 0 to 19. `doc/game-clock.md` in the
-  workbench carried the inclusive reading and is corrected there.
+  both its rolls 0 to 18 rather than 0 to 19. The clock trace carried the
+  inclusive reading and is corrected there too.
   **One thing found and not resolved**, recorded here so it is not
   rediscovered: in `0xE87` the melee weapon-skill term reads
   `class_member 0x2A03` off **`local Var02`**, the defender's exhausted
@@ -1143,14 +1141,14 @@ Read the comment above a constant before correcting it.
   first byte is smooth movement**, which the shipped game implements in code
   and gates on this preference — the whole first byte is `0x9A` for
   "Smoother Movement" and `0x18` for the 68040 default, which is the one
-  32-pixel jump a tile that systemless gets (workbench
-  `doc/smooth-movement.md`, with the filmstrip). **Bit 0 of the fourth byte
+  32-pixel jump a tile that systemless gets (measured from a filmstrip of
+  sampled positions). **Bit 0 of the fourth byte
   is the gate on the cheat keys**: `©gra` in the map window toggles cheat
   mode only when it is set, `TApPrefWindow::SaveSettings` writes bytes 0 and
   1 and no more, and all three CPU-class defaults have byte 3 clear — so a
   shipped copy cannot enter cheat mode however long you type at it, which is
-  presumably how TCRF's "potential cheat mode" stayed potential (workbench
-  `doc/cythera_keys.md` has the whole key table). The page offers the file as
+  presumably how TCRF's "potential cheat mode" stayed potential (the whole
+  key table was read out of `TMapWindow::KeyRoutine`). The page offers the file as
   a MacBinary for a real Mac and as its own small disk image for an emulator,
   with an `Install Preferences` AppleScript beside it — **its own** disk
   rather than a third file on the archive's export disk, because a third file
@@ -1296,9 +1294,8 @@ Read the comment above a constant before correcting it.
   routine read again says the opposite: `GetEnemyStatus` answers **1** for
   every pair when the byte is set, 1 is the alignment table's *own side*, and
   all five callers treat **0** as enemy — so it empties the enemy list rather
-  than filling it. The workbench's `doc/tremor-and-enemies.md` had that
-  table's sixteen values three lines above the sentence that got it
-  backwards. The sheet now carries the correction, how it was caught, and the
+  than filling it. The trace of that routine had the alignment table's sixteen
+  values three lines above the sentence that got it backwards. The sheet now carries the correction, how it was caught, and the
   distinction it turns on: **a row that states bytes is transcription; a row
   that states an effect is an inference** from what the toggled byte is used
   for, and only five of the sixteen keys are dispatched by a direct compare,
@@ -1327,7 +1324,7 @@ Read the comment above a constant before correcting it.
   delvmod's wiki page for F009 — worked out there by diffing the shipped
   table against saves taken either side of a change — plus **nutrition at
   byte 27**, which is the executable's (`TGameViewer::DoTicks` takes one off
-  it every game hour; the workbench's `doc/game-clock.md` has the trace).
+  it every game hour, traced out of the executable).
   **The unidentified bytes are kept as bytes, not as a hex tail.** The prop
   record's six unknowns are contiguous, so `tail` works there; here what is
   not understood is scattered — 6–7, 22–26, 29–31, and a second appearance
@@ -1349,9 +1346,9 @@ Read the comment above a constant before correcting it.
   systemless and draw the player where the edit put them, and the file the
   game writes back at exit reads out with the edited values again. So the
   round trip closes outside this repository: Grimoire wrote it, Cythera read
-  it, Cythera wrote it, Grimoire read it. The workbench's `doc/save-warp.md`
-  is the run, the screenshots and the half that failed (walking the player
-  from a script, which does not step on the 0.38 build).
+  it, Cythera wrote it, Grimoire read it. One half of that run failed and is
+  worth knowing: walking the player from a script does not step on the 0.38
+  build.
   **The names are borrowed, and the sheet says so.** A save is a thin file:
   the records, one zone's props, its 512-byte map memory, one portrait, the
   compiled combat AI and 256 KB of persistence — no 0x0201, so on its own
@@ -1479,8 +1476,8 @@ Read the comment above a constant before correcting it.
   text the game speaks, a component; Mechanics keeps the rule and points
   there), and a person's own lines are a *Says* row on their dossier
   (`characterSays`). The engine's side — `TBark`, a 128×32 rounded balloon
-  with a tail, the text anti-aliased in the game's own style — is traced
-  in `cythera-workbench/doc/talk-balloons.md`. The smoke test requires six
+  with a tail, the text anti-aliased in the game's own style — is traced out
+  of `TBark` in the executable. The smoke test requires six
   named lines, Hot Kabobs on the Barks tab with its speaker, Yum on
   Alaric's dossier, and the 96/50/70 enumeration. Three more the same
   day, each read on the spot. **Weapons and armour** (`gearTable`): every
@@ -1587,11 +1584,10 @@ Read the comment above a constant before correcting it.
   **A balloon stays up four seconds**, read from the executable the same
   night: `TBark::SetBark` returns `TickCount()` plus 240 and
   `TActiveMonster::ShowBarks`, each frame, removes a bark whose expiry the
-  tick count has reached (the trace is in
-  `cythera-workbench/doc/talk-balloons.md`; neither routine is reached by
-  a direct `bl`, so a scan for callers finds none — read `ShowBarks`).
+  tick count has reached (neither routine is reached by a direct `bl`, so a
+  scan for callers finds none — read `ShowBarks`).
   **The hunger rate and the clock, v1.9.0**, read from the executable the
-  same night (workbench `doc/game-clock.md`): the clock counts 1/4096 of
+  same night: the clock counts 1/4096 of
   an hour, a step is one unit, and `TGameViewer::DoTicks` takes one off
   nutrition (byte 27 of the character record, script field 40) every
   hour; while nutrition is above 0 it also adds one health and one magic
@@ -1601,7 +1597,7 @@ Read the comment above a constant before correcting it.
   and healing" and a "The clock, poison and time" section replaced the
   "Not in the scripts" one, so nothing on the sheet is put down to the
   executable unread any more. Finding it needed the field jump tables
-  from the data section, which the workbench simulator expanded wrongly
+  from the data section, which the relocation simulator expanded wrongly
   until that night (opcodes 3 and 4); it is fixed, and `r2 = 0x808000` is
   now confirmed by the entry vector too. The smoke test pins "one off
   every game hour" and "4096 is one hour".
@@ -1623,8 +1619,7 @@ Read the comment above a constant before correcting it.
   table the payment fills), the helper `0xE93` passes the night a quarter
   hour at a time and then adds what the engine healed times quality/2,
   so quality 4 is three times the engine's rate; the 2012 web-board bed
-  measurements (12, 10, 42, 30, 35 an hour) reproduce exactly (workbench
-  `doc/game-clock.md`, "Sleep"). The smoke test pins Fireball 25 + 0–9
+  measurements (12, 10, 42, 30, 35 an hour) reproduce exactly. The smoke test pins Fireball 25 + 0–9
   fire at the target square, Death Strike 200, Lesser Healing 5 + 1–4,
   Tremor's two rolls to every enemy, and the bed's quality 4.
   **The inn qualities, v1.10.1**: a far word is (resource, offset), and
@@ -1635,8 +1630,7 @@ Read the comment above a constant before correcting it.
   figure), the Green Goat and the Two-Tailed Rat quality 1 (× 1.5). The
   Sleeping section carries a bed table; the smoke test pins Crito at 3
   and three inns.
-  **Why Tremor "does nothing", v1.10.2** (workbench
-  `doc/tremor-and-enemies.md`): the Spells rules now say that damage
+  **Why Tremor "does nothing", v1.10.2**: the Spells rules now say that damage
   without the magic bit is nothing to a monster flagged 0x0100 (the list
   is computed from `parseMonsterStats`: king, seldane, ghost, demon,
   lich), that a damage call prints nothing, and that "every enemy" is
@@ -1648,8 +1642,8 @@ Read the comment above a constant before correcting it.
   `js/delv-script.js` gained it from the executable (`AddAbility` maps
   flag 12 to status bit 4; the cheat key option-r toggles it), the one
   entry in that table not from the community's list; the clock section
-  names flags 9 and 12. The cheat keys are all read now (workbench
-  `doc/cythera_keys.md`, "Cheat keys"): the code `©gra` works only when
+  names flags 9 and 12. The cheat keys are all read now: the code `©gra`
+  works only when
   bit 0 of byte 3 of the four-byte "UI Prefs" record is set, which
   nothing in the game sets, so a shipped copy cannot enter cheat mode
   without the preferences file being edited.
@@ -1902,9 +1896,8 @@ Read the comment above a constant before correcting it.
   executable instead — every segment Cythera's save path writes goes through
   `SaveSegment`, which does not encrypt, and the one routine that does,
   `SaveEncryptedSegment`, has exactly one caller: the script interpreter
-  writing a script resource back. The workbench's `doc/save-format.md` is
-  that walk, and the Saved Game sheet's parts table now names each segment
-  and the routine that writes it.
+  writing a script resource back. The Saved Game sheet's parts table names
+  each segment and the routine that writes it.
 - **A gallery nobody will look at is not drawn.** `jumpToResource` changes
   category and then opens one resource, and `setMode('single')` empties
   `#sheetGrid` on the next line — so the contact sheet the category change

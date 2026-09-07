@@ -324,9 +324,18 @@ def convert(musi_resource_bytes, out_path, label=''):
     return len(notes)
  
  
+# The input file and the output directory were hardcoded to one machine's
+# scratch space when this was written, which made it unrunnable anywhere else.
+# They are arguments now, and the output defaults under $TMPDIR so a run leaves
+# nothing in the checkout.
 if __name__ == '__main__':
     import struct as _s
-    with open('/home/claude/data.bin', 'rb') as f:
+    if len(sys.argv) < 2:
+        sys.exit(f'usage: {sys.argv[0]} <Cythera Data fork> [out-dir]')
+    src = sys.argv[1]
+    out_dir = (sys.argv[2] if len(sys.argv) > 2
+               else os.path.join(os.environ.get('TMPDIR', '/tmp'), 'midi_out'))
+    with open(src, 'rb') as f:
         b = f.read()
  
     def u32(o): return _s.unpack('>I', b[o:o+4])[0]
@@ -344,12 +353,12 @@ if __name__ == '__main__':
         if roff:
             resids.append((n, roff, rlen))
  
-    os.makedirs('/home/claude/midi_out', exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
     total = 0
     for n, roff, rlen in resids:
         data = b[roff:roff+rlen]
         resid = 0x9000 + n
-        out = f'/home/claude/midi_out/cythera_0x{resid:04X}.mid'
+        out = os.path.join(out_dir, f'cythera_0x{resid:04X}.mid')
         try:
             total += convert(data, out, label=f'0x{resid:04X}')
         except Exception as e:

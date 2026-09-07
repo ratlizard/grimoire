@@ -10,8 +10,11 @@ installer or its `Cythera Data` file on the page, or let it fetch the installer
 from archive.org.
 
 The game itself is not here and never will be; see `NOTICE`. Cythera's words
-and images are Ambrosia Software's and Glenn Andreas's. `CLAUDE.md` is the full
-guide to the code, the checks and the conventions.
+and images are Ambrosia Software's and Glenn Andreas's.
+
+Found a bug, or a picture that decodes wrongly? Open an issue — `CONTRIBUTING.md`
+says what makes a report actionable, and what to know before sending a patch.
+`CLAUDE.md` is the full guide to the code, the checks and the conventions.
 
 A grimoire is the most important single possession of a mage: used on a scroll,
 it makes the spell yours for good.

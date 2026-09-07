@@ -147,16 +147,28 @@ def write_wav(path, buf):
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
         w.writeframes(pcm.tobytes())
  
+# The two directories were hardcoded to one machine's scratch space when this
+# was written, which made it unrunnable anywhere else. They are arguments now,
+# defaulting under $TMPDIR so a run leaves nothing in the checkout.
+def _scratch(name):
+    return os.path.join(os.environ.get('TMPDIR', '/tmp'), name)
+
 if __name__ == '__main__':
-    os.makedirs('/home/claude/wav_out', exist_ok=True)
-    for path in sorted(glob.glob('/home/claude/midi_out/*.mid')):
+    in_dir = sys.argv[1] if len(sys.argv) > 1 else _scratch('midi_out')
+    out_dir = sys.argv[2] if len(sys.argv) > 2 else _scratch('wav_out')
+    os.makedirs(out_dir, exist_ok=True)
+    paths = sorted(glob.glob(os.path.join(in_dir, '*.mid')))
+    if not paths:
+        sys.exit(f'no .mid files in {in_dir}\n'
+                 f'usage: {sys.argv[0]} [midi-dir] [wav-dir]')
+    for path in paths:
         notes, chan_vol = parse_midi(path)
         if not notes:
             print(os.path.basename(path), 'NO NOTES'); continue
         total = max(s + d for s, d, *_ in notes)
         buf, peak = render(notes, chan_vol, total)
         rms = float(np.sqrt(np.mean(buf.astype(np.float64) ** 2)))
-        out = '/home/claude/wav_out/' + os.path.basename(path).replace('.mid', '.wav')
+        out = os.path.join(out_dir, os.path.basename(path).replace('.mid', '.wav'))
         write_wav(out, buf)
         size = os.path.getsize(out) / 1e6
         print(f"{os.path.basename(out)}: {len(notes)} notes, {total:.1f}s, "

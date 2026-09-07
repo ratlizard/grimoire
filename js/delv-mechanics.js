@@ -290,9 +290,8 @@ function mechFullMagic(p) {
 }
 
 /* ---- the clock, hunger, healing and a night's sleep ---------------------
-   The engine's side, from the executable rather than the scripts (the
-   workbench's doc/game-clock.md is the trace). The clock counts 1/4096 of an
-   hour. Every hour nutrition falls by one; while it is above zero health and
+   The engine's side, traced out of the executable rather than read from the
+   scripts. The clock counts 1/4096 of an hour. Every hour nutrition falls by one; while it is above zero health and
    magic each rise by one at a period set by the level, which is the same
    thing as a rate per hour:
 

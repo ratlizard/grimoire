@@ -13360,7 +13360,7 @@ const TAB_TREE = [
 const PLACEHOLDER_TABS = {
   APPPEF: 'The application’s data fork is the PowerPC executable, a PEF container; ' +
     'the 68K CODE resources are in its resource fork. Nothing on this page reads either yet. ' +
-    'The retired native port and its disassembler, kept in a private repository beside this one, do, offline.',
+    'The retired native port in ratlizard/alchemy reads both, offline.',
   AISCRIPTS: 'The Combat AI scripts ship beside the game as separate .ai text files, not inside ' +
     'the archive. What the engine runs is the compiled ' +
     'form, subindex 3 — AI Combat Scripts, under Components › Functions › Actors.',
@@ -13652,7 +13652,7 @@ function tileHasTransparency(t) {
    THE WHOLE TABLE IS READ OUT OF THE EXECUTABLE, not collected. The map
    window's `TMapWindow::KeyRoutine` (PowerPC `0x0437BC`) is one switch over
    the key byte; the strings and the called routines were resolved through the
-   TOC, and the private workbench's `doc/cythera_keys.md` is the walk. Two
+   TOC. Two
    things follow that no amount of playing would have shown: the gate is a
    preferences bit the game itself never sets, and `option-x` is broken —
    it toggles a flag on character 0, which is nobody.
@@ -14459,8 +14459,8 @@ function renderChangesSheet() {
 
 /* ---- Entities > Mechanics ---------------------------------------------------
    The rules the scripts imply, read out of them rather than listed. Two so
-   far, both worked out on 5 September 2026 (the workbench's
-   doc/talk-balloons.md has the trace): the talk balloons, and the dice game.
+   far, both worked out on 5 September 2026: the talk balloons, and the dice
+   game.
    Each section is built from the open archive on the spot, so a modded file
    shows its own words and its own rules or says that it has none.
 
@@ -15972,7 +15972,7 @@ function mechTrainingFigure(tr) {
 
 // The balloon itself, at the size the engine draws it, because the sheet
 // says 128 by 32 and a rounded box with a tail and that is a picture rather
-// than a fact. The geometry is the workbench's trace of TBark.
+// than a fact. The geometry is from a trace of TBark in the executable.
 function mechBalloonFigure(barks) {
   const line = (barks && barks.length ? (barks.find(b => b.text && b.text.length < 16) || barks[0]).text : 'Hot Kabobs!');
   return mechFig('The balloon, at the size the engine draws it',
@@ -16178,7 +16178,7 @@ function renderMechanicsSheet() {
       'Damage goes through the same helper as a blow: the victim’s resistance takes the type first, and the caster earns experience by the usual rule.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn to a radius of five and the script walks everyone inside it, but the damage call runs for the one on the target square alone; the spell’s own description says it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => PROP_TYPE_NAMES[r.proptype] || ('class ' + r.proptype)); } catch (e) {} return ms.length ? 'Damage without the magic bit — fire, electric, blunt, edged — is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
-      'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the executable’s enemy iterator; workbench doc/tremor-and-enemies.md). Tremor shakes the screen and hurts enemies you cannot see.',
+      'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the executable’s enemy iterator). Tremor shakes the screen and hurts enemies you cannot see.',
       'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune, or the map.'
     ].filter(Boolean) : [],
     mechSpellFigures(sp) +
@@ -16240,8 +16240,8 @@ function renderMechanicsSheet() {
       [...(st.cures.get(nm) || [])].map(r => svChip(r)).join(' ') + '</td></tr>')), '');
 
   // ---- hunger, and healing with it ----
-  // The rate is the executable's, not the file's: TGameViewer::DoTicks
-  // (workbench doc/game-clock.md). The scripts' side is read here.
+  // The rate is the executable's, not the file's: TGameViewer::DoTicks.
+  // The scripts' side is read here.
   const hg = hungerNotes();
   add('hunger', 'Hunger and healing', { icon: 69 }, '',
     'Nutrition is a byte on the character, 0 to 100. No script lowers it: the executable’s tick routine takes <b>one off every game hour</b>, and the same routine heals a fed character.',
@@ -17785,9 +17785,8 @@ function missingForkWarning(rsrc) {
    `0x9A` is what the game's own Preferences dialog writes for "Smoother
    Movement". With no stored preference the game picks a default by CPU class,
    and the 68040 default is `0x18` -- one 32-pixel jump a tile, the character
-   teleporting from square to square. That is measured, not inferred: the
-   workbench's `doc/smooth-movement.md` has the filmstrip, five sampled
-   positions eight pixels apart.
+   teleporting from square to square. That is measured, not inferred: a
+   filmstrip of five sampled positions, eight pixels apart.
 
    **Bit 0 of the fourth byte is the gate on cheat mode.** The map window
    keeps the last four keys in a rolling word, and typing `©gra` -- option-g,
@@ -17799,8 +17798,8 @@ function missingForkWarning(rsrc) {
    on, the keys are: option-j to jump to any level and square, option-s to
    conjure any object, option-w to walk through anything, option-t to pass a
    quarter of an hour, option-r for the regeneration Omen's ring grants,
-   option-shift-x for vision of night. The workbench's `doc/cythera_keys.md`
-   has the full table, read out of `TMapWindow::KeyRoutine`.
+   option-shift-x for vision of night. The full table was read out of
+   `TMapWindow::KeyRoutine`.
 
    **This file is written, and has not yet been tried.** The bytes are
    evidence -- `18800001` in a stored preferences file was verified to print
