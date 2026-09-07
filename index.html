@@ -1295,7 +1295,7 @@ body.atlasFull { overflow:hidden; }
     <label><input type="radio" name="animMode" value="tiles" onchange="setAnimMode(this.value)"> tile sheets only</label>
     <label><input type="radio" name="animMode" value="off" onchange="setAnimMode(this.value)"> off</label>
     <span class="amNote">The palette cycling the game uses for water, lava and magic, and the walking and
-    turning of sprites in the galleries. One setting for the whole page.</span></div>
+    turning of sprites in the galleries.</span></div>
   <label><input type="checkbox" id="chkBuiltinLabels" onchange="setBuiltinLabels(this.checked)">
     <span>Names from outside the game’s own text
       <span class="amNote">Hand-identified labels from the delvmod wiki &mdash; resource names,
@@ -1622,14 +1622,13 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
         <div id="landingGate" style="display:none" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
           <div class="gateCard">
             <h2 id="gateTitle">Grimoire</h2>
-            <p>A reader for the files of <i>Cythera</i>, the 1999 Macintosh game: its world, its
-              people, its scripts and its rules, read straight out of the game’s own data.</p>
-            <p><b>Nothing is loaded yet.</b> Opening it downloads the game’s installer from
-              archive.org, about <b>28&nbsp;MB</b>, and keeps a copy in this browser so the next
-              visit is instant. You can forget that copy at any time from the data-file menu.</p>
-            <p class="gateHint">On the map: <b>pinch</b> or scroll to zoom, <b>drag</b> to move,
-              zoom onto a <b>ring</b> to go inside a cave or a town, and <b>hold</b> on anyone to
-              see who they are.</p>
+            <p>A reader for the files of <i>Cythera</i>, the 1999 Macintosh game: its world,
+              people, scripts and rules, read out of the game’s own data.</p>
+            <p>Opening it downloads the game’s installer from archive.org, about
+              <b>28&nbsp;MB</b>, and keeps a copy in this browser. The copy can be cleared from
+              the data-file menu.</p>
+            <p class="gateHint">On the map: pinch or scroll to zoom, drag to move, tap a ring to
+              go inside a cave or a town, hold on anyone to see who they are.</p>
             <div class="gateRow">
               <button id="gateGo" onclick="landingGateAnswer('download')">Download and open</button>
               <button class="secondary" onclick="landingGateAnswer('own')">I have the game’s files</button>
@@ -1828,7 +1827,7 @@ const RSRC_KINDS = [
     note: 'Whole pictures. In Cythera Data: the title screen (130), the main menu (132) with its seven plank labels (139–145) and six torch frames (133–138), the DELVER stone (131), two night-dark title scenes (512, 513) and the paper doll (129). In the application: the two Ambrosia logos.',
     view: 'SCREENS' },
   { id: 'fonts', label: 'Fonts', types: ['sfnt', 'NFNT', 'FOND', 'TxSt'],
-    note: 'Argos A Nouveau as a TrueType font (sfnt 7289, the face this page is set in), the Seldane script as two bitmap strikes (NFNT 25740 and 25746, 12 and 18 point), the family records that tie them together, and the text styles (TxSt) that say which face and size each kind of text is drawn in — “Labels”, “Stats”, “Text”, three Seldane sizes.',
+    note: 'Argos A Nouveau as a TrueType font (sfnt 7289, the face this page uses), the Seldane script as two bitmap strikes (NFNT 25740 and 25746, 12 and 18 point), the family records that tie them together, and the text styles (TxSt) that say which face and size each kind of text is drawn in — “Labels”, “Stats”, “Text”, three Seldane sizes.',
     view: 'FONTS' },
   { id: 'strings', label: 'Strings', types: ['STR#', 'STR ', 'TEXT', 'styl'],
     note: 'String lists. In Cythera Data: the four default conversation keywords (128), the editor’s palette categories (134), the editor’s list of every zone (135), the credits (255). In the application: the equipment slots (501), the combat buttons (500), the seven strategies (502), the help balloons (503), and the combat AI vocabulary in seven lists (9300–9308).',
@@ -1837,7 +1836,7 @@ const RSRC_KINDS = [
     note: 'The application’s own sounds, named for when they play: get, use, look, talk, attack. The game’s sound effects and music are in the archive, under Audio.',
     view: 'APPSND' },
   { id: 'icons', label: 'Finder and command icons', types: ['ICN#', 'icl4', 'icl8', 'ics#', 'ics4', 'ics8', 'cicn', 'BNDL', 'FREF'],
-    note: 'The Finder icons for the application, the data file, a saved game and a patch — the bundle (BNDL) and file references (FREF) say which is which — and the command icons the game draws: move, take, look, talk, attack.',
+    note: 'The Finder icons for the application, the data file, a saved game and a patch, with the bundle (BNDL) and file references (FREF) that say which is which, and the command icons the game draws: move, take, look, talk, attack.',
     view: 'UIICONS' },
   { id: 'cursors', label: 'Cursors', types: ['crsr', 'CURS', 'acur'],
     note: 'The pointer in every state: eight walking directions in two weights, the hand, the eye, the speech bubble, the sword, the magnifier, the pointing finger, and the spinning ball the animated cursor (acur) cycles through.',
@@ -1852,7 +1851,7 @@ const RSRC_KINDS = [
     note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three named 64-byte records (MSta: “Base”, “Plague Cured”, “Olpheltius Murdered”), seven FILT records, and the ResEdit templates. The structure of MSta, FILT, LINF, DATA and PORT is not read.',
     view: 'RSRC' },
   { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
-    note: 'What the executable reads about itself: the 25 light cones (Lite: one byte of side, then that many squared bytes of brightness, 0 to 32 — drawn here as the shapes they are, sides 8 to 120), the help pages (Page), the two preference defaults (volume and music), the version records, the memory sizes, the code fragment map and the nine 68K CODE segments.',
+    note: 'What the executable reads about itself: the 25 light cones (Lite: one byte of side, then that many squared bytes of brightness, 0 to 32; sides 8 to 120), the help pages (Page), the two preference defaults (volume and music), the version records, the memory sizes, the code fragment map and the nine 68K CODE segments.',
     view: null }
 ];
 const RSRC_KIND_OF = new Map();
@@ -3754,7 +3753,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.24.0';
+const GRIMOIRE_VERSION = '1.24.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -3818,21 +3817,21 @@ function fontSwapPanel() {
   const sw = window.FONT_SWAP;
   box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Put another font in the game</h3></div>' +
     (target
-      ? '<p class="mechLede">The game draws its text with <b>sfnt ' + target.id + '</b>, which the family record names ' +
-        svEsc(target.name || 'ArgosANouveau') + '. Choose a TrueType font (<b>.ttf</b>) and it takes that resource’s place in the copy of the archive ' +
-        'in this browser. The font is given the Mac Roman character map the game looks glyphs up by, and its layout and signature tables are dropped, ' +
-        'since the classic rasteriser reads none of them.</p>' +
-        '<ul class="ruleList"><li>Nothing is written to your disk here and nothing on the server changes.</li>' +
-        '<li>To play with it: <b>Data file › the disk image</b>, which carries the fork, then run the script on it in the emulator.</li>' +
-        '<li>A <b>.otf</b> will be refused. Those draw with PostScript outlines, which the classic Mac cannot rasterise.</li></ul>' +
+      ? '<p class="mechLede">The game draws its text with <b>sfnt ' + target.id + '</b>, named ' +
+        svEsc(target.name || 'ArgosANouveau') + ' by the family record. A TrueType font (<b>.ttf</b>) chosen here takes that resource’s place in the copy ' +
+        'of the archive in this browser. It is given the Mac Roman character map the game looks glyphs up by, and its layout and signature tables are ' +
+        'dropped, which the classic rasteriser does not read.</p>' +
+        '<ul class="ruleList"><li>Nothing is written to disk and nothing on the server changes.</li>' +
+        '<li>To play with it, export <b>Data file › the disk image</b>, which carries the fork, and run the script on it in the emulator.</li>' +
+        '<li>An <b>.otf</b> is refused: those draw with PostScript outlines, which the classic Mac cannot rasterise.</li></ul>' +
         '<div class="mechStats"><input type="file" id="fontSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoFontSwap()">Put the game’s own font back</button>' : '') +
         '</div>' +
-        (sw ? '<blockquote class="mechQuote">' + svEsc(sw.name) + ' is in the archive now, as sfnt ' + sw.from + ': ' +
+        (sw ? '<blockquote class="mechQuote">' + svEsc(sw.name) + ' is in the archive as sfnt ' + sw.from + '. ' +
               sw.mapped + ' of the characters the game uses were found, in a format ' + sw.format + ' character map, ' +
-              (sw.bytes / 1024).toFixed(0) + ' KB of outlines. Export the disk image to play with it.</blockquote>' : '') +
+              (sw.bytes / 1024).toFixed(0) + ' KB of outlines.</blockquote>' : '') +
         '<div id="fontSwapNote" class="mechSub"></div>'
-      : '<p class="mechLede">No font resource is open, so there is nothing to replace. Open Cythera Data from a container that carries its resource fork — a .hqx, MacBinary or AppleSingle file.</p>') +
+      : '<p class="mechLede">No font resource is open. Open Cythera Data from a container that carries its resource fork: a .hqx, MacBinary or AppleSingle file.</p>') +
     '</section>';
   setTimeout(() => {
     const f = document.getElementById('fontSwapFile');
@@ -3849,7 +3848,7 @@ function fontSwapPanel() {
       };
       file.arrayBuffer().then(buf => {
         const r = swapGameFont(new Uint8Array(buf), file.name);
-        setStatus(file.name + ' is now the game’s font in this copy — ' + r.mapped + ' characters mapped. Export the disk image to play with it.');
+        setStatus(file.name + ' is the game’s font in this copy. ' + r.mapped + ' characters mapped.');
         renderMacRsrcSheet();
       }).catch(fail);
     };
@@ -9479,7 +9478,7 @@ function renderMapEditBar() {
     '<button class="secondary mapToolBtn' + (e.tool === tool ? ' on' : '') + '" title="' + svEsc(title) +
     '" onclick="setMapTool(\'' + tool + '\')">' + svEsc(label) + '</button>';
   let h = '<div class="mapToggleGroup mapTools"><span class="mtgLabel">Edit</span>' +
-    btn('pan', 'Look', 'Drag to pan, tap a square to inspect it — the map as it has always been') +
+    btn('pan', 'Look', 'Drag to pan, tap a square to inspect it') +
     btn('paint', 'Paint', 'Drag to lay the chosen terrain tile over the squares you cross') +
     btn('pick', 'Pick', 'Tap a square to paint with the tile that is already on it') +
     btn('place', 'Place', 'Tap a square to put the chosen prop on it') +
@@ -10639,7 +10638,7 @@ function renderAtlasBar() {
     bar.style.display = '';
     bar.innerHTML = '<span class="wbNote">This file has no world map (resource 0x' +
       WORLD_MAP_RESID.toString(16).toUpperCase() + '), so there is no world to draw. ' +
-      'A saved game carries only what changed in play; Data \u203a Data Fork lists what it holds.</span>';
+      'A saved game carries only what changed in play. Data \u203a Data Fork lists what it holds.</span>';
     return;
   }
   const below = atlasBelowTop();
@@ -10649,8 +10648,8 @@ function renderAtlasBar() {
     svEsc(below.fromName) + '</button>' +
     '<span class="wbWhere">' + svEsc(below.name) + '</span>' +
     '<span class="wbNote">Through the ' + svEsc(below.kind) + ' at (' + below.at.x + ',' +
-    below.at.y + ') in ' + svEsc(below.fromName) + '. The archive does not say where this ' +
-    'sits, only how it is reached \u2014 so it is shown on its own. Tap a blue ring to go up, a gold one to go deeper, or \u21b0.</span>';
+    below.at.y + ') in ' + svEsc(below.fromName) + '. The archive gives no position for this map, ' +
+    'only how it is reached, so it is shown on its own. Tap a blue ring to go up, a gold one to go deeper.</span>';
 }
 
 /* ---------------------------------------------------------------------------
@@ -10668,23 +10667,19 @@ function renderAtlasBar() {
 const ATLAS_TUNE_ROWS = [
   ['nodeFadeFrom', 'Place appears', 4, 60, 1,
    'How wide a place must be on screen, in pixels, before it starts to be drawn as itself. ' +
-   'Below this you see the pictogram the world map draws, which was made to be read small.'],
+   'Below this the world map’s pictogram is drawn instead.'],
   ['nodeFadeTo', 'Place solid', 8, 120, 1,
-   'And how wide before the place has fully replaced that pictogram. The gap between the two ' +
-   'is the cross-fade.'],
+   'How wide before the place has fully replaced that pictogram. The gap between the two is ' +
+   'the cross-fade.'],
   ['mouthAt', 'Mouths appear', 2, 40, 1,
-   'Screen pixels per square of a map before the rings that mark its ways down are drawn. ' +
-   'Too low and the world is a field of rings; too high and you have to hunt for them.'],
+   'Screen pixels per square of a map before the rings that mark its ways down are drawn.'],
   ['animMs', 'Fall-in time', 0, 1500, 50,
-   'How long the fall into a mouth and the rise out of it take, in milliseconds. Nought is ' +
-   'a cut.'],
+   'How long the fall into a ring and the rise out of it take, in milliseconds. Nought is a cut.'],
   ['peopleAt', 'People appear', 2, 40, 1,
-   'Screen pixels per square before the inhabitants are drawn on a place. Below this a ' +
-   'person is smaller than the outline of their own sprite.'],
+   'Screen pixels per square before the inhabitants are drawn on a place.'],
   ['maxPpt', 'Closest zoom', 24, 160, 1,
-   'The most magnification anything is worth, in screen pixels per square of its own map. ' +
-   'The art is 32 pixels a square, so past about twice that there is nothing further in ' +
-   'the file to show.']
+   'The most magnification offered, in screen pixels per square of a map’s own art. The art ' +
+   'is 32 pixels a square.']
 ];
 
 function renderAtlasTune() {
@@ -12453,7 +12448,7 @@ function xrefReport(resid) {
 // Descriptions are the wiki's own words where it has any, and say so plainly
 // where it does not. Guessing a purpose would be worse than admitting none.
 const SUBINDEX_PURPOSE = {
-  0:   ['Symbol table', 'A single resource, 0x0101, mapping keys to name strings. Stale debug symbols, out of date with the shipped game -- useful as a naming hint, not as authority.'],
+  0:   ['Symbol table', 'A single resource, 0x0101, mapping keys to name strings. Debug symbols, out of date with the shipped game, useful as a naming hint.'],
   1:   ['Data lists', 'Lists of things: character names, and globals referred to by the symbol table in subindex 0.'],
   2:   ['Unknown', 'Two small resources and no documentation anywhere. Nothing in the archive references either of them.'],
   3:   ['AI combat scripts', 'Named behaviour routines -- Attack Nearest, Defend, Beserk, Healer. Stored in the clear as a Pascal name plus a body that is NOT VM bytecode.'],
@@ -12807,7 +12802,7 @@ function askOneShape(shape, hit) {
       const skills = skillCatalogue().filter(x => like(x.name) && x.kind !== 'command');
       if (!skills.length) return null;
       return skills.map(x => askCard('Who teaches ' + x.name,
-        x.teachers.length ? 'From the training helper: every script that teaches it.' : 'Nobody in this archive teaches it. It is learned some other way, or not at all.',
+        x.teachers.length ? 'Every script that teaches it.' : 'Nobody in this archive teaches it.',
         x.teachers.map(t => askRow(t.mastery ? 'to mastery' : 'teaches',
           askCharacterChip(t.who, svChip(t.resid)))),
         partChip(x.name, x.resid))).join('');
@@ -12820,7 +12815,7 @@ function askOneShape(shape, hit) {
             askCharacterChip(sp.who, svChip(sp.resid)) + (sp.title ? ' <span class="inspDim">“' + svEsc(sp.title) + '”</span>' : '')));
       if (!rows.length) return null;
       return askCard(m.sh.id === 'cost' ? 'What ' + m.hit[1].trim() + ' costs' : 'Who sells ' + m.hit[1].trim(),
-        'The listed price, before the vendor bargains. Haggling takes a further roll of 0 to 5 off.',
+        'The listed price, before the vendor bargains.',
         rows, mechLink('shops', 'Mechanics › shops'));
     }
     if (m.sh.id === 'does') {
@@ -12848,7 +12843,7 @@ function askOneShape(shape, hit) {
       if (!name) return null;
       const by = [...(st.cures.get(name) || [])];
       return askCard('What clears ' + name,
-        'Every script that takes it off. A potion, a spell, or somebody who does it for you.',
+        'Every script that takes it off.',
         by.map(r => askRow(selfNameFor(r) || ('0x' + r.toString(16).toUpperCase()), svChip(r))),
         mechLink('status', 'Mechanics › status effects'));
     }
@@ -12874,7 +12869,7 @@ function askOneShape(shape, hit) {
       const idx = [];
       for (let i = 1; i < tab.length; i++) if (tab[i] && like(characterName(i))) idx.push(i);
       if (idx.length) return askCard(m.sh.id === 'who' ? 'Who ' + m.hit[1].trim() + ' is' : 'Where ' + m.hit[1].trim() + ' is',
-        'From the character table and the schedules.',
+        'From the character table.',
         idx.slice(0, 6).map(i => askRow(characterName(i),
           askCharacterChip(i, '') + ' <span class="inspDim">' + svEsc(zoneDisplayName(tab[i].zone)) + ' (' + tab[i].x + ',' + tab[i].y + '), level ' + tab[i].level + '</span>')), '');
       if (m.sh.id === 'where') {
@@ -12936,7 +12931,7 @@ function runSearch() {
   try { answer = window.ASK_SKIP ? null : answerQuestion(q); } catch (e) { answer = null; }
   if (answer) {
     host.innerHTML = '<div class="mechView askAnswer">' + answer +
-      '<div class="sv-note">Read out of this archive, not looked up. ' +
+      '<div class="sv-note">Read out of this archive. ' +
       '<button class="linkbtn" onclick="askSearchAnyway()">Search the text for “' + svEsc(q) + '” instead</button></div></div>';
     return;
   }
@@ -13557,11 +13552,11 @@ function tileHasTransparency(t) {
 const CHEAT_KEYS = [
   ['∆',  '$C6', 'option-j',        'Jump',            'Prints “Jump from [level,x,y]:”, asks Level, X and Y in hex, then calls TGameViewer::GoToLocation — teleport anywhere in the game.'],
   ['Ô',  '$EF', 'option-shift-j',  'Take teleporter', 'Asks a teleporter number in decimal, then TGameSys::TeleportTo(1, n, 0).'],
-  ['ß',  '$A7', 'option-s',        'Create a prop',   'Asks a prop number in hex, Data1 in decimal and Data2 in hex; NewProp makes it, the owner is set to character 1 and the inventory redraws — the object lands in the hero’s pack.'],
-  ['π',  '$B9', 'option-p',        'What prop is this?', 'Asks a prop index and prints its record: class and state bytes, position, Data1, Data2. Then falls straight through into the option-r toggle below — a missing branch in the game’s own switch.'],
+  ['ß',  '$A7', 'option-s',        'Create a prop',   'Asks a prop number in hex, Data1 in decimal and Data2 in hex; NewProp makes it, the owner is set to character 1 and the inventory redraws, so the object lands in the hero’s pack.'],
+  ['π',  '$B9', 'option-p',        'What prop is this?', 'Asks a prop index and prints its record: class and state bytes, position, Data1, Data2. Then falls through into the option-r toggle below, a missing branch in the game’s own switch.'],
   ['¿',  '$C0', 'option-shift-/',  'Where am I?',     'Prints the player’s x and y.'],
   ['ˇ',  '$FF', 'option-shift-t',  'What time is it?', 'Prints “Current time = <clock>, day <n>”.'],
-  ['†',  '$A0', 'option-t',        'Pass the time',   'Passes a quarter of an hour — DoTicks(1024) — and redraws.'],
+  ['†',  '$A0', 'option-t',        'Pass the time',   'Passes a quarter of an hour (DoTicks(1024)) and redraws.'],
   ['< >', '',   '',                'Darken / brighten', 'DarkenLight and BrightenLight: the ambient light of the level, a step at a time.'],
   ['√',  '$C3', 'option-v',        'Magic map',       'MakeZone then MagicMap around the player, shown until the mouse button is pressed.'],
   ['Ω',  '$BD', 'option-z',        'Show the room you are in', 'The zone bitmap, drawn over the window and offset to the player until the button is pressed. `MakeZone(x, y)` copies the wall bitmap below and flood-fills it from the player’s square, so what is left clear is the connected open area — which is what `InZone` answers and what the magic map is built on.'],
@@ -13575,7 +13570,7 @@ const CHEAT_KEYS = [
 // In the same routine and NOT behind the cheat flag: anyone can type these.
 const CHEAT_OPEN_KEYS = [
   ['', '$CA', 'option-space', 'Turn-based movement', 'Toggles it, printing “Enabling/Disabling turn-based movement.”'],
-  ['¡', '$C1', 'option-1', 'Speed limiter', 'SLEnable / SLDisable. The PowerPC code compares $C1, which is option-1 on a US layout — the “option-l” of the older 68K reading is worth trying on a real keyboard.'],
+  ['¡', '$C1', 'option-1', 'Speed limiter', 'SLEnable / SLDisable. The PowerPC code compares $C1, which is option-1 on a US layout. The older 68K reading gave option-l.'],
   ['1–8', '', '', 'A party member’s window', 'Opens the character window for that member.'],
   ['Z', '', '', 'Z stats', 'PrintZStats.'],
   ['{ }', '', '', 'CD volume', 'Down and up by 10, over 0–255.'],
@@ -13636,9 +13631,7 @@ function renderCheatsSheet() {
     'you press <b>M</b>.</li></ul>' +
     '<div class="cheatNote">This page can write the preferences file with that bit set — ' +
     actionChip('Tools › Cythera Preferences', "showCategory('TOOLS')") +
-    ' — as a MacBinary for a real Mac or a small disk image for an emulator. It was tried once, in ' +
-    'systemless on 5 September 2026: the code typed, “Cheat mode activated.” printed, and ' +
-    'option-shift-/ answered with the player’s position in hex.</div></div>';
+    ' — as a MacBinary for a real Mac or a small disk image for an emulator.</div></div>';
 
   h += '<div class="mechSec"><h4 class="cheatH4">With the cheat flag on</h4>' +
     '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + rows(CHEAT_KEYS) +
@@ -13666,31 +13659,28 @@ function renderCheatsSheet() {
   }
 
   h += '<div class="mechSec"><h4 class="cheatH4">Cheats that need no cheat mode</h4>' +
-    '<div class="cheatNote">What this page can change on its own, and hand back as a file the game ' +
-    'will open. Every one of them rebuilds the whole archive and shows you the result, so what you ' +
-    'see is what the export carries.</div><ul class="ruleList">' +
+    '<div class="cheatNote">What this page can change and hand back as a file the game will open. ' +
+    'Each rebuilds the whole archive and shows the result, which is what the export carries.' +
+    '</div><ul class="ruleList">' +
     '<li><b>The party’s records.</b> Where they stand, how strong, how well fed, how many training ' +
-    'points — 32 bytes each. ' + actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li>' +
-    '<li><b>The map.</b> Paint terrain, place a prop, take one off — walls in Cythera are terrain, so ' +
+    'points: 32 bytes each. ' + actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li>' +
+    '<li><b>The map.</b> Paint terrain, place a prop, take one off. Walls in Cythera are terrain, so ' +
     'a wall is removed by painting the floor over it. ' + actionChip('Regions', "showCategory('127')") + '</li>' +
     '<li><b>Any resource, as hex</b>, through Edit Bytes on the resource itself.</li>' +
-    '<li><b>Where it all comes out.</b> ' + actionChip('Changes', "showCategory('CHANGES')") + '</li></ul></div>';
+    '<li><b>Where the edits come out.</b> ' + actionChip('Changes', "showCategory('CHANGES')") + '</li></ul></div>';
 
-  h += '<div class="mechSec"><h4 class="cheatH4">Things the code says and a play-through would not</h4><ul class="ruleList">' +
+  h += '<div class="mechSec"><h4 class="cheatH4">Things read from the code</h4><ul class="ruleList">' +
     '<li><b>option-x is broken.</b> It means to toggle swamp-poison protection and reads byte 26 of ' +
     '<b>record 0</b> — nobody — so it protects no one.</li>' +
     '<li><b>option-p falls through</b> into option-r’s toggle, so asking what a prop is also flips ' +
     'the player’s regeneration. A missing branch in the game’s own switch.</li>' +
-    '<li><b>option-h makes peace, not war</b>, and this table said the opposite until 7 September 2026. ' +
-    'It was corrected the right way round: a reader pressed it, nobody turned hostile, and the ' +
-    'routine was read again. `GetEnemyStatus` answers <b>1</b> for every pair when the byte is set, and ' +
-    'its five callers all treat <b>0</b> as “enemy” — so the cheat empties the enemy list rather than ' +
+    '<li><b>option-h empties the enemy list.</b> ' +
+    '`GetEnemyStatus` answers <b>1</b> for every pair when the byte is set, and ' +
+    'its five callers all treat <b>0</b> as “enemy”, so the cheat empties the enemy list rather than ' +
     'filling it.</li></ul>' +
     '<div class="cheatNote">Which is worth saying plainly: the two tables above are one routine ' +
-    'transcribed, and a transcription can be read wrongly. Where a key’s <i>effect</i> is described ' +
-    'rather than its bytes, it is an inference from what the toggled byte is used for — and that is ' +
-    'exactly the kind of claim a player can overturn in a second. If one of them does not do what it ' +
-    'says, the code is there to be read again.</div></div>';
+    'transcribed. Where a key’s <i>effect</i> is described rather than its bytes, it is an inference ' +
+    'from what the toggled byte is used for.</div></div>';
 
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
   out.textContent = 'Cheat mode: ' + CHEAT_KEYS.length + ' keys behind the gate, ' +
@@ -13792,13 +13782,13 @@ function renderSaveSheet() {
           ? svEsc(characterName(1)) + ' stands in ' + svEsc(zoneDisplayName(hero.zone)) +
             ' at (' + hero.x + ', ' + hero.y + '), ' + hero.health + ' of ' + hero.healthMax + ' health.'
           : 'The hero’s record names no zone.')
-      : 'Where everybody <b>starts</b>, before a game has been played — the same 32-byte records a ' +
-        'saved game carries, which is what makes this sheet the same sheet.') +
+      : 'Where everybody starts, before a game has been played: the same 32-byte records a ' +
+        'saved game carries.') +
     '</div></div></div>';
 
   if (namesAreBorrowed())
     h += '<div class="saveNote">The names here come from the scenario opened earlier this ' +
-      'session, not from this file: a saved game holds no name table, and a character index ' +
+      'session rather than from this file. A saved game holds no name table, and a character index ' +
       'means the same person in every Cythera file.</div>';
 
   // What the file holds.
@@ -14602,10 +14592,10 @@ function renderSkillsSheet() {
   const shown = all.filter(x => !q || x.name.toLowerCase().includes(q) || x.description.toLowerCase().includes(q));
   const box = document.createElement('div');
   box.className = 'mechView';
-  const kinds = [['attribute', 'Attributes', 'The four figures every character has a number for: what a class figure stands in for when the skill is absent.'],
-                 ['weapon', 'Weapon skills', 'One per kind of weapon; the skill goes on the blow’s margin and its damage.'],
-                 ['special', 'Special skills', 'Learned from a teacher, and asked about by the scripts that need them.'],
-                 ['command', 'Commands', 'The Do menu, kept in the same block of the file as the skills; not skills, but read the same way.']];
+  const kinds = [['attribute', 'Attributes', 'The four figures every character has a number for.'],
+                 ['weapon', 'Weapon skills', 'One per kind of weapon. The skill goes on the blow’s margin and on its damage.'],
+                 ['special', 'Special skills', 'Learned from a teacher and asked about by the scripts that need them.'],
+                 ['command', 'Commands', 'The Do menu, kept in the same block of the file as the skills.']];
   const propChip = (pt, name) => '<button class="relChip" onclick="showPropTypeDetail(' + pt + ')"><span class="relText"><span class="relMain">' + svEsc(name) + '</span></span></button>';
   let count = 0;
   for (const [kind, title, note] of kinds) {
@@ -14647,7 +14637,7 @@ function renderSkillsSheet() {
     }
   }
   grid.appendChild(box);
-  out.textContent = count + ' of ' + all.length + ' in the file’s skill block' + (q ? ' matching “' + q + '”' : '') + ', each read off its own script and the scripts that use it.';
+  out.textContent = count + ' of ' + all.length + ' in the file’s skill block' + (q ? ' matching “' + q + '”' : '') + '.';
 }
 function renderSpellsSheet() {
   stopAllViewActivity();
@@ -14688,14 +14678,14 @@ function renderSpellsSheet() {
       for (const h of x.fx.heals) rows.push(['Heals', '<b>' + svEsc(h.text) + '</b>']);
     }
     if (x.status.length) rows.push(['Applies', x.status.map(svEsc).join(', ') + ' <span class="inspDim">(clock units; 4096 is an hour)</span>']);
-    if (!rows.length) rows.push(['Does', '<span class="inspDim">something other than health: the light, a lock, a rune, the map, or a look — its script says</span>']);
+    if (!rows.length) rows.push(['Does', '<span class="inspDim">something other than health: the light, a lock, a rune, the map, or a look</span>']);
     const d = document.createElement('div'); d.className = 'mechBody';
     d.innerHTML = '<table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
     sec.appendChild(d);
     box.appendChild(sec);
   }
   grid.appendChild(box);
-  out.textContent = count + ' of ' + spells.length + ' spells' + (q ? ' matching “' + q + '”' : '') + ', each read off its own script.';
+  out.textContent = count + ' of ' + spells.length + ' spells' + (q ? ' matching “' + q + '”' : '') + '.';
 }
 
 function renderBarksSheet() {
@@ -15538,7 +15528,7 @@ function diceSimHtml() {
         { points: [[1, exact.mean], [t.games, exact.mean]], colour: 'rgba(249,248,111,.45)', dash: '3 3', name: 'the exact figure' },
         { points: t.curve, colour: MECH_INK.cool, name: 'your games so far' }
       ]
-    }), 'An edge of three tenths of an obol takes hundreds of games to show through the noise, which is what makes it a game rather than a swindle.');
+    }), 'An edge of three tenths of an obol takes hundreds of games to show through the noise.');
   }
   return out;
 }
@@ -15608,7 +15598,7 @@ function combatSimHtml(p, words) {
       { label: 'misses', value: x.miss, colour: MECH_INK.miss }
     ]),
     'A blow that lands does <b>' + x.meanDamage.toFixed(1) + '</b> points on average, so an exchange is worth <b>' +
-    (x.meanDamage * x.hit).toFixed(1) + '</b>.' + (p.shield ? ' A blow that would have missed is never parried — the resolver tests the miss first — so every parry here is a blow the shield took out of the hits.' : '')) +
+    (x.meanDamage * x.hit).toFixed(1) + '</b>.' + (p.shield ? ' The resolver tests the miss before the parry, so every parry here is a blow the shield took out of the hits.' : '')) +
   mechFig('The margin, and where it is spent', mechPlot({
     height: 130,
     x: { min: lo, max: hi, ticks: [{ v: lo, label: String(lo) }, { v: 0, label: '0' }, { v: hi, label: '+' + hi }] },
@@ -15618,7 +15608,7 @@ function combatSimHtml(p, words) {
   }), 'Two rolls of 0 to 29 make a triangle; the six other terms only slide it. Here it is centred on <b>' +
     (x.constant > 0 ? '+' : '') + x.constant + '</b>.') +
   (blows.length ? mechFig('What the game would print', mechBars(blows),
-    'Of the blows that land, as a share of all exchanges. The words are read off the resolver, not written here, and each names the <b>raw roll</b> — the defender’s resistance is taken afterwards, so a blow that ground you to dust can still come to nothing.') : '');
+    'Of the blows that land, as a share of all exchanges. The words are read off the resolver, and each names the <b>raw roll</b>. The defender’s resistance is taken afterwards, so a blow that ground you to dust can still come to nothing.') : '');
 }
 function combatSimUpdate() {
   const el = document.getElementById('combatOut');
@@ -15668,7 +15658,7 @@ function mechGearFigure(gear) {
     'The resolver rolls <b>1 to this figure</b> and adds the enchantment; the weapon’s skill widens the figure before the roll rather than being added after it. Colour is the skill the weapon is swung with.') +
     (armour.length ? mechFig('Armour, in points of protection', mechBars(armour)) : '') +
     (shields.length ? mechFig('Shields, the roll they block', mechBars(shields),
-      'A blow that would have landed is parried when the margin is under a roll of <b>0 to this plus the Shield skill</b>, summed over every shielding thing worn — so a shield is worth more against a weak attacker than a strong one, and never saves a blow that was going to miss.') : '');
+      'A blow that would have landed is parried when the margin is under a roll of <b>0 to this plus the Shield skill</b>, summed over every shielding thing worn. A shield is worth more against a weak attacker than a strong one, and never saves a blow that was going to miss.') : '');
 }
 
 // The casting rule is two rolls against one, which is not a shape anybody
@@ -15689,7 +15679,7 @@ function mechSpellFigures(sp) {
     height: 150, series,
     x: { min: 0, max: 25, ticks: [{ v: 0, label: '0' }, { v: 5, label: '5' }, { v: 10, label: '10' }, { v: 15, label: '15' }, { v: 20, label: '20' }, { v: 25, label: '25' }] },
     y: { min: 0, max: 100, ticks: [{ v: 100, label: '100%' }, { v: 50, label: '50%' }, { v: 25, label: '25%' }, { v: 0, label: '0' }] }
-  }), 'Two rolls under the caster’s Casting figure against one under the level. A <b>level 1 spell never fails</b> — its roll is <i>Random(0, 1)</i>, which is always nothing — and the magic points are spent either way, which is what makes a high-level spell expensive twice over.') +
+  }), 'Two rolls under the caster’s Casting figure against one under the level. A <b>level 1 spell never fails</b>, its roll being <i>Random(0, 1)</i>, which is always nothing. The magic points are spent either way, which is what makes a high-level spell expensive twice over.') +
   mechFig('What each spell costs, against its level', mechPlot({
     height: 120,
     x: { min: 0, max: Math.max.apply(null, levels) + 1, ticks: levels.map(l => ({ v: l, label: String(l) })) },
@@ -15733,7 +15723,7 @@ function mechKarmaFigure(km) {
   }));
   return mechFig('The scale, and where you stand on it',
     mechNumberLine({ min: 0, max: 100, marks, bands: thresholds.map(t => ({ from: 0, to: t.n, colour: 'rgba(192,104,79,.3)', label: t.test })) }),
-    'The band is what a threshold shuts you out of — the four Seldane priests refuse below <b>40</b>.') +
+    'The four Seldane priests refuse below <b>40</b>.') +
     (kills.length ? mechFig('What a kill is worth, by the victim’s alignment', mechBars(kills),
       'Four numbers in the kill helper’s own data block, read as signed. Nothing in the file names the four alignments; killing the third kind is <b>ten</b> times worse than killing the second is good.') : '');
 }
@@ -15877,7 +15867,7 @@ function mechBalloonFigure(barks) {
     '</svg>' +
     mechNumberLine({ min: 0, max: 6, marks: [{ v: 0, label: 'said', above: true }, { v: 4, label: 'gone, 240 ticks', below: true }],
       bands: [{ from: 0, to: 4, colour: 'rgba(249,248,111,.28)', label: 'four seconds' }] }),
-    '128 by 32 with a tail, and the tick count plus <b>240</b> for how long it stays — both read from the executable rather than the archive.');
+    '128 by 32 with a tail, and the tick count plus <b>240</b> for how long it stays. Both read from the executable rather than the archive.');
 }
 
 // The bed table as a chart, with the 2012 measurements laid over it. This is
@@ -16005,9 +15995,9 @@ function renderMechanicsSheet() {
     dice ? '<div class="mechStats">' + stat(dice.wins, 'win') + stat(dice.pushes, 'push') + stat(dice.losses, 'lose') + '<span class="mechStatNote">of 216 throws</span>' +
            stat((dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3), 'obols a game, without the skill') + stat((dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3), 'with it') + '</div>' +
            (dice.explain ? '<blockquote class="mechQuote">' + svEsc(dice.explain.replace(/\*/g, ' ')) + '<footer>the innkeeper, in the same script</footer></blockquote>' : '') +
-           mechFig('Every throw there is: the innkeeper’s first die down the side, the second across, your own six faces inside each cell',
+           mechFig('All 216 throws: the innkeeper’s first die down the side, the second across, your own six faces inside each cell',
              mechDiceMatrix(mechDiceExact({}).cells),
-             'Red is the obol you lose, grey a push, green a win and the brighter the bigger. The game is winnable because the innkeeper’s two dice are often <b>close together</b>, and every face of yours outside them pays.') +
+             'Red is the obol you lose, grey a push, green a win, brighter for a larger one. Every face of yours outside the two black dice pays.') +
            '<div class="mechCtl">' +
              '<button onclick="diceSimPlay(1)">Throw</button>' +
              '<button onclick="diceSimPlay(1000)">1,000 games</button>' +
@@ -16027,8 +16017,8 @@ function renderMechanicsSheet() {
         ', <b>less the defender’s reflex' + (cb.d30 ? ' plus a roll of 0 to 29' : '') + '</b>, plus Attack less Defence. A monster flagged so uses body for reflex.',
       'The weapon’s enchantment and skill go on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
         (cb.parry ? 'what is left is offered to the shields — each shielding thing the defender wears rolls <b>0 to its block plus the Shield skill</b>, the rolls are added up, and a margin under the total is <b>parried</b>' : 'what is left lands') +
-        '. A blow that would have missed is therefore never parried.',
-      'A hit does <b>1 plus a roll of 0 to the damage figure, plus the enchantment</b> — one to the figure, not nothing to it — with the skill widening the figure before the roll. The defender’s resistance takes the damage type afterwards, so the word the game prints can be bigger than what is felt.',
+        '. A blow that would have missed is never parried.',
+      'A hit does <b>1 plus a roll of 0 to the damage figure, plus the enchantment</b>, so one to the figure rather than nothing to it, with the skill widening the figure before the roll. The defender’s resistance takes the damage type afterwards, so the word the game prints can be bigger than what is felt.',
       cb.words.length ? 'The blow is named by its size: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + w.below).join(', ') + ', and <i>shredded to pieces</i> above.' : ''
     ].filter(Boolean) : [],
     cb ? combatSimControls() + '<div id="combatOut">' + combatSimHtml(combatSimParams(), cb.words) + '</div>' : '', '');
@@ -16038,7 +16028,7 @@ function renderMechanicsSheet() {
   const kind = r => r.melee ? 0 : r.thrown ? 1 : r.ranged ? 2 : r.ammo ? 3 : r.armour ? 4 : 5;
   gear.sort((a, b) => kind(a) - kind(b) || ((b.damage || 0) - (a.damage || 0)) || ((b.protection || b.block || 0) - (a.protection || a.block || 0)) || a.name.localeCompare(b.name));
   add('gear', 'Weapons and armour', { icon: 107 }, src('the classes', 0x1000),
-    gear.length ? gear.length + ' item classes carry combat parameters, named here from the routines that read them.' : 'No item class in this archive carries combat parameters.',
+    gear.length ? gear.length + ' item classes carry combat parameters.' : 'No item class in this archive carries combat parameters.',
     gear.length ? [
       '<b>Damage</b> is the most a blow can do before the skill is added; the resolver rolls 0 to it.',
       '<b>Reach</b> is in squares: the AI squares it against the distance before it swings. A launcher’s <b>range</b> is the same column.',
@@ -16073,7 +16063,7 @@ function renderMechanicsSheet() {
       fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn to a radius of five and the script walks everyone inside it, but the damage call runs for the one on the target square alone; the spell’s own description says it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => PROP_TYPE_NAMES[r.proptype] || ('class ' + r.proptype)); } catch (e) {} return ms.length ? 'Damage without the magic bit — fire, electric, blunt, edged — is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
       'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the executable’s enemy iterator; workbench doc/tremor-and-enemies.md). Tremor shakes the screen and hurts enemies you cannot see.',
-      'A spell with nothing in the last column changes something other than health: a status (above), the light, a lock, a rune, or the map.'
+      'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune, or the map.'
     ].filter(Boolean) : [],
     mechSpellFigures(sp) +
     table(['spell', '#level', '#cost', 'does'], sp.spells.map(x => '<tr><td>' + partChip(x.name, x.resid) + '</td>' + num(x.level) + num(x.cost) + '<td>' + doesCell(x) + '</td></tr>')), '');
@@ -16092,7 +16082,7 @@ function renderMechanicsSheet() {
     xp.rule ? 'Every award goes through one helper, and a level is a threshold on the total.' : 'The experience helper (0xE8B) is not in this archive.',
     xp.rule ? [
       'Experience is added' + (xp.rule.cap ? ', <b>capped at 65,535</b>' : '') + (xp.rule.doubling ? ', and the level rises by one when it passes <b>100 × 2 to the power of the level less one</b>: above 100 for level 2, 200 for 3, 400 for 4, 800, 1,600, doubling.' : '.'),
-      'A new level recomputes full health as <b>body + reflex ÷ 2 + level, plus Defence × 5 × reflex ÷ 15</b> — Defence the skill where the character has it, else a class figure — with health scaled to match, and full magic as <b>mind + Mana</b> the same way.',
+      'A new level recomputes full health as <b>body + reflex ÷ 2 + level, plus Defence × 5 × reflex ÷ 15</b>, taking Defence as the skill where the character has it and a class figure — with health scaled to match, and full magic as <b>mind + Mana</b> the same way.',
       'Striking something earns the attacker the damage dealt, up to the victim’s level above theirs plus one, and one point for a blow bigger than the gap the other way.',
       'A shared award is split across the party.'
     ] : [],
@@ -16128,7 +16118,7 @@ function renderMechanicsSheet() {
   const st = statusRules();
   const statusNames = new Set([...st.applies.keys(), ...st.cures.keys()]);
   add('status', 'Status effects', { icon: 31 }, '',
-    st.applies.size ? 'Every place a script puts a status on somebody, with the duration the call gives — in clock units, 4096 to the game hour, see below — and every place one is cleared, which is what a cure is.' : 'No script in this archive applies a status.',
+    st.applies.size ? 'Every place a script puts a status on somebody, with the duration the call gives in clock units of 4096 to the game hour, and every place one is cleared, which is what a cure is.' : 'No script in this archive applies a status.',
     [], mechStatusFigure(st) + table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
       (st.applies.get(nm) || []).map(a => svChip(a.resid, a.duration !== null ? 'for ' + a.duration : '')).join(' ') + '</td><td>' +
       [...(st.cures.get(nm) || [])].map(r => svChip(r)).join(' ') + '</td></tr>')), '');
@@ -16144,7 +16134,7 @@ function renderMechanicsSheet() {
       (hg.complains !== null ? 'The idle script complains below <b>' + hg.complains + '</b>.' : ''),
       (hg.ceiling !== null ? 'The fountain and Nutrient add only up to <b>' + hg.ceiling + '</b>; a food adds its own figure, listed above.' : ''),
       'While nutrition is above 0, <b>health and magic each rise by 1</b> at a rate set by the level: every hour at level 1, every half hour at 2 and 3, every 20 minutes at 4 and 5, every quarter hour at 6 and 7, every 12 minutes from 8 up. Nothing rises past full.',
-      'At 0 there is no healing, and nothing else: the executable takes no health for hunger, so the scripts’ complaint is the whole penalty.'
+      'At 0 there is no healing. The executable takes no health for hunger.'
     ].filter(Boolean),
     '<div class="mechStats">' + stat(100, 'nutrition at most') + stat('1 an hour', 'the fall') + stat('about 4 days', 'from full to empty') + '</div>' +
     mechHungerFigure(), '');
@@ -16155,9 +16145,9 @@ function renderMechanicsSheet() {
     lk.rule ? 'One helper tries a key or a pick against a lock.' : 'The lock helper (0xE43) is not in this archive.',
     lk.rule ? [
       lk.rule.keyFits ? 'A key fits when the lock’s number matches the key’s.' : '',
-      lk.rule.formula ? 'A pick opens the lock when the picker’s <b>reflex plus a roll of 0 to 18</b> is at least <b>20 plus another roll of 0 to 18 plus 5 for every 20 of the lock’s difficulty, rounded up</b>' + (lk.rule.breaks ? ', and <b>breaks</b> otherwise.' : '.') + ' Rounded up: a difficulty of 1 costs the same 5 as a difficulty of 20, so the locks in the archive fall into a dozen classes rather than a hundred.' : '',
+      lk.rule.formula ? 'A pick opens the lock when the picker’s <b>reflex plus a roll of 0 to 18</b> is at least <b>20 plus another roll of 0 to 18 plus 5 for every 20 of the lock’s difficulty, rounded up</b>' + (lk.rule.breaks ? ', and <b>breaks</b> otherwise.' : '.') + ' Rounded up, so a difficulty of 1 costs the same 5 as a difficulty of 20.' : '',
       lk.needsSkill ? 'The lockpick refuses to be used at all without the <b>Lock Picking</b> skill.' : '',
-      'The difficulty is the placed lock’s own; the classes carry a parameter of their own, shown as stored.'
+      'The difficulty is the placed lock’s own. The classes carry a parameter of their own, shown as stored.'
     ].filter(Boolean) : [], mechLockFigure(lk),
     lk.classes.length ? '<span class="partsTitle">Lock parameter</span>' + lk.classes.map(c => propChip(c.pt, c.name, c.words.join(' '))).join('') : '');
 
@@ -16165,7 +16155,7 @@ function renderMechanicsSheet() {
   const sh = shopRules();
   add('shops', 'Shops', { icon: 130 }, src('the counter', 0xEA5),
     sh.shops.length ? sh.shops.length + ' shops, each one call of the same helper with what the vendor lists and at what price.' : 'No script in this archive opens a shop.',
-    sh.shops.length ? ['The helper bargains from the listed price with four figures of the vendor’s own, shown as stored.', sh.haggling ? 'The <b>Haggling</b> skill takes a further roll of 0 to 5 off the vendor’s figure.' : ''].filter(Boolean) : [],
+    sh.shops.length ? ['The helper bargains from the listed price with four figures of the vendor’s, shown as stored.', sh.haggling ? 'The <b>Haggling</b> skill takes a further roll of 0 to 5 off the vendor’s figure.' : ''].filter(Boolean) : [],
     mechShopFigure(sh) +
     table(['vendor', 'goods, at the listed price in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.who !== null && loadCharacterTable()[spn.who] ? characterChip(spn.who) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
@@ -16187,7 +16177,7 @@ function renderMechanicsSheet() {
   // ---- talk balloons ----
   const barks = buildBarkCatalogue();
   add('balloons', 'Talk balloons', { tile: 0x488 }, '',
-    'The short lines over a character’s head are a field on the character that a script writes a string into; the engine draws it in a 128×32 rounded balloon with a tail, and takes it down <b>four seconds</b> later: the routine that puts it up returns the tick count plus 240, and the one that shows the balloons each frame removes it once the tick count reaches that. Both are the executable’s, not the file’s.',
+    'The short lines over a character’s head are a field on the character that a script writes a string into. The engine draws it in a 128×32 rounded balloon with a tail and takes it down <b>four seconds</b> later: the routine that puts it up returns the tick count plus 240, and the one that shows the balloons each frame removes it once the tick count reaches that. Both are the executable’s, not the file’s.',
     ['A line is a literal, or one picked at random from a list.', 'Two tavern helpers take a list of shouts and a list of replies for when the food or wine comes.',
      barks.length ? barks.length + ' places in this archive’s scripts set one; the words are under Text › Barks.' : 'No script in this archive sets one.'],
     mechBalloonFigure(barks), '<span class="partsTitle">The words</span><button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>');
@@ -16195,14 +16185,14 @@ function renderMechanicsSheet() {
   // ---- sleep ----
   const sl = sleepRules();
   add('sleep', 'Sleeping', { tile: 0x100E }, src('the bed', 0x100E) + src('the night', 0xE93),
-    sl ? 'A bed is a class script that picks a quality for the sleep and hands the hours to one helper, which passes the night and then multiplies what the engine healed during it.' : 'The bed class (0x100E) or the sleep helper (0xE93) is not in this archive.',
+    sl ? 'A bed picks a quality for the sleep and hands the hours to one helper, which passes the night and multiplies what the engine healed during it.' : 'The bed class (0x100E) or the sleep helper (0xE93) is not in this archive.',
     sl ? [
       sl.own !== null ? 'Your own bed in Land King Hall has quality <b>' + sl.own + '</b>; an inn’s bed takes its innkeeper’s figure from a table in the global store (0x301), at the slot the innkeeper’s dialogue wrote when the room was paid for, and a bed nobody paid for is refused.' : '',
       sl.quarter && sl.hours ? 'The night passes <b>a quarter of an hour at a time</b>, four to the hour asked for' + (sl.owner ? ', and the bed’s owner turning up throws you out (“Hey! Out of my bed!”)' : '') + '.' : '',
       sl.half ? 'Then, when the quality is not 0' + (sl.soundly ? ' (“You sleep soundly”)' : '') + ', every party member gets <b>what they healed during the night times the quality over 2</b> on top, for health and for magic, up to full. <b>Quality 4 is three times the engine’s rate.</b>' : '',
       sl.toss ? 'Quality 0 is “You toss and turn” and the engine’s rate alone.' : '',
-      'The engine’s rate is the one under Hunger and healing: a fed character’s level rate, plus the six-minute regeneration where a worn item grants it, and nothing at all for a hungry one. A player’s 2012 measurements of 12, 10, 42, 30 and 35 an hour in different beds are exactly these rules.',
-      'The magic branch compares magic against <i>full health</i> in two places, a bug kept as stored.'
+      'The engine’s rate is the one under Hunger and healing: a fed character’s level rate, plus the six-minute regeneration where a worn item grants it, and nothing at all for a hungry one.',
+      'The magic branch compares magic against <i>full health</i> in two places. Kept as stored.'
     ].filter(Boolean) : [],
     (sl ? mechSleepFigure(sl) : '') +
     (sl && sl.inns.length ? table(['bed', 'where', '#quality', 'healing'], [(sl.own !== null ? '<tr><td>your own</td><td>Land King Hall</td>' + num(sl.own) + '<td>× ' + (1 + sl.own / 2) + '</td></tr>' : '')].concat(
@@ -16210,7 +16200,7 @@ function renderMechanicsSheet() {
 
   // ---- the clock ----
   add('clock', 'The clock, poison and time', { tile: 0x231 }, '',
-    'The game keeps one clock in units of <b>1/4096 of an hour</b>, about 0.9 seconds of game time; twenty-four hours make a day. Every duration a script hands the engine is in these units. This is read from the executable, not the file.',
+    'The game keeps one clock in units of <b>1/4096 of an hour</b>, about 0.9 seconds of game time. Twenty-four hours make a day, and every duration a script hands the engine is in these units. Read from the executable, not the file.',
     [
       'A step costs one unit; looking costs 2, taking 4, and a spell 10 plus twice its level. The monsters move while the player’s time is spent.',
       'A status duration of <b>4096 is one hour</b>, 1024 a quarter of an hour, 409 six minutes.',
@@ -16224,7 +16214,7 @@ function renderMechanicsSheet() {
   toc.innerHTML = '<span class="partsTitle">Rules</span>' + sections.map(sn => '<button class="navChip" onclick="mechGo(\'' + sn.id + '\')">' + svEsc(sn.title) + '</button>').join('');
   box.insertBefore(toc, box.firstChild);
   grid.appendChild(box);
-  out.textContent = 'Rules read out of the open archive’s scripts, built on the spot — ' + sections.length + ' sections. Each says which script it was read from.';
+  out.textContent = sections.length + ' rules read out of this archive’s scripts. Each says which script it came from.';
 }
 // Scroll a Mechanics section into view; a plain anchor would rewrite the
 // hash, which is the page's deep link.
@@ -16377,9 +16367,9 @@ function renderToolsSheet() {
   const pnote = document.createElement('div');
   pnote.className = 'changesNote';
   pnote.style.cssText = 'margin-left:0;margin-top:8px';
-  pnote.innerHTML = '<b>Untried.</b> The four bytes are evidence — a stored record of ' +
+  pnote.innerHTML = '<b>Untested.</b> A stored record of ' +
     '<code>18800001</code> was watched to print “Cheat mode activated.”, and the movement bit was ' +
-    'measured frame by frame — but a preferences file <i>this page wrote</i> has never been put in ' +
+    'measured frame by frame, but a preferences file <i>this page wrote</i> has never been put in ' +
     'front of the game. It replaces any settings already stored. If you try it, say whether it worked.';
   pf.appendChild(pnote);
 
@@ -17791,14 +17781,14 @@ function downloadCytheraPrefs(kind) {
     dlBlob(new Blob([image], { type: 'application/octet-stream' }), PREFS_VOLUME_NAME + '.dsk');
     setStatus('Wrote a ' + fmtBytes(image.length) + ' disk image with ' + how + '. Drop it on an ' +
       'emulated Mac; it mounts as “' + PREFS_VOLUME_NAME + '” and carries an ' +
-      PREFS_SCRIPT_NAME + ' script. Untried — tell the maintainer whether it works.');
+      PREFS_SCRIPT_NAME + ' script.');
     return;
   }
   const bin = writeMacBinary({ name: PREFS_FILE_NAME, type: 'pref', creator: PREFS_CREATOR,
                                data: new Uint8Array(0), rsrc: buildCytheraPreferences(opts) });
   dlBlob(new Blob([bin], { type: 'application/octet-stream' }), PREFS_FILE_NAME + '.bin');
   setStatus('Wrote ' + PREFS_FILE_NAME + '.bin with ' + how + '. Unwrap it on a real Mac and put it ' +
-    'in the System Folder’s Preferences folder. Untried — tell the maintainer whether it works.');
+    'in the System Folder’s Preferences folder.');
 }
 
 function buildInstallScript(archiveName, note) {

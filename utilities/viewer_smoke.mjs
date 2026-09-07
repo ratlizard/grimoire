@@ -1527,7 +1527,7 @@ try {
   ctx.showCategory('TOOLS');
   const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/id="prefSmooth"/.test(tools) || !/id="prefCheats"/.test(tools)) fail('preferences', 'the two switches are not on the Tools tab');
-  else if (!/Untried/.test(tools)) fail('preferences', 'the section no longer says the file has never been put in front of the game');
+  else if (!/Untested/.test(tools)) fail('preferences', 'the section no longer says the file has never been put in front of the game');
   else if (!/©gra/.test(tools)) fail('preferences', 'the section does not name the code');
   else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
   else console.log(`  preferences: both switches on the Tools tab, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork, still labelled untried`);

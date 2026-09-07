@@ -2020,6 +2020,18 @@ Read the comment above a constant before correcting it.
   remembering: the side is ONE byte, and reading it as a big-endian short
   made every table look like a misfit.
 
+- **The UI text is plain, v1.24.1.** A pass over every string the page
+  shows, on the maintainer's instruction: no dates or development
+  history in the interface, no sentences shaped for effect, no asides in
+  dashes, and text cut where it added nothing. What went: the anecdote
+  about trying the cheat code in systemless, the note that a table had
+  said the opposite until a given date, "tell the maintainer whether it
+  works", "built on the spot", "which is what makes this sheet the same
+  sheet", and a dozen similar. **Text derived from game data is not
+  touched** — the game's own strings, names, descriptions and barks stay
+  exactly as the file has them, and so do the figures read out of it.
+  The rule for new UI copy: say what the thing is or does, once.
+
 ## Licensing
 
 `LICENSE` is GPL-3.0-or-later and covers the work here (it was MIT until
