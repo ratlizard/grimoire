@@ -2069,6 +2069,14 @@ and what was tried and rejected — see `js/mac-bytes.js`,
 `utilities/loader_test.mjs`. When you make a non-obvious choice, write
 down why, in that voice. Do not strip these comments.
 
+**UI text is plain and says the thing once.** No dates or development
+history in the interface, nothing shaped for effect, no asides in dashes,
+and no text that adds nothing. Text derived from the game's data — its own
+strings, names, descriptions and barks, and the figures read out of the
+file — is reproduced exactly and is never rewritten for style. Set by the
+maintainer on 7 September 2026; the pass that applied it is v1.24.1 under
+Per-page notes. Comments are the opposite and stay long, as below.
+
 **Commit messages are prose, not conventional-commits.** They read like a
 sentence describing the change from the user's side:
 
