@@ -1943,8 +1943,10 @@ Read the comment above a constant before correcting it.
   The `Lite` tables (25 of them, a side length then that many squared bytes
   of falloff) are the game's own light cones, and the map's lighting layer
   still draws its own gradients. The Seldane strikes decode; nothing yet
-  sets Seldane text in them. `MSta`, `FILT`, `LINF`, `DATA` and `PORT` are
-  listed and unread.
+  sets Seldane text in them. `FILT`, `LINF`, `PORT`, `CMNU`, `xmnu`, `MemU`
+  and nine of the ten `DATA` resources are listed and unread; what was tried
+  on the last four of those, and why it was not shipped, is under **What the
+  forks were still hiding, v1.25.0**.
 
 
 - **The game's font can be swapped, v1.22.0** (7 September 2026) — the top
@@ -2031,6 +2033,76 @@ Read the comment above a constant before correcting it.
   touched** — the game's own strings, names, descriptions and barks stay
   exactly as the file has them, and so do the figures read out of it.
   The rule for new UI copy: say what the thing is or does, once.
+
+- **What the forks were still hiding, v1.25.0.** Nine types went from a byte
+  count to something read. The occasion was `TILE` 282 in the application's
+  fork — one Delver Compressed Graphics tile sheet, the only resource of its
+  type in either fork, listed under Engine and never drawn although
+  `decompressDCG` and `reshapeTileSheetGrid` had been here all along.
+  `decodeTileSheetResource` reaches across to the delv-\* tier for both
+  (feature-tested, so the mac-\* tier still loads alone) and draws it as the
+  4×4 grid, index 0 transparent, which is what a sheet out of subindex 141
+  gets. **Its indices are identical to delvmod's `TileSheet.get_image()`,
+  byte for byte** — the same evidence `delv_graphics_check.mjs` gives for the
+  archive's 440 images, taken by hand because that harness reads the archive
+  and this resource is in a fork. **The art is not the game's**: against the
+  2,376 distinct tiles in the archive's 160 sheets, only its two solid black
+  tiles match. It uses the animated slots (0xE8, 0xEC, 0xEE, 0xF1, 0xF8), so
+  it was drawn to the engine's conventions and then never used.
+
+  The other eight, all in the same sweep: `TxSt` — a byte of size, a byte of
+  face bits, a Pascal string of family — reads all twenty styles across both
+  forks, and `TxSt` 999 is not a style at all but four palette indices, which
+  is not a guess: `RMAP` 128 (now read) says that id 999 in type `TxSt` is
+  really a `TxCl`, and `decodeTxCl` draws the four swatches. `Page` is the
+  Delver engine's own help, shipped inside the finished game — thirteen
+  topics, ten of them a single byte, and the two with prose say what they are
+  ("This is a prerelease version of Delver, not indented [sic] for
+  distribution"). Its high-bit bytes are layout markers whose meaning is not
+  read, so they are printed as their values and the text between them is
+  shown a run to a line. `MSta` is 64 bytes of game state and the resource
+  name says which state: "Base" is all zero, "Plague Cured" differs at byte
+  34 alone and "Olpheltius Murdered" at byte 35 alone, so the difference is
+  the whole content and is what gets shown. `Audt` is thirteen four-character
+  categories end to end. `Pref` is one long, named by the resource ("Volume"
+  5, "Music" 2). `acur` was drawn by the cursor gallery but was a byte count
+  in the fork gallery; it now names its eight frames and draws them through
+  the existing `lookupCursor`, and all eight resolve. `DATA` is a generic
+  type with ten resources of several shapes, so the id→name table is detected
+  by shape rather than by id: **`DATA` 260 is the editor's own tile palette**,
+  75 entries against the archive's 548 in 0xF004, 69 of them identical. The
+  six that differ are the editor's words — 0xCF "wall" where 0xF004 says
+  "abyss", 0x43F "steel door" against "metal door", 0x45F "stone door"
+  against "secret door" — plus "tableleg" for 0x359, which 0xF004 does not
+  name at all. `Delv` 0 is named and not decoded: it is the creator signature
+  standing as the fork's owner resource, one byte with nothing in it.
+
+  **`CMNU` was attempted and abandoned, and the reasoning is kept at its
+  place in `js/mac-rsrc-types.js`** so the next attempt does not start over.
+  `MENU` 129 is the same File menu, which makes the header, the title and the
+  eleven item texts known; what is not settled is the item record. The nine
+  real items take nine bytes after their text and the two separators take
+  eight, checked against the next Pascal string every time. Four attribute
+  bytes, one spare, then a long gives every real item a plausible command
+  number and both separators zero — but the spare is then present exactly
+  when the command is not zero, a rule fitted to eleven items in one resource
+  with no second `CMNU` anywhere to test it on. A byte count is the honest
+  answer. `xmnu` is the same shape of problem: its header says twelve entries
+  and eight are findable, at strides of 33, 32, 30, 29, 30, 32 and 32. `FILT`
+  (6180 and 8228 bytes), `LINF`, `PORT` and the other nine `DATA` resources
+  are untouched.
+
+  **`Lite` was being drawn by a decoder nothing guarded.** It arrived with
+  v1.24.0 and was never added to `rsrc_snapshot.mjs`, so twenty-five
+  resources rendered with no regression cover at all; it is in the snapshot
+  now along with the nine new ones. A decoder that declines returns `null`
+  there rather than the string `"null"`, so the per-type line says "no
+  decoder" instead of counting a refusal as a success — which is what nine
+  of the ten `DATA` resources do. The snapshot moved to `1b6259f21831`; the
+  decoder snapshot did not move, because nothing the archive reads was
+  touched. Two dead ends noticed on the way and left alone: `tagIndexed`
+  writes `canvas.__indexed` and nothing reads it, and `decodableBadge` is
+  defined and never called.
 
 ## Licensing
 

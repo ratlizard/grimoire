@@ -113,6 +113,20 @@ function describe(type, entry, data) {
     case 'NFNT': case 'FONT': { const f = G.decodeNFNT(data);
       return `font:${f.info}:${canvasSig(f.canvas)}:glyphs${f.glyphs.length}:${hash(f.glyphs.map(g => g.code + 'x' + g.width).join(','))}`; }
     case 'cfrg': return G.decodeCfrg ? text(() => G.decodeCfrg(data)) : 'n/a';
+    // The engine's own types, and Cythera's. Lite arrived with the light cones
+    // and was never added here, so twenty-five resources were being drawn by a
+    // decoder nothing guarded; the rest landed together on 7 September 2026.
+    case 'Lite': { const l = G.decodeLite(data); return l ? `lite:${l.side}:${l.max}:${l.centre}:${canvasSig(l.canvas)}:${hash(l.text)}` : null; }
+    case 'TILE': { const t = G.decodeTileSheetResource(data); return t ? `tile:${canvasSig(t.canvas)}:${hash(t.text)}` : null; }
+    case 'TxSt': { const s = G.decodeTxSt(data);
+      if (s) return `txst:${s.size}:${s.face}:${s.font}`;
+      const c = G.decodeTxCl(data); return c ? `txcl:${canvasSig(c.canvas)}:${hash(c.text)}` : null; }
+    case 'RMAP': { const r = G.decodeRMAP(data); return r ? text(() => r) : null; }
+    case 'Audt': { const a = G.decodeAudt(data); return a ? text(() => a) : null; }
+    case 'Page': { const p = G.decodePage(data); return p ? text(() => p) : null; }
+    case 'MSta': { const m = G.decodeMSta(data); return m ? text(() => m) : null; }
+    case 'Pref': return data.length === 4 ? `pref:${(entry.name || '')}:${G.u32be(data, 0)}` : null;
+    case 'DATA': { const t = G.decodeIdNameTable(data); return t ? text(() => t) : null; }
     default:
       if (G.COLOR_TABLE_TYPES && G.COLOR_TABLE_TYPES[T]) { const r = G.decodeClut(data); return `ctab:${r.count}:${canvasSig(r.canvas)}`; }
       // 68K code: CODE and the definition procedures, which are the same thing

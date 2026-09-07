@@ -99,9 +99,230 @@ function decodeLite(data){
         return v===0?' ':v>=mx*0.75?'#':v>=mx*0.5?'+':v>=mx*0.25?'.':'·';
       }).join('')).join('\n') };
 }
+
+/* The one Delver graphic that lives in a Macintosh resource fork.
+
+   `TILE` 282 in the application's fork is a Delver Compressed Graphics tile
+   sheet -- the same 32x512 column of sixteen 32x32 tiles as the 160 sheets
+   under subindex 141 of the archive, and the only resource of its type in
+   either fork. It was listed and unread until 7 September 2026, though every
+   piece needed to draw it was already here.
+
+   Its art is not the game's. Comparing all sixteen tiles against the 2,376
+   distinct tiles in the archive's sheets, only the two solid black ones match:
+   the other fourteen -- banded walls, a lattice frieze, pillars, a starfield,
+   grey stone, lava, foliage, panel frames and a pair of arrows -- appear
+   nowhere in Cythera. It is art the executable carries and the shipped
+   scenario never draws. It uses the animated palette slots (0xE8, 0xEC, 0xEE
+   in the water cycle, and 0xF1, 0xF8), so whoever drew it was working to the
+   engine's own conventions.
+
+   Drawn as the 4x4 grid the tile-sheet galleries use, with index 0
+   transparent, which is what `transparentIndexFor(141)` says for a sheet out
+   of the archive. The delv-* tier owns the format; this reaches across to it
+   rather than carrying a second copy, and feature-tests first so that the
+   mac-* tier still loads on its own. */
+function decodeTileSheetResource(data){
+  if(typeof decompressDCG!=='function'||typeof reshapeTileSheetGrid!=='function'||
+     typeof PAL_RGB==='undefined') return null;
+  let strip; try { strip = decompressDCG(data, 32, 512); } catch(e){ return null; }
+  if(!strip||strip.length!==32*512) return null;
+  const g = reshapeTileSheetGrid(32, 512, strip);
+  const c=document.createElement('canvas'); c.width=g.W; c.height=g.H;
+  const ctx=c.getContext('2d'); if(!ctx) return null;
+  const img=ctx.createImageData(g.W,g.H);
+  for(let i=0;i<g.W*g.H;i++){
+    const v=g.image[i], p=i*4;
+    if(v===0){ img.data[p+3]=0; continue; }
+    const col=PAL_RGB[v]||[0,0,0];
+    img.data[p]=col[0]; img.data[p+1]=col[1]; img.data[p+2]=col[2]; img.data[p+3]=255;
+  }
+  ctx.putImageData(img,0,0);
+  const used=new Set(strip); const anim=[...used].filter(v=>v>=0xE0&&v<=0xFB).sort((a,b)=>a-b);
+  return { canvas:tagIndexed(c,g.W,g.H,g.image,PAL_RGB), indices:strip,
+    text:'A Delver tile sheet: sixteen 32×32 tiles stored as one 32×512 column, '+
+      'shown as the 4×4 grid.\n'+used.size+' colours from the game’s palette'+
+      (anim.length?'; '+anim.length+' in the animated range ('+
+        anim.map(v=>'0x'+v.toString(16).toUpperCase()).join(', ')+')':'')+'.' };
+}
+
+/* Text styles. Cythera's own type, in both forks: one byte of point size, one
+   byte of QuickDraw face bits, then a Pascal string naming the family. The
+   application's eight are the Mac faces the game falls back to (Chicago,
+   Geneva, Espy Sans); the data file's twelve name ArgosANouveau, Geneva and
+   Seldane, and the resource names say what each is for -- "Sys Large",
+   "Labels", "Stats", "Text", "Lang0 Small".
+
+   One is not a style at all. `TxSt` 999 in the data fork is four bytes with no
+   room for the name a style needs, and the fork says why: `RMAP` 128, itself
+   named "TxSt", declares that id 999 in type `TxSt` is really a `TxCl`. Its
+   four bytes are palette indices, drawn here as the swatches they are. */
+function decodeTxSt(data){
+  if(!data||data.length<3) return null;
+  const size=data[0], face=data[1], n=data[2];
+  if(3+n!==data.length) return null;
+  const bits=FACE_BITS.filter(([b])=>face&b).map(([,x])=>x);
+  return { size, face, font:decodeMacRoman(data.slice(3,3+n)),
+    text:decodeMacRoman(data.slice(3,3+n))+', '+size+' pt, '+(bits.length?bits.join('+'):'plain') };
+}
+function decodeTxCl(data){
+  if(!data||typeof PAL_RGB==='undefined') return null;
+  const c=document.createElement('canvas'); c.width=data.length*16; c.height=16;
+  const ctx=c.getContext('2d'); if(!ctx) return null;
+  for(let i=0;i<data.length;i++){
+    const col=PAL_RGB[data[i]]||[0,0,0];
+    ctx.fillStyle='rgb('+col[0]+','+col[1]+','+col[2]+')';
+    ctx.fillRect(i*16,0,16,16);
+  }
+  return { canvas:c, text:'Colours by palette index: '+
+    Array.from(data,v=>'0x'+v.toString(16).toUpperCase().padStart(2,'0')).join(', ') };
+}
+
+/* `RMAP` says that a resource of one type is to be read as another. The single
+   one here, `RMAP` 128, maps `TxSt` 999 onto `TxCl`: a four-char type, a count,
+   then that many { id, four-char type } entries. */
+function decodeRMAP(data){
+  if(!data||data.length<10) return null;
+  const from=decodeMacRoman(data.slice(0,4)), n=u32be(data,4);
+  if(!n||data.length<8+n*6) return null;
+  const rows=[]; for(let i=0;i<n;i++){
+    rows.push('  '+from+' #'+u16be(data,8+i*6)+' is really '+decodeMacRoman(data.slice(10+i*6,14+i*6)));
+  }
+  return 'Type remapping for '+from+':\n'+rows.join('\n');
+}
+
+/* The engine's audit categories: thirteen four-character tags end to end, no
+   header. They read as the parts of the engine that can be logged --
+   Wind(ows), stup, LgUI, LgAI, Scrn, LgGP, Schd, CAct, Levl, Eggs, heap, Spel,
+   file -- and are listed as they are stored, without a gloss, because nothing
+   read so far says what any of them switches on. */
+function decodeAudt(data){
+  if(!data||!data.length||data.length%4) return null;
+  const tags=[]; for(let i=0;i<data.length;i+=4) tags.push(decodeMacRoman(data.slice(i,i+4)));
+  if(!tags.every(t=>/^[\x20-\x7e]{4}$/.test(t))) return null;
+  return tags.length+' audit categories: '+tags.join(', ');
+}
+
+/* The help pages the Delver engine carries, which Cythera never shows.
+
+   Thirteen `Page` resources, named for their topics ("Delver Topics", "About
+   Delver", "Playing", "Main Map View"...). Ten of the thirteen hold a single
+   byte: the two that have prose are "About Delver" and "Playing", and the
+   contents page lists the rest. The prose says what they are -- "This is a
+   prerelease version of Delver, not indented [sic] for distribution" -- so
+   these are the engine's own help, shipped inside the finished game.
+
+   Bytes with the high bit set are layout markers between the runs of text.
+   What each one means is not read, so they are shown as their values rather
+   than interpreted, and the text between them is left exactly as stored. */
+function decodePage(data){
+  if(!data||!data.length) return null;
+  const parts=[]; let run=[];
+  const flush=()=>{ if(run.length){ parts.push(decodeMacRoman(Uint8Array.from(run))); run=[]; } };
+  for(const b of data){
+    if(b>=0x80){ flush(); parts.push('〈'+b.toString(16).toUpperCase()+'〉'); }
+    else run.push(b);
+  }
+  flush();
+  // The runs are shown one to a line. A marker always stands between two of
+  // them, so where one line ends and the next begins is the file's division,
+  // not a reading of it -- run them together and the contents page becomes one
+  // word ("Delver TopicsAbout Delver...").
+  const words=parts.filter(p=>p[0]!=='〈').map(p=>p.trim()).filter(Boolean);
+  return (words.length?words.join('\n')+'\n\n':'This page holds no text.\n\n')+
+    'As stored: '+parts.join('');
+}
+
+/* `CMNU` is deliberately NOT read, and the byte evidence is worth keeping so
+   that the next attempt does not start over.
+
+   `CMNU` 129 is ResEdit's editing form of the File menu, and `MENU` 129 in the
+   same fork is the same menu, which makes the item texts and the header known
+   quantities: an identical 14-byte header and title, then the same eleven
+   items in the same order. What differs is the record after each item's text.
+   `MENU` gives every item four bytes (icon, key, mark, style). In `CMNU` the
+   nine real items take NINE bytes and the two separators take EIGHT, checked
+   against the next item's Pascal-string length in every case. Read as four
+   attribute bytes, one spare, then a long, every one of the nine gives a
+   plausible command number (Open Game 3, Close Window 1000, Save 5, Save
+   As... 6, Backup As... 106, Revert To Saved 7, Preferences... 750, Quit 10)
+   and both separators give zero -- but the spare byte is then present exactly
+   when the command is not zero, which is a rule fitted to eleven items in one
+   resource rather than a format. There is no second `CMNU` anywhere on hand to
+   test it against, so it stays a byte count. */
+
+/* The editor's saved game states: 64 bytes each, and the resource name says
+   which state it is. Three are stored -- "Base", all zero; "Plague Cured",
+   which differs from Base at byte 34 alone; and "Olpheltius Murdered", which
+   differs at byte 35 alone. That is a global per byte, in the order the
+   scripts address them, and the two named states are what a byte means: the
+   difference is the whole content of the resource, so it is shown as the
+   difference. Which global each byte is beyond those two is not read -- the
+   wiki's list of globals stops at 0x19. */
+function decodeMSta(data){
+  if(!data||!data.length) return null;
+  const set=[]; for(let i=0;i<data.length;i++) if(data[i]) set.push('  byte '+i+' = '+data[i]);
+  return data.length+' bytes of game state.\n'+
+    (set.length?'Not zero:\n'+set.join('\n'):'Every byte is zero.');
+}
+
+/* A table of { u16 id, NUL-terminated name } records. `DATA` 260 in the data
+   fork is the editor's tile palette in this shape: 75 entries, a short list
+   beside the 548 the archive's own terrain table (0xF004) carries, and 69 of
+   the 75 names are identical to it. The six that are not are the editor's own
+   words -- tile 0xCF is "wall" where 0xF004 says "abyss", 0x43F "steel door"
+   against "metal door", 0x45F "stone door" against "secret door" -- plus
+   "tableleg" for 0x359, which 0xF004 does not name at all.
+
+   Detected by shape rather than by id, because `DATA` is a generic type with
+   ten resources of several shapes in this fork alone. */
+function decodeIdNameTable(data){
+  if(!data||data.length<12) return null;
+  const rows=[]; let p=0, named=0, prev=-1;
+  while(p+3<=data.length){
+    const id=u16be(data,p); p+=2;
+    let e=p; while(e<data.length&&data[e]!==0) e++;
+    if(e>=data.length) return null;
+    const nm=decodeMacRoman(data.slice(p,e)); p=e+1;
+    // Ids ascend through the real table and the trailing zero padding is where
+    // they stop, which is how loadTerrainNames reads 0xF004 as well. A drop
+    // before there is a table to speak of is not padding, it is a resource of
+    // some other shape, so it is refused rather than truncated.
+    if(id<prev){ if(rows.length<8) return null; break; }
+    prev=id;
+    if(nm){ named++; if(!/^[\x20-\x7e]+$/.test(nm)) return null; }
+    rows.push([id,nm]);
+  }
+  if(rows.length<8||named<rows.length/2) return null;
+  return rows.length+' names by id:\n'+
+    rows.map(([id,nm])=>'  0x'+id.toString(16).toUpperCase().padStart(4,'0')+'  '+(nm||'(none)')).join('\n');
+}
+
 function exportArtifacts(fork, type, entry, data){
   const out=[], txt=s=>out.push({ext:'txt', text:s}), cvs=(c,tag)=>out.push({ext:'png', canvas:c, tag});
   if(type==='Lite') { const l=decodeLite(data); if(l){ cvs(l.canvas,'cone'); txt(l.text); } }
+  else if(type==='TILE'){ const t=decodeTileSheetResource(data); if(t){ cvs(t.canvas,'sheet'); txt(t.text); } }
+  else if(type==='acur'){
+    // The cursor gallery already animates these; in the fork gallery an acur
+    // was a byte count. lookupCursor is the shared resolver, and it is used
+    // rather than a fresh crsr lookup because a crsr and a CURS can share an
+    // id in this fork. Every frame resolving is the check on the reading.
+    const a=decodeAcur(data), frames=a.ids.map(id=>lookupCursor(fork,id));
+    txt('An animated cursor of '+a.count+' frame'+(a.count===1?'':'s')+
+        ', shown in turn.\nFrames: '+a.ids.map((id,i)=>'#'+id+(frames[i]?'':' (missing)')).join(', '));
+    frames.forEach((f,i)=>{ if(f&&f.canvas) cvs(f.canvas,'frame'+(i+1)); });
+  }
+  else if(type==='TxSt'){
+    const s=decodeTxSt(data);
+    if(s) txt(s.text);
+    else { const c=decodeTxCl(data); if(c){ cvs(c.canvas,'colours'); txt(c.text); } }
+  }
+  else if(type==='RMAP'){ const r=decodeRMAP(data); if(r) txt(r); }
+  else if(type==='Audt'){ const a=decodeAudt(data); if(a) txt(a); }
+  else if(type==='Page'){ const p=decodePage(data); if(p) txt(p); }
+  else if(type==='MSta'){ const m=decodeMSta(data); if(m) txt(m); }
+  else if(type==='Pref'&&data.length===4) txt((entry.name||'Preference')+': '+u32be(data,0));
+  else if(type==='DATA'){ const t=decodeIdNameTable(data); if(t) txt(t); }
   else if(type==='STR#') txt(decodeSTRList(data).map((s,i)=>`[${i}] ${s}`).join('\n'));
   else if(type==='STR ') txt(decodeSTR(data));
   else if(type==='TEXT') txt(decodeTEXT(data));
@@ -165,7 +386,13 @@ const TYPE_BADGES={
   'sfnt':'font','NFNT':'bitmap font','FONT':'bitmap font','FOND':'font family',
   'cfrg':'code fragments','CODE':'68K code','CDEF':'68K code','WDEF':'68K code',
   'MDEF':'68K code','LDEF':'68K code','PACK':'68K code','INIT':'68K code',
-  'DRVR':'68K code','FKEY':'68K code'
+  'DRVR':'68K code','FKEY':'68K code',
+  'Lite':'light cone','TILE':'tile sheet','TxSt':'text style','Page':'help page',
+  'Audt':'audit categories','Pref':'preference default',
+  'RMAP':'type remapping','MSta':'game state',
+  // Named, not decoded: Delv is the application's creator signature standing
+  // as the fork's owner resource, one byte with nothing in it to read.
+  'Delv':'owner resource'
 };
 function decodableBadge(type){
   return TYPE_BADGES[type] || COLOR_TABLE_TYPES[type] || null;
