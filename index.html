@@ -3752,7 +3752,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.21.1';
+const GRIMOIRE_VERSION = '1.21.2';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -13225,8 +13225,8 @@ const CHEAT_KEYS = [
   ['†',  '$A0', 'option-t',        'Pass the time',   'Passes a quarter of an hour — DoTicks(1024) — and redraws.'],
   ['< >', '',   '',                'Darken / brighten', 'DarkenLight and BrightenLight: the ambient light of the level, a step at a time.'],
   ['√',  '$C3', 'option-v',        'Magic map',       'MakeZone then MagicMap around the player, shown until the mouse button is pressed.'],
-  ['Ω',  '$BD', 'option-z',        'Show the zone bitmap', 'Copies MagicMap’s own buffer to the window, offset to the player, until the button is pressed.'],
-  ['µ',  '$B5', 'option-m',        'Show the other bitmap', 'The same for MakeBitMap’s buffer.'],
+  ['Ω',  '$BD', 'option-z',        'Show the room you are in', 'The zone bitmap, drawn over the window and offset to the player until the button is pressed. `MakeZone(x, y)` copies the wall bitmap below and flood-fills it from the player’s square, so what is left clear is the connected open area — which is what `InZone` answers and what the magic map is built on.'],
+  ['µ',  '$B5', 'option-m',        'Show the walls',   'The other bitmap, and the one the flood fill runs against: `MakeBitMap` walks every square of the level and sets a bit where the terrain tile carries attribute bits 0x004 and 0x200 together. That is exactly the 189 wall and door tiles — wall, earthen wall, limestone wall, log wall, and every door, curtain, arch and secret door — so it is the level’s static skeleton, one bit a square, rowBytes rounded up to a word.'],
   ['∑',  '$B7', 'option-w',        'Walk through anything', 'Toggles the viewer byte that TGameSys::CanMove and TryMove test first, so nothing blocks.'],
   ['˙',  '$FA', 'option-h',        'Nobody is anybody’s enemy', 'Toggles the byte `TActiveMonster::GetEnemyStatus` short-circuits on. With it set the routine answers 1 for every pair without consulting the 4×4 alignment table — and 1 is that table’s “own side”, so everyone becomes an ally. Every caller treats 0 as “enemy” — the AI’s target pickers FindNearest, FindStrongest and FindWeakest, the script’s EnemyIterator (cbEnemies), and the combat-AI vocabulary in CalculateObject, which compares 0, 1 and 2 as three categories. So it makes peace, not war: monsters stop finding targets and an “every enemy” spell finds nobody.'],
   ['˛',  '$FE', 'option-shift-x',  'See in the dark', 'Toggles flag 18, vision of night, on the player.'],
