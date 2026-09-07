@@ -1427,6 +1427,10 @@ try {
       fail('cheats', `${rows} key rows drawn for ${keys} + ${open} keys`);
     else if (!/option-x/.test(html) || !/broken/.test(html))
       fail('cheats', 'the broken swamp-protection key is not called broken');
+    // option-h read the wrong way round until a reader pressed it: it empties
+    // the enemy list rather than filling it. Pinned so it cannot drift back.
+    else if (/Everyone is hostile/.test(html) || !/enemy/.test(html))
+      fail('cheats', 'option-h is described as making everyone hostile again');
     else if (!hero || !/hero/i.test(hero.name))
       fail('cheats', 'class 32 is not in the sprite list as the hero: ' + JSON.stringify(hero));
     else if (sprites.length < 40 || !sprites.some(s => s.kind === 'monster'))

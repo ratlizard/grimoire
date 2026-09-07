@@ -3752,7 +3752,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.21.0';
+const GRIMOIRE_VERSION = '1.21.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -13228,7 +13228,7 @@ const CHEAT_KEYS = [
   ['Ω',  '$BD', 'option-z',        'Show the zone bitmap', 'Copies MagicMap’s own buffer to the window, offset to the player, until the button is pressed.'],
   ['µ',  '$B5', 'option-m',        'Show the other bitmap', 'The same for MakeBitMap’s buffer.'],
   ['∑',  '$B7', 'option-w',        'Walk through anything', 'Toggles the viewer byte that TGameSys::CanMove and TryMove test first, so nothing blocks.'],
-  ['˙',  '$FA', 'option-h',        'Everyone is hostile', 'Toggles the byte GetEnemyStatus tests first: every character becomes every other’s enemy.'],
+  ['˙',  '$FA', 'option-h',        'Nobody is anybody’s enemy', 'Toggles the byte `TActiveMonster::GetEnemyStatus` short-circuits on. With it set the routine answers 1 for every pair without consulting the 4×4 alignment table — and 1 is that table’s “own side”, so everyone becomes an ally. Every caller treats 0 as “enemy” — the AI’s target pickers FindNearest, FindStrongest and FindWeakest, the script’s EnemyIterator (cbEnemies), and the combat-AI vocabulary in CalculateObject, which compares 0, 1 and 2 as three categories. So it makes peace, not war: monsters stop finding targets and an “every enemy” spell finds nobody.'],
   ['˛',  '$FE', 'option-shift-x',  'See in the dark', 'Toggles flag 18, vision of night, on the player.'],
   ['®',  '$A8', 'option-r',        'Regenerate',      'Toggles flag 12 on the player, which AddAbility maps to status bit 4 — the six-minute regeneration Omen’s ring grants.'],
   ['≈',  '$C5', 'option-x',        'Swamp protection (broken)', 'Meant to toggle flag 31, swamp-poison protection. It reads byte 26 of record 0 rather than the player’s, so it toggles a flag on nobody and does nothing.'],
@@ -13337,10 +13337,21 @@ function renderCheatsSheet() {
     '<li><b>Any resource, as hex</b>, through Edit Bytes on the resource itself.</li>' +
     '<li><b>Where it all comes out.</b> ' + actionChip('Changes', "showCategory('CHANGES')") + '</li></ul></div>';
 
-  h += '<div class="cheatNote" style="margin-top:14px">One thing the table above says that the ' +
-    'community’s lists could not: <b>option-x is broken</b>. It means to toggle swamp-poison ' +
-    'protection and reads byte 26 of record 0 — nobody — so it protects no one. And option-p falls ' +
-    'through into option-r’s toggle, so asking what a prop is also flips the player’s regeneration.</div>';
+  h += '<div class="mechSec"><h4 class="cheatH4">Things the code says and a play-through would not</h4><ul class="ruleList">' +
+    '<li><b>option-x is broken.</b> It means to toggle swamp-poison protection and reads byte 26 of ' +
+    '<b>record 0</b> — nobody — so it protects no one.</li>' +
+    '<li><b>option-p falls through</b> into option-r’s toggle, so asking what a prop is also flips ' +
+    'the player’s regeneration. A missing branch in the game’s own switch.</li>' +
+    '<li><b>option-h makes peace, not war</b>, and this table said the opposite until 7 September 2026. ' +
+    'It was corrected the right way round: a reader pressed it, nobody turned hostile, and the ' +
+    'routine was read again. `GetEnemyStatus` answers <b>1</b> for every pair when the byte is set, and ' +
+    'its five callers all treat <b>0</b> as “enemy” — so the cheat empties the enemy list rather than ' +
+    'filling it.</li></ul>' +
+    '<div class="cheatNote">Which is worth saying plainly: the two tables above are one routine ' +
+    'transcribed, and a transcription can be read wrongly. Where a key’s <i>effect</i> is described ' +
+    'rather than its bytes, it is an inference from what the toggled byte is used for — and that is ' +
+    'exactly the kind of claim a player can overturn in a second. If one of them does not do what it ' +
+    'says, the code is there to be read again.</div></div>';
 
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
   out.textContent = 'Cheat mode: ' + CHEAT_KEYS.length + ' keys behind the gate, ' +

@@ -1172,6 +1172,19 @@ Read the comment above a constant before correcting it.
   nobody, so it protects no one; and `option-p` falls through into
   `option-r`'s toggle, so asking what a prop is also flips the player's
   regeneration.
+  **And one the code could not, v1.21.1.** `option-h` was described here as
+  making everyone hostile, a reader pressed it and nobody turned, and the
+  routine read again says the opposite: `GetEnemyStatus` answers **1** for
+  every pair when the byte is set, 1 is the alignment table's *own side*, and
+  all five callers treat **0** as enemy — so it empties the enemy list rather
+  than filling it. The workbench's `doc/tremor-and-enemies.md` had that
+  table's sixteen values three lines above the sentence that got it
+  backwards. The sheet now carries the correction, how it was caught, and the
+  distinction it turns on: **a row that states bytes is transcription; a row
+  that states an effect is an inference** from what the toggled byte is used
+  for, and only five of the sixteen keys are dispatched by a direct compare,
+  so the rest cannot be re-checked by a scan. The smoke test pins the
+  corrected wording so it cannot drift back.
   **One section is read off the archive, not transcribed.** *Be somebody
   else* is the Pandora's Box trick — search the running game for 32, the
   hero's sprite class, and write another number over it — turned into a
