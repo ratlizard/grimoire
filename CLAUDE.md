@@ -493,6 +493,18 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   one in the emulator and reaching the start screen — so this is a fact to
   know rather than a bug, and the same is true of a rebuild with a dialogue
   resource edited.
+- `patch_check.mjs` — `mergeDelverPatch` against the Magpie Pumpkin Patch,
+  the only known Cythera patch. The merge re-serializes all 5.6 MB, so the
+  comparison that means anything is not against the shipped file but against
+  **the unpatched rebuild**: every one of the 1,546 resources the patch does
+  not name must come back byte for byte between
+  `writeDelverArchive(delverArchiveSpec(base))` and the merged archive, and
+  each of the 12 it does name must read back as the patch holds it. It also
+  asserts the three refusals (a saved game, another scenario's patch, a file
+  that is not an archive) and carries its own negative control: flipping two
+  bytes in the patch must move the merged archive's hash *and* read back
+  through. Needs `unar`, which extracts the patch from its StuffIt archive —
+  `js/mac-stuffit.js` lists the entries but does not decompress method 13.
 - `dialogue_check.mjs` — `dvmConversation` (the conversation extractor in
   `js/delv-script.js`) against two things. Structurally, against the archive:
   109 of the 121 characters must yield topics, Naxos's inheritance chain must
@@ -705,6 +717,18 @@ The *Delver archive* has a JavaScript writer, `writeDelverArchive` in
 `delv_write_check.mjs` — over synthetic archives and over the real one, all
 1,558 resources. `index.html`'s Edit Bytes path is its first caller; see the
 per-page notes.
+
+`mergeDelverPatch` in the same file is the writer's second caller and the
+reason the browser player can load an add-on: a **Magpie patch** is a Delver
+Archive carrying the same scenario title as `Cythera Data` and only the
+resources to replace, and the merge is by resource id and nothing else. It is
+safe to move a resource to a new offset because the cipher is keyed by
+resource id and indexed from the start of the resource, not by file position.
+It refuses a patch for another scenario, refuses a saved game (`DelP` is the
+type of both, and a non-empty player name at 0x20 is the difference), and
+reports rather than adds an id the base archive does not have — the Pumpkin
+Patch carries exactly one, `0xFFFF`, which is Magpie's own bookkeeping.
+`patch_check.mjs` is its check.
 
 **If you change a decoder here, say in the commit message whether the other
 implementations have the same bug.** No suite will tell you.

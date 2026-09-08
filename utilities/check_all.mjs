@@ -216,6 +216,14 @@ const CHECKS = [
   {page: 'viewer', name: 'addons + heuristic', want: [DATA],
    cmd: ['utilities/addons_check.mjs', 'index.html', DATA, ADDONS],
    grep: /heuristic [\d.]+% vs the tables \([^)]*\)/},
+  /* Applying a Magpie patch -- the one add-on system Cythera has. The merge
+     re-serializes the whole 5.6 MB archive, so what this asserts is that
+     nothing moved except the resources the patch names; the writer itself has
+     its own oracle in delv_write_check.mjs. Skips without `unar`, which is
+     what extracts the patch out of its StuffIt archive. */
+  {page: 'viewer', name: 'magpie patch', want: [DATA],
+   cmd: ['utilities/patch_check.mjs', 'index.html', DATA, ADDONS],
+   grep: /\d+ of [\d,]+ resources replaced, [\d,]+ bytes out/},
   /* The undither, scored against a known original. It needs no archive: the
      sources are synthetic and the forward process is the page's own
      ditherizer, so this is the one check here that measures a decoder against

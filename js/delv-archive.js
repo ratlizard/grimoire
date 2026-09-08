@@ -893,6 +893,74 @@ function delverArchiveSpec(bytes) {
   return spec;
 }
 
+/* ---- applying a Magpie patch ----------------------------------------------
+   The closest thing Cythera has to an add-on system, and it is not a plug-in
+   folder: nothing in the game reads one. A Magpie patch is a Delver Archive
+   carrying the same scenario header as `Cythera Data` and holding only the
+   resources to replace -- the Pumpkin Patch is 57,662 bytes against the
+   archive's 5.6 MB, twelve tile sheets (subindex 141, 55 of their 192 tiles
+   redrawn: jack-o'-lanterns, autumn foliage, blood on the blades) and one
+   resource of Magpie's own. Magpie merged it into the data file on disk in 2000; this does the same
+   merge in memory, so the browser player can boot a patched archive without
+   anything being written back to a real file.
+
+   THE MERGE IS BY RESOURCE ID AND NOTHING ELSE. Take the base archive's spec,
+   replace each resource whose id the patch also carries, re-serialize. The
+   cipher is keyed by the resource id and indexed from the start of the
+   resource (see `decryptResource`), not by where the resource sits in the
+   file, so moving a resource to a new offset is safe and the plaintext the
+   patch supplies re-encrypts to the same bytes wherever it lands.
+
+   WHAT IT REFUSES, and why each one is a real file someone will try:
+   - a patch for another scenario: the title at offset 0 must match, or the
+     resource ids mean something else entirely;
+   - a saved game: `DelP` is the type of both a player file and a patch, and
+     five of the twelve community add-ons are player files. A non-empty player
+     name at 0x20 is the difference, and those go through the character import
+     instead;
+   - anything that is not a Delver Archive at all.
+
+   A resource id the patch holds that the base does not is REPORTED AND
+   SKIPPED rather than added, and so is one whose encryption verdict the two
+   sides disagree about. The one real patch carries exactly one such
+   resource, 0xFFFF in a subindex the game's archive does not have, which is
+   Magpie's own bookkeeping and not game content. Adding ids the base lacks is
+   how a patch would grow the archive into shapes nothing here has ever seen;
+   the count comes back so a caller can say so. */
+function mergeDelverPatch(baseBytes, patchBytes) {
+  const base = delverArchiveSpec(baseBytes);
+  if (!base) throw new Error('the game archive is not a Delver Archive');
+  const patch = delverArchiveSpec(patchBytes);
+  if (!patch) throw new Error('that file is not a Delver Archive, so it is not a Magpie patch');
+  if (patch.playerName)
+    throw new Error('that is a saved game (' + patch.playerName + '), not a patch — import it as a character instead');
+  if (patch.scenarioTitle !== base.scenarioTitle)
+    throw new Error('that patch is for ' + JSON.stringify(patch.scenarioTitle) +
+                    ', and this game is ' + JSON.stringify(base.scenarioTitle));
+  if (!patch.resources.length) throw new Error('that patch holds no resources');
+
+  const byId = new Map(base.resources.map(r => [r.resid, r]));
+  const replaced = [], skipped = [], disagreed = [];
+  for (const r of patch.resources) {
+    const target = byId.get(r.resid);
+    if (!target) { skipped.push(r.resid); continue; }
+    // Both sides ran the same smartDecrypt on the same id. When they reach
+    // different verdicts one of the two plaintexts is not plaintext, and the
+    // writer re-encrypts from the base's verdict -- so writing this resource
+    // would put garbage in the archive. Leave the original in place and say
+    // so. DELV_CLEAR_SUBN covers subindex 141, where the one real patch
+    // works, so this is a guard rather than a path anything has taken.
+    if (!!r.encrypted !== !!target.encrypted) { disagreed.push(r.resid); continue; }
+    target.data = r.data;
+    replaced.push(r.resid);
+  }
+  if (!replaced.length)
+    throw new Error('none of that patch\'s ' + patch.resources.length +
+                    ' resource(s) could be applied to the game archive');
+  return { bytes: writeDelverArchive(base), replaced, skipped, disagreed,
+           title: patch.scenarioTitle };
+}
+
 /* ---- editing a map -------------------------------------------------------
    Two writers for the map editor in index.html, and they are deliberately the
    smallest two that could work.
