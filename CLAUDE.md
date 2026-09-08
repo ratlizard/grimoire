@@ -131,9 +131,11 @@ a failure:
   repositories has no Cythera in it. `utilities/fetch_game.mjs` pulls the
   28 MB installer from archive.org's `/cors/` path into `$TMPDIR` and builds
   the four fork files out of it, so a checkout with no `reference/` runs
-  **16 ok, 0 failed, 2 skipped** (measured 4 September, with the delvmod and
-  systemless siblings beside it; 14 before `rule models` and `resource fork
-  write` were added) — both snapshots among the ones that run,
+  everything but two checks (measured 4 September as **16 ok, 0 failed,
+  2 skipped**, with the delvmod and wolflizard siblings beside it and 18
+  checks in the suite; the suite has grown since, and the clean-run figure it
+  prints at the end is the one to subtract two from) — both snapshots among
+  the ones that run,
   which is the whole point: a skip reads like a clean result, so before this a
   cloud or web session could not see a decoder regression at all. The two that
   still skip want files rather than bytes: `archive loading` wants the `.hqx`
@@ -378,7 +380,7 @@ be told from an accident. As of this writing:
 | Check | Hash |
 |---|---|
 | `viewer / decoder snapshot` | `SNAPSHOT e417960b5595f5f9` |
-| `viewer / resource snapshot` | `SNAPSHOT 3850dee3cd55` |
+| `viewer / resource snapshot` | `SNAPSHOT 1b6259f21831` |
 
 If one of those moves and you did not intend it, you changed what a decoder
 outputs. If one of them *doesn't* move after you changed a decoder, the snapshot
