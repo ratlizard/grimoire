@@ -1645,6 +1645,8 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
             <p>Opening it downloads the game’s installer from archive.org, about
               <b>28&nbsp;MB</b>, and keeps a copy in this browser. The copy can be cleared from
               the data-file menu.</p>
+            <p>The whole installer is fetched, not the one file this page reads, because
+              Ambrosia’s licence for Cythera allows it to be passed on only unmodified and complete.</p>
             <p class="gateHint">On the map: pinch or scroll to zoom, drag to move, tap a ring to
               go inside a cave or a town, hold on anyone to see who they are.</p>
             <div class="gateRow">
@@ -3771,7 +3773,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.27.0';
+const GRIMOIRE_VERSION = '1.27.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -16504,18 +16506,6 @@ function renderToolsSheet() {
   // in res/ while there is no file or the browser refused the bytes. A
   // person can tell in a glance here what no harness can -- whether the
   // font the browser is drawing with is the one out of the file.
-  const cred = sec('Credits', '');
-  const cr = document.createElement('div');
-  cr.className = 'amNote';
-  cr.style.lineHeight = '1.5';
-  cr.innerHTML = 'Grimoire v' + svEsc(GRIMOIRE_VERSION) + ' is made by <b>EgadZoundsGadzooks</b>. ' +
-    'It leans on the work of the Cythera community: <b>Bryce Schroeder</b> (delvmod, the Delver formats and disassembler, the compendium); ' +
-    '<b>BreadWorldMercy453</b> (the complete dialogue, asked of every character); ' +
-    '<b>Cythera Guides</b> at cytheraguides.com, and the sites it keeps in its archives, <b>Slayer</b>’s among them; ' +
-    'the editors of the <b>Cythera wiki</b>; the writers of the <b>Cythera web board</b>; ' +
-    'the add-on authors, <b>Wizard</b>, <b>Magpie</b>, <b>Talos</b> and the rest; ' +
-    '<b>Ben Letchford</b> (systemless, where the game runs); and <b>Glenn Andreas</b> and <b>Ambrosia Software</b>, who made Cythera.';
-  cred.appendChild(cr);
   const font = sec('The face this page is set in', '');
   const fn = document.createElement('div');
   fn.className = 'amNote';
@@ -20042,12 +20032,18 @@ document.addEventListener('DOMContentLoaded', () => {
     bookmarked or sent to somebody.
   </p>
   <h3>Credits</h3>
+  <p style="margin-top:0;">Grimoire is made by <strong>EgadZoundsGadzooks</strong>. It leans on the work of the Cythera community.</p>
   <ul style="columns:2; column-gap:2.5em; list-style:none; padding-left:0;">
-    <li><strong>Glenn Andreas</strong> &mdash; original writer &amp; developer of Cythera</li>
-    <li><strong>Ambrosia Software</strong> &mdash; original publisher of Cythera</li>
-    <li><strong>Bryce Schroeder</strong> &mdash; delvmod and the DelvTechWiki: the reverse-engineering and the tooling this page is checked against, with <strong>Chris Pickel &amp; Chaim Halbert</strong></li>
+    <li><strong>Glenn Andreas</strong> &mdash; writer and developer of Cythera</li>
+    <li><strong>Ambrosia Software</strong> &mdash; publisher of Cythera</li>
+    <li><strong>Bryce Schroeder</strong> &mdash; delvmod, the Delver formats and disassembler, the DelvTechWiki and the compendium: the reverse-engineering and the tooling this page is checked against, with <strong>Chris Pickel &amp; Chaim Halbert</strong></li>
+    <li><strong>BreadWorldMercy453</strong> &mdash; the complete dialogue, asked of every character</li>
+    <li><strong>Cythera Guides</strong> at cytheraguides.com, and the sites it keeps in its archives, <strong>Slayer</strong>’s among them</li>
+    <li>the editors of the <strong>Cythera wiki</strong> and the writers of the <strong>Cythera web board</strong></li>
+    <li>the add-on authors: <strong>Wizard</strong>, <strong>Magpie</strong>, <strong>Talos</strong> and the rest</li>
+    <li><strong>Ben Letchford</strong> &mdash; systemless, where the game runs</li>
     <li><strong>Sam Wang</strong> &mdash; Argos A Nouveau typeface design</li>
-    <li><strong>Kazuki Yamada</strong> &mdash; Repomix developer</li>
+    <li><strong>Kazuki Yamada</strong> &mdash; Repomix</li>
     <li><strong>Claude, Gemini &amp; Perplexity</strong> &mdash; AI coding assistance</li>
   </ul>
   <p style="margin-top:1em;">

@@ -84,9 +84,10 @@ design (`#c=135&r=8801`) and the `explorer.html` redirect both exist to
 protect. If page views are ever wanted, a cookieless script tag is the whole
 of the change and it does not cross the no-build-step line.
 
-The maintainer asked on 5 September 2026 to be credited on the Tools tab
-under the handle **EgadZoundsGadzooks**; it is a handle, not a name, and it
-appears there and nowhere else.
+The maintainer asked on 5 September 2026 to be credited under the handle
+**EgadZoundsGadzooks**; it is a handle, not a name, and it appears in the
+page's footer credits and nowhere else (it was on the Tools tab until
+8 September, when the two credit lists became one).
 
 **The site has a version**, `GRIMOIRE_VERSION` in `index.html`, shown at the
 top of the page as "Grimoire v1.0.0". It began at 1.0.0 on 5 September 2026,
@@ -1707,6 +1708,10 @@ Read the comment above a constant before correcting it.
   `?cache=skip` bypasses the remembered copy. IndexedDB is refused on some
   `file://` origins, so every cache call degrades to a no-op.
 - **The installer is the preferred input, and the page is built to take it.**
+  It is also the only thing the page will fetch for itself, for a reason
+  outside engineering: Ambrosia's licence permits distribution of the complete
+  unmodified work and nothing less (see `NOTICE`), so the page never reaches
+  for `Cythera Data` alone.
   The installer is an Installer VISE application whose data fork is an
   `SVCT` archive holding all 48 files the game shipped with, both forks
   each. It arrives as `Cythera.bin` (a MacBinary of it) or as a `.sit` — the
@@ -1946,9 +1951,17 @@ Read the comment above a constant before correcting it.
   started a native drag of the canvas, which is the gesture press-and-hold
   needed. The viewports also switch off the long-press callout and text
   selection.
-- **The Tools tab carries the credits**: the maintainer's handle and the
-  community work the site leans on. The list was drawn up on 5 September
-  2026 from what `reference/` holds and is the maintainer's to edit.
+- **The footer carries the credits**, and only the footer: the maintainer's
+  handle and the community work the site leans on. There were two lists until
+  8 September 2026, one on the Tools tab and one in the footer, drawn up on
+  different days and naming different people; they are one list now, in the
+  `#credits` section at the foot of the page, and it is the maintainer's to
+  edit. Tools keeps the font readout, which is a tool.
+- **The gate says why the whole installer is fetched.** Ambrosia's licence
+  allows non-profit distribution only of the complete, unmodified work
+  (`NOTICE` quotes the clause), so the page fetches the installer whole rather
+  than the one file it reads, and the gate says so in one sentence. The smoke
+  test requires that sentence to be there.
 - **It wants a container, never a bare data fork, and that is deliberate.**
   The installer, a `.hqx` or a MacBinary all carry the *resource* fork, which
   a bare data fork cannot. Editor Stamps & Brushes had been in the page for a

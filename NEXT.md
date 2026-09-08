@@ -393,6 +393,24 @@ re-check the installer count before assuming the rule still applies.
   **Zoneport 43 is an orphan**: it lands at `0x800E` (17,41) and nothing in
   the archive points at it, where 42 and 44–47 are exactly that stairwell's
   five — a sixth flight that was cut. (17,41) has no prop on it.
+- **The gate says why it fetches the whole installer, and the credits are one
+  list, v1.27.1** (8 September, evening). The maintainer had asked why the
+  page took the installer from archive.org unasked; an earlier session's
+  answer, kept only as a note, was that Ambrosia's licence requires the work
+  to be passed on whole. The clause was found and quoted rather than
+  recalled: `Cythera License.text` in the installed folder's `Documentation ƒ`
+  (inside `reference/game/installed-folders/Cythera Installed Folder with
+  Preferences & License.sit`; `unar` opens it) permits non-profit
+  distribution "providing that the software is not modified in any way, and
+  the complete works of the software are included in the distribution
+  package". `NOTICE` quotes it under *Why it is the whole installer*, the gate
+  carries one sentence, `CLAUDE.md` says so at the installer bullet, and the
+  smoke pins the sentence (negative control run: a misspelt sentence fails).
+  The two credit lists, Tools and footer, named different people; they are
+  one list in the footer now, the maintainer's call, and Tools keeps only the
+  font readout. **The `res/` fallback font stays**, also his call: the gate
+  is shown before any file is open, so without it that first screen is
+  Georgia. Both of the 5 September standing questions are closed.
 - **Careful: another session is pushing to grimoire through the day.**
   Three of the four commits above needed a rebase, one with a conflict
   (the version number, which both sessions bump). Fetch before starting

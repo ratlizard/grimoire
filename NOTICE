@@ -32,6 +32,18 @@ That fetch goes from your browser to archive.org; the bytes are not served
 from this repository, are not mirrored by it, and no copy of them is kept here.
 Use a copy you are entitled to use.
 
+**Why it is the whole installer and never one file out of it.** The licence
+Ambrosia shipped with the game (`Cythera License.text`, in the installed
+folder's `Documentation ƒ`) says: "Non-profit distribution of the software is
+acceptable without prior written notice, providing that the software is not
+modified in any way, and the complete works of the software are included in
+the distribution package." The page reads one file, `Cythera Data`, and could
+fetch that alone at a fifth of the size; it fetches the complete, unmodified
+installer instead, and says so on the same screen, so that what passes between
+archive.org and your browser is the whole work and not a piece of it. That is
+a condition of Ambrosia's terms as written, not a preference about file
+formats.
+
 **Four files in `res/`.** `ArgosANouveau.ttf`, `ArgosANouveau.woff2`,
 `Dialogue_Background.png` and `cythera_0x8F00.png` are the pages' own
 furniture, and they came out of the game's resources. They are kept here so the

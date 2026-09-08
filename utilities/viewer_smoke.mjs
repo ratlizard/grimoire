@@ -1221,6 +1221,13 @@ try {
       const hidden = REGISTRY.get('landingGate').style.display === 'none';
       if (!shown || !hidden || ans !== 'own') fail('gate', 'the landing gate did not show, hide, or answer: ' + JSON.stringify([shown, hidden, ans]));
       else console.log('  gate: stands before the download, and answers with the button pressed');
+      // The gate says why it is the whole installer and not the one file the
+      // page reads: Ambrosia's licence allows the work to be passed on only
+      // complete and unmodified (NOTICE quotes it). Read off the markup, since
+      // the stub does not populate innerHTML from the page source.
+      const gateSrc = html.slice(html.indexOf('id="landingGate"'), html.indexOf('id="atlasPanel"'));
+      if (!/whole installer/.test(gateSrc) || !/licence/.test(gateSrc) || !/unmodified and complete/.test(gateSrc)) fail('gate', 'the gate no longer says why the whole installer is fetched');
+      else console.log('  gate: says the whole installer is fetched because the licence allows only the complete work');
     }
     // The names are the game's own: the mouth into Land King Hall says so,
     // not the editor's "LKH"; and two "Ruins" are told apart by the
