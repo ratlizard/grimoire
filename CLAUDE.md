@@ -20,7 +20,7 @@ classic Mac OS files generally. Published at
 
 ### The repositories
 
-The work is split across six, checked out flat beside each other. A session
+The work is split across seven, checked out flat beside each other. A session
 that clones one gets none of the rest, so paths across them are never assumed.
 **You are in `grimoire`.** Every other repository is read from here, never
 written to:
@@ -50,6 +50,34 @@ trade. Every other page is still reached by its own filename.
 a minute or two. There is no staging environment and nothing catches a broken
 page for you — run the checks below before pushing.
 
+**GitHub Pages gives no logs and no analytics, and the site carries no
+tracking.** Measured 8 September 2026 rather than assumed, and the numbers
+are re-checkable at any time:
+
+| signal | how to read it | 8 Sep 2026 |
+|---|---|---|
+| archive.org item `cythera-installers` | somebody got past the gate and pressed *Download and open* — the page tries this item first | **17 downloads, ever** (public since Mar 2024) |
+| archive.org item `tucows_205568_Cythera` | the fallback item, mostly pre-dating us | 354 since 2004 |
+| `gh api repos/ratlizard/grimoire/traffic/views` | views of the **repository page on github.com**, not of the site; 14-day window, needs push access | 13 views, **1 unique** |
+| stars / forks / watchers | — | 0 / 0 / 0 |
+
+The archive.org count is the usable one, and it is a floor: a remembered copy
+in IndexedDB, `?src=`, and a dropped file all bypass the download, our own
+`utilities/fetch_game.mjs` inflates it, and the item belongs to a third-party
+uploader so there is no per-day page to reach. The repo's *clones* figure
+(433, 114 unique in the same fortnight) is mirrors and crawlers, not readers —
+one human viewed the page in that window.
+
+**Two conclusions were drawn from that and both are standing decisions.**
+Nobody is using the site yet, which is the footing the maintainer's
+*push without asking* rule rests on; re-check the installer count before
+assuming it still holds. And the site stays on GitHub Pages: Netlify's
+analytics is paid, Cloudflare's free tier is a beacon script you could add
+here without moving, and moving would change the URL, which the deep-link
+design (`#c=135&r=8801`) and the `explorer.html` redirect both exist to
+protect. If page views are ever wanted, a cookieless script tag is the whole
+of the change and it does not cross the no-build-step line.
+
 **Nobody is named here.** The maintainer is "the maintainer" in every file and
 every commit; commits are authored `e-z-g <e-z-g@users.noreply.github.com>`.
 Do not write a name, an email address or a home-directory path into the tree.
@@ -67,8 +95,9 @@ fix. The smoke test requires the line to be there.
 
 Two other repositories are read while working here and neither is ever
 written to. **delvmod** is the correctness oracle for Cythera's own formats;
-**systemless** is where running the game moved, and its HFS reader is what the
-disk-image writer is round-tripped through. Both are forks under `ratlizard/`. They are inputs: a fix to
+**wolflizard** — the fork of benletchford/systemless, and the checkout is
+`wolflizard/` since 8 September 2026 — is where running the game moved, and
+its HFS reader is what the disk-image writer is round-tripped through. Both are forks under `ratlizard/`. They are inputs: a fix to
 one of them belongs in that repository, on a branch there, and never as an
 edit made from inside this tree — a decoder that has been edited to agree with
 this one has stopped being an oracle, which is the whole of what
@@ -87,12 +116,12 @@ with no configuration at all:
 anywhere else. Every candidate is resolved against the repository root, so the
 suite gives the same answer from `grimoire/` and from the directory above it —
 which it did not before August 2026, and a session whose working directory is
-the parent of all four checkouts is the ordinary case now.
+the parent of all seven checkouts is the ordinary case now.
 
 Three things about that arrangement are worth knowing before reading a skip as
 a failure:
 
-- **systemless's `examples/hfs_dump` is on the `cythera-detailed` branch**,
+- **wolflizard's `examples/hfs_dump` is on the `cythera-detailed` branch**,
   not on `master`. `hfs_check.mjs` needs it for the round trip through that
   project's HFS reader, so a checkout sitting on the default branch has the
   reader (`src/disk_image/hfs.rs`) and no way to call it. The check names the
@@ -1708,9 +1737,11 @@ Read the comment above a constant before correcting it.
   Data the first time.
 - **Desktop is a scale, not a second layout.** The page was sized on a
   phone. The `@media (min-width: 900px)` block at the end of the stylesheet
-  widens the shell to 1280px and brings the type, the tab icons, the chips
-  and the gallery cells up to desktop sizes; it changes nothing about the
-  look, and the phone sizes above it are untouched. The design canvas's
+  widens the shell to 1280px and raises the root to 125%, which brings every
+  size of type up with it; what the block still names by hand is the tab
+  icons, the chips and the gallery cells. It changes nothing about the look,
+  and the phone sizes above it are untouched. Since v1.26.0 the type in it is
+  one number rather than forty selectors — see **Type is on one knob**. The design canvas's
   desktop boards (Main, Resource, Search) are round 1 and superseded by the
   tab tree, so there is no separate desktop mockup to implement — this block
   is the desktop UI.
