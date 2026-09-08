@@ -5,19 +5,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Grimoire — Cythera’s data</title>
 <style>
-  body { background:#1a1a1a; color:#eee; font-family: system-ui, sans-serif; padding:16px; font-size:16px; line-height:1.5; }
+/* ---- One knob for every size of type ------------------------------------
+   Every font-size in this sheet is in rem, so the two rules below are the
+   only places a text size is decided. Raising the root raises the whole
+   page at once -- captions, chips, tab labels, table cells, the hover cards
+   -- in the proportions the sheet already had.
+
+   It used to be px, and the cost of that was visible on a desktop screen:
+   the @media (min-width:900px) block at the foot of this sheet had to name
+   a selector for every size it wanted bigger, it named about forty of them,
+   and the other two hundred stayed at the size they were drawn for a phone
+   held close. Adding a rule and forgetting its desktop counterpart was the
+   ordinary case rather than the mistake.
+
+   A percentage rather than a px, so a reader who has set a larger default
+   in their browser keeps it: 109% is 17.5px against the usual 16, and the
+   desktop rule at the foot is 125%, 20px. Those two numbers are the whole
+   of the scale; change them rather than the individual rules. */
+  html { font-size:109%; }
+  body { background:#1a1a1a; color:#eee; font-family: system-ui, sans-serif; padding:16px; font-size:1rem; line-height:1.5; }
   input[type=file] { margin-bottom:12px; }
   button { background:#2E8B57; color:#fff; border:none; padding:14px; font-size:1.1rem; border-radius:6px; width:100%; margin-bottom:12px; cursor:pointer; }
   button.secondary { background:#3a5a7a; }
   select { width:100%; padding:10px; font-size:1rem; margin-bottom:12px; background:#222; color:#eee; border-radius:6px; }
-  pre { background:#0d0d0d; color:#f4e9c8; padding:12px; white-space:pre-wrap; font-size:14px; line-height:1.55; border-radius:6px; max-height:200px; overflow:auto; }
+  pre { background:#0d0d0d; color:#f4e9c8; padding:12px; white-space:pre-wrap; font-size:0.875rem; line-height:1.55; border-radius:6px; max-height:200px; overflow:auto; }
   h2 { font-size:1rem; color:#C4A464; }
   #singlePreview { margin-top:12px; padding:10px; background:#111; border:2px solid #C4A464; border-radius:8px; text-align:center; }
   #canvas { image-rendering: pixelated; background:#333; display:block; margin:0 auto; }
   .zoomrow { display:flex; align-items:center; gap:8px; margin-top:10px; }
   .zoomrow input[type=range] { flex:1; }
-  #sheetGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:10px; margin-top:12px; }
-  .cell { background:#111; border:1px solid #444; border-radius:6px; padding:6px; text-align:center; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:150px; }
+  #sheetGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:10px; margin-top:12px; }
+  .cell { background:#111; border:1px solid #444; border-radius:6px; padding:6px; text-align:center; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:162px; }
   .cell:hover { border-color:#C4A464; }
   .cell canvas { image-rendering:pixelated; background:#333; max-width:100%; }
   .cellimgwrap { flex:1; display:flex; align-items:center; justify-content:center; width:100%; overflow:hidden; }
@@ -25,7 +43,7 @@
      a two- or three-line caption ("Lv 4 · North Shore Vineyard") squeezed it
      and overflow:hidden sliced the top off the portrait. The art now gets a
      fixed 88px band and the caption is clamped instead. */
-  .cell.charCell { height:190px; justify-content:flex-start; overflow:visible; }
+  .cell.charCell { height:202px; justify-content:flex-start; overflow:visible; }
   .cell.charCell .cellimgwrap { flex:0 0 104px; height:104px; overflow:visible; }
   .cell.charCell .portraitBox { position:relative; width:76px; height:76px; margin:14px auto; }
   /* Scoped to the portrait itself. This rule used to match ANY canvas inside
@@ -37,9 +55,9 @@
     -webkit-box-orient:vertical; overflow:hidden; }
   .cell.charCell .resid { white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     max-width:100%; }
-  .cell .lbl { font-size:14px; color:#fff; font-weight:600; margin-top:4px; word-break:break-word; line-height:1.3; }
-  .cell .lbl.nolabel { font-size:12px; color:#c9c9c9; font-weight:400; }
-  .cell .resid { font-size:11px; color:#d8c98a; opacity:0.85; margin-top:2px; }
+  .cell .lbl { font-size:0.875rem; color:#fff; font-weight:600; margin-top:4px; word-break:break-word; line-height:1.3; }
+  .cell .lbl.nolabel { font-size:0.75rem; color:#c9c9c9; font-weight:400; }
+  .cell .resid { font-size:0.6875rem; color:#d8c98a; opacity:0.85; margin-top:2px; }
   .modebtns { display:flex; gap:8px; margin-bottom:12px; }
   .modebtns button { flex:1; margin-bottom:0; }
   .modebtns button.inactive { background:#333; }
@@ -47,7 +65,7 @@
 /* Pan affordances, not controls: they hint that more map exists in that
    direction and fade out entirely once you reach that edge. */
 .mapArrowBtn { width:22px !important; height:22px !important; min-height:0 !important;
-  padding:0 !important; margin:0; font-size:13px; z-index:5; line-height:1;
+  padding:0 !important; margin:0; font-size:0.8125rem; z-index:5; line-height:1;
   background:none !important; background-image:none !important; border:0 !important;
   box-shadow:none !important; clip-path:none !important; color:#d9cfa8 !important;
   opacity:.34; text-shadow:0 1px 2px #000 !important; transition:opacity .18s ease; }
@@ -118,7 +136,7 @@ h2, .cell .lbl, .cell .resid, #soundLabel { color:var(--gold) !important; font-f
 button { color:var(--gold); font-family:'ArgosGame', Argos, Georgia, serif; letter-spacing:.04em;
   position:relative; border:0; border-radius:4px; padding:10px 14px; min-height:44px;
   background:transparent;
-  font-weight:600; font-size:15px; cursor:pointer;
+  font-weight:600; font-size:0.9375rem; cursor:pointer;
   touch-action:manipulation; }
 button:hover { text-decoration:underline; background:rgba(255,255,255,.05); }
 button:active { filter:brightness(.9); box-shadow:0 1px 2px rgba(0,0,0,.8); }
@@ -199,7 +217,7 @@ button { line-height:1.35 !important; min-height:44px;
   font-weight:600 !important; letter-spacing:.035em; }
 .toolbar button, .actionRow button,
 #sheetGrid button, #mapPreview button, #charControls button
-  { padding-left:10px !important; padding-right:10px !important; font-size:13px !important; min-height:34px !important; }
+  { padding-left:10px !important; padding-right:10px !important; font-size:0.8125rem !important; min-height:34px !important; }
 button:hover { color:#ffe98a !important; text-decoration:underline; background:rgba(255,255,255,.05) !important; }
 button::before, button::after { display:none !important; }
 #resourceNav { max-width:760px !important; gap:12px !important; }
@@ -344,10 +362,10 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    tag says it outright and still fits on one line of a gallery caption. */
 .guessTag, .nameOffTag { display:inline-block; margin-left:5px; padding:0 5px; border-radius:8px;
   border:1px solid #6a5f3e; background:#241f17; color:#a89a6e;
-  font-family:system-ui, sans-serif; font-size:9px; font-weight:600; letter-spacing:.6px;
+  font-family:system-ui, sans-serif; font-size:0.5625rem; font-weight:600; letter-spacing:.6px;
   text-transform:uppercase; vertical-align:2px; }
 .nameOffTag { border-style:dashed; opacity:.7; text-transform:none; letter-spacing:0; font-weight:400; }
-#labelLegend { font-size:12px; color:#9b8850; margin:4px 0 2px; text-align:center; }
+#labelLegend { font-size:0.75rem; color:#9b8850; margin:4px 0 2px; text-align:center; }
 /* ---- The folder tabs ---------------------------------------------------
    Three rows of manila tabs, nested: Entities / Components / Data on top, what
    each holds below it, and a third row where a branch goes deeper. Each row
@@ -367,10 +385,10 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    text viewer's Decoded/Strings/Hex row already owns `.tab`. */
 #tabShell { margin:6px 0 10px; }
 /* The site's name and version, at the top between the two fixed buttons. */
-#brand { text-align:center; margin:0 0 4px; font-size:13px; letter-spacing:.14em; color:#9d9270;
+#brand { text-align:center; margin:0 0 4px; font-size:0.8125rem; letter-spacing:.14em; color:#9d9270;
   text-transform:uppercase; }
 #brand .brandName { color:var(--gold); }
-#brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:11px; letter-spacing:.04em; color:#7d745a; }
+#brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; letter-spacing:.04em; color:#7d745a; }
 .ftabRow { display:flex; align-items:flex-end; padding:0 0 0 8px; overflow-x:auto; overflow-y:hidden;
   scrollbar-width:none; -webkit-overflow-scrolling:touch; }
 .ftabRow::-webkit-scrollbar { display:none; }
@@ -383,7 +401,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
      seam at the join, because the tab's foot and the folder's head were
      different stops of the same gradient. */
   padding:6px 12px 5px !important; min-height:0 !important; line-height:1.2 !important;
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:12.5px !important; font-weight:600 !important;
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.7812rem !important; font-weight:600 !important;
   letter-spacing:0; color:#4a3616 !important; text-shadow:none !important; text-decoration:none;
   border:0 !important; border-radius:0 !important; box-shadow:none !important;
   background:repeating-linear-gradient(98deg, rgba(122,94,44,.11) 0 2px, rgba(255,248,220,.05) 2px 4px),
@@ -409,7 +427,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
   border-radius:0 3px 0 0; }
 .ftab.wip { opacity:.45; }
 .ftab.wip.sel { opacity:.78; }
-.ftab .tabBadge { font-size:10px; line-height:1; padding:2px 5px; border-radius:8px;
+.ftab .tabBadge { font-size:0.625rem; line-height:1; padding:2px 5px; border-radius:8px;
   background:#4a3616; color:#f3e6b8; font-family:ui-monospace,Menlo,Consolas,monospace; }
 .folder { padding:4px; border-radius:0 3px 3px 3px; box-shadow:0 2px 7px rgba(0,0,0,.5);
   background:repeating-linear-gradient(98deg, rgba(122,94,44,.11) 0 2px, rgba(255,248,220,.05) 2px 4px),
@@ -446,20 +464,20 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    own controls, out of the way of the thing you came to look at. */
 #topLinks { position:fixed; top:8px; right:8px; z-index:41;
   display:flex; justify-content:flex-end; gap:12px; margin:0; min-height:0; }
-#topLinks button { min-height:0 !important; padding:5px 16px !important; font-size:11.5px !important;
+#topLinks button { min-height:0 !important; padding:5px 16px !important; font-size:0.7188rem !important;
   letter-spacing:.06em; opacity:.62; }
 #topLinks button:hover { opacity:1; }
-#topLinks button.legacy { min-height:0 !important; padding:4px 10px !important; font-size:12.5px !important;
+#topLinks button.legacy { min-height:0 !important; padding:4px 10px !important; font-size:0.7812rem !important;
   width:auto; margin:0; }
 #navSub { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-bottom:8px; }
 .navChip { background:#1d1a15; border:1px solid var(--edge); color:#bdb28c; border-radius:13px;
-  padding:5px 11px; font-size:11px; min-height:0; width:auto; margin:0; clip-path:none;
+  padding:5px 11px; font-size:0.6875rem; min-height:0; width:auto; margin:0; clip-path:none;
   box-shadow:none; text-shadow:none; letter-spacing:0; }
 .navChip::after { display:none; }
 .navChip.active { background:var(--gold); color:#141210; border-color:var(--gold); font-weight:600; }
 #propFilterWrap { margin:8px 0 2px; }
-#filterNote { font-size:12px; color:#9b8850; min-height:15px; padding:2px 2px 0; }
-.propHead { grid-column:1/-1; text-align:left; color:#9d9270; font-size:11px;
+#filterNote { font-size:0.75rem; color:#9b8850; min-height:15px; padding:2px 2px 0; }
+.propHead { grid-column:1/-1; text-align:left; color:#9d9270; font-size:0.6875rem;
   text-transform:uppercase; letter-spacing:1.2px; margin:12px 0 2px;
   border-bottom:1px solid var(--edge); padding-bottom:4px; }
 .cell.propCell { height:150px; justify-content:flex-start; }
@@ -475,13 +493,13 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
   width:100%; box-sizing:border-box; padding:12px 14px; border-radius:8px;
   border:1px solid var(--edge); background:rgba(25,22,17,.94); color:var(--gold);
   -webkit-text-fill-color:var(--gold);
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:18px; line-height:1.35; }
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:1.125rem; line-height:1.35; }
 #searchBox::-webkit-search-decoration, #propFilter::-webkit-search-decoration { -webkit-appearance:none; }
 #searchBox::placeholder, #propFilter::placeholder {
-  color:#7d745a; font-size:15px; font-style:italic; -webkit-text-fill-color:#7d745a; }
+  color:#7d745a; font-size:0.9375rem; font-style:italic; -webkit-text-fill-color:#7d745a; }
 #searchResults { margin-top:10px; text-align:left; max-height:56vh; overflow:auto; }
 .sr-item { border-top:1px solid var(--edge); padding:9px 0; }
-.sr-lines { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11px;
+.sr-lines { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:0.6875rem;
   line-height:1.5; color:#c6bb95; margin-top:5px; padding-left:4px;
   border-left:2px solid #3a3527; padding-left:8px; white-space:pre-wrap; word-break:break-word; }
 /* Decoded / Strings / Hex used to be one scroll of concatenated text with
@@ -490,7 +508,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .tabbar { display:flex; gap:0; margin:12px 0 0; border-bottom:1px solid var(--edge); }
 .tabbar .tab { flex:1; background:none; border:0; box-shadow:none; clip-path:none;
   border-radius:0; padding:9px 6px; min-height:0; width:auto; margin:0;
-  font-size:13px; color:#8a7f5f; text-shadow:none; font-weight:400; letter-spacing:.02em;
+  font-size:0.8125rem; color:#8a7f5f; text-shadow:none; font-weight:400; letter-spacing:.02em;
   border-bottom:2px solid transparent; }
 .tabbar .tab::after { display:none; }
 .tabbar .tab.active { color:var(--gold); border-bottom-color:var(--gold); font-weight:600; }
@@ -498,16 +516,16 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .tabbar .tab.empty { opacity:.4; }
 pre.pane { background:#090806; color:#f9f86f; padding:12px; overflow:auto; max-height:400px;
   white-space:pre-wrap; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  font-size:13px; line-height:1.5; border:1px solid var(--edge); border-top:0; margin:0; }
-#paneHex { white-space:pre; font-size:11px; }
+  font-size:0.8125rem; line-height:1.5; border:1px solid var(--edge); border-top:0; margin:0; }
+#paneHex { white-space:pre; font-size:0.6875rem; }
 #editBytesWrap { margin:8px 0; }
 #editBytesWrap textarea { width:100%; min-height:180px; box-sizing:border-box;
-  font-family:ui-monospace,Menlo,monospace; font-size:11px; line-height:1.5;
+  font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; line-height:1.5;
   background:rgba(0,0,0,0.25); color:inherit; border:1px solid rgba(255,255,255,0.25); }
-#editBytesNote { font-size:11px; opacity:0.75; margin:4px 0; }
-.peForm { margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:11px; }
+#editBytesNote { font-size:0.6875rem; opacity:0.75; margin:4px 0; }
+.peForm { margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:0.6875rem; }
 .peForm label { white-space:nowrap; }
-.peForm input { font-family:ui-monospace,Menlo,monospace; font-size:11px;
+.peForm input { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem;
   background:rgba(0,0,0,0.25); color:inherit; border:1px solid rgba(255,255,255,0.25); }
 .peForm .inspDim { flex-basis:100%; }
 /* The convention for provenance: names the FILE supplies (0xF004 tile names,
@@ -519,7 +537,7 @@ pre.pane { background:#090806; color:#f9f86f; padding:12px; overflow:auto; max-h
   display:flex; align-items:center; justify-content:center; overflow:auto; }
 #ditherTool .dtPanel { background:#1d1a14; border:1px solid #5a5142; border-radius:8px;
   padding:14px 16px; width:min(92vw, 620px); max-height:92vh; overflow:auto; }
-#ditherTool .dtHead { font-size:16px; color:var(--gold); margin-bottom:10px;
+#ditherTool .dtHead { font-size:1rem; color:var(--gold); margin-bottom:10px;
   display:flex; justify-content:space-between; align-items:center; }
 #ditherTool .dtRow { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:10px 0; }
 #ditherTool canvas { background:repeating-conic-gradient(#2a2a2a 0% 25%, #1c1c1c 0% 50%) 0 0/16px 16px;
@@ -530,16 +548,16 @@ pre.pane { background:#090806; color:#f9f86f; padding:12px; overflow:auto; max-h
 #textEdit .dtPanel { background:#1d1a14; border:1px solid #5a5142; border-radius:8px;
   padding:14px 16px; width:min(92vw, 560px); }
 #textEdit textarea { width:100%; min-height:120px; box-sizing:border-box; margin:8px 0;
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:14px; line-height:1.5;
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.875rem; line-height:1.5;
   background:rgba(0,0,0,.3); color:#e4e1d7; border:1px solid rgba(255,255,255,.25); }
-.dlgEdit { min-height:0; padding:0 6px; font-size:11px; opacity:.6; }
+.dlgEdit { min-height:0; padding:0 6px; font-size:0.6875rem; opacity:.6; }
 .dlgEdit:hover { opacity:1; }
 .ridLink { color: var(--gold, #d9b64a); text-decoration: underline dotted; cursor: pointer; }
-.dswitch { display:flex; align-items:center; gap:6px; padding:7px 10px; font-size:11px;
+.dswitch { display:flex; align-items:center; gap:6px; padding:7px 10px; font-size:0.6875rem;
   color:#8a7f5f; background:#141210; border:1px solid var(--edge); border-top:0; }
 .dswitch button.dsw { background:none; border:1px solid var(--edge); box-shadow:none;
   clip-path:none; border-radius:12px; padding:3px 11px; min-height:0; width:auto; margin:0;
-  font-size:11px; color:#8a7f5f; text-shadow:none; font-weight:400; letter-spacing:0; }
+  font-size:0.6875rem; color:#8a7f5f; text-shadow:none; font-weight:400; letter-spacing:0; }
 .dswitch button.dsw::after { display:none; }
 .dswitch button.dsw.active { color:#141210; background:var(--gold); border-color:var(--gold); font-weight:600; }
 a.reflink { color:#8fd4ff; text-decoration:underline; cursor:pointer; }
@@ -548,9 +566,9 @@ b.refname { color:#f9f86f; font-weight:600; }
 span.refdead { color:#e07a5f; }
 span.refself { color:#7d745a; }
 .linksum { background:#141210; border:1px solid var(--edge); border-radius:5px; padding:9px 11px;
-  margin-bottom:10px; font-size:12px; line-height:1.7; color:#cfc4a0;
+  margin-bottom:10px; font-size:0.75rem; line-height:1.7; color:#cfc4a0;
   font-family:'ArgosGame', Argos, Georgia, serif; white-space:normal; }
-.linksum b { color:#9d9270; font-size:11px; text-transform:uppercase; letter-spacing:1px;
+.linksum b { color:#9d9270; font-size:0.6875rem; text-transform:uppercase; letter-spacing:1px;
   margin-right:6px; }
 /* Loading a custom archive is a rare, expert action, so it reads as a quiet
    text link -- until the default archive fails to load, at which point it is
@@ -561,12 +579,12 @@ span.refself { color:#7d745a; }
    the only way forward and .secondary promotes it back to a real button. */
 button.linky { position:fixed; bottom:6px; right:8px; z-index:40;
   background:rgba(12,11,9,.72); border:0; box-shadow:none; clip-path:none;
-  padding:3px 7px; border-radius:4px; min-height:0; width:auto; font-size:10px;
+  padding:3px 7px; border-radius:4px; min-height:0; width:auto; font-size:0.625rem;
   color:#6f664e; text-decoration:none; text-shadow:none; font-weight:400;
   letter-spacing:.04em; margin:0; display:block; opacity:.55; }
 button.linky:active { opacity:1; }
-#sourceStatus { font-size:11px; color:#6f664e; opacity:.7; }
-#sourceStatus.failed { font-size:15px; opacity:1; }
+#sourceStatus { font-size:0.6875rem; color:#6f664e; opacity:.7; }
+#sourceStatus.failed { font-size:0.9375rem; opacity:1; }
 button.linky::after { display:none; }
 button.linky:hover { color:var(--gold); filter:none; }
 #sourceStatus.failed { color:#e6b96a; }
@@ -577,24 +595,24 @@ button.linky:hover { color:var(--gold); filter:none; }
 /* Script view: the resource explained before the bytes are shown. */
 #scriptView { display:none; text-align:left; }
 .sv-head { text-align:center; padding-bottom:8px; border-bottom:1px solid var(--edge); margin-bottom:10px; }
-.sv-head .sv-id { font-size:22px; color:var(--gold); font-weight:600; letter-spacing:0.5px; }
-.sv-head .sv-lbl { font-size:16px; color:#e8dfc0; margin-top:2px; }
-.sv-head .sv-kind { font-size:12px; color:#9d9270; margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
-.sv-why { font-size:14px; line-height:1.55; color:#cfc4a0; margin:0 0 12px; }
+.sv-head .sv-id { font-size:1.375rem; color:var(--gold); font-weight:600; letter-spacing:0.5px; }
+.sv-head .sv-lbl { font-size:1rem; color:#e8dfc0; margin-top:2px; }
+.sv-head .sv-kind { font-size:0.75rem; color:#9d9270; margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+.sv-why { font-size:0.875rem; line-height:1.55; color:#cfc4a0; margin:0 0 12px; }
 .sv-facts { display:grid; gap:8px; margin-bottom:12px; }
-.sv-facts > div { background:#141210; border:1px solid var(--edge); border-radius:6px; padding:8px 10px; font-size:13px; line-height:1.5; color:#cfc4a0; }
-.sv-facts b { display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#9d9270; margin-bottom:2px; font-weight:600; }
+.sv-facts > div { background:#141210; border:1px solid var(--edge); border-radius:6px; padding:8px 10px; font-size:0.8125rem; line-height:1.5; color:#cfc4a0; }
+.sv-facts b { display:block; font-size:0.6875rem; text-transform:uppercase; letter-spacing:1px; color:#9d9270; margin-bottom:2px; font-weight:600; }
 details.sv { margin:0 0 12px; border:1px solid var(--edge); border-radius:6px; background:#141210; }
-details.sv > summary { cursor:pointer; padding:9px 12px; font-size:13px; color:var(--gold); list-style:none; }
+details.sv > summary { cursor:pointer; padding:9px 12px; font-size:0.8125rem; color:var(--gold); list-style:none; }
 details.sv > summary::-webkit-details-marker { display:none; }
 details.sv > summary::before { content:'\25B8 '; color:#9d9270; }
 details.sv[open] > summary::before { content:'\25BE '; }
-.sv-steps { margin:0; padding:0 14px 12px 30px; font-size:13px; line-height:1.6; color:#cfc4a0; }
+.sv-steps { margin:0; padding:0 14px 12px 30px; font-size:0.8125rem; line-height:1.6; color:#cfc4a0; }
 .sv-steps li { margin-bottom:7px; }
 .sv-steps b { color:#e8dfc0; }
 .sv-block { margin-bottom:14px; }
-.sv-block h4 { margin:0 0 7px; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#9d9270; font-weight:600; }
-.sv-sub { font-size:12px; color:#9d9270; margin:8px 0 5px; }
+.sv-block h4 { margin:0 0 7px; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; color:#9d9270; font-weight:600; }
+.sv-sub { font-size:0.75rem; color:#9d9270; margin:8px 0 5px; }
 .sv-chips { display:flex; flex-wrap:wrap; gap:6px; }
 /* A chip is a chip, not a stone plaque. The `button` rules further up set the
    plaque background, the angled clip-path and a pair of bolt studs with
@@ -602,7 +620,7 @@ details.sv[open] > summary::before { content:'\25BE '; }
    chip 70px wide puts both of them through the middle of the label. */
 .sv-chip { background:#1d1a15 !important; background-image:none !important;
            border:1px solid var(--edge) !important; color:#e8dfc0 !important; border-radius:14px !important;
-           padding:5px 11px !important; font-size:12px !important; font-family:ui-monospace,Menlo,monospace;
+           padding:5px 11px !important; font-size:0.75rem !important; font-family:ui-monospace,Menlo,monospace;
            cursor:pointer; min-height:0 !important; width:auto; margin:0;
            clip-path:none !important; box-shadow:none !important; text-shadow:none !important;
            font-weight:400 !important; letter-spacing:0; }
@@ -610,15 +628,15 @@ details.sv[open] > summary::before { content:'\25BE '; }
 .sv-chip:hover { background:#2b2620 !important; color:var(--gold) !important; border-color:var(--gold) !important; filter:none; }
 .sv-chip i { font-style:normal; color:#9d9270; }
 .sv-chip em { font-style:normal; color:#7d745a; }
-.sv-warn { font-size:13px; line-height:1.55; color:#d8c98e; background:#1a1610;
+.sv-warn { font-size:0.8125rem; line-height:1.55; color:#d8c98e; background:#1a1610;
            border-left:3px solid var(--gold); padding:9px 11px; border-radius:0 4px 4px 0; }
-.sv-note { font-size:12px; color:#9d9270; margin-top:5px; }
+.sv-note { font-size:0.75rem; color:#9d9270; margin-top:5px; }
 pre.sv-code { background:#090806; color:#f9f86f; padding:11px; overflow:auto; max-height:360px;
               white-space:pre; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-              font-size:12px; line-height:1.5; border:1px solid var(--edge); border-radius:4px; margin:0; }
-.sv-legend { padding:0 12px 10px; font-size:13px; line-height:1.6; color:#cfc4a0; }
+              font-size:0.75rem; line-height:1.5; border:1px solid var(--edge); border-radius:4px; margin:0; }
+.sv-legend { padding:0 12px 10px; font-size:0.8125rem; line-height:1.6; color:#cfc4a0; }
 .sv-legend p { margin:0 0 8px; }
-.sv-legend code { background:#0d0c0a; color:#f9f86f; padding:1px 4px; border-radius:3px; font-size:12px; }
+.sv-legend code { background:#0d0c0a; color:#f9f86f; padding:1px 4px; border-radius:3px; font-size:0.75rem; }
 
 /* Phones. The sizes come down rather than the look: the tab labels are pinned
    small (the global font-size:clamp(...) !important on `button` otherwise
@@ -628,73 +646,73 @@ pre.sv-code { background:#090806; color:#f9f86f; padding:11px; overflow:auto; ma
 @media (max-width:640px) {
   /* The rows scroll sideways on a phone rather than wrap: a wrapped row of
      tabs stops reading as the lip of a folder. */
-  .ftab { padding:5px 9px 4px !important; font-size:11px !important; gap:5px; }
+  .ftab { padding:5px 9px 4px !important; font-size:0.6875rem !important; gap:5px; }
   .ftab.sel, .ftab.sel:hover { padding:8px 11px 6px !important; }
   .ftab canvas { width:15px !important; height:15px !important; }
   .tabSheet { padding:8px 4px 12px; }
   #navSub { gap:4px; }
-  .navChip { font-size:11px !important; min-height:30px !important;
+  .navChip { font-size:0.6875rem !important; min-height:30px !important;
     padding:5px 16px !important; }
   .navChip::before { left:7px; right:7px; height:7px; margin-top:-3.5px; }
   /* Cross-reference chips are narrow, and the bolt studs are positioned 16px
      in from each end -- on a chip only 70px wide that put both studs on top of
      the label. They are decoration on an element this small, so drop them and
      keep the words legible. */
-  .sv-chip { font-size:11px !important; padding:4px 14px !important; }
-  .relChip { font-size:11.5px; padding:4px 9px 4px 5px; }
+  .sv-chip { font-size:0.6875rem !important; padding:4px 14px !important; }
+  .relChip { font-size:0.7188rem; padding:4px 9px 4px 5px; }
   .sv-chip::before { display:none; }
 }
 @media (max-width:380px) {
-  .ftab { font-size:10.5px !important; padding:5px 7px 4px !important; }
+  .ftab { font-size:0.6562rem !important; padding:5px 7px 4px !important; }
 }
 /* The two views under Data that are tables rather than galleries. They span
    the gallery grid, which is what #sheetGrid is. */
-.forkTable, .changesView { grid-column:1/-1; text-align:left; font-size:13px; }
+.forkTable, .changesView { grid-column:1/-1; text-align:left; font-size:0.8125rem; }
 .tableScroll { grid-column:1/-1; overflow-x:auto; max-width:100%; }
 .forkTable { border-collapse:collapse; width:100%; min-width:520px; }
-.forkTable th { text-align:left; color:#9d9270; font-size:11px; text-transform:uppercase;
+.forkTable th { text-align:left; color:#9d9270; font-size:0.6875rem; text-transform:uppercase;
   letter-spacing:1.2px; padding:4px 6px; border-bottom:1px solid var(--edge); }
 .forkTable td { padding:4px 6px; border-bottom:1px solid rgba(155,136,80,.25); vertical-align:middle; }
 .forkTable td.num { text-align:right; font-family:ui-monospace,Menlo,Consolas,monospace; white-space:nowrap; }
 .forkTable .navChip { margin:0; }
 .installerVersions { grid-column:1/-1; justify-content:flex-start; align-items:center; gap:6px; margin:2px 0 8px; }
-.installerVersions .amNote, .installerOpen .amNote { color:#d3c9a6; font-size:12px; }
+.installerVersions .amNote, .installerOpen .amNote { color:#d3c9a6; font-size:0.75rem; }
 .installerOpen { grid-column:1/-1; text-align:left; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; margin:0 0 6px; }
 .installerOpen .propHead { grid-column:auto; margin:0; border:0; padding:0; }
 /* A sentence under a kind's heading in the fork galleries, in the running
    text's face rather than the heading's small caps. */
-.kindNote { display:block; margin:4px 0 2px; font-size:12px; line-height:1.4; color:#c9bd94;
+.kindNote { display:block; margin:4px 0 2px; font-size:0.75rem; line-height:1.4; color:#c9bd94;
   letter-spacing:0; text-transform:none; font-weight:400; }
 .kindNote .navChip { margin-left:6px; }
-.vocabTable { border-collapse:collapse; font-size:12.5px; margin:0 0 10px; }
+.vocabTable { border-collapse:collapse; font-size:0.7812rem; margin:0 0 10px; }
 .vocabTable th { text-align:left; color:#c9bd94; font-weight:600; padding:2px 10px 2px 0; vertical-align:top; white-space:nowrap; }
 .vocabTable td { padding:2px 0; vertical-align:top; }
 .barkTable td { padding:4px 10px 4px 0; border-bottom:1px solid rgba(155,136,80,.2); }
-.barkTable .inspDim { color:#9b8850; font-size:11.5px; }
+.barkTable .inspDim { color:#9b8850; font-size:0.7188rem; }
 .forkTable td.icon { width:36px; padding:2px 4px; }
 .forkTable td.icon canvas { width:32px; height:32px; image-rendering:pixelated; display:block; }
-.installerOpen .installerOpenName { color:var(--gold); font-size:17px; font-weight:600; }
+.installerOpen .installerOpenName { color:var(--gold); font-size:1.0625rem; font-weight:600; }
 .installerText { grid-column:1/-1; text-align:left; white-space:pre-wrap; word-break:break-word;
   font:12px/1.45 ui-monospace,Menlo,Consolas,monospace; color:#d8d0b4; background:rgba(0,0,0,.35);
   border:1px solid var(--edge); border-radius:6px; padding:10px 12px; margin:6px 0; max-height:70vh; overflow:auto; }
-.changesHead { color:var(--gold); font-size:15px; font-weight:600; margin:2px 0 8px; }
+.changesHead { color:var(--gold); font-size:0.9375rem; font-weight:600; margin:2px 0 8px; }
 .changesRow { display:flex; align-items:center; gap:10px; padding:3px 0; flex-wrap:wrap; }
 .changesRow .navChip { margin:0; }
 .changesGroup { margin-top:16px; padding-top:10px; border-top:1px solid rgba(155,136,80,.35); }
-.changesGroupTitle { color:#d3c9a6; font-size:12.5px; margin-bottom:2px; }
+.changesGroupTitle { color:#d3c9a6; font-size:0.7812rem; margin-bottom:2px; }
 .changesGroup button { display:block; width:auto; margin:6px 0 0; text-align:left; }
 .changesGroup button[disabled] { opacity:.45; cursor:default; text-decoration:none; }
-.changesNote { color:#e0d6b4; font-size:12px; margin:0 0 2px 14px; }
-.changesWarn { color:#e8b66a; font-size:12.5px; margin-top:12px; }
+.changesNote { color:#e0d6b4; font-size:0.75rem; margin:0 0 2px 14px; }
+.changesWarn { color:#e8b66a; font-size:0.7812rem; margin-top:12px; }
 /* The joins. A row of chips under an entity naming the components it is made
    of, and under a component naming what uses it (partsStrip). The chips are
    relation chips (relChip): icon, name, kind, quiet id. */
 .partsStrip { display:flex; flex-wrap:wrap; align-items:center; gap:6px 7px; margin:8px 0 4px; }
-.partsTitle { color:#9d9270; font-size:10.5px; text-transform:uppercase; letter-spacing:1.1px;
+.partsTitle { color:#9d9270; font-size:0.6562rem; text-transform:uppercase; letter-spacing:1.1px;
   margin-right:6px; flex-basis:7.5em; }
 .relChip { display:inline-flex; align-items:center; gap:7px; width:auto; margin:0; min-height:0;
   padding:4px 10px 4px 6px; border-radius:15px; background:#1a1712; border:1px solid var(--edge);
-  color:#e8dfc0; font-family:'ArgosGame', Argos, Georgia, serif; font-size:12.5px; line-height:1.15;
+  color:#e8dfc0; font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.7812rem; line-height:1.15;
   text-align:left; cursor:pointer; clip-path:none; box-shadow:none; text-shadow:none;
   letter-spacing:0; font-weight:400; transition:border-color .12s, background .12s; }
 .relChip::before, .relChip::after { display:none; }
@@ -703,31 +721,31 @@ pre.sv-code { background:#090806; color:#f9f86f; padding:11px; overflow:auto; ma
 .relChip:hover .relIcon { opacity:1; }
 .relText { display:flex; flex-direction:column; min-width:0; }
 .relMain { color:inherit; }
-.relSub { color:#9d9270; font-size:10.5px; margin-top:1px; }
-.relHex, .relNote { color:#7d745a; font-size:10.5px; font-family:ui-monospace,Menlo,monospace; margin-left:2px; }
+.relSub { color:#9d9270; font-size:0.6562rem; margin-top:1px; }
+.relHex, .relNote { color:#7d745a; font-size:0.6562rem; font-family:ui-monospace,Menlo,monospace; margin-left:2px; }
 .relNote { font-family:inherit; }
 .relChip:hover .relSub, .relChip:hover .relHex { color:#bdb28c; }
-.partsNote { color:#d3c9a6; font-size:12px; flex-basis:100%; line-height:1.4; }
+.partsNote { color:#d3c9a6; font-size:0.75rem; flex-basis:100%; line-height:1.4; }
 #mapParts { max-width:720px; margin:0 auto 6px; text-align:left; }
 #artUsage .partsStrip { margin:4px 0; }
 /* The trail. Distinct from the plaques so the two backs never read as a pair
    of alternatives for the same thing: this one is a quiet link with a note
    saying what makes it different. */
 #crumbBar { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px;
-  margin:2px 0 10px; font-size:12px; }
+  margin:2px 0 10px; font-size:0.75rem; }
 .crumbBtn { width:auto !important; margin:0 !important; min-height:0 !important;
   padding:4px 12px !important; border-radius:14px !important; clip-path:none !important;
   background:#1d1a15 !important; background-image:none !important;
   border:1px solid var(--edge) !important; box-shadow:none !important;
-  color:#e8dfc0 !important; text-shadow:none !important; font-size:12.5px !important;
+  color:#e8dfc0 !important; text-shadow:none !important; font-size:0.7812rem !important;
   font-weight:400 !important; letter-spacing:0; font-family:'ArgosGame', Argos, Georgia, serif; }
 .crumbBtn::before, .crumbBtn::after { display:none !important; }
 .crumbBtn:hover { color:var(--gold) !important; border-color:var(--gold) !important; filter:none; }
-.crumbNote { color:#7d745a; font-size:11.5px; }
+.crumbNote { color:#7d745a; font-size:0.7188rem; }
 @media (max-width:520px) { .crumbNote { display:none; } }
 
 #propFilterWrap { margin:8px 0 2px; }
-.propHead { grid-column:1/-1; text-align:left; color:#9d9270; font-size:11px;
+.propHead { grid-column:1/-1; text-align:left; color:#9d9270; font-size:0.6875rem;
   text-transform:uppercase; letter-spacing:1.2px; margin:12px 0 2px;
   border-bottom:1px solid var(--edge); padding-bottom:4px; }
 .cell.propCell { height:150px; justify-content:flex-start; }
@@ -735,7 +753,7 @@ pre.sv-code { background:#090806; color:#f9f86f; padding:11px; overflow:auto; ma
 /* An item cell carries three facts (weight, count, id) where a prop cell
    carries two, so the caption is given a smaller type size rather than a
    third line. */
-.cell.itemCell .resid { font-size:10px; line-height:1.35; }
+.cell.itemCell .resid { font-size:0.625rem; line-height:1.35; }
 
 /* ---- Focus, keyboard and drop affordances -------------------------------
    The plaque `button` rule above sets clip-path with !important, and a
@@ -758,7 +776,7 @@ body.dropping::after { content:'Drop the Cythera installer (.sit or .bin) or a C
   position:fixed; inset:14px; z-index:60; pointer-events:none;
   border:3px dashed var(--gold); border-radius:10px;
   background:rgba(10,8,5,.55); color:var(--gold);
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:22px;
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:1.375rem;
   display:flex; align-items:center; justify-content:center; }
 
 /* A text link that is a <button> because it does something rather than going
@@ -770,8 +788,8 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 
 #kbdHelp { position:fixed; right:16px; bottom:44px; z-index:70; max-width:340px;
   padding:14px 18px; background:rgba(18,15,10,.97); border:1px solid var(--edge);
-  border-radius:8px; font-size:13px; line-height:1.7; box-shadow:0 6px 24px rgba(0,0,0,.7); }
-#kbdHelp h3 { margin:0 0 8px; font-size:14px; color:var(--gold); }
+  border-radius:8px; font-size:0.8125rem; line-height:1.7; box-shadow:0 6px 24px rgba(0,0,0,.7); }
+#kbdHelp h3 { margin:0 0 8px; font-size:0.875rem; color:var(--gold); }
 #kbdHelp kbd { font-family:ui-monospace,Menlo,Consolas,monospace; background:#2b261c;
   border:1px solid #574f3a; border-radius:4px; padding:1px 5px; margin-right:6px; }
 #kbdHelp dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:2px 10px; }
@@ -779,16 +797,16 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 
 /* What a click on the map found. */
 #mapInspect { max-width:720px; margin:8px auto 0; padding:10px 14px; text-align:left;
-  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:13px; }
+  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:0.8125rem; }
 #mapInspect .inspHead { color:var(--gold); font-weight:600; margin-bottom:8px;
   display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
-#mapInspect .inspClose { margin-left:auto; font-size:12px; }
+#mapInspect .inspClose { margin-left:auto; font-size:0.75rem; }
 #mapInspect .inspCard { border-top:1px solid rgba(155,136,80,.35); padding:8px 0; }
 /* A person's card carries their face, the portrait where there is one. */
 .inspCard.person { display:flex; gap:10px; align-items:flex-start; }
 .inspFace { width:48px; height:48px; flex:none; image-rendering:pixelated; border:1px solid var(--edge); border-radius:3px; }
 #atlasHover canvas.hvFace, #mapHover canvas.hvFace { width:44px; height:44px; border:1px solid var(--edge); border-radius:3px; }
-#mapInspect .inspDim { color:#9b8850; font-size:12px; }
+#mapInspect .inspDim { color:#9b8850; font-size:0.75rem; }
 #mapInspect .inspRows { display:grid; grid-template-columns:auto 1fr; gap:2px 12px; margin:6px 0 0; }
 #mapInspect .inspRows dt { color:#9b8850; }
 #mapInspect .inspRows dd { margin:0; font-family:ui-monospace,Menlo,Consolas,monospace; }
@@ -809,21 +827,21 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 .mechSec { margin:18px 0 0; padding:12px 12px 10px; background:rgba(20,18,14,.42); border:1px solid rgba(155,136,80,.35); border-radius:8px; }
 .mechHead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 4px; }
 .mechHead canvas { width:22px !important; height:22px !important; image-rendering:pixelated; flex:none; margin:0 !important; }
-.mechHead h3 { margin:0; font-size:17px; color:var(--gold); font-weight:600; letter-spacing:.01em; }
+.mechHead h3 { margin:0; font-size:1.0625rem; color:var(--gold); font-weight:600; letter-spacing:.01em; }
 .mechFrom { display:inline-flex; gap:5px; flex-wrap:wrap; margin-left:auto; }
-.mechFrom .relChip { padding:2px 8px 2px 5px; font-size:11.5px; }
-.mechLede { margin:2px 0 6px; color:#e0d6b4; font-size:13.5px; line-height:1.45; }
-.ruleList { margin:0 0 8px; padding-left:20px; color:#d3c9a6; font-size:13px; line-height:1.5; }
+.mechFrom .relChip { padding:2px 8px 2px 5px; font-size:0.7188rem; }
+.mechLede { margin:2px 0 6px; color:#e0d6b4; font-size:0.8438rem; line-height:1.45; }
+.ruleList { margin:0 0 8px; padding-left:20px; color:#d3c9a6; font-size:0.8125rem; line-height:1.5; }
 .ruleList li { margin:2px 0; }
 .ruleList b { color:#f0e6c8; font-weight:600; }
 .mechStats { display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; margin:4px 0 8px; }
 .mechStat { display:inline-block; padding:3px 10px; border:1px solid rgba(155,136,80,.45); border-radius:14px; background:#1a1712;
-  color:#c9bd94; font-size:12px; }
-.mechStat b { color:var(--gold); font-size:14px; margin-right:4px; }
-.mechStatNote { color:#7d745a; font-size:11.5px; }
-.mechQuote { margin:6px 0 4px; padding:6px 12px; border-left:3px solid rgba(155,136,80,.5); color:#d3c9a6; font-size:12.5px; font-style:italic; line-height:1.45; }
-.mechQuote footer { font-style:normal; color:#7d745a; font-size:11px; margin-top:2px; }
-.mechSub { color:#9d9270; font-size:11px; text-transform:uppercase; letter-spacing:1.1px; margin:8px 0 2px; }
+  color:#c9bd94; font-size:0.75rem; }
+.mechStat b { color:var(--gold); font-size:0.875rem; margin-right:4px; }
+.mechStatNote { color:#7d745a; font-size:0.7188rem; }
+.mechQuote { margin:6px 0 4px; padding:6px 12px; border-left:3px solid rgba(155,136,80,.5); color:#d3c9a6; font-size:0.7812rem; font-style:italic; line-height:1.45; }
+.mechQuote footer { font-style:normal; color:#7d745a; font-size:0.6875rem; margin-top:2px; }
+.mechSub { color:#9d9270; font-size:0.6875rem; text-transform:uppercase; letter-spacing:1.1px; margin:8px 0 2px; }
 .mechTable { width:100%; }
 .mechTable th { border-bottom:1px solid rgba(155,136,80,.45); padding-bottom:4px; }
 .mechTable th.num, .mechTable td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; padding-right:10px; }
@@ -831,7 +849,7 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 .mechTable td { padding:4px 10px 4px 0; }
 .mechPrice { color:var(--gold); font-variant-numeric:tabular-nums; }
 .mechSec .partsStrip { margin-top:6px; }
-@media (max-width:640px) { .mechSec { padding:10px 8px 8px; } .mechHead h3 { font-size:15.5px; } .mechFrom { margin-left:0; } }
+@media (max-width:640px) { .mechSec { padding:10px 8px 8px; } .mechHead h3 { font-size:0.9688rem; } .mechFrom { margin-left:0; } }
 /* ---- the figures on the Mechanics sheet ----------------------------------
    Charts here are HTML and CSS, not SVG with text in it, and that is a
    decision rather than a habit. An SVG scaled to the column's width scales
@@ -845,17 +863,17 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
    stroke does not stretch with it -- and puts the axis labels, the dots and
    the annotations around it as HTML. */
 .mechFig { margin:10px 0 4px; }
-.mechFig figcaption { color:#8d8368; font-size:11.5px; line-height:1.45; margin-top:6px; }
+.mechFig figcaption { color:#8d8368; font-size:0.7188rem; line-height:1.45; margin-top:6px; }
 .mechFig figcaption b { color:#b9ad8a; font-weight:600; }
-.mechFigTitle { color:#9d9270; font-size:10.5px; text-transform:uppercase; letter-spacing:1.1px; margin:0 0 5px; }
-.mechBars { display:grid; grid-template-columns:auto 1fr auto; gap:3px 8px; align-items:center; font-size:12px; }
+.mechFigTitle { color:#9d9270; font-size:0.6562rem; text-transform:uppercase; letter-spacing:1.1px; margin:0 0 5px; }
+.mechBars { display:grid; grid-template-columns:auto 1fr auto; gap:3px 8px; align-items:center; font-size:0.75rem; }
 .mechBars .bLabel { color:#d3c9a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:44vw; }
 .mechBars .bTrack { background:rgba(255,248,220,.05); border-radius:2px; height:11px; position:relative; overflow:hidden; }
 .mechBars .bFill { position:absolute; top:0; bottom:0; border-radius:2px; }
-.mechBars .bVal { color:var(--gold); font-variant-numeric:tabular-nums; font-size:11.5px; white-space:nowrap; }
+.mechBars .bVal { color:var(--gold); font-variant-numeric:tabular-nums; font-size:0.7188rem; white-space:nowrap; }
 .mechStack { display:flex; height:18px; border-radius:3px; overflow:hidden; border:1px solid rgba(155,136,80,.35); }
 .mechStack i { display:block; height:100%; }
-.mechKeys { display:flex; flex-wrap:wrap; gap:3px 12px; margin-top:5px; font-size:11.5px; color:#b9ad8a; align-items:center; }
+.mechKeys { display:flex; flex-wrap:wrap; gap:3px 12px; margin-top:5px; font-size:0.7188rem; color:#b9ad8a; align-items:center; }
 .mechKeys i { width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:5px; vertical-align:-1px; }
 .mechKeys b { color:var(--gold); font-weight:600; font-variant-numeric:tabular-nums; }
 /* The columns stretch to the row's height: a flex item sized by its content
@@ -867,21 +885,21 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 .mechCols .cFill { display:block; width:100%; border-radius:2px 2px 0 0; min-height:1px; }
 .mechCols .cMark { position:absolute; left:-1px; right:-1px; height:0; border-top:2px dashed var(--gold); }
 .mechColLabels { display:flex; gap:3px; margin-top:4px; }
-.mechColLabels span { flex:1; text-align:center; font-size:10.5px; color:#9d9270; }
+.mechColLabels span { flex:1; text-align:center; font-size:0.6562rem; color:#9d9270; }
 .mechPlot { display:grid; grid-template-columns:auto 1fr; align-items:stretch; }
 .mechPlot .pY { grid-area:1/1; position:relative; width:38px; }
-.mechPlot .pY span { position:absolute; right:5px; transform:translateY(-50%); font-size:10px; color:#7d745a; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.mechPlot .pY span { position:absolute; right:5px; transform:translateY(-50%); font-size:0.625rem; color:#7d745a; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .mechPlot .pArea { grid-area:1/2; position:relative; border-left:1px solid rgba(155,136,80,.45); border-bottom:1px solid rgba(155,136,80,.45); }
 .mechPlot .pArea svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
 .mechPlot .pX { grid-area:2/2; position:relative; height:15px; margin-top:3px; }
-.mechPlot .pX span { position:absolute; transform:translateX(-50%); font-size:10px; color:#7d745a; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.mechPlot .pMark { position:absolute; transform:translate(-50%,-50%); font-size:10.5px; color:var(--gold); white-space:nowrap; pointer-events:none; }
+.mechPlot .pX span { position:absolute; transform:translateX(-50%); font-size:0.625rem; color:#7d745a; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.mechPlot .pMark { position:absolute; transform:translate(-50%,-50%); font-size:0.6562rem; color:var(--gold); white-space:nowrap; pointer-events:none; }
 .mechPlot .pMark.right { transform:translate(-100%,-50%); }
 .mechPlot .pMark.left { transform:translate(0,-50%); }
 .mechPlot .pMark b { font-weight:600; text-shadow:0 0 4px #14120e, 0 0 4px #14120e; }
 .mechPlot .pDot { display:block; width:7px; height:7px; border-radius:50%; margin:0 auto; }
-.mechPlot .pAxisName { grid-area:2/1; font-size:10px; color:#7d745a; text-align:right; padding-right:5px; }
-.mechDice { display:grid; grid-template-columns:auto repeat(6,1fr); gap:3px 6px; font-size:10px; color:#9d9270; align-items:center; }
+.mechPlot .pAxisName { grid-area:2/1; font-size:0.625rem; color:#7d745a; text-align:right; padding-right:5px; }
+.mechDice { display:grid; grid-template-columns:auto repeat(6,1fr); gap:3px 6px; font-size:0.625rem; color:#9d9270; align-items:center; }
 .mechDice .dHead { text-align:center; color:#7d745a; }
 .mechDice .dSide { text-align:right; padding-right:3px; color:#7d745a; }
 .mechDice .dCell { display:flex; gap:1px; height:16px; padding:1px; background:rgba(0,0,0,.35); border-radius:2px; }
@@ -891,17 +909,17 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 .mechLine .lRule { position:absolute; left:0; right:0; top:16px; height:1px; background:rgba(155,136,80,.45); }
 .mechLine .lBand { position:absolute; top:11px; height:11px; border-radius:2px; opacity:.55; }
 .mechLine .lTick { position:absolute; top:9px; width:1px; height:15px; background:rgba(155,136,80,.6); }
-.mechLine .lLab { position:absolute; transform:translateX(-50%); font-size:10px; color:#b9ad8a; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.mechLine .lLab { position:absolute; transform:translateX(-50%); font-size:0.625rem; color:#b9ad8a; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .mechLine .lLab.below { top:20px; }
 .mechLine .lLab.above { top:0; color:var(--gold); }
-.mechCtl { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; margin:6px 0 8px; font-size:12px; color:#b9ad8a; }
+.mechCtl { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; margin:6px 0 8px; font-size:0.75rem; color:#b9ad8a; }
 .mechCtl label { display:inline-flex; align-items:center; gap:5px; }
 .mechCtl input[type=range] { width:104px; accent-color:#9b8850; }
-.mechCtl select { font-size:12px; padding:2px 4px; max-width:46vw; }
+.mechCtl select { font-size:0.75rem; padding:2px 4px; max-width:46vw; }
 /* The base stylesheet gives every button width:100% and a bottom margin --
    the page was sized for a phone, where a button is a row. A control strip
    has to opt out of both, as the toolbars and the atlas rows do. */
-.mechCtl button { width:auto; margin:0; padding:4px 11px !important; min-height:30px !important; font-size:12px !important; }
+.mechCtl button { width:auto; margin:0; padding:4px 11px !important; min-height:30px !important; font-size:0.75rem !important; }
 .mechCtl b { color:var(--gold); font-variant-numeric:tabular-nums; min-width:2ch; display:inline-block; }
 /* The dice are drawn rather than typed. U+2680..2685 are the obvious way to
    put a die on a page and they are not in Argos, so on the maintainer's own
@@ -909,21 +927,21 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
    font for them picks a different one on every platform. Seven circles is
    less code than deciding which fallback stack to trust. */
 .mechDiceFaces { display:flex; gap:10px; align-items:center; margin:2px 0 4px; }
-.mechVerdict { font-size:12.5px; color:#d3c9a6; margin-top:2px; }
+.mechVerdict { font-size:0.7812rem; color:#d3c9a6; margin-top:2px; }
 .mechVerdict b { color:var(--gold); }
 .mechBalloon { display:block; margin:4px 0 0; }
 @media (max-width:640px) { .mechBars .bLabel { max-width:38vw; } .mechPlot .pY { width:32px; } }
 .askCard { margin-top:0; }
 .askAnswer .sv-note { margin-top:8px; }
-.skillCard .skillKey { color:#9d9270; font-size:11px; text-transform:uppercase; letter-spacing:1px; white-space:nowrap; width:1%; padding-right:14px; vertical-align:top; }
+.skillCard .skillKey { color:#9d9270; font-size:0.6875rem; text-transform:uppercase; letter-spacing:1px; white-space:nowrap; width:1%; padding-right:14px; vertical-align:top; }
 .lessonList { color:#d3c9a6; font-style:italic; }
 #atlasPanel { margin:0; background:#000; }
 /* The gate: one screen before anything is downloaded. */
 #landingGate { position:fixed; inset:0; z-index:200; background:rgba(8,7,5,.92); display:flex; align-items:center; justify-content:center; padding:20px; }
 .gateCard { max-width:520px; background:#1a1712; border:1px solid var(--edge); border-radius:12px; padding:22px 24px; color:#e4e1d7; line-height:1.45; box-shadow:0 8px 30px rgba(0,0,0,.6); }
-.gateCard h2 { margin:0 0 10px; color:var(--gold); font-size:26px; font-weight:600; }
-.gateCard p { margin:8px 0; font-size:15px; }
-.gateCard .gateHint { color:#c9bd94; font-size:13.5px; border-top:1px solid rgba(155,136,80,.35); padding-top:8px; margin-top:12px; }
+.gateCard h2 { margin:0 0 10px; color:var(--gold); font-size:1.625rem; font-weight:600; }
+.gateCard p { margin:8px 0; font-size:0.9375rem; }
+.gateCard .gateHint { color:#c9bd94; font-size:0.8438rem; border-top:1px solid rgba(155,136,80,.35); padding-top:8px; margin-top:12px; }
 .gateRow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
 .gateRow button { width:auto; margin:0; padding:10px 16px; }
 /* The World tab is black to its edges: the sea outside the island is drawn
@@ -958,8 +976,8 @@ body.atlasFull { overflow:hidden; }
 #atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport, body.atlasFull #atlasPanel #atlasViewport { height:100%; min-height:100%; }
 #atlasFullOverlay { position:absolute; top:10px; left:10px; z-index:61; align-items:center; gap:8px;
   padding:6px 8px 6px 12px; background:rgba(8,7,5,.74); border:1px solid rgba(155,136,80,.5); border-radius:9px;
-  color:#e8dfc0; font-size:14px; font-family:ArgosGame, Argos, Georgia, serif; pointer-events:auto; }
-#atlasFullOverlay .secondary { font-size:12px; }
+  color:#e8dfc0; font-size:0.875rem; font-family:ArgosGame, Argos, Georgia, serif; pointer-events:auto; }
+#atlasFullOverlay .secondary { font-size:0.75rem; }
 #atlasViewport { position:relative; width:100%; height:78vh; overflow:hidden;
   touch-action:none; cursor:grab; background:#000;
   -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
@@ -979,29 +997,29 @@ body.atlasFull { overflow:hidden; }
 #atlasViewport canvas { display:block; }
 #atlasBar { padding:7px 12px; margin:0 0 6px; text-align:left;
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px;
-  font-size:13px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  font-size:0.8125rem; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 #atlasBar .wbWhere { color:var(--gold); font-weight:600; }
-#atlasBar .wbNote { color:#9b8850; font-size:12px; }
+#atlasBar .wbNote { color:#9b8850; font-size:0.75rem; }
 #atlasInspect { max-width:720px; margin:8px auto 0; padding:10px 14px; text-align:left;
-  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:13px; }
+  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:0.8125rem; }
 #atlasInspect .inspHead { color:var(--gold); font-weight:600; margin-bottom:8px; }
 #atlasInspect .inspCard { border-top:1px solid rgba(155,136,80,.35); padding:6px 0; }
-#atlasInspect .inspDim { color:#9b8850; font-size:12px; }
+#atlasInspect .inspDim { color:#9b8850; font-size:0.75rem; }
 #atlasInspect .inspActs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
 #atlasHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
   padding:5px 9px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,.55);
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:12px; color:#e8dfc0; white-space:nowrap;
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.75rem; color:#e8dfc0; white-space:nowrap;
   align-items:center; gap:7px; max-width:260px; }
 #atlasHover canvas { image-rendering:pixelated; width:32px; height:32px; flex:none;
   background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
 #atlasHover .hvName { color:var(--gold); font-weight:600; display:block; }
-#atlasHover .hvWhat { color:#9b8850; font-size:11px; display:block; }
-#atlasHover .hvWhere, #mapHover .hvWhere { color:#7d745a; font-size:10.5px; display:block; margin-top:2px; }
+#atlasHover .hvWhat { color:#9b8850; font-size:0.6875rem; display:block; }
+#atlasHover .hvWhere, #mapHover .hvWhere { color:#7d745a; font-size:0.6562rem; display:block; margin-top:2px; }
 /* TEMPORARY: the tuning strip. See renderAtlasTune. */
 #atlasTune { max-width:720px; margin:6px auto 0; padding:8px 12px; text-align:left;
   background:rgba(20,18,14,.92); border:1px dashed var(--edge); border-radius:8px;
-  font-size:12px; color:#c9bb92; }
+  font-size:0.75rem; color:#c9bb92; }
 #atlasTune .tuneRow { display:flex; align-items:center; gap:8px; margin:3px 0; }
 #atlasTune .tuneRow label { flex:0 0 9.5em; color:#e8dfc0; }
 #atlasTune .tuneRow input { flex:1 1 auto; }
@@ -1013,12 +1031,12 @@ body.atlasFull { overflow:hidden; }
 #mapHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
   padding:5px 9px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,.55);
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:12px; color:#e8dfc0; white-space:nowrap;
+  font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.75rem; color:#e8dfc0; white-space:nowrap;
   display:flex; align-items:center; gap:7px; max-width:260px; }
 #mapHover canvas { image-rendering:pixelated; width:32px; height:32px; flex:none;
   background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
 #mapHover .hvName { color:var(--gold); font-weight:600; display:block; }
-#mapHover .hvWhat { color:#9b8850; font-size:11px; display:block; }
+#mapHover .hvWhat { color:#9b8850; font-size:0.6875rem; display:block; }
 
 /* An opened container, the way the game shows one: the zoomrect graphic for
    that kind of container with what is inside laid out on it. */
@@ -1033,14 +1051,14 @@ body.atlasFull { overflow:hidden; }
   clip-path:none !important;
   background:rgba(12,10,7,.88) !important; background-image:none !important;
   border:1px solid rgba(196,164,100,.7) !important; box-shadow:0 1px 3px rgba(0,0,0,.5) !important;
-  color:#e8dfc0 !important; text-shadow:none !important; font-size:12px !important;
+  color:#e8dfc0 !important; text-shadow:none !important; font-size:0.75rem !important;
   font-weight:400 !important; letter-spacing:0; font-family:'ArgosGame', Argos, Georgia, serif; }
 .zoomRect .zrItem:hover { border-color:var(--gold) !important; color:var(--gold) !important; filter:none; }
 .zoomRect .zrItem::before, .zoomRect .zrItem::after { display:none !important; }
-.zoomRect .zrCap { margin:4px 0 0; font-size:11px; color:#9b8850; text-align:center; }
+.zoomRect .zrCap { margin:4px 0 0; font-size:0.6875rem; color:#9b8850; text-align:center; }
 
 #artUsage { max-width:720px; margin:10px auto 0; padding:10px 14px; text-align:left;
-  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:13px; }
+  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:0.8125rem; }
 #artUsage .inspRows { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; margin:0; }
 #artUsage .inspRows dt { color:#9b8850; }
 #artUsage .inspRows dd { margin:0; display:flex; gap:5px; flex-wrap:wrap; align-items:baseline; }
@@ -1051,11 +1069,11 @@ body.atlasFull { overflow:hidden; }
 #galleryTools { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center;
   justify-content:center; margin:10px 0 0; }
 #galleryTools button { width:auto; margin:0; }
-#exportNote { font-size:12px; color:#9b8850; }
-#galleryArrange { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:12.5px; }
+#exportNote { font-size:0.75rem; color:#9b8850; }
+#galleryArrange { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:0.7812rem; }
 #gallerySortWrap { display:flex; align-items:center; gap:6px; color:#9b8850; }
 #gallerySortSel { width:auto; margin:0; min-height:32px !important;
-  padding:3px 30px 3px 10px !important; font-size:12.5px !important; }
+  padding:3px 30px 3px 10px !important; font-size:0.7812rem !important; }
 
 /* ---- List view ---------------------------------------------------------
    The same cells, laid out as rows. A tile is right for artwork and wrong for
@@ -1068,7 +1086,7 @@ body.atlasFull { overflow:hidden; }
 /* The list view's extra column: size and decoded dimensions. Present in the
  * markup of every contact-sheet cell, shown only when the rows have room. */
 #sheetGrid .listMeta { display:none; }
-#sheetGrid.listView .listMeta { display:block; font-size:11px; color:#9b8850;
+#sheetGrid.listView .listMeta { display:block; font-size:0.6875rem; color:#9b8850;
   white-space:nowrap; text-align:right; }
 #sheetGrid.listView .cell.charCell, #sheetGrid.listView .cell.propCell,
 #sheetGrid.listView .cell.itemCell { height:auto !important; justify-content:stretch; }
@@ -1078,14 +1096,14 @@ body.atlasFull { overflow:hidden; }
 #sheetGrid.listView .cell.charCell .portraitBox { margin:0; width:56px; height:56px; }
 #sheetGrid.listView .cell.charCell .portraitBox > canvas.portrait { width:56px !important; height:56px !important; }
 #sheetGrid.listView .cell.charCell .portraitBox > canvas.walker { display:none; }
-#sheetGrid.listView .cellChars { width:96px; height:58px; font-size:10px; line-height:1.28; }
+#sheetGrid.listView .cellChars { width:96px; height:64px; font-size:0.625rem; line-height:1.28; }
 /* A cell sizes its canvas inline for the tile grid (84 wide, 96 high at
    most); in a row that height was clamped to 72 while the width stayed, and
    every picture came out squashed. Both sides are freed here and only the
    box is bounded, so the browser keeps the canvas's own proportions. */
 #sheetGrid.listView .cell canvas { width:auto !important; height:auto !important;
   max-width:96px; max-height:72px; }
-#sheetGrid.listView .lbl { margin-top:0 !important; font-size:15px; -webkit-line-clamp:2; }
+#sheetGrid.listView .lbl { margin-top:0 !important; font-size:0.9375rem; -webkit-line-clamp:2; }
 #sheetGrid.listView .resid { margin-top:0; text-align:right; white-space:nowrap; }
 #sheetGrid.listView .propHead { display:none; }
 @media (max-width:520px) {
@@ -1103,30 +1121,30 @@ body.atlasFull { overflow:hidden; }
 #charControls { margin-top:12px; display:flex; flex-direction:column; gap:6px;
   align-items:stretch; max-width:720px; margin-left:auto; margin-right:auto; }
 .mapToggleGroup { display:flex; flex-wrap:wrap; gap:4px 14px; align-items:center;
-  justify-content:flex-start; padding:7px 12px; font-size:13.5px;
+  justify-content:flex-start; padding:7px 12px; font-size:0.8438rem;
   background:rgba(20,18,14,.72); border:1px solid rgba(155,136,80,.45); border-radius:7px; }
-.mapToggleGroup .mtgLabel { flex:0 0 46px; font-size:10.5px; letter-spacing:1.4px;
+.mapToggleGroup .mtgLabel { flex:0 0 46px; font-size:0.6562rem; letter-spacing:1.4px;
   text-transform:uppercase; color:#9b8850; }
 .mapToggleGroup label { display:flex; align-items:center; gap:5px; cursor:pointer;
   white-space:nowrap; }
 /* ---- the Cheats sheet -----------------------------------------------------
    Two-column tables of key and effect, so the key caps line up down the left
    and the prose wraps under its own heading rather than beside it. */
-.cheatH { margin:2px 0 6px; font-size:16px; }
-.cheatH4 { margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:#9b8850; }
-.cheatNote { font-size:11.5px; color:#8d8368; line-height:1.55; margin:6px 2px; }
+.cheatH { margin:2px 0 6px; font-size:1rem; }
+.cheatH4 { margin:0 0 8px; font-size:0.75rem; text-transform:uppercase; letter-spacing:.06em; color:#9b8850; }
+.cheatNote { font-size:0.7188rem; color:#8d8368; line-height:1.55; margin:6px 2px; }
 .cheatNote b { color:#b9ad8a; }
 .cheatTable { min-width:0; }
 .cheatTable td { vertical-align:top; }
 .cheatCombo { width:150px; white-space:normal; }
-.cheatKey { display:inline-block; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px;
+.cheatKey { display:inline-block; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:0.7188rem;
   padding:2px 6px; border:1px solid rgba(155,136,80,.55); border-bottom-width:2px; border-radius:4px;
   background:rgba(20,18,14,.7); color:#e8dcb4; }
-.cheatGlyph { color:#c4a464; font-size:14px; margin-left:4px; }
-.cheatCode { display:block; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:10.5px; color:#7f7760; margin-top:3px; }
-.cheatDoes { font-size:12px; color:#a89d7c; line-height:1.5; margin-top:2px; }
+.cheatGlyph { color:#c4a464; font-size:0.875rem; margin-left:4px; }
+.cheatCode { display:block; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:0.6562rem; color:#7f7760; margin-top:3px; }
+.cheatDoes { font-size:0.75rem; color:#a89d7c; line-height:1.5; margin-top:2px; }
 .cheatSprites { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
-.cheatSprite { font-size:11.5px; color:#a89d7c; background:rgba(20,18,14,.55);
+.cheatSprite { font-size:0.7188rem; color:#a89d7c; background:rgba(20,18,14,.55);
   border:1px solid rgba(155,136,80,.3); border-radius:4px; padding:2px 7px; }
 .cheatSprite b { color:#e8dcb4; font-family:ui-monospace,Menlo,Consolas,monospace; }
 .cheatSprite.isMonster { border-color:rgba(190,120,90,.4); }
@@ -1137,9 +1155,9 @@ body.atlasFull { overflow:hidden; }
 .saveHead { display:flex; gap:12px; align-items:flex-start; margin:2px 0 10px; }
 .saveFace { width:64px; height:64px; image-rendering:pixelated; border:1px solid rgba(155,136,80,.5);
   border-radius:4px; background:rgba(0,0,0,.35); flex:0 0 auto; }
-.saveHead h3 { margin:0 0 4px; font-size:16px; }
-.saveH4 { margin:14px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:#9b8850; }
-.saveNote { font-size:11.5px; color:#8d8368; line-height:1.5; margin:6px 2px 8px; }
+.saveHead h3 { margin:0 0 4px; font-size:1rem; }
+.saveH4 { margin:14px 0 6px; font-size:0.75rem; text-transform:uppercase; letter-spacing:.06em; color:#9b8850; }
+.saveNote { font-size:0.7188rem; color:#8d8368; line-height:1.5; margin:6px 2px 8px; }
 .forkTable tr.saveHero td { background:rgba(249,248,111,.10); }
 /* Ten columns is what fits: body, reflex and mind are in the row's own form
    rather than in the table, since the eleventh column pushed Edit off the
@@ -1156,10 +1174,10 @@ body.atlasFull { overflow:hidden; }
 #mapEditBar { max-width:720px; margin:8px auto 0; text-align:left; }
 #mapEditBar .mapToggleGroup { margin-bottom:6px; }
 #mapEditBar button { width:auto; margin:0; padding:5px 12px !important; min-height:32px !important;
-  font-size:13px !important; }
+  font-size:0.8125rem !important; }
 #mapEditBar button[disabled] { opacity:.42; cursor:default; text-decoration:none; }
 .mapToolBtn.on { background:rgba(249,248,111,.16) !important; box-shadow:inset 0 0 0 1px rgba(249,248,111,.6); }
-.mapEditNote { font-size:11.5px; color:#8d8368; line-height:1.45; margin:4px 2px 6px; }
+.mapEditNote { font-size:0.7188rem; color:#8d8368; line-height:1.45; margin:4px 2px 6px; }
 .mapEditNote b { color:#b9ad8a; }
 .mapPalette { display:flex; flex-wrap:wrap; gap:4px; padding:7px 8px;
   background:rgba(20,18,14,.72); border:1px solid rgba(155,136,80,.45); border-radius:7px; }
@@ -1171,14 +1189,14 @@ body.atlasFull { overflow:hidden; }
 @media (max-width:640px) { .tileSwatch img { width:30px; height:30px; } }
 .mapToggleGroup input[type=checkbox] { width:auto; min-height:0; margin:0; accent-color:#c4a464; }
 .mapToggleGroup select { width:auto; min-height:30px !important; margin:0;
-  padding:2px 26px 2px 8px !important; font-size:12px !important; }
+  padding:2px 26px 2px 8px !important; font-size:0.75rem !important; }
 .mapToggleGroup input[type=range] { flex:1 1 120px; min-width:90px; }
 .mapToggleGroup #mapHourLabel { min-width:56px; text-align:right; }
-.mapToggleGroup.mtgNotes { background:none; border:0; padding:2px 12px; font-size:12px;
+.mapToggleGroup.mtgNotes { background:none; border:0; padding:2px 12px; font-size:0.75rem;
   color:#9b8850; gap:14px; }
 .mapToggleGroup.mtgNotes button { margin:0; }
 @media (max-width:520px) {
-  .mapToggleGroup { font-size:12.5px; gap:4px 10px; }
+  .mapToggleGroup { font-size:0.7812rem; gap:4px 10px; }
   .mapToggleGroup .mtgLabel { flex-basis:100%; }
 }
 
@@ -1188,22 +1206,22 @@ body.atlasFull { overflow:hidden; }
    small stud in the top-left now, and everything about the data file lives
    behind it. */
 #archiveMenuBtn { position:fixed; top:8px; left:8px; z-index:41; width:auto; margin:0;
-  min-height:0 !important; padding:5px 16px !important; font-size:11.5px !important;
+  min-height:0 !important; padding:5px 16px !important; font-size:0.7188rem !important;
   letter-spacing:.06em; opacity:.62;
   }
 #archiveMenuBtn:hover { opacity:1; }
-#archiveMenuBtn.urgent { opacity:1; font-size:14px !important; padding:9px 18px !important; }
+#archiveMenuBtn.urgent { opacity:1; font-size:0.875rem !important; padding:9px 18px !important; }
 #archiveMenu { position:fixed; top:38px; left:8px; z-index:42; display:none;
   min-width:250px; max-width:min(360px, calc(100vw - 24px));
   padding:12px 14px; background:rgba(18,15,10,.98); border:1px solid var(--edge);
-  border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,.7); font-size:12.5px;
+  border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,.7); font-size:0.7812rem;
   text-align:left; line-height:1.6; }
 #archiveMenu.open { display:block; }
 #archiveMenu button { width:100%; margin:8px 0 0; }
 #archiveMenu label { display:flex; gap:7px; align-items:flex-start; margin-top:10px;
   padding-top:10px; border-top:1px solid rgba(155,136,80,.35); cursor:pointer; }
 #archiveMenu label input { width:auto; min-height:0; margin:3px 0 0; accent-color:#c4a464; }
-#archiveMenu .amNote { color:#9b8850; font-size:11.5px; display:block; }
+#archiveMenu .amNote { color:#9b8850; font-size:0.7188rem; display:block; }
 
 @media (prefers-reduced-motion: reduce) { * { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
 
@@ -1217,50 +1235,50 @@ body.atlasFull { overflow:hidden; }
    ones on the rules they override; a later rule of equal weight wins. */
 @media (min-width: 900px) {
   #appShell { max-width:1280px; padding:48px 44px calc(112px + env(safe-area-inset-bottom)); }
-  html { font-size:18px; }
+  html { font-size:125%; }
   button, select { font-size:1rem !important; }
-  #topLinks button { font-size:15px !important; padding:5px 16px !important; }
-  #archiveMenuBtn { font-size:15px !important; opacity:.9; }
-  #archiveMenuBtn.urgent { font-size:17px !important; }
-  #archiveMenu .amNote { font-size:14px; color:#c9bd93; }
-  #sourceStatus { font-size:15px; color:#b3a781; opacity:1; }
-  #sourceStatus.failed { font-size:18px; }
-  .ftab { font-size:17px !important; padding:9px 18px 8px !important; gap:9px; }
+  #topLinks button { font-size:0.9375rem !important; padding:5px 16px !important; }
+  #archiveMenuBtn { font-size:0.9375rem !important; opacity:.9; }
+  #archiveMenuBtn.urgent { font-size:1.0625rem !important; }
+  #archiveMenu .amNote { font-size:0.875rem; color:#c9bd93; }
+  #sourceStatus { font-size:0.9375rem; color:#b3a781; opacity:1; }
+  #sourceStatus.failed { font-size:1.125rem; }
+  .ftab { font-size:1.0625rem !important; padding:9px 18px 8px !important; gap:9px; }
   .ftab.sel, .ftab.sel:hover { padding:13px 20px 10px !important; }
   .ftab canvas { width:26px !important; height:26px !important; }
-  .ftab .tabBadge { font-size:12.5px; padding:3px 7px; }
+  .ftab .tabBadge { font-size:0.7812rem; padding:3px 7px; }
   .tabSheet { padding:16px 16px 20px; }
   #navSub { gap:8px; margin-bottom:12px; }
-  .navChip { font-size:15px; padding:8px 16px; }
-  .sv-chip { font-size:15px !important; padding:7px 18px !important; }
-  #sheetGrid { grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:16px; }
-  .cell { height:200px; padding:8px; }
-  .cell .lbl { font-size:16.5px; }
-  .cell .lbl.nolabel { font-size:14.5px; }
-  .cell .resid { font-size:13.5px; }
-  #labelLegend, #filterNote { font-size:15px; }
-  .propHead { font-size:13.5px; }
-  .forkTable, .changesView { font-size:16px; }
-  .forkTable th { font-size:13.5px; }
+  .navChip { font-size:0.9375rem; padding:8px 16px; }
+  .sv-chip { font-size:0.9375rem !important; padding:7px 18px !important; }
+  #sheetGrid { grid-template-columns:repeat(auto-fill, minmax(152px, 1fr)); gap:16px; }
+  .cell { height:220px; padding:8px; }
+  .cell .lbl { font-size:1.0312rem; }
+  .cell .lbl.nolabel { font-size:0.9062rem; }
+  .cell .resid { font-size:0.8438rem; }
+  #labelLegend, #filterNote { font-size:0.9375rem; }
+  .propHead { font-size:0.8438rem; }
+  .forkTable, .changesView { font-size:1rem; }
+  .forkTable th { font-size:0.8438rem; }
   .forkTable td { padding:7px 9px; }
-  .installerText { font-size:15px; }
-  .installerVersions .amNote, .installerOpen .amNote { font-size:15px; }
-  .installerOpen .installerOpenName { font-size:22px; }
-  pre, #output { font-size:16px; }
-  .sv-head .sv-id { font-size:28px; }
-  .sv-head .sv-lbl { font-size:20px; }
-  .sv-head .sv-kind { font-size:14px; }
-  .sv-why { font-size:17px; }
-  .sv-facts > div { font-size:16px; }
-  .convHead { font-size:16px; }
-  .convHead .sv-chip { font-size:15px !important; }
-  .convBadge { font-size:13px; }
-  .sr-lines, #paneHex, .peForm, .peForm input, #editBytesNote { font-size:13px; }
-  .linksum { font-size:14px; }
-  .linksum b { font-size:12.5px; }
-  .dswitch { font-size:13px; }
-  .dlgEdit { font-size:13px; }
-  .sv-legend code { font-size:14px; }
+  .installerText { font-size:0.9375rem; }
+  .installerVersions .amNote, .installerOpen .amNote { font-size:0.9375rem; }
+  .installerOpen .installerOpenName { font-size:1.375rem; }
+  pre, #output { font-size:1rem; }
+  .sv-head .sv-id { font-size:1.75rem; }
+  .sv-head .sv-lbl { font-size:1.25rem; }
+  .sv-head .sv-kind { font-size:0.875rem; }
+  .sv-why { font-size:1.0625rem; }
+  .sv-facts > div { font-size:1rem; }
+  .convHead { font-size:1rem; }
+  .convHead .sv-chip { font-size:0.9375rem !important; }
+  .convBadge { font-size:0.8125rem; }
+  .sr-lines, #paneHex, .peForm, .peForm input, #editBytesNote { font-size:0.8125rem; }
+  .linksum { font-size:0.875rem; }
+  .linksum b { font-size:0.7812rem; }
+  .dswitch { font-size:0.8125rem; }
+  .dlgEdit { font-size:0.8125rem; }
+  .sv-legend code { font-size:0.875rem; }
   #resourceNav button { font-size:1.2rem !important; }
   /* The muted browns that read on a phone held close are too faint at
      arm's length: every secondary line comes up a shade. */
@@ -1324,7 +1342,7 @@ body.atlasFull { overflow:hidden; }
 <div id="navSub"></div>
 <div id="crumbBar" style="display:none"></div>
 <div id="searchWrap" style="display:none">
-  <h2>Ask the Scripts <button class="secondary" style="width:auto;min-height:0 !important;padding:2px 10px !important;font-size:12px !important;vertical-align:middle"
+  <h2>Ask the Scripts <button class="secondary" style="width:auto;min-height:0 !important;padding:2px 10px !important;font-size:0.75rem !important;vertical-align:middle"
     onclick="closeSearch()">close</button></h2>
   <p class="sv-why" style="text-align:center;margin-bottom:8px">Searches every decoded script at once
   &mdash; instruction names, engine calls and the text the player sees. Use it when a resource is not
@@ -1479,7 +1497,7 @@ body.atlasFull { overflow:hidden; }
     <span id="mapZoomLabel" style="min-width:52px; text-align:right;">100%</span>
     <button class="secondary" style="width:auto; margin:0; padding:8px 14px;" onclick="onMapFit()">Fit</button>
   </div>
-  <div id="markLegend" style="font-size:12px; margin-top:6px; min-height:16px;"></div>
+  <div id="markLegend" style="font-size:0.75rem; margin-top:6px; min-height:16px;"></div>
   <!-- The map editor's toolbar, built by renderMapEditBar when a map opens. -->
   <div id="mapEditBar" style="display:none"></div>
   <div id="mapInspect" style="display:none"></div>
@@ -1530,7 +1548,7 @@ body.atlasFull { overflow:hidden; }
 
 <!-- New Text & Hex Viewer -->
 <div id="textPreview" style="display:none; margin-top:12px; padding:14px; background:var(--panel); border:1px solid var(--edge); border-radius:8px;">
-  <div id="textLabel" style="color:var(--gold); margin-bottom:10px; font-size:16px; text-align:center;"></div>
+  <div id="textLabel" style="color:var(--gold); margin-bottom:10px; font-size:1rem; text-align:center;"></div>
   <div id="dlgWrap" class="dlgWrap" style="display:none"></div>
   <button class="secondary" id="dlgToggle" style="display:none" onclick="toggleRawDump()">Show Decoded / Strings / Hex</button>
   <div id="scriptView"></div>
@@ -1554,26 +1572,26 @@ body.atlasFull { overflow:hidden; }
 
 <div id="zoomControls" style="display:none">
   <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:6px;flex-wrap:wrap">
-    <span id="animNote" style="display:none;font-size:12px;color:#c9bd90;">cycling 0xE0&ndash;0xFB</span>
+    <span id="animNote" style="display:none;font-size:0.75rem;color:#c9bd90;">cycling 0xE0&ndash;0xFB</span>
   </div>
   <div class="zoomrow">
-    <label style="font-size:12px;">Zoom</label>
+    <label style="font-size:0.75rem;">Zoom</label>
     <input type="range" id="zoomSlider" min="1" max="16" value="4" oninput="applyZoom()">
-    <span id="zoomLabel" style="font-size:12px;">4x</span>
+    <span id="zoomLabel" style="font-size:0.75rem;">4x</span>
   </div>
 </div>
 <div id="soundPreview" style="display:none; margin-top:12px; padding:14px; background:#111; border:2px solid #C4A464; border-radius:8px;">
-  <div id="soundLabel" style="color:#C4A464; margin-bottom:10px; font-size:14px;"></div>
+  <div id="soundLabel" style="color:#C4A464; margin-bottom:10px; font-size:0.875rem;"></div>
   <canvas id="waveform" width="900" height="160"></canvas>
   <audio id="audioPlayer" controls style="width:100%; margin-bottom:10px;"></audio>
   <button class="secondary" onclick="downloadCurrentWAV()">Save as WAV</button>
 </div>
 <div id="unditherBar" style="display:none; text-align:center; margin:6px 0 2px;">
-  <label style="display:inline-flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+  <label style="display:inline-flex; align-items:center; gap:8px; font-size:0.875rem; cursor:pointer;">
     <input type="checkbox" id="unditherToggle" onchange="setUnditherPreview(this.checked)"
            style="width:auto; min-height:0; margin:0"> <span id="unditherLabel">Preview undithered (this gallery)</span>
   </label>
-  <span style="font-size:12px; color:#9b8850; margin-left:10px;">the switch for every image is under Tools; this lasts until the category changes</span>
+  <span style="font-size:0.75rem; color:#9b8850; margin-left:10px;">the switch for every image is under Tools; this lasts until the category changes</span>
 </div>
 <div id="labelLegend" style="display:none"><span class="guessTag">wiki</span> — this name is supplied by
 this tool from the delvmod wiki and is not in the archive. Turn tool-supplied names on or off under
@@ -3109,10 +3127,10 @@ function showPropTypeDetail(pt) {
   const head = document.createElement('div');
   const sheetResid = 0x8E00 + (base >> 4);
   const scriptResid = 0x1000 + pt;
-  head.innerHTML = '<div style="font-size:19px;color:var(--gold)">' +
+  head.innerHTML = '<div style="font-size:1.1875rem;color:var(--gold)">' +
     propNameHTML(pt, base) +
-    ' <span style="font-size:12px;color:#9b8850">proptype 0x' + pt.toString(16).toUpperCase() + '</span></div>' +
-    '<div style="font-size:13px;color:#cfc4a0;margin:4px 0 10px">Sheet ' + residLink(sheetResid) +
+    ' <span style="font-size:0.75rem;color:#9b8850">proptype 0x' + pt.toString(16).toUpperCase() + '</span></div>' +
+    '<div style="font-size:0.8125rem;color:#cfc4a0;margin:4px 0 10px">Sheet ' + residLink(sheetResid) +
       ', base tile 0x' + base.toString(16).toUpperCase() +
       (info.rows > 1 ? ' \u00b7 ' + info.rows + ' facings' : '') +
       ' \u00b7 ' + (refExists(scriptResid)
@@ -3142,7 +3160,7 @@ function showPropTypeDetail(pt) {
     // itself is one click away for anyone who wants its neighbourhood.
     if (!own) continue;
     const runHead = document.createElement('div');
-    runHead.style.cssText = 'font-size:11px;letter-spacing:1px;text-transform:uppercase;margin:8px 0 3px;' +
+    runHead.style.cssText = 'font-size:0.6875rem;letter-spacing:1px;text-transform:uppercase;margin:8px 0 3px;' +
       'color:' + (own ? '#cfc4a0' : '#8a8064');
     runHead.textContent = (run.name || 'unnamed in 0xF004') + ' \u00b7 frame' +
       (run.frames.length === 1 ? ' ' + run.frames[0] : 's ' + run.frames[0] + '\u2013' + run.frames[run.frames.length-1]) +
@@ -3150,7 +3168,7 @@ function showPropTypeDetail(pt) {
     panel.appendChild(runHead);
     if (own) {
       const gb = document.createElement('button');
-      gb.className = 'secondary'; gb.style.cssText = 'width:auto;margin:0 0 4px;padding:4px 10px;font-size:12px';
+      gb.className = 'secondary'; gb.style.cssText = 'width:auto;margin:0 0 4px;padding:4px 10px;font-size:0.75rem';
       gb.textContent = run.frames.length > 1 ? 'Save these frames as an animated GIF' : 'Save as GIF';
       gb.onclick = () => downloadPropGIF(base, run.frames);
       panel.appendChild(gb);
@@ -3184,7 +3202,7 @@ function showPropTypeDetail(pt) {
       if (!own) holder.style.opacity = '.5';
       cellw.appendChild(holder);
       const cap = document.createElement('div');
-      cap.style.cssText = 'font-size:10px;color:#9b8850;line-height:1.3;margin-top:2px';
+      cap.style.cssText = 'font-size:0.625rem;color:#9b8850;line-height:1.3;margin-top:2px';
       cap.textContent = col ? (f + ' \u00b7 ' + col) : String(f);
       cellw.appendChild(cap);
       sheet.appendChild(cellw);
@@ -3200,7 +3218,7 @@ function showPropTypeDetail(pt) {
   } catch (e) {}
   if (users.length) {
     const u = document.createElement('div');
-    u.style.cssText = 'font-size:13px;line-height:1.8';
+    u.style.cssText = 'font-size:0.8125rem;line-height:1.8';
     u.innerHTML = '<b style="color:#9d9270">Characters using this sprite</b><br>' +
       users.slice(0, 40).map(i =>
         '<button class="sv-chip" onclick="showCharacterDetail(' + i + ')">' +
@@ -3509,7 +3527,7 @@ function showItemDetail(pt) {
 
   let h = '<div class="sv-head"><span class="sv-id">' +
     propNameHTML(pt, base) + '</span></div>' +
-    '<div style="font-size:13px;color:#cfc4a0;margin:4px 0 10px">prop type 0x' +
+    '<div style="font-size:0.8125rem;color:#cfc4a0;margin:4px 0 10px">prop type 0x' +
     pt.toString(16).toUpperCase() + ' \u00b7 base tile 0x' + base.toString(16).toUpperCase() +
     (cls ? ' \u00b7 class ' + '0x' + cls.resid.toString(16).toUpperCase() + ', ' + cls.size + ' bytes'
          : ' \u00b7 no class script at 0x' + (0x1000 + pt).toString(16).toUpperCase()) + '</div>';
@@ -3544,7 +3562,7 @@ function showItemDetail(pt) {
                    (col ? ' \u00b7 ' + col : '');
     cellw.appendChild(holder);
     const cap = document.createElement('div');
-    cap.style.cssText = 'font-size:10px;color:#9b8850;line-height:1.3;margin-top:2px';
+    cap.style.cssText = 'font-size:0.625rem;color:#9b8850;line-height:1.3;margin-top:2px';
     cap.textContent = col ? (f + ' \u00b7 ' + col) : String(f);
     cellw.appendChild(cap);
     sheet.appendChild(cellw);
@@ -3554,7 +3572,7 @@ function showItemDetail(pt) {
   if (strangers.length) {
     const note = document.createElement('div');
     note.className = 'sv-note';
-    note.style.cssText = 'font-size:12px;color:#8a8064;margin:-4px 0 12px';
+    note.style.cssText = 'font-size:0.75rem;color:#8a8064;margin:-4px 0 12px';
     // The scythe's block runs on into fourteen other things, so the list is
     // capped -- the point is that the block is not all one item, not to
     // enumerate a sheet.
@@ -3581,12 +3599,12 @@ function showItemDetail(pt) {
       const meta = ITEM_FIELD_INFO[f.key] || {};
       rows += '<tr><td style="padding:3px 10px 3px 0;color:#cfc4a0;white-space:nowrap">' +
         svEsc(itemFieldLabel(f.key)) +
-        '<span style="color:#7d7358;font-size:11px"> 0x' + f.key.toString(16).toUpperCase().padStart(4,'0') + '</span></td>' +
+        '<span style="color:#7d7358;font-size:0.6875rem"> 0x' + f.key.toString(16).toUpperCase().padStart(4,'0') + '</span></td>' +
         '<td style="padding:3px 0;color:var(--gold);font-family:ui-monospace,Menlo,Consolas,monospace">' +
         svEsc(itemFieldValue(f)) + '</td></tr>' +
-        (meta.gloss ? '<tr><td colspan="2" style="padding:0 0 6px;color:#8a8064;font-size:12px">' +
+        (meta.gloss ? '<tr><td colspan="2" style="padding:0 0 6px;color:#8a8064;font-size:0.75rem">' +
           svEsc(meta.gloss) + '</td></tr>'
-        : '<tr><td colspan="2" style="padding:0 0 6px;color:#8a8064;font-size:12px">' +
+        : '<tr><td colspan="2" style="padding:0 0 6px;color:#8a8064;font-size:0.75rem">' +
           'No published meaning for this key.</td></tr>');
     }
     add('<div class="sv-block"><h4>Class data</h4><table style="border-collapse:collapse;width:100%">' +
@@ -3608,7 +3626,7 @@ function showItemDetail(pt) {
   if (cls && cls.text.length) {
     add('<div class="sv-block"><h4>Text in this class</h4>' +
       cls.text.slice(0, 12).map(t =>
-        '<div style="color:#f4e9c8;font-size:13px;margin-bottom:4px">\u201c' + svEsc(t.text) + '\u201d</div>'
+        '<div style="color:#f4e9c8;font-size:0.8125rem;margin-bottom:4px">\u201c' + svEsc(t.text) + '\u201d</div>'
       ).join('') + '</div>');
   }
 
@@ -3640,7 +3658,7 @@ function showItemDetail(pt) {
         byChar[k] = byChar[k] || { n: 0, equipped: 0 };
         byChar[k].n++; if (h.equipped) byChar[k].equipped++;
       }
-      body += '<div style="margin-top:10px"><b style="color:#9d9270;font-size:11px;text-transform:uppercase;letter-spacing:1px">Carried by</b><br>' +
+      body += '<div style="margin-top:10px"><b style="color:#9d9270;font-size:0.6875rem;text-transform:uppercase;letter-spacing:1px">Carried by</b><br>' +
         Object.keys(byChar).slice(0, 24).map(k =>
           '<button class="sv-chip" onclick="showCharacterDetail(' + k + ')">' +
           svEsc(characterName(+k)) + (byChar[k].equipped ? ' <em>equipped</em>' : '') +
@@ -3654,7 +3672,7 @@ function showItemDetail(pt) {
         const k = h.hostType;
         byHost[k] = (byHost[k] || 0) + 1;
       }
-      body += '<div style="margin-top:10px"><b style="color:#9d9270;font-size:11px;text-transform:uppercase;letter-spacing:1px">Found inside</b><br>' +
+      body += '<div style="margin-top:10px"><b style="color:#9d9270;font-size:0.6875rem;text-transform:uppercase;letter-spacing:1px">Found inside</b><br>' +
         Object.keys(byHost).sort((a, b) => byHost[b] - byHost[a]).slice(0, 16).map(k =>
           '<button class="sv-chip" onclick="showItemDetail(' + k + ')">' +
           svEsc(propDisplayName(+k) || ('0x' + (+k).toString(16).toUpperCase())) +
@@ -3753,7 +3771,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.25.0';
+const GRIMOIRE_VERSION = '1.26.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4075,7 +4093,7 @@ function showRsrcDetail(type, id) {
 
   if (pat) {
     const table = document.createElement('div');
-    table.style.cssText = 'width:100%;max-width:720px;margin:0 auto;font-size:13px';
+    table.style.cssText = 'width:100%;max-width:720px;margin:0 auto;font-size:0.8125rem';
     const rows = [];
     for (let i = 0; i < pat.tiles.length; i++) {
       const t = pat.tiles[i];
@@ -4309,7 +4327,7 @@ function renderMacRsrcSheet() {
             const txt = arts.find(a => a.text);
             if (txt) { textual++; note.textContent = txt.text.slice(0, 120); }
             else { raw++; note.textContent = fmtBytes(fork.sizeOf(it.type, it.entry)); }
-            note.style.cssText = 'font-size:11px;color:#9b8850;padding:6px;max-height:96px;overflow:hidden;white-space:pre-wrap';
+            note.style.cssText = 'font-size:0.6875rem;color:#9b8850;padding:6px;max-height:96px;overflow:hidden;white-space:pre-wrap';
             imgwrap.appendChild(note);
           }
         });
@@ -4382,7 +4400,7 @@ function showMacRsrcDetail(type, id, source) {
       box.appendChild(cv);
       if (a.tag) {
         const t = document.createElement('div');
-        t.style.cssText = 'font-size:12px;color:#9b8850;margin-top:4px';
+        t.style.cssText = 'font-size:0.75rem;color:#9b8850;margin-top:4px';
         t.textContent = a.tag;
         box.appendChild(t);
       }
@@ -4396,7 +4414,7 @@ function showMacRsrcDetail(type, id, source) {
     } else if (a.text) {
       const pre = document.createElement('pre');
       pre.style.cssText = 'text-align:left;max-width:820px;margin:0 auto;white-space:pre-wrap;' +
-        'font-size:13px;max-height:420px;overflow:auto;border:1px solid #6b6b6b;padding:10px';
+        'font-size:0.8125rem;max-height:420px;overflow:auto;border:1px solid #6b6b6b;padding:10px';
       pre.textContent = a.text;
       box.appendChild(pre);
     } else if (a.blob || a.wav) {
@@ -4418,7 +4436,7 @@ function showMacRsrcDetail(type, id, source) {
   sum.style.cursor = 'pointer';
   dump.appendChild(sum);
   const pre = document.createElement('pre');
-  pre.style.cssText = 'font-size:12px;overflow:auto;max-height:360px';
+  pre.style.cssText = 'font-size:0.75rem;overflow:auto;max-height:360px';
   pre.textContent = rsrcHexDump(data, 4096);
   dump.appendChild(pre);
   grid.appendChild(dump);
@@ -4608,7 +4626,7 @@ function showCharacterDetail(i) {
   if (facings.length) {
     const gb = document.createElement('button');
     gb.className = 'secondary';
-    gb.style.cssText = 'width:auto;margin:6px 0 0;padding:5px 12px;font-size:12px';
+    gb.style.cssText = 'width:auto;margin:6px 0 0;padding:5px 12px;font-size:0.75rem';
     gb.textContent = 'Save the walk as a GIF';
     gb.title = facings.length > 1 ? facings.length + ' facings are drawn; this saves the first' : '';
     gb.onclick = () => downloadPropGIF(sprInfo.base, facings[0],
@@ -4619,10 +4637,10 @@ function showCharacterDetail(i) {
 
   const r = d.rec;
   const info = document.createElement('div');
-  info.style.cssText = 'font-size:14px;line-height:1.7';
+  info.style.cssText = 'font-size:0.875rem;line-height:1.7';
   info.innerHTML =
-    '<div style="font-size:19px;color:var(--gold);margin-bottom:6px">' + d.name +
-      ' <span style="font-size:12px;color:#9b8850">character ' + i + '</span></div>' +
+    '<div style="font-size:1.1875rem;color:var(--gold);margin-bottom:6px">' + d.name +
+      ' <span style="font-size:0.75rem;color:#9b8850">character ' + i + '</span></div>' +
     // A zero in this table nearly always means "no value recorded", not
     // "zero of it" -- printing "XP 0 Training 0 Magic 0/0" for a farmhand
     // invented three facts about them. Absent fields are simply left out, and
@@ -4653,11 +4671,11 @@ function showCharacterDetail(i) {
     sh.innerHTML = '<div style="color:var(--gold);margin-bottom:4px">Daily schedule</div>' +
       d.schedule.map(e => {
         const h = e.hour, ampm = h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
-        return '<div style="font-size:13px">' + ampm.padStart(5) + ' &mdash; ' + e.where +
+        return '<div style="font-size:0.8125rem">' + ampm.padStart(5) + ' &mdash; ' + e.where +
                ' (' + e.x + ', ' + e.y + ') <span style="color:#7d7358">mode ' + e.mode + '</span></div>';
       }).join('');
   } else {
-    sh.innerHTML = '<div style="color:#7d7358;font-size:13px">No schedule entries \u2014 placed directly in a map\u2019s prop list rather than moving on a clock.</div>';
+    sh.innerHTML = '<div style="color:#7d7358;font-size:0.8125rem">No schedule entries \u2014 placed directly in a map\u2019s prop list rather than moving on a clock.</div>';
   }
   // Jump to where this character currently stands.
   if (r.zone) {
@@ -8916,8 +8934,8 @@ function setupMapViewportInteraction() {
   // A click has to be told apart from the end of a drag, or every pan would
   // open the inspector on whatever square the finger happened to stop over.
   let pressX = 0, pressY = 0, moved = 0;
-  // Press and hold is the hover on a touch screen -- see the atlas's
-  // setupAtlasInteraction for the reasoning; this is the same gesture.
+  // Tap and press-and-hold are the hover on a touch screen -- see the
+  // atlas's setupAtlasInteraction for the reasoning; the same two gestures.
   let holdTimer = null, peeking = false;
   const endHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
 
@@ -8962,6 +8980,9 @@ function setupMapViewportInteraction() {
       }
       onDown(e.clientX, e.clientY);
       endHold(); peeking = false;
+      // A new gesture puts the last card away, so a pan never leaves a stale
+      // one behind and a second tap replaces the first.
+      if (e.pointerType !== 'mouse') hideMapHover();
       if (e.pointerType !== 'mouse') {
         const cx = e.clientX, cy = e.clientY;
         holdTimer = setTimeout(() => {
@@ -9007,13 +9028,22 @@ function setupMapViewportInteraction() {
     if (activePointers.size < 2) { pinchStartDist = 0; }
     if (activePointers.size === 0) onUp();
     endHold();
-    if (peeking) { if (!activePointers.size) { peeking = false; hideMapHover(); } return; }
+    // The card stays where the lift left it: it is clear of the finger now,
+    // so there is something to read, and the next gesture puts it away.
+    if (peeking) { if (!activePointers.size) peeking = false; return; }
     if (e.type === 'pointerup' && wasDragging && moved < 6) {
       const sq = mapSquareFromClient(e.clientX, e.clientY);
       if (sq) inspectMapSquare(sq.tx, sq.ty);
+      // On a touch screen a tap IS the hover. There is no resting pointer to
+      // ask with, and press-and-hold -- the gesture that used to be the only
+      // way -- puts the card under the thumb that asked for it. Asked, so the
+      // card speaks over bare ground as well.
+      if (sq && e.pointerType !== 'mouse') updateMapHover(e.clientX, e.clientY, true);
     }
   };
-  viewport.addEventListener('pointerleave', () => hideMapHover());
+  // A touch pointer leaves the element the moment it lifts, which would take
+  // the tapped card with it. Only a mouse leaving means "stopped looking".
+  viewport.addEventListener('pointerleave', e => { if (!e || e.pointerType === 'mouse') hideMapHover(); });
   viewport.addEventListener('pointerup', clearPointer);
   viewport.addEventListener('pointercancel', clearPointer);
   viewport.addEventListener('pointerleave', clearPointer);
@@ -9055,9 +9085,11 @@ function clearMapInspector() {
    resting on somebody now says who they are and what they are doing, and the
    click still opens the dossier.
 
-   Mouse only, and deliberately: there is no hover on a touch screen, a
-   pointermove there is a drag, and a card that appeared under a finger would
-   cover the thing it was describing. A tap already opens the inspector.
+   A touch screen has no resting pointer and a pointermove there is a drag,
+   so the gesture is a tap -- which also opens the inspector below -- or a
+   press and hold, which keeps the card with the moving finger. Either way
+   the card is placed clear of the hand rather than under it: see
+   placeHoverCard, which is where the whole of that difference lives.
 
    The square under the pointer is matched the way the inspector matches it --
    the record's own coordinate, not where the sprite is drawn, which can be
@@ -9080,10 +9112,12 @@ function updateMapHover(clientX, clientY, asked) {
   const key = cm.resid + ':' + sq.tx + ',' + sq.ty + (asked ? '!' : '');
   const rect = vp.getBoundingClientRect();
   const px = clientX - rect.left, py = clientY - rect.top;
-  if (key === hoverSquare) {
-    // Same square, so only the card moves: rebuilding it on every pixel of
-    // pointer travel would re-decode a sprite several hundred times a second.
-    if (el.style.display !== 'none') placeMapHover(el, vp, px, py);
+  // Same square, so only the card moves: rebuilding it on every pixel of
+  // pointer travel would re-decode a sprite several hundred times a second.
+  // Only while it is up, though -- a tap on the square the pointer last
+  // passed over would otherwise re-place a hidden card and show nothing.
+  if (key === hoverSquare && el.style.display !== 'none') {
+    placeHoverCard(el, vp, px, py, asked);
     return;
   }
   hoverSquare = key;
@@ -9096,12 +9130,33 @@ function updateMapHover(clientX, clientY, asked) {
   el.innerHTML = card.html;
   if (card.person) appendFaceOrSprite(el, card.person);
   el.style.display = 'flex';
-  placeMapHover(el, vp, px, py);
+  placeHoverCard(el, vp, px, py, asked);
 }
 
-// Up and to the right of the pointer, and never off the edge of the panel.
-function placeMapHover(el, vp, px, py) {
+/* Where the card goes, for both panels.
+
+   A mouse pointer is a few pixels wide and sits beside what it is over, so
+   the card goes up and to the right of it and never off the edge of the
+   panel. A finger is neither: it rests ON the square it is asking about and
+   the hand behind it covers everything below, so a card fourteen pixels away
+   is a card nobody can read -- which is what press-and-hold was giving, and
+   what the maintainer reported on 8 September 2026. A touched card clears
+   the point by a thumb's width upwards instead, and where there is no room
+   above it goes to the foot of the panel rather than under the hand.
+
+   `touch` is the page's `asked` flag: it is true exactly when a finger made
+   the request, which is also when the card says more (see squareCard). */
+const HOVER_TOUCH_CLEAR = 64;   // px above the finger: a thumb and its shadow
+function placeHoverCard(el, vp, px, py, touch) {
   const w = el.offsetWidth || 150, h = el.offsetHeight || 40;
+  if (touch) {
+    let y = py - h - HOVER_TOUCH_CLEAR;
+    if (y < 4) y = Math.max(4, vp.clientHeight - h - 6);
+    const x = Math.max(4, Math.min(px - w / 2, vp.clientWidth - w - 4));
+    el.style.left = Math.round(x) + 'px';
+    el.style.top = Math.round(y) + 'px';
+    return;
+  }
   let x = px + 14, y = py - h - 10;
   if (x + w > vp.clientWidth - 4) x = px - w - 14;
   if (x < 4) x = 4;
@@ -10826,22 +10881,34 @@ function gatewayTransform(gw) {
    propTravelsTo is the same join the world map uses; off the world map it
    reads only the types that are portals anywhere -- a cave, a stair, a
    trapdoor, an arch -- so a `large city` prop standing as a building inside
-   Cademia is not mistaken for a way out of it. Deduplicated by destination,
-   keeping the first mouth of each, because two stairs down to the same cellar
-   are one place below rather than two. */
+   Cademia is not mistaken for a way out of it.
+
+   Every one of them, and that is deliberate. This used to keep one mouth per
+   destination, on the reasoning that two stairs to the same cellar are one
+   place below rather than two -- which is true of the place and false of the
+   ground you are standing on. It hid 59 of the archive's 111 passages,
+   including three of Pnyx's four stairs, and there is no way to tell from
+   the drawing that a ring stands for more than the square it is on. Four
+   rings side by side leading to the same map is what the file says, so it is
+   what is drawn (the maintainer, 8 September 2026).
+
+   The 44 passages whose zoneport lands on the map they are already on are
+   kept for the same reason: they are ways through, the two ends are usually
+   nowhere near each other, and Pnyx's five are what raised this. All 44 are
+   on maps below ground -- the Iron Mine's ladders, the Volcano's holes, the
+   Sewers, Pnyx upstairs -- so the surface filter in atlasMouths never meets
+   one. Taking one moves within the map rather than down a level:
+   atlasCrossWithin. */
 function mapDescents(resid) {
   const out = [];
   try {
     const raw = getResourceBytes(resid + 0x100);
     if (!raw) return out;
-    const seen = new Set();
     for (const r of parseDelverPropList(smartDecrypt(raw, resid + 0x100).data)) {
       if (!r.onMap || r.flags === 0xFF || (r.flags & 0x58)) continue;
       if (r.flags === 0x42 || r.flags === 0x44) continue;
       const dest = propTravelsTo(r, resid);
-      if (!dest || dest.resid === resid || seen.has(dest.resid)) continue;
-      if (!refExists(dest.resid)) continue;
-      seen.add(dest.resid);
+      if (!dest || !refExists(dest.resid)) continue;
       out.push({ dest, x: r.x, y: r.y,
                  name: zoneNameFor(dest.resid) || dest.name,
                  kind: (propTypeName(r.proptype) || 'way down').toLowerCase() });
@@ -11060,8 +11127,14 @@ function atlasMouths(node) {
   const out = mapDescents(node.resid)
     .filter(d => onSurface ? (!mapIsSurface(d.dest.resid) && d.dest.resid !== WORLD_MAP_RESID) : true)
     .map(d => Object.assign({}, d, {
-      name: atlasMapName(d.dest.resid) || d.name,
-      up: !onSurface && (d.dest.resid === WORLD_MAP_RESID || mapIsSurface(d.dest.resid) || (from && d.dest.resid === from.fromResid))
+      // A ring that lands on the map you are already standing on is named by
+      // the square it lands on: repeating the map's own name beside every one
+      // of them says nothing, and the square is the fact the file gives.
+      name: d.dest.resid === node.resid ? (d.dest.x + ', ' + d.dest.y)
+                                        : (atlasMapName(d.dest.resid) || d.name),
+      within: d.dest.resid === node.resid,
+      up: !onSurface && d.dest.resid !== node.resid &&
+          (d.dest.resid === WORLD_MAP_RESID || mapIsSurface(d.dest.resid) || (from && d.dest.resid === from.fromResid))
     }));
   // On the world, the maps whose edge leads here but which the world draws
   // nothing for -- the bridge, Pnyx upstairs -- are mouths at that square:
@@ -11438,16 +11511,28 @@ function atlasPeople(ctx, node, r, ppt) {
   }
 }
 
-/* The ways down, marked where they are.
+/* The ways through, marked where they are.
 
    A mouth is a connection rather than a place, so it gets a ring on the
    square it is on and its name beside it -- not a picture of what is behind
    it, which would be putting an unlocated map on located ground. Only where
-   the node is big enough for the ring to mean a square. */
+   the node is big enough for the ring to mean a square.
+
+   Blue is a way up and gold a way down or across. There used to be an arrow
+   in the blue rings as well; it was taken out on 8 September 2026, at the
+   maintainer's word -- inside a ring five pixels across it was a smudge, and
+   the colour had already said it. */
 function atlasPaintMouths(ctx, drawn, vw, vh) {
   const out = [];
-  ctx.font = '12px ArgosGame, Argos, Georgia, serif';
+  // Canvas text is not reached by the sheet's rem scale, so these sizes and
+  // the boxes behind them are held level with it by hand.
+  ctx.font = '14px ArgosGame, Argos, Georgia, serif';
   ctx.textAlign = 'left';
+  // Every passage is ringed now, so rings stand side by side and their
+  // labels would lie on top of each other. The ring is the thing -- it is
+  // what is tapped -- so a label whose box is already taken is dropped and
+  // the ring still drawn, the way the place names handle a collision.
+  const labelled = [];
   for (const { node, r } of drawn) {
     const per = r.w / node.w;
     if (per < window.ATLAS_TUNE.mouthAt) continue;
@@ -11458,19 +11543,15 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
       ctx.strokeStyle = m.up ? 'rgba(150,200,240,.9)' : 'rgba(196,164,100,.85)';
       ctx.lineWidth = Math.max(1.5, per / 12);
       ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.stroke();
-      if (m.up) {   // an arrow up, for the way out
-        ctx.fillStyle = 'rgba(150,200,240,.9)';
-        ctx.textAlign = 'center';
-        ctx.font = Math.max(9, Math.round(rad * 1.1)) + 'px sans-serif';
-        ctx.fillText('\u2191', x, y + rad * 0.4);
-        ctx.textAlign = 'left';
-        ctx.font = '12px ArgosGame, Argos, Georgia, serif';
-      }
       const tw = Math.round(ctx.measureText(m.name).width);
-      ctx.fillStyle = 'rgba(8,7,5,.78)';
-      ctx.fillRect(x + rad + 3, y - 8, tw + 8, 15);
-      ctx.fillStyle = '#e8dfc0';
-      ctx.fillText(m.name, x + rad + 7, y + 3);
+      const box = { x0: x + rad + 3, y0: y - 9, x1: x + rad + 11 + tw, y1: y + 9 };
+      if (!labelled.some(q => box.x0 < q.x1 && box.x1 > q.x0 && box.y0 < q.y1 && box.y1 > q.y0)) {
+        labelled.push(box);
+        ctx.fillStyle = 'rgba(8,7,5,.78)';
+        ctx.fillRect(box.x0, box.y0, tw + 8, 18);
+        ctx.fillStyle = '#e8dfc0';
+        ctx.fillText(m.name, x + rad + 7, y + 4);
+      }
       out.push({ m, node, x, y, per, rad: Math.max(rad, 11) });
     }
   }
@@ -11506,7 +11587,7 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
    Drawn last, over everything, biggest node first so a collision drops the
    smaller place; a node too small to have been drawn at all is not named. */
 function atlasLabels(ctx, drawn, vw, vh) {
-  ctx.font = '13px ArgosGame, Argos, Georgia, serif';
+  ctx.font = '15px ArgosGame, Argos, Georgia, serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const placed = [];
@@ -11514,13 +11595,13 @@ function atlasLabels(ctx, drawn, vw, vh) {
   for (const { node, r } of named) {
     const tw = Math.round(ctx.measureText(node.name).width) + 10;
     const cx = Math.round(r.x + r.w / 2);
-    const ty = Math.round(r.y + r.h + 14);
+    const ty = Math.round(r.y + r.h + 16);
     if (cx < -tw || cx > vw + tw || ty < 0 || ty > vh) continue;
-    const box = { x0: cx - tw / 2, y0: ty - 11, x1: cx + tw / 2, y1: ty + 4 };
+    const box = { x0: cx - tw / 2, y0: ty - 13, x1: cx + tw / 2, y1: ty + 5 };
     if (placed.some(q => box.x0 < q.x1 && box.x1 > q.x0 && box.y0 < q.y1 && box.y1 > q.y0)) continue;
     placed.push(box);
     ctx.fillStyle = 'rgba(8,7,5,.7)';
-    ctx.fillRect(box.x0, box.y0, tw, 15);
+    ctx.fillRect(box.x0, box.y0, tw, 18);
     ctx.fillStyle = node.sealed ? '#c9bb92' : '#e8dfc0';
     ctx.fillText(node.name, cx, ty);
   }
@@ -11611,16 +11692,6 @@ function paintAtlasGround(ctx, vw, vh) {
 function hideAtlasHover() {
   const el = document.getElementById('atlasHover');
   if (el) { el.style.display = 'none'; atlasHoverKey = ''; }
-}
-// Up and to the right of the pointer, and never off the edge of the panel.
-function placeAtlasHover(el, vp, px, py) {
-  const w = el.offsetWidth || 150, h = el.offsetHeight || 40;
-  let x = px + 14, y = py - h - 10;
-  if (x + w > vp.clientWidth - 4) x = px - w - 14;
-  if (x < 4) x = 4;
-  if (y < 4) y = py + 18;
-  el.style.left = Math.round(x) + 'px';
-  el.style.top = Math.round(y) + 'px';
 }
 
 /* Opening the tab on the atlas.
@@ -11906,7 +11977,37 @@ function atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0) {
    of one to the map the ring names. Both are drawn as the fall and the rise. */
 function atlasTakeMouth(m, node) {
   if (window._atlasAnimating) return;
-  if (m.up) atlasRiseVia(m, node); else atlasFallInto(m, node);
+  if (m.dest.resid === node.resid) atlasCrossWithin(m, node);
+  else if (m.up) atlasRiseVia(m, node);
+  else atlasFallInto(m, node);
+}
+
+/* A passage whose far end is on the same map.
+
+   44 of the archive's 111 passages are these -- the Iron Mine's paired
+   ladders, the Volcano's holes, Pnyx's five stairs -- and neither of the
+   other two moves is right for one: there is no level to push onto the stack
+   and none to pop off it. What happens is that you are somewhere else on the
+   map you are already looking at, so the view goes in at the ring and comes
+   out at the square the zoneport names, at the zoom it left. */
+function atlasCrossWithin(m, node) {
+  const vp = document.getElementById('atlasViewport');
+  const z0 = atlasView.Z, x0 = atlasView.x, y0 = atlasView.y;
+  const dx = node.ox + (m.dest.x + 0.5) * node.s, dy = node.oy + (m.dest.y + 0.5) * node.s;
+  if (!vp || vp.clientWidth < 40) {
+    atlasView.x = -dx * z0; atlasView.y = -dy * z0;
+    atlasSyncZoomLabel(); paintAtlas(); return;
+  }
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  const hx = node.ox + (m.x + 0.5) * node.s, hy = node.oy + (m.y + 0.5) * node.s;
+  const z1 = Math.max(vw, vh) * 1.15 * (node.ts || 32) / node.s;
+  atlasAnimateTo(e => { atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0); atlasFadeTo(e); },
+    window.ATLAS_TUNE.animMs, () => {
+      atlasView.Z = z1; atlasView.x = vw / 2 - dx * z1; atlasView.y = vh / 2 - dy * z1;
+      const sx = atlasView.x, sy = atlasView.y;
+      atlasAnimateTo(e => { atlasZoomOnto(dx, dy, z1, z0, e, vw, vh, sx, sy); atlasFadeTo(1 - e); },
+        window.ATLAS_TUNE.animMs, () => { atlasFadeTo(0); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
+    }, 'in');
 }
 /* Up through a ring: the place shrinks to nothing around the ring's own
    square, then the map the ring leads to opens from the blank middle of the
@@ -12100,11 +12201,10 @@ function setupAtlasInteraction() {
   vp.dataset.atlasWired = '1';
   const pts = new Map();
   let pinchDist = 0, pinchZ = 0, moved = 0;
-  // Press and hold is the hover on a touch screen: there is no pointer
-  // resting over anything, so a finger that stays put for a third of a
-  // second asks the same question a resting mouse does, and the card
-  // follows the finger until it lifts. Sliding before then is a pan, and a
-  // tap is still a tap. The hold neither pans nor opens the inspector.
+  // On a touch screen a tap raises the card and a press-and-hold keeps it
+  // under the moving finger: there is no pointer resting over anything, so
+  // both gestures ask the question a resting mouse asks. Sliding is a pan.
+  // The hold neither pans nor opens the inspector; the tap does both.
   let holdTimer = null, peeking = false;
   const endHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
   const setTouching = on => {
@@ -12121,6 +12221,7 @@ function setupAtlasInteraction() {
     moved = 0;
     endHold(); peeking = false;
     if (e.pointerType !== 'mouse') {
+      hideAtlasHover();          // a new gesture puts the last card away
       setTouching(true);
       if (pts.size === 1) {
         const cx = e.clientX, cy = e.clientY;
@@ -12165,21 +12266,36 @@ function setupAtlasInteraction() {
     if (pts.size < 2) pinchDist = 0;
     endHold();
     if (!pts.size) setTouching(false);
-    if (peeking) { peeking = false; hideAtlasHover(); return; }
+    // The card stays where the lift left it -- it is clear of the finger now
+    // -- and the next gesture puts it away.
+    if (peeking) { peeking = false; return; }
     if (had && moved < 6) {
       const p = local(e);
       // A mouth first: it is a small target drawn over the ground, and a tap
       // on it means the way down rather than the square it sits on.
-      const hit = (window.ATLAS_MOUTHS || []).find(q =>
-        Math.hypot(p.x - q.x, p.y - q.y) <= q.rad);
+      // The nearest ring, not the first in the list: rings stand side by
+      // side now, and the first one whose circle a tap falls inside is not
+      // necessarily the one aimed at.
+      let hit = null, hitD = Infinity;
+      for (const q of (window.ATLAS_MOUTHS || [])) {
+        const d = Math.hypot(p.x - q.x, p.y - q.y);
+        if (d <= q.rad && d < hitD) { hit = q; hitD = d; }
+      }
       if (hit) { atlasGesture.active = false; atlasTakeMouth(hit.m, hit.node); return; }
       atlasInspect(p.x, p.y);
+      // A tap is the hover on a touch screen -- see the map panel's
+      // clearPointer for the reasoning; this is the same gesture.
+      if (e.pointerType !== 'mouse') atlasHover(e.clientX, e.clientY, true);
     }
     if (!pts.size) atlasGestureEnd();
   };
   vp.addEventListener('pointerup', up);
   vp.addEventListener('pointercancel', e => { pts.delete(e.pointerId); endHold(); peeking = false; hideAtlasHover(); if (!pts.size) { setTouching(false); atlasGestureEnd(); } });
-  vp.addEventListener('pointerleave', () => { if (window.ATLAS) hideAtlasHover(); });
+  // A touch pointer leaves the element the moment it lifts; only a mouse
+  // leaving means the reader has stopped looking.
+  vp.addEventListener('pointerleave', e => {
+    if (window.ATLAS && (!e || e.pointerType === 'mouse')) hideAtlasHover();
+  });
   vp.addEventListener('wheel', e => {
     if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
     e.preventDefault();
@@ -12195,10 +12311,10 @@ function setupAtlasInteraction() {
    there, and what the ground is. Shared by the atlas and the map panel, so
    the two cards say the same thing about the same square.
 
-   `asked` is the difference between a mouse passing over and a finger held
-   down. A passing pointer stays quiet over bare ground -- a card over every
-   blade of grass is noise -- and speaks only where there is somebody or
-   something; a held finger has asked, and gets the ground too. */
+   `asked` is the difference between a mouse passing over and a finger that
+   tapped or held. A passing pointer stays quiet over bare ground -- a card
+   over every blade of grass is noise -- and speaks only where there is
+   somebody or something; a finger has asked, and gets the ground too. */
 function squareCard(level, e, tx, ty, placeName, asked) {
   let people = [];
   try {
@@ -12276,7 +12392,7 @@ function atlasHover(clientX, clientY, asked) {
   const hit = atlasAt(px, py);
   if (!hit) { hideAtlasHover(); atlasHoverKey = ''; return; }
   const key = hit.node.resid + ':' + hit.tx + ',' + hit.ty + (asked ? '!' : '');
-  if (key === atlasHoverKey) { if (el.style.display !== 'none') placeAtlasHover(el, vp, px, py); return; }
+  if (key === atlasHoverKey && el.style.display !== 'none') { placeHoverCard(el, vp, px, py, asked); return; }
   atlasHoverKey = key;
   const e = mapRenderFor(hit.node.resid, true);
   const card = squareCard(hit.node.resid & 0xFF, e, hit.tx, hit.ty, hit.node.name, asked);
@@ -12284,7 +12400,7 @@ function atlasHover(clientX, clientY, asked) {
   el.innerHTML = card.html;
   if (card.person) appendFaceOrSprite(el, card.person);
   el.style.display = 'flex';
-  placeAtlasHover(el, vp, px, py);
+  placeHoverCard(el, vp, px, py, asked);
 }
 
 function downloadMapPNG() {
@@ -16822,17 +16938,17 @@ function showMonsterDetail(idx) {
   const panel = document.createElement('div');
   panel.style.cssText = 'width:100%;max-width:560px;margin:12px auto;text-align:left';
 
-  let h = '<div style="font-size:20px;color:var(--gold)">' + svEsc(nm) +
-          '</div><div style="font-size:12px;color:#9b8850;margin-bottom:10px">' +
+  let h = '<div style="font-size:1.25rem;color:var(--gold)">' + svEsc(nm) +
+          '</div><div style="font-size:0.75rem;color:#9b8850;margin-bottom:10px">' +
           'record ' + r.index + ' of 0xF008 \u00b7 prop type 0x' +
           r.proptype.toString(16).toUpperCase() + '</div>';
   h += '<div class="sv-facts">' +
     '<div><b>Body / Reflex / Mind</b>' + r.body + ' \u00b7 ' + r.reflex + ' \u00b7 ' + r.mind +
-      '<br><span style="font-size:11px;color:#9d9270">The wiki cautions these three may be in a different order than named.</span></div>' +
+      '<br><span style="font-size:0.6875rem;color:#9d9270">The wiki cautions these three may be in a different order than named.</span></div>' +
     '<div><b>Health</b>' + r.hp + (r.armor ? ' &nbsp; <b>Armor</b> ' + r.armor : '') +
       (r.size ? ' &nbsp; <b>Size?</b> ' + r.size : '') + '</div>' +
     '<div><b>Special flags</b>0x' + r.flags.toString(16).toUpperCase().padStart(4, '0') +
-      ' <span style="font-size:11px;color:#9d9270">' + svEsc(monsterFlagsText(r.flags)) + '</span></div>' +
+      ' <span style="font-size:0.6875rem;color:#9d9270">' + svEsc(monsterFlagsText(r.flags)) + '</span></div>' +
     '</div>';
   panel.innerHTML = h;
 
@@ -16855,12 +16971,12 @@ function showMonsterDetail(idx) {
   // What it leaves behind. This is the field that makes the table worth
   // reading: an undead leaves bones, a goat leaves a goat at aspect 2.
   const cd = document.createElement('div');
-  cd.style.cssText = 'font-size:13px;line-height:1.7;margin-bottom:10px';
+  cd.style.cssText = 'font-size:0.8125rem;line-height:1.7;margin-bottom:10px';
   if (r.corpseWord) {
     const cnm = propDisplayName(r.corpseType) || ('0x' + r.corpseType.toString(16).toUpperCase());
     cd.innerHTML = '<b style="color:#9d9270">Leaves behind</b> ' + svEsc(cnm) +
                    ' at aspect ' + r.corpseAspect +
-                   ' <span style="font-size:11px;color:#7d7358">(corpse_type 0x' +
+                   ' <span style="font-size:0.6875rem;color:#7d7358">(corpse_type 0x' +
                    r.corpseWord.toString(16).toUpperCase().padStart(4, '0') +
                    ', packed 6-bit aspect + 10-bit prop type)</span>';
     const cbase = tiles[r.corpseType];
@@ -16895,7 +17011,7 @@ function showMonsterDetail(idx) {
   } catch (e) {}
   if (users.length) {
     const u = document.createElement('div');
-    u.style.cssText = 'font-size:13px;line-height:1.9;margin-bottom:10px';
+    u.style.cssText = 'font-size:0.8125rem;line-height:1.9;margin-bottom:10px';
     u.innerHTML = '<b style="color:#9d9270">Characters using this sprite</b><br>' +
       users.slice(0, 30).map(i => '<button class="sv-chip" onclick="showCharacterDetail(' + i + ')">' +
         svEsc(characterName(i)) + '</button>').join(' ');
@@ -16903,7 +17019,7 @@ function showMonsterDetail(idx) {
   }
 
   const raw = document.createElement('div');
-  raw.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9d9270';
+  raw.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:0.6875rem;color:#9d9270';
   raw.textContent = 'raw: ' + Array.from(r.raw).map(b => b.toString(16).padStart(2, '0')).join(' ') +
                     '   unknown2=0x' + r.unknown2.toString(16).toUpperCase().padStart(8, '0');
   panel.appendChild(raw);
@@ -16938,7 +17054,7 @@ function renderTableInspector(resid) {
         x + ' \u00d7 ' + Math.floor(d.length / x) + (d.length % x ? ' +' + (d.length % x) : '') +
         '</button>').join('') + '</div>';
   const rows = Math.min(Math.floor(d.length / w), 400);
-  h += '<pre class="pane" style="max-height:340px;font-size:11px;white-space:pre">';
+  h += '<pre class="pane" style="max-height:340px;font-size:0.6875rem;white-space:pre">';
   let body = '';
   for (let i = 0; i < rows; i++) {
     const p = i * w;
@@ -19095,7 +19211,7 @@ function showSpriteZoom(tileId, label) {
   c.style.cssText = 'width:256px;height:256px;image-rendering:pixelated;background:' +
     'repeating-conic-gradient(#2a2a2a 0% 25%, #1c1c1c 0% 50%) 0 0/16px 16px;cursor:default';
   const cap = document.createElement('div');
-  cap.style.cssText = 'color:#e8dcb8;font-size:14px';
+  cap.style.cssText = 'color:#e8dcb8;font-size:0.875rem';
   cap.innerHTML = (label ? svEsc(label) + ' — ' : '') + 'tile 0x' + tileId.toString(16).toUpperCase();
   const dl = document.createElement('button');
   dl.className = 'secondary';

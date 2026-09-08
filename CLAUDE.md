@@ -2114,6 +2114,66 @@ Read the comment above a constant before correcting it.
   writes `canvas.__indexed` and nothing reads it, and `decodableBadge` is
   defined and never called.
 
+- **Type is on one knob, v1.26.0.** Every `font-size` in `index.html` and in
+  `canvas.html` is in `rem`, and the root percentage is the only place a text
+  size is decided: 109% on a phone, 125% from 900px up (`html { font-size }`,
+  the first rule in the sheet and the first in the desktop block). It was
+  px, and the cost showed on a desktop screen — the `@media (min-width:900px)`
+  block had to name a selector for every size it wanted bigger, it named
+  about forty, and the other two hundred stayed at the size they were drawn
+  for a phone held close. Adding a rule and forgetting its desktop
+  counterpart was the ordinary case rather than the mistake. A percentage
+  rather than a px so a reader's own larger default survives. Four
+  text-driven boxes came up with it (the gallery cell heights and the grid's
+  minimum column, on both breakpoints), and so did the two canvas fonts the
+  sheet cannot reach — the atlas's ring labels and place names, which are
+  drawn into a bitmap and are held level by hand.
+
+- **A tap is the hover, v1.26.0.** On a touch screen the card that says who
+  and what is on a square now comes up on a tap, in the map panel and on the
+  World tab both, and it stays until the next gesture. Press and hold still
+  works and still follows the finger. What changed underneath is where the
+  card is put: `placeHoverCard` is one function for both panels, and a
+  touched card clears the point by 64px upwards — a thumb and its shadow —
+  or goes to the foot of the panel where there is no room above. The
+  maintainer's report was "can't even see it under the thumb", which is what
+  a 14px offset gives when the pointer is a hand. Three things had to move
+  with it: `pointerleave` fires the moment a touch lifts, so it hides the
+  card only for a mouse; the same-square fast path re-placed a *hidden* card
+  and showed nothing, so it now requires the card to be up; and `#mapHover`
+  had no `pointer-events:none` where `#atlasHover` did.
+
+- **Every passage gets its ring, v1.26.0.** `mapDescents` kept one mouth per
+  destination. That hid **59 of the archive's 111 passages** — three of
+  Pnyx's four stairs among them — and there is nothing in the drawing to say
+  a ring stands for more than the square it is on. All 111 are ringed now,
+  side by side where the file puts them side by side. The **44 whose
+  zoneport lands on the map they are already on** are ringed too, which is
+  what raised this: five stairs inside Pnyx upstairs go from one part of that
+  map to another, and grimoire drew nothing for any of them. One is named by
+  the square it lands on rather than by the map's own name, and taking one
+  moves within the map — `atlasCrossWithin`, in at the ring and out at the
+  square, no level pushed or popped. All 44 are on maps below ground, so the
+  surface filter never meets one. Two more things went with it: the arrow
+  inside a blue ring is gone (the maintainer's word; inside a five-pixel ring
+  it was a smudge and the colour had already said it), and a label whose box
+  is taken is dropped while its ring is still drawn, the way the place names
+  already handled a collision. A tap takes the **nearest** ring rather than
+  the first in the list, which only starts to matter once rings touch.
+
+  **What is not marked, because the file does not mark it.** No `crack`
+  anywhere in the archive carries a zoneport, and neither does any `rope
+  bridge`: the Harpy Abyss's ravine is a line of 40 crack props with no
+  destination on any of them, the Caves' and the Mountains' rope bridges are
+  props drawn across cracks, and the four `rope` records are loose items on
+  the ground in Cademia and Kosha, twelve squares and more from the nearest
+  passage. Two concealed passages do travel and both are ringed now: `loose
+  dirt` on the world at (158,172) into the Underground, and a `small hole`
+  in the Sewers at (50,39) into Odemia. `secret door`, `mousehole`,
+  `passthrough`, `loose board` and `tight passage` have a travelling record
+  nowhere in the file, so widening `propTravelsTo` to reach them adds
+  nothing and was not done.
+
 ## Licensing
 
 `LICENSE` is GPL-3.0-or-later and covers the work here (it was MIT until
