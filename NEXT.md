@@ -421,6 +421,14 @@ re-check the installer count before assuming the rule still applies.
   raised it (two entries moving on the return to Land King Hall, rooms 2 and
   451), is workbench `doc/save-format.md` § *The mirror question, answered*.
   Nothing else on the sheet names the segment.
+- **The parts table says what the other four segments are, v1.27.3** (8
+  September, night). `0x0400`'s line named three chunks; it has five, and
+  the line says what each holds. `0xF307`'s line describes the block
+  header, `0xF308` is the prop frame table (4,096 words by storage
+  reference), and the journal pages carry the entry shape. All from
+  workbench `doc/save-format.md` § *The rest of the file, read*, which has
+  the addresses and the format letters; a Mons-chunk parser for the sheet
+  would be a few lines over the format strings recorded there.
 - **Careful: another session is pushing to grimoire through the day.**
   Three of the four commits above needed a rebase, one with a conflict
   (the version number, which both sessions bump). Fetch before starting

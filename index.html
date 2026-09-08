@@ -3773,7 +3773,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.27.2';
+const GRIMOIRE_VERSION = '1.27.3';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -13857,12 +13857,12 @@ function savedGameParts() {
   }
   add(0xF306, 'the first 256 prop records — the characters as they stand on that zone (SaveLevelProps)');
   add(0x8800, 'the player’s own portrait, written when the character was made (CreatePlayer)');
-  add(0x0400, 'the live actors, streamed as tagged blocks — “Char”, “Mons”, “Grem” (SaveToFile)');
+  add(0x0400, 'the live game, five tagged chunks: the quest values and flags, the active monsters with their queued activities, the spell effects in flight, the open windows, and the 256 gremlin frames (SaveToFile)');
   add(0x0401, 'the To Do list (SaveToDo)');
   add(0x0404, 'the twenty macro slots; 0xFF is unassigned (SaveMacros)');
-  add(0xF307, 'the script system’s persistent heap — 256 KB, an allocator header at the top (THeap::Save)');
-  add(0xF308, 'the heap’s second segment (THeap::Save)');
-  for (let n = 0; n < 256; n++) add(0xE000 | n, 'a journal segment (TJournalSegment::Flush)');
+  add(0xF307, 'the script system’s persistent heap, 256 KB: 8-byte block headers carrying a reference number and a kind, one free block when empty (THeap::Save)');
+  add(0xF308, '4,096 16-bit words indexed by a prop’s storage reference, each the heap reference of that prop’s frame (THeap::Save)');
+  for (let n = 0; n < 256; n++) add(0xE000 | n, 'a page of the journal, 8 KB; entries are a length, a day byte, a kind, a speaker and the text (TJournalSegment::Flush)');
   return out;
 }
 
