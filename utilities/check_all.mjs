@@ -105,7 +105,7 @@ const DELV = firstHolding('delv/archive.py', process.env.DELVMOD, 'delvmod',
 // round-tripped through. Like infinite-mac it is a checkout kept beside this
 // one rather than in it; $SYSTEMLESS overrides. Without it hfs_check still
 // runs its structural half, which is most of it.
-const SYSLESS = firstHolding('src/disk_image/hfs.rs', process.env.SYSTEMLESS, 'systemless', '../systemless');
+const SYSLESS = firstHolding('src/disk_image/hfs.rs', process.env.SYSTEMLESS, 'wolflizard', '../wolflizard', 'systemless', '../systemless');
 // The community's add-ons. Not required: without them addons_check.mjs still
 // scores the heuristic against the shipped archive, which is the half that
 // matters most.

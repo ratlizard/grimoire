@@ -1,10 +1,10 @@
 {
   "permissions": {
-    "additionalDirectories": ["../delvmod", "../systemless"],
+    "additionalDirectories": ["../delvmod", "../wolflizard"],
     "deny": [
       "Edit(./delvmod/**)",
       "Edit(../delvmod/**)",
-      "Edit(../systemless/**)"
+      "Edit(../wolflizard/**)"
     ]
   }
 }

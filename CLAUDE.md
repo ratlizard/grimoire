@@ -80,7 +80,7 @@ with no configuration at all:
 | where | how it gets there |
 |---|---|
 | `delvmod/` | the submodule, for a checkout that ran `git submodule update --init` |
-| `../delvmod`, `../systemless` | plain sibling clones — what a Claude Code web session has, since those clone each repository flat into one directory |
+| `../delvmod`, `../wolflizard` | plain sibling clones — what a Claude Code web session has, since those clone each repository flat into one directory |
 
 `$DELVMOD` and `$SYSTEMLESS` override for a copy kept
 anywhere else. Every candidate is resolved against the repository root, so the
@@ -322,7 +322,7 @@ from outside the repository.
   to point at a working copy kept anywhere else.
 
 - **systemless** — a checkout of `ratlizard/wolflizard`, used by `hfs_check.mjs`
-  for the disk-image round trip. Found at `systemless` or `../systemless`, or
+  for the disk-image round trip. Found at `wolflizard` or `../wolflizard`, or
   through `$SYSTEMLESS`; without it the structural half of that check still
   runs. It builds `examples/hfs_dump` on first use, which takes about a minute
   and then stays built — the check is marked slow for that reason and
@@ -687,7 +687,7 @@ here. The one that was a bug on this side — **PICT `0x0090`/`0x0091`**,
 uncompressed BitsRect/BitsRgn, which `js/mac-rsrc-types.js` parsed only to
 stay aligned and then walked past — is **fixed**: a picture whose artwork is a
 plain BitsRect drew nothing here while the port and systemless both rendered
-it. The layout was taken from `systemless/src/trap/pict.rs` and the port's
+it. The layout was taken from `wolflizard/src/trap/pict.rs` and the port's
 `src/mac/pict.cpp` rather than inferred from the data, and
 `utilities/pict_bits_check.mjs` guards it with synthetic pictures, because
 **not one of the twenty-one PICTs in Cythera and Cythera Data reaches those
