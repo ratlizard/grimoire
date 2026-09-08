@@ -78,12 +78,9 @@ design (`#c=135&r=8801`) and the `explorer.html` redirect both exist to
 protect. If page views are ever wanted, a cookieless script tag is the whole
 of the change and it does not cross the no-build-step line.
 
-**Nobody is named here.** The maintainer is "the maintainer" in every file and
-every commit; commits are authored `e-z-g <e-z-g@users.noreply.github.com>`.
-Do not write a name, an email address or a home-directory path into the tree.
-The one exception is the handle **EgadZoundsGadzooks**, which the maintainer
-asked on 5 September 2026 to be credited under on the Tools tab; it is a
-handle, not a name, and it appears there and nowhere else.
+The maintainer asked on 5 September 2026 to be credited on the Tools tab
+under the handle **EgadZoundsGadzooks**; it is a handle, not a name, and it
+appears there and nowhere else.
 
 **The site has a version**, `GRIMOIRE_VERSION` in `index.html`, shown at the
 top of the page as "Grimoire v1.0.0". It began at 1.0.0 on 5 September 2026,
