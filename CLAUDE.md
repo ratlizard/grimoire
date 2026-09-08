@@ -352,7 +352,10 @@ from outside the repository.
   to point at a working copy kept anywhere else.
 
 - **systemless** — a checkout of `ratlizard/wolflizard`, used by `hfs_check.mjs`
-  for the disk-image round trip. Found at `wolflizard` or `../wolflizard`, or
+  for the disk-image round trip. Found at `wolflizard` or `../wolflizard`, and
+  then at `systemless` or `../systemless` — the fork was renamed on 8 September
+  2026 and a checkout made before that is still the directory `systemless/`,
+  which `check_all.mjs` still accepts. Or
   through `$SYSTEMLESS`; without it the structural half of that check still
   runs. It builds `examples/hfs_dump` on first use, which takes about a minute
   and then stays built — the check is marked slow for that reason and
@@ -1268,7 +1271,10 @@ Read the comment above a constant before correcting it.
   read out of the **application** rather than the archive: the map window's
   `TMapWindow::KeyRoutine` is one switch over the key byte, and the workbench's
   `doc/cythera_keys.md` § *Cheat keys* is the walk that resolved its strings
-  and callees through the TOC. `CHEAT_KEYS` (16, behind the gate) and
+  and callees through the TOC, and `doc/cheats.md` there is the reference
+  built on it — the same tables plus the numbers Jump, Create a prop and Take
+  teleporter ask for, with no addresses or symbol names in it, so it is the
+  copy that can be handed to a player. `CHEAT_KEYS` (16, behind the gate) and
   `CHEAT_OPEN_KEYS` (6, in the same routine and not gated) are that table
   transcribed.
   **The gate is the point.** `©gra` typed in the map window flips cheat mode
