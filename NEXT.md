@@ -411,6 +411,16 @@ re-check the installer count before assuming the rule still applies.
   font readout. **The `res/` fallback font stays**, also his call: the gate
   is shown before any file is open, so without it that first screen is
   Georgia. Both of the 5 September standing questions are closed.
+- **The Saved Game sheet's line for `0xF00E` was wrong, v1.27.2** (8
+  September, late). It said "field 20, status_flags: one 16-bit word per
+  object, so poison and sleep survive a save". The segment is one halfword
+  per **room**, 1,024 rooms, and bit 0 means the room has been entered once
+  and its description shown; the executable's field accessors dispatch on
+  object type, and field 20 is the character record's +6 for a Character
+  and this array for a Room. The trace, with the playthrough data that
+  raised it (two entries moving on the return to Land King Hall, rooms 2 and
+  451), is workbench `doc/save-format.md` § *The mirror question, answered*.
+  Nothing else on the sheet names the segment.
 - **Careful: another session is pushing to grimoire through the day.**
   Three of the four commits above needed a rebase, one with a conflict
   (the version number, which both sessions bump). Fetch before starting

@@ -3773,7 +3773,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.27.1';
+const GRIMOIRE_VERSION = '1.27.2';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -13849,7 +13849,7 @@ function savedGameParts() {
   const out = [];
   const add = (rid, what) => { if (refExists(rid)) out.push({ rid, what }); };
   add(0xF009, 'the character records — everybody’s position, stats and condition (SaveGlobals)');
-  add(0xF00E, 'field 20, status_flags: one 16-bit word per object, so poison and sleep survive a save (SaveGlobals)');
+  add(0xF00E, 'one 16-bit word per room, 1,024 rooms; bit 0 is set once a room has been entered and its description shown (SaveGlobals)');
   const hero = loadCharacterTable()[1];
   if (hero && hero.zone) {
     add(0x8100 | hero.zone, 'the props of the zone the player stands in, from record 256 up (SaveLevelProps)');
