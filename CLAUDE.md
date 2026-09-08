@@ -50,6 +50,11 @@ trade. Every other page is still reached by its own filename.
 a minute or two. There is no staging environment and nothing catches a broken
 page for you — run the checks below before pushing.
 
+**`NEXT.md` beside this file is this repository's handoff** — decisions, open
+questions and what was learned, read in full by a session working here and
+edited only by one. It never carries a tip, a version or a count: the suite
+prints its own figures and the workspace's `tools/status.sh` derives the rest.
+
 **GitHub Pages gives no logs and no analytics, and the site carries no
 tracking.** Measured 8 September 2026 rather than assumed, and the numbers
 are re-checkable at any time:
