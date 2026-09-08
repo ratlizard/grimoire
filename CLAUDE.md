@@ -28,9 +28,10 @@ written to:
 | | |
 |---|---|
 | **`ratlizard/grimoire`** | **public, GitHub Pages. This one.** |
-| `ratlizard/alchemy` | public. Two superseded attempts at running the game: `port/`, the retired native PowerPC port, and `mobile/`, the emulator shell that used to be `mobile.html` here. Where this file says the port decodes a format differently, the detail is there. |
+| `ratlizard/alchemy` | public. An archive; nothing in it deploys. Two superseded attempts at running the game: `port/`, the retired native PowerPC port, and `mobile/`, the emulator shell that used to be `mobile.html` here. Where this file says the port decodes a format differently, the detail is there. |
 | `ratlizard/cythera-workbench` | private. The Python tools that analyse the executable, and the notes and handoffs of the systemless work. Nothing here depends on it. |
-| `ratlizard/wolflizard` | public fork of benletchford/systemless, where running the game happens. Its HFS reader is what the disk-image writer here is round-tripped through, and its WebAssembly build is the intended future of "play" on this site. |
+| `ratlizard/wolflizard` | public fork of benletchford/systemless, where running the game happens. Its HFS reader is what the disk-image writer here is round-tripped through, and its WebAssembly build is what `ratlizard.github.io` runs. |
+| `ratlizard/ratlizard.github.io` | public, GitHub Pages. The browser player — the game running on the fork's WebAssembly build, at the bare `https://ratlizard.github.io/`. It was `alchemy/web/` until 8 September 2026, and it is where "play" lives now rather than here. |
 | `ratlizard/delvmod` | public fork of Bryce Schroeder's reference implementation of the Delver formats — the correctness oracle for Cythera's own (see **delvmod is the correctness oracle**). It is the submodule. |
 | `e-z-g/cythera-reference` | private. The game, its documentation, the community's writing and the cited Apple documentation. Expected here as `reference/`, gitignored; the snapshot and oracle checks need it. |
 
