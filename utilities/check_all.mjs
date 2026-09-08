@@ -339,5 +339,13 @@ for (const [page, name, status, note] of rows) {
 
 const ran = rows.length - skipped;
 say(`\n  ${ran} checks run, ${failed} failed, ${skipped} skipped`);
+// CLAUDE.md used to state the clean-run figure in prose, and it went stale
+// four times -- each time on the day a check was added, silently, while the
+// file still read as authoritative. The fifth time, on 8 September 2026, the
+// instruction in the handoff was to stop correcting the prose and have the
+// suite say the sentence instead. This is that sentence: paste it in when it
+// changes, rather than counting the checks by hand.
+if (!failed && !skipped)
+  say(`  CLAUDE.md should say: A clean run is **${ran} ok, 0 failed, 0 skipped**.`);
 if (failed) say('  Re-run a failing one on its own to see its full output.');
 process.exit(failed ? 1 : 0);

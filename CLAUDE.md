@@ -4,7 +4,7 @@ Guidance for AI assistants working in this repository.
 
 **If `NEXT-SESSION.md` exists one level up, in the workspace directory this
 repository is checked out into, read it in full before doing anything else.**
-It is the handoff, and it covers all six repositories: untracked, in no
+It is the handoff, and it covers all seven repositories: untracked, in no
 repository, kept only on the machine the work happens on. A global SessionStart
 hook (`~/.claude/hooks/print-handoff.sh`) prints it when the session starts in
 that directory; if there is no `=== HANDOFF:` block in context and the file
@@ -330,8 +330,11 @@ from outside the repository.
   `--quick` skips it.
 
 A check whose inputs are genuinely missing is reported as **skip**, not fail.
-A clean run is **19 ok, 0 failed, 0 skipped**. Anything else is a
-regression. Without the game in `reference/` most checks skip, and `delvmod
+A clean run is **20 ok, 0 failed, 0 skipped**. Anything else is a
+regression. **This number has gone stale five times**, always on the day a
+check was added and always silently, so `check_all.mjs` now prints the
+sentence this paragraph should carry: paste it in rather than counting by
+hand. Without the game in `reference/` most checks skip, and `delvmod
 write` and `disk image` are the two checks with an oracle still running — its synthetic archives are built on the fly. `dialogue vs
 guides` has a second, optional input of its own — the community's dialogue
 collection at `reference/community/dialogue/Dialogue` (the ZIP
