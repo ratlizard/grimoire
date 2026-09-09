@@ -469,7 +469,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
     <div class="paperWrap"><div class="paper"><canvas id="art" width="192" height="120"></canvas><canvas id="selOv" width="192" height="120"></canvas></div></div>
 
     <div class="status">
-      <span>stroke <b id="rDir">&mdash;</b></span>
+      <span>stroke <b id="rDir">none</b></span>
       <span>ink <b id="rRamp">Water</b></span>
       <span>frame <b id="rFrame">0</b></span>
       <span><b id="rSize">192&times;120</b></span>
@@ -620,7 +620,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   <div class="db">
     <p><strong>A stroke stores a position in a ramp, not a colour.</strong> Every pixel holds one
       palette index. Inside a turning register that index says how far along the ramp the pixel sits,
-      and each frame rotates the ramp by one &mdash; so a stroke that writes a falling phase reads as
+      and each frame rotates the ramp by one, so a stroke that writes a falling phase reads as
       colour travelling that way. Drag down and it falls. Nothing is ever redrawn.</p>
     <p><strong>The ink decides what the tools are.</strong> With a ramp loaded the seven are Flow,
       Vortex, Sparkle, Pool, Divert, Select and Melt; with a flat colour the same seven are Paint,
@@ -628,7 +628,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       ramp: drag across a run of colours and they are strung into a new ramp, which then pours back
       into the pixels it came from so they start turning where they stand.</p>
     <p><strong>Select confines everything.</strong> A box, a lasso or a region is a mask, and the one
-      place paint is written checks it &mdash; so every tool and both creatures work inside it and
+      place paint is written checks it, so every tool and both creatures work inside it and
       nowhere else. Drag from inside a selection to move what it holds.</p>
     <h4>The creatures</h4>
     <p><strong>Giant Slug</strong> chains every turning register into one long body, so colour
@@ -645,7 +645,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       marbling. <strong>Pool</strong> measures distance through the shape it fills, so bands run
       square across a channel and close round a lake. <strong>Opacity</strong> is an ordered dither,
       since an indexed palette has nothing to blend with.</p>
-    <p><strong>The palette is Cythera's</strong> &mdash; a 6-bit Mac CLUT widened to 8 &mdash; and
+    <p><strong>The palette is Cythera's</strong>, a 6-bit Mac CLUT widened to 8, and
       not a limit: set the depth from 1 to 16 bits and everything snaps to that grid, or Direct to
       keep imported colours exactly. Mixed colours are appended, so the palette can run to thousands;
       what GIF and PNG care about is the distinct colours on the canvas, which the status bar counts.</p>
@@ -1692,7 +1692,7 @@ function meltSample(x, y) {
     if (Math.abs(s[0] - c[0]) + Math.abs(s[1] - c[1]) + Math.abs(s[2] - c[2]) < 66) return;
   }
   meltStops.push(c.slice());
-  say('melt: ' + meltStops.length + (meltStops.length < 2 ? ' stop — one more' : ' stops'));
+  say('melt: ' + meltStops.length + (meltStops.length < 2 ? ' stop, one more' : ' stops'));
 }
 function meltFinish() {
   if (meltStops.length < 2) return;
@@ -1704,7 +1704,7 @@ function meltFinish() {
   meltStops = []; meltTook = [];
   paintRegs(); paintRamps(); paintPal(); sync(); draw();
   say('melted a ' + r.len + '-colour ramp' +
-      (got ? ' — ' + got + ' pixels are turning now' : ' — it is the ink now'));
+      (got ? ', ' + got + ' pixels are turning now' : ', it is the ink now'));
 }
 /* Melting is only half done when the ramp exists: what you dragged across is
  * still standing there. Every *still* pixel near enough to the new gradient is
@@ -1985,7 +1985,7 @@ function selPaste() {
   }
   sel = m;
   setTool('select'); drawSel(); draw();
-  say('pasted ' + clip.w + '×' + clip.h + ' — drag it to place it');
+  say('pasted ' + clip.w + '×' + clip.h + ', drag it to place it');
 }
 // Dragging inside a selection carries its contents with it.
 var selDrag = null;
@@ -2041,7 +2041,7 @@ function begin(x, y) {
       // That index belongs to a turning register, so it cannot hold flat paint.
       // Take the colour it is showing this frame and give it a still slot.
       still = addColour((PAL[frameMap(frame % LOOP)[v]] || [0, 0, 0]).slice());
-      say('that colour is turning — copied it flat as ' + still);
+      say('that colour is turning, copied it flat as ' + still);
     } else {
       still = v; say(v ? 'picked colour ' + v : 'picked transparent');
     }
@@ -2118,7 +2118,7 @@ function extend(x, y) {
 function end() {
   if (tool === 'pick' && inkIsRamp() && stroking) {
     if (meltMoved || meltStops.length >= 2) meltFinish();
-    else say('melt: ' + meltStops.length + ' stop — drag across more colour');
+    else say('melt: ' + meltStops.length + ' stop, drag across more colour');
   }
   if (tool === 'select' && stroking) {
     var b = sel && selBounds();
@@ -2459,7 +2459,7 @@ var USES = {
     b.type = 'button'; b.className = 'fx'; b.dataset.fx = fx.id;
     b.setAttribute('aria-pressed', 'false');
     b.setAttribute('aria-label', fx.name);
-    b.title = fx.name + ' \u2014 ' + fx.help;
+    b.title = fx.name + ', ' + fx.help;
     var cv = document.createElement('canvas'); cv.width = 32; cv.height = 32;
     b.appendChild(cv);
     b.addEventListener('click', function () { toggleFX(fx.id); });
@@ -2478,7 +2478,7 @@ function toggleFX(id) {
   // The polyp gets one mark in the history, not one a second.
   if (id === 'hydra' && FX[id]) snapshot();
   paintCreatures();
-  say(fx.name + (FX[id] ? ' \u2014 on' : ' \u2014 off'));
+  say(fx.name + (FX[id] ? ', on' : ', off'));
   draw();
 }
 function setTool(t) {
@@ -2500,7 +2500,7 @@ function refreshTool() {
   [].forEach.call(document.querySelectorAll('.tb'), function (b) {
     var ff = face(b.dataset.tool);
     b.querySelector('svg').innerHTML = I[ff.icon];
-    b.title = ff.name + ' \u2014 ' + ff.help;
+    b.title = ff.name + ', ' + ff.help;
     b.setAttribute('aria-label', ff.name);
     b.setAttribute('aria-pressed', String(b.dataset.tool === tool));
   });
@@ -2848,7 +2848,7 @@ document.getElementById('rbAdd').addEventListener('click', function () {
   var r = makeRamp(builderColours(), name);
   ramp = r; setInk('ramp'); paintRegs(); paintRamps(); paintPal(); sync(); draw();
   document.getElementById('dReg').close();          // straight back to painting with it
-  say('added ' + name + ' — palette is now ' + PAL.length + ' colours');
+  say('added ' + name + ', palette is now ' + PAL.length + ' colours');
 });
 
 /* ================= flat palette + colour depth ========================== */
@@ -2857,7 +2857,7 @@ function paintPal() {
   var cap = Math.min(PAL.length, 4096);
   // Transparent is a colour you can paint with: that is what erasing is now.
   var t = document.createElement('button');
-  t.type = 'button'; t.className = 'sw clear'; t.title = 'Transparent — paint with this to rub out';
+  t.type = 'button'; t.className = 'sw clear'; t.title = 'Transparent, paint with this to rub out';
   t.setAttribute('aria-current', String(still === 0));
   t.addEventListener('click', function () { still = 0; setInk('still'); paintPal(); syncStill(); });
   host.appendChild(t);
@@ -2875,7 +2875,7 @@ function paintPal() {
   var inRamps = PAL.length - CLUT_N;
   document.getElementById('palCount').textContent =
     CLUT_N + ' base' + (inRamps > 0 ? ' + ' + inRamps + ' in ramps' : '') +
-    (PAL.length > cap ? ' — showing the first ' + cap : '');
+    (PAL.length > cap ? ', showing the first ' + cap : '');
   var d = document.getElementById('depthSel');
   if (d) d.value = String(depth);
   var n = document.getElementById('depthNote');
@@ -2884,12 +2884,12 @@ function paintPal() {
     : depth === 'direct'
     ? 'No grid: every colour is kept exactly as it arrived. This is what a picture read in from a file lands in, so nothing it brought with it is lost.'
     : (1 << depth) + ' colours at ' + depth + '-bit' +
-      (depth > 12 ? ' — the grid below is a sample; anything you mix snaps to the full one.' : '.');
+      (depth > 12 ? ', the grid below is a sample; anything you mix snaps to the full one.' : '.');
 }
 document.getElementById('mixAdd').addEventListener('click', function () {
   var i = addColour(hex2rgb(document.getElementById('mixColour').value));
   still = i; setInk('still'); paintPal(); syncStill();
-  say('index ' + i + ' — palette is now ' + PAL.length + ' colours');
+  say('index ' + i + ', palette is now ' + PAL.length + ' colours');
 });
 (function () {
   var sel = document.getElementById('depthSel');
@@ -2909,7 +2909,7 @@ document.getElementById('mixAdd').addEventListener('click', function () {
     setDepth(v);
     paintRegs(); paintRamps(); paintPal(); previewBuilder(); sync(); draw();
     say('palette is now ' + (v === 'cythera' ? "Cythera's CLUT"
-      : v === 'direct' ? 'direct — colours kept exactly as they are' : v + '-bit'));
+      : v === 'direct' ? 'direct, colours kept exactly as they are' : v + '-bit'));
   });
 })();
 
@@ -3195,7 +3195,7 @@ async function takeFile(f, how) {
       // no amount of watching the colours could tell us.
       try {
         var cfg = gifFindConfig(bytes);
-        if (cfg) { snapshot(); await decodeCanvas(cfg); say('opened — palette, registers and all'); return; }
+        if (cfg) { snapshot(); await decodeCanvas(cfg); say('opened, palette, registers and all'); return; }
       } catch (err2) { /* not a GIF of ours */ }
       // Anyone else's: work the cycling out from what moves.
       try { if (importByMotion(bytes)) return; } catch (err3) { /* fall through to a still picture */ }
@@ -3228,14 +3228,14 @@ function takeImageURL(url, how) {
       }
       draw();
       say((how === 'open' ? 'opened ' : 'placed ') + im.width + '×' + im.height +
-          (useRegs ? ' — onto the live registers, so parts of it will move' : ' — still paint only'));
+          (useRegs ? ', onto the live registers, so parts of it will move' : ', still paint only'));
       done();
     };
     im.src = url;
   });
 }
 async function pasteFromClipboard() {
-  if (!navigator.clipboard || !navigator.clipboard.read) { say('this browser has no clipboard read — use ctrl+V'); return; }
+  if (!navigator.clipboard || !navigator.clipboard.read) { say('this browser has no clipboard read, use ctrl+V'); return; }
   try {
     var items = await navigator.clipboard.read();
     for (var i = 0; i < items.length; i++) {
@@ -3247,7 +3247,7 @@ async function pasteFromClipboard() {
       return;
     }
     say('no picture on the clipboard');
-  } catch (e) { say('clipboard blocked — use ctrl+V instead'); }
+  } catch (e) { say('clipboard blocked, use ctrl+V instead'); }
 }
 addEventListener('paste', function (e) {
   if (e.target.matches && e.target.matches('input,textarea')) return;
@@ -3269,7 +3269,7 @@ async function copyCanvas() {
     var blob = await new Promise(function (r) { art.toBlob(r, 'image/png'); });
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     say('copied this frame to the clipboard');
-  } catch (e) { say('could not copy — the browser refused'); }
+  } catch (e) { say('could not copy, the browser refused'); }
 }
 
 /* ================= reading the motion ===================================
@@ -3506,9 +3506,9 @@ function importByMotion(bytes) {
   var steps = regs.reduce(function (a, r) { return a + r.len; }, 0);
   say(regs.length
     ? 'read ' + regs.length + ' cycling register' + (regs.length === 1 ? '' : 's') +
-      ' — ' + steps + ' colours in motion, off ' + g.frames.length + ' frames' +
+      ', ' + steps + ' colours in motion, off ' + g.frames.length + ' frames' +
       (moved ? ' (the pixels move too; this is frame one)' : '')
-    : 'nothing was cycling in that one — ' + tab.length + ' colours, all held still');
+    : 'nothing was cycling in that one, ' + tab.length + ' colours, all held still');
   return true;
 }
 
@@ -3807,13 +3807,13 @@ var gifWhy = '';
 async function gifOut(delayCs) {
   gifWhy = '';
   var c = compact();
-  if (!c) { gifWhy = 'over 256 distinct indices on the canvas — GIF cannot hold that'; return null; }
+  if (!c) { gifWhy = 'over 256 distinct indices on the canvas, GIF cannot hold that'; return null; }
   var data = lzw(c.px, 8);
   // Cycling costs a whole frame each: only the colour table differs, but GIF
   // has nowhere else to put it. Long ramps mean long loops mean big files.
   var est = LOOP * (data.length + 800) + 1024;
   if (est > 15 * 1024 * 1024) {
-    gifWhy = 'loop of ' + LOOP + ' frames would make a ' + Math.round(est / 1048576) + ' MB GIF — shorten the ramp';
+    gifWhy = 'loop of ' + LOOP + ' frames would make a ' + Math.round(est / 1048576) + ' MB GIF, shorten the ramp';
     return null;
   }
   var out = [];
@@ -4027,7 +4027,7 @@ var SCENES = [
   { id: 'cave', name: 'Cave', w: CAVE.W, h: CAVE.H, note: 'the viewer tailpiece, all five ramps',
     run: async function () { idx.set(CAVE.build()); } },
 
-  { id: 'cavebare', name: 'Cave, bare', w: CAVE.W, h: CAVE.H, note: 'same rock, nothing moving — paint your own',
+  { id: 'cavebare', name: 'Cave, bare', w: CAVE.W, h: CAVE.H, note: 'same rock, nothing moving, paint your own',
     run: async function () { idx.set(CAVE.build(true)); } },
 
   { id: 'alaric', name: 'Alaric', w: 64, h: 64, note: 'portrait 0x8701 at native size',
@@ -4060,7 +4060,7 @@ async function loadScene(s) {
   idx.fill(0);
   try { await s.run(); } catch (e) { say('could not build that scene'); }
   quiet = false;
-  afterScene(); draw(); say(s.name + ' — ' + s.note);
+  afterScene(); draw(); say(s.name + ', ' + s.note);
 }
 
 /* ================= boot ================================================= */

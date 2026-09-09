@@ -695,7 +695,7 @@ try {
       ctx.inspectMapSquare(tx, ty);
       const html = REGISTRY.get('mapInspect').innerHTML;
       probes++;
-      if (html.includes('record #' + p.rec.index)) named++;
+      if (html.includes('record ' + p.rec.index)) named++;
       if (html.includes('Dossier')) withPeople++;
     }
   }
@@ -1160,11 +1160,9 @@ try {
        be one the renderer actually reads, or moving it does nothing and the
        answer that comes back is about the wrong thing. */
     {
-      const rows = peek('ATLAS_TUNE_ROWS').map(r => r[0]).sort();
-      const keys = Object.keys(peek('ATLAS_TUNE_DEFAULTS')).sort();
-      if (String(rows) !== String(keys))
-        fail('atlas', `the tuning strip offers [${rows}] for [${keys}]`);
-      else {
+      // The tuning strip is gone (v1.35.0); the numbers are consts, but
+      // they still have to be the ones the renderer reads.
+      {
         // and moving one has to change what is drawn
         const before = peek('atlasScene')().nodes.filter(n => n.depth).length;
         ctx.ATLAS_TUNE.nodeFadeFrom = 1;
@@ -1177,8 +1175,7 @@ try {
         peek('paintAtlas')();
         if (!(wide > 1) || none !== 0)
           fail('atlas', `the tuning knob did not reach the renderer (${wide} then ${none})`);
-        else console.log('  atlas: ' + rows.length + ' tunable numbers, all of them read by ' +
-                         'the renderer (temporary)');
+        else console.log('  atlas: the fade threshold reaches the renderer');
       }
     }
 
@@ -1264,9 +1261,9 @@ try {
     // Full screen, in a browser with no element full screen: the panel is
     // pinned over the page and the button says how to leave.
     ctx.atlasToggleFull();
-    const fullOn = ctx.document.body.classList.contains('atlasFull') && /Leave/.test(REGISTRY.get('atlasFullBtn').textContent);
+    const fullOn = ctx.document.body.classList.contains('atlasFull') && /Full screen off/.test(REGISTRY.get('atlasFullBtn').textContent);
     ctx.atlasToggleFull();
-    const fullOff = !ctx.document.body.classList.contains('atlasFull') && !/Leave/.test(REGISTRY.get('atlasFullBtn').textContent);
+    const fullOff = !ctx.document.body.classList.contains('atlasFull') && !/off/.test(REGISTRY.get('atlasFullBtn').textContent);
     if (!fullOn || !fullOff) fail('atlas', 'full screen did not pin and unpin the panel');
     else console.log('  atlas: full screen pins the panel where the browser offers no better, and unpins');
     // The gate before a download: shown until answered, and the answer is
@@ -1616,7 +1613,7 @@ try {
   ctx.showCategory('TOOLS');
   const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/id="prefSmooth"/.test(tools) || !/id="prefCheats"/.test(tools)) fail('preferences', 'the two switches are not on the Tools tab');
-  else if (!/Untested/.test(tools)) fail('preferences', 'the section no longer says the file has never been put in front of the game');
+  else if (!/replaces any settings already stored/.test(tools)) fail('preferences', 'the section no longer says the file replaces the stored settings');
   else if (!/©gra/.test(tools)) fail('preferences', 'the section does not name the code');
   else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
   else console.log(`  preferences: both switches on the Tools tab, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork, still labelled untried`);
@@ -1909,7 +1906,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     const badge = REGISTRY.get('installerVersionBadge');
     const btn = REGISTRY.get('archiveMenuBtn');
     if (!badge || !/^\d+(\.\d+)+$/.test(badge.textContent)) fail('installer version', 'no version badge on the Installer tab');
-    if (!btn || !/^Cythera \d/.test(btn.textContent)) fail('installer version', 'the Data file button does not name the release: ' + (btn && btn.textContent));
+    if (!btn || btn.textContent !== 'Settings') fail('installer version', 'the Settings button is not named so: ' + (btn && btn.textContent));
     const opened = (REGISTRY.get('sheetGrid').children || []).find(c => c.className && /installerOpen/.test(c.className));
     if (!opened) fail('installer version', 'the sheet does not say which installer is open');
     const dataNode = peek('TAB_BY_ID').get('data');

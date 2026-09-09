@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Grimoire — Cythera’s data</title>
+<title>Grimoire, Cythera’s data</title>
 <style>
 /* ---- One knob for every size of type ------------------------------------
    Every font-size in this sheet is in rem, so the two rules below are the
@@ -97,7 +97,7 @@ body { color:#fff; font-family:'ArgosGame', Argos, Georgia, serif;
   /* The top inset clears the two fixed controls -- the data file on the left,
      Search on the right -- and nothing more. It was 16px plus a row for the
      links, which is most of a thumb on a phone spent on nothing. */
-  padding:30px 16px calc(96px + env(safe-area-inset-bottom));
+  padding:12px 16px calc(96px + env(safe-area-inset-bottom));
   background-color:#211c16;
   /* The texture is resource 0x8F00, decoded from the archive at load time and
      installed as a data: URL (see installBackgroundTexture). No remote image,
@@ -105,7 +105,10 @@ body { color:#fff; font-family:'ArgosGame', Argos, Georgia, serif;
      gradient below is only a scrim so gold text stays legible. */
   background-image:linear-gradient(rgba(14,10,6,.62),rgba(20,15,9,.62));
   background-repeat:repeat; background-size:auto,128px;
-  background-attachment:fixed, fixed; }
+  /* The planks scroll with the page at half its speed (installParallax), so
+     they read as a floor behind the sheets rather than a wall the sheets
+     slide over. They were fixed, which a phone ignores anyway. */
+  background-attachment:scroll, scroll; }
 /* The frame image used to be stretched over the entire viewport at .58
    opacity, which discoloured everything between the top and bottom borders.
    Mask it down to just the edges so the ornament survives and the middle
@@ -122,11 +125,9 @@ body { color:#fff; font-family:'ArgosGame', Argos, Georgia, serif;
    are built from the same file and the same checkerboard -- so what is on
    screen is the game's layering: brown planks, and a dithered blue box drawn
    over them. */
-body::before { content:''; position:fixed; inset:7px; pointer-events:none; z-index:-1;
-  border:4px solid transparent; border-left-width:8px; border-right-width:8px;
-  border-image:url('res/Dialogue_Background.png') 4 8 stretch;
-  opacity:.5; }
-#frameFill { display:none !important; }
+/* No frame round the viewport since 9 September 2026: the dialogue border
+   that edged the screen at half strength was the maintainer's to keep and
+   he asked for it gone. The folder sheets (.tabSheet) still wear it. */
 h2, #soundLabel { color:#fff !important; font-family:'ArgosGame', Argos, Georgia, serif; }
 .cell .lbl, .cell .resid { color:var(--gold) !important; font-family:'ArgosGame', Argos, Georgia, serif; }
 #soundPreview, pre { background:var(--panel); border-color:var(--edge) !important; }
@@ -178,31 +179,6 @@ select option { background:#181410; color:var(--gold); padding:8px; }
    which is the intended background and is already extracted into the repo.
    Override deleted so the real one applies; the tint below just darkens it
    enough for gold text to stay legible. */
-/* Frame is drawn entirely by #frameFill's border-image (see below). */
-/* The middle of the frame is cut from the linked Dialogue_Background.png with
-   border-image rather than stretching the whole file. border-image slices one
-   source into nine pieces: the top and bottom ornaments keep stretching
-   horizontally (they looked right that way), while the side edges and the
-   dithered interior TILE at their native size. Stretching that interior is
-   what smeared the 50% checkerboard into uneven colour.
-   The slice percentages describe how much of the source is ornament vs middle;
-   nudge the 44% if the ornaments look clipped or doubled. */
-#frameFill { position:fixed; inset:24px; pointer-events:none; z-index:-2;
-  border-style:solid;
-  /* Ornament height tracks the viewport width so the top and bottom keep the
-     proportions they had when the whole file was drawn at 100% width. */
-  border-width:calc((100vw - 48px) * 0.2738) 8px;
-  border-image-source:url('res/Dialogue_Background.png');
-  /* No `fill`: the interior is painted below instead. The source's middle band
-     is a 50% checkerboard dither, and border-image would stretch it
-     horizontally to fit -- resampling that dither is exactly what produced the
-     uneven discolouration. */
-  border-image-slice:45% 1.45% 45% 1.45%;
-  border-image-repeat:stretch repeat;
-  /* Uniform interior at the dither's effective colour, clipped inside the
-     border so it never touches the ornaments. */
-  background-color:rgba(31,0,183,.5);
-  background-clip:padding-box; }
 
 select, option { line-height:1.4 !important; min-height:42px; padding-top:8px !important; padding-bottom:8px !important; }
 select { font-family:'ArgosGame', Argos, Georgia, serif; }
@@ -389,8 +365,9 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    text viewer's Decoded/Strings/Hex row already owns `.tab`. */
 #tabShell { margin:6px 0 10px; }
 /* The site's name and version, at the top between the two fixed buttons. */
-#brand { text-align:center; margin:0 0 4px; font-size:0.8125rem; letter-spacing:.04em; color:#b5b2a8; }
-#brand .brandName { color:#fff; }
+#topBar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; position:relative; }
+#brand { flex:1 1 auto; text-align:center; margin:0; font-size:0.8125rem; letter-spacing:.04em; color:#b5b2a8; }
+#brand .brandName { color:#fff; font-size:1.0625rem; font-weight:600; }
 #brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; letter-spacing:.04em; color:#8c8980; }
 .ftabRow { display:flex; align-items:flex-end; padding:0 0 0 8px; overflow-x:auto; overflow-y:hidden;
   scrollbar-width:none; -webkit-overflow-scrolling:touch; }
@@ -465,8 +442,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    taking a row of its own above the tabs. The row was most of the empty space
    at the top of the page, and the two are the same kind of thing: the page's
    own controls, out of the way of the thing you came to look at. */
-#topLinks { position:fixed; top:8px; right:8px; z-index:41;
-  display:flex; justify-content:flex-end; gap:12px; margin:0; min-height:0; }
+#topLinks { display:flex; justify-content:flex-end; gap:12px; margin:0; min-height:0; flex:0 0 auto; }
 #topLinks button { min-height:0 !important; padding:5px 16px !important; font-size:0.7188rem !important;
   letter-spacing:.06em; opacity:.62; }
 #topLinks button:hover { opacity:1; }
@@ -857,14 +833,6 @@ button.linkbtn { all:unset; cursor:pointer; color:var(--gold); text-decoration:u
 button.linkbtn:hover { opacity:1; }
 button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
 
-#kbdHelp { position:fixed; right:16px; bottom:44px; z-index:70; max-width:340px;
-  padding:14px 18px; background:rgba(18,15,10,.97); border:1px solid var(--edge);
-  border-radius:8px; font-size:0.8125rem; line-height:1.7; box-shadow:0 6px 24px rgba(0,0,0,.7); }
-#kbdHelp h3 { margin:0 0 8px; font-size:0.875rem; color:var(--gold); }
-#kbdHelp kbd { font-family:ui-monospace,Menlo,Consolas,monospace; background:#2b261c;
-  border:1px solid #574f3a; border-radius:4px; padding:1px 5px; margin-right:6px; }
-#kbdHelp dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:2px 10px; }
-#kbdHelp dt, #kbdHelp dd { margin:0; }
 
 /* What a click on the map found. */
 #mapInspect { max-width:720px; margin:8px auto 0; padding:10px 14px; text-align:left;
@@ -1055,7 +1023,7 @@ body.atlasFull { overflow:hidden; }
 #atlasPanel:fullscreen #atlasZoomRow, #atlasPanel:-webkit-full-screen #atlasZoomRow, body.atlasFull #atlasPanel #atlasZoomRow,
 #atlasPanel:fullscreen #atlasInspect, #atlasPanel:-webkit-full-screen #atlasInspect, body.atlasFull #atlasPanel #atlasInspect,
 #atlasPanel:fullscreen #atlasBar, #atlasPanel:-webkit-full-screen #atlasBar, body.atlasFull #atlasPanel #atlasBar,
-#atlasPanel:fullscreen #atlasTune, #atlasPanel:-webkit-full-screen #atlasTune, body.atlasFull #atlasPanel #atlasTune { display:none !important; }
+#atlasPanel:fullscreen #atlasSettings, #atlasPanel:-webkit-full-screen #atlasSettings, body.atlasFull #atlasPanel #atlasSettings { display:none !important; }
 #atlasPanel:fullscreen, #atlasPanel:-webkit-full-screen, body.atlasFull #atlasPanel { padding:0; }
 #atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport, body.atlasFull #atlasPanel #atlasViewport { height:100%; min-height:100%; }
 #atlasFullOverlay { position:absolute; top:10px; left:10px; z-index:61; align-items:center; gap:8px;
@@ -1079,6 +1047,8 @@ body.atlasFull { overflow:hidden; }
 #atlasZoomLabel { color:#fff; font-variant-numeric:tabular-nums; }
 #atlasZoomRow button { flex:0 0 auto; }
 #atlasViewport canvas { display:block; }
+#atlasSettings { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; justify-content:center; padding:6px 10px; font-size:0.75rem; color:#b5b2a8; }
+#atlasSettings button { width:auto; margin:0; min-height:0 !important; padding:5px 12px !important; font-size:0.75rem !important; }
 #atlasBar { padding:7px 12px; margin:0 0 6px; text-align:left;
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px;
   font-size:0.8125rem; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
@@ -1100,17 +1070,6 @@ body.atlasFull { overflow:hidden; }
 #atlasHover .hvName { color:var(--gold); font-weight:600; display:block; }
 #atlasHover .hvWhat { color:#b5b2a8; font-size:0.6875rem; display:block; }
 #atlasHover .hvWhere, #mapHover .hvWhere { color:#8c8980; font-size:0.6562rem; display:block; margin-top:2px; }
-/* TEMPORARY: the tuning strip. See renderAtlasTune. */
-#atlasTune { max-width:720px; margin:6px auto 0; padding:8px 12px; text-align:left;
-  background:rgba(20,18,14,.92); border:1px dashed var(--edge); border-radius:8px;
-  font-size:0.75rem; color:#c9bb92; }
-#atlasTune .tuneRow { display:flex; align-items:center; gap:8px; margin:3px 0; }
-#atlasTune .tuneRow label { flex:0 0 9.5em; color:#fff; }
-#atlasTune .tuneRow input { flex:1 1 auto; }
-#atlasTune .tuneRow .tuneVal { flex:0 0 3.5em; text-align:right;
-  font-family:ui-monospace,Menlo,Consolas,monospace; }
-#atlasTune .tuneWhy { color:#b5b2a8; margin:2px 0 8px 0; }
-
 /* Who that is, under the pointer. */
 #mapHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
@@ -1266,18 +1225,24 @@ body.atlasFull { overflow:hidden; }
    used to be three separate things in three corners of the page. They are one
    small stud in the top-left now, and everything about the data file lives
    behind it. */
-#archiveMenuBtn { position:fixed; top:8px; left:8px; z-index:41; width:auto; margin:0;
+#archiveMenuBtn { width:auto; margin:0; flex:0 0 auto;
   min-height:0 !important; padding:5px 16px !important; font-size:0.7188rem !important;
   letter-spacing:.06em; opacity:.62;
   }
 #archiveMenuBtn:hover { opacity:1; }
 #archiveMenuBtn.urgent { opacity:1; font-size:0.875rem !important; padding:9px 18px !important; }
-#archiveMenu { position:fixed; top:38px; left:8px; z-index:42; display:none;
-  min-width:250px; max-width:min(360px, calc(100vw - 24px));
+#archiveMenu, #creditsMenu, #searchWrap { position:absolute; top:40px; z-index:42; display:none;
+  min-width:250px; max-width:min(360px, calc(100vw - 24px)); max-height:min(72vh, 640px); overflow:auto;
   padding:12px 14px; background:rgba(18,15,10,.98); border:1px solid var(--edge);
   border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,.7); font-size:0.7812rem;
   text-align:left; line-height:1.6; }
-#archiveMenu.open { display:block; }
+#archiveMenu { left:0; }
+#creditsMenu, #searchWrap { right:0; max-width:min(560px, calc(100vw - 24px)); width:min(560px, calc(100vw - 24px)); }
+#archiveMenu.open, #creditsMenu.open, #searchWrap.open { display:block; }
+#creditsMenu ul { margin:0 0 10px; padding-left:18px; }
+#creditsMenu li { margin:2px 0; }
+#creditsMenu p { margin:8px 0 0; }
+#searchWrap #searchResults { text-align:left; }
 #archiveMenu button { width:100%; margin:8px 0 0; }
 #archiveMenu label { display:flex; gap:7px; align-items:flex-start; margin-top:10px;
   padding-top:10px; border-top:1px solid rgba(155,136,80,.35); cursor:pointer; }
@@ -1300,6 +1265,7 @@ body.atlasFull { overflow:hidden; }
   button, select { font-size:1rem !important; }
   #topLinks button { font-size:0.9375rem !important; padding:5px 16px !important; }
   #archiveMenuBtn { font-size:0.9375rem !important; opacity:.9; }
+  #brand .brandName { font-size:1.25rem; }
   #archiveMenuBtn.urgent { font-size:1.0625rem !important; }
   #archiveMenu .amNote { font-size:0.875rem; color:#c9bd93; }
   #sourceStatus { font-size:0.9375rem; color:#b3a781; opacity:1; }
@@ -1353,14 +1319,24 @@ body.atlasFull { overflow:hidden; }
 </style>
 </head>
 <body>
-<div id="frameFill" aria-hidden="true"></div>
 <div id="appShell">
 <a href="#sheetGrid" class="skipToGallery">Skip to the gallery</a>
-<div id="brand" aria-label="Grimoire"></div>
+<!-- The page's own controls, in one row at the top of the page and scrolling
+     with it: Settings on the left, the name in the middle, Search and
+     Credits on the right. They were fixed to the viewport until 9 September
+     2026, when the maintainer asked for them to stay at the top like the
+     name. Each opens a panel under this row. -->
+<div id="topBar">
+  <button id="archiveMenuBtn" class="secondary" onclick="toggleArchiveMenu()"
+          aria-haspopup="dialog" aria-expanded="false" aria-controls="archiveMenu">Settings</button>
+  <div id="brand" aria-label="Grimoire"></div>
+  <div id="topLinks">
+    <button id="searchLink" onclick="toggleSearch()" title="Search the scripts">Search</button>
+    <button id="creditsLink" onclick="toggleCredits()" aria-haspopup="dialog" aria-controls="creditsMenu">Credits</button>
+  </div>
+</div>
 <input type="file" id="fileInput" accept="*/*" onchange="loadArchive()" style="display:none">
-<button id="archiveMenuBtn" class="secondary" onclick="toggleArchiveMenu()"
-        aria-haspopup="dialog" aria-expanded="false" aria-controls="archiveMenu">Data file</button>
-<div id="archiveMenu" role="dialog" aria-label="Data file">
+<div id="archiveMenu" role="dialog" aria-label="Settings">
   <div id="sourceStatus" role="status" aria-live="polite">Looking for the Cythera Data archive…</div>
   <button class="secondary" id="chooseFileBtn"
           onclick="document.getElementById('fileInput').click()">Open a different file…</button>
@@ -1377,15 +1353,40 @@ body.atlasFull { overflow:hidden; }
     turning of sprites in the galleries.</span></div>
   <label><input type="checkbox" id="chkBuiltinLabels" onchange="setBuiltinLabels(this.checked)">
     <span>Names from outside the game’s own text
-      <span class="amNote">Hand-identified labels from the delvmod wiki &mdash; resource names,
+      <span class="amNote">Hand-identified labels from the delvmod wiki, resource names,
       tile-sheet names and the prop-type list the Items, Props and Monsters galleries draw on; and on
       the World map, one name per place from the editor’s list where the game calls several maps the
       same thing (“Headwater Ruins” rather than the game’s “Ruins”).
       Off, every gallery shows only names the file itself carries (0xF004 tile names, zone-entry
       strings, resource symbols); where there is none, the cell says so.</span></span></label>
+  <label><input type="checkbox" id="unditherMaster" onchange="setUndither(this.checked)">
+    <span>Undither portraits
+      <span class="amNote">Cythera’s art is dithered for a 256-colour screen. This reconstructs
+      continuous tone from the checkerboards on the portraits, and only there. It is a reading of
+      the pixels rather than the pixels.</span></span></label>
 </div>
-<div id="topLinks" style="display:none">
-  <button id="searchLink" onclick="openSearch()" title="Search the scripts (/)">Search</button>
+<div id="creditsMenu" role="dialog" aria-label="Credits">
+  <ul>
+    <li><strong>Glenn Andreas</strong>, writer and developer of Cythera</li>
+    <li><strong>Ambrosia Software</strong>, publisher of Cythera</li>
+    <li><strong>Bryce Schroeder</strong>, delvmod, the Delver formats and disassembler, the DelvTechWiki and the compendium: the reverse-engineering and the tooling this page is checked against, with <strong>Chris Pickel</strong></li>
+    <li><strong>Cythera Guides</strong> at cytheraguides.com, and the sites it keeps in its archives</li>
+    <li>the editors of the <strong>Cythera wiki</strong> and the writers of the <strong>Cythera web board</strong></li>
+    <li>the add-on authors: <strong>Wizard</strong>, <strong>Magpie</strong>, <strong>Talos</strong> and the rest</li>
+    <li><strong>Sam Wang</strong>, Argos A Nouveau typeface design</li>
+    <li><strong>Anthropic Claude, Google Gemini &amp; Perplexity</strong>, for tool development assistance</li>
+  </ul>
+  <p>Grimoire is maintained by <strong>EgadZoundsGadzooks</strong> and relies on decades of incredible work from the Cythera community. Special thanks to 453, Wizard, Slayer, Troyen, and Manborough. Join the Alraeican Tavern Discord at <a href="https://discord.gg/u5BDQvyem4" target="_blank" rel="noopener">https://discord.gg/u5BDQvyem4</a></p>
+  <p class="amNote">Cythera and Delver are trademarks of Glenn Andreas and/or Ambrosia Software, Inc.
+    This is an unofficial fan-made research tool. The game, its data and its installer remain the copyright of Ambrosia Software and/or Glenn Andreas; none of it is stored here.</p>
+</div>
+<div id="searchWrap" role="dialog" aria-label="Search" style="display:none">
+  <p class="sv-why" style="margin:0 0 8px">Searches every decoded script at once:
+  instruction names, engine calls and the text the player sees. Use it when a resource is not
+  referenced by id but is clearly related to something, which is most of them.</p>
+  <input id="searchBox" type="search" placeholder="fire, TakeDamage, who teaches axe&hellip;" oninput="queueSearch()">
+  <div id="searchPresets" class="sv-chips" style="justify-content:center;margin-top:8px"></div>
+  <div id="searchResults"></div>
 </div>
 <!-- The folder-tab shell. Three tab rows, each the lip of a folder, nested;
      the innermost folder holds the sheet everything below is drawn on. The
@@ -1402,16 +1403,6 @@ body.atlasFull { overflow:hidden; }
         <div id="tabSheet" class="tabSheet">
 <div id="navSub"></div>
 <div id="crumbBar" style="display:none"></div>
-<div id="searchWrap" style="display:none">
-  <h2>Ask the Scripts <button class="secondary" style="width:auto;min-height:0 !important;padding:2px 10px !important;font-size:0.75rem !important;vertical-align:middle"
-    onclick="closeSearch()">close</button></h2>
-  <p class="sv-why" style="text-align:center;margin-bottom:8px">Searches every decoded script at once
-  &mdash; instruction names, engine calls and the text the player sees. Use it when a resource is not
-  referenced by id but is clearly related to something, which is most of them.</p>
-  <input id="searchBox" type="search" placeholder="fire, TakeDamage, who teaches axe&hellip;" oninput="queueSearch()">
-  <div id="searchPresets" class="sv-chips" style="justify-content:center;margin-top:8px"></div>
-  <div id="searchResults"></div>
-</div>
 <!-- The category <select> is now driven by the icon bar above and is hidden.
      It stays in the DOM because every other code path treats it as the single
      source of truth for the current category. -->
@@ -1526,7 +1517,7 @@ body.atlasFull { overflow:hidden; }
   <div id="editBytesNote"></div>
   <textarea id="editBytesText" spellcheck="false" autocomplete="off"></textarea>
   <div>
-    <button onclick="applyResourceEditFromText()">Apply — rebuild archive</button>
+    <button onclick="applyResourceEditFromText()">Apply and rebuild the archive</button>
     <button class="secondary" onclick="cancelResourceEdit()">Cancel</button>
   </div>
 </div>
@@ -1534,7 +1525,6 @@ body.atlasFull { overflow:hidden; }
   <div id="canvasViewport"><canvas id="canvas" width="64" height="64"></canvas></div>
   <button class="secondary" onclick="downloadCurrentPNG()">Save as PNG</button>
   <button class="secondary" onclick="downloadCurrentGIF()">Save as GIF</button>
-  <button class="secondary" id="unditherBtn" style="display:none" onclick="toggleUnditherPreview()">Preview undithered</button>
 </div>
 <div id="artUsage" style="display:none"></div>
 
@@ -1645,16 +1635,9 @@ body.atlasFull { overflow:hidden; }
   <audio id="audioPlayer" controls style="width:100%; margin-bottom:10px;"></audio>
   <button class="secondary" onclick="downloadCurrentWAV()">Save as WAV</button>
 </div>
-<div id="unditherBar" style="display:none; text-align:center; margin:6px 0 2px;">
-  <label style="display:inline-flex; align-items:center; gap:8px; font-size:0.875rem; cursor:pointer;">
-    <input type="checkbox" id="unditherToggle" onchange="setUnditherPreview(this.checked)"
-           style="width:auto; min-height:0; margin:0"> <span id="unditherLabel">Preview undithered (this gallery)</span>
-  </label>
-  <span style="font-size:0.75rem; color:#b5b2a8; margin-left:10px;">the switch for every image is under Tools; this lasts until the category changes</span>
-</div>
-<div id="labelLegend" style="display:none"><span class="guessTag">wiki</span> — this name is supplied by
+<div id="labelLegend" style="display:none"><span class="guessTag">wiki</span>, this name is supplied by
 this tool from the delvmod wiki and is not in the archive. Turn tool-supplied names on or off under
-&ldquo;Data file&rdquo;.</div>
+&ldquo;Settings&rdquo;.</div>
 <div id="galleryTools" style="display:none">
   <span id="galleryArrange">
     <button class="secondary" id="viewToggleBtn"
@@ -1703,7 +1686,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
               people, scripts and rules, read out of the game’s own data.</p>
             <p>Opening it downloads the game’s installer from archive.org, about
               <b>28&nbsp;MB</b>, and keeps a copy in this browser. The copy can be cleared from
-              the data-file menu.</p>
+              Settings.</p>
             <p>The whole installer is fetched, not the one file this page reads, because
               Ambrosia’s licence for Cythera allows it to be passed on only unmodified and complete.</p>
             <p class="gateHint">On the map: pinch or scroll to zoom, drag to move, tap a ring to
@@ -1720,19 +1703,17 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
           <div id="atlasFullOverlay" style="display:none">
             <button class="secondary" id="atlasFullUp" style="display:none;width:auto;margin:0;padding:5px 9px" onclick="atlasRiseOut()">↰</button>
             <span id="atlasFullWhere"></span>
-            <button class="secondary" style="width:auto;margin:0;padding:5px 9px" onclick="atlasToggleFull()">Leave</button>
+            <button class="secondary" style="width:auto;margin:0;padding:5px 9px" onclick="atlasToggleFull()">Full screen off</button>
           </div>
           <div id="atlasZoomRow" class="zoomrow">
             <span style="white-space:nowrap">Zoom</span>
-            <input type="range" id="atlasZoomSlider" min="1" max="64" value="3"
+            <input type="range" id="atlasZoomSlider" min="0" max="1000" value="0"
                    aria-label="Zoom" oninput="atlasZoomFromSlider()">
             <span id="atlasZoomLabel" style="min-width:74px; text-align:right"></span>
-            <button class="secondary" style="width:auto;margin:0;padding:8px 14px"
-                    onclick="atlasFitAndPaint()">Whole world</button>
             <button class="secondary" id="atlasFullBtn" style="width:auto;margin:0;padding:8px 14px"
                     onclick="atlasToggleFull()">Full screen</button>
           </div>
-          <div id="atlasTune" style="display:none"></div>
+          <div id="atlasSettings"></div>
           <div id="atlasInspect"></div>
         </div>
       </div>
@@ -1907,7 +1888,7 @@ const RSRC_KINDS = [
     note: 'Whole pictures. In Cythera Data: the title screen (130), the main menu (132) with its seven plank labels (139–145) and six torch frames (133–138), the DELVER stone (131), two night-dark title scenes (512, 513) and the paper doll (129). In the application: the two Ambrosia logos.',
     view: 'SCREENS' },
   { id: 'fonts', label: 'Fonts', types: ['sfnt', 'NFNT', 'FOND', 'TxSt'],
-    note: 'Argos A Nouveau as a TrueType font (sfnt 7289, the face this page uses), the Seldane script as two bitmap strikes (NFNT 25740 and 25746, 12 and 18 point), the family records that tie them together, and the text styles (TxSt) that say which face and size each kind of text is drawn in — “Labels”, “Stats”, “Text”, three Seldane sizes.',
+    note: 'Argos A Nouveau as a TrueType font (sfnt 7289, the face this page uses), the Seldane script as two bitmap strikes (NFNT 25740 and 25746, 12 and 18 point), the family records that tie them together, and the text styles (TxSt) that say which face and size each kind of text is drawn in, “Labels”, “Stats”, “Text”, three Seldane sizes.',
     view: 'FONTS' },
   { id: 'strings', label: 'Strings', types: ['STR#', 'STR ', 'TEXT', 'styl'],
     note: 'String lists. In Cythera Data: the four default conversation keywords (128), the editor’s palette categories (134), the editor’s list of every zone (135), the credits (255). In the application: the equipment slots (501), the combat buttons (500), the seven strategies (502), the help balloons (503), and the combat AI vocabulary in seven lists (9300–9308).',
@@ -1931,7 +1912,7 @@ const RSRC_KINDS = [
     note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three saved game states (MSta: “Base”, “Plague Cured” and “Olpheltius Murdered”, which differ from Base at one byte each), the editor’s own tile names (DATA 260, a short list beside the archive’s terrain table), the record that says TxSt 999 is really a colour (RMAP), and the ResEdit templates. FILT, LINF, PORT and the other nine DATA resources are listed and unread.',
     view: 'RSRC' },
   { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
-    note: 'What the executable reads about itself: the 25 light cones (Lite: one byte of side, then that many squared bytes of brightness, 0 to 32; sides 8 to 120), one Delver tile sheet (TILE 282, sixteen tiles that appear nowhere in the game’s own art), the Delver engine’s help pages (Page — three carry text, ten are empty), the two preference defaults (volume 5 and music 2), the thirteen audit categories, the version records, the memory sizes, the code fragment map and the nine 68K CODE segments.',
+    note: 'What the executable reads about itself: the 25 light cones (Lite: one byte of side, then that many squared bytes of brightness, 0 to 32; sides 8 to 120), one Delver tile sheet (TILE 282, sixteen tiles that appear nowhere in the game’s own art), the Delver engine’s help pages (Page, three carry text, ten are empty), the two preference defaults (volume 5 and music 2), the thirteen audit categories, the version records, the memory sizes, the code fragment map and the nine 68K CODE segments.',
     view: null }
 ];
 const RSRC_KIND_OF = new Map();
@@ -2141,7 +2122,7 @@ function labelSource(resid) {
 }
 function applyLabel(el, resid) {
   const txt = labelFor(resid);
-  el.textContent = txt || '\u2014';
+  el.textContent = txt || 'none';
   el.classList.toggle('placeholder', !txt);
   // Still recorded in the tooltip -- just not in the colour of the text.
   if (txt && labelSource(resid) === 'builtin')
@@ -2228,7 +2209,7 @@ function labelForUnnormalized(resid) {
   // 0x8EFF is IN the tile-sheet subindex but is not a tile sheet: it is the
   // sized 194x127 tombstone slab (see tileSheetIsSized). Say so where it is
   // listed, so nobody reads it as sixteen tiles.
-  if (resid === 0x8EFF) return 'Tombstone Slab — a sized image, not a tile sheet';
+  if (resid === 0x8EFF) return 'Tombstone Slab, a sized image, not a tile sheet';
   if (subn === 141) return (window.SHOW_BUILTIN_LABELS && TILE_SHEET_HINTS[n]) || ('Tile Sheet ' + n);
   if (subn === 142) return 'General Graphic ' + n;
   if (subn === 144) return 'Sound ' + n;
@@ -2350,29 +2331,13 @@ function setUnditherPreview(on) {
 }
 function toggleUnditherPreview() { setUnditherPreview(window.UNDITHER_PREVIEW === null); }
 function refreshUnditherControls() {
-  const other = window.UNDITHER ? 'Preview dithered' : 'Preview undithered';
-  const box = document.getElementById('unditherToggle');
-  if (box) box.checked = window.UNDITHER_PREVIEW !== null;
-  const lbl = document.getElementById('unditherLabel');
-  if (lbl) lbl.textContent = other + ' (this gallery)';
-  const btn = document.getElementById('unditherBtn');
-  if (btn) {
-    btn.textContent = window.UNDITHER_PREVIEW !== null ? 'Preview: back to the Tools setting' : other;
-    btn.classList.toggle('active', window.UNDITHER_PREVIEW !== null);
-  }
   const master = document.getElementById('unditherMaster');
   if (master) master.checked = !!window.UNDITHER;
 }
 
 // Called from both setMode and onCategoryChange: whichever of them runs last
 // has the final say, and they set CUR_SUBN in different orders.
-function updateUnditherBar() {
-  const bar = document.getElementById('unditherBar');
-  if (!bar) return;
-  bar.style.display =
-    (currentMode === 'sheet' && UNDITHER_SUBN.has(window.CUR_SUBN)) ? 'block' : 'none';
-  refreshUnditherControls();
-}
+function updateUnditherBar() { refreshUnditherControls(); }
 
 function redrawCurrentView() {
   if (currentMode === 'single') { if (typeof renderImage === 'function') renderImage(); }
@@ -2555,7 +2520,7 @@ function showCompositeDetail(tileId, entry, builtCanvas) {
   const cap = document.createElement('div');
   cap.style.cssText = 'color:var(--gold);margin-top:6px';
   const nm = compositeTileName(tileId);
-  cap.textContent = 'Tile 0x' + tileId.toString(16).toUpperCase() + (nm ? ' \u2014 ' + nm : '') +
+  cap.textContent = 'Tile 0x' + tileId.toString(16).toUpperCase() + (nm ? ', ' + nm : '') +
     '\n' + compositeSourceSummary(entry);
   cap.style.whiteSpace = 'pre-line';
   head.appendChild(cap);
@@ -2884,7 +2849,7 @@ function propDisplayName(pt, base) {
   return (b && terrainNameFor(b)) || propTypeNameShown(pt) || null;
 }
 const WIKI_TAG = '<span class="guessTag" title="Name from the delvmod wiki\u2019s prop-type list, ' +
-  'not from the archive. Switch these off under \u201cData file\u201d.">wiki</span>';
+  'not from the archive. Switch these off under \u201cSettings\u201d.">wiki</span>';
 // Name plus provenance, as HTML, for a gallery caption. The name itself is
 // wrapped so that sorting and filtering read the name and not the tag beside
 // it -- cellSortKeys prefers .lblText where there is one.
@@ -2898,7 +2863,7 @@ function propNameHTML(pt, base) {
   const hidden = propTypeName(pt);
   return '<span class="lblText" style="color:#8c8980">unnamed</span>' +
     (hidden ? '<span class="nameOffTag" title="The wiki calls this \u201c' + svEsc(hidden) +
-      '\u201d. Switch tool-supplied names on under \u201cData file\u201d to show it.">name hidden</span>' : '');
+      '\u201d. Switch tool-supplied names on under \u201cSettings\u201d to show it.">name hidden</span>' : '');
 }
 function itemNameHTML(pt, base) { return propNameHTML(pt, base); }
 
@@ -3245,7 +3210,7 @@ function showPropTypeDetail(pt) {
       'color:' + (own ? '#cfc4a0' : '#8a8064');
     runHead.textContent = (run.name || 'unnamed in 0xF004') + ' \u00b7 frame' +
       (run.frames.length === 1 ? ' ' + run.frames[0] : 's ' + run.frames[0] + '\u2013' + run.frames[run.frames.length-1]) +
-      (own ? '' : ' \u2014 a neighbour on this sheet, not this prop');
+      (own ? '' : ', a neighbour on this sheet, not this prop');
     panel.appendChild(runHead);
     if (own) {
       const gb = document.createElement('button');
@@ -3277,7 +3242,7 @@ function showPropTypeDetail(pt) {
       const col = colours && colours.get(f);
       holder.title = 'frame ' + f + ' \u00b7 tile 0x' + (base + f).toString(16).toUpperCase() +
                      (run.name ? ' \u00b7 ' + run.name : '') + (col ? ' \u00b7 ' + col : '') +
-                     ' \u2014 click to enlarge';
+                     ', click to enlarge';
       holder.style.cursor = 'zoom-in';
       holder.onclick = () => showSpriteZoom(base + f, run.name || '');
       if (!own) holder.style.opacity = '.5';
@@ -3309,7 +3274,7 @@ function showPropTypeDetail(pt) {
   }
   grid.appendChild(panel);
   out.textContent = (propDisplayName(pt, base) || 'prop type 0x' + pt.toString(16).toUpperCase()) +
-    (info.rows > 1 ? ' \u2014 ' + info.rows + ' facings' : '');
+    (info.rows > 1 ? ', ' + info.rows + ' facings' : '');
 }
 
 /* --- Inventory items -------------------------------------------------------
@@ -4032,7 +3997,7 @@ function showItemDetail(pt) {
     }
     fold('data', 'Class data', cls.data.length + ' field' + (cls.data.length === 1 ? '' : 's'), '<table style="border-collapse:collapse;width:100%">' + rows + '</table>');
   } else if (cls) {
-    fold('data', 'Class data', 'no data fields', '<div class="sv-note">This class carries only behaviour \u2014 no data fields.</div>');
+    fold('data', 'Class data', 'no data fields', '<div class="sv-note">This class carries only behaviour, no data fields.</div>');
   }
 
   // Behaviour: which methods have code behind them.
@@ -4102,7 +4067,7 @@ function showItemDetail(pt) {
     }
     fold('world', 'In the world', idx.total + ' placed' + (idx.carried + idx.equipped ? ', ' + (idx.carried + idx.equipped) + ' carried' : '') + (idx.contained ? ', ' + idx.contained + ' in containers' : ''), body);
   } else {
-    fold('world', 'In the world', 'none placed', '<div class="sv-note">No instance of this item is placed in the shipped scenario \u2014 it is either created by a script or unused.</div>');
+    fold('world', 'In the world', 'none placed', '<div class="sv-note">No instance of this item is placed in the shipped scenario, it is either created by a script or unused.</div>');
   }
 
   // The key is one prop type carrying eight different keys, told apart by
@@ -4117,7 +4082,7 @@ function showItemDetail(pt) {
           (ll.length ? ll.map(lockLocationChip).join(' ') : '<span class="inspDim">nothing found</span>') +
           '</div>';
       }).join('') +
-      '<div class="sv-note">' + lockedNoKey + ' further lock ids have no matching key item \u2014 ' +
+      '<div class="sv-note">' + lockedNoKey + ' further lock ids have no matching key item, ' +
       'the lockpick, magic or a script opens those.</div>');
   }
   {
@@ -4130,7 +4095,7 @@ function showItemDetail(pt) {
   grid.appendChild(panel);
   const w = itemWeight(pt);
   out.textContent = (propDisplayName(pt, base) || 'item 0x' + pt.toString(16).toUpperCase()) +
-    (w !== null ? ' \u2014 ' + w + ' grains' : '') +
+    (w !== null ? ', ' + w + ' grains' : '') +
     (idx && idx.total ? ', ' + idx.total + ' placed in the world' : '');
 }
 
@@ -4196,7 +4161,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.34.0';
+const GRIMOIRE_VERSION = '1.35.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4319,7 +4284,7 @@ function installGameFont() {
   if (!entry) { window.GAME_FONT_STATE = 'the resource fork holds no sfnt'; return; }
   let ttf;
   try { ttf = sfntToTrueType(fork.dataOf('sfnt', entry)); }
-  catch (e) { window.GAME_FONT_STATE = 'sfnt #' + entry.id + ' could not be made into a TrueType file: ' + e.message; return; }
+  catch (e) { window.GAME_FONT_STATE = 'sfnt ' + entry.id + ' could not be made into a TrueType file: ' + e.message; return; }
   window.GAME_FONT_TTF = ttf;
   if (typeof FontFace === 'undefined' || !document.fonts) { window.GAME_FONT_STATE = 'this browser cannot load a font from bytes'; return; }
   try {
@@ -4329,8 +4294,8 @@ function installGameFont() {
     window.GAME_FONT_FACE = null;
     const face = new FontFace('ArgosGame', ttf.buffer.slice(ttf.byteOffset, ttf.byteOffset + ttf.byteLength));
     window.GAME_FONT_STATE = 'loading';
-    face.load().then(f => { document.fonts.add(f); window.GAME_FONT_FACE = f; window.GAME_FONT = (entry.name || 'sfnt') + ' #' + entry.id; window.GAME_FONT_STATE = ''; })
-               .catch(e => { window.GAME_FONT_STATE = 'the browser refused sfnt #' + entry.id + ': ' + (e && e.message || e); });
+    face.load().then(f => { document.fonts.add(f); window.GAME_FONT_FACE = f; window.GAME_FONT = (entry.name || 'sfnt') + ' ' + entry.id; window.GAME_FONT_STATE = ''; })
+               .catch(e => { window.GAME_FONT_STATE = 'the browser refused sfnt ' + entry.id + ': ' + (e && e.message || e); });
   } catch (e) { window.GAME_FONT_STATE = 'FontFace: ' + e.message; }
 }
 
@@ -4423,7 +4388,7 @@ function renderRsrcSheet() {
 
   const inv = rsrcInventory();
   if (!inv) {
-    out.textContent = 'No resource fork. It comes from the container the archive was in — ' +
+    out.textContent = 'No resource fork. It comes from the container the archive was in, ' +
       'a .hqx, MacBinary or AppleSingle file carries both forks, a bare data fork does not. ' +
       'Re-open the archive from "Cythera Data.hqx" to get it.';
     return;
@@ -4449,7 +4414,7 @@ function renderRsrcSheet() {
 
     const residDiv = document.createElement('div');
     residDiv.className = 'resid';
-    residDiv.textContent = it.type + ' #' + it.entry.id + ' · ' + it.pat.cols + '×' + it.pat.rows;
+    residDiv.textContent = it.type + ' ' + it.entry.id + ' · ' + it.pat.cols + '×' + it.pat.rows;
     cell.appendChild(residDiv);
 
     lazyTile(cell, () => {
@@ -4485,7 +4450,7 @@ function showRsrcDetail(type, id) {
   grid.innerHTML = '';
   if (!fork) { out.textContent = 'No resource fork is open.'; return; }
   const entry = (fork.resourcesByType[type] || []).find(e => e.id === id);
-  if (!entry) { out.textContent = 'No ' + type + ' #' + id + ' in this fork.'; return; }
+  if (!entry) { out.textContent = 'No ' + type + ' ' + id + ' in this fork.'; return; }
 
   const back = document.createElement('button');
   back.className = 'secondary';
@@ -4509,7 +4474,7 @@ function showRsrcDetail(type, id) {
   const cap = document.createElement('div');
   cap.style.cssText = 'color:var(--gold);margin-top:8px;white-space:pre-line';
   cap.textContent = (entry.name || '(unnamed)') + '\n' +
-    type + ' #' + entry.id + ' — ' + RSRC_DELVER_TYPES[type] + ', ' + data.length + ' bytes' +
+    type + ' ' + entry.id + ': ' + RSRC_DELVER_TYPES[type] + ', ' + data.length + ' bytes' +
     (pat ? ', ' + pat.tiles.length + ' tiles in a ' + pat.cols + '×' + pat.rows + ' grid' : '') +
     (pat && pat.extraBytes ? '\n' + pat.extraBytes + ' bytes past the end of the grid, unaccounted for' : '') +
     (pat && pat.guessedShape ? '\nThe grid shape is this viewer’s guess; the file only gives a flat run of tiles.' : '') +
@@ -4530,14 +4495,14 @@ function showRsrcDetail(type, id) {
         '<td style="padding:1px 8px">' + svEsc(nm) + '</td></tr>');
     }
     table.innerHTML = '<table style="margin:0 auto"><thead><tr>' +
-      '<th style="text-align:left;padding:1px 8px">#</th>' +
+      '<th style="text-align:left;padding:1px 8px">id</th>' +
       '<th style="text-align:left;padding:1px 8px">tile</th>' +
       '<th style="text-align:left;padding:1px 8px">terrain (F004)</th></tr></thead><tbody>' +
       rows.join('') + '</tbody></table>';
     grid.appendChild(table);
   }
-  out.textContent = (entry.name || type + ' #' + entry.id) +
-    (pat ? ' — ' + pat.tiles.length + ' tiles' : '');
+  out.textContent = (entry.name || type + ' ' + entry.id) +
+    (pat ? ', ' + pat.tiles.length + ' tiles' : '');
 }
 
 /* ---------------------------------------------------------------------------
@@ -4681,7 +4646,7 @@ function renderMacRsrcSheet() {
       missing.push(src === 'app'
         ? (window.APP_RSRC_STATE === 'loading' ? 'Loading the application…'
            : window.APP_RSRC_STATE || 'The application’s fork is not loaded yet.')
-        : 'No resource fork came with the archive. It comes from the container the archive was in — a .hqx, MacBinary or AppleSingle file carries both forks, a bare data fork does not.');
+        : 'No resource fork came with the archive. It comes from the container the archive was in, a .hqx, MacBinary or AppleSingle file carries both forks, a bare data fork does not.');
       continue;
     }
     total += fork.total();
@@ -4705,7 +4670,7 @@ function renderMacRsrcSheet() {
       const k = RSRC_KINDS.find(x => x.id === key);
       const h = document.createElement('div');
       h.className = 'propHead';
-      h.textContent = (sources.length > 1 ? forkName(src) + ' — ' : '') + (k ? k.label : 'Other') + ' (' + items.length + ')';
+      h.textContent = (sources.length > 1 ? forkName(src) + ', ' : '') + (k ? k.label : 'Other') + ' (' + items.length + ')';
       if (k && k.note) {
         const note = document.createElement('div');
         note.className = 'kindNote';
@@ -4739,7 +4704,7 @@ function renderMacRsrcSheet() {
         cell.appendChild(lbl);
         const rid = document.createElement('div');
         rid.className = 'resid';
-        rid.textContent = it.type + ' #' + it.entry.id;
+        rid.textContent = it.type + ' ' + it.entry.id;
         cell.appendChild(rid);
         lazyTile(cell, () => {
           const arts = rsrcArtifacts(fork, it.type, it.entry);
@@ -4761,7 +4726,7 @@ function renderMacRsrcSheet() {
             imgwrap.appendChild(note);
           }
         });
-        cell.title = 'Open ' + it.type + ' #' + it.entry.id;
+        cell.title = 'Open ' + it.type + ' ' + it.entry.id;
         cell.onclick = () => showMacRsrcDetail(it.type, it.entry.id, src);
         grid.appendChild(cell);
       }
@@ -4796,7 +4761,7 @@ function showMacRsrcDetail(type, id, source) {
   grid.innerHTML = '';
   if (!fork) { out.textContent = 'No resource fork is open.'; return; }
   const entry = (fork.resourcesByType[type] || []).find(e => e.id === id);
-  if (!entry) { out.textContent = 'No ' + type + ' #' + id + ' in this fork.'; return; }
+  if (!entry) { out.textContent = 'No ' + type + ' ' + id + ' in this fork.'; return; }
 
   const back = document.createElement('button');
   back.className = 'secondary';
@@ -4807,8 +4772,8 @@ function showMacRsrcDetail(type, id, source) {
   const data = fork.dataOf(type, entry);
   const head = document.createElement('div');
   head.style.cssText = 'width:100%;text-align:center;margin:12px 0;color:var(--gold);white-space:pre-line';
-  head.textContent = (entry.name || '(unnamed)') + '\n' + type + ' #' + entry.id +
-    (rsrcTypeLabel(type) ? ' — ' + rsrcTypeLabel(type) : '') + ', ' + fmtBytes(data.length) +
+  head.textContent = (entry.name || '(unnamed)') + '\n' + type + ' ' + entry.id +
+    (rsrcTypeLabel(type) ? ', ' + rsrcTypeLabel(type) : '') + ', ' + fmtBytes(data.length) +
     (entry.attrs ? '\nattributes: ' + (resourceAttrNames(entry.attrs).join(', ') || 'none') : '');
   grid.appendChild(head);
 
@@ -4872,8 +4837,8 @@ function showMacRsrcDetail(type, id, source) {
   grid.appendChild(dump);
 
   out.textContent = arts.length
-    ? type + ' #' + entry.id + ' — ' + arts.length + ' decoded view' + (arts.length === 1 ? '' : 's') + '.'
-    : type + ' #' + entry.id + ' — no decoder for this type; the bytes are below.';
+    ? type + ' ' + entry.id + ': ' + arts.length + ' decoded view' + (arts.length === 1 ? '' : 's') + '.'
+    : type + ' ' + entry.id + ': no decoder for this type; the bytes are below.';
 }
 
 
@@ -5101,23 +5066,23 @@ function showCharacterDetail(i) {
     sh.innerHTML = '<div style="color:var(--gold);margin-bottom:4px">Daily schedule</div>' +
       d.schedule.map(e => {
         const h = e.hour, ampm = h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
-        return '<div style="font-size:0.8125rem">' + ampm.padStart(5) + ' &mdash; ' + e.where +
+        return '<div style="font-size:0.8125rem">' + ampm.padStart(5) + ', ' + e.where +
                ' (' + e.x + ', ' + e.y + ') <span style="color:#8c8980">mode ' + e.mode + '</span></div>';
       }).join('');
   } else {
-    sh.innerHTML = '<div style="color:#8c8980;font-size:0.8125rem">No schedule entries \u2014 placed directly in a map\u2019s prop list rather than moving on a clock.</div>';
+    sh.innerHTML = '<div style="color:#8c8980;font-size:0.8125rem">No schedule entries, placed directly in a map\u2019s prop list rather than moving on a clock.</div>';
   }
   // Jump to where this character currently stands.
   if (r.zone) {
     const go = document.createElement('button');
     go.className = 'secondary actionRow';
     go.style.marginTop = '14px';
-    go.textContent = 'Show on map \u2014 ' + d.homeZone;
+    go.textContent = 'Show on map: ' + d.homeZone;
     go.onclick = () => showCharacterOnMap(i);
     panel.appendChild(go);
   }
   grid.appendChild(panel);
-  out.textContent = d.name + ' \u2014 character ' + i;
+  out.textContent = d.name + ', character ' + i;
 }
 
 function renderCompositeSheet() {
@@ -5145,7 +5110,7 @@ function renderCompositeSheet() {
     // "16 stitched fragments" was identical on every tile and said nothing.
     // Name the tile from the terrain table (0xF004) where we can.
     const tname = compositeTileName(tileId);
-    lblDiv.textContent = tname || '\u2014';
+    lblDiv.textContent = tname || 'unnamed';
     if (!tname) lblDiv.classList.add('placeholder');
     cell.appendChild(lblDiv);
     try {
@@ -5466,7 +5431,7 @@ async function fetchWithProgress(url, label) {
     const now = performance.now();
     if (now - painted > 120) {
       painted = now;
-      setStatus(label + ' — ' + fmtBytes(got) +
+      setStatus(label + ', ' + fmtBytes(got) +
         (total ? ' of ' + fmtBytes(total) + ' (' + Math.round(got/total*100) + '%)' : ''));
     }
   }
@@ -5542,14 +5507,40 @@ function openArchiveMenu(on) {
 }
 function toggleArchiveMenu() {
   const menu = document.getElementById('archiveMenu');
-  openArchiveMenu(menu && !menu.classList.contains('open'));
+  const on = menu && !menu.classList.contains('open');
+  closeTopPanels();
+  openArchiveMenu(on);
+}
+/* Three panels hang under the top row -- Settings, Search, Credits -- and
+   one is open at a time; a click anywhere else shuts it. */
+function closeTopPanels() {
+  openArchiveMenu(false);
+  closeSearch();
+  const c = document.getElementById('creditsMenu');
+  if (c) c.classList.remove('open');
+}
+function toggleCredits() {
+  const c = document.getElementById('creditsMenu');
+  if (!c) return;
+  const on = !c.classList.contains('open');
+  closeTopPanels();
+  c.classList.toggle('open', on);
+}
+function toggleSearch() {
+  const w = document.getElementById('searchWrap');
+  if (!w) return;
+  const on = w.style.display === 'none';
+  closeTopPanels();
+  if (on) openSearch();
 }
 document.addEventListener('click', e => {
-  const menu = document.getElementById('archiveMenu');
-  if (!menu || !menu.classList.contains('open')) return;
-  if (menu.contains(e.target)) return;
-  if (e.target.closest && e.target.closest('#archiveMenuBtn')) return;
-  openArchiveMenu(false);
+  const t = e.target;
+  const inside = (id, btn) => {
+    const el = document.getElementById(id);
+    return (el && el.contains(t)) || (t.closest && t.closest(btn));
+  };
+  if (inside('archiveMenu', '#archiveMenuBtn') || inside('searchWrap', '#searchLink') || inside('creditsMenu', '#creditsLink')) return;
+  closeTopPanels();
 });
 
 function adoptArchive(raw, sourceName, opts) {
@@ -5617,7 +5608,7 @@ function archiveLoadFailed(failures) {
   const out = document.getElementById('output');
   if (out) out.textContent = 'Tried, in order:\n  ' + failures.join('\n  ') +
     '\n\nThe installer is at ' + REMOTE_ARCHIVE_URLS.join(' and at ') +
-      ' — if this page could not fetch it, download it there and drop it here.';
+      ', if this page could not fetch it, download it there and drop it here.';
 }
 
 async function ingestArchiveFile(f) {
@@ -5683,9 +5674,9 @@ async function loadDefaultArchive() {
       setStatus(label + '…');
       const raw = await fetchWithProgress(u, label);
       if (adoptArchive(raw, decodeURIComponent(u.replace(/^.*\//, '')) || u, { url: u, store: true })) return true;
-      failures.push(u + ' — ' + lastArchiveError);
+      failures.push(u + ', ' + lastArchiveError);
     } catch (err) {
-      failures.push(u + ' — ' + err.message);
+      failures.push(u + ', ' + err.message);
     }
     return false;
   };
@@ -5822,7 +5813,7 @@ function renderCrumbBar() {
   bar.style.display = '';
   bar.innerHTML = '<button class="crumbBtn" onclick="goViewBack()">\u21b0 Back to ' +
     svEsc(viewLabel(prev)) + '</button>' +
-    '<span class="crumbNote">the page you came from \u2014 the other back button goes up to this ' +
+    '<span class="crumbNote">the page you came from, the other back button goes up to this ' +
     'gallery</span>';
 }
 
@@ -6041,7 +6032,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     ss.innerHTML = '';
     const populated = masterIndex.filter(m => m[0]).length;
     ss.appendChild(document.createTextNode(
-      'Loaded: ' + sourceName + ' — ' + fmtBytes(fileBytes.length) + ', ' +
+      'Loaded: ' + sourceName + ', ' + fmtBytes(fileBytes.length) + ', ' +
       populated + ' subindexes' + (savedAs ? ', a saved game (“' + savedAs + '”)' : '') +
       (meta.via && meta.via !== 'data fork' ? ', unwrapped from ' + meta.via : '') +
       (window.CYTHERA_RSRC ? ', plus a ' + window.CYTHERA_RSRC.total() + '-resource fork' : '') +
@@ -6052,7 +6043,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     const fb = document.getElementById('forgetArchiveBtn');
     if (fb) fb.style.display = meta.cached ? '' : 'none';
     const btn = document.getElementById('archiveMenuBtn');
-    if (btn) { btn.classList.remove('urgent'); btn.textContent = installerVersion() ? 'Cythera ' + installerVersion() : 'Data file'; }
+    if (btn) { btn.classList.remove('urgent'); btn.textContent = 'Settings'; }
     openArchiveMenu(false);
     const cbl = document.getElementById('chkBuiltinLabels');
     if (cbl) cbl.checked = !!window.SHOW_BUILTIN_LABELS;
@@ -6085,7 +6076,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
        matters. */
     const landOn = hasWorld ? 'WORLD' : (savedAs && getResourceBytes(0xF009) ? 'SAVEGAME' : 'DATAFORK');
     if (!restoring && !showCategory(landOn)) onCategoryChange();
-    out.textContent = 'Title: ' + title + (savedAs ? ' — saved game “' + savedAs + '”' : '') + ' — ' + sourceName;
+    out.textContent = 'Title: ' + title + (savedAs ? ', saved game “' + savedAs + '”' : '') + ', ' + sourceName;
     // A link to the world -- or the World tab carried across a swap, which
     // is the same hash -- names nothing in a file that has no world.
     let landed = false;
@@ -6217,7 +6208,7 @@ function onCategoryChangeImpl() {
   if (subn === 23) {
     const kw = forkStringList(window.CYTHERA_RSRC, 128);
     if (kw && kw.length) out.textContent += ' Every conversation also answers ' +
-      kw.map(w => '“' + w + '”').join(', ') + ' — the default keywords, STR# 128 in the resource fork.';
+      kw.map(w => '“' + w + '”').join(', ') + ', the default keywords, STR# 128 in the resource fork.';
   }
   document.getElementById('singlePreview').style.display = 'none';
   document.getElementById('zoomControls').style.display = 'none';
@@ -6305,7 +6296,10 @@ function drawToCanvas(canvas, W, H, image, transparentIndex, palette) {
   // A gallery can hold a couple of hundred resources and each one costs tens
   // of milliseconds, so doing them all inline would lock the page for several
   // seconds before anything appeared at all.
-  if (unditherOn() && W*H > 0) queueUndither(canvas, W, H, image, t, P);
+  // Portraits only, since 9 September 2026: the reconstruction was tuned on
+  // them and they are what it is for; the tiles, icons and landscapes
+  // stay the pixels.
+  if (unditherOn() && W*H > 0 && String(window.CUR_SUBN) === '135') queueUndither(canvas, W, H, image, t, P);
 }
 
 /* Which of the two sets of undither settings is in force.
@@ -6315,10 +6309,9 @@ function drawToCanvas(canvas, W, H, image, transparentIndex, palette) {
    cache and redraws: the same pixels under the other settings are a different
    picture, and a gallery that kept the old one would show it. */
 function unditherPreset() {
-  if (window.UNDITHER_PRESET) return window.UNDITHER_PRESET;
-  let v = null;
-  try { v = localStorage.getItem('cythera.undither.preset'); } catch (e) {}
-  return (window.UNDITHER_PRESET = (v === 'measured' ? 'measured' : 'original'));
+  // The measured settings, always, since 9 September 2026: the choice
+  // between them and the ones tuned by eye was the maintainer's to drop.
+  return 'measured';
 }
 function setUnditherPreset(id) {
   window.UNDITHER_PRESET = (id === 'measured') ? 'measured' : 'original';
@@ -6912,7 +6905,7 @@ function startPaletteAnimation(canvas, W, H, image, transparentIndex) {
   // Cycling redraws several times a second and each redraw would queue a fresh
   // reconstruction, so the two are mutually exclusive. Undithering wins while
   // it is on; turning it off restores the cycle on the next render.
-  if (unditherOn()) return;
+  if (unditherOn() && String(window.CUR_SUBN) === '135') return;
   if (!PALETTE_CYCLE_SUBN.has(window.CUR_SUBN)) return;
   if (!window.PALETTE_ANIM || !imageUsesAnimatedColors(image)) return;
   const el = document.getElementById('animNote');
@@ -7546,7 +7539,7 @@ function toggleWalls(on) {
   const note = document.getElementById('wallNote');
   if (note) {
     const n = (window.CUR_MAP && window.CUR_MAP.wallsHidden) || 0;
-    note.textContent = on ? '' : (n ? n + ' wall squares hatched — still solid' : 'no walls on this map');
+    note.textContent = on ? '' : (n ? n + ' wall squares hatched, still solid' : 'no walls on this map');
   }
 }
 
@@ -7865,7 +7858,7 @@ function drawMapMarks(lensCtx, lensTS) {
       const breakdown = [...secretTypes.entries()].sort((a, b) => b[1] - a[1])
         .map(([n, c]) => c + ' ' + n).join(', ');
       chip('secret', 'hidden ways' + (breakdown ? ' (' + breakdown + ')' : '') +
-        (occluded ? ' — ' + occluded + ' buried under scenery' : ''));
+        (occluded ? ', ' + occluded + ' buried under scenery' : ''));
     }
     if (M.chest) chip('chest', 'containers');
     if (M.exits) chip('exits', (counts.exits === 1 ? 'zone exit' : 'zone exits') +
@@ -7875,7 +7868,7 @@ function drawMapMarks(lensCtx, lensTS) {
     if (itemSpots) parts.push('<span style="color:#fff">□ ' + itemSpots + ' × ' +
       svEsc(propDisplayName(spots.pt) || ('0x' + spots.pt.toString(16).toUpperCase())) + '</span>');
     legend.innerHTML = parts.length
-      ? parts.join(' &nbsp; ') + ' <span style="color:#8c8980">— doors, ways and containers are identified by ' +
+      ? parts.join(' &nbsp; ') + ' <span style="color:#8c8980">, doors, ways and containers are identified by ' +
         'prop-type name; zone exits are visible passages out (holes, stairs, cave mouths) plus the map header’s ' +
         'open edges, which you leave by walking off at any row or column; concealed passages are marked as ' +
         'hidden ways instead</span>'
@@ -8329,7 +8322,7 @@ function seatsOnMap(resid, m) {
             .filter(([dx, dy]) => solid(r.x + dx, r.y + dy));
           if (tables.length) { face = tables[0][2]; why = 'faces the table beside it'; }
           else if (walls.length === 1) { face = walls[0][2]; why = 'wall behind it'; }
-          else { face = SPR_S; why = 'not known — this seat has ' + own +
+          else { face = SPR_S; why = 'not known, this seat has ' + own +
                    ' frame' + (own === 1 ? '' : 's') + ', so its aspect is not a four-way facing, ' +
                    'and nothing stands behind it to say which way it is turned'; }
         }
@@ -9600,10 +9593,10 @@ function propInspectRows(p) {
   const r = p.rec;
   const rows = [];
   const name = propDisplayName(r.proptype);
-  rows.push(['Prop type', '0x' + r.proptype.toString(16).toUpperCase() + (name ? ' — ' + name : '')]);
+  rows.push(['Prop type', '0x' + r.proptype.toString(16).toUpperCase() + (name ? ', ' + name : '')]);
   rows.push(['Aspect', r.aspect + (r.rotated ? ' (rotated)' : '')]);
   rows.push(['Tile', '0x' + p.tileId.toString(16).toUpperCase() +
-                     (terrainNameFor(p.tileId) ? ' — ' + terrainNameFor(p.tileId) : '')]);
+                     (terrainNameFor(p.tileId) ? ', ' + terrainNameFor(p.tileId) : '')]);
   rows.push(['Flags', '0x' + r.flags.toString(16).padStart(2, '0').toUpperCase() +
                       (r.takeable ? ' (can be taken)' : '')]);
   // What the square is actually being asked about most of the time: how heavy
@@ -9623,11 +9616,11 @@ function propInspectRows(p) {
   if (lockable && r.d1) {
     const haveKey = keysForLock(r.d1).length;
     rows.push(['Lock', 'id ' + r.d1 + (haveKey
-      ? ' — ' + haveKey + ' matching key' + (haveKey === 1 ? '' : 's') + ' in the world'
-      : ' — no key item matches: lockpick, magic or a script opens it')]);
+      ? ', ' + haveKey + ' matching key' + (haveKey === 1 ? '' : 's') + ' in the world'
+      : ', no key item matches: lockpick, magic or a script opens it')]);
   }
   if (r.proptype === KEY_PROPTYPE && r.d1)
-    rows.push(['Opens', 'lock id ' + r.d1 + ' — ' + locksForKey(r.d1).length + ' lock(s)']);
+    rows.push(['Opens', 'lock id ' + r.d1 + ', ' + locksForKey(r.d1).length + ' lock(s)']);
   // A portal's low data byte is a zoneport index into 0xF00C -- the same
   // table the map headers' four exit fields use. Established two ways:
   // archive-wide (every portal-typed prop with a nonzero d2, all 122 of
@@ -9643,11 +9636,11 @@ function propInspectRows(p) {
   // to an arch anywhere -- see the Gateways comment above worldGateways for
   // the evidence and for why the widening is scoped the way it is.
   const dest = propTravelsTo(r, window.CUR_MAP ? window.CUR_MAP.resid : 0);
-  if (dest) rows.push(['Leads to', dest.name + ' (' + dest.x + ',' + dest.y + ') — zoneport ' + r.d2]);
+  if (dest) rows.push(['Leads to', dest.name + ' (' + dest.x + ',' + dest.y + '), zoneport ' + r.d2]);
   if (r.d1 || r.d2) rows.push(['Data', r.d1 + ' / ' + r.d2 + '  (0x' + r.d3.toString(16).toUpperCase() + ')']);
   if (r.storeref) {
     const sym = typeof storeSymbol === 'function' ? storeSymbol(r.storeref) : null;
-    rows.push(['Store ref', '0x' + r.storeref.toString(16).toUpperCase() + (sym ? ' — ' + sym : '')]);
+    rows.push(['Store ref', '0x' + r.storeref.toString(16).toUpperCase() + (sym ? ', ' + sym : '')]);
   }
   if (r.otherprop) rows.push(['Word 8-11', '0x' + r.otherprop.toString(16).toUpperCase()]);
   return rows;
@@ -9812,7 +9805,7 @@ function inspectMapSquare(tx, ty) {
   const gate = (cm.resid === WORLD_MAP_RESID) ? gatewayAtSquare(tx, ty) : null;
   if (gate) {
     parts.push('<div class="inspCard"><b>' + svEsc(gate.name) + '</b> ' +
-      '<span class="inspDim">a way off the world map — ' + svEsc(gate.kind) +
+      '<span class="inspDim">a way off the world map, ' + svEsc(gate.kind) +
       ', zoneport ' + gate.port + ', arriving at (' + gate.destX + ',' + gate.destY + ')</span>' +
       '<div class="inspActs"><button class="sv-chip" onclick="enterGatewayByPort(' + gate.port +
       ')">Enter ' + svEsc(gate.name) + '</button></div></div>');
@@ -9844,7 +9837,7 @@ function inspectMapSquare(tx, ty) {
   if (faux) {
     parts.push('<div class="inspCard"><b>' +
       svEsc(propDisplayName(faux.proptype) || ('0x' + faux.proptype.toString(16))) + '</b>' +
-      ' <span class="inspDim">faux prop &mdash; drawn by the terrain tile itself (0xF010), ' +
+      ' <span class="inspDim">faux prop, drawn by the terrain tile itself (0xF010), ' +
       'not placed in the prop list</span><div class="inspActs">' +
       '<button class="sv-chip" onclick="showPropTypeDetail(' + faux.proptype + ')">Prop type</button>' +
       '</div></div>');
@@ -9857,7 +9850,7 @@ function inspectMapSquare(tx, ty) {
       '<div><b>' + svEsc(c.name || ('Character ' + c.index)) + '</b>' +
       ' <span class="inspDim">' + (c.walking ? 'walking'
           : c.sitting ? ('sitting, facing ' + ['north','east','south','west'][(c.aspect >> 2) & 3] +
-              ' — ' + svEsc(c.seat ? c.seat.why : ''))
+              ', ' + svEsc(c.seat ? c.seat.why : ''))
           : svEsc(String(c.mode || 'here'))) + '</span>' +
       '<div class="inspActs">' +
       '<button class="sv-chip" onclick="showCharacterDetail(' + c.index + ')">Dossier</button>' +
@@ -9905,7 +9898,7 @@ function inspectMapSquare(tx, ty) {
     parts.push('<div class="inspCard"><b>' +
       svEsc(terrainNameFor(p.tileId) || propDisplayName(p.rec.proptype) ||
             ('prop 0x' + p.rec.proptype.toString(16).toUpperCase())) +
-      '</b> <span class="inspDim">record #' + p.rec.index +
+      '</b> <span class="inspDim">record ' + p.rec.index +
       (ways.length ? ' · ' + svEsc(ways.join(', ')) : '') + '</span>' +
       '<dl class="inspRows">' + rows + '</dl>' +
       (slot ? '<div id="' + slot + '"></div>' : '') +
@@ -10830,89 +10823,6 @@ function renderAtlasBar() {
     'only how it is reached, so it is shown on its own. Tap a blue ring to go up, a gold one to go deeper.</span>';
 }
 
-/* ---------------------------------------------------------------------------
-   TEMPORARY: the tuning strip
-   ---------------------------------------------------------------------------
-   Five numbers decide how the atlas behaves, and not one of them can be
-   settled from here: they are all "does this feel right on a real screen",
-   which is a question for the person looking at it. They live in one object
-   so they can be moved while the map is on screen, and this strip is how.
-
-   It is meant to be deleted once the numbers are chosen -- at which point
-   they go back to being constants with a comment saying why, like every other
-   decision in this file.
---------------------------------------------------------------------------- */
-const ATLAS_TUNE_ROWS = [
-  ['nodeFadeFrom', 'Place appears', 4, 60, 1,
-   'How wide a place must be on screen, in pixels, before it starts to be drawn as itself. ' +
-   'Below this the world map’s pictogram is drawn instead.'],
-  ['nodeFadeTo', 'Place solid', 8, 120, 1,
-   'How wide before the place has fully replaced that pictogram. The gap between the two is ' +
-   'the cross-fade.'],
-  ['mouthAt', 'Mouths appear', 2, 40, 1,
-   'Screen pixels per square of a map before the rings that mark its ways down are drawn.'],
-  ['animMs', 'Fall-in time', 0, 1500, 50,
-   'How long the fall into a ring and the rise out of it take, in milliseconds. Nought is a cut.'],
-  ['peopleAt', 'People appear', 2, 40, 1,
-   'Screen pixels per square before the inhabitants are drawn on a place.'],
-  ['maxPpt', 'Closest zoom', 24, 160, 1,
-   'The most magnification offered, in screen pixels per square of a map’s own art. The art ' +
-   'is 32 pixels a square.']
-];
-
-function renderAtlasTune() {
-  const host = document.getElementById('atlasTune');
-  if (!host) return;
-  if (!window.ATLAS_TUNE_OPEN) {
-    host.style.display = 'block';
-    host.innerHTML = '<button class="linkbtn" onclick="toggleAtlasTune()">⚙ Tune the atlas ' +
-      '(temporary)</button>';
-    return;
-  }
-  host.style.display = 'block';
-  const t = window.ATLAS_TUNE;
-  let h = '<button class="linkbtn" onclick="toggleAtlasTune()">⚙ Tune the atlas — hide</button>' +
-    '<p class="tuneWhy">Temporary. These are the numbers that decide how the atlas behaves, ' +
-    'and none of them can be settled without looking at a real screen. Move them, then say ' +
-    'which values you want and they go back to being constants.</p>';
-  for (const [key, label, min, max, step, why] of ATLAS_TUNE_ROWS) {
-    h += '<div class="tuneRow"><label for="tune_' + key + '">' + svEsc(label) + '</label>' +
-      '<input id="tune_' + key + '" type="range" min="' + min + '" max="' + max + '" step="' + step +
-      '" value="' + t[key] + '" oninput="setAtlasTune(\'' + key + '\', this.value)">' +
-      '<span class="tuneVal" id="tuneval_' + key + '">' + t[key] + '</span></div>' +
-      '<div class="tuneWhy">' + svEsc(why) + '</div>';
-  }
-  h += '<button class="secondary" style="width:auto;margin:4px 0 0;padding:6px 12px" ' +
-       'onclick="resetAtlasTune()">Back to the defaults</button>' +
-       '<div class="tuneWhy" id="tuneDump"></div>';
-  host.innerHTML = h;
-  atlasTuneDump();
-}
-
-function toggleAtlasTune() { window.ATLAS_TUNE_OPEN = !window.ATLAS_TUNE_OPEN; renderAtlasTune(); }
-
-function setAtlasTune(key, value) {
-  window.ATLAS_TUNE[key] = +value;
-  const v = document.getElementById('tuneval_' + key);
-  if (v) v.textContent = value;
-  atlasTuneDump();
-  paintAtlas();
-}
-
-function resetAtlasTune() {
-  window.ATLAS_TUNE = Object.assign({}, ATLAS_TUNE_DEFAULTS);
-  renderAtlasTune();
-  paintAtlas();
-}
-
-// What to tell me, so the numbers can go back to being constants.
-function atlasTuneDump() {
-  const el = document.getElementById('tuneDump');
-  if (!el) return;
-  const t = window.ATLAS_TUNE;
-  el.textContent = 'Current: ' + ATLAS_TUNE_ROWS.map(([k]) => k + ' ' + t[k]).join(', ');
-}
-
 /* ===========================================================================
    The Atlas: the world as one continuous picture
    ===========================================================================
@@ -11337,16 +11247,18 @@ function atlasMaxZ() {
    TEMPORARY in this form: they are constants in spirit and are written here
    as defaults, but every one of them is a "does this feel right on a real
    screen" question, so while they are being settled they live in an object
-   the tuning strip can move. Once chosen they go back to being consts with a
-   comment each saying why. */
+   were moved on a real screen before they were settled. */
 const ATLAS_TUNE_DEFAULTS = {
-  nodeFadeFrom: 18,      // px across: a place begins to replace its pictogram
-  nodeFadeTo: 34,        // px across: and has fully replaced it
+  nodeFadeFrom: 8,       // px across: a place begins to replace its pictogram
+  nodeFadeTo: 90,        // px across: and has fully replaced it
   mouthAt: 7,            // px per square before a place's mouths are ringed
   animMs: 1000,          // ms: the fall into a mouth, and the rise out of it
   peopleAt: 6,           // px per square before the inhabitants are drawn
   maxPpt: 64             // px per square: the most magnification worth having
 };
+// Settled by the maintainer on a real screen, 9 September 2026 (8, 90, 7,
+// 1000, 6, 64), and the strip that moved them is gone. They stay in one
+// object because the smoke test moves nodeFadeFrom to prove the fade.
 window.ATLAS_TUNE = Object.assign({}, ATLAS_TUNE_DEFAULTS);
 function paintAtlas() {
   const vp = document.getElementById('atlasViewport');
@@ -11505,6 +11417,19 @@ function paintAtlasDetail(ctx, node, r, vw, vh) {
   const x1 = Math.min(node.w - 1, Math.ceil((vw - r.x) / per) + 1);
   const y1 = Math.min(node.h - 1, Math.ceil((vh - r.y) / per) + 1);
   if (x1 < x0 || y1 < y0) return false;
+  // The window the cache would keep, at the art's 32 px a square. Past the
+  // cache's size there is no window, and there used to be a fallback that
+  // painted every square on screen on every frame instead -- which on a
+  // 1,200 px viewport is the world between 10 and 20 px a square, some
+  // fifteen thousand squares a frame, and the judder the maintainer felt
+  // below 20 (9 September 2026). Now the node's render is drawn scaled
+  // instead: softer for that band, and one drawImage.
+  {
+    const M = 6, TS = 32;
+    const need = (Math.min(node.w - 1, x1 + M) - Math.max(0, x0 - M) + 1) * TS *
+                 (Math.min(node.h - 1, y1 + M) - Math.max(0, y0 - M) + 1) * TS;
+    if (need > 6000000) return false;
+  }
   const src = { m: e.result.m, mapData: e.mapData, props: e.result.props,
                 allProps: e.result.allProps, backdrop: e.result.backdrop, backdropFrame: 0,
                 TS: e.result.tileSize };
@@ -11836,7 +11761,7 @@ function renderAtlasView() {
   ensureAtlasCanvas();
   setupAtlasInteraction();
   renderAtlasBar();
-  renderAtlasTune();
+  renderAtlasSettings();
   const start = () => {
     const vp = document.getElementById('atlasViewport');
     if (!vp || vp.clientWidth < 40) { setTimeout(start, 50); return; }
@@ -11850,6 +11775,33 @@ function renderAtlasView() {
 }
 
 function atlasFitAndPaint() { atlasFit(); atlasSyncZoomLabel(); paintAtlas(); }
+
+/* The World tab's two memory switches, under the zoom row. They lived on
+   the Tools sheet; the maintainer asked for them on the tab they affect
+   (9 September 2026). Full resolution is offered only where
+   fullResPossible has read a canvas back. */
+function renderAtlasSettings() {
+  const host = document.getElementById('atlasSettings');
+  if (!host) return;
+  host.innerHTML = '';
+  if (typeof fullResPossible !== 'function') return;
+  if (fullResPossible()) {
+    const b1 = document.createElement('button');
+    b1.className = 'secondary';
+    b1.textContent = window.FULL_RES ? '\u2713 Full resolution' : 'Full resolution';
+    b1.title = 'Every place drawn at the native 32 pixels a tile';
+    b1.onclick = () => { toggleFullRes(); renderAtlasSettings(); };
+    host.appendChild(b1);
+  }
+  const b2 = document.createElement('button');
+  b2.className = 'secondary';
+  const done = window.WORLD_PRELOAD_DONE || 0, tot = worldPreloadTotal();
+  b2.textContent = !window.WORLD_PRELOAD ? 'Keep every place'
+    : (done < tot ? '\u2026 loading ' + done + ' of ' + tot : '\u2713 All ' + tot + ' kept');
+  b2.title = 'Every place rendered once and kept, about 627 MB, so nothing is drawn while you move';
+  b2.onclick = () => { toggleWorldPreload(); renderAtlasSettings(); };
+  host.appendChild(b2);
+}
 
 /* The map the whole screen.
 
@@ -11892,7 +11844,7 @@ function atlasToggleFull() {
 function atlasAfterFullChange() {
   const b = document.getElementById('atlasFullBtn');
   const full = atlasIsFull();
-  if (b) b.textContent = full ? 'Leave full screen' : 'Full screen';
+  if (b) b.textContent = full ? 'Full screen off' : 'Full screen';
   const ov = document.getElementById('atlasFullOverlay');
   if (ov) ov.style.display = full ? 'flex' : 'none';
   if (full) atlasUpdateFullOverlay(window.ATLAS_DRAWN || []);
@@ -12181,6 +12133,22 @@ function atlasFallInto(m, node) {
     atlasDescend(m, node, per0 / 2);
   }, 'in');
 }
+/* Into a town from a tap: the view closes on the town's middle until it is
+   wide enough on screen for its roofs to be off (atlasRoofT: none left from
+   540 px across), or as close as the art goes, whichever is nearer. No
+   fade, since nothing is left behind; the zoom row and the slider follow. */
+function atlasZoomIntoTown(node) {
+  const vp = document.getElementById('atlasViewport');
+  if (!vp || vp.clientWidth < 40) return;
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  const z0 = atlasView.Z, x0 = atlasView.x, y0 = atlasView.y;
+  const hx = node.ox + node.w * node.s / 2, hy = node.oy + node.h * node.s / 2;
+  const want = Math.max(600, Math.min(vw, vh) * 0.95);
+  const z1 = Math.min(atlasMaxZ(), want / (node.w * node.s));
+  if (z1 <= z0 * 1.02) return;
+  atlasAnimateTo(e => atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0), Math.round(window.ATLAS_TUNE.animMs * 0.7),
+    () => { atlasSyncZoomLabel(); paintAtlas(); });
+}
 function atlasRiseOut() {
   const b = atlasBelowTop();
   const vp = document.getElementById('atlasViewport');
@@ -12254,13 +12222,26 @@ function schedulePaintAtlas() {
 
 // The slider and its label speak in "screen pixels per world square", which
 // is the only zoom number in this renderer that means anything.
+/* The slider runs from the whole world in view to the closest zoom, and it
+   is logarithmic: a step at the left end is the same factor as a step at
+   the right. It was linear in pixels a square, which made its first
+   millimetre a doubling and its last inch nothing (the maintainer, 9
+   September 2026: it jumped too fast at the beginning). With the whole
+   world its left end there is no Whole world button. */
+function atlasFitZ() {
+  const vp = document.getElementById('atlasViewport');
+  const sc = atlasScene();
+  if (!vp || !sc || vp.clientWidth < 40) return 1;
+  return Math.min(vp.clientWidth / sc.root.w, vp.clientHeight / sc.root.h);
+}
 function atlasSyncZoomLabel() {
   const lab = document.getElementById('atlasZoomLabel');
   if (lab) lab.textContent = atlasView.Z.toFixed(1) + ' px/sq';
   const sl = document.getElementById('atlasZoomSlider');
   if (sl) {
-    sl.min = 1; sl.max = Math.round(atlasMaxZ());
-    sl.value = Math.max(1, Math.min(+sl.max, Math.round(atlasView.Z)));
+    const lo = Math.max(1e-6, atlasFitZ()), hi = Math.max(lo * 1.0001, atlasMaxZ());
+    sl.min = 0; sl.max = 1000;
+    sl.value = Math.round(1000 * Math.max(0, Math.min(1, Math.log(atlasView.Z / lo) / Math.log(hi / lo))));
   }
 }
 function atlasZoomFromSlider() {
@@ -12268,7 +12249,8 @@ function atlasZoomFromSlider() {
   const vp = document.getElementById('atlasViewport');
   if (!sl || !vp) return;
   atlasGestureTouch();
-  atlasZoomAround(+sl.value, vp.clientWidth / 2, vp.clientHeight / 2);
+  const lo = Math.max(1e-6, atlasFitZ()), hi = Math.max(lo * 1.0001, atlasMaxZ());
+  atlasZoomAround(lo * Math.pow(hi / lo, (+sl.value) / 1000), vp.clientWidth / 2, vp.clientHeight / 2);
 }
 
 /* A click identifies what is under it, and offers the map panel for the rest.
@@ -12291,12 +12273,20 @@ function atlasInspect(px, py) {
     const tileId = e.result.m ? mapTileAt(e.result.m, tx, ty) : 0;
     const terrain = tileId ? (terrainNameFor(tileId) || compositeTileName(tileId)) : null;
     if (tileId) parts.push('<div class="inspCard"><b>' + svEsc(terrain || 'terrain') + '</b> ' +
-      '<span class="inspDim">tile 0x' + tileId.toString(16).toUpperCase() + '</span></div>');
+      '<span class="inspDim">tile 0x' + tileId.toString(16).toUpperCase() + '</span>' +
+      (refExists(0x8E00 + (tileId >> 4)) ? '<div class="inspActs">' + svLink('Open ' + (terrain || 'the tile') + ' in Tilesets', 'jumpToResource(' + (0x8E00 + (tileId >> 4)) + ')') + '</div>' : '') + '</div>');
     const hits = (e.result.props || []).filter(p => p.cells.some(c => c[0] === tx && c[1] === ty));
-    for (const p of hits.slice(0, 6))
-      parts.push('<div class="inspCard"><b>' +
-        svEsc(propDisplayName(p.rec.proptype) || ('prop 0x' + p.rec.proptype.toString(16))) +
-        '</b></div>');
+    for (const p of hits.slice(0, 6)) {
+      const pt = p.rec.proptype;
+      const name = propDisplayName(pt) || ('prop 0x' + pt.toString(16));
+      let says = '';
+      try { says = propTextByData1(pt, p.rec.d1) || ''; } catch (err) { says = ''; }
+      const item = (function () { try { return isInventoryItem(pt); } catch (err) { return false; } })();
+      parts.push('<div class="inspCard"><b>' + svEsc(name) + '</b>' +
+        (says ? ' <span class="inspDim">' + svEsc(says) + '</span>' : '') +
+        '<div class="inspActs">' + svLink('Open ' + name + (says ? ' “' + says + '”' : '') + ' in ' + (item ? 'Items' : 'Tilesets'),
+          (item ? 'showItemDetail(' : 'showPropTypeDetail(') + pt + ')') + '</div></div>');
+    }
     // Whoever is standing here, with their face and the way to their page.
     for (const c of atlasFolk(node).filter(c => Math.round(c.x) === tx && Math.round(c.y) === ty)) {
       const face = characterFace(c.index);
@@ -12304,16 +12294,50 @@ function atlasInspect(px, py) {
         (face && face.url ? '<img class="inspFace" src="' + face.url + '" alt="" width="64" height="64">' : '') +
         '<div><b>' + svEsc(c.name || ('Character ' + c.index)) + '</b> <span class="inspDim">' +
         svEsc(c.walking ? 'walking' : c.sitting ? 'sitting' : String(c.mode || 'here')) + '</span>' +
-        '<div class="inspActs"><button class="sv-chip" onclick="openCharacter(' + c.index + ')">Dossier</button></div></div></div>');
+        '<div class="inspActs">' + svLink('Open ' + (c.name || ('Character ' + c.index)) + ' in Characters', 'openCharacter(' + c.index + ')') + '</div></div></div>');
     }
   }
   // Everything this renderer does not do lives one click away, where it
   // already worked and still does.
-  parts.push('<div class="inspActs">' +
-    '<button class="sv-chip" onclick="jumpToResource(' + node.resid + ')">Open ' +
-    svEsc(node.name) + ' in Zones</button></div>');
+  parts.push('<div class="inspActs">' + svLink('Open ' + node.name + ' in Zones', 'jumpToResource(' + node.resid + ')') + '</div>');
   host.innerHTML = parts.join('');
   host.style.display = 'block';
+}
+
+/* What a sign says: the text a prop's Data1 picks. The sign classes' Examine
+   hands a helper `word 0x0218[0] + Data1`, a far word into the string store
+   0x0218 offset by the byte, so the sign at (105,103) on the world map
+   with Data1 16 shows the sixteenth string there. Read off the class
+   listing by that shape rather than typed per class, so any class that
+   picks a text the same way -- the plaque, a poster -- gets its line, and
+   a modded archive its own. The store is an array of drefs into itself
+   (0x82, then the offset), which dvmDataValue leaves raw, hence the small
+   reader beside it. */
+const _propTextShape = new Map();
+function propTextByData1(pt, d1) {
+  if (!_propTextShape.has(pt)) {
+    let shape = null;
+    try {
+      const e = buildScriptTextIndex().find(x => x.resid === 0x1000 + pt);
+      const m = e && /word 0x([0-9A-F]{4})\[(\d+)\]\s+arg Arg00\s+get_field data1 \(0x6\)\s+add/.exec(e.text.replace(/^\s*[0-9A-F]{4}\s+/gm, ''));
+      if (m) shape = { resid: parseInt(m[1], 16), base: parseInt(m[2], 10) };
+    } catch (err) { shape = null; }
+    _propTextShape.set(pt, shape);
+  }
+  const sh = _propTextShape.get(pt);
+  if (!sh || !d1) return '';
+  return dvmFarString(sh.resid, sh.base + d1) || '';
+}
+function dvmFarString(resid, k) {
+  let d = null;
+  try { const raw = getResourceBytes(resid); if (raw) d = smartDecrypt(raw, resid).data; } catch (err) { d = null; }
+  if (!d || d[0] !== 0x90 || k < 0 || k >= d[1]) return '';
+  const p = 2 + 4 * k;
+  if (p + 4 > d.length || d[p] !== 0x82) return '';
+  const off = u16be(d, p + 2);
+  if (off >= d.length) return '';
+  let e = off; while (e < d.length && d[e] !== 0 && d[e] < 0x80) e++;
+  return decodeMacRoman(d.subarray(off, e)).trim();
 }
 
 // Pointer handling, kept apart from the panel's so neither has to know about
@@ -12405,6 +12429,10 @@ function setupAtlasInteraction() {
         if (d <= q.rad && d < hitD) { hit = q; hitD = d; }
       }
       if (hit) { atlasGesture.active = false; atlasTakeMouth(hit.m, hit.node); return; }
+      // A town still wearing its roofs: a tap goes in until they come off,
+      // the way a ring goes into a cave, without the fall to black.
+      const town = atlasAt(p.x, p.y);
+      if (town && town.node.depth && town.r.w < 540 && !atlasBelowTop()) { atlasGesture.active = false; atlasZoomIntoTown(town.node); return; }
       atlasInspect(p.x, p.y);
       // A tap is the hover on a touch screen -- see the map panel's
       // clearPointer for the reasoning; this is the same gesture.
@@ -12457,9 +12485,9 @@ function squareCard(level, e, tx, ty, placeName, asked) {
   const seen = new Set(); const shown = props.filter(n => !seen.has(n) && seen.add(n)).slice(0, 3);
   const lines = [];
   if (c) lines.push('<span class="hvName">' + svEsc(c.name || ('Character ' + c.index)) + '</span>' +
-    '<span class="hvWhat">' + svEsc(what) + (people.length > 1 ? ' &mdash; and ' + (people.length - 1) + ' more here' : '') + '</span>');
+    '<span class="hvWhat">' + svEsc(what) + (people.length > 1 ? ', and ' + (people.length - 1) + ' more here' : '') + '</span>');
   if (shown.length) lines.push('<span class="' + (c ? 'hvWhat' : 'hvName') + '">' + svEsc(shown.join(', ')) +
-    (props.length > shown.length ? ' &mdash; and ' + (props.length - shown.length) + ' more' : '') + '</span>');
+    (props.length > shown.length ? ', and ' + (props.length - shown.length) + ' more' : '') + '</span>');
   if (asked && ground) lines.push('<span class="hvWhat">' + svEsc(ground) + '</span>');
   if (placeName) lines.push('<span class="hvWhere">' + svEsc(placeName) + ' &nbsp;·&nbsp; ' + tx + ', ' + ty + '</span>');
   return { html: '<div>' + lines.join('') + '</div>', person: c };
@@ -12869,7 +12897,7 @@ function buildScriptView(o) {
     h += '<div class="sv-block"><h4>Where this is used</h4>';
     if (ins.length) {
       h += '<div class="sv-sub">Loaded by ' + ins.length + ' resource' + (ins.length === 1 ? '' : 's') +
-           ' &mdash; tap to follow</div><div class="sv-chips">' +
+           ', tap to follow</div><div class="sv-chips">' +
            ins.slice(0, 60).map(e => svChip(e.from, e.count > 1 ? '\u00d7' + e.count : '')).join('') +
            '</div>';
       if (ins.length > 60) h += '<div class="sv-note">' + (ins.length - 60) + ' more not shown.</div>';
@@ -13091,7 +13119,7 @@ function askOneShape(shape, hit) {
       if (!hits.length) return null;
       return askCard('Who says “' + m.hit[1].trim() + '”', 'From the balloon lines in the scripts.',
         hits.slice(0, 12).map(b => askRow(b.words.filter(w => askNorm(w).includes(subject)).map(w => '“' + svEsc(w) + '”').join(', '),
-          askCharacterChip(b.who, '<span class="inspDim">anyone — </span>' + svChip(b.resid)))),
+          askCharacterChip(b.who, '<span class="inspDim">anyone, </span>' + svChip(b.resid)))),
         '<button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>');
     }
     if (m.sh.id === 'resists') {
@@ -13403,7 +13431,7 @@ const TAB_TREE = [
   // galleries but one view, the 256x256 world map with every way off it
   // live. It stands first because it is where a visit starts -- see the
   // World tab section for what it does and why it is not a gallery.
-  { id: 'world', label: 'World', tile: 0x265, values: ['WORLD'] },   // the map of Cythera, rolled (prop 378)
+  { id: 'world', label: 'World', tile: 0x267, values: ['WORLD'] },   // the map of Cythera, the second of the two map tiles (the maintainer's pick, 9 September 2026)
   // The top row's three folders open when selected: chest, crate and book
   // each have a closed and an open frame, and `tileOpen` is the second.
   { id: 'entities', label: 'Entities', tile: 0x285, tileOpen: 0x284, children: [      // the large chest
@@ -13487,14 +13515,14 @@ const PLACEHOLDER_TABS = {
     'The 68K CODE resources are in its resource fork, listed under Resource Fork.',
   AISCRIPTS: 'The Combat AI scripts ship beside the game as separate .ai text files, not inside ' +
     'the archive. What the engine runs is the compiled ' +
-    'form, subindex 3 — AI Combat Scripts, under Components › Functions › Actors.',
-  AIRULES: 'The rules those scripts are written against — the AI Scripting Document that ' +
-    'ships with them — is a text file beside the game, not inside the archive.',
+    'form, subindex 3, AI Combat Scripts, under Components › Functions › Actors.',
+  AIRULES: 'The rules those scripts are written against, the AI Scripting Document that ' +
+    'ships with them, is a text file beside the game, not inside the archive.',
 };
 
 // Added to a placeholder when the file it describes would have come with the
 // installer and the page was opened from something smaller.
-const NO_INSTALLER_HINT = ' Open the game from its installer (Cythera.bin, the Data file menu) and it is here.';
+const NO_INSTALLER_HINT = ' Open the game from its installer (Cythera.bin, under Settings) and it is here.';
 
 // The Combat AI tabs are faded until the files they show are actually in the
 // page, which is whenever the archive came in through the installer.
@@ -13578,7 +13606,7 @@ function renderTabRow(row, nodes, selectedId) {
     b.id = 'tab_' + n.id;
     b.setAttribute('role', 'tab');
     b.setAttribute('aria-selected', n.id === selectedId ? 'true' : 'false');
-    if (n.wip) b.title = 'Not yet connected to the rest — the raw view, where there is one';
+    if (n.wip) b.title = 'Not yet connected to the rest, the raw view, where there is one';
     b.appendChild(navIconCanvas({ tile: (n.id === selectedId && n.tileOpen) ? n.tileOpen : n.tile }, 18));
     const t = document.createElement('span');
     t.textContent = n.label;
@@ -13782,19 +13810,19 @@ function tileHasTransparency(t) {
    the key byte; the strings and the called routines were resolved through the
    TOC. Two
    things follow that no amount of playing would have shown: the gate is a
-   preferences bit the game itself never sets, and `option-x` is broken —
+   preferences bit the game itself never sets, and `option-x` is broken,
    it toggles a flag on character 0, which is nobody.
 
    The gate is why this page can offer the mode at all: `writeResourceFork`
    arrived in v1.18.0 and the Tools tab writes a `Cythera Preferences` file
-   with that bit set. Verified once in systemless on 5 September 2026 — the
+   with that bit set. Verified once in systemless on 5 September 2026, the
    code typed, "Cheat mode activated." printed, and option-shift-/ answering
    with the player's position in hex.
 
    Mac Roman codes; the option-letter is the US layout. `myprintf` writes to
    the status window and `mygetnum` reads a number typed there. */
 const CHEAT_KEYS = [
-  ['∆',  '$C6', 'option-j',        'Jump',            'Prints “Jump from [level,x,y]:”, asks Level, X and Y in hex, then calls TGameViewer::GoToLocation — teleport anywhere in the game.'],
+  ['∆',  '$C6', 'option-j',        'Jump',            'Prints “Jump from [level,x,y]:”, asks Level, X and Y in hex, then calls TGameViewer::GoToLocation, teleport anywhere in the game.'],
   ['Ô',  '$EF', 'option-shift-j',  'Take teleporter', 'Asks a teleporter number in decimal, then TGameSys::TeleportTo(1, n, 0).'],
   ['ß',  '$A7', 'option-s',        'Create a prop',   'Asks a prop number in hex, Data1 in decimal and Data2 in hex; NewProp makes it, the owner is set to character 1 and the inventory redraws, so the object lands in the hero’s pack. The number is the record’s word, the prop type in the low ten bits and an aspect in the five above: 0x0064 is a spear, 0x0864 the same prop type at aspect 2, wearing the picture two tiles along and named for it. Each item’s page under Entities › Items says what it wears.'],
   ['π',  '$B9', 'option-p',        'What prop is this?', 'Asks a prop index and prints its record: class and state bytes, position, Data1, Data2. Then falls through into the option-r toggle below, a missing branch in the game’s own switch.'],
@@ -13803,12 +13831,12 @@ const CHEAT_KEYS = [
   ['†',  '$A0', 'option-t',        'Pass the time',   'Passes a quarter of an hour (DoTicks(1024)) and redraws.'],
   ['< >', '',   '',                'Darken / brighten', 'DarkenLight and BrightenLight: the ambient light of the level, a step at a time.'],
   ['√',  '$C3', 'option-v',        'Magic map',       'MakeZone then MagicMap around the player, shown until the mouse button is pressed.'],
-  ['Ω',  '$BD', 'option-z',        'Show the room you are in', 'The zone bitmap, drawn over the window and offset to the player until the button is pressed. `MakeZone(x, y)` copies the wall bitmap below and flood-fills it from the player’s square, so what is left clear is the connected open area — which is what `InZone` answers and what the magic map is built on.'],
-  ['µ',  '$B5', 'option-m',        'Show the walls',   'The other bitmap, and the one the flood fill runs against: `MakeBitMap` walks every square of the level and sets a bit where the terrain tile carries attribute bits 0x004 and 0x200 together. That is exactly the 189 wall and door tiles — wall, earthen wall, limestone wall, log wall, and every door, curtain, arch and secret door — so it is the level’s static skeleton, one bit a square, rowBytes rounded up to a word.'],
+  ['Ω',  '$BD', 'option-z',        'Show the room you are in', 'The zone bitmap, drawn over the window and offset to the player until the button is pressed. `MakeZone(x, y)` copies the wall bitmap below and flood-fills it from the player’s square, so what is left clear is the connected open area, which is what `InZone` answers and what the magic map is built on.'],
+  ['µ',  '$B5', 'option-m',        'Show the walls',   'The other bitmap, and the one the flood fill runs against: `MakeBitMap` walks every square of the level and sets a bit where the terrain tile carries attribute bits 0x004 and 0x200 together. That is exactly the 189 wall and door tiles, wall, earthen wall, limestone wall, log wall, and every door, curtain, arch and secret door, so it is the level’s static skeleton, one bit a square, rowBytes rounded up to a word.'],
   ['∑',  '$B7', 'option-w',        'Walk through anything', 'Toggles the viewer byte that TGameSys::CanMove and TryMove test first, so nothing blocks.'],
-  ['˙',  '$FA', 'option-h',        'Nobody is anybody’s enemy', 'Toggles the byte `TActiveMonster::GetEnemyStatus` short-circuits on. With it set the routine answers 1 for every pair without consulting the 4×4 alignment table — and 1 is that table’s “own side”, so everyone becomes an ally. Every caller treats 0 as “enemy” — the AI’s target pickers FindNearest, FindStrongest and FindWeakest, the script’s EnemyIterator (cbEnemies), and the combat-AI vocabulary in CalculateObject, which compares 0, 1 and 2 as three categories. So it makes peace, not war: monsters stop finding targets and an “every enemy” spell finds nobody.'],
+  ['˙',  '$FA', 'option-h',        'Nobody is anybody’s enemy', 'Toggles the byte `TActiveMonster::GetEnemyStatus` short-circuits on. With it set the routine answers 1 for every pair without consulting the 4×4 alignment table, and 1 is that table’s “own side”, so everyone becomes an ally. Every caller treats 0 as “enemy”, the AI’s target pickers FindNearest, FindStrongest and FindWeakest, the script’s EnemyIterator (cbEnemies), and the combat-AI vocabulary in CalculateObject, which compares 0, 1 and 2 as three categories. So it makes peace, not war: monsters stop finding targets and an “every enemy” spell finds nobody.'],
   ['˛',  '$FE', 'option-shift-x',  'See in the dark', 'Toggles flag 18, vision of night, on the player.'],
-  ['®',  '$A8', 'option-r',        'Regenerate',      'Toggles flag 12 on the player, which AddAbility maps to status bit 4 — the six-minute regeneration Omen’s ring grants.'],
+  ['®',  '$A8', 'option-r',        'Regenerate',      'Toggles flag 12 on the player, which AddAbility maps to status bit 4, the six-minute regeneration Omen’s ring grants.'],
   ['≈',  '$C5', 'option-x',        'Swamp protection (broken)', 'Meant to toggle flag 31, swamp-poison protection. It reads byte 26 of record 0 rather than the player’s, so it toggles a flag on nobody and does nothing.'],
 ];
 // In the same routine and NOT behind the cheat flag: anyone can type these.
@@ -13822,8 +13850,8 @@ const CHEAT_OPEN_KEYS = [
 ];
 
 /* Every prop class some character record wears, named from the archive. This
-   is the trick the community did with Pandora's Box — search the running
-   game for the short 32, change it, and be a chicken — turned into a field:
+   is the trick the community did with Pandora's Box, search the running
+   game for the short 32, change it, and be a chicken, turned into a field:
    the Saved Game sheet edits `sprite class` on any record, and these are the
    numbers that mean somebody. BreadWorldMercy453's 1999 list was gathered by
    trying values; this one is read off 0xF009, so it cannot drift. */
@@ -13858,25 +13886,25 @@ function renderCheatsSheet() {
 
   let h = '<h3 class="cheatH">Cheat mode</h3>' +
     '<div class="mechLede">Cythera has one, and no shipped copy can reach it. Everything on this ' +
-    'page is read out of the application’s own <code>TMapWindow::KeyRoutine</code> — one switch over ' +
-    'the key byte — rather than collected from players, which is how two things below are known that ' +
+    'page is read out of the application’s own <code>TMapWindow::KeyRoutine</code>, one switch over ' +
+    'the key byte, rather than collected from players, which is how two things below are known that ' +
     'no amount of playing would show.</div>' +
     '<div class="partsStrip"><span class="partsTitle">In the executable</span>' + pefChip('TMapWindow::KeyRoutine') + '</div>';
 
   h += '<div class="mechSec"><h4 class="cheatH4">The gate</h4><ul class="ruleList">' +
     '<li>The map window keeps the last four key bytes in a rolling word. When that word is ' +
-    '<b>©gra</b> — option-g, then <b>g</b>, <b>r</b>, <b>a</b> on a US layout — <i>and</i> ' +
+    '<b>©gra</b> (option-g, then <b>g</b>, <b>r</b>, <b>a</b> on a US layout), <i>and</i> ' +
     '<b>bit 0 of byte 3</b> of the four-byte “UI Prefs” record is set, the cheat flag flips and the ' +
     'status window prints “Cheat mode activated.”</li>' +
     '<li><b>Nothing in the game sets that bit.</b> <code>TApPrefWindow::SaveSettings</code> writes ' +
-    'bytes 0 and 1 and no more, and all three defaults — chosen by CPU type at first run — have byte 3 ' +
+    'bytes 0 and 1 and no more, and all three defaults, chosen by CPU type at first run, have byte 3 ' +
     'clear. So on a shipped copy you can type the code for ever and nothing happens.</li>' +
     '<li>The bit has one other reader: <code>main</code> busy-waits two seconds at startup when it is set.</li>' +
     '<li>The letters of the code arm targeting modes as they go, so the tab reads ATTACK afterwards until ' +
     'you press <b>M</b>.</li></ul>' +
-    '<div class="cheatNote">This page can write the preferences file with that bit set — ' +
+    '<div class="cheatNote">This page can write the preferences file with that bit set, ' +
     actionChip('Tools › Cythera Preferences', "showCategory('TOOLS')") +
-    ' — as a MacBinary for a real Mac or a small disk image for an emulator.</div></div>';
+    ', as a MacBinary for a real Mac or a small disk image for an emulator.</div></div>';
 
   h += '<div class="mechSec"><h4 class="cheatH4">With the cheat flag on</h4>' +
     '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + rows(CHEAT_KEYS) +
@@ -13892,9 +13920,9 @@ function renderCheatsSheet() {
     h += '<div class="mechSec"><h4 class="cheatH4">Be somebody else</h4>' +
       '<div class="cheatNote">The oldest Cythera cheat is Pandora’s Box: search the running game for ' +
       'the number <b>32</b>, the hero’s sprite class, and write another one over it. ' +
-      'The Saved Game sheet does it in the file instead — the <b>sprite class</b> field on any ' +
-      'record — and these are the ' + sprites.length + ' classes somebody in the shipped ' +
-      'archive actually wears — the people out of 0xF009, the monsters out of 0xF008 — rather than ' +
+      'The Saved Game sheet does it in the file instead, the <b>sprite class</b> field on any ' +
+      'record, and these are the ' + sprites.length + ' classes somebody in the shipped ' +
+      'archive actually wears, the people out of 0xF009, the monsters out of 0xF008, rather than ' +
       'found by trying values. ' +
       actionChip('Saved Game', "showCategory('SAVEGAME')") + '</div>' +
       '<div class="cheatSprites">' + sprites.map(s =>
@@ -13914,7 +13942,7 @@ function renderCheatsSheet() {
 
   h += '<div class="mechSec"><h4 class="cheatH4">Things read from the code</h4><ul class="ruleList">' +
     '<li><b>option-x is broken.</b> It means to toggle swamp-poison protection and reads byte 26 of ' +
-    '<b>record 0</b> — nobody — so it protects no one.</li>' +
+    '<b>record 0</b>, nobody, so it protects no one.</li>' +
     '<li><b>option-p falls through</b> into option-r’s toggle, so asking what a prop is also flips ' +
     'the player’s regeneration. A missing branch in the game’s own switch.</li>' +
     '<li><b>option-h empties the enemy list.</b> ' +
@@ -13973,14 +14001,14 @@ window.SAVE_SHOW_ALL = false;   // slots that are marked but hold nobody
 function savedGameParts() {
   const out = [];
   const add = (rid, what) => { if (refExists(rid)) out.push({ rid, what }); };
-  add(0xF009, 'the character records — everybody’s position, stats and condition (SaveGlobals)');
+  add(0xF009, 'the character records, everybody’s position, stats and condition (SaveGlobals)');
   add(0xF00E, 'one 16-bit word per room, 1,024 rooms; bit 0 is set once a room has been entered and its description shown (SaveGlobals)');
   const hero = loadCharacterTable()[1];
   if (hero && hero.zone) {
     add(0x8100 | hero.zone, 'the props of the zone the player stands in, from record 256 up (SaveLevelProps)');
     add(0x8200 | hero.zone, 'that zone’s map memory: ⌈width∕8⌉ × height bytes, one bit a square (SaveLevelProps)');
   }
-  add(0xF306, 'the first 256 prop records — the characters as they stand on that zone (SaveLevelProps)');
+  add(0xF306, 'the first 256 prop records, the characters as they stand on that zone (SaveLevelProps)');
   add(0x8800, 'the player’s own portrait, written when the character was made (CreatePlayer)');
   add(0x0400, 'the live game, five tagged chunks: the quest values and flags, the active monsters with their queued activities, the spell effects in flight, the open windows, and the 256 gremlin frames (SaveToFile)');
   add(0x0401, 'the To Do list (SaveToDo)');
@@ -14057,15 +14085,15 @@ function renderSaveSheet() {
     actionChip(window.SAVE_SHOW_ALL ? 'Only the ones in use' : 'Show every marked slot',
                'toggleSaveShowAll()') + '</div>';
   h += '<div class="tableScroll"><table class="forkTable"><thead><tr>' +
-    '<th class="num">#</th><th>who</th><th>where</th><th class="num">lv</th><th class="num">xp</th>' +
+    '<th class="num">no.</th><th>who</th><th>where</th><th class="num">lv</th><th class="num">xp</th>' +
     '<th class="num">health</th><th class="num">magic</th>' +
     '<th class="num">food</th><th class="num">train</th><th></th></tr></thead><tbody>';
   for (const r of shown) {
     const i = r.index;
     h += '<tr' + (i === 1 ? ' class="saveHero"' : '') + '>' +
       '<td class="num">' + i + '</td>' +
-      '<td class="who">' + svEsc(i ? characterName(i) : 'slot 0 — not a character') + '</td>' +
-      '<td>' + svEsc(r.zone ? zoneDisplayName(r.zone) + ' (' + r.x + ', ' + r.y + ')' : '—') + '</td>' +
+      '<td class="who">' + svEsc(i ? characterName(i) : 'slot 0, not a character') + '</td>' +
+      '<td>' + svEsc(r.zone ? zoneDisplayName(r.zone) + ' (' + r.x + ', ' + r.y + ')' : 'nowhere') + '</td>' +
       '<td class="num">' + r.level + '</td><td class="num">' + r.xp + '</td>' +
       '<td class="num">' + r.health + '/' + r.healthMax + '</td>' +
       '<td class="num">' + r.magic + '/' + r.magicMax + '</td>' +
@@ -14099,7 +14127,7 @@ function toggleSaveShowAll() { window.SAVE_SHOW_ALL = !window.SAVE_SHOW_ALL; ren
 const SAVE_FIELDS = [
   ['zone', 'zone', 10, 0xFF, 'the low byte of the map’s resource id'],
   ['x', 'x', 10, 0xFFF, ''], ['y', 'y', 10, 0xFFF, ''],
-  ['proptype', 'sprite class', 10, 0x3FF, 'which prop class draws them — 32 is the hero, 33 the heroine'],
+  ['proptype', 'sprite class', 10, 0x3FF, 'which prop class draws them, 32 is the hero, 33 the heroine'],
   ['aspect', 'aspect', 10, 0x3F, 'the frame within that class'],
   ['body', 'body', 10, 0xFF, ''], ['reflex', 'reflex', 10, 0xFF, ''], ['mind', 'mind', 10, 0xFF, ''],
   ['level', 'level', 10, 0xFF, ''], ['xp', 'experience', 10, 0xFFFF, 'the engine caps it at 65,535'],
@@ -14146,7 +14174,7 @@ function applyCharEditForm(index) {
     if (!el) return;
     const v = parseInt(el.value, base);
     if (!Number.isInteger(v) || v < 0 || v > max) {
-      setStatus('Bad value for ' + label + ' — nothing changed.', true); return;
+      setStatus('Bad value for ' + label + ', nothing changed.', true); return;
     }
     fields[key] = v;
   }
@@ -14360,13 +14388,13 @@ function renderInstallerSheet() {
     row.className = 'sv-chips installerVersions';
     const label = document.createElement('span');
     label.className = 'amNote';
-    label.textContent = 'This file holds ' + inst.installers.length + ' releases — the open one is marked:';
+    label.textContent = 'This file holds ' + inst.installers.length + ' releases, the open one is marked:';
     row.appendChild(label);
     for (const it of inst.installers) {
       const b = document.createElement('button');
       b.className = 'navChip' + (it.name === inst.picked ? ' active' : '');
       b.textContent = it.name.replace(/ Installer$/, '');
-      b.title = it.path + ' — ' + fmtBytes(it.dataLen);
+      b.title = it.path + ', ' + fmtBytes(it.dataLen);
       b.onclick = () => switchInstaller(it.name);
       row.appendChild(b);
     }
@@ -14385,8 +14413,8 @@ function renderInstallerSheet() {
     const tr = document.createElement('tr');
     const isArchive = e === inst.entry;
     const isApp = e.type === 'APPL' && e.creator === 'Delv';
-    const role = isArchive ? ' <span class="amNote">— the archive this page is showing</span>'
-               : isApp ? ' <span class="amNote">— its resource fork is Cythera (App) › Resource Fork</span>' : '';
+    const role = isArchive ? ' <span class="amNote">, the archive this page is showing</span>'
+               : isApp ? ' <span class="amNote">, its resource fork is Cythera (App) › Resource Fork</span>' : '';
     const acts = [];
     if (installerIsText(e)) acts.push('<button class="navChip" onclick="showInstallerText(' + e.index + ')">Read</button>');
     acts.push('<button class="navChip" onclick="downloadInstallerFile(' + e.index + ')">.bin</button>');
@@ -14396,8 +14424,8 @@ function renderInstallerSheet() {
     tr.innerHTML = '<td class="icon">' + (ic ? '<img src="' + ic.toDataURL('image/png') + '" alt="" width="32" height="32">' : '') + '</td>' +
       '<td>' + svEsc(e.path).replace(/\r/g, '¬') + role + '</td>' +
       '<td class="num">' + svEsc(e.type.replace(/\0/g, '·')) + '</td><td class="num">' + svEsc(e.creator.replace(/\0/g, '·')) + '</td>' +
-      '<td class="num">' + (e.dataLen ? fmtBytes(e.dataLen) : '—') + '</td>' +
-      '<td class="num">' + (e.rsrcLen ? fmtBytes(e.rsrcLen) : '—') + '</td>' +
+      '<td class="num">' + (e.dataLen ? fmtBytes(e.dataLen) : '') + '</td>' +
+      '<td class="num">' + (e.rsrcLen ? fmtBytes(e.rsrcLen) : '') + '</td>' +
       '<td>' + acts.join(' ') + '</td>';
     tbody.appendChild(tr);
   }
@@ -14408,11 +14436,11 @@ function renderInstallerSheet() {
   grid.appendChild(scroll);
   const c = inst.container;
   out.textContent = (c && c.name ? '“' + c.name + '”' : inst.sourceName) +
-    (c && c.name && c.name !== inst.sourceName ? ' from ' + inst.sourceName : '') + ' — ' + arc.versionName +
+    (c && c.name && c.name !== inst.sourceName ? ' from ' + inst.sourceName : '') + ', ' + arc.versionName +
     ', ' + arc.entries.length + ' files in ' + arc.dirs.length + ' folders, ' + fmtBytes(total) +
     ' once unpacked' + (c ? ', from a ' + c.kind + ' file (' + fmtBytes(arc.bytes.length) + ' of it the archive)' : '') +
     '. A .bin here is the file itself with both forks, the form to hand a real Mac' +
-    (inst.crcOk ? '' : '. The installer’s own checksum for the archive did NOT match — treat the data with suspicion') + '.';
+    (inst.crcOk ? '' : '. The installer’s own checksum for the archive did NOT match, treat the data with suspicion') + '.';
 }
 
 /* ---- Data > Combat AI > Scripts / Rules ----------------------------------
@@ -14446,9 +14474,9 @@ function renderCombatAISheet(which) {
     const box = document.createElement('div');
     box.style.cssText = 'grid-column:1/-1';
     box.innerHTML = '<div class="propHead">The vocabulary, from the application’s resource fork' +
-      (rows.length ? '' : (app ? ' — none of the lists is in this fork' :
-        (window.APP_RSRC_STATE === 'loading' ? ' — loading the application…' :
-         ' — ' + (window.APP_RSRC_STATE || 'the application’s fork is not loaded')))) + '</div>' +
+      (rows.length ? '' : (app ? ', none of the lists is in this fork' :
+        (window.APP_RSRC_STATE === 'loading' ? ', loading the application…' :
+         ', ' + (window.APP_RSRC_STATE || 'the application’s fork is not loaded')))) + '</div>' +
       (rows.length ? '<div class="tableScroll"><table class="vocabTable">' + rows.join('') + '</table></div>' : '');
     grid.appendChild(box);
   }
@@ -14504,8 +14532,8 @@ function renderChangesSheet() {
     p.className = 'changesNote';
     p.style.margin = '0';
     p.textContent = 'Open any resource, in any tab, and press Edit bytes; on a map, the ' +
-      'inspector’s Edit chip changes one prop record. Edits live in memory only — ' +
-      'a reload restores the file — and this tab is where they leave the page.';
+      'inspector’s Edit chip changes one prop record. Edits live in memory only, ' +
+      'a reload restores the file, and this tab is where they leave the page.';
     box.appendChild(head);
     box.appendChild(p);
     grid.appendChild(box);
@@ -14542,14 +14570,14 @@ function renderChangesSheet() {
   const groups = [
     { title: 'to an emulator', routes: [
         { label: 'Download the disk image', fn: () => downloadEditedDiskImage(),
-          note: '.dsk — mounts in an emulated Mac and carries its own installer; infinitemac.org takes it by drag and drop' },
+          note: '.dsk, mounts in an emulated Mac and carries its own installer; infinitemac.org takes it by drag and drop' },
         { label: 'Download the zip', fn: () => downloadEditedForkZip(),
-          note: '.zip — both forks in the layout Basilisk II and infinitemac.org unpack, about half the size of the disk' } ] },
+          note: '.zip, both forks in the layout Basilisk II and infinitemac.org unpack, about half the size of the disk' } ] },
     { title: 'to a real Mac, or another tool', routes: [
         { label: 'Download as MacBinary', fn: () => downloadEditedMacBinary(),
-          note: '.bin — both forks under the file’s own Finder identity; the emulator would need StuffIt Expander for it' },
+          note: '.bin, both forks under the file’s own Finder identity; the emulator would need StuffIt Expander for it' },
         { label: 'Download the data fork', fn: () => downloadEditedArchive(),
-          note: '.data — bare; delvmod and this page read it, the game needs the fork beside it' } ] }
+          note: '.data, bare; delvmod and this page read it, the game needs the fork beside it' } ] }
   ];
   for (const g of groups) {
     const sec = document.createElement('div');
@@ -15040,7 +15068,7 @@ function renderBarksSheet() {
   const rows = [];
   for (const b of shown) {
     const who = b.who !== null && loadCharacterTable()[b.who] ? characterChip(b.who)
-      : '<span class="inspDim">anyone — </span>' + svChip(b.resid);
+      : '<span class="inspDim">anyone, </span>' + svChip(b.resid);
     const words = b.words.map(w => '“' + svEsc(w) + '”').join(', ');
     rows.push('<tr><td>' + who + '</td><td>' + (b.how === 'one of' ? '<span class="inspDim">one of</span> ' : '') + words +
       (b.then && b.then.length ? '<div class="inspDim">then, when the ' + b.helper + ' comes: ' + b.then.map(w => '“' + svEsc(w) + '”').join(', ') + '</div>' : '') +
@@ -15955,7 +15983,7 @@ function combatSimHtml(p, words) {
   // notices before the author does.
   const blows = x.words.filter(w => w.p > 0.0005).map((w, i) => ({
     label: w.word, value: 100 * w.p, text: (100 * w.p).toFixed(1) + '%',
-    colour: MECH_SERIES[i % MECH_SERIES.length], title: w.word + (w.below ? ' — under ' + w.below + ' points' : ' — 35 points or more')
+    colour: MECH_SERIES[i % MECH_SERIES.length], title: w.word + (w.below ? ', under ' + w.below + ' points' : ', 35 points or more')
   }));
   return mechFig('One exchange: ' + p.weapon.name + (p.shield ? ' against a ' + p.shield.name : ', unshielded'),
     mechStackBar([
@@ -16013,7 +16041,7 @@ function mechGearFigure(gear) {
   const skills = [...new Set(gear.map(g => g.skill).filter(Boolean))];
   skills.forEach((s, i) => { hue[s] = MECH_SERIES[i % MECH_SERIES.length]; });
   const arms = gear.filter(g => g.damage).sort((a, b) => b.damage - a.damage)
-    .map(g => ({ label: g.name, value: g.damage, colour: hue[g.skill] || MECH_INK.dim, text: String(g.damage), title: g.name + ' — ' + (g.skill || 'no skill') }));
+    .map(g => ({ label: g.name, value: g.damage, colour: hue[g.skill] || MECH_INK.dim, text: String(g.damage), title: g.name + ', ' + (g.skill || 'no skill') }));
   const armour = gear.filter(g => g.protection).sort((a, b) => b.protection - a.protection)
     .map(g => ({ label: g.name, value: g.protection, colour: MECH_INK.cool, text: String(g.protection) }));
   const shields = gear.filter(g => g.block).sort((a, b) => b.block - a.block)
@@ -16052,7 +16080,7 @@ function mechSpellFigures(sp) {
     y: { min: 0, max: maxCost * 1.1, ticks: [{ v: maxCost, label: String(maxCost) }, { v: Math.round(maxCost / 2), label: String(Math.round(maxCost / 2)) }, { v: 0, label: '0' }] },
     series: [],
     marks: cost.map(c => ({ x: c.x, y: c.y, dot: true, colour: 'rgba(107,168,191,.85)' }))
-  }), '<b>' + sp.spells.length + '</b> spells. The cost rises with the level but not by any rule the scripts state — each spell names its own.');
+  }), '<b>' + sp.spells.length + '</b> spells. The cost rises with the level but not by any rule the scripts state, each spell names its own.');
 }
 
 // The levels double, so the only honest axis is a logarithmic one, and drawn
@@ -16145,7 +16173,7 @@ function mechHungerFigure() {
       { points: pt(ring), colour: MECH_INK.cool, name: 'health, with Omen’s ring' }
     ],
     marks: [{ x: 100, y: 8, label: 'the belly is empty', colour: MECH_INK.warm }]
-  }), 'Health rises <b>four</b> times an hour at this level and stops dead when nutrition reaches zero; the ring’s <b>ten</b> an hour does not care. Starving costs nothing but the healing — the engine takes no health for it.');
+  }), 'Health rises <b>four</b> times an hour at this level and stops dead when nutrition reaches zero; the ring’s <b>ten</b> an hour does not care. Starving costs nothing but the healing, the engine takes no health for it.');
 }
 
 // The staircase. A lock's difficulty is divided by twenty before it is used,
@@ -16256,7 +16284,7 @@ function mechSleepFigure(sl) {
   if (rows.length < 2) return '';
   const bars = rows.map(r => ({
     label: r.name, value: mechBedRate(level, r.quality), colour: r.quality >= 4 ? MECH_INK.gold : r.quality ? MECH_INK.cool : MECH_INK.dim,
-    text: mechBedRate(level, r.quality) + ' /h', title: r.name + ' — quality ' + r.quality
+    text: mechBedRate(level, r.quality) + ' /h', title: r.name + ', quality ' + r.quality
   }));
   const withRing = rows.map(r => ({
     label: r.name, value: mechBedRate(level, r.quality, { regenerating: true }), colour: MECH_INK.violet,
@@ -16266,7 +16294,7 @@ function mechSleepFigure(sl) {
     mechBars(bars, { max: Math.max.apply(null, withRing.map(w => w.value)) }) +
     '<div class="mechSub">and the same with Omen’s ring</div>' +
     mechBars(withRing, { max: Math.max.apply(null, withRing.map(w => w.value)) }),
-    'The engine heals four an hour at this level and the bed multiplies it by <b>1 + quality/2</b>. A player measured <b>12</b>, <b>10</b>, <b>42</b>, <b>30</b> and <b>35</b> an hour in these beds in March 2012 and every one of them is on this chart — which is as close to an experiment as this sheet gets.');
+    'The engine heals four an hour at this level and the bed multiplies it by <b>1 + quality/2</b>. A player measured <b>12</b>, <b>10</b>, <b>42</b>, <b>30</b> and <b>35</b> an hour in these beds in March 2012 and every one of them is on this chart, which is as close to an experiment as this sheet gets.');
 }
 
 // The clock, on one line and logarithmic, because the numbers it deals in
@@ -16383,7 +16411,7 @@ function renderMechanicsSheet() {
       'The margin is the attacker’s <b>reflex</b>' + (cb.d30 ? ' <b>plus a roll of 0 to 29</b>' : '') + ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')') +
         ', <b>less the defender’s reflex' + (cb.d30 ? ' plus a roll of 0 to 29' : '') + '</b>, plus Attack less Defence. A monster flagged so uses body for reflex.',
       'The weapon’s enchantment and skill go on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
-        (cb.parry ? 'what is left is offered to the shields — each shielding thing the defender wears rolls <b>0 to its block plus the Shield skill</b>, the rolls are added up, and a margin under the total is <b>parried</b>' : 'what is left lands') +
+        (cb.parry ? 'what is left is offered to the shields: each shielding thing the defender wears rolls <b>0 to its block plus the Shield skill</b>, the rolls are added up, and a margin under the total is <b>parried</b>' : 'what is left lands') +
         '. A blow that would have missed is never parried.',
       'A hit does <b>1 plus a roll of 0 to the damage figure, plus the enchantment</b>, so one to the figure rather than nothing to it, with the skill widening the figure before the roll. The defender’s resistance takes the damage type afterwards, so the word the game prints can be bigger than what is felt.',
       cb.words.length ? 'The blow is named by its size: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + w.below).join(', ') + ', and <i>shredded to pieces</i> above.' : ''
@@ -16456,10 +16484,10 @@ function renderMechanicsSheet() {
     sp.spells.length ? [
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
       sp.rule && sp.rule.timing ? 'The cost is taken, and the cast costs <b>10 plus twice the level</b> in time.' : 'The cost is taken.',
-      sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls under the caster’s Casting figure together fall short of a roll under the level</b>' + (sp.rule.casting ? ' — Casting the skill, else a class figure' : '') + '. Both are <i>Random</i> calls and so stop one short, which means a <b>level 1 spell can never fail</b>.' : '',
+      sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls under the caster’s Casting figure together fall short of a roll under the level</b>' + (sp.rule.casting ? ' (Casting the skill, else a class figure)' : '') + '. Both are <i>Random</i> calls and so stop one short, which means a <b>level 1 spell can never fail</b>.' : '',
       'Damage goes through the same helper as a blow: the victim’s resistance takes the type first, and the caster earns experience by the usual rule.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn to a radius of five and the script walks everyone inside it, but the damage call runs for the one on the target square alone; the spell’s own description says it engulfs all within.' : '',
-      (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => PROP_TYPE_NAMES[r.proptype] || ('class ' + r.proptype)); } catch (e) {} return ms.length ? 'Damage without the magic bit — fire, electric, blunt, edged — is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
+      (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => PROP_TYPE_NAMES[r.proptype] || ('class ' + r.proptype)); } catch (e) {} return ms.length ? 'Damage without the magic bit, fire, electric, blunt, edged, is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
       'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the executable’s enemy iterator). Tremor shakes the screen and hurts enemies you cannot see.',
       'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune, or the map.'
     ].filter(Boolean) : [],
@@ -16480,7 +16508,7 @@ function renderMechanicsSheet() {
     xp.rule ? 'Every award goes through one helper, and a level is a threshold on the total.' : 'The experience helper (0xE8B) is not in this archive.',
     xp.rule ? [
       'Experience is added' + (xp.rule.cap ? ', <b>capped at 65,535</b>' : '') + (xp.rule.doubling ? ', and the level rises by one when it passes <b>100 × 2 to the power of the level less one</b>: above 100 for level 2, 200 for 3, 400 for 4, 800, 1,600, doubling.' : '.'),
-      'A new level recomputes full health as <b>body + reflex ÷ 2 + level, plus Defence × 5 × reflex ÷ 15</b>, taking Defence as the skill where the character has it and a class figure — with health scaled to match, and full magic as <b>mind + Mana</b> the same way.',
+      'A new level recomputes full health as <b>body + reflex ÷ 2 + level, plus Defence × 5 × reflex ÷ 15</b>, taking Defence as the skill where the character has it and a class figure, with health scaled to match, and full magic as <b>mind + Mana</b> the same way.',
       'Striking something earns the attacker the damage dealt, up to the victim’s level above theirs plus one, and one point for a blow bigger than the gap the other way.',
       'A shared award is split across the party.'
     ] : [],
@@ -16506,7 +16534,7 @@ function renderMechanicsSheet() {
   add('food', 'Food and potions', { tile: 0x3DA }, src('the potion', 0x101F),
     fd.potions.length || fd.foods.length ? 'A potion’s colour is its aspect, and the aspect picks one of eight effect scripts; a food adds to nutrition when used.' : 'No potion class or food in this archive.',
     [],
-    (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + svEsc(p.does.join('; ') || '—') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : '') +
+    (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + svEsc(p.does.join('; ') || '') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : '') +
     (fd.foods.length ? '<div class="mechSub">Foods</div>' + table(['food', 'variant', '#nutrition'], fd.foods.flatMap(f => f.variants
       ? f.variants.map(v => '<tr><td>' + propChip(f.pt, f.name) + '</td><td>' + svEsc(v.name || ('variant ' + v.aspect)) + '</td>' + num('+' + v.plus) + '</tr>')
       : ['<tr><td>' + propChip(f.pt, f.name) + '</td><td></td>' + num(f.plus !== null ? '+' + f.plus : 'an amount the script works out') + '</tr>'])) : '') +
@@ -16687,7 +16715,7 @@ function renderAppPefSheet() {
   let h = '<div class="changesHead">The application’s data fork: a PEF container, ' + svEsc(pef.arch === 'pwpc' ? 'PowerPC' : pef.arch) + '</div>';
   h += '<p class="mechLede">' + pef.sections.length + ' sections' + (ld ? ', entry in section ' + ld.mainSection + ' at ' + hex(ld.mainOffset) + ', ' + ld.libraries.length + ' libraries imported for ' + ld.symbols.length + ' symbols, ' + ld.exports.length + ' exported' : '') +
     (pef.routines.length ? ', and ' + pef.routines.length.toLocaleString() + ' routines named in the code section’s traceback tables.' : '.') + '</p>';
-  h += '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>#</th><th>section</th><th class="num">unpacked</th><th class="num">packed</th><th class="num">at</th></tr></thead><tbody>' +
+  h += '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>no.</th><th>section</th><th class="num">unpacked</th><th class="num">packed</th><th class="num">at</th></tr></thead><tbody>' +
     pef.sections.map(x => '<tr>' + num(x.index) + '<td>' + svEsc(x.kindName) + (x.name ? ' ' + svEsc(x.name) : '') + '</td>' + num(x.unpackedSize.toLocaleString()) + num(x.packedSize.toLocaleString()) + num(hex(x.containerOffset)) + '</tr>').join('') + '</tbody></table></div>';
   if (ld) {
     h += '<div class="mechSub">Imported libraries</div>';
@@ -16734,77 +16762,7 @@ function renderToolsSheet() {
     box.appendChild(d);
     return d;
   };
-  /* The World tab's two memory switches. They lived on a strip over the map
-     until the map took the whole sheet, and this is where the page's own
-     switches live -- the undither one has been here for the same reason. */
-  if (typeof fullResPossible === 'function') {
-    const w = sec('The world map', 'Every place drawn at the native 32 pixels a tile, and every '
-      + 'one of them kept, so that nothing is rendered or re-rendered while you are moving. '
-      + 'About 627 MB of pictures; nothing is downloaded for it, since every map is drawn from '
-      + 'the archive already in memory. On by default where the machine looks able.');
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px';
-    if (fullResPossible()) {
-      const b1 = document.createElement('button');
-      b1.className = 'secondary';
-      b1.textContent = window.FULL_RES ? '\u2713 Full resolution \u2014 turn off' : 'Full resolution';
-      b1.onclick = () => { toggleFullRes(); renderToolsSheet(); };
-      row.appendChild(b1);
-    }
-    const b2 = document.createElement('button');
-    b2.className = 'secondary';
-    const done = window.WORLD_PRELOAD_DONE || 0, tot = worldPreloadTotal();
-    b2.textContent = !window.WORLD_PRELOAD ? 'Keep every place'
-      : (done < tot ? '\u2026 loading ' + done + ' of ' + tot
-                    : '\u2713 All ' + tot + ' kept \u2014 free them');
-    b2.onclick = () => { toggleWorldPreload(); renderToolsSheet(); };
-    row.appendChild(b2);
-    w.appendChild(row);
-  }
-
-  const u = sec('Every image', 'Cythera’s art is dithered for a 256-colour screen. Undithering ' +
-    'reconstructs continuous tone from the checkerboards; it is slower, and it is a reading of ' +
-    'the pixels rather than the pixels. Any gallery can preview the other way for a moment.');
-  const lab = document.createElement('label');
-  lab.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:6px;cursor:pointer';
-  const master = document.createElement('input');
-  master.type = 'checkbox'; master.id = 'unditherMaster';
-  master.style.cssText = 'width:auto;min-height:0;margin:0';
-  master.checked = !!window.UNDITHER;
-  master.onchange = () => setUndither(master.checked);
-  lab.appendChild(master);
-  lab.appendChild(document.createTextNode(' Undither every image'));
-  u.appendChild(lab);
-
-  /* Two sets of settings, because the two ways of judging them disagree.
-
-     The first was tuned by eye and by a cleaning-versus-detail-loss ratio over
-     six portraits. The second was scored against a known original --
-     utilities/undither_check.mjs dithers an image with this page's own
-     ditherizer and asks the filter to get it back -- where the first comes
-     34th of 36 combinations and the second comes 1st.
-     Neither settles it. The ground truth is recovery from THIS dither and
-     Ambrosia's artwork was made by another; and the portraits the first was
-     tuned on are the class with the least dither in them. So the page offers
-     both and the reader decides on the art itself. */
-  const pu = sec('Which undither',
-    'Two sets of settings. “As tuned by eye” is the original, judged on how much dither came ' +
-    'out against how much sharpness went with it, over six portraits. “Measured” was scored ' +
-    'against a known original — an image put through this page’s own ditherizer and asked for ' +
-    'back — where it recovers about a tenth more of it, at three per cent more error along ' +
-    'edges. The larger, more heavily dithered pictures are where they differ most: the misc ' +
-    'graphics carry dither on 17.9% of their pixels, the portraits on 3.4%.');
-  const prow = document.createElement('div');
-  prow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px';
-  for (const [id, label] of [['original', 'As tuned by eye'], ['measured', 'Measured']]) {
-    const b = document.createElement('button');
-    b.className = 'secondary';
-    b.textContent = (unditherPreset() === id ? '\u2713 ' : '') + label;
-    b.onclick = () => { setUnditherPreset(id); renderToolsSheet(); };
-    prow.appendChild(b);
-  }
-  pu.appendChild(prow);
-  const d = sec('Ditherizer', 'Any image in, Cythera-palette checkerboard art out — the undither run ' +
+  const d = sec('Ditherizer', 'Any image in, Cythera-palette checkerboard art out, the undither run ' +
     'backwards. It lives on the Portraits gallery because that is where a result can be written ' +
     'straight into a portrait resource.');
   const db = document.createElement('button');
@@ -16821,8 +16779,8 @@ function renderToolsSheet() {
   const pf = sec('Cythera’s preferences file',
     'Two bits in ‘Pref’ 130 “UI Prefs”, which lives in the System Folder’s Preferences folder. ' +
     'Smoother movement is in the shipped game and turned off by the default the game picks for a ' +
-    '68040; the other bit is the gate on the cheat keys — option-j to jump anywhere, option-s to ' +
-    'conjure any object, option-w to walk through walls — which nothing in the game ever sets, so a ' +
+    '68040; the other bit is the gate on the cheat keys, option-j to jump anywhere, option-s to ' +
+    'conjure any object, option-w to walk through walls, which nothing in the game ever sets, so a ' +
     'shipped copy cannot enter cheat mode however long you type ©gra at it.');
   const prefsRow = document.createElement('div');
   prefsRow.style.cssText = 'display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin:8px 0 6px';
@@ -16847,10 +16805,8 @@ function renderToolsSheet() {
   const pnote = document.createElement('div');
   pnote.className = 'changesNote';
   pnote.style.cssText = 'margin-left:0;margin-top:8px';
-  pnote.innerHTML = '<b>Untested.</b> A stored record of ' +
-    '<code>18800001</code> was watched to print “Cheat mode activated.”, and the movement bit was ' +
-    'measured frame by frame, but a preferences file <i>this page wrote</i> has never been put in ' +
-    'front of the game. It replaces any settings already stored. If you try it, say whether it worked.';
+  pnote.innerHTML = 'Tested in the game: a file this page wrote was read, and cheat mode activated. ' +
+    'It replaces any settings already stored.';
   pf.appendChild(pnote);
 
   const pages = sec('The other pages', '');
@@ -17385,7 +17341,7 @@ function showMonsterDetail(idx) {
                     '   unknown2=0x' + r.unknown2.toString(16).toUpperCase().padStart(8, '0');
   panel.appendChild(raw);
   grid.appendChild(panel);
-  document.getElementById('output').textContent = nm + ' \u2014 record ' + r.index + ' of 0xF008';
+  document.getElementById('output').textContent = nm + ', record ' + r.index + ' of 0xF008';
 }
 
 // --- Record-width inspector ------------------------------------------------
@@ -17733,7 +17689,7 @@ function convBadgeFor(a) {
   let label = M[a.sys] !== undefined ? M[a.sys] : a.sys;
   if (!label) return null;
   if (a.note && (a.sys === 'Create' || a.sys === 'New'))
-    label = 'gives: ' + a.note.replace(/^.*proptype \d+ (— )?/, '').replace(/^proptype — /, '');
+    label = 'gives: ' + a.note.replace(/^.*proptype \d+ (, )?/, '').replace(/^proptype, /, '');
   return label;
 }
 
@@ -17771,7 +17727,7 @@ function renderConversationPane(data, subn, resid) {
   let head = '';
   if (subn === 8) {
     const nm = DIALOGUE_GROUP_NAMES[resid];
-    head = nm ? 'Generic <b>' + svEsc(nm) + '</b> prompts — shared by everyone who inherits them'
+    head = nm ? 'Generic <b>' + svEsc(nm) + '</b> prompts, shared by everyone who inherits them'
               : 'Generic prompts';
   } else {
     const chain = conv.groups.map(g =>
@@ -17974,7 +17930,7 @@ function applyResourceEdit(resid, newData) {
   window.EDITED_RESIDS = dirty;
   refreshChangesBadge();
   setStatus('Rebuilt the archive with 0x' + resid.toString(16).toUpperCase() +
-    (newData.length ? ' edited' : ' removed') + ' — ' + dirty.size +
+    (newData.length ? ' edited' : ' removed') + ', ' + dirty.size +
     ' resource(s) changed this session. Edits live in memory only: ' +
     'Data › Cythera Data › Changes is where they leave the page.');
   return true;
@@ -18035,7 +17991,7 @@ function applyPropEditForm(propResid, index) {
     storeref: num('storeref', 16, 0xFFFF)
   };
   for (const [k, v] of Object.entries(fields)) {
-    if (v === null) { setStatus('Bad value for ' + k + ' — nothing changed.', true); return; }
+    if (v === null) { setStatus('Bad value for ' + k + ', nothing changed.', true); return; }
   }
   applyPropRecordEdit(propResid, index, fields);
 }
@@ -18128,7 +18084,7 @@ const ZIP_FOLDER_NAME = 'Cythera Patch';
 function missingForkWarning(rsrc) {
   if (rsrc && rsrc.length) return null;
   return 'This archive was loaded without its resource fork, so the disk cannot ' +
-         'run in the game — Cythera refuses it with “Unable to open RT”. Open the ' +
+         'run in the game: Cythera refuses it with “Unable to open RT”. Open the ' +
          '.hqx (or a MacBinary copy) instead of a bare data fork, and export again.';
 }
 
@@ -18216,7 +18172,7 @@ function prefsInstallScript(opts) {
     '-- Move the old one aside first if you care about them.',
     '--',
     '-- Smoother movement: ' + (o.smooth ? 'ON' : 'off') +
-      '. Cheat keys allowed: ' + (o.cheats ? 'ON — type ©gra in the map window' : 'off') + '.',
+      '. Cheat keys allowed: ' + (o.cheats ? 'ON: type ©gra in the map window' : 'off') + '.',
     '--',
     'tell application "Finder"',
     '\tset src to file "' + PREFS_FILE_NAME + '" of disk "' + PREFS_VOLUME_NAME + '"',
@@ -18509,7 +18465,7 @@ async function downloadEditedForkZip() {
     setStatus('Wrote a ' + size + ' zip, but ' + built.forkWarning, true);
     return;
   }
-  setStatus('Wrote a ' + size + ' zip \u2014 both forks, and less than half the size of the disk ' +
+  setStatus('Wrote a ' + size + ' zip, both forks, and less than half the size of the disk ' +
     'image. Emulators that unpack the Basilisk II layout, infinitemac.org among them, take it as an upload.');
 }
 
@@ -18521,7 +18477,7 @@ function downloadEditedDiskImage() {
     setStatus('Wrote a ' + fmtBytes(built.image.length) + ' disk image, but ' + built.forkWarning, true);
     return;
   }
-  setStatus('Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac \u2014 ' +
+  setStatus('Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac, ' +
     'it mounts as \u201c' + DISK_VOLUME_NAME + '\u201d and carries an Install and Play script that replaces the ' +
     'archive in the game\u2019s folder and starts Cythera.');
 }
@@ -18838,7 +18794,7 @@ function renderArtUsage(resid) {
   const u = buildTileSheetUsage()[resid];
   if (!u || (!u.maps.length && !u.props.length && !u.composites.length))
     return '<span class="inspDim">Nothing in the archive draws from this sheet ' +
-           '&mdash; it may be unused, or used by code rather than by data.</span>';
+           ', it may be unused, or used by code rather than by data.</span>';
   const rows = [];
   if (u.maps.length) rows.push('<dt>Maps</dt><dd>' + usageChips(u.maps,
     r => svChip(r), 24) + '</dd>');
@@ -18904,7 +18860,6 @@ function renderImage() {
     document.getElementById('zoomControls').style.display = 'block';
     document.getElementById('resourceNav').style.display = 'flex';
     document.getElementById('backToSheet').style.display = 'block';
-    document.getElementById('unditherBtn').style.display = UNDITHER_SUBN.has(subn) ? '' : 'none';
     refreshUnditherControls();
     drawToCanvas(canvas, W, H, image, transparentIndexFor(subn));
     if (subn === 141) drawSheetGridlines(canvas, W, H, window.SHEET_SHAPE || 'grid');
@@ -19298,6 +19253,13 @@ function attachMapThumb(canvas, resid) {
 // Paint resource 0x8F00 to an offscreen canvas and hand the result to CSS as
 // a data: URL. The wallpaper then comes from the same file as everything else
 // on screen rather than from a copy checked into the repo.
+// The planks move at half the page's speed: the texture's position is set
+// from the scroll, and the gradient over it stays put.
+function installParallax() {
+  let queued = false;
+  const put = () => { queued = false; document.body.style.backgroundPosition = '0 0, 0 ' + Math.round(-window.scrollY * 0.5) + 'px'; };
+  window.addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(put); } }, { passive: true });
+}
 function installBackgroundTexture() {
   try {
     const r = decodeResource(getResourceBytes(0x8F00), 142);
@@ -19364,7 +19326,7 @@ async function exportGallery() {
                   (!CANONICAL_SIZE[subn] && !HAS_HEADER[subn] && !UNCOMPRESSED[subn] && !SOUND_CATEGORIES.has(subn)));
   const folder = safeFileName((CATEGORY_NAMES[subn] || ('subindex ' + subn))) + '/';
   const files = [];
-  const index = ['Cythera Data — ' + (CATEGORY_NAMES[subn] || ('subindex ' + subn)),
+  const index = ['Cythera Data, ' + (CATEGORY_NAMES[subn] || ('subindex ' + subn)),
                  'subindex ' + subn + ', ' + resids.length + ' resources', ''];
   let failed = 0;
 
@@ -19401,7 +19363,7 @@ async function exportGallery() {
       }
     } catch (err) {
       files.push({ name: stem + '.bin', bytes: raw });
-      wrote.push('raw only — ' + err.message);
+      wrote.push('raw only, ' + err.message);
       failed++;
     }
     index.push(hex + '  ' + (lbl || '(no label)') + '  ' + rlen + ' bytes  [' + wrote.join(', ') + ']');
@@ -19572,7 +19534,7 @@ function showSpriteZoom(tileId, label) {
     'repeating-conic-gradient(#2a2a2a 0% 25%, #1c1c1c 0% 50%) 0 0/16px 16px;cursor:default';
   const cap = document.createElement('div');
   cap.style.cssText = 'color:#e8dcb8;font-size:0.875rem';
-  cap.innerHTML = (label ? svEsc(label) + ' — ' : '') + 'tile 0x' + tileId.toString(16).toUpperCase();
+  cap.innerHTML = (label ? svEsc(label) + ', ' : '') + 'tile 0x' + tileId.toString(16).toUpperCase();
   const dl = document.createElement('button');
   dl.className = 'secondary';
   dl.textContent = 'Download PNG';
@@ -19615,7 +19577,7 @@ function editStringAt(resid, approxOffset) {
   if (!raw) return;
   const data = smartDecrypt(raw, resid).data;
   const loc = locatePascalString(data, approxOffset);
-  if (!loc) { setStatus('No Pascal string found at that offset — not editable in place.', true); return; }
+  if (!loc) { setStatus('No Pascal string found at that offset, not editable in place.', true); return; }
   const oldText = decodeMacRoman(data.subarray(loc.textOffset, loc.textOffset + loc.cap));
   let ov = document.getElementById('textEdit');
   if (ov) ov.remove();
@@ -19625,11 +19587,11 @@ function editStringAt(resid, approxOffset) {
     '<div class="dtHead">Edit text in 0x' + resid.toString(16).toUpperCase() +
       '<button class="linkbtn" onclick="document.getElementById(\'textEdit\').remove()">close</button></div>' +
     '<textarea id="teText" spellcheck="false"></textarea>' +
-    '<div class="inspDim"><span id="teCount"></span> — the stored slot is fixed at ' + loc.cap +
+    '<div class="inspDim"><span id="teCount"></span>, the stored slot is fixed at ' + loc.cap +
       ' bytes: shorter is padded with spaces, and growing a string would move every ' +
       'byte after it, which is the future script editor’s job. * separates alternate ' +
       'lines; @word marks a conversation keyword.</div>' +
-    '<div><button onclick="applyStringEdit(' + resid + ',' + loc.textOffset + ',' + loc.cap + ')">Apply — rebuild archive</button></div>' +
+    '<div><button onclick="applyStringEdit(' + resid + ',' + loc.textOffset + ',' + loc.cap + ')">Apply and rebuild the archive</button></div>' +
     '</div>';
   document.body.appendChild(ov);
   const ta = document.getElementById('teText');
@@ -19703,13 +19665,13 @@ function openDitherTool() {
     '<button class="secondary" onclick="ditherDownloadGIF()">Download GIF</button>' +
     '<label>into <select id="dtTarget">' +
       portraits.map(r => '<option value="' + r + '">0x' + r.toString(16).toUpperCase() +
-        (labelFor(r) ? ' — ' + svEsc(labelFor(r)) : '') + '</option>').join('') +
+        (labelFor(r) ? ', ' + svEsc(labelFor(r)) : '') + '</option>').join('') +
     '</select></label>' +
     '<button class="secondary" onclick="ditherReplacePortrait()">Replace portrait in archive</button>' +
     '</div>' +
     '<div class="inspDim">Portrait mode writes a real 64×64 resource: transparent pixels stay ' +
     'the cut-out slot, animated palette ramps are avoided so nothing shimmers, and Replace rebuilds ' +
-    'the archive in memory — use the Data file menu’s downloads to keep it.</div>' +
+    'the archive in memory; the Changes tab is where it leaves the page.</div>' +
     '</div>';
   document.body.appendChild(ov);
   document.getElementById('dtFile').onchange = (e) => {
@@ -19892,7 +19854,7 @@ function keyLocationChip(k) {
   const zone = zoneNameFor(k.map) || ('0x' + k.map.toString(16).toUpperCase());
   if (k.rec.carriedBy !== null)
     return '<button class="sv-chip" onclick="showCharacterDetail(' + k.rec.carriedBy + ')">key ' + k.id +
-      ' — ' + svEsc(characterName(k.rec.carriedBy)) + (k.rec.equipped ? ' (equipped)' : ' carries it') + '</button>';
+      ', ' + svEsc(characterName(k.rec.carriedBy)) + (k.rec.equipped ? ' (equipped)' : ' carries it') + '</button>';
   let x = k.rec.x, y = k.rec.y, how = '';
   if (k.rec.container !== null) {
     let host = null;
@@ -19902,15 +19864,15 @@ function keyLocationChip(k) {
     } catch (e) {}
     if (!host) return '';
     x = host.x; y = host.y;
-    how = ' — in a ' + svEsc((propDisplayName(host.proptype) || 'container'));
+    how = ', in a ' + svEsc((propDisplayName(host.proptype) || 'container'));
   }
   return '<button class="sv-chip" onclick="showSquareOnMap(' + k.map + ',' + x + ',' + y + ')">key ' + k.id +
-    ' — ' + svEsc(zone) + how + '</button>';
+    ', ' + svEsc(zone) + how + '</button>';
 }
 function lockLocationChip(l) {
   const zone = zoneNameFor(l.map) || ('0x' + l.map.toString(16).toUpperCase());
   return '<button class="sv-chip" onclick="showSquareOnMap(' + l.map + ',' + l.rec.x + ',' + l.rec.y + ')">' +
-    svEsc(l.name) + ' — ' + svEsc(zone) + ' (' + l.rec.x + ',' + l.rec.y + ')</button>';
+    svEsc(l.name) + ', ' + svEsc(zone) + ' (' + l.rec.x + ',' + l.rec.y + ')</button>';
 }
 
 // Open a map and land on one square, selected and inspected. The same
@@ -20263,47 +20225,6 @@ function gridColumnCount(grid) {
   return Math.max(1, n);
 }
 
-const KBD_HELP = [
-  ['/', 'search, or filter this gallery'],
-  ['Enter', 'open the focused tile'],
-  ['← →', 'previous / next resource (pan, on a map)'],
-  ['[ ]', 'previous / next resource, always'],
-  ['+ −', 'zoom the picture'],
-  ['Esc', 'back to the gallery'],
-  ['?', 'this list']
-];
-
-function toggleShortcutHelp(force) {
-  let el = document.getElementById('kbdHelp');
-  if (el && force !== true) { el.remove(); return; }
-  if (el) return;
-  el = document.createElement('div');
-  el.id = 'kbdHelp';
-  el.setAttribute('role', 'dialog');
-  el.setAttribute('aria-label', 'Keyboard shortcuts');
-  el.innerHTML = '<h3>Keyboard</h3><dl>' +
-    KBD_HELP.map(([k, v]) => '<dt><kbd>' + svEsc(k) + '</kbd></dt><dd>' + svEsc(v) + '</dd>').join('') +
-    '</dl>';
-  document.body.appendChild(el);
-}
-
-function focusFilter() {
-  const propWrap = document.getElementById('propFilterWrap');
-  if (propWrap && propWrap.style.display !== 'none') { document.getElementById('propFilter').focus(); return; }
-  const searchWrap = document.getElementById('searchWrap');
-  if (searchWrap && searchWrap.style.display !== 'none') { document.getElementById('searchBox').focus(); return; }
-  openSearch();
-}
-
-function nudgeZoom(delta) {
-  const slider = document.getElementById('zoomSlider');
-  const wrap = document.getElementById('zoomControls');
-  if (!slider || !wrap || wrap.style.display === 'none') return false;
-  slider.value = Math.max(+slider.min, Math.min(+slider.max, (+slider.value) + delta));
-  applyZoom();
-  return true;
-}
-
 function installKeyboardShortcuts() {
   const grid = document.getElementById('sheetGrid');
   if (grid) {
@@ -20332,36 +20253,6 @@ function installKeyboardShortcuts() {
     });
   }
 
-  document.addEventListener('keydown', e => {
-    const t = e.target;
-    const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' ||
-                           t.tagName === 'SELECT' || t.isContentEditable);
-    if (e.key === 'Escape') {
-      const help = document.getElementById('kbdHelp');
-      if (help) { help.remove(); return; }
-      if (typing) { t.blur(); return; }
-      if (currentMode === 'single') { e.preventDefault(); returnToSheet(); }
-      return;
-    }
-    if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
-    const single = currentMode === 'single';
-    // A map is the one detail view where the arrows have a better job to do
-    // than stepping to the next resource: it is bigger than its viewport.
-    const onMap = single && window.CUR_SUBN === 127;
-    switch (e.key) {
-      case '/': e.preventDefault(); focusFilter(); break;
-      case '?': e.preventDefault(); toggleShortcutHelp(); break;
-      case 'ArrowLeft':  if (onMap) { e.preventDefault(); panMapByArrow(-1, 0); } else if (single) { e.preventDefault(); navigateResource(-1); } break;
-      case 'ArrowRight': if (onMap) { e.preventDefault(); panMapByArrow(1, 0); }  else if (single) { e.preventDefault(); navigateResource(1); } break;
-      case 'ArrowUp':    if (onMap) { e.preventDefault(); panMapByArrow(0, -1); } break;
-      case 'ArrowDown':  if (onMap) { e.preventDefault(); panMapByArrow(0, 1); } break;
-      case '[': if (single) { e.preventDefault(); navigateResource(-1); } break;
-      case ']': if (single) { e.preventDefault(); navigateResource(1); } break;
-      case '+': case '=': if (nudgeZoom(1)) e.preventDefault(); break;
-      case '-': case '_': if (nudgeZoom(-1)) e.preventDefault(); break;
-      case 'g': if (single) { e.preventDefault(); returnToSheet(); } break;
-    }
-  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -20370,6 +20261,7 @@ document.addEventListener('DOMContentLoaded', () => {
   slider.addEventListener('pointermove', e => { if(e.buttons){ const r=slider.getBoundingClientRect(); const min=+slider.min,max=+slider.max; slider.value=Math.round(min+(e.clientX-r.left)/r.width*(max-min)); applyZoom(); } });
   installArchiveDropTarget();
   installKeyboardShortcuts();
+  installParallax();
   try { for (const r of document.querySelectorAll('input[name="animMode"]')) r.checked = r.value === window.ANIM_MODE; } catch (e) {}
   window.addEventListener('hashchange', () => {
     if (_hashWrite) return;
@@ -20392,41 +20284,6 @@ document.addEventListener('DOMContentLoaded', () => {
 </div>
 
 
-<section id="credits" style="margin-top:2em; padding:1.2em 1.5em; border-top:2px solid #6b6b6b; font-size:0.92em; line-height:1.6; color:#ddd;">
-  <h3 style="margin-top:0;">Using this browser</h3>
-  <p style="margin-top:0;">
-    Drop the <strong>Cythera installer</strong> (<code>.sit</code> or <code>Cythera.bin</code>) anywhere
-    on this page to open the whole game, or a <strong>Cythera Data</strong> file on its own &mdash; the
-    <code>.hqx</code> as downloaded is fine, as is a MacBinary or AppleSingle copy. Whatever you
-    open is remembered, so the next visit needs no network. Press <kbd>?</kbd> for the keyboard
-    shortcuts, <kbd>/</kbd> to search. The address bar tracks where you are, so any view can be
-    bookmarked or sent to somebody.
-  </p>
-  <h3>Credits</h3>
-  <p style="margin-top:0;">Grimoire is made by <strong>EgadZoundsGadzooks</strong>. It leans on the work of the Cythera community.</p>
-  <ul style="columns:2; column-gap:2.5em; list-style:none; padding-left:0;">
-    <li><strong>Glenn Andreas</strong> &mdash; writer and developer of Cythera</li>
-    <li><strong>Ambrosia Software</strong> &mdash; publisher of Cythera</li>
-    <li><strong>Bryce Schroeder</strong> &mdash; delvmod, the Delver formats and disassembler, the DelvTechWiki and the compendium: the reverse-engineering and the tooling this page is checked against, with <strong>Chris Pickel &amp; Chaim Halbert</strong></li>
-    <li><strong>BreadWorldMercy453</strong> &mdash; the complete dialogue, asked of every character</li>
-    <li><strong>Cythera Guides</strong> at cytheraguides.com, and the sites it keeps in its archives, <strong>Slayer</strong>’s among them</li>
-    <li>the editors of the <strong>Cythera wiki</strong> and the writers of the <strong>Cythera web board</strong></li>
-    <li>the add-on authors: <strong>Wizard</strong>, <strong>Magpie</strong>, <strong>Talos</strong> and the rest</li>
-    <li><strong>Ben Letchford</strong> &mdash; systemless, where the game runs</li>
-    <li><strong>Sam Wang</strong> &mdash; Argos A Nouveau typeface design</li>
-    <li><strong>Kazuki Yamada</strong> &mdash; Repomix</li>
-    <li><strong>Claude, Gemini &amp; Perplexity</strong> &mdash; AI coding assistance</li>
-  </ul>
-  <p style="margin-top:1em;">
-    Cythera and Delver are trademarks of Glenn Andreas and/or Ambrosia Software, Inc.
-    This is an unofficial fan-made research tool. The game, its data and its installer remain the copyright of Ambrosia Software and/or Glenn Andreas; none of it is stored here.
-  </p>
-  <p>
-    Join the community: <a href="https://discord.gg/u5BDQvyem4" target="_blank" rel="noopener">Cythera Discord</a>.
-  </p>
-
-
-</section>
 
 </body>
 </html>
