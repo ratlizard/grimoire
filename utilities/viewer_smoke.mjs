@@ -1702,6 +1702,17 @@ try {
   }
 } catch (e) { fail('prop edit', e); }
 
+// Schedules, v1.40.0: everybody's day as a card each, a post a row, the
+// square a link into the zone.
+try {
+  ctx.showCategory('SCHEDULES');
+  const sh = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const cards = (function count(el) { return (/^sched-\d+$/.test(el.id || '') ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
+  const links = (sh.match(/atlasOpenSquare\(/g) || []).length;
+  if (cards < 100 || links < 500 || !/Alaric/.test(sh)) fail('schedules', `the sheet shows ${cards} characters and ${links} posts`);
+  else console.log(`  schedules: ${cards} characters, ${links} posts, each a link into its zone`);
+} catch (e) { fail('schedules', e); }
+
 // The ditherizer's data path: dither a synthetic image to the palette,
 // DCG-encode it, write it into a real portrait slot through the full
 // rebuild, and confirm the rebuilt archive decodes it back pixel for pixel.

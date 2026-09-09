@@ -373,6 +373,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 #topBar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; position:relative; }
 #brand { flex:1 1 auto; text-align:left; margin:0; font-size:0.8125rem; letter-spacing:.04em; color:#b5b2a8; min-width:0; }
 #brand .brandName { color:#fff; font-size:1.0625rem; font-weight:600; }
+#brand .brandTile { width:20px; height:20px; image-rendering:pixelated; vertical-align:-4px; margin-right:2px; }
 #brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; letter-spacing:.04em; color:#8c8980; }
 .ftabRow { display:flex; align-items:flex-end; padding:0 0 0 8px; overflow-x:auto; overflow-y:hidden;
   scrollbar-width:none; -webkit-overflow-scrolling:touch; }
@@ -1390,6 +1391,7 @@ body.atlasFull { overflow:hidden; }
   <select id="categorySelect" onchange="onCategoryChange()">
       <optgroup label="People & creatures">
         <option value="CHARACTERS">Characters (all info)</option>
+        <option value="SCHEDULES">Schedules (where everyone is, hour by hour)</option>
         <option value="PROPS">Sprites, by prop type</option>
         <option value="ITEMS">Inventory Items</option>
         <option value="RSRC">Editor Stamps &amp; Brushes</option>
@@ -4146,9 +4148,13 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.39.1';
+const GRIMOIRE_VERSION = '1.40.0';
 { const b = document.getElementById('brand');   // the element precedes the script
-  if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
+  // The grimoire's own tile (prop 76, the book) stands before the name once
+  // a file is open to draw it from (the maintainer, 9 September 2026).
+  let tile = '';
+  try { const u = fileBytes ? relIconURL({ tile: getPropTileList()[76] || 0x21F }) : ''; if (u) tile = '<img class="brandTile" src="' + u + '" alt="" width="20" height="20"> '; } catch (e) { tile = ''; }
+  if (b) b.innerHTML = tile + '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
 window.GAME_FONT_STATE = '';
 /* ---------------------------------------------------------------------------
@@ -5194,6 +5200,7 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
   if (window.CUR_SUBN === 'MECHANICS') { renderMechanicsSheet(); return; }
   if (window.CUR_SUBN === 'SKILLS') { renderSkillsSheet(); return; }
+  if (window.CUR_SUBN === 'SCHEDULES') { renderSchedulesSheet(); return; }
   if (window.CUR_SUBN === 'SPELLS') { renderSpellsSheet(); return; }
   if (window.CUR_SUBN === 'BARKS') { renderBarksSheet(); return; }
   if (window.CUR_SUBN === 'WORLD') { renderAtlasView(); return; }
@@ -6153,7 +6160,7 @@ function onCategoryChangeImpl() {
   // even without the installer; fetch the fork if it is not here yet.
   if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
   // The Data tab's own views: not subindexes, no resources to list.
-  if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' || rawval === 'SKILLS' || rawval === 'SPELLS' ||
+  if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' || rawval === 'SKILLS' || rawval === 'SPELLS' || rawval === 'SCHEDULES' ||
       rawval === 'SAVEGAME' || rawval === 'CHEATS' ||
       rawval === 'WORLD' || PLACEHOLDER_TABS[rawval]) {
     window.CUR_SUBN = rawval;
@@ -13544,6 +13551,7 @@ const TAB_TREE = [
   // each have a closed and an open frame, and `tileOpen` is the second.
   { id: 'entities', label: 'Scenario', tile: 0x285, tileOpen: 0x284, children: [      // the large chest. Scenario is Delver's own word for the game's content, the SCEN the editor writes; the label was Entities, then Game, on 9 September 2026
       { id: 'characters', label: 'Characters', tile: 0x719, values: ['CHARACTERS'] },  // the king, standing, facing the reader
+      { id: 'schedules',  label: 'Schedules',  tile: 0x803, values: ['SCHEDULES'] },   // the hourglass
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
       { id: 'props',      label: 'Props',      tile: 0x2E0, values: ['PROPS'] },       // the anvil: a thing placed in the world (from under Graphics › Tilesets, 9 September 2026)
@@ -15153,6 +15161,60 @@ function renderSkillsSheet() {
   }
   grid.appendChild(box);
   out.textContent = count + ' of ' + all.length + ' in the file’s skill block' + (q ? ' matching “' + q + '”' : '') + '.';
+}
+/* SCHEDULES. The table 0xF00B, one list per character: an hour, a byte the
+   engine copies into the character's `behavior` field, a script id, a zone
+   and a square. The dossier shows one character's day; this sheet shows
+   everybody's, a folding card each, and every square opens the zone there.
+   The behaviour byte is shown as it is stored: the scripts test it against
+   small numbers (0xEA3 asks for 4, 6 and 7) and most entries carry 0x80 on
+   top of one, and what that bit means is not read here. The script field
+   is nearly always 0; the few that are not name a resource. */
+function renderSchedulesSheet() {
+  stopAllViewActivity();
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  document.getElementById('singleControls').style.display = 'none';
+  const q = (window.PROP_FILTER || '').trim().toLowerCase();
+  const scheds = loadSchedules();
+  const box = document.createElement('div');
+  box.className = 'mechView';
+  const ampm = h => h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
+  const people = [];
+  for (let i = 0; i < scheds.length; i++) {
+    const real = scheds[i].filter(e => e.mode !== 0);
+    if (!real.length) continue;
+    const name = characterName(i) || ('Character ' + i);
+    if (q && !name.toLowerCase().includes(q)) continue;
+    people.push({ i, name, real });
+  }
+  people.sort((a, b) => a.name.localeCompare(b.name));
+  let entries = 0;
+  for (const p of people) {
+    entries += p.real.length;
+    const sec = foldCard('sched-' + p.i, 'skillCard', !!q);
+    const head = document.createElement('summary'); head.className = 'mechHead';
+    head.innerHTML = '<h3>' + svEsc(p.name) + '</h3><span class="foldGist">' + p.real.length + ' post' + (p.real.length === 1 ? '' : 's') +
+      ', ' + [...new Set(p.real.map(e => zoneDisplayName(e.level)))].slice(0, 3).map(svEsc).join(', ') + '</span>' +
+      '<span class="mechFrom">' + characterChip(p.i) + '</span>';
+    sec.appendChild(head);
+    const rows = p.real.slice().sort((a, b) => a.hour - b.hour).map(e =>
+      '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + svLink(zoneDisplayName(e.level) || ('zone ' + e.level), 'atlasOpenSquare(' + (0x8000 + e.level) + ',' + e.x + ',' + e.y + ')', e.x + ', ' + e.y) + '</td>' +
+      '<td>' + (e.script ? (refExists(e.script) ? svLink(labelFor(e.script) || ('0x' + e.script.toString(16).toUpperCase()), 'jumpToResource(' + e.script + ')') : '0x' + e.script.toString(16).toUpperCase()) : '') + '</td>' +
+      '<td class="num">0x' + e.mode.toString(16).toUpperCase().padStart(2, '0') + '</td></tr>').join('');
+    const d = document.createElement('div'); d.className = 'mechBody';
+    d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">from</th><th>where</th><th>script</th><th class="num">behaviour</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    sec.appendChild(d);
+    box.appendChild(sec);
+  }
+  const all = document.createElement('div');
+  all.className = 'foldAll';
+  all.innerHTML = svLink('Open all', 'mechOpenAll(true)') + svLink('Close all', 'mechOpenAll(false)');
+  box.insertBefore(all, box.firstChild);
+  grid.appendChild(box);
+  out.textContent = people.length + ' characters with a day in 0xF00B, ' + entries + ' posts' + (q ? ' matching “' + q + '”' : '') + '. A post holds from its hour until the next; the square opens the zone there.';
 }
 function renderSpellsSheet() {
   stopAllViewActivity();
