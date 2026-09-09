@@ -3666,7 +3666,7 @@ function propWordRender() {
   const name = terrainNameFor(tile) || '', own = terrainNameFor(base) || propDisplayName(pt) || '';
   const bits = word.toString(2).padStart(16, '0');
   let h = '<div class="sv-note" style="margin:0 0 8px">A prop record names what it is with one 16-bit word: <b>the prop type in the low ten bits, an aspect in the five above</b>. This item’s prop type is ' + w(pt) + ', so at aspect 0 the word is ' + w(propWordHex(pt)) + '; a step of aspect adds 1,024. ' +
-    'Aspect <i>n</i> draws the base tile + <i>n</i> and takes that tile’s name; what else it changes is the class script’s to say.';
+    'Aspect <i>n</i> draws the base tile + <i>n</i> and takes that tile’s name; what else it changes is the class script’s to say. The swing in a fight is the class’s own animation, whatever the aspect.';
   let wear = [];
   try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
   if (wear.length) h += ' At ' + wear.map(x => 'aspect ' + w(x.aspect) + ' it is a ' + w(svEsc(x.name)) + ' (tile ' + propWordHex(x.tile) + ', the word ' + propWordHex(x.word) + ')').join(', ') +
@@ -4148,7 +4148,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.40.0';
+const GRIMOIRE_VERSION = '1.41.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -13960,7 +13960,7 @@ function tileHasTransparency(t) {
 const CHEAT_KEYS = [
   ['∆',  '$C6', 'option-j',        'Jump',            'Prints “Jump from [level,x,y]:”, asks Level, X and Y in hex, then calls TGameViewer::GoToLocation, teleport anywhere in the game.'],
   ['Ô',  '$EF', 'option-shift-j',  'Take teleporter', 'Asks a teleporter number in decimal, then TGameSys::TeleportTo(1, n, 0).'],
-  ['ß',  '$A7', 'option-s',        'Create a prop',   'Asks a prop number in hex, Data1 in decimal and Data2 in hex; NewProp makes it, the owner is set to character 1 and the inventory redraws, so the object lands in the hero’s pack. The number is the record’s word, the prop type in the low ten bits and an aspect in the five above: 0x0064 is a spear, 0x0864 the same prop type at aspect 2, wearing the picture two tiles along and named for it. Each item’s page under Entities › Items says what it wears.'],
+  ['ß',  '$A7', 'option-s',        'Create a prop',   'Asks a prop number in hex, Data1 in decimal and Data2 in hex; NewProp makes it, the owner is set to character 1 and the inventory redraws, so the object lands in the hero’s pack. The number is the record’s word, the prop type in the low ten bits and an aspect in the five above: 0x0064 is a spear, 0x0864 the same prop type at aspect 2, wearing the picture two tiles along and named for it. The picture in the pack and the name are the aspect’s; the swing in a fight is the class’s own animation, whatever the aspect. Each item’s page under Entities › Items says what it wears.'],
   ['π',  '$B9', 'option-p',        'What prop is this?', 'Asks a prop index and prints its record: class and state bytes, position, Data1, Data2. Then falls through into the option-r toggle below, a missing branch in the game’s own switch.'],
   ['¿',  '$C0', 'option-shift-/',  'Where am I?',     'Prints the player’s x and y.'],
   ['ˇ',  '$FF', 'option-shift-t',  'What time is it?', 'Prints “Current time = <clock>, day <n>”.'],
@@ -13984,6 +13984,131 @@ const CHEAT_OPEN_KEYS = [
   ['{ }', '', '', 'CD volume', 'Down and up by 10, over 0–255.'],
   ['', '', 'play stop paus next prev ejec', 'CD transport', 'The same rolling four-byte word as the cheat code, matched against those six words when a CD is present. The routines are unnamed in the symbol table and are read from their argument shapes: the words are certain, the verbs are the obvious reading.'],
 ];
+
+/* THE PREFERENCES RECORD, bit by bit, and the file it lives in. Read out of
+   the executable by the workbench (doc/cheats.md): `TApPrefWindow::AddContent`
+   reads each bit to set a control and `SaveSettings` writes it back, one
+   instruction from the label's TOC slot, so each pairing is the game's own
+   and the labels are the dialog's, as Pascal strings in the PEF data section;
+   `TDelverApp::DefaultMenu` is the other writer, for a Preferences menu (MENU
+   136) that no shipped `MBAR` lists -- see shippedMenuBars, which reads the
+   bars off the application's fork rather than asserting it. Byte 2 is
+   unused; bits 2 and 5 of bytes 0 and 1 are read once each (`MyGetEvent`,
+   `TryAMonitor`) and written by nothing. The Tools tab's writer,
+   cytheraPrefsRecord, sets every bit a control writes. */
+const PREF_BITS = [
+  [0, '0', 'Live dragging', 'the dialog’s checkbox, and the menu', ''],
+  [0, '1', 'Four sub-steps a square rather than two', 'the menu’s Faster / Fastest Movement; the dialog’s Graphics Quality slider writes bits 7 and 1 together', ''],
+  [0, '3, 4', 'Frame-rate cap: 16, 10 or 8 a second', 'the menu’s Limit to FPS entries and nothing else, so on a shipped copy it is whatever the CPU default chose', ''],
+  [0, '6', 'Place a container’s contents by hand', 'the dialog’s Manually Place Containers, and the menu', ''],
+  [0, '7', 'Quarter-square sub-pixel movement', 'the menu’s Smoother Movement; the slider’s other bit', ''],
+  [1, '3', 'Motion filters', 'the dialog', 'DisplacementFilterTile'],
+  [1, '6', 'Walk around obstacles', 'the dialog', 'TGameSys::MoveCommand'],
+  [1, '7', 'Zoom rectangles when a window opens', 'the dialog’s Use ‘ZoomRects’', 'TCharacterWindow::PostInit'],
+  [3, '0', 'The cheat gate', 'nothing in the game; this page’s Tools tab', 'TMapWindow::KeyRoutine'],
+];
+// The CPU-chosen defaults, written by PostInitMac at first run.
+const PREF_DEFAULTS = [['18800000', 'the lowest set, a 68040'], ['99800000', 'the middle'], ['DBC80000', 'the highest']];
+// Every key of the file. TPrefs is a keyed store and each key is a 'Pref'
+// resource of that name; the callers of SavePrefs, SetFile and SetOrdinal
+// give the whole set. An ordinal is a long indexed by a short within the key.
+const PREF_KEYS = [
+  ['UI Prefs', ['PostInitMac', 'TDelverApp::DefaultMenu', 'TApPrefWindow::SaveSettings'], 'the four bytes above'],
+  ['CurScen', ['OpenScenFile', 'OpenFromFS', 'TRunStart::DoItemHit'], 'an alias to the scenario'],
+  ['CurPlayer', ['OpenPlayerFile', 'OpenAndSetPlayerFileFromFS', 'DoSaveAs'], 'an alias to the last save'],
+  ['Map Window Loc', ['TDelverApp::DoQuit'], 'the map window’s frame as a global Rect, top, left, bottom, right; TMapWindow::TMapWindow reads it back'],
+  ['Volume', ['TAudio::SetSoundVolume'], 'an ordinal'],
+  ['Music', ['TAudio::SetMusicVolume'], 'an ordinal'],
+  ['Ambient', ['TAudio::EnableAmbient'], 'an ordinal'],
+  ['Backdrop', [], 'an ordinal, read by TBackdropWind::LoadPattern and written by nothing'],
+];
+
+/* The menu bars the application ships, off its own fork: TApp::ChangeMenuBar
+   builds the bar from MBAR n (deleted) and MBAR n + 1 (inserted), so the
+   menus a player can reach are the ids those two resources list. Every MENU
+   the fork defines that neither names is unreachable; on the shipped copy
+   that is Edit, Audio and Preferences, and add-on 612 is the seven-byte
+   patch that appends them to MBAR 128. Null without the application's fork. */
+function shippedMenuBars() {
+  const fork = window.APP_RSRC;
+  if (!fork) return null;
+  const titles = new Map();
+  for (const e of (fork.resourcesByType['MENU'] || [])) {
+    try { const d = fork.dataOf('MENU', e); titles.set(u16be(d, 0), pstr(d, 14).s); } catch (err) {}
+  }
+  const bars = [];
+  const listed = new Set();
+  for (const e of (fork.resourcesByType['MBAR'] || [])) {
+    let d; try { d = fork.dataOf('MBAR', e); } catch (err) { continue; }
+    const ids = [];
+    for (let i = 0, p = 2; i < u16be(d, 0) && p + 2 <= d.length; i++, p += 2) ids.push(u16be(d, p));
+    ids.forEach(id => listed.add(id));
+    bars.push({ id: e.id, menus: ids.map(id => ({ id, title: titles.get(id) || null })) });
+  }
+  const unlisted = [...titles].filter(([id]) => !listed.has(id)).map(([id, title]) => ({ id, title })).sort((a, b) => a.id - b.id);
+  return { bars, unlisted };
+}
+
+/* The numbers the jump and teleporter keys ask for, read off the archive. A
+   level is the low byte of a map resource id, so the table is every 0x80xx
+   the file holds; a teleporter is an index into 0xF00C, the zoneport table
+   loadZoneports already reads for the World tab, and the last index with a
+   destination in it is the last number that goes anywhere. Above it every
+   entry is map 0 at (0,0), which is where the community found BF and above
+   landing (web board topic 1830). */
+function cheatLevels() {
+  const out = [];
+  for (let n = 0; n < 0x100; n++) {
+    const resid = 0x8000 + n;
+    if (!refExists(resid)) continue;
+    const script = zoneNameFor(resid), editor = editorZoneName(resid);
+    out.push({ n, resid, name: script || editor || labelFor(resid) || ('0x' + resid.toString(16).toUpperCase()), editor, script });
+  }
+  return out;
+}
+function cheatTeleporters() {
+  const z = loadZoneports();
+  let last = 0;
+  for (let i = 1; i < z.length; i++) if (z[i].map !== 0x8000 || z[i].x || z[i].y) last = i;
+  const byMap = new Map();
+  for (let i = 1; i <= last; i++) {
+    const t = z[i];
+    if (!byMap.has(t.map)) byMap.set(t.map, []);
+    byMap.get(t.map).push({ n: i, x: t.x, y: t.y });
+  }
+  return { last, total: z.length, byMap };
+}
+
+/* LEVEL 0 IS THE NOTHING MAP, and its grid is a heap snapshot. The map has a
+   header (32 by 32, no roof, no exits) and no prop list; every one of its
+   tile words has a zero high byte, so the grid is 1,024 bytes of memory
+   widened to words. Those bytes are allocator blocks laid end to end, each
+   opening with a 16-byte header: a pointer 0x02C6xxxx, a tag 0xAB0000nn, the
+   block's size (0x20 to 0x50), a back-pointer. The size field is the
+   distance to the next header, and that is the test: add it to a header's
+   position and you land on the next header, 18 times of 19 on the shipped
+   file, where the same test on a real map finds no header at all (the
+   workbench's own control, matching on each map's commonest byte pair,
+   scored 0 of 101, 0 of 110, 0 of 219 and 0 of 49). Two tests that look
+   decisive and are not, so they are not tried again: every word below 256
+   is true of six real maps too, and adjacent-tile agreement is 39% here
+   against 40% and 41% on real maps. The reading is the workbench's
+   (doc/cheats.md); this computes it off whatever file is open. */
+function nothingMapHeap(resid) {
+  const m = getResourceBytes(resid);
+  if (!m || m.length < 48) return null;
+  const words = [];
+  for (let i = 32; i + 1 < m.length; i += 2) words.push((m[i] << 8) | m[i + 1]);
+  const high = words.filter(w => w > 255).length;
+  const b = words.map(w => w & 255);
+  const heads = [];
+  for (let p = 0; p + 12 <= b.length; p++)
+    if (b[p] === 0x02 && b[p + 1] === 0xC6 && b[p + 4] === 0xAB && b[p + 5] === 0 && b[p + 6] === 0 &&
+        b[p + 8] === 0 && b[p + 9] === 0 && b[p + 10] === 0) heads.push(p);
+  let hits = 0;
+  for (const p of heads) if (heads.includes(p + b[p + 11])) hits++;
+  return { words: words.length, high, heads: heads.length, hits, w: u16be(m, 0), h: u16be(m, 2) };
+}
 
 /* Every prop class some character record wears, named from the archive. This
    is the trick the community did with Pandora's Box, search the running
@@ -14042,6 +14167,36 @@ function renderCheatsSheet() {
     actionChip('Tools › Cythera Preferences', "showCategory('TOOLS')") +
     ', as a MacBinary for a real Mac or a small disk image for an emulator.</div></div>';
 
+  // The record, the file's keys, and the menu bars off the application's fork.
+  h += '<div class="mechSec"><h4 class="cheatH4">The preferences record</h4>' +
+    '<div class="cheatNote">Four bytes. Byte 0 is the Preferences menu and the dialog’s movement and container settings, ' +
+    'byte 1 the rest of the dialog, byte 2 nothing, and byte 3 the gate. Bits 2 and 5 of bytes 0 and 1 are read once each and written by nothing. ' +
+    'The three defaults the game picks by processor at first run are ' +
+    PREF_DEFAULTS.map(([hex, what]) => '<b>' + hex + '</b> (' + what + ')').join(', ') + '.</div>' +
+    '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">byte</th><th class="num">bit</th><th>setting</th><th>set by</th><th>read by</th></tr></thead><tbody>' +
+    PREF_BITS.map(([byte, bit, what, by, reader]) =>
+      '<tr><td class="num">' + byte + '</td><td class="num">' + bit + '</td><td><b>' + svEsc(what) + '</b></td><td>' + svEsc(by) + '</td><td>' + (reader ? pefChip(reader) : '') + '</td></tr>').join('') +
+    '</tbody></table></div>' +
+    '<div class="cheatNote">The file, Cythera Preferences in the System Folder’s Preferences folder, is a keyed store: each key is a ‘Pref’ resource of that name.</div>' +
+    '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th>key</th><th>written by</th><th>holds</th></tr></thead><tbody>' +
+    PREF_KEYS.map(([key, writers, holds]) =>
+      '<tr><td><b>' + svEsc(key) + '</b></td><td>' + (writers.length ? writers.map(pefChip).join(' ') : 'nothing') + '</td><td>' + svEsc(holds) + '</td></tr>').join('') +
+    '</tbody></table></div>';
+  const bars = shippedMenuBars();
+  if (bars && bars.bars.length) {
+    const menuName = m => (m.title ? svEsc(m.title) : 'MENU ' + m.id);
+    h += '<div class="cheatNote">The menu bar is built from the application’s MBAR resources, ' +
+      bars.bars.map(b => 'MBAR ' + b.id + ' (' + b.menus.map(menuName).join(', ') + ')').join(' and ') +
+      (bars.unlisted.length
+        ? ', so ' + bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are' : ' is') + ' defined in the fork with working handlers and in no bar. ' +
+          'That is why the frame-rate cap has no control and why the Preferences menu is as unreachable as the gate. ' +
+          'Add-on 612, the Cythera menu patch, is seven bytes appended to MBAR 128 that list the three; 613 takes them out again.'
+        : ' and every menu the fork defines is in one of them.') + '</div>';
+  } else {
+    h += '<div class="cheatNote">Which menus the shipped menu bar lists is read off the application’s resource fork, once it is open.</div>';
+  }
+  h += '</div>';
+
   h += '<div class="mechSec"><h4 class="cheatH4">With the cheat flag on</h4>' +
     '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + rows(CHEAT_KEYS) +
     '</tbody></table></div></div>';
@@ -14050,6 +14205,54 @@ function renderCheatsSheet() {
     '<div class="cheatNote">These work in any copy of the game, cheat mode or not.</div>' +
     '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + rows(CHEAT_OPEN_KEYS) +
     '</tbody></table></div></div>';
+
+  // The numbers the keys ask for, off the file.
+  const levels = cheatLevels();
+  if (levels.length) {
+    h += '<div class="mechSec"><h4 class="cheatH4">Levels, for option-j</h4>' +
+      '<div class="cheatNote">The level is the map’s number, asked in hex; X and Y are squares, 0 to 255. ' +
+      'The name is the map’s own script string, with the editor’s name beside it where the two differ.</div>' +
+      '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">hex</th><th class="num">dec</th><th>map</th></tr></thead><tbody>' +
+      levels.map(l => '<tr><td class="num">' + l.n.toString(16).toUpperCase().padStart(2, '0') + '</td><td class="num">' + l.n + '</td><td>' +
+        (l.n === 0 ? svLink(svEsc(l.name), 'jumpToResource(' + l.resid + ')') + ' <span class="cheatDoes">the nothing map, below</span>'
+                   : svLink(svEsc(l.name), 'jumpToResource(' + l.resid + ')') + svEsc(editorNameSuffix(l.resid, l.name))) +
+        '</td></tr>').join('') +
+      '</tbody></table></div></div>';
+  }
+  const tp = cheatTeleporters();
+  if (tp.last) {
+    const mapOrder = [...tp.byMap.keys()].sort((a, b) => a - b);
+    const mapName = resid => { const l = levels.find(x => x.resid === resid); return l ? l.name : (labelFor(resid) || ('0x' + resid.toString(16).toUpperCase())); };
+    h += '<div class="mechSec"><h4 class="cheatH4">Teleporters, for option-shift-j</h4>' +
+      '<div class="cheatNote">' + tp.last + ' destinations, numbered 1 to ' + tp.last + ' in decimal, each one square of one map: ' +
+      'the zoneport table, four bytes an entry, the map then the square. The table has ' + tp.total + ' entries and every one above ' + tp.last +
+      ' is map 0 at (0,0), the nothing map, which is where players found ' + (tp.last + 1).toString(16).toUpperCase() + ' and above landing. ' +
+      'Each number opens the map on its square. ' +
+      'The community’s own list, posted to the web board in 2007 (topic 1830) and packaged in add-on 620 as Zone list.rtf, names the same map for every entry once three names are translated: ' +
+      'Timon Ruins is Headwater Ruins, Swamp Ruins is Seldane Maayti Ruins, Crypts is Pnyx Upstairs. The two copies are one list.</div>' +
+      '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">level</th><th>map</th><th class="num">no.</th><th>teleporter, and the square it reaches</th></tr></thead><tbody>' +
+      mapOrder.map(resid => {
+        const list = tp.byMap.get(resid);
+        return '<tr><td class="num">' + (resid & 0xFF).toString(16).toUpperCase().padStart(2, '0') + '</td><td>' + svEsc(mapName(resid)) + '</td><td class="num">' + list.length + '</td><td>' +
+          list.map(t => svLink(String(t.n), 'atlasOpenSquare(' + resid + ',' + t.x + ',' + t.y + ')', t.x + ',' + t.y)).join(' ') + '</td></tr>';
+      }).join('') +
+      '</tbody></table></div></div>';
+  }
+  let heap = null;
+  try { heap = refExists(0x8000) ? nothingMapHeap(0x8000) : null; } catch (e) { heap = null; }
+  if (heap) {
+    h += '<div class="mechSec"><h4 class="cheatH4">Level 0, the nothing map</h4><ul class="ruleList">' +
+      '<li>Map 0 has a header, ' + heap.w + ' by ' + heap.h + ', no roof and no exits, and ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') +
+      '; the editor’s list has no name for it, and the map window’s caption reads Untitled there. Every other table keyed by zone starts at 1.</li>' +
+      '<li><b>Its grid is not tiles.</b> ' + (heap.high ? heap.high + ' of its ' + heap.words + ' words have a high byte' : 'Every one of its ' + heap.words + ' words has a zero high byte') +
+      ', so the grid is that many bytes of memory widened to words. The low bytes hold <b>' + heap.heads + '</b> allocator headers, a pointer, a tag, a size and a back-pointer, ' +
+      'and adding a header’s size to its position lands on the next header <b>' + heap.hits + ' times of ' + heap.heads + '</b>. The same test on a real map finds no header. ' +
+      'So the map was made and its header written while its tile buffer was never filled, and the file carries what those bytes last held.</li>' +
+      '<li>Players reached it long before any of this: web board topic 1570 (2004) has two arriving by accident, from a bed in Cademia and from beneath Pnyx, ' +
+      'and topic 1830 reports a figure with a guard’s sprite standing there called Nothing, Omen if killed twice. ' +
+      'That figure is character record 0, one byte 01 and thirty-one zeros in the shipped table, the record option-x writes to. ' +
+      actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li></ul></div>';
+  }
 
   const sprites = cheatSpriteClasses();
   if (sprites.length) {
@@ -14091,7 +14294,8 @@ function renderCheatsSheet() {
 
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
   out.textContent = 'Cheat mode: ' + CHEAT_KEYS.length + ' keys behind the gate, ' +
-    CHEAT_OPEN_KEYS.length + ' in the same routine without it.';
+    CHEAT_OPEN_KEYS.length + ' in the same routine without it' +
+    (levels.length ? ', ' + levels.length + ' levels' : '') + (tp.last ? ' and ' + tp.last + ' teleporters' : '') + '.';
 }
 
 /* ---- Data > Saved Game ----------------------------------------------------
@@ -14217,7 +14421,7 @@ function renderSaveSheet() {
   h += '<h4 class="saveH4">The records</h4>' +
     '<div class="saveNote">' + inUse.length + ' of the 512 slots hold somebody' +
     (marked ? ', and ' + marked + ' more are marked with a zone and nothing else' : '') +
-    '; what the game does with slot 0 is not known. ' +
+    '; slot 0 is the figure called Nothing on the nothing map, and the record option-x writes to. ' + actionChip('Cheats', "showCategory('CHEATS')") + ' ' +
     actionChip(window.SAVE_SHOW_ALL ? 'Only the ones in use' : 'Show every marked slot',
                'toggleSaveShowAll()') + '</div>';
   h += '<div class="tableScroll"><table class="forkTable"><thead><tr>' +
@@ -17006,16 +17210,24 @@ function renderToolsSheet() {
      comment above buildCytheraPreferences says where each came from and, just
      as plainly, that this file has never been put in front of the game. */
   const pf = sec('Cythera’s preferences file',
-    'Two bits in ‘Pref’ 130 “UI Prefs”, which lives in the System Folder’s Preferences folder. ' +
+    'The four-byte ‘Pref’ 130 “UI Prefs” record, which lives in the System Folder’s Preferences folder. ' +
+    'The first six switches are the game’s own Preferences dialog and its unlisted Preferences menu. ' +
     'Smoother movement is in the shipped game and turned off by the default the game picks for a ' +
-    '68040; the other bit is the gate on the cheat keys, option-j to jump anywhere, option-s to ' +
+    '68040. The last is the gate on the cheat keys, option-j to jump anywhere, option-s to ' +
     'conjure any object, option-w to walk through walls, which nothing in the game ever sets, so a ' +
-    'shipped copy cannot enter cheat mode however long you type ©gra at it.');
+    'shipped copy cannot enter cheat mode however long you type ©gra at it. ' +
+    'The Cheats sheet has the record bit by bit.');
   const prefsRow = document.createElement('div');
   prefsRow.style.cssText = 'display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin:8px 0 6px';
+  const prefBox = (id, label, on) => '<label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '> ' + label + '</label>';
   prefsRow.innerHTML =
-    '<label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="prefSmooth" checked> Smoother movement</label>' +
-    '<label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="prefCheats" checked> Allow the cheat keys</label>';
+    prefBox('prefSmooth', 'Smoother movement', true) +
+    prefBox('prefLiveDrag', 'Live dragging', false) +
+    prefBox('prefManualContainers', 'Manually place containers', false) +
+    prefBox('prefMotionFilters', 'Motion filters', false) +
+    prefBox('prefWalkAround', 'Walk around obstacles', false) +
+    prefBox('prefZoomRects', 'Zoom rectangles', true) +
+    prefBox('prefCheats', 'Allow the cheat keys', true);
   pf.appendChild(prefsRow);
   const pbtns = document.createElement('div');
   pbtns.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
@@ -18362,13 +18574,22 @@ function missingForkWarning(rsrc) {
    option-shift-x for vision of night. The full table was read out of
    `TMapWindow::KeyRoutine`.
 
-   **This file is written, and has not yet been tried.** The bytes are
-   evidence -- `18800001` in a stored preferences file was verified to print
+   **This file has been put in front of the game.** The bytes were evidence
+   first -- `18800001` in a stored preferences file was watched to print
    "Cheat mode activated." on 5 September 2026, and `0x9A` was measured the
-   same week -- but a preferences file *this page produced* has never been put
-   in front of the game, on a real Mac or in the emulator. What would settle
-   it is five minutes with either. Until somebody does, the section on the
-   Tools tab says so in as many words, which is the least this can do.
+   same week -- and on 9 September 2026 a file this page wrote was read by
+   the game and the code typed: cheat mode activated. The Tools tab has said
+   so since v1.35.0; the paragraph that stood here until v1.41.0 still called
+   the file untried and asked for five minutes with a Mac.
+
+   **The rest of the record is named now** (v1.41.0), from the workbench's
+   reading of `TApPrefWindow::AddContent` and `SaveSettings` (the dialog) and
+   `TDelverApp::DefaultMenu` (a Preferences menu the shipped menu bars never
+   list): `PREF_BITS` beside the Cheats sheet has the table, and the Tools
+   tab offers every bit a control writes. Bits 3 and 4 of byte 0 are the
+   frame-rate cap, which only that unreachable menu sets and every CPU
+   default leaves as `11`, so the writer keeps them set; bits 2 and 5 of
+   bytes 0 and 1 are read once each and written by nothing, and stay clear.
 
    Three things are deliberately left out. There is no `CurScen` and no
    `CurPlayer`, the two other `'Pref'` resources a played copy has, so the
@@ -18393,10 +18614,27 @@ const PREFS_CREATOR = '\u0000\u0000\u0000\u0000';
 const PREFS_VOLUME_NAME = 'Cythera Prefs';
 const PREFS_SCRIPT_NAME = 'Install Preferences';
 
-// The four bytes, with bytes 1 and 2 as every observed record has them.
+// The four bytes from the named bits (PREF_BITS). `smooth` is the dialog's
+// Smoother Movement, bits 7 and 1 of byte 0 together, as the dialog writes it;
+// ZoomRects is on unless said otherwise, as it is in every CPU default. With
+// only `smooth` and `cheats` given the bytes are what they were before the
+// other bits were named: 9A 80 00 01, 18 80 00 00, 18 80 00 01.
 function cytheraPrefsRecord(opts) {
   const o = opts || {};
-  return new Uint8Array([o.smooth ? 0x9A : 0x18, 0x80, 0x00, o.cheats ? 0x01 : 0x00]);
+  const b0 = 0x18 | (o.smooth ? 0x82 : 0) | (o.liveDrag ? 0x01 : 0) | (o.manualContainers ? 0x40 : 0);
+  const b1 = (o.motionFilters ? 0x08 : 0) | (o.walkAround ? 0x40 : 0) | (o.zoomRects === false ? 0 : 0x80);
+  return new Uint8Array([b0, b1, 0x00, o.cheats ? 0x01 : 0x00]);
+}
+// One line naming what a record asks for, for the status line and the script.
+function prefsSummary(o) {
+  const parts = [o.smooth ? 'smoother movement' : 'the stepped movement',
+                 o.cheats ? 'the cheat keys allowed' : 'no cheat keys'];
+  if (o.liveDrag) parts.push('live dragging');
+  if (o.manualContainers) parts.push('containers placed by hand');
+  if (o.motionFilters) parts.push('motion filters');
+  if (o.walkAround) parts.push('walking around obstacles');
+  if (o.zoomRects === false) parts.push('no zoom rectangles');
+  return parts.join(', ');
 }
 function buildCytheraPreferences(opts) {
   return writeResourceFork([
@@ -18417,6 +18655,7 @@ function prefsInstallScript(opts) {
     '--',
     '-- Smoother movement: ' + (o.smooth ? 'ON' : 'off') +
       '. Cheat keys allowed: ' + (o.cheats ? 'ON: type ©gra in the map window' : 'off') + '.',
+    '-- The record asks for ' + prefsSummary(o) + '.',
     '--',
     'tell application "Finder"',
     '\tset src to file "' + PREFS_FILE_NAME + '" of disk "' + PREFS_VOLUME_NAME + '"',
@@ -18446,12 +18685,13 @@ function buildPrefsDiskImage(opts) {
 }
 function prefsOptionsFromUI() {
   const on = id => { const e = document.getElementById(id); return e ? !!e.checked : false; };
-  return { smooth: on('prefSmooth'), cheats: on('prefCheats') };
+  return { smooth: on('prefSmooth'), cheats: on('prefCheats'), liveDrag: on('prefLiveDrag'),
+           manualContainers: on('prefManualContainers'), motionFilters: on('prefMotionFilters'),
+           walkAround: on('prefWalkAround'), zoomRects: on('prefZoomRects') };
 }
 function downloadCytheraPrefs(kind) {
   const opts = prefsOptionsFromUI();
-  const how = [opts.smooth ? 'smoother movement' : 'the stepped movement',
-               opts.cheats ? 'the cheat keys allowed' : 'no cheat keys'].join(', ');
+  const how = prefsSummary(opts);
   if (kind === 'dsk') {
     const image = buildPrefsDiskImage(opts);
     dlBlob(new Blob([image], { type: 'application/octet-stream' }), PREFS_VOLUME_NAME + '.dsk');

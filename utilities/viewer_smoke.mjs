@@ -1572,11 +1572,16 @@ try {
   else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${(html.match(/class="mechFig"/g) || []).length} figures drawn; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);
 } catch (e) { fail('mechanics', e); }
 
-/* The Cheats sheet. Its two key tables are constants read out of the
-   executable, so what is worth checking is that they reach the page whole and
-   that the one part built from the ARCHIVE -- the sprite classes -- is really
-   read off 0xF009 and 0xF008 rather than hardcoded. The hero's own class, 32,
-   has to be in it: that is the number Pandora's Box searched for. */
+/* The Cheats sheet. Its key tables and the preferences record are constants
+   read out of the executable, so what is worth checking is that they reach
+   the page whole and that the parts built from the ARCHIVE are really read
+   off it rather than hardcoded: the sprite classes off 0xF009 and 0xF008
+   (the hero's own class, 32, has to be in it: that is the number Pandora's
+   Box searched for), the levels off the 0x80xx maps, the teleporters off
+   0xF00C (146 reaches the Tree of Life at (12,14), the thread's headline
+   mystery answered by its own list), and the nothing map's heap arithmetic
+   off 0x8000 -- with the negative control the workbench ran, the same test
+   on Land King Hall finding no header at all. */
 try {
   if (!ctx.showCategory('CHEATS')) fail('cheats', 'the Cheats tab refused to open');
   else {
@@ -1585,7 +1590,8 @@ try {
     const keys = peek('CHEAT_KEYS').length, open = peek('CHEAT_OPEN_KEYS').length;
     const sprites = ctx.cheatSpriteClasses();
     const hero = sprites.find(s => s.pt === 32);
-    const rows = (html.match(/<tr>/g) || []).length;
+    // The key rows alone: the record, key, level and teleporter tables have rows of their own.
+    const rows = (html.match(/<td class="cheatCombo">/g) || []).length;
     if (!/©gra/.test(html) || !/bit 0 of byte 3/.test(html))
       fail('cheats', 'the gate is not stated');
     else if (rows !== keys + open)
@@ -1603,23 +1609,60 @@ try {
            (sprites.some(s => s.kind === 'monster') ? 'present' : 'missing'));
     else if (!/0x0864/.test(html) || !/low ten bits/.test(html))
       fail('cheats', 'Create a prop does not say what its number is');
-    else console.log(`  cheats: the ©gra gate stated, ${keys} keys behind it and ${open} beside it, ` +
-                     `${sprites.length} sprite classes read off the archive with 32 the hero`);
+    else if (!/class’s own animation/.test(html))
+      fail('cheats', 'the aspect rule does not say the swing is the class’s own');
+    else if (!/Motion filters/.test(html) || !/Map Window Loc/.test(html) || !/DBC80000/.test(html))
+      fail('cheats', 'the preferences record, its keys or its defaults are missing');
+    else {
+      const levels = ctx.cheatLevels(), tp = ctx.cheatTeleporters();
+      const maps = []; for (let n = 0; n < 0x100; n++) if (ctx.refExists(0x8000 + n)) maps.push(n);
+      const t146 = ctx.zoneportInfo(146);
+      const heap = ctx.nothingMapHeap(0x8000), control = ctx.nothingMapHeap(0x8003);
+      const levelRows = (html.match(/<td class="num">[0-9A-F]{2}<\/td><td class="num">\d+<\/td>/g) || []).length;
+      if (levels.length !== maps.length || levelRows !== maps.length)
+        fail('cheats', `${levels.length} levels listed and ${levelRows} rows drawn for ${maps.length} maps`);
+      else if (!levels[0] || levels[0].n !== 0 || !/nothing map/.test(html))
+        fail('cheats', 'level 0 is not listed as the nothing map');
+      else if (tp.last !== 190 || tp.total !== 1024 || !t146 || t146.resid !== 0x8027 || t146.x !== 12 || t146.y !== 14)
+        fail('cheats', `teleporters: last ${tp.last} of ${tp.total}, 146 -> ${JSON.stringify(t146)}`);
+      else if (!/atlasOpenSquare\(32807,12,14\)/.test(html))
+        fail('cheats', 'teleporter 146 is not a link onto the Tree of Life at (12,14)');
+      else if (!heap || heap.high !== 0 || heap.heads < 10 || heap.hits * 2 < heap.heads)
+        fail('cheats', 'the nothing map’s heap arithmetic did not come out: ' + JSON.stringify(heap));
+      else if (!control || control.heads !== 0)
+        fail('cheats', 'the negative control failed: Land King Hall has allocator headers too: ' + JSON.stringify(control));
+      else if (!new RegExp(`${heap.hits} times of ${heap.heads}`).test(html))
+        fail('cheats', 'the heap figure on the page is not the computed one');
+      else console.log(`  cheats: the ©gra gate stated, ${keys} keys behind it and ${open} beside it, ` +
+                       `${sprites.length} sprite classes read off the archive with 32 the hero, ` +
+                       `${levels.length} levels, ${tp.last} teleporters, and the nothing map's ${heap.hits} of ${heap.heads} headers chained`);
+    }
   }
 } catch (e) { fail('cheats', e); }
 
 /* The preferences file, on the Tools tab. The bytes are pinned by
    resfork_write_check; what this adds is that the section renders, that the
-   two switches are there for a visitor to reach, and that the page does not
-   quietly stop saying the file has never been tried. */
+   switches are there for a visitor to reach -- the two that were always
+   there and the five named on 9 September 2026 -- that each named bit lands
+   where the record's table says, and that the page still says the file
+   replaces what is stored. (It said "untried" until v1.35.0, when the file
+   was put in front of the game; this check used to guard that sentence.) */
 try {
   ctx.showCategory('TOOLS');
   const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-  if (!/id="prefSmooth"/.test(tools) || !/id="prefCheats"/.test(tools)) fail('preferences', 'the two switches are not on the Tools tab');
+  const switches = ['prefSmooth', 'prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects'];
+  const missing = switches.filter(id => !new RegExp(`id="${id}"`).test(tools));
+  const rec = o => [...ctx.cytheraPrefsRecord(o)];
+  const bitsWrong = rec({ liveDrag: true })[0] !== 0x19 || rec({ manualContainers: true })[0] !== 0x58 ||
+    rec({ motionFilters: true })[1] !== 0x88 || rec({ walkAround: true })[1] !== 0xC0 || rec({ zoomRects: false })[1] !== 0x00 ||
+    rec({ smooth: true, cheats: true }).join() !== [0x9A, 0x80, 0, 1].join();
+  if (missing.length) fail('preferences', 'switches missing from the Tools tab: ' + missing.join(', '));
+  else if (bitsWrong) fail('preferences', 'a named bit does not land where the record’s table says');
+  else if (/never been tried|untried/.test(tools)) fail('preferences', 'the section still calls the file untried');
   else if (!/replaces any settings already stored/.test(tools)) fail('preferences', 'the section no longer says the file replaces the stored settings');
   else if (!/©gra/.test(tools)) fail('preferences', 'the section does not name the code');
   else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
-  else console.log(`  preferences: both switches on the Tools tab, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork, still labelled untried`);
+  else console.log(`  preferences: ${switches.length} switches on the Tools tab, each bit where the table says, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);
 } catch (e) { fail('preferences', e); }
 
 // Opening a second archive must not leave the first one's derived tables
