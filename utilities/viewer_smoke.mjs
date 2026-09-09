@@ -1163,7 +1163,10 @@ try {
       // The tuning strip is gone (v1.35.0); the numbers are consts, but
       // they still have to be the ones the renderer reads.
       {
-        // and moving one has to change what is drawn
+        // and moving one has to change what is drawn. A town is drawn from
+        // its miniature and from nothing else below 448 px (v1.37.1), so
+        // the miniatures are built here first; the page builds them on idle.
+        for (const gw of ctx.worldGateways().slice(0, 8)) { try { ctx.buildThumbsFor(gw, [peek('THUMB_LEVELS')[0]]); } catch (e) {} }
         const before = peek('atlasScene')().nodes.filter(n => n.depth).length;
         ctx.ATLAS_TUNE.nodeFadeFrom = 1;
         peek('paintAtlas')();

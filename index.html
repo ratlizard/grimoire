@@ -4147,7 +4147,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.37.0';
+const GRIMOIRE_VERSION = '1.37.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -10389,8 +10389,7 @@ function buildWorldThumbs() {
     if (todo.length) buildWorldThumbs();
   };
   thumbQueue = 1;
-  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(step, { timeout: 2000 });
-  else setTimeout(step, 120);
+  atlasWhenStill(step, 2000);
 }
 
 /* The bigger level, for the one town the view is beside. Nine times the
@@ -10405,8 +10404,7 @@ function buildNearThumbs(gw) {
     if (window.CUR_SUBN === 'WORLD') paintAtlas();
   };
   levelQueue = 1;
-  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(step, { timeout: 2000 });
-  else setTimeout(step, 200);
+  atlasWhenStill(step, 2000);
 }
 
 /* ---------------------------------------------------------------------------
@@ -10523,33 +10521,9 @@ function fullResPossible() {
    on any browser that will not actually hand out the canvas (fullResPossible
    allocates one and reads a pixel back). The button says what is on and turns
    it off. */
-function autoHeavyDefault() {
-  if (IS_IOS_WEBKIT) return false;
-  const nav = (typeof navigator !== 'undefined') ? navigator : {};
-  try {
-    if ((nav.maxTouchPoints || 0) > 0 && matchMedia('(pointer: coarse)').matches) return false;
-  } catch (e) {}
-  const conn = nav.connection || {};
-  if (conn.saveData) return false;
-  if (/2g/.test(conn.effectiveType || '')) return false;
-  if (typeof nav.deviceMemory === 'number' && nav.deviceMemory < 8) return false;
-  return fullResPossible();
-}
-
-/* Turned on once per archive, off the idle queue so that nothing here is in
-   the way of the first thing the reader sees. */
-function maybeAutoLoadEverything() {
-  if (window._AUTO_HEAVY_DONE) return;
-  window._AUTO_HEAVY_DONE = true;
-  if (!autoHeavyDefault()) return;
-  const go = () => {
-    if (window.FULL_RES || window.WORLD_PRELOAD) return;   // the reader got there first
-    toggleFullRes();                                       // native art everywhere, no lens
-    if (!window.WORLD_PRELOAD) toggleWorldPreload();        // and keep every place
-  };
-  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(go, { timeout: 4000 });
-  else setTimeout(go, 800);
-}
+// Full resolution and Keep every place are opt-in everywhere: nothing turns
+// them on by itself (an auto-enable for able desktops was written and never
+// called; removed 9 September 2026 so the code says what the page does).
 
 function toggleFullRes() {
   if (!window.FULL_RES && !fullResPossible()) {
@@ -10586,8 +10560,7 @@ function startWorldPreload() {
     startWorldPreload();                     // arm the next slice, same queue
   };
   preloadQueue = 1;
-  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(step, { timeout: 3000 });
-  else setTimeout(step, 60);
+  atlasWhenStill(step, 3000);
 }
 
 /* Render the place the reader is about to walk into, before they walk into
@@ -10607,8 +10580,7 @@ function prefetchZone(resid) {
   // verify_viewer's check 4b is right to object to a bare name nothing
   // declares -- that check is what caught setStatus being called seven times
   // and defined nowhere.
-  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: 1500 });
-  else setTimeout(run, 300);
+  atlasWhenStill(run, 1500);
 }
 /* The world map rings its gateways; a town shows the world around it and
    watches for the reader zooming back out of it. One settle, because they are
@@ -11326,16 +11298,21 @@ function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
   const roofT = atlasRoofT(r.w);
   let viaTown = false;
   if (!ok) {
-    const e = mapRenderFor(node.resid, true);
-    if (e && e.result && r.w >= 448) {
-      drawRenderWithMargin(ctx, node, r, e.result.canvas, alpha, roofT);
-      ok = true;
-    } else if (node.gw && worldThumbs.get(thumbKey(node.resid, THUMB_LEVELS[0], true))) {
+    // A town under 448 px across is drawn from its miniature and its render
+    // is not asked for. It used to be: mapRenderFor was called for every
+    // node on screen before the miniature was looked at, and the cache
+    // holds four maps, so with the whole island in view every frame
+    // rendered a dozen towns and threw them away again. That was the
+    // judder below 5 px a square, the first thing a visitor sees (the
+    // maintainer, 9 September 2026). A town with no miniature yet is
+    // left to the world's own pictogram until the builder makes one.
+    const thumb = node.gw && worldThumbs.get(thumbKey(node.resid, THUMB_LEVELS[0], true));
+    if (r.w < 448 && thumb) {
       ok = drawTown(ctx, node.gw, atlasCropRect(node, r), alpha, roofT);
       viaTown = true;
-    } else if (e && e.result) {
-      drawRenderWithMargin(ctx, node, r, e.result.canvas, alpha, roofT);
-      ok = true;
+    } else if (r.w >= 448 || !node.gw) {
+      const e = mapRenderFor(node.resid, true);
+      if (e && e.result) { drawRenderWithMargin(ctx, node, r, e.result.canvas, alpha, roofT); ok = true; }
     }
   }
   if (ok && !viaTown && node.gw && roofT > 0.02) {
@@ -12029,7 +12006,20 @@ function atlasAscend() {
    and a ring is taken by tapping it. The bookkeeping stays because it costs
    nothing and a later idea may want it. */
 const atlasGesture = { active: false, z0: null, timer: null };
+// The last moment the reader moved the world. A background render (a
+// miniature, a kept place, the map beside a ring) waits until the world has
+// been still for a little, so it never lands in the middle of a pan.
+let atlasBusyUntil = 0;
+function atlasMarkBusy() { atlasBusyUntil = Date.now() + 500; }
+function atlasIsBusy() { return !!(atlasView.touching || window._atlasAnimating || Date.now() < atlasBusyUntil); }
+// A slice of background work: now if the world is still, else a little later.
+function atlasWhenStill(fn, ms) {
+  const run = () => { if (atlasIsBusy()) { setTimeout(run, 250); return; } fn(); };
+  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: ms || 2000 });
+  else setTimeout(run, 120);
+}
 function atlasGestureBegin() {
+  atlasMarkBusy();
   if (atlasGesture.active) return;
   atlasGesture.active = true; atlasGesture.z0 = atlasView.Z;
 }
@@ -12043,6 +12033,7 @@ function atlasGestureEnd() {
 }
 // A wheel click or a slider move: part of a gesture that ends with a pause.
 function atlasGestureTouch() {
+  atlasMarkBusy();
   atlasGestureBegin();
   if (atlasGesture.timer) clearTimeout(atlasGesture.timer);
   atlasGesture.timer = setTimeout(() => { atlasGesture.timer = null; atlasGestureEnd(); }, 180);
@@ -12262,6 +12253,7 @@ function atlasRiseOut() {
 }
 
 function atlasZoomAround(newZ, px, py) {
+  atlasMarkBusy();
   if (window._atlasAnimating) return;
   const maxZ = atlasMaxZ();
   const sc = atlasScene();
@@ -12284,6 +12276,7 @@ function atlasZoomAround(newZ, px, py) {
 }
 
 function atlasPanBy(dx, dy) {
+  atlasMarkBusy();
   if (window._atlasAnimating) return;
   atlasView.x += dx; atlasView.y += dy;
   schedulePaintAtlas();
