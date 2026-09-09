@@ -389,6 +389,42 @@ try {
       const dhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
       if (!/0x205E/.test(dhtml) || !/flail/.test(dhtml) || !/low ten bits/.test(dhtml)) fail('items', 'the mace’s page does not state the aspect rule with the flail and its word');
       else console.log(`  items: ${orphans.length} pictures no class owns, the flail among them at mace 8 / spear 2; the mace’s page says 0x205E`);
+      // The word block, v1.33.0: the rail's 32 slots, the readout at an
+      // aspect, the other classes that reach the tile with the aspect each
+      // needs, and the two bytes' meaning -- Data1 read off the outcome
+      // routine as the enchantment, the sword classes' Examine lines found
+      // by their test, and the one placed sword that carries one.
+      const walk = el => (el.innerHTML || '') + (el.textContent || '') + (el.children || []).map(walk).join('');
+      const pw = ctx.propWordRules();
+      const st = ctx.__peek('window.PROP_WORD');
+      if (!st || st.pt !== 94 || st.slots.length !== 32) fail('items', 'the word block did not mount on the mace’s page with 32 slots: ' + JSON.stringify(st && [st.pt, st.slots && st.slots.length]));
+      else {
+        ctx.propWordSet(8);
+        let html = walk(REGISTRY.get('sheetGrid'));
+        const spearAt2 = /propWordOpen\(100,2\)/.test(html) && /aspect 2 · 0x0864/.test(html);
+        if (!/0x205E/.test(html) || !/8 × 1,024 \+ 94/.test(html) || !/shows tile 0x0208, <b[^>]*>flail<\/b>/.test(html) || !/damage 15, reach 1, Mace, 18 grains/.test(html))
+          fail('items', 'the mace at aspect 8 does not read out as 0x205E, the flail, with the mace’s own numbers');
+        else if (!spearAt2) fail('items', 'the spear is not listed as reaching the flail tile at aspect 2 (0x0864)');
+        else if (!(pw.ench && pw.ench.guarded && pw.ench.added && pw.ench.magic)) fail('items', 'the enchantment was not read off the outcome routine: ' + JSON.stringify(pw.ench));
+        else if (pw.examines.length !== 3 || !pw.examines.every(e => e.above2 === 'It has an extremely sharp edge.' && e.above0 === 'It is very sharp.') || !pw.examines.some(e => e.pt === 95))
+          fail('items', 'the Examine lines were not found on the dagger and the two swords: ' + JSON.stringify(pw.examines));
+        else if (!pw.placed.some(r => r.resid === 0x811A && r.pt === 281 && r.d1 === 7) || pw.placed.length !== 1 || pw.ammo.length !== 5)
+          fail('items', 'the placed enchantment is not the one sword (Data1 7) with five arrows the resolver ignores: ' + JSON.stringify([pw.placed, pw.ammo.length]));
+        else if (pw.readers.length < 70 || !pw.readers.some(r => r.pt === 0x0A && r.ops.includes('get data1')) || !pw.readers.some(r => r.pt === 0x48 && r.ops.includes('get data3')) || !pw.readers.some(r => r.pt === 0x142 && r.ops.includes('set data1')) || !pw.zoneReaders.includes(0x48))
+          fail('items', 'the class readers were not found (the stone door, the stairs to ChangeZone, the bomb writing): ' + pw.readers.length);
+        else {
+          ctx.propWordData(1, '7');
+          html = walk(REGISTRY.get('sheetGrid'));
+          if (!/Data1 is the enchantment/.test(html) || !/counts as magical/.test(html) || !/then Data1 <b[^>]*>7<\/b> in decimal/.test(html))
+            fail('items', 'the mace at Data1 7 does not say the byte is its enchantment and what the cheat asks for');
+          else {
+            ctx.showItemDetail(95); ctx.propWordData(1, '3');
+            html = walk(REGISTRY.get('sheetGrid'));
+            if (!/Examine says “It has an extremely sharp edge\.”/.test(html)) fail('items', 'the dagger at Data1 3 does not quote its Examine line');
+            else console.log(`  items: the word block reads the mace at 8 as 0x205E the flail, the spear reaches it at 2; Data1 is the enchantment (${pw.scripts} scripts read the bytes, ${pw.readers.length} classes), one placed sword carries 7`);
+          }
+        }
+      }
     }
   }
 } catch (e) { fail('items', e); }
@@ -1477,6 +1513,7 @@ try {
   else if (!dice || dice.wins !== 96 || dice.pushes !== 50 || dice.losses !== 70) fail('mechanics', 'the dice enumeration is not 96/50/70: ' + JSON.stringify(dice && [dice.wins, dice.pushes, dice.losses]));
   else if (!/win 2 oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
   else if (!/resists non-magical weapons: [^<]*lich/.test(html)) fail('mechanics', 'the spells section does not name the monsters immune to non-magical damage')
+  else if (!/The prop word and the two data bytes/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/hand it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
   else if (!/four seconds/.test(html) || !/one off every game hour/.test(html) || !/4096 is one hour/.test(html) || (html.match(/mechGo\(/g) || []).length < 15 || mechSecs < 15) fail('mechanics', `the balloon lifetime, the contents strip or the sections are missing: ${mechSecs} sections`);
   else if (mechFolds < mechSecs || (html.match(/mechOpenAll\(/g) || []).length < 2) fail('mechanics', `the sections do not fold: ${mechFolds} of ${mechSecs} are details, open/close all ${(html.match(/mechOpenAll\(/g) || []).length}`);
   // The dice game's numbers are read off 0x812 with their offsets, v1.31.0:

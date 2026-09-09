@@ -515,6 +515,25 @@ re-check the installer count before assuming the rule still applies.
   Engine (`coldmap.py` reads them), the save sheet's segment writers as chips
   (the names are `TCachedSegFiles::SaveSegment` and
   `SaveEncryptedSegment`, found by the reader), and the executable patcher.
+- **The prop word and the two data bytes, v1.33.0** (9 September). The
+  maintainer brought a standalone page of his own — the record's word as
+  bits, a class and an aspect to pick, the tile against the class fields,
+  the overlap, Data1/Data2 — and asked for it in grimoire's conventions.
+  It is now a block under *The word* on every item's page (the bits, the
+  readout, a rail of the 32 aspects drawn, what is shown against what is
+  kept, the other classes that reach the tile at the aspect each needs,
+  Data1 and Data2 inputs with what the cheat asks for) and a Mechanics
+  section after *Weapons and armour*, all read off the file. **Read and
+  worth knowing**: Data1 on a melee weapon is the enchantment, added to
+  every blow by the outcome routine 0xE87, and any enchantment makes the
+  blow magical (0x80 on the type), which is what gets past the five
+  monsters that resist non-magical weapons; an arrow's Data1 is not read,
+  so the shipped file has one enchanted item, a sword in 0x811A with
+  Data1 7, not the six the page had counted. `CLAUDE.md`'s v1.33.0 bullet
+  has the rest. **Not checked here**: whether the game's inventory names a
+  prop from the tile at run time as delvmod does — the page says "takes
+  that tile's name" as before.
+
 - **Careful: another session is pushing to grimoire through the day.**
   Three of the four commits above needed a rebase, one with a conflict
   (the version number, which both sessions bump). Fetch before starting

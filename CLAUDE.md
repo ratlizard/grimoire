@@ -2341,6 +2341,53 @@ Read the comment above a constant before correcting it.
   The smoke pins the flail at mace 8 and spear 2 with the word `0x205E`,
   refuses bread, the lit torch and the shutters, and reads the mace's page.
 
+- **The prop word and the two data bytes, v1.33.0** (9 September 2026). The
+  maintainer brought a standalone page he had made — the 16-bit word as
+  bits, a prop type and an aspect to pick, the tile it lands on against the
+  class's own fields, the other classes that reach the same tile, and
+  Data1/Data2 with a glossary — and asked for it to be brought into the
+  site in its own conventions. Its weapon list, tile strip and glossary were
+  typed in; here everything is read off the open file. Two places.
+  **Every item's page** has a block under *The word* (`propWordMount`,
+  `propWordRender`; state in `window.PROP_WORD`): the sixteen bits with the
+  five of aspect outlined and the ten of class filled, the word in hex and
+  decimal with the sum, a rail of the 32 aspects each drawn as the tile it
+  lands on (a slot on a new sheet is set off), the sentence saying what is
+  shown and what is kept (name from 0xF004; damage, reach, skill,
+  protection, block and weight from the class), the other item classes
+  whose base is within 31 below the tile as chips that open that item at
+  the aspect it needs (`propWordOpen`), and two inputs for Data1 and Data2
+  with what the create-a-prop cheat asks for in the order it asks (prop in
+  hex, Data1 in decimal, Data2 in hex — workbench `doc/cythera_keys.md`).
+  The inputs are built once and never re-rendered, so typing keeps the
+  caret. **Mechanics** has a section of the same name after *Weapons and
+  armour*, with the table of placed enchantments and the table of which
+  class scripts read or write each byte. **What was read, and where**
+  (`propWordRules`, patterns over the listings so an edited archive shows
+  its own): the outcome routine 0xE87 reads Data1 off a weapon that has
+  both the MeleeWeapon and Equipment members, adds it after the damage roll
+  (`Random(0, damage) + 1 + Data1`) and ORs 0x80 into the damage type when
+  it is not zero, so **Data1 on a melee weapon is its enchantment and an
+  enchanted blow is magical** — the combat section had said "plus the
+  enchantment" since v1.7.0 without naming the byte. **An arrow's Data1 is
+  not read**: the guard is on MeleeWeapon and 0xE89 reads no data field,
+  so the five arrows placed with a Data1 (20, 30, 1, 20, 7 on a magic
+  arrow) are not enchanted, and the one placed enchantment in the shipped
+  file is a sword in 0x811A with Data1 7. The maintainer's page had counted
+  all six. The dagger and the two swords test Data1 above 2 and above 0 in
+  Examine for "It has an extremely sharp edge." and "It is very sharp.",
+  found by the test rather than named; 92 scripts read or write the bytes,
+  77 of them class scripts; the passage classes hand Data3 (both bytes as
+  one value) to ChangeZone. The glossary of purposes (locks, texts,
+  countdowns, mechanisms) is stated as a sentence, not a table, because
+  only the enchantment and the destination were verified here; the rest
+  is what the reader tables show by class. The smoke pins the mace at
+  aspect 8 as 0x205E the flail with the mace's numbers, the spear reaching
+  it at 2, the three Examine classes and their lines, the one sword and
+  five arrows, the stone door, the stairs and the bomb among the readers,
+  and the section's sentences; the negative control (the resolver pattern
+  misspelt) fails the items check.
+
 - **The application's data fork is read, v1.32.0** (9 September 2026; the
   maintainer asked why the tab was still empty, and then to fill it "as long
   as it's not unethical", which reading a file's own headers and the names

@@ -634,6 +634,45 @@ details.sv[open] > summary::before { content:'\25BE '; }
 .sv-warn { font-size:0.8125rem; line-height:1.55; color:#d8c98e; background:#1a1610;
            border-left:3px solid var(--gold); padding:9px 11px; border-radius:0 4px 4px 0; }
 .sv-note { font-size:0.75rem; color:#b5b2a8; margin-top:5px; }
+/* The prop word on an item's page (v1.33.0): the sixteen bits, the readout,
+   the aspect rail and the two data bytes. The aspect cells are outlined and
+   the class cells filled so the two fields read as two; a set bit is white,
+   a clear one grey; the chosen slot is gold because it is the one thing
+   here that was clicked. --pwb is a bit cell's width and the one number to
+   change if the strip does not fit. */
+.pwBits { --pwb:22px; display:flex; gap:2px; overflow-x:auto; padding-bottom:2px; }
+.pwBit { width:var(--pwb); height:28px; flex:none; display:grid; place-items:center; font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-size:0.8125rem; border:1px solid #33302a; background:#1c1913; color:#8c8980; }
+.pwBit.on { color:#fff; }
+.pwBit.pwAsp { border-color:#b5b2a8; }
+.pwBit.pwAsp.on { background:#2b2620; }
+.pwBit.pwCls.on { background:#33302a; }
+.pwBit.pwSpare { border-style:dashed; }
+.pwGap { width:6px; flex:none; }
+.pwKeys { --pwb:22px; display:flex; gap:2px; font-size:0.625rem; color:#8c8980; margin:2px 0 8px; white-space:nowrap; }
+.pwKeys span { flex:none; }
+.pwRead { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; margin:0 0 6px; color:#b5b2a8; font-size:0.75rem; }
+.pwRead b { color:#fff; font-size:1.375rem; font-family:ui-monospace,Menlo,Consolas,monospace; font-weight:600; }
+.pwRail { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:3px; margin:8px 0 4px; }
+.pwSlot { background:#1c1913 !important; background-image:none !important; border:1px solid #33302a !important; border-radius:4px !important;
+  color:#b5b2a8 !important; padding:3px 2px 4px !important; min-height:0 !important; width:auto; margin:0; display:flex; flex-direction:column;
+  align-items:center; gap:2px; min-width:0; font-family:inherit; font-size:0.625rem !important; letter-spacing:0; font-weight:400 !important;
+  clip-path:none !important; box-shadow:none !important; text-shadow:none !important; cursor:pointer; text-decoration:none !important; }
+.pwSlot::before, .pwSlot::after { display:none !important; }
+.pwSlot:hover { border-color:var(--gold) !important; color:var(--gold) !important; text-decoration:none !important; }
+.pwSlot.pwOn { border-color:var(--gold) !important; color:var(--gold) !important; background:#26211a !important; }
+.pwSlot.pwHome { box-shadow:inset 0 2px 0 #b5b2a8 !important; }
+.pwSlot.pwEdge { margin-left:3px; }
+.pwSlot .pwN { color:#8c8980; font-family:ui-monospace,Menlo,Consolas,monospace; }
+.pwSlot.pwOn .pwN { color:var(--gold); }
+.pwSlot .pwArt { width:24px; height:24px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.pwSlot .pwArt canvas { width:20px !important; height:20px !important; image-rendering:pixelated; margin:0 !important; }
+.pwSlot .pwT { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.2; }
+.pwData { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin:4px 0 6px; font-size:0.75rem; color:#b5b2a8; }
+.pwData label { display:inline-flex; align-items:center; gap:6px; }
+.pwData input { width:64px; font:inherit; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:0.875rem; color:#fff; background:#1c1913;
+  border:1px solid #33302a; border-radius:4px; padding:3px 6px; }
+@media (max-width:640px) { .pwRail { grid-template-columns:repeat(4,minmax(0,1fr)); } .pwBits, .pwKeys { --pwb:18px; } }
 pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-height:360px;
               white-space:pre; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
               font-size:0.75rem; line-height:1.5; border:1px solid var(--edge); border-radius:4px; margin:0; }
@@ -3497,6 +3536,210 @@ function orphanArtReachable(pt) {
   return orphanItemArt().map(o => { const r = o.reach.find(x => x.pt === pt); return r ? Object.assign({}, o, { aspect: r.aspect, word: r.word }) : null; }).filter(Boolean);
 }
 
+/* THE TWO DATA BYTES, and the enchantment (v1.33.0).
+
+   Beside its word a prop record carries two bytes the scripts' field table
+   calls data1 and data2 (fields 6 and 7; field 8, data3, is both read as
+   one 16-bit value). They have no fixed meaning: each class script reads
+   them for its own purpose -- a door its lock, a passage its destination,
+   a candle its countdown -- and the weapons' purpose is not in the weapon
+   classes at all but in the attack resolver 0xE87, which reads Data1 off a
+   weapon that is both a MeleeWeapon (0x2A) and Equipment (0x26), adds it to
+   the blow after the damage roll (Random(0, damage) + 1 + Data1) and sets
+   0x80, a magic bit, on the damage type when it is not zero. An arrow's
+   Data1 is not read there: the guard is on MeleeWeapon, and the missile
+   routine 0xE89 reads no data field, so the arrows placed with a Data1 of
+   20 and 30 hit for what their class says. Three classes -- the dagger and
+   the two swords -- say so in Examine, testing Data1 above 2 and above 0
+   for two lines of the game's own text; they are found by that test rather
+   than named. The Mechanics sheet's combat section had said "plus the
+   enchantment" since v1.7.0 without ever saying the enchantment was this
+   byte. Each pattern below is a shape in the listing, so an archive whose
+   resolver has been edited shows what it has. Read by the item page's word
+   block and the Mechanics section of the same name. */
+window.PROP_WORD_RULES = null;
+function propWordRules() {
+  if (window.PROP_WORD_RULES) return window.PROP_WORD_RULES;
+  const idx = buildScriptTextIndex();
+  const strip = t => t.replace(/^\s*[0-9A-F]{4}\s+/gm, '');
+  const resolve = idx.find(e => e.resid === 0xE87);
+  let ench = null;
+  if (resolve) {
+    const t = strip(resolve.text);
+    ench = {
+      guarded: /has_member MeleeWeapon \(0x2A\)[\s\S]{0,40}has_member Equipment \(0x26\)[\s\S]{0,10}and[\s\S]{0,60}get_field data1 \(0x6\)/.test(t),
+      added: /sys Random[\s\S]{0,60}byte 0x01[\s\S]{0,10}add[\s\S]{0,10}local Var05[\s\S]{0,10}add/.test(t),
+      magic: /if_not[\s\S]{0,10}local Var05[\s\S]{0,60}word 128[\s\S]{0,10}bitwise_or/.test(t)
+    };
+  }
+  // Which class scripts read or write the bytes; which hand Data3 to
+  // ChangeZone; and which report Data1 in Examine, with the two lines.
+  const readers = [], examines = [], zoneReaders = [];
+  let scripts = 0;
+  for (const e of idx) {
+    if (/(get|set)_field data[123] /.test(e.text)) scripts++;
+    if (e.resid < 0x1000 || e.resid >= 0x1400) continue;
+    const ops = new Set();
+    for (const m of e.text.matchAll(/(get|set)_field (data[123]) /g)) ops.add(m[1] + ' ' + m[2]);
+    if (!ops.size) continue;
+    readers.push({ pt: e.resid - 0x1000, resid: e.resid, ops: [...ops].sort() });
+    const t = strip(e.text);
+    if (/sys ChangeZone[\s\S]{0,80}get_field data3 \(0x8\)/.test(t)) zoneReaders.push(e.resid - 0x1000);
+    const m = /get_field data1 \(0x6\)\s+byte 0x02\s+gt[\s\S]{0,40}string\(implicit\) "([^"]+)"[\s\S]{0,80}string\(implicit\) "([^"]+)"/.exec(t);
+    if (m) examines.push({ pt: e.resid - 0x1000, above2: m[1].replace(/\\n$/, ''), above0: m[2].replace(/\\n$/, '') });
+  }
+  // Every placed record whose Data1 the resolver would add -- a class with
+  // both members, not an egg, not deleted -- and the ammunition carrying a
+  // Data1 the resolver does not read.
+  const melee = new Set(), ammoCls = new Set();
+  for (let pt = 1; pt < 512; pt++) {
+    const cls = parseItemClass(pt); if (!cls) continue;
+    const has = k => cls.data.some(f => f.key === k);
+    if (has(0x2A) && has(0x26)) melee.add(pt);
+    if (has(0x2D)) ammoCls.add(pt);
+  }
+  const placed = [], ammo = [];
+  const count = subindexCount(128);
+  for (let n = 0; n < count; n++) {
+    const resid = 0x8100 + n; let recs = null;
+    try { const raw = getResourceBytes(resid); if (raw) recs = parseDelverPropList(smartDecrypt(raw, resid).data); } catch (e) {}
+    if (!recs) continue;
+    for (const r of recs) {
+      if (r.flags === 0xFF || r.flags === 0x42 || r.flags === 0x44 || !r.d1) continue;
+      if (melee.has(r.proptype)) placed.push({ resid, index: r.index, pt: r.proptype, aspect: r.aspect, d1: r.d1, carriedBy: r.carriedBy });
+      else if (ammoCls.has(r.proptype)) ammo.push({ resid, index: r.index, pt: r.proptype, d1: r.d1 });
+    }
+  }
+  return (window.PROP_WORD_RULES = { ench, readers, examines, zoneReaders, scripts, placed, ammo, melee });
+}
+// The ops of one reader in words: "reads Data1, Data3, writes Data1".
+function propWordOps(ops) {
+  const nm = o => o.slice(4).replace('data', 'Data');
+  const r = ops.filter(o => /^get/.test(o)).map(nm), w = ops.filter(o => /^set/.test(o)).map(nm);
+  return [r.length ? 'reads ' + r.join(', ') : '', w.length ? 'writes ' + w.join(', ') : ''].filter(Boolean).join(', ');
+}
+
+/* THE WORD BLOCK ON AN ITEM'S PAGE (v1.33.0). One state, window.PROP_WORD:
+   the item, an aspect, Data1 and Data2. The rail of 32 slots is built once
+   with the tile each aspect lands on drawn in it; the bits, the readout and
+   the meaning line re-render when the aspect or a byte changes. The two
+   inputs are built once too and are never re-rendered, so typing into one
+   does not lose the caret. Brought in from a standalone page the maintainer
+   made on 9 September 2026, which had the weapon list typed in; here
+   everything comes off the open file. */
+window.PROP_WORD = null;
+function propWordHex(n, w) { return '0x' + n.toString(16).toUpperCase().padStart(w || 4, '0'); }
+function propWordMount(pt, host) {
+  const st = window.PROP_WORD = { pt, aspect: 0, d1: 0, d2: 0, host, slots: [] };
+  const base = getPropTileList()[pt] || 0;
+  host.className = 'sv-block';
+  host.innerHTML = '';
+  const h4 = document.createElement('h4'); h4.textContent = 'The word'; host.appendChild(h4);
+  const read = document.createElement('div'); read.className = 'pwReadout'; host.appendChild(read); st.read = read;
+  const sub = document.createElement('div'); sub.className = 'mechSub'; sub.textContent = 'Aspect: the tile each lands on, counted forward from the class’s own'; host.appendChild(sub);
+  const rail = document.createElement('div'); rail.className = 'pwRail';
+  for (let n = 0; n < 32; n++) {
+    const b = document.createElement('button'); b.type = 'button';
+    // A slot on a new 16-tile sheet is set off a little: from there the
+    // aspect lands on another sheet's art.
+    b.className = 'pwSlot' + (n === 0 ? ' pwHome pwOn' : '') + (n && ((base + n) >> 4) !== ((base + n - 1) >> 4) ? ' pwEdge' : '');
+    b.onclick = () => propWordSet(n);
+    const nm = terrainNameFor(base + n) || '';
+    b.title = 'aspect ' + n + ' · tile ' + propWordHex(base + n) + (nm ? ' · ' + nm : '');
+    const num = document.createElement('span'); num.className = 'pwN'; num.textContent = String(n); b.appendChild(num);
+    const art = document.createElement('div'); art.className = 'pwArt';
+    try { const spr = drawPropSprite(base + n, 20); if (spr) art.appendChild(spr.canvas); } catch (e) {}
+    b.appendChild(art);
+    const t = document.createElement('span'); t.className = 'pwT'; t.textContent = nm || 'unnamed'; b.appendChild(t);
+    rail.appendChild(b); st.slots.push(b);
+  }
+  host.appendChild(rail);
+  const sub2 = document.createElement('div'); sub2.className = 'mechSub'; sub2.textContent = 'Data1 and Data2'; host.appendChild(sub2);
+  const data = document.createElement('div'); data.className = 'pwData';
+  for (const k of [1, 2]) {
+    const lab = document.createElement('label'); lab.textContent = 'Data' + k + ' ';
+    const inp = document.createElement('input'); inp.type = 'number'; inp.min = '0'; inp.max = '255'; inp.value = '0';
+    inp.oninput = () => propWordData(k, inp.value);
+    lab.appendChild(inp); data.appendChild(lab);
+  }
+  host.appendChild(data);
+  const meaning = document.createElement('div'); meaning.className = 'sv-note'; meaning.style.marginTop = '0'; host.appendChild(meaning); st.meaning = meaning;
+  propWordRender();
+}
+function propWordSet(n) {
+  const st = window.PROP_WORD; if (!st) return;
+  st.aspect = Math.max(0, Math.min(31, n | 0));
+  st.slots.forEach((b, i) => { b.className = b.className.replace(/ pwOn/g, '') + (i === st.aspect ? ' pwOn' : ''); });
+  propWordRender();
+}
+function propWordData(k, v) {
+  const st = window.PROP_WORD; if (!st) return;
+  st['d' + k] = Math.max(0, Math.min(255, parseInt(v, 10) || 0));
+  propWordRender();
+}
+// Another class's page, at the aspect that shows the same tile.
+function propWordOpen(pt, aspect) { showItemDetail(pt); propWordSet(aspect); }
+function propWordRender() {
+  const st = window.PROP_WORD; if (!st || !st.read) return;
+  const pt = st.pt, a = st.aspect, tiles = getPropTileList(), base = tiles[pt] || 0, tile = base + a, word = (a << 10) | pt;
+  const w = s => '<b style="color:#fff">' + s + '</b>';
+  const name = terrainNameFor(tile) || '', own = terrainNameFor(base) || propDisplayName(pt) || '';
+  const bits = word.toString(2).padStart(16, '0');
+  let h = '<div class="sv-note" style="margin:0 0 8px">In a prop list this item is the word ' + w(propWordHex(pt)) + ': the class in the low ten bits, an aspect in the five above, so a step of aspect is worth 1,024 and a step of class 1. ' +
+    'Aspect <i>n</i> draws base tile + <i>n</i> and takes that tile’s name; what else it changes is the class script’s to say.';
+  let wear = [];
+  try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
+  if (wear.length) h += ' At ' + wear.map(x => 'aspect ' + w(x.aspect) + ' it is a ' + w(svEsc(x.name)) + ' (tile ' + propWordHex(x.tile) + ', the word ' + propWordHex(x.word) + ')').join(', ') +
+    ' with this class’s own numbers, a picture no class owns and nothing in the file wears.';
+  h += '</div><div class="pwBits">';
+  for (let i = 0; i < 16; i++) {
+    if (i === 1 || i === 6) h += '<span class="pwGap"></span>';
+    h += '<span class="pwBit ' + (i === 0 ? 'pwSpare' : i < 6 ? 'pwAsp' : 'pwCls') + (bits[i] === '1' ? ' on' : '') + '">' + bits[i] + '</span>';
+  }
+  h += '</div><div class="pwKeys"><span style="width:var(--pwb)"></span><span class="pwGap"></span><span style="width:calc(5 * var(--pwb) + 8px)">aspect, 5 bits</span><span class="pwGap"></span><span>class, 10 bits</span></div>';
+  h += '<div class="pwRead"><b>' + propWordHex(word) + '</b><span>' + word.toLocaleString('en-US') + '</span><span>' + a + ' × 1,024 + ' + pt + '</span></div>';
+  // What is shown, and what is kept.
+  let g = null;
+  try { g = gearTable().find(r => r.pt === pt) || null; } catch (e) { g = null; }
+  const kept = [];
+  if (g) {
+    if (g.melee && g.damage !== null) kept.push('damage ' + g.damage);
+    if (g.thrown) kept.push('thrown ' + g.thrown[0] + ' to ' + g.thrown[1] + ' squares');
+    if (g.reach !== null && g.reach !== undefined) kept.push((g.ranged ? 'range ' : 'reach ') + g.reach);
+    if (g.skill) kept.push(g.skill);
+    if (g.protection !== null && g.protection !== undefined) kept.push('protection ' + g.protection);
+    if (g.block !== null && g.block !== undefined) kept.push('blocks ' + g.block);
+  }
+  const wt = itemWeight(pt);
+  if (wt !== null) kept.push(wt + ' grains');
+  h += '<div class="sv-note" style="margin:0 0 4px">' + (a === 0
+    ? 'Aspect 0 is the class’s own tile, ' + w(svEsc(own || 'unnamed')) + ' (' + propWordHex(base) + ').'
+    : 'Aspect ' + a + ' shows tile ' + propWordHex(tile) + ', ' + w(svEsc(name || 'unnamed')) + ', and takes that name. It is still class ' + propWordHex(0x1000 + pt) + (kept.length ? ': ' + kept.join(', ') : '') + '.') + '</div>';
+  // The other classes whose aspect can land on this tile, and at what.
+  let others = [];
+  try { others = inventoryItemList().filter(e => e.pt !== pt && (tiles[e.pt] || 0) && (tiles[e.pt] || 0) <= tile && tile < (tiles[e.pt] || 0) + 32)
+    .map(e => ({ pt: e.pt, aspect: tile - (tiles[e.pt] || 0), name: e.name })).sort((x, y) => x.aspect - y.aspect); } catch (e) { others = []; }
+  h += '<div class="mechSub">Other classes that reach this tile</div>';
+  h += others.length ? '<div class="sv-chips">' + others.map(o => actionChip(o.name, 'propWordOpen(' + o.pt + ',' + o.aspect + ')', 'aspect ' + o.aspect + ' · ' + propWordHex((o.aspect << 10) | o.pt))).join('') + '</div>'
+    : '<div class="sv-note" style="margin-top:0">No other item class has its base tile within 31 below this one.</div>';
+  st.read.innerHTML = h;
+  // The meaning of the two bytes for this class.
+  let rules = null;
+  try { rules = propWordRules(); } catch (e) { rules = null; }
+  let m = '';
+  if (rules) {
+    const reader = rules.readers.find(r => r.pt === pt), ex = rules.examines.find(e => e.pt === pt);
+    if (rules.melee.has(pt) && rules.ench && rules.ench.guarded && rules.ench.added) {
+      m = 'Data1 is the enchantment: ' + partChip('the outcome', 0xE87) + ' reads it off the weapon and adds it to the damage of every blow' + (rules.ench.magic ? ', and a blow with any enchantment counts as magical' : '') + '.';
+      if (ex) m += st.d1 > 2 ? ' Examine says “' + svEsc(ex.above2) + '”' : st.d1 > 0 ? ' Examine says “' + svEsc(ex.above0) + '”' : ' Examine reports it once it is above 0.';
+      if (reader) m += ' The class script also ' + propWordOps(reader.ops) + '.';
+    } else if (reader) m = 'The class script ' + propWordOps(reader.ops) + (reader.ops.some(o => /data3/.test(o)) ? ' (Data3 is both bytes as one value)' : '') + '. What they mean is this class’s own.';
+    else m = 'No script on this class reads either byte.';
+  }
+  m += ' The create-a-prop cheat asks for ' + w(propWordHex(word)) + ', then Data1 ' + w(st.d1) + ' in decimal, then Data2 ' + w(propWordHex(st.d2, 2)) + ' in hex.';
+  st.meaning.innerHTML = m;
+}
+
 // A prop type counts as an item if the archive treats it as one: it has a
 // weight in its class, or instances of it are carried, contained or marked
 // takeable. Nothing here is a hand-written list of item names.
@@ -3675,17 +3918,15 @@ function showItemDetail(pt) {
     if (win) chips.push(partChip('Opens as', win));
     h += partsStrip('Made of', chips);
   }
-  {
-    // The record's word, and what an aspect does to it.
-    const hex4 = n => '0x' + n.toString(16).toUpperCase().padStart(4, '0');
-    let wear = [];
-    try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
-    h += '<div class="sv-note" style="font-size:0.75rem;margin:2px 0 10px">In a prop list this item is the word <b style="color:#fff">' + hex4(pt) + '</b>: the class in the low ten bits, an aspect in the five above. ' +
-      'Aspect <i>n</i> draws base tile + <i>n</i> and takes that tile’s name; what else it changes is the class script’s to say.' +
-      (wear.length ? ' At ' + wear.map(w => 'aspect <b style="color:#fff">' + w.aspect + '</b> it is a <b style="color:#fff">' + svEsc(w.name) + '</b> (tile 0x' + w.tile.toString(16).toUpperCase() + ', the word ' + hex4(w.word) + ')').join(', ') +
-        ' with this class’s own numbers, a picture no class owns and nothing in the file wears.' : '') + '</div>';
-  }
   panel.innerHTML = h;
+  // The record's word, what an aspect does to it, and the two data bytes:
+  // the block under "The word", built as elements because the rail draws
+  // a tile in each slot.
+  {
+    const host = document.createElement('div');
+    panel.appendChild(host);
+    try { propWordMount(pt, host); } catch (e) { host.className = 'sv-note'; host.textContent = 'The word could not be read: ' + (e && e.message ? e.message : e); }
+  }
 
   // Only the frames the archive still calls by this item's name. Everything
   // after them belongs to whatever the sheet holds next, and is named as such
@@ -3916,7 +4157,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.32.0';
+const GRIMOIRE_VERSION = '1.33.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -5071,6 +5312,8 @@ function resetDerivedCaches() {
   window.ITEM_INDEX = null;
   window.ITEM_WORN = null;
   window.ORPHAN_ART = null;
+  window.PROP_WORD_RULES = null;
+  window.PROP_WORD = null;
   window.ITEM_LIST = null;
   // Not a memoisation, but keyed to the open file all the same: which
   // resources this session has edited. applyResourceEdit carries it across
@@ -16124,6 +16367,37 @@ function renderMechanicsSheet() {
       gear.map(r => '<tr><td>' + propChip(r.pt, r.name, ['melee', 'thrown', 'ranged', 'ammunition', 'armour', 'shield'][kind(r)]) + '</td>' +
         num(r.weight) + num(r.damage) + num(r.reach) + num(r.type) + '<td>' + svEsc(r.skill) + '</td>' + num(r.ammoClass) + num(r.protection) + num(r.block) + '</tr>')) +
     mechGearFigure(gear), '');
+
+  // ---- the prop word and the two data bytes ----
+  // The icon is tile 0x208, the flail: the picture no class owns that the
+  // create-a-prop cheat reaches with a mace at aspect 8, which is how the
+  // word came to be looked at. In another archive it is whatever is there.
+  const pw = propWordRules();
+  const pwName = pt => propDisplayName(pt) || ('prop 0x' + pt.toString(16).toUpperCase());
+  const pwBuild = gear.find(r => r.melee) || gear[0] || null;
+  const pwEx = pw.examines.length ? pw.examines[0] : null;
+  const pwByByte = k => ({ r: pw.readers.filter(x => x.ops.includes('get ' + k)), w: pw.readers.filter(x => x.ops.includes('set ' + k)) });
+  add('propword', 'The prop word and the two data bytes', { tile: 0x208 }, src('the outcome', 0xE87) + (pwEx ? src('Examine', 0x1000 + pwEx.pt) : ''),
+    'A prop record names its object with one 16-bit word, and carries two bytes beside it that each class reads for its own purpose.',
+    [
+      'The word is <b>the class in the low ten bits and an aspect in the five above</b>, so a step of aspect is worth 1,024 and a step of class 1. The create-a-prop cheat asks for this word, then Data1 in decimal, then Data2 in hex.' +
+        (pwBuild ? ' ' + actionChip('Build one', 'showItemDetail(' + pwBuild.pt + ')', pwBuild.name) + ' on any item’s page.' : ''),
+      'Aspect <i>n</i> draws the class’s base tile + <i>n</i> and the prop <b>takes that tile’s name</b>; the weapon classes read nothing per aspect, so a weapon at another aspect keeps its damage, reach and skill under the other tile’s picture and name. The pictures that leaves no class owning are at the foot of Items.',
+      pw.ench && pw.ench.guarded && pw.ench.added ? '<b>Data1 on a weapon is its enchantment.</b> The outcome routine reads it off a weapon that is both a melee weapon and equipment and adds it to the damage of every blow' +
+        (pw.ench.magic ? ', and <b>a blow with any enchantment counts as magical</b>, which is what gets past the monsters that resist non-magical weapons' : '') + '. An arrow’s Data1 is not read: the test is for a melee weapon.' : '',
+      pwEx ? 'Examine reports it on ' + pw.examines.map(e => pwName(e.pt)).join(', ') + ': “' + svEsc(pwEx.above2) + '” above 2, “' + svEsc(pwEx.above0) + '” above 0.' : '',
+      pw.zoneReaders.length ? '<b>Data3</b> is both bytes read as one value; ' + pw.zoneReaders.length + ' passage classes hand it to ChangeZone as the destination.' : '',
+      pw.scripts ? '<b>' + pw.scripts + ' scripts</b> read or write the bytes, ' + pw.readers.length + ' of them class scripts. What a byte means is that class’s own: a lock, a text, a countdown, a mechanism.' : 'No script in this archive reads the bytes.'
+    ].filter(Boolean),
+    (pw.placed.length ? '<div class="mechSub">Placed with an enchantment</div>' +
+      table(['item', 'where', '#aspect', '#Data1'], pw.placed.map(r => '<tr><td>' + propChip(r.pt, pwName(r.pt)) + '</td><td>' +
+        '<button class="sv-chip" onclick="showItemOnMap(' + (r.resid - 0x100) + ',' + r.pt + ')">' + svEsc(zoneNameFor(r.resid) || ('0x' + r.resid.toString(16).toUpperCase())) + '</button>' +
+        (r.carriedBy !== null && loadCharacterTable()[r.carriedBy] ? ' ' + chipOf(r.carriedBy) : '') + '</td>' + num(r.aspect) + num(r.d1) + '</tr>'))
+      : '<div class="mechSub">Placed with an enchantment</div><div class="sv-note" style="margin-top:0">No melee weapon in a prop list carries a Data1.</div>') +
+    (pw.ammo.length ? '<div class="sv-note">' + pw.ammo.length + ' ammunition record' + (pw.ammo.length === 1 ? '' : 's') + ' carr' + (pw.ammo.length === 1 ? 'ies' : 'y') + ' a Data1 too, which the outcome routine does not read.</div>' : '') +
+    '<div class="mechSub">Which class scripts read them</div>' +
+    table(['byte', 'read by', 'written by'], ['data1', 'data2', 'data3'].map(k => { const b = pwByByte(k); return b.r.length || b.w.length
+      ? '<tr><td>' + k.replace('data', 'Data') + '</td><td>' + b.r.map(x => partChip(pwName(x.pt), x.resid)).join(' ') + '</td><td>' + b.w.map(x => partChip(pwName(x.pt), x.resid)).join(' ') + '</td></tr>' : ''; })), '');
 
   // ---- spells ----
   const sp = spellRules();
