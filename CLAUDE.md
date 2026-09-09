@@ -381,7 +381,7 @@ be told from an accident. As of this writing:
 
 | Check | Hash |
 |---|---|
-| `viewer / decoder snapshot` | `SNAPSHOT 8e9738ae4468a6ff` |
+| `viewer / decoder snapshot` | `SNAPSHOT 68d584b9afc3dec7` |
 | `viewer / resource snapshot` | `SNAPSHOT 1b6259f21831` |
 
 If one of those moves and you did not intend it, you changed what a decoder
@@ -2396,6 +2396,34 @@ Read the comment above a constant before correcting it.
   read off the open archive; the one stated thing is the order the cheat
   asks its three numbers in, which is the executable's (the Cheats table on
   the same sheet).
+  **v1.34.0**, later the same evening, two more. (1) **Every chip is a
+  link now**: `.sv-chip` and `.relChip` are restyled in the stylesheet —
+  gold text in the face of the text around them, no box, no border, no
+  monospace, the note and the hex quiet and small on the same line, the
+  portrait kept at 22px — so "Temple ×1" under In the world, the Made of
+  strip, the Mechanics tables and the section heads all read as links,
+  which is what the maintainer asked for after seeing the new block's
+  links beside the old pills. No call site changed; `.sv-chips` and
+  `.partsStrip` space their links with a wider gap instead of a border.
+  (2) **A listing string no longer carries its return opcode as two
+  letters.** The sword class's Examine read "…seems to glow with a
+  magical light.ãA": the function body is bare text followed by `8B 41 00
+  40` (return byte 0, end), and dvmRender's prose-head shortcut cut the
+  text at the first NUL, which comes after those bytes, while dvmIsProse
+  counted bytes >= 0x80 as letters. `dvmProseHead` in `js/delv-script.js`
+  now ends the text at a NUL or the first byte >= 0x80 (delvmod's
+  direct-mode rule, the same one `dvmImplicitString` follows) and applies
+  the shortcut only when nothing but a bare return follows; a function
+  that goes on after its text is disassembled whole, which the scroll's
+  Examine — a sentence, the spell's name from a New call, a sentence —
+  had been hiding as one string. 309 of the 3,404 strings in the
+  listings ended in a high character; none does now. `itemStringAt` stops
+  at 0x80 too, for the class text fields. The dasm check's mirror calls
+  the same function, so the two cannot drift, and the change moved 100
+  functions from prose-checked to compared whole against delvmod's walk —
+  960 identical, 246 prose-checked, the 31 known divergences unchanged.
+  The decoder snapshot moved to `68d584b9afc3dec7` for those listings and
+  the table says so.
   **v1.33.2**, the same evening, two more from the maintainer: the chips
   in the new block and section were "clunky and take up so much space",
   and the item page was cluttered. So `svLink` — a gold link in running

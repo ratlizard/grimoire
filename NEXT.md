@@ -535,7 +535,15 @@ re-check the installer count before assuming the rule still applies.
   cut of the one sentence that came from his page rather than the file.
   v1.33.2: the chips in the new block and section are plain gold links in
   the text (`svLink`), and every section of an item's page below the
-  frames is a fold, shut by default, with a one-line gist on the summary. **Not checked here**: whether the game's inventory names a
+  frames is a fold, shut by default, with a one-line gist on the summary.
+  v1.34.0: every chip on the site is a link (a stylesheet change to
+  `.sv-chip` and `.relChip`, no call site touched), and a listing bug the
+  maintainer spotted is fixed — a function that is text then `return 0`
+  showed the return's two bytes as "ãA" on the end of its string; the
+  prose shortcut now ends text where delvmod's direct mode does and
+  disassembles a function that goes on after its text (the scroll's
+  Examine was hiding a New call). 100 more functions are compared whole
+  against delvmod and agree; the decoder snapshot moved. **Not checked here**: whether the game's inventory names a
   prop from the tile at run time as delvmod does — the page says "takes
   that tile's name" as before.
 

@@ -75,10 +75,8 @@ vm.runInContext(`function __dasmEvents(resid) {
     if (!seg.length) continue;
     if (kind !== 'function') { others[st] = kind; continue; }
     const body = seg.subarray(3);
-    let z = -1;
-    for (let i = 0; i < body.length; i++) if (body[i] === 0) { z = i; break; }
-    const head = z > 0 ? body.subarray(0, z) : body;
-    if (body.length && body[0] < 0x80 && dvmIsProse(head)) { functions[st] = { prose: 1 }; continue; }
+    const ph = dvmProseHead(body);
+    if (ph && ph.bare) { functions[st] = { prose: 1 }; continue; }
     const r = dvmDisassemble(seg, 3);
     functions[st] = r.ops.map(op => op[2] === 'string(implicit)'
       ? ['t', st + op[0]] : [st + op[0], b[st + op[0]]]);

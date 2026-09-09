@@ -35,7 +35,12 @@ function dvmArrayWords(b, off) {
 
 function itemStringAt(b, off) {
   let end = off;
-  while (end < b.length && b[end] !== 0 && end - off < 160) end++;
+  // A byte at or above 0x80 is never text in a script -- it is the opcode
+  // after the text (delvmod's direct-mode rule, dvmImplicitString below) --
+  // so it ends the string as a NUL does. Read to the NUL alone, a string
+  // followed by `return 0` came out with the two opcode bytes on its tail
+  // as "ãA" (the maintainer, 9 September 2026).
+  while (end < b.length && b[end] !== 0 && b[end] < 0x80 && end - off < 160) end++;
   if (end - off < 4) return null;
   for (let i = off; i < end; i++) if (b[i] < 0x20 && b[i] !== 9) return null;
   const s = decodeMacRoman(b.subarray(off, end)).trim();
@@ -413,6 +418,32 @@ function dvmImplicitString(b, p) {
   return { text: str, next: q };
 }
 
+// A function body that is bare text: the head is the run of bytes below
+// 0x80 up to a NUL or the first opcode byte, and `bare` says that nothing
+// follows it but a return (8B, an optional byte/short/word operand, 40) --
+// the shape of every description method, "text, return 0". dvmRender shows
+// such a function as its string. It used to cut the head at the NUL alone
+// and show the string whatever followed, which put the return's own bytes
+// on the end of the text as "ãA" (247 functions end `8B 41 xx 40`, and the
+// listing carried the two bytes as Mac Roman letters) and hid the code of
+// the sixty-odd functions that go on after their text -- the scroll's
+// Examine, which prints the spell's name between two sentences, read as
+// one sentence. Shared with utilities/delv_dasm_check.mjs, whose mirror of
+// dvmRender's traversal calls this so the two cannot drift.
+function dvmProseHead(body) {
+  if (!body || !body.length || body[0] >= 0x80) return null;
+  let z = body.length;
+  for (let i = 0; i < body.length; i++) if (body[i] === 0 || body[i] >= 0x80) { z = i; break; }
+  const head = body.subarray(0, z);
+  if (!dvmIsProse(head)) return null;
+  let t = z;
+  if (t < body.length && body[t] === 0) t++;
+  let rest = '';
+  for (let i = t; i < body.length; i++) rest += body[i].toString(16).padStart(2, '0');
+  const bare = rest === '' || /^8b(41[0-9a-f]{2}|42[0-9a-f]{4}|43[0-9a-f]{8})?40$/.test(rest);
+  return { head, bare };
+}
+
 function dvmDisassemble(b, start) {
   const out = []; let p = start || 0, bad = 0; const stack = [];
   // argn runs parallel to stack: how many direct children the open frame has
@@ -687,16 +718,16 @@ function dvmRender(b, resid) {
     const name = 'obj_' + hex4(st);
     if (kind === 'function') {
       const body = seg.subarray(3);
-      let z = -1;
-      for (let i = 0; i < body.length; i++) if (body[i] === 0) { z = i; break; }
-      const head = z > 0 ? body.subarray(0, z) : body;
       // A body can only BE prose if it starts below 0x80 -- a first byte at
       // or above it is an opcode, whatever follows. dvmIsProse alone counts
       // >= 0x80 bytes as good characters (they are Mac Roman letters in real
       // prose), so without this guard every `return "text"` skill
       // description -- 8B 44 then the text -- passed as prose and rendered
-      // as a garbled string; delv_dasm_check.mjs caught 54 of them.
-      if (body.length && body[0] < 0x80 && dvmIsProse(head)) { lines.push('', name + ' = ' + JSON.stringify(str(head))); clean++; continue; }
+      // as a garbled string; delv_dasm_check.mjs caught 54 of them. And the
+      // text must be the whole function bar its return (dvmProseHead), or
+      // the code after it is disassembled with it.
+      const ph = dvmProseHead(body);
+      if (ph && ph.bare) { lines.push('', name + ' = ' + JSON.stringify(str(ph.head))); clean++; continue; }
       const r = dvmDisassemble(seg, 3);
       lines.push('', 'function ' + name + '(' + seg[1] + ' args, ' + seg[2] + ' locals) {');
       let ind = 1;
