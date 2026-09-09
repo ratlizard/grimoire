@@ -4147,7 +4147,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.38.0';
+const GRIMOIRE_VERSION = '1.39.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -8325,6 +8325,11 @@ function seatsOnMap(resid, m) {
                    ' frame' + (own === 1 ? '' : 's') + ', so its aspect is not a four-way facing, ' +
                    'and nothing stands behind it to say which way it is turned'; }
         }
+        // Two chairs on one square (Cademia's Thuria has one of each class
+        // under her): the one whose aspect is a facing says which way she
+        // sits, and a guess must not overwrite it (9 September 2026).
+        const had = seats.get(r.x + ',' + r.y);
+        if (had && had.certain && !aspectIsFacing) continue;
         seats.set(r.x + ',' + r.y, { face, why, proptype: r.proptype, aspect: r.aspect,
                                      certain: aspectIsFacing });
       }
@@ -8456,6 +8461,7 @@ function renderMapVisual(resid, mapData, opts) {
   const faux = getFauxProps();
   const fauxTiles = getPropTileList();
   const fauxDrawn = [];
+  const fauxLate = [];      // drawn after the records: see the draw order below
   // Squares whose wall was suppressed by the Walls toggle. They are hatched at
   // the end so the floor plan is readable without the reader forgetting that
   // nobody can walk there.
@@ -8510,7 +8516,7 @@ function renderMapVisual(resid, mapData, opts) {
     // is on the prop type, not on being a faux prop.
     if (!window.MAP_WALLS && isWallLikeProp(fp.proptype)) { suppressed.push([x, y]); continue; }
     const [ox, oy] = propOffsetFor(fp.proptype, fp.aspect, fp.rotated);
-    drawPropAt(ctx, TS, x, y, base + fp.aspect, fp.rotated, ox, oy, m.width, m.height);
+    fauxLate.push([x, y, base + fp.aspect, fp.rotated, ox, oy]);
   }
 
   // Draw props on top, if the matching Prop List resource exists. Prop
@@ -8576,46 +8582,29 @@ function renderMapVisual(resid, mapData, opts) {
       if (baseTile === undefined) continue;
       visible.push(r);
     }
-    // Draw order. delvmod's draw_map() walks the map square by square in row
-    // order and, within a square, sorts that square's props by draw_priority
-    // (`attributes & 0xBFCDFD1C`, with attribute-less tiles last so they land
-    // on top). Prop-list order -- which is what this used to use -- puts a
-    // statue over the wall it stands behind whenever the statue happens to be
-    // the later record, which is the "props not occluded by walls" case.
-    // Row order also means a sprite that overhangs upward is covered by the
-    // row below it, the way the game draws it.
-    const priority = t => { const a = attrs[t] || 0; return a ? (a & 0xBFCDFD1C) >>> 0 : 0xFFFFFFFF; };
-    const cellOf = new Map();
-    // Reversed before the stable sort, as delvmod does: among props of equal
-    // priority on one square, the later record goes underneath.
-    for (let i = visible.length - 1; i >= 0; i--) {
-      const r = visible[i];
-      const k = r.y * m.width + r.x;
-      if (!cellOf.has(k)) cellOf.set(k, []);
-      cellOf.get(k).push(r);
-    }
-    for (let y = 0; y < m.height; y++) {
-      for (let x = 0; x < m.width; x++) {
-        const group = cellOf.get(y * m.width + x);
-        if (!group) continue;
-        if (group.length > 1) {
-          group.forEach((r, i) => { r._ord = i; });
-          group.sort((a, b) => (priority(propTiles[a.proptype] + a.aspect) -
-                                priority(propTiles[b.proptype] + b.aspect)) || (a._ord - b._ord));
-        }
-        for (const r of group) {
-          const tileId = propTiles[r.proptype] + r.aspect;
-          const [ox, oy] = propOffsetFor(r.proptype, r.aspect, r.rotated);
-          // Multi-square props (large creatures, beds, tables, trees) store
-          // only their bottom-right square in the prop record; the remaining
-          // squares are the immediately preceding tile indices.
-          const cells = drawPropAt(ctx, TS, r.x, r.y, tileId, r.rotated, ox, oy, m.width, m.height);
-          drawnProps.push({ rec: r, tileId, cells, propResid });
-          propCount++;
-        }
-      }
+    // Draw order: the records in the order the prop list keeps them, which
+    // is the order delvmod's draw_order() yields and the one the engine
+    // walks; then the faux props the terrain carries, after every record,
+    // as the engine adds them to the list at load. It was rows of squares
+    // with a priority sort within a square, and faux props before every
+    // record, until 9 September 2026, when the maintainer showed two
+    // corners of Cademia it got wrong: a pillar at (62,51) drawn over the
+    // terrain-tile tree at (63,52), and the pool at (61,58), a later row,
+    // drawn over the pillar at (62,57), an earlier record. List order and
+    // faux-last put both the way he expects. The priority mask
+    // (attributes & 0xBFCDFD1C) that ordered a square is not used now.
+    for (const r of visible) {
+      const tileId = propTiles[r.proptype] + r.aspect;
+      const [ox, oy] = propOffsetFor(r.proptype, r.aspect, r.rotated);
+      // Multi-square props (large creatures, beds, tables, trees) store
+      // only their bottom-right square in the prop record; the remaining
+      // squares are the immediately preceding tile indices.
+      const cells = drawPropAt(ctx, TS, r.x, r.y, tileId, r.rotated, ox, oy, m.width, m.height);
+      drawnProps.push({ rec: r, tileId, cells, propResid });
+      propCount++;
     }
   }
+  for (const [x, y, t, rot, ox, oy] of fauxLate) drawPropAt(ctx, TS, x, y, t, rot, ox, oy, m.width, m.height);
   // Hatch whatever the Walls toggle took away. Diagonal strokes rather than a
   // flat wash: a wash reads as a highlight, and this is the opposite -- the
   // square is still solid, it is just being drawn through.
@@ -8946,19 +8935,21 @@ function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, frame) {
       if (fp) fauxDrawn.push([x, y, fp]);
     }
   }
-  for (const [x, y, fp] of fauxDrawn) {
-    const base = fauxTiles[fp.proptype];
-    if (base === undefined) continue;
-    if (!window.MAP_WALLS && isWallLikeProp(fp.proptype)) { suppressed.push([x, y]); continue; }
-    const [ox, oy] = propOffsetFor(fp.proptype, fp.aspect, fp.rotated);
-    drawPropAt(ctx, TS, x, y, base + fp.aspect, fp.rotated, ox, oy, m.width, m.height);
-  }
+  // The records first, in list order, then the terrain's own props: the
+  // order the full render uses (renderMapVisual says why).
   const margin = 4;                       // sprites overhang their square
   for (const d of (cm.props || [])) {
     const r = d.rec;
     if (r.x < x0 - margin || r.x > x1 + margin || r.y < y0 - margin || r.y > y1 + margin) continue;
     const [ox, oy] = propOffsetFor(r.proptype, r.aspect, r.rotated);
     drawPropAt(ctx, TS, r.x, r.y, d.tileId, r.rotated, ox, oy, m.width, m.height);
+  }
+  for (const [x, y, fp] of fauxDrawn) {
+    const base = fauxTiles[fp.proptype];
+    if (base === undefined) continue;
+    if (!window.MAP_WALLS && isWallLikeProp(fp.proptype)) { suppressed.push([x, y]); continue; }
+    const [ox, oy] = propOffsetFor(fp.proptype, fp.aspect, fp.rotated);
+    drawPropAt(ctx, TS, x, y, base + fp.aspect, fp.rotated, ox, oy, m.width, m.height);
   }
   // The full render dropped wall props before recording cm.props, so the
   // hatching recovers them from the raw records the same way it decided.
@@ -10789,9 +10780,7 @@ function renderAtlasBar() {
   bar.innerHTML = '<button class="crumbBtn" onclick="atlasRiseOut()">\u21b0 ' +
     svEsc(below.fromName) + '</button>' +
     '<span class="wbWhere">' + svEsc(below.name) + '</span>' +
-    '<span class="wbNote">Through the ' + svEsc(below.kind) + ' at (' + below.at.x + ',' +
-    below.at.y + ') in ' + svEsc(below.fromName) + '. The archive gives no position for this map, ' +
-    'only how it is reached, so it is shown on its own. Tap a blue ring to go up, a gold one to go deeper.</span>';
+    '<span class="wbNote">Through the ' + svEsc(below.kind) + ' at (' + below.at.x + ',' + below.at.y + ') in ' + svEsc(below.fromName) + '.</span>';
 }
 
 /* ===========================================================================
@@ -11551,6 +11540,10 @@ function atlasPeople(ctx, node, r, ppt) {
   if (!folk.length) return;
   const tiles = getPropTileList();
   const scale = per / 32;
+  // A sprite is pixel art and is blitted as such: the node painter leaves
+  // smoothing on for its scaled renders, and a person drawn through it was
+  // a blur at every zoom (the maintainer, 9 September 2026).
+  ctx.imageSmoothingEnabled = false;
   for (const c of folk) {
     const x = c.x * per, y = c.y * per;
     if (r.x + x < -per || r.y + y < -per) continue;
@@ -11560,6 +11553,7 @@ function atlasPeople(ctx, node, r, ppt) {
     drawTileAt(ctx, base + c.aspect, r.x + x - pox * scale, r.y + y - poy * scale,
                true, per, 0, c.rotated);
   }
+  ctx.imageSmoothingEnabled = true;
 }
 
 /* The ways through, marked where they are.
@@ -11569,10 +11563,8 @@ function atlasPeople(ctx, node, r, ppt) {
    it, which would be putting an unlocated map on located ground. Only where
    the node is big enough for the ring to mean a square.
 
-   Blue is a way up and gold a way down or across. There used to be an arrow
-   in the blue rings as well; it was taken out on 8 September 2026, at the
-   maintainer's word -- inside a ring five pixels across it was a smudge, and
-   the colour had already said it. */
+   One colour for every ring since 9 September 2026 (the maintainer): a
+   way up, down or across is a way, and the name beside it says where. */
 function atlasPaintMouths(ctx, drawn, vw, vh) {
   const out = [];
   // Canvas text is not reached by the sheet's rem scale, so these sizes and
@@ -11591,7 +11583,7 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
       const x = r.x + (m.x + 0.5) * per, y = r.y + (m.y + 0.5) * per;
       if (x < -60 || y < -20 || x > vw + 60 || y > vh + 20) continue;
       const rad = Math.max(5, per * 0.7);
-      ctx.strokeStyle = m.up ? 'rgba(150,200,240,.9)' : 'rgba(196,164,100,.85)';
+      ctx.strokeStyle = 'rgba(196,164,100,.85)';
       ctx.lineWidth = Math.max(1.5, per / 12);
       ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.stroke();
       const tw = Math.round(ctx.measureText(m.name).width);
@@ -11633,6 +11625,16 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
   return out;
 }
 
+// The dotted ring is an egg: a prop record with flags 0x42, which delvmod
+// names EGG, a scripted trigger on a square rather than a thing on it. What
+// it does is the zone's script's; the card says what it is.
+function atlasEggAt(node, tx, ty) {
+  if (!node._eggs) {
+    try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42 && p.proptype === 0); }
+    catch (e) { node._eggs = []; }
+  }
+  return node._eggs.some(g => g.x === tx && g.y === ty) ? 'a scripted trigger (an egg): stepping here runs the zone’s script' : '';
+}
 /* A ring round every town still wearing its roofs: a tap on one goes in
    (atlasZoomIntoTown), and the ring says so the way the mouths' rings do. */
 function atlasPaintTowns(ctx, drawn, vw, vh) {
@@ -12358,6 +12360,8 @@ function atlasInspect(px, py) {
     if (tileId) parts.push('<div class="inspCard"><b>' + svEsc(terrain || 'terrain') + '</b> ' +
       '<span class="inspDim">tile 0x' + tileId.toString(16).toUpperCase() + '</span>' +
       (refExists(0x8E00 + (tileId >> 4)) ? '<div class="inspActs">' + svLink('Open ' + (terrain || 'the tile') + ' in Tilesets', 'jumpToResource(' + (0x8E00 + (tileId >> 4)) + ')') + '</div>' : '') + '</div>');
+    const egg = atlasEggAt(node, tx, ty);
+    if (egg) parts.push('<div class="inspCard"><b>egg</b> <span class="inspDim">' + svEsc(egg) + '</span></div>');
     const hits = (e.result.props || []).filter(p => p.cells.some(c => c[0] === tx && c[1] === ty));
     for (const p of hits.slice(0, 6)) {
       const pt = p.rec.proptype;
@@ -12638,8 +12642,9 @@ function atlasHover(clientX, clientY, asked) {
   }
   const e = mapRenderFor(hit.node.resid, true);
   const card = squareCard(hit.node.resid & 0xFF, e, hit.tx, hit.ty, hit.node.name, asked);
-  if (!card) { el.style.display = 'none'; return; }
-  el.innerHTML = card.html;
+  const egg = atlasEggAt(hit.node, hit.tx, hit.ty);
+  if (!card && !egg) { el.style.display = 'none'; return; }
+  el.innerHTML = (card ? card.html : '<div></div>').replace(/<\/div>$/, (egg ? '<span class="hvWhat">' + svEsc(egg) + '</span>' : '') + '</div>');
   if (card.person) appendFaceOrSprite(el, card.person);
   el.style.display = 'flex';
   placeHoverCard(el, vp, px, py, asked);
