@@ -448,6 +448,17 @@ re-check the installer count before assuming the rule still applies.
   placeholder line that named a retired repository was cut. `CLAUDE.md`
   has the detail under the v1.28.0 bullet; the decoder snapshot moved and
   the table says so.
+- **Subindex 4 is the archetype table, v1.28.1.** The maintainer asked
+  whether nothing was known about "Character Creation Stats". 0x501 is nine
+  arrays in the order the name list 0x203 gives (Explorer, Fighter,
+  Swordsman, Beserker [sic], Mage, Wizard, Mystic, Storyteller, Rogue; 0x204
+  has their descriptions): body, reflex, mind, then starting skills as
+  skill number plus 1,024 times the level, level 0 being an aptitude, which
+  is why a Rogue starts with the Lock Picking aptitude the web board
+  describes. `TCreatePlayerDialog::AdjustCurArch` reads it. The category,
+  purpose and kind say so now; the two other resources in the subindex are
+  zero bytes and still say so. A named rendering of the table on the page
+  would be a small thing over `dvmDataValue`.
 - **Careful: another session is pushing to grimoire through the day.**
   Three of the four commits above needed a rebase, one with a conflict
   (the version number, which both sessions bump). Fetch before starting

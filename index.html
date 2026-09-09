@@ -1411,7 +1411,7 @@ body.atlasFull { overflow:hidden; }
       </optgroup>
       <optgroup label="Other subindexes">
         <option value="239">Game Data Tables (0xF0xx)</option>
-        <option value="4">Character Creation Stats (0x05xx)</option>
+        <option value="4">Archetypes (0x05xx)</option>
         <option value="2">Global Store (0x03xx)</option>
         <option value="10">Stub Script (0x0Bxx)</option>
       </optgroup>
@@ -1891,7 +1891,7 @@ const FORK_VIEWS = {
 };
 
 const CATEGORY_NAMES = { 0:"Global Symbols & Scripts", 1:"Text & Names", 135:"Character Portraits", 137:"Skill Icons", 141:"Tile Graphics", 131:"Landscape Graphics", 142:"General Graphics", 144:"Sounds", 127:"Maps", 128:"Prop Lists", 239:"Game Data Tables",
-  143:"Music (QTMA)", 2:"Global Store", 3:"AI Combat Scripts", 4:"Character Creation Stats", 7:"Generic Group Dialogue", 8:"Combat AI Tests & Actions", 9:"Eating & Potion Effects", 10:"Stub Script", 14:"Character Helpers", 11:"Task Helpers", 12:"Party & Inventory Helpers", 13:"Rule Helpers", 15:"Object Interaction Text", 16:"Object Scripts", 19:"Zone Entry Scripts", 20:"Sub-zone Scripts", 23:"Character Dialogue", 24:"Monster Class Scripts", 25:"Skill & Spell Descriptions", 26:"Room Scripts A", 27:"Room Scripts B", 29:"Room Scripts C", 47:"Character Action Scripts"
+  143:"Music (QTMA)", 2:"Global Store", 3:"AI Combat Scripts", 4:"Archetypes", 7:"Generic Group Dialogue", 8:"Combat AI Tests & Actions", 9:"Eating & Potion Effects", 10:"Stub Script", 14:"Character Helpers", 11:"Task Helpers", 12:"Party & Inventory Helpers", 13:"Rule Helpers", 15:"Object Interaction Text", 16:"Object Scripts", 19:"Zone Entry Scripts", 20:"Sub-zone Scripts", 23:"Character Dialogue", 24:"Monster Class Scripts", 25:"Skill & Spell Descriptions", 26:"Room Scripts A", 27:"Room Scripts B", 29:"Room Scripts C", 47:"Character Action Scripts"
 };
 const RESOURCE_LABELS = {
   0x8F00:'Background Texture',0x8F01:'Main View Frame',0x8F02:'Open Book',0x8F03:'Scroll',0x8F04:'Planks',0x8F05:'Paper',0x8F06:'Automap',0x8F07:'Open Book',0x8F08:'Metal Plaque',0x8F09:'Crate',0x8F0A:'Chest',0x8F0B:'Large Wooden Sign',0x8F0C:'Jar',0x8F0D:'Sack',0x8F0E:'Drawer',0x8F0F:'Corpse Inventory',0x8F10:'Tombstone',0x8F11:'Scroll with Spindles',0x8F12:'Pipes',0x8F13:'Map of Cythera',0x8F14:'Lyre',0x8F15:'Lute',0x8F16:'Wooden Sign',0x8F17:'Wooden Sign Left',0x8F18:'Wooden Sign Right',0x8F19:'Map to Harpy Cave',0x8F1A:'Wanted Poster',
@@ -3792,7 +3792,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.28.0';
+const GRIMOIRE_VERSION = '1.28.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -12592,7 +12592,7 @@ const SUBINDEX_PURPOSE = {
   1:   ['Data lists', 'Lists of things: character names, and globals referred to by the symbol table in subindex 0.'],
   2:   ['Global store', '0x301 is a four-entry array the innkeepers’ scripts read and write through far words (the inn qualities). 0x33F is four bytes nothing references.'],
   3:   ['AI combat scripts', 'Named behaviour routines -- Attack Nearest, Defend, Beserk, Healer. Stored in the clear as a Pascal name plus a body that is NOT VM bytecode.'],
-  4:   ['Unknown', 'Three small resources; two decrypt to nothing but zeroes. Undocumented.'],
+  4:   ['Archetypes', '0x501 is the nine starting archetypes, in the order 0x203 names them (Explorer, Fighter, Swordsman, Beserker [sic], Mage, Wizard, Mystic, Storyteller, Rogue) and 0x204 describes them: each an array of body, reflex and mind, then the starting skills as skill number plus 1,024 times the level, a level of 0 being an aptitude. The character creation dialog reads it. 0x500 and 0x540 are zero bytes.'],
   7:   ['Group dialogue', 'Generic dialogue for factions and groups, such as House Comana.'],
   8:   ['Combat AI tests and actions', 'The scripted half of the combat AI’s vocabulary: six tests at 0x901 and thirteen actions at 0x981, in the order of the application’s own lists (STR# 9307 and 9308), which name them when the application is open. Compiled .ai rules call them; four dialogues call two directly.'],
   9:   ['Effect scripts', 'Effects of eating, and possibly of spells and potions.'],
@@ -12693,7 +12693,7 @@ function relChip(o) {
 // What a resource is, in a word or two, for the second line of a chip:
 // "portrait", "zone script", "tile sheet". The gallery names are plural
 // and long; these are the same things said the way a caption says them.
-const RESOURCE_KIND = { 0: 'symbols', 1: 'text', 2: 'store', 3: 'combat AI', 4: 'creation stats',
+const RESOURCE_KIND = { 0: 'symbols', 1: 'text', 2: 'store', 3: 'combat AI', 4: 'archetype table',
   7: 'group dialogue', 8: 'AI hook', 9: 'effect', 10: 'stub', 11: 'helper', 12: 'helper', 13: 'helper',
   14: 'helper', 15: 'object text', 16: 'object script', 19: 'zone script', 20: 'sub-zone script',
   23: 'dialogue', 24: 'monster class', 25: 'skill', 26: 'room script', 27: 'room script',
