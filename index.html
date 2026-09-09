@@ -3634,7 +3634,7 @@ function propWordMount(pt, host) {
   const base = getPropTileList()[pt] || 0;
   host.className = 'sv-block';
   host.innerHTML = '';
-  const h4 = document.createElement('h4'); h4.textContent = 'The word'; host.appendChild(h4);
+  const h4 = document.createElement('h4'); h4.textContent = 'Prop record'; host.appendChild(h4);
   const read = document.createElement('div'); read.className = 'pwReadout'; host.appendChild(read); st.read = read;
   const sub = document.createElement('div'); sub.className = 'mechSub'; sub.textContent = 'Aspect: the tile each lands on, counted forward from the class’s own'; host.appendChild(sub);
   const rail = document.createElement('div'); rail.className = 'pwRail';
@@ -3685,8 +3685,8 @@ function propWordRender() {
   const w = s => '<b style="color:#fff">' + s + '</b>';
   const name = terrainNameFor(tile) || '', own = terrainNameFor(base) || propDisplayName(pt) || '';
   const bits = word.toString(2).padStart(16, '0');
-  let h = '<div class="sv-note" style="margin:0 0 8px">In a prop list this item is the word ' + w(propWordHex(pt)) + ': the class in the low ten bits, an aspect in the five above, so a step of aspect is worth 1,024 and a step of class 1. ' +
-    'Aspect <i>n</i> draws base tile + <i>n</i> and takes that tile’s name; what else it changes is the class script’s to say.';
+  let h = '<div class="sv-note" style="margin:0 0 8px">A prop record names what it is with one 16-bit word: <b>the prop type in the low ten bits, an aspect in the five above</b>. This item’s prop type is ' + w(pt) + ', so at aspect 0 the word is ' + w(propWordHex(pt)) + '; a step of aspect adds 1,024. ' +
+    'Aspect <i>n</i> draws the base tile + <i>n</i> and takes that tile’s name; what else it changes is the class script’s to say.';
   let wear = [];
   try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
   if (wear.length) h += ' At ' + wear.map(x => 'aspect ' + w(x.aspect) + ' it is a ' + w(svEsc(x.name)) + ' (tile ' + propWordHex(x.tile) + ', the word ' + propWordHex(x.word) + ')').join(', ') +
@@ -3713,15 +3713,15 @@ function propWordRender() {
   const wt = itemWeight(pt);
   if (wt !== null) kept.push(wt + ' grains');
   h += '<div class="sv-note" style="margin:0 0 4px">' + (a === 0
-    ? 'Aspect 0 is the class’s own tile, ' + w(svEsc(own || 'unnamed')) + ' (' + propWordHex(base) + ').'
-    : 'Aspect ' + a + ' shows tile ' + propWordHex(tile) + ', ' + w(svEsc(name || 'unnamed')) + ', and takes that name. It is still class ' + propWordHex(0x1000 + pt) + (kept.length ? ': ' + kept.join(', ') : '') + '.') + '</div>';
+    ? 'Aspect 0 is the prop type’s base tile, ' + w(svEsc(own || 'unnamed')) + ' (' + propWordHex(base) + ').'
+    : 'Aspect ' + a + ' shows tile ' + propWordHex(tile) + ', ' + w(svEsc(name || 'unnamed')) + ', and takes that name. It is still prop type ' + pt + ', class ' + propWordHex(0x1000 + pt) + (kept.length ? ': ' + kept.join(', ') : '') + '.') + '</div>';
   // The other classes whose aspect can land on this tile, and at what.
   let others = [];
   try { others = inventoryItemList().filter(e => e.pt !== pt && (tiles[e.pt] || 0) && (tiles[e.pt] || 0) <= tile && tile < (tiles[e.pt] || 0) + 32)
     .map(e => ({ pt: e.pt, aspect: tile - (tiles[e.pt] || 0), name: e.name })).sort((x, y) => x.aspect - y.aspect); } catch (e) { others = []; }
-  h += '<div class="mechSub">Other classes that reach this tile</div>';
+  h += '<div class="mechSub">Other prop types that reach this tile</div>';
   h += others.length ? '<div class="sv-chips">' + others.map(o => actionChip(o.name, 'propWordOpen(' + o.pt + ',' + o.aspect + ')', 'aspect ' + o.aspect + ' · ' + propWordHex((o.aspect << 10) | o.pt))).join('') + '</div>'
-    : '<div class="sv-note" style="margin-top:0">No other item class has its base tile within 31 below this one.</div>';
+    : '<div class="sv-note" style="margin-top:0">No other item’s base tile is within 31 below this one.</div>';
   st.read.innerHTML = h;
   // The meaning of the two bytes for this class.
   let rules = null;
@@ -3920,12 +3920,12 @@ function showItemDetail(pt) {
   }
   panel.innerHTML = h;
   // The record's word, what an aspect does to it, and the two data bytes:
-  // the block under "The word", built as elements because the rail draws
+  // the block under "Prop record", built as elements because the rail draws
   // a tile in each slot.
   {
     const host = document.createElement('div');
     panel.appendChild(host);
-    try { propWordMount(pt, host); } catch (e) { host.className = 'sv-note'; host.textContent = 'The word could not be read: ' + (e && e.message ? e.message : e); }
+    try { propWordMount(pt, host); } catch (e) { host.className = 'sv-note'; host.textContent = 'The prop record could not be read: ' + (e && e.message ? e.message : e); }
   }
 
   // Only the frames the archive still calls by this item's name. Everything
@@ -4157,7 +4157,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.33.0';
+const GRIMOIRE_VERSION = '1.33.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -13757,7 +13757,7 @@ function tileHasTransparency(t) {
 const CHEAT_KEYS = [
   ['∆',  '$C6', 'option-j',        'Jump',            'Prints “Jump from [level,x,y]:”, asks Level, X and Y in hex, then calls TGameViewer::GoToLocation — teleport anywhere in the game.'],
   ['Ô',  '$EF', 'option-shift-j',  'Take teleporter', 'Asks a teleporter number in decimal, then TGameSys::TeleportTo(1, n, 0).'],
-  ['ß',  '$A7', 'option-s',        'Create a prop',   'Asks a prop number in hex, Data1 in decimal and Data2 in hex; NewProp makes it, the owner is set to character 1 and the inventory redraws, so the object lands in the hero’s pack. The number is the record’s word, the class in the low ten bits and an aspect in the five above: 0x0064 is a spear, 0x0864 the same class at aspect 2, wearing the picture two tiles along and named for it. Each item’s page under Entities › Items says what it wears.'],
+  ['ß',  '$A7', 'option-s',        'Create a prop',   'Asks a prop number in hex, Data1 in decimal and Data2 in hex; NewProp makes it, the owner is set to character 1 and the inventory redraws, so the object lands in the hero’s pack. The number is the record’s word, the prop type in the low ten bits and an aspect in the five above: 0x0064 is a spear, 0x0864 the same prop type at aspect 2, wearing the picture two tiles along and named for it. Each item’s page under Entities › Items says what it wears.'],
   ['π',  '$B9', 'option-p',        'What prop is this?', 'Asks a prop index and prints its record: class and state bytes, position, Data1, Data2. Then falls through into the option-r toggle below, a missing branch in the game’s own switch.'],
   ['¿',  '$C0', 'option-shift-/',  'Where am I?',     'Prints the player’s x and y.'],
   ['ˇ',  '$FF', 'option-shift-t',  'What time is it?', 'Prints “Current time = <clock>, day <n>”.'],
@@ -16377,17 +16377,17 @@ function renderMechanicsSheet() {
   const pwBuild = gear.find(r => r.melee) || gear[0] || null;
   const pwEx = pw.examines.length ? pw.examines[0] : null;
   const pwByByte = k => ({ r: pw.readers.filter(x => x.ops.includes('get ' + k)), w: pw.readers.filter(x => x.ops.includes('set ' + k)) });
-  add('propword', 'The prop word and the two data bytes', { tile: 0x208 }, src('the outcome', 0xE87) + (pwEx ? src('Examine', 0x1000 + pwEx.pt) : ''),
-    'A prop record names its object with one 16-bit word, and carries two bytes beside it that each class reads for its own purpose.',
+  add('propword', 'Prop records: type, aspect, Data1 and Data2', { tile: 0x208 }, src('the outcome', 0xE87) + (pwEx ? src('Examine', 0x1000 + pwEx.pt) : ''),
+    'A prop record names what it is with one 16-bit word, and carries two bytes beside it that each class script reads for its own purpose.',
     [
-      'The word is <b>the class in the low ten bits and an aspect in the five above</b>, so a step of aspect is worth 1,024 and a step of class 1. The create-a-prop cheat asks for this word, then Data1 in decimal, then Data2 in hex.' +
+      'The word is <b>the prop type in the low ten bits and an aspect in the five above</b>, so a step of aspect is worth 1,024 and a step of type 1. The create-a-prop cheat asks for this word, then Data1 in decimal, then Data2 in hex.' +
         (pwBuild ? ' ' + actionChip('Build one', 'showItemDetail(' + pwBuild.pt + ')', pwBuild.name) + ' on any item’s page.' : ''),
-      'Aspect <i>n</i> draws the class’s base tile + <i>n</i> and the prop <b>takes that tile’s name</b>; the weapon classes read nothing per aspect, so a weapon at another aspect keeps its damage, reach and skill under the other tile’s picture and name. The pictures that leaves no class owning are at the foot of Items.',
+      'Aspect <i>n</i> draws the prop type’s base tile + <i>n</i> and the prop <b>takes that tile’s name</b>; the weapon classes read nothing per aspect, so a weapon at another aspect keeps its damage, reach and skill under the other tile’s picture and name. The pictures that leaves no class owning are at the foot of Items.',
       pw.ench && pw.ench.guarded && pw.ench.added ? '<b>Data1 on a weapon is its enchantment.</b> The outcome routine reads it off a weapon that is both a melee weapon and equipment and adds it to the damage of every blow' +
         (pw.ench.magic ? ', and <b>a blow with any enchantment counts as magical</b>, which is what gets past the monsters that resist non-magical weapons' : '') + '. An arrow’s Data1 is not read: the test is for a melee weapon.' : '',
       pwEx ? 'Examine reports it on ' + pw.examines.map(e => pwName(e.pt)).join(', ') + ': “' + svEsc(pwEx.above2) + '” above 2, “' + svEsc(pwEx.above0) + '” above 0.' : '',
       pw.zoneReaders.length ? '<b>Data3</b> is both bytes read as one value; ' + pw.zoneReaders.length + ' passage classes hand it to ChangeZone as the destination.' : '',
-      pw.scripts ? '<b>' + pw.scripts + ' scripts</b> read or write the bytes, ' + pw.readers.length + ' of them class scripts. What a byte means is that class’s own: a lock, a text, a countdown, a mechanism.' : 'No script in this archive reads the bytes.'
+      pw.scripts ? '<b>' + pw.scripts + ' scripts</b> read or write the bytes, ' + pw.readers.length + ' of them class scripts. What a byte means is that class’s own.' : 'No script in this archive reads the bytes.'
     ].filter(Boolean),
     (pw.placed.length ? '<div class="mechSub">Placed with an enchantment</div>' +
       table(['item', 'where', '#aspect', '#Data1'], pw.placed.map(r => '<tr><td>' + propChip(r.pt, pwName(r.pt)) + '</td><td>' +

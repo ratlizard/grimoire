@@ -387,9 +387,9 @@ try {
     else {
       ctx.showItemDetail(mace ? mace.pt : 94);
       const dhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-      if (!/0x205E/.test(dhtml) || !/flail/.test(dhtml) || !/low ten bits/.test(dhtml)) fail('items', 'the mace’s page does not state the aspect rule with the flail and its word');
+      if (!/0x205E/.test(dhtml) || !/flail/.test(dhtml) || !/prop type in the low ten bits/.test(dhtml)) fail('items', 'the mace’s page does not state the aspect rule with the flail and its word');
       else console.log(`  items: ${orphans.length} pictures no class owns, the flail among them at mace 8 / spear 2; the mace’s page says 0x205E`);
-      // The word block, v1.33.0: the rail's 32 slots, the readout at an
+      // The prop record block, v1.33.0: the rail's 32 slots, the readout at an
       // aspect, the other classes that reach the tile with the aspect each
       // needs, and the two bytes' meaning -- Data1 read off the outcome
       // routine as the enchantment, the sword classes' Examine lines found
@@ -397,7 +397,7 @@ try {
       const walk = el => (el.innerHTML || '') + (el.textContent || '') + (el.children || []).map(walk).join('');
       const pw = ctx.propWordRules();
       const st = ctx.__peek('window.PROP_WORD');
-      if (!st || st.pt !== 94 || st.slots.length !== 32) fail('items', 'the word block did not mount on the mace’s page with 32 slots: ' + JSON.stringify(st && [st.pt, st.slots && st.slots.length]));
+      if (!st || st.pt !== 94 || st.slots.length !== 32) fail('items', 'the prop record block did not mount on the mace’s page with 32 slots: ' + JSON.stringify(st && [st.pt, st.slots && st.slots.length]));
       else {
         ctx.propWordSet(8);
         let html = walk(REGISTRY.get('sheetGrid'));
@@ -1513,7 +1513,7 @@ try {
   else if (!dice || dice.wins !== 96 || dice.pushes !== 50 || dice.losses !== 70) fail('mechanics', 'the dice enumeration is not 96/50/70: ' + JSON.stringify(dice && [dice.wins, dice.pushes, dice.losses]));
   else if (!/win 2 oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
   else if (!/resists non-magical weapons: [^<]*lich/.test(html)) fail('mechanics', 'the spells section does not name the monsters immune to non-magical damage')
-  else if (!/The prop word and the two data bytes/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/hand it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
+  else if (!/Prop records: type, aspect, Data1 and Data2/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/hand it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
   else if (!/four seconds/.test(html) || !/one off every game hour/.test(html) || !/4096 is one hour/.test(html) || (html.match(/mechGo\(/g) || []).length < 15 || mechSecs < 15) fail('mechanics', `the balloon lifetime, the contents strip or the sections are missing: ${mechSecs} sections`);
   else if (mechFolds < mechSecs || (html.match(/mechOpenAll\(/g) || []).length < 2) fail('mechanics', `the sections do not fold: ${mechFolds} of ${mechSecs} are details, open/close all ${(html.match(/mechOpenAll\(/g) || []).length}`);
   // The dice game's numbers are read off 0x812 with their offsets, v1.31.0:

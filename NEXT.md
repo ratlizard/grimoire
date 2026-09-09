@@ -519,7 +519,7 @@ re-check the installer count before assuming the rule still applies.
   maintainer brought a standalone page of his own — the record's word as
   bits, a class and an aspect to pick, the tile against the class fields,
   the overlap, Data1/Data2 — and asked for it in grimoire's conventions.
-  It is now a block under *The word* on every item's page (the bits, the
+  It is now a block under *Prop record* on every item's page (the bits, the
   readout, a rail of the 32 aspects drawn, what is shown against what is
   kept, the other classes that reach the tile at the aspect each needs,
   Data1 and Data2 inputs with what the cheat asks for) and a Mechanics
@@ -530,7 +530,9 @@ re-check the installer count before assuming the rule still applies.
   monsters that resist non-magical weapons; an arrow's Data1 is not read,
   so the shipped file has one enchanted item, a sword in 0x811A with
   Data1 7, not the six the page had counted. `CLAUDE.md`'s v1.33.0 bullet
-  has the rest. **Not checked here**: whether the game's inventory names a
+  has the rest, and v1.33.1 the renaming (the maintainer: "The word" made
+  no sense, and the ten bits are the prop type, not the class) and the
+  cut of the one sentence that came from his page rather than the file. **Not checked here**: whether the game's inventory names a
   prop from the tile at run time as delvmod does — the page says "takes
   that tile's name" as before.
 

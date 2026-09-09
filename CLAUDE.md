@@ -2348,7 +2348,7 @@ Read the comment above a constant before correcting it.
   Data1/Data2 with a glossary — and asked for it to be brought into the
   site in its own conventions. Its weapon list, tile strip and glossary were
   typed in; here everything is read off the open file. Two places.
-  **Every item's page** has a block under *The word* (`propWordMount`,
+  **Every item's page** has a block under *Prop record* (`propWordMount`,
   `propWordRender`; state in `window.PROP_WORD`): the sixteen bits with the
   five of aspect outlined and the ten of class filled, the word in hex and
   decimal with the sum, a rail of the 32 aspects each drawn as the tile it
@@ -2360,8 +2360,8 @@ Read the comment above a constant before correcting it.
   with what the create-a-prop cheat asks for in the order it asks (prop in
   hex, Data1 in decimal, Data2 in hex — workbench `doc/cythera_keys.md`).
   The inputs are built once and never re-rendered, so typing keeps the
-  caret. **Mechanics** has a section of the same name after *Weapons and
-  armour*, with the table of placed enchantments and the table of which
+  caret. **Mechanics** has *Prop records: type, aspect, Data1 and Data2*
+  after *Weapons and armour*, with the table of placed enchantments and the table of which
   class scripts read or write each byte. **What was read, and where**
   (`propWordRules`, patterns over the listings so an edited archive shows
   its own): the outcome routine 0xE87 reads Data1 off a weapon that has
@@ -2386,7 +2386,16 @@ Read the comment above a constant before correcting it.
   it at 2, the three Examine classes and their lines, the one sword and
   five arrows, the stone door, the stairs and the bomb among the readers,
   and the section's sentences; the negative control (the resolver pattern
-  misspelt) fails the items check.
+  misspelt) fails the items check. **v1.33.1**, the same day: the block was
+  headed "The word" and its text, the section's and the Cheats row's said
+  "class" for the ten bits where the rest of the page says "prop type"
+  (the class is the script at 0x1000 + type); all corrected on the
+  maintainer's word, and a sentence naming what the bytes mean for other
+  classes ("a lock, a text, a countdown") was cut because it came from his
+  page, not from the file. Everything the block and the section show is
+  read off the open archive; the one stated thing is the order the cheat
+  asks its three numbers in, which is the executable's (the Cheats table on
+  the same sheet).
 
 - **The application's data fork is read, v1.32.0** (9 September 2026; the
   maintainer asked why the tab was still empty, and then to fill it "as long
