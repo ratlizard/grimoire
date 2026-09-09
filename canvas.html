@@ -419,6 +419,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       <button type="button" data-file="gif" role="menuitem" title="Animated; it reopens here with everything">Save GIF</button>
       <button type="button" data-file="webm" role="menuitem" title="WebM, the picture only">Save video</button>
       <button type="button" data-file="png" role="menuitem" title="This one frame, indexed">Save PNG</button>
+      <button type="button" data-file="send" role="menuitem" id="sendBackBtn" hidden title="This frame, back to the Grimoire page it came from">Send back to Grimoire</button>
     </div>
   </span>
   <span class="menuWrap">
@@ -3928,6 +3929,7 @@ async function fileAction(what) {
   if (what === 'paste') return pasteFromClipboard();
   if (what === 'copy') return copyCanvas();
   if (what === 'png') { say('building the PNG…'); return offer('colorcyclecanvas.png', await pngOut()); }
+  if (what === 'send') return sendBackToGrimoire();
   if (what === 'gif') {
     say('building the GIF…'); saveNote.textContent = 'building the GIF…';
     return offer('colorcyclecanvas.gif', await gifOut(Math.round(rateMs / 10)));
@@ -4063,6 +4065,34 @@ async function loadScene(s) {
   afterScene(); draw(); say(s.name + ', ' + s.note);
 }
 
+/* ================= to and from Grimoire ==================================
+ * Grimoire (index.html) hands a picture over through localStorage under
+ * 'grimoire.handoff' and opens this page; the picture is opened at its own
+ * size, and Send back to Grimoire puts this frame under 'grimoire.return',
+ * which that page's storage listener takes into its ditherizer, aimed at
+ * the resource the picture came from. Same origin, no server. */
+var fromGrimoire = null;
+async function takeGrimoireHandoff() {
+  var raw = null;
+  try { raw = localStorage.getItem('grimoire.handoff'); if (raw) localStorage.removeItem('grimoire.handoff'); } catch (e) { raw = null; }
+  if (!raw) return false;
+  try { fromGrimoire = JSON.parse(raw); } catch (e) { return false; }
+  if (!fromGrimoire || !fromGrimoire.png) return false;
+  await takeImageURL(fromGrimoire.png, 'open');
+  var b = document.getElementById('sendBackBtn'); if (b) b.hidden = false;
+  say('opened ' + (fromGrimoire.name || 'a picture') + ' from Grimoire; Send back to Grimoire is in the file menu');
+  return true;
+}
+async function sendBackToGrimoire() {
+  if (!fromGrimoire) { say('nothing came from Grimoire'); return; }
+  var bytes = await pngOut(), bin = '';
+  for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  try {
+    localStorage.setItem('grimoire.return', JSON.stringify({ resid: fromGrimoire.resid, subn: fromGrimoire.subn, name: fromGrimoire.name, png: 'data:image/png;base64,' + btoa(bin), at: Date.now() }));
+    say('sent back to Grimoire; it is in that page\u2019s ditherizer now');
+  } catch (e) { say('could not send it back: ' + (e.message || e)); }
+}
+
 /* ================= boot ================================================= */
 relut(); setInk('ramp'); paintRamps(); paintPal(); sync(); setTool('flow'); refreshHistory();
 paintStops(); previewBuilder(); setAdvanced(false); drawSel();
@@ -4072,6 +4102,7 @@ if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)
 }
 (async function () {
   await loadScene(SCENES[0]);
+  try { if (await takeGrimoireHandoff()) { fitCanvas(); } } catch (e) { /* no handoff, or an unreadable one */ }
   undoStack.length = 0; redoStack.length = 0; refreshHistory();
   dirty = false;                                  // the example is not your work
   fitCanvas(); requestAnimationFrame(loop);

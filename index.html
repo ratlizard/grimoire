@@ -105,9 +105,9 @@ body { color:#fff; font-family:'ArgosGame', Argos, Georgia, serif;
      gradient below is only a scrim so gold text stays legible. */
   background-image:linear-gradient(rgba(14,10,6,.62),rgba(20,15,9,.62));
   background-repeat:repeat; background-size:auto,128px;
-  /* The planks scroll with the page at half its speed (installParallax), so
-     they read as a floor behind the sheets rather than a wall the sheets
-     slide over. They were fixed, which a phone ignores anyway. */
+  /* The planks scroll with the page. They were fixed, which a phone ignores
+     anyway, and for an hour on 9 September 2026 they moved at half speed,
+     which the maintainer found distracting. */
   background-attachment:scroll, scroll; }
 /* The frame image used to be stretched over the entire viewport at .58
    opacity, which discoloured everything between the top and bottom borders.
@@ -314,6 +314,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
   border:0; border-radius:6px;
   -webkit-overflow-scrolling:touch; overscroll-behavior:contain; display:flex; }
 #canvasViewport canvas { margin:auto; image-rendering:pixelated; flex:0 0 auto; }
+#canvasViewport.cropped { outline:2px solid var(--gold); outline-offset:-2px; }
 /* Transparent pixels were picking up a grey slab from the panel behind them.
    Nothing between the canvas and the page background. */
 #canvas, #canvasViewport canvas, .cell canvas, .cellimgwrap canvas { background:transparent !important; }
@@ -442,13 +443,25 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    taking a row of its own above the tabs. The row was most of the empty space
    at the top of the page, and the two are the same kind of thing: the page's
    own controls, out of the way of the thing you came to look at. */
-#topLinks { display:flex; justify-content:flex-end; gap:12px; margin:0; min-height:0; flex:0 0 auto; }
-#topLinks button { min-height:0 !important; padding:5px 16px !important; font-size:0.7188rem !important;
-  letter-spacing:.06em; opacity:.62; }
-#topLinks button:hover { opacity:1; }
-#topLinks button.legacy { min-height:0 !important; padding:4px 10px !important; font-size:0.7812rem !important;
-  width:auto; margin:0; }
-#navSub { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-bottom:8px; }
+#brandWrap { flex:1 1 auto; display:flex; align-items:baseline; justify-content:center; gap:14px; min-width:0; }
+/* Credits sits beside the name, a gold word the size of it: the one link
+   the maintainer wants seen (9 September 2026). */
+#creditsLink { background:none !important; background-image:none !important; border:0 !important; padding:0 !important; margin:0;
+  min-height:0 !important; width:auto; color:var(--gold) !important; font-size:0.9375rem !important; letter-spacing:.02em;
+  clip-path:none !important; box-shadow:none !important; text-shadow:none !important; font-weight:600 !important; }
+#creditsLink::before, #creditsLink::after { display:none !important; }
+#creditsLink:hover { text-decoration:underline; background:none !important; }
+#navSub { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-bottom:4px; }
+/* The section chips wear the crumb button's look (the maintainer, 9
+   September 2026), at their own size; the open one is filled. */
+#navSub .navChip { background:#1d1a15; border:1px solid var(--edge); color:var(--gold); border-radius:14px; padding:4px 12px; }
+#navSub .navChip.active { background:var(--gold); color:#141210; border-color:var(--gold); font-weight:600; }
+/* A group head with a note under it: the title white and a size up, the
+   note grey on its own line. The two were one grey line once the capitals
+   went (v1.30.0), and read as one sentence. */
+.propHead .groupTitle { display:block; color:#fff; font-size:0.9375rem; font-weight:600; }
+.propHead .groupNote { display:block; color:#8c8980; font-size:0.75rem; font-weight:400; margin-top:1px; }
+#navSubNote { text-align:center; color:#8c8980; font-size:0.75rem; margin:0 auto 8px; max-width:64ch; line-height:1.4; }
 .navChip { background:#1d1a15; border:1px solid var(--edge); color:var(--gold); border-radius:13px;
   padding:5px 11px; font-size:0.6875rem; min-height:0; width:auto; margin:0; clip-path:none;
   box-shadow:none; text-shadow:none; letter-spacing:0; }
@@ -856,13 +869,10 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
    next and took them with it, which left the viewport zero pixels high and
    the World tab showing nothing at all. */
 /* ---- Entities > Mechanics: the rules, sectioned --------------------------
-   A contents strip, then a section per rule: a game tile, a title, chips to
+   A section per rule: a game tile where one fits, a title, chips to
    the scripts it was read from, one line saying what it is, the rule as
    short items, and the table under it. Numbers sit in stat pills. */
 .mechView { grid-column:1/-1; text-align:left; max-width:920px; margin:0 auto; }
-.mechToc { display:flex; flex-wrap:wrap; gap:5px 6px; align-items:center; margin:4px 0 6px; padding:8px 10px;
-  background:rgba(20,18,14,.55); border:1px solid var(--edge); border-radius:8px; }
-.mechToc .navChip { margin:0; }
 .mechSec { margin:18px 0 0; padding:12px 12px 10px; background:rgba(20,18,14,.42); border:1px solid rgba(155,136,80,.35); border-radius:8px; }
 /* A card is a <details>; its head is the summary. The marker is a chevron
    drawn with borders, since a triangle glyph is not in Argos and a browser
@@ -875,7 +885,6 @@ details.mechSec[open] > summary::before { transform:rotate(45deg); }
 details.mechSec > summary:hover h3 { color:var(--gold); }
 .skillIcon { width:32px; height:16px; image-rendering:pixelated; flex:none; }
 .skillIcon.skillIconTile { width:16px; height:16px; }
-.mechTocAll { margin-left:auto; display:inline-flex; gap:5px; }
 .mechHead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 4px; }
 .mechHead canvas { width:22px !important; height:22px !important; image-rendering:pixelated; flex:none; margin:0 !important; }
 .mechHead h3 { margin:0; font-size:1.0625rem; color:#fff; font-weight:600; letter-spacing:.01em; }
@@ -1049,6 +1058,7 @@ body.atlasFull { overflow:hidden; }
 #atlasViewport canvas { display:block; }
 #atlasSettings { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; justify-content:center; padding:6px 10px; font-size:0.75rem; color:#b5b2a8; }
 #atlasSettings button { width:auto; margin:0; min-height:0 !important; padding:5px 12px !important; font-size:0.75rem !important; }
+#atlasSettings .asNote { flex-basis:100%; text-align:center; color:#8c8980; font-size:0.7188rem; line-height:1.4; }
 #atlasBar { padding:7px 12px; margin:0 0 6px; text-align:left;
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px;
   font-size:0.8125rem; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
@@ -1118,43 +1128,7 @@ body.atlasFull { overflow:hidden; }
 #gallerySortSel { width:auto; margin:0; min-height:32px !important;
   padding:3px 30px 3px 10px !important; font-size:0.7812rem !important; }
 
-/* ---- List view ---------------------------------------------------------
-   The same cells, laid out as rows. A tile is right for artwork and wrong for
-   a hundred near-identical lines of text, which is what the script and
-   dialogue galleries are. */
-#sheetGrid.listView { display:block; }
-#sheetGrid.listView .cell { display:grid; grid-template-columns:96px 1fr auto auto;
-  align-items:center; gap:12px; height:auto !important; min-height:56px;
-  text-align:left; padding:7px 12px; margin-bottom:5px; }
-/* The list view's extra column: size and decoded dimensions. Present in the
- * markup of every contact-sheet cell, shown only when the rows have room. */
 #sheetGrid .listMeta { display:none; }
-#sheetGrid.listView .listMeta { display:block; font-size:0.6875rem; color:#b5b2a8;
-  white-space:nowrap; text-align:right; }
-#sheetGrid.listView .cell.charCell, #sheetGrid.listView .cell.propCell,
-#sheetGrid.listView .cell.itemCell { height:auto !important; justify-content:stretch; }
-#sheetGrid.listView .cellimgwrap { flex:none !important; height:auto !important;
-  width:96px; max-height:72px; overflow:hidden; justify-content:flex-start; }
-#sheetGrid.listView .cell.charCell .cellimgwrap { flex:none !important; height:auto !important; }
-#sheetGrid.listView .cell.charCell .portraitBox { margin:0; width:56px; height:56px; }
-#sheetGrid.listView .cell.charCell .portraitBox > canvas.portrait { width:56px !important; height:56px !important; }
-#sheetGrid.listView .cell.charCell .portraitBox > canvas.walker { display:none; }
-#sheetGrid.listView .cellChars { width:96px; height:64px; font-size:0.625rem; line-height:1.28; }
-/* A cell sizes its canvas inline for the tile grid (84 wide, 96 high at
-   most); in a row that height was clamped to 72 while the width stayed, and
-   every picture came out squashed. Both sides are freed here and only the
-   box is bounded, so the browser keeps the canvas's own proportions. */
-#sheetGrid.listView .cell canvas { width:auto !important; height:auto !important;
-  max-width:96px; max-height:72px; }
-#sheetGrid.listView .lbl { margin-top:0 !important; font-size:0.9375rem; -webkit-line-clamp:2; }
-#sheetGrid.listView .resid { margin-top:0; text-align:right; white-space:nowrap; }
-#sheetGrid.listView .propHead { display:none; }
-@media (max-width:520px) {
-  #sheetGrid.listView .cell { grid-template-columns:64px 1fr; }
-  #sheetGrid.listView .cellimgwrap, #sheetGrid.listView .cellChars { width:64px; }
-  #sheetGrid.listView .cell canvas { max-width:64px; max-height:56px; }
-  #sheetGrid.listView .resid { grid-column:2; text-align:left; }
-}
 
 /* ---- Map controls ------------------------------------------------------
    Fourteen loose checkboxes in one wrapping row read as a wall of words, and
@@ -1225,11 +1199,11 @@ body.atlasFull { overflow:hidden; }
    used to be three separate things in three corners of the page. They are one
    small stud in the top-left now, and everything about the data file lives
    behind it. */
-#archiveMenuBtn { width:auto; margin:0; flex:0 0 auto;
+#archiveMenuBtn, #searchLink { width:auto; margin:0; flex:0 0 auto;
   min-height:0 !important; padding:5px 16px !important; font-size:0.7188rem !important;
   letter-spacing:.06em; opacity:.62;
   }
-#archiveMenuBtn:hover { opacity:1; }
+#archiveMenuBtn:hover, #searchLink:hover { opacity:1; }
 #archiveMenuBtn.urgent { opacity:1; font-size:0.875rem !important; padding:9px 18px !important; }
 #archiveMenu, #creditsMenu, #searchWrap { position:absolute; top:40px; z-index:42; display:none;
   min-width:250px; max-width:min(360px, calc(100vw - 24px)); max-height:min(72vh, 640px); overflow:auto;
@@ -1237,7 +1211,8 @@ body.atlasFull { overflow:hidden; }
   border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,.7); font-size:0.7812rem;
   text-align:left; line-height:1.6; }
 #archiveMenu { left:0; }
-#creditsMenu, #searchWrap { right:0; max-width:min(560px, calc(100vw - 24px)); width:min(560px, calc(100vw - 24px)); }
+#searchWrap { right:0; max-width:min(560px, calc(100vw - 24px)); width:min(560px, calc(100vw - 24px)); }
+#creditsMenu { left:50%; transform:translateX(-50%); max-width:min(560px, calc(100vw - 24px)); width:min(560px, calc(100vw - 24px)); }
 #archiveMenu.open, #creditsMenu.open, #searchWrap.open { display:block; }
 #creditsMenu ul { margin:0 0 10px; padding-left:18px; }
 #creditsMenu li { margin:2px 0; }
@@ -1263,9 +1238,9 @@ body.atlasFull { overflow:hidden; }
   #appShell { max-width:1280px; padding:48px 44px calc(112px + env(safe-area-inset-bottom)); }
   html { font-size:125%; }
   button, select { font-size:1rem !important; }
-  #topLinks button { font-size:0.9375rem !important; padding:5px 16px !important; }
-  #archiveMenuBtn { font-size:0.9375rem !important; opacity:.9; }
+  #archiveMenuBtn, #searchLink { font-size:0.9375rem !important; opacity:.9; }
   #brand .brandName { font-size:1.25rem; }
+  #creditsLink { font-size:1.125rem !important; }
   #archiveMenuBtn.urgent { font-size:1.0625rem !important; }
   #archiveMenu .amNote { font-size:0.875rem; color:#c9bd93; }
   #sourceStatus { font-size:0.9375rem; color:#b3a781; opacity:1; }
@@ -1329,11 +1304,11 @@ body.atlasFull { overflow:hidden; }
 <div id="topBar">
   <button id="archiveMenuBtn" class="secondary" onclick="toggleArchiveMenu()"
           aria-haspopup="dialog" aria-expanded="false" aria-controls="archiveMenu">Settings</button>
-  <div id="brand" aria-label="Grimoire"></div>
-  <div id="topLinks">
-    <button id="searchLink" onclick="toggleSearch()" title="Search the scripts">Search</button>
+  <div id="brandWrap">
+    <div id="brand" aria-label="Grimoire"></div>
     <button id="creditsLink" onclick="toggleCredits()" aria-haspopup="dialog" aria-controls="creditsMenu">Credits</button>
   </div>
+  <button id="searchLink" class="secondary" onclick="toggleSearch()" title="Search the scripts">Search</button>
 </div>
 <input type="file" id="fileInput" accept="*/*" onchange="loadArchive()" style="display:none">
 <div id="archiveMenu" role="dialog" aria-label="Settings">
@@ -1359,11 +1334,12 @@ body.atlasFull { overflow:hidden; }
       same thing (“Headwater Ruins” rather than the game’s “Ruins”).
       Off, every gallery shows only names the file itself carries (0xF004 tile names, zone-entry
       strings, resource symbols); where there is none, the cell says so.</span></span></label>
-  <label><input type="checkbox" id="unditherMaster" onchange="setUndither(this.checked)">
-    <span>Undither portraits
-      <span class="amNote">Cythera’s art is dithered for a 256-colour screen. This reconstructs
-      continuous tone from the checkerboards on the portraits, and only there. It is a reading of
-      the pixels rather than the pixels.</span></span></label>
+  <div id="unditherWrap">Undither
+    <label><input type="radio" name="unditherScope" value="off" onchange="setUnditherScope(this.value)"> off</label>
+    <label><input type="radio" name="unditherScope" value="portraits" onchange="setUnditherScope(this.value)"> portraits</label>
+    <label><input type="radio" name="unditherScope" value="all" onchange="setUnditherScope(this.value)"> every graphic</label>
+    <span class="amNote">Cythera’s art is dithered for a 256-colour screen. This reconstructs continuous
+    tone from the checkerboards. It is a reading of the pixels rather than the pixels.</span></div>
 </div>
 <div id="creditsMenu" role="dialog" aria-label="Credits">
   <ul>
@@ -1401,8 +1377,9 @@ body.atlasFull { overflow:hidden; }
       <div id="tabRow3" class="ftabRow" role="tablist"></div>
       <div id="tabFolder3" class="folder f3">
         <div id="tabSheet" class="tabSheet">
-<div id="navSub"></div>
 <div id="crumbBar" style="display:none"></div>
+<div id="navSub"></div>
+<div id="navSubNote"></div>
 <!-- The category <select> is now driven by the icon bar above and is hidden.
      It stays in the DOM because every other code path treats it as the single
      source of truth for the current category. -->
@@ -1525,6 +1502,7 @@ body.atlasFull { overflow:hidden; }
   <div id="canvasViewport"><canvas id="canvas" width="64" height="64"></canvas></div>
   <button class="secondary" onclick="downloadCurrentPNG()">Save as PNG</button>
   <button class="secondary" onclick="downloadCurrentGIF()">Save as GIF</button>
+  <button class="secondary" onclick="sendToCanvas()">Edit in ColorCycleCanvas</button>
 </div>
 <div id="artUsage" style="display:none"></div>
 
@@ -1640,8 +1618,6 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
 &ldquo;Settings&rdquo;.</div>
 <div id="galleryTools" style="display:none">
   <span id="galleryArrange">
-    <button class="secondary" id="viewToggleBtn"
-            onclick="setGalleryView(window.GALLERY_VIEW === 'list' ? 'grid' : 'list')">&#9776; List</button>
     <label id="gallerySortWrap">Sort
       <select id="gallerySortSel" onchange="setGallerySort(this.value)">
         <option value="archive">as the archive has them</option>
@@ -2330,9 +2306,15 @@ function setUnditherPreview(on) {
   redrawCurrentView();
 }
 function toggleUnditherPreview() { setUnditherPreview(window.UNDITHER_PREVIEW === null); }
+function setUnditherScope(v) {
+  window.UNDITHER_ALL = v === 'all';
+  setUndither(v !== 'off');
+}
 function refreshUnditherControls() {
-  const master = document.getElementById('unditherMaster');
-  if (master) master.checked = !!window.UNDITHER;
+  try {
+    const want = !window.UNDITHER ? 'off' : window.UNDITHER_ALL ? 'all' : 'portraits';
+    for (const r of document.querySelectorAll('input[name="unditherScope"]')) r.checked = r.value === want;
+  } catch (e) {}
 }
 
 // Called from both setMode and onCategoryChange: whichever of them runs last
@@ -3846,7 +3828,7 @@ function renderItemSheet() {
   if (orphans.length) {
     const h = document.createElement('div');
     h.className = 'propHead';
-    h.innerHTML = 'Art no class owns <span class="inspDim" style="font-weight:normal">Named in 0xF004 and drawn, the base tile of no class, no class’s own state, and in no prop list. An item wears one at the aspect shown, with the class’s own numbers under that picture and that name.</span>';
+    h.innerHTML = '<span class="groupTitle">Art no class owns</span><span class="groupNote">Named in 0xF004 and drawn, the base tile of no class, no class’s own state, and in no prop list. An item wears one at the aspect shown, with the class’s own numbers under that picture and that name.</span>';
     grid.appendChild(h);
     for (const o of orphans) {
       const cell = document.createElement('div');
@@ -4161,7 +4143,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.35.0';
+const GRIMOIRE_VERSION = '1.36.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -5177,7 +5159,14 @@ function setModeImpl(m) {
   }
   window.DETAIL_VIEW = null;   // a detail view is what we are leaving
   if (currentMode === 'sheet' && m === 'single') lastSheetScrollY = window.scrollY;
+  // A detail view opens at the top of the page, whichever way it was
+  // reached (a click, a link, the browser's back), and the gallery comes
+  // back to where it was left.
+  const wasSingle = currentMode === 'single';
   currentMode = m;
+  const go = y => { try { if (typeof window.scrollTo === 'function') window.scrollTo(0, y); } catch (e) {} };
+  if (m === 'single') setTimeout(() => go(0), 0);
+  else if (wasSingle && m === 'sheet') setTimeout(() => go(lastSheetScrollY || 0), 0);
   // Before the early returns below, so a view without a bar (Tools, the
   // Changes tab, a dossier) does not inherit the last gallery's.
   updateUnditherBar();
@@ -5812,9 +5801,7 @@ function renderCrumbBar() {
   const prev = window.VIEW_TRAIL[window.VIEW_TRAIL.length - 1];
   bar.style.display = '';
   bar.innerHTML = '<button class="crumbBtn" onclick="goViewBack()">\u21b0 Back to ' +
-    svEsc(viewLabel(prev)) + '</button>' +
-    '<span class="crumbNote">the page you came from, the other back button goes up to this ' +
-    'gallery</span>';
+    svEsc(String(viewLabel(prev)).replace(/\s*\([^)]*\)/g, '')) + '</button>';
 }
 
 function goViewBack() {
@@ -6299,7 +6286,7 @@ function drawToCanvas(canvas, W, H, image, transparentIndex, palette) {
   // Portraits only, since 9 September 2026: the reconstruction was tuned on
   // them and they are what it is for; the tiles, icons and landscapes
   // stay the pixels.
-  if (unditherOn() && W*H > 0 && String(window.CUR_SUBN) === '135') queueUndither(canvas, W, H, image, t, P);
+  if (unditherOn() && W*H > 0 && (window.UNDITHER_ALL || String(window.CUR_SUBN) === '135')) queueUndither(canvas, W, H, image, t, P);
 }
 
 /* Which of the two sets of undither settings is in force.
@@ -6372,6 +6359,8 @@ function applyZoom() {
   canvas.style.height = h + 'px';
   vp.scrollLeft = Math.max(0, cx * w - vp.clientWidth / 2);
   vp.scrollTop  = Math.max(0, cy * h - vp.clientHeight / 2);
+  // A gold frame says the picture runs past the edges.
+  if (vp.classList) vp.classList.toggle('cropped', vp.clientWidth > 40 && (w > vp.clientWidth + 1 || h > vp.clientHeight + 1));
 }
 
 function navigateResource(delta) {
@@ -6905,7 +6894,7 @@ function startPaletteAnimation(canvas, W, H, image, transparentIndex) {
   // Cycling redraws several times a second and each redraw would queue a fresh
   // reconstruction, so the two are mutually exclusive. Undithering wins while
   // it is on; turning it off restores the cycle on the next render.
-  if (unditherOn() && String(window.CUR_SUBN) === '135') return;
+  if (unditherOn() && (window.UNDITHER_ALL || String(window.CUR_SUBN) === '135')) return;
   if (!PALETTE_CYCLE_SUBN.has(window.CUR_SUBN)) return;
   if (!window.PALETTE_ANIM || !imageUsesAnimatedColors(image)) return;
   const el = document.getElementById('animNote');
@@ -11300,6 +11289,7 @@ function paintAtlas() {
     }
   }
   const mouths = atlasPaintMouths(ctx, drawn, vw, vh);
+  atlasPaintTowns(ctx, drawn, vw, vh);
   atlasLabels(ctx, drawn, vw, vh);
   window.ATLAS_DRAWN = drawn;
   window.ATLAS_MOUTHS = mouths;
@@ -11387,8 +11377,34 @@ function drawWithMargin(ctx, node, r, alpha, roofT, draw) {
   draw();
   ctx.restore();
 }
+/* A render at every halving, built once and kept beside it. Drawing the
+   world's 2,048 px render at 700 px across is a fresh downscale of four
+   million pixels every frame, and Chrome does that in software; it was the
+   judder below 5 px a square (the maintainer, 9 September 2026). From the
+   level nearest above the size on screen the scale is under two and the
+   draw is cheap. Keyed on the canvas itself, so a re-render starts over. */
+const _atlasMips = new WeakMap();
+function atlasMip(canvas, targetW) {
+  if (!canvas || !canvas.width || targetW >= canvas.width / 2) return canvas;
+  let levels = _atlasMips.get(canvas);
+  if (!levels) { levels = [canvas]; _atlasMips.set(canvas, levels); }
+  let cur = levels[levels.length - 1];
+  while (cur.width / 2 >= targetW && cur.width > 64) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(cur.width / 2)); c.height = Math.max(1, Math.round(cur.height / 2));
+    const g = c.getContext('2d');
+    if (!g) break;
+    g.imageSmoothingEnabled = true;
+    g.drawImage(cur, 0, 0, c.width, c.height);
+    levels.push(c); cur = c;
+  }
+  let best = levels[0];
+  for (const l of levels) if (l.width >= targetW) best = l;
+  return best;
+}
 function drawRenderWithMargin(ctx, node, r, canvas, alpha, roofT) {
-  drawWithMargin(ctx, node, r, alpha, roofT, () => ctx.drawImage(canvas, r.x, r.y, r.w, r.h));
+  const src = atlasMip(canvas, r.w);
+  drawWithMargin(ctx, node, r, alpha, roofT, () => ctx.drawImage(src, r.x, r.y, r.w, r.h));
 }
 
 // Where a node's cropped thumbnail sits, given where the whole node sits.
@@ -11630,6 +11646,20 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
   return out;
 }
 
+/* A ring round every town still wearing its roofs: a tap on one goes in
+   (atlasZoomIntoTown), and the ring says so the way the mouths' rings do. */
+function atlasPaintTowns(ctx, drawn, vw, vh) {
+  if (atlasBelowTop()) return;
+  for (const { node, r } of drawn) {
+    if (!node.depth || r.w >= 540) continue;
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2, rad = Math.hypot(r.w, r.h) / 2 + 4;
+    if (cx + rad < 0 || cy + rad < 0 || cx - rad > vw || cy - rad > vh) continue;
+    ctx.strokeStyle = 'rgba(196,164,100,.85)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
 /* The names.
 
    Drawn last, over everything, biggest node first so a collision drops the
@@ -11801,6 +11831,11 @@ function renderAtlasSettings() {
   b2.title = 'Every place rendered once and kept, about 627 MB, so nothing is drawn while you move';
   b2.onclick = () => { toggleWorldPreload(); renderAtlasSettings(); };
   host.appendChild(b2);
+  const note = document.createElement('div');
+  note.className = 'asNote';
+  note.textContent = (fullResPossible() ? 'Full resolution draws every place at its native 32 pixels a tile. ' : '') +
+    'Keep every place renders all of them once, about 627 MB, so nothing is drawn while you move.';
+  host.appendChild(note);
 }
 
 /* The map the whole screen.
@@ -12137,6 +12172,20 @@ function atlasFallInto(m, node) {
    wide enough on screen for its roofs to be off (atlasRoofT: none left from
    540 px across), or as close as the art goes, whichever is nearer. No
    fade, since nothing is left behind; the zoom row and the slider follow. */
+// The zone in its own panel, centred on the square and the square selected.
+function atlasOpenSquare(resid, tx, ty) {
+  jumpToResource(resid);
+  setTimeout(() => {
+    const cm = window.CUR_MAP, vp = document.getElementById('mapViewport');
+    if (!cm || cm.resid !== resid || !vp) return;
+    try {
+      mapView.x = vp.clientWidth / 2 - (tx + 0.5) * cm.TS * mapView.scale;
+      mapView.y = vp.clientHeight / 2 - (ty + 0.5) * cm.TS * mapView.scale;
+      clampMapPan(); applyMapTransform();
+      inspectMapSquare(tx, ty);
+    } catch (e) {}
+  }, 0);
+}
 function atlasZoomIntoTown(node) {
   const vp = document.getElementById('atlasViewport');
   if (!vp || vp.clientWidth < 40) return;
@@ -12267,8 +12316,7 @@ function atlasInspect(px, py) {
               host.style.display = 'block'; return; }
   const { node, tx, ty } = hit;
   const e = mapRenderFor(node.resid, true);
-  const parts = ['<div class="inspHead">' + svEsc(node.name) +
-    ' &nbsp;·&nbsp; square ' + tx + ', ' + ty + '</div>'];
+  const parts = ['<div class="inspHead">' + svLink(node.name + ', square ' + tx + ', ' + ty, 'atlasOpenSquare(' + node.resid + ',' + tx + ',' + ty + ')') + '</div>'];
   if (e && e.result) {
     const tileId = e.result.m ? mapTileAt(e.result.m, tx, ty) : 0;
     const terrain = tileId ? (terrainNameFor(tileId) || compositeTileName(tileId)) : null;
@@ -12545,6 +12593,14 @@ function atlasHover(clientX, clientY, asked) {
   const key = hit.node.resid + ':' + hit.tx + ',' + hit.ty + (asked ? '!' : '');
   if (key === atlasHoverKey && el.style.display !== 'none') { placeHoverCard(el, vp, px, py, asked); return; }
   atlasHoverKey = key;
+  // A town still under its roofs is one thing under the pointer, not a
+  // square of it: the card names it and says a tap goes in.
+  if (hit.node.depth && hit.r.w < 540 && !atlasBelowTop()) {
+    el.innerHTML = '<div><span class="hvName">' + svEsc(hit.node.name) + '</span><span class="hvWhat">tap to go in</span></div>';
+    el.style.display = 'flex';
+    placeHoverCard(el, vp, px, py, asked);
+    return;
+  }
   const e = mapRenderFor(hit.node.resid, true);
   const card = squareCard(hit.node.resid & 0xFF, e, hit.tx, hit.ty, hit.node.name, asked);
   if (!card) { el.style.display = 'none'; return; }
@@ -13083,7 +13139,7 @@ function askOneShape(shape, hit) {
       if (!rows.length) return null;
       return askCard(m.sh.id === 'cost' ? 'What ' + m.hit[1].trim() + ' costs' : 'Who sells ' + m.hit[1].trim(),
         'The listed price, before the vendor bargains.',
-        rows, mechLink('shops', 'Mechanics › shops'));
+        rows, mechLink('shops', 'Rules › shops'));
     }
     if (m.sh.id === 'does') {
       const sp = spellRules().spells.find(x => like(x.name));
@@ -13094,7 +13150,7 @@ function askOneShape(shape, hit) {
           for (const d of fx.damage) rows.push(askRow('damage', '<b>' + (amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.who));
           for (const h of fx.heals) rows.push(askRow('heals', '<b>' + svEsc(h.text) + '</b>'));
         }
-        return askCard(sp.name, svEsc(dvmDescriptionOf(sp.resid) || ''), rows, partChip(sp.name, sp.resid) + mechLink('spells', 'Mechanics › spells'));
+        return askCard(sp.name, svEsc(dvmDescriptionOf(sp.resid) || ''), rows, partChip(sp.name, sp.resid) + mechLink('spells', 'Rules › spells'));
       }
       const sk = skillCatalogue().find(x => like(x.name));
       if (sk) return askCard(sk.name, svEsc(sk.description || ''),
@@ -13112,7 +13168,7 @@ function askOneShape(shape, hit) {
       return askCard('What clears ' + name,
         'Every script that takes it off.',
         by.map(r => askRow(selfNameFor(r) || ('0x' + r.toString(16).toUpperCase()), svChip(r))),
-        mechLink('status', 'Mechanics › status effects'));
+        mechLink('status', 'Rules › status effects'));
     }
     if (m.sh.id === 'says') {
       const hits = buildBarkCatalogue().filter(b => b.words.concat(b.then || []).some(w => askNorm(w).includes(subject)));
@@ -13129,7 +13185,7 @@ function askOneShape(shape, hit) {
       return askCard('What ' + m.hit[1].trim() + ' resists', 'From the monster record’s flag word, as the default resistance script reads it.',
         ms.slice(0, 6).map(r => askRow(N[r.proptype] || ('class ' + r.proptype),
           svEsc(monsterFlagsText(r.flags)) + ' <span class="inspDim">· armour ' + r.armor + ', ' + r.hp + ' health</span>')),
-        mechLink('combat', 'Mechanics › combat'));
+        mechLink('combat', 'Rules › combat'));
     }
     if (m.sh.id === 'where' || m.sh.id === 'who') {
       const tab = loadCharacterTable();
@@ -13434,17 +13490,18 @@ const TAB_TREE = [
   { id: 'world', label: 'World', tile: 0x267, values: ['WORLD'] },   // the map of Cythera, the second of the two map tiles (the maintainer's pick, 9 September 2026)
   // The top row's three folders open when selected: chest, crate and book
   // each have a closed and an open frame, and `tileOpen` is the second.
-  { id: 'entities', label: 'Entities', tile: 0x285, tileOpen: 0x284, children: [      // the large chest
+  { id: 'entities', label: 'Game', tile: 0x285, tileOpen: 0x284, children: [      // the large chest; the label was Entities until 9 September 2026
       { id: 'characters', label: 'Characters', tile: 0x719, values: ['CHARACTERS'] },  // the king, standing, facing the reader
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
+      { id: 'props',      label: 'Props',      tile: 0x2E0, values: ['PROPS'] },       // the anvil: a thing placed in the world (from under Graphics › Tilesets, 9 September 2026)
       { id: 'regions',    label: 'Zones',      tile: 0x590, values: ['127'] },         // a small town, as the world map draws one (prop 286)
       { id: 'skills',     label: 'Skills',     tile: 0x3DB, values: ['SKILLS'] },   // a distiller (prop 234), the maintainer's pick on 8 September
       { id: 'spells',     label: 'Spells',     tile: 0x888, values: ['SPELLS'] },   // a staff (prop 343), the maintainer's pick
       // Mechanics is not a table: the rules the code implies, read out of
       // the scripts on the spot (renderMechanicsSheet). The dice game and
       // the talk balloons so far; damage, resistance and skills not yet.
-      { id: 'mechanics',  label: 'Mechanics',  tile: 0x82F, values: ['MECHANICS'] } ] },   // dice
+      { id: 'mechanics',  label: 'Rules',      tile: 0x82F, values: ['MECHANICS'] } ] },   // dice; the label was Mechanics until 9 September 2026
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
       { id: 'text', label: 'Text', tile: 0x3AE, children: [                                   // the tombstone, second frame
           { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['1', 'STRINGS'] },                     // a poster; the forks' string lists beside the archive's
@@ -13459,7 +13516,7 @@ const TAB_TREE = [
       { id: 'graphics', label: 'Graphics', tile: 0x861, children: [                           // the easel, with its painting
           { id: 'portraits',  label: 'Portraits',  tile: 0x33F, values: ['135'] },                      // the mirror
           { id: 'landscapes', label: 'Landscapes', tile: 0x890, values: ['131'] },                      // the landscape painting
-          { id: 'tilesets',   label: 'Tilesets',   tile: 0x0D5, values: ['141', 'PROPS'] },             // the quartered blue floor; sprites by prop type are a way of viewing the same tiles
+          { id: 'tilesets',   label: 'Tilesets',   tile: 0x0D5, values: ['141'] },             // the quartered blue floor; sprites by prop type are a way of viewing the same tiles
           { id: 'composites', label: 'Composites', tile: 0x0D4, values: ['COMPOSITE', 'RSRC'] },        // grass meeting sand
           // Misc is the archive's general graphics and, since 8 September
           // 2026, the whole screens in the resource fork beside them (the
@@ -13470,10 +13527,10 @@ const TAB_TREE = [
           { id: 'music', label: 'Music', tile: 0x2BD, values: ['143'] },                                // a lute
           { id: 'sfx',   label: 'SFX',   tile: 0x1B2, values: ['144', 'APPSND'] } ] },                  // the explosion, sheet 0x8E1B; the application's own sounds beside the archive's
       { id: 'functions', label: 'Functions', tile: 0x3CB, children: [                         // a lever: pull it and something happens (prop 187)
-          { id: 'actors',  label: 'Actors',  tile: 0x6F0, values: ['47', '24', '3', '8'] },                  // the fighter mid-swing: something that acts (prop 116)
-          { id: 'objects', label: 'Objects', tile: 0x233, values: ['16'] },                             // a key: a thing that is used (prop 66)
+          { id: 'actors',  label: 'Actors',  tile: 0x82D, values: ['47', '24', '3', '8'] },                  // the fighter mid-swing: something that acts (prop 116)
+          { id: 'objects', label: 'Objects', tile: 0x28B, values: ['16'] },                             // a key: a thing that is used (prop 66)
           { id: 'places',  label: 'Places',  tile: 0x4A0, values: ['19', '20'] },                 // a signpost
-          { id: 'effects', label: 'Effects', tile: 0x3DA, values: ['9'] },                              // the distiller's flasks: eating and potion effects (prop 233)
+          { id: 'effects', label: 'Effects', tile: 0x183, values: ['9'] },                              // the distiller's flasks: eating and potion effects (prop 233)
           { id: 'shared',  label: 'Shared',  tile: 0x332, values: ['0', '14', '2', '10'] } ] } ] },// a bookshelf: the common library
   // Data opens on Cythera Data (`last`), whatever comes first in the row:
   // the installer is first because it is where the rest came from, not the
@@ -13501,7 +13558,7 @@ const TAB_TREE = [
           // about, read out of its own key routine.
           { id: 'cheats', label: 'Cheats', tile: 0x236, values: ['CHEATS'] },
           { id: 'interface', label: 'Interface', tile: 0x770, values: ['UIMENUS', 'UIDIALOGS', 'UICURSORS', 'UIICONS'] } ] },   // the strange device (prop 262): a thing to operate
-      { id: 'combatai', label: 'Combat AI', tile: 0x2D1, wip: true, children: [               // the rolling pin
+      { id: 'combatai', label: 'Combat AI', tile: 0x181, wip: true, children: [               // the maintainer's pick, 9 September 2026
           { id: 'aiscripts', label: 'Scripts', tile: 0x220, wip: true, values: ['AISCRIPTS'] },  // a scroll
           { id: 'airules',   label: 'Rules',   tile: 0x811, wip: true, values: ['AIRULES'] } ] } ] },  // the hay target
   // Not part of the archive: the page's own switches and its sister pages.
@@ -13650,8 +13707,6 @@ function refreshChangesBadge() {
 
 function buildTabShell() {
   const shell = document.getElementById('tabShell');
-  const links = document.getElementById('topLinks');
-  if (links) links.style.display = '';
   if (!shell) return;
   syncTabsTo(document.getElementById('categorySelect').value);
 }
@@ -13683,6 +13738,13 @@ function syncTabsTo(v) {
     sub.innerHTML = vals.length > 1 ? vals.map(x =>
       '<button class="navChip' + (x === v ? ' active' : '') + '" data-v="' + x +
       '" onclick="pickCategory(\'' + x + '\')">' + svEsc(optionLabel(x)) + '</button>').join('') : '';
+  }
+  // One line under the sections saying what the open one holds.
+  const note = document.getElementById('navSubNote');
+  if (note) {
+    const purpose = vals.length > 1 && SUBINDEX_PURPOSE[+v] ? SUBINDEX_PURPOSE[+v][1] : '';
+    note.textContent = purpose ? purpose.replace(/\s*--\s*/g, ', ') : '';
+    note.style.display = purpose ? '' : 'none';
   }
 }
 
@@ -13763,6 +13825,15 @@ function zoneLandscapeArg(level) {
     }
   } catch (e) {}
   return (window.ZONE_BACKDROPS[level] = found);
+}
+// The zones whose entry script sets landscape strip `resid` (0x8400 + n).
+function landscapeZones(resid) {
+  const n = resid - 0x8400, out = [];
+  for (let level = 0; level < 256; level++) {
+    if (!refExists(0x8000 + level)) continue;
+    if (zoneLandscapeArg(level) === n) out.push(zoneNameFor(0x8000 + level) || ('0x' + (0x8000 + level).toString(16).toUpperCase()));
+  }
+  return out;
 }
 function zoneBackdrop(level) {
   return zoneLandscapeArg(level) === -1 && refExists(0x8F50) && refExists(0x8F51) ? [0x8F50, 0x8F51] : null;
@@ -14936,9 +15007,9 @@ function skillIconURL(resid) {
 function skillIconHTML(resid, tabId) {
   const url = skillIconURL(resid);
   if (url) return '<img class="skillIcon" src="' + url + '" alt="" width="32" height="16">';
-  const leaf = TAB_BY_ID.get(tabId);
-  const fb = leaf ? relIconURL({ tile: leaf.tile }) : '';
-  return fb ? '<img class="skillIcon skillIconTile" src="' + fb + '" alt="" width="16" height="16">' : '';
+  // No icon where the file has none: the tab's tile stood in until 9
+  // September 2026, and it meant nothing about the skill.
+  return '';
 }
 /* A card on the Skills, Spells and Mechanics sheets is a <details>: the
    head is its summary and the rest opens under it. They open closed, a
@@ -14965,16 +15036,25 @@ function renderSkillsSheet() {
   const box = document.createElement('div');
   box.className = 'mechView';
   const kinds = [['attribute', 'Attributes', 'The four figures every character has a number for.'],
-                 ['weapon', 'Weapon skills', 'One per kind of weapon. The skill goes on the blow’s margin and on its damage.'],
+                 ['weapon', 'Weapon skills', 'One per kind of weapon; the skill goes on the blow’s margin and its damage.'],
                  ['special', 'Special skills', 'Learned from a teacher and asked about by the scripts that need them.'],
-                 ['command', 'Commands', 'The Do menu, kept in the same block of the file as the skills.']];
+                 ['command', 'Commands', 'The Do menu, in the same block of the file as the skills. Each is a name and a script, nothing more.']];
   const propChip = (pt, name) => '<button class="relChip" onclick="showPropTypeDetail(' + pt + ')"><span class="relText"><span class="relMain">' + svEsc(name) + '</span></span></button>';
   let count = 0;
   for (const [kind, title, note] of kinds) {
     const list = shown.filter(x => x.kind === kind);
     if (!list.length) continue;
-    const h = document.createElement('div'); h.className = 'propHead'; h.innerHTML = svEsc(title) + ' <span class="inspDim" style="font-weight:normal">' + svEsc(note) + '</span>';
+    const h = document.createElement('div'); h.className = 'propHead'; h.innerHTML = '<span class="groupTitle">' + svEsc(title) + '</span><span class="groupNote">' + svEsc(note) + '</span>';
     box.appendChild(h);
+    if (kind === 'command') {
+      // A command has no lessons, no teacher and no description: a fold
+      // would open on nothing, so they are one line of names.
+      count += list.length;
+      const d = document.createElement('div'); d.className = 'mechLede';
+      d.innerHTML = list.map(x => partChip(x.name, x.resid)).join(', ');
+      box.appendChild(d);
+      continue;
+    }
     for (const x of list) {
       count++;
       const sec = foldCard('skill-' + x.resid.toString(16), 'skillCard', !!q);
@@ -14988,7 +15068,7 @@ function renderSkillsSheet() {
         if (x.askedBy.length) rows.push(['Asked about by', x.askedBy.map(r => svChip(r)).join(' ')]);
         if (x.weapons.length) rows.push(['Swung with it', x.weapons.map(w => propChip(w.pt, w.name)).join(' ')]);
         const rule = SKILL_RULES[x.name];
-        rows.push(['The rule', (rule ? mechLink(rule, 'Mechanics › ' + rule) + ' ' : '') + mechLink('training', 'Mechanics › training')]);
+        rows.push(['The rule', (rule ? mechLink(rule, 'Rules › ' + rule) + ' ' : '') + mechLink('training', 'Rules › training')]);
       }
       if (rows.length) {
         const d = document.createElement('div'); d.className = 'mechBody';
@@ -15027,7 +15107,7 @@ function renderSpellsSheet() {
   const box = document.createElement('div');
   box.className = 'mechView';
   const intro = document.createElement('p'); intro.className = 'mechLede';
-  intro.innerHTML = spells.length + ' spells, each cast through one helper with a level and a cost in magic points. A cast costs 10 plus twice the level in time and fails when two rolls of 0 to the caster’s Casting fall short of a roll of 0 to the level ' + mechLink('spells', 'Mechanics › spells') + '.';
+  intro.innerHTML = spells.length + ' spells, each cast through one helper with a level and a cost in magic points. A cast costs 10 plus twice the level in time and fails when two rolls of 0 to the caster’s Casting fall short of a roll of 0 to the level ' + mechLink('spells', 'Rules › spells') + '.';
   box.appendChild(intro);
   let level = null, count = 0;
   for (const x of shown) {
@@ -15083,7 +15163,7 @@ function renderBarksSheet() {
   const distinct = new Set(barks.flatMap(b => b.words.concat(b.then || []))).size;
   out.textContent = barks.length
     ? barks.length + ' places in the scripts put a line over a character’s head, ' + distinct + ' distinct lines' +
-      (q ? '; ' + shown.length + ' shown' : '') + '. How the balloon works is under Entities › Mechanics.'
+      (q ? '; ' + shown.length + ' shown' : '') + '. How the balloon works is under Game › Rules.'
     : 'No script in this archive sets a talk balloon.';
 }
 
@@ -16358,7 +16438,7 @@ function renderMechanicsSheet() {
     const sec = foldCard('mech-' + id, '', false);
     const head = document.createElement('summary');
     head.className = 'mechHead';
-    const iconURL = relIconURL(icon);
+    const iconURL = icon ? relIconURL(icon) : '';
     head.innerHTML = (iconURL ? '<img class="skillIcon skillIconTile" src="' + iconURL + '" alt="" width="16" height="16">' : '') +
       '<h3>' + svEsc(title) + '</h3>' + (from ? '<span class="mechFrom">' + from + '</span>' : '');
     sec.appendChild(head);
@@ -16496,7 +16576,7 @@ function renderMechanicsSheet() {
 
   // ---- skills ----
   const sk = skillConsultations();
-  add('skills', 'What each skill is asked about', { tile: 0x3DB }, '',
+  add('skills', 'What each skill is asked about', null, '',
     sk.by.size ? 'Where a script asks whether the player has a skill, and which.' + (sk.generic ? ' ' + sk.generic + ' further checks are in helpers that test whichever skill they are handed.' : '') : 'No script in this archive asks about a skill by name.',
     [], mechSkillsFigure(sk) + table(['skill', 'asked about by'], [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
       '<tr><td>' + (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16).toUpperCase()), 0x1A00 + id) : 'skill 0x' + id.toString(16).toUpperCase()) +
@@ -16504,7 +16584,7 @@ function renderMechanicsSheet() {
 
   // ---- experience and levels ----
   const xp = experienceRules();
-  add('experience', 'Experience and levels', { icon: 261 }, src('every award', 0xE8B) + src('a new level', 0xE86),
+  add('experience', 'Experience and levels', null, src('every award', 0xE8B) + src('a new level', 0xE86),
     xp.rule ? 'Every award goes through one helper, and a level is a threshold on the total.' : 'The experience helper (0xE8B) is not in this archive.',
     xp.rule ? [
       'Experience is added' + (xp.rule.cap ? ', <b>capped at 65,535</b>' : '') + (xp.rule.doubling ? ', and the level rises by one when it passes <b>100 × 2 to the power of the level less one</b>: above 100 for level 2, 200 for 3, 400 for 4, 800, 1,600, doubling.' : '.'),
@@ -16518,7 +16598,7 @@ function renderMechanicsSheet() {
   // ---- karma ----
   const km = karmaRules();
   const start = km.writes.find(w => w.set !== undefined);
-  add('karma', 'Karma', { icon: 178 }, src('a kill', 0xE8D),
+  add('karma', 'Karma', null, src('a kill', 0xE8D),
     km.writes.length ? 'A number the scripts move, and test.' : 'No script in this archive moves karma.',
     km.writes.length ? [
       start ? 'It starts at <b>' + start.set + '</b> when a character is made.' : '',
@@ -16543,7 +16623,7 @@ function renderMechanicsSheet() {
   // ---- status effects ----
   const st = statusRules();
   const statusNames = new Set([...st.applies.keys(), ...st.cures.keys()]);
-  add('status', 'Status effects', { icon: 31 }, '',
+  add('status', 'Status effects', null, '',
     st.applies.size ? 'Every place a script puts a status on somebody, with the duration the call gives in clock units of 4096 to the game hour, and every place one is cleared, which is what a cure is.' : 'No script in this archive applies a status.',
     [], mechStatusFigure(st) + table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
       (st.applies.get(nm) || []).map(a => svChip(a.resid, a.duration !== null ? 'for ' + a.duration : '')).join(' ') + '</td><td>' +
@@ -16589,7 +16669,7 @@ function renderMechanicsSheet() {
 
   // ---- training ----
   const tr = trainingRules();
-  add('training', 'Training', { icon: 76 }, src('a lesson', 0xEB1),
+  add('training', 'Training', null, src('a lesson', 0xEB1),
     tr.teachers.length ? tr.teachers.length + ' teachers, each one call of the same helper naming the skill.' : 'No script in this archive teaches a skill.',
     tr.teachers.length ? [
       'A lesson raises the skill one level' + (tr.points.perLesson ? ' and costs <b>one training point</b>' : '') + '.',
@@ -16602,7 +16682,7 @@ function renderMechanicsSheet() {
 
   // ---- talk balloons ----
   const barks = buildBarkCatalogue();
-  add('balloons', 'Talk balloons', { tile: 0x185 }, '',
+  add('balloons', 'Talk balloons', null, '',
     'The short lines over a character’s head are a field on the character that a script writes a string into. The engine draws it in a 128×32 rounded balloon with a tail and takes it down <b>four seconds</b> later: the routine that puts it up returns the tick count plus 240, and the one that shows the balloons each frame removes it once the tick count reaches that. Both are the executable’s, not the file’s.',
     ['A line is a literal, or one picked at random from a list.', 'Two tavern helpers take a list of shouts and a list of replies for when the food or wine comes.',
      barks.length ? barks.length + ' places in this archive’s scripts set one; the words are under Text › Barks.' : 'No script in this archive sets one.'],
@@ -16626,7 +16706,7 @@ function renderMechanicsSheet() {
       sl.inns.map(x => '<tr><td>' + (loadCharacterTable()[x.who] ? characterChip(x.who) : 'character ' + x.who) + '</td><td>' + svEsc((loadCharacterTable()[x.who] && zoneDisplayName(loadCharacterTable()[x.who].zone)) || '') + '</td>' + num(x.quality) + '<td>' + (x.quality !== null ? '× ' + (1 + x.quality / 2) : '') + '</td></tr>'))) : ''), '');
 
   // ---- the clock ----
-  add('clock', 'The clock, poison and time', { tile: 0x231 }, '',
+  add('clock', 'The clock, poison and time', null, '',
     'The game keeps one clock in units of <b>1/4096 of an hour</b>, about 0.9 seconds of game time. Twenty-four hours make a day, and every duration a script hands the engine is in these units. Read from the executable, not the file.',
     [
       'A step costs one unit; looking costs 2, taking 4, and a spell 10 plus twice its level. The monsters move while the player’s time is spent.',
@@ -16635,12 +16715,12 @@ function renderMechanicsSheet() {
       'Lighting is recomputed every quarter hour, and the schedules every hour.'
     ], mechClockFigure(sp), '<span class="partsTitle">In the executable</span>' + pefChip('TGameViewer::DoTicks'));
 
-  // The contents, first: a chip a section, in the order above.
-  const toc = document.createElement('nav');
-  toc.className = 'mechToc';
-  toc.innerHTML = '<span class="partsTitle">Rules</span>' + sections.map(sn => '<button class="navChip" onclick="mechGo(\'' + sn.id + '\')">' + svEsc(sn.title) + '</button>').join('') +
-    '<span class="mechTocAll"><button class="navChip" onclick="mechOpenAll(true)">Open all</button><button class="navChip" onclick="mechOpenAll(false)">Close all</button></span>';
-  box.insertBefore(toc, box.firstChild);
+  // Open all and Close all, and nothing else over the sections: the
+  // contents strip went on 9 September 2026.
+  const all = document.createElement('div');
+  all.className = 'foldAll';
+  all.innerHTML = svLink('Open all', 'mechOpenAll(true)') + svLink('Close all', 'mechOpenAll(false)');
+  box.insertBefore(all, box.firstChild);
   grid.appendChild(box);
   out.textContent = sections.length + ' rules read out of this archive’s scripts. Each says which script it came from.';
 }
@@ -16813,12 +16893,13 @@ function renderToolsSheet() {
   for (const [href, label, note] of [
     ['canvas.html', 'Colour-cycling canvas', 'a paint studio for the palette animation Cythera uses for water and fire'],
     ['https://github.com/ratlizard/grimoire', 'The repository', 'where this page and its checks live']]) {
-    const a = document.createElement('a');
-    a.href = href; a.target = '_blank'; a.rel = 'noopener';
-    a.className = 'sv-chip';
-    a.style.cssText = 'display:inline-block;margin:6px 6px 0 0;text-decoration:none';
-    a.innerHTML = svEsc(label) + ' <i>' + svEsc(note) + '</i>';
-    pages.appendChild(a);
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.style.cssText = 'width:auto;margin:6px 6px 0 0';
+    b.textContent = label;
+    b.title = note;
+    b.onclick = () => window.open(href, '_blank', 'noopener');
+    pages.appendChild(b);
   }
   // Where the page's face came from: the open file's own sfnt, or the copy
   // in res/ while there is no file or the browser refused the bytes. A
@@ -16949,7 +17030,7 @@ function characterChip(i) {
   } catch (e) { icon = ''; }
   if (!icon) { const leaf = TAB_BY_ID.get('characters'); icon = leaf ? relIconURL({ tile: leaf.tile }) : ''; }
   return relChip({ js: 'openCharacter(' + i + ')', main: characterName(i), sub: 'character ' + i, icon, face,
-                   title: 'Entities › Characters' });
+                   title: 'Game › Characters' });
 }
 
 // What a person says over their head, from the bark catalogue: their own
@@ -18869,8 +18950,18 @@ function renderImage() {
       canvas.onclick = ev => tileSheetClick(ev, resid);
     } else { canvas.style.cursor = ''; canvas.title = ''; canvas.onclick = null; }
     startPaletteAnimation(canvas, W, H, image, transparentIndexFor(subn));
-    const z = autoZoom(W,H);
-    document.getElementById('zoomSlider').value = z;
+    // A tile sheet opens fitted to its viewport and cannot be taken past
+    // that (the maintainer, 9 September 2026); everything else keeps the
+    // old guess. The viewport frames itself gold when it crops (applyZoom).
+    const zs = document.getElementById('zoomSlider');
+    let z;
+    if (subn === 141) {
+      const vp = document.getElementById('canvasViewport');
+      const fit = (vp && vp.clientWidth > 40 && vp.clientHeight > 40) ? Math.floor(Math.min(vp.clientWidth / W, vp.clientHeight / H)) : autoZoom(W, H);
+      z = Math.max(1, Math.min(16, fit));
+      zs.max = z;
+    } else { zs.max = 16; z = autoZoom(W, H); }
+    zs.value = z;
     applyZoom();
     currentResid = resid;
     updateUsagePanel(resid, subn);
@@ -19253,13 +19344,6 @@ function attachMapThumb(canvas, resid) {
 // Paint resource 0x8F00 to an offscreen canvas and hand the result to CSS as
 // a data: URL. The wallpaper then comes from the same file as everything else
 // on screen rather than from a copy checked into the repo.
-// The planks move at half the page's speed: the texture's position is set
-// from the scroll, and the gradient over it stays put.
-function installParallax() {
-  let queued = false;
-  const put = () => { queued = false; document.body.style.backgroundPosition = '0 0, 0 ' + Math.round(-window.scrollY * 0.5) + 'px'; };
-  window.addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(put); } }, { passive: true });
-}
 function installBackgroundTexture() {
   try {
     const r = decodeResource(getResourceBytes(0x8F00), 142);
@@ -19397,25 +19481,14 @@ async function exportGallery() {
    are. The list gives each entry a line, the name at reading size and its id
    and facts beside it.
 --------------------------------------------------------------------------- */
-window.GALLERY_VIEW = 'grid';
 window.GALLERY_SORT = 'archive';
 
-function setGalleryView(v) {
-  window.GALLERY_VIEW = v;
-  try { localStorage.setItem('cythera.galleryView', v); } catch (e) {}
-  applyGalleryArrangement();
-  updateGalleryTools();
-}
 function setGallerySort(v) {
   window.GALLERY_SORT = v;
   const ss = document.getElementById('gallerySortSel');
   if (ss && ss.value !== v) ss.value = v;
   applyGalleryArrangement();
 }
-try {
-  const v = localStorage.getItem('cythera.galleryView');
-  if (v === 'list' || v === 'grid') window.GALLERY_VIEW = v;
-} catch (e) {}
 
 // The size of a resource, for the "largest first" sort. Only resource-backed
 // galleries have one; the synthetic ones sort to the end of that ordering.
@@ -19437,7 +19510,7 @@ function cellSortKeys(cell) {
 function applyGalleryArrangement() {
   const grid = document.getElementById('sheetGrid');
   if (!grid) return;
-  grid.classList.toggle('listView', window.GALLERY_VIEW === 'list');
+
   const cells = Array.from(grid.children).filter(c => c.classList && c.classList.contains('cell'));
   if (!cells.length) return;
   // The order the gallery built, captured once so "as the archive has them"
@@ -19633,6 +19706,43 @@ function applyStringEdit(resid, textOffset, cap) {
 // your own face lands in the archive through the same rebuild every other
 // edit uses, ready for "Download edited archive".
 let _ditherSrc = null;      // the loaded Image, kept so sliders re-render
+/* To the canvas page and back. The picture on screen goes over as a PNG
+   through localStorage under one key, and canvas.html opens it on load;
+   its file menu's "Send back to Grimoire" puts the result under another,
+   which the storage event delivers here and the ditherizer takes as its
+   source, aimed at the resource it came from. Two pages of one origin,
+   no server, no clipboard. A portrait comes back into its resource; any
+   other picture comes back into the ditherizer, which writes portraits
+   only. */
+function sendToCanvas() {
+  const canvas = document.getElementById('canvas');
+  const resid = currentResid;
+  if (!canvas || !resid) return;
+  try {
+    const st = document.createElement('canvas'); st.width = canvas.width; st.height = canvas.height;
+    st.getContext('2d').drawImage(canvas, 0, 0);
+    localStorage.setItem('grimoire.handoff', JSON.stringify({ resid, subn: window.CUR_SUBN, name: labelFor(resid) || ('0x' + resid.toString(16).toUpperCase()), png: st.toDataURL('image/png'), at: Date.now() }));
+  } catch (e) { setStatus('Could not hand the picture over: ' + e.message, true); return; }
+  window.open('canvas.html', 'colorcyclecanvas');
+}
+function receiveFromCanvas() {
+  let back = null;
+  try { const raw = localStorage.getItem('grimoire.return'); if (raw) { back = JSON.parse(raw); localStorage.removeItem('grimoire.return'); } } catch (e) { back = null; }
+  if (!back || !back.png) return;
+  const img = new Image();
+  img.onload = () => {
+    openDitherTool();
+    _ditherSrc = img;
+    const mode = document.getElementById('dtMode'), tgt = document.getElementById('dtTarget');
+    if (mode) mode.value = String(back.subn) === '135' ? 'portrait' : 'free';
+    if (tgt && back.resid && [...tgt.options].some(o => +o.value === +back.resid)) tgt.value = String(back.resid);
+    renderDither();
+    setStatus('Back from ColorCycleCanvas: ' + (back.name || '') + (String(back.subn) === '135' ? '. Replace writes it into its portrait.' : '. Only a portrait can be written back.'));
+  };
+  img.src = back.png;
+}
+if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('storage', e => { if (e.key === 'grimoire.return') receiveFromCanvas(); });
+
 function openDitherTool() {
   let ov = document.getElementById('ditherTool');
   if (ov) ov.remove();
@@ -19934,8 +20044,7 @@ function updateGalleryTools() {
   // Every gallery gets the filter box, not just the three built from tables.
   const pw = document.getElementById('propFilterWrap');
   if (pw) pw.style.display = inGallery ? 'block' : 'none';
-  const vb = document.getElementById('viewToggleBtn');
-  if (vb) vb.textContent = window.GALLERY_VIEW === 'list' ? '\u25a6 Gallery' : '\u2261 List';
+
   const sw = document.getElementById('sheetShapeWrap');
   if (sw) sw.style.display = (window.CUR_SUBN === 141 && inGallery) ? 'inline-flex' : 'none';
   const db = document.getElementById('ditherBtn');
@@ -19999,8 +20108,8 @@ function updateSheetSummary() {
   out.textContent = 'Gallery: ' + s.ok + ' decoded, ' + s.err + ' errors' +
     (s.blank ? ', ' + s.blank + ' blank hidden' : '') +
     (pending > 0 ? ', ' + pending + ' still off screen' : '') +
-    ' (' + s.total + ' total) in ' + (CATEGORY_NAMES[s.subn] || 'Unknown Category') +
-    '. (Shift+click a tile to save its PNG.)';
+    ' (' + s.total + ' total) in ' + (CATEGORY_NAMES[s.subn] || 'Unknown Category') + '.' +
+    (s.subn === 131 ? ' Each strip is the backdrop a zone’s entry script names with SetLandscapeImage, drawn behind the map where it ends; the cell says which zones name it.' : '');
 }
 
 function renderContactSheet() {
@@ -20043,7 +20152,7 @@ function renderContactSheet() {
       okCount++;
     }
     refreshLabelLegend();
-  out.textContent = "Gallery: " + okCount + " maps. Click a tile to open it.";
+  out.textContent = okCount + " maps.";
     return;
   }
 
@@ -20145,6 +20254,17 @@ function renderContactSheet() {
     const metaDiv = document.createElement('div');
     metaDiv.className = 'listMeta'; metaDiv.textContent = fmtBytes(rlen);
     cell.appendChild(metaDiv);
+    // A landscape is chosen at run time: a zone's entry script names its
+    // strip with SetLandscapeImage, and the game draws it behind the map's
+    // edge. The zones that name this one are on the cell.
+    if (subn === 131) {
+      let zones = [];
+      try { zones = landscapeZones(resid); } catch (e) { zones = []; }
+      const z = document.createElement('div');
+      z.className = 'resid';
+      z.textContent = zones.length ? 'behind ' + zones.join(', ') : 'set by no zone’s entry script';
+      cell.appendChild(z);
+    }
     // Decoded when the tile is nearly on screen, not now. A blank resource is
     // still hidden, but it can only be found to be blank by decoding it, so
     // the cell is removed at that point instead of never being added.
@@ -20261,7 +20381,7 @@ document.addEventListener('DOMContentLoaded', () => {
   slider.addEventListener('pointermove', e => { if(e.buttons){ const r=slider.getBoundingClientRect(); const min=+slider.min,max=+slider.max; slider.value=Math.round(min+(e.clientX-r.left)/r.width*(max-min)); applyZoom(); } });
   installArchiveDropTarget();
   installKeyboardShortcuts();
-  installParallax();
+  try { receiveFromCanvas(); } catch (e) {}
   try { for (const r of document.querySelectorAll('input[name="animMode"]')) r.checked = r.value === window.ANIM_MODE; } catch (e) {}
   window.addEventListener('hashchange', () => {
     if (_hashWrite) return;

@@ -1377,7 +1377,7 @@ try {
     // teacher is cited by portrait, not sprite.
     const folds = (function count(el) { return ((el.tagName || '').toUpperCase() === 'DETAILS' && /\bmechSec\b/.test(el.className || '') ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
     const icons = (skhtml.match(/class="skillIcon"/g) || []).length;
-    if (folds !== skills.length || icons < 10 || !/relFace/.test(skhtml)) fail('skills', `not folding cards with icons and portraits: ${folds} of ${skills.length} fold, ${icons} icons, portrait ${/relFace/.test(skhtml)}`);
+    if (folds !== skills.filter(x => x.kind !== 'command').length || icons < 10 || !/relFace/.test(skhtml)) fail('skills', `not folding cards with icons and portraits: ${folds} of ${skills.length} fold, ${icons} icons, portrait ${/relFace/.test(skhtml)}`);
     else console.log(`  skills: ${skills.length} in the block, ${skills.filter(x => x.kind !== 'command').length} skills and ${skills.filter(x => x.kind === 'command').length} commands, each a folding card; ${icons} wear the game's icon`);
   }
   ctx.showCategory('SPELLS');
@@ -1511,7 +1511,7 @@ try {
   else if (!/win 2 oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
   else if (!/resists non-magical weapons: [^<]*lich/.test(html)) fail('mechanics', 'the spells section does not name the monsters immune to non-magical damage')
   else if (!/Prop records: type, aspect, Data1 and Data2/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/hand it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
-  else if (!/four seconds/.test(html) || !/one off every game hour/.test(html) || !/4096 is one hour/.test(html) || (html.match(/mechGo\(/g) || []).length < 15 || mechSecs < 15) fail('mechanics', `the balloon lifetime, the contents strip or the sections are missing: ${mechSecs} sections`);
+  else if (!/four seconds/.test(html) || !/one off every game hour/.test(html) || !/4096 is one hour/.test(html) || mechSecs < 15) fail('mechanics', `the balloon lifetime or the sections are missing: ${mechSecs} sections`);
   else if (mechFolds < mechSecs || (html.match(/mechOpenAll\(/g) || []).length < 2) fail('mechanics', `the sections do not fold: ${mechFolds} of ${mechSecs} are details, open/close all ${(html.match(/mechOpenAll\(/g) || []).length}`);
   // The dice game's numbers are read off 0x812 with their offsets, v1.31.0:
   // three dice of six, the skill's roll of six, a match paying 2 at 0x0506,
