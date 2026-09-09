@@ -486,6 +486,20 @@ re-check the installer count before assuming the rule still applies.
   **Not looked at on a screen from here**: the chevron, the 26px portraits
   on chips, and whether pure white on the planks is too bright — the two
   greys and the white are three literals in the sheet if they want moving.
+- **The dice bytes and the aspect rule, v1.31.0** (8 September, night).
+  The maintainer asked what to edit for worse or absurd gambling odds: the
+  answer is five bytes and two branch targets of `0x812`, which
+  `diceGame()` now reads off the listing with their offsets, the Mechanics
+  dice section lists them under "What to edit" with three edits worked
+  through, and the model takes the numbers so an edited archive's sheet is
+  its own. He also brought a finding from another session — the cheat's
+  `205E` and `864` are a mace and a spear wearing the flail tile, art no
+  class owns — which is on every item's page as the aspect rule, on the
+  Cheats row, and as a computed section at the foot of Items. The
+  definition took three tries to stop catching bread and the lit torch;
+  `CLAUDE.md`'s v1.31.0 bullets have both. **Not verified here**: that no
+  script builds a flail (the other session's byte scan) — the page claims
+  only "in no prop list".
 - **Careful: another session is pushing to grimoire through the day.**
   Three of the four commits above needed a rebase, one with a conflict
   (the version number, which both sessions bump). Fetch before starting

@@ -3375,6 +3375,11 @@ function buildItemIndex() {
   });
   const count = subindexCount(128);
   const chars = characterProptypes();
+  // Which (class, aspect) pairs the file actually places, for the aspect
+  // rule on the Items sheet: an egg (flags 0x42, 0x44) is a scripted
+  // trigger whose class and aspect bytes are not an appearance, so it is
+  // not counted as wearing anything.
+  const worn = new Map();
   for (let n = 0; n < count; n++) {
     const resid = 0x8100 + n;
     let recs = null;
@@ -3385,6 +3390,7 @@ function buildItemIndex() {
     if (!recs) continue;
     for (const r of recs) {
       if (r.flags === 0xFF || !r.proptype) continue;
+      if (r.flags !== 0x42 && r.flags !== 0x44) { const k = (r.proptype << 5) | r.aspect; worn.set(k, (worn.get(k) || 0) + 1); }
       // flags 0x09 is ambiguous -- it is both "in a container, takeable" and
       // the flags nine of Land King Hall's guards stand around with. A prop
       // whose type is somebody is never inventory, same test the map renderer
@@ -3405,7 +3411,89 @@ function buildItemIndex() {
       } else e.loose++;
     }
   }
+  window.ITEM_WORN = worn;
   return (window.ITEM_INDEX = byType);
+}
+
+/* THE ASPECT RULE, and the art no class owns.
+
+   A prop record's identity word is (aspect << 10) | class -- ten bits of
+   class, five of aspect (parseDelverPropList) -- and the same word is what
+   the create-a-prop cheat asks for. The aspect adds onto the class's base
+   tile in 0xF000, and the prop is then named by that tile's name in 0xF004
+   (delvmod prop.py: get_tile(aspect), then the tile's name). What else an
+   aspect changes is the class script's affair: the general foodstuff class
+   reads a nutrition per variant, the weapon classes read nothing per aspect
+   at all, so a mace at aspect 8 is a mace's damage, reach, type and skill
+   wearing whatever picture sits eight tiles along.
+
+   Which is how two orphan pictures were found (the maintainer, 8 September
+   2026, from another session): tiles named in 0xF004, drawn on the weapon
+   sheet, the base tile of no class and shared by name with no class's
+   frames, placed nowhere in any of the 40 prop lists, built by no script.
+   "hatchet" and "flail". The list is computed rather than typed so a
+   modded archive gets its own, and it is stated where it is read: a tile
+   is an orphan when it has a name, that name is not the name of any
+   class's base tile (framesSharingName's own test for "this class's
+   frame"), it is not itself a base, it has pixels, and nothing in any prop
+   list wears it -- a picture the file places at some class's aspect is a
+   variant that class uses (bread and cheese under the foodstuff class, a
+   kilt under tunic), not an orphan. An item reaches one when it lies above
+   the item's base on the item's own 16-tile sheet: the aspect field can
+   count past the sheet's edge, but what it lands on there is another
+   sheet's art, reached by arithmetic and not by design. And a class whose
+   own script writes its aspect (`set_field aspect`: the torch when lit,
+   the bomb, the shutters, the brazier, 36 classes) owns the pictures above
+   it on its sheet as states, so those are not orphans either. What is
+   left in the shipped file is hatchet and flail on the weapon sheet, two
+   dried foods, a plow, a broken axe, a broken bow, and four petroglyph
+   tiles the two traps reach. "Placed" means by a prop record; whether a
+   map's own tile layer draws any of them is not asked here. */
+window.ORPHAN_ART = null;
+function orphanItemArt() {
+  if (window.ORPHAN_ART) return window.ORPHAN_ART;
+  const tiles = getPropTileList();
+  const bases = propBaseTileSet();
+  const baseNames = new Set();
+  for (let pt = 0; pt < tiles.length; pt++) { const nm = tiles[pt] ? terrainNameFor(tiles[pt]) : ''; if (nm) baseNames.add(nm); }
+  const out = new Map();
+  const worn = (buildItemIndex(), window.ITEM_WORN || new Map());
+  // Every (class, aspect) the file places, by the tile it lands on, over
+  // all classes and not only the items; and the tiles a class owns as its
+  // states because its script writes its aspect.
+  const placedAt = new Map(), states = new Set();
+  const scripts = buildScriptTextIndex();
+  for (let pt = 1; pt < tiles.length; pt++) {
+    const base = tiles[pt];
+    if (!base) continue;
+    const sc = scripts.find(x => x.resid === 0x1000 + pt);
+    const sets = !!(sc && /set_field aspect\b/.test(sc.text));
+    for (let n = 1; n < 32 && ((base + n) >> 4) === (base >> 4); n++) {
+      const t = base + n;
+      placedAt.set(t, (placedAt.get(t) || 0) + (worn.get((pt << 5) | n) || 0));
+      if (sets) states.add(t);
+    }
+  }
+  for (const e of inventoryItemList()) {
+    const base = tiles[e.pt];
+    if (!base) continue;
+    for (let n = 1; n < 32 && ((base + n) >> 4) === (base >> 4); n++) {
+      const t = base + n;
+      if (bases.has(t) || states.has(t) || placedAt.get(t)) continue;
+      const nm = terrainNameFor(t);
+      if (!nm || baseNames.has(nm)) continue;
+      let drawn = false;
+      try { const img = resolveTileImage(t); drawn = !!(img && img.some(v => v)); } catch (err) { drawn = false; }
+      if (!drawn) continue;
+      const o = out.get(t) || out.set(t, { tile: t, name: nm, reach: [] }).get(t);
+      o.reach.push({ pt: e.pt, aspect: n, word: (n << 10) | e.pt });
+    }
+  }
+  return (window.ORPHAN_ART = [...out.values()].sort((a, b) => a.tile - b.tile));
+}
+// The orphans one item can wear, by aspect.
+function orphanArtReachable(pt) {
+  return orphanItemArt().map(o => { const r = o.reach.find(x => x.pt === pt); return r ? Object.assign({}, o, { aspect: r.aspect, word: r.word }) : null; }).filter(Boolean);
 }
 
 // A prop type counts as an item if the archive treats it as one: it has a
@@ -3513,9 +3601,42 @@ function renderItemSheet() {
     cell.onclick = () => showItemDetail(e.pt);
     grid.appendChild(cell);
   }
+  // Art no class owns: named, drawn, the base of nothing, worn by nothing
+  // the file places. Reached by an item's aspect, which is how the
+  // create-a-prop cheat gets a flail.
+  let orphans = [];
+  try { orphans = orphanItemArt().filter(o => !q || o.name.toLowerCase().includes(q)); } catch (e) { orphans = []; }
+  if (orphans.length) {
+    const h = document.createElement('div');
+    h.className = 'propHead';
+    h.innerHTML = 'Art no class owns <span class="inspDim" style="font-weight:normal">Named in 0xF004 and drawn, the base tile of no class, no class’s own state, and in no prop list. An item wears one at the aspect shown, with the class’s own numbers under that picture and that name.</span>';
+    grid.appendChild(h);
+    for (const o of orphans) {
+      const cell = document.createElement('div');
+      cell.className = 'cell propCell itemCell orphanCell';
+      const wrap = document.createElement('div');
+      wrap.className = 'cellimgwrap';
+      const spr = drawPropSprite(o.tile, 34);
+      if (spr) wrap.appendChild(spr.canvas);
+      cell.appendChild(wrap);
+      const lbl = document.createElement('div');
+      lbl.className = 'lbl';
+      lbl.textContent = o.name;
+      cell.appendChild(lbl);
+      const sub = document.createElement('div');
+      sub.className = 'resid';
+      sub.textContent = '0x' + o.tile.toString(16).toUpperCase() + ' \u00b7 ' +
+        o.reach.map(r => (terrainNameFor(getPropTileList()[r.pt] || 0) || ('0x' + r.pt.toString(16))) + ' ' + r.aspect).join(', ') +
+        ' \u00b7 in no prop list';
+      cell.appendChild(sub);
+      cell.onclick = () => showItemDetail(o.reach[0].pt);
+      grid.appendChild(cell);
+    }
+  }
   const withWeight = entries.filter(e => e.weight !== null).length;
   out.textContent = entries.length + ' items' +
-    (q ? ' matching \u201c' + q + '\u201d' : '') + ', ' + withWeight + ' with a weight in their class script.';
+    (q ? ' matching \u201c' + q + '\u201d' : '') + ', ' + withWeight + ' with a weight in their class script' +
+    (orphans.length ? '; ' + orphans.length + ' picture' + (orphans.length === 1 ? '' : 's') + ' no class owns' : '') + '.';
 }
 
 function showItemDetail(pt) {
@@ -3552,6 +3673,16 @@ function showItemDetail(pt) {
     const win = containerWindowFor(pt);
     if (win) chips.push(partChip('Opens as', win));
     h += partsStrip('Made of', chips);
+  }
+  {
+    // The record's word, and what an aspect does to it.
+    const hex4 = n => '0x' + n.toString(16).toUpperCase().padStart(4, '0');
+    let wear = [];
+    try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
+    h += '<div class="sv-note" style="font-size:0.75rem;margin:2px 0 10px">In a prop list this item is the word <b style="color:#fff">' + hex4(pt) + '</b>: the class in the low ten bits, an aspect in the five above. ' +
+      'Aspect <i>n</i> draws base tile + <i>n</i> and takes that tile’s name; what else it changes is the class script’s to say.' +
+      (wear.length ? ' At ' + wear.map(w => 'aspect <b style="color:#fff">' + w.aspect + '</b> it is a <b style="color:#fff">' + svEsc(w.name) + '</b> (tile 0x' + w.tile.toString(16).toUpperCase() + ', the word ' + hex4(w.word) + ')').join(', ') +
+        ' with this class’s own numbers, a picture no class owns and nothing in the file wears.' : '') + '</div>';
   }
   panel.innerHTML = h;
 
@@ -3784,7 +3915,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.30.0';
+const GRIMOIRE_VERSION = '1.31.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4931,6 +5062,8 @@ function resetDerivedCaches() {
   window.CUR_MAP = null;
   window.ITEM_CLASSES = null;
   window.ITEM_INDEX = null;
+  window.ITEM_WORN = null;
+  window.ORPHAN_ART = null;
   window.ITEM_LIST = null;
   // Not a memoisation, but keyed to the open file all the same: which
   // resources this session has edited. applyResourceEdit carries it across
@@ -13365,7 +13498,7 @@ function tileHasTransparency(t) {
 const CHEAT_KEYS = [
   ['∆',  '$C6', 'option-j',        'Jump',            'Prints “Jump from [level,x,y]:”, asks Level, X and Y in hex, then calls TGameViewer::GoToLocation — teleport anywhere in the game.'],
   ['Ô',  '$EF', 'option-shift-j',  'Take teleporter', 'Asks a teleporter number in decimal, then TGameSys::TeleportTo(1, n, 0).'],
-  ['ß',  '$A7', 'option-s',        'Create a prop',   'Asks a prop number in hex, Data1 in decimal and Data2 in hex; NewProp makes it, the owner is set to character 1 and the inventory redraws, so the object lands in the hero’s pack.'],
+  ['ß',  '$A7', 'option-s',        'Create a prop',   'Asks a prop number in hex, Data1 in decimal and Data2 in hex; NewProp makes it, the owner is set to character 1 and the inventory redraws, so the object lands in the hero’s pack. The number is the record’s word, the class in the low ten bits and an aspect in the five above: 0x0064 is a spear, 0x0864 the same class at aspect 2, wearing the picture two tiles along and named for it. Each item’s page under Entities › Items says what it wears.'],
   ['π',  '$B9', 'option-p',        'What prop is this?', 'Asks a prop index and prints its record: class and state bytes, position, Data1, Data2. Then falls through into the option-r toggle below, a missing branch in the game’s own switch.'],
   ['¿',  '$C0', 'option-shift-/',  'Where am I?',     'Prints the player’s x and y.'],
   ['ˇ',  '$FF', 'option-shift-t',  'What time is it?', 'Prints “Current time = <clock>, day <n>”.'],
@@ -14266,26 +14399,85 @@ function buildBarkCatalogue() {
    quotes the innkeeper's own explanation from the same script beside them,
    so the two can be compared. The expected value is enumerated here over
    all 216 rolls, with and without the Gambling skill (0xCF). */
+/* The dice game, with its numbers read off the script rather than typed
+   in. The maintainer asked what to edit to change the odds, and the answer
+   is five bytes and two branch targets of 0x812, all found here from the
+   listing so the sheet can name them: the three Random(0, n) ranges the
+   dice are thrown with (the operand byte after each `byte 0x06`), the
+   skill's own roll, the payout after "You've got a match" (`set_local 0x06`
+   then `byte 0x02`), and the two `then ->` targets that gate the skill's
+   fix-up -- the first on having Gambling at all, the second on the roll
+   matching. A target rewritten to the next instruction turns a test into
+   a fall-through, which is how "always" is spelt in bytecode. An `at` is
+   an offset into the resource's plaintext, which is what Edit Bytes shows.
+   The figures come from mechDiceExact over the numbers read, so an edited
+   archive's sheet says what that archive pays. */
 function diceGame() {
-  const text = buildScriptTextIndex().find(e => e.resid === 0x812);
-  if (!text || !/three dice/.test(text.text)) return null;
-  const m = /string\(implicit\) ("\\"It's very simple[^\n]*)/.exec(text.text);
+  const e = buildScriptTextIndex().find(x => x.resid === 0x812);
+  if (!e || !/three dice/.test(e.text)) return null;
+  const m = /string\(implicit\) ("\\"It's very simple[^\n]*)/.exec(e.text);
   let explain = '';
-  try { explain = m ? JSON.parse(m[1]) : ''; } catch (e) { explain = ''; }
-  const payout = (a, b, c) => {
-    if (a === b) return 2;
-    if (a < c) { if (b < a) return a - b; if (b > c) return b - c; return 0; }
-    if (b < c) return c - b; if (b > a) return b - a; return 0;
-  };
-  const net = n => n === 0 ? -1 : n - 1;
-  let fair = 0, skilled = 0, wins = 0, pushes = 0, losses = 0;
-  for (let a = 0; a < 6; a++) for (let b = 0; b < 6; b++) for (let c = 0; c < 6; c++) {
-    const n = payout(a, b, c);
-    fair += net(n); if (n > 1) wins++; else if (n === 1) pushes++; else losses++;
-    skilled += a !== b ? net(payout(a, a, c)) / 6 + net(n) * 5 / 6 : net(n);
+  try { explain = m ? JSON.parse(m[1]) : ''; } catch (err) { explain = ''; }
+  const ls = e.text.split('\n');
+  const at = l => parseInt((/^\s*([0-9A-F]{4})/.exec(l || '') || [])[1], 16);
+  const operand = /byte (0x[0-9A-F]+)$/i;
+  // Every Random(0, n) in the script, with the offset of the n byte.
+  const rolls = [];
+  for (let i = 0; i < ls.length; i++) {
+    if (!/sys Random$/.test(ls[i])) continue;
+    const hi = operand.exec(ls[i + 2] || '');
+    if (/byte 0x00$/i.test(ls[i + 1] || '') && hi) rolls.push({ line: i, at: at(ls[i + 2]) + 1, n: parseInt(hi[1]) });
   }
-  return { explain, fair: fair / 216, skilled: skilled / 216, wins, pushes, losses };
+  const g = ls.findIndex((l, i) => /sys GetSkill$/.test(l) && /short 0x00CF$/i.test(ls[i + 2] || ''));
+  const before = rolls.filter(r => g < 0 || r.line < g).slice(-3);
+  const after = g < 0 ? null : rolls.find(r => r.line > g);
+  if (before.length < 3) return null;
+  const faces = before.map(r => r.n);
+  const bytes = [
+    { what: 'faces on the innkeeper’s first die', at: before[0].at, now: before[0].n },
+    { what: 'faces on your die', at: before[1].at, now: before[1].n },
+    { what: 'faces on the innkeeper’s second die', at: before[2].at, now: before[2].n }
+  ];
+  // The branch that needs the skill: `then -> T` after GetSkill's `end`.
+  // T equal to the next instruction's offset means no skill is needed.
+  let skillFree = false, skillAlways = false, skillFaces = after ? after.n : 6;
+  if (g >= 0) {
+    const t = ls.slice(g, g + 6).findIndex(l => /then -> 0x/.test(l));
+    if (t >= 0) {
+      const line = g + t, target = parseInt(/then -> (0x[0-9A-F]+)/.exec(ls[line])[1]);
+      skillFree = target === at(ls[line + 1]);
+      bytes.push({ what: 'the test for the Gambling skill', at: at(ls[line]) + 1, now: '0x' + target.toString(16).toUpperCase().padStart(4, '0'), target: true, next: at(ls[line + 1]) });
+    }
+  }
+  if (after) {
+    bytes.push({ what: 'faces on the skill’s own roll', at: after.at, now: after.n });
+    // `if_not (Random == Var03) then -> T`, then `set_local 0x04`: T equal
+    // to the set_local's offset means the fix-up runs whatever was rolled.
+    const t = ls.slice(after.line, after.line + 8).findIndex(l => /then -> 0x/.test(l));
+    if (t >= 0) {
+      const line = after.line + t, target = parseInt(/then -> (0x[0-9A-F]+)/.exec(ls[line])[1]);
+      const set = ls.slice(line + 1, line + 3).find(l => /set_local 0x04$/.test(l));
+      skillAlways = !!set && target === at(set);
+      bytes.push({ what: 'the test that the skill’s roll matched', at: at(ls[line]) + 1, now: '0x' + target.toString(16).toUpperCase().padStart(4, '0'), target: true, next: set ? at(set) : null });
+    }
+  }
+  let matchPay = 2;
+  const mi = ls.findIndex(l => /You've got a match/.test(l));
+  if (mi >= 0) {
+    const si = ls.slice(mi, mi + 4).findIndex(l => /set_local 0x06$/.test(l));
+    const pm = si >= 0 ? operand.exec(ls[mi + si + 1] || '') : null;
+    if (pm) { matchPay = parseInt(pm[1]); bytes.push({ what: 'what a match pays', at: at(ls[mi + si + 1]) + 1, now: matchPay }); }
+  }
+  const opts = { faces, matchPay, skillFaces, skillAlways };
+  const plain = mechDiceExact(opts), skilled = mechDiceExact(Object.assign({ gambling: true }, opts));
+  const total = plain.total;
+  return { explain, faces, matchPay, skillFaces, skillAlways, skillFree, total, bytes, opts,
+           fair: plain.mean, skilled: skilled.mean,
+           wins: Math.round(plain.wins * total), pushes: Math.round(plain.pushes * total), losses: Math.round(plain.losses * total) };
 }
+// The script's numbers for the simulator and the figures, {} when there is
+// no game in the archive.
+function diceOpts() { try { return (diceGame() || {}).opts || {}; } catch (e) { return {}; } }
 
 /* ---- Components > Text > Barks ------------------------------------------
    The catalogue buildBarkCatalogue makes, as a table: who says it, the
@@ -15276,11 +15468,15 @@ function mechDieFace(n, size, ink) {
 }
 function mechDiceMatrix(cells) {
   const name = n => 'a ' + (n + 1);
-  let h = '<div class="mechDice"><span class="dSide"></span>' +
-    [0, 1, 2, 3, 4, 5].map(c => '<span class="dHead">' + mechDieFace(c, 13) + '</span>').join('');
-  for (let a = 0; a < 6; a++) {
-    h += '<span class="dSide">' + mechDieFace(a, 13) + '</span>';
-    for (let c = 0; c < 6; c++) {
+  // The faces are whatever the script rolls; past six there are no pips
+  // to draw, so a number stands in.
+  const face = n => n < 6 ? mechDieFace(n, 13) : '<b>' + (n + 1) + '</b>';
+  const as = [...new Set(cells.map(x => x.a))].sort((x, y) => x - y), cs = [...new Set(cells.map(x => x.c))].sort((x, y) => x - y);
+  let h = '<div class="mechDice" style="grid-template-columns:auto repeat(' + cs.length + ', 1fr)"><span class="dSide"></span>' +
+    cs.map(c => '<span class="dHead">' + face(c) + '</span>').join('');
+  for (const a of as) {
+    h += '<span class="dSide">' + face(a) + '</span>';
+    for (const c of cs) {
       const cell = cells.find(x => x.a === a && x.c === c);
       h += '<span class="dCell">' + cell.row.map((n, b) =>
         '<i style="background:' + mechNetColour(n) + '" title="' + name(a) + ' and ' + name(c) + ' against your ' + (b + 1) + ': ' +
@@ -15288,6 +15484,30 @@ function mechDiceMatrix(cells) {
     }
   }
   return h + '</div>';
+}
+
+/* WHAT TO EDIT. Every number the game is played with is one byte of the
+   inn's script, and diceGame() has their offsets; this lays them out with
+   three edits worked through, each figure computed by mechDiceExact over
+   the edited numbers rather than guessed. Edit Bytes on 0x812 takes the
+   hex; Changes exports the archive that plays it. */
+function mechDiceBytes(dice) {
+  if (!dice || !dice.bytes || !dice.bytes.length) return '';
+  const hex4 = n => '0x' + n.toString(16).toUpperCase().padStart(4, '0');
+  const mean = o => { const v = mechDiceExact(Object.assign({}, dice.opts, o)).mean; return (v >= 0 ? '+' : '') + v.toFixed(3); };
+  const pay = dice.bytes.find(b => /match pays/.test(b.what));
+  const gate = dice.bytes.find(b => /Gambling skill/.test(b.what));
+  const fix = dice.bytes.find(b => /roll matched/.test(b.what));
+  const rows = dice.bytes.map(b => '<tr><td>' + svEsc(b.what) + '</td><td class="num">' + hex4(b.at) + '</td><td class="num">' + svEsc(String(b.now)) + '</td></tr>').join('');
+  const tries = [];
+  if (pay) tries.push('Write <b>00</b> at ' + hex4(pay.at) + ' and a match pays nothing: <b>' + mean({ matchPay: 0 }) + '</b> an obol a game without the skill, <b>' + mean({ matchPay: 0, gambling: true }) + '</b> with it.');
+  if (pay) tries.push('Write <b>7F</b> there and a match pays 127: <b>' + mean({ matchPay: 127 }) + '</b> a game.');
+  if (fix && fix.next !== null && gate && gate.next !== null && !dice.skillAlways)
+    tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + hex4(fix.at) + ' and the skill’s fix-up runs whatever it rolled, so every game with Gambling is a match: <b>' + mean({ skillAlways: true, gambling: true }) + '</b> a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + hex4(gate.at) + ' as well and no skill is needed.');
+  return '<div class="mechSub">What to edit</div>' +
+    '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>byte</th><th class="num">at, in 0x812</th><th class="num">now</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<p class="mechLede">A two-byte entry is a branch target, the offset of the instruction the test jumps to when it fails; the offset of the instruction after it turns the test into a fall-through. A one-byte entry is a number as the script uses it, a range of 0 to one less for a die.</p>' +
+    (tries.length ? '<ul class="ruleList">' + tries.map(t => '<li>' + t + '</li>').join('') + '</ul>' : '');
 }
 
 /* THE SIMULATOR. The exact enumeration says the player wins about three
@@ -15298,11 +15518,11 @@ function mechDiceMatrix(cells) {
    mechDicePlay in js/delv-mechanics.js, the same function the exact
    enumeration is built from -- so the two cannot drift apart. */
 let DICE_SIM = { gambling: false, tally: null, last: null };
-function diceSimRoll() { return Math.floor(Math.random() * 6); }
+function diceSimRoll(n) { return Math.floor(Math.random() * (n || 6)); }
 function diceSimSet(on) { DICE_SIM = { gambling: !!on, tally: null, last: null }; diceSimRefresh(); }
 function diceSimReset() { DICE_SIM.tally = null; DICE_SIM.last = null; diceSimRefresh(); }
 function diceSimPlay(n) {
-  const opts = { gambling: DICE_SIM.gambling, track: 240 };
+  const opts = Object.assign({ gambling: DICE_SIM.gambling, track: 240 }, diceOpts());
   if (n === 1) {
     DICE_SIM.last = mechDicePlay(diceSimRoll, opts);
     if (!DICE_SIM.tally) DICE_SIM.tally = { games: 0, wins: 0, pushes: 0, losses: 0, net: 0, dist: new Map(), curve: [], mean: 0 };
@@ -15333,9 +15553,9 @@ function diceSimPlay(n) {
 }
 function diceSimRefresh() { const el = document.getElementById('diceSim'); if (el) el.innerHTML = diceSimHtml(); }
 function diceSimHtml() {
-  const exact = mechDiceExact({ gambling: DICE_SIM.gambling });
+  const exact = mechDiceExact(Object.assign({ gambling: DICE_SIM.gambling }, diceOpts()));
   const t = DICE_SIM.tally;
-  const nets = [-1, 0, 1, 2, 3, 4];
+  const nets = [...new Set([-1, 0, 1, 2, 3, 4].concat([...exact.dist.keys()]))].sort((a, b) => a - b);
   const bins = nets.map(n => ({
     label: n > 0 ? '+' + n : String(n),
     value: 100 * (exact.dist.get(n) || 0),
@@ -15832,17 +16052,19 @@ function renderMechanicsSheet() {
     dice ? 'Played at the inns: three dice, the innkeeper’s two black and your one white, each showing one to six.'
          : 'The inn’s dialogue script (0x812) is not in this archive, or does not carry the game.',
     dice ? [
-      'The innkeeper throws one die, you throw yours. <b>Match it and you win 2 oboloi.</b>',
+      'The innkeeper throws one die, you throw yours. <b>Match it and you win ' + dice.matchPay + ' obol' + (dice.matchPay === 1 ? '' : 'oi') + '.</b>',
       'Otherwise the innkeeper throws the second. Yours <b>outside</b> the two black dice wins the distance to the nearer; <b>between</b> them, or on one, loses an obol.',
       'A win of 1 is a push and the game goes again.',
       'The script pays one obol less than it announces, the one being your stake, and takes one on a loss.',
-      '<b>Gambling</b> gives your die a one in six chance of being set to the innkeeper’s first, when they differed.'
-    ] : [],
-    dice ? '<div class="mechStats">' + stat(dice.wins, 'win') + stat(dice.pushes, 'push') + stat(dice.losses, 'lose') + '<span class="mechStatNote">of 216 throws</span>' +
+      dice.faces.some(f => f !== 6) ? 'The dice are thrown as rolls of 0 to ' + dice.faces.map(f => f - 1).join(', ') + ': the innkeeper’s first, yours, the innkeeper’s second.' : '',
+      '<b>Gambling</b> ' + (dice.skillAlways ? 'sets your die to the innkeeper’s first whenever they differed.' : 'gives your die a one in ' + dice.skillFaces + ' chance of being set to the innkeeper’s first, when they differed.') +
+        (dice.skillFree ? ' The script’s test for the skill has been edited out, so this happens without it.' : '')
+    ].filter(Boolean) : [],
+    dice ? '<div class="mechStats">' + stat(dice.wins, 'win') + stat(dice.pushes, 'push') + stat(dice.losses, 'lose') + '<span class="mechStatNote">of ' + dice.total + ' throws</span>' +
            stat((dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3), 'obols a game, without the skill') + stat((dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3), 'with it') + '</div>' +
            (dice.explain ? '<blockquote class="mechQuote">' + svEsc(dice.explain.replace(/\*/g, ' ')) + '<footer>the innkeeper, in the same script</footer></blockquote>' : '') +
            mechFig('All 216 throws: the innkeeper’s first die down the side, the second across, your own six faces inside each cell',
-             mechDiceMatrix(mechDiceExact({}).cells),
+             mechDiceMatrix(mechDiceExact(dice.opts).cells),
              'Red is the obol you lose, grey a push, green a win, brighter for a larger one. Every face of yours outside the two black dice pays.') +
            '<div class="mechCtl">' +
              '<button onclick="diceSimPlay(1)">Throw</button>' +
@@ -15850,7 +16072,7 @@ function renderMechanicsSheet() {
              '<button onclick="diceSimPlay(100000)">100,000</button>' +
              '<label><input type="checkbox" onchange="diceSimSet(this.checked)"> with <b>Gambling</b></label>' +
              '<button onclick="diceSimReset()">Reset</button>' +
-           '</div><div id="diceSim">' + diceSimHtml() + '</div>' : '',
+           '</div><div id="diceSim">' + diceSimHtml() + '</div>' + mechDiceBytes(dice) : '',
     dice ? '<span class="partsTitle">In the file</span>' + src('The game', 0x812) + src('The dice', 0x1148) + src('Gambling', 0x1ACF) + [40, 41, 42].map(chipOf).join('') : '');
 
   // ---- combat ----

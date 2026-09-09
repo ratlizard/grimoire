@@ -368,6 +368,28 @@ try {
     const held = list.reduce((a, i) => a + ((ctx.buildItemIndex()[i.pt] || {}).carried || 0), 0);
     if (!held) fail('items', 'nothing is carried by anyone — the prop location word is being read as coordinates again');
     else console.log(`  items: ${held} carried by characters`);
+    // The aspect rule, v1.31.0: art no class owns is read off the file --
+    // named, drawn, no class's base, no class's state, in no prop list --
+    // and the flail is the one the maintainer found by hand (mace at
+    // aspect 8, spear at aspect 2, tile 0x208). A mace's own page says so
+    // with the cheat's word for it.
+    const orphans = ctx.orphanItemArt();
+    const flail = orphans.find(o => o.name === 'flail');
+    // The cells are set as text, so the walk reads textContent as well.
+    const ihtml = (function all(el) { return (el.innerHTML || '') + (el.textContent || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+    const mace = list.find(i => i.name === 'mace');
+    if (!flail || flail.tile !== 0x208 || !flail.reach.some(r => r.pt === 94 && r.aspect === 8 && r.word === 0x205E) || !flail.reach.some(r => r.pt === 100 && r.aspect === 2))
+      fail('items', 'the flail is not read as art no class owns, reached by mace 8 and spear 2: ' + JSON.stringify(flail));
+    else if (orphans.some(o => o.name === 'bread' || o.name === 'lit torch' || o.name === 'closed shutters'))
+      fail('items', 'a placed variant or a scripted state is listed as an orphan: ' + orphans.map(o => o.name).join(', '));
+    else if (!/Art no class owns/.test(ihtml) || !/flail/.test(ihtml) || !/in no prop list/.test(ihtml))
+      fail('items', 'the Items sheet does not list the art no class owns: ' + REGISTRY.get('output').textContent);
+    else {
+      ctx.showItemDetail(mace ? mace.pt : 94);
+      const dhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+      if (!/0x205E/.test(dhtml) || !/flail/.test(dhtml) || !/low ten bits/.test(dhtml)) fail('items', 'the mace’s page does not state the aspect rule with the flail and its word');
+      else console.log(`  items: ${orphans.length} pictures no class owns, the flail among them at mace 8 / spear 2; the mace’s page says 0x205E`);
+    }
   }
 } catch (e) { fail('items', e); }
 
@@ -1457,6 +1479,15 @@ try {
   else if (!/resists non-magical weapons: [^<]*lich/.test(html)) fail('mechanics', 'the spells section does not name the monsters immune to non-magical damage')
   else if (!/four seconds/.test(html) || !/one off every game hour/.test(html) || !/4096 is one hour/.test(html) || (html.match(/mechGo\(/g) || []).length < 15 || mechSecs < 15) fail('mechanics', `the balloon lifetime, the contents strip or the sections are missing: ${mechSecs} sections`);
   else if (mechFolds < mechSecs || (html.match(/mechOpenAll\(/g) || []).length < 2) fail('mechanics', `the sections do not fold: ${mechFolds} of ${mechSecs} are details, open/close all ${(html.match(/mechOpenAll\(/g) || []).length}`);
+  // The dice game's numbers are read off 0x812 with their offsets, v1.31.0:
+  // three dice of six, the skill's roll of six, a match paying 2 at 0x0506,
+  // the two branch targets at 0x047C and 0x0492 -- read by hand off the
+  // plaintext before the reader was written.
+  else if (!(dice.faces.join() === '6,6,6' && dice.matchPay === 2 && dice.skillFaces === 6 && !dice.skillAlways && !dice.skillFree && dice.bytes.length === 7 &&
+             dice.bytes.some(b => b.at === 0x0506 && b.now === 2) && dice.bytes.some(b => b.at === 0x0492 && b.target && b.next === 0x0494) && dice.bytes.some(b => b.at === 0x047C && b.target && b.next === 0x047E) && dice.bytes.some(b => b.at === 0x045E && b.now === 6)))
+    fail('mechanics', 'the dice constants were not read off the script with their offsets: ' + JSON.stringify(dice && dice.bytes));
+  else if (!/What to edit/.test(html) || !/0x0506/.test(html) || !/a match pays nothing/.test(html) || !/every game with Gambling is a match/.test(html))
+    fail('mechanics', 'the dice section does not say what to edit');
   else if (!ctx.gearTable().some(r => r.name === 'axe' && r.damage === 22 && r.skill === 'Axe') || !ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2) || !ctx.gearTable().some(r => r.name === 'bow' && r.ammoClass === 1 && r.reach === 5)) fail('mechanics', 'the gear table does not name the axe’s damage and skill, the spear’s reach, or the bow’s ammunition and range');
   else if (!(ctx.combatRules() && ctx.combatRules().d30 && ctx.combatRules().parry && ctx.combatRules().words.length >= 8)) fail('mechanics', 'the combat rules were not read: ' + JSON.stringify(ctx.combatRules()));
   else if (ctx.spellRules().spells.length < 35 || !ctx.spellRules().spells.some(x => /Fireball/.test(x.name) && x.level === 5 && x.cost === 20) || !(ctx.spellRules().rule && ctx.spellRules().rule.failure)) fail('mechanics', 'the spells were not read: ' + ctx.spellRules().spells.length);
@@ -1533,6 +1564,8 @@ try {
     else if (sprites.length < 40 || !sprites.some(s => s.kind === 'monster'))
       fail('cheats', `only ${sprites.length} sprite classes, monsters ` +
            (sprites.some(s => s.kind === 'monster') ? 'present' : 'missing'));
+    else if (!/0x0864/.test(html) || !/low ten bits/.test(html))
+      fail('cheats', 'Create a prop does not say what its number is');
     else console.log(`  cheats: the ©gra gate stated, ${keys} keys behind it and ${open} beside it, ` +
                      `${sprites.length} sprite classes read off the archive with 32 the hero`);
   }

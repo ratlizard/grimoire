@@ -2273,6 +2273,57 @@ Read the comment above a constant before correcting it.
   the clock's 1/4096 hour, the hunger rate and the poison cadence are the
   executable's and are stated, not read.
 
+- **The dice game's numbers are read off the script, and the sheet says
+  which bytes they are, v1.31.0** (8 September 2026, night; the maintainer
+  asked what to edit to make Gambling worse or absurdly good). `diceGame()`
+  no longer enumerates a rule typed into it: it finds in the listing of
+  `0x812` the three `Random(0, n)` ranges the dice are thrown with, the
+  skill's own roll, the payout after "You've got a match" and the two
+  `then ->` targets that gate the skill's fix-up, each with the offset of
+  its operand in the resource's plaintext (`dice.bytes`), and hands the
+  numbers to `mechDiceExact`, which takes them as `opts` now (`faces`,
+  `matchPay`, `skillFaces`, `skillAlways`; `mechDiceOpts` supplies the
+  shipped defaults, and `mechDicePlay`'s `roll` takes the face count). So an
+  edited archive's sheet, matrix and simulator play what that archive pays.
+  The section carries a "What to edit" table (`mechDiceBytes`) and three
+  edits worked through with their means computed live: a match paying 0 at
+  `0x0506` is −0.028 an obol a game; 0x7F there is +21.1; the branch target
+  at `0x0492` rewritten to `0x0494` makes the skill's fix-up unconditional,
+  every game with Gambling a match, +1.000, and `0x047C` to `0x047E` drops
+  the skill test. The offsets were read by hand off the plaintext before the
+  reader was written (`0x045E`, `0x0467`, `0x0470`, `0x048D`, `0x0506`,
+  `0x047C`, `0x0492`) and the smoke pins all seven. A `then` is `0x40` and a
+  16-bit absolute target, and the same `0x40` closes a condition with no
+  operand, so the listing's offsets are the thing to trust. Also: the first
+  question of the day, whether Mechanics follows the data files, was
+  answered "yes" one section too generously — the dice were the exception
+  until this, and are not now.
+- **The aspect rule is on Items, and the art no class owns is read off the
+  file, v1.31.0.** A prop record's word is `(aspect << 10) | class`, the
+  aspect adds onto the class's base tile and the prop takes that tile's
+  name; the maintainer brought the finding (from another session) that the
+  create-a-prop cheat's `205E` and `864` are a mace and a spear wearing
+  tile `0x208`, "flail", the base of no class and placed nowhere. The rule
+  is stated on every item's page with its word, and where the item reaches
+  such a picture the page names it with the aspect and the cheat's word for
+  it (`orphanArtReachable`); the Cheats row says what the number is; and
+  the Items sheet ends with **Art no class owns** (`orphanItemArt`), computed
+  rather than listed: a tile above an item's base on the item's own sheet,
+  named in 0xF004, drawn, the base of no class, sharing no class's base
+  name, not a state of a class whose script writes `set_field aspect` (the
+  torch, the bomb, the shutters, 36 classes), and worn by no record in any
+  prop list over all classes (`ITEM_WORN`, built in `buildItemIndex`,
+  eggs 0x42/0x44 excluded). Eleven in the shipped file: hatchet and flail
+  on the weapon sheet, dried jellyfish and dried fruit, a plow, a broken axe
+  and a broken bow, and four petroglyph tiles the two traps reach. Two
+  wider definitions were tried and rejected on the way: without the
+  same-sheet bound a weapon "reached" crevices and dead trees by
+  arithmetic, and without the placed and state tests bread, the kilt, the
+  lit torch and the closed shutters were orphans. "Placed" is by prop
+  record; whether a map's tile layer draws any of the eleven is not asked.
+  The smoke pins the flail at mace 8 and spear 2 with the word `0x205E`,
+  refuses bread, the lit torch and the shutters, and reads the mace's page.
+
 ### `canvas.html`
 
 - **One page, three columns, no paragraphs.** A toolbox of seven icons on

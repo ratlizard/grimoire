@@ -85,8 +85,22 @@ function mechDistPairs(d) { return [...d.entries()].sort((a, b) => a[0] - b[0]);
    headline figures; it is restated here because the simulator plays single
    games and the exact enumeration below has to agree with it throw for
    throw, and because the page's version returns only the totals. */
-function mechDicePayout(a, b, c) {
-  if (a === b) return 2;
+/* The shipped script's numbers are the defaults: six faces on each die, a
+   match paying 2, the skill's fix-up on a roll of 0..5 equalling the
+   innkeeper's first. Every one of them is one byte of 0x812 and the page
+   reads them off the script (diceGame), so an edited archive plays here as
+   it would at the inn. `opts.faces` is [innkeeper's first, yours, second];
+   `skillFaces` is the range of the skill's roll; `skillAlways` is the branch
+   target rewritten so the fix-up runs whatever that roll was. */
+function mechDiceOpts(opts) {
+  const o = opts || {};
+  const f = o.faces || [];
+  return { gambling: !!o.gambling, fa: f[0] || 6, fb: f[1] || 6, fc: f[2] || 6,
+           matchPay: o.matchPay === undefined ? 2 : o.matchPay,
+           skillFaces: o.skillFaces === undefined ? 6 : o.skillFaces, skillAlways: !!o.skillAlways };
+}
+function mechDicePayout(a, b, c, matchPay) {
+  if (a === b) return matchPay === undefined ? 2 : matchPay;
   if (a < c) { if (b < a) return a - b; if (b > c) return b - c; return 0; }
   if (b < c) return c - b;
   if (b > a) return b - a;
@@ -99,11 +113,14 @@ function mechDiceNet(payout) { return payout === 0 ? -1 : payout - 1; }
 // the script does; `roll` is a function returning a face 0..5 so the caller
 // owns the randomness and a test can replay a game.
 function mechDicePlay(roll, opts) {
-  const gambling = !!(opts && opts.gambling);
-  const a = roll(), thrown = roll(), c = roll();
+  const o = mechDiceOpts(opts);
+  const a = roll(o.fa), thrown = roll(o.fb), c = roll(o.fc);
   let b = thrown, helped = false;
-  if (gambling && a !== thrown && roll() === 0) { b = a; helped = true; }
-  const payout = mechDicePayout(a, b, c);
+  // The script rolls once more and sets your die when that roll equals the
+  // innkeeper's first: one chance in six with six faces, and none at all
+  // for a face the roll cannot reach.
+  if (o.gambling && a !== thrown && (o.skillAlways || roll(o.skillFaces) === a)) { b = a; helped = true; }
+  const payout = mechDicePayout(a, b, c, o.matchPay);
   return { a, b, c, thrown, helped, payout, net: mechDiceNet(payout) };
 }
 
@@ -116,23 +133,25 @@ function mechDicePlay(roll, opts) {
    the net obols for each of your six faces. 216 numbers, which is the entire
    game -- there is nothing else to know about it -- and it fits on a phone. */
 function mechDiceExact(opts) {
-  const gambling = !!(opts && opts.gambling);
+  const o = mechDiceOpts(opts);
   const dist = new Map();
   const put = (net, w) => dist.set(net, (dist.get(net) || 0) + w);
   const cells = [];
-  for (let a = 0; a < 6; a++) for (let c = 0; c < 6; c++) {
+  const total = o.fa * o.fb * o.fc;
+  for (let a = 0; a < o.fa; a++) for (let c = 0; c < o.fc; c++) {
     const row = [];
-    for (let b = 0; b < 6; b++) {
-      const plain = mechDiceNet(mechDicePayout(a, b, c));
+    for (let b = 0; b < o.fb; b++) {
+      const plain = mechDiceNet(mechDicePayout(a, b, c, o.matchPay));
       row.push(plain);
-      const w = 1 / 216;
-      if (gambling && a !== b) { put(plain, w * 5 / 6); put(mechDiceNet(mechDicePayout(a, a, c)), w / 6); }
+      const w = 1 / total;
+      const p = o.skillAlways ? 1 : (a < o.skillFaces ? 1 / o.skillFaces : 0);
+      if (o.gambling && a !== b && p > 0) { put(plain, w * (1 - p)); put(mechDiceNet(mechDicePayout(a, a, c, o.matchPay)), w * p); }
       else put(plain, w);
     }
     cells.push({ a, c, row });
   }
   return {
-    dist, cells,
+    dist, cells, total, faces: [o.fa, o.fb, o.fc],
     mean: mechDistMean(dist),
     wins: mechDistWeight(dist, v => v > 0),
     pushes: mechDistWeight(dist, v => v === 0),
