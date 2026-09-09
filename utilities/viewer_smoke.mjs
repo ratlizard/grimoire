@@ -401,7 +401,7 @@ try {
       else {
         ctx.propWordSet(8);
         let html = walk(REGISTRY.get('sheetGrid'));
-        const spearAt2 = /propWordOpen\(100,2\)/.test(html) && /aspect 2 · 0x0864/.test(html);
+        const spearAt2 = /propWordOpen\(100,2\)/.test(html) && /at 2, 0x0864/.test(html);
         if (!/0x205E/.test(html) || !/8 × 1,024 \+ 94/.test(html) || !/shows tile 0x0208, <b[^>]*>flail<\/b>/.test(html) || !/damage 15, reach 1, Mace, 18 grains/.test(html))
           fail('items', 'the mace at aspect 8 does not read out as 0x205E, the flail, with the mace’s own numbers');
         else if (!spearAt2) fail('items', 'the spear is not listed as reaching the flail tile at aspect 2 (0x0864)');

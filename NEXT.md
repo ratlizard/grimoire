@@ -532,7 +532,10 @@ re-check the installer count before assuming the rule still applies.
   Data1 7, not the six the page had counted. `CLAUDE.md`'s v1.33.0 bullet
   has the rest, and v1.33.1 the renaming (the maintainer: "The word" made
   no sense, and the ten bits are the prop type, not the class) and the
-  cut of the one sentence that came from his page rather than the file. **Not checked here**: whether the game's inventory names a
+  cut of the one sentence that came from his page rather than the file.
+  v1.33.2: the chips in the new block and section are plain gold links in
+  the text (`svLink`), and every section of an item's page below the
+  frames is a fold, shut by default, with a one-line gist on the summary. **Not checked here**: whether the game's inventory names a
   prop from the tile at run time as delvmod does — the page says "takes
   that tile's name" as before.
 

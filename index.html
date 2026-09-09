@@ -634,6 +634,28 @@ details.sv[open] > summary::before { content:'\25BE '; }
 .sv-warn { font-size:0.8125rem; line-height:1.55; color:#d8c98e; background:#1a1610;
            border-left:3px solid var(--gold); padding:9px 11px; border-radius:0 4px 4px 0; }
 .sv-note { font-size:0.75rem; color:#b5b2a8; margin-top:5px; }
+/* A link in running text or a table cell: gold, no box, no icon, the size
+   of the text around it, with a quiet note after it. The chips carry an
+   icon and a hex and a pill, which is right for a strip of six under
+   "Made of" and wrong for seventy names in a table cell or one name in a
+   sentence; the maintainer called those clunky on 9 September 2026. */
+.svLink { background:none !important; background-image:none !important; border:0 !important; border-radius:0 !important; padding:0 !important;
+  margin:0; min-height:0 !important; width:auto; display:inline; font:inherit; font-size:inherit !important; color:var(--gold) !important;
+  letter-spacing:0; font-weight:400 !important; clip-path:none !important; box-shadow:none !important; text-shadow:none !important;
+  cursor:pointer; text-decoration:none; line-height:inherit !important; vertical-align:baseline; }
+.svLink::before, .svLink::after { display:none !important; }
+.svLink:hover { text-decoration:underline; background:none !important; }
+.svLink i { font-style:normal; color:#8c8980; font-size:0.9em; }
+/* An item page's sections fold, shut by default, each summary carrying a
+   line of what is inside so the shut page still reads. */
+details.itemFold { margin:8px 0 0; padding:7px 10px 6px; }
+details.itemFold[open] { padding-bottom:10px; }
+details.itemFold > summary.mechHead { margin:0; gap:8px; }
+details.itemFold[open] > summary.mechHead { margin-bottom:8px; }
+.foldTitle { color:#fff; font-size:0.8125rem; font-weight:600; }
+.foldGist { color:#8c8980; font-size:0.7188rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+details.itemFold > summary:hover .foldTitle { color:var(--gold); }
+.foldAll { display:flex; gap:12px; justify-content:flex-end; margin:6px 0 0; font-size:0.7188rem; color:#8c8980; }
 /* The prop word on an item's page (v1.33.0): the sixteen bits, the readout,
    the aspect rail and the two data bytes. The aspect cells are outlined and
    the class cells filled so the two fields read as two; a set bit is white,
@@ -3720,8 +3742,8 @@ function propWordRender() {
   try { others = inventoryItemList().filter(e => e.pt !== pt && (tiles[e.pt] || 0) && (tiles[e.pt] || 0) <= tile && tile < (tiles[e.pt] || 0) + 32)
     .map(e => ({ pt: e.pt, aspect: tile - (tiles[e.pt] || 0), name: e.name })).sort((x, y) => x.aspect - y.aspect); } catch (e) { others = []; }
   h += '<div class="mechSub">Other prop types that reach this tile</div>';
-  h += others.length ? '<div class="sv-chips">' + others.map(o => actionChip(o.name, 'propWordOpen(' + o.pt + ',' + o.aspect + ')', 'aspect ' + o.aspect + ' · ' + propWordHex((o.aspect << 10) | o.pt))).join('') + '</div>'
-    : '<div class="sv-note" style="margin-top:0">No other item’s base tile is within 31 below this one.</div>';
+  h += '<div class="sv-note" style="margin-top:0">' + (others.length ? others.map(o => svLink(o.name, 'propWordOpen(' + o.pt + ',' + o.aspect + ')', 'at ' + o.aspect + ', ' + propWordHex((o.aspect << 10) | o.pt))).join(', ')
+    : 'No other item’s base tile is within 31 below this one.') + '</div>';
   st.read.innerHTML = h;
   // The meaning of the two bytes for this class.
   let rules = null;
@@ -3730,7 +3752,7 @@ function propWordRender() {
   if (rules) {
     const reader = rules.readers.find(r => r.pt === pt), ex = rules.examines.find(e => e.pt === pt);
     if (rules.melee.has(pt) && rules.ench && rules.ench.guarded && rules.ench.added) {
-      m = 'Data1 is the enchantment: ' + partChip('the outcome', 0xE87) + ' reads it off the weapon and adds it to the damage of every blow' + (rules.ench.magic ? ', and a blow with any enchantment counts as magical' : '') + '.';
+      m = 'Data1 is the enchantment: ' + svLink('the outcome routine', 'jumpToResource(0xE87)', '0xE87') + ' reads it off the weapon and adds it to the damage of every blow' + (rules.ench.magic ? ', and a blow with any enchantment counts as magical' : '') + '.';
       if (ex) m += st.d1 > 2 ? ' Examine says “' + svEsc(ex.above2) + '”' : st.d1 > 0 ? ' Examine says “' + svEsc(ex.above0) + '”' : ' Examine reports it once it is above 0.';
       if (reader) m += ' The class script also ' + propWordOps(reader.ops) + '.';
     } else if (reader) m = 'The class script ' + propWordOps(reader.ops) + (reader.ops.some(o => /data3/.test(o)) ? ' (Data3 is both bytes as one value)' : '') + '. What they mean is this class’s own.';
@@ -3919,14 +3941,21 @@ function showItemDetail(pt) {
     h += partsStrip('Made of', chips);
   }
   panel.innerHTML = h;
-  // The record's word, what an aspect does to it, and the two data bytes:
-  // the block under "Prop record", built as elements because the rail draws
-  // a tile in each slot.
-  {
-    const host = document.createElement('div');
-    panel.appendChild(host);
-    try { propWordMount(pt, host); } catch (e) { host.className = 'sv-note'; host.textContent = 'The prop record could not be read: ' + (e && e.message ? e.message : e); }
-  }
+  // Every section below the frames is a fold, shut by default, its summary
+  // carrying one line of what is inside; the page had grown to seven
+  // blocks on top of each other (the maintainer, 9 September 2026).
+  const fold = (id, title, gist, inner) => {
+    const sec = foldCard('item-' + id, 'itemFold', false);
+    const head = document.createElement('summary');
+    head.className = 'mechHead';
+    head.innerHTML = '<span class="foldTitle">' + svEsc(title) + '</span>' + (gist ? '<span class="foldGist">' + svEsc(gist) + '</span>' : '');
+    sec.appendChild(head);
+    const body = document.createElement('div');
+    if (typeof inner === 'string') body.innerHTML = inner; else if (inner) body.appendChild(inner);
+    sec.appendChild(body);
+    panel.appendChild(sec);
+    return body;
+  };
 
   // Only the frames the archive still calls by this item's name. Everything
   // after them belongs to whatever the sheet holds next, and is named as such
@@ -3954,6 +3983,14 @@ function showItemDetail(pt) {
     sheet.appendChild(cellw);
   }
   panel.appendChild(sheet);
+  // The record's word, what an aspect does to it, and the two data bytes:
+  // the block under "Prop record", built as elements because the rail draws
+  // a tile in each slot.
+  {
+    const host = document.createElement('div');
+    fold('word', 'Prop record', propWordHex(pt) + ' at aspect 0, Data1 and Data2', host);
+    try { propWordMount(pt, host); } catch (e) { host.className = 'sv-note'; host.textContent = 'The prop record could not be read: ' + (e && e.message ? e.message : e); }
+  }
   const strangers = runs.filter(r => r.name !== terrainNameFor(base));
   if (strangers.length) {
     const note = document.createElement('div');
@@ -3972,12 +4009,6 @@ function showItemDetail(pt) {
     panel.appendChild(note);
   }
 
-  const add = html => {
-    const d = document.createElement('div');
-    d.innerHTML = html;
-    panel.appendChild(d);
-  };
-
   // Static data from the class table.
   if (cls && cls.data.length) {
     let rows = '';
@@ -3993,27 +4024,25 @@ function showItemDetail(pt) {
         : '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">' +
           'No published meaning for this key.</td></tr>');
     }
-    add('<div class="sv-block"><h4>Class data</h4><table style="border-collapse:collapse;width:100%">' +
-        rows + '</table></div>');
+    fold('data', 'Class data', cls.data.length + ' field' + (cls.data.length === 1 ? '' : 's'), '<table style="border-collapse:collapse;width:100%">' + rows + '</table>');
   } else if (cls) {
-    add('<div class="sv-block"><h4>Class data</h4><div class="sv-note">' +
-        'This class carries only behaviour \u2014 no data fields.</div></div>');
+    fold('data', 'Class data', 'no data fields', '<div class="sv-note">This class carries only behaviour \u2014 no data fields.</div>');
   }
 
   // Behaviour: which methods have code behind them.
   if (cls && cls.code.length) {
-    add('<div class="sv-block"><h4>Responds to</h4>' +
+    fold('code', 'Responds to', cls.code.map(f => itemFieldLabel(f.key)).join(', '),
       cls.code.map(f => '<button class="sv-chip" onclick="jumpToResource(' + cls.resid + ')">' +
         svEsc(itemFieldLabel(f.key)) + '</button>').join(' ') +
       '<div class="sv-note" style="margin-top:6px">Each opens the class script 0x' +
-      cls.resid.toString(16).toUpperCase() + ', where the disassembly is grouped by method.</div></div>');
+      cls.resid.toString(16).toUpperCase() + ', where the disassembly is grouped by method.</div>');
   }
 
   if (cls && cls.text.length) {
-    add('<div class="sv-block"><h4>Text in this class</h4>' +
+    fold('text', 'Text in this class', '\u201c' + cls.text[0].text + '\u201d' + (cls.text.length > 1 ? ' and ' + (cls.text.length - 1) + ' more' : ''),
       cls.text.slice(0, 12).map(t =>
         '<div style="color:#fff;font-size:0.8125rem;margin-bottom:4px">\u201c' + svEsc(t.text) + '\u201d</div>'
-      ).join('') + '</div>');
+      ).join(''));
   }
 
   // Where it is in the shipped scenario.
@@ -4065,10 +4094,9 @@ function showItemDetail(pt) {
           ' <em>\u00d7' + byHost[k] + '</em></button>').join(' ') +
         '</div>';
     }
-    add('<div class="sv-block"><h4>In the world</h4>' + body + '</div>');
+    fold('world', 'In the world', idx.total + ' placed' + (idx.carried + idx.equipped ? ', ' + (idx.carried + idx.equipped) + ' carried' : '') + (idx.contained ? ', ' + idx.contained + ' in containers' : ''), body);
   } else {
-    add('<div class="sv-block"><h4>In the world</h4><div class="sv-note">' +
-        'No instance of this item is placed in the shipped scenario \u2014 it is either created by a script or unused.</div></div>');
+    fold('world', 'In the world', 'none placed', '<div class="sv-note">No instance of this item is placed in the shipped scenario \u2014 it is either created by a script or unused.</div>');
   }
 
   // The key is one prop type carrying eight different keys, told apart by
@@ -4076,8 +4104,7 @@ function showItemDetail(pt) {
   if (pt === KEY_PROPTYPE) {
     const { keys, locks } = buildKeyLockIndex();
     const lockedNoKey = new Set(locks.filter(l => !keys.some(k => k.id === l.id)).map(l => l.id)).size;
-    add('<div class="sv-block"><h4>The key ring</h4>' +
-      keys.map(k => {
+    fold('keys', 'The key ring', keys.length + ' keys', keys.map(k => {
         const ll = locksForKey(k.id);
         return '<div style="margin:7px 0">' + keyLocationChip(k) +
           ' <span class="inspDim">opens</span> ' +
@@ -4085,7 +4112,13 @@ function showItemDetail(pt) {
           '</div>';
       }).join('') +
       '<div class="sv-note">' + lockedNoKey + ' further lock ids have no matching key item \u2014 ' +
-      'the lockpick, magic or a script opens those.</div></div>');
+      'the lockpick, magic or a script opens those.</div>');
+  }
+  {
+    const all = document.createElement('div');
+    all.className = 'foldAll';
+    all.innerHTML = svLink('Open all', 'mechOpenAll(true)') + svLink('Close all', 'mechOpenAll(false)');
+    panel.appendChild(all);
   }
 
   grid.appendChild(panel);
@@ -4157,7 +4190,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.33.1';
+const GRIMOIRE_VERSION = '1.33.2';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -16381,7 +16414,7 @@ function renderMechanicsSheet() {
     'A prop record names what it is with one 16-bit word, and carries two bytes beside it that each class script reads for its own purpose.',
     [
       'The word is <b>the prop type in the low ten bits and an aspect in the five above</b>, so a step of aspect is worth 1,024 and a step of type 1. The create-a-prop cheat asks for this word, then Data1 in decimal, then Data2 in hex.' +
-        (pwBuild ? ' ' + actionChip('Build one', 'showItemDetail(' + pwBuild.pt + ')', pwBuild.name) + ' on any item’s page.' : ''),
+        (pwBuild ? ' Build one on any item’s page, under Prop record: ' + svLink(pwBuild.name, 'showItemDetail(' + pwBuild.pt + ')') + '.' : ''),
       'Aspect <i>n</i> draws the prop type’s base tile + <i>n</i> and the prop <b>takes that tile’s name</b>; the weapon classes read nothing per aspect, so a weapon at another aspect keeps its damage, reach and skill under the other tile’s picture and name. The pictures that leaves no class owning are at the foot of Items.',
       pw.ench && pw.ench.guarded && pw.ench.added ? '<b>Data1 on a weapon is its enchantment.</b> The outcome routine reads it off a weapon that is both a melee weapon and equipment and adds it to the damage of every blow' +
         (pw.ench.magic ? ', and <b>a blow with any enchantment counts as magical</b>, which is what gets past the monsters that resist non-magical weapons' : '') + '. An arrow’s Data1 is not read: the test is for a melee weapon.' : '',
@@ -16390,14 +16423,14 @@ function renderMechanicsSheet() {
       pw.scripts ? '<b>' + pw.scripts + ' scripts</b> read or write the bytes, ' + pw.readers.length + ' of them class scripts. What a byte means is that class’s own.' : 'No script in this archive reads the bytes.'
     ].filter(Boolean),
     (pw.placed.length ? '<div class="mechSub">Placed with an enchantment</div>' +
-      table(['item', 'where', '#aspect', '#Data1'], pw.placed.map(r => '<tr><td>' + propChip(r.pt, pwName(r.pt)) + '</td><td>' +
-        '<button class="sv-chip" onclick="showItemOnMap(' + (r.resid - 0x100) + ',' + r.pt + ')">' + svEsc(zoneNameFor(r.resid) || ('0x' + r.resid.toString(16).toUpperCase())) + '</button>' +
-        (r.carriedBy !== null && loadCharacterTable()[r.carriedBy] ? ' ' + chipOf(r.carriedBy) : '') + '</td>' + num(r.aspect) + num(r.d1) + '</tr>'))
+      table(['item', 'where', '#aspect', '#Data1'], pw.placed.map(r => '<tr><td>' + svLink(pwName(r.pt), 'showItemDetail(' + r.pt + ')') + '</td><td>' +
+        svLink(zoneNameFor(r.resid) || ('0x' + r.resid.toString(16).toUpperCase()), 'showItemOnMap(' + (r.resid - 0x100) + ',' + r.pt + ')') +
+        (r.carriedBy !== null && loadCharacterTable()[r.carriedBy] ? ', carried by ' + svLink(characterName(r.carriedBy), 'showCharacterDetail(' + r.carriedBy + ')') : '') + '</td>' + num(r.aspect) + num(r.d1) + '</tr>'))
       : '<div class="mechSub">Placed with an enchantment</div><div class="sv-note" style="margin-top:0">No melee weapon in a prop list carries a Data1.</div>') +
     (pw.ammo.length ? '<div class="sv-note">' + pw.ammo.length + ' ammunition record' + (pw.ammo.length === 1 ? '' : 's') + ' carr' + (pw.ammo.length === 1 ? 'ies' : 'y') + ' a Data1 too, which the outcome routine does not read.</div>' : '') +
     '<div class="mechSub">Which class scripts read them</div>' +
     table(['byte', 'read by', 'written by'], ['data1', 'data2', 'data3'].map(k => { const b = pwByByte(k); return b.r.length || b.w.length
-      ? '<tr><td>' + k.replace('data', 'Data') + '</td><td>' + b.r.map(x => partChip(pwName(x.pt), x.resid)).join(' ') + '</td><td>' + b.w.map(x => partChip(pwName(x.pt), x.resid)).join(' ') + '</td></tr>' : ''; })), '');
+      ? '<tr><td>' + k.replace('data', 'Data') + '</td><td>' + b.r.map(x => svLink(pwName(x.pt), 'jumpToResource(' + x.resid + ')')).join(', ') + '</td><td>' + b.w.map(x => svLink(pwName(x.pt), 'jumpToResource(' + x.resid + ')')).join(', ') + '</td></tr>' : ''; })), '');
 
   // ---- spells ----
   const sp = spellRules();
@@ -16915,6 +16948,11 @@ function trailForResid(resid) {
 function partChip(label, resid) {
   const lbl = labelFor(resid);
   return relChip({ resid, main: label, sub: lbl || '', title: trailForResid(resid) });
+}
+
+// A link in text: see .svLink.
+function svLink(label, js, note) {
+  return '<button class="svLink" onclick="' + js + '">' + svEsc(label) + (note ? ' <i>' + svEsc(note) + '</i>' : '') + '</button>';
 }
 
 function actionChip(label, js, note) {

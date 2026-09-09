@@ -2396,6 +2396,22 @@ Read the comment above a constant before correcting it.
   read off the open archive; the one stated thing is the order the cheat
   asks its three numbers in, which is the executable's (the Cheats table on
   the same sheet).
+  **v1.33.2**, the same evening, two more from the maintainer: the chips
+  in the new block and section were "clunky and take up so much space",
+  and the item page was cluttered. So `svLink` — a gold link in running
+  text or a table cell, no box, no icon, a grey note after it (`.svLink`)
+  — replaces the chips in the sentence about the outcome routine, the list
+  of other prop types that reach a tile, the Build-one pointer, and the
+  Mechanics section's two tables (seventy-odd class names in one cell were
+  seventy pills). The relation chips elsewhere are untouched; a strip of
+  six under *Made of* is what they are for. And **every section of an
+  item's page below the frames folds** (`fold` in `showItemDetail`, a
+  `details.mechSec.itemFold` with a summary of title and gist, shut by
+  default, Open all / Close all at the foot through `mechOpenAll`): Prop
+  record, Class data, Responds to, Text in this class, In the world, The
+  key ring. The gist is one line of what is inside — the word at aspect 0,
+  the field count, the method names, the first line of text, placed and
+  carried counts — so the shut page still reads.
 
 - **The application's data fork is read, v1.32.0** (9 September 2026; the
   maintainer asked why the tab was still empty, and then to fill it "as long
