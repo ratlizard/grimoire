@@ -962,8 +962,12 @@ function mergeDelverPatch(baseBytes, patchBytes) {
 }
 
 /* ---- editing a map -------------------------------------------------------
-   Two writers for the map editor in index.html, and they are deliberately the
-   smallest two that could work.
+   Two writers, deliberately the smallest two that could work. The map editor
+   they were written for was cut from index.html in v1.29.0 -- the page reads
+   maps and edits records, and a painting tool was the one thing on it whose
+   cost had no floor -- but the writers and their check stay: a proven writer
+   is cheap to keep and is what any later structured edit of a map would
+   start from.
 
    A map resource is a header, a roof block and then one big-endian tile word
    per square, so **painting terrain is a patch, not a re-serialization**:

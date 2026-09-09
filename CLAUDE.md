@@ -456,13 +456,6 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   called broken, and the sprite classes to be **read off the archive** — class
   32 present and named the hero, forty or more classes with monsters among
   them — so a hardcoded list would fail it.
-  Its `map editor` section drives the
-  four editing tools over the archive's smallest map and judges each by what
-  the REBUILT archive holds:
-  a three-square stroke arriving as one edit with a fourth square untouched,
-  a prop appended where it was asked for, an erase that marks flags 0xFF and
-  does **not** shorten the list, the eyedropper arming Paint with the square
-  it was pointed at, and an undo putting the erased record back.
   Its `saved game` section opens a Cythera player file through
   `adoptArchive` — the path that refused every one of them until
   September 2026 — and checks what a visitor sees (see the per-page notes);
@@ -1220,55 +1213,19 @@ Read the comment above a constant before correcting it.
   lock off. One trap paid for: the first version of that assertion counted
   *colours* on the cluster and is backwards, since averaging a two-colour
   checker into a gradient raises the count.
-- **The map is editable, v1.19.0** (6 September 2026). The third structured
-  editor, after the prop record's field form and the ditherizer, and the
-  first that edits by **pointing at the thing**. A toolbar under the map
-  (`renderMapEditBar`, `#mapEditBar`) arms one of five tools — **Look**
-  (the map as it has always behaved), **Paint**, **Pick**, **Place**,
-  **Erase** — and a tool takes the single pointer, so a drag paints instead
-  of panning and two fingers still pinch. Look is a tool rather than a
-  checkbox precisely so there is always somewhere obvious to go back to.
-  **A stroke is one edit.** Every commit ends in `applyResourceEdit`, which
-  re-serializes the whole archive and re-enters `parseArchiveBytes`, so the
-  squares crossed while the pointer is down are collected in
-  `MAP_EDIT.pending` and committed once when it lifts — five megabytes of
-  rebuild per square would be unusable. Until the commit they are drawn as
-  rectangles over the marks layer (`drawMapEditPending`), not as the tile's
-  own artwork: the real thing arrives with the rebuild a moment later, and
-  two ways of drawing the same square is how the two come to disagree.
-  **Painting patches bytes; placing re-serializes.** A map resource is a
-  header, a roof block and one big-endian word per square, so
-  `writeDelverMapTiles` copies the resource and writes two bytes per square
-  — a whole-map serializer would have to reproduce the roof block and the
-  twelve bytes of padding at 20..31 that nothing here understands, and would
-  risk all of it to move one tile. The prop list goes through
-  `writeDelverPropList`, which is already proven the exact inverse of its
-  parser over all 14,485 records.
-  **Erase sets flags to 0xFF and leaves the record where it is.** A
-  contained prop is linked to its container by INDEX, so splicing an entry
-  out silently re-points every link after it. The file's own answer is a
-  record whose flags are 0xFF: delvmod's `show_in_map` drops one, this
-  page's parser drops one, and the shipped archive carries exactly five.
-  **The palette is the map's own terrain**, commonest first
-  (`mapEditPalette`) — "grass like the grass next to it" is what painting a
-  map actually wants, and **Pick** is the eyedropper that reaches the tiles
-  the 36 swatches leave out. Walls in Cythera are terrain, so knocking one
-  through is painting the floor over it, which is the same tool as laying a
-  path.
-  **Undo is a stack of previous plaintexts** (`MAP_EDIT_UNDO`, 24 deep).
-  Both it and the armed tool are archive-keyed — an undo step is a copy of
-  one resource's bytes — so `resetDerivedCaches` drops them and
-  `mapEditCommit` carries them across its own rebuild by hand, exactly as
-  `EDITED_RESIDS` is carried.
-  **One refusal, and it is the interesting one.** The bytes painted are the
-  ones `delverArchiveSpec` will write back, not the ones the renderer drew
-  from: the renderer has a fallback for a map whose decrypt verdict
-  `smartDecrypt` guesses wrong, and painting through that fallback would
-  patch a plaintext the writer is not going to use. All 42 maps in the
-  shipped archive parse straight from `smartDecrypt` and **none of them is
-  encrypted**, so it cannot happen there — but a modded archive is exactly
-  what the fallback is for, and on one of those the tools refuse and say so
-  rather than writing to the wrong bytes.
+- **The map editor was cut, v1.29.0** (8 September 2026, the maintainer's
+  decision). v1.19.0 had put five tools under the map — Look, Paint, Pick,
+  Place, Erase — with a stroke collected while the pointer was down, an undo
+  stack of previous plaintexts, and a smoke section driving all of it over
+  the archive's smallest map. It was the one feature on the page whose cost
+  had no floor, and a native Cythera editor is being built elsewhere. What
+  stays is what it was built on: `writeDelverMapTiles` and
+  `makeDelverPropRecord` in `js/delv-archive.js` with their
+  `delv_write_check.mjs` cover (every map patched four squares, every other
+  byte identical), the prop record's field form on the map inspector, and
+  the archive rebuild through `applyResourceEdit`. The page's editing is
+  narrow by design now: a record field-by-field, a resource as hex, a
+  font, a save — never a picture of the world.
 - **The cheats are all on one sheet, v1.22.0** (7 September 2026). Data ›
   Cythera (App) › Cheats (`renderCheatsSheet`), because everything on it is
   read out of the **application** rather than the archive: the map window's
@@ -1913,9 +1870,9 @@ Read the comment above a constant before correcting it.
   since the `IntersectionObserver` that decodes each tile does not deliver
   before the grid is cleared; in the smoke's stub, whose observer fires at
   once by design, it was the whole gallery decoded and discarded — and with
-  the map editor rebuilding the archive under an open map, Regions' 42 maps
-  were being decoded on every stroke. An edit's rebuild went from **19.7
-  seconds to 0.5** there.
+  the map editor of the time rebuilding the archive under an open map,
+  Regions' 42 maps were being decoded on every stroke. An edit's rebuild
+  went from **19.7 seconds to 0.5** there.
 - **`resetDerivedCaches()` is the one place archive-keyed memoisation is
   cleared. Add to it whenever you memoise anything.** The list used to be
   inline and had drifted by nine caches, so a second archive was drawn with the

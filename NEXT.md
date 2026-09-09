@@ -448,6 +448,17 @@ re-check the installer count before assuming the rule still applies.
   placeholder line that named a retired repository was cut. `CLAUDE.md`
   has the detail under the v1.28.0 bullet; the decoder snapshot moved and
   the table says so.
+- **The map editor is cut, v1.29.0** (8 September, night, the maintainer's
+  call after seeing a native Cythera editor under way on the community's
+  Discord). Paint, Pick, Place, Erase, the stroke overlay, the undo stack,
+  the toolbar and its smoke section are gone from `index.html` and
+  `viewer_smoke.mjs`; the two writers and their `delv_write_check.mjs` cover
+  stay, and so do the prop record's field form and the Saved Game sheet's
+  record editor. The direction the cut sets: grimoire reads everything and
+  edits narrowly — a record, a resource as hex, a font, a save — and a
+  **save editor** is the next structured editor, not a map tool. What that
+  needs is in the workspace handoff under *Making a save*. `CLAUDE.md`
+  carries the reasoning under the v1.29.0 bullet.
 - **Subindex 4 is the archetype table, v1.28.1.** The maintainer asked
   whether nothing was known about "Character Creation Stats". 0x501 is nine
   arrays in the order the name list 0x203 gives (Explorer, Fighter,
