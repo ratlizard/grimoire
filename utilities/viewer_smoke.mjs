@@ -1305,6 +1305,7 @@ try {
   const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const dice = ctx.diceGame();
   const mechSecs = (function count(el) { return (el.className === 'mechSec' ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
+  const mechFolds = (function count(el) { return ((el.tagName || '').toUpperCase() === 'DETAILS' && el.className === 'mechSec' ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
   // Skills and Spells: each one a card, read off its own script.
   ctx.showCategory('SKILLS');
   const skhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
@@ -1314,11 +1315,21 @@ try {
   else if (!(gambling && gambling.askedBy.includes(0x812) && gambling.lessons.length >= 2)) fail('skills', 'Gambling does not say the dice game asks about it, or has no lessons: ' + JSON.stringify(gambling && [gambling.askedBy, gambling.lessons]));
   else if (!(attack && /\[aptitude \/ training\]/.test(attack.description))) fail('skills', 'the inline alternative was not read: ' + (attack && attack.description));
   else if (!/openCharacter\(4\)/.test(skhtml) || !/Thievery/.test(skhtml) || !/Regroup/.test(skhtml)) fail('skills', 'the Skills sheet does not show the teacher chip, Thievery, or the commands');
-  else console.log(`  skills: ${skills.length} in the block, ${skills.filter(x => x.kind !== 'command').length} skills and ${skills.filter(x => x.kind === 'command').length} commands, each a card`);
+  else {
+    // Since v1.30.0 a card is a <details> with the game's own 32x16 icon
+    // (subindex 137, icon n for class 0x1A00|n) in its summary where the
+    // file has one -- twelve of the skills do, every spell does -- and a
+    // teacher is cited by portrait, not sprite.
+    const folds = (function count(el) { return ((el.tagName || '').toUpperCase() === 'DETAILS' && /\bmechSec\b/.test(el.className || '') ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
+    const icons = (skhtml.match(/class="skillIcon"/g) || []).length;
+    if (folds !== skills.length || icons < 10 || !/relFace/.test(skhtml)) fail('skills', `not folding cards with icons and portraits: ${folds} of ${skills.length} fold, ${icons} icons, portrait ${/relFace/.test(skhtml)}`);
+    else console.log(`  skills: ${skills.length} in the block, ${skills.filter(x => x.kind !== 'command').length} skills and ${skills.filter(x => x.kind === 'command').length} commands, each a folding card; ${icons} wear the game's icon`);
+  }
   ctx.showCategory('SPELLS');
   const sphtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/Fireball/.test(sphtml) || !/25 \+ a roll of 0 to 9/.test(sphtml) || !/burst of flame/.test(sphtml) || !/Level 8/.test(sphtml)) fail('spells', 'the Spells sheet does not show Fireball with its damage and description by level');
-  else console.log('  spells: each a card, by level, with its damage and description');
+  else if ((sphtml.match(/class="skillIcon"/g) || []).length < ctx.spellRules().spells.length) fail('spells', 'not every spell wears its icon: ' + (sphtml.match(/class="skillIcon"/g) || []).length);
+  else console.log('  spells: each a folding card, by level, with its icon, damage and description');
   // GIF: a header, the right size, and a frame per palette when the picture cycles.
   {
     const gif = ctx.encodeGIF(4, 3, [{ indexed: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]), palette: ctx.__peek('PAL_RGB') }], { delayMs: 100, transparentIndex: 0 });
@@ -1445,6 +1456,7 @@ try {
   else if (!/win 2 oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
   else if (!/resists non-magical weapons: [^<]*lich/.test(html)) fail('mechanics', 'the spells section does not name the monsters immune to non-magical damage')
   else if (!/four seconds/.test(html) || !/one off every game hour/.test(html) || !/4096 is one hour/.test(html) || (html.match(/mechGo\(/g) || []).length < 15 || mechSecs < 15) fail('mechanics', `the balloon lifetime, the contents strip or the sections are missing: ${mechSecs} sections`);
+  else if (mechFolds < mechSecs || (html.match(/mechOpenAll\(/g) || []).length < 2) fail('mechanics', `the sections do not fold: ${mechFolds} of ${mechSecs} are details, open/close all ${(html.match(/mechOpenAll\(/g) || []).length}`);
   else if (!ctx.gearTable().some(r => r.name === 'axe' && r.damage === 22 && r.skill === 'Axe') || !ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2) || !ctx.gearTable().some(r => r.name === 'bow' && r.ammoClass === 1 && r.reach === 5)) fail('mechanics', 'the gear table does not name the axe’s damage and skill, the spear’s reach, or the bow’s ammunition and range');
   else if (!(ctx.combatRules() && ctx.combatRules().d30 && ctx.combatRules().parry && ctx.combatRules().words.length >= 8)) fail('mechanics', 'the combat rules were not read: ' + JSON.stringify(ctx.combatRules()));
   else if (ctx.spellRules().spells.length < 35 || !ctx.spellRules().spells.some(x => /Fireball/.test(x.name) && x.level === 5 && x.cost === 20) || !(ctx.spellRules().rule && ctx.spellRules().rule.failure)) fail('mechanics', 'the spells were not read: ' + ctx.spellRules().spells.length);

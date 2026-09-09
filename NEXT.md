@@ -470,6 +470,22 @@ re-check the installer count before assuming the rule still applies.
   purpose and kind say so now; the two other resources in the subindex are
   zero bytes and still say so. A named rendering of the table on the page
   would be a small thing over `dvmDataValue`.
+- **Eight UI asks in one message, v1.30.0** (8 September, night). Skills,
+  Spells and Mechanics are folding cards (`<details>`, shut by default,
+  Open all / Close all on Mechanics); skills and spells wear the game's own
+  32×16 icon out of subindex 137 where the file has one (every spell, 12 of
+  38 skills; the rest wear the tab tile); a cited character is their
+  portrait on the chip; every `text-transform:uppercase` is gone because
+  Argos in capitals is hard to read; white for what is read, gold for what
+  is clicked, neutral grey for the quiet labels; Skills is tile 0x3DB,
+  Spells 0x888, Barks 0x185; Screens is a chip under Graphics › Misc. The
+  maintainer's question, whether Mechanics follows the data files: yes for
+  everything read off the scripts, no for the four figures that are the
+  executable's — written into `CLAUDE.md` at the v1.30.0 bullet. The smoke
+  pins the cards, icons and portraits, and its negative control was run.
+  **Not looked at on a screen from here**: the chevron, the 26px portraits
+  on chips, and whether pure white on the planks is too bright — the two
+  greys and the white are three literals in the sheet if they want moving.
 - **Careful: another session is pushing to grimoire through the day.**
   Three of the four commits above needed a rebase, one with a conflict
   (the version number, which both sessions bump). Fetch before starting

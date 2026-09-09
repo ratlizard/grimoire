@@ -998,7 +998,7 @@ Read the comment above a constant before correcting it.
   a distinct unit", and skills distinct from spells). `renderSkillsSheet`
   (`SKILLS`) and `renderSpellsSheet` (`SPELLS`) replace the gallery of
   subindexes 25 and 137 under Entities › Skills; Spells is its own tab
-  (tile 0x87B). `skillCatalogue()` walks 0x1AC0–0x1AFF: name, kind
+  (tile 0x87B then; 0x888 since v1.30.0). `skillCatalogue()` walks 0x1AC0–0x1AFF: name, kind
   (attribute 0x1AC0–3, weapon 0x1AC4–9, special, command from 0x1AF0),
   description (`dvmDescriptionOf`: the strings of the script's "This
   skill…" function, with the game's inline alternative — a 0x10 byte
@@ -1968,8 +1968,9 @@ Read the comment above a constant before correcting it.
   `FORK_VIEWS` is the same renderer (`renderMacRsrcSheet`) filtered to one
   or two kinds from one fork or both: that is all a Screens or Fonts or
   Cursors tab is, so no kind needed a second decoder. The places: Graphics ›
-  **Screens** (the title screen, the main menu with its plank labels and
-  torch frames, the DELVER stone, the paper doll, the Ambrosia logos); Text ›
+  **Misc › Screens** (the title screen, the main menu with its plank labels and
+  torch frames, the DELVER stone, the paper doll, the Ambrosia logos; a tab of
+  its own until v1.30.0); Text ›
   **Fonts** (Argos A Nouveau as `sfnt`, the Seldane script as two `NFNT`
   strikes, the `TxSt` styles that assign a face to each kind of text); Text
   › Labels › **Strings** (every `STR#` in both forks); Audio › SFX ›
@@ -2000,8 +2001,13 @@ Read the comment above a constant before correcting it.
   The tab icons were chosen by looking at a sheet of candidates and
   checked for repeats: World is the rolled map, Zones a small town,
   Functions a lever with the fighter, the key and the distiller's flasks
-  under it, Fonts a written scroll, Screens a fresco, Interface the strange
-  device, Barks a bell; only the two fork pairs share a tile, on purpose.
+  under it, Fonts a written scroll, Interface the strange device; only the
+  two fork pairs share a tile, on purpose. Three were re-chosen by the
+  maintainer on 8 September 2026 (v1.30.0): Skills is a distiller (0x3DB),
+  Spells a staff (0x888) and Barks tile 0x185, where they had been the
+  grimoire, the scroll and the bell. Screens had a fresco and has no tab of
+  its own since the same day: the `SCREENS` view sits under Graphics › Misc
+  as a chip beside the archive's general graphics.
 - **Not yet done, and the shape of it.** The `sfnt` could go the other
   way — another TrueType put in its place would change the face the game
   itself draws, since the styles name the family and not the file. The
@@ -2234,6 +2240,39 @@ Read the comment above a constant before correcting it.
   nowhere in the file, so widening `propTravelsTo` to reach them adds
   nothing and was not done.
 
+- **Folding cards, the game's icons and portraits, v1.30.0** (8 September
+  2026, eight asks from the maintainer in one message). **A card on Skills,
+  Spells and Mechanics is a `<details>`** (`foldCard`): the head is its
+  `<summary>`, the rest opens under it, every card starts shut, a filter on
+  Skills or Spells opens what it matched, and `mechGo` opens a section
+  before scrolling to it — the chips from Skills into Mechanics go through
+  it, so a rule arrives open. The Mechanics contents strip has Open all and
+  Close all (`mechOpenAll`). The marker is a chevron drawn with two borders,
+  since a triangle glyph is not in Argos. **Skills and spells wear their own
+  icon**: subindex 137 is one 32×16 picture per class in subindex 25, icon
+  *n* for class `0x1A00|n` — the join `skillNameForIcon` already made the
+  other way — and `skillIconURL` draws it once into a data URL (dropped in
+  `resetDerivedCaches`). All 49 spells have one; **12 of the 38 skills do**
+  (Attack, Defense, Mana, Casting, Sword, Axe, Cooking, Weaving, Alchemy,
+  Runic Magic, Healing Magic, Lock Picking — measured, not listed by hand)
+  and the other 26, the commands among them, wear the tab's tile at 16px.
+  Icon 0x8A50 belongs to no class. **A character cited anywhere is shown by
+  their portrait**: `characterChip` puts `characterFace` on the chip at
+  26px (`.relFace`), the sprite only where there is no portrait. **The tab
+  icons and Screens** are under the forks-by-kind bullet above. The smoke
+  pins all of it: 38 folding cards with 12 icons and a portrait on Skills,
+  an icon on every spell, every Mechanics section a `<details>` with the two
+  all-buttons; a negative control (cards as `<section>`, the icon class
+  renamed) fails all three. The colour and capitals rule is under
+  Conventions. **What Mechanics reads from where** is worth stating once,
+  because the maintainer asked whether it follows the data files: every
+  figure a section carries is read out of the open archive's scripts on the
+  spot, so a modded archive shows its own numbers as long as its scripts
+  keep the shapes the readers look for (the helper ids `0xE87`–`0xEB8`,
+  `CastSpell`, `StatusEffect`, the data blocks); the balloon's four seconds,
+  the clock's 1/4096 hour, the hunger rate and the poison cadence are the
+  executable's and are stated, not read.
+
 ### `canvas.html`
 
 - **One page, three columns, no paragraphs.** A toolbox of seven icons on
@@ -2312,6 +2351,18 @@ strings, names, descriptions and barks, and the figures read out of the
 file — is reproduced exactly and is never rewritten for style. Set by the
 maintainer on 7 September 2026; the pass that applied it is v1.24.1 under
 Per-page notes. Comments are the opposite and stay long, as below.
+
+**Text you read is white, text you can click is gold, and nothing is set in
+capitals.** The game's own rule, and the maintainer's on 8 September 2026
+(v1.30.0): `--gold` goes on what responds to a click — buttons, chips, the
+crumb, the keyword pills — and on nothing else; headings, ids, prices, stat
+figures and code panes are white; the quiet labels (`.partsTitle`,
+`.skillKey`, `.mechSub`, the chips' second lines) are a neutral grey,
+`#b5b2a8` or `#8c8980`, so no label is gold-tinted enough to read as a link.
+Every `text-transform:uppercase` in the sheet went the same day — Argos in
+capitals is hard to read — save the two-letter `.guessTag`, which is in a
+system font. Keep to it when adding a rule: a new colour is one of white,
+`--gold` or the two greys.
 
 **Commit messages are prose, not conventional-commits.** They read like a
 sentence describing the change from the user's side:
