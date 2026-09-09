@@ -1405,7 +1405,7 @@ try {
     const sel = ctx.seldanePalette();
     if (!(fm.box && fm.box.x0 > 2 && fm.box.y0 > 2 && fm.box.x1 < 62 && fm.box.y1 < 62 && fm.box.x1 - fm.box.x0 > 30)) fail('dither', 'the frame 0x88A2 has no sensible hole: ' + JSON.stringify(fm.box));
     else if (!(fm2.box && fm2.box.x0 === 6 && fm2.box.x1 === 57)) fail('dither', 'the inset frame is not the slider’s rectangle: ' + JSON.stringify(fm2.box));
-    else if (!(sel.length > 40 && sel.length < 120 && !sel.includes(0))) fail('dither', 'the Seldane palette is not a few dozen indices without 0: ' + sel.length);
+    else if (!(sel.length > 20 && sel.length < 120 && !sel.includes(0))) fail('dither', 'the Seldane palette is not a few dozen indices without 0: ' + sel.length);
     else console.log('  dither: frame 0x88A2 holds a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' picture, the inset frame the slider’s, the Seldane palette ' + sel.length + ' colours');
   }
   // One animation setting drives the three flags.

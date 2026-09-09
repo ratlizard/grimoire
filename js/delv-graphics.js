@@ -1093,8 +1093,18 @@ function ditherToCytheraPalette(rgba, W, H, opts) {
   const o = opts || {};
   const checker = o.checker === undefined ? 0.6 : Math.max(0, Math.min(1, o.checker));
   const allowAnimated = !!o.allowAnimated;
-  // Pair must beat flat by this factor: checker 0 -> impossible, 1 -> any win.
-  const pairFactor = checker <= 0 ? 0 : 0.4 + 0.6 * checker;
+  // The checker setting is the most contrast a pair may have, from none at
+  // 0 to black beside white at 1, in the weighted distance below (whose
+  // square root runs 0 to 765). A pair is used when it beats the flat
+  // colour and stays under that contrast. It used to be a factor the pair
+  // had to beat the flat error by, 0.4 at the first notch, which most pairs
+  // beat, so the slider went from nothing to everything in its first
+  // notch (the maintainer, 9 September 2026). The undither merges a checker
+  // whatever its contrast, so this is the perceptual half of the inverse:
+  // a low-contrast pair reads as a mixed colour, a high one as noise.
+  // Squared, so the first third of the slider admits only neighbours on a
+  // ramp and the top opens up quickly: linear was most of the way at 0.1.
+  const maxContrast = checker * checker * 765;
   // opts.usable: the only palette indices to draw with, when given -- the
   // Seldane portraits' colours, say -- and animated ramps still excluded
   // unless allowed.
@@ -1125,13 +1135,14 @@ function ditherToCytheraPalette(rgba, W, H, opts) {
           .sort((a, c) => a[0] - c[0]).slice(0, K);
         const flatErr = short[0][0], flat = short[0][1];
         let best = null, bestErr = Infinity;
-        for (let a = 0; a < short.length; a++)
+        if (maxContrast > 0) for (let a = 0; a < short.length; a++)
           for (let c = a + 1; c < short.length; c++) {
             const A = PAL_RGB[short[a][1]], B = PAL_RGB[short[c][1]];
+            if (Math.sqrt(dist(A[0], A[1], A[2], B)) > maxContrast) continue;
             const e = dist(r, g, b, [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2]);
             if (e < bestErr) { bestErr = e; best = [short[a][1], short[c][1]]; }
           }
-        if (best && bestErr < flatErr * pairFactor) {
+        if (best && bestErr < flatErr) {
           if (luma(best[0]) > luma(best[1])) best = [best[1], best[0]];
           sol = { pair: best };
         } else sol = { flat };

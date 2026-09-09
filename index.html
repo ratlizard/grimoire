@@ -130,6 +130,10 @@ body { color:#fff; font-family:'ArgosGame', Argos, Georgia, serif;
    he asked for it gone. The folder sheets (.tabSheet) still wear it. */
 h2, #soundLabel { color:#fff !important; font-family:'ArgosGame', Argos, Georgia, serif; }
 .cell .lbl, .cell .resid { color:var(--gold) !important; font-family:'ArgosGame', Argos, Georgia, serif; }
+/* A label is two lines at most and stays inside its cell; a long unit name
+   used to run out of the square (the maintainer, 9 September 2026). */
+.cell { overflow:hidden; }
+.cell .lbl { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; max-width:100%; }
 #soundPreview, pre { background:var(--panel); border-color:var(--edge) !important; }
 #singlePreview { background:transparent !important; border:0 !important; }
 #singleControls, #pickerWrap { background:transparent !important; border:none !important; }
@@ -367,7 +371,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 #tabShell { margin:6px 0 10px; }
 /* The site's name and version, at the top between the two fixed buttons. */
 #topBar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; position:relative; }
-#brand { flex:1 1 auto; text-align:center; margin:0; font-size:0.8125rem; letter-spacing:.04em; color:#b5b2a8; }
+#brand { flex:1 1 auto; text-align:left; margin:0; font-size:0.8125rem; letter-spacing:.04em; color:#b5b2a8; min-width:0; }
 #brand .brandName { color:#fff; font-size:1.0625rem; font-weight:600; }
 #brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; letter-spacing:.04em; color:#8c8980; }
 .ftabRow { display:flex; align-items:flex-end; padding:0 0 0 8px; overflow-x:auto; overflow-y:hidden;
@@ -385,21 +389,21 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
   font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.7812rem !important; font-weight:600 !important;
   letter-spacing:0; color:#4a3616 !important; text-shadow:none !important; text-decoration:none;
   border:0 !important; border-radius:0 !important; box-shadow:none !important;
-  background:repeating-linear-gradient(98deg, rgba(122,94,44,.11) 0 2px, rgba(255,248,220,.05) 2px 4px),
+  background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
              linear-gradient(#a98f57, #a98f57) !important;
   clip-path:polygon(0 100%, 3px 30%, 9px 0, calc(100% - 9px) 0, calc(100% - 3px) 30%, 100% 100%) !important; }
 .ftab:hover { color:#2e2009 !important; text-decoration:none;
-  background:repeating-linear-gradient(98deg, rgba(122,94,44,.11) 0 2px, rgba(255,248,220,.05) 2px 4px),
+  background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
              linear-gradient(#b89c62, #b89c62) !important; }
 .ftab:focus-visible { outline:2px solid var(--gold); outline-offset:-3px; }
 .ftab canvas { width:18px !important; height:18px !important; image-rendering:pixelated; margin:0; flex:0 0 auto; }
 .ftab.sel, .ftab.sel:hover { padding:10px 14px 7px !important; color:#2e2009 !important; position:relative; z-index:3;
   margin-bottom:-1px; }
-#tabRow1 .ftab.sel, #tabRow1 .ftab.sel:hover { background:repeating-linear-gradient(98deg, rgba(122,94,44,.11) 0 2px, rgba(255,248,220,.05) 2px 4px),
-             linear-gradient(#c2aa70, #c2aa70) !important; }
-#tabRow2 .ftab.sel, #tabRow2 .ftab.sel:hover { background:repeating-linear-gradient(98deg, rgba(122,94,44,.10) 0 2px, rgba(255,250,225,.06) 2px 4px),
-             linear-gradient(#d8c58f, #d8c58f) !important; }
-#tabRow3 .ftab.sel, #tabRow3 .ftab.sel:hover { background:repeating-linear-gradient(98deg, rgba(122,94,44,.09) 0 2px, rgba(255,252,232,.07) 2px 4px),
+/* The open tab is the same light card at every level (it used to be the
+   colour of the folder it opens, which made the top row's look dimmer than
+   the rows below, the maintainer's question of 9 September 2026), and the
+   folders lighten less as they nest so the join stays quiet. */
+.ftab.sel, .ftab.sel:hover { background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
              linear-gradient(#e6d49f, #e6d49f) !important; }
 /* The rows inside a folder stand on a darker band of it, which is what
    makes the second and third rows read as tabs rather than as a line of
@@ -411,11 +415,11 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .ftab .tabBadge { font-size:0.625rem; line-height:1; padding:2px 5px; border-radius:8px;
   background:#4a3616; color:#fff; font-family:ui-monospace,Menlo,Consolas,monospace; }
 .folder { padding:4px; border-radius:0 3px 3px 3px; box-shadow:0 2px 7px rgba(0,0,0,.5);
-  background:repeating-linear-gradient(98deg, rgba(122,94,44,.11) 0 2px, rgba(255,248,220,.05) 2px 4px),
-             linear-gradient(#c2aa70, #c2aa70); }
-.folder.f2 { background:repeating-linear-gradient(98deg, rgba(122,94,44,.10) 0 2px, rgba(255,250,225,.06) 2px 4px),
-             linear-gradient(#d8c58f, #d8c58f); }
-.folder.f3 { background:repeating-linear-gradient(98deg, rgba(122,94,44,.09) 0 2px, rgba(255,252,232,.07) 2px 4px),
+  background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
+             linear-gradient(#d4bf84, #d4bf84); }
+.folder.f2 { background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
+             linear-gradient(#ddca92, #ddca92); }
+.folder.f3 { background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
              linear-gradient(#e6d49f, #e6d49f); }
 /* The sheet: the dialogue box itself. Its border is the PNG's own 4/8px band,
    its interior the same one-pixel checkerboard of rgb(31,0,183) over nothing,
@@ -445,14 +449,16 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    own controls, out of the way of the thing you came to look at. */
 #editNotice { text-align:center; color:#fff; font-size:0.8125rem; margin:0 0 10px; padding:6px 10px;
   background:rgba(20,18,14,.7); border:1px solid var(--edge); border-radius:8px; }
-#brandWrap { flex:1 1 auto; display:flex; align-items:baseline; justify-content:center; gap:14px; min-width:0; }
-/* Credits sits beside the name, a gold word the size of it: the one link
-   the maintainer wants seen (9 September 2026). */
-#creditsLink { background:none !important; background-image:none !important; border:0 !important; padding:0 !important; margin:0;
+/* The name on the left; Credits, Search and Settings spaced out on the
+   right as gold words the size of the name (the maintainer, 9 September
+   2026, after two other arrangements the same day). */
+#topLinks { display:flex; align-items:baseline; gap:24px; flex:0 0 auto; }
+.topLink { background:none !important; background-image:none !important; border:0 !important; padding:0 !important; margin:0;
   min-height:0 !important; width:auto; color:var(--gold) !important; font-size:0.9375rem !important; letter-spacing:.02em;
-  clip-path:none !important; box-shadow:none !important; text-shadow:none !important; font-weight:600 !important; }
-#creditsLink::before, #creditsLink::after { display:none !important; }
-#creditsLink:hover { text-decoration:underline; background:none !important; }
+  clip-path:none !important; box-shadow:none !important; text-shadow:none !important; font-weight:600 !important; opacity:1; }
+.topLink::before, .topLink::after { display:none !important; }
+.topLink:hover { text-decoration:underline; background:none !important; }
+#archiveMenuBtn.urgent { font-size:1.0625rem !important; text-decoration:underline; }
 #navSub { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-bottom:4px; }
 /* The section chips wear the crumb button's look (the maintainer, 9
    September 2026), at their own size; the open one is filled. */
@@ -875,7 +881,8 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
    the scripts it was read from, one line saying what it is, the rule as
    short items, and the table under it. Numbers sit in stat pills. */
 .mechView { grid-column:1/-1; text-align:left; max-width:920px; margin:0 auto; }
-.mechSec { margin:18px 0 0; padding:12px 12px 10px; background:rgba(20,18,14,.42); border:1px solid rgba(155,136,80,.35); border-radius:8px; }
+.mechSec { margin:18px 0 0; padding:12px 12px 10px; background:rgba(20,18,14,.42); border:1px solid rgba(155,136,80,.35); border-radius:8px;
+  display:block; width:100%; box-sizing:border-box; min-width:0; }
 /* A card is a <details>; its head is the summary. The marker is a chevron
    drawn with borders, since a triangle glyph is not in Argos and a browser
    would set it in whatever face it finds. */
@@ -1201,20 +1208,14 @@ body.atlasFull { overflow:hidden; }
    used to be three separate things in three corners of the page. They are one
    small stud in the top-left now, and everything about the data file lives
    behind it. */
-#archiveMenuBtn, #searchLink { width:auto; margin:0; flex:0 0 auto;
-  min-height:0 !important; padding:5px 16px !important; font-size:0.7188rem !important;
-  letter-spacing:.06em; opacity:.62;
-  }
-#archiveMenuBtn:hover, #searchLink:hover { opacity:1; }
-#archiveMenuBtn.urgent { opacity:1; font-size:0.875rem !important; padding:9px 18px !important; }
+
 #archiveMenu, #creditsMenu, #searchWrap { position:absolute; top:40px; z-index:42; display:none;
   min-width:250px; max-width:min(360px, calc(100vw - 24px)); max-height:min(72vh, 640px); overflow:auto;
   padding:12px 14px; background:rgba(18,15,10,.98); border:1px solid var(--edge);
   border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,.7); font-size:0.7812rem;
   text-align:left; line-height:1.6; }
-#archiveMenu { left:0; }
-#searchWrap { right:0; max-width:min(560px, calc(100vw - 24px)); width:min(560px, calc(100vw - 24px)); }
-#creditsMenu { left:50%; transform:translateX(-50%); max-width:min(560px, calc(100vw - 24px)); width:min(560px, calc(100vw - 24px)); }
+#archiveMenu { right:0; }
+#searchWrap, #creditsMenu { right:0; max-width:min(560px, calc(100vw - 24px)); width:min(560px, calc(100vw - 24px)); }
 #archiveMenu.open, #creditsMenu.open, #searchWrap.open { display:block; }
 #creditsMenu ul { margin:0 0 10px; padding-left:18px; }
 #creditsMenu li { margin:2px 0; }
@@ -1240,9 +1241,8 @@ body.atlasFull { overflow:hidden; }
   #appShell { max-width:1280px; padding:48px 44px calc(112px + env(safe-area-inset-bottom)); }
   html { font-size:125%; }
   button, select { font-size:1rem !important; }
-  #archiveMenuBtn, #searchLink { font-size:0.9375rem !important; opacity:.9; }
   #brand .brandName { font-size:1.25rem; }
-  #creditsLink { font-size:1.125rem !important; }
+  .topLink { font-size:1.125rem !important; }
   #archiveMenuBtn.urgent { font-size:1.0625rem !important; }
   #archiveMenu .amNote { font-size:0.875rem; color:#c9bd93; }
   #sourceStatus { font-size:0.9375rem; color:#b3a781; opacity:1; }
@@ -1304,13 +1304,13 @@ body.atlasFull { overflow:hidden; }
      2026, when the maintainer asked for them to stay at the top like the
      name. Each opens a panel under this row. -->
 <div id="topBar">
-  <button id="archiveMenuBtn" class="secondary" onclick="toggleArchiveMenu()"
-          aria-haspopup="dialog" aria-expanded="false" aria-controls="archiveMenu">Settings</button>
-  <div id="brandWrap">
-    <div id="brand" aria-label="Grimoire"></div>
-    <button id="creditsLink" onclick="toggleCredits()" aria-haspopup="dialog" aria-controls="creditsMenu">Credits</button>
+  <div id="brand" aria-label="Grimoire"></div>
+  <div id="topLinks">
+    <button id="creditsLink" class="topLink" onclick="toggleCredits()" aria-haspopup="dialog" aria-controls="creditsMenu">Credits</button>
+    <button id="searchLink" class="topLink" onclick="toggleSearch()" title="Search the scripts">Search</button>
+    <button id="archiveMenuBtn" class="topLink" onclick="toggleArchiveMenu()"
+            aria-haspopup="dialog" aria-expanded="false" aria-controls="archiveMenu">Settings</button>
   </div>
-  <button id="searchLink" class="secondary" onclick="toggleSearch()" title="Search the scripts">Search</button>
 </div>
 <div id="editNotice" style="display:none" role="status"></div>
 <input type="file" id="fileInput" accept="*/*" onchange="loadArchive()" style="display:none">
@@ -1364,8 +1364,8 @@ body.atlasFull { overflow:hidden; }
   instruction names, engine calls and the text the player sees. Use it when a resource is not
   referenced by id but is clearly related to something, which is most of them.</p>
   <input id="searchBox" type="search" placeholder="fire, TakeDamage, who teaches axe&hellip;" oninput="queueSearch()">
-  <div id="searchPresets" class="sv-chips" style="justify-content:center;margin-top:8px"></div>
   <div id="searchResults"></div>
+  <div id="searchPresets" class="sv-chips" style="justify-content:center;margin-top:8px"></div>
 </div>
 <!-- The folder-tab shell. Three tab rows, each the lip of a folder, nested;
      the innermost folder holds the sheet everything below is drawn on. The
@@ -4147,7 +4147,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.37.1';
+const GRIMOIRE_VERSION = '1.38.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -6090,6 +6090,10 @@ function onCategoryChangeImpl() {
   // category change while a detail view was open just re-rendered a
   // different resource inside that same detail view instead of returning.
   currentMode = 'sheet';
+  // A detail view that wanted one wide column set the grid to block; a
+  // change of category comes here without passing setMode, so the grid
+  // was staying one cell a row for every gallery after (9 September 2026).
+  document.getElementById('sheetGrid').style.display = '';
   // Dropping back to the gallery was not enough: the previously selected
   // resource's panels stayed on screen underneath, so a new category looked
   // like it still had the old resource open. Clear them all up front, for
@@ -13173,7 +13177,7 @@ function askOneShape(shape, hit) {
       if (!rows.length) return null;
       return askCard(m.sh.id === 'cost' ? 'What ' + m.hit[1].trim() + ' costs' : 'Who sells ' + m.hit[1].trim(),
         'The listed price, before the vendor bargains.',
-        rows, mechLink('shops', 'Rules › shops'));
+        rows, mechLink('shops', 'Mechanics › shops'));
     }
     if (m.sh.id === 'does') {
       const sp = spellRules().spells.find(x => like(x.name));
@@ -13184,7 +13188,7 @@ function askOneShape(shape, hit) {
           for (const d of fx.damage) rows.push(askRow('damage', '<b>' + (amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.who));
           for (const h of fx.heals) rows.push(askRow('heals', '<b>' + svEsc(h.text) + '</b>'));
         }
-        return askCard(sp.name, svEsc(dvmDescriptionOf(sp.resid) || ''), rows, partChip(sp.name, sp.resid) + mechLink('spells', 'Rules › spells'));
+        return askCard(sp.name, svEsc(dvmDescriptionOf(sp.resid) || ''), rows, partChip(sp.name, sp.resid) + mechLink('spells', 'Mechanics › spells'));
       }
       const sk = skillCatalogue().find(x => like(x.name));
       if (sk) return askCard(sk.name, svEsc(sk.description || ''),
@@ -13202,7 +13206,7 @@ function askOneShape(shape, hit) {
       return askCard('What clears ' + name,
         'Every script that takes it off.',
         by.map(r => askRow(selfNameFor(r) || ('0x' + r.toString(16).toUpperCase()), svChip(r))),
-        mechLink('status', 'Rules › status effects'));
+        mechLink('status', 'Mechanics › status effects'));
     }
     if (m.sh.id === 'says') {
       const hits = buildBarkCatalogue().filter(b => b.words.concat(b.then || []).some(w => askNorm(w).includes(subject)));
@@ -13219,7 +13223,7 @@ function askOneShape(shape, hit) {
       return askCard('What ' + m.hit[1].trim() + ' resists', 'From the monster record’s flag word, as the default resistance script reads it.',
         ms.slice(0, 6).map(r => askRow(N[r.proptype] || ('class ' + r.proptype),
           svEsc(monsterFlagsText(r.flags)) + ' <span class="inspDim">· armour ' + r.armor + ', ' + r.hp + ' health</span>')),
-        mechLink('combat', 'Rules › combat'));
+        mechLink('combat', 'Mechanics › combat'));
     }
     if (m.sh.id === 'where' || m.sh.id === 'who') {
       const tab = loadCharacterTable();
@@ -13524,26 +13528,26 @@ const TAB_TREE = [
   { id: 'world', label: 'World', tile: 0x267, values: ['WORLD'] },   // the map of Cythera, the second of the two map tiles (the maintainer's pick, 9 September 2026)
   // The top row's three folders open when selected: chest, crate and book
   // each have a closed and an open frame, and `tileOpen` is the second.
-  { id: 'entities', label: 'Game', tile: 0x285, tileOpen: 0x284, children: [      // the large chest; the label was Entities until 9 September 2026
+  { id: 'entities', label: 'Scenario', tile: 0x285, tileOpen: 0x284, children: [      // the large chest. Scenario is Delver's own word for the game's content, the SCEN the editor writes; the label was Entities, then Game, on 9 September 2026
       { id: 'characters', label: 'Characters', tile: 0x719, values: ['CHARACTERS'] },  // the king, standing, facing the reader
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
       { id: 'props',      label: 'Props',      tile: 0x2E0, values: ['PROPS'] },       // the anvil: a thing placed in the world (from under Graphics › Tilesets, 9 September 2026)
-      { id: 'regions',    label: 'Zones',      tile: 0x590, values: ['127'] },         // a small town, as the world map draws one (prop 286)
+      { id: 'regions',    label: 'Zones',      tile: 0x120, values: ['127'] },         // the encampment, the maintainer's pick, 9 September 2026
       { id: 'skills',     label: 'Skills',     tile: 0x3DB, values: ['SKILLS'] },   // a distiller (prop 234), the maintainer's pick on 8 September
       { id: 'spells',     label: 'Spells',     tile: 0x888, values: ['SPELLS'] },   // a staff (prop 343), the maintainer's pick
       // Mechanics is not a table: the rules the code implies, read out of
       // the scripts on the spot (renderMechanicsSheet). The dice game and
       // the talk balloons so far; damage, resistance and skills not yet.
-      { id: 'mechanics',  label: 'Rules',      tile: 0x82F, values: ['MECHANICS'] } ] },   // dice; the label was Mechanics until 9 September 2026
+      { id: 'mechanics',  label: 'Mechanics',  tile: 0x82F, values: ['MECHANICS'] } ] },   // dice
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
       { id: 'text', label: 'Text', tile: 0x3AE, children: [                                   // the tombstone, second frame
           { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['1', 'STRINGS'] },                     // a poster; the forks' string lists beside the archive's
-          { id: 'dialogue', label: 'Dialogue', tile: 0x4E2, values: ['23', '7', '11', '12', '13', '15'] },  // the bearded bust: a head that speaks
+          { id: 'dialogue', label: 'Dialogue', tile: 0x389, values: ['23', '7', '11', '12', '13', '15'] },  // the fountain, which talks; the maintainer's pick, 9 September 2026
           { id: 'writings', label: 'Writings', tile: 0x263, values: ['26', '27', '29'] },                         // the scroll
           // The faces the text is set in: Argos A Nouveau and the Seldane
           // script, out of the resource fork, and the styles that assign them.
-          { id: 'fonts',    label: 'Fonts',    tile: 0x260, values: ['FONTS'] },                              // a scroll with writing on it (prop 134, paper)
+          { id: 'fonts',    label: 'Fonts',    tile: 0x180, values: ['FONTS'] },                              // the maintainer's pick, 9 September 2026
           // The short lines a character says over their head, read out of
           // every script that sets one (buildBarkCatalogue).
           { id: 'barks',    label: 'Barks',    tile: 0x185, values: ['BARKS'] } ] },                          // the maintainer's pick, 8 September; it was the bell (0x488)
@@ -13561,11 +13565,11 @@ const TAB_TREE = [
           { id: 'music', label: 'Music', tile: 0x2BD, values: ['143'] },                                // a lute
           { id: 'sfx',   label: 'SFX',   tile: 0x1B2, values: ['144', 'APPSND'] } ] },                  // the explosion, sheet 0x8E1B; the application's own sounds beside the archive's
       { id: 'functions', label: 'Functions', tile: 0x3CB, children: [                         // a lever: pull it and something happens (prop 187)
-          { id: 'actors',  label: 'Actors',  tile: 0x82D, values: ['47', '24', '3', '8'] },                  // the fighter mid-swing: something that acts (prop 116)
+          { id: 'actors',  label: 'Actions', tile: 0x572, values: ['47', '24', '3', '8', '25'] },   // the skill and spell classes (25) are here too, so a link to one has a tab                  // the fighter mid-swing: something that acts (prop 116)
           { id: 'objects', label: 'Objects', tile: 0x28B, values: ['16'] },                             // a key: a thing that is used (prop 66)
           { id: 'places',  label: 'Places',  tile: 0x4A0, values: ['19', '20'] },                 // a signpost
           { id: 'effects', label: 'Effects', tile: 0x183, values: ['9'] },                              // the distiller's flasks: eating and potion effects (prop 233)
-          { id: 'shared',  label: 'Shared',  tile: 0x332, values: ['0', '14', '2', '10'] } ] } ] },// a bookshelf: the common library
+          { id: 'shared',  label: 'Shared',  tile: 0x3B8, values: ['0', '14', '2', '10'] } ] } ] },// the well, the maintainer's pick, 9 September 2026
   // Data opens on Cythera Data (`last`), whatever comes first in the row:
   // the installer is first because it is where the rest came from, not the
   // thing most visits are for.
@@ -13578,11 +13582,6 @@ const TAB_TREE = [
           { id: 'datafork', label: 'Data Fork',     tile: 0x237, values: ['DATAFORK', '128', '239', '4'] },
           { id: 'rsrcfork', label: 'Resource Fork', tile: 0x238, values: ['MACRSRC'] },
           { id: 'changes',  label: 'Changes',       tile: 0x2EE, values: ['CHANGES'] } ] },   // blacksmith's hammer
-      // A saved game is its own file, like the two below it. The tile is a
-      // sheet of paper by 0xF004's name table -- chosen from the names
-      // rather than by looking at a sheet of candidates, which is how every
-      // other icon here was picked, so it is the one to check on a screen.
-      { id: 'savegame', label: 'Saved Game', tile: 0x263, values: ['SAVEGAME'] },
       { id: 'cythera', label: 'Cythera (App)', tile: 0x231, children: [                       // the lit torch
           { id: 'apppef',  label: 'Data Fork',     tile: 0x237, wip: true, values: ['APPPEF'] },
           { id: 'apprsrc', label: 'Resource Fork', tile: 0x238, values: ['APPRSRC'] },
@@ -13592,8 +13591,13 @@ const TAB_TREE = [
           // about, read out of its own key routine.
           { id: 'cheats', label: 'Cheats', tile: 0x236, values: ['CHEATS'] },
           { id: 'interface', label: 'Interface', tile: 0x770, values: ['UIMENUS', 'UIDIALOGS', 'UICURSORS', 'UIICONS'] } ] },   // the strange device (prop 262): a thing to operate
-      { id: 'combatai', label: 'Combat AI', tile: 0x181, wip: true, children: [               // the maintainer's pick, 9 September 2026
-          { id: 'aiscripts', label: 'Scripts', tile: 0x220, wip: true, values: ['AISCRIPTS'] },  // a scroll
+      // A saved game is its own file, like the application beside it. The tile is a
+      // sheet of paper by 0xF004's name table -- chosen from the names
+      // rather than by looking at a sheet of candidates, which is how every
+      // other icon here was picked, so it is the one to check on a screen.
+      { id: 'savegame', label: 'Saved Game', tile: 0x263, values: ['SAVEGAME'] },
+      { id: 'combatai', label: 'Combat AI', tile: 0x2D1, wip: true, children: [               // the rolling pin
+          { id: 'aiscripts', label: 'Scripts', tile: 0x0D5, wip: true, values: ['AISCRIPTS'] },  // the quartered floor, the grid; the maintainer's pick, 9 September 2026
           { id: 'airules',   label: 'Rules',   tile: 0x811, wip: true, values: ['AIRULES'] } ] } ] },  // the hay target
   // Not part of the archive: the page's own switches and its sister pages.
   { id: 'tools', label: 'Tools', tile: 0x2E0, values: ['TOOLS'] }                        // the anvil
@@ -14488,6 +14492,15 @@ function renderInstallerSheet() {
     (inst.container && inst.container.name && inst.container.name !== inst.sourceName
       ? '<span class="amNote">from ' + svEsc(inst.sourceName) + '</span>' : '');
   grid.appendChild(head);
+  {
+    const v = installerVersion();
+    const line = document.createElement('div');
+    line.className = 'amNote';
+    line.style.cssText = 'grid-column:1/-1;text-align:left;margin:0 0 6px';
+    line.textContent = (v ? 'Cythera ' + v + ' is the release this page reads. ' : '') +
+      (inst.installers && inst.installers.length > 1 ? 'The file also holds ' + inst.installers.filter(it => it.name !== inst.picked).map(it => it.name.replace(/ Installer$/, '')).join(', ') + '; pick one below to read it instead.' : 'It is the only release in this file.');
+    grid.appendChild(line);
+  }
   if (inst.installers && inst.installers.length > 1) {
     const row = document.createElement('div');
     row.className = 'sv-chips installerVersions';
@@ -15102,7 +15115,7 @@ function renderSkillsSheet() {
         if (x.askedBy.length) rows.push(['Asked about by', x.askedBy.map(r => svChip(r)).join(' ')]);
         if (x.weapons.length) rows.push(['Swung with it', x.weapons.map(w => propChip(w.pt, w.name)).join(' ')]);
         const rule = SKILL_RULES[x.name];
-        rows.push(['The rule', (rule ? mechLink(rule, 'Rules › ' + rule) + ' ' : '') + mechLink('training', 'Rules › training')]);
+        rows.push(['The rule', (rule ? mechLink(rule, 'Mechanics › ' + rule) + ' ' : '') + mechLink('training', 'Mechanics › training')]);
       }
       if (rows.length) {
         const d = document.createElement('div'); d.className = 'mechBody';
@@ -15141,7 +15154,7 @@ function renderSpellsSheet() {
   const box = document.createElement('div');
   box.className = 'mechView';
   const intro = document.createElement('p'); intro.className = 'mechLede';
-  intro.innerHTML = spells.length + ' spells, each cast through one helper with a level and a cost in magic points. A cast costs 10 plus twice the level in time and fails when two rolls of 0 to the caster’s Casting fall short of a roll of 0 to the level ' + mechLink('spells', 'Rules › spells') + '.';
+  intro.innerHTML = spells.length + ' spells, each cast through one helper with a level and a cost in magic points. A cast costs 10 plus twice the level in time and fails when two rolls of 0 to the caster’s Casting fall short of a roll of 0 to the level ' + mechLink('spells', 'Mechanics › spells') + '.';
   box.appendChild(intro);
   let level = null, count = 0;
   for (const x of shown) {
@@ -15197,7 +15210,7 @@ function renderBarksSheet() {
   const distinct = new Set(barks.flatMap(b => b.words.concat(b.then || []))).size;
   out.textContent = barks.length
     ? barks.length + ' places in the scripts put a line over a character’s head, ' + distinct + ' distinct lines' +
-      (q ? '; ' + shown.length + ' shown' : '') + '. How the balloon works is under Game › Rules.'
+      (q ? '; ' + shown.length + ' shown' : '') + '. How the balloon works is under Scenario › Mechanics.'
     : 'No script in this archive sets a talk balloon.';
 }
 
@@ -16481,7 +16494,7 @@ function renderMechanicsSheet() {
     if (html) { const d = document.createElement('div'); d.className = 'mechBody'; d.innerHTML = html; sec.appendChild(d); }
     if (chips) { const d = document.createElement('div'); d.className = 'partsStrip'; d.innerHTML = chips; sec.appendChild(d); }
     box.appendChild(sec);
-    sections.push({ id, title });
+    sections.push({ id, title, el: sec });
   };
   const src = (label, resid) => refExists(resid) ? partChip(label, resid) : '';
   const chipOf = i => loadCharacterTable()[i] ? characterChip(i) : '';
@@ -16489,7 +16502,7 @@ function renderMechanicsSheet() {
 
   // ---- the dice game ----
   const dice = diceGame();
-  add('dice', 'The dice game', { tile: 0x82F }, src('the game', 0x812),
+  add('dice', 'The dice game', null, src('the game', 0x812),
     dice ? 'Played at the inns: three dice, the innkeeper’s two black and your one white, each showing one to six.'
          : 'The inn’s dialogue script (0x812) is not in this archive, or does not carry the game.',
     dice ? [
@@ -16518,7 +16531,7 @@ function renderMechanicsSheet() {
 
   // ---- combat ----
   const cb = combatRules();
-  add('combat', 'Combat', { icon: 98 }, src('a blow', 0xE88) + src('a missile', 0xE89) + src('the outcome', 0xE87),
+  add('combat', 'Combat', null, src('a blow', 0xE88) + src('a missile', 0xE89) + src('the outcome', 0xE87),
     cb ? 'Three routines: one makes the attacker’s margin for a blow, one for a missile, and one turns the margin into a parry, a miss or a hit.'
        : 'The combat routines (0xE87–0xE89) are not in this archive.',
     cb ? [
@@ -16536,7 +16549,7 @@ function renderMechanicsSheet() {
   const gear = gearTable();
   const kind = r => r.melee ? 0 : r.thrown ? 1 : r.ranged ? 2 : r.ammo ? 3 : r.armour ? 4 : 5;
   gear.sort((a, b) => kind(a) - kind(b) || ((b.damage || 0) - (a.damage || 0)) || ((b.protection || b.block || 0) - (a.protection || a.block || 0)) || a.name.localeCompare(b.name));
-  add('gear', 'Weapons and armour', { icon: 107 }, src('the classes', 0x1000),
+  add('gear', 'Weapons and armour', null, src('the classes', 0x1000),
     gear.length ? gear.length + ' item classes carry combat parameters.' : 'No item class in this archive carries combat parameters.',
     gear.length ? [
       '<b>Damage</b> is the most a blow can do before the skill is added; the resolver rolls 0 to it.',
@@ -16558,7 +16571,7 @@ function renderMechanicsSheet() {
   const pwBuild = gear.find(r => r.melee) || gear[0] || null;
   const pwEx = pw.examines.length ? pw.examines[0] : null;
   const pwByByte = k => ({ r: pw.readers.filter(x => x.ops.includes('get ' + k)), w: pw.readers.filter(x => x.ops.includes('set ' + k)) });
-  add('propword', 'Prop records: type, aspect, Data1 and Data2', { tile: 0x208 }, src('the outcome', 0xE87) + (pwEx ? src('Examine', 0x1000 + pwEx.pt) : ''),
+  add('propword', 'Prop records: type, aspect, Data1 and Data2', null, src('the outcome', 0xE87) + (pwEx ? src('Examine', 0x1000 + pwEx.pt) : ''),
     'A prop record names what it is with one 16-bit word, and carries two bytes beside it that each class script reads for its own purpose.',
     [
       'The word is <b>the prop type in the low ten bits and an aspect in the five above</b>, so a step of aspect is worth 1,024 and a step of type 1. The create-a-prop cheat asks for this word, then Data1 in decimal, then Data2 in hex.' +
@@ -16593,7 +16606,7 @@ function renderMechanicsSheet() {
   };
   const fireball = sp.spells.find(x => /^Fireball$/.test(x.name));
   const fbFx = fireball && fxMap.get(fireball.resid);
-  add('spells', 'Spells', { tile: 0x888 }, src('the casting', 0xEA1) + src('a hit', 0xEB8),
+  add('spells', 'Spells', null, src('the casting', 0xEA1) + src('a hit', 0xEB8),
     sp.spells.length ? sp.spells.length + ' spells, each cast through one helper with a level and a cost in magic points, read off the spell’s own call; what each does to health is read off its own script.' : 'No spell in this archive casts through the helper.',
     sp.spells.length ? [
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
@@ -16645,11 +16658,14 @@ function renderMechanicsSheet() {
 
   // ---- food and potions ----
   const fd = foodRules();
-  add('food', 'Food and potions', { tile: 0x3DA }, src('the potion', 0x101F),
-    fd.potions.length || fd.foods.length ? 'A potion’s colour is its aspect, and the aspect picks one of eight effect scripts; a food adds to nutrition when used.' : 'No potion class or food in this archive.',
+  add('potions', 'Potions', null, src('the potion', 0x101F),
+    fd.potions.length ? 'A potion’s colour is its aspect, and the aspect picks one of eight effect scripts.' : 'No potion class in this archive.',
     [],
-    (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + svEsc(p.does.join('; ') || '') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : '') +
-    (fd.foods.length ? '<div class="mechSub">Foods</div>' + table(['food', 'variant', '#nutrition'], fd.foods.flatMap(f => f.variants
+    (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + svEsc(p.does.join('; ') || '') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : ''), '');
+  add('food', 'Food', null, '',
+    fd.foods.length ? 'A food adds to nutrition when used; the general foodstuff class reads an amount per variant.' : 'No food in this archive.',
+    [],
+    (fd.foods.length ? table(['food', 'variant', '#nutrition'], fd.foods.flatMap(f => f.variants
       ? f.variants.map(v => '<tr><td>' + propChip(f.pt, f.name) + '</td><td>' + svEsc(v.name || ('variant ' + v.aspect)) + '</td>' + num('+' + v.plus) + '</tr>')
       : ['<tr><td>' + propChip(f.pt, f.name) + '</td><td></td>' + num(f.plus !== null ? '+' + f.plus : 'an amount the script works out') + '</tr>'])) : '') +
     mechFoodFigure(fd), '');
@@ -16667,7 +16683,7 @@ function renderMechanicsSheet() {
   // The rate is the executable's, not the file's: TGameViewer::DoTicks.
   // The scripts' side is read here.
   const hg = hungerNotes();
-  add('hunger', 'Hunger and healing', { icon: 69 }, '',
+  add('hunger', 'Hunger and healing', null, '',
     'Nutrition is a byte on the character, 0 to 100. No script lowers it: the executable’s tick routine takes <b>one off every game hour</b>, and the same routine heals a fed character.',
     [
       'Every hour of the clock, nutrition falls by 1 for every character on the map; the fall is not in the file, only the reads of it.',
@@ -16681,7 +16697,7 @@ function renderMechanicsSheet() {
 
   // ---- locks ----
   const lk = lockRules();
-  add('locks', 'Locks and lockpicks', { tile: 0x233 }, src('a key or a pick', 0xE43) + src('the lockpick', 0x1109),
+  add('locks', 'Locks and lockpicks', null, src('a key or a pick', 0xE43) + src('the lockpick', 0x1109),
     lk.rule ? 'One helper tries a key or a pick against a lock.' : 'The lock helper (0xE43) is not in this archive.',
     lk.rule ? [
       lk.rule.keyFits ? 'A key fits when the lock’s number matches the key’s.' : '',
@@ -16693,7 +16709,7 @@ function renderMechanicsSheet() {
 
   // ---- shops ----
   const sh = shopRules();
-  add('shops', 'Shops', { icon: 130 }, src('the counter', 0xEA5),
+  add('shops', 'Shops', null, src('the counter', 0xEA5),
     sh.shops.length ? sh.shops.length + ' shops, each one call of the same helper with what the vendor lists and at what price.' : 'No script in this archive opens a shop.',
     sh.shops.length ? ['The helper bargains from the listed price with four figures of the vendor’s, shown as stored.', sh.haggling ? 'The <b>Haggling</b> skill takes a further roll of 0 to 5 off the vendor’s figure.' : ''].filter(Boolean) : [],
     mechShopFigure(sh) +
@@ -16725,7 +16741,7 @@ function renderMechanicsSheet() {
 
   // ---- sleep ----
   const sl = sleepRules();
-  add('sleep', 'Sleeping', { tile: 0x100E }, src('the bed', 0x100E) + src('the night', 0xE93),
+  add('sleep', 'Sleeping', null, src('the bed', 0x100E) + src('the night', 0xE93),
     sl ? 'A bed picks a quality for the sleep and hands the hours to one helper, which passes the night and multiplies what the engine healed during it.' : 'The bed class (0x100E) or the sleep helper (0xE93) is not in this archive.',
     sl ? [
       sl.own !== null ? 'Your own bed in Land King Hall has quality <b>' + sl.own + '</b>; an inn’s bed takes its innkeeper’s figure from a table in the global store (0x301), at the slot the innkeeper’s dialogue wrote when the room was paid for, and a bed nobody paid for is refused.' : '',
@@ -16749,6 +16765,24 @@ function renderMechanicsSheet() {
       'Lighting is recomputed every quarter hour, and the schedules every hour.'
     ], mechClockFigure(sp), '<span class="partsTitle">In the executable</span>' + pefChip('TGameViewer::DoTicks'));
 
+  // ---- the combat AI ----
+  {
+    const app = window.APP_RSRC;
+    const lists = [[9304, 'Tests'], [9305, 'Actions'], [9303, 'Modifiers'], [9307, 'Scenario tests'], [9308, 'Scenario actions'], [9320, 'Health states'], [502, 'Strategies']];
+    const rows = [];
+    if (app) for (const [id, what] of lists) { const l = forkStringList(app, id); if (l && l.length) rows.push('<tr><td>' + svEsc(what) + '</td><td>' + l.map(svEsc).join(', ') + '</td></tr>'); }
+    const tests = buildScriptTextIndex().filter(e => e.resid >= 0x901 && e.resid < 0x981).length, acts = buildScriptTextIndex().filter(e => e.resid >= 0x981 && e.resid < 0xA00).length;
+    add('combatai', 'Combat AI', null, '',
+      'A monster fights by a script written in a vocabulary the application carries as string lists: tests about the field, actions to take, and the strategies that pick between them. The scenario adds tests and actions of its own.',
+      [
+        (tests || acts) ? 'This archive adds <b>' + tests + ' tests</b> and <b>' + acts + ' actions</b> in 0x09xx, named one for one by the application’s lists.' : '',
+        'The scripts themselves ship beside the game as .ai text files, and the rules they are written against as the AI Scripting Document; both are under Data › Combat AI when the installer is open.'
+      ].filter(Boolean),
+      rows.length ? table(['list', 'words'], rows) : '<div class="sv-note">' + (app ? 'None of the lists is in this fork.' : 'Open the game from its installer, under Settings, and the vocabulary is read out of the application.') + '</div>',
+      '<span class="partsTitle">In the file</span>' + svLink('Data › Combat AI', "showCategory('AIRULES')"));
+  }
+  // The sections in alphabetical order, whatever order they were read in.
+  for (const sn of sections.slice().sort((a, b) => a.title.localeCompare(b.title))) box.appendChild(sn.el);
   // Open all and Close all, and nothing else over the sections: the
   // contents strip went on 9 September 2026.
   const all = document.createElement('div');
@@ -17064,7 +17098,7 @@ function characterChip(i) {
   } catch (e) { icon = ''; }
   if (!icon) { const leaf = TAB_BY_ID.get('characters'); icon = leaf ? relIconURL({ tile: leaf.tile }) : ''; }
   return relChip({ js: 'openCharacter(' + i + ')', main: characterName(i), sub: 'character ' + i, icon, face,
-                   title: 'Game › Characters' });
+                   title: 'Scenario › Characters' });
 }
 
 // What a person says over their head, from the bark catalogue: their own
@@ -19863,20 +19897,31 @@ function ditherFrameMask(resid, inset) {
   if (resid === 0x887E) {
     for (let y = inset; y < H - inset; y++) for (let x = inset; x < W - inset; x++) hole[y * W + x] = 1;
   } else {
-    // outside = index 0 reachable from the border; hole = the other index 0
-    const outside = new Uint8Array(W * H);
+    // The hole is the largest run of one colour that does not touch the
+    // border: index 0 in 0x88A2, but 0x88F2 fills its window with index 17,
+    // and looking for 0 there found nothing (the maintainer, 9 September
+    // 2026). Every uniform region is flooded once; the biggest inner one wins.
+    const comp = new Int32Array(W * H).fill(-1);
+    let best = -1, bestN = 0, id = 0;
     const stack = [];
-    for (let x = 0; x < W; x++) { stack.push(x); stack.push((H - 1) * W + x); }
-    for (let y = 0; y < H; y++) { stack.push(y * W); stack.push(y * W + W - 1); }
-    while (stack.length) {
-      const i = stack.pop();
-      if (outside[i] || img[i] !== 0) continue;
-      outside[i] = 1;
-      const x = i % W, y = (i - x) / W;
-      if (x > 0) stack.push(i - 1); if (x < W - 1) stack.push(i + 1);
-      if (y > 0) stack.push(i - W); if (y < H - 1) stack.push(i + W);
+    for (let s0 = 0; s0 < W * H; s0++) {
+      if (comp[s0] >= 0) continue;
+      const c = img[s0]; let n = 0, edge = false;
+      stack.push(s0); comp[s0] = id;
+      while (stack.length) {
+        const i = stack.pop(); n++;
+        const x = i % W, y = (i - x) / W;
+        if (x === 0 || y === 0 || x === W - 1 || y === H - 1) edge = true;
+        for (const j of [i - 1, i + 1, i - W, i + W]) {
+          if (j < 0 || j >= W * H || comp[j] >= 0 || img[j] !== c) continue;
+          if ((j === i - 1 && x === 0) || (j === i + 1 && x === W - 1)) continue;
+          comp[j] = id; stack.push(j);
+        }
+      }
+      if (!edge && n > bestN && n >= 64) { best = id; bestN = n; }
+      id++;
     }
-    for (let i = 0; i < W * H; i++) if (img[i] === 0 && !outside[i]) hole[i] = 1;
+    if (best >= 0) for (let i = 0; i < W * H; i++) if (comp[i] === best) hole[i] = 1;
   }
   let x0 = W, y0 = H, x1 = -1, y1 = -1;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (hole[y * W + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
@@ -19884,12 +19929,14 @@ function ditherFrameMask(resid, inset) {
 }
 // The colours the five Seldane portraits are made of, and nothing else.
 let _seldanePalette = null;
-function seldanePalette() {
-  if (_seldanePalette) return _seldanePalette;
-  const set = new Set();
-  for (let r = 0x8877; r <= 0x887B; r++) { try { const d = decodeResource(getResourceBytes(r), 135, r); for (const v of d.image) if (v) set.add(v); } catch (e) {} }
-  return (_seldanePalette = [...set].sort((a, b) => a - b));
-}
+/* The Seldane are the blue-green people, so their colours are the palette's
+   greens, cyans and blues, hard-coded (the maintainer, 9 September 2026):
+   reading them off the five portraits brought every brown and grey of
+   the frames and backgrounds with them, ninety indices, and the result
+   was not Seldane at all. The green ramp 104–111 and the blue ramp
+   114–127, with the two cyans and the bright greens the portraits use. */
+const SELDANE_PALETTE = [2, 3, 10, 11, 99, 104, 105, 106, 107, 108, 109, 110, 111, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 248, 249];
+function seldanePalette() { return SELDANE_PALETTE.slice(); }
 function ditherDownloadGIF() {
   const d = window.DITHER_RESULT;
   if (!d) return;
