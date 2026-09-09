@@ -443,6 +443,8 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    taking a row of its own above the tabs. The row was most of the empty space
    at the top of the page, and the two are the same kind of thing: the page's
    own controls, out of the way of the thing you came to look at. */
+#editNotice { text-align:center; color:#fff; font-size:0.8125rem; margin:0 0 10px; padding:6px 10px;
+  background:rgba(20,18,14,.7); border:1px solid var(--edge); border-radius:8px; }
 #brandWrap { flex:1 1 auto; display:flex; align-items:baseline; justify-content:center; gap:14px; min-width:0; }
 /* Credits sits beside the name, a gold word the size of it: the one link
    the maintainer wants seen (9 September 2026). */
@@ -1310,6 +1312,7 @@ body.atlasFull { overflow:hidden; }
   </div>
   <button id="searchLink" class="secondary" onclick="toggleSearch()" title="Search the scripts">Search</button>
 </div>
+<div id="editNotice" style="display:none" role="status"></div>
 <input type="file" id="fileInput" accept="*/*" onchange="loadArchive()" style="display:none">
 <div id="archiveMenu" role="dialog" aria-label="Settings">
   <div id="sourceStatus" role="status" aria-live="polite">Looking for the Cythera Data archive…</div>
@@ -1530,6 +1533,7 @@ body.atlasFull { overflow:hidden; }
   <div id="mapInspect" style="display:none"></div>
   <div id="mapSaveRow" style="margin-top:8px;">
     <button class="secondary" onclick="downloadMapPNG()">Save Map as PNG</button>
+    <button class="secondary" onclick="showZoneOnWorld()">Show on the world</button>
   </div>
   <div id="charControls">
     <div class="mapToggleGroup">
@@ -4143,7 +4147,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.36.0';
+const GRIMOIRE_VERSION = '1.37.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -6011,7 +6015,9 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     document.getElementById('searchWrap').style.display = 'none';
     document.getElementById('searchPresets').innerHTML =
       Object.keys(SEARCH_PRESETS).map(k =>
-        '<button class="sv-chip" onclick="searchPreset(\'' + k + '\')">' + k + '</button>').join('');
+        '<button class="sv-chip" onclick="searchPreset(\'' + k + '\')">' + k + '</button>').join('') +
+      '<span class="partsTitle" style="flex-basis:100%;margin-top:6px">Or ask</span>' +
+      ASK_EXAMPLES.map(q => '<button class="sv-chip" onclick="searchPreset(\'' + q.replace(/'/g, '\\\'') + '\')">' + svEsc(q) + '</button>').join('');
     document.getElementById('searchResults').innerHTML = '';
     document.getElementById('searchBox').value = '';
     const ss = document.getElementById('sourceStatus');
@@ -12186,6 +12192,38 @@ function atlasOpenSquare(resid, tx, ty) {
     } catch (e) {}
   }, 0);
 }
+/* From a zone's page to the World tab, on that zone: a place on the surface
+   is centred at the zoom its roofs come off at; a place below ground is
+   entered through the mouth that leads to it; the world itself is fitted. */
+function showZoneOnWorld() {
+  const resid = currentResid;
+  if (!resid) return;
+  if (!showCategory('WORLD')) return;
+  const go = tries => {
+    const vp = document.getElementById('atlasViewport');
+    if (!vp || vp.clientWidth < 40) { if (tries > 0) setTimeout(() => go(tries - 1), 60); return; }
+    window.ATLAS_BELOW = [];
+    const sc = atlasScene();
+    if (!sc) return;
+    const vw = vp.clientWidth, vh = vp.clientHeight;
+    const node = sc.nodes.find(n => n.resid === resid);
+    if (node && !node.depth) { atlasFit(); }
+    else if (node) {
+      const z = Math.min(atlasMaxZ(), Math.max(600, Math.min(vw, vh) * 0.95) / (node.w * node.s));
+      atlasView.Z = z;
+      atlasView.x = vw / 2 - (node.ox + node.w * node.s / 2) * z;
+      atlasView.y = vh / 2 - (node.oy + node.h * node.s / 2) * z;
+    } else {
+      for (const n of sc.nodes) {
+        const m = atlasMouths(n).find(x => x.dest && x.dest.resid === resid);
+        if (m) { atlasDescend(m, n); return; }
+      }
+      atlasFit();
+    }
+    atlasSyncZoomLabel(); renderAtlasBar(); paintAtlas();
+  };
+  go(20);
+}
 function atlasZoomIntoTown(node) {
   const vp = document.getElementById('atlasViewport');
   if (!vp || vp.clientWidth < 40) return;
@@ -13086,6 +13124,9 @@ const ASK_SHAPES = [
   { id: 'where',   re: /^where (?:is|are|can i find)\s+(?:the\s+|an?\s+)?(.+?)\??$/i, what: 'where a thing or a person is' },
   { id: 'who',     re: /^who (?:is|was)\s+(?:the\s+)?(.+?)\??$/i, what: 'who somebody is' }
 ];
+// One example a shape, shown under the search box so the shapes can be found.
+const ASK_EXAMPLES = ['who teaches axe', 'who sells bread', 'how much is a sword', 'what does Fireball do',
+  'what cures poison', 'who says Welcome', 'what is a ghost immune to', 'where is Alaric', 'who is Omen'];
 function askNorm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
 function askRow(k, v) { return '<tr><td class="skillKey">' + k + '</td><td>' + v + '</td></tr>'; }
 function askCard(title, note, rows, chips) {
@@ -18014,7 +18055,21 @@ function applyResourceEdit(resid, newData) {
     (newData.length ? ' edited' : ' removed') + ', ' + dirty.size +
     ' resource(s) changed this session. Edits live in memory only: ' +
     'Data › Cythera Data › Changes is where they leave the page.');
+  showEditNotice(resid, newData.length ? 'edited' : 'removed', dirty.size);
   return true;
+}
+/* The status line lives in the Settings panel, so an edit made from a page
+   said where it went to nobody. This line under the top row says it on the
+   page, with the Changes tab a link, and goes away on its own. */
+let _editNoticeTimer = null;
+function showEditNotice(resid, what, count) {
+  const el = document.getElementById('editNotice');
+  if (!el) return;
+  el.innerHTML = '0x' + resid.toString(16).toUpperCase() + ' ' + what + ' in memory, ' + count + ' resource' + (count === 1 ? '' : 's') +
+    ' changed this session. ' + svLink('Changes', "showCategory('CHANGES')", 'is where an edit leaves the page');
+  el.style.display = '';
+  if (_editNoticeTimer) clearTimeout(_editNoticeTimer);
+  _editNoticeTimer = setTimeout(() => { el.style.display = 'none'; }, 15000);
 }
 
 function downloadEditedArchive() {
@@ -19734,10 +19789,12 @@ function receiveFromCanvas() {
     openDitherTool();
     _ditherSrc = img;
     const mode = document.getElementById('dtMode'), tgt = document.getElementById('dtTarget');
-    if (mode) mode.value = String(back.subn) === '135' ? 'portrait' : 'free';
+    const kinds = { 135: 'portrait', 131: 'landscape', 137: 'icon', 141: 'sheet', 142: 'free' };
+    if (mode) mode.value = kinds[String(back.subn)] || 'free';
+    ditherFillTargets();
     if (tgt && back.resid && [...tgt.options].some(o => +o.value === +back.resid)) tgt.value = String(back.resid);
     renderDither();
-    setStatus('Back from ColorCycleCanvas: ' + (back.name || '') + (String(back.subn) === '135' ? '. Replace writes it into its portrait.' : '. Only a portrait can be written back.'));
+    setStatus('Back from ColorCycleCanvas: ' + (back.name || '') + '. Replace writes it into its resource.');
   };
   img.src = back.png;
 }
@@ -19763,7 +19820,10 @@ function openDitherTool() {
       '<option value="frame:887E">64×64 in the frame of 0x887E, its middle cleared</option>' +
       '<option value="frame:88A2">64×64 in the frame of 0x88A2</option>' +
       '<option value="frame:88F2">64×64 in the frame of 0x88F2</option>' +
-      '<option value="free">original size (up to 512px)</option></select></label>' +
+      '<option value="landscape">288×32 landscape strip (cover crop)</option>' +
+      '<option value="icon">32×16 icon (cover crop)</option>' +
+      '<option value="sheet">128×128 tile sheet, sixteen tiles (cover crop)</option>' +
+      '<option value="free">original size (up to 512px), a sized graphic</option></select></label>' +
     '<label>Checker <input type="range" id="dtChecker" min="0" max="100" value="60"></label>' +
     '<label><input type="checkbox" id="dtAnim"> allow animated ramps</label></div>' +
     '<div class="dtRow"><label id="dtInsetWrap">Frame inset <input type="range" id="dtInset" min="2" max="24" value="6"></label>' +
@@ -19773,17 +19833,15 @@ function openDitherTool() {
     '<div class="dtRow">' +
     '<button class="secondary" onclick="ditherDownloadPNG()">Download indexed PNG</button>' +
     '<button class="secondary" onclick="ditherDownloadGIF()">Download GIF</button>' +
-    '<label>into <select id="dtTarget">' +
-      portraits.map(r => '<option value="' + r + '">0x' + r.toString(16).toUpperCase() +
-        (labelFor(r) ? ', ' + svEsc(labelFor(r)) : '') + '</option>').join('') +
-    '</select></label>' +
-    '<button class="secondary" onclick="ditherReplacePortrait()">Replace portrait in archive</button>' +
+    '<label>into <select id="dtTarget"></select></label>' +
+    '<button class="secondary" onclick="ditherReplace()">Replace in archive</button>' +
     '</div>' +
-    '<div class="inspDim">Portrait mode writes a real 64×64 resource: transparent pixels stay ' +
-    'the cut-out slot, animated palette ramps are avoided so nothing shimmers, and Replace rebuilds ' +
-    'the archive in memory; the Changes tab is where it leaves the page.</div>' +
+    '<div class="inspDim">Each mode writes a real resource of its kind: a portrait, a landscape strip, an icon, a ' +
+    'sixteen-tile sheet or a sized graphic. Transparent pixels stay the cut-out slot, animated palette ramps are ' +
+    'avoided so nothing shimmers, and Replace rebuilds the archive in memory; the Changes tab is where it leaves the page.</div>' +
     '</div>';
   document.body.appendChild(ov);
+  ditherFillTargets();
   document.getElementById('dtFile').onchange = (e) => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
@@ -19791,7 +19849,7 @@ function openDitherTool() {
     img.onload = () => { _ditherSrc = img; renderDither(); };
     img.src = URL.createObjectURL(f);
   };
-  document.getElementById('dtMode').onchange = renderDither;
+  document.getElementById('dtMode').onchange = () => { ditherFillTargets(); renderDither(); };
   document.getElementById('dtChecker').oninput = renderDither;
   document.getElementById('dtAnim').onchange = renderDither;
   document.getElementById('dtInset').oninput = renderDither;
@@ -19847,11 +19905,68 @@ function ditherDownloadGIF() {
   downloadGIF(d.W, d.H, frames, 140, 'cythera_dithered.gif');
 }
 
+/* Which resources a mode can write into. The kinds and their pages:
+   portrait 135 (0x88xx, 64×64 DCG), landscape 131 (0x84xx, 288×32 DCG),
+   icon 137 (0x8Axx, 32×16 raw indices), sheet 141 (0x8Exx, 32×512 DCG,
+   sixteen tiles in a column), and a sized graphic 142 (0x8Fxx, a four-byte
+   header then DCG at the padded size). Every page's resources are offered,
+   named where the file names them. */
+const DITHER_KINDS = { portrait: 135, landscape: 131, icon: 137, sheet: 141, free: 142 };
+function ditherKind() {
+  const mode = (document.getElementById('dtMode') || {}).value || 'portrait';
+  return /^frame:/.test(mode) ? 'portrait' : mode;
+}
+function ditherFillTargets() {
+  const sel = document.getElementById('dtTarget');
+  if (!sel) return;
+  const subn = DITHER_KINDS[ditherKind()] || 135;
+  const page = (subn + 1) << 8;   // 135 -> 0x8800, 131 -> 0x8400, 137 -> 0x8A00, 141 -> 0x8E00, 142 -> 0x8F00
+  const keep = sel.value;
+  const opts = [];
+  for (let n = 0; n < 256; n++) {
+    const rid = page + n;
+    try { if (!getResourceBytes(rid)) continue; } catch (e) { continue; }
+    opts.push('<option value="' + rid + '">0x' + rid.toString(16).toUpperCase() + (labelFor(rid) ? ', ' + svEsc(labelFor(rid)) : '') + '</option>');
+  }
+  sel.innerHTML = opts.join('');
+  if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+}
+/* The bytes a kind's resource holds, from the indexed picture. The sized
+   header is the decoder's read backwards: fourteen bits of width over four,
+   two of the remainder, fifteen of height over two, one of its remainder,
+   most significant first, and the DCG buffer is the width rounded up to
+   four. A sheet goes back from the 128×128 grid the page shows to the
+   32×512 column the file keeps (reshapeTileSheetGrid's inverse). */
+function encodeGraphicResource(kind, W, H, indexed) {
+  if (kind === 'icon') return indexed.slice(0, 32 * 16);
+  if (kind === 'sheet') {
+    const col = new Uint8Array(32 * 512);
+    for (let t = 0; t < 16; t++) {
+      const gx = (t % 4) * 32, gy = Math.floor(t / 4) * 32;
+      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) col[(t * 32 + y) * 32 + x] = indexed[(gy + y) * 128 + (gx + x)];
+    }
+    return encodeDCGLiterals(col);
+  }
+  if (kind === 'free') {
+    const flags = W & 3, wStored = (W - flags) >> 2, flags2 = H & 1, hStored = (H - flags2) >> 1;
+    const logW = wStored * 4 + (flags ? 4 : 0), logH = H;
+    const v = ((wStored << 18) | (flags << 16) | (hStored << 1) | flags2) >>> 0;
+    const head = new Uint8Array([v >>> 24, (v >>> 16) & 255, (v >>> 8) & 255, v & 255]);
+    const buf = new Uint8Array(logW * logH);
+    for (let y = 0; y < H; y++) buf.set(indexed.subarray(y * W, y * W + W), y * logW);
+    const body = encodeDCGLiterals(buf);
+    const out = new Uint8Array(4 + body.length); out.set(head, 0); out.set(body, 4);
+    return out;
+  }
+  return encodeDCGLiterals(indexed);
+}
 function renderDither() {
   if (!_ditherSrc) return;
   const mode = document.getElementById('dtMode').value;
   const frameMode = /^frame:/.test(mode);
   const portrait = mode === 'portrait' || frameMode;
+  const kind = ditherKind();
+  const FIXED = { landscape: [288, 32], icon: [32, 16], sheet: [128, 128] };
   const insetWrap = document.getElementById('dtInsetWrap');
   if (insetWrap) insetWrap.style.display = mode === 'frame:887E' ? '' : 'none';
   const img = _ditherSrc;
@@ -19866,6 +19981,12 @@ function renderDither() {
     const side = Math.min(img.width, img.height);
     sx = (img.width - side) / 2; sy = (img.height - side) / 2;
     sw = sh = side;
+  } else if (FIXED[kind]) {
+    // Cover crop to the kind's own proportions.
+    [W, H] = FIXED[kind];
+    const k = Math.max(W / img.width, H / img.height);
+    sw = W / k; sh = H / k;
+    sx = (img.width - sw) / 2; sy = (img.height - sh) / 2;
   } else {
     const scale = Math.min(1, 512 / Math.max(img.width, img.height));
     W = Math.max(1, Math.round(img.width * scale));
@@ -19892,7 +20013,7 @@ function renderDither() {
     for (let i = 0; i < W * H; i++) out[i] = fm.hole[i] ? indexed[i] : fm.frame[i];
     indexed = out;
   }
-  window.DITHER_RESULT = { indexed, W, H, portrait };
+  window.DITHER_RESULT = { indexed, W, H, portrait, kind };
   const srcC = document.getElementById('dtSrc'), outC = document.getElementById('dtOut');
   srcC.width = W; srcC.height = H;
   srcC.getContext('2d').drawImage(work, 0, 0);
@@ -19911,17 +20032,17 @@ async function ditherDownloadPNG() {
   dlBlob(new Blob([png], { type: 'image/png' }), 'cythera_dithered.png');
 }
 
-function ditherReplacePortrait() {
+function ditherReplace() {
   const d = window.DITHER_RESULT;
   if (!d) { setStatus('Load an image first.', true); return; }
-  if (!d.portrait) { setStatus('Switch to 64×64 portrait mode to write a portrait resource.', true); return; }
   const resid = +document.getElementById('dtTarget').value;
-  if (!resid) return;
-  if (applyResourceEdit(resid, encodeDCGLiterals(d.indexed))) {
+  if (!resid) { setStatus('No resource of that kind to write into.', true); return; }
+  if (applyResourceEdit(resid, encodeGraphicResource(d.kind || 'portrait', d.W, d.H, d.indexed))) {
     const t = document.getElementById('ditherTool');
     if (t) t.remove();
   }
 }
+function ditherReplacePortrait() { ditherReplace(); }
 
 // --- Locks and the keys that fit them ---------------------------------
 // A door, gate, portcullis, chest or trunk with a nonzero first data byte is

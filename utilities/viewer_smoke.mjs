@@ -1722,6 +1722,19 @@ try {
   if (Buffer.from(back).toString('hex') !== Buffer.from(indexed).toString('hex'))
     fail('ditherize', 'rebuilt archive does not decode the dithered portrait back');
   else console.log('  ditherize: a dithered 64x64 portrait wrote into 0x8805 and decoded back exactly');
+  // v1.37.0: the other kinds' writers are the decoder backwards. An icon is
+  // raw indices, a landscape a DCG strip, a sheet the grid folded back into
+  // its column, and a sized graphic a header over a padded DCG buffer; each
+  // is written and decoded again, and every index has to come back.
+  const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+  const mk = (W, H) => { const o = new Uint8Array(W * H); for (let i = 0; i < W * H; i++) o[i] = (i * 7 + (i >> 5)) % 251 + 1; return o; };
+  for (const [kind, W, H, subn] of [['icon', 32, 16, 137], ['landscape', 288, 32, 131], ['sheet', 128, 128, 141], ['free', 61, 37, 142]]) {
+    const src = mk(W, H);
+    const bytes = ctx.encodeGraphicResource(kind, W, H, src);
+    let dec = ctx.decodeResource(bytes, subn, undefined);
+    if (kind === 'sheet') dec = ctx.reshapeTileSheetGrid(dec.W, dec.H, dec.image);
+    if (!(dec.W === W && dec.H === H && same(dec.image, src))) { fail('ditherize', kind + ' did not decode back: ' + dec.W + 'x' + dec.H); break; }
+  }
 } catch (e) { fail('ditherize', e); }
 
 // A saved game. The page refused every Cythera player file until September
