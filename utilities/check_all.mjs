@@ -354,6 +354,6 @@ say(`\n  ${ran} checks run, ${failed} failed, ${skipped} skipped`);
 // suite say the sentence instead. This is that sentence: paste it in when it
 // changes, rather than counting the checks by hand.
 if (!failed && !skipped)
-  say(`  CLAUDE.md should say: A clean run is **${ran} ok, 0 failed, 0 skipped**.`);
+  say(`  A clean run is ${ran} ok, 0 failed, 0 skipped.`);
 if (failed) say('  Re-run a failing one on its own to see its full output.');
 process.exit(failed ? 1 : 0);

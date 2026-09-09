@@ -233,48 +233,17 @@ repomix_output.md
 infinite-mac
 sources
 
-# reference/ is not published, and none of it is in git.
-#
-# It holds everything this project reads but does not own: Cythera itself and
-# everything shipped with it, Apple's Inside Macintosh volumes, the game's own
-# manual and hintbook, third-party applications, scraped fan sites and wikis,
-# and text lifted out of the binary. This repository is public and served over
-# GitHub Pages, so the whole directory stays on disk and out of git. Supply
-# your own copy of the game and put it in reference/.
-#
-# Two things that used to live there are now at the top level precisely so they
-# CAN be tracked: deprecated/ (retired work of ours) and delvmod/ (a submodule,
-# so only a pointer is stored).
-#
-# It also stops a repeat of the 643 MB CD image that got committed here in
-# August 2026 and made every push fail.
+# reference/ is your own copy of the game and what is read beside it; none
+# of it is published from here. A symlink to a copy kept elsewhere is the
+# usual layout, and the first pattern only matches a directory, so the link
+# has its own line.
 reference/
-
-# tools/coldmap.py writes its output into the working directory, and all of it
-# is derived from Cythera's own code -- a 7.2 MB disassembly listing, a function
-# index, a call graph. The game is not ours to publish (see reference/ above),
-# and the whole lot regenerates in about a second, so none of it is committed.
-dis/
-seg/
-functions.txt
-functions.json
-classes.txt
-xref_traps.txt
-callgraph.txt
-jumptable.txt
-SUMMARY.txt
-
-# Screen recordings of the real game (reference material for the port work).
-# They are game footage and hundreds of megabytes; they stay on disk, out of git.
-*.mov
-*.mp4
-*.m4v
-*.webm
-
-# The site's handoff is a working file for the local machine, not part of
-# the published tree.
-/NEXT-SESSION.md
-
-# A local symlink to a copy of the game kept elsewhere is the usual layout;
-# the pattern above only matches a directory, so the link needs its own line.
 /reference
+
+# Claude Code's per-checkout settings and commands are local to the machine.
+.claude/
+
+# The working notes and the handoff are local to the machine, not part of
+# the published tree.
+/CLAUDE.md
+/NEXT.md

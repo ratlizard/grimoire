@@ -1,19 +1,16 @@
 # What the licence covers, and what it does not
 
-The work in this repository — `index.html`, `explorer.html`, `canvas.html`,
-`js/`, `utilities/`, and the documentation alongside them — is copyright (c)
-2026 e-z-g and licensed under the GNU General Public License, **version 3 or
-(at your option) any later version**. `LICENSE` holds the full text.
+The work in this repository — `index.html`, `canvas.html`, `js/`,
+`utilities/`, and the documentation alongside them — is copyright (c) 2026
+e-z-g and licensed under the GNU General Public License, **version 3 or (at
+your option) any later version**. `LICENSE` holds the full text.
 
-It was MIT until August 2026, relicensed by its sole author. GPL matches the
-two projects this repository actually exchanges code with — Bryce Schroeder's
-delvmod (GPLv3) and Ben Letchford's
+GPL matches the two projects this repository exchanges code with — Bryce
+Schroeder's delvmod (GPLv3) and Ben Letchford's
 [systemless](https://github.com/benletchford/systemless)
-(GPL-3.0-or-later) — so code can now be ported from either,
-with attribution, instead of only reimplemented from their descriptions.
-Contributions from here to systemless remain as easy as they were under MIT.
-Any copy of the earlier MIT-licensed revisions that someone already took
-remains under MIT; everything from the relicensing commit on is GPL.
+(GPL-3.0-or-later) — so code can be ported from either, with attribution,
+rather than only reimplemented from their descriptions, and contributed to
+either in return.
 
 ## Not covered
 
@@ -58,10 +55,3 @@ It is an independent work by **Bryce Schroeder**
 here for data inspection and as a correctness oracle. Its licence governs it.
 The submodule points at a fork of it, which carries Python 3 fixes and says so
 in its README; the work is his.
-
-**`reference/`** is not part of this repository at all: it is gitignored, and
-it is the directory you put your own copy of the game into. What people keep
-there — the game, Apple's *Inside Macintosh* volumes, third-party
-applications, archived fan sites and wikis, text extracted from the game's
-binary — belongs to its own authors under its own terms, and none of it is
-published from here.
