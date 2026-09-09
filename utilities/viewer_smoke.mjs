@@ -1284,8 +1284,8 @@ try {
       // complete and unmodified (NOTICE quotes it). Read off the markup, since
       // the stub does not populate innerHTML from the page source.
       const gateSrc = html.slice(html.indexOf('id="landingGate"'), html.indexOf('id="atlasPanel"'));
-      if (!/whole installer/.test(gateSrc) || !/licence/.test(gateSrc) || !/unmodified and complete/.test(gateSrc)) fail('gate', 'the gate no longer says why the whole installer is fetched');
-      else console.log('  gate: says the whole installer is fetched because the licence allows only the complete work');
+      if (!/downloads its installer from archive\.org/.test(gateSrc) || !/28&nbsp;MB/.test(gateSrc) || !/read directly from the supplied file/.test(gateSrc)) fail('gate', 'the gate no longer says what is downloaded and what is read');
+      else console.log('  gate: says what is downloaded, how big it is, and what is read from the file');
     }
     // The names are the game's own: the mouth into Land King Hall says so,
     // not the editor's "LKH"; and two "Ruins" are told apart by the

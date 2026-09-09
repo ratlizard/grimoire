@@ -1662,18 +1662,17 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
         <div id="landingGate" style="display:none" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
           <div class="gateCard">
             <h2 id="gateTitle">Grimoire</h2>
-            <p>A reader for the files of <i>Cythera</i>, the 1999 Macintosh game: its world,
-              people, scripts and rules, read out of the game’s own data.</p>
-            <p>Opening it downloads the game’s installer from archive.org, about
-              <b>28&nbsp;MB</b>, and keeps a copy in this browser. The copy can be cleared from
-              Settings.</p>
-            <p>The whole installer is fetched, not the one file this page reads, because
-              Ambrosia’s licence for Cythera allows it to be passed on only unmodified and complete.</p>
+            <!-- The maintainer's own words, 9 September 2026. -->
+            <p>This site displays the data from the game Cythera (1999) in an interactive
+              encyclopedic fashion. Opening it downloads its installer from archive.org, about
+              <b>28&nbsp;MB</b>, and keeps a copy in this browser. The copy can be cleared in
+              Settings. While generative AI was used to help code this site, as much of the data
+              displayed as possible is being read directly from the supplied file.</p>
             <p class="gateHint">On the map: pinch or scroll to zoom, drag to move, tap a ring to
-              go inside a cave or a town, hold on anyone to see who they are.</p>
+              go inside a tunnel or city, hover or hold on props or people for details.</p>
             <div class="gateRow">
               <button id="gateGo" onclick="landingGateAnswer('download')">Download and open</button>
-              <button class="secondary" onclick="landingGateAnswer('own')">I have the game’s files</button>
+              <button class="secondary" onclick="landingGateAnswer('own')">Supply a source file</button>
             </div>
           </div>
         </div>
@@ -4147,7 +4146,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.39.0';
+const GRIMOIRE_VERSION = '1.39.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -5605,6 +5604,7 @@ function archiveLoadFailed(failures) {
 }
 
 async function ingestArchiveFile(f) {
+  loadingFileNote();
   if (!f) return;
   setStatus('Reading ' + f.name + ' (' + fmtBytes(f.size) + ')…');
   let raw;
@@ -5614,7 +5614,14 @@ async function ingestArchiveFile(f) {
   if (!adoptArchive(raw, f.name, { store: true })) archiveLoadFailed([f.name + ': ' + lastArchiveError]);
 }
 
+// The output line under the tabs says "Load the archive to begin..." until a
+// file is known; once one is on its way it says so instead.
+function loadingFileNote() {
+  const out = document.getElementById('output');
+  if (out && /Load the archive to begin/.test(out.textContent || '')) out.textContent = 'Loading file\u2026';
+}
 function loadArchive() {
+  loadingFileNote();
   ingestArchiveFile(document.getElementById('fileInput').files[0]);
 }
 
@@ -5645,6 +5652,7 @@ async function loadDefaultArchive() {
     try {
       const rec = await archiveCacheGet();
       if (rec && rec.bytes && rec.bytes.length) {
+        loadingFileNote();
         const bytes = rec.bytes instanceof Uint8Array ? rec.bytes : new Uint8Array(rec.bytes);
         if (adoptArchive(bytes, rec.name || 'remembered archive',
                          { cached: true, savedAt: rec.savedAt, rsrc: rec.rsrc || null, pick: rec.pick })) return;
@@ -5673,10 +5681,11 @@ async function loadDefaultArchive() {
     }
     return false;
   };
-  if (forced) { if (!(await tryUrl(forced))) archiveLoadFailed(failures); return; }
+  if (forced) { loadingFileNote(); if (!(await tryUrl(forced))) archiveLoadFailed(failures); return; }
   for (const u of LOCAL_ARCHIVE_CANDIDATES) if (await tryUrl(u)) return;
   const gate = await landingGate();
   if (gate === 'own') { openArchiveMenu(true); setStatus('Choose or drop the Cythera installer (.sit or .bin) or a "Cythera Data" file.'); return; }
+  loadingFileNote();
   for (const u of REMOTE_ARCHIVE_URLS) if (await tryUrl(u)) return;
   archiveLoadFailed(failures);
 }
@@ -13602,7 +13611,7 @@ const TAB_TREE = [
       // other icon here was picked, so it is the one to check on a screen.
       { id: 'savegame', label: 'Saved Game', tile: 0x263, values: ['SAVEGAME'] },
       { id: 'combatai', label: 'Combat AI', tile: 0x2D1, wip: true, children: [               // the rolling pin
-          { id: 'aiscripts', label: 'Scripts', tile: 0x0D5, wip: true, values: ['AISCRIPTS'] },  // the quartered floor, the grid; the maintainer's pick, 9 September 2026
+          { id: 'aiscripts', label: 'Scripts', tile: 0x181, wip: true, values: ['AISCRIPTS'] },  // the maintainer's pick, 9 September 2026
           { id: 'airules',   label: 'Rules',   tile: 0x811, wip: true, values: ['AIRULES'] } ] } ] },  // the hay target
   // Not part of the archive: the page's own switches and its sister pages.
   { id: 'tools', label: 'Tools', tile: 0x2E0, values: ['TOOLS'] }                        // the anvil
@@ -13638,6 +13647,11 @@ function syncInstallerTabs() {
   // from the installer or with the fork.
   const pef = TAB_BY_ID.get('apppef');
   if (pef) pef.wip = !window.APP_DATA;
+  // A bare Cythera Data file fills the rest of the site; what needs the
+  // installer or the application's fork is faded until one is here.
+  const inst = TAB_BY_ID.get('installer');
+  if (inst) inst.wip = !on;
+  for (const id of ['apprsrc', 'cheats', 'interface']) { const n = TAB_BY_ID.get(id); if (n) n.wip = !window.APP_RSRC; }
 }
 
 // Every node learns its parent and depth, and every category value learns
