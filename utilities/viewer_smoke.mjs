@@ -1848,6 +1848,20 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     ctx.showCategory('AIRULES');
     const vocab = REGISTRY.get('sheetGrid').children.find(c => /vocabTable/.test(c.innerHTML || ''));
     if (!vocab || !/HasSpell|IsSpecies/.test(vocab.innerHTML)) fail('combat vocabulary', 'the Rules tab did not draw the AI string lists');
+    // The same lists name the scripted tests and actions, in order: with the
+    // application's fork open 0x906 is the sixth test and 0x981 the first
+    // action, and the class rule from the executable puts 0x1E20 among the
+    // rooms and 0x19xx among the monsters. The helper names are the static
+    // table, fork or no fork.
+    {
+      const n906 = ctx.dvmResourceName(0x906), n981 = ctx.dvmResourceName(0x981), nF00 = ctx.dvmResourceName(0xF00);
+      const c1E = ctx.dvmClassName(0x1E20), c19 = ctx.dvmClassName(0x1901), c98 = ctx.dvmClassName(0x981);
+      if (!/OutOfAmmo/.test(n906) || !/CastSpell/.test(n981) || !/SetCharacterFlag/.test(nF00) || c1E !== 'Room' || c19 !== 'Monster' || c98 !== 'AIAction')
+        fail('script names', JSON.stringify({ n906, n981, nF00, c1E, c19, c98 }));
+      else console.log(`  script names: 0x906 is ${n906}, 0x981 is ${n981} off the application's lists; 0x1E20 is a Room and 0x1901 a Monster by the executable's rule`);
+      const lbl = ctx.labelForUnnormalized(0x98D);
+      if (!/SetProtecting/.test(lbl)) fail('script names', 'the gallery label for 0x98D is ' + JSON.stringify(lbl));
+    }
     // A Finder icon on the installer's rows for the four bundled types.
     const icons = { APPL: ctx.finderIconFor('APPL'), DelS: ctx.finderIconFor('DelS'), DelP: ctx.finderIconFor('DelP'), TEXT: ctx.finderIconFor('TEXT') };
     if (!icons.APPL || !icons.DelS || !icons.DelP) fail('finder icons', 'bundle gave ' + JSON.stringify(Object.fromEntries(Object.entries(icons).map(([k, v]) => [k, !!v]))));

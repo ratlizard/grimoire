@@ -380,7 +380,7 @@ be told from an accident. As of this writing:
 
 | Check | Hash |
 |---|---|
-| `viewer / decoder snapshot` | `SNAPSHOT e417960b5595f5f9` |
+| `viewer / decoder snapshot` | `SNAPSHOT 8e9738ae4468a6ff` |
 | `viewer / resource snapshot` | `SNAPSHOT 1b6259f21831` |
 
 If one of those moves and you did not intend it, you changed what a decoder
@@ -1962,6 +1962,34 @@ Read the comment above a constant before correcting it.
   (`NOTICE` quotes the clause), so the page fetches the installer whole rather
   than the one file it reads, and the gate says so in one sentence. The smoke
   test requires that sentence to be there.
+- **Every script range has a class, and the ranges above 0x1000 come from the
+  executable, v1.28.0** (8 September 2026). `dvmClassName` in
+  `js/delv-script.js` follows `ObjIDToSegmentID`, the engine's own rule that
+  a script's id is `0x1000 + objtype × 32 + id`: so 0x19xx is the Monster
+  class (the wiki's "MonsterDeaths"), 0x1Bxx–0x1Exx are all rooms (the wiki's
+  "Unknown1E" at 0x1E20 is room 800), and 0x1Fxx would be gremlins. Below
+  0x1000 the ranges were read: **0x901–0x906 and 0x981–0x98D are the
+  scripted half of the combat AI's vocabulary**, six tests and thirteen
+  actions in the order of the application's own `STR#` 9307 and 9308, so
+  `aiHookName` names them off the fork when it is open (`AI_HOOK_NAMES`,
+  reset with the other fork caches) and the smoke pins 0x906 to
+  `OutOfAmmo()` and 0x981 to `CastSpell(@,#)`; compiled `.ai` rules invoke
+  them, which is why the cross-reference index saw no callers. **0x0Fxx is
+  twenty-two one-function character helpers**, named in `DVM_SCRIPT_NAMES`
+  from their bytecode (set/clear/test a flag, behaviour, heal, cure poison,
+  revive, add an attribute, karma, two constructors); 0x0Cxx are task
+  helpers, 0x0Dxx party and inventory helpers, 0x0Exx the rule helpers
+  Mechanics reads; 0x03xx is the far-word global store; 0x0B00 a stub.
+  `dvmResourceName` and the gallery labels use `dvmScriptName` after the
+  archive's own symbol table and delvmod's list, and the decoder snapshot
+  moved to `8e9738ae4468a6ff` because the rendered class lines and call
+  operands changed. The category names, purposes and kinds say the same; the
+  tab under Entities is **Zones** (it was Regions; the engine's word is zone,
+  as in `ChangeZone` and the editor's zone list) and 0x15xx are sub-zone
+  scripts. The footer's copyright line names the game, its data and its
+  installer rather than the one file. The workbench's
+  `doc/save-format.md` § *The rest of the file, read* has the
+  `ObjIDToSegmentID` reading.
 - **It wants a container, never a bare data fork, and that is deliberate.**
   The installer, a `.hqx` or a MacBinary all carry the *resource* fork, which
   a bare data fork cannot. Editor Stamps & Brushes had been in the page for a
@@ -2013,7 +2041,7 @@ Read the comment above a constant before correcting it.
   colour table read by its value fields, and 16-bit `packType` 3 unpacked
   by bytes — and are recorded under **Two implementations, one format**.
   The tab icons were chosen by looking at a sheet of candidates and
-  checked for repeats: World is the rolled map, Regions a small town,
+  checked for repeats: World is the rolled map, Zones a small town,
   Functions a lever with the fighter, the key and the distiller's flasks
   under it, Fonts a written scroll, Screens a fresco, Interface the strange
   device, Barks a bell; only the two fork pairs share a tile, on purpose.

@@ -429,6 +429,25 @@ re-check the installer count before assuming the rule still applies.
   workbench `doc/save-format.md` § *The rest of the file, read*, which has
   the addresses and the format letters; a Mons-chunk parser for the sheet
   would be a few lines over the format strings recorded there.
+- **No script range is unclassified, v1.28.0** (8 September, late). The
+  maintainer asked whether the four "Unclassified" categories could be
+  classified. They could, and mostly from the files: 0x09xx is the combat
+  AI's scripted tests and actions, named one for one by the application's
+  own string lists, which the page now reads for the labels; 0x0Fxx is a
+  library of character helpers, named from their bytecode in a table;
+  0x03xx is the far-word store; 0x0B00 a stub. The class rule above 0x1000
+  is the executable's, which corrected 0x19 (Monster) and 0x1E (a room).
+  The category names for 0x0Cxx–0x0Exx were the wiki's "Popup Dialogue"
+  and "Action Result Popups" and are now what the scripts are. **Two UI
+  text corrections from the same ask**: the Entities tab is Zones, not
+  Regions, because the engine's word is zone; and the footer's copyright
+  line names the game, its data and its installer instead of "the Cythera
+  Data file", since the installer is what the page fetches. Everything else
+  on the page was read through for staleness and left: the gate, the
+  status lines, the Tools sheet and the sheet ledes say what is there. One
+  placeholder line that named a retired repository was cut. `CLAUDE.md`
+  has the detail under the v1.28.0 bullet; the decoder snapshot moved and
+  the table says so.
 - **Careful: another session is pushing to grimoire through the day.**
   Three of the four commits above needed a rebase, one with a conflict
   (the version number, which both sessions bump). Fetch before starting

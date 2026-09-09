@@ -98,7 +98,8 @@ let dvmContextResid = null;
 /* Name a resource id the way the disassembly should read it. */
 function dvmResourceName(rid) {
   const sym = (typeof resourceSymbol === 'function' && resourceSymbol(rid)) ||
-              (DVM_SYM.resource && DVM_SYM.resource[String(rid)]);
+              (DVM_SYM.resource && DVM_SYM.resource[String(rid)]) ||
+              dvmScriptName(rid);
   const hex = '0x' + rid.toString(16).toUpperCase().padStart(4, '0');
   return sym ? sym + ' (' + hex + ')' : hex;
 }
@@ -169,19 +170,86 @@ function dvmWord(v) {
   }
 }
 
-// Classes by resource range, from the wiki's Object page.
+// Classes by resource range. Above 0x1000 this is the executable's own rule,
+// ObjIDToSegmentID: a script's id is 0x1000 + objtype * 32 + object id, so
+// the object types in DVM_SYM.objtype lay out as Item (Prop, type 0, by prop
+// type) 0x10xx-0x13xx, Zone 0x14xx, SubZone 0x15xx, Character 0x18xx,
+// Monster 0x19xx, Skill 0x1Axx, Room 0x1Bxx-0x1Exx (room ids run to 1023,
+// so four pages) and Gremlin (type 0x78) 0x1Fxx. The wiki's Object page had
+// most of these; it called 0x19 "MonsterDeaths" and 0x1E "Unknown1E", both
+// corrected by the rule (0x1E20 is room 800, whose Enter changes zone).
+// 0x30xx is not from the rule and keeps the wiki's name.
+//
+// Below 0x1000 there is no rule in the engine; these are by what the scripts
+// are and who reaches them. 0x901-0x906 and 0x981-0x98D are the scripted half
+// of the combat AI's vocabulary -- the six tests and thirteen actions the
+// application's own string lists STR# 9307 and 9308 name, in that order, and
+// which compiled .ai rules invoke rather than scripts. 0x0Fxx is a library
+// of one-function character helpers (DVM_SCRIPT_NAMES below); 0x0Cxx-0x0Exx
+// are helpers too, called from dialogue and object scripts. 0x03xx is data
+// reached by far words, 0x0Axx the potion and food effects, 0x0B00 a
+// seven-byte stub nothing calls.
 function dvmClassName(resid) {
   const hi = resid >> 8;
   if (hi === 0x10 || hi === 0x11 || hi === 0x12 || hi === 0x13) return 'Item';
   if (hi === 0x14) return 'Zone';
   if (hi === 0x15) return 'SubZone';
   if (hi === 0x18) return 'Character';
-  if (hi === 0x19) return 'MonsterDeaths';
+  if (hi === 0x19) return 'Monster';
   if (hi === 0x1A) return 'Skill';
-  if (hi === 0x1B || hi === 0x1C) return 'Room';
-  if (hi === 0x1E) return 'Unknown1E';
+  if (hi >= 0x1B && hi <= 0x1E) return 'Room';
+  if (hi === 0x1F) return 'Gremlin';
   if (hi === 0x30) return 'DefaultMethods';
+  if (hi === 0x03) return 'Store';
+  if (hi === 0x08) return 'DialogueGroup';
+  if (resid >= 0x901 && resid <= 0x906) return 'AITest';
+  if (resid >= 0x981 && resid <= 0x98D) return 'AIAction';
+  if (hi === 0x0A) return 'Effect';
+  if (hi === 0x0B) return 'Stub';
+  if (hi >= 0x0C && hi <= 0x0F) return 'Helper';
   return null;
+}
+
+// Names for the scripts nothing in the file names. The archive's own symbol
+// table (0x0101) and delvmod's short list come first in dvmResourceName;
+// these are read off the bytecode, one function each, on 8 September 2026.
+// Every 0x0Fxx script casts its first argument to a Character and does one
+// thing to it; the names say the thing. "status bit n" is a bit of field 20
+// (status_flags); bit 1 is poison by DVM_FLAG_NAMES (flag 9 = 8 + 1), bits
+// 0 and 2 are not named anywhere, so the name says the bit.
+const DVM_SCRIPT_NAMES = {
+  0x0F00: 'SetCharacterFlag',       // bit_flags |= 1 << arg
+  0x0F01: 'ClearCharacterFlag',     // bit_flags &= ~(1 << arg)
+  0x0F02: 'TestCharacterFlag',      // (bit_flags >> arg) & 1
+  0x0F03: 'SetBehavior',
+  0x0F04: 'GetBehavior',
+  0x0F05: 'HealFully',              // health = full_health
+  0x0F06: 'CurePoison',             // status bit 1 cleared
+  0x0F07: 'Revive',                 // status bit 0 set, health = full_health
+  0x0F08: 'SetStatusBit2',
+  0x0F09: 'AddMind',
+  0x0F0A: 'AddReflex',
+  0x0F0B: 'AddBody',
+  0x0F0C: 'AddExp',
+  0x0F0D: 'AddLevel',
+  0x0F0E: 'DamageTaken',            // full_health - health
+  0x0F0F: 'IsPoisoned',             // status bit 1
+  0x0F10: 'TestStatusBit2',
+  0x0F11: 'KarmaDown',
+  0x0F12: 'KarmaUp',
+  0x0F13: 'IsMet',                  // bit_flags & 0x40; what FinishCombat asks
+  0x0F14: 'NewCarried',             // New(flags 0x1C, type, aspect)
+  0x0F15: 'NewEgg',                 // New(flags 0x42, type, kind 9, x, y, arg)
+  0x0B00: 'Stub',
+};
+
+// A name for a script the file does not name itself: the AI vocabulary from
+// the application's own string lists when the page has that fork open
+// (aiHookName is the page's; the lists are STR# 9307 and 9308, one entry per
+// script in order), else the table above.
+function dvmScriptName(rid) {
+  if (typeof aiHookName === 'function') { const n = aiHookName(rid); if (n) return n; }
+  return DVM_SCRIPT_NAMES[rid] || null;
 }
 
 // Scalars are wrapped in single-element arrays because a table value must be a

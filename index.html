@@ -1374,7 +1374,7 @@ body.atlasFull { overflow:hidden; }
         <option value="128">Prop Lists (0x81xx, structured)</option>
         <option value="131">Landscapes (288x32)</option>
         <option value="19">Zone Entry Scripts (0x14xx)</option>
-        <option value="20">Zone Region Scripts (0x15xx)</option>
+        <option value="20">Sub-zone Scripts (0x15xx)</option>
       </optgroup>
       <optgroup label="Graphics">
         <option value="141">Tile Sheets (4x4 grid of 16 tiles)</option>
@@ -1396,24 +1396,24 @@ body.atlasFull { overflow:hidden; }
       <optgroup label="Scripts">
         <option value="3">AI Combat Scripts (0x04xx)</option>
         <option value="7">Generic Group Dialogue (0x08xx)</option>
-        <option value="8">Unclassified Scripts (0x09xx)</option>
+        <option value="8">Combat AI Tests &amp; Actions (0x09xx)</option>
         <option value="9">Eating & Potion Effects (0x0Axx)</option>
-        <option value="11">Popup Dialogue A (0x0Cxx)</option>
-        <option value="12">Popup Dialogue B (0x0Dxx)</option>
-        <option value="13">Action Result Popups (0x0Exx)</option>
-        <option value="14">Unclassified Scripts (0x0Fxx)</option>
+        <option value="11">Task Helpers (0x0Cxx)</option>
+        <option value="12">Party &amp; Inventory Helpers (0x0Dxx)</option>
+        <option value="13">Rule Helpers (0x0Exx)</option>
+        <option value="14">Character Helpers (0x0Fxx)</option>
         <option value="15">Object Interaction Text (0x10xx)</option>
         <option value="16">Object Scripts (0x11xx)</option>
-        <option value="26">Room Descriptions A (0x1Bxx)</option>
-        <option value="27">Room Descriptions B (0x1Cxx)</option>
+        <option value="26">Room Scripts A (0x1Bxx)</option>
+        <option value="27">Room Scripts B (0x1Cxx)</option>
+        <option value="29">Room Scripts C (0x1Exx)</option>
         <option value="47">Character Action Scripts (0x30xx)</option>
       </optgroup>
       <optgroup label="Other subindexes">
         <option value="239">Game Data Tables (0xF0xx)</option>
         <option value="4">Character Creation Stats (0x05xx)</option>
-        <option value="29">Teleport Script (0x1Exx)</option>
-        <option value="2">Unclassified (0x03xx)</option>
-        <option value="10">Unclassified (0x0Bxx)</option>
+        <option value="2">Global Store (0x03xx)</option>
+        <option value="10">Stub Script (0x0Bxx)</option>
       </optgroup>
       <!-- Views that are not a subindex, under the Data tab. They are options
            so that the tabs, the deep links and the smoke test treat them like
@@ -1891,7 +1891,7 @@ const FORK_VIEWS = {
 };
 
 const CATEGORY_NAMES = { 0:"Global Symbols & Scripts", 1:"Text & Names", 135:"Character Portraits", 137:"Skill Icons", 141:"Tile Graphics", 131:"Landscape Graphics", 142:"General Graphics", 144:"Sounds", 127:"Maps", 128:"Prop Lists", 239:"Game Data Tables",
-  143:"Music (QTMA)", 2:"Unclassified (0x03xx)", 3:"AI Combat Scripts", 4:"Character Creation Stats", 7:"Generic Group Dialogue", 8:"Unclassified Scripts (0x09xx)", 9:"Eating & Potion Effects", 10:"Unclassified (0x0Bxx)", 14:"Unclassified Scripts (0x0Fxx)", 11:"Popup Dialogue A", 12:"Popup Dialogue B", 13:"Action Result Popups", 15:"Object Interaction Text", 16:"Object Scripts", 19:"Zone Entry Scripts", 20:"Zone Region Scripts", 23:"Character Dialogue", 24:"Monster Class Scripts", 25:"Skill & Spell Descriptions", 26:"Room Descriptions A", 27:"Room Descriptions B", 29:"Teleport Script (0x1Exx)", 47:"Character Action Scripts"
+  143:"Music (QTMA)", 2:"Global Store", 3:"AI Combat Scripts", 4:"Character Creation Stats", 7:"Generic Group Dialogue", 8:"Combat AI Tests & Actions", 9:"Eating & Potion Effects", 10:"Stub Script", 14:"Character Helpers", 11:"Task Helpers", 12:"Party & Inventory Helpers", 13:"Rule Helpers", 15:"Object Interaction Text", 16:"Object Scripts", 19:"Zone Entry Scripts", 20:"Sub-zone Scripts", 23:"Character Dialogue", 24:"Monster Class Scripts", 25:"Skill & Spell Descriptions", 26:"Room Scripts A", 27:"Room Scripts B", 29:"Room Scripts C", 47:"Character Action Scripts"
 };
 const RESOURCE_LABELS = {
   0x8F00:'Background Texture',0x8F01:'Main View Frame',0x8F02:'Open Book',0x8F03:'Scroll',0x8F04:'Planks',0x8F05:'Paper',0x8F06:'Automap',0x8F07:'Open Book',0x8F08:'Metal Plaque',0x8F09:'Crate',0x8F0A:'Chest',0x8F0B:'Large Wooden Sign',0x8F0C:'Jar',0x8F0D:'Sack',0x8F0E:'Drawer',0x8F0F:'Corpse Inventory',0x8F10:'Tombstone',0x8F11:'Scroll with Spindles',0x8F12:'Pipes',0x8F13:'Map of Cythera',0x8F14:'Lyre',0x8F15:'Lute',0x8F16:'Wooden Sign',0x8F17:'Wooden Sign Left',0x8F18:'Wooden Sign Right',0x8F19:'Map to Harpy Cave',0x8F1A:'Wanted Poster',
@@ -1972,6 +1972,22 @@ function loadEditorZoneNames() {
   const list = forkStringList(window.CYTHERA_RSRC, 135);
   if (list) list.forEach((nm, i) => { if (nm) names[i + 1] = nm; });
   return (window.EDITOR_ZONE_NAMES = names);
+}
+// The combat AI's scripted tests and actions, named by the application's own
+// lists: STR# 9307 has the six tests in the order of 0x901-0x906 and STR# 9308
+// the thirteen actions in the order of 0x981-0x98D (workbench
+// doc/save-format.md has the reading; the scripts match the names one for one
+// -- 0x905 walks equipment for reach and ammunition, and the list calls it
+// UsingRangedWeapon(@,#)). The entries are the file's, signature and all.
+// Null without the application's fork, when the static table in
+// js/delv-script.js is all a script gets.
+window.AI_HOOK_NAMES = null;
+function aiHookName(resid) {
+  const t = resid >= 0x901 && resid <= 0x906 ? ['tests', 9307, resid - 0x901]
+          : resid >= 0x981 && resid <= 0x98D ? ['actions', 9308, resid - 0x981] : null;
+  if (!t || !window.APP_RSRC) return null;
+  if (!window.AI_HOOK_NAMES) window.AI_HOOK_NAMES = { tests: forkStringList(window.APP_RSRC, 9307) || [], actions: forkStringList(window.APP_RSRC, 9308) || [] };
+  return window.AI_HOOK_NAMES[t[0]][t[2]] || null;
 }
 function editorZoneName(resid) {
   const subn = Math.floor(resid / 0x100) - 1;
@@ -2138,6 +2154,9 @@ function labelForUnnormalized(resid) {
   // They are code identifiers -- "LKH_Guard", "Od_Trough1" -- so the
   // underscores become spaces for display. The symbol itself is untouched.
   try { const sy = resourceSymbol(resid); if (sy) return sy.replace(/_/g, ' '); } catch (e) {}
+  // The AI vocabulary out of the application's lists, and the helpers read
+  // off their bytecode (dvmScriptName in js/delv-script.js).
+  try { const sn = dvmScriptName(resid); if (sn) return sn; } catch (e) {}
   const subn = Math.floor(resid / 0x100) - 1;
   const n = resid % 0x100;
   if (window.SHOW_BUILTIN_LABELS) {
@@ -3773,7 +3792,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.27.3';
+const GRIMOIRE_VERSION = '1.28.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -3822,6 +3841,7 @@ function swapGameFont(bytes, filename) {
   window.CYTHERA_RSRC_RAW = raw;
   window.CYTHERA_RSRC = reopened;
   window.EDITOR_ZONE_NAMES = null;            // named out of the fork
+  window.AI_HOOK_NAMES = null;
   window.FONT_SWAP = { name: filename || 'a font', mapped: made.mapped, format: made.format,
                        from: target.id, bytes: made.bytes.length, was: bytes.length };
   // The page is set in the game's font, so it now shows the new one: the
@@ -4169,6 +4189,7 @@ async function loadApplicationFork() {
       if (!c || !c.rsrc || !c.rsrc.length) { lastErr = 'no resource fork in ' + url; continue; }
       window.APP_RSRC = openResourceFork(c.rsrc);
       window.APP_RSRC_STATE = '';
+      window.AI_HOOK_NAMES = null;
       syncInstallerTabs();
       syncTabsTo(document.getElementById('categorySelect').value);
       rerenderForkView();
@@ -4894,6 +4915,7 @@ function resetDerivedCaches() {
   window.RESOURCE_SYMBOLS = null;
   window.ZONE_NAMES = null;
   window.EDITOR_ZONE_NAMES = null;
+  window.AI_HOOK_NAMES = null;
   window.ZONEPORTS = null;
   window.WORLD_GATEWAYS = null;
   window.ATLAS_SCENE = null;
@@ -12190,7 +12212,7 @@ function atlasInspect(px, py) {
   // already worked and still does.
   parts.push('<div class="inspActs">' +
     '<button class="sv-chip" onclick="jumpToResource(' + node.resid + ')">Open ' +
-    svEsc(node.name) + ' in Regions</button></div>');
+    svEsc(node.name) + ' in Zones</button></div>');
   host.innerHTML = parts.join('');
   host.style.display = 'block';
 }
@@ -12568,27 +12590,27 @@ function xrefReport(resid) {
 const SUBINDEX_PURPOSE = {
   0:   ['Symbol table', 'A single resource, 0x0101, mapping keys to name strings. Debug symbols, out of date with the shipped game, useful as a naming hint.'],
   1:   ['Data lists', 'Lists of things: character names, and globals referred to by the symbol table in subindex 0.'],
-  2:   ['Unknown', 'Two small resources and no documentation anywhere. Nothing in the archive references either of them.'],
+  2:   ['Global store', '0x301 is a four-entry array the innkeepers’ scripts read and write through far words (the inn qualities). 0x33F is four bytes nothing references.'],
   3:   ['AI combat scripts', 'Named behaviour routines -- Attack Nearest, Defend, Beserk, Healer. Stored in the clear as a Pascal name plus a body that is NOT VM bytecode.'],
   4:   ['Unknown', 'Three small resources; two decrypt to nothing but zeroes. Undocumented.'],
   7:   ['Group dialogue', 'Generic dialogue for factions and groups, such as House Comana.'],
-  8:   ['Scripts', 'Undocumented script resources.'],
+  8:   ['Combat AI tests and actions', 'The scripted half of the combat AI’s vocabulary: six tests at 0x901 and thirteen actions at 0x981, in the order of the application’s own lists (STR# 9307 and 9308), which name them when the application is open. Compiled .ai rules call them; four dialogues call two directly.'],
   9:   ['Effect scripts', 'Effects of eating, and possibly of spells and potions.'],
-  10:  ['Unknown', 'A single resource. Undocumented.'],
-  11:  ['Scripts', 'Undocumented script resources.'],
-  12:  ['Short scripts', 'Small script fragments, mostly a few bytes each.'],
-  13:  ['Scripts', 'Undocumented script resources.'],
-  14:  ['Library functions', 'Shared routines called from all over the archive. The most heavily referenced resources in the file live here.'],
+  10:  ['Stub', 'One seven-byte function returning 0. Nothing in the archive or the application refers to it.'],
+  11:  ['Task helpers', 'Routines that queue tasks for characters: the innkeeper’s service lines (0xC80), opening and closing doors (0xC81–0xC83), the tavern barks (0xC84, 0xC85), the blacksmith’s work (0xC86), and the spell-cast announcements (0xC4B, 0xC4C).'],
+  12:  ['Party and inventory helpers', 'Walks over containers and the party: what is carried and what it weighs, counting money (0xD04), the theft reaction (0xD06) and coins spilling when a purse is too heavy (0xD09).'],
+  13:  ['Rule helpers', 'The routines the rules are read from: lock picking (0xE43), combat (0xE84–0xE89), experience and levels (0xE86, 0xE8B), spells (0xEA1), shops (0xEA5), training (0xEB1), damage (0xEB8).'],
+  14:  ['Character helpers', 'Twenty-two one-function scripts, each acting on one character: set, clear and test a flag (0xF00–0xF02, called from hundreds of dialogue lines), behaviour, health, poison, attributes, experience, level, karma, and two constructors.'],
   15:  ['Item classes', 'Object definitions for items -- what they are called, what happens when you use them.'],
   16:  ['Object classes', 'Objects with associated data and scripts, with readable strings.'],
-  19:  ['Zone entry scripts', 'One per map. Runs on entering a zone, and carries the region names shown in-game.'],
-  20:  ['Sub-region scripts', 'For maps holding several regions in one 0x80xx resource, where not everything appears at once.'],
+  19:  ['Zone entry scripts', 'One per map. Runs on entering a zone, and carries the zone names shown in-game.'],
+  20:  ['Sub-zone scripts', 'For maps holding several zones in one 0x80xx resource, where not everything appears at once.'],
   23:  ['Character dialogue', 'Conversation scripts for named characters.'],
   24:  ['Monster classes', 'Monster definitions. init is called with (self, prop); a death hook lives in field 0x1D.'],
   25:  ['Skill & spell classes', 'Descriptions and scripts for spells, skills and actions. Usually several small functions -- one returns the name, another the description.'],
-  26:  ['Room descriptions', 'The text shown for rooms and locations.'],
-  27:  ['Room descriptions', 'More room and location text.'],
-  29:  ['Unknown', 'A single script resource, 0x1E20.'],
+  26:  ['Room scripts', 'One per room, id 0x1B00 plus the room number: the description shown on first entry, and for some rooms an Enter that does more. A room is a rectangle marked by an egg on the map.'],
+  27:  ['Room scripts', 'Rooms 256 to 511 fall here, the same shape as 0x1Bxx; the archive has 301 to 454.'],
+  29:  ['Room scripts', 'Room 800, the one room numbered past 511: its Enter changes zone.'],
   47:  ['Character actions', 'Scripts relating to actions performed on characters -- ToggleLock and friends.'],
   127: ['Maps', 'Tile grids plus a header with dimensions and the four cardinal exit ports.'],
   128: ['Prop lists', 'One per map: 16-byte records placing every object, door and container.'],
@@ -12671,11 +12693,11 @@ function relChip(o) {
 // What a resource is, in a word or two, for the second line of a chip:
 // "portrait", "zone script", "tile sheet". The gallery names are plural
 // and long; these are the same things said the way a caption says them.
-const RESOURCE_KIND = { 0: 'symbols', 1: 'text', 2: 'script', 3: 'combat AI', 4: 'creation stats',
-  7: 'group dialogue', 8: 'script', 9: 'effect', 10: 'script', 11: 'popup', 12: 'popup', 13: 'popup',
-  14: 'script', 15: 'object text', 16: 'object script', 19: 'zone script', 20: 'region script',
-  23: 'dialogue', 24: 'monster class', 25: 'skill', 26: 'room description', 27: 'room description',
-  29: 'teleport script', 47: 'action script', 127: 'map', 128: 'prop list', 131: 'landscape',
+const RESOURCE_KIND = { 0: 'symbols', 1: 'text', 2: 'store', 3: 'combat AI', 4: 'creation stats',
+  7: 'group dialogue', 8: 'AI hook', 9: 'effect', 10: 'stub', 11: 'helper', 12: 'helper', 13: 'helper',
+  14: 'helper', 15: 'object text', 16: 'object script', 19: 'zone script', 20: 'sub-zone script',
+  23: 'dialogue', 24: 'monster class', 25: 'skill', 26: 'room script', 27: 'room script',
+  29: 'room script', 47: 'action script', 127: 'map', 128: 'prop list', 131: 'landscape',
   135: 'portrait', 137: 'skill icon', 141: 'tile sheet', 142: 'graphic', 143: 'music', 144: 'sound',
   239: 'table' };
 function resourceKindName(resid) {
@@ -13289,7 +13311,7 @@ const TAB_TREE = [
       { id: 'characters', label: 'Characters', tile: 0x719, values: ['CHARACTERS'] },  // the king, standing, facing the reader
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
-      { id: 'regions',    label: 'Regions',    tile: 0x590, values: ['127'] },         // a small town, as the world map draws one (prop 286)
+      { id: 'regions',    label: 'Zones',      tile: 0x590, values: ['127'] },         // a small town, as the world map draws one (prop 286)
       { id: 'skills',     label: 'Skills',     tile: 0x21F, values: ['SKILLS'] },   // the grimoire
       { id: 'spells',     label: 'Spells',     tile: 0x87B, values: ['SPELLS'] },   // the scroll
       // Mechanics is not a table: the rules the code implies, read out of
@@ -13300,7 +13322,7 @@ const TAB_TREE = [
       { id: 'text', label: 'Text', tile: 0x3AE, children: [                                   // the tombstone, second frame
           { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['1', 'STRINGS'] },                     // a poster; the forks' string lists beside the archive's
           { id: 'dialogue', label: 'Dialogue', tile: 0x4E2, values: ['23', '7', '11', '12', '13', '15'] },  // the bearded bust: a head that speaks
-          { id: 'writings', label: 'Writings', tile: 0x263, values: ['26', '27'] },                         // the scroll
+          { id: 'writings', label: 'Writings', tile: 0x263, values: ['26', '27', '29'] },                         // the scroll
           // The faces the text is set in: Argos A Nouveau and the Seldane
           // script, out of the resource fork, and the styles that assign them.
           { id: 'fonts',    label: 'Fonts',    tile: 0x260, values: ['FONTS'] },                              // a scroll with writing on it (prop 134, paper)
@@ -13320,11 +13342,11 @@ const TAB_TREE = [
           { id: 'music', label: 'Music', tile: 0x2BD, values: ['143'] },                                // a lute
           { id: 'sfx',   label: 'SFX',   tile: 0x1B2, values: ['144', 'APPSND'] } ] },                  // the explosion, sheet 0x8E1B; the application's own sounds beside the archive's
       { id: 'functions', label: 'Functions', tile: 0x3CB, children: [                         // a lever: pull it and something happens (prop 187)
-          { id: 'actors',  label: 'Actors',  tile: 0x6F0, values: ['47', '24', '3'] },                  // the fighter mid-swing: something that acts (prop 116)
+          { id: 'actors',  label: 'Actors',  tile: 0x6F0, values: ['47', '24', '3', '8'] },                  // the fighter mid-swing: something that acts (prop 116)
           { id: 'objects', label: 'Objects', tile: 0x233, values: ['16'] },                             // a key: a thing that is used (prop 66)
-          { id: 'places',  label: 'Places',  tile: 0x4A0, values: ['19', '20', '29'] },                 // a signpost
+          { id: 'places',  label: 'Places',  tile: 0x4A0, values: ['19', '20'] },                 // a signpost
           { id: 'effects', label: 'Effects', tile: 0x3DA, values: ['9'] },                              // the distiller's flasks: eating and potion effects (prop 233)
-          { id: 'shared',  label: 'Shared',  tile: 0x332, values: ['0', '8', '14', '2', '10'] } ] } ] },// a bookshelf: the common library
+          { id: 'shared',  label: 'Shared',  tile: 0x332, values: ['0', '14', '2', '10'] } ] } ] },// a bookshelf: the common library
   // Data opens on Cythera Data (`last`), whatever comes first in the row:
   // the installer is first because it is where the rest came from, not the
   // thing most visits are for.
@@ -13361,8 +13383,7 @@ const TAB_TREE = [
 // What the faded tabs with nothing behind them say when opened.
 const PLACEHOLDER_TABS = {
   APPPEF: 'The application’s data fork is the PowerPC executable, a PEF container; ' +
-    'the 68K CODE resources are in its resource fork. Nothing on this page reads either yet. ' +
-    'The retired native port in ratlizard/alchemy reads both, offline.',
+    'the 68K CODE resources are in its resource fork. Nothing on this page reads either yet.',
   AISCRIPTS: 'The Combat AI scripts ship beside the game as separate .ai text files, not inside ' +
     'the archive. What the engine runs is the compiled ' +
     'form, subindex 3 — AI Combat Scripts, under Components › Functions › Actors.',
@@ -13783,7 +13804,7 @@ function renderCheatsSheet() {
     '<li><b>The party’s records.</b> Where they stand, how strong, how well fed, how many training ' +
     'points: 32 bytes each. ' + actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li>' +
     '<li><b>The map.</b> Paint terrain, place a prop, take one off. Walls in Cythera are terrain, so ' +
-    'a wall is removed by painting the floor over it. ' + actionChip('Regions', "showCategory('127')") + '</li>' +
+    'a wall is removed by painting the floor over it. ' + actionChip('Zones', "showCategory('127')") + '</li>' +
     '<li><b>Any resource, as hex</b>, through Edit Bytes on the resource itself.</li>' +
     '<li><b>Where the edits come out.</b> ' + actionChip('Changes', "showCategory('CHANGES')") + '</li></ul></div>';
 
@@ -16661,7 +16682,7 @@ function mapParts(resid, propResid) {
   const chips = [];
   if (propResid && refExists(propResid)) chips.push(partChip('Prop list', propResid));
   if (refExists(0x1400 + level)) chips.push(partChip('Entry script', 0x1400 + level));
-  if (refExists(0x1500 + level)) chips.push(partChip('Region script', 0x1500 + level));
+  if (refExists(0x1500 + level)) chips.push(partChip('Sub-zone script', 0x1500 + level));
   return chips;
 }
 
@@ -16759,7 +16780,7 @@ function renderUsage(resid, subn) {
   }
   if (subn === 19 || subn === 20) {
     const map = 0x8000 + (resid & 0xFF);
-    if (refExists(map)) rows.push(['Runs for', [partChip(subn === 19 ? 'Zone' : 'Region of', map)], '']);
+    if (refExists(map)) rows.push(['Runs for', [partChip(subn === 19 ? 'Zone' : 'Sub-zone of', map)], '']);
   }
   if (subn === 144 || subn === 143) for (const r of soundUsageRows(resid, subn)) rows.push(r);
   let ins = [];
@@ -20048,7 +20069,7 @@ document.addEventListener('DOMContentLoaded', () => {
   </ul>
   <p style="margin-top:1em;">
     Cythera and Delver are trademarks of Glenn Andreas and/or Ambrosia Software, Inc.
-    This is an unofficial fan-made research tool; the Cythera Data file itself remains copyrighted by Ambrosia and/or Glenn Andreas.
+    This is an unofficial fan-made research tool. The game, its data and its installer remain the copyright of Ambrosia Software and/or Glenn Andreas; none of it is stored here.
   </p>
   <p>
     Join the community: <a href="https://discord.gg/u5BDQvyem4" target="_blank" rel="noopener">Cythera Discord</a>.
