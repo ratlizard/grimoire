@@ -105,6 +105,7 @@ const DELV = firstHolding('delv/archive.py', process.env.DELVMOD, 'delvmod',
 // round-tripped through. Like infinite-mac it is a checkout kept beside this
 // one rather than in it; $SYSTEMLESS overrides. Without it hfs_check still
 // runs its structural half, which is most of it.
+const PEF_SYMBOLS = firstHolding('cythera_symbols.txt', process.env.WORKBENCH, '../cythera-workbench', 'cythera-workbench') + '/cythera_symbols.txt';
 const SYSLESS = firstHolding('src/disk_image/hfs.rs', process.env.SYSTEMLESS, 'wolflizard', '../wolflizard', 'systemless', '../systemless');
 // The community's add-ons. Not required: without them addons_check.mjs still
 // scores the heuristic against the shipped archive, which is the half that
@@ -257,6 +258,13 @@ const CHECKS = [
   {page: 'viewer', name: 'resource fork write',
    cmd: ['utilities/resfork_write_check.mjs', 'index.html', DATA_RSRC, APP_RSRC],
    grep: /\d+ shipped fork\(s\) rewritten byte for byte[^\n]*/},
+  /* js/mac-pef.js over the application's data fork. Structural alone; with
+     the workbench's cythera_symbols.txt beside the repository (a sibling
+     checkout, or $WORKBENCH) it is held to that independently recovered
+     routine list, address for address. */
+  {page: 'viewer', name: 'executable', want: [APP_DATA],
+   cmd: ['utilities/pef_check.mjs', 'js/mac-pef.js', APP_DATA, PEF_SYMBOLS],
+   grep: /\d+ routines named[^\n]*/},
   {page: 'viewer', name: 'rule models',
    cmd: ['utilities/mech_check.mjs', 'js/delv-mechanics.js'],
    grep: /\d+ comparisons agree[^\n]*/},

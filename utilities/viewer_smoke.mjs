@@ -1805,13 +1805,31 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     if (!ctx.adoptArchive(bin, 'Cythera.bin', {})) throw new Error(peek('lastArchiveError'));
     if (!ctx.INSTALLER) throw new Error('INSTALLER not set after adopting the installer');
     const drawn = {};
-    for (const v of ['INSTALLER', 'AISCRIPTS', 'AIRULES', 'APPRSRC', 'APPSND', 'UIMENUS', 'UIDIALOGS', 'UICURSORS', 'UIICONS', 'SCREENS', 'FONTS', 'STRINGS']) {
+    for (const v of ['INSTALLER', 'AISCRIPTS', 'AIRULES', 'APPRSRC', 'APPPEF', 'APPSND', 'UIMENUS', 'UIDIALOGS', 'UICURSORS', 'UIICONS', 'SCREENS', 'FONTS', 'STRINGS']) {
       if (!ctx.showCategory(v)) { fail('installer view ' + v, 'refused'); continue; }
       const grid = REGISTRY.get('sheetGrid');
       const n = (grid.children || []).length;
       drawn[v] = n;
       if (!n) fail('installer view ' + v, 'drew nothing: ' + REGISTRY.get('output').textContent.slice(0, 80));
     }
+    // The application's data fork is read, v1.32.0: the PEF's libraries
+    // and the routines its traceback tables name, with the sheets' citations
+    // as chips into it.
+    ctx.showCategory('APPPEF');
+    const pefhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+    const pef = ctx.appPef();
+    if (!pef || !pef.routines || pef.routines.length < 1800 || !pef.loader || pef.loader.libraries.length !== 10)
+      fail('executable', 'the PEF was not read: ' + JSON.stringify(pef && [pef.sections.length, pef.loader && pef.loader.libraries.length, pef.routines && pef.routines.length]));
+    else if (!/InterfaceLib/.test(pefhtml) || !/TGameViewer::DoTicks/.test(pefhtml) || !/traceback/.test(pefhtml))
+      fail('executable', 'the Data Fork sheet does not list the libraries and the routines');
+    else if (peek('TAB_BY_ID').get('apppef').wip) fail('executable', 'the Data Fork tab is still faded with the application open');
+    else {
+      ctx.openPefRoutine('TMapWindow::KeyRoutine');
+      const one = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+      if (!/0x437B8/.test(one) || !/KeyRoutine\(short\)/.test(one)) fail('executable', 'a routine chip does not land on the routine: ' + one.slice(0, 200));
+      else console.log(`  executable: ${pef.routines.length} routines named, ${pef.loader.symbols.length} imports from ${pef.loader.libraries.length} libraries; KeyRoutine at 0x437B8`);
+    }
+    ctx.showCategory('AIRULES');
     const rows = (REGISTRY.get('sheetGrid').children || []);
     // The Rules tab has the vocabulary out of the application's fork.
     ctx.showCategory('AIRULES');

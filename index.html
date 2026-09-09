@@ -1686,6 +1686,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
 <script src="js/mac-hfs.js"></script>
 <script src="js/mac-stuffit.js"></script>
 <script src="js/mac-vise.js"></script>
+<script src="js/mac-pef.js"></script>
 <!-- Cythera's own formats, on top of the generic Mac ones above:
      the archive, its graphics decoder, and its script VM. Same rule --
      classic scripts, never type="module". See js/delv-archive.js. -->
@@ -3915,7 +3916,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.31.0';
+const GRIMOIRE_VERSION = '1.32.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   if (b) b.innerHTML = '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
 window.GAME_FONT = null;
@@ -4277,6 +4278,8 @@ function showRsrcDetail(type, id) {
 --------------------------------------------------------------------------- */
 window.RSRC_SOURCE = 'data';        // 'data' = Cythera Data, 'app' = the application
 window.APP_RSRC = null;             // the application's fork, once fetched
+window.APP_DATA = null;             // and its data fork, the PEF executable, from the same container
+window.APP_PEF = null;              // parsePEF over it, with the routines, once asked for
 window.APP_RSRC_STATE = '';         // '', 'loading', or an error to show
 
 function rsrcViewFork() {
@@ -4311,6 +4314,7 @@ async function loadApplicationFork() {
       const c = sniffMacContainer(raw);
       if (!c || !c.rsrc || !c.rsrc.length) { lastErr = 'no resource fork in ' + url; continue; }
       window.APP_RSRC = openResourceFork(c.rsrc);
+      window.APP_DATA = c.data && c.data.length ? c.data : null; window.APP_PEF = null;
       window.APP_RSRC_STATE = '';
       window.AI_HOOK_NAMES = null;
       syncInstallerTabs();
@@ -4959,6 +4963,7 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'INSTALLER') { renderInstallerSheet(); return; }
   if ((window.CUR_SUBN === 'AISCRIPTS' && window.INSTALLER) ||
       (window.CUR_SUBN === 'AIRULES' && (window.INSTALLER || window.APP_RSRC))) { renderCombatAISheet(window.CUR_SUBN); return; }
+  if (window.CUR_SUBN === 'APPPEF' && window.APP_DATA) { renderAppPefSheet(); return; }
   if (PLACEHOLDER_TABS[window.CUR_SUBN]) { renderPlaceholderSheet(PLACEHOLDER_TABS[window.CUR_SUBN] + NO_INSTALLER_HINT); return; }
   const isComposite = window.CUR_SUBN === 'COMPOSITE';
   // The resource dropdown stays visible in both gallery and detail view now
@@ -5010,6 +5015,8 @@ function resetDerivedCaches() {
   // the file that is open, so a different archive has to drop them too.
   if (typeof _rsrcArtifactCache !== 'undefined') _rsrcArtifactCache.clear();
   window.APP_RSRC = null;
+  window.APP_DATA = null;
+  window.APP_PEF = null;
   window.APP_RSRC_STATE = '';
   window.RSRC_SOURCE = 'data';
   window.MAP_VIEW_MEMORY = Object.create(null);
@@ -5300,9 +5307,13 @@ function adoptArchive(raw, sourceName, opts) {
   if (found.installer) {
     const app = found.installer.archive.entries.find(e => e.type === 'APPL' && e.creator === 'Delv');
     if (app) {
-      try { window.APP_RSRC = openResourceFork(viseExtract(found.installer.archive, app).rsrc); window.APP_RSRC_STATE = ''; }
-      catch (e) { window.APP_RSRC = null; window.APP_RSRC_STATE = 'Could not open the application’s fork from the installer: ' + e.message; }
+      try { const both = viseExtract(found.installer.archive, app); window.APP_RSRC = openResourceFork(both.rsrc); window.APP_DATA = both.data && both.data.length ? both.data : null; window.APP_PEF = null; window.APP_RSRC_STATE = ''; }
+      catch (e) { window.APP_RSRC = null; window.APP_DATA = null; window.APP_PEF = null; window.APP_RSRC_STATE = 'Could not open the application’s fork from the installer: ' + e.message; }
       if (window.CUR_SUBN === 'MACRSRC' && window.RSRC_SOURCE === 'app') renderMacRsrcSheet();
+      // The Data Fork tab unfades with the data fork, which is set just above
+      // and after the sync parseArchiveBytes ran.
+      syncInstallerTabs();
+      try { syncTabsTo(document.getElementById('categorySelect').value); } catch (e) {}
     }
   }
   if (opts.store) {
@@ -13189,8 +13200,9 @@ const TAB_TREE = [
 
 // What the faded tabs with nothing behind them say when opened.
 const PLACEHOLDER_TABS = {
-  APPPEF: 'The application’s data fork is the PowerPC executable, a PEF container; ' +
-    'the 68K CODE resources are in its resource fork. Nothing on this page reads either yet.',
+  APPPEF: 'The application’s data fork is the PowerPC executable, a PEF container: its sections, ' +
+    'the shared libraries it imports and the routines it names for itself are read here once the application is open. ' +
+    'The 68K CODE resources are in its resource fork, listed under Resource Fork.',
   AISCRIPTS: 'The Combat AI scripts ship beside the game as separate .ai text files, not inside ' +
     'the archive. What the engine runs is the compiled ' +
     'form, subindex 3 — AI Combat Scripts, under Components › Functions › Actors.',
@@ -13212,6 +13224,10 @@ function syncInstallerTabs() {
     // fork, so it is unfaded as soon as that fork is here from anywhere.
     if (n) n.wip = !(on || (id === 'airules' && window.APP_RSRC));
   }
+  // The application's data fork is read (renderAppPefSheet) once it is here,
+  // from the installer or with the fork.
+  const pef = TAB_BY_ID.get('apppef');
+  if (pef) pef.wip = !window.APP_DATA;
 }
 
 // Every node learns its parent and depth, and every category value learns
@@ -13562,7 +13578,8 @@ function renderCheatsSheet() {
     '<div class="mechLede">Cythera has one, and no shipped copy can reach it. Everything on this ' +
     'page is read out of the application’s own <code>TMapWindow::KeyRoutine</code> — one switch over ' +
     'the key byte — rather than collected from players, which is how two things below are known that ' +
-    'no amount of playing would show.</div>';
+    'no amount of playing would show.</div>' +
+    '<div class="partsStrip"><span class="partsTitle">In the executable</span>' + pefChip('TMapWindow::KeyRoutine') + '</div>';
 
   h += '<div class="mechSec"><h4 class="cheatH4">The gate</h4><ul class="ruleList">' +
     '<li>The map window keeps the last four key bytes in a rolling word. When that word is ' +
@@ -16248,7 +16265,8 @@ function renderMechanicsSheet() {
     'The short lines over a character’s head are a field on the character that a script writes a string into. The engine draws it in a 128×32 rounded balloon with a tail and takes it down <b>four seconds</b> later: the routine that puts it up returns the tick count plus 240, and the one that shows the balloons each frame removes it once the tick count reaches that. Both are the executable’s, not the file’s.',
     ['A line is a literal, or one picked at random from a list.', 'Two tavern helpers take a list of shouts and a list of replies for when the food or wine comes.',
      barks.length ? barks.length + ' places in this archive’s scripts set one; the words are under Text › Barks.' : 'No script in this archive sets one.'],
-    mechBalloonFigure(barks), '<span class="partsTitle">The words</span><button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>');
+    mechBalloonFigure(barks), '<span class="partsTitle">The words</span><button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>' +
+      '<span class="partsTitle" style="margin-left:8px">In the executable</span>' + pefChip('TBark::SetBark') + pefChip('TActiveMonster::ShowBarks'));
 
   // ---- sleep ----
   const sl = sleepRules();
@@ -16274,7 +16292,7 @@ function renderMechanicsSheet() {
       'A status duration of <b>4096 is one hour</b>, 1024 a quarter of an hour, 409 six minutes.',
       'A <b>poisoned</b> character (flag 9) loses 1 health every six minutes and <b>dies</b> when the next point would take them below 1; a <b>regenerating</b> one (flag 12, what Omen’s ring grants) gains 1 every six minutes; one who is both takes a coin toss each time.',
       'Lighting is recomputed every quarter hour, and the schedules every hour.'
-    ], mechClockFigure(sp), '');
+    ], mechClockFigure(sp), '<span class="partsTitle">In the executable</span>' + pefChip('TGameViewer::DoTicks'));
 
   // The contents, first: a chip a section, in the order above.
   const toc = document.createElement('nav');
@@ -16307,6 +16325,78 @@ function renderPlaceholderSheet(note) {
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
   document.getElementById('output').textContent = note;
+}
+
+/* ---- Data > Cythera (App) > Data Fork ------------------------------------
+   The PowerPC executable, read with js/mac-pef.js: the container's sections,
+   the loader's imported libraries and symbols (the host API the game needs,
+   498 of its 563 imports from InterfaceLib), its two exports, and every
+   routine the code section names for itself in its traceback tables --
+   1,992 in 1.0.4, grouped by class. The sheets that cite a routine
+   ("read from the executable") carry a chip here (pefChip), which opens
+   this sheet filtered to the name. Addresses are offsets into the code
+   section, the convention the workbench's traces use, except that a trace
+   written down as 0x0437BC names the word after the entry: the entry
+   TMapWindow::KeyRoutine is 0x0437B8, four bytes earlier, which is where a
+   `bl` lands. */
+window.PEF_FILTER = '';
+function appPef() {
+  if (window.APP_PEF) return window.APP_PEF;
+  if (!window.APP_DATA) return null;
+  let pef = null;
+  try { pef = parsePEF(window.APP_DATA); } catch (e) { pef = null; }
+  if (!pef) return null;
+  try { pef.routines = pefTracebacks(pef, window.APP_DATA); } catch (e) { pef.routines = []; }
+  return (window.APP_PEF = pef);
+}
+function pefFilter(v) { window.PEF_FILTER = String(v || ''); renderAppPefSheet(); }
+function openPefRoutine(name) { window.PEF_FILTER = name; showCategory('APPPEF'); }
+// A chip to a routine of the executable, wherever a sheet cites one.
+function pefChip(name) {
+  const leaf = TAB_BY_ID.get('apppef');
+  return relChip({ js: 'openPefRoutine(\'' + name.replace(/'/g, '\\\'') + '\')', main: name, sub: 'routine', icon: leaf ? relIconURL({ tile: leaf.tile }) : '', title: 'Data › Cythera (App) › Data Fork' });
+}
+function renderAppPefSheet() {
+  stopAllViewActivity();
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  document.getElementById('singleControls').style.display = 'none';
+  const pef = appPef();
+  if (!pef) { renderPlaceholderSheet(PLACEHOLDER_TABS.APPPEF + (window.APP_DATA ? ' This data fork is not a PEF container.' : NO_INSTALLER_HINT)); return; }
+  const hex = n => '0x' + (n >>> 0).toString(16).toUpperCase();
+  const num = v => '<td class="num">' + svEsc(String(v)) + '</td>';
+  const box = document.createElement('div');
+  box.className = 'mechView';
+  const ld = pef.loader;
+  const code = pef.sections.find(x => x.kind === 0);
+  let h = '<div class="changesHead">The application’s data fork: a PEF container, ' + svEsc(pef.arch === 'pwpc' ? 'PowerPC' : pef.arch) + '</div>';
+  h += '<p class="mechLede">' + pef.sections.length + ' sections' + (ld ? ', entry in section ' + ld.mainSection + ' at ' + hex(ld.mainOffset) + ', ' + ld.libraries.length + ' libraries imported for ' + ld.symbols.length + ' symbols, ' + ld.exports.length + ' exported' : '') +
+    (pef.routines.length ? ', and ' + pef.routines.length.toLocaleString() + ' routines named in the code section’s traceback tables.' : '.') + '</p>';
+  h += '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>#</th><th>section</th><th class="num">unpacked</th><th class="num">packed</th><th class="num">at</th></tr></thead><tbody>' +
+    pef.sections.map(x => '<tr>' + num(x.index) + '<td>' + svEsc(x.kindName) + (x.name ? ' ' + svEsc(x.name) : '') + '</td>' + num(x.unpackedSize.toLocaleString()) + num(x.packedSize.toLocaleString()) + num(hex(x.containerOffset)) + '</tr>').join('') + '</tbody></table></div>';
+  if (ld) {
+    h += '<div class="mechSub">Imported libraries</div>';
+    h += ld.libraries.map(L => '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(L.name) + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + L.importedSymbolCount + '</b> symbol' + (L.importedSymbolCount === 1 ? '' : 's') + '</span>' + (L.weak ? '<span class="mechStat">weak</span>' : '') + '</span></summary>' +
+      '<div class="mechBody"><div class="partsStrip">' + L.symbols.map(y => '<span class="navChip" style="cursor:default">' + svEsc(y.name) + '</span>').join('') + '</div></div></details>').join('');
+    if (ld.exports.length) h += '<div class="mechSub">Exports</div><div class="partsStrip">' + ld.exports.map(e => '<span class="navChip" style="cursor:default" title="' + svEsc(e.className) + ', section ' + e.sectionIndex + ' at ' + hex(e.value) + '">' + svEsc(e.name) + '</span>').join('') + '</div>';
+  }
+  const q = (window.PEF_FILTER || '').trim().toLowerCase();
+  h += '<div class="mechSub">Routines</div>' +
+    '<input type="search" id="pefFilterBox" value="' + svEsc(window.PEF_FILTER || '') + '" placeholder="a routine or a class" oninput="pefFilter(this.value)" style="width:100%;box-sizing:border-box;margin:4px 0 8px">';
+  const rs = pef.routines.filter(r => !q || r.name.toLowerCase().includes(q) || r.mangled.toLowerCase().includes(q));
+  const byClass = new Map();
+  for (const r of rs) { const c = r.name.includes('::') ? r.name.slice(0, r.name.lastIndexOf('::', r.name.indexOf('(') < 0 ? undefined : r.name.indexOf('('))) : ''; (byClass.get(c) || byClass.set(c, []).get(c)).push(r); }
+  const row = r => '<tr>' + num(hex(r.offset)) + num(r.length.toLocaleString()) + '<td title="' + svEsc(r.mangled) + '">' + svEsc(r.name) + '</td></tr>';
+  const table = list => '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">at</th><th class="num">bytes</th><th>routine</th></tr></thead><tbody>' + list.map(row).join('') + '</tbody></table></div>';
+  if (q) h += rs.length ? table(rs) : '<div class="changesNote">No routine matches.</div>';
+  else h += [...byClass.entries()].sort((a, b) => (a[0] || '~').localeCompare(b[0] || '~')).map(([c, list]) =>
+    '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(c || 'functions outside a class') + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + list.length + '</b></span></span></summary><div class="mechBody">' + table(list) + '</div></details>').join('');
+  h += '<p class="mechLede" style="margin-top:10px">An address is an offset into the code section, where a call lands. The routines are read from the traceback table the compiler leaves after each one: its length and its name, mangled; the name is read back as far as the mangling allows and left as written where it does not.</p>';
+  box.innerHTML = h;
+  grid.appendChild(box);
+  out.textContent = pef.routines.length.toLocaleString() + ' routines named in the executable' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '; ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
 }
 
 /* ---- Tools -------------------------------------------------------------------

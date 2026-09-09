@@ -222,7 +222,7 @@ belongs.
 
 **Generic classic-Mac formats** — nothing here knows Cythera exists, and that
 is worth keeping true even though only one page loads them now. `index.html`
-loads all nine, in this order, before its own inline script:
+loads all ten, in this order, before its own inline script:
 
 | File | Purpose |
 |---|---|
@@ -235,8 +235,9 @@ loads all nine, in this order, before its own inline script:
 | `js/mac-hfs.js` | `writeHfsImage()` — a classic HFS volume with both forks, for the emulator to mount |
 | `js/mac-stuffit.js` | `parseStuffItArchive()` / `stuffItStoredFork()` — the catalog of a StuffIt 5 or classic `SIT!` archive and its *stored* entries; not a decompressor, and says which method a compressed fork would need |
 | `js/mac-vise.js` | `parseViseArchive()` / `viseExtract()` — an Installer VISE 3 archive (Cythera's installer), every file with both forks; its own raw DEFLATE inflater. `sniffViseInstaller` finds one bare, in a container, or stored in a StuffIt archive |
+| `js/mac-pef.js` | `parsePEF()` — a PowerPC application's data fork: the container's sections, the loader's imported libraries and symbols, its exports; `pefTracebacks()` walks the code section's traceback tables for every routine's offset, length and name; `pefDemangle()` reads CodeWarrior's cfront-style mangling back as far as it goes. Held to the workbench's independently recovered routine list by `pef_check.mjs` |
 
-**Cythera's own formats** — loaded after those nine, by `index.html`:
+**Cythera's own formats** — loaded after those ten, by `index.html`:
 
 | File | Purpose |
 |---|---|
@@ -365,7 +366,7 @@ from outside the repository.
   `--quick` skips it.
 
 A check whose inputs are genuinely missing is reported as **skip**, not fail.
-A clean run is **20 ok, 0 failed, 0 skipped**. Anything else is a
+A clean run is **21 ok, 0 failed, 0 skipped**. Anything else is a
 regression. **This number has gone stale five times**, always on the day a
 check was added and always silently, so `check_all.mjs` now prints the
 sentence this paragraph should carry: paste it in rather than counting by
@@ -588,6 +589,22 @@ once did live with the retired mobile shell in `ratlizard/alchemy`.
   ambiguous both take the same documented reading, with the alternative named
   on both sides. It needs no archive, no delvmod and no network, so unlike
   almost everything here it never skips.
+- `pef_check.mjs` — `js/mac-pef.js` over the application's data fork
+  (`$TMPDIR/Cythera.data`, which `check_all.mjs` already extracts for the
+  installer check). Structural alone: the loader's library counts sum to its
+  symbol table, every symbol and library has a name, the exports read back
+  as many as the header counts, the routines come out in order without
+  overlap, and the routines the sheets cite by name are found. With the
+  workbench checkout beside the repository (`../cythera-workbench`, or
+  `$WORKBENCH`) its `cythera_symbols.txt` is the oracle: 1,877 routines
+  recovered from the same traceback tables by a Python reader written
+  separately, and every one must be found at the same offset, length and
+  mangled name. That list writes each address **four bytes past the entry**
+  (its own note: "a `bl` lands 4 bytes before the symbol-table address"),
+  and the comparison allows exactly that. The JavaScript walk finds 115
+  more than the list — template instantiations whose names carry `<`, `,`
+  and `>`, which the list's name filter dropped — and prints a hash of the
+  whole so a change to the walk is visible.
 - `hfs_check.mjs` — `writeHfsImage` in `js/mac-hfs.js`, the disk-image writer
   `index.html` exports with. Structural on its own (the MDB, the bitmap and
   both B-trees read back and audited against the arithmetic that produced
@@ -2323,6 +2340,40 @@ Read the comment above a constant before correcting it.
   record; whether a map's tile layer draws any of the eleven is not asked.
   The smoke pins the flail at mace 8 and spear 2 with the word `0x205E`,
   refuses bread, the lit torch and the shutters, and reads the mace's page.
+
+- **The application's data fork is read, v1.32.0** (9 September 2026; the
+  maintainer asked why the tab was still empty, and then to fill it "as long
+  as it's not unethical", which reading a file's own headers and the names
+  its compiler left in it is not). `js/mac-pef.js` is the reader (see the
+  mac-\* table) and Data › Cythera (App) › **Data Fork** (`renderAppPefSheet`)
+  is the sheet: the three sections, the entry point, the ten imported
+  libraries as folding cards of their symbols (498 of the 563 from
+  InterfaceLib, the rest weak), the two exports, and the **1,992 routines**
+  the code section names for itself, grouped by class as folding cards with
+  a filter box of the sheet's own (`pefFilter`; the gallery filter is for
+  galleries). `window.APP_DATA` is kept beside `APP_RSRC` from both places
+  the fork comes from, the installer and a fetched `Cythera.hqx`, and
+  `APP_PEF` memoises the parse; both go in `resetDerivedCaches`. The tab
+  unfades with the data (`syncInstallerTabs`), and without it the
+  placeholder says what will be there. **The sheets that cite a routine now
+  chip to it** (`pefChip` → `openPefRoutine`, which opens the sheet filtered
+  to the name): the clock section to `TGameViewer::DoTicks`, the balloons to
+  `TBark::SetBark` and `TActiveMonster::ShowBarks`, the Cheats head to
+  `TMapWindow::KeyRoutine`. **Addresses are the entry**, where a call lands:
+  the workbench's traces and this file's own notes write a routine as four
+  bytes past that (`KeyRoutine` "0x0437BC" is the entry `0x0437B8`), a
+  convention of how that list was recovered, and the sheet says so. The
+  traceback table's field order is spelt out above `pefTracebacks`, since
+  getting one optional field out of order reads garbage for a name; the
+  three tests that keep data out of the routine list (a length, a name, a
+  start no earlier than the last routine's end) are there too. The
+  demangler reads the ordinary shapes and leaves template arguments as
+  written inside their angle brackets. The smoke drives the sheet under
+  the installer and requires a chip to land on `KeyRoutine(short)` at
+  `0x437B8`; `pef_check.mjs` is the check and the oracle is described in
+  the checks section. **Not done**: the 68K `CODE` segments' MacsBug names
+  (the workbench's `coldmap.py` reads them) are still a byte count under
+  Resource Fork › Engine, and nothing disassembles anything.
 
 ### `canvas.html`
 

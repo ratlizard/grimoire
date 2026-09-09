@@ -500,6 +500,21 @@ re-check the installer count before assuming the rule still applies.
   `CLAUDE.md`'s v1.31.0 bullets have both. **Not verified here**: that no
   script builds a flail (the other session's byte scan) — the page claims
   only "in no prop list".
+- **The application's data fork is read, v1.32.0** (9 September). The
+  maintainer asked why the tab was still empty. It was a placeholder because
+  every finding about the executable had been traced outside the repository
+  and written into the sheets as prose. Now `js/mac-pef.js` reads the PEF
+  container, the imports and exports, and the routine names out of the
+  traceback tables, the Data Fork tab shows them by class with a filter, and
+  the clock, balloon and cheat sheets chip to the routine they cite.
+  `pef_check.mjs` holds the walk to the workbench's `cythera_symbols.txt`
+  (all 1,877 found, plus 115 template instantiations that list dropped);
+  the suite is 21 checks. **A convention to know**: the workbench's list and
+  its traces write an address four bytes past the routine's entry; the page
+  shows the entry. **Left**: the 68K MacsBug names under Resource Fork ›
+  Engine (`coldmap.py` reads them), the save sheet's segment writers as chips
+  (the names are `TCachedSegFiles::SaveSegment` and
+  `SaveEncryptedSegment`, found by the reader), and the executable patcher.
 - **Careful: another session is pushing to grimoire through the day.**
   Three of the four commits above needed a rebase, one with a conflict
   (the version number, which both sessions bump). Fetch before starting
