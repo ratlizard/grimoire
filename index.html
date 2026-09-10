@@ -3657,6 +3657,58 @@ function propWordData(k, v) {
   st['d' + k] = Math.max(0, Math.min(255, parseInt(v, 10) || 0));
   propWordRender();
 }
+/* THE SWING. What a weapon draws when it strikes is not its own tile at all:
+   the outcome routine 0xE87 hands the HitWithTile syscall (cbAttackFX, which
+   calls TGameViewer::ShowAttack) a list of tiles to play between the two
+   squares, and the list is field 6 of the class's melee entry (key 0x2A),
+   a dref into the class's own script where a five-word array sits: 0, three
+   tiles, 0. A class whose field is None (rolling pin, cleaver, pick,
+   gauntlets, staff in the shipped file) gets the routine's own inline
+   default, two tiles, found here by its shape (the 0x45 data opcode, 22
+   bytes, a 0x90 array of five) rather than by offset. Read on 9 September
+   2026; the mace's list is 0x8A3-0x8A5 and the spear's is its own tile
+   three times, which is why a mace at aspect 8 wears the flail in the pack
+   and still swings as a mace. */
+function dvmWordArrayAt(d, off) {
+  if (!d || off < 0 || off + 2 > d.length || d[off] !== 0x90) return null;
+  const n = d[off + 1], words = [];
+  for (let k = 0; k < n; k++) { const q = off + 2 + 4 * k; if (q + 4 > d.length) return null; words.push(u32be(d, q)); }
+  return words;
+}
+function weaponSwingFrames(pt) {
+  let cls = null;
+  try { cls = parseItemClass(pt); } catch (e) { cls = null; }
+  const e = cls && cls.data.find(x => x.key === 0x2A);
+  if (!e) return null;
+  const w = (e.words[6] || 0) >>> 0;
+  const read = resid => { try { const raw = getResourceBytes(resid); return raw ? smartDecrypt(raw, resid).data : null; } catch (err) { return null; } };
+  if (w >= 0x80000000) {
+    const resid = (w & 0x7FFF0000) >>> 16, off = w & 0xFFFF;
+    const words = dvmWordArrayAt(read(resid), off);
+    if (!words) return null;
+    return { own: true, resid, off, tiles: words.filter(t => t > 0 && t <= 0xFFFF) };
+  }
+  // No list of its own: the outcome routine's default.
+  const d = read(0xE87);
+  if (!d) return null;
+  for (let i = 0; i + 5 <= d.length; i++) {
+    if (d[i] === 0x45 && d[i + 1] === 0x00 && d[i + 2] === 0x16 && d[i + 3] === 0x90 && d[i + 4] === 0x05) {
+      const words = dvmWordArrayAt(d, i + 3);
+      if (words) return { own: false, resid: 0xE87, off: i + 3, tiles: words.filter(t => t > 0 && t <= 0xFFFF) };
+    }
+  }
+  return null;
+}
+function swingFramesHTML(pt) {
+  let sw = null;
+  try { sw = weaponSwingFrames(pt); } catch (e) { sw = null; }
+  if (!sw || !sw.tiles.length) return '';
+  const tiles = sw.tiles.map(t => { let u = ''; try { u = relIconURL({ tile: t }); } catch (e) { u = ''; }
+    return (u ? '<img class="brandTile" src="' + u + '" alt="" width="20" height="20"> ' : '') + propWordHex(t); }).join(', ');
+  const where = svLink(sw.own ? 'its class script' : 'the outcome routine’s default', 'jumpToResource(' + sw.resid + ')', propWordHex(sw.resid) + ' at ' + propWordHex(sw.off));
+  return ' The swing in a fight is ' + (sw.own ? 'a list of tiles in ' : 'not the weapon’s own: it has no list, so it plays ') + where + ': ' + tiles + '.';
+}
+
 // Another class's page, at the aspect that shows the same tile.
 function propWordOpen(pt, aspect) { showItemDetail(pt); propWordSet(aspect); }
 function propWordRender() {
@@ -3666,7 +3718,7 @@ function propWordRender() {
   const name = terrainNameFor(tile) || '', own = terrainNameFor(base) || propDisplayName(pt) || '';
   const bits = word.toString(2).padStart(16, '0');
   let h = '<div class="sv-note" style="margin:0 0 8px">A prop record names what it is with one 16-bit word: <b>the prop type in the low ten bits, an aspect in the five above</b>. This item’s prop type is ' + w(pt) + ', so at aspect 0 the word is ' + w(propWordHex(pt)) + '; a step of aspect adds 1,024. ' +
-    'Aspect <i>n</i> draws the base tile + <i>n</i> and takes that tile’s name; what else it changes is the class script’s to say. The swing in a fight is the class’s own animation, whatever the aspect.';
+    'Aspect <i>n</i> draws the base tile + <i>n</i> and takes that tile’s name; what else it changes is the class script’s to say.' + (swingFramesHTML(pt) || ' The swing in a fight is the class’s own animation, whatever the aspect.');
   let wear = [];
   try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
   if (wear.length) h += ' At ' + wear.map(x => 'aspect ' + w(x.aspect) + ' it is a ' + w(svEsc(x.name)) + ' (tile ' + propWordHex(x.tile) + ', the word ' + propWordHex(x.word) + ')').join(', ') +
@@ -4148,7 +4200,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.41.0';
+const GRIMOIRE_VERSION = '1.42.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -14822,11 +14874,26 @@ function renderCombatAISheet(which) {
     }
     const box = document.createElement('div');
     box.style.cssText = 'grid-column:1/-1';
+    // Which of the words are the executable's and which are this archive's:
+    // the Tests and Actions lists are native, and the Scenario lists are
+    // Delver scripts, one resource per word, in the order the lists give.
+    const tests = [], actions = [];
+    for (let i = 0; i < 6; i++) if (refExists(0x901 + i)) tests.push(svChip(0x901 + i));
+    for (let i = 0; i < 13; i++) if (refExists(0x981 + i)) actions.push(svChip(0x981 + i));
+    const split = (tests.length || actions.length)
+      ? '<div class="changesNote" style="margin-left:0">The Tests list and the two Actions are the executable’s own. ' +
+        'The Scenario lists are scripts in this archive, one a word, in the order given' +
+        (tests.length ? ': the tests ' + tests.join(' ') : '') + (actions.length ? (tests.length ? ', the actions ' : ': the actions ') + actions.join(' ') : '') +
+        '. CastSpell calls HasSpell first and casts nothing a character does not know. ' +
+        'A file written to the AI Scripting Document is compiled into one of 31 user slots, numbers 176 to 206, from a companion’s character window: ' +
+        'its Strategy tab, the popup at the bottom left, Edit User Strategies…, then Import. The same dialog’s Debug button marks a slot, and a companion running a marked slot opens the game’s own AI debugger, ' +
+        'a listing with Step, Go and Clear Debug, on every evaluation. The Debug(#) action only prints its number.</div>'
+      : '';
     box.innerHTML = '<div class="propHead">The vocabulary, from the application’s resource fork' +
       (rows.length ? '' : (app ? ', none of the lists is in this fork' :
         (window.APP_RSRC_STATE === 'loading' ? ', loading the application…' :
          ', ' + (window.APP_RSRC_STATE || 'the application’s fork is not loaded')))) + '</div>' +
-      (rows.length ? '<div class="tableScroll"><table class="vocabTable">' + rows.join('') + '</table></div>' : '');
+      (rows.length ? '<div class="tableScroll"><table class="vocabTable">' + rows.join('') + '</table></div>' : '') + split;
     grid.appendChild(box);
   }
   const arc = window.INSTALLER ? window.INSTALLER.archive : null;

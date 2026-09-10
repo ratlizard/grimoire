@@ -380,6 +380,15 @@ try {
     const mace = list.find(i => i.name === 'mace');
     if (!flail || flail.tile !== 0x208 || !flail.reach.some(r => r.pt === 94 && r.aspect === 8 && r.word === 0x205E) || !flail.reach.some(r => r.pt === 100 && r.aspect === 2))
       fail('items', 'the flail is not read as art no class owns, reached by mace 8 and spear 2: ' + JSON.stringify(flail));
+    // The swing is the class's own list, read off its script: the mace plays
+    // three tiles of its own, the spear its own tile three times, and the
+    // rolling pin, with no list, the outcome routine's default pair.
+    else if (JSON.stringify((ctx.weaponSwingFrames(94) || {}).tiles) !== '[2211,2212,2213]' || !(ctx.weaponSwingFrames(94) || {}).own)
+      fail('items', 'the mace’s swing is not read as its own 0x8A3-0x8A5: ' + JSON.stringify(ctx.weaponSwingFrames(94)));
+    else if (JSON.stringify((ctx.weaponSwingFrames(100) || {}).tiles) !== '[518,518,518]')
+      fail('items', 'the spear’s swing is not its own tile three times: ' + JSON.stringify(ctx.weaponSwingFrames(100)));
+    else if (JSON.stringify((ctx.weaponSwingFrames(163) || {}).tiles) !== '[436,437]' || (ctx.weaponSwingFrames(163) || {}).own !== false)
+      fail('items', 'the rolling pin does not fall back to the outcome routine’s default: ' + JSON.stringify(ctx.weaponSwingFrames(163)));
     else if (orphans.some(o => o.name === 'bread' || o.name === 'lit torch' || o.name === 'closed shutters'))
       fail('items', 'a placed variant or a scripted state is listed as an orphan: ' + orphans.map(o => o.name).join(', '));
     else if (!/Art no class owns/.test(ihtml) || !/flail/.test(ihtml) || !/in no prop list/.test(ihtml))
@@ -1939,6 +1948,10 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     ctx.showCategory('AIRULES');
     const vocab = REGISTRY.get('sheetGrid').children.find(c => /vocabTable/.test(c.innerHTML || ''));
     if (!vocab || !/HasSpell|IsSpecies/.test(vocab.innerHTML)) fail('combat vocabulary', 'the Rules tab did not draw the AI string lists');
+    // And says which words are scripts, with a chip to the first test and
+    // the first action, and how a file gets in and is debugged.
+    else if (!/Edit User Strategies/.test(vocab.innerHTML) || !/0x0?901/i.test(vocab.innerHTML) || !/0x0?981/i.test(vocab.innerHTML))
+      fail('combat vocabulary', 'the Rules tab does not say which words are scripts, or does not link them');
     // The same lists name the scripted tests and actions, in order: with the
     // application's fork open 0x906 is the sixth test and 0x981 the first
     // action, and the class rule from the executable puts 0x1E20 among the
