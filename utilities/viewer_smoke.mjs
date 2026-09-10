@@ -712,6 +712,20 @@ try {
       if (html.includes('Dossier')) withPeople++;
     }
   }
+  // v1.45.0: a link that names a coordinate lands on it -- centred, ringed,
+  // and zoomed to a legible square -- once the map has settled, whichever
+  // path opened it. The stub queues animation frames without running them,
+  // so the opener's stamp never arrives here and the landing takes the
+  // fallback wait, which is the case a map opened by another path is in.
+  {
+    ctx.showSquareOnMap(0x8001, 10, 12);
+    await new Promise(r => setTimeout(r, 1500));
+    const sel = ctx.__peek('window.MAP_SEL'), cm = ctx.__peek('window.CUR_MAP');
+    const sc = ctx.__peek('mapView.scale');
+    if (!cm || cm.resid !== 0x8001 || !sel || sel.tx !== 10 || sel.ty !== 12 || sc * cm.TS < 20)
+      fail('map landing', 'showSquareOnMap did not land on (10,12) of 0x8001 at a legible zoom: ' + JSON.stringify([cm && cm.resid, sel, sc, cm && cm.TS]));
+    else console.log(`  map landing: 0x8001 (10,12) ringed at ${Math.round(sc * cm.TS)} px a square`);
+  }
   if (!mapsWithProps) fail('map inspector', 'no map reported any props');
   else if (named !== probes) fail('map inspector', `${probes - named} of ${probes} squares did not name their prop`);
   else console.log(`  map inspector: ${probes} prop squares on ${mapsWithProps} maps, all named`);

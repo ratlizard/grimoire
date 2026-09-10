@@ -378,57 +378,47 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .ftabRow { display:flex; align-items:flex-end; padding:0 0 0 10px; overflow-x:auto; overflow-y:hidden;
   scrollbar-width:none; -webkit-overflow-scrolling:touch; }
 .ftabRow::-webkit-scrollbar { display:none; }
-/* The At Ease folder (System 7's At Ease 2 and 3, the maintainer's
-   reference of 10 September 2026): a panel with a one-pixel black outline
-   and a hard shadow set off to the right and below, a mottled fill, and a
-   tab standing on its top edge with slanted sides, outlined the same, whose
-   foot is the panel's own fill so the two are one piece. A tab that is not
-   open stands lower, in a darker card, behind the panel's edge.
-
-   A clip-path cannot carry a border, so the outline is the button's own
-   black background showing round a ::before that is the fill, clipped one
-   pixel inside. The open tab hangs one pixel over the panel and its fill
-   runs to its foot, which is what covers the panel's top line under it.
-   The grain is one 48px tile of grey and alpha (--grain) laid over the
-   flat colour, the same tile on tabs and panels. */
-:root { --card:#e2cf99; --cardDark:#b9a266; --cardHover:#cbb476; --grain:url('data:image/png;base64,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'); }
+/* Plain card, one colour at every level (the maintainer, 10 September 2026:
+   no texture; the At Ease outline and grain of v1.44.0 lasted an hour). A
+   tab is a rounded top on the same card: unselected in a darker card that
+   lifts a pixel and lightens under the pointer, the open tab the folder's
+   own colour hanging a pixel over it so the two are one piece. Nesting
+   shows by each folder's own soft shadow and faint edge. The base button
+   rule sets most of this !important, so these are too. */
+:root { --card:#e2cf99; --cardDark:#b9a266; --cardHover:#d2bd7e; }
 .ftab { flex:0 0 auto; display:flex !important; align-items:center; gap:6px; cursor:pointer;
-  margin:0 0 0 -5px; white-space:nowrap; width:auto; position:relative; z-index:1;
+  margin:0 0 0 -4px; white-space:nowrap; width:auto; position:relative; z-index:1;
   padding:6px 13px 5px !important; min-height:0 !important; line-height:1.2 !important;
   font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.7812rem !important; font-weight:600 !important;
-  letter-spacing:0; color:#2a1e08 !important; text-shadow:none !important; text-decoration:none;
-  border:0 !important; border-radius:0 !important; box-shadow:none !important;
-  background:#000 !important;
-  clip-path:polygon(0 100%, 8px 0, calc(100% - 8px) 0, 100% 100%) !important; }
-.ftab::before { content:''; position:absolute; left:1px; right:1px; top:1px; bottom:0; z-index:-1;
-  background:var(--grain), linear-gradient(var(--cardDark), var(--cardDark));
-  clip-path:polygon(0 100%, 7.5px 0, calc(100% - 7.5px) 0, 100% 100%); }
-.ftab:hover { color:#000 !important; text-decoration:none; }
-.ftab:hover::before { background:var(--grain), linear-gradient(var(--cardHover), var(--cardHover)); }
+  letter-spacing:0; color:#3a2a0c !important; text-shadow:none !important; text-decoration:none;
+  border:0 !important; border-radius:9px 9px 0 0 !important;
+  box-shadow:inset 0 -3px 4px -2px rgba(0,0,0,.25) !important;
+  background:var(--cardDark) !important; transition:background .12s, transform .12s; }
+.ftab:hover { color:#000 !important; text-decoration:none; background:var(--cardHover) !important; transform:translateY(-1px); }
 .ftab:focus-visible { outline:2px solid var(--gold); outline-offset:-3px; }
 .ftab canvas { width:18px !important; height:18px !important; image-rendering:pixelated; margin:0; flex:0 0 auto; }
-.ftab.sel, .ftab.sel:hover { padding:9px 15px 7px !important; color:#000 !important; z-index:3; margin-bottom:-1px; }
-.ftab.sel::before, .ftab.sel:hover::before { background:var(--grain), linear-gradient(var(--card), var(--card)); }
-/* The rows inside a panel stand on the panel itself, as the tab does on
-   the desktop: no band under them. */
+.ftab.sel, .ftab.sel:hover { padding:9px 15px 7px !important; color:#000 !important; z-index:3; margin-bottom:-1px;
+  background:var(--card) !important; box-shadow:none !important; transform:none; }
 #tabFolder1 > .ftabRow, #tabFolder2 > .ftabRow { padding-top:4px; }
 .ftab.wip { opacity:.45; }
 .ftab.wip.sel { opacity:.78; }
 .ftab .tabBadge { font-size:0.625rem; line-height:1; padding:2px 5px; border-radius:8px;
-  background:#2a1e08; color:#fff; font-family:ui-monospace,Menlo,Consolas,monospace; }
-/* The three panels are one card, nested; each has its own outline and
-   shadow, which is what shows the nesting. */
-.folder { padding:5px; border:1px solid #000; border-radius:0; box-shadow:4px 4px 0 0 #2b2418;
-  background:var(--grain), linear-gradient(var(--card), var(--card)); }
-.folder.f2, .folder.f3 { background:var(--grain), linear-gradient(var(--card), var(--card)); }
-/* The sheet: the dialogue box itself. Its border is the PNG's own 4/8px band,
-   its interior the same one-pixel checkerboard of rgb(31,0,183) over nothing,
-   so the planks show through it exactly as they do in the game. The thin dark
-   scrim on top is the one concession to reading yellow text on it. */
+  background:#3a2a0c; color:#fff; font-family:ui-monospace,Menlo,Consolas,monospace; }
+.folder { padding:5px; border:1px solid rgba(0,0,0,.28); border-radius:0 5px 5px 5px; box-shadow:0 2px 7px rgba(0,0,0,.5);
+  background:var(--card); }
+.folder.f2, .folder.f3 { background:var(--card); }
+/* The sheet: the dialogue box itself. Its border is the PNG's own 4/8px band.
+   Its interior was the game's one-pixel checkerboard of rgb(31,0,183) over
+   nothing, drawn as a 2px CSS pattern, which on some screens (a fractional
+   device-pixel ratio, a zoomed page) beat against the pixel grid as moiré;
+   since 10 September 2026 it is the colour that checkerboard averages to,
+   blue at half strength over the planks, which is what the game's dither is
+   for on a screen of the period. The thin dark scrim on top is the one
+   concession to reading yellow text on it. */
 .tabSheet { border:4px solid transparent; border-left-width:8px; border-right-width:8px;
   border-image:url('res/Dialogue_Background.png') 4 8 stretch;
   background:linear-gradient(rgba(10,6,4,.28), rgba(10,6,4,.28)),
-             repeating-conic-gradient(rgb(31,0,183) 0 25%, transparent 0 50%) 0 0 / 2px 2px;
+             linear-gradient(rgba(31,0,183,.5), rgba(31,0,183,.5));
   padding:10px 8px 14px; min-height:120px;
   /* Every line on the sheet gets a shadow: the dither is half blue and half
      plank, and 12px muted text was unreadable on it without one. */
@@ -760,6 +750,9 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
   font:12px/1.45 ui-monospace,Menlo,Consolas,monospace; color:#d8d0b4; background:rgba(0,0,0,.35);
   border:1px solid var(--edge); border-radius:6px; padding:10px 12px; margin:6px 0; max-height:70vh; overflow:auto; }
 .changesHead { color:#fff; font-size:0.9375rem; font-weight:600; margin:2px 0 8px; }
+/* The combat AI's words are identifiers a rule file is written in, so the
+   Rules tab sets them in the code face, not the game's. */
+.vocabTable td { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:0.75rem; letter-spacing:0; }
 .changesRow { display:flex; align-items:center; gap:10px; padding:3px 0; flex-wrap:wrap; }
 .changesRow .navChip { margin:0; }
 .changesGroup { margin-top:16px; padding-top:10px; border-top:1px solid rgba(155,136,80,.35); }
@@ -4265,7 +4258,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.44.0';
+const GRIMOIRE_VERSION = '1.45.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -5033,10 +5026,9 @@ function showCharacterOnMap(i) {
     if (parseInt(sel.options[k].textContent.slice(2, 6), 16) === resid) { sel.selectedIndex = k; break; }
   }
   window.FOCUS_CHARACTER = i;
+  window.MAP_SETTLED = null;
   renderImage();
-  setTimeout(() => {
-    const cm = window.CUR_MAP, vp = document.getElementById('mapViewport');
-    if (!cm || !vp) return;
+  whenMapSettled(resid, (cm, vp) => {
     const who = charactersOnLevel(cm.level, window.MAP_HOUR).find(p => p.index === i);
     const tx = who ? who.x : c.x, ty = who ? who.y : c.y;
     mapView.x = vp.clientWidth / 2 - tx * cm.TS * mapView.scale;
@@ -5045,7 +5037,7 @@ function showCharacterOnMap(i) {
     // Ring the square as well as centring on it: on a busy map the centre
     // of the viewport is not a mark anyone can see.
     setMapSelection(tx, ty);
-  }, 900);
+  });
 }
 
 // Join only the fields that carry a value, and emit nothing at all if none of
@@ -9376,6 +9368,7 @@ function restoreOrFitMap(resid, _retry) {
     return setTimeout(() => restoreOrFitMap(resid, (_retry || 0) + 1), 50);
   }
   if (!restoreMapView(resid)) fitMapToView();
+  window.MAP_SETTLED = resid;   // what showSquareOnMap waits for
 }
 
 function onMapFit() {
@@ -12309,19 +12302,8 @@ function atlasFallInto(m, node) {
    540 px across), or as close as the art goes, whichever is nearer. No
    fade, since nothing is left behind; the zoom row and the slider follow. */
 // The zone in its own panel, centred on the square and the square selected.
-function atlasOpenSquare(resid, tx, ty) {
-  jumpToResource(resid);
-  setTimeout(() => {
-    const cm = window.CUR_MAP, vp = document.getElementById('mapViewport');
-    if (!cm || cm.resid !== resid || !vp) return;
-    try {
-      mapView.x = vp.clientWidth / 2 - (tx + 0.5) * cm.TS * mapView.scale;
-      mapView.y = vp.clientHeight / 2 - (ty + 0.5) * cm.TS * mapView.scale;
-      clampMapPan(); applyMapTransform();
-      inspectMapSquare(tx, ty);
-    } catch (e) {}
-  }, 0);
-}
+// The schedules and the atlas card call this name; it is showSquareOnMap.
+function atlasOpenSquare(resid, tx, ty) { showSquareOnMap(resid, tx, ty); }
 /* From a zone's page to the World tab, on that zone: a place on the surface
    is centred at the zoom its roofs come off at; a place below ground is
    entered through the mouth that leads to it; the world itself is fitted. */
@@ -13671,7 +13653,6 @@ const TAB_TREE = [
       { id: 'schedules',  label: 'Schedules',  tile: 0x803, values: ['SCHEDULES'] },   // the hourglass
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
-      { id: 'props',      label: 'Props',      tile: 0x2E0, values: ['PROPS'] },       // the anvil: a thing placed in the world (from under Graphics › Tilesets, 9 September 2026)
       { id: 'regions',    label: 'Zones',      tile: 0x120, values: ['127'] },         // the encampment, the maintainer's pick, 9 September 2026
       { id: 'skills',     label: 'Skills',     tile: 0x3DB, values: ['SKILLS'] },   // a distiller (prop 234), the maintainer's pick on 8 September
       { id: 'spells',     label: 'Spells',     tile: 0x888, values: ['SPELLS'] },   // a staff (prop 343), the maintainer's pick
@@ -13693,7 +13674,7 @@ const TAB_TREE = [
       { id: 'graphics', label: 'Graphics', tile: 0x861, children: [                           // the easel, with its painting
           { id: 'portraits',  label: 'Portraits',  tile: 0x33F, values: ['135'] },                      // the mirror
           { id: 'landscapes', label: 'Landscapes', tile: 0x890, values: ['131'] },                      // the landscape painting
-          { id: 'tilesets',   label: 'Tilesets',   tile: 0x0D5, values: ['141'] },             // the quartered blue floor; sprites by prop type are a way of viewing the same tiles
+          { id: 'tilesets',   label: 'Tilesets',   tile: 0x0D5, values: ['141', 'PROPS'] },    // the quartered blue floor; sprites by prop type are the same tiles viewed by what wears them (a Scenario tab for a day, 9-10 September 2026)
           { id: 'composites', label: 'Composites', tile: 0x0D4, values: ['COMPOSITE', 'RSRC'] },        // grass meeting sand
           // Misc is the archive's general graphics and, since 8 September
           // 2026, the whole screens in the resource fork beside them (the
@@ -20657,21 +20638,49 @@ function lockLocationChip(l) {
     svEsc(l.name) + ', ' + svEsc(zone) + ' (' + l.rec.x + ',' + l.rec.y + ')</button>';
 }
 
-// Open a map and land on one square, selected and inspected. The same
-// after-load settle showCharacterOnMap uses.
+/* Open a map and land on one square: centred, ringed and inspected.
+
+   Every link that names a coordinate (a schedule's post, a passage's
+   destination, a teleporter, a key's door, "where X is") comes here. Two
+   of the three copies this replaces waited a fixed time after opening the
+   map -- 0 ms for the schedules, 900 ms for the rest -- and then set the
+   pan; the map's own opening fit (restoreOrFitMap, on the frame after the
+   render) ran after the 0 ms one and undid it, and on a slow phone after
+   the 900 ms one too, which is why a link opened the zone and left the
+   reader at the fit. Now the opener stamps MAP_SETTLED when its fit or
+   restore has run, and the landing waits for that stamp, then zooms in to
+   a legible square if the fit left it smaller, centres, rings and
+   inspects. */
+window.MAP_SETTLED = null;
+function whenMapSettled(mapResid, fn, tries) {
+  const cm = window.CUR_MAP, vp = document.getElementById('mapViewport');
+  const ready = cm && cm.resid === mapResid && vp && vp.clientWidth >= 40;
+  // The stamp makes the landing prompt; a map opened by a path that never
+  // stamps (already open, or a stub with no animation frame) still lands,
+  // after the old fixed wait.
+  if (ready && (window.MAP_SETTLED === mapResid || (tries || 0) >= 18)) { fn(cm, vp); return; }
+  if ((tries || 0) < 100) setTimeout(() => whenMapSettled(mapResid, fn, (tries || 0) + 1), 50);
+}
 function showSquareOnMap(mapResid, x, y) {
-  jumpToResource(mapResid);
-  setTimeout(() => {
-    const cm = window.CUR_MAP;
-    if (!cm || cm.resid !== mapResid) return;
-    const vp = document.getElementById('mapViewport');
-    if (vp) {
-      mapView.x = vp.clientWidth / 2 - x * cm.TS * mapView.scale;
-      mapView.y = vp.clientHeight / 2 - y * cm.TS * mapView.scale;
-      clampMapPan(); applyMapTransform();
+  if (!(window.CUR_MAP && window.CUR_MAP.resid === mapResid && window.MAP_SETTLED === mapResid)) {
+    window.MAP_SETTLED = null;
+    jumpToResource(mapResid);
+  }
+  whenMapSettled(mapResid, (cm, vp) => {
+    const need = 20 / cm.TS;   // at least 20 px a square, or the ring is a dot
+    if (mapView.scale < need) {
+      mapView.scale = need;
+      const zs = document.getElementById('mapZoomSlider'), zl = document.getElementById('mapZoomLabel');
+      if (zs) zs.value = Math.round(need * 100);
+      if (zl) zl.textContent = Math.round(need * 100) + '%';
     }
+    mapView.x = vp.clientWidth / 2 - (x + 0.5) * cm.TS * mapView.scale;
+    mapView.y = vp.clientHeight / 2 - (y + 0.5) * cm.TS * mapView.scale;
+    clampMapPan(); applyMapTransform();
+    try { updateMapArrows(); } catch (e) {}
     inspectMapSquare(x, y);
-  }, 900);
+    setMapSelection(x, y);
+  });
 }
 
 // --- An item's places, on the map itself ------------------------------
@@ -20680,10 +20689,9 @@ function showSquareOnMap(mapResid, x, y) {
 // the item ringed and the view centred on the first, the same after-load
 // settle showCharacterOnMap uses.
 function showItemOnMap(mapResid, pt) {
+  window.MAP_SETTLED = null;
   jumpToResource(mapResid);
-  setTimeout(() => {
-    const cm = window.CUR_MAP;
-    if (!cm || cm.resid !== mapResid) return;
+  whenMapSettled(mapResid, (cm) => {
     const spots = (cm.allProps || []).filter(r =>
       r.proptype === pt && r.flags !== 0xFF && !(r.flags & 0x58) &&
       r.flags !== 0x42 && r.flags !== 0x44);
@@ -20698,7 +20706,7 @@ function showItemOnMap(mapResid, pt) {
     }
     inspectMapSquare(spots[0].x, spots[0].y);
     setMapSelection(spots[0].x, spots[0].y);   // the ring, as well as the wash on every spot
-  }, 900);
+  });
 }
 
 function updateGalleryTools() {
