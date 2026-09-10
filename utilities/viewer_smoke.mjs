@@ -307,6 +307,16 @@ const status = REGISTRY.get('sourceStatus').textContent;
 console.log(`  parseArchiveBytes: ${Date.now() - t0} ms — status "${status.slice(0, 80)}"`);
 if (!/Loaded:/.test(status)) fail('status line', 'did not report a load: ' + status);
 if (!ctx.__peek('masterIndexGlobal').filter(m => m[0]).length) fail('master index', 'no subindexes');
+// v1.47.0: the dialogue box is read off the file -- the frame from tile
+// 0x19D as a border-image, the blue from clut 256's ColorSpec 1 in the fork.
+await new Promise(r => setTimeout(r, 200));
+{
+  const box = ctx.__peek('window.DIALOGUE_BOX');
+  const css = (box && box.css) || '';
+  if (!box || !box.blue || box.blue.join(',') !== '0,0,168' || !/--boxBlue:rgba\(0,0,168,\.5\)/.test(css)) fail('dialogue box', 'the blue was not read from clut 256 entry 1: ' + JSON.stringify(box) + ' ' + css.slice(0, 80));
+  else if (!box.frame || !/border-image-source:url\(data:image\/png;base64,iVBOR/.test(css)) fail('dialogue box', 'the frame was not built from tile 0x19D: ' + JSON.stringify(box));
+  else console.log('  dialogue box: blue ' + box.blue.join(',') + ' from clut 256, frame from tile 0x' + box.tile.toString(16).toUpperCase());
+}
 
 const wanted = onlyCat ? [onlyCat] : CATEGORY_VALUES;
 let galleries = 0, opened = 0, cellsSeen = 0;

@@ -123,7 +123,8 @@ body { color:#fff; font-family:'ArgosGame', Argos, Georgia, serif; font-synthesi
    double border and darkened everything between them. #frameFill is gone. */
 /* Dialogue_Background.png is the game's dialogue box: 552x336, a 4px band top
    and bottom, 8px each side, and every pixel between them a one-pixel
-   checkerboard of rgb(31,0,183) and nothing. It used to be stretched over the
+   checkerboard of rgb(31,0,183) and nothing (a capture: the game's colour is
+   clut 256 entry 1, 0,0,168, and the frame is tile 0x19D; see .tabSheet). It used to be stretched over the
    whole viewport, which made the entire page one blue box and left the sheets
    inside it nothing to sit on. Now only its border frames the viewport, at
    half strength, and the boxes are the folder sheets below (.tabSheet), which
@@ -380,8 +381,15 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 #brand .brandName { color:#fff; font-size:1.0625rem; font-weight:600; }
 #brand .brandTile { width:20px; height:20px; image-rendering:pixelated; vertical-align:-4px; margin-right:2px; }
 #brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; letter-spacing:.04em; color:#8c8980; }
+/* The row scrolls sideways, so it clips: a tab cannot paint below the row's
+   own edge, and an open tab hanging a pixel over the folder was clipped to
+   nothing, which on a fractional device-pixel ratio left the folder's top
+   line showing under the open tab (the maintainer's phone, 10 September
+   2026). So the folder is pulled 2px up under the row instead, the row
+   stacked above it: the open tab reaches the row's foot and covers the
+   line, the others stop 2px short and the line runs under them. */
 .ftabRow { display:flex; align-items:flex-end; padding:0 0 0 10px; overflow-x:auto; overflow-y:hidden;
-  scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  position:relative; z-index:2; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
 .ftabRow::-webkit-scrollbar { display:none; }
 /* Plain card, one colour at every level (the maintainer, 10 September 2026:
    no texture; the At Ease outline and grain of v1.44.0 lasted an hour). A
@@ -392,7 +400,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    rule sets most of this !important, so these are too. */
 :root { --card:#e2cf99; --cardDark:#b9a266; --cardHover:#d2bd7e; }
 .ftab { flex:0 0 auto; display:flex !important; align-items:center; gap:6px; cursor:pointer;
-  margin:0 0 0 -4px; white-space:nowrap; width:auto; position:relative; z-index:1;
+  margin:0 0 2px -4px; white-space:nowrap; width:auto; position:relative; z-index:1;
   padding:6px 13px 5px !important; min-height:0 !important; line-height:1.2 !important;
   font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.7812rem !important; font-weight:600 !important;
   letter-spacing:0; color:#3a2a0c !important; text-shadow:none !important; text-decoration:none;
@@ -402,9 +410,10 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .ftab:hover { color:#000 !important; text-decoration:none; background:var(--cardHover) !important; transform:translateY(-1px); }
 .ftab:focus-visible { outline:2px solid var(--gold); outline-offset:-3px; }
 .ftab canvas { width:18px !important; height:18px !important; image-rendering:pixelated; margin:0; flex:0 0 auto; }
-.ftab.sel, .ftab.sel:hover { padding:9px 15px 7px !important; color:#000 !important; z-index:3; margin-bottom:-1px;
+.ftab.sel, .ftab.sel:hover { padding:9px 15px 8px !important; color:#000 !important; z-index:3; margin-bottom:0;
   background:var(--card) !important; box-shadow:none !important; transform:none; }
 #tabFolder1 > .ftabRow, #tabFolder2 > .ftabRow { padding-top:4px; }
+#tabShell[data-depth="0"] .folder { margin-top:0; }
 .ftab.wip { opacity:.45; }
 .ftab.wip.sel { opacity:.78; }
 .ftab .tabBadge { font-size:0.625rem; line-height:1; padding:2px 5px; border-radius:8px;
@@ -414,20 +423,27 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    folder's top edge under it, so the outline is one curve. All four
    corners round (the maintainer, 10 September 2026). */
 .folder { padding:5px; border:1px solid rgba(0,0,0,.28); border-radius:5px; box-shadow:0 2px 7px rgba(0,0,0,.5);
-  background:var(--card); }
+  background:var(--card); margin-top:-2px; }
 .folder.f2, .folder.f3 { background:var(--card); }
-/* The sheet: the dialogue box itself. Its border is the PNG's own 4/8px band.
-   Its interior was the game's one-pixel checkerboard of rgb(31,0,183) over
-   nothing, drawn as a 2px CSS pattern, which on some screens (a fractional
-   device-pixel ratio, a zoomed page) beat against the pixel grid as moiré;
-   since 10 September 2026 it is the colour that checkerboard averages to,
-   blue at half strength over the planks, which is what the game's dither is
-   for on a screen of the period. The thin dark scrim on top is the one
-   concession to reading yellow text on it. */
+/* The sheet: the dialogue box itself, and since 10 September 2026 both of
+   its parts come out of the open file (installDialogueBox, which has the
+   trace). The frame is game tile 0x19D cut into 4px bands top and bottom
+   and 8px bands at the sides, which is what the executable's FrameBox does
+   with the same tile for every bordered window; the res/ PNG is the same
+   frame, captured upside down, and stands in until a file is open. The
+   interior is the game's own box: the scene beneath, then QuickDraw's 50%
+   gray pattern painted over it in OR mode in the fore colour of entry 1 of
+   the game's colour table (clut 256: 0x0000 0x0000 0xA800, the old
+   sixteen-colour blue). A 2px CSS checkerboard of that blue beat against
+   some screens as moiré, so the page paints the colour the checker averages
+   to, blue at half strength, which is what the dither was for on a screen
+   of the period. The thin dark scrim on top is the one concession to
+   reading yellow text on it. */
+.tabSheet { --boxBlue:rgba(0,0,168,.5); }
 .tabSheet { border:4px solid transparent; border-left-width:8px; border-right-width:8px;
   border-image:url('res/Dialogue_Background.png') 4 8 stretch;
   background:linear-gradient(rgba(10,6,4,.28), rgba(10,6,4,.28)),
-             linear-gradient(rgba(31,0,183,.5), rgba(31,0,183,.5));
+             linear-gradient(var(--boxBlue), var(--boxBlue));
   padding:10px 8px 14px; min-height:120px;
   /* Every line on the sheet gets a shadow: the dither is half blue and half
      plank, and 12px muted text was unreadable on it without one. */
@@ -4263,7 +4279,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.46.0';
+const GRIMOIRE_VERSION = '1.47.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -4323,6 +4339,7 @@ function swapGameFont(bytes, filename) {
   // preview is the whole site, which is as close to seeing it in the game as
   // a browser gets.
   try { installGameFont(); } catch (e) {}
+  try { installDialogueBox(); } catch (e) {}
   return window.FONT_SWAP;
 }
 function fontSwapPanel() {
@@ -4378,8 +4395,64 @@ function undoFontSwap() {
   window.FONT_SWAP = null;
   window.EDITOR_ZONE_NAMES = null;
   try { installGameFont(); } catch (e) {}
+  try { installDialogueBox(); } catch (e) {}
   setStatus('The game’s own font is back.');
   renderMacRsrcSheet();
+}
+
+/* THE DIALOGUE BOX, from the file (10 September 2026). Two routines of the
+   executable draw it, read with the workbench's pefdisasm and the loader-
+   order import mapping (workbench doc/dialogue-box.md has the addresses):
+
+   - TInteraction::MyCopyBitsBevel (0x03A3C8): CopyBits the scene into the
+     box; PenMode(1); RGBForeColor(colour); PenPat(qd.gray); PaintRect(box);
+     then two polygons in ForeColor(whiteColor) and ForeColor(blackColor) for
+     the bevelled edge, in the same pattern. The colour is read out of the
+     game's colour table handle -- the global CreateGlobals fills with
+     GetCTable(256) -- at byte 18: ColorSpec 1 of clut 256, which the data
+     file's fork carries as 0x0000 0x0000 0xA800, rgb(0,0,168). So the box
+     is a 50% dither of that blue over whatever is under it.
+   - FrameBox (0x0703B0), which TBorderWDEF::DrawUnhilited calls for every
+     bordered window: SubTilePat(413, ...) cuts pixel patterns out of game
+     tile 413 (0x19D) -- rows 0-3 and 28-31 for the top and bottom bands,
+     columns 0-7 and 24-31 for the sides -- and FillCRect fills the frame
+     with them. That is a CSS border-image of the tile sliced 4 8.
+
+   This sets both on .tabSheet from the open file: --boxBlue from the fork's
+   clut 256, the border-image from tile 0x19D, each left at the stylesheet's
+   default when the file lacks it. */
+window.DIALOGUE_BOX = null;
+function installDialogueBox() {
+  const out = { tile: 0x19D, blue: null, frame: false };
+  window.DIALOGUE_BOX = out;
+  let style = document.getElementById('gameBoxStyle');
+  if (!style) { style = document.createElement('style'); style.id = 'gameBoxStyle'; document.head.appendChild(style); }
+  let rule = '';
+  try {
+    const fork = window.CYTHERA_RSRC;
+    const clut = fork ? (fork.resourcesByType['clut'] || []).find(e => e.id === 256) : null;
+    if (clut) {
+      const d = fork.dataOf('clut', clut), n = ((d[6] << 8) | d[7]) + 1;
+      if (n > 1 && d.length >= 24) { out.blue = [d[18], d[20], d[22]]; rule += '.tabSheet { --boxBlue:rgba(' + out.blue.join(',') + ',.5); }\n'; }
+    }
+  } catch (e) { out.blue = null; }
+  style.textContent = out.css = rule;
+  let im = null;
+  try { im = resolveTileImage(out.tile); } catch (e) { im = null; }
+  if (!im || im.length !== 1024) return;
+  encodeIndexedPNG(32, 32, im, PAL_RGB, null).then(png => {
+    // base64 by hand: the page has no other need of it and the smoke's
+    // sandbox has no btoa.
+    const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let b = '';
+    for (let i = 0; i < png.length; i += 3) {
+      const n = (png[i] << 16) | ((png[i + 1] || 0) << 8) | (png[i + 2] || 0);
+      b += A[n >> 18] + A[(n >> 12) & 63] + (i + 1 < png.length ? A[(n >> 6) & 63] : '=') + (i + 2 < png.length ? A[n & 63] : '=');
+    }
+    const css = rule + '.tabSheet { border-image-source:url(data:image/png;base64,' + b + '); border-image-repeat:repeat; }\n';
+    style.textContent = out.css = css;
+    out.frame = true;
+  }).catch(() => {});
 }
 
 function installGameFont() {
@@ -6120,6 +6193,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     resetDerivedCaches();
     openCytheraResourceFork(meta.rsrc);
     installGameFont();
+    try { installDialogueBox(); } catch (e) {}
     loadDerivedNames();
     installBackgroundTexture();
     document.getElementById('pickerWrap').style.display = 'block';
