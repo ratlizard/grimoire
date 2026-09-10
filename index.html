@@ -93,7 +93,12 @@ html, body { min-height:100%; }
    text you can click is --gold, and the quiet labels are a neutral grey so
    nothing that is not a link looks like one. Nothing is set in capitals:
    Argos in capitals is hard to read. */
-body { color:#fff; font-family:'ArgosGame', Argos, Georgia, serif;
+/* font-synthesis:none because Argos ships one weight: where the page asks
+   for bold the browser was thickening the regular outlines itself, and on
+   a glyph drawn from overlapping contours (the capital R) the thickening
+   shows as an outlined letter. Bold text now renders regular in Argos;
+   the code faces keep their real bold. */
+body { color:#fff; font-family:'ArgosGame', Argos, Georgia, serif; font-synthesis:none;
   /* The top inset clears the two fixed controls -- the data file on the left,
      Search on the right -- and nothing more. It was 16px plus a row for the
      links, which is most of a thumb on a phone spent on nothing. */
@@ -391,7 +396,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
   padding:6px 13px 5px !important; min-height:0 !important; line-height:1.2 !important;
   font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.7812rem !important; font-weight:600 !important;
   letter-spacing:0; color:#3a2a0c !important; text-shadow:none !important; text-decoration:none;
-  border:0 !important; border-radius:9px 9px 0 0 !important;
+  border:1px solid rgba(0,0,0,.28) !important; border-bottom:0 !important; border-radius:9px 9px 0 0 !important;
   box-shadow:inset 0 -3px 4px -2px rgba(0,0,0,.25) !important;
   background:var(--cardDark) !important; transition:background .12s, transform .12s; }
 .ftab:hover { color:#000 !important; text-decoration:none; background:var(--cardHover) !important; transform:translateY(-1px); }
@@ -404,7 +409,11 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .ftab.wip.sel { opacity:.78; }
 .ftab .tabBadge { font-size:0.625rem; line-height:1; padding:2px 5px; border-radius:8px;
   background:#3a2a0c; color:#fff; font-family:ui-monospace,Menlo,Consolas,monospace; }
-.folder { padding:5px; border:1px solid rgba(0,0,0,.28); border-radius:0 5px 5px 5px; box-shadow:0 2px 7px rgba(0,0,0,.5);
+/* The folder's edge runs up and round the open tab: the tab wears the same
+   edge on its top and sides and hangs a pixel over the folder, covering the
+   folder's top edge under it, so the outline is one curve. All four
+   corners round (the maintainer, 10 September 2026). */
+.folder { padding:5px; border:1px solid rgba(0,0,0,.28); border-radius:5px; box-shadow:0 2px 7px rgba(0,0,0,.5);
   background:var(--card); }
 .folder.f2, .folder.f3 { background:var(--card); }
 /* The sheet: the dialogue box itself. Its border is the PNG's own 4/8px band.
@@ -1451,10 +1460,6 @@ body.atlasFull { overflow:hidden; }
         <option value="CHANGES">Changes this session</option>
         <option value="INSTALLER">The installer: every file in it</option>
         <option value="APPRSRC">Cythera application: resource fork</option>
-        <option value="UIMENUS">Menus</option>
-        <option value="UIDIALOGS">Dialogs & windows</option>
-        <option value="UICURSORS">Cursors</option>
-        <option value="UIICONS">Finder & command icons</option>
         <option value="APPPEF">Cythera application: data fork (PEF)</option>
         <option value="AISCRIPTS">Combat AI scripts (.ai)</option>
         <option value="AIRULES">Combat AI rules</option>
@@ -1871,16 +1876,16 @@ const RSRC_KINDS = [
     view: 'APPSND' },
   { id: 'icons', label: 'Finder and command icons', types: ['ICN#', 'icl4', 'icl8', 'ics#', 'ics4', 'ics8', 'cicn', 'BNDL', 'FREF'],
     note: 'The Finder icons for the application, the data file, a saved game and a patch, with the bundle (BNDL) and file references (FREF) that say which is which, and the command icons the game draws: move, take, look, talk, attack.',
-    view: 'UIICONS' },
+    view: null },
   { id: 'cursors', label: 'Cursors', types: ['crsr', 'CURS', 'acur'],
     note: 'The pointer in every state: eight walking directions in two weights, the hand, the eye, the speech bubble, the sword, the magnifier, the pointing finger, and the spinning ball the animated cursor (acur) cycles through.',
-    view: 'UICURSORS' },
+    view: null },
   { id: 'menus', label: 'Menus', types: ['MENU', 'MBAR', 'xmnu', 'CMNU', 'mctb', 'MDEF'],
     note: 'Every menu the game can show, item by item, with the key equivalents and which items are enabled at rest; the two menu bars; and the colour table for the File menu.',
-    view: 'UIMENUS' },
+    view: null },
   { id: 'dialogs', label: 'Dialogs and windows', types: ['DLOG', 'DITL', 'ALRT', 'WIND', 'CNTL', 'dctb', 'actb', 'nrct', 'CDEF', 'WDEF', 'LDEF', 'ppat', 'pltt', 'clut'],
     note: 'The dialog boxes and alerts (a DLOG or ALRT names its DITL, the item list), the window templates, the controls, their colour tables, the backdrop patterns (ppat: the default and black), and the palettes.',
-    view: 'UIDIALOGS' },
+    view: null },
   { id: 'editor', label: 'Editor', types: ['eSTM', 'eBRS', 'MSta', 'FILT', 'LINF', 'DATA', 'PORT', 'RMAP', 'TMPL'],
     note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three saved game states (MSta: “Base”, “Plague Cured” and “Olpheltius Murdered”, which differ from Base at one byte each), the editor’s own tile names (DATA 260, a short list beside the archive’s terrain table), the record that says TxSt 999 is really a colour (RMAP), and the ResEdit templates. FILT, LINF, PORT and the other nine DATA resources are listed and unread.',
     view: 'RSRC' },
@@ -1898,10 +1903,10 @@ const FORK_VIEWS = {
   FONTS:     { source: 'both', kinds: ['fonts'] },
   STRINGS:   { source: 'both', kinds: ['strings'] },
   APPSND:    { source: 'app',  kinds: ['sounds'] },
-  UIICONS:   { source: 'app',  kinds: ['icons'] },
-  UICURSORS: { source: 'app',  kinds: ['cursors'] },
-  UIMENUS:   { source: 'app',  kinds: ['menus'] },
-  UIDIALOGS: { source: 'app',  kinds: ['dialogs'] }
+  // The application's icons, cursors, menus and dialogs had views of their
+  // own under an Interface tab until 10 September 2026; they are kinds in
+  // the application's Resource Fork gallery, which showed them as well, so
+  // the tab was the same thing twice.
 };
 
 const CATEGORY_NAMES = { 0:"Global Symbols & Scripts", 1:"Text & Names", 135:"Character Portraits", 137:"Skill Icons", 141:"Tile Graphics", 131:"Landscape Graphics", 142:"General Graphics", 144:"Sounds", 127:"Maps", 128:"Prop Lists", 239:"Game Data Tables",
@@ -4258,7 +4263,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.45.0';
+const GRIMOIRE_VERSION = '1.46.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -5109,25 +5114,8 @@ function showCharacterDetail(i) {
     sheet.appendChild(cv);
   }
   art.append(pc, sheet);
-  /* The walk, as a GIF. A sheet is four facings of four poses, laid out a
-     facing to a row, so a walk cycle is one row -- the first row whose four
-     frames are all drawn. At 180 ms a frame it walks at about the pace the
-     game does. */
-  const facings = [];
-  for (let f = 0; f + 3 < sprInfo.slots; f += 4) {
-    const row = [f, f + 1, f + 2, f + 3];
-    if (row.every(x => sprInfo.present.indexOf(x) >= 0)) facings.push(row);
-  }
-  if (facings.length) {
-    const gb = document.createElement('button');
-    gb.className = 'secondary';
-    gb.style.cssText = 'width:auto;margin:6px 0 0;padding:5px 12px;font-size:0.75rem';
-    gb.textContent = 'Save the walk as a GIF';
-    gb.title = facings.length > 1 ? facings.length + ' facings are drawn; this saves the first' : '';
-    gb.onclick = () => downloadPropGIF(sprInfo.base, facings[0],
-      { delayMs: 180, name: safeFileName('cythera_' + (characterName(i) || ('character ' + i)) + ' walking') + '.gif' });
-    art.appendChild(gb);
-  }
+  // The walk-as-a-GIF button that stood here left on 10 September 2026 at
+  // the maintainer's word; the single view's GIF export remains.
   panel.appendChild(art);
 
   const r = d.rec;
@@ -13663,7 +13651,7 @@ const TAB_TREE = [
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
       { id: 'text', label: 'Text', tile: 0x3AE, children: [                                   // the tombstone, second frame
           { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['1', 'STRINGS'] },                     // a poster; the forks' string lists beside the archive's
-          { id: 'dialogue', label: 'Dialogue', tile: 0x389, values: ['23', '7', '11', '12', '13', '15'] },  // the fountain, which talks; the maintainer's pick, 9 September 2026
+          { id: 'dialogue', label: 'Dialogue', tile: 0x389, values: ['23', '7'] },  // the fountain, which talks; the maintainer's pick, 9 September 2026
           { id: 'writings', label: 'Writings', tile: 0x263, values: ['26', '27', '29'] },                         // the scroll
           // The faces the text is set in: Argos A Nouveau and the Seldane
           // script, out of the resource fork, and the styles that assign them.
@@ -13686,10 +13674,10 @@ const TAB_TREE = [
           { id: 'sfx',   label: 'SFX',   tile: 0x1B2, values: ['144', 'APPSND'] } ] },                  // the explosion, sheet 0x8E1B; the application's own sounds beside the archive's
       { id: 'functions', label: 'Functions', tile: 0x3CB, children: [                         // a lever: pull it and something happens (prop 187)
           { id: 'actors',  label: 'Actions', tile: 0x572, values: ['47', '24', '3', '8', '25'] },   // the skill and spell classes (25) are here too, so a link to one has a tab                  // the fighter mid-swing: something that acts (prop 116)
-          { id: 'objects', label: 'Objects', tile: 0x28B, values: ['16'] },                             // a key: a thing that is used (prop 66)
+          { id: 'objects', label: 'Objects', tile: 0x28B, values: ['16', '15'] },                             // a key: a thing that is used (prop 66)
           { id: 'places',  label: 'Places',  tile: 0x4A0, values: ['19', '20'] },                 // a signpost
           { id: 'effects', label: 'Effects', tile: 0x183, values: ['9'] },                              // the distiller's flasks: eating and potion effects (prop 233)
-          { id: 'shared',  label: 'Shared',  tile: 0x3B8, values: ['0', '14', '2', '10'] } ] } ] },// the well, the maintainer's pick, 9 September 2026
+          { id: 'shared',  label: 'Shared',  tile: 0x3B8, values: ['0', '14', '2', '10', '11', '12', '13'] } ] } ] },// the well, the maintainer's pick, 9 September 2026
   // Data opens on Cythera Data (`last`), whatever comes first in the row:
   // the installer is first because it is where the rest came from, not the
   // thing most visits are for.
@@ -13709,9 +13697,7 @@ const TAB_TREE = [
           // windows, the cursors that are the game's verbs, the icons.
           // A key: what the application does that the archive knows nothing
           // about, read out of its own key routine.
-          { id: 'cheats', label: 'Cheats', tile: 0x236, values: ['CHEATS'] },
-          { id: 'interface', label: 'Interface', tile: 0x770, values: ['UIMENUS', 'UIDIALOGS', 'UICURSORS', 'UIICONS'] } ] },   // the strange device (prop 262): a thing to operate
-      // A saved game is its own file, like the application beside it. The tile is a
+          { id: 'cheats', label: 'Cheats', tile: 0x236, values: ['CHEATS'] } ] },   // the tab that was Interface until 10 September 2026 is the Resource Fork above
       // sheet of paper by 0xF004's name table -- chosen from the names
       // rather than by looking at a sheet of candidates, which is how every
       // other icon here was picked, so it is the one to check on a screen.

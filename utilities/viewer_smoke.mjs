@@ -1943,7 +1943,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     if (!ctx.adoptArchive(bin, 'Cythera.bin', {})) throw new Error(peek('lastArchiveError'));
     if (!ctx.INSTALLER) throw new Error('INSTALLER not set after adopting the installer');
     const drawn = {};
-    for (const v of ['INSTALLER', 'AISCRIPTS', 'AIRULES', 'APPRSRC', 'APPPEF', 'APPSND', 'UIMENUS', 'UIDIALOGS', 'UICURSORS', 'UIICONS', 'SCREENS', 'FONTS', 'STRINGS']) {
+    for (const v of ['INSTALLER', 'AISCRIPTS', 'AIRULES', 'APPRSRC', 'APPPEF', 'APPSND', 'SCREENS', 'FONTS', 'STRINGS']) {
       if (!ctx.showCategory(v)) { fail('installer view ' + v, 'refused'); continue; }
       const grid = REGISTRY.get('sheetGrid');
       const n = (grid.children || []).length;
