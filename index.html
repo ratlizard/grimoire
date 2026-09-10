@@ -1026,11 +1026,12 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 #atlasPanel { margin:0; background:#000; }
 /* The gate: one screen before anything is downloaded. */
 #landingGate { position:fixed; inset:0; z-index:200; background:rgba(8,7,5,.92); display:flex; align-items:center; justify-content:center; padding:20px; }
-.gateCard { max-width:520px; background:#1a1712; border:1px solid var(--edge); border-radius:12px; padding:22px 24px; color:#fff; line-height:1.45; box-shadow:0 8px 30px rgba(0,0,0,.6); }
+.gateCard { max-width:520px; background:#1a1712; border:1px solid var(--edge); border-radius:12px; padding:22px 24px; color:#fff; line-height:1.45; box-shadow:0 8px 30px rgba(0,0,0,.6); text-align:center; }
+.gateCard .gateSpoiler { font-weight:600; color:#fff; }
 .gateCard h2 { margin:0 0 10px; color:#fff; font-size:1.625rem; font-weight:600; }
 .gateCard p { margin:8px 0; font-size:0.9375rem; }
 .gateCard .gateHint { color:#fff; font-size:0.8438rem; border-top:1px solid rgba(155,136,80,.35); padding-top:8px; margin-top:12px; }
-.gateRow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.gateRow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; justify-content:center; }
 .gateRow button { width:auto; margin:0; padding:10px 16px; }
 /* The World tab sits on the same card as every other tab since 10 September
    2026 (it was black to the folder's edges); the viewport itself is black,
@@ -1678,6 +1679,8 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
               <b>28&nbsp;MB</b>, and keeps a copy in this browser. The copy can be cleared in
               Settings. While generative AI was used to help code this site, as much of the data
               displayed as possible is being read directly from the supplied file.</p>
+            <!-- The maintainer's words, 10 September 2026, punctuation his. -->
+            <p class="gateSpoiler">This site is intended as a resource for those who have already finished the game, spoilers abound!!</p>
             <p class="gateHint">On the map: pinch or scroll to zoom, drag to move, tap a ring to
               go inside a tunnel or city, hover or hold on props or people for details.</p>
             <div class="gateRow">
@@ -4294,7 +4297,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.48.0';
+const GRIMOIRE_VERSION = '1.49.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -6032,6 +6035,13 @@ function goViewBack() {
 
 function syncDeepLink() {
   if (!fileBytes || !masterIndexGlobal) return;
+  // A view reached through a category switch (jumpToResource, openVia) is
+  // one step, not two: the gallery the switch renders on the way is never
+  // written into the history or the trail, so the back button returns to
+  // the page the link was on rather than to a gallery nobody was shown
+  // (the maintainer, 10 September 2026: World > Open Cademia in Zones >
+  // back went through the Zones gallery).
+  if (window.NAV_SUPPRESS || window.PENDING_SINGLE) return;
   const cat = document.getElementById('categorySelect');
   if (!cat || !cat.value) return;
   let h = '#c=' + encodeURIComponent(cat.value);
@@ -11312,6 +11322,7 @@ function paintAtlas() {
   }
   const mouths = atlasPaintMouths(ctx, drawn, vw, vh);
   atlasPaintTowns(ctx, drawn, vw, vh);
+  atlasPaintSelection(ctx, drawn);
   atlasLabels(ctx, drawn, vw, vh);
   window.ATLAS_DRAWN = drawn;
   window.ATLAS_MOUTHS = mouths;
@@ -11689,6 +11700,32 @@ function atlasEggAt(node, tx, ty) {
     catch (e) { node._eggs = []; }
   }
   return node._eggs.some(g => g.x === tx && g.y === ty) ? 'a scripted trigger (an egg): stepping here runs the zone’s script' : '';
+}
+/* The picked square, ringed the way Zones rings its selection (white over a
+   dark edge, corner ticks when small), on whichever drawn node it belongs
+   to. atlasInspect sets ATLAS_SEL; a second tap on the square clears it. */
+function atlasPaintSelection(ctx, drawn) {
+  const sel = window.ATLAS_SEL;
+  if (!sel) return;
+  const d = drawn.find(x => x.node.resid === sel.resid);
+  if (!d) return;
+  const per = d.r.w / d.node.w;
+  if (per < 2) return;
+  const x = d.r.x + sel.tx * per, y = d.r.y + sel.ty * per;
+  ctx.save();
+  ctx.lineWidth = Math.max(2, per / 10); ctx.strokeStyle = 'rgba(0,0,0,.75)';
+  ctx.strokeRect(x + 1, y + 1, per - 2, per - 2);
+  ctx.lineWidth = Math.max(1, per / 16); ctx.strokeStyle = '#ffffff';
+  ctx.strokeRect(x + 1, y + 1, per - 2, per - 2);
+  const t = Math.max(3, per * 0.34);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x - 2, y + t); ctx.lineTo(x - 2, y - 2); ctx.lineTo(x + t, y - 2);
+  ctx.moveTo(x + per + 2 - t, y - 2); ctx.lineTo(x + per + 2, y - 2); ctx.lineTo(x + per + 2, y + t);
+  ctx.moveTo(x - 2, y + per + 2 - t); ctx.lineTo(x - 2, y + per + 2); ctx.lineTo(x + t, y + per + 2);
+  ctx.moveTo(x + per + 2 - t, y + per + 2); ctx.lineTo(x + per + 2, y + per + 2); ctx.lineTo(x + per + 2, y + per + 2 - t);
+  ctx.stroke();
+  ctx.restore();
 }
 /* A ring round every town still wearing its roofs: a tap on one goes in
    (atlasZoomIntoTown), and the ring says so the way the mouths' rings do. */
@@ -12359,13 +12396,23 @@ function atlasZoomFromSlider() {
    lighting, the export and the prop editor are the panel's job and stay in
    Entities > Regions untouched. The card here says what is on the square and
    offers to open that map there. */
+window.ATLAS_SEL = null;
 function atlasInspect(px, py) {
   const host = document.getElementById('atlasInspect');
   const hit = atlasAt(px, py);
   if (!host) return;
-  if (!hit) { host.innerHTML = '<span class="inspDim">Nothing here.</span>';
-              host.style.display = 'block'; return; }
+  if (!hit) { window.ATLAS_SEL = null; host.innerHTML = '<span class="inspDim">Nothing here.</span>';
+              host.style.display = 'block'; paintAtlas(); return; }
   const { node, tx, ty } = hit;
+  // The same square again clears the pick, as a second tap does on Zones.
+  const was = window.ATLAS_SEL;
+  if (was && was.resid === node.resid && was.tx === tx && was.ty === ty) {
+    window.ATLAS_SEL = null;
+    host.innerHTML = '<span class="inspDim">Nothing selected. Tap a square to see what is on it.</span>';
+    host.style.display = 'block'; paintAtlas(); return;
+  }
+  window.ATLAS_SEL = { resid: node.resid, tx, ty };
+  paintAtlas();
   const e = mapRenderFor(node.resid, true);
   const parts = ['<div class="inspHead">' + svLink(node.name + ', square ' + tx + ', ' + ty, 'atlasOpenSquare(' + node.resid + ',' + tx + ',' + ty + ')') + '</div>'];
   if (e && e.result) {
@@ -12386,7 +12433,7 @@ function atlasInspect(px, py) {
       parts.push('<div class="inspCard"><b>' + svEsc(name) + '</b>' +
         (says ? ' <span class="inspDim">' + svEsc(says) + '</span>' : '') +
         '<div class="inspActs">' + svLink('Open ' + name + (says ? ' “' + says + '”' : '') + ' in ' + (item ? 'Items' : 'Tilesets'),
-          (item ? 'showItemDetail(' : 'showPropTypeDetail(') + pt + ')') + '</div></div>');
+          "openVia('" + (item ? 'ITEMS' : 'PROPS') + "', () => " + (item ? 'showItemDetail(' : 'showPropTypeDetail(') + pt + '))') + '</div></div>');
     }
     // Whoever is standing here, with their face and the way to their page.
     for (const c of atlasFolk(node).filter(c => Math.round(c.x) === tx && Math.round(c.y) === ty)) {
@@ -12881,6 +12928,7 @@ function jumpToResource(resid) {
     if (!showCategory(value)) return false;
     if (!openResource(resid)) { renderContactSheet(); return false; }
   } finally { window.PENDING_SINGLE = null; }
+  syncDeepLink();   // the one entry for this jump, now that the switch is silent
   window.scrollTo(0, 0);
   return true;
 }
@@ -17429,7 +17477,7 @@ function tileSheetClick(ev, resid) {
   if (!(idx >= 0 && idx < 16)) return;
   const tileId = ((resid - 0x8E00) << 4) | idx;
   const pt = propTypeForTile(tileId);
-  if (pt > 0) { showCategory('PROPS'); showPropTypeDetail(pt); }
+  if (pt > 0) openVia('PROPS', () => showPropTypeDetail(pt));
   else showSpriteZoom(tileId, terrainNameFor(tileId) || '');
 }
 
@@ -17492,10 +17540,21 @@ function partsStrip(title, chips, note) {
 
 // A dossier opened from a component's page lands under Entities > Characters,
 // tabs and deep link included, rather than inside whatever gallery was open.
-function openCharacter(i) {
-  showCategory('CHARACTERS');
-  showCharacterDetail(i);
+/* Open a detail view that lives under another category, as one step: the
+   category switch is made with the history silent (syncDeepLink), the view
+   is opened, and then the hash is written once. Every "Open X in Y" link
+   from the World tab comes through here, which is also what makes them work
+   from there at all: the atlas panel hides the sheet, and a detail drawn
+   into the hidden sheet without the switch was the "Open cloth in Items does
+   nothing" of 10 September 2026. */
+window.NAV_SUPPRESS = false;
+function openVia(cat, fn) {
+  window.NAV_SUPPRESS = true;
+  try { showCategory(cat); } finally { window.NAV_SUPPRESS = false; }
+  fn();
+  syncDeepLink();
 }
+function openCharacter(i) { openVia('CHARACTERS', () => showCharacterDetail(i)); }
 
 // A person, wearing their portrait -- the face names the person where the
 // sprite only names a class (the maintainer, 8 September 2026: a portrait is

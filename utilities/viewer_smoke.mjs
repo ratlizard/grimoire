@@ -1009,6 +1009,31 @@ try {
     else if (peek('applyNamesDefault')(true) !== undefined || peek('window.SHOW_BUILTIN_LABELS') !== false || (peek('applyNamesDefault')(false), peek('window.SHOW_BUILTIN_LABELS') !== true)) fail('names', 'the switch does not default off for a supplied file and on for a fetched one');
     else console.log('  atlas: no memory switches, the bar starts empty, eggs with an argument are eggs, the names default follows the source');
   }
+  // v1.49.0: a link out of the World tab is one step -- the gallery the
+  // category switch renders is not a history entry -- and the picked square
+  // is ringed until it is tapped again.
+  {
+    const worldHash = peek('location.hash');
+    const before = peek('window.VIEW_TRAIL').length;
+    ctx.openVia('ITEMS', () => ctx.showItemDetail(151));
+    const trail = peek('window.VIEW_TRAIL'), dv = peek('window.DETAIL_VIEW');
+    if (peek('window.CUR_SUBN') !== 'ITEMS' || !dv || dv.kind !== 'item' || dv.id !== 151) fail('open via', 'Open cloth in Items from the World tab did not open the item: ' + JSON.stringify([peek('window.CUR_SUBN'), dv]));
+    else if (!worldHash || trail[trail.length - 1] !== worldHash || trail.slice(before).some(h => /c=ITEMS(&|$)/.test(h))) fail('open via', 'the trail did not record the World page as the one step back: ' + JSON.stringify([worldHash, trail.slice(-3)]));
+    else {
+      ctx.showCategory('WORLD');
+      const sc2 = peek('atlasScene')(), av2 = peek('atlasView');
+      const cad = sc2.nodes.find(n => /cademia/i.test(n.name));
+      peek('atlasFit')(); peek('atlasZoomAround')(av2.Z * 4, 200, 200);
+      const rr = peek('atlasRect')(cad, av2);
+      ctx.atlasInspect(rr.x + rr.w / 2, rr.y + rr.h / 2);
+      const s1 = peek('window.ATLAS_SEL');
+      ctx.atlasInspect(rr.x + rr.w / 2, rr.y + rr.h / 2);
+      const s2 = peek('window.ATLAS_SEL'), insp = ctx.document.getElementById('atlasInspect');
+      if (!s1 || s1.resid !== cad.resid || s2 !== null || !/Nothing selected/.test(insp.innerHTML || '')) fail('atlas pick', 'the picked square is not ringed and cleared by a second tap: ' + JSON.stringify([s1, s2]));
+      else if (!/spoilers abound!!/.test(html)) fail('gate', 'the gate lacks the spoiler line');
+      else console.log('  atlas: Open in Items from the World tab is one step back; a tap picks a square and a second clears it; the gate warns of spoilers');
+    }
+  }
   const vpA = REGISTRY.get('mapViewport');
   if (!sc) fail('atlas', 'no scene was built');
   else if (sc.nodes.some(n => n.depth && !ctx.mapIsSurface(n.resid)))
