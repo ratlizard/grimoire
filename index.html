@@ -356,8 +356,8 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    each holds below it, and a third row where a branch goes deeper. Each row
    is the lip of a folder, the folders sit one inside the next, and the
    innermost holds the sheet -- the game's dialogue box -- that everything is
-   drawn on. The look is the classic Mac documentation's folder tabs: grained
-   card, the selected tab taller so it juts above its neighbours, and a tab
+   drawn on. The look is At Ease's folder (see the block below): outlined
+   card with a hard shadow, the selected tab taller so it juts above its neighbours, and a tab
    whose join is not traced yet (Audio, the PEF, the Combat AI files) faded
    rather than removed, so the shape of the whole is visible before the whole
    is done.
@@ -375,53 +375,52 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 #brand .brandName { color:#fff; font-size:1.0625rem; font-weight:600; }
 #brand .brandTile { width:20px; height:20px; image-rendering:pixelated; vertical-align:-4px; margin-right:2px; }
 #brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; letter-spacing:.04em; color:#8c8980; }
-.ftabRow { display:flex; align-items:flex-end; padding:0 0 0 8px; overflow-x:auto; overflow-y:hidden;
+.ftabRow { display:flex; align-items:flex-end; padding:0 0 0 10px; overflow-x:auto; overflow-y:hidden;
   scrollbar-width:none; -webkit-overflow-scrolling:touch; }
 .ftabRow::-webkit-scrollbar { display:none; }
+/* The At Ease folder (System 7's At Ease 2 and 3, the maintainer's
+   reference of 10 September 2026): a panel with a one-pixel black outline
+   and a hard shadow set off to the right and below, a mottled fill, and a
+   tab standing on its top edge with slanted sides, outlined the same, whose
+   foot is the panel's own fill so the two are one piece. A tab that is not
+   open stands lower, in a darker card, behind the panel's edge.
+
+   A clip-path cannot carry a border, so the outline is the button's own
+   black background showing round a ::before that is the fill, clipped one
+   pixel inside. The open tab hangs one pixel over the panel and its fill
+   runs to its foot, which is what covers the panel's top line under it.
+   The grain is one 48px tile of grey and alpha (--grain) laid over the
+   flat colour, the same tile on tabs and panels. */
+:root { --card:#e2cf99; --cardDark:#b9a266; --cardHover:#cbb476; --grain:url('data:image/png;base64,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'); }
 .ftab { flex:0 0 auto; display:flex !important; align-items:center; gap:6px; cursor:pointer;
-  margin:0 0 0 -7px; white-space:nowrap; width:auto;
-  /* Unselected: darker card with a shadow at its foot, so a row of tabs
-     reads as tabs standing on the folder rather than as lettering on it.
-     Selected: the exact flat colour of the folder it opens (below), so the
-     two are one piece of card with no seam. Gradients were tried and put a
-     seam at the join, because the tab's foot and the folder's head were
-     different stops of the same gradient. */
-  padding:6px 12px 5px !important; min-height:0 !important; line-height:1.2 !important;
+  margin:0 0 0 -5px; white-space:nowrap; width:auto; position:relative; z-index:1;
+  padding:6px 13px 5px !important; min-height:0 !important; line-height:1.2 !important;
   font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.7812rem !important; font-weight:600 !important;
-  letter-spacing:0; color:#4a3616 !important; text-shadow:none !important; text-decoration:none;
+  letter-spacing:0; color:#2a1e08 !important; text-shadow:none !important; text-decoration:none;
   border:0 !important; border-radius:0 !important; box-shadow:none !important;
-  background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
-             linear-gradient(#a98f57, #a98f57) !important;
-  clip-path:polygon(0 100%, 3px 30%, 9px 0, calc(100% - 9px) 0, calc(100% - 3px) 30%, 100% 100%) !important; }
-.ftab:hover { color:#2e2009 !important; text-decoration:none;
-  background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
-             linear-gradient(#b89c62, #b89c62) !important; }
+  background:#000 !important;
+  clip-path:polygon(0 100%, 8px 0, calc(100% - 8px) 0, 100% 100%) !important; }
+.ftab::before { content:''; position:absolute; left:1px; right:1px; top:1px; bottom:0; z-index:-1;
+  background:var(--grain), linear-gradient(var(--cardDark), var(--cardDark));
+  clip-path:polygon(0 100%, 7.5px 0, calc(100% - 7.5px) 0, 100% 100%); }
+.ftab:hover { color:#000 !important; text-decoration:none; }
+.ftab:hover::before { background:var(--grain), linear-gradient(var(--cardHover), var(--cardHover)); }
 .ftab:focus-visible { outline:2px solid var(--gold); outline-offset:-3px; }
 .ftab canvas { width:18px !important; height:18px !important; image-rendering:pixelated; margin:0; flex:0 0 auto; }
-.ftab.sel, .ftab.sel:hover { padding:10px 14px 7px !important; color:#2e2009 !important; position:relative; z-index:3;
-  margin-bottom:-1px; }
-/* The open tab is the same light card at every level (it used to be the
-   colour of the folder it opens, which made the top row's look dimmer than
-   the rows below, the maintainer's question of 9 September 2026), and the
-   folders lighten less as they nest so the join stays quiet. */
-.ftab.sel, .ftab.sel:hover { background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
-             linear-gradient(#e6d49f, #e6d49f) !important; }
-/* The rows inside a folder stand on a darker band of it, which is what
-   makes the second and third rows read as tabs rather than as a line of
-   labels printed on the card. */
-#tabFolder1 > .ftabRow, #tabFolder2 > .ftabRow { background:rgba(70,48,14,.16); padding-top:5px;
-  border-radius:0 3px 0 0; }
+.ftab.sel, .ftab.sel:hover { padding:9px 15px 7px !important; color:#000 !important; z-index:3; margin-bottom:-1px; }
+.ftab.sel::before, .ftab.sel:hover::before { background:var(--grain), linear-gradient(var(--card), var(--card)); }
+/* The rows inside a panel stand on the panel itself, as the tab does on
+   the desktop: no band under them. */
+#tabFolder1 > .ftabRow, #tabFolder2 > .ftabRow { padding-top:4px; }
 .ftab.wip { opacity:.45; }
 .ftab.wip.sel { opacity:.78; }
 .ftab .tabBadge { font-size:0.625rem; line-height:1; padding:2px 5px; border-radius:8px;
-  background:#4a3616; color:#fff; font-family:ui-monospace,Menlo,Consolas,monospace; }
-.folder { padding:4px; border-radius:0 3px 3px 3px; box-shadow:0 2px 7px rgba(0,0,0,.5);
-  background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
-             linear-gradient(#d4bf84, #d4bf84); }
-.folder.f2 { background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
-             linear-gradient(#ddca92, #ddca92); }
-.folder.f3 { background:repeating-linear-gradient(98deg, rgba(122,94,44,.045) 0 7px, rgba(255,250,228,.03) 7px 14px),
-             linear-gradient(#e6d49f, #e6d49f); }
+  background:#2a1e08; color:#fff; font-family:ui-monospace,Menlo,Consolas,monospace; }
+/* The three panels are one card, nested; each has its own outline and
+   shadow, which is what shows the nesting. */
+.folder { padding:5px; border:1px solid #000; border-radius:0; box-shadow:4px 4px 0 0 #2b2418;
+  background:var(--grain), linear-gradient(var(--card), var(--card)); }
+.folder.f2, .folder.f3 { background:var(--grain), linear-gradient(var(--card), var(--card)); }
 /* The sheet: the dialogue box itself. Its border is the PNG's own 4/8px band,
    its interior the same one-pixel checkerboard of rgb(31,0,183) over nothing,
    so the planks show through it exactly as they do in the game. The thin dark
@@ -443,7 +442,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    sheet stands alone on the planks holding the status line. */
 #tabShell[data-depth="2"] #tabRow3, #tabShell[data-depth="0"] .ftabRow { display:none; }
 #tabShell[data-depth="2"] #tabFolder3, #tabShell[data-depth="0"] .folder
-  { padding:0; background:none; box-shadow:none; border-radius:0; }
+  { padding:0; background:none; box-shadow:none; border:0; border-radius:0; }
 /* Pinned opposite the data-file button and sized to match it, rather than
    taking a row of its own above the tabs. The row was most of the empty space
    at the top of the page, and the two are the same kind of thing: the page's
@@ -1018,7 +1017,7 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 /* The World tab is black to its edges: the sea outside the island is drawn
    in, and the fall into a hole ends on black, so the page around the map
    must not be paper. */
-body.worldTab .folder { background:#000; box-shadow:none; }
+body.worldTab .folder { background:#000; box-shadow:none; border-color:#000; }
 body.worldTab #atlasPanel #atlasZoomRow { background:#000; }
 /* Full screen: the real thing where the browser allows it, and the panel
    pinned over the page where it does not (see atlasToggleFull). */
@@ -4266,7 +4265,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.43.0';
+const GRIMOIRE_VERSION = '1.44.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
