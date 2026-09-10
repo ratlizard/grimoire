@@ -736,6 +736,24 @@ try {
       fail('map landing', 'showSquareOnMap did not land on (10,12) of 0x8001 at a legible zoom: ' + JSON.stringify([cm && cm.resid, sel, sc, cm && cm.TS]));
     else console.log(`  map landing: 0x8001 (10,12) ringed at ${Math.round(sc * cm.TS)} px a square`);
   }
+  // v1.48.0: a grid on the Zones tab, drawn on the mark layer.
+  // The mark layer is drawn for the landing's ring whatever the grid says,
+  // so the check counts the grid's own line starts: a square edge per row
+  // and column when it is on, none of them when it is off.
+  {
+    const cm = ctx.__peek('window.CUR_MAP');
+    const count = on => {
+      ctx.toggleMapMarks('grid', on);
+      const mc = ctx.document.getElementById('markLayer');
+      if (!mc) return -1;
+      const c = mc.getContext('2d'); let n = 0; const orig = c.moveTo; c.moveTo = function () { n++; };
+      ctx.drawMapMarks(); c.moveTo = orig; return n;
+    };
+    const off = count(false), on = count(true), want = Math.round(cm.width / cm.TS) + Math.round(cm.height / cm.TS) + 2;
+    ctx.toggleMapMarks('grid', false);
+    if (on - off < want) fail('map grid', 'the grid did not draw a line per square edge: ' + JSON.stringify({ off, on, want }));
+    else console.log('  map grid: ' + (on - off) + ' line starts over ' + Math.round(cm.width / cm.TS) + 'x' + Math.round(cm.height / cm.TS) + ' squares, none with it off');
+  }
   if (!mapsWithProps) fail('map inspector', 'no map reported any props');
   else if (named !== probes) fail('map inspector', `${probes - named} of ${probes} squares did not name their prop`);
   else console.log(`  map inspector: ${probes} prop squares on ${mapsWithProps} maps, all named`);
@@ -976,6 +994,21 @@ try {
   ctx.showCategory('WORLD');
   const sc = peek('atlasScene')();
   const av = peek('atlasView');
+  // v1.48.0: the two memory switches are gone, the selection bar says so
+  // until a square is picked, the atlas bar's place name is not styled as a
+  // link, and an egg is any record with flags 0x42 or 0x44 -- the one at
+  // Hall of Truth (8,38) carries no argument and 18 more on that map do.
+  {
+    const all = (function walk(el) { return (el.innerHTML || '') + (el.textContent || '') + (el.children || []).map(walk).join(''); })(REGISTRY.get('atlasPanel') || { children: [] });
+    const insp = ctx.document.getElementById('atlasInspect');
+    if (/Full resolution|Keep every place/.test(all) || ctx.document.getElementById('atlasSettings') && !missingIds.has('atlasSettings')) fail('atlas', 'the memory switches are still offered');
+    else if (!insp || !/Nothing selected/.test(insp.innerHTML || '')) fail('atlas', 'the selection bar does not say Nothing selected before a pick: ' + (insp && insp.innerHTML || '').slice(0, 60));
+    else if (!/#atlasBar \.wbWhere \{ color:#fff/.test(html)) fail('atlas', 'the atlas bar’s place name is still gold');
+    else if (!ctx.atlasEggAt({ resid: 0x8013 }, 8, 38) || !ctx.atlasEggAt({ resid: 0x8013 }, 27, 37) || ctx.atlasEggAt({ resid: 0x8013 }, 9, 38)) fail('atlas', 'the eggs at Hall of Truth (8,38) and (27,37) are not both read as eggs');
+    else if (!/if \(card && card\.person\) appendFaceOrSprite/.test(js)) fail('atlas', 'the hover still reads card.person on a square with only an egg');
+    else if (peek('applyNamesDefault')(true) !== undefined || peek('window.SHOW_BUILTIN_LABELS') !== false || (peek('applyNamesDefault')(false), peek('window.SHOW_BUILTIN_LABELS') !== true)) fail('names', 'the switch does not default off for a supplied file and on for a fetched one');
+    else console.log('  atlas: no memory switches, the bar starts empty, eggs with an argument are eggs, the names default follows the source');
+  }
   const vpA = REGISTRY.get('mapViewport');
   if (!sc) fail('atlas', 'no scene was built');
   else if (sc.nodes.some(n => n.depth && !ctx.mapIsSurface(n.resid)))

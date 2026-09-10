@@ -1032,11 +1032,9 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 .gateCard .gateHint { color:#fff; font-size:0.8438rem; border-top:1px solid rgba(155,136,80,.35); padding-top:8px; margin-top:12px; }
 .gateRow { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
 .gateRow button { width:auto; margin:0; padding:10px 16px; }
-/* The World tab is black to its edges: the sea outside the island is drawn
-   in, and the fall into a hole ends on black, so the page around the map
-   must not be paper. */
-body.worldTab .folder { background:#000; box-shadow:none; border-color:#000; }
-body.worldTab #atlasPanel #atlasZoomRow { background:#000; }
+/* The World tab sits on the same card as every other tab since 10 September
+   2026 (it was black to the folder's edges); the viewport itself is black,
+   which the sea colour and the fall into a hole paint over. */
 /* Full screen: the real thing where the browser allows it, and the panel
    pinned over the page where it does not (see atlasToggleFull). */
 #atlasPanel:fullscreen, #atlasPanel:-webkit-full-screen, body.atlasFull #atlasPanel {
@@ -1058,8 +1056,7 @@ body.atlasFull { overflow:hidden; }
    says where you are and is the way out (and, below ground, the way up). */
 #atlasPanel:fullscreen #atlasZoomRow, #atlasPanel:-webkit-full-screen #atlasZoomRow, body.atlasFull #atlasPanel #atlasZoomRow,
 #atlasPanel:fullscreen #atlasInspect, #atlasPanel:-webkit-full-screen #atlasInspect, body.atlasFull #atlasPanel #atlasInspect,
-#atlasPanel:fullscreen #atlasBar, #atlasPanel:-webkit-full-screen #atlasBar, body.atlasFull #atlasPanel #atlasBar,
-#atlasPanel:fullscreen #atlasSettings, #atlasPanel:-webkit-full-screen #atlasSettings, body.atlasFull #atlasPanel #atlasSettings { display:none !important; }
+#atlasPanel:fullscreen #atlasBar, #atlasPanel:-webkit-full-screen #atlasBar, body.atlasFull #atlasPanel #atlasBar { display:none !important; }
 #atlasPanel:fullscreen, #atlasPanel:-webkit-full-screen, body.atlasFull #atlasPanel { padding:0; }
 #atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport, body.atlasFull #atlasPanel #atlasViewport { height:100%; min-height:100%; }
 #atlasFullOverlay { position:absolute; top:10px; left:10px; z-index:61; align-items:center; gap:8px;
@@ -1083,15 +1080,12 @@ body.atlasFull { overflow:hidden; }
 #atlasZoomLabel { color:#fff; font-variant-numeric:tabular-nums; }
 #atlasZoomRow button { flex:0 0 auto; }
 #atlasViewport canvas { display:block; }
-#atlasSettings { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; justify-content:center; padding:6px 10px; font-size:0.75rem; color:#b5b2a8; }
-#atlasSettings button { width:auto; margin:0; min-height:0 !important; padding:5px 12px !important; font-size:0.75rem !important; }
-#atlasSettings .asNote { flex-basis:100%; text-align:center; color:#8c8980; font-size:0.7188rem; line-height:1.4; }
 #atlasBar { padding:7px 12px; margin:0 0 6px; text-align:left;
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px;
   font-size:0.8125rem; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-#atlasBar .wbWhere { color:var(--gold); font-weight:600; }
+#atlasBar .wbWhere { color:#fff; font-weight:600; }
 #atlasBar .wbNote { color:#b5b2a8; font-size:0.75rem; }
-#atlasInspect { max-width:720px; margin:8px auto 0; padding:10px 14px; text-align:left;
+#atlasInspect { margin:6px 0 0; padding:10px 14px; text-align:left;
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:0.8125rem; }
 #atlasInspect .inspHead { color:var(--gold); font-weight:600; margin-bottom:8px; }
 #atlasInspect .inspCard { border-top:1px solid rgba(155,136,80,.35); padding:6px 0; }
@@ -1566,6 +1560,7 @@ body.atlasFull { overflow:hidden; }
       <label><input type="checkbox" id="chkMarkSecret" onchange="toggleMapMarks('secret',this.checked)"> Hidden ways</label>
       <label><input type="checkbox" id="chkMarkChest" onchange="toggleMapMarks('chest',this.checked)"> Containers</label>
       <label><input type="checkbox" id="chkMarkExits" onchange="toggleMapMarks('exits',this.checked)"> Zone exits</label>
+      <label><input type="checkbox" id="chkMarkGrid" onchange="toggleMapMarks('grid',this.checked)"> Grid</label>
     </div>
     <div class="mapToggleGroup">
       <span class="mtgLabel">Time</span>
@@ -1707,7 +1702,6 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
             <button class="secondary" id="atlasFullBtn" style="width:auto;margin:0;padding:8px 14px"
                     onclick="atlasToggleFull()">Full screen</button>
           </div>
-          <div id="atlasSettings"></div>
           <div id="atlasInspect"></div>
         </div>
       </div>
@@ -2169,6 +2163,20 @@ try {
   const st = localStorage.getItem('cythera.builtinLabels');
   if (st !== null) window.SHOW_BUILTIN_LABELS = st === '1';
 } catch (e) {}
+/* The default for the switch follows where the file came from (10 September
+   2026): a file the visitor supplied -- dropped, picked, or remembered from
+   one of those -- starts with the names off, since it may not be the shipped
+   game; the installer fetched for them starts with them on. A choice made
+   with the checkbox is kept in localStorage and wins over either. */
+window.ARCHIVE_OWN = false;
+function applyNamesDefault(own) {
+  window.ARCHIVE_OWN = !!own;
+  let stored = null;
+  try { stored = localStorage.getItem('cythera.builtinLabels'); } catch (e) { stored = null; }
+  if (stored !== null) return;
+  window.SHOW_BUILTIN_LABELS = !own;
+  try { window.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) {}
+}
 function setBuiltinLabels(on) {
   window.SHOW_BUILTIN_LABELS = !!on;
   try { localStorage.setItem('cythera.builtinLabels', on ? '1' : '0'); } catch (e) {}
@@ -2842,6 +2850,13 @@ function propTypeName(pt) { return PROP_TYPE_NAMES[pt] || null; }
 function propTypeNameShown(pt) {
   return window.SHOW_BUILTIN_LABELS ? propTypeName(pt) : null;
 }
+// Every prop type's shown name, for the search: the tile's own name from
+// 0xF004 first, the built-in list only behind the switch.
+function propNameTable() {
+  const t = getPropTileList(), out = {};
+  for (let pt = 1; pt < t.length && pt < 1024; pt++) { const n = propDisplayName(pt); if (n) out[pt] = n; }
+  return out;
+}
 // The best name for a prop type: the archive's own name for its base tile
 // (0xF004) first, the wiki's list second and only when it is switched on.
 function propDisplayName(pt, base) {
@@ -3090,7 +3105,7 @@ function renderPropTypeSheet() {
   for (let pt = 1; pt < tiles.length && pt < 1024; pt++) {
     const base = tiles[pt];
     if (!base) continue;
-    const name = propTypeName(pt);
+    const name = propDisplayName(pt);
     const info = spriteFrameInfo(0, pt);
     if (!info.count) continue;
     const own = terrainNameFor(base);
@@ -3873,7 +3888,7 @@ function inventoryItemList() {
     if (!ok) continue;
     const e = buildItemIndex()[pt] || null;
     list.push({
-      pt, name: propTypeName(pt), weight: itemWeight(pt), group: itemGroup(pt),
+      pt, name: propDisplayName(pt), weight: itemWeight(pt), group: itemGroup(pt),
       instances: e ? e.total : 0, cls: parseItemClass(pt)
     });
   }
@@ -5471,10 +5486,6 @@ function resetDerivedCaches() {
   worldThumbs.clear();
   contentBoxes.clear();
   window._WORLD_RATIO = null;
-  window.WORLD_PRELOAD = false;
-  window.WORLD_PRELOAD_DONE = 0;
-  window.FULL_RES = false;
-  window._AUTO_HEAVY_DONE = false;
   window.PROP_BLOCK = null;
   window.LIVING_PROPTYPES = null;
   window.SCHEDULES = null;
@@ -5743,6 +5754,7 @@ function adoptArchive(raw, sourceName, opts) {
   // first visit had a resource fork and every return visit did not: Data ›
   // Data Fork said "no resource fork came with it" and the fork gallery was
   // empty, for the same bytes that had worked the day before.
+  applyNamesDefault(opts.cached ? opts.source === 'local file' : !opts.url);
   parseArchiveBytes(found.bytes, sourceName, Object.assign({}, opts, { via: found.via, rsrc, finder }));
   // After parseArchiveBytes, not before: resetDerivedCaches() drops the
   // application's fork along with everything else keyed to the old archive.
@@ -5832,7 +5844,7 @@ async function loadDefaultArchive() {
         loadingFileNote();
         const bytes = rec.bytes instanceof Uint8Array ? rec.bytes : new Uint8Array(rec.bytes);
         if (adoptArchive(bytes, rec.name || 'remembered archive',
-                         { cached: true, savedAt: rec.savedAt, rsrc: rec.rsrc || null, pick: rec.pick })) return;
+                         { cached: true, savedAt: rec.savedAt, rsrc: rec.rsrc || null, pick: rec.pick, source: rec.source })) return;
       }
     } catch (e) { /* no IndexedDB here; carry on to the network */ }
   }
@@ -7289,7 +7301,7 @@ function nightAlpha(hour) {
 // The classification is by name, so it is only as good as the wiki's list and
 // is marked as such in the legend. What is NOT guessed: whether a wall blocks
 // comes from tile attribute byte 3 bit 0x02, straight out of 0xF002.
-window.MAP_MARKS = { doors: false, secret: false, chest: false, exits: false };
+window.MAP_MARKS = { doors: false, secret: false, chest: false, exits: false, grid: false };
 function toggleMapMarks(kind, on) { window.MAP_MARKS[kind] = on; drawMapMarks(); }
 
 // Prop types that are a way through something rather than a thing: the ones
@@ -7471,7 +7483,7 @@ function worldGateways() {
           x1: Math.max(...xs), y1: Math.max(...ys),
           destResid: dest.resid, destX: dest.x, destY: dest.y,
           name: zoneNameFor(dest.resid) || dest.name,
-          kind: (propTypeName(cluster[0].proptype) || 'way in').toLowerCase(),
+          kind: (propDisplayName(cluster[0].proptype) || 'way in').toLowerCase(),
           sealed: mapIsSealed(dest.resid)
         });
       }
@@ -7826,7 +7838,7 @@ function drawMapMarks(lensCtx, lensTS) {
   if (!cm) return;
   const M = window.MAP_MARKS;
   const spots_ = window.MAP_ITEM_SPOTS;
-  const anything = M.doors || M.secret || M.chest || M.exits || window.MAP_SEL ||
+  const anything = M.doors || M.secret || M.chest || M.exits || M.grid || window.MAP_SEL ||
                    (spots_ && spots_.resid === cm.resid && spots_.cells.length);
   let ctx, TS;
   const legend = lensCtx ? null : document.getElementById('markLegend');
@@ -7849,6 +7861,17 @@ function drawMapMarks(lensCtx, lensTS) {
     TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at its own scale
   }
   const colours = { doors: '#ffd166', secret: '#8fd4ff', chest: '#a8e06a', exits: '#ff9ad5' };
+  // A line on every square's edge, so a coordinate can be counted off the map.
+  if (M.grid) {
+    const cols = Math.round(cm.width / cm.TS), rows = Math.round(cm.height / cm.TS);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x <= cols; x++) { ctx.moveTo(x * TS + 0.5, 0); ctx.lineTo(x * TS + 0.5, rows * TS); }
+    for (let y = 0; y <= rows; y++) { ctx.moveTo(0, y * TS + 0.5); ctx.lineTo(cols * TS, y * TS + 0.5); }
+    ctx.stroke();
+    ctx.restore();
+  }
   // Ring the SQUARES, not the sprites. This used to subtract the prop's draw
   // offset so the ring followed the artwork, which is wrong twice over: the
   // offsets are up to 24px on a 32px tile, so the ring sat the best part of a
@@ -8601,16 +8624,12 @@ function renderMapVisual(resid, mapData, opts) {
   // native 32px tile size whenever the map is zoomed in, on every platform
   // -- which is also what finally shows the 256x256 world map at full
   // detail on desktop, where the budget alone had capped it at TS=8.
-  /* Full resolution is a desktop opt-in (see toggleFullRes): the budget goes
-     up far enough that every map, the 256x256 world included, comes back at
-     the native 32 px a tile -- which turns the detail lens off entirely,
-     because there is nothing left for it to sharpen. That is the whole point
-     of it: no lens means no repaint on settle and no change of resolution
-     while zooming, at the cost of a 268 MB canvas for the world map. It is
-     never offered until fullResPossible() has actually allocated one and read
-     a pixel back out of the far corner. */
-  const MAX_CANVAS_PX = (window.FULL_RES && !IS_IOS_WEBKIT) ? 7e7
-                        : (IS_IOS_WEBKIT ? 2.2e6 : 6e6);
+  /* The canvas budget: the world map at this many pixels fits every browser
+     that has been tried. A "full resolution" opt-in that raised it to 70 MP
+     on able desktops was offered from 9 to 10 September 2026 and removed
+     at the maintainer's word: the mip levels and the render cache fix of
+     v1.37.1 made the ordinary budget smooth and sharp without it. */
+  const MAX_CANVAS_PX = IS_IOS_WEBKIT ? 2.2e6 : 6e6;
   let TS = 32;
   if (opts && opts.forceTS) TS = opts.forceTS;   // downloadMapPNG: the file, not the screen
   else while (TS > 4 && (m.width * TS) * (m.height * TS) > MAX_CANVAS_PX) TS -= 4;
@@ -9717,7 +9736,7 @@ function updateMapHover(clientX, clientY, asked) {
   const card = squareCard(cm.level, { result: { m: cm.m, props: cm.props } }, sq.tx, sq.ty, null, asked);
   if (!card) { el.style.display = 'none'; return; }
   el.innerHTML = card.html;
-  if (card.person) appendFaceOrSprite(el, card.person);
+  if (card && card.person) appendFaceOrSprite(el, card.person);
   el.style.display = 'flex';
   placeHoverCard(el, vp, px, py, asked);
 }
@@ -10239,14 +10258,9 @@ function mapRenderFor(resid, cache) {
   }
   const entry = renderMapUncached(resid);
   if (cache && entry && entry.result) {
-    // Nothing is evicted while the reader has asked for every place to be
-    // kept: rendering them all and then throwing them away again as the view
-    // moves is the one thing that option must not do.
-    if (!window.WORLD_PRELOAD) {
-      for (const k of zoneMapCache.keys()) {
-        if (zoneMapCache.size < ZONE_CACHE_KEEP) break;
-        if (k !== WORLD_MAP_RESID) zoneMapCache.delete(k);
-      }
+    for (const k of zoneMapCache.keys()) {
+      if (zoneMapCache.size < ZONE_CACHE_KEEP) break;
+      if (k !== WORLD_MAP_RESID) zoneMapCache.delete(k);
     }
     zoneMapCache.set(resid, entry);
   }
@@ -10320,7 +10334,7 @@ function zoneMapCanvas(resid) {
    clean canvas, the roofs are painted on, and the roofed variants are taken
    off the same canvas afterwards. All 24 destinations at FULL size measures
    275 MB, which is why they are not all kept unless the reader asks for it
-   (see toggleWorldPreload); all of them as thumbnails is a few megabytes,
+   all of them as thumbnails is a few megabytes,
    which is why these are.
 --------------------------------------------------------------------------- */
 const THUMB_LEVELS = [192, 448];
@@ -10590,161 +10604,10 @@ function buildNearThumbs(gw) {
   atlasWhenStill(step, 2000);
 }
 
-/* ---------------------------------------------------------------------------
-   Loading the whole world at once
-   ---------------------------------------------------------------------------
-   Everything above is careful with memory because the numbers are large: the
-   24 distinct destinations, rendered whole, measure 275 MB. So by default a
-   town is rendered as the view arrives beside it, the cache keeps a few, and
-   the miniatures stand in for the rest.
-
-   A reader who would rather spend the memory can say so, and then nothing is
-   rendered during a movement ever again: every destination is drawn once, in
-   the background, and kept -- the cache stops evicting, and both thumbnail
-   levels are built for every town, so the zoom is sharp the whole way in and
-   the crossing is instant. The cost is stated on the button rather than
-   discovered, and it is reversible: Free drops back to the ordinary cache.
---------------------------------------------------------------------------- */
-window.WORLD_PRELOAD = false;
-window.WORLD_PRELOAD_DONE = 0;
-let preloadQueue = null;
-
-function worldPreloadTotal() {
-  const seen = new Set();
-  for (const g of worldGateways()) seen.add(g.destResid);
-  return seen.size;
-}
-
-function toggleWorldPreload() {
-  if (window.WORLD_PRELOAD) {
-    window.WORLD_PRELOAD = false;
-    preloadQueue = null;
-    preloadTodo = null; preloadSeen = null;
-    // Back to the ordinary cache: keep the world map, which is pinned, and
-    // whatever the LRU would have kept anyway.
-    for (const k of Array.from(zoneMapCache.keys()))
-      if (k !== WORLD_MAP_RESID && zoneMapCache.size >= ZONE_CACHE_KEEP) zoneMapCache.delete(k);
-    for (const k of Array.from(worldThumbs.keys()))
-      if (k.endsWith(':' + THUMB_LEVELS[1] + ':r') || k.endsWith(':' + THUMB_LEVELS[1] + ':b'))
-        worldThumbs.delete(k);
-    window.WORLD_PRELOAD_DONE = 0;
-  } else {
-    window.WORLD_PRELOAD = true;
-    window.WORLD_PRELOAD_DONE = 0;
-    startWorldPreload();
-  }
-  renderAtlasBar();
-}
-
-/* The queue lives out here, and that is the whole of the fix.
-
-   It used to be built inside startWorldPreload, and the last thing each slice
-   did was call startWorldPreload again to arm the next one -- which built a
-   fresh list and a fresh empty `seen`, so every slice did the first gateway
-   over again and the counter sat on "1 of 24" for ever. Nothing failed, no
-   request was made, and there was nothing in the console to see, which is
-   exactly how it was reported. A slice re-arms itself now; the queue is
-   drained, not rebuilt. */
-let preloadTodo = null;
-let preloadSeen = null;
-
-/* ---------------------------------------------------------------------------
-   Full resolution
-   ---------------------------------------------------------------------------
-   Every map at the native 32 pixels a tile, including the 256x256 world map,
-   which is an 8192x8192 canvas -- 268 MB. What it buys is that the detail
-   lens turns itself off (lensActive needs a base below 32) and with it goes
-   the only thing on this page that changes resolution while you are looking
-   at it: no repaint on settle, no soft moment before it lands, nothing that
-   shifts. The overlay layers are capped rather than following the base up
-   (layerGeom), or five of them would be 1.3 GB.
-
-   Desktop only, and never offered on trust: fullResPossible allocates the
-   exact canvas the world map would need and reads a pixel back out of the far
-   corner, because a browser that cannot do it does not say so -- it hands
-   back a canvas that draws nothing, and the map would come out black.
---------------------------------------------------------------------------- */
-function fullResPossible() {
-  if (window._FULL_RES_OK !== undefined) return window._FULL_RES_OK;
-  let ok = false;
-  if (!IS_IOS_WEBKIT) {
-    try {
-      const c = document.createElement('canvas');
-      c.width = 8192; c.height = 8192;
-      const x = c.getContext('2d');
-      if (x) {
-        x.fillStyle = 'rgb(18,52,86)';
-        x.fillRect(8160, 8160, 32, 32);
-        const d = x.getImageData(8176, 8176, 1, 1).data;
-        ok = (d[0] === 18 && d[1] === 52 && d[2] === 86);
-      }
-      c.width = 0; c.height = 0;             // give it straight back
-    } catch (e) { ok = false; }
-  }
-  return (window._FULL_RES_OK = ok);
-}
-
-/* Should the heavy options be on without being asked for?
-
-   Full resolution plus every place kept is about 627 MB of canvas -- the
-   world map alone is 256 MB of that, and most towns are already at the native
-   32 px a tile under the ordinary budget, so what the rest buys is Cademia,
-   the Underground and the world. On a desktop with memory to spare that is
-   the version of this page worth having: no lens, no repaint on settle, no
-   render during a crossing, nothing that changes while you look at it.
-
-   It is worth being clear that **nothing is downloaded** for any of this.
-   Every map is drawn from the archive that is already in memory, so the cost
-   is RAM and a few seconds of idle CPU rather than bandwidth. saveData and a
-   2G connection are read anyway, not because the bytes matter but because a
-   browser that reports them is telling us it is on a device being careful,
-   and that is the same answer.
-
-   Refused on anything touch-first, on a browser reporting less than 8 GB, and
-   on any browser that will not actually hand out the canvas (fullResPossible
-   allocates one and reads a pixel back). The button says what is on and turns
-   it off. */
-// Full resolution and Keep every place are opt-in everywhere: nothing turns
-// them on by itself (an auto-enable for able desktops was written and never
-// called; removed 9 September 2026 so the code says what the page does).
-
-function toggleFullRes() {
-  if (!window.FULL_RES && !fullResPossible()) {
-    if (bar) bar.insertAdjacentHTML('beforeend',
-      '<span class="wbNote">This browser will not give out a canvas that big.</span>');
-    return;
-  }
-  window.FULL_RES = !window.FULL_RES;
-  // Every kept picture was made at the other tile size, so none of them are
-  // the right answer any more.
-  zoneMapCache.clear(); worldThumbs.clear();
-  window.WORLD_PRELOAD = false; window.WORLD_PRELOAD_DONE = 0;
-  preloadQueue = null; preloadTodo = null; preloadSeen = null;
-  // Every picture was made at the other tile size, so the scene is rebuilt
-  // and refitted rather than redrawn from what it had.
-  if (window.CUR_SUBN === 'WORLD') { atlasFit(); atlasSyncZoomLabel(); paintAtlas(); }
-}
-
-function startWorldPreload() {
-  if (preloadQueue) return;
-  if (!preloadTodo) { preloadTodo = worldGateways().slice(); preloadSeen = new Set(); }
-  const step = () => {
-    preloadQueue = null;
-    if (!window.WORLD_PRELOAD) return;
-    let gw = preloadTodo.shift();
-    while (gw && preloadSeen.has(gw.destResid)) gw = preloadTodo.shift();
-    if (!gw) { preloadTodo = null; renderAtlasBar(); return; }
-    preloadSeen.add(gw.destResid);
-    buildThumbsFor(gw, THUMB_LEVELS);        // both levels, both roofed and bare
-    mapRenderFor(gw.destResid, true);        // and the whole thing, kept
-    window.WORLD_PRELOAD_DONE = preloadSeen.size;
-    renderAtlasBar();
-    if (window.CUR_SUBN === 'WORLD') paintAtlas();
-    startWorldPreload();                     // arm the next slice, same queue
-  };
-  preloadQueue = 1;
-  atlasWhenStill(step, 3000);
-}
+/* The "Keep every place" preload and the "Full resolution" canvas were
+   offered here from 9 to 10 September 2026 and removed at the maintainer's
+   word once the ordinary cache and the mip levels made the world smooth and
+   sharp without them (NOTES.md, v1.48.0). */
 
 /* Render the place the reader is about to walk into, before they walk into
    it, while nothing else is happening.
@@ -11092,7 +10955,7 @@ function mapDescents(resid) {
       if (!dest || !refExists(dest.resid)) continue;
       out.push({ dest, x: r.x, y: r.y,
                  name: zoneNameFor(dest.resid) || dest.name,
-                 kind: (propTypeName(r.proptype) || 'way down').toLowerCase() });
+                 kind: (propDisplayName(r.proptype) || 'way down').toLowerCase() });
     }
   } catch (e) {}
   return out;
@@ -11795,7 +11658,9 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
     const per = r.w / node.w;
     if (per < 12) continue;
     if (!node._eggs) {
-      try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42 && p.proptype === 0); }
+      // An egg is a record with flags 0x42 or 0x44; its "prop type" bits are
+    // the egg's argument (a room number, a zoneport), so they are not tested.
+    try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42 || p.flags === 0x44); }
       catch (e) { node._eggs = []; }
     }
     for (const g of node._eggs) {
@@ -11818,7 +11683,9 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
 // it does is the zone's script's; the card says what it is.
 function atlasEggAt(node, tx, ty) {
   if (!node._eggs) {
-    try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42 && p.proptype === 0); }
+    // An egg is a record with flags 0x42 or 0x44; its "prop type" bits are
+    // the egg's argument (a room number, a zoneport), so they are not tested.
+    try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42 || p.flags === 0x44); }
     catch (e) { node._eggs = []; }
   }
   return node._eggs.some(g => g.x === tx && g.y === ty) ? 'a scripted trigger (an egg): stepping here runs the zone’s script' : '';
@@ -11968,7 +11835,9 @@ function renderAtlasView() {
   ensureAtlasCanvas();
   setupAtlasInteraction();
   renderAtlasBar();
-  renderAtlasSettings();
+  // The selection bar under the zoom row says so until a square is picked.
+  const insp = document.getElementById('atlasInspect');
+  if (insp && !insp.innerHTML) { insp.innerHTML = '<span class="inspDim">Nothing selected. Tap a square to see what is on it.</span>'; insp.style.display = 'block'; }
   const start = () => {
     const vp = document.getElementById('atlasViewport');
     if (!vp || vp.clientWidth < 40) { setTimeout(start, 50); return; }
@@ -11982,38 +11851,6 @@ function renderAtlasView() {
 }
 
 function atlasFitAndPaint() { atlasFit(); atlasSyncZoomLabel(); paintAtlas(); }
-
-/* The World tab's two memory switches, under the zoom row. They lived on
-   the Tools sheet; the maintainer asked for them on the tab they affect
-   (9 September 2026). Full resolution is offered only where
-   fullResPossible has read a canvas back. */
-function renderAtlasSettings() {
-  const host = document.getElementById('atlasSettings');
-  if (!host) return;
-  host.innerHTML = '';
-  if (typeof fullResPossible !== 'function') return;
-  if (fullResPossible()) {
-    const b1 = document.createElement('button');
-    b1.className = 'secondary';
-    b1.textContent = window.FULL_RES ? '\u2713 Full resolution' : 'Full resolution';
-    b1.title = 'Every place drawn at the native 32 pixels a tile';
-    b1.onclick = () => { toggleFullRes(); renderAtlasSettings(); };
-    host.appendChild(b1);
-  }
-  const b2 = document.createElement('button');
-  b2.className = 'secondary';
-  const done = window.WORLD_PRELOAD_DONE || 0, tot = worldPreloadTotal();
-  b2.textContent = !window.WORLD_PRELOAD ? 'Keep every place'
-    : (done < tot ? '\u2026 loading ' + done + ' of ' + tot : '\u2713 All ' + tot + ' kept');
-  b2.title = 'Every place rendered once and kept, about 627 MB, so nothing is drawn while you move';
-  b2.onclick = () => { toggleWorldPreload(); renderAtlasSettings(); };
-  host.appendChild(b2);
-  const note = document.createElement('div');
-  note.className = 'asNote';
-  note.textContent = (fullResPossible() ? 'Full resolution draws every place at its native 32 pixels a tile. ' : '') +
-    'Keep every place renders all of them once, about 627 MB, so nothing is drawn while you move.';
-  host.appendChild(note);
-}
 
 /* The map the whole screen.
 
@@ -12822,7 +12659,7 @@ function atlasHover(clientX, clientY, asked) {
   const egg = atlasEggAt(hit.node, hit.tx, hit.ty);
   if (!card && !egg) { el.style.display = 'none'; return; }
   el.innerHTML = (card ? card.html : '<div></div>').replace(/<\/div>$/, (egg ? '<span class="hvWhat">' + svEsc(egg) + '</span>' : '') + '</div>');
-  if (card.person) appendFaceOrSprite(el, card.person);
+  if (card && card.person) appendFaceOrSprite(el, card.person);
   el.style.display = 'flex';
   placeHoverCard(el, vp, px, py, asked);
 }
@@ -13399,7 +13236,7 @@ function askOneShape(shape, hit) {
         '<button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>');
     }
     if (m.sh.id === 'resists') {
-      const N = PROP_TYPE_NAMES;
+      const N = propNameTable();
       const ms = parseMonsterStats().filter(r => r.proptype && like(N[r.proptype] || ''));
       if (!ms.length) return null;
       return askCard('What ' + m.hit[1].trim() + ' resists', 'From the monster record’s flag word, as the default resistance script reads it.',
@@ -13417,7 +13254,7 @@ function askOneShape(shape, hit) {
           askCharacterChip(i, '') + ' <span class="inspDim">' + svEsc(zoneDisplayName(tab[i].zone)) + ' (' + tab[i].x + ',' + tab[i].y + '), level ' + tab[i].level + '</span>')), '');
       if (m.sh.id === 'where') {
         // A thing: the item classes with that name, and the maps they lie on.
-        const N = PROP_TYPE_NAMES;
+        const N = propNameTable();
         const pts = Object.keys(N).map(Number).filter(pt => like(N[pt]));
         if (!pts.length) return null;
         const rows = [];
@@ -13532,7 +13369,7 @@ function namedThingsMatching(re) {
   const props = [];
   const tiles = getPropTileList();
   for (let pt = 1; pt < tiles.length && props.length < cap; pt++) {
-    const nm = propTypeName(pt);
+    const nm = propDisplayName(pt);
     if (nm && re.test(nm)) props.push(actionChip(nm, (isInventoryItem(pt) ? 'showCategory(\'ITEMS\');showItemDetail(' : 'showCategory(\'PROPS\');showPropTypeDetail(') + pt + ')', 'prop type 0x' + pt.toString(16).toUpperCase()));
   }
   if (props.length) groups.push(['Prop types', props]);
@@ -17182,7 +17019,7 @@ function renderMechanicsSheet() {
       sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls under the caster’s Casting figure together fall short of a roll under the level</b>' + (sp.rule.casting ? ' (Casting the skill, else a class figure)' : '') + '. Both are <i>Random</i> calls and so stop one short, which means a <b>level 1 spell can never fail</b>.' : '',
       'Damage goes through the same helper as a blow: the victim’s resistance takes the type first, and the caster earns experience by the usual rule.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn to a radius of five and the script walks everyone inside it, but the damage call runs for the one on the target square alone; the spell’s own description says it engulfs all within.' : '',
-      (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => PROP_TYPE_NAMES[r.proptype] || ('class ' + r.proptype)); } catch (e) {} return ms.length ? 'Damage without the magic bit, fire, electric, blunt, edged, is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
+      (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) {} return ms.length ? 'Damage without the magic bit, fire, electric, blunt, edged, is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
       'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the executable’s enemy iterator). Tremor shakes the screen and hurts enemies you cannot see.',
       'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune, or the map.'
     ].filter(Boolean) : [],
@@ -18451,13 +18288,13 @@ function renderConversationPane(data, subn, resid) {
   if (!wrap) return false;
   let head = '';
   if (subn === 8) {
-    const nm = DIALOGUE_GROUP_NAMES[resid];
+    const nm = window.SHOW_BUILTIN_LABELS ? DIALOGUE_GROUP_NAMES[resid] : null;
     head = nm ? 'Generic <b>' + svEsc(nm) + '</b> prompts, shared by everyone who inherits them'
               : 'Generic prompts';
   } else {
     const chain = conv.groups.map(g =>
       '<button class="sv-chip" onclick="jumpToResource(' + g + ')">' +
-      svEsc(DIALOGUE_GROUP_NAMES[g] || ('0x' + g.toString(16).toUpperCase())) + '</button>').join(' ');
+      svEsc((window.SHOW_BUILTIN_LABELS && DIALOGUE_GROUP_NAMES[g]) || ('0x' + g.toString(16).toUpperCase())) + '</button>').join(' ');
     head = conv.entries.length + ' topic' + (conv.entries.length === 1 ? '' : 's') +
       ', read from the code' + (chain ? ' · also answers as: ' + chain : '');
   }
