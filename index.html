@@ -3806,7 +3806,7 @@ function propWordRender() {
   const kept = [];
   if (g) {
     if (g.melee && g.damage !== null) kept.push('damage ' + g.damage);
-    if (g.thrown) kept.push('thrown ' + g.thrown[0] + ' to ' + g.thrown[1] + ' squares');
+    if (g.thrown) kept.push('thrown damage ' + g.thrown[0] + ', range ' + g.thrown[1]);
     if (g.reach !== null && g.reach !== undefined) kept.push((g.ranged ? 'range ' : 'reach ') + g.reach);
     if (g.skill) kept.push(g.skill);
     if (g.protection !== null && g.protection !== undefined) kept.push('protection ' + g.protection);
@@ -4279,7 +4279,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.47.0';
+const GRIMOIRE_VERSION = '1.48.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -15691,6 +15691,7 @@ function gearTable() {
     rows.push({ pt, name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)), weight: itemWeight(pt),
       melee, thrown, armour, ammo, ranged, shield,
       damage: melee ? melee[0] : thrown ? thrown[0] : ammo ? ammo[1] : null,
+      thrownDamage: thrown ? thrown[0] : null, thrownRange: thrown ? thrown[1] : null,
       reach: melee ? melee[1] : thrown ? thrown[1] : ranged ? ranged[1] : null,
       type: melee ? melee[2] : ammo ? ammo[2] : null,
       skill: melee ? skillName(melee[3]) : shield ? skillName(shield[1]) : '',
@@ -16087,6 +16088,49 @@ function combatRules() {
   const words = [...resolve.text.matchAll(/byte 0x([0-9A-F]{2})\s+[0-9A-F]*\s*lt[\s\S]{0,80}?string "([a-z]+)"(?:[\s\S]{0,80}?string " ([a-z ]+)")?/g)]
     .map(m => ({ below: parseInt(m[1], 16), word: m[2] + (m[3] ? ' ' + m[3] : '') }));
   return { d30, barehand, missileSkill, parry, words };
+}
+
+/* THE ATTACK ITSELF. Before a blow or a missile is resolved, one routine
+   (0x3042, called by nothing in the archive, so the executable's, and the
+   only caller of 0xE88 and 0xE89) decides what is swung or thrown. It takes
+   the squared distance from 0xE8C (dx² + dy²) less one, and walks the
+   attacker's equipment for the first melee entry whose reach squared is at
+   least that; that weapon swings, its damage figure plus a roll of 0 to
+   (body − 12) / 4 (0xE90). Only when nothing reached, the target is beyond
+   the adjacent squares and in sight, does it walk again for a thrown entry
+   whose range squared covers the distance: the item's own tile flies
+   (ShootEffect), the missile margin resolves it with the Missile skill and a
+   roll of 0 to (reflex − 12) / 4, and then the item is moved -- into the
+   target's inventory (flags 9, container the target) when the outcome
+   routine answered true, which it does for a hit and for a parry, or onto
+   the target's square (flags 1) when it missed. A launcher is the same
+   branch with its ammunition spent one a shot. Read 9 September 2026 after
+   the maintainer's mystic spear flew at a target that had stepped away.
+   Every number here is read off the listing rather than typed, so an edited
+   archive states its own rule, and a pattern that stops matching drops the
+   sentence instead of misstating it. */
+function attackRules() {
+  const idx = buildScriptTextIndex();
+  const atk = idx.find(e => e.resid === 0x3042), dist = idx.find(e => e.resid === 0xE8C), scale = idx.find(e => e.resid === 0xE90);
+  if (!atk) return null;
+  const strip = t => t.replace(/^\s*[0-9A-F]{4}\s+/gm, '');
+  const a = strip(atk.text), d = dist ? strip(dist.text) : '', sc = scale ? strip(scale.text) : '';
+  const squared = /get_field x \(0x1\)[\s\S]{0,60}sub[\s\S]{0,60}mul[\s\S]{0,80}get_field y \(0x2\)[\s\S]{0,60}sub[\s\S]{0,60}mul[\s\S]{0,60}add/.test(d);
+  const lessOne = /call_resource 0xE8C[\s\S]{0,60}?end\s+end\s+set_local 0x02\s+local Var02\s+byte 0x01\s+sub/.test(a);
+  const test = k => new RegExp('class_member 0x' + k + '01\\s+local Var03\\s+class_member 0x' + k + '01\\s+mul\\s+local Var02\\s+ge').test(a);
+  const reach = test('2A'), range = test('2B'), launcher = test('2E');
+  const meleeAt = a.indexOf('call_resource 0xE88'), thrownAt = a.indexOf('has_member ThrownWeapon');
+  const meleeFirst = meleeAt >= 0 && thrownAt > meleeAt;
+  const beyondAdjacent = /local Var02\s+byte 0x01\s+gt/.test(a) && /sys HasSightLine/.test(a);
+  const flies = /sys ShootEffect[\s\S]{0,240}get_field tile \(0xA\)[\s\S]{0,160}call_resource 0xE89/.test(a);
+  const lodges = /call_resource 0xE89[\s\S]{0,400}?then -> 0x[0-9A-F]+\s+set_field flags \(0x0\)\s+local Var03\s+end\s+byte 0x09\s+end\s+set_field container \(0xB\)/.test(a);
+  const drops = /set_field flags \(0x0\)\s+local Var03\s+end\s+byte 0x01\s+end\s+set_field x \(0x1\)/.test(a);
+  const bodyRoll = /call_resource 0xE88[\s\S]{0,160}class_member 0x2A00\s+sys Random\s+byte 0x00\s+call_resource 0xE90\s+arg Arg00\s+get_field body/.test(a);
+  const reflexRoll = /class_member 0x2B00\s+sys Random\s+byte 0x00\s+call_resource 0xE90\s+arg Arg00\s+get_field reflex/.test(a);
+  const scm = /byte (0x[0-9A-F]+|\d+)\s+sub\s+byte (0x[0-9A-F]+|\d+)\s+div/i.exec(sc);
+  const ammoSpent = /set_field quantity \(0x9\)[\s\S]{0,60}byte 0x01[\s\S]{0,500}sys Delete/.test(a);
+  return { squared, lessOne, reach, range, launcher, meleeFirst, beyondAdjacent, flies, lodges, drops, bodyRoll, reflexRoll,
+    scale: scm ? { sub: parseInt(scm[1]), div: parseInt(scm[2]) } : null, ammoSpent };
 }
 
 /* SPELLS. Every spell script casts through one helper, CastSpell (0xEA1),
@@ -17045,17 +17089,23 @@ function renderMechanicsSheet() {
     dice ? '<span class="partsTitle">In the file</span>' + src('The game', 0x812) + src('The dice', 0x1148) + src('Gambling', 0x1ACF) + [40, 41, 42].map(chipOf).join('') : '');
 
   // ---- combat ----
-  const cb = combatRules();
-  add('combat', 'Combat', null, src('a blow', 0xE88) + src('a missile', 0xE89) + src('the outcome', 0xE87),
-    cb ? 'Three routines: one makes the attacker’s margin for a blow, one for a missile, and one turns the margin into a parry, a miss or a hit.'
+  const cb = combatRules(), ar = attackRules();
+  const rollFrom = (what) => ar && ar.scale ? 'a roll of 0 to ' + what + ' less ' + ar.scale.sub + ' over ' + ar.scale.div : '';
+  add('combat', 'Combat', null, src('the attack', 0x3042) + src('a blow', 0xE88) + src('a missile', 0xE89) + src('the outcome', 0xE87),
+    cb ? 'Four routines: one chooses what is swung or thrown, one makes the attacker’s margin for a blow, one for a missile, and one turns the margin into a parry, a miss or a hit.'
        : 'The combat routines (0xE87–0xE89) are not in this archive.',
     cb ? [
+      ar && ar.reach && ar.meleeFirst ? 'The attack picks the weapon first: the first thing wielded whose <b>reach</b> covers the distance swings' +
+        (ar.range && ar.beyondAdjacent ? ', and only when nothing does, the target is not adjacent and it is in sight, does the first thing with a throw entry <b>fly</b>, as a missile' : '') + '.' +
+        (ar.squared && ar.lessOne ? ' Reach and range are squared and set against the squared distance less one, so reach 1 is the eight neighbours and reach 2 two squares in a line or a knight’s move.' : '') : '',
       'The margin is the attacker’s <b>reflex</b>' + (cb.d30 ? ' <b>plus a roll of 0 to 29</b>' : '') + ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')') +
         ', <b>less the defender’s reflex' + (cb.d30 ? ' plus a roll of 0 to 29' : '') + '</b>, plus Attack less Defence. A monster flagged so uses body for reflex.',
       'The weapon’s enchantment and skill go on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
         (cb.parry ? 'what is left is offered to the shields: each shielding thing the defender wears rolls <b>0 to its block plus the Shield skill</b>, the rolls are added up, and a margin under the total is <b>parried</b>' : 'what is left lands') +
         '. A blow that would have missed is never parried.',
       'A hit does <b>1 plus a roll of 0 to the damage figure, plus the enchantment</b>, so one to the figure rather than nothing to it, with the skill widening the figure before the roll. The defender’s resistance takes the damage type afterwards, so the word the game prints can be bigger than what is felt.',
+      ar && ar.bodyRoll && ar.scale ? 'The damage figure of a blow is the weapon’s plus ' + rollFrom('body') + (ar.reflexRoll ? '; a throw’s is its throw entry’s plus ' + rollFrom('reflex') : '') + '.' : '',
+      ar && ar.lodges && ar.drops ? 'A thrown weapon that <b>hits or is parried</b> goes into the target, carried, which is where it is when the target dies; one that misses lies on the target’s square. Nothing brings it back.' + (ar.ammoSpent ? ' A launcher spends one of its ammunition a shot.' : '') : '',
       cb.words.length ? 'The blow is named by its size: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + w.below).join(', ') + ', and <i>shredded to pieces</i> above.' : ''
     ].filter(Boolean) : [],
     cb ? combatSimControls() + '<div id="combatOut">' + combatSimHtml(combatSimParams(), cb.words) + '</div>' : '', '');
@@ -17068,13 +17118,15 @@ function renderMechanicsSheet() {
     gear.length ? gear.length + ' item classes carry combat parameters.' : 'No item class in this archive carries combat parameters.',
     gear.length ? [
       '<b>Damage</b> is the most a blow can do before the skill is added; the resolver rolls 0 to it.',
-      '<b>Reach</b> is in squares: the AI squares it against the distance before it swings. A launcher’s <b>range</b> is the same column.',
+      ar && ar.reach && ar.squared && ar.lessOne ? 'A weapon <b>reaches</b> a target when its reach squared is at least the squared distance less one: 1 is the eight neighbours, 2 two squares in a line or a knight’s move. A launcher’s <b>range</b> is the same column and the same test.'
+        : '<b>Reach</b> is in squares, set against the distance before a swing. A launcher’s <b>range</b> is the same column.',
+      gear.some(r => r.thrownDamage !== null) ? 'A weapon with a <b>thrown</b> figure flies at that damage over that <b>range</b> when nothing wielded reaches the target.' : '',
       'A launcher fires the <b>ammunition class</b> its arrows or stones carry.',
       'Armour gives <b>protection</b> in points; a shield <b>blocks</b> a roll of 0 to its figure plus the Shield skill.'
-    ] : [],
-    table(['item', '#weight', '#damage', '#reach', '#type', 'skill', '#ammo class', '#protection', '#block'],
+    ].filter(Boolean) : [],
+    table(['item', '#weight', '#damage', '#reach', '#thrown', '#range', '#type', 'skill', '#ammo class', '#protection', '#block'],
       gear.map(r => '<tr><td>' + propChip(r.pt, r.name, ['melee', 'thrown', 'ranged', 'ammunition', 'armour', 'shield'][kind(r)]) + '</td>' +
-        num(r.weight) + num(r.damage) + num(r.reach) + num(r.type) + '<td>' + svEsc(r.skill) + '</td>' + num(r.ammoClass) + num(r.protection) + num(r.block) + '</tr>')) +
+        num(r.weight) + num(r.damage) + num(r.reach) + num(r.thrownDamage) + num(r.thrownRange) + num(r.type) + '<td>' + svEsc(r.skill) + '</td>' + num(r.ammoClass) + num(r.protection) + num(r.block) + '</tr>')) +
     mechGearFigure(gear), '');
 
   // ---- the prop word and the two data bytes ----
