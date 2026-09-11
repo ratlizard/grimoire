@@ -4200,6 +4200,45 @@ function showItemDetail(pt) {
         '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to things') + '</div>');
     }
   }
+  // A status this thing gives whoever wears or uses it, and what takes it
+  // away again, from its own methods (grantRules).
+  {
+    let grants = [];
+    try { grants = grantRules().filter(g => g.pt === pt); } catch (e) { grants = []; }
+    if (grants.length) {
+      const names = grants.map(g => g.flagName || ('flag ' + g.flag.v));
+      fold('grants', 'Status it gives', names.join(', '),
+        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">' + grants.map(g =>
+          'Its <b>' + svEsc(g.method) + '</b> sets ' + srcNum(g.flag, g.flagName || ('flag ' + g.flag.v)) + ' on the character' +
+          (g.clearedBy ? ', and its ' + svEsc(g.clearedBy) + ' clears it again' : ', and nothing in the class clears it') + '.').join('<br>') + '</div>' +
+        '<div class="sv-note">' + mechLink('status', 'Mechanics › Status effects') + '</div>');
+    }
+  }
+  // What it asks for when it is used, and what the application requires of
+  // that target (targetRules).
+  if (cls) {
+    let t = null;
+    try { t = targetOf(cls.resid); } catch (e) { t = null; }
+    if (t) {
+      const words = targetWordWords(t.word);
+      fold('aimed', 'Aimed at', words.join(', '),
+        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It asks “' + svEsc(t.prompt) + '” and answers ' + srcNum(t.val, propWordHex(t.word)) +
+        ', which wants <b>' + words.map(svEsc).join(', ') + '</b>.' + ((t.word & 0x8000) ? ' Within reach is the user’s own square and the eight around it.' : '') + '</div>' +
+        '<div class="sv-note">' + mechLink('target', 'Mechanics › What a use can be aimed at') + '</div>');
+    }
+  }
+  // The one thing that damages a square rather than a target.
+  {
+    let bl = null;
+    try { bl = blastRules(); } catch (e) { bl = null; }
+    if (bl && bl.centre && bl.resid === (cls && cls.resid)) {
+      fold('blast', 'When it goes off', bl.centre.v + ' on its own square, ' + (bl.edge ? bl.edge.v : '') + ' beside it',
+        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It hands ' + srcNum(bl.centre) + ' to everything on its own square, ' +
+        srcNum(bl.edge) + ' to the four squares beside it and ' + srcNum(bl.corner) + ' to the four corners, as ' +
+        (bl.type ? svEsc(damageTypeName(bl.type.v)) + ' (type ' + srcNum(bl.type) + ')' : 'its own type') + '.</div>' +
+        '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to things') + '</div>');
+    }
+  }
 
   if (cls && cls.text.length) {
     fold('text', 'Text in this class', '\u201c' + cls.text[0].text + '\u201d' + (cls.text.length > 1 ? ' and ' + (cls.text.length - 1) + ' more' : ''),
@@ -4353,7 +4392,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.52.1';
+const GRIMOIRE_VERSION = '1.53.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -16204,7 +16243,8 @@ function renderSpellsSheet() {
   const st = statusRules();
   const applies = new Map();
   for (const [nm, arr] of st.applies) for (const a of arr) (applies.get(a.resid) || applies.set(a.resid, []).get(a.resid)).push(svEsc(nm) + (a.duration !== null ? ' for ' + srcNum(a.durationVal, a.duration) : ''));
-  const spells = sp.spells.map(x => Object.assign({}, x, { description: dvmDescriptionOf(x.resid), fx: fx.get(x.resid), status: applies.get(x.resid) || [] }))
+  const tgt = new Map(targetRules().map(t => [t.resid, t]));
+  const spells = sp.spells.map(x => Object.assign({}, x, { description: dvmDescriptionOf(x.resid), fx: fx.get(x.resid), status: applies.get(x.resid) || [], target: tgt.get(x.resid) }))
     .sort((a, b) => a.level - b.level || a.cost - b.cost || a.name.localeCompare(b.name));
   const shown = spells.filter(x => !q || x.name.toLowerCase().includes(q) || x.description.toLowerCase().includes(q));
   const clockNow = appImage() ? exeClockRules() : null;
@@ -16229,6 +16269,8 @@ function renderSpellsSheet() {
       for (const h of x.fx.heals) rows.push(['Heals', '<b>' + srcNum({ resid: x.resid, at: h.at }, h.text) + '</b>']);
     }
     if (x.status.length) rows.push(['Applies', x.status.join(', ') + ' <span class="inspDim">(clock units' + (unitsNote || '') + ')</span>']);
+    if (x.target) rows.push(['Cast on', targetWordWords(x.target.word).map(svEsc).join(', ') + ' ' + srcNum(x.target.val, propWordHex(x.target.word)) +
+      ((x.target.word & 0x8000) ? ' <span class="inspDim">(a neighbour)</span>' : '')]);
     if (!rows.length) rows.push(['Does', '<span class="inspDim">something other than health: the light, a lock, a rune, the map, or a look</span>']);
     const d = document.createElement('div'); d.className = 'mechBody';
     d.innerHTML = '<table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
@@ -17150,6 +17192,286 @@ function attackRules() {
   return { squared, lessOne, reach, range, launcher, meleeFirst, beyondAdjacent, flies, lodges, drops, bodyRoll, reflexRoll,
     scale: scm ? { sub: dvmNum(scm[0]), div: dvmNum(scm[2]), subVal: dvmVal(0xE90, scm[0]), divVal: dvmVal(0xE90, scm[2]) } : null,
     lessOneVal: one ? dvmVal(0x3042, one[2]) : null, ammoSpent };
+}
+
+/* WHAT A SPELL OR A USE CAN BE AIMED AT. A script that wants a target says
+   so by what it returns: it prints its question ("Cast 'Healing' on whom?",
+   "Use lock pick on what?") and returns a word, which the application keeps
+   until the next click and tests bit by bit before it accepts the square or
+   the thing under the pointer. So the word is read off each script here,
+   with the line that holds it, and the bits are named below.
+
+   The names come from the application's own tests, read there rather than
+   guessed: TDroppableWindow::NeedsTarget stores the word, and
+   MouseRoutine tests it -- 0x8000 against CanSearch, which is the same
+   within-reach test that decides whether an item can be dragged (the three
+   by three squares around the character), 0x4000 against
+   TViewer::IsStraightAbs, and the low bits against what is under the
+   pointer. Bit 8 is left unnamed on purpose: its four users are the things
+   you hand to a person, and what the application tests for it is a flag on
+   the character whose meaning is not established, so it prints as hex.
+
+   Why it is worth a section: it is the difference between a spell you can
+   cast across the room and one that needs a neighbour, which no other part
+   of the file states. */
+const TARGET_BIT_NAMES = [
+  [0x8000, 'within reach'],
+  [0x4000, 'in a straight line'],
+  [0x0004, 'a character'],
+  [0x0002, 'a square'],
+  [0x0001, 'a thing']
+];
+function targetWordWords(word) {
+  const bits = [];
+  let left = word;
+  for (const [mask, name] of TARGET_BIT_NAMES) if (word & mask) { bits.push(name); left &= ~mask; }
+  for (let b = 1; b <= 0x8000; b <<= 1) if (left & b) bits.push('bit ' + propWordHex(b));
+  return bits;
+}
+function targetRules() {
+  const out = [];
+  for (const e of buildScriptTextIndex()) {
+    const ops = dvmOpsOf(e);
+    // The prompt, then the return and its constant. Every match is looked
+    // at rather than the first, because a class's Examine prints its own
+    // lines and returns 0 from the same shape earlier in the resource --
+    // the unguent's does, and taking the first match dropped it entirely.
+    // A question mark is what marks the prompt, and a word of 0 is a script
+    // that wants no target.
+    let g = null, prompt = null;
+    for (const cand of dvmSeqAll(ops, [/^string(?:\(implicit\))? "/, /^return$/, DVM_NUM])) {
+      const s = dvmOpString(cand[0]);
+      if (s && /\?$/.test(s.trim()) && dvmNum(cand[2])) { g = cand; prompt = s; break; }
+    }
+    if (!g) continue;
+    const val = dvmVal(e.resid, g[2]);
+    if (!val || !val.v) continue;
+    const pt = e.resid >= 0x1000 && e.resid < 0x1200 ? e.resid - 0x1000 : null;
+    out.push({ resid: e.resid, pt, prompt: prompt.trim(), word: val.v, val,
+               name: pt !== null ? (propDisplayName(pt) || ('prop 0x' + pt.toString(16))) : (selfNameFor(e.resid) || labelFor(e.resid) || ('0x' + e.resid.toString(16).toUpperCase())),
+               kind: pt !== null ? 'item' : 'spell' });
+  }
+  out.sort((a, b) => (b.word & 0x8000) - (a.word & 0x8000) || a.word - b.word || a.name.localeCompare(b.name));
+  return out;
+}
+// The target word one script returns, for that item's or spell's own page.
+function targetOf(resid) {
+  try { return targetRules().find(t => t.resid === resid) || null; } catch (e) { return null; }
+}
+/* The walk that would close the distance. With a target out of reach the
+   click handler calls TGameSys::WalkToLocation, and in the shipped program
+   that routine is two instructions: it answers false and does nothing, so
+   the click is refused instead. Read rather than stated: a build where it
+   was implemented would have a body and this returns null. */
+function exeWalkStub() {
+  const ops = exeOpsNamed('TGameSys::WalkToLocation');
+  if (!ops.length || ops.length > 4) return null;
+  const li = ops.findIndex(o => o.d && o.d.mn === 'li' && o.d.rd === 3 && o.d.imm === 0);
+  const ret = ops.findIndex(o => o.d && /^blr$/.test(o.d.mn));
+  return li >= 0 && ret > li ? { at: exeVal(ops[li], 0), ops: ops.length } : null;
+}
+
+/* WHAT THE GROUND DOES. Walking is the application's, but the damage a
+   square does is a script: the default method 0x301F takes the character
+   and a code for what they stepped on. Two codes do something -- a range
+   for the swamp, one value for lava -- and everything else is a prop, whose
+   UseOn runs with the character on it, which is how a rune goes off.
+
+   Both are guarded by a character flag (the disassembler names them) and by
+   a monster's own immunity, and both hand their damage to TakeDamage
+   directly rather than through ResistDamage, so armour takes nothing off
+   either. Read after a Discord conversation about a game played without
+   magic, where the swamp and the Lake of Fire were the two things that
+   could not be avoided. */
+function terrainRules() {
+  const e = dvmScriptEntry(0x301F);
+  if (!e) return null;
+  const ops = dvmOpsOf(e);
+  const val = op => dvmVal(0x301F, op);
+  const flagName = op => (op && /flag: ([a-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
+  // The swamp: a code between two bounds, a flag, an immunity, a roll.
+  const band = dvmSeqFirst(ops, [DVM_NUM, /^arg Arg01$/, /^le$/, /^arg Arg01$/, DVM_NUM, /^le$/, /^and$/]);
+  const guard = k => dvmSeqFirst(ops, [/^sys TestFlag$/, /^arg Arg00$/, DVM_NUM, /^end$/, /^not$/], k);
+  const swampGuard = band ? guard(ops.indexOf(band[6])) : null;
+  const chance = dvmSeqFirst(ops, [/^sys Random$/, DVM_NUM, DVM_NUM, /^end$/, DVM_NUM, /^eq$/]);
+  const bite = dvmSeqFirst(ops, [/^method TakeDamage/, /^arg Arg00$/, DVM_NUM, DVM_NUM]);
+  const poison = dvmSeqFirst(ops, [/^sys SetFlag$/, /^arg Arg00$/, DVM_NUM]);
+  const saysBit = ops.map(dvmOpString).filter(Boolean);
+  // Lava: one code, its own flag, and a roll for the damage.
+  const lavaAt = dvmSeqFirst(ops, [/^arg Arg01$/, DVM_NUM, /^eq$/]);
+  const lavaGuard = lavaAt ? guard(ops.indexOf(lavaAt[2])) : null;
+  const burn = dvmSeqFirst(ops, [/^method TakeDamage/, /^arg Arg00$/, /^sys Random$/, DVM_NUM, DVM_NUM, /^end$/, DVM_NUM, /^add$/, DVM_NUM]);
+  const onProp = /method UseOn/.test(e.text);
+  return {
+    resid: 0x301F,
+    swamp: band && bite ? {
+      from: val(band[0]), to: val(band[4]),
+      flag: swampGuard ? val(swampGuard[2]) : null, flagName: swampGuard ? flagName(swampGuard[2]) : null,
+      chance: chance ? { lo: val(chance[1]), hi: val(chance[2]), is: val(chance[4]) } : null,
+      damage: val(bite[2]), type: val(bite[3]),
+      poison: poison ? val(poison[2]) : null, poisonName: poison ? flagName(poison[2]) : null,
+      says: saysBit[0] || ''
+    } : null,
+    lava: lavaAt && burn ? {
+      code: val(lavaAt[1]),
+      flag: lavaGuard ? val(lavaGuard[2]) : null, flagName: lavaGuard ? flagName(lavaGuard[2]) : null,
+      roll: { lo: val(burn[3]), hi: val(burn[4]) }, plus: val(burn[6]), type: val(burn[8]),
+      says: saysBit[1] || ''
+    } : null,
+    onProp
+  };
+}
+
+/* THE WATER. One class (0x1036) is every fountain and spring in the game,
+   and the placed prop's Data1 picks which water it is: the plain kinds say
+   something and do nothing, one poisons, one heals, one is a wishing well,
+   and one clears four statuses at once. Read as a list of kinds because
+   that is how the script is written -- a chain of tests on the Data1 -- so
+   each kind's words and effects are what lies between its test and the
+   next. The census underneath is the placed props, so an edited archive
+   shows its own.
+
+   One kind is not a constant at all: it asks the game's own state and
+   answers with another kind, which is how Catamarca's water turns from
+   brackish to fresh over the course of the game. */
+function springRules() {
+  const e = dvmScriptEntry(0x1036);
+  if (!e) return null;
+  const ops = dvmOpsOf(e);
+  const val = op => dvmVal(0x1036, op);
+  const flagName = op => (op && /flag: ([a-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
+  // Each kind's test: `if_not (the Data1 local == n)`, in the order written.
+  const tests = dvmSeqAll(ops, [/^if_not$/, /^local Var00$/, DVM_NUM, /^eq$/]).map(g => ({ at: ops.indexOf(g[0]), kind: dvmNum(g[2]), val: val(g[2]) }));
+  if (!tests.length) return null;
+  const kinds = [];
+  for (let i = 0; i < tests.length; i++) {
+    const from = tests[i].at, to = i + 1 < tests.length ? tests[i + 1].at : ops.length;
+    const span = ops.slice(from, to);
+    const says = span.map(dvmOpString).filter(Boolean);
+    const heal = dvmSeqFirst(span, [/^set_field health/, /^local Var\w+$/, /^end$/, /^local Var\w+$/, /^get_field health/, /^sys Random$/, DVM_NUM, DVM_NUM]);
+    const food = dvmSeqFirst(span, [/^set_field nutrition/, /^local Var\w+$/, /^end$/, /^local Var\w+$/, /^get_field nutrition/, DVM_NUM, /^add$/]);
+    const cap = dvmSeqFirst(span, [/^get_field nutrition/, DVM_NUM, /^lt$/]);
+    const sets = dvmSeqAll(span, [/^sys SetFlag$/, /^global CurrentCharacter/, DVM_NUM]).map(g => ({ val: val(g[2]), name: flagName(g[2]) }));
+    const clears = dvmSeqAll(span, [/^sys ClearFlag$/, /^local Var\w+$/, DVM_NUM]).map(g => ({ val: val(g[2]), name: flagName(g[2]) }));
+    const hurt = dvmSeqFirst(span, [/^call_resource 0x3041$/, /^global CurrentCharacter/, /^sys Random$/, DVM_NUM, DVM_NUM, /^end$/, DVM_NUM, /^add$/, DVM_NUM]);
+    const wish = span.some(o => /^sys OpenConversation$/.test(o.text));
+    const chance = wish ? dvmSeqFirst(span, [/^sys Random$/, DVM_NUM, DVM_NUM, /^end$/, DVM_NUM, /^eq$/]) : null;
+    kinds.push({ kind: tests[i].kind, val: tests[i].val, says,
+      heal: heal ? { lo: val(heal[6]), hi: val(heal[7]) } : null,
+      food: food ? { plus: val(food[5]), below: cap ? val(cap[1]) : null } : null,
+      sets, clears, wish,
+      hurt: hurt ? { lo: val(hurt[3]), hi: val(hurt[4]), plus: val(hurt[6]), type: val(hurt[8]) } : null,
+      chance: chance ? { lo: val(chance[1]), hi: val(chance[2]), is: val(chance[4]) } : null });
+  }
+  // The kind that asks the game's state, and what sets that state.
+  const gate = dvmSeqFirst(ops, [/^sys GetState$/, DVM_NUM, /^end$/, DVM_NUM, /^lt$/]);
+  let setter = null;
+  if (gate) {
+    const which = dvmNum(gate[1]);
+    for (const en of buildScriptTextIndex()) {
+      const g = dvmSeqFirst(dvmOpsOf(en), [/^sys SetState$/, DVM_NUM, DVM_NUM]);
+      if (g && dvmNum(g[1]) === which && en.resid !== 0x1036) {
+        const pt = en.resid >= 0x1000 && en.resid < 0x1200 ? en.resid - 0x1000 : null;
+        setter = { resid: en.resid, pt, name: pt !== null ? (propDisplayName(pt) || ('prop 0x' + pt.toString(16))) : (labelFor(en.resid) || ''), to: dvmVal(en.resid, g[2]) };
+        break;
+      }
+    }
+  }
+  // Where they are, by kind: the placed records of this class.
+  const placed = new Map();
+  try {
+    for (let z = 1; z < 0x100; z++) {
+      const praw = refExists(0x8100 + z) ? getResourceBytes(0x8100 + z) : null;
+      if (!praw) continue;
+      for (const r of parseDelverPropList(smartDecrypt(praw, 0x8100 + z).data)) {
+        if (r.proptype !== 0x36 || !r.onMap || r.flags === 0xFF || (r.flags & 0x40)) continue;
+        if (!placed.has(r.d1)) placed.set(r.d1, []);
+        placed.get(r.d1).push({ zone: 0x8000 + z, x: r.x, y: r.y });
+      }
+    }
+  } catch (err) { /* an archive with no prop lists says nothing about where */ }
+  return { kinds, gate: gate ? { state: val(gate[1]), below: val(gate[3]) } : null, setter, placed };
+}
+
+/* A CURE THAT MIGHT NOT WORK. A script that clears a status behind a roll
+   is a cure with a chance, and the unguent is the one the game has: it
+   heals a little and, if the character is poisoned, takes the poison away
+   one time in five. Read as the roll it is, because the chance is what a
+   player wants to know and it is nowhere in the interface. */
+function chanceCures() {
+  const out = [];
+  for (const e of buildScriptTextIndex()) {
+    const ops = dvmOpsOf(e);
+    const g = dvmSeqFirst(ops, [/^sys TestFlag$/, /^local Var\w+$/, DVM_NUM, /^end$/, /^sys Random$/, DVM_NUM, DVM_NUM, /^end$/, DVM_NUM, /^eq$/, /^and$/]);
+    if (!g) continue;
+    const clear = dvmSeqFirst(ops, [/^sys ClearFlag$/, /^local Var\w+$/, DVM_NUM], ops.indexOf(g[10]));
+    if (!clear) continue;
+    const flag = (/flag: ([a-z\/ -]+)/.exec(g[2].note || '') || [])[1] || null;
+    const pt = e.resid >= 0x1000 && e.resid < 0x1200 ? e.resid - 0x1000 : null;
+    out.push({ resid: e.resid, pt, name: pt !== null ? (propDisplayName(pt) || ('prop 0x' + pt.toString(16))) : (labelFor(e.resid) || ''),
+               flag, lo: dvmVal(e.resid, g[5]), hi: dvmVal(e.resid, g[6]), is: dvmVal(e.resid, g[8]) });
+  }
+  return out;
+}
+
+/* WHAT WEARING IT DOES. A few classes set a character flag in their Wear
+   method and clear it again when the thing comes off: that is the whole of
+   what protective clothing is in this game, and it is not in any field the
+   item page shows. Read per class and per method, so the page can say it
+   on the item's own page and in one table. */
+function grantRules() {
+  const rows = [];
+  for (let pt = 1; pt < 512; pt++) {
+    let cls = null;
+    try { cls = parseItemClass(pt); } catch (e) { cls = null; }
+    if (!cls || !cls.code.length) continue;
+    const ops = dvmOpsOf(dvmScriptEntry(cls.resid));
+    for (const m of cls.code) {
+      const mine = ops.filter(o => o.obj === m.off);
+      if (!mine.length) continue;
+      const sets = dvmSeqAll(mine, [/^sys SetFlag$/, /^arg Arg\d+$/, DVM_NUM]).map(g => g[2]);
+      if (!sets.length) continue;
+      for (const op of sets) {
+        const name = (/flag: ([a-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
+        // The method that takes it away again, where the class has one: the
+        // same flag cleared in another of its methods. Without this the page
+        // would have to say "while worn" on faith.
+        let clearedBy = null;
+        for (const other of cls.code) {
+          if (other.key === m.key) continue;
+          const theirs = ops.filter(o => o.obj === other.off);
+          if (dvmSeqAll(theirs, [/^sys ClearFlag$/, /^arg Arg\d+$/, DVM_NUM]).some(g => dvmNum(g[2]) === dvmNum(op))) { clearedBy = itemFieldLabel(other.key); break; }
+        }
+        rows.push({ pt, resid: cls.resid, key: m.key, method: itemFieldLabel(m.key), clearedBy,
+                    name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)),
+                    flag: dvmVal(cls.resid, op), flagName: name });
+      }
+    }
+  }
+  return rows;
+}
+
+/* WHAT A BOMB DOES. The one thing in the game that damages a square rather
+   than a target: when its fuse runs out it walks the three by three around
+   itself and hands each square a figure, the biggest on its own square. The
+   three figures and the damage type are read off the script; which figure
+   belongs to which ring is read off the guards, so a changed script says
+   what it now does rather than what this one did. */
+function blastRules() {
+  const e = dvmScriptEntry(0x1142);
+  if (!e) return null;
+  const ops = dvmOpsOf(e);
+  const val = op => dvmVal(0x1142, op);
+  const both = dvmSeqFirst(ops, [/^if_not$/, /^local Var\w+$/, DVM_NUM, /^eq$/, /^local Var\w+$/, DVM_NUM, /^eq$/, /^and$/, /^then /, /^set_local 0x08$/, DVM_NUM]);
+  const either = dvmSeqFirst(ops, [/^if_not$/, /^local Var\w+$/, DVM_NUM, /^eq$/, /^local Var\w+$/, DVM_NUM, /^eq$/, /^or$/, /^then /, /^set_local 0x08$/, DVM_NUM]);
+  const rest = dvmSeqAll(ops, [/^set_local 0x08$/, DVM_NUM]).map(g => g[1])
+    .filter(op => (!both || op !== both[10]) && (!either || op !== either[10]));
+  const hit = dvmSeqFirst(ops, [/^call_resource 0xEB8$/, /^local Var\w+$/, /^local Var\w+$/, DVM_NUM]);
+  const span = dvmSeqFirst(ops, [/^sys RangeIterator$/, /^word &Var\w+$/, DVM_NUM, DVM_NUM, DVM_NUM]);
+  if (!both || !hit) return null;
+  return { resid: 0x1142, centre: val(both[10]), edge: either ? val(either[10]) : null, corner: rest.length ? val(rest[0]) : null,
+           type: val(hit[3]), side: span ? val(span[4]) : null,
+           fuse: (dvmSeqFirst(ops, [/^set_field data1/, /^arg Arg00$/, /^end$/, DVM_NUM]) || [])[3] ? val(dvmSeqFirst(ops, [/^set_field data1/, /^arg Arg00$/, /^end$/, DVM_NUM])[3]) : null };
 }
 
 /* SPELLS. Every spell script casts through one helper, CastSpell (0xEA1),
@@ -18450,7 +18772,12 @@ function renderMechanicsSheet() {
           (chest.saysHeld ? ', and a smaller one says “' + svEsc(chest.saysHeld) + '”' + (/[.!?]$/.test(chest.saysHeld) ? '' : '.') : '.') +
           ' Magically locked, only destruction; closed and unlocked, it opens.' : '',
         (door && door.setsOff) || (chest && chest.setsOff) ? 'Before a door or a chest is judged, anything inside it flagged 2 is used on the current character and removed.' : '',
-        'What is left of a strength is kept in the placed door’s or chest’s Data2, which is set to the full strength the first time it is struck.'
+        'What is left of a strength is kept in the placed door’s or chest’s Data2, which is set to the full strength the first time it is struck.',
+        (function () {
+          const bl = blastRules();
+          if (!bl || !bl.centre) return '';
+          return 'A <b>bomb</b> is the one thing that damages a square rather than a target: when its fuse runs out it hands <b>' + srcNum(bl.centre) + '</b> to everything on its own square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners, as ' + (bl.type ? damageTypeName(bl.type.v) + ' (type ' + srcNum(bl.type) + ')' : 'its own type') + '. A locked door whose strength is below a fifth of that goes down to one.';
+        })()
       ].filter(Boolean) : [],
       rows.length ? table(['thing', 'when struck', 'says'], rows.map(r => '<tr><td>' + propChip(r.pt, r.name) + '</td><td>' + damageRowWords(r) + ' ' + srcNum({ resid: r.resid, at: r.at }, 'script') + '</td><td>' +
         (r.says.filter(s => s !== r.spills)[0] ? '“' + svEsc(r.says.filter(s => s !== r.spills)[0]) + '”' : '') + '</td></tr>')) : '', '');
@@ -18542,10 +18869,41 @@ function renderMechanicsSheet() {
         return 'The enemy iterator looks each character up in the application’s ' + srcNum(et.table, et.side + '×' + et.side) + ' table, the row by the caster’s alignment (byte ' + srcNum(et.alignmentByte) + ' of the record) and the column by the character’s, and takes those whose entry is ' + srcNum(et.enemy) + '. By row: <b>' + rows.join('; ') + '</b>.' +
           (et.peace ? ' A byte tested first makes every entry ' + srcNum(et.peace) + (et.peaceKey ? '; a cheat key flips it (' + srcNum(et.peaceKey) + ')' : '') + '.' : '');
       })(),
-      'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune, or the map.'
+      'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune, or the map.',
+      (function () {
+        let t = [];
+        try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
+        if (!t.length) return '';
+        const reach = t.filter(x => x.word & 0x8000);
+        return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: their target word carries within reach, which is the eight squares around the caster. The rest reach anywhere the pointer does. ' + mechLink('target', 'What a use can be aimed at') : '';
+      })()
     ].filter(Boolean) : [],
     mechSpellFigures(sp) +
     table(['spell', '#level', '#cost', 'does'], sp.spells.map(x => '<tr><td>' + partChip(x.name, x.resid) + '</td>' + srcCell(x.levelVal) + srcCell(x.costVal) + '<td>' + doesCell(x) + '</td></tr>')), '');
+
+  // ---- what a use can be aimed at ----
+  {
+    const tg = targetRules();
+    const walk = appImage() ? exeWalkStub() : null;
+    const byWord = new Map();
+    for (const t of tg) { if (!byWord.has(t.word)) byWord.set(t.word, []); byWord.get(t.word).push(t); }
+    const reach = tg.filter(t => t.word & 0x8000);
+    const nameLink = t => srcNum(t.val, t.name);
+    add('target', 'What a use can be aimed at', null, '',
+      tg.length ? tg.length + ' scripts ask for a target: a spell after its casting call, an item when it is used. Each prints its question and returns a word, and the application tests that word against whatever is under the pointer before it accepts the click.'
+                : 'No script in this archive asks for a target.',
+      tg.length ? [
+        'The bits are ' + TARGET_BIT_NAMES.map(([m, n]) => '<b>' + svEsc(n) + '</b> ' + propWordHex(m)).join(', ') + '. A word carrying more than one of the low bits takes any of them.',
+        '<b>Within reach</b> is the character’s own square and the eight around it, the same test that decides whether a thing can be dragged, so ' + reach.length + ' of these ask for a neighbour.' +
+          (walk ? ' A target further off would be walked to first, and in this program <b>the routine that would walk there does nothing and answers false</b> (' + srcNum(walk.at, walk.ops + ' instructions') + '), so the click is refused instead.' : ''),
+        'Bit ' + propWordHex(8) + ' is a second character test whose flag is not named here; the things that ask for it are the ones you hand to a person.',
+        'Nothing in this archive asks for ' + propWordHex(0x4000) + ', a target in a straight line.'
+      ].filter(Boolean) : [],
+      table(['#word', 'wants', 'asked for by'], [...byWord.entries()].sort((a, b) => (b[0] & 0x8000) - (a[0] & 0x8000) || a[0] - b[0]).map(([w, list]) =>
+        '<tr><td class="num">' + propWordHex(w) + '</td><td>' + targetWordWords(w).map(svEsc).join(', ') + '</td><td>' +
+        list.map(nameLink).join(', ') + '</td></tr>')),
+      appImage() ? '<span class="partsTitle">In the executable</span>' + pefChip('TDroppableWindow::NeedsTarget') + pefChip('TDroppableWindow::CanSearch') + pefChip('TGameSys::WalkToLocation') : '');
+  }
 
   // ---- skills ----
   const sk = skillConsultations();
@@ -18603,9 +18961,24 @@ function renderMechanicsSheet() {
   const statusNames = new Set([...st.applies.keys(), ...st.cures.keys()]);
   add('status', 'Status effects', null, '',
     st.applies.size ? 'Every place a script puts a status on somebody, with the duration the call gives in clock units' + (perHour ? ' of ' + srcNum(clk.unitsPerHour) + ' to the game hour' : '') + ', and every place one is cleared, which is what a cure is.' : 'No script in this archive applies a status.',
-    [], mechStatusFigure(st, perHour) + table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
+    (function () {
+      const rules = [];
+      let cures = [], grants = [];
+      try { cures = chanceCures(); } catch (e) { cures = []; }
+      try { grants = grantRules(); } catch (e) { grants = []; }
+      for (const c of cures) rules.push('<b>' + svEsc(c.name) + '</b> clears ' + svEsc(c.flag || 'a status') + ' only on a roll: ' + srcNum(c.is, 'one time in ' + (c.hi.v - c.lo.v)) + ', tested each time it is used, and what it heals is not a condition of it.');
+      if (grants.length) rules.push('A worn thing can carry a status of its own: ' + grants.map(g => svLink(g.name, 'showItemDetail(' + g.pt + ')') + ' ' + srcNum(g.flag, g.flagName || ('flag ' + g.flag.v))).join(', ') + '.');
+      return rules;
+    })(),
+    mechStatusFigure(st, perHour) + table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
       (st.applies.get(nm) || []).map(a => svChip(a.resid) + (a.duration !== null ? ' <span class="inspDim">for</span> ' + srcNum(a.durationVal, a.duration) : '')).join(' ') + '</td><td>' +
-      [...(st.cures.get(nm) || [])].map(r => svChip(r)).join(' ') + '</td></tr>')), '');
+      [...(st.cures.get(nm) || [])].map(r => svChip(r)).join(' ') + '</td></tr>')) +
+    (function () {
+      let grants = [];
+      try { grants = grantRules(); } catch (e) { grants = []; }
+      return grants.length ? '<div class="mechSub">Worn or used, and the status it gives</div>' +
+        table(['thing', 'status', 'given by', 'taken away by'], grants.map(g => '<tr><td>' + propChip(g.pt, g.name) + '</td><td>' + srcNum(g.flag, g.flagName || ('flag ' + g.flag.v)) + '</td><td>' + svEsc(g.method) + '</td><td>' + (g.clearedBy ? svEsc(g.clearedBy) : '<span class="inspDim">nothing in the class</span>') + '</td></tr>')) : '';
+    })(), '');
 
   // ---- hunger, and healing with it ----
   // The fall and the healing are the application's, TGameViewer::DoTicks,
@@ -18648,6 +19021,16 @@ function renderMechanicsSheet() {
           (up ? ' Rounded up, because the helper adds ' + srcNum(n.addend) + ' before it divides, so a difficulty of 1 costs the same ' + n.step.v + ' as a difficulty of ' + n.per.v + '.' : '');
       })() : '',
       lk.needsSkill ? 'The lockpick refuses to be used at all without the <b>Lock Picking</b> skill.' : '',
+      (function () {
+        // Whose reflex and whose skill: both scripts name the player
+        // character rather than whoever holds the pick, which is what makes
+        // a companion's picking depend on the player's own reflex.
+        const strip = t => t.replace(/^\s*[0-9A-F]{4}\s+/gm, '');
+        const h = dvmScriptEntry(0xE43), it = dvmScriptEntry(0x1109);
+        const pcReflex = h && /global PlayerCharacter[\s\S]{0,120}get_field reflex/.test(strip(h.text));
+        const pcSkill = it && /sys GetSkill\s+global PlayerCharacter/.test(strip(it.text));
+        return pcReflex || pcSkill ? 'The reflex rolled is <b>the player character’s</b>' + (pcSkill ? ', and the lockpick asks the player character for the skill' : '') + ', whoever is holding the pick.' : '';
+      })(),
       'The difficulty is the placed lock’s own. The classes carry a parameter of their own, shown as stored.'
     ].filter(Boolean) : [], mechLockFigure(lk),
     lk.classes.length ? '<span class="partsTitle">Lock parameter</span>' + lk.classes.map(c => propChip(c.pt, c.name) + ' ' + srcNum(c.src, c.words.join(' '))).join(' ') : '');
@@ -18728,6 +19111,55 @@ function renderMechanicsSheet() {
       (costs.length ? '<div class="mechSub">What each command spends, the argument it hands TGameSys::HeartBeat</div>' +
         table(['#units', 'spent by'], costs.slice().sort((a, b) => (a.cost ? a.cost.v : 1e9) - (b.cost ? b.cost.v : 1e9)).map(c => '<tr>' + (c.cost ? srcCell(c.cost) : '<td class="num"><span class="inspDim">worked out</span></td>') + '<td>' + svLink(nameHalves(c.routine).method, 'jumpToExeAt(' + c.call.exe + ')') + ' <span class="inspDim">' + svEsc(nameHalves(c.routine).cls) + '</span></td></tr>')) : '') +
       mechClockFigure(sp, clk, costs), model ? '<span class="partsTitle">In the executable</span>' + pefChip('TGameViewer::DoTicks') + pefChip('TGameSys::HeartBeat') : '');
+  }
+
+  // ---- the ground ----
+  {
+    const tn = terrainRules();
+    const swamp = tn && tn.swamp, lava = tn && tn.lava;
+    const grantsOf = flag => { let g = []; try { g = grantRules().filter(x => x.flag && x.flag.v === flag); } catch (e) { g = []; } return g; };
+    const wearers = flag => { const g = grantsOf(flag); return g.length ? g.map(x => svLink(x.name, 'showItemDetail(' + x.pt + ')')).join(', ') : ''; };
+    add('ground', 'The ground: swamp and lava', null, src('the ground', 0x301F),
+      tn ? 'One script runs for a character on a square that is not a plain floor, handed a code for what they are standing on. Two codes hurt; anything else is a prop, and the prop’s own Use On runs with the character standing on it, which is how a rune goes off.'
+         : 'The ground script (0x301F) is not in this archive.',
+      tn ? [
+        swamp ? 'On <b>swamp</b> (codes ' + srcNum(swamp.from) + ' to ' + srcNum(swamp.to) + '), one step in ' + srcNum(swamp.chance ? swamp.chance.is : null, swamp.chance ? (swamp.chance.hi.v - swamp.chance.lo.v) : '') +
+          ' brings “' + svEsc(swamp.says) + '”, ' + (swamp.poisonName ? svEsc(swamp.poisonName) : 'a status') + ' and ' + srcNum(swamp.damage) + ' damage of type ' + srcNum(swamp.type) + '.' +
+          (swamp.flagName ? ' A character with <b>' + svEsc(swamp.flagName) + '</b> (' + srcNum(swamp.flag) + ') is not bitten' + (wearers(swamp.flag.v) ? ', which is what ' + wearers(swamp.flag.v) + ' give' : '') + ', and neither is a monster immune to it.' : '') : '',
+        lava ? 'On <b>lava</b> (code ' + srcNum(lava.code) + '), every step brings “' + svEsc(lava.says) + '” and <b>' + srcNum(lava.plus, rollWords([lava.roll.lo.v, lava.roll.hi.v]).replace('a roll of ', '') + ' plus ' + lava.plus.v) + '</b> damage of type ' + srcNum(lava.type) + '.' +
+          (lava.flagName ? ' A character with <b>' + svEsc(lava.flagName) + '</b> (' + srcNum(lava.flag) + ') takes none' + (wearers(lava.flag.v) ? ', which ' + wearers(lava.flag.v) + ' give' : '') + '.' : '') : '',
+        'Both hand the damage straight to the thing’s TakeDamage, not through the resistance step a blow takes, so armour takes nothing off either.'
+      ].filter(Boolean) : [], '', '');
+  }
+
+  // ---- springs and fountains ----
+  {
+    const wt = springRules();
+    const kindWords = k => {
+      const bits = [];
+      if (k.food) bits.push('nutrition ' + srcNum(k.food.plus, '+' + k.food.plus.v) + (k.food.below ? ' below ' + srcNum(k.food.below) : ''));
+      if (k.heal) bits.push('health ' + srcNum(k.heal.lo, rollWords([k.heal.lo.v, k.heal.hi.v]).replace('a roll of ', '+')));
+      if (k.hurt) bits.push(srcNum(k.hurt.plus, rollWords([k.hurt.lo.v, k.hurt.hi.v]).replace('a roll of ', '') + ' plus ' + k.hurt.plus.v) + ' damage');
+      for (const s of k.sets) bits.push(srcNum(s.val, s.name || ('flag ' + s.val.v)));
+      if (k.clears.length) bits.push('clears ' + k.clears.map(c => srcNum(c.val, c.name || ('flag ' + c.val.v))).join(', '));
+      if (k.wish) bits.push('a wish' + (k.chance ? ', one drink in ' + srcNum(k.chance.is, k.chance.hi.v - k.chance.lo.v) : ''));
+      return bits.join('; ');
+    };
+    const where = k => {
+      const list = (wt && wt.placed.get(k)) || [];
+      const byZone = new Map();
+      for (const p of list) { const n = zoneNameFor(p.zone) || ('0x' + p.zone.toString(16).toUpperCase()); byZone.set(n, (byZone.get(n) || 0) + 1); }
+      return [...byZone.entries()].map(([n, c]) => svEsc(n) + (c > 1 ? ' ×' + c : '')).join(', ');
+    };
+    add('springs', 'Springs and fountains', null, src('the water', 0x1036),
+      wt ? 'One class is every fountain and spring in the game. The placed prop’s Data1 picks which water it is, and each kind says its own line.'
+         : 'The fountain class (0x1036) is not in this archive.',
+      wt ? [
+        wt.gate && wt.setter ? 'One kind is not fixed: it asks the game’s state ' + srcNum(wt.gate.state) + ' and, while that is below ' + srcNum(wt.gate.below) + ', gives the brackish water and a chance of the poisonous one. ' +
+          svLink(wt.setter.name, wt.setter.pt !== null ? 'showItemDetail(' + wt.setter.pt + ')' : 'jumpToResource(' + wt.setter.resid + ')') + ' sets that state to ' + srcNum(wt.setter.to) + ' when it is picked up, and from then on the same fountains are fresh, with a chance of the reviving one.' : '',
+        'A drink acts on the character using it.'
+      ].filter(Boolean) : [],
+      wt ? table(['#Data1', 'says', 'does', 'where it is placed'], wt.kinds.map(k => '<tr>' + srcCell(k.val) + '<td>' + (k.says[0] ? '“' + svEsc(k.says[0].replace(/\*/g, ' ').slice(0, 70)) + '”' : '') + '</td><td>' + kindWords(k) + '</td><td>' + where(k.kind) + '</td></tr>')) : '', '');
   }
 
   // ---- the combat AI ----

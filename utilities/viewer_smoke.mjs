@@ -1774,6 +1774,44 @@ try {
   }
 } catch (e) { fail('damage', e); }
 
+/* What a use is aimed at, the ground and the water, 11 September 2026.
+   Four readings a Discord conversation asked for, each of which the page
+   states from the file: the word a script returns when it wants a target
+   (and so which spells need a neighbour), what the swamp and lava do to
+   whoever stands on them, what each fountain is, and the roll behind the
+   unguent's cure. The trap they share is a pattern that stops matching and
+   takes its sentence away with it, so the figures are checked against the
+   readers and the sentences against the sheet. The unguent is named on
+   purpose: its Examine returns 0 from the same shape as a prompt earlier in
+   the resource, and taking the first match dropped the whole script. */
+try {
+  const tg = ctx.targetRules(), tn = ctx.terrainRules(), wt = ctx.springRules();
+  const cures = ctx.chanceCures(), grants = ctx.grantRules(), bl = ctx.blastRules();
+  ctx.showCategory('MECHANICS');
+  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const reach = tg.filter(t => t.word & 0x8000);
+  const spells = tg.filter(t => t.kind === 'spell');
+  const link = t => new RegExp('jumpToScriptAt\\(' + t.resid + ',' + t.val.at + '\\)');
+  const unguent = tg.find(t => t.resid === 0x118A);
+  const mineral = wt && wt.kinds.find(k => k.clears.length >= 4);
+  const swampChance = tn && tn.swamp && tn.swamp.chance ? tn.swamp.chance.hi.v - tn.swamp.chance.lo.v : null;
+  if (tg.length < 40 || !spells.length) fail('aim', `only ${tg.length} scripts ask for a target, ${spells.length} of them spells`);
+  else if (!unguent || unguent.word !== 8) fail('aim', 'the unguent’s prompt was not reached: a script whose Examine returns first is being dropped');
+  else if (!reach.length || reach.length === tg.length) fail('aim', 'every target or none wants a neighbour: ' + reach.length + ' of ' + tg.length);
+  else if (!link(unguent).test(html) || !link(reach[0]).test(html)) fail('aim', 'a target word is not a link to the line that holds it');
+  else if (!/What a use can be aimed at/.test(html) || !/within reach/.test(html)) fail('aim', 'the Mechanics sheet does not state what a use is aimed at');
+  else if (!tn || !tn.swamp || !tn.lava) fail('ground', 'the ground script was misread: ' + JSON.stringify([!!(tn && tn.swamp), !!(tn && tn.lava)]));
+  else if (tn.swamp.flagName !== 'swamp-poison protection' || tn.lava.flagName !== 'fire/lava protection') fail('ground', 'the flags that protect were misread: ' + JSON.stringify([tn.swamp.flagName, tn.lava.flagName]));
+  else if (!new RegExp(String(swampChance)).test(html) || !/Ouch! Something bit me!/.test(html) || !/Ouch! That's hot!/.test(html)) fail('ground', 'the sheet does not state the swamp and the lava in the file’s words');
+  else if (!wt || wt.kinds.length < 8 || !mineral) fail('water', 'the fountain kinds were misread: ' + JSON.stringify(wt && wt.kinds.length));
+  else if (!wt.gate || !wt.setter || wt.setter.pt !== 0x25) fail('water', 'the state behind the changing water, or what sets it, was misread: ' + JSON.stringify([wt.gate && wt.gate.state.v, wt.setter && wt.setter.name]));
+  else if (!/Springs and fountains/.test(html) || !/heavy taste of/.test(html)) fail('water', 'the sheet does not state the fountains');
+  else if (!cures.length || cures[0].hi.v - cures[0].lo.v < 2) fail('cures', 'no cure with a roll behind it was read');
+  else if (!grants.some(g => g.pt === 0x135 && g.flagName === 'fire/lava protection') || !grants.some(g => g.clearedBy)) fail('grants', 'the worn statuses were misread: ' + JSON.stringify(grants.map(g => g.name + '/' + g.flagName)));
+  else if (!bl || !bl.centre || !bl.edge || bl.centre.v <= bl.edge.v) fail('blast', 'the bomb was misread: ' + JSON.stringify(bl && [bl.centre, bl.edge, bl.corner]));
+  else console.log(`  aim and ground: ${tg.length} scripts ask for a target, ${reach.length} of them a neighbour; the swamp bites one step in ${swampChance} and lava does ${tn.lava.plus.v} to ${tn.lava.roll.hi.v - 1 + tn.lava.plus.v}; ${wt.kinds.length} kinds of water, ${mineral.clears.length} statuses cleared by the mineral spring; the unguent cures one time in ${cures[0].hi.v - cures[0].lo.v}; the bomb ${bl.centre.v}/${bl.edge.v}/${bl.corner.v}`);
+} catch (e) { fail('aim', e); }
+
 /* No copy of the file's numbers or names, 11 September 2026. The Mechanics
    figures are read with the line that holds each and printed as links to
    it, so a figure typed back into a sentence shows up here as a number
