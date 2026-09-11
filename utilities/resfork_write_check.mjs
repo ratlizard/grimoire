@@ -48,8 +48,8 @@ import vm from 'node:vm';
 import { pageSource } from './page_scripts.mjs';
 import { makeSandbox } from './dom_stub.mjs';
 
-const [htmlPath, dataRsrcPath, appRsrcPath] = process.argv.slice(2);
-if (!htmlPath) { console.error('usage: resfork_write_check.mjs <viewer.html> [data.rsrc] [app.rsrc]'); process.exit(2); }
+const [htmlPath, dataRsrcPath, appRsrcPath, appDataPath] = process.argv.slice(2);
+if (!htmlPath) { console.error('usage: resfork_write_check.mjs <viewer.html> [data.rsrc] [app.rsrc] [app.data]'); process.exit(2); }
 
 const { sandbox } = makeSandbox();
 const ctx = vm.createContext(sandbox);
@@ -159,6 +159,19 @@ refuses('a typeOrder naming a type nothing has',
 // because they are the whole point of the file -- a writer that produced a
 // structurally perfect fork with the wrong record in it would install
 // cleanly and do nothing.
+//
+// Since v1.52.0 where each switch lands in the record is read out of the
+// application's code (cytheraPrefsLayout), so this half wants the
+// application's data fork and says so when it is not given; the bytes it
+// requires are still the ones measured in the game, which now hold the
+// program's reading to them.
+let appData = null;
+try { appData = appDataPath ? new Uint8Array(readFileSync(appDataPath)) : null; } catch (e) { appData = null; }
+if (appData) {
+// The menu item that names smooth movement is in the application's fork.
+ctx.__app = appData;
+ctx.__appRsrc = appRsrcPath ? new Uint8Array(readFileSync(appRsrcPath)) : null;
+new vm.Script('window.APP_DATA = __app; window.APP_PEF = null; if (__appRsrc) window.APP_RSRC = openResourceFork(__appRsrc);').runInContext(ctx);
 const prefFork = (o) => ctx.openResourceFork(ctx.buildCytheraPreferences(o));
 const prefRecord = (o) => {
   const f = prefFork(o);
@@ -188,6 +201,7 @@ const dsk = ctx.buildPrefsDiskImage({ smooth: true, cheats: true });
 check('it builds a disk image with two files on it', dsk.length > 0 && dsk.length % 512 === 0, `${dsk.length.toLocaleString('en-US')} bytes`);
 check('the install script names the file and the volume',
       /Cythera Preferences/.test(ctx.prefsInstallScript({})) && /Cythera Prefs/.test(ctx.prefsInstallScript({})));
+} else console.log('  skip the preferences file: its record is read out of the application, and no data fork was given');
 
 if (failed) { console.log(`\n${failed} of ${checks} checks failed`); process.exit(1); }
 console.log(`  ${realForks} shipped fork(s) rewritten byte for byte: ${realResources} resources across ${realTypes} types`);

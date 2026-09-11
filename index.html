@@ -4351,7 +4351,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.51.0';
+const GRIMOIRE_VERSION = '1.52.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -4472,43 +4472,80 @@ function undoFontSwap() {
   renderMacRsrcSheet();
 }
 
-/* THE DIALOGUE BOX, from the file (10 September 2026). Two routines of the
-   executable draw it, read with the workbench's pefdisasm and the loader-
-   order import mapping (workbench doc/dialogue-box.md has the addresses):
+/* THE DIALOGUE BOX, from the file (10 September 2026) and, since 11
+   September, with every constant read out of the application. Two routines
+   draw it (the workbench's doc/dialogue-box.md has the first reading):
 
-   - TInteraction::MyCopyBitsBevel (0x03A3C8): CopyBits the scene into the
-     box; PenMode(1); RGBForeColor(colour); PenPat(qd.gray); PaintRect(box);
-     then two polygons in ForeColor(whiteColor) and ForeColor(blackColor) for
-     the bevelled edge, in the same pattern. The colour is read out of the
-     game's colour table handle -- the global CreateGlobals fills with
-     GetCTable(256) -- at byte 18: ColorSpec 1 of clut 256, which the data
-     file's fork carries as 0x0000 0x0000 0xA800, rgb(0,0,168). So the box
+   - TInteraction::MyCopyBitsBevel: CopyBits the scene into the box;
+     PenMode(1); RGBForeColor(colour); PenPat(qd.gray); PaintRect(box); then
+     two polygons in white and black for the bevelled edge. The colour is
+     read out of a global colour table handle, dereferenced twice, at a
+     fixed offset (`lwz 0, 18(r)`, `lhz 0, 22(r)`: ColorSpec 1's rgb); the
+     global is the one CreateGlobals fills with GetCTable(n). The data file's
+     clut n gives the colour: 0x0000 0x0000 0xA800, rgb(0,0,168), so the box
      is a 50% dither of that blue over whatever is under it.
-   - FrameBox (0x0703B0), which TBorderWDEF::DrawUnhilited calls for every
-     bordered window: SubTilePat(413, ...) cuts pixel patterns out of game
-     tile 413 (0x19D) -- rows 0-3 and 28-31 for the top and bottom bands,
-     columns 0-7 and 24-31 for the sides -- and FillCRect fills the frame
-     with them. That is a CSS border-image of the tile sliced 4 8.
+   - FrameBox, which TBorderWDEF::DrawUnhilited calls for every bordered
+     window: SubTilePat(tile, rect) cuts pixel patterns out of a game tile
+     through rects built with SetRect -- a top band (left, 0, right, h), a
+     side band (0, top, w, bottom) and their mirrors -- and FillCRect fills
+     the frame with them. That is a CSS border-image of the tile sliced h w.
 
-   This sets both on .tabSheet from the open file: --boxBlue from the fork's
-   clut 256, the border-image from tile 0x19D, each left at the stylesheet's
-   default when the file lacks it. */
+   exeDialogueBox reads the tile, the two band sizes, the colour table's id
+   and the colour's offset; this sets --boxBlue and the border-image on
+   .tabSheet from them and the open file, and leaves the stylesheet's own
+   look (the res/ frame, the blue it was drawn with) when the application
+   or the file lacks any part. */
+function exeDialogueBox() {
+  if (!appImage()) return null;
+  const fb = exeOpsNamed('FrameBox');
+  const sub = fb.findIndex(o => exeCalls(o, 'SubTilePat'));
+  const tile = sub >= 0 ? exeArgOf(fb, sub, 3) : null;
+  const rects = fb.map((o, k) => exeCalls(o, 'SetRect') ? k : -1).filter(k => k >= 0)
+    .map(k => ({ l: exeArgOf(fb, k, 4), t: exeArgOf(fb, k, 5), r: exeArgOf(fb, k, 6), b: exeArgOf(fb, k, 7) }))
+    .filter(x => x.l && x.t && x.r && x.b);
+  const top = rects.find(x => x.t.v === 0 && x.l.v > 0), side = rects.find(x => x.l.v === 0 && x.t.v > 0);
+  // The colour: the first load at an offset from a handle a TOC slot holds,
+  // before RGBForeColor.
+  const bb = exeOpsNamed('TInteraction::MyCopyBitsBevel');
+  const fore = bb.findIndex(o => exeCalls(o, 'RGBForeColor'));
+  let offset = null, slot = null;
+  for (let k = fore - 1; k >= Math.max(0, fore - 10) && fore >= 0; k--) {
+    const d = bb[k].d;
+    if (d && d.mn === 'lwz' && d.d > 0 && d.ra !== 1 && d.ra !== 2) {
+      const base = exeFindBack(bb, k - 1, 6, e => e.mn === 'lwz' && e.ra === 2 && e.rt === d.ra);
+      if (base >= 0) { offset = exeVal(bb[k], d.d); slot = bb[base].d.d; }
+    }
+  }
+  // The table: the GetCTable whose handle CreateGlobals stores through the same slot.
+  const cg = exeOpsNamed('CreateGlobals');
+  let clut = null;
+  cg.forEach((o, k) => {
+    if (clut || !exeCalls(o, 'GetCTable')) return;
+    const store = exeFind(cg, k + 1, 4, d => d.mn === 'stw' && d.rt === 3 && d.d === 0);
+    if (store < 0) return;
+    const base = exeFindBack(cg, store, cg.length, d => d.mn === 'lwz' && d.ra === 2 && d.rt === cg[store].d.ra);
+    if (base >= 0 && cg[base].d.d === slot) clut = exeArgOf(cg, k, 3);
+  });
+  return tile && top && side ? { tile, top: exeVal({ at: top.b.exe }, top.b.v - top.t.v), side: exeVal({ at: side.r.exe }, side.r.v - side.l.v), clut, offset } : null;
+}
 window.DIALOGUE_BOX = null;
 function installDialogueBox() {
-  const out = { tile: 0x19D, blue: null, frame: false };
+  const box = exeDialogueBox();
+  const out = { tile: box ? box.tile.v : null, blue: null, frame: false, read: box };
   window.DIALOGUE_BOX = out;
   let style = document.getElementById('gameBoxStyle');
   if (!style) { style = document.createElement('style'); style.id = 'gameBoxStyle'; document.head.appendChild(style); }
   let rule = '';
   try {
     const fork = window.CYTHERA_RSRC;
-    const clut = fork ? (fork.resourcesByType['clut'] || []).find(e => e.id === 256) : null;
-    if (clut) {
-      const d = fork.dataOf('clut', clut), n = ((d[6] << 8) | d[7]) + 1;
-      if (n > 1 && d.length >= 24) { out.blue = [d[18], d[20], d[22]]; rule += '.tabSheet { --boxBlue:rgba(' + out.blue.join(',') + ',.5); }\n'; }
+    const clut = fork && box && box.clut ? (fork.resourcesByType['clut'] || []).find(e => e.id === box.clut.v) : null;
+    if (clut && box.offset) {
+      const d = fork.dataOf('clut', clut), n = ((d[6] << 8) | d[7]) + 1, o = box.offset.v;
+      if (n > 1 && d.length >= o + 6) { out.blue = [d[o], d[o + 2], d[o + 4]]; rule += '.tabSheet { --boxBlue:rgba(' + out.blue.join(',') + ',.5); }\n'; }
     }
   } catch (e) { out.blue = null; }
   style.textContent = out.css = rule;
+  if (!box) return;
   let im = null;
   try { im = resolveTileImage(out.tile); } catch (e) { im = null; }
   if (!im || im.length !== 1024) return;
@@ -4521,7 +4558,8 @@ function installDialogueBox() {
       const n = (png[i] << 16) | ((png[i + 1] || 0) << 8) | (png[i + 2] || 0);
       b += A[n >> 18] + A[(n >> 12) & 63] + (i + 1 < png.length ? A[(n >> 6) & 63] : '=') + (i + 2 < png.length ? A[n & 63] : '=');
     }
-    const css = rule + '.tabSheet { border-image-source:url(data:image/png;base64,' + b + '); border-image-repeat:repeat; }\n';
+    const t = box.top.v, w = box.side.v;
+    const css = rule + '.tabSheet { border-width:' + t + 'px ' + w + 'px; border-image-source:url(data:image/png;base64,' + b + '); border-image-slice:' + t + ' ' + w + '; border-image-repeat:repeat; }\n';
     style.textContent = out.css = css;
     out.frame = true;
   }).catch(() => {});
@@ -4812,6 +4850,7 @@ async function loadApplicationFork() {
       window.APP_RSRC = openResourceFork(c.rsrc);
       window.APP_DATA = c.data && c.data.length ? c.data : null; window.APP_PEF = null;
       window.APP_RSRC_STATE = '';
+      try { installDialogueBox(); } catch (e) {}
       window.AI_HOOK_NAMES = null;
       syncInstallerTabs();
       syncTabsTo(document.getElementById('categorySelect').value);
@@ -5821,6 +5860,9 @@ function adoptArchive(raw, sourceName, opts) {
       try { const both = viseExtract(found.installer.archive, app); window.APP_RSRC = openResourceFork(both.rsrc); window.APP_DATA = both.data && both.data.length ? both.data : null; window.APP_PEF = null; window.APP_RSRC_STATE = ''; }
       catch (e) { window.APP_RSRC = null; window.APP_DATA = null; window.APP_PEF = null; window.APP_RSRC_STATE = 'Could not open the application’s fork from the installer: ' + e.message; }
       if (window.CUR_SUBN === 'MACRSRC' && window.RSRC_SOURCE === 'app') renderMacRsrcSheet();
+      // The dialogue box's constants are the application's, so it is drawn
+      // again now that the application is here.
+      try { installDialogueBox(); } catch (e) {}
       // The Data Fork tab unfades with the data fork, which is set just above
       // and after the sync parseArchiveBytes ran.
       syncInstallerTabs();
@@ -14045,18 +14087,493 @@ function tileHasTransparency(t) {
    somewhere, the tab it shows it under. This is the map from the archive's
    own structure to the tree above it, and it is the view to start from when
    a subindex is not where you expected. */
+/* THE KEYS, off the program. TMapWindow::KeyRoutine(short) is the map
+   window's key handler, and what the Cheats sheet says about a key is read
+   out of it here rather than kept in a table:
+
+   - THE ROLLING WORD. The key's low byte is shifted into a global word
+     (`clrlwi 0, key, 24` then `rlwimi 0, word, 8, 0, 23`), and the word is
+     tested against constants as an `addis`/`cmplwi` pair, the compiler's way
+     of comparing 32 bits: the constant is the `cmplwi` operand less the
+     `addis` operand shifted up 16. The first such test is the cheat code,
+     the others the CD words.
+   - THE GATE. After the code's test the routine takes the address of a
+     global record (`addi r, 2, d`), loads one byte of it and tests one bit;
+     then it flips a byte (`lbz`, `cntlzw`, `srwi 5`, `stb`, a logical not)
+     and prints one of two strings. The flipped byte's base register is the
+     cheat flag the gated cases test first.
+   - THE SWITCH. The key is sign-extended and searched by a binary tree of
+     `cmpwi` and `bt`/`bf` on the less-than and equal bits. Rather than
+     trusting the tree's shape, every key from -128 to 511 is run through it
+     by an interpreter of those instructions; the address most keys reach is
+     the default and every other address a case, with the keys that reach it
+     and the compare that sent each there.
+   - A CASE is the instructions from its address to the next case's: whether
+     it begins by testing the cheat flag, the strings it loads through the
+     TOC, the routines it calls with the constants loaded into r3 to r10
+     just before, the bytes it flips, and whether it runs on into the next
+     case without a branch.
+
+   Every figure is { v, exe }, so the sheet links it to its instruction. */
+function exeKeyRoutine() {
+  const r = exeRoutineNamed('TMapWindow::KeyRoutine');
+  const ops = exeOpsOf(r), img = appImage();
+  if (!r || !ops.length || !img || !img.toc) return null;
+  const index = a => { const k = (a - r.offset) / 4; return k >= 0 && k < ops.length && k === Math.floor(k) ? k : -1; };
+  const string = o => {
+    const d = o && o.d; if (!d || d.mn !== 'lwz' || d.ra !== 2) return null;
+    const p = pefPointerAt(img, img.toc.section, img.toc.offset + d.d);
+    const t = p && p.section !== undefined ? exeStringAt(p) : null;
+    return t === null ? null : { v: t, exe: o.at };
+  };
+  const wordAt = i => {
+    const a = ops[i] && ops[i].d, b = ops[i + 1] && ops[i + 1].d;
+    return a && b && a.mn === 'addis' && b.mn === 'cmplwi' && b.ra === a.rd ? ((b.imm - (a.imm * 65536)) >>> 0) : null;
+  };
+  const out = { routine: r, gate: null, words: [], cases: [], volume: [], defaultAt: null, keyReg: null };
+  const roll = exeFind(ops, 0, ops.length, d => d.mn === 'rlwimi' && d.sh === 8 && d.mb === 0 && d.me === 23);
+  if (roll < 0) return null;
+  out.shift = exeVal(ops[roll], ops[roll].d.sh);
+  for (let i = roll; i + 1 < ops.length; i++) {
+    const w = wordAt(i); if (w === null) continue;
+    out.words.push({ v: decodeMacRoman(new Uint8Array([w >>> 24, (w >>> 16) & 255, (w >>> 8) & 255, w & 255])), word: w, exe: ops[i + 1].at, i });
+  }
+  if (!out.words.length) return null;
+  // The gate: the record, its byte and bit, the flag flipped, the two lines.
+  {
+    const g = out.words[0], i = g.i + 2;
+    const rec = exeFind(ops, i, 4, d => d.mn === 'addi' && d.ra === 2);
+    const byte = rec >= 0 ? exeFind(ops, rec + 1, 2, d => d.mn === 'lbz' && d.ra === ops[rec].d.rd) : -1;
+    const bit = byte >= 0 ? exeFind(ops, byte + 1, 2, d => /^(rlwinm|clrlwi)\.$/.test(d.mn) && d.mb === d.me && d.rs === ops[byte].d.rt) : -1;
+    const flip = exeFind(ops, i, 16, d => d.mn === 'cntlzw');
+    const load = flip >= 0 ? exeFindBack(ops, flip, 3, d => d.mn === 'lbz' && d.d === 0) : -1;
+    const lines = [];
+    for (let k = flip; k >= 0 && k < flip + 16 && lines.length < 2; k++) { const t = string(ops[k]); if (t) lines.push(t); }
+    out.gate = {
+      word: g, recordTocD: rec >= 0 ? ops[rec].d.imm : null,
+      byte: byte >= 0 ? exeVal(ops[byte], ops[byte].d.d) : null,
+      bit: bit >= 0 ? exeVal(ops[bit], ((31 - ops[bit].d.me) - ops[bit].d.sh + 32) % 32) : null,
+      flagReg: load >= 0 ? ops[load].d.ra : null, flip: flip >= 0 ? exeVal(ops[flip], null) : null,
+      on: lines[0] || null, off: lines[1] || null
+    };
+  }
+  // The CD words: each with the key code that does the same, and the call.
+  for (const w of out.words.slice(1)) {
+    const alt = exeFind(ops, w.i + 2, 4, d => d.mn === 'cmpwi');
+    const call = exeFind(ops, w.i + 2, 12, d => d.mn === 'bl');
+    w.key = alt >= 0 ? exeVal(ops[alt], ops[alt].d.imm) : null;
+    w.call = call >= 0 ? exeVal(ops[call], exeTargetName(ops[call].to)) : null;
+  }
+  // The switch.
+  let root = -1;
+  for (let k = 0; k + 3 < ops.length && root < 0; k++) {
+    const d = ops[k].d, c = ops[k + 1].d, t = ops[k + 2].d, f = ops[k + 3].d;
+    if (d && d.mn === 'extsh' && c && c.mn === 'cmpwi' && c.ra === d.ra && t && t.mn === 'bt' && t.bi === 2 && f && f.mn === 'bf' && f.bi === 0) root = k;
+  }
+  if (root < 0) return out;
+  const reg = ops[root].d.ra;
+  out.keyReg = ops[root].d.rs;
+  const walk = key => {
+    let i = root + 1, cr = 0, last = -1;
+    for (let steps = 0; steps < 64 && i >= 0; steps++) {
+      const d = ops[i].d;
+      if (d && d.mn === 'cmpwi' && d.ra === reg) { cr = key < d.imm ? 8 : key > d.imm ? 4 : 2; last = i; i++; continue; }
+      if (d && (d.mn === 'bt' || d.mn === 'bf') && d.bi <= 2) { const set = (cr & [8, 4, 2][d.bi]) !== 0; i = (d.mn === 'bt' ? set : !set) ? index(ops[i].at + d.disp) : i + 1; continue; }
+      if (d && d.mn === 'b' && !d.aa) { i = index(ops[i].at + d.disp); continue; }
+      return { i, last };
+    }
+    return null;
+  };
+  const reach = new Map();
+  for (let key = -128; key < 512; key++) {
+    const w = walk(key); if (!w) continue;
+    if (!reach.has(w.i)) reach.set(w.i, { i: w.i, keys: [] });
+    reach.get(w.i).keys.push({ v: key, exe: w.last >= 0 ? ops[w.last].at : null });
+  }
+  const groups = [...reach.values()].sort((a, b) => b.keys.length - a.keys.length);
+  if (!groups.length) return out;
+  out.defaultAt = ops[groups[0].i].at;
+  const starts = groups.map(g => g.i).sort((a, b) => a - b);
+  for (const g of groups.slice(1).sort((a, b) => a.keys[0].v - b.keys[0].v)) {
+    const next = starts.find(k => k > g.i);
+    const end = next === undefined ? ops.length : next;
+    const body = ops.slice(g.i, end);
+    const d0 = body[0] && body[0].d, d1 = body[1] && body[1].d, d2 = body[2] && body[2].d;
+    const calls = [];
+    body.forEach((o, k) => {
+      if (o.mn !== 'bl' || o.to === null) return;
+      const args = {};
+      for (let j = k - 1; j >= Math.max(0, k - 8); j--) {
+        const d = body[j].d; if (!d) continue;
+        if (d.mn === 'bl') break;
+        if (d.mn === 'li' && d.rd >= 3 && d.rd <= 10 && !(d.rd in args)) args[d.rd] = exeVal(body[j], d.imm);
+      }
+      calls.push({ v: exeTargetName(o.to).replace(/\(.*$/, ''), exe: o.at, args });
+    });
+    const tail = body[body.length - 1].d;
+    out.cases.push({
+      at: ops[g.i].at, keys: g.keys, ops: body,
+      gated: d0 && d0.mn === 'lbz' && d0.ra === out.gate.flagReg && d0.d === 0 && d1 && d1.mn === 'cmplwi' && d1.imm === 0 && d2 && d2.mn === 'bt' ? exeVal(body[0], true) : null,
+      strings: body.map(string).filter(Boolean), calls,
+      flips: body.filter(o => o.mn === 'cntlzw').map(o => exeVal(o, null)),
+      fallsInto: tail && tail.mn !== 'b' && tail.mn !== 'blr' && next !== undefined ? ops[next].at : null
+    });
+  }
+  // The volume keys, tested before the switch: the step each adds and the
+  // bound it is held to.
+  for (let k = 0; k < root; k++) {
+    const d = ops[k].d;
+    if (!d || d.mn !== 'cmpwi' || !ops[k - 1] || !ops[k - 1].d || ops[k - 1].d.mn !== 'extsh' || ops[k - 1].d.rs !== out.keyReg) continue;
+    const step = exeFind(ops, k + 1, 14, e => e.mn === 'addi' && e.ra === e.rd && e.ra !== 1 && e.ra !== 2 && (e.imm === 10 || e.imm === -10 || Math.abs(e.imm) < 64) && e.imm !== 0);
+    if (step < 0 || ops[step].at - ops[k].at > 60) continue;
+    const bound = exeFind(ops, step + 1, 6, e => e.mn === 'cmpwi');
+    out.volume.push({ key: exeVal(ops[k], d.imm), step: exeVal(ops[step], ops[step].d.imm), bound: bound >= 0 ? exeVal(ops[bound], ops[bound].d.imm) : null });
+  }
+  return out;
+}
+
+/* The wall bitmap's test, off TGameViewer::MakeBitMap: the tile word masked
+   to an index into the attribute table (`rlwinm r, tile, 2, mb, me`, the
+   index shifted up two for the word table), then the attributes `andi.`-ed
+   with a mask and compared with the same mask. */
+function exeWallMask() {
+  const ops = exeOpsNamed('TGameViewer::MakeBitMap');
+  const t = exeFind(ops, 0, ops.length, d => d.mn === 'andi.' && d.imm);
+  if (t < 0 || !ops[t + 1] || !ops[t + 1].d || ops[t + 1].d.mn !== 'cmpwi' || ops[t + 1].d.imm !== ops[t].d.imm) return null;
+  const ix = exeFindBack(ops, t, 4, d => d.mn === 'rlwinm' && d.sh === 2);
+  const tiles = ix >= 0 ? ((1 << (ops[ix].d.me - ops[ix].d.mb + 1)) - 1) : null;
+  return tiles ? { mask: exeVal(ops[t], ops[t].d.imm), tiles: exeVal(ops[ix], tiles) } : null;
+}
+// Every C string a routine loads through the TOC, in order.
+function exeStringsOf(name) {
+  const img = appImage(); if (!img || !img.toc) return [];
+  return exeOpsNamed(name).map(o => {
+    const d = o.d; if (!d || d.mn !== 'lwz' || d.ra !== 2) return null;
+    const p = pefPointerAt(img, img.toc.section, img.toc.offset + d.d);
+    const t = p && p.section !== undefined ? exeStringAt(p) : null;
+    return t === null ? null : { v: t, exe: o.at };
+  }).filter(Boolean);
+}
+
+/* THE PREFERENCES RECORD, every use of it in the program. The record is the
+   global the key routine's gate tests (its TOC displacement is read there),
+   and every routine that takes its address (`addi r, 2, d`) is scanned for
+   what it does with it:
+
+   - a READ is a `lbz` of one of its bytes followed, within a few
+     instructions and on the same register, by an extraction of some of the
+     byte's bits -- a rotate-and-mask (`rlwinm`, `clrlwi`, `srwi`) or an
+     `andi.` -- which says which bits the routine wants;
+   - a WRITE is a `stb` into it preceded by an `rlwimi` (bits inserted, with
+     the value when it was loaded by `li` just before, or "toggled" when it
+     came out of a `cntlzw`) or an `ori`;
+   - what CHOOSES a write is the compare tree it sits under (exeCaseValues:
+     a menu item, a dialog item, a slider's position), and the routine's own
+     menu or dialog (the constant it hands GetMenuHandle or GetNewDialog,
+     and the item it hands GetDialogItem), so the page can name the item out
+     of the application's MENU and DITL resources;
+   - a Pascal string loaded after reads that initialise a control is that
+     control's LABEL, for every read since the previous label.
+
+   A byte loaded and not masked is not counted, so a field is only named by
+   a routine that tests it. The scan runs once per program and is kept. */
+function exePrefsAccess() {
+  const pef = appPef(), img = appImage();
+  if (!pef || !img || !img.toc || !pef.routines) return null;
+  if (pef.prefsAccess !== undefined) return pef.prefsAccess;
+  const keys = exeKeyRoutine();
+  const recD = keys && keys.gate ? keys.gate.recordTocD : null;
+  if (recD === null) return (pef.prefsAccess = null);
+  const range = d => {
+    if (d.mn === 'andi.') { const m = d.imm & 0xFF; if (!m) return null; const lo = 31 - Math.clz32(m & -m), hi = 31 - Math.clz32(m); return ((1 << (hi + 1)) - (1 << lo)) === m ? [lo, hi] : null; }
+    if (!/^(rlwinm|clrlwi|rotlwi|srwi)\.?$/.test(d.mn) || d.mb === undefined || d.mb > d.me) return null;
+    const lo = ((31 - d.me) - d.sh + 32) % 32, hi = ((31 - d.mb) - d.sh + 32) % 32;
+    return lo <= hi && hi < 8 ? [lo, hi] : null;
+  };
+  const out = { recordTocD: recD, reads: [], writes: [], passes: [] };
+  const lo16 = recD & 0xFFFF;
+  for (const r of pef.routines) {
+    // A cheap look before decoding: an addi from r2 whose low half is the
+    // record's displacement.
+    let seen = false;
+    for (let a = r.offset; a + 4 <= r.offset + r.length && !seen; a += 4)
+      if ((img.code[a] >> 2) === 14 && ((img.code[a + 1] & 31) === 2) && ((img.code[a + 2] << 8) | img.code[a + 3]) === lo16) seen = true;
+    if (!seen) continue;
+    const ops = exeOpsOf(r);
+    const holds = new Set();
+    const reads = [], labels = [];
+    // The routine's own menu, dialog and dialog items, by the calls' constants.
+    const callArg = (name, reg) => ops.map((o, k) => exeCalls(o, name) ? exeArgOf(ops, k, reg) : null).filter(Boolean);
+    const menu = callArg('GetMenuHandle', 3)[0] || null, dialog = callArg('GetNewDialog', 3)[0] || null, items = callArg('GetDialogItem', 4);
+    ops.forEach((o, i) => {
+      const d = o.d; if (!d) return;
+      const lab = exePascalAt(o); if (lab) labels.push({ i, lab });
+      if (d.mn === 'addi' && d.ra === 2 && d.imm === recD) { holds.add(d.rd); return; }
+      if (d.mn === 'lbz' && holds.has(d.ra)) {
+        for (let j = i + 1; j < Math.min(ops.length, i + 9); j++) {
+          const e = ops[j].d; if (!e) continue;
+          const f = e.rs === d.rt ? range(e) : null;
+          if (f) { reads.push({ i, routine: r, byte: exeVal(o, d.d), bits: exeVal(ops[j], f), label: null }); break; }
+          if ((e.rd === d.rt || e.rt === d.rt) && e.mn !== 'rlwimi') break;
+        }
+      }
+      if (d.mn === 'stb' && holds.has(d.ra)) {
+        for (let j = i - 1; j >= Math.max(0, i - 6); j--) {
+          const e = ops[j].d; if (!e) continue;
+          if ((e.mn === 'rlwimi' || e.mn === 'ori') && e.ra === d.rt) {
+            let f = null, value = null;
+            if (e.mn === 'ori') { f = range({ mn: 'andi.', imm: e.imm }); value = f ? exeVal(ops[j], (1 << (f[1] - f[0] + 1)) - 1) : null; }
+            else {
+              f = e.mb <= e.me && 31 - e.mb < 8 ? [31 - e.me, 31 - e.mb] : null;
+              for (let k = j - 1; k >= Math.max(0, j - 8); k--) {
+                const g = ops[k].d; if (!g) continue;
+                if (g.mn === 'li' && g.rd === e.rs) { value = exeVal(ops[k], g.imm); break; }
+                if (g.mn === 'cntlzw' && g.ra === e.rs) { value = exeVal(ops[k], 'toggled'); break; }
+                if (g.rd === e.rs || g.rt === e.rs || (g.ra === e.rs && g.rs !== undefined)) break;
+              }
+            }
+            if (!f) break;
+            out.writes.push({ routine: r, byte: exeVal(o, d.d), bits: exeVal(ops[j], f), value, chosen: exeCaseValues(ops, i, 0, 300), menu, dialog, items });
+            break;
+          }
+        }
+      }
+      if (d.mn === 'addi' && d.imm === 0 && holds.has(d.ra)) out.passes.push({ routine: r, exe: o.at });
+      const dest = d.rd !== undefined ? d.rd : d.mn.startsWith('l') && d.rt !== undefined ? d.rt : undefined;
+      if (dest !== undefined && holds.has(dest) && !(d.mn === 'addi' && d.ra === 2)) holds.delete(dest);
+    });
+    // Each label names the reads since the one before it, in a routine that
+    // builds several controls that way (a dialog), and nowhere else.
+    let prev = -1;
+    const named = [];
+    for (const { i, lab } of labels) { const got = reads.filter(x => x.i < i && x.i > prev && !x.label && i - x.i < 40); if (got.length) named.push({ lab, got }); prev = i; }
+    if (new Set(named.map(n => n.got[0].byte.v + ':' + n.got[0].bits.v.join())).size >= 3) for (const n of named) for (const x of n.got) x.label = n.lab;
+    out.reads.push(...reads);
+  }
+  return (pef.prefsAccess = out);
+}
+
+/* The record as fields: every run of bits some routine reads or writes, with
+   who reads it, who writes it and what chooses each write, named from the
+   application's own MENU, DLOG and DITL resources where a menu or a dialog
+   chooses it and from the preferences dialog's labels where a control
+   does. */
+function exePrefFields() {
+  const acc = exePrefsAccess(); if (!acc) return null;
+  const fork = window.APP_RSRC;
+  const res = (t, id) => { try { const e = fork && (fork.resourcesByType[t] || []).find(x => x.id === id); return e ? fork.dataOf(t, e) : null; } catch (e) { return null; } };
+  const rows = new Map();
+  const row = (byte, f) => { const k = byte + ':' + f[0] + ':' + f[1]; if (!rows.has(k)) rows.set(k, { byte, lo: f[0], hi: f[1], readers: [], writers: [] }); return rows.get(k); };
+  for (const x of acc.reads) row(x.byte.v, x.bits.v).readers.push(x);
+  for (const w of acc.writes) {
+    const f = w.bits.v, r = row(w.byte.v, f);
+    // The control this bit belongs to in a dialog that reads it with a label.
+    const lab = acc.reads.find(x => x.label && x.byte.v === w.byte.v && x.bits.v[0] <= f[0] && x.bits.v[1] >= f[1]);
+    let item = null;
+    if (w.menu && w.chosen) {
+      const m = res('MENU', w.menu.v), texts = m ? menuItemTexts(m) : [];
+      item = { menu: w.menu, title: m ? pstr(m, 14).s : null, values: w.chosen.values, texts: w.chosen.values.map(v => texts[v - 1]).filter(Boolean), exe: w.chosen.exe };
+    } else if (w.dialog) {
+      const dl = res('DLOG', w.dialog.v), ditlId = dl && dl.length >= 20 ? ((dl[18] << 8) | dl[19]) : w.dialog.v;
+      const texts = ditlItemTexts(res('DITL', ditlId));
+      const values = w.value === null ? w.items.map(x => x.v) : w.chosen ? w.chosen.values : [];
+      item = { dialog: w.dialog, ditl: ditlId, values, texts: values.map(v => texts[v - 1]).filter(Boolean), exe: w.value === null && w.items[0] ? w.items[0].exe : w.chosen ? w.chosen.exe : null };
+    }
+    r.writers.push(Object.assign({}, w, { label: lab ? lab.label : null, item }));
+  }
+  return [...rows.values()].sort((a, b) => a.byte - b.byte || b.hi - a.hi);
+}
+
+/* What the game stores when there are no preferences: TDelverApp::PostInitMac
+   writes the whole record once for each processor class, each word loaded
+   from the data section (`addi r, 2, d`, `lwz 0, 0(r)`, `stw 0, 0(record)`),
+   and the compare tree above each write, over the answer Gestalt gave less
+   one, says which processors get it. The selectors are the `lis`/`addi`
+   pairs handed to Gestalt. */
+function exePrefDefaults() {
+  const acc = exePrefsAccess(); if (!acc) return null;
+  const r = exeRoutineNamed('TDelverApp::PostInitMac'); const ops = exeOpsOf(r); if (!ops.length) return null;
+  let rec = -1;
+  for (let k = 0; k < ops.length && rec < 0; k++) if (ops[k].d && ops[k].d.mn === 'addi' && ops[k].d.ra === 2 && ops[k].d.imm === acc.recordTocD) rec = ops[k].d.rd;
+  const out = { selectors: [], words: [] };
+  ops.forEach((o, k) => {
+    if (exeCalls(o, 'Gestalt')) {
+      const hi = exeFindBack(ops, k, 6, d => d.mn === 'lis' && d.rd === 3), lo = hi >= 0 ? exeFind(ops, hi + 1, 3, d => d.mn === 'addi' && d.ra === 3) : -1;
+      if (hi >= 0 && lo >= 0) { const w = ((ops[hi].d.imm * 65536) + ops[lo].d.imm) >>> 0; out.selectors.push({ v: String.fromCharCode(w >>> 24, (w >>> 16) & 255, (w >>> 8) & 255, w & 255), exe: ops[hi].at }); }
+    }
+    const d = o.d;
+    if (d && d.mn === 'stw' && d.ra === rec && d.d === 0) {
+      const load = exeFindBack(ops, k - 1, 5, e => e.mn === 'lwz' && e.rt === d.rt && e.d === 0);
+      const src = load >= 0 ? exeFindBack(ops, load, 5, e => e.mn === 'addi' && e.ra === 2 && e.rd === ops[load].d.ra) : -1;
+      // CodeWarrior may copy through the stack first: follow one hop.
+      let base = src;
+      if (base < 0 && load >= 0) {
+        const stack = exeFindBack(ops, load, 4, e => e.mn === 'stw' && e.ra === 1);
+        const l2 = stack >= 0 ? exeFindBack(ops, stack, 4, e => e.mn === 'lwz' && e.rt === ops[stack].d.rt && e.ra !== 1) : -1;
+        base = l2 >= 0 ? exeFindBack(ops, l2, 4, e => e.mn === 'addi' && e.ra === 2 && e.rd === ops[l2].d.ra) : -1;
+      }
+      if (base < 0) return;
+      const words = exeDataWords(exeTocOffset(ops[base].d.imm), 1);
+      if (!words) return;
+      out.words.push({ v: words[0] >>> 0, exe: ops[base].at, chosen: exeCaseValues(ops, k, -1, 300) });
+    }
+  });
+  return out.words.length ? out : null;
+}
+
+/* The startup wait: main tests the gate's bit and, when it is set, spins on
+   TickCount until the tick count it started at plus a constant. */
+function exeStartupWait(gate) {
+  const ops = exeOpsNamed('main'); if (!ops.length || !gate || !gate.byte || !gate.bit) return null;
+  const acc = exePrefsAccess();
+  const read = acc && acc.reads.find(x => x.routine.name === 'main' && x.byte.v === gate.byte.v && x.bits.v[0] === gate.bit.v);
+  if (!read) return null;
+  const k = ops.findIndex(o => o.at === read.bits.exe);
+  const tick = ops.findIndex((o, j) => j > k && exeCalls(o, 'TickCount'));
+  const add = tick >= 0 ? exeFind(ops, tick + 1, 4, d => d.mn === 'addi' && d.ra === 3) : -1;
+  return add >= 0 ? { read, ticks: exeVal(ops[add], ops[add].d.imm) } : null;
+}
+
+/* The preferences file's keys: every call of TPrefs's store and fetch
+   routines, the key it passes in r4 (a Pascal string through the TOC, or a
+   register loaded from one earlier) and, for SavePrefs and LoadPrefs, the
+   length in r6. */
+function exePrefKeys() {
+  const kinds = { SavePrefs: 'write', SetFile: 'write', SetOrdinal: 'write', LoadPrefs: 'read', GetFile: 'read', GetOrdinal: 'read' };
+  const out = new Map();
+  for (const [name, dir] of Object.entries(kinds)) {
+    for (const c of exeCallersOf('TPrefs::' + name)) {
+      const ops = c.ops;
+      let key = null, len = null;
+      for (let j = c.i - 1; j >= Math.max(0, c.i - 12) && !key; j--) {
+        const d = ops[j].d; if (!d) continue;
+        if (d.mn === 'lwz' && d.rt === 4 && d.ra === 2) key = exePascalAt(ops[j]);
+        else if ((d.mn === 'addi' || d.mn === 'mr') && d.rd === 4 && d.imm === 0 || (d.mn === 'mr' && d.ra === 4)) {
+          const from = d.mn === 'mr' ? d.rs : d.ra;
+          for (let k = j - 1; k >= 0 && !key; k--) { const e = ops[k].d; if (e && e.mn === 'lwz' && e.rt === from && e.ra === 2) key = exePascalAt(ops[k]); }
+        }
+      }
+      if (name === 'SavePrefs' || name === 'LoadPrefs') len = exeArgOf(ops, c.i, 6);
+      if (!key) continue;
+      if (!out.has(key.v)) out.set(key.v, { key, kind: name.replace(/^(Save|Load)Prefs$/, 'Prefs').replace(/^(Set|Get)/, ''), len: null, writers: [], readers: [] });
+      const e = out.get(key.v);
+      if (len && !e.len) e.len = len;
+      e[dir === 'write' ? 'writers' : 'readers'].push({ routine: c.routine, exe: ops[c.i].at });
+    }
+  }
+  return [...out.values()];
+}
+
+/* A COMPARE TREE, run for a value. A switch compiles to compares of one
+   register against constants and branches on the less-than and equal bits,
+   sometimes a chain (load, test, branch to the next load and test, body),
+   sometimes a binary tree; either way which body a value reaches is what
+   running the compares says. exeCaseValues finds the tree the instruction
+   at `i` sits under -- the nearest compare before it, the compares,
+   branches and reloads of the same register above that, and then back
+   along the chain while an earlier identical test branches to this one's
+   load -- runs every value from `lo` to `hi` through it, and answers the
+   values that arrive at the body holding `i`, with the tested compare's
+   address, and `all` when every value arrives (nothing chooses it). An
+   instruction the compiler put between a compare and its branch that sets
+   no flags is stepped over. */
+function exeCaseValues(ops, i, lo, hi) {
+  const at0 = ops.length ? ops[0].at : 0;
+  const index = a => { const k = (a - at0) / 4; return k >= 0 && k < ops.length && k === Math.floor(k) ? k : -1; };
+  let c = -1;
+  for (let k = i - 1; k >= Math.max(0, i - 40) && c < 0; k--) { const d = ops[k].d; if (d && (d.mn === 'cmpwi' || d.mn === 'cmplwi')) c = k; }
+  if (c < 0) return null;
+  const reg = ops[c].d.ra;
+  const isCmp = d => d && (d.mn === 'cmpwi' || d.mn === 'cmplwi') && d.ra === reg;
+  const isBranch = d => d && (d.mn === 'bt' || d.mn === 'bf' || (d.mn === 'b' && !d.aa));
+  const quiet = (k) => { const d = ops[k] && ops[k].d, n = ops[k + 1] && ops[k + 1].d; return d && n && (n.mn === 'bt' || n.mn === 'bf') && !/\.$|^cmp|^b/.test(d.mn); };
+  let root = c;
+  while (root > 0 && (isCmp(ops[root - 1].d) || isBranch(ops[root - 1].d) || quiet(root - 1))) root--;
+  let load = root > 0 && ops[root - 1].d && (ops[root - 1].d.ra === reg || ops[root - 1].d.rt === reg || ops[root - 1].d.rd === reg) ? root - 1 : -1;
+  // Back along a chain: an earlier identical load and test whose branch
+  // lands on this load.
+  for (let guard = 0; load >= 0 && guard < 64; guard++) {
+    const word = ops[load].d.word, target = ops[load].at;
+    let found = -1;
+    for (let k = load - 1; k >= Math.max(0, load - 160) && found < 0; k--) {
+      if (!ops[k].d || ops[k].d.word !== word) continue;
+      for (let j = k + 1; j < Math.min(ops.length, k + 8); j++) {
+        const d = ops[j].d;
+        if (d && (d.mn === 'bt' || d.mn === 'bf') && ops[j].at + d.disp === target) { found = k; break; }
+        if (d && (d.mn === 'bl' || d.mn === 'blr' || (d.mn === 'b' && !d.aa))) break;
+      }
+    }
+    if (found < 0) break;
+    load = found;
+  }
+  const loadWord = load >= 0 ? ops[load].d.word : null;
+  const run = v => {
+    let k = load >= 0 ? load : root, cr = 0;
+    for (let steps = 0; steps < 128 && k >= 0; steps++) {
+      const d = ops[k].d;
+      if (d && d.word === loadWord) { k++; continue; }
+      if (isCmp(d)) {
+        const x = d.mn === 'cmplwi' ? v >>> 0 : v, y = d.mn === 'cmplwi' ? d.imm >>> 0 : d.imm;
+        cr = x < y ? 8 : x > y ? 4 : 2; k++; continue;
+      }
+      if (d && (d.mn === 'bt' || d.mn === 'bf') && d.bi <= 2) { const set = (cr & [8, 4, 2][d.bi]) !== 0; k = (d.mn === 'bt' ? set : !set) ? index(ops[k].at + d.disp) : k + 1; continue; }
+      if (d && d.mn === 'b' && !d.aa) { k = index(ops[k].at + d.disp); continue; }
+      if (quiet(k)) { k++; continue; }
+      return k;
+    }
+    return -1;
+  };
+  const arrive = new Map();
+  for (let v = lo; v <= hi; v++) { const t = run(v); if (t < 0) continue; if (!arrive.has(t)) arrive.set(t, []); arrive.get(t).push(v); }
+  let best = -1;
+  for (const t of arrive.keys()) if (t <= i && t > best) best = t;
+  if (best < 0) return null;
+  // A branch between the body's start and `i` that leaves the body means
+  // `i` is not in it.
+  for (let k = best; k < i; k++) { const d = ops[k].d; if (d && (d.mn === 'blr' || (d.mn === 'b' && !d.aa && index(ops[k].at + d.disp) > i))) return null; }
+  const values = arrive.get(best);
+  return { values, all: values.length === hi - lo + 1, exe: ops[c].at, root: ops[load >= 0 ? load : root].at };
+}
+
+// The constant a call is handed in r3 (or `reg`), loaded just before it.
+function exeArgOf(ops, callIndex, reg) {
+  for (let j = callIndex - 1; j >= Math.max(0, callIndex - 8); j--) {
+    const d = ops[j].d; if (!d) continue;
+    if (d.mn === 'bl') return null;
+    if (d.mn === 'li' && d.rd === (reg || 3)) return exeVal(ops[j], d.imm);
+  }
+  return null;
+}
+// A Pascal string a TOC slot points at, or null.
+function exePascalAt(op) {
+  const img = appImage(), d = op && op.d;
+  if (!img || !d || d.mn !== 'lwz' || d.ra !== 2) return null;
+  const p = pefPointerAt(img, img.toc.section, img.toc.offset + d.d);
+  if (!p || p.section === undefined) return null;
+  const b = img.contents[p.section] && img.contents[p.section].bytes; if (!b) return null;
+  const n = b[p.offset]; if (!n || p.offset + n >= b.length) return null;
+  for (let k = 1; k <= n; k++) if (b[p.offset + k] < 0x20) return null;
+  return { v: decodeMacRoman(b.subarray(p.offset + 1, p.offset + 1 + n)), exe: op.at };
+}
+
 /* ---- Data > Cythera (App) > Cheats ---------------------------------------
    Cythera has a cheat mode, and until 5 September 2026 nobody could reach it.
    The Cutting Room Floor lists a "potential cheat mode" and stops there; this
    is why it stayed potential, and what is behind it.
 
-   THE WHOLE TABLE IS READ OUT OF THE EXECUTABLE, not collected. The map
-   window's `TMapWindow::KeyRoutine` (PowerPC `0x0437BC`) is one switch over
-   the key byte; the strings and the called routines were resolved through the
-   TOC. Two
-   things follow that no amount of playing would have shown: the gate is a
-   preferences bit the game itself never sets, and `option-x` is broken,
-   it toggles a flag on character 0, which is nobody.
+   EVERYTHING ABOUT THE KEYS IS READ OUT OF THE PROGRAM as the sheet opens:
+   exeKeyRoutine walks TMapWindow::KeyRoutine for the gate, the cases and the
+   CD words, exePrefFields scans the whole program for the preferences
+   record, exePrefDefaults and exeStartupWait read what the game stores and
+   waits on. What is typed here is only what the program cannot say: the
+   title of each key, a sentence around the figures, and which option-key a
+   Mac Roman character is on a US keyboard. Until 11 September 2026 the
+   tables themselves were typed from a trace made outside the page; reading
+   them corrected three things: the speed limiter is $C2 (option-l), which
+   the typed table gave as $C1; the frame-rate cap is a four-bit field that
+   the Preferences menu sets to 4, 6 or 8, not two bits; and byte 1's bits 4
+   and 5 are written, by the startup dialog that offers to switch to 256
+   colours, where the typed table called them written by nothing.
 
    The gate is why this page can offer the mode at all: `writeResourceFork`
    arrived in v1.18.0 and the Tools tab writes a `Cythera Preferences` file
@@ -14064,73 +14581,44 @@ function tileHasTransparency(t) {
    code typed, "Cheat mode activated." printed, and option-shift-/ answering
    with the player's position in hex.
 
-   Mac Roman codes; the option-letter is the US layout. `myprintf` writes to
-   the status window and `mygetnum` reads a number typed there. */
-const CHEAT_KEYS = [
-  ['∆',  '$C6', 'option-j',        'Jump',            'Prints “Jump from [level,x,y]:”, asks Level, X and Y in hex, then calls TGameViewer::GoToLocation, teleport anywhere in the game.'],
-  ['Ô',  '$EF', 'option-shift-j',  'Take teleporter', 'Asks a teleporter number in decimal, then TGameSys::TeleportTo(1, n, 0).'],
-  ['ß',  '$A7', 'option-s',        'Create a prop',   'Asks a prop number in hex, Data1 in decimal and Data2 in hex; NewProp makes it, the owner is set to character 1 and the inventory redraws, so the object lands in the hero’s pack. The number is the record’s word, the prop type in the low ten bits and an aspect in the five above: 0x0064 is a spear, 0x0864 the same prop type at aspect 2, wearing the picture two tiles along and named for it. The picture in the pack and the name are the aspect’s; the swing in a fight is the class’s own animation, whatever the aspect. Each item’s page under Entities › Items says what it wears.'],
-  ['π',  '$B9', 'option-p',        'What prop is this?', 'Asks a prop index and prints its record: class and state bytes, position, Data1, Data2. Then falls through into the option-r toggle below, a missing branch in the game’s own switch.'],
-  ['¿',  '$C0', 'option-shift-/',  'Where am I?',     'Prints the player’s x and y.'],
-  ['ˇ',  '$FF', 'option-shift-t',  'What time is it?', 'Prints “Current time = <clock>, day <n>”.'],
-  ['†',  '$A0', 'option-t',        'Pass the time',   'Passes a quarter of an hour (DoTicks(1024)) and redraws.'],
-  ['< >', '',   '',                'Darken / brighten', 'DarkenLight and BrightenLight: the ambient light of the level, a step at a time.'],
-  ['√',  '$C3', 'option-v',        'Magic map',       'MakeZone then MagicMap around the player, shown until the mouse button is pressed.'],
-  ['Ω',  '$BD', 'option-z',        'Show the room you are in', 'The zone bitmap, drawn over the window and offset to the player until the button is pressed. `MakeZone(x, y)` copies the wall bitmap below and flood-fills it from the player’s square, so what is left clear is the connected open area, which is what `InZone` answers and what the magic map is built on.'],
-  ['µ',  '$B5', 'option-m',        'Show the walls',   'The other bitmap, and the one the flood fill runs against: `MakeBitMap` walks every square of the level and sets a bit where the terrain tile carries attribute bits 0x004 and 0x200 together. That is exactly the 189 wall and door tiles, wall, earthen wall, limestone wall, log wall, and every door, curtain, arch and secret door, so it is the level’s static skeleton, one bit a square, rowBytes rounded up to a word.'],
-  ['∑',  '$B7', 'option-w',        'Walk through anything', 'Toggles the viewer byte that TGameSys::CanMove and TryMove test first, so nothing blocks.'],
-  ['˙',  '$FA', 'option-h',        'Nobody is anybody’s enemy', 'Toggles the byte `TActiveMonster::GetEnemyStatus` short-circuits on. With it set the routine answers 1 for every pair without consulting the 4×4 alignment table, and 1 is that table’s “own side”, so everyone becomes an ally. Every caller treats 0 as “enemy”, the AI’s target pickers FindNearest, FindStrongest and FindWeakest, the script’s EnemyIterator (cbEnemies), and the combat-AI vocabulary in CalculateObject, which compares 0, 1 and 2 as three categories. So it makes peace, not war: monsters stop finding targets and an “every enemy” spell finds nobody.'],
-  ['˛',  '$FE', 'option-shift-x',  'See in the dark', 'Toggles flag 18, vision of night, on the player.'],
-  ['®',  '$A8', 'option-r',        'Regenerate',      'Toggles flag 12 on the player, which AddAbility maps to status bit 4, the six-minute regeneration Omen’s ring grants.'],
-  ['≈',  '$C5', 'option-x',        'Swamp protection (broken)', 'Meant to toggle flag 31, swamp-poison protection. It reads byte 26 of record 0 rather than the player’s, so it toggles a flag on nobody and does nothing.'],
-];
-// In the same routine and NOT behind the cheat flag: anyone can type these.
-const CHEAT_OPEN_KEYS = [
-  ['', '$CA', 'option-space', 'Turn-based movement', 'Toggles it, printing “Enabling/Disabling turn-based movement.”'],
-  ['¡', '$C1', 'option-1', 'Speed limiter', 'SLEnable / SLDisable. The PowerPC code compares $C1, which is option-1 on a US layout. The older 68K reading gave option-l.'],
-  ['1–8', '', '', 'A party member’s window', 'Opens the character window for that member.'],
-  ['Z', '', '', 'Z stats', 'PrintZStats.'],
-  ['{ }', '', '', 'CD volume', 'Down and up by 10, over 0–255.'],
-  ['', '', 'play stop paus next prev ejec', 'CD transport', 'The same rolling four-byte word as the cheat code, matched against those six words when a CD is present. The routines are unnamed in the symbol table and are read from their argument shapes: the words are certain, the verbs are the obvious reading.'],
-];
-
-/* THE PREFERENCES RECORD, bit by bit, and the file it lives in. Read out of
-   the executable by the workbench (doc/cheats.md): `TApPrefWindow::AddContent`
-   reads each bit to set a control and `SaveSettings` writes it back, one
-   instruction from the label's TOC slot, so each pairing is the game's own
-   and the labels are the dialog's, as Pascal strings in the PEF data section;
-   `TDelverApp::DefaultMenu` is the other writer, for a Preferences menu (MENU
-   136) that no shipped `MBAR` lists -- see shippedMenuBars, which reads the
-   bars off the application's fork rather than asserting it. Byte 2 is
-   unused; bits 2 and 5 of bytes 0 and 1 are read once each (`MyGetEvent`,
-   `TryAMonitor`) and written by nothing. The Tools tab's writer,
-   cytheraPrefsRecord, sets every bit a control writes. */
-const PREF_BITS = [
-  [0, '0', 'Live dragging', 'the dialog’s checkbox, and the menu', ''],
-  [0, '1', 'Four sub-steps a square rather than two', 'the menu’s Faster / Fastest Movement; the dialog’s Graphics Quality slider writes bits 7 and 1 together', ''],
-  [0, '3, 4', 'Frame-rate cap: 16, 10 or 8 a second', 'the menu’s Limit to FPS entries and nothing else, so on a shipped copy it is whatever the CPU default chose', ''],
-  [0, '6', 'Place a container’s contents by hand', 'the dialog’s Manually Place Containers, and the menu', ''],
-  [0, '7', 'Quarter-square sub-pixel movement', 'the menu’s Smoother Movement; the slider’s other bit', ''],
-  [1, '3', 'Motion filters', 'the dialog', 'DisplacementFilterTile'],
-  [1, '6', 'Walk around obstacles', 'the dialog', 'TGameSys::MoveCommand'],
-  [1, '7', 'Zoom rectangles when a window opens', 'the dialog’s Use ‘ZoomRects’', 'TCharacterWindow::PostInit'],
-  [3, '0', 'The cheat gate', 'nothing in the game; this page’s Tools tab', 'TMapWindow::KeyRoutine'],
-];
-// The CPU-chosen defaults, written by PostInitMac at first run.
-const PREF_DEFAULTS = [['18800000', 'the lowest set, a 68040'], ['99800000', 'the middle'], ['DBC80000', 'the highest']];
-// Every key of the file. TPrefs is a keyed store and each key is a 'Pref'
-// resource of that name; the callers of SavePrefs, SetFile and SetOrdinal
-// give the whole set. An ordinal is a long indexed by a short within the key.
-const PREF_KEYS = [
-  ['UI Prefs', ['PostInitMac', 'TDelverApp::DefaultMenu', 'TApPrefWindow::SaveSettings'], 'the four bytes above'],
-  ['CurScen', ['OpenScenFile', 'OpenFromFS', 'TRunStart::DoItemHit'], 'an alias to the scenario'],
-  ['CurPlayer', ['OpenPlayerFile', 'OpenAndSetPlayerFileFromFS', 'DoSaveAs'], 'an alias to the last save'],
-  ['Map Window Loc', ['TDelverApp::DoQuit'], 'the map window’s frame as a global Rect, top, left, bottom, right; TMapWindow::TMapWindow reads it back'],
-  ['Volume', ['TAudio::SetSoundVolume'], 'an ordinal'],
-  ['Music', ['TAudio::SetMusicVolume'], 'an ordinal'],
-  ['Ambient', ['TAudio::EnableAmbient'], 'an ordinal'],
-  ['Backdrop', [], 'an ordinal, read by TBackdropWind::LoadPattern and written by nothing'],
-];
+   `myprintf` writes to the status window and `mygetnum` reads a number typed
+   there, in the base the call is handed. */
+// The option layer of a US keyboard, by Mac Roman code: which keys make the
+// characters the key routine tests. Layout knowledge, not the program's.
+const US_OPTION_KEYS = { 0xA9: 'option-g', 0xC6: 'option-j', 0xEF: 'option-shift-j', 0xA7: 'option-s', 0xB9: 'option-p',
+  0xC0: 'option-shift-/', 0xFF: 'option-shift-t', 0xA0: 'option-t', 0xC3: 'option-v', 0xBD: 'option-z', 0xB5: 'option-m',
+  0xB7: 'option-w', 0xFA: 'option-h', 0xFE: 'option-shift-x', 0xA8: 'option-r', 0xC5: 'option-x', 0xCA: 'option-space',
+  0xC2: 'option-l', 0xC1: 'option-1' };
+// What each case is, by the key that reaches it: a title, and a sentence
+// built from what the case was read to do (`x`, the helpers in
+// renderCheatsSheet). A key the program does not have is not listed.
+const CHEAT_KEY_WORDS = {
+  0xC6: ['Jump', x => 'Prints ' + x.q(0) + ' with the player’s level and square, asks ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then calls ' + x.call('GoToLocation') + ': teleport anywhere in the game.'],
+  0xEF: ['Take teleporter', x => 'Asks ' + x.q(0) + ' ' + x.base() + ', then calls ' + x.call('TeleportTo') + '(' + x.arg('TeleportTo', 4) + ', the number, ' + x.arg('TeleportTo', 6) + ').'],
+  0xA7: ['Create a prop', x => 'Asks ' + x.asks() + '; ' + x.call('NewProp') + ' makes it, the owner is set to character ' + x.ori() + ' and ' + x.call('Invalidate') + ' redraws the inventory, so the object lands in the hero’s pack. ' +
+    'The number is the record’s word, the prop type in the low ten bits and an aspect in the five above: 0x0064 is a spear, 0x0864 the same prop type at aspect 2, wearing the picture two tiles along and named for it. ' +
+    'The picture in the pack and the name are the aspect’s; the swing in a fight is the class’s own animation, whatever the aspect. Each item’s page under Entities › Items says what it wears.'],
+  0xB9: ['What prop is this?', x => 'Asks ' + x.q(0) + ' ' + x.base() + ' and prints the record as ' + x.q(1) + ' and ' + x.q(2) + ': class and state bytes, position, Data1, Data2.' +
+    (x.fallsInto ? ' Then runs on into ' + x.fallsInto + '’s case with no branch between them, a missing break in the game’s own switch.' : '')],
+  0xC0: ['Where am I?', x => 'Prints the player’s x and y as ' + x.q(0) + '.'],
+  0xFF: ['What time is it?', x => 'Prints ' + x.q(0) + ', the clock word and the day.'],
+  0xA0: ['Pass the time', x => 'Calls ' + x.call('DoTicks') + ' with ' + x.arg('DoTicks', 4) + ' clock units' + x.clockWords('DoTicks', 4) + ', then ' + x.call('DrawRoutine') + '.'],
+  0x3C: ['Darken', x => x.call('DarkenLight') + ': the level’s ambient light, a step darker.'],
+  0x3E: ['Brighten', x => x.call('BrightenLight') + ': the level’s ambient light, a step brighter.'],
+  0xC3: ['Magic map', x => x.call('MakeZone') + ' then ' + x.call('MagicMap') + ' around the player, shown until ' + x.call('Button') + ' says the mouse button is down.'],
+  0xBD: ['Show the room you are in', x => 'The zone bitmap, drawn with ' + x.call('CopyBits') + ' over the window and offset to the player until the button is pressed. MakeZone(x, y) copies the wall bitmap below and flood-fills it from the player’s square, so what is left clear is the connected open area, which is what InZone answers and what the magic map is built on.'],
+  0xB5: ['Show the walls', x => 'The other bitmap, drawn the same way, and the one the flood fill runs against: ' + x.walls()],
+  0xB7: ['Walk through anything', x => 'Flips a byte of the game viewer (' + x.flip() + ') that TGameSys::CanMove and TryMove test first, so nothing blocks.'],
+  0xFA: ['Nobody is anybody’s enemy', x => x.peace()],
+  0xFE: ['See in the dark', x => 'Toggles flag ' + x.flag() + ' on the player, ' + x.call('RemoveAbility') + ' when it is set and ' + x.call('AddAbility') + ' when it is not.'],
+  0xA8: ['Regenerate', x => 'Toggles flag ' + x.flag() + ' on the player' + x.statusBit() + ', the six-minute regeneration Omen’s ring grants.'],
+  0xC5: ['Swamp protection (broken)', x => x.broken()],
+  0xCA: ['Turn-based movement', x => 'Flips a byte (' + x.flip() + ') and prints ' + x.q(1) + ' or ' + x.q(0) + '.'],
+  0xC2: ['Speed limiter', x => x.call('SLEnable') + ' or ' + x.call('SLDisable') + ', by a byte it flips (' + x.flip() + ').'],
+  0x31: ['A party member’s window', x => 'Opens the character window of a party member, counting from 0 at the key less ' + x.less() + ': ' + x.call('FindInventory') + ' brings an open one forward, and a new ' + x.call('TCharacterWindow') + ' opens one.'],
+  0x5A: ['Z stats', x => x.call('PrintZStats') + ' prints ' + x.zstats() + '.'],
+  0x100: ['Macros', x => 'Codes the keyboard makes no character for; ' + x.call('PerformMacro') + ' is handed the code less ' + x.less() + '.']
+};
 
 /* The menu bars the application ships, off its own fork: TApp::ChangeMenuBar
    builds the bar from MBAR n (deleted) and MBAR n + 1 (inserted), so the
@@ -14248,72 +14736,203 @@ function renderCheatsSheet() {
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
   const key = k => k ? '<kbd class="cheatKey">' + svEsc(k) + '</kbd>' : '';
-  const rows = list => list.map(([glyph, code, combo, what, does]) =>
-    '<tr><td class="cheatCombo">' + key(combo || glyph) +
-      (combo && glyph ? ' <span class="cheatGlyph">' + svEsc(glyph) + '</span>' : '') +
-      (code ? '<span class="cheatCode">' + svEsc(code) + '</span>' : '') + '</td>' +
-    '<td><b>' + svEsc(what) + '</b><div class="cheatDoes">' + svEsc(does) + '</div></td></tr>').join('');
-
+  const kr = appImage() ? exeKeyRoutine() : null;
+  const noApp = 'Open the game from its installer, under Settings, and the application’s code is read here.';
   let h = '<h3 class="cheatH">Cheat mode</h3>' +
-    '<div class="mechLede">Cythera has one, and no shipped copy can reach it. Everything on this ' +
-    'page is read out of the application’s own <code>TMapWindow::KeyRoutine</code>, one switch over ' +
-    'the key byte, rather than collected from players, which is how two things below are known that ' +
-    'no amount of playing would show.</div>' +
-    '<div class="partsStrip"><span class="partsTitle">In the executable</span>' + pefChip('TMapWindow::KeyRoutine') + '</div>';
+    '<div class="mechLede">Cythera has one, and no shipped copy can reach it. The keys, the gate and the preferences record on this page ' +
+    'are read out of the application’s own code, <code>TMapWindow::KeyRoutine</code> and every routine that touches the record, ' +
+    'rather than collected from players, which is how the things below are known that no amount of playing would show.' +
+    (kr ? '' : ' ' + noApp) + '</div>' +
+    (kr ? '<div class="partsStrip"><span class="partsTitle">In the executable</span>' + pefChip('TMapWindow::KeyRoutine') + '</div>' : '');
 
-  h += '<div class="mechSec"><h4 class="cheatH4">The gate</h4><ul class="ruleList">' +
-    '<li>The map window keeps the last four key bytes in a rolling word. When that word is ' +
-    '<b>©gra</b> (option-g, then <b>g</b>, <b>r</b>, <b>a</b> on a US layout), <i>and</i> ' +
-    '<b>bit 0 of byte 3</b> of the four-byte “UI Prefs” record is set, the cheat flag flips and the ' +
-    'status window prints “Cheat mode activated.”</li>' +
-    '<li><b>Nothing in the game sets that bit.</b> <code>TApPrefWindow::SaveSettings</code> writes ' +
-    'bytes 0 and 1 and no more, and all three defaults, chosen by CPU type at first run, have byte 3 ' +
-    'clear. So on a shipped copy you can type the code for ever and nothing happens.</li>' +
-    '<li>The bit has one other reader: <code>main</code> busy-waits two seconds at startup when it is set.</li>' +
-    '<li>The letters of the code arm targeting modes as they go, so the tab reads ATTACK afterwards until ' +
-    'you press <b>M</b>.</li></ul>' +
-    '<div class="cheatNote">This page can write the preferences file with that bit set, ' +
-    actionChip('Tools › Cythera Preferences', "showCategory('TOOLS')") +
-    ', as a MacBinary for a real Mac or a small disk image for an emulator.</div></div>';
+  // The helpers a key's sentence is built with, over one case.
+  const chars = w => [...w].map(ch => { const b = encodeMacRoman(ch)[0]; return US_OPTION_KEYS[b] || ch; });
+  const comboOf = (k, last) => k < 256 ? (US_OPTION_KEYS[k] || (last && last !== k ? decodeMacRoman(new Uint8Array([k])) + ' to ' + decodeMacRoman(new Uint8Array([last])) : decodeMacRoman(new Uint8Array([k])))) : 'codes ' + k + (last && last !== k ? ' to ' + last : '');
+  const caseAt = at => kr && kr.cases.find(c => c.at === at);
+  const facts = c => {
+    const strip = t => t.v.replace(/^\n+|\n+$/g, '');
+    const q = i => c.strings[i] ? '“' + srcNum(c.strings[i], strip(c.strings[i])) + '”' : '';
+    const callOf = name => c.calls.find(x => x.v === name || x.v.endsWith('::' + name));
+    const bases = c.calls.filter(x => /mygetnum$/.test(x.v)).map(x => x.args[4]).filter(Boolean);
+    const baseWord = b => srcNum(b, b.v === 16 ? 'in hex' : b.v === 10 ? 'in decimal' : 'in base ' + b.v);
+    const opFact = (test, v) => { const o = c.ops.find(x => x.d && test(x.d)); return o ? exeVal(o, v(o.d)) : null; };
+    const enemy = exeEnemyTable();
+    const x = {
+      q, call: name => { const k = callOf(name); return k ? srcNum(k, name) : svEsc(name); },
+      arg: (name, reg) => { const k = callOf(name); return k && k.args[reg] ? srcNum(k.args[reg]) : '?'; },
+      prompts: from => c.strings.slice(from).map((t, i) => ({ t, i: i + from })).filter(o => !/^[\n]*%[-#0-9.]*[a-z][\n]*$/.test(o.t.v)).map(o => q(o.i)),
+      base: () => bases[0] ? baseWord(bases[0]) : '',
+      bases: () => bases.map(baseWord).join(', '),
+      // Each prompt with the base of the number read after it.
+      asks: () => { const ps = c.strings.map((t, i) => ({ t, i })).filter(o => !/^[\n]*%[-#0-9.]*[a-z][\n]*$/.test(o.t.v)); const parts = ps.map((o, k) => q(o.i) + (bases[k] ? ' ' + baseWord(bases[k]) : '')); return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts.join(''); },
+      ori: () => { const f = opFact(d => d.mn === 'ori' && d.imm > 0, d => d.imm); return f ? srcNum(f) : '?'; },
+      less: () => { const f = opFact(d => d.mn === 'addi' && d.ra === kr.keyReg && d.imm < 0, d => -d.imm); return f ? srcNum(f) : '?'; },
+      flip: () => c.flips[0] ? srcNum(c.flips[0], 'here') : '',
+      flag: () => { const k = callOf('AddAbility'); const f = k && k.args[4]; return f ? srcNum(f) + (DVM_FLAG_NAMES[f.v] ? ' (' + svEsc(DVM_FLAG_NAMES[f.v]) + ')' : '') : '?'; },
+      statusBit: () => {
+        const k = callOf('AddAbility'), f = k && k.args[4]; if (!f) return '';
+        const m = exeAbilityMap().find(r => r.word && r.below.v > f.v && r.sub.v <= f.v);
+        return m ? ', which ' + srcNum(m.sub, 'AddAbility') + ' keeps as bit ' + (f.v - m.sub.v) + ' of the status word' : '';
+      },
+      clockWords: (name, reg) => { const k = callOf(name), clk = exeClockRules(); return k && k.args[reg] && clk && clk.unitsPerHour ? ', ' + exeClockWords(k.args[reg].v, clk.unitsPerHour.v) : ''; },
+      fallsInto: c.fallsInto && caseAt(c.fallsInto) ? comboOf(caseAt(c.fallsInto).keys[0].v) : null,
+      walls: () => {
+        const w = exeWallMask(); if (!w) return 'MakeBitMap walks every square of the level and sets a bit for each wall.';
+        const attrs = getTileAttributes(), names = new Set(); let n = 0;
+        for (let t = 0; t <= w.tiles.v && t < attrs.length; t++) if ((attrs[t] & w.mask.v) === w.mask.v) { n++; const nm = terrainNameFor(t); if (nm) names.add(nm); }
+        return srcNum(w.mask, 'MakeBitMap') + ' walks every square of the level and sets a bit where the terrain tile’s attributes carry every bit of ' + srcNum(w.mask, '0x' + w.mask.v.toString(16).toUpperCase().padStart(4, '0')) + '. ' +
+          'In this file that is ' + n + ' tiles, ' + [...names].map(svEsc).join(', ') + ', so it is the level’s static skeleton, one bit a square.';
+      },
+      peace: () => {
+        if (!enemy || !enemy.peace || !enemy.peaceKey) return 'Flips a byte the enemy test reads first.';
+        const callers = exeCallersOf('TActiveMonster::GetEnemyStatus');
+        const zero = callers.filter(k => { const n = exeFind(k.ops, k.i + 1, 3, d => d.mn === 'cmpwi' && d.ra === 3); return n >= 0 && k.ops[n].d.imm === 0; });
+        const names = [...new Map(zero.map(k => [k.routine.name, k])).values()].map(k => srcNum(exeVal(k.ops[k.i], null), k.routine.name.replace(/\(.*$/, '').replace(/^.*::/, '')));
+        return 'Flips the byte (' + srcNum(enemy.peaceKey, 'here') + ') that TActiveMonster::GetEnemyStatus tests first; with it set the routine answers ' + srcNum(enemy.peace) + ' for every pair without consulting its ' + srcNum(enemy.table, enemy.side + '×' + enemy.side) + ' table. ' +
+          zero.length + ' of its ' + callers.length + ' calls compare the answer with 0, the enemy, among them ' + names.join(', ') + ', so it makes peace, not war: monsters stop finding targets and an “every enemy” spell finds nobody.';
+      },
+      peaceShort: () => {
+        if (!enemy || !enemy.peace) return '';
+        const callers = exeCallersOf('TActiveMonster::GetEnemyStatus');
+        const zero = callers.filter(k => { const n = exeFind(k.ops, k.i + 1, 3, d => d.mn === 'cmpwi' && d.ra === 3); return n >= 0 && k.ops[n].d.imm === 0; });
+        return 'With its byte set GetEnemyStatus answers ' + srcNum(enemy.peace) + ' for every pair, and ' + zero.length + ' of its ' + callers.length + ' calls take 0 as the enemy, so the cheat empties the enemy list rather than filling it.';
+      },
+      brokenShort: () => {
+        const k = callOf('AddAbility'), who = k && k.args[3], test = opFact(d => d.mn === 'lbz' && d.d > 0, d => d.d);
+        return 'It tests byte ' + (test ? srcNum(test) : '?') + ' of character ' + (who ? srcNum(who) : '?') + '’s record rather than the player’s, so it protects no one.';
+      },
+      broken: () => {
+        const k = callOf('AddAbility'), f = k && k.args[4], who = k && k.args[3];
+        const test = opFact(d => d.mn === 'lbz' && d.d > 0, d => d.d);
+        return 'Means to toggle flag ' + (f ? srcNum(f) + (DVM_FLAG_NAMES[f.v] ? ', ' + svEsc(DVM_FLAG_NAMES[f.v]) : '') : '?') + '. It tests byte ' + (test ? srcNum(test) : '?') + ' of the first character record and hands ' + x.call('AddAbility') + ' character ' + (who ? srcNum(who) : '?') + ', rather than the player, so it toggles a flag on nobody and does nothing.';
+      },
+      zstats: () => { const z = exeStringsOf('PrintZStats'); return z.length ? z.map(t => '“' + srcNum(t, t.v.replace(/\n+$/, '')) + '”').join(', ') : 'the build’s statistics'; }
+    };
+    return x;
+  };
+  const caseRow = c => {
+    const k0 = c.keys[0].v, words = CHEAT_KEY_WORDS[k0];
+    if (!words) return '';
+    const glyph = k0 < 256 && US_OPTION_KEYS[k0] ? decodeMacRoman(new Uint8Array([k0])) : '';
+    const last = c.keys[c.keys.length - 1].v;
+    const code = k0 < 256 ? srcNum(c.keys[0], '$' + k0.toString(16).toUpperCase().padStart(2, '0') + (c.keys.length > 1 ? ' to $' + last.toString(16).toUpperCase().padStart(2, '0') : '')) : srcNum(c.keys[0], '$' + k0.toString(16).toUpperCase() + ' to $' + last.toString(16).toUpperCase());
+    let does = '';
+    try { does = words[1](facts(c)); } catch (e) { does = ''; }
+    return '<tr><td class="cheatCombo">' + key(comboOf(k0, last)) + (glyph ? ' <span class="cheatGlyph">' + svEsc(glyph) + '</span>' : '') + '<span class="cheatCode">' + code + '</span></td>' +
+      '<td><b>' + svEsc(words[0]) + '</b><div class="cheatDoes">' + does + '</div></td></tr>';
+  };
+  const acc = kr ? exePrefsAccess() : null;
+  const fields = kr ? exePrefFields() : null;
+  const defaults = kr ? exePrefDefaults() : null;
+  const prefKeys = kr ? exePrefKeys() : [];
+  const g = kr && kr.gate;
+
+  if (g && g.byte && g.bit) {
+    const recKey = prefKeys.find(e => e.kind === 'Prefs' && e.writers.some(w => acc && acc.passes.some(p2 => p2.routine === w.routine)));
+    const gateRow = fields && fields.find(f => f.byte === g.byte.v && f.lo <= g.bit.v && f.hi >= g.bit.v);
+    const setters = gateRow ? gateRow.writers : [];
+    const others = gateRow ? [...new Map(gateRow.readers.filter(r2 => r2.routine !== kr.routine).map(r2 => [r2.routine.name, r2])).values()] : [];
+    const wait = exeStartupWait(g);
+    const distinct = defaults ? [...new Set(defaults.words.map(w => w.v))] : [];
+    const clear = distinct.every(v => !((v >>> (24 - 8 * g.byte.v)) & (1 << g.bit.v)));
+    const letters = chars(g.word.v);
+    h += '<div class="mechSec"><h4 class="cheatH4">The gate</h4><ul class="ruleList">' +
+      '<li>The map window shifts each key’s low byte into a word, ' + srcNum(kr.shift) + ' bits at a time, so the word holds the last four. When it is ' +
+      '<b>' + srcNum(g.word, g.word.v) + '</b> (' + letters.map(t => '<b>' + svEsc(t) + '</b>').join(', then ') + ' on a US layout), <i>and</i> ' +
+      '<b>bit ' + srcNum(g.bit) + ' of byte ' + srcNum(g.byte) + '</b> of the ' + (recKey && recKey.len ? srcNum(recKey.len) + '-byte “' + srcNum(recKey.key, recKey.key.v) + '”' : 'preferences') + ' record is set, the cheat flag flips (' + srcNum(g.flip, 'here') + ') and the ' +
+      'status window prints ' + (g.on ? '“' + srcNum(g.on, g.on.v.replace(/\n+$/, '')) + '”' : 'that it is on') + '.</li>' +
+      (setters.length ? '<li>The bit is written by ' + setters.map(w => srcNum(w.bits, w.routine.name.replace(/\(.*$/, ''))).join(', ') + '.</li>'
+        : '<li><b>Nothing in the game sets that bit.</b> No routine in the program writes it' + (defaults ? ', and ' + (clear ? 'the ' + distinct.length + ' records the game stores by processor at first run all have it clear' : 'a record the game stores at first run has it set') : '') + '. So on a shipped copy you can type the code for ever and nothing happens.</li>') +
+      (others.length ? '<li>The bit has ' + (others.length === 1 ? 'one other reader' : others.length + ' other readers') + ': ' + others.map(r2 => srcNum(r2.bits, r2.routine.name.replace(/\(.*$/, ''))).join(', ') +
+        (wait ? ', which spins on TickCount for ' + srcNum(wait.ticks) + ' ticks, ' + (wait.ticks.v / 60) + ' seconds, at startup when it is set' : '') + '.</li>' : '') +
+      '<li>The letters of the code arm targeting modes as they go, so the tab reads ATTACK afterwards until you press <b>M</b>.</li></ul>' +
+      '<div class="cheatNote">This page can write the preferences file with that bit set, ' +
+      actionChip('Tools › Cythera Preferences', "showCategory('TOOLS')") +
+      ', as a MacBinary for a real Mac or a small disk image for an emulator.</div></div>';
+  }
 
   // The record, the file's keys, and the menu bars off the application's fork.
-  h += '<div class="mechSec"><h4 class="cheatH4">The preferences record</h4>' +
-    '<div class="cheatNote">Four bytes. Byte 0 is the Preferences menu and the dialog’s movement and container settings, ' +
-    'byte 1 the rest of the dialog, byte 2 nothing, and byte 3 the gate. Bits 2 and 5 of bytes 0 and 1 are read once each and written by nothing. ' +
-    'The three defaults the game picks by processor at first run are ' +
-    PREF_DEFAULTS.map(([hex, what]) => '<b>' + hex + '</b> (' + what + ')').join(', ') + '.</div>' +
-    '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">byte</th><th class="num">bit</th><th>setting</th><th>set by</th><th>read by</th></tr></thead><tbody>' +
-    PREF_BITS.map(([byte, bit, what, by, reader]) =>
-      '<tr><td class="num">' + byte + '</td><td class="num">' + bit + '</td><td><b>' + svEsc(what) + '</b></td><td>' + svEsc(by) + '</td><td>' + (reader ? pefChip(reader) : '') + '</td></tr>').join('') +
-    '</tbody></table></div>' +
-    '<div class="cheatNote">The file, Cythera Preferences in the System Folder’s Preferences folder, is a keyed store: each key is a ‘Pref’ resource of that name.</div>' +
-    '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th>key</th><th>written by</th><th>holds</th></tr></thead><tbody>' +
-    PREF_KEYS.map(([key, writers, holds]) =>
-      '<tr><td><b>' + svEsc(key) + '</b></td><td>' + (writers.length ? writers.map(pefChip).join(' ') : 'nothing') + '</td><td>' + svEsc(holds) + '</td></tr>').join('') +
-    '</tbody></table></div>';
-  const bars = shippedMenuBars();
-  if (bars && bars.bars.length) {
-    const menuName = m => (m.title ? svEsc(m.title) : 'MENU ' + m.id);
-    h += '<div class="cheatNote">The menu bar is built from the application’s MBAR resources, ' +
-      bars.bars.map(b => 'MBAR ' + b.id + ' (' + b.menus.map(menuName).join(', ') + ')').join(' and ') +
-      (bars.unlisted.length
-        ? ', so ' + bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are' : ' is') + ' defined in the fork with working handlers and in no bar. ' +
-          'That is why the frame-rate cap has no control and why the Preferences menu is as unreachable as the gate. ' +
-          'Add-on 612, the Cythera menu patch, is seven bytes appended to MBAR 128 that list the three; 613 takes them out again.'
-        : ' and every menu the fork defines is in one of them.') + '</div>';
-  } else {
-    h += '<div class="cheatNote">Which menus the shipped menu bar lists is read off the application’s resource fork, once it is open.</div>';
+  if (fields) {
+    const name = r2 => r2.name.replace(/\(.*$/, '');
+    const bitsText = f => f.lo === f.hi ? String(f.lo) : f.lo + ' to ' + f.hi;
+    const quoted = t => '“' + svEsc(t) + '”';
+    const setBy = f => {
+      const by = new Map();
+      for (const w of f.writers) { if (!by.has(w.routine.name)) by.set(w.routine.name, []); by.get(w.routine.name).push(w); }
+      return [...by.values()].map(ws => {
+        const w0 = ws[0], menus = [], dialog = [], labels = new Map(), plain = [];
+        for (const w of ws) {
+          const val = w.value ? (w.value.v === 'toggled' ? 'toggles it' : 'sets ' + srcNum(w.value)) : '';
+          if (w.item && w.item.texts.length && w.item.title) menus.push(w.item.texts.map(quoted).join(', ') + (val ? ' ' + val : ''));
+          else if (w.item && w.item.texts.length) dialog.push(w.item.texts.map(quoted).join(', ') + (val ? ' ' + val : ''));
+          else if (w.label) { if (!labels.has(w.label.v)) labels.set(w.label.v, []); if (w.chosen && !w.chosen.all && val) labels.get(w.label.v).push('at ' + w.chosen.values.join(', ') + ' ' + val); }
+          else if (val) plain.push(val + (w.chosen && !w.chosen.all ? '' : ' before it asks'));
+        }
+        const parts = [];
+        if (plain.length) parts.push(plain.join('; '));
+        if (menus.length) parts.push('menu “' + svEsc(ws.find(w => w.item && w.item.title).item.title) + '”, ' + menus.join('; '));
+        if (dialog.length) parts.push(dialog.join('; '));
+        for (const [lab, how] of labels) parts.push('the dialog’s ' + quoted(lab) + (how.length ? ', ' + how.join('; ') : ''));
+        return srcNum(w0.bits, name(w0.routine)) + (parts.length ? ': ' + parts.join('; ') : '');
+      }).join('<br>');
+    };
+    const readBy = f => [...new Map(f.readers.map(r2 => [r2.routine.name, r2])).values()].map(r2 => srcNum(r2.bits, name(r2.routine).replace(/^.*::/, ''))).join(', ');
+    const rec = prefKeys.find(e => e.kind === 'Prefs' && e.writers.some(w => acc.passes.some(p2 => p2.routine === w.routine)));
+    const bytes = rec && rec.len ? rec.len.v : 4;
+    const unused = []; for (let b = 0; b < bytes; b++) if (!fields.some(f => f.byte === b)) unused.push(b);
+    const hex8 = v => (v >>> 0).toString(16).toUpperCase().padStart(8, '0');
+    const ranges = vals => { const out2 = []; let a = null, b = null; for (const v of vals) { if (a === null) { a = b = v; } else if (v === b + 1) b = v; else { out2.push([a, b]); a = b = v; } } if (a !== null) out2.push([a, b]); return out2.map(([x0, x1]) => x0 === x1 ? String(x0) : x0 + ' to ' + x1).join(', '); };
+    h += '<div class="mechSec"><h4 class="cheatH4">The preferences record</h4>' +
+      '<div class="cheatNote">' + (rec ? srcNum(rec.len || rec.key, bytes + ' bytes') + ', stored under “' + srcNum(rec.key, rec.key.v) + '”. ' : '') +
+      'Every field some routine reads or writes, found by scanning the whole program for the record’s address' + (unused.length ? '; byte' + (unused.length > 1 ? 's ' : ' ') + unused.join(' and ') + ' nothing touches' : '') + '. ' +
+      'A menu or dialog item is named as the application’s own MENU or DITL resource names it.</div>' +
+      '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">byte</th><th class="num">bits</th><th>set by</th><th>read by</th></tr></thead><tbody>' +
+      fields.map(f => '<tr><td class="num">' + f.byte + '</td><td class="num">' + bitsText(f) + '</td><td>' + (f.writers.length ? setBy(f) : 'nothing') + '</td><td>' + readBy(f) + '</td></tr>').join('') +
+      '</tbody></table></div>' +
+      (defaults ? '<div class="cheatNote">When nothing is stored, TDelverApp::PostInitMac asks Gestalt for ' + defaults.selectors.map(t => '‘' + srcNum(t, t.v) + '’').join(', then ') +
+        ' and stores, by the answer less one, ' + [...new Map(defaults.words.map(w => [w.v, w])).values()].map(w => {
+          const vals = [].concat(...defaults.words.filter(x => x.v === w.v).map(x => x.chosen && !x.chosen.all ? x.chosen.values : [])).sort((a2, b2) => a2 - b2);
+          const top = vals.length && vals[vals.length - 1] === 300 ? vals.filter(v => v < 300) : vals;
+          let text = ranges(top.filter(v => v >= 0 || !vals.includes(300)));
+          if (vals.includes(300)) text = text.replace(/(\d+) to 299$/, '$1 and above');
+          return '<b>' + srcNum(w, hex8(w.v)) + '</b>' + (text ? ' at ' + text : '');
+        }).join(', ') + '.</div>' : '') +
+      '<div class="cheatNote">The file, Cythera Preferences in the System Folder’s Preferences folder, is a keyed store: each key is a ‘Pref’ resource of that name.</div>' +
+      '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th>key</th><th>holds</th><th>written by</th><th>read by</th></tr></thead><tbody>' +
+      prefKeys.map(e => '<tr><td><b>' + srcNum(e.key, e.key.v) + '</b></td><td>' + (e.kind === 'Prefs' ? (e.len ? srcNum(e.len) + ' bytes' : 'bytes') : e.kind === 'File' ? 'a file' : 'a number') + '</td><td>' +
+        ([...new Map(e.writers.map(w => [w.routine.name, w])).values()].map(w => srcNum(exeVal({ at: w.exe }, null), name(w.routine))).join(', ') || 'nothing') + '</td><td>' +
+        ([...new Map(e.readers.map(w => [w.routine.name, w])).values()].map(w => srcNum(exeVal({ at: w.exe }, null), name(w.routine))).join(', ') || 'nothing') + '</td></tr>').join('') +
+      '</tbody></table></div>';
+    const bars = shippedMenuBars();
+    if (bars && bars.bars.length) {
+      const menuName = m => (m.title ? svEsc(m.title) : 'MENU ' + m.id);
+      h += '<div class="cheatNote">The menu bar is built from the application’s MBAR resources, ' +
+        bars.bars.map(b => 'MBAR ' + b.id + ' (' + b.menus.map(menuName).join(', ') + ')').join(' and ') +
+        (bars.unlisted.length
+          ? ', so ' + bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are' : ' is') + ' defined in the fork with working handlers and in no bar. ' +
+            'That is why the frame-rate cap has no control and why the Preferences menu is as unreachable as the gate. ' +
+            'Add-on 612, the Cythera menu patch, is seven bytes appended to MBAR 128 that list the three; 613 takes them out again.'
+          : ' and every menu the fork defines is in one of them.') + '</div>';
+    }
+    h += '</div>';
   }
-  h += '</div>';
 
-  h += '<div class="mechSec"><h4 class="cheatH4">With the cheat flag on</h4>' +
-    '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + rows(CHEAT_KEYS) +
-    '</tbody></table></div></div>';
-
-  h += '<div class="mechSec"><h4 class="cheatH4">In the same routine, and not gated at all</h4>' +
-    '<div class="cheatNote">These work in any copy of the game, cheat mode or not.</div>' +
-    '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + rows(CHEAT_OPEN_KEYS) +
-    '</tbody></table></div></div>';
+  if (kr && kr.cases.length) {
+    const gated = kr.cases.filter(c => c.gated), open = kr.cases.filter(c => !c.gated);
+    const cd = kr.words.slice(1), vol = kr.volume;
+    h += '<div class="mechSec"><h4 class="cheatH4">With the cheat flag on</h4>' +
+      '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + gated.map(caseRow).join('') +
+      '</tbody></table></div></div>';
+    h += '<div class="mechSec"><h4 class="cheatH4">In the same routine, and not gated at all</h4>' +
+      '<div class="cheatNote">These work in any copy of the game, cheat mode or not.</div>' +
+      '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + open.map(caseRow).join('') +
+      (vol.length >= 2 ? '<tr><td class="cheatCombo">' + key(vol.map(v => decodeMacRoman(new Uint8Array([v.key.v]))).join(' ')) + '<span class="cheatCode">' + vol.map(v => srcNum(v.key, '$' + v.key.v.toString(16).toUpperCase())).join(' ') + '</span></td>' +
+        '<td><b>CD volume</b><div class="cheatDoes">' + vol.map(v => (v.step.v < 0 ? 'down' : 'up') + ' by ' + srcNum(v.step, Math.abs(v.step.v)) + (v.bound ? ' and held at ' + srcNum(v.bound) : '')).join('; ') + '.</div></td></tr>' : '') +
+      (cd.length ? '<tr><td class="cheatCombo">' + key(cd.map(w => w.v).join(' ')) + '</td>' +
+        '<td><b>CD transport</b><div class="cheatDoes">The same rolling word as the cheat code, matched against ' + cd.map(w => '“' + srcNum(w, w.v) + '”').join(', ') + ' when a CD is present, each also answered by a key code (' + cd.filter(w => w.key).map(w => srcNum(w.key)).join(', ') + '). ' +
+        'The routines they call have no names in the traceback tables, so the words are certain and the verbs are the obvious reading.</div></td></tr>' : '') +
+      '</tbody></table></div></div>';
+  }
 
   // The numbers the keys ask for, off the file.
   const levels = cheatLevels();
@@ -14388,22 +15007,21 @@ function renderCheatsSheet() {
     '<li><b>Any resource, as hex</b>, through Edit Bytes on the resource itself.</li>' +
     '<li><b>Where the edits come out.</b> ' + actionChip('Changes', "showCategory('CHANGES')") + '</li></ul></div>';
 
-  h += '<div class="mechSec"><h4 class="cheatH4">Things read from the code</h4><ul class="ruleList">' +
-    '<li><b>option-x is broken.</b> It means to toggle swamp-poison protection and reads byte 26 of ' +
-    '<b>record 0</b>, nobody, so it protects no one.</li>' +
-    '<li><b>option-p falls through</b> into option-r’s toggle, so asking what a prop is also flips ' +
-    'the player’s regeneration. A missing branch in the game’s own switch.</li>' +
-    '<li><b>option-h empties the enemy list.</b> ' +
-    '`GetEnemyStatus` answers <b>1</b> for every pair when the byte is set, and ' +
-    'its five callers all treat <b>0</b> as “enemy”, so the cheat empties the enemy list rather than ' +
-    'filling it.</li></ul>' +
-    '<div class="cheatNote">Which is worth saying plainly: the two tables above are one routine ' +
-    'transcribed. Where a key’s <i>effect</i> is described rather than its bytes, it is an inference ' +
-    'from what the toggled byte is used for.</div></div>';
+  if (kr && kr.cases.length) {
+    const find = k => kr.cases.find(c => c.keys.some(x => x.v === k));
+    const cx = find(0xC5), cp = find(0xB9), cl = find(0xC2), c1 = kr.cases.find(c => c.keys.some(x => x.v === 0xC1));
+    const items = [];
+    if (cx) items.push('<li><b>option-x is broken.</b> ' + facts(cx).brokenShort() + '</li>');
+    if (cp && cp.fallsInto && caseAt(cp.fallsInto)) items.push('<li><b>option-p falls through</b> into ' + comboOf(caseAt(cp.fallsInto).keys[0].v) + '’s case (' + srcNum(exeVal({ at: cp.fallsInto }, null), 'here') + '), so asking what a prop is also runs that toggle. A missing branch in the game’s own switch.</li>');
+    const fh = find(0xFA);
+    if (fh) items.push('<li><b>option-h empties the enemy list.</b> ' + facts(fh).peaceShort() + '</li>');
+    if (cl && !c1) items.push('<li><b>The speed limiter is option-l.</b> The switch sends $C2 to it (' + srcNum(cl.keys[0], 'the compare') + ') and $C1, option-1, to the default.</li>');
+    if (items.length) h += '<div class="mechSec"><h4 class="cheatH4">Things read from the code</h4><ul class="ruleList">' + items.join('') + '</ul>' +
+      '<div class="cheatNote">Where a key’s <i>effect</i> is described rather than its instructions, it is an inference from what the byte it changes is used for.</div></div>';
+  }
 
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
-  out.textContent = 'Cheat mode: ' + CHEAT_KEYS.length + ' keys behind the gate, ' +
-    CHEAT_OPEN_KEYS.length + ' in the same routine without it' +
+  out.textContent = (kr ? 'Cheat mode: ' + kr.cases.filter(c => c.gated).length + ' keys behind the gate, ' + kr.cases.filter(c => !c.gated).length + ' in the same routine without it' : 'Cheat mode') +
     (levels.length ? ', ' + levels.length + ' levels' : '') + (tp.last ? ' and ' + tp.last + ' teleporters' : '') + '.';
 }
 
@@ -18451,46 +19069,50 @@ function renderToolsSheet() {
      gate on the cheat keys, which nothing in the game ever sets. The long
      comment above buildCytheraPreferences says where each came from and, just
      as plainly, that this file has never been put in front of the game. */
-  const pf = sec('Cythera’s preferences file',
-    'The four-byte ‘Pref’ 130 “UI Prefs” record, which lives in the System Folder’s Preferences folder. ' +
-    'The first six switches are the game’s own Preferences dialog and its unlisted Preferences menu. ' +
-    'Smoother movement is in the shipped game and turned off by the default the game picks for a ' +
-    '68040. The last is the gate on the cheat keys, option-j to jump anywhere, option-s to ' +
-    'conjure any object, option-w to walk through walls, which nothing in the game ever sets, so a ' +
-    'shipped copy cannot enter cheat mode however long you type ©gra at it. ' +
-    'The Cheats sheet has the record bit by bit.');
-  const prefsRow = document.createElement('div');
-  prefsRow.style.cssText = 'display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin:8px 0 6px';
-  const prefBox = (id, label, on) => '<label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '> ' + label + '</label>';
-  prefsRow.innerHTML =
-    prefBox('prefSmooth', 'Smoother movement', true) +
-    prefBox('prefLiveDrag', 'Live dragging', false) +
-    prefBox('prefManualContainers', 'Manually place containers', false) +
-    prefBox('prefMotionFilters', 'Motion filters', false) +
-    prefBox('prefWalkAround', 'Walk around obstacles', false) +
-    prefBox('prefZoomRects', 'Zoom rectangles', true) +
-    prefBox('prefCheats', 'Allow the cheat keys', true);
-  pf.appendChild(prefsRow);
-  const pbtns = document.createElement('div');
-  pbtns.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
-  for (const [label, kind, title] of [
-    ['Disk image, for an emulator', 'dsk', 'Mounts as “' + PREFS_VOLUME_NAME + '” with an ' + PREFS_SCRIPT_NAME + ' script beside the file'],
-    ['MacBinary, for a real Mac', 'bin', 'Unwrap it and drag the file into System Folder ▸ Preferences']]) {
-    const b = document.createElement('button');
-    b.className = 'secondary';
-    b.style.cssText = 'width:auto;margin:0';
-    b.textContent = label;
-    b.title = title;
-    b.onclick = () => downloadCytheraPrefs(kind);
-    pbtns.appendChild(b);
+  const layout = cytheraPrefsLayout();
+  const pf = sec('Cythera’s preferences file', '');
+  const pfNote = document.createElement('div');
+  pfNote.className = 'changesNote';
+  pfNote.style.cssText = 'margin-left:0';
+  pf.appendChild(pfNote);
+  if (!layout) {
+    pfNote.innerHTML = svEsc('The file in the System Folder’s Preferences folder that holds the game’s settings and the gate on its cheat keys. ' +
+      'Its record is read out of the application; open the game from its installer, under Settings, and the switches are offered here.');
+  } else {
+    pfNote.innerHTML = svEsc('The ' + layout.bytes + '-byte ‘' + layout.type + '’ “' + layout.key + '” record, which lives in the System Folder’s Preferences folder. ' +
+      'The switches are the game’s own: the labels of its Preferences dialog' + (layout.smoothLabel ? ', and “' + layout.smoothLabel + '” from its unlisted Preferences menu, which the record the game first stores leaves off' : '') + '. ' +
+      'The last is the gate on the cheat keys, which nothing in the game ever sets, so a shipped copy cannot enter cheat mode however long you type ' + layout.gate.word + ' at it. ' +
+      'The Cheats sheet has the record field by field.');
+    const prefsRow = document.createElement('div');
+    prefsRow.style.cssText = 'display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin:8px 0 6px';
+    const prefBox = (id, label, on) => '<label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '> ' + svEsc(label) + '</label>';
+    const idOf = opt => 'pref' + opt[0].toUpperCase() + opt.slice(1);
+    prefsRow.innerHTML =
+      (layout.smoothLabel ? prefBox('prefSmooth', layout.smoothLabel, true) : '') +
+      layout.controls.map(c => prefBox(idOf(c.opt), c.label, !!((layout.base >>> (24 - 8 * c.byte)) & (1 << c.bit)))).join('') +
+      prefBox('prefCheats', 'Allow the cheat keys', true);
+    pf.appendChild(prefsRow);
+    const pbtns = document.createElement('div');
+    pbtns.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+    for (const [label, kind, title] of [
+      ['Disk image, for an emulator', 'dsk', 'Mounts as “' + PREFS_VOLUME_NAME + '” with an ' + PREFS_SCRIPT_NAME + ' script beside the file'],
+      ['MacBinary, for a real Mac', 'bin', 'Unwrap it and drag the file into System Folder ▸ Preferences']]) {
+      const btn = document.createElement('button');
+      btn.className = 'secondary';
+      btn.style.cssText = 'width:auto;margin:0';
+      btn.textContent = label;
+      btn.title = title;
+      btn.onclick = () => downloadCytheraPrefs(kind);
+      pbtns.appendChild(btn);
+    }
+    pf.appendChild(pbtns);
+    const pnote = document.createElement('div');
+    pnote.className = 'changesNote';
+    pnote.style.cssText = 'margin-left:0;margin-top:8px';
+    pnote.innerHTML = 'Tested in the game: a file this page wrote was read, and cheat mode activated. ' +
+      'It replaces any settings already stored.';
+    pf.appendChild(pnote);
   }
-  pf.appendChild(pbtns);
-  const pnote = document.createElement('div');
-  pnote.className = 'changesNote';
-  pnote.style.cssText = 'margin-left:0;margin-top:8px';
-  pnote.innerHTML = 'Tested in the game: a file this page wrote was read, and cheat mode activated. ' +
-    'It replaces any settings already stored.';
-  pf.appendChild(pnote);
 
   const pages = sec('The other pages', '');
   for (const [href, label, note] of [
@@ -19835,14 +20457,14 @@ function missingForkWarning(rsrc) {
    so since v1.35.0; the paragraph that stood here until v1.41.0 still called
    the file untried and asked for five minutes with a Mac.
 
-   **The rest of the record is named now** (v1.41.0), from the workbench's
-   reading of `TApPrefWindow::AddContent` and `SaveSettings` (the dialog) and
-   `TDelverApp::DefaultMenu` (a Preferences menu the shipped menu bars never
-   list): `PREF_BITS` beside the Cheats sheet has the table, and the Tools
-   tab offers every bit a control writes. Bits 3 and 4 of byte 0 are the
-   frame-rate cap, which only that unreachable menu sets and every CPU
-   default leaves as `11`, so the writer keeps them set; bits 2 and 5 of
-   bytes 0 and 1 are read once each and written by nothing, and stay clear.
+   **The rest of the record is named** (v1.41.0, from the workbench's reading
+   of `TApPrefWindow::AddContent`, `SaveSettings` and `TDelverApp::DefaultMenu`,
+   and since v1.52.0 read out of the program as the page opens: see
+   cytheraPrefsLayout and exePrefFields), and the Tools tab offers every bit
+   a dialog control writes. The frame-rate cap, which only the unreachable
+   Preferences menu sets, is a four-bit field the first stored record leaves
+   at 6, so the writer leaves it as it finds it; byte 1's bit 2 is read once
+   and written by nothing, and stays clear.
 
    Three things are deliberately left out. There is no `CurScen` and no
    `CurPlayer`, the two other `'Pref'` resources a played copy has, so the
@@ -19867,16 +20489,59 @@ const PREFS_CREATOR = '\u0000\u0000\u0000\u0000';
 const PREFS_VOLUME_NAME = 'Cythera Prefs';
 const PREFS_SCRIPT_NAME = 'Install Preferences';
 
-// The four bytes from the named bits (PREF_BITS). `smooth` is the dialog's
-// Smoother Movement, bits 7 and 1 of byte 0 together, as the dialog writes it;
-// ZoomRects is on unless said otherwise, as it is in every CPU default. With
-// only `smooth` and `cheats` given the bytes are what they were before the
-// other bits were named: 9A 80 00 01, 18 80 00 00, 18 80 00 01.
-function cytheraPrefsRecord(opts) {
+/* THE RECORD AS THE TOOLS TAB WRITES IT, off the program: the first record
+   the game stores when it has none (exePrefDefaults; the one for the lowest
+   processor class) as the starting point, the gate's byte and bit
+   (exeKeyRoutine), and for each switch the field the preferences dialog's
+   control of that label writes, or for smooth movement the bits and values
+   the Preferences menu's item of that name writes (exePrefFields). The
+   labels are the game's own strings and are how a switch finds its field;
+   the fields are read. With only `smooth` and `cheats` given the bytes are
+   what they have been since the file was put in front of the game:
+   9A 80 00 01, 18 80 00 00, 18 80 00 01, which the resource fork check
+   holds the program's reading to. Null with no application open. */
+const PREF_OPTIONS = [['liveDrag', 'Live Dragging'], ['manualContainers', 'Manually Place Containers'],
+  ['motionFilters', 'Motion Filters'], ['walkAround', 'Walk around obstacles'], ['zoomRects', 'Use \'ZoomRects\'']];
+const PREF_SMOOTH_ITEM = 'Smoother Movement';
+function cytheraPrefsLayout() {
+  if (!appImage()) return null;
+  const kr = exeKeyRoutine(), fields = exePrefFields(), defaults = exePrefDefaults(), acc = exePrefsAccess();
+  if (!kr || !kr.gate || !kr.gate.byte || !kr.gate.bit || !fields || !defaults || !acc) return null;
+  const rec = exePrefKeys().find(e => e.kind === 'Prefs' && e.len && e.writers.some(w => acc.passes.some(p2 => p2.routine === w.routine)));
+  const type = exePrefResourceType();
+  if (!rec || !type) return null;
+  const controls = [];
+  for (const [opt, label] of PREF_OPTIONS) {
+    const f = fields.find(x => x.lo === x.hi && x.writers.some(w => w.label && w.label.v === label && w.value === null));
+    if (f) controls.push({ opt, label, byte: f.byte, bit: f.lo });
+  }
+  const smooth = [];
+  for (const f of fields) for (const w of f.writers) if (w.item && w.item.texts.includes(PREF_SMOOTH_ITEM) && w.value && typeof w.value.v === 'number') smooth.push({ byte: f.byte, lo: f.lo, hi: f.hi, value: w.value.v });
+  return { key: rec.key.v, bytes: rec.len.v, base: defaults.words[0].v >>> 0, controls, smooth, smoothLabel: smooth.length ? PREF_SMOOTH_ITEM : null,
+           gate: { byte: kr.gate.byte.v, bit: kr.gate.bit.v, word: kr.gate.word.v }, type: type.v };
+}
+// The resource type the store files a key under: the four characters
+// TPrefs::SavePrefs hands Get1NamedResource.
+function exePrefResourceType() {
+  const ops = exeOpsNamed('TPrefs::SavePrefs');
+  const call = ops.findIndex(o => exeCalls(o, 'Get1NamedResource'));
+  const hi = call >= 0 ? exeFindBack(ops, call, 8, d => d.mn === 'lis' && d.rd === 3) : -1;
+  const lo = hi >= 0 ? exeFind(ops, hi + 1, 4, d => d.mn === 'addi' && d.ra === 3 && d.rd === 3) : -1;
+  if (lo < 0) return null;
+  const w = ((ops[hi].d.imm * 65536) + ops[lo].d.imm) >>> 0;
+  return exeVal(ops[hi], String.fromCharCode(w >>> 24, (w >>> 16) & 255, (w >>> 8) & 255, w & 255));
+}
+function cytheraPrefsRecord(opts, layout) {
+  const L = layout || cytheraPrefsLayout();
+  if (!L) throw new Error('the preferences record is read out of the application, and it is not open');
   const o = opts || {};
-  const b0 = 0x18 | (o.smooth ? 0x82 : 0) | (o.liveDrag ? 0x01 : 0) | (o.manualContainers ? 0x40 : 0);
-  const b1 = (o.motionFilters ? 0x08 : 0) | (o.walkAround ? 0x40 : 0) | (o.zoomRects === false ? 0 : 0x80);
-  return new Uint8Array([b0, b1, 0x00, o.cheats ? 0x01 : 0x00]);
+  const b = new Uint8Array(L.bytes);
+  for (let i = 0; i < Math.min(4, L.bytes); i++) b[i] = (L.base >>> (24 - 8 * i)) & 255;
+  const put = (byte, lo, hi, v) => { const m = ((1 << (hi - lo + 1)) - 1) << lo; b[byte] = (b[byte] & ~m) | ((v << lo) & m); };
+  for (const c of L.controls) if (o[c.opt] !== undefined) put(c.byte, c.bit, c.bit, o[c.opt] ? 1 : 0);
+  if (o.smooth) for (const x of L.smooth) put(x.byte, x.lo, x.hi, x.value);
+  if (o.cheats) put(L.gate.byte, L.gate.bit, L.gate.bit, 1);
+  return b;
 }
 // One line naming what a record asks for, for the status line and the script.
 function prefsSummary(o) {
@@ -19889,9 +20554,13 @@ function prefsSummary(o) {
   if (o.zoomRects === false) parts.push('no zoom rectangles');
   return parts.join(', ');
 }
+// The id is the file's own choice: the store finds a key by name and gives a
+// new one whatever UniqueID answers, so 130 is only what this file uses.
 function buildCytheraPreferences(opts) {
+  const L = cytheraPrefsLayout();
+  if (!L) throw new Error('the preferences record is read out of the application, and it is not open');
   return writeResourceFork([
-    { type: 'Pref', id: 130, name: 'UI Prefs', data: cytheraPrefsRecord(opts) }
+    { type: L.type, id: 130, name: L.key, data: cytheraPrefsRecord(opts, L) }
   ]);
 }
 function prefsInstallScript(opts) {
@@ -19907,7 +20576,7 @@ function prefsInstallScript(opts) {
     '-- Move the old one aside first if you care about them.',
     '--',
     '-- Smoother movement: ' + (o.smooth ? 'ON' : 'off') +
-      '. Cheat keys allowed: ' + (o.cheats ? 'ON: type ©gra in the map window' : 'off') + '.',
+      '. Cheat keys allowed: ' + (o.cheats ? 'ON: type ' + ((cytheraPrefsLayout() || { gate: {} }).gate.word || 'the code') + ' in the map window' : 'off') + '.',
     '-- The record asks for ' + prefsSummary(o) + '.',
     '--',
     'tell application "Finder"',
@@ -19937,10 +20606,10 @@ function buildPrefsDiskImage(opts) {
   });
 }
 function prefsOptionsFromUI() {
-  const on = id => { const e = document.getElementById(id); return e ? !!e.checked : false; };
-  return { smooth: on('prefSmooth'), cheats: on('prefCheats'), liveDrag: on('prefLiveDrag'),
-           manualContainers: on('prefManualContainers'), motionFilters: on('prefMotionFilters'),
-           walkAround: on('prefWalkAround'), zoomRects: on('prefZoomRects') };
+  const on = id => { const e = document.getElementById(id); return e ? !!e.checked : undefined; };
+  const o = { smooth: on('prefSmooth'), cheats: on('prefCheats') };
+  for (const [opt] of PREF_OPTIONS) o[opt] = on('pref' + opt[0].toUpperCase() + opt.slice(1));
+  return o;
 }
 function downloadCytheraPrefs(kind) {
   const opts = prefsOptionsFromUI();

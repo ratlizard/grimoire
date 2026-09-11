@@ -1453,6 +1453,27 @@ function decodeMENU(data){
   return out.join('\n');
 }
 
+// The items of a MENU and of a DITL as plain lists, item n at index n - 1,
+// for a reader that wants an item's own text rather than the description
+// the two decoders above print: a program that checks menu item 10 or
+// dialog item 3 is named by what the resource says those items are.
+function menuItemTexts(data){
+  if(!data || data.length<14) return [];
+  let p=pstr(data,14).p; const out=[];
+  while(p<data.length && data[p]!==0){ const it=pstr(data,p); p=it.p+4; if(p>data.length) break; out.push(it.s); }
+  return out;
+}
+function ditlItemTexts(data){
+  if(!data || data.length<2) return [];
+  const n=u16be(data,0)+1, out=[]; let p=2;
+  for(let i=0;i<n && p+14<=data.length;i++){
+    p+=12; const kind=data[p++]&0x7f, len=data[p++];
+    out.push(kind===32||kind===64 ? '' : decodeMacRoman(data.slice(p,p+len)));
+    p+=len; if(p%2)p++;
+  }
+  return out;
+}
+
 function decodeWIND(data){
   if(data.length<18) throw new Error('WIND too short');
   const r=readRect(data,0), procID=u16be(data,8), visible=!!data[11], goAway=!!data[13], refCon=u32be(data,14);

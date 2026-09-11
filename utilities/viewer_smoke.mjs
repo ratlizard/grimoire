@@ -307,15 +307,17 @@ const status = REGISTRY.get('sourceStatus').textContent;
 console.log(`  parseArchiveBytes: ${Date.now() - t0} ms — status "${status.slice(0, 80)}"`);
 if (!/Loaded:/.test(status)) fail('status line', 'did not report a load: ' + status);
 if (!ctx.__peek('masterIndexGlobal').filter(m => m[0]).length) fail('master index', 'no subindexes');
-// v1.47.0: the dialogue box is read off the file -- the frame from tile
-// 0x19D as a border-image, the blue from clut 256's ColorSpec 1 in the fork.
+// v1.47.0: the dialogue box is read off the file -- the frame from a tile
+// as a border-image, the blue from a clut's ColorSpec in the fork -- and
+// since v1.52.0 which tile, which clut and where in it are the
+// application's (exeDialogueBox). With only the data file open there is no
+// application, so nothing is drawn over the stylesheet's own look; the
+// installer section below requires the box drawn from the program.
 await new Promise(r => setTimeout(r, 200));
 {
   const box = ctx.__peek('window.DIALOGUE_BOX');
-  const css = (box && box.css) || '';
-  if (!box || !box.blue || box.blue.join(',') !== '0,0,168' || !/--boxBlue:rgba\(0,0,168,\.5\)/.test(css)) fail('dialogue box', 'the blue was not read from clut 256 entry 1: ' + JSON.stringify(box) + ' ' + css.slice(0, 80));
-  else if (!box.frame || !/border-image-source:url\(data:image\/png;base64,iVBOR/.test(css)) fail('dialogue box', 'the frame was not built from tile 0x19D: ' + JSON.stringify(box));
-  else console.log('  dialogue box: blue ' + box.blue.join(',') + ' from clut 256, frame from tile 0x' + box.tile.toString(16).toUpperCase());
+  if (!box || box.read || box.frame || box.blue || (box.css || '')) fail('dialogue box', 'with no application open the box was drawn from constants: ' + JSON.stringify(box));
+  else console.log('  dialogue box: no application, the stylesheet’s own frame and blue left alone');
 }
 
 const wanted = onlyCat ? [onlyCat] : CATEGORY_VALUES;
@@ -1826,33 +1828,19 @@ try {
   if (!ctx.showCategory('CHEATS')) fail('cheats', 'the Cheats tab refused to open');
   else {
     const html = REGISTRY.get('sheetGrid').innerHTML || '';
-    // Both tables are top-level consts, so they are not vm-global properties.
-    const keys = peek('CHEAT_KEYS').length, open = peek('CHEAT_OPEN_KEYS').length;
     const sprites = ctx.cheatSpriteClasses();
     const hero = sprites.find(s => s.pt === 32);
-    // The key rows alone: the record, key, level and teleporter tables have rows of their own.
     const rows = (html.match(/<td class="cheatCombo">/g) || []).length;
-    if (!/©gra/.test(html) || !/bit 0 of byte 3/.test(html))
-      fail('cheats', 'the gate is not stated');
-    else if (rows !== keys + open)
-      fail('cheats', `${rows} key rows drawn for ${keys} + ${open} keys`);
-    else if (!/option-x/.test(html) || !/broken/.test(html))
-      fail('cheats', 'the broken swamp-protection key is not called broken');
-    // option-h read the wrong way round until a reader pressed it: it empties
-    // the enemy list rather than filling it. Pinned so it cannot drift back.
-    else if (/Everyone is hostile/.test(html) || !/enemy/.test(html))
-      fail('cheats', 'option-h is described as making everyone hostile again');
+    // No application in this run: the keys, the gate and the record are the
+    // program's, so none of them is stated, and the sheet says where they
+    // come from. The installer section requires them.
+    if (!/the application’s code is read here/.test(html) || rows || /©gra|jumpToExeAt\(/.test(html))
+      fail('cheats', `with no application open the sheet states the keys or the gate (${rows} key rows)`);
     else if (!hero || !/hero/i.test(hero.name))
       fail('cheats', 'class 32 is not in the sprite list as the hero: ' + JSON.stringify(hero));
     else if (sprites.length < 40 || !sprites.some(s => s.kind === 'monster'))
       fail('cheats', `only ${sprites.length} sprite classes, monsters ` +
            (sprites.some(s => s.kind === 'monster') ? 'present' : 'missing'));
-    else if (!/0x0864/.test(html) || !/low ten bits/.test(html))
-      fail('cheats', 'Create a prop does not say what its number is');
-    else if (!/class’s own animation/.test(html))
-      fail('cheats', 'the aspect rule does not say the swing is the class’s own');
-    else if (!/Motion filters/.test(html) || !/Map Window Loc/.test(html) || !/DBC80000/.test(html))
-      fail('cheats', 'the preferences record, its keys or its defaults are missing');
     else {
       const levels = ctx.cheatLevels(), tp = ctx.cheatTeleporters();
       const maps = []; for (let n = 0; n < 0x100; n++) if (ctx.refExists(0x8000 + n)) maps.push(n);
@@ -1873,7 +1861,7 @@ try {
         fail('cheats', 'the negative control failed: Land King Hall has allocator headers too: ' + JSON.stringify(control));
       else if (!new RegExp(`${heap.hits} times of ${heap.heads}`).test(html))
         fail('cheats', 'the heap figure on the page is not the computed one');
-      else console.log(`  cheats: the ©gra gate stated, ${keys} keys behind it and ${open} beside it, ` +
+      else console.log(`  cheats: no application, so no keys stated; ` +
                        `${sprites.length} sprite classes read off the archive with 32 the hero, ` +
                        `${levels.length} levels, ${tp.last} teleporters, and the nothing map's ${heap.hits} of ${heap.heads} headers chained`);
     }
@@ -1890,19 +1878,13 @@ try {
 try {
   ctx.showCategory('TOOLS');
   const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-  const switches = ['prefSmooth', 'prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects'];
-  const missing = switches.filter(id => !new RegExp(`id="${id}"`).test(tools));
-  const rec = o => [...ctx.cytheraPrefsRecord(o)];
-  const bitsWrong = rec({ liveDrag: true })[0] !== 0x19 || rec({ manualContainers: true })[0] !== 0x58 ||
-    rec({ motionFilters: true })[1] !== 0x88 || rec({ walkAround: true })[1] !== 0xC0 || rec({ zoomRects: false })[1] !== 0x00 ||
-    rec({ smooth: true, cheats: true }).join() !== [0x9A, 0x80, 0, 1].join();
-  if (missing.length) fail('preferences', 'switches missing from the Tools tab: ' + missing.join(', '));
-  else if (bitsWrong) fail('preferences', 'a named bit does not land where the record’s table says');
-  else if (/never been tried|untried/.test(tools)) fail('preferences', 'the section still calls the file untried');
-  else if (!/replaces any settings already stored/.test(tools)) fail('preferences', 'the section no longer says the file replaces the stored settings');
-  else if (!/©gra/.test(tools)) fail('preferences', 'the section does not name the code');
-  else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
-  else console.log(`  preferences: ${switches.length} switches on the Tools tab, each bit where the table says, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);
+  // No application: the record's layout is the program's, so there are no
+  // switches and no file to write, and the section says why.
+  let threw = false;
+  try { ctx.buildCytheraPreferences({ cheats: true }); } catch (e) { threw = true; }
+  if (/id="prefCheats"/.test(tools) || !/switches are offered here/.test(tools)) fail('preferences', 'with no application open the Tools tab offers switches it cannot place');
+  else if (!threw) fail('preferences', 'the preferences file was built with no application to read its record from');
+  else console.log('  preferences: no application, so no switches and no file');
 } catch (e) { fail('preferences', e); }
 
 // Opening a second archive must not leave the first one's derived tables
@@ -2227,6 +2209,84 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         }
       }
     } catch (e) { fail('program figures', e); }
+    /* The Cheats sheet off the program, v1.52.0: the gate, every case of the
+       key routine's switch, the preferences record scanned out of the whole
+       program, what the game stores and the file's keys. The figures pinned
+       are the shipped program's; three of them corrected the typed table
+       this replaced (option-l, the four-bit frame-rate field, byte 1's
+       startup-dialog bits). Negative control: the cheat code's compare
+       changed in a copy of the program changes the code the sheet prints. */
+    try {
+      const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
+      const kr = ctx.exeKeyRoutine(), fields = ctx.exePrefFields(), defaults = ctx.exePrefDefaults(), keys = ctx.exePrefKeys();
+      ctx.showCategory('CHEATS');
+      const html = all(REGISTRY.get('sheetGrid'));
+      const rows = (html.match(/<td class="cheatCombo">/g) || []).length;
+      const caseOf = k => kr.cases.find(c => c.keys.some(x => x.v === k));
+      const field = (b, lo, hi) => fields.find(f => f.byte === b && f.lo === lo && f.hi === hi);
+      const inRoutine = (exe, name) => { const r = ctx.exeRoutineAt(exe); return !!(r && r.name.startsWith(name + '(')); };
+      if (!kr || !kr.gate || kr.gate.word.v !== '©gra' || kr.gate.byte.v !== 3 || kr.gate.bit.v !== 0 || !/^Cheat mode activated/.test(kr.gate.on.v))
+        fail('program keys', 'the gate was misread: ' + JSON.stringify(kr && kr.gate));
+      else if (kr.cases.filter(c => c.gated).length !== 17 || kr.cases.filter(c => !c.gated).length !== 5 || !caseOf(0xC2) || caseOf(0xC1) || !caseOf(0xB9).fallsInto || caseOf(0xB9).fallsInto !== caseOf(0xA8).at)
+        fail('program keys', 'the switch was misread: ' + kr.cases.map(c => c.keys[0].v.toString(16) + (c.gated ? 'g' : '')).join(' '));
+      else if (kr.words.slice(1).map(w => w.v).join() !== 'play,stop,paus,next,prev,ejec' || kr.volume.map(v => v.step.v + '/' + (v.bound && v.bound.v)).join() !== '-10/0,10/255')
+        fail('program keys', 'the CD words or the volume were misread: ' + JSON.stringify([kr.words.map(w => w.v), kr.volume]));
+      else if (!field(0, 2, 5) || field(0, 2, 5).writers.map(w => w.value.v).join() !== '4,6,8' || !field(1, 5, 5) || !field(1, 5, 5).writers.some(w => w.item && w.item.texts[0] === 'Switch to 256 Colors') || !field(1, 4, 4) || field(3, 0, 0).writers.length)
+        fail('program keys', 'the preferences record was misread: ' + JSON.stringify(fields.map(f => [f.byte, f.lo, f.hi, f.writers.length, f.readers.length])));
+      else if (!defaults || [...new Set(defaults.words.map(w => w.v.toString(16)))].join() !== '18800000,99800000,dbc80000' || defaults.selectors.map(t => t.v).join() !== 'cput,proc')
+        fail('program keys', 'the stored defaults were misread: ' + JSON.stringify(defaults));
+      else if (keys.map(e => e.key.v).sort().join() !== 'Ambient,Backdrop,CurPlayer,CurScen,Map Window Loc,Music,UI Prefs,Volume')
+        fail('program keys', 'the file’s keys were misread: ' + keys.map(e => e.key.v).join());
+      else if (rows !== kr.cases.length + 2 || !/option-l/.test(html) || !/broken/.test(html) || /Everyone is hostile/.test(html) || !/enemy/.test(html) || !/0x0864/.test(html) || !/low ten bits/.test(html) || !/class’s own animation/.test(html) || !/Motion Filters/.test(html) || !/Map Window Loc/.test(html) || !/DBC80000/.test(html) || !/2 to 5/.test(html) || !/Don't Ask Again/.test(html))
+        fail('program keys', `the Cheats sheet does not state what was read: ${rows} key rows for ${kr.cases.length} cases`);
+      else if (!new RegExp('jumpToExeAt\\(' + kr.gate.word.exe + '\\)').test(html) || !inRoutine(kr.gate.word.exe, 'TMapWindow::KeyRoutine') || !new RegExp('jumpToExeAt\\(' + caseOf(0xA0).calls.find(c => /DoTicks/.test(c.v)).args[4].exe + '\\)').test(html))
+        fail('program keys', 'the gate’s code or option-t’s 1024 is not a link to its instruction');
+      else {
+        // The control: the code's compare in a copy of the program.
+        const app = ctx.APP_DATA, img = ctx.appImage();
+        const at = img.pef.sections[img.codeIndex].containerOffset + kr.gate.word.exe;
+        const copy = app.slice();
+        copy[at + 3] = (copy[at + 3] + 1) & 255;         // cmplwi 0, 0x7261 -> 0x7262: ©grb
+        ctx.APP_DATA = copy; ctx.APP_PEF = null;
+        ctx.showCategory('CHEATS');
+        const changed = all(REGISTRY.get('sheetGrid'));
+        ctx.APP_DATA = app; ctx.APP_PEF = null;
+        if (!/©grb/.test(changed) || /©gra/.test(changed.replace(/type ©gra/g, ''))) fail('program keys', 'the sheet did not follow a changed code in the program');
+        else console.log(`  program keys: the ©gra gate at byte ${kr.gate.byte.v} bit ${kr.gate.bit.v}, ${kr.cases.length} cases (${kr.cases.filter(c => c.gated).length} gated), ${fields.length} fields of the record, ${keys.length} keys of the file; a changed compare prints ©grb`);
+      }
+    } catch (e) { fail('program keys', e); }
+    // The Tools tab's preferences file, from the program's layout of the
+    // record: the switches wear the game's own labels, and the bytes are the
+    // ones the file was put in front of the game with.
+    try {
+      ctx.showCategory('TOOLS');
+      const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+      const switches = ['prefSmooth', 'prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects'];
+      const missing = switches.filter(id => !new RegExp(`id="${id}"`).test(tools));
+      const rec = o => [...ctx.cytheraPrefsRecord(o)];
+      const bitsWrong = rec({ liveDrag: true })[0] !== 0x19 || rec({ manualContainers: true })[0] !== 0x58 ||
+        rec({ motionFilters: true })[1] !== 0x88 || rec({ walkAround: true })[1] !== 0xC0 || rec({ zoomRects: false })[1] !== 0x00 ||
+        rec({ smooth: true, cheats: true }).join() !== [0x9A, 0x80, 0, 1].join();
+      if (missing.length) fail('preferences', 'switches missing from the Tools tab: ' + missing.join(', '));
+      else if (!/Manually Place Containers/.test(tools) || !/Smoother Movement/.test(tools)) fail('preferences', 'the switches do not wear the game’s own labels');
+      else if (bitsWrong) fail('preferences', 'a switch does not land on the bit the program writes for it: ' + JSON.stringify(ctx.cytheraPrefsLayout()));
+      else if (/never been tried|untried/.test(tools)) fail('preferences', 'the section still calls the file untried');
+      else if (!/replaces any settings already stored/.test(tools)) fail('preferences', 'the section no longer says the file replaces the stored settings');
+      else if (!/©gra/.test(tools)) fail('preferences', 'the section does not name the code');
+      else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
+      else console.log(`  preferences: ${switches.length} switches on the Tools tab with the game's labels, each bit where the program writes it, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);
+    } catch (e) { fail('preferences', e); }
+    // The dialogue box, drawn now the application is here. The frame is a
+    // PNG encoded asynchronously, so it is waited for rather than timed.
+    for (let waited = 0; waited < 3000 && !((ctx.__peek('window.DIALOGUE_BOX') || {}).frame); waited += 50) await new Promise(r => setTimeout(r, 50));
+    {
+      const box = ctx.__peek('window.DIALOGUE_BOX');
+      const css = (box && box.css) || '', rd = box && box.read;
+      if (!rd || rd.tile.v !== 0x19D || rd.top.v !== 4 || rd.side.v !== 8 || !rd.clut || rd.clut.v !== 256 || !rd.offset || rd.offset.v !== 18) fail('dialogue box', 'the box’s constants were misread from the program: ' + JSON.stringify(rd));
+      else if (!box.blue || box.blue.join(',') !== '0,0,168' || !/--boxBlue:rgba\(0,0,168,\.5\)/.test(css)) fail('dialogue box', 'the blue was not read from the clut the program names: ' + JSON.stringify(box) + ' ' + css.slice(0, 80));
+      else if (!box.frame || !/border-image-source:url\(data:image\/png;base64,iVBOR/.test(css) || !/border-image-slice:4 8/.test(css)) fail('dialogue box', 'the frame was not built from the tile and bands the program names: ' + css.slice(0, 120));
+      else console.log('  dialogue box: blue ' + box.blue.join(',') + ' from clut ' + rd.clut.v + ' at byte ' + rd.offset.v + ', frame from tile 0x' + rd.tile.v.toString(16).toUpperCase() + ' sliced ' + rd.top.v + ' ' + rd.side.v + ', all read off the program');
+    }
     ctx.showCategory('AIRULES');
     const rows = (REGISTRY.get('sheetGrid').children || []);
     // The Rules tab has the vocabulary out of the application's fork.

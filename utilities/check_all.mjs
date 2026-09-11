@@ -271,7 +271,7 @@ const CHECKS = [
      trusted for it -- four orders and five as-found fields were each found by
      failing this. The synthetic half needs no game and never skips. */
   {page: 'viewer', name: 'resource fork write',
-   cmd: ['utilities/resfork_write_check.mjs', 'index.html', DATA_RSRC, APP_RSRC],
+   cmd: ['utilities/resfork_write_check.mjs', 'index.html', DATA_RSRC, APP_RSRC, APP_DATA],
    grep: /\d+ shipped fork\(s\) rewritten byte for byte[^\n]*/},
   /* js/mac-pef.js over the application's data fork. Structural alone; with
      the workbench's cythera_symbols.txt beside the repository (a sibling
