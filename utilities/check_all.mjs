@@ -15,7 +15,7 @@
 // before most checks can run, and that is the step most likely to be forgotten.
 
 import {execFileSync, execSync} from 'node:child_process';
-import {existsSync, mkdirSync} from 'node:fs';
+import {existsSync, mkdirSync, readdirSync} from 'node:fs';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -107,6 +107,21 @@ const DELV = firstHolding('delv/archive.py', process.env.DELVMOD, 'delvmod',
 // runs its structural half, which is most of it.
 const PEF_SYMBOLS = firstHolding('cythera_symbols.txt', process.env.WORKBENCH, '../cythera-workbench', 'cythera-workbench') + '/cythera_symbols.txt';
 const SYSLESS = firstHolding('src/disk_image/hfs.rs', process.env.SYSTEMLESS, 'wolflizard', '../wolflizard', 'systemless', '../systemless');
+// LLVM's PowerPC disassembler, which ppc_check.mjs holds js/mac-ppc.js to.
+// Nothing here installs it: Homebrew's llvm formula has it, as does a Linux
+// distribution's llvm package, and $LLVM_MC overrides. Without it that one
+// check skips and says so.
+function findLlvmMc() {
+  if (process.env.LLVM_MC) return process.env.LLVM_MC;
+  try { const p = execSync('command -v llvm-mc', {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim(); if (p) return p; } catch (e) { /* not on the path */ }
+  for (const base of ['/opt/homebrew/opt', '/usr/local/opt', '/usr/lib']) {
+    let names = [];
+    try { names = readdirSync(base).filter(n => /^llvm(@\d+|-\d+)?$/.test(n)).sort().reverse(); } catch (e) { /* no such directory */ }
+    for (const n of names) if (existsSync(`${base}/${n}/bin/llvm-mc`)) return `${base}/${n}/bin/llvm-mc`;
+  }
+  return 'llvm-mc';
+}
+const LLVM_MC = findLlvmMc();
 // The community's add-ons. Not required: without them addons_check.mjs still
 // scores the heuristic against the shipped archive, which is the half that
 // matters most.
@@ -265,6 +280,13 @@ const CHECKS = [
   {page: 'viewer', name: 'executable', want: [APP_DATA],
    cmd: ['utilities/pef_check.mjs', 'js/mac-pef.js', APP_DATA, PEF_SYMBOLS],
    grep: /\d+ routines named[^\n]*/},
+  /* js/mac-ppc.js against LLVM's PowerPC disassembler, word for word: the
+     application's code section when it is there, every branch-field
+     combination, and 300,000 generated words. A word read differently, or
+     read here when LLVM refuses it, fails; one LLVM alone reads is counted. */
+  {page: 'viewer', name: 'powerpc decoder', want: [LLVM_MC],
+   cmd: ['utilities/ppc_check.mjs', 'js/mac-ppc.js', 'js/mac-pef.js', LLVM_MC, APP_DATA],
+   grep: /[\d,]+ words read the same[^;]*/},
   {page: 'viewer', name: 'rule models',
    cmd: ['utilities/mech_check.mjs', 'js/delv-mechanics.js'],
    grep: /\d+ comparisons agree[^\n]*/},

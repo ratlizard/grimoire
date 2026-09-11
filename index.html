@@ -1731,6 +1731,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
 <script src="js/mac-stuffit.js"></script>
 <script src="js/mac-vise.js"></script>
 <script src="js/mac-pef.js"></script>
+<script src="js/mac-ppc.js"></script>
 <!-- Cythera's own formats, on top of the generic Mac ones above:
      the archive, its graphics decoder, and its script VM. Same rule --
      classic scripts, never type="module". See js/delv-archive.js. -->
@@ -4350,7 +4351,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.50.0';
+const GRIMOIRE_VERSION = '1.51.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -15565,6 +15566,8 @@ function renderSpellsSheet() {
   const spells = sp.spells.map(x => Object.assign({}, x, { description: dvmDescriptionOf(x.resid), fx: fx.get(x.resid), status: applies.get(x.resid) || [] }))
     .sort((a, b) => a.level - b.level || a.cost - b.cost || a.name.localeCompare(b.name));
   const shown = spells.filter(x => !q || x.name.toLowerCase().includes(q) || x.description.toLowerCase().includes(q));
+  const clockNow = appImage() ? exeClockRules() : null;
+  const unitsNote = clockNow && clockNow.unitsPerHour ? '; ' + srcNum(clockNow.unitsPerHour) + ' is an hour' : '';
   const box = document.createElement('div');
   box.className = 'mechView';
   const intro = document.createElement('p'); intro.className = 'mechLede';
@@ -15584,7 +15587,7 @@ function renderSpellsSheet() {
       for (const d of x.fx.damage) rows.push(['Damage', '<b>' + srcNum({ resid: x.resid, at: d.at }, amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.who]);
       for (const h of x.fx.heals) rows.push(['Heals', '<b>' + srcNum({ resid: x.resid, at: h.at }, h.text) + '</b>']);
     }
-    if (x.status.length) rows.push(['Applies', x.status.join(', ') + ' <span class="inspDim">(clock units; 4096 is an hour)</span>']);
+    if (x.status.length) rows.push(['Applies', x.status.join(', ') + ' <span class="inspDim">(clock units' + (unitsNote || '') + ')</span>']);
     if (!rows.length) rows.push(['Does', '<span class="inspDim">something other than health: the light, a lock, a rune, the map, or a look</span>']);
     const d = document.createElement('div'); d.className = 'mechBody';
     d.innerHTML = '<table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
@@ -16016,6 +16019,11 @@ function dvmSeqIn(resid, pat) { return dvmSeqFirst(dvmOpsOf(dvmScriptEntry(resid
    prints as plain text, so a sentence never shows a link to nowhere. */
 function srcNum(val, text) {
   const shown = text === undefined || text === null ? (val ? String(val.v) : '') : String(text);
+  // A figure read out of the application's code opens its routine instead.
+  if (val && typeof val.exe === 'number') {
+    const r = exeRoutineAt(val.exe);
+    return '<button class="svLink srcNum" onclick="jumpToExeAt(' + val.exe + ')" title="' + svEsc((r ? r.name + ', ' : '') + 'code 0x' + val.exe.toString(16).toUpperCase().padStart(6, '0')) + '">' + svEsc(shown) + '</button>';
+  }
   if (!val || typeof val.resid !== 'number' || typeof val.at !== 'number') return svEsc(shown);
   return '<button class="svLink srcNum" onclick="jumpToScriptAt(' + val.resid + ',' + val.at + ')" title="' +
     propWordHex(val.resid) + ' at ' + propWordHex(val.at) + '">' + svEsc(shown) + '</button>';
@@ -16555,6 +16563,227 @@ function hungerNotes() {
   const ceilingVal = top === null ? null : others.find(t => t.v === top);
   const ceilingBy = top === null ? [] : [...new Set(others.filter(t => t.v === top).map(t => t.resid))];
   return { falls, complains: complainsVal ? complainsVal.v : null, complainsVal, ceiling: top, ceilingVal, ceilingBy };
+}
+
+/* THE CLOCK, HUNGER, HEALING AND POISON, off the application's code. One
+   routine, TGameViewer::DoTicks, advances the clock and does all four, and
+   this reads it the way the trace in the workbench's doc/game-clock.md did,
+   instruction by instruction:
+
+   - the table of periods: an `addi r, 2, d` the counting loop indexes with
+     `lwzx`, as many words as the loop's `cmpwi 0, n` bound, and the stack
+     array the counts go into (`addi r, 1, base` before the `stwx`);
+   - the hour and the quarter hour: the `srawi` that shifts the clock word
+     before the call of ScheduleTime, and the one before DayTimeChanged;
+   - the day: the `lis`/`addi` pair the roll-over loop compares against;
+   - hunger: `lbz r, n(31)`, `addi 0, r, -k`, `stb 0, n(31)` -- the first
+     byte of the record taken down -- and the count it is gated on;
+   - healing: the level byte shifted (`srawi`) and capped (`cmpwi`, `li`),
+     the counts indexed by it, gated on nutrition not being 0, and the two
+     byte pairs it raises and caps (health against full health, magic
+     against full magic);
+   - poison and regeneration: the count the six-minute loop runs on, the two
+     status bits it tests (`rlwinm.` to one bit each), the coin toss when
+     both are set (a call of Random), and the `cmplwi 0, n` before the call
+     of CharEntry::DeathRites.
+
+   Each figure comes back as { v, exe } with the address of the instruction
+   that holds it. A pattern that does not match leaves its figure null and
+   the sheet drops the sentence that needed it. */
+function exeClockRules() {
+  const ops = exeOpsNamed('TGameViewer::DoTicks');
+  if (!ops.length) return null;
+  const val = (i, v) => i >= 0 ? exeVal(ops[i], v) : null;
+  const r = {};
+  // The period table and the counts.
+  const ti = exeFind(ops, 0, 40, d => d.mn === 'addi' && d.ra === 2 && ops.some(o => o.d && o.d.mn === 'lwzx' && o.d.ra === d.rd));
+  if (ti < 0) return null;
+  const use = exeFind(ops, ti + 1, 200, d => d.mn === 'lwzx' && d.ra === ops[ti].d.rd);
+  const store = exeFind(ops, use, 24, d => d.mn === 'stwx');
+  const baseI = exeFindBack(ops, store, 4, d => d.mn === 'addi' && d.ra === 1);
+  const boundI = exeFind(ops, store, 8, d => d.mn === 'cmpwi');
+  if (use < 0 || store < 0 || baseI < 0 || boundI < 0) return null;
+  const n = ops[boundI].d.imm, base = ops[baseI].d.imm;
+  const periods = exeDataWords(exeTocOffset(ops[ti].d.imm), n);
+  if (!periods) return null;
+  r.table = val(ti, periods); r.count = val(boundI, n); r.countBase = base;
+  const countIndex = d => d && d.mn === 'lwz' && d.ra === 1 && d.d >= base && d.d < base + 4 * n && (d.d - base) % 4 === 0 ? (d.d - base) / 4 : -1;
+  // The hour and the quarter hour, by what each change calls.
+  const sched = ops.findIndex(o => exeCalls(o, 'ScheduleTime'));
+  const light = ops.findIndex(o => exeCalls(o, 'TGameViewer::DayTimeChanged'));
+  const hs = sched >= 0 ? exeFindBack(ops, sched, 14, d => d.mn === 'srawi') : -1;
+  const qs = light >= 0 ? exeFindBack(ops, light, 14, d => d.mn === 'srawi') : -1;
+  r.hourShift = hs >= 0 ? val(hs, ops[hs].d.sh) : null;
+  r.quarterShift = qs >= 0 ? val(qs, ops[qs].d.sh) : null;
+  r.schedules = sched >= 0 ? val(sched, exeTargetName(ops[sched].to)) : null;
+  r.lighting = light >= 0 ? val(light, exeTargetName(ops[light].to)) : null;
+  // The day: the roll-over loop's limit.
+  for (let i = 0; i < ops.length && !r.day; i++) {
+    const a = ops[i].d; if (!a || a.mn !== 'lis') continue;
+    const j = exeFind(ops, i + 1, 3, d => d.mn === 'addi' && d.ra === a.rd && d.rd === a.rd);
+    if (j < 0) continue;
+    const k = exeFind(ops, j + 1, 2, d => d.mn === 'cmpw' && d.rb === a.rd);
+    if (k < 0 || !ops[k + 1] || !ops[k + 1].d || ops[k + 1].d.mn !== 'bf' || ops[k + 1].d.disp >= 0) continue;
+    r.day = val(i, a.imm * 65536 + ops[j].d.imm);
+  }
+  // Hunger: the first record byte taken down by a constant.
+  const fi = ops.findIndex((o, i) => o.d && o.d.mn === 'addi' && o.d.imm < 0 && o.d.ra === (ops[i - 1] && ops[i - 1].d && ops[i - 1].d.rt) &&
+    ops[i - 1].d.mn === 'lbz' && ops[i - 1].d.ra === 31 && ops[i + 1] && ops[i + 1].d && ops[i + 1].d.mn === 'stb' && ops[i + 1].d.d === ops[i - 1].d.d);
+  if (fi >= 0) {
+    r.nutritionByte = val(fi - 1, ops[fi - 1].d.d);
+    r.fall = val(fi, -ops[fi].d.imm);
+    const ci = exeFindBack(ops, fi, 16, d => countIndex(d) >= 0);
+    r.hungerIndex = ci >= 0 ? val(ci, countIndex(ops[ci].d)) : null;
+  }
+  // Healing: the level shifted and capped picks the count.
+  const si = fi >= 0 ? exeFind(ops, fi, 16, d => d.mn === 'srawi') : -1;
+  if (si >= 0 && ops[si - 1] && ops[si - 1].d && ops[si - 1].d.mn === 'lbz') {
+    r.levelByte = val(si - 1, ops[si - 1].d.d);
+    r.levelShift = val(si, ops[si].d.sh);
+    const capI = exeFind(ops, si, 8, d => d.mn === 'cmpwi');
+    r.levelCap = capI >= 0 ? val(capI, ops[capI].d.imm) : null;
+    // Gated on nutrition: the nutrition byte tested against 0.
+    const fed = exeFind(ops, si, 24, d => d.mn === 'lbz' && r.nutritionByte && d.d === r.nutritionByte.v);
+    r.fedGate = fed >= 0 ? val(fed, 0) : null;
+    const cmp1 = exeFind(ops, si, 30, d => d.mn === 'cmplw');
+    const cmp2 = cmp1 >= 0 ? exeFind(ops, cmp1 + 1, 40, d => d.mn === 'cmplw') : -1;
+    const pair = i => i >= 2 && ops[i - 1].d && ops[i - 2].d && ops[i - 1].d.mn === 'lbz' && ops[i - 2].d.mn === 'lbz' ? [val(i - 2, ops[i - 2].d.d), val(i - 1, ops[i - 1].d.d)] : null;
+    r.healthBytes = cmp1 >= 0 ? pair(cmp1) : null;
+    r.magicBytes = cmp2 >= 0 ? pair(cmp2) : null;
+  }
+  // Poison and regeneration: the six-minute loop.
+  const rnd = ops.findIndex(o => exeCalls(o, 'Random'));
+  if (rnd >= 0) {
+    const bits = [];
+    for (let i = exeFindBack(ops, rnd, 20, d => countIndex(d) >= 0); i >= 0 && i < rnd; i++) {
+      const d = ops[i].d;
+      if (d && d.mn === 'rlwinm.' && d.sh === 0 && d.mb === d.me && bits.length < 2 && !bits.some(b => b.v === 31 - d.mb)) {
+        bits.push(val(i, 31 - d.mb));
+        // The word the bits are of: the record word loaded just before.
+        const w = ops[i - 1] && ops[i - 1].d;
+        if (!r.statusWord && w && w.mn === 'lhz' && w.rt === d.rs && w.ra === 31) r.statusWord = val(i - 1, w.d);
+      }
+    }
+    const pi = exeFindBack(ops, rnd, 20, d => countIndex(d) >= 0);
+    r.poisonIndex = pi >= 0 ? val(pi, countIndex(ops[pi].d)) : null;
+    r.poisonBit = bits[0] || null; r.regenBit = bits[1] || null;
+    r.coinToss = val(rnd, 'Random');
+    const death = ops.findIndex(o => exeCalls(o, 'CharEntry::DeathRites'));
+    const dt = death >= 0 ? exeFindBack(ops, death, 6, d => d.mn === 'cmplwi') : -1;
+    r.deathAt = dt >= 0 ? val(dt, ops[dt].d.imm) : null;
+    // What a pass takes off a poisoned character's health and gives a
+    // regenerating one: the health byte loaded, a constant added, stored back.
+    const hb = r.healthBytes ? r.healthBytes[0].v : null;
+    const step = (from, sign) => exeFind(ops, from, 40, (d, o) => d.mn === 'addi' && Math.sign(d.imm) === sign && d.imm !== 0 &&
+      ops[ops.indexOf(o) - 1] && ops[ops.indexOf(o) - 1].d && ops[ops.indexOf(o) - 1].d.mn === 'lbz' && ops[ops.indexOf(o) - 1].d.d === hb);
+    const ps = death >= 0 && hb !== null ? step(death, -1) : -1;
+    const gs = ps >= 0 ? step(ps + 1, 1) : -1;
+    r.poisonStep = ps >= 0 ? val(ps, -ops[ps].d.imm) : null;
+    r.regenStep = gs >= 0 ? val(gs, ops[gs].d.imm) : null;
+  }
+  if (r.hourShift) r.unitsPerHour = { v: 1 << r.hourShift.v, exe: r.hourShift.exe };
+  // The model's parameters, when everything it needs was read.
+  const need = [r.unitsPerHour, r.levelShift, r.levelCap, r.hungerIndex, r.poisonIndex, r.fall, r.deathAt, r.poisonStep, r.regenStep];
+  r.model = need.every(Boolean) ? { unitsPerHour: r.unitsPerHour.v, periods, levelShift: r.levelShift.v, levelCap: r.levelCap.v,
+    hungerIndex: r.hungerIndex.v, poisonIndex: r.poisonIndex.v, fall: r.fall.v, deathAt: r.deathAt.v,
+    poisonStep: r.poisonStep.v, regenStep: r.regenStep.v } : null;
+  return r;
+}
+// A period of the table as a length of game time, in words.
+function exeClockWords(units, perHour) {
+  if (!perHour) return units + ' units';
+  const min = units * 60 / perHour;
+  if (Math.abs(min - 60) < 0.01) return 'an hour';
+  if (min > 60 && Math.abs(min % 60) < 0.01) return (min / 60) + ' hours';
+  if (min >= 1) { const m = Math.round(min); return (Math.abs(min - m) < 0.02 ? m : min.toFixed(1)) + ' minutes'; }
+  return Math.round(min * 60) + ' seconds';
+}
+
+/* THE TALK BALLOON, off TBark: SetBark returns what TickCount answered plus
+   a constant, the expiry ShowBarks tests each frame, and the constructor
+   hands SetRect the balloon's width and height. */
+function exeBarkRules() {
+  const sb = exeOpsNamed('TBark::SetBark'), ct = exeOpsNamed('TBark::TBark');
+  const r = {};
+  const tc = sb.findIndex(o => exeCalls(o, 'TickCount'));
+  const ai = tc >= 0 ? exeFind(sb, tc + 1, 3, d => d.mn === 'addi' && d.rd === 3 && d.ra === 3) : -1;
+  r.ticks = ai >= 0 ? exeVal(sb[ai], sb[ai].d.imm) : null;
+  const sr = ct.findIndex(o => exeCalls(o, 'SetRect'));
+  const wi = sr >= 0 ? exeFindBack(ct, sr, 12, d => d.mn === 'li' && d.rd === 6) : -1;
+  const hi = sr >= 0 ? exeFindBack(ct, sr, 12, d => d.mn === 'li' && d.rd === 7) : -1;
+  r.width = wi >= 0 ? exeVal(ct[wi], ct[wi].d.imm) : null;
+  r.height = hi >= 0 ? exeVal(ct[hi], ct[hi].d.imm) : null;
+  return r.ticks || r.width ? r : null;
+}
+
+/* WHAT A COMMAND COSTS IN TIME. TGameSys::HeartBeat(n) is how a command
+   spends the player's time, so every call of it with a constant in r4 is a
+   cost, named by the routine that makes the call. A call whose r4 is worked
+   out (an attack's, the slide's) has no one number and says so. */
+function exeActionCosts() {
+  return exeCallersOf('TGameSys::HeartBeat').map(c => {
+    const k = exeFindBack(c.ops, c.i - 1, 3, d => d.rd === 4 || d.ra === 4);
+    const d = k >= 0 ? c.ops[k].d : null;
+    return { routine: c.routine, call: exeVal(c.ops[c.i], null), cost: d && d.mn === 'li' && d.rd === 4 ? exeVal(c.ops[k], d.imm) : null };
+  });
+}
+
+/* WHO IS WHOSE ENEMY. TActiveMonster::GetEnemyStatus copies a table of
+   words from the TOC onto the stack and answers the entry for one side's
+   alignment byte times four plus the other's; a byte it tests first answers
+   a constant for every pair when set (option-h). */
+function exeEnemyTable() {
+  const ops = exeOpsNamed('TActiveMonster::GetEnemyStatus');
+  const ti = exeFind(ops, 0, 4, d => d.mn === 'addi' && d.ra === 2);
+  if (ti < 0) return null;
+  const reg = ops[ti].d.rd;
+  const words = ops.filter(o => o.d && o.d.mn === 'lwz' && o.d.ra === reg).length;
+  const table = exeDataWords(exeTocOffset(ops[ti].d.imm), words);
+  const side = Math.round(Math.sqrt(words));
+  if (!table || side * side !== words) return null;
+  const ab = exeFind(ops, ti, 80, d => d.mn === 'lbz' && d.d > 0 && d.ra !== 5);
+  const peace = exeFind(ops, ti, 60, d => d.mn === 'li' && d.rd === 3);
+  // The byte tested first is a TOC slot; the key routine flips it with a
+  // logical not (cntlzw, then the shift by 5).
+  const slot = exeFind(ops, ti, 4, d => d.mn === 'lwz' && d.ra === 2);
+  const keys = slot >= 0 ? exeOpsNamed('TMapWindow::KeyRoutine') : [];
+  const load = keys.findIndex(o => o.d && o.d.mn === 'lwz' && o.d.ra === 2 && o.d.d === ops[slot].d.d);
+  const flip = load >= 0 ? exeFind(keys, load, 5, d => d.mn === 'cntlzw') : -1;
+  // The answer the enemy iterator keeps: cbEnemies compares r3 with it
+  // straight after the call.
+  const cb = exeOpsNamed('cbEnemies');
+  const call = cb.findIndex(o => exeCalls(o, 'TActiveMonster::GetEnemyStatus'));
+  const test = call >= 0 ? exeFind(cb, call + 1, 3, d => d.mn === 'cmpwi' && d.ra === 3) : -1;
+  return { table: exeVal(ops[ti], table), side, alignmentByte: ab >= 0 ? exeVal(ops[ab], ops[ab].d.d) : null,
+           peace: peace >= 0 ? exeVal(ops[peace], ops[peace].d.imm) : null, peaceKey: flip >= 0 ? exeVal(keys[flip], 'KeyRoutine') : null,
+           enemy: test >= 0 ? exeVal(cb[test], cb[test].d.imm) : null };
+}
+
+/* WHERE A FLAG LIVES. TSpellFX::AddAbility sets a character flag by its
+   number: below one bound a bit of one record byte, below the next a bit of
+   the status word, below the last a bit of another byte, the range's first
+   flag taken off the number to make the bit. So a status bit the tick
+   routine tests is a flag number the scripts use: the bit plus that range's
+   subtrahend. */
+function exeAbilityMap() {
+  const ops = exeOpsNamed('TSpellFX::AddAbility');
+  const out = [];
+  for (let i = 0; i < ops.length; i++) {
+    const d = ops[i].d;
+    if (!d || d.mn !== 'cmpwi') continue;
+    const load = exeFind(ops, i + 1, 10, e => e.mn === 'lbzx' || e.mn === 'lhzx');
+    if (load < 0) continue;
+    const off = exeFind(ops, i + 1, load - i, e => e.mn === 'addi' && e.imm > 0 && e.ra !== 1 && e.ra !== 2);
+    const sub = exeFind(ops, i + 1, load - i, e => e.mn === 'addi' && e.imm < 0);
+    out.push({ below: exeVal(ops[i], d.imm), offset: off >= 0 ? exeVal(ops[off], ops[off].d.imm) : null,
+               sub: sub >= 0 ? exeVal(ops[sub], -ops[sub].d.imm) : exeVal(ops[i], 0), word: ops[load].mn === 'lhzx' });
+  }
+  return out;
+}
+// The flag number of a status-word bit, with where its subtrahend was read.
+function exeFlagOfStatusBit(bit, statusOffset) {
+  const m = exeAbilityMap().find(x => x.word && x.offset && x.offset.v === statusOffset);
+  return m && bit ? { v: bit.v + m.sub.v, exe: m.sub.exe } : null;
 }
 
 // What each spell does to health, read off its script: every damage call
@@ -17238,7 +17467,7 @@ function mechFoodFigure(fd, belly) {
 // A duration is a number of 4096ths of an hour, which is unreadable as
 // stored. Drawn against the hour it is obvious which of these is a spell you
 // walk away from and which lasts a moment.
-function mechStatusFigure(st) {
+function mechStatusFigure(st, unit) {
   const rows = [];
   for (const [name, list] of st.applies) {
     const durs = list.map(a => a.duration).filter(d => d !== null && d !== undefined);
@@ -17247,20 +17476,20 @@ function mechStatusFigure(st) {
   }
   if (!rows.length) return '';
   rows.sort((a, b) => b.value - a.value);
-  const unit = mechClockUnitsPerHour();
-  return mechFig('How long a status lasts, against the game hour',
+  return mechFig(unit ? 'How long a status lasts, against the game hour' : 'How long a status lasts, in clock units',
     mechBars(rows.map(r => ({ label: r.label, value: r.value, colour: MECH_INK.violet,
-      text: r.value >= unit ? (r.value / unit).toFixed(r.value % unit ? 1 : 0) + ' h' : Math.round(60 * r.value / unit) + ' min' })), { max: Math.max(unit, rows[0].value) }),
-    'The longest duration each status is given anywhere in the archive; a call with a roll in it is left out, since it has no one number. <b>4096</b> units is an hour.');
+      text: !unit ? String(r.value) : r.value >= unit ? (r.value / unit).toFixed(r.value % unit ? 1 : 0) + ' h' : Math.round(60 * r.value / unit) + ' min' })), { max: Math.max(unit || 0, rows[0].value) }),
+    'The longest duration each status is given anywhere in the archive; a call with a roll in it is left out, since it has no one number.' + (unit ? ' <b>' + unit + '</b> units is an hour, by the application’s clock.' : ''));
 }
 
 // The clock's own arithmetic, over four days: the belly empties in a hundred
 // hours and everything else follows from whether it is empty.
-function mechHungerFigure(belly) {
-  if (belly === null || belly === undefined) return '';
+function mechHungerFigure(belly, clock) {
+  if (belly === null || belly === undefined || !clock) return '';
   const hours = 120;
-  const fed = mechHungerRun({ hours, level: 6, nutrition: belly, health: 20, fullHealth: 100 });
-  const ring = mechHungerRun({ hours, level: 6, nutrition: belly, health: 20, fullHealth: 100, regenerating: true });
+  const fed = mechHungerRun({ hours, level: 6, nutrition: belly, health: 20, fullHealth: 100, clock });
+  const ring = mechHungerRun({ hours, level: 6, nutrition: belly, health: 20, fullHealth: 100, regenerating: true, clock });
+  const empty = belly * mechPeriodMinutes(clock, clock.hungerIndex) / 60;
   const pt = r => r.series.map(s => [s.hour, s.health]);
   return mechFig('Five days without a meal, at level 6', mechPlot({
     height: 150,
@@ -17271,8 +17500,8 @@ function mechHungerFigure(belly) {
       { points: pt(fed), colour: MECH_INK.gold, name: 'health, healing' },
       { points: pt(ring), colour: MECH_INK.cool, name: 'health, with Omen’s ring' }
     ],
-    marks: [{ x: belly, y: 8, label: 'the belly is empty', colour: MECH_INK.warm }]
-  }), 'Health rises <b>four</b> times an hour at this level and stops dead when nutrition reaches zero; the ring’s <b>ten</b> an hour does not care. Starving costs nothing but the healing, the engine takes no health for it.');
+    marks: empty <= hours ? [{ x: empty, y: 8, label: 'the belly is empty', colour: MECH_INK.warm }] : []
+  }), 'Health rises <b>' + mechHealRate(6, clock) + '</b> times an hour at this level and stops dead when nutrition reaches zero; the ring’s <b>' + mechRegenRate(clock) + '</b> an hour does not care. Starving costs nothing but the healing, the tick routine takes no health for it.');
 }
 
 // The staircase. A lock's difficulty is divided by twenty before it is used,
@@ -17354,25 +17583,27 @@ function mechTrainingFigure(tr) {
 // The balloon itself, at the size the engine draws it, because the sheet
 // says 128 by 32 and a rounded box with a tail and that is a picture rather
 // than a fact. The geometry is from a trace of TBark in the executable.
-function mechBalloonFigure(barks) {
-  const line = (barks && barks.length ? (barks.find(b => b.text && b.text.length < 16) || barks[0]).text : 'Hot Kabobs!');
-  return mechFig('The balloon, at the size the engine draws it',
-    '<svg class="mechBalloon" width="256" height="76" viewBox="0 0 128 38" style="max-width:100%;height:auto" role="img" aria-label="a talk balloon">' +
-    '<rect x="0.5" y="0.5" width="127" height="31" rx="8" ry="8" fill="#efeade" stroke="#2a2419" stroke-width="1"/>' +
-    '<path d="M56 31.5 L60 37.5 L68 31.5 Z" fill="#efeade" stroke="#2a2419" stroke-width="1"/>' +
-    '<text x="64" y="20" text-anchor="middle" font-size="11" fill="#2a2419" font-family="Georgia,serif">' + svEsc(String(line).slice(0, 22)) + '</text>' +
+function mechBalloonFigure(barks, bark) {
+  if (!bark || !bark.ticks || !bark.width || !bark.height) return '';
+  const W = bark.width.v, H = bark.height.v, secs = bark.ticks.v / 60;
+  const line = (barks && barks.length ? (barks.find(b => b.text && b.text.length < 16) || barks[0]).text : '');
+  return mechFig('The balloon, at the size the application draws it',
+    '<svg class="mechBalloon" width="' + (W * 2) + '" height="' + ((H + 6) * 2) + '" viewBox="0 0 ' + W + ' ' + (H + 6) + '" style="max-width:100%;height:auto" role="img" aria-label="a talk balloon">' +
+    '<rect x="0.5" y="0.5" width="' + (W - 1) + '" height="' + (H - 1) + '" rx="8" ry="8" fill="#efeade" stroke="#2a2419" stroke-width="1"/>' +
+    '<path d="M' + (W / 2 - 8) + ' ' + (H - 0.5) + ' L' + (W / 2 - 4) + ' ' + (H + 5.5) + ' L' + (W / 2 + 4) + ' ' + (H - 0.5) + ' Z" fill="#efeade" stroke="#2a2419" stroke-width="1"/>' +
+    '<text x="' + (W / 2) + '" y="' + (H * 0.62) + '" text-anchor="middle" font-size="11" fill="#2a2419" font-family="Georgia,serif">' + svEsc(String(line).slice(0, 22)) + '</text>' +
     '</svg>' +
-    mechNumberLine({ min: 0, max: 6, marks: [{ v: 0, label: 'said', above: true }, { v: 4, label: 'gone, 240 ticks', below: true }],
-      bands: [{ from: 0, to: 4, colour: 'rgba(249,248,111,.28)', label: 'four seconds' }] }),
-    '128 by 32 with a tail, and the tick count plus <b>240</b> for how long it stays. Both read from the executable rather than the archive.');
+    mechNumberLine({ min: 0, max: Math.ceil(secs * 1.5), marks: [{ v: 0, label: 'said', above: true }, { v: secs, label: 'gone, ' + bark.ticks.v + ' ticks', below: true }],
+      bands: [{ from: 0, to: secs, colour: 'rgba(249,248,111,.28)', label: secs + ' seconds' }] }),
+    srcNum(bark.width) + ' by ' + srcNum(bark.height) + ' with a tail, and the tick count plus <b>' + srcNum(bark.ticks) + '</b> for how long it stays, both read out of the application.');
 }
 
 // The bed table as a chart, with the 2012 measurements laid over it. This is
 // the only figure on the sheet whose numbers can be checked against
 // somebody's actual play, so the measurements are drawn as marks rather than
 // mentioned in the caption.
-function mechSleepFigure(sl) {
-  if (!sl || !sl.div) return '';
+function mechSleepFigure(sl, clock) {
+  if (!sl || !sl.div || !clock) return '';
   const div = sl.div.v;
   const level = 6;
   const rows = [];
@@ -17387,38 +17618,42 @@ function mechSleepFigure(sl) {
   rows.push({ name: 'the bare ground', quality: 0 });
   if (rows.length < 2) return '';
   const bars = rows.map(r => ({
-    label: r.name, value: mechBedRate(level, r.quality, { div }), colour: r.quality >= 4 ? MECH_INK.gold : r.quality ? MECH_INK.cool : MECH_INK.dim,
-    text: mechBedRate(level, r.quality, { div }) + ' /h', title: r.name + ', quality ' + r.quality
+    label: r.name, value: mechBedRate(level, r.quality, { div, clock }), colour: r.quality >= 4 ? MECH_INK.gold : r.quality ? MECH_INK.cool : MECH_INK.dim,
+    text: mechBedRate(level, r.quality, { div, clock }) + ' /h', title: r.name + ', quality ' + r.quality
   }));
   const withRing = rows.map(r => ({
-    label: r.name, value: mechBedRate(level, r.quality, { regenerating: true, div }), colour: MECH_INK.violet,
-    text: mechBedRate(level, r.quality, { regenerating: true, div }) + ' /h'
+    label: r.name, value: mechBedRate(level, r.quality, { regenerating: true, div, clock }), colour: MECH_INK.violet,
+    text: mechBedRate(level, r.quality, { regenerating: true, div, clock }) + ' /h'
   }));
   return mechFig('Health an hour asleep, at level 6',
     mechBars(bars, { max: Math.max.apply(null, withRing.map(w => w.value)) }) +
     '<div class="mechSub">and the same with Omen’s ring</div>' +
     mechBars(withRing, { max: Math.max.apply(null, withRing.map(w => w.value)) }),
-    'The engine heals four an hour at this level and the bed multiplies it by <b>1 + quality/' + div + '</b>. A player measured <b>12</b>, <b>10</b>, <b>42</b>, <b>30</b> and <b>35</b> an hour in these beds in March 2012 and every one of them is on this chart, which is as close to an experiment as this sheet gets.');
+    'The tick routine heals ' + mechHealRate(level, clock) + ' an hour at this level and the bed multiplies it by <b>1 + quality/' + div + '</b>. A player measured <b>12</b>, <b>10</b>, <b>42</b>, <b>30</b> and <b>35</b> an hour in these beds in March 2012 and every one of them is on this chart, which is as close to an experiment as this sheet gets.');
 }
 
 // The clock, on one line and logarithmic, because the numbers it deals in
 // run from one unit to four thousand and a linear axis would show a step and
 // nothing else.
-function mechClockFigure(sp) {
-  const unit = mechClockUnitsPerHour();
-  const spell = sp && sp.spells.length ? sp.spells[0] : null;
+function mechClockFigure(sp, clk, costs) {
+  if (!clk || !clk.model) return '';
+  const unit = clk.unitsPerHour.v, m = clk.model;
+  const cost = name => { const c = (costs || []).find(x => x.cost && x.routine.name.startsWith('TGameSys::' + name + '(')); return c ? c.cost.v : null; };
+  const step = cost('MoveCommand'), take = cost('TakeCommand');
+  const spell = sp && sp.rule && sp.rule.timing ? sp.rule.timeBase.v + 5 * sp.rule.timeMult.v : null;
   const marks = [
-    { v: 1, label: 'a step', above: true },
-    { v: 4, label: 'taking', below: true },
-    ...(sp && sp.rule && sp.rule.timing ? [{ v: sp.rule.timeBase.v + 5 * sp.rule.timeMult.v, label: 'a level 5 spell', above: true }] : []),
-    { v: 409, label: 'six minutes: poison, the ring', below: true },
-    { v: 1024, label: 'a quarter hour: the light', above: true },
+    ...(step ? [{ v: step, label: 'a step', above: true }] : []),
+    ...(take ? [{ v: take, label: 'taking', below: true }] : []),
+    ...(spell ? [{ v: spell, label: 'a level 5 spell', above: true }] : []),
+    { v: m.periods[m.poisonIndex], label: exeClockWords(m.periods[m.poisonIndex], unit) + ': poison, the ring', below: true },
+    ...(clk.quarterShift ? [{ v: 1 << clk.quarterShift.v, label: exeClockWords(1 << clk.quarterShift.v, unit) + ': the light', above: true }] : []),
     { v: unit, label: 'an hour: hunger, the schedules', below: true }
   ];
-  return mechFig('Everything the clock counts, in units of a 4096th of an hour',
+  const most = Math.max.apply(null, (costs || []).filter(c => c.cost).map(c => c.cost.v).concat([spell || 1]));
+  return mechFig('Everything the clock counts, in units of a ' + unit + 'th of an hour',
     mechNumberLine({ min: 1, max: unit, log: true, marks,
-      bands: [{ from: 1, to: 20, colour: 'rgba(249,248,111,.22)', label: 'what an action costs' }] }),
-    'A step is <b>one</b> unit, so an hour of game time is four thousand steps and a night’s sleep is passed rather than walked.' + (sp && sp.rule && sp.rule.timing ? ' A spell costs <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times its level</b>.' : ''));
+      bands: [{ from: 1, to: most, colour: 'rgba(249,248,111,.22)', label: 'what an action costs' }] }),
+    step ? 'A step is <b>' + step + '</b> unit' + (step === 1 ? '' : 's') + ', so an hour of game time is ' + Math.round(unit / step).toLocaleString() + ' steps and a night’s sleep is passed rather than walked.' : '');
 }
 
 // How much of the archive's own code asks about each skill: the table names
@@ -17475,6 +17710,15 @@ function renderMechanicsSheet() {
   };
   const src = (label, resid) => refExists(resid) ? partChip(label, resid) : '';
   const chipOf = i => loadCharacterTable()[i] ? characterChip(i) : '';
+  // The application's clock, off TGameViewer::DoTicks, for every section
+  // that counts time; null with no application open, and then no section
+  // states a figure of it.
+  const clk = appImage() ? exeClockRules() : null;
+  const model = clk && clk.model;
+  const perHour = clk && clk.unitsPerHour ? clk.unitsPerHour.v : null;
+  // A period of the program's table, in words, as a link to the table.
+  const period = i => clk && clk.table && clk.table.v[i] !== undefined ? srcNum(clk.table, exeClockWords(clk.table.v[i], perHour)) : '';
+  const noApp = 'Open the game from its installer, under Settings, and the application’s figures are read here.';
   const propChip = (pt, name, sub) => '<button class="relChip" onclick="showPropTypeDetail(' + pt + ')"><span class="relText"><span class="relMain">' + svEsc(name) + '</span>' + (sub ? '<span class="relSub">' + svEsc(sub) + '</span>' : '') + '</span></button>';
 
   // ---- the dice game ----
@@ -17648,7 +17892,15 @@ function renderMechanicsSheet() {
       'Damage goes through the same helper as a blow: the victim’s resistance takes the type first, and the caster earns experience by the usual rule.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn to a radius of five and the script walks everyone inside it, but the damage call runs for the one on the target square alone; the spell’s own description says it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) {} return ms.length ? 'Damage without the magic bit, fire, electric, blunt, edged, is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
-      'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the executable’s enemy iterator). Tremor shakes the screen and hurts enemies you cannot see.',
+      'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the application’s enemy iterator). Tremor shakes the screen and hurts enemies you cannot see.',
+      (function () {
+        const et = appImage() ? exeEnemyTable() : null;
+        if (!et || !et.alignmentByte || !et.enemy) return '';
+        const rows = [];
+        for (let a = 0; a < et.side; a++) rows.push(a + ': ' + et.table.v.slice(a * et.side, (a + 1) * et.side).join(' '));
+        return 'The enemy iterator looks each character up in the application’s ' + srcNum(et.table, et.side + '×' + et.side) + ' table, the row by the caster’s alignment (byte ' + srcNum(et.alignmentByte) + ' of the record) and the column by the character’s, and takes those whose entry is ' + srcNum(et.enemy) + '. By row: <b>' + rows.join('; ') + '</b>.' +
+          (et.peace ? ' A byte tested first makes every entry ' + srcNum(et.peace) + (et.peaceKey ? '; a cheat key flips it (' + srcNum(et.peaceKey) + ')' : '') + '.' : '');
+      })(),
       'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune, or the map.'
     ].filter(Boolean) : [],
     mechSpellFigures(sp) +
@@ -17709,31 +17961,38 @@ function renderMechanicsSheet() {
   const st = statusRules();
   const statusNames = new Set([...st.applies.keys(), ...st.cures.keys()]);
   add('status', 'Status effects', null, '',
-    st.applies.size ? 'Every place a script puts a status on somebody, with the duration the call gives in clock units of 4096 to the game hour, and every place one is cleared, which is what a cure is.' : 'No script in this archive applies a status.',
-    [], mechStatusFigure(st) + table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
+    st.applies.size ? 'Every place a script puts a status on somebody, with the duration the call gives in clock units' + (perHour ? ' of ' + srcNum(clk.unitsPerHour) + ' to the game hour' : '') + ', and every place one is cleared, which is what a cure is.' : 'No script in this archive applies a status.',
+    [], mechStatusFigure(st, perHour) + table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
       (st.applies.get(nm) || []).map(a => svChip(a.resid) + (a.duration !== null ? ' <span class="inspDim">for</span> ' + srcNum(a.durationVal, a.duration) : '')).join(' ') + '</td><td>' +
       [...(st.cures.get(nm) || [])].map(r => svChip(r)).join(' ') + '</td></tr>')), '');
 
   // ---- hunger, and healing with it ----
-  // The rate is the executable's, not the file's: TGameViewer::DoTicks.
-  // The scripts' side is read here.
+  // The fall and the healing are the application's, TGameViewer::DoTicks,
+  // read by exeClockRules when the application is open; the scripts' side,
+  // the complaint and the ceiling, off the archive.
   const hg = hungerNotes();
   add('hunger', 'Hunger and healing', null, '',
-    'Nutrition is a byte on the character' + (hg.ceiling !== null ? ', 0 to ' + srcNum(hg.ceilingVal) : '') + '. No script lowers it: the executable’s tick routine takes <b>one off every game hour</b>, and the same routine heals a fed character.',
+    'Nutrition is a byte on the character' + (clk && clk.nutritionByte ? ', byte ' + srcNum(clk.nutritionByte) + ' of its record' : '') + (hg.ceiling !== null ? ', 0 to ' + srcNum(hg.ceilingVal) : '') + '. No script lowers it: ' +
+      (model ? 'the application’s tick routine takes <b>' + srcNum(clk.fall) + ' off</b> each time the clock passes ' + period(model.hungerIndex) + ', and the same routine heals a fed character.' : 'the application’s tick routine does, and heals a fed character. ' + noApp),
     [
-      'Every hour of the clock, nutrition falls by 1 for every character on the map; the fall is not in the file, only the reads of it.',
+      model ? 'Each time the clock passes ' + period(model.hungerIndex) + ', nutrition falls by ' + srcNum(clk.fall) + ' for every character on the map; the fall is not in the file, only the reads of it.' : '',
       (hg.complains !== null ? 'The idle script complains below <b>' + srcNum(hg.complainsVal) + '</b>.' : ''),
       (hg.ceiling !== null ? (function () {
         // An item class script is named for its prop type, a spell for itself.
         const names = hg.ceilingBy.map(r => svLink((r >= 0x1000 && r < 0x1200 ? propDisplayName(r - 0x1000) : labelFor(r)) || ('0x' + r.toString(16).toUpperCase()), 'jumpToResource(' + r + ')'));
         return names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names[names.length - 1] + ' add only up to <b>' + srcNum(hg.ceilingVal) + '</b>; a food adds its own figure, listed above.';
       })() : ''),
-      'While nutrition is above 0, <b>health and magic each rise by 1</b> at a rate set by the level: every hour at level 1, every half hour at 2 and 3, every 20 minutes at 4 and 5, every quarter hour at 6 and 7, every 12 minutes from 8 up. Nothing rises past full.',
-      'At 0 there is no healing. The executable takes no health for hunger.'
+      model && clk.healthBytes && clk.magicBytes ? 'While nutrition is above ' + srcNum(clk.fedGate, '0') + ', <b>health and magic each rise by 1</b> each time the clock passes a period chosen by the level, the level shifted right by ' + srcNum(clk.levelShift) + ' and capped at ' + srcNum(clk.levelCap) + ': ' +
+        Array.from({ length: model.levelCap + 1 }, (_, i) => {
+          const lo = i << model.levelShift, hi = ((i + 1) << model.levelShift) - 1;
+          return 'every ' + period(i).replace(/^(<button[^>]*>)(an |a )?/, '$1') + (i === model.levelCap ? ' from level ' + lo + ' up' : lo === hi ? ' at level ' + lo : ' at levels ' + lo + ' and ' + hi);
+        }).join(', ') + '. Health (byte ' + srcNum(clk.healthBytes[0]) + ') stops at full health (byte ' + srcNum(clk.healthBytes[1]) + '), magic (' + srcNum(clk.magicBytes[0]) + ') at full magic (' + srcNum(clk.magicBytes[1]) + ').' : '',
+      model ? 'At 0 there is no healing. The tick routine takes no health for hunger.' : ''
     ].filter(Boolean),
-    '<div class="mechStats">' + (hg.ceiling !== null ? '<span class="mechStat"><b>' + srcNum(hg.ceilingVal) + '</b> nutrition at most</span>' : '') + stat('1 an hour', 'the fall') +
-      (hg.ceiling !== null ? stat('about ' + Math.round(hg.ceiling / 24) + ' days', 'from full to empty') : '') + '</div>' +
-    mechHungerFigure(hg.ceiling), '');
+    '<div class="mechStats">' + (hg.ceiling !== null ? '<span class="mechStat"><b>' + srcNum(hg.ceilingVal) + '</b> nutrition at most</span>' : '') +
+      (model ? '<span class="mechStat"><b>' + srcNum(clk.fall) + '</b> each time ' + period(model.hungerIndex) + ' passes</span>' : '') +
+      (model && hg.ceiling !== null ? stat('about ' + Math.round(hg.ceiling * mechPeriodMinutes(model, model.hungerIndex) / 60 / 24) + ' days', 'from full to empty') : '') + '</div>' +
+    mechHungerFigure(hg.ceiling, model), model ? '<span class="partsTitle">In the executable</span>' + pefChip('TGameViewer::DoTicks') : '');
 
   // ---- locks ----
   const lk = lockRules();
@@ -17777,12 +18036,15 @@ function renderMechanicsSheet() {
 
   // ---- talk balloons ----
   const barks = buildBarkCatalogue();
+  const bark = appImage() ? exeBarkRules() : null;
   add('balloons', 'Talk balloons', null, '',
-    'The short lines over a character’s head are a field on the character that a script writes a string into. The engine draws it in a 128×32 rounded balloon with a tail and takes it down <b>four seconds</b> later: the routine that puts it up returns the tick count plus 240, and the one that shows the balloons each frame removes it once the tick count reaches that. Both are the executable’s, not the file’s.',
+    'The short lines over a character’s head are a field on the character that a script writes a string into. ' +
+      (bark && bark.ticks && bark.width ? 'The application draws it in a ' + srcNum(bark.width) + '×' + srcNum(bark.height) + ' rounded balloon with a tail and takes it down <b>' + (bark.ticks.v / 60) + ' seconds</b> later: the routine that puts it up returns the tick count plus ' + srcNum(bark.ticks) + ', a tick being a sixtieth of a second, and the one that shows the balloons each frame removes it once the tick count reaches that.'
+        : 'The application draws it and takes it down again. ' + noApp),
     ['A line is a literal, or one picked at random from a list.', 'Two tavern helpers take a list of shouts and a list of replies for when the food or wine comes.',
      barks.length ? barks.length + ' places in this archive’s scripts set one; the words are under Text › Barks.' : 'No script in this archive sets one.'],
-    mechBalloonFigure(barks), '<span class="partsTitle">The words</span><button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>' +
-      '<span class="partsTitle" style="margin-left:8px">In the executable</span>' + pefChip('TBark::SetBark') + pefChip('TActiveMonster::ShowBarks'));
+    mechBalloonFigure(barks, bark), '<span class="partsTitle">The words</span><button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>' +
+      (bark ? '<span class="partsTitle" style="margin-left:8px">In the executable</span>' + pefChip('TBark::SetBark') + pefChip('TActiveMonster::ShowBarks') : ''));
 
   // ---- sleep ----
   const sl = sleepRules();
@@ -17790,25 +18052,42 @@ function renderMechanicsSheet() {
     sl ? 'A bed picks a quality for the sleep and hands the hours to one helper, which passes the night and multiplies what the engine healed during it.' : 'The bed class (0x100E) or the sleep helper (0xE93) is not in this archive.',
     sl ? [
       sl.own !== null ? 'Your own bed in Land King Hall has quality <b>' + srcNum(sl.ownVal) + '</b>; an inn’s bed takes its innkeeper’s figure from a table in the global store (0x301), at the slot the innkeeper’s dialogue wrote when the room was paid for, and a bed nobody paid for is refused.' : '',
-      sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (sl.quarterVal.v * sl.hoursVal.v === mechClockUnitsPerHour() ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + ', ' + srcNum(sl.hoursVal) + ' to the hour asked for' + (sl.owner ? ', and the bed’s owner turning up throws you out (“Hey! Out of my bed!”)' : '') + '.' : '',
+      sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (perHour && sl.quarterVal.v * sl.hoursVal.v === perHour ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + ', ' + srcNum(sl.hoursVal) + ' to the hour asked for' + (sl.owner ? ', and the bed’s owner turning up throws you out (“Hey! Out of my bed!”)' : '') + '.' : '',
       sl.half ? 'Then, when the quality is not 0' + (sl.soundly ? ' (“You sleep soundly”)' : '') + ', every party member gets <b>what they healed during the night times the quality over ' + srcNum(sl.div) + '</b> on top, for health and for magic, up to full.' + (sl.own !== null ? ' <b>Quality ' + sl.own + ' is ' + (1 + sl.own / sl.div.v) + ' times the engine’s rate.</b>' : '') : '',
       sl.toss ? 'Quality 0 is “You toss and turn” and the engine’s rate alone.' : '',
       'The engine’s rate is the one under Hunger and healing: a fed character’s level rate, plus the six-minute regeneration where a worn item grants it, and nothing at all for a hungry one.',
       'The magic branch compares magic against <i>full health</i> in two places. Kept as stored.'
     ].filter(Boolean) : [],
-    (sl ? mechSleepFigure(sl) : '') +
+    (sl ? mechSleepFigure(sl, model) : '') +
     (sl && sl.div && sl.inns.length ? table(['bed', 'where', '#quality', 'healing'], [(sl.own !== null ? '<tr><td>your own</td><td>Land King Hall</td>' + srcCell(sl.ownVal) + '<td>× ' + (1 + sl.own / sl.div.v) + '</td></tr>' : '')].concat(
       sl.inns.map(x => '<tr><td>' + (loadCharacterTable()[x.who] ? characterChip(x.who) : 'character ' + x.who) + '</td><td>' + svEsc((loadCharacterTable()[x.who] && zoneDisplayName(loadCharacterTable()[x.who].zone)) || '') + '</td>' + srcCell(x.qualitySrc, x.quality) + '<td>' + (x.quality !== null ? '× ' + (1 + x.quality / sl.div.v) : '') + '</td></tr>'))) : ''), '');
 
   // ---- the clock ----
-  add('clock', 'The clock, poison and time', null, '',
-    'The game keeps one clock in units of <b>1/4096 of an hour</b>, about 0.9 seconds of game time. Twenty-four hours make a day, and every duration a script hands the engine is in these units. Read from the executable, not the file.',
-    [
-      'A step costs one unit; looking costs 2, taking 4' + (sp.rule && sp.rule.timing ? ', and a spell ' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times its level' : '') + '. The monsters move while the player’s time is spent.',
-      'A status duration of <b>4096 is one hour</b>, 1024 a quarter of an hour, 409 six minutes.',
-      'A <b>poisoned</b> character (flag 9) loses 1 health every six minutes and <b>dies</b> when the next point would take them below 1; a <b>regenerating</b> one (flag 12, what Omen’s ring grants) gains 1 every six minutes; one who is both takes a coin toss each time.',
-      'Lighting is recomputed every quarter hour, and the schedules every hour.'
-    ], mechClockFigure(sp), '<span class="partsTitle">In the executable</span>' + pefChip('TGameViewer::DoTicks'));
+  {
+    const costs = appImage() ? exeActionCosts() : [];
+    // A routine's name in two halves, the method and its class; the
+    // arguments only where the class has two of the method.
+    const nameHalves = r => {
+      const p = r.name.indexOf('('), base = p >= 0 ? r.name.slice(0, p) : r.name, cut = base.lastIndexOf('::');
+      const method = cut >= 0 ? base.slice(cut + 2) : base;
+      const twice = costs.filter(c => c.routine.name.startsWith(base + '(')).length > 1;
+      return { method: method + (twice && p >= 0 ? r.name.slice(p) : ''), cls: cut >= 0 ? base.slice(0, cut) : '' };
+    };
+    const flagWords = (bit) => { const f = clk && clk.statusWord ? exeFlagOfStatusBit(bit, clk.statusWord.v) : null; return f ? ' (flag ' + srcNum(f) + (DVM_FLAG_NAMES[f.v] ? ', ' + svEsc(DVM_FLAG_NAMES[f.v]) + ' to the scripts' : '') + ')' : ''; };
+    add('clock', 'The clock, poison and time', null, '',
+      model ? 'The game keeps one clock, a word the application counts in units of <b>1/' + srcNum(clk.unitsPerHour) + ' of an hour</b>, the hour being the word shifted right by ' + srcNum(clk.hourShift) + '.' +
+          (clk.day ? ' ' + srcNum(clk.day, clk.day.v / perHour) + ' hours make a day, when the word rolls over.' : '') + ' Every duration a script hands the engine is in these units.'
+        : 'The game keeps one clock that every duration a script hands the engine is counted in. ' + noApp,
+      model ? [
+        'Its table of periods is ' + clk.table.v.map((u, i) => srcNum(clk.table, u) + ' <span class="inspDim">(' + exeClockWords(u, perHour) + ')</span>').join(', ') + '; each tick the routine counts how many of each the clock has passed.',
+        clk.poisonBit && clk.regenBit && clk.deathAt && clk.statusWord ? 'Each time it passes ' + period(model.poisonIndex) + ', a character whose record word at ' + srcNum(clk.statusWord) + ' has bit ' + srcNum(clk.poisonBit) + ' set' + flagWords(clk.poisonBit) + ' loses ' + srcNum(clk.poisonStep) + ' health, and <b>dies</b> instead when health is ' + srcNum(clk.deathAt) + ' or less; one with bit ' + srcNum(clk.regenBit) + flagWords(clk.regenBit) + ' gains ' + srcNum(clk.regenStep) + '; one with both takes a coin toss (' + srcNum(clk.coinToss) + ') each time.' : '',
+        clk.lighting && clk.schedules && clk.quarterShift ? 'The lighting is recomputed when the word shifted right by ' + srcNum(clk.quarterShift) + ' changes, every ' + exeClockWords(1 << clk.quarterShift.v, perHour) + ' (' + srcNum(clk.lighting, 'DayTimeChanged') + '), and the schedules when the hour changes (' + srcNum(clk.schedules, 'ScheduleTime') + ').' : '',
+        sp.rule && sp.rule.timing ? 'A spell costs ' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times its level, from the casting script. The monsters move while the player’s time is spent.' : ''
+      ].filter(Boolean) : [],
+      (costs.length ? '<div class="mechSub">What each command spends, the argument it hands TGameSys::HeartBeat</div>' +
+        table(['#units', 'spent by'], costs.slice().sort((a, b) => (a.cost ? a.cost.v : 1e9) - (b.cost ? b.cost.v : 1e9)).map(c => '<tr>' + (c.cost ? srcCell(c.cost) : '<td class="num"><span class="inspDim">worked out</span></td>') + '<td>' + svLink(nameHalves(c.routine).method, 'jumpToExeAt(' + c.call.exe + ')') + ' <span class="inspDim">' + svEsc(nameHalves(c.routine).cls) + '</span></td></tr>')) : '') +
+      mechClockFigure(sp, clk, costs), model ? '<span class="partsTitle">In the executable</span>' + pefChip('TGameViewer::DoTicks') + pefChip('TGameSys::HeartBeat') : '');
+  }
 
   // ---- the combat AI ----
   {
@@ -17897,12 +18176,187 @@ function appPef() {
   try { pef.routines = pefTracebacks(pef, window.APP_DATA); } catch (e) { pef.routines = []; }
   return (window.APP_PEF = pef);
 }
-function pefFilter(v) { window.PEF_FILTER = String(v || ''); renderAppPefSheet(); }
-function openPefRoutine(name) { window.PEF_FILTER = name; showCategory('APPPEF'); }
+function pefFilter(v) { window.PEF_FILTER = String(v || ''); window.PEF_VIEW = null; renderAppPefSheet(); }
+// A routine cited by name opens on its own listing; a name the program
+// does not have filters the list to it, which says so.
+function openPefRoutine(name) {
+  const r = exeRoutineNamed(name);
+  if (r) return jumpToExeAt(r.offset);
+  window.PEF_FILTER = name; window.PEF_VIEW = null;
+  showCategory('APPPEF');
+}
 // A chip to a routine of the executable, wherever a sheet cites one.
 function pefChip(name) {
   const leaf = TAB_BY_ID.get('apppef');
   return relChip({ js: 'openPefRoutine(\'' + name.replace(/'/g, '\\\'') + '\')', main: name, sub: 'routine', icon: leaf ? relIconURL({ tile: leaf.tile }) : '', title: 'Data › Cythera (App) › Data Fork' });
+}
+
+/* ---- a number read off the program, and where ------------------------------
+   The executable's figures -- the clock's hour, how often a fed character
+   heals, how long a balloon stays up, the costs of the commands -- are read
+   out of its PowerPC code on the spot, the way the Mechanics sheet reads the
+   archive's scripts, and each is printed as a link to the instruction that
+   holds it (srcNum with an `exe` address, jumpToExeAt). Until 11 September
+   2026 they were typed in from traces made outside the site
+   (cythera-workbench's doc/game-clock.md and doc/talk-balloons.md), which is
+   a copy of the program nobody could follow back and an edited program would
+   contradict in silence.
+
+   The instructions are js/mac-ppc.js's, the sections and relocations
+   js/mac-pef.js's (pefLoad). A routine is found by the name its traceback
+   table gives, its instructions decoded once (exeOpsOf), and a call
+   resolved to what it reaches: another routine, or through a glue stub --
+   `lwz 12, d(2)`, `stw 2, 20(1)`, `lwz 0, 0(12)`, `lwz 2, 4(12)`, `mtctr 0`,
+   `bctr` -- to the import whose transition vector the TOC slot holds. An
+   address is an offset into the code section, as everywhere on the site.
+   Without the application open none of this answers, and the sentences
+   that need it say what to open instead of stating a number. */
+function appImage() {
+  const pef = appPef();
+  if (!pef) return null;
+  if (pef.image === undefined) {
+    try { pef.image = pefLoad(window.APP_DATA); } catch (e) { pef.image = null; }
+    if (pef.image) {
+      pef.image.codeIndex = pef.image.pef.sections.findIndex(x => x.kind === 0);
+      pef.image.code = pef.image.contents[pef.image.codeIndex] ? pef.image.contents[pef.image.codeIndex].bytes : null;
+    }
+  }
+  return pef.image && pef.image.code ? pef.image : null;
+}
+function exeWord(at) { const img = appImage(); return img && at >= 0 && at + 4 <= img.code.length ? pefU32(img.code, at) : null; }
+// The routine an address is inside, by the traceback tables.
+function exeRoutineAt(at) {
+  const pef = appPef(); if (!pef || !pef.routines) return null;
+  const rs = pef.routines; let lo = 0, hi = rs.length - 1, best = null;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (rs[m].offset <= at) { best = rs[m]; lo = m + 1; } else hi = m - 1; }
+  return best && at < best.offset + best.length ? best : null;
+}
+// A routine by its name, with or without its argument list.
+function exeRoutineNamed(name) {
+  const pef = appPef(); if (!pef || !pef.routines) return null;
+  return pef.routines.find(r => r.name === name) || pef.routines.find(r => r.name.startsWith(name + '(')) || pef.routines.find(r => r.mangled === name) || null;
+}
+// A routine's instructions: address, word, the decode, and where a branch goes.
+function exeOpsOf(r) {
+  if (!r) return [];
+  if (r.ops) return r.ops;
+  const img = appImage(); if (!img) return [];
+  const ops = [];
+  for (let at = r.offset; at < r.offset + r.length && at + 4 <= img.code.length; at += 4) {
+    const w = pefU32(img.code, at), d = ppcDecode(w);
+    ops.push({ at, word: w, d, mn: d ? d.mn : '', text: d ? d.text : '.long 0x' + w.toString(16).toUpperCase(),
+               to: d && d.branch && !d.indirect && !d.aa ? at + d.disp : null });
+  }
+  return (r.ops = ops);
+}
+// The import a glue stub at `at` calls, or null.
+function exeGlueImport(at) {
+  const img = appImage(); if (!img || !img.toc) return null;
+  const d = [0, 1, 2, 3, 4, 5].map(k => { const w = exeWord(at + 4 * k); return w === null ? null : ppcDecode(w); });
+  if (!d[0] || d[0].mn !== 'lwz' || d[0].rt !== 12 || d[0].ra !== 2 || !d[5] || d[5].mn !== 'bctr') return null;
+  const p = pefPointerAt(img, img.toc.section, img.toc.offset + d[0].d);
+  return p && p.name ? p.name : null;
+}
+// What a branch reaches, by name: a routine (with its offset inside it) or an import.
+function exeTargetName(to) {
+  if (to === null || to === undefined) return '';
+  const r = exeRoutineAt(to);
+  if (r) return r.name + (to !== r.offset ? '+0x' + (to - r.offset).toString(16).toUpperCase() : '');
+  const g = exeGlueImport(to);
+  return g ? g : '0x' + to.toString(16).toUpperCase();
+}
+// Does op call `name` -- a routine's name without its arguments, or an import?
+function exeCalls(op, name) {
+  if (!op || op.mn !== 'bl' || op.to === null) return false;
+  const r = exeRoutineAt(op.to);
+  if (r) return r.offset === op.to && (r.name === name || r.name.startsWith(name + '('));
+  return exeGlueImport(op.to) === name;
+}
+// Every call of a routine anywhere in the code, by one scan kept with the program.
+function exeCallersOf(name) {
+  const img = appImage(), pef = appPef(); if (!img) return [];
+  const target = exeRoutineNamed(name); if (!target) return [];
+  if (!pef.callIndex) {
+    pef.callIndex = new Map();
+    for (let at = 0; at + 4 <= img.code.length; at += 4) {
+      const w = pefU32(img.code, at);
+      if ((w >>> 26) !== 18 || (w & 3) !== 1) continue;            // bl
+      let li = w & 0x03FFFFFC; if (li & 0x02000000) li -= 0x04000000;
+      const to = at + li;
+      (pef.callIndex.get(to) || pef.callIndex.set(to, []).get(to)).push(at);
+    }
+  }
+  return (pef.callIndex.get(target.offset) || []).map(at => { const r = exeRoutineAt(at); const ops = exeOpsOf(r); return { routine: r, ops, i: ops.findIndex(o => o.at === at) }; }).filter(c => c.routine && c.i >= 0);
+}
+// A number an instruction holds, with where: { v, exe }.
+function exeVal(op, v) { return op ? { v, exe: op.at } : null; }
+// A word of the TOC's section at a displacement from the TOC.
+function exeTocOffset(d) { const img = appImage(); return img && img.toc ? img.toc.offset + d : null; }
+function exeDataWords(off, n) {
+  const img = appImage(); if (!img || !img.toc) return null;
+  const sec = img.contents[img.toc.section]; if (!sec || off < 0 || off + 4 * n > sec.bytes.length) return null;
+  const out = []; for (let k = 0; k < n; k++) out.push(pefI32(sec.bytes, off + 4 * k));
+  return out;
+}
+// A C string a pointer reaches, when it is one.
+function exeStringAt(p) {
+  const img = appImage(); if (!img || !p || p.section === undefined) return null;
+  const sec = img.contents[p.section]; if (!sec) return null;
+  let e = p.offset, s = '';
+  while (e < sec.bytes.length && sec.bytes[e] && s.length < 200) { const ch = sec.bytes[e++]; if (ch < 0x20 && ch !== 0x0A && ch !== 0x0D) return null; s += String.fromCharCode(ch); }
+  return s.length >= 2 ? decodeMacRoman(sec.bytes.subarray(p.offset, e)) : null;
+}
+// The ops of a routine by name, for the readers below.
+function exeOpsNamed(name) { return exeOpsOf(exeRoutineNamed(name)); }
+// The first op at or after `from` satisfying `test`, within `span` ops.
+function exeFind(ops, from, span, test) {
+  for (let i = Math.max(0, from); i < Math.min(ops.length, from + span); i++) if (ops[i].d && test(ops[i].d, ops[i])) return i;
+  return -1;
+}
+function exeFindBack(ops, from, span, test) {
+  for (let i = Math.min(ops.length - 1, from); i >= Math.max(0, from - span); i--) if (ops[i].d && test(ops[i].d, ops[i])) return i;
+  return -1;
+}
+
+/* Open the application's code at an address: the routine that holds it,
+   listed, with that instruction ringed. */
+window.PEF_VIEW = null;
+function jumpToExeAt(at) {
+  if (window.CUR_SUBN === 'MECHANICS') mechKeepPlace();
+  window.PEF_VIEW = { at };
+  if (window.CUR_SUBN === 'APPPEF') renderAppPefSheet();
+  else openVia('APPPEF', () => {});
+  setTimeout(() => {
+    const hit = document.getElementById('listingHit');
+    if (hit && hit.scrollIntoView) hit.scrollIntoView({ block: 'center' });
+  }, 40);
+  return true;
+}
+function pefBackToList() { window.PEF_VIEW = null; renderAppPefSheet(); }
+// One routine, instruction by instruction: calls and branches named and
+// followable, TOC slots said as what they hold.
+function exeListingHTML(r, ringAt) {
+  const img = appImage();
+  const hex = (n, w) => '0x' + (n >>> 0).toString(16).toUpperCase().padStart(w || 6, '0');
+  const lines = exeOpsOf(r).map(o => {
+    let t = svEsc(o.text);
+    const d = o.d;
+    if (o.to !== null) {
+      const nm = exeTargetName(o.to);
+      const inside = o.to >= r.offset && o.to < r.offset + r.length;
+      t += '   ' + (exeRoutineAt(o.to) ? svLink(inside ? '+0x' + (o.to - r.offset).toString(16).toUpperCase() : nm, 'jumpToExeAt(' + o.to + ')') : '<span class="refnote">' + svEsc(nm) + '</span>');
+    }
+    if (d && d.ra === 2 && img.toc) {
+      if (d.d !== undefined) {
+        const p = pefPointerAt(img, img.toc.section, img.toc.offset + d.d);
+        const str = p && p.section !== undefined ? exeStringAt(p) : null;
+        t += '   <span class="refnote">; TOC ' + (d.d >= 0 ? '+' : '') + d.d + (p ? (p.name ? ', ' + svEsc(p.name) : str ? ', “' + svEsc(str.replace(/\n/g, ' ')) + '”' : ', ' + (img.pef.sections[p.section] ? img.pef.sections[p.section].kindName : 'section ' + p.section) + ' ' + hex(p.offset)) : '') + '</span>';
+      } else if (d.mn === 'addi') t += '   <span class="refnote">; data ' + hex(img.toc.offset + d.imm) + '</span>';
+    }
+    const line = hex(o.at) + '  ' + o.word.toString(16).toUpperCase().padStart(8, '0') + '  ' + t;
+    return o.at === ringAt ? '<span id="listingHit" class="listingHit">' + line + '</span>' : line;
+  });
+  return '<pre class="pane exeListing" style="max-height:none">' + lines.join('\n') + '</pre>';
 }
 function renderAppPefSheet() {
   stopAllViewActivity();
@@ -17913,6 +18367,20 @@ function renderAppPefSheet() {
   document.getElementById('singleControls').style.display = 'none';
   const pef = appPef();
   if (!pef) { renderPlaceholderSheet(PLACEHOLDER_TABS.APPPEF + (window.APP_DATA ? ' This data fork is not a PEF container.' : NO_INSTALLER_HINT)); return; }
+  const view = window.PEF_VIEW && exeRoutineAt(window.PEF_VIEW.at);
+  if (view && appImage()) {
+    const box = document.createElement('div');
+    box.className = 'mechView';
+    const hexv = n => '0x' + (n >>> 0).toString(16).toUpperCase();
+    box.innerHTML = '<div class="foldAll" style="justify-content:flex-start">' + svLink('All routines', 'pefBackToList()') + '</div>' +
+      '<div class="changesHead">' + svEsc(view.name) + '</div>' +
+      '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
+      (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A branch or a call is a link to where it goes; a TOC slot says what the loader puts there.</p>' +
+      exeListingHTML(view, window.PEF_VIEW.at);
+    grid.appendChild(box);
+    out.textContent = view.name + ', ' + (view.length / 4) + ' instructions';
+    return;
+  }
   const hex = n => '0x' + (n >>> 0).toString(16).toUpperCase();
   const num = v => '<td class="num">' + svEsc(String(v)) + '</td>';
   const box = document.createElement('div');
@@ -17936,7 +18404,7 @@ function renderAppPefSheet() {
   const rs = pef.routines.filter(r => !q || r.name.toLowerCase().includes(q) || r.mangled.toLowerCase().includes(q));
   const byClass = new Map();
   for (const r of rs) { const c = r.name.includes('::') ? r.name.slice(0, r.name.lastIndexOf('::', r.name.indexOf('(') < 0 ? undefined : r.name.indexOf('('))) : ''; (byClass.get(c) || byClass.set(c, []).get(c)).push(r); }
-  const row = r => '<tr>' + num(hex(r.offset)) + num(r.length.toLocaleString()) + '<td title="' + svEsc(r.mangled) + '">' + svEsc(r.name) + '</td></tr>';
+  const row = r => '<tr>' + num(hex(r.offset)) + num(r.length.toLocaleString()) + '<td title="' + svEsc(r.mangled) + '">' + svLink(r.name, 'jumpToExeAt(' + r.offset + ')') + '</td></tr>';
   const table = list => '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">at</th><th class="num">bytes</th><th>routine</th></tr></thead><tbody>' + list.map(row).join('') + '</tbody></table></div>';
   if (q) h += rs.length ? table(rs) : '<div class="changesNote">No routine matches.</div>';
   else h += [...byClass.entries()].sort((a, b) => (a[0] || '~').localeCompare(b[0] || '~')).map(([c, list]) =>

@@ -1656,7 +1656,11 @@ try {
   else if (!/win (?:<button[^>]*>)?2(?:<\/button>)? oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
   else if (!/resists non-magical weapons: [^<]*lich/.test(html)) fail('mechanics', 'the spells section does not name the monsters immune to non-magical damage')
   else if (!/Prop records: type, aspect, Data1 and Data2/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/hand it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
-  else if (!/four seconds/.test(html) || !/one off every game hour/.test(html) || !/4096 is one hour/.test(html) || mechSecs < 15) fail('mechanics', `the balloon lifetime or the sections are missing: ${mechSecs} sections`);
+  else if (mechSecs < 15) fail('mechanics', `the sections are missing: ${mechSecs} sections`);
+  // No application in this run, so none of its figures: the clock, the
+  // balloon and the enemy table say where they come from and state nothing.
+  // The installer section below opens the application and requires them.
+  else if (!/the application’s figures are read here/.test(html) || /jumpToExeAt\(/.test(html) || /4096 is one hour|four seconds|one off every game hour|128×32/.test(html)) fail('mechanics', 'with no application open the sheet states a figure of the program, or does not say where the figures come from');
   else if (mechFolds < mechSecs || (html.match(/mechOpenAll\(/g) || []).length < 2) fail('mechanics', `the sections do not fold: ${mechFolds} of ${mechSecs} are details, open/close all ${(html.match(/mechOpenAll\(/g) || []).length}`);
   // The dice game's numbers are read off 0x812 with their offsets, v1.31.0:
   // three dice of six, the skill's roll of six, a match paying 2 at 0x0506,
@@ -1715,9 +1719,6 @@ try {
   // the difficulty term is (data1 + 19) / 20 * 5, so 1 through 20 are one
   // lock and only a difficulty of nothing is free.
   else if ((function () { const lk = ctx.lockRules().rule.lk, c = (r, d) => ctx.mechLockChance(r, d, lk); return !(lk && c(20, 1) === c(20, 20) && c(20, 1) < c(20, 0) && c(20, 21) < c(20, 20)); })()) fail('mechanics', 'the lock chance is not a staircase rounding up in steps of twenty');
-  // The five 2012 bed measurements, which the sleep figure is drawn from.
-  else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
-    .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v }, o)) !== want)) fail('mechanics', 'the bed rates do not reproduce the 2012 measurements');
   // The combat figure over the archive's own weapons: the three outcomes
   // must account for every exchange and the blow words for every hit.
   else if ((function () {
@@ -2172,6 +2173,60 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       if (!/0x437B8/.test(one) || !/KeyRoutine\(short\)/.test(one)) fail('executable', 'a routine chip does not land on the routine: ' + one.slice(0, 200));
       else console.log(`  executable: ${pef.routines.length} routines named, ${pef.loader.symbols.length} imports from ${pef.loader.libraries.length} libraries; KeyRoutine at 0x437B8`);
     }
+    /* The program's figures on the Mechanics sheet, v1.51.0: the clock,
+       hunger, healing, poison, the talk balloon, what a command spends and
+       who is whose enemy, each read out of the application's code with the
+       address of the instruction that holds it. The figures are the shipped
+       program's. Two negative controls: a link followed rings the line with
+       the number in it and the next address rings a line without it, and
+       the hour's shift changed in a copy of the application moves the
+       sheet's hour, which a typed figure would not. */
+    try {
+      const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
+      const clk = ctx.exeClockRules(), m = clk && clk.model, bark = ctx.exeBarkRules(), costs = ctx.exeActionCosts(), et = ctx.exeEnemyTable();
+      const cost = n => { const c = costs.find(x => x.routine.name.startsWith('TGameSys::' + n + '(')); return c && c.cost ? c.cost.v : null; };
+      const inRoutine = (val, name) => { const r = val && ctx.exeRoutineAt(val.exe); return !!(r && r.name.startsWith(name + '(')); };
+      ctx.showCategory('MECHANICS');
+      const mh = all(REGISTRY.get('sheetGrid'));
+      const ringOf = at => { ctx.jumpToExeAt(at); const h = /<span id="listingHit" class="listingHit">([^\n]*)<\/span>/.exec(all(REGISTRY.get('sheetGrid'))); return h ? h[1] : null; };
+      if (!m || JSON.stringify(m) !== JSON.stringify({ unitsPerHour: 4096, periods: [4096, 2048, 1365, 1024, 819, 409, 16], levelShift: 1, levelCap: 4, hungerIndex: 0, poisonIndex: 5, fall: 1, deathAt: 1, poisonStep: 1, regenStep: 1 }))
+        fail('program figures', 'the clock was misread: ' + JSON.stringify(m));
+      else if (!inRoutine(clk.hourShift, 'TGameViewer::DoTicks') || !inRoutine(clk.fall, 'TGameViewer::DoTicks') || !clk.day || clk.day.v !== 98304 || clk.nutritionByte.v !== 27 || clk.levelByte.v !== 19 || clk.healthBytes.map(b => b.v).join() !== '14,15' || clk.magicBytes.map(b => b.v).join() !== '16,17' || clk.statusWord.v !== 6)
+        fail('program figures', 'the tick routine’s bytes or the day were misread: ' + JSON.stringify([clk.day, clk.nutritionByte, clk.levelByte, clk.healthBytes, clk.magicBytes, clk.statusWord]));
+      else if ([clk.poisonBit, clk.regenBit].map(b => (ctx.exeFlagOfStatusBit(b, clk.statusWord.v) || {}).v).join() !== '9,12')
+        fail('program figures', 'the status bits are not flags 9 and 12 by TSpellFX::AddAbility: ' + JSON.stringify(ctx.exeAbilityMap()));
+      else if (!bark || bark.ticks.v !== 240 || bark.width.v !== 128 || bark.height.v !== 32 || !inRoutine(bark.ticks, 'TBark::SetBark'))
+        fail('program figures', 'the balloon was misread: ' + JSON.stringify(bark));
+      else if (cost('MoveCommand') !== 1 || cost('LookCommand') !== 2 || cost('TakeCommand') !== 4 || costs.length < 15)
+        fail('program figures', 'the command costs were misread: ' + JSON.stringify(costs.map(c => [c.routine.name, c.cost && c.cost.v])));
+      else if (!et || JSON.stringify(et.table.v) !== '[2,2,2,2,2,1,0,0,2,0,1,0,2,0,0,2]' || et.alignmentByte.v !== 25 || !et.enemy || et.enemy.v !== 0 || !et.peace || et.peace.v !== 1)
+        fail('program figures', 'the enemy table was misread: ' + JSON.stringify(et));
+      // The five 2012 bed measurements, with the program's clock.
+      else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
+        .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== want))
+        fail('program figures', 'the bed rates on the program’s clock do not reproduce the 2012 measurements');
+      else if (/the application’s figures are read here/.test(mh) || !/<b>4 seconds<\/b>/.test(mh) || !new RegExp('jumpToExeAt\\(' + bark.ticks.exe + '\\)').test(mh) || !new RegExp('jumpToExeAt\\(' + clk.hourShift.exe + '\\)').test(mh) || !/flag <button[^>]*>9<\/button>, poison/.test(mh) || !/every <button[^>]*>30 minutes<\/button> at levels 2 and 3/.test(mh))
+        fail('program figures', 'the Mechanics sheet does not state the program’s figures as links');
+      else {
+        const hit = ringOf(bark.ticks.exe), miss = ringOf(bark.ticks.exe + 4);
+        if (!hit || !/addi 3, 3, 240/.test(hit) || !miss || /240/.test(miss)) fail('program figures', 'following the balloon’s link does not ring its instruction: ' + JSON.stringify([hit, miss]));
+        else {
+          const app = ctx.APP_DATA, img = ctx.appImage();
+          const at = img.pef.sections[img.codeIndex].containerOffset + clk.hourShift.exe;
+          const copy = app.slice();
+          const w = ((copy[at] << 24) | (copy[at + 1] << 16) | (copy[at + 2] << 8) | copy[at + 3]) >>> 0;
+          const moved = ((w & ~(0x1F << 11)) | (11 << 11)) >>> 0;
+          copy[at] = moved >>> 24; copy[at + 1] = (moved >>> 16) & 255; copy[at + 2] = (moved >>> 8) & 255; copy[at + 3] = moved & 255;
+          ctx.APP_DATA = copy; ctx.APP_PEF = null;
+          ctx.showCategory('MECHANICS');
+          const changed = all(REGISTRY.get('sheetGrid'));
+          const hour = (ctx.exeClockRules().unitsPerHour || {}).v;
+          ctx.APP_DATA = app; ctx.APP_PEF = null;
+          if (hour !== 2048 || !/1\/<button[^>]*>2048<\/button> of an hour/.test(changed)) fail('program figures', 'the hour did not follow a changed shift in the program: ' + hour);
+          else console.log(`  program figures: the clock, ${costs.length} command costs, the balloon and the enemy table read off the code; the balloon's link rings "${hit.replace(/<[^>]*>/g, '').trim().slice(0, 40)}", and a shift of 11 makes the hour ${hour} units`);
+        }
+      }
+    } catch (e) { fail('program figures', e); }
     ctx.showCategory('AIRULES');
     const rows = (REGISTRY.get('sheetGrid').children || []);
     // The Rules tab has the vocabulary out of the application's fork.

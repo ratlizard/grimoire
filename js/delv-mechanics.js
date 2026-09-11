@@ -333,20 +333,31 @@ function mechLevelForExp(exp, base) { let l = 1; while (exp > mechLevelThreshold
    falling below 1.
 
    These rates are why the 2012 bed measurements come out: they are the only
-   arithmetic in the sleep rule that is not the script's own. */
-function mechClockUnitsPerHour() { return 4096; }
-// The period between two points of healing, in minutes. Stated as a period
-// rather than a rate because that is what the tick routine tests, and because
-// 4096 has no factor of three or five: twenty minutes is 1365 and a third
-// clock units, so a loop over clock units would have to invent a rounding the
-// rule does not give. Minutes divide 60, 30, 20, 15, 12 and 6 exactly, and
-// the reference implementation steps in them for the same reason.
-function mechHealPeriodMinutes(level) {
-  const l = Math.max(1, level | 0);
-  return l === 1 ? 60 : l <= 3 ? 30 : l <= 5 ? 20 : l <= 7 ? 15 : 12;
+   arithmetic in the sleep rule that is not the script's own.
+
+   THE NUMBERS ARE THE PROGRAM'S, HANDED IN. `clock` is what the page reads
+   out of TGameViewer::DoTicks (exeClockRules): `unitsPerHour` from the shift
+   that makes the hour (1 << 12), `periods` the routine's table of seven,
+   `levelShift` and `levelCap` the healing's min(level >> 1, 4) that picks a
+   period by level, `hungerIndex` and `poisonIndex` the periods the fall of
+   nutrition and the six-minute loop count, `fall` the one taken off,
+   `deathAt` the health at or below which a poisoned character dies, and
+   `poisonStep` and `regenStep` what each pass takes off or gives. Until
+   11 September 2026 every one of those was a literal in this section, 4096
+   and the table 60/30/20/15/12 and ten an hour among them. */
+// A period of the table, in minutes. Stated as a period rather than a rate
+// because that is what the tick routine tests, and in minutes because the
+// table's 1365 (twenty minutes) and 819 (twelve) are 4096ths of an hour
+// rounded: a loop over clock units would have to invent a rounding the rule
+// does not give, and minutes divide 60, 30, 20, 15, 12 and 6 exactly. The
+// reference implementation steps in them for the same reason.
+function mechPeriodMinutes(clock, index) { return Math.round(clock.periods[index] * 60 / clock.unitsPerHour); }
+function mechHealPeriodMinutes(level, clock) {
+  const i = Math.min(Math.max(0, level | 0) >> clock.levelShift, clock.levelCap);
+  return mechPeriodMinutes(clock, i);
 }
-function mechHealRate(level) { return 60 / mechHealPeriodMinutes(level); }
-function mechRegenRate() { return 10; }   // one every six minutes
+function mechHealRate(level, clock) { return 60 / mechHealPeriodMinutes(level, clock); }
+function mechRegenRate(clock) { return clock.regenStep * 60 / mechPeriodMinutes(clock, clock.poisonIndex); }
 
 /* A stretch of time, minute by minute, returning the hourly series a chart
    wants. A minute is the step because the four things that happen have
@@ -360,19 +371,21 @@ function mechRegenRate() { return 10; }   // one every six minutes
    is both poisoned and regenerating lives. Both readings are stated in
    utilities/mech_ref.mjs, which takes the same one. */
 function mechHungerRun(p) {
+  const c = p.clock;
   const hours = Math.max(0, p.hours || 0);
   const full = p.fullHealth === undefined ? 100 : p.fullHealth;
-  const period = mechHealPeriodMinutes(p.level || 1);
+  const period = mechHealPeriodMinutes(p.level || 1, c);
+  const hungry = mechPeriodMinutes(c, c.hungerIndex), six = mechPeriodMinutes(c, c.poisonIndex);
   let nutrition = p.nutrition;
   let health = p.health === undefined ? full : p.health;
   const start = health;
   const series = [{ hour: 0, nutrition, health }];
   let died = false;
   for (let m = 1; m <= hours * 60 && !died; m++) {
-    if (m % 60 === 0) nutrition = Math.max(0, nutrition - 1);
+    if (m % hungry === 0) nutrition = Math.max(0, nutrition - c.fall);
     if (nutrition > 0 && m % period === 0) health = Math.min(full, health + 1);
-    if (p.regenerating && m % 6 === 0) health = Math.min(full, health + 1);
-    if (p.poisoned && m % 6 === 0) { if (health - 1 < 1) died = true; else health -= 1; }
+    if (p.regenerating && m % six === 0) health = Math.min(full, health + c.regenStep);
+    if (p.poisoned && m % six === 0) { if (health <= c.deathAt) died = true; else health -= c.poisonStep; }
     if (m % 60 === 0) series.push({ hour: m / 60, nutrition, health });
   }
   return { series, nutrition, health, died, gained: health - start };
@@ -388,7 +401,7 @@ function mechHungerRun(p) {
    `div` is the helper's divisor of the quality, the 2 the page reads off
    0xE93. */
 function mechSleepGain(p) {
-  const run = mechHungerRun({ hours: p.hours, level: p.level || 1, nutrition: p.nutrition,
+  const run = mechHungerRun({ hours: p.hours, level: p.level || 1, nutrition: p.nutrition, clock: p.clock,
     health: p.health, fullHealth: p.fullHealth, regenerating: p.regenerating, poisoned: p.poisoned });
   const engine = run.gained;
   const quality = p.quality || 0;
@@ -403,6 +416,6 @@ function mechSleepGain(p) {
 // it is worn, times the bed's multiplier. `opts.div` as above.
 function mechBedRate(level, quality, opts) {
   const fed = opts.fed !== false;
-  const rate = (fed ? mechHealRate(level) : 0) + (opts.regenerating ? mechRegenRate() : 0);
+  const rate = (fed ? mechHealRate(level, opts.clock) : 0) + (opts.regenerating ? mechRegenRate(opts.clock) : 0);
   return rate * (quality ? 1 + quality / opts.div : 1);
 }

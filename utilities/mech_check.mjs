@@ -87,7 +87,12 @@ const SHIPPED = {
   last: 'shredded',
   lock: { pickRoll: 19, lockRoll: 19, base: 20, addend: 19, per: 20, step: 5 },   // 0xE43
   level: { base: 100, cap: 65535 },                                    // 0xE8B
-  sleep: { div: 2 }                                                    // 0xE93
+  sleep: { div: 2 },                                                   // 0xE93
+  // The application's, off TGameViewer::DoTicks: the hour's shift, the
+  // table of periods, min(level >> 1, 4), the hour and the six-minute
+  // counts, one off nutrition, and death at 1 or less.
+  clock: { unitsPerHour: 4096, periods: [4096, 2048, 1365, 1024, 819, 409, 16], levelShift: 1, levelCap: 4, poisonStep: 1, regenStep: 1,
+           hungerIndex: 0, poisonIndex: 5, fall: 1, deathAt: 1 }
 };
 
 // ---- 1. the dice game ------------------------------------------------------
@@ -177,14 +182,14 @@ const RUNS = [
   { name: 'four days unfed', p: { level: 8, hours: 96, nutrition: 100, health: 20, fullHealth: 200 } }
 ];
 for (const run of RUNS) {
-  const x = ctx.mechHungerRun(run.p), r = ref.refHungerRun(run.p);
+  const x = ctx.mechHungerRun(Object.assign({ clock: SHIPPED.clock }, run.p)), r = ref.refHungerRun(run.p);
   exactly(`hunger (${run.name}): nutrition`, x.nutrition, r.nutrition);
   exactly(`hunger (${run.name}): health`, x.health, r.health);
   exactly(`hunger (${run.name}): died`, !!x.died, !!r.died);
 }
 for (const q of [0, 1, 2, 3, 4]) for (const level of [1, 4, 6, 9]) {
   const p = { level, hours: 8, quality: q, nutrition: 100, health: 0, fullHealth: 1000 };
-  exactly(`sleep (quality ${q}, level ${level})`, ctx.mechSleepGain(Object.assign({}, p, SHIPPED.sleep)).gained, ref.refSleep(p).gained);
+  exactly(`sleep (quality ${q}, level ${level})`, ctx.mechSleepGain(Object.assign({ clock: SHIPPED.clock }, p, SHIPPED.sleep)).gained, ref.refSleep(p).gained);
 }
 
 // The March 2012 measurements, health an hour, from Ambrosia's web board.
@@ -198,10 +203,10 @@ const BEDS = [
   ['the Titan’s Head with the ring', { quality: 3, regenerating: true }, 35]
 ];
 for (const [name, opts, want] of BEDS) {
-  const p = Object.assign({ level: 6, hours: 1, nutrition: 100, health: 0, fullHealth: 1000 }, opts, SHIPPED.sleep);
+  const p = Object.assign({ level: 6, hours: 1, nutrition: 100, health: 0, fullHealth: 1000, clock: SHIPPED.clock }, opts, SHIPPED.sleep);
   exactly(`the 2012 measurement, ${name}`, ctx.mechSleepGain(p).gained, want);
   exactly(`the 2012 measurement as a rate, ${name}`,
-    ctx.mechBedRate(6, p.quality, { fed: p.nutrition !== 0, regenerating: !!p.regenerating, div: SHIPPED.sleep.div }), want);
+    ctx.mechBedRate(6, p.quality, { fed: p.nutrition !== 0, regenerating: !!p.regenerating, div: SHIPPED.sleep.div, clock: SHIPPED.clock }), want);
 }
 
 // ---- 6. the arithmetic with no roll in it ----------------------------------
@@ -211,11 +216,12 @@ exactly('levels: the threshold doubles', [1, 2, 3, 4, 5].map(l => ctx.mechLevelT
 // unreachable by construction. That is a fact about the rule worth pinning:
 // it is the kind of thing a chart makes obvious and a table never does.
 exactly('levels: the eleventh is the last reachable', ctx.mechLevelThreshold(10, SHIPPED.level.base) < SHIPPED.level.cap && ctx.mechLevelThreshold(11, SHIPPED.level.base) > SHIPPED.level.cap, true);
-exactly('healing: the rate by level', [1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => ctx.mechHealRate(l)).join(','), '1,2,2,3,3,4,4,5,5');
-exactly('healing: the period by level', [1, 2, 4, 6, 8].map(l => ctx.mechHealPeriodMinutes(l)).join(','), '60,30,20,15,12');
+exactly('healing: the rate by level', [1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => ctx.mechHealRate(l, SHIPPED.clock)).join(','), '1,2,2,3,3,4,4,5,5');
+exactly('healing: the period by level', [1, 2, 4, 6, 8].map(l => ctx.mechHealPeriodMinutes(l, SHIPPED.clock)).join(','), '60,30,20,15,12');
 exactly('healing: the reference agrees about the period', [1, 2, 4, 6, 8].map(l => ref.healPeriodMinutes(l)).join(','),
-  [1, 2, 4, 6, 8].map(l => ctx.mechHealPeriodMinutes(l)).join(','));
-exactly('the clock: 4096 units an hour', ctx.mechClockUnitsPerHour(), 4096);
+  [1, 2, 4, 6, 8].map(l => ctx.mechHealPeriodMinutes(l, SHIPPED.clock)).join(','));
+exactly('the clock: the table\'s first period is the hour, its sixth six minutes', [0, 5].map(i => ctx.mechPeriodMinutes(SHIPPED.clock, i)).join(','), '60,6');
+exactly('regeneration: ten an hour', ctx.mechRegenRate(SHIPPED.clock), 10);
 
 if (failed) { console.error(`\n${failed} of ${compared} comparisons failed`); process.exit(1); }
 console.log(`  ${compared} comparisons agree, ${TRIALS.toLocaleString('en-US')} trials each`);

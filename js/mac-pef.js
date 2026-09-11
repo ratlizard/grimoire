@@ -128,6 +128,177 @@ function parsePEFLoader(b, base, size) {
   return Object.assign(h, { libraries, symbols, relocSections, exports, size });
 }
 
+/* ---- the sections as the loader leaves them -----------------------------
+   Reading a figure out of a PowerPC program means following its pointers:
+   a routine finds its globals through r2, the TOC, and a TOC slot holds an
+   address that only exists once the Code Fragment Manager has laid the
+   sections out and relocated them. So this does what the loader does, as
+   far as reading needs: the sections' contents, the pattern-packed data
+   expanded, and the relocations interpreted -- not to fill in addresses,
+   since there is no memory to put them in, but to say of every relocated
+   word which section or which import it points into. A stored word plus
+   "relocated by section 1" is an offset into section 1, which is all a
+   reader wants.
+
+   Written from the PEF format as the Mac OS runtime architecture documents
+   it (Apple, "Mac OS Runtime Architectures", chapter 8), not from a loader.
+   `utilities/pef_check.mjs` holds it to the structure's own arithmetic --
+   the pattern stream ends exactly at the declared size, each relocation
+   stream is consumed exactly, and every relocated word lands inside the
+   section or the import list it names -- and, with the workbench beside
+   this repository, to that repository's separate loader simulator. */
+
+// The pattern-initialised data a kind-2 section holds, expanded. Each
+// opcode is a byte, the high three bits the operation and the low five a
+// count, 0 meaning the count follows as an argument; arguments are seven
+// bits a byte, high bit set to continue.
+function pefExpandPattern(b, start, packedSize, size) {
+  const out = new Uint8Array(size);
+  const end = start + packedSize;
+  let p = start, o = 0, bad = null;
+  const arg = () => { let v = 0, byte; do { byte = b[p++]; v = (v * 128) + (byte & 0x7F); } while ((byte & 0x80) && p < end); return v; };
+  const copy = n => { for (let k = 0; k < n; k++) { if (o < size) out[o] = b[p + k]; o++; } p += n; };
+  while (p < end && !bad) {
+    const byte = b[p++], opc = byte >> 5, cnt = byte & 0x1F;
+    if (opc === 0) { o += cnt || arg(); }                                        // zero fill
+    else if (opc === 1) { copy(cnt || arg()); }                                  // block copy
+    else if (opc === 2) {                                                        // repeat a block
+      const n = cnt || arg(), times = arg() + 1, at = p;
+      for (let t = 0; t < times; t++) { p = at; copy(n); }
+    } else if (opc === 3) {                                                      // common block, then (custom, common) x repeat
+      const common = cnt || arg(), custom = arg(), times = arg(), c0 = p;
+      copy(common);
+      for (let t = 0; t < times; t++) { copy(custom); const save = p; p = c0; copy(common); p = save; }
+    } else if (opc === 4) {                                                      // zeros, then (custom, zeros) x repeat
+      const zeros = cnt || arg(), custom = arg(), times = arg();
+      o += zeros;
+      for (let t = 0; t < times; t++) { copy(custom); o += zeros; }
+    } else bad = 'pattern opcode ' + opc + ' at ' + (p - 1);
+  }
+  return { bytes: out, produced: o, consumed: p - start, problem: bad };
+}
+
+/* The relocations of every section that has any: for each relocated word,
+   what was added to it. The state is the specification's: a position in
+   the section, sectionC and sectionD (instantiated sections 0 and 1 until
+   set otherwise), and an import index. Instructions are 16-bit words, a
+   few of them two words long; a repeat replays whole instructions. */
+function pefRelocations(pef, bytes) {
+  const b = bytes, ld = pef.loader;
+  const result = { bySection: new Map(), problems: [] };
+  if (!ld) return result;
+  const ldSec = pef.sections.find(s => s.kind === 4);
+  const base = ldSec.containerOffset;
+  const imports = ld.symbols.length;
+  for (const rh of ld.relocSections) {
+    const sec = pef.sections[rh.sectionIndex];
+    const map = new Map();
+    result.bySection.set(rh.sectionIndex, map);
+    const start = base + ld.relocInstrOffset + rh.firstRelocOffset;
+    const words = []; for (let j = 0; j < rh.relocCount; j++) words.push(pefU16(b, start + j * 2));
+    // The instructions as units, so a repeat can replay them.
+    const units = [];
+    for (let j = 0; j < words.length;) {
+      const x = words[j], two = (x >> 12) === 0xA || (x >> 12) === 0xB;
+      units.push(two ? [x, words[j + 1]] : [x]);
+      j += two ? 2 : 1;
+    }
+    let pos = 0, sectC = 0, sectD = 1, imp = 0;
+    const mark = (target) => {
+      if (pos + 4 > (sec ? sec.totalSize : 0)) result.problems.push('section ' + rh.sectionIndex + ': a relocation at ' + pos + ' past the end');
+      if (target.import !== undefined && target.import >= imports) result.problems.push('section ' + rh.sectionIndex + ': import ' + target.import + ' of ' + imports);
+      map.set(pos, target); pos += 4;
+    };
+    const run = (u) => {
+      const x = u[0];
+      if ((x >> 14) === 0) { pos += ((x >> 6) & 0xFF) * 4; for (let k = x & 0x3F; k > 0; k--) mark({ section: sectD }); return; }
+      if ((x >> 13) === 2) {
+        const sub = (x >> 9) & 0xF, n = (x & 0x1FF) + 1;
+        for (let k = 0; k < n; k++) {
+          if (sub === 0) mark({ section: sectC });
+          else if (sub === 1) mark({ section: sectD });
+          else if (sub === 2) { mark({ section: sectC }); mark({ section: sectD }); pos += 4; }
+          else if (sub === 3) { mark({ section: sectC }); mark({ section: sectD }); }
+          else if (sub === 4) { mark({ section: sectD }); pos += 4; }
+          else if (sub === 5) mark({ import: imp++ });
+          else { result.problems.push('relocation run subopcode ' + sub); return; }
+        }
+        return;
+      }
+      if ((x >> 13) === 3) {
+        const sub = (x >> 9) & 0xF, idx = x & 0x1FF;
+        if (sub === 0) { mark({ import: idx }); imp = idx + 1; }
+        else if (sub === 1) sectC = idx;
+        else if (sub === 2) sectD = idx;
+        else if (sub === 3) mark({ section: idx });
+        else result.problems.push('relocation index subopcode ' + sub);
+        return;
+      }
+      if ((x >> 12) === 8) { pos += (x & 0x0FFF) + 1; return; }
+      const hi6 = x >> 10, low26 = ((x & 0x3FF) << 16) | (u[1] || 0);
+      if (hi6 === 0x28) { pos = low26; return; }
+      if (hi6 === 0x29) { mark({ import: low26 }); imp = low26 + 1; return; }
+      if (hi6 === 0x2D) {
+        const sub = (x >> 6) & 0xF, idx = ((x & 0x3F) << 16) | (u[1] || 0);
+        if (sub === 0) mark({ section: idx }); else if (sub === 1) sectC = idx; else if (sub === 2) sectD = idx;
+        else result.problems.push('large set-or-by-section subopcode ' + sub);
+        return;
+      }
+      result.problems.push('relocation opcode ' + (x >>> 0).toString(16) + ' in section ' + rh.sectionIndex);
+    };
+    for (let i = 0; i < units.length; i++) {
+      const x = units[i][0];
+      if ((x >> 12) === 9) {                                          // small repeat
+        const chunk = ((x >> 8) & 0xF) + 1, times = (x & 0xFF) + 1;
+        for (let t = 0; t < times; t++) for (let k = i - chunk; k < i; k++) run(units[k]);
+      } else if ((x >> 10) === 0x2C) {                                // large repeat
+        const chunk = ((x >> 6) & 0xF) + 1, times = ((x & 0x3F) << 16) | units[i][1];
+        for (let t = 0; t < times; t++) for (let k = i - chunk; k < i; k++) run(units[k]);
+      } else run(units[i]);
+    }
+    result.problems.length || (pos > (sec ? sec.totalSize : 0) && result.problems.push('section ' + rh.sectionIndex + ' position ended past the end'));
+  }
+  return result;
+}
+
+/* A program laid out for reading: every section's contents, the
+   relocations, and the TOC. The TOC is the data word the entry point's
+   transition vector holds second, which the loader relocates by the data
+   section, so the stored word is the TOC's offset in that section. */
+function pefLoad(bytes) {
+  const pef = parsePEF(bytes);
+  if (!pef) return null;
+  const contents = pef.sections.map(s => {
+    if (s.kind === 4 || s.kind === 5 || s.kind === 8) return null;
+    if (s.kind === 2) return pefExpandPattern(bytes, s.containerOffset, s.packedSize, s.totalSize);
+    const out = new Uint8Array(s.totalSize);
+    out.set(bytes.subarray(s.containerOffset, s.containerOffset + Math.min(s.packedSize, s.totalSize)));
+    return { bytes: out, produced: s.unpackedSize, consumed: s.packedSize, problem: null };
+  });
+  const relocs = pefRelocations(pef, bytes);
+  let toc = null;
+  const ld = pef.loader;
+  if (ld && ld.mainSection >= 0 && contents[ld.mainSection]) {
+    const m = contents[ld.mainSection].bytes;
+    const tv = relocs.bySection.get(ld.mainSection);
+    const target = tv && tv.get(ld.mainOffset + 4);
+    if (target && target.section !== undefined) toc = { section: target.section, offset: pefU32(m, ld.mainOffset + 4) };
+  }
+  return { pef, contents, relocs, toc };
+}
+
+/* What a pointer-sized word of a section means once loaded: the section and
+   offset it points at, or the import it names, or null for a word nothing
+   relocates. */
+function pefPointerAt(img, sectionIndex, offset) {
+  const map = img.relocs.bySection.get(sectionIndex);
+  const t = map && map.get(offset);
+  if (!t) return null;
+  if (t.import !== undefined) { const s = img.pef.loader.symbols[t.import]; return { import: t.import, name: s ? s.name : '' }; }
+  const c = img.contents[sectionIndex];
+  return { section: t.section, offset: c ? pefU32(c.bytes, offset) : 0 };
+}
+
 /* The traceback tables of a code section.
 
    Each is: a zero word; version (byte), language (byte), then six flag
