@@ -1034,6 +1034,53 @@ try {
       else console.log('  atlas: Open in Items from the World tab is one step back; a tap picks a square and a second clears it; the gate warns of spoilers');
     }
   }
+  // 11 September 2026: lifting out of a pinch is not a tap. Every pointerdown
+  // used to reset the movement count, the second finger's included, and a
+  // pinch added nothing to it, so the lift picked the square under the last
+  // finger. The stub's addEventListener records nothing, so the World tab's
+  // own handlers are taken off a second wiring of the viewport and driven by
+  // hand: a one-finger tap on open ground must pick (the positive control,
+  // without which a handler that never picks would pass), a second must
+  // clear, and a pinch whose fingers barely move must leave nothing picked.
+  {
+    ctx.showCategory('WORLD');
+    const vp = ctx.document.getElementById('atlasViewport');
+    const on = {};
+    const saved = vp.addEventListener;
+    vp.addEventListener = (type, fn) => { on[type] = fn; };
+    delete vp.dataset.atlasWired;
+    ctx.setupAtlasInteraction();
+    vp.addEventListener = saved;
+    const ev = (id, x, y) => ({ pointerId: id, pointerType: 'touch', clientX: x, clientY: y, preventDefault() {} });
+    peek('atlasFit')();
+    const av3 = peek('atlasView'), sc3 = peek('atlasScene')();
+    const world = sc3.nodes.find(n => !n.depth);
+    // Open ground: a square of the world that no town's rectangle covers.
+    let spot = null;
+    const wr = peek('atlasRect')(world, av3);
+    for (let fy = 0.3; fy <= 0.7 && !spot; fy += 0.05) for (let fx = 0.3; fx <= 0.7 && !spot; fx += 0.05) {
+      const x = wr.x + wr.w * fx, y = wr.y + wr.h * fy, hit = peek('atlasAt')(x, y);
+      if (hit && !hit.node.depth && !(peek('window.ATLAS_MOUTHS') || []).some(q => Math.hypot(x - q.x, y - q.y) <= q.rad + 4)) spot = { x, y };
+    }
+    peek('window.ATLAS_SEL = null');
+    const tap = (x, y) => { on.pointerdown(ev(1, x, y)); on.pointerup(ev(1, x, y)); return peek('window.ATLAS_SEL'); };
+    const picked = spot && tap(spot.x, spot.y);
+    const cleared = spot && tap(spot.x, spot.y);
+    let afterPinch = 'not run';
+    if (spot) {
+      on.pointerdown(ev(1, spot.x, spot.y));
+      on.pointerdown(ev(2, spot.x + 60, spot.y + 60));
+      on.pointermove(ev(2, spot.x + 63, spot.y + 62));
+      on.pointerup(ev(2, spot.x + 63, spot.y + 62));
+      on.pointerup(ev(1, spot.x, spot.y));
+      afterPinch = peek('window.ATLAS_SEL');
+    }
+    if (!on.pointerdown || !on.pointerup || !on.pointermove) fail('atlas pinch', 'the World tab wired no pointer handlers: ' + Object.keys(on).join(', '));
+    else if (!spot) fail('atlas pinch', 'no open ground on the fitted world to tap');
+    else if (!picked || cleared !== null) fail('atlas pinch', 'a one-finger tap did not pick and a second clear, so the pinch check proves nothing: ' + JSON.stringify([picked, cleared]));
+    else if (afterPinch !== null) fail('atlas pinch', 'lifting out of a pinch picked a square: ' + JSON.stringify(afterPinch));
+    else console.log('  atlas: a tap picks, a second clears, and lifting out of a pinch picks nothing');
+  }
   const vpA = REGISTRY.get('mapViewport');
   if (!sc) fail('atlas', 'no scene was built');
   else if (sc.nodes.some(n => n.depth && !ctx.mapIsSurface(n.resid)))

@@ -12495,7 +12495,13 @@ function setupAtlasInteraction() {
   if (!vp || vp.dataset.atlasWired) return;
   vp.dataset.atlasWired = '1';
   const pts = new Map();
-  let pinchDist = 0, pinchZ = 0, moved = 0;
+  // `moved` and `multi` belong to the gesture, first finger down to last
+  // finger up, not to a pointer. Until 11 September 2026 every pointerdown
+  // reset `moved`, the second finger's included, and a pinch added nothing
+  // to it, so lifting out of a pinch read as a tap: the square under the
+  // last finger was picked and its card raised. A gesture that ever had two
+  // fingers on the glass is a pinch, however little either of them moved.
+  let pinchDist = 0, pinchZ = 0, moved = 0, multi = false;
   // On a touch screen a tap raises the card and a press-and-hold keeps it
   // under the moving finger: there is no pointer resting over anything, so
   // both gestures ask the question a resting mouse asks. Sliding is a pan.
@@ -12511,9 +12517,9 @@ function setupAtlasInteraction() {
                        return { x: e.clientX - r.left, y: e.clientY - r.top }; };
   vp.addEventListener('pointerdown', e => {
     if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
-    if (!pts.size) atlasGestureBegin();
+    if (!pts.size) { atlasGestureBegin(); moved = 0; multi = false; }
     pts.set(e.pointerId, local(e));
-    moved = 0;
+    if (pts.size > 1) multi = true;
     endHold(); peeking = false;
     if (e.pointerType !== 'mouse') {
       hideAtlasHover();          // a new gesture puts the last card away
@@ -12564,7 +12570,7 @@ function setupAtlasInteraction() {
     // The card stays where the lift left it -- it is clear of the finger now
     // -- and the next gesture puts it away.
     if (peeking) { peeking = false; return; }
-    if (had && moved < 6) {
+    if (had && moved < 6 && !multi) {
       const p = local(e);
       // A mouth first: it is a small target drawn over the ground, and a tap
       // on it means the way down rather than the square it sits on.
@@ -13610,7 +13616,7 @@ const TAB_TREE = [
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
       { id: 'text', label: 'Text', tile: 0x3AE, children: [                                   // the tombstone, second frame
           { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['1', 'STRINGS'] },                     // a poster; the forks' string lists beside the archive's
-          { id: 'dialogue', label: 'Dialogue', tile: 0x389, values: ['23', '7'] },  // the fountain, which talks; the maintainer's pick, 9 September 2026
+          { id: 'dialogue', label: 'Dialogue', tile: 0x66B, values: ['23', '7'] },  // the beggar, sitting; the maintainer's pick, 11 September 2026 (it was the fountain, 0x389)
           { id: 'writings', label: 'Writings', tile: 0x263, values: ['26', '27', '29'] },                         // the scroll
           // The faces the text is set in: Argos A Nouveau and the Seldane
           // script, out of the resource fork, and the styles that assign them.
