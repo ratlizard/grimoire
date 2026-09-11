@@ -1799,6 +1799,8 @@ function loadDerivedNames() {
     const t = parseDelverStringTable(data);
     if (t && t.length > 16) window.SCENARIO_NAMES = window.DERIVED_NAMES = t;
   } catch (e) { /* fall back to the built-in table */ }
+  // A scenario's full stomach is kept for a saved game opened after it.
+  try { if (getResourceBytes(0x0A00)) fullStomach(); } catch (e) { /* no potion scripts */ }
 }
 // The names the open file gives, or the last file that gave any. `borrowed`
 // says which, so a sheet can admit it.
@@ -4351,7 +4353,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.52.0';
+const GRIMOIRE_VERSION = '1.52.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -14938,7 +14940,7 @@ function renderCheatsSheet() {
   const levels = cheatLevels();
   if (levels.length) {
     h += '<div class="mechSec"><h4 class="cheatH4">Levels, for option-j</h4>' +
-      '<div class="cheatNote">The level is the map’s number, asked in hex; X and Y are squares, 0 to 255. ' +
+      '<div class="cheatNote">The level is the map’s number, asked in hex; X and Y are squares. ' +
       'The name is the map’s own script string, with the editor’s name beside it where the two differ.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">hex</th><th class="num">dec</th><th>map</th></tr></thead><tbody>' +
       levels.map(l => '<tr><td class="num">' + l.n.toString(16).toUpperCase().padStart(2, '0') + '</td><td class="num">' + l.n + '</td><td>' +
@@ -15197,11 +15199,15 @@ const SAVE_FIELDS = [
   ['proptype', 'sprite class', 10, 0x3FF, 'which prop class draws them, 32 is the hero, 33 the heroine'],
   ['aspect', 'aspect', 10, 0x3F, 'the frame within that class'],
   ['body', 'body', 10, 0xFF, ''], ['reflex', 'reflex', 10, 0xFF, ''], ['mind', 'mind', 10, 0xFF, ''],
-  ['level', 'level', 10, 0xFF, ''], ['xp', 'experience', 10, 0xFFFF, 'the engine caps it at 65,535'],
+  ['level', 'level', 10, 0xFF, ''], ['xp', 'experience', 10, 0xFFFF, () => { const r = experienceRules().rule; return r && r.cap ? 'the experience script caps it at ' + r.cap.v.toLocaleString('en-US') : ''; }],
   ['health', 'health', 10, 0xFF, ''], ['healthMax', 'full health', 10, 0xFF, ''],
   ['magic', 'magic', 10, 0xFF, ''], ['magicMax', 'full magic', 10, 0xFF, ''],
-  ['nutrition', 'food', 10, 0xFF, 'one comes off every game hour; a full stomach is 24'],
-  ['training', 'training points', 10, 0xFF, 'a lesson costs one, a mastery fifteen'],
+  ['nutrition', 'food', 10, 0xFF, () => {
+    const clk = appImage() ? exeClockRules() : null, full = fullStomach();
+    return [clk && clk.model ? clk.fall.v + ' comes off each time the clock passes ' + exeClockWords(clk.table.v[clk.model.hungerIndex], clk.unitsPerHour.v) : '',
+            full ? 'the ' + full.potion + ' sets it to ' + full.v : ''].filter(Boolean).join('; ');
+  }],
+  ['training', 'training points', 10, 0xFF, () => { const t = trainingRules().points; return t && t.perLessonVal && t.masteryVal ? 'a lesson costs ' + t.perLessonVal.v + ', a mastery ' + t.masteryVal.v : ''; }],
   ['party', 'party byte', 16, 0xFF, '0 before Hector joins and 5 after'],
   ['state', 'state byte', 16, 0xFF, 'C0/D0/80 on the placed; movement and orientation'],
 ];
@@ -15215,8 +15221,9 @@ function toggleCharEdit(index) {
   }
   const rec = loadCharacterTable()[index];
   if (!rec) return;
+  const noteOf = note => { if (typeof note !== 'function') return note || ''; try { return note() || ''; } catch (e) { return ''; } };
   const fld = ([key, label, base, max, note]) =>
-    '<label title="' + svEsc(note || '') + '">' + svEsc(label) + ' ' +
+    '<label title="' + svEsc(noteOf(note)) + '">' + svEsc(label) + ' ' +
     (base === 16 ? '0x' : '') +
     '<input id="ce-' + index + '-' + key + '" value="' +
     (base === 16 ? rec[key].toString(16).toUpperCase().padStart(2, '0') : rec[key]) +
@@ -15224,7 +15231,7 @@ function toggleCharEdit(index) {
   host.innerHTML = SAVE_FIELDS.map(fld).join('') +
     '<button class="sv-chip" onclick="applyCharEditForm(' + index + ')">Apply</button>' +
     (index === 1 ? actionChip('Make them well', 'healCharacterRecord(1)',
-                              'health, magic and a full stomach') : '') +
+                              fullStomach() ? 'health, magic and a full stomach' : 'health and magic') : '') +
     '<div class="inspDim">The 32 bytes as stored: <code>' +
     Array.from(rec.raw).map(b => b.toString(16).padStart(2, '0')).join(' ') +
     '</code><br>Bytes 6–7, 20–26 and 29–31 are not identified and are carried through ' +
@@ -15249,12 +15256,28 @@ function applyCharEditForm(index) {
 }
 
 // Health, magic and a full stomach: the one convenience offered, because it
-// is the three fields anybody opening a save is here to change and each is
-// its own byte with a maximum the record already states.
+// is the three fields anybody opening a save is here to change. Health and
+// magic have a maximum the record states; a full stomach is what the potion
+// that sets nutrition sets it to, read off its script (fullStomach), and
+// left alone when no script says.
 function healCharacterRecord(index) {
   const rec = loadCharacterTable()[index];
   if (!rec) return;
-  applyCharacterRecordEdit(index, { health: rec.healthMax, magic: rec.magicMax, nutrition: 24 });
+  const full = fullStomach();
+  applyCharacterRecordEdit(index, Object.assign({ health: rec.healthMax, magic: rec.magicMax }, full ? { nutrition: full.v } : {}));
+}
+/* What a full stomach is: the value the potion that sets nutrition sets it
+   to (foodRules, off the potion scripts). A saved game carries no scripts,
+   so the scenario's, read when it was opened, is kept and borrowed, the way
+   the character names are. */
+window.SCENARIO_FULL_STOMACH = null;
+function fullStomach() {
+  let found = null;
+  try {
+    for (const p of foodRules().potions) { const e = (p.effects || []).find(x => x.field === 'nutrition'); if (e) { found = { v: e.set, potion: p.name, src: e.src }; break; } }
+  } catch (e) { found = null; }
+  if (found) window.SCENARIO_FULL_STOMACH = found;
+  return found || window.SCENARIO_FULL_STOMACH;
 }
 
 function applyCharacterRecordEdit(index, fields) {
@@ -16421,7 +16444,7 @@ function effectSummary(entry) {
   const at = i => { const o = dvmOpAtLine(entry, i); return o ? { resid: entry.resid, at: o.at } : null; };
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i], next = lines.slice(i + 1, i + 12).join(' ');
-    if (/set_field nutrition/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); if (m) out.push({ text: 'nutrition set to ' + parseInt(m[1]), src: at(i) }); }
+    if (/set_field nutrition/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); if (m) out.push({ text: 'nutrition set to ' + parseInt(m[1]), src: at(i), field: 'nutrition', set: parseInt(m[1]) }); }
     else if (/set_field health/.test(l)) { const m = /byte (0x[0-9A-F]+)[\s\S]*?add[\s\S]*?sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(next); out.push({ text: m ? 'health +' + parseInt(m[1]) + ' plus ' + rollWords([parseInt(m[2]), parseInt(m[3])]) : 'health changed', src: at(i) }); }
     else if (/set_field magic \(/.test(l) && !/full_magic/.test(l)) out.push({ text: 'magic restored', src: at(i) });
     else if (/sys ClearFlag/.test(l)) { const m = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || ''); if (m) out.push({ text: 'clears ' + m[1].trim(), src: at(i) }); }

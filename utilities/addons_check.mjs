@@ -159,6 +159,10 @@ if (shipped) {
 }
 
 // ---- oracle 2: the add-ons --------------------------------------------------
+function hasFiles(dir) {
+  for (const e of readdirSync(dir)) { const p = join(dir, e); const st = statSync(p); if (st.isFile() || (st.isDirectory() && hasFiles(p))) return true; }
+  return false;
+}
 function unpackAddons() {
   if (!existsSync(addonDir)) { console.log(`  (${addonDir} is not here; the add-on half is skipped)`); return []; }
   try { execFileSync('unar', ['-v'], {stdio: 'ignore'}); }
@@ -167,7 +171,13 @@ function unpackAddons() {
   for (const f of readdirSync(addonDir)) {
     if (!/\.(sit|sitx|sea|zip|hqx)$/i.test(f)) continue;
     const out = join(unpackDir, f.replace(/\..*$/, ''));
-    if (existsSync(out)) continue;
+    // An unpacked add-on is kept between runs, but a directory with no file
+    // in it is not one. macOS purges what has sat untouched in $TMPDIR for a
+    // few days and leaves the directories, and on 11 September 2026 every
+    // add-on here was found that way: the check skipped them all as already
+    // unpacked, the saved game was gone from the UI smoke, and every row
+    // still read ok until this looked inside.
+    if (existsSync(out) && hasFiles(out)) continue;
     try { execFileSync('unar', ['-q', '-f', '-o', out, join(addonDir, f)], {stdio: 'ignore'}); }
     catch { /* a member that will not unpack is not this check's business */ }
   }
