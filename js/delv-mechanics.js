@@ -85,22 +85,24 @@ function mechDistPairs(d) { return [...d.entries()].sort((a, b) => a[0] - b[0]);
    headline figures; it is restated here because the simulator plays single
    games and the exact enumeration below has to agree with it throw for
    throw, and because the page's version returns only the totals. */
-/* The shipped script's numbers are the defaults: six faces on each die, a
-   match paying 2, the skill's fix-up on a roll of 0..5 equalling the
-   innkeeper's first. Every one of them is one byte of 0x812 and the page
-   reads them off the script (diceGame), so an edited archive plays here as
-   it would at the inn. `opts.faces` is [innkeeper's first, yours, second];
-   `skillFaces` is the range of the skill's roll; `skillAlways` is the branch
+/* The numbers are the script's and nothing here stands in for them: six
+   faces on each die, a match paying 2 and the skill's roll of 0..5 are each
+   one byte of 0x812, which the page reads (diceGame) and hands over, so an
+   edited archive plays here as it would at the inn. Until 11 September 2026
+   this function supplied the shipped figures when a caller gave none, which
+   is a second copy of the file's bytes that an edited file contradicts
+   without a word; the check passes them explicitly now. `opts.faces` is
+   [innkeeper's first, yours, second]; `skillFaces` is the range of the
+   skill's roll, null where the script has none; `skillAlways` is the branch
    target rewritten so the fix-up runs whatever that roll was. */
 function mechDiceOpts(opts) {
   const o = opts || {};
   const f = o.faces || [];
-  return { gambling: !!o.gambling, fa: f[0] || 6, fb: f[1] || 6, fc: f[2] || 6,
-           matchPay: o.matchPay === undefined ? 2 : o.matchPay,
-           skillFaces: o.skillFaces === undefined ? 6 : o.skillFaces, skillAlways: !!o.skillAlways };
+  return { gambling: !!o.gambling, fa: f[0], fb: f[1], fc: f[2], matchPay: o.matchPay,
+           skillFaces: o.skillFaces === undefined ? null : o.skillFaces, skillAlways: !!o.skillAlways };
 }
 function mechDicePayout(a, b, c, matchPay) {
-  if (a === b) return matchPay === undefined ? 2 : matchPay;
+  if (a === b) return matchPay;
   if (a < c) { if (b < a) return a - b; if (b > c) return b - c; return 0; }
   if (b < c) return c - b;
   if (b > a) return b - a;
@@ -119,7 +121,7 @@ function mechDicePlay(roll, opts) {
   // The script rolls once more and sets your die when that roll equals the
   // innkeeper's first: one chance in six with six faces, and none at all
   // for a face the roll cannot reach.
-  if (o.gambling && a !== thrown && (o.skillAlways || roll(o.skillFaces) === a)) { b = a; helped = true; }
+  if (o.gambling && a !== thrown && (o.skillAlways || (o.skillFaces && roll(o.skillFaces) === a))) { b = a; helped = true; }
   const payout = mechDicePayout(a, b, c, o.matchPay);
   return { a, b, c, thrown, helped, payout, net: mechDiceNet(payout) };
 }
@@ -144,7 +146,7 @@ function mechDiceExact(opts) {
       const plain = mechDiceNet(mechDicePayout(a, b, c, o.matchPay));
       row.push(plain);
       const w = 1 / total;
-      const p = o.skillAlways ? 1 : (a < o.skillFaces ? 1 / o.skillFaces : 0);
+      const p = o.skillAlways ? 1 : (o.skillFaces && a < o.skillFaces ? 1 / o.skillFaces : 0);
       if (o.gambling && a !== b && p > 0) { put(plain, w * (1 - p)); put(mechDiceNet(mechDicePayout(a, a, c, o.matchPay)), w * p); }
       else put(plain, w);
     }
@@ -209,16 +211,21 @@ function mechDiceRun(roll, games, opts) {
    `words` is that list, `[{below, word}, ...]` from `combatRules()`, with
    `last` the name for a blow above the largest threshold. Passing them in
    rather than writing them down keeps the picture a reading of the open
-   archive, like everything else on the sheet. */
-const MECH_BLOW_WORDS = [{ below: 3, word: 'grazed' }, { below: 6, word: 'hit' }, { below: 9, word: 'hit hard' },
-  { below: 12, word: 'very hard' }, { below: 16, word: 'extremely hard' }, { below: 20, word: 'crushed' },
-  { below: 25, word: 'smashed' }, { below: 35, word: 'ground to dust' }];
+   archive, like everything else on the sheet -- and there is no list here
+   to fall back on: the shipped eight and "shredded" were kept in this file
+   as a default until 11 September 2026, a copy of the resolver's strings
+   that an edited archive would have contradicted in silence.
 
+   The script numbers the arithmetic uses come in on `p` too: `p.roll` and
+   `p.rollDefender` are the operands of the attacker's and the defender's
+   `Random(0, n)` in 0xE88, each a roll of 0 to n - 1, and `p.dmgAdd` the
+   constant added to the damage roll in 0xE87, the 1 that makes a hit one to
+   the figure. */
 function mechCombatExact(p, words, last) {
-  const roll = () => mechUniformDist(0, 29);
+  const roll = n => mechUniformDist(0, Math.max(0, n - 1));
   const k = (p.attackerReflex || 0) + (p.weaponSkill || 0) - (p.defenderReflex || 0)
           + (p.attackSkill || 0) - (p.defenceSkill || 0) + (p.enchant || 0);
-  const margin = mechShiftDist(mechConvolve(roll(), mechNegateDist(roll())), k);
+  const margin = mechShiftDist(mechConvolve(roll(p.roll), mechNegateDist(roll(p.rollDefender))), k);
 
   // The shield. A block figure of null is no shield at all, which is not the
   // same as a block of 0: with a shield of 0 the roll is always 0 and only a
@@ -239,10 +246,11 @@ function mechCombatExact(p, words, last) {
   // the skill widening the figure. Whether the skill reaches it at all is a
   // separate question the script does not answer -- see the note beside the
   // combat figure in index.html -- so it is a parameter rather than a fact.
-  const dmgRoll = mechShiftDist(mechUniformDist(1, Math.max(1, (p.damage || 0) + (p.weaponSkill || 0))), (p.enchant || 0));
-  const ws = (words && words.length ? words : MECH_BLOW_WORDS).slice().sort((a, b) => a.below - b.below);
+  // Random(0, D) is 0..D-1, and a D of nothing answers 0.
+  const dmgRoll = mechShiftDist(mechUniformDist(0, Math.max(0, (p.damage || 0) + (p.weaponSkill || 0) - 1)), p.dmgAdd + (p.enchant || 0));
+  const ws = (words || []).slice().sort((a, b) => a.below - b.below);
   const named = ws.map(w => ({ word: w.word, below: w.below, p: 0 }));
-  named.push({ word: last || 'shredded', below: null, p: 0 });
+  named.push({ word: last || '', below: null, p: 0 });
   for (const [v, pv] of dmgRoll) {
     let i = ws.findIndex(w => v < w.below);
     if (i < 0) i = named.length - 1;
@@ -264,11 +272,16 @@ function mechCombatExact(p, words, last) {
    is what makes the curve a staircase, and it is worth drawing because it
    says something no reading of the sentence does -- the chest's parameter of
    15 and a parameter of 20 are the same lock, and a hundred lock-picking
-   difficulties in the archive collapse to a dozen distinct locks. */
-function mechLockThreshold(difficulty) { return 20 + 5 * Math.ceil(Math.max(0, difficulty) / 20); }
-function mechLockChance(reflex, difficulty) {
-  const diff = mechConvolve(mechUniformDist(0, 18), mechNegateDist(mechUniformDist(0, 18)));
-  return mechDistWeight(diff, d => reflex + d >= mechLockThreshold(difficulty));
+   difficulties in the archive collapse to a dozen distinct locks.
+
+   `lk` is the helper's numbers as the page reads them off 0xE43, the same
+   names as there: `pickRoll` and `lockRoll` the two Random operands (19 and
+   19), `base` the 20, `addend` the 19 added to data1, `per` the 20 it is
+   divided by and `step` the 5 it is multiplied by. */
+function mechLockThreshold(difficulty, lk) { return lk.base + lk.step * Math.floor((Math.max(0, difficulty) + lk.addend) / lk.per); }
+function mechLockChance(reflex, difficulty, lk) {
+  const diff = mechConvolve(mechUniformDist(0, Math.max(0, lk.pickRoll - 1)), mechNegateDist(mechUniformDist(0, Math.max(0, lk.lockRoll - 1))));
+  return mechDistWeight(diff, d => reflex + d >= mechLockThreshold(difficulty, lk));
 }
 
 /* ---- casting ------------------------------------------------------------
@@ -292,21 +305,15 @@ function mechCastFailure(casting, level) {
    The level rises when experience passes 100 x 2^(level-1), so the thresholds
    double: 100, 200, 400, 800, and a level costs as much as everything before
    it put together. Experience is capped at 65,535, which the chart's last
-   step runs into -- there is a level nothing in the game can reach. */
-function mechLevelThreshold(level) { return 100 * Math.pow(2, Math.max(1, level) - 1); }
-function mechLevelForExp(exp) { let l = 1; while (exp > mechLevelThreshold(l) && l < 20) l++; return l; }
-function mechExpCap() { return 65535; }
-// Full health: body + reflex/2 + level, plus Defence x 5 x reflex / 15. The
-// divisions are integer, which is why the figure steps rather than slopes.
-function mechFullHealth(p) {
-  const body = p.body || 0, reflex = p.reflex || 0, level = p.level || 1, defence = p.defence || 0;
-  return body + Math.floor(reflex / 2) + level + Math.floor(defence * 5 * reflex / 15);
-}
-// Full magic the same way, with mind for body and Mana for Defence.
-function mechFullMagic(p) {
-  const mind = p.mind || 0, reflex = p.reflex || 0, level = p.level || 1, mana = p.mana || 0;
-  return mind + Math.floor(reflex / 2) + level + Math.floor(mana * 5 * reflex / 15);
-}
+   step runs into -- there is a level nothing in the game can reach. `base`
+   is GainExp's 100 and the cap its 65535, both read by the page off 0xE8B;
+   the cap was a function here returning the number until 11 September 2026. */
+function mechLevelThreshold(level, base) { return base * Math.pow(2, Math.max(1, level) - 1); }
+function mechLevelForExp(exp, base) { let l = 1; while (exp > mechLevelThreshold(l, base) && l < 20) l++; return l; }
+// Full health and full magic were modelled here too, with the helper's 2, 5
+// and 15 written in, and nothing called either; they went on 11 September
+// 2026 with the other copies of script numbers. The sheet reads the formula
+// off 0xE82 (experienceRules in the page).
 
 /* ---- the clock, hunger, healing and a night's sleep ---------------------
    The engine's side, traced out of the executable rather than read from the
@@ -356,7 +363,7 @@ function mechHungerRun(p) {
   const hours = Math.max(0, p.hours || 0);
   const full = p.fullHealth === undefined ? 100 : p.fullHealth;
   const period = mechHealPeriodMinutes(p.level || 1);
-  let nutrition = p.nutrition === undefined ? 100 : p.nutrition;
+  let nutrition = p.nutrition;
   let health = p.health === undefined ? full : p.health;
   const start = health;
   const series = [{ hour: 0, nutrition, health }];
@@ -377,23 +384,25 @@ function mechHungerRun(p) {
    (1 + quality/2), and the player's own bed at quality 4 is three times the
    rate. The five figures a player measured in March 2012 are exactly this;
    utilities/mech_check.mjs requires them, which is the closest thing this
-   rule has to an oracle and is worth more than any amount of re-reading. */
+   rule has to an oracle and is worth more than any amount of re-reading.
+   `div` is the helper's divisor of the quality, the 2 the page reads off
+   0xE93. */
 function mechSleepGain(p) {
-  const run = mechHungerRun({ hours: p.hours || 8, level: p.level || 1, nutrition: p.nutrition,
+  const run = mechHungerRun({ hours: p.hours, level: p.level || 1, nutrition: p.nutrition,
     health: p.health, fullHealth: p.fullHealth, regenerating: p.regenerating, poisoned: p.poisoned });
   const engine = run.gained;
   const quality = p.quality || 0;
-  const bonus = quality ? Math.floor(engine * quality / 2) : 0;
+  const bonus = quality ? Math.floor(engine * quality / p.div) : 0;
   const full = p.fullHealth === undefined ? 100 : p.fullHealth;
   const start = p.health === undefined ? full : p.health;
   const health = Math.min(full, start + engine + bonus);
-  return { engine, bonus, gained: health - start, health, multiplier: quality ? 1 + quality / 2 : 1, died: run.died };
+  return { engine, bonus, gained: health - start, health, multiplier: quality ? 1 + quality / p.div : 1, died: run.died };
 }
 // The healing a bed of this quality gives per hour, which is what the bed
 // table on the sheet is: the engine's rate for the level, plus the ring where
-// it is worn, times the bed's multiplier.
+// it is worn, times the bed's multiplier. `opts.div` as above.
 function mechBedRate(level, quality, opts) {
-  const fed = !opts || opts.fed !== false;
-  const rate = (fed ? mechHealRate(level) : 0) + (opts && opts.regenerating ? mechRegenRate() : 0);
-  return rate * (quality ? 1 + quality / 2 : 1);
+  const fed = opts.fed !== false;
+  const rate = (fed ? mechHealRate(level) : 0) + (opts.regenerating ? mechRegenRate() : 0);
+  return rate * (quality ? 1 + quality / opts.div : 1);
 }

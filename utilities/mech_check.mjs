@@ -73,10 +73,27 @@ function exactly(what, got, want) {
   if (got !== want) fail(what, `${JSON.stringify(got)} is not ${JSON.stringify(want)}`);
 }
 
+// The shipped file's numbers, as the page reads them off the scripts. The
+// model keeps no copy of its own since 11 September 2026 -- it is handed
+// what the open archive says, as on the sheet -- so the check hands it the
+// shipped archive's figures here, and mech_ref.mjs states the same rules
+// with its own constants, written from the prose. The blow words are the
+// reference's names for the thresholds, which is what they are compared by.
+const SHIPPED = {
+  dice: { faces: [6, 6, 6], matchPay: 2, skillFaces: 6 },           // 0x812
+  combat: { roll: 30, rollDefender: 30, dmgAdd: 1 },                   // 0xE88, 0xE87
+  words: [[3, 'grazed'], [6, 'hit'], [9, 'hit hard'], [12, 'very hard'], [16, 'extremely hard'],
+          [20, 'crushed'], [25, 'smashed'], [35, 'ground to dust']].map(([below, word]) => ({ below, word })),
+  last: 'shredded',
+  lock: { pickRoll: 19, lockRoll: 19, base: 20, addend: 19, per: 20, step: 5 },   // 0xE43
+  level: { base: 100, cap: 65535 },                                    // 0xE8B
+  sleep: { div: 2 }                                                    // 0xE93
+};
+
 // ---- 1. the dice game ------------------------------------------------------
 for (const gambling of [false, true]) {
   const label = gambling ? 'dice with Gambling' : 'dice';
-  const x = ctx.mechDiceExact({ gambling });
+  const x = ctx.mechDiceExact(Object.assign({ gambling }, SHIPPED.dice));
   const r = ref.refDice({ gambling }, TRIALS, ref.mulberry32(11));
   near(`${label}: wins`, x.wins, r.wins);
   near(`${label}: pushes`, x.pushes, r.pushes);
@@ -90,11 +107,11 @@ for (const gambling of [false, true]) {
 }
 // The one figure that came from outside: the page's own enumeration, which
 // CLAUDE.md records and the smoke test pins.
-const plain = ctx.mechDiceExact({});
+const plain = ctx.mechDiceExact(SHIPPED.dice);
 exactly('dice: 96 wins of 216', Math.round(plain.wins * 216), 96);
 exactly('dice: 50 pushes of 216', Math.round(plain.pushes * 216), 50);
 exactly('dice: 70 losses of 216', Math.round(plain.losses * 216), 70);
-exactly('dice: 216 cells in the matrix', ctx.mechDiceExact({}).cells.reduce((n, c) => n + c.row.length, 0), 216);
+exactly('dice: 216 cells in the matrix', ctx.mechDiceExact(SHIPPED.dice).cells.reduce((n, c) => n + c.row.length, 0), 216);
 
 // ---- 2. combat -------------------------------------------------------------
 const FIGHTS = [
@@ -105,7 +122,7 @@ const FIGHTS = [
 ];
 let seed = 21;
 for (const f of FIGHTS) {
-  const x = ctx.mechCombatExact(f.p);
+  const x = ctx.mechCombatExact(Object.assign({}, f.p, SHIPPED.combat), SHIPPED.words, SHIPPED.last);
   const r = ref.refCombat(f.p, TRIALS, ref.mulberry32(seed++));
   near(`combat (${f.name}): miss`, x.miss, r.miss);
   near(`combat (${f.name}): parry`, x.parry, r.parry);
@@ -125,7 +142,7 @@ for (const f of FIGHTS) {
 
 // ---- 3. locks --------------------------------------------------------------
 for (const reflex of [10, 20, 30]) for (const difficulty of [0, 10, 15, 40, 60, 255]) {
-  const x = ctx.mechLockChance(reflex, difficulty);
+  const x = ctx.mechLockChance(reflex, difficulty, SHIPPED.lock);
   const r = ref.refLock({ reflex, difficulty }, TRIALS, ref.mulberry32(seed++));
   near(`lock (reflex ${reflex}, difficulty ${difficulty})`, x, r.open);
 }
@@ -133,10 +150,11 @@ for (const reflex of [10, 20, 30]) for (const difficulty of [0, 10, 15, 40, 60, 
 // (data1 + 19) / 20 * 5, so it steps UP at 1 rather than at 20: only a
 // difficulty of nothing is free, and 1 through 20 are one lock. That is the
 // whole point of drawing the curve and is exactly what a rewrite would lose.
-exactly('lock: 1 and 20 are the same lock', ctx.mechLockChance(20, 1), ctx.mechLockChance(20, 20));
-if (!(ctx.mechLockChance(20, 1) < ctx.mechLockChance(20, 0))) fail('lock: a difficulty of 1 already costs five', 'it does not');
+const lock = (r, d) => ctx.mechLockChance(r, d, SHIPPED.lock);
+exactly('lock: 1 and 20 are the same lock', lock(20, 1), lock(20, 20));
+if (!(lock(20, 1) < lock(20, 0))) fail('lock: a difficulty of 1 already costs five', 'it does not');
 compared++;
-if (!(ctx.mechLockChance(20, 21) < ctx.mechLockChance(20, 20))) fail('lock: 21 is harder than 20', 'it is not');
+if (!(lock(20, 21) < lock(20, 20))) fail('lock: 21 is harder than 20', 'it is not');
 compared++;
 
 // ---- 4. casting ------------------------------------------------------------
@@ -166,7 +184,7 @@ for (const run of RUNS) {
 }
 for (const q of [0, 1, 2, 3, 4]) for (const level of [1, 4, 6, 9]) {
   const p = { level, hours: 8, quality: q, nutrition: 100, health: 0, fullHealth: 1000 };
-  exactly(`sleep (quality ${q}, level ${level})`, ctx.mechSleepGain(p).gained, ref.refSleep(p).gained);
+  exactly(`sleep (quality ${q}, level ${level})`, ctx.mechSleepGain(Object.assign({}, p, SHIPPED.sleep)).gained, ref.refSleep(p).gained);
 }
 
 // The March 2012 measurements, health an hour, from Ambrosia's web board.
@@ -180,19 +198,19 @@ const BEDS = [
   ['the Titan’s Head with the ring', { quality: 3, regenerating: true }, 35]
 ];
 for (const [name, opts, want] of BEDS) {
-  const p = Object.assign({ level: 6, hours: 1, nutrition: 100, health: 0, fullHealth: 1000 }, opts);
+  const p = Object.assign({ level: 6, hours: 1, nutrition: 100, health: 0, fullHealth: 1000 }, opts, SHIPPED.sleep);
   exactly(`the 2012 measurement, ${name}`, ctx.mechSleepGain(p).gained, want);
   exactly(`the 2012 measurement as a rate, ${name}`,
-    ctx.mechBedRate(6, p.quality, { fed: p.nutrition !== 0, regenerating: !!p.regenerating }), want);
+    ctx.mechBedRate(6, p.quality, { fed: p.nutrition !== 0, regenerating: !!p.regenerating, div: SHIPPED.sleep.div }), want);
 }
 
 // ---- 6. the arithmetic with no roll in it ----------------------------------
-exactly('levels: the threshold doubles', [1, 2, 3, 4, 5].map(l => ctx.mechLevelThreshold(l)).join(','), '100,200,400,800,1600');
+exactly('levels: the threshold doubles', [1, 2, 3, 4, 5].map(l => ctx.mechLevelThreshold(l, SHIPPED.level.base)).join(','), '100,200,400,800,1600');
 // 100 x 2^10 is 102,400 and experience stops at 65,535, so the eleventh
 // level is the last one the game can reach and the twelfth threshold is
 // unreachable by construction. That is a fact about the rule worth pinning:
 // it is the kind of thing a chart makes obvious and a table never does.
-exactly('levels: the eleventh is the last reachable', ctx.mechLevelThreshold(10) < ctx.mechExpCap() && ctx.mechLevelThreshold(11) > ctx.mechExpCap(), true);
+exactly('levels: the eleventh is the last reachable', ctx.mechLevelThreshold(10, SHIPPED.level.base) < SHIPPED.level.cap && ctx.mechLevelThreshold(11, SHIPPED.level.base) > SHIPPED.level.cap, true);
 exactly('healing: the rate by level', [1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => ctx.mechHealRate(l)).join(','), '1,2,2,3,3,4,4,5,5');
 exactly('healing: the period by level', [1, 2, 4, 6, 8].map(l => ctx.mechHealPeriodMinutes(l)).join(','), '60,30,20,15,12');
 exactly('healing: the reference agrees about the period', [1, 2, 4, 6, 8].map(l => ref.healPeriodMinutes(l)).join(','),

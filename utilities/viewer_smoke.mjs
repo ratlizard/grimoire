@@ -1653,7 +1653,7 @@ try {
   const missing = need.filter(w => !words.has(w));
   if (barks.length < 40 || missing.length) fail('mechanics', `${barks.length} balloon sites; missing ${missing.join(', ') || 'nothing'}`);
   else if (!dice || dice.wins !== 96 || dice.pushes !== 50 || dice.losses !== 70) fail('mechanics', 'the dice enumeration is not 96/50/70: ' + JSON.stringify(dice && [dice.wins, dice.pushes, dice.losses]));
-  else if (!/win 2 oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
+  else if (!/win (?:<button[^>]*>)?2(?:<\/button>)? oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
   else if (!/resists non-magical weapons: [^<]*lich/.test(html)) fail('mechanics', 'the spells section does not name the monsters immune to non-magical damage')
   else if (!/Prop records: type, aspect, Data1 and Data2/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/hand it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
   else if (!/four seconds/.test(html) || !/one off every game hour/.test(html) || !/4096 is one hour/.test(html) || mechSecs < 15) fail('mechanics', `the balloon lifetime or the sections are missing: ${mechSecs} sections`);
@@ -1673,7 +1673,7 @@ try {
   // over the listing, so each is required here, and the two throw figures
   // must come off the spear's own class rather than a typed table.
   else if (!(function () { const ar = ctx.attackRules(); return ar && ar.squared && ar.lessOne && ar.reach && ar.range && ar.launcher && ar.meleeFirst && ar.beyondAdjacent && ar.flies && ar.lodges && ar.drops && ar.bodyRoll && ar.reflexRoll && ar.scale && ar.scale.sub === 12 && ar.scale.div === 4 && ar.ammoSpent; })()) fail('mechanics', 'the attack routine was not read: ' + JSON.stringify(ctx.attackRules()));
-  else if (!/knight’s move/.test(html) || !/hits or is parried/.test(html) || !/body less 12 over 4/.test(html) || !/spends one of its ammunition/.test(html)) fail('mechanics', 'the attack rules are not on the sheet');
+  else if (!/knight’s move/.test(html) || !/hits or is parried/.test(html) || !/body less (?:<button[^>]*>)?12(?:<\/button>)? over (?:<button[^>]*>)?4(?:<\/button>)?/.test(html) || !/spends one of its ammunition/.test(html)) fail('mechanics', 'the attack rules are not on the sheet');
   else if (!ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2 && r.thrownDamage === 10 && r.thrownRange === 4) || !ctx.gearTable().some(r => r.name === 'mystic spear' && r.reach === 1 && r.thrownDamage === 25 && r.thrownRange === 8) || !ctx.gearTable().some(r => r.name === 'sword' && r.thrownDamage === null)) fail('mechanics', 'the throw figures were not read off the spear classes');
   else if (ctx.spellRules().spells.length < 35 || !ctx.spellRules().spells.some(x => /Fireball/.test(x.name) && x.level === 5 && x.cost === 20) || !(ctx.spellRules().rule && ctx.spellRules().rule.failure)) fail('mechanics', 'the spells were not read: ' + ctx.spellRules().spells.length);
   else if ((function () { const fx = ctx.spellEffects(); const sp = ctx.spellRules().spells; const by = n => fx.get((sp.find(x => x.name === n) || {}).resid); const fb = by('Fireball'), ds = by('Death Strike'), lh = by('Lesser Healing'), tr = by('Tremor'); return !(fb && fb.damage[0] && fb.damage[0].amount.base === 25 && fb.damage[0].amount.rolls[0][1] === 10 && fb.damage[0].type === 8 && /target square/.test(fb.damage[0].who)) || !(ds && ds.damage[0].amount.base === 200) || !(lh && lh.heals[0] && /health \+ 5 \+ a roll of 1 to 4/.test(lh.heals[0].text)) || !(tr && tr.damage[0].amount.rolls.length === 2 && tr.damage[0].who === 'every enemy'); })()) fail('mechanics', 'the spell effects were misread: ' + JSON.stringify([...ctx.spellEffects()].slice(0, 3)))
@@ -1705,25 +1705,26 @@ try {
   else if (!/class="mechStack"/.test(html) || !/class="mechBars"/.test(html) || !/class="mechLine"/.test(html)) fail('mechanics', 'a stack, a bar group or a number line is missing');
   // The models agree with the page's own enumeration of the same game. Two
   // implementations of the dice payout, so a change to either shows here.
-  else if (Math.round(ctx.mechDiceExact({}).wins * 216) !== 96 || Math.round(ctx.mechDiceExact({}).losses * 216) !== 70) fail('mechanics', 'the model does not enumerate 96/70: ' + JSON.stringify([ctx.mechDiceExact({}).wins * 216, ctx.mechDiceExact({}).losses * 216]));
-  else if (Math.abs(ctx.mechDiceExact({}).mean - dice.fair) > 1e-9 || Math.abs(ctx.mechDiceExact({ gambling: true }).mean - dice.skilled) > 1e-9) fail('mechanics', `the model and diceGame() disagree about the edge: ${ctx.mechDiceExact({}).mean} vs ${dice.fair}`);
+  // The model is handed what diceGame() read; it has no numbers of its own.
+  else if (Math.round(ctx.mechDiceExact(dice.opts).wins * 216) !== 96 || Math.round(ctx.mechDiceExact(dice.opts).losses * 216) !== 70) fail('mechanics', 'the model does not enumerate 96/70: ' + JSON.stringify([ctx.mechDiceExact(dice.opts).wins * 216, ctx.mechDiceExact(dice.opts).losses * 216]));
+  else if (Math.abs(ctx.mechDiceExact(dice.opts).mean - dice.fair) > 1e-9 || Math.abs(ctx.mechDiceExact(Object.assign({ gambling: true }, dice.opts)).mean - dice.skilled) > 1e-9) fail('mechanics', `the model and diceGame() disagree about the edge: ${ctx.mechDiceExact(dice.opts).mean} vs ${dice.fair}`);
   // The simulator plays the same arithmetic and tallies what it played.
   else if ((function () { ctx.diceSimReset(); ctx.diceSimPlay(500); const t = peek('DICE_SIM').tally; return !(t && t.games === 500 && t.wins + t.pushes + t.losses === 500); })()) fail('mechanics', 'the dice simulator did not play 500 games');
   else if (!/500 games/.test(ctx.diceSimHtml())) fail('mechanics', 'the simulator does not say what it played');
   // The staircase the lock figure exists to show, and which way it rounds:
   // the difficulty term is (data1 + 19) / 20 * 5, so 1 through 20 are one
   // lock and only a difficulty of nothing is free.
-  else if (!(ctx.mechLockChance(20, 1) === ctx.mechLockChance(20, 20) && ctx.mechLockChance(20, 1) < ctx.mechLockChance(20, 0) && ctx.mechLockChance(20, 21) < ctx.mechLockChance(20, 20))) fail('mechanics', 'the lock chance is not a staircase rounding up in steps of twenty');
+  else if ((function () { const lk = ctx.lockRules().rule.lk, c = (r, d) => ctx.mechLockChance(r, d, lk); return !(lk && c(20, 1) === c(20, 20) && c(20, 1) < c(20, 0) && c(20, 21) < c(20, 20)); })()) fail('mechanics', 'the lock chance is not a staircase rounding up in steps of twenty');
   // The five 2012 bed measurements, which the sleep figure is drawn from.
   else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
-    .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true }, o)) !== want)) fail('mechanics', 'the bed rates do not reproduce the 2012 measurements');
+    .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v }, o)) !== want)) fail('mechanics', 'the bed rates do not reproduce the 2012 measurements');
   // The combat figure over the archive's own weapons: the three outcomes
   // must account for every exchange and the blow words for every hit.
   else if ((function () {
-    const p = ctx.combatSimParams(), x = ctx.mechCombatExact({ attackerReflex: 20, defenderReflex: 20, weaponSkill: 8, attackSkill: 4, defenceSkill: 4, enchant: 0, damage: p.weapon.damage, shieldBlock: p.shield ? p.shield.block : null, shieldSkill: 8 });
+    const p = ctx.combatSimParams(), cb = ctx.combatRules(), x = ctx.mechCombatExact({ attackerReflex: 20, defenderReflex: 20, weaponSkill: 8, attackSkill: 4, defenceSkill: 4, enchant: 0, damage: p.weapon.damage, shieldBlock: p.shield ? p.shield.block : null, shieldSkill: 8, roll: cb.roll.v, rollDefender: cb.rollDefender.v, dmgAdd: cb.dmgAdd.v }, cb.words, cb.last.word);
     return !(p.weapon && p.weapon.damage > 0 && Math.abs(x.miss + x.parry + x.hit - 1) < 1e-9 && Math.abs(x.words.reduce((s, w) => s + w.p, 0) - x.hit) < 1e-9);
   })()) fail('mechanics', 'the combat model does not account for every exchange: ' + JSON.stringify(ctx.combatSimParams().weapon));
-  else if (!/lands/.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules().words)) || !/grazed|shredded/.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules().words))) fail('mechanics', 'the combat figure names neither the outcome nor a blow');
+  else if (!/lands/.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules())) || !/grazed|shredded/.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules()))) fail('mechanics', 'the combat figure names neither the outcome nor a blow');
   else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${(html.match(/class="mechFig"/g) || []).length} figures drawn; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);
 } catch (e) { fail('mechanics', e); }
 
@@ -1769,6 +1770,46 @@ try {
     else console.log(`  damage: ${dt.rows.length} classes read off their own TakeDamage; the door rule (${dt.door.destroy.factor.v} times the strength) and the chest rule (${dt.chest.destroy.factor.v}) stated; a figure's link rings its line`);
   }
 } catch (e) { fail('damage', e); }
+
+/* No copy of the file's numbers or names, 11 September 2026. The Mechanics
+   figures are read with the line that holds each and printed as links to
+   it, so a figure typed back into a sentence shows up here as a number
+   with no link; the name tables keep only what the file does not say, so an
+   entry copied back in shows up as one the file matches; and the rule
+   models take the numbers they are handed, so a default restored in
+   js/delv-mechanics.js shows up as a figure where there was no input. */
+try {
+  ctx.showCategory('MECHANICS');
+  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const link = (resid, at) => new RegExp('jumpToScriptAt\\(' + resid + ',' + at + '\\)');
+  const xp = ctx.experienceRules().rule, lk = ctx.lockRules().rule, sh = ctx.shopRules(), cb = ctx.combatRules(), sl = ctx.sleepRules(), tr = ctx.trainingRules().points;
+  const unlinked = [
+    ['the experience cap', xp && xp.cap && link(0xE8B, xp.cap.at)],
+    ['the level base', xp && xp.base && link(0xE8B, xp.base.at)],
+    ['the lock base', lk && lk.numbers && link(0xE43, lk.numbers.base.at)],
+    ['the haggling roll', sh.haggling && link(0xEA5, sh.haggling.at)],
+    ['the attacker’s roll', cb && cb.roll && link(0xE88, cb.roll.at)],
+    ['a blow word threshold', cb && cb.words[0] && link(0xE87, cb.words[0].val.at)],
+    ['the bed divisor', sl && sl.div && link(0xE93, sl.div.at)],
+    ['mastery', tr.masteryVal && link(0xEAF, tr.masteryVal.at)],
+    ['a spell’s cost', (function () { const f = ctx.spellRules().spells.find(x => x.name === 'Fireball'); return f && f.costVal && link(f.resid, f.costVal.at); })()]
+  ].filter(([, re]) => !re || !re.test(html)).map(([what]) => what);
+  // The names that stayed are the ones the file does not give.
+  const names = peek('PROP_TYPE_NAMES'), chars = peek('CYTHERA_CHARACTERS'), zones = peek('ZONES');
+  const tiles = ctx.getPropTileList();
+  const dupProps = Object.keys(names).filter(k => ctx.terrainNameFor(tiles[+k]) === names[k]);
+  ctx.loadDerivedNames();
+  const dupChars = Object.keys(chars).filter(k => ctx.derivedCharacterName(+k - 1) === ctx.prettyLabel(chars[k]));
+  const zn = ctx.loadZoneNames(), ez = ctx.loadEditorZoneNames();
+  const dupZones = Object.keys(zones).filter(k => zn[+k] === zones[k] || ez[+k] === zones[k]);
+  if (unlinked.length) fail('file figures', 'not a link to the line that holds it: ' + unlinked.join(', '));
+  else if (!/Haggling<\/b> skill takes a further roll of 0 to (?:<button[^>]*>)?4(?:<\/button>)? off/.test(html)) fail('file figures', 'the haggling roll is not 0 to 4, one short of its operand of 5');
+  else if (/capped at <b>65,535/.test(html) || /plus a roll of 0 to 29<\/b>/.test(html)) fail('file figures', 'a figure is typed into its sentence rather than read');
+  else if (dupProps.length || dupChars.length || dupZones.length) fail('names', 'built-in names the file already gives: ' + JSON.stringify({ props: dupProps, characters: dupChars, zones: dupZones }));
+  else if (ctx.propTypeName(3) !== 'metal door' || ctx.propTypeName(130) !== 'obols') fail('names', 'propTypeName does not take the file’s name, or lost a kept entry: ' + JSON.stringify([ctx.propTypeName(3), ctx.propTypeName(130)]));
+  else if (ctx.mechDiceOpts({}).matchPay !== undefined || ctx.mechDiceOpts({}).fa !== undefined || peek('typeof MECH_BLOW_WORDS') !== 'undefined' || peek('typeof mechExpCap') !== 'undefined') fail('file figures', 'the rule models still carry the shipped numbers as defaults');
+  else console.log(`  file figures: ${Object.keys(names).length} prop, ${Object.keys(chars).length} character and ${Object.keys(zones).length} zone names kept, none the file's; the sheet's figures are links to their lines; the models have no defaults`);
+} catch (e) { fail('file figures', e); }
 
 /* The Cheats sheet. Its key tables and the preferences record are constants
    read out of the executable, so what is worth checking is that they reach

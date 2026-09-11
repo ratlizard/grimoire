@@ -1749,7 +1749,14 @@ let lastSheetScrollY = 0;
 let currentObjectUrl = null;
 function prettyLabel(s) { return String(s).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2'); }
 
-const CYTHERA_CHARACTERS = {0:"NoCharacter",1:"Hero",2:"Alaric",3:"Magpie",4:"Hadrian",5:"Emesa",6:"Hector",7:"LKHGuard",8:"CademiaGuard",9:"RuinsGuard",10:"Myus",11:"Naxos",12:"Darius",13:"Pelagon",14:"Deiphobus",15:"KoshaGuard",16:"Atreus",17:"Ennomus",18:"Ariethous",19:"Laodice",20:"Thuria",21:"Malis",22:"Cybele",23:"Amphidamas",24:"Eurybates",25:"Rhesus",26:"Lycurgus",27:"Erechtheus",28:"Thamyris",29:"Atymnius",30:"Milcom",31:"Sardis",32:"Ake",33:"Neoptolemus",34:"Meleager",35:"Hebe",36:"Antenor",37:"Alastor",38:"Aeneas",39:"Eioneus",40:"Parium",41:"Crito",42:"Apis",45:"Dares",46:"Diomede",48:"Thetis",49:"Bias",50:"Philinus",51:"Opheltius",52:"Ascalon",53:"Ariadne",54:"OdemiaGuard",55:"Tlepolemus",56:"Eteocles",57:"Laomedon",58:"Ilus",59:"Autonous",60:"Propontis",61:"Mantinea",62:"Halos",63:"CatamarcaGuard",64:"Oeneus",65:"Periphas",66:"Theano",67:"Hypsenor",68:"Thoas",69:"Dymas",70:"Sacas",71:"Metopes",72:"Berossus",73:"Itanos",74:"Timon",75:"Prusa",76:"Bryaxis",77:"Anisa",78:"Pheres",79:"Charax",80:"Lindus",81:"Selinus",82:"Palaestra",83:"Tros",84:"PnyxGuard",85:"Alcestris",86:"Asius",87:"Paris",88:"Helen",89:"Niobe",90:"Larisa",91:"Joppa",92:"Eudoxus",93:"Eumelus",94:"Antiphus",95:"Polydamas",96:"Peirithous",97:"Aethon",98:"Dryas",100:"GateGuard",101:"Thersites",102:"Glaucus",103:"Borus",104:"Briseis",105:"Pelops",106:"Alcmena",107:"Asteropaeus",108:"Stentor",109:"Demodocus",110:"Thrasymedes",111:"Protesilaus",112:"Menelaus",113:"Lycaon",114:"Peleus",115:"Peisander",116:"Danae",117:"Semele",118:"Alcyone",119:"Clytemnestra",120:"Sabinate",121:"Jhiaxus",122:"Unhayt",123:"Seqedher",124:"Uset",125:"Ignae",126:"Omen",127:"UrSylph",189:"WishingFountain",190:"DegreeHallDoor"};
+// Portrait labels behind the names switch, for a file whose 0x0201 names
+// nobody. The table was delvmod's character symbols with the underscores
+// dropped (DVM_SYM.character has them), 126 entries; the 122
+// whose spaced form (prettyLabel) is the name 0x0201 gives went on 11
+// September 2026 with the other copies of the file's words, and entry 0,
+// which no portrait reaches. The three left are the ones the file names
+// otherwise: "UrSylph", "Fountain" and "Door".
+const CYTHERA_CHARACTERS = {127:"UrSylph",189:"WishingFountain",190:"DegreeHallDoor"};
 // Landscape backdrops (subindex 131, 0x84nn). There are only 18 of them and
 // they are a shared pool of backdrop art with their own numbering -- they do
 // NOT run parallel to the 42 maps at any offset. This list previously did not
@@ -1958,23 +1965,21 @@ const RESHINTS = {
   0xF00C:"Zoneports", 0xF010:"Faux Prop Information", 0xF011:"Prop-aspect X offsets",
   0xF012:"Prop-aspect Y offsets", 0xF015:"Persistence Store Symbols"
 };
-// Fallback zone names, used only until loadZoneNames() pulls the game's own
-// strings out of the 0x14xx entry scripts, and behind the editor's own list
-// in the resource fork (loadEditorZoneNames), which is where these came from
-// in the first place. Reconciled against the wiki's
-// subindex 19 listing: 0x8015 is Sewers (not "Under Cademia") and 0x801C is
-// Below Cademia (not "Machaon's Workshop"). The remaining names are the
-// community's descriptive labels for maps the wiki lists only generically
-// ("Ruins", "Ruined City"), which is a difference of vocabulary, not a
-// conflict about which map is which.
-const ZONES = ["Nowhere","World","Odemia","LandKing Hall","Abandoned Farmhouse","Farmhouse Cellar",
-"Catamarca","Under Catamarca","Cademia","UrSylph's Prison","Headwater Ruins","Maayti Ruins","Pnyx",
-"Kosha","Pnyx Upstairs","Iron Mine","Land's End Volcano","Charax's House","North Shore Vineyard",
-"Hall of Truth","Southland Vineyard","Sewers","Goat Farm","Kosha Grotto","Mining camp",
-"Tyrant's Tomb","Scylla Temple","Crab Cove","Below Cademia","Abydos","Under Abydos",
-"Inner Brotherhood","Bandit Camp","Brotherhood Dungeon","Harpy Cave","Eioneus Cave","Tavara Fort",
-"Tavara No Fort","Sitia Bridge","Tree of Life","Omen Test","Harpy Abyss"];
-for (let n=0;n<ZONES.length;n++) { RESHINTS[0x8000+n]=ZONES[n]; RESHINTS[0x8100+n]=ZONES[n]; RESHINTS[0x1400+n]=ZONES[n]; }
+// Zone names behind the names switch, used only where neither the map's own
+// entry script (loadZoneNames) nor the editor's list in the resource fork
+// (loadEditorZoneNames) names it. This was a 42-name list, the community's,
+// reconciled against the wiki's subindex 19 listing; the 24 that are a map's
+// script name or its editor name letter for letter went on 11 September 2026
+// with the other copies of the file's words. The 18 left are the
+// community's own descriptive names, which neither of the file's lists
+// gives: "LandKing Hall" where the script says "Land King Hall" and the
+// editor "LKH", "Mining camp" [sic] against "Mining Camp", and so on. Keyed
+// by map number.
+const ZONES = {0:"Nowhere",3:"LandKing Hall",5:"Farmhouse Cellar",7:"Under Catamarca",9:"UrSylph's Prison",
+11:"Maayti Ruins",16:"Land's End Volcano",17:"Charax's House",18:"North Shore Vineyard",20:"Southland Vineyard",
+22:"Goat Farm",24:"Mining camp",30:"Under Abydos",31:"Inner Brotherhood",32:"Bandit Camp",33:"Brotherhood Dungeon",
+36:"Tavara Fort",37:"Tavara No Fort"};
+for (const k of Object.keys(ZONES)) { const n = +k; RESHINTS[0x8000+n]=ZONES[n]; RESHINTS[0x8100+n]=ZONES[n]; RESHINTS[0x1400+n]=ZONES[n]; }
 // Distinguish a name we read out of the archive from one supplied by our own
 // built-in tables, so a hardcoded guess is never mistaken for game data.
 // Zone names are not a lookup table anywhere -- they are string literals
@@ -2637,13 +2642,13 @@ function spriteBlockSize(proptype) {
 }
 // Prop types that are scenery wearing a character record rather than someone
 // who walks. There is exactly one among Cythera's characters -- Aeneas is
-// proptype 0x04E, which the wiki's prop-type list names "corpse", and his four
-// frames are decay stages, not a walk cycle. This has to be a table because
-// the archive contains NO prop-type names anywhere: 0x0203 is character
-// classes, and nothing else carries them. Content-based detection was tried
-// first and does not work -- a corpse block's frame-to-frame difference (0.45)
-// is indistinguishable from Hector's walk sheet (0.40).
-const STATIC_PROPTYPES = { 0x04E: 'corpse' };
+// proptype 0x04E, which 0xF004 names "corpse" by its base tile, and his four
+// frames are decay stages, not a walk cycle. Which types are scenery has to
+// be a table: content-based detection was tried first and does not work -- a
+// corpse block's frame-to-frame difference (0.45) is indistinguishable from
+// Hector's walk sheet (0.40). The word shown is the file's (propTypeName);
+// the table carried "corpse" as well until 11 September 2026.
+const STATIC_PROPTYPES = new Set([0x04E]);
 
 // The sprite sheet is 4 rows of 4: one row per facing, and within a row three
 // walk frames plus a fourth standing/sitting pose. Row 0 faces north (the only
@@ -2698,8 +2703,8 @@ function spriteFrameInfo(baseTile, proptype) {
   }
   const info = { base, slots: real || slots, present, count: present.length,
                  rows: Math.max(1, Math.floor((real || slots) / 4)),
-                 isStatic: !!STATIC_PROPTYPES[proptype],
-                 staticKind: STATIC_PROPTYPES[proptype] || null,
+                 isStatic: STATIC_PROPTYPES.has(proptype),
+                 staticKind: STATIC_PROPTYPES.has(proptype) ? propTypeName(proptype) : null,
                  complete: present.length === 16,
                  none: !proptype || present.length === 0 };
   spriteCountCache.set(key, info);
@@ -2812,15 +2817,17 @@ function animateSpriteTile(host, info, rec) {
 }
 
 // --- Prop types ------------------------------------------------------------
-// The one thing the archive genuinely does not contain. Every prop type's base
-// tile is in 0xF000 and is read from there; the NAMES below are the wiki's
-// "List of Prop-Tile Associations". Embedding them is justified rather than
-// lazy: I checked the tile column of that same wiki table against 0xF000 and
-// all 1024 entries agree exactly, so the page is a faithful dump of the
-// archive plus hand-identified names. Only the names are taken; the tiles keep
-// coming from the file, so a modded archive still renders correctly and only
-// its labels would go stale.
-const PROP_TYPE_NAMES = {1:"large city",2:"arch",3:"metal door",4:"doorway",5:"mousehole",6:"archway",7:"windowed door",8:"doorway",9:"archway",10:"stone door",11:"oak door",12:"chair",13:"end table",14:"bed",15:"rug",16:"bookshelf",17:"desk",18:"dresser",19:"lit wall torch",20:"mirror",21:"table",22:"tableleg",23:"shadow",24:"table",25:"conjurer's triangle",26:"book",27:"plate",28:"dinner knife",29:"pewter mug",30:"glass",31:"potion",32:"hero",33:"heroine",34:"king",35:"fool",36:"passthrough",37:"glowing crystal",38:"unlit torch",39:"portcullis",40:"adobe arch",41:"throne",42:"ladder",43:"trapdoor",44:"noblewoman",45:"nobleman",46:"guard",47:"ruffian",48:"man",49:"woman",50:"beggar",51:"secret door",52:"table",53:"secret passage",54:"fountain",55:"pool",56:"wooden door",57:"stove",58:"stone doorway",59:"pillar",60:"flowers",61:"rubble",62:"hole",63:"waterfall",64:"stalagmites",65:"ruins",66:"key",67:"crate",68:"stirrup jar",69:"flatbread",70:"limestone wall",71:"tight passage",72:"stairs",73:"wall shelf",74:"glowing crystal",75:"scroll",76:"grimoire",77:"blood",78:"corpse",79:"child",80:"mage",81:"magess",82:"man",83:"woman",84:"gator",85:"seldane",86:"seldane",87:"seldane",88:"asp",89:"bird",90:"goat",91:"crab",92:"ratlizard",93:"wolflizard",94:"mace",95:"dagger",96:"club",97:"axe",98:"sword",99:"sword",100:"spear",101:"magic arrow",102:"arrow",103:"bow",104:"sling stone",105:"sling",106:"cuirass",107:"metal breast plate",108:"buckler",109:"light shield",110:"round shield",111:"full shield",112:"leather helmet",113:"helmet",114:"full helmet",115:"ooze",116:"fighter",117:"hunter",118:"well",119:"well",120:"pail",121:"pail of water",122:"pail of milk",123:"bellows",124:"firepit",125:"tongs",126:"anvil",127:"water trough",128:"wood",129:"blacksmith hammer",130:"obols",131:"steps",132:"butter",133:"meat",134:"paper",135:"inkwell",136:"cloak",137:"sandals",138:"boots",139:"sack",140:"pouch",141:"chest",142:"coffer",143:"lamp",144:"candle",145:"fishing pole",146:"seaweed",147:"wheelbarrow",148:"loom",149:"spinning wheel",150:"thread",151:"cloth",152:"lute",153:"panpipes",154:"lyre",155:"scythe",156:"rake",157:"pitchfork",158:"shovel",159:"hoe",160:"pitcher",161:"pan",162:"bale of flax",163:"rolling pin",164:"basket",165:"laddle",166:"bag of flour",167:"flour",168:"dough",169:"dough",170:"spatula",171:"cleaver",172:"churn",173:"bowl",174:"bowl",175:"vat",176:"palette",177:"ruins",178:"altar",179:"standing stone",180:"campfire",181:"tombstone",182:"grave",183:"cobwebs",184:"pedestal",185:"trellis",186:"pole",187:"lever",188:"sundial",189:"spit",190:"mushrooms",191:"mineshaft",192:"cave",193:"bell",194:"flag",195:"sign",196:"sign",197:"poster",198:"fence",199:"haystack",200:"rock",201:"boulder",202:"rockpile",203:"statue",204:"titan",205:"tentacle",206:"sea monster",207:"land jellyfish",208:"giant slug",209:"sleeping seldane",210:"corpse",211:"workman",212:"farmlands",213:"mushroom steak",214:"fishing net",215:"lobster trap",216:"urn",217:"urn",218:"urn",219:"urn",220:"chair",221:"post",222:"bell stand",223:"liquid",224:"grafitti",225:"unicorn",226:"candlestand",227:"chair",228:"chicken",229:"guard",230:"spikes",231:"flatbread",232:"half disk",233:"distiller",234:"distiller",235:"distiller",236:"seedpod",237:"sulfur",238:"obsidian",239:"bean",240:"spider web",241:"peppermint",242:"ruby",243:"diamond",244:"[LandKing](LandKing) Amulet",245:"Rune of Warding",246:"Rune of Flame",247:"Rune of Pain",248:"Rune of Blocking",249:"curtain",250:"steps",251:"floor",252:"floor",253:"secret passage",254:"fireplace",255:"force wall",256:"black disk",257:"floor",258:"limestone wall",259:"ground",260:"button",261:"tome",262:"Strange Device",263:"button",264:"person sleeping",265:"lockpick",266:"sewer",267:"shore",268:"pipe",269:"loose dirt",270:"piece of kelp",271:"eartheart mushroom",272:"button",273:"map",274:"miner's pick",275:"crossbeams",276:"metal door",277:"polyp",278:"hydra",279:"polyp",280:"fresco",281:"sword",282:"bones",283:"corpse",284:"tunic",285:"cape",286:"small city",287:"skeleton",288:"undead",289:"ghost",290:"firespirit",291:"harpy",292:"sylph",293:"ghost",294:"golem",295:"demon",296:"firespirit",297:"lich",298:"liquid",299:"rubble",300:"rubble",301:"egg",302:"ruined floor",303:"crack",304:"ivy",305:"scratch",306:"cattails",307:"ring",308:"brick wall",309:"gator boots",310:"strange staff",311:"hourglass",312:"open shutters",313:"open drapes",314:"gavel",315:"hand mirror",316:"mortar and pestle",317:"archery target",318:"decorative axe",319:"brazier",320:"lamp post",321:"crystal ball",322:"bomb",323:"footprints",324:"mounted head",325:"sword dummy",326:"broken sword",327:"scale",328:"dice",329:"bridge",330:"crack",331:"rope",332:"rock outcropping",333:"easel",334:"palette",335:"paintbrush",336:"moss",337:"water pool",338:"rope bridge",339:"fur cloak",340:"belt",341:"gauntlets",342:"boards",343:"staff",344:"painting",345:"ancient tree",346:"sign holder",347:"incense burner",348:"gecko",349:"crab",350:"rock",351:"wall hanging",352:"poison trap",353:"blast trap",354:"loose board",355:"small hole",356:"wall",357:"fine wire",358:"tree",359:"tree",360:"shrub",361:"mountains",362:"mountains",363:"mountains",364:"snowcaps",365:"snowcaps",366:"snowcaps",367:"crops",368:"portal",369:"floor",370:"crenellation",371:"floor",372:"strange rod",373:"strange device",374:"mystic helmet",375:"mystic armor",376:"mystic spear",377:"pattern",378:"map",379:"slime",380:"vines",381:"cavern",382:"cavern",383:"bust",384:"rock",385:"pillar",386:"beam",387:"debris",388:"fence",389:"post",390:"plaque",391:"odd helmet",392:"stepping stone",393:"fumerole",394:"unguent",395:"loose rock"};
+// Every prop type's base tile is in 0xF000 and its name is 0xF004's name for
+// that tile. This table was the wiki's "List of Prop-Tile Associations", 395
+// names, embedded when the archive was thought to carry none; 393 of them are
+// the file's own name for the prop type's base tile, letter for letter, and
+// were removed on 11 September 2026, since a copy of the file's words is a
+// thing an edited archive contradicts without a sign. The two left are the
+// two the file does not say: "obols", where 0xF004 has "obol", and the wiki
+// scrape's "[LandKing](LandKing) Amulet" [sic], where it has "LandKing
+// Amulet". The file names no prop type the table did not, so taking the
+// file's name first changed no classification (propTypeName).
+const PROP_TYPE_NAMES = {130:"obols",244:"[LandKing](LandKing) Amulet"};
 
 // Which prop types are inhabited: any type used by a record in the character
 // table is somebody rather than something. Read from 0xF009, not guessed from
@@ -2836,7 +2843,20 @@ function livingPropTypes() {
   return (window.LIVING_PROPTYPES = set);
 }
 
-function propTypeName(pt) { return PROP_TYPE_NAMES[pt] || null; }
+// A prop type's name for deciding what it is: the two entries above where
+// they differ from the file, the file's name for its base tile otherwise.
+// isWallProp, classifyProp, the lockable and exit tests and the container
+// pictures all key off this, so it answers without the names switch.
+let _propFileNames = { src: null, byPt: new Map() };
+function propTypeName(pt) {
+  if (PROP_TYPE_NAMES[pt]) return PROP_TYPE_NAMES[pt];
+  try {
+    const src = loadTerrainNames();
+    if (_propFileNames.src !== src) _propFileNames = { src, byPt: new Map() };
+    if (!_propFileNames.byPt.has(pt)) { const b = getPropTileList()[pt]; _propFileNames.byPt.set(pt, (b && terrainNameFor(b)) || null); }
+    return _propFileNames.byPt.get(pt);
+  } catch (e) { return null; }
+}
 
 /* ---------------------------------------------------------------------------
    Names this tool supplies
@@ -2856,7 +2876,7 @@ function propTypeName(pt) { return PROP_TYPE_NAMES[pt] || null; }
    the same act as showing that name to a reader.
 --------------------------------------------------------------------------- */
 function propTypeNameShown(pt) {
-  return window.SHOW_BUILTIN_LABELS ? propTypeName(pt) : null;
+  return window.SHOW_BUILTIN_LABELS ? PROP_TYPE_NAMES[pt] || null : null;
 }
 // Every prop type's shown name, for the search: the tile's own name from
 // 0xF004 first, the built-in list only behind the switch.
@@ -2883,7 +2903,7 @@ function propNameHTML(pt, base) {
   if (own) return '<span class="lblText dataname">' + svEsc(own) + '</span>';
   const wiki = propTypeNameShown(pt);
   if (wiki) return '<span class="lblText">' + svEsc(wiki) + '</span>' + WIKI_TAG;
-  const hidden = propTypeName(pt);
+  const hidden = PROP_TYPE_NAMES[pt] || null;
   return '<span class="lblText" style="color:#8c8980">unnamed</span>' +
     (hidden ? '<span class="nameOffTag" title="The wiki calls this \u201c' + svEsc(hidden) +
       '\u201d. Switch tool-supplied names on under \u201cSettings\u201d to show it.">name hidden</span>' : '');
@@ -3634,8 +3654,17 @@ function propWordRules() {
     readers.push({ pt: e.resid - 0x1000, resid: e.resid, ops: [...ops].sort() });
     const t = strip(e.text);
     if (/sys ChangeZone[\s\S]{0,80}get_field data3 \(0x8\)/.test(t)) zoneReaders.push(e.resid - 0x1000);
-    const m = /get_field data1 \(0x6\)\s+byte 0x02\s+gt[\s\S]{0,40}string\(implicit\) "([^"]+)"[\s\S]{0,80}string\(implicit\) "([^"]+)"/.exec(t);
-    if (m) examines.push({ pt: e.resid - 0x1000, above2: m[1].replace(/\\n$/, ''), above0: m[2].replace(/\\n$/, '') });
+    const m = /get_field data1 \(0x6\)\s+byte (0x[0-9A-F]+)\s+gt[\s\S]{0,40}string\(implicit\) "([^"]+)"[\s\S]{0,80}string\(implicit\) "([^"]+)"/.exec(t);
+    if (m) {
+      // The two tests the lines hang on, `data1 > n` nearest before the
+      // first line and the one before that, with their lines.
+      const eo = dvmOpsOf(e), hiText = m[2].replace(/\\n$/, '');
+      const si = eo.findIndex(o => dvmOpString(o) === hiText);
+      const ts = [];
+      for (let j = si - 1; si > 0 && j >= 0 && ts.length < 2; j--) { const g = dvmSeq(eo, j, [/^get_field data1/, DVM_NUM, /^gt$/]); if (g) ts.push(g); }
+      examines.push({ pt: e.resid - 0x1000, above2: hiText, above0: m[3].replace(/\\n$/, ''),
+                      hiVal: ts[0] ? dvmVal(e.resid, ts[0][1]) : null, loVal: ts[1] ? dvmVal(e.resid, ts[1][1]) : null });
+    }
   }
   // Every placed record whose Data1 the resolver would add -- a class with
   // both members, not an egg, not deleted -- and the ammunition carrying a
@@ -3659,7 +3688,13 @@ function propWordRules() {
       else if (ammoCls.has(r.proptype)) ammo.push({ resid, index: r.index, pt: r.proptype, d1: r.d1 });
     }
   }
-  return (window.PROP_WORD_RULES = { ench, readers, examines, zoneReaders, scripts, placed, ammo, melee });
+  // The Examine that reports Data1 is the weapons': the shape (two nested
+  // tests of Data1, a line each) also turns up on classes whose Data1 is
+  // something else, the amulet's charge and the unguent's fill, and the
+  // sentence it feeds is about the enchantment. It was told apart by the
+  // number in the inner test, `byte 0x02`, until 11 September 2026.
+  const weaponExamines = examines.filter(x => melee.has(x.pt) && x.hiVal && x.loVal);
+  return (window.PROP_WORD_RULES = { ench, readers, examines: weaponExamines, zoneReaders, scripts, placed, ammo, melee });
 }
 // The ops of one reader in words: "reads Data1, Data3, writes Data1".
 function propWordOps(ops) {
@@ -3856,7 +3891,7 @@ function propWordRender() {
     const reader = rules.readers.find(r => r.pt === pt), ex = rules.examines.find(e => e.pt === pt);
     if (rules.melee.has(pt) && rules.ench && rules.ench.guarded && rules.ench.added) {
       m = 'Data1 is the enchantment: ' + svLink('the outcome routine', 'jumpToResource(0xE87)', '0xE87') + ' reads it off the weapon and adds it to the damage of every blow' + (rules.ench.magic ? ', and a blow with any enchantment counts as magical' : '') + '.';
-      if (ex) m += st.d1 > 2 ? ' Examine says “' + svEsc(ex.above2) + '”' : st.d1 > 0 ? ' Examine says “' + svEsc(ex.above0) + '”' : ' Examine reports it once it is above 0.';
+      if (ex && ex.hiVal && ex.loVal) m += st.d1 > ex.hiVal.v ? ' Examine says “' + svEsc(ex.above2) + '”' : st.d1 > ex.loVal.v ? ' Examine says “' + svEsc(ex.above0) + '”' : ' Examine reports it once it is above ' + srcNum(ex.loVal) + '.';
       if (reader) m += ' The class script also ' + propWordOps(reader.ops) + '.';
     } else if (reader) m = 'The class script ' + propWordOps(reader.ops) + (reader.ops.some(o => /data3/.test(o)) ? ' (Data3 is both bytes as one value)' : '') + '. What they mean is this class’s own.';
     else m = 'No script on this class reads either byte.';
@@ -4315,7 +4350,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.49.0';
+const GRIMOIRE_VERSION = '1.50.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -15177,65 +15212,71 @@ function buildBarkCatalogue() {
    The figures come from mechDiceExact over the numbers read, so an edited
    archive's sheet says what that archive pays. */
 function diceGame() {
-  const e = buildScriptTextIndex().find(x => x.resid === 0x812);
+  const R = 0x812;
+  const e = dvmScriptEntry(R);
   if (!e || !/three dice/.test(e.text)) return null;
   const m = /string\(implicit\) ("\\"It's very simple[^\n]*)/.exec(e.text);
   let explain = '';
   try { explain = m ? JSON.parse(m[1]) : ''; } catch (err) { explain = ''; }
-  const ls = e.text.split('\n');
-  const at = l => parseInt((/^\s*([0-9A-F]{4})/.exec(l || '') || [])[1], 16);
-  const operand = /byte (0x[0-9A-F]+)$/i;
-  // Every Random(0, n) in the script, with the offset of the n byte.
-  const rolls = [];
-  for (let i = 0; i < ls.length; i++) {
-    if (!/sys Random$/.test(ls[i])) continue;
-    const hi = operand.exec(ls[i + 2] || '');
-    if (/byte 0x00$/i.test(ls[i + 1] || '') && hi) rolls.push({ line: i, at: at(ls[i + 2]) + 1, n: parseInt(hi[1]) });
-  }
-  const g = ls.findIndex((l, i) => /sys GetSkill$/.test(l) && /short 0x00CF$/i.test(ls[i + 2] || ''));
-  const before = rolls.filter(r => g < 0 || r.line < g).slice(-3);
-  const after = g < 0 ? null : rolls.find(r => r.line > g);
+  const ops = dvmOpsOf(e);
+  const hex4 = n => '0x' + n.toString(16).toUpperCase().padStart(4, '0');
+  // Every Random(0, n) in the script, with the op that holds the n. A
+  // byte's operand is the byte after its opcode, which is what Edit Bytes
+  // writes at; the link goes to the instruction.
+  const rolls = dvmSeqAll(ops, [/^sys Random$/, /^byte 0x00$/, DVM_NUM]).map(g => ({ i: ops.indexOf(g[0]), val: dvmVal(R, g[2]) }));
+  // The Gambling question is GetSkill of skill 0xCF.
+  const g = ops.findIndex((o, i) => o.text === 'sys GetSkill' && ops[i + 2] && /^short 0x00CF$/i.test(ops[i + 2].text));
+  const before = rolls.filter(r => g < 0 || r.i < g).slice(-3);
+  const after = g < 0 ? null : rolls.find(r => r.i > g) || null;
   if (before.length < 3) return null;
-  const faces = before.map(r => r.n);
+  const faces = before.map(r => r.val.v);
+  const byte = (what, val) => ({ what, at: val.at + 1, now: val.v, val });
   const bytes = [
-    { what: 'faces on the innkeeper’s first die', at: before[0].at, now: before[0].n },
-    { what: 'faces on your die', at: before[1].at, now: before[1].n },
-    { what: 'faces on the innkeeper’s second die', at: before[2].at, now: before[2].n }
+    byte('faces on the innkeeper’s first die', before[0].val),
+    byte('faces on your die', before[1].val),
+    byte('faces on the innkeeper’s second die', before[2].val)
   ];
   // The branch that needs the skill: `then -> T` after GetSkill's `end`.
   // T equal to the next instruction's offset means no skill is needed.
-  let skillFree = false, skillAlways = false, skillFaces = after ? after.n : 6;
+  let skillFree = false, skillAlways = false;
+  const branch = (from, span) => {
+    for (let k = from; k < Math.min(ops.length - 1, from + span); k++) {
+      const t = /^then -> (0x[0-9A-F]+)$/.exec(ops[k].text);
+      if (t) return { k, target: parseInt(t[1]) };
+    }
+    return null;
+  };
   if (g >= 0) {
-    const t = ls.slice(g, g + 6).findIndex(l => /then -> 0x/.test(l));
-    if (t >= 0) {
-      const line = g + t, target = parseInt(/then -> (0x[0-9A-F]+)/.exec(ls[line])[1]);
-      skillFree = target === at(ls[line + 1]);
-      bytes.push({ what: 'the test for the Gambling skill', at: at(ls[line]) + 1, now: '0x' + target.toString(16).toUpperCase().padStart(4, '0'), target: true, next: at(ls[line + 1]) });
+    const b = branch(g, 6);
+    if (b) {
+      skillFree = b.target === ops[b.k + 1].at;
+      bytes.push({ what: 'the test for the Gambling skill', at: ops[b.k].at + 1, now: hex4(b.target), target: true, next: ops[b.k + 1].at, val: { v: b.target, resid: R, at: ops[b.k].at } });
     }
   }
   if (after) {
-    bytes.push({ what: 'faces on the skill’s own roll', at: after.at, now: after.n });
+    bytes.push(byte('faces on the skill’s own roll', after.val));
     // `if_not (Random == Var03) then -> T`, then `set_local 0x04`: T equal
     // to the set_local's offset means the fix-up runs whatever was rolled.
-    const t = ls.slice(after.line, after.line + 8).findIndex(l => /then -> 0x/.test(l));
-    if (t >= 0) {
-      const line = after.line + t, target = parseInt(/then -> (0x[0-9A-F]+)/.exec(ls[line])[1]);
-      const set = ls.slice(line + 1, line + 3).find(l => /set_local 0x04$/.test(l));
-      skillAlways = !!set && target === at(set);
-      bytes.push({ what: 'the test that the skill’s roll matched', at: at(ls[line]) + 1, now: '0x' + target.toString(16).toUpperCase().padStart(4, '0'), target: true, next: set ? at(set) : null });
+    const b = branch(after.i, 8);
+    if (b) {
+      const set = ops.slice(b.k + 1, b.k + 3).find(o => o.text === 'set_local 0x04');
+      skillAlways = !!set && b.target === set.at;
+      bytes.push({ what: 'the test that the skill’s roll matched', at: ops[b.k].at + 1, now: hex4(b.target), target: true, next: set ? set.at : null, val: { v: b.target, resid: R, at: ops[b.k].at } });
     }
   }
-  let matchPay = 2;
-  const mi = ls.findIndex(l => /You've got a match/.test(l));
-  if (mi >= 0) {
-    const si = ls.slice(mi, mi + 4).findIndex(l => /set_local 0x06$/.test(l));
-    const pm = si >= 0 ? operand.exec(ls[mi + si + 1] || '') : null;
-    if (pm) { matchPay = parseInt(pm[1]); bytes.push({ what: 'what a match pays', at: at(ls[mi + si + 1]) + 1, now: matchPay }); }
-  }
-  const opts = { faces, matchPay, skillFaces, skillAlways };
+  // What a match pays: the number set into local 6 after the line that
+  // announces it. No figure is supplied when it is not found; the game is
+  // not modelled from a guess.
+  const mi = ops.findIndex(o => /You've got a match/.test(o.text));
+  const pay = mi < 0 ? null : dvmSeqFirst(ops.slice(mi, mi + 6), [/^set_local 0x06$/, DVM_NUM]);
+  if (!pay) return null;
+  const matchPay = dvmVal(R, pay[1]);
+  bytes.push(byte('what a match pays', matchPay));
+  const opts = { faces, matchPay: matchPay.v, skillFaces: after ? after.val.v : null, skillAlways };
   const plain = mechDiceExact(opts), skilled = mechDiceExact(Object.assign({ gambling: true }, opts));
   const total = plain.total;
-  return { explain, faces, matchPay, skillFaces, skillAlways, skillFree, total, bytes, opts,
+  return { explain, faces, matchPay: matchPay.v, skillFaces: opts.skillFaces, skillAlways, skillFree, total, bytes, opts,
+           vals: { faces: before.map(r => r.val), matchPay, skillFaces: after ? after.val : null },
            fair: plain.mean, skilled: skilled.mean,
            wins: Math.round(plain.wins * total), pushes: Math.round(plain.pushes * total), losses: Math.round(plain.losses * total) };
 }
@@ -15520,14 +15561,14 @@ function renderSpellsSheet() {
   const fx = spellEffects();
   const st = statusRules();
   const applies = new Map();
-  for (const [nm, arr] of st.applies) for (const a of arr) (applies.get(a.resid) || applies.set(a.resid, []).get(a.resid)).push(nm + (a.duration !== null ? ' for ' + a.duration : ''));
+  for (const [nm, arr] of st.applies) for (const a of arr) (applies.get(a.resid) || applies.set(a.resid, []).get(a.resid)).push(svEsc(nm) + (a.duration !== null ? ' for ' + srcNum(a.durationVal, a.duration) : ''));
   const spells = sp.spells.map(x => Object.assign({}, x, { description: dvmDescriptionOf(x.resid), fx: fx.get(x.resid), status: applies.get(x.resid) || [] }))
     .sort((a, b) => a.level - b.level || a.cost - b.cost || a.name.localeCompare(b.name));
   const shown = spells.filter(x => !q || x.name.toLowerCase().includes(q) || x.description.toLowerCase().includes(q));
   const box = document.createElement('div');
   box.className = 'mechView';
   const intro = document.createElement('p'); intro.className = 'mechLede';
-  intro.innerHTML = spells.length + ' spells, each cast through one helper with a level and a cost in magic points. A cast costs 10 plus twice the level in time and fails when two rolls of 0 to the caster’s Casting fall short of a roll of 0 to the level ' + mechLink('spells', 'Mechanics › spells') + '.';
+  intro.innerHTML = spells.length + ' spells, each cast through one helper with a level and a cost in magic points. A cast ' + (sp.rule && sp.rule.timing ? 'costs ' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level in time and ' : '') + 'fails when two rolls of 0 to the caster’s Casting fall short of a roll of 0 to the level ' + mechLink('spells', 'Mechanics › spells') + '.';
   box.appendChild(intro);
   let level = null, count = 0;
   for (const x of shown) {
@@ -15535,15 +15576,15 @@ function renderSpellsSheet() {
     count++;
     const sec = foldCard('spell-' + x.resid.toString(16), 'skillCard', !!q);
     const head = document.createElement('summary'); head.className = 'mechHead';
-    head.innerHTML = skillIconHTML(x.resid, 'spells') + '<h3>' + svEsc(x.name) + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + x.level + '</b> level</span><span class="mechStat"><b>' + x.cost + '</b> magic</span></span><span class="mechFrom">' + partChip('the script', x.resid) + '</span>';
+    head.innerHTML = skillIconHTML(x.resid, 'spells') + '<h3>' + svEsc(x.name) + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + srcNum(x.levelVal) + '</b> level</span><span class="mechStat"><b>' + srcNum(x.costVal) + '</b> magic</span></span><span class="mechFrom">' + partChip('the script', x.resid) + '</span>';
     sec.appendChild(head);
     if (x.description) { const p = document.createElement('p'); p.className = 'mechLede'; p.innerHTML = svEsc(x.description); sec.appendChild(p); }
     const rows = [];
     if (x.fx) {
-      for (const d of x.fx.damage) rows.push(['Damage', '<b>' + (amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.who]);
-      for (const h of x.fx.heals) rows.push(['Heals', '<b>' + svEsc(h.text) + '</b>']);
+      for (const d of x.fx.damage) rows.push(['Damage', '<b>' + srcNum({ resid: x.resid, at: d.at }, amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.who]);
+      for (const h of x.fx.heals) rows.push(['Heals', '<b>' + srcNum({ resid: x.resid, at: h.at }, h.text) + '</b>']);
     }
-    if (x.status.length) rows.push(['Applies', x.status.map(svEsc).join(', ') + ' <span class="inspDim">(clock units; 4096 is an hour)</span>']);
+    if (x.status.length) rows.push(['Applies', x.status.join(', ') + ' <span class="inspDim">(clock units; 4096 is an hour)</span>']);
     if (!rows.length) rows.push(['Does', '<span class="inspDim">something other than health: the light, a lock, a rune, the map, or a look</span>']);
     const d = document.createElement('div'); d.className = 'mechBody';
     d.innerHTML = '<table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
@@ -15600,6 +15641,8 @@ function gearTable() {
     const cls = parseItemClass(pt);
     if (!cls) continue;
     const f = k => { const e = cls.data.find(x => x.key === k); return e ? e.words.map(w => (w & 0xF0000000) ? null : (w & 0x0FFFFFFF)) : null; };
+    // Where each entry sits in the class script, for the table's links.
+    const at = k => { const e = cls.data.find(x => x.key === k); return e ? { resid: cls.resid, at: e.off } : null; };
     const melee = f(0x2A), thrown = f(0x2B), armour = f(0x2C), ammo = f(0x2D), ranged = f(0x2E), shield = f(0x2F);
     if (!(melee || thrown || armour || ammo || ranged || shield)) continue;
     const skillName = id => (id !== null && id !== undefined && refExists(0x1A00 + id) && selfNameFor(0x1A00 + id)) || (id !== null && id !== undefined ? 'skill ' + id : '');
@@ -15611,7 +15654,10 @@ function gearTable() {
       type: melee ? melee[2] : ammo ? ammo[2] : null,
       skill: melee ? skillName(melee[3]) : shield ? skillName(shield[1]) : '',
       ammoClass: ranged ? ranged[0] : ammo ? ammo[0] : null,
-      block: shield ? shield[0] : null, protection: armour ? armour[0] : null });
+      block: shield ? shield[0] : null, protection: armour ? armour[0] : null,
+      src: { weight: at(0x24), damage: melee ? at(0x2A) : thrown ? at(0x2B) : ammo ? at(0x2D) : null, thrown: at(0x2B),
+             reach: melee ? at(0x2A) : thrown ? at(0x2B) : ranged ? at(0x2E) : null, type: melee ? at(0x2A) : ammo ? at(0x2D) : null,
+             ammoClass: ranged ? at(0x2E) : ammo ? at(0x2D) : null, block: at(0x2F), protection: at(0x2C) } });
   }
   return rows;
 }
@@ -15661,20 +15707,20 @@ function karmaRules() {
         const a = lines[i + 1] || '', b = lines[i + 2] || '', c = lines[i + 3] || '';
         if (/global Karma/.test(a) && /\b(add|sub)\b/.test(c)) {
           const n = val(b);
-          if (n !== null) writes.push({ resid: e.resid, change: (/sub/.test(c) ? -n : n), note: near(i + 4) });
+          if (n !== null) writes.push({ resid: e.resid, change: (/sub/.test(c) ? -n : n), val: dvmValAtLine(e, i + 2), note: near(i + 4) });
           else if (/local|index/.test(b) || /index/.test(c)) writes.push({ resid: e.resid, change: null, note: near(i + 4), why: 'by an amount the script works out' });
-        } else if (val(a) !== null && !/global Karma/.test(a)) writes.push({ resid: e.resid, set: val(a), note: near(i + 2) });
+        } else if (val(a) !== null && !/global Karma/.test(a)) writes.push({ resid: e.resid, set: val(a), val: dvmValAtLine(e, i + 1), note: near(i + 2) });
       } else if (/call_resource 0xF1[12]\b/.test(l)) {
         const n = val(lines[i + 1]); const down = /0xF11/.test(l);
-        writes.push({ resid: e.resid, change: n === null ? null : (down ? -n : n), note: near(i + 2), why: n === null ? (down ? 'down by an amount the script works out' : 'up by an amount the script works out') : '' });
+        writes.push({ resid: e.resid, change: n === null ? null : (down ? -n : n), val: n === null ? null : dvmValAtLine(e, i + 1), note: near(i + 2), why: n === null ? (down ? 'down by an amount the script works out' : 'up by an amount the script works out') : '' });
       } else if (/global Karma/.test(l) && !/set_global/.test(l) && /(lt|gt|le|ge|eq)\b/.test(lines[i + 2] || '')) {
         const n = val(lines[i + 1]);
-        if (n !== null) reads.push({ resid: e.resid, test: (/lt|le/.test(lines[i + 2]) ? 'below ' : 'above ') + n, note: near(i + 3) });
+        if (n !== null) reads.push({ resid: e.resid, test: (/lt|le/.test(lines[i + 2]) ? 'below ' : 'above ') + n, below: /lt|le/.test(lines[i + 2]), n, val: dvmValAtLine(e, i + 1), note: near(i + 3) });
       }
     }
   }
   // The kill table: 0xE8D's data block, indexed by the victim's alignment.
-  let byAlignment = null;
+  let byAlignment = null, byAlignmentSrc = null;
   try {
     const raw = getResourceBytes(0xE8D);
     const d = raw ? smartDecrypt(raw, 0xE8D).data : null;
@@ -15682,11 +15728,12 @@ function karmaRules() {
       if (d[i] === 0x45 && d[i + 3] === 0x90 && d[i + 4] >= 2 && d[i + 4] <= 8 && u16be(d, i + 1) === 2 + d[i + 4] * 4) {
         byAlignment = [];
         for (let k = 0; k < d[i + 4]; k++) { let w = u32be(d, i + 5 + k * 4) & 0x0FFFFFFF; if (w & 0x08000000) w -= 0x10000000; byAlignment.push(w); }
+        byAlignmentSrc = { resid: 0xE8D, at: i };   // the data block's own line
         break;
       }
     }
   } catch (e) { byAlignment = null; }
-  return { writes, reads, byAlignment };
+  return { writes, reads, byAlignment, byAlignmentSrc };
 }
 
 /* EXPERIENCE AND LEVELS. One helper, GainExp (0xE8B), takes every award:
@@ -15701,8 +15748,26 @@ function karmaRules() {
    The fixed awards are every GainExp with a constant. */
 function experienceRules() {
   const idx = buildScriptTextIndex();
-  const gain = idx.find(e => e.resid === 0xE8B);
-  const rule = gain ? { cap: /word 65535/.test(gain.text), doubling: /left_shift[\s\S]{0,40}byte 0x64[\s\S]{0,20}mul/.test(gain.text) } : null;
+  const gain = dvmScriptEntry(0xE8B);
+  let rule = null;
+  if (gain) {
+    const go = dvmOpsOf(gain);
+    // exp + award < cap, and exp > (1 << (level - less)) * base.
+    const cap = dvmSeqFirst(go, [/^add$/, DVM_NUM, /^lt$/]);
+    const dbl = dvmSeqFirst(go, [DVM_NUM, /^arg Arg00$/, /^get_field level/, DVM_NUM, /^sub$/, /^left_shift$/, DVM_NUM, /^mul$/]);
+    // Full health off 0xE82: body + reflex / a + level + skill x b x reflex / c.
+    const fh = dvmScriptEntry(0xE82) ? dvmOpsOf(dvmScriptEntry(0xE82)) : [];
+    const half = dvmSeqFirst(fh, [/^get_field reflex/, DVM_NUM, /^div$/]);
+    const def = dvmSeqFirst(fh, [/^local Var\w+$/, DVM_NUM, /^mul$/, /^arg Arg00$/, /^get_field reflex/, /^mul$/, DVM_NUM, /^div$/]);
+    // What a blow earns, off the damage helper 0xEB8: the level gap plus
+    // this, and this for a blow past the gap the other way.
+    const eb = dvmScriptEntry(0xEB8) ? dvmOpsOf(dvmScriptEntry(0xEB8)) : [];
+    const gap = dvmSeqFirst(eb, [/^get_field level/, /^local Var\w+$/, /^get_field level/, /^sub$/, DVM_NUM, /^add$/]);
+    const past = dvmSeqAll(eb, [/^call_resource GainExp\b/, /^local Var\w+$/, DVM_NUM, /^end$/])[0] || null;
+    rule = { cap: cap ? dvmVal(0xE8B, cap[1]) : null, doubling: !!dbl, base: dbl ? dvmVal(0xE8B, dbl[6]) : null, less: dbl ? dvmVal(0xE8B, dbl[3]) : null,
+             healthReflexDiv: half ? dvmVal(0xE82, half[1]) : null, healthMul: def ? dvmVal(0xE82, def[1]) : null, healthDiv: def ? dvmVal(0xE82, def[6]) : null,
+             gapAdd: gap ? dvmVal(0xEB8, gap[4]) : null, pastGap: past ? dvmVal(0xEB8, past[2]) : null };
+  }
   const awards = [];
   for (const e of idx) {
     const lines = e.text.split('\n');
@@ -15713,7 +15778,7 @@ function experienceRules() {
       let note = '';
       for (let j = i - 1; j >= Math.max(0, i - 8) && !note; j--) { const t = /string(?:\(implicit\))? "(.{3,90}?)(?:\\n)?"/.exec(lines[j]); if (t) note = t[1].replace(/\\"/g, '"').replace(/\*/g, ' ').trim(); }
       for (let j = i + 3; j < Math.min(lines.length, i + 10) && !note; j++) { const t = /string(?:\(implicit\))? "(.{3,90}?)(?:\\n)?"/.exec(lines[j]); if (t) note = t[1].replace(/\\"/g, '"').replace(/\*/g, ' ').trim(); }
-      awards.push({ resid: e.resid, amount: parseInt(m[2]), note });
+      awards.push({ resid: e.resid, amount: parseInt(m[2]), note, val: dvmValAtLine(e, i + 2) });
     }
   }
   return { rule, awards };
@@ -15725,24 +15790,30 @@ function experienceRules() {
    clears or applies. A food's Use method adds to nutrition: a constant,
    or for the general foodstuff class a value per variant from a data
    block, the variant being named by its tile. */
-function effectSummary(text) {
+// `entry` is a script's index entry. Each thing done carries the offset of
+// the instruction that does it, so the table can link it (`effects`);
+// `does` is the same words as plain strings.
+function effectSummary(entry) {
+  const text = entry.text, ops = dvmOpsOf(entry);
   const out = [];
   const lines = text.split('\n').map(l => l.replace(/^\s*[0-9A-F]{4}\s+/, ''));   // offsets off, so runs of ops match
+  const at = i => { const o = dvmOpAtLine(entry, i); return o ? { resid: entry.resid, at: o.at } : null; };
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i], next = lines.slice(i + 1, i + 12).join(' ');
-    if (/set_field nutrition/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); if (m) out.push('nutrition set to ' + parseInt(m[1])); }
-    else if (/set_field health/.test(l)) { const m = /byte (0x[0-9A-F]+)[\s\S]*?add[\s\S]*?sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(next); out.push(m ? 'health +' + parseInt(m[1]) + ' plus ' + rollWords([parseInt(m[2]), parseInt(m[3])]) : 'health changed'); }
-    else if (/set_field magic \(/.test(l) && !/full_magic/.test(l)) out.push('magic restored');
-    else if (/sys ClearFlag/.test(l)) { const m = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || ''); if (m) out.push('clears ' + m[1].trim()); }
+    if (/set_field nutrition/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); if (m) out.push({ text: 'nutrition set to ' + parseInt(m[1]), src: at(i) }); }
+    else if (/set_field health/.test(l)) { const m = /byte (0x[0-9A-F]+)[\s\S]*?add[\s\S]*?sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(next); out.push({ text: m ? 'health +' + parseInt(m[1]) + ' plus ' + rollWords([parseInt(m[2]), parseInt(m[3])]) : 'health changed', src: at(i) }); }
+    else if (/set_field magic \(/.test(l) && !/full_magic/.test(l)) out.push({ text: 'magic restored', src: at(i) });
+    else if (/sys ClearFlag/.test(l)) { const m = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || ''); if (m) out.push({ text: 'clears ' + m[1].trim(), src: at(i) }); }
     else if (/sys StatusEffect/.test(l)) {
       const m = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || '');
       const c = /byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)\s+sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(lines.slice(i + 3, i + 9).join(' '));
-      out.push((m ? m[1].trim() : 'a status') + (c ? ' for ' + parseInt(c[1]) + ' plus ' + parseInt(c[2]) + ' times ' + rollWords([parseInt(c[3]), parseInt(c[4])]) : ''));
+      out.push({ text: (m ? m[1].trim() : 'a status') + (c ? ' for ' + parseInt(c[1]) + ' plus ' + parseInt(c[2]) + ' times ' + rollWords([parseInt(c[3]), parseInt(c[4])]) : ''), src: at(i) });
     }
-    else if (/sys SpecialView/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); out.push('a special view' + (m ? ' (' + parseInt(m[1]) + ')' : '')); }
+    else if (/sys SpecialView/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); out.push({ text: 'a special view' + (m ? ' (' + parseInt(m[1]) + ')' : ''), src: at(i) }); }
   }
   const said = /string\(implicit\) "([^"\\]{3,80})/.exec(text);
-  return { does: [...new Set(out)], says: said ? said[1] : '' };
+  const effects = out.filter((x, i) => out.findIndex(y => y.text === x.text) === i);
+  return { does: effects.map(x => x.text), effects, says: said ? said[1] : '' };
 }
 function foodRules() {
   const idx = buildScriptTextIndex();
@@ -15752,7 +15823,7 @@ function foodRules() {
   for (let n = 0; n < 8; n++) {
     const fx = idx.find(e => e.resid === 0xA00 + n);
     if (!fx) continue;
-    potions.push(Object.assign({ resid: 0xA00 + n, name: names[n] || ('potion ' + n) }, effectSummary(fx.text)));
+    potions.push(Object.assign({ resid: 0xA00 + n, name: names[n] || ('potion ' + n) }, effectSummary(fx)));
   }
   // Foods: every item class whose code sets nutrition.
   const foods = [];
@@ -15765,15 +15836,23 @@ function foodRules() {
     const i = lines.findIndex(l => /set_field nutrition/.test(l));
     const after = lines.slice(i, i + 14).join(' ');
     const flat = /byte (0x[0-9A-F]+)\s+add/i.exec(after);
-    if (flat && !/index/.test(after)) { foods.push({ pt, name, plus: parseInt(flat[1]) }); continue; }
+    if (flat && !/index/.test(after)) {
+      // The number's own line: the first constant then `add` after the write.
+      const fo = dvmOpsOf(e), wi = fo.findIndex(o => /^set_field nutrition/.test(o.text));
+      const g = wi < 0 ? null : dvmSeqFirst(fo.slice(wi, wi + 14), [DVM_NUM, /^add$/]);
+      foods.push({ pt, name, plus: parseInt(flat[1]), val: g ? dvmVal(e.resid, g[0]) : null });
+      continue;
+    }
     if (/index[\s\S]*?byte (0x[0-9A-F]+)\s+mul/i.test(after)) {
       // A value per variant, from the data block: 0x45, length, 0x90, count, then 4-byte words.
       const mul = parseInt(/index[\s\S]*?byte (0x[0-9A-F]+)\s+mul/i.exec(after)[1]);
-      let table = null;
+      let table = null, tableSrc = null;
       try {
         const raw = getResourceBytes(e.resid); const d = smartDecrypt(raw, e.resid).data;
         for (let k = 0; k + 5 < d.length; k++) if (d[k] === 0x45 && d[k + 3] === 0x90 && u16be(d, k + 1) === 2 + d[k + 4] * 4) {
-          table = []; for (let q = 0; q < d[k + 4]; q++) table.push(u32be(d, k + 5 + q * 4) & 0x0FFFFFFF); break;
+          table = []; for (let q = 0; q < d[k + 4]; q++) table.push(u32be(d, k + 5 + q * 4) & 0x0FFFFFFF);
+          tableSrc = { resid: e.resid, at: k };   // the data block's line
+          break;
         }
       } catch (err) { table = null; }
       const base = tiles[pt];
@@ -15798,7 +15877,7 @@ function foodRules() {
           } catch (err) { saysPer = null; }
         } else if (c) says = c[1];
       }
-      const variants = table ? table.map((v, a) => ({ aspect: a, name: base !== undefined ? (terrainNameFor(base + a) || '') : '', plus: v * mul, says: saysPer ? (saysPer[a] || '') : says })) : [];
+      const variants = table ? table.map((v, a) => ({ aspect: a, name: base !== undefined ? (terrainNameFor(base + a) || '') : '', plus: v * mul, src: tableSrc, says: saysPer ? (saysPer[a] || '') : says })) : [];
       foods.push({ pt, name, variants, mul, says, saysPer: !!saysPer });
       continue;
     }
@@ -15825,7 +15904,8 @@ function statusRules() {
         // A duration with a roll in it is reported as computed, not as its base.
         const dur = d && !/sys Random/.test(lines.slice(i + 4, i + 9).join(' ')) ? parseInt(d[1]) : null;
         if (!applies.has(nm)) applies.set(nm, []);
-        applies.get(nm).push({ resid: e.resid, duration: dur });
+        applies.get(nm).push({ resid: e.resid, duration: dur, durationVal: dur !== null ? dvmValAtLine(e, i + 3) : null,
+                               at: (dvmOpAtLine(e, i) || {}).at });
       } else if (/sys ClearFlag/.test(l)) {
         const f = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || '');
         if (!f) continue;
@@ -15873,10 +15953,26 @@ function dvmOpsOf(entry) {
     if (h) { base = parseInt(h[1], 16); continue; }
     const m = /^  ([0-9A-F]{4})  ((?:    )*)(\S+)(?: (.*))?$/.exec(lines[li]);
     if (!m) continue;
+    // The disassembler's annotations (`byte 0x09  // flag: poison`) are kept
+    // apart, so an operand with one still reads as a number. A quoted
+    // string cannot hold one: the `//` would be inside the quotes.
+    const whole = m[3] + (m[4] !== undefined ? ' ' + m[4] : '');
+    const c = /^string/.test(m[3]) ? null : /^(.*?)\s+\/\/\s*(.*)$/.exec(whole);
     ops.push({ at: base + parseInt(m[1], 16), obj: base, line: li, depth: m[2].length / 4,
-               mn: m[3], text: m[3] + (m[4] !== undefined ? ' ' + m[4] : '') });
+               mn: m[3], text: c ? c[1] : whole, note: c ? c[2] : '' });
   }
   return (entry.ops = ops);
+}
+// The instruction on line `li` of a listing, for a reader that walks the
+// text by line: its number with where it was read, or null.
+function dvmOpAtLine(entry, li) {
+  if (!entry) return null;
+  if (!entry.opByLine) entry.opByLine = new Map(dvmOpsOf(entry).map(o => [o.line, o]));
+  return entry.opByLine.get(li) || null;
+}
+function dvmValAtLine(entry, li) {
+  const op = dvmOpAtLine(entry, li);
+  return op ? dvmVal(entry.resid, op) : null;
 }
 // A constant operand as a number, or null (`word True` is not one).
 const DVM_NUM = /^(?:byte|short|word) (?:-?0x[0-9A-F]+|-?\d+)$/i;
@@ -16175,6 +16271,18 @@ function dvmCallData(d, off, ops, k, before) {
   }
   return out;
 }
+// The same, each block with the offset of its `data` instruction in the
+// resource, for a table that links a value to where it was read.
+function dvmCallDataAt(d, off, ops, k, before) {
+  const out = [];
+  const one = j => ({ value: dvmDataValue(d, off + ops[j][0] + 3), at: off + ops[j][0] });
+  if (before) { for (let j = Math.max(0, k - 60); j < k; j++) if (ops[j][2] === 'data') out.push(one(j)); }
+  else for (let j = k + 1; j < Math.min(ops.length, k + 14); j++) {
+    if (ops[j][2] === 'end' && ops[j][1] <= ops[k][1]) break;
+    if (ops[j][2] === 'data') out.push(one(j));
+  }
+  return out;
+}
 // Every call of `resid` in every script, with the caller and the ops around it.
 function dvmCallSites(target) {
   const out = [];
@@ -16214,14 +16322,20 @@ function lockRules() {
   const idx = buildScriptTextIndex();
   const pick = idx.find(e => e.resid === 0xE43);
   const item = idx.find(e => e.resid === 0x1109);
+  // reflex + Random(0, pickRoll) >= base + Random(0, lockRoll) + (data1 + addend) / per * step
+  const f = pick ? dvmSeqFirst(dvmOpsOf(pick), [/^local Var\w+$/, /^sys Random$/, /^byte 0x00$/, DVM_NUM, /^end$/, /^add$/, DVM_NUM, /^sys Random$/, /^byte 0x00$/, DVM_NUM, /^end$/, /^add$/,
+    /^arg Arg\d+$/, /^get_field data1/, DVM_NUM, /^add$/, DVM_NUM, /^div$/, DVM_NUM, /^mul$/, /^add$/, /^lt$/]) : null;
+  const v = k => dvmVal(0xE43, f[k]);
+  const numbers = f ? { pickRoll: v(3), base: v(6), lockRoll: v(9), addend: v(14), per: v(16), step: v(18) } : null;
   const rule = pick ? { breaks: /The lockpick broke/.test(pick.text), keyFits: /The key doesn't fit/.test(pick.text),
-    formula: /get_field reflex/.test(pick.text) && /get_field data1 \(0x6\)[\s\S]{0,120}byte 0x14[\s\S]{0,60}div[\s\S]{0,60}byte 0x05[\s\S]{0,40}mul/.test(pick.text) } : null;
+    formula: !!(f && /get_field reflex/.test(pick.text)), numbers,
+    lk: numbers ? { pickRoll: numbers.pickRoll.v, base: numbers.base.v, lockRoll: numbers.lockRoll.v, addend: numbers.addend.v, per: numbers.per.v, step: numbers.step.v } : null } : null;
   const needsSkill = !!(item && /GetSkill[\s\S]{0,140}short 0x00D5/.test(item.text));
   const classes = [];
   for (let pt = 1; pt < 512; pt++) {
     const cls = parseItemClass(pt); if (!cls) continue;
     const f = cls.data.find(x => x.key === 0x34);
-    if (f) classes.push({ pt, name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)), words: f.words.map(w => w & 0x0FFFFFFF) });
+    if (f) classes.push({ pt, name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)), words: f.words.map(w => w & 0x0FFFFFFF), src: { resid: cls.resid, at: f.off } });
   }
   return { rule, needsSkill, classes };
 }
@@ -16237,14 +16351,18 @@ function shopRules() {
   for (const site of dvmCallSites(0xEA5)) {
     const { resid, subn, data, off, ops, k } = site;
     const title = ops[k + 1] && ops[k + 1][2] === 'string' ? (() => { try { return JSON.parse(ops[k + 1][3]); } catch (e) { return ''; } })() : '';
-    const blocks = dvmCallData(data, off, ops, k, false);
-    const goods = (blocks.find(b => Array.isArray(b) && b.length && Array.isArray(b[0])) || []).filter(g => Array.isArray(g) && g.length >= 3)
-      .map(g => ({ word: g[0], name: String(g[1]), price: g[2], count: g[3] }));
-    const terms = blocks.find(b => Array.isArray(b) && b.length === 4 && b.every(x => typeof x === 'number')) || null;
-    if (goods.length) shops.push({ resid, who: subn === 23 ? resid & 0xFF : null, title, goods, terms });
+    const blocks = dvmCallDataAt(data, off, ops, k, false);
+    const gb = blocks.find(b => Array.isArray(b.value) && b.value.length && Array.isArray(b.value[0]));
+    const goods = (gb ? gb.value : []).filter(g => Array.isArray(g) && g.length >= 3)
+      .map(g => ({ word: g[0], name: String(g[1]), price: g[2], count: g[3], src: { resid, at: gb.at } }));
+    const tb = blocks.find(b => Array.isArray(b.value) && b.value.length === 4 && b.value.every(x => typeof x === 'number')) || null;
+    if (goods.length) shops.push({ resid, who: subn === 23 ? resid & 0xFF : null, title, goods, terms: tb ? tb.value : null, termsSrc: tb ? { resid, at: tb.at } : null });
   }
-  const helper = buildScriptTextIndex().find(e => e.resid === 0xEA5);
-  const haggling = !!(helper && /GetSkill[\s\S]{0,80}short 0x00CC[\s\S]{0,120}sys Random\s+[0-9A-F]*\s*byte 0x00\s+[0-9A-F]*\s*byte 0x05/.test(helper.text));
+  // Haggling: after GetSkill of skill 0xCC, a Random(0, n) taken off the figure.
+  const ho = dvmOpsOf(dvmScriptEntry(0xEA5));
+  const hi = ho.findIndex(o => /^short 0x00CC$/i.test(o.text));
+  const hg = hi < 0 ? null : dvmSeqFirst(ho.slice(hi, hi + 12), [/^sys Random$/, /^byte 0x00$/, DVM_NUM]);
+  const haggling = hg ? dvmVal(0xEA5, hg[2]) : null;
   return { shops, haggling };
 }
 
@@ -16272,13 +16390,18 @@ function trainingRules() {
       for (const e of b) if (Array.isArray(e) && e.length === 2 && typeof e[1] === 'number' && e[1] >= 0xC0 && e[1] <= 0xD6) t.skills.set(e[1], mastery || t.skills.get(e[1]) || false);
     }
   }
-  const idx = buildScriptTextIndex();
-  const lvl = idx.find(e => e.resid === 0xE86), hero = idx.find(e => e.resid === 0x1801), lesson = idx.find(e => e.resid === 0xEAF);
+  // The points, each off its own line: gained with a level (0xE86, n less
+  // the difficulty level), given at creation (the hero's script), taken by a
+  // lesson and the aspect that is mastery (0xEAF).
+  const at = (resid, pat, k) => { const g = dvmSeqIn(resid, pat); return g ? dvmVal(resid, g[k]) : null; };
+  const perLevel = at(0xE86, [/^get_field training/, DVM_NUM, /^global DifficultyLevel/, /^sub$/], 1);
+  const atStartVal = at(0x1801, [/^set_field training/, /^arg Arg00$/, /^end$/, DVM_NUM], 3);
+  const perLessonVal = at(0xEAF, [/^get_field training/, DVM_NUM, /^sub$/], 1);
+  const masteryVal = at(0xEAF, [/^get_field aspect/, DVM_NUM, /^eq$/], 1);
   const points = {
-    perLevel: lvl && /set_field training[\s\S]{0,200}byte 0x06[\s\S]{0,80}DifficultyLevel[\s\S]{0,60}sub/.test(lvl.text) ? '6 less the difficulty level' : null,
-    atStart: hero && /set_field training[\s\S]{0,120}byte 0x04/.test(hero.text) ? 4 : null,
-    perLesson: lesson && /set_field training[\s\S]{0,200}byte 0x01[\s\S]{0,60}sub/.test(lesson.text) ? 1 : null,
-    mastery: lesson && /byte 0x0F/.test(lesson.text) ? 15 : null
+    perLevel, atStart: atStartVal ? atStartVal.v : null, atStartVal,
+    perLesson: perLessonVal ? perLessonVal.v : null, perLessonVal,
+    mastery: masteryVal ? masteryVal.v : null, masteryVal
   };
   return { teachers: [...byTeacher.values()], points };
 }
@@ -16297,15 +16420,41 @@ function trainingRules() {
    crushed, smashed, ground to dust or shredded by thresholds of 3, 6, 9,
    12, 16, 20, 25 and 35; ResistDamage takes the type; experience follows. */
 function combatRules() {
-  const idx = buildScriptTextIndex();
-  const melee = idx.find(e => e.resid === 0xE88), missile = idx.find(e => e.resid === 0xE89), resolve = idx.find(e => e.resid === 0xE87);
+  const melee = dvmScriptEntry(0xE88), missile = dvmScriptEntry(0xE89), resolve = dvmScriptEntry(0xE87);
   if (!melee || !missile || !resolve) return null;
-  const d30 = /sys Random[\s\S]{0,40}byte 0x00[\s\S]{0,40}byte 0x1E/.test(melee.text) && /byte 0x1E/.test(missile.text);
+  const mo = dvmOpsOf(melee), so = dvmOpsOf(missile), ro = dvmOpsOf(resolve);
+  // Each side's roll, attacker's first: `Random(0, n)` in the blow's margin.
+  const rolls = (ops, r) => dvmSeqAll(ops, [/^sys Random$/, /^byte 0x00$/, DVM_NUM, /^end$/]).map(g => dvmVal(r, g[2]));
+  const mr = rolls(mo, 0xE88), sr = rolls(so, 0xE89);
+  const roll = mr[0] || null, rollDefender = mr[1] || null;
   const barehand = /short 0x00C7/.test(melee.text), missileSkill = /short 0x00C8/.test(missile.text);
   const parry = /parries/.test(resolve.text) && /class_member 0x2F00/.test(resolve.text) && /class_member 0x2F01/.test(resolve.text);
-  const words = [...resolve.text.matchAll(/byte 0x([0-9A-F]{2})\s+[0-9A-F]*\s*lt[\s\S]{0,80}?string "([a-z]+)"(?:[\s\S]{0,80}?string " ([a-z ]+)")?/g)]
-    .map(m => ({ below: parseInt(m[1], 16), word: m[2] + (m[3] ? ' ' + m[3] : '') }));
-  return { d30, barehand, missileSkill, parry, words };
+  // The damage: Random(0, the figure) plus this, then the enchantment.
+  const add = dvmSeqFirst(ro, [/^sys Random$/, /^byte 0x00$/, /^arg Arg04$/, /^end$/, DVM_NUM, /^add$/]);
+  // The blow words: `if (roll < n) word = "..."`, with the suffix a second
+  // local takes where there is one (" hard", " to dust"), then the word for
+  // everything past the last threshold.
+  const words = [];
+  let lastIdx = -1;
+  for (const g of dvmSeqAll(ro, [/^if_not$/, /^local Var\w+$/, DVM_NUM, /^lt$/, /^then /, /^set_local /, /^string /, /^end$/])) {
+    const w = dvmOpString(g[6]);
+    if (w === null || !/^[a-z]/.test(w)) continue;
+    const i = ro.indexOf(g[7]);
+    const suf = dvmSeq(ro, i + 1, [/^set_local /, /^string /, /^end$/]);
+    words.push({ below: dvmNum(g[2]), word: w + (suf ? dvmOpString(suf[1]) || '' : ''), val: dvmVal(0xE87, g[2]) });
+    lastIdx = suf ? i + 3 : i;
+  }
+  let last = null;
+  if (lastIdx >= 0) {
+    const g = dvmSeqFirst(ro, [/^branch /, /^set_local /, /^string /, /^end$/], lastIdx + 1);
+    if (g) {
+      const i = ro.indexOf(g[3]);
+      const suf = dvmSeq(ro, i + 1, [/^set_local /, /^string /, /^end$/]);
+      last = { word: dvmOpString(g[2]) + (suf ? dvmOpString(suf[1]) || '' : ''), resid: 0xE87, at: g[2].at };
+    }
+  }
+  return { d30: !!(roll && rollDefender && sr.length >= 2), roll, rollDefender, missileRolls: sr.slice(0, 2),
+           barehand, missileSkill, parry, dmgAdd: add ? dvmVal(0xE87, add[4]) : null, words, last };
 }
 
 /* THE ATTACK ITSELF. Before a blow or a missile is resolved, one routine
@@ -16345,10 +16494,13 @@ function attackRules() {
   const drops = /set_field flags \(0x0\)\s+local Var03\s+end\s+byte 0x01\s+end\s+set_field x \(0x1\)/.test(a);
   const bodyRoll = /call_resource 0xE88[\s\S]{0,160}class_member 0x2A00\s+sys Random\s+byte 0x00\s+call_resource 0xE90\s+arg Arg00\s+get_field body/.test(a);
   const reflexRoll = /class_member 0x2B00\s+sys Random\s+byte 0x00\s+call_resource 0xE90\s+arg Arg00\s+get_field reflex/.test(a);
-  const scm = /byte (0x[0-9A-F]+|\d+)\s+sub\s+byte (0x[0-9A-F]+|\d+)\s+div/i.exec(sc);
+  // (stat - n) / m, with the two numbers' lines.
+  const scm = sc ? dvmSeqIn(0xE90, [DVM_NUM, /^sub$/, DVM_NUM, /^div$/]) : null;
+  const one = dvmSeqIn(0x3042, [/^set_local 0x02$/, /^local Var02$/, DVM_NUM, /^sub$/]);
   const ammoSpent = /set_field quantity \(0x9\)[\s\S]{0,60}byte 0x01[\s\S]{0,500}sys Delete/.test(a);
   return { squared, lessOne, reach, range, launcher, meleeFirst, beyondAdjacent, flies, lodges, drops, bodyRoll, reflexRoll,
-    scale: scm ? { sub: parseInt(scm[1]), div: parseInt(scm[2]) } : null, ammoSpent };
+    scale: scm ? { sub: dvmNum(scm[0]), div: dvmNum(scm[2]), subVal: dvmVal(0xE90, scm[0]), divVal: dvmVal(0xE90, scm[2]) } : null,
+    lessOneVal: one ? dvmVal(0x3042, one[2]) : null, ammoSpent };
 }
 
 /* SPELLS. Every spell script casts through one helper, CastSpell (0xEA1),
@@ -16362,16 +16514,22 @@ function attackRules() {
    it does -- is a rule; that is the spell's own script. */
 function spellRules() {
   const idx = buildScriptTextIndex();
-  const helper = idx.find(e => e.resid === 0xEA1);
+  const helper = dvmScriptEntry(0xEA1);
+  // The time a cast takes: timing + (base + mult x level).
+  const tg = helper ? dvmSeqFirst(dvmOpsOf(helper), [/^get_field timing/, DVM_NUM, DVM_NUM, /^arg Arg01$/, /^mul$/, /^add$/]) : null;
   const rule = helper ? { power: /requires more power/.test(helper.text), failure: /You failed to cast/.test(helper.text),
-    timing: /byte 0x0A\s+[0-9A-F]*\s*byte 0x02[\s\S]{0,60}mul[\s\S]{0,20}add/.test(helper.text), casting: /short 0x00C3/.test((idx.find(e => e.resid === 0xE85) || { text: '' }).text) } : null;
+    timing: !!tg, timeBase: tg ? dvmVal(0xEA1, tg[1]) : null, timeMult: tg ? dvmVal(0xEA1, tg[2]) : null,
+    casting: /short 0x00C3/.test((dvmScriptEntry(0xE85) || { text: '' }).text) } : null;
   const spells = [];
   for (const e of idx.filter(e => e.subn === 25)) {
-    const lines = e.text.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      if (!/call_resource CastSpell\b/.test(lines[i])) continue;
-      const a = /byte (0x[0-9A-F]+)/i.exec(lines[i + 3] || ''), b = /byte (0x[0-9A-F]+)/i.exec(lines[i + 4] || '');
-      if (a && b) { spells.push({ resid: e.resid, name: selfNameFor(e.resid) || labelFor(e.resid) || ('0x' + e.resid.toString(16)), level: parseInt(a[1]), cost: parseInt(b[1]) }); break; }
+    const ops = dvmOpsOf(e);
+    for (let i = 0; i < ops.length; i++) {
+      if (!/^call_resource CastSpell\b/.test(ops[i].text)) continue;
+      const a = ops[i + 3], b = ops[i + 4];
+      if (!(a && b && /^byte /.test(a.text) && /^byte /.test(b.text))) continue;
+      spells.push({ resid: e.resid, name: selfNameFor(e.resid) || labelFor(e.resid) || ('0x' + e.resid.toString(16)),
+                    level: dvmNum(a), cost: dvmNum(b), levelVal: dvmVal(e.resid, a), costVal: dvmVal(e.resid, b) });
+      break;
     }
   }
   spells.sort((x, y) => x.level - y.level || x.cost - y.cost || x.name.localeCompare(y.name));
@@ -16384,10 +16542,19 @@ function spellRules() {
 function hungerNotes() {
   const idx = buildScriptTextIndex();
   const falls = idx.some(e => /set_field nutrition[\s\S]{0,120}sub/.test(e.text));
-  const idle = idx.find(e => e.resid === 0x3020);
-  const complains = idle ? (/get_field nutrition[\s\S]{0,30}byte 0x04[\s\S]{0,20}lt/.exec(idle.text) ? 4 : null) : null;
-  const ceiling = idx.some(e => /get_field nutrition[\s\S]{0,30}byte 0x64[\s\S]{0,20}lt/.test(e.text)) ? 100 : null;
-  return { falls, complains, ceiling };
+  // Every `nutrition < n`: the idle script's is the complaint, and the
+  // largest anywhere else is the ceiling what adds to it stops at.
+  const tests = [];
+  for (const e of idx) {
+    if (!/get_field nutrition/.test(e.text)) continue;
+    for (const g of dvmSeqAll(dvmOpsOf(e), [/^get_field nutrition/, DVM_NUM, /^lt$/])) tests.push(dvmVal(e.resid, g[1]));
+  }
+  const complainsVal = tests.find(t => t.resid === 0x3020) || null;
+  const others = tests.filter(t => t.resid !== 0x3020);
+  const top = others.length ? Math.max.apply(null, others.map(t => t.v)) : null;
+  const ceilingVal = top === null ? null : others.find(t => t.v === top);
+  const ceilingBy = top === null ? [] : [...new Set(others.filter(t => t.v === top).map(t => t.resid))];
+  return { falls, complains: complainsVal ? complainsVal.v : null, complainsVal, ceiling: top, ceilingVal, ceilingBy };
 }
 
 // What each spell does to health, read off its script: every damage call
@@ -16446,9 +16613,12 @@ function spellEffects() {
   const out = new Map();
   const strip = l => l.replace(/^\s*[0-9A-F]{4}\s+/, '').replace(/\s+\/\/.*$/, '').trim();
   for (const sp of spellRules().spells) {
-    const e = idx.find(x => x.resid === sp.resid);
+    const e = dvmScriptEntry(sp.resid);
     if (!e) continue;
-    const ls = e.text.split('\n').map(strip).filter(Boolean);
+    // The instructions alone, comments off, in step with their offsets so
+    // each effect can say where it was read.
+    const ops = dvmOpsOf(e);
+    const ls = ops.map(o => strip(o.text));
     const fx = { damage: [], heals: [] };
     for (let i = 0; i < ls.length; i++) {
       if (/^call_resource 0xEB8$/.test(ls[i])) {
@@ -16463,7 +16633,7 @@ function spellEffects() {
         // the lines before compare its square with the target's (Fireball)
         const before = ls.slice(Math.max(0, i - 14), i).join(' ');
         const area = /^local Var/.test(victim) ? (/get_field x \(0x1\) arg Arg01 eq/.test(before) ? 'the one on the target square' : /EnemyIterator/.test(ls.slice(Math.max(0, i - 40), i).join(' ')) ? 'every enemy' : 'everything in the effect') : 'the target';
-        fx.damage.push({ who: area, amount, type });
+        fx.damage.push({ who: area, amount, type, at: ops[i].at });
       }
       if (/^set_field health \(0x1C\)$/.test(ls[i])) {
         const seg = ls.slice(i + 1, i + 14);
@@ -16477,10 +16647,11 @@ function spellEffects() {
         while (expr.length && /^end$/.test(expr[expr.length - 1])) expr.pop();
         if (full) {
           const t = expr.join(' ');
-          fx.heals.push({ text: /byte 0x04 div byte 0x01 add/.test(t) ? 'health to a quarter of full plus 1' : !expr.length ? 'health to full' : 'health from full health' });
+          const q = /byte (0x[0-9A-F]+) div byte (0x[0-9A-F]+) add/i.exec(t);
+          fx.heals.push({ text: q ? 'health to full ÷ ' + parseInt(q[1]) + ' plus ' + parseInt(q[2]) : !expr.length ? 'health to full' : 'health from full health', at: ops[i].at });
         } else {
           const a = dvmAmountExpr(['byte 0'].concat(expr));   // the current health is the first operand
-          if (a) fx.heals.push({ text: 'health + ' + amountWords(a), amount: a });
+          if (a) fx.heals.push({ text: 'health + ' + amountWords(a), amount: a, at: ops[i].at });
         }
       }
     }
@@ -16492,30 +16663,36 @@ function spellEffects() {
 // (0xE93) multiplies what the engine healed during the night by it.
 function sleepRules() {
   const idx = buildScriptTextIndex();
-  const bed = idx.find(e => e.resid === 0x100E), helper = idx.find(e => e.resid === 0xE93);
+  const bed = dvmScriptEntry(0x100E), helper = dvmScriptEntry(0xE93);
   if (!bed || !helper) return null;
   const strip = t => t.replace(/^\s*[0-9A-F]{4}\s+/gm, '');
-  const b = strip(bed.text), h = strip(helper.text);
-  const own = /global CurrentRoom \(0x12\)[\s\S]{0,40}short 0x0002[\s\S]{0,40}eq[\s\S]{0,60}set_local 0x00[\s\S]{0,20}byte 0x04/.test(b) ? 4 : null;
-  const quarter = /sys PassTime[\s\S]{0,20}word 1024/.test(h);
-  const hours = /byte 0x04[\s\S]{0,10}mul/.test(h);
-  const half = /arg Arg03[\s\S]{0,20}mul[\s\S]{0,20}byte 0x02[\s\S]{0,20}div/.test(h);
+  const h = strip(helper.text);
+  const bo = dvmOpsOf(bed), ho = dvmOpsOf(helper);
+  // Your own bed: in room 2 the quality local is set to this.
+  const ownG = dvmSeqFirst(bo, [/^global CurrentRoom/, /^short 0x0002$/, /^eq$/, /^then /, /^set_local 0x00$/, DVM_NUM]);
+  // The night: PassTime(n) for each of hours x k, then healed x quality / d.
+  const qG = dvmSeqFirst(ho, [/^sys PassTime$/, DVM_NUM]);
+  const hG = dvmSeqFirst(ho, [/^arg Arg00$/, DVM_NUM, /^mul$/]);
+  const dG = dvmSeqFirst(ho, [/^arg Arg03$/, /^mul$/, DVM_NUM, /^div$/]);
+  const ownVal = ownG ? dvmVal(0x100E, ownG[5]) : null, quarterVal = qG ? dvmVal(0xE93, qG[1]) : null,
+        hoursVal = hG ? dvmVal(0xE93, hG[1]) : null, div = dG ? dvmVal(0xE93, dG[2]) : null;
+  const own = ownVal ? ownVal.v : null, quarter = !!quarterVal, hours = !!hoursVal, half = !!div;
   const owner = /Out of my bed/.test(h);
   const toss = /toss and turn/.test(h);
   const soundly = /sleep soundly/.test(h);
   // The inn's quality: the bed reads global resource 0x301's array at a
   // slot the innkeeper's dialogue wrote when the room was paid for.
-  const store = idx.find(e => e.resid === 0x301);
+  const store = dvmScriptEntry(0x301);
   const am = store && /obj_0000 = \[([\d, ]+)\]/.exec(strip(store.text));
   const table = am ? am[1].split(',').map(x => parseInt(x.trim())) : null;
   const inns = [];
   for (const e of idx) {
     if (e.resid < 0x1800 || e.resid >= 0x1A00) continue;
-    const m = /write_far_word 0x03010016\s+byte (0x[0-9A-F]+|\d+)/i.exec(strip(e.text));
-    if (m) { const slot = parseInt(m[1]); inns.push({ who: e.resid - 0x1800, slot, quality: table && table[slot] !== undefined ? table[slot] : null }); }
+    const g = dvmSeqFirst(dvmOpsOf(e), [/^write_far_word 0x03010016$/i, DVM_NUM]);
+    if (g) { const slot = dvmNum(g[1]); inns.push({ who: e.resid - 0x1800, slot, slotVal: dvmVal(e.resid, g[1]), quality: table && table[slot] !== undefined ? table[slot] : null, qualitySrc: table ? { resid: 0x301, at: 0 } : null }); }
   }
   inns.sort((a, b) => a.who - b.who);
-  return { own, quarter, hours, half, owner, toss, soundly, table, inns };
+  return { own, ownVal, quarter, quarterVal, hours, hoursVal, half, div, owner, toss, soundly, table, inns };
 }
 /* ---- the pictures on the Mechanics sheet ---------------------------------
    The sheet states each rule in prose and then, since 6 September 2026, draws
@@ -16693,7 +16870,7 @@ function mechDiceBytes(dice) {
   const pay = dice.bytes.find(b => /match pays/.test(b.what));
   const gate = dice.bytes.find(b => /Gambling skill/.test(b.what));
   const fix = dice.bytes.find(b => /roll matched/.test(b.what));
-  const rows = dice.bytes.map(b => '<tr><td>' + svEsc(b.what) + '</td><td class="num">' + hex4(b.at) + '</td><td class="num">' + svEsc(String(b.now)) + '</td></tr>').join('');
+  const rows = dice.bytes.map(b => '<tr><td>' + svEsc(b.what) + '</td>' + srcCell(b.val, hex4(b.at)) + '<td class="num">' + svEsc(String(b.now)) + '</td></tr>').join('');
   const tries = [];
   if (pay) tries.push('Write <b>00</b> at ' + hex4(pay.at) + ' and a match pays nothing: <b>' + mean({ matchPay: 0 }) + '</b> an obol a game without the skill, <b>' + mean({ matchPay: 0, gambling: true }) + '</b> with it.');
   if (pay) tries.push('Write <b>7F</b> there and a match pays 127: <b>' + mean({ matchPay: 127 }) + '</b> a game.');
@@ -16713,7 +16890,7 @@ function mechDiceBytes(dice) {
    mechDicePlay in js/delv-mechanics.js, the same function the exact
    enumeration is built from -- so the two cannot drift apart. */
 let DICE_SIM = { gambling: false, tally: null, last: null };
-function diceSimRoll(n) { return Math.floor(Math.random() * (n || 6)); }
+function diceSimRoll(n) { return Math.floor(Math.random() * n); }
 function diceSimSet(on) { DICE_SIM = { gambling: !!on, tally: null, last: null }; diceSimRefresh(); }
 function diceSimReset() { DICE_SIM.tally = null; DICE_SIM.last = null; diceSimRefresh(); }
 function diceSimPlay(n) {
@@ -16836,13 +17013,17 @@ function combatSimParams() {
     enchant: 0
   };
 }
-function combatSimHtml(p, words) {
+// `cb` is combatRules(): the rolls, the damage's added constant and the
+// blow words, all read off the routines.
+function combatSimHtml(p, cb) {
   const model = {
     attackerReflex: p.attackerReflex, defenderReflex: p.defenderReflex, weaponSkill: p.weaponSkill,
     attackSkill: p.attackSkill, defenceSkill: p.defenceSkill, enchant: p.enchant || 0,
-    damage: p.weapon.damage, shieldBlock: p.shield ? p.shield.block : null, shieldSkill: p.shield ? p.weaponSkill : 0
+    damage: p.weapon.damage, shieldBlock: p.shield ? p.shield.block : null, shieldSkill: p.shield ? p.weaponSkill : 0,
+    roll: cb.roll.v, rollDefender: cb.rollDefender.v, dmgAdd: cb.dmgAdd.v
   };
-  const x = mechCombatExact(model, words);
+  const words = cb.words, top = words.length ? Math.max.apply(null, words.map(w => w.below)) : null;
+  const x = mechCombatExact(model, words, cb.last ? cb.last.word : '');
   const pairs = mechDistPairs(x.margin);
   const lo = pairs[0][0], hi = pairs[pairs.length - 1][0], peak = Math.max.apply(null, pairs.map(q => q[1]));
   // The bar and the number beside it are the same quantity -- the share of
@@ -16851,7 +17032,7 @@ function combatSimHtml(p, words) {
   // notices before the author does.
   const blows = x.words.filter(w => w.p > 0.0005).map((w, i) => ({
     label: w.word, value: 100 * w.p, text: (100 * w.p).toFixed(1) + '%',
-    colour: MECH_SERIES[i % MECH_SERIES.length], title: w.word + (w.below ? ', under ' + w.below + ' points' : ', 35 points or more')
+    colour: MECH_SERIES[i % MECH_SERIES.length], title: w.word + (w.below ? ', under ' + w.below + ' points' : top !== null ? ', ' + top + ' points or more' : '')
   }));
   return mechFig('One exchange: ' + p.weapon.name + (p.shield ? ' against a ' + p.shield.name : ', unshielded'),
     mechStackBar([
@@ -16867,7 +17048,7 @@ function combatSimHtml(p, words) {
     y: { min: 0, max: peak * 1.08, ticks: [{ v: peak, label: (100 * peak).toFixed(1) + '%' }, { v: 0, label: '0' }] },
     series: [{ points: pairs, colour: MECH_INK.gold, name: 'the margin' }],
     marks: [{ x: 0, y: peak * 1.02, label: 'nothing or less misses' }]
-  }), 'Two rolls of 0 to 29 make a triangle; the six other terms only slide it. Here it is centred on <b>' +
+  }), 'Two rolls of 0 to ' + (cb.roll.v - 1) + (cb.rollDefender.v !== cb.roll.v ? ' and 0 to ' + (cb.rollDefender.v - 1) : '') + ' make a triangle; the six other terms only slide it. Here it is centred on <b>' +
     (x.constant > 0 ? '+' : '') + x.constant + '</b>.') +
   (blows.length ? mechFig('What the game would print', mechBars(blows),
     'Of the blows that land, as a share of all exchanges. The words are read off the resolver, and each names the <b>raw roll</b>. The defender’s resistance is taken afterwards, so a blow that ground you to dust can still come to nothing.') : '');
@@ -16875,9 +17056,10 @@ function combatSimHtml(p, words) {
 function combatSimUpdate() {
   const el = document.getElementById('combatOut');
   if (!el) return;
-  let words = null;
-  try { const cb = combatRules(); words = cb && cb.words && cb.words.length ? cb.words : null; } catch (e) {}
-  el.innerHTML = combatSimHtml(combatSimParams(), words);
+  let cb = null;
+  try { cb = combatRules(); } catch (e) { cb = null; }
+  if (!cb || !cb.roll || !cb.rollDefender || !cb.dmgAdd) return;
+  el.innerHTML = combatSimHtml(combatSimParams(), cb);
   for (const id of ['cbSkill', 'cbAtkRef', 'cbDefRef']) {
     const out = document.getElementById(id + 'V'), src = document.getElementById(id);
     if (out && src) out.textContent = src.value;
@@ -16990,19 +17172,26 @@ function mechSpellFigures(sp) {
 // The levels double, so the only honest axis is a logarithmic one, and drawn
 // that way the cap becomes visible: experience stops at 65,535 and the
 // twelfth threshold is 102,400, so the eleventh level is the last one.
-function mechExperienceFigure() {
+function mechExperienceFigure(rule) {
+  if (!rule || !rule.base || !rule.cap) return '';
+  const base = rule.base.v, cap = rule.cap.v;
   const levels = Array.from({ length: 12 }, (_, i) => i + 1);
-  const cap = mechExpCap();
+  // The level passing threshold(n) reaches is n + 1; the first threshold
+  // above the cap is the one that cannot be passed.
+  let stuck = 1;
+  while (stuck < 40 && mechLevelThreshold(stuck, base) <= cap) stuck++;
+  const n = v => v.toLocaleString('en-US');
+  const ord = k => ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth'][k - 1] || ('level ' + k);
   return mechFig('What each level costs', mechPlot({
     height: 140,
     x: { min: 1, max: 12, ticks: [2, 4, 6, 8, 10, 12].map(l => ({ v: l, label: String(l) })) },
-    y: { log: true, min: 100, max: 200000, ticks: [{ v: 100, label: '100' }, { v: 1000, label: '1k' }, { v: 10000, label: '10k' }, { v: 100000, label: '100k' }] },
+    y: { log: true, min: base, max: Math.max(cap, mechLevelThreshold(12, base)) * 2, ticks: [{ v: base, label: n(base) }, { v: base * 10, label: n(base * 10) }, { v: base * 100, label: n(base * 100) }, { v: base * 1000, label: n(base * 1000) }] },
     series: [
-      { points: levels.map(l => [l, mechLevelThreshold(l)]), colour: MECH_INK.gold, name: 'the threshold to pass' },
-      { points: [[1, cap], [12, cap]], colour: MECH_INK.warm, dash: '3 3', name: 'the cap, 65,535' }
+      { points: levels.map(l => [l, mechLevelThreshold(l, base)]), colour: MECH_INK.gold, name: 'the threshold to pass' },
+      { points: [[1, cap], [12, cap]], colour: MECH_INK.warm, dash: '3 3', name: 'the cap, ' + n(cap) }
     ],
-    marks: [{ x: 11, y: mechLevelThreshold(11), dot: true, colour: MECH_INK.warm }]
-  }), 'Each level costs as much as every level before it put together. The eleventh is the last: its threshold is 51,200 and the next is <b>102,400</b>, which experience cannot reach.');
+    marks: stuck <= 12 ? [{ x: stuck, y: mechLevelThreshold(stuck, base), dot: true, colour: MECH_INK.warm }] : []
+  }), 'Each level costs as much as every level before it put together. The ' + ord(stuck) + ' is the last: it comes past ' + n(mechLevelThreshold(stuck - 1, base)) + ' and the next needs <b>' + n(mechLevelThreshold(stuck, base)) + '</b>, which experience cannot reach.');
 }
 
 // Karma is a line from nothing to a hundred with the player put on it at 55,
@@ -17021,14 +17210,19 @@ function mechKarmaFigure(km) {
   }));
   return mechFig('The scale, and where you stand on it',
     mechNumberLine({ min: 0, max: 100, marks, bands: thresholds.map(t => ({ from: 0, to: t.n, colour: 'rgba(192,104,79,.3)', label: t.test })) }),
-    'The four Seldane priests refuse below <b>40</b>.') +
+    (function () {
+      const low = km.reads.filter(r => r.below);
+      if (!low.length) return '';
+      const n = Math.max.apply(null, low.map(r => r.n)), who = low.filter(r => r.n === n).map(r => labelFor(r.resid) || ('0x' + r.resid.toString(16).toUpperCase()));
+      return who.slice(0, -1).join(', ') + (who.length > 1 ? ' and ' : '') + who[who.length - 1] + ' refuse' + (who.length === 1 ? 's' : '') + ' below <b>' + srcNum(low.find(r => r.n === n).val, n) + '</b>.';
+    })()) +
     (kills.length ? mechFig('What a kill is worth, by the victim’s alignment', mechBars(kills),
-      'Four numbers in the kill helper’s own data block, read as signed. Nothing in the file names the four alignments; killing the third kind is <b>ten</b> times worse than killing the second is good.') : '');
+      srcNum(km.byAlignmentSrc, km.byAlignment.length + ' numbers') + ' in the kill helper’s own data block, read as signed. Nothing in the file names the alignments.') : '');
 }
 
 // Nutrition falls one an hour, so a food's figure is also the hours it buys.
 // Saying that in the caption is the whole point of the figure.
-function mechFoodFigure(fd) {
+function mechFoodFigure(fd, belly) {
   const rows = [];
   for (const f of fd.foods) {
     if (f.variants) for (const v of f.variants) { if (v.plus) rows.push({ label: v.name || (f.name + ' ' + v.aspect), value: v.plus }); }
@@ -17037,8 +17231,8 @@ function mechFoodFigure(fd) {
   if (!rows.length) return '';
   rows.sort((a, b) => b.value - a.value);
   return mechFig('What a meal is worth, in nutrition and so in hours',
-    mechBars(rows.map(r => ({ label: r.label, value: r.value, text: r.value + ' h', colour: MECH_INK.leaf })), { max: 100 }),
-    'Against a belly of <b>100</b> that falls by one an hour. The bars are drawn on that scale, so the whole row is four days of walking.');
+    mechBars(rows.map(r => ({ label: r.label, value: r.value, text: r.value + ' h', colour: MECH_INK.leaf })), belly ? { max: belly } : {}),
+    belly ? 'Against a belly of <b>' + belly + '</b> that falls by one an hour. The bars are drawn on that scale, so the whole row is about ' + Math.round(belly / 24) + ' days of walking.' : 'Nutrition falls by one an hour.');
 }
 
 // A duration is a number of 4096ths of an hour, which is unreadable as
@@ -17062,10 +17256,11 @@ function mechStatusFigure(st) {
 
 // The clock's own arithmetic, over four days: the belly empties in a hundred
 // hours and everything else follows from whether it is empty.
-function mechHungerFigure() {
+function mechHungerFigure(belly) {
+  if (belly === null || belly === undefined) return '';
   const hours = 120;
-  const fed = mechHungerRun({ hours, level: 6, nutrition: 100, health: 20, fullHealth: 100 });
-  const ring = mechHungerRun({ hours, level: 6, nutrition: 100, health: 20, fullHealth: 100, regenerating: true });
+  const fed = mechHungerRun({ hours, level: 6, nutrition: belly, health: 20, fullHealth: 100 });
+  const ring = mechHungerRun({ hours, level: 6, nutrition: belly, health: 20, fullHealth: 100, regenerating: true });
   const pt = r => r.series.map(s => [s.hour, s.health]);
   return mechFig('Five days without a meal, at level 6', mechPlot({
     height: 150,
@@ -17076,7 +17271,7 @@ function mechHungerFigure() {
       { points: pt(fed), colour: MECH_INK.gold, name: 'health, healing' },
       { points: pt(ring), colour: MECH_INK.cool, name: 'health, with Omen’s ring' }
     ],
-    marks: [{ x: 100, y: 8, label: 'the belly is empty', colour: MECH_INK.warm }]
+    marks: [{ x: belly, y: 8, label: 'the belly is empty', colour: MECH_INK.warm }]
   }), 'Health rises <b>four</b> times an hour at this level and stops dead when nutrition reaches zero; the ring’s <b>ten</b> an hour does not care. Starving costs nothing but the healing, the engine takes no health for it.');
 }
 
@@ -17084,11 +17279,12 @@ function mechHungerFigure() {
 // so it moves in five steps and a difficulty of 19 is a difficulty of 0 --
 // which no reading of the formula makes as plain as the picture does.
 function mechLockFigure(lk) {
-  if (!lk.rule || !lk.rule.formula) return '';
+  if (!lk.rule || !lk.rule.formula || !lk.rule.lk) return '';
+  const rules = lk.rule.lk;
   const xs = Array.from({ length: 52 }, (_, i) => i * 5);
   const series = [10, 20, 30].map((reflex, i) => ({
     name: 'reflex ' + reflex, colour: MECH_SERIES[i],
-    points: xs.map(d => [d, 100 * mechLockChance(reflex, d)])
+    points: xs.map(d => [d, 100 * mechLockChance(reflex, d, rules)])
   }));
   // One dot per distinct difficulty rather than one per class: eight of the
   // classes carry 15, and eight labels on one point is a smudge. The names
@@ -17102,7 +17298,7 @@ function mechLockFigure(lk) {
     byDiff.get(d).push(c.name);
   }
   const marks = [...byDiff.entries()].sort((a, b) => a[0] - b[0]).map(([d, names], i) => ({
-    x: d, y: 100 * mechLockChance(20, d), dot: true, colour: MECH_INK.ink,
+    x: d, y: 100 * mechLockChance(20, d, rules), dot: true, colour: MECH_INK.ink,
     label: names.slice(0, 3).join(', ') + (names.length > 3 ? ' …' : '') + ' (' + d + ')',
     dy: 11 + (i % 2) * 13, side: d > 190 ? 'right' : 'left'
   }));
@@ -17110,7 +17306,10 @@ function mechLockFigure(lk) {
     height: 150, series, marks,
     x: { min: 0, max: 255, ticks: [0, 60, 120, 180, 255].map(v => ({ v, label: String(v) })) },
     y: { min: 0, max: 100, ticks: [{ v: 100, label: '100%' }, { v: 50, label: '50%' }, { v: 0, label: '0' }] }
-  }), 'Five points are added for <b>every twenty of difficulty, rounded up</b>, so the curve is a staircase: a lock of 1 is already a lock of 20, and only a difficulty of nothing is free. The dots are the classes’ own parameters at reflex 20; the difficulty a placed lock actually uses is its own <b>data1</b>. Every failure breaks the pick.');
+  }), (rules.addend === rules.per - 1
+      ? rules.step + ' points are added for <b>every ' + rules.per + ' of difficulty, rounded up</b>, so the curve is a staircase: a lock of 1 is already a lock of ' + rules.per + ', and only a difficulty of nothing is free.'
+      : rules.step + ' points are added for every ' + rules.per + ' of difficulty after adding ' + rules.addend + ', so the curve is a staircase.') +
+    ' The dots are the classes’ own parameters at reflex 20; the difficulty a placed lock actually uses is its own <b>data1</b>. Every failure breaks the pick.');
 }
 
 // What a shop asks. The interesting thing is the range -- three orders of
@@ -17130,26 +17329,26 @@ function mechShopFigure(sh) {
   return mechFig('What the shops ask, ' + goods.length + ' items in all', mechColumns(bins, { height: 80 }),
     'By price in obols, each column the items from that figure up to the next. Most of what is for sale is small change.') +
     mechFig('The dearest things on any counter', mechBars(dear),
-      'Before bargaining: the vendor’s own four figures move the price, and <b>Haggling</b> takes a further roll of 0 to 5 off it.');
+      'Before bargaining: the vendor’s own four figures move the price' + (sh.haggling ? ', and <b>Haggling</b> takes a further roll of 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) + ' off it' : '') + '.');
 }
 
 // A lesson costs a point, a level earns a few, and mastery is fifteen
 // lessons. Drawn against the levels, the question the sheet's numbers pose
 // -- can you master anything? -- has a visible answer.
 function mechTrainingFigure(tr) {
-  if (!tr.points.perLevel || tr.points.atStart === null) return '';
+  if (!tr.points.perLevel || tr.points.atStart === null || tr.points.mastery === null) return '';
   const levels = Array.from({ length: 11 }, (_, i) => i + 1);
   const series = [1, 2, 3, 4].map((difficulty, i) => ({
     name: 'difficulty ' + difficulty, colour: MECH_SERIES[i],
-    points: levels.map(l => [l, tr.points.atStart + (l - 1) * Math.max(0, 6 - difficulty)])
+    points: levels.map(l => [l, tr.points.atStart + (l - 1) * Math.max(0, tr.points.perLevel.v - difficulty)])
   }));
-  const mastery = tr.points.mastery || 15;
+  const mastery = tr.points.mastery;
   return mechFig('Training points earned, against what mastery costs', mechPlot({
     height: 140, series,
     x: { min: 1, max: 11, ticks: levels.filter(l => l % 2).map(l => ({ v: l, label: String(l) })) },
     y: { min: 0, max: 60, ticks: [{ v: 60, label: '60' }, { v: 30, label: '30' }, { v: mastery, label: String(mastery) }, { v: 0, label: '0' }] },
     marks: [{ x: 6, y: mastery + 3, label: 'one skill mastered', colour: MECH_INK.ink }]
-  }), 'A character is made with <b>' + tr.points.atStart + '</b> and gains <b>6 less the difficulty level</b> with each level; a lesson costs one and a skill is mastered at <b>' + mastery + '</b>. On the hardest setting a whole career pays for two skills and a little.');
+  }), 'A character is made with <b>' + srcNum(tr.points.atStartVal) + '</b> and gains <b>' + srcNum(tr.points.perLevel) + ' less the difficulty level</b> with each level; a lesson costs ' + srcNum(tr.points.perLessonVal) + ' and a skill is mastered at <b>' + srcNum(tr.points.masteryVal) + '</b>. At difficulty 4 a career to level 11 earns ' + (tr.points.atStart + 10 * Math.max(0, tr.points.perLevel.v - 4)) + ' points, ' + ((tr.points.atStart + 10 * Math.max(0, tr.points.perLevel.v - 4)) / mastery).toFixed(1) + ' skills’ worth.');
 }
 
 // The balloon itself, at the size the engine draws it, because the sheet
@@ -17173,7 +17372,8 @@ function mechBalloonFigure(barks) {
 // somebody's actual play, so the measurements are drawn as marks rather than
 // mentioned in the caption.
 function mechSleepFigure(sl) {
-  if (!sl) return '';
+  if (!sl || !sl.div) return '';
+  const div = sl.div.v;
   const level = 6;
   const rows = [];
   if (sl.own !== null) rows.push({ name: 'your own bed', quality: sl.own });
@@ -17187,18 +17387,18 @@ function mechSleepFigure(sl) {
   rows.push({ name: 'the bare ground', quality: 0 });
   if (rows.length < 2) return '';
   const bars = rows.map(r => ({
-    label: r.name, value: mechBedRate(level, r.quality), colour: r.quality >= 4 ? MECH_INK.gold : r.quality ? MECH_INK.cool : MECH_INK.dim,
-    text: mechBedRate(level, r.quality) + ' /h', title: r.name + ', quality ' + r.quality
+    label: r.name, value: mechBedRate(level, r.quality, { div }), colour: r.quality >= 4 ? MECH_INK.gold : r.quality ? MECH_INK.cool : MECH_INK.dim,
+    text: mechBedRate(level, r.quality, { div }) + ' /h', title: r.name + ', quality ' + r.quality
   }));
   const withRing = rows.map(r => ({
-    label: r.name, value: mechBedRate(level, r.quality, { regenerating: true }), colour: MECH_INK.violet,
-    text: mechBedRate(level, r.quality, { regenerating: true }) + ' /h'
+    label: r.name, value: mechBedRate(level, r.quality, { regenerating: true, div }), colour: MECH_INK.violet,
+    text: mechBedRate(level, r.quality, { regenerating: true, div }) + ' /h'
   }));
   return mechFig('Health an hour asleep, at level 6',
     mechBars(bars, { max: Math.max.apply(null, withRing.map(w => w.value)) }) +
     '<div class="mechSub">and the same with Omen’s ring</div>' +
     mechBars(withRing, { max: Math.max.apply(null, withRing.map(w => w.value)) }),
-    'The engine heals four an hour at this level and the bed multiplies it by <b>1 + quality/2</b>. A player measured <b>12</b>, <b>10</b>, <b>42</b>, <b>30</b> and <b>35</b> an hour in these beds in March 2012 and every one of them is on this chart, which is as close to an experiment as this sheet gets.');
+    'The engine heals four an hour at this level and the bed multiplies it by <b>1 + quality/' + div + '</b>. A player measured <b>12</b>, <b>10</b>, <b>42</b>, <b>30</b> and <b>35</b> an hour in these beds in March 2012 and every one of them is on this chart, which is as close to an experiment as this sheet gets.');
 }
 
 // The clock, on one line and logarithmic, because the numbers it deals in
@@ -17210,7 +17410,7 @@ function mechClockFigure(sp) {
   const marks = [
     { v: 1, label: 'a step', above: true },
     { v: 4, label: 'taking', below: true },
-    { v: 20, label: 'a spell', above: true },
+    ...(sp && sp.rule && sp.rule.timing ? [{ v: sp.rule.timeBase.v + 5 * sp.rule.timeMult.v, label: 'a level 5 spell', above: true }] : []),
     { v: 409, label: 'six minutes: poison, the ring', below: true },
     { v: 1024, label: 'a quarter hour: the light', above: true },
     { v: unit, label: 'an hour: hunger, the schedules', below: true }
@@ -17218,7 +17418,7 @@ function mechClockFigure(sp) {
   return mechFig('Everything the clock counts, in units of a 4096th of an hour',
     mechNumberLine({ min: 1, max: unit, log: true, marks,
       bands: [{ from: 1, to: 20, colour: 'rgba(249,248,111,.22)', label: 'what an action costs' }] }),
-    'A step is <b>one</b> unit, so an hour of game time is four thousand steps and a night’s sleep is passed rather than walked. A spell costs <b>10 plus twice its level</b>.');
+    'A step is <b>one</b> unit, so an hour of game time is four thousand steps and a night’s sleep is passed rather than walked.' + (sp && sp.rule && sp.rule.timing ? ' A spell costs <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times its level</b>.' : ''));
 }
 
 // How much of the archive's own code asks about each skill: the table names
@@ -17280,21 +17480,23 @@ function renderMechanicsSheet() {
   // ---- the dice game ----
   const dice = diceGame();
   add('dice', 'The dice game', null, src('the game', 0x812),
-    dice ? 'Played at the inns: three dice, the innkeeper’s two black and your one white, each showing one to six.'
+    dice ? 'Played at the inns: three dice, the innkeeper’s two black and your one white, ' +
+             (dice.faces.every(f => f === dice.faces[0]) ? 'each showing one to ' + srcNum(dice.vals.faces[0])
+               : 'showing one to ' + srcNum(dice.vals.faces[0]) + ', ' + srcNum(dice.vals.faces[1]) + ' and ' + srcNum(dice.vals.faces[2]) + ': the innkeeper’s first, yours, the innkeeper’s second') + '.'
          : 'The inn’s dialogue script (0x812) is not in this archive, or does not carry the game.',
     dice ? [
-      'The innkeeper throws one die, you throw yours. <b>Match it and you win ' + dice.matchPay + ' obol' + (dice.matchPay === 1 ? '' : 'oi') + '.</b>',
+      'The innkeeper throws one die, you throw yours. <b>Match it and you win ' + srcNum(dice.vals.matchPay) + ' obol' + (dice.matchPay === 1 ? '' : 'oi') + '.</b>',
       'Otherwise the innkeeper throws the second. Yours <b>outside</b> the two black dice wins the distance to the nearer; <b>between</b> them, or on one, loses an obol.',
       'A win of 1 is a push and the game goes again.',
       'The script pays one obol less than it announces, the one being your stake, and takes one on a loss.',
-      dice.faces.some(f => f !== 6) ? 'The dice are thrown as rolls of 0 to ' + dice.faces.map(f => f - 1).join(', ') + ': the innkeeper’s first, yours, the innkeeper’s second.' : '',
-      '<b>Gambling</b> ' + (dice.skillAlways ? 'sets your die to the innkeeper’s first whenever they differed.' : 'gives your die a one in ' + dice.skillFaces + ' chance of being set to the innkeeper’s first, when they differed.') +
-        (dice.skillFree ? ' The script’s test for the skill has been edited out, so this happens without it.' : '')
+      dice.skillAlways ? '<b>Gambling</b> sets your die to the innkeeper’s first whenever they differed.' + (dice.skillFree ? ' The script’s test for the skill has been edited out, so this happens without it.' : '')
+        : dice.vals.skillFaces ? '<b>Gambling</b> gives your die a one in ' + srcNum(dice.vals.skillFaces) + ' chance of being set to the innkeeper’s first, when they differed.' + (dice.skillFree ? ' The script’s test for the skill has been edited out, so this happens without it.' : '')
+        : ''
     ].filter(Boolean) : [],
     dice ? '<div class="mechStats">' + stat(dice.wins, 'win') + stat(dice.pushes, 'push') + stat(dice.losses, 'lose') + '<span class="mechStatNote">of ' + dice.total + ' throws</span>' +
            stat((dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3), 'obols a game, without the skill') + stat((dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3), 'with it') + '</div>' +
            (dice.explain ? '<blockquote class="mechQuote">' + svEsc(dice.explain.replace(/\*/g, ' ')) + '<footer>the innkeeper, in the same script</footer></blockquote>' : '') +
-           mechFig('All 216 throws: the innkeeper’s first die down the side, the second across, your own six faces inside each cell',
+           mechFig('All ' + dice.total + ' throws: the innkeeper’s first die down the side, the second across, your own ' + dice.faces[1] + ' faces inside each cell',
              mechDiceMatrix(mechDiceExact(dice.opts).cells),
              'Red is the obol you lose, grey a push, green a win, brighter for a larger one. Every face of yours outside the two black dice pays.') +
            '<div class="mechCtl">' +
@@ -17308,25 +17510,26 @@ function renderMechanicsSheet() {
 
   // ---- combat ----
   const cb = combatRules(), ar = attackRules();
-  const rollFrom = (what) => ar && ar.scale ? 'a roll of 0 to ' + what + ' less ' + ar.scale.sub + ' over ' + ar.scale.div : '';
+  const rollFrom = (what) => ar && ar.scale ? 'a roll of 0 to ' + what + ' less ' + srcNum(ar.scale.subVal) + ' over ' + srcNum(ar.scale.divVal) : '';
+  const rollTo = v => v ? srcNum(v, v.v - 1) : '';
   add('combat', 'Combat', null, src('the attack', 0x3042) + src('a blow', 0xE88) + src('a missile', 0xE89) + src('the outcome', 0xE87),
     cb ? 'Four routines: one chooses what is swung or thrown, one makes the attacker’s margin for a blow, one for a missile, and one turns the margin into a parry, a miss or a hit.'
        : 'The combat routines (0xE87–0xE89) are not in this archive.',
     cb ? [
       ar && ar.reach && ar.meleeFirst ? 'The attack picks the weapon first: the first thing wielded whose <b>reach</b> covers the distance swings' +
         (ar.range && ar.beyondAdjacent ? ', and only when nothing does, the target is not adjacent and it is in sight, does the first thing with a throw entry <b>fly</b>, as a missile' : '') + '.' +
-        (ar.squared && ar.lessOne ? ' Reach and range are squared and set against the squared distance less one, so reach 1 is the eight neighbours and reach 2 two squares in a line or a knight’s move.' : '') : '',
-      'The margin is the attacker’s <b>reflex</b>' + (cb.d30 ? ' <b>plus a roll of 0 to 29</b>' : '') + ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')') +
-        ', <b>less the defender’s reflex' + (cb.d30 ? ' plus a roll of 0 to 29' : '') + '</b>, plus Attack less Defence. A monster flagged so uses body for reflex.',
+        (ar.squared && ar.lessOne ? ' Reach and range are squared and set against the squared distance less ' + srcNum(ar.lessOneVal, 'one') + ', so reach 1 is the eight neighbours and reach 2 two squares in a line or a knight’s move.' : '') : '',
+      'The margin is the attacker’s <b>reflex</b>' + (cb.roll ? ' <b>plus a roll of 0 to ' + rollTo(cb.roll) + '</b>' : '') + ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')') +
+        ', <b>less the defender’s reflex' + (cb.rollDefender ? ' plus a roll of 0 to ' + rollTo(cb.rollDefender) : '') + '</b>, plus Attack less Defence. A monster flagged so uses body for reflex.',
       'The weapon’s enchantment and skill go on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
         (cb.parry ? 'what is left is offered to the shields: each shielding thing the defender wears rolls <b>0 to its block plus the Shield skill</b>, the rolls are added up, and a margin under the total is <b>parried</b>' : 'what is left lands') +
         '. A blow that would have missed is never parried.',
-      'A hit does <b>1 plus a roll of 0 to the damage figure, plus the enchantment</b>, so one to the figure rather than nothing to it, with the skill widening the figure before the roll. The defender’s resistance takes the damage type afterwards, so the word the game prints can be bigger than what is felt.',
+      cb.dmgAdd ? 'A hit does <b>' + srcNum(cb.dmgAdd) + ' plus a roll under the damage figure, plus the enchantment</b>, so ' + cb.dmgAdd.v + ' to the figure' + (cb.dmgAdd.v === 1 ? ' rather than nothing to it' : ' less one, and more') + ', with the skill widening the figure before the roll. The defender’s resistance takes the damage type afterwards, so the word the game prints can be bigger than what is felt.' : '',
       ar && ar.bodyRoll && ar.scale ? 'The damage figure of a blow is the weapon’s plus ' + rollFrom('body') + (ar.reflexRoll ? '; a throw’s is its throw entry’s plus ' + rollFrom('reflex') : '') + '.' : '',
       ar && ar.lodges && ar.drops ? 'A thrown weapon that <b>hits or is parried</b> goes into the target, carried, which is where it is when the target dies; one that misses lies on the target’s square. Nothing brings it back.' + (ar.ammoSpent ? ' A launcher spends one of its ammunition a shot.' : '') : '',
-      cb.words.length ? 'The blow is named by its size: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + w.below).join(', ') + ', and <i>shredded to pieces</i> above.' : ''
+      cb.words.length ? 'The blow is named by its size: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + srcNum(w.val)).join(', ') + (cb.last ? ', and <i>' + svEsc(cb.last.word) + '</i> above.' : '.') : ''
     ].filter(Boolean) : [],
-    cb ? combatSimControls() + '<div id="combatOut">' + combatSimHtml(combatSimParams(), cb.words) + '</div>' : '', '');
+    cb && cb.roll && cb.rollDefender && cb.dmgAdd ? combatSimControls() + '<div id="combatOut">' + combatSimHtml(combatSimParams(), cb) + '</div>' : '', '');
 
   // ---- damage to things ----
   // Every class with a TakeDamage of its own, read off its script
@@ -17359,7 +17562,7 @@ function renderMechanicsSheet() {
         chest && chest.destroy && chests.length ? 'A chest’s strength is given in its own class script: ' + listStrength(chests) + '. Whatever its state, a blow above <b>' + srcNum(chest.destroy.factor) + ' times the strength</b> destroys it' + (chest.spills ? ' and drops what it held' : '') + '.' +
           (chest.opens ? ' Locked, a blow above what is left ' + srcNum(chest.opens, 'opens it') + q(chest.saysOpened) : '') +
           (chest.wear && chest.step ? ', one above what is left ÷ ' + srcNum(chest.wear) + ' wears it down by ' + srcNum(chest.step) + q(chest.saysWorn) : '') +
-          (chest.saysHeld ? ', and a smaller one says “' + svEsc(chest.saysHeld) + '”' : '') + '.' +
+          (chest.saysHeld ? ', and a smaller one says “' + svEsc(chest.saysHeld) + '”' + (/[.!?]$/.test(chest.saysHeld) ? '' : '.') : '.') +
           ' Magically locked, only destruction; closed and unlocked, it opens.' : '',
         (door && door.setsOff) || (chest && chest.setsOff) ? 'Before a door or a chest is judged, anything inside it flagged 2 is used on the current character and removed.' : '',
         'What is left of a strength is kept in the placed door’s or chest’s Data2, which is set to the full strength the first time it is struck.'
@@ -17383,8 +17586,12 @@ function renderMechanicsSheet() {
       'Armour gives <b>protection</b> in points; a shield <b>blocks</b> a roll of 0 to its figure plus the Shield skill.'
     ].filter(Boolean) : [],
     table(['item', '#weight', '#damage', '#reach', '#thrown', '#range', '#type', 'skill', '#ammo class', '#protection', '#block'],
-      gear.map(r => '<tr><td>' + propChip(r.pt, r.name, ['melee', 'thrown', 'ranged', 'ammunition', 'armour', 'shield'][kind(r)]) + '</td>' +
-        num(r.weight) + num(r.damage) + num(r.reach) + num(r.thrownDamage) + num(r.thrownRange) + num(r.type) + '<td>' + svEsc(r.skill) + '</td>' + num(r.ammoClass) + num(r.protection) + num(r.block) + '</tr>')) +
+      gear.map(r => {
+        const cell = (v, s) => v === null || v === undefined ? '<td class="num"></td>' : srcCell(s, v);
+        return '<tr><td>' + propChip(r.pt, r.name, ['melee', 'thrown', 'ranged', 'ammunition', 'armour', 'shield'][kind(r)]) + '</td>' +
+          cell(r.weight, r.src.weight) + cell(r.damage, r.src.damage) + cell(r.reach, r.src.reach) + cell(r.thrownDamage, r.src.thrown) + cell(r.thrownRange, r.src.thrown) +
+          cell(r.type, r.src.type) + '<td>' + svEsc(r.skill) + '</td>' + cell(r.ammoClass, r.src.ammoClass) + cell(r.protection, r.src.protection) + cell(r.block, r.src.block) + '</tr>';
+      })) +
     mechGearFigure(gear), '');
 
   // ---- the prop word and the two data bytes ----
@@ -17405,7 +17612,7 @@ function renderMechanicsSheet() {
       mechAspectContrast(),
       pw.ench && pw.ench.guarded && pw.ench.added ? '<b>Data1 on a weapon is its enchantment.</b> The outcome routine reads it off a weapon that is both a melee weapon and equipment and adds it to the damage of every blow' +
         (pw.ench.magic ? ', and <b>a blow with any enchantment counts as magical</b>, which is what gets past the monsters that resist non-magical weapons' : '') + '. An arrow’s Data1 is not read: the test is for a melee weapon.' : '',
-      pwEx ? 'Examine reports it on ' + pw.examines.map(e => pwName(e.pt)).join(', ') + ': “' + svEsc(pwEx.above2) + '” above 2, “' + svEsc(pwEx.above0) + '” above 0.' : '',
+      pwEx && pwEx.hiVal && pwEx.loVal ? 'Examine reports it on ' + pw.examines.map(e => pwName(e.pt)).join(', ') + ': “' + svEsc(pwEx.above2) + '” above ' + srcNum(pwEx.hiVal) + ', “' + svEsc(pwEx.above0) + '” above ' + srcNum(pwEx.loVal) + '.' : '',
       pw.zoneReaders.length ? '<b>Data3</b> is both bytes read as one value; ' + pw.zoneReaders.length + ' passage classes hand it to ChangeZone as the destination.' : '',
       pw.scripts ? '<b>' + pw.scripts + ' scripts</b> read or write the bytes, ' + pw.readers.length + ' of them class scripts. What a byte means is that class’s own.' : 'No script in this archive reads the bytes.'
     ].filter(Boolean),
@@ -17426,8 +17633,8 @@ function renderMechanicsSheet() {
     const fx = fxMap.get(x.resid);
     if (!fx) return '';
     const bits = [];
-    for (const d of fx.damage) bits.push('<b>' + (amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) + ' <span class="inspDim">(type ' + d.type + ')</span>' : '') + ' to ' + d.who);
-    for (const hh of fx.heals) bits.push('<b>' + hh.text + '</b>');
+    for (const d of fx.damage) bits.push('<b>' + srcNum({ resid: x.resid, at: d.at }, amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) + ' <span class="inspDim">(type ' + d.type + ')</span>' : '') + ' to ' + d.who);
+    for (const hh of fx.heals) bits.push('<b>' + srcNum({ resid: x.resid, at: hh.at }, hh.text) + '</b>');
     return bits.join('<br>');
   };
   const fireball = sp.spells.find(x => /^Fireball$/.test(x.name));
@@ -17436,7 +17643,7 @@ function renderMechanicsSheet() {
     sp.spells.length ? sp.spells.length + ' spells, each cast through one helper with a level and a cost in magic points, read off the spell’s own call; what each does to health is read off its own script.' : 'No spell in this archive casts through the helper.',
     sp.spells.length ? [
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
-      sp.rule && sp.rule.timing ? 'The cost is taken, and the cast costs <b>10 plus twice the level</b> in time.' : 'The cost is taken.',
+      sp.rule && sp.rule.timing ? 'The cost is taken, and the cast costs <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The cost is taken.',
       sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls under the caster’s Casting figure together fall short of a roll under the level</b>' + (sp.rule.casting ? ' (Casting the skill, else a class figure)' : '') + '. Both are <i>Random</i> calls and so stop one short, which means a <b>level 1 spell can never fail</b>.' : '',
       'Damage goes through the same helper as a blow: the victim’s resistance takes the type first, and the caster earns experience by the usual rule.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn to a radius of five and the script walks everyone inside it, but the damage call runs for the one on the target square alone; the spell’s own description says it engulfs all within.' : '',
@@ -17445,7 +17652,7 @@ function renderMechanicsSheet() {
       'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune, or the map.'
     ].filter(Boolean) : [],
     mechSpellFigures(sp) +
-    table(['spell', '#level', '#cost', 'does'], sp.spells.map(x => '<tr><td>' + partChip(x.name, x.resid) + '</td>' + num(x.level) + num(x.cost) + '<td>' + doesCell(x) + '</td></tr>')), '');
+    table(['spell', '#level', '#cost', 'does'], sp.spells.map(x => '<tr><td>' + partChip(x.name, x.resid) + '</td>' + srcCell(x.levelVal) + srcCell(x.costVal) + '<td>' + doesCell(x) + '</td></tr>')), '');
 
   // ---- skills ----
   const sk = skillConsultations();
@@ -17460,13 +17667,15 @@ function renderMechanicsSheet() {
   add('experience', 'Experience and levels', null, src('every award', 0xE8B) + src('a new level', 0xE86),
     xp.rule ? 'Every award goes through one helper, and a level is a threshold on the total.' : 'The experience helper (0xE8B) is not in this archive.',
     xp.rule ? [
-      'Experience is added' + (xp.rule.cap ? ', <b>capped at 65,535</b>' : '') + (xp.rule.doubling ? ', and the level rises by one when it passes <b>100 × 2 to the power of the level less one</b>: above 100 for level 2, 200 for 3, 400 for 4, 800, 1,600, doubling.' : '.'),
-      'A new level recomputes full health as <b>body + reflex ÷ 2 + level, plus Defence × 5 × reflex ÷ 15</b>, taking Defence as the skill where the character has it and a class figure, with health scaled to match, and full magic as <b>mind + Mana</b> the same way.',
-      'Striking something earns the attacker the damage dealt, up to the victim’s level above theirs plus one, and one point for a blow bigger than the gap the other way.',
+      'Experience is added' + (xp.rule.cap ? ', <b>capped at ' + srcNum(xp.rule.cap, xp.rule.cap.v.toLocaleString('en-US')) + '</b>' : '') +
+        (xp.rule.doubling && xp.rule.base ? ', and the level rises by one when it passes <b>' + srcNum(xp.rule.base) + ' × 2 to the power of the level less ' + srcNum(xp.rule.less, xp.rule.less ? xp.rule.less.v : '') + '</b>: above ' +
+          [2, 3, 4, 5, 6].map(l => mechLevelThreshold(l - 1, xp.rule.base.v).toLocaleString('en-US') + (l === 2 ? ' for level 2' : l < 5 ? ' for ' + l : '')).join(', ') + ', doubling.' : '.'),
+      xp.rule.healthReflexDiv && xp.rule.healthMul && xp.rule.healthDiv ? 'A new level recomputes full health as <b>body + reflex ÷ ' + srcNum(xp.rule.healthReflexDiv) + ' + level, plus Defence × ' + srcNum(xp.rule.healthMul) + ' × reflex ÷ ' + srcNum(xp.rule.healthDiv) + '</b>, taking Defence as the skill where the character has it and a class figure, with health scaled to match, and full magic as <b>mind + Mana</b> the same way.' : '',
+      xp.rule.gapAdd ? 'Striking something earns the attacker the damage dealt, up to the victim’s level above theirs plus ' + srcNum(xp.rule.gapAdd) + (xp.rule.pastGap ? ', and ' + srcNum(xp.rule.pastGap) + ' for a blow bigger than the gap the other way' : '') + '.' : '',
       'A shared award is split across the party.'
-    ] : [],
-    (xp.rule ? mechExperienceFigure() : '') +
-    (xp.awards.length ? '<div class="mechSub">The fixed awards, ' + xp.awards.length + ' of them</div>' + table(['#points', 'occasion', 'where'], xp.awards.map(a => '<tr>' + num(a.amount) + '<td>' + svEsc(a.note) + '</td><td>' + svChip(a.resid) + '</td></tr>')) : ''), '');
+    ].filter(Boolean) : [],
+    (xp.rule ? mechExperienceFigure(xp.rule) : '') +
+    (xp.awards.length ? '<div class="mechSub">The fixed awards, ' + xp.awards.length + ' of them</div>' + table(['#points', 'occasion', 'where'], xp.awards.map(a => '<tr>' + srcCell(a.val, a.amount) + '<td>' + svEsc(a.note) + '</td><td>' + svChip(a.resid) + '</td></tr>')) : ''), '');
 
   // ---- karma ----
   const km = karmaRules();
@@ -17474,27 +17683,27 @@ function renderMechanicsSheet() {
   add('karma', 'Karma', null, src('a kill', 0xE8D),
     km.writes.length ? 'A number the scripts move, and test.' : 'No script in this archive moves karma.',
     km.writes.length ? [
-      start ? 'It starts at <b>' + start.set + '</b> when a character is made.' : '',
-      km.byAlignment ? 'Killing something moves it by the victim’s alignment, values 0 to ' + (km.byAlignment.length - 1) + ' in turn: <b>' + km.byAlignment.map(v => (v > 0 ? '+' : '') + v).join(', ') + '</b>. Nothing in the file names the four.' : '',
-      km.reads.length ? 'It is tested <b>' + km.reads.map(r => r.test).filter((v, i, a) => a.indexOf(v) === i).join('</b> and <b>') + '</b>.' : ''
+      start ? 'It starts at <b>' + srcNum(start.val, start.set) + '</b> when a character is made.' : '',
+      km.byAlignment ? 'Killing something moves it by the victim’s alignment, values 0 to ' + (km.byAlignment.length - 1) + ' in turn: <b>' + srcNum(km.byAlignmentSrc, km.byAlignment.map(v => (v > 0 ? '+' : '') + v).join(', ')) + '</b>. Nothing in the file names them.' : '',
+      km.reads.length ? 'It is tested <b>' + km.reads.filter((r, i, a) => a.findIndex(x => x.test === r.test) === i).map(r => (r.below ? 'below ' : 'above ') + srcNum(r.val, r.n)).join('</b> and <b>') + '</b>.' : ''
     ].filter(Boolean) : [],
     mechKarmaFigure(km) +
-    table(['#change', 'occasion', 'where'], km.writes.filter(w => w.set === undefined).map(w => '<tr>' + num(w.change !== null && w.change !== undefined ? (w.change > 0 ? '+' : '') + w.change : (w.why || '')) + '<td>' + svEsc(w.note || '') + '</td><td>' + svChip(w.resid) + '</td></tr>')
-      .concat(km.reads.map(r => '<tr>' + num(r.test) + '<td>' + svEsc(r.note || '') + '</td><td>' + svChip(r.resid) + '</td></tr>'))), '');
+    table(['#change', 'occasion', 'where'], km.writes.filter(w => w.set === undefined).map(w => '<tr>' + (w.change !== null && w.change !== undefined ? srcCell(w.val, (w.change > 0 ? '+' : '') + w.change) : num(w.why || '')) + '<td>' + svEsc(w.note || '') + '</td><td>' + svChip(w.resid) + '</td></tr>')
+      .concat(km.reads.map(r => '<tr><td class="num">' + (r.below ? 'below ' : 'above ') + srcNum(r.val, r.n) + '</td><td>' + svEsc(r.note || '') + '</td><td>' + svChip(r.resid) + '</td></tr>'))), '');
 
   // ---- food and potions ----
   const fd = foodRules();
   add('potions', 'Potions', null, src('the potion', 0x101F),
     fd.potions.length ? 'A potion’s colour is its aspect, and the aspect picks one of eight effect scripts.' : 'No potion class in this archive.',
     [],
-    (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + svEsc(p.does.join('; ') || '') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : ''), '');
+    (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + p.effects.map(x => srcNum(x.src, x.text)).join('; ') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : ''), '');
   add('food', 'Food', null, '',
     fd.foods.length ? 'A food adds to nutrition when used. The general foodstuff classes read an amount per variant, and one of them a line per variant, by the aspect; a variant is the class at another aspect.' : 'No food in this archive.',
     [],
     (fd.foods.length ? table(['food', '#aspect', 'variant', '#nutrition', 'says'], fd.foods.flatMap(f => f.variants
-      ? f.variants.map(v => '<tr><td>' + propChip(f.pt, f.name) + '</td>' + num(v.aspect) + '<td>' + svLink(svEsc(v.name || ('variant ' + v.aspect)), 'propWordOpen(' + f.pt + ',' + v.aspect + ')') + '</td>' + num('+' + v.plus) + '<td>' + (v.says ? '“' + svEsc(v.says) + '”' : '') + '</td></tr>')
-      : ['<tr><td>' + propChip(f.pt, f.name) + '</td><td></td><td></td>' + num(f.plus !== null ? '+' + f.plus : 'an amount the script works out') + '<td></td></tr>'])) : '') +
-    mechFoodFigure(fd), '');
+      ? f.variants.map(v => '<tr><td>' + propChip(f.pt, f.name) + '</td>' + num(v.aspect) + '<td>' + svLink(svEsc(v.name || ('variant ' + v.aspect)), 'propWordOpen(' + f.pt + ',' + v.aspect + ')') + '</td>' + srcCell(v.src, '+' + v.plus) + '<td>' + (v.says ? '“' + svEsc(v.says) + '”' : '') + '</td></tr>')
+      : ['<tr><td>' + propChip(f.pt, f.name) + '</td><td></td><td></td>' + (f.plus !== null ? srcCell(f.val, '+' + f.plus) : num('an amount the script works out')) + '<td></td></tr>'])) : '') +
+    mechFoodFigure(fd, hungerNotes().ceiling), '');
 
   // ---- status effects ----
   const st = statusRules();
@@ -17502,7 +17711,7 @@ function renderMechanicsSheet() {
   add('status', 'Status effects', null, '',
     st.applies.size ? 'Every place a script puts a status on somebody, with the duration the call gives in clock units of 4096 to the game hour, and every place one is cleared, which is what a cure is.' : 'No script in this archive applies a status.',
     [], mechStatusFigure(st) + table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
-      (st.applies.get(nm) || []).map(a => svChip(a.resid, a.duration !== null ? 'for ' + a.duration : '')).join(' ') + '</td><td>' +
+      (st.applies.get(nm) || []).map(a => svChip(a.resid) + (a.duration !== null ? ' <span class="inspDim">for</span> ' + srcNum(a.durationVal, a.duration) : '')).join(' ') + '</td><td>' +
       [...(st.cures.get(nm) || [])].map(r => svChip(r)).join(' ') + '</td></tr>')), '');
 
   // ---- hunger, and healing with it ----
@@ -17510,16 +17719,21 @@ function renderMechanicsSheet() {
   // The scripts' side is read here.
   const hg = hungerNotes();
   add('hunger', 'Hunger and healing', null, '',
-    'Nutrition is a byte on the character, 0 to 100. No script lowers it: the executable’s tick routine takes <b>one off every game hour</b>, and the same routine heals a fed character.',
+    'Nutrition is a byte on the character' + (hg.ceiling !== null ? ', 0 to ' + srcNum(hg.ceilingVal) : '') + '. No script lowers it: the executable’s tick routine takes <b>one off every game hour</b>, and the same routine heals a fed character.',
     [
       'Every hour of the clock, nutrition falls by 1 for every character on the map; the fall is not in the file, only the reads of it.',
-      (hg.complains !== null ? 'The idle script complains below <b>' + hg.complains + '</b>.' : ''),
-      (hg.ceiling !== null ? 'The fountain and Nutrient add only up to <b>' + hg.ceiling + '</b>; a food adds its own figure, listed above.' : ''),
+      (hg.complains !== null ? 'The idle script complains below <b>' + srcNum(hg.complainsVal) + '</b>.' : ''),
+      (hg.ceiling !== null ? (function () {
+        // An item class script is named for its prop type, a spell for itself.
+        const names = hg.ceilingBy.map(r => svLink((r >= 0x1000 && r < 0x1200 ? propDisplayName(r - 0x1000) : labelFor(r)) || ('0x' + r.toString(16).toUpperCase()), 'jumpToResource(' + r + ')'));
+        return names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names[names.length - 1] + ' add only up to <b>' + srcNum(hg.ceilingVal) + '</b>; a food adds its own figure, listed above.';
+      })() : ''),
       'While nutrition is above 0, <b>health and magic each rise by 1</b> at a rate set by the level: every hour at level 1, every half hour at 2 and 3, every 20 minutes at 4 and 5, every quarter hour at 6 and 7, every 12 minutes from 8 up. Nothing rises past full.',
       'At 0 there is no healing. The executable takes no health for hunger.'
     ].filter(Boolean),
-    '<div class="mechStats">' + stat(100, 'nutrition at most') + stat('1 an hour', 'the fall') + stat('about 4 days', 'from full to empty') + '</div>' +
-    mechHungerFigure(), '');
+    '<div class="mechStats">' + (hg.ceiling !== null ? '<span class="mechStat"><b>' + srcNum(hg.ceilingVal) + '</b> nutrition at most</span>' : '') + stat('1 an hour', 'the fall') +
+      (hg.ceiling !== null ? stat('about ' + Math.round(hg.ceiling / 24) + ' days', 'from full to empty') : '') + '</div>' +
+    mechHungerFigure(hg.ceiling), '');
 
   // ---- locks ----
   const lk = lockRules();
@@ -17527,30 +17741,35 @@ function renderMechanicsSheet() {
     lk.rule ? 'One helper tries a key or a pick against a lock.' : 'The lock helper (0xE43) is not in this archive.',
     lk.rule ? [
       lk.rule.keyFits ? 'A key fits when the lock’s number matches the key’s.' : '',
-      lk.rule.formula ? 'A pick opens the lock when the picker’s <b>reflex plus a roll of 0 to 18</b> is at least <b>20 plus another roll of 0 to 18 plus 5 for every 20 of the lock’s difficulty, rounded up</b>' + (lk.rule.breaks ? ', and <b>breaks</b> otherwise.' : '.') + ' Rounded up, so a difficulty of 1 costs the same 5 as a difficulty of 20.' : '',
+      lk.rule.formula ? (function () {
+        const n = lk.rule.numbers, up = n.addend.v === n.per.v - 1;
+        return 'A pick opens the lock when the picker’s <b>reflex plus a roll of 0 to ' + srcNum(n.pickRoll, n.pickRoll.v - 1) + '</b> is at least <b>' + srcNum(n.base) + ' plus another roll of 0 to ' + srcNum(n.lockRoll, n.lockRoll.v - 1) +
+          ' plus ' + srcNum(n.step) + ' for every ' + srcNum(n.per) + ' of the lock’s difficulty' + (up ? ', rounded up' : ' after adding ' + srcNum(n.addend)) + '</b>' + (lk.rule.breaks ? ', and <b>breaks</b> otherwise.' : '.') +
+          (up ? ' Rounded up, because the helper adds ' + srcNum(n.addend) + ' before it divides, so a difficulty of 1 costs the same ' + n.step.v + ' as a difficulty of ' + n.per.v + '.' : '');
+      })() : '',
       lk.needsSkill ? 'The lockpick refuses to be used at all without the <b>Lock Picking</b> skill.' : '',
       'The difficulty is the placed lock’s own. The classes carry a parameter of their own, shown as stored.'
     ].filter(Boolean) : [], mechLockFigure(lk),
-    lk.classes.length ? '<span class="partsTitle">Lock parameter</span>' + lk.classes.map(c => propChip(c.pt, c.name, c.words.join(' '))).join('') : '');
+    lk.classes.length ? '<span class="partsTitle">Lock parameter</span>' + lk.classes.map(c => propChip(c.pt, c.name) + ' ' + srcNum(c.src, c.words.join(' '))).join(' ') : '');
 
   // ---- shops ----
   const sh = shopRules();
   add('shops', 'Shops', null, src('the counter', 0xEA5),
     sh.shops.length ? sh.shops.length + ' shops, each one call of the same helper with what the vendor lists and at what price.' : 'No script in this archive opens a shop.',
-    sh.shops.length ? ['The helper bargains from the listed price with four figures of the vendor’s, shown as stored.', sh.haggling ? 'The <b>Haggling</b> skill takes a further roll of 0 to 5 off the vendor’s figure.' : ''].filter(Boolean) : [],
+    sh.shops.length ? ['The helper bargains from the listed price with four figures of the vendor’s, shown as stored.', sh.haggling ? 'The <b>Haggling</b> skill takes a further roll of 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) + ' off the vendor’s figure.' : ''].filter(Boolean) : [],
     mechShopFigure(sh) +
     table(['vendor', 'goods, at the listed price in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.who !== null && loadCharacterTable()[spn.who] ? characterChip(spn.who) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
-      spn.goods.map(g => svEsc(g.name) + ' <span class="mechPrice">' + g.price + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') + '</td>' + num(spn.terms ? spn.terms.join(' ') : '') + '</tr>')), '');
+      spn.goods.map(g => svEsc(g.name) + ' <span class="mechPrice">' + srcNum(g.src, g.price) + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') + '</td>' + (spn.terms ? srcCell(spn.termsSrc, spn.terms.join(' ')) : num('')) + '</tr>')), '');
 
   // ---- training ----
   const tr = trainingRules();
   add('training', 'Training', null, src('a lesson', 0xEB1),
     tr.teachers.length ? tr.teachers.length + ' teachers, each one call of the same helper naming the skill.' : 'No script in this archive teaches a skill.',
     tr.teachers.length ? [
-      'A lesson raises the skill one level' + (tr.points.perLesson ? ' and costs <b>one training point</b>' : '') + '.',
-      (tr.points.atStart !== null ? 'A character is made with <b>' + tr.points.atStart + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + tr.points.perLevel + '</b> with each level' : '') + '.',
-      tr.points.mastery ? 'A skill is mastered at level <b>' + tr.points.mastery + '</b>; a teacher marked <i>to mastery</i> teaches past the first lessons.' : ''
+      'A lesson raises the skill one level' + (tr.points.perLesson !== null ? ' and costs <b>' + srcNum(tr.points.perLessonVal) + ' training point' + (tr.points.perLesson === 1 ? '' : 's') + '</b>' : '') + '.',
+      (tr.points.atStart !== null ? 'A character is made with <b>' + srcNum(tr.points.atStartVal) + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + srcNum(tr.points.perLevel) + ' less the difficulty level</b> with each level' : '') + '.',
+      tr.points.mastery !== null ? 'A skill is mastered at level <b>' + srcNum(tr.points.masteryVal) + '</b>; a teacher marked <i>to mastery</i> teaches past the first lessons.' : ''
     ].filter(Boolean) : [],
     mechTrainingFigure(tr) +
     table(['teacher', 'teaches'], tr.teachers.map(t => '<tr><td>' + (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + '</td><td>' +
@@ -17570,22 +17789,22 @@ function renderMechanicsSheet() {
   add('sleep', 'Sleeping', null, src('the bed', 0x100E) + src('the night', 0xE93),
     sl ? 'A bed picks a quality for the sleep and hands the hours to one helper, which passes the night and multiplies what the engine healed during it.' : 'The bed class (0x100E) or the sleep helper (0xE93) is not in this archive.',
     sl ? [
-      sl.own !== null ? 'Your own bed in Land King Hall has quality <b>' + sl.own + '</b>; an inn’s bed takes its innkeeper’s figure from a table in the global store (0x301), at the slot the innkeeper’s dialogue wrote when the room was paid for, and a bed nobody paid for is refused.' : '',
-      sl.quarter && sl.hours ? 'The night passes <b>a quarter of an hour at a time</b>, four to the hour asked for' + (sl.owner ? ', and the bed’s owner turning up throws you out (“Hey! Out of my bed!”)' : '') + '.' : '',
-      sl.half ? 'Then, when the quality is not 0' + (sl.soundly ? ' (“You sleep soundly”)' : '') + ', every party member gets <b>what they healed during the night times the quality over 2</b> on top, for health and for magic, up to full. <b>Quality 4 is three times the engine’s rate.</b>' : '',
+      sl.own !== null ? 'Your own bed in Land King Hall has quality <b>' + srcNum(sl.ownVal) + '</b>; an inn’s bed takes its innkeeper’s figure from a table in the global store (0x301), at the slot the innkeeper’s dialogue wrote when the room was paid for, and a bed nobody paid for is refused.' : '',
+      sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (sl.quarterVal.v * sl.hoursVal.v === mechClockUnitsPerHour() ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + ', ' + srcNum(sl.hoursVal) + ' to the hour asked for' + (sl.owner ? ', and the bed’s owner turning up throws you out (“Hey! Out of my bed!”)' : '') + '.' : '',
+      sl.half ? 'Then, when the quality is not 0' + (sl.soundly ? ' (“You sleep soundly”)' : '') + ', every party member gets <b>what they healed during the night times the quality over ' + srcNum(sl.div) + '</b> on top, for health and for magic, up to full.' + (sl.own !== null ? ' <b>Quality ' + sl.own + ' is ' + (1 + sl.own / sl.div.v) + ' times the engine’s rate.</b>' : '') : '',
       sl.toss ? 'Quality 0 is “You toss and turn” and the engine’s rate alone.' : '',
       'The engine’s rate is the one under Hunger and healing: a fed character’s level rate, plus the six-minute regeneration where a worn item grants it, and nothing at all for a hungry one.',
       'The magic branch compares magic against <i>full health</i> in two places. Kept as stored.'
     ].filter(Boolean) : [],
     (sl ? mechSleepFigure(sl) : '') +
-    (sl && sl.inns.length ? table(['bed', 'where', '#quality', 'healing'], [(sl.own !== null ? '<tr><td>your own</td><td>Land King Hall</td>' + num(sl.own) + '<td>× ' + (1 + sl.own / 2) + '</td></tr>' : '')].concat(
-      sl.inns.map(x => '<tr><td>' + (loadCharacterTable()[x.who] ? characterChip(x.who) : 'character ' + x.who) + '</td><td>' + svEsc((loadCharacterTable()[x.who] && zoneDisplayName(loadCharacterTable()[x.who].zone)) || '') + '</td>' + num(x.quality) + '<td>' + (x.quality !== null ? '× ' + (1 + x.quality / 2) : '') + '</td></tr>'))) : ''), '');
+    (sl && sl.div && sl.inns.length ? table(['bed', 'where', '#quality', 'healing'], [(sl.own !== null ? '<tr><td>your own</td><td>Land King Hall</td>' + srcCell(sl.ownVal) + '<td>× ' + (1 + sl.own / sl.div.v) + '</td></tr>' : '')].concat(
+      sl.inns.map(x => '<tr><td>' + (loadCharacterTable()[x.who] ? characterChip(x.who) : 'character ' + x.who) + '</td><td>' + svEsc((loadCharacterTable()[x.who] && zoneDisplayName(loadCharacterTable()[x.who].zone)) || '') + '</td>' + srcCell(x.qualitySrc, x.quality) + '<td>' + (x.quality !== null ? '× ' + (1 + x.quality / sl.div.v) : '') + '</td></tr>'))) : ''), '');
 
   // ---- the clock ----
   add('clock', 'The clock, poison and time', null, '',
     'The game keeps one clock in units of <b>1/4096 of an hour</b>, about 0.9 seconds of game time. Twenty-four hours make a day, and every duration a script hands the engine is in these units. Read from the executable, not the file.',
     [
-      'A step costs one unit; looking costs 2, taking 4, and a spell 10 plus twice its level. The monsters move while the player’s time is spent.',
+      'A step costs one unit; looking costs 2, taking 4' + (sp.rule && sp.rule.timing ? ', and a spell ' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times its level' : '') + '. The monsters move while the player’s time is spent.',
       'A status duration of <b>4096 is one hour</b>, 1024 a quarter of an hour, 409 six minutes.',
       'A <b>poisoned</b> character (flag 9) loses 1 health every six minutes and <b>dies</b> when the next point would take them below 1; a <b>regenerating</b> one (flag 12, what Omen’s ring grants) gains 1 every six minutes; one who is both takes a coin toss each time.',
       'Lighting is recomputed every quarter hour, and the schedules every hour.'

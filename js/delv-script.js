@@ -362,11 +362,11 @@ function dvmAnnotateInt(encl, argIdx, v) {
   }
   if (encl === 0xA8 && argIdx === 1 && v > 0 && v <= 0xFFFF) {
     const pt = v & 0x3FF, asp = v >> 10;
-    const n = (typeof PROP_TYPE_NAMES !== 'undefined' && PROP_TYPE_NAMES[pt]) || null;
+    const n = (typeof propTypeName === 'function' && propTypeName(pt)) || null;
     return 'aspect ' + asp + ', proptype ' + pt + (n ? ' — ' + n : '');
   }
   if (encl === 0xAD && argIdx === 4 && v > 0 && v <= 0x3FF) {
-    const n = (typeof PROP_TYPE_NAMES !== 'undefined' && PROP_TYPE_NAMES[v]) || null;
+    const n = (typeof propTypeName === 'function' && propTypeName(v)) || null;
     return n ? 'proptype — ' + n : null;
   }
   if (encl === 0xAD && argIdx === 0 && v > 0) {
