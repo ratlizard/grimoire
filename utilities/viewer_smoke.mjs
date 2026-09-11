@@ -1727,6 +1727,49 @@ try {
   else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${(html.match(/class="mechFig"/g) || []).length} figures drawn; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);
 } catch (e) { fail('mechanics', e); }
 
+/* Damage to things, 11 September 2026: every class with a TakeDamage of its
+   own read off its script, not the metal door's arithmetic stated as a rule.
+   The figures are the shipped file's and each must arrive with the offset
+   it was read at: the ring the link paints is checked to land on the line
+   holding that number, and on nothing when the offset is one the listing
+   does not reach (the negative control, without which a ring painted on
+   the first line would pass). */
+try {
+  const dt = ctx.damageTakers();
+  const row = pt => dt.rows.find(r => r.pt === pt) || {};
+  const md = row(3), sd = row(10), ch = row(141), cf = row(142), cr = row(67), at = row(317);
+  const tab = r => (r.types || []).map(t => t.mask.v + (t.op === 'mul' ? '*' : '/') + t.k.v).join(' ');
+  ctx.showCategory('MECHANICS');
+  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  if (dt.rows.length < 19) fail('damage', `only ${dt.rows.length} classes take damage by a rule of their own`);
+  else if (tab(md) !== '4*2 1/2 2/4' || md.rule !== 'door' || !md.strength || md.strength.v !== 15) fail('damage', 'the metal door was misread: ' + JSON.stringify([tab(md), md.rule, md.strength]));
+  else if (!sd.data1Below || sd.data1Below.v !== 128 || sd.strength.v !== 255) fail('damage', 'the stone door’s Data1 guard or strength was misread: ' + JSON.stringify([sd.data1Below, sd.strength]));
+  else if (ch.rule !== 'chest' || ch.strength.v !== 10 || cf.strength.v !== 8 || cr.rule !== 'data2' || !cr.data2Default || cr.data2Default.v !== 5) fail('damage', 'the chest, coffer or crate was misread: ' + JSON.stringify([ch.strength, cf.strength, cr.rule, cr.data2Default]));
+  else if (!at.onlyType || at.onlyType.v !== 1026 || !at.xp || at.xpWhileBelow.v !== 10) fail('damage', 'the archery target was misread: ' + JSON.stringify([at.onlyType, at.xp, at.xpWhileBelow]));
+  else if (!dt.door || dt.door.destroy.factor.v !== 5 || !dt.door.magicOnlyDestroyed || dt.chest.destroy.factor.v !== 3 || dt.door.wear.v !== 2 || dt.door.step.v !== 1) fail('damage', 'the door or chest helper was misread: ' + JSON.stringify([dt.door && dt.door.destroy, dt.chest && dt.chest.destroy]));
+  else if ([/Damage to things/, /The door is now bashed open!/, /It is slightly dented, but still intact\./, /a bare hand/].some(re => !re.test(html))) fail('damage', 'the Mechanics section does not state the door and chest rules in the file’s words: missing ' + [/Damage to things/, /The door is now bashed open!/, /It is slightly dented, but still intact\./, /a bare hand/].filter(re => !re.test(html)).join(' '));
+  else if (!new RegExp('jumpToScriptAt\\(' + 0xE49 + ',' + dt.door.destroy.factor.at + '\\)').test(html)) fail('damage', 'the door’s destroying factor is not a link to its line');
+  else {
+    // Follow the factor's link, as a click would, and read the ring.
+    ctx.jumpToScriptAt(0xE49, dt.door.destroy.factor.at);
+    const pane = REGISTRY.get('textContent');
+    const ring = /<span id="listingHit" class="listingHit">([^\n]*)<\/span>/.exec(pane.innerHTML || '');
+    const was = peek('window.LISTING_AT');
+    ctx.jumpToResource(0xE49);
+    peek('paintDecodedPane')();
+    const cleared = !/listingHit/.test(REGISTRY.get('textContent').innerHTML || '');
+    // An operand byte rings its instruction's line; an offset before the
+    // first object rings nothing.
+    const within = peek('listingLineFor')('function obj_0000(1 args, 0 locals) {\n  0003      byte 0x05\n  0005      end\n}', 0x0004);
+    const before = peek('listingLineFor')('\nfunction obj_0010(1 args, 0 locals) {\n  0003      byte 0x05\n}', 0x0004);
+    if (!ring || !/byte 0x05/.test(ring[1])) fail('damage', 'following the factor did not ring the line that holds it: ' + JSON.stringify(ring && ring[1]));
+    else if (!was || was.resid !== 0xE49) fail('damage', 'the ring was not kept for the jump');
+    else if (!cleared) fail('damage', 'a plain jump to the same script kept the ring');
+    else if (within !== 1 || before !== -1) fail('damage', 'listingLineFor rings the wrong line: ' + JSON.stringify([within, before]));
+    else console.log(`  damage: ${dt.rows.length} classes read off their own TakeDamage; the door rule (${dt.door.destroy.factor.v} times the strength) and the chest rule (${dt.chest.destroy.factor.v}) stated; a figure's link rings its line`);
+  }
+} catch (e) { fail('damage', e); }
+
 /* The Cheats sheet. Its key tables and the preferences record are constants
    read out of the executable, so what is worth checking is that they reach
    the page whole and that the parts built from the ARCHIVE are really read

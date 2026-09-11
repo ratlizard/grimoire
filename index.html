@@ -661,6 +661,11 @@ details.sv[open] > summary::before { content:'\25BE '; }
 .svLink::before, .svLink::after { display:none !important; }
 .svLink:hover { text-decoration:underline; background:none !important; }
 .svLink i { font-style:normal; color:#8c8980; font-size:0.9em; }
+/* A number read off a script (srcNum) keeps the weight of the text around
+   it, so a bold figure in a rule stays bold, and the line it opens on is
+   ringed in the listing. */
+.svLink.srcNum { font-weight:inherit !important; }
+.listingHit { background:rgba(249,248,111,.16); box-shadow:0 0 0 1px rgba(249,248,111,.55); border-radius:2px; }
 /* An item page's sections fold, shut by default, each summary carrying a
    line of what is inside so the shut page still reads. */
 details.itemFold { margin:8px 0 0; padding:7px 10px 6px; }
@@ -4124,8 +4129,8 @@ function showItemDetail(pt) {
       rows += '<tr><td style="padding:3px 10px 3px 0;color:#fff;white-space:nowrap">' +
         svEsc(itemFieldLabel(f.key)) +
         '<span style="color:#8c8980;font-size:0.6875rem"> 0x' + f.key.toString(16).toUpperCase().padStart(4,'0') + '</span></td>' +
-        '<td style="padding:3px 0;color:var(--gold);font-family:ui-monospace,Menlo,Consolas,monospace">' +
-        svEsc(itemFieldValue(f)) + '</td></tr>' +
+        '<td style="padding:3px 0;font-family:ui-monospace,Menlo,Consolas,monospace">' +
+        srcNum({ resid: cls.resid, at: f.off }, itemFieldValue(f)) + '</td></tr>' +
         (meta.gloss ? '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">' +
           svEsc(meta.gloss) + '</td></tr>'
         : '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">' +
@@ -4139,10 +4144,23 @@ function showItemDetail(pt) {
   // Behaviour: which methods have code behind them.
   if (cls && cls.code.length) {
     fold('code', 'Responds to', cls.code.map(f => itemFieldLabel(f.key)).join(', '),
-      cls.code.map(f => '<button class="sv-chip" onclick="jumpToResource(' + cls.resid + ')">' +
+      cls.code.map(f => '<button class="sv-chip" onclick="jumpToScriptAt(' + cls.resid + ',' + f.off + ')">' +
         svEsc(itemFieldLabel(f.key)) + '</button>').join(' ') +
       '<div class="sv-note" style="margin-top:6px">Each opens the class script 0x' +
-      cls.resid.toString(16).toUpperCase() + ', where the disassembly is grouped by method.</div>');
+      cls.resid.toString(16).toUpperCase() + ' at its method.</div>');
+  }
+  // What a blow does to it, where the class has a TakeDamage of its own.
+  if (cls && cls.code.some(f => f.key === 0x41)) {
+    let row = null;
+    try { row = damageTakers().rows.find(r => r.pt === pt) || null; } catch (e) { row = null; }
+    if (row) {
+      const words = damageRowWords(row);
+      const plain = words.replace(/<[^>]+>/g, '');
+      fold('struck', 'When struck', plain.charAt(0).toUpperCase() + plain.slice(1),
+        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">' + words.charAt(0).toUpperCase() + words.slice(1) + '.' +
+        (row.says.filter(s => s !== row.spills)[0] ? ' It says “' + svEsc(row.says.filter(s => s !== row.spills)[0]) + '”.' : '') + '</div>' +
+        '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to things') + '</div>');
+    }
   }
 
   if (cls && cls.text.length) {
@@ -12926,6 +12944,7 @@ function jumpToResource(resid) {
   const subn = resid === 0x8EFF ? 142 : Math.floor(resid / 0x100) - 1;
   const cat = document.getElementById('categorySelect');
   if (!cat) return false;
+  window.LISTING_AT = null;   // a ring is jumpToScriptAt's, set after this returns
   let value = null;
   for (const o of cat.options) if (parseInt(o.value) === subn) { value = o.value; break; }
   if (value === null) return false;
@@ -13560,8 +13579,13 @@ function paintDecodedPane() {
     return;
   }
   if (sw) sw.style.display = '';
+  // A line ringed by jumpToScriptAt, in either view.
+  const at = window.LISTING_AT && window.LISTING_AT.resid === d.resid ? window.LISTING_AT.at : null;
   if (window.DECODE_VIEW === 'linked') {
-    pane.innerHTML = linkedSummary(d.resid) + renderLinked(d.text, d.resid);
+    const body = renderLinked(d.text, d.resid);
+    pane.innerHTML = linkedSummary(d.resid) + (at === null ? body : listingRing(body, d.text, at));
+  } else if (at !== null) {
+    pane.innerHTML = listingRing(svEsc(d.text), d.text, at);
   } else {
     pane.textContent = d.text;
   }
@@ -15814,6 +15838,309 @@ function statusRules() {
   return { applies, cures };
 }
 
+/* ---- a number read off a script, and where it was read -------------------
+   The Mechanics sheet states rules with numbers in them, and until
+   11 September 2026 most of those numbers were typed into the sentence
+   behind a pattern that checked the script still said them: "capped at
+   65,535" was printed because /word 65535/ matched. A number the code keeps
+   its own copy of is one an edited archive silently contradicts and one a
+   reader has no way to check, so the numbers are read now, each with the
+   offset of the instruction that holds it, and the sheet prints each as a
+   link that opens the script ringed at that line (srcNum, jumpToScriptAt).
+
+   The listing is dvmRender's, as buildScriptTextIndex caches it. A line's
+   offset there counts from the start of its object -- dvmDisassemble is
+   handed the object's own bytes -- while a branch target is the resource's,
+   so the object's start, from its `function obj_XXXX(` header, is added
+   back. `at` is then an offset in the resource's plaintext, which is what a
+   branch, Edit Bytes and the link all mean by one. */
+let _dvmEntryIndex = { src: null, byId: new Map() };
+function dvmScriptEntry(resid) {
+  const all = buildScriptTextIndex();
+  if (_dvmEntryIndex.src !== all) _dvmEntryIndex = { src: all, byId: new Map(all.map(e => [e.resid, e])) };
+  return _dvmEntryIndex.byId.get(resid) || null;
+}
+// Every instruction line of a listing: its resource offset, its object's
+// start, its nesting, and its text without the offset (`byte 0x04`).
+function dvmOpsOf(entry) {
+  if (!entry) return [];
+  if (entry.ops) return entry.ops;
+  const ops = [];
+  let base = 0;
+  const lines = entry.text.split('\n');
+  for (let li = 0; li < lines.length; li++) {
+    const h = /^(?:function )?obj_([0-9A-F]{4})\b/.exec(lines[li]);
+    if (h) { base = parseInt(h[1], 16); continue; }
+    const m = /^  ([0-9A-F]{4})  ((?:    )*)(\S+)(?: (.*))?$/.exec(lines[li]);
+    if (!m) continue;
+    ops.push({ at: base + parseInt(m[1], 16), obj: base, line: li, depth: m[2].length / 4,
+               mn: m[3], text: m[3] + (m[4] !== undefined ? ' ' + m[4] : '') });
+  }
+  return (entry.ops = ops);
+}
+// A constant operand as a number, or null (`word True` is not one).
+const DVM_NUM = /^(?:byte|short|word) (?:-?0x[0-9A-F]+|-?\d+)$/i;
+function dvmNum(op) {
+  const m = op && /^(?:byte|short|word) (-?0x[0-9A-F]+|-?\d+)$/i.exec(op.text);
+  return m ? parseInt(m[1]) : null;
+}
+// The number an instruction pushes, with where: { v, resid, at }.
+function dvmVal(resid, op) {
+  const v = dvmNum(op);
+  return v === null ? null : { v, resid, at: op.at };
+}
+// The ops from `i` that match `pat` one for one: each element a RegExp
+// tested against an op's text, or null for any single op. The matched ops,
+// or null.
+function dvmSeq(ops, i, pat) {
+  if (i < 0 || i + pat.length > ops.length) return null;
+  const got = [];
+  for (let k = 0; k < pat.length; k++) {
+    const op = ops[i + k];
+    if (pat[k] && !pat[k].test(op.text)) return null;
+    got.push(op);
+  }
+  return got;
+}
+function dvmSeqFirst(ops, pat, from) {
+  for (let i = from || 0; i < ops.length; i++) { const g = dvmSeq(ops, i, pat); if (g) return g; }
+  return null;
+}
+function dvmSeqAll(ops, pat) {
+  const out = [];
+  for (let i = 0; i < ops.length; i++) { const g = dvmSeq(ops, i, pat); if (g) out.push(g); }
+  return out;
+}
+// The first match in a script, by resource id, as a convenience.
+function dvmSeqIn(resid, pat) { return dvmSeqFirst(dvmOpsOf(dvmScriptEntry(resid)), pat); }
+
+/* A number the sheet read, as a link to the line that holds it. `text` is
+   what is printed when that is not the operand itself -- "29" for a
+   `Random(0, 30)`, "65,535" for `word 65535`. A value that was not read
+   prints as plain text, so a sentence never shows a link to nowhere. */
+function srcNum(val, text) {
+  const shown = text === undefined || text === null ? (val ? String(val.v) : '') : String(text);
+  if (!val || typeof val.resid !== 'number' || typeof val.at !== 'number') return svEsc(shown);
+  return '<button class="svLink srcNum" onclick="jumpToScriptAt(' + val.resid + ',' + val.at + ')" title="' +
+    propWordHex(val.resid) + ' at ' + propWordHex(val.at) + '">' + svEsc(shown) + '</button>';
+}
+// A table cell holding one.
+function srcCell(val, text) {
+  return '<td class="num">' + (val || (text !== undefined && text !== null && text !== '') ? srcNum(val, text) : '') + '</td>';
+}
+
+/* Open a script with one line ringed and in view. The resource view is
+   jumpToResource's; a conversation opens on its dialogue, so the listing
+   is brought out from behind the toggle. The ring is painted by
+   paintDecodedPane from LISTING_AT, which jumpToResource clears, so it
+   belongs to this one jump and to no later visit of the same script. The
+   scroll waits a beat because setMode puts a detail view at the top of
+   the page on a timeout of its own. */
+window.LISTING_AT = null;
+function jumpToScriptAt(resid, at) {
+  if (window.CUR_SUBN === 'MECHANICS') mechKeepPlace();
+  if (!jumpToResource(resid)) return false;
+  window.LISTING_AT = { resid, at };
+  const tabs = document.getElementById('viewTabs');
+  if (tabs && tabs.style.display === 'none') toggleRawDump();
+  showPane('textContent');
+  paintDecodedPane();
+  setTimeout(() => {
+    const hit = document.getElementById('listingHit');
+    if (hit && hit.scrollIntoView) hit.scrollIntoView({ block: 'center' });
+  }, 40);
+  return true;
+}
+// The line of a listing an offset falls on: the last instruction at or
+// before it, within the object that holds it.
+function listingLineFor(text, at) {
+  const lines = String(text).split('\n');
+  let base = -1, best = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const h = /^(?:function )?obj_([0-9A-F]{4})\b/.exec(lines[i]);
+    if (h) {
+      base = parseInt(h[1], 16);
+      if (base > at) break;
+      best = i;
+      continue;
+    }
+    const m = base >= 0 && /^  ([0-9A-F]{4})  /.exec(lines[i]);
+    if (!m) continue;
+    if (base + parseInt(m[1], 16) > at) break;
+    best = i;
+  }
+  return best;
+}
+function listingRing(html, text, at) {
+  const i = listingLineFor(text, at);
+  if (i < 0) return html;
+  const hl = html.split('\n');
+  if (i >= hl.length) return html;
+  hl[i] = '<span id="listingHit" class="listingHit">' + hl[i] + '</span>';
+  return hl.join('\n');
+}
+
+// The arguments of a call at ops[i]: the ops one level inside it, up to
+// its `end`.
+function dvmCallArgs(ops, i) {
+  const out = [], d = ops[i].depth;
+  for (let j = i + 1; j < ops.length && ops[j].obj === ops[i].obj; j++) {
+    if (ops[j].depth <= d) break;
+    if (ops[j].depth === d + 1) out.push(ops[j]);
+  }
+  return out;
+}
+// A quoted string an op pushes, as the game has it.
+function dvmOpString(op) {
+  const m = op && /^string(?:\(implicit\))? ("(?:[^"\\]|\\.)*")/.exec(op.text);
+  if (!m) return null;
+  try { return JSON.parse(m[1]).replace(/\n$/, ''); } catch (e) { return null; }
+}
+
+/* DAMAGE TO THINGS. Every blow and every damaging spell ends in the
+   target's TakeDamage method (0x41), handed the damage and its type: the
+   combat outcome 0xE87 calls it after ResistDamage, the damage helper
+   0xEB8 for a spell, 0xE8F for a weapon's roll. A character takes it as
+   health through the default method 0x3041. An item class can carry a
+   TakeDamage of its own, and the metal door's -- blunt doubled, edged
+   halved, piercing quartered, then the door helper 0xE49 -- was written up
+   on 9 September 2026 from that one class and kept off the sheet until
+   every class that has one had been read (asked for on 11 September).
+   They have been, and the arithmetic is the doors', the chest's, the
+   coffer's and the crate's alike; the rest do something of their own.
+
+   So this reads each class's method for its parts rather than naming
+   classes: the type table (`if (type & M) damage op= K`, tested in turn,
+   the first bit that matches deciding), a guard (a type equal to N, a
+   Data1 below N, a damage above N), where the damage goes (0xE49 with the
+   door's aspects, 0xE4A with the chest's and a strength, or a lock of the
+   class's own against Data2), and what follows (the thing deleted, turned
+   into another prop type, given an aspect, experience awarded, a line
+   said). The two helpers are read once, by bashRule. */
+function bashRule(resid) {
+  const ops = dvmOpsOf(dvmScriptEntry(resid));
+  if (!ops.length) return null;
+  const v = g => g ? dvmVal(resid, g.find(o => DVM_NUM.test(o.text))) : null;
+  const byClass = dvmSeqFirst(ops, [/^class_member 0x3400$/, DVM_NUM, /^mul$/, /^gt$/]);
+  const byArg = dvmSeqFirst(ops, [/^arg Arg01$/, /^arg Arg\d+$/, DVM_NUM, /^mul$/, /^gt$/]);
+  const destroy = byClass ? { factor: dvmVal(resid, byClass[1]), strength: 'class' } : byArg ? { factor: dvmVal(resid, byArg[2]), strength: 'argument' } : null;
+  const opens = dvmSeqFirst(ops, [/^arg Arg01$/, /^arg Arg00$/, /^get_field data2/, /^gt$/]);
+  const wear = dvmSeqFirst(ops, [/^arg Arg01$/, /^arg Arg00$/, /^get_field data2/, DVM_NUM, /^div$/, /^gt$/]);
+  const step = dvmSeqFirst(ops, [/^set_field data2/, /^arg Arg00$/, /^end$/, /^arg Arg00$/, /^get_field data2/, DVM_NUM, /^sub$/]);
+  // The destroying blow is tested inside the locked branch for a door, so
+  // only a locked or magically locked door can be destroyed, and a
+  // magically locked one only that way: the condition is
+  // locked || (magically locked && damage > strength x factor).
+  const magicOnlyDestroyed = !!dvmSeqFirst(ops, [/^eq$/, /^or$/, /^arg Arg01$/, /^arg Arg00$/, /^class_member 0x3400$/, DVM_NUM, /^mul$/, /^gt$/, /^and$/, /^or$/]);
+  const says = ops.map(dvmOpString).filter(Boolean);
+  const spills = ops.some(o => o.text === 'call_resource 0xE48');
+  // Anything inside it flagged 2 is used on the one attacking and removed
+  // before the blow is judged.
+  const setsOff = !!dvmSeqFirst(ops, [/^get_field flags/, /^byte 0x02$/, /^bitwise_and$/]) && ops.some(o => /^method UseOn/.test(o.text));
+  // The line each outcome says: the first string with words in it after
+  // the test that leads to it, and the one after that for the blow that
+  // does nothing. Chosen by where it sits, so an edited line is quoted as
+  // edited.
+  const lineAfter = (g, skip) => {
+    if (!g) return null;
+    let n = skip || 0;
+    for (let i = ops.indexOf(g[g.length - 1]) + 1; i < ops.length; i++) {
+      const s = dvmOpString(ops[i]);
+      if (s && /[A-Za-z]{2}/.test(s) && ops[i].text !== 'string "It contained"' && n-- === 0) return s;
+    }
+    return null;
+  };
+  const destroyG = byClass || byArg;
+  return { resid, destroy, opens: opens ? { resid, at: opens[0].at } : null,
+           wear: wear ? dvmVal(resid, wear[3]) : null, step: step ? dvmVal(resid, step[5]) : null,
+           magicOnlyDestroyed, says, spills, setsOff,
+           saysDestroyed: lineAfter(destroyG), saysOpened: lineAfter(opens), saysWorn: lineAfter(wear), saysHeld: lineAfter(wear, 1) };
+}
+// The weapons whose damage type passes `test`, off their classes, and a
+// bare hand where the outcome routine's type for one passes it too.
+function damageTypeCarriers(test) {
+  const names = [];
+  const bare = dvmSeqIn(0xE87, [/^class_member 0x2D02$/, /^end$/, /^branch /, /^set_local /, DVM_NUM, /^end$/]);
+  if (bare && test(dvmNum(bare[4]))) names.push('a bare hand');
+  for (const g of gearTable()) if (g.type !== null && test(g.type)) names.push(g.name);
+  const u = [...new Set(names)];
+  return u.length ? u.slice(0, 4).join(', ') + (u.length > 4 ? ' and ' + (u.length - 4) + ' more' : '') : '';
+}
+// What a class does when struck, in words with its numbers as links: the
+// cell of the Mechanics table and the item page's line.
+function damageRowWords(r) {
+  const bits = [];
+  const carried = t => { const c = damageTypeCarriers(t); return c ? ' <span class="inspDim">(' + svEsc(c) + ')</span>' : ''; };
+  if (r.onlyType) bits.push('only a blow of type ' + srcNum(r.onlyType) + carried(t => t === r.onlyType.v));
+  if (r.data1Below) bits.push('only while its Data1 is below ' + srcNum(r.data1Below));
+  if (r.overDamage) bits.push('any blow above ' + srcNum(r.overDamage));
+  if (r.types.length) bits.push('the damage changed by its type');
+  if (r.rule === 'door') bits.push('bashed as a door' + (r.strength ? ' of strength ' + srcNum(r.strength) : ''));
+  else if (r.rule === 'chest') bits.push('bashed as a chest' + (r.strength ? ' of strength ' + srcNum(r.strength) : ''));
+  else if (r.rule === 'lock') bits.push('a lock of strength ' + srcNum(r.strength) + ' of its own, opened by a blow above what is left' + (r.wear ? ' and worn down by one above what is left ÷ ' + srcNum(r.wear) : '') + (r.deletes ? '; destroyed when struck closed and unlocked' : ''));
+  else if (r.rule === 'data2') bits.push('breaks when a blow is above its Data2' + (r.data2Default ? ', ' + srcNum(r.data2Default) + ' until set' : ''));
+  if (r.becomes) bits.push('becomes ' + svEsc(propDisplayName(r.becomes.v) || 'prop type') + ' (prop type ' + srcNum(r.becomes) + ')');
+  else if (r.aspects.length && r.rule !== 'lock') bits.push('shows aspect ' + r.aspects.filter((a, i, all) => all.findIndex(b => b.v === a.v) === i).map(a => srcNum(a)).join(' or '));
+  if (r.deletes && r.rule !== 'lock') bits.push('destroyed');
+  if (r.spills !== null) bits.push('drops what it held');
+  if (r.xp) bits.push('rolls for a hit and gives ' + srcNum(r.xp) + ' experience for one' + (r.xpWhileBelow ? ', until its Data1 counts to ' + srcNum(r.xpWhileBelow) : ''));
+  return bits.join('; ');
+}
+function damageTakers() {
+  const rows = [];
+  for (let pt = 1; pt < 512; pt++) {
+    let cls = null;
+    try { cls = parseItemClass(pt); } catch (e) { cls = null; }
+    const take = cls && cls.code.find(c => c.key === 0x41);
+    if (!take) continue;
+    const r = cls.resid;
+    const ops = dvmOpsOf(dvmScriptEntry(r)).filter(o => o.obj === take.off);
+    if (!ops.length) continue;
+    const val = op => dvmVal(r, op);
+    const types = dvmSeqAll(ops, [/^if_not$/, /^arg Arg02$/, DVM_NUM, /^bitwise_and$/, /^then /, /^set_local 0x31$/, /^arg Arg01$/, DVM_NUM, /^(mul|div)$/])
+      .map(g => ({ mask: val(g[2]), k: val(g[7]), op: g[8].mn }));
+    const onlyType = dvmSeqFirst(ops, [/^if_not$/, /^arg Arg02$/, DVM_NUM, /^eq$/]);
+    const overDamage = dvmSeqFirst(ops, [/^if_not$/, /^arg Arg01$/, DVM_NUM, /^gt$/]);
+    // A Data1 test is a guard where nothing follows it but the damage, and
+    // a count where experience is awarded under it (the practice targets).
+    const d1 = dvmSeqFirst(ops, [/^if_not$/, /^arg Arg00$/, /^get_field data1/, DVM_NUM, /^lt$/]);
+    const xpAt = ops.findIndex(o => /^call_resource GainExp\b/.test(o.text));
+    const d1Idx = d1 ? ops.indexOf(d1[0]) : -1;
+    const counts = d1 && xpAt > d1Idx && xpAt - d1Idx < 10;
+    let xp = null;
+    if (xpAt >= 0) { const a = dvmCallArgs(ops, xpAt).find(o => DVM_NUM.test(o.text)); xp = a ? val(a) : null; }
+    const hand = (target) => {
+      const i = ops.findIndex(o => o.text === 'call_resource ' + target);
+      return i < 0 ? null : dvmCallArgs(ops, i).filter(o => DVM_NUM.test(o.text)).map(val);
+    };
+    const door = hand('0xE49'), chest = hand('0xE4A');
+    // A lock of the class's own, as the trapdoor has: Data2 starts at the
+    // class's lock figure and the damage is tested against what is left.
+    const ownLock = !!dvmSeqFirst(ops, [/^set_field data2/, /^arg Arg00$/, /^end$/, /^arg Arg00$/, /^class_member 0x3400$/]);
+    const dataDefault = dvmSeqFirst(ops, [/^if_not$/, /^arg Arg00$/, /^get_field data2/, DVM_NUM, /^eq$/, /^then /, /^set_field data2/, /^arg Arg00$/, /^end$/, DVM_NUM]);
+    const overData2 = dvmSeqFirst(ops, [/^if_not$/, /^arg Arg01$/, /^arg Arg00$/, /^get_field data2/, /^gt$/]);
+    const wear = dvmSeqFirst(ops, [/^arg Arg01$/, /^arg Arg00$/, /^get_field data2/, DVM_NUM, /^div$/, /^gt$/]);
+    const becomes = dvmSeqFirst(ops, [/^set_field obj_type/, /^arg Arg00$/, /^end$/, DVM_NUM]);
+    const aspects = dvmSeqAll(ops, [/^set_field aspect/, /^arg Arg00$/, /^end$/, DVM_NUM]).map(g => val(g[3]));
+    const deletes = !!dvmSeqFirst(ops, [/^sys Delete$/, /^arg Arg00$/]);
+    const spillAt = ops.findIndex(o => o.text === 'call_resource 0xE48');
+    const says = ops.map(dvmOpString).filter(Boolean);
+    let strength = null;
+    if (door || ownLock) {
+      const lk = cls.data.find(x => x.key === 0x34);
+      if (lk && lk.words.length) strength = { v: lk.words[0] & 0x0FFFFFFF, resid: r, at: lk.off };
+    } else if (chest && chest.length) strength = chest[chest.length - 1];
+    rows.push({ pt, resid: r, at: ops[0].at, name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)),
+      types, onlyType: onlyType ? val(onlyType[2]) : null, overDamage: overDamage ? val(overDamage[2]) : null,
+      data1Below: d1 && !counts ? val(d1[3]) : null, xp, xpWhileBelow: counts ? val(d1[3]) : null,
+      rule: door ? 'door' : chest ? 'chest' : ownLock ? 'lock' : dataDefault || overData2 ? 'data2' : 'own',
+      strength, data2Default: dataDefault ? val(dataDefault[9]) : null, wear: wear ? val(wear[3]) : null,
+      becomes: becomes ? val(becomes[3]) : null, aspects, deletes, spills: spillAt >= 0 ? dvmOpString(dvmCallArgs(ops, spillAt).find(o => /^string/.test(o.mn))) || '' : null,
+      says });
+  }
+  return { rows, door: bashRule(0xE49), chest: bashRule(0xE4A) };
+}
+
 /* A data value in a script, read as JavaScript. A `data` block (0x45, a
    16-bit length) holds an array: 0x90, a count, then 4-byte entries, each
    either a pointer (0x98, a byte, a 16-bit offset into the same resource)
@@ -17001,6 +17328,46 @@ function renderMechanicsSheet() {
     ].filter(Boolean) : [],
     cb ? combatSimControls() + '<div id="combatOut">' + combatSimHtml(combatSimParams(), cb.words) + '</div>' : '', '');
 
+  // ---- damage to things ----
+  // Every class with a TakeDamage of its own, read off its script
+  // (damageTakers), and the door and chest helpers they hand the blow to.
+  {
+    const dt = damageTakers();
+    const rows = dt.rows, door = dt.door, chest = dt.chest;
+    const nm = r => svLink(r.name, 'showItemDetail(' + r.pt + ')');
+    const typed = rows.filter(r => r.types.length);
+    const sig = r => r.types.map(t => t.mask.v + t.op + t.k.v).join(',');
+    const oneTable = typed.length && typed.every(r => sig(r) === sig(typed[0]));
+    // Which weapons each test catches (damageTypeCarriers): a type with
+    // the bit that no earlier test took.
+    const carriers = (steps, i) => damageTypeCarriers(t => !!(t & steps[i].mask.v) && !steps.slice(0, i).some(p => t & p.mask.v));
+    const opWord = t => (t.op === 'mul' ? '× ' : '÷ ') + srcNum(t.k);
+    const doors = rows.filter(r => r.rule === 'door'), chests = rows.filter(r => r.rule === 'chest');
+    const listStrength = rs => rs.map(r => nm(r) + ' ' + srcNum(r.strength)).join(', ');
+    const q = s => s ? ' (“' + svEsc(s) + '”)' : '';
+    add('damage', 'Damage to things', null, src('a blow', 0xE87) + src('a door', 0xE49) + src('a chest', 0xE4A),
+      rows.length ? 'A blow or a damaging spell hands its damage and its type to what it hits. A character takes it off health; ' + rows.length + ' kinds of thing take it by a rule of their own, each read off its own class script.'
+                  : 'No item class in this archive takes damage by a rule of its own.',
+      rows.length ? [
+        oneTable ? typed.map(nm).join(', ') + ' change the damage by its type first, testing one bit after another: ' +
+          typed[0].types.map((t, i, all) => 'a type with <b>' + srcNum(t.mask) + '</b> in it ' + opWord(t) + (carriers(all, i) ? ' <span class="inspDim">(' + svEsc(carriers(all, i)) + ')</span>' : '')).join(', else ') +
+          '. The first bit that matches decides, and any other type, fire or electric, is left as it is.' : '',
+        door && door.destroy && doors.length ? 'A locked door has a strength, its class’s lock figure: ' + listStrength(doors) + '. A blow above <b>' + srcNum(door.destroy.factor) + ' times the strength</b> destroys it' + q(door.saysDestroyed) + '.' +
+          (door.opens ? ' Short of that, a blow above what is left of the strength ' + srcNum(door.opens, 'bashes it open') + q(door.saysOpened) : '') +
+          (door.wear && door.step ? ', and one above what is left ÷ ' + srcNum(door.wear) + ' wears it down by ' + srcNum(door.step) + q(door.saysWorn) : '') + '.' +
+          (door.magicOnlyDestroyed ? ' A magically locked door can only be destroyed.' : '') + ' Struck closed and unlocked, a door opens; struck open, nothing happens.' : '',
+        chest && chest.destroy && chests.length ? 'A chest’s strength is given in its own class script: ' + listStrength(chests) + '. Whatever its state, a blow above <b>' + srcNum(chest.destroy.factor) + ' times the strength</b> destroys it' + (chest.spills ? ' and drops what it held' : '') + '.' +
+          (chest.opens ? ' Locked, a blow above what is left ' + srcNum(chest.opens, 'opens it') + q(chest.saysOpened) : '') +
+          (chest.wear && chest.step ? ', one above what is left ÷ ' + srcNum(chest.wear) + ' wears it down by ' + srcNum(chest.step) + q(chest.saysWorn) : '') +
+          (chest.saysHeld ? ', and a smaller one says “' + svEsc(chest.saysHeld) + '”' : '') + '.' +
+          ' Magically locked, only destruction; closed and unlocked, it opens.' : '',
+        (door && door.setsOff) || (chest && chest.setsOff) ? 'Before a door or a chest is judged, anything inside it flagged 2 is used on the current character and removed.' : '',
+        'What is left of a strength is kept in the placed door’s or chest’s Data2, which is set to the full strength the first time it is struck.'
+      ].filter(Boolean) : [],
+      rows.length ? table(['thing', 'when struck', 'says'], rows.map(r => '<tr><td>' + propChip(r.pt, r.name) + '</td><td>' + damageRowWords(r) + ' ' + srcNum({ resid: r.resid, at: r.at }, 'script') + '</td><td>' +
+        (r.says.filter(s => s !== r.spills)[0] ? '“' + svEsc(r.says.filter(s => s !== r.spills)[0]) + '”' : '') + '</td></tr>')) : '', '');
+  }
+
   // ---- weapons and armour ----
   const gear = gearTable();
   const kind = r => r.melee ? 0 : r.thrown ? 1 : r.ranged ? 2 : r.ammo ? 3 : r.armour ? 4 : 5;
@@ -17240,8 +17607,12 @@ function renderMechanicsSheet() {
       rows.length ? table(['list', 'words'], rows) : '<div class="sv-note">' + (app ? 'None of the lists is in this fork.' : 'Open the game from its installer, under Settings, and the vocabulary is read out of the application.') + '</div>',
       '<span class="partsTitle">In the file</span>' + svLink('Data › Combat AI', "showCategory('AIRULES')"));
   }
-  // The sections in alphabetical order, whatever order they were read in.
-  for (const sn of sections.slice().sort((a, b) => a.title.localeCompare(b.title))) box.appendChild(sn.el);
+  // The sections in alphabetical order, whatever order they were read in,
+  // and open where they were open when a number was followed out of them.
+  for (const sn of sections.slice().sort((a, b) => a.title.localeCompare(b.title))) {
+    if (window.MECH_OPEN && window.MECH_OPEN.has(sn.el.id)) sn.el.open = true;
+    box.appendChild(sn.el);
+  }
   // Open all and Close all, and nothing else over the sections: the
   // contents strip went on 9 September 2026.
   const all = document.createElement('div');
@@ -17250,6 +17621,16 @@ function renderMechanicsSheet() {
   box.insertBefore(all, box.firstChild);
   grid.appendChild(box);
   out.textContent = sections.length + ' rules read out of this archive’s scripts. Each says which script it came from.';
+}
+// The cards open when a number on the sheet was followed into its script,
+// so that back from the script finds them open again and setMode's scroll
+// memory lands on the same place; a card that was shut would put the page
+// somewhere else. Kept for the session, and only a followed number sets it.
+window.MECH_OPEN = new Set();
+function mechKeepPlace() {
+  const grid = document.getElementById('sheetGrid');
+  const all = grid && grid.querySelectorAll ? grid.querySelectorAll('details.mechSec') : [];
+  window.MECH_OPEN = new Set([...all].filter(d => d.open).map(d => d.id));
 }
 // Open a Mechanics section and scroll it into view; a plain anchor would
 // rewrite the hash, which is the page's deep link.
