@@ -19,10 +19,12 @@
 //
 // THE LOADER'S HALF (pefLoad, since September 2026, when the Mechanics sheet
 // began reading figures out of the code and needed the data section and the
-// TOC as the loader lays them out). There is no second implementation to
-// hold it to -- the workbench's relocation simulator reads one instruction's
-// fields the other way round -- so it is held to what a correct loader must
-// produce in this particular program:
+// TOC as the loader lays them out). There is no independent second
+// implementation to hold it to -- the workbench's relocation simulator read
+// one instruction's fields the other way round until this loader showed it,
+// and was fixed to agree, so its agreement is not evidence for that field --
+// so it is held to what a correct loader must produce in this particular
+// program:
 //
 //   - the pattern-initialised data section expands to exactly its unpacked
 //     size, consuming exactly its packed size, and the relocations run to
