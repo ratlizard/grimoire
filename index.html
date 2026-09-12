@@ -4417,7 +4417,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.61.0';
+const GRIMOIRE_VERSION = '1.62.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -18064,23 +18064,124 @@ function puzzleRules() {
     }
     const pt = 0x104;
     const buttons = [];
-    let zone = null;
+    let zone = null, records = null;
     try {
       for (let z = 1; z < 0x100; z++) {
         if (!refExists(0x8100 + z)) continue;
-        for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data)) {
-          if (r.proptype !== pt || r.flags === 0xFF || (r.flags & 0x40)) continue;
-          zone = 0x8000 + z;
-          buttons.push({ x: r.x, y: r.y, d1: r.d1, d2: r.d2,
-                         a: { panel: r.d1 & 15, table: r.d1 >> 4 },
-                         b: { panel: r.d2 & 15, table: r.d2 >> 4 } });
-        }
-        if (buttons.length) break;
+        const list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data);
+        const here = list.filter(r => r.proptype === pt && r.flags !== 0xFF && !(r.flags & 0x40));
+        if (!here.length) continue;
+        zone = 0x8000 + z;
+        records = list;
+        // The panel a button drives is its OWN RECORD INDEX plus the low
+        // nibble, not its position in this filtered list: the class does
+        // `arg Arg00 + (data1 & 15)` and casts the result to a Prop. The two
+        // agree only if the buttons run from record 0 with nothing between
+        // them, and here they are records 82 to 157 with panels and doors
+        // interleaved, so counting from the list printed panels that do not
+        // exist. Resolve the record and keep it.
+        const byIndex = new Map(list.map(r => [r.index, r]));
+        for (const r of here)
+          buttons.push({ x: r.x, y: r.y, d1: r.d1, d2: r.d2, index: r.index,
+                         a: { panel: r.index + (r.d1 & 15), table: r.d1 >> 4, rec: byIndex.get(r.index + (r.d1 & 15)) || null },
+                         b: { panel: r.index + (r.d2 & 15), table: r.d2 >> 4, rec: byIndex.get(r.index + (r.d2 & 15)) || null } });
+        break;
       }
     } catch (e) { /* no prop lists, no buttons */ }
-    if (arrays || buttons.length) out.buttons = { resid: 0x1104, blobAt: blob ? blob.at : null, arrays, buttons, zone, pt };
+    // The rooms. Both panels a button drives carry the same door number in
+    // their Data1, and a door with that number stands between them, so the
+    // five rooms fall out of the records rather than being described here.
+    const rooms = new Map();
+    if (records) for (const b of buttons) for (const side of [b.a, b.b]) {
+      if (!side.rec || !side.rec.d1) continue;
+      if (!rooms.has(side.rec.d1)) rooms.set(side.rec.d1, { door: side.rec.d1, panels: new Map(), buttons: new Set(), doorRec: null });
+      const rm = rooms.get(side.rec.d1);
+      rm.panels.set(side.rec.index, side.rec);
+      rm.buttons.add(b);
+    }
+    if (records) for (const r of records) {
+      if (r.flags === 0xFF || (r.flags & 0x40)) continue;
+      const rm = rooms.get(r.d1);
+      if (rm && r.proptype !== 0x104 && !rm.panels.has(r.index) && !rm.doorRec) rm.doorRec = r;
+    }
+    if (arrays || buttons.length) out.buttons = { resid: 0x1104, blobAt: blob ? blob.at : null, arrays, buttons, zone, pt,
+      rooms: [...rooms.values()].map(rm => ({ door: rm.door, doorRec: rm.doorRec,
+        panels: [...rm.panels.values()].sort((a, b) => a.x - b.x), buttons: [...rm.buttons] })).sort((a, b) => a.door - b.door) };
   }
+  out.riddles = riddleRules();
   return out;
+}
+
+/* THE RIDDLES. The five buttons in the Hall of Truth each speak a riddle and
+   take a spoken answer: 0x1110 opens a conversation, prints one of five
+   strings chosen by the button's own Data1, and accepts one keyword. Get it
+   right and it emits the button's Data2 as a signal; a stone door carrying
+   that number in its Data1 is what opens.
+
+   The five strings are reached through a table of DREFS. A dref is
+   0x80000000 | resid << 16 | offset (js/delv-script.js), so the entries read
+   0x91100068 and the rest, every one of them pointing back into 0x1110
+   itself, and the text at each offset runs to a NUL.
+
+   That last detail took three readings and the two wrong ones are worth
+   recording, because the first looked right. Reading a length byte at the
+   offset gives " am always hungry," -- the byte there is 'I', 73, a perfectly
+   plausible length, so the string comes out long and almost correct with its
+   first character eaten. Reading a length byte before the offset gives
+   "I am al". Neither is a Pascal string; there is no length anywhere. The
+   same mistake, a swallowed leading byte, once produced a false claim in this
+   project that a hundred dialogues held unrendered text, so the smoke pins
+   the first riddle whole and pins what the wrong reading would give.
+
+   dvmStringObjects finds this prose too, but as separate lines, because it
+   sweeps regions the disassembler could not reach rather than following the
+   table. Whole riddles need the table. */
+function riddleRules() {
+  const entry = dvmScriptEntry(0x1110);
+  if (!entry) return null;
+  let bytes = null;
+  try { bytes = smartDecrypt(getResourceBytes(0x1110), 0x1110).data; } catch (e) { return null; }
+  const ops = dvmOpsOf(entry);
+  const blob = ops.find(o => /^data </.test(o.text));
+  const table = blob ? dvmArrayWords(bytes, blob.at + 3) : null;
+  const text = [];
+  if (table) for (const w of table) {
+    if (!(w & 0x80000000) || ((w & 0x7FFF0000) >>> 16) !== 0x1110) { text.push(null); continue; }
+    const off = w & 0xFFFF;
+    let end = off;
+    while (end < bytes.length && bytes[end]) end++;
+    text.push(decodeMacRoman(bytes.slice(off, end)));
+  }
+  // The answers, in the order the script tests them, read off the opcodes
+  // rather than listed here. A keyword with a comma is two spellings of one
+  // answer, which is how "sound" also takes "noise".
+  const answers = ops.map(o => {
+    const m = /^conversation_response "([^"]*)"/.exec(o.text);
+    return m ? m[1] : null;
+  }).filter(Boolean);
+  const buttons = [], doors = [];
+  let zone = null;
+  try {
+    for (let z = 1; z < 0x100; z++) {
+      if (!refExists(0x8100 + z)) continue;
+      const list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data);
+      const here = list.filter(r => r.proptype === 0x110 && r.flags !== 0xFF && !(r.flags & 0x40));
+      if (!here.length) continue;
+      zone = 0x8000 + z;
+      for (const r of here) {
+        const door = list.find(d => d.d1 === r.d2 && d.proptype !== 0x110 && d.flags !== 0xFF && !(d.flags & 0x40));
+        buttons.push({ x: r.x, y: r.y, which: r.d1, signal: r.d2, door: door || null });
+      }
+      // The lone button of its own class, which emits from both its fields.
+      for (const r of list.filter(r => r.proptype === 0x107 && r.flags !== 0xFF && !(r.flags & 0x40))) {
+        const door = list.find(d => d.d1 === r.d1 && d.proptype !== 0x107 && d.flags !== 0xFF && !(d.flags & 0x40));
+        doors.push({ x: r.x, y: r.y, signal: r.d1, second: r.d2, door: door || null });
+      }
+      break;
+    }
+  } catch (e) { /* no prop lists */ }
+  buttons.sort((a, b) => a.which - b.which);
+  return { resid: 0x1110, blobAt: blob ? blob.at : null, text, answers, buttons, zone, lone: doors };
 }
 
 /* WHO ANSWERS AS WHOM. A character's conversation is their own topics and
@@ -20042,15 +20143,40 @@ function renderMechanicsSheet() {
       '<li>Lighting the one whose place is next advances the value; lighting any other puts it back to nothing.</li>' +
       (bz.last ? '<li>The last is number ' + srcNum(bz.last) + ', and lighting it in turn prints the line and flickers the screen.</li>' : '') +
       (bz.say ? '<li>' + svEsc(bz.say.replace(/\s+/g, ' ').trim()) + '</li>' : '') + '</ul>';
+    // Which sides of a panel are lit. The aspect's low four bits are the
+    // four sides, and the order is the file's: 8 right, 4 bottom, 2 left,
+    // 1 top. Read off the records rather than stated here, in that the
+    // numbers below are whatever the archive holds.
+    const litSides = a => ['right', 'bottom', 'left', 'top']
+      .filter((_, i) => a & (8 >> i)).join(', ') || 'none';
+    const sq = r => r ? r.x + ', ' + r.y : '';
     if (bu) {
+      if (bu.rooms && bu.rooms.length) html += '<div class="partsTitle">The pattern rooms</div>' +
+        table(['#door', 'the two panels', 'lit to begin with', '#buttons', 'the door between them'],
+          bu.rooms.map(rm => '<tr>' + num(rm.door) +
+            '<td>' + rm.panels.map(p => sq(p)).join('  and  ') + '</td>' +
+            '<td class="mechSub">' + rm.panels.map(p => litSides(p.aspect)).join('  |  ') + '</td>' +
+            num(rm.buttons.length) + '<td>' + sq(rm.doorRec) + '</td></tr>'));
       const rows = bu.buttons.map((b, i) => '<tr>' + num(i + 1) + '<td>' + b.x + ', ' + b.y + '</td>' +
-        '<td>panel ' + (i + b.a.panel) + ' through table ' + b.a.table + '</td>' +
-        '<td>panel ' + (i + b.b.panel) + ' through table ' + b.b.table + '</td></tr>');
-      html += '<div class="partsTitle">The buttons in Maayti</div>' +
+        '<td>' + sq(b.a.rec) + ' through table ' + b.a.table + '</td>' +
+        '<td>' + sq(b.b.rec) + ' through table ' + b.b.table + '</td></tr>');
+      html += '<div class="partsTitle">The buttons, and the two panels each one drives</div>' +
         table(['#no.', 'square', 'first panel', 'second panel'], rows);
       if (bu.arrays) html += '<div class="partsTitle">The tables they read through</div>' +
         table(['#table', 'aspect 0 to 15 becomes'], bu.arrays.map((a, i) =>
           '<tr>' + num(i) + '<td class="mechSub">' + a.join(', ') + (i === 0 && a.every((v, j) => v === j) ? '  (unchanged: this button moves nothing)' : '') + '</td></tr>'));
+    }
+    const ri = pz.riddles;
+    if (ri && ri.buttons.length) {
+      html += '<div class="partsTitle">The riddles, and the word each one takes</div>' +
+        table(['#no.', 'what it says', 'the answer it takes', 'the door it opens'],
+          ri.buttons.map(b => '<tr>' + num(b.which + 1) +
+            '<td>' + (ri.text[b.which] ? svEsc(ri.text[b.which]).replace(/\n/g, '<br>') : '') + '</td>' +
+            '<td>' + (ri.answers[b.which] ? ri.answers[b.which].split(',').map(w => '<b>' + svEsc(w) + '</b>').join(' or ') : '') + '</td>' +
+            '<td>' + (b.door ? sq(b.door) : '') + '</td></tr>'));
+      if (ri.lone.length) html += '<div class="partsTitle">The button on its own</div>' +
+        table(['square', 'signals', 'the door it opens'], ri.lone.map(l =>
+          '<tr><td>' + l.x + ', ' + l.y + '</td>' + num(l.signal) + '<td>' + (l.door ? sq(l.door) : '') + '</td></tr>'));
     }
     add('puzzles', 'Puzzles', null, (bz ? src('the braziers', 0x113F) : '') + (bu ? src('the buttons', 0x1104) : ''),
       (bz || bu) ? 'Two the file answers outright. Neither is guesswork about what the puzzle wants: the sequence and the tables are in the scripts, and the wiring is in the records placed on the map.'

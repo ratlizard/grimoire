@@ -1858,7 +1858,17 @@ try {
    requires them NOT to be listed -- a reader that forgets `sys Create`
    fails here rather than quietly publishing four wrong claims. The puzzle
    half pins what the community independently reverse-engineered: seven
-   tables of sixteen, the first of them the identity, and fourteen buttons. */
+   tables of sixteen, the first of them the identity, and fourteen buttons.
+
+   Two of the puzzle pins are there to catch a specific wrong reading rather
+   than a missing feature. Array 5 is the table the board could not reduce to
+   a rule and wrote down by playing; it is pinned literally, because array 0
+   is the identity under any reading that finds the blob at all, so the
+   identity test cannot tell a slipped offset from a correct one. And the
+   riddles are NUL-terminated strings with no length byte: reading a length at
+   the offset yields text that is long, plausible and missing its first
+   character, which is how a wrong reader survives a glance. Both the whole
+   string and the truncation are pinned. */
 try {
   const lib = ctx.libraryRules(), le = ctx.looseEnds(), pz = ctx.puzzleRules();
   ctx.showCategory('MECHANICS');
@@ -1867,6 +1877,7 @@ try {
   const said = unshown.join(' ~~ ');
   const passages = lib ? lib.reduce((n, d) => n + d.entries.length, 0) : 0;
   const bu = pz && pz.buttons;
+  const ri = pz && pz.riddles;
   if (!lib || lib.length < 4) fail('library', 'only ' + (lib ? lib.length : 0) + ' document arrays were wired up');
   else if (passages < 80) fail('library', 'only ' + passages + ' passages read');
   else if (!/Bestiary of Asilops/.test(lib.map(d => d.entries.map(e => e.str).join(' ')).join(' '))) fail('library', 'the bookshelf histories were not read');
@@ -1880,8 +1891,39 @@ try {
   else if (!bu.arrays.every(a => a.length === 16)) fail('puzzles', 'a button table is not sixteen entries');
   else if (!bu.arrays[0].every((v, i) => v === i)) fail('puzzles', 'the first table is not the identity, so the blob is being read at the wrong offset');
   else if (bu.buttons.length !== 14) fail('puzzles', bu.buttons.length + ' buttons, expected the fourteen in Maayti');
+  // Array 5 is the one the board could not reduce to a rule, and Wizard and
+  // Pallas Athene wrote it down from playing the game rather than from the
+  // file: [0,9,6,15,6,15,0,6,9,0,15,9,15,6,9,0]. It is the only independent
+  // check this reader has, so it is pinned literally. The identity test above
+  // cannot carry it: array 0 is the identity in any reading that finds the
+  // blob at all, whereas array 5 is wrong the moment the offset slips.
+  else if (!bu.arrays[5] || bu.arrays[5].join(',') !== '0,9,6,15,6,15,0,6,9,0,15,9,15,6,9,0')
+    fail('puzzles', 'array 5 is not the one the community recorded: ' + JSON.stringify(bu.arrays[5]));
+  // The panel a button drives is its own record index plus the low nibble,
+  // not its position in the filtered list. The two agree only if the buttons
+  // start at record 0 with nothing between them; these are records 82 to 157
+  // with the panels and doors interleaved, so the old arithmetic named panels
+  // that do not exist. Every button must resolve to a real Strange Device.
+  else if (bu.buttons.some(b => !b.a.rec || !b.b.rec || b.a.rec.proptype !== 0x106 || b.b.rec.proptype !== 0x106))
+    fail('puzzles', 'a button names a panel that is missing or is not prop type 0x106');
+  else if (!bu.rooms || bu.rooms.length !== 5) fail('puzzles', 'the pattern rooms did not come out five: ' + JSON.stringify(bu.rooms && bu.rooms.length));
+  else if (!bu.rooms.every(r => r.panels.length === 2 && r.doorRec)) fail('puzzles', 'a room is not two panels and a door');
+  else if (!ri || ri.text.length !== 5 || ri.answers.length !== 5) fail('puzzles', 'the riddles did not come out five with five answers');
+  // The riddles are NUL-terminated strings reached through drefs, with no
+  // length byte anywhere. Reading one at the offset gives " am always
+  // hungry," -- the byte there is 'I', 73, which passes for a length, so the
+  // text comes out long and almost right with its first character eaten.
+  // That is the shape of mistake that once had this project claiming a
+  // hundred dialogues held unrendered text, so both halves are pinned.
+  else if (!/^I am always hungry,/.test(ri.text[0]) || !/red\.$/.test(ri.text[0]))
+    fail('puzzles', 'the first riddle is not whole: ' + JSON.stringify(ri.text[0]));
+  else if (/^ am always/.test(ri.text[0])) fail('puzzles', 'the riddle lost its first character: the length-byte reading is back');
+  else if (ri.answers[0] !== 'fire' || !/,/.test(ri.answers[1]))
+    fail('puzzles', 'the answers are not being read off the opcodes: ' + JSON.stringify(ri.answers));
+  else if (!ri.buttons.every(b => b.door)) fail('puzzles', 'a riddle button opens no door');
   else if (!/Puzzles/.test(html)) fail('puzzles', 'the sheet does not state the puzzles');
-  else console.log(`  library and puzzles: ${passages} passages in ${lib.length} arrays, ${unshown.length} shown by nothing and ${lib.reduce((n, d) => n + d.dangling.length, 0)} pointing at nothing; ${le.unreachable.length} test nothing can satisfy; ${bu.buttons.length} buttons through ${bu.arrays.length} tables of ${bu.arrays[0].length}`);
+  else if (!/The riddles/.test(html)) fail('puzzles', 'the sheet does not state the riddles');
+  else console.log(`  library and puzzles: ${passages} passages in ${lib.length} arrays, ${unshown.length} shown by nothing and ${lib.reduce((n, d) => n + d.dangling.length, 0)} pointing at nothing; ${le.unreachable.length} test nothing can satisfy; ${bu.buttons.length} buttons through ${bu.arrays.length} tables of ${bu.arrays[0].length}, driving ${bu.rooms.length} rooms of two panels and a door; ${ri.text.length} riddles taking ${ri.answers.join(', ')}`);
 } catch (e) { fail('library', e); }
 
 /* The face, 12 September 2026. The page used to be set in Cythera's own
