@@ -4417,7 +4417,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.63.0';
+const GRIMOIRE_VERSION = '1.64.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -18214,6 +18214,63 @@ function tuneRules() {
   return out;
 }
 
+/* WHAT A SIGNAL REACHES. Scripts emit signals all over the scenario -- the
+   bells, both music locks, the Hall of Truth buttons, every lever -- and
+   nothing in the ARCHIVE says what answers one. No class has a handler, not
+   even the stone door that demonstrably opens when a Hall of Truth button is
+   pressed. The answer is in the application, in TGameSys::SendSignal, and
+   this reads it there rather than guessing from the records.
+
+   The order, from the routine itself: a signal of zero returns at once;
+   otherwise GetMessage (method 21) goes to the ZONE, then to the ROOM; then,
+   only when the signal is below 256, to every prop of the level whose flags
+   pass a mask, whose class carries a flag bit, and WHOSE DATA1 EQUALS THE
+   SIGNAL; then to all 512 character slots; then TGremlin::OnSignal.
+
+   The mask is worth stating carefully. The instruction is `li 0, -163`, which
+   is 0xFFFFFF5D, and it is ANDed with a byte, so the test is `flags & 0x5D`
+   being 0 or 1. Against the archive's own conventions that excludes eggs
+   (0x42 -> 0x40), roofs (0x44 -> 0x44) and contained props (0x09), and admits
+   a plain placed prop, which is what the rule should do.
+
+   One thing this deliberately does NOT say is which classes carry the flag.
+   That table is *(r2-30424), one long per class indexed by prop type times
+   four -- the same table the workbench's item-dragging-spec.md documents from
+   the 68K side at A5+$21488, where $200000 is slidable and $100000 droppable
+   and the signal bit is $10000. It cannot be read out of the program image:
+   the pointer resolves into the data section and every long there is zero, so
+   it is built at load time. The control that established that, rather than
+   leaving "no class listens" on the page, was counting the slidable and
+   droppable classes: both came back zero, which is impossible for a shipped
+   game and proved the read empty rather than the table. */
+function signalRules() {
+  const r = exeRoutineNamed('TGameSys::SendSignal');
+  if (!r) return null;
+  const ops = exeOpsOf(r);
+  if (!ops.length) return null;
+  const imm = o => (o && o.d && typeof o.d.imm === 'number') ? o.d.imm : null;
+  // Matched by the SHAPE of the instructions, never by address, so a
+  // differently built application still reads or else says nothing.
+  const first = (mn, v) => ops.find(o => o.mn === mn && imm(o) === v) || null;
+  const method = first('li', 21);
+  const under = first('cmpwi', 256);
+  const slots = first('cmpwi', 512);
+  const mask = first('li', -163);
+  const stride = ops.find(o => o.mn === 'addi' && o.d && o.d.rd === o.d.ra && imm(o) === 16) || null;
+  const calls = ops.filter(o => o.mn === 'bl' && o.to !== null && o.to !== undefined)
+                   .map(o => ({ at: o.at, name: exeTargetName(o.to) }));
+  const sends = calls.filter(c => /DoInterp/.test(c.name));
+  const gremlin = calls.find(c => /OnSignal/.test(c.name)) || null;
+  if (!method || !under || !slots) return null;
+  return {
+    name: r.name, at: r.offset, length: r.length,
+    method: exeVal(method, 21), under: exeVal(under, 256), slots: exeVal(slots, 512),
+    mask: mask ? exeVal(mask, 0x5D) : null, stride: stride ? exeVal(stride, 16) : null,
+    sends: sends.length, sendAt: sends.length ? exeVal({ at: sends[0].at }, sends.length) : null,
+    gremlin: gremlin ? { name: gremlin.name, val: exeVal({ at: gremlin.at }, 0) } : null
+  };
+}
+
 /* Who hands a prop over. sys Create is (recipient, aspect<<10|proptype,
    data1, data2), a signature delv-script.js records from the board and
    confirms against call sites -- Ennomus's tomb key is Create(you, 3<<10|66,
@@ -20340,6 +20397,16 @@ function renderMechanicsSheet() {
             srcCell(it.signal) +
             '<td>' + (it.given.length ? it.given.map(c => svChip(c.resid, c.name || '')).join(' ') : '') + '</td></tr>'));
     }
+    const sig = signalRules();
+    html += '<div class="partsTitle">What a signal reaches</div>' +
+      (sig ? '<ul class="ruleList">' +
+        '<li>A signal is sent to the zone and then to the room, as ' + srcNum(sig.method, 'GetMessage') + ', whatever its number.</li>' +
+        '<li>A signal <b>below ' + srcNum(sig.under) + '</b> also goes to every thing on the level whose class listens and <b>whose Data1 is the signal</b>. That is how a button opens one door and not another.</li>' +
+        (sig.mask ? '<li>A thing is passed over unless its flags, masked with ' + srcNum(sig.mask, '0x5D') + ', are nothing or one, which leaves out eggs, roofs and anything inside something else.</li>' : '') +
+        '<li>Then every one of <b>' + srcNum(sig.slots) + '</b> character slots in that zone, and last a call to ' + svEsc(sig.gremlin ? sig.gremlin.name : 'the gremlin') + '.</li>' +
+        '<li class="mechSub">Which classes listen is a table the application builds as it loads, so it is not in the file and is not stated here.</li>' +
+        '</ul>'
+        : '<div class="sv-note">Open the game from its installer, under Settings, and the order a signal travels in is read out of the application.</div>');
     add('puzzles', 'Puzzles', null,
       (bz ? src('the braziers', 0x113F) : '') + (bu ? src('the buttons', 0x1104) : '') +
       (ri ? src('the riddles', 0x1110) : '') + (tu && tu.bells ? src('the bells', 0x10C1) : '') +

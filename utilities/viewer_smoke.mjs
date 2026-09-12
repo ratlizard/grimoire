@@ -1957,6 +1957,13 @@ try {
   else if (typeof pan.tune.at !== 'number' || typeof lyre.tune.at !== 'number')
     fail('puzzles', 'a tune is not read off a line of its script, so it cannot be linked');
   else if (!/The music locks/.test(html) || !/The bells/.test(html)) fail('puzzles', 'the sheet does not state the tunes');
+  /* What a signal reaches is read out of the APPLICATION, and no application
+     is open this early: signalRules() returns null here, so pinning its
+     figures in this block would skip every assertion and pass for the wrong
+     reason. They are pinned in the installer section instead, where the
+     application has been adopted. Only the heading is checked here, because
+     the card emits it in both states. */
+  else if (!/What a signal reaches/.test(html)) fail('puzzles', 'the sheet does not state what a signal reaches');
   else console.log(`  library and puzzles: ${passages} passages in ${lib.length} arrays, ${unshown.length} shown by nothing and ${lib.reduce((n, d) => n + d.dangling.length, 0)} pointing at nothing; ${le.unreachable.length} test nothing can satisfy; ${bu.buttons.length} buttons through ${bu.arrays.length} tables of ${bu.arrays[0].length}, driving ${bu.rooms.length} rooms of two panels and a door; ${ri.text.length} riddles taking ${ri.answers.join(', ')}`);
 } catch (e) { fail('library', e); }
 
@@ -2587,6 +2594,33 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         }
       }
     } catch (e) { fail('program figures', e); }
+    /* What a signal reaches, 12 September 2026. These figures are the
+       APPLICATION's, so they are pinned here and not in the puzzles block.
+       signalRules() returns null until the application is adopted, and the
+       first version of these pins sat up there guarded by `sg &&`, which
+       meant every one of them was skipped and the suite went green having
+       tested nothing. Here the application is open, so the reader MUST
+       return something: a null is a failure, not a skip.
+
+       The 256 threshold is the figure that matters to the scenario. Every
+       signal in it is below the threshold (34 and 35 for the bells, 129 and
+       131 for the music locks, 201 to 211 in the Hall of Truth), which is
+       why props answer a signal at all; if it were ever read as a smaller
+       number the sheet would quietly stop explaining any of those puzzles. */
+    try {
+      const sg = ctx.signalRules();
+      if (!sg) fail('program signals', 'the dispatcher was not read even with the application open');
+      else if (!/TGameSys::SendSignal/.test(sg.name)) fail('program signals', 'the wrong routine was read: ' + sg.name);
+      else if (!sg.method || sg.method.v !== 21) fail('program signals', 'the message is not method 21, GetMessage: ' + JSON.stringify(sg.method));
+      else if (!sg.under || sg.under.v !== 256) fail('program signals', 'the threshold below which things are visited was misread: ' + JSON.stringify(sg.under));
+      else if (!sg.slots || sg.slots.v !== 512) fail('program signals', 'the character slot count was misread: ' + JSON.stringify(sg.slots));
+      else if (!sg.mask || sg.mask.v !== 0x5D) fail('program signals', 'the flags mask was misread: ' + JSON.stringify(sg.mask));
+      else if (sg.sends < 3) fail('program signals', 'only ' + sg.sends + ' dispatches, so the walk through the routine is wrong');
+      else if (!sg.gremlin || !/OnSignal/.test(sg.gremlin.name)) fail('program signals', 'the tail call was not found: ' + JSON.stringify(sg.gremlin));
+      else if (typeof sg.method.exe !== 'number' || typeof sg.under.exe !== 'number')
+        fail('program signals', 'a figure carries no address, so it cannot link to the instruction holding it');
+      else console.log(`  program signals: GetMessage to the zone and the room, then things below ${sg.under.v} by Data1, then ${sg.slots.v} character slots, then ${sg.gremlin.name}; ${sg.sends} dispatches`);
+    } catch (e) { fail('program signals', e); }
     /* The Cheats sheet off the program, v1.52.0: the gate, every case of the
        key routine's switch, the preferences record scanned out of the whole
        program, what the game stores and the file's keys. The figures pinned
