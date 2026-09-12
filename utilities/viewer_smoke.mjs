@@ -2025,6 +2025,40 @@ try {
   else console.log(`  talk: ${cv.chars.length} characters, ${topics} topics, ${real.length} groups inherited; Human by ${(real.find(g => g.rid === 0x801) || {}).inherited}, Bartender by none but called by ${bartender.called}`);
 } catch (e) { fail('talk', e); }
 
+/* What the scripts lean on, 12 September 2026. Two things here can go wrong
+   quietly and both are pinned.
+
+   The first is losing the distinction between a call and a resource named in
+   an operand. 0x021A, the To Do lines, is referenced by two dozen scripts and
+   called by none: if it ever reports calls, the index has started counting
+   operands as calls and every figure on the card is wrong.
+
+   The second is the uncalled list growing to swallow the archive. Most of the
+   archive is referenced by nothing and that is structural, not telling: item
+   classes are reached by prop type, dialogue by character index, room scripts
+   by room number. The card only shows a range whose siblings ARE referenced,
+   so this requires the wholly-structural ranges to stay OUT of it. Without
+   that control the card would quietly become a list of several hundred
+   "uncalled" scripts, all of which run. */
+try {
+  const ln = ctx.leanRules();
+  ctx.showCategory('MECHANICS');
+  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const top = ln && ln.ranked[0];
+  const quest = ln && ln.ranked.find(r => r.rid === 0x021A);
+  const labels = ln ? ln.ranges.map(g => g.label) : [];
+  const chars = ln && ln.ranges.find(g => g.label === '0xFxx');
+  if (!ln || !ln.edges) fail('leans', 'no references were read out of the archive');
+  else if (!ln.kinds.call || !ln.kinds.resource) fail('leans', 'the kinds of reference collapsed: ' + JSON.stringify(ln.kinds));
+  else if (!top || top.refs < 50 || top.calls !== top.refs) fail('leans', 'the busiest resource reads as ' + JSON.stringify(top));
+  else if (!quest || quest.calls !== 0) fail('leans', 'the To Do text array reports ' + (quest && quest.calls) + ' calls; operands are being counted as calls');
+  else if (!chars || !chars.dead.some(d => d.name === 'CurePoison')) fail('leans', 'the named character helpers nothing calls are missing from 0xFxx');
+  else if (labels.indexOf('0x10xx') >= 0 || labels.indexOf('0x18xx') >= 0 || labels.indexOf('0x1Bxx') >= 0)
+    fail('leans', 'a wholly structural range is being listed as uncalled: ' + JSON.stringify(labels));
+  else if (!/What the scripts lean on/.test(html)) fail('leans', 'the sheet does not state it');
+  else console.log(`  leans: ${ln.edges} references (${ln.kinds.call} calls, ${ln.kinds.resource} operands), busiest reached by ${top.refs}; ${ln.ranges.length} ranges with something uncalled, ${chars.dead.length} of them in 0xFxx`);
+} catch (e) { fail('leans', e); }
+
 /* No copy of the file's numbers or names, 11 September 2026. The Mechanics
    figures are read with the line that holds each and printed as links to
    it, so a figure typed back into a sentence shows up here as a number

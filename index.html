@@ -4417,7 +4417,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.59.0';
+const GRIMOIRE_VERSION = '1.60.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -18075,6 +18075,67 @@ function convRules() {
                      .sort((a, b) => b.who.length - a.who.length) };
 }
 
+/* WHAT THE SCRIPTS LEAN ON. The archive's call graph is small and lopsided:
+   most resources call nothing at all, and the few that are called are called
+   by nearly everything. buildXrefIndex already computes it in both
+   directions and is memoised, so this is a reading rather than an analysis.
+   It counts four kinds of reference, and the difference shows: a text array
+   like the To Do lines is referenced by two dozen scripts and called by
+   none, because they name it in a `word` operand rather than calling it.
+
+   The second half needs writing carefully, and the care is the point.
+   "Referenced by nothing" is true of most of the archive and means nothing
+   on its own: an item class is reached by its prop type, a dialogue by its
+   character index, a room script by its room number, a skill by its skill
+   number. Saying so as a headline would be the same mistake as calling the
+   ambient-sound eggs "nothing". The cut that carries information is a
+   resource unreferenced among siblings that ARE referenced: a helper nobody
+   calls standing beside one with a hundred callers.
+
+   Even then, the usual answer is that the application calls it by a
+   hardcoded id, not that it is dead, and two ranges here prove it rather
+   than assume it: the combat-AI hooks in 0x9xx are invoked by the compiled
+   .ai rules that ship beside the game, and the 0x2xx arrays are the
+   character-creation tables the dialog reads. So the card says "no script in
+   this archive calls it", which is what was measured, and never "dead". */
+function leanRules() {
+  let idx = null;
+  try { idx = buildXrefIndex(); } catch (e) { return null; }
+  const inb = idx.inbound, outb = idx.outbound;
+  let edges = 0;
+  const kinds = {};
+  for (const k of Object.keys(outb)) for (const e of outb[k]) { kinds[e.kind] = (kinds[e.kind] || 0) + 1; edges++; }
+  const ranked = Object.keys(inb).map(Number).map(rid => ({
+    rid, refs: inb[rid].length, calls: inb[rid].filter(e => e.kind === 'call').length
+  })).sort((a, b) => b.refs - a.refs);
+  const ranges = [];
+  try {
+    for (let subn = 0; subn < 256; subn++) {
+      const mi = masterIndexGlobal && masterIndexGlobal[subn];
+      if (!mi || !mi[0] || XREF_SKIP_SUBN.has(subn)) continue;
+      let live = 0;
+      const dead = [];
+      const count = subindexCount(subn);
+      for (let ri = 0; ri < count; ri++) {
+        const rid = ((subn + 1) << 8) | ri;
+        let raw = null;
+        try { raw = getResourceBytes(rid); } catch (e) { raw = null; }
+        if (!raw || !raw.length) continue;
+        if (inb[rid]) live++; else dead.push({ rid, name: labelFor(rid) || null });
+      }
+      const total = live + dead.length;
+      // A range nothing references at all is structural, not interesting.
+      if (!total || !live || dead.length / total > 0.9) continue;
+      const purpose = SUBINDEX_PURPOSE[subn];
+      ranges.push({ subn, total, live, dead,
+                    label: '0x' + (subn + 1).toString(16).toUpperCase() + 'xx',
+                    what: purpose ? purpose[0] : '' });
+    }
+  } catch (e) { /* no archive open, and then there are no ranges to show */ }
+  return { edges, kinds, ranked, ranges,
+           referencing: Object.keys(outb).length, referenced: Object.keys(inb).length };
+}
+
 /* SPELLS. Every spell script casts through one helper, CastSpell (0xEA1),
    with the spell's level and its cost in magic points, so the two are read
    off each script's call. The helper says the rest: a cost above the
@@ -19958,6 +20019,38 @@ function renderMechanicsSheet() {
       table(['group', '#topics', '#inherit it', ''], groupRows) +
       '<div class="partsTitle">The chains</div>' +
       table(['#how many', 'answers as', 'who'], shapeRows));
+  }
+
+  // ---- what the scripts lean on ----
+  {
+    const ln = leanRules();
+    const topRows = ln ? ln.ranked.slice(0, 14).map(r =>
+      '<tr><td>' + svChip(r.rid, '') + '</td>' + num(r.refs) +
+      '<td class="mechSub">' + (r.calls === r.refs ? 'every one a call'
+        : r.calls ? r.calls + ' calls, the rest named in an operand'
+        : 'named in an operand, never called') + '</td></tr>') : [];
+    const deadRows = ln ? ln.ranges.map(g => {
+      const named = g.dead.filter(d => d.name);
+      return '<tr><td>' + svEsc(g.label) + '<span class="mechSub"> ' + svEsc(g.what) + '</span></td>' +
+        num(g.dead.length) + num(g.total) + '<td>' +
+        (named.length ? named.map(d => svChip(d.rid, d.name)).join(' ') : '') +
+        (g.dead.length > named.length ? '<span class="mechSub">' + (named.length ? ' and ' : '') +
+          (g.dead.length - named.length) + ' unnamed</span>' : '') + '</td></tr>';
+    }) : [];
+    const busiest = ln && ln.ranked.length ? ln.ranked[0] : null;
+    add('leans', 'What the scripts lean on', null, '',
+      ln ? 'Which resources the archive’s scripts reach for, and which of them nothing reaches. The index counts a call, a resource named in an operand, a table entry and a dref, so a text array can be referenced by two dozen scripts without being called once.'
+         : 'No archive is open to read references out of.',
+      ln ? [
+        '<b>' + ln.referencing + ' resources</b> reference something and <b>' + ln.referenced + '</b> are referenced, over <b>' + ln.edges + ' references</b>: ' +
+          Object.keys(ln.kinds).map(k => '<b>' + ln.kinds[k] + '</b> ' + svEsc(k === 'call' ? 'calls' : k === 'resource' ? 'named in an operand' : k)).join(', ') + '.',
+        busiest ? 'The graph is lopsided: the busiest is ' + svChip(busiest.rid, labelFor(busiest.rid) || '') + ' at <b>' + busiest.refs + '</b>, and most resources are reached by nothing at all.' : '',
+        'Being reached by nothing is usually structural rather than telling: an item class is reached by its prop type, a dialogue by its character index, a room script by its room number. The table below shows only the cut that means something, which is a resource nothing calls sitting among siblings that are called.',
+        'Even there, the likeliest answer is that the application calls it by a hardcoded id. The combat AI hooks are invoked by the compiled .ai rules beside the game, and the character-creation tables are read by the dialog, so neither is dead.'
+      ].filter(Boolean) : [],
+      table(['resource', '#references', 'of which'], topRows) +
+      (deadRows.length ? '<div class="partsTitle">No script in this archive calls these</div>' +
+        table(['range', '#uncalled', '#in range', 'which'], deadRows) : ''));
   }
 
   // The sections in alphabetical order, whatever order they were read in,
