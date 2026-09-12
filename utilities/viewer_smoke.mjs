@@ -1812,6 +1812,44 @@ try {
   else console.log(`  aim and ground: ${tg.length} scripts ask for a target, ${reach.length} of them a neighbour; the swamp bites one step in ${swampChance} and lava does ${tn.lava.plus.v} to ${tn.lava.roll.hi.v - 1 + tn.lava.plus.v}; ${wt.kinds.length} kinds of water, ${mineral.clears.length} statuses cleared by the mineral spring; the unguent cures one time in ${cures[0].hi.v - cures[0].lo.v}; the bomb ${bl.centre.v}/${bl.edge.v}/${bl.corner.v}`);
 } catch (e) { fail('aim', e); }
 
+/* The To Do list and the eggs, 12 September 2026. Two readers whose whole
+   point is that the names mislead. delvmod's AddQuest is cbAddToDo: it
+   writes a line in the To Do window and sets none of the game's state, so
+   the sheet must not call it a quest. An egg's aspect is a kind the file
+   never names, and flags 0x44 is ROOF rather than EGG -- taking the two
+   together ringed 298 roofs as triggers until this batch, so a kind above
+   ten is the negative control for that returning. What is pinned besides:
+   the join to the text array by its own index field rather than by array
+   position, the lines that name the informant instead of the errand, and
+   the single line composed from a quest value, which is the only way the
+   ten counting lines are reached at all. */
+try {
+  const td = ctx.todoRules(), eg = ctx.eggKinds();
+  ctx.showCategory('MECHANICS');
+  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const slots = new Set(td.adds.map(a => a.slot.v)), done = new Set(td.dones.map(d => d.slot.v));
+  const never = [...slots].filter(s => !done.has(s));
+  const mism = td.adds.filter(a => !a.state && a.line.v !== a.slot.v);
+  const counted = td.adds.filter(a => a.state);
+  const first = td.adds[0];
+  const link = first && new RegExp('jumpToScriptAt\\(' + first.resid + ',' + first.slot.at + '\\)');
+  const rooms = eg && eg.rooms;
+  if (!td.adds.length || !td.dones.length) fail('todo', `${td.adds.length} lines added, ${td.dones.length} struck off`);
+  else if (!td.lines || !td.lines.size) fail('todo', 'the lines were not joined to the text array');
+  else if (!td.lines.get(first.slot.v)) fail('todo', 'a slot has no line: the join is by array position rather than by the index field');
+  else if (!mism.length) fail('todo', 'no line differs from its slot, so the alternates were missed');
+  else if (counted.length !== 1) fail('todo', `${counted.length} lines are composed from a quest value, expected one`);
+  else if (!never.length) fail('todo', 'every line is struck off somewhere, so the ones that never are were missed');
+  else if (!/The To Do list/.test(html) || !link.test(html)) fail('todo', 'the sheet does not state the list with its lines as links to them');
+  else if (/adds a quest|completes a quest/.test(html)) fail('todo', 'the sheet still calls a To Do line a quest');
+  else if (!eg) fail('eggs', 'no egg was read off the zone lists');
+  else if (eg.kinds.some(k => k.kind > 10)) fail('eggs', 'an egg kind above ten: roofs are being counted as eggs again');
+  else if (!eg.roofs) fail('eggs', 'no roof was seen, so the flags 0x44 half of the census is not being reached');
+  else if (!rooms || rooms.named < rooms.total * 0.9) fail('eggs', 'kind 8 is not the rooms: ' + JSON.stringify(rooms));
+  else if (!/What an egg does/.test(html) || !/a room/.test(html)) fail('eggs', 'the sheet does not say what an egg does');
+  else console.log(`  to do and eggs: ${td.adds.length} lines added and ${td.dones.length} struck off over ${slots.size} slots, ${mism.length} naming the informant and ${never.length} never struck off; ${eg.kinds.reduce((n, k) => n + k.n, 0)} eggs of ${eg.kinds.length} kinds in ${eg.zones} zones, ${rooms.named} of ${rooms.total} rooms with a script of their own, ${eg.roofs} roofs kept out`);
+} catch (e) { fail('todo', e); }
+
 /* No copy of the file's numbers or names, 11 September 2026. The Mechanics
    figures are read with the line that holds each and printed as links to
    it, so a figure typed back into a sentence shows up here as a number

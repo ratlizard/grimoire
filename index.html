@@ -4392,7 +4392,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.53.0';
+const GRIMOIRE_VERSION = '1.54.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -11800,15 +11800,18 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
   // The eggs: records with flags 0x42, which delvmod names EGG and which
   // are scripted triggers rather than props -- the disturbed sand on the
   // island in the lake near Kosha is one (the way down to Omen's test, by
-  // the community's walkthroughs). A faint dotted ring at close zoom, no
-  // name, because the file does not name what an egg does.
+  // the community's walkthroughs). A faint dotted ring at close zoom. The
+  // file does not say what an egg does; its aspect is the kind, and what
+  // each kind does is the application's -- see EGG_KIND_NAMES.
   for (const { node, r } of drawn) {
     const per = r.w / node.w;
     if (per < 12) continue;
     if (!node._eggs) {
-      // An egg is a record with flags 0x42 or 0x44; its "prop type" bits are
-    // the egg's argument (a room number, a zoneport), so they are not tested.
-    try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42 || p.flags === 0x44); }
+      // Flags 0x42 is EGG and 0x44 is ROOF (delvmod delv/level.py), and the
+      // two were taken together here until 11 September 2026, which ringed
+      // the archive's 298 roof placements as triggers. The "prop type" bits
+      // are the egg's argument, so they are not tested.
+      try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42); }
       catch (e) { node._eggs = []; }
     }
     for (const g of node._eggs) {
@@ -11827,16 +11830,19 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
 }
 
 // The dotted ring is an egg: a prop record with flags 0x42, which delvmod
-// names EGG, a scripted trigger on a square rather than a thing on it. What
-// it does is the zone's script's; the card says what it is.
+// names EGG, a scripted trigger on a square rather than a thing on it. The
+// card says which kind it is and what the kind's argument means, so the room
+// eggs read as rooms and the zoneports as ways out.
 function atlasEggAt(node, tx, ty) {
   if (!node._eggs) {
-    // An egg is a record with flags 0x42 or 0x44; its "prop type" bits are
-    // the egg's argument (a room number, a zoneport), so they are not tested.
-    try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42 || p.flags === 0x44); }
+    // Flags 0x44 is ROOF, not an egg; see the note in the draw loop above.
+    try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42); }
     catch (e) { node._eggs = []; }
   }
-  return node._eggs.some(g => g.x === tx && g.y === ty) ? 'a scripted trigger (an egg): stepping here runs the zone’s script' : '';
+  const g = node._eggs.find(g => g.x === tx && g.y === ty);
+  if (!g) return '';
+  const k = EGG_KIND_NAMES[g.aspect];
+  return 'a scripted trigger (an egg): ' + (k ? k.what + (k.arg ? ', ' + k.arg + ' ' + g.proptype : '') : 'kind ' + g.aspect);
 }
 /* The picked square, ringed the way Zones rings its selection (white over a
    dark edge, corner ticks when small), on whichever drawn node it belongs
@@ -17474,6 +17480,102 @@ function blastRules() {
            fuse: (dvmSeqFirst(ops, [/^set_field data1/, /^arg Arg00$/, /^end$/, DVM_NUM]) || [])[3] ? val(dvmSeqFirst(ops, [/^set_field data1/, /^arg Arg00$/, /^end$/, DVM_NUM])[3]) : null };
 }
 
+/* THE TO DO LIST. A character's script appends a line with the syscall
+   delvmod names AddQuest, which the application calls cbAddToDo and which
+   reaches TToDo::AddToDo. Its first operand is the slot, and the slot is
+   used as handed -- the entry is base + slot * 8 -- so the number in the
+   script is the number in the saved game. Its second operand is a reference
+   into a text array, written `0x021A[0] + n`, and n is the line.
+
+   Slot and line are usually the same number. Six sites pass a different
+   line, so one slot reads differently depending on who told you, and one
+   site composes the line from a quest value, which is how the ten lines
+   counting the Books of Wisdom are reached when no script names them. The
+   text array is joined by its own index field, which is not its position in
+   the array beyond entry 37. Nothing here is a "quest": these calls touch
+   neither the quest values nor the quest flags. */
+function todoRules() {
+  const adds = [], dones = [];
+  let textResid = null;
+  for (const e of buildScriptTextIndex()) {
+    const ops = dvmOpsOf(e);
+    for (let i = 0; i < ops.length; i++) {
+      const t = ops[i].text;
+      if (/^sys CompleteQuest$/.test(t) && ops[i + 1] && DVM_NUM.test(ops[i + 1].text)) {
+        dones.push({ resid: e.resid, slot: dvmVal(e.resid, ops[i + 1]) });
+        continue;
+      }
+      if (!/^sys AddQuest$/.test(t)) continue;
+      const slotOp = ops[i + 1], refOp = ops[i + 2], idxOp = ops[i + 3];
+      if (!slotOp || !refOp || !idxOp || !DVM_NUM.test(slotOp.text) || !DVM_NUM.test(idxOp.text)) continue;
+      // The text reference renders as the resource and an index; the array
+      // is read off whichever resource the scripts themselves name.
+      const m = /(0x[0-9A-Fa-f]+)\[(\d+)\]\s*$/.exec(refOp.text);
+      if (!m) continue;
+      if (textResid === null) textResid = parseInt(m[1], 16);
+      const state = ops[i + 4] && /^sys GetState$/.test(ops[i + 4].text) && ops[i + 5] && DVM_NUM.test(ops[i + 5].text)
+        ? dvmVal(e.resid, ops[i + 5]) : null;
+      adds.push({ resid: e.resid, slot: dvmVal(e.resid, slotOp), line: dvmVal(e.resid, idxOp), base: +m[2], state });
+    }
+  }
+  let lines = null;
+  if (textResid !== null && refExists(textResid)) {
+    try {
+      const d = smartDecrypt(getResourceBytes(textResid), textResid);
+      lines = new Map(parseDelverTextArray(d.data).map(x => [x.index, x.str]));
+    } catch (err) { lines = null; }
+  }
+  return { adds, dones, textResid, lines };
+}
+
+/* EGGS. A prop record with flags 0x42 is not a thing standing on a square
+   but a trigger: its aspect is the kind and its low ten bits the kind's
+   argument. The file says neither, so the names below are this page's, from
+   the eleven handlers TGameViewer::DrawRoutine dispatches through (the
+   workbench's save-format.md has each handler's address and what it does).
+   Everything stated on the sheet -- which kinds are used, their arguments,
+   how many of each -- is counted off the archive here, so an archive that
+   places eggs differently says so. Flags 0x44 is ROOF and is not an egg. */
+const EGG_KIND_NAMES = [
+  { what: 'hatches a monster' },
+  { what: 'a way to another place', arg: 'zoneport' },
+  { what: 'signals the zone’s script when stood on', arg: 'signal' },
+  { what: 'nothing' },
+  { what: 'changes zone', arg: 'zone' },
+  { what: 'plays music', arg: 'tune' },
+  { what: 'signals the zone’s script from anywhere inside it', arg: 'signal' },
+  { what: 'brings neighbours in when a condition holds' },
+  { what: 'a room', arg: 'room' },
+  { what: 'nothing' },
+  { what: 'counts down' }
+];
+function eggKinds() {
+  const kinds = new Map();
+  let zones = 0, roofs = 0;
+  try {
+    for (let z = 1; z < 0x100; z++) {
+      if (!refExists(0x8100 + z)) continue;
+      zones++;
+      for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data)) {
+        if (r.flags === 0x44) { roofs++; continue; }
+        if (r.flags !== 0x42) continue;
+        if (!kinds.has(r.aspect)) kinds.set(r.aspect, { kind: r.aspect, n: 0, args: new Set() });
+        const k = kinds.get(r.aspect);
+        k.n++;
+        k.args.add(r.proptype);
+      }
+    }
+  } catch (err) { return null; }
+  if (!kinds.size) return null;
+  // The rooms are checkable: a kind-8 egg's argument is a room number, and
+  // a room number has a script at 0x1B00 + it. Anything else would mean the
+  // kind has been read wrongly, so the sheet says how many resolve.
+  const rooms = kinds.get(8);
+  const named = rooms ? [...rooms.args].filter(a => refExists(0x1B00 + a)).length : 0;
+  return { kinds: [...kinds.values()].sort((a, b) => a.kind - b.kind), zones, roofs,
+           rooms: rooms ? { total: rooms.args.size, named } : null };
+}
+
 /* SPELLS. Every spell script casts through one helper, CastSpell (0xEA1),
    with the spell's level and its cost in magic points, so the two are read
    off each script's call. The helper says the rest: a cost above the
@@ -19178,6 +19280,60 @@ function renderMechanicsSheet() {
       rows.length ? table(['list', 'words'], rows) : '<div class="sv-note">' + (app ? 'None of the lists is in this fork.' : 'Open the game from its installer, under Settings, and the vocabulary is read out of the application.') + '</div>',
       '<span class="partsTitle">In the file</span>' + svLink('Data › Combat AI', "showCategory('AIRULES')"));
   }
+
+  // ---- the To Do list ----
+  {
+    const td = todoRules();
+    const nameOf = rid => labelFor(rid) || propWordHex(rid);
+    const slots = new Map();
+    const slot = v => { if (!slots.has(v)) slots.set(v, { adds: [], dones: [] }); return slots.get(v); };
+    for (const a of td.adds) slot(a.slot.v).adds.push(a);
+    for (const d of td.dones) slot(d.slot.v).dones.push(d);
+    const elsewhere = td.adds.filter(a => !a.state && a.line.v !== a.slot.v);
+    const counted = td.adds.filter(a => a.state);
+    const never = [...slots.keys()].filter(s => slots.get(s).adds.length && !slots.get(s).dones.length).sort((a, b) => a - b);
+    const rows = [...slots.keys()].sort((a, b) => a - b).map(s => {
+      const g = slots.get(s);
+      const line = td.lines ? (td.lines.get(s) || '') : '';
+      const who = g.adds.map(a => srcNum(a.slot, nameOf(a.resid)) +
+        (a.state ? ' <span class="mechSub">(counted)</span>' : a.line.v !== s ? ' <span class="mechSub">as ' + a.line.v + '</span>' : '')).join(', ');
+      const off = g.dones.map(d => srcNum(d.slot, nameOf(d.resid))).join(', ');
+      return '<tr>' + num(s) + '<td>' + svEsc(line) + '</td><td>' + who + '</td><td>' + (off || '<span class="mechSub">never</span>') + '</td></tr>';
+    });
+    add('todo', 'The To Do list', null, td.textResid !== null ? src('the lines', td.textResid) : '',
+      td.adds.length ? 'The list in the To Do window. A character’s script appends a line and another strikes it off; the line is a slot number, and the game keeps 256 of them. They are not quests: these calls set none of the game’s state, and a line can be struck off before the thing it asks for is done, or never.'
+                     : 'No script in this archive writes a To Do line.',
+      td.adds.length ? [
+        '<b>' + td.adds.length + ' lines are added</b> and <b>' + td.dones.length + ' struck off</b>, over <b>' + slots.size + ' slots</b>.',
+        elsewhere.length ? '<b>' + elsewhere.length + ' of them show a different line</b> than their slot’s: the same errand named after whoever told you about it.' : '',
+        counted.length ? 'One site builds its line from a quest value as it goes, which is how a line that counts what you have found is written: ' + counted.map(a => srcNum(a.state, nameOf(a.resid))).join(', ') + '.' : '',
+        never.length ? '<b>' + never.length + (never.length === 1 ? ' line is' : ' lines are') + ' never struck off</b> by any script: ' + never.map(s => (td.lines && td.lines.get(s) ? '“' + svEsc(td.lines.get(s)) + '”' : 'slot ' + s)).join(', ') + '.' : ''
+      ].filter(Boolean) : [],
+      table(['#slot', 'line', 'added by', 'struck off by'], rows));
+  }
+
+  // ---- what an egg does ----
+  {
+    const eg = eggKinds();
+    const rows = eg ? eg.kinds.map(k => {
+      const nm = EGG_KIND_NAMES[k.kind];
+      const args = [...k.args].sort((a, b) => a - b);
+      return '<tr>' + num(k.kind) + '<td>' + svEsc(nm ? nm.what : 'not known here') + '</td>' +
+        '<td>' + (nm && nm.arg ? svEsc(nm.arg) : '') + '</td>' + num(k.n) +
+        '<td class="mechSub">' + svEsc(args.length > 6 ? args.slice(0, 6).join(', ') + ', …' : args.join(', ')) + '</td></tr>';
+    }) : [];
+    add('eggs', 'What an egg does', null, '',
+      eg ? 'An egg is a record on a zone’s list with no picture and no place in the world: a trigger on a rectangle of squares. Its aspect is which kind of trigger, and the bits a thing would keep its type in are the kind’s argument. The file names neither, so the kinds are named here from the eleven the application dispatches through; the counts and the arguments are this archive’s.'
+         : 'No zone list in this archive places an egg.',
+      eg ? [
+        '<b>' + eg.kinds.reduce((n, k) => n + k.n, 0) + ' eggs</b> across <b>' + eg.zones + ' zones</b>, of <b>' + eg.kinds.length + ' kinds</b>.',
+        eg.rooms ? 'A room is a kind-8 egg, and its argument is the room number: <b>' + eg.rooms.named + ' of the ' + eg.rooms.total + '</b> rooms named that way have a script of their own at 0x1B00 plus the number.' : '',
+        'Records with flags 0x44 are roofs rather than eggs, and there are <b>' + eg.roofs + '</b> of them here.'
+      ].filter(Boolean) : [],
+      table(['#kind', 'what it does', 'argument', '#here', 'arguments used'], rows),
+      '<span class="partsTitle">On the map</span>' + svLink('World', "showCategory('WORLD')"));
+  }
+
   // The sections in alphabetical order, whatever order they were read in,
   // and open where they were open when a number was followed out of them.
   for (const sn of sections.slice().sort((a, b) => a.title.localeCompare(b.title))) {
@@ -20452,9 +20608,12 @@ function convBadgeFor(a) {
     const d = typeof refDescription === 'function' ? refDescription(a.call) : null;
     return 'calls ' + (d || ('0x' + a.call.toString(16).toUpperCase()));
   }
+  // AddQuest and CompleteQuest are delvmod's names for cbAddToDo and
+  // cbDoneToDo: they write and strike off a line in the To Do window and
+  // touch no other state, so they are not said here as "a quest".
   const M = { JoinParty: 'can join the party', LeaveParty: 'leaves the party',
-    Create: 'gives something', New: 'makes something', AddQuest: 'adds a quest',
-    CompleteQuest: 'completes a quest', ChangeZone: 'travel', Delete: 'removes something',
+    Create: 'gives something', New: 'makes something', AddQuest: 'adds a line to the To Do list',
+    CompleteQuest: 'strikes a line off the To Do list', ChangeZone: 'travel', Delete: 'removes something',
     SetFlag: 'sets a status flag', SetStateFlag: 'sets a game flag',
     AddTask: null, FinishTasks: null, TakeItem: 'takes something',
     AddConversationKeyword: 'unlocks a keyword', GameOver: 'ends the game' };
