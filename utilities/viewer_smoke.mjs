@@ -1884,6 +1884,46 @@ try {
   else console.log(`  library and puzzles: ${passages} passages in ${lib.length} arrays, ${unshown.length} shown by nothing and ${lib.reduce((n, d) => n + d.dangling.length, 0)} pointing at nothing; ${le.unreachable.length} test nothing can satisfy; ${bu.buttons.length} buttons through ${bu.arrays.length} tables of ${bu.arrays[0].length}`);
 } catch (e) { fail('library', e); }
 
+/* The face, 12 September 2026. The page used to be set in Cythera's own
+   typeface from the first paint, served out of res/, whether or not the
+   reader had opened a copy of the game. It is Chicago Kare until a file is
+   open now, the file's own face after that, and either can be chosen.
+
+   Pinned here: the default with no file, that an open file makes the game's
+   face the one in use, that every stack ends in a system sans (Chicago Kare
+   carries ASCII and most of Mac Roman but not the crumb's angle quote, the
+   middot, the en dash or several button icons, and those must fall through
+   to what stood beside Chicago on a Mac rather than to a serif), and that
+   no stack names the bundled Argos any more.
+
+   canvasFace is checked against this stub on purpose: its getComputedStyle
+   returns an object with no getPropertyValue, which is what an old browser
+   does too, and a canvas label is drawn from a paint loop, so an unguarded
+   read there takes the whole map down rather than one label. */
+try {
+  const stacks = peek('FACE_STACKS');
+  const was = ctx.GAME_FONT;
+  ctx.GAME_FONT = null;
+  const bare = ctx.faceChoice();
+  ctx.GAME_FONT = 'sfnt 7289';
+  const withFile = ctx.faceChoice();
+  ctx.GAME_FONT = was;
+  const cf = ctx.canvasFace(14);
+  const all = stacks ? Object.keys(stacks).map(k => stacks[k]) : [];
+  if (!stacks || !stacks.game || !stacks.chicago || !stacks.system)
+    fail('face', 'the stacks are missing: ' + JSON.stringify(stacks && Object.keys(stacks)));
+  else if (!/ChicagoKare/.test(stacks.chicago)) fail('face', 'Chicago is not the face before a file: ' + stacks.chicago);
+  else if (!/^'ArgosGame'/.test(stacks.game)) fail('face', 'the game stack does not lead with the file’s own face: ' + stacks.game);
+  else if (/\bArgos\b/.test(stacks.chicago + ' ' + stacks.system))
+    fail('face', 'the bundled Argos is back in a stack that should not have it');
+  else if (!all.every(s => /sans-serif$/.test(s))) fail('face', 'a stack does not end in a system sans: ' + JSON.stringify(all));
+  else if (bare !== 'chicago') fail('face', 'with no file the face is ' + bare + ', not Chicago');
+  else if (withFile !== 'game') fail('face', 'with a file open the face is ' + withFile + ', not the game’s own');
+  else if (!/^14px /.test(cf) || !/ChicagoKare/.test(cf))
+    fail('face', 'canvasFace fell over where getComputedStyle has no getPropertyValue: ' + JSON.stringify(cf));
+  else console.log(`  face: ${bare} with no file and ${withFile} with one, ${all.length} stacks each ending in a system sans, canvas ${JSON.stringify(cf.slice(0, 28))}`);
+} catch (e) { fail('face', e); }
+
 /* No copy of the file's numbers or names, 11 September 2026. The Mechanics
    figures are read with the line that holds each and printed as links to
    it, so a figure typed back into a sentence shows up here as a number

@@ -78,16 +78,30 @@
 #mapStage .mapArrowBtn { position:absolute; }
 #mapViewport:active { cursor:grabbing; }
 
-/* Argos A Nouveau is the game's own face. Since September 2026 the page takes
-   it out of the open file itself: the 'sfnt' resource in Cythera Data's fork
-   is the TrueType font, sfntToTrueType (js/mac-rsrc-types.js) adds the OS/2
-   table a browser's sanitiser insists on, and installGameFont registers it as
-   'ArgosGame', which every font stack below names first. The copy in res/ is
-   the fallback for the moments before an archive is open -- the first visit's
-   download -- and for a bare data fork, which carries no fork to read it from. Everything else the game owns is in
-   reference/, which is not in the repository at all. */
-@font-face { font-family: 'Argos'; src: url('res/ArgosANouveau.woff2') format('woff2'); font-display: swap; }
-:root { --gold: rgb(249,248,111); --panel: rgba(20,18,14,.86); --edge: #9b8850; }
+/* The face, and which one is in use when. Until September 2026 the page
+   shipped Cythera's own Argos A Nouveau in res/ and drew in it from the first
+   paint, so a visitor who had opened no file at all was already reading the
+   game's typeface off this repository. The maintainer's call, 12 September:
+   don't. A page with no game in it should not be set in the game's face, and
+   a game-derived font should not be served from here to do it.
+
+   So the face before a file is Chicago Kare, Duane King's MIT reproduction of
+   Susan Kare's 1984 Chicago -- the typeface the Mac this game ran on was set
+   in, which is the right thing for a tool about it to wear while empty. Once
+   an archive is open its own sfnt is available as a choice and, unless the
+   reader has chosen otherwise, becomes the face; installGameFont still makes
+   the TrueType whatever the page is drawing in, so the file's font can be
+   inspected and exported without being imposed.
+
+   Every stack below names var(--face), and setFace() is the one place that
+   writes it. Chicago Kare covers ASCII and most of Mac Roman but not a
+   handful of marks this page uses (the crumb's angle quote, the middot, the
+   en dash, a few button icons), so the stack falls through to a system sans
+   for those: a Helvetica-alike is what stood beside Chicago on the real
+   machine, and Georgia would not. */
+@font-face { font-family: 'ChicagoKare'; src: url('res/ChicagoKare-Regular.woff2') format('woff2'); font-display: swap; }
+:root { --gold: rgb(249,248,111); --panel: rgba(20,18,14,.86); --edge: #9b8850;
+  --face: 'ChicagoKare', -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif; }
 html, body { min-height:100%; }
 /* The game's own rule, restated 8 September 2026: text you read is white,
    text you can click is --gold, and the quiet labels are a neutral grey so
@@ -98,7 +112,7 @@ html, body { min-height:100%; }
    a glyph drawn from overlapping contours (the capital R) the thickening
    shows as an outlined letter. Bold text now renders regular in Argos;
    the code faces keep their real bold. */
-body { color:#fff; font-family:'ArgosGame', Argos, Georgia, serif; font-synthesis:none;
+body { color:#fff; font-family:var(--face); font-synthesis:none;
   /* The top inset clears the two fixed controls -- the data file on the left,
      Search on the right -- and nothing more. It was 16px plus a row for the
      links, which is most of a thumb on a phone spent on nothing. */
@@ -134,8 +148,8 @@ body { color:#fff; font-family:'ArgosGame', Argos, Georgia, serif; font-synthesi
 /* No frame round the viewport since 9 September 2026: the dialogue border
    that edged the screen at half strength was the maintainer's to keep and
    he asked for it gone. The folder sheets (.tabSheet) still wear it. */
-h2, #soundLabel { color:#fff !important; font-family:'ArgosGame', Argos, Georgia, serif; }
-.cell .lbl, .cell .resid { color:var(--gold) !important; font-family:'ArgosGame', Argos, Georgia, serif; }
+h2, #soundLabel { color:#fff !important; font-family:var(--face); }
+.cell .lbl, .cell .resid { color:var(--gold) !important; font-family:var(--face); }
 /* A label is two lines at most and stays inside its cell; a long unit name
    used to run out of the square (the maintainer, 9 September 2026). */
 .cell { overflow:hidden; }
@@ -148,7 +162,7 @@ h2, #soundLabel { color:#fff !important; font-family:'ArgosGame', Argos, Georgia
  * text, everything you only read is white-ish; no carved-stone plaques, no
  * clip paths, no bevels. Interactive = coloured, not decorated. The old
  * hexagonal stone buttons live in git history if the look is ever missed. */
-button { color:var(--gold); font-family:'ArgosGame', Argos, Georgia, serif; letter-spacing:.04em;
+button { color:var(--gold); font-family:var(--face); letter-spacing:.04em;
   position:relative; border:0; border-radius:4px; padding:10px 14px; min-height:44px;
   background:transparent;
   font-weight:600; font-size:0.9375rem; cursor:pointer;
@@ -160,7 +174,7 @@ button.secondary, .modebtns button.inactive {
     linear-gradient(180deg, rgba(255,255,255,.12) 0 2px, rgba(255,255,255,0) 3px),
     linear-gradient(160deg,#797365 0%,#575147 30%,#413d36 60%,#5f594e 100%);
   color:#e2d6ab; }
-select, input[type=file] { color:var(--gold); background:rgba(25,22,17,.94); border:1px solid var(--edge); font-family:'ArgosGame', Argos, Georgia, serif; }
+select, input[type=file] { color:var(--gold); background:rgba(25,22,17,.94); border:1px solid var(--edge); font-family:var(--face); }
 
 /* Custom-styled dropdowns (categorySelect + residSelect) matching the
    parchment/gold theme, replacing the plain OS-default select look. */
@@ -191,7 +205,7 @@ select option { background:#181410; color:var(--gold); padding:8px; }
    enough for gold text to stay legible. */
 
 select, option { line-height:1.4 !important; min-height:42px; padding-top:8px !important; padding-bottom:8px !important; }
-select { font-family:'ArgosGame', Argos, Georgia, serif; }
+select { font-family:var(--face); }
 /* ---- Flat controls -----------------------------------------------------
    The stone plaques are gone by request: anything clickable is YELLOW text,
    anything you only read is white-ish, and nothing is carved, bevelled or
@@ -332,7 +346,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 /* 8px monospace in an 84px box fits a lot of characters and none of them can
    be read. Prose gets the page's own serif at a size a person can take in at a
    glance, and the tail is faded out rather than chopped square. */
-.cellChars { font:11px/1.32 'ArgosGame', Argos, Georgia, serif; color:#fff;
+.cellChars { font:11px/1.32 var(--face); color:#fff;
   background:#12100c; border:1px solid #4a432f; border-radius:4px;
   width:84px; height:84px; padding:5px 6px; overflow:hidden; word-break:normal;
   overflow-wrap:break-word; hyphens:auto;
@@ -402,7 +416,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .ftab { flex:0 0 auto; display:flex !important; align-items:center; gap:6px; cursor:pointer;
   margin:0 0 2px -4px; white-space:nowrap; width:auto; position:relative; z-index:1;
   padding:6px 13px 5px !important; min-height:0 !important; line-height:1.2 !important;
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.7812rem !important; font-weight:600 !important;
+  font-family:var(--face); font-size:0.7812rem !important; font-weight:600 !important;
   letter-spacing:0; color:#3a2a0c !important; text-shadow:none !important; text-decoration:none;
   border:1px solid rgba(0,0,0,.28) !important; border-bottom:0 !important; border-radius:9px 9px 0 0 !important;
   box-shadow:inset 0 -3px 4px -2px rgba(0,0,0,.25) !important;
@@ -508,7 +522,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
   width:100%; box-sizing:border-box; padding:12px 14px; border-radius:8px;
   border:1px solid var(--edge); background:rgba(25,22,17,.94); color:var(--gold);
   -webkit-text-fill-color:var(--gold);
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:1.125rem; line-height:1.35; }
+  font-family:var(--face); font-size:1.125rem; line-height:1.35; }
 #searchBox::-webkit-search-decoration, #propFilter::-webkit-search-decoration { -webkit-appearance:none; }
 #searchBox::placeholder, #propFilter::placeholder {
   color:#8c8980; font-size:0.9375rem; font-style:italic; -webkit-text-fill-color:#8c8980; }
@@ -563,7 +577,7 @@ pre.pane { background:#090806; color:#fff; padding:12px; overflow:auto; max-heig
 #textEdit .dtPanel { background:#1d1a14; border:1px solid #5a5142; border-radius:8px;
   padding:14px 16px; width:min(92vw, 560px); }
 #textEdit textarea { width:100%; min-height:120px; box-sizing:border-box; margin:8px 0;
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.875rem; line-height:1.5;
+  font-family:var(--face); font-size:0.875rem; line-height:1.5;
   background:rgba(0,0,0,.3); color:#fff; border:1px solid rgba(255,255,255,.25); }
 .dlgEdit { min-height:0; padding:0 6px; font-size:0.6875rem; opacity:.6; }
 .dlgEdit:hover { opacity:1; }
@@ -582,7 +596,7 @@ span.refdead { color:#e07a5f; }
 span.refself { color:#8c8980; }
 .linksum { background:#141210; border:1px solid var(--edge); border-radius:5px; padding:9px 11px;
   margin-bottom:10px; font-size:0.75rem; line-height:1.7; color:#fff;
-  font-family:'ArgosGame', Argos, Georgia, serif; white-space:normal; }
+  font-family:var(--face); white-space:normal; }
 .linksum b { color:#b5b2a8; font-size:0.6875rem; letter-spacing:0;
   margin-right:6px; }
 /* Loading a custom archive is a rare, expert action, so it reads as a quiet
@@ -799,7 +813,7 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
   margin-right:6px; flex-basis:7.5em; }
 .relChip { display:inline-flex; align-items:center; gap:5px; width:auto; margin:0; min-height:0;
   padding:0; border-radius:0; background:none; border:0;
-  color:var(--gold); font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.8125rem; line-height:1.3;
+  color:var(--gold); font-family:var(--face); font-size:0.8125rem; line-height:1.3;
   text-align:left; cursor:pointer; clip-path:none; box-shadow:none; text-shadow:none;
   letter-spacing:0; font-weight:400; }
 .relChip::before, .relChip::after { display:none; }
@@ -829,7 +843,7 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
   background:#1d1a15 !important; background-image:none !important;
   border:1px solid var(--edge) !important; box-shadow:none !important;
   color:var(--gold) !important; text-shadow:none !important; font-size:0.7812rem !important;
-  font-weight:400 !important; letter-spacing:0; font-family:'ArgosGame', Argos, Georgia, serif; }
+  font-weight:400 !important; letter-spacing:0; font-family:var(--face); }
 .crumbBtn::before, .crumbBtn::after { display:none !important; }
 .crumbBtn:hover { color:var(--gold) !important; border-color:var(--gold) !important; filter:none; }
 .crumbNote { color:#8c8980; font-size:0.7188rem; }
@@ -867,7 +881,7 @@ body.dropping::after { content:'Drop the Cythera installer (.sit or .bin) or a C
   position:fixed; inset:14px; z-index:60; pointer-events:none;
   border:3px dashed var(--gold); border-radius:10px;
   background:rgba(10,8,5,.55); color:var(--gold);
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:1.375rem;
+  font-family:var(--face); font-size:1.375rem;
   display:flex; align-items:center; justify-content:center; }
 
 /* A text link that is a <button> because it does something rather than going
@@ -1067,7 +1081,7 @@ body.atlasFull { overflow:hidden; }
 #atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport, body.atlasFull #atlasPanel #atlasViewport { height:100%; min-height:100%; }
 #atlasFullOverlay { position:absolute; top:10px; left:10px; z-index:61; align-items:center; gap:8px;
   padding:6px 8px 6px 12px; background:rgba(8,7,5,.74); border:1px solid rgba(155,136,80,.5); border-radius:9px;
-  color:#fff; font-size:0.875rem; font-family:ArgosGame, Argos, Georgia, serif; pointer-events:auto; }
+  color:#fff; font-size:0.875rem; font-family:var(--face); pointer-events:auto; }
 #atlasFullOverlay .secondary { font-size:0.75rem; }
 #atlasViewport { position:relative; width:100%; height:78vh; overflow:hidden;
   touch-action:none; cursor:grab; background:#000;
@@ -1100,7 +1114,7 @@ body.atlasFull { overflow:hidden; }
 #atlasHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
   padding:5px 9px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,.55);
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.75rem; color:#fff; white-space:nowrap;
+  font-family:var(--face); font-size:0.75rem; color:#fff; white-space:nowrap;
   align-items:center; gap:7px; max-width:260px; }
 #atlasHover canvas { image-rendering:pixelated; width:32px; height:32px; flex:none;
   background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
@@ -1111,7 +1125,7 @@ body.atlasFull { overflow:hidden; }
 #mapHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
   padding:5px 9px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,.55);
-  font-family:'ArgosGame', Argos, Georgia, serif; font-size:0.75rem; color:#fff; white-space:nowrap;
+  font-family:var(--face); font-size:0.75rem; color:#fff; white-space:nowrap;
   display:flex; align-items:center; gap:7px; max-width:260px; }
 #mapHover canvas { image-rendering:pixelated; width:32px; height:32px; flex:none;
   background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
@@ -1132,7 +1146,7 @@ body.atlasFull { overflow:hidden; }
   background:rgba(12,10,7,.88) !important; background-image:none !important;
   border:1px solid rgba(196,164,100,.7) !important; box-shadow:0 1px 3px rgba(0,0,0,.5) !important;
   color:#fff !important; text-shadow:none !important; font-size:0.75rem !important;
-  font-weight:400 !important; letter-spacing:0; font-family:'ArgosGame', Argos, Georgia, serif; }
+  font-weight:400 !important; letter-spacing:0; font-family:var(--face); }
 .zoomRect .zrItem:hover { border-color:var(--gold) !important; color:var(--gold) !important; filter:none; }
 .zoomRect .zrItem::before, .zoomRect .zrItem::after { display:none !important; }
 .zoomRect .zrCap { margin:4px 0 0; font-size:0.6875rem; color:#b5b2a8; text-align:center; }
@@ -1355,6 +1369,14 @@ body.atlasFull { overflow:hidden; }
       same thing (“Headwater Ruins” rather than the game’s “Ruins”).
       Off, every gallery shows only names the file itself carries (0xF004 tile names, zone-entry
       strings, resource symbols); where there is none, the cell says so.</span></span></label>
+  <div id="faceWrap">The face this page is set in
+    <label><input type="radio" name="faceChoice" value="game" onchange="setFaceChoice(this.value)"> the game’s own, out of the open file</label>
+    <label><input type="radio" name="faceChoice" value="chicago" onchange="setFaceChoice(this.value)"> Chicago</label>
+    <label><input type="radio" name="faceChoice" value="system" onchange="setFaceChoice(this.value)"> this device’s</label>
+    <span class="amNote">Cythera is set in Argos A Nouveau, which lives in the game’s own resource fork. The page reads it out of
+    whatever file you open and uses it unless you say otherwise here. With no file open there is nothing to read it from, and the
+    page is set in Chicago, Susan Kare’s 1984 face for the Macintosh, reproduced by Duane King. Nothing of the game’s is shipped
+    with this page to stand in for it.</span></div>
   <div id="unditherWrap">Undither
     <label><input type="radio" name="unditherScope" value="off" onchange="setUnditherScope(this.value)"> off</label>
     <label><input type="radio" name="unditherScope" value="portraits" onchange="setUnditherScope(this.value)"> portraits</label>
@@ -4379,20 +4401,23 @@ function openCytheraResourceFork(bytes) {
   return window.CYTHERA_RSRC;
 }
 
-/* The page's face, from the file itself. Argos A Nouveau is sfnt 7289 in
-   Cythera Data's resource fork (FOND 1046 names it); a browser loads a font
-   from bytes through FontFace, once sfntToTrueType has given it the OS/2
-   table OTS requires. It is registered under its own family name,
-   'ArgosGame', which the stylesheet names ahead of the res/ copy, so the
-   file's own font wins whenever there is a file and the shipped copy stands
-   in until then. Failure is recorded, not reported: the fallback is the same
-   face. */
+/* The file's own face, made usable. Argos A Nouveau is sfnt 7289 in Cythera
+   Data's resource fork (FOND 1046 names it); a browser loads a font from
+   bytes through FontFace, once sfntToTrueType has given it the OS/2 table
+   OTS requires. It is registered under its own family name, 'ArgosGame',
+   which setFace() puts at the head of the stack when the reader is set to
+   the game's face.
+
+   Making it and using it are separate, and that is the point: this runs
+   whenever a fork is open, so the game's font can be inspected, swapped and
+   exported even while the page itself is set in something else. Failure is
+   recorded, not reported, and the page stays in Chicago. */
 /* The version. Started at 1.0.0 on 5 September 2026, when the site had
    been public for two days and the maintainer asked for one; the number is
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.55.0';
+const GRIMOIRE_VERSION = '1.56.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -4606,6 +4631,61 @@ function installDialogueBox() {
   }).catch(() => {});
 }
 
+/* Which face the page is set in. Three sources and one rule: the reader's
+   choice wins, and without one the game's own face is used when an open file
+   has given us one and Chicago Kare when it has not. Every stack ends in the
+   system sans because Chicago Kare does not carry a handful of the marks this
+   page uses, and those should fall through to what stood beside Chicago on a
+   real Macintosh rather than to a serif.
+
+   Kept apart from installGameFont on purpose: that one makes the TrueType out
+   of the file's sfnt whatever the page is drawing in, so the game's font can
+   be read, shown and exported without being imposed on a reader who asked for
+   something else. Before 12 September 2026 there was no choice to make, since
+   the stylesheet named the file's family first and a copy of the game's face
+   shipped in res/ stood in until the file arrived. */
+const FACE_FALLBACK = "-apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif";
+const FACE_STACKS = {
+  game: "'ArgosGame', 'ChicagoKare', " + FACE_FALLBACK,
+  chicago: "'ChicagoKare', " + FACE_FALLBACK,
+  system: FACE_FALLBACK
+};
+function faceChoice() {
+  let stored = null;
+  try { stored = localStorage.getItem('cythera.face'); } catch (e) { stored = null; }
+  if (stored && FACE_STACKS[stored]) return stored;
+  return window.GAME_FONT ? 'game' : 'chicago';
+}
+function setFace() {
+  const pick = faceChoice();
+  try { document.documentElement.style.setProperty('--face', FACE_STACKS[pick] || FACE_STACKS.chicago); } catch (e) {}
+  window.FACE_IN_USE = pick;
+  const r = document.querySelector('input[name="faceChoice"][value="' + pick + '"]');
+  if (r) r.checked = true;
+  return pick;
+}
+function setFaceChoice(v) {
+  try { localStorage.setItem('cythera.face', v); } catch (e) {}
+  setFace();
+}
+/* Canvas takes a font string rather than a stack, so the face in use has to be
+   read back out of the custom property. Guarded, and not only for tidiness: a
+   canvas label is drawn from a paint loop, so anything thrown here takes the
+   map with it, and getComputedStyle is exactly the sort of thing a harness or
+   an old browser stubs without getPropertyValue. */
+function canvasFace(px) {
+  let stack = '';
+  try {
+    const cs = getComputedStyle(document.documentElement);
+    if (cs && typeof cs.getPropertyValue === 'function') stack = (cs.getPropertyValue('--face') || '').trim();
+  } catch (e) { stack = ''; }
+  return px + 'px ' + (stack || FACE_STACKS[window.FACE_IN_USE] || FACE_STACKS.chicago);
+}
+// Settle the face at load, not only when a font arrives: the stylesheet's own
+// default covers the first paint, but a reader who chose Chicago or this
+// device's face last time would otherwise have that choice ignored until a
+// file opened, and the radio would show nothing checked.
+try { setFace(); } catch (e) {}
 function installGameFont() {
   window.GAME_FONT = null;
   const fork = window.CYTHERA_RSRC;
@@ -4624,7 +4704,11 @@ function installGameFont() {
     window.GAME_FONT_FACE = null;
     const face = new FontFace('ArgosGame', ttf.buffer.slice(ttf.byteOffset, ttf.byteOffset + ttf.byteLength));
     window.GAME_FONT_STATE = 'loading';
-    face.load().then(f => { document.fonts.add(f); window.GAME_FONT_FACE = f; window.GAME_FONT = (entry.name || 'sfnt') + ' ' + entry.id; window.GAME_FONT_STATE = ''; })
+    face.load().then(f => { document.fonts.add(f); window.GAME_FONT_FACE = f; window.GAME_FONT = (entry.name || 'sfnt') + ' ' + entry.id; window.GAME_FONT_STATE = '';
+                            // The face only becomes choosable once it has
+                            // loaded, so the stack is settled here rather
+                            // than when the fork was opened.
+                            try { setFace(); } catch (e) {} })
                .catch(e => { window.GAME_FONT_STATE = 'the browser refused sfnt ' + entry.id + ': ' + (e && e.message || e); });
   } catch (e) { window.GAME_FONT_STATE = 'FontFace: ' + e.message; }
 }
@@ -11768,7 +11852,7 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
   const out = [];
   // Canvas text is not reached by the sheet's rem scale, so these sizes and
   // the boxes behind them are held level with it by hand.
-  ctx.font = '14px ArgosGame, Argos, Georgia, serif';
+  ctx.font = canvasFace(14);
   ctx.textAlign = 'left';
   // Every passage is ringed now, so rings stand side by side and their
   // labels would lie on top of each other. The ring is the thing -- it is
@@ -11889,7 +11973,7 @@ function atlasPaintTowns(ctx, drawn, vw, vh) {
    Drawn last, over everything, biggest node first so a collision drops the
    smaller place; a node too small to have been drawn at all is not named. */
 function atlasLabels(ctx, drawn, vw, vh) {
-  ctx.font = '15px ArgosGame, Argos, Georgia, serif';
+  ctx.font = canvasFace(15);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const placed = [];
@@ -20069,17 +20153,22 @@ function renderToolsSheet() {
     b.onclick = () => window.open(href, '_blank', 'noopener');
     pages.appendChild(b);
   }
-  // Where the page's face came from: the open file's own sfnt, or the copy
-  // in res/ while there is no file or the browser refused the bytes. A
-  // person can tell in a glance here what no harness can -- whether the
-  // font the browser is drawing with is the one out of the file.
+  // Which face the page is actually drawing in: the open file's own sfnt,
+  // Chicago, or this device's. A person can tell in a glance here what no
+  // harness can, which is whether the font on the screen is the one out of
+  // the file. Chosen under Settings; this only reports.
   const font = sec('The face this page is set in', '');
   const fn = document.createElement('div');
   fn.className = 'amNote';
-  fn.textContent = window.GAME_FONT
+  fn.textContent = window.FACE_IN_USE === 'game' && window.GAME_FONT
     ? 'Argos A Nouveau, out of the open file: ' + window.GAME_FONT + ' in Cythera Data’s resource fork, made into a TrueType the browser accepts.'
-    : 'The copy shipped with the page, in res/. ' + (window.GAME_FONT_STATE === 'loading' ? 'The file’s own is still loading.'
-        : window.GAME_FONT_STATE ? 'The file’s own could not be used: ' + window.GAME_FONT_STATE + '.' : '');
+    : window.FACE_IN_USE === 'system'
+      ? 'This device’s own face, chosen under Settings.'
+      : 'Chicago, Susan Kare’s 1984 face for the Macintosh, reproduced by Duane King and shipped with this page. ' +
+        (window.GAME_FONT ? 'The game’s own is loaded and can be chosen under Settings.'
+          : window.GAME_FONT_STATE === 'loading' ? 'The file’s own is still loading.'
+          : window.GAME_FONT_STATE ? 'The file’s own could not be used: ' + window.GAME_FONT_STATE + '.'
+          : 'No file is open to read the game’s own out of.');
   font.appendChild(fn);
   grid.appendChild(box);
   out.textContent = 'Settings and links; nothing here is read from the archive except the font.';

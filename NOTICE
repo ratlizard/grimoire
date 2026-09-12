@@ -41,13 +41,26 @@ archive.org and your browser is the whole work and not a piece of it. That is
 a condition of Ambrosia's terms as written, not a preference about file
 formats.
 
-**Four files in `res/`.** `ArgosANouveau.ttf`, `ArgosANouveau.woff2`,
-`Dialogue_Background.png` and `cythera_0x8F00.png` are the pages' own
-furniture, and they came out of the game's resources. They are kept here so the
-published page looks like itself before a copy of the game is open; once one
-is, the page takes the font and the plank tile out of that file's own
-resources instead. They are Ambrosia's or their respective
-authors', not ours, and the licence grant above does not extend to them.
+**Game-derived files in `res/`.** `Dialogue_Background.png` and
+`cythera_0x8F00.png` are the pages' own furniture and came out of the game's
+resources; the page draws the plank tile out of an open file's own resources
+once there is one. They are Ambrosia's or their respective authors', not ours,
+and the licence grant above does not extend to them.
+
+`ArgosANouveau.ttf` and `ArgosANouveau.woff2` are the game's own typeface, out
+of the same place and under the same terms. **The page no longer uses them.**
+Until 12 September 2026 the published page was set in the game's face from the
+first paint, served from here, whether or not the reader had opened a copy of
+the game; it is set in Chicago Kare until a file is open now, and in the file's
+own face afterwards. The two files are kept only pending a decision to delete
+them, and nothing in the site fetches them.
+
+**`res/ChicagoKare-Regular.woff2`** is **Chicago Kare** by **Duane King**
+(<https://github.com/kingduane/Chicago-Kare>), a reproduction of the bitmap
+Chicago typeface **Susan Kare** drew for Apple in 1984, licensed **MIT**. The
+licence text is beside it as `res/ChicagoKare-LICENSE.txt` and governs it. It
+is the face this page is set in before any game file is open, and it is not
+Ambrosia's.
 
 **`delvmod/`** is a submodule, so this repository stores only a pointer to it.
 It is an independent work by **Bryce Schroeder**
