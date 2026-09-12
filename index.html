@@ -4417,7 +4417,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.57.0';
+const GRIMOIRE_VERSION = '1.58.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -11988,20 +11988,7 @@ function atlasEggAt(node, tx, ty) {
   }
   const g = node._eggs.find(g => g.x === tx && g.y === ty);
   if (!g) return '';
-  const k = EGG_KIND_NAMES[g.aspect];
-  let what = k ? k.what + (k.arg ? ', ' + k.arg + ' ' + g.proptype : '') : 'kind ' + g.aspect;
-  // A hatching egg says what comes out of it, and how often. Data2 is the
-  // chance in a hundred: the application rolls a number, takes it modulo 100
-  // and compares (TActiveMonster::HatchEgg). Data1 carries the rest of the
-  // conditions, which are not decoded here, so it is not stated.
-  if (g.aspect === 0) {
-    const held = containerContents(g, node._allProps);
-    if (held.length) {
-      const names = held.map(h => propDisplayName(h.proptype) || ('prop ' + h.proptype));
-      what = 'hatches ' + names.join(' and ') + (g.d2 ? ', ' + g.d2 + ' times in 100' : '');
-    }
-  }
-  return 'a scripted trigger (an egg): ' + what;
+  return 'a scripted trigger (an egg): ' + eggDetail(g, node._allProps);
 }
 /* The picked square, ringed the way Zones rings its selection (white over a
    dark edge, corner ticks when small), on whichever drawn node it belongs
@@ -17710,7 +17697,7 @@ const EGG_KIND_NAMES = [
   { what: 'hatches a monster' },
   { what: 'a way to another place', arg: 'zoneport' },
   { what: 'signals the zone’s script when stood on', arg: 'signal' },
-  { what: 'nothing' },
+  { what: 'an ambient sound', arg: 'sound' },
   { what: 'changes zone', arg: 'zone' },
   { what: 'plays music', arg: 'tune' },
   { what: 'signals the zone’s script from anywhere inside it', arg: 'signal' },
@@ -17719,6 +17706,53 @@ const EGG_KIND_NAMES = [
   { what: 'nothing' },
   { what: 'counts down' }
 ];
+
+/* What one egg does, in full. The kind is the aspect and the argument is the
+   bits a thing would keep its prop type in; past that, each kind reads its
+   own fields, and two of them are worth saying out loud.
+
+   A HATCHING egg holds its monsters as contained records, the way a chest
+   holds what it holds, and TActiveMonster::HatchEgg reads the conditions off
+   the egg's own Data1 and Data2. The chance is a roll of rand modulo 100
+   compared against Data2, and it passes when the roll is less than or equal,
+   so the odds are Data2 PLUS ONE in a hundred: a Data2 of zero is one in a
+   hundred rather than never, and 100 is always. Data1 bit 0x10 holds it to
+   daylight and 0x20 to the night, the clock being compared against 24576 and
+   73728, which at 4096 units an hour are six in the morning and six at night.
+   Bit 0x01 is "only once", done by writing 101 into the chance so no later
+   roll can pass. Bit 0x04 stops the hatched creature being turned to face a
+   random way. Bit 0x08 is set on a few eggs and is read nowhere in the
+   hatching path, so nothing is claimed for it.
+
+   An AMBIENT SOUND egg names a sound resource, 0x9100 plus the argument, and
+   these are placed by terrain rather than by event: every one of the hundred
+   carrying 0x9106, Waves / Seashore Loop, stands on water, and the frogs
+   stand in the swamps. That is why the draw loop's dispatch does nothing with
+   them; the audio side registers them through TAudio::Ambient, which keeps
+   the nearest emitter of each sound and pans it with CalcStereo. */
+function eggDetail(g, allProps) {
+  const k = EGG_KIND_NAMES[g.aspect];
+  if (g.aspect === 3) {
+    const rid = 0x9100 + g.proptype;
+    const nm = refExists(rid) ? labelFor(rid) : null;
+    return nm ? 'the sound of ' + String(nm).toLowerCase() : 'an ambient sound, ' + propWordHex(rid);
+  }
+  if (g.aspect === 0) {
+    const held = containerContents(g, allProps || []);
+    const chance = g.d2 >= 99 ? 'always' : (g.d2 + 1) + (g.d2 === 0 ? ' time in 100' : ' times in 100');
+    const when = [];
+    if (g.d1 & 0x10) when.push('by day');
+    if (g.d1 & 0x20) when.push('by night');
+    // "only once" rather than "once": with the chance at always, a bare
+    // "always, once" reads as a contradiction where it means guaranteed the
+    // first time and never after.
+    if (g.d1 & 0x01) when.push('only once');
+    const names = held.map(h => propDisplayName(h.proptype) || ('prop ' + h.proptype));
+    return 'hatches ' + (names.length ? names.join(' and ') : 'something') + ', ' + chance +
+           (when.length ? ', ' + when.join(' and ') : '');
+  }
+  return (k ? k.what : 'kind ' + g.aspect) + (k && k.arg ? ', ' + k.arg + ' ' + g.proptype : '');
+}
 function eggKinds() {
   const kinds = new Map();
   let zones = 0, roofs = 0;
@@ -19734,6 +19768,8 @@ function renderMechanicsSheet() {
       eg ? [
         '<b>' + eg.kinds.reduce((n, k) => n + k.n, 0) + ' eggs</b> across <b>' + eg.zones + ' zones</b>, of <b>' + eg.kinds.length + ' kinds</b>.',
         eg.rooms ? 'A room is a kind-8 egg, and its argument is the room number: <b>' + eg.rooms.named + ' of the ' + eg.rooms.total + '</b> rooms named that way have a script of their own at 0x1B00 plus the number.' : '',
+        'A kind-3 egg is an <b>ambient sound</b>, and its argument names the sound: 0x9100 plus the number. They are placed by the ground they stand on rather than by anything that happens, which is why the draw loop passes over them and the audio side picks them up.',
+        'A kind-0 egg holds what it hatches as contained records, and carries its own conditions: <b>Data2 plus one in a hundred</b> is the chance, and Data1 holds it to the day (0x10) or the night (0x20), or to once (0x01).',
         'Records with flags 0x44 are roofs rather than eggs, and there are <b>' + eg.roofs + '</b> of them here.'
       ].filter(Boolean) : [],
       table(['#kind', 'what it does', 'argument', '#here', 'arguments used'], rows),

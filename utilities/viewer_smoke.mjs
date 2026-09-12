@@ -1967,13 +1967,19 @@ try {
 
   const hatch = ctx.atlasEggAt({ resid: 0x8001 }, 137, 9);
   const room = ctx.atlasEggAt({ resid: 0x8001 }, 187, 76);
+  // Kind 3 is an ambient sound, not "nothing": every one of the hundred
+  // carrying sound 6 stands on water, and 0x9106 is named Waves / Seashore
+  // Loop in the file. 151,13 is one of them.
+  const surf = ctx.atlasEggAt({ resid: 0x8001 }, 151, 13);
 
   if (atRest === 0) fail('world tab', 'the render counter never fired even at rest, so it is not intercepting and this check proves nothing');
   else if (moving !== 0) fail('world tab', moving + ' map renders in one paint with a finger down: the judder guard is not holding');
   else if (!(topNearFinger > 30 && topNearFinger < 200)) fail('world tab', 'a card by a finger near the top landed at ' + topNearFinger + ', not below the finger');
   else if (!(topAbove < 400)) fail('world tab', 'a card with room above it went below the finger: top ' + topAbove);
-  else if (!/hatches .* times in 100/.test(hatch)) fail('world tab', 'the hatching egg does not say what comes out: ' + JSON.stringify(hatch));
+  else if (!/hatches sea monster and tentacle/.test(hatch)) fail('world tab', 'the hatching egg does not say what comes out: ' + JSON.stringify(hatch));
+  else if (!/always|times in 100/.test(hatch)) fail('world tab', 'the hatching egg does not say how likely: ' + JSON.stringify(hatch));
   else if (!/a room, room \d+/.test(room)) fail('world tab', 'the room egg stopped reading as a room: ' + JSON.stringify(room));
+  else if (!/sound of waves/i.test(surf)) fail('world tab', 'a kind-3 egg is not naming its ambient sound: ' + JSON.stringify(surf));
   else console.log(`  world tab: ${moving} renders while moving and ${atRest} at rest; card at ${topNearFinger} by a finger at 30; ${JSON.stringify(hatch.replace(/^[^:]*: /, ''))}`);
 } catch (e) { fail('world tab', e); }
 
