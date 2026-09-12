@@ -4417,7 +4417,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.62.0';
+const GRIMOIRE_VERSION = '1.63.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -18109,6 +18109,144 @@ function puzzleRules() {
         panels: [...rm.panels.values()].sort((a, b) => a.x - b.x), buttons: [...rm.buttons] })).sort((a, b) => a.door - b.door) };
   }
   out.riddles = riddleRules();
+  out.tunes = tuneRules();
+  return out;
+}
+
+/* TUNES. Three locks in the scenario are opened by playing or ringing things
+   in an order, and all three encode the order the same way: as a base-16
+   number, one nibble per note, compared against a single constant.
+
+   The bells in the Tyrant's Tomb accumulate into a near word,
+   near[8] = (near[8] * 0x10 + data1) & 0xFFFF, so only the LAST FOUR rings
+   count and a misring can be rung out rather than restarting. The four bells
+   carry 1 to 4 in Data1, ascending west to east, which settles a numbering
+   the board had to adjudicate between two conventions.
+
+   The instruments are handed an accumulator by the Instrument widget and mask
+   it to the length of their tune: three nibbles for the lyre, five for the
+   panpipes. Each instrument's gui Instrument call carries a list of the notes
+   it can play, and a note n is the letter at 65 + n -- which is how the
+   file's 0xF79C3 is the PHJMD players write down, and 0xFC6 is PMG. That
+   mapping is derived, not assumed: it spells both of the community's strings,
+   and a mapping shifted by one spells neither.
+
+   A tune's signal opens the prop carrying it in Data1, the same mechanism the
+   Hall of Truth buttons use. */
+function tuneRules() {
+  const out = { bells: null, instruments: [] };
+  const letter = n => String.fromCharCode(65 + n);
+  const nibbles = (v, n) => v.toString(16).toUpperCase().padStart(n, '0').split('').map(c => parseInt(c, 16));
+  /* What a signal opens is NOT in the archive, and the first version of this
+     reader claimed it was. It matched every prop whose Data1 equalled the
+     signal, archive wide, and reported that the bells open a plaque in
+     Cademia, a torch in Kosha, three bookshelves in Pnyx and a Hall of Truth
+     button. Two separate errors: these are small integers reused everywhere
+     as an ordinary field, and on a door Data1 is not a signal at all -- the
+     door class tests `data1 < 128` and hands eight aspect values to 0xE40,
+     which is the opening helper, comparing the door's ASPECT against them for
+     "Locked!" and "Magically Locked!".
+
+     EmitSignal is opcode 0xC5, cbSendSignal, and the eggs reach the same
+     thing as TGameSys::SendSignal (the workbench's save-format.md). Delivery
+     is the engine's: no class in the archive has a handler, the stone door
+     that demonstrably answers the Hall of Truth buttons included. So the
+     sheet states the signal a tune emits and stops there. */
+
+  // ---- the bells -----------------------------------------------------
+  const bellEntry = dvmScriptEntry(0x10C1);
+  if (bellEntry) {
+    const ops = dvmOpsOf(bellEntry);
+    // the shift is `load_near_word, byte, mul, ..., add, word, bitwise_and`
+    const shift = dvmSeqFirst(ops, [/^load_near_word/, DVM_NUM, /^mul$/]);
+    const orders = [];
+    for (const m of dvmSeqAll(ops, [/^load_near_word/, DVM_NUM, /^eq$/, /^then/, /^sys EmitSignal$/, DVM_NUM])) {
+      const tune = dvmVal(0x10C1, m[1]), sig = dvmVal(0x10C1, m[5]);
+      if (!tune || !sig) continue;
+      orders.push({ tune, signal: sig, rings: nibbles(tune.v, 4) });
+    }
+    const bells = [];
+    let zone = null;
+    try {
+      for (let z = 1; z < 0x100; z++) {
+        if (!refExists(0x8100 + z)) continue;
+        const here = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data)
+          .filter(r => r.proptype === 0xC1 && r.flags !== 0xFF && !(r.flags & 0x40) && r.d1);
+        if (here.length < 2) continue;
+        zone = 0x8000 + z;
+        for (const r of here.sort((a, b) => a.x - b.x)) bells.push({ x: r.x, y: r.y, number: r.d1 });
+        break;
+      }
+    } catch (e) { /* no prop lists */ }
+    if (orders.length) out.bells = { resid: 0x10C1, base: shift ? dvmVal(0x10C1, shift[1]) : null, orders, bells, zone };
+  }
+
+  // ---- the instruments -----------------------------------------------
+  for (const [resid, what] of [[0x1099, 'panpipes'], [0x109A, 'lyre']]) {
+    const entry = dvmScriptEntry(resid);
+    if (!entry) continue;
+    let bytes = null;
+    try { bytes = smartDecrypt(getResourceBytes(resid), resid).data; } catch (e) { continue; }
+    const ops = dvmOpsOf(entry);
+    // the test is `arg, word mask, bitwise_and, word tune, eq`
+    const m = dvmSeqFirst(ops, [/^arg /, DVM_NUM, /^bitwise_and$/, DVM_NUM, /^eq$/]);
+    if (!m) continue;
+    const mask = dvmVal(resid, m[1]), tune = dvmVal(resid, m[3]);
+    const emit = dvmSeqFirst(ops, [/^sys EmitSignal$/, DVM_NUM]);
+    const sig = emit ? dvmVal(resid, emit[1]) : null;
+    if (!mask || !tune) continue;
+    const len = Math.round(Math.log2(mask.v + 1) / 4);
+    const notes = nibbles(tune.v, len);
+    // Each gui Instrument call carries the notes that instrument can play.
+    const lists = [];
+    for (const o of ops.filter(o => /^data </.test(o.text))) {
+      const words = dvmArrayWords(bytes, o.at + 3);
+      if (words) lists.push({ at: o.at, notes: words, spelled: words.map(letter).join('') });
+    }
+    // Only a prop whose Data1 matches can be the working one, where the class
+    // tests it. Read the test rather than stating which instrument it is.
+    const gate = dvmSeqFirst(ops, [/^get_field data1/, DVM_NUM, /^eq$/]);
+    out.instruments.push({ resid, what, mask, tune, signal: sig,
+      notes, spelled: notes.map(letter).join(''),
+      gate: gate ? dvmVal(resid, gate[1]) : null, lists,
+      given: createsOf(resid === 0x1099 ? 0x99 : 0x9A) });
+  }
+  return out;
+}
+
+/* Who hands a prop over. sys Create is (recipient, aspect<<10|proptype,
+   data1, data2), a signature delv-script.js records from the board and
+   confirms against call sites -- Ennomus's tomb key is Create(you, 3<<10|66,
+   5, 0), and the archive has exactly that.
+
+   The recipient is NOT always a register. Thirteen of the archive's
+   twenty-seven flat Creates address it as a plain number, character 1 being
+   the hero, and a pattern that insists on `global`/`arg`/`local` cannot see
+   any of them. libraryRules has that narrower pattern; measured on this
+   archive it costs nothing, because every document handed over goes through
+   `global PlayerCharacter`, but it would silently under-count in a modded
+   archive. This one takes either. */
+function createsOf(proptype) {
+  const out = [];
+  const RECIPIENT = /^(?:global|arg|local) |^(?:byte|short|word) /;
+  try {
+    for (let subn = 0; subn < 256; subn++) {
+      const mi = masterIndexGlobal && masterIndexGlobal[subn];
+      if (!mi || !mi[0]) continue;
+      for (let ri = 0, n = subindexCount(subn); ri < n; ri++) {
+        const resid = ((subn + 1) << 8) | ri;
+        if (!refExists(resid)) continue;
+        let ops = null;
+        try { ops = dvmOpsOf(dvmScriptEntry(resid)); } catch (e) { continue; }
+        if (!ops) continue;
+        for (const m of dvmSeqAll(ops, [/^sys Create$/, RECIPIENT, DVM_NUM, DVM_NUM])) {
+          const ap = dvmNum(m[2]);
+          if (ap === null || (ap & 0x3FF) !== proptype) continue;
+          out.push({ resid, name: labelFor(resid) || null, at: m[0].at, data1: dvmVal(resid, m[3]) });
+        }
+      }
+    }
+  } catch (e) { /* no archive */ }
   return out;
 }
 
@@ -20178,8 +20316,35 @@ function renderMechanicsSheet() {
         table(['square', 'signals', 'the door it opens'], ri.lone.map(l =>
           '<tr><td>' + l.x + ', ' + l.y + '</td>' + num(l.signal) + '<td>' + (l.door ? sq(l.door) : '') + '</td></tr>'));
     }
-    add('puzzles', 'Puzzles', null, (bz ? src('the braziers', 0x113F) : '') + (bu ? src('the buttons', 0x1104) : ''),
-      (bz || bu) ? 'Two the file answers outright. Neither is guesswork about what the puzzle wants: the sequence and the tables are in the scripts, and the wiring is in the records placed on the map.'
+    const tu = pz.tunes;
+    if (tu && tu.bells) {
+      const bl = tu.bells;
+      html += '<div class="partsTitle">The bells, and the orders they are rung in</div>' +
+        '<ul class="ruleList"><li>Each bell keeps its number in its own Data1, and ringing one shifts it into a register: ' +
+        'the register becomes itself times ' + srcNum(bl.base) + ' plus the number.</li>' +
+        '<li>Only the last four rings are kept, so a wrong ring can be rung out rather than started again.</li></ul>' +
+        (bl.bells.length ? table(['#bell', 'square'], bl.bells.map(b =>
+          '<tr>' + num(b.number) + '<td>' + b.x + ', ' + b.y + '</td></tr>')) : '') +
+        table(['rung in this order', '#signals'], bl.orders.map(o =>
+          '<tr><td>' + o.rings.join(', ') + '</td>' + srcCell(o.signal) + '</tr>'));
+    }
+    if (tu && tu.instruments.length) {
+      html += '<div class="partsTitle">The music locks</div>' +
+        '<ul class="ruleList"><li>A tune is a number, one note to each of its digits, and the instrument compares what has been played against a single value.</li>' +
+        '<li>A note is a letter: the file keeps the numbers, and the letter is the one that far along the alphabet, which is why these read as the notes a player writes down.</li></ul>' +
+        table(['instrument', 'can play', 'the tune it takes', '#signals', 'given by'],
+          tu.instruments.map(it => '<tr><td>' + svChip(it.resid, it.what) + '</td>' +
+            '<td class="mechSub">' + svEsc(it.lists.map(l => l.spelled).join('  and  ')) + '</td>' +
+            '<td><b>' + svEsc(it.spelled) + '</b> ' + srcNum(it.tune, '(' + it.tune.v + ')') +
+            (it.gate ? ' <span class="mechSub">only when its Data1 is ' + srcNum(it.gate) + '</span>' : '') + '</td>' +
+            srcCell(it.signal) +
+            '<td>' + (it.given.length ? it.given.map(c => svChip(c.resid, c.name || '')).join(' ') : '') + '</td></tr>'));
+    }
+    add('puzzles', 'Puzzles', null,
+      (bz ? src('the braziers', 0x113F) : '') + (bu ? src('the buttons', 0x1104) : '') +
+      (ri ? src('the riddles', 0x1110) : '') + (tu && tu.bells ? src('the bells', 0x10C1) : '') +
+      (tu && tu.instruments.length ? tu.instruments.map(it => src(it.what, it.resid)).join('') : ''),
+      (bz || bu) ? 'What the file answers outright. None of it is guesswork about what a puzzle wants: the sequences, the tables and the tunes are in the scripts, and the wiring is in the records placed on the map. What a signal opens is not in the archive, so the tunes name the signal and stop there.'
                  : 'Neither puzzle script is in this archive.',
       (bu && bu.arrays) ? ['A button is a lookup and nothing more: it takes a panel’s aspect, reads it through one of the <b>' + bu.arrays.length + ' tables</b>, and stores what comes back. There is no rotation and no arithmetic.'] : [],
       html);

@@ -1878,6 +1878,9 @@ try {
   const passages = lib ? lib.reduce((n, d) => n + d.entries.length, 0) : 0;
   const bu = pz && pz.buttons;
   const ri = pz && pz.riddles;
+  const tu = pz && pz.tunes;
+  const pan = tu && tu.instruments.find(i => i.what === 'panpipes');
+  const lyre = tu && tu.instruments.find(i => i.what === 'lyre');
   if (!lib || lib.length < 4) fail('library', 'only ' + (lib ? lib.length : 0) + ' document arrays were wired up');
   else if (passages < 80) fail('library', 'only ' + passages + ' passages read');
   else if (!/Bestiary of Asilops/.test(lib.map(d => d.entries.map(e => e.str).join(' ')).join(' '))) fail('library', 'the bookshelf histories were not read');
@@ -1923,6 +1926,37 @@ try {
   else if (!ri.buttons.every(b => b.door)) fail('puzzles', 'a riddle button opens no door');
   else if (!/Puzzles/.test(html)) fail('puzzles', 'the sheet does not state the puzzles');
   else if (!/The riddles/.test(html)) fail('puzzles', 'the sheet does not state the riddles');
+  /* The tunes, 12 September 2026. All three locks encode an order as a
+     base-16 number and compare it against one constant, so the pins are the
+     two things that can slip: the constants, and the note-to-letter mapping.
+
+     The mapping is derived, not stated by the file: a note is the letter that
+     far along the alphabet. It is pinned by its result, because the panpipes'
+     0xF79C3 must spell the PHJMD the board wrote down by playing and the
+     lyre's 0xFC6 must spell PMG. A mapping off by one spells QIKNE and QNH,
+     so this cannot pass by accident.
+
+     The two sets of panpipes are the control on the note lists: they differ
+     by one note (H against G), and only the one Philinus hands over can play
+     the tune. If both lists come out the same the blobs are being read from
+     the wrong offset and the distinction is invented. */
+  else if (!tu || !tu.bells) fail('puzzles', 'the bells were not read');
+  else if (!tu.bells.base || tu.bells.base.v !== 16) fail('puzzles', 'the bell register is not base sixteen: ' + JSON.stringify(tu.bells.base));
+  else if (tu.bells.bells.length !== 4 || tu.bells.bells.map(b => b.number).join(',') !== '1,2,3,4')
+    fail('puzzles', 'the bells are not numbered one to four ascending west to east: ' + JSON.stringify(tu.bells.bells));
+  else if (tu.bells.orders.map(o => o.rings.join(',')).join(' | ') !== '3,2,4,1 | 1,2,4,3')
+    fail('puzzles', 'the ringing orders are not the two recorded: ' + JSON.stringify(tu.bells.orders.map(o => o.rings.join(','))));
+  else if (!pan || !lyre) fail('puzzles', 'an instrument was not read');
+  else if (pan.spelled !== 'PHJMD' || lyre.spelled !== 'PMG')
+    fail('puzzles', 'the tunes do not spell what the board recorded: ' + JSON.stringify([pan.spelled, lyre.spelled]));
+  else if (!pan.gate || pan.gate.v !== 1) fail('puzzles', 'the panpipes Data1 gate is not being read: ' + JSON.stringify(pan.gate));
+  else if (pan.lists.length !== 2 || pan.lists[0].spelled === pan.lists[1].spelled)
+    fail('puzzles', 'the two sets of pipes are not being told apart: ' + JSON.stringify(pan.lists.map(l => l.spelled)));
+  else if (!pan.given.some(c => /Philinus/.test(c.name || '') && c.data1 && c.data1.v === 1))
+    fail('puzzles', 'Philinus is not found handing over a panpipes with Data1 one: ' + JSON.stringify(pan.given));
+  else if (typeof pan.tune.at !== 'number' || typeof lyre.tune.at !== 'number')
+    fail('puzzles', 'a tune is not read off a line of its script, so it cannot be linked');
+  else if (!/The music locks/.test(html) || !/The bells/.test(html)) fail('puzzles', 'the sheet does not state the tunes');
   else console.log(`  library and puzzles: ${passages} passages in ${lib.length} arrays, ${unshown.length} shown by nothing and ${lib.reduce((n, d) => n + d.dangling.length, 0)} pointing at nothing; ${le.unreachable.length} test nothing can satisfy; ${bu.buttons.length} buttons through ${bu.arrays.length} tables of ${bu.arrays[0].length}, driving ${bu.rooms.length} rooms of two panels and a door; ${ri.text.length} riddles taking ${ri.answers.join(', ')}`);
 } catch (e) { fail('library', e); }
 
