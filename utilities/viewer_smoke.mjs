@@ -1850,6 +1850,40 @@ try {
   else console.log(`  to do and eggs: ${td.adds.length} lines added and ${td.dones.length} struck off over ${slots.size} slots, ${mism.length} naming the informant and ${never.length} never struck off; ${eg.kinds.reduce((n, k) => n + k.n, 0)} eggs of ${eg.kinds.length} kinds in ${eg.zones} zones, ${rooms.named} of ${rooms.total} rooms with a script of their own, ${eg.roofs} roofs kept out`);
 } catch (e) { fail('todo', e); }
 
+/* The library, the loose ends and the puzzles, 12 September 2026. The
+   library's "written, never shown" list is the part that can be wrong in a
+   way nobody would notice, and it was wrong twice while it counted only
+   placed props: three Sapphire volumes are handed over by Itanos, Prusa and
+   Unhayt, and the Wine Contract by Apis. So the check names those four and
+   requires them NOT to be listed -- a reader that forgets `sys Create`
+   fails here rather than quietly publishing four wrong claims. The puzzle
+   half pins what the community independently reverse-engineered: seven
+   tables of sixteen, the first of them the identity, and fourteen buttons. */
+try {
+  const lib = ctx.libraryRules(), le = ctx.looseEnds(), pz = ctx.puzzleRules();
+  ctx.showCategory('MECHANICS');
+  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const unshown = lib ? lib.reduce((a, d) => a.concat(d.unshown.map(e => String(e.str))), []) : [];
+  const said = unshown.join(' ~~ ');
+  const passages = lib ? lib.reduce((n, d) => n + d.entries.length, 0) : 0;
+  const bu = pz && pz.buttons;
+  if (!lib || lib.length < 4) fail('library', 'only ' + (lib ? lib.length : 0) + ' document arrays were wired up');
+  else if (passages < 80) fail('library', 'only ' + passages + ' passages read');
+  else if (!/Bestiary of Asilops/.test(lib.map(d => d.entries.map(e => e.str).join(' ')).join(' '))) fail('library', 'the bookshelf histories were not read');
+  else if (!unshown.length) fail('library', 'nothing is unshown, so the second and third sources are over-counting');
+  else if (/Sapphire Book of Mercy|Sapphire Book of Beauty|Sapphire Book of Foundation/.test(said)) fail('library', 'a script-given Sapphire volume is listed as never shown: sys Create is not being counted');
+  else if (/Wine Contract/.test(said)) fail('library', 'the Wine Contract is listed as never shown, but Apis hands it over');
+  else if (!/The game’s own writing/.test(html)) fail('library', 'the sheet does not state the library');
+  else if (!le.unreachable.length) fail('loose', 'no unsatisfiable comparison was found, and the murder thread has one');
+  else if (!/Loose ends/.test(html)) fail('loose', 'the sheet does not state the loose ends');
+  else if (!bu || !bu.arrays || bu.arrays.length !== 7) fail('puzzles', 'the button tables were misread: ' + JSON.stringify(bu && bu.arrays && bu.arrays.length));
+  else if (!bu.arrays.every(a => a.length === 16)) fail('puzzles', 'a button table is not sixteen entries');
+  else if (!bu.arrays[0].every((v, i) => v === i)) fail('puzzles', 'the first table is not the identity, so the blob is being read at the wrong offset');
+  else if (bu.buttons.length !== 14) fail('puzzles', bu.buttons.length + ' buttons, expected the fourteen in Maayti');
+  else if (!/Puzzles/.test(html)) fail('puzzles', 'the sheet does not state the puzzles');
+  else console.log(`  library and puzzles: ${passages} passages in ${lib.length} arrays, ${unshown.length} shown by nothing and ${lib.reduce((n, d) => n + d.dangling.length, 0)} pointing at nothing; ${le.unreachable.length} test nothing can satisfy; ${bu.buttons.length} buttons through ${bu.arrays.length} tables of ${bu.arrays[0].length}`);
+} catch (e) { fail('library', e); }
+
 /* No copy of the file's numbers or names, 11 September 2026. The Mechanics
    figures are read with the line that holds each and printed as links to
    it, so a figure typed back into a sentence shows up here as a number
