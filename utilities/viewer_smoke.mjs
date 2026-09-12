@@ -1983,6 +1983,48 @@ try {
   else console.log(`  world tab: ${moving} renders while moving and ${atRest} at rest; card at ${topNearFinger} by a finger at 30; ${JSON.stringify(hatch.replace(/^[^:]*: /, ''))}`);
 } catch (e) { fail('world tab', e); }
 
+/* Who answers as whom, 12 September 2026. The thing that can go quietly wrong
+   here is conflating the two relationships a conversation has with a group:
+   INHERITANCE through the catch-all (dvmConversation's `groups`), and a call
+   made from one topic (the extra in `groupsAll`). The first reader did the
+   latter and inflated every count. Bartender is the proof they are apart: it
+   is a real group with topics that NOBODY inherits, reached only by a call
+   from three characters' topics.
+
+   Naxos is the anchor because dialogue_check pins the same chain against the
+   community's transcription, so this agrees with an oracle rather than with
+   itself. And Protesilaus is pinned deliberately: the archive gives him
+   Pnyx, Mage, Human while all nine of his classmates carry Student, and the
+   Student group itself has a topic reading "Protesilaus is another student".
+   If that ever stops being true, something real changed and a person should
+   look, so it fails here rather than passing. */
+try {
+  const cv = ctx.convRules();
+  const real = cv.groups.filter(g => g.kind === 'group');
+  const topics = cv.chars.reduce((n, c) => n + c.topics, 0);
+  const naxos = cv.chars.find(c => c.rid === 0x180B);
+  const prot = cv.chars.find(c => c.rid === 0x186F);
+  const thra = cv.chars.find(c => /Thrasymedes/i.test(c.name));
+  const bartender = cv.groups.find(g => g.rid === 0x812);
+  const notGroups = cv.groups.filter(g => g.kind !== 'group').map(g => g.rid);
+  ctx.showCategory('MECHANICS');
+  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  if (cv.chars.length < 100 || topics < 1200) fail('talk', `${cv.chars.length} characters and ${topics} topics`);
+  else if (!naxos || JSON.stringify(naxos.chain) !== JSON.stringify([0x804, 0x80E, 0x801]))
+    fail('talk', 'Naxos is ' + JSON.stringify(naxos && naxos.chain) + ', expected House Comana, Cademia, Human');
+  else if (real.some(g => !g.name)) fail('talk', 'a group has no name: ' + JSON.stringify(real.filter(g => !g.name).map(g => g.rid)));
+  else if (notGroups.indexOf(0x813) < 0 || notGroups.indexOf(0x816) < 0)
+    fail('talk', 'the routines that are not groups are being counted as groups: ' + JSON.stringify(notGroups));
+  else if (!bartender || bartender.inherited !== 0 || bartender.called < 1)
+    fail('talk', 'inheritance and topic calls are being conflated: Bartender is ' + JSON.stringify(bartender && [bartender.inherited, bartender.called]));
+  else if (!prot || prot.chain.indexOf(0x810) >= 0)
+    fail('talk', 'Protesilaus now inherits Student; the archive did not give him it, so check what changed');
+  else if (!thra || thra.chain.indexOf(0x810) < 0)
+    fail('talk', 'Thrasymedes lost the Student group, so the chain reading is wrong');
+  else if (!/Who answers as whom/.test(html)) fail('talk', 'the sheet does not state the chains');
+  else console.log(`  talk: ${cv.chars.length} characters, ${topics} topics, ${real.length} groups inherited; Human by ${(real.find(g => g.rid === 0x801) || {}).inherited}, Bartender by none but called by ${bartender.called}`);
+} catch (e) { fail('talk', e); }
+
 /* No copy of the file's numbers or names, 11 September 2026. The Mechanics
    figures are read with the line that holds each and printed as links to
    it, so a figure typed back into a sentence shows up here as a number

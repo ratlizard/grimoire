@@ -4417,7 +4417,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.58.0';
+const GRIMOIRE_VERSION = '1.59.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -18016,6 +18016,65 @@ function puzzleRules() {
   return out;
 }
 
+/* WHO ANSWERS AS WHOM. A character's conversation is their own topics and
+   then, for most of them, a generic set they fall through to: Naxos answers
+   as House Comana, then as Cademia, then as Human. The chain is in the "*"
+   catch-all, and dvmConversation already returns it as `groups`.
+
+   The distinction that matters here, and that cost a rewrite of this reader:
+   `groups` is INHERITANCE, the catch-all chain, while `groupsAll` also sweeps
+   calls made from a single topic. Those are different things. The Student
+   group answers "golem" by calling the Mage group, and eight groups answer
+   "where is" by calling GiveDirections (0x816), which is not a group at all
+   but a routine that opens with AddConversationKeyword "Where Is". Counting
+   groupsAll as inheritance inflates every number and invents a hierarchy on
+   top of routines; this reads `groups` and reports the calls separately.
+
+   Three of the 0x8xx resources are not groups: 0x813 (Tavern rumors) and
+   0x816 are routines with no topic list, and 0x803 (House Atussa, defunct)
+   and 0x814 are stubs of 14 and 11 bytes. They are labelled as such rather
+   than shown as groups with nothing in them. */
+function convRules() {
+  const chars = [];
+  for (let rid = 0x1800; rid <= 0x18FF; rid++) {
+    if (!refExists(rid)) continue;
+    let c = null;
+    try { c = conversationFor(rid); } catch (e) { c = null; }
+    if (!c || !c.entries || !c.entries.length) continue;
+    const chain = c.groups || [], all = c.groupsAll || [];
+    chars.push({ rid, name: labelFor(rid) || propWordHex(rid), topics: c.entries.length,
+                 deeper: c.entries.filter(e => e.sub && e.sub.length).length,
+                 chain, calls: all.filter(g => chain.indexOf(g) < 0) });
+  }
+  const groups = [];
+  for (let rid = 0x800; rid <= 0x8FF; rid++) {
+    if (!refExists(rid)) continue;
+    let c = null;
+    try { c = conversationFor(rid); } catch (e) { c = null; }
+    let bytes = 0;
+    try { bytes = getResourceBytes(rid).length; } catch (e) { bytes = 0; }
+    const topics = c && c.entries ? c.entries.length : 0;
+    groups.push({ rid, topics, bytes,
+                  name: (typeof DIALOGUE_GROUP_NAMES === 'object' && DIALOGUE_GROUP_NAMES[rid]) || null,
+                  kind: topics ? 'group' : (bytes < 40 ? 'stub' : 'a routine, not a topic list'),
+                  inherited: chars.filter(ch => ch.chain.indexOf(rid) >= 0).length,
+                  called: chars.filter(ch => ch.calls.indexOf(rid) >= 0).length });
+  }
+  const gname = rid => {
+    const g = groups.find(q => q.rid === rid);
+    return (g && g.name) || labelFor(rid) || propWordHex(rid);
+  };
+  const shapes = new Map();
+  for (const ch of chars) {
+    const key = ch.chain.length ? ch.chain.map(gname).join(' > ') : '';
+    if (!shapes.has(key)) shapes.set(key, []);
+    shapes.get(key).push(ch);
+  }
+  return { chars, groups, gname,
+           shapes: [...shapes.entries()].map(([k, who]) => ({ shape: k, who }))
+                     .sort((a, b) => b.who.length - a.who.length) };
+}
+
 /* SPELLS. Every spell script casts through one helper, CastSpell (0xEA1),
    with the spell's level and its cost in magic points, so the two are read
    off each script's call. The helper says the rest: a cost above the
@@ -19870,6 +19929,35 @@ function renderMechanicsSheet() {
                  : 'Neither puzzle script is in this archive.',
       (bu && bu.arrays) ? ['A button is a lookup and nothing more: it takes a panel’s aspect, reads it through one of the <b>' + bu.arrays.length + ' tables</b>, and stores what comes back. There is no rotation and no arithmetic.'] : [],
       html);
+  }
+
+  // ---- who answers as whom ----
+  {
+    const cv = convRules();
+    const real = cv.groups.filter(g => g.kind === 'group');
+    const others = cv.groups.filter(g => g.kind !== 'group');
+    const alone = cv.shapes.find(s => s.shape === '');
+    const topics = cv.chars.reduce((n, c) => n + c.topics, 0);
+    const deeper = cv.chars.reduce((n, c) => n + c.deeper, 0);
+    const groupRows = real.sort((a, b) => b.inherited - a.inherited).map(g =>
+      '<tr><td>' + svChip(g.rid, g.name || '') + '</td>' + num(g.topics) + num(g.inherited) +
+      '<td class="mechSub">' + (g.called ? 'called from a topic by ' + g.called : '') + '</td></tr>');
+    const shapeRows = cv.shapes.filter(s => s.shape).map(s =>
+      '<tr>' + num(s.who.length) + '<td>' + svEsc(s.shape) + '</td>' +
+      '<td class="mechSub">' + svEsc(s.who.slice(0, 5).map(c => c.name).join(', ') +
+        (s.who.length > 5 ? ', and ' + (s.who.length - 5) + ' more' : '')) + '</td></tr>');
+    add('talk', 'Who answers as whom', null, '',
+      cv.chars.length ? 'A character answers with their own topics and then falls through to a generic set: Naxos answers as House Comana, then as Cademia, then as Human. The chain is read out of the catch-all entry of each conversation, and the groups are the archive’s own.'
+                      : 'No conversation in this archive.',
+      cv.chars.length ? [
+        '<b>' + cv.chars.length + ' characters</b> hold <b>' + topics + ' topics</b> between them, of which <b>' + deeper + '</b> open further topics of their own.',
+        '<b>' + real.length + ' groups</b> are inherited. The deepest chains are four long, and most of the cast is a House, then a city, then Human.',
+        alone ? '<b>' + alone.who.length + ' answer as nobody but themselves</b>: ' + svEsc(alone.who.map(c => c.name).join(', ')) + '.' : '',
+        others.length ? 'Not every 0x8xx resource is a group: ' + others.map(g => svChip(g.rid, (g.name || propWordHex(g.rid)) + ', ' + g.kind)).join(' ') : ''
+      ].filter(Boolean) : [],
+      table(['group', '#topics', '#inherit it', ''], groupRows) +
+      '<div class="partsTitle">The chains</div>' +
+      table(['#how many', 'answers as', 'who'], shapeRows));
   }
 
   // The sections in alphabetical order, whatever order they were read in,

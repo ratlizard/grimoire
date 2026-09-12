@@ -170,9 +170,17 @@ if (existsSync(oracleDir)) {
     if (JSON.stringify(want) === JSON.stringify(got)) agree++;
     else if (diffs.length < 5) diffs.push(`${m[1]}: oracle [${want}] vs code [${got}]`);
   }
-  // Known divergence, one character: Protesilaus's Student-group call sits
-  // in code the extractor does not reach, so the oracle lists Student and we
-  // do not. 83/84 is therefore the expected score, not a degraded one.
+  // Known divergence, one character, and it is the archive's rather than
+  // ours -- corrected 12 September 2026. This used to say the Student-group
+  // call sat in code the extractor could not reach. It does not: 0x186F is
+  // 357 bytes, three objects, all three resolved, with no desync and no
+  // reference to 0x810 anywhere in it. The oracle's header lists Protesilaus
+  // as answering Student prompts because the game presents him as a student
+  // -- his own JOB topic says so, and the Student group carries a topic
+  // reading "Protesilaus is another student" -- but his chain is Pnyx, Mage,
+  // Human, while all nine of his classmates carry Student. So he is the one
+  // student who cannot answer a student prompt, and the missing link is the
+  // scenario's, not the decoder's. 83/84 is the expected score.
   if (compared < 60) fail('affiliations', `only ${compared} characters could be compared`);
   if (agree / Math.max(compared, 1) < 0.85)
     fail('affiliations', `${agree}/${compared} chains agree; first differences: ` + diffs.join(' | '));
