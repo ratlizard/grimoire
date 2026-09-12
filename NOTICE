@@ -52,8 +52,9 @@ of the same place and under the same terms. **The page no longer uses them.**
 Until 12 September 2026 the published page was set in the game's face from the
 first paint, served from here, whether or not the reader had opened a copy of
 the game; it is set in Chicago Kare until a file is open now, and in the file's
-own face afterwards. The two files are kept only pending a decision to delete
-them, and nothing in the site fetches them.
+own face afterwards. The two files are kept deliberately, the
+maintainer's decision of 12 September 2026, against a use for them elsewhere
+later; nothing in the site fetches them.
 
 **`res/ChicagoKare-Regular.woff2`** is **Chicago Kare** by **Duane King**
 (<https://github.com/kingduane/Chicago-Kare>), a reproduction of the bitmap

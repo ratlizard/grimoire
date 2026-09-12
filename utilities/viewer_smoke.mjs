@@ -1971,6 +1971,12 @@ try {
   // carrying sound 6 stands on water, and 0x9106 is named Waves / Seashore
   // Loop in the file. 151,13 is one of them.
   const surf = ctx.atlasEggAt({ resid: 0x8001 }, 151, 13);
+  // Room 800, the way into the Tree of Life: egg (125,139) sized 3 by 5, so
+  // x 124..126 and y 137..141. One square inside, the trigger itself, and one
+  // outside the left edge as the control.
+  const inRoom800 = ctx.atlasEggAt({ resid: 0x8001 }, 124, 137);
+  const onRoom800 = ctx.atlasEggAt({ resid: 0x8001 }, 125, 139);
+  const outRoom800 = ctx.atlasEggAt({ resid: 0x8001 }, 123, 137);
 
   if (atRest === 0) fail('world tab', 'the render counter never fired even at rest, so it is not intercepting and this check proves nothing');
   else if (moving !== 0) fail('world tab', moving + ' map renders in one paint with a finger down: the judder guard is not holding');
@@ -1980,6 +1986,17 @@ try {
   else if (!/always|times in 100/.test(hatch)) fail('world tab', 'the hatching egg does not say how likely: ' + JSON.stringify(hatch));
   else if (!/a room, room \d+/.test(room)) fail('world tab', 'the room egg stopped reading as a room: ' + JSON.stringify(room));
   else if (!/sound of waves/i.test(surf)) fail('world tab', 'a kind-3 egg is not naming its ambient sound: ' + JSON.stringify(surf));
+  // A room is a rectangle, not the egg's square. Room 800 is the way into the
+  // Tree of Life: its script 0x1E20 is one instruction, sys ChangeZone through
+  // zoneport 146, and the egg at (125,139) sized 3 by 5 covers x 124..126,
+  // y 137..141 of the world. Every one of those squares is in the room and
+  // all but the trigger read as nothing before 12 September 2026.
+  // The control is the square outside: (123,137) is one west of the left edge
+  // and must stay empty, or the rectangle is being computed too wide and
+  // every room on the map is overstated.
+  else if (!/a room, room 800/.test(inRoom800)) fail('world tab', 'a square inside room 800 does not read as the room: ' + JSON.stringify(inRoom800));
+  else if (!/a room, room 800/.test(onRoom800)) fail('world tab', 'room 800 stopped reading on its own trigger square: ' + JSON.stringify(onRoom800));
+  else if (outRoom800 !== '') fail('world tab', 'a square outside room 800 reads as inside it: ' + JSON.stringify(outRoom800));
   else console.log(`  world tab: ${moving} renders while moving and ${atRest} at rest; card at ${topNearFinger} by a finger at 30; ${JSON.stringify(hatch.replace(/^[^:]*: /, ''))}`);
 } catch (e) { fail('world tab', e); }
 

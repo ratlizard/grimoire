@@ -4417,7 +4417,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.60.0';
+const GRIMOIRE_VERSION = '1.61.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -11962,8 +11962,39 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
       ctx.setLineDash([3, 3]);
       ctx.strokeStyle = 'rgba(220,220,255,.55)';
       ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(x, y, per * 0.45, 0, Math.PI * 2); ctx.stroke();
+      // A room (kind 8) is a rectangle around the egg rather than the square
+      // it stands on -- see eggRect -- and not one of the archive's 170 is a
+      // single square, so drawing them all as rings put every room in the
+      // wrong place and at the wrong size. The rest of the kinds do act on
+      // their own square, and keep the ring.
+      if (g.aspect === 8) {
+        const q = eggRect(g);
+        ctx.strokeRect(r.x + q.left * per, r.y + q.top * per, q.w * per, q.h * per);
+      } else {
+        ctx.beginPath(); ctx.arc(x, y, per * 0.45, 0, Math.PI * 2); ctx.stroke();
+      }
       ctx.restore();
+    }
+    // The room's number, once the rectangle is big enough to hold it. Same
+    // idiom as the mouths above: a label whose box is already taken is
+    // dropped and the rectangle still drawn.
+    for (const g of node._eggs) {
+      if (g.aspect !== 8) continue;
+      const q = eggRect(g);
+      const bx = r.x + q.left * per, by = r.y + q.top * per;
+      if (q.w * per < 34 || q.h * per < 20) continue;
+      if (bx > vw + 20 || by > vh + 20 || bx + q.w * per < -20 || by + q.h * per < -20) continue;
+      const name = 'room ' + g.proptype;
+      ctx.font = canvasFace(12);
+      ctx.textAlign = 'left';
+      const tw = Math.round(ctx.measureText(name).width);
+      const box = { x0: bx + 3, y0: by + 2, x1: bx + 11 + tw, y1: by + 18 };
+      if (labelled.some(p => box.x0 < p.x1 && box.x1 > p.x0 && box.y0 < p.y1 && box.y1 > p.y0)) continue;
+      labelled.push(box);
+      ctx.fillStyle = 'rgba(8,7,5,.78)';
+      ctx.fillRect(box.x0, box.y0, tw + 8, 16);
+      ctx.fillStyle = 'rgba(220,220,255,.9)';
+      ctx.fillText(name, bx + 7, by + 14);
     }
   }
   ctx.textAlign = 'center';
@@ -11986,9 +12017,19 @@ function atlasEggAt(node, tx, ty) {
       node._eggs = node._allProps.filter(p => p.flags === 0x42);
     } catch (e) { node._eggs = []; node._allProps = []; }
   }
+  // An egg on the square answers first, whatever its kind. Failing that, a
+  // room is a rectangle rather than a square (eggRect), so a square inside
+  // one is in that room even though nothing is on it -- which is most of a
+  // room: the archive's room rectangles cover 6,094 squares between them.
+  // Where two rooms overlap, and 39 squares do, the lowest-indexed egg wins,
+  // because the application's draw loop walks the list backwards and stores
+  // CurrentRoom on every match, so the first entry is what is left standing.
   const g = node._eggs.find(g => g.x === tx && g.y === ty);
-  if (!g) return '';
-  return 'a scripted trigger (an egg): ' + eggDetail(g, node._allProps);
+  if (g) return 'a scripted trigger (an egg): ' + eggDetail(g, node._allProps);
+  const room = node._eggs.filter(e => e.aspect === 8 && eggCovers(e, tx, ty))
+                         .sort((a, b) => a.index - b.index)[0];
+  if (!room) return '';
+  return 'inside a room: ' + eggDetail(room, node._allProps);
 }
 /* The picked square, ringed the way Zones rings its selection (white over a
    dark edge, corner ticks when small), on whichever drawn node it belongs
@@ -17752,6 +17793,32 @@ function eggDetail(g, allProps) {
            (when.length ? ', ' + when.join(' and ') : '');
   }
   return (k ? k.what : 'kind ' + g.aspect) + (k && k.arg ? ', ' + k.arg + ' ' + g.proptype : '');
+}
+/* WHERE A ROOM IS. A kind-8 egg is a room, and the room is not the egg's
+   square: it is a rectangle around it, which the application computes in
+   IsInArea__FssP8PropItem and CharEntry::GetRoom with the same arithmetic
+   inlined. d1 and d2 are the size, and the rectangle is inclusive and
+   centred on the egg, biased one square left and up when the size is even:
+
+     left = ex - floor((d1 + 1) / 2)   right  = left + d1
+     top  = ey - floor((d2 + 1) / 2)   bottom = top + d2
+
+   so it is d1 + 1 squares wide and d2 + 1 tall. The workbench's
+   save-format.md has the reading and the addresses; the figure to check this
+   against is room 1 of Land King Hall, published there from a saved game as
+   x 15..23, y 18..29 from the egg at (19,24) sized 8 by 11, which this
+   reproduces. The un-biased formula gives y 19 and does not.
+
+   Not one of the archive's 170 room eggs is a single square -- the smallest
+   is 2 by 2 and the largest 22 by 22 -- so a ring on the trigger square
+   misdrew every one of them. */
+function eggRect(g) {
+  const left = g.x - Math.floor((g.d1 + 1) / 2), top = g.y - Math.floor((g.d2 + 1) / 2);
+  return { left, top, right: left + g.d1, bottom: top + g.d2, w: g.d1 + 1, h: g.d2 + 1 };
+}
+function eggCovers(g, tx, ty) {
+  const r = eggRect(g);
+  return tx >= r.left && tx <= r.right && ty >= r.top && ty <= r.bottom;
 }
 function eggKinds() {
   const kinds = new Map();
