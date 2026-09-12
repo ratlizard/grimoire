@@ -4417,7 +4417,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.56.0';
+const GRIMOIRE_VERSION = '1.57.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -4658,7 +4658,11 @@ function faceChoice() {
 }
 function setFace() {
   const pick = faceChoice();
-  try { document.documentElement.style.setProperty('--face', FACE_STACKS[pick] || FACE_STACKS.chicago); } catch (e) {}
+  const stack = FACE_STACKS[pick] || FACE_STACKS.chicago;
+  try { document.documentElement.style.setProperty('--face', stack); } catch (e) {}
+  // Published for canvasFace, which is called from the atlas paint loop and
+  // must not read the document to find out what it is drawing in.
+  window.FACE_STACK_NOW = stack;
   window.FACE_IN_USE = pick;
   const r = document.querySelector('input[name="faceChoice"][value="' + pick + '"]');
   if (r) r.checked = true;
@@ -4674,12 +4678,13 @@ function setFaceChoice(v) {
    map with it, and getComputedStyle is exactly the sort of thing a harness or
    an old browser stubs without getPropertyValue. */
 function canvasFace(px) {
-  let stack = '';
-  try {
-    const cs = getComputedStyle(document.documentElement);
-    if (cs && typeof cs.getPropertyValue === 'function') stack = (cs.getPropertyValue('--face') || '').trim();
-  } catch (e) { stack = ''; }
-  return px + 'px ' + (stack || FACE_STACKS[window.FACE_IN_USE] || FACE_STACKS.chicago);
+  // Read from the variable setFace() publishes, never from the document. The
+  // first version of this asked getComputedStyle for --face, which is a style
+  // flush, and both callers run inside paintAtlas: that put two forced
+  // recalculations into every frame of every pan and zoom of the World tab,
+  // and the map went jerky within an hour of shipping. The stack is a string
+  // this file already knows; there is nothing to ask the document for.
+  return px + 'px ' + (window.FACE_STACK_NOW || FACE_STACKS[window.FACE_IN_USE] || FACE_STACKS.chicago);
 }
 // Settle the face at load, not only when a font arrives: the stylesheet's own
 // default covers the first paint, but a reader who chose Chicago or this
@@ -9989,8 +9994,16 @@ const HOVER_TOUCH_CLEAR = 64;   // px above the finger: a thumb and its shadow
 function placeHoverCard(el, vp, px, py, touch) {
   const w = el.offsetWidth || 150, h = el.offsetHeight || 40;
   if (touch) {
+    // Above the finger by preference, and BELOW it when there is no room
+    // there. It used to fall back to vp.clientHeight - h, which put the card
+    // at the foot of the viewport with nothing to do with where the finger
+    // was: touching near the top of the map produced a card at the bottom of
+    // the screen, which reads as a bug rather than as a position (the
+    // maintainer, 12 September 2026). The clamp stays, but only as a last
+    // resort for a card that fits neither way.
     let y = py - h - HOVER_TOUCH_CLEAR;
-    if (y < 4) y = Math.max(4, vp.clientHeight - h - 6);
+    if (y < 4) y = py + HOVER_TOUCH_CLEAR;
+    y = Math.max(4, Math.min(y, vp.clientHeight - h - 6));
     const x = Math.max(4, Math.min(px - w / 2, vp.clientWidth - w - 4));
     el.style.left = Math.round(x) + 'px';
     el.style.top = Math.round(y) + 'px';
@@ -10000,6 +10013,7 @@ function placeHoverCard(el, vp, px, py, touch) {
   if (x + w > vp.clientWidth - 4) x = px - w - 14;
   if (x < 4) x = 4;
   if (y < 4) y = py + 18;
+  y = Math.max(4, Math.min(y, vp.clientHeight - h - 6));
   el.style.left = Math.round(x) + 'px';
   el.style.top = Math.round(y) + 'px';
 }
@@ -10107,10 +10121,13 @@ function containerZoomrect(pt) {
 }
 
 // The records this one holds, from the map's full prop list.
-function containerContents(rec) {
-  const cm = window.CUR_MAP;
-  if (!cm || !cm.allProps) return [];
-  return cm.allProps.filter(o => o.container === rec.index && o.flags !== 0xFF && o.proptype);
+// The records this one holds. The prop list defaults to the open map's, which
+// is what the inspector wants; the World tab passes a node's own, because it
+// asks about a map it is looking at from outside rather than standing in.
+function containerContents(rec, allProps) {
+  const props = allProps || (window.CUR_MAP && window.CUR_MAP.allProps);
+  if (!props) return [];
+  return props.filter(o => o.container === rec.index && o.flags !== 0xFF && o.proptype);
 }
 
 // What a hover over one of a container's contents says: everything the item's
@@ -10481,6 +10498,22 @@ const worldThumbs = new Map();
    cliff rather than a slope. */
 const ZONE_CACHE_KEEP = IS_IOS_WEBKIT ? 2 : 4;
 
+/* A render, but only if it is free. The World tab paints from a pointer and
+   from an animation frame, and a full map render is the expensive thing in
+   this file: ZONE_CACHE_KEEP is two on iOS and four elsewhere, so a handful
+   of large nodes on screen at once evict each other and re-render every
+   frame, which is what the judder is, both times it has been reported.
+
+   So while the view is moving, a caller that can do without takes the cached
+   entry or nothing. Everything that uses this already has a way to draw
+   without a render (the miniature, no people, no rings), and the sharp paint
+   arrives on settle by itself: setTouching(false) schedules one and the
+   animation's done() calls one. Callers that must have the real thing, the
+   hover card and the inspector, keep calling mapRenderFor directly. */
+function mapRenderIfCheap(resid) {
+  if (!atlasInMotion() || zoneMapCache.has(resid)) return mapRenderFor(resid, true);
+  return null;
+}
 function mapRenderFor(resid, cache) {
   if (zoneMapCache.has(resid)) {
     const hit = zoneMapCache.get(resid);
@@ -11414,6 +11447,13 @@ function atlasMouths(node) {
   // On the world, the maps whose edge leads here but which the world draws
   // nothing for -- the bridge, Pnyx upstairs -- are mouths at that square:
   // the one thing the file says about where they are.
+  // This branch renders every below-ground map with a world anchor, to find
+  // the square a ring should land on, and the answer is memoised on the node
+  // with nothing anywhere to invalidate it. So it is all or nothing: built
+  // while the view is moving it would cache a SHORT list of rings for the
+  // rest of the session. While busy, hand back what is already built and
+  // remember nothing.
+  if (node.resid === WORLD_MAP_RESID && atlasInMotion()) return node._mouths || [];
   if (node.resid === WORLD_MAP_RESID) {
     const have = new Set(out.map(d => d.dest.resid));
     // A map some surface place already leads down into -- the springs under
@@ -11587,8 +11627,20 @@ function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
       ok = drawTown(ctx, node.gw, atlasCropRect(node, r), alpha, roofT);
       viaTown = true;
     } else if (r.w >= 448 || !node.gw) {
-      const e = mapRenderFor(node.resid, true);
+      // The same judder, one zoom band up (the maintainer, 12 September 2026).
+      // The 448 guard above stopped every node on screen being rendered while
+      // the island was in view, but this branch still asked for a full render
+      // per node per frame once nodes grew past it, and the cache keeps two
+      // on iOS and four elsewhere. Three big towns in view at an intermediate
+      // zoom therefore evicted each other every frame and re-rendered every
+      // frame. So while the view is moving take a render only if it is
+      // already cached, and otherwise draw the miniature: setTouching(false)
+      // and the animation's own done() both repaint, so the sharp version
+      // arrives the instant the gesture ends, which is the contract the
+      // device-pixel-ratio drop above already relies on.
+      const e = mapRenderIfCheap(node.resid);
       if (e && e.result) { drawRenderWithMargin(ctx, node, r, e.result.canvas, alpha, roofT); ok = true; }
+      else if (thumb) { ok = drawTown(ctx, node.gw, atlasCropRect(node, r), alpha, roofT); viaTown = true; }
     }
   }
   if (ok && !viaTown && node.gw && roofT > 0.02) {
@@ -11683,7 +11735,9 @@ function atlasCropRect(node, r) {
    there is no second canvas, no margin to budget, nothing to slide, and no
    settle to wait for -- it is simply what this node looks like this frame. */
 function paintAtlasDetail(ctx, node, r, vw, vh) {
-  const e = mapRenderFor(node.resid, true);
+  // Magnified native art is the nicest thing on the tab and the dearest; a
+  // moving view falls back to the node's own render or its miniature.
+  const e = mapRenderIfCheap(node.resid);
   if (!e || !e.result || !e.result.m) return false;
   const TS = 32;
   const per = r.w / node.w;                 // screen px per node square
@@ -11800,7 +11854,10 @@ function atlasFolk(node) {
   const hour = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
   const key = node.resid + '@' + hour;
   if (atlasFolkCache.has(key)) return atlasFolkCache.get(key);
-  const e = mapRenderFor(node.resid, true);
+  // Safe to give up while the view moves because this returns before the
+  // cache is written: an empty list is not remembered, so the people are
+  // back the moment the gesture ends.
+  const e = mapRenderIfCheap(node.resid);
   if (!e || !e.result) return [];
   const keep = window.CUR_MAP;
   let folk = [];
@@ -11816,7 +11873,7 @@ function atlasFolk(node) {
 }
 function atlasPeople(ctx, node, r, ppt) {
   if (ppt < window.ATLAS_TUNE.peopleAt) return;
-  const e = mapRenderFor(node.resid, true);
+  const e = mapRenderIfCheap(node.resid);
   if (!e || !e.result) return;
   const per = r.w / node.w;
   const folk = atlasFolk(node);
@@ -11920,13 +11977,31 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
 function atlasEggAt(node, tx, ty) {
   if (!node._eggs) {
     // Flags 0x44 is ROOF, not an egg; see the note in the draw loop above.
-    try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42); }
-    catch (e) { node._eggs = []; }
+    // The whole prop list is kept beside them: what a hatching egg holds is
+    // not in the egg's own record but in the records that name it as their
+    // container, the way a chest holds what it holds.
+    try {
+      const e = mapRenderFor(node.resid, true);
+      node._allProps = (e && e.result && e.result.allProps) || [];
+      node._eggs = node._allProps.filter(p => p.flags === 0x42);
+    } catch (e) { node._eggs = []; node._allProps = []; }
   }
   const g = node._eggs.find(g => g.x === tx && g.y === ty);
   if (!g) return '';
   const k = EGG_KIND_NAMES[g.aspect];
-  return 'a scripted trigger (an egg): ' + (k ? k.what + (k.arg ? ', ' + k.arg + ' ' + g.proptype : '') : 'kind ' + g.aspect);
+  let what = k ? k.what + (k.arg ? ', ' + k.arg + ' ' + g.proptype : '') : 'kind ' + g.aspect;
+  // A hatching egg says what comes out of it, and how often. Data2 is the
+  // chance in a hundred: the application rolls a number, takes it modulo 100
+  // and compares (TActiveMonster::HatchEgg). Data1 carries the rest of the
+  // conditions, which are not decoded here, so it is not stated.
+  if (g.aspect === 0) {
+    const held = containerContents(g, node._allProps);
+    if (held.length) {
+      const names = held.map(h => propDisplayName(h.proptype) || ('prop ' + h.proptype));
+      what = 'hatches ' + names.join(' and ') + (g.d2 ? ', ' + g.d2 + ' times in 100' : '');
+    }
+  }
+  return 'a scripted trigger (an egg): ' + what;
 }
 /* The picked square, ringed the way Zones rings its selection (white over a
    dark edge, corner ticks when small), on whichever drawn node it belongs
@@ -12307,6 +12382,17 @@ const atlasGesture = { active: false, z0: null, timer: null };
 let atlasBusyUntil = 0;
 function atlasMarkBusy() { atlasBusyUntil = Date.now() + 500; }
 function atlasIsBusy() { return !!(atlasView.touching || window._atlasAnimating || Date.now() < atlasBusyUntil); }
+/* Moving *now*, which is a different question from the one above and must
+   stay one. atlasIsBusy carries a 500 ms tail after a gesture so that
+   background work never lands in the middle of a pan; that is right for
+   deciding when to start work and wrong for deciding what to draw, because
+   it would leave the map coarse for half a second after it had already come
+   to rest -- which is exactly when the sharp paint is wanted. Told apart
+   after the first attempt at the judder fix used atlasIsBusy for both and
+   the smoke reported the world's rings and Odemia's people missing: the
+   checks pan and zoom, which marks busy, and then assert inside that
+   window. */
+function atlasInMotion() { return !!(atlasView.touching || window._atlasAnimating); }
 // A slice of background work: now if the world is still, else a little later.
 function atlasWhenStill(fn, ms) {
   const run = () => { if (atlasIsBusy()) { setTimeout(run, 250); return; } fn(); };

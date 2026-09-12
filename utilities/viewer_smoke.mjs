@@ -1924,6 +1924,59 @@ try {
   else console.log(`  face: ${bare} with no file and ${withFile} with one, ${all.length} stacks each ending in a system sans, canvas ${JSON.stringify(cf.slice(0, 28))}`);
 } catch (e) { fail('face', e); }
 
+/* The World tab's three fixes, 12 September 2026, all reported from a phone.
+
+   The one worth a real check is the judder. A node past the 448 pixel
+   threshold used to ask for a full map render every node, every frame, and
+   ZONE_CACHE_KEEP is two on iOS: three big towns at an intermediate zoom
+   evicted each other and re-rendered continuously. drawAtlasNode now takes a
+   render while the view is moving only if it is already cached. So: clear the
+   cache, paint with a finger down, and require that nothing was rendered.
+
+   renderMapUncached is what is counted, not mapRenderFor, because a cache hit
+   calls mapRenderFor too and only the miss is expensive. And the negative
+   control matters more than the assertion here: at rest the same paint MUST
+   render something, or the wrapper is not intercepting and a check that
+   proves nothing would sit here passing for ever. */
+try {
+  ctx.showCategory('WORLD');
+  const av = peek('atlasView');
+  const cache = peek('zoneMapCache');
+  const real = ctx.renderMapUncached;
+  let renders = 0;
+  ctx.renderMapUncached = function () { renders++; return real.apply(this, arguments); };
+  const vp = REGISTRY.get('atlasViewport');
+  const vw = (vp && vp.clientWidth) || 390, vh = (vp && vp.clientHeight) || 700;
+  // An intermediate zoom: big enough that nodes pass the render threshold.
+  const place = () => { av.Z = 12; av.x = vw / 2 - 163.5 * 12; av.y = vh / 2 - 20.5 * 12; };
+  cache.clear(); renders = 0; av.touching = true; place(); ctx.paintAtlas();
+  const moving = renders;
+  cache.clear(); renders = 0; av.touching = false; place(); ctx.paintAtlas();
+  const atRest = renders;
+  av.touching = false;
+  ctx.renderMapUncached = real;
+
+  // The hover card: a finger near the top of the map must put the card just
+  // below it, not at the foot of the viewport, which is what it used to do.
+  const el = { style: {}, offsetWidth: 150, offsetHeight: 40 };
+  const fakeVp = { clientWidth: 390, clientHeight: 700 };
+  ctx.placeHoverCard(el, fakeVp, 100, 30, true);
+  const topNearFinger = parseInt(el.style.top, 10);
+  ctx.placeHoverCard(el, fakeVp, 100, 400, true);
+  const topAbove = parseInt(el.style.top, 10);
+
+  const hatch = ctx.atlasEggAt({ resid: 0x8001 }, 137, 9);
+  const room = ctx.atlasEggAt({ resid: 0x8001 }, 187, 76);
+
+  if (atRest === 0) fail('world tab', 'the render counter never fired even at rest, so it is not intercepting and this check proves nothing');
+  else if (moving !== 0) fail('world tab', moving + ' map renders in one paint with a finger down: the judder guard is not holding');
+  else if (!(topNearFinger > 30 && topNearFinger < 200)) fail('world tab', 'a card by a finger near the top landed at ' + topNearFinger + ', not below the finger');
+  else if (!(topAbove < 400)) fail('world tab', 'a card with room above it went below the finger: top ' + topAbove);
+  else if (!/hatches .* times in 100/.test(hatch)) fail('world tab', 'the hatching egg does not say what comes out: ' + JSON.stringify(hatch));
+  else if (!/a room, room \d+/.test(room)) fail('world tab', 'the room egg stopped reading as a room: ' + JSON.stringify(room));
+  else console.log(`  world tab: ${moving} renders while moving and ${atRest} at rest; card at ${topNearFinger} by a finger at 30; ${JSON.stringify(hatch.replace(/^[^:]*: /, ''))}`);
+} catch (e) { fail('world tab', e); }
+
 /* No copy of the file's numbers or names, 11 September 2026. The Mechanics
    figures are read with the line that holds each and printed as links to
    it, so a figure typed back into a sentence shows up here as a number
