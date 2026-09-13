@@ -1119,6 +1119,15 @@ body.atlasFull { overflow:hidden; }
   align-items:center; gap:7px; max-width:min(260px, calc(100vw - 24px)); }
 #atlasHover canvas { image-rendering:pixelated; width:32px; height:32px; flex:none;
   background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
+/* A card put up by a TAP can be tapped back: it holds links now (the things
+   an egg names), and a card that ignores the pointer sends every one of them
+   to the map behind it. A card following a pointer stays transparent, because
+   it sits under the pointer by definition and would eat the very movement
+   that is driving it. `pointer-events` is the whole of the difference; the
+   guard against the tap also reaching the gesture handlers is in JS, since
+   both cards are children of their viewport. */
+#atlasHover.hvPinned, #mapHover.hvPinned { pointer-events:auto; }
+#atlasHover.hvPinned .svLink, #mapHover.hvPinned .svLink { cursor:pointer; }
 #atlasHover .hvName { color:var(--gold); font-weight:600; display:block; }
 #atlasHover .hvWhat { color:#b5b2a8; font-size:0.6875rem; display:block; }
 #atlasHover .hvWhere, #mapHover .hvWhere { color:#8c8980; font-size:0.6562rem; display:block; margin-top:2px; }
@@ -10016,9 +10025,28 @@ function updateMapHover(clientX, clientY, asked) {
   if (!card) { el.style.display = 'none'; return; }
   el.innerHTML = card.html;
   if (card && card.person) appendFaceOrSprite(el, card.person);
+  el.classList.toggle('hvPinned', !!asked);
   el.style.display = 'flex';
   placeHoverCard(el, vp, px, py, asked);
 }
+
+/* A tap that lands on a pinned card belongs to the card. Both cards are
+   children of their viewport, so without this the viewport's own pointerdown
+   runs too: on the World tab that calls hideAtlasHover() and begins a
+   gesture, which would dismiss the card on the way to the link the reader was
+   aiming at. Attached once, to each card, and only ever swallowing a pointer
+   that is already inside a card the reader asked for. */
+function guardHoverCardTaps() {
+  for (const id of ['atlasHover', 'mapHover']) {
+    const el = document.getElementById(id);
+    if (!el || el._tapGuarded) continue;
+    el._tapGuarded = true;
+    for (const ev of ['pointerdown', 'pointerup', 'click']) {
+      el.addEventListener(ev, e => { if (el.classList.contains('hvPinned')) e.stopPropagation(); });
+    }
+  }
+}
+try { guardHoverCardTaps(); } catch (e) {}
 
 /* Where the card goes, for both panels.
 
@@ -13090,10 +13118,14 @@ function atlasHover(clientX, clientY, asked) {
   }
   const e = mapRenderFor(hit.node.resid, true);
   const card = squareCard(hit.node.resid & 0xFF, e, hit.tx, hit.ty, hit.node.name, asked);
-  const egg = atlasEggAt(hit.node, hit.tx, hit.ty);
+  // A tapped card can be tapped back, so it takes the LINKED form; one that
+  // is merely following the pointer cannot be clicked and takes the plain
+  // one. hvPinned is what turns pointer-events on.
+  const egg = atlasEggAt(hit.node, hit.tx, hit.ty, !!asked);
   if (!card && !egg) { el.style.display = 'none'; return; }
-  el.innerHTML = (card ? card.html : '<div></div>').replace(/<\/div>$/, (egg ? '<span class="hvWhat">' + svEsc(egg) + '</span>' : '') + '</div>');
+  el.innerHTML = (card ? card.html : '<div></div>').replace(/<\/div>$/, (egg ? '<span class="hvWhat">' + egg + '</span>' : '') + '</div>');
   if (card && card.person) appendFaceOrSprite(el, card.person);
+  el.classList.toggle('hvPinned', !!asked);
   el.style.display = 'flex';
   placeHoverCard(el, vp, px, py, asked);
 }

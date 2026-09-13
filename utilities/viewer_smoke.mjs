@@ -2395,6 +2395,40 @@ try {
   else console.log(`  archive swap: all ${marked.length + 4} derived caches were dropped`);
 } catch (e) { fail('archive swap', e); }
 
+/* Reloading keeps the tab you were on, 12 September 2026. Reported from a
+   phone: a reload lands on the World tab whatever tab was open.
+
+   Every tab change writes the hash (syncDeepLink), and the open path captures
+   `arrivedOn = parseDeepLink()` before anything can overwrite it, then calls
+   showCategory(landOn) -- 'WORLD' whenever the file has a world map -- and
+   only afterwards applyDeepLink(backTo). applyDeepLink does NOT re-read the
+   hash when it is handed a q, so the captured value should survive. If it
+   does not, this is where it shows.
+
+   This has to run in THIS harness and not a lighter one: showCategory refuses
+   any value that is not among categorySelect's options, and only the stub
+   here parses the real markup into them. A lighter sandbox reports every
+   category as lost, which looks exactly like the bug and is not. */
+try {
+  const was = ctx.location.hash;
+  const landings = [];
+  for (const want of ['135', 'MECHANICS', 'ITEMS']) {
+    ctx.location.hash = '#c=' + want;
+    ctx.parseArchiveBytes(archive, 'Cythera Data (reloaded on ' + want + ')', { via: 'data fork' });
+    landings.push([want, REGISTRY.get('categorySelect').value]);
+  }
+  ctx.location.hash = '';
+  ctx.parseArchiveBytes(archive, 'Cythera Data (reloaded with no hash)', { via: 'data fork' });
+  const bare = REGISTRY.get('categorySelect').value;
+  ctx.location.hash = was;
+  const lost = landings.filter(([want, got]) => got !== want);
+  // The control: with no hash the world IS the right answer, so a run where
+  // everything lands on WORLD proves nothing unless this one does too.
+  if (bare !== 'WORLD') fail('reload keeps the tab', 'with no hash it landed on ' + bare + ', not the world, so this check is not exercising the open path');
+  else if (lost.length) fail('reload keeps the tab', 'a reload lost the tab: ' + lost.map(([w, g]) => '#c=' + w + ' -> ' + g).join(', '));
+  else console.log(`  reload keeps the tab: ${landings.map(([w]) => w).join(', ')} each came back, and no hash lands on ${bare}`);
+} catch (e) { fail('reload keeps the tab', e); }
+
 // The edit path: change one plaintext byte of an encrypted resource, let
 // applyResourceEdit rebuild the whole archive through writeDelverArchive,
 // and confirm the rebuilt file serves the edit back -- decrypted -- while
