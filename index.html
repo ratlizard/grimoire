@@ -4452,7 +4452,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.68.1';
+const GRIMOIRE_VERSION = '1.69.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -18072,17 +18072,38 @@ function eggCovers(g, tx, ty) {
 function eggKinds() {
   const kinds = new Map();
   let zones = 0, roofs = 0;
+  /* What the kind-0 eggs hatch, counted while the lists are open.
+     A hatching egg does not name its creatures: they are records in the same
+     zone list that name the egg as their container (flags & 0x08, container =
+     holder - 0x100), which is the join containerContents makes for one egg in
+     the inspector. The kinds walk already has every list in its hands and
+     threw the records away, so the tally rides it rather than reading the
+     archive a second time. Counted by prop type, with the zones each is
+     found in, and separately the eggs that hold nothing at all -- which the
+     file does leave, and which is worth seeing rather than rounding away. */
+  const hatch = new Map();
+  let emptyEggs = 0;
   try {
     for (let z = 1; z < 0x100; z++) {
       if (!refExists(0x8100 + z)) continue;
       zones++;
-      for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data)) {
+      const list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data);
+      for (const r of list) {
         if (r.flags === 0x44) { roofs++; continue; }
         if (r.flags !== 0x42) continue;
         if (!kinds.has(r.aspect)) kinds.set(r.aspect, { kind: r.aspect, n: 0, args: new Set() });
         const k = kinds.get(r.aspect);
         k.n++;
         k.args.add(r.proptype);
+        if (r.aspect !== 0) continue;
+        const held = containerContents(r, list);
+        if (!held.length) { emptyEggs++; continue; }
+        for (const h of held) {
+          if (!hatch.has(h.proptype)) hatch.set(h.proptype, { proptype: h.proptype, n: 0, zones: new Set() });
+          const e = hatch.get(h.proptype);
+          e.n++;
+          e.zones.add(z);
+        }
       }
     }
   } catch (err) { return null; }
@@ -18093,7 +18114,9 @@ function eggKinds() {
   const rooms = kinds.get(8);
   const named = rooms ? [...rooms.args].filter(a => refExists(0x1B00 + a)).length : 0;
   return { kinds: [...kinds.values()].sort((a, b) => a.kind - b.kind), zones, roofs,
-           rooms: rooms ? { total: rooms.args.size, named } : null };
+           rooms: rooms ? { total: rooms.args.size, named } : null,
+           hatch: [...hatch.values()].sort((a, b) => b.n - a.n || a.proptype - b.proptype),
+           emptyEggs };
 }
 
 /* THE LIBRARY. Cythera's own writing is in the archive: the histories and
@@ -20459,7 +20482,21 @@ function renderMechanicsSheet() {
         'A kind-0 egg holds what it hatches as contained records, and carries its own conditions: <b>Data2 plus one in a hundred</b> is the chance, and Data1 holds it to the day (0x10) or the night (0x20), or to once (0x01).',
         'Records with flags 0x44 are roofs rather than eggs, and there are <b>' + eg.roofs + '</b> of them here.'
       ].filter(Boolean) : [],
-      table(['#kind', 'what it does', 'argument', '#here', 'arguments used'], rows),
+      table(['#kind', 'what it does', 'argument', '#here', 'arguments used'], rows) +
+      // Which creatures, and not only that there are some. The inspector has
+      // said this for one egg at a time since the reading was new; this is
+      // the whole archive's, so a reader can see what the island hatches
+      // without hunting for a ring to hover over.
+      ((eg && eg.hatch && eg.hatch.length)
+        ? '<div class="partsTitle">What they hatch</div>' +
+          table(['creature', '#eggs', '#zones'], eg.hatch.map(h =>
+            '<tr><td>' + (refExists(0x1000 + h.proptype)
+              ? partChip(propDisplayName(h.proptype) || ('prop ' + h.proptype), 0x1000 + h.proptype)
+              : svEsc(propDisplayName(h.proptype) || ('prop ' + h.proptype))) + '</td>' +
+            num(h.n) + num(h.zones.size) + '</tr>')) +
+          (eg.emptyEggs ? '<div class="mechSub">' + eg.emptyEggs +
+            ' hatching egg' + (eg.emptyEggs === 1 ? '' : 's') + ' in the archive hold no record at all, and the file says nothing about what they would hatch.</div>' : '')
+        : ''),
       '<span class="partsTitle">On the map</span>' + svLink('World', "showCategory('WORLD')"));
   }
 

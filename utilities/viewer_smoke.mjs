@@ -1856,6 +1856,37 @@ try {
   else console.log(`  to do and eggs: ${td.adds.length} lines added and ${td.dones.length} struck off over ${slots.size} slots, ${mism.length} naming the informant and ${never.length} never struck off; ${eg.kinds.reduce((n, k) => n + k.n, 0)} eggs of ${eg.kinds.length} kinds in ${eg.zones} zones, ${rooms.named} of ${rooms.total} rooms with a script of their own, ${eg.roofs} roofs kept out`);
 } catch (e) { fail('todo', e); }
 
+/* Which creatures an egg hatches, 13 September 2026. The inspector has named
+   them one egg at a time since the reading was new; the sheet said only that
+   a kind-0 egg "holds what it hatches as contained records" and never which,
+   so the archive's whole hatching census is on it now.
+
+   The join is the thing that can go wrong quietly. containerContents matches
+   records whose `container` equals the egg's `index`, and both are positions
+   within ONE zone's prop list -- hand it the wrong list and it matches
+   nothing, `eg.hatch` comes back empty, the table is omitted altogether and
+   the section looks exactly as it did before. No error, no gap on screen.
+   That is what this pins against, and the figure it is held to is a previous
+   reading's, arrived at independently of this code: 327 held records across
+   311 of the archive's 312 kind-0 eggs. A count is the control; "the table
+   is present" would pass on an empty one. */
+try {
+  const eg = ctx.eggKinds();
+  ctx.showCategory('MECHANICS');
+  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const hatch = (eg && eg.hatch) || [];
+  const held = hatch.reduce((n, h) => n + h.n, 0);
+  const top = hatch[0];
+  const name = top ? (ctx.propDisplayName(top.proptype) || '') : '';
+  if (!hatch.length) fail('egg creatures', 'no creature joined to any egg: containerContents matched nothing and the table is silently absent');
+  else if (held < 300) fail('egg creatures', held + ' held records across the hatching eggs, where the reading found 327');
+  else if (hatch.length < 2) fail('egg creatures', 'every egg hatches the same one thing, which the archive does not');
+  else if (!name) fail('egg creatures', 'the commonest hatched creature has no name: prop ' + top.proptype);
+  else if (!/What they hatch/.test(html)) fail('egg creatures', 'the section does not carry the creature table');
+  else if (!html.includes(name)) fail('egg creatures', 'the table does not name ' + name + ', its commonest creature');
+  else console.log(`  egg creatures: ${hatch.length} kinds of creature over ${held} held records, commonest ${name} across ${top.zones.size} zones; ${eg.emptyEggs} egg(s) hold nothing`);
+} catch (e) { fail('egg creatures', e); }
+
 /* The library, the loose ends and the puzzles, 12 September 2026. The
    library's "written, never shown" list is the part that can be wrong in a
    way nobody would notice, and it was wrong twice while it counted only
