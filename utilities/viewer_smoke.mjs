@@ -2252,7 +2252,7 @@ try {
   else if (!chars || !chars.dead.some(d => d.name === 'CurePoison')) fail('leans', 'the named character helpers nothing calls are missing from 0xFxx');
   else if (labels.indexOf('0x10xx') >= 0 || labels.indexOf('0x18xx') >= 0 || labels.indexOf('0x1Bxx') >= 0)
     fail('leans', 'a wholly structural range is being listed as uncalled: ' + JSON.stringify(labels));
-  else if (!/What the scripts lean on/.test(html)) fail('leans', 'the sheet does not state it');
+  else if (!/What calls what/.test(html)) fail('leans', 'the sheet does not state it');
   else console.log(`  leans: ${ln.edges} references (${ln.kinds.call} calls, ${ln.kinds.resource} operands), busiest reached by ${top.refs}; ${ln.ranges.length} ranges with something uncalled, ${chars.dead.length} of them in 0xFxx`);
 } catch (e) { fail('leans', e); }
 
@@ -2394,6 +2394,44 @@ try {
   if (survivors.length) fail('archive swap', 'stale after reload: ' + survivors.join(', '));
   else console.log(`  archive swap: all ${marked.length + 4} derived caches were dropped`);
 } catch (e) { fail('archive swap', e); }
+
+/* The Mechanics sheet is grouped, 13 September 2026 (the maintainer's
+   order). Two things can rot here without anyone noticing.
+
+   A group naming a section that no longer exists drops silently: the
+   assembly skips what it cannot find, so a renamed id would quietly empty a
+   group rather than fail. And a new section nobody places lands under Other,
+   which is deliberate -- better there than vanished -- but Other is meant to
+   be a holding pen, not a habit.
+
+   The ids are also the link targets: eleven mechLink call sites and the ids
+   in SKILL_RULES name sections directly and mechGo resolves `mech-<id>`, so
+   grouping must never rename one. That is what the last check here is for. */
+try {
+  const groups = peek('MECH_GROUPS');
+  ctx.showCategory('MECHANICS');
+  const grid = REGISTRY.get('sheetGrid');
+  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(grid);
+  const named = [];
+  for (const [, , ids] of (groups || [])) for (const id of ids) named.push(id);
+  const dupes = named.filter((id, i) => named.indexOf(id) !== i);
+  // foldCard sets sec.id as a PROPERTY, which the stub's `set id` records in
+  // REGISTRY; it never appears as an attribute in innerHTML. Grepping the
+  // serialised markup for it reported all twenty-five sections missing, which
+  // is the shape of a broken test rather than a broken sheet.
+  const missing = named.filter(id => !REGISTRY.has('mech-' + id));
+  if (!groups || !groups.length) fail('mechanics groups', 'MECH_GROUPS is not reachable, so the sheet is ungrouped');
+  else if (dupes.length) fail('mechanics groups', 'a section is in two groups: ' + dupes.join(', '));
+  else if (missing.length) fail('mechanics groups', 'a group names a section the sheet does not build: ' + missing.join(', '));
+  else if (!/Hackery/.test(html)) fail('mechanics groups', 'the sheet does not show the group headings');
+  // Every link target must still be a section on the sheet.
+  else {
+    const targets = ['damage', 'status', 'target', 'shops', 'spells', 'combat', 'training'];
+    const lost = targets.filter(t => !REGISTRY.has('mech-' + t));
+    if (lost.length) fail('mechanics groups', 'a mechLink target is no longer a section: ' + lost.join(', '));
+    else console.log(`  mechanics groups: ${groups.length} groups over ${named.length} sections, ${targets.length} link targets intact`);
+  }
+} catch (e) { fail('mechanics groups', e); }
 
 /* Reloading keeps the tab you were on, 12 September 2026. Reported from a
    phone: a reload lands on the World tab whatever tab was open.

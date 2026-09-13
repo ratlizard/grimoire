@@ -16370,6 +16370,30 @@ function skillCatalogue() {
   }
   return out;
 }
+/* What the Mechanics sheet is divided into, in the order it is shown.
+   The maintainer's grouping, 13 September 2026. Each entry is a title, a
+   line saying what the group is, and the section ids in it; a section not
+   named here still appears, under Other.
+
+   Hackery is the group for the parts of the scenario that are machinery
+   rather than rules: how a record is laid out, what a signal reaches, what
+   the scripts call, and the places the file contradicts itself. */
+const MECH_GROUPS = [
+  ['Combat', 'What a blow does, who swings it, and what it does to a thing.',
+    ['combat', 'combatai', 'damage', 'gear']],
+  ['Progress', 'What a character gains, and what it costs to be taught.',
+    ['experience', 'karma', 'training', 'todo']],
+  ['Status', 'The body and the clock: what feeds, heals, poisons and wears off.',
+    ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'springs']],
+  ['Economy', 'What things cost, and what a wager pays.',
+    ['shops', 'dice']],
+  ['Interactions', 'What a thing does when it is used.',
+    ['locks']],
+  ['Puzzles', 'The ones the file answers outright.',
+    ['puzzles']],
+  ['Hackery', 'The machinery under the scenario, and the places it does not add up.',
+    ['propword', 'target', 'eggs', 'leans', 'loose']],
+];
 function mechLink(id, label) {
   return '<button class="navChip" onclick="showCategory(\'MECHANICS\'); setTimeout(function(){ mechGo(\'' + id + '\'); }, 60)">' + svEsc(label) + '</button>';
 }
@@ -20639,7 +20663,7 @@ function renderMechanicsSheet() {
           (g.dead.length - named.length) + ' unnamed</span>' : '') + '</td></tr>';
     }) : [];
     const busiest = ln && ln.ranked.length ? ln.ranked[0] : null;
-    add('leans', 'What the scripts lean on', null, '',
+    add('leans', 'What calls what', null, '',
       ln ? 'Which resources the archive’s scripts reach for, and which of them nothing reaches. The index counts a call, a resource named in an operand, a table entry and a dref, so a text array can be referenced by two dozen scripts without being called once.'
          : 'No archive is open to read references out of.',
       ln ? [
@@ -20654,11 +20678,46 @@ function renderMechanicsSheet() {
         table(['range', '#uncalled', '#in range', 'which'], deadRows) : ''));
   }
 
-  // The sections in alphabetical order, whatever order they were read in,
-  // and open where they were open when a number was followed out of them.
-  for (const sn of sections.slice().sort((a, b) => a.title.localeCompare(b.title))) {
-    if (window.MECH_OPEN && window.MECH_OPEN.has(sn.el.id)) sn.el.open = true;
-    box.appendChild(sn.el);
+  /* The sections in groups, in the maintainer's order (13 September 2026).
+     Alphabetical was the old rule and it put the dice game first and the
+     clock between karma and locks, which reads as a list of thirty things
+     rather than as a subject.
+
+     A group is a plain headed block, NOT a <details>. MECH_OPEN reopens a
+     section by its own element id when a number was followed out of it, and
+     a section reopened inside a shut group would be restored invisibly.
+
+     A section's id never changes here. Eleven mechLink call sites and the
+     ten ids in SKILL_RULES name sections directly, and mechGo resolves
+     `mech-<id>`, so grouping wraps sections and renames nothing. A section
+     this table does not mention still appears, under Other, rather than
+     vanishing from the sheet because a name was forgotten. */
+  const seen = new Set();
+  for (const [title, note, ids] of MECH_GROUPS) {
+    const mine = ids.map(id => sections.find(s => s.id === id)).filter(Boolean);
+    if (!mine.length) continue;
+    const h = document.createElement('div');
+    h.className = 'propHead';
+    h.innerHTML = '<span class="groupTitle">' + svEsc(title) + '</span>' +
+                  (note ? '<span class="groupNote">' + svEsc(note) + '</span>' : '');
+    box.appendChild(h);
+    for (const sn of mine) {
+      seen.add(sn.id);
+      if (window.MECH_OPEN && window.MECH_OPEN.has(sn.el.id)) sn.el.open = true;
+      box.appendChild(sn.el);
+    }
+  }
+  const rest = sections.filter(s => !seen.has(s.id));
+  if (rest.length) {
+    const h = document.createElement('div');
+    h.className = 'propHead';
+    h.innerHTML = '<span class="groupTitle">Other</span>' +
+                  '<span class="groupNote">Read out of the scripts and not yet placed in a group.</span>';
+    box.appendChild(h);
+    for (const sn of rest.sort((a, b) => a.title.localeCompare(b.title))) {
+      if (window.MECH_OPEN && window.MECH_OPEN.has(sn.el.id)) sn.el.open = true;
+      box.appendChild(sn.el);
+    }
   }
   // Open all and Close all, and nothing else over the sections: the
   // contents strip went on 9 September 2026.
