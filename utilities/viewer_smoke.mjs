@@ -2086,6 +2086,7 @@ try {
     a2.arc = rArc; a2.stroke = rStroke; a2.setLineDash = rDash; a2.rect = rRect;
   }
 
+
   // The hover card: a finger near the top of the map must put the card just
   // below it, not at the foot of the viewport, which is what it used to do.
   const el = { style: {}, offsetWidth: 150, offsetHeight: 40 };
@@ -2150,7 +2151,13 @@ try {
   else if (a2 && rects > 0) fail('world tab', rects + ' rectangles drawn on the world map: the room outlines are back on the atlas');
   else if (a2 && arcs < 1) fail('world tab', 'no rings drawn at the densest point of the world, so this measured nothing');
   else if (a2 && dashes > 1) fail('world tab', dashes + ' setLineDash calls for ' + arcs + ' rings: the dash is being set per egg again');
-  else if (a2 && arcs > 2 && strokes >= arcs) fail('world tab', strokes + ' strokes for ' + arcs + ' rings: the dashed rings are being stroked one at a time again');
+  /* Bounded, not merely fewer. `strokes < arcs` passed on the eggs alone --
+     they contribute many arcs and one stroke -- which masked two dozen mouth
+     rings each stroking for itself, and that was the tab still being jerky at
+     mid zoom on 13 September 2026. Both passes batch per node now, so the
+     strokes on this frame are a handful whatever the archive holds, while the
+     rings are many. A ratio would drift back; a bound will not. */
+  else if (a2 && arcs > 2 && strokes > 8) fail('world tab', strokes + ' strokes for ' + arcs + ' rings: a ring pass is stroking one at a time again');
   else console.log(`  world tab: ${moving} renders while moving and ${atRest} at rest; card at ${topNearFinger} by a finger at 30; ${arcs} rings in ${strokes} strokes and ${dashes} dashes, ${rects} rectangles; ${JSON.stringify(hatch.replace(/^[^:]*: /, ''))}`);
 } catch (e) { fail('world tab', e); }
 

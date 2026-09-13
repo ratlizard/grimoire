@@ -4452,7 +4452,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.68.0';
+const GRIMOIRE_VERSION = '1.68.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -12023,6 +12023,25 @@ function atlasPeople(ctx, node, r, ppt) {
 
    One colour for every ring since 9 September 2026 (the maintainer): a
    way up, down or across is a way, and the name beside it says where. */
+/* The width of a label, measured once per name per face.
+
+   measureText is not free and the names do not change: at mid zoom this pass
+   was measuring two dozen of them on every frame of a pan. The key carries
+   the font as well as the name, because canvasFace reads FACE_STACK_NOW and
+   the reader can change the face -- a cache on the name alone would keep the
+   old face's widths and mis-size every box behind every label. */
+const _atlasTextW = new Map();
+function atlasTextWidth(ctx, s) {
+  const key = ctx.font + ' ' + s;
+  let w = _atlasTextW.get(key);
+  if (w === undefined) {
+    w = Math.round(ctx.measureText(s).width);
+    if (_atlasTextW.size > 512) _atlasTextW.clear();
+    _atlasTextW.set(key, w);
+  }
+  return w;
+}
+
 function atlasPaintMouths(ctx, drawn, vw, vh) {
   const out = [];
   // Canvas text is not reached by the sheet's rem scale, so these sizes and
@@ -12034,27 +12053,59 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
   // what is tapped -- so a label whose box is already taken is dropped and
   // the ring still drawn, the way the place names handle a collision.
   const labelled = [];
+  /* One path for every ring on a node, not one stroke each -- the same fix
+     the eggs below got on 12 September 2026, and for the same reason. The
+     mouths were left out of it then, which is why the tab was still jerky at
+     mid zoom: measured on 13 September at 12 px a world square, this pass was
+     121 of the frame's 125 canvas operations, some two dozen visible passages
+     each doing beginPath, arc, stroke and a measureText of its own. A stroke
+     is the call that rasterises, so two dozen of them a frame is the cost.
+
+     radius, width and colour are the same for every ring on a node -- they
+     come from `per` -- so the state is set once outside the loop, and an arc
+     is preceded by a moveTo to its own start or the path joins it to the one
+     before with a straight line (the note in the egg loop). The labels want
+     the ring already stroked under them, so they are collected here and drawn
+     in a second pass after the stroke. */
+  const labelQueue = [];
   for (const { node, r } of drawn) {
     const per = r.w / node.w;
     if (per < window.ATLAS_TUNE.mouthAt) continue;
+    const rad = Math.max(5, per * 0.7);
+    // Collected before anything is drawn, so a node whose rings are all off
+    // screen costs no path and no stroke at all. Stroking unconditionally
+    // per node put an empty stroke into every frame -- the world-tab pin
+    // went from 13 rings in one stroke to 13 in two the moment this loop
+    // was batched, which is the batching paying a toll instead of saving.
+    const rings = [];
     for (const m of atlasMouths(node)) {
       const x = r.x + (m.x + 0.5) * per, y = r.y + (m.y + 0.5) * per;
       if (x < -60 || y < -20 || x > vw + 60 || y > vh + 20) continue;
-      const rad = Math.max(5, per * 0.7);
-      ctx.strokeStyle = 'rgba(196,164,100,.85)';
-      ctx.lineWidth = Math.max(1.5, per / 12);
-      ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.stroke();
-      const tw = Math.round(ctx.measureText(m.name).width);
-      const box = { x0: x + rad + 3, y0: y - 9, x1: x + rad + 11 + tw, y1: y + 9 };
-      if (!labelled.some(q => box.x0 < q.x1 && box.x1 > q.x0 && box.y0 < q.y1 && box.y1 > q.y0)) {
-        labelled.push(box);
-        ctx.fillStyle = 'rgba(8,7,5,.78)';
-        ctx.fillRect(box.x0, box.y0, tw + 8, 18);
-        ctx.fillStyle = '#e8dfc0';
-        ctx.fillText(m.name, x + rad + 7, y + 4);
-      }
+      rings.push({ x, y });
+      labelQueue.push({ m, x, y, rad });
       out.push({ m, node, x, y, per, rad: Math.max(rad, 11) });
     }
+    if (!rings.length) continue;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(196,164,100,.85)';
+    ctx.lineWidth = Math.max(1.5, per / 12);
+    ctx.beginPath();
+    for (const { x, y } of rings) {
+      ctx.moveTo(x + rad, y);
+      ctx.arc(x, y, rad, 0, Math.PI * 2);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  for (const { m, x, y, rad } of labelQueue) {
+    const tw = atlasTextWidth(ctx, m.name);
+    const box = { x0: x + rad + 3, y0: y - 9, x1: x + rad + 11 + tw, y1: y + 9 };
+    if (labelled.some(q => box.x0 < q.x1 && box.x1 > q.x0 && box.y0 < q.y1 && box.y1 > q.y0)) continue;
+    labelled.push(box);
+    ctx.fillStyle = 'rgba(8,7,5,.78)';
+    ctx.fillRect(box.x0, box.y0, tw + 8, 18);
+    ctx.fillStyle = '#e8dfc0';
+    ctx.fillText(m.name, x + rad + 7, y + 4);
   }
   // The eggs: records with flags 0x42, which delvmod names EGG and which
   // are scripted triggers rather than props -- the disturbed sand on the
