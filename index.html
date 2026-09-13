@@ -4417,7 +4417,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.64.0';
+const GRIMOIRE_VERSION = '1.65.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -11955,13 +11955,28 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
       try { const e = mapRenderFor(node.resid, true); node._eggs = ((e && e.result && e.result.allProps) || []).filter(p => p.flags === 0x42); }
       catch (e) { node._eggs = []; }
     }
+    /* One path for every egg on this node, not one dashed stroke each.
+       Measured on 12 September 2026 after a report that the World tab was
+       still jerky at mid zoom: a single frame was 786 canvas operations and
+       781 of them were here. 123 visible eggs each did save, setLineDash,
+       beginPath, arc, stroke, restore, and a dashed stroke is among the
+       slowest things a canvas does -- so a pan issued 123 of them a frame.
+       Zoomed out the whole pass is gated off by `per`, which is exactly why
+       it was smooth there and not here. The state is set once now and
+       everything strokes together, which is the same picture for a fraction
+       of the work and knows nothing about which kinds are on the map.
+
+       An arc begins at angle zero, so each ring needs a moveTo to its own
+       start or the path joins it to the one before with a straight line.
+       rect() opens its own subpath and needs no such thing. */
+    ctx.save();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = 'rgba(220,220,255,.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
     for (const g of node._eggs) {
       const x = r.x + (g.x + 0.5) * per, y = r.y + (g.y + 0.5) * per;
       if (x < -20 || y < -20 || x > vw + 20 || y > vh + 20) continue;
-      ctx.save();
-      ctx.setLineDash([3, 3]);
-      ctx.strokeStyle = 'rgba(220,220,255,.55)';
-      ctx.lineWidth = 1.5;
       // A room (kind 8) is a rectangle around the egg rather than the square
       // it stands on -- see eggRect -- and not one of the archive's 170 is a
       // single square, so drawing them all as rings put every room in the
@@ -11969,15 +11984,20 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
       // their own square, and keep the ring.
       if (g.aspect === 8) {
         const q = eggRect(g);
-        ctx.strokeRect(r.x + q.left * per, r.y + q.top * per, q.w * per, q.h * per);
+        ctx.rect(r.x + q.left * per, r.y + q.top * per, q.w * per, q.h * per);
       } else {
-        ctx.beginPath(); ctx.arc(x, y, per * 0.45, 0, Math.PI * 2); ctx.stroke();
+        const rad = per * 0.45;
+        ctx.moveTo(x + rad, y);
+        ctx.arc(x, y, rad, 0, Math.PI * 2);
       }
-      ctx.restore();
     }
+    ctx.stroke();
+    ctx.restore();
     // The room's number, once the rectangle is big enough to hold it. Same
     // idiom as the mouths above: a label whose box is already taken is
     // dropped and the rectangle still drawn.
+    ctx.font = canvasFace(12);
+    ctx.textAlign = 'left';
     for (const g of node._eggs) {
       if (g.aspect !== 8) continue;
       const q = eggRect(g);
@@ -11985,8 +12005,6 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
       if (q.w * per < 34 || q.h * per < 20) continue;
       if (bx > vw + 20 || by > vh + 20 || bx + q.w * per < -20 || by + q.h * per < -20) continue;
       const name = 'room ' + g.proptype;
-      ctx.font = canvasFace(12);
-      ctx.textAlign = 'left';
       const tw = Math.round(ctx.measureText(name).width);
       const box = { x0: bx + 3, y0: by + 2, x1: bx + 11 + tw, y1: by + 18 };
       if (labelled.some(p => box.x0 < p.x1 && box.x1 > p.x0 && box.y0 < p.y1 && box.y1 > p.y0)) continue;
@@ -17972,11 +17990,21 @@ function looseEnds() {
   const flagAsg = new Map(), flagRead = new Map();
   const computed = new Set();
   const put = (m, k, v) => { if (!m.has(k)) m.set(k, new Set()); m.get(k).add(v); };
+  // Every finding carries WHERE it was found, the same way `tst` below
+  // already does: the resource and the offset of the instruction. Keeping
+  // only the resource is what left half the Loose ends table unable to link
+  // to anything, so the sheet had to render those rows as plain labels while
+  // the rest were links. Deduped on resource and offset together, since one
+  // script can touch the same value in several places.
+  const putSite = (m, k, resid, at) => {
+    if (!m.has(k)) m.set(k, new Map());
+    m.get(k).set(resid + ':' + at, { resid, at });
+  };
   for (const e of buildScriptTextIndex()) {
     let ops = [];
     try { ops = dvmOpsOf(e); } catch (err) { continue; }
     for (const g of dvmSeqAll(ops, [/^sys SetState$/, VAL, VAL])) {
-      put(asg, dvmNum(g[1]), dvmNum(g[2])); put(writes, dvmNum(g[1]), e.resid);
+      put(asg, dvmNum(g[1]), dvmNum(g[2])); putSite(writes, dvmNum(g[1]), e.resid, g[0].at);
     }
     // A value the script computes rather than states -- Selinus counting the
     // Sapphire volumes does SetState(5, GetState(5) + 1) -- can hold anything,
@@ -17984,17 +18012,17 @@ function looseEnds() {
     // this the Books counter came out as "a test nothing can satisfy", which
     // is the opposite of true: it is the one value that counts up.
     for (const g of dvmSeqAll(ops, [/^sys SetState$/, VAL])) {
-      put(writes, dvmNum(g[1]), e.resid);
+      putSite(writes, dvmNum(g[1]), e.resid, g[0].at);
       const after = ops[ops.indexOf(g[1]) + 1];
       if (after && !VAL.test(after.text)) computed.add(dvmNum(g[1]));
     }
-    for (const g of dvmSeqAll(ops, [/^sys GetState$/, VAL])) put(reads, dvmNum(g[1]), e.resid);
+    for (const g of dvmSeqAll(ops, [/^sys GetState$/, VAL])) putSite(reads, dvmNum(g[1]), e.resid, g[0].at);
     for (const g of dvmSeqAll(ops, [/^sys GetState$/, VAL, /^end$/, VAL, /^eq$/])) {
       const v = dvmVal(e.resid, g[3]);
       if (v) put(tst, dvmNum(g[1]), JSON.stringify({ v: v.v, resid: e.resid, at: g[3].at }));
     }
-    for (const g of dvmSeqAll(ops, [/^sys SetStateFlag$/, VAL])) put(flagAsg, dvmNum(g[1]), e.resid);
-    for (const g of dvmSeqAll(ops, [/^sys GetStateFlag$/, VAL])) put(flagRead, dvmNum(g[1]), e.resid);
+    for (const g of dvmSeqAll(ops, [/^sys SetStateFlag$/, VAL])) putSite(flagAsg, dvmNum(g[1]), e.resid, g[0].at);
+    for (const g of dvmSeqAll(ops, [/^sys GetStateFlag$/, VAL])) putSite(flagRead, dvmNum(g[1]), e.resid, g[0].at);
   }
   // A comparison nothing can satisfy. Zero is every value's starting state,
   // so a test against it is always reachable and is not counted.
@@ -20300,23 +20328,34 @@ function renderMechanicsSheet() {
     const never = [...slots.keys()].filter(s => slots.get(s).adds.length && !slots.get(s).dones.length).sort((a, b) => a - b);
     const wrongLine = td2.adds.filter(a => !a.state && a.line.v !== a.slot.v);
     const rows = [];
+    /* Every row says where it came from the same way, through one cell.
+       Half of them used to state a plain name instead, because the reader
+       kept only the resource for those and srcNum needs an instruction to
+       ring; so the sheet looked as though grey rows were a lesser kind of
+       finding, when the difference was only in what the reader had bothered
+       to record. looseEnds carries a site for everything now, and nothing
+       here knows which row it is building: the name falls back from the
+       site's own, to the resource's label, to its hex id. */
+    const where = sites => (sites || [])
+      .map(s => srcNum(s, s.name || labelFor(s.resid) || propWordHex(s.resid))).join(', ');
+    const sitesOf = m => m ? [...m.values()] : [];
     for (const s of never) rows.push('<tr><td>a To Do line nothing strikes off</td><td>' +
       (td2.lines && td2.lines.get(s) ? svEsc(td2.lines.get(s)) : 'slot ' + s) + '</td><td>' +
-      slots.get(s).adds.map(a => srcNum(a.slot, labelFor(a.resid) || propWordHex(a.resid))).join(', ') + '</td></tr>');
+      where(slots.get(s).adds.map(a => a.slot)) + '</td></tr>');
     for (const u of le.unreachable) rows.push('<tr><td>a test nothing can satisfy</td><td>quest value ' + u.state +
       ' is only ever set to ' + (u.assigned.join(', ') || 'nothing') + ', and this asks whether it is ' + u.want.v + '</td><td>' +
-      srcNum(u.want, labelFor(u.want.resid) || propWordHex(u.want.resid)) + '</td></tr>');
+      where([u.want]) + '</td></tr>');
     for (const a of wrongLine) rows.push('<tr><td>a line that shows another line’s words</td><td>slot ' + a.slot.v +
       (td2.lines && td2.lines.get(a.slot.v) ? ' (' + svEsc(td2.lines.get(a.slot.v)) + ')' : '') + ' shows line ' + a.line.v +
       (td2.lines && td2.lines.get(a.line.v) ? ' (' + svEsc(td2.lines.get(a.line.v)) + ')' : '') + '</td><td>' +
-      srcNum(a.line, labelFor(a.resid) || propWordHex(a.resid)) + '</td></tr>');
-    for (const k of le.writtenNeverRead) rows.push('<tr><td>written and never read</td><td>quest value ' + k + '</td><td class="mechSub">' +
-      [...le.writes.get(k)].map(r => svEsc(labelFor(r) || propWordHex(r))).join(', ') + '</td></tr>');
-    for (const k of le.readNeverWritten) rows.push('<tr><td>read and never written</td><td>quest value ' + k + '</td><td class="mechSub">' +
-      [...le.reads.get(k)].map(r => svEsc(labelFor(r) || propWordHex(r))).join(', ') + '</td></tr>');
+      where([a.line]) + '</td></tr>');
+    for (const k of le.writtenNeverRead) rows.push('<tr><td>written and never read</td><td>quest value ' + k + '</td><td>' +
+      where(sitesOf(le.writes.get(k))) + '</td></tr>');
+    for (const k of le.readNeverWritten) rows.push('<tr><td>read and never written</td><td>quest value ' + k + '</td><td>' +
+      where(sitesOf(le.reads.get(k))) + '</td></tr>');
     if (lib2) for (const d of lib2) for (const k of d.dangling)
-      rows.push('<tr><td>a thing pointing at nothing</td><td>Data1 ' + k + ' of ' + propWordHex(d.resid) + ', which has no such passage</td><td class="mechSub">' +
-        svEsc(d.readers.map(r => r.name).join(', ')) + '</td></tr>');
+      rows.push('<tr><td>a thing pointing at nothing</td><td>Data1 ' + k + ' of ' + propWordHex(d.resid) + ', which has no such passage</td><td>' +
+        where(d.readers) + '</td></tr>');
     add('loose', 'Loose ends', null, '',
       rows.length ? 'Things the scenario’s own scripts get wrong, each read off the line that causes it. None of this is the page’s opinion: a line nothing strikes off is a line no script names in a CompleteQuest, and a test nothing can satisfy is a number no script ever assigns.'
                   : 'Nothing of this kind was found in this archive.',

@@ -2039,6 +2039,36 @@ try {
   av.touching = false;
   ctx.renderMapUncached = real;
 
+  /* The dashed rings are one path per node, not one stroke each. Measured
+     12 September 2026, after a report that the tab was still jerky at mid
+     zoom: one frame was 786 canvas operations and 781 of them were in
+     atlasPaintMouths, because every visible egg did save, setLineDash,
+     beginPath, arc, stroke, restore. A dashed stroke is among the slowest
+     things a canvas does, so a pan issued over a hundred of them a frame.
+
+     The assertion is a ratio rather than a number, so it holds for any
+     archive: many rings, few strokes. The control is that rings are drawn
+     at all -- a pass that drew nothing would satisfy every ratio here and
+     the check would pass for ever having measured nothing. */
+  const acv = ctx.ensureAtlasCanvas && ctx.ensureAtlasCanvas();
+  const a2 = acv && acv.getContext && acv.getContext('2d');
+  let arcs = 0, strokes = 0, dashes = 0;
+  if (a2) {
+    const rArc = a2.arc, rStroke = a2.stroke, rDash = a2.setLineDash;
+    a2.arc = function () { arcs++; return rArc.apply(this, arguments); };
+    a2.stroke = function () { strokes++; return rStroke.apply(this, arguments); };
+    a2.setLineDash = function () { dashes++; return rDash.apply(this, arguments); };
+    // Over the eggs, not over the corner the render check uses. This viewport
+    // is 300x300, so at 12 px a square it sees about 25 squares of a 256
+    // square map, and (163.5,20.5) has almost nothing near it: the first
+    // version of this counted six rings, all of them mouths, and failed its
+    // own control. (159,220) is the densest point on the world map at this
+    // zoom, worth thirteen rings.
+    av.Z = 12; av.x = vw / 2 - 159 * 12; av.y = vh / 2 - 220 * 12; av.touching = false;
+    ctx.paintAtlas();
+    a2.arc = rArc; a2.stroke = rStroke; a2.setLineDash = rDash;
+  }
+
   // The hover card: a finger near the top of the map must put the card just
   // below it, not at the foot of the viewport, which is what it used to do.
   const el = { style: {}, offsetWidth: 150, offsetHeight: 40 };
@@ -2080,7 +2110,14 @@ try {
   else if (!/a room, room 800/.test(inRoom800)) fail('world tab', 'a square inside room 800 does not read as the room: ' + JSON.stringify(inRoom800));
   else if (!/a room, room 800/.test(onRoom800)) fail('world tab', 'room 800 stopped reading on its own trigger square: ' + JSON.stringify(onRoom800));
   else if (outRoom800 !== '') fail('world tab', 'a square outside room 800 reads as inside it: ' + JSON.stringify(outRoom800));
-  else console.log(`  world tab: ${moving} renders while moving and ${atRest} at rest; card at ${topNearFinger} by a finger at 30; ${JSON.stringify(hatch.replace(/^[^:]*: /, ''))}`);
+  // The invariant, not a population: however many rings a node draws, the dash
+  // is set once and they are stroked together. A threshold on the ring count
+  // would only encode this viewport's size, which is what the first version of
+  // this pin got wrong.
+  else if (a2 && arcs < 1) fail('world tab', 'no rings drawn at the densest point of the world, so this measured nothing');
+  else if (a2 && dashes > 1) fail('world tab', dashes + ' setLineDash calls for ' + arcs + ' rings: the dash is being set per egg again');
+  else if (a2 && arcs > 2 && strokes >= arcs) fail('world tab', strokes + ' strokes for ' + arcs + ' rings: the dashed rings are being stroked one at a time again');
+  else console.log(`  world tab: ${moving} renders while moving and ${atRest} at rest; card at ${topNearFinger} by a finger at 30; ${arcs} rings in ${strokes} strokes and ${dashes} dashes; ${JSON.stringify(hatch.replace(/^[^:]*: /, ''))}`);
 } catch (e) { fail('world tab', e); }
 
 /* Who answers as whom, 12 September 2026. The thing that can go quietly wrong
