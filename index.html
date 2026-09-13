@@ -1365,13 +1365,14 @@ body.atlasFull { overflow:hidden; }
   <!-- The seven ways an edit leaves the page used to be a stack of buttons
        here. They are the Changes tab now, under Data > Cythera Data, grouped
        by where the file is going (renderChangesSheet). -->
-  <div id="animModeWrap">Animation
+  <div id="animModeWrap">Colour cycling
     <label><input type="radio" name="animMode" value="all" onchange="setAnimMode(this.value)"> everything on screen</label>
     <label><input type="radio" name="animMode" value="graphics" onchange="setAnimMode(this.value)"> graphics only, not the maps</label>
     <label><input type="radio" name="animMode" value="tiles" onchange="setAnimMode(this.value)"> tile sheets only</label>
     <label><input type="radio" name="animMode" value="off" onchange="setAnimMode(this.value)"> off</label>
-    <span class="amNote">The palette cycling the game uses for water, lava and magic, and the walking and
-    turning of sprites in the galleries.</span></div>
+    <span class="amNote">Water, lava and magic move because the game cycles their palette entries, not
+    because the picture changes. This is that, and the walking and turning of sprites in the galleries.
+    A thing drawn from several frames, like a fountain, is not palette cycling and is not this.</span></div>
   <label><input type="checkbox" id="chkBuiltinLabels" onchange="setBuiltinLabels(this.checked)">
     <span>Names from outside the game’s own text
       <span class="amNote">Hand-identified labels from the delvmod wiki, resource names,
