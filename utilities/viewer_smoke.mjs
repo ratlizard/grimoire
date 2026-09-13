@@ -2326,6 +2326,41 @@ try {
   else console.log(`  path colours: ${hues.length} distinct hues over ${strokes} strokes for ${posts} posts, each leg on its own rail`);
 } catch (e) { fail('path colours', e); }
 
+/* A zone names its backdrop, and the page now says so (13 September 2026:
+   "Zone should show the landscape image as well").
+
+   The entry script's one SetLandscapeImage call has been read since the
+   atlas was built -- zoneLandscapeArg -- and never shown. mapParts chips it
+   now: a strip at 0x8400 + n where the argument is zero or above, and the
+   engine's own backdrops, which have no resource to open, named rather than
+   linked.
+
+   The failure here is silent and is what this pins against. zoneLandscapeArg
+   returns null where it finds no call, and a chip that is simply absent
+   leaves a strip of three chips that looks entirely correct. So the check is
+   a COUNT across the archive, against the figures measured when it was
+   written: 28 zones name a strip, 14 use one of the engine's backdrops, and
+   none lack the call. A presence test would pass on one chip. */
+try {
+  let strip = 0, engine = 0, none = 0;
+  for (let lvl = 0; lvl < 0x100; lvl++) {
+    if (!ctx.refExists(0x8000 + lvl)) continue;
+    const land = ctx.zoneLandscapeArg(lvl);
+    if (land === null) none++;
+    else if (land >= 0) strip++;
+    else engine++;
+  }
+  const chips = ctx.mapParts(0x8002, 0x8102).join('');       // Odemia, a strip at 0x8402
+  const lkh = ctx.mapParts(0x8003, 0x8103).join('');          // Land King Hall, the void (-1)
+  if (strip < 20) fail('zone landscape', strip + ' zones name a landscape strip, where 28 were read');
+  if (none) fail('zone landscape', none + ' zones have no SetLandscapeImage call at all, where none did');
+  else if (!engine) fail('zone landscape', 'no zone uses one of the engine’s own backdrops, where 14 did');
+  else if (!/Landscape/.test(chips)) fail('zone landscape', 'Odemia’s parts do not chip its landscape');
+  else if (!/jumpToResource\(33794\)/.test(chips)) fail('zone landscape', 'Odemia’s landscape chip does not open 0x8402');
+  else if (!/Landscape/.test(lkh)) fail('zone landscape', 'Land King Hall, whose backdrop is the engine’s own, names no landscape');
+  else console.log(`  zone landscape: ${strip} zones name a strip and ${engine} one of the engine’s own, all chipped in Made of`);
+} catch (e) { fail('zone landscape', e); }
+
 /* A route belongs to the map it was found through, 13 September 2026.
 
    findPath's cache key was the endpoints and the map's width. Two maps of

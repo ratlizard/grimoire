@@ -145,19 +145,35 @@ function drawSchedulePath(ctx, TS, cm, colour) {
   ctx.save();
   ctx.font = canvasFace(Math.max(9, Math.min(13, Math.round(TS / 2.4))));
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  for (const e of here) {
-    const cx = e.x * TS + TS / 2, cy = e.y * TS + TS / 2;
-    ctx.fillStyle = colour;
+  /* A post wears the colour of the line that ARRIVES at it, not the one that
+     leaves. A leg is coloured by the hour it sets out, so the line reaching
+     post j is leg j-1: colouring the dot by its own hour would put a dot of
+     one colour at the end of a line of another, which is the confusion this
+     was meant to clear up (the maintainer, 13 September 2026). A day with a
+     single post has no arriving leg and keeps the mark's own colour. */
+  const ingress = j => (here.length > 1
+    ? 'hsl(' + Math.round((here[(j - 1 + here.length) % here.length].hour % 24) * 15) + ' 85% 62%)'
+    : colour);
+  for (let j = 0; j < here.length; j++) {
+    const e = here[j];
+    const hue = ingress(j);
+    // Whole pixels. A dot or a label box on a fractional coordinate is drawn
+    // across two device pixels and reads as a smudge at close zoom, which is
+    // the one part of this the canvas will actually let us fix -- text
+    // antialiasing itself has no switch.
+    const cx = Math.round(e.x * TS + TS / 2), cy = Math.round(e.y * TS + TS / 2);
+    ctx.fillStyle = hue;
     ctx.beginPath();
-    ctx.arc(cx, cy, Math.max(2, TS / 5), 0, Math.PI * 2);
+    ctx.arc(cx, cy, Math.max(2, Math.round(TS / 5)), 0, Math.PI * 2);
     ctx.fill();
     if (TS < 14) continue;
     const label = hourAmPm(e.hour);
-    const tw = Math.round(ctx.measureText(label).width);
+    const tw = atlasTextWidth(ctx, label);
+    const bx = cx + Math.round(TS / 4), by = cy - 12;
     ctx.fillStyle = 'rgba(8,7,5,.72)';
-    ctx.fillRect(cx + TS / 4, cy - 12, tw + 8, 15);
-    ctx.fillStyle = colour;
-    ctx.fillText(label, cx + TS / 4 + 4, cy);
+    ctx.fillRect(bx, by, tw + 8, 15);
+    ctx.fillStyle = hue;
+    ctx.fillText(label, bx + 4, cy);
   }
   ctx.restore();
 

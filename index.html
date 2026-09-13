@@ -895,6 +895,42 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 /* What a click on the map found. */
 #mapInspect { max-width:720px; margin:8px auto 0; padding:10px 14px; text-align:left;
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:0.8125rem; }
+
+/* On a wide screen the square's details stand BESIDE the map rather than
+   under it (the maintainer, 13 September 2026): reading what is on a square
+   meant scrolling away from the square itself, and the panel had the width
+   to spare all along.
+
+   Done entirely in the stylesheet, and that is deliberate. #mapStage carries
+   an inline max-width and #mapViewport an inline height, and a check watches
+   `display`, `height` and `padding` on mapPreview, mapStage, mapViewport,
+   mapInspect and markLegend across a visit to the World tab -- it exists to
+   catch the atlas leaving this panel disturbed. Writing these positions from
+   script would trip it for a reason that has nothing to do with the bug it
+   guards. A rule cannot.
+
+   Below 900px it stays one column, which is the phone's layout untouched:
+   62vh of map with a pane beside it would leave neither readable. */
+@media (min-width:900px) {
+  #mapPreview.hasInspect { display:grid; grid-template-columns:minmax(0,1fr) 320px;
+    grid-template-areas: 'label label' 'parts parts' 'stage inspect' 'zoom inspect'
+                         'legend inspect' 'save inspect' 'chars chars';
+    gap:0 16px; align-items:start; }
+  #mapPreview.hasInspect > #mapLabel { grid-area:label; }
+  #mapPreview.hasInspect > #mapParts { grid-area:parts; }
+  #mapPreview.hasInspect > #mapStage { grid-area:stage; max-width:none; }
+  /* The zoom row carries the same inline 720px cap and auto margins the
+     stage does. Freeing the stage without freeing this left the map wide and
+     its own slider pinned narrow and centred beneath it. */
+  #mapPreview.hasInspect > .zoomrow { grid-area:zoom; max-width:none !important; margin-left:0 !important; margin-right:0 !important; }
+  #mapPreview.hasInspect > #markLegend { grid-area:legend; }
+  #mapPreview.hasInspect > #mapSaveRow { grid-area:save; }
+  #mapPreview.hasInspect > #charControls { grid-area:chars; }
+  /* The pane itself: its own scroll, so a square with a dozen records does
+     not stretch the row and push the map's controls down the page. */
+  #mapPreview.hasInspect > #mapInspect { grid-area:inspect; margin:0; max-width:none;
+    position:sticky; top:8px; max-height:calc(62vh + 44px); overflow-y:auto; }
+}
 #mapInspect .inspHead { color:var(--gold); font-weight:600; margin-bottom:8px;
   display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
 #mapInspect .inspClose { margin-left:auto; font-size:0.75rem; }
@@ -4452,7 +4488,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.70.0';
+const GRIMOIRE_VERSION = '1.71.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -7330,7 +7366,14 @@ function drawCharacterLayer(lensCtx, lensTS) {
     ctx.textAlign = 'center';
     for (const c of people) {
       const cx = c.fx !== undefined ? c.fx : c.x, cy = c.fy !== undefined ? c.fy : c.y;
-      const px = cx*TS + TS/2 + (c.nudgeX||0)*TS, py = cy*TS - TS*0.18 + (c.nudgeY||0)*TS;
+      /* Whole pixels. A name drawn at a fractional y -- and every one was,
+         through the 0.18 lift and the deconfliction nudges -- is rasterised
+         across two device pixels, which is the blur that reads as
+         antialiasing even at full zoom (the maintainer, 13 September 2026).
+         Canvas has no switch for text antialiasing; rounding the position is
+         the whole of what can be done about it, and it is worth doing. */
+      const px = Math.round(cx*TS + TS/2 + (c.nudgeX||0)*TS);
+      const py = Math.round(cy*TS - TS*0.18 + (c.nudgeY||0)*TS);
       ctx.lineWidth = Math.max(2, TS*0.12);
       ctx.strokeStyle = 'rgba(0,0,0,.85)';
       ctx.strokeText(c.name, px, py);
@@ -10554,6 +10597,15 @@ function renderMapResource(resid) {
     const mapData = entry.mapData, wasDecrypted = entry.wasDecrypted, usedFallback = entry.usedFallback;
 
     document.getElementById('mapPreview').style.display = 'block';
+    /* The square's details stand beside the map on a wide screen. Set once
+       here rather than toggled with the inspector, because
+       clearMapInspector always shows it -- with the "click any square" hint
+       where there is nothing selected -- so there is no empty-column state
+       to guard against. A class and not an inline style: a check compares
+       display, height and padding on this panel's elements across a visit to
+       the World tab, and writing positions from script would trip it for a
+       reason unrelated to what it guards. */
+    document.getElementById('mapPreview').classList.add('hasInspect');
     document.getElementById('zoomControls').style.display = 'none';
     document.getElementById('singlePreview').style.display = 'none';
     document.getElementById('textPreview').style.display = 'none';
@@ -21400,6 +21452,20 @@ function mapParts(resid, propResid) {
   if (propResid && refExists(propResid)) chips.push(partChip('Prop list', propResid));
   if (refExists(0x1400 + level)) chips.push(partChip('Entry script', 0x1400 + level));
   if (refExists(0x1500 + level)) chips.push(partChip('Sub-zone script', 0x1500 + level));
+  /* The backdrop the zone is drawn against is a component like the rest of
+     them, and the page has read it all along without ever showing it: the
+     entry script's one SetLandscapeImage call, which zoneLandscapeArg picks
+     out. Zero and up is a strip at 0x8400 + n. The negatives are the
+     engine's own backdrops and have no resource to chip at -- -1 is the
+     wavy void behind Land King Hall, drawn from the pair 0x8F50/0x8F51 --
+     so those are named rather than linked, because a chip that opens
+     nothing is worse than a word. */
+  try {
+    const land = zoneLandscapeArg(level);
+    if (land !== null && land >= 0 && refExists(0x8400 + land)) chips.push(partChip('Landscape', 0x8400 + land));
+    else if (land === -1) chips.push(actionChip('Landscape', "showCategory('142')", 'the ethereal void'));
+    else if (land !== null && land < 0) chips.push(actionChip('Landscape', "showCategory('131')", 'one the engine keeps'));
+  } catch (e) {}
   return chips;
 }
 
