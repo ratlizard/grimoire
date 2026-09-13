@@ -16180,9 +16180,9 @@ function diceGame() {
   // Every Random(0, n) in the script, with the op that holds the n. A
   // byte's operand is the byte after its opcode, which is what Edit Bytes
   // writes at; the link goes to the instruction.
-  const rolls = dvmSeqAll(ops, [/^sys Random$/, /^byte 0x00$/, DVM_NUM]).map(g => ({ i: ops.indexOf(g[0]), val: dvmVal(R, g[2]) }));
+  const rolls = dvmSeqAll(ops, [/^sys Random$/, /^byte (?:0x00|0)$/, DVM_NUM]).map(g => ({ i: ops.indexOf(g[0]), val: dvmVal(R, g[2]) }));
   // The Gambling question is GetSkill of skill 0xCF.
-  const g = ops.findIndex((o, i) => o.text === 'sys GetSkill' && ops[i + 2] && /^short 0x00CF$/i.test(ops[i + 2].text));
+  const g = ops.findIndex((o, i) => o.text === 'sys GetSkill' && ops[i + 2] && /^short (?:0x00CF|207)$/i.test(ops[i + 2].text));
   const before = rolls.filter(r => g < 0 || r.i < g).slice(-3);
   const after = g < 0 ? null : rolls.find(r => r.i > g) || null;
   if (before.length < 3) return null;
@@ -16289,7 +16289,7 @@ function dvmDescriptionOf(resid) {
     let alt = null;   // the string after a 0x10, waiting for the string it is an alternative to
     for (let j = i + 1; j < ls.length; j++) {
       const l = ls[j];
-      if (/^byte 0x10$/.test(l)) { alt = ''; continue; }
+      if (/^byte (?:0x10|16)$/.test(l)) { alt = ''; continue; }
       const sm = /^string(?:\(implicit\))? "([^"]*)"/.exec(l);
       if (sm) {
         if (alt === '') { alt = sm[1]; continue; }
@@ -16635,9 +16635,12 @@ function skillConsultations() {
     const lines = e.text.split('\n');
     for (let i = 0; i < lines.length; i++) {
       if (!/sys GetSkill\b/.test(lines[i])) continue;
-      const m = /short 0x([0-9A-F]{4})/i.exec((lines[i + 1] || '') + ' ' + (lines[i + 2] || ''));
+      // Either spelling: the listing renders a plain number in decimal now,
+      // and did so in hex before. Matching one alone would quietly stop
+      // finding skills the day the other is used.
+      const m = /short (?:0x([0-9A-F]{4})|(\d+))\b/i.exec((lines[i + 1] || '') + ' ' + (lines[i + 2] || ''));
       if (!m) { generic++; continue; }
-      const id = parseInt(m[1], 16);
+      const id = m[1] !== undefined ? parseInt(m[1], 16) : parseInt(m[2], 10);
       if (!by.has(id)) by.set(id, new Set());
       by.get(id).add(e.resid);
     }
@@ -17099,7 +17102,7 @@ function bashRule(resid) {
   const spills = ops.some(o => o.text === 'call_resource 0xE48');
   // Anything inside it flagged 2 is used on the one attacking and removed
   // before the blow is judged.
-  const setsOff = !!dvmSeqFirst(ops, [/^get_field flags/, /^byte 0x02$/, /^bitwise_and$/]) && ops.some(o => /^method UseOn/.test(o.text));
+  const setsOff = !!dvmSeqFirst(ops, [/^get_field flags/, /^byte (?:0x02|2)$/, /^bitwise_and$/]) && ops.some(o => /^method UseOn/.test(o.text));
   // The line each outcome says: the first string with words in it after
   // the test that leads to it, and the one after that for the blow that
   // does nothing. Chosen by where it sits, so an edited line is quoted as
@@ -17290,7 +17293,7 @@ function lockRules() {
   const pick = idx.find(e => e.resid === 0xE43);
   const item = idx.find(e => e.resid === 0x1109);
   // reflex + Random(0, pickRoll) >= base + Random(0, lockRoll) + (data1 + addend) / per * step
-  const f = pick ? dvmSeqFirst(dvmOpsOf(pick), [/^local Var\w+$/, /^sys Random$/, /^byte 0x00$/, DVM_NUM, /^end$/, /^add$/, DVM_NUM, /^sys Random$/, /^byte 0x00$/, DVM_NUM, /^end$/, /^add$/,
+  const f = pick ? dvmSeqFirst(dvmOpsOf(pick), [/^local Var\w+$/, /^sys Random$/, /^byte (?:0x00|0)$/, DVM_NUM, /^end$/, /^add$/, DVM_NUM, /^sys Random$/, /^byte (?:0x00|0)$/, DVM_NUM, /^end$/, /^add$/,
     /^arg Arg\d+$/, /^get_field data1/, DVM_NUM, /^add$/, DVM_NUM, /^div$/, DVM_NUM, /^mul$/, /^add$/, /^lt$/]) : null;
   const v = k => dvmVal(0xE43, f[k]);
   const numbers = f ? { pickRoll: v(3), base: v(6), lockRoll: v(9), addend: v(14), per: v(16), step: v(18) } : null;
@@ -17327,8 +17330,8 @@ function shopRules() {
   }
   // Haggling: after GetSkill of skill 0xCC, a Random(0, n) taken off the figure.
   const ho = dvmOpsOf(dvmScriptEntry(0xEA5));
-  const hi = ho.findIndex(o => /^short 0x00CC$/i.test(o.text));
-  const hg = hi < 0 ? null : dvmSeqFirst(ho.slice(hi, hi + 12), [/^sys Random$/, /^byte 0x00$/, DVM_NUM]);
+  const hi = ho.findIndex(o => /^short (?:0x00CC|204)$/i.test(o.text));
+  const hg = hi < 0 ? null : dvmSeqFirst(ho.slice(hi, hi + 12), [/^sys Random$/, /^byte (?:0x00|0)$/, DVM_NUM]);
   const haggling = hg ? dvmVal(0xEA5, hg[2]) : null;
   return { shops, haggling };
 }
@@ -17391,13 +17394,13 @@ function combatRules() {
   if (!melee || !missile || !resolve) return null;
   const mo = dvmOpsOf(melee), so = dvmOpsOf(missile), ro = dvmOpsOf(resolve);
   // Each side's roll, attacker's first: `Random(0, n)` in the blow's margin.
-  const rolls = (ops, r) => dvmSeqAll(ops, [/^sys Random$/, /^byte 0x00$/, DVM_NUM, /^end$/]).map(g => dvmVal(r, g[2]));
+  const rolls = (ops, r) => dvmSeqAll(ops, [/^sys Random$/, /^byte (?:0x00|0)$/, DVM_NUM, /^end$/]).map(g => dvmVal(r, g[2]));
   const mr = rolls(mo, 0xE88), sr = rolls(so, 0xE89);
   const roll = mr[0] || null, rollDefender = mr[1] || null;
-  const barehand = /short 0x00C7/.test(melee.text), missileSkill = /short 0x00C8/.test(missile.text);
+  const barehand = /short (?:0x00C7|199)\b/.test(melee.text), missileSkill = /short (?:0x00C8|200)\b/.test(missile.text);
   const parry = /parries/.test(resolve.text) && /class_member 0x2F00/.test(resolve.text) && /class_member 0x2F01/.test(resolve.text);
   // The damage: Random(0, the figure) plus this, then the enchantment.
-  const add = dvmSeqFirst(ro, [/^sys Random$/, /^byte 0x00$/, /^arg Arg04$/, /^end$/, DVM_NUM, /^add$/]);
+  const add = dvmSeqFirst(ro, [/^sys Random$/, /^byte (?:0x00|0)$/, /^arg Arg04$/, /^end$/, DVM_NUM, /^add$/]);
   // The blow words: `if (roll < n) word = "..."`, with the suffix a second
   // local takes where there is one (" hard", " to dust"), then the word for
   // everything past the last threshold.
@@ -18629,7 +18632,7 @@ function spellRules() {
   const tg = helper ? dvmSeqFirst(dvmOpsOf(helper), [/^get_field timing/, DVM_NUM, DVM_NUM, /^arg Arg01$/, /^mul$/, /^add$/]) : null;
   const rule = helper ? { power: /requires more power/.test(helper.text), failure: /You failed to cast/.test(helper.text),
     timing: !!tg, timeBase: tg ? dvmVal(0xEA1, tg[1]) : null, timeMult: tg ? dvmVal(0xEA1, tg[2]) : null,
-    casting: /short 0x00C3/.test((dvmScriptEntry(0xE85) || { text: '' }).text) } : null;
+    casting: /short (?:0x00C3|195)\b/.test((dvmScriptEntry(0xE85) || { text: '' }).text) } : null;
   const spells = [];
   for (const e of idx.filter(e => e.subn === 25)) {
     const ops = dvmOpsOf(e);
@@ -19000,7 +19003,7 @@ function sleepRules() {
   const h = strip(helper.text);
   const bo = dvmOpsOf(bed), ho = dvmOpsOf(helper);
   // Your own bed: in room 2 the quality local is set to this.
-  const ownG = dvmSeqFirst(bo, [/^global CurrentRoom/, /^short 0x0002$/, /^eq$/, /^then /, /^set_local 0x00$/, DVM_NUM]);
+  const ownG = dvmSeqFirst(bo, [/^global CurrentRoom/, /^short (?:0x0002|2)$/, /^eq$/, /^then /, /^set_local 0x00$/, DVM_NUM]);
   // The night: PassTime(n) for each of hours x k, then healed x quality / d.
   const qG = dvmSeqFirst(ho, [/^sys PassTime$/, DVM_NUM]);
   const hG = dvmSeqFirst(ho, [/^arg Arg00$/, DVM_NUM, /^mul$/]);
