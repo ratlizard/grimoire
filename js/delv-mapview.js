@@ -89,29 +89,55 @@ function drawSchedulePath(ctx, TS, cm, colour) {
   // for -- exactly as walkingPosition does it.
   if (m) { try { buildPropBlockers(cm.resid, m); } catch (e) {} }
 
+  /* A leg is walked at an hour, and its colour says which.
+
+     One colour for the whole day could not be read: a day doubles back on
+     itself -- out to the shop and home again is the same corridor twice --
+     and two identical strokes on the same squares are one stroke to look at,
+     so the line said where she goes and never when (reported 13 September
+     2026, "her path is unclear ... maybe we could make it hue-based").
+
+     The hue runs once round the wheel over 24 hours, so the colour IS the
+     clock: midnight red, morning yellow-green, afternoon cyan, evening blue.
+     A leg is coloured by the hour it LEAVES, because that is the hour the
+     reader sees on the dot it starts from.
+
+     Where two legs share squares the later one would still hide the earlier,
+     so each leg is drawn on its own rail: a fixed perpendicular offset by
+     leg number, a fraction of a square, which turns a corridor walked twice
+     into two parallel strands instead of one. */
   const legs = [];
   if (here.length > 1) {
     for (let i = 0; i < here.length; i++) {
       const a = here[i], b = here[(i + 1) % here.length];
       let leg = null;
       if (m) { try { leg = findPath(m, a.x, a.y, b.x, b.y); } catch (e) { leg = null; } }
-      legs.push(leg && leg.length ? leg : [[a.x, a.y], [b.x, b.y]]);
+      legs.push({ pts: leg && leg.length ? leg : [[a.x, a.y], [b.x, b.y]], hour: a.hour, i });
     }
   }
-
+  const rail = TS * 0.13;
   ctx.save();
-  ctx.strokeStyle = colour;
   ctx.lineWidth = Math.max(1.5, TS / 10);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  ctx.globalAlpha = 0.85;
-  ctx.beginPath();
+  ctx.globalAlpha = 0.9;
   for (const leg of legs) {
-    for (let i = 0; i < leg.length; i++) {
-      const px = leg[i][0] * TS + TS / 2, py = leg[i][1] * TS + TS / 2;
+    // Spread about zero: 0, +1, -1, +2, -2 ... so a day of a few legs stays
+    // centred on the squares actually walked rather than drifting off them.
+    const k = Math.ceil(leg.i / 2) * (leg.i % 2 ? 1 : -1);
+    ctx.strokeStyle = 'hsl(' + Math.round((leg.hour % 24) * 15) + ' 85% 62%)';
+    ctx.beginPath();
+    for (let i = 0; i < leg.pts.length; i++) {
+      // The offset is perpendicular to the step being taken, so it hugs the
+      // route rather than sliding the whole leg sideways.
+      const p = leg.pts[i], q = leg.pts[Math.min(leg.pts.length - 1, i + 1)];
+      const dx = q[0] - p[0], dy = q[1] - p[1];
+      const len = Math.hypot(dx, dy) || 1;
+      const ox = (-dy / len) * rail * k, oy = (dx / len) * rail * k;
+      const px = p[0] * TS + TS / 2 + ox, py = p[1] * TS + TS / 2 + oy;
       if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
+    ctx.stroke();
   }
-  ctx.stroke();
   ctx.restore();
 
   // A dot on every post, and the hour beside it where the tiles are big

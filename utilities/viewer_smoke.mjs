@@ -2280,6 +2280,52 @@ try {
   }
 } catch (e) { fail('path mark', e); }
 
+/* The day's legs are told apart, 13 September 2026. Reported from a phone:
+   "her path is unclear ... maybe we could make it hue-based ... not have it
+   double over itself".
+
+   A day doubles back -- out and home is one corridor walked twice -- and two
+   identical strokes on the same squares are one stroke to look at, so a
+   single-coloured path said where she goes and never when. Each leg now
+   takes a hue from the hour it sets out, and rides its own perpendicular
+   rail so a way walked twice reads as two strands.
+
+   Both halves are pinned because both are exactly what a later tidy-up
+   flattens back into one stroke with nobody noticing: a single strokeStyle
+   would still draw a plausible path, and dropping the rail would still draw
+   a path -- just the unreadable one this replaced. The control is that the
+   colours are DISTINCT, not merely present. */
+try {
+  const marks = peek('MAP_MARKS');
+  const before = { ...marks };
+  ctx.showCategory('127');
+  ctx.openResource(0x8003); drainRaf();            // Land King Hall
+  const who = ctx.MAP_PATH_WHO;
+  const cm = ctx.CUR_MAP || {};
+  const scheds = ctx.loadSchedules();
+  const posts = (who !== null && who !== undefined && scheds[who])
+    ? scheds[who].filter(e => e.mode !== 0 && e.level === cm.level).length : 0;
+  const mc = ctx.document.getElementById('markLayer');
+  const c2 = mc && mc.getContext && mc.getContext('2d');
+  const styles = [];
+  let strokes = 0;
+  let realStroke = null;
+  if (c2) {
+    realStroke = c2.stroke;
+    c2.stroke = function () { strokes++; styles.push(this.strokeStyle); return realStroke.apply(this, arguments); };
+  }
+  ctx.toggleMapMarks('path', true);
+  if (c2 && realStroke) c2.stroke = realStroke;
+  ctx.toggleMapMarks('path', false);
+  Object.assign(marks, before);
+  const hues = [...new Set(styles.filter(s => typeof s === 'string' && /^hsl\(/.test(s)))];
+  if (!posts) fail('path colours', 'the picker chose nobody with posts here, so this proves nothing');
+  else if (!c2) fail('path colours', 'no mark layer context, so no stroke could be counted');
+  else if (!hues.length) fail('path colours', 'the path strokes carry no hsl colour: the legs are one colour again');
+  else if (hues.length < 2) fail('path colours', 'every leg is the same hue, so the colour says nothing about the hour: ' + hues[0]);
+  else console.log(`  path colours: ${hues.length} distinct hues over ${strokes} strokes for ${posts} posts, each leg on its own rail`);
+} catch (e) { fail('path colours', e); }
+
 /* A route belongs to the map it was found through, 13 September 2026.
 
    findPath's cache key was the endpoints and the map's width. Two maps of
@@ -2722,6 +2768,8 @@ try {
   if (cards < 100 || links < 500 || !/Alaric/.test(sh)) fail('schedules', `the sheet shows ${cards} characters and ${links} posts`);
   else console.log(`  schedules: ${cards} characters, ${links} posts, each a link into its zone`);
 } catch (e) { fail('schedules', e); }
+
+
 
 /* Componentisation, 13 September 2026. The maintainer's rule: tapping a thing
    takes you one step rightward, and there is always an intermediate step on

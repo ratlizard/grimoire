@@ -4452,7 +4452,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.69.0';
+const GRIMOIRE_VERSION = '1.70.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -8396,7 +8396,9 @@ function drawMapMarks(lensCtx, lensTS) {
       (edges ? ' + ' + edges + (edges === 1 ? ' open edge' : ' open edges') : ''));
     if (M.path && pathStops) parts.push('<span style="color:' + colours.path + '">— ' +
       svEsc(pathName) + ', ' + pathStops + (pathStops === 1 ? ' post' : ' posts') +
-      ' on this map, joined by the route the engine would walk</span>');
+      ' on this map, joined by the route the engine would walk, each leg' +
+      ' coloured by the hour it sets out and drawn on its own rail where a' +
+      ' way is walked twice</span>');
     if (ropes) parts.push('<span style="color:#fff">‡ ' + ropes +
       (ropes === 1 ? ' needs a rope' : ' need a rope') + '</span>');
     if (itemSpots) parts.push('<span style="color:#fff">□ ' + itemSpots + ' × ' +
@@ -8532,9 +8534,49 @@ function buildPropBlockers(resid, m) {
         const base = tiles[r.proptype];
         if (base === undefined) continue;
         const t = base + r.aspect;
+        /* Every square the prop covers, each judged by ITS OWN tile.
+
+           A large prop anchors bottom-right and multiTilePieces gives the
+           rest at negative offsets, each with its own tile (tileId-1, -2,
+           -3) and so its own attribute byte 2. Blocking only the record's
+           square left the other half of a two-square stone doorway walkable,
+           which is how a character walked through the wall beside a doorway
+           in Odemia (reported 13 September 2026). Blocking the pieces only
+           when the ANCHOR blocks was the first attempt at this and closed
+           one hole of five: where the anchor is passable and a piece is not,
+           the hole stayed. So each cell is tested on its own tile.
+
+           seatsOnMap has expanded footprints this way since 9 September, for
+           the same reason -- "tables are multi-square and anchor
+           bottom-right, so testing only the record's square missed a chair
+           beside the table's left half". The walkability set never learned
+           it, and findPath is what walkingPosition routes the inhabitants
+           through, so this is their geometry too and not only the overlay's. */
+        for (const pc of (multiTilePieces(t, r.rotated) || [])) {
+          const cx = r.x + pc.dx, cy = r.y + pc.dy;
+          if (cx < 0 || cy < 0 || cx >= m.width || cy >= m.height) continue;
+          const pb2 = tileAttrByte(pc.tile, 2);
+          if (pb2 !== undefined && (pb2 & 0x02)) blocked.add(cy * m.width + cx);
+        }
         const b2 = tileAttrByte(t, 2);
         if (b2 === undefined) continue;
         if (b2 & 0x02) {
+          /* Every square the prop covers, not only the one its record sits
+             on. A large prop is anchored BOTTOM-RIGHT and multiTilePieces
+             gives the rest at negative offsets, so a two-square stone
+             doorway blocked its anchor and left the square beside it open --
+             which is how a character walked through the wall next to a
+             doorway in Odemia (reported 13 September 2026: 193 squares on
+             that map are covered by a multi-square prop against 211 blocked,
+             and Ake's route crossed five of the holes).
+
+             seatsOnMap has expanded footprints this way since 9 September,
+             for exactly the same reason -- "tables are multi-square and
+             anchor bottom-right, so testing only the record's square missed
+             a chair beside the table's left half". The walkability set never
+             learned it. This is the engine's own geometry, so widening it
+             makes the routes the inhabitants walk right as well: findPath is
+             what walkingPosition uses. */
           blocked.add(r.y * m.width + r.x);
           // A door is a blocker you can open. The Door Script keeps its LOCK
           // STATE in field 3 and its DRAWN FRAME in field 1, and they are not
@@ -18012,6 +18054,13 @@ function eggDetail(g, allProps, linked) {
     const when = [];
     if (g.d1 & 0x10) when.push('by day');
     if (g.d1 & 0x20) when.push('by night');
+    /* Bit 0x08 is set and not decoded. Odemia's five chicken eggs carry d1
+       0x18, its goat 0x0A and its guards 0x14 and 0x24, so the bit appears
+       beside day, beside night and on its own: it is a real condition of the
+       kind-0 egg and nothing here knows what it says. Said out loud rather
+       than dropped, because a reader comparing two eggs would otherwise see
+       them described identically when the file distinguishes them. */
+    if (g.d1 & 0x08) when.push('and a condition at bit 0x08 that is not read here');
     // "only once" rather than "once": with the chance at always, a bare
     // "always, once" reads as a contradiction where it means guaranteed the
     // first time and never after.
@@ -20479,7 +20528,8 @@ function renderMechanicsSheet() {
         '<b>' + eg.kinds.reduce((n, k) => n + k.n, 0) + ' eggs</b> across <b>' + eg.zones + ' zones</b>, of <b>' + eg.kinds.length + ' kinds</b>.',
         eg.rooms ? 'A room is a kind-8 egg, and its argument is the room number: <b>' + eg.rooms.named + ' of the ' + eg.rooms.total + '</b> rooms named that way have a script of their own at 0x1B00 plus the number.' : '',
         'A kind-3 egg is an <b>ambient sound</b>, and its argument names the sound: 0x9100 plus the number. They are placed by the ground they stand on rather than by anything that happens, which is why the draw loop passes over them and the audio side picks them up.',
-        'A kind-0 egg holds what it hatches as contained records, and carries its own conditions: <b>Data2 plus one in a hundred</b> is the chance, and Data1 holds it to the day (0x10) or the night (0x20), or to once (0x01).',
+        'A kind-0 egg holds what it hatches as contained records, and carries its own conditions: <b>Data2 plus one in a hundred</b> is the chance, and Data1 holds it to the day (0x10) or the night (0x20), or to once (0x01). <b>Bit 0x08 of Data1 is set on some of them and is not read here</b>: Odemia’s chicken eggs carry 0x18, its goat 0x0A, its guards 0x14 and 0x24, so it stands beside day, beside night and alone.',
+        '<b>A kind-0 egg’s argument says nothing about what hatches.</b> The creature is the contained record, and the argument is the same value whatever that record is: every one of Odemia’s thirteen carries 0xE4, whether it holds a chicken, a goat or a guard. The column below lists the arguments each kind is placed with, which is the file’s own content and not a meaning.',
         'Records with flags 0x44 are roofs rather than eggs, and there are <b>' + eg.roofs + '</b> of them here.'
       ].filter(Boolean) : [],
       table(['#kind', 'what it does', 'argument', '#here', 'arguments used'], rows) +
