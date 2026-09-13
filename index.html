@@ -4452,7 +4452,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.67.0';
+const GRIMOIRE_VERSION = '1.68.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -13366,7 +13366,7 @@ const SUBINDEX_PURPOSE = {
   128: ['Prop lists', 'One per map: 16-byte records placing every object, door and container.'],
   131: ['Landscapes', 'Backdrop artwork, a shared pool of 18 images.'],
   135: ['Portraits', 'Character portrait graphics.'],
-  137: ['Graphics', 'General image resources.'],
+  137: ['Graphics', 'One 32x16 icon per skill and spell class, icon n belonging to class 0x1A00|n.'],
   141: ['Tile sheets', 'The terrain and object tiles maps are built from.'],
   142: ['Graphics', 'Sprite and animation frames.'],
   143: ['Music', 'QTMA tunes.'],
@@ -14111,7 +14111,14 @@ const TAB_TREE = [
           // 2026, the whole screens in the resource fork beside them (the
           // title, the main menu and its parts, the DELVER stone, the paper
           // doll), which had a tab of their own until then.
-          { id: 'misc',       label: 'Misc',       tile: 0x2F1, values: ['142', 'SCREENS'] } ] },          // the urn, second frame
+          // 137 is the icons a skill or a spell wears, one 32x16 per class in
+          // subindex 25. It was the one gallery in the archive that no tab
+          // claimed (13 September 2026), so a chip pointing at a skill's icon
+          // opened a gallery with no tab lit. It sits here rather than in a
+          // leaf of its own because naming and tiling a new tab is the
+          // maintainer's call; an Icons leaf beside Portraits is the
+          // alternative if this reads wrongly.
+          { id: 'misc',       label: 'Misc',       tile: 0x2F1, values: ['142', '137', 'SCREENS'] } ] },  // the urn, second frame
       { id: 'audio', label: 'Audio', tile: 0x215, children: [                                 // the strange rod
           { id: 'music', label: 'Music', tile: 0x2BD, values: ['143'] },                                // a lute
           { id: 'sfx',   label: 'SFX',   tile: 0x1B2, values: ['144', 'APPSND'] } ] },                  // the explosion, sheet 0x8E1B; the application's own sounds beside the archive's
@@ -16505,6 +16512,12 @@ function renderSkillsSheet() {
         d.innerHTML = '<table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
         sec.appendChild(d);
       }
+      // What it is made of, beside what it does. The script is already named
+      // on the summary, so the strip carries the icon it wears.
+      {
+        const chips = skillSpellParts(x.resid);
+        if (chips.length) { const p = document.createElement('div'); p.innerHTML = partsStrip('Made of', chips); sec.appendChild(p); }
+      }
       if (x.lessons.length) {
         const sub = document.createElement('div'); sub.className = 'mechSub'; sub.textContent = kind === 'command' ? 'What it says' : 'What a teacher says, lesson by lesson';
         sec.appendChild(sub);
@@ -16620,6 +16633,12 @@ function renderSpellsSheet() {
     const d = document.createElement('div'); d.className = 'mechBody';
     d.innerHTML = '<table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
     sec.appendChild(d);
+    // The same strip the skills carry: the icon it wears, the script being
+    // already named on the summary.
+    {
+      const chips = skillSpellParts(x.resid);
+      if (chips.length) { const p = document.createElement('div'); p.innerHTML = partsStrip('Made of', chips); sec.appendChild(p); }
+    }
     box.appendChild(sec);
   }
   grid.appendChild(box);
@@ -21162,6 +21181,27 @@ function openVia(cat, fn) {
 }
 function openCharacter(i) { openVia('CHARACTERS', () => showCharacterDetail(i)); }
 
+/* One character's day, on the Schedules sheet under Components.
+
+   A dossier used to chip its schedule straight at 0xF00B, the raw table
+   under Data, which is the jump the maintainer asked to stop: a component
+   should be reached through the Components tab that shows it, and the table
+   underneath from there. Schedules became such a tab on 13 September 2026.
+
+   The card's own id is what renderSchedulesSheet gives it. The open is
+   deferred a tick because the sheet is built by the category switch and the
+   card does not exist until it has run, the same reason mechLink waits. */
+function openSchedule(i) {
+  openVia('SCHEDULES', () => {
+    setTimeout(() => {
+      const el = document.getElementById('sched-' + i);
+      if (!el) return;
+      el.open = true;
+      if (el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  });
+}
+
 // A person, wearing their portrait -- the face names the person where the
 // sprite only names a class (the maintainer, 8 September 2026: a portrait is
 // the better way to identify a character wherever one is cited). The sprite
@@ -21202,8 +21242,14 @@ function characterParts(i, d) {
   }
   const cls = 0x1000 + d.rec.proptype;
   if (d.rec.proptype && refExists(cls)) chips.push(partChip('Class script', cls));
+  // The name itself is a component: character n is entry n+1 of the string
+  // table 0x0201, which is what derivedCharacterName reads and what makes a
+  // person the same person in every Cythera file.
+  if (refExists(0x0201)) chips.push(partChip('Name label', 0x0201));
   if (refExists(0xF009)) chips.push(partChip('Record', 0xF009));
-  if (d.schedule.length && refExists(0xF00B)) chips.push(partChip('Schedule', 0xF00B));
+  // Through the Schedules sheet, not at the raw table: a component is
+  // reached by the Components tab that shows it, and the bytes from there.
+  if (d.schedule.length) chips.push(actionChip('Schedule', 'openSchedule(' + i + ')', 'their day'));
   return chips;
 }
 

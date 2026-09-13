@@ -223,6 +223,25 @@ function ruleLink(id) {
   return moved ? tabLink(moved[0], moved[1]) : mechLink(id, 'Mechanics › ' + id);
 }
 
+/* What a skill or a spell is made of.
+
+   Both are a class in subindex 25 -- the script that is the thing itself,
+   already named on the card's own summary as "the script" -- plus the 32x16
+   icon it wears, which is subindex 137, icon n belonging to class 0x1A00|n.
+   The icon is the part that had no way in: until 13 September 2026 no tab
+   claimed 137 at all, so nothing could chip at it.
+
+   The strip says what is NOT already on the summary, which is why the script
+   is absent from it. */
+function classIconResid(resid) { return 0x8A00 | (resid & 0xFF); }
+
+function skillSpellParts(resid) {
+  const chips = [];
+  const icon = classIconResid(resid);
+  if (refExists(icon)) chips.push(partChip('Icon', icon));
+  return chips;
+}
+
 /* A section built above a gallery, as the Writings and Dialogue tabs do.
    #sheetGrid is a tile grid, so the card goes in a .mechView, which spans
    every column and centres itself the way a sheet does. */

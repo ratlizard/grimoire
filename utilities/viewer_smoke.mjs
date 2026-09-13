@@ -2685,6 +2685,54 @@ try {
   else console.log(`  schedules: ${cards} characters, ${links} posts, each a link into its zone`);
 } catch (e) { fail('schedules', e); }
 
+/* Componentisation, 13 September 2026. The maintainer's rule: tapping a thing
+   takes you one step rightward, and there is always an intermediate step on
+   Components rather than a jump from Scenario straight to Data.
+
+   What this pins, none of which any other check would notice:
+     - a character's name is a component, the string table 0x0201 that
+       derivedCharacterName reads;
+     - their schedule is reached through the Schedules SHEET under Components,
+       not the raw 0xF00B table under Data, which is the jump the rule forbids;
+     - that chip actually opens their card, rather than merely existing;
+     - a skill and a spell chip at the icon they wear -- unreachable before,
+       because subindex 137 was a gallery no tab claimed at all.
+
+   The absence half carries as much weight as the presence half. A Name label
+   chip that appeared while the Schedule chip still pointed at 0xF00B would
+   satisfy a presence-only test and miss the whole point of the change, so the
+   old destination is asserted GONE. And the card open is awaited rather than
+   assumed: the sheet is built by the category switch and the card does not
+   exist until it has run, which is why openSchedule defers by a tick. */
+try {
+  const leafFor = peek('TAB_LEAF_FOR');
+  const walk = el => (el.innerHTML || '') + (el.children || []).map(walk).join('');
+  ctx.showCharacterDetail(2);                        // Alaric, who keeps a day
+  const dossier = walk(REGISTRY.get('sheetGrid'));
+  ctx.showCategory('SKILLS');
+  const skhtml = walk(REGISTRY.get('sheetGrid'));
+  ctx.showCategory('SPELLS');
+  const sphtml = walk(REGISTRY.get('sheetGrid'));
+  ctx.openSchedule(2);
+  await new Promise(r => setTimeout(r, 150));
+  const card = ctx.document.getElementById('sched-2');
+  const iconChips = h => (h.match(/class="relMain">Icon</g) || []).length;
+
+  if (!leafFor || !leafFor.has('137'))
+    fail('components', 'subindex 137, the icons a skill and a spell wear, is a gallery no tab claims');
+  else if (!/Name label/.test(dossier) || !/jumpToResource\(513\)/.test(dossier))
+    fail('components', 'the dossier does not chip the name at its string table 0x0201');
+  else if (!/openSchedule\(2\)/.test(dossier))
+    fail('components', 'the dossier does not reach the schedule through the Schedules sheet');
+  else if (/jumpToResource\(61451\)/.test(dossier))
+    fail('components', 'the dossier still jumps straight at 0xF00B under Data, the step the rule forbids');
+  else if (!card || !card.open || ctx.CUR_SUBN !== 'SCHEDULES')
+    fail('components', 'openSchedule did not open that character’s own card on the Schedules sheet');
+  else if (!iconChips(skhtml)) fail('components', 'no skill chips at the icon it wears');
+  else if (!iconChips(sphtml)) fail('components', 'no spell chips at the icon it wears');
+  else console.log(`  components: the dossier names its parts and reaches its schedule through Components; ${iconChips(skhtml)} skills and ${iconChips(sphtml)} spells chip at their icon`);
+} catch (e) { fail('components', e); }
+
 // The ditherizer's data path: dither a synthetic image to the palette,
 // DCG-encode it, write it into a real portrait slot through the full
 // rebuild, and confirm the rebuilt archive decodes it back pixel for pixel.
