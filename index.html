@@ -957,6 +957,21 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 .mechPrice { color:#fff; font-variant-numeric:tabular-nums; }
 .mechSec .partsStrip { margin-top:6px; }
 @media (max-width:640px) { .mechSec { padding:10px 8px 8px; } .mechHead h3 { font-size:0.9688rem; } .mechFrom { margin-left:0; } }
+/* Tables on a phone. Every table on these sheets sits in a .tableScroll, so a
+   wide one slid sideways and a reader had to scroll a row at a time to see
+   what a number belonged to (the maintainer, 13 September 2026). Three things
+   fix that without a second table implementation: a header may wrap rather
+   than forcing the table wider than the screen, the right-hand padding that
+   was sized for a desktop comes off, and a cell may break a long word instead
+   of setting the table's minimum width. The columns still line up; they are
+   just allowed to be narrow. */
+@media (max-width:640px) {
+  .mechTable, .vocabTable { font-size:0.7188rem; }
+  .mechTable th, .vocabTable th { white-space:normal; padding-right:6px; }
+  .mechTable td, .vocabTable td { padding:4px 6px 4px 0; overflow-wrap:anywhere; }
+  .mechTable th.num, .mechTable td.num { padding-right:6px; }
+  .tableScroll { -webkit-overflow-scrolling:touch; }
+}
 /* ---- the figures on the Mechanics sheet ----------------------------------
    Charts here are HTML and CSS, not SVG with text in it, and that is a
    decision rather than a habit. An SVG scaled to the column's width scales
@@ -14035,9 +14050,17 @@ const TAB_TREE = [
       { id: 'mechanics',  label: 'Mechanics',  tile: 0x82F, values: ['MECHANICS'] } ] },   // dice
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
       { id: 'text', label: 'Text', tile: 0x3AE, children: [                                   // the tombstone, second frame
-          { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['1', 'STRINGS'] },                     // a poster; the forks' string lists beside the archive's
+          { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['STRINGS'] },                          // a poster; the forks' string lists
           { id: 'dialogue', label: 'Dialogue', tile: 0x66B, values: ['23', '7'] },  // the beggar, sitting; the maintainer's pick, 11 September 2026 (it was the fountain, 0x389)
-          { id: 'writings', label: 'Writings', tile: 0x263, values: ['26', '27', '29'] },                         // the scroll
+          // Writings is the game's OWN writing, which is subindex 1: the
+          // bookshelf histories and bestiaries, the prophecies, the scrolls
+          // and letters, the signs, the gravestones and the ring
+          // inscriptions, each an array a prop indexes with its Data1. It
+          // held the room scripts until 13 September 2026, which was simply
+          // the wrong content under the right name (the maintainer); those
+          // are scripts and have gone to Functions > Places beside the zone
+          // entry scripts.
+          { id: 'writings', label: 'Writings', tile: 0x263, values: ['1'] },                               // the scroll
           // The faces the text is set in: Argos A Nouveau and the Seldane
           // script, out of the resource fork, and the styles that assign them.
           { id: 'fonts',    label: 'Fonts',    tile: 0x180, values: ['FONTS'] },                              // the maintainer's pick, 9 September 2026
@@ -14060,7 +14083,11 @@ const TAB_TREE = [
       { id: 'functions', label: 'Functions', tile: 0x3CB, children: [                         // a lever: pull it and something happens (prop 187)
           { id: 'actors',  label: 'Actions', tile: 0x572, values: ['47', '24', '3', '8', '25'] },   // the skill and spell classes (25) are here too, so a link to one has a tab                  // the fighter mid-swing: something that acts (prop 116)
           { id: 'objects', label: 'Objects', tile: 0x28B, values: ['16', '15'] },                             // a key: a thing that is used (prop 66)
-          { id: 'places',  label: 'Places',  tile: 0x4A0, values: ['19', '20'] },                 // a signpost
+          // The zone entry scripts, the sub-zone scripts, and the room
+          // scripts that used to sit under Writings: 0x1Bxx and 0x1Cxx are
+          // rooms 1 to 511 and 0x1Exx is room 800, all of them a place's own
+          // script, which is what this tab is for.
+          { id: 'places',  label: 'Places',  tile: 0x4A0, values: ['19', '20', '26', '27', '29'] },   // a signpost
           { id: 'effects', label: 'Effects', tile: 0x183, values: ['9'] },                              // the distiller's flasks: eating and potion effects (prop 233)
           { id: 'shared',  label: 'Shared',  tile: 0x3B8, values: ['0', '14', '2', '10', '11', '12', '13'] } ] } ] },// the well, the maintainer's pick, 9 September 2026
   // Data opens on Cythera Data (`last`), whatever comes first in the row:
