@@ -1617,6 +1617,8 @@ body.atlasFull { overflow:hidden; }
       <label><input type="checkbox" id="chkMarkExits" onchange="toggleMapMarks('exits',this.checked)"> Zone exits</label>
       <label><input type="checkbox" id="chkMarkGrid" onchange="toggleMapMarks('grid',this.checked)"> Grid</label>
       <label><input type="checkbox" id="chkMarkRooms" onchange="toggleMapMarks('rooms',this.checked)"> Rooms</label>
+      <label><input type="checkbox" id="chkMarkPath" onchange="toggleMapMarks('path',this.checked)"> Path of</label>
+      <select id="pathWho" onchange="setMapPathWho(this.value)"></select>
     </div>
     <div class="mapToggleGroup">
       <span class="mtgLabel">Time</span>
@@ -7571,8 +7573,39 @@ function nightAlpha(hour) {
 // The classification is by name, so it is only as good as the wiki's list and
 // is marked as such in the legend. What is NOT guessed: whether a wall blocks
 // comes from tile attribute byte 3 bit 0x02, straight out of 0xF002.
-window.MAP_MARKS = { doors: false, secret: false, chest: false, exits: false, grid: false, rooms: false };
+window.MAP_MARKS = { doors: false, secret: false, chest: false, exits: false, grid: false, rooms: false, path: false };
 function toggleMapMarks(kind, on) { window.MAP_MARKS[kind] = on; drawMapMarks(); }
+
+// Whose day the Path mark follows: a character index into loadSchedules(),
+// or null when nobody on this map keeps a schedule.
+window.MAP_PATH_WHO = null;
+function setMapPathWho(i) {
+  const v = (i === '' || i === null || i === undefined) ? null : +i;
+  window.MAP_PATH_WHO = Number.isFinite(v) ? v : null;
+  drawMapMarks();
+}
+/* Who this map can offer. Everyone the schedule table posts on this level at
+   any hour of the day, by name. Rebuilt when a map opens, because MAP_MARKS
+   persists across maps and the picker must not be left naming somebody who
+   is somewhere else entirely; if the person it named is not here, it falls
+   to the first who is. */
+function refreshPathPicker() {
+  const sel = document.getElementById('pathWho');
+  const cm = window.CUR_MAP;
+  if (!sel || !cm) return;
+  const scheds = loadSchedules();
+  const here = [];
+  for (let i = 0; i < scheds.length; i++) {
+    if (scheds[i].some(e => e.mode !== 0 && e.level === cm.level)) here.push({ i, name: characterName(i) });
+  }
+  here.sort((a, b) => a.name.localeCompare(b.name));
+  sel.innerHTML = here.length
+    ? here.map(p => '<option value="' + p.i + '">' + svEsc(p.name) + '</option>').join('')
+    : '<option value="">nobody keeps a schedule here</option>';
+  if (!here.some(p => p.i === window.MAP_PATH_WHO)) window.MAP_PATH_WHO = here.length ? here[0].i : null;
+  sel.value = window.MAP_PATH_WHO === null ? '' : String(window.MAP_PATH_WHO);
+  sel.disabled = !here.length;
+}
 
 // Prop types that are a way through something rather than a thing: the ones
 // the game hides, plus the ones it merely tucks behind other scenery. Matching
@@ -8108,7 +8141,7 @@ function drawMapMarks(lensCtx, lensTS) {
   if (!cm) return;
   const M = window.MAP_MARKS;
   const spots_ = window.MAP_ITEM_SPOTS;
-  const anything = M.doors || M.secret || M.chest || M.exits || M.grid || M.rooms || window.MAP_SEL ||
+  const anything = M.doors || M.secret || M.chest || M.exits || M.grid || M.rooms || M.path || window.MAP_SEL ||
                    (spots_ && spots_.resid === cm.resid && spots_.cells.length);
   let ctx, TS;
   const legend = lensCtx ? null : document.getElementById('markLegend');
@@ -8130,7 +8163,7 @@ function drawMapMarks(lensCtx, lensTS) {
     ctx.clearRect(0, 0, mc.width, mc.height);
     TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at its own scale
   }
-  const colours = { doors: '#ffd166', secret: '#8fd4ff', chest: '#a8e06a', exits: '#ff9ad5' };
+  const colours = { doors: '#ffd166', secret: '#8fd4ff', chest: '#a8e06a', exits: '#ff9ad5', path: '#7ef0c0' };
   // A line on every square's edge, so a coordinate can be counted off the map.
   if (M.grid) {
     const cols = Math.round(cm.width / cm.TS), rows = Math.round(cm.height / cm.TS);
@@ -8231,6 +8264,84 @@ function drawMapMarks(lensCtx, lensTS) {
       ctx.fillText(label, b.q.left * TS + 7, b.q.top * TS + 14);
     }
     ctx.restore();
+  }
+
+  /* One character's day, as the line they walk.
+
+     A schedule is posts, not a route: an hour and a square, and nothing in
+     between. What fills the gap is the engine's own mover -- walkingPosition
+     spends the first stretch of each interval walking the A* route to the
+     next post -- so the honest drawing is those routes end to end, which is
+     findPath over consecutive posts, with a dot and the hour at each post.
+
+     It is the WHOLE day and does not follow the clock. drawMapMarks is not
+     called from the animation loop, and setMapHour redraws the character and
+     lighting layers only, so an "at this hour" marker put here would be
+     stale the moment the slider moved. Where they are now is already drawn:
+     it is the inhabitant standing on the map.
+
+     Only posts on THIS level are joined. A character whose day crosses zones
+     leaves the map and comes back, and a line drawn across that gap would
+     claim a walk through places this map does not contain. */
+  let pathStops = 0, pathName = '';
+  if (M.path) {
+    const scheds = loadSchedules();
+    const who = window.MAP_PATH_WHO;
+    const mine = (who !== null && who !== undefined && scheds[who]) ? scheds[who] : [];
+    const here = mine.filter(e => e.mode !== 0 && e.level === cm.level).sort((a, b) => a.hour - b.hour);
+    if (here.length) {
+      const hourAmPm = h => h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
+      pathName = characterName(who);
+      pathStops = here.length;
+      const m = cm.m;
+      // findPath reads the blockers of whichever map was built last, and its
+      // cache is keyed on that, so this has to run before any route is asked
+      // for -- exactly as walkingPosition does it.
+      if (m) { try { buildPropBlockers(cm.resid, m); } catch (e) {} }
+      const legs = [];
+      if (here.length > 1) {
+        for (let i = 0; i < here.length; i++) {
+          const a = here[i], b = here[(i + 1) % here.length];
+          let leg = null;
+          if (m) { try { leg = findPath(m, a.x, a.y, b.x, b.y); } catch (e) { leg = null; } }
+          legs.push(leg && leg.length ? leg : [[a.x, a.y], [b.x, b.y]]);
+        }
+      }
+      ctx.save();
+      ctx.strokeStyle = colours.path;
+      ctx.lineWidth = Math.max(1.5, TS / 10);
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      for (const leg of legs) {
+        for (let i = 0; i < leg.length; i++) {
+          const px = leg[i][0] * TS + TS / 2, py = leg[i][1] * TS + TS / 2;
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+      // A dot on every post, and the hour beside it where the tiles are big
+      // enough to read one. One font for all of them, the World tab's lesson.
+      ctx.save();
+      ctx.font = canvasFace(Math.max(9, Math.min(13, Math.round(TS / 2.4))));
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      for (const e of here) {
+        const cx = e.x * TS + TS / 2, cy = e.y * TS + TS / 2;
+        ctx.fillStyle = colours.path;
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.max(2, TS / 5), 0, Math.PI * 2);
+        ctx.fill();
+        if (TS < 14) continue;
+        const label = hourAmPm(e.hour);
+        const tw = Math.round(ctx.measureText(label).width);
+        ctx.fillStyle = 'rgba(8,7,5,.72)';
+        ctx.fillRect(cx + TS / 4, cy - 12, tw + 8, 15);
+        ctx.fillStyle = colours.path;
+        ctx.fillText(label, cx + TS / 4 + 4, cy);
+      }
+      ctx.restore();
+    }
   }
 
   const counts = { doors: 0, secret: 0, chest: 0, exits: 0 };
@@ -8382,6 +8493,9 @@ function drawMapMarks(lensCtx, lensTS) {
     if (M.chest) chip('chest', 'containers');
     if (M.exits) chip('exits', (counts.exits === 1 ? 'zone exit' : 'zone exits') +
       (edges ? ' + ' + edges + (edges === 1 ? ' open edge' : ' open edges') : ''));
+    if (M.path && pathStops) parts.push('<span style="color:' + colours.path + '">— ' +
+      svEsc(pathName) + ', ' + pathStops + (pathStops === 1 ? ' post' : ' posts') +
+      ' on this map, joined by the route the engine would walk</span>');
     if (ropes) parts.push('<span style="color:#fff">‡ ' + ropes +
       (ropes === 1 ? ' needs a rope' : ' need a rope') + '</span>');
     if (itemSpots) parts.push('<span style="color:#fff">□ ' + itemSpots + ' × ' +
@@ -8604,7 +8718,16 @@ function tilePassable(tileId) {
 }
 const pathCache = new Map();
 function findPath(m, x0, y0, x1, y1) {
-  const key = x0+','+y0+','+x1+','+y1+','+m.width;
+  /* Keyed to the MAP as well as the endpoints. The key was the four
+     coordinates and the width, which is only safe while every caller happens
+     to be asking about the map whose blockers were built last: two maps of
+     equal width would otherwise hand each other's routes back, walked around
+     the wrong walls. PROP_BLOCK.key is `resid + ':' + m.width`, and it names
+     exactly the map this route was found through, because buildPropBlockers
+     always runs first. The cache itself is dropped with the archive, in
+     resetDerivedCaches, not with the map. */
+  const key = ((window.PROP_BLOCK && window.PROP_BLOCK.key) || '?') + ':' +
+              x0+','+y0+','+x1+','+y1+','+m.width;
   if (pathCache.has(key)) return pathCache.get(key);
   const straight = [[x0,y0],[x1,y1]];
   const W = m.width, H = m.height, N = W*H;
@@ -10532,6 +10655,7 @@ function renderMapResource(resid) {
     clearMapInspector();
     startMapAnimation();
     toggleRoofs(window.MAP_ROOFS);   // draws the layer and updates the note
+    refreshPathPicker();   // before the marks: the Path mark reads its choice
     drawMapMarks();
     buildCharacterLayer();
     setupMapViewportInteraction();

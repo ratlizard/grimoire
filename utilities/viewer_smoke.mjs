@@ -2196,6 +2196,82 @@ try {
   }
 } catch (e) { fail('rooms mark', e); }
 
+/* The Path mark: one character's day as a line, 13 September 2026, asked for
+   as "the path of someone over time of day according to their schedule".
+
+   Counted the way the rooms mark is, by wrapping a canvas primitive and
+   comparing off against on. The path draws one arc per post and the routes
+   between posts as a single stroked polyline, so arcs are the countable
+   thing and the line does not inflate the count.
+
+   Three guards, because each of them is a way this could pass while broken.
+   The mark must be off by default. The map opened must actually post
+   somebody, or "it drew something" proves nothing. And opening the map must
+   have chosen that somebody by itself: MAP_MARKS persists across maps, so a
+   picker left naming a character from another zone would draw a day that
+   does not belong to the map under it. */
+try {
+  const marks = peek('MAP_MARKS');
+  const before = { ...marks };
+  if (marks.path !== false) fail('path mark', 'the path mark is on by default: ' + JSON.stringify(marks));
+  else {
+    ctx.showCategory('127');
+    ctx.openResource(0x8003); drainRaf();            // Land King Hall
+    const who = ctx.MAP_PATH_WHO;
+    const cm = ctx.CUR_MAP || {};
+    const scheds = ctx.loadSchedules();
+    const posts = (who !== null && who !== undefined && scheds[who])
+      ? scheds[who].filter(e => e.mode !== 0 && e.level === cm.level).length : 0;
+    const mc = ctx.document.getElementById('markLayer');
+    const c2 = mc && mc.getContext && mc.getContext('2d');
+    const realArc = c2 && c2.arc;
+    let drew = 0;
+    if (c2 && realArc) c2.arc = function () { drew++; return realArc.apply(this, arguments); };
+    ctx.drawMapMarks();
+    const off = drew;
+    ctx.toggleMapMarks('path', true);
+    const on = drew - off;
+    ctx.toggleMapMarks('path', false);
+    if (c2 && realArc) c2.arc = realArc;
+    Object.assign(marks, before);
+    if (who === null || who === undefined) fail('path mark', 'opening the map chose nobody to follow, so the picker never filled');
+    else if (!posts) fail('path mark', 'the character the picker chose keeps no posts on this map, so this proves nothing');
+    else if (off !== 0) fail('path mark', off + ' dots drawn with the mark off');
+    else if (on < posts) fail('path mark', 'the mark drew ' + on + ' dots for ' + posts + ' posts');
+    else console.log(`  path mark: ${ctx.characterName(who)}'s day on Land King Hall, ${posts} posts, ${off} dots off and ${on} on`);
+  }
+} catch (e) { fail('path mark', e); }
+
+/* A route belongs to the map it was found through, 13 September 2026.
+
+   findPath's cache key was the endpoints and the map's width. Two maps of
+   equal width share that, so the second was handed the first's route --
+   walked around walls it does not have -- and the cache is only dropped with
+   the archive, not with the map. The key carries PROP_BLOCK's key now, which
+   names the resource the blockers were built from.
+
+   The control is the case that used to collide: the same map and the same
+   endpoints under two different blocker sets must not be answered with the
+   same array. On the old key they were the identical object, which is what
+   makes this a real negative control rather than a restatement. */
+try {
+  ctx.showCategory('127');
+  ctx.openResource(0x8003); drainRaf();
+  const m = (ctx.CUR_MAP || {}).m;
+  if (!m) fail('route cache', 'no map is open, so nothing can be routed');
+  else {
+    const keep = ctx.PROP_BLOCK;
+    ctx.PROP_BLOCK = { key: 'mapA:' + m.width, set: new Set(), doors: new Map() };
+    const a = ctx.findPath(m, 2, 2, 9, 9);
+    ctx.PROP_BLOCK = { key: 'mapB:' + m.width, set: new Set(), doors: new Map() };
+    const b = ctx.findPath(m, 2, 2, 9, 9);
+    ctx.PROP_BLOCK = keep;
+    if (!a || !b) fail('route cache', 'no route came back');
+    else if (a === b) fail('route cache', 'two maps were handed the same cached route: the key has lost the map');
+    else console.log(`  route cache: a route is keyed to the map it was found through, ${a.length} squares`);
+  }
+} catch (e) { fail('route cache', e); }
+
 /* Who answers as whom, 12 September 2026. The thing that can go quietly wrong
    here is conflating the two relationships a conversation has with a group:
    INHERITANCE through the catch-all (dvmConversation's `groups`), and a call
