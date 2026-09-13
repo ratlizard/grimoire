@@ -5720,6 +5720,8 @@ function resetDerivedCaches() {
   window.SCRIPT_TEXT = null;
   window.BARKS = null;
   window.CONV_CACHE = null;
+  window.CONV_RULES = null;
+  window.LIBRARY_RULES = null;
   window.MONSTER_STATS = null;
   window.MECH_WEAPONS = null;
   window.RESOURCE_SYMBOLS = null;
@@ -13695,7 +13697,7 @@ function askOneShape(shape, hit) {
           for (const d of fx.damage) rows.push(askRow('damage', '<b>' + (amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.who));
           for (const h of fx.heals) rows.push(askRow('heals', '<b>' + svEsc(h.text) + '</b>'));
         }
-        return askCard(sp.name, svEsc(dvmDescriptionOf(sp.resid) || ''), rows, partChip(sp.name, sp.resid) + mechLink('spells', 'Mechanics › spells'));
+        return askCard(sp.name, svEsc(dvmDescriptionOf(sp.resid) || ''), rows, partChip(sp.name, sp.resid) + tabLink('SPELLS', 'Spells'));
       }
       const sk = skillCatalogue().find(x => like(x.name));
       if (sk) return askCard(sk.name, svEsc(sk.description || ''),
@@ -16435,6 +16437,9 @@ function renderSkillsSheet() {
   const shown = all.filter(x => !q || x.name.toLowerCase().includes(q) || x.description.toLowerCase().includes(q));
   const box = document.createElement('div');
   box.className = 'mechView';
+  // What a script asks about a skill, above the skills it asks about. This
+  // was a section of the Mechanics sheet until 13 September 2026.
+  try { box.appendChild(skillsMechSection()); } catch (e) {}
   const kinds = [['attribute', 'Attributes', 'The four figures every character has a number for.'],
                  ['weapon', 'Weapon skills', 'One per kind of weapon; the skill goes on the blow’s margin and its damage.'],
                  ['special', 'Special skills', 'Learned from a teacher and asked about by the scripts that need them.'],
@@ -16468,7 +16473,7 @@ function renderSkillsSheet() {
         if (x.askedBy.length) rows.push(['Asked about by', x.askedBy.map(r => svChip(r)).join(' ')]);
         if (x.weapons.length) rows.push(['Swung with it', x.weapons.map(w => propChip(w.pt, w.name)).join(' ')]);
         const rule = SKILL_RULES[x.name];
-        rows.push(['The rule', (rule ? mechLink(rule, 'Mechanics › ' + rule) + ' ' : '') + mechLink('training', 'Mechanics › training')]);
+        rows.push(['The rule', (rule ? ruleLink(rule) + ' ' : '') + mechLink('training', 'Mechanics › training')]);
       }
       if (rows.length) {
         const d = document.createElement('div'); d.className = 'mechBody';
@@ -16564,8 +16569,11 @@ function renderSpellsSheet() {
   const box = document.createElement('div');
   box.className = 'mechView';
   const intro = document.createElement('p'); intro.className = 'mechLede';
-  intro.innerHTML = spells.length + ' spells, each cast through one helper with a level and a cost in magic points. A cast ' + (sp.rule && sp.rule.timing ? 'costs ' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level in time and ' : '') + 'fails when two rolls of 0 to the caster’s Casting fall short of a roll of 0 to the level ' + mechLink('spells', 'Mechanics › spells') + '.';
+  intro.innerHTML = spells.length + ' spells, each cast through one helper with a level and a cost in magic points. A cast ' + (sp.rule && sp.rule.timing ? 'costs ' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level in time and ' : '') + 'fails when two rolls of 0 to the caster’s Casting fall short of a roll of 0 to the level ' + cardLink('spells', 'the rules above') + '.';
   box.appendChild(intro);
+  // How a cast works, above the spells it works on. This was a section of the
+  // Mechanics sheet until 13 September 2026.
+  try { box.appendChild(spellsMechSection()); } catch (e) {}
   let level = null, count = 0;
   for (const x of shown) {
     if (x.level !== level) { level = x.level; const h = document.createElement('div'); h.className = 'propHead'; h.innerHTML = 'Level ' + level; box.appendChild(h); }
@@ -16618,11 +16626,14 @@ function renderBarksSheet() {
   scroll.innerHTML = rows.length
     ? '<table class="vocabTable barkTable"><thead><tr><th>who</th><th>says</th><th>where</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>'
     : '<div class="changesNote">' + (barks.length ? 'Nothing matches the filter.' : 'No script in this archive sets a talk balloon.') + '</div>';
+  // How a balloon works, above the lines themselves. This was a section of
+  // the Mechanics sheet until 13 September 2026.
+  mechCardAboveGallery(grid, balloonsMechSection);
   grid.appendChild(scroll);
   const distinct = new Set(barks.flatMap(b => b.words.concat(b.then || []))).size;
   out.textContent = barks.length
     ? barks.length + ' places in the scripts put a line over a character’s head, ' + distinct + ' distinct lines' +
-      (q ? '; ' + shown.length + ' shown' : '') + '. How the balloon works is under Scenario › Mechanics.'
+      (q ? '; ' + shown.length + ' shown' : '') + '. How the balloon works is in the card above.'
     : 'No script in this archive sets a talk balloon.';
 }
 
@@ -18007,6 +18018,10 @@ function eggKinds() {
    and the Wine Contract is handed over by Apis, so all four read as
    unreachable until `sys Create` was counted as a second source. */
 function libraryRules() {
+  // Memoised: Loose ends and the Writings sheet both read this, and it is a
+  // walk over every item class, every prop list and every script. A gallery
+  // redraws far more often than the Mechanics sheet ever did.
+  if (window.LIBRARY_RULES) return window.LIBRARY_RULES;
   const docs = new Map();
   const want = new Map();
   const sent = new Map();
@@ -18099,7 +18114,7 @@ function libraryRules() {
       !d.readers.some(r => (sent.get(r.pt) || new Set()).has(k))).sort((a, b) => a - b);
     d.shownCount = d.entries.length - d.unshown.length;
   }
-  return [...docs.values()].sort((a, b) => a.resid - b.resid);
+  return window.LIBRARY_RULES = [...docs.values()].sort((a, b) => a.resid - b.resid);
 }
 
 /* LOOSE ENDS. Things the scenario's own scripts get wrong, each read off
@@ -18551,6 +18566,9 @@ function riddleRules() {
    and 0x814 are stubs of 14 and 11 bytes. They are labelled as such rather
    than shown as groups with nothing in them. */
 function convRules() {
+  // Memoised for the same reason as libraryRules: the Dialogue gallery shows
+  // this card, and building it walks all 256 conversation resources.
+  if (window.CONV_RULES) return window.CONV_RULES;
   const chars = [];
   for (let rid = 0x1800; rid <= 0x18FF; rid++) {
     if (!refExists(rid)) continue;
@@ -18586,7 +18604,7 @@ function convRules() {
     if (!shapes.has(key)) shapes.set(key, []);
     shapes.get(key).push(ch);
   }
-  return { chars, groups, gname,
+  return window.CONV_RULES = { chars, groups, gname,
            shapes: [...shapes.entries()].map(([k, who]) => ({ shape: k, who }))
                      .sort((a, b) => b.who.length - a.who.length) };
 }
@@ -20003,48 +20021,8 @@ function renderMechanicsSheet() {
     table(['byte', 'read by', 'written by'], ['data1', 'data2', 'data3'].map(k => { const b = pwByByte(k); return b.r.length || b.w.length
       ? '<tr><td>' + k.replace('data', 'Data') + '</td><td>' + b.r.map(x => svLink(pwName(x.pt), 'jumpToResource(' + x.resid + ')')).join(', ') + '</td><td>' + b.w.map(x => svLink(pwName(x.pt), 'jumpToResource(' + x.resid + ')')).join(', ') + '</td></tr>' : ''; })), '');
 
-  // ---- spells ----
-  const sp = spellRules();
-  const fxMap = sp.spells.length ? spellEffects() : new Map();
-  const doesCell = x => {
-    const fx = fxMap.get(x.resid);
-    if (!fx) return '';
-    const bits = [];
-    for (const d of fx.damage) bits.push('<b>' + srcNum({ resid: x.resid, at: d.at }, amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) + ' <span class="inspDim">(type ' + d.type + ')</span>' : '') + ' to ' + d.who);
-    for (const hh of fx.heals) bits.push('<b>' + srcNum({ resid: x.resid, at: hh.at }, hh.text) + '</b>');
-    return bits.join('<br>');
-  };
-  const fireball = sp.spells.find(x => /^Fireball$/.test(x.name));
-  const fbFx = fireball && fxMap.get(fireball.resid);
-  add('spells', 'Spells', null, src('the casting', 0xEA1) + src('a hit', 0xEB8),
-    sp.spells.length ? sp.spells.length + ' spells, each cast through one helper with a level and a cost in magic points, read off the spell’s own call; what each does to health is read off its own script.' : 'No spell in this archive casts through the helper.',
-    sp.spells.length ? [
-      sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
-      sp.rule && sp.rule.timing ? 'The cost is taken, and the cast costs <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The cost is taken.',
-      sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls under the caster’s Casting figure together fall short of a roll under the level</b>' + (sp.rule.casting ? ' (Casting the skill, else a class figure)' : '') + '. Both are <i>Random</i> calls and so stop one short, which means a <b>level 1 spell can never fail</b>.' : '',
-      'Damage goes through the same helper as a blow: the victim’s resistance takes the type first, and the caster earns experience by the usual rule.',
-      fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn to a radius of five and the script walks everyone inside it, but the damage call runs for the one on the target square alone; the spell’s own description says it engulfs all within.' : '',
-      (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) {} return ms.length ? 'Damage without the magic bit, fire, electric, blunt, edged, is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
-      'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the application’s enemy iterator). Tremor shakes the screen and hurts enemies you cannot see.',
-      (function () {
-        const et = appImage() ? exeEnemyTable() : null;
-        if (!et || !et.alignmentByte || !et.enemy) return '';
-        const rows = [];
-        for (let a = 0; a < et.side; a++) rows.push(a + ': ' + et.table.v.slice(a * et.side, (a + 1) * et.side).join(' '));
-        return 'The enemy iterator looks each character up in the application’s ' + srcNum(et.table, et.side + '×' + et.side) + ' table, the row by the caster’s alignment (byte ' + srcNum(et.alignmentByte) + ' of the record) and the column by the character’s, and takes those whose entry is ' + srcNum(et.enemy) + '. By row: <b>' + rows.join('; ') + '</b>.' +
-          (et.peace ? ' A byte tested first makes every entry ' + srcNum(et.peace) + (et.peaceKey ? '; a cheat key flips it (' + srcNum(et.peaceKey) + ')' : '') + '.' : '');
-      })(),
-      'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune, or the map.',
-      (function () {
-        let t = [];
-        try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
-        if (!t.length) return '';
-        const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: their target word carries within reach, which is the eight squares around the caster. The rest reach anywhere the pointer does. ' + mechLink('target', 'What a use can be aimed at') : '';
-      })()
-    ].filter(Boolean) : [],
-    mechSpellFigures(sp) +
-    table(['spell', '#level', '#cost', 'does'], sp.spells.map(x => '<tr><td>' + partChip(x.name, x.resid) + '</td>' + srcCell(x.levelVal) + srcCell(x.costVal) + '<td>' + doesCell(x) + '</td></tr>')), '');
+  // The spells are on the Spells sheet now (spellsMechSection in
+  // js/delv-sheets.js), above the spells themselves.
 
   // ---- what a use can be aimed at ----
   {
@@ -20070,13 +20048,8 @@ function renderMechanicsSheet() {
       appImage() ? '<span class="partsTitle">In the executable</span>' + pefChip('TDroppableWindow::NeedsTarget') + pefChip('TDroppableWindow::CanSearch') + pefChip('TGameSys::WalkToLocation') : '');
   }
 
-  // ---- skills ----
-  const sk = skillConsultations();
-  add('skills', 'What each skill is asked about', null, '',
-    sk.by.size ? 'Where a script asks whether the player has a skill, and which.' + (sk.generic ? ' ' + sk.generic + ' further checks are in helpers that test whichever skill they are handed.' : '') : 'No script in this archive asks about a skill by name.',
-    [], mechSkillsFigure(sk) + table(['skill', 'asked about by'], [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
-      '<tr><td>' + (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16).toUpperCase()), 0x1A00 + id) : 'skill 0x' + id.toString(16).toUpperCase()) +
-      '</td><td>' + [...resids].sort((a, b) => a - b).map(r => svChip(r)).join(' ') + '</td></tr>')), '');
+  // What each skill is asked about is on the Skills sheet now
+  // (skillsMechSection in js/delv-sheets.js), beside the skills.
 
   // ---- experience and levels ----
   const xp = experienceRules();
@@ -20223,17 +20196,8 @@ function renderMechanicsSheet() {
     table(['teacher', 'teaches'], tr.teachers.map(t => '<tr><td>' + (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + '</td><td>' +
       [...t.skills.entries()].sort((a, b) => a[0] - b[0]).map(([id, m]) => (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16)), 0x1A00 + id) : 'skill 0x' + id.toString(16)) + (m ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') + '</td></tr>')), '');
 
-  // ---- talk balloons ----
-  const barks = buildBarkCatalogue();
-  const bark = appImage() ? exeBarkRules() : null;
-  add('balloons', 'Talk balloons', null, '',
-    'The short lines over a character’s head are a field on the character that a script writes a string into. ' +
-      (bark && bark.ticks && bark.width ? 'The application draws it in a ' + srcNum(bark.width) + '×' + srcNum(bark.height) + ' rounded balloon with a tail and takes it down <b>' + (bark.ticks.v / 60) + ' seconds</b> later: the routine that puts it up returns the tick count plus ' + srcNum(bark.ticks) + ', a tick being a sixtieth of a second, and the one that shows the balloons each frame removes it once the tick count reaches that.'
-        : 'The application draws it and takes it down again. ' + noApp),
-    ['A line is a literal, or one picked at random from a list.', 'Two tavern helpers take a list of shouts and a list of replies for when the food or wine comes.',
-     barks.length ? barks.length + ' places in this archive’s scripts set one; the words are under Text › Barks.' : 'No script in this archive sets one.'],
-    mechBalloonFigure(barks, bark), '<span class="partsTitle">The words</span><button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>' +
-      (bark ? '<span class="partsTitle" style="margin-left:8px">In the executable</span>' + pefChip('TBark::SetBark') + pefChip('TActiveMonster::ShowBarks') : ''));
+  // The talk balloons are on the Barks sheet now (balloonsMechSection
+  // in js/delv-sheets.js), above the words themselves.
 
   // ---- sleep ----
   const sl = sleepRules();
@@ -20254,6 +20218,11 @@ function renderMechanicsSheet() {
   // ---- the clock ----
   {
     const costs = appImage() ? exeActionCosts() : [];
+    // What a cast spends in time, for the rule below. The spells card moved
+    // to the Spells sheet on 13 September 2026 and took its `sp` with it,
+    // but the clock still states the cost, so it reads the casting rule for
+    // itself; spellRules walks the memoised script-text index.
+    const sp = spellRules();
     // A routine's name in two halves, the method and its class; the
     // arguments only where the class has two of the method.
     const nameHalves = r => {
@@ -20399,35 +20368,11 @@ function renderMechanicsSheet() {
       '<span class="partsTitle">On the map</span>' + svLink('World', "showCategory('WORLD')"));
   }
 
-  // ---- the game's own writing ----
-  // Both this card and Loose ends want these, and each is a walk over every
-  // item class, every prop list and every script, so they are read once.
+  // The game's own writing is on the Writings sheet now
+  // (libraryMechSection in js/delv-sheets.js), above the arrays it
+  // tabulates. Loose ends still reads both of these; both memoise.
   const libAll = libraryRules();
   const todoAll = todoRules();
-  {
-    const lib = libAll;
-    const rows = lib ? lib.map(d => {
-      const who = d.readers.map(r => srcNum({ v: '', resid: r.resid, at: r.at }, r.name + (r.field === 'd2' ? ' (Data2)' : ''))).join(', ');
-      return '<tr>' + num(d.entries.length) + '<td>' + partChip('0x' + d.resid.toString(16).toUpperCase(), d.resid) + '</td>' +
-        '<td>' + who + '</td>' + num(d.shownCount) + num(d.unshown.length) + '</tr>';
-    }) : [];
-    const unshown = lib ? lib.reduce((a, d) => a.concat(d.unshown.map(e => ({ d, e }))), []) : [];
-    const dangling = lib ? lib.reduce((a, d) => a.concat(d.dangling.map(k => ({ d, k }))), []) : [];
-    const passages = lib ? lib.reduce((n, d) => n + d.entries.length, 0) : 0;
-    add('library', 'The game’s own writing', null, '',
-      lib ? 'The books on Cythera’s shelves, the prophecies, the scrolls and letters, the signs and the gravestones. Each passage is one entry of a text array, and a thing in the world shows it: the class hands the helper the array plus its own Data1, so a bookshelf’s Data1 is which book stands on it. Every pairing below is read off the class that makes it.'
-          : 'No class in this archive reads a document.',
-      lib ? [
-        '<b>' + passages + ' passages</b> across <b>' + lib.length + ' arrays</b>, shown by ' + [...new Set(lib.flatMap(d => d.readers.map(r => r.name)))].join(', ') + '.',
-        unshown.length ? '<b>' + unshown.length + ' are shown by nothing</b>: no placed prop and no script points at them. Written, and not readable in play.' : '',
-        dangling.length ? '<b>' + dangling.length + '</b> point the other way: a thing in the world whose Data1 has no passage behind it.' : ''
-      ].filter(Boolean) : [],
-      table(['#passages', 'array', 'shown by', '#shown', '#not shown'], rows) +
-      (unshown.length ? '<div class="partsTitle">Written, never shown</div>' +
-        table(['array', '#no.', 'the passage'], unshown.map(u =>
-          '<tr><td>' + propWordHex(u.d.resid) + '</td>' + num(u.e.index) +
-          '<td>' + svEsc(String(u.e.str).replace(/\s+/g, ' ').trim().slice(0, 120)) + '</td></tr>')) : ''));
-  }
 
   // ---- loose ends ----
   {
@@ -20588,34 +20533,8 @@ function renderMechanicsSheet() {
       html);
   }
 
-  // ---- who answers as whom ----
-  {
-    const cv = convRules();
-    const real = cv.groups.filter(g => g.kind === 'group');
-    const others = cv.groups.filter(g => g.kind !== 'group');
-    const alone = cv.shapes.find(s => s.shape === '');
-    const topics = cv.chars.reduce((n, c) => n + c.topics, 0);
-    const deeper = cv.chars.reduce((n, c) => n + c.deeper, 0);
-    const groupRows = real.sort((a, b) => b.inherited - a.inherited).map(g =>
-      '<tr><td>' + svChip(g.rid, g.name || '') + '</td>' + num(g.topics) + num(g.inherited) +
-      '<td class="mechSub">' + (g.called ? 'called from a topic by ' + g.called : '') + '</td></tr>');
-    const shapeRows = cv.shapes.filter(s => s.shape).map(s =>
-      '<tr>' + num(s.who.length) + '<td>' + svEsc(s.shape) + '</td>' +
-      '<td class="mechSub">' + svEsc(s.who.slice(0, 5).map(c => c.name).join(', ') +
-        (s.who.length > 5 ? ', and ' + (s.who.length - 5) + ' more' : '')) + '</td></tr>');
-    add('talk', 'Who answers as whom', null, '',
-      cv.chars.length ? 'A character answers with their own topics and then falls through to a generic set: Naxos answers as House Comana, then as Cademia, then as Human. The chain is read out of the catch-all entry of each conversation, and the groups are the archive’s own.'
-                      : 'No conversation in this archive.',
-      cv.chars.length ? [
-        '<b>' + cv.chars.length + ' characters</b> hold <b>' + topics + ' topics</b> between them, of which <b>' + deeper + '</b> open further topics of their own.',
-        '<b>' + real.length + ' groups</b> are inherited. The deepest chains are four long, and most of the cast is a House, then a city, then Human.',
-        alone ? '<b>' + alone.who.length + ' answer as nobody but themselves</b>: ' + svEsc(alone.who.map(c => c.name).join(', ')) + '.' : '',
-        others.length ? 'Not every 0x8xx resource is a group: ' + others.map(g => svChip(g.rid, (g.name || propWordHex(g.rid)) + ', ' + g.kind)).join(' ') : ''
-      ].filter(Boolean) : [],
-      table(['group', '#topics', '#inherit it', ''], groupRows) +
-      '<div class="partsTitle">The chains</div>' +
-      table(['#how many', 'answers as', 'who'], shapeRows));
-  }
+  // Who answers as whom is on the Dialogue sheet now (talkMechSection
+  // in js/delv-sheets.js), above the conversations themselves.
 
   // ---- what the scripts lean on ----
   {
@@ -20658,8 +20577,8 @@ function renderMechanicsSheet() {
      section by its own element id when a number was followed out of it, and
      a section reopened inside a shut group would be restored invisibly.
 
-     A section's id never changes here. Eleven mechLink call sites and the
-     ten ids in SKILL_RULES name sections directly, and mechGo resolves
+     A section's id never changes here. The mechLink call sites and the ids
+     in SKILL_RULES name sections directly, and mechGo resolves
      `mech-<id>`, so grouping wraps sections and renames nothing. A section
      this table does not mention still appears, under Other, rather than
      vanishing from the sheet because a name was forgotten. */
@@ -24518,6 +24437,14 @@ function renderContactSheet() {
   grid.innerHTML = '';
   grid.classList.toggle('landscapeGrid', window.CUR_SUBN === 131);
   const subn = window.CUR_SUBN;
+  /* Two galleries carry a rules card above the tiles, which is where the
+     rule and the thing it describes finally sit together: the game's own
+     writing over the text arrays (Writings, subindex 1) and who answers as
+     whom over the conversations (Dialogue, 23). The grid is cleared once at
+     the top of this function and never again, so a card put in here survives
+     whichever branch below draws the tiles. */
+  if (subn === 1) mechCardAboveGallery(grid, libraryMechSection);
+  else if (subn === 23) mechCardAboveGallery(grid, talkMechSection);
   const resids = window.CUR_RESIDS || [];
   const isText = (subn === 0 || subn === 1 || subn === 128 || subn === 239 || (!CANONICAL_SIZE[subn] && !HAS_HEADER[subn] && !UNCOMPRESSED[subn] && !SOUND_CATEGORIES.has(subn)));
   let okCount = 0;   // the map/sound/text galleries below still tally directly

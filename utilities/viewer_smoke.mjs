@@ -1522,7 +1522,11 @@ try {
     // (subindex 137, icon n for class 0x1A00|n) in its summary where the
     // file has one -- twelve of the skills do, every spell does -- and a
     // teacher is cited by portrait, not sprite.
-    const folds = (function count(el) { return ((el.tagName || '').toUpperCase() === 'DETAILS' && /\bmechSec\b/.test(el.className || '') ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
+    // Counted by `skillCard`, not `mechSec`: since 13 September 2026 the
+    // sheet also carries the moved "what each skill is asked about" card,
+    // which is a bare mechSec, and counting those would make this the number
+    // of skills plus one for as long as anything else is ever added here.
+    const folds = (function count(el) { return ((el.tagName || '').toUpperCase() === 'DETAILS' && /\bskillCard\b/.test(el.className || '') ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
     const icons = (skhtml.match(/class="skillIcon"/g) || []).length;
     if (folds !== skills.filter(x => x.kind !== 'command').length || icons < 10 || !/relFace/.test(skhtml)) fail('skills', `not folding cards with icons and portraits: ${folds} of ${skills.length} fold, ${icons} icons, portrait ${/relFace/.test(skhtml)}`);
     else console.log(`  skills: ${skills.length} in the block, ${skills.filter(x => x.kind !== 'command').length} skills and ${skills.filter(x => x.kind === 'command').length} commands, each a folding card; ${icons} wear the game's icon`);
@@ -1656,7 +1660,9 @@ try {
   if (barks.length < 40 || missing.length) fail('mechanics', `${barks.length} balloon sites; missing ${missing.join(', ') || 'nothing'}`);
   else if (!dice || dice.wins !== 96 || dice.pushes !== 50 || dice.losses !== 70) fail('mechanics', 'the dice enumeration is not 96/50/70: ' + JSON.stringify(dice && [dice.wins, dice.pushes, dice.losses]));
   else if (!/win (?:<button[^>]*>)?2(?:<\/button>)? oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
-  else if (!/resists non-magical weapons: [^<]*lich/.test(html)) fail('mechanics', 'the spells section does not name the monsters immune to non-magical damage')
+  // The spells card moved to the Spells sheet on 13 September 2026; sphtml
+  // is that sheet, captured above.
+  else if (!/resists non-magical weapons: [^<]*lich/.test(sphtml)) fail('mechanics', 'the spells card does not name the monsters immune to non-magical damage')
   else if (!/Prop records: type, aspect, Data1 and Data2/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/hand it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
   else if (mechSecs < 15) fail('mechanics', `the sections are missing: ${mechSecs} sections`);
   // No application in this run, so none of its figures: the clock, the
@@ -1871,8 +1877,17 @@ try {
    string and the truncation are pinned. */
 try {
   const lib = ctx.libraryRules(), le = ctx.looseEnds(), pz = ctx.puzzleRules();
+  const walkGrid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   ctx.showCategory('MECHANICS');
-  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const html = walkGrid();
+  /* The library card moved to the Writings gallery on 13 September 2026, so
+     it is read from there rather than off the Mechanics sheet. Loose ends
+     below is still on Mechanics, and `html` is a captured string by now, so
+     rendering a second gallery here does not disturb it. REGISTRY cannot
+     stand in for either: it is one Map for the whole run and never clears,
+     so a card it has seen once looks present forever. */
+  ctx.showCategory('1');
+  const libHtml = walkGrid();
   const unshown = lib ? lib.reduce((a, d) => a.concat(d.unshown.map(e => String(e.str))), []) : [];
   const said = unshown.join(' ~~ ');
   const passages = lib ? lib.reduce((n, d) => n + d.entries.length, 0) : 0;
@@ -1887,7 +1902,8 @@ try {
   else if (!unshown.length) fail('library', 'nothing is unshown, so the second and third sources are over-counting');
   else if (/Sapphire Book of Mercy|Sapphire Book of Beauty|Sapphire Book of Foundation/.test(said)) fail('library', 'a script-given Sapphire volume is listed as never shown: sys Create is not being counted');
   else if (/Wine Contract/.test(said)) fail('library', 'the Wine Contract is listed as never shown, but Apis hands it over');
-  else if (!/The game’s own writing/.test(html)) fail('library', 'the sheet does not state the library');
+  else if (!/The game’s own writing/.test(libHtml)) fail('library', 'the Writings gallery does not carry the library card');
+  else if (/The game’s own writing/.test(html)) fail('library', 'the library card is still on the Mechanics sheet, so the move is half done');
   else if (!le.unreachable.length) fail('loose', 'no unsatisfiable comparison was found, and the murder thread has one');
   else if (!/Loose ends/.test(html)) fail('loose', 'the sheet does not state the loose ends');
   else if (!bu || !bu.arrays || bu.arrays.length !== 7) fail('puzzles', 'the button tables were misread: ' + JSON.stringify(bu && bu.arrays && bu.arrays.length));
@@ -2204,8 +2220,15 @@ try {
   const thra = cv.chars.find(c => /Thrasymedes/i.test(c.name));
   const bartender = cv.groups.find(g => g.rid === 0x812);
   const notGroups = cv.groups.filter(g => g.kind !== 'group').map(g => g.rid);
+  const walkGrid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  /* The chains card moved to the Dialogue gallery on 13 September 2026, so
+     both sheets are walked: the gallery must carry it and Mechanics must no
+     longer. Nothing else in this block reads the sheet -- the assertions
+     above it are all about the reader -- so the capture moves wholesale. */
   ctx.showCategory('MECHANICS');
-  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const mechHtml = walkGrid();
+  ctx.showCategory('23');
+  const html = walkGrid();
   if (cv.chars.length < 100 || topics < 1200) fail('talk', `${cv.chars.length} characters and ${topics} topics`);
   else if (!naxos || JSON.stringify(naxos.chain) !== JSON.stringify([0x804, 0x80E, 0x801]))
     fail('talk', 'Naxos is ' + JSON.stringify(naxos && naxos.chain) + ', expected House Comana, Cademia, Human');
@@ -2218,7 +2241,8 @@ try {
     fail('talk', 'Protesilaus now inherits Student; the archive did not give him it, so check what changed');
   else if (!thra || thra.chain.indexOf(0x810) < 0)
     fail('talk', 'Thrasymedes lost the Student group, so the chain reading is wrong');
-  else if (!/Who answers as whom/.test(html)) fail('talk', 'the sheet does not state the chains');
+  else if (!/Who answers as whom/.test(html)) fail('talk', 'the Dialogue gallery does not carry the chains card');
+  else if (/Who answers as whom/.test(mechHtml)) fail('talk', 'the chains card is still on the Mechanics sheet, so the move is half done');
   else console.log(`  talk: ${cv.chars.length} characters, ${topics} topics, ${real.length} groups inherited; Human by ${(real.find(g => g.rid === 0x801) || {}).inherited}, Bartender by none but called by ${bartender.called}`);
 } catch (e) { fail('talk', e); }
 
@@ -2266,6 +2290,12 @@ try {
 try {
   ctx.showCategory('MECHANICS');
   const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  /* A spell's cost is on the Spells sheet since 13 September 2026, so that
+     one figure is looked for there rather than on Mechanics. `html` above is
+     already a captured string, so rendering a second sheet here costs it
+     nothing. */
+  ctx.showCategory('SPELLS');
+  const sphtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const link = (resid, at) => new RegExp('jumpToScriptAt\\(' + resid + ',' + at + '\\)');
   const xp = ctx.experienceRules().rule, lk = ctx.lockRules().rule, sh = ctx.shopRules(), cb = ctx.combatRules(), sl = ctx.sleepRules(), tr = ctx.trainingRules().points;
   const unlinked = [
@@ -2277,8 +2307,10 @@ try {
     ['a blow word threshold', cb && cb.words[0] && link(0xE87, cb.words[0].val.at)],
     ['the bed divisor', sl && sl.div && link(0xE93, sl.div.at)],
     ['mastery', tr.masteryVal && link(0xEAF, tr.masteryVal.at)],
-    ['a spell’s cost', (function () { const f = ctx.spellRules().spells.find(x => x.name === 'Fireball'); return f && f.costVal && link(f.resid, f.costVal.at); })()]
-  ].filter(([, re]) => !re || !re.test(html)).map(([what]) => what);
+    ['a spell’s cost', (function () { const f = ctx.spellRules().spells.find(x => x.name === 'Fireball'); return f && f.costVal && link(f.resid, f.costVal.at); })(), sphtml]
+    // A third element says which sheet the figure is on; the rest are on
+    // Mechanics, which stays the default.
+  ].filter(([, re, where]) => !re || !re.test(where || html)).map(([what]) => what);
   // The names that stayed are the ones the file does not give.
   const names = peek('PROP_TYPE_NAMES'), chars = peek('CYTHERA_CHARACTERS'), zones = peek('ZONES');
   const tiles = ctx.getPropTileList();
@@ -2404,9 +2436,13 @@ try {
    which is deliberate -- better there than vanished -- but Other is meant to
    be a holding pen, not a habit.
 
-   The ids are also the link targets: eleven mechLink call sites and the ids
-   in SKILL_RULES name sections directly and mechGo resolves `mech-<id>`, so
-   grouping must never rename one. That is what the last check here is for. */
+   The ids are also the link targets: the mechLink call sites and the ids in
+   SKILL_RULES name sections directly and mechGo resolves `mech-<id>`, so
+   grouping must never rename one. That is what the last check here is for.
+
+   A section that LEAVES the sheet has to leave this list with it. `spells`
+   went to the Spells sheet on 13 September 2026 and is reached by tabLink
+   and cardLink now, not by mechLink, so it is no longer named here. */
 try {
   const groups = peek('MECH_GROUPS');
   ctx.showCategory('MECHANICS');
@@ -2426,12 +2462,53 @@ try {
   else if (!/Hackery/.test(html)) fail('mechanics groups', 'the sheet does not show the group headings');
   // Every link target must still be a section on the sheet.
   else {
-    const targets = ['damage', 'status', 'target', 'shops', 'spells', 'combat', 'training'];
+    const targets = ['damage', 'status', 'target', 'shops', 'combat', 'training'];
     const lost = targets.filter(t => !REGISTRY.has('mech-' + t));
     if (lost.length) fail('mechanics groups', 'a mechLink target is no longer a section: ' + lost.join(', '));
     else console.log(`  mechanics groups: ${groups.length} groups over ${named.length} sections, ${targets.length} link targets intact`);
   }
 } catch (e) { fail('mechanics groups', e); }
+
+/* The sections that left the Mechanics sheet, 13 September 2026.
+
+   A move is only real when the card is on its new sheet AND gone from the
+   old one. A builder still called from both would look perfectly right on
+   either sheet examined alone, which is the failure this pin exists for.
+
+   Two guards, because the absence half is the easy one to make vacuous.
+   showCategory returns false and leaves the previous sheet standing when the
+   tab is not there, so an unopened tab would silently compare the wrong
+   HTML twice; and if the Mechanics sheet throws, the walk returns '' and
+   every "no longer on Mechanics" test passes against an empty string. The
+   tab returns are checked, and Hackery -- a group heading that stayed -- has
+   to be present before any absence is believed.
+
+   REGISTRY is no use here: it is one Map for the whole run and never clears,
+   so a card it has seen once looks present on every sheet rendered after.
+   The library and talk cards are pinned in their own blocks above, where the
+   readers they need are already built. */
+try {
+  const walkGrid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const opened = [];
+  const go = v => { opened.push([v, ctx.showCategory(v)]); return walkGrid(); };
+  const mech = go('MECHANICS'), skills = go('SKILLS'), spells = go('SPELLS'), barks = go('BARKS');
+  const refused = opened.filter(([, r]) => r === false).map(([v]) => v);
+  // The lede of each card, distinctive enough not to match the sheet it now
+  // sits on: the Spells sheet says "spells" in every other line, so that one
+  // is pinned on a phrase only the card uses.
+  const moved = [
+    ['skills', 'What each skill is asked about', skills, 'the Skills sheet'],
+    ['spells', 'read off the spell’s own call', spells, 'the Spells sheet'],
+    ['balloons', 'Talk balloons', barks, 'the Barks sheet'],
+  ];
+  const gone = moved.filter(([, title, html]) => !html.includes(title));
+  const lingering = moved.filter(([, title]) => mech.includes(title));
+  if (refused.length) fail('section moves', 'a tab would not open, so the sheets compared are not the ones named: ' + refused.join(', '));
+  else if (!/Hackery/.test(mech)) fail('section moves', 'the Mechanics sheet did not render, so the absence checks prove nothing');
+  else if (gone.length) fail('section moves', 'a card is missing from its new home: ' + gone.map(m => m[0] + ' (' + m[3] + ')').join(', '));
+  else if (lingering.length) fail('section moves', 'a card is still on the Mechanics sheet, so the move is half done: ' + lingering.map(m => m[0]).join(', '));
+  else console.log(`  section moves: ${moved.length} cards on their new sheets and off the Mechanics sheet`);
+} catch (e) { fail('section moves', e); }
 
 /* Reloading keeps the tab you were on, 12 September 2026. Reported from a
    phone: a reload lands on the World tab whatever tab was open.
@@ -2724,6 +2801,11 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       const inRoutine = (val, name) => { const r = val && ctx.exeRoutineAt(val.exe); return !!(r && r.name.startsWith(name + '(')); };
       ctx.showCategory('MECHANICS');
       const mh = all(REGISTRY.get('sheetGrid'));
+      // The balloon's figures went to the Barks sheet with its card on 13
+      // September 2026. They are the same figures off the same code, so they
+      // are still required -- just read from where they now are.
+      ctx.showCategory('BARKS');
+      const bh = all(REGISTRY.get('sheetGrid'));
       const ringOf = at => { ctx.jumpToExeAt(at); const h = /<span id="listingHit" class="listingHit">([^\n]*)<\/span>/.exec(all(REGISTRY.get('sheetGrid'))); return h ? h[1] : null; };
       if (!m || JSON.stringify(m) !== JSON.stringify({ unitsPerHour: 4096, periods: [4096, 2048, 1365, 1024, 819, 409, 16], levelShift: 1, levelCap: 4, hungerIndex: 0, poisonIndex: 5, fall: 1, deathAt: 1, poisonStep: 1, regenStep: 1 }))
         fail('program figures', 'the clock was misread: ' + JSON.stringify(m));
@@ -2741,8 +2823,10 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
         .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== want))
         fail('program figures', 'the bed rates on the program’s clock do not reproduce the 2012 measurements');
-      else if (/the application’s figures are read here/.test(mh) || !/<b>4 seconds<\/b>/.test(mh) || !new RegExp('jumpToExeAt\\(' + bark.ticks.exe + '\\)').test(mh) || !new RegExp('jumpToExeAt\\(' + clk.hourShift.exe + '\\)').test(mh) || !/flag <button[^>]*>9<\/button>, poison/.test(mh) || !/every <button[^>]*>30 minutes<\/button> at levels 2 and 3/.test(mh))
+      else if (/the application’s figures are read here/.test(mh) || !new RegExp('jumpToExeAt\\(' + clk.hourShift.exe + '\\)').test(mh) || !/flag <button[^>]*>9<\/button>, poison/.test(mh) || !/every <button[^>]*>30 minutes<\/button> at levels 2 and 3/.test(mh))
         fail('program figures', 'the Mechanics sheet does not state the program’s figures as links');
+      else if (!/<b>4 seconds<\/b>/.test(bh) || !new RegExp('jumpToExeAt\\(' + bark.ticks.exe + '\\)').test(bh))
+        fail('program figures', 'the Barks sheet does not state the balloon’s figures as links');
       else {
         const hit = ringOf(bark.ticks.exe), miss = ringOf(bark.ticks.exe + 4);
         if (!hit || !/addi 3, 3, 240/.test(hit) || !miss || /240/.test(miss)) fail('program figures', 'following the balloon’s link does not ring its instruction: ' + JSON.stringify([hit, miss]));
