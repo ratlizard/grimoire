@@ -2052,12 +2052,13 @@ try {
      the check would pass for ever having measured nothing. */
   const acv = ctx.ensureAtlasCanvas && ctx.ensureAtlasCanvas();
   const a2 = acv && acv.getContext && acv.getContext('2d');
-  let arcs = 0, strokes = 0, dashes = 0;
+  let arcs = 0, strokes = 0, dashes = 0, rects = 0;
   if (a2) {
-    const rArc = a2.arc, rStroke = a2.stroke, rDash = a2.setLineDash;
+    const rArc = a2.arc, rStroke = a2.stroke, rDash = a2.setLineDash, rRect = a2.rect;
     a2.arc = function () { arcs++; return rArc.apply(this, arguments); };
     a2.stroke = function () { strokes++; return rStroke.apply(this, arguments); };
     a2.setLineDash = function () { dashes++; return rDash.apply(this, arguments); };
+    a2.rect = function () { rects++; return rRect.apply(this, arguments); };
     // Over the eggs, not over the corner the render check uses. This viewport
     // is 300x300, so at 12 px a square it sees about 25 squares of a 256
     // square map, and (163.5,20.5) has almost nothing near it: the first
@@ -2066,7 +2067,7 @@ try {
     // zoom, worth thirteen rings.
     av.Z = 12; av.x = vw / 2 - 159 * 12; av.y = vh / 2 - 220 * 12; av.touching = false;
     ctx.paintAtlas();
-    a2.arc = rArc; a2.stroke = rStroke; a2.setLineDash = rDash;
+    a2.arc = rArc; a2.stroke = rStroke; a2.setLineDash = rDash; a2.rect = rRect;
   }
 
   // The hover card: a finger near the top of the map must put the card just
@@ -2078,6 +2079,14 @@ try {
   ctx.placeHoverCard(el, fakeVp, 100, 400, true);
   const topAbove = parseInt(el.style.top, 10);
 
+  /* An egg says what it names, and in the inspector it links to it: the
+     creatures it hatches, the sound it plays, the room it is. The hover
+     cards are pointer-events:none, so a link drawn in one could never be
+     clicked and the plain form is what they get. Both are pinned, because
+     escaping the linked form would silently print markup at a reader and
+     forgetting to escape the plain one is an injection of the file's own
+     text into the page. */
+  const hatchLink = ctx.atlasEggAt({ resid: 0x8001 }, 137, 9, true);
   const hatch = ctx.atlasEggAt({ resid: 0x8001 }, 137, 9);
   const room = ctx.atlasEggAt({ resid: 0x8001 }, 187, 76);
   // Kind 3 is an ambient sound, not "nothing": every one of the hundred
@@ -2114,11 +2123,62 @@ try {
   // is set once and they are stroked together. A threshold on the ring count
   // would only encode this viewport's size, which is what the first version of
   // this pin got wrong.
+  else if (!/showItemDetail\(/.test(hatchLink) || !/<button/.test(hatchLink))
+    fail('world tab', 'the inspector form of an egg does not link what it hatches: ' + JSON.stringify(hatchLink));
+  else if (/<button|<span/.test(hatch))
+    fail('world tab', 'the hover form of an egg carries markup, which that card cannot click and should not print: ' + JSON.stringify(hatch));
+  // Rooms are drawn on the zone view now, not on the world: a kind-8 egg
+  // covers a rectangle, and a score of them tiling a town is clutter at the
+  // scale the world map is drawn at. rect() is the call they used, and the
+  // rings are arcs, so a rectangle on this path means they came back.
+  else if (a2 && rects > 0) fail('world tab', rects + ' rectangles drawn on the world map: the room outlines are back on the atlas');
   else if (a2 && arcs < 1) fail('world tab', 'no rings drawn at the densest point of the world, so this measured nothing');
   else if (a2 && dashes > 1) fail('world tab', dashes + ' setLineDash calls for ' + arcs + ' rings: the dash is being set per egg again');
   else if (a2 && arcs > 2 && strokes >= arcs) fail('world tab', strokes + ' strokes for ' + arcs + ' rings: the dashed rings are being stroked one at a time again');
-  else console.log(`  world tab: ${moving} renders while moving and ${atRest} at rest; card at ${topNearFinger} by a finger at 30; ${arcs} rings in ${strokes} strokes and ${dashes} dashes; ${JSON.stringify(hatch.replace(/^[^:]*: /, ''))}`);
+  else console.log(`  world tab: ${moving} renders while moving and ${atRest} at rest; card at ${topNearFinger} by a finger at 30; ${arcs} rings in ${strokes} strokes and ${dashes} dashes, ${rects} rectangles; ${JSON.stringify(hatch.replace(/^[^:]*: /, ''))}`);
 } catch (e) { fail('world tab', e); }
+
+/* Rooms on the zone view, 12 September 2026. A kind-8 egg covers a rectangle,
+   and those were drawn on the World tab when the reading was new. The
+   maintainer asked for them here instead: the world is a picture of an island
+   and a score of outlines tiling a town is clutter at that scale, while one
+   zone fills the screen and the outline means something.
+
+   It is a mark like the others, off until asked for. The check is that it
+   draws nothing until it is turned on and something afterwards, on a map
+   that has rooms -- Land King Hall has 23. Without the "before" half this
+   would pass on a mark that drew unconditionally. */
+try {
+  const marks = peek('MAP_MARKS');
+  const before = { ...marks };
+  if (marks.rooms !== false) fail('rooms mark', 'the rooms mark is on by default: ' + JSON.stringify(marks));
+  else {
+    // '127' is the maps' own subindex, which is what the other map sections
+    // in this file switch to. 'ZONES' is the tab's name on screen, not a
+    // category key, and showCategory refuses it, so the map never opened and
+    // this check reported no rooms on a map that has twenty-three.
+    ctx.showCategory('127');
+    ctx.openResource(0x8003); drainRaf();            // Land King Hall, 23 rooms
+    const layer = () => ctx.document.getElementById('markLayer');
+    let drew = 0;
+    const mc = layer();
+    const c2 = mc && mc.getContext && mc.getContext('2d');
+    const real = c2 && c2.rect;
+    if (c2 && real) c2.rect = function () { drew++; return real.apply(this, arguments); };
+    ctx.drawMapMarks();
+    const off = drew;
+    ctx.toggleMapMarks('rooms', true);
+    const on = drew - off;
+    ctx.toggleMapMarks('rooms', false);
+    if (c2 && real) c2.rect = real;
+    Object.assign(marks, before);
+    const rooms = ((ctx.CUR_MAP || {}).allProps || []).filter(r => r.flags === 0x42 && r.aspect === 8).length;
+    if (!rooms) fail('rooms mark', 'the map opened for this check has no rooms, so it proves nothing');
+    else if (off !== 0) fail('rooms mark', off + ' rectangles drawn with the mark off');
+    else if (on < 1) fail('rooms mark', 'the mark drew nothing with ' + rooms + ' rooms on the map');
+    else console.log(`  rooms mark: ${rooms} rooms on Land King Hall, ${off} rectangles off and ${on} on`);
+  }
+} catch (e) { fail('rooms mark', e); }
 
 /* Who answers as whom, 12 September 2026. The thing that can go quietly wrong
    here is conflating the two relationships a conversation has with a group:
