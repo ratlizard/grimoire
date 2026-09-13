@@ -1792,6 +1792,10 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
      numbers rather than markup, and cross-checked against an independent
      simulation by utilities/mech_check.mjs. Last, since it needs nothing. -->
 <script src="js/delv-mechanics.js"></script>
+<!-- The sheet scaffolding: how a section of a rules sheet is built, and how
+     the Mechanics sheet is arranged. Last, because it is the only one of
+     these that knows anything about the page's furniture. -->
+<script src="js/delv-sheets.js"></script>
 
 <script>
 let currentMode = 'sheet';
@@ -14038,7 +14042,6 @@ const TAB_TREE = [
   // each have a closed and an open frame, and `tileOpen` is the second.
   { id: 'entities', label: 'Scenario', tile: 0x285, tileOpen: 0x284, children: [      // the large chest. Scenario is Delver's own word for the game's content, the SCEN the editor writes; the label was Entities, then Game, on 9 September 2026
       { id: 'characters', label: 'Characters', tile: 0x719, values: ['CHARACTERS'] },  // the king, standing, facing the reader
-      { id: 'schedules',  label: 'Schedules',  tile: 0x803, values: ['SCHEDULES'] },   // the hourglass
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
       { id: 'regions',    label: 'Zones',      tile: 0x120, values: ['127'] },         // the encampment, the maintainer's pick, 9 September 2026
@@ -14067,6 +14070,11 @@ const TAB_TREE = [
           // The short lines a character says over their head, read out of
           // every script that sets one (buildBarkCatalogue).
           { id: 'barks',    label: 'Barks',    tile: 0x185, values: ['BARKS'] } ] },                          // the maintainer's pick, 8 September; it was the bell (0x488)
+      // A schedule is something a character is MADE OF -- where they are at
+      // each hour -- rather than a thing in the scenario of its own, so it
+      // belongs here beside the other components a dossier chips into
+      // (the maintainer, 13 September 2026). It was under Scenario.
+      { id: 'schedules', label: 'Schedules', tile: 0x803, values: ['SCHEDULES'] },                           // the hourglass
       { id: 'graphics', label: 'Graphics', tile: 0x861, children: [                           // the easel, with its painting
           { id: 'portraits',  label: 'Portraits',  tile: 0x33F, values: ['135'] },                      // the mirror
           { id: 'landscapes', label: 'Landscapes', tile: 0x890, values: ['131'] },                      // the landscape painting
@@ -16370,30 +16378,6 @@ function skillCatalogue() {
   }
   return out;
 }
-/* What the Mechanics sheet is divided into, in the order it is shown.
-   The maintainer's grouping, 13 September 2026. Each entry is a title, a
-   line saying what the group is, and the section ids in it; a section not
-   named here still appears, under Other.
-
-   Hackery is the group for the parts of the scenario that are machinery
-   rather than rules: how a record is laid out, what a signal reaches, what
-   the scripts call, and the places the file contradicts itself. */
-const MECH_GROUPS = [
-  ['Combat', 'What a blow does, who swings it, and what it does to a thing.',
-    ['combat', 'combatai', 'damage', 'gear']],
-  ['Progress', 'What a character gains, and what it costs to be taught.',
-    ['experience', 'karma', 'training', 'todo']],
-  ['Status', 'The body and the clock: what feeds, heals, poisons and wears off.',
-    ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'springs']],
-  ['Economy', 'What things cost, and what a wager pays.',
-    ['shops', 'dice']],
-  ['Interactions', 'What a thing does when it is used.',
-    ['locks']],
-  ['Puzzles', 'The ones the file answers outright.',
-    ['puzzles']],
-  ['Hackery', 'The machinery under the scenario, and the places it does not add up.',
-    ['propword', 'target', 'eggs', 'leans', 'loose']],
-];
 function mechLink(id, label) {
   return '<button class="navChip" onclick="showCategory(\'MECHANICS\'); setTimeout(function(){ mechGo(\'' + id + '\'); }, 60)">' + svEsc(label) + '</button>';
 }
@@ -19841,31 +19825,18 @@ function renderMechanicsSheet() {
   document.getElementById('singleControls').style.display = 'none';
   const box = document.createElement('div');
   box.className = 'mechView';
-  const table = (heads, rows, cls) => rows.length
-    ? '<div class="tableScroll"><table class="vocabTable barkTable mechTable' + (cls ? ' ' + cls : '') + '"><thead><tr>' +
-      heads.map(h => '<th' + (/^#/.test(h) ? ' class="num"' : '') + '>' + h.replace(/^#/, '') + '</th>').join('') +
-      '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>' : '';
-  const num = v => '<td class="num">' + (v === null || v === undefined || v === '' ? '' : svEsc(String(v))) + '</td>';
-  const stat = (n, what) => '<span class="mechStat"><b>' + svEsc(String(n)) + '</b> ' + svEsc(what) + '</span>';
+  // Short names for the shared builders, so the sections read as they did
+  // when these were closures here.
+  const table = mechTable, num = mechNum, stat = mechStat;
   const sections = [];
   // One section: an icon, a title, where it was read from, a line saying what
   // it is, the rule as short items, and the table or strip under it.
   const add = (id, title, icon, from, lede, rules, html, chips) => {
-    const sec = foldCard('mech-' + id, '', false);
-    const head = document.createElement('summary');
-    head.className = 'mechHead';
-    const iconURL = icon ? relIconURL(icon) : '';
-    head.innerHTML = (iconURL ? '<img class="skillIcon skillIconTile" src="' + iconURL + '" alt="" width="16" height="16">' : '') +
-      '<h3>' + svEsc(title) + '</h3>' + (from ? '<span class="mechFrom">' + from + '</span>' : '');
-    sec.appendChild(head);
-    if (lede) { const p = document.createElement('p'); p.className = 'mechLede'; p.innerHTML = lede; sec.appendChild(p); }
-    if (rules && rules.length) { const ul = document.createElement('ul'); ul.className = 'ruleList'; ul.innerHTML = rules.map(r => '<li>' + r + '</li>').join(''); sec.appendChild(ul); }
-    if (html) { const d = document.createElement('div'); d.className = 'mechBody'; d.innerHTML = html; sec.appendChild(d); }
-    if (chips) { const d = document.createElement('div'); d.className = 'partsStrip'; d.innerHTML = chips; sec.appendChild(d); }
+    const sec = mechSectionEl(id, title, icon, from, lede, rules, html, chips);
     box.appendChild(sec);
     sections.push({ id, title, el: sec });
   };
-  const src = (label, resid) => refExists(resid) ? partChip(label, resid) : '';
+  const src = mechSrc;
   const chipOf = i => loadCharacterTable()[i] ? characterChip(i) : '';
   // The application's clock, off TGameViewer::DoTicks, for every section
   // that counts time; null with no application open, and then no section
@@ -19875,7 +19846,7 @@ function renderMechanicsSheet() {
   const perHour = clk && clk.unitsPerHour ? clk.unitsPerHour.v : null;
   // A period of the program's table, in words, as a link to the table.
   const period = i => clk && clk.table && clk.table.v[i] !== undefined ? srcNum(clk.table, exeClockWords(clk.table.v[i], perHour)) : '';
-  const noApp = 'Open the game from its installer, under Settings, and the application’s figures are read here.';
+  const noApp = MECH_NO_APP;
   const propChip = (pt, name, sub) => '<button class="relChip" onclick="showPropTypeDetail(' + pt + ')"><span class="relText"><span class="relMain">' + svEsc(name) + '</span>' + (sub ? '<span class="relSub">' + svEsc(sub) + '</span>' : '') + '</span></button>';
 
   // ---- the dice game ----
