@@ -990,6 +990,20 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 .mechTable th.num, .mechTable td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; padding-right:10px; }
 .mechTable tbody tr:nth-child(even) td { background:rgba(255,248,220,.025); }
 .mechTable td { padding:4px 10px 4px 0; }
+/* Columns need an edge of their own. Every rule above draws only HORIZONTAL
+   lines -- a border-bottom on the head and on each bark row -- and the zebra
+   striping carries the eye sideways, so a wide row read as one run of words
+   with no telling which column a cell belonged to (the maintainer, 13
+   September 2026: "tables need vertical dividers").
+
+   On the cells rather than the columns, because border-collapse is already
+   on and a <col> border does not survive it in every engine. Left edges
+   only, skipping the first cell, so the table gains internal rules without a
+   box drawn round the outside of it -- the panel already provides that, and
+   two borders a pixel apart read as a mistake. Lighter than the horizontal
+   rules on purpose: these are there to be followed down, not noticed. */
+.mechTable th + th, .mechTable td + td,
+.vocabTable th + th, .vocabTable td + td { border-left:1px solid rgba(155,136,80,.18); padding-left:10px; }
 .mechPrice { color:#fff; font-variant-numeric:tabular-nums; }
 .mechSec .partsStrip { margin-top:6px; }
 @media (max-width:640px) { .mechSec { padding:10px 8px 8px; } .mechHead h3 { font-size:0.9688rem; } .mechFrom { margin-left:0; } }
@@ -1005,6 +1019,12 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
   .mechTable, .vocabTable { font-size:0.7188rem; }
   .mechTable th, .vocabTable th { white-space:normal; padding-right:6px; }
   .mechTable td, .vocabTable td { padding:4px 6px 4px 0; overflow-wrap:anywhere; }
+  /* The divider's own left padding has to come down with the rest. The base
+     rule sets 10px to clear the border, and a media query adds no
+     specificity, so without this a phone cell had 10px on the left against
+     6px on the right and every column sat visibly off-centre. */
+  .mechTable th + th, .mechTable td + td,
+  .vocabTable th + th, .vocabTable td + td { padding-left:6px; }
   .mechTable th.num, .mechTable td.num { padding-right:6px; }
   .tableScroll { -webkit-overflow-scrolling:touch; }
 }
@@ -4488,7 +4508,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.71.0';
+const GRIMOIRE_VERSION = '1.71.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

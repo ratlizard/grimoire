@@ -115,15 +115,31 @@ function drawSchedulePath(ctx, TS, cm, colour) {
       legs.push({ pts: leg && leg.length ? leg : [[a.x, a.y], [b.x, b.y]], hour: a.hour, i });
     }
   }
-  const rail = TS * 0.13;
+  /* A rail is a distance on SCREEN, not a fraction of a square.
+
+     It was TS * 0.13, which is four pixels on a map drawn at its native 32
+     and under ONE pixel at the zoom a whole zone is read at -- against a
+     stroke 1.5px wide. Two strands an eighth of a stroke apart are one
+     strand, which is why the rails "don't appear to be separated" (reported
+     13 September 2026, with the colours working, because those do not depend
+     on the geometry).
+
+     1.7 stroke widths is the least that reads as two lines rather than a
+     thick one. The spread is capped at two rails either side and cycles,
+     because a day of seven legs at three rails each would wander a whole
+     square off the corridor it is meant to be tracing -- and a path that
+     leaves the floor it walks on is worse than one that overlaps. */
+  const lw = Math.max(1.5, TS / 10);
+  const rail = Math.max(lw * 1.7, TS * 0.13);
+  const RAILS = [0, 1, -1, 2, -2];
   ctx.save();
-  ctx.lineWidth = Math.max(1.5, TS / 10);
+  ctx.lineWidth = lw;
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.globalAlpha = 0.9;
   for (const leg of legs) {
     // Spread about zero: 0, +1, -1, +2, -2 ... so a day of a few legs stays
     // centred on the squares actually walked rather than drifting off them.
-    const k = Math.ceil(leg.i / 2) * (leg.i % 2 ? 1 : -1);
+    const k = RAILS[leg.i % RAILS.length];
     ctx.strokeStyle = 'hsl(' + Math.round((leg.hour % 24) * 15) + ' 85% 62%)';
     ctx.beginPath();
     for (let i = 0; i < leg.pts.length; i++) {
