@@ -316,8 +316,46 @@ if (!ctx.__peek('masterIndexGlobal').filter(m => m[0]).length) fail('master inde
 await new Promise(r => setTimeout(r, 200));
 {
   const box = ctx.__peek('window.DIALOGUE_BOX');
-  if (!box || box.read || box.frame || box.blue || (box.css || '')) fail('dialogue box', 'with no application open the box was drawn from constants: ' + JSON.stringify(box));
-  else console.log('  dialogue box: no application, the stylesheet’s own frame and blue left alone');
+  /* Inverted on 13 September 2026. This used to require that with no
+     application open the box showed NOTHING -- the stylesheet's own frame
+     and blue stood in, from a captured PNG and a typed colour. Both of those
+     are gone: the frame tile 0x19D is in the DATA file, so a data-only
+     session draws the game's real frame, and the blue falls back to the
+     figure the program gives (which the installer check below reads back out
+     of the executable, so it cannot drift).
+
+     What must still be true here is that the PROGRAM is not the source --
+     `read` null, `fromProgram` false -- while the frame and the blue are
+     present anyway. The frame is built asynchronously from the tile, so it
+     is waited for rather than assumed. */
+  for (let w = 0; w < 3000 && !((ctx.__peek('window.DIALOGUE_BOX') || {}).frame); w += 50) await new Promise(r => setTimeout(r, 50));
+  const b2 = ctx.__peek('window.DIALOGUE_BOX') || {};
+  if (b2.read || b2.fromProgram) fail('dialogue box', 'the program is not open here, yet the box says it supplied the figures: ' + JSON.stringify(b2.read));
+  else if (!b2.blue) fail('dialogue box', 'the data file alone gave no blue, where the default should have stood in');
+  else if (!b2.frame) fail('dialogue box', 'the data file alone drew no frame, though tile 0x19D is in the archive');
+  else if (!/--boxBlue:rgba\(/.test(b2.css || '')) fail('dialogue box', 'no blue rule was written: ' + JSON.stringify((b2.css || '').slice(0, 60)));
+  else console.log('  dialogue box: the data file alone — frame from tile 0x' + (b2.tile || 0).toString(16).toUpperCase() +
+    ', blue ' + b2.blue.join(',') + (b2.blueFromDefault ? ' (the program’s figure, as default)' : ' (from the file’s own clut)'));
+
+/* The default blue is written TWICE and must not drift.
+
+   It shows before a file is open, deliberately: seeing it is how a reader
+   knows they are looking at the hard-coded figure rather than the file's own
+   (the maintainer, 13 September 2026). That only works while the figure on
+   screen IS the fallback the script would use -- and the two live apart, as
+   `rgba(0,0,168,.5)` in the stylesheet and `[0, 0, 168]` in
+   DLG_BOX_DEFAULTS, in different notations. Change one and the indicator
+   quietly stops indicating anything. Compared against the page's own source
+   text, since the stub parses no CSS. */
+{
+  const D = peek('DLG_BOX_DEFAULTS') || {};
+  const m = /--boxBlue:rgba\((\d+),\s*(\d+),\s*(\d+),\s*\.5\)/.exec(html);
+  const css = m ? [+m[1], +m[2], +m[3]] : null;
+  if (!D.blue) fail('dialogue box', 'DLG_BOX_DEFAULTS is not reachable, so the default cannot be checked at all');
+  else if (!css) fail('dialogue box', 'the stylesheet carries no --boxBlue default to compare against');
+  else if (css.join(',') !== D.blue.join(',')) fail('dialogue box', 'the default has drifted: the stylesheet shows ' + css.join(',') + ' and DLG_BOX_DEFAULTS.blue is ' + D.blue.join(','));
+  else console.log('  dialogue box default: the stylesheet and DLG_BOX_DEFAULTS agree on ' + D.blue.join(','));
+}
 }
 
 const wanted = onlyCat ? [onlyCat] : CATEGORY_VALUES;

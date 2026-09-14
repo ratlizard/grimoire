@@ -453,9 +453,20 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    to, blue at half strength, which is what the dither was for on a screen
    of the period. The thin dark scrim on top is the one concession to
    reading yellow text on it. */
+/* The frame and the blue both come out of the open file now
+   (installDialogueBox), and the shipped res/Dialogue_Background.png -- a
+   capture of this same frame, upside down -- is no longer used by the page
+   (the maintainer, 13 September 2026).
+
+   The blue here is the DEFAULT, and it is deliberately showing before a file
+   is open: seeing it is how a reader knows they are looking at the
+   hard-coded figure rather than the file's own (the maintainer's point, and
+   a better one than hiding it). It must stay equal to
+   DLG_BOX_DEFAULTS.blue, which is the same figure in the script, and a check
+   holds the two together. The frame cannot do the same -- its tile lives in
+   the archive -- so the border is a plain line until a file arrives. */
 .tabSheet { --boxBlue:rgba(0,0,168,.5); }
-.tabSheet { border:4px solid transparent; border-left-width:8px; border-right-width:8px;
-  border-image:url('res/Dialogue_Background.png') 4 8 stretch;
+.tabSheet { border:1px solid rgba(255,255,255,.5);
   background:linear-gradient(rgba(10,6,4,.28), rgba(10,6,4,.28)),
              linear-gradient(var(--boxBlue), var(--boxBlue));
   padding:10px 8px 14px; min-height:120px;
@@ -4508,7 +4519,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.71.1';
+const GRIMOIRE_VERSION = '1.72.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -4686,25 +4697,60 @@ function exeDialogueBox() {
   return tile && top && side ? { tile, top: exeVal({ at: top.b.exe }, top.b.v - top.t.v), side: exeVal({ at: side.r.exe }, side.r.v - side.l.v), clut, offset } : null;
 }
 window.DIALOGUE_BOX = null;
+
+/* The box's figures, for a session with only the data file open.
+
+   The program is the authority and is used whenever it is there. These stand
+   in when it is not -- and the frame tile lives in the ARCHIVE (0x19D is
+   sheet 0x8E19, slot 13), so a data-only session can draw the real frame
+   rather than a placeholder. What the program alone supplies is the band
+   widths and which colour table entry the blue is.
+
+   They are not typed-in guesses of the kind this page refuses elsewhere: the
+   installer check reads all four back out of the executable and fails if any
+   differs, so they cannot drift from what the program does. THE BLUE IS MEANT
+   TO BE CHANGED BY HAND -- it is the one figure here a reader might want
+   different, and it is the last fallback, used only when the open file's
+   colour table does not carry one. */
+const DLG_BOX_DEFAULTS = { tile: 0x19D, top: 4, side: 8, clut: 256, offset: 18, blue: [0, 0, 168] };
+
 function installDialogueBox() {
-  const box = exeDialogueBox();
-  const out = { tile: box ? box.tile.v : null, blue: null, frame: false, read: box };
+  const read = exeDialogueBox();
+  const D = DLG_BOX_DEFAULTS;
+  const tile = read ? read.tile.v : D.tile;
+  const top = read ? read.top.v : D.top;
+  const side = read ? read.side.v : D.side;
+  const clutId = (read && read.clut) ? read.clut.v : D.clut;
+  const offset = (read && read.offset) ? read.offset.v : D.offset;
+  const out = { tile, blue: null, frame: false, read, fromProgram: !!read };
   window.DIALOGUE_BOX = out;
   let style = document.getElementById('gameBoxStyle');
   if (!style) { style = document.createElement('style'); style.id = 'gameBoxStyle'; document.head.appendChild(style); }
+  /* The blue runs whatever is open: the stylesheet is already showing the
+     default, and this replaces it only when the file carries its own. The
+     frame gates itself further down, because its tile has to come out of an
+     archive and resolveTileImage answers with nothing when there is none. */
   let rule = '';
   try {
     const fork = window.CYTHERA_RSRC;
-    const clut = fork && box && box.clut ? (fork.resourcesByType['clut'] || []).find(e => e.id === box.clut.v) : null;
-    if (clut && box.offset) {
-      const d = fork.dataOf('clut', clut), n = ((d[6] << 8) | d[7]) + 1, o = box.offset.v;
-      if (n > 1 && d.length >= o + 6) { out.blue = [d[o], d[o + 2], d[o + 4]]; rule += '.tabSheet { --boxBlue:rgba(' + out.blue.join(',') + ',.5); }\n'; }
+    const clut = fork ? (fork.resourcesByType['clut'] || []).find(e => e.id === clutId) : null;
+    if (clut) {
+      const d = fork.dataOf('clut', clut), n = ((d[6] << 8) | d[7]) + 1, o = offset;
+      if (n > 1 && d.length >= o + 6) out.blue = [d[o], d[o + 2], d[o + 4]];
     }
   } catch (e) { out.blue = null; }
+  // The open file's colour where it carries one, the documented default
+  // where it does not -- and the default is the figure the program gives,
+  // which the installer check reads back out of the executable.
+  if (!out.blue) { out.blue = D.blue.slice(); out.blueFromDefault = true; }
+  rule += '.tabSheet { --boxBlue:rgba(' + out.blue.join(',') + ',.5); }\n';
   style.textContent = out.css = rule;
-  if (!box) return;
+  /* The frame is drawn whether or not the program is open, because the tile
+     is in the ARCHIVE -- 0x19D is sheet 0x8E19, slot 13. Only the band
+     widths came from the program, and those have a default too, so a
+     data-only session gets the game's real frame rather than a placeholder. */
   let im = null;
-  try { im = resolveTileImage(out.tile); } catch (e) { im = null; }
+  try { im = resolveTileImage(tile); } catch (e) { im = null; }
   if (!im || im.length !== 1024) return;
   encodeIndexedPNG(32, 32, im, PAL_RGB, null).then(png => {
     // base64 by hand: the page has no other need of it and the smoke's
@@ -4715,7 +4761,7 @@ function installDialogueBox() {
       const n = (png[i] << 16) | ((png[i + 1] || 0) << 8) | (png[i + 2] || 0);
       b += A[n >> 18] + A[(n >> 12) & 63] + (i + 1 < png.length ? A[(n >> 6) & 63] : '=') + (i + 2 < png.length ? A[n & 63] : '=');
     }
-    const t = box.top.v, w = box.side.v;
+    const t = top, w = side;
     const css = rule + '.tabSheet { border-width:' + t + 'px ' + w + 'px; border-image-source:url(data:image/png;base64,' + b + '); border-image-slice:' + t + ' ' + w + '; border-image-repeat:repeat; }\n';
     style.textContent = out.css = css;
     out.frame = true;
@@ -14246,7 +14292,12 @@ const TAB_TREE = [
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
       { id: 'text', label: 'Text', tile: 0x3AE, children: [                                   // the tombstone, second frame
           { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['STRINGS'] },                          // a poster; the forks' string lists
-          { id: 'dialogue', label: 'Dialogue', tile: 0x66B, values: ['23', '7'] },  // the beggar, sitting; the maintainer's pick, 11 September 2026 (it was the fountain, 0x389)
+          // The dialogue box's own frame tile, which is what the executable's
+          // FrameBox draws round every bordered window -- so the tab wears the
+          // thing a conversation is actually presented in, rather than a
+          // picture of somebody talking (the maintainer, 13 September 2026;
+          // it was the beggar 0x66B, and the fountain 0x389 before that).
+          { id: 'dialogue', label: 'Dialogue', tile: 0x19D, values: ['23', '7'] },
           // Writings is the game's OWN writing, which is subindex 1: the
           // bookshelf histories and bestiaries, the prophecies, the scrolls
           // and letters, the signs, the gravestones and the ring
