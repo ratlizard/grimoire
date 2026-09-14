@@ -298,19 +298,26 @@ function decodeIdNameTable(data){
     rows.map(([id,nm])=>'  0x'+id.toString(16).toUpperCase().padStart(4,'0')+'  '+(nm||'(none)')).join('\n');
 }
 
-/* The editor's level templates.
+/* LINF: three twelve-byte records, and only half a reading.
 
-   Three `LINF` resources of twelve bytes, six big-endian shorts each. The
-   first two are a width and a height, which is not a guess: they read 256x256,
-   64x64 and 64x64, and the archive's own maps are one 256x256 world and twenty
-   64x64 zones. The remaining four are -1, 0, a 0 or 1, and a number (65 and
-   49 in the two 64x64 templates, 0 in the world's), and nothing here says what
-   those are, so they are shown as they stand rather than named. */
+   Six big-endian shorts each. The first two look like a width and a height --
+   they read 256 by 256, 64 by 64 and 64 by 64, which are sizes the archive's
+   own maps come in -- but that is weaker evidence than it first appears, and
+   an earlier version of this comment called them "level templates" on the
+   strength of it. The archive has maps at 32x32, 48x48, 56x72, 128x128 and
+   five other shapes besides, so matching two common sizes is not much of a
+   test. What can be said is what the bytes are; what they are for is not read.
+
+   One thing that would fit and is not established: DATA 258 and 265 are 8,192
+   bytes each and DATA 268 is 4,096, which are exactly a 64 by 64 level's
+   layers at two bytes and one byte a square. All three are entirely zero, so
+   there is nothing in them to confirm it with. */
 function decodeLINF(data){
   if(data.length!==12) return null;
   const s=[]; for(let i=0;i<12;i+=2) s.push(u16be(data,i));
-  return `A level template ${s[0]} by ${s[1]} squares.\n`+
-         `The other four shorts, unread: ${s.slice(2).map(v=>v>0x7fff?v-0x10000:v).join(', ')}`;
+  const sg=v=>v>0x7fff?v-0x10000:v;
+  return `Six shorts: ${s.map(sg).join(', ')}.\n`+
+         `The first two read as a size, ${s[0]} by ${s[1]}. What the record is for is not read.`;
 }
 
 /* The colour cycles, as the editor holds them.
@@ -409,7 +416,11 @@ function exportArtifacts(fork, type, entry, data){
   else if(type==='pltt') cvs(decodePltt(data).canvas);
   else if(COLOR_TABLE_TYPES[type]) cvs(decodeClut(data).canvas);
   else if(type==='NFNT'||type==='FONT'){
-    const f=decodeNFNT(data); txt(f.info); cvs(f.canvas,'strike');
+    const f=decodeNFNT(data);
+    // The alphabet first: it is what a reader wants to see, and it is what the
+    // gallery cell picks up, since the cell takes the first canvas it finds.
+    const sheet=glyphSheet(f); if(sheet) cvs(sheet,'glyphs');
+    txt(f.info); cvs(f.canvas,'strike');
     f.glyphs.forEach(g=>cvs(g.canvas, g.missing?'missing':'char'+g.code));
   }
   else if(type==='sfnt') out.push({ext:'ttf', bytes:sfntToTrueType(data)});   // with the OS/2 table a browser insists on
@@ -1683,6 +1694,38 @@ function cropBits(bits,rowBytes,H,x0,W){
   }
   ctx.putImageData(im,0,0); return c;
 }
+/* Every glyph, laid out so a typeface looks like one.
+
+   The strike is one wide bit image -- 272x14 for Seldane at 12 point, 400x21
+   at 18 -- and a gallery cell fits a picture to about 84 by 96, so the whole
+   font was being drawn four pixels tall. It was on the Fonts tab the entire
+   time and could not be seen, which is the same as not being there.
+
+   So a font's first picture is now the alphabet: every glyph the strike
+   carries, cut out at its own width and set in a grid. The proportions are
+   near enough square that the cell scaler shows it at a useful size, and the
+   detail view gets the same picture larger.
+
+   Glyphs are drawn from the location table rather than from the strike
+   wholesale, so a code the font has no image for takes no cell: Seldane has
+   25 letters and shows 25, not 26 with a gap. */
+function glyphSheet(f){
+  const cells=f.glyphs.filter(g=>g.canvas&&g.width>0);
+  if(!cells.length) return null;
+  const cols=Math.min(cells.length, Math.max(8, Math.ceil(Math.sqrt(cells.length*1.6))));
+  const rows=Math.ceil(cells.length/cols);
+  const cw=Math.max(...cells.map(g=>g.width))+3, ch=f.fRectHeight+3;
+  const c=document.createElement('canvas');
+  c.width=cols*cw+1; c.height=rows*ch+1;
+  const ctx=c.getContext('2d');
+  if(!ctx) return null;
+  cells.forEach((g,i)=>{
+    const x=(i%cols)*cw+2, y=Math.floor(i/cols)*ch+2;
+    ctx.drawImage(g.canvas, x, y);
+  });
+  return c;
+}
+
 /* The bitmap font, the other way.
 
    `decodeNFNT` reads what it needs to draw a strike and stops; writing one

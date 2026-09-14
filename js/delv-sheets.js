@@ -274,7 +274,7 @@ const MECH_GROUPS = [
   { value: 'MECH_INTERACT', title: 'Interactions', tile: 0x3A0,
     note: 'What a thing does when it is used.',
     ids: ['locks'] },
-  { value: 'MECH_PUZZLES', title: 'Puzzles', tile: 0x4FA,
+  { value: 'MECH_PUZZLES', title: 'Puzzles', tile: 0x266,
     note: 'The ones the file answers outright, a section each.',
     ids: ['braziers', 'buttons', 'riddles', 'tunes', 'signals'] },
   { value: 'MECH_COMBAT', title: 'Combat', tile: 0x203,
@@ -283,7 +283,7 @@ const MECH_GROUPS = [
   { value: 'MECH_ECONOMY', title: 'Economy', tile: 0x82E,
     note: 'What things cost, and what a wager pays.',
     ids: ['shops', 'dice'] },
-  { value: 'HACKERY', title: 'Hackery', tile: 0x266,
+  { value: 'HACKERY', title: 'Hackery', tile: 0x207,
     note: 'The machinery under the scenario, and the places it does not add up.',
     ids: ['propword', 'target', 'eggs', 'leans', 'loose'] },
 ];

@@ -2050,7 +2050,7 @@ const RSRC_KINDS = [
     note: 'The dialog boxes and alerts (a DLOG or ALRT names its DITL, the item list), the window templates, the controls, their colour tables, the backdrop patterns (ppat: the default and black), and the palettes.',
     view: null },
   { id: 'editor', label: 'Editor', types: ['eSTM', 'eBRS', 'MSta', 'FILT', 'LINF', 'DATA', 'PORT', 'RMAP', 'TMPL'],
-    note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three saved game states (MSta: “Base”, “Plague Cured” and “Olpheltius Murdered”, which differ from Base at one byte each), the editor’s own tile names (DATA 260, a short list beside the archive’s terrain table), the three level templates (LINF: one 256 by 256 and two 64 by 64, the sizes the archive’s own maps come in), the colour cycles (DATA 261), the record that says TxSt 999 is really a colour (RMAP), and the ResEdit templates. Four DATA resources are 512, 1,024, 4,096 and 8,192 bytes of nothing. FILT, PORT and three DATA resources are listed and unread.',
+    note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three saved game states (MSta: “Base”, “Plague Cured” and “Olpheltius Murdered”, which differ from Base at one byte each), the editor’s own tile names (DATA 260, a short list beside the archive’s terrain table), three twelve-byte LINF records whose first two shorts read as a size (256 by 256, and 64 by 64 twice) though what they are for is not read, the colour cycles (DATA 261), the record that says TxSt 999 is really a colour (RMAP), and the ResEdit templates. Four DATA resources are 512, 1,024, 4,096 and 8,192 bytes of nothing. FILT, PORT and three DATA resources are listed and unread.',
     view: 'RSRC' },
   { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
     note: 'What the executable reads about itself: the 25 light cones (Lite: one byte of side, then that many squared bytes of brightness, 0 to 32; sides 8 to 120), one Delver tile sheet (TILE 282, sixteen tiles that appear nowhere in the game’s own art), the Delver engine’s help pages (Page, three carry text, ten are empty), the two preference defaults (volume 5 and music 2), the thirteen audit categories, the version records, the code fragment map and the nine 68K CODE segments. The two MemU records, one named for each processor, hold the same nine bytes, and they are not the application’s memory partition: the SIZE resource asks for 12,288K and 10,240K, which these bytes do not carry however they are read.',
@@ -4539,7 +4539,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.75.0';
+const GRIMOIRE_VERSION = '1.76.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -7806,7 +7806,11 @@ function startMapAnimation() {
       drawCharacterLayer();
       drawLighting();
     } else if (painted) {
-      // the terrain repaint sits under the character layer, nothing to do
+      // The terrain repaint sits under the character layer, so there is
+      // nothing to redo for it. A flickering light is another matter: it
+      // re-rolls its cone every repaint the way the engine re-rolls it every
+      // redraw, and the palette frame is the cadence that gives.
+      if (window.SHOW_LIGHTING && window.LIGHT_FLICKER) drawLighting();
     }
   }, 35);
 }
@@ -7833,8 +7837,14 @@ function buildLightSources(resid, m) {
   // Terrain tiles that are themselves lit (braziers baked into the floor).
   for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) {
     const t = mapTileAt(m, x, y);
-    const lvl = (attrs[t] || 0) & 0x03;
-    if (lvl) list.push({ x, y, lvl });
+    /* 0x10000 is the flicker, and the archive really does carry it. The
+       engine tests exactly this bit -- `rlwinm. 0,0,0,15,15`, bit 15 in the
+       PowerPC's numbering -- and a light that has it goes through Random to
+       choose between the two cones of its level. It varies across the lit
+       tiles (0x410001 has it, 0x400001 does not), so which lights gutter and
+       which burn steady is the file's, not a guess made here. */
+    const a = attrs[t] || 0, lvl = a & 0x03;
+    if (lvl) list.push({ x, y, lvl, flicker: !!(a & 0x10000) });
   }
   // Lit props (wall torches, lanterns, braziers).
   try {
@@ -7846,11 +7856,15 @@ function buildLightSources(resid, m) {
         if (r.flags === 0xFF || r.x >= m.width || r.y >= m.height) continue;
         const base = tiles[r.proptype];
         if (base === undefined) continue;
-        const lvl = (attrs[base + r.aspect] || 0) & 0x03;
-        if (lvl) list.push({ x: r.x, y: r.y, lvl });
+        const a = attrs[base + r.aspect] || 0, lvl = a & 0x03;
+        if (lvl) list.push({ x: r.x, y: r.y, lvl, flicker: !!(a & 0x10000) });
       }
     }
   } catch (e) {}
+  // Whether anything on this map gutters at all decides whether the animation
+  // tick has to repaint the lighting layer; on a map of steady lights it
+  // would be redrawing an identical picture seven times a second.
+  window.LIGHT_FLICKER = list.some(s => s.flicker);
   window.LIGHT_SOURCES = { key, list };
   return list;
 }
@@ -8815,7 +8829,7 @@ function ensureLightLayer() {
    three-stop gradient. With no application open there is no fork to read and
    the gradient stays, which is also what a visitor who opened only the data
    file sees. */
-function lightCone(lvl) {
+function lightCone(lvl, variant) {
   const fork = window.APP_RSRC;
   if (!fork) return null;
   // Keyed on the fork object itself, so opening, swapping or closing an
@@ -8823,11 +8837,12 @@ function lightCone(lvl) {
   if (!window.LIGHT_CONES || window.LIGHT_CONES.fork !== fork)
     window.LIGHT_CONES = { fork, by: {} };
   const by = window.LIGHT_CONES.by;
-  if (lvl in by) return by[lvl];
+  const v = variant ? 1 : 0, key = lvl + ':' + v;
+  if (key in by) return by[key];
   let out = null;
   try {
     const list = fork.resourcesByType && fork.resourcesByType['Lite'];
-    const e = list && list.find(r => r.id === 126 + 2 * lvl);
+    const e = list && list.find(r => r.id === 126 + 2 * lvl + v);
     if (e) {
       const d = fork.dataOf('Lite', e), n = d[0];
       if (n && d.length === 1 + n * n) {
@@ -8851,7 +8866,7 @@ function lightCone(lvl) {
       }
     }
   } catch (err) { out = null; }
-  return (by[lvl] = out);
+  return (by[key] = out);
 }
 function drawLighting(lensCtx, lensTS, rect) {
   const cm = window.CUR_MAP;
@@ -8885,6 +8900,21 @@ function drawLighting(lensCtx, lensTS, rect) {
   ctx.fillRect(washX, washY, washW, washH);
   ctx.globalCompositeOperation = 'destination-out';
   for (const s of buildLightSources(cm.resid, cm.m)) {
+    /* The file's own cone, at the file's own falloff, when the application is
+       open to read it from. A light the engine flickers re-rolls which of its
+       two cones it uses here, as the engine re-rolls it on every redraw; the
+       palette frame in the animation tick is what repaints it.
+
+       Without an application open there is no fork to read and the gradient
+       below still runs, which is what a visitor who opened only the data file
+       sees. */
+    const cone = lightCone(s.lvl, s.flicker && Math.random() < 0.5 ? 1 : 0);
+    if (cone) {
+      const w = cone.side * TS;
+      ctx.drawImage(cone.canvas, Math.round(s.x * TS + TS / 2 - w / 2),
+                                 Math.round(s.y * TS + TS / 2 - w / 2), w, w);
+      continue;
+    }
     const cx = s.x * TS + TS / 2, cy = s.y * TS + TS / 2;
     const r = TS * (1.1 + s.lvl * 0.85);
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
