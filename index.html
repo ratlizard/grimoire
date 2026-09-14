@@ -1344,6 +1344,10 @@ body.atlasFull { overflow:hidden; }
 #creditsMenu ul { margin:0 0 10px; padding-left:18px; }
 #creditsMenu li { margin:2px 0; }
 #creditsMenu p { margin:8px 0 0; }
+#creditsMenu a { color:var(--gold); text-decoration:none; }
+#creditsCaret { display:none; position:absolute; z-index:43; width:12px; height:12px; transform:rotate(45deg);
+  background:rgba(18,15,10,.98); border-left:1px solid var(--edge); border-top:1px solid var(--edge); }
+#creditsCaret.open { display:block; }
 #searchWrap #searchResults { text-align:left; }
 #archiveMenu button { width:100%; margin:8px 0 0; }
 #archiveMenu label { display:flex; gap:7px; align-items:flex-start; margin-top:10px;
@@ -1477,17 +1481,19 @@ body.atlasFull { overflow:hidden; }
     <span class="amNote">Cythera’s art is dithered for a 256-colour screen. This reconstructs continuous
     tone from the checkerboards. It is a reading of the pixels rather than the pixels.</span></div>
 </div>
+<div id="creditsCaret" aria-hidden="true"></div>
 <div id="creditsMenu" role="dialog" aria-label="Credits">
   <ul>
     <li><strong>Glenn Andreas</strong>: writer and developer of Cythera</li>
+    <li><strong>Randy Pringle</strong>: the game’s music</li>
     <li><strong>Ambrosia Software</strong>: publisher of Cythera</li>
-    <li><strong>Bryce Schroeder</strong>, with <strong>Chris Pickel (sfiera)</strong> and <strong>Chaim Halbert</strong>: delvmod, the Delver formats and disassembler, the DelvTechWiki and the compendium, which are the reverse engineering and the tooling this page is checked against</li>
+    <li><strong>Bryce Schroeder</strong>, with <strong>Chris Pickel (sfiera)</strong> and <strong>Chaim Halbert</strong>: delvmod, the Delver formats and disassembler, and the delvmod wiki, which are the reverse engineering and the tooling this page is checked against</li>
+    <li><a href="https://cytheraguides.com" target="_blank" rel="noopener"><strong>Cythera Guides</strong></a>, and the sites it keeps in its archives, <strong>Slayer</strong>’s among them</li>
     <li><strong>Ben Letchford</strong>: systemless and stuffit-rs, which this page’s readers for HFS volumes, Installer VISE and StuffIt were written from, and through them <strong>ScummVM</strong> and The Unarchiver’s <strong>XADMaster</strong></li>
     <li><strong>Susan Kare</strong>, who drew Chicago for the Macintosh in 1984, and <strong>Duane King</strong>, whose Chicago Kare reproduces it: the face this page is set in until a game file is open</li>
     <li><strong>Sam Wang</strong>: Argos A Nouveau, the face the game carries and this page reads out of it</li>
-    <li><a href="https://cytheraguides.com" target="_blank" rel="noopener"><strong>Cythera Guides</strong></a>, and the sites it keeps in its archives, <strong>Slayer</strong>’s among them, which came before it</li>
-    <li>the editors of the <strong>Cythera wiki</strong> and the writers of the <strong>Cythera web board</strong></li>
-    <li>the authors of the community’s add-ons and patches: <strong>Wizard</strong>, <strong>Magpie</strong>, <strong>Talos</strong>, <strong>Tycho Maudd</strong>, and <strong>Randy Pringle</strong></li>
+    <li>the authors of the community’s add-ons and patches: <strong>Wizard</strong>, <strong>Magpie</strong>, <strong>Talos</strong>, and <strong>Tycho Maudd</strong></li>
+    <li>the <strong>Cythera community</strong> at large!</li>
   </ul>
   <p>Grimoire is maintained by <strong>EgadZoundsGadzooks</strong> and rests on decades of work by the Cythera community. Particular thanks to <strong>453</strong>, <strong>Wizard</strong>, and <strong>Troyen</strong>, who runs the <a href="https://discord.gg/u5BDQvyem4" target="_blank" rel="noopener">Alraeican Tavern Discord</a>, where the community is now.</p>
   <p>Parts of this page were written with Claude, Gemini and Perplexity.</p>
@@ -6257,6 +6263,8 @@ function closeTopPanels() {
   closeSearch();
   const c = document.getElementById('creditsMenu');
   if (c) c.classList.remove('open');
+  const k = document.getElementById('creditsCaret');
+  if (k) k.classList.remove('open');
 }
 function toggleCredits() {
   const c = document.getElementById('creditsMenu');
@@ -6264,6 +6272,18 @@ function toggleCredits() {
   const on = !c.classList.contains('open');
   closeTopPanels();
   c.classList.toggle('open', on);
+  /* The panel is as wide as the page allows and right-aligned, so on its own
+     it reads as hanging off the right edge rather than off the word that
+     opened it. The caret is put under the middle of that word, measured, so
+     the word stays where it is and the panel points at it. */
+  const k = document.getElementById('creditsCaret'), b = document.getElementById('creditsLink');
+  if (k && b && on) {
+    k.classList.add('open');
+    const host = (k.offsetParent || document.documentElement).getBoundingClientRect();
+    const word = b.getBoundingClientRect(), panel = c.getBoundingClientRect();
+    k.style.left = Math.round(word.left + word.width / 2 - host.left - 6) + 'px';
+    k.style.top  = Math.round(panel.top - host.top - 6) + 'px';
+  }
 }
 function toggleSearch() {
   const w = document.getElementById('searchWrap');
