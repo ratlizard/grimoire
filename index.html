@@ -4530,7 +4530,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.73.0';
+const GRIMOIRE_VERSION = '1.74.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -14282,7 +14282,13 @@ function paintDecodedPane() {
    than by their names (the "palette" is planks; the "statue" is a blob). The
    two fork pairs share the half disk on purpose -- 0x237 is the left half,
    0x238 the right -- because a fork is half of a file and the archive draws
-   exactly that. Frame n of sheet 0x8Exx is tile ((0x8Exx & 0xFF) << 4) | n. */
+   exactly that. Frame n of sheet 0x8Exx is tile ((0x8Exx & 0xFF) << 4) | n.
+
+   Since 14 September 2026 a tab may also name the icon of the FILE it shows,
+   which outranks its tile once the application is open: `finder` is a Finder
+   type out of the application's bundle, `crsr` a colour cursor in its
+   resource fork. The half-disk pair above still stands for Cythera Data's two
+   forks; the application's two wear crsr 257 and 259, the maintainer's pick. */
 const TAB_TREE = [
   // World is a leaf at the top level, like Tools: it is not a folder of
   // galleries but one view, the 256x256 world map with every way off it
@@ -14390,16 +14396,27 @@ const TAB_TREE = [
   // the installer is first because it is where the rest came from, not the
   // thing most visits are for.
   { id: 'data', label: 'Data', tile: 0x242, tileOpen: 0x243, last: 'cytheradata', children: [   // the red book
+      /* The Data tabs wear the icons of the files themselves where the file
+         has one (the maintainer, 14 September 2026). `finder` is the Finder
+         type whose icon the application's bundle carries, `crsr` a colour
+         cursor id in its resource fork; the tile beside each stays as the
+         fallback, because the row is drawn long before any application is
+         open and most visits never open one.
+
+         Two keep their tiles on purpose. The Combat AI files are TEXT, and
+         the bundle gives TEXT no icon at all -- the smoke pins that -- so it
+         would fall back every time. The installer is a container rather than
+         a Delver file type, so there is no icon of its own to take. */
       // The DELVER stone, the engine's own badge: what the installer put down.
       { id: 'installer', label: 'Installer', tile: 0x80F, values: ['INSTALLER'] },
-      { id: 'cytheradata', label: 'Cythera Data', tile: 0x282, children: [                    // a sack
+      { id: 'cytheradata', label: 'Cythera Data', tile: 0x282, finder: 'DelS', children: [    // a sack
           // The tables as tables: the master index, the prop lists, the
           // 0xF0xx game data (monster stats among them) and the creation stats.
           { id: 'datafork', label: 'Data Fork',     tile: 0x237, values: ['DATAFORK', '128', '239', '4'] },
           { id: 'rsrcfork', label: 'Resource Fork', tile: 0x238, values: ['MACRSRC'] },
           { id: 'changes',  label: 'Changes',       tile: 0x2EE, values: ['CHANGES'] } ] },   // blacksmith's hammer
-      { id: 'cythera', label: 'Cythera (App)', tile: 0x231, children: [                       // the lit torch
-          { id: 'apppef',  label: 'Data Fork',     tile: 0x237, wip: true, values: ['APPPEF'] },
+      { id: 'cythera', label: 'Cythera (App)', tile: 0x231, finder: 'APPL', children: [       // the lit torch
+          { id: 'apppef',  label: 'Data Fork',     tile: 0x237, crsr: 257, wip: true, values: ['APPPEF'] },
           // The same fork read as what it is for: the menus, the dialogs and
           // windows, the cursors that are the game's verbs, the icons. The tab
           // that was Interface until 10 September 2026 is this one.
@@ -14409,11 +14426,13 @@ const TAB_TREE = [
           // rather than merely added there: TAB_LEAF_FOR keeps the FIRST leaf
           // to claim a value, so leaving both would have bound CHEATS to
           // whichever came first in the tree and lit the wrong branch.
-          { id: 'apprsrc', label: 'Resource Fork', tile: 0x238, values: ['APPRSRC'] } ] },
-      // sheet of paper by 0xF004's name table -- chosen from the names
-      // rather than by looking at a sheet of candidates, which is how every
-      // other icon here was picked, so it is the one to check on a screen.
-      { id: 'savegame', label: 'Saved Game', tile: 0x263, values: ['SAVEGAME'] },
+          { id: 'apprsrc', label: 'Resource Fork', tile: 0x238, crsr: 259, values: ['APPRSRC'] } ] },
+      // The sheet of paper was chosen from 0xF004's name table rather than by
+      // looking at a sheet of candidates, which is how every other icon here
+      // was picked -- so it was the one to check on a screen. With the
+      // application open the tab wears the Finder's own icon for a saved game
+      // instead, and the tile is only what stands in before that.
+      { id: 'savegame', label: 'Saved Game', tile: 0x263, finder: 'DelP', values: ['SAVEGAME'] },
       { id: 'combatai', label: 'Combat AI', tile: 0x2D1, wip: true, children: [               // the rolling pin
           { id: 'aiscripts', label: 'Scripts', tile: 0x181, wip: true, values: ['AISCRIPTS'] },  // the maintainer's pick, 9 September 2026
           { id: 'airules',   label: 'Rules',   tile: 0x811, wip: true, values: ['AIRULES'] } ] } ] },  // the hay target
@@ -14488,9 +14507,41 @@ function tabTrail(node) {
 
 // `spec` is either {tile} -- an exact tile id -- or {icon} -- a prop type,
 // whose fullest early frame is used.
+/* The application's own art for a tab: the Finder icon its bundle gives a file
+   type, or a colour cursor out of its resource fork. Null until the
+   application is open, which is most of the time -- the tab row is drawn at
+   startup and the fork arrives later, if at all -- so every caller falls back
+   to the game tile named beside it. loadApplicationFork calls syncTabsTo once
+   APP_RSRC is set, and that is what redraws the row with the real icons.
+
+   Both go through rsrcArtifacts rather than the decoders directly, so a tab
+   icon and the same resource in the fork gallery can never disagree. */
+function navIconFromFork(spec) {
+  if (!spec || typeof spec !== 'object' || !window.APP_RSRC) return null;
+  try {
+    if (spec.finder) return finderIconFor(spec.finder);
+    if (spec.crsr !== undefined) {
+      const fork = window.APP_RSRC;
+      const e = (fork.resourcesByType['crsr'] || []).find(x => x.id === spec.crsr);
+      if (!e) return null;
+      const pic = rsrcArtifacts(fork, 'crsr', e).find(a => a.canvas && a.canvas.width);
+      return pic ? pic.canvas : null;
+    }
+  } catch (e) {}
+  return null;
+}
+
 function navIconCanvas(spec, px) {
   const c = document.createElement('canvas');
   try {
+    const art = navIconFromFork(spec);
+    if (art && art.width) {
+      c.width = art.width; c.height = art.height;
+      const g = c.getContext('2d');
+      if (g) g.drawImage(art, 0, 0);
+      c.style.cssText = 'width:' + px + 'px;height:' + px + 'px;image-rendering:pixelated;display:block;margin:0 auto';
+      return c;
+    }
     let tile = null;
     if (typeof spec === 'object' && spec && spec.tile !== undefined) tile = spec.tile;
     else {
@@ -14530,7 +14581,10 @@ function renderTabRow(row, nodes, selectedId) {
     b.setAttribute('role', 'tab');
     b.setAttribute('aria-selected', n.id === selectedId ? 'true' : 'false');
     if (n.wip) b.title = 'Not yet connected to the rest, the raw view, where there is one';
-    b.appendChild(navIconCanvas({ tile: (n.id === selectedId && n.tileOpen) ? n.tileOpen : n.tile }, 18));
+    // The whole icon spec, not just the tile: a Data tab may name the file
+    // type or the cursor its picture comes from, with the tile as the
+    // fallback for before the application is open.
+    b.appendChild(navIconCanvas({ tile: (n.id === selectedId && n.tileOpen) ? n.tileOpen : n.tile, finder: n.finder, crsr: n.crsr }, 18));
     const t = document.createElement('span');
     t.textContent = n.label;
     b.appendChild(t);

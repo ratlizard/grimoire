@@ -3313,6 +3313,39 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     if (!icons.APPL || !icons.DelS || !icons.DelP) fail('finder icons', 'bundle gave ' + JSON.stringify(Object.fromEntries(Object.entries(icons).map(([k, v]) => [k, !!v]))));
     else if (icons.TEXT) fail('finder icons', 'a TEXT file got an icon the bundle does not give it');
     else console.log('  finder icons: application, data file and saved game drawn from the bundle; TEXT has none');
+    /* The Data tabs wearing the icons of the files themselves, 14 September
+       2026. This is the half that needs the application open, and it can only
+       run here: navIconFromFork answers null without window.APP_RSRC, which
+       adoptArchive above is what sets. The bare-archive run earlier in this
+       file has no application at all, which is the fallback case -- every one
+       of these nodes keeps a tile beside its file icon for exactly that, and
+       the tabs draw there without any of this.
+
+       The two cursors are required to differ, and it is worth being exact
+       about what that proves. rsrcArtifacts memoises per type:id, so two
+       distinct ids always yield two distinct canvas objects: comparing them
+       by identity catches both forks NAMING THE SAME ID -- the easy mistake,
+       since both cursors are 16x16 and 2-bit -- and nothing more. Two
+       different ids that happened to draw the same picture would pass. */
+    {
+      const byId = peek('TAB_BY_ID');
+      const node = id => (byId && byId.get ? byId.get(id) : null);
+      const art = id => { const n = node(id); return n ? ctx.navIconFromFork({ tile: n.tile, finder: n.finder, crsr: n.crsr }) : null; };
+      const want = ['cytheradata', 'cythera', 'savegame', 'apppef', 'apprsrc'];
+      const drawn = {};
+      for (const id of want) { const a = art(id); drawn[id] = !!(a && a.width); }
+      const lacking = want.filter(id => !drawn[id]);
+      // The two that name no file icon, so they must fall through to the tile.
+      const plain = ['installer', 'combatai'].filter(id => art(id));
+      const c257 = art('apppef'), c259 = art('apprsrc');
+      const sameCursor = c257 && c259 && c257 === c259;
+      if (!byId || !byId.get) fail('data tab icons', 'TAB_BY_ID is not reachable, so the tabs cannot be read');
+      else if (lacking.length) fail('data tab icons', 'a Data tab draws no icon from the open application: ' + lacking.join(', '));
+      else if (plain.length) fail('data tab icons', 'a tab that names no file icon got one anyway: ' + plain.join(', '));
+      else if (sameCursor) fail('data tab icons', 'both application forks resolved to the same cursor, so one of the two ids is wrong');
+      else console.log('  data tab icons: ' + want.length + ' Data tabs drawn from the file itself (' +
+        node('apppef').crsr + ' and ' + node('apprsrc').crsr + ' for the application’s two forks), installer and combat AI on their tiles');
+    }
     // Read the licence through the button the table offers, then take a file away.
     ctx.showCategory('INSTALLER');
     const arc = ctx.INSTALLER.archive;
