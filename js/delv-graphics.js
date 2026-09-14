@@ -253,16 +253,30 @@ function reshapeTileSheetGrid(W, H, image) {
 // swapping frames: the wiki records that "colors 0xE0-0xFB inclusive are
 // subject to palette animation", and Glenn Andreas describes the engine
 // iterating those indices for "the lava, or waves in the water". The Andreas
-// quote and the 0xE0-0xFB range are the wiki's; the five-ramp subdivision
-// below is THIS TOOL'S OWN reading of the palette and appears nowhere in the
-// wiki. It is a guess that looks right, not documented fact:
+// quote and the 0xE0-0xFB range are the wiki's. Where the ramps divide is no
+// longer a guess: the engine masks with 0xF8 below 0xF0 and with 0xFC above
+// it, which is the 8, 8, 4, 4, 4 below, and it leaves 0xFC-0xFF alone. What
+// each ramp is FOR is still this tool's own reading and appears nowhere in
+// the wiki:
 //   E0-E7 fire/lava   E8-EF water   F0-F3 magic (the void sparkle)
 //   F4-F7 earth       F8-FB nature
+//
+// The direction is NOT a guess and was wrong here until 14 September 2026,
+// which is why the rivers ran upstream. The engine does not animate the CLUT
+// at all: it builds eight 256-byte translation tables once, counts a phase
+// 0..7 up by one per animation tick, and passes every pixel of the finished
+// frame through the table for the current phase. The tables are built as
+//   index -> (index & 0xF8) | ((index - phase) & 7)   for E0-EF
+//   index -> (index & 0xFC) | ((index - phase) & 3)   for F0-FB
+// and everything outside E0-FB maps to itself. So a pixel drawn as E0 shows
+// E7 at phase 1, not E1: the ramp is walked DOWNWARDS as the phase rises.
+// This tool had it upwards, and so does delvmod's panimate, which the two
+// having been written separately had made look like agreement.
 const PALETTE_CYCLES = [[0xE0,8],[0xE8,8],[0xF0,4],[0xF4,4],[0xF8,4]];
 function cycledPalette(frame) {
   const pal = PAL_RGB.slice();
   for (const [start, len] of PALETTE_CYCLES) {
-    for (let i = 0; i < len; i++) pal[start + i] = PAL_RGB[start + ((i + frame) % len)];
+    for (let i = 0; i < len; i++) pal[start + i] = PAL_RGB[start + ((i - frame) % len + len) % len];
   }
   return pal;
 }
