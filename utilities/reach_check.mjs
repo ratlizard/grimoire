@@ -78,7 +78,10 @@ const REASON = 'unreached on 14 September 2026, the run that added this check; '
                'kept as a baseline, awaiting a decision to wire or delete';
 const ALLOWED = new Map([
   'decodableBadge', 'scaleCanvas',                        // js/mac-rsrc-types.js
-  'makeDelverPropRecord', 'delverPropsAtSquare',          // js/delv-archive.js
+  // makeDelverPropRecord and delverPropsAtSquare were here until the browser
+  // player was added to the corpus, which reaches both. The list said so
+  // itself rather than being noticed by hand, which is the whole point of an
+  // allowlist that fails when an entry stops being unreached.
   'dvmLooksLikeText',                                     // js/delv-script.js
   'mechLevelForExp',                                      // js/delv-mechanics.js
   'toggleUnditherPreview', 'unditherPreset', 'setUnditherPreset', 'ditherReplacePortrait',
@@ -115,6 +118,43 @@ function buildCorpus(htmlPath) {
     code: collected.html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' '),
     product: true,
   });
+  /* The browser player, when it is checked out beside this repository.
+
+     It is not a test and it is not this page: it is a second product that
+     VENDORS four of grimoire's files verbatim (`www/delv/`, see the README
+     there) and calls into them. `mergeDelverPatch` has no caller in this page
+     and is not dead -- `www/index.html` applies a Magpie patch with it, which
+     is how the player loads an add-on. Reported as harness-only, it reads as
+     dead code, and deleting it would break the player silently, since nothing
+     in this repository would notice.
+
+     So its references count as a real consumer's, not a test's. Found the way
+     delvmod and wolflizard are found -- $PLAYER, then a sibling checkout --
+     and when it is absent the run SAYS so, because the verdict for those
+     functions quietly changes without it. */
+  const playerDirs = [];
+  for (const cand of [process.env.PLAYER,
+                      join(dirname(resolve(htmlPath)), '..', 'ratlizard.github.io', 'www'),
+                      join(dirname(resolve(htmlPath)), '..', '..', 'ratlizard.github.io', 'www')]) {
+    if (!cand) continue;
+    try { readdirSync(cand); playerDirs.push(cand); break; } catch { /* not there */ }
+  }
+  for (const pdir of playerDirs) {
+    const walk = (d, depth) => {
+      let entries = [];
+      try { entries = readdirSync(d, { withFileTypes: true }); } catch { return; }
+      for (const e of entries) {
+        const p = join(d, e.name);
+        if (e.isDirectory()) { if (depth > 0) walk(p, depth - 1); continue; }
+        if (!/\.(mjs|js|html)$/.test(e.name)) continue;
+        try {
+          pieces.push({ name: 'player/' + e.name, product: true, player: true,
+                        code: stripComments(readFileSync(p, 'utf8')) });
+        } catch { /* unreadable */ }
+      }
+    };
+    walk(pdir, 2);
+  }
   // Every other harness. This file is skipped deliberately: a name written
   // into ALLOWED above would otherwise count as a reference to itself and
   // every allowed entry would report as reached.
