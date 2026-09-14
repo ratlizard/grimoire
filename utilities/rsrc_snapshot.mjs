@@ -126,7 +126,17 @@ function describe(type, entry, data) {
     case 'Page': { const p = G.decodePage(data); return p ? text(() => p) : null; }
     case 'MSta': { const m = G.decodeMSta(data); return m ? text(() => m) : null; }
     case 'Pref': return data.length === 4 ? `pref:${(entry.name || '')}:${G.u32be(data, 0)}` : null;
-    case 'DATA': { const t = G.decodeIdNameTable(data); return t ? text(() => t) : null; }
+    /* LINF and the rest of DATA arrived on 14 September 2026, and the way they
+       arrived is the warning. Both were given decoders in exportArtifacts
+       first, the suite was run, and this hash did not move -- which read as
+       "the change is safe" and actually meant "this file has its own switch
+       and neither type is in it". Nine DATA resources and all three LINF were
+       being decoded by nothing that guarded them, exactly as Lite was before
+       7 September. If a decoder is added to the page, add it here in the same
+       commit or the green result is about nothing. */
+    case 'LINF': { const l = G.decodeLINF(data); return l ? text(() => l) : null; }
+    case 'DATA': { const t = G.decodeCycleTable(data) || G.decodeIdNameTable(data) || G.allZeroText(data);
+      return t ? text(() => t) : null; }
     default:
       if (G.COLOR_TABLE_TYPES && G.COLOR_TABLE_TYPES[T]) { const r = G.decodeClut(data); return `ctab:${r.count}:${canvasSig(r.canvas)}`; }
       // 68K code: CODE and the definition procedures, which are the same thing

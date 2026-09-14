@@ -290,6 +290,13 @@ const CHECKS = [
   {page: 'viewer', name: 'rule models',
    cmd: ['utilities/mech_check.mjs', 'js/delv-mechanics.js'],
    grep: /\d+ comparisons agree[^\n]*/},
+  /* The version number against what is deployed. Nothing read GRIMOIRE_VERSION
+     until 14 September 2026, so a missed bump failed nothing and one was
+     missed. It skips outside a git checkout or without a baseline ref, and
+     carries its own negative control over every verdict. */
+  {page: 'viewer', name: 'version',
+   cmd: ['utilities/version_check.mjs', 'index.html'],
+   grep: /version [\d.]+[^\n]*/},
   {page: 'viewer', name: 'ui smoke', want: [DATA], slow: true,
    cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL, SAVE],
    grep: /\d+ galleries, [\d,]+ tiles/},
@@ -303,6 +310,13 @@ const CHECKS = [
   // moved with them and its hash did not change, which is what says nothing
   // was lost on the way; the two UI checks it had are now the fork sections
   // of viewer_smoke.mjs.
+  /* The bitmap-font writer against the two strikes Ambrosia shipped. The
+     reader walks past the two tables that follow the bit image, so rendering a
+     font correctly proves nothing about them; writing the shipped bytes back
+     exactly does. Carries its own negative control per font. */
+  {page: 'viewer', name: 'bitmap font write', want: [DATA_RSRC],
+   cmd: ['utilities/nfnt_write_check.mjs', 'index.html', DATA_RSRC],
+   grep: /\d+ of \d+ shipped fonts written back byte for byte[^\n]*/},
   {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
    grep: /SNAPSHOT \w+/},

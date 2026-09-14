@@ -298,6 +298,54 @@ function decodeIdNameTable(data){
     rows.map(([id,nm])=>'  0x'+id.toString(16).toUpperCase().padStart(4,'0')+'  '+(nm||'(none)')).join('\n');
 }
 
+/* The editor's level templates.
+
+   Three `LINF` resources of twelve bytes, six big-endian shorts each. The
+   first two are a width and a height, which is not a guess: they read 256x256,
+   64x64 and 64x64, and the archive's own maps are one 256x256 world and twenty
+   64x64 zones. The remaining four are -1, 0, a 0 or 1, and a number (65 and
+   49 in the two 64x64 templates, 0 in the world's), and nothing here says what
+   those are, so they are shown as they stand rather than named. */
+function decodeLINF(data){
+  if(data.length!==12) return null;
+  const s=[]; for(let i=0;i<12;i+=2) s.push(u16be(data,i));
+  return `A level template ${s[0]} by ${s[1]} squares.\n`+
+         `The other four shorts, unread: ${s.slice(2).map(v=>v>0x7fff?v-0x10000:v).join(', ')}`;
+}
+
+/* The colour cycles, as the editor holds them.
+
+   Five three-byte entries, (first index, length, flag), ending at a pair of
+   zero bytes. The page animates five cycles of its own and the two agree
+   entry for entry on the lengths and the order -- 8, 8, 4, 4, 4 -- with every
+   starting index in this table exactly 16 below the one the game uses. The
+   game's own values are the ones observed animating, so the 16 is this
+   table's, presumably the editor's palette being indexed from a different
+   base; that part is not read, and the text says so rather than quietly
+   adding 16. */
+function decodeCycleTable(data){
+  if(data.length<9||data.length>64) return null;
+  const rows=[];
+  for(let p=0;p+3<=data.length;p+=3){
+    if(!data[p]&&!data[p+1]) break;
+    if(!data[p+1]||data[p+1]>64) return null;                 // not a run length
+    if(rows.length&&data[p]<=rows[rows.length-1].start) return null;   // must ascend
+    rows.push({start:data[p], count:data[p+1], flag:data[p+2]});
+  }
+  if(rows.length<2) return null;
+  return rows.length+' colour cycles, as (first index, length, flag):\n'+
+    rows.map(r=>`  0x${r.start.toString(16).toUpperCase().padStart(2,'0')}  ${r.count} entries  flag ${r.flag}`).join('\n')+
+    '\n\nThe starting indices here run 16 below the ones the game animates; what the 16 is has not been read.';
+}
+
+// A resource that is entirely zero is read, not unread, and saying which it is
+// costs nothing. Four of the data file's DATA resources are 512, 1,024, 4,096
+// and 8,192 bytes of nothing at all.
+function allZeroText(data){
+  for(const b of data) if(b) return null;
+  return data.length+' bytes, every one zero.';
+}
+
 function exportArtifacts(fork, type, entry, data){
   const out=[], txt=s=>out.push({ext:'txt', text:s}), cvs=(c,tag)=>out.push({ext:'png', canvas:c, tag});
   if(type==='Lite') { const l=decodeLite(data); if(l){ cvs(l.canvas,'cone'); txt(l.text); } }
@@ -322,7 +370,8 @@ function exportArtifacts(fork, type, entry, data){
   else if(type==='Page'){ const p=decodePage(data); if(p) txt(p); }
   else if(type==='MSta'){ const m=decodeMSta(data); if(m) txt(m); }
   else if(type==='Pref'&&data.length===4) txt((entry.name||'Preference')+': '+u32be(data,0));
-  else if(type==='DATA'){ const t=decodeIdNameTable(data); if(t) txt(t); }
+  else if(type==='LINF'){ const l=decodeLINF(data); if(l) txt(l); }
+  else if(type==='DATA'){ const t=decodeCycleTable(data)||decodeIdNameTable(data)||allZeroText(data); if(t) txt(t); }
   else if(type==='STR#') txt(decodeSTRList(data).map((s,i)=>`[${i}] ${s}`).join('\n'));
   else if(type==='STR ') txt(decodeSTR(data));
   else if(type==='TEXT') txt(decodeTEXT(data));
@@ -1634,6 +1683,55 @@ function cropBits(bits,rowBytes,H,x0,W){
   }
   ctx.putImageData(im,0,0); return c;
 }
+/* The bitmap font, the other way.
+
+   `decodeNFNT` reads what it needs to draw a strike and stops; writing one
+   back needs the two tables it walks past, and needs them exactly, because the
+   only evidence that a font format has been understood is that the shipped
+   font comes back byte for byte. Both of Cythera's do -- NFNT 25740 (904
+   bytes) and 25746 (1,478), the Seldane script at 12 and 18 point -- and a
+   single flipped bit in the strike moves the output, which is the control that
+   says the strike is being written rather than copied from the input.
+
+   The layout, and the one field that has to be counted right: the location
+   table has nGlyphs + 1 entries, the sentinel included, and the offset/width
+   table has nGlyphs. Reading both as nGlyphs + 1 makes every font two bytes
+   too long, which is how this was found.
+
+   `owTLoc` is measured in words from the address of the `owTLoc` field
+   itself -- byte 16 -- not from the start of the resource. */
+function nfntSpec(data){
+  if(data.length<26) throw new Error('NFNT too short');
+  const f={fontType:u16be(data,0), firstChar:u16be(data,2), lastChar:u16be(data,4),
+           widMax:u16be(data,6), kernMax:u16be(data,8), nDescent:u16be(data,10),
+           fRectWidth:u16be(data,12), fRectHeight:u16be(data,14), owTLoc:u16be(data,16),
+           ascent:u16be(data,18), descent:u16be(data,20), leading:u16be(data,22),
+           rowWords:u16be(data,24)};
+  f.strikeBytes=f.rowWords*2*f.fRectHeight;
+  if(26+f.strikeBytes>data.length) throw new Error('bit image runs past the end of the resource');
+  f.strike=data.slice(26,26+f.strikeBytes);
+  f.nGlyphs=f.lastChar-f.firstChar+2;                 // the missing symbol included
+  const locOff=26+f.strikeBytes;
+  f.loc=[]; for(let i=0;i<=f.nGlyphs;i++) f.loc.push(u16be(data,locOff+i*2));
+  f.owOff=16+f.owTLoc*2;
+  f.ow=[];  for(let i=0;i<f.nGlyphs;i++)  f.ow.push(u16be(data,f.owOff+i*2));
+  f.tail=data.slice(f.owOff+f.nGlyphs*2);
+  return f;
+}
+function writeNFNT(f){
+  const head=[f.fontType,f.firstChar,f.lastChar,f.widMax,f.kernMax,f.nDescent,
+              f.fRectWidth,f.fRectHeight,f.owTLoc,f.ascent,f.descent,f.leading,f.rowWords];
+  const locOff=26+f.strikeBytes;
+  const out=new Uint8Array(f.owOff+f.nGlyphs*2+f.tail.length);
+  const put=(o,v)=>{ out[o]=(v>>8)&255; out[o+1]=v&255; };
+  head.forEach((v,i)=>put(i*2,v));
+  out.set(f.strike,26);
+  f.loc.forEach((v,i)=>put(locOff+i*2,v));
+  f.ow.forEach((v,i)=>put(f.owOff+i*2,v));
+  out.set(f.tail,f.owOff+f.nGlyphs*2);
+  return out;
+}
+
 // FOND: 52-byte family record, then the font association table that says
 // which NFNT resource holds which size and style.
 const FOND_STYLES=[[1,'bold'],[2,'italic'],[4,'underline'],[8,'outline'],[16,'shadow'],[32,'condensed'],[64,'extended']];

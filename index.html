@@ -2050,10 +2050,10 @@ const RSRC_KINDS = [
     note: 'The dialog boxes and alerts (a DLOG or ALRT names its DITL, the item list), the window templates, the controls, their colour tables, the backdrop patterns (ppat: the default and black), and the palettes.',
     view: null },
   { id: 'editor', label: 'Editor', types: ['eSTM', 'eBRS', 'MSta', 'FILT', 'LINF', 'DATA', 'PORT', 'RMAP', 'TMPL'],
-    note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three saved game states (MSta: “Base”, “Plague Cured” and “Olpheltius Murdered”, which differ from Base at one byte each), the editor’s own tile names (DATA 260, a short list beside the archive’s terrain table), the record that says TxSt 999 is really a colour (RMAP), and the ResEdit templates. FILT, LINF, PORT and the other nine DATA resources are listed and unread.',
+    note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three saved game states (MSta: “Base”, “Plague Cured” and “Olpheltius Murdered”, which differ from Base at one byte each), the editor’s own tile names (DATA 260, a short list beside the archive’s terrain table), the three level templates (LINF: one 256 by 256 and two 64 by 64, the sizes the archive’s own maps come in), the colour cycles (DATA 261), the record that says TxSt 999 is really a colour (RMAP), and the ResEdit templates. Four DATA resources are 512, 1,024, 4,096 and 8,192 bytes of nothing. FILT, PORT and three DATA resources are listed and unread.',
     view: 'RSRC' },
   { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
-    note: 'What the executable reads about itself: the 25 light cones (Lite: one byte of side, then that many squared bytes of brightness, 0 to 32; sides 8 to 120), one Delver tile sheet (TILE 282, sixteen tiles that appear nowhere in the game’s own art), the Delver engine’s help pages (Page, three carry text, ten are empty), the two preference defaults (volume 5 and music 2), the thirteen audit categories, the version records, the memory sizes, the code fragment map and the nine 68K CODE segments.',
+    note: 'What the executable reads about itself: the 25 light cones (Lite: one byte of side, then that many squared bytes of brightness, 0 to 32; sides 8 to 120), one Delver tile sheet (TILE 282, sixteen tiles that appear nowhere in the game’s own art), the Delver engine’s help pages (Page, three carry text, ten are empty), the two preference defaults (volume 5 and music 2), the thirteen audit categories, the version records, the code fragment map and the nine 68K CODE segments. The two MemU records, one named for each processor, hold the same nine bytes, and they are not the application’s memory partition: the SIZE resource asks for 12,288K and 10,240K, which these bytes do not carry however they are read.',
     view: null }
 ];
 const RSRC_KIND_OF = new Map();
@@ -4488,7 +4488,16 @@ function showItemDetail(pt) {
                draw a river or a wall, named "Adobe Wall, Grass" and so on
      MSta   3  64 bytes each, named "Base", "Plague Cured" and "Olpheltius
                Murdered" -- the names are world events; the bytes are unread
-     FILT   7  6,180 or 8,228 bytes each, unnamed; unread
+     FILT   7  6,180 or 8,228 bytes each, unnamed; unread. What is measured:
+               every one opens with a four-byte flag (0 or 1) and a pair of
+               bytes that reads as a size in five of the seven (10x10, 14x14,
+               4x4 twice, 16x80), and the body past a 36-byte head is exactly
+               6,144 or 8,192 bytes. The values in it are few -- four distinct
+               bytes in one, six in another -- and mostly 0, 1, 2, 0x21 and
+               0xff, which is the shape of a per-square flag table rather than
+               of artwork. The editor that wrote them is not shipped, so
+               nothing here can be checked against anything; the shape is
+               recorded and the meaning is not claimed
 
    Stamps and brushes are documented on the wiki's "Delver editor stamp" and
    "Delver editor brush" pages, and both are editor-only -- deleting them has no
@@ -4530,7 +4539,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.74.0';
+const GRIMOIRE_VERSION = '1.75.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -4649,6 +4658,177 @@ function undoFontSwap() {
   try { installDialogueBox(); } catch (e) {}
   setStatus('The game’s own font is back.');
   renderMacRsrcSheet();
+}
+
+/* ---------------------------------------------------------------------------
+   The Seldane script, rewritten.
+
+   The game's outline font can be swapped since v1.22.0; the other face in the
+   file could not be touched. Seldane is a bitmap font, not an outline one:
+   FOND 128 names NFNT 25740 at 12 point and NFNT 25746 at 18, each a single
+   wide bit image with a location table saying where each letter starts in it.
+   The resource-fork writer has been able to put a resource back since
+   6 September, so what was missing was only the font half, and the evidence
+   that it is right is in utilities/nfnt_write_check.mjs: both shipped strikes
+   read through nfntSpec and back through writeNFNT byte for byte.
+
+   Rasterising is the easy half to get wrong, so what it does is stated plainly
+   on the panel: each glyph the strike already has an image for is drawn from
+   the chosen font at the strike's own cell height, thresholded to one bit, and
+   packed back in at its measured width. A glyph the strike has no image for
+   stays without one -- the Seldane alphabet is 25 letters, not 26, and
+   inventing the missing one would put a letter in the game that Ambrosia
+   never drew.
+
+   Both strikes are rewritten together, because a family whose two sizes are
+   different alphabets would be worse than either.
+--------------------------------------------------------------------------- */
+window.STRIKE_SWAP = null;
+function seldaneStrikes() {
+  const fork = window.CYTHERA_RSRC;
+  const list = fork && fork.resourcesByType && fork.resourcesByType['NFNT'];
+  return list && list.length ? list.slice().sort((a, b) => a.id - b.id) : null;
+}
+// One glyph, drawn from the loaded family into a column of `height` rows and
+// returned as the set bits of each row. Threshold on alpha: the rasteriser is
+// antialiasing and a bitmap strike has no grey.
+function rasteriseGlyph(ch, family, px, height, ascent) {
+  const pad = 4;
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, px * 2 + pad * 2); c.height = height;
+  const ctx = c.getContext('2d');
+  if (!ctx) return null;
+  ctx.font = px + 'px "' + family + '"';
+  ctx.textBaseline = 'alphabetic';
+  const adv = Math.max(1, Math.round(ctx.measureText(ch).width));
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#000';
+  ctx.fillText(ch, pad, ascent);
+  const im = ctx.getImageData(0, 0, c.width, c.height);
+  const rows = [];
+  for (let y = 0; y < height; y++) {
+    const row = [];
+    for (let x = 0; x < adv; x++) row.push(im.data[(y * c.width + (x + pad)) * 4 + 3] > 128 ? 1 : 0);
+    rows.push(row);
+  }
+  return { rows, width: adv };
+}
+function rebuildStrike(spec, family) {
+  const n = spec.nGlyphs;
+  // Which codes carry an image today. The last index is the missing symbol.
+  const had = [];
+  for (let i = 0; i < n; i++) had.push(spec.loc[i + 1] - spec.loc[i] > 0);
+  const px = spec.fRectHeight - spec.descent;      // the cell, less the tail
+  const glyphs = [];
+  for (let i = 0; i < n; i++) {
+    if (!had[i]) { glyphs.push(null); continue; }
+    const code = spec.firstChar + i;
+    const g = rasteriseGlyph(String.fromCharCode(code), family, px, spec.fRectHeight, spec.ascent);
+    glyphs.push(g && g.width > 0 ? g : null);
+  }
+  let total = 0;
+  for (const g of glyphs) total += g ? g.width : 0;
+  const rowWords = Math.max(1, Math.ceil(total / 16));
+  const rowBytes = rowWords * 2;
+  const strike = new Uint8Array(rowBytes * spec.fRectHeight);
+  const loc = [], ow = [];
+  let x = 0, widMax = 0;
+  for (let i = 0; i < n; i++) {
+    loc.push(x);
+    const g = glyphs[i];
+    if (!g) { ow.push(0xFFFF); continue; }         // no image, and none claimed
+    for (let y = 0; y < spec.fRectHeight; y++)
+      for (let k = 0; k < g.width; k++)
+        if (g.rows[y][k]) strike[y * rowBytes + ((x + k) >> 3)] |= 0x80 >> ((x + k) & 7);
+    ow.push((0 << 8) | Math.min(255, g.width));    // no left bearing, the measured width
+    if (g.width > widMax) widMax = g.width;
+    x += g.width;
+  }
+  loc.push(x);                                      // the sentinel
+  const strikeBytes = strike.length;
+  const owOff = 26 + strikeBytes + (loc.length) * 2;
+  return Object.assign({}, spec, {
+    strike, strikeBytes, rowWords, loc, ow,
+    widMax: widMax || spec.widMax,
+    fRectWidth: widMax || spec.fRectWidth,
+    owTLoc: (owOff - 16) / 2,
+    owOff, tail: new Uint8Array(0)
+  });
+}
+function swapSeldane(bytes, filename) {
+  const fork = window.CYTHERA_RSRC;
+  const strikes = seldaneStrikes();
+  if (!fork) throw new Error('no resource fork is open, so there is no font to rewrite');
+  if (!strikes) throw new Error('this fork has no NFNT resource');
+  const family = 'StrikeSource' + Date.now();
+  const face = new FontFace(family, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length));
+  return face.load().then(loaded => {
+    document.fonts.add(loaded);
+    const spec = resourceForkSpec(fork);
+    let done = 0;
+    for (const e of strikes) {
+      const built = rebuildStrike(nfntSpec(fork.dataOf('NFNT', e)), family);
+      const made = writeNFNT(built);
+      for (const r of spec.resources)
+        if (r.type === 'NFNT' && r.id === e.id) { r.data = made; done++; }
+    }
+    if (!done) throw new Error('could not find the strikes to replace');
+    const raw = writeResourceFork(spec);
+    const reopened = openResourceFork(raw);        // it must read back, or it is not written
+    window.CYTHERA_RSRC_RAW = raw;
+    window.CYTHERA_RSRC = reopened;
+    window.STRIKE_SWAP = { name: filename || 'a font', strikes: done };
+    return window.STRIKE_SWAP;
+  });
+}
+function undoStrikeSwap() {
+  const rec = window.ARCHIVE_ORIGINAL_RSRC;
+  if (!rec) { setStatus('The original fork was not kept; re-open the archive to get it back.', true); return; }
+  window.CYTHERA_RSRC_RAW = rec;
+  window.CYTHERA_RSRC = openResourceFork(rec);
+  window.STRIKE_SWAP = null;
+  setStatus('The Seldane script is the file’s own again.');
+  renderMacRsrcSheet();
+}
+function strikeSwapPanel() {
+  const box = document.createElement('div');
+  box.className = 'mechView';
+  const strikes = seldaneStrikes();
+  const sw = window.STRIKE_SWAP;
+  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Rewrite the Seldane script</h3></div>' +
+    (strikes
+      ? '<p class="mechLede">Seldane is a bitmap font: ' +
+        strikes.map(e => 'NFNT ' + e.id).join(' and ') +
+        ', named by the family record at 12 and 18 point. A TrueType font chosen here is drawn into both strikes at their own cell heights and written into the copy of the archive in this browser.</p>' +
+        '<ul class="ruleList">' +
+        '<li>Only the letters the strike already draws are replaced. Seldane has 25, and the one it lacks stays missing.</li>' +
+        '<li>The rasteriser has no greys to work with, so a light face at 12 point will come out broken up.</li>' +
+        '<li>Nothing is written to disk and nothing on the server changes.</li></ul>' +
+        '<div class="mechStats"><input type="file" id="strikeSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
+        (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoStrikeSwap()">Put the file’s own script back</button>' : '') +
+        '</div>' +
+        (sw ? '<blockquote class="mechQuote">' + svEsc(sw.name) + ' is the Seldane script in this copy, in ' + sw.strikes + ' strikes.</blockquote>' : '') +
+        '<div id="strikeSwapNote" class="mechSub"></div>'
+      : '<p class="mechLede">No bitmap font is open. Open Cythera Data from a container that carries its resource fork.</p>') +
+    '</section>';
+  setTimeout(() => {
+    const f = document.getElementById('strikeSwapFile');
+    if (!f) return;
+    f.onchange = function () {
+      const file = f.files && f.files[0];
+      const note = document.getElementById('strikeSwapNote');
+      if (!file) return;
+      const fail = e => {
+        if (note) note.textContent = 'That font could not be used: ' + e.message;
+        setStatus('That font could not be used: ' + e.message, true);
+      };
+      file.arrayBuffer().then(buf => swapSeldane(new Uint8Array(buf), file.name)).then(r => {
+        setStatus(file.name + ' is the Seldane script in this copy, in ' + r.strikes + ' strikes.');
+        renderMacRsrcSheet();
+      }).catch(fail);
+    };
+  }, 0);
+  return box;
 }
 
 /* THE DIALOGUE BOX, from the file (10 September 2026) and, since 11
@@ -5199,7 +5379,7 @@ function renderMacRsrcSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   const view = FORK_VIEWS[window.CUR_SUBN] || null;
-  if (window.CUR_SUBN === 'FONTS') grid.appendChild(fontSwapPanel());
+  if (window.CUR_SUBN === 'FONTS') { grid.appendChild(fontSwapPanel()); grid.appendChild(strikeSwapPanel()); }
   const kinds = view ? view.kinds.map(id => RSRC_KINDS.find(k => k.id === id)) : null;
   const sources = view ? (view.source === 'both' ? ['data', 'app'] : [view.source]) : [window.RSRC_SOURCE === 'app' ? 'app' : 'data'];
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
@@ -8593,6 +8773,85 @@ function ensureLightLayer() {
     wrap.appendChild(lc);
   }
   return lc;
+}
+/* The light cones, joined to the map (14 September 2026).
+
+   The 25 `Lite` resources in the application's fork have been drawn in the
+   fork gallery since v1.24.0 and used for nothing: the map drew a radial
+   gradient of its own, because which cone a light uses was not read. It is
+   read now, out of TViewer::CalcLighting, and it is the light's level rather
+   than its reach:
+
+     lha/clrlwi   the square's attribute byte, masked with 3 -- the same low
+                  two bits buildLightSources already reads
+     cmpwi 1      a level of 0 is not a light and is skipped
+     slwi 31,31,1 the level doubled
+     lis/addi     'Lite'
+     addi 4,31,126  the resource id: 126 + 2*level + a flag
+     bl           the resource is fetched
+
+   So level 1 asks for Lite 128 or 129, level 2 for 130 or 131, level 3 for
+   132 or 133 -- and those six are exactly the first family in the fork, sides
+   10, 12, 14, 16, 18 and 22. Level 0 would be 126, which does not exist,
+   which is consistent with the compare above never letting it ask. The
+   remaining nineteen, 140 to 158 at sides 8 to 120, are some other caller's
+   and are not reached from here.
+
+   The flag added to the doubled level is a flicker. The word is tested at bit
+   15, and a light that carries it calls Random and takes the low bit of the
+   result -- so such a light picks between the two cones of its level every
+   time the lighting is recomputed, guttering between 10 and 12 squares at
+   level 1, 14 and 16 at level 2, 18 and 22 at level 3. Both calls were named
+   from the stubs they go through rather than guessed: the glue at 0xc1f08 is
+   GetResource and the one at 0xc3180 is Random, each resolved through its TOC
+   slot to the loader's import table.
+
+   A still picture cannot gutter, so this draws the smaller cone of each level
+   -- the flag-0 one -- which is the light at its least generous.
+
+   What this changes on screen: the gradient was a radius of 1.1 + 0.85 per
+   level, so roughly 2, 3 and 3.6 squares, where the file says 5, 7 and 9. The
+   falloff is the file's too -- one byte a square, 0 to 32 -- instead of a
+   three-stop gradient. With no application open there is no fork to read and
+   the gradient stays, which is also what a visitor who opened only the data
+   file sees. */
+function lightCone(lvl) {
+  const fork = window.APP_RSRC;
+  if (!fork) return null;
+  // Keyed on the fork object itself, so opening, swapping or closing an
+  // application drops the cones with it and nothing else has to remember to.
+  if (!window.LIGHT_CONES || window.LIGHT_CONES.fork !== fork)
+    window.LIGHT_CONES = { fork, by: {} };
+  const by = window.LIGHT_CONES.by;
+  if (lvl in by) return by[lvl];
+  let out = null;
+  try {
+    const list = fork.resourcesByType && fork.resourcesByType['Lite'];
+    const e = list && list.find(r => r.id === 126 + 2 * lvl);
+    if (e) {
+      const d = fork.dataOf('Lite', e), n = d[0];
+      if (n && d.length === 1 + n * n) {
+        let mx = 0;
+        for (let i = 1; i < d.length; i++) if (d[i] > mx) mx = d[i];
+        const c = document.createElement('canvas');
+        c.width = n; c.height = n;
+        const cx = c.getContext('2d');
+        if (cx) {
+          const im = cx.createImageData(n, n);
+          // Alpha alone: the wash is punched out with destination-out, so the
+          // colour never shows and the brightness is the whole of the mask.
+          for (let i = 0; i < n * n; i++) {
+            const p = i * 4;
+            im.data[p] = im.data[p + 1] = im.data[p + 2] = 0;
+            im.data[p + 3] = mx ? Math.round(255 * d[1 + i] / mx) : 0;
+          }
+          cx.putImageData(im, 0, 0);
+          out = { canvas: c, side: n, id: e.id };
+        }
+      }
+    }
+  } catch (err) { out = null; }
+  return (by[lvl] = out);
 }
 function drawLighting(lensCtx, lensTS, rect) {
   const cm = window.CUR_MAP;
@@ -18417,6 +18676,12 @@ function eggKinds() {
    volumes are handed over by Itanos, Prusa and Unhayt rather than placed,
    and the Wine Contract is handed over by Apis, so all four read as
    unreachable until `sys Create` was counted as a second source. */
+/* sys Create's recipient is not always a register. Thirteen of the archive's
+   twenty-seven flat Creates address it as a plain number, character 1 being
+   the hero, so a pattern that insists on `global`/`arg`/`local` cannot see any
+   of them. Both readers of Create below match on this one shape, so they
+   cannot drift apart about what a Create looks like. */
+const CREATE_RECIPIENT = /^(?:global|arg|local) |^(?:byte|short|word) /;
 function libraryRules() {
   // Memoised: Loose ends and the Writings sheet both read this, and it is a
   // walk over every item class, every prop list and every script. A gallery
@@ -18495,7 +18760,7 @@ function libraryRules() {
   for (const e of buildScriptTextIndex()) {
     let ops = [];
     try { ops = dvmOpsOf(e); } catch (err) { continue; }
-    for (const g of dvmSeqAll(ops, [/^sys Create$/, /^(?:global|arg|local) /, DVM_NUM, DVM_NUM])) {
+    for (const g of dvmSeqAll(ops, [/^sys Create$/, CREATE_RECIPIENT, DVM_NUM, DVM_NUM])) {
       const ws = want.get(dvmNum(g[2]) & 0x3FF);
       if (!ws) continue;
       const d1 = dvmNum(g[3]);
@@ -18847,13 +19112,13 @@ function signalRules() {
    The recipient is NOT always a register. Thirteen of the archive's
    twenty-seven flat Creates address it as a plain number, character 1 being
    the hero, and a pattern that insists on `global`/`arg`/`local` cannot see
-   any of them. libraryRules has that narrower pattern; measured on this
-   archive it costs nothing, because every document handed over goes through
-   `global PlayerCharacter`, but it would silently under-count in a modded
-   archive. This one takes either. */
+   any of them. libraryRules carried that narrower pattern until 14 September
+   2026: it cost nothing on this archive, because every document handed over
+   goes through `global PlayerCharacter`, but it would have under-counted in a
+   modded one. Both read CREATE_RECIPIENT now. */
 function createsOf(proptype) {
   const out = [];
-  const RECIPIENT = /^(?:global|arg|local) |^(?:byte|short|word) /;
+  const RECIPIENT = CREATE_RECIPIENT;
   try {
     for (let subn = 0; subn < 256; subn++) {
       const mi = masterIndexGlobal && masterIndexGlobal[subn];
