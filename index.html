@@ -4539,7 +4539,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.76.0';
+const GRIMOIRE_VERSION = '1.77.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -7869,7 +7869,75 @@ function buildLightSources(resid, m) {
   return list;
 }
 
-// Night falls gradually rather than snapping at a fixed hour.
+/* How dark a zone is, read off the file instead of invented.
+
+   The curve below was written here: a night that falls at six and lifts at
+   seven, the same everywhere. The file says something different for every
+   zone, and since 14 September 2026 this reads it.
+
+   Each zone's entry script calls `sys SetAmbientLighting` once on arrival, and
+   that number is the base light level of every square. The chain from the
+   script to the screen was traced through the application rather than guessed
+   at, because the first attempt applied the right arithmetic to the wrong
+   argument: `cbSetAmbientLight` stores the number at a global,
+   `TGameViewer::DayTimeChanged` reads it and makes it `AmbientLight`'s FIRST
+   argument, which is memset into all 16,384 squares of the light buffer;
+   the second argument, which picks a `Lite` cone, comes from the zone object
+   and is a different field. `NOTES.md` has the chain instruction by
+   instruction.
+
+   The rule, as the branches have it:
+
+     v    = value < 0 ? -value : max(value, GetBrightness(clock))
+     v    = max(v, a viewer field / 3)
+     base = v >= 160 ? 32 : v / 5
+
+   and `TViewer::ApplyLight` leaves a square at 32 completely undarkened and
+   paints one at 0 black, so base is a 0..32 scale of how lit the place is.
+
+   Two departures, both deliberate and both named rather than hidden. The page
+   has no `GetBrightness`, so its own clock stands in for the daylight term,
+   full at noon and nothing at night. And the viewer-field clamp is a field of
+   a running game that the archive does not carry, so it is left out; it can
+   only make a zone lighter, never darker.
+
+   What it changes on screen: the Volcano sets 208, which is over 160, so its
+   base is 32 and nothing is darkened at any hour -- the whole screen is lit,
+   which is what the maintainer reported and is the zone's number rather than
+   the lava, which is placed nowhere in the file. Land King Hall sets -128,
+   and a negative value skips the clock outright, so it sits at 25 of 32 at
+   every hour: evenly and permanently well lit, alone among the forty-six. */
+window.ZONE_AMBIENT = null;
+function zoneAmbientLevel(resid) {
+  if (!window.ZONE_AMBIENT) window.ZONE_AMBIENT = {};
+  if (resid in window.ZONE_AMBIENT) return window.ZONE_AMBIENT[resid];
+  let out = null;
+  try {
+    const sid = 0x1400 + (resid - 0x8000);
+    if (refExists(sid)) {
+      const ops = dvmOpsOf(dvmScriptEntry(sid));
+      for (let i = 0; i + 1 < ops.length; i++) {
+        if (!/^sys SetAmbientLighting\b/.test(ops[i].text.trim())) continue;
+        let v = dvmNum(ops[i + 1]);
+        if (v === null) continue;
+        // Land King Hall is the one zone that writes a short, and it writes
+        // 0xFF80; the reader hands back 65408, so a short is signed here.
+        if (v > 32767) v -= 65536;
+        out = v;
+        break;
+      }
+    }
+  } catch (e) { out = null; }
+  return (window.ZONE_AMBIENT[resid] = out);
+}
+function ambientBase(level, hour) {
+  const bright = Math.round((1 - nightAlpha(hour) / 0.74) * 255);
+  const v = level < 0 ? -level : Math.max(level, bright);
+  return v >= 160 ? 32 : Math.floor(v / 5);
+}
+
+// Night falls gradually rather than snapping at a fixed hour. Still the
+// fallback, for an archive whose zone has no entry script to read.
 function nightAlpha(hour) {
   const h = ((hour % 24) + 24) % 24;
   const day = 6, duskStart = 18, duskEnd = 20, dawnStart = 5, dawnEnd = 7;
@@ -8893,7 +8961,10 @@ function drawLighting(lensCtx, lensTS, rect) {
     washX = 0; washY = 0; washW = lc.width; washH = lc.height;
   }
   const t = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
-  const alpha = nightAlpha(t);
+  // The zone's own level where the file gives one, the hand-written curve
+  // where it does not. 32 is the engine's "no darkening at all".
+  const lvl = zoneAmbientLevel(cm.resid);
+  const alpha = lvl === null ? nightAlpha(t) : (32 - ambientBase(lvl, t)) / 32;
   if (alpha <= 0.02) { if (!lensCtx) scheduleLensPaint(); return; }
   ctx.save();
   ctx.fillStyle = 'rgba(4,3,14,' + alpha + ')';
