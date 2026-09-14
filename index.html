@@ -1596,6 +1596,17 @@ body.atlasFull { overflow:hidden; }
         <option value="AISCRIPTS">Combat AI scripts (.ai)</option>
         <option value="AIRULES">Combat AI rules</option>
         <option value="MECHANICS">Mechanics (read out of the scripts)</option>
+        <!-- One per group of the Mechanics sheet, in the maintainer's order
+             (14 September 2026). MECHANICS itself is kept above so that a
+             deep link made before the split still resolves; onCategoryChange
+             sends it to the first group. -->
+        <option value="MECH_PROGRESS">Progress: what a character gains</option>
+        <option value="MECH_STATUS">Status: the body and the clock</option>
+        <option value="MECH_INTERACT">Interactions: what a thing does when it is used</option>
+        <option value="MECH_PUZZLES">Puzzles: the ones the file answers outright</option>
+        <option value="MECH_COMBAT">Combat: what a blow does</option>
+        <option value="MECH_ECONOMY">Economy: what things cost</option>
+        <option value="HACKERY">Hackery: the machinery under the scenario</option>
         <option value="SKILLS">Skills (each one, with everything the file says about it)</option>
         <option value="SPELLS">Spells (each one, with what it does)</option>
         <option value="TOOLS">Tools</option>
@@ -4519,7 +4530,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.72.0';
+const GRIMOIRE_VERSION = '1.73.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -5746,6 +5757,8 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
   if (window.CUR_SUBN === 'CHANGES') { renderChangesSheet(); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
+  // One tab per group of the rules sheet, and Hackery, all one renderer.
+  if (MECH_GROUP_BY_VALUE[window.CUR_SUBN]) { renderMechanicsSheet(window.CUR_SUBN); return; }
   if (window.CUR_SUBN === 'MECHANICS') { renderMechanicsSheet(); return; }
   if (window.CUR_SUBN === 'SKILLS') { renderSkillsSheet(); return; }
   if (window.CUR_SUBN === 'SCHEDULES') { renderSchedulesSheet(); return; }
@@ -6719,7 +6732,7 @@ function onCategoryChangeImpl() {
   if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
   // The Data tab's own views: not subindexes, no resources to list.
   if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' || rawval === 'SKILLS' || rawval === 'SPELLS' || rawval === 'SCHEDULES' ||
-      rawval === 'SAVEGAME' || rawval === 'CHEATS' ||
+      rawval === 'SAVEGAME' || rawval === 'CHEATS' || MECH_GROUP_BY_VALUE[rawval] ||
       rawval === 'WORLD' || PLACEHOLDER_TABS[rawval]) {
     window.CUR_SUBN = rawval;
     window.CUR_RESIDS = [];
@@ -14285,10 +14298,35 @@ const TAB_TREE = [
       { id: 'regions',    label: 'Zones',      tile: 0x120, values: ['127'] },         // the encampment, the maintainer's pick, 9 September 2026
       { id: 'skills',     label: 'Skills',     tile: 0x3DB, values: ['SKILLS'] },   // a distiller (prop 234), the maintainer's pick on 8 September
       { id: 'spells',     label: 'Spells',     tile: 0x888, values: ['SPELLS'] },   // a staff (prop 343), the maintainer's pick
-      // Mechanics is not a table: the rules the code implies, read out of
-      // the scripts on the spot (renderMechanicsSheet). The dice game and
-      // the talk balloons so far; damage, resistance and skills not yet.
-      { id: 'mechanics',  label: 'Mechanics',  tile: 0x82F, values: ['MECHANICS'] } ] },   // dice
+      /* Mechanics is not a table: the rules the code implies, read out of the
+         scripts on the spot (renderMechanicsSheet).
+
+         It was one sheet of twenty-five folding sections under six headings
+         until 14 September 2026, when the maintainer asked for a tab each and
+         gave the order. The headings were already MECH_GROUPS, so a group
+         became a tab rather than a new idea: the group carries the tab's
+         value and tile beside its title, and renderMechanicsSheet shows one
+         group at a time. Nothing about a section changed -- the ids are the
+         link targets and are untouched, which is what lets mechLink keep
+         working by looking up which tab a section is now on. */
+      { id: 'mechanics',  label: 'Mechanics',  tile: 0x82F, children: [   // dice
+          { id: 'mechprogress', label: 'Progress',     tile: 0x380, values: ['MECH_PROGRESS'] },   // a ladder: what a character climbs
+          { id: 'mechstatus',   label: 'Status',       tile: 0x22C, values: ['MECH_STATUS'] },     // the purple potion
+          { id: 'mechinteract', label: 'Interactions', tile: 0x3A0, values: ['MECH_INTERACT'] },   // a trapdoor: a thing that is used
+          { id: 'mechpuzzles',  label: 'Puzzles',      tile: 0x4FA, values: ['MECH_PUZZLES'] },    // a button
+          { id: 'mechcombat',   label: 'Combat',       tile: 0x203, values: ['MECH_COMBAT'] },     // an axe
+          { id: 'mecheconomy',  label: 'Economy',      tile: 0x82E, values: ['MECH_ECONOMY'] } ] },// a scale
+      /* Hackery is the machinery under the scenario rather than a rule of
+         play: how a record is laid out, what a use can be aimed at, what an
+         egg does, what calls what, and the places the file does not add up.
+         It was the seventh group on the Mechanics sheet.
+
+         Cheats is its second value rather than a tab of its own (it was under
+         Data > Cythera (App) until 14 September 2026). A leaf may carry
+         several values and syncTabsTo draws a chip for each, which is how
+         Misc holds three galleries -- so the tab is one tab with one icon,
+         as asked, and the #c=CHEATS deep link still lands. */
+      { id: 'hackery', label: 'Hackery', tile: 0x266, values: ['HACKERY', 'CHEATS'] } ] },   // the strange device
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
       { id: 'text', label: 'Text', tile: 0x3AE, children: [                                   // the tombstone, second frame
           { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['STRINGS'] },                          // a poster; the forks' string lists
@@ -14362,12 +14400,16 @@ const TAB_TREE = [
           { id: 'changes',  label: 'Changes',       tile: 0x2EE, values: ['CHANGES'] } ] },   // blacksmith's hammer
       { id: 'cythera', label: 'Cythera (App)', tile: 0x231, children: [                       // the lit torch
           { id: 'apppef',  label: 'Data Fork',     tile: 0x237, wip: true, values: ['APPPEF'] },
-          { id: 'apprsrc', label: 'Resource Fork', tile: 0x238, values: ['APPRSRC'] },
           // The same fork read as what it is for: the menus, the dialogs and
-          // windows, the cursors that are the game's verbs, the icons.
-          // A key: what the application does that the archive knows nothing
-          // about, read out of its own key routine.
-          { id: 'cheats', label: 'Cheats', tile: 0x236, values: ['CHEATS'] } ] },   // the tab that was Interface until 10 September 2026 is the Resource Fork above
+          // windows, the cursors that are the game's verbs, the icons. The tab
+          // that was Interface until 10 September 2026 is this one.
+          //
+          // Cheats was a third tab here until 14 September 2026 and is a value
+          // of Hackery now, at the maintainer's word. It had to be removed
+          // rather than merely added there: TAB_LEAF_FOR keeps the FIRST leaf
+          // to claim a value, so leaving both would have bound CHEATS to
+          // whichever came first in the tree and lit the wrong branch.
+          { id: 'apprsrc', label: 'Resource Fork', tile: 0x238, values: ['APPRSRC'] } ] },
       // sheet of paper by 0xF004's name table -- chosen from the names
       // rather than by looking at a sheet of candidates, which is how every
       // other icon here was picked, so it is the one to check on a screen.
@@ -14413,7 +14455,12 @@ function syncInstallerTabs() {
   // installer or the application's fork is faded until one is here.
   const inst = TAB_BY_ID.get('installer');
   if (inst) inst.wip = !on;
-  for (const id of ['apprsrc', 'cheats', 'interface']) { const n = TAB_BY_ID.get(id); if (n) n.wip = !window.APP_RSRC; }
+  /* `cheats` left this list on 14 September 2026 with the tab itself. It is a
+     value of Hackery now, and Hackery must NOT fade: its other five sections
+     are read off the archive and stand up with no application open, where the
+     Cheats view's figures are the executable's. Fading the tab would grey out
+     five readings that work. The id is simply gone, rather than repointed. */
+  for (const id of ['apprsrc', 'interface']) { const n = TAB_BY_ID.get(id); if (n) n.wip = !window.APP_RSRC; }
 }
 
 // Every node learns its parent and depth, and every category value learns
@@ -16628,8 +16675,17 @@ function skillCatalogue() {
   }
   return out;
 }
+/* A link to a rules section, wherever that section's tab now is.
+
+   Every one of these named MECHANICS until 14 September 2026, when the sheet
+   became seven tabs. The id is still the target -- mechGo resolves
+   `mech-<id>` -- so the only thing that had to change is which category is
+   opened first, and mechGroupOf answers that off MECH_GROUPS rather than from
+   a second table that could drift from it. */
 function mechLink(id, label) {
-  return '<button class="navChip" onclick="showCategory(\'MECHANICS\'); setTimeout(function(){ mechGo(\'' + id + '\'); }, 60)">' + svEsc(label) + '</button>';
+  const g = mechGroupOf(id);
+  const v = g ? g.value : MECH_GROUPS[0].value;
+  return '<button class="navChip" onclick="showCategory(\'' + v + '\'); setTimeout(function(){ mechGo(\'' + id + '\'); }, 60)">' + svEsc(label) + '</button>';
 }
 /* The picture a skill or a spell wears in the game. Subindex 137 is one
    32x16 icon per class in subindex 25: icon n belongs to class 0x1A00|n,
@@ -17311,7 +17367,7 @@ function srcCell(val, text) {
    the page on a timeout of its own. */
 window.LISTING_AT = null;
 function jumpToScriptAt(resid, at) {
-  if (window.CUR_SUBN === 'MECHANICS') mechKeepPlace();
+  if (window.CUR_SUBN === 'MECHANICS' || MECH_GROUP_BY_VALUE[window.CUR_SUBN]) mechKeepPlace();
   if (!jumpToResource(resid)) return false;
   window.LISTING_AT = { resid, at };
   const tabs = document.getElementById('viewTabs');
@@ -20120,7 +20176,7 @@ function mechSkillsFigure(sk) {
     'Only the questions that name a skill outright' + (sk.generic ? '; <b>' + sk.generic + '</b> more are in helpers that test whichever skill they are handed' : '') + '.');
 }
 
-function renderMechanicsSheet() {
+function renderMechanicsSheet(value) {
   stopAllViewActivity();
   // The figures' weapon list is derived, so it is dropped here and rebuilt
   // with the sheet rather than kept for the session; resetDerivedCaches()
@@ -20139,9 +20195,13 @@ function renderMechanicsSheet() {
   const sections = [];
   // One section: an icon, a title, where it was read from, a line saying what
   // it is, the rule as short items, and the table or strip under it.
+  /* A section is built but NOT placed here: the grouping loop below appends
+     the ones whose tab is showing. It used to append on the spot and the loop
+     re-appended, which moved the node rather than copying it, so the only
+     change is that a section whose tab is not open now stays unplaced instead
+     of being built into the page and then moved out of it. */
   const add = (id, title, icon, from, lede, rules, html, chips) => {
     const sec = mechSectionEl(id, title, icon, from, lede, rules, html, chips);
-    box.appendChild(sec);
     sections.push({ id, title, el: sec });
   };
   const src = mechSrc;
@@ -20753,8 +20813,9 @@ function renderMechanicsSheet() {
   {
     const pz = puzzleRules();
     const bz = pz.braziers, bu = pz.buttons;
-    let html = '';
-    if (bz) html += '<div class="partsTitle">The braziers</div><ul class="ruleList">' +
+    // One accumulator per section now, where a single `html` held all five.
+    let braziersHtml = '', buttonsHtml = '', riddlesHtml = '', tunesHtml = '', signalsHtml = '';
+    if (bz) braziersHtml += '<ul class="ruleList">' +
       '<li>Each brazier keeps its place in the order in its own Data1, and the game keeps how far you have got in <b>quest value ' + srcNum(bz.state) + '</b>.</li>' +
       '<li>Lighting the one whose place is next advances the value; lighting any other puts it back to nothing.</li>' +
       (bz.last ? '<li>The last is number ' + srcNum(bz.last) + ', and lighting it in turn prints the line and flickers the screen.</li>' : '') +
@@ -20767,7 +20828,7 @@ function renderMechanicsSheet() {
       .filter((_, i) => a & (8 >> i)).join(', ') || 'none';
     const sq = r => r ? r.x + ', ' + r.y : '';
     if (bu) {
-      if (bu.rooms && bu.rooms.length) html += '<div class="partsTitle">The pattern rooms</div>' +
+      if (bu.rooms && bu.rooms.length) buttonsHtml += '<div class="partsTitle">The pattern rooms</div>' +
         table(['#door', 'the two panels', 'lit to begin with', '#buttons', 'the door between them'],
           bu.rooms.map(rm => '<tr>' + num(rm.door) +
             '<td>' + rm.panels.map(p => sq(p)).join('  and  ') + '</td>' +
@@ -20776,28 +20837,28 @@ function renderMechanicsSheet() {
       const rows = bu.buttons.map((b, i) => '<tr>' + num(i + 1) + '<td>' + b.x + ', ' + b.y + '</td>' +
         '<td>' + sq(b.a.rec) + ' through table ' + b.a.table + '</td>' +
         '<td>' + sq(b.b.rec) + ' through table ' + b.b.table + '</td></tr>');
-      html += '<div class="partsTitle">The buttons, and the two panels each one drives</div>' +
+      buttonsHtml += '<div class="partsTitle">The buttons, and the two panels each one drives</div>' +
         table(['#no.', 'square', 'first panel', 'second panel'], rows);
-      if (bu.arrays) html += '<div class="partsTitle">The tables they read through</div>' +
+      if (bu.arrays) buttonsHtml += '<div class="partsTitle">The tables they read through</div>' +
         table(['#table', 'aspect 0 to 15 becomes'], bu.arrays.map((a, i) =>
           '<tr>' + num(i) + '<td class="mechSub">' + a.join(', ') + (i === 0 && a.every((v, j) => v === j) ? '  (unchanged: this button moves nothing)' : '') + '</td></tr>'));
     }
     const ri = pz.riddles;
     if (ri && ri.buttons.length) {
-      html += '<div class="partsTitle">The riddles, and the word each one takes</div>' +
+      riddlesHtml += '<div class="partsTitle">The riddles, and the word each one takes</div>' +
         table(['#no.', 'what it says', 'the answer it takes', 'the door it opens'],
           ri.buttons.map(b => '<tr>' + num(b.which + 1) +
             '<td>' + (ri.text[b.which] ? svEsc(ri.text[b.which]).replace(/\n/g, '<br>') : '') + '</td>' +
             '<td>' + (ri.answers[b.which] ? ri.answers[b.which].split(',').map(w => '<b>' + svEsc(w) + '</b>').join(' or ') : '') + '</td>' +
             '<td>' + (b.door ? sq(b.door) : '') + '</td></tr>'));
-      if (ri.lone.length) html += '<div class="partsTitle">The button on its own</div>' +
+      if (ri.lone.length) riddlesHtml += '<div class="partsTitle">The button on its own</div>' +
         table(['square', 'signals', 'the door it opens'], ri.lone.map(l =>
           '<tr><td>' + l.x + ', ' + l.y + '</td>' + num(l.signal) + '<td>' + (l.door ? sq(l.door) : '') + '</td></tr>'));
     }
     const tu = pz.tunes;
     if (tu && tu.bells) {
       const bl = tu.bells;
-      html += '<div class="partsTitle">The bells, and the orders they are rung in</div>' +
+      tunesHtml += '<div class="partsTitle">The bells, and the orders they are rung in</div>' +
         '<ul class="ruleList"><li>Each bell keeps its number in its own Data1, and ringing one shifts it into a register: ' +
         'the register becomes itself times ' + srcNum(bl.base) + ' plus the number.</li>' +
         '<li>Only the last four rings are kept, so a wrong ring can be rung out rather than started again.</li></ul>' +
@@ -20807,7 +20868,7 @@ function renderMechanicsSheet() {
           '<tr><td>' + o.rings.join(', ') + '</td>' + srcCell(o.signal) + '</tr>'));
     }
     if (tu && tu.instruments.length) {
-      html += '<div class="partsTitle">The music locks</div>' +
+      tunesHtml += '<div class="partsTitle">The music locks</div>' +
         '<ul class="ruleList"><li>A tune is a number, one note to each of its digits, and the instrument compares what has been played against a single value.</li>' +
         '<li>A note is a letter: the file keeps the numbers, and the letter is the one that far along the alphabet, which is why these read as the notes a player writes down.</li></ul>' +
         table(['instrument', 'can play', 'the tune it takes', '#signals', 'given by'],
@@ -20819,7 +20880,7 @@ function renderMechanicsSheet() {
             '<td>' + (it.given.length ? it.given.map(c => svChip(c.resid, c.name || '')).join(' ') : '') + '</td></tr>'));
     }
     const sig = signalRules();
-    html += '<div class="partsTitle">What a signal reaches</div>' +
+    signalsHtml += '<div class="partsTitle">What a signal reaches</div>' +
       (sig ? '<ul class="ruleList">' +
         '<li>A signal is sent to the zone and then to the room, as ' + srcNum(sig.method, 'GetMessage') + ', whatever its number.</li>' +
         '<li>A signal <b>below ' + srcNum(sig.under) + '</b> also goes to every thing on the level whose class listens and <b>whose Data1 is the signal</b>. That is how a button opens one door and not another.</li>' +
@@ -20828,14 +20889,38 @@ function renderMechanicsSheet() {
         '<li class="mechSub">Which classes listen is a table the application builds as it loads, so it is not in the file and is not stated here.</li>' +
         '</ul>'
         : '<div class="sv-note">Open the game from its installer, under Settings, and the order a signal travels in is read out of the application.</div>');
-    add('puzzles', 'Puzzles', null,
-      (bz ? src('the braziers', 0x113F) : '') + (bu ? src('the buttons', 0x1104) : '') +
-      (ri ? src('the riddles', 0x1110) : '') + (tu && tu.bells ? src('the bells', 0x10C1) : '') +
-      (tu && tu.instruments.length ? tu.instruments.map(it => src(it.what, it.resid)).join('') : ''),
-      (bz || bu) ? 'What the file answers outright. None of it is guesswork about what a puzzle wants: the sequences, the tables and the tunes are in the scripts, and the wiring is in the records placed on the map. What a signal opens is not in the archive, so the tunes name the signal and stop there.'
-                 : 'Neither puzzle script is in this archive.',
+    /* One section per puzzle, the maintainer's ask of 14 September 2026.
+
+       These were one card called Puzzles holding five headed blocks of a
+       single string. The readings are untouched -- puzzleRules() still
+       answers all of it in one go -- and only the placing changed: each
+       block keeps the part of the string it always built, and takes the
+       scripts it was actually read from as its own chips, where before one
+       card carried every script between them.
+
+       None of this is guesswork about what a puzzle wants: the sequences,
+       the tables and the tunes are in the scripts, and the wiring is in the
+       records placed on the map. What a signal opens is not in the archive,
+       which is why the tunes name the signal and stop there. */
+    if (bz) add('braziers', 'The braziers', null, src('the braziers', 0x113F),
+      'A row of braziers lit in an order the file keeps, each one carrying its own place in that order.',
+      [], braziersHtml);
+    if (bu) add('buttons', 'The buttons and the pattern rooms', null, src('the buttons', 0x1104),
+      'Five rooms, each a pair of lit panels and a door that opens when they match.',
       (bu && bu.arrays) ? ['A button is a lookup and nothing more: it takes a panel’s aspect, reads it through one of the <b>' + bu.arrays.length + ' tables</b>, and stores what comes back. There is no rotation and no arithmetic.'] : [],
-      html);
+      buttonsHtml);
+    if (ri && ri.buttons.length) add('riddles', 'The riddles', null, src('the riddles', 0x1110),
+      'Five riddles, each taking a word typed at it, read off the opcodes that compare it.',
+      [], riddlesHtml);
+    if (tu && (tu.bells || tu.instruments.length)) add('tunes', 'The bells and the music locks', null,
+      (tu.bells ? src('the bells', 0x10C1) : '') +
+      (tu.instruments.length ? tu.instruments.map(it => src(it.what, it.resid)).join('') : ''),
+      'An order of notes held as one number, a digit to each note, compared against a single value.',
+      [], tunesHtml);
+    add('signals', 'What a signal reaches', null, '',
+      sig ? 'What a button, a bell or an instrument actually sends, and everything the application offers it to, read out of the program rather than the archive.'
+          : 'The order a signal travels in is the application’s, not the archive’s.',
+      [], signalsHtml);
   }
 
   // Who answers as whom is on the Dialogue sheet now (talkMechSection
@@ -20887,8 +20972,17 @@ function renderMechanicsSheet() {
      `mech-<id>`, so grouping wraps sections and renames nothing. A section
      this table does not mention still appears, under Other, rather than
      vanishing from the sheet because a name was forgotten. */
+  /* One group, or all of them when no tab was named.
+
+     `value` is the category the tab was opened with; MECHANICS itself passes
+     nothing and still draws the whole sheet, which is what a deep link made
+     before the split gets. Every section is built either way -- they are read
+     off the scripts and the reading is the cost, not the placing -- so a tab
+     shows its own and leaves the rest unplaced. */
+  const only = value ? MECH_GROUP_BY_VALUE[value] : null;
+  const showing = only ? [only] : MECH_GROUPS;
   const seen = new Set();
-  for (const [title, note, ids] of MECH_GROUPS) {
+  for (const { title, note, ids } of showing) {
     const mine = ids.map(id => sections.find(s => s.id === id)).filter(Boolean);
     if (!mine.length) continue;
     const h = document.createElement('div');
@@ -20902,7 +20996,17 @@ function renderMechanicsSheet() {
       box.appendChild(sn.el);
     }
   }
-  const rest = sections.filter(s => !seen.has(s.id));
+  /* A section no group names still has to be reachable rather than vanish.
+     On the whole sheet it went under Other at the end; with a tab each there
+     is no neutral tab to put it on, so it goes to the last one, Hackery,
+     which is where unplaced machinery belongs anyway. The smoke requires
+     this to be empty, so it is a net rather than a habit. */
+  const lastGroup = MECH_GROUPS[MECH_GROUPS.length - 1];
+  const orphans = sections.filter(s => !MECH_GROUPS.some(g => g.ids.indexOf(s.id) >= 0));
+  // What the smoke reads to fail on an unplaced section, rather than having
+  // to infer it from the markup of whichever tab happened to catch it.
+  window.MECH_UNPLACED = orphans.map(s => s.id);
+  const rest = (!only || only === lastGroup) ? orphans.filter(s => !seen.has(s.id)) : [];
   if (rest.length) {
     const h = document.createElement('div');
     h.className = 'propHead';
@@ -20921,17 +21025,29 @@ function renderMechanicsSheet() {
   all.innerHTML = svLink('Open all', 'mechOpenAll(true)') + svLink('Close all', 'mechOpenAll(false)');
   box.insertBefore(all, box.firstChild);
   grid.appendChild(box);
-  out.textContent = sections.length + ' rules read out of this archive’s scripts. Each says which script it came from.';
+  /* What this tab shows, not what was built. Every section is built whichever
+     tab is open -- the reading is the cost, not the placing -- so
+     sections.length would have every tab claiming all twenty-five while it
+     displayed four. */
+  out.textContent = (seen.size + rest.length) + ' rules read out of this archive’s scripts' +
+    (only ? ', under ' + only.title : '') + '. Each says which script it came from.';
 }
 // The cards open when a number on the sheet was followed into its script,
 // so that back from the script finds them open again and setMode's scroll
 // memory lands on the same place; a card that was shut would put the page
 // somewhere else. Kept for the session, and only a followed number sets it.
 window.MECH_OPEN = new Set();
+/* Only the sections on the tab that is showing can be judged, so this merges
+   rather than replaces. Replacing was right while the sheet was one page of
+   everything; with a tab each it would throw away every other tab's folds the
+   moment one tab was left, and a number followed out of Combat would come
+   back to a shut card because Puzzles had been opened in between. */
 function mechKeepPlace() {
   const grid = document.getElementById('sheetGrid');
   const all = grid && grid.querySelectorAll ? grid.querySelectorAll('details.mechSec') : [];
-  window.MECH_OPEN = new Set([...all].filter(d => d.open).map(d => d.id));
+  const keep = new Set(window.MECH_OPEN || []);
+  for (const d of all) { if (d.open) keep.add(d.id); else keep.delete(d.id); }
+  window.MECH_OPEN = keep;
 }
 // Open a Mechanics section and scroll it into view; a plain anchor would
 // rewrite the hash, which is the page's deep link.
@@ -21125,7 +21241,7 @@ function exeFindBack(ops, from, span, test) {
    listed, with that instruction ringed. */
 window.PEF_VIEW = null;
 function jumpToExeAt(at) {
-  if (window.CUR_SUBN === 'MECHANICS') mechKeepPlace();
+  if (window.CUR_SUBN === 'MECHANICS' || MECH_GROUP_BY_VALUE[window.CUR_SUBN]) mechKeepPlace();
   window.PEF_VIEW = { at };
   if (window.CUR_SUBN === 'APPPEF') renderAppPefSheet();
   else openVia('APPPEF', () => {});

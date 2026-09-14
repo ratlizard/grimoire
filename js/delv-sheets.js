@@ -265,18 +265,39 @@ function mechCardAboveGallery(grid, build) {
    what an egg does, what calls what, and the places the file does not add
    up. */
 const MECH_GROUPS = [
-  ['Combat', 'What a blow does, who swings it, and what it does to a thing.',
-    ['combat', 'combatai', 'damage', 'gear']],
-  ['Progress', 'What a character gains, and what it costs to be taught.',
-    ['experience', 'karma', 'training', 'todo']],
-  ['Status', 'The body and the clock: what feeds, heals, poisons and wears off.',
-    ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'springs']],
-  ['Economy', 'What things cost, and what a wager pays.',
-    ['shops', 'dice']],
-  ['Interactions', 'What a thing does when it is used.',
-    ['locks']],
-  ['Puzzles', 'The ones the file answers outright.',
-    ['puzzles']],
-  ['Hackery', 'The machinery under the scenario, and the places it does not add up.',
-    ['propword', 'target', 'eggs', 'leans', 'loose']],
+  { value: 'MECH_PROGRESS', title: 'Progress', tile: 0x380,
+    note: 'What a character gains, and what it costs to be taught.',
+    ids: ['experience', 'karma', 'training', 'todo'] },
+  { value: 'MECH_STATUS', title: 'Status', tile: 0x22C,
+    note: 'The body and the clock: what feeds, heals, poisons and wears off.',
+    ids: ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'springs'] },
+  { value: 'MECH_INTERACT', title: 'Interactions', tile: 0x3A0,
+    note: 'What a thing does when it is used.',
+    ids: ['locks'] },
+  { value: 'MECH_PUZZLES', title: 'Puzzles', tile: 0x4FA,
+    note: 'The ones the file answers outright, a section each.',
+    ids: ['braziers', 'buttons', 'riddles', 'tunes', 'signals'] },
+  { value: 'MECH_COMBAT', title: 'Combat', tile: 0x203,
+    note: 'What a blow does, who swings it, and what it does to a thing.',
+    ids: ['combat', 'combatai', 'damage', 'gear'] },
+  { value: 'MECH_ECONOMY', title: 'Economy', tile: 0x82E,
+    note: 'What things cost, and what a wager pays.',
+    ids: ['shops', 'dice'] },
+  { value: 'HACKERY', title: 'Hackery', tile: 0x266,
+    note: 'The machinery under the scenario, and the places it does not add up.',
+    ids: ['propword', 'target', 'eggs', 'leans', 'loose'] },
 ];
+// A group by the category value its tab is selected with.
+const MECH_GROUP_BY_VALUE = {};
+for (const g of MECH_GROUPS) MECH_GROUP_BY_VALUE[g.value] = g;
+/* Which tab a section is on now.
+
+   This is the whole of what lets a link keep working across the split: a
+   section id never changes, so mechLink asks this which tab to open rather
+   than naming one. A section in no group answers null and its link falls back
+   to the first tab, which is wrong but visible; the smoke requires every
+   built section to be in a group so that never ships. */
+function mechGroupOf(id) {
+  for (const g of MECH_GROUPS) if (g.ids.indexOf(id) >= 0) return g;
+  return null;
+}

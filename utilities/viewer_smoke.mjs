@@ -2676,29 +2676,78 @@ try {
    A section that LEAVES the sheet has to leave this list with it. `spells`
    went to the Spells sheet on 13 September 2026 and is reached by tabLink
    and cardLink now, not by mechLink, so it is no longer named here. */
+/* A group became a TAB on 14 September 2026, so this pin has to prove the
+   gating as well as the grouping.
+
+   REGISTRY cannot do that on its own: it is one Map for the whole run and
+   never clears, so once the first tab has been drawn every section looks
+   present forever, whichever tab is open. Existence is still checked through
+   it -- that catches a renamed id -- but which tab a section lands on is
+   judged from the freshly walked markup of that tab, by a section title the
+   group owns against one belonging to another group. */
 try {
-  const groups = peek('MECH_GROUPS');
+  const groups = peek('MECH_GROUPS') || [];
+  const walk = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   ctx.showCategory('MECHANICS');
-  const grid = REGISTRY.get('sheetGrid');
-  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(grid);
+  const html = walk();
   const named = [];
-  for (const [, , ids] of (groups || [])) for (const id of ids) named.push(id);
+  for (const g of groups) for (const id of (g.ids || [])) named.push(id);
   const dupes = named.filter((id, i) => named.indexOf(id) !== i);
+  // One title each tab must show, and one it must not. Titles rather than
+  // ids, because a section's id is a property the stub keeps in REGISTRY and
+  // never writes into the markup.
+  const MARK = {
+    MECH_PROGRESS: 'Experience and levels', MECH_STATUS: 'Status effects', MECH_INTERACT: 'Locks and lockpicks',
+    MECH_PUZZLES: 'The riddles', MECH_COMBAT: 'Damage to things', MECH_ECONOMY: 'The dice game',
+    HACKERY: 'Loose ends',
+  };
+  const strayTab = [];
+  for (const g of groups) {
+    if (!MARK[g.value]) continue;
+    ctx.showCategory(g.value);
+    const h = walk();
+    if (h.indexOf(MARK[g.value]) < 0) strayTab.push(g.title + ' does not show ' + MARK[g.value]);
+    for (const o of groups) {
+      if (o === g || !MARK[o.value]) continue;
+      if (h.indexOf(MARK[o.value]) >= 0) strayTab.push(g.title + ' also shows ' + o.title + '’s ' + MARK[o.value]);
+    }
+  }
   // foldCard sets sec.id as a PROPERTY, which the stub's `set id` records in
   // REGISTRY; it never appears as an attribute in innerHTML. Grepping the
   // serialised markup for it reported all twenty-five sections missing, which
   // is the shape of a broken test rather than a broken sheet.
   const missing = named.filter(id => !REGISTRY.has('mech-' + id));
-  if (!groups || !groups.length) fail('mechanics groups', 'MECH_GROUPS is not reachable, so the sheet is ungrouped');
+  // A section the sheet builds that no group claims. It lands on Hackery so
+  // it cannot vanish, but that is a net, not a place to leave things.
+  // Spelled with the window. prefix deliberately: the page assigns it as
+  // window.MECH_UNPLACED, and a bare name that failed to resolve would read
+  // as an empty list, which is indistinguishable from a clean result.
+  const unplaced = (peek('window.MECH_UNPLACED') || []).slice();
+  /* Each tab's value must index to a leaf of the tab tree.
+
+     showCategory renders through the <select> whatever the tree says, so a
+     value the tree does not claim still draws its sheet perfectly well -- with
+     the tab row blank, because syncTabsTo finds no leaf and highlights
+     nothing. Every other check here reads rendered markup and would see that
+     as a clean pass, which is why the tree is asked directly. MECHANICS is
+     deliberately absent from the tree and so is not among these. */
+  const leafFor = peek('TAB_LEAF_FOR');
+  const noLeaf = groups.filter(g => !(leafFor && leafFor.get && leafFor.get(g.value))).map(g => g.value);
+  if (!groups.length) fail('mechanics groups', 'MECH_GROUPS is not reachable, so the sheet is ungrouped');
   else if (dupes.length) fail('mechanics groups', 'a section is in two groups: ' + dupes.join(', '));
   else if (missing.length) fail('mechanics groups', 'a group names a section the sheet does not build: ' + missing.join(', '));
-  else if (!/Hackery/.test(html)) fail('mechanics groups', 'the sheet does not show the group headings');
-  // Every link target must still be a section on the sheet.
+  else if (!/Hackery/.test(html)) fail('mechanics groups', 'the whole sheet does not show the group headings');
+  else if (noLeaf.length) fail('mechanics groups', 'a tab value is on no leaf of the tab tree, so its tab row is blank: ' + noLeaf.join(', '));
+  else if (strayTab.length) fail('mechanics groups', 'a tab does not hold its own group: ' + strayTab.join('; '));
+  else if (unplaced.length) fail('mechanics groups', 'a section is in no group and fell through to Hackery: ' + unplaced.join(', '));
+  // Every link target must still be a section, and must route to a real tab.
   else {
     const targets = ['damage', 'status', 'target', 'shops', 'combat', 'training'];
     const lost = targets.filter(t => !REGISTRY.has('mech-' + t));
+    const unrouted = targets.filter(t => !groups.some(g => (g.ids || []).indexOf(t) >= 0));
     if (lost.length) fail('mechanics groups', 'a mechLink target is no longer a section: ' + lost.join(', '));
-    else console.log(`  mechanics groups: ${groups.length} groups over ${named.length} sections, ${targets.length} link targets intact`);
+    else if (unrouted.length) fail('mechanics groups', 'a mechLink target is on no tab, so its link opens the wrong one: ' + unrouted.join(', '));
+    else console.log(`  mechanics groups: ${groups.length} tabs over ${named.length} sections, each tab holding only its own, ${targets.length} link targets routed`);
   }
 } catch (e) { fail('mechanics groups', e); }
 
