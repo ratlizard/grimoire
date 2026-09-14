@@ -184,6 +184,15 @@ function ensureGraphicsRef() {
 // in a way that looks like a real problem.
 const CHECKS = [
   {page: 'viewer', name: 'static', cmd: ['utilities/verify_viewer.mjs', 'index.html']},
+  /* Is every function the page declares reached by anything? `static` asks the
+     opposite question -- whether every name the JS calls is declared -- and a
+     feature shipped on 14 September 2026 that did not run, because its reader
+     was written and never called. Every check passed. This one would not have.
+     It carries a baseline of the twenty-two already unreached, which cannot
+     rot, and a negative control on every run. */
+  {page: 'viewer', name: 'unreached code',
+   cmd: ['utilities/reach_check.mjs', 'index.html'],
+   grep: /\d+ functions declared[^\n]*/},
   {page: 'viewer', name: 'decoder snapshot', want: [DATA],
    cmd: ['utilities/decoder_snapshot.mjs', 'index.html', DATA], grep: /SNAPSHOT \w+/},
   // Synthetic on purpose: none of Cythera's twenty-one PICTs uses the
