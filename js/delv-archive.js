@@ -228,6 +228,46 @@ function extractDelverArchive(bytes, opts) {
                           installers: installer.installers, picked: installer.picked } };
   }
 
+  /* A StuffIt archive with a Delver archive inside it, which is how every
+     community add-on is actually distributed. This runs AFTER the installer
+     sniff on purpose: `sniffViseInstaller` also looks inside StuffIt, and an
+     installer stored in one must keep going down the installer path, which
+     knows about CRCs and about picking between several installers.
+
+     Since method 13 became readable this is no longer a rare case -- the one
+     Magpie patch that exists is a method-13 fork inside
+     `614_MagpiePumpkinPatch.sit.hqx`, and before this the page could list
+     that archive and not open what was in it.
+
+     The first entry whose data fork reads as a Delver archive wins, and a
+     fork that will not decompress is stepped over rather than thrown on, so
+     one Arsenic-compressed file in an archive does not hide a readable one
+     beside it. What comes back names the entry, because a .sit usually holds
+     several files and "which one did it open" is the first question. */
+  const fromStuffIt = (buf, wrapper) => {
+    if (typeof looksLikeStuffIt !== 'function' || !looksLikeStuffIt(buf)) return null;
+    let arc = null;
+    try { arc = parseStuffItArchive(buf); } catch (e) { return null; }
+    const where = arc.format + ' archive' + (wrapper ? ' in ' + wrapper : '');
+    const refused = [];
+    for (const e of arc.entries) {
+      if (e.isFolder || !e.dataLen) continue;
+      let data;
+      try { data = stuffItFork(buf, e, 'data'); }
+      catch (err) { refused.push(e.name + ' (' + err.message.replace(/^"[^"]*" data fork /, '') + ')'); continue; }
+      const d = describeDelverArchive(data);
+      if (!d.ok) { notes.push('"' + e.name + '" in the ' + where + ', ' + d.reason); continue; }
+      let rsrc = null;
+      try { rsrc = stuffItFork(buf, e, 'rsrc'); } catch (err) { rsrc = null; }
+      return { bytes: data, via: where, info: d,
+               forks: { kind: where, name: e.name, type: e.type, creator: e.creator, data, rsrc } };
+    }
+    if (refused.length) notes.push('in the ' + where + ', could not decompress ' + refused.join(', '));
+    return null;
+  };
+  const bare = fromStuffIt(bytes, '');
+  if (bare) return bare;
+
   // sniffMacContainer knows the order these have to be tried in, and why.
   const forks = sniffMacContainer(bytes);
   const kind = forks ? forks.kind : '';
@@ -239,6 +279,16 @@ function extractDelverArchive(bytes, opts) {
       const d = describeDelverArchive(buf);
       if (d.ok) return { bytes: buf, via: kind + ' ' + (which === 'data' ? 'data fork' : 'resource fork'), info: d, forks };
       notes.push(kind + ' ' + which + ' fork, ' + d.reason);
+    }
+    /* A StuffIt archive inside the wrapper, which is what a community add-on
+       downloaded as a .hqx actually is: BinHex around a .sit around the file.
+       Tried after the forks themselves, so a wrapper holding the archive
+       outright still takes the shorter path. */
+    for (const which of ['data', 'rsrc']) {
+      const buf = forks[which];
+      if (!buf || !buf.length) continue;
+      const inner = fromStuffIt(buf, kind);
+      if (inner) { inner.forks.outer = forks; return inner; }
     }
     const t = (forks.type || '').trim(), c = (forks.creator || '').trim();
     throw new Error('That is a ' + kind + ' file' + (forks.name ? ' holding "' + forks.name + '"' : '') +
