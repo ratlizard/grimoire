@@ -4564,7 +4564,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.82.0';
+const GRIMOIRE_VERSION = '1.83.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -21207,13 +21207,27 @@ function renderCompareApp(host, el) {
     host.appendChild(el('p', 'mechLede',
       '<b>' + r.meaningful + '</b> routine' + (r.meaningful === 1 ? '' : 's') + ' differ of ' + r.aCount +
       ': <b>' + r.added.length + '</b> added, <b>' + r.gone.length + '</b> gone, <b>' + r.resized.length +
-      '</b> compiled to a different length. Another ' + r.moved + ' moved without changing, which is what happens to everything after the first difference.'));
+      '</b> compiled to a different length' +
+      (r.compilerOnly ? ', of which <b>' + r.compilerOnly + '</b> differ by nothing but register copies and are the code generator rather than a change' : '') +
+      '. Another ' + r.moved + ' moved without changing, which is what happens to everything after the first difference.'));
     const rows = [];
-    for (const x of r.added) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">added</td>' + mechNum('') + mechNum(x.length) + mechNum('') + '</tr>');
-    for (const x of r.gone) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">gone</td>' + mechNum(x.length) + mechNum('') + mechNum('') + '</tr>');
-    for (const x of r.resized) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">recompiled</td>' +
-      mechNum(x.aLength) + mechNum(x.bLength) + mechNum((x.delta > 0 ? '+' : '') + x.delta) + '</tr>');
-    host.appendChild(el('div', '', mechTable(['routine', '', '#in ' + svEsc(app.aName), '#in ' + svEsc(app.bName), '#difference'], rows)));
+    for (const x of r.added) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">added</td>' + mechNum('') + mechNum(x.length) + mechNum('') + '<td></td></tr>');
+    for (const x of r.gone) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">gone</td>' + mechNum(x.length) + mechNum('') + mechNum('') + '<td></td></tr>');
+    /* What the compiler emitted differently, not just how much. A routine
+       whose census moves by nothing but register copies is the code generator
+       rather than an edit, and saying so is the difference between reading a
+       release correctly and inventing a change that is not there. */
+    const census = x => {
+      const bits = (x.added || []).map(a => '+' + a.n + ' ' + a.op)
+        .concat((x.removed || []).map(a => '\u2212' + a.n + ' ' + a.op));
+      if (x.compilerOnly) return '<span class="mechSub">the compiler: ' + svEsc(bits.join(', ') || 'reordered') + '</span>';
+      return bits.length ? '<span class="patchMono">' + svEsc(bits.join(' ')) + '</span>' : '';
+    };
+    for (const x of r.resized) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">' +
+      (x.compilerOnly ? 'recompiled' : 'changed') + '</td>' +
+      mechNum(x.aLength) + mechNum(x.bLength) + mechNum((x.delta > 0 ? '+' : '') + x.delta) +
+      '<td>' + census(x) + '</td></tr>');
+    host.appendChild(el('div', '', mechTable(['routine', '', '#in ' + svEsc(app.aName), '#in ' + svEsc(app.bName), '#difference', 'what the compiler emitted'], rows)));
     if (!rows.length) host.appendChild(el('p', 'mechSub', 'Every routine is the same name and the same length in both.'));
   } else {
     host.appendChild(el('p', 'mechSub', 'Neither application names its routines, so only the resource forks could be compared.'));

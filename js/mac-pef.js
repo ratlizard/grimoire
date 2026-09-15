@@ -469,7 +469,62 @@ function describeApplicationDiff(a, b) {
         else identical++;
       }
       for (const [name, r] of B.m) if (!A.m.has(name)) added.push({ name, length: r.length, offset: r.offset });
+      /* WHAT KIND OF CHANGE, not just how big.
+       *
+       * A routine that grew by eight bytes might have gained a test, or the
+       * code generator might have inserted a redundant register copy. Telling
+       * those apart by eye cost a wrong conclusion once: five `TInterp`
+       * overloads in Cythera 1.0.3 were read as an undocumented interpreter
+       * change and are one `addi rX, rY, 0` each.
+       *
+       * The census is the multiset of OPCODES, operands ignored. A recompile
+       * shuffles registers and operands and leaves the census alone; an edit
+       * moves it, and which opcodes arrived says what kind of edit: a new `bl`
+       * is a call, `mr.`+`bt` is a null check, `stb` with `ori` is a flag
+       * being written.
+       *
+       * `compilerOnly` is set when the census moves by nothing but register
+       * copies and padding -- `mr`, `nop`, and the `addi rX, rY, 0` form,
+       * which is a copy wearing an arithmetic encoding and is what made the
+       * TInterp reading go wrong.
+       *
+       * It can be fooled: an edit that swapped one opcode for another of the
+       * same kind reads as a recompile, and so does a bit test re-emitted in a
+       * different instruction form. So the census is reported, not just a
+       * verdict. Needs js/mac-ppc.js, which loads after this file; the call
+       * happens long after both are in, and the guard says so. */
+      if (typeof ppcDecode === 'function') {
+        const census = (data, r) => {
+          const pef2 = parsePEF(data);
+          const code = pef2.sections.find(s => s.kind === 0);
+          if (!code) return null;
+          const img = data.subarray(code.containerOffset, code.containerOffset + code.totalSize);
+          const m = new Map();
+          let copies = 0;
+          for (let a = r.offset; a + 4 <= r.offset + r.length; a += 4) {
+            const w = ((img[a] << 24) | (img[a + 1] << 16) | (img[a + 2] << 8) | img[a + 3]) >>> 0;
+            const d = ppcDecode(w);
+            const mn = d ? d.mn : '.long';
+            // addi rX, rY, 0 is a move; count it as one so a census delta of
+            // copies alone cannot read as an edit.
+            const key = (mn === 'addi' && d && d.imm === 0) ? 'mr' : mn;
+            if (key === 'mr' || key === 'nop') copies++;
+            m.set(key, (m.get(key) || 0) + 1);
+          }
+          return m;
+        };
+        for (const r of resized) {
+          const ca = census(a.data, A.m.get(r.name)), cb = census(b.data, B.m.get(r.name));
+          if (!ca || !cb) continue;
+          const up = [], down = [];
+          for (const [k, v] of cb) { const n = v - (ca.get(k) || 0); if (n > 0) up.push({ op: k, n }); }
+          for (const [k, v] of ca) { const n = v - (cb.get(k) || 0); if (n > 0) down.push({ op: k, n }); }
+          r.added = up; r.removed = down;
+          r.compilerOnly = up.concat(down).every(x => x.op === 'mr' || x.op === 'nop');
+        }
+      }
       out.routines = { added, gone, resized, moved, identical,
+                       compilerOnly: resized.filter(r => r.compilerOnly).length,
                        aCount: A.m.size, bCount: B.m.size, duplicateNames: A.dupes + B.dupes,
                        // The only figure a reader should act on.
                        meaningful: added.length + gone.length + resized.length };
