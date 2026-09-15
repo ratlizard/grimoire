@@ -3123,6 +3123,13 @@ try {
       else if (carried.join(',') !== ids.slice().sort((a, b) => a - b).join(','))
         fail('compare', 'the exported patch carries ' + carried.map(i => '0x' + i.toString(16)).join(' '));
       else if (!d.selfOffsetAgrees) fail('compare', 'the exported descriptor does not name where it landed');
+      /* Type 0 is Bug Fix, the one value Magpie's binary tests outright, in
+         the branch that raises "Bug fixes are always installed, and can not
+         be removed". Exporting as 0 made patches nobody could uninstall, and
+         it shipped that way until the export was driven for real. This is
+         what stops it coming back. */
+      else if (d.typeCode === 0) fail('compare', 'the export writes type 0, which Magpie refuses to uninstall');
+      else if (!d.checkValueValid) fail('compare', 'the exported check value does not verify');
       else {
         /* The application half. There is no application open in this
            harness -- it opens the data file alone -- so what is asserted is

@@ -4564,7 +4564,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.83.0';
+const GRIMOIRE_VERSION = '1.83.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -21252,9 +21252,21 @@ function compareExportPatch() {
   if (!rep) return;
   const d = document.getElementById('patchDesc');
   try {
+    /* TYPE 3, NOT 0, AND THE DIFFERENCE MATTERS. The byte at descriptor +26
+       carries Magpie's type, and 0 is Bug Fix -- the one value the binary
+       tests outright, in the branch that raises "Bug fixes are always
+       installed, and can not be removed". Exporting as 0 would have produced
+       patches nobody could uninstall, which was the first thing driving the
+       real export path showed. 3 is what the one real add-on patch carries,
+       and is removable. It is used because that is what a working patch has,
+       not because anything here knows what 3 is called. */
     const w = writeDelverPatch(rep.bSpec, rep.changed.map(c => c.resid),
-      { description: (d && d.value) || '', typeCode: 0 });
-    downloadBlob(w.bytes, safeFileName((rep.bName || 'Cythera') + ' Patch'));
+      { description: (d && d.value) || '', typeCode: 3 });
+    /* The file is named for the archive, not for the side of the comparison.
+       `bName` is "as it stands" when you are exporting your own edits, and
+       "as it stands Patch" is not a file name anyone wants. */
+    const base = (rep.kind === 'edits' ? (window.ARCHIVE_SOURCE_NAME || 'Cythera Data') : rep.bName) || 'Cythera';
+    downloadBlob(w.bytes, safeFileName(base.replace(/\.[A-Za-z0-9]{1,4}$/, '') + ' Patch'));
     say(w.resids.length + ' resource(s) written, ' + w.bytes.length.toLocaleString() +
         ' bytes, identity ' + w.uuidText +
         (w.checkValueValid ? ', check value ' + w.checkValue + ' and it verifies.' : ', and the check value does not verify.'));
