@@ -197,6 +197,7 @@ const desc = ev(`(() => {
   return {uuid: d && d.uuidText, len: d && d.statedLength, lenOk: d && d.lengthAgrees,
           type: d && d.typeCode, named: !!(d && d.typeName), selfOk: d && d.selfOffsetAgrees,
           text: d && d.description, check: d && d.checkValue,
+          checkValid: d && d.checkValueValid,
           format: rep.format, baseFormat: rep.baseFormat, usable: rep.usable, reasons: rep.reasons,
           installedInBase: rep.installedIds.length, isInstalled: rep.isInstalled,
           willReplace: rep.willReplace, notInBase: rep.notInBase.length,
@@ -210,6 +211,11 @@ const want = (what, got, expect) => {
 };
 want('the descriptor UUID', desc.uuid, '00b21e58-a47f-11d4-8a4a-000502c9f8b7');
 want('the descriptor check value', desc.check, 'c49ba9810778a4b9');
+// Recovered out of Magpie's PowerPC code on 15 September 2026. The page
+// computes the same digest now, so the real patch's own value has to verify:
+// this is the assertion that says the routine was read correctly, and it is
+// held to the only sample that exists.
+want('and the real patch\'s check value verifies', desc.checkValid, true);
 want('the descriptor states its own length', desc.len, 568);
 want('the length is the one Magpie takes', desc.lenOk, true);
 want('the descriptor names the offset it sits at', desc.selfOk, true);
@@ -319,7 +325,7 @@ const rt = ev(`(() => {
     unchanged: diff.unchanged, aCount: diff.aCount,
     identicalFlag: describeDelverDiff(base, base).identical,
     patchLen: w.bytes.length, descOffset: w.descriptorOffset,
-    checkValueWritten: w.checkValueWritten,
+    checkValueWritten: w.checkValueWritten, checkValueValid: w.checkValueValid,
     descBack: rep.descriptor && rep.descriptor.description,
     typeBack: rep.descriptor && rep.descriptor.typeName,
     selfOk: rep.descriptor && rep.descriptor.selfOffsetAgrees,
@@ -344,7 +350,8 @@ want('it would replace three resources', rt.willReplace, 3);
 want('it applies three', rt.applied, 3);
 // The check value is the one field this project cannot produce, and writing
 // zeroes rather than a guess is a decision. This is what keeps it a decision.
-want('the check value is left empty rather than guessed', rt.checkValueWritten, false);
+want('a written patch carries a check value', rt.checkValueWritten, true);
+want('and its own check value verifies', rt.checkValueValid, true);
 want('every resource comes back as the edited archive had it', rt.everyResourceBack, true);
 want('writing it twice gives the same size', rt.deterministic, true);
 if (rt.skipped.length !== 1 || rt.skipped[0] !== 0xFFFF)
@@ -380,8 +387,63 @@ for (const [what, got] of Object.entries(rtneg))
 if (Object.values(rtneg).every(Boolean))
   ok('the writer can fail', Object.keys(rtneg).length + ' ways it must refuse or narrow, each held');
 
+/* ---- the check value discriminates, and the two steps that were missing ----
+   A digest recovered from a disassembly is exactly the kind of thing that can
+   be right for one sample and wrong in general, so this pins the two steps
+   that had defeated the earlier attempt by REMOVING each one and requiring
+   the answer to stop matching. Without these, a future tidy-up that dropped
+   the length fold or the final complement would still pass every assertion
+   above, because the one real patch would be the only thing tested and the
+   code that produced its value would be the code under test.
+
+   The length fold and the complement are asserted by reimplementing the
+   digest here, deliberately, rather than by calling the page's own function
+   with a flag: a check that shares the code it is checking proves nothing. */
+const cv = ev(`(() => {
+  const P = delverArchiveSpec(__patch);
+  const d = P.resources.find(r => r.resid === 0xFFFF).data;
+  const xor = (a, b) => ({hi: (a.hi ^ b.hi) >>> 0, lo: (a.lo ^ b.lo) >>> 0});
+  const shl1 = c => ({hi: ((c.hi << 1) | (c.lo >>> 31)) >>> 0, lo: (c.lo << 1) >>> 0});
+  const shl8 = c => ({hi: ((c.hi << 8) | (c.lo >>> 24)) >>> 0, lo: (c.lo << 8) >>> 0});
+  const top = c => ((((c.lo >>> 24) | (c.hi << 8)) >>> 0) & 0xFF);
+  const POLY = {hi: 0x04C11D37, lo: 0x04C11DB7};
+  const basis = [POLY];
+  for (let i = 1; i < 8; i++) { const p = basis[i-1], sh = shl1(p);
+    basis.push((p.hi & 0x80000000) ? xor(sh, POLY) : sh); }
+  const table = [];
+  for (let b = 0; b < 256; b++) { let v = {hi:0, lo:0};
+    for (let k = 0; k < 8; k++) if (b & (1 << k)) v = xor(v, basis[k]); table.push(v); }
+  // opts: foldLength, complement -- each can be turned off to prove it matters
+  const crc = (buf, len, opts) => {
+    let c = {hi: 0, lo: 0};
+    for (let i = 0; i < buf.length; i++) c = xor(shl8(c), table[(top(c) ^ buf[i]) & 0xFF]);
+    if (opts.foldLength) for (let n = len; n > 0; n >>= 8) c = xor(shl8(c), table[(top(c) ^ n) & 0xFF]);
+    return opts.complement ? {hi: (~c.hi) >>> 0, lo: (~c.lo) >>> 0} : c;
+  };
+  const hex = c => c.hi.toString(16).padStart(8,'0') + c.lo.toString(16).padStart(8,'0');
+  const body = d.subarray(8, 568);
+  const bent = d.slice(); bent[300] ^= 0x01;
+  return {
+    full:        hex(crc(body, 560, {foldLength: true,  complement: true})),
+    noLength:    hex(crc(body, 560, {foldLength: false, complement: true})),
+    noComplement:hex(crc(body, 560, {foldLength: true,  complement: false})),
+    oneByteBent: hex(crc(bent.subarray(8, 568), 560, {foldLength: true, complement: true})),
+    // And the page's own answer, which must be the same as the full one here.
+    pageSays: Array.from(delverPatchCheckValue(d)).map(b => b.toString(16).padStart(2,'0')).join('')
+  };
+})()`);
+const WANT = 'c49ba9810778a4b9';
+want('an independent implementation reaches the same value', cv.full, WANT);
+want('and the page agrees with it', cv.pageSays, WANT);
+if (cv.noLength === WANT) fail('the length fold matters', 'dropping it changed nothing, so it is not being done');
+else ok('dropping the length fold breaks it', cv.noLength.slice(0, 16));
+if (cv.noComplement === WANT) fail('the final complement matters', 'dropping it changed nothing');
+else ok('dropping the final complement breaks it', cv.noComplement.slice(0, 16));
+if (cv.oneByteBent === WANT) fail('the digest discriminates', 'one flipped byte of the descriptor gave the same value');
+else ok('one flipped byte of the descriptor changes it', cv.oneByteBent.slice(0, 16));
+
 console.log(failures ? `\n${failures} failure(s)`
   : `\n  patch: 12 of 1,558 resources replaced, ${r.len.toLocaleString()} bytes out; ` +
     `${desc.tiles} tiles of ${desc.sheets * 16} redrawn across ${desc.sheets} sheets; ` +
-    `a written patch round-trips ${rt.applied} of ${rt.changed}`);
+    `a written patch round-trips ${rt.applied} of ${rt.changed}; check value recovered and verified`);
 process.exit(failures ? 1 : 0);

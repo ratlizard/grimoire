@@ -102,6 +102,69 @@ if (last && !last.missing) {
   else ok('the data file is unchanged between 1.0.3 and 1.0.4', 'so 1.0.4 changed the application only');
 }
 
+// ---- and the applications ---------------------------------------------------
+/* The data file answers what the scenario changed; this answers what the
+   PROGRAM changed, which for 1.0.4 is the whole of the release, since its
+   data file is identical to 1.0.3's.
+ *
+ * The routine names come from the traceback tables the compiler emitted, so
+ * they are Glenn Andreas's own names for his routines, and they make the last
+ * release legible in a way no byte count does: 1.0.4 added `MyFindSymbol`,
+ * `IsAntiAliasedTextEnabled` and `SetAntiAliasedTextEnabled`. That is the
+ * classic look-up-a-symbol-at-runtime idiom plus the thing it looks up, so
+ * the final release of Cythera was about anti-aliased text.
+ *
+ * Pinned by NAME rather than by count. A count would survive a change that
+ * swapped which routines differ, and the names are the finding. */
+const apps = ev(`(() => {
+  const app = v => { const r = sniffViseInstaller(__sit, 'Cythera ' + v + ' Installer');
+    if (!r) return null;
+    const e = r.archive.entries.find(x => x.type === 'APPL');
+    if (!e) return null;
+    const g = viseExtract(r.archive, e);
+    return {data: g.data, rsrc: g.rsrc}; };
+  const out = {};
+  for (const [x, y] of [['1.0.1','1.0.2'], ['1.0.2','1.0.3'], ['1.0.3','1.0.4']]) {
+    const A = app(x), B = app(y);
+    if (!A || !B) { out[x + ' to ' + y] = null; continue; }
+    const d = describeApplicationDiff(A, B);
+    out[x + ' to ' + y] = {
+      added: d.routines ? d.routines.added.map(r => r.name).sort() : null,
+      gone: d.routines ? d.routines.gone.map(r => r.name).sort() : null,
+      resized: d.routines ? d.routines.resized.length : null,
+      resizedNames: d.routines ? d.routines.resized.map(r => r.name).sort() : null,
+      moved: d.routines ? d.routines.moved : null,
+      aCount: d.routines ? d.routines.aCount : null,
+      forkChanged: d.fork ? d.fork.changed.length : null,
+      forkTypes: d.fork ? [...new Set(d.fork.changed.map(c => c.type))].sort().join(' ') : null
+    };
+  }
+  return out;
+})()`);
+const lastApp = apps['1.0.3 to 1.0.4'];
+if (!lastApp) console.log('  skip  the applications could not be taken out of the installers');
+else {
+  const wantAdded = ['IsAntiAliasedTextEnabled', 'MyFindSymbol', 'SetAntiAliasedTextEnabled'];
+  if (lastApp.added.join(', ') !== wantAdded.join(', '))
+    fail('what 1.0.4 added to the program', lastApp.added.join(', ') + ' against ' + wantAdded.join(', '));
+  else ok('1.0.4 added three routines', lastApp.added.join(', '));
+  if (lastApp.gone.length) fail('1.0.4 removed nothing', 'it removed ' + lastApp.gone.join(', '));
+  const wantResized = ['TAudio::SetSoundVolume(short, unsigned char)', 'TConvMode::Perform()', 'TDelverApp::RunStart()'];
+  if (lastApp.resizedNames.join(', ') !== wantResized.join(', '))
+    fail('what 1.0.4 recompiled', lastApp.resizedNames.join(', '));
+  else ok('and recompiled three', lastApp.resizedNames.length + ': RunStart, SetSoundVolume, Perform');
+  ok('its resource fork', lastApp.forkChanged + ' changed, of types ' + lastApp.forkTypes);
+  // The suppression is the point of the routine report, so it is asserted:
+  // moved-only has to dwarf the meaningful count, or the report is listing
+  // relocation noise as though it were change.
+  if (!(lastApp.moved > lastApp.added.length + lastApp.resized))
+    fail('moved-only is the noise', `${lastApp.moved} moved against ${lastApp.added.length + lastApp.resized} meaningful`);
+  else ok('moved-only is counted and not listed', lastApp.moved + ' moved, ' + (lastApp.added.length + lastApp.resized) + ' meaningful');
+}
+const firstApp = apps['1.0.1 to 1.0.2'];
+if (firstApp && firstApp.added) ok('1.0.1 to 1.0.2 in the program',
+  `${firstApp.added.length} added, ${firstApp.gone.length} gone, ${firstApp.resized} recompiled, of ${firstApp.aCount}`);
+
 // ---- the negative control --------------------------------------------------
 const neg = ev(`(() => {
   const a = __specs['1.0.3'], b = __specs['1.0.4'];
@@ -127,5 +190,7 @@ else if (!neg.removalSeen) fail('negative control', 'a removed resource was not 
 else ok('the comparison can fail', 'one flipped byte is seen, and a removed resource reads as removed');
 
 const summary = out.filter(r => !r.missing).map(r => r.pair.replace(/1\.0\./g, '') + ': ' + r.changed).join(', ');
-console.log(failures ? `\n${failures} failure(s)` : `\n  releases: ${summary} resources changed`);
+console.log(failures ? `\n${failures} failure(s)`
+  : `\n  releases: ${summary} resources changed` +
+    (lastApp ? `; 1.0.4 changed the program only, in ${lastApp.added.length + lastApp.resized} routines` : ''));
 process.exit(failures ? 1 : 0);

@@ -2641,7 +2641,7 @@ try {
                   'TERRAIN_NAMES', 'ZONE_NAMES', 'ZONEPORTS', 'STORE_SYMBOLS',
                   'XREF_INDEX', 'SCRIPT_TEXT', 'MONSTER_STATS', 'RESOURCE_SYMBOLS',
                   'EDITED_RESIDS', 'CONV_CACHE', 'PATCH_BASE_SPEC', 'PATCH_REPORT',
-                  'COMPARE_REPORT'];
+                  'COMPARE_REPORT', 'COMPARE_APP', 'APP_RSRC_RAW'];
   for (const k of marked) ctx[k] = '__stale__';
   peek('tileCanvasCache').set(-1, '__stale__');
   ctx._dvmStrMemo.set(-1, '__stale__');
@@ -3124,6 +3124,21 @@ try {
         fail('compare', 'the exported patch carries ' + carried.map(i => '0x' + i.toString(16)).join(' '));
       else if (!d.selfOffsetAgrees) fail('compare', 'the exported descriptor does not name where it landed');
       else {
+        /* The application half. There is no application open in this
+           harness -- it opens the data file alone -- so what is asserted is
+           that the section says nothing about the program rather than
+           inventing something, and that describeApplicationDiff itself works
+           when handed two builds. The second half is where the real figures
+           are pinned, in releases_check. */
+        if (peek('window.COMPARE_APP'))
+          fail('compare', 'an application comparison appeared with no application open');
+        const appSelf = peek(`(() => {
+          const d = describeApplicationDiff({data: __NOPE, rsrc: null}, {data: __NOPE, rsrc: null});
+          return d ? {routines: !!d.routines, fork: !!d.fork} : null;
+        })()`.replace(/__NOPE/g, 'null'));
+        if (!appSelf || appSelf.routines || appSelf.fork)
+          fail('compare', 'describeApplicationDiff invents a comparison from nothing');
+
         ctx.compareForget();
         const h2 = REGISTRY.get('compareReport');
         if (h2 && countTag(h2, 'CANVAS')) fail('compare', 'the pairs survive after the comparison is forgotten');
