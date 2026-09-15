@@ -452,6 +452,68 @@ else ok('dropping the final complement breaks it', cv.noComplement.slice(0, 16))
 if (cv.oneByteBent === WANT) fail('the digest discriminates', 'one flipped byte of the descriptor gave the same value');
 else ok('one flipped byte of the descriptor changes it', cv.oneByteBent.slice(0, 16));
 
+/* ---- what the type and trust byte can possibly affect -----------------------
+   The mapping above says what Magpie DRAWS for each code. This says what it
+   DOES, and the answer is almost nothing -- which is the sort of claim that
+   invites being wrong, so it is derived here rather than asserted in prose.
+ *
+ * WHAT IS ASSERTED HERE AND WHAT IS NOT. The load-bearing claim is that the
+ * byte never reaches any location other than +98 of some record: eight loads,
+ * one store, and the store is a field-by-field record copy that puts it back
+ * at the SAME displacement. That is mechanically checkable and it is what
+ * turns "nothing branches on it directly" into "nothing can" -- a value that
+ * never moves cannot be tested somewhere a displacement scan did not look.
+ *
+ * What is NOT asserted here is the classification of those eight into display
+ * and behaviour. A first version tried, by counting which compared the value
+ * against zero, and was wrong: the display dispatches compare against zero
+ * too, because that is how they separate Bug Fix from Expansion. Six of the
+ * eight do it. Telling a dispatch that picks a string index from a branch that
+ * changes what the program does needs the code read, not counted, and the
+ * reading is in GRIMOIRE-NOTES.md where it can be argued with. A check that
+ * dressed that judgement up as a derivation would claim more rigour than the
+ * method has.
+ *
+ * It also exercises js/mac-ppc.js over a SECOND PowerPC binary. ppc_check
+ * holds the decoder to LLVM over Cythera's code; this is the only thing in the
+ * suite that decodes Magpie's, so a decoder regression that happened to spare
+ * Cythera would show up here. */
+const field = ev(`(() => {
+  const arc = parseStuffItArchive(__sit);
+  const data = stuffItFork(__sit, arc.entries.find(e => e.name === 'Magpie'), 'data');
+  const pef = parsePEF(data);
+  const sec = pef.sections.find(s => s.kind === 0);
+  const img = data.subarray(sec.containerOffset, sec.containerOffset + sec.totalSize);
+  const dec = a => { const w = ((img[a]<<24)|(img[a+1]<<16)|(img[a+2]<<8)|img[a+3])>>>0; return ppcDecode(w); };
+  let loads = 0, stores = 0, escapes = 0, atOtherOffset = 0;
+  for (let a = 0; a + 4 <= img.length; a += 4) {
+    const d = dec(a);
+    if (!d || !/, 98\\(/.test(d.text)) continue;
+    if (/^st/.test(d.text)) { stores++; continue; }
+    loads++;
+    const m = d.text.match(/^\\w+ (\\d+),/); if (!m) continue;
+    const reg = m[1];
+    // where the value goes before the register holding it is rewritten
+    for (let k = 1; k <= 24; k++) {
+      const n = dec(a + k*4); if (!n) break;
+      const t = n.text;
+      if (new RegExp('^st[bhw] ' + reg + ',').test(t)) {
+        escapes++;
+        if (!/, 98\\(/.test(t)) atOtherOffset++;
+      }
+      if (new RegExp('^(lbz|lha|lhz|lwz|li|lis|addi|mr|or|and|rlwinm|extsb|extsh|clrlwi|cntlzw|srwi|slwi|srawi)\\\\.? ' + reg + ',').test(t)) break;
+      if (/^(bl|blr|b) /.test(t)) break;
+    }
+  }
+  return {loads, stores, escapes, atOtherOffset};
+})()`);
+want('the type byte is loaded eight times in Magpie', field.loads, 8);
+want('and stored once, by the record copy', field.stores, 1);
+/* The claim the reading rests on: the value is never stored at a displacement
+   other than the one searched, so no read of it can exist outside the eight
+   found, and the scan is complete rather than suggestive. */
+want('and never escapes to another offset', field.atOtherOffset, 0);
+
 console.log(failures ? `\n${failures} failure(s)`
   : `\n  patch: 12 of 1,558 resources replaced, ${r.len.toLocaleString()} bytes out; ` +
     `${desc.tiles} tiles of ${desc.sheets * 16} redrawn across ${desc.sheets} sheets; ` +
