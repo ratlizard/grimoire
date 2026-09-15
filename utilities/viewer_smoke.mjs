@@ -2640,7 +2640,7 @@ try {
   const marked = ['SCHEDULES', 'CHAR_TABLE', 'LIVING_PROPTYPES', '_CHAR_PROPTYPES',
                   'TERRAIN_NAMES', 'ZONE_NAMES', 'ZONEPORTS', 'STORE_SYMBOLS',
                   'XREF_INDEX', 'SCRIPT_TEXT', 'MONSTER_STATS', 'RESOURCE_SYMBOLS',
-                  'EDITED_RESIDS', 'CONV_CACHE'];
+                  'EDITED_RESIDS', 'CONV_CACHE', 'PATCH_BASE_SPEC', 'PATCH_REPORT'];
   for (const k of marked) ctx[k] = '__stale__';
   peek('tileCanvasCache').set(-1, '__stale__');
   ctx._dvmStrMemo.set(-1, '__stale__');
@@ -2940,6 +2940,104 @@ try {
   else if (!iconChips(sphtml)) fail('components', 'no spell chips at the icon it wears');
   else console.log(`  components: the dossier names its parts and reaches its schedule through Components; ${iconChips(skhtml)} skills and ${iconChips(sphtml)} spells chip at their icon`);
 } catch (e) { fail('components', e); }
+
+/* The patches section under Hackery, end to end, against a patch made here.
+
+   WHY A SYNTHETIC PATCH AND NOT THE REAL ONE. The Pumpkin Patch arrives as a
+   .hqx wrapping a .sit whose forks use StuffIt method 13, which the page
+   reads the catalog of but cannot decompress, so the real file needs `unar`
+   on the machine. utilities/patch_check.mjs does use it, and skips without
+   it; this pin must not skip, because what it guards is the part patch_check
+   never touches -- the DOM. So the patch is built out of the archive that is
+   already open: take two real tile sheets, redraw a few tiles of each, give
+   it a descriptor with its own UUID and description, and write it with the
+   writer that is already proven against delvmod.
+
+   That makes the expected numbers the harness's own rather than the file's,
+   which is the honest trade: this pin proves the section draws what the
+   reader found, and patch_check proves the reader finds the right thing in a
+   real patch. Neither alone is enough.
+
+   The negative control is the last line: with no patch open the report host
+   must be empty, so a section that drew its pairs unconditionally would fail
+   here rather than look right. */
+try {
+  ctx.showCategory('HACKERY');
+  const walk = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const before = walk();
+  if (before.indexOf('records no patches applied to it') < 0)
+    fail('patches', 'the section does not say the shipped archive records no patches');
+  if (!REGISTRY.has('patchFile')) fail('patches', 'no file control on the section');
+
+  // Two sheets of the open archive, with a handful of tiles redrawn. Working
+  // in decoded pixels and re-encoding is what makes the change real: a patch
+  // that only differed in its compression would replace bytes and redraw
+  // nothing, and the tile comparison is what this is about.
+  const base = ctx.delverArchiveSpec(archive);
+  const victims = [0x8E04, 0x8E34];
+  const WANT = { 0x8E04: [1, 5, 9], 0x8E34: [0, 2] };
+  const spec = { scenarioTitle: base.scenarioTitle, playerName: '',
+                 formatMajor: base.formatMajor, formatMinor: base.formatMinor, resources: [] };
+  let wantTiles = 0;
+  for (const resid of victims) {
+    const src = base.resources.find(r => r.resid === resid);
+    if (!src) { fail('patches', 'the archive has no ' + resid.toString(16)); throw new Error('no sheet'); }
+    const dec = ctx.decodeResource(src.data, 141, resid);
+    const img = dec.image.slice();
+    for (const t of WANT[resid]) {
+      for (let y = t * 32; y < (t + 1) * 32; y++)
+        for (let x = 0; x < dec.W; x++) img[y * dec.W + x] = ((x + y) & 1) ? 3 : 250;
+      wantTiles++;
+    }
+    // A sheet resource is a bare DCG stream of the 32-wide column, which is
+    // what decodeResource gives back, so the encoder the ditherizer uses for
+    // a sheet reduces to this once the grid has been folded. Nothing has to
+    // be reshaped because nothing was reshaped on the way in.
+    spec.resources.push({ resid, data: ctx.encodeDCGLiterals(img), encrypted: !!src.encrypted });
+  }
+  // The descriptor, laid out as Magpie writes one. The self-offset field has
+  // to name where the resource lands, and where it lands is decided by the
+  // writer, so it is written once, read back, and written again.
+  const mkDesc = (selfOffset) => {
+    const d = new Uint8Array(568);
+    for (let i = 0; i < 16; i++) d[8 + i] = (i * 17 + 5) & 0xFF;
+    d[24] = 0x02; d[25] = 0x38;            // +24: its own length, 568
+    d[26] = 0;                             // +26: the one code the binary names
+    d[28] = (selfOffset >>> 24) & 0xFF; d[29] = (selfOffset >>> 16) & 0xFF;
+    d[30] = (selfOffset >>> 8) & 0xFF;   d[31] = selfOffset & 0xFF;
+    const text = 'A patch made by the smoke test, redrawing five tiles.';
+    d[0x138] = text.length;
+    for (let i = 0; i < text.length; i++) d[0x139 + i] = text.charCodeAt(i);
+    return d;
+  };
+  spec.resources.push({ resid: 0xFFFF, data: mkDesc(0), encrypted: false });
+  const once = ctx.delverArchiveSpec(ctx.writeDelverArchive(spec));
+  const landed = once.resources.find(r => r.resid === 0xFFFF).fileOffset;
+  spec.resources[spec.resources.length - 1].data = mkDesc(landed);
+  const patchBytes = ctx.writeDelverArchive(spec);
+
+  if (!ctx.patchesOpenBytes(patchBytes, 'Smoke Patch')) fail('patches', 'the patch was refused');
+  const rep = peek('window.PATCH_REPORT');
+  const after = walk();
+  const countTag = (el, tag) => (el.tagName === tag ? 1 : 0) +
+    (el.children || []).reduce((n, c) => n + countTag(c, tag), 0);
+  const canvases = (REGISTRY.get('patchReport') ? countTag(REGISTRY.get('patchReport'), 'CANVAS') : 0);
+  if (!rep) fail('patches', 'no report after opening a patch');
+  else if (!rep.usable) fail('patches', 'a patch built from this archive was judged unusable: ' + rep.reasons.join('; '));
+  else if (rep.willReplace !== victims.length) fail('patches', `would replace ${rep.willReplace}, expected ${victims.length}`);
+  else if (rep.isInstalled) fail('patches', 'a patch this file never listed reads as installed');
+  else if (after.indexOf('A patch made by the smoke test') < 0) fail('patches', 'the description is not shown');
+  else if (after.indexOf(rep.descriptor.uuidText) < 0) fail('patches', 'the UUID is not shown');
+  else if (after.indexOf('Bug Fix') < 0) fail('patches', 'type code 0 is not named Bug Fix');
+  else if (canvases !== wantTiles * 2) fail('patches', `${canvases} tile canvases, expected ${wantTiles * 2} (a pair for each of ${wantTiles})`);
+  else {
+    ctx.patchesForget();
+    const host = REGISTRY.get('patchReport');
+    if (host && countTag(host, 'CANVAS'))
+      fail('patches', 'the tile pairs survive after the patch is forgotten');
+    else console.log(`  patches: a made patch reads back with its description, its UUID and ${wantTiles} redrawn tiles as ${canvases} canvases, and forgetting it empties the report`);
+  }
+} catch (e) { fail('patches', e); }
 
 // The ditherizer's data path: dither a synthetic image to the palette,
 // DCG-encode it, write it into a real portrait slot through the full

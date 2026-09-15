@@ -163,5 +163,117 @@ for (const [label, msg] of refusals) {
   else ok('refuses ' + label, msg.length > 72 ? msg.slice(0, 69) + '…' : msg);
 }
 
-console.log(failures ? `\n${failures} failure(s)` : `\n  patch: 12 of 1,558 resources replaced, ${r.len.toLocaleString()} bytes out`);
+/* ---- the descriptor, and what the page says about a patch it has not applied
+   Added 15 September 2026 with the Hackery section. The merge above proves
+   what a patch DOES; this proves what it SAYS, which is the half a reader
+   sees first and the half that was read out of Magpie's PowerPC code rather
+   than out of a sample. Each figure below was written down from the
+   disassembly before this file was ever opened, so the assertions are a
+   second, independent source agreeing with the first -- except the
+   description's offset, where they disagree and the file wins.
+
+   The 55 changed tiles are the figure worth pinning hardest: nothing in this
+   project derived it from the pixels until now. It was counted by hand off
+   the patch's own advertising and has stood in the notes since; decoding both
+   sides and comparing them tile by tile reaches the same number. */
+const desc = ev(`(() => {
+  const B = delverArchiveSpec(__base), P = delverArchiveSpec(__patch);
+  const rep = describeDelverPatch(B, P), d = rep.descriptor;
+  let tiles = 0, sheets = 0;
+  for (const r of rep.resources) {
+    if (!r.inBase || r.identical || r.subn !== 141) continue;
+    const a = decodeResource(r.baseData, 141, r.resid), b = decodeResource(r.patchData, 141, r.resid);
+    if (a.W !== b.W || a.H !== b.H) continue;
+    let n = 0;
+    for (let t = 0; t < a.H / 32; t++) {
+      let diff = false;
+      for (let y = t*32; y < (t+1)*32 && !diff; y++)
+        for (let x = 0; x < a.W; x++) if (a.image[y*a.W+x] !== b.image[y*b.W+x]) { diff = true; break; }
+      if (diff) n++;
+    }
+    sheets++; tiles += n;
+  }
+  return {uuid: d && d.uuidText, len: d && d.statedLength, lenOk: d && d.lengthAgrees,
+          type: d && d.typeCode, named: !!(d && d.typeName), selfOk: d && d.selfOffsetAgrees,
+          text: d && d.description, check: d && d.checkValue,
+          format: rep.format, baseFormat: rep.baseFormat, usable: rep.usable, reasons: rep.reasons,
+          installedInBase: rep.installedIds.length, isInstalled: rep.isInstalled,
+          willReplace: rep.willReplace, notInBase: rep.notInBase.length,
+          disagreed: rep.disagreed.length, unchanged: rep.unchanged.length,
+          sheets, tiles,
+          baseDescriptor: !!delverPatchDescriptor(B)};
+})()`);
+const want = (what, got, expect) => {
+  if (String(got) !== String(expect)) fail(what, `expected ${JSON.stringify(expect)}, got ${JSON.stringify(got)}`);
+  else ok(what, String(got));
+};
+want('the descriptor UUID', desc.uuid, '00b21e58-a47f-11d4-8a4a-000502c9f8b7');
+want('the descriptor check value', desc.check, 'c49ba9810778a4b9');
+want('the descriptor states its own length', desc.len, 568);
+want('the length is the one Magpie takes', desc.lenOk, true);
+want('the descriptor names the offset it sits at', desc.selfOk, true);
+want('the type and trust code', desc.type, 3);
+// 3 is the Pumpkin Patch's code and the binary names only 0 (Bug Fix), so a
+// reader that starts naming 3 has started guessing. This is what says so.
+want('code 3 is not given a name', desc.named, false);
+want('the description', desc.text,
+     'Harvest time, and the leaves change - something strange is happening in Cythera...');
+want('the patch\'s format', desc.format, '2.0');
+want('the game\'s format', desc.baseFormat, '2.0');
+want('Magpie\'s three tests pass', desc.usable, true);
+if (desc.reasons.length) fail('no reason to refuse it', desc.reasons.join('; '));
+// The shipped archive carries neither resource, which is what makes "this
+// file lists no patches" the honest thing for the page to say about it.
+want('the shipped archive lists no applied patches', desc.installedInBase, 0);
+want('the shipped archive has no descriptor of its own', desc.baseDescriptor, false);
+want('so this patch does not read as installed', desc.isInstalled, false);
+want('resources it would replace', desc.willReplace, 12);
+want('resources it names that are not in the game', desc.notInBase, 0);
+want('resources refused on an encryption disagreement', desc.disagreed, 0);
+want('resources already identical', desc.unchanged, 0);
+want('tile sheets it redraws', desc.sheets, 12);
+want('tiles it redraws', desc.tiles, 55);
+
+/* THE NEGATIVE CONTROL FOR THE READING, separate from the merge's. Each of
+   these changes one field of the descriptor and requires the reader to notice.
+   Without them every assertion above would still pass against a reader that
+   returned constants. */
+const dneg = ev(`(() => {
+  const B = delverArchiveSpec(__base);
+  const bend = (fn) => {
+    const P = delverArchiveSpec(__patch);
+    const d = P.resources.find(r => r.resid === 0xFFFF);
+    d.data = d.data.slice(); fn(d.data, P);
+    return describeDelverPatch(B, P);
+  };
+  return {
+    uuidMoves:   bend(d => { d[8] ^= 0xFF; }).descriptor.uuidText !== '00b21e58-a47f-11d4-8a4a-000502c9f8b7',
+    lengthSeen:  bend(d => { d[24] = 0x02; d[25] = 0x39; }).usable === false,
+    offsetSeen:  bend(d => { d[31] ^= 0xFF; }).usable === false,
+    textMoves:   bend(d => { d[0x139] = 0x5A; }).descriptor.description[0] === 'Z',
+    majorSeen:   (() => { const P = delverArchiveSpec(__patch); P.formatMajor = 3;
+                          return describeDelverPatch(B, P).usable === false; })(),
+    minorSeen:   (() => { const P = delverArchiveSpec(__patch); P.formatMinor = 1;
+                          return describeDelverPatch(B, P).usable === false; })(),
+    minorOkDown: (() => { const P = delverArchiveSpec(__patch); const C = delverArchiveSpec(__base);
+                          C.formatMinor = 4;
+                          return describeDelverPatch(C, P).usable === true; })(),
+    installedSeen: (() => {
+      const C = delverArchiveSpec(__base), P = delverArchiveSpec(__patch);
+      const d = P.resources.find(r => r.resid === 0xFFFF);
+      C.resources.push({resid: 0xFFFE, data: d.data.slice(8, 24), encrypted: false});
+      const r = describeDelverPatch(C, P);
+      return r.isInstalled === true && r.installedIds.length === 1;
+    })()
+  };
+})()`);
+for (const [what, got] of Object.entries(dneg)) {
+  if (!got) fail('the reading can fail: ' + what, 'a bent descriptor was read as if it were sound');
+}
+if (Object.values(dneg).every(Boolean))
+  ok('the reading can fail', Object.keys(dneg).length + ' bent descriptors, each noticed');
+
+console.log(failures ? `\n${failures} failure(s)`
+  : `\n  patch: 12 of 1,558 resources replaced, ${r.len.toLocaleString()} bytes out; ` +
+    `${desc.tiles} tiles of ${desc.sheets * 16} redrawn across ${desc.sheets} sheets`);
 process.exit(failures ? 1 : 0);

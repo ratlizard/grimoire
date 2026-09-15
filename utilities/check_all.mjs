@@ -248,7 +248,7 @@ const CHECKS = [
      what extracts the patch out of its StuffIt archive. */
   {page: 'viewer', name: 'magpie patch', want: [DATA],
    cmd: ['utilities/patch_check.mjs', 'index.html', DATA, ADDONS],
-   grep: /\d+ of [\d,]+ resources replaced, [\d,]+ bytes out/},
+   grep: /\d+ of [\d,]+ resources replaced, [\d,]+ bytes out(?:; \d+ tiles of \d+ redrawn across \d+ sheets)?/},
   /* The undither, scored against a known original. It needs no archive: the
      sources are synthetic and the forward process is the page's own
      ditherizer, so this is the one check here that measures a decoder against
