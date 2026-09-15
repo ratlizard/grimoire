@@ -421,3 +421,80 @@ function pefDemangle(m) {
   const argText = args ? (args.length === 1 && args[0] === 'void' ? '' : args.join(', ')) : '';
   return (cls ? cls + '::' : '') + base + '(' + argText + ')' + (isConst ? ' const' : '');
 }
+
+/* ---- two applications against each other ----------------------------------
+   A classic Mac application is a PEF data fork and a resource fork, and this
+   compares both. Nothing here knows Cythera exists, which is the rule for
+   this tier: it is two applications, and it would say the same things about
+   any pair built by the same compiler.
+
+   WHAT IT REPORTS AND WHAT IT SUPPRESSES. A routine's OFFSET moves whenever
+   anything before it changes size, so between two builds of the same program
+   most routines have moved and nothing follows from it -- 1,772 of 1,970 in
+   one real pair. Moved-only is counted and not listed. What carries meaning
+   is a routine that appeared, one that went, and one whose LENGTH changed,
+   because the compiler emitted different code for it.
+
+   NAMES COME FROM THE TRACEBACK TABLES, so this only works on a build that
+   has them; `pefTracebacks` gives nothing for a program compiled without,
+   and the routine half of the report is then empty while the fork half still
+   works. Two routines can share a name -- overloads mangle differently, so in
+   practice they do not -- and where they do, the first is taken and the count
+   says so.
+
+   THE RESOURCE FORK is compared by type and id, which is the identity the
+   Resource Manager uses. A resource whose bytes differ is reported; a
+   resource that moved in the map is not, because the map's order is not
+   something a reader should have to care about. */
+function describeApplicationDiff(a, b) {
+  const out = { routines: null, fork: null, aRoutines: 0, bRoutines: 0 };
+  const sameBytes = (x, y) => x.length === y.length && x.every((v, i) => v === y[i]);
+
+  if (a && a.data && b && b.data) {
+    let ra = [], rb = [];
+    try { ra = pefTracebacks(parsePEF(a.data), a.data) || []; } catch (e) { ra = []; }
+    try { rb = pefTracebacks(parsePEF(b.data), b.data) || []; } catch (e) { rb = []; }
+    out.aRoutines = ra.length; out.bRoutines = rb.length;
+    if (ra.length || rb.length) {
+      const first = list => { const m = new Map(); let dupes = 0;
+        for (const r of list) { if (m.has(r.name)) { dupes++; continue; } m.set(r.name, r); } return { m, dupes }; };
+      const A = first(ra), B = first(rb);
+      const added = [], gone = [], resized = [];
+      let moved = 0, identical = 0;
+      for (const [name, r] of A.m) {
+        const o = B.m.get(name);
+        if (!o) { gone.push({ name, length: r.length, offset: r.offset }); continue; }
+        if (o.length !== r.length) resized.push({ name, aLength: r.length, bLength: o.length, delta: o.length - r.length });
+        else if (o.offset !== r.offset) moved++;
+        else identical++;
+      }
+      for (const [name, r] of B.m) if (!A.m.has(name)) added.push({ name, length: r.length, offset: r.offset });
+      out.routines = { added, gone, resized, moved, identical,
+                       aCount: A.m.size, bCount: B.m.size, duplicateNames: A.dupes + B.dupes,
+                       // The only figure a reader should act on.
+                       meaningful: added.length + gone.length + resized.length };
+    }
+  }
+
+  if (a && a.rsrc && a.rsrc.length && b && b.rsrc && b.rsrc.length) {
+    let la = null, lb = null;
+    try { la = resourceForkSpec(openResourceFork(a.rsrc)).resources; } catch (e) { la = null; }
+    try { lb = resourceForkSpec(openResourceFork(b.rsrc)).resources; } catch (e) { lb = null; }
+    if (la && lb) {
+      const key = r => r.type + ' ' + r.id;
+      const ma = new Map(la.map(r => [key(r), r])), mb = new Map(lb.map(r => [key(r), r]));
+      const changed = [], added = [], removed = [];
+      let identical = 0;
+      for (const [k, r] of ma) {
+        const o = mb.get(k);
+        if (!o) { removed.push({ key: k, type: r.type, id: r.id, name: r.name, length: r.data.length }); continue; }
+        if (sameBytes(r.data, o.data)) { identical++; continue; }
+        changed.push({ key: k, type: r.type, id: r.id, name: r.name || o.name,
+                       aLength: r.data.length, bLength: o.data.length });
+      }
+      for (const [k, r] of mb) if (!ma.has(k)) added.push({ key: k, type: r.type, id: r.id, name: r.name, length: r.data.length });
+      out.fork = { changed, added, removed, identical, aCount: ma.size, bCount: mb.size };
+    }
+  }
+  return out;
+}
