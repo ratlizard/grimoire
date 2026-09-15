@@ -203,6 +203,13 @@ const CHECKS = [
   {page: 'viewer', name: 'PICT BitsRect',
    cmd: ['utilities/pict_bits_check.mjs', 'index.html'],
    grep: /\d+ synthetic pictures/},
+  /* Is the oracle current? delvmod is a fork this project pushes fixes to,
+     and a fix to it is worth nothing if the copy the suite compares against
+     is older. Placed before the delvmod checks so that a stale oracle is read
+     as the reason they agreed, rather than as a reassurance. */
+  {page: 'viewer', name: 'oracle currency', want: [DELV],
+   cmd: ['utilities/oracle_check.mjs', DELV],
+   grep: /the oracle is[^\n]*/},
   {page: 'viewer', name: 'delvmod tables', want: [DATA, DELV],
    cmd: ['utilities/delv_crosscheck.mjs', 'index.html', DELV, DATA]},
   {page: 'viewer', name: 'delvmod graphics', want: [DATA, GFX_REF],
