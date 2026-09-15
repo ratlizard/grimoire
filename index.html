@@ -4564,7 +4564,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.84.0';
+const GRIMOIRE_VERSION = '1.84.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -21244,7 +21244,16 @@ function renderCompareReport() {
     '<li>It carries a <b>real check value</b>, the 64-bit digest Magpie verifies before it will list a patch at all. ' +
     'That was unreadable here until the routine was recovered out of Magpie\u2019s own code, and a patch written before then had zeroes in that field. ' +
     'Whether Magpie under Mac OS 9 then installs it has not been seen; nothing here can test that.</li>' +
-    '<li>The resources come from <b>' + svEsc(rep.bName) + '</b>, which is the side a patch would make somebody else\u2019s file match.</li>'));
+    '<li>The resources come from <b>' + svEsc(rep.bName) + '</b>, which is the side a patch would make somebody else\u2019s file match.</li>' +
+    /* Established by reading Magpie's imports: of 299 symbols it imports one
+       Resource Manager call, GetResource, and none that writes -- no
+       AddResource, ChangedResource, WriteResource or UpdateResFile, and no
+       call that opens another file's resource fork at all. What it imports is
+       the flat-file set, FSpOpenDF through FSWrite. So the format cannot carry
+       a resource-fork change, and a swapped font is the case that would
+       otherwise go missing without a word. */
+    '<li>A patch carries the <b>data fork only</b>, which is the Delver archive. Magpie writes nothing else, ' +
+    'so anything in the resource fork, the game\u2019s font among it, cannot travel in one.</li>'));
   const form = el('div', 'mechStats');
   const desc = document.createElement('input');
   desc.type = 'text'; desc.id = 'patchDesc'; desc.placeholder = 'What this patch does';
@@ -22019,7 +22028,8 @@ function renderMechanicsSheet(value) {
         'The game file keeps the list of what has been applied to it as resource ' + propWordHex(0xFFFE) + ', and a patch keeps its own description as ' + propWordHex(0xFFFF) + '. The shipped archive has neither.',
         'Magpie takes a patch when the scenario matches, the format major matches and the minor is at least the patch’s, and the descriptor names the offset it sits at.',
         'Nothing here is written to disk, and a patch is never merged from this section: what it shows is what a merge would change.',
-      'A patch carries a <b>check value</b> over its descriptor, and this page computes the same one Magpie does, so it can say whether a patch is intact rather than only quoting the number.'
+      'A patch carries a <b>check value</b> over its descriptor, and this page computes the same one Magpie does, so it can say whether a patch is intact rather than only quoting the number.',
+      'A patch reaches the <b>data fork only</b>. Magpie imports one Resource Manager call and it is a read, so nothing in the resource fork, the game\u2019s font among it, can be changed by a patch.'
       ],
       '<ul class="ruleList"><li>' +
         (!base ? 'No game file is open.'
