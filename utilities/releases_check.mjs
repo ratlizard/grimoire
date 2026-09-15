@@ -263,6 +263,15 @@ const notes = ev(`(() => {
     up: (r.added || []).map(a => a.n + ' ' + a.op).sort().join(' '),
     down: (r.removed || []).map(a => a.n + ' ' + a.op).sort().join(' ')}));
 
+  // --- 1.0.2: the routines its claims land on ---
+  const r12 = routines('1.0.1', '1.0.2');
+  out.r12added = new Set(r12.added.map(r => r.name));
+  out.r12 = {};
+  for (const r of r12.resized) out.r12[r.name] = {compilerOnly: !!r.compilerOnly,
+    up: (r.added || []).map(a => a.n + ' ' + a.op).sort().join(' '), bytes: r.bLength - r.aLength};
+  out.r12addedList = [...out.r12added].sort();
+  out.r12compilerOnly = r12.resized.filter(r => r.compilerOnly).length;
+
   // --- 1.0.3: which routines changed, and which are the compiler's ---
   const r23 = routines('1.0.2', '1.0.3');
   out.r23 = {};
@@ -393,6 +402,48 @@ eq('and it grows', notes.defendAiBytes.join(' -> '), '584 -> 712');
         notes.clearNeedsCallers.includes('TGameSys::TeleportTo(short, short, short)'),
         'the teleport path clears pending needs too');
   eq('1.0.3 adds one routine', notes.r23added.join(','), 'TDroppableWindow::ClearNeeds()');
+}
+
+/* THE 1.0.2 CLAIMS, JOINED TO THE ROUTINES THAT CARRY THEM.
+ *
+ * 1.0.2 is the release whose notes are mostly about the application rather
+ * than the scenario, so its claims cannot be joined to a resource the way
+ * 1.0.3's are. They join to routine names instead, and the strongest evidence
+ * is a routine that did not exist before: a name either appeared in this
+ * release or it did not, with nothing to interpret.
+ *
+ * Every join below was made by reading the 45 recompiled routines with the
+ * opcode census. None of the 45 is compiler-only, which is itself worth
+ * asserting -- 1.0.3 has five that are, so a release where every recompile is
+ * a real edit is a fact about 1.0.2 and not a property of the method. */
+{
+  const added = n => notes.r12added.has(n) || notes.r12addedList.includes(n);
+  const claim = (what, cond, detail) => cond ? ok(what, detail) : fail(what, 'not found');
+  claim('switching resolution on the fly: a monitor-change path',
+        added('TWindow::GetOwningGD(GDevice**, Rect&)') &&
+        !!notes.r12['TApp::DoMonitorChanged(GDevice**, Rect&, Rect&)'] &&
+        !!notes.r12['TWindow::HandleMonitorChanged(GDevice**, Rect&, Rect&)'],
+        'three GetOwningGD added, DoMonitorChanged and HandleMonitorChanged recompiled');
+  claim('the note taking dialog is moveable: the routine that makes it so',
+        added('MoveableDialogerRoutine') && added('TApp::MoveableModalDialog(RoutineDescriptor*, short*)'),
+        'MoveableDialogerRoutine and TApp::MoveableModalDialog added');
+  claim('the journal is updated when a game is restored',
+        added('TJournal::LoadJournal()'), 'TJournal::LoadJournal added');
+  claim('punctuation no longer splits onto a new line',
+        (notes.r12['TTextContext::TTextContext(const char*, short, short, short, short)'] || {}).bytes === 236,
+        'TTextContext gains 236 bytes of text layout');
+  /* "If something is in a doorway to the east or south, it is now correctly
+     considered close (in range for a touch spell, CAN BE SEARCHED...)" -- and
+     the routine is CanSearch, gaining four bit tests. The note names the
+     routine almost outright. */
+  claim('a doorway to the east or south counts as close',
+        (notes.r12['TDroppableWindow::CanSearch(Point)'] || {}).up.indexOf('4 bf') >= 0,
+        'TDroppableWindow::CanSearch gains four bit tests');
+  claim('the Defend.ai is more intelligent: the routines that run it',
+        (notes.r12['PerformAI(TActiveMonster*, short)'] || {}).bytes === 276 &&
+        (notes.r12['SCombatAIEntry::EvaluateAI(TActiveMonster*, SCombatAIEntry*, short)'] || {}).bytes === 228,
+        'PerformAI +276 and EvaluateAI +228');
+  eq('and every one of 1.0.2\'s recompiles is a real edit', notes.r12compilerOnly, 0);
 }
 
 /* A COMBAT-AI DEBUGGER SHIPS IN THE RETAIL GAME. Added in 1.0.2, never
