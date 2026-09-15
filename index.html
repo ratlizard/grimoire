@@ -4564,7 +4564,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.81.0';
+const GRIMOIRE_VERSION = '1.82.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -5331,6 +5331,10 @@ async function loadApplicationFork() {
       const c = sniffMacContainer(raw);
       if (!c || !c.rsrc || !c.rsrc.length) { lastErr = 'no resource fork in ' + url; continue; }
       window.APP_RSRC = openResourceFork(c.rsrc);
+      // The RAW fork as well as the parsed one. The comparison section needs
+      // bytes: describeApplicationDiff opens both sides itself so that it can
+      // say the same things about an application this page never opened.
+      window.APP_RSRC_RAW = c.rsrc;
       window.APP_DATA = c.data && c.data.length ? c.data : null; window.APP_PEF = null;
       window.APP_RSRC_STATE = '';
       try { installDialogueBox(); } catch (e) {}
@@ -6025,6 +6029,7 @@ function resetDerivedCaches() {
   // the file that is open, so a different archive has to drop them too.
   if (typeof _rsrcArtifactCache !== 'undefined') _rsrcArtifactCache.clear();
   window.APP_RSRC = null;
+  window.APP_RSRC_RAW = null;
   window.APP_DATA = null;
   window.APP_PEF = null;
   window.APP_RSRC_STATE = '';
@@ -6072,6 +6077,7 @@ function resetDerivedCaches() {
   window.PATCH_BASE_SPEC = null;
   window.PATCH_REPORT = null;
   window.COMPARE_REPORT = null;
+  window.COMPARE_APP = null;
   window.PROP_BLOCK = null;
   window.LIVING_PROPTYPES = null;
   window.SCHEDULES = null;
@@ -6361,8 +6367,8 @@ function adoptArchive(raw, sourceName, opts) {
   if (found.installer) {
     const app = found.installer.archive.entries.find(e => e.type === 'APPL' && e.creator === 'Delv');
     if (app) {
-      try { const both = viseExtract(found.installer.archive, app); window.APP_RSRC = openResourceFork(both.rsrc); window.APP_DATA = both.data && both.data.length ? both.data : null; window.APP_PEF = null; window.APP_RSRC_STATE = ''; }
-      catch (e) { window.APP_RSRC = null; window.APP_DATA = null; window.APP_PEF = null; window.APP_RSRC_STATE = 'Could not open the application’s fork from the installer: ' + e.message; }
+      try { const both = viseExtract(found.installer.archive, app); window.APP_RSRC = openResourceFork(both.rsrc); window.APP_RSRC_RAW = both.rsrc; window.APP_DATA = both.data && both.data.length ? both.data : null; window.APP_PEF = null; window.APP_RSRC_STATE = ''; }
+      catch (e) { window.APP_RSRC = null; window.APP_RSRC_RAW = null; window.APP_DATA = null; window.APP_PEF = null; window.APP_RSRC_STATE = 'Could not open the application’s fork from the installer: ' + e.message; }
       if (window.CUR_SUBN === 'MACRSRC' && window.RSRC_SOURCE === 'app') renderMacRsrcSheet();
       // The dialogue box's constants are the application's, so it is drawn
       // again now that the application is here.
@@ -20851,6 +20857,9 @@ function renderPatchReport() {
   if (d && d.description) facts.push('<tr><td>description</td><td>' + svEsc(d.description) + '</td></tr>');
   if (d) {
     facts.push('<tr><td>identity</td><td class="patchMono">' + svEsc(d.uuidText) + '</td></tr>');
+    facts.push('<tr><td>check value</td><td><span class="patchMono">' + svEsc(d.checkValue) + '</span>' +
+      (d.checkValueValid ? '<span class="mechSub"> verifies, so the descriptor is intact</span>'
+                         : '<span class="patchBad"> does not verify, and Magpie would mark this patch unusable</span>') + '</td></tr>');
     facts.push('<tr><td>type</td><td>' + (d.typeName ? '<b>' + svEsc(d.typeName) + '</b>' : 'code ' + d.typeCode) +
       (d.typeOverwritten ? '<span class="mechSub"> which is also what Magpie writes over a patch whose descriptor failed its check</span>'
        : d.typeName ? '' : '<span class="mechSub"> one byte carrying both the type and the trust level, and only 0, Bug Fix, is read</span>') + '</td></tr>');
@@ -20983,12 +20992,72 @@ function compareOpenBytes(bytes, name) {
   window.COMPARE_REPORT = Object.assign(describeDelverDiff(other, mine),
     { aName: name || 'the other file', bName: window.ARCHIVE_SOURCE_NAME || 'the open file',
       bSpec: mine, kind: 'files', via: got.via });
+  compareApplications(bytes, name);
   say('');
   renderCompareReport();
   return true;
 }
 
-function compareForget() { window.COMPARE_REPORT = null; renderCompareReport(); }
+/* The application half, when both sides have one. The page's own application
+   arrives through the installer route (`loadApplicationFork`), so this is
+   only offered when a file has been opened that way; without it the section
+   compares the scenario data and says nothing about the program. */
+function compareApplications(bytes, name) {
+  window.COMPARE_APP = null;
+  if (!window.APP_DATA) return;
+  const other = findApplicationIn(bytes);
+  if (!other) return;
+  const mine = { data: window.APP_DATA, rsrc: window.APP_RSRC_RAW || null };
+  const d = describeApplicationDiff(other, mine);
+  if (!d || (!d.routines && !d.fork)) return;
+  window.COMPARE_APP = Object.assign(d, { aName: other.name || name || 'the other application',
+                                          bName: 'the open application', via: other.via });
+}
+
+function compareForget() { window.COMPARE_REPORT = null; window.COMPARE_APP = null; renderCompareReport(); }
+
+/* An application inside whatever file was chosen, with both its forks.
+
+   A Cythera installer holds the data file AND the application, so opening one
+   can answer two questions at once: what the scenario data changed, and what
+   the program changed. This finds the second. Everything it looks in is
+   something the page already opens -- an Installer VISE archive, a StuffIt
+   archive, or a plain MacBinary-ish wrapper -- and it returns null rather
+   than throwing when there is no application, because most files have none
+   and that is not an error. */
+function findApplicationIn(bytes) {
+  const pick = list => list.find(e => e.type === 'APPL') || null;
+  try {
+    const inst = sniffViseInstaller(bytes);
+    if (inst) {
+      const e = pick(inst.archive.entries);
+      if (e) { const g = viseExtract(inst.archive, e);
+               return { name: e.name, data: g.data, rsrc: g.rsrc, via: inst.archive.versionName + ' installer' }; }
+    }
+  } catch (e) { /* not an installer */ }
+  const fromSit = buf => {
+    if (typeof looksLikeStuffIt !== 'function' || !looksLikeStuffIt(buf)) return null;
+    let arc; try { arc = parseStuffItArchive(buf); } catch (e) { return null; }
+    const e = pick(arc.entries.filter(x => !x.isFolder));
+    if (!e) return null;
+    try { return { name: e.name, data: stuffItFork(buf, e, 'data'), rsrc: stuffItFork(buf, e, 'rsrc'), via: arc.format + ' archive' }; }
+    catch (err) { return null; }
+  };
+  const bare = fromSit(bytes);
+  if (bare) return bare;
+  try {
+    const forks = sniffMacContainer(bytes);
+    if (forks) {
+      if ((forks.type || '').trim() === 'APPL')
+        return { name: forks.name, data: forks.data, rsrc: forks.rsrc, via: forks.kind };
+      for (const which of ['data', 'rsrc']) {
+        const inner = forks[which] && forks[which].length ? fromSit(forks[which]) : null;
+        if (inner) { inner.via += ' in ' + forks.kind; return inner; }
+      }
+    }
+  } catch (e) { /* not a container */ }
+  return null;
+}
 
 /* A whole resource drawn, for the kinds the page can decode as one image.
    Subindex 141 is not here: a tile sheet is 32 by 512 and drawing two of them
@@ -21106,8 +21175,9 @@ function renderCompareReport() {
   host.appendChild(el('ul', 'ruleList',
     '<li>A Delver archive holding only what differs, with a descriptor naming it. ' +
     'This page reads it, the patches section describes it, and the browser player loads it as an add-on.</li>' +
-    '<li><b>It will not install in Magpie</b> under Mac OS 9. The descriptor carries a check value that only Glenn Andreas\u2019s ' +
-    'patch maker could produce, and Magpie refuses a descriptor whose check value is wrong. Zeroes are written there rather than a guess.</li>' +
+    '<li>It carries a <b>real check value</b>, the 64-bit digest Magpie verifies before it will list a patch at all. ' +
+    'That was unreadable here until the routine was recovered out of Magpie\u2019s own code, and a patch written before then had zeroes in that field. ' +
+    'Whether Magpie under Mac OS 9 then installs it has not been seen; nothing here can test that.</li>' +
     '<li>The resources come from <b>' + svEsc(rep.bName) + '</b>, which is the side a patch would make somebody else\u2019s file match.</li>'));
   const form = el('div', 'mechStats');
   const desc = document.createElement('input');
@@ -21121,7 +21191,44 @@ function renderCompareReport() {
   btn.onclick = compareExportPatch;
   form.appendChild(btn);
   host.appendChild(form);
+  renderCompareApp(host, el);
   host.appendChild(el('div', '', svLink('Forget this comparison', 'compareForget()')));
+}
+
+/* The application comparison, under the data one. Routines that moved are
+   counted and not listed: between two builds of the same program almost every
+   routine has moved, and none of it means anything. */
+function renderCompareApp(host, el) {
+  const app = window.COMPARE_APP;
+  if (!app) return;
+  host.appendChild(el('div', 'partsTitle', 'And the application'));
+  const r = app.routines;
+  if (r) {
+    host.appendChild(el('p', 'mechLede',
+      '<b>' + r.meaningful + '</b> routine' + (r.meaningful === 1 ? '' : 's') + ' differ of ' + r.aCount +
+      ': <b>' + r.added.length + '</b> added, <b>' + r.gone.length + '</b> gone, <b>' + r.resized.length +
+      '</b> compiled to a different length. Another ' + r.moved + ' moved without changing, which is what happens to everything after the first difference.'));
+    const rows = [];
+    for (const x of r.added) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">added</td>' + mechNum('') + mechNum(x.length) + mechNum('') + '</tr>');
+    for (const x of r.gone) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">gone</td>' + mechNum(x.length) + mechNum('') + mechNum('') + '</tr>');
+    for (const x of r.resized) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">recompiled</td>' +
+      mechNum(x.aLength) + mechNum(x.bLength) + mechNum((x.delta > 0 ? '+' : '') + x.delta) + '</tr>');
+    host.appendChild(el('div', '', mechTable(['routine', '', '#in ' + svEsc(app.aName), '#in ' + svEsc(app.bName), '#difference'], rows)));
+    if (!rows.length) host.appendChild(el('p', 'mechSub', 'Every routine is the same name and the same length in both.'));
+  } else {
+    host.appendChild(el('p', 'mechSub', 'Neither application names its routines, so only the resource forks could be compared.'));
+  }
+  const f = app.fork;
+  if (f) {
+    host.appendChild(el('div', 'partsTitle', 'Its resource fork'));
+    const rows = f.changed.map(x => '<tr><td><span class="patchMono">' + svEsc(x.type) + ' ' + x.id + '</span>' +
+      (x.name ? ' ' + svEsc(x.name) : '') + '</td>' + mechNum(x.aLength) + mechNum(x.bLength) + '</tr>')
+      .concat(f.added.map(x => '<tr><td><span class="patchMono">' + svEsc(x.type) + ' ' + x.id + '</span><span class="mechSub"> added</span></td>' + mechNum('') + mechNum(x.length) + '</tr>'))
+      .concat(f.removed.map(x => '<tr><td><span class="patchMono">' + svEsc(x.type) + ' ' + x.id + '</span><span class="mechSub"> gone</span></td>' + mechNum(x.length) + mechNum('') + '</tr>'));
+    host.appendChild(el('p', 'mechLede', '<b>' + f.changed.length + '</b> changed, <b>' + f.added.length +
+      '</b> added and <b>' + f.removed.length + '</b> gone, of ' + f.aCount + '.'));
+    host.appendChild(el('div', '', mechTable(['resource', '#in ' + svEsc(app.aName), '#in ' + svEsc(app.bName)], rows)));
+  }
 }
 
 function compareExportPatch() {
@@ -21135,7 +21242,8 @@ function compareExportPatch() {
       { description: (d && d.value) || '', typeCode: 0 });
     downloadBlob(w.bytes, safeFileName((rep.bName || 'Cythera') + ' Patch'));
     say(w.resids.length + ' resource(s) written, ' + w.bytes.length.toLocaleString() +
-        ' bytes, identity ' + w.uuidText + '. The check value is zero, so Magpie will refuse it.');
+        ' bytes, identity ' + w.uuidText +
+        (w.checkValueValid ? ', check value ' + w.checkValue + ' and it verifies.' : ', and the check value does not verify.'));
   } catch (e) { say('That patch could not be written: ' + e.message, true); }
 }
 
@@ -21818,7 +21926,8 @@ function renderMechanicsSheet(value) {
         'A patch is identified by a <b>UUID</b> and by nothing else. There is no name, no version and no order in what a game file records, which is why Magpie needs every patch file present to say what is installed.',
         'The game file keeps the list of what has been applied to it as resource ' + propWordHex(0xFFFE) + ', and a patch keeps its own description as ' + propWordHex(0xFFFF) + '. The shipped archive has neither.',
         'Magpie takes a patch when the scenario matches, the format major matches and the minor is at least the patch’s, and the descriptor names the offset it sits at.',
-        'Nothing here is written to disk, and a patch is never merged from this section: what it shows is what a merge would change.'
+        'Nothing here is written to disk, and a patch is never merged from this section: what it shows is what a merge would change.',
+      'A patch carries a <b>check value</b> over its descriptor, and this page computes the same one Magpie does, so it can say whether a patch is intact rather than only quoting the number.'
       ],
       '<ul class="ruleList"><li>' +
         (!base ? 'No game file is open.'
