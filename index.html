@@ -4564,7 +4564,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.80.0';
+const GRIMOIRE_VERSION = '1.81.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -6071,6 +6071,7 @@ function resetDerivedCaches() {
   window._WORLD_RATIO = null;
   window.PATCH_BASE_SPEC = null;
   window.PATCH_REPORT = null;
+  window.COMPARE_REPORT = null;
   window.PROP_BLOCK = null;
   window.LIVING_PROPTYPES = null;
   window.SCHEDULES = null;
@@ -20915,6 +20916,229 @@ function renderPatchReport() {
   host.appendChild(el('div', '', svLink('Forget this patch', 'patchesForget()')));
 }
 
+/* ---- two archives against each other, and a patch out of the difference ----
+   The patches section reads a patch someone else made. This is the other two
+   directions: comparing any two archives, and writing a patch out of what
+   differs.
+
+   WHAT IT COMPARES, and both are the same engine. *Your edits*, which is the
+   file as it arrived (`PRISTINE_BYTES`) against the file as it stands -- the
+   page can edit resources and had no way to show what you had changed, let
+   alone hand it to anyone. And *another file*, which is how two releases of
+   the game are compared: the four installers all open here, so 1.0.1 against
+   1.0.4 is two files and a button.
+
+   THE ORDER IS OLD, NEW. Added and removed are named from the first file's
+   point of view, so "added" means the second has it and the first does not.
+
+   ON EXPORTING A PATCH, AND THIS HAS TO BE SAID PLAINLY. What comes out is a
+   real Delver archive shaped like a Magpie patch: grimoire reads it, the
+   patches section describes it, `mergeDelverPatch` applies it, and the
+   browser player loads it as an add-on. It will NOT install in Magpie under
+   Mac OS 9, because the descriptor's first eight bytes are a check value this
+   project cannot compute -- the producer is Glenn Andreas's patch maker and
+   is not in the Magpie binary -- and Magpie marks a descriptor that fails the
+   check unusable. The section says so where the button is, rather than
+   letting someone find out on a Mac. */
+window.COMPARE_REPORT = null;
+
+function compareSpecOf(bytes) { return bytes ? delverArchiveSpec(bytes) : null; }
+
+/* The file as it arrived. parseArchiveBytes keeps it under PRISTINE_BYTES for
+   exactly this reason -- a patch describes the file the player already has,
+   and one edit rebuilds the whole archive. */
+function compareEdits() {
+  const note = document.getElementById('compareNote');
+  const say = (m, bad) => { if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
+  const pristine = window.PRISTINE_BYTES;
+  if (!pristine || typeof fileBytes === 'undefined' || !fileBytes) { say('No file is open.', true); return false; }
+  if (pristine === fileBytes) { say('Nothing has been edited in this file yet.', true); return false; }
+  const a = compareSpecOf(pristine), b = compareSpecOf(fileBytes);
+  if (!a || !b) { say('That file could not be read as a Delver Archive.', true); return false; }
+  window.COMPARE_REPORT = Object.assign(describeDelverDiff(a, b),
+    { aName: 'as it arrived', bName: 'as it stands', bSpec: b, kind: 'edits' });
+  say('');
+  renderCompareReport();
+  return true;
+}
+
+/* Another archive, opened the way any file here is opened, so an installer
+   works as well as a bare data fork: extractDelverArchive walks BinHex,
+   StuffIt and Installer VISE to find the Delver archive inside. That is what
+   makes comparing two releases a matter of choosing two files. */
+function compareOpenBytes(bytes, name) {
+  const note = document.getElementById('compareNote');
+  const say = (m, bad) => { if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
+  if (typeof fileBytes === 'undefined' || !fileBytes) { say('No file is open to compare against.', true); return false; }
+  let got;
+  try { got = extractDelverArchive(bytes); }
+  catch (e) { say('That file could not be opened: ' + e.message, true); return false; }
+  const other = compareSpecOf(got.bytes);
+  if (!other) { say('That file is not a Delver Archive.', true); return false; }
+  const mine = compareSpecOf(fileBytes);
+  /* The file you opened is the OLDER side. Comparing a 1.0.1 installer
+     against an open 1.0.4 should read as "what 1.0.4 changed", which is the
+     way round a reader expects and the opposite of what naming the open file
+     first would give. */
+  window.COMPARE_REPORT = Object.assign(describeDelverDiff(other, mine),
+    { aName: name || 'the other file', bName: window.ARCHIVE_SOURCE_NAME || 'the open file',
+      bSpec: mine, kind: 'files', via: got.via });
+  say('');
+  renderCompareReport();
+  return true;
+}
+
+function compareForget() { window.COMPARE_REPORT = null; renderCompareReport(); }
+
+/* A whole resource drawn, for the kinds the page can decode as one image.
+   Subindex 141 is not here: a tile sheet is 32 by 512 and drawing two of them
+   side by side says nothing, so those go to the per-tile comparison the
+   patches section already has. */
+const COMPARE_IMAGE_SUBN = new Set([135, 137, 131, 142]);
+function compareImageCanvas(data, subn, resid) {
+  let d;
+  try { d = decodeResource(data, subn, resid); } catch (e) { return null; }
+  if (!d || !d.W || !d.H) return null;
+  const c = document.createElement('canvas');
+  drawToCanvas(c, d.W, d.H, d.image, transparentIndexFor(subn));
+  c.className = 'patchTile';
+  // A portrait is 64 square and a landscape 288 by 32, so one fixed size
+  // would squash something. The width is capped and the height follows.
+  c.style.width = Math.min(128, d.W * 2) + 'px';
+  c.style.height = 'auto';
+  return c;
+}
+
+function renderCompareReport() {
+  const host = document.getElementById('compareReport');
+  if (!host) return;
+  host.innerHTML = '';
+  const rep = window.COMPARE_REPORT;
+  if (!rep) return;
+  const el = (tag, cls, html) => { const d = document.createElement(tag); if (cls) d.className = cls; if (html !== undefined) d.innerHTML = html; return d; };
+
+  host.appendChild(el('div', 'partsTitle', svEsc(rep.aName) + ' against ' + svEsc(rep.bName)));
+  if (rep.identical) {
+    host.appendChild(el('p', 'mechLede', 'Every one of the ' + rep.aCount +
+      ' resources is byte for byte the same. The two files hold the same scenario data.'));
+    host.appendChild(el('div', '', svLink('Forget this comparison', 'compareForget()')));
+    return;
+  }
+  const bits = [];
+  if (rep.changed.length) bits.push('<b>' + rep.changed.length + '</b> changed');
+  if (rep.added.length) bits.push('<b>' + rep.added.length + '</b> only in ' + svEsc(rep.bName));
+  if (rep.removed.length) bits.push('<b>' + rep.removed.length + '</b> only in ' + svEsc(rep.aName));
+  host.appendChild(el('p', 'mechLede', bits.join(', ') + ', and <b>' + rep.unchanged +
+    '</b> identical, of ' + rep.aCount + '.'));
+  if (rep.titleChanged) host.appendChild(el('p', 'mechSub', 'The two name different scenarios, so their resource ids may not mean the same things.'));
+  if (rep.formatChanged) host.appendChild(el('p', 'mechSub', 'The two carry different format versions.'));
+  if (rep.encryptionChanged.length) host.appendChild(el('p', 'mechSub',
+    rep.encryptionChanged.length + ' resource(s) are stored encrypted in one and clear in the other. The comparison is of the plaintext either way.'));
+
+  host.appendChild(el('div', 'partsTitle', 'Where the differences are'));
+  host.appendChild(el('div', '', mechTable(['what', '#changed', '#added', '#removed'],
+    rep.groups.map(g => '<tr><td>' + svEsc(CATEGORY_NAMES[g.subn] || ('subindex ' + g.subn)) +
+      '<span class="mechSub"> ' + propWordHex((g.subn + 1) * 0x100) + ' to ' + propWordHex((g.subn + 1) * 0x100 + 255) + '</span></td>' +
+      mechNum(g.changed || '') + mechNum(g.added || '') + mechNum(g.removed || '') + '</tr>'))));
+
+  const rows = rep.changed.slice(0, 400).map(c => '<tr>' +
+    '<td>' + svChip(c.resid, labelFor(c.resid) || '') + '</td>' +
+    mechNum(c.aLength) + mechNum(c.bLength) +
+    mechNum((c.bLength - c.aLength > 0 ? '+' : '') + (c.bLength - c.aLength)) + '</tr>');
+  host.appendChild(el('div', 'partsTitle', 'What changed'));
+  host.appendChild(el('div', '', mechTable(['resource', '#in ' + svEsc(rep.aName), '#in ' + svEsc(rep.bName), '#difference'], rows)));
+  if (rep.changed.length > rows.length)
+    host.appendChild(el('p', 'mechSub', 'The first ' + rows.length + ' of ' + rep.changed.length + '.'));
+  if (rep.added.length) {
+    host.appendChild(el('div', 'partsTitle', 'Only in ' + svEsc(rep.bName)));
+    host.appendChild(el('div', '', mechTable(['resource', '#bytes'],
+      rep.added.map(a => '<tr><td>' + svChip(a.resid, labelFor(a.resid) || '') + '</td>' + mechNum(a.b.data.length) + '</tr>'))));
+  }
+  if (rep.removed.length) {
+    host.appendChild(el('div', 'partsTitle', 'Only in ' + svEsc(rep.aName)));
+    host.appendChild(el('div', '', mechTable(['resource', '#bytes'],
+      rep.removed.map(a => '<tr><td><span class="patchMono">' + propWordHex(a.resid) + '</span></td>' + mechNum(a.a.data.length) + '</tr>'))));
+  }
+
+  // The pictures, where there are any. Tile sheets tile by tile, everything
+  // else the page can decode as a whole image side by side.
+  const sheets = rep.changed.filter(c => c.subn === 141)
+    .map(c => ({ c, diff: patchSheetDiff({ resid: c.resid, subn: 141, baseData: c.a.data, patchData: c.b.data }) }))
+    .filter(x => x.diff && x.diff.changed.length);
+  const pics = rep.changed.filter(c => COMPARE_IMAGE_SUBN.has(c.subn)).slice(0, 40);
+  if (sheets.length || pics.length) {
+    host.appendChild(el('div', 'partsTitle', 'What it looks like'));
+    host.appendChild(el('p', 'mechSub', svEsc(rep.aName) + ' on the left of each pair, ' + svEsc(rep.bName) + ' on the right.'));
+  }
+  for (const { c, diff } of sheets) {
+    const head = el('div', 'patchSheetHead');
+    head.innerHTML = svChip(c.resid, labelFor(c.resid) || '') + '<span class="mechSub">' + diff.changed.length + ' of ' + diff.tiles + ' tiles</span>';
+    host.appendChild(head);
+    const strip = el('div', 'patchStrip');
+    for (const t of diff.changed) {
+      const pair = el('div', 'patchPair');
+      pair.appendChild(patchTileCanvas(diff.base, t, 141));
+      pair.appendChild(patchTileCanvas(diff.patch, t, 141));
+      pair.appendChild(el('span', 'patchTileNo', String(t)));
+      strip.appendChild(pair);
+    }
+    host.appendChild(strip);
+  }
+  if (pics.length) {
+    const strip = el('div', 'patchStrip');
+    for (const c of pics) {
+      const before = compareImageCanvas(c.a.data, c.subn, c.resid);
+      const after = compareImageCanvas(c.b.data, c.subn, c.resid);
+      if (!before || !after) continue;
+      const pair = el('div', 'patchPair');
+      pair.appendChild(before); pair.appendChild(after);
+      pair.appendChild(el('span', 'patchTileNo', propWordHex(c.resid)));
+      strip.appendChild(pair);
+    }
+    if (strip.children.length) host.appendChild(strip);
+  }
+
+  /* The export. Only offered when the newer side is a file this page can take
+     the resources OUT of, which is the open file -- a patch has to carry the
+     bytes you want someone else to end up with, and for a comparison against
+     a file you opened those live on the other side. */
+  host.appendChild(el('div', 'partsTitle', 'Export the difference as a patch'));
+  host.appendChild(el('ul', 'ruleList',
+    '<li>A Delver archive holding only what differs, with a descriptor naming it. ' +
+    'This page reads it, the patches section describes it, and the browser player loads it as an add-on.</li>' +
+    '<li><b>It will not install in Magpie</b> under Mac OS 9. The descriptor carries a check value that only Glenn Andreas\u2019s ' +
+    'patch maker could produce, and Magpie refuses a descriptor whose check value is wrong. Zeroes are written there rather than a guess.</li>' +
+    '<li>The resources come from <b>' + svEsc(rep.bName) + '</b>, which is the side a patch would make somebody else\u2019s file match.</li>'));
+  const form = el('div', 'mechStats');
+  const desc = document.createElement('input');
+  desc.type = 'text'; desc.id = 'patchDesc'; desc.placeholder = 'What this patch does';
+  desc.setAttribute('maxlength', '255');
+  form.appendChild(desc);
+  const btn = document.createElement('button');
+  btn.className = 'secondary';
+  btn.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+  btn.textContent = 'Export ' + rep.changed.length + ' resource' + (rep.changed.length === 1 ? '' : 's') + ' as a patch';
+  btn.onclick = compareExportPatch;
+  form.appendChild(btn);
+  host.appendChild(form);
+  host.appendChild(el('div', '', svLink('Forget this comparison', 'compareForget()')));
+}
+
+function compareExportPatch() {
+  const rep = window.COMPARE_REPORT;
+  const note = document.getElementById('compareNote');
+  const say = (m, bad) => { if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
+  if (!rep) return;
+  const d = document.getElementById('patchDesc');
+  try {
+    const w = writeDelverPatch(rep.bSpec, rep.changed.map(c => c.resid),
+      { description: (d && d.value) || '', typeCode: 0 });
+    downloadBlob(w.bytes, safeFileName((rep.bName || 'Cythera') + ' Patch'));
+    say(w.resids.length + ' resource(s) written, ' + w.bytes.length.toLocaleString() +
+        ' bytes, identity ' + w.uuidText + '. The check value is zero, so Magpie will refuse it.');
+  } catch (e) { say('That patch could not be written: ' + e.message, true); }
+}
+
 function renderMechanicsSheet(value) {
   stopAllViewActivity();
   // The figures' weapon list is derived, so it is dropped here and rebuilt
@@ -21627,6 +21851,46 @@ function renderMechanicsSheet(value) {
     sec.appendChild(report);
   }
 
+  // ---- comparing two archives ----
+  {
+    const edits = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
+    add('compare', 'Two files against each other', null, '',
+      'What differs between two Delver archives, resource by resource. Two releases of the game, ' +
+      'a modded copy against a clean one, or this file against itself as it arrived before you edited it. ' +
+      'The difference can be written out as a patch.',
+      [
+        'The four installers all open here, so comparing releases is a matter of choosing a file: the data in <b>1.0.3</b> and <b>1.0.4</b> is byte for byte the same, and everything Ambrosia changed after 1.0.1 is between those two.',
+        'It compares the plaintext, not the stored bytes. A resource encrypted in one file and clear in the other has not changed, and a rebuild that re-encrypts everything is not a difference.',
+        'The file you open is the older side, and the file already open here is the newer one, so what you read is what the open file changed.',
+        'A patch written here is read by this page and by the browser player. <b>Magpie will refuse it</b>: the descriptor carries a check value only the original patch maker could produce.'
+      ],
+      '<ul class="ruleList"><li>' +
+        (edits ? 'You have changed <b>' + edits + '</b> resource' + (edits === 1 ? '' : 's') + ' in this file.'
+               : 'Nothing has been edited in this file, so there is nothing to compare it with itself.') +
+      '</li></ul>');
+    const sec2 = sections[sections.length - 1].el;
+    const bar = document.createElement('div');
+    bar.className = 'mechStats';
+    if (edits) {
+      const b = document.createElement('button');
+      b.className = 'secondary';
+      b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+      b.textContent = 'Show what I have changed';
+      b.onclick = compareEdits;
+      bar.appendChild(b);
+    }
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.id = 'compareFile'; inp.accept = '*/*';
+    bar.appendChild(inp);
+    sec2.appendChild(bar);
+    const n2 = document.createElement('div');
+    n2.className = 'mechSub'; n2.id = 'compareNote';
+    sec2.appendChild(n2);
+    const r2 = document.createElement('div');
+    r2.id = 'compareReport';
+    sec2.appendChild(r2);
+  }
+
   // ---- puzzles ----
   {
     const pz = puzzleRules();
@@ -21859,6 +22123,18 @@ function renderMechanicsSheet(value) {
     // so the read is a promise inside patchesOpenFile rather than an await.
     pf.onchange = function () { patchesOpenFile(pf.files && pf.files[0]); };
     renderPatchReport();
+  }
+  const cf = document.getElementById('compareFile');
+  if (cf) {
+    cf.onchange = function () {
+      const file = cf.files && cf.files[0];
+      if (!file) return;
+      file.arrayBuffer().then(buf => compareOpenBytes(new Uint8Array(buf), file.name)).catch(e => {
+        const note = document.getElementById('compareNote');
+        if (note) { note.textContent = 'That file could not be read: ' + e.message; note.className = 'mechSub patchBad'; }
+      });
+    };
+    renderCompareReport();
   }
 }
 // The cards open when a number on the sheet was followed into its script,
