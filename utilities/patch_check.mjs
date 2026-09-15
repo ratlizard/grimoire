@@ -32,20 +32,21 @@
 // archive's hash, and re-reading resource 0x8E04 must give back the changed
 // bytes rather than the original. Both directions are asserted here.
 //
-// The patch arrives as .hqx wrapping a .sit whose forks are compressed with
-// StuffIt method 13, which js/mac-stuffit.js reads but does not decompress.
-// `unar` does that extraction; without it this check skips.
+// The patch arrives as .hqx wrapping a .sit whose data fork is compressed
+// with StuffIt method 13. The page decompresses that itself since 15
+// September 2026, so this check no longer shells out to `unar` and no longer
+// skips on a machine that lacks it -- and getting the patch out through
+// extractDelverArchive is now part of what is being tested, which is the
+// route a visitor's dropped file actually takes.
 
-import {readFileSync, writeFileSync, existsSync, mkdirSync} from 'node:fs';
+import {readFileSync, existsSync} from 'node:fs';
 import {join} from 'node:path';
-import {execFileSync} from 'node:child_process';
 import vm from 'node:vm';
 import {makeSandbox} from './dom_stub.mjs';
 import {pageSource} from './page_scripts.mjs';
 
 const [htmlPath = 'index.html', dataPath,
-       addonDir = 'reference/community/addons',
-       unpackDir = join(process.env.TMPDIR || '/tmp', 'cythera_patch_check')] = process.argv.slice(2);
+       addonDir = 'reference/community/addons'] = process.argv.slice(2);
 
 let failures = 0;
 const fail = (what, why) => { failures++; console.error(`FAIL ${what}: ${why}`); };
@@ -55,8 +56,6 @@ const skip = why => { console.log(`  skip  ${why}`); process.exit(0); };
 if (!dataPath || !existsSync(dataPath)) skip('no Cythera Data to patch');
 const hqx = join(addonDir, '614_MagpiePumpkinPatch.sit.hqx');
 if (!existsSync(hqx)) skip('the Magpie Pumpkin Patch is not in the add-ons');
-try { execFileSync('which', ['unar'], {stdio: 'ignore'}); }
-catch { skip('unar is not installed, so the patch cannot be extracted'); }
 
 const {sandbox} = makeSandbox();
 sandbox.Buffer = Buffer;
@@ -64,27 +63,29 @@ const ctx = vm.createContext(sandbox);
 new vm.Script(pageSource(htmlPath), {filename: htmlPath}).runInContext(ctx);
 const ev = code => vm.runInContext(code, ctx);
 
-// ---- the page's own BinHex decoder gets the .sit out of the .hqx -----------
-mkdirSync(unpackDir, {recursive: true});
+// ---- the page opens the .hqx the way a dropped file is opened --------------
+// BinHex around StuffIt around the patch, and extractDelverArchive walks all
+// three. The listing is asserted as well as the extraction, because it is
+// what names the file inside and a wrong one would still extract something.
 sandbox.__hqx = new Uint8Array(readFileSync(hqx));
-const sitBytes = Uint8Array.from(ev('Array.from(binhexSplitForks(binhexDecode(__hqx)).data)'));
-const sitPath = join(unpackDir, 'pumpkin.sit');
-writeFileSync(sitPath, sitBytes);
-
-// The page can list the archive but not decompress method 13; the listing is
-// still worth asserting, because it is what tells a user which file to extract.
-sandbox.__sit = sitBytes;
-const listed = ev('parseStuffItArchive(__sit).entries.map(e => e.path)');
+const listed = ev(`(() => {
+  globalThis.__sit = binhexSplitForks(binhexDecode(__hqx)).data;
+  return parseStuffItArchive(__sit).entries.map(e => e.path);
+})()`);
 if (!listed.includes('Patches/Pumpkin Patch'))
   fail('StuffIt listing', 'no "Patches/Pumpkin Patch" in ' + JSON.stringify(listed));
 else ok('the .sit lists the patch', listed.length + ' entries');
 
-execFileSync('unar', ['-q', '-f', '-o', unpackDir, sitPath], {stdio: 'ignore'});
-const patchPath = join(unpackDir, 'pumpkin', 'Patches', 'Pumpkin Patch');
-if (!existsSync(patchPath)) skip('unar did not produce Patches/Pumpkin Patch');
+const opened = ev(`(() => {
+  const g = extractDelverArchive(__hqx);
+  globalThis.__patch = g.bytes;
+  return {via: g.via, name: g.forks && g.forks.name, len: g.bytes.length};
+})()`);
+if (opened.name !== 'Pumpkin Patch')
+  fail('the patch opens from its .hqx', 'opened "' + opened.name + '" instead');
+else ok('the patch opens straight from its .sit.hqx', `${opened.via}, ${opened.len.toLocaleString()} bytes, no unar`);
 
 sandbox.__base = new Uint8Array(readFileSync(dataPath));
-sandbox.__patch = new Uint8Array(readFileSync(patchPath));
 
 // ---- the merge -------------------------------------------------------------
 const r = ev(`(() => {

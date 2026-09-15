@@ -5,7 +5,8 @@
 // files the rest of the suite already knows -- Cythera Data and Cythera --
 // come out identical to their BinHex copies. Then the StuffIt archives
 // beside it (js/mac-stuffit.js): the mirrors must give back the same
-// installer, and the compressed ones must be refused by method name.
+// installer, and the method-13 ones must decompress to the same installer
+// the four-in-one archive stores uncompressed.
 //
 //   node utilities/vise_check.mjs reference/game/installers/Cythera.bin \
 //        "$TMPDIR/Cythera Data.data" "$TMPDIR/Cythera Data.rsrc" \
@@ -116,13 +117,25 @@ if (refApp) check('Cythera: data fork identical to the .hqx copy', !!app && h(ap
 if (refAppRsrc) check('Cythera: resource fork identical outside the reserved header', !!app && rsrcSame(app.rsrc, refAppRsrc));
 
 // The StuffIt archives beside the .bin: Ambrosia's four installers and the
-// two mirrors. Whichever are present are opened; the ones that store the
-// installer's data fork (1.0.3, 1.0.4, both mirrors) must yield it, and the
-// 1.0.4 copies must yield exactly the fork inside Cythera.bin. The two that
-// compress it (1.0.1, 1.0.2 -- LZ+Huffman, method 13) must say so by name.
+// two mirrors. Whichever are present are opened, and the 1.0.4 copies must
+// yield exactly the fork inside Cythera.bin.
+//
+// UNTIL 15 SEPTEMBER 2026 THIS ASSERTED THE OPPOSITE FOR TWO OF THEM. The
+// standalone 1.0.1 and 1.0.2 archives compress the installer's data fork with
+// method 13, which the page could not decompress, so the check required them
+// to be REFUSED by method name -- a check pinning a limitation, which is the
+// right thing to write while the limitation is real and the first thing to
+// fail when it stops being. They open now, and what is asserted instead is
+// stronger and is in the combined-archive block below: the same installer
+// must come out of the compressed standalone copy and the uncompressed copy
+// in the four-in-one, which holds the method-13 path to a stored one with no
+// external tool involved.
 {
   const dir = dirname(binPath);
   const binData = container ? container.data : bin;
+  // version -> hash of the installer taken out of that version's own .sit,
+  // filled by the loop and spent by the combined-archive block below.
+  const standalone = new Map();
   const sits = ['Cythera_1.0.1_Installer.sit', 'Cythera_1.0.2_Installer.sit', 'Cythera_1.0.3_Installer.sit',
                 'Cythera_1.0.4_Installer.sit', 'Cythera_Installer_archive.org.sit', 'Cythera_Installer_old.mac.gdn.sit'];
   let opened = 0;
@@ -133,15 +146,13 @@ if (refAppRsrc) check('Cythera: resource fork identical outside the reserved hea
     check(name + ' is recognised as StuffIt', ctx.looksLikeStuffIt(sit));
     let r = null, err = null;
     try { r = ctx.sniffViseInstaller(sit); } catch (e) { err = e; }
-    if (/1\.0\.[12]_/.test(name)) {
-      check(name + ' is refused by method name', !!err && /method 13 \(LZ\+Huffman\)/.test(err.message), err ? err.message.slice(0, 100) : 'accepted');
-      continue;
-    }
     check(name + ' opens as an installer', !!r && !err, err ? err.message : (r ? `${r.container.kind}, ${r.archive.entries.length} files` : 'not recognised'));
     if (!r) continue;
     opened++;
-    if (/1\.0\.3/.test(name)) {
-      check(name + ' is the 1.0.3 installer', r.archive.dirs.some(d => /1\.0\.3/.test(d.path)), r.archive.dirs.map(d => d.path).join(', '));
+    const ver = (name.match(/1\.0\.\d/) || [])[0];
+    if (ver && ver !== '1.0.4') {
+      check(name + ' is the ' + ver + ' installer', r.archive.dirs.some(d => d.path.indexOf(ver) >= 0), r.archive.dirs.map(d => d.path).join(', '));
+      standalone.set(ver, h(r.container.data));
     } else {
       check(name + ' holds the same installer as Cythera.bin', h(r.container.data) === h(binData), h(r.container.data));
     }
@@ -158,6 +169,18 @@ if (refAppRsrc) check('Cythera: resource fork identical outside the reserved hea
           !!r && r.installers.length === 4 && r.installers.map(i => i.name.replace(/\D+/g, '')).join(' ') === '101 102 103 104',
           r ? r.installers.map(i => i.name).join(', ') : 'not recognised');
     check('the newest is chosen by default', !!r && r.picked === 'Cythera 1.0.4 Installer' && h(r.container.data) === h(binData), r ? r.picked : '');
+    /* The same installer out of two differently compressed copies. The
+       standalone 1.0.1 and 1.0.2 archives store it with method 13; the
+       four-in-one stores it outright. Nothing but the decompressor stands
+       between them, so a disagreement here is the decompressor and could be
+       nothing else. This is the check that would have caught a port that got
+       one branch of the Huffman walk wrong. */
+    for (const [ver, hash] of standalone) {
+      const rv = ctx.sniffViseInstaller(sit, 'Cythera ' + ver + ' Installer');
+      if (!rv) { check(ver + ' is in the combined archive', false, 'not found'); continue; }
+      check('the ' + ver + ' installer is the same decompressed as stored',
+            h(rv.container.data) === hash, h(rv.container.data) + ' stored against ' + hash + ' decompressed');
+    }
     const r3 = ctx.sniffViseInstaller(sit, 'Cythera 1.0.3 Installer');
     check('another can be picked by name', !!r3 && r3.picked === 'Cythera 1.0.3 Installer' && r3.archive.dirs.some(d => /1\.0\.3/.test(d.path)),
           r3 ? r3.picked : '');

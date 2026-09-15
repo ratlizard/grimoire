@@ -244,11 +244,22 @@ const CHECKS = [
   /* Applying a Magpie patch -- the one add-on system Cythera has. The merge
      re-serializes the whole 5.6 MB archive, so what this asserts is that
      nothing moved except the resources the patch names; the writer itself has
-     its own oracle in delv_write_check.mjs. Skips without `unar`, which is
-     what extracts the patch out of its StuffIt archive. */
+     its own oracle in delv_write_check.mjs. It used to skip without `unar`,
+     which extracted the patch out of its StuffIt archive; the page does that
+     itself since method 13 landed, so getting the patch out of the .hqx is
+     part of what this proves now. */
   {page: 'viewer', name: 'magpie patch', want: [DATA],
    cmd: ['utilities/patch_check.mjs', 'index.html', DATA, ADDONS],
    grep: /\d+ of [\d,]+ resources replaced, [\d,]+ bytes out(?:; \d+ tiles of \d+ redrawn across \d+ sheets)?/},
+  /* StuffIt method 13, the one compression this page decompresses, against
+     The Unarchiver's own `unar` -- which is the implementation ours is a port
+     of, so this is a decoder held to its source rather than to a snapshot.
+     Every method-13 fork in the reference corpus goes both ways and has to
+     come back byte for byte. Without `unar` the lengths and the snapshot are
+     still checked; without the corpus it skips. */
+  {page: 'viewer', name: 'stuffit method 13', want: [ADDONS],
+   cmd: ['utilities/sit13_check.mjs', 'index.html', 'reference'],
+   grep: /\d+ of \d+ fork\(s\) in \d+ archive\(s\)[^\n]*/},
   /* The undither, scored against a known original. It needs no archive: the
      sources are synthetic and the forward process is the page's own
      ditherizer, so this is the one check here that measures a decoder against
