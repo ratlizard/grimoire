@@ -995,6 +995,22 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 .mechQuote { margin:6px 0 4px; padding:6px 12px; border-left:3px solid rgba(155,136,80,.5); color:#fff; font-size:0.7812rem; font-style:italic; line-height:1.45; }
 .mechQuote footer { font-style:normal; color:#8c8980; font-size:0.6875rem; margin-top:2px; }
 .mechSub { color:#b5b2a8; font-size:0.6875rem; letter-spacing:0; margin:8px 0 2px; }
+/* The patches section. The tile pairs are the point of it: a shipped tile and
+   the patch's beside it, at 2x so a 32-pixel tile is legible without a zoom
+   control, and wrapping so a phone gets three or four pairs to a row instead
+   of a strip that scrolls sideways. The pairs are what carries the meaning,
+   so they are the only thing here given any size. */
+.patchMono { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:0.6875rem; letter-spacing:0; }
+.patchBad { color:#e6b96a; }
+.patchFacts td:first-child { color:#8c8980; white-space:nowrap; padding-right:14px; vertical-align:top; }
+.patchSheetHead { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:10px 0 2px; }
+.patchSheetHead .mechSub { margin:0; }
+.patchStrip { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 6px; }
+.patchPair { position:relative; display:flex; gap:2px; padding:3px 3px 12px; border:1px solid rgba(155,136,80,.35);
+  border-radius:3px; background:#1a1712; }
+.patchTile { width:64px; height:64px; image-rendering:pixelated; display:block; }
+.patchTileNo { position:absolute; left:0; right:0; bottom:1px; text-align:center; color:#8c8980; font-size:0.625rem;
+  font-variant-numeric:tabular-nums; }
 .mechTable { width:100%; }
 .mechTable th { border-bottom:1px solid rgba(155,136,80,.45); padding-bottom:4px; }
 .mechTable th.num, .mechTable td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; padding-right:10px; }
@@ -4548,7 +4564,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.77.2';
+const GRIMOIRE_VERSION = '1.78.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -6053,6 +6069,8 @@ function resetDerivedCaches() {
   worldThumbs.clear();
   contentBoxes.clear();
   window._WORLD_RATIO = null;
+  window.PATCH_BASE_SPEC = null;
+  window.PATCH_REPORT = null;
   window.PROP_BLOCK = null;
   window.LIVING_PROPTYPES = null;
   window.SCHEDULES = null;
@@ -20619,6 +20637,204 @@ function mechSkillsFigure(sk) {
     'Only the questions that name a skill outright' + (sk.generic ? '; <b>' + sk.generic + '</b> more are in helpers that test whichever skill they are handed' : '') + '.');
 }
 
+/* ---- the community's patches, read against the open file -------------------
+   Cythera's one add-on system is Magpie, and a Magpie patch is a Delver
+   Archive holding only the resources it replaces. `mergeDelverPatch` has
+   applied one since the browser player needed it; what was missing here is
+   the part that comes first, which is saying what a patch IS before anyone
+   decides to trust it. So this section reads a patch and shows what it would
+   do to the file that is open: its description and its author, whether this
+   file already carries it, and every resource it replaces with the shipped
+   one drawn beside it.
+
+   VERIFIED HERE MEANS "THIS IS WHAT IT DOES", NOT "WE VOUCH FOR IT". The page
+   has no way to know whether a patch is safe and does not pretend to. What it
+   can do is decode both sides with the readers it already has and put them
+   next to each other, which is the only claim it makes.
+
+   NOTHING IS APPLIED AND NOTHING IS WRITTEN. The report is built out of
+   `describeDelverPatch`, which reads offsets and lengths and reaches Magpie's
+   own verdicts; merging is a separate act and this section does not offer it.
+
+   THE TWO ARCHIVES PROBLEM DOES NOT ARISE, and it is worth saying why, since
+   it is what blocks a save comparison. That needs `getResourceBytes`, which
+   reads the open archive out of `fileBytes` as an ambient global. Nothing
+   here does: `delverArchiveSpec` takes bytes and `decodeResource` takes a
+   resource's bytes, so a patch's tile sheet decodes without the open file
+   ever being displaced. */
+
+/* The open archive as a writer spec, which is what the patch readers compare
+   against. 12 ms over the shipped file and 1,558 resources, so this is a
+   cache for tidiness rather than for speed; resetDerivedCaches drops it with
+   everything else keyed to the file that is open. */
+function patchBaseSpec() {
+  if (!window.PATCH_BASE_SPEC && typeof fileBytes !== 'undefined' && fileBytes)
+    window.PATCH_BASE_SPEC = delverArchiveSpec(fileBytes);
+  return window.PATCH_BASE_SPEC;
+}
+
+/* A patch's bytes, however they got here. Split from the file control below
+   so the whole path -- unwrap, parse, compare, draw -- can be driven from a
+   harness with a patch built in memory, which is the only way any of this is
+   checkable: the one real patch on this disk arrives inside a StuffIt archive
+   the page cannot decompress, so a check that needed the real file would skip
+   on most machines and prove nothing. */
+function patchesOpenBytes(bytes, name) {
+  const note = document.getElementById('patchNote');
+  const say = (msg, bad) => { if (note) { note.textContent = msg; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
+  const base = patchBaseSpec();
+  if (!base) { say('No game file is open to read a patch against.', true); return false; }
+  let got;
+  try { got = extractDelverArchive(bytes); }
+  catch (e) { say('That file could not be opened: ' + e.message, true); return false; }
+  const patch = delverArchiveSpec(got.bytes);
+  if (!patch) { say('That file is not a Delver Archive, so it is not a Magpie patch.', true); return false; }
+  const report = describeDelverPatch(base, patch);
+  report.fileName = name || '';
+  report.via = got.via;
+  window.PATCH_REPORT = report;
+  say('');
+  renderPatchReport();
+  return true;
+}
+
+/* A patch file chosen in the section. It arrives the way any file here does,
+   so it can be a .hqx or a MacBinary wrapper as easily as a bare data fork,
+   and extractDelverArchive is what already knows the order to try them in. */
+function patchesOpenFile(file) {
+  if (!file) return;
+  file.arrayBuffer().then(buf => patchesOpenBytes(new Uint8Array(buf), file.name)).catch(e => {
+    const note = document.getElementById('patchNote');
+    if (note) { note.textContent = 'That file could not be read: ' + e.message; note.className = 'mechSub patchBad'; }
+  });
+}
+
+function patchesForget() {
+  window.PATCH_REPORT = null;
+  renderPatchReport();
+}
+
+/* One 32x32 tile out of a decoded sheet, as a canvas at 2x. A sheet is one
+   tile wide and as many tiles tall as it holds, so a tile is a horizontal
+   band of it and nothing has to be reshaped to cut one out. */
+function patchTileCanvas(dec, t, subn) {
+  const c = document.createElement('canvas');
+  const img = new Uint8Array(32 * 32);
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+    const gy = t * 32 + y;
+    img[y * 32 + x] = (gy < dec.H && x < dec.W) ? (dec.image[gy * dec.W + x] || 0) : 0;
+  }
+  drawToCanvas(c, 32, 32, img, transparentIndexFor(subn));
+  c.className = 'patchTile';
+  return c;
+}
+
+/* Which tiles of a sheet the patch redraws. Null when the two sides do not
+   decode to the same shape, which is a patch doing something this comparison
+   cannot describe rather than a patch that is wrong. */
+function patchSheetDiff(r) {
+  let a, b;
+  try { a = decodeResource(r.baseData, r.subn, r.resid); b = decodeResource(r.patchData, r.subn, r.resid); }
+  catch (e) { return null; }
+  if (!a || !b || a.W !== b.W || a.H !== b.H) return null;
+  const tiles = Math.floor(a.H / 32);
+  if (a.W !== 32 || tiles < 1) return null;
+  const changed = [];
+  for (let t = 0; t < tiles; t++) {
+    let diff = false;
+    for (let y = t * 32; y < (t + 1) * 32 && !diff; y++)
+      for (let x = 0; x < a.W; x++) if (a.image[y * a.W + x] !== b.image[y * b.W + x]) { diff = true; break; }
+    if (diff) changed.push(t);
+  }
+  return { base: a, patch: b, tiles, changed };
+}
+
+/* The report as elements rather than as a string, because the tile
+   comparison is canvases and a canvas cannot be built out of innerHTML. */
+function renderPatchReport() {
+  const host = document.getElementById('patchReport');
+  if (!host) return;
+  host.innerHTML = '';
+  const rep = window.PATCH_REPORT;
+  if (!rep) return;
+  const el = (tag, cls, html) => { const d = document.createElement(tag); if (cls) d.className = cls; if (html !== undefined) d.innerHTML = html; return d; };
+  const d = rep.descriptor;
+  const who = d && DELV_PATCH_AUTHORS[d.uuidText];
+
+  host.appendChild(el('div', 'partsTitle', 'What this patch says it is'));
+  const facts = [];
+  facts.push('<tr><td>file</td><td>' + svEsc(rep.fileName || '') +
+             (rep.via && rep.via !== 'data fork' ? '<span class="mechSub"> read from its ' + svEsc(rep.via) + '</span>' : '') + '</td></tr>');
+  if (who) facts.push('<tr><td>made by</td><td><b>' + svEsc(who.name) + '</b>' +
+             (who.title ? '<span class="mechSub"> ' + svEsc(who.title) + '</span>' : '') + '</td></tr>');
+  if (d && d.description) facts.push('<tr><td>description</td><td>' + svEsc(d.description) + '</td></tr>');
+  if (d) {
+    facts.push('<tr><td>identity</td><td class="patchMono">' + svEsc(d.uuidText) + '</td></tr>');
+    facts.push('<tr><td>type</td><td>' + (d.typeName ? '<b>' + svEsc(d.typeName) + '</b>' : 'code ' + d.typeCode) +
+      (d.typeOverwritten ? '<span class="mechSub"> which is also what Magpie writes over a patch whose descriptor failed its check</span>'
+       : d.typeName ? '' : '<span class="mechSub"> one byte carrying both the type and the trust level, and only 0, Bug Fix, is read</span>') + '</td></tr>');
+  }
+  facts.push('<tr><td>scenario</td><td>' + svEsc(rep.scenarioTitle || '') + '</td></tr>');
+  facts.push('<tr><td>format</td><td>' + svEsc(rep.format) +
+    (rep.format === rep.baseFormat ? '' : '<span class="mechSub"> and this file is ' + svEsc(rep.baseFormat) + '</span>') + '</td></tr>');
+  host.appendChild(el('div', '', mechTable(['', ''], facts, 'patchFacts')));
+  if (!d) host.appendChild(el('p', 'mechSub',
+    'This archive carries no descriptor, so Magpie would not have listed it. It can still be read as a set of resources.'));
+  if (who) host.appendChild(el('p', 'mechSub', 'The name is not in the file. It is carried here from ' + svEsc(who.source) + '.'));
+
+  host.appendChild(el('div', 'partsTitle', 'Against the file that is open'));
+  const verdicts = [];
+  verdicts.push(rep.isInstalled
+    ? 'This file <b>already lists this patch</b> as applied.'
+    : rep.installedIds.length
+      ? 'This file lists <b>' + rep.installedIds.length + '</b> applied patch' + (rep.installedIds.length === 1 ? '' : 'es') + ', and this is not one of them.'
+      : 'This file lists no applied patches.');
+  if (rep.usable) verdicts.push('Magpie’s own three tests pass: the scenario matches, the format is compatible, and the descriptor was written for this file.');
+  else for (const r of rep.reasons) verdicts.push('Magpie would refuse it: ' + svEsc(r) + '.');
+  if (rep.notInBase.length) verdicts.push('<b>' + rep.notInBase.length + '</b> resource' + (rep.notInBase.length === 1 ? '' : 's') +
+    ' the patch carries are not in this file and would be left out rather than added.');
+  if (rep.disagreed.length) verdicts.push('<b>' + rep.disagreed.length + '</b> would be refused because the two sides disagree about whether the resource is encrypted.');
+  if (rep.unchanged.length) verdicts.push('<b>' + rep.unchanged.length + '</b> are already byte for byte what this file holds.');
+  host.appendChild(el('ul', 'ruleList', verdicts.map(v => '<li>' + v + '</li>').join('')));
+
+  const rows = rep.resources.map(r => '<tr>' +
+    '<td>' + (r.inBase ? svChip(r.resid, labelFor(r.resid) || '') : '<span class="patchMono">' + propWordHex(r.resid) + '</span>') + '</td>' +
+    mechNum(r.baseLength === null ? '' : r.baseLength) + mechNum(r.patchLength) +
+    '<td class="mechSub">' + (!r.inBase ? 'not in this file' : !r.encryptionAgrees ? 'encryption verdicts disagree' :
+      r.identical ? 'identical' : 'replaced') + '</td></tr>');
+  host.appendChild(el('div', 'partsTitle', 'The resources it names'));
+  host.appendChild(el('div', '', mechTable(['resource', '#in this file', '#in the patch', ''], rows)));
+
+  /* The part worth the whole section: the tiles themselves, shipped above
+     patched. Only the tiles that differ are drawn. A sheet holds sixteen and
+     the Pumpkin Patch redraws two or three of most of them, so drawing all
+     192 would bury the answer in tiles nobody touched. */
+  const sheets = rep.resources.filter(r => r.inBase && !r.identical && r.subn === 141)
+    .map(r => ({ r, diff: patchSheetDiff(r) })).filter(x => x.diff && x.diff.changed.length);
+  if (sheets.length) {
+    const total = sheets.reduce((n, x) => n + x.diff.changed.length, 0);
+    const of = sheets.reduce((n, x) => n + x.diff.tiles, 0);
+    host.appendChild(el('div', 'partsTitle', 'What it redraws: ' + total + ' tiles of ' + of));
+    host.appendChild(el('p', 'mechSub', 'The shipped tile on the left of each pair, the patch’s on the right.'));
+    for (const { r, diff } of sheets) {
+      const head = el('div', 'patchSheetHead');
+      head.innerHTML = svChip(r.resid, labelFor(r.resid) || '') +
+        '<span class="mechSub">' + diff.changed.length + ' of ' + diff.tiles + '</span>';
+      host.appendChild(head);
+      const strip = el('div', 'patchStrip');
+      for (const t of diff.changed) {
+        const pair = el('div', 'patchPair');
+        pair.appendChild(patchTileCanvas(diff.base, t, r.subn));
+        pair.appendChild(patchTileCanvas(diff.patch, t, r.subn));
+        pair.appendChild(el('span', 'patchTileNo', String(t)));
+        strip.appendChild(pair);
+      }
+      host.appendChild(strip);
+    }
+  }
+  host.appendChild(el('div', '', svLink('Forget this patch', 'patchesForget()')));
+}
+
 function renderMechanicsSheet(value) {
   stopAllViewActivity();
   // The figures' weapon list is derived, so it is dropped here and rebuilt
@@ -21252,6 +21468,52 @@ function renderMechanicsSheet(value) {
       table(['what', 'which', 'where'], rows));
   }
 
+  // ---- the community's patches ----
+  {
+    const base = patchBaseSpec();
+    const applied = base ? delverInstalledPatchIds(base) : [];
+    const named = applied.map(u => DELV_PATCH_AUTHORS[u]).filter(Boolean);
+    add('patches', 'The community’s patches', null, '',
+      'Cythera has one add-on system, and it is not a plug-in folder: nothing in the game reads one. ' +
+      'A Magpie patch is a Delver Archive carrying the same scenario header as this file and holding only the resources it replaces, ' +
+      'and Magpie merged it into the file on disk. A patch opened here is read against the file that is open and applied to nothing.',
+      [
+        'A patch is identified by a <b>UUID</b> and by nothing else. There is no name, no version and no order in what a game file records, which is why Magpie needs every patch file present to say what is installed.',
+        'The game file keeps the list of what has been applied to it as resource ' + propWordHex(0xFFFE) + ', and a patch keeps its own description as ' + propWordHex(0xFFFF) + '. The shipped archive has neither.',
+        'Magpie takes a patch when the scenario matches, the format major matches and the minor is at least the patch’s, and the descriptor names the offset it sits at.',
+        'Nothing here is written to disk, and a patch is never merged from this section: what it shows is what a merge would change.'
+      ],
+      '<ul class="ruleList"><li>' +
+        (!base ? 'No game file is open.'
+          : applied.length
+            ? 'This file records <b>' + applied.length + '</b> patch' + (applied.length === 1 ? '' : 'es') + ' applied to it' +
+              (named.length ? ', among them ' + named.map(n => '<b>' + svEsc(n.title) + '</b>, ' + svEsc(n.name)).join(' and ') : '') +
+              '.<div class="patchMono mechSub">' + applied.map(u => svEsc(u)).join('<br>') + '</div>'
+            : 'This file records no patches applied to it, which is what an untouched copy of the game says.') +
+      '</li></ul>');
+    /* The three controls are built as ELEMENTS and appended, where every
+       other section's body is a string of markup. The difference is not
+       taste: an id that only ever exists inside an innerHTML string is
+       invisible to the checks, which seed what they know from the static
+       markup and report an id the page asks for and never declares. The file
+       control, the note and the report are the whole of what this section
+       does, so they are the last things that should be unreachable from a
+       harness. */
+    const sec = sections[sections.length - 1].el;
+    const wrap = document.createElement('div');
+    wrap.className = 'mechStats';
+    const input = document.createElement('input');
+    input.type = 'file'; input.id = 'patchFile'; input.accept = '*/*';
+    wrap.appendChild(input);
+    sec.appendChild(wrap);
+    const note = document.createElement('div');
+    note.className = 'mechSub'; note.id = 'patchNote';
+    sec.appendChild(note);
+    const report = document.createElement('div');
+    report.id = 'patchReport';
+    sec.appendChild(report);
+  }
+
   // ---- puzzles ----
   {
     const pz = puzzleRules();
@@ -21474,6 +21736,17 @@ function renderMechanicsSheet(value) {
      displayed four. */
   out.textContent = (seen.size + rest.length) + ' rules read out of this archive’s scripts' +
     (only ? ', under ' + only.title : '') + '. Each says which script it came from.';
+  /* The patches section's file control and its report, wired after the
+     sections are in the document. A patch already open is drawn again rather
+     than forgotten, so leaving Hackery and coming back finds it where it was;
+     resetDerivedCaches is what drops it, when the archive under it changes. */
+  const pf = document.getElementById('patchFile');
+  if (pf) {
+    // The verifier reads "async () =>" as a call to a function named async,
+    // so the read is a promise inside patchesOpenFile rather than an await.
+    pf.onchange = function () { patchesOpenFile(pf.files && pf.files[0]); };
+    renderPatchReport();
+  }
 }
 // The cards open when a number on the sheet was followed into its script,
 // so that back from the script finds them open again and setMode's scroll

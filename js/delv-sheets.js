@@ -285,7 +285,7 @@ const MECH_GROUPS = [
     ids: ['shops', 'dice'] },
   { value: 'HACKERY', title: 'Hackery', tile: 0x207,
     note: 'The machinery under the scenario, and the places it does not add up.',
-    ids: ['propword', 'target', 'eggs', 'leans', 'loose'] },
+    ids: ['propword', 'target', 'eggs', 'leans', 'loose', 'patches'] },
 ];
 // A group by the category value its tab is selected with.
 const MECH_GROUP_BY_VALUE = {};
