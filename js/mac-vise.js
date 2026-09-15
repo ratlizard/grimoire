@@ -68,7 +68,7 @@
 
    LOAD ORDER: after mac-bytes.js (u16be, u32be, fourcc, decodeMacRoman,
    crc32), mac-containers.js (sniffMacContainer) and mac-stuffit.js
-   (parseStuffItArchive, stuffItStoredFork) -- sniffViseInstaller uses both.
+   (parseStuffItArchive, stuffItFork) -- sniffViseInstaller uses both.
    A classic script, like the rest of js/: no import, no export, globals. */
 
 /* ---- the byte substitution -------------------------------------------- */
@@ -480,7 +480,7 @@ function sniffViseInstaller(bytes, pick) {
       // Stored, and an SVCT: an installer. Compressed: remembered, and
       // reported if it turns out to be the only one.
       let data;
-      try { data = stuffItStoredFork(bytes, e, 'data'); }
+      try { data = stuffItFork(bytes, e, 'data'); }
       catch (err) { if (e.creator === 'VIS3' && !refused) refused = err; continue; }
       if (!looksLikeVise(data)) continue;
       found.push({ name: e.name, path: e.path, dataLen: e.dataLen, entry: e, data });
@@ -492,7 +492,7 @@ function sniffViseInstaller(bytes, pick) {
     found.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
     const chosen = found.find(f => f.name === pick) || found[found.length - 1];
     let rsrc = new Uint8Array(0);
-    try { rsrc = stuffItStoredFork(bytes, chosen.entry, 'rsrc'); } catch (err) { /* compressed, and not needed */ }
+    try { rsrc = stuffItFork(bytes, chosen.entry, 'rsrc'); } catch (err) { /* compressed, and not needed */ }
     const container = { kind: sit.format + ' archive', name: chosen.name, type: chosen.entry.type,
                         creator: chosen.entry.creator, data: chosen.data, rsrc };
     return { container, archive: parseViseArchive(chosen.data),
