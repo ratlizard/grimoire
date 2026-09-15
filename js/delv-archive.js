@@ -1085,6 +1085,94 @@ const DELV_PATCH_AUTHORS = {
   }
 };
 
+/* ---- the descriptor's check value -----------------------------------------
+   The eight bytes at descriptor +0, which Magpie verifies before it will list
+   a patch at all: a descriptor that fails is marked unusable and its type byte
+   overwritten with 2. Until 15 September 2026 this project could read the
+   value and not produce one, so a patch written here could be applied by this
+   page and by the browser player but would never have installed in Magpie.
+
+   IT IS A 64-BIT CRC, and it was recovered by reading Magpie's own PowerPC
+   code rather than by guessing: `0x8900` seeds an eight-entry basis from the
+   polynomial, `0x89c0` makes the 256-entry table out of it, and `0x8ac0` runs
+   the loop. An earlier attempt transcribed those three routines and failed
+   against about four hundred variants of word order, bit order, reflection,
+   shift and range. It failed because of two steps that are in the code and
+   are not in any description of a CRC:
+
+   - **THE LENGTH IS FED IN AFTER THE DATA.** When the buffer runs out, a
+     second loop at `0x8b4c` keeps going with the LENGTH in place of a byte,
+     shifting it right eight each time until it is zero. So the digest covers
+     the message and then its length, low byte first.
+   - **THE RESULT IS COMPLEMENTED.** `0x8ba0` is `not r4` and `not r3`, the
+     last thing the routine does before returning.
+
+   Miss either and every byte of the answer is wrong, which is exactly what a
+   transcription that reasoned from "it is a CRC-32 polynomial" would produce.
+
+   THE INDEX IS `(crc >> 24) & 0xFF`, not `crc >> 56` as a 64-bit CRC would
+   normally use. That is what the code does (`li r5, 24` before the shift
+   helper) and it is left alone rather than tidied.
+
+   HELD TO ONE SAMPLE, and it is the only one that exists: the Magpie Pumpkin
+   Patch, whose descriptor states `c49ba981 0778a4b9`. A 64-bit value matching
+   by accident is not a thing that happens, so the algorithm is right; what
+   one sample cannot prove is that Magpie ACCEPTS what we write, which wants a
+   pass of Magpie under Mac OS 9 and is the one confirmation still outstanding. */
+const DELV_PATCH_CRC_POLY = { hi: 0x04C11D37, lo: 0x04C11DB7 };
+let _delvPatchCrcTable = null;
+function delvPatchCrcTable() {
+  if (_delvPatchCrcTable) return _delvPatchCrcTable;
+  const xor = (a, b) => ({ hi: (a.hi ^ b.hi) >>> 0, lo: (a.lo ^ b.lo) >>> 0 });
+  const shl1 = c => ({ hi: ((c.hi << 1) | (c.lo >>> 31)) >>> 0, lo: (c.lo << 1) >>> 0 });
+  // 0x8900: eight entries, each the previous shifted up one and reduced by
+  // the polynomial when the bit that fell off the top was set.
+  const basis = [DELV_PATCH_CRC_POLY];
+  for (let i = 1; i < 8; i++) {
+    const prev = basis[i - 1], shifted = shl1(prev);
+    basis.push((prev.hi & 0x80000000) ? xor(shifted, DELV_PATCH_CRC_POLY) : shifted);
+  }
+  // 0x89c0: one entry per byte, the XOR of the basis entries its bits select.
+  const table = new Array(256);
+  for (let b = 0; b < 256; b++) {
+    let v = { hi: 0, lo: 0 };
+    for (let k = 0; k < 8; k++) if (b & (1 << k)) v = xor(v, basis[k]);
+    table[b] = v;
+  }
+  return (_delvPatchCrcTable = table);
+}
+
+/* `bytes` is what the digest covers and `length` is the number the routine is
+   handed, which is also what gets folded in at the end. Magpie passes the
+   descriptor from +8 and a length of `statedLength - 8`, which is what
+   `delverPatchCheckValue` below does; this takes both so the two can be told
+   apart in a check. */
+function delvPatchCrc(bytes, length) {
+  const table = delvPatchCrcTable();
+  const xor = (a, b) => ({ hi: (a.hi ^ b.hi) >>> 0, lo: (a.lo ^ b.lo) >>> 0 });
+  const shl8 = c => ({ hi: ((c.hi << 8) | (c.lo >>> 24)) >>> 0, lo: (c.lo << 8) >>> 0 });
+  const top = c => (((c.lo >>> 24) | (c.hi << 8)) >>> 0) & 0xFF;   // (crc >> 24) low byte
+  let c = { hi: 0, lo: 0 };
+  for (let i = 0; i < bytes.length; i++) c = xor(shl8(c), table[(top(c) ^ bytes[i]) & 0xFF]);
+  for (let n = length; n > 0; n >>= 8) c = xor(shl8(c), table[(top(c) ^ n) & 0xFF]);
+  return { hi: (~c.hi) >>> 0, lo: (~c.lo) >>> 0 };
+}
+
+/* The eight bytes Magpie expects at the head of a 568-byte descriptor, given
+   the descriptor. The covered range is +8 to the end of the stated length,
+   and the length handed to the routine is that range's size. */
+function delverPatchCheckValue(descriptor) {
+  const stated = descriptor.length >= 26 ? u16be(descriptor, 24) : descriptor.length;
+  const end = Math.min(stated || descriptor.length, descriptor.length);
+  const c = delvPatchCrc(descriptor.subarray(8, end), Math.max(0, end - 8));
+  const out = new Uint8Array(8);
+  out[0] = (c.hi >>> 24) & 0xFF; out[1] = (c.hi >>> 16) & 0xFF;
+  out[2] = (c.hi >>> 8) & 0xFF;  out[3] = c.hi & 0xFF;
+  out[4] = (c.lo >>> 24) & 0xFF; out[5] = (c.lo >>> 16) & 0xFF;
+  out[6] = (c.lo >>> 8) & 0xFF;  out[7] = c.lo & 0xFF;
+  return out;
+}
+
 /* A 16-byte version-1 UUID in the usual 8-4-4-4-12 spelling. Magpie compares
    these byte for byte (`IsUUIDEqual`) and never parses one, so the text is
    for a reader rather than for any comparison here. */
@@ -1122,6 +1210,13 @@ function delverPatchDescriptor(spec) {
     // binary. Reading or applying a patch never needs to reproduce one, so it
     // is carried as text and judged on by nothing here.
     checkValue: Array.from(d.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(''),
+    // Since the routine was recovered, the page can do what Magpie does and
+    // say whether the descriptor is intact rather than only quoting it.
+    checkValueValid: (() => {
+      const want = delverPatchCheckValue(d);
+      for (let i = 0; i < 8; i++) if (want[i] !== d[i]) return false;
+      return true;
+    })(),
     uuid: d.slice(8, 24),
     uuidText: delverUuidText(d, 8),
     // +24 is the descriptor's own length. Magpie refuses anything but 568, so
@@ -1299,18 +1394,19 @@ function describeDelverDiff(a, b) {
    header, the changed resources and nothing else, and a descriptor at
    `0xFFFF` saying what it is.
 
-   WHAT IT CANNOT DO, AND THE PAGE MUST SAY SO. The descriptor's first eight
-   bytes are a check value over the rest, and this project cannot compute one.
-   Magpie only ever VERIFIES it -- the producer is Glenn Andreas's own patch
-   maker and is not in the Magpie binary -- and a descriptor that fails the
-   check is marked unusable, with the type byte overwritten by 2. So a patch
-   written here is a valid Delver archive that grimoire reads, that
-   `mergeDelverPatch` applies, and that the browser player loads as an add-on,
-   and it is NOT a patch that Magpie under Mac OS 9 will install. Writing
-   zeroes there rather than a plausible-looking guess is deliberate: a wrong
-   check value that looked right would be worse than an obviously absent one.
-   `GRIMOIRE-NOTES.md` has what is known about the routine for whoever
-   reproduces it.
+   IT WRITES A REAL CHECK VALUE since 15 September 2026. The descriptor's
+   first eight bytes are a 64-bit CRC that Magpie verifies before it will list
+   a patch, and this wrote zeroes there for as long as the routine was unread.
+   `delverPatchCheckValue` computes it now -- see that function for how it was
+   recovered and for the two steps that had defeated the earlier attempt --
+   so a patch written here is intact by Magpie's own test.
+
+   THAT IS NOT THE SAME AS KNOWING MAGPIE INSTALLS IT. The algorithm is held
+   to the one real patch that exists and reproduces its value exactly, and a
+   64-bit value does not match by accident; what no check here can reach is
+   whether Magpie, running under Mac OS 9, accepts a descriptor we assembled.
+   That wants one pass of the real program and is the confirmation still
+   outstanding.
 
    THE SELF-OFFSET NEEDS TWO PASSES. Descriptor +28 holds the descriptor's own
    offset in the file, and where it lands is decided by the writer. So the
@@ -1352,6 +1448,8 @@ function writeDelverPatch(baseSpec, resids, opts) {
     const text = encodeMacRoman(description);
     d[0x138] = Math.min(text.length, 255);
     d.set(text.subarray(0, 255), 0x139);
+    // Last, because it covers everything above it.
+    d.set(delverPatchCheckValue(d), 0);
     return d;
   };
   const build = selfOffset => writeDelverArchive({
@@ -1368,10 +1466,14 @@ function writeDelverPatch(baseSpec, resids, opts) {
   const placed = delverArchiveSpec(once).resources.find(r => r.resid === DELV_PATCH_DESCRIPTOR);
   if (!placed) throw new Error('the descriptor did not survive the first write');
   const bytes = build(placed.fileOffset);
+  const back = delverPatchDescriptor(delverArchiveSpec(bytes));
   return { bytes, resids: wanted, uuid, uuidText: delverUuidText(uuid, 0),
            description, typeCode, descriptorOffset: placed.fileOffset,
-           // Said out loud so a caller cannot forget to pass it on.
-           checkValueWritten: false };
+           // Read back rather than asserted: the descriptor that matters is
+           // the one in the file, after the second write moved it.
+           checkValueWritten: true,
+           checkValue: back && back.checkValue,
+           checkValueValid: !!(back && back.checkValueValid) };
 }
 
 /* ---- editing a map -------------------------------------------------------
