@@ -1040,25 +1040,45 @@ const DELV_PATCH_DESCRIPTOR = 0xFFFF;
 const DELV_PATCH_INSTALLED = 0xFFFE;
 const DELV_PATCH_DESCRIPTOR_LENGTH = 568;
 
-/* ONE BYTE AT +26 CARRIES BOTH THE TYPE AND THE TRUST LEVEL, AND ONLY ONE OF
-   ITS VALUES IS READ. Magpie's row drawer at `code+0x134` dispatches on it to
-   two separate indices into `STR# 128` in Magpie's own resource fork, one for
-   the type (Bug Fix, Expansion, Add On, Plug In) and one for the trust level
-   (Official, Approved, Unofficial). So the words are Magpie's and the code is
-   the patch's, and the mapping between them is a dispatch rather than an
-   index: a code cannot be turned into a pair of words by counting.
+/* ONE BYTE AT +26 CARRIES BOTH THE TYPE AND THE TRUST LEVEL, and the mapping
+   is now read rather than guessed. It was deliberately left at the single
+   value the binary tests outright -- 0 is Bug Fix, from the "Bug fixes are
+   always installed, and can not be removed" branch -- because naming the rest
+   from the order of `STR# 128` would have been a guess wearing a name.
 
-   What IS established is the single value the binary tests outright. The
-   "Bug fixes are always installed, and can not be removed" branch compares
-   this byte against 0, so 0 is Bug Fix. The Pumpkin Patch carries 3 and that
-   is all that can be said about 3 from one sample. The other value worth
-   knowing is 2, which the digest validator WRITES over this byte when a
-   descriptor fails, so a patch reading 2 may be one Magpie rejected rather
-   than one that was made that way.
+   Recovered 15 September 2026 from the row drawer's two dispatches at
+   `code+0x0d4` and `code+0x134`, which set a type index and a trust index
+   into `STR# 128` and then draw them as one label. `STR# 128` is, in order:
+   Bug Fix, Expansion, Add On, Plug In, "Official ", "Approved ",
+   "Unofficial", Invalid, Not Installed, Installed, then the six action words.
+   The two prefixes carry a trailing space because the label is concatenated.
 
-   Naming 3 would have been easy and wrong, so the table holds the one entry
-   the file proves and a code with no entry is shown as itself. */
-const DELV_PATCH_TYPES = { 0: 'Bug Fix' };
+   Two things the table shows that no reading of the strings would have:
+
+   - **Code 2 selects neither a type nor a trust level**, so a patch carrying
+     it draws with no label at all. That is the value the digest validator
+     writes over this byte when a descriptor fails its check, and it is how a
+     bad patch "comes out of the list wearing a different type" -- it comes
+     out wearing none.
+   - **"Unofficial" is never selected.** The string is there and this dispatch
+     cannot reach it; a patch with no trust level shows the bare type. So the
+     honest designation for a community patch is 5, not 7. */
+const DELV_PATCH_TYPES = {
+  0: { type: 'Bug Fix' },
+  1: { type: 'Expansion' },
+  2: {},                                        // what a failed digest leaves
+  3: { type: 'Add On',  trust: 'Official' },
+  4: { type: 'Add On',  trust: 'Approved' },
+  5: { type: 'Add On' },
+  6: { type: 'Plug In', trust: 'Official' },
+  7: { type: 'Plug In', trust: 'Approved' },
+  8: { type: 'Plug In' },
+};
+/* The code a patch made here carries. 5 is Add On with no trust level, which
+   is what a community patch honestly is: 3 is Official and would have this
+   page's output claiming to be Ambrosia's, which is what it did until the
+   maintainer saw "Official Add On" against a patch he had just made. */
+const DELV_PATCH_EXPORT_TYPE = 5;
 
 /* WHO MADE A PATCH IS NOT IN THE PATCH. The descriptor has room for it and
    the Pumpkin Patch leaves it empty, so a page that wants to credit an author
@@ -1227,7 +1247,11 @@ function delverPatchDescriptor(spec) {
     // +26 is the type and trust code. See the table above for why only 0 is
     // named, and why 2 is worth saying something about.
     typeCode: d[26],
-    typeName: DELV_PATCH_TYPES[d[26]] || null,
+    typeName: (DELV_PATCH_TYPES[d[26]] || {}).type || null,
+    trustName: (DELV_PATCH_TYPES[d[26]] || {}).trust || null,
+    // How Magpie's own list would label it: the trust prefix and the type,
+    // and nothing at all when the code selects neither.
+    typeLabel: [(DELV_PATCH_TYPES[d[26]] || {}).trust, (DELV_PATCH_TYPES[d[26]] || {}).type].filter(Boolean).join(' ') || null,
     typeOverwritten: d[26] === 2,
     // +28 is the descriptor's own file offset, compared against the patch
     // archive's subindex-255 offset. A descriptor lifted out of one file and

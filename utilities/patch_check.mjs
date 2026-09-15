@@ -195,7 +195,10 @@ const desc = ev(`(() => {
     sheets++; tiles += n;
   }
   return {uuid: d && d.uuidText, len: d && d.statedLength, lenOk: d && d.lengthAgrees,
-          type: d && d.typeCode, named: !!(d && d.typeName), selfOk: d && d.selfOffsetAgrees,
+          type: d && d.typeCode, label: d && d.typeLabel, selfOk: d && d.selfOffsetAgrees,
+          exportType: DELV_PATCH_EXPORT_TYPE,
+          exportLabel: [(DELV_PATCH_TYPES[DELV_PATCH_EXPORT_TYPE]||{}).trust,
+                        (DELV_PATCH_TYPES[DELV_PATCH_EXPORT_TYPE]||{}).type].filter(Boolean).join(' '),
           text: d && d.description, check: d && d.checkValue,
           checkValid: d && d.checkValueValid,
           format: rep.format, baseFormat: rep.baseFormat, usable: rep.usable, reasons: rep.reasons,
@@ -220,9 +223,16 @@ want('the descriptor states its own length', desc.len, 568);
 want('the length is the one Magpie takes', desc.lenOk, true);
 want('the descriptor names the offset it sits at', desc.selfOk, true);
 want('the type and trust code', desc.type, 3);
-// 3 is the Pumpkin Patch's code and the binary names only 0 (Bug Fix), so a
-// reader that starts naming 3 has started guessing. This is what says so.
-want('code 3 is not given a name', desc.named, false);
+/* The mapping was left at 0 alone until the row drawer's two dispatches were
+   read on 15 September 2026. The Pumpkin Patch's 3 is Official Add On, which
+   is right for Glenn's own patch and wrong for anything this page makes. */
+want('the Pumpkin Patch is an Official Add On', desc.label, 'Official Add On');
+/* AND WHAT THIS PAGE EXPORTS MUST NOT CLAIM TO BE ANYBODY'S. The export
+   carried 3 until the maintainer saw his own patch listed as Official. 5 is
+   the same type with no trust prefix, which is what a community patch is. */
+want('a patch made here is a plain Add On', desc.exportLabel, 'Add On');
+if (desc.exportType === 0) fail('the export is removable', 'type 0 is the one Magpie refuses to uninstall');
+else ok('and one Magpie will uninstall', 'type ' + desc.exportType);
 want('the description', desc.text,
      'Harvest time, and the leaves change - something strange is happening in Cythera...');
 want('the patch\'s format', desc.format, '2.0');

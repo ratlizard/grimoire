@@ -4564,7 +4564,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.84.1';
+const GRIMOIRE_VERSION = '1.85.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -20908,9 +20908,10 @@ function renderPatchReport() {
     facts.push('<tr><td>check value</td><td><span class="patchMono">' + svEsc(d.checkValue) + '</span>' +
       (d.checkValueValid ? '<span class="mechSub"> verifies, so the descriptor is intact</span>'
                          : '<span class="patchBad"> does not verify, and Magpie would mark this patch unusable</span>') + '</td></tr>');
-    facts.push('<tr><td>type</td><td>' + (d.typeName ? '<b>' + svEsc(d.typeName) + '</b>' : 'code ' + d.typeCode) +
-      (d.typeOverwritten ? '<span class="mechSub"> which is also what Magpie writes over a patch whose descriptor failed its check</span>'
-       : d.typeName ? '' : '<span class="mechSub"> one byte carrying both the type and the trust level, and only 0, Bug Fix, is read</span>') + '</td></tr>');
+    facts.push('<tr><td>type</td><td>' + (d.typeLabel ? '<b>' + svEsc(d.typeLabel) + '</b>' : 'code ' + d.typeCode) +
+      (d.typeOverwritten ? '<span class="mechSub"> Magpie draws no label for this code, and it is what the digest check writes over a descriptor that fails</span>'
+       : d.typeLabel ? '<span class="mechSub"> as Magpie\u2019s own list would say it</span>'
+       : '<span class="mechSub"> a code Magpie draws no label for</span>') + '</td></tr>');
   }
   facts.push('<tr><td>scenario</td><td>' + svEsc(rep.scenarioTitle || '') + '</td></tr>');
   facts.push('<tr><td>format</td><td>' + svEsc(rep.format) +
@@ -21336,7 +21337,7 @@ function compareExportPatch() {
        and is removable. It is used because that is what a working patch has,
        not because anything here knows what 3 is called. */
     const w = writeDelverPatch(rep.bSpec, rep.changed.map(c => c.resid),
-      { description: (d && d.value) || '', typeCode: 3 });
+      { description: (d && d.value) || '', typeCode: DELV_PATCH_EXPORT_TYPE });
     /* The file is named for the archive, not for the side of the comparison.
        `bName` is "as it stands" when you are exporting your own edits, and
        "as it stands Patch" is not a file name anyone wants. */
