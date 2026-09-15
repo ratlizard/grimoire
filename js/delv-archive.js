@@ -1235,6 +1235,145 @@ function describeDelverPatch(baseSpec, patchSpec) {
   };
 }
 
+/* ---- two archives against each other --------------------------------------
+   `describeDelverPatch` above answers "what would this patch do to my file",
+   which is one archive against a SUBSET of another. This is the general case:
+   two whole archives, resource by resource. It is what a version comparison
+   is made of, and it is also how the page knows what to put in a patch it
+   writes -- the edits you made are simply the diff between the file as it
+   arrived and the file as it stands.
+
+   IT READS NO AMBIENT STATE, which is the whole reason this is possible at
+   all. The save comparison in the handoff is blocked because it needs
+   `getResourceBytes`, which reads the open archive out of `fileBytes` as a
+   global; nothing here does, so two archives can be open at once as data
+   even though they cannot both be the page's "open file".
+
+   ORDER IS MEANINGFUL: `a` is the older or the original, `b` the newer or the
+   edited. Added and removed are named from a's point of view.
+
+   It compares PLAINTEXT, not stored bytes. Two archives can hold the same
+   resource encrypted in one and clear in the other and the resource has not
+   changed; comparing what was stored would call that a difference, and every
+   rebuild would look like a change to half the file. `encryptionChanged` says
+   so separately for the handful where the verdict differs. */
+function describeDelverDiff(a, b) {
+  if (!a || !b) return null;
+  const same = (x, y) => x.length === y.length && x.every((v, i) => v === y[i]);
+  const am = new Map(a.resources.map(r => [r.resid, r]));
+  const bm = new Map(b.resources.map(r => [r.resid, r]));
+  const changed = [], added = [], removed = [], encryptionChanged = [];
+  let unchanged = 0;
+  for (const [resid, ar] of am) {
+    const br = bm.get(resid);
+    if (!br) { removed.push({ resid, subn: (resid >> 8) - 1, a: ar }); continue; }
+    if (!!ar.encrypted !== !!br.encrypted) encryptionChanged.push(resid);
+    if (same(ar.data, br.data)) { unchanged++; continue; }
+    changed.push({ resid, subn: (resid >> 8) - 1, a: ar, b: br,
+                   aLength: ar.data.length, bLength: br.data.length });
+  }
+  for (const [resid, br] of bm) if (!am.has(resid)) added.push({ resid, subn: (resid >> 8) - 1, b: br });
+  const bySubn = new Map();
+  for (const r of changed.concat(added, removed)) {
+    if (!bySubn.has(r.subn)) bySubn.set(r.subn, { subn: r.subn, changed: 0, added: 0, removed: 0 });
+    const g = bySubn.get(r.subn);
+    if (r.a && r.b) g.changed++; else if (r.b) g.added++; else g.removed++;
+  }
+  return {
+    changed, added, removed, encryptionChanged, unchanged,
+    aCount: am.size, bCount: bm.size,
+    identical: !changed.length && !added.length && !removed.length,
+    // Sorted so the biggest difference leads, which is what a reader wants to
+    // open first; the ordering is presentation and the lists above are not
+    // reordered, so a caller that wants file order still has it.
+    groups: [...bySubn.values()].sort((x, y) =>
+      (y.changed + y.added + y.removed) - (x.changed + x.added + x.removed) || x.subn - y.subn),
+    titleChanged: a.scenarioTitle !== b.scenarioTitle,
+    formatChanged: a.formatMajor !== b.formatMajor || a.formatMinor !== b.formatMinor
+  };
+}
+
+/* ---- writing a Magpie patch -----------------------------------------------
+   The inverse of the patches section: given a base archive and the ids that
+   changed, write an archive shaped like a Magpie patch -- the base's scenario
+   header, the changed resources and nothing else, and a descriptor at
+   `0xFFFF` saying what it is.
+
+   WHAT IT CANNOT DO, AND THE PAGE MUST SAY SO. The descriptor's first eight
+   bytes are a check value over the rest, and this project cannot compute one.
+   Magpie only ever VERIFIES it -- the producer is Glenn Andreas's own patch
+   maker and is not in the Magpie binary -- and a descriptor that fails the
+   check is marked unusable, with the type byte overwritten by 2. So a patch
+   written here is a valid Delver archive that grimoire reads, that
+   `mergeDelverPatch` applies, and that the browser player loads as an add-on,
+   and it is NOT a patch that Magpie under Mac OS 9 will install. Writing
+   zeroes there rather than a plausible-looking guess is deliberate: a wrong
+   check value that looked right would be worse than an obviously absent one.
+   `GRIMOIRE-NOTES.md` has what is known about the routine for whoever
+   reproduces it.
+
+   THE SELF-OFFSET NEEDS TWO PASSES. Descriptor +28 holds the descriptor's own
+   offset in the file, and where it lands is decided by the writer. So the
+   archive is written once to find out, the descriptor is corrected, and it is
+   written again. The second write moves nothing -- the descriptor's length
+   does not change -- which the check asserts rather than assumes. */
+function writeDelverPatch(baseSpec, resids, opts) {
+  opts = opts || {};
+  if (!baseSpec) throw new Error('no archive to take resources from');
+  const wanted = [...new Set(resids || [])].sort((x, y) => x - y);
+  if (!wanted.length) throw new Error('nothing has changed, so there is nothing to put in a patch');
+  const byId = new Map(baseSpec.resources.map(r => [r.resid, r]));
+  const missing = wanted.filter(id => !byId.has(id));
+  if (missing.length) throw new Error('not in the archive: ' + missing.map(i => '0x' + i.toString(16)).join(', '));
+
+  const description = String(opts.description || '').slice(0, 255);
+  const typeCode = opts.typeCode === undefined ? 0 : (opts.typeCode & 0xFF);
+  // Magpie matches on the UUID and nothing else, and never parses one, so a
+  // random 16 bytes is as good an identity as a real version-1 UUID would be.
+  // The version and variant nibbles are set so it reads as a v4 rather than
+  // pretending to be the v1 Glenn's maker produced.
+  let uuid = opts.uuid;
+  if (!uuid) {
+    uuid = new Uint8Array(16);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(uuid);
+    else for (let i = 0; i < 16; i++) uuid[i] = Math.floor(Math.random() * 256);
+    uuid[6] = (uuid[6] & 0x0F) | 0x40;
+    uuid[8] = (uuid[8] & 0x3F) | 0x80;
+  }
+
+  const descriptorFor = selfOffset => {
+    const d = new Uint8Array(DELV_PATCH_DESCRIPTOR_LENGTH);
+    d.set(uuid, 8);
+    d[24] = (DELV_PATCH_DESCRIPTOR_LENGTH >> 8) & 0xFF;
+    d[25] = DELV_PATCH_DESCRIPTOR_LENGTH & 0xFF;
+    d[26] = typeCode;
+    d[28] = (selfOffset >>> 24) & 0xFF; d[29] = (selfOffset >>> 16) & 0xFF;
+    d[30] = (selfOffset >>> 8) & 0xFF;  d[31] = selfOffset & 0xFF;
+    const text = encodeMacRoman(description);
+    d[0x138] = Math.min(text.length, 255);
+    d.set(text.subarray(0, 255), 0x139);
+    return d;
+  };
+  const build = selfOffset => writeDelverArchive({
+    scenarioTitle: baseSpec.scenarioTitle,
+    playerName: '',
+    formatMajor: baseSpec.formatMajor, formatMinor: baseSpec.formatMinor,
+    unknown40: baseSpec.unknown40, unknown48: baseSpec.unknown48,
+    resources: wanted.map(id => byId.get(id))
+      .map(r => ({ resid: r.resid, data: r.data, encrypted: r.encrypted }))
+      .concat([{ resid: DELV_PATCH_DESCRIPTOR, data: descriptorFor(selfOffset), encrypted: false }])
+  });
+
+  const once = build(0);
+  const placed = delverArchiveSpec(once).resources.find(r => r.resid === DELV_PATCH_DESCRIPTOR);
+  if (!placed) throw new Error('the descriptor did not survive the first write');
+  const bytes = build(placed.fileOffset);
+  return { bytes, resids: wanted, uuid, uuidText: delverUuidText(uuid, 0),
+           description, typeCode, descriptorOffset: placed.fileOffset,
+           // Said out loud so a caller cannot forget to pass it on.
+           checkValueWritten: false };
+}
+
 /* ---- editing a map -------------------------------------------------------
    Two writers, deliberately the smallest two that could work. The map editor
    they were written for was cut from index.html in v1.29.0 -- the page reads
