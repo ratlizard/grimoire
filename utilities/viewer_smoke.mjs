@@ -3032,6 +3032,34 @@ try {
   else if (after.indexOf('Bug Fix') < 0) fail('patches', 'type code 0 is not named Bug Fix');
   else if (canvases !== wantTiles * 2) fail('patches', `${canvases} tile canvases, expected ${wantTiles * 2} (a pair for each of ${wantTiles})`);
   else {
+    /* Applying it. The patch was made here from the archive that is open, so
+       merging it must put those five redrawn tiles into the archive itself --
+       which is the whole point of the button: seeing what a patch does
+       without playing to wherever the art is.
+
+       What is asserted is that the OPEN FILE changed, not that the merge
+       returned something: patchesApply goes through parseArchiveBytes, and a
+       version of it that merged correctly and forgot to re-enter would look
+       identical from the outside. */
+    // PRISTINE_BYTES, not fileBytes: the two differ already by this point,
+    // because a rebuild lays the archive out shorter than Ambrosia's and
+    // earlier blocks in this file have edited. Comparing the wrong one made
+    // this pin fail on its first run against correct code.
+    const before = peek('window.PRISTINE_BYTES').length;
+    const sheetBefore = JSON.stringify(Array.from(
+      ctx.decodeResource(ctx.getResourceBytes(0x8E04), 141, 0x8E04).image.slice(0, 4096)));
+    if (!ctx.patchesApply()) fail('patches', 'the patch would not apply');
+    else {
+      const sheetAfter = JSON.stringify(Array.from(
+        ctx.decodeResource(ctx.getResourceBytes(0x8E04), 141, 0x8E04).image.slice(0, 4096)));
+      if (sheetBefore === sheetAfter)
+        fail('patches', 'applying the patch left the open archive unchanged');
+      else if (!peek('window.EDITED_RESIDS').size)
+        fail('patches', 'the applied resources are not marked as changed');
+      else if (peek('window.PRISTINE_BYTES').length !== before)
+        fail('patches', 'applying a patch moved the file as it arrived, which the comparison needs kept');
+      else console.log('  patches apply: the open archive carries the patch, and the file as it arrived is kept');
+    }
     ctx.patchesForget();
     const host = REGISTRY.get('patchReport');
     if (host && countTag(host, 'CANVAS'))

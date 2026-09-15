@@ -4564,7 +4564,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.83.1';
+const GRIMOIRE_VERSION = '1.84.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -6076,6 +6076,7 @@ function resetDerivedCaches() {
   window._WORLD_RATIO = null;
   window.PATCH_BASE_SPEC = null;
   window.PATCH_REPORT = null;
+  window.PATCH_BYTES = null;
   window.COMPARE_REPORT = null;
   window.COMPARE_APP = null;
   window.PROP_BLOCK = null;
@@ -20780,6 +20781,9 @@ function patchesOpenBytes(bytes, name) {
   report.fileName = name || '';
   report.via = got.via;
   window.PATCH_REPORT = report;
+  // The archive's own bytes, not the wrapper's: mergeDelverPatch wants the
+  // Delver archive, and what was dropped may have been a .hqx round a .sit.
+  window.PATCH_BYTES = got.bytes;
   say('');
   renderPatchReport();
   return true;
@@ -20798,7 +20802,51 @@ function patchesOpenFile(file) {
 
 function patchesForget() {
   window.PATCH_REPORT = null;
+  window.PATCH_BYTES = null;
   renderPatchReport();
+}
+
+/* ---- applying a patch to the open file -------------------------------------
+   The patches section described a patch and would not apply one, deliberately:
+   until the descriptor's check value could be reproduced, a patch read or
+   written here was a thing this page understood and Magpie did not, and
+   offering to merge one invited a file nobody else would take.
+
+   That held until 15 September 2026, when Magpie under Mac OS 9 accepted a
+   descriptor grimoire wrote. The remaining reason not to apply was gone, and
+   the reason to apply had been there all along: the only way to see what a
+   patch does was to install it and play to wherever the changed art is. The
+   Pumpkin Patch redraws foliage and blades across twelve sheets, which is a
+   long walk.
+
+   IT IS THE EDIT PATH, NOT A NEW ONE. mergeDelverPatch produces the merged
+   bytes and parseArchiveBytes re-enters with `via: 'edit'`, exactly as editing
+   a resource does, so every derived table drops and every view -- the tile
+   galleries, the map, the atlas -- redraws from the patched archive.
+   PRISTINE_BYTES is left alone by that path, which is what lets the comparison
+   section then show precisely what the patch changed.
+
+   NOTHING IS WRITTEN. The merge is in memory, like every other edit here. */
+function patchesApply() {
+  const rep = window.PATCH_REPORT, bytes = window.PATCH_BYTES;
+  const note = document.getElementById('patchNote');
+  const say = (m, bad) => { if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
+  if (!rep || !bytes) { say('No patch is open.', true); return false; }
+  if (typeof fileBytes === 'undefined' || !fileBytes) { say('No game file is open.', true); return false; }
+  let merged;
+  try { merged = mergeDelverPatch(fileBytes, bytes); }
+  catch (e) { say('That patch could not be applied: ' + e.message, true); return false; }
+  const dirty = new Set(window.EDITED_RESIDS);
+  for (const id of merged.replaced) dirty.add(id);
+  parseArchiveBytes(merged.bytes, window.ARCHIVE_SOURCE_NAME || 'archive',
+                    { rsrc: window.CYTHERA_RSRC_RAW, via: 'edit' });
+  window.EDITED_RESIDS = dirty;
+  if (typeof refreshChangesBadge === 'function') refreshChangesBadge();
+  const what = (rep.descriptor && rep.descriptor.description) || rep.fileName || 'that patch';
+  setStatus(merged.replaced.length + ' resource(s) replaced by ' + what +
+    '. The patch is applied to the copy in this browser only, and the galleries and maps show it now. ' +
+    'Data \u203a Cythera Data \u203a Changes is where it leaves the page.');
+  return true;
 }
 
 /* One 32x32 tile out of a decoded sheet, as a canvas at 2x. A sheet is one
@@ -20921,6 +20969,24 @@ function renderPatchReport() {
       }
       host.appendChild(strip);
     }
+  }
+  /* Applying is offered only when the merge would do something, and the lines
+     above the button say what will move rather than leaving it to be found. */
+  if (rep.usable && rep.willReplace) {
+    host.appendChild(el('div', 'partsTitle', 'Apply it'));
+    host.appendChild(el('ul', 'ruleList',
+      '<li>Replaces <b>' + rep.willReplace + '</b> resource' + (rep.willReplace === 1 ? '' : 's') +
+      ' in the copy of the file in this browser. <b>Nothing is written to disk.</b></li>' +
+      '<li>Every view redraws from the patched archive, so the tiles above appear in the galleries and on the maps.</li>' +
+      '<li>The file as it arrived is kept, so <b>Two files against each other</b> can then show exactly what changed.</li>'));
+    const bar = el('div', 'mechStats');
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+    b.textContent = 'Apply to the open file';
+    b.onclick = function () { if (patchesApply()) renderPatchReport(); };
+    bar.appendChild(b);
+    host.appendChild(bar);
   }
   host.appendChild(el('div', '', svLink('Forget this patch', 'patchesForget()')));
 }
