@@ -270,7 +270,7 @@ const MECH_GROUPS = [
     ids: ['experience', 'karma', 'training', 'todo'] },
   { value: 'MECH_STATUS', title: 'Status', tile: 0x22C,
     note: 'The body and the clock: what feeds, heals, poisons and wears off.',
-    ids: ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'springs'] },
+    ids: ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'light', 'springs'] },
   { value: 'MECH_INTERACT', title: 'Interactions', tile: 0x3A0,
     note: 'What a thing does when it is used.',
     ids: ['locks'] },

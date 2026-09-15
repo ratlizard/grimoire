@@ -539,12 +539,27 @@ function dvmDisassemble(b, start) {
         if (note) arg += '  // ' + note;
       }
     } else if (spec) {
+      /* BOTH WIDTHS ARE SIGNED. The interpreter reads a byte literal with
+         `extsb` and a short with a signed halfword load, then masks the result
+         to the VM's 28-bit integer (TInterp::DoExpr, the two cases after the
+         opcode jump table), so `byte 0xFB` is -5 and not 251. delvmod reads
+         them the same way -- delv/ddasm.py, OpByte and OpShort call
+         read_sint8 and read_sint16 -- and delv_crosscheck proves the two
+         opcode TABLES identical without ever comparing signedness, which is
+         how this stood wrong from the day it was written. The operand is
+         still shown as the byte it is; the signed reading is added as a note
+         where it differs, because a reader who takes 0xFB for 251 gets every
+         dark zone's light level backwards. */
       let v = null;
-      if (mn === 'byte') v = b[p]; else if (mn === 'short') v = u16be(b, p);
+      if (mn === 'byte') v = (b[p] << 24) >> 24;
+      else if (mn === 'short') v = (u16be(b, p) << 16) >> 16;
       arg = '0x' + hex(p, spec); p += spec;
       if (v !== null) {
+        const parts = [];
+        if (v < 0) parts.push(String(v));
         const note = dvmAnnotateInt(encl, argIdx, v);
-        if (note) arg += '  // ' + note;
+        if (note) parts.push(note);
+        if (parts.length) arg += '  // ' + parts.join(', ');
       }
     }
     out.push([at, expect ? 1 : 0, mn, arg]);
