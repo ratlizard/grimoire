@@ -194,7 +194,8 @@ const CHECKS = [
    cmd: ['utilities/reach_check.mjs', 'index.html'],
    grep: /\d+ functions declared[^\n]*/},
   {page: 'viewer', name: 'decoder snapshot', want: [DATA],
-   cmd: ['utilities/decoder_snapshot.mjs', 'index.html', DATA], grep: /SNAPSHOT \w+/},
+   cmd: ['utilities/decoder_snapshot.mjs', 'index.html', DATA], grep: /SNAPSHOT \w+/,
+   expect: 'SNAPSHOT 10e7cd6d5787a66b'},
   // Synthetic on purpose: none of Cythera's twenty-one PICTs uses the
   // uncompressed 1-bit opcodes, so no snapshot over the game's resources can
   // notice this path breaking. The viewer opens any resource fork, not only
@@ -347,7 +348,7 @@ const CHECKS = [
    grep: /\d+ of \d+ shipped fonts written back byte for byte[^\n]*/},
   {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
-   grep: /SNAPSHOT \w+/},
+   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT 1d7eaa158c17'},
 
   // The HFS disk-image writer index.html exports with. Structural on its
   // own; with a systemless checkout beside this one it also round-trips every
@@ -393,6 +394,34 @@ for (const check of CHECKS) {
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
   let note = '';
   if (check.grep) { const m = check.grep.exec(out); if (m) note = m[0].trim(); }
+  /* A SNAPSHOT THAT MOVES MUST MOVE ITS RECORDED VALUE WITH IT.
+   *
+   * The two snapshot checks report a hash rather than a verdict, so that a
+   * deliberate change to what a decoder outputs can be told from an accident.
+   * That only works if somebody reads the number, and on 15 September 2026
+   * nobody did: the signed-byte fix to the zone lighting moved the decoder
+   * snapshot, the value went unrecorded, and the stale one then read as
+   * evidence of an accident to the next session that looked. Five fronts
+   * landed in between without noticing.
+   *
+   * So the expected value lives HERE, in the file that decides pass and fail,
+   * and a mismatch is a failure. Moving a decoder now costs one line in the
+   * same commit, which is the point: the record cannot drift from the code
+   * because the suite will not go green until they agree.
+   *
+   * It is deliberately NOT read out of `grimoire/CLAUDE.md`, which is where
+   * the values used to be written down. That file is untracked and exists
+   * only in the main checkout, so every front lacks it -- and a front is
+   * where all the work happens, which would have made the guard skip in the
+   * one place it is needed. The guide points at this line instead. */
+  if (ok && check.expect && note !== check.expect) {
+    ok = false;
+    /* The row truncates a note at 96 characters, and the half worth reading is
+       what to do about it, so the name is left out -- the row already carries
+       it -- and both hashes and the instruction fit. */
+    const got = (note || '(nothing)').replace(/^SNAPSHOT /, ''), want = check.expect.replace(/^SNAPSHOT /, '');
+    out += `\nFAIL: got ${got}, want ${want}; if deliberate, move it in check_all.mjs`;
+  }
   if (!ok) {
     failed++;
     const lines = out.trim().split('\n').filter(l => /FAIL|Error|error/.test(l));
