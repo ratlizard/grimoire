@@ -801,7 +801,8 @@ function writeDelverArchive(spec) {
   wpstring(spec.scenarioTitle ?? 'Cythera: Fate of Alaric', 0);
   wpstring(spec.playerName ?? '', 0x20);
   w8(spec.unknown40 ?? 0x13, 0x40);
-  w8(spec.unknown42 ?? 2, 0x42);
+  w8(spec.formatMajor ?? 2, 0x42);
+  w8(spec.formatMinor ?? 0, 0x43);
   w8(spec.unknown48 ?? 2, 0x48);
   w32(mio, mio);
   w32(masterLen, mio + 4);
@@ -864,7 +865,17 @@ function delverArchiveSpec(bytes) {
   const spec = {
     scenarioTitle: pstring(bytes, 0),
     playerName: pstring(bytes, 0x20),
-    unknown40: bytes[0x40], unknown42: bytes[0x42], unknown48: bytes[0x48],
+    /* 0x42 and 0x43 are the format's major and minor, and they were
+       `unknown42` and unread until 14 September 2026. Magpie reads both out of
+       the game's header and out of each patch's, and compares them at
+       `0xb6d0`, which is not an equality test: the majors must match exactly
+       and the game's minor must be at least the patch's. Both the shipped
+       archive and the Pumpkin Patch carry 02 00, so the format is 2.0 and the
+       rule is the ordinary one. The writer emits the minor now rather than
+       leaving the pad's zero there; on every archive this project has seen it
+       IS zero, so the write snapshot does not move. */
+    formatMajor: bytes[0x42], formatMinor: bytes[0x43],
+    unknown40: bytes[0x40], unknown48: bytes[0x48],
     masterIndexOffset: mi.off, masterIndexLength: mi.len,
     resources: []
   };
@@ -959,6 +970,219 @@ function mergeDelverPatch(baseBytes, patchBytes) {
                     ' resource(s) could be applied to the game archive');
   return { bytes: writeDelverArchive(base), replaced, skipped, disagreed,
            title: patch.scenarioTitle };
+}
+
+/* ---- reading a patch without applying it ----------------------------------
+   `mergeDelverPatch` above answers "what would this do to my file"; these
+   answer "what IS this file", which is what a page has to say before anyone
+   presses anything. Both were read out of Magpie's own PowerPC code in
+   September 2026 (the reading is in `GRIMOIRE-NOTES.md`), and both are
+   confirmed against the one real patch on this disk.
+
+   TWO RESOURCES, AND THEY LIVE ON OPPOSITE SIDES. `0xFFFF` is the PATCH's
+   descriptor, the 568 bytes Magpie shows a row of; `0xFFFE` is the GAME
+   file's list of what has been applied to it, and it is nothing but an array
+   of 16-byte UUIDs with no name, no version and no order in it. That is why
+   Magpie needs every patch file present to name what is installed, and why
+   this page can only say "installed" of a patch it has been handed.
+   Neither resource is in the shipped `Cythera Data`. */
+const DELV_PATCH_DESCRIPTOR = 0xFFFF;
+const DELV_PATCH_INSTALLED = 0xFFFE;
+const DELV_PATCH_DESCRIPTOR_LENGTH = 568;
+
+/* ONE BYTE AT +26 CARRIES BOTH THE TYPE AND THE TRUST LEVEL, AND ONLY ONE OF
+   ITS VALUES IS READ. Magpie's row drawer at `code+0x134` dispatches on it to
+   two separate indices into `STR# 128` in Magpie's own resource fork, one for
+   the type (Bug Fix, Expansion, Add On, Plug In) and one for the trust level
+   (Official, Approved, Unofficial). So the words are Magpie's and the code is
+   the patch's, and the mapping between them is a dispatch rather than an
+   index: a code cannot be turned into a pair of words by counting.
+
+   What IS established is the single value the binary tests outright. The
+   "Bug fixes are always installed, and can not be removed" branch compares
+   this byte against 0, so 0 is Bug Fix. The Pumpkin Patch carries 3 and that
+   is all that can be said about 3 from one sample. The other value worth
+   knowing is 2, which the digest validator WRITES over this byte when a
+   descriptor fails, so a patch reading 2 may be one Magpie rejected rather
+   than one that was made that way.
+
+   Naming 3 would have been easy and wrong, so the table holds the one entry
+   the file proves and a code with no entry is shown as itself. */
+const DELV_PATCH_TYPES = { 0: 'Bug Fix' };
+
+/* WHO MADE A PATCH IS NOT IN THE PATCH. The descriptor has room for it and
+   the Pumpkin Patch leaves it empty, so a page that wants to credit an author
+   has to carry the name itself, keyed by the one thing a patch does say about
+   its identity. That is the UUID, which is also the only thing Magpie matches
+   on.
+
+   This is the built-in-name-table rule applied to a person: an entry keeps
+   only what the file does not say, and every entry names where it came from.
+   `source` is not shown as a citation; it is here so that an entry can be
+   checked or removed by someone who was not in the room.
+
+   One entry, because one Magpie patch is known to exist. Glenn Andreas made
+   both the patch and Magpie: Ambrosia announced it in the community's topic
+   528 over Andrew Welch's signature ("Glenn Andreas has released a cool patch
+   for Cythera entitled 'Magpie Pumpkin Patch'"), and Glenn answers in the
+   same thread describing how he made it, with the editor and a patch maker he
+   did not release. */
+const DELV_PATCH_AUTHORS = {
+  '00b21e58-a47f-11d4-8a4a-000502c9f8b7': {
+    name: 'Glenn Andreas',
+    title: 'Magpie Pumpkin Patch',
+    source: 'Cythera web board topic 528, announced by Ambrosia and answered by its author'
+  }
+};
+
+/* A 16-byte version-1 UUID in the usual 8-4-4-4-12 spelling. Magpie compares
+   these byte for byte (`IsUUIDEqual`) and never parses one, so the text is
+   for a reader rather than for any comparison here. */
+function delverUuidText(bytes, at) {
+  at = at || 0;
+  if (!bytes || at + 16 > bytes.length) return '';
+  let s = '';
+  for (let i = 0; i < 16; i++) {
+    if (i === 4 || i === 6 || i === 8 || i === 10) s += '-';
+    s += bytes[at + i].toString(16).padStart(2, '0');
+  }
+  return s;
+}
+
+/* The descriptor of a patch, from the patch archive's own spec. Null when the
+   file carries no `0xFFFF` at all, which is the ordinary answer for a saved
+   game and for the shipped archive.
+
+   THE DESCRIPTION IS AT +0x138 AND THE DISASSEMBLY SAID +0x13B. The reading
+   of Magpie's row drawer put it three bytes later; the file itself is
+   unambiguous, a length byte of 82 at +0x138 followed by exactly 82 bytes of
+   text and then zeroes to the end, which is a Pascal string at +0x138 and
+   nothing else. The sample wins and the discrepancy is recorded rather than
+   smoothed over: it means one of the two readings of that routine is wrong,
+   and only the offset is affected. */
+function delverPatchDescriptor(spec) {
+  if (!spec || !spec.resources) return null;
+  const r = spec.resources.find(x => x.resid === DELV_PATCH_DESCRIPTOR);
+  if (!r || r.data.length < 0x139) return null;
+  const d = r.data;
+  const stated = u16be(d, 24);
+  return {
+    // +0 is a 64-bit check value over the rest, and Magpie only ever verifies
+    // it: the producer is Glenn Andreas's patch maker and is not in the
+    // binary. Reading or applying a patch never needs to reproduce one, so it
+    // is carried as text and judged on by nothing here.
+    checkValue: Array.from(d.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(''),
+    uuid: d.slice(8, 24),
+    uuidText: delverUuidText(d, 8),
+    // +24 is the descriptor's own length. Magpie refuses anything but 568, so
+    // a disagreement here is a patch Magpie would not have listed either.
+    statedLength: stated,
+    actualLength: d.length,
+    lengthAgrees: stated === DELV_PATCH_DESCRIPTOR_LENGTH && d.length === DELV_PATCH_DESCRIPTOR_LENGTH,
+    // +26 is the type and trust code. See the table above for why only 0 is
+    // named, and why 2 is worth saying something about.
+    typeCode: d[26],
+    typeName: DELV_PATCH_TYPES[d[26]] || null,
+    typeOverwritten: d[26] === 2,
+    // +28 is the descriptor's own file offset, compared against the patch
+    // archive's subindex-255 offset. A descriptor lifted out of one file and
+    // into another fails this and nothing else would notice.
+    selfOffset: u32be(d, 28),
+    fileOffset: r.fileOffset,
+    selfOffsetAgrees: u32be(d, 28) === r.fileOffset,
+    description: pstring(d, 0x138)
+  };
+}
+
+/* The UUIDs a game archive says have been applied to it. An absent `0xFFFE`
+   and an empty one mean the same thing and are not distinguished: Magpie
+   treats a missing resource as an empty list (`NewHandle(0)`), and an
+   unpatched `Cythera Data` simply has no such resource. */
+function delverInstalledPatchIds(spec) {
+  if (!spec || !spec.resources) return [];
+  const r = spec.resources.find(x => x.resid === DELV_PATCH_INSTALLED);
+  if (!r) return [];
+  const out = [];
+  for (let at = 0; at + 16 <= r.data.length; at += 16) out.push(delverUuidText(r.data, at));
+  return out;
+}
+
+/* Everything a reader needs about one patch against one game file, as data:
+   who it says it is, whether the game file has it, whether Magpie would take
+   it, and every resource it names with the shipped one beside it.
+
+   IT APPLIES NOTHING AND DECODES NOTHING. The report is offsets, lengths and
+   verdicts; a caller that wants to draw the two versions of a tile sheet has
+   both sets of bytes here and decodes them itself. That keeps this checkable
+   against the file rather than against a canvas, and it is why the whole
+   report can be built for a patch the page will never merge.
+
+   `usable` is Magpie's own gate and not a judgement of our own: it is the
+   three tests the scan runs before a patch reaches the list. A patch that
+   fails one is reported with the reason rather than refused, because the
+   reason is the interesting part. */
+function describeDelverPatch(baseSpec, patchSpec) {
+  if (!baseSpec || !patchSpec) return null;
+  const desc = delverPatchDescriptor(patchSpec);
+  const installed = delverInstalledPatchIds(baseSpec);
+  const byId = new Map(baseSpec.resources.map(r => [r.resid, r]));
+  const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+
+  const resources = [];
+  for (const p of patchSpec.resources) {
+    if (p.resid === DELV_PATCH_DESCRIPTOR || p.resid === DELV_PATCH_INSTALLED) continue;
+    const b = byId.get(p.resid);
+    resources.push({
+      resid: p.resid,
+      subn: (p.resid >> 8) - 1,
+      patchData: p.data, patchLength: p.data.length, patchEncrypted: !!p.encrypted,
+      baseData: b ? b.data : null, baseLength: b ? b.data.length : null,
+      baseEncrypted: b ? !!b.encrypted : null,
+      // The three verdicts mergeDelverPatch reaches, named so a reader can be
+      // told why a resource will not move before pressing anything.
+      inBase: !!b,
+      encryptionAgrees: b ? (!!p.encrypted === !!b.encrypted) : null,
+      identical: b ? same(p.data, b.data) : false
+    });
+  }
+
+  const reasons = [];
+  if (patchSpec.playerName)
+    reasons.push('it carries a player name, so it is a saved game rather than a patch');
+  if (patchSpec.scenarioTitle !== baseSpec.scenarioTitle)
+    reasons.push('it is for ' + JSON.stringify(patchSpec.scenarioTitle) +
+                 ' and this file is ' + JSON.stringify(baseSpec.scenarioTitle));
+  if (baseSpec.formatMajor !== patchSpec.formatMajor)
+    reasons.push('its format major is ' + patchSpec.formatMajor +
+                 ' and this file is ' + baseSpec.formatMajor);
+  else if (baseSpec.formatMinor < patchSpec.formatMinor)
+    reasons.push('it needs format minor ' + patchSpec.formatMinor +
+                 ' and this file is ' + baseSpec.formatMinor);
+  if (desc && !desc.lengthAgrees)
+    reasons.push('its descriptor states ' + desc.statedLength + ' bytes and Magpie takes only ' +
+                 DELV_PATCH_DESCRIPTOR_LENGTH);
+  if (desc && !desc.selfOffsetAgrees)
+    reasons.push('its descriptor was written for another file: it names offset ' +
+                 desc.selfOffset + ' and sits at ' + desc.fileOffset);
+
+  return {
+    descriptor: desc,
+    scenarioTitle: patchSpec.scenarioTitle,
+    playerName: patchSpec.playerName,
+    format: patchSpec.formatMajor + '.' + patchSpec.formatMinor,
+    baseFormat: baseSpec.formatMajor + '.' + baseSpec.formatMinor,
+    installedIds: installed,
+    // Identity is the UUID and only the UUID: there is no name in the list to
+    // match on, which is the whole shape of Magpie's problem.
+    isInstalled: !!(desc && desc.uuidText && installed.indexOf(desc.uuidText) >= 0),
+    resources,
+    willReplace: resources.filter(r => r.inBase && r.encryptionAgrees).length,
+    notInBase: resources.filter(r => !r.inBase).map(r => r.resid),
+    disagreed: resources.filter(r => r.inBase && !r.encryptionAgrees).map(r => r.resid),
+    unchanged: resources.filter(r => r.identical).map(r => r.resid),
+    usable: !reasons.length,
+    reasons
+  };
 }
 
 /* ---- editing a map -------------------------------------------------------
