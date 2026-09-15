@@ -2640,7 +2640,8 @@ try {
   const marked = ['SCHEDULES', 'CHAR_TABLE', 'LIVING_PROPTYPES', '_CHAR_PROPTYPES',
                   'TERRAIN_NAMES', 'ZONE_NAMES', 'ZONEPORTS', 'STORE_SYMBOLS',
                   'XREF_INDEX', 'SCRIPT_TEXT', 'MONSTER_STATS', 'RESOURCE_SYMBOLS',
-                  'EDITED_RESIDS', 'CONV_CACHE', 'PATCH_BASE_SPEC', 'PATCH_REPORT'];
+                  'EDITED_RESIDS', 'CONV_CACHE', 'PATCH_BASE_SPEC', 'PATCH_REPORT',
+                  'COMPARE_REPORT'];
   for (const k of marked) ctx[k] = '__stale__';
   peek('tileCanvasCache').set(-1, '__stale__');
   ctx._dvmStrMemo.set(-1, '__stale__');
@@ -3038,6 +3039,99 @@ try {
     else console.log(`  patches: a made patch reads back with its description, its UUID and ${wantTiles} redrawn tiles as ${canvases} canvases, and forgetting it empties the report`);
   }
 } catch (e) { fail('patches', e); }
+
+/* The comparison section, and the patch it writes, end to end through the DOM.
+
+   The engine is proven in patch_check; what this pins is the part that only
+   exists in the page. It compares the open archive against a copy of itself
+   with three resources changed -- built here rather than loaded, so the pin
+   needs no second file and cannot skip -- and requires the section to name
+   what changed, group it, draw the tile pairs, and offer the export. Then it
+   presses the export and checks that a patch really came out.
+
+   The download is caught rather than performed: the stub records the last
+   blob handed to downloadBlob, which is how export_test works too. */
+try {
+  ctx.showCategory('HACKERY');
+  const walk = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  if (!REGISTRY.has('compareFile')) fail('compare', 'no file control on the comparison section');
+  const countTag = (el, tag) => (el.tagName === tag ? 1 : 0) +
+    (el.children || []).reduce((n, c) => n + countTag(c, tag), 0);
+
+  /* A second archive with three resources changed, one of them a tile sheet
+     so the picture path runs.
+
+     BUILT FROM THE FILE AS IT STANDS, not from the bytes this harness opened.
+     Earlier blocks in this file edit the archive -- 0x201 through the edit
+     path, a prop record, a dithered portrait -- so a copy made from the
+     original would differ by those as well, and the count would drift every
+     time a block above this one was added. That is what it did on the first
+     run: five changed where three were asked for. */
+  const ids = [0x8E04, 0x1801, 0x021A];
+  const otherBytes = peek(`(() => {
+    const spec = delverArchiveSpec(fileBytes);
+    for (const id of [${ids.join(', ')}]) {
+      const r = spec.resources.find(x => x.resid === id);
+      if (!r) throw new Error('the archive has no 0x' + id.toString(16));
+      r.data = r.data.slice();
+      if (id === 0x8E04) {
+        const dec = decodeResource(r.data, 141, id);
+        const img = dec.image.slice();
+        for (const t of [2, 7]) for (let y = t * 32; y < (t + 1) * 32; y++)
+          for (let x = 0; x < dec.W; x++) img[y * dec.W + x] = ((x ^ y) & 1) ? 5 : 248;
+        r.data = encodeDCGLiterals(img);
+      } else { r.data[0] ^= 0xFF; }
+    }
+    return writeDelverArchive(spec);
+  })()`);
+
+  if (!ctx.compareOpenBytes(otherBytes, 'a made copy')) fail('compare', 'the comparison was refused');
+  const rep = peek('window.COMPARE_REPORT');
+  const html = walk();
+  const host = REGISTRY.get('compareReport');
+  const canvases = host ? countTag(host, 'CANVAS') : 0;
+  if (!rep) fail('compare', 'no report after comparing');
+  else if (rep.changed.length !== ids.length)
+    fail('compare', `${rep.changed.length} changed, expected ${ids.length}`);
+  else if (rep.identical) fail('compare', 'two different archives read as identical');
+  else if (rep.unchanged !== rep.aCount - ids.length)
+    fail('compare', `${rep.unchanged} unchanged against ${rep.aCount - ids.length} expected`);
+  else if (html.indexOf('Skill &amp; Spell Descriptions') < 0 && html.indexOf('Tile Graphics') < 0)
+    fail('compare', 'the groups are not named by category');
+  else if (!canvases) fail('compare', 'no tile pairs drawn for the changed sheet');
+  else if (!REGISTRY.has('patchDesc')) fail('compare', 'no description field on the export');
+  else {
+    /* The export. Catching the download rather than performing it, and then
+       reading the patch back through the reader, so this asserts a real patch
+       came out rather than that a button did not throw. */
+    // downloadBlob takes the bytes outright, so catching it is synchronous
+    // where catching dlBlob's Blob would need an await the smoke does not do.
+    // Put back afterwards, so nothing later in this file is left with a stub.
+    peek('window.__realDl = downloadBlob; window.__dl = null; downloadBlob = (b, n) => { window.__dl = {bytes: b, name: n}; }; 1');
+    REGISTRY.get('patchDesc').value = 'Written by the smoke test.';
+    ctx.compareExportPatch();
+    const dl = peek('window.__dl');
+    peek('downloadBlob = window.__realDl; 1');
+    if (!dl) fail('compare', 'the export produced no file');
+    else {
+      const back = ctx.delverArchiveSpec(dl.bytes);
+      const d = back && ctx.delverPatchDescriptor(back);
+      const carried = back ? back.resources.filter(r => r.resid !== 0xFFFF).map(r => r.resid).sort((a, b) => a - b) : [];
+      if (!d) fail('compare', 'the exported patch has no descriptor');
+      else if (d.description !== 'Written by the smoke test.')
+        fail('compare', 'the exported patch does not carry the description: ' + JSON.stringify(d.description));
+      else if (carried.join(',') !== ids.slice().sort((a, b) => a - b).join(','))
+        fail('compare', 'the exported patch carries ' + carried.map(i => '0x' + i.toString(16)).join(' '));
+      else if (!d.selfOffsetAgrees) fail('compare', 'the exported descriptor does not name where it landed');
+      else {
+        ctx.compareForget();
+        const h2 = REGISTRY.get('compareReport');
+        if (h2 && countTag(h2, 'CANVAS')) fail('compare', 'the pairs survive after the comparison is forgotten');
+        else console.log(`  compare: ${rep.changed.length} changed of ${rep.aCount} across ${rep.groups.length} categories, ${canvases} tile canvases, and an export of ${carried.length} resources reads back with its description`);
+      }
+    }
+  }
+} catch (e) { fail('compare', e); }
 
 // The ditherizer's data path: dither a synthetic image to the palette,
 // DCG-encode it, write it into a real portrait slot through the full

@@ -260,6 +260,14 @@ const CHECKS = [
   {page: 'viewer', name: 'stuffit method 13', want: [ADDONS],
    cmd: ['utilities/sit13_check.mjs', 'index.html', 'reference'],
    grep: /\d+ of \d+ fork\(s\) in \d+ archive\(s\)[^\n]*/},
+  /* What Ambrosia changed between the four releases, which is only askable
+     since all four installers open. A finding rather than a property, so it
+     is pinned: 1.0.3 and 1.0.4 carry the same data file byte for byte, and a
+     decoder change that altered what counts as the same resource would move
+     these numbers without moving any snapshot. */
+  {page: 'viewer', name: 'between releases', want: [VISE_ALL],
+   cmd: ['utilities/releases_check.mjs', 'index.html', VISE_ALL ? dirname(VISE_ALL) : 'reference/game/installers'],
+   grep: /[^\n]*resources changed/},
   /* The undither, scored against a known original. It needs no archive: the
      sources are synthetic and the forward process is the page's own
      ditherizer, so this is the one check here that measures a decoder against

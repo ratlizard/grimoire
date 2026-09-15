@@ -274,7 +274,114 @@ for (const [what, got] of Object.entries(dneg)) {
 if (Object.values(dneg).every(Boolean))
   ok('the reading can fail', Object.keys(dneg).length + ' bent descriptors, each noticed');
 
+/* ---- the other direction: a diff, and a patch written out of it -----------
+   Everything above reads a patch somebody else made. This writes one, and the
+   property that matters is that the two directions compose: take an archive,
+   change some resources, diff it against the original, write a patch out of
+   the difference, apply that patch to the ORIGINAL, and every resource must
+   come back exactly as the edited archive had it. That is the whole contract,
+   and it fails if the diff misses a resource, if the writer drops one, if the
+   descriptor lands somewhere the self-offset does not name, or if the merge
+   refuses one for an encryption disagreement.
+
+   The negative controls are at the end and there are four, because a round
+   trip is unusually easy to pass by accident: a diff that reported everything
+   would still round-trip, and so would a patch that carried the whole
+   archive. */
+const rt = ev(`(() => {
+  const base = delverArchiveSpec(__base);
+  const edited = delverArchiveSpec(__base);
+  // Three resources of three different kinds: a tile sheet, a dialogue and a
+  // text array, so the writer is not only ever asked for one shape.
+  const ids = [0x8E04, 0x1801, 0x021A];
+  for (const id of ids) {
+    const r = edited.resources.find(x => x.resid === id);
+    r.data = r.data.slice(); r.data[0] ^= 0xFF; r.data[r.data.length - 1] ^= 0x0F;
+  }
+  const diff = describeDelverDiff(base, edited);
+  const w = writeDelverPatch(edited, diff.changed.map(c => c.resid),
+                             {description: 'Three resources, for the round trip.', typeCode: 0});
+  const rep = describeDelverPatch(base, delverArchiveSpec(w.bytes));
+  const merged = mergeDelverPatch(__base, w.bytes);
+  const back = delverArchiveSpec(merged.bytes);
+  const same = (x, y) => x.length === y.length && x.every((v, i) => v === y[i]);
+  const wrong = [];
+  for (const r of edited.resources) {
+    const g = back.resources.find(x => x.resid === r.resid);
+    if (!g || !same(g.data, r.data)) wrong.push('0x' + r.resid.toString(16));
+  }
+  // The second write must not move anything: the descriptor is a fixed 568
+  // bytes, so correcting its self-offset cannot change any layout.
+  const twice = writeDelverPatch(edited, diff.changed.map(c => c.resid),
+                                 {description: 'Three resources, for the round trip.', typeCode: 0, uuid: w.uuid});
+  return {
+    changed: diff.changed.length, added: diff.added.length, removed: diff.removed.length,
+    unchanged: diff.unchanged, aCount: diff.aCount,
+    identicalFlag: describeDelverDiff(base, base).identical,
+    patchLen: w.bytes.length, descOffset: w.descriptorOffset,
+    checkValueWritten: w.checkValueWritten,
+    descBack: rep.descriptor && rep.descriptor.description,
+    typeBack: rep.descriptor && rep.descriptor.typeName,
+    selfOk: rep.descriptor && rep.descriptor.selfOffsetAgrees,
+    lenOk: rep.descriptor && rep.descriptor.lengthAgrees,
+    usable: rep.usable, willReplace: rep.willReplace,
+    applied: merged.replaced.length, skipped: merged.skipped,
+    everyResourceBack: !wrong.length, wrong,
+    deterministic: twice.bytes.length === w.bytes.length
+  };
+})()`);
+want('the diff finds exactly what changed', rt.changed, 3);
+want('and calls nothing else changed', rt.unchanged, rt.aCount - 3);
+want('nothing added', rt.added, 0);
+want('nothing removed', rt.removed, 0);
+want('an archive against itself is identical', rt.identicalFlag, true);
+want('the written patch carries the description', rt.descBack, 'Three resources, for the round trip.');
+want('type 0 reads back as Bug Fix', rt.typeBack, 'Bug Fix');
+want('the descriptor names the offset it landed at', rt.selfOk, true);
+want('the descriptor is the length Magpie takes', rt.lenOk, true);
+want('the written patch is usable against the archive', rt.usable, true);
+want('it would replace three resources', rt.willReplace, 3);
+want('it applies three', rt.applied, 3);
+// The check value is the one field this project cannot produce, and writing
+// zeroes rather than a guess is a decision. This is what keeps it a decision.
+want('the check value is left empty rather than guessed', rt.checkValueWritten, false);
+want('every resource comes back as the edited archive had it', rt.everyResourceBack, true);
+want('writing it twice gives the same size', rt.deterministic, true);
+if (rt.skipped.length !== 1 || rt.skipped[0] !== 0xFFFF)
+  fail('the merge skips only the descriptor', 'skipped ' + rt.skipped.map(i => '0x' + i.toString(16)).join(' '));
+else ok('the merge skips only the descriptor', '0xffff');
+
+const rtneg = ev(`(() => {
+  const base = delverArchiveSpec(__base);
+  const edited = delverArchiveSpec(__base);
+  const r = edited.resources.find(x => x.resid === 0x8E04);
+  r.data = r.data.slice(); r.data[0] ^= 0xFF;
+  const out = {};
+  // A diff that reported everything would still round-trip, so the count is
+  // held to one rather than to "more than none".
+  out.onlyOne = describeDelverDiff(base, edited).changed.length === 1;
+  // A patch must carry only what it was asked for, not the whole archive.
+  const w = writeDelverPatch(edited, [0x8E04], {});
+  const carried = delverArchiveSpec(w.bytes).resources.filter(x => x.resid !== 0xFFFF);
+  out.carriesOnlyWhatItWasAsked = carried.length === 1 && carried[0].resid === 0x8E04;
+  // And what it carries must be the EDITED bytes, not the originals.
+  const orig = base.resources.find(x => x.resid === 0x8E04).data;
+  out.carriesTheNewBytes = carried[0].data[0] === (orig[0] ^ 0xFF);
+  // Refusing the empty case rather than writing a patch that does nothing.
+  try { writeDelverPatch(edited, [], {}); out.refusesNothing = false; }
+  catch (e) { out.refusesNothing = true; }
+  // Refusing an id the archive does not have, rather than writing a hole.
+  try { writeDelverPatch(edited, [0x0999], {}); out.refusesUnknown = false; }
+  catch (e) { out.refusesUnknown = true; }
+  return out;
+})()`);
+for (const [what, got] of Object.entries(rtneg))
+  if (!got) fail('the writer can fail: ' + what, 'it did not');
+if (Object.values(rtneg).every(Boolean))
+  ok('the writer can fail', Object.keys(rtneg).length + ' ways it must refuse or narrow, each held');
+
 console.log(failures ? `\n${failures} failure(s)`
   : `\n  patch: 12 of 1,558 resources replaced, ${r.len.toLocaleString()} bytes out; ` +
-    `${desc.tiles} tiles of ${desc.sheets * 16} redrawn across ${desc.sheets} sheets`);
+    `${desc.tiles} tiles of ${desc.sheets * 16} redrawn across ${desc.sheets} sheets; ` +
+    `a written patch round-trips ${rt.applied} of ${rt.changed}`);
 process.exit(failures ? 1 : 0);
