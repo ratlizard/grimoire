@@ -330,7 +330,18 @@ const rt = ev(`(() => {
   // bytes, so correcting its self-offset cannot change any layout.
   const twice = writeDelverPatch(edited, diff.changed.map(c => c.resid),
                                  {description: 'Three resources, for the round trip.', typeCode: 0, uuid: w.uuid});
+  /* The MacBinary shape of the same patch. Type and creator are the whole of
+     what it adds -- DelP is a saved game too, and Magpie's creator is what
+     tells the Finder which of the two this is -- so what has to be true is
+     that the wrapper carries them, carries the patch's own bytes unchanged,
+     and carries no resource fork, a patch having none. */
+  const wrapped = writeMacBinary({name: 'Round Trip Patch', type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes});
+  const un = sniffMacContainer(wrapped);
   return {
+    binKind: un && un.kind, binType: un && un.type, binCreator: un && un.creator,
+    binName: un && un.name,
+    binSameData: !!(un && un.data && same(un.data, w.bytes)),
+    binNoRsrc: !!(un && (!un.rsrc || !un.rsrc.length)),
     changed: diff.changed.length, added: diff.added.length, removed: diff.removed.length,
     unchanged: diff.unchanged, aCount: diff.aCount,
     identicalFlag: describeDelverDiff(base, base).identical,
@@ -363,6 +374,14 @@ want('it applies three', rt.applied, 3);
 want('a written patch carries a check value', rt.checkValueWritten, true);
 want('and its own check value verifies', rt.checkValueValid, true);
 want('every resource comes back as the edited archive had it', rt.everyResourceBack, true);
+// The MacBinary shape, which is what gives a patch Magpie's icon rather than
+// the game's saved-game one on a real Mac.
+want('the MacBinary wrapper reads back as one', rt.binKind, 'MacBinary');
+want('typed as a Delver patch', rt.binType, 'DelP');
+want('with Magpie as its creator', rt.binCreator, 'Delp');
+want('under the name it was given', rt.binName, 'Round Trip Patch');
+want('carrying the patch byte for byte', rt.binSameData, true);
+want('and no resource fork, a patch having none', rt.binNoRsrc, true);
 want('writing it twice gives the same size', rt.deterministic, true);
 if (rt.skipped.length !== 1 || rt.skipped[0] !== 0xFFFF)
   fail('the merge skips only the descriptor', 'skipped ' + rt.skipped.map(i => '0x' + i.toString(16)).join(' '));

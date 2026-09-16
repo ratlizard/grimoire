@@ -4585,7 +4585,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.90.1';
+const GRIMOIRE_VERSION = '1.91.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -21421,7 +21421,11 @@ function renderCompareReport() {
        a resource-fork change, and a swapped font is the case that would
        otherwise go missing without a word. */
     '<li>A patch carries the <b>data fork only</b>, which is the Delver archive. Magpie writes nothing else, ' +
-    'so anything in the resource fork, the game\u2019s font among it, cannot travel in one.</li>'));
+    'so anything in the resource fork, the game\u2019s font among it, cannot travel in one.</li>' +
+    '<li>The second button wraps the same bytes as <b>MacBinary</b>, typed <b>DelP</b> with Magpie\u2019s creator. ' +
+    'A saved game is DelP too and the creator is the whole of the difference, so a Mac that decodes the wrapper ' +
+    'shows the patch under Magpie\u2019s own icon rather than under Cythera\u2019s saved-game one. ' +
+    'The bare file is the one to use where something copies a fork straight into a shared folder.</li>'));
   const form = el('div', 'mechStats');
   const desc = document.createElement('input');
   desc.type = 'text'; desc.id = 'patchDesc'; desc.placeholder = 'What this patch does';
@@ -21431,8 +21435,14 @@ function renderCompareReport() {
   btn.className = 'secondary';
   btn.style.cssText = 'width:auto;margin:0;padding:6px 12px';
   btn.textContent = 'Export ' + rep.changed.length + ' resource' + (rep.changed.length === 1 ? '' : 's') + ' as a patch';
-  btn.onclick = compareExportPatch;
+  btn.onclick = () => compareExportPatch(false);
   form.appendChild(btn);
+  const wrapped = document.createElement('button');
+  wrapped.className = 'secondary';
+  wrapped.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+  wrapped.textContent = 'and as MacBinary, typed for Magpie';
+  wrapped.onclick = () => compareExportPatch(true);
+  form.appendChild(wrapped);
   host.appendChild(form);
   /* Where to get the thing that installs it. A patch file is no use on its
      own: Magpie is what merges one into a copy of the game, it is Glenn
@@ -21500,7 +21510,15 @@ function renderCompareApp(host, el) {
   }
 }
 
-function compareExportPatch() {
+/* MAGPIE'S SIGNATURE, WHICH IS WHAT TELLS A PATCH FROM A SAVED GAME. Both are
+   type `DelP`: `I.M.Cheater`, `Tree`, `Zone` and `Rocky the Flying Chicken`
+   are `DelP`/`Delv`, and the Pumpkin Patch is `DelP`/`Delp`. Cythera's bundle
+   claims `DelP` and draws a saved game for it; Magpie's claims `DelP` too and
+   draws its own patch icon, the framed tile with a corner cut away. So the
+   creator is the whole of the difference, and a patch written with the game's
+   creator would arrive on a Mac looking like somebody's saved game. */
+const DELV_PATCH_CREATOR = 'Delp';
+function compareExportPatch(asMacBinary) {
   const rep = window.COMPARE_REPORT;
   const note = document.getElementById('compareNote');
   const say = (m, bad) => { if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
@@ -21521,9 +21539,22 @@ function compareExportPatch() {
        `bName` is "as it stands" when you are exporting your own edits, and
        "as it stands Patch" is not a file name anyone wants. */
     const base = (rep.kind === 'edits' ? (window.ARCHIVE_SOURCE_NAME || 'Cythera Data') : rep.bName) || 'Cythera';
-    downloadBlob(w.bytes, safeFileName(base.replace(/\.[A-Za-z0-9]{1,4}$/, '') + ' Patch'));
+    const name = safeFileName(base.replace(/\.[A-Za-z0-9]{1,4}$/, '') + ' Patch');
+    /* Two shapes of the same patch. The bare data fork is the file itself and
+       is what a shared folder wants; the MacBinary is the same bytes with a
+       Finder identity around them, so a Mac that decodes it gets a file typed
+       DelP with Magpie's creator -- which is what makes it a patch rather
+       than a saved game to the Finder, and what puts Magpie's own icon on it.
+       A patch has no resource fork, so the wrapper carries none. */
+    if (asMacBinary) {
+      const bin = writeMacBinary({ name: name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
+      dlBlob(new Blob([bin], { type: 'application/macbinary' }), name + '.bin');
+    } else {
+      downloadBlob(w.bytes, name);
+    }
     say(w.resids.length + ' resource(s) written, ' + w.bytes.length.toLocaleString() +
-        ' bytes, identity ' + w.uuidText +
+        ' bytes' + (asMacBinary ? ' in a MacBinary typed DelP/' + DELV_PATCH_CREATOR : '') +
+        ', identity ' + w.uuidText +
         (w.checkValueValid ? ', check value ' + w.checkValue + ' and it verifies.' : ', and the check value does not verify.'));
   } catch (e) { say('That patch could not be written: ' + e.message, true); }
 }
