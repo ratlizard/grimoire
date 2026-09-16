@@ -1447,7 +1447,10 @@ function writeDelverPatch(baseSpec, resids, opts) {
   if (missing.length) throw new Error('not in the archive: ' + missing.map(i => '0x' + i.toString(16)).join(', '));
 
   const description = String(opts.description || '').slice(0, 255);
-  const typeCode = opts.typeCode === undefined ? 0 : (opts.typeCode & 0xFF);
+  // Defaulting to 0 would make a caller that forgets the option write a Bug
+  // Fix, the one code Magpie refuses to uninstall. The page always passes
+  // this explicitly; the default is here so that forgetting is harmless.
+  const typeCode = opts.typeCode === undefined ? DELV_PATCH_EXPORT_TYPE : (opts.typeCode & 0xFF);
   // Magpie matches on the UUID and nothing else, and never parses one, so a
   // random 16 bytes is as good an identity as a real version-1 UUID would be.
   // The version and variant nibbles are set so it reads as a v4 rather than
