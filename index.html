@@ -98,6 +98,16 @@
    handful of marks this page uses, so the stack falls through -- first to
    Carthage Sans and then to a system sans.
 
+   THE SECOND FACE IS THE GAME'S OWN DIVISION. The data file's twelve `TxSt`
+   styles put Argos A Nouveau on Sys Large, Sys Small and the three Lang0
+   sizes, and **Geneva 9, 9 and 10 on Labels, Stats and Text** -- so the game
+   sets its chrome in its own face and everything informational in the small
+   system sans. `--face-text` is that second role: prose, tables, resource
+   labels and the game's own text, in Kelsey Higham's pixel-exact Geneva 9.1,
+   while headings, buttons, tabs, the crumb and every tooltip keep `--face`.
+   A reader who picks a face in Settings gets it for both; the split is what
+   the page does when it has not been told otherwise.
+
    Carthage sits between them because it carries two of the three marks that
    were falling all the way through, and they are the frequent ones: the
    crumb's angle quote, which this page sets 34 times, and the middot, 18.
@@ -109,8 +119,10 @@
    Helvetica. 5.2 KB of woff2; NOTICE says whose it is. */
 @font-face { font-family: 'ChicagoKare'; src: url('res/ChicagoKare-Regular.woff2') format('woff2'); font-display: swap; }
 @font-face { font-family: 'Carthage'; src: url('res/CarthageSans-Regular.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'Geneva9'; src: url('res/Geneva9-1-Regular.woff2') format('woff2'); font-display: swap; }
 :root { --gold: rgb(249,248,111); --panel: rgba(20,18,14,.86); --edge: #9b8850;
-  --face: 'ChicagoKare', 'Carthage', -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  --face: 'ChicagoKare', 'Carthage', -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --face-text: 'Geneva9', 'Carthage', -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif; }
 html, body { min-height:100%; }
 /* The game's own rule, restated 8 September 2026: text you read is white,
    text you can click is --gold, and the quiet labels are a neutral grey so
@@ -121,7 +133,7 @@ html, body { min-height:100%; }
    a glyph drawn from overlapping contours (the capital R) the thickening
    shows as an outlined letter. Bold text now renders regular in Argos;
    the code faces keep their real bold. */
-body { color:#fff; font-family:var(--face); font-synthesis:none;
+body { color:#fff; font-family:var(--face-text); font-synthesis:none;
   /* The top inset clears the two fixed controls -- the data file on the left,
      Search on the right -- and nothing more. It was 16px plus a row for the
      links, which is most of a thumb on a phone spent on nothing. */
@@ -158,7 +170,7 @@ body { color:#fff; font-family:var(--face); font-synthesis:none;
    that edged the screen at half strength was the maintainer's to keep and
    he asked for it gone. The folder sheets (.tabSheet) still wear it. */
 h2, #soundLabel { color:#fff !important; font-family:var(--face); }
-.cell .lbl, .cell .resid { color:var(--gold) !important; font-family:var(--face); }
+.cell .lbl, .cell .resid { color:var(--gold) !important; font-family:var(--face-text); }
 /* A label is two lines at most and stays inside its cell; a long unit name
    used to run out of the square (the maintainer, 9 September 2026). */
 .cell { overflow:hidden; }
@@ -355,7 +367,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 /* 8px monospace in an 84px box fits a lot of characters and none of them can
    be read. Prose gets the page's own serif at a size a person can take in at a
    glance, and the tail is faded out rather than chopped square. */
-.cellChars { font:11px/1.32 var(--face); color:#fff;
+.cellChars { font:11px/1.32 var(--face-text); color:#fff;
   background:#12100c; border:1px solid #4a432f; border-radius:4px;
   width:84px; height:84px; padding:5px 6px; overflow:hidden; word-break:normal;
   overflow-wrap:break-word; hyphens:auto;
@@ -597,7 +609,7 @@ pre.pane { background:#090806; color:#fff; padding:12px; overflow:auto; max-heig
 #textEdit .dtPanel { background:#1d1a14; border:1px solid #5a5142; border-radius:8px;
   padding:14px 16px; width:min(92vw, 560px); }
 #textEdit textarea { width:100%; min-height:120px; box-sizing:border-box; margin:8px 0;
-  font-family:var(--face); font-size:0.875rem; line-height:1.5;
+  font-family:var(--face-text); font-size:0.875rem; line-height:1.5;
   background:rgba(0,0,0,.3); color:#fff; border:1px solid rgba(255,255,255,.25); }
 .dlgEdit { min-height:0; padding:0 6px; font-size:0.6875rem; opacity:.6; }
 .dlgEdit:hover { opacity:1; }
@@ -4573,7 +4585,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.87.0';
+const GRIMOIRE_VERSION = '1.89.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -5080,16 +5092,26 @@ const FACE_STACKS = {
   // A reader who asked for this device's face gets it, marks and all.
   system: FACE_FALLBACK
 };
-function faceChoice() {
+// The text face, which is Geneva only where the reader has expressed no
+// preference: an explicit choice is a choice about the page, not about one
+// role in it, so it takes both variables.
+const TEXT_STACK = "'Geneva9', 'Carthage', " + FACE_FALLBACK;
+function storedFace() {
   let stored = null;
   try { stored = localStorage.getItem('cythera.face'); } catch (e) { stored = null; }
-  if (stored && FACE_STACKS[stored]) return stored;
-  return window.GAME_FONT ? 'game' : 'chicago';
+  return (stored && FACE_STACKS[stored]) ? stored : null;
+}
+function faceChoice() {
+  return storedFace() || (window.GAME_FONT ? 'game' : 'chicago');
 }
 function setFace() {
   const pick = faceChoice();
   const stack = FACE_STACKS[pick] || FACE_STACKS.chicago;
-  try { document.documentElement.style.setProperty('--face', stack); } catch (e) {}
+  const text = storedFace() ? stack : TEXT_STACK;
+  try {
+    document.documentElement.style.setProperty('--face', stack);
+    document.documentElement.style.setProperty('--face-text', text);
+  } catch (e) {}
   // Published for canvasFace, which is called from the atlas paint loop and
   // must not read the document to find out what it is drawing in.
   window.FACE_STACK_NOW = stack;
@@ -14958,12 +14980,16 @@ const TAB_TREE = [
          fallback, because the row is drawn long before any application is
          open and most visits never open one.
 
-         Two keep their tiles on purpose. The Combat AI files are TEXT, and
-         the bundle gives TEXT no icon at all -- the smoke pins that -- so it
-         would fall back every time. The installer is a container rather than
-         a Delver file type, so there is no icon of its own to take. */
-      // The DELVER stone, the engine's own badge: what the installer put down.
-      { id: 'installer', label: 'Installer', tile: 0x80F, values: ['INSTALLER'] },
+         Two took their icons from the installer instead, on 16 September
+         2026, because the Delver bundle has nothing for either: the Combat AI
+         files are TEXT, which the bundle gives no icon at all -- the smoke
+         pins that -- and the installer is a container rather than a Delver
+         file type. Neither is a dead end once the installer is the thing
+         asked: it is a Macintosh application with a VIS3 bundle of its own,
+         and the folders inside it carry their own `Icon\r` files. */
+      // The VISE mark, out of the installer's own bundle; the DELVER stone,
+      // the engine's badge, is what stands there before a file is open.
+      { id: 'installer', label: 'Installer', tile: 0x80F, installed: 'vise', values: ['INSTALLER'] },
       { id: 'cytheradata', label: 'Cythera Data', tile: 0x282, finder: 'DelS', children: [    // a sack
           // The tables as tables: the master index, the prop lists, the
           // 0xF0xx game data (monster stats among them) and the creation stats.
@@ -14988,8 +15014,11 @@ const TAB_TREE = [
       // application open the tab wears the Finder's own icon for a saved game
       // instead, and the tile is only what stands in before that.
       { id: 'savegame', label: 'Saved Game', tile: 0x263, finder: 'DelP', values: ['SAVEGAME'] },
-      { id: 'combatai', label: 'Combat AI', tile: 0x2D1, wip: true, children: [               // the rolling pin
-          { id: 'aiscripts', label: 'Scripts', tile: 0x181, wip: true, values: ['AISCRIPTS'] },  // the maintainer's pick, 9 September 2026
+      // The folder's own icon, a folder with an axe across it, drawn in 1999
+      // for these files and no others; the rolling pin stands in before a
+      // file is open.
+      { id: 'combatai', label: 'Combat AI', tile: 0x2D1, installed: 'CombatAI', wip: true, children: [
+          { id: 'aiscripts', label: 'Scripts', tile: 0x8FC, wip: true, values: ['AISCRIPTS'] },  // the seven arrows, the maintainer's pick, 16 September 2026
           { id: 'airules',   label: 'Rules',   tile: 0x811, wip: true, values: ['AIRULES'] } ] } ] },  // the hay target
   // Not part of the archive: the page's own switches and its sister pages.
   { id: 'tools', label: 'Tools', tile: 0x2E0, values: ['TOOLS'] }                        // the anvil
@@ -15072,7 +15101,11 @@ function tabTrail(node) {
    Both go through rsrcArtifacts rather than the decoders directly, so a tab
    icon and the same resource in the fork gallery can never disagree. */
 function navIconFromFork(spec) {
-  if (!spec || typeof spec !== 'object' || !window.APP_RSRC) return null;
+  if (!spec || typeof spec !== 'object') return null;
+  // The installer's own icons come from the installer, which is open before
+  // the application's fork is and sometimes instead of it.
+  if (spec.installed) { try { const a = installerIcon(spec.installed); if (a) return a; } catch (e) {} }
+  if (!window.APP_RSRC) return null;
   try {
     if (spec.finder) return finderIconFor(spec.finder);
     if (spec.crsr !== undefined) {
@@ -15139,7 +15172,7 @@ function renderTabRow(row, nodes, selectedId) {
     // The whole icon spec, not just the tile: a Data tab may name the file
     // type or the cursor its picture comes from, with the tile as the
     // fallback for before the application is open.
-    b.appendChild(navIconCanvas({ tile: (n.id === selectedId && n.tileOpen) ? n.tileOpen : n.tile, finder: n.finder, crsr: n.crsr }, 18));
+    b.appendChild(navIconCanvas({ tile: (n.id === selectedId && n.tileOpen) ? n.tileOpen : n.tile, finder: n.finder, crsr: n.crsr, installed: n.installed }, 18));
     const t = document.createElement('span');
     t.textContent = n.label;
     b.appendChild(t);
@@ -16663,44 +16696,45 @@ function switchInstaller(name) {
     setStatus('Could not open ' + name + ': ' + lastArchiveError, true);
   else showCategory('INSTALLER');
 }
-/* The icon the Finder shows for a file of this type, from the application's
-   own bundle: a BNDL maps local ids to FREF and ICN# resources, each FREF
-   names a file type and a local icon id, and the icon families (icl8, icl4,
-   ICN#) share the ICN# id. Cythera's bundle has four: the application, the
-   data file, a saved game (DelP) and a patch (Temp). Anything else gets no
-   icon rather than a wrong one. */
-function finderIconFor(type) {
-  const fork = window.APP_RSRC;
-  if (!fork) return null;
-  if (!window._FINDER_ICONS) {
-    const map = {};
-    try {
-      const bndl = (fork.resourcesByType['BNDL'] || [])[0];
-      const b = bndl ? fork.dataOf('BNDL', bndl) : null;
-      const arrays = {};
-      if (b) {
-        let p = 6; const n = u16be(b, p) + 1; p += 2;
-        for (let i = 0; i < n; i++) {
-          const t = String.fromCharCode(b[p], b[p + 1], b[p + 2], b[p + 3]); p += 4;
-          const cnt = u16be(b, p) + 1; p += 2;
-          arrays[t] = {};
-          for (let k = 0; k < cnt; k++) { arrays[t][u16be(b, p)] = u16be(b, p + 2); p += 4; }
-        }
+/* The icon the Finder shows for a file of this type, from the owning
+   application's bundle: a BNDL maps local ids to FREF and ICN# resources, each
+   FREF names a file type and a local icon id, and the icon families (icl8,
+   icl4, ICN#) share the ICN# id. Cythera's bundle has four: the application
+   (APPL), the data file (DelS), a saved game (DelP) and the scratch file
+   (Temp). A Magpie patch is a DelP too and is told apart by its creator, so
+   the bundle has no icon of its own for one. Anything else gets no icon rather
+   than a wrong one. */
+function bundleIconMap(fork, cacheKey) {
+  const cache = window._BUNDLE_ICONS || (window._BUNDLE_ICONS = {});
+  if (cache[cacheKey]) return cache[cacheKey];
+  const map = {};
+  try {
+    const bndl = (fork.resourcesByType['BNDL'] || [])[0];
+    const b = bndl ? fork.dataOf('BNDL', bndl) : null;
+    const arrays = {};
+    if (b) {
+      let p = 6; const n = u16be(b, p) + 1; p += 2;
+      for (let i = 0; i < n; i++) {
+        const t = String.fromCharCode(b[p], b[p + 1], b[p + 2], b[p + 3]); p += 4;
+        const cnt = u16be(b, p) + 1; p += 2;
+        arrays[t] = {};
+        for (let k = 0; k < cnt; k++) { arrays[t][u16be(b, p)] = u16be(b, p + 2); p += 4; }
       }
-      for (const [local, frefId] of Object.entries(arrays['FREF'] || {})) {
-        const fe = (fork.resourcesByType['FREF'] || []).find(e => e.id === frefId);
-        if (!fe) continue;
-        const d = fork.dataOf('FREF', fe);
-        const ftype = String.fromCharCode(d[0], d[1], d[2], d[3]);
-        const iconLocal = u16be(d, 4);
-        const iconId = (arrays['ICN#'] || {})[iconLocal];
-        if (iconId !== undefined) map[ftype] = iconId;
-      }
-    } catch (e) {}
-    window._FINDER_ICONS = map;
-  }
-  const id = window._FINDER_ICONS[type];
-  if (id === undefined) return null;
+    }
+    for (const [local, frefId] of Object.entries(arrays['FREF'] || {})) {
+      const fe = (fork.resourcesByType['FREF'] || []).find(e => e.id === frefId);
+      if (!fe) continue;
+      const d = fork.dataOf('FREF', fe);
+      const ftype = String.fromCharCode(d[0], d[1], d[2], d[3]);
+      const iconLocal = u16be(d, 4);
+      const iconId = (arrays['ICN#'] || {})[iconLocal];
+      if (iconId !== undefined) map[ftype] = iconId;
+    }
+  } catch (e) {}
+  cache[cacheKey] = map;
+  return map;
+}
+function iconFromFork(fork, id) {
   for (const t of ['icl8', 'icl4', 'ICN#']) {
     const e = (fork.resourcesByType[t] || []).find(x => x.id === id);
     if (!e) continue;
@@ -16708,6 +16742,62 @@ function finderIconFor(type) {
     if (pic) return pic.canvas;
   }
   return null;
+}
+function finderIconFor(type) {
+  const fork = window.APP_RSRC;
+  if (!fork) return null;
+  const id = bundleIconMap(fork, 'app')[type];
+  return id === undefined ? null : iconFromFork(fork, id);
+}
+
+/* Two icons that are not the game's, and are not in the game's fork either.
+
+   The installer is a Macintosh file like any other and carries two kinds of
+   icon the tab row can use. Its own application icon is in the fork it
+   arrived in, through a VIS3 bundle with the same shape as Cythera's; that is
+   the VISE mark, and it belongs on the Installer tab, which had been wearing
+   a game tile because "the installer is a container rather than a Delver file
+   type, so there is no icon of its own to take" -- true of the Delver bundle,
+   and the installer has a bundle of its own.
+
+   The other kind is a folder's custom icon, which on a classic Mac is an
+   invisible file called `Icon\r` inside the folder, holding an icon family at
+   id -16455. The installer's catalog carries five of them -- the game folder,
+   CombatAI, Documentation, Screenshots and Web Site urls -- and CombatAI's is
+   a folder with an axe across it, drawn for those files and no others.
+
+   Both are null until a file is open, like every other icon from a fork, so
+   each tab keeps the game tile named beside it as the fallback. */
+function installerIcon(which) {
+  const inst = window.INSTALLER;
+  if (!inst) return null;
+  const cache = window._INSTALLER_ICONS || (window._INSTALLER_ICONS = {});
+  if (which in cache) return cache[which];
+  let art = null;
+  try {
+    if (which === 'vise') {
+      const raw = inst.container && inst.container.rsrc;
+      if (raw && raw.length) {
+        const fork = openResourceFork(raw);
+        const id = bundleIconMap(fork, 'vise')['APPL'];
+        if (id !== undefined) art = iconFromFork(fork, id);
+      }
+    } else {
+      // The folder's own icon file, by the path the catalog gives it. The
+      // name ends in a carriage return, which is what makes it invisible.
+      // Matched on the tail of the path, not the whole of it: the top folder
+      // is named for the release ("Cythera 1.0.4 \u0192"), and all four
+      // releases open here.
+      const tail = '/' + which + '/Icon\r';
+      const e = inst.archive.entries.find(x => x.path.slice(-tail.length) === tail);
+      if (e) {
+        const got = viseExtract(inst.archive, e);
+        if (got.rsrc && got.rsrc.length) art = iconFromFork(openResourceFork(got.rsrc), -16455);
+      }
+    }
+  } catch (e) { art = null; }
+  cache[which] = art;
+  return art;
 }
 
 function renderInstallerSheet() {
@@ -21344,6 +21434,18 @@ function renderCompareReport() {
   btn.onclick = compareExportPatch;
   form.appendChild(btn);
   host.appendChild(form);
+  /* Where to get the thing that installs it. A patch file is no use on its
+     own: Magpie is what merges one into a copy of the game, it is Glenn
+     Andreas's application rather than ours, and the only copy on the web is
+     in the Cythera Guides add-ons archive. It cannot be fetched into this
+     page even as a convenience -- that host serves plain HTTP with no TLS at
+     all, so a browser on this page blocks it as mixed content before CORS is
+     reached -- so a link out is the whole of what can honestly be offered. */
+  host.appendChild(el('div', 'mechSub',
+    'A patch is installed by <b>Magpie</b>, which is not here: ' +
+    '<a href="http://www.cytheraguides.com/archives/ambrosia_addons/cythera/Miscellaneous/614_MagpiePumpkinPatch.sit.hqx" ' +
+    'target="_blank" rel="noopener">Magpie and the Pumpkin Patch</a>, 167 KB of BinHex, from the Cythera Guides ' +
+    'add-ons archive over plain HTTP. Drop that file on this page and the patch inside it opens here too.'));
   renderCompareApp(host, el);
   host.appendChild(el('div', '', svLink('Forget this comparison', 'compareForget()')));
 }

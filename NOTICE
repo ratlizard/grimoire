@@ -83,6 +83,16 @@ string is left as he shipped it; and converting a TrueType to woff2 is a format
 change, which the OFL counts as a modification, so the name here is the family's
 own only because the design is untouched.
 
+**`res/Geneva9-1-Regular.woff2`** is **Geneva 9.1** by **Kelsey Higham**
+(<https://fontstruct.com/fontstructions/show/1304775>), a pixel-exact clone of
+the 9-point **Geneva** bitmap Susan Kare drew for Apple in 1984, licensed under
+the **SIL Open Font License 1.1**. The licence and the readme FontStruct
+requires to travel with it are beside it as `res/Geneva9-1-LICENSE.txt` and
+`res/Geneva9-1-README.txt`. It is the page's text face, because Geneva 9 and 10
+is what Cythera's own data file names for its Labels, Stats and Text styles.
+Geneva itself is Apple's; this is a clone of the bitmap, and Apple's own
+TrueType Geneva is not here.
+
 **`delvmod/`** is a submodule, so this repository stores only a pointer to it.
 It is an independent work by **Bryce Schroeder**
 (<https://github.com/BryceSchroeder/delvmod>), licensed **GPLv3**, and is used

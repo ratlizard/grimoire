@@ -3572,13 +3572,28 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     {
       const byId = peek('TAB_BY_ID');
       const node = id => (byId && byId.get ? byId.get(id) : null);
-      const art = id => { const n = node(id); return n ? ctx.navIconFromFork({ tile: n.tile, finder: n.finder, crsr: n.crsr }) : null; };
-      const want = ['cytheradata', 'cythera', 'savegame', 'apppef', 'apprsrc'];
+      const art = id => { const n = node(id); return n ? ctx.navIconFromFork({ tile: n.tile, finder: n.finder, crsr: n.crsr, installed: n.installed }) : null; };
+      // Combat AI comes out of the installer rather than the game: the custom
+      // icon of the folder, which on a classic Mac is an invisible Icon file
+      // inside it, at -16455.
+      const want = ['cytheradata', 'cythera', 'savegame', 'apppef', 'apprsrc', 'combatai'];
+      /* The VISE mark is in the installer's own resource fork, and whether
+         that fork is in hand depends on the container it arrived in. A
+         MacBinary carries it; archive.org's four-in-one StuffIt compressed it
+         with method 15 (Arsenic), which this page does not decompress, so
+         through the page's own default source there is no mark to draw and
+         the tab keeps its tile. Both outcomes are correct; which one is
+         asserted follows what the caller passed, as in vise_check.mjs. */
+      const viseFork = ctx.INSTALLER && ctx.INSTALLER.container && ctx.INSTALLER.container.rsrc;
+      const haveVise = !!(viseFork && viseFork.length);
+      if (haveVise) want.push('installer');
       const drawn = {};
       for (const id of want) { const a = art(id); drawn[id] = !!(a && a.width); }
       const lacking = want.filter(id => !drawn[id]);
-      // The two that name no file icon, so they must fall through to the tile.
-      const plain = ['installer', 'combatai'].filter(id => art(id));
+      // The two that name no file icon at all, so they must fall through to
+      // the tile: the Combat AI scripts and the rules they are written
+      // against are TEXT files, which no bundle here claims.
+      const plain = ['aiscripts', 'airules'].concat(haveVise ? [] : ['installer']).filter(id => art(id));
       const c257 = art('apppef'), c259 = art('apprsrc');
       const sameCursor = c257 && c259 && c257 === c259;
       if (!byId || !byId.get) fail('data tab icons', 'TAB_BY_ID is not reachable, so the tabs cannot be read');
@@ -3586,7 +3601,9 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (plain.length) fail('data tab icons', 'a tab that names no file icon got one anyway: ' + plain.join(', '));
       else if (sameCursor) fail('data tab icons', 'both application forks resolved to the same cursor, so one of the two ids is wrong');
       else console.log('  data tab icons: ' + want.length + ' Data tabs drawn from the file itself (' +
-        node('apppef').crsr + ' and ' + node('apprsrc').crsr + ' for the application’s two forks), installer and combat AI on their tiles');
+        node('apppef').crsr + ' and ' + node('apprsrc').crsr + ' for the application’s two forks, the CombatAI folder' +
+        (haveVise ? ' and the VISE mark' : '') + ' out of the installer), the two TEXT tabs' +
+        (haveVise ? '' : ' and the installer, whose fork this container compressed with Arsenic,') + ' on their tiles');
     }
     // Read the licence through the button the table offers, then take a file away.
     ctx.showCategory('INSTALLER');
