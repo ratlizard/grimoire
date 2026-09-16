@@ -270,6 +270,12 @@ const CHECKS = [
   {page: 'viewer', name: 'stuffit 13 and 15', want: [ADDONS],
    cmd: ['utilities/sit_methods_check.mjs', 'index.html', 'reference'],
    grep: /\d+ of \d+ compressed fork\(s\) in \d+ archive\(s\)[^\n]*/},
+  /* The zip reader, which needs nothing: zlib is in Node and the container
+     is written by the check itself. Info-ZIP, ditto, unar and the add-on each
+     add a comparison when they are here and are skipped by name when not. */
+  {page: 'viewer', name: 'zip archives',
+   cmd: ['utilities/zip_check.mjs', 'index.html', 'reference'],
+   grep: /\d+ zip entries read back byte identical/},
   /* What Ambrosia changed between the four releases, which is only askable
      since all four installers open. A finding rather than a property, so it
      is pinned: 1.0.3 and 1.0.4 carry the same data file byte for byte, and a
