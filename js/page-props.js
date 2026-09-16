@@ -401,7 +401,7 @@ function showPropTypeDetail(pt) {
   grid.innerHTML = '';
   const back = document.createElement('button');
   back.className = 'secondary';
-  back.textContent = '\u25a6 All creatures & props';
+  back.textContent = 'All creatures & props';
   back.onclick = renderPropTypeSheet;
   grid.appendChild(back);
 
@@ -448,7 +448,7 @@ function showPropTypeDetail(pt) {
     runHead.style.cssText = 'font-size:0.6875rem;letter-spacing:0;margin:8px 0 3px;' +
       'color:' + (own ? '#cfc4a0' : '#8a8064');
     runHead.textContent = (run.name || 'unnamed in 0xF004') + ' \u00b7 frame' +
-      (run.frames.length === 1 ? ' ' + run.frames[0] : 's ' + run.frames[0] + '\u2013' + run.frames[run.frames.length-1]) +
+      (run.frames.length === 1 ? ' ' + run.frames[0] : 's ' + run.frames[0] + ' to ' + run.frames[run.frames.length-1]) +
       (own ? '' : ', a neighbour on this sheet, not this prop');
     panel.appendChild(runHead);
     if (own) {
@@ -1257,7 +1257,7 @@ function showItemDetail(pt) {
   grid.innerHTML = '';
   const back = document.createElement('button');
   back.className = 'secondary';
-  back.textContent = '\u25a6 All items';
+  back.textContent = 'All items';
   back.onclick = renderItemSheet;
   grid.appendChild(back);
 
@@ -1344,7 +1344,7 @@ function showItemDetail(pt) {
     // enumerate a sheet.
     note.innerHTML = 'The rest of this sheet block is other things: ' +
       strangers.slice(0, 6).map(r => '<b style="color:#fff">' + svEsc(r.name || 'unnamed') + '</b> (frame' +
-        (r.frames.length === 1 ? ' ' + r.frames[0] : 's ' + r.frames[0] + '\u2013' + r.frames[r.frames.length-1]) + ')'
+        (r.frames.length === 1 ? ' ' + r.frames[0] : 's ' + r.frames[0] + ' to ' + r.frames[r.frames.length-1]) + ')'
       ).join(', ') +
       (strangers.length > 6 ? ' and ' + (strangers.length - 6) + ' more' : '') +
       '. A frame block ends where the 16-tile sheet does, not where the item does; ' +

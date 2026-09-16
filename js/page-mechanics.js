@@ -1355,7 +1355,7 @@ function renderCompareApp(host, el) {
        release correctly and inventing a change that is not there. */
     const census = x => {
       const bits = (x.added || []).map(a => '+' + a.n + ' ' + a.op)
-        .concat((x.removed || []).map(a => '\u2212' + a.n + ' ' + a.op));
+        .concat((x.removed || []).map(a => '-' + a.n + ' ' + a.op));
       if (x.compilerOnly) return '<span class="mechSub">the compiler: ' + svEsc(bits.join(', ') || 'reordered') + '</span>';
       return bits.length ? '<span class="patchMono">' + svEsc(bits.join(' ')) + '</span>' : '';
     };
@@ -1508,7 +1508,7 @@ function renderMechanicsSheet(value) {
   const rollTo = v => v ? srcNum(v, v.v - 1) : '';
   add('combat', 'Combat', null, src('the attack', 0x3042) + src('a blow', 0xE88) + src('a missile', 0xE89) + src('the outcome', 0xE87),
     cb ? 'Four routines: one chooses what is swung or thrown, one makes the attacker’s margin for a blow, one for a missile, and one turns the margin into a parry, a miss or a hit.'
-       : 'The combat routines (0xE87–0xE89) are not in this archive.',
+       : 'The combat routines (0xE87 to 0xE89) are not in this archive.',
     cb ? [
       ar && ar.reach && ar.meleeFirst ? 'The attack picks the weapon first: the first thing wielded whose <b>reach</b> covers the distance swings' +
         (ar.range && ar.beyondAdjacent ? ', and only when nothing does, the target is not adjacent and it is in sight, does the first thing with a throw entry <b>fly</b>, as a missile' : '') + '.' +
@@ -1893,9 +1893,9 @@ function renderMechanicsSheet(value) {
     if (rows.length) add('light', 'Light: the zone, and what is in view', null, '',
       'A zone sets one light value when you arrive and it is the base for the whole level, not for a square. A square left at 32 is not darkened at all; one at 0 is painted black; between them the screen is dithered down towards it.',
       [
-        'The number is <b>signed</b>, and a negative one means the day and night clock is skipped — the place is that dark at every hour. ' + fixed + ' of the ' + rows.length + ' zones are written that way, and they are the interiors.',
+        'The number is <b>signed</b>, and a negative one means the day and night clock is skipped: the place is that dark at every hour. ' + fixed + ' of the ' + rows.length + ' zones are written that way, and they are the interiors.',
         'The base is <b>min(32, v / 5)</b>, where v is the number’s magnitude, or the daylight level instead where the number is positive and the sun is higher.',
-        'Anything bright <b>in view lifts the whole level</b>. The engine adds <b>2<sup>2L−b</sup></b> for every light source in the eleven-by-eleven window around the player — L is the source’s level, 1 to 3, and b is 0 within four tiles, 1 within eight and 2 beyond — and a third of that total becomes a floor under the zone’s own number. Eight level-3 sources close by are enough that nothing on screen is darkened, which is what standing in a lava field does; walk them out of view and the level goes back to dark.',
+        'Anything bright <b>in view lifts the whole level</b>. The engine adds <b>2<sup>2L-b</sup></b> for every light source in the eleven-by-eleven window around the player (L is the source’s level, 1 to 3, and b is 0 within four tiles, 1 within eight and 2 beyond), and a third of that total becomes a floor under the zone’s own number. Eight level-3 sources close by are enough that nothing on screen is darkened, which is what standing in a lava field does; walk them out of view and the level goes back to dark.',
         'A light is <b>blocked by nothing</b>. Each lit square lays its own cone over whatever is beneath it and no wall is consulted; what looks like falloff is the cone’s own shading. A level-1 source’s pool is about 1¼ tiles across, a level-3 source’s about 2¾.',
         'The map’s lighting layer draws only the two things that are fixed to the map: this table, and each source’s cone. The part that depends on where you are standing is reported on a square when you select it.'
       ],

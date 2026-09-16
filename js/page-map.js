@@ -471,7 +471,7 @@ function drawCharacterLayer(lensCtx, lensTS) {
   if (back) {
     if (window.FOCUS_CHARACTER != null) {
       back.style.display = '';
-      back.textContent = '\u2190 ' + characterName(window.FOCUS_CHARACTER) + '\u2019s dossier';
+      back.textContent = 'Back to ' + characterName(window.FOCUS_CHARACTER) + '\u2019s dossier';
       back.onclick = () => {
         window.FOCUS_CHARACTER = null;
         document.getElementById('categorySelect').value = 'CHARACTERS';
@@ -1626,7 +1626,15 @@ function drawMapMarks(lensCtx, lensTS) {
 
   if (legend) {
     const parts = [];
-    const chip = (k, label) => parts.push('<span style="color:' + colours[k] + '">□ ' + counts[k] + ' ' + label + '</span>');
+    /* The swatches are drawn rather than typed. They were a box, a dash and a
+       double dagger, and none of the page's three faces carries the box or the
+       dagger, so they fell through to whatever the device had. The rope one
+       is the same three strokes ropeGlyph puts on the map. */
+    const BOX = '<span class="legendSwatch box"></span>';
+    const LINE = '<span class="legendSwatch line"></span>';
+    const ROPE = '<svg class="legendSwatch" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">' +
+      '<path d="M5 1.6V8.4M3.2 3.8H6.8M3.2 6.2H6.8" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>';
+    const chip = (k, label) => parts.push('<span style="color:' + colours[k] + '">' + BOX + counts[k] + ' ' + label + '</span>');
     if (M.doors) chip('doors', 'doors' + (locked ? ', ' + locked + ' locked' : ''));
     if (M.secret) {
       const breakdown = [...secretTypes.entries()].sort((a, b) => b[1] - a[1])
@@ -1637,14 +1645,14 @@ function drawMapMarks(lensCtx, lensTS) {
     if (M.chest) chip('chest', 'containers');
     if (M.exits) chip('exits', (counts.exits === 1 ? 'zone exit' : 'zone exits') +
       (edges ? ' + ' + edges + (edges === 1 ? ' open edge' : ' open edges') : ''));
-    if (M.path && pathStops) parts.push('<span style="color:' + colours.path + '">— ' +
+    if (M.path && pathStops) parts.push('<span style="color:' + colours.path + '">' + LINE +
       svEsc(pathName) + ', ' + pathStops + (pathStops === 1 ? ' post' : ' posts') +
       ' on this map, joined by the route the engine would walk, each leg' +
       ' coloured by the hour it sets out and drawn on its own rail where a' +
       ' way is walked twice</span>');
-    if (ropes) parts.push('<span style="color:#fff">‡ ' + ropes +
+    if (ropes) parts.push('<span style="color:#fff">' + ROPE + ropes +
       (ropes === 1 ? ' needs a rope' : ' need a rope') + '</span>');
-    if (itemSpots) parts.push('<span style="color:#fff">□ ' + itemSpots + ' × ' +
+    if (itemSpots) parts.push('<span style="color:#fff">' + BOX + itemSpots + ' × ' +
       svEsc(propDisplayName(spots.pt) || ('0x' + spots.pt.toString(16).toUpperCase())) + '</span>');
     legend.innerHTML = parts.length
       ? parts.join(' &nbsp; ') + ' <span style="color:#8c8980">, doors, ways and containers are identified by ' +

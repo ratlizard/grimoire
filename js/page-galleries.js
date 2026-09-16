@@ -409,7 +409,7 @@ function openDitherTool() {
     '<label>Checker <input type="range" id="dtChecker" min="0" max="100" value="60"></label>' +
     '<label><input type="checkbox" id="dtAnim"> allow animated ramps</label></div>' +
     '<div class="dtRow"><label id="dtInsetWrap">Frame inset <input type="range" id="dtInset" min="2" max="24" value="6"></label>' +
-    '<label><input type="checkbox" id="dtSeldane"> Seldane colours only <span class="inspDim">(the palette of portraits 0x8877–0x887B)</span></label></div>' +
+    '<label><input type="checkbox" id="dtSeldane"> Seldane colours only <span class="inspDim">(the palette of portraits 0x8877 to 0x887B)</span></label></div>' +
     '<div class="dtRow"><canvas id="dtSrc" width="64" height="64"></canvas>' +
     '<canvas id="dtOut" width="64" height="64"></canvas></div>' +
     '<div class="dtRow">' +

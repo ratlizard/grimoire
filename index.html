@@ -72,6 +72,16 @@
 .mapArrowBtn::after, .mapArrowBtn::before { display:none !important; }
 .mapArrowBtn:hover { opacity:.7; }
 .mapArrowBtn.atEdge { opacity:0; pointer-events:none; }
+/* The chevrons are two borders of a small square turned to point, because
+   none of the page's three faces carries an arrow or a triangle: the entities
+   these replaced fell through to the device's own symbol font, which on a
+   phone can draw one as an emoji. */
+.mapArrowBtn .chev { display:inline-block; width:7px; height:7px; box-sizing:border-box;
+  border:solid currentColor; border-width:2px 0 0 2px; filter:drop-shadow(0 1px 1px #000); }
+.mapArrowBtn .chev.up { transform:translateY(2px) rotate(45deg); }
+.mapArrowBtn .chev.down { transform:translateY(-2px) rotate(225deg); }
+.mapArrowBtn .chev.left { transform:translateX(2px) rotate(-45deg); }
+.mapArrowBtn .chev.right { transform:translateX(-2px) rotate(135deg); }
 /* Chevrons live just outside the map frame so they read as "there is more
    this way" rather than as controls sitting on top of the artwork. */
 #mapPreview { position:relative; }
@@ -764,6 +774,10 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
               white-space:pre; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
               font-size:0.75rem; line-height:1.5; border:1px solid var(--edge); border-radius:4px; margin:0; }
 .sv-legend { padding:0 12px 10px; font-size:0.8125rem; line-height:1.6; color:#fff; }
+/* The map legend's swatches, in the colour of the chip they sit in. */
+.legendSwatch { display:inline-block; vertical-align:-1px; margin-right:5px; }
+.legendSwatch.box { width:9px; height:9px; box-sizing:border-box; border:1.5px solid currentColor; }
+.legendSwatch.line { width:14px; height:0; border-top:2px solid currentColor; vertical-align:3px; }
 .sv-legend p { margin:0 0 8px; }
 .sv-legend code { background:#0d0c0a; color:#fff; padding:1px 4px; border-radius:3px; font-size:0.75rem; }
 
@@ -1673,10 +1687,10 @@ body.atlasFull { overflow:hidden; }
     <div id="filterNote"></div>
   </div>
 <div id="resourceNav" style="display:none">
-  <button id="backToSheet" class="secondary" onclick="returnToSheet()">▦ All of this gallery</button>
-  <button class="secondary" onclick="navigateResource(-1)">← Previous</button>
-  <button class="secondary" onclick="navigateResource(1)">Next →</button>
-  <button class="secondary" id="editAnyBtn" style="display:none" onclick="startResourceEdit()">✎ Edit bytes</button>
+  <button id="backToSheet" class="secondary" onclick="returnToSheet()">All of this gallery</button>
+  <button class="secondary" onclick="navigateResource(-1)">Previous</button>
+  <button class="secondary" onclick="navigateResource(1)">Next</button>
+  <button class="secondary" id="editAnyBtn" style="display:none" onclick="startResourceEdit()">Edit bytes</button>
 </div>
 <!-- The byte editor sits beside the resource navigation rather than inside
      the text viewer, so that every open resource can be edited -- a portrait,
@@ -1706,10 +1720,10 @@ body.atlasFull { overflow:hidden; }
     <div id="mapCanvasWrap" style="position:absolute; top:0; left:0; transform-origin:0 0; z-index:1;"></div>
     <div id="mapHover"></div>
   </div>
-<button class="mapArrowBtn" id="mapArrowUp"    onclick="panMapByArrow(0,-1)"  style="position:absolute; top:2px; left:50%; transform:translateX(-50%);">&#9650;</button>
-<button class="mapArrowBtn" id="mapArrowDown"  onclick="panMapByArrow(0,1)"   style="position:absolute; bottom:2px; left:50%; transform:translateX(-50%);">&#9660;</button>
-<button class="mapArrowBtn" id="mapArrowLeft"  onclick="panMapByArrow(-1,0)"  style="position:absolute; left:0; top:50%; transform:translateY(-50%);">&#9664;</button>
-<button class="mapArrowBtn" id="mapArrowRight" onclick="panMapByArrow(1,0)"   style="position:absolute; right:0; top:50%; transform:translateY(-50%);">&#9654;</button>
+<button class="mapArrowBtn" id="mapArrowUp"    onclick="panMapByArrow(0,-1)"  style="position:absolute; top:2px; left:50%; transform:translateX(-50%);" aria-label="Pan up"><span class="chev up"></span></button>
+<button class="mapArrowBtn" id="mapArrowDown"  onclick="panMapByArrow(0,1)"   style="position:absolute; bottom:2px; left:50%; transform:translateX(-50%);" aria-label="Pan down"><span class="chev down"></span></button>
+<button class="mapArrowBtn" id="mapArrowLeft"  onclick="panMapByArrow(-1,0)"  style="position:absolute; left:0; top:50%; transform:translateY(-50%);" aria-label="Pan left"><span class="chev left"></span></button>
+<button class="mapArrowBtn" id="mapArrowRight" onclick="panMapByArrow(1,0)"   style="position:absolute; right:0; top:50%; transform:translateY(-50%);" aria-label="Pan right"><span class="chev right"></span></button>
 </div>
   <div class="zoomrow" style="max-width:720px; margin:10px auto 0;">
     <span style="white-space:nowrap;">Zoom:</span>
@@ -1795,7 +1809,7 @@ body.atlasFull { overflow:hidden; }
 
 <div id="zoomControls" style="display:none">
   <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:6px;flex-wrap:wrap">
-    <span id="animNote" style="display:none;font-size:0.75rem;color:#c9bd90;">cycling 0xE0&ndash;0xFB</span>
+    <span id="animNote" style="display:none;font-size:0.75rem;color:#c9bd90;">cycling 0xE0 to 0xFB</span>
   </div>
   <div class="zoomrow">
     <label style="font-size:0.75rem;">Zoom</label>
@@ -1874,7 +1888,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
           <div id="atlasBar" style="display:none"></div>
           <div id="atlasViewport"><div id="atlasHover"></div><div id="atlasFade"></div></div>
           <div id="atlasFullOverlay" style="display:none">
-            <button class="secondary" id="atlasFullUp" style="display:none;width:auto;margin:0;padding:5px 9px" onclick="atlasRiseOut()">↰</button>
+            <button class="secondary" id="atlasFullUp" style="display:none;width:auto;margin:0;padding:5px 9px" onclick="atlasRiseOut()">Up</button>
             <span id="atlasFullWhere"></span>
             <button class="secondary" style="width:auto;margin:0;padding:5px 9px" onclick="atlasToggleFull()">Full screen off</button>
           </div>
@@ -1951,7 +1965,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.92.1';
+const GRIMOIRE_VERSION = '1.92.2';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

@@ -743,7 +743,7 @@ function showRsrcDetail(type, id) {
 
   const back = document.createElement('button');
   back.className = 'secondary';
-  back.textContent = '\u25a6 All stamps & brushes';
+  back.textContent = 'All stamps & brushes';
   back.onclick = () => { setMode('sheet'); };
   grid.appendChild(back);
 
@@ -1059,7 +1059,7 @@ function showMacRsrcDetail(type, id, source) {
 
   const back = document.createElement('button');
   back.className = 'secondary';
-  back.textContent = '▦ All resources';
+  back.textContent = 'All resources';
   back.onclick = () => { setMode('sheet'); };
   grid.appendChild(back);
 
@@ -1257,7 +1257,7 @@ function showCharacterDetail(i) {
     g.innerHTML = '';
     const back = document.createElement('button');
     back.className = 'secondary';
-    back.textContent = '\u25a6 All characters';
+    back.textContent = 'All characters';
     back.onclick = renderCharacterSheet;
     g.appendChild(back);
     const note = document.createElement('div');
@@ -1272,7 +1272,7 @@ function showCharacterDetail(i) {
   grid.innerHTML = '';
   const back = document.createElement('button');
   back.className = 'secondary';
-  back.textContent = '\u25a6 All characters';
+  back.textContent = 'All characters';
   back.onclick = renderCharacterSheet;
   grid.appendChild(back);
 

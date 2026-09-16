@@ -651,7 +651,7 @@ function renderCrumbBar() {
   if (!window.VIEW_TRAIL.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   const prev = window.VIEW_TRAIL[window.VIEW_TRAIL.length - 1];
   bar.style.display = '';
-  bar.innerHTML = '<button class="crumbBtn" onclick="goViewBack()">\u21b0 Back to ' +
+  bar.innerHTML = '<button class="crumbBtn" onclick="goViewBack()">Back to ' +
     svEsc(String(viewLabel(prev)).replace(/\s*\([^)]*\)/g, '')) + '</button>';
 }
 

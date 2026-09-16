@@ -1085,7 +1085,7 @@ function savedGameParts() {
   const hero = loadCharacterTable()[1];
   if (hero && hero.zone) {
     add(0x8100 | hero.zone, 'the props of the zone the player stands in, from record 256 up (SaveLevelProps)');
-    add(0x8200 | hero.zone, 'that zone’s map memory: ⌈width∕8⌉ × height bytes, one bit a square (SaveLevelProps)');
+    add(0x8200 | hero.zone, 'that zone’s map memory: width ÷ 8, rounded up, × height bytes, one bit a square (SaveLevelProps)');
   }
   add(0xF306, 'the first 256 prop records, the characters as they stand on that zone (SaveLevelProps)');
   add(0x8800, 'the player’s own portrait, written when the character was made (CreatePlayer)');
@@ -1244,9 +1244,9 @@ function toggleCharEdit(index) {
                               fullStomach() ? 'health, magic and a full stomach' : 'health and magic') : '') +
     '<div class="inspDim">The 32 bytes as stored: <code>' +
     Array.from(rec.raw).map(b => b.toString(16).padStart(2, '0')).join(' ') +
-    '</code><br>Bytes 6–7, 20–26 and 29–31 are not identified and are carried through ' +
-    'an edit unchanged; 20–21 is a second appearance word that is usually, but not ' +
-    'always, the one at 4–5. Apply rebuilds the whole archive.</div>';
+    '</code><br>Bytes 6 and 7, 20 to 26 and 29 to 31 are not identified and are carried through ' +
+    'an edit unchanged; 20 and 21 are a second appearance word that is usually, but not ' +
+    'always, the one at 4 and 5. Apply rebuilds the whole archive.</div>';
   host.style.display = '';
   window.SAVE_EDIT_OPEN = index;
 }
@@ -1744,7 +1744,7 @@ function renderChangesSheet() {
       (!raw ? 'removed'
        : was === null ? raw.length + ' bytes'
        : was === raw.length ? raw.length + ' bytes, same length'
-       : was + ' → ' + raw.length + ' bytes');
+       : was + ' bytes, now ' + raw.length);
     row.appendChild(t);
     box.appendChild(row);
   }

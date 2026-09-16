@@ -159,13 +159,13 @@ function labelForResource(subn, n, resid) {
    A type in no kind falls under "Other". */
 const RSRC_KINDS = [
   { id: 'screens', label: 'Screens', types: ['PICT'],
-    note: 'Whole pictures. In Cythera Data: the title screen (130), the main menu (132) with its seven plank labels (139–145) and six torch frames (133–138), the DELVER stone (131), two night-dark title scenes (512, 513) and the paper doll (129). In the application: the two Ambrosia logos.',
+    note: 'Whole pictures. In Cythera Data: the title screen (130), the main menu (132) with its seven plank labels (139 to 145) and six torch frames (133 to 138), the DELVER stone (131), two night-dark title scenes (512, 513) and the paper doll (129). In the application: the two Ambrosia logos.',
     view: 'SCREENS' },
   { id: 'fonts', label: 'Fonts', types: ['sfnt', 'NFNT', 'FOND', 'TxSt'],
     note: 'Argos A Nouveau as a TrueType font (sfnt 7289, the face this page uses), the Seldane script as two bitmap strikes (NFNT 25740 and 25746, 12 and 18 point), the family records that tie them together, and the text styles (TxSt) that say which face and size each kind of text is drawn in, “Labels”, “Stats”, “Text”, three Seldane sizes.',
     view: 'FONTS' },
   { id: 'strings', label: 'Strings', types: ['STR#', 'STR ', 'TEXT', 'styl'],
-    note: 'String lists. In Cythera Data: the four default conversation keywords (128), the editor’s palette categories (134), the editor’s list of every zone (135), the credits (255). In the application: the equipment slots (501), the combat buttons (500), the seven strategies (502), the help balloons (503), and the combat AI vocabulary in seven lists (9300–9308).',
+    note: 'String lists. In Cythera Data: the four default conversation keywords (128), the editor’s palette categories (134), the editor’s list of every zone (135), the credits (255). In the application: the equipment slots (501), the combat buttons (500), the seven strategies (502), the help balloons (503), and the combat AI vocabulary in seven lists (9300 to 9308).',
     view: 'STRINGS' },
   { id: 'sounds', label: 'Sounds', types: ['snd '],
     note: 'The application’s own sounds, named for when they play: get, use, look, talk, attack. The game’s sound effects and music are in the archive, under Audio.',
@@ -799,7 +799,7 @@ function showCompositeDetail(tileId, entry, builtCanvas) {
   grid.innerHTML = '';
   const back = document.createElement('button');
   back.className = 'secondary';
-  back.textContent = '\u25a6 All composite tiles';
+  back.textContent = 'All composite tiles';
   back.onclick = () => renderCompositeSheet();
   grid.appendChild(back);
 

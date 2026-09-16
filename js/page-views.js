@@ -847,7 +847,7 @@ function showMonsterDetail(idx) {
   grid.innerHTML = '';
   const back = document.createElement('button');
   back.className = 'secondary';
-  back.textContent = '\u25a6 All monsters';
+  back.textContent = 'All monsters';
   back.onclick = renderMonsterSheet;
   grid.appendChild(back);
 

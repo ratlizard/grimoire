@@ -725,7 +725,7 @@ function inspectMapSquare(tx, ty) {
       (withView === null
         ? '<div class="inspDim">this zone\u2019s entry script sets no light level</div>'
         : '<div>Standing here: the zone sets <b>' + zl + '</b>, and ' + n + ' source' +
-          (n === 1 ? '' : 's') + ' in view are worth <b>' + sum + '</b> &nbsp;→&nbsp; <b>' +
+          (n === 1 ? '' : 's') + ' in view are worth <b>' + sum + '</b>, so the level here is <b>' +
           withView + ' of 32</b>' +
           (withView === 32 ? ', nothing darkened' : withView === 0 ? ', solid black' : '') +
           (withView !== alone ? ' <span class="inspDim">(' + alone +
@@ -760,7 +760,7 @@ function inspectMapSquare(tx, ty) {
     const z = zoneportInfo(e.idx);
     parts.push('<div class="inspCard"><b>Open ' + SIDE_WORDS[e.side] + ' edge</b> ' +
       '<span class="inspDim">map header exit, zoneport 0x' + e.idx.toString(16).toUpperCase() +
-      (z ? ' → ' + svEsc(z.name) : '') + '</span><div class="inspDim">Not just this square: the whole ' +
+      (z ? ' to ' + svEsc(z.name) : '') + '</span><div class="inspDim">Not just this square: the whole ' +
       (e.side === 'N' || e.side === 'S' ? 'row' : 'column') + ' is a way out. Walking far enough ' +
       SIDE_WORDS[e.side] + ' at any ' + (e.side === 'N' || e.side === 'S' ? 'column' : 'row') +
       ' leaves the map here.</div></div>');
@@ -828,7 +828,7 @@ function inspectMapSquare(tx, ty) {
       const dest = propTravelsTo(p.rec, window.CUR_MAP ? window.CUR_MAP.resid : 0);
       if (dest && refExists(dest.resid))
         acts.push('<button class="sv-chip" onclick="showSquareOnMap(' + dest.resid + ',' + dest.x + ',' + dest.y +
-                  ')">&#8594; ' + svEsc(zoneNameFor(dest.resid) || dest.name) + '</button>');
+                  ')">Go to ' + svEsc(zoneNameFor(dest.resid) || dest.name) + '</button>');
     }
     const contents = containerContents(p.rec);
     const slot = contents.length ? ('insp-box-' + p.rec.index) : null;
@@ -1595,7 +1595,7 @@ function renderAtlasBar() {
   const below = atlasBelowTop();
   if (!below) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   bar.style.display = '';
-  bar.innerHTML = '<button class="crumbBtn" onclick="atlasRiseOut()">\u21b0 ' +
+  bar.innerHTML = '<button class="crumbBtn" onclick="atlasRiseOut()">Up to ' +
     svEsc(below.fromName) + '</button>' +
     '<span class="wbWhere">' + svEsc(below.name) + '</span>' +
     '<span class="wbNote">Through the ' + svEsc(below.kind) + ' at (' + below.at.x + ',' + below.at.y + ') in ' + svEsc(below.fromName) + '.</span>';
