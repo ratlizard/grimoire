@@ -732,6 +732,12 @@ function parseDeepLink() {
     if (i > 0) q[part.slice(0, i)] = decodeURIComponent(part.slice(i + 1));
   }
   if (!q.c && !q.r && /^(0x)?[0-9a-f]{3,4}$/i.test(h)) q.r = h.replace(/^0x/i, '');
+  /* A link made before the Mechanics sheet became seven tabs names the whole
+     sheet, and no tab stands for the whole sheet, so it drew everything with
+     the tab row blank. It opens the first tab instead. This is done here, to
+     the link, and not in showCategory: the smoke's pins read the whole-sheet
+     render through showCategory('MECHANICS'), and that still draws it. */
+  if (q.c === 'MECHANICS') q.c = MECH_GROUPS[0].value;
   return (q.c || q.r) ? q : null;
 }
 

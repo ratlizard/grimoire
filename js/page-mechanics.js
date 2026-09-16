@@ -2350,8 +2350,9 @@ function renderMechanicsSheet(value) {
   /* One group, or all of them when no tab was named.
 
      `value` is the category the tab was opened with; MECHANICS itself passes
-     nothing and still draws the whole sheet, which is what a deep link made
-     before the split gets. Every section is built either way -- they are read
+     nothing and still draws the whole sheet, which the smoke's pins read. A
+     deep link made before the split names MECHANICS and opens the first tab
+     instead (parseDeepLink). Every section is built either way -- they are read
      off the scripts and the reading is the cost, not the placing -- so a tab
      shows its own and leaves the rest unplaced. */
   const only = value ? MECH_GROUP_BY_VALUE[value] : null;

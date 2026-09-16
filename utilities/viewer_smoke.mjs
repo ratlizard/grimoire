@@ -2810,21 +2810,27 @@ try {
 try {
   const was = ctx.location.hash;
   const landings = [];
-  for (const want of ['135', 'MECHANICS', 'ITEMS']) {
-    ctx.location.hash = '#c=' + want;
-    ctx.parseArchiveBytes(archive, 'Cythera Data (reloaded on ' + want + ')', { via: 'data fork' });
-    landings.push([want, REGISTRY.get('categorySelect').value]);
+  /* A link made before the Mechanics split names the whole sheet, which no
+     tab stands for; it must land on the first group, whose tab the tree has a
+     leaf for, or the tab row comes up blank. */
+  const firstGroup = (peek('MECH_GROUPS') || [])[0];
+  for (const [hash, want] of [['135', '135'], ['MECH_COMBAT', 'MECH_COMBAT'],
+                              ['MECHANICS', firstGroup && firstGroup.value], ['ITEMS', 'ITEMS']]) {
+    ctx.location.hash = '#c=' + hash;
+    ctx.parseArchiveBytes(archive, 'Cythera Data (reloaded on ' + hash + ')', { via: 'data fork' });
+    landings.push([hash, want, REGISTRY.get('categorySelect').value]);
   }
   ctx.location.hash = '';
   ctx.parseArchiveBytes(archive, 'Cythera Data (reloaded with no hash)', { via: 'data fork' });
   const bare = REGISTRY.get('categorySelect').value;
   ctx.location.hash = was;
-  const lost = landings.filter(([want, got]) => got !== want);
+  const lost = landings.filter(([, want, got]) => !want || got !== want);
   // The control: with no hash the world IS the right answer, so a run where
   // everything lands on WORLD proves nothing unless this one does too.
   if (bare !== 'WORLD') fail('reload keeps the tab', 'with no hash it landed on ' + bare + ', not the world, so this check is not exercising the open path');
-  else if (lost.length) fail('reload keeps the tab', 'a reload lost the tab: ' + lost.map(([w, g]) => '#c=' + w + ' -> ' + g).join(', '));
-  else console.log(`  reload keeps the tab: ${landings.map(([w]) => w).join(', ')} each came back, and no hash lands on ${bare}`);
+  else if (lost.length) fail('reload keeps the tab', 'a reload lost the tab: ' + lost.map(([h, w, g]) => '#c=' + h + ' -> ' + g + ', not ' + w).join(', '));
+  else if (!(peek('TAB_LEAF_FOR') && peek('TAB_LEAF_FOR').get(firstGroup.value))) fail('reload keeps the tab', 'the tab an old Mechanics link lands on has no leaf, so its tab row is blank');
+  else console.log(`  reload keeps the tab: ${landings.map(([h, w]) => h === w ? h : h + ' as ' + w).join(', ')} each came back, and no hash lands on ${bare}`);
 } catch (e) { fail('reload keeps the tab', e); }
 
 // The edit path: change one plaintext byte of an encrypted resource, let
