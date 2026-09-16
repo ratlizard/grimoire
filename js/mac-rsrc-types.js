@@ -1745,8 +1745,15 @@ function glyphSheet(f){
    itself -- byte 16 -- not from the start of the resource. */
 function nfntSpec(data){
   if(data.length<26) throw new Error('NFNT too short');
+  // kernMax and nDescent are signed: kernMax is the furthest a glyph may sit
+  // LEFT of the pen, and it is -1 in both Seldane strikes. Read unsigned it is
+  // 65535, and every left bearing computed from it is 65536 pixels out; that
+  // stayed invisible for as long as nothing did arithmetic with it, because
+  // writeNFNT puts the same two bytes back either way and 65536 pixels is a
+  // whole number of ems, so even the TrueType writer wrapped to the right
+  // answer. The check that fills the outlines back to pixels is what saw it.
   const f={fontType:u16be(data,0), firstChar:u16be(data,2), lastChar:u16be(data,4),
-           widMax:u16be(data,6), kernMax:u16be(data,8), nDescent:u16be(data,10),
+           widMax:u16be(data,6), kernMax:s16(data,8), nDescent:s16(data,10),
            fRectWidth:u16be(data,12), fRectHeight:u16be(data,14), owTLoc:u16be(data,16),
            ascent:u16be(data,18), descent:u16be(data,20), leading:u16be(data,22),
            rowWords:u16be(data,24)};
@@ -1773,6 +1780,250 @@ function writeNFNT(f){
   f.ow.forEach((v,i)=>put(f.owOff+i*2,v));
   out.set(f.tail,f.owOff+f.nGlyphs*2);
   return out;
+}
+
+/* The strike as a TrueType font, so it can leave here.
+
+   `writeNFNT` puts a modern face into the game. This is the other direction
+   and the one a reader asks for: the Seldane script out of the game and into
+   a font a phone, a browser or a word processor can set text in. Cythera
+   Guides distributes a Seldane TrueType already, traced by hand in FontForge;
+   this one is derived from the strike in the reader's own file, in the
+   browser, and comes out of the bytes rather than out of a drawing.
+
+   HOW THE PIXELS BECOME OUTLINES. Every lit pixel is a square, so the glyph
+   is the union of its squares, and TrueType fills by non-zero winding: any
+   set of same-direction contours unions, overlaps and shared edges included.
+   So no tracing is needed and none is done -- the pixels are decomposed into
+   maximal rectangles (a run of lit pixels extended downward as far as the
+   identical run continues) and each rectangle is one clockwise contour. The
+   decomposition is only a size saving; one contour per pixel would draw the
+   same glyph.
+
+   THE GRID IS KEPT EXACT. One pixel is 64 font units and the em is the
+   strike's own ascent plus descent, so the em of the 12-point strike is 896
+   units and every coordinate in the font is a whole number of pixels. Set at
+   14px -- the cell height -- the font draws the bitmap at its own size, and
+   at any integer multiple it is the same pixels scaled. Nothing rounds.
+
+   WHAT IS NOT INVENTED. A code the strike has no image for gets no glyph and
+   no cmap entry, so the font has no space: the strike has none, the game
+   draws its missing symbol for one, and the TrueType on Cythera Guides has
+   none either (its cmap starts at 0x21). The missing symbol becomes glyph 0,
+   .notdef, which is what a modern renderer draws in the same case. */
+function nfntToTrueType(f, opts){
+  opts = opts || {};
+  const PX = 64;                                   // font units to the pixel
+  const upem = PX*(f.ascent+f.descent);
+  if(upem<16||upem>16384) throw new Error('the strike is too tall or too short to scale into an em');
+  const rowBytes = f.rowWords*2;
+  const bit = (x,y) => (f.strike[y*rowBytes+(x>>3)]>>(7-(x&7)))&1;
+
+  // The rectangles of one glyph, in pixels, from its slice of the bit image.
+  function rects(x0, w){
+    const h=f.fRectHeight, taken=[];
+    for(let y=0;y<h;y++) taken.push(new Uint8Array(w));
+    const out=[];
+    for(let y=0;y<h;y++){
+      for(let x=0;x<w;x++){
+        if(taken[y][x]||!bit(x0+x,y)) continue;
+        let w2=0; while(x+w2<w && bit(x0+x+w2,y) && !taken[y][x+w2]) w2++;
+        let h2=1;
+        while(y+h2<h){
+          let ok=true;
+          for(let k=0;k<w2;k++) if(!bit(x0+x+k,y+h2)||taken[y+h2][x+k]){ ok=false; break; }
+          if(!ok) break;
+          h2++;
+        }
+        for(let j=0;j<h2;j++) for(let k=0;k<w2;k++) taken[y+j][x+k]=1;
+        out.push({x, y, w:w2, h:h2});
+        x+=w2-1;
+      }
+    }
+    return out;
+  }
+
+  // One glyph's `glyf` entry. Points are all on-curve and each rectangle is
+  // one contour, wound clockwise, which is TrueType's direction for an outer
+  // contour and the direction every contour here has to share for the union
+  // to fill. y is measured up from the baseline, which sits `ascent` pixels
+  // below the top of the cell.
+  function glyphBytes(i){
+    const ow=f.ow[i];
+    if(ow===0xFFFF) return null;                   // the font does not have it
+    const x0=f.loc[i], w=f.loc[i+1]-f.loc[i];
+    const lsb=(f.kernMax+(ow>>8))*PX, adv=(ow&0xFF)*PX;
+    if(w<=0) return {bytes:new Uint8Array(0), adv, lsb, points:0, contours:0};
+    const rs=rects(x0,w);
+    if(!rs.length) return {bytes:new Uint8Array(0), adv, lsb, points:0, contours:0};
+    const pts=[];                                  // [x,y] in font units
+    for(const r of rs){
+      const ax=lsb+r.x*PX, bx=lsb+(r.x+r.w)*PX;
+      const ty=(f.ascent-r.y)*PX, by=(f.ascent-r.y-r.h)*PX;
+      pts.push([ax,by],[ax,ty],[bx,ty],[bx,by]);   // clockwise, y up
+    }
+    const n=rs.length;
+    const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+    const xMin=Math.min(...xs), xMax=Math.max(...xs);
+    const yMin=Math.min(...ys), yMax=Math.max(...ys);
+    const len=10+n*2+2+pts.length*(1+2+2);
+    const out=new Uint8Array(len); const dv=new DataView(out.buffer);
+    dv.setInt16(0,n); dv.setInt16(2,xMin); dv.setInt16(4,yMin); dv.setInt16(6,xMax); dv.setInt16(8,yMax);
+    for(let k=0;k<n;k++) dv.setUint16(10+k*2,(k+1)*4-1);
+    dv.setUint16(10+n*2,0);                        // no instructions
+    let p=12+n*2;
+    for(let k=0;k<pts.length;k++) out[p++]=0x01;   // on curve, 16-bit deltas
+    let prev=0;
+    for(const [x] of pts){ dv.setInt16(p,x-prev); prev=x; p+=2; }
+    prev=0;
+    for(const [,y] of pts){ dv.setInt16(p,y-prev); prev=y; p+=2; }
+    // hmtx carries the ink's own xMin: the outline coordinates are absolute,
+    // so this moves nothing, and a left bearing that disagrees with xMin is
+    // the kind of thing a validator stops on.
+    return {bytes:out, adv, lsb:xMin, points:pts.length, contours:n, xMin, yMin, xMax, yMax};
+  }
+
+  // Glyph 0 is the missing symbol, which sits one past lastChar; then every
+  // code the strike answers for, in order, each with the code point its Mac
+  // Roman byte stands for.
+  const order=[{idx:f.nGlyphs-1, code:null}];
+  for(let c=f.firstChar;c<=f.lastChar;c++){
+    const i=c-f.firstChar;
+    if(f.ow[i]===0xFFFF) continue;
+    // Codes below a space are the control characters, and both Seldane
+    // strikes answer for tab and carriage return with the same box they use
+    // for a missing character. Mapping those to U+0009 and U+000D would put
+    // two undrawable code points in the cmap, so they are left out; what
+    // they stand for is already glyph 0.
+    if(c<0x20) continue;
+    const cp = c<0x80 ? c : (typeof MACROMAN_HIGH!=='undefined' ? MACROMAN_HIGH[c-0x80] : undefined);
+    if(cp===undefined||cp>0xFFFF) continue;
+    order.push({idx:i, code:cp});
+  }
+  const glyphs=order.map(g=>glyphBytes(g.idx)||{bytes:new Uint8Array(0),adv:0,lsb:0,points:0,contours:0});
+  const numGlyphs=glyphs.length;
+
+  const pad4=n=>(n+3)&~3;
+  let glyfLen=0; for(const g of glyphs) glyfLen+=pad4(g.bytes.length);
+  const glyf=new Uint8Array(glyfLen), loca=new Uint8Array((numGlyphs+1)*4);
+  const lv=new DataView(loca.buffer);
+  let at=0;
+  glyphs.forEach((g,i)=>{ lv.setUint32(i*4,at); glyf.set(g.bytes,at); at+=pad4(g.bytes.length); });
+  lv.setUint32(numGlyphs*4,at);
+
+  const hmtx=new Uint8Array(numGlyphs*4); const hv=new DataView(hmtx.buffer);
+  glyphs.forEach((g,i)=>{ hv.setUint16(i*4,Math.max(0,g.adv)); hv.setInt16(i*4+2,g.lsb); });
+
+  const head=new Uint8Array(54); const hd=new DataView(head.buffer);
+  hd.setUint32(0,0x00010000); hd.setUint32(4,0x00010000);
+  hd.setUint32(12,0x5F0F3CF5);                     // magic
+  // Baseline at y=0 and integer ppem, which is what a pixel font wants; the
+  // dates stay at the epoch so two exports of the same strike are the same
+  // bytes, which is what the check compares.
+  hd.setUint16(16,0x0009);
+  hd.setUint16(18,upem);
+  const withInk=glyphs.filter(g=>g.contours);
+  hd.setInt16(36,withInk.length?Math.min(...withInk.map(g=>g.xMin)):0);
+  hd.setInt16(38,withInk.length?Math.min(...withInk.map(g=>g.yMin)):0);
+  hd.setInt16(40,withInk.length?Math.max(...withInk.map(g=>g.xMax)):0);
+  hd.setInt16(42,withInk.length?Math.max(...withInk.map(g=>g.yMax)):0);
+  hd.setUint16(44,0);                              // macStyle: plain
+  hd.setUint16(46,f.ascent+f.descent);             // lowestRecPPEM: the cell
+  hd.setInt16(48,2); hd.setInt16(50,1); hd.setInt16(52,0);   // long loca
+
+  const maxAdv=Math.max(...glyphs.map(g=>g.adv),0);
+  const hhea=new Uint8Array(36); const hh=new DataView(hhea.buffer);
+  hh.setUint32(0,0x00010000);
+  hh.setInt16(4,f.ascent*PX); hh.setInt16(6,-f.descent*PX); hh.setInt16(8,(f.leading||0)*PX);
+  hh.setUint16(10,maxAdv);
+  hh.setInt16(12,withInk.length?Math.min(...withInk.map(g=>g.lsb)):0);
+  hh.setInt16(14,0); hh.setInt16(16,maxAdv);
+  hh.setInt16(18,1); hh.setInt16(20,0); hh.setInt16(22,0);
+  hh.setUint16(34,numGlyphs);
+
+  const maxp=new Uint8Array(32); const mx=new DataView(maxp.buffer);
+  mx.setUint32(0,0x00010000); mx.setUint16(4,numGlyphs);
+  mx.setUint16(6,Math.max(...glyphs.map(g=>g.points),0));
+  mx.setUint16(8,Math.max(...glyphs.map(g=>g.contours),0));
+  mx.setUint16(14,2);                              // maxZones
+
+  // cmap: one format 4 subtable, offered as (0,3) and (3,1), and a format 6
+  // Mac Roman table beside it so the font also works where it came from.
+  const mapped=order.filter(g=>g.code!==null).map((g,i)=>[g.code,i+1]).sort((a,b)=>a[0]-b[0]);
+  const segs=mapped.map(([cp,gi])=>({start:cp,end:cp,delta:(gi-cp)&0xFFFF}))
+                   .concat([{start:0xFFFF,end:0xFFFF,delta:1}]);
+  const sc=segs.length, f4len=16+sc*8;
+  const f4=new Uint8Array(f4len); const fv=new DataView(f4.buffer);
+  let es=1, esl=0; while(es*2<=sc){ es*=2; esl++; }
+  fv.setUint16(0,4); fv.setUint16(2,f4len); fv.setUint16(4,0);
+  fv.setUint16(6,sc*2); fv.setUint16(8,es*2); fv.setUint16(10,esl); fv.setUint16(12,sc*2-es*2);
+  segs.forEach((sg,i)=>{ fv.setUint16(14+i*2,sg.end); fv.setUint16(16+sc*2+i*2,sg.start);
+                         fv.setUint16(16+sc*4+i*2,sg.delta); fv.setUint16(16+sc*6+i*2,0); });
+  const macCodes=order.filter(g=>g.code!==null);
+  const first=f.firstChar, count=f.lastChar-f.firstChar+1;
+  const f6=new Uint8Array(10+count*2); const sv=new DataView(f6.buffer);
+  sv.setUint16(0,6); sv.setUint16(2,f6.length); sv.setUint16(4,0);
+  sv.setUint16(6,first); sv.setUint16(8,count);
+  for(let c=f.firstChar;c<=f.lastChar;c++){
+    const gi=order.findIndex(g=>g.idx===c-f.firstChar && g.code!==null);
+    sv.setUint16(10+(c-first)*2, gi>0?gi:0);
+  }
+  const cmap=new Uint8Array(4+3*8+f4.length+f6.length); const cv=new DataView(cmap.buffer);
+  cv.setUint16(0,0); cv.setUint16(2,3);
+  const uniOff=4+24, macOff=uniOff+f4.length;
+  [[0,3,uniOff],[1,0,macOff],[3,1,uniOff]].forEach(([pl,en,off],i)=>{
+    cv.setUint16(4+i*8,pl); cv.setUint16(6+i*8,en); cv.setUint32(8+i*8,off); });
+  cmap.set(f4,uniOff); cmap.set(f6,macOff);
+
+  const os2=new Uint8Array(96); const ov=new DataView(os2.buffer);
+  const advs=glyphs.map(g=>g.adv).filter(v=>v>0);
+  ov.setUint16(0,3);
+  ov.setInt16(2,advs.length?Math.round(advs.reduce((a,b)=>a+b,0)/advs.length):0);
+  ov.setUint16(4,400); ov.setUint16(6,5); ov.setUint16(8,0);
+  const sub=Math.round(upem*0.65), subOff=Math.round(upem*0.14);
+  [sub,sub,0,subOff,sub,sub,0,Math.round(upem*0.48)].forEach((v,i)=>ov.setInt16(10+i*2,v));
+  ov.setInt16(26,Math.round(upem*0.05)); ov.setInt16(28,Math.round(upem*0.26));
+  ov.setUint32(42,0x00000003);
+  os2.set([0x20,0x20,0x20,0x20],58);
+  ov.setUint16(62,0x0040);
+  ov.setUint16(64,mapped.length?mapped[0][0]:0x20); ov.setUint16(66,mapped.length?mapped[mapped.length-1][0]:0xFF);
+  ov.setInt16(68,f.ascent*PX); ov.setInt16(70,-f.descent*PX); ov.setInt16(72,(f.leading||0)*PX);
+  ov.setUint16(74,f.ascent*PX); ov.setUint16(76,f.descent*PX);
+  ov.setUint32(78,0x00000001);
+  ov.setInt16(86,Math.round(upem*0.5)); ov.setInt16(88,f.ascent*PX);
+  ov.setUint16(90,0); ov.setUint16(92,0x20); ov.setUint16(94,1);
+
+  const family=opts.family||'Bitmap font';
+  const ps=family.replace(/[^A-Za-z0-9]/g,'');
+  const strings=[[1,family],[2,'Regular'],[3,family+' from a Delver NFNT strike'],
+                 [4,family],[5,'Version 1.000'],[6,ps],
+                 [10,opts.note||'Traced from a classic Mac NFNT bitmap strike.']];
+  const recs=[];
+  for(const [id,s] of strings){
+    const mac=new Uint8Array(s.length);
+    for(let i=0;i<s.length;i++) mac[i]=s.charCodeAt(i)&0xFF;
+    const win=new Uint8Array(s.length*2);
+    for(let i=0;i<s.length;i++){ win[i*2]=s.charCodeAt(i)>>8; win[i*2+1]=s.charCodeAt(i)&0xFF; }
+    recs.push({pl:1,en:0,lang:0,id,bytes:mac});
+    recs.push({pl:3,en:1,lang:0x409,id,bytes:win});
+  }
+  recs.sort((a,b)=>a.pl-b.pl||a.en-b.en||a.lang-b.lang||a.id-b.id);
+  let strLen=0; for(const r of recs){ r.off=strLen; strLen+=r.bytes.length; }
+  const name=new Uint8Array(6+recs.length*12+strLen); const nv=new DataView(name.buffer);
+  nv.setUint16(0,0); nv.setUint16(2,recs.length); nv.setUint16(4,6+recs.length*12);
+  recs.forEach((r,i)=>{ const p=6+i*12;
+    nv.setUint16(p,r.pl); nv.setUint16(p+2,r.en); nv.setUint16(p+4,r.lang); nv.setUint16(p+6,r.id);
+    nv.setUint16(p+8,r.bytes.length); nv.setUint16(p+10,r.off);
+    name.set(r.bytes,6+recs.length*12+r.off); });
+
+  const post=new Uint8Array(32); const pv=new DataView(post.buffer);
+  pv.setUint32(0,0x00030000); pv.setInt16(8,0); pv.setUint16(12,0);
+
+  const tables=[{tag:'OS/2',bytes:os2},{tag:'cmap',bytes:cmap},{tag:'glyf',bytes:glyf},
+                {tag:'head',bytes:head},{tag:'hhea',bytes:hhea},{tag:'hmtx',bytes:hmtx},
+                {tag:'loca',bytes:loca},{tag:'maxp',bytes:maxp},{tag:'name',bytes:name},
+                {tag:'post',bytes:post}];
+  return rebuildSfnt(new Uint8Array([0,1,0,0]), tables);
 }
 
 // FOND: 52-byte family record, then the font association table that says

@@ -4564,7 +4564,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.85.0';
+const GRIMOIRE_VERSION = '1.86.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -4738,6 +4738,20 @@ function rasteriseGlyph(ch, family, px, height, ascent) {
   }
   return { rows, width: adv };
 }
+// One glyph out of the strike as it stands, in the same shape rasteriseGlyph
+// returns, so a slot can be carried through a rewrite untouched.
+function copyStrikeGlyph(spec, i) {
+  const rowBytes = spec.rowWords * 2, w = spec.loc[i + 1] - spec.loc[i], rows = [];
+  for (let y = 0; y < spec.fRectHeight; y++) {
+    const row = [];
+    for (let k = 0; k < w; k++) {
+      const x = spec.loc[i] + k;
+      row.push((spec.strike[y * rowBytes + (x >> 3)] >> (7 - (x & 7))) & 1);
+    }
+    rows.push(row);
+  }
+  return { rows, width: w };
+}
 function rebuildStrike(spec, family) {
   const n = spec.nGlyphs;
   // Which codes carry an image today. The last index is the missing symbol.
@@ -4747,6 +4761,11 @@ function rebuildStrike(spec, family) {
   const glyphs = [];
   for (let i = 0; i < n; i++) {
     if (!had[i]) { glyphs.push(null); continue; }
+    // The last index is the missing symbol rather than a character, and
+    // firstChar + i is then the code one past lastChar -- 'c' in both Seldane
+    // strikes, whose box was being replaced by whatever the chosen face draws
+    // for a lowercase c. It is carried through as it stands.
+    if (i === n - 1) { glyphs.push(copyStrikeGlyph(spec, i)); continue; }
     const code = spec.firstChar + i;
     const g = rasteriseGlyph(String.fromCharCode(code), family, px, spec.fRectHeight, spec.ascent);
     glyphs.push(g && g.width > 0 ? g : null);
@@ -4815,6 +4834,47 @@ function undoStrikeSwap() {
   setStatus('The Seldane script is the file’s own again.');
   renderMacRsrcSheet();
 }
+/* The strike, out.
+
+   The swap above puts a modern face into the game's bitmap font. This is the
+   other direction and it leaves the file alone: the strike as a TrueType,
+   saved to disk, for a phone or a word processor to set Seldane in.
+   `nfntToTrueType` does the work and says how; here is only the naming.
+
+   A font per strike, not one font for both, because the two strikes are two
+   designs and not two sizes of one -- which is what Cythera Guides concluded
+   too, distributing Seldane Medium and Seldane Large as separate suitcases.
+   The name comes from the family record, so it is "Seldane 12" and "Seldane
+   18" for this file and the right thing for any other Delver archive whose
+   FOND names its strikes. */
+function strikeFamilyOf(id) {
+  const fork = window.CYTHERA_RSRC;
+  const fonds = (fork && fork.resourcesByType && fork.resourcesByType['FOND']) || [];
+  for (const e of fonds) {
+    let d;
+    try { d = decodeFOND(fork.dataOf('FOND', e)); } catch (err) { continue; }
+    const hit = d.entries.find(x => x.id === id && x.size);
+    if (hit) return (e.name || 'Bitmap font') + ' ' + hit.size;
+  }
+  return 'NFNT ' + id;
+}
+function exportStrikeTrueType(id) {
+  const fork = window.CYTHERA_RSRC;
+  const e = ((fork && fork.resourcesByType && fork.resourcesByType['NFNT']) || []).find(x => x.id === id);
+  if (!e) { setStatus('That strike is not in this fork.', true); return; }
+  const family = strikeFamilyOf(id);
+  try {
+    const spec = nfntSpec(fork.dataOf('NFNT', e));
+    const ttf = nfntToTrueType(spec, { family: family,
+      note: 'Drawn from NFNT ' + id + ', a bitmap strike in a Delver archive. ' +
+            'Cythera is copyright Ambrosia Software, Inc. and Glenn Andreas.' });
+    downloadBlob(ttf, family + '.ttf');
+    setStatus(family + '.ttf written: ' + (spec.ascent + spec.descent) + ' pixels to the em, ' +
+              'so it draws its own pixels at ' + (spec.ascent + spec.descent) + 'px and at every multiple of it.');
+  } catch (err) {
+    setStatus('That strike could not be written as a TrueType: ' + err.message, true);
+  }
+}
 function strikeSwapPanel() {
   const box = document.createElement('div');
   box.className = 'mechView';
@@ -4826,11 +4886,18 @@ function strikeSwapPanel() {
         strikes.map(e => 'NFNT ' + e.id).join(' and ') +
         ', named by the family record at 12 and 18 point. A TrueType font chosen here is drawn into both strikes at their own cell heights and written into the copy of the archive in this browser.</p>' +
         '<ul class="ruleList">' +
-        '<li>Only the letters the strike already draws are replaced. Seldane has 25, and the one it lacks stays missing.</li>' +
+        '<li>Only the letters the strike already draws are replaced, and the missing-character box is carried through untouched. ' +
+        'Seldane draws 24 letters: it has no L and no O at 12 point, and at 18 point it has an entry for each of them one pixel wide and empty.</li>' +
         '<li>The rasteriser has no greys to work with, so a light face at 12 point will come out broken up.</li>' +
         '<li>Nothing is written to disk and nothing on the server changes.</li></ul>' +
         '<div class="mechStats"><input type="file" id="strikeSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoStrikeSwap()">Put the file’s own script back</button>' : '') +
+        '</div>' +
+        '<p class="mechLede">Or take the script out: each strike writes as a TrueType font, ' +
+        'one pixel to 64 font units, so set at its own cell height it draws exactly the pixels above it.</p>' +
+        '<div class="mechStats">' +
+        strikes.map(e => '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="exportStrikeTrueType(' +
+          e.id + ')">Save ' + svEsc(strikeFamilyOf(e.id)) + ' as a TrueType</button>').join('') +
         '</div>' +
         (sw ? '<blockquote class="mechQuote">' + svEsc(sw.name) + ' is the Seldane script in this copy, in ' + sw.strikes + ' strikes.</blockquote>' : '') +
         '<div id="strikeSwapNote" class="mechSub"></div>'

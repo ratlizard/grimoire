@@ -349,10 +349,13 @@ const CHECKS = [
   /* The bitmap-font writer against the two strikes Ambrosia shipped. The
      reader walks past the two tables that follow the bit image, so rendering a
      font correctly proves nothing about them; writing the shipped bytes back
-     exactly does. Carries its own negative control per font. */
+     exactly does. Then the other direction, nfntToTrueType: the outlines it
+     writes are read back out of the glyf table and filled by winding number
+     over the strike's own pixel grid, and every pixel must agree. Carries a
+     negative control per font in each direction. */
   {page: 'viewer', name: 'bitmap font write', want: [DATA_RSRC],
    cmd: ['utilities/nfnt_write_check.mjs', 'index.html', DATA_RSRC],
-   grep: /\d+ of \d+ shipped fonts written back byte for byte[^\n]*/},
+   grep: /\d+ of \d+ strikes written as TrueType[^\n]*/},
   {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
    grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT 1d7eaa158c17'},
