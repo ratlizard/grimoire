@@ -27,10 +27,12 @@
    the page had never been able to reach them. It always could, through the
    bundle.
 
-   Method 15 (Arsenic) is still not implemented and is the one left: the
-   3D Cursors add-on, the I.M.Cheater saved game, and every resource fork
-   in the bundle are Arsenic. It is documented in The Unarchiver's XADMaster
-   and in benletchford/stuffit-rs if a page ever needs it.
+   **And method 15, Arsenic, since 16 September 2026**, which is what the
+   rest of the corpus is: the 3D Cursors add-on, the I.M.Cheater saved game,
+   and every resource fork in the four-in-one bundle. Until then the page
+   could list those files and not hand them over, and the installer's own
+   resource fork -- where its VISE icon is -- could only be reached from a
+   MacBinary copy. See the Arsenic section at the foot of this file.
 
    WHERE THE FORMAT CAME FROM
 
@@ -192,9 +194,8 @@ function parseStuffIt5(bytes) {
 
 /* One fork of one entry: stored, or decompressed if the method is one this
  * file implements. `which` is 'data' or 'rsrc'. Throws, naming the method,
- * for anything else -- which is still most of them, method 15 (Arsenic)
- * above all, and the message is what tells a user which file to extract by
- * hand.
+ * for anything else, and the message is what tells a user which file to
+ * extract by hand.
  *
  * Was `stuffItStoredFork` until method 13 landed. Renamed rather than kept
  * beside a second entry point, because two classic scripts share one global
@@ -216,8 +217,9 @@ function stuffItFork(bytes, entry, which) {
                       packedLen + ' bytes for a length of ' + len);
     return bytes.subarray(offset, offset + len);
   }
-  if (method === 13) {
-    const out = sit13Decompress(bytes.subarray(offset, offset + packedLen), len);
+  if (method === 13 || method === 15) {
+    const packed = bytes.subarray(offset, offset + packedLen);
+    const out = method === 13 ? sit13Decompress(packed, len) : arsenicDecompress(packed, len);
     if (out.length !== len)
       throw new Error('"' + entry.name + '" ' + which + ' fork decompressed to ' + out.length +
                       ' bytes where the catalog says ' + len);
@@ -427,3 +429,198 @@ const SIT13_META_LENGTHS = [11,8,8,8,8,7,6,5,5,5,5,6,5,6,7,7,9,12,10,11,11,12,12
 const SIT13_FIRST = [[4,5,7,8,8,9,9,9,9,7,9,9,9,8,9,9,9,9,9,9,9,9,9,10,9,9,10,10,9,10,9,9,5,9,9,9,9,10,9,9,9,9,9,9,9,9,7,9,9,8,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,8,9,9,8,8,9,9,9,9,9,9,9,7,8,9,7,9,9,7,7,9,9,9,9,10,9,10,10,10,9,9,9,5,9,8,7,5,9,8,8,7,9,9,8,8,5,5,7,10,5,8,5,8,9,9,9,9,9,10,9,9,10,9,9,10,10,10,10,10,10,10,9,10,10,10,10,10,10,10,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,10,10,10,10,10,10,10,9,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,10,10,10,10,10,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,10,10,10,10,10,10,10,10,10,10,10,9,9,10,10,9,10,10,10,10,10,10,10,9,10,10,10,9,10,9,5,6,5,5,8,9,9,9,9,9,9,10,10,10,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,10,9,9,9,10,9,10,9,10,9,10,9,10,10,10,9,10,9,10,10,9,9,9,6,9,9,10,9,5],[4,7,7,8,7,8,8,8,8,7,8,7,8,7,9,8,8,8,9,9,9,9,10,10,9,10,10,10,10,10,9,9,5,9,8,9,9,11,10,9,8,9,9,9,8,9,7,8,8,8,9,9,9,9,9,10,9,9,9,10,9,9,10,9,8,8,7,7,7,8,8,9,8,8,9,9,8,8,7,8,7,10,8,7,7,9,9,9,9,10,10,11,11,11,10,9,8,6,8,7,7,5,7,7,7,6,9,8,6,7,6,6,7,9,6,6,6,7,8,8,8,8,9,10,9,10,9,9,8,9,10,10,9,10,10,9,9,10,10,10,10,10,10,10,9,10,10,11,10,10,10,10,10,10,10,11,10,11,10,10,9,11,10,10,10,10,10,10,9,9,10,11,10,11,10,11,10,12,10,11,10,12,11,12,10,12,10,11,10,11,11,11,9,10,11,11,11,12,12,10,10,10,11,11,10,11,10,10,9,11,10,11,10,11,11,11,10,11,11,12,11,11,10,10,10,11,10,10,11,11,12,10,10,11,11,12,11,11,10,11,9,12,10,11,11,11,10,11,10,11,10,11,9,10,9,7,3,5,6,6,7,7,8,8,8,9,9,9,11,10,10,10,12,13,11,12,12,11,13,12,12,11,12,12,13,12,14,13,14,13,15,13,14,15,15,14,13,15,15,14,15,14,15,15,14,15,13,13,14,15,15,14,14,16,16,15,15,15,12,15,10],[6,6,6,6,6,9,8,8,4,9,8,9,8,9,9,9,8,9,9,10,8,10,10,10,9,10,10,10,9,10,10,9,9,9,8,10,9,10,9,10,9,10,9,10,9,9,8,9,8,9,9,9,10,10,10,10,9,9,9,10,9,10,9,9,7,8,8,9,8,9,9,9,8,9,9,10,9,9,8,9,8,9,8,8,8,9,9,9,9,9,10,10,10,10,10,9,8,8,9,8,9,7,8,8,9,8,10,10,8,9,8,8,8,10,8,8,8,8,9,9,9,9,10,10,10,10,10,9,7,9,9,10,10,10,10,10,9,10,10,10,10,10,10,9,9,10,10,10,10,10,10,10,10,9,10,10,10,10,10,10,9,10,10,10,10,10,10,10,9,9,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,10,10,10,10,9,8,9,10,10,10,10,10,10,10,10,10,10,9,10,10,10,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,9,10,10,10,10,10,10,9,10,10,10,10,10,10,9,9,9,10,10,10,10,10,10,9,9,10,9,9,8,9,8,9,4,6,6,6,7,8,8,9,9,10,10,10,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,7,10,10,10,7,10,10,7,7,7,7,7,6,7,10,7,7,10,7,7,7,6,7,6,6,7,7,6,6,9,6,9,10,6,10],[2,6,6,7,7,8,7,8,7,8,8,9,8,9,9,9,8,8,9,9,9,10,10,9,8,10,9,10,9,10,9,9,6,9,8,9,9,10,9,9,9,10,9,9,9,9,8,8,8,8,8,9,9,9,9,9,9,9,9,9,9,10,10,9,7,7,8,8,8,8,9,9,7,8,9,10,8,8,7,8,8,10,8,8,8,9,8,9,9,10,9,11,10,11,9,9,8,7,9,8,8,6,8,8,8,7,10,9,7,8,7,7,8,10,7,7,7,8,9,9,9,9,10,11,9,11,10,9,7,9,10,10,10,11,11,10,10,11,10,10,10,11,11,10,9,10,10,11,10,11,10,11,10,10,10,11,10,11,10,10,9,10,10,11,10,11,10,11,9,10,10,10,10,11,10,11,10,11,10,11,11,11,10,12,10,11,10,11,10,11,11,10,8,10,10,11,10,11,11,11,10,11,10,11,10,11,11,11,9,10,11,11,10,11,11,11,10,11,11,11,10,10,10,10,10,11,10,10,11,11,10,10,9,11,10,10,11,11,10,10,10,11,10,10,10,10,10,10,9,11,10,10,8,10,8,6,5,6,6,7,7,8,8,8,9,10,11,10,10,11,11,12,12,10,11,12,12,12,12,13,13,13,13,13,12,13,13,15,14,12,14,15,16,12,12,13,15,14,16,15,17,18,15,17,16,15,15,15,15,13,13,10,14,12,13,17,17,18,10,17,4],[7,9,9,9,9,9,9,9,9,8,9,9,9,7,9,9,9,9,9,9,9,9,9,10,9,10,9,10,9,10,9,9,5,9,7,9,9,9,9,9,7,7,7,9,7,7,8,7,8,8,7,7,9,9,9,9,7,7,7,9,9,9,9,9,9,7,9,7,7,7,7,9,9,7,9,9,7,7,7,7,7,9,7,8,7,9,9,9,9,9,9,9,9,9,9,9,9,7,8,7,7,7,8,8,6,7,9,7,7,8,7,5,6,9,5,7,5,6,7,7,9,8,9,9,9,9,9,9,9,9,10,9,10,10,10,9,9,10,10,10,10,10,10,10,9,10,10,10,10,10,10,10,10,10,10,10,9,10,10,10,9,10,10,10,9,9,10,9,9,9,9,10,10,10,10,10,10,10,10,10,10,10,9,10,10,10,10,10,10,10,10,10,9,10,10,10,9,10,10,10,9,9,9,10,10,10,10,10,9,10,9,10,10,9,10,10,9,10,10,10,10,10,10,10,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,10,10,10,10,10,10,10,9,10,9,10,9,10,10,9,5,6,8,8,7,7,7,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,10,10,5,10,8,9,8,9]];
 const SIT13_SECOND = [[4,5,6,6,7,7,6,7,7,7,6,8,7,8,8,8,8,9,6,9,8,9,8,9,9,9,8,10,5,9,7,9,6,9,8,10,9,10,8,8,9,9,7,9,8,9,8,9,8,8,6,9,9,8,8,9,9,10,8,9,9,10,8,10,8,8,8,8,8,9,7,10,6,9,9,11,7,8,8,9,8,10,7,8,6,9,10,9,9,10,8,11,9,11,9,10,9,8,9,8,8,8,8,10,9,9,10,10,8,9,8,8,8,11,9,8,8,9,9,10,8,11,10,10,8,10,9,10,8,9,9,11,9,11,9,10,10,11,10,12,9,12,10,11,10,11,9,10,10,11,10,11,10,11,10,11,10,10,10,9,9,9,8,7,6,8,11,11,9,12,10,12,9,11,11,11,10,12,11,11,10,12,10,11,10,10,10,11,10,11,11,11,9,12,10,12,11,12,10,11,10,12,11,12,11,12,11,12,10,12,11,12,11,11,10,12,10,11,10,12,10,12,10,12,10,11,11,11,10,11,11,11,10,12,11,12,10,10,11,11,9,12,11,12,10,11,10,12,10,11,10,12,10,11,10,7,5,4,6,6,7,7,7,8,8,7,7,6,8,6,7,7,9,8,9,9,10,11,11,11,12,11,10,11,12,11,12,11,12,12,12,12,11,12,12,11,12,11,12,11,13,11,12,10,13,10,14,14,13,14,15,14,16,15,15,18,18,18,9,18,8],[5,6,6,6,6,7,7,7,7,7,7,8,7,8,7,7,7,8,8,8,8,9,8,9,8,9,9,9,7,9,8,8,6,9,8,9,8,9,8,9,8,9,8,9,8,9,8,8,8,8,8,9,8,9,8,9,9,10,8,10,8,9,9,8,8,8,7,8,8,9,8,9,7,9,8,10,8,9,8,9,8,9,8,8,8,9,9,9,9,10,9,11,9,10,9,10,8,8,8,9,8,8,8,9,9,8,9,10,8,9,8,8,8,11,8,7,8,9,9,9,9,10,9,10,9,10,9,8,8,9,9,10,9,10,9,10,8,10,9,10,9,11,10,11,9,11,10,10,10,11,9,11,9,10,9,11,9,11,10,10,9,10,9,9,8,10,9,11,9,9,9,11,10,11,9,11,9,11,9,11,10,11,10,11,10,11,9,10,10,11,10,10,8,10,9,10,10,11,9,11,9,10,10,11,9,10,10,9,9,10,9,10,9,10,9,10,9,11,9,11,10,10,9,10,9,11,9,11,9,11,9,10,9,11,9,11,9,11,9,10,8,11,9,10,9,10,9,10,8,10,8,9,8,9,8,7,4,4,5,6,6,6,7,7,7,7,8,8,8,7,8,8,9,9,10,10,10,10,10,10,11,11,10,10,12,11,11,12,12,11,12,12,11,12,12,12,12,12,12,11,12,11,13,12,13,12,13,14,14,14,15,13,14,13,14,18,18,17,7,16,9],[5,6,6,6,6,7,7,7,6,8,7,8,7,9,8,8,7,7,8,9,9,9,9,10,8,9,9,10,8,10,9,8,6,10,8,10,8,10,9,9,9,9,9,10,9,9,8,9,8,9,8,9,9,10,9,10,9,9,8,10,9,11,10,8,8,8,8,9,7,9,9,10,8,9,8,11,9,10,9,10,8,9,9,9,9,8,9,9,10,10,10,12,10,11,10,10,8,9,9,9,8,9,8,8,10,9,10,11,8,10,9,9,8,12,8,9,9,9,9,8,9,10,9,12,10,10,10,8,7,11,10,9,10,11,9,11,7,11,10,12,10,12,10,11,9,11,9,12,10,12,10,12,10,9,11,12,10,12,10,11,9,10,9,10,9,11,11,12,9,10,8,12,11,12,9,12,10,12,10,13,10,12,10,12,10,12,10,9,10,12,10,9,8,11,10,12,10,12,10,12,10,11,10,12,8,12,10,11,10,10,10,12,9,11,10,12,10,12,11,12,10,9,10,12,9,10,10,12,10,11,10,11,10,12,8,12,9,12,8,12,8,11,10,11,10,11,9,10,8,10,9,9,8,9,8,7,4,3,5,5,6,5,6,6,7,7,8,8,8,7,7,7,9,8,9,9,11,9,11,9,8,9,9,11,12,11,12,12,13,13,12,13,14,13,14,13,14,13,13,13,12,13,13,12,13,13,14,14,13,13,14,14,14,14,15,18,17,18,8,16,10],[4,5,6,6,6,6,7,7,6,7,7,9,6,8,8,7,7,8,8,8,6,9,8,8,7,9,8,9,8,9,8,9,6,9,8,9,8,10,9,9,8,10,8,10,8,9,8,9,8,8,7,9,9,9,9,9,8,10,9,10,9,10,9,8,7,8,9,9,8,9,9,9,7,10,9,10,9,9,8,9,8,9,8,8,8,9,9,10,9,9,8,11,9,11,10,10,8,8,10,8,8,9,9,9,10,9,10,11,9,9,9,9,8,9,8,8,8,10,10,9,9,8,10,11,10,11,11,9,8,9,10,11,9,10,11,11,9,12,10,10,10,12,11,11,9,11,11,12,9,11,9,10,10,10,10,12,9,11,10,11,9,11,11,11,10,11,11,12,9,10,10,12,11,11,10,11,9,11,10,11,10,11,9,11,11,9,8,11,10,11,11,10,7,12,11,11,11,11,11,12,10,12,11,13,11,10,12,11,10,11,10,11,10,11,10,11,10,12,11,11,10,11,10,10,10,11,10,12,11,12,10,11,9,11,10,11,10,11,10,12,9,11,11,11,9,11,10,10,9,11,10,10,9,10,9,7,4,5,5,5,6,6,7,6,8,7,8,9,9,7,8,8,10,9,10,10,12,10,11,11,11,11,10,11,12,11,11,11,11,11,13,12,11,12,13,12,12,12,13,11,9,12,13,7,13,11,13,11,10,11,13,15,15,12,14,15,15,15,6,15,5],[8,10,11,11,11,12,11,11,12,6,11,12,10,5,12,12,12,12,12,12,12,13,13,14,13,13,12,13,12,13,12,15,4,10,7,9,11,11,10,9,6,7,8,9,6,7,6,7,8,7,7,8,8,8,8,8,8,9,8,7,10,9,10,10,11,7,8,6,7,8,8,9,8,7,10,10,8,7,8,8,7,10,7,6,7,9,9,8,11,11,11,10,11,11,11,8,11,6,7,6,6,6,6,8,7,6,10,9,6,7,6,6,7,10,6,5,6,7,7,7,10,8,11,9,13,7,14,16,12,14,14,15,15,16,16,14,15,15,15,15,15,15,15,15,14,15,13,14,14,16,15,17,14,17,15,17,12,14,13,16,12,17,13,17,14,13,13,14,14,12,13,15,15,14,15,17,14,17,15,14,15,16,12,16,15,14,15,16,15,16,17,17,15,15,17,17,13,14,15,15,13,12,16,16,17,14,15,16,15,15,13,13,15,13,16,17,15,17,17,17,16,17,14,17,14,16,15,17,15,15,14,17,15,17,15,16,15,15,16,16,14,17,17,15,15,16,15,17,15,14,16,16,16,16,16,12,4,4,5,5,6,6,6,7,7,7,8,8,8,8,9,9,9,9,9,10,10,10,11,10,11,11,11,11,11,12,12,12,13,13,12,13,12,14,14,12,13,13,13,13,14,12,13,13,14,14,14,13,14,14,15,15,13,15,13,17,17,17,9,17,7]];
 const SIT13_OFFSET = [[5,6,3,3,3,3,3,3,3,4,6],[5,6,4,4,3,3,3,3,3,4,4,4,6],[6,7,4,4,3,3,3,3,3,4,4,4,5,7],[3,6,5,4,2,3,3,3,4,4,6],[6,7,7,6,4,3,2,2,3,3,6]];
+
+/* ---- StuffIt method 15, Arsenic --------------------------------------------
+
+   WHY THIS IS HERE. Method 13 opened the add-ons; this opens what is inside
+   the rest of them. Every resource fork in archive.org's four-in-one bundle
+   is Arsenic, and so are the 3D Cursors add-on and the I.M.Cheater saved
+   game -- so the page could list a file and not hand it over, and the
+   installer's own resource fork, which is where its VISE icon lives, was
+   reachable only from a MacBinary copy.
+
+   WHAT IT IS. Arsenic is bzip2's shape under a different coder: the block is
+   Burrows-Wheeler transformed, move-to-front coded, run-length coded, and the
+   symbols are written by an adaptive binary-free arithmetic coder rather than
+   Huffman. Decoding runs the same pipeline backwards.
+
+   - **The coder** keeps a 26-bit range and code word, reads bits high bit
+     first, and takes a symbol by dividing the code by the range over the
+     model's total frequency. Every model is adaptive: a symbol's frequency
+     rises by the model's increment each time it is read, and when the total
+     passes the model's limit every frequency halves.
+   - **The selector model** codes eleven outcomes: 0 and 1 are the two digits
+     of a run of the move-to-front list's head (bijective base 2, as bzip2's
+     RUNA and RUNB), 2 is "the next symbol is index 1", 3 to 9 choose one of
+     seven index models covering 2, 4, 8, 16, 32, 64 and 128 indices, and 10
+     ends the block.
+   - **The inverse transform** is the usual counting sort: the number of bytes
+     below each value gives each row's place, and walking that vector from the
+     index the block carries reproduces the original order.
+   - **Randomisation** is a flag on the block. When it is set, the byte at
+     every position named by a walk of the 256-entry table has its low bit
+     flipped back. Nothing in the Cythera corpus sets it, so that path is
+     written from the specification and is not exercised by the check.
+   - **The last stage** is a run-length code: four equal bytes are followed by
+     a count of how many more of them there are.
+
+   WHERE THE FORMAT CAME FROM. Ported from `SitArsenicDecoder` in stuffit-rs
+   0.1.8 (Ben Letchford, MIT OR Apache-2.0), the same crate this file's header
+   layouts came from, which carries The Unarchiver's tables and cites
+   `XADStuffItArsenicHandle.m`. The randomisation table is transcribed from
+   it. `utilities/sit_methods_check.mjs` holds the result to `unar` byte for
+   byte, which is the implementation all of these descend from. */
+
+// The 256 gaps between the positions a randomised block flips. Transcribed
+// from stuffit-rs, which took it from The Unarchiver.
+const ARSENIC_RANDOM = [
+  0xee, 0x56, 0xf8, 0xc3, 0x9d, 0x9f, 0xae, 0x2c, 0xad, 0xcd, 0x24, 0x9d, 0xa6, 0x101, 0x18,
+  0xb9, 0xa1, 0x82, 0x75, 0xe9, 0x9f, 0x55, 0x66, 0x6a, 0x86, 0x71, 0xdc, 0x84, 0x56, 0x96, 0x56,
+  0xa1, 0x84, 0x78, 0xb7, 0x32, 0x6a, 0x03, 0xe3, 0x02, 0x11, 0x101, 0x08, 0x44, 0x83, 0x100, 0x43,
+  0xe3, 0x1c, 0xf0, 0x86, 0x6a, 0x6b, 0x0f, 0x03, 0x2d, 0x86, 0x17, 0x7b, 0x10, 0xf6, 0x80, 0x78,
+  0x7a, 0xa1, 0xe1, 0xef, 0x8c, 0xf6, 0x87, 0x4b, 0xa7, 0xe2, 0x77, 0xfa, 0xb8, 0x81, 0xee, 0x77,
+  0xc0, 0x9d, 0x29, 0x20, 0x27, 0x71, 0x12, 0xe0, 0x6b, 0xd1, 0x7c, 0x0a, 0x89, 0x7d, 0x87, 0xc4,
+  0x101, 0xc1, 0x31, 0xaf, 0x38, 0x03, 0x68, 0x1b, 0x76, 0x79, 0x3f, 0xdb, 0xc7, 0x1b, 0x36, 0x7b,
+  0xe2, 0x63, 0x81, 0xee, 0x0c, 0x63, 0x8b, 0x78, 0x38, 0x97, 0x9b, 0xd7, 0x8f, 0xdd, 0xf2, 0xa3,
+  0x77, 0x8c, 0xc3, 0x39, 0x20, 0xb3, 0x12, 0x11, 0x0e, 0x17, 0x42, 0x80, 0x2c, 0xc4, 0x92, 0x59,
+  0xc8, 0xdb, 0x40, 0x76, 0x64, 0xb4, 0x55, 0x1a, 0x9e, 0xfe, 0x5f, 0x06, 0x3c, 0x41, 0xef, 0xd4,
+  0xaa, 0x98, 0x29, 0xcd, 0x1f, 0x02, 0xa8, 0x87, 0xd2, 0xa0, 0x93, 0x98, 0xef, 0x0c, 0x43, 0xed,
+  0x9d, 0xc2, 0xeb, 0x81, 0xe9, 0x64, 0x23, 0x68, 0x1e, 0x25, 0x57, 0xde, 0x9a, 0xcf, 0x7f, 0xe5,
+  0xba, 0x41, 0xea, 0xea, 0x36, 0x1a, 0x28, 0x79, 0x20, 0x5e, 0x18, 0x4e, 0x7c, 0x8e, 0x58, 0x7a,
+  0xef, 0x91, 0x02, 0x93, 0xbb, 0x56, 0xa1, 0x49, 0x1b, 0x79, 0x92, 0xf3, 0x58, 0x4f, 0x52, 0x9c,
+  0x02, 0x77, 0xaf, 0x2a, 0x8f, 0x49, 0xd0, 0x99, 0x4d, 0x98, 0x101, 0x60, 0x93, 0x100, 0x75,
+  0x31, 0xce, 0x49, 0x20, 0x56, 0x57, 0xe2, 0xf5, 0x26, 0x2b, 0x8a, 0xbf, 0xde, 0xd0, 0x83, 0x34,
+  0xf4, 0x17
+];
+
+// An adaptive frequency table. `first` is the symbol the first slot stands
+// for, so a model can code a range that does not start at zero.
+function arsModel(first, n, increment, limit) {
+  const freq = new Uint16Array(n).fill(increment);
+  return { first, n, freq, increment, limit, total: n * increment,
+    reset() { this.freq.fill(this.increment); this.total = this.n * this.increment; },
+    update(i) {
+      this.freq[i] += this.increment;
+      this.total += this.increment;
+      if (this.total > this.limit) {
+        this.total = 0;
+        for (let k = 0; k < this.n; k++) { this.freq[k] = (this.freq[k] + 1) >> 1; this.total += this.freq[k]; }
+      }
+    } };
+}
+
+const ARS_BITS = 26, ARS_ONE = 1 << (ARS_BITS - 1), ARS_HALF = 1 << (ARS_BITS - 2);
+
+function arsDecoder(data) {
+  const d = { data, pos: 0, buf: 0, bits: 0, range: ARS_ONE, code: 0 };
+  d.bit = function () {
+    if (this.bits === 0) {
+      if (this.pos >= this.data.length) return 0;      // past the end reads zeroes
+      this.buf = this.data[this.pos++]; this.bits = 8;
+    }
+    this.bits--;
+    return (this.buf >> this.bits) & 1;
+  };
+  for (let i = 0; i < ARS_BITS; i++) d.code = (d.code << 1) | d.bit();
+  d.symbol = function (m) {
+    const step = Math.floor(this.range / m.total);
+    const want = Math.floor(this.code / step);
+    let cum = 0, n = 0;
+    while (n < m.n - 1 && cum + m.freq[n] <= want) { cum += m.freq[n]; n++; }
+    const size = m.freq[n], low = step * cum;
+    this.code -= low;
+    // The last symbol takes what is left of the range rather than its own
+    // share of it, so that the range never loses a count to the division.
+    this.range = (cum + size === m.total) ? this.range - low : size * step;
+    while (this.range <= ARS_HALF) { this.range <<= 1; this.code = (this.code << 1) | this.bit(); }
+    m.update(n);
+    return m.first + n;
+  };
+  // Little end first, which is the order the header fields are written in.
+  d.bitString = function (m, n) {
+    let v = 0;
+    for (let i = 0; i < n; i++) if (this.symbol(m)) v |= 1 << i;
+    return v >>> 0;
+  };
+  return d;
+}
+
+function arsenicDecompress(packed, outLen) {
+  const dec = arsDecoder(packed);
+  const out = new Uint8Array(outLen);
+  let written = 0;
+  const header = arsModel(0, 2, 1, 256);
+  if (dec.bitString(header, 8) !== 0x41 || dec.bitString(header, 8) !== 0x73)
+    throw new Error('that is not an Arsenic stream: it does not begin "As"');
+  const blockBits = dec.bitString(header, 4) + 9;
+
+  const selector = arsModel(0, 11, 8, 1024);
+  const index = [arsModel(2, 2, 8, 1024), arsModel(4, 4, 4, 1024), arsModel(8, 8, 4, 1024),
+                 arsModel(16, 16, 4, 1024), arsModel(32, 32, 2, 1024), arsModel(64, 64, 2, 1024),
+                 arsModel(128, 128, 1, 1024)];
+
+  while (written < outLen) {
+    if (dec.symbol(header) !== 0) break;               // the end of the last block
+    const randomised = dec.symbol(header) !== 0;
+    const start = dec.bitString(header, blockBits);
+
+    // The move-to-front pass, straight into the block, which cannot outgrow
+    // the size the header declared.
+    const block = new Uint8Array(1 << blockBits);
+    let bn = 0;
+    const put = v => { if (bn >= block.length) throw new Error('an Arsenic block ran past the size its header declared'); block[bn++] = v; };
+    const mtf = []; for (let i = 0; i < 256; i++) mtf.push(i);
+    for (;;) {
+      let sel = dec.symbol(selector);
+      if (sel <= 1) {
+        // A run of the list's head, in bijective base 2: each digit is worth
+        // twice the last, and 0 counts once where 1 counts twice.
+        let place = 1, run = 0;
+        while (sel < 2) { run += (sel === 0 ? place : 2 * place); place *= 2; sel = dec.symbol(selector); }
+        const head = mtf[0];
+        for (let i = 0; i < run; i++) put(head);
+        if (sel === 10) break;
+      } else if (sel === 10) break;
+      const at = sel === 2 ? 1 : dec.symbol(index[sel - 3]);
+      const v = mtf.splice(at, 1)[0];
+      mtf.unshift(v);
+      put(v);
+    }
+    if (start >= bn) break;
+    selector.reset();
+    for (const m of index) m.reset();
+
+    // The inverse transform: where each byte of the sorted column came from.
+    const counts = new Uint32Array(256);
+    for (let i = 0; i < bn; i++) counts[block[i]]++;
+    const place = new Uint32Array(256);
+    for (let i = 0, sum = 0; i < 256; i++) { place[i] = sum; sum += counts[i]; }
+    const transform = new Uint32Array(bn);
+    for (let i = 0; i < bn; i++) transform[place[block[i]]++] = i;
+
+    let idx = start, taken = 0, run = 0, same = 0, last = 0;
+    let randAt = 0, randNext = ARSENIC_RANDOM[0];
+    while ((taken < bn || run > 0) && written < outLen) {
+      if (run > 0) { out[written++] = last; run--; continue; }
+      idx = transform[idx];
+      let b = block[idx];
+      if (randomised && randNext === taken) {
+        b ^= 1;
+        randAt = (randAt + 1) & 255;
+        randNext += ARSENIC_RANDOM[randAt];
+      }
+      taken++;
+      if (same === 4) {
+        // Four of a kind, and this byte says how many more.
+        same = 0;
+        if (b === 0) continue;
+        run = b - 1;
+        out[written++] = last;
+      } else {
+        if (b === last) same++; else { same = 1; last = b; }
+        out[written++] = b;
+      }
+    }
+  }
+  return written === outLen ? out : out.subarray(0, written);
+}

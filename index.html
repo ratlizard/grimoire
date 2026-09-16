@@ -4585,7 +4585,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.89.0';
+const GRIMOIRE_VERSION = '1.90.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -20979,8 +20979,8 @@ function patchesForget() {
    written here was a thing this page understood and Magpie did not, and
    offering to merge one invited a file nobody else would take.
 
-   That held until 15 September 2026, when Magpie under Mac OS 9 accepted a
-   descriptor grimoire wrote. The remaining reason not to apply was gone, and
+   That held until 15 September 2026, when Magpie under Mac OS 9 installed a
+   patch grimoire wrote. The remaining reason not to apply was gone, and
    the reason to apply had been there all along: the only way to see what a
    patch does was to install it and play to wherever the changed art is. The
    Pumpkin Patch redraws foliage and blades across twelve sheets, which is a
@@ -21411,7 +21411,7 @@ function renderCompareReport() {
     'This page reads it, the patches section describes it, and the browser player loads it as an add-on.</li>' +
     '<li>It carries a <b>real check value</b>, the 64-bit digest Magpie verifies before it will list a patch at all. ' +
     'That was unreadable here until the routine was recovered out of Magpie\u2019s own code, and a patch written before then had zeroes in that field. ' +
-    'Whether Magpie under Mac OS 9 then installs it has not been seen; nothing here can test that.</li>' +
+    'Magpie under Mac OS 9 <b>installed</b> a patch written here on 15 September 2026, which is the only test that counts and is not one this page can run.</li>' +
     '<li>The resources come from <b>' + svEsc(rep.bName) + '</b>, which is the side a patch would make somebody else\u2019s file match.</li>' +
     /* Established by reading Magpie's imports: of 299 symbols it imports one
        Resource Manager call, GetResource, and none that writes -- no

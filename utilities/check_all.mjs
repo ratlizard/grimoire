@@ -259,15 +259,17 @@ const CHECKS = [
   {page: 'viewer', name: 'magpie patch', want: [DATA],
    cmd: ['utilities/patch_check.mjs', 'index.html', DATA, ADDONS],
    grep: /\d+ of [\d,]+ resources replaced, [\d,]+ bytes out(?:; \d+ tiles of \d+ redrawn across \d+ sheets)?/},
-  /* StuffIt method 13, the one compression this page decompresses, against
-     The Unarchiver's own `unar` -- which is the implementation ours is a port
+  /* The two StuffIt compressions this page decompresses, 13 and 15, against
+     The Unarchiver's own `unar` -- which is the implementation both are ports
      of, so this is a decoder held to its source rather than to a snapshot.
-     Every method-13 fork in the reference corpus goes both ways and has to
-     come back byte for byte. Without `unar` the lengths and the snapshot are
-     still checked; without the corpus it skips. */
-  {page: 'viewer', name: 'stuffit method 13', want: [ADDONS],
-   cmd: ['utilities/sit13_check.mjs', 'index.html', 'reference'],
-   grep: /\d+ of \d+ fork\(s\) in \d+ archive\(s\)[^\n]*/},
+     Every method-13 and method-15 fork in the reference corpus goes both ways
+     and has to come back byte for byte, and the 1.0.4 installer's resource
+     fork is compared against the MacBinary copy as well, which shares no code
+     with either. Without `unar` the lengths and the snapshot are still
+     checked; without the corpus it skips. */
+  {page: 'viewer', name: 'stuffit 13 and 15', want: [ADDONS],
+   cmd: ['utilities/sit_methods_check.mjs', 'index.html', 'reference'],
+   grep: /\d+ of \d+ compressed fork\(s\) in \d+ archive\(s\)[^\n]*/},
   /* What Ambrosia changed between the four releases, which is only askable
      since all four installers open. A finding rather than a property, so it
      is pinned: 1.0.3 and 1.0.4 carry the same data file byte for byte, and a
