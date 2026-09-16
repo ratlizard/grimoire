@@ -2104,7 +2104,7 @@ function renderMechanicsSheet(value) {
     add('patches', 'The community’s patches', null, '',
       'Cythera has one add-on system, and it is not a plug-in folder: nothing in the game reads one. ' +
       'A Magpie patch is a Delver Archive carrying the same scenario header as this file and holding only the resources it replaces, ' +
-      'and Magpie merged it into the file on disk. A patch opened here is read against the file that is open and applied to nothing.',
+      'and Magpie merged it into the file on disk. A patch opened here is read against the file that is open, and can be applied to the copy of it in this browser.',
       [
         'A patch is identified by a <b>UUID</b> and by nothing else. There is no name, no version and no order in what a game file records, which is why Magpie needs every patch file present to say what is installed.',
         'The game file keeps the list of what has been applied to it as resource ' + propWordHex(0xFFFE) + ', and a patch keeps its own description as ' + propWordHex(0xFFFF) + '. The shipped archive has neither.',

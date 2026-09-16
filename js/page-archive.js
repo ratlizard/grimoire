@@ -386,6 +386,20 @@ function adoptArchive(raw, sourceName, opts) {
   // first visit had a resource fork and every return visit did not: Data ›
   // Data Fork said "no resource fork came with it" and the fork gallery was
   // empty, for the same bytes that had worked the day before.
+  /* A MAGPIE PATCH IS A DELVER ARCHIVE AS MUCH AS THE SCENARIO IS, and one
+     dropped here opened AS the archive: the galleries came up holding the
+     handful of resources it replaces, the map had no maps in it, and the one
+     section that can describe a patch and merge it never saw the file. There
+     is no order in which that is what was meant -- a patch is read against
+     the file whose resources it replaces -- so with a game already open it
+     goes to that section instead. With none open it still opens on its own,
+     which is the only way to look inside a patch before applying it. */
+  if (typeof fileBytes !== 'undefined' && fileBytes && delverArchivePatchPeek(found.bytes) &&
+      patchesOpenBytes(found.bytes, (found.forks && found.forks.name) || sourceName)) {
+    setStatus('That is a Magpie patch, not a game file, so it has been read against the open one instead of replacing it. ' +
+              'Mechanics \u203a The community\u2019s patches says what it changes, and applies it.');
+    return true;
+  }
   applyNamesDefault(opts.cached ? opts.source === 'local file' : !opts.url);
   parseArchiveBytes(found.bytes, sourceName, Object.assign({}, opts, { via: found.via, rsrc, finder }));
   // After parseArchiveBytes, not before: resetDerivedCaches() drops the
