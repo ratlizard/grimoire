@@ -69,6 +69,20 @@ licence text is beside it as `res/ChicagoKare-LICENSE.txt` and governs it. It
 is the face this page is set in before any game file is open, and it is not
 Ambrosia's.
 
+**`res/CarthageSans-Regular.woff2`** is **Carthage Sans** by **Brian Connors**
+(csyde, <https://fontstruct.com/fontstructions/show/1172663>), a reimagining of
+Apple's **Espy Sans** bitmap font, which is the face Cythera's application names
+for its Text and Lang0 styles. The package is dual licensed **SIL Open Font
+License 1.1** and **CC-BY-SA 4.0**, at the user's choice, and its `license.txt`
+is beside it as `res/CarthageSans-LICENSE.txt`. The page uses it for the marks
+Chicago Kare does not carry. Two things to know about the file, neither of them
+a change we made to it: the regular weight's embedded licence field reads
+"FontStruct Non-Commercial License", where the package's own `license.txt`, the
+author's readme and every other weight in the family say OFL and CC-BY-SA -- the
+string is left as he shipped it; and converting a TrueType to woff2 is a format
+change, which the OFL counts as a modification, so the name here is the family's
+own only because the design is untouched.
+
 **`delvmod/`** is a submodule, so this repository stores only a pointer to it.
 It is an independent work by **Bryce Schroeder**
 (<https://github.com/BryceSchroeder/delvmod>), licensed **GPLv3**, and is used
