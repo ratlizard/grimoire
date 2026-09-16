@@ -1893,7 +1893,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
   </div>
 </div>
 
-<!-- Shared with resource_fork_browser.html. Classic scripts, in dependency
+<!-- The generic classic-Mac formats. Classic scripts, in dependency
      order, deliberately NOT type="module": a module is fetched with CORS and
      a page opened from file:// has an opaque origin, so modules would not load
      when this file is double-clicked instead of served. -->
@@ -2426,6 +2426,10 @@ function decodeSound(resData) {
   const flags = u16be(resData, p); p+=2;
   const nsamples = Math.floor((resData.length - p)/2);
   const samples = new Int16Array(nsamples);
+  // A word a sample, but only its low byte carries signal: measured over the
+  // shipped sounds, the high byte is always 00 or FF and 99.6% of the values
+  // are within -127..127. So the word is an 8-bit sample sign-extended, and
+  // shifting it up by eight is the gain that makes it a 16-bit one.
   for (let i=0;i<nsamples;i++) {
     const v = i16be(resData, p); p+=2;
     samples[i] = v << 8;
@@ -4585,7 +4589,7 @@ function openCytheraResourceFork(bytes) {
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.91.0';
+const GRIMOIRE_VERSION = '1.92.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
@@ -5147,7 +5151,7 @@ function installGameFont() {
   window.GAME_FONT = null;
   const fork = window.CYTHERA_RSRC;
   if (!fork) { window.GAME_FONT_STATE = 'no resource fork is open'; return; }
-  const entry = (fork.resourcesByType['sfnt'] || [])[0];
+  const entry = gameFontResource();
   if (!entry) { window.GAME_FONT_STATE = 'the resource fork holds no sfnt'; return; }
   let ttf;
   try { ttf = sfntToTrueType(fork.dataOf('sfnt', entry)); }
@@ -5307,7 +5311,7 @@ function renderRsrcSheet() {
     fmtBytes(inv.bytes) + '. Showing ' +
     Object.keys(kinds).map(k => kinds[k] + ' ' + RSRC_DELVER_TYPES[k]).join(' and ') +
     (q ? ' matching “' + q + '”' : '') + '. ' +
-    'Also in the fork, and better read in resource_fork_browser.html: ' +
+    'Also in the fork, under Data › Cythera Data › Resource Fork: ' +
     inv.other.map(r => r.count + ' ' + r.type.trim()).join(', ') + '.';
 }
 
@@ -5382,8 +5386,8 @@ function showRsrcDetail(type, id) {
    Above this, the fork is read for the four Delver-only types that need
    Cythera's tile system to draw. Everything else in it -- PICT, NFNT, clut,
    STR#, sfnt, FOND, TMPL -- is an ordinary classic-Mac resource, and until
-   now this page sent people to a second tool for those. That tool
-   (resource_fork_browser.html) was more general-purpose than this repository
+   now this page sent people to a second tool for those. That tool, the
+   resource fork browser, was more general-purpose than this repository
    and is gone; its decoders are js/mac-rsrc-types.js, and this is the view
    that uses them.
 
@@ -6223,6 +6227,18 @@ function resetDerivedCaches() {
   window.MAP_SEATS = null;
   window.LIGHT_SOURCES = null;
   for (const k of Object.keys(_tileImageCache)) delete _tileImageCache[k];
+  // Named and drawn from the archive too, and missed here until 16 September
+  // 2026: an applied patch kept the shipped art on the relation chips and the
+  // zone backdrops until a reload.
+  window.SELF_NAMES = null;
+  window.ZONE_AMBIENT = null;
+  window._BUNDLE_ICONS = null;
+  window._INSTALLER_ICONS = null;
+  _relIconURLs.clear();
+  _backdropCanvases.clear();
+  _tileClearCache.clear();
+  _propTextShape.clear();
+  _atlasTextW.clear();
 }
 
 // The one status line this page has: the small text under the nav bar, and the
@@ -9164,13 +9180,20 @@ function drawLighting(lensCtx, lensTS, rect) {
        sees. */
     const cone = lightCone(s.lvl, s.flicker && Math.random() < 0.5 ? 1 : 0);
     if (cone) {
-      const w = cone.side * TS;
+      // The cone's cells are eighths of a square: the engine's light buffer is
+      // 128 cells across for a field of 16 squares, so a level-1 cone of side 10
+      // is a pool 1.25 squares wide, which is what the inspector and the light
+      // card print. Drawn a square a cell until 16 September 2026, eight times
+      // too big.
+      const w = cone.side * TS / 8;
       ctx.drawImage(cone.canvas, Math.round(s.x * TS + TS / 2 - w / 2),
                                  Math.round(s.y * TS + TS / 2 - w / 2), w, w);
       continue;
     }
     const cx = s.x * TS + TS / 2, cy = s.y * TS + TS / 2;
-    const r = TS * (1.1 + s.lvl * 0.85);
+    // The same reach as the file's smaller cone of each level: sides 10, 14
+    // and 18 cells, an eighth of a square each.
+    const r = TS * (3 + 2 * s.lvl) / 8;
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
     g.addColorStop(0, 'rgba(0,0,0,1)');
     g.addColorStop(0.6, 'rgba(0,0,0,.75)');
@@ -20769,7 +20792,7 @@ function mechShopFigure(sh) {
   const goods = [];
   for (const s of sh.shops) for (const g of s.goods) if (g.price > 0) goods.push({ name: g.name, price: g.price, who: s.who });
   if (goods.length < 4) return '';
-  const buckets = [[1, 2], [3, 5], [6, 10], [11, 25], [26, 50], [51, 100], [101, 250], [251, 1000]];
+  const buckets = [[1, 2], [3, 5], [6, 10], [11, 25], [26, 50], [51, 100], [101, 250], [251, 1000], [1001, 1e9]];
   const bins = buckets.map(b => ({
     label: b[0] >= 1000 ? '1k' : String(b[0]), value: goods.filter(g => g.price >= b[0] && g.price <= b[1]).length,
     colour: MECH_INK.gold, title: b[0] + ' to ' + b[1] + ' obols: ' + goods.filter(g => g.price >= b[0] && g.price <= b[1]).length + ' items'
@@ -20807,7 +20830,9 @@ function mechTrainingFigure(tr) {
 function mechBalloonFigure(barks, bark) {
   if (!bark || !bark.ticks || !bark.width || !bark.height) return '';
   const W = bark.width.v, H = bark.height.v, secs = bark.ticks.v / 60;
-  const line = (barks && barks.length ? (barks.find(b => b.text && b.text.length < 16) || barks[0]).text : '');
+  // A catalogue entry carries `words`, a list; the balloon shows one short line.
+  const first = b => (b && b.words && b.words.length) ? b.words[0] : '';
+  const line = (barks && barks.length ? first(barks.find(b => first(b) && first(b).length < 16) || barks[0]) : '');
   return mechFig('The balloon, at the size the application draws it',
     '<svg class="mechBalloon" width="' + (W * 2) + '" height="' + ((H + 6) * 2) + '" viewBox="0 0 ' + W + ' ' + (H + 6) + '" style="max-width:100%;height:auto" role="img" aria-label="a talk balloon">' +
     '<rect x="0.5" y="0.5" width="' + (W - 1) + '" height="' + (H - 1) + '" rx="8" ry="8" fill="#efeade" stroke="#2a2419" stroke-width="1"/>' +
@@ -20907,9 +20932,10 @@ function mechSkillsFigure(sk) {
    can do is decode both sides with the readers it already has and put them
    next to each other, which is the only claim it makes.
 
-   NOTHING IS APPLIED AND NOTHING IS WRITTEN. The report is built out of
-   `describeDelverPatch`, which reads offsets and lengths and reaches Magpie's
-   own verdicts; merging is a separate act and this section does not offer it.
+   NOTHING IS WRITTEN. The report is built out of `describeDelverPatch`,
+   which reads offsets and lengths and reaches Magpie's own verdicts; merging
+   is a separate act, offered by the report's Apply button (patchesApply,
+   below) and done in memory like every other edit here.
 
    THE TWO ARCHIVES PROBLEM DOES NOT ARISE, and it is worth saying why, since
    it is what blocks a save comparison. That needs `getResourceBytes`, which
@@ -21177,12 +21203,12 @@ function renderPatchReport() {
    ON EXPORTING A PATCH, AND THIS HAS TO BE SAID PLAINLY. What comes out is a
    real Delver archive shaped like a Magpie patch: grimoire reads it, the
    patches section describes it, `mergeDelverPatch` applies it, and the
-   browser player loads it as an add-on. It will NOT install in Magpie under
-   Mac OS 9, because the descriptor's first eight bytes are a check value this
-   project cannot compute -- the producer is Glenn Andreas's patch maker and
-   is not in the Magpie binary -- and Magpie marks a descriptor that fails the
-   check unusable. The section says so where the button is, rather than
-   letting someone find out on a Mac. */
+   browser player loads it as an add-on. Until the check value was recovered
+   out of Magpie's own code it would NOT have installed in Magpie under
+   Mac OS 9, because the descriptor's first eight bytes are that value and
+   Magpie marks a descriptor that fails the check unusable. It carries the
+   real value now, and Magpie installed a patch written here on 15 September
+   2026; the panel under the button says so. */
 window.COMPARE_REPORT = null;
 
 function compareSpecOf(bytes) { return bytes ? delverArchiveSpec(bytes) : null; }
@@ -21706,7 +21732,7 @@ function renderMechanicsSheet(value) {
   add('gear', 'Weapons and armour', null, src('the classes', 0x1000),
     gear.length ? gear.length + ' item classes carry combat parameters.' : 'No item class in this archive carries combat parameters.',
     gear.length ? [
-      '<b>Damage</b> is the most a blow can do before the skill is added; the resolver rolls 0 to it.',
+      '<b>Damage</b> is the most a blow can do before the skill is added; a blow that lands rolls 1 to it.',
       ar && ar.reach && ar.squared && ar.lessOne ? 'A weapon <b>reaches</b> a target when its reach squared is at least the squared distance less one: 1 is the eight neighbours, 2 two squares in a line or a knight’s move. A launcher’s <b>range</b> is the same column and the same test.'
         : '<b>Reach</b> is in squares, set against the distance before a swing. A launcher’s <b>range</b> is the same column.',
       gear.some(r => r.thrownDamage !== null) ? 'A weapon with a <b>thrown</b> figure flies at that damage over that <b>range</b> when nothing wielded reaches the target.' : '',
@@ -22238,7 +22264,7 @@ function renderMechanicsSheet(value) {
         'A patch is identified by a <b>UUID</b> and by nothing else. There is no name, no version and no order in what a game file records, which is why Magpie needs every patch file present to say what is installed.',
         'The game file keeps the list of what has been applied to it as resource ' + propWordHex(0xFFFE) + ', and a patch keeps its own description as ' + propWordHex(0xFFFF) + '. The shipped archive has neither.',
         'Magpie takes a patch when the scenario matches, the format major matches and the minor is at least the patch’s, and the descriptor names the offset it sits at.',
-        'Nothing here is written to disk, and a patch is never merged from this section: what it shows is what a merge would change.',
+        'Nothing here is written to disk. The report says what a merge would change, and its Apply button merges the patch into the copy of the file in this browser and nothing else.',
       'A patch carries a <b>check value</b> over its descriptor, and this page computes the same one Magpie does, so it can say whether a patch is intact rather than only quoting the number.',
       'A patch reaches the <b>data fork only</b>. Magpie imports one Resource Manager call and it is a read, so nothing in the resource fork, the game\u2019s font among it, can be changed by a patch.'
       ],
@@ -22284,7 +22310,7 @@ function renderMechanicsSheet(value) {
         'The four installers all open here, so comparing releases is a matter of choosing a file: the data in <b>1.0.3</b> and <b>1.0.4</b> is byte for byte the same, and everything Ambrosia changed after 1.0.1 is between those two.',
         'It compares the plaintext, not the stored bytes. A resource encrypted in one file and clear in the other has not changed, and a rebuild that re-encrypts everything is not a difference.',
         'The file you open is the older side, and the file already open here is the newer one, so what you read is what the open file changed.',
-        'A patch written here is read by this page and by the browser player. <b>Magpie will refuse it</b>: the descriptor carries a check value only the original patch maker could produce.'
+        'A patch written here is read by this page and by the browser player, and it carries the check value Magpie verifies: Magpie under Mac OS 9 installed one on 15 September 2026.'
       ],
       '<ul class="ruleList"><li>' +
         (edits ? 'You have changed <b>' + edits + '</b> resource' + (edits === 1 ? '' : 's') + ' in this file.'
@@ -25174,8 +25200,8 @@ function renderImage() {
 }
 
 // The indexed-PNG writer, the zlib stream and the metadata stripper are in
-// js/mac-media.js -- resource_fork_browser.html writes PNGs too, and used to
-// do it with canvas.toBlob(), which loses the palette.
+// js/mac-media.js -- the retired resource fork browser wrote PNGs too, and
+// used to do it with canvas.toBlob(), which loses the palette.
 
 /* ---------------------------------------------------------------------------
    GIF, with Cythera's own palette.
@@ -26375,7 +26401,7 @@ function updateGalleryTools() {
    ---------------------------------------------------------------------------
    Every tile in a gallery used to be decoded the moment the category changed:
    180 tile sheets, or 142 portraits, decompressed and drawn before anything
-   appeared. resource_fork_browser.html already solved this with an
+   appeared. The retired resource fork browser had solved this with an
    IntersectionObserver, and this is the same pattern with one observer for the
    whole grid rather than one per tile (the map gallery had 42 of them).
 

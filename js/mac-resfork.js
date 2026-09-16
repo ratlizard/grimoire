@@ -11,9 +11,8 @@
  *
  * openResourceFork(bytes) returns a fork object rather than setting globals, so
  * two forks can be open at once -- which is the point of putting it here.
- * cythera_data_viewer.html holds the Cythera Data *data* fork open as the game
- * archive and its *resource* fork at the same time; resource_fork_browser.html
- * keeps one at a time and wraps this in its own globals.
+ * index.html holds the Cythera Data *data* fork open as the game archive and
+ * its *resource* fork at the same time, and the application's fork beside them.
  */
 
 const RESOURCE_ATTRS = [
@@ -277,6 +276,11 @@ function writeResourceFork(resources, opts) {
   if (keepNameOffs) for (const r of named) nameBytes = Math.max(nameBytes, r.nameOff + 1 + macOf(r).length);
   else for (const r of named) nameBytes += 1 + macOf(r).length;
   const mapLen = nameListOff + nameBytes;
+  // The map's fields are 24 bits for a data offset and 16 for a name or type
+  // offset. Masking silently past them wrote a fork that read as another
+  // fork, so a size the format cannot hold is refused instead.
+  if (dataLen > 0xFFFFFF) throw new Error('a resource fork holds at most 16 MB of resource data, not ' + dataLen + ' bytes');
+  if (mapLen > 0xFFFF) throw new Error('a resource map is at most 64 KB, not ' + mapLen + ' bytes');
   const out = new Uint8Array(dataOff + dataLen + mapLen);
 
   const put32 = (at, v) => { out[at] = (v >>> 24) & 0xFF; out[at + 1] = (v >>> 16) & 0xFF; out[at + 2] = (v >>> 8) & 0xFF; out[at + 3] = v & 0xFF; };

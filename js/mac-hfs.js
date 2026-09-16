@@ -3,7 +3,7 @@
 
    `writeHfsImage()` turns a tree of files into the bytes of a `.dsk` disk
    image that an emulated Mac will mount. It is the last step of the path this
-   repository has been building towards from the other end: explorer.html can
+   repository has been building towards from the other end: index.html can
    already open the archive, edit a resource and serialise the whole thing back
    out through `writeDelverArchive`, but what came out was a file on a modern
    computer, and the game that reads it lives inside an emulator. A disk image
@@ -92,7 +92,7 @@
    two-file disk, which fits one leaf and raises no alert.
 
    So the line matters, and it is exactly one catalog leaf: with names this
-   length, three files. explorer.html writes two -- the archive and the script
+   length, three files. index.html writes two -- the archive and the script
    -- and its Read Me was folded into the script's comments to stay under it.
    the mobile shell (now in ratlizard/alchemy) sends Return before anything else, which presses the alert's OK
    if one is up; both halves, because a larger export than the current one

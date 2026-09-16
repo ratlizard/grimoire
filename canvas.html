@@ -3614,6 +3614,11 @@ async function decodeBytes(b) {
     while (PAL.length < baseN) PAL.push([0, 0, 0]);
     PAL.length = baseN;
     CLUT_N = baseN;
+  } else {
+    // Before version 6 every file was painted over Cythera's CLUT and said
+    // nothing about it, so it is read back over that palette rather than
+    // whichever one the session happens to be in.
+    depth = 'cythera'; PAL = basePalette('cythera'); CLUT_N = PAL.length;
   }
   var onMask = u16();
   var all = ENGINE.concat(PRESET);
@@ -3720,7 +3725,10 @@ function chunk(type, data) {
 async function pngOut() {
   var c = compact(), raw, ihdr = new Uint8Array(13), dv = new DataView(ihdr.buffer), extra = [];
   dv.setUint32(0, W); dv.setUint32(4, H);
-  var pure = (PAL.length === CLUT_N);
+  // Only Cythera's own 256 go out as raw indices under the whole CLUT. Any
+  // other base palette is shorter or longer than 256, and writing it this way
+  // threw past its end or truncated the indices (16 September 2026).
+  var pure = (depth === 'cythera' && PAL.length === 256);
   if (c && pure) {
     // Straight Cythera art: keep the raw indices and ship the whole CLUT, so
     // it drops into the game untouched.
@@ -3931,7 +3939,7 @@ async function offer(name, bytes) {
     return;
   }
   if (inArtifact) return;
-  var blob = new Blob([bytes], { type: /\.gif$/.test(name) ? 'image/gif' : 'image/png' });
+  var blob = new Blob([bytes], { type: /\.gif$/.test(name) ? 'image/gif' : /\.webm$/.test(name) ? 'video/webm' : 'image/png' });
   var url = URL.createObjectURL(blob), a = document.createElement('a');
   a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function () { URL.revokeObjectURL(url); }, 5000);

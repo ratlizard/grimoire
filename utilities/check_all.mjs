@@ -360,7 +360,7 @@ const CHECKS = [
    grep: /\d+ of \d+ strikes written as TrueType[^\n]*/},
   {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
-   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT 1d7eaa158c17'},
+   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT 2215bd8e0f16'},   // WIND reads its Visible and Close-box bytes at 10 and 12, 16 September 2026
 
   // The HFS disk-image writer index.html exports with. Structural on its
   // own; with a systemless checkout beside this one it also round-trips every

@@ -2,12 +2,12 @@
  * actually contains: PICT, snd, NFNT, clut, cicn, crsr, ICN#, STR#, vers,
  * DITL, MENU, cfrg, CODE and the rest.
  *
- * These were the whole of resource_fork_browser.html, a separate page that
+ * These were the whole of the retired resource fork browser page, a separate page that
  * opened any classic Mac resource fork. That page is gone. It was more
  * general-purpose than this repository, and everything in it that Cythera
  * needs is here instead: both of Cythera's files are stuffed with these types
  * -- "Cythera Data" has 18 of them across 113 resources, and the application
- * has 52 across 339 -- so explorer.html reads its own resource fork with the
+ * has 52 across 339 -- so index.html reads its own resource fork with the
  * same decoders rather than sending anyone to a second tool.
  *
  * GENERIC TIER. Nothing here knows Cythera exists; this belongs beside the
@@ -20,7 +20,7 @@
  * that drawing stays in the page, and they earn it -- utilities/
  * rsrc_snapshot.mjs hashes what they draw, pixel for pixel, so they are as
  * checkable as the ones that return text. What is NOT here is the page's own
- * furniture: the panes, the ids, the file input. That is explorer.html's job.
+ * furniture: the panes, the ids, the file input. That is index.html's job.
  *
  * TWO RENAMES on the way in, because the two pages were never loaded together
  * and each had a function the other also had. A function declaration in a
@@ -780,7 +780,14 @@ function renderPictDirect(pm,rows){
 function decodeDirectBitsRows(data,p,pm){
   const H=pm.bounds.bottom-pm.bounds.top, rowBytes=pm.rowBytes, cmpCount=pm.cmpCount||3, rows=[];
   for(let y=0;y<H;y++){
-    if(rowBytes<8){ rows.push(data.slice(p,p+rowBytes)); p+=rowBytes; }
+    if(rowBytes<8||pm.packType===1){ rows.push(data.slice(p,p+rowBytes)); p+=rowBytes; }   // unpacked
+    else if(pm.packType===2){
+      // packType 2 is 24-bit direct pixels with the pad byte dropped: three
+      // bytes a pixel, unpacked, and the row is width*3 bytes rather than rowBytes.
+      const W=pm.bounds.right-pm.bounds.left, planes=[];
+      for(let c=0;c<3;c++){ const pl=new Uint8Array(W); for(let x=0;x<W;x++) pl[x]=data[p+x*3+c]; planes.push(pl); }
+      rows.push({planes}); p+=W*3;
+    }
     else if(pm.packType===4){
       // packType 4 stores ONE PackBits stream per row (one length prefix),
       // which unpacks to cmpCount planes of `width` bytes each -- not one
@@ -865,9 +872,11 @@ function findPictImageOpcode(data){
     // instead of scanning the whole resource for a signature.
     if(op===0x8200||op===0x8201){ const size=u32be(data,p); return {op,p:p+4,size,quicktime:true}; }
     if(PICT_REGION_OPS.has(op)||PICT_POLY_OPS.has(op)){ const size=u16be(data,p); p+=size; continue; }
-    if(op===0x0028){ p+=4; const len=data[p]; p+=1+len; if(p%2)p+=1; continue; } // LongText
-    if(op===0x0029||op===0x002A){ p+=1; const len=data[p]; p+=1+len; if(p%2)p+=1; continue; } // DHText/DVText
-    if(op===0x002B){ p+=2; const len=data[p]; p+=1+len; if(p%2)p+=1; continue; } // DHDVText
+    // The text opcodes pad to a word in version 2 only; a version 1 picture
+    // is byte-aligned throughout and padding it here misaligned the walk.
+    if(op===0x0028){ p+=4; const len=data[p]; p+=1+len; if(v2&&p%2)p+=1; continue; } // LongText
+    if(op===0x0029||op===0x002A){ p+=1; const len=data[p]; p+=1+len; if(v2&&p%2)p+=1; continue; } // DHText/DVText
+    if(op===0x002B){ p+=2; const len=data[p]; p+=1+len; if(v2&&p%2)p+=1; continue; } // DHDVText
     if(op===0x0012||op===0x0013||op===0x0014){ // Bk/Pn/FillPixPat, best effort skip
       const patType=u16be(data,p); p+=2; p+=8;
       if(patType===2){ p+=6; }
@@ -1480,7 +1489,8 @@ function decodeDITL(data){
     const r=readRect(data,p); p+=8;
     const raw=data[p++], enabled=!(raw&0x80), kind=raw&0x7f;
     const len=data[p++]; let text='';
-    if(kind===32||kind===64){ text='resource #'+u16be(data,p); }
+    // A control (7), an icon (32) and a picture (64) carry a resource id, not text.
+    if(kind===7||kind===32||kind===64){ text='resource #'+u16be(data,p); }
     else text=decodeMacRoman(data.slice(p,p+len));
     p+=len; if(p%2)p++;
     out.push(`[${i+1}] ${DITL_TYPES[kind]||('type '+kind)}${enabled?'':' (disabled)'}`);
@@ -1491,7 +1501,7 @@ function decodeDITL(data){
 
 function decodeMENU(data){
   if(data.length<14) throw new Error('MENU too short');
-  const id=u16be(data,0), procID=u32be(data,6), enable=u32be(data,10);
+  const id=u16be(data,0), procID=u16be(data,6), enable=u32be(data,10);
   let p=14; const t=pstr(data,p); p=t.p;
   const out=[`Menu #${id}  "${t.s}"`, `Proc ID: ${procID}   Enable flags: 0x${(enable>>>0).toString(16)}`, ''];
   let i=1;
@@ -1536,7 +1546,7 @@ function ditlItemTexts(data){
 
 function decodeWIND(data){
   if(data.length<18) throw new Error('WIND too short');
-  const r=readRect(data,0), procID=u16be(data,8), visible=!!data[11], goAway=!!data[13], refCon=u32be(data,14);
+  const r=readRect(data,0), procID=u16be(data,8), visible=!!data[10], goAway=!!data[12], refCon=u32be(data,14);
   const t=data.length>18?pstr(data,18).s:'';
   return `Window: "${t}"\nBounds: (${r.left},${r.top})-(${r.right},${r.bottom})  ${r.right-r.left}\u00d7${r.bottom-r.top}\nProc ID: ${procID}   Visible: ${visible}   Close box: ${goAway}\nRefCon: ${refCon}`;
 }
