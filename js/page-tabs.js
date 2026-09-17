@@ -848,7 +848,7 @@ const TAB_TREE = [
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
       { id: 'regions',    label: 'Zones',      tile: 0x120, values: ['127'] },         // the encampment, the maintainer's pick, 9 September 2026
-      { id: 'skills',     label: 'Skills',     tile: 0x3DB, values: ['SKILLS'] },   // a distiller (prop 234), the maintainer's pick on 8 September
+      { id: 'skills',     label: 'Skills',     tile: 0x2D1, values: ['SKILLS'] },   // the rolling pin, the maintainer's pick, 17 September 2026; it was a distiller (0x3DB)
       { id: 'spells',     label: 'Spells',     tile: 0x888, values: ['SPELLS'] },   // a staff (prop 343), the maintainer's pick
       /* Mechanics is not a table: the rules the code implies, read out of the
          scripts on the spot (renderMechanicsSheet).
