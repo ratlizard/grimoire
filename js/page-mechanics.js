@@ -1947,7 +1947,13 @@ function renderMechanicsSheet(value) {
         'The scripts themselves ship beside the game as .ai text files, and the rules they are written against as the AI Scripting Document; both are under Data › Combat AI when the installer is open.'
       ].filter(Boolean),
       rows.length ? table(['list', 'words'], rows) : '<div class="sv-note">' + (app ? 'None of the lists is in this fork.' : 'Open the game from its installer, under Settings, and the vocabulary is read out of the application.') + '</div>',
-      '<span class="partsTitle">In the file</span>' + svLink('Data › Combat AI', "showCategory('AIRULES')"));
+      /* Through Components first: the compiled scripts in subindex 3 and the
+         scenario's tests and actions in 8 are what the engine runs, and the
+         .ai text under Data is what they were compiled from. */
+      '<span class="partsTitle">In the file</span>' +
+        relChip({ js: "showCategory('3')", main: 'Combat scripts', sub: 'compiled', icon: relIconFor(0x400), title: trailForResid(0x400) }) +
+        relChip({ js: "showCategory('8')", main: 'Tests and actions', sub: 'the scenario’s own', icon: relIconFor(0x900), title: trailForResid(0x900) }) +
+        relChip({ js: "showCategory('AIRULES')", main: 'Combat AI', sub: 'the .ai files', icon: relIconURL({ tile: TAB_BY_ID.get('combatai').tile }), title: 'Data › Combat AI' }));
   }
 
   // ---- the To Do list ----

@@ -3003,6 +3003,36 @@ try {
   }
 } catch (e) { fail('component owners', e); }
 
+/* Two joins the maintainer asked for on 16 September 2026. The hero's dossier
+   carries the four lists character creation offers (0x203 to 0x206), and each
+   list names the hero back; the Combat AI section on Mechanics reaches the
+   compiled scripts (subindex 3) and the scenario's tests and actions (8)
+   before the .ai text under Data, and both of those galleries' pages lead
+   back to it. The negative half: another character's dossier must not carry
+   the class lists, and a writing that is not one of them must not name the
+   hero -- a join keyed on subindex 1 alone would pass everything else. */
+try {
+  const walk = el => (el.innerHTML || '') + (el.children || []).map(walk).join('');
+  const usage = r => { ctx.jumpToResource(r); drainRaf(); return REGISTRY.get('artUsage')._html || ''; };
+  ctx.showCharacterDetail(1); drainRaf();
+  const hero = walk(REGISTRY.get('sheetGrid'));
+  ctx.showCharacterDetail(2); drainRaf();
+  const other = walk(REGISTRY.get('sheetGrid'));
+  const classText = [0x203, 0x204, 0x205, 0x206];
+  const offered = usage(0x204), writing = usage(0x21C), ai = usage(0x410), hook = usage(0x902);
+  ctx.showCategory('MECH_COMBAT'); drainRaf();
+  const combat = walk(REGISTRY.get('sheetGrid'));
+  const missing = classText.filter(r => !hero.includes('jumpToResource(' + r + ')'));
+  if (missing.length) fail('hero and combat AI', 'the hero does not chip ' + missing.map(r => '0x' + r.toString(16)).join(', '));
+  else if (classText.some(r => other.includes('jumpToResource(' + r + ')'))) fail('hero and combat AI', 'a character other than the hero carries the class lists');
+  else if (!/Offered to/.test(offered) || !/openCharacter\(1\)/.test(offered)) fail('hero and combat AI', '0x204 does not name the hero');
+  else if (/Offered to/.test(writing)) fail('hero and combat AI', '0x21C, which is not a class list, names the hero');
+  else if (![ai, hook].every(h => /Rules on/.test(h) && /mechGo\('combatai'\)/.test(h))) fail('hero and combat AI', 'a combat script or a test does not lead to the Combat AI section');
+  else if (!["showCategory('3')", "showCategory('8')", "showCategory('AIRULES')"].every(js => combat.includes('onclick="' + js + '"')))
+    fail('hero and combat AI', 'the Combat AI section does not reach the compiled scripts, the tests and actions, and the .ai files');
+  else console.log('  hero and combat AI: the hero carries the four class lists and they name the hero; the Combat AI section and its scripts lead to each other');
+} catch (e) { fail('hero and combat AI', e); }
+
 /* The patches section under Hackery, end to end, against a patch made here.
 
    WHY A SYNTHETIC PATCH AND NOT THE REAL ONE. The Pumpkin Patch arrives as a

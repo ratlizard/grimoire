@@ -546,6 +546,8 @@ function characterSays(i) {
     lines.join(', '));
 }
 
+const HERO_CLASS_TEXT = [['Class names', 0x203], ['Class descriptions', 0x204], ['Class stats', 0x205], ['Class skills', 0x206]];
+
 function characterParts(i, d) {
   const chips = [];
   const talk = 0x1800 + i;
@@ -562,6 +564,11 @@ function characterParts(i, d) {
   // table 0x0201, which is what derivedCharacterName reads and what makes a
   // person the same person in every Cythera file.
   if (refExists(0x0201)) chips.push(partChip('Name label', 0x0201));
+  // The hero is the one character the player makes, and what is offered at
+  // creation is these four lists: the classes, what each is, and each one's
+  // attributes and skills as text. Character 1 is the hero wherever the
+  // scripts address characters by number (see the Creates in page-rules.js).
+  if (i === 1) for (const [label, r] of HERO_CLASS_TEXT) if (refExists(r)) chips.push(partChip(label, r));
   if (refExists(0xF009)) chips.push(partChip('Record', 0xF009));
   // Through the Schedules sheet, not at the raw table: a component is
   // reached by the Components tab that shows it, and the bytes from there.
@@ -763,6 +770,13 @@ function roomEggIndex() {
   return (window.ROOM_EGGS = rooms);
 }
 
+// The Combat AI section, on whichever Mechanics tab holds it.
+function combatAiRuleChip() {
+  const g = mechGroupOf('combatai');
+  return relChip({ js: "showCategory('" + (g ? g.value : 'MECH_COMBAT') + "'); setTimeout(function(){ mechGo('combatai'); }, 60)",
+                   main: 'Combat AI', sub: 'Mechanics' + (g ? ' › ' + g.title : ''), icon: g ? relIconURL({ tile: g.tile }) : '' });
+}
+
 function ownerRows(resid, subn) {
   const rows = [];
   if (subn === 15 || subn === 16) {
@@ -805,6 +819,11 @@ function ownerRows(resid, subn) {
     for (let z = 0; z < 0x100; z++) if (refExists(0x8000 + z) && zoneLandscapeArg(z) === n) zones.push(svChip(0x8000 + z));
     rows.push(['Behind', zones, zones.length ? '' : 'No zone’s entry script sets this landscape.']);
   }
+  if (subn === 1 && HERO_CLASS_TEXT.some(([, r]) => r === resid) && loadCharacterTable()[1])
+    rows.push(['Offered to', [characterChip(1)], '']);
+  // The compiled combat AI and the scenario's own tests and actions are what
+  // the Combat AI section on Mechanics describes; neither belongs to one unit.
+  if (subn === 3 || subn === 8) rows.push(['Rules on', [combatAiRuleChip()], '']);
   if (subn === 9 && refExists(0x101F)) {
     let potion = null;
     try { potion = foodRules().potions.find(p => p.resid === resid); } catch (e) {}
