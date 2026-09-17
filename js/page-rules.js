@@ -2595,6 +2595,167 @@ function spriteRepeats() {
   return (window.SPRITE_REPEATS = out);
 }
 
+/* FOUR MORE KINDS OF LOOSE END, 17 September 2026, each off an entry of the
+   bug list and each read rather than listed.
+
+   goesDarkStillLit: an item class that says its light has gone and moves to
+   an aspect whose tile still carries a light level. A thing's light is its
+   tile's attribute (buildLightSources), so the torch, the lamp and the candle
+   all go to tiles of level 0 when they burn out; the staff says "stops
+   glowing, turning gray" and goes to aspect 3, whose tile is level 1 like the
+   lit ones. The three that go dark properly are the reader's control. */
+function goesDarkStillLit() {
+  const VAL = /^(?:byte|short|word) (?:-?0x[0-9A-F]+|-?\d+)$/i;
+  const SAYS_DARK = /stops glowing|goes out|burn(?:s|ed)? out|extinguish|snuff|turning gr[ae]y|goes dark|put out/i;
+  const out = [];
+  let attrs = null, props = null;
+  try { attrs = getTileAttributes(); props = getPropTileList(); } catch (e) { return out; }
+  for (const e of buildScriptTextIndex()) {
+    if (e.resid < 0x1000 || e.resid >= 0x1400) continue;
+    const pt = e.resid - 0x1000, base = props[pt];
+    if (base === undefined) continue;
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    for (let i = 0; i + 3 < ops.length; i++) {
+      if (!/^set_field aspect\b/.test(ops[i].text) || !VAL.test(ops[i + 3].text)) continue;
+      const said = ops.slice(Math.max(0, i - 8), i).map(o => dvmOpString(o)).filter(Boolean).join(' ');
+      if (!SAYS_DARK.test(said)) continue;
+      const k = dvmNum(ops[i + 3]);
+      out.push({ pt, aspect: dvmVal(e.resid, ops[i + 3]), tile: base + k, light: (attrs[base + k] || 0) & 3, said });
+    }
+  }
+  return out;
+}
+
+/* scheduleCollisions: two characters the schedule table puts on one square,
+   at the same hours, in the same mode. A character's list is cut into
+   segments where the hour runs backwards -- Demodocus's whereabouts and
+   Darius's jail stay are further segments, chosen by the game's state -- and
+   only entries within one segment are compared with each other, so two
+   segments that may never be live together are not set against each other.
+   Darius and Sardis share the Green Goat's (22,16) at noon and from five to
+   ten, which is the board's "same chair" and Bryce Schroeder's fix. */
+function scheduleCollisions() {
+  const spans = [];
+  let s = [];
+  try { s = loadSchedules(); } catch (e) { return []; }
+  s.forEach((list, i) => {
+    if (!i || !list || !list.length) return;
+    const segs = [[]];
+    let last = -1;
+    for (const e of list) { if (e.hour < last) segs.push([]); segs[segs.length - 1].push(e); last = e.hour; }
+    for (const seg of segs) {
+      const real = seg.filter(e => e.mode !== 0);
+      real.forEach((e, k) => { const end = k + 1 < real.length ? real[k + 1].hour : 24; if (end > e.hour) spans.push({ who: i, level: e.level, x: e.x, y: e.y, mode: e.mode, from: e.hour, to: end }); });
+    }
+  });
+  const out = [];
+  for (let a = 0; a < spans.length; a++) for (let b = a + 1; b < spans.length; b++) {
+    const p = spans[a], q = spans[b];
+    if (p.who === q.who || p.level !== q.level || p.x !== q.x || p.y !== q.y || p.mode !== q.mode) continue;
+    const from = Math.max(p.from, q.from), to = Math.min(p.to, q.to);
+    if (from < to) out.push({ a: p.who, b: q.who, level: p.level, x: p.x, y: p.y, from, to });
+  }
+  return out;
+}
+
+/* nameNeverKept: a character who says their name and never sets their own
+   character flag 7, the flag every other name topic sets (by its first
+   argument or by its own number) and the scripts test before calling
+   someone by name rather than "man" or "woman". Paris and Diomede, the
+   board's bug and Bryce Schroeder's fix. */
+function nameNeverKept() {
+  const out = [];
+  for (const e of buildScriptTextIndex()) {
+    if (e.resid < 0x1800 || e.resid >= 0x1900) continue;
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    const self = e.resid - 0x1800;
+    const name = ops.find(o => /^conversation_response "(?:[^"]*,)?name[,"]/.test(o.text));
+    if (!name) continue;
+    const kept = ops.some((o, i) => /^call_resource (?:SetCharacterFlag \(0xF00\)|0xF00)$/.test(o.text) && ops[i + 2] && /^byte (?:0x07|7)$/.test(ops[i + 2].text) &&
+      (/^arg Arg00$/.test(ops[i + 1].text) || dvmNum(ops[i + 1]) === self));
+    if (!kept) out.push({ who: self, resid: e.resid, at: name.at });
+  }
+  return out;
+}
+
+/* askedOfNobody: answers an item class writes for a character, in its
+   AskedAbout member, when that character's script never hands a question to
+   the AskAbout helper (0xEB6) -- the NPC "Ask About" action sends GetMessage
+   to the character, and only a character whose script answers it through
+   that helper ever gives an item's answer. Aethon has fifteen written for him
+   and no such call, which is the board's "Aethon does not respond to Ask
+   About" and Bryce Schroeder's fix. */
+function askedOfNobody() {
+  const written = new Map();
+  for (let pt = 1; pt < 1024; pt++) {
+    const c = parseItemClass(pt);
+    if (!c) continue;
+    const a = c.data.find(x => x.key === 0x33);
+    if (!a || a.words.length < 2 || ((a.words[1] >>> 28) & 0xF) !== 0x9) continue;
+    const arr = dvmArrayWords(c.bytes, a.words[1] & 0xFFFF);
+    if (!arr) continue;
+    for (const w of arr) { const who = w & 0xFFFF; if (!written.has(who)) written.set(who, []); written.get(who).push(pt); }
+  }
+  const out = [];
+  for (const [who, pts] of written) {
+    const e = dvmScriptEntry(0x1800 + who);
+    if (!e) continue;
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    if (ops.some(o => /^call_resource (?:AskAbout \()?0xEB6\)?$/.test(o.text))) continue;
+    out.push({ who, items: pts, resid: 0x1800 + who });
+  }
+  return out;
+}
+
+/* answersThatRunOn: a keyword answer with no return after it, so the chain
+   runs on into the next keyword's test. When nothing further matches, the
+   character's "don't understand" answer follows the one just given, which is
+   the board's "flashes then reverts to the unrecognised-prompt response". The
+   mage group (0x0808) does it after "history", which is how twelve mages came
+   to be listed, and the House Atussa group (0x0807) after "atus". A
+   yes-or-no answer is left out, for the reason given where it is skipped. */
+function answersThatRunOn() {
+  const out = [];
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    let objs = null;
+    try { objs = dvmExtents(smartDecrypt(getResourceBytes(e.resid), e.resid).data, e.resid); } catch (err) { objs = null; }
+    if (!objs) continue;
+    const startOf = at => { for (const [st, en] of objs) if (at >= st && at < en) return st; return null; };
+    for (let i = 0; i < ops.length; i++) {
+      const m = /^conversation_response "([^"]*)" -> 0x([0-9A-F]+)$/i.exec(ops[i].text);
+      // A yes-or-no answer runs on by design: "y" falls through to the "n"
+      // test, and in the bartenders' dice game (0x0812) "y" runs on into the
+      // game itself.
+      if (!m || m[1] === 'y' || m[1] === 'n') continue;
+      const st = startOf(ops[i].at);
+      if (st === null) continue;
+      const next = parseInt(m[2], 16) + st;
+      const j = ops.findIndex(o => o.at === next);
+      if (j <= i + 1 || !/^conversation_response /.test(ops[j].text)) continue;
+      if (/^(?:end|branch |exit|return)/.test(ops[j - 1].text)) continue;
+      out.push({ resid: e.resid, at: ops[i].at, list: m[1] });
+    }
+  }
+  return out;
+}
+
+/* leaveNeverLeaves: a character who can join the party, answers "leave",
+   and never calls LeaveParty anywhere in their script. Hector, Meleager,
+   Timon and Dryas each call it in theirs; Aethon says "Maybe it is time for
+   me to catch some rats for myself..." and stays. */
+function leaveNeverLeaves() {
+  const out = [];
+  for (const e of buildScriptTextIndex()) {
+    if (e.resid < 0x1800 || e.resid >= 0x1900) continue;
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    const leave = ops.find(o => /^conversation_response "(?:[^"]*,)?leav/.test(o.text));
+    if (leave && ops.some(o => o.text === 'sys JoinParty') && !ops.some(o => o.text === 'sys LeaveParty'))
+      out.push({ who: e.resid - 0x1800, resid: e.resid, at: leave.at });
+  }
+  return out;
+}
+
 const VAL_ANY = /^(?:byte|short|word) (?:-?0x[0-9A-F]+|-?\d+)$/i;
 
 /* PUZZLES. Two the file answers completely. The braziers in Alaric's void

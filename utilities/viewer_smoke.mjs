@@ -2012,6 +2012,18 @@ try {
   else if (le.localOnlyFalse.map(l => l.resid.toString(16)).join() !== '1844') fail('loose', 'Thoas\'s farewell local, only ever set false, was not the one finding: ' + JSON.stringify(le.localOnlyFalse.map(l => l.resid.toString(16))));
   else if (le.selfAlive.map(a => a.who).join() !== '4') fail('loose', 'Hadrian testing whether Hadrian is alive, where Hector is meant, was not the one finding: ' + JSON.stringify(le.selfAlive.map(a => a.who)));
   else if (ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels).join('|') !== '35:west standing/west sitting:1|290:south standing/south right foot:0') fail('loose', 'the repeated sprite frames are not the fool\'s west standing and the fire spirit\'s south standing: ' + JSON.stringify(ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels)));
+  /* The fourth batch. The staff's light has its own control in the same
+     reader: the torch, the lamp and the candle say they have gone out and
+     land on tiles of light 0, so a reader that looked at the wrong tile would
+     turn one of them up. */
+  else if (!ctx.goesDarkStillLit().some(d => d.pt === 0x157 && d.light > 0) || ctx.goesDarkStillLit().filter(d => d.light > 0).length !== 1 || ctx.goesDarkStillLit().filter(d => d.light === 0).length < 3) fail('loose', 'the spent staff that still lights was not the one light found staying on, beside the torch, lamp and candle going dark: ' + JSON.stringify(ctx.goesDarkStillLit().map(d => [d.pt, d.light])));
+  else if (ctx.scheduleCollisions().map(c => c.a + '+' + c.b + '@' + c.from).join() !== '12+31@12,12+31@17') fail('loose', 'Darius and Sardis sharing a square in the Green Goat were not the one schedule collision: ' + JSON.stringify(ctx.scheduleCollisions()));
+  else if (ctx.nameNeverKept().map(n => n.who).sort((a, b) => a - b).join() !== '46,87') fail('loose', 'Diomede and Paris, whose names are never kept, were not the two found (Pheres and Palaestra set theirs by number): ' + JSON.stringify(ctx.nameNeverKept().map(n => n.who)));
+  else if (ctx.askedOfNobody().map(a => a.who + ':' + a.items.length).join() !== '97:15') fail('loose', 'Aethon\'s fifteen unheard Ask About answers were not the one finding: ' + JSON.stringify(ctx.askedOfNobody().map(a => a.who + ':' + a.items.length)));
+  else if (ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list).sort().join('|') !== '807:atus|808:hist') fail('loose', 'the answers without a return were not the Atussa and history ones (a yes-or-no prompt\'s "y" must not be listed): ' + JSON.stringify(ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list)));
+  else if (ctx.leaveNeverLeaves().map(l => l.who).join() !== '97') fail('loose', 'Aethon, who agrees to leave and stays, was not the one companion found: ' + JSON.stringify(ctx.leaveNeverLeaves().map(l => l.who)));
+  else if (!/an answer that runs on/.test(html) || !/a companion who agrees to leave and stays/.test(html)) fail('loose', 'the run-on answer or the companion who stays is not on the card');
+  else if (!/a light that stays on/.test(html) || !/two people scheduled into one place/.test(html) || !/a name told and not kept/.test(html) || !/answers written for someone never asked/.test(html)) fail('loose', 'a fourth-batch row is missing from the card');
   else if (!/a sprite frame that repeats another pose/.test(html)) fail('loose', 'the repeated sprite frames are not on the card');
   else if (!/a character asking if they are alive/.test(html)) fail('loose', 'the self-alive test is not on the card');
   else if (!/a test of something only ever false/.test(html)) fail('loose', 'the local only ever set false is not on the card');

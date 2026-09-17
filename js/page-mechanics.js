@@ -2156,6 +2156,20 @@ function renderMechanicsSheet(value) {
     const skillOff = cb && cb.skillOffLoop;
     if (skillOff) rows.push('<tr><td>a term read off the wrong thing</td><td>The combat resolver adds the weapon’s skill to the margin and to the damage figure, but reads it off the local its shield loop leaves at nothing rather than off the weapon, so Sword, Axe and Mace add nothing to an armed blow.</td><td>' +
       where(skillOff) + '</td></tr>');
+    // Four readers of 17 September 2026's fourth batch (page-rules.js).
+    for (const d of goesDarkStillLit().filter(x => x.light > 0)) rows.push('<tr><td>a light that stays on</td><td>The ' + svEsc(propDisplayName(d.pt) || ('prop ' + d.pt)) +
+      ' says “' + svEsc(d.said.trim()) + '” and moves to aspect ' + srcNum(d.aspect) + ', whose tile still gives light of level ' + d.light + ', so it goes on lighting.</td><td>' +
+      svLink('tile 0x' + d.tile.toString(16).toUpperCase(), 'showPropTypeDetail(' + d.pt + ')') + '</td></tr>');
+    for (const c of scheduleCollisions()) rows.push('<tr><td>two people scheduled into one place</td><td>' + (chipOf(c.a) || svEsc(characterName(c.a))) + ' and ' + (chipOf(c.b) || svEsc(characterName(c.b))) +
+      ' are both scheduled to (' + c.x + ', ' + c.y + ') on map ' + c.level + ' in the same mode from ' + c.from + ':00 to ' + c.to + ':00.</td><td>' + svLink('the schedules', "showCategory('SCHEDULES')") + '</td></tr>');
+    for (const n of nameNeverKept()) rows.push('<tr><td>a name told and not kept</td><td>' + (chipOf(n.who) || svEsc(characterName(n.who))) +
+      ' answers “name” and never sets their own character flag 7, which every other name topic sets, so they go on being called by what they look like.</td><td>' + where([n]) + '</td></tr>');
+    for (const a of askedOfNobody()) rows.push('<tr><td>answers written for someone never asked</td><td>' + a.items.length + ' item classes write an Ask About answer for ' + (chipOf(a.who) || svEsc(characterName(a.who))) +
+      ', whose script never hands a question to the AskAbout helper, so none of them is ever given.</td><td>' + a.items.slice(0, 6).map(pt => svLink(svEsc(propDisplayName(pt) || ('prop ' + pt)), 'showItemDetail(' + pt + ')')).join(', ') + (a.items.length > 6 ? ' and ' + (a.items.length - 6) + ' more' : '') + '</td></tr>');
+    for (const r of answersThatRunOn()) rows.push('<tr><td>an answer that runs on</td><td>The answer to “' + svEsc(r.list) +
+      '” has no return after it, so the conversation goes on testing the next keywords, and when none matches the character’s “don’t understand” follows it.</td><td>' + where([r]) + '</td></tr>');
+    for (const l of leaveNeverLeaves()) rows.push('<tr><td>a companion who agrees to leave and stays</td><td>' + (chipOf(l.who) || svEsc(characterName(l.who))) +
+      ' can join the party and answers “leave”, and nothing in the script ever takes them out of it.</td><td>' + where([l]) + '</td></tr>');
     // Character sprite frames that repeat another pose (spriteRepeats).
     for (const r of spriteRepeats()) rows.push('<tr><td>a sprite frame that repeats another pose</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) + '’s ' + r.aName + ' frame and its ' + r.bName + ' frame ' +
       (r.pixels ? 'differ by ' + r.pixels + ' pixel' + (r.pixels === 1 ? '' : 's') : 'are identical') + ', where a sheet’s poses are otherwise hundreds of pixels apart.</td><td>' +
