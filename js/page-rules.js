@@ -2465,8 +2465,10 @@ function looseEnds() {
      how Paris is lost to Parium ("pari" twice in 0x805), and 0x80E answers
      "brya" twice, the second time more fully. A later response that keeps
      one keyword of its own ("alar,king" after "alar") is still reachable
-     and is not reported. The jump target is relative to its object, so the
-     chain is linked through the object's own start. */
+     and is not reported. The jump target is already an offset in the
+     resource, as dvmConversation takes it; the first version of this reader
+     added the object's start again, which is 0 for a dialogue group and 2
+     for a character, and so walked no character's chain at all. */
   const shadowed = [];
   for (const e of buildScriptTextIndex()) {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
@@ -2478,7 +2480,7 @@ function looseEnds() {
     for (const o of ops) {
       const m = /^conversation_response "([^"]*)" -> 0x([0-9A-F]+)$/i.exec(o.text);
       const st = m ? startOf(o.at) : null;
-      if (m && st !== null) resp.push({ at: o.at, keys: m[1].split(','), next: parseInt(m[2], 16) + st, list: m[1] });
+      if (m && st !== null) resp.push({ at: o.at, keys: m[1].split(','), next: parseInt(m[2], 16), list: m[1] });
     }
     if (!resp.length) continue;
     const byAt = new Map(resp.map(r => [r.at, r]));
@@ -2707,34 +2709,138 @@ function askedOfNobody() {
   return out;
 }
 
-/* answersThatRunOn: a keyword answer with no return after it, so the chain
-   runs on into the next keyword's test. When nothing further matches, the
-   character's "don't understand" answer follows the one just given, which is
-   the board's "flashes then reverts to the unrecognised-prompt response". The
-   mage group (0x0808) does it after "history", which is how twelve mages came
-   to be listed, and the House Atussa group (0x0807) after "atus". A
-   yes-or-no answer is left out, for the reason given where it is skipped. */
+/* answersThatRunOn: a keyword answer that says something and has no return
+   after it, so the chain runs on into the next keyword's test. When nothing
+   further matches, the character's "don't understand" answer follows the one
+   just given, which is the board's "flashes then reverts to the
+   unrecognised-prompt response". The mage group (0x0808) does it after
+   "history", which is how twelve mages came to be listed, and the House
+   Atussa group (0x0807) after "atus". The wishing fountain (0x1036) does it
+   after each of its four wishes, so every wish is followed at once by "Your
+   wish is found elsewhere...", which the board lists among the lines that
+   flash past. Magpie's "baho" and "jhia" do it too, inside the block his
+   flag 1 guards, which nothing reaches.
+
+   A yes-or-no answer runs on by design as a rule ("y" falls through to the
+   "n" test, and in the bartenders' dice game, 0x0812, "y" runs on into the
+   game itself), and is listed only when the chain, walked with its own
+   reply, comes to a second answer to that same reply: Ennomus (0x1811) says
+   "You know - where da Tyrants used to live." and then "Built by the
+   Tyrants, it was.", Antenor (0x1824) "I understand - no many can afford
+   such prime real estate." and then "Well, that's probably for the best",
+   and Pheres (0x184E) asks for the harpy egg and then says "I understand,
+   but if you change your mind, please get back to me.", each for one "n",
+   the first line replaced before it can be read. All three are on the
+   board's list of lines that flash past. `then` is that second answer where
+   the walk finds one.
+
+   The answer's end is where it stops, not its jump target: the writers jump
+   into the middle of a string to share its tail (Ennomus's castle, Pheres's
+   harpies), so the target can fall inside the answer. An answer stops at a
+   branch, or at a return no earlier test jumps past. One that runs on having
+   only set something, and finds no second answer, is left out: Neoptolemus
+   (0x1821) sets a local after "demo" that the chain reads further on.
+
+   The first version measured the answer to its jump target and linked the
+   chain through the object's start as well, which the target already is,
+   and so found only the two groups. */
 function answersThatRunOn() {
   const out = [];
+  const RESP = /^conversation_response "([^"]*)" -> 0x([0-9A-F]+)$/i;
   for (const e of buildScriptTextIndex()) {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
-    let objs = null;
-    try { objs = dvmExtents(smartDecrypt(getResourceBytes(e.resid), e.resid).data, e.resid); } catch (err) { objs = null; }
-    if (!objs) continue;
-    const startOf = at => { for (const [st, en] of objs) if (at >= st && at < en) return st; return null; };
+    const index = new Map(ops.map((o, k) => [o.at, k]));
+    // Walk the chain from op k as the interpreter would for the reply kw: a
+    // list that holds kw or "*" is entered, any other jumps to its target.
+    const answerFor = (k, kw) => {
+      for (let steps = 0; k !== undefined && k < ops.length && steps < 256; steps++) {
+        const n = RESP.exec(ops[k].text);
+        if (!n) return null;
+        if (n[1].split(',').some(x => x === '*' || x === kw)) return { at: ops[k].at, list: n[1] };
+        k = index.get(parseInt(n[2], 16));
+      }
+      return null;
+    };
     for (let i = 0; i < ops.length; i++) {
-      const m = /^conversation_response "([^"]*)" -> 0x([0-9A-F]+)$/i.exec(ops[i].text);
-      // A yes-or-no answer runs on by design: "y" falls through to the "n"
-      // test, and in the bartenders' dice game (0x0812) "y" runs on into the
-      // game itself.
-      if (!m || m[1] === 'y' || m[1] === 'n') continue;
-      const st = startOf(ops[i].at);
-      if (st === null) continue;
-      const next = parseInt(m[2], 16) + st;
-      const j = ops.findIndex(o => o.at === next);
-      if (j <= i + 1 || !/^conversation_response /.test(ops[j].text)) continue;
-      if (/^(?:end|branch |exit|return)/.test(ops[j - 1].text)) continue;
-      out.push({ resid: e.resid, at: ops[i].at, list: m[1] });
+      const m = RESP.exec(ops[i].text);
+      if (!m) continue;
+      let reach = 0, says = false, stops = false, j = i + 1;
+      for (; j < ops.length && !RESP.test(ops[j].text); j++) {
+        const t = ops[j].text;
+        const th = /^then -> 0x([0-9A-F]+)$/i.exec(t);
+        if (th) reach = Math.max(reach, parseInt(th[1], 16));
+        if (/^string/.test(t)) says = true;
+        if (/^(?:branch |exit|conversation_prompt)/.test(t) || (/^return/.test(t) && reach <= ops[j].at)) { stops = true; break; }
+      }
+      if (stops || j >= ops.length || !says) continue;
+      let then = null;
+      for (const kw of m[1].split(',')) if ((then = answerFor(j, kw))) break;
+      if (!then && (m[1] === 'y' || m[1] === 'n' || !/^string/.test(ops[j - 1].text))) continue;
+      out.push({ resid: e.resid, at: ops[i].at, list: m[1], then });
+    }
+  }
+  return out;
+}
+
+/* linesReplacedAtOnce: a spoken line with no click to wait on, followed by
+   another spoken line before anything waits. The conversation window keeps
+   one speech balloon. A closing quote draws it, a * inside the quotes draws
+   it and waits for a click, and the next quoted text replaces the balloon's
+   contents; so a line that ends on its closing quote is replaced as soon as
+   the next one is drawn, whoever says it. This is the board's list of lines
+   that "flash by too quickly to read": Crito's "Did you talk to Hebe about
+   me?" (0x1829), Borus's "Glaucus is a good man..." (0x1867), Niobe's first
+   two lines when Helen interrupts (0x1859), Ake's "meet me in our @garden
+   after dark" for a hero with Persuasion (0x1820), and the bartenders' "Good
+   - let's get on with it then." (0x0812). The walk follows the line's own
+   path: through branches, past tests (their fall-through), and along an
+   answer chain with the reply that led to the line, stopping at anything
+   that prompts, returns, prints or calls out, and at a test of a local,
+   which the scripts use to steer their own paths. Where the chain comes to
+   a second answer for the same reply, the row is answersThatRunOn's. Also
+   listed: two quoted lines back to back inside one string, which is how the
+   bartenders' "we don't give credit here" is followed at once by "Do you
+   need instructions?" for a hero with no oboloi. */
+function linesReplacedAtOnce() {
+  const out = [];
+  const said = t => { const m = /^string(?:\(implicit\))? "(.*)"$/s.exec(t); if (!m) return null; try { return JSON.parse('"' + m[1] + '"'); } catch (err) { return null; } };
+  const RESP = /^conversation_response "([^"]*)" -> 0x([0-9A-F]+)$/i;
+  const STOP = /^(?:conversation_prompt|return|exit|print|gui_|method |local Var|sys (?!TalkParticipant|SetFlag|ClearFlag|TestFlag|AddQuest|CompleteQuest|Random|GetState|SetState|IsInParty|WhoHasItem|GetSkill)|call_resource (?!SetCharacterFlag|0xF0[12]\b|CountMoneyInParty))/;
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    const index = new Map(ops.map((o, k) => [o.at, k]));
+    for (let i = 0; i < ops.length; i++) {
+      const a = said(ops[i].text);
+      if (a === null) continue;
+      const pair = /"\s*"/.exec(a);
+      if (pair && (a.slice(0, pair.index).split('"').length - 1) % 2 === 1)
+        out.push({ resid: e.resid, at: ops[i].at, line: a.slice(0, pair.index + 1), next: a.slice(pair.index + pair[0].length - 1), oneString: true, speaker: false });
+      if (!a.endsWith('"') || (a.split('"').length - 1) % 2) continue;
+      let reply = null;
+      for (let k = i - 1; k >= 0; k--) {
+        if (/^(?:conversation_prompt|return|exit|branch )/.test(ops[k].text)) break;
+        const r = RESP.exec(ops[k].text);
+        if (r) { reply = r[1].split(','); break; }
+      }
+      let speaker = false;
+      for (let j = i + 1, steps = 0; j !== undefined && j < ops.length && steps < 400; steps++) {
+        const t = ops[j].text;
+        const b = said(t);
+        if (b !== null) {
+          if (b.startsWith('"')) out.push({ resid: e.resid, at: ops[i].at, line: a, next: b, nextAt: ops[j].at, oneString: false, speaker });
+          break;
+        }
+        const r = RESP.exec(t);
+        if (r) {
+          if (!reply || r[1].split(',').some(x => x === '*' || reply.includes(x))) break;
+          j = index.get(parseInt(r[2], 16));
+          continue;
+        }
+        if (STOP.test(t)) break;
+        if (t === 'sys TalkParticipant') speaker = true;
+        const br = /^branch 0x([0-9A-F]+)$/i.exec(t);
+        j = br ? index.get(parseInt(br[1], 16)) : j + 1;
+      }
     }
   }
   return out;
@@ -2801,6 +2907,34 @@ function wrongCarryFlags() {
         if (/^(?:global (?:CurrentCharacter|PlayerCharacter)|arg Arg)/.test(ops[j + 3].text)) out.push({ resid: e.resid, at: ops[i + 3].at, into: ops[j + 3].text });
         break;
       }
+    }
+  }
+  return out;
+}
+
+/* speechWithNoSpeaker: a script that opens a conversation of its own and
+   has someone speak in it without naming a speaker with TalkParticipant.
+   The game's own Talk command names two (the hero in the third place, the
+   one spoken to in the first) before it calls Talk; a new conversation
+   window starts with no speaker, number -1, and draws a speaker's quoted
+   words in a balloon placed 88 pixels down for each place, so with none
+   named they are drawn above the window's top and are not seen, while
+   unquoted narration, which goes to the message line, is. Every other script
+   that opens a conversation names both first. Awaken (0x1A13) names neither
+   and calls the sleeper's Talk, which is the board's "lets you talk to
+   sleepers but their words are invisible". */
+function speechWithNoSpeaker() {
+  const out = [];
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    for (let i = 0; i < ops.length; i++) {
+      if (ops[i].text !== 'sys OpenConversation') continue;
+      let named = false, speaks = null;
+      for (let j = i + 1; j < ops.length && ops[j].text !== 'sys FinishConversation' && ops[j].text !== 'sys OpenConversation'; j++) {
+        if (ops[j].text === 'sys TalkParticipant') { named = true; break; }
+        if (!speaks && (/^method Talk\b/.test(ops[j].text) || /^string(?:\(implicit\))? "\\"/.test(ops[j].text))) speaks = ops[j];
+      }
+      if (!named && speaks) out.push({ resid: e.resid, at: ops[i].at, talk: /^method Talk\b/.test(speaks.text) });
     }
   }
   return out;

@@ -2023,7 +2023,22 @@ try {
   else if (ctx.tileReadWithSeenBit().map(t => t.resid.toString(16)).join() !== '1091') fail('loose', 'the fishing pole, the one script that reads the map and never masks the seen bit, was not found alone: ' + JSON.stringify(ctx.tileReadWithSeenBit()));
   else if (ctx.wrongCarryFlags().map(w => w.resid.toString(16)).sort().join() !== '1a28,3042') fail('loose', 'Fetch and the attack routine putting things into a character with flags 9 were not the two found (the shop\'s 24 must not be): ' + JSON.stringify(ctx.wrongCarryFlags()));
   else if (!/a map tile read with its seen bit/.test(html) || !/a thing given to a character with the wrong flags/.test(html)) fail('loose', 'the seen-bit or carry-flag row is missing from the card');
-  else if (ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list).sort().join('|') !== '807:atus|808:hist') fail('loose', 'the answers without a return were not the Atussa and history ones (a yes-or-no prompt\'s "y" must not be listed): ' + JSON.stringify(ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list)));
+  /* Awaken opens a conversation and names no speaker. With the
+     TalkParticipant test taken out the reader finds thirteen sites, so the
+     one it finds is the test's doing. */
+  else if (ctx.speechWithNoSpeaker().map(c => c.resid.toString(16) + ':' + c.talk).join() !== '1a13:true') fail('loose', 'the conversation with no speaker was not Awaken alone: ' + JSON.stringify(ctx.speechWithNoSpeaker()));
+  else if (!/a conversation with no one to speak/.test(html)) fail('loose', 'the conversation-with-no-speaker row is missing from the card');
+  /* Lines replaced before they can be read: the board's Crito, Borus,
+     Niobe (two), Ake and bartender lines, and the rest the same walk finds. */
+  else if (ctx.linesReplacedAtOnce().map(r => r.resid.toString(16) + '@' + r.at.toString(16)).sort().join() !== '1820@60e,1828@252,1829@375,1829@440,1829@463,182a@13f,182a@190,182a@f5,1857@52,1859@55,1859@9b,1867@251,1878@181,812@12,812@383') fail('loose', 'the lines replaced at once are not the fifteen known: ' + JSON.stringify(ctx.linesReplacedAtOnce().map(r => r.resid.toString(16) + '@' + r.at.toString(16))));
+  else if (!/a line replaced before it can be read/.test(html)) fail('loose', 'the replaced-line row is missing from the card');
+  /* The run-on answers. The reader's first form linked the chain through the
+     object's start as well as the jump target, which is already a resource
+     offset, and so walked no character's chain; the wishing fountain's four
+     wishes, which the board lists among the lines that flash past, came in
+     only when that was fixed. Magpie's two are inside his flag-1 block,
+     which is unreachable anyway, and are stated as the file has them. */
+  else if (ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list).sort().join('|') !== '1036:3,thre|1036:coff|1036:pony|1036:tequ|1803:baho|1803:jhia|1811:n|1824:n|184e:n|807:atus|808:hist') fail('loose', 'the answers without a return are not the fountain\'s four wishes, Magpie\'s two, Atussa\'s, the mages\' history, and Ennomus\'s, Antenor\'s and Pheres\'s second "n" (no other yes-or-no answer, and not Neoptolemus\'s "demo", may be listed): ' + JSON.stringify(ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list)));
   else if (ctx.leaveNeverLeaves().map(l => l.who).join() !== '97') fail('loose', 'Aethon, who agrees to leave and stays, was not the one companion found: ' + JSON.stringify(ctx.leaveNeverLeaves().map(l => l.who)));
   else if (!/an answer that runs on/.test(html) || !/a companion who agrees to leave and stays/.test(html)) fail('loose', 'the run-on answer or the companion who stays is not on the card');
   else if (!/a light that stays on/.test(html) || !/two people scheduled into one place/.test(html) || !/a name told and not kept/.test(html) || !/answers written for someone never asked/.test(html)) fail('loose', 'a fourth-batch row is missing from the card');

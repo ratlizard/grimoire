@@ -2168,14 +2168,23 @@ function renderMechanicsSheet(value) {
       ' answers “name” and never sets their own character flag 7, which every other name topic sets, so they go on being called by what they look like.</td><td>' + where([n]) + '</td></tr>');
     for (const a of askedOfNobody()) rows.push('<tr><td>answers written for someone never asked</td><td>' + a.items.length + ' item classes write an Ask About answer for ' + (chipOf(a.who) || svEsc(characterName(a.who))) +
       ', whose script never hands a question to the AskAbout helper, so none of them is ever given.</td><td>' + a.items.slice(0, 6).map(pt => svLink(svEsc(propDisplayName(pt) || ('prop ' + pt)), 'showItemDetail(' + pt + ')')).join(', ') + (a.items.length > 6 ? ' and ' + (a.items.length - 6) + ' more' : '') + '</td></tr>');
-    for (const r of answersThatRunOn()) rows.push('<tr><td>an answer that runs on</td><td>The answer to “' + svEsc(r.list) +
-      '” has no return after it, so the conversation goes on testing the next keywords, and when none matches the character’s “don’t understand” follows it.</td><td>' + where([r]) + '</td></tr>');
+    for (const r of answersThatRunOn()) rows.push('<tr><td>an answer that runs on</td><td>The answer to “' + svEsc(r.list) + '” has no return after it, so ' +
+      (r.then ? 'the answer to “' + svEsc(r.then.list) + '” further on is given for the same reply, at once, and the first is replaced before it can be read.'
+        : 'the conversation goes on testing the next keywords, and when none matches the character’s “don’t understand” follows it.') + '</td><td>' + where([r]) + '</td></tr>');
+    // The last part of a spoken line, after its last click, as the balloon shows it.
+    const lastPart = t => svEsc(t.split('*').filter(x => x.trim()).pop() || t);
+    for (const r of linesReplacedAtOnce()) rows.push('<tr><td>a line replaced before it can be read</td><td>' +
+      (r.oneString ? lastPart(r.line) + ' and ' + lastPart(r.next) + ' are back to back in one string, with no * between them to wait for a click, so the first is replaced as soon as it is drawn.'
+        : lastPart(r.line) + ' ends without a * to wait for a click, and the next line the script can come to, ' + lastPart(r.next) + (r.speaker ? ', said by someone the script has just named to speak,' : '') + ' replaces it as soon as it is drawn.') +
+      '</td><td>' + where([r]) + '</td></tr>');
     for (const l of leaveNeverLeaves()) rows.push('<tr><td>a companion who agrees to leave and stays</td><td>' + (chipOf(l.who) || svEsc(characterName(l.who))) +
       ' can join the party and answers “leave”, and nothing in the script ever takes them out of it.</td><td>' + where([l]) + '</td></tr>');
     for (const t of tileReadWithSeenBit()) rows.push('<tr><td>a map tile read with its seen bit</td><td>' + where([t]) + ' compares the map’s tile at a square with ' + t.compared.join(' and ') +
       ' and never masks it, and a square that has been drawn carries the automap’s bit 0x8000, so the comparison never holds for a square the player can see.</td><td>' + where([t]) + '</td></tr>');
     for (const w of wrongCarryFlags()) rows.push('<tr><td>a thing given to a character with the wrong flags</td><td>' + where([w]) + ' sets a thing’s flags to ' + srcNum({ v: 9, resid: w.resid, at: w.at }, '9') +
       ' and its container to ' + svEsc(w.into.replace(/ \(0x[0-9A-F]+\)$/i, '')) + '. A carried thing has flag 0x10; 9 is inside another prop, so the thing ends up inside no one and is lost.</td><td>' + where([w]) + '</td></tr>');
+    for (const c of speechWithNoSpeaker()) rows.push('<tr><td>a conversation with no one to speak</td><td>' + where([c]) + ' opens a conversation and ' +
+      (c.talk ? 'has the one it is used on talk' : 'has someone speak') + ' without naming a speaker. A conversation starts with none, and quoted words are drawn in the speaker’s place, so they are drawn above the window and not seen.</td><td>' + where([c]) + '</td></tr>');
     // Character sprite frames that repeat another pose (spriteRepeats).
     for (const r of spriteRepeats()) rows.push('<tr><td>a sprite frame that repeats another pose</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) + '’s ' + r.aName + ' frame and its ' + r.bName + ' frame ' +
       (r.pixels ? 'differ by ' + r.pixels + ' pixel' + (r.pixels === 1 ? '' : 's') : 'are identical') + ', where a sheet’s poses are otherwise hundreds of pixels apart.</td><td>' +
