@@ -2846,6 +2846,157 @@ function linesReplacedAtOnce() {
   return out;
 }
 
+/* selfToldByGroup: a character with no answer of their own for their own
+   name, so the question falls to a dialogue group their script calls, and
+   the group answers about them as about anyone else. Halos asked "Halos" in
+   jail says "Hard to say if he did it or not" (the Cademia group, 0x080E);
+   Eioneus, Charax, Milcom, Philinus, Propontis and Helen are the rest of the
+   board's list that this covers, and Sabinate (the Seldane group, "Sabinate
+   is our leader.") is one nobody listed. A keyword kept with a space in
+   front of it counts as the character's own, because that is
+   spacedKeywords' row; Demodocus on "music" and Alaric on "king" are not a
+   name and are not looked for. Only a one-word name is tried, which leaves
+   out the guards, whose names are a town and a job. */
+function selfToldByGroup() {
+  const RESP = /^conversation_response "([^"]*)" -> /;
+  const opsOf = resid => { const e = dvmScriptEntry(resid); if (!e) return null; try { return dvmOpsOf(e); } catch (err) { return null; } };
+  const out = [];
+  for (let n = 1; n < 256; n++) {
+    const ops = opsOf(0x1800 + n);
+    const name = characterName(n) || '';
+    if (!ops || !/^[A-Z][a-z]{3,}$/.test(name)) continue;
+    const k = name.slice(0, 4).toLowerCase();
+    if (ops.some(o => { const m = RESP.exec(o.text); return m && m[1].split(',').some(x => x.trim() === k); })) continue;
+    for (const o of ops) {
+      const g = /^call_resource (?:\w+ \()?0x(8[0-9A-F]{2})\)?$/i.exec(o.text);
+      if (!g) continue;
+      const group = parseInt(g[1], 16);
+      const gops = opsOf(group);
+      if (!gops) continue;
+      const i = gops.findIndex(x => { const m = RESP.exec(x.text); return m && m[1].split(',').includes(k); });
+      if (i < 0) continue;
+      const said = [];
+      for (let j = i + 1; j < gops.length && !RESP.test(gops[j].text); j++) { const t = dvmOpString(gops[j]); if (t) said.push(t); }
+      // The group's answer has to be about this character, by name; Paris
+      // asked "Paris" is told about his cousin Parium, which is shadowed's.
+      if (said.some(t => t.includes(name))) out.push({ who: n, key: k, resid: group, at: gops[i].at, said: said[0] });
+      break;
+    }
+  }
+  return out;
+}
+
+/* containedUnseen: a script that looks only at things lying loose -- its
+   test is that a thing's flags have no bit above the low two, so nothing
+   carried (0x10) or inside a prop (0x08) -- for prop types every one of
+   which the world places inside something. Detect Traps (0x1A04) asks for
+   the poison trap, the blast trap and two more; the five poison traps are in
+   crates and the two blast traps in chests, so it never finds either, which
+   is the board's "does not detect traps on containers". */
+function containedUnseen() {
+  const places = new Map();
+  for (let z = 0; z < 0x100; z++) {
+    if (!refExists(0x8100 + z)) continue;
+    let list; try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
+    for (const r of list) {
+      if (r.flags === 0xFF || (r.flags & 0x40)) continue;
+      if (!places.has(r.proptype)) places.set(r.proptype, { loose: 0, inside: 0, hosts: new Set() });
+      const p = places.get(r.proptype);
+      if (r.onMap) p.loose++;
+      else if (r.container !== null) { p.inside++; if (list[r.container]) p.hosts.add(list[r.container].proptype); }
+    }
+  }
+  const out = [];
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    const test = dvmSeqFirst(ops, [/^get_field flags\b/, DVM_NUM, /^bitwise_or$/, DVM_NUM, /^eq$/]);
+    if (!test || dvmNum(test[1]) !== 3 || dvmNum(test[3]) !== 3) continue;
+    for (const g of dvmSeqAll(ops, [/^get_field obj_type\b/, DVM_NUM, /^eq$/])) {
+      const pt = dvmNum(g[1]);
+      const p = places.get(pt);
+      if (p && p.inside && !p.loose) out.push({ resid: e.resid, at: test[1].at, pt, inside: p.inside, hosts: [...p.hosts] });
+    }
+  }
+  return out;
+}
+
+/* refusalOnEveryCheck: an item class whose answer to "can this go inside?"
+   (member 23) prints a line. The inventory window asks that of the thing
+   under the cursor each time it checks a drop (TWInvent::CanDrop), so the
+   line is printed for every check, which is the board's "You can't stuff
+   the carcass!" repeated many times. Every other class answers without a
+   word. */
+function refusalOnEveryCheck() {
+  const out = [];
+  for (let pt = 1; pt < 1024; pt++) {
+    const c = parseItemClass(pt);
+    const m = c && c.code.find(x => x.key === 23);
+    if (!m) continue;
+    let ext; try { ext = dvmExtents(c.bytes, 0x1000 + pt); } catch (err) { continue; }
+    const span = ext && ext.find(x => x[0] === m.off && x[2] === 'function');
+    if (!span) continue;
+    // The carcass's is a line and a bare return, which the listing shows as
+    // the line alone (dvmProseHead), so it has no ops to find.
+    const ph = dvmProseHead(c.bytes.subarray(span[0] + 3, span[1]));
+    if (ph && ph.bare) { out.push({ pt, resid: 0x1000 + pt, at: span[0] + 3, said: decodeMacRoman(ph.head) }); continue; }
+    const e = dvmScriptEntry(0x1000 + pt);
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    const said = ops.find(o => o.at >= span[0] && o.at < span[1] && dvmOpString(o));
+    if (said) out.push({ pt, resid: 0x1000 + pt, at: said.at, said: dvmOpString(said) });
+  }
+  return out;
+}
+
+/* highlightsUnanswered: a word marked with @ in a line, which the game
+   draws highlighted and lets the player click to ask, that no answer list
+   reachable by a character who says the line will match. A character's
+   reachable answers are their own script's and those of every dialogue group
+   (0x0800 to 0x08FF) it calls, and the groups those call; a list matches a
+   typed word when the word begins with one of its keywords. The general
+   group's (0x0801) "Pnyx is a city on the eastern coast of Cythera, home of
+   the @Magisterium" is said by 66 characters who cannot answer it; Alaric's
+   "@join you on your quest" and Demodocus's "Would you like to @hear it?"
+   are the two the board half-remembered. Returned one entry per line and
+   word, with the characters who say it and cannot answer. */
+function highlightsUnanswered() {
+  const RESP = /^conversation_response "([^"]*)" -> /;
+  const opsOf = resid => { const e = dvmScriptEntry(resid); if (!e) return null; try { return dvmOpsOf(e); } catch (err) { return null; } };
+  const lines = new Map();
+  for (let n = 1; n < 256; n++) {
+    const own = opsOf(0x1800 + n);
+    if (!own) continue;
+    const scripts = [[0x1800 + n, own]];
+    const seen = new Set([0x1800 + n]);
+    for (let q = 0; q < scripts.length; q++) for (const o of scripts[q][1]) {
+      const g = /^call_resource (?:\w+ \()?0x([0-9A-F]{3,4})\)?$/i.exec(o.text);
+      if (!g) continue;
+      const r = parseInt(g[1], 16);
+      if (r < 0x800 || r >= 0x900 || seen.has(r)) continue;
+      seen.add(r);
+      const go = opsOf(r);
+      if (go) scripts.push([r, go]);
+    }
+    const keys = [];
+    for (const [, ops] of scripts) for (const o of ops) {
+      const m = RESP.exec(o.text);
+      if (m) keys.push(...m[1].split(',').filter(k => k && k !== '*').map(k => k.toLowerCase()));
+    }
+    for (const [r, ops] of scripts) for (const o of ops) {
+      const t = dvmOpString(o);
+      if (!t) continue;
+      for (const m of t.matchAll(/@([A-Za-z][A-Za-z']*)/g)) {
+        const w = m[1].toLowerCase();
+        if (keys.some(k => w.startsWith(k))) continue;
+        const id = r + ':' + o.at + ':' + w;
+        if (!lines.has(id)) lines.set(id, { resid: r, at: o.at, word: m[1], who: [] });
+        const l = lines.get(id);
+        if (!l.who.includes(n)) l.who.push(n);
+      }
+    }
+  }
+  return [...lines.values()];
+}
+
 /* leaveNeverLeaves: a character who can join the party, answers "leave",
    and never calls LeaveParty anywhere in their script. Hector, Meleager,
    Timon and Dryas each call it in theirs; Aethon says "Maybe it is time for

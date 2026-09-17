@@ -2177,6 +2177,21 @@ function renderMechanicsSheet(value) {
       (r.oneString ? lastPart(r.line) + ' and ' + lastPart(r.next) + ' are back to back in one string, with no * between them to wait for a click, so the first is replaced as soon as it is drawn.'
         : lastPart(r.line) + ' ends without a * to wait for a click, and the next line the script can come to, ' + lastPart(r.next) + (r.speaker ? ', said by someone the script has just named to speak,' : '') + ' replaces it as soon as it is drawn.') +
       '</td><td>' + where([r]) + '</td></tr>');
+    for (const t of selfToldByGroup()) rows.push('<tr><td>a character told about by their own group</td><td>' + (chipOf(t.who) || svEsc(characterName(t.who))) +
+      ' has no answer of their own for “' + svEsc(t.key) + '”, so the question falls to a dialogue group their script calls, which answers about them: ' + svEsc(t.said) + '</td><td>' + where([t]) + '</td></tr>');
+    {
+      const bySkill = new Map();
+      for (const u of containedUnseen()) { if (!bySkill.has(u.resid)) bySkill.set(u.resid, []); bySkill.get(u.resid).push(u); }
+      for (const list of bySkill.values()) rows.push('<tr><td>a search that passes over what is inside things</td><td>' + where([list[0]]) +
+        ' looks only at things lying loose, and ' + list.map(u => 'all ' + u.inside + ' ' + svEsc(propDisplayName(u.pt) || ('prop ' + u.pt)) + (u.inside === 1 ? ' is' : 's are') +
+          ' inside ' + u.hosts.map(h => svEsc(propDisplayName(h) || ('prop ' + h))).join(' or ')).join(', and ') + ', so it never finds one.</td><td>' + where([list[0]]) + '</td></tr>');
+    }
+    for (const h of highlightsUnanswered()) rows.push('<tr><td>a highlighted word nobody answers</td><td>“' + svEsc(h.word) + '” is highlighted to be asked in ' + where([h]) + ', and ' +
+      (h.who.length === 1 ? (chipOf(h.who[0]) || svEsc(characterName(h.who[0]))) + ', who says it, has'
+        : 'none of the ' + h.who.length + ' characters who can say it has') + ' an answer that matches it' +
+      (h.who.length > 1 ? ': ' + h.who.slice(0, 8).map(n => chipOf(n) || svEsc(characterName(n))).join(', ') + (h.who.length > 8 ? ' and ' + (h.who.length - 8) + ' more' : '') : '') + '.</td><td>' + where([h]) + '</td></tr>');
+    for (const r of refusalOnEveryCheck()) rows.push('<tr><td>a refusal said on every check</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) +
+      '’s answer to whether a thing can go inside it prints “' + svEsc(r.said.trim()) + '” before saying no, and the inventory window asks it each time it checks a drop, so the line repeats while a thing is dragged over it.</td><td>' + where([r]) + '</td></tr>');
     for (const l of leaveNeverLeaves()) rows.push('<tr><td>a companion who agrees to leave and stays</td><td>' + (chipOf(l.who) || svEsc(characterName(l.who))) +
       ' can join the party and answers “leave”, and nothing in the script ever takes them out of it.</td><td>' + where([l]) + '</td></tr>');
     for (const t of tileReadWithSeenBit()) rows.push('<tr><td>a map tile read with its seen bit</td><td>' + where([t]) + ' compares the map’s tile at a square with ' + t.compared.join(' and ') +
