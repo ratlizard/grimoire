@@ -1534,7 +1534,9 @@ function renderMechanicsSheet(value) {
         '. A blow that would have missed is never parried.',
       cb.dmgAdd ? 'A hit does <b>' + srcNum(cb.dmgAdd) + ' plus a roll under the damage figure, plus the enchantment</b>, so ' + cb.dmgAdd.v + ' to the figure' + (cb.dmgAdd.v === 1 ? ' rather than nothing to it' : ' less one, and more') + (cb.skillOffLoop ? '' : ', with the skill widening the figure before the roll') + '. The defender’s resistance takes the damage type afterwards, so the word the game prints can be bigger than what is felt.' : '',
       ar && ar.bodyRoll && ar.scale ? 'The damage figure of a blow is the weapon’s plus ' + rollFrom('body') + (ar.reflexRoll ? '; a throw’s is its throw entry’s plus ' + rollFrom('reflex') : '') + '.' : '',
-      ar && ar.lodges && ar.drops ? 'A thrown weapon that <b>hits or is parried</b> goes into the target, carried, which is where it is when the target dies; one that misses lies on the target’s square. Nothing brings it back.' + (ar.ammoSpent ? ' A launcher spends one of its ammunition a shot.' : '') : '',
+      ar && ar.lodges && ar.drops ? (wrongCarryFlags().some(w => w.resid === 0x3042)
+        ? 'A thrown weapon that <b>hits or is parried</b> is given the target as its container but flags of 9, not the carried flag, so it ends inside no one and is lost; one that misses lies on the target’s square. Nothing brings either back.'
+        : 'A thrown weapon that <b>hits or is parried</b> goes into the target, carried, which is where it is when the target dies; one that misses lies on the target’s square. Nothing brings it back.') + (ar.ammoSpent ? ' A launcher spends one of its ammunition a shot.' : '') : '',
       cb.words.length ? 'The blow is named by its size: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + srcNum(w.val)).join(', ') + (cb.last ? ', and <i>' + svEsc(cb.last.word) + '</i> above.' : '.') : ''
     ].filter(Boolean) : [],
     cb && cb.roll && cb.rollDefender && cb.dmgAdd ? combatSimControls() + '<div id="combatOut">' + combatSimHtml(combatSimParams(), cb) + '</div>' : '', '');
@@ -2170,6 +2172,10 @@ function renderMechanicsSheet(value) {
       '” has no return after it, so the conversation goes on testing the next keywords, and when none matches the character’s “don’t understand” follows it.</td><td>' + where([r]) + '</td></tr>');
     for (const l of leaveNeverLeaves()) rows.push('<tr><td>a companion who agrees to leave and stays</td><td>' + (chipOf(l.who) || svEsc(characterName(l.who))) +
       ' can join the party and answers “leave”, and nothing in the script ever takes them out of it.</td><td>' + where([l]) + '</td></tr>');
+    for (const t of tileReadWithSeenBit()) rows.push('<tr><td>a map tile read with its seen bit</td><td>' + where([t]) + ' compares the map’s tile at a square with ' + t.compared.join(' and ') +
+      ' and never masks it, and a square that has been drawn carries the automap’s bit 0x8000, so the comparison never holds for a square the player can see.</td><td>' + where([t]) + '</td></tr>');
+    for (const w of wrongCarryFlags()) rows.push('<tr><td>a thing given to a character with the wrong flags</td><td>' + where([w]) + ' sets a thing’s flags to ' + srcNum({ v: 9, resid: w.resid, at: w.at }, '9') +
+      ' and its container to ' + svEsc(w.into.replace(/ \(0x[0-9A-F]+\)$/i, '')) + '. A carried thing has flag 0x10; 9 is inside another prop, so the thing ends up inside no one and is lost.</td><td>' + where([w]) + '</td></tr>');
     // Character sprite frames that repeat another pose (spriteRepeats).
     for (const r of spriteRepeats()) rows.push('<tr><td>a sprite frame that repeats another pose</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) + '’s ' + r.aName + ' frame and its ' + r.bName + ' frame ' +
       (r.pixels ? 'differ by ' + r.pixels + ' pixel' + (r.pixels === 1 ? '' : 's') : 'are identical') + ', where a sheet’s poses are otherwise hundreds of pixels apart.</td><td>' +

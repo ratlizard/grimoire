@@ -2756,6 +2756,56 @@ function leaveNeverLeaves() {
   return out;
 }
 
+/* tileReadWithSeenBit: a script that compares GetMapTile's answer with tile
+   numbers and never masks it. A map word in memory carries the automap's
+   "seen" bit, 0x8000: TViewer::Render and TGameViewer::MagicMap set it on
+   every square they draw, LoadLevelMap restores it from the saved automap and
+   SaveLevelProps reads it back out, and TActiveMonster::HandleMove masks it
+   off (0x7FFF) before it tests the terrain. A square the player can click is
+   a square that has been drawn, so an unmasked read is always 0x8000 above
+   the tile. The fishing pole is the one script that reads the map, and it
+   wants tiles 8 to 15, the water; it therefore always says "You need to cast
+   into deep water." Bryce Schroeder's bugfix patch adds exactly the missing
+   `word 0x7FFF bitwise_and`, and says so in its comment. */
+function tileReadWithSeenBit() {
+  const out = [];
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    for (let i = 0; i < ops.length; i++) {
+      if (ops[i].text !== 'sys GetMapTile') continue;
+      const after = ops.slice(i, i + 16);
+      if (after.some(o => o.text === 'bitwise_and')) continue;
+      const nums = after.map(o => dvmNum(o)).filter(v => v !== null && v >= 0 && v < 0x8000);
+      if (after.some(o => /^(?:lt|gt|le|ge|eq)$/.test(o.text)) && nums.length) out.push({ resid: e.resid, at: ops[i].at, compared: nums });
+    }
+  }
+  return out;
+}
+
+/* wrongCarryFlags: a script that puts a thing into a character by setting
+   its flags to 9 and its container to the character. Every carried record in
+   the shipped prop lists has flag 0x10 (16, or 24 equipped), the shops give
+   what they sell with 24, and Bryce Schroeder's fix to Fetch sets 0x10; 9 is
+   inside-a-prop, so the thing ends inside whatever prop carries the
+   character's number and is gone. Fetch does it to whatever it fetches, and
+   the attack routine (0x3042) does it to a thrown weapon that hits or is
+   parried, which is the board's dagger that vanishes with the killing blow. */
+function wrongCarryFlags() {
+  const out = [];
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    for (let i = 0; i + 3 < ops.length; i++) {
+      if (!/^set_field flags\b/.test(ops[i].text) || dvmNum(ops[i + 3]) !== 9) continue;
+      for (let j = i + 4; j < Math.min(i + 14, ops.length - 3); j++) {
+        if (!/^set_field container\b/.test(ops[j].text)) continue;
+        if (/^(?:global (?:CurrentCharacter|PlayerCharacter)|arg Arg)/.test(ops[j + 3].text)) out.push({ resid: e.resid, at: ops[i + 3].at, into: ops[j + 3].text });
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 const VAL_ANY = /^(?:byte|short|word) (?:-?0x[0-9A-F]+|-?\d+)$/i;
 
 /* PUZZLES. Two the file answers completely. The braziers in Alaric's void
