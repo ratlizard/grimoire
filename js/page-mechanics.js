@@ -2186,6 +2186,12 @@ function renderMechanicsSheet(value) {
         ' looks only at things lying loose, and ' + list.map(u => 'all ' + u.inside + ' ' + svEsc(propDisplayName(u.pt) || ('prop ' + u.pt)) + (u.inside === 1 ? ' is' : 's are') +
           ' inside ' + u.hosts.map(h => svEsc(propDisplayName(h) || ('prop ' + h))).join(' or ')).join(', and ') + ', so it never finds one.</td><td>' + where([list[0]]) + '</td></tr>');
     }
+    for (const d of deletedAcrossZoneChange()) {
+      const item = svEsc(propDisplayName(d.pt) || ('prop ' + d.pt));
+      rows.push('<tr><td>a delete after the zone has changed</td><td>Using a ' + item + ' of ' + where([{ resid: d.skill, at: d.skillAt }]) +
+        ' casts a copy of the spell, which moves the party to another zone; then the ' + item + '’s Use deletes the copy and the ' + item + ' by number, and those numbers now name things in the new zone, so two of its things are destroyed and the ' + item + ' is kept. One lies in ' +
+        d.zones.map(z => svEsc(labelFor(0x8000 + z) || ('zone ' + z))).join(' and ') + '.</td><td>' + where([d]) + '</td></tr>');
+    }
     for (const h of highlightsUnanswered()) rows.push('<tr><td>a highlighted word nobody answers</td><td>“' + svEsc(h.word) + '” is highlighted to be asked in ' + where([h]) + ', and ' +
       (h.who.length === 1 ? (chipOf(h.who[0]) || svEsc(characterName(h.who[0]))) + ', who says it, has'
         : 'none of the ' + h.who.length + ' characters who can say it has') + ' an answer that matches it' +

@@ -2997,6 +2997,51 @@ function highlightsUnanswered() {
   return [...lines.values()];
 }
 
+/* deletedAcrossZoneChange: an item whose Use makes a spell from its Data1,
+   casts it, and then deletes the spell it made and itself, where the spell
+   moves the party to another zone. A deletion names a thing by its number in
+   the zone's prop list, and by then the list is the new zone's, so the two
+   numbers name two things there and the item is left. The scroll (0x104B)
+   and Directed Nexus (0x1A00), which goes to Land King Hall: the board's
+   "something in Landking hall usually gets destroyed" and "the scroll never
+   vanished". Cast as a learned spell nothing is deleted, which is why only
+   the scroll does it. */
+function deletedAcrossZoneChange() {
+  const moves = new Map();
+  for (const e of buildScriptTextIndex()) {
+    if (e.resid < 0x1A00 || e.resid >= 0x1C00) continue;
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    const z = ops.find(o => o.text === 'sys ChangeZone');
+    if (z) moves.set(e.resid - 0x1800, { resid: e.resid, at: z.at });
+  }
+  if (!moves.size) return [];
+  const out = [];
+  for (let pt = 1; pt < 1024; pt++) {
+    const e = dvmScriptEntry(0x1000 + pt);
+    if (!e) continue;
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    for (let i = 0; i < ops.length; i++) {
+      if (ops[i].text !== 'sys New') continue;
+      // The type New is given is the item's own Data1: the fifth argument.
+      const typeOp = ops.slice(i + 1, i + 14).find((o, k, a) => /^get_field data1\b/.test(o.text) && k > 0 && /^arg Arg00$/.test(a[k - 1].text));
+      if (!typeOp) continue;
+      const use = ops.slice(i, i + 40).findIndex(o => /^method (?:Use|UseOn|UseAt)\b/.test(o.text));
+      if (use < 0) continue;
+      const selfDelete = ops.slice(i + use, i + use + 40).find((o, k, a) => o.text === 'sys Delete' && a[k + 1] && a[k + 1].text === 'arg Arg00');
+      if (!selfDelete) continue;
+      const places = new Map();
+      for (let zn = 0; zn < 0x100; zn++) {
+        if (!refExists(0x8100 + zn)) continue;
+        let list; try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + zn), 0x8100 + zn).data); } catch (err) { continue; }
+        for (const r of list) if (r.proptype === pt && r.flags !== 0xFF && !(r.flags & 0x40) && moves.has(r.d3)) places.set(r.d3, (places.get(r.d3) || []).concat(zn));
+      }
+      for (const [skill, zones] of places) out.push({ pt, resid: 0x1000 + pt, at: selfDelete.at, skill: moves.get(skill).resid, skillAt: moves.get(skill).at, zones });
+      break;
+    }
+  }
+  return out;
+}
+
 /* leaveNeverLeaves: a character who can join the party, answers "leave",
    and never calls LeaveParty anywhere in their script. Hector, Meleager,
    Timon and Dryas each call it in theirs; Aethon says "Maybe it is time for
