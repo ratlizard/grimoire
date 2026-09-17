@@ -231,6 +231,41 @@ function drawSheetGridlines(canvas, W, H, mode) {
 // Click any frame in a prop or item panel and get it big: 8x, pixelated,
 // with its own indexed-PNG download. The overlay is one div; clicking
 // anywhere on it, or Escape, puts it away.
+/* What a tile is to the file, under its picture: the sheet it is cut from,
+   the prop type whose base it is, and every class that draws it at an aspect
+   -- a class at aspect n draws its base tile + n, on its own sheet -- with how
+   often the file places that class at that aspect. A chip opens the item at
+   that aspect, where the prop record shows the picture, or the prop type's
+   page. A picture no class owns (orphanItemArt) says so. */
+function tileFactsHTML(tileId) {
+  const rows = [];
+  const sheet = 0x8E00 + (tileId >> 4);
+  if (refExists(sheet)) rows.push(partsStrip('Cut from', [partChip('Sheet', sheet)]));
+  const tiles = getPropTileList();
+  const worn = (buildItemIndex(), window.ITEM_WORN || new Map());
+  const baseOf = [], atAspect = [];
+  for (let pt = 1; pt < tiles.length; pt++) {
+    const b = tiles[pt];
+    if (!b || b > tileId || (b >> 4) !== (tileId >> 4)) continue;
+    if (b === tileId) baseOf.push({ pt, n: 0 }); else atAspect.push({ pt, n: tileId - b });
+  }
+  const chip = ({ pt, n }) => {
+    const item = isInventoryItem(pt);
+    const placed = n ? worn.get((pt << 5) | n) || 0 : 0;
+    return relChip({ js: item ? 'openItem(' + pt + (n ? ',' + n : '') + ')' : 'openPropType(' + pt + ')',
+                     main: propDisplayName(pt) || 'prop type ' + pt,
+                     sub: (n ? 'aspect ' + n : item ? 'item' : 'prop type') + (placed ? ', placed ' + placed : ''),
+                     icon: relIconURL({ icon: pt }), title: tabTrail(TAB_LEAF_FOR.get(item ? 'ITEMS' : 'PROPS')) });
+  };
+  if (baseOf.length) rows.push(partsStrip('Base of', baseOf.map(chip)));
+  atAspect.sort((a, b) => a.n - b.n);
+  if (atAspect.length) rows.push(partsStrip('Drawn by', atAspect.map(chip)));
+  let orphan = false;
+  try { orphan = orphanItemArt().some(o => o.tile === tileId); } catch (e) { orphan = false; }
+  if (orphan) rows.push('<div class="partsNote" style="color:#b5b2a8">No class owns this picture, and nothing in the file places it.</div>');
+  return rows.join('');
+}
+
 function showSpriteZoom(tileId, label) {
   let ov = document.getElementById('spriteZoom');
   if (ov) ov.remove();
@@ -252,7 +287,17 @@ function showSpriteZoom(tileId, label) {
     e.stopPropagation();
     triggerPNGDownload(c, 'cythera_tile_0x' + tileId.toString(16).toUpperCase() + '.png');
   };
-  ov.appendChild(c); ov.appendChild(cap); ov.appendChild(dl);
+  ov.appendChild(c); ov.appendChild(cap);
+  let facts = '';
+  try { facts = tileFactsHTML(tileId); } catch (e) { facts = ''; }
+  if (facts) {
+    const f = document.createElement('div');
+    f.className = 'tileFacts';
+    f.style.cssText = 'max-width:560px;padding:0 16px;cursor:default';
+    f.innerHTML = facts;
+    ov.appendChild(f);
+  }
+  ov.appendChild(dl);
   ov.onclick = (e) => { if (e.target !== dl) ov.remove(); };
   const esc = (e) => { if (e.key === 'Escape') { ov.remove(); document.removeEventListener('keydown', esc); } };
   document.addEventListener('keydown', esc);

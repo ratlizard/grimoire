@@ -391,8 +391,14 @@ function renderToolsSheet() {
    The sheet is drawn at whatever shape the gallery tools chose, so the click
    is mapped back through that shape to a tile index; the tile belongs to the
    prop type whose block holds it (the highest base at or below it, within
-   its own 16-tile sheet), and that prop type's page opens under Sprites. A
-   tile no prop type claims -- terrain, mostly -- opens the sprite zoom. */
+   its own 16-tile sheet), and that prop type's page opens under Sprites
+   when the tile is one of its own frames: the base, or a frame named as the
+   base is named, which is the test that page uses for the frames it shows.
+   Any other tile opens its own view, the sprite zoom, which says what draws
+   it. Until 16 September 2026 every tile in a block went to the block's
+   prop type, so the hatchet, the tile after the spear, opened the spear's
+   page, which does not show it, and the hatchet itself could not be reached
+   from its sheet at all (the maintainer). */
 function propTypeForTile(tileId) {
   const tiles = getPropTileList();
   let best = -1, bestBase = -1;
@@ -402,6 +408,13 @@ function propTypeForTile(tileId) {
     if (tileId < base + (16 - (base & 0x0F))) { best = pt; bestBase = base; }
   }
   return best;
+}
+function tileTapTarget(tileId) {
+  const pt = propTypeForTile(tileId);
+  if (pt <= 0) return null;
+  const base = getPropTileList()[pt];
+  const own = terrainNameFor(base);
+  return tileId === base || (own && terrainNameFor(tileId) === own) ? pt : null;
 }
 function tileSheetClick(ev, resid) {
   const canvas = ev.currentTarget;
@@ -417,8 +430,8 @@ function tileSheetClick(ev, resid) {
   else idx = Math.floor(py / 32) * 4 + Math.floor(px / 32);
   if (!(idx >= 0 && idx < 16)) return;
   const tileId = ((resid - 0x8E00) << 4) | idx;
-  const pt = propTypeForTile(tileId);
-  if (pt > 0) openVia('PROPS', () => showPropTypeDetail(pt));
+  const pt = tileTapTarget(tileId);
+  if (pt) openVia('PROPS', () => showPropTypeDetail(pt));
   else showSpriteZoom(tileId, terrainNameFor(tileId) || '');
 }
 

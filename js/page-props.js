@@ -1260,7 +1260,7 @@ function renderItemSheet() {
         o.reach.map(r => (terrainNameFor(getPropTileList()[r.pt] || 0) || ('0x' + r.pt.toString(16))) + ' ' + r.aspect).join(', ') +
         ' \u00b7 in no prop list';
       cell.appendChild(sub);
-      cell.onclick = () => showItemDetail(o.reach[0].pt);
+      cell.onclick = () => showSpriteZoom(o.tile, o.name);
       grid.appendChild(cell);
     }
   }
