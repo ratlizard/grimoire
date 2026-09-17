@@ -2156,6 +2156,36 @@ function renderMechanicsSheet(value) {
     const skillOff = cb && cb.skillOffLoop;
     if (skillOff) rows.push('<tr><td>a term read off the wrong thing</td><td>The combat resolver adds the weapon’s skill to the margin and to the damage figure, but reads it off the local its shield loop leaves at nothing rather than off the weapon, so Sword, Axe and Mace add nothing to an armed blow.</td><td>' +
       where(skillOff) + '</td></tr>');
+    // Character sprite frames that repeat another pose (spriteRepeats).
+    for (const r of spriteRepeats()) rows.push('<tr><td>a sprite frame that repeats another pose</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) + '’s ' + r.aName + ' frame and its ' + r.bName + ' frame ' +
+      (r.pixels ? 'differ by ' + r.pixels + ' pixel' + (r.pixels === 1 ? '' : 's') : 'are identical') + ', where a sheet’s poses are otherwise hundreds of pixels apart.</td><td>' +
+      svLink('tile 0x' + r.a.toString(16).toUpperCase(), 'showPropTypeDetail(' + r.pt + ')') + '</td></tr>');
+    // A character asking whether they themselves are alive.
+    for (const a of le.selfAlive) rows.push('<tr><td>a character asking if they are alive</td><td>' + (chipOf(a.who) || svEsc(characterName(a.who))) +
+      ' tests whether ' + svEsc(characterName(a.who)) + ' is alive, which is always so while they talk, so the branch for the other answer is never taken.</td><td>' + where([a]) + '</td></tr>');
+    // A local tested for truth and only ever set false.
+    for (const l of le.localOnlyFalse) rows.push('<tr><td>a test of something only ever false</td><td>A local is tested as true or false, and every assignment to it in its function is false, so the branch behind the true side is never taken.</td><td>' +
+      where([l]) + '</td></tr>');
+    // Answers an earlier answer in the same list takes first.
+    for (const a of le.shadowed) rows.push('<tr><td>an answer an earlier one takes</td><td>“' + svEsc(a.list) +
+      '” is answered earlier in the same list, and the first match wins, so this answer is never given.</td><td>' + where([a]) + '</td></tr>');
+    // A quest value tested where the same-numbered flag is meant.
+    for (const v of le.valueForFlag) rows.push('<tr><td>a value tested where the flag is meant</td><td>' + where([v]) + ' tests quest value ' + v.k +
+      ' as true or false where its other tests use quest flag ' + v.k + '. Quest value ' + v.k + ' is given a start when it is 0 and is never set to 0, so the test always passes.</td><td>' +
+      where([v]) + '</td></tr>');
+    // Keywords behind a comma and a space, read in looseEnds.
+    for (const k of le.spacedKeywords) rows.push('<tr><td>a keyword that needs a space typed first</td><td>“' + svEsc(k.list) + '”: ' +
+      k.spaced.map(w => '“' + svEsc(w) + '”').join(' and ') + ' follow' + (k.spaced.length === 1 ? 's' : '') + ' a comma and a space, and the space is kept as part of the keyword, so only an answer typed with a leading space reaches it.</td><td>' +
+      where([k]) + '</td></tr>');
+    // A quest value only a thing that does not exist sets, read in looseEnds.
+    for (const d of le.dataCaseNoThing) rows.push('<tr><td>a thing nobody has</td><td>' + svEsc(propDisplayName(d.pt) || ('prop ' + d.pt)) +
+      ' sets quest value ' + d.state + ' when its Data1 is ' + srcNum(d.v) + ', and no ' + svEsc(propDisplayName(d.pt) || 'such thing') +
+      ' anywhere has that Data1, so quest value ' + d.state + ' is never set. It is read by ' + where(d.readers) + '.</td><td>' + where([d.v]) + '</td></tr>');
+    // Character flags tested and never set, read in looseEnds.
+    for (const f of le.charFlagNeverSet) rows.push('<tr><td>a character flag tested and never set</td><td>Flag ' + f.bit + ' of ' +
+      (chipOf(f.character) || svEsc(characterName(f.character) || ('character ' + f.character))) +
+      ' is tested, and nothing sets it, by a call, a helper, a queued task or the character table, so the test never passes.</td><td>' +
+      where(f.sites) + '</td></tr>');
     // The sleep helper's magic half, read in sleepRules.
     const slp = sleepRules();
     if (slp && slp.magicGuard && slp.magicCap) rows.push('<tr><td>a field read in place of another</td><td>The sleep bonus for magic is given while magic is under full health and, past full magic, sets magic to full health, so a character whose full health is the larger wakes with more magic than full.</td><td>' +
@@ -2182,6 +2212,8 @@ function renderMechanicsSheet(value) {
         le.exactStrikes.length ? '<b>' + le.exactStrikes.length + '</b> ' + (le.exactStrikes.length === 1 ? 'line is' : 'lines are') + ' struck off only at an exact count, which a visit can step past.' : '',
         le.flagReadNeverWritten.length ? '<b>' + le.flagReadNeverWritten.length + '</b> quest ' + (le.flagReadNeverWritten.length === 1 ? 'flag is' : 'flags are') + ' tested and never set.' : '',
         skillOff ? 'The combat resolver reads the weapon’s skill off the wrong thing, so no armed blow gets it.' : '',
+        le.spacedKeywords.length ? '<b>' + le.spacedKeywords.length + '</b> keyword ' + (le.spacedKeywords.length === 1 ? 'list has' : 'lists have') + ' a space after a comma, so the keyword after it needs a space typed first.' : '',
+        le.charFlagNeverSet.length ? '<b>' + le.charFlagNeverSet.length + '</b> character ' + (le.charFlagNeverSet.length === 1 ? 'flag is' : 'flags are') + ' tested and never set, which leaves the lines behind them unsaid or said every time.' : '',
         le.unusedCast.length ? '<b>' + le.unusedCast.length + '</b> of the tasks a character can be given ' + (le.unusedCast.length === 1 ? 'does' : 'do') + ' nothing' + (le.unusedCast.some(u => u.queuedBy.some(q => q.resid === 0x1AD5)) ? ', and Lock Picking queues one of them, which is why a companion told to pick a lock never does.' : '.') : ''
       ].filter(Boolean) : [],
       table(['what', 'which', 'where'], rows));

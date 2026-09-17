@@ -2175,6 +2175,7 @@ function looseEnds() {
   const flagAsg = new Map(), flagRead = new Map();
   const computed = new Set();
   const exact = [], unusedCast = [], queued = new Map();
+  const cfTests = new Map(), cfSets = new Set(), cfWild = new Set(), cfHelperSelf = new Map(), cfHelperTask = new Map(), cfCalls = [];
   const put = (m, k, v) => { if (!m.has(k)) m.set(k, new Set()); m.get(k).add(v); };
   // Every finding carries WHERE it was found, the same way `tst` below
   // already does: the resource and the offset of the instruction. Keeping
@@ -2256,6 +2257,59 @@ function looseEnds() {
        harmless -- a spell's target already is a prop, so a redundant cast
        beside it changes nothing -- and a reader over every script reported
        Awaken and two default methods for exactly that reason. */
+    /* Character flags: bit_flags, byte 8 of a character record, which
+       SetCharacterFlag (0xF00) sets, 0xF01 clears and 0xF02 tests. Collected
+       here and joined after the loop, because a flag is set three ways and a
+       reader that saw only the first would publish tests that do pass:
+       directly, with the character named by the call; by a helper that sets
+       the flag on its own first argument, as 0xC84 and 0xC85 do for the
+       characters that call them; and by queued task 167, which
+       TActiveMonster::DoMove carries out by setting a bit on the character the
+       task names -- 0xC80 queues it over an array its caller hands in, and
+       Crito and Dares hand in their customers. A set this cannot resolve
+       makes its bit wild, and a wild bit is never reported. The application
+       writes the byte only through those (a scan for every store at offset 8:
+       DoMove's task, and death clearing bit 6). */
+    {
+      const own = op => {
+        if (!op) return null;
+        if (/^arg Arg00$/.test(op.text)) return e.resid >= 0x1800 && e.resid < 0x1900 ? [e.resid - 0x1800] : null;
+        if (/^global PlayerCharacter\b/.test(op.text)) return [1];
+        const n = VAL.test(op.text) ? dvmNum(op) : null;
+        return n === null ? null : [n];
+      };
+      const isHelper = !(e.resid >= 0x1800 && e.resid < 0x1900);
+      for (const g of dvmSeqAll(ops, [/^call_resource 0xF02$/, null, VAL])) {
+        const who = own(g[1]);
+        if (who) for (const c of who) putSite(cfTests, c + ':' + dvmNum(g[2]), e.resid, g[2].at);
+      }
+      for (const g of dvmSeqAll(ops, [/^call_resource (?:SetCharacterFlag \(0xF00\)|0xF00)$/, null, VAL])) {
+        const who = own(g[1]), bit = dvmNum(g[2]);
+        if (who) who.forEach(c => cfSets.add(c + ':' + bit));
+        else if (isHelper && /^arg Arg00$/.test(g[1].text)) { if (!cfHelperSelf.has(e.resid)) cfHelperSelf.set(e.resid, new Set()); cfHelperSelf.get(e.resid).add(bit); }
+        else cfWild.add(bit);
+      }
+      for (const g of dvmSeqAll(ops, [/^sys AddTask$/, null, /^(?:byte|short|word) (?:167|0xA7)$/i, null, VAL])) {
+        const who = own(g[3]), bit = dvmNum(g[4]);
+        if (who) { who.forEach(c => cfSets.add(c + ':' + bit)); continue; }
+        const lv = /^local Var([0-9A-F]+)$/i.exec(g[3].text);
+        const it = lv && dvmSeqFirst(ops, [new RegExp('^set_local 0x' + lv[1] + '$', 'i'), /^sys ArrayIterator$/, null, VAL, /^arg Arg\w+$/]);
+        if (isHelper && it) {
+          const k = parseInt(it[4].text.slice('arg Arg'.length), 16);
+          if (!cfHelperTask.has(e.resid)) cfHelperTask.set(e.resid, []);
+          cfHelperTask.get(e.resid).push({ k, bit });
+        } else cfWild.add(bit);
+      }
+      // Every call of a resource, with its first few operands when each is a
+      // single op, for the joins after the loop.
+      for (let i = 0; i < ops.length; i++) {
+        const m = /^call_resource (?:\w+ \()?0x([0-9A-F]+)\)?$/i.exec(ops[i].text);
+        if (!m) continue;
+        const args = [];
+        for (let j = i + 1; j < ops.length && ops[j].text !== 'end' && args.length < 6; j++) args.push(ops[j]);
+        cfCalls.push({ helper: parseInt(m[1], 16), caller: e.resid, args, ops });
+      }
+    }
     if (e.resid >= 0x0C00 && e.resid < 0x0D00) {
       for (const g of dvmSeqAll(ops, [/^set_local 0x[0-9A-F]+$/i, /^arg Arg\w+$/, /^cast Prop\b/, /^end$/])) {
         const local = 'local Var' + g[0].text.split(' ')[1].slice(2).toUpperCase().padStart(2, '0');
@@ -2279,12 +2333,266 @@ function looseEnds() {
     }
   }
   const only = (a, b) => [...a.keys()].filter(k => !b.has(k)).sort((x, y) => x - y);
+  // The joins for character flags: helpers that set their caller's flag, and
+  // task 167 over an array the caller hands in.
+  for (const call of cfCalls) {
+    const self = cfHelperSelf.get(call.helper);
+    if (self) {
+      const a0 = call.args[0];
+      const who = a0 && /^arg Arg00$/.test(a0.text) && call.caller >= 0x1800 && call.caller < 0x1900 ? [call.caller - 0x1800]
+                : a0 && VAL.test(a0.text) ? [dvmNum(a0)] : null;
+      if (who) for (const c of who) for (const b of self) cfSets.add(c + ':' + b);
+      else for (const b of self) cfWild.add(b);
+    }
+    for (const t of cfHelperTask.get(call.helper) || []) {
+      const a = call.args[t.k];
+      const lv = a && /^local Var([0-9A-F]+)$/i.exec(a.text);
+      const g = lv && dvmSeqFirst(call.ops, [new RegExp('^set_local 0x' + lv[1] + '$', 'i'), /^data </]);
+      let words = null;
+      if (g) { try { words = dvmArrayWords(smartDecrypt(getResourceBytes(call.caller), call.caller).data, g[1].at + 3); } catch (err) { words = null; } }
+      if (words && words.every(w => w >= 0 && w < 512)) words.forEach(c => cfSets.add(c + ':' + t.bit));
+      else cfWild.add(t.bit);
+    }
+  }
+  // A flag already set in the shipped character table is not "never set".
+  try { loadCharacterTable().forEach((c, i) => { if (c && c.raw) for (let b = 0; b < 8; b++) if ((c.raw[8] >> b) & 1) cfSets.add(i + ':' + b); }); } catch (err) {}
+  /* A quest value that only a thing with a given Data1 sets, when no such
+     thing exists. An item class that branches `data1 == v` and sets quest
+     value k there is counted against every record of that class in every
+     prop list and in the monsters' inventory list, plus any Data1 a script
+     writes after turning something into that class (the strange staff makes
+     kesh of Data1 3 that way). A value some other script also sets, or no
+     script reads, is not reported. It finds one: Eudoxus's coffer carries
+     five kesh vials of Data1 0, the vial sets quest value 13 only at Data1 2,
+     and Sacas's "I found some on the band leader himself" waits on 13.
+     The wider question -- any Data1 case nothing carries -- was measured and
+     is mostly runtime state (lit lamps, full pitchers, a charged distiller),
+     which is why the reader asks only about quest values. */
+  const dataCaseNoThing = [];
+  try {
+    const have = new Map(), created = new Set();
+    const add = (pt, v) => { if (!have.has(pt)) have.set(pt, new Set()); have.get(pt).add(v); };
+    for (let rid = 0x8100; rid < 0x8200; rid++) {
+      if (!refExists(rid)) continue;
+      let l; try { l = parseDelverPropList(smartDecrypt(getResourceBytes(rid), rid).data); } catch (err) { continue; }
+      for (const r of l) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1);
+    }
+    try { for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(0xF306), 0xF306).data)) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1); } catch (err) {}
+    for (const e of buildScriptTextIndex()) {
+      let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+      for (let i = 0; i < ops.length; i++) {
+        if (/^sys (?:Create|New)$/.test(ops[i].text)) for (let j = i + 1; j < Math.min(i + 6, ops.length); j++) { const n = dvmNum(ops[j]); if (n !== null) created.add(n & 0x3FF); }
+        if (/^set_field obj_type\b/.test(ops[i].text) && ops[i + 3] && VAL.test(ops[i + 3].text)) {
+          const pt = dvmNum(ops[i + 3]);
+          for (let j = i + 4; j < Math.min(i + 12, ops.length - 3); j++)
+            if (/^set_field data1\b/.test(ops[j].text) && VAL.test(ops[j + 3].text)) { add(pt, dvmNum(ops[j + 3])); break; }
+        }
+      }
+    }
+    for (const e of buildScriptTextIndex()) {
+      if (e.resid < 0x1000 || e.resid >= 0x1400) continue;
+      const pt = e.resid - 0x1000;
+      if (created.has(pt)) continue;
+      let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+      for (const g of dvmSeqAll(ops, [/^if_not$/, /^arg Arg00$/, /^get_field data1\b/, VAL, /^eq$/, /^then /])) {
+        const v = dvmNum(g[3]), i = ops.indexOf(g[5]);
+        for (let j = i + 1; j < Math.min(i + 14, ops.length - 1); j++) {
+          if (ops[j].text !== 'sys SetState' || !VAL.test(ops[j + 1].text)) continue;
+          const k = dvmNum(ops[j + 1]);
+          const readers = [...(reads.get(k) || new Map()).values()].filter(x => x.resid !== e.resid);
+          const others = [...(writes.get(k) || new Map()).values()].filter(x => x.resid !== e.resid);
+          if (!(have.get(pt) || new Set()).has(v) && readers.length && !others.length)
+            dataCaseNoThing.push({ pt, v: dvmVal(e.resid, g[3]), state: k, readers });
+          break;
+        }
+      }
+    }
+  } catch (err) {}
+  /* A keyword list with a space after a comma. The conversation_response
+     handler in TInterp::DoInterpAt copies a keyword up to the next comma,
+     NUL or byte of 0x80 and above, skipping nothing, and compares it with
+     the start of what was typed. So in "inn, pari" the second keyword is
+     " pari", and only an answer typed with a leading space reaches it --
+     which is the board's "for Parium, Crito, Apis and Eurybates the correct
+     response is reachable only by typing a space before the name", and
+     453's Seldane "corruption" that needs a space. */
+  const spacedKeywords = [];
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    for (const o of ops) {
+      const m = /^conversation_response "([^"]*)"/.exec(o.text);
+      if (!m || !/, /.test(m[1])) continue;
+      spacedKeywords.push({ resid: e.resid, at: o.at, list: m[1], spaced: m[1].split(',').filter(k => /^ /.test(k)).map(k => k.trim()) });
+    }
+  }
+  /* A quest value tested as true or false where the script means the quest
+     flag of the same number. Reported only when the value's truth is fixed:
+     every assignment to it anywhere is a nonzero number, and some script
+     gives it a default when it is 0, so once that has run the test always
+     passes. Eteocles tests quest value 4 -- where Demodocus is, which the
+     World script starts at 7 -- in his kesh topic, while all five of his
+     other tests use quest flag 4, Guild membership; so "Youse is awful
+     nosy." is never said. Philinus and Ascalon test quest value 3 bare
+     beside flag 3 as well, and theirs is the murder thread, which starts at
+     0 and is set under a condition, so they are not reported. */
+  const valueForFlag = [];
+  {
+    const assigned = new Map(), defaulted = new Set();
+    for (const e of buildScriptTextIndex()) {
+      let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+      for (const g of dvmSeqAll(ops, [/^sys SetState$/, VAL, null])) {
+        const k = dvmNum(g[1]); if (!assigned.has(k)) assigned.set(k, []);
+        assigned.get(k).push(VAL.test(g[2].text) ? dvmNum(g[2]) : null);
+      }
+      for (const g of dvmSeqAll(ops, [/^if_not$/, /^sys GetState$/, VAL, /^end$/, VAL, /^eq$/, /^then /, /^sys SetState$/, VAL, VAL]))
+        if (dvmNum(g[4]) === 0 && dvmNum(g[2]) === dvmNum(g[8]) && dvmNum(g[9]) !== 0) defaulted.add(dvmNum(g[2]));
+    }
+    for (const e of buildScriptTextIndex()) {
+      let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+      const flagTests = new Set(dvmSeqAll(ops, [/^sys GetStateFlag$/, VAL]).map(g => dvmNum(g[1])));
+      for (const g of dvmSeqAll(ops, [/^if_not$/, /^sys GetState$/, VAL, /^end$/, /^then /])) {
+        const k = dvmNum(g[2]), a = assigned.get(k) || [];
+        if (flagTests.has(k) && defaulted.has(k) && a.length && a.every(v => v !== null && v !== 0))
+          valueForFlag.push({ resid: e.resid, at: g[2].at, k });
+      }
+    }
+  }
+  /* An answer every keyword of which an earlier answer in the same list
+     already takes. A character's or a group's topics are a chain: each
+     conversation_response jumps, when the typed word does not match, to the
+     next, and the first match wins. So a later response whose keywords all
+     appear earlier is never given. Keywords match on four letters, which is
+     how Paris is lost to Parium ("pari" twice in 0x805), and 0x80E answers
+     "brya" twice, the second time more fully. A later response that keeps
+     one keyword of its own ("alar,king" after "alar") is still reachable
+     and is not reported. The jump target is relative to its object, so the
+     chain is linked through the object's own start. */
+  const shadowed = [];
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    let objs = null;
+    try { objs = dvmExtents(smartDecrypt(getResourceBytes(e.resid), e.resid).data, e.resid); } catch (err) { objs = null; }
+    if (!objs) continue;
+    const startOf = at => { for (const [st, en] of objs) if (at >= st && at < en) return st; return null; };
+    const resp = [];
+    for (const o of ops) {
+      const m = /^conversation_response "([^"]*)" -> 0x([0-9A-F]+)$/i.exec(o.text);
+      const st = m ? startOf(o.at) : null;
+      if (m && st !== null) resp.push({ at: o.at, keys: m[1].split(','), next: parseInt(m[2], 16) + st, list: m[1] });
+    }
+    if (!resp.length) continue;
+    const byAt = new Map(resp.map(r => [r.at, r]));
+    const heads = resp.filter(r => !resp.some(q => q.next === r.at));
+    for (const h of heads) {
+      const seen = new Set(), walked = new Set();
+      for (let r = h; r && !walked.has(r.at); r = byAt.get(r.next)) {
+        walked.add(r.at);
+        const keys = r.keys.filter(k => k && k !== '*' && k !== 'y' && k !== 'n');
+        if (keys.length && keys.every(k => seen.has(k))) shadowed.push({ resid: e.resid, at: r.at, list: r.list });
+        keys.forEach(k => seen.add(k));
+      }
+    }
+  }
+  /* A local tested as true or false that its function only ever sets to
+     false. Thoas says "Farewell.  Please come again." when a local is true
+     and "Farewell." otherwise, and the one assignment to that local is
+     False; nothing in the buy topic sets it. Scoped per function, since a
+     local belongs to one; an argument (0x30 and up) is not a local. */
+  const localOnlyFalse = [];
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    let objs = null;
+    try { objs = dvmExtents(smartDecrypt(getResourceBytes(e.resid), e.resid).data, e.resid); } catch (err) { objs = null; }
+    if (!objs) continue;
+    for (const [st, en, kind] of objs) {
+      if (kind !== 'function') continue;
+      const fo = ops.filter(o => o.at >= st && o.at < en);
+      const sets = new Map();
+      for (let i = 0; i + 1 < fo.length; i++) {
+        const m = /^set_local 0x([0-9A-F]+)$/i.exec(fo[i].text);
+        if (!m) continue;
+        const n = parseInt(m[1], 16);
+        if (n >= 0x30) continue;
+        if (!sets.has(n)) sets.set(n, []);
+        sets.get(n).push(fo[i + 1].text);
+      }
+      for (let i = 0; i + 2 < fo.length; i++) {
+        const m = fo[i].text === 'if_not' && /^local Var([0-9A-F]+)$/i.exec(fo[i + 1].text);
+        if (!m || !/^then /.test(fo[i + 2].text)) continue;
+        const got = sets.get(parseInt(m[1], 16)) || [];
+        if (got.length && got.every(t => /^(?:word False|word None|byte 0x00)$/.test(t))) localOnlyFalse.push({ resid: e.resid, at: fo[i + 1].at });
+      }
+    }
+  }
+  /* A character asking whether they themselves are alive. Status bit 0 is
+     alive (the LandKing Amulet's revive tests it and says "They aren't
+     dead!", and 0xF07 sets it), and a character's own script runs only
+     while that character talks, so the test always passes. Hadrian's
+     "How's my son doing?" loads Character.Hadrian where Hector is meant,
+     so "I regret to tell you that Hector has died in my service" is never
+     said. Read directly or through the one local the character is put in. */
+  const selfAlive = [];
+  for (const e of buildScriptTextIndex()) {
+    if (e.resid < 0x1800 || e.resid >= 0x1900) continue;
+    const selfName = DVM_SYM.character && DVM_SYM.character[String(e.resid - 0x1800)];
+    if (!selfName) continue;
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    const alive = j => ops[j + 2] && /^get_field status_flags\b/.test(ops[j + 1].text) && /^byte (?:0x01|1)$/.test(ops[j + 2].text);
+    for (let i = 0; i < ops.length; i++) {
+      if (ops[i].text !== 'word Character.' + selfName) continue;
+      if (alive(i)) { selfAlive.push({ resid: e.resid, at: ops[i].at, who: e.resid - 0x1800 }); continue; }
+      const m = i > 0 && /^set_local 0x([0-9A-F]+)$/i.exec(ops[i - 1].text);
+      if (!m) continue;
+      const local = 'local Var' + m[1].toUpperCase().padStart(2, '0');
+      for (let j = i + 1; j < ops.length; j++) {
+        if (ops[j].text === 'set_local 0x' + m[1]) break;
+        if (ops[j].text === local && alive(j)) { selfAlive.push({ resid: e.resid, at: ops[i].at, who: e.resid - 0x1800 }); break; }
+      }
+    }
+  }
+  const charFlagNeverSet = [...cfTests.keys()].filter(k => !cfSets.has(k) && !cfWild.has(+k.split(':')[1]))
+    .map(k => ({ character: +k.split(':')[0], bit: +k.split(':')[1], sites: [...cfTests.get(k).values()] }))
+    .sort((a, b) => a.character - b.character || a.bit - b.bit);
   return { unreachable,
            writtenNeverRead: only(writes, reads), readNeverWritten: only(reads, writes),
            flagWrittenNeverRead: only(flagAsg, flagRead), flagReadNeverWritten: only(flagRead, flagAsg),
            exactStrikes: exact.filter(x => computed.has(x.state) && x.n && x.slot),
+           charFlagNeverSet, dataCaseNoThing, spacedKeywords, valueForFlag, shadowed, localOnlyFalse, selfAlive,
            unusedCast: unusedCast.map(u => Object.assign(u, { queuedBy: queued.has(u.task) ? [...queued.get(u.task).values()] : [] })),
            writes, reads, flagWrites: flagAsg, flagReads: flagRead };
+}
+
+/* SPRITE FRAMES THAT REPEAT ANOTHER POSE. A character's sheet is sixteen
+   tiles, four facings (north, east, south, west) by four poses (left foot,
+   standing, right foot, sitting), which is how the map draws a walker and a
+   sitter. Within a sheet two frames are a few hundred pixels apart; one
+   that is within a couple of pixels of another pose is a copy. Found on
+   17 September 2026 when the maintainer noticed Magpie sitting as he walks
+   left: the fool's west standing frame is the west sitting frame with one
+   pixel changed, and the walk cycle passes through the standing frame
+   between steps. The fire spirit's south standing and right-foot frames are
+   identical as well, which in a creature that does not stride may be meant;
+   the row says what the pixels say and no more. */
+function spriteRepeats() {
+  if (window.SPRITE_REPEATS) return window.SPRITE_REPEATS;
+  const out = [];
+  const facing = ['north', 'east', 'south', 'west'], pose = ['left foot', 'standing', 'right foot', 'sitting'];
+  let props = null;
+  try { props = getPropTileList(); } catch (e) { props = null; }
+  if (!props) return (window.SPRITE_REPEATS = out);
+  for (const pt of [...characterProptypes()].sort((a, b) => a - b)) {
+    const base = props[pt];
+    if (base === undefined) continue;
+    const frames = [];
+    for (let k = 0; k < 16; k++) { let im = null; try { im = resolveTileImage(base + k); } catch (e) { im = null; } frames.push(im); }
+    if (frames.some(f => !f)) continue;
+    for (let i = 0; i < 16; i++) for (let j = i + 1; j < 16; j++) {
+      let d = 0;
+      for (let p = 0; p < frames[i].length && d <= 2; p++) if (frames[i][p] !== frames[j][p]) d++;
+      if (d <= 2) out.push({ pt, a: base + i, b: base + j, aName: facing[i >> 2] + ' ' + pose[i & 3], bName: facing[j >> 2] + ' ' + pose[j & 3], pixels: d });
+    }
+  }
+  return (window.SPRITE_REPEATS = out);
 }
 
 const VAL_ANY = /^(?:byte|short|word) (?:-?0x[0-9A-F]+|-?\d+)$/i;

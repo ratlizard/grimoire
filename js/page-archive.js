@@ -63,6 +63,7 @@ function resetDerivedCaches() {
   window.CONV_CACHE = null;
   window.CONV_RULES = null;
   window.LIBRARY_RULES = null;
+  window.SPRITE_REPEATS = null;
   window.MONSTER_STATS = null;
   window.MECH_WEAPONS = null;
   window.RESOURCE_SYMBOLS = null;

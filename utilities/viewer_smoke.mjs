@@ -1998,6 +1998,28 @@ try {
      two default methods, where the argument already is a prop. The join to
      Lock Picking is what ties the row to Aethon. */
   else if (!ctx.sleepRules() || !ctx.sleepRules().magicGuard || !ctx.sleepRules().magicCap || !/a field read in place of another/.test(html)) fail('loose', 'the sleep helper reading full health for magic, in its guard and its cap, was not found and stated');
+  /* Character flags tested and never set: exactly the five the reading of
+     17 September 2026 found. Two controls ride along. Ascalon's flag 5 is
+     set only through the helper 0xC85 he calls, so a reader that lost the
+     helper join would list it; and Sabinate's flag 4 must be listed, since a
+     reader that could not follow task 167 through Crito's and Dares's
+     customer arrays would make bit 4 wild and hide it. */
+  else if (le.charFlagNeverSet.map(f => f.character + ':' + f.bit).join() !== '1:0,3:1,55:0,74:3,120:4') fail('loose', 'the character flags tested and never set are not the five expected: ' + JSON.stringify(le.charFlagNeverSet.map(f => f.character + ':' + f.bit)));
+  else if (le.dataCaseNoThing.map(d => d.pt + ':' + d.v.v + ':' + d.state).join() !== '298:2:13') fail('loose', 'the kesh vial of Data1 2, which sets quest value 13 for Sacas and which nothing carries, was not the one finding: ' + JSON.stringify(le.dataCaseNoThing.map(d => d.pt + ':' + d.v.v + ':' + d.state)));
+  else if (le.spacedKeywords.map(k => k.list).sort().join('|') !== 'crol, corr|fish, tlep|form, shap|inn, apis|inn, crit|inn, pari|name, eury') fail('loose', 'the seven keyword lists with a space after a comma were not found as seven: ' + JSON.stringify(le.spacedKeywords.map(k => k.list)));
+  else if (le.valueForFlag.map(v => v.resid.toString(16) + ':' + v.k).join() !== '1838:4') fail('loose', 'Eteocles testing quest value 4 where his other tests use flag 4 was not the one finding (Philinus and Ascalon test value 3 legitimately): ' + JSON.stringify(le.valueForFlag.map(v => v.resid.toString(16) + ':' + v.k)));
+  else if (le.shadowed.map(a => a.resid.toString(16) + ':' + a.list).sort().join('|') !== '805:pari|80e:brya') fail('loose', 'the shadowed answers are not the Paris and Bryaxis ones (a later answer keeping a keyword of its own must not be listed): ' + JSON.stringify(le.shadowed.map(a => a.resid.toString(16) + ':' + a.list)));
+  else if (le.localOnlyFalse.map(l => l.resid.toString(16)).join() !== '1844') fail('loose', 'Thoas\'s farewell local, only ever set false, was not the one finding: ' + JSON.stringify(le.localOnlyFalse.map(l => l.resid.toString(16))));
+  else if (le.selfAlive.map(a => a.who).join() !== '4') fail('loose', 'Hadrian testing whether Hadrian is alive, where Hector is meant, was not the one finding: ' + JSON.stringify(le.selfAlive.map(a => a.who)));
+  else if (ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels).join('|') !== '35:west standing/west sitting:1|290:south standing/south right foot:0') fail('loose', 'the repeated sprite frames are not the fool\'s west standing and the fire spirit\'s south standing: ' + JSON.stringify(ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels)));
+  else if (!/a sprite frame that repeats another pose/.test(html)) fail('loose', 'the repeated sprite frames are not on the card');
+  else if (!/a character asking if they are alive/.test(html)) fail('loose', 'the self-alive test is not on the card');
+  else if (!/a test of something only ever false/.test(html)) fail('loose', 'the local only ever set false is not on the card');
+  else if (!/an answer an earlier one takes/.test(html)) fail('loose', 'the shadowed answers are not on the card');
+  else if (!/a value tested where the flag is meant/.test(html)) fail('loose', 'the value-for-flag slip is not on the card');
+  else if (!/a keyword that needs a space typed first/.test(html)) fail('loose', 'the keywords that need a space are not on the card');
+  else if (!/a thing nobody has/.test(html)) fail('loose', 'the kesh vial nobody has is not on the card');
+  else if (!/a character flag tested and never set/.test(html)) fail('loose', 'the character flags tested and never set are not on the card');
   else if (!/killing a townsperson raises karma by/.test(html)) fail('karma', 'the karma section does not say what killing an alignment-0 townsperson does, off the character table');
   else if (le.unusedCast.map(u => u.task).sort((a, b) => a - b).join() !== '78,79,80') fail('loose', 'the use, use-on and use-at tasks were not found as exactly three: ' + JSON.stringify(le.unusedCast.map(u => u.task)));
   else if (!le.unusedCast.find(u => u.task === 79).queuedBy.some(s => s.resid === 0x1AD5)) fail('loose', 'task 79 is not joined to Lock Picking, which queues it for Aethon');
