@@ -1461,8 +1461,26 @@ function combatRules() {
       last = { word: dvmOpString(g[2]) + (suf ? dvmOpString(suf[1]) || '' : ''), resid: 0xE87, at: g[2].at };
     }
   }
+  /* The weapon's skill, as the resolver actually reads it. It adds
+     `0xEAC(attacker, <thing>.MeleeWeapon[3])` to the margin and to the damage
+     figure, and the thing is meant to be the weapon, Arg02. In the shipped
+     0xE87 it is not: both terms read the local the shield loop above them
+     assigns from EquipmentIterator. Traced through the interpreter on
+     17 September 2026 rather than guessed: every exit from that loop follows
+     an iterator call that ran off the end and returned None (cbWorn), the
+     class_member opcode answers None for anything that is not a prop, and
+     cbGetSkill passes None's low half, -1, to FindSkill, which matches no
+     skill, so 0xEAC returns 0. An armed blow therefore gets nothing from
+     Sword, Axe or Mace; Barehand is added in 0xE88 and Missile in 0xE89, and
+     both work. That is what 453 measured on the board (topic 2044). Read as
+     a shape, so a resolver that reads Arg02 finds nothing here. */
+  const iterSet = dvmSeqAll(ro, [/^set_local 0x[0-9A-F]+$/i, /^sys EquipmentIterator$/]).map(g => parseInt(g[0].text.split(' ')[1], 16));
+  const skillOffLoop = dvmSeqAll(ro, [/^call_resource 0xEAC$/, /^arg Arg00$/, /^local Var[0-9A-F]+$/i, /^class_member 0x2A03$/])
+    .filter(g => iterSet.includes(parseInt(g[2].text.slice('local Var'.length), 16)))
+    .map(g => ({ resid: 0xE87, at: g[2].at }));
   return { d30: !!(roll && rollDefender && sr.length >= 2), roll, rollDefender, missileRolls: sr.slice(0, 2),
-           barehand, missileSkill, parry, dmgAdd: add ? dvmVal(0xE87, add[4]) : null, words, last };
+           barehand, missileSkill, parry, dmgAdd: add ? dvmVal(0xE87, add[4]) : null, words, last,
+           skillOffLoop: skillOffLoop.length ? skillOffLoop : null };
 }
 
 /* THE ATTACK ITSELF. Before a blow or a missile is resolved, one routine
@@ -2156,6 +2174,7 @@ function looseEnds() {
   const asg = new Map(), tst = new Map(), reads = new Map(), writes = new Map();
   const flagAsg = new Map(), flagRead = new Map();
   const computed = new Set();
+  const exact = [], unusedCast = [], queued = new Map();
   const put = (m, k, v) => { if (!m.has(k)) m.set(k, new Set()); m.get(k).add(v); };
   // Every finding carries WHERE it was found, the same way `tst` below
   // already does: the resource and the offset of the instruction. Keeping
@@ -2190,6 +2209,62 @@ function looseEnds() {
     }
     for (const g of dvmSeqAll(ops, [/^sys SetStateFlag$/, VAL])) putSite(flagAsg, dvmNum(g[1]), e.resid, g[0].at);
     for (const g of dvmSeqAll(ops, [/^sys GetStateFlag$/, VAL])) putSite(flagRead, dvmNum(g[1]), e.resid, g[0].at);
+    /* A flag is also set and tested through a queued task, not only by the
+       two syscalls. TActiveMonster::DoMove dispatches task types 160 to 170
+       through a jump table, and two of its cases work on the flag array:
+       164 tests the flag in the task's first argument (and clears it when
+       the second is 0), 165 sets it or clears it by the second. Alaric, a
+       ruins guard, Charax and the Regroup action queue these on flags 253 to
+       255, so a reader that saw only the syscalls would call 254 and 255 read
+       and never written. Only 165 is counted as a write: 164 clears, which
+       is not what "set" asks. Nothing else in the application writes the
+       flag array but the save and the load, which was checked against every
+       load of its TOC slot rather than assumed. */
+    for (const g of dvmSeqAll(ops, [/^sys AddTask$/, null, /^(?:byte|short|word) (?:165|0xA5)$/i, VAL])) putSite(flagAsg, dvmNum(g[3]), e.resid, g[3].at);
+    for (const g of dvmSeqAll(ops, [/^sys AddTask$/, null, /^(?:byte|short|word) (?:164|0xA4)$/i, VAL])) putSite(flagRead, dvmNum(g[3]), e.resid, g[3].at);
+    /* A line struck off only when a counted value equals a number exactly.
+       Selinus counts the Sapphire volumes into quest value 5 and strikes the
+       Books of Wisdom line only when it IS 5 after a visit, so a visit that
+       takes the count from 4 to 6 steps over the one value that strikes it.
+       Collected here and filtered below against `computed`, since a value a
+       script only ever assigns cannot step over anything. */
+    for (const g of dvmSeqAll(ops, [/^sys GetState$/, VAL, /^end$/, VAL, /^eq$/, /^then /, /^sys CompleteQuest$/, VAL]))
+      exact.push({ state: dvmNum(g[1]), n: dvmVal(e.resid, g[3]), slot: dvmVal(e.resid, g[7]) });
+    /* The type of every queued task, for the task scripts below. The
+       receiver comes first and is one op -- a literal character, an arg, a
+       local or a global -- with any number of field reads after it. */
+    for (let i = 0; i < ops.length; i++) {
+      if (ops[i].text !== 'sys AddTask') continue;
+      let j = i + 1;
+      if (ops[j] && (VAL.test(ops[j].text) || /^(?:arg|local|global) /.test(ops[j].text))) j++;
+      while (ops[j] && /^get_field /.test(ops[j].text)) j++;
+      const t = dvmNum(ops[j]);
+      if (t !== null) putSite(queued, t, e.resid, ops[j].at);
+    }
+    /* A task script that converts its item and then does not use the
+       conversion. A queued task reaches its script through DefaultMethods
+       0x3021, `call_index 0x0C00 + type`, with the item as a plain number:
+       TActiveMonster::QueueActivity keeps the task's first argument in a
+       short, and DoMove hands it on with the tag cleared. So 0xC4E, 0xC4F
+       and 0xC50 each `cast Prop` the item into a local, and then send Use,
+       UseOn or UseAt to the argument itself. The interpreter's method call
+       dispatches only on a prop or a heap object and does nothing at all
+       for a number, so the three "use a thing" tasks never act: Aethon's
+       lock picking (Lock Picking queues 0x4F) and the blacksmiths' tasker
+       (0xC86 queues 0x4E) stop at the point of use. Traced 17 September
+       2026. Kept to the task range because elsewhere the same shape is
+       harmless -- a spell's target already is a prop, so a redundant cast
+       beside it changes nothing -- and a reader over every script reported
+       Awaken and two default methods for exactly that reason. */
+    if (e.resid >= 0x0C00 && e.resid < 0x0D00) {
+      for (const g of dvmSeqAll(ops, [/^set_local 0x[0-9A-F]+$/i, /^arg Arg\w+$/, /^cast Prop\b/, /^end$/])) {
+        const local = 'local Var' + g[0].text.split(' ')[1].slice(2).toUpperCase().padStart(2, '0');
+        if (ops.some(o => o.text === local)) continue;
+        for (let i = 0; i + 1 < ops.length; i++)
+          if (/^method /.test(ops[i].text) && ops[i + 1].text === g[1].text)
+            unusedCast.push({ resid: e.resid, at: ops[i + 1].at, method: ops[i].text.replace(/^method /, '').replace(/ \(0x[0-9A-F]+\)$/i, ''), task: e.resid - 0x0C00 });
+      }
+    }
   }
   // A comparison nothing can satisfy. Zero is every value's starting state,
   // so a test against it is always reachable and is not counted.
@@ -2207,7 +2282,9 @@ function looseEnds() {
   return { unreachable,
            writtenNeverRead: only(writes, reads), readNeverWritten: only(reads, writes),
            flagWrittenNeverRead: only(flagAsg, flagRead), flagReadNeverWritten: only(flagRead, flagAsg),
-           writes, reads };
+           exactStrikes: exact.filter(x => computed.has(x.state) && x.n && x.slot),
+           unusedCast: unusedCast.map(u => Object.assign(u, { queuedBy: queued.has(u.task) ? [...queued.get(u.task).values()] : [] })),
+           writes, reads, flagWrites: flagAsg, flagReads: flagRead };
 }
 
 const VAL_ANY = /^(?:byte|short|word) (?:-?0x[0-9A-F]+|-?\d+)$/i;
@@ -3107,5 +3184,17 @@ function sleepRules() {
     if (g) { const slot = dvmNum(g[1]); inns.push({ who: e.resid - 0x1800, slot, slotVal: dvmVal(e.resid, g[1]), quality: table && table[slot] !== undefined ? table[slot] : null, qualitySrc: table ? { resid: 0x301, at: 0 } : null }); }
   }
   inns.sort((a, b) => a.who - b.who);
-  return { own, ownVal, quarter, quarterVal, hours, hoursVal, half, div, owner, toss, soundly, table, inns };
+  /* The magic half of the bonus reads full HEALTH twice where the health half
+     reads it for health: once in the guard (magic under full health, and
+     above what it was) and once in the cap, where a figure past full magic
+     sets magic to full health. Read here rather than stated, 17 September
+     2026, when the sheet's typed sentence was found to say "compares ... in
+     two places" of what is one comparison and one assignment. A character
+     whose full health is the larger therefore wakes from a good night with
+     more magic than full. */
+  const guardG = dvmSeqFirst(ho, [/^get_field magic\b/, /^local /, /^get_field full_health\b/, /^lt$/]);
+  const capG = dvmSeqFirst(ho, [/^set_field magic\b/, /^local /, /^end$/, /^local /, /^get_field full_health\b/]);
+  const magicGuard = guardG ? { resid: 0xE93, at: guardG[2].at } : null;
+  const magicCap = capG ? { resid: 0xE93, at: capG[4].at } : null;
+  return { own, ownVal, quarter, quarterVal, hours, hoursVal, half, div, owner, toss, soundly, table, inns, magicGuard, magicCap };
 }

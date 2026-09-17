@@ -1719,6 +1719,13 @@ try {
     fail('mechanics', 'the dice section does not say what to edit');
   else if (!ctx.gearTable().some(r => r.name === 'axe' && r.damage === 22 && r.skill === 'Axe') || !ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2) || !ctx.gearTable().some(r => r.name === 'bow' && r.ammoClass === 1 && r.reach === 5)) fail('mechanics', 'the gear table does not name the axe’s damage and skill, the spear’s reach, or the bow’s ammunition and range');
   else if (!(ctx.combatRules() && ctx.combatRules().d30 && ctx.combatRules().parry && ctx.combatRules().words.length >= 8)) fail('mechanics', 'the combat rules were not read: ' + JSON.stringify(ctx.combatRules()));
+  /* The weapon-skill term in 0xE87 reads the shield loop's local, which the
+     loop always leaves at None, so it adds nothing (17 September 2026, traced
+     through the interpreter). Both terms, the margin's and the damage's, and
+     both at a `local` read: a reader that matched the intended `arg Arg02`
+     would find none, and one that matched any EAC call would find the shield
+     loop's own Shield-skill call as well and count three. */
+  else if (!ctx.combatRules().skillOffLoop || ctx.combatRules().skillOffLoop.length !== 2 || ctx.combatRules().skillOffLoop.some(s => s.resid !== 0xE87)) fail('mechanics', 'the resolver reading the weapon skill off the shield loop was not found as two terms: ' + JSON.stringify(ctx.combatRules().skillOffLoop));
   // The attack routine (0x3042): every clause the sheet states is a pattern
   // over the listing, so each is required here, and the two throw figures
   // must come off the spear's own class rather than a typed table.
@@ -1975,6 +1982,25 @@ try {
   else if (/The game’s own writing/.test(html)) fail('library', 'the library card is still on the Mechanics sheet, so the move is half done');
   else if (!le.unreachable.length) fail('loose', 'no unsatisfiable comparison was found, and the murder thread has one');
   else if (!/Loose ends/.test(html)) fail('loose', 'the sheet does not state the loose ends');
+  /* Three kinds added 17 September 2026, each a bug the community or the
+     workbench had on record and each read off its line. The flag pins carry
+     their own control: flags 254 and 255 are set only by queueing task 165,
+     so a reader that stopped counting tasks would list them as tested and
+     never set, beside flag 2, which nothing sets at all. */
+  else if (!le.exactStrikes.some(x => x.slot.v === 18 && x.n.v === 5)) fail('loose', 'the Books of Wisdom line, struck off only when the count is exactly five, was not found');
+  else if (!le.flagReadNeverWritten.includes(2)) fail('loose', 'quest flag 2, which Timon tests and nothing sets, was not found');
+  else if (le.flagReadNeverWritten.some(k => k === 254 || k === 255)) fail('loose', 'flags 254 and 255 read as never set: the writes through task 165 are not being counted');
+  else if (!/one line shown for two errands/.test(html)) fail('loose', 'line 114, shown by Ake for the Comana errand and by Demodocus for the mine, was not reported');
+  else if (!/a term read off the wrong thing/.test(html)) fail('loose', 'the combat resolver\'s weapon-skill term is not on the loose ends card');
+  /* The three "use a thing" task scripts send their method to the raw
+     argument past an unused cast. Exactly those three: the reader is kept to
+     the task range, and a reader over every script also reports Awaken and
+     two default methods, where the argument already is a prop. The join to
+     Lock Picking is what ties the row to Aethon. */
+  else if (!ctx.sleepRules() || !ctx.sleepRules().magicGuard || !ctx.sleepRules().magicCap || !/a field read in place of another/.test(html)) fail('loose', 'the sleep helper reading full health for magic, in its guard and its cap, was not found and stated');
+  else if (!/killing a townsperson raises karma by/.test(html)) fail('karma', 'the karma section does not say what killing an alignment-0 townsperson does, off the character table');
+  else if (le.unusedCast.map(u => u.task).sort((a, b) => a - b).join() !== '78,79,80') fail('loose', 'the use, use-on and use-at tasks were not found as exactly three: ' + JSON.stringify(le.unusedCast.map(u => u.task)));
+  else if (!le.unusedCast.find(u => u.task === 79).queuedBy.some(s => s.resid === 0x1AD5)) fail('loose', 'task 79 is not joined to Lock Picking, which queues it for Aethon');
   else if (!bu || !bu.arrays || bu.arrays.length !== 7) fail('puzzles', 'the button tables were misread: ' + JSON.stringify(bu && bu.arrays && bu.arrays.length));
   else if (!bu.arrays.every(a => a.length === 16)) fail('puzzles', 'a button table is not sixteen entries');
   else if (!bu.arrays[0].every((v, i) => v === i)) fail('puzzles', 'the first table is not the identity, so the blob is being read at the wrong offset');

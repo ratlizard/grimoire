@@ -335,7 +335,9 @@ function combatSimParams() {
 // blow words, all read off the routines.
 function combatSimHtml(p, cb) {
   const model = {
-    attackerReflex: p.attackerReflex, defenderReflex: p.defenderReflex, weaponSkill: p.weaponSkill,
+    // As shipped the resolver's weapon-skill term adds nothing to an armed
+    // blow (combatRules().skillOffLoop), and every weapon here is armed.
+    attackerReflex: p.attackerReflex, defenderReflex: p.defenderReflex, weaponSkill: cb.skillOffLoop ? 0 : p.weaponSkill,
     attackSkill: p.attackSkill, defenceSkill: p.defenceSkill, enchant: p.enchant || 0,
     damage: p.weapon.damage, shieldBlock: p.shield ? p.shield.block : null, shieldSkill: p.shield ? p.weaponSkill : 0,
     roll: cb.roll.v, rollDefender: cb.rollDefender.v, dmgAdd: cb.dmgAdd.v
@@ -359,7 +361,8 @@ function combatSimHtml(p, cb) {
       { label: 'misses', value: x.miss, colour: MECH_INK.miss }
     ]),
     'A blow that lands does <b>' + x.meanDamage.toFixed(1) + '</b> points on average, so an exchange is worth <b>' +
-    (x.meanDamage * x.hit).toFixed(1) + '</b>.' + (p.shield ? ' The resolver tests the miss before the parry, so every parry here is a blow the shield took out of the hits.' : '')) +
+    (x.meanDamage * x.hit).toFixed(1) + '</b>.' + (p.shield ? ' The resolver tests the miss before the parry, so every parry here is a blow the shield took out of the hits.' : '') +
+    (cb.skillOffLoop ? ' The weapon’s skill adds nothing to it, as shipped, so the skill moves only the shield’s roll.' : '')) +
   mechFig('The margin, and where it is spent', mechPlot({
     height: 130,
     x: { min: lo, max: hi, ticks: [{ v: lo, label: String(lo) }, { v: 0, label: '0' }, { v: hi, label: '+' + hi }] },
@@ -451,9 +454,15 @@ function mechGearFigure(gear) {
   const shields = gear.filter(g => g.block).sort((a, b) => b.block - a.block)
     .map(g => ({ label: g.name, value: g.block, colour: MECH_INK.parry, text: String(g.block) }));
   if (!arms.length) return '';
-  return mechFig('Damage, the most a blow can do before the skill',
+  // Whether the resolver's skill term works, off the same reading as the
+  // Combat section (combatRules().skillOffLoop): as shipped it does not.
+  let offLoop = null;
+  try { const cr = combatRules(); offLoop = cr && cr.skillOffLoop; } catch (e) { offLoop = null; }
+  return mechFig(offLoop ? 'Damage, the most a blow can do' : 'Damage, the most a blow can do before the skill',
     mechBars(arms) + '<div class="mechKeys">' + skills.map(s => '<span><i style="background:' + hue[s] + '"></i>' + svEsc(s) + '</span>').join('') + '</div>',
-    'The resolver rolls <b>1 to this figure</b> and adds the enchantment; the weapon’s skill widens the figure before the roll rather than being added after it. Colour is the skill the weapon is swung with.') +
+    offLoop
+      ? 'The resolver rolls <b>1 to this figure</b> and adds the enchantment. It is written to widen the figure by the weapon’s skill first, and as shipped that adds ' + srcNum(offLoop[1] || offLoop[0], 'nothing') + '. Colour is the skill the weapon would be swung with.'
+      : 'The resolver rolls <b>1 to this figure</b> and adds the enchantment; the weapon’s skill widens the figure before the roll rather than being added after it. Colour is the skill the weapon is swung with.') +
     (armour.length ? mechFig('Armour, in points of protection', mechBars(armour)) : '') +
     (shields.length ? mechFig('Shields, the roll they block', mechBars(shields),
       'A blow that would have landed is parried when the margin is under a roll of <b>0 to this plus the Shield skill</b>, summed over every shielding thing worn. A shield is worth more against a weak attacker than a strong one, and never saves a blow that was going to miss.') : '');
@@ -1513,12 +1522,17 @@ function renderMechanicsSheet(value) {
       ar && ar.reach && ar.meleeFirst ? 'The attack picks the weapon first: the first thing wielded whose <b>reach</b> covers the distance swings' +
         (ar.range && ar.beyondAdjacent ? ', and only when nothing does, the target is not adjacent and it is in sight, does the first thing with a throw entry <b>fly</b>, as a missile' : '') + '.' +
         (ar.squared && ar.lessOne ? ' Reach and range are squared and set against the squared distance less ' + srcNum(ar.lessOneVal, 'one') + ', so reach 1 is the eight neighbours and reach 2 two squares in a line or a knight’s move.' : '') : '',
-      'The margin is the attacker’s <b>reflex</b>' + (cb.roll ? ' <b>plus a roll of 0 to ' + rollTo(cb.roll) + '</b>' : '') + ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')') +
+      'The margin is the attacker’s <b>reflex</b>' + (cb.roll ? ' <b>plus a roll of 0 to ' + rollTo(cb.roll) + '</b>' : '') +
+        (cb.skillOffLoop
+          ? (cb.barehand ? ', plus Barehand when nothing is wielded' : '') + (cb.missileSkill ? ' (Missile for a launcher)' : '')
+          : ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')')) +
         ', <b>less the defender’s reflex' + (cb.rollDefender ? ' plus a roll of 0 to ' + rollTo(cb.rollDefender) : '') + '</b>, plus Attack less Defence. A monster flagged so uses body for reflex.',
-      'The weapon’s enchantment and skill go on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
+      cb.skillOffLoop ? '<b>A weapon’s own skill adds nothing.</b> The resolver is written to add it to the margin and to the damage figure, but reads it off ' +
+        srcNum(cb.skillOffLoop[0], 'what the shield loop leaves behind') + ' instead of off the weapon, and that is always nothing, so Sword, Axe and Mace change no armed blow.' : '',
+      'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
         (cb.parry ? 'what is left is offered to the shields: each shielding thing the defender wears rolls <b>0 to its block plus the Shield skill</b>, the rolls are added up, and a margin under the total is <b>parried</b>' : 'what is left lands') +
         '. A blow that would have missed is never parried.',
-      cb.dmgAdd ? 'A hit does <b>' + srcNum(cb.dmgAdd) + ' plus a roll under the damage figure, plus the enchantment</b>, so ' + cb.dmgAdd.v + ' to the figure' + (cb.dmgAdd.v === 1 ? ' rather than nothing to it' : ' less one, and more') + ', with the skill widening the figure before the roll. The defender’s resistance takes the damage type afterwards, so the word the game prints can be bigger than what is felt.' : '',
+      cb.dmgAdd ? 'A hit does <b>' + srcNum(cb.dmgAdd) + ' plus a roll under the damage figure, plus the enchantment</b>, so ' + cb.dmgAdd.v + ' to the figure' + (cb.dmgAdd.v === 1 ? ' rather than nothing to it' : ' less one, and more') + (cb.skillOffLoop ? '' : ', with the skill widening the figure before the roll') + '. The defender’s resistance takes the damage type afterwards, so the word the game prints can be bigger than what is felt.' : '',
       ar && ar.bodyRoll && ar.scale ? 'The damage figure of a blow is the weapon’s plus ' + rollFrom('body') + (ar.reflexRoll ? '; a throw’s is its throw entry’s plus ' + rollFrom('reflex') : '') + '.' : '',
       ar && ar.lodges && ar.drops ? 'A thrown weapon that <b>hits or is parried</b> goes into the target, carried, which is where it is when the target dies; one that misses lies on the target’s square. Nothing brings it back.' + (ar.ammoSpent ? ' A launcher spends one of its ammunition a shot.' : '') : '',
       cb.words.length ? 'The blow is named by its size: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + srcNum(w.val)).join(', ') + (cb.last ? ', and <i>' + svEsc(cb.last.word) + '</i> above.' : '.') : ''
@@ -1678,6 +1692,26 @@ function renderMechanicsSheet(value) {
     km.writes.length ? [
       start ? 'It starts at <b>' + srcNum(start.val, start.set) + '</b> when a character is made.' : '',
       km.byAlignment ? 'Killing something moves it by the victim’s alignment, values 0 to ' + (km.byAlignment.length - 1) + ' in turn: <b>' + srcNum(km.byAlignmentSrc, km.byAlignment.map(v => (v > 0 ? '+' : '') + v).join(', ')) + '</b>. Nothing in the file names them.' : '',
+      /* Who has which alignment, off the character table (byte 25 of each
+         record, the byte the kill table indexes), so the sentence above can
+         say what a kill of a townsperson does. The board recorded killing
+         NPCs raising karma as a bug (topic 2023); this is why. No script
+         writes the field, and the application writes it only when a
+         character is made and when one joins the party. */
+      km.byAlignment ? (() => {
+        const by = new Map();
+        loadCharacterTable().forEach((c, i) => {
+          if (!c || !c.raw || c.raw.every(b => !b) || i === 0) return;
+          if (!by.has(c.raw[25])) by.set(c.raw[25], []);
+          by.get(c.raw[25]).push(i);
+        });
+        const zero = by.get(0) || [], delta0 = km.byAlignment[0];
+        if (!zero.length || delta0 === undefined) return '';
+        const others = [...by.keys()].filter(a => a !== 0).sort((a, b) => a - b)
+          .map(a => by.get(a).map(i => chipOf(i) || svEsc(characterName(i))).join(' ') + ' ' + (by.get(a).length === 1 ? 'has' : 'have') + ' ' + a);
+        return 'In the character table <b>' + zero.length + ' characters have alignment 0</b>, every townsperson among them' + (others.length ? ', while ' + others.join(' and ') : '') +
+          ', and no script changes it, so <b>killing a townsperson ' + (delta0 > 0 ? 'raises karma by ' + delta0 : delta0 < 0 ? 'lowers karma by ' + (-delta0) : 'leaves karma alone') + '</b>.';
+      })() : '',
       km.reads.length ? 'It is tested <b>' + km.reads.filter((r, i, a) => a.findIndex(x => x.test === r.test) === i).map(r => (r.below ? 'below ' : 'above ') + srcNum(r.val, r.n)).join('</b> and <b>') + '</b>.' : ''
     ].filter(Boolean) : [],
     mechKarmaFigure(km) +
@@ -1813,7 +1847,10 @@ function renderMechanicsSheet(value) {
       sl.half ? 'Then, when the quality is not 0' + (sl.soundly ? ' (“You sleep soundly”)' : '') + ', every party member gets <b>what they healed during the night times the quality over ' + srcNum(sl.div) + '</b> on top, for health and for magic, up to full.' + (sl.own !== null ? ' <b>Quality ' + sl.own + ' is ' + (1 + sl.own / sl.div.v) + ' times the engine’s rate.</b>' : '') : '',
       sl.toss ? 'Quality 0 is “You toss and turn” and the engine’s rate alone.' : '',
       'The engine’s rate is the one under Hunger and healing: a fed character’s level rate, plus the six-minute regeneration where a worn item grants it, and nothing at all for a hungry one.',
-      'The magic branch compares magic against <i>full health</i> in two places. Kept as stored.'
+      sl.magicGuard || sl.magicCap ? 'The magic half reads <i>full health</i> where it means full magic: ' +
+        [sl.magicGuard ? 'the bonus is given only while magic is under ' + srcNum(sl.magicGuard, 'full health') : '',
+         sl.magicCap ? 'and a figure past full magic sets magic to ' + srcNum(sl.magicCap, 'full health') : ''].filter(Boolean).join(', ') +
+        ', so a character whose full health is the larger can wake with more magic than full.' : ''
     ].filter(Boolean) : [],
     (sl ? mechSleepFigure(sl, model) : '') +
     (sl && sl.div && sl.inns.length ? table(['bed', 'where', '#quality', 'healing'], [(sl.own !== null ? '<tr><td>your own</td><td>Land King Hall</td>' + srcCell(sl.ownVal) + '<td>× ' + (1 + sl.own / sl.div.v) + '</td></tr>' : '')].concat(
@@ -2088,6 +2125,49 @@ function renderMechanicsSheet(value) {
     for (const k of le.readNeverWritten) rows.push('<tr><td>read and never written</td><td>Quest value ' + k +
       ' is tested, and no script ever sets it, so the test only ever sees nothing.</td><td>' +
       where(sitesOf(le.reads.get(k))) + '</td></tr>');
+    /* Flags, which the reader has collected since the card was new and the
+       card never showed. Only the one direction: a flag no script sets,
+       whether by SetStateFlag or by queueing task 165, is a test that never
+       passes, since nothing else in the application writes the array. The
+       other direction is not shown, because the application READS flags on
+       its own account (EvalCondition, for the conditional eggs), so a flag
+       no script tests is not thereby unread. */
+    for (const k of le.flagReadNeverWritten) rows.push('<tr><td>read and never written</td><td>Quest flag ' + k +
+      ' is tested, and no script sets it, directly or through a queued task, so the test never passes.</td><td>' +
+      where(sitesOf(le.flagReads.get(k))) + '</td></tr>');
+    const lineText = n => (td2.lines && td2.lines.get(n) ? ' (' + svEsc(td2.lines.get(n)) + ')' : '');
+    for (const x of le.exactStrikes) rows.push('<tr><td>a line struck off only at an exact count</td><td>slot ' + x.slot.v + lineText(x.slot.v) +
+      ' is struck off only when quest value ' + x.state + ' is exactly ' + srcNum(x.n) +
+      ', and the scripts count that value up, so a visit that carries it past ' + x.n.v + ' never strikes the line.</td><td>' +
+      where([x.slot]) + '</td></tr>');
+    /* One line shown for two different errands. A line that is not its own
+       slot's is usually the informant's wording of that slot's errand, and
+       that is deliberate; but a line's words can only describe one errand,
+       so the same line under two slots is wrong under one of them. That is
+       Ake: she sends the hero to Halos about House Comana, slot 10, and
+       shows line 114, the wording Demodocus shows for the iron mine. */
+    const bySharedLine = new Map();
+    for (const a of wrongLine) {
+      if (!bySharedLine.has(a.line.v)) bySharedLine.set(a.line.v, []);
+      bySharedLine.get(a.line.v).push(a);
+    }
+    const twoErrands = [...bySharedLine.values()].filter(list => new Set(list.map(a => a.slot.v)).size > 1);
+    // The resolver's weapon-skill term, read in combatRules (`cb` above).
+    const skillOff = cb && cb.skillOffLoop;
+    if (skillOff) rows.push('<tr><td>a term read off the wrong thing</td><td>The combat resolver adds the weapon’s skill to the margin and to the damage figure, but reads it off the local its shield loop leaves at nothing rather than off the weapon, so Sword, Axe and Mace add nothing to an armed blow.</td><td>' +
+      where(skillOff) + '</td></tr>');
+    // The sleep helper's magic half, read in sleepRules.
+    const slp = sleepRules();
+    if (slp && slp.magicGuard && slp.magicCap) rows.push('<tr><td>a field read in place of another</td><td>The sleep bonus for magic is given while magic is under full health and, past full magic, sets magic to full health, so a character whose full health is the larger wakes with more magic than full.</td><td>' +
+      where([slp.magicGuard, slp.magicCap]) + '</td></tr>');
+    // The three "use a thing" task scripts, read in looseEnds (unusedCast).
+    for (const u of le.unusedCast) rows.push('<tr><td>a task that does nothing</td><td>Task ' + u.task + ' converts its item to a prop and then sends ' + svEsc(u.method) +
+      ' to the item unconverted. A queued task’s item arrives as a number, and the interpreter sends no method to a number, so the task never acts.' +
+      (u.queuedBy.length ? ' Queued by ' + where(u.queuedBy) + '.' : ' Nothing queues it.') + '</td><td>' + where([u]) + '</td></tr>');
+    for (const list of twoErrands) rows.push('<tr><td>one line shown for two errands</td><td>line ' + list[0].line.v + lineText(list[0].line.v) +
+      ' is shown for ' + [...new Set(list.map(a => a.slot.v))].map(s => 'slot ' + s + lineText(s)).join(' and for ') +
+      ', and its words can only describe one of them.</td><td>' +
+      where(list.map(a => a.line)) + '</td></tr>');
     if (lib2) for (const d of lib2) for (const k of d.dangling)
       rows.push('<tr><td>a thing pointing at nothing</td><td>Data1 ' + k + ' of ' + propWordHex(d.resid) + ', which has no such passage</td><td>' +
         where(d.readers) + '</td></tr>');
@@ -2097,7 +2177,12 @@ function renderMechanicsSheet(value) {
       rows.length ? [
         never.length ? '<b>' + never.length + '</b> To Do lines are added and struck off by nothing.' : '',
         le.unreachable.length ? '<b>' + le.unreachable.length + '</b> comparison against a value that is never assigned, so the branch behind it is out of reach.' : '',
-        wrongLine.length ? '<b>' + wrongLine.length + '</b> lines show a different line’s words, which is usually deliberate and names the informant instead of the errand.' : ''
+        wrongLine.length ? '<b>' + wrongLine.length + '</b> lines show a different line’s words, which is usually deliberate and names the informant instead of the errand.' : '',
+        twoErrands.length ? '<b>' + twoErrands.length + '</b> of those ' + (twoErrands.length === 1 ? 'is' : 'are') + ' shown for two different errands, so one of the two names the wrong one.' : '',
+        le.exactStrikes.length ? '<b>' + le.exactStrikes.length + '</b> ' + (le.exactStrikes.length === 1 ? 'line is' : 'lines are') + ' struck off only at an exact count, which a visit can step past.' : '',
+        le.flagReadNeverWritten.length ? '<b>' + le.flagReadNeverWritten.length + '</b> quest ' + (le.flagReadNeverWritten.length === 1 ? 'flag is' : 'flags are') + ' tested and never set.' : '',
+        skillOff ? 'The combat resolver reads the weapon’s skill off the wrong thing, so no armed blow gets it.' : '',
+        le.unusedCast.length ? '<b>' + le.unusedCast.length + '</b> of the tasks a character can be given ' + (le.unusedCast.length === 1 ? 'does' : 'do') + ' nothing' + (le.unusedCast.some(u => u.queuedBy.some(q => q.resid === 0x1AD5)) ? ', and Lock Picking queues one of them, which is why a companion told to pick a lock never does.' : '.') : ''
       ].filter(Boolean) : [],
       table(['what', 'which', 'where'], rows));
   }
