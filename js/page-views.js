@@ -422,22 +422,78 @@ function tileSheetClick(ev, resid) {
   else showSpriteZoom(tileId, terrainNameFor(tileId) || '');
 }
 
-/* ---- Containers open as a window ---------------------------------------------
-   The 0x8Fxx sized graphics include the inventory windows the game draws when
-   a container is opened -- 0x8F0A is the chest, 0x8F09 the crate -- named by
-   the wiki's resource list. The join is by name, since nothing in the data
-   links a prop type to its window; it is a short table so a wrong guess is
-   visible here rather than buried. */
-const CONTAINER_WINDOWS = [
-  [/^chest$/, 0x8F0A], [/^crate$/, 0x8F09], [/jar$/, 0x8F0C], [/^sack$/, 0x8F0D],
-  [/dresser|drawer|desk/, 0x8F0E], [/^corpse$/, 0x8F0F], [/^tombstone$/, 0x8F10],
-  [/^coffer$/, 0x8F0A], [/^bookshelf$/, 0x8F02], [/^scroll$/, 0x8F03], [/^map$/, 0x8F13],
-  [/^lyre$/, 0x8F14], [/^lute$/, 0x8F15], [/^poster$/, 0x8F1A]
-];
-function containerWindowFor(pt) {
-  const nm = (propTypeName(pt) || '').toLowerCase();
-  for (const [re, resid] of CONTAINER_WINDOWS) if (re.test(nm) && refExists(resid)) return resid;
-  return null;
+/* ---- What a window shows -----------------------------------------------------
+   A container, a sign, a book or an instrument opens a window its class script
+   builds with `gui Create`. With six operands that is the prop, the picture,
+   and four numbers placing it; with two it is a plain window of a size (the
+   shops, the bed, the inkwell), which shows no picture. The picture n is
+   resource 0x8F00 + n: TPixCacheFromCachedSegFiles::GetData adds 0x8F00 to
+   the number it is given, and nothing else in the application builds that id.
+
+   Most classes go through a helper that takes the picture as an argument
+   (0xE64, 0xE65, 0xE66 and 0xE67 in the shipped file), so a helper is read for
+   which argument it passes, and the number is taken at each call. A poster and
+   a sheet of paper pass their own Data2, so the picture is whatever each
+   placed one carries.
+
+   This replaced a table that matched prop names to pictures. The scripts
+   disagree with it twice: the bookshelf shows its text on the scroll (0x8F03)
+   rather than the open book, and the lute class opens 0x8F12, the pipes, the
+   same picture as the panpipes. Nothing opens 0x8F15, the lute. That is the
+   scenario as shipped, and it is shown as the script has it. */
+window.SCRIPTED_WINDOWS = null;
+function buildScriptedWindows() {
+  if (window.SCRIPTED_WINDOWS) return window.SCRIPTED_WINDOWS;
+  const byScript = new Map(), byPicture = new Map();
+  const add = (resid, n) => {
+    const pic = 0x8F00 + n;
+    if (!(n >= 0) || !refExists(pic)) return;
+    if (!byScript.has(resid)) byScript.set(resid, new Set());
+    byScript.get(resid).add(pic);
+    if (!byPicture.has(pic)) byPicture.set(pic, new Set());
+    byPicture.get(pic).add(resid);
+  };
+  let index = [];
+  try { index = buildScriptTextIndex(); } catch (e) { index = []; }
+  const helpers = new Map(), fromData2 = new Set();
+  for (const e of index) {
+    const ops = dvmOpsOf(e);
+    ops.forEach((o, i) => {
+      if (!/^gui Create\b/.test(o.text)) return;
+      const v = dvmCallValues(ops, i);
+      if (v.length !== 6) return;
+      const n = dvmValueNum(v[1]), a = dvmValueArg(v[1]);
+      if (n !== null) add(e.resid, n);
+      else if (a !== null) helpers.set(e.resid, a);
+      else if (v[1].length === 2 && dvmValueArg([v[1][0]]) === 0 && /^get_field data2\b/.test(v[1][1].text)) fromData2.add(e.resid);
+    });
+  }
+  if (helpers.size) for (const e of index) {
+    const ops = dvmOpsOf(e);
+    ops.forEach((o, i) => {
+      const m = /^call_resource 0x([0-9A-F]+)\b/.exec(o.text);
+      if (!m || !helpers.has(parseInt(m[1], 16))) return;
+      const n = dvmValueNum(dvmCallValues(ops, i)[helpers.get(parseInt(m[1], 16))]);
+      if (n !== null) add(e.resid, n);
+    });
+  }
+  if (fromData2.size) for (let z = 0; z < 0x100; z++) {
+    if (!refExists(0x8100 + z)) continue;
+    let list;
+    try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
+    // Each class tests the prop before it builds this window -- the poster
+    // wants a Data1 of 0 and a Data2, the paper a Data1 of 255 -- and opens
+    // the helper's picture otherwise. Every placed one in the shipped file
+    // that carries a Data2 passes its class's test, so a Data2 is the test
+    // this reads.
+    for (const r of list) if (r.flags !== 0xFF && r.d2 && fromData2.has(0x1000 + r.proptype)) add(0x1000 + r.proptype, r.d2);
+  }
+  return (window.SCRIPTED_WINDOWS = { byScript, byPicture });
+}
+function containerWindowsFor(pt) {
+  let w = null;
+  try { w = buildScriptedWindows().byScript.get(0x1000 + pt); } catch (e) { w = null; }
+  return w ? [...w].sort((a, b) => a - b) : [];
 }
 
 /* ---- Parts and uses --------------------------------------------------------
@@ -602,81 +658,167 @@ function mapParts(resid, propResid) {
   return chips;
 }
 
-/* Who plays a sound. Read from the code the same way buildXrefIndex reads
-   references -- only inside functions dvmDiscover found, never by scanning
-   bytes -- because the archive's data blocks decode into thousands of bogus
-   PlaySound opcodes if they are walked as code. A call whose first operand
-   is a literal names its sound; one whose operand is a variable is counted
-   and reported as such. Sound n is resource 0x9100+n, music n is 0x9000+n:
-   that is how the galleries number them and every literal id found lands in
-   range. */
+/* Who plays a sound, by every route the game has.
+
+   The application reaches the archive's sounds through four routines, and all
+   four add 0x9100 to a number: TAudio::PlaySound, PlayAmbientSound,
+   BeginSpotSound and CalcAmbient (read 16 September 2026). Their callers are
+   where the numbers come from:
+     - the scripts' own calls: PlaySound, PlaySoundSync (slot 0xD4, which
+       delvmod's table calls UnknownD4; the binary's routine there is
+       cbPlaySoundSync) and PlayAmbientSound;
+     - ShootEffect (cbMissileFX), whose eighth operand TGameViewer::DoMissile
+       hands to the TSoundTracker that follows a thrown or shot thing;
+     - TViewer::SetStage, for every loose prop whose class's SoundEffects
+       begins with a number (FillIntfCache keeps that word per prop type),
+       and for every kind-3 egg, whose prop-type field is the sound.
+   PlayIFSound, the only other, plays the application's own snd resources.
+
+   So a sound is a constant in one of those calls, or it reaches one as
+     - an argument of a helper, named where the helper is called or queued as
+       a task: AddTask's task n runs helper 0xC00 + n, which the helpers bear
+       out (0xC44 sets the talk balloon for task 0x44, 0xC4F uses one thing on
+       another for 0x4F, 0xC42 waits for 0x42);
+     - a word of the table of the class the call reads, `class_member 0xKKWW`,
+       or an entry of an array that word points at, by index: a weapon's miss
+       and hit sounds, a bow's shot, a creature's cries;
+     - an entry of a list the script builds in place, which is how 0x3041
+       gives anyone without cries of their own the default ones;
+     - the first word of a prop's SoundEffects, played where the prop stands;
+     - an egg.
+   Each is read from the shape of the instructions, following a local back to
+   what was stored in it; nothing here names a routine's address or a class.
+   The scripts are read through buildScriptTextIndex, whose listings hold only
+   the functions dvmDiscover found: the archive's data blocks decode into
+   thousands of false PlaySound calls if bytes are walked as code. Sound n is
+   0x9100 + n, music n is 0x9000 + n. */
+const SOUND_CALLS = { 'sys PlaySound': 0, 'sys UnknownD4': 0, 'sys PlayAmbientSound': 0, 'sys ShootEffect': 7 };
+
+// Where a sound value in a listing comes from: {num}, {arg}, {key, word},
+// {data}, each with a `slot` when an array is indexed.
+function soundValueSources(ops, v, depth) {
+  if (!v || !v.length || depth > 4) return [];
+  const n = dvmValueNum(v);
+  if (n !== null) return [{ num: n }];
+  const a = dvmValueArg(v);
+  if (a !== null) return [{ arg: a }];
+  const last = v[v.length - 1];
+  if (last.mn === 'index' && v.length >= 3) {
+    const slot = dvmNum(v[v.length - 2]);
+    if (slot === null) return [];
+    return soundValueSources(ops, v.slice(0, -2), depth + 1)
+      .filter(s => (s.key !== undefined && s.slot === undefined) || s.data !== undefined)
+      .map(s => Object.assign({}, s, { slot }));
+  }
+  let m = /^class_member 0x([0-9A-F]{2})([0-9A-F]{2})$/.exec(last.text);
+  if (m) return [{ key: parseInt(m[1], 16), word: parseInt(m[2], 16) }];
+  if (v.length === 1 && last.mn === 'data') return [{ data: last.at }];
+  m = v.length === 1 && /^local Var([0-9A-F]{2})$/.exec(last.text);
+  if (m) {
+    const out = [], set = 'set_local 0x' + m[1];
+    ops.forEach((o, j) => { if (o.obj === last.obj && o.text === set) out.push(...soundValueSources(ops, dvmCallValues(ops, j)[0], depth + 1)); });
+    return out;
+  }
+  return [];
+}
+
 window.SOUND_USAGE = null;
 function buildSoundUsage() {
   if (window.SOUND_USAGE) return window.SOUND_USAGE;
-  const calls = { PlaySound: {}, PlayMusic: {}, PlayAmbientSound: {} };
-  const dynamic = { PlaySound: 0, PlayMusic: 0, PlayAmbientSound: 0 };
-  if (masterIndexGlobal) {
-    for (let subn = 0; subn < 256; subn++) {
-      const mi = masterIndexGlobal[subn];
-      if (!mi || !mi[0] || XREF_SKIP_SUBN.has(subn)) continue;
-      const count = subindexCount(subn);
-      for (let ri = 0; ri < count; ri++) {
-        const resid = ((subn + 1) << 8) | ri;
-        let data;
-        try {
-          const raw = getResourceBytes(resid);
-          if (!raw || !raw.length) continue;
-          data = smartDecrypt(raw, resid).data;
-          if (dvmNamedScript(data)) continue;
-        } catch (e) { continue; }
-        let disc;
-        try { disc = dvmDiscover(data, resid); } catch (e) { continue; }
-        if (disc.tableOffset === null) continue;
-        const offs = Object.keys(disc.kinds).map(Number).sort((x, y) => x - y);
-        for (const off of offs) {
-          if (disc.kinds[off] !== 'function') continue;
-          let end = data.length;
-          for (const o2 of offs) if (o2 > off && o2 < end) end = o2;
-          let ops;
-          try { ops = dvmDisassemble(data.slice(off, end), 3).ops; } catch (e) { continue; }
-          for (let k = 0; k < ops.length; k++) {
-            const m = /^sys (PlaySound|PlayMusic|PlayAmbientSound)$/.exec(String(ops[k][2]));
-            if (!m) continue;
-            const nx = ops[k + 1];
-            const mn = nx ? nx[2] : '';
-            if (mn === 'byte' || mn === 'word' || mn === 'short' || mn === 'int') {
-              const id = parseInt(String(nx[3]).replace(/\[.*$/, ''), 16);
-              if (!Number.isFinite(id)) continue;
-              const by = calls[m[1]][id] || (calls[m[1]][id] = {});
-              by[resid] = (by[resid] || 0) + 1;
-            } else dynamic[m[1]]++;
-          }
+  const u = { scripts: new Map(), classes: new Map(), lists: new Map(), props: new Map(), eggs: new Map(), music: new Map() };
+  const put = (map, n, v) => { if (!(n > 0)) return; if (!map.has(n)) map.set(n, []); map.get(n).push(v); };
+  const count = (map, n, resid) => {
+    if (!(n > 0)) return;
+    if (!map.has(n)) map.set(n, new Map());
+    map.get(n).set(resid, (map.get(n).get(resid) || 0) + 1);
+  };
+  let index = [];
+  try { index = buildScriptTextIndex(); } catch (e) { index = []; }
+  const helpers = new Map(), fields = new Map();
+  for (const e of index) {
+    const ops = dvmOpsOf(e);
+    ops.forEach((o, i) => {
+      if (o.text === 'sys PlayMusic') { count(u.music, dvmValueNum(dvmCallValues(ops, i)[0]), e.resid); return; }
+      if (!(o.text in SOUND_CALLS)) return;
+      for (const s of soundValueSources(ops, dvmCallValues(ops, i)[SOUND_CALLS[o.text]], 0)) {
+        if (s.num !== undefined) count(u.scripts, s.num, e.resid);
+        else if (s.arg !== undefined) helpers.set(e.resid, s.arg);
+        else if (s.key !== undefined) {
+          const tag = s.key + ':' + s.word + ':' + s.slot;
+          if (!fields.has(tag)) fields.set(tag, { key: s.key, word: s.word, slot: s.slot, via: new Set() });
+          fields.get(tag).via.add(e.resid);
+        } else if (s.data !== undefined && s.slot !== undefined) {
+          let list = null;
+          try { list = dvmDataValue(smartDecrypt(getResourceBytes(e.resid), e.resid).data, s.data + 3); } catch (err) {}
+          if (Array.isArray(list) && typeof list[s.slot] === 'number') put(u.lists, list[s.slot], e.resid);
         }
       }
-    }
+    });
   }
-  return (window.SOUND_USAGE = { calls, dynamic });
+  // A helper's sound is named by whoever calls it or queues it: for a call,
+  // argument k is value k; for AddTask, value 0 is who and value 1 the task.
+  if (helpers.size) for (const e of index) {
+    const ops = dvmOpsOf(e);
+    ops.forEach((o, i) => {
+      let k = null;
+      const m = /^call_resource 0x([0-9A-F]+)\b/.exec(o.text);
+      if (m && helpers.has(parseInt(m[1], 16))) k = helpers.get(parseInt(m[1], 16));
+      else if (o.text === 'sys AddTask') {
+        const t = dvmValueNum(dvmCallValues(ops, i)[1]);
+        if (t !== null && helpers.has(0xC00 + t)) k = helpers.get(0xC00 + t) + 1;
+      }
+      if (k !== null) count(u.scripts, dvmValueNum(dvmCallValues(ops, i)[k]), e.resid);
+    });
+  }
+  const soundEffects = Number(Object.keys(DVM_SYM.method).find(k => DVM_SYM.method[k] === 'SoundEffects'));
+  for (let resid = 0x1000; resid < 0x2000; resid++) {
+    const kind = dvmClassName(resid);
+    if ((kind !== 'Item' && kind !== 'Monster') || !refExists(resid)) continue;
+    let cls = null;
+    try { cls = parseClassTable(resid); } catch (e) { cls = null; }
+    if (!cls) continue;
+    for (const f of fields.values()) {
+      const n = classFieldNumber(cls, f.key, f.word, f.slot);
+      if (n > 0) put(u.classes, n, { resid, key: f.key, word: f.word, slot: f.slot, via: [...f.via] });
+    }
+    const own = classFieldNumber(cls, soundEffects, 0);
+    if (own > 0) put(u.props, own, resid);
+  }
+  for (const [n, eggs] of eggsOfKind(3)) for (const g of eggs) put(u.eggs, n, g);
+  return (window.SOUND_USAGE = u);
+}
+
+// The sounds a class names, for its owner's parts strip.
+function classSounds(resid) {
+  const u = buildSoundUsage(), out = new Set();
+  for (const [n, list] of u.classes) if (list.some(c => c.resid === resid)) out.add(n);
+  for (const [n, list] of u.props) if (list.includes(resid)) out.add(n);
+  return [...out].sort((a, b) => a - b).filter(n => refExists(0x9100 + n));
 }
 
 function soundUsageRows(resid, subn) {
   const u = buildSoundUsage();
   const rows = [];
   // A bare 0x0812 says little; refDescription turns it into "object script".
-  const chipsFor = table => Object.keys(table || {}).map(Number).sort((a, b) => a - b)
-    .map(r => svChip(r, (refDescription(r) || '') + (table[r] > 1 ? ' ×' + table[r] : '')));
+  const chipsFor = counts => [...(counts || new Map())].sort((a, b) => a[0] - b[0])
+    .map(([r, c]) => svChip(r, (refDescription(r) || '') + (c > 1 ? ' ×' + c : '')));
   if (subn === 144) {
-    const id = resid - 0x9100;
-    const chips = chipsFor(u.calls.PlaySound[id]);
-    rows.push(['Played by', chips, chips.length ? '' :
-      'No script names this sound by number' +
-      (u.dynamic.PlaySound ? ' (' + u.dynamic.PlaySound + ' PlaySound call' +
-        (u.dynamic.PlaySound === 1 ? ' passes' : 's pass') + ' the sound in a variable)' : '') +
-      '; the application plays some itself.']);
-    const amb = chipsFor(u.calls.PlayAmbientSound[id]);
-    if (amb.length) rows.push(['As ambient sound, by', amb, '']);
+    const n = resid - 0x9100;
+    const scripts = chipsFor(u.scripts.get(n));
+    if (scripts.length) rows.push(['Played by', scripts, '']);
+    const owners = [];
+    const byClass = new Map();
+    for (const c of u.classes.get(n) || []) if (!byClass.has(c.resid)) byClass.set(c.resid, itemFieldLabel(c.key));
+    for (const r of u.props.get(n) || []) if (!byClass.has(r)) byClass.set(r, 'where it stands');
+    for (const [r, what] of byClass) owners.push(...classOwnerChips(r, what));
+    if (owners.length) rows.push(['Sound of', owners, '']);
+    const lists = [...new Set(u.lists.get(n) || [])];
+    if (lists.length) rows.push(['Default in', lists.map(r => svChip(r, 'for anyone with no sounds of their own')), '']);
+    const eggs = u.eggs.get(n) || [];
+    if (eggs.length) rows.push(['Heard in', zoneSquareChips(eggs), '']);
+    if (!rows.length) rows.push(['Played by', [], 'Nothing plays this sound: no script, class, list or egg in the file names it.']);
   } else if (subn === 143) {
-    const id = resid - 0x9000;
-    const chips = chipsFor(u.calls.PlayMusic[id]);
+    const chips = chipsFor(u.music.get(resid - 0x9000));
     rows.push(['Played by', chips, chips.length ? '' :
       'No script names this music by number; the application starts some itself.']);
   }
@@ -709,11 +851,12 @@ function soundUsageRows(resid, subn) {
      0x8400 + n           the landscape a zone's entry script sets with n
      0xA00 + aspect       the potion the class 0x101F calls it for
 
-   The inventory windows in 0x8Fxx are left out on purpose: that join is
-   CONTAINER_WINDOWS, which matches prop names, and the reverse of a guess
-   printed as a link would read as a fact. So are the shared helpers, the
-   default methods at 0x30xx and the combat AI: they belong to no one thing,
-   and "Referenced by" is already the honest row for them. */
+     0x8Fxx               the window a class's script opens with it, read
+                          by buildScriptedWindows
+
+   The shared helpers and the default methods at 0x30xx are left out on
+   purpose: they belong to no one thing, and "Referenced by" is already the
+   honest row for them. */
 
 // Where a class leads. Through openVia, so the tabs light and the deep link
 // is written once, as a dossier opened from a component already does.
@@ -747,28 +890,64 @@ function ownerChip(cat, js, main, sub, pt) {
   if (!icon && leaf) icon = relIconURL({ tile: leaf.tile });
   return relChip({ js, main, sub, icon, title: leaf ? tabTrail(leaf) : '' });
 }
-function unitChip(idx) {
-  const m = parseMonsterStats()[idx];
-  return ownerChip('MONSTERS', 'openUnit(' + idx + ')', propDisplayName(m.proptype) || 'record ' + idx, 'unit', m.proptype);
+
+// The thing a class is the class of: the units wearing a living prop type,
+// else the item, else the prop type; a monster class's unit. `sub` says what
+// the chip is for where the caller knows better than "unit" or "item".
+function classOwnerChips(resid, sub) {
+  const kind = dvmClassName(resid);
+  if (kind === 'Monster') {
+    const m = parseMonsterStats()[resid - 0x1900];
+    return m && !m.blank ? [ownerChip('MONSTERS', 'openUnit(' + m.index + ')', propDisplayName(m.proptype) || 'record ' + m.index, sub || 'unit', m.proptype)] : [];
+  }
+  if (kind !== 'Item') return [svChip(resid)];
+  const pt = resid - 0x1000;
+  const units = parseMonsterStats().filter(m => !m.blank && m.proptype === pt);
+  if (units.length) return units.map(m => ownerChip('MONSTERS', 'openUnit(' + m.index + ')', propDisplayName(pt) || 'record ' + m.index, sub || 'unit', pt));
+  if (isInventoryItem(pt)) return [ownerChip('ITEMS', 'openItem(' + pt + ')', propDisplayName(pt) || 'prop type ' + pt, sub || 'item', pt)];
+  if (getPropTileList()[pt] !== undefined) return [ownerChip('PROPS', 'openPropType(' + pt + ')', propDisplayName(pt) || 'prop type ' + pt, sub || 'prop type', pt)];
+  return [];
 }
 
-// Every room egg in the file, by room number: the zone and the square.
-window.ROOM_EGGS = null;
-function roomEggIndex() {
-  if (window.ROOM_EGGS) return window.ROOM_EGGS;
-  const rooms = new Map();
-  for (let z = 0; z < 0x100; z++) {
-    if (!refExists(0x8100 + z)) continue;
-    let list;
-    try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
-    for (const r of list) {
-      if (r.flags !== 0x42 || r.aspect !== 8) continue;
-      if (!rooms.has(r.proptype)) rooms.set(r.proptype, []);
-      rooms.get(r.proptype).push({ zone: z, x: r.x, y: r.y });
-    }
-  }
-  return (window.ROOM_EGGS = rooms);
+// A zone's name, including the map numbered 0, which zoneDisplayName reads as
+// "not placed in a zone".
+function zoneLabel(z) { return z ? zoneDisplayName(z) : (labelFor(0x8000) || 'zone 0'); }
+
+// Squares on the maps, a chip a zone: the first square opens, and the count
+// says how many more there are.
+function zoneSquareChips(spots) {
+  const byZone = new Map();
+  for (const s of spots) { if (!byZone.has(s.zone)) byZone.set(s.zone, []); byZone.get(s.zone).push(s); }
+  return [...byZone].sort((a, b) => a[0] - b[0]).map(([z, list]) => relChip({
+    js: 'showSquareOnMap(' + (0x8000 + z) + ',' + list[0].x + ',' + list[0].y + ')',
+    main: zoneLabel(z), sub: 'at ' + list[0].x + ', ' + list[0].y,
+    note: list.length > 1 ? '×' + list.length : '',
+    icon: relIconFor(0x8000 + z), title: trailForResid(0x8000 + z) }));
 }
+
+// Every egg in the file, by kind and then by its argument (the prop-type
+// field): the zone and the square. A room is kind 8, an ambient sound kind 3.
+window.EGGS = null;
+function eggsOfKind(kind) {
+  if (!window.EGGS) {
+    const all = new Map();
+    for (let z = 0; z < 0x100; z++) {
+      if (!refExists(0x8100 + z)) continue;
+      let list;
+      try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
+      for (const r of list) {
+        if (r.flags !== 0x42) continue;
+        if (!all.has(r.aspect)) all.set(r.aspect, new Map());
+        const byArg = all.get(r.aspect);
+        if (!byArg.has(r.proptype)) byArg.set(r.proptype, []);
+        byArg.get(r.proptype).push({ zone: z, x: r.x, y: r.y });
+      }
+    }
+    window.EGGS = all;
+  }
+  return window.EGGS.get(kind) || new Map();
+}
+function roomEggIndex() { return eggsOfKind(8); }
 
 // The Combat AI section, on whichever Mechanics tab holds it.
 function combatAiRuleChip() {
@@ -779,21 +958,18 @@ function combatAiRuleChip() {
 
 function ownerRows(resid, subn) {
   const rows = [];
-  if (subn === 15 || subn === 16) {
+  if (subn === 15 || subn === 16 || subn === 24) {
     // A living prop type is a unit, and the unit's page lists the characters
     // who wear it; anything else is an item or, failing that, a prop type.
-    const pt = resid - 0x1000;
-    const units = parseMonsterStats().filter(m => !m.blank && m.proptype === pt);
-    let chips = units.map(m => unitChip(m.index));
-    if (!chips.length && isInventoryItem(pt))
-      chips = [ownerChip('ITEMS', 'openItem(' + pt + ')', propDisplayName(pt) || 'prop type ' + pt, 'item', pt)];
-    else if (!chips.length && getPropTileList()[pt] !== undefined)
-      chips = [ownerChip('PROPS', 'openPropType(' + pt + ')', propDisplayName(pt) || 'prop type ' + pt, 'prop type', pt)];
+    const chips = classOwnerChips(resid);
     if (chips.length) rows.push(['Class of', chips, '']);
   }
-  if (subn === 24) {
-    const m = parseMonsterStats()[resid - 0x1900];
-    if (m && !m.blank) rows.push(['Class of', [unitChip(m.index)], '']);
+  if (subn === 142) {
+    // A picture a class's script opens as its window, read by buildScriptedWindows.
+    let scripts = [];
+    try { scripts = [...(buildScriptedWindows().byPicture.get(resid) || [])].sort((a, b) => a - b); } catch (e) { scripts = []; }
+    const chips = scripts.flatMap(r => classOwnerChips(r));
+    if (chips.length) rows.push(['Window of', chips, '']);
   }
   if (subn === 25 || subn === 137) {
     const cls = 0x1A00 | (resid & 0xFF);
@@ -810,7 +986,7 @@ function ownerRows(resid, subn) {
     const eggs = roomEggIndex().get(resid - 0x1B00) || [];
     rows.push(['Room in', eggs.map(e => relChip({
       js: 'showSquareOnMap(' + (0x8000 + e.zone) + ',' + e.x + ',' + e.y + ')',
-      main: zoneDisplayName(e.zone), sub: 'at ' + e.x + ', ' + e.y,
+      main: zoneLabel(e.zone), sub: 'at ' + e.x + ', ' + e.y,
       icon: relIconFor(0x8000 + e.zone), title: trailForResid(0x8000 + e.zone) })),
       eggs.length ? '' : 'No zone places this room.']);
   }
@@ -1073,6 +1249,7 @@ function showMonsterDetail(idx) {
     if (r.proptype && refExists(cls)) chips.push(partChip('Class script', cls));
     const base = tiles[r.proptype];
     if (base !== undefined && refExists(0x8E00 + (base >> 4))) chips.push(partChip('Sprite sheet', 0x8E00 + (base >> 4)));
+    for (const n of classSounds(0x1900 + r.index)) chips.push(partChip('Sound', 0x9100 + n));
     if (refExists(0xF008)) chips.push(partChip('Stats table', 0xF008));
     chips.push(actionChip('Prop type', 'showPropTypeDetail(' + r.proptype + ')', 'every frame'));
     const made = document.createElement('div');

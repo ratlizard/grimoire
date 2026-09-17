@@ -1068,6 +1068,32 @@ function dvmCallArgs(ops, i) {
   }
   return out;
 }
+/* A call's operands as values. dvmCallArgs gives the ops one level inside a
+   call, but the listing is postfix, so one operand can take several ops:
+   `word 0x021D[0]`, `arg Arg00`, `get_field data1`, `add` is the text table
+   plus the prop's Data1, a single value. Grouped by what each op takes off
+   the stack, value k is the k-th thing the call receives, which is what a
+   reader means by "the second argument". A nested call is one value: its
+   own operands sit a level deeper, and its `end` closes it. */
+const DVM_BINARY_OPS = new Set(['add', 'sub', 'mul', 'div', 'mod', 'lt', 'le', 'gt', 'ge', 'ne', 'eq',
+  'bitwise_and', 'bitwise_or', 'bitwise_xor', 'left_shift', 'right_shift', 'and', 'or', 'index']);
+const DVM_UNARY_OPS = new Set(['neg', 'bitwise_not', 'not', 'len', 'has_member', 'class_member', 'get_field', 'cast', 'is_type']);
+function dvmCallValues(ops, i) {
+  const st = [];
+  for (const o of dvmCallArgs(ops, i)) {
+    if (o.mn === 'end') continue;
+    if (DVM_BINARY_OPS.has(o.mn)) { const b = st.pop() || [], a = st.pop() || []; st.push(a.concat(b, [o])); }
+    else if (DVM_UNARY_OPS.has(o.mn)) st.push((st.pop() || []).concat([o]));
+    else st.push([o]);
+  }
+  return st;
+}
+// A value that is one constant, as a number; one argument, as its index.
+function dvmValueNum(v) { return v && v.length === 1 ? dvmNum(v[0]) : null; }
+function dvmValueArg(v) {
+  const m = v && v.length === 1 && /^arg Arg([0-9A-F]{2})$/.exec(v[0].text);
+  return m ? parseInt(m[1], 16) : null;
+}
 // A quoted string an op pushes, as the game has it.
 function dvmOpString(op) {
   const m = op && /^string(?:\(implicit\))? ("(?:[^"\\]|\\.)*")/.exec(op.text);

@@ -3033,6 +3033,55 @@ try {
   else console.log('  hero and combat AI: the hero carries the four class lists and they name the hero; the Combat AI section and its scripts lead to each other');
 } catch (e) { fail('hero and combat AI', e); }
 
+/* Who plays a sound and what a window shows, 16 September 2026. Both were
+   joins the page did not have: a sound page said "no script names this sound"
+   for 27 of the 46, and a container's window was matched by the prop's name.
+   Each route the application has is pinned by one sound that only it reaches,
+   so a route that stops being followed fails by name:
+     - a constant in PlaySoundSync (delvmod's UnknownD4): 0x910A, the portcullis;
+     - a task queued to a helper that plays its argument: 0x9131, the smith;
+     - a weapon's class word: 0x9110 on the mace;
+     - a thrown thing's flight, ShootEffect's eighth operand: 0x910F, the pin;
+     - a creature's list, by index: 0x9117 on the gator;
+     - the default list built in 0x3041: 0x9116;
+     - a prop's own sound, where it stands: 0x9102, the fountain;
+     - an egg: 0x9106 on the shore.
+   The sounds nothing plays are pinned by name, both ways: one that gains a
+   player fails, and so does a sound the list does not expect to be silent.
+   Windows: the chest and the coffer share a picture through the helper, the
+   wanted poster comes from a placed poster's Data2, and the lute opens the
+   pipes as the shipped script does -- so the lute's own picture, which
+   nothing opens, must carry no window row. */
+try {
+  const usage = r => { ctx.jumpToResource(r); drainRaf(); return REGISTRY.get('artUsage')._html || ''; };
+  const SILENT = [0x911E, 0x911F, 0x9120, 0x9122, 0x912B];
+  const silent = [];
+  for (let n = 0; n < 256; n++) {
+    const r = 0x9100 + n;
+    if (!ctx.refExists(r)) continue;
+    if (ctx.soundUsageRows(r, 144).some(([, , note]) => /^Nothing plays this sound/.test(note))) silent.push(r);
+  }
+  const hex = r => '0x' + r.toString(16).toUpperCase();
+  const routes = [
+    [0x910A, /jumpToResource\(4135\)/, 'PlaySoundSync in 0x1027'],
+    [0x9131, /jumpToResource\(3206\)/, 'the task 0xC86 queues'],
+    [0x9110, /openItem\(94\)/, 'the mace’s class'],
+    [0x910F, /openItem\(163\)/, 'the rolling pin’s flight'],
+    [0x9117, /openUnit\(16\)/, 'the gator’s list'],
+    [0x9116, /jumpToResource\(12353\)/, 'the default list in 0x3041'],
+    [0x9102, /Sound of[\s\S]*fountain/, 'the fountain'],
+    [0x9106, /Heard in[\s\S]*showSquareOnMap/, 'an egg']];
+  const missed = routes.filter(([r, re]) => !re.test(usage(r)));
+  const chest = usage(0x8F0A), poster = usage(0x8F1A), pipes = usage(0x8F12), lute = usage(0x8F15);
+  if (silent.join() !== SILENT.join()) fail('sounds and windows', 'silent sounds are ' + silent.map(hex).join(' ') + ', expected ' + SILENT.map(hex).join(' '));
+  else if (missed.length) fail('sounds and windows', missed.map(([r, , what]) => hex(r) + ' does not name ' + what).join('; '));
+  else if (!/Window of/.test(chest) || !/openItem\(141\)/.test(chest) || !/openItem\(142\)/.test(chest)) fail('sounds and windows', '0x8F0A is not the window of the chest and the coffer');
+  else if (!/Window of[\s\S]*poster/.test(poster)) fail('sounds and windows', '0x8F1A is not the window of the poster that carries it');
+  else if (!/Window of[\s\S]*lute[\s\S]*panpipes/.test(pipes)) fail('sounds and windows', '0x8F12 is not the window of the lute and the panpipes, as the scripts have it');
+  else if (/Window of/.test(lute)) fail('sounds and windows', '0x8F15, which no script opens, has a window row');
+  else console.log(`  sounds and windows: every route names its sound, ${SILENT.length} sounds nothing plays, and the windows are the scripts’ own`);
+} catch (e) { fail('sounds and windows', e); }
+
 /* The patches section under Hackery, end to end, against a patch made here.
 
    WHY A SYNTHETIC PATCH AND NOT THE REAL ONE. The Pumpkin Patch arrives as a

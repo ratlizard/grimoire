@@ -424,10 +424,10 @@ function showPropTypeDetail(pt) {
       '</div>';
   panel.appendChild(head);
   {
-    const win = containerWindowFor(pt);
-    if (win) {
+    const wins = containerWindowsFor(pt);
+    if (wins.length) {
       const strip = document.createElement('div');
-      strip.innerHTML = partsStrip('Opens as', [partChip('Window', win)]);
+      strip.innerHTML = partsStrip('Opens as', wins.map(w => partChip('Window', w)));
       panel.appendChild(strip);
     }
   }
@@ -563,6 +563,7 @@ const ITEM_FIELD_INFO = {
   0x30: { scalar:true, gloss:'Reagent number, used by alchemy.' },
   0x32: { gloss:'Light this item casts.' },
   0x34: { gloss:'Lock parameters -- what a key or a lockpick is tested against.' },
+  0x3B: { gloss:'Sounds. A prop plays the first where it stands; a creature’s are the ones its fights play.' },
   0x3C: { scalar:true, unit:'obols', gloss:'Money value. Only the coin itself carries one; shop prices are computed in script.' }
 };
 // Keys that mark an item as gear rather than goods, used only for grouping.
@@ -573,20 +574,23 @@ function itemFieldLabel(key) {
   return m ? prettyLabel(m) : ('Key 0x' + key.toString(16).toUpperCase().padStart(4, '0'));
 }
 
+/* Any class's table, not only an item's: a monster class at 0x19xx is laid
+   out the same way, and the sound reader wants both. `bytes` is kept so a
+   word that points at another array in the same class can be followed. */
 window.ITEM_CLASSES = null;
-function parseItemClass(pt) {
+function parseItemClass(pt) { return parseClassTable(0x1000 + pt); }
+function parseClassTable(resid) {
   const cache = window.ITEM_CLASSES || (window.ITEM_CLASSES = {});
-  if (pt in cache) return cache[pt];
-  const resid = 0x1000 + pt;
+  if (resid in cache) return cache[resid];
   let b = null;
   try { const raw = getResourceBytes(resid); if (raw) b = smartDecrypt(raw, resid).data; } catch (e) {}
-  if (!b || b.length < 8) return (cache[pt] = null);
+  if (!b || b.length < 8) return (cache[resid] = null);
   let disc = null;
   try { disc = dvmDiscover(b, resid); } catch (e) {}
   const toff = disc ? disc.tableOffset : null;
-  if (toff === null || toff + 2 > b.length || (b[toff] & 0xF0) !== 0xA0) return (cache[pt] = null);
+  if (toff === null || toff + 2 > b.length || (b[toff] & 0xF0) !== 0xA0) return (cache[resid] = null);
   const count = u16be(b, toff) & 0x0FFF;
-  const cls = { resid, size: b.length, data: [], code: [], text: [], empty: 0, unknown: 0 };
+  const cls = { resid, size: b.length, bytes: b, data: [], code: [], text: [], empty: 0, unknown: 0 };
   for (let i = 0, p = toff + 2; i < count && p + 6 <= b.length; i++, p += 6) {
     const val = u32be(b, p);
     const key = u16be(b, p+4);
@@ -609,7 +613,21 @@ function parseItemClass(pt) {
   }
   cls.data.sort((a, b2) => a.key - b2.key);
   cls.code.sort((a, b2) => a.key - b2.key);
-  return (cache[pt] = cls);
+  return (cache[resid] = cls);
+}
+// Word `word` of a class's field `key`, as a number; with `slot`, that word
+// is a pointer to an array in the same class and the slot-th entry is read.
+function classFieldNumber(cls, key, word, slot) {
+  const f = cls && cls.data.find(x => x.key === key);
+  let w = f ? f.words[word] : undefined;
+  if (w === undefined) return null;
+  if (slot !== undefined) {
+    if (!(w & 0x80000000) || ((w >>> 16) & 0x7FFF) !== cls.resid) return null;
+    const arr = dvmArrayWords(cls.bytes, w & 0xFFFF);
+    w = arr ? arr[slot] : undefined;
+    if (w === undefined) return null;
+  }
+  return (w & 0xF0000000) === 0 ? w : null;
 }
 
 function itemFieldValue(f) {
@@ -1279,8 +1297,8 @@ function showItemDetail(pt) {
     if (cls && refExists(cls.resid)) chips.push(partChip('Class script', cls.resid));
     if (refExists(0x8E00 + (base >> 4))) chips.push(partChip('Sprite sheet', 0x8E00 + (base >> 4)));
     chips.push(actionChip('Prop type', 'showPropTypeDetail(' + pt + ')', 'every frame'));
-    const win = containerWindowFor(pt);
-    if (win) chips.push(partChip('Opens as', win));
+    for (const w of containerWindowsFor(pt)) chips.push(partChip('Opens as', w));
+    for (const n of classSounds(0x1000 + pt)) chips.push(partChip('Sound', 0x9100 + n));
     h += partsStrip('Made of', chips);
   }
   panel.innerHTML = h;

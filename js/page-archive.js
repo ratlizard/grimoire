@@ -111,7 +111,8 @@ function resetDerivedCaches() {
   // and the dirty list must not outlive the bytes it described.
   window.EDITED_RESIDS = new Set();
   window.SOUND_USAGE = null;
-  window.ROOM_EGGS = null;
+  window.EGGS = null;
+  window.SCRIPTED_WINDOWS = null;
   window.ZONE_BACKDROPS = null;
   /* The undither's frame lock reads the whole portrait corpus to decide which
      pixels one portrait shares with another, so both it and the undithered
