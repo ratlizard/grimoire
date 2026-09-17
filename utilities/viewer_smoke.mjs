@@ -2948,6 +2948,61 @@ try {
   else console.log(`  components: the dossier names its parts and reaches its schedule through Components; ${iconChips(skhtml)} skills and ${iconChips(sphtml)} spells chip at their icon`);
 } catch (e) { fail('components', e); }
 
+/* A component names what it belongs to, 16 September 2026. The other half of
+   the rule above: a page under Components that links nowhere is a tap that
+   goes nowhere, and a walk over every one of them found most class scripts,
+   every skill icon, every landscape and nearly every room script in that
+   state. ownerRows gives each the reverse of the chip that reaches it.
+
+   What this pins:
+     - EVERY class script -- items and objects (0x10xx, 0x11xx), monsters
+       (0x19xx), skills and spells (0x1Axx) -- carries an owner row, counted
+       over the whole family rather than sampled, so a family that loses its
+       join fails whole;
+     - the joins land where the numbering says: 0x1910 on monster record 16,
+       the gator; icon 0x8A05 on class 0x1A05; room 1 on Land King Hall at
+       (19,24), which is save-format.md's published egg, read from a saved
+       game and not from this code; effect 0xA03 on the potion at aspect 3;
+     - a tap arrives: openClassCard opens the card itself, not only the sheet.
+
+   The negative half: a landscape no zone sets (0x8401) and a room no zone
+   places (0x1C5F) must say so and link nothing. A join that matched loosely
+   -- every zone for every landscape -- would pass every presence test here. */
+try {
+  const usage = r => { ctx.jumpToResource(r); drainRaf(); return REGISTRY.get('artUsage')._html || ''; };
+  const owned = subn => {
+    let n = 0, missing = [];
+    for (let i = 0; i < 256; i++) {
+      const r = ((subn + 1) << 8) | i;
+      if (!ctx.refExists(r)) continue;
+      n++;
+      if (!ctx.ownerRows(r, subn).length) missing.push('0x' + r.toString(16).toUpperCase());
+    }
+    return { n, missing };
+  };
+  const fam = [15, 16, 24, 25].map(s => [s, owned(s)]);
+  const short = fam.find(([, o]) => !o.n || o.missing.length);
+  const gator = usage(0x1910), icon = usage(0x8A05), room = usage(0x1B01), fx = usage(0xA03);
+  const bare = usage(0x8401), lost = usage(0x1C5F);
+  if (short)
+    fail('component owners', `subindex ${short[0]}: ${short[1].n} class scripts, ${short[1].missing.length} with no owner row (${short[1].missing.slice(0, 5).join(' ')})`);
+  else if (!/openUnit\(16\)/.test(gator)) fail('component owners', '0x1910 does not name monster record 16 as its owner');
+  else if (!new RegExp('openClassCard\\(' + 0x1A05 + '\\)').test(icon)) fail('component owners', 'icon 0x8A05 does not name class 0x1A05');
+  else if (!new RegExp('showSquareOnMap\\(' + 0x8003 + ',19,24\\)').test(room)) fail('component owners', 'room 1 does not land on Land King Hall at (19,24)');
+  else if (!/openItem\(31,3\)/.test(fx)) fail('component owners', 'effect 0xA03 does not name the potion at aspect 3');
+  else if (!/No zone’s entry script sets this landscape/.test(bare) || /jumpToResource\(3276[89]/.test(bare))
+    fail('component owners', 'landscape 0x8401, which no zone sets, links a zone or does not say so');
+  else if (!/No zone places this room/.test(lost) || /showSquareOnMap/.test(lost))
+    fail('component owners', 'room 0x1C5F, which no egg places, links a square or does not say so');
+  else {
+    ctx.openClassCard(0x1A05);
+    await new Promise(r => setTimeout(r, 150));
+    const card = ctx.document.getElementById('spell-1a05') || ctx.document.getElementById('skill-1a05');
+    if (!card || !card.open) fail('component owners', 'openClassCard did not open the card for 0x1A05');
+    else console.log(`  component owners: ${fam.map(([s, o]) => o.n + ' in ' + s).join(', ')} all name their owner; room 1 lands on Land King Hall (19,24); the unused landscape and room link nothing`);
+  }
+} catch (e) { fail('component owners', e); }
+
 /* The patches section under Hackery, end to end, against a patch made here.
 
    WHY A SYNTHETIC PATCH AND NOT THE REAL ONE. The Pumpkin Patch arrives as a

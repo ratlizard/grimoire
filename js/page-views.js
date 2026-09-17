@@ -676,6 +676,143 @@ function soundUsageRows(resid, subn) {
   return rows;
 }
 
+/* ---- What a component belongs to -------------------------------------------
+   The maintainer's rule (13 September 2026): tapping almost anything should
+   take you somewhere. A walk over every page under Components on 16 September
+   found most of them led nowhere but back -- every landscape, every skill
+   icon, most class scripts and nearly every room script -- because the joins
+   existed in one direction only. A character chipped at its class script and
+   the class script never named the character; a zone chipped at its
+   landscape and the landscape never named a zone.
+
+   These are the reverse of those chips, and they keep the rule the section
+   comment above sets: each is a numbering the archive follows, never a name.
+
+     0x1000 + prop type   the class of that prop type (dvmClassName's Item)
+     0x1900 + n           the class of monster record n in 0xF008. The engine
+                          numbers Monster objects as it numbers characters
+                          (0x1800 + i is record i of 0xF009), and the file
+                          bears it out: all 29 of the shipped 0x19xx scripts
+                          land on a filled record, and the only one with a
+                          line of its own, 0x191A's "Something smells bad.",
+                          lands on the ooze.
+     0x1A00 | n           skill or spell n, and 0x8A00 | n its icon
+     0x1B00 + room        the room a kind-8 egg carries as its prop type,
+                          which eggKinds already checks resolves
+     0x8400 + n           the landscape a zone's entry script sets with n
+     0xA00 + aspect       the potion the class 0x101F calls it for
+
+   The inventory windows in 0x8Fxx are left out on purpose: that join is
+   CONTAINER_WINDOWS, which matches prop names, and the reverse of a guess
+   printed as a link would read as a fact. So are the shared helpers, the
+   default methods at 0x30xx and the combat AI: they belong to no one thing,
+   and "Referenced by" is already the honest row for them. */
+
+// Where a class leads. Through openVia, so the tabs light and the deep link
+// is written once, as a dossier opened from a component already does.
+function openItem(pt, aspect) {
+  openVia('ITEMS', () => { if (aspect === undefined) showItemDetail(pt); else propWordOpen(pt, aspect); });
+}
+function openUnit(idx) { openVia('MONSTERS', () => showMonsterDetail(idx)); }
+function openPropType(pt) { openVia('PROPS', () => showPropTypeDetail(pt)); }
+
+// A skill or a spell is a card on its sheet, not a page of its own, so this
+// opens the sheet and then the card, deferred a tick for the reason
+// openSchedule gives. A command has no card; the sheet is where it is listed.
+function openClassCard(resid) {
+  let spell = false;
+  try { spell = spellRules().spells.some(s => s.resid === resid); } catch (e) {}
+  openVia(spell ? 'SPELLS' : 'SKILLS', () => {
+    setTimeout(() => {
+      const el = document.getElementById((spell ? 'spell-' : 'skill-') + resid.toString(16));
+      if (!el) return;
+      el.open = true;
+      if (el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  });
+}
+
+// A thing on a Scenario tab, wearing its own sprite where it has one.
+function ownerChip(cat, js, main, sub, pt) {
+  const leaf = TAB_LEAF_FOR.get(cat);
+  let icon = '';
+  if (pt !== undefined) icon = relIconURL({ icon: pt });
+  if (!icon && leaf) icon = relIconURL({ tile: leaf.tile });
+  return relChip({ js, main, sub, icon, title: leaf ? tabTrail(leaf) : '' });
+}
+function unitChip(idx) {
+  const m = parseMonsterStats()[idx];
+  return ownerChip('MONSTERS', 'openUnit(' + idx + ')', propDisplayName(m.proptype) || 'record ' + idx, 'unit', m.proptype);
+}
+
+// Every room egg in the file, by room number: the zone and the square.
+window.ROOM_EGGS = null;
+function roomEggIndex() {
+  if (window.ROOM_EGGS) return window.ROOM_EGGS;
+  const rooms = new Map();
+  for (let z = 0; z < 0x100; z++) {
+    if (!refExists(0x8100 + z)) continue;
+    let list;
+    try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
+    for (const r of list) {
+      if (r.flags !== 0x42 || r.aspect !== 8) continue;
+      if (!rooms.has(r.proptype)) rooms.set(r.proptype, []);
+      rooms.get(r.proptype).push({ zone: z, x: r.x, y: r.y });
+    }
+  }
+  return (window.ROOM_EGGS = rooms);
+}
+
+function ownerRows(resid, subn) {
+  const rows = [];
+  if (subn === 15 || subn === 16) {
+    // A living prop type is a unit, and the unit's page lists the characters
+    // who wear it; anything else is an item or, failing that, a prop type.
+    const pt = resid - 0x1000;
+    const units = parseMonsterStats().filter(m => !m.blank && m.proptype === pt);
+    let chips = units.map(m => unitChip(m.index));
+    if (!chips.length && isInventoryItem(pt))
+      chips = [ownerChip('ITEMS', 'openItem(' + pt + ')', propDisplayName(pt) || 'prop type ' + pt, 'item', pt)];
+    else if (!chips.length && getPropTileList()[pt] !== undefined)
+      chips = [ownerChip('PROPS', 'openPropType(' + pt + ')', propDisplayName(pt) || 'prop type ' + pt, 'prop type', pt)];
+    if (chips.length) rows.push(['Class of', chips, '']);
+  }
+  if (subn === 24) {
+    const m = parseMonsterStats()[resid - 0x1900];
+    if (m && !m.blank) rows.push(['Class of', [unitChip(m.index)], '']);
+  }
+  if (subn === 25 || subn === 137) {
+    const cls = 0x1A00 | (resid & 0xFF);
+    if (refExists(cls)) {
+      let spell = false;
+      try { spell = spellRules().spells.some(s => s.resid === cls); } catch (e) {}
+      const kind = spell ? 'spell' : skillKind(cls) === 'command' ? 'command' : 'skill';
+      const chip = ownerChip(spell ? 'SPELLS' : 'SKILLS', 'openClassCard(' + cls + ')',
+                             selfNameFor(cls) || labelFor(cls) || kind, kind);
+      rows.push([subn === 137 ? 'Icon of' : 'Script of', [chip], '']);
+    }
+  }
+  if (subn === 26 || subn === 27 || subn === 29) {
+    const eggs = roomEggIndex().get(resid - 0x1B00) || [];
+    rows.push(['Room in', eggs.map(e => relChip({
+      js: 'showSquareOnMap(' + (0x8000 + e.zone) + ',' + e.x + ',' + e.y + ')',
+      main: zoneDisplayName(e.zone), sub: 'at ' + e.x + ', ' + e.y,
+      icon: relIconFor(0x8000 + e.zone), title: trailForResid(0x8000 + e.zone) })),
+      eggs.length ? '' : 'No zone places this room.']);
+  }
+  if (subn === 131) {
+    const n = resid - 0x8400, zones = [];
+    for (let z = 0; z < 0x100; z++) if (refExists(0x8000 + z) && zoneLandscapeArg(z) === n) zones.push(svChip(0x8000 + z));
+    rows.push(['Behind', zones, zones.length ? '' : 'No zone’s entry script sets this landscape.']);
+  }
+  if (subn === 9 && refExists(0x101F)) {
+    let potion = null;
+    try { potion = foodRules().potions.find(p => p.resid === resid); } catch (e) {}
+    if (potion) rows.push(['Drunk as', [ownerChip('ITEMS', 'openItem(' + 0x1F + ',' + (resid - 0xA00) + ')', potion.name, 'aspect ' + (resid - 0xA00), 0x1F)], '']);
+  }
+  return rows;
+}
+
 function renderUsage(resid, subn) {
   const rows = [];
   const chars = loadCharacterTable();
@@ -691,6 +828,7 @@ function renderUsage(resid, subn) {
     const map = 0x8000 + (resid & 0xFF);
     if (refExists(map)) rows.push(['Runs for', [partChip(subn === 19 ? 'Zone' : 'Sub-zone of', map)], '']);
   }
+  try { for (const r of ownerRows(resid, subn)) rows.push(r); } catch (e) {}
   if (subn === 144 || subn === 143) for (const r of soundUsageRows(resid, subn)) rows.push(r);
   let ins = [];
   try { ins = buildXrefIndex().inbound[resid] || []; } catch (e) {}
