@@ -1392,7 +1392,9 @@ body.atlasFull { overflow:hidden; }
 #archiveMenu { right:0; }
 #searchWrap, #creditsMenu { right:0; max-width:min(560px, calc(100vw - 24px)); width:min(560px, calc(100vw - 24px)); }
 #archiveMenu.open, #creditsMenu.open, #searchWrap.open { display:block; }
-#creditsMenu ul { margin:0 0 10px; padding-left:18px; }
+#creditsMenu h4 { margin:10px 0 3px; font-size:0.8125rem; font-weight:normal; color:#c9bd93; }
+#creditsMenu h4:first-child { margin-top:0; }
+#creditsMenu ul { margin:0; padding-left:18px; }
 #creditsMenu li { margin:2px 0; }
 #creditsMenu p { margin:8px 0 0; }
 #creditsMenu a { color:var(--gold); text-decoration:none; }
@@ -1534,21 +1536,39 @@ body.atlasFull { overflow:hidden; }
 </div>
 <div id="creditsCaret" aria-hidden="true"></div>
 <div id="creditsMenu" role="dialog" aria-label="Credits">
+  <h4>Community</h4>
   <ul>
-    <li><strong>Glenn Andreas</strong>: writer and developer of Cythera</li>
-    <li><strong>Andrew Welch</strong>: the game’s sounds</li>
-    <li><strong>Marcus Conge</strong>: the game’s artwork, with Glenn Andreas</li>
-    <li><strong>Randy Pringle</strong>: the game’s music</li>
-    <li><strong>Ambrosia Software</strong>: publisher of Cythera</li>
-    <li><strong>Bryce Schroeder</strong>, with <strong>Chris Pickel (sfiera)</strong> and <strong>Chaim Halbert</strong>: delvmod, the Delver formats and disassembler, and the delvmod wiki, which are the reverse engineering and the tooling this page is checked against</li>
+    <li><strong>453</strong>, <strong>Wizard</strong>, and <strong>Troyen</strong>, who runs the <a href="https://discord.gg/u5BDQvyem4" target="_blank" rel="noopener">Alraeican Tavern Discord</a>, where the community is now</li>
+    <li><strong>Selax</strong>: the saved games among the add-ons</li>
+    <li><strong>Tycho Maudd</strong>: the menu patch</li>
     <li><a href="https://cytheraguides.com" target="_blank" rel="noopener"><strong>Cythera Guides</strong></a>, and the sites it keeps in its archives, <strong>Slayer</strong>’s among them</li>
-    <li><strong>Ben Letchford</strong>: systemless and stuffit-rs, which this page’s readers for HFS volumes, Installer VISE and StuffIt were written from, and through them <strong>ScummVM</strong> and The Unarchiver’s <strong>XADMaster</strong></li>
-    <li><strong>Susan Kare</strong>, who drew Chicago for the Macintosh in 1984, and <strong>Duane King</strong>, whose Chicago Kare reproduces it: the face this page is set in until a game file is open</li>
-    <li><strong>Sam Wang</strong>: Argos A Nouveau, the face the game carries and this page reads out of it</li>
-    <li>the community’s add-ons: <strong>Selax</strong>’s saved games and <strong>Tycho Maudd</strong>’s menu patch</li>
-    <li>the <strong>Cythera community</strong> at large!</li>
   </ul>
-  <p>Grimoire is maintained by <strong>EgadZoundsGadzooks</strong> and rests on decades of work by the Cythera community. Particular thanks to <strong>453</strong>, <strong>Wizard</strong>, and <strong>Troyen</strong>, who runs the <a href="https://discord.gg/u5BDQvyem4" target="_blank" rel="noopener">Alraeican Tavern Discord</a>, where the community is now.</p>
+  <h4>The game</h4>
+  <ul>
+    <li><strong>Glenn Andreas</strong>: the Delver engine, the scenario and the artwork</li>
+    <li><strong>Marcus Conge</strong>: the artwork</li>
+    <li><strong>Randy Pringle</strong>: the music</li>
+    <li><strong>Andrew Welch</strong>: the sounds</li>
+    <li><strong>Ambrosia Software</strong>: the publisher</li>
+  </ul>
+  <h4>Formats</h4>
+  <ul>
+    <li><strong>Bryce Schroeder</strong>, with <strong>Chris Pickel (sfiera)</strong> and <strong>Chaim Halbert</strong>: delvmod and its wiki, which this page is checked against</li>
+  </ul>
+  <h4>Code</h4>
+  <ul>
+    <li><strong>Ben Letchford</strong>: systemless and stuffit-rs, the source of the HFS, Installer VISE and StuffIt readers</li>
+    <li><strong>ScummVM</strong> and <strong>The Unarchiver</strong>: the tables those readers carry</li>
+  </ul>
+  <h4>Typefaces</h4>
+  <ul>
+    <li><strong>Susan Kare</strong>: Chicago and Geneva, drawn for the Macintosh in 1984</li>
+    <li><strong>Duane King</strong>: Chicago Kare, the headings</li>
+    <li><strong>Kelsey Higham</strong>: Geneva 9.1, the text</li>
+    <li><strong>Brian Connors</strong>: Carthage Sans, the marks the other two lack</li>
+    <li><strong>Sam Wang</strong>: Argos A Nouveau, the game’s own face, read out of an open file</li>
+  </ul>
+  <p>Grimoire is maintained by <strong>EgadZoundsGadzooks</strong>.</p>
   <p>Parts of this page were written with Claude, Gemini and Perplexity.</p>
   <p class="amNote">Cythera and Delver are trademarks of Glenn Andreas and/or Ambrosia Software, Inc.
     This is an unofficial fan-made research tool. The game, its data and its installer remain the copyright of Ambrosia Software and/or Glenn Andreas; none of it is stored here.</p>
@@ -1966,7 +1986,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.107.0';
+const GRIMOIRE_VERSION = '1.107.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
