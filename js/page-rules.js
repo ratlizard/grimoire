@@ -3042,6 +3042,32 @@ function deletedAcrossZoneChange() {
   return out;
 }
 
+/* stateNoSaveKeeps: a word a script writes into a script resource with
+   write_far_word, and the scripts that read it back. A saved game holds the
+   To Do list, the macros, the live game, each visited zone's things and map
+   memory, the portrait, the character records and the script heap, and no
+   script resource: two saves made from a new game hold none (checked
+   17 September 2026 against the playthrough kit's). So such a word is
+   whatever the last game to write it wrote. Creating the hero writes the
+   hero's gender to word 0x10 of resource 0x0500, which is the board's "If you
+   start a game as a male, then start another game as a female, and go back
+   to the male-character game, NPCs will refer to you as 'she'"; the inns
+   write the room paid for to word 0x16 of 0x0301, which a bed checks. */
+function stateNoSaveKeeps() {
+  const words = new Map();
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    for (const o of ops) {
+      const m = /^(write|load)_far_word 0x([0-9A-F]{8})$/i.exec(o.text);
+      if (!m) continue;
+      const w = parseInt(m[2], 16);
+      if (!words.has(w)) words.set(w, { resource: w >>> 16, offset: w & 0xFFFF, writers: [], readers: [] });
+      words.get(w)[m[1].toLowerCase() === 'write' ? 'writers' : 'readers'].push({ resid: e.resid, at: o.at });
+    }
+  }
+  return [...words.values()].filter(w => w.writers.length && w.readers.length);
+}
+
 /* leaveNeverLeaves: a character who can join the party, answers "leave",
    and never calls LeaveParty anywhere in their script. Hector, Meleager,
    Timon and Dryas each call it in theirs; Aethon says "Maybe it is time for
