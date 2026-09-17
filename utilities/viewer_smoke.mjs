@@ -3082,6 +3082,31 @@ try {
   else console.log(`  sounds and windows: every route names its sound, ${SILENT.length} sounds nothing plays, and the windows are the scripts’ own`);
 } catch (e) { fail('sounds and windows', e); }
 
+/* Each one placed, 16 September 2026, after the maintainer asked what the red
+   book was against the blue one. An item page lists its props by aspect and
+   Data1 when they come in more than one, with what the class reads the number
+   as and a chip that opens each square. Pinned on the book, whose colour is
+   only its aspect and whose Data1 is the passage: the Sapphire Book of Power
+   is a blue book on its own square below Cademia, and Alaric's Government is
+   one red open book in three desks. The negative half: eggs are records whose
+   prop-type field is an argument, and three carry 26, the book's -- one sits
+   at (57,13) in Cademia -- so no chip may open that square; and a class whose
+   placed props are all alike (the club) carries no list at all. */
+try {
+  const walk = el => (el.innerHTML || '') + (el.children || []).map(walk).join('');
+  ctx.showItemDetail(0x1A); drainRaf();
+  const book = walk(REGISTRY.get('sheetGrid'));
+  const govt = /Alaric’s Government|Alaric's Government/.exec(book);
+  const govtRow = govt ? book.slice(govt.index, book.indexOf('</tr>', govt.index)) : '';
+  const club = Object.keys(ctx.getPropTileList()).map(Number).find(p => ctx.propDisplayName(p) === 'club');
+  if (!/Each one/.test(book)) fail('each one', 'the book page has no list of each one placed');
+  else if (!/Sapphire Book of Power[\s\S]{0,600}showSquareOnMap\(32796,13,38\)/.test(book)) fail('each one', 'the Sapphire Book of Power does not open its square below Cademia');
+  else if ((govtRow.match(/showSquareOnMap\(/g) || []).length !== 3 || !/in a desk/.test(govtRow)) fail('each one', 'Alaric’s Government is not three desks: ' + (govtRow.match(/showSquareOnMap\(/g) || []).length);
+  else if (/showSquareOnMap\(32776,57,13\)/.test(book)) fail('each one', 'an egg carrying 26 was listed as a book, at Cademia (57,13)');
+  else if (club === undefined || ctx.itemEachOneHTML(club)) fail('each one', 'the club, whose placed props are all alike, carries a list');
+  else console.log('  each one: the book lists each passage where it lies, eggs left out, and a class of alike props lists nothing');
+} catch (e) { fail('each one', e); }
+
 /* The patches section under Hackery, end to end, against a patch made here.
 
    WHY A SYNTHETIC PATCH AND NOT THE REAL ONE. The Pumpkin Patch arrives as a

@@ -511,6 +511,10 @@ function showPropTypeDetail(pt) {
       (users.length > 40 ? ' <span style="color:#8c8980">+' + (users.length - 40) + ' more</span>' : '');
     panel.appendChild(u);
   }
+  {
+    const each = itemEachOneHTML(pt);
+    if (each) { const d = document.createElement('div'); d.innerHTML = each; panel.appendChild(d); }
+  }
   grid.appendChild(panel);
   out.textContent = (propDisplayName(pt, base) || 'prop type 0x' + pt.toString(16).toUpperCase()) +
     (info.rows > 1 ? ', ' + info.rows + ' facings' : '');
@@ -1266,6 +1270,129 @@ function renderItemSheet() {
     (orphans.length ? '; ' + orphans.length + ' picture' + (orphans.length === 1 ? '' : 's') + ' no class owns' : '') + '.';
 }
 
+/* Each one placed, and what tells them apart.
+
+   The zone chips on an item's page say where a class's props are and how
+   many, which is all there is to say about a torch. It is not enough for a
+   class whose props differ: a book's aspect is only its colour and its Data1
+   is which book it is, a key's Data1 is the lock it fits, a potion's aspect
+   is which potion. The maintainer asked what the red book was against the
+   blue one (16 September 2026), and the page could not say where either was.
+
+   So when a class's placed props come in more than one aspect and Data1,
+   each pair is a row: its picture, its numbers, and what the class reads the
+   number as where libraryRules has read that (the first line of the passage
+   it opens); then a chip for every prop, opening its square. A prop inside a
+   container is placed at the container's square, followed up the chain, and
+   one carried names who carries it. Eggs and roofs (flags 0x40) are records
+   whose prop-type field is an argument, not a prop, and are left out, as the
+   library leaves them out. */
+window.ITEM_PLACES = null;
+function itemPlaces(pt) {
+  if (!window.ITEM_PLACES) {
+    const all = new Map();
+    for (let z = 0; z < 0x100; z++) {
+      if (!refExists(0x8100 + z)) continue;
+      let list;
+      try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
+      for (const r of list) {
+        if (r.flags === 0xFF || (r.flags & 0x40)) continue;
+        const p = { zone: z, aspect: r.aspect, d1: r.d1, d2: r.d2, host: null };
+        let top = r;
+        for (let k = 0; k < 8 && top && top.container !== null; k++) {
+          const h = list[top.container];
+          if (p.host === null && h) p.host = h.proptype;
+          top = h;
+        }
+        if (top && top.onMap) { p.x = top.x; p.y = top.y; }
+        else if (top && top.carriedBy !== null) p.carriedBy = top.carriedBy;
+        if (!all.has(r.proptype)) all.set(r.proptype, []);
+        all.get(r.proptype).push(p);
+      }
+    }
+    window.ITEM_PLACES = all;
+  }
+  return window.ITEM_PLACES.get(pt) || [];
+}
+
+// What a class reads its Data1 and Data2 as, where it opens a passage by them.
+function itemDataMeaning(pt) {
+  const out = {};
+  let lib = null;
+  try { lib = libraryRules(); } catch (e) { lib = null; }
+  for (const d of lib || []) for (const r of d.readers) {
+    if (r.pt !== pt) continue;
+    const m = out[r.field] || (out[r.field] = new Map());
+    for (const e of d.entries) if (!m.has(e.index)) m.set(e.index, String(e.str).split('\n')[0].trim());
+  }
+  return out;
+}
+
+function placeChip(p, n) {
+  const map = 0x8000 + p.zone;
+  const note = n > 1 ? '\u00d7' + n : '';
+  // A carrier the character table has; one key in Land King Hall is held by
+  // a number that is not a character (0xF02F), and says only that it is carried.
+  if (p.carriedBy !== undefined) return loadCharacterTable()[p.carriedBy] ? characterChip(p.carriedBy)
+    : relChip({ resid: map, main: zoneLabel(p.zone), sub: 'carried', note, title: trailForResid(map) });
+  const inside = p.host !== null ? 'in a ' + (propDisplayName(p.host) || 'container') : '';
+  if (p.x === undefined) return relChip({ resid: map, main: zoneLabel(p.zone), sub: inside, note, title: trailForResid(map) });
+  return relChip({ js: 'showSquareOnMap(' + map + ',' + p.x + ',' + p.y + ')', main: zoneLabel(p.zone),
+                   sub: (inside ? inside + ', ' : '') + 'at ' + p.x + ', ' + p.y, note,
+                   icon: relIconFor(map), title: trailForResid(map) });
+}
+
+function itemEachOneHTML(pt) {
+  const places = itemPlaces(pt);
+  if (places.length < 2) return '';
+  const meaning = itemDataMeaning(pt);
+  const byD2 = !!meaning.d2;
+  const groups = new Map();
+  for (const p of places) {
+    const k = p.aspect + '/' + p.d1 + (byD2 ? '/' + p.d2 : '');
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(p);
+  }
+  if (groups.size < 2) return '';
+  const base = getPropTileList()[pt] || 0;
+  const all = [...groups.values()].sort((a, b) => a[0].d1 - b[0].d1 || a[0].d2 - b[0].d2 || a[0].aspect - b[0].aspect);
+  // A look is named when its name says something: a potion by what the class
+  // makes of it drunk, anything else by its tile's name where the aspects
+  // placed do not all share one ("bread", "cheese"; not "book" six times).
+  const tileNames = new Set(all.map(l => terrainNameFor(base + l[0].aspect) || ''));
+  const lookName = a => {
+    let u = null;
+    try { u = aspectUseAt(pt, a); } catch (e) { u = null; }
+    if (u && u.kind === 'potion' && !u.beyond && u.name) return u.name;
+    return tileNames.size > 1 ? (terrainNameFor(base + a) || '') : '';
+  };
+  const rows = all.slice(0, 40).map(list => {
+    const p = list[0];
+    let icon = '';
+    try { icon = relIconURL({ tile: base + p.aspect }); } catch (e) { icon = ''; }
+    const said = (meaning.d1 && meaning.d1.get(p.d1)) || (byD2 && meaning.d2.get(p.d2)) || '';
+    const head = (icon ? '<img class="relIcon" src="' + icon + '" alt="" width="16" height="16"> ' : '') +
+      (lookName(p.aspect) ? svEsc(lookName(p.aspect)) + ', ' : '') +
+      'aspect ' + p.aspect + ', Data1 ' + p.d1 + (byD2 ? ', Data2 ' + p.d2 : '') +
+      (said ? '<br>“' + svEsc(said) + '”' : '');
+    // Props on the same square, in the same container or with the same
+    // carrier are one chip with a count.
+    const spots = new Map();
+    for (const q of list) {
+      const k = [q.zone, q.x, q.y, q.host, q.carriedBy].join('/');
+      if (!spots.has(k)) spots.set(k, { p: q, n: 0 });
+      spots.get(k).n++;
+    }
+    const each = [...spots.values()];
+    const chips = each.slice(0, 12).map(s2 => placeChip(s2.p, s2.n)).join('') +
+      (each.length > 12 ? ' <span class="inspDim">and ' + (each.length - 12) + ' more places</span>' : '');
+    return '<tr><td class="skillKey">' + head + '</td><td>' + chips + '</td></tr>';
+  });
+  return '<div class="eachOne" style="margin-top:10px"><b style="color:#b5b2a8;font-size:0.6875rem;letter-spacing:0">Each one</b>' +
+    '<table class="vocabTable barkTable mechTable"><tbody>' + rows.join('') + '</tbody></table>' +
+    (all.length > 40 ? '<div class="inspDim">and ' + (all.length - 40) + ' more kinds</div>' : '') + '</div>';
+}
+
 function showItemDetail(pt) {
   stopSpriteAnimations();
   markDetailView('item', pt);
@@ -1507,6 +1634,7 @@ function showItemDetail(pt) {
           ' <em>\u00d7' + byHost[k] + '</em></button>').join(' ') +
         '</div>';
     }
+    body += itemEachOneHTML(pt);
     fold('world', 'In the world', idx.total + ' placed' + (idx.carried + idx.equipped ? ', ' + (idx.carried + idx.equipped) + ' carried' : '') + (idx.contained ? ', ' + idx.contained + ' in containers' : ''), body);
   } else {
     fold('world', 'In the world', 'none placed', '<div class="sv-note">No instance of this item is placed in the shipped scenario, it is either created by a script or unused.</div>');

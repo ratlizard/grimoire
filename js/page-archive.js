@@ -100,6 +100,7 @@ function resetDerivedCaches() {
   window.CUR_MAP = null;
   window.ITEM_CLASSES = null;
   window.ITEM_INDEX = null;
+  window.ITEM_PLACES = null;
   window.ITEM_WORN = null;
   window.ORPHAN_ART = null;
   window.PROP_WORD_RULES = null;
