@@ -862,11 +862,11 @@ const TAB_TREE = [
          link targets and are untouched, which is what lets mechLink keep
          working by looking up which tab a section is now on. */
       { id: 'mechanics',  label: 'Mechanics',  tile: 0x82F, children: [   // dice
-          { id: 'mechprogress', label: 'Progress',     tile: 0x380, values: ['MECH_PROGRESS'] },   // a ladder: what a character climbs
-          { id: 'mechstatus',   label: 'Status',       tile: 0x22C, values: ['MECH_STATUS'] },     // the purple potion
-          { id: 'mechinteract', label: 'Interactions', tile: 0x3A0, values: ['MECH_INTERACT'] },   // a trapdoor: a thing that is used
-          { id: 'mechpuzzles',  label: 'Puzzles',      tile: 0x4FA, values: ['MECH_PUZZLES'] },    // a button
-          { id: 'mechcombat',   label: 'Combat',       tile: 0x203, values: ['MECH_COMBAT'] },     // an axe
+          { id: 'mechprogress', label: 'Progress',     tile: 0x240, values: ['MECH_PROGRESS'] },   // the blue book, the maintainer's pick, 16 September 2026; it was a ladder (0x380)
+          { id: 'mechstatus',   label: 'Status',       tile: 0x3CE, values: ['MECH_STATUS'] },     // a sundial, the maintainer's pick, 16 September 2026; it was the purple potion (0x22C)
+          { id: 'mechinteract', label: 'Interactions', tile: 0x29D, values: ['MECH_INTERACT'] },   // a lockpick, the maintainer's pick, 16 September 2026; it was a trapdoor (0x3A0)
+          { id: 'mechpuzzles',  label: 'Puzzles',      tile: 0x266, values: ['MECH_PUZZLES'] },    // the strange device, the maintainer's pick, 16 September 2026; it was a button (0x4FA)
+          { id: 'mechcombat',   label: 'Combat',       tile: 0x21E, values: ['MECH_COMBAT'] },     // a full helmet, the maintainer's pick, 16 September 2026; it was an axe (0x203)
           { id: 'mecheconomy',  label: 'Economy',      tile: 0x82E, values: ['MECH_ECONOMY'] } ] },// a scale
       /* Hackery is the machinery under the scenario rather than a rule of
          play: how a record is laid out, what a use can be aimed at, what an
@@ -878,9 +878,9 @@ const TAB_TREE = [
          several values and syncTabsTo draws a chip for each, which is how
          Misc holds three galleries -- so the tab is one tab with one icon,
          as asked, and the #c=CHEATS deep link still lands. */
-      { id: 'hackery', label: 'Hackery', tile: 0x266, values: ['HACKERY', 'CHEATS'] } ] },   // the strange device
+      { id: 'hackery', label: 'Hackery', tile: 0x207, values: ['HACKERY', 'CHEATS'] } ] },   // the hatchet, the picture no class owns, the maintainer's pick, 16 September 2026; it was the strange device (0x266), which Puzzles wears now
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
-      { id: 'text', label: 'Text', tile: 0x3AE, children: [                                   // the tombstone, second frame
+      { id: 'text', label: 'Text', tile: 0x4D5, children: [                                   // graffiti, the maintainer's pick, 16 September 2026; it was the tombstone's second frame (0x3AE)
           { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['STRINGS'] },                          // a poster; the forks' string lists
           // The dialogue box's own frame tile, which is what the executable's
           // FrameBox draws round every bordered window -- so the tab wears the
@@ -941,7 +941,7 @@ const TAB_TREE = [
   // Data opens on Cythera Data (`last`), whatever comes first in the row:
   // the installer is first because it is where the rest came from, not the
   // thing most visits are for.
-  { id: 'data', label: 'Data', tile: 0x242, tileOpen: 0x243, last: 'cytheradata', children: [   // the red book
+  { id: 'data', label: 'Data', tile: 0x262, tileOpen: 0x263, last: 'cytheradata', children: [   // paper, and paper written on when open: the maintainer's pick, 16 September 2026; it was the red book (0x242, 0x243)
       /* The Data tabs wear the icons of the files themselves where the file
          has one (the maintainer, 14 September 2026). `finder` is the Finder
          type whose icon the application's bundle carries, `crsr` a colour
@@ -990,7 +990,7 @@ const TAB_TREE = [
           { id: 'aiscripts', label: 'Scripts', tile: 0x8FC, wip: true, values: ['AISCRIPTS'] },  // the seven arrows, the maintainer's pick, 16 September 2026
           { id: 'airules',   label: 'Rules',   tile: 0x811, wip: true, values: ['AIRULES'] } ] } ] },  // the hay target
   // Not part of the archive: the page's own switches and its sister pages.
-  { id: 'tools', label: 'Tools', tile: 0x2E0, values: ['TOOLS'] }                        // the anvil
+  { id: 'tools', label: 'Tools', tile: 0x2A9, tileOpen: 0x2AD, values: ['TOOLS'] }       // a wheelbarrow, another frame of it when selected: the maintainer's pick, 16 September 2026; it was the anvil (0x2E0)
 ];
 
 // What the faded tabs with nothing behind them say when opened.

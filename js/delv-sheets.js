@@ -265,19 +265,19 @@ function mechCardAboveGallery(grid, build) {
    what an egg does, what calls what, and the places the file does not add
    up. */
 const MECH_GROUPS = [
-  { value: 'MECH_PROGRESS', title: 'Progress', tile: 0x380,
+  { value: 'MECH_PROGRESS', title: 'Progress', tile: 0x240,
     note: 'What a character gains, and what it costs to be taught.',
     ids: ['experience', 'karma', 'training', 'todo'] },
-  { value: 'MECH_STATUS', title: 'Status', tile: 0x22C,
+  { value: 'MECH_STATUS', title: 'Status', tile: 0x3CE,
     note: 'The body and the clock: what feeds, heals, poisons and wears off.',
     ids: ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'light', 'springs'] },
-  { value: 'MECH_INTERACT', title: 'Interactions', tile: 0x3A0,
+  { value: 'MECH_INTERACT', title: 'Interactions', tile: 0x29D,
     note: 'What a thing does when it is used.',
     ids: ['locks'] },
   { value: 'MECH_PUZZLES', title: 'Puzzles', tile: 0x266,
     note: 'The ones the file answers outright, a section each.',
     ids: ['braziers', 'buttons', 'riddles', 'tunes', 'signals'] },
-  { value: 'MECH_COMBAT', title: 'Combat', tile: 0x203,
+  { value: 'MECH_COMBAT', title: 'Combat', tile: 0x21E,
     note: 'What a blow does, who swings it, and what it does to a thing.',
     ids: ['combat', 'combatai', 'damage', 'gear'] },
   { value: 'MECH_ECONOMY', title: 'Economy', tile: 0x82E,

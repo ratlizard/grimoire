@@ -297,8 +297,15 @@ function showSpriteZoom(tileId, label) {
     f.innerHTML = facts;
     ov.appendChild(f);
   }
-  ov.appendChild(dl);
-  ov.onclick = (e) => { if (e.target !== dl) ov.remove(); };
+  const gif = document.createElement('button');
+  gif.className = 'secondary';
+  gif.textContent = 'Download GIF';
+  gif.onclick = (e) => { e.stopPropagation(); downloadPropGIF(tileId, [0]); };
+  const saves = document.createElement('div');
+  saves.style.cssText = 'display:flex;gap:8px';
+  saves.appendChild(dl); saves.appendChild(gif);
+  ov.appendChild(saves);
+  ov.onclick = (e) => { if (e.target !== dl && e.target !== gif) ov.remove(); };
   const esc = (e) => { if (e.key === 'Escape') { ov.remove(); document.removeEventListener('keydown', esc); } };
   document.addEventListener('keydown', esc);
   document.body.appendChild(ov);

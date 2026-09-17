@@ -451,13 +451,9 @@ function showPropTypeDetail(pt) {
       (run.frames.length === 1 ? ' ' + run.frames[0] : 's ' + run.frames[0] + ' to ' + run.frames[run.frames.length-1]) +
       (own ? '' : ', a neighbour on this sheet, not this prop');
     panel.appendChild(runHead);
-    if (own) {
-      const gb = document.createElement('button');
-      gb.className = 'secondary'; gb.style.cssText = 'width:auto;margin:0 0 4px;padding:4px 10px;font-size:0.75rem';
-      gb.textContent = run.frames.length > 1 ? 'Save these frames as an animated GIF' : 'Save as GIF';
-      gb.onclick = () => downloadPropGIF(base, run.frames);
-      panel.appendChild(gb);
-    }
+    // A frame saves as a GIF from its own view, beside the PNG; the button
+    // that saved a run as an animated GIF went on 16 September 2026 (the
+    // maintainer).
     const colours = null;   // the colour words ("cobalt", "pale") were removed by request
     const sheet = document.createElement('div');
     sheet.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px';
