@@ -3351,6 +3351,96 @@ try {
   }
 } catch (e) { fail('patches', e); }
 
+/* The hero's colours, end to end: the part table against the shipped art,
+   a recolour that moves only what was chosen, and the patch it writes read
+   back through the patches section and applied.
+
+   THE PART TABLE IS A JUDGEMENT, SO WHAT IS PINNED IS ITS COVERAGE. Nothing
+   in the file says which pixel is hair; what can be required is that every
+   pixel of both shipped sheets is either transparent, the outline, or given
+   to a part, and that every part has pixels. A release or a mod that redraws
+   the sheet would fail the first half here before it recoloured a guess.
+
+   The negative control comes first: with nothing chosen the frames must come
+   back byte for byte and no patch must be offered, so a section that always
+   wrote something would fail rather than look right. */
+try {
+  ctx.showCategory('HACKERY');
+  const countTag = (el, tag) => (el.tagName === tag ? 1 : 0) +
+    (el.children || []).reduce((n, c) => n + countTag(c, tag), 0);
+  const host = REGISTRY.get('heroSprite');
+  if (!host) throw new Error('no host for the section');
+  peek(`window.HERO_SPRITE_STATE = { which: 'heroine', choices: { hero: {}, heroine: {} } }`);
+  ctx.renderHeroSprite();
+  const cover = peek(`HERO_SPRITES.map(d => {
+    const fixed = new Set([0xFF, 0x1D, 0x1E].concat(d.fixed || []));
+    const f = heroFigure(d.key);
+    if (!f) return { key: d.key, missing: true };
+    let loose = 0; const per = d.parts.map(() => 0);
+    for (let i = 0; i < f.image.length; i++) {
+      const v = f.image[i], l = f.labels[i];
+      if (l >= 0) per[l]++;
+      else if (v && !fixed.has(v)) loose++;
+    }
+    return { key: d.key, sheet: f.sheet, loose, unknown: f.unknown, empty: d.parts.filter((p, i) => !per[i]).map(p => p.key), others: f.others.length };
+  })`);
+  for (const c of cover) {
+    if (c.missing) fail('hero colours', `no sheet for the ${c.key}`);
+    else if (c.loose || c.unknown) fail('hero colours', `the ${c.key}'s sheet has ${c.loose} pixels in no part`);
+    else if (c.empty.length) fail('hero colours', `the ${c.key} has no pixels for ${c.empty.join(', ')}`);
+    else if (c.others) fail('hero colours', `the ${c.key}'s sheet is shared with ${c.others} other prop type(s)`);
+  }
+  const sheet = cover[1] && cover[1].sheet;
+  const plainCanvases = countTag(host, 'CANVAS');
+  if (peek('heroSpritePatch()') !== null) fail('hero colours', 'a patch is offered with nothing chosen');
+  else if (countTag(host, 'INPUT') !== 5) fail('hero colours', `${countTag(host, 'INPUT')} inputs with nothing chosen, expected a colour for each of five parts and no description`);
+  else if (plainCanvases !== 2 + 32) fail('hero colours', `${plainCanvases} canvases, expected 2 figures and 16 pairs`);
+
+  // Blond hair and a blue top on the heroine.
+  ctx.heroSpriteChoose('hair', 'blond', '#d8b050');
+  ctx.heroSpriteChoose('shirt', 'blue', '#2448a8');
+  const moved = peek(`(() => {
+    const f = heroFigure('heroine'), r = heroRecoloured(f);
+    const hair = f.def.parts.findIndex(p => p.key === 'hair'), top = f.def.parts.findIndex(p => p.key === 'shirt');
+    let stray = 0, bad = 0, n = 0;
+    for (let i = 0; i < r.image.length; i++) {
+      if (r.image[i] === f.image[i]) continue;
+      n++;
+      if (f.labels[i] !== hair && f.labels[i] !== top) stray++;
+      if (r.image[i] === 0 || r.image[i] >= 0xE0) bad++;
+    }
+    return { n, stray, bad, reported: r.moved };
+  })()`);
+  if (!moved.n) fail('hero colours', 'choosing two colours moved no pixel');
+  else if (moved.stray) fail('hero colours', `${moved.stray} pixels outside the hair and the top changed`);
+  else if (moved.bad) fail('hero colours', `${moved.bad} pixels landed on transparency or a cycling ramp`);
+  else if (moved.n !== moved.reported) fail('hero colours', 'the count on the page is not the count of pixels that moved');
+
+  const w = peek('heroSpritePatch()');
+  if (!w) fail('hero colours', 'no patch with two colours chosen');
+  else if (w.resids.length !== 1 || w.resids[0] !== sheet) fail('hero colours', 'the patch carries ' + w.resids.map(i => '0x' + i.toString(16)).join(' '));
+  else if (!w.checkValueValid) fail('hero colours', 'the patch check value does not verify');
+  else if (!/heroine, hair blond, top blue/.test(w.description || '')) fail('hero colours', 'the description is ' + JSON.stringify(w.description));
+  else if (!ctx.heroSpriteShowPatch()) fail('hero colours', 'the patches section refused the patch');
+  else if (!peek('window.PATCH_REPORT') || !peek('window.PATCH_REPORT.usable') || peek('window.PATCH_REPORT.willReplace') !== 1)
+    fail('hero colours', 'the patches section did not read it as a usable one-resource patch');
+  else {
+    const pristine = peek('window.PRISTINE_BYTES').length;
+    if (!ctx.heroSpriteApply()) fail('hero colours', 'the patch would not apply');
+    else {
+      const got = peek(`(() => { const d = decodeResource(getResourceBytes(${sheet}), 141, ${sheet}); return Array.from(d.image); })()`);
+      const want = peek(`Array.from(heroRecoloured(heroFigure('heroine')).image)`);
+      if (got.length !== want.length || got.some((v, i) => v !== want[i]))
+        fail('hero colours', 'the open file does not carry the recoloured sheet');
+      else if (peek('window.PRISTINE_BYTES').length !== pristine) fail('hero colours', 'applying moved the file as it arrived');
+      else if (peek(`heroFigure('heroine').unknown`)) fail('hero colours', 'after applying, the section reads the recoloured sheet instead of the shipped one');
+      else console.log(`  hero colours: both sheets fully labelled (${cover.map(c => c.key + ' 0x' + c.sheet.toString(16)).join(', ')}), nothing chosen writes nothing, ${moved.n} pixels of hair and top recoloured off the ramps, and the one-resource patch verifies and applies`);
+    }
+  }
+  peek(`window.HERO_SPRITE_STATE = { which: 'hero', choices: { hero: {}, heroine: {} } }`);
+  ctx.patchesForget();
+} catch (e) { fail('hero colours', e); }
+
 /* The comparison section, and the patch it writes, end to end through the DOM.
 
    The engine is proven in patch_check; what this pins is the part that only

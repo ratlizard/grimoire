@@ -1039,6 +1039,298 @@ function renderPatchReport() {
   host.appendChild(el('div', '', svLink('Forget this patch', 'patchesForget()')));
 }
 
+/* ---- a patch of your own: the hero's colours -------------------------------
+   The patches section reads a patch; this one makes one, out of a handful of
+   choices rather than out of edits. It is the smallest patch worth having --
+   one resource, the hero's or the heroine's sprite sheet -- and so the
+   plainest demonstration of the whole route: choose, look, apply it to the
+   copy in this browser, or take it away as a file Magpie installs.
+
+   The recolouring is in js/delv-graphics.js (HERO_SPRITES, heroPartMap,
+   heroRemapTables, heroRecolour), which turns indices into indices and knows
+   nothing of the page. What is here is the choosing and the drawing.
+
+   ALWAYS FROM THE FILE AS IT ARRIVED. The part table names this release's
+   indices, so a sheet already recoloured would label nothing and a second
+   recolour would compound the first. So the art is taken from PRISTINE_BYTES
+   when the open file has one, which applying a patch leaves alone, and the
+   choices are re-applied to the shipped art every time rather than to
+   whatever the last apply left in the archive.
+
+   The sheet and the name are read, not typed: a prop type's base tile says
+   which sheet it is drawn from (0x8E00 + tile >> 4, the rule characterParts
+   states), and the section also says whether anything else in the file
+   points into that sheet, which is what "changes nothing else" rests on. */
+const HERO_SWATCHES = {
+  hair: [['black', '#1a1410'], ['dark brown', '#3e2614'], ['brown', '#6b4221'], ['auburn', '#8a3418'],
+         ['red', '#c4461c'], ['ginger', '#d8722a'], ['blond', '#d8b050'], ['flaxen', '#e8d8a0'],
+         ['grey', '#8c8c8c'], ['white', '#ececec'], ['blue', '#2850c0'], ['green', '#2f8a3a'], ['violet', '#7a38a8']],
+  skin: [['pale', '#f4d4bc'], ['fair', '#e6b48c'], ['tan', '#c98c5c'], ['brown', '#a0643a'],
+         ['dark brown', '#74462a'], ['deep brown', '#4a2c1a'], ['green', '#6a9a50'], ['blue', '#6a8ac8']],
+  clothes: [['black', '#1c1c1c'], ['white', '#e8e8e8'], ['grey', '#808080'], ['red', '#a01c1c'],
+            ['orange', '#c86420'], ['yellow', '#d8b030'], ['green', '#2c7a30'], ['teal', '#1f7070'],
+            ['blue', '#2448a8'], ['navy', '#20284a'], ['purple', '#6a2c8a'], ['brown', '#6a4424'], ['tan', '#b89868']],
+};
+function heroSwatchesFor(key) { return HERO_SWATCHES[key] || HERO_SWATCHES.clothes; }
+function heroHexRgb(h) { return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
+
+// The choices survive a redraw of the sheet, and are kept per figure, so
+// going from the hero to the heroine and back finds the hero as he was left.
+window.HERO_SPRITE_STATE = window.HERO_SPRITE_STATE || { which: 'hero', choices: { hero: {}, heroine: {} } };
+
+/* The file the art is taken from, as a writer spec, cached against the bytes
+   object so a different file is noticed without a reset hook. */
+function heroSourceSpec() {
+  const bytes = window.PRISTINE_BYTES || (typeof fileBytes !== 'undefined' ? fileBytes : null);
+  if (!bytes) return null;
+  const c = window.HERO_SOURCE_SPEC;
+  if (c && c.bytes === bytes) return c.spec;
+  let spec = null;
+  try { spec = delverArchiveSpec(bytes); } catch (e) { spec = null; }
+  window.HERO_SOURCE_SPEC = { bytes, spec };
+  return spec;
+}
+
+/* One figure, read: its sheet, its name, the shipped frames, the part map,
+   and what else in the file shares the sheet. Null when the open file has no
+   such prop type or no such sheet, which is what a saved game gives. */
+function heroFigure(key) {
+  const def = HERO_SPRITES.find(d => d.key === key);
+  if (!def) return null;
+  let tile;
+  try { tile = getPropTileList()[def.proptype]; } catch (e) { tile = undefined; }
+  if (tile === undefined || tile === null) return null;
+  const sheet = 0x8E00 + (tile >> 4);
+  const spec = heroSourceSpec();
+  const res = spec && spec.resources.find(r => r.resid === sheet);
+  if (!res) return null;
+  let dec = null;
+  try { dec = decodeResource(res.data, 141, sheet); } catch (e) { dec = null; }
+  if (!dec || dec.W !== 32 || dec.H < 32) return null;
+  const image = Uint8Array.from(dec.image);
+  const labels = heroPartMap(image, dec.W, dec.H, def);
+  const others = [];
+  try {
+    const tl = getPropTileList();
+    for (let pt = 0; pt < tl.length; pt++)
+      if (pt !== def.proptype && tl[pt] !== undefined && tl[pt] !== null && (0x8E00 + (tl[pt] >> 4)) === sheet) others.push(pt);
+  } catch (e) {}
+  let name = key;
+  try { name = propTypeName(def.proptype) || key; } catch (e) {}
+  return { def, key, name, sheet, base: tile, W: dec.W, H: dec.H, image, labels, others, unknown: labels.unknown };
+}
+
+// The figure recoloured as chosen: the frames, and how many pixels moved.
+function heroRecoloured(fig) {
+  const chosen = window.HERO_SPRITE_STATE.choices[fig.key] || {};
+  const choices = {};
+  for (const k of Object.keys(chosen)) if (chosen[k]) choices[k] = heroHexRgb(chosen[k].hex);
+  const tables = heroRemapTables(fig.image, fig.labels, fig.def, choices);
+  const image = heroRecolour(fig.image, fig.labels, tables);
+  let moved = 0;
+  for (let i = 0; i < image.length; i++) if (image[i] !== fig.image[i]) moved++;
+  return { image, moved };
+}
+
+// What the patch will call itself, which is what Magpie lists it by.
+function heroDescription(fig) {
+  const chosen = window.HERO_SPRITE_STATE.choices[fig.key] || {};
+  const bits = fig.def.parts.filter(p => chosen[p.key]).map(p => p.label + ' ' + chosen[p.key].name);
+  return 'The ' + fig.name + (bits.length ? ', ' + bits.join(', ') : ', as shipped');
+}
+
+/* The patch, written from the open file's spec with the one sheet replaced.
+   The open file rather than the source, because the descriptor has to be
+   written for the file it will be applied to; the art comes from the source.
+   Null with a note when there is nothing to write. */
+function heroSpritePatch() {
+  const fig = heroFigure(window.HERO_SPRITE_STATE.which);
+  const base = patchBaseSpec();
+  if (!fig || !base) return null;
+  const rec = heroRecoloured(fig);
+  if (!rec.moved) return null;
+  const data = encodeDCGLiterals(rec.image);
+  const res = base.resources.find(r => r.resid === fig.sheet);
+  if (!res) return null;
+  const spec = Object.assign({}, base, {
+    resources: base.resources.map(r => r.resid === fig.sheet ? Object.assign({}, r, { data }) : r) });
+  const d = document.getElementById('heroDesc');
+  const w = writeDelverPatch(spec, [fig.sheet],
+    { description: (d && d.value) || heroDescription(fig), typeCode: DELV_PATCH_EXPORT_TYPE });
+  w.name = safeFileName(fig.name.charAt(0).toUpperCase() + fig.name.slice(1) + ' Colours');
+  return w;
+}
+
+function heroSay(m, bad) {
+  const note = document.getElementById('heroNote');
+  if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
+}
+
+/* Apply goes through the patches section rather than beside it: the patch is
+   handed to its reader and then to its Apply, which is the edit path every
+   other change here takes. The report does not outlive that -- re-entering
+   the archive drops it with every other derived table -- so "Read it as a
+   patch" is the button for seeing what the patch is. */
+function heroSpriteApply() {
+  let w;
+  try { w = heroSpritePatch(); } catch (e) { heroSay('The patch could not be written: ' + e.message, true); return false; }
+  if (!w) { heroSay('Nothing is chosen, so there is nothing to apply.', true); return false; }
+  if (!patchesOpenBytes(w.bytes, w.name)) { heroSay('The patch was not accepted.', true); return false; }
+  const ok = patchesApply();
+  if (ok) { renderPatchReport(); heroSay('Applied to the copy of the file in this browser. Data \u203a Cythera Data \u203a Changes is where it leaves the page.'); }
+  return ok;
+}
+
+function heroSpriteShowPatch() {
+  let w;
+  try { w = heroSpritePatch(); } catch (e) { heroSay('The patch could not be written: ' + e.message, true); return false; }
+  if (!w) { heroSay('Nothing is chosen, so there is nothing to read.', true); return false; }
+  const ok = patchesOpenBytes(w.bytes, w.name);
+  const host = document.getElementById('patchReport');
+  if (ok && host && host.scrollIntoView) host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return ok;
+}
+
+function heroSpriteDownload(asMacBinary) {
+  let w;
+  try { w = heroSpritePatch(); } catch (e) { heroSay('The patch could not be written: ' + e.message, true); return null; }
+  if (!w) { heroSay('Nothing is chosen, so there is nothing to write.', true); return null; }
+  if (asMacBinary) {
+    const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
+    dlBlob(new Blob([bin], { type: 'application/macbinary' }), w.name + '.bin');
+  } else downloadBlob(w.bytes, w.name);
+  heroSay(w.bytes.length.toLocaleString() + ' bytes, one resource, identity ' + w.uuidText +
+    (w.checkValueValid ? ', and the check value verifies.' : ', and the check value does not verify.'), !w.checkValueValid);
+  return w;
+}
+
+function heroSpritePick(key) {
+  window.HERO_SPRITE_STATE.which = key;
+  renderHeroSprite();
+}
+
+function heroSpriteChoose(part, name, hex) {
+  const st = window.HERO_SPRITE_STATE;
+  const c = st.choices[st.which] || (st.choices[st.which] = {});
+  c[part] = hex ? { name, hex } : null;
+  renderHeroSprite();
+}
+
+function heroSpriteReset() {
+  const st = window.HERO_SPRITE_STATE;
+  st.choices[st.which] = {};
+  renderHeroSprite();
+}
+
+/* The controls, the frames and the buttons, redrawn whole on every choice.
+   Sixteen frames are 16 KB of pixels and the remap is a table lookup, so a
+   redraw is well under a frame and nothing is worth keeping between them. */
+function renderHeroSprite() {
+  const host = document.getElementById('heroSprite');
+  if (!host) return;
+  host.innerHTML = '';
+  const el = (tag, cls, html) => { const d = document.createElement(tag); if (cls) d.className = cls; if (html !== undefined) d.innerHTML = html; return d; };
+  const st = window.HERO_SPRITE_STATE;
+  const figs = HERO_SPRITES.map(d => heroFigure(d.key)).filter(Boolean);
+  if (!figs.length) {
+    host.appendChild(el('p', 'mechSub', 'This file has no hero sprite sheet to recolour.'));
+    return;
+  }
+  let fig = figs.find(f => f.key === st.which);
+  if (!fig) { fig = figs[0]; st.which = fig.key; }
+  const chosen = st.choices[fig.key] || (st.choices[fig.key] = {});
+
+  // Which figure: frame 0 of each, as the button.
+  const pick = el('div', 'heroPicks');
+  for (const f of figs) {
+    const b = el('button', 'heroPick' + (f.key === fig.key ? ' on' : ''));
+    b.type = 'button';
+    b.title = f.name + ', prop type ' + f.def.proptype;
+    b.appendChild(patchTileCanvas({ image: f.image, W: f.W, H: f.H }, 0, 141));
+    b.appendChild(el('span', '', svEsc(f.name)));
+    b.onclick = function () { heroSpritePick(f.key); };
+    pick.appendChild(b);
+  }
+  host.appendChild(pick);
+
+  // A row per part: as shipped, the swatches, and any colour at all.
+  const rows = el('div', 'heroParts');
+  for (const p of fig.def.parts) {
+    const row = el('div', 'heroPart');
+    row.appendChild(el('span', 'heroPartName', svEsc(p.label)));
+    const sw = el('div', 'heroSwatches');
+    const cur = chosen[p.key];
+    const shipped = el('button', 'heroSwatch heroShipped' + (!cur ? ' on' : ''), 'as shipped');
+    shipped.type = 'button';
+    shipped.onclick = function () { heroSpriteChoose(p.key, null, null); };
+    sw.appendChild(shipped);
+    for (const [name, hex] of heroSwatchesFor(p.key)) {
+      const b = el('button', 'heroSwatch' + (cur && cur.hex === hex ? ' on' : ''));
+      b.type = 'button';
+      b.title = name;
+      b.setAttribute('aria-label', p.label + ' ' + name);
+      b.style.background = hex;
+      b.onclick = function () { heroSpriteChoose(p.key, name, hex); };
+      sw.appendChild(b);
+    }
+    const any = document.createElement('input');
+    any.type = 'color';
+    any.className = 'heroAny';
+    any.title = 'any colour';
+    any.value = cur ? cur.hex : '#808080';
+    any.onchange = function () { heroSpriteChoose(p.key, any.value, any.value); };
+    sw.appendChild(any);
+    row.appendChild(sw);
+    rows.appendChild(row);
+  }
+  host.appendChild(rows);
+
+  // The frames: shipped on the left of each pair, chosen on the right.
+  const rec = heroRecoloured(fig);
+  const frames = Math.floor(fig.H / 32);
+  host.appendChild(el('div', 'partsTitle', 'The ' + svEsc(fig.name) + '’s ' + frames + ' frames, from sheet ' + propWordHex(fig.sheet)));
+  const strip = el('div', 'patchStrip');
+  for (let t = 0; t < frames; t++) {
+    const pair = el('div', 'patchPair');
+    pair.appendChild(patchTileCanvas({ image: fig.image, W: fig.W, H: fig.H }, t, 141));
+    pair.appendChild(patchTileCanvas({ image: rec.image, W: fig.W, H: fig.H }, t, 141));
+    pair.appendChild(el('span', 'patchTileNo', String(t)));
+    strip.appendChild(pair);
+  }
+  host.appendChild(strip);
+  const facts = [];
+  facts.push(fig.others.length
+    ? 'Prop type' + (fig.others.length === 1 ? ' ' : 's ') + fig.others.join(', ') + ' also ' + (fig.others.length === 1 ? 'draws' : 'draw') + ' from this sheet and would change with it.'
+    : 'Nothing else in the file draws from this sheet, so the patch changes the ' + svEsc(fig.name) + ' and nothing else.');
+  if (fig.unknown) facts.push('<b>' + fig.unknown + '</b> pixels use colours the part table does not know, so this sheet is not the shipped art and those pixels are left as they are.');
+  facts.push(rec.moved ? '<b>' + rec.moved.toLocaleString() + '</b> pixels change.' : 'Nothing is chosen, so the frames are as shipped.');
+  host.appendChild(el('ul', 'ruleList', facts.map(f => '<li>' + f + '</li>').join('')));
+
+  if (!rec.moved) return;
+  const desc = document.createElement('input');
+  desc.type = 'text'; desc.id = 'heroDesc'; desc.className = 'heroDesc';
+  desc.maxLength = 255;
+  desc.value = heroDescription(fig);
+  desc.setAttribute('aria-label', 'what the patch calls itself');
+  host.appendChild(el('div', 'partsTitle', 'What the patch calls itself'));
+  host.appendChild(desc);
+  const bar = el('div', 'mechStats');
+  const btn = (label, fn) => {
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+    b.textContent = label;
+    b.onclick = fn;
+    bar.appendChild(b);
+  };
+  btn('Apply to the open file', heroSpriteApply);
+  btn('Read it as a patch', heroSpriteShowPatch);
+  btn('Download the patch', function () { heroSpriteDownload(false); });
+  btn('Download for a Mac', function () { heroSpriteDownload(true); });
+  btn('Start again', heroSpriteReset);
+  host.appendChild(bar);
+}
+
 /* ---- two archives against each other, and a patch out of the difference ----
    The patches section reads a patch someone else made. This is the other two
    directions: comparing any two archives, and writing a patch out of what
@@ -2320,6 +2612,26 @@ function renderMechanicsSheet(value) {
     sec.appendChild(report);
   }
 
+  // ---- the hero's colours, as a patch ----
+  {
+    add('herosprite', 'The hero’s colours, as a patch', null, '',
+      'Choose the hero or the heroine and a colour for each part. The sprite sheet is recoloured from the shipped art ' +
+      'and written as a Magpie patch that replaces that one resource.',
+      [
+        'Which pixel belongs to which part is decided by this page, not read from the file: the art has no such layer. A shade two parts share goes to the part it touches most.',
+        'Each part keeps its own shading. The new colours are taken from the game’s palette, and never from the ranges the engine cycles, so the sprite does not shimmer.',
+        'The portrait chosen when the hero is made is a different resource and is not changed.',
+        'The patch is read by this page and by the browser player, and Magpie installs it on a Mac.'
+      ], '');
+    const sec = sections[sections.length - 1].el;
+    const host = document.createElement('div');
+    host.id = 'heroSprite';
+    sec.appendChild(host);
+    const note = document.createElement('div');
+    note.className = 'mechSub'; note.id = 'heroNote';
+    sec.appendChild(note);
+  }
+
   // ---- comparing two archives ----
   {
     const edits = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
@@ -2606,6 +2918,8 @@ function renderMechanicsSheet(value) {
     };
     renderCompareReport();
   }
+  // The hero's colours draw into their host once it is in the document.
+  if (document.getElementById('heroSprite')) renderHeroSprite();
 }
 // The cards open when a number on the sheet was followed into its script,
 // so that back from the script finds them open again and setMode's scroll

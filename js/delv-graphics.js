@@ -1194,3 +1194,202 @@ function encodeDCGLiterals(indexed) {
   out[p++] = 0xFF;
   return out.subarray(0, p);
 }
+
+/* ---- recolouring the hero ------------------------------------------------
+   The hero and the heroine are prop types 32 and 33, and each is drawn from
+   one tile sheet of sixteen 32x32 frames that nothing else in the game points
+   into. A patch that replaces that one sheet therefore changes how the player
+   looks and nothing else, which is what makes it the plainest demonstration
+   of what a Magpie patch can do: `HERO_SPRITES` below is the table, and the
+   page's section under Hackery (heroSpriteSection in page-mechanics.js) is
+   what drives it.
+
+   WHICH PIXEL IS WHICH PART IS NOT IN THE FILE. The art is flat indexed
+   pixels with no layer saying "hair" or "shirt", so the table is the one part
+   of this that is a judgement rather than a reading, and it was made by
+   looking: every index each sheet uses was drawn in false colour, frame by
+   frame, on 17 September 2026. Most indices belong to one part outright
+   (`sure`). A few are shared, because the artist reached for the same brown
+   to shade a forearm and to draw a belt, or the same grey for a halter and a
+   boot. Those are settled per connected run of pixels: a run of shared shades
+   goes to whichever part its neighbours vote for (`votes`, where a part named
+   twice counts twice), and to `otherwise` when nothing it touches has a vote,
+   which is what a boot that meets only the black outline and a legging looks
+   like. The black outline and the two near-blacks (0x1D, 0x1E) belong to no
+   part and are never recoloured, so the silhouette is the shipped one, and
+   neither is anything in a figure's `fixed` list.
+
+   The indices are this release's art. A patch or a mod that redraws the
+   sheet leaves them describing pixels that are no longer there, which is why
+   the page labels the file as it arrived and says what it did not recognise
+   rather than recolouring a guess. */
+const HERO_SPRITES = [
+  { key: 'hero', proptype: 32,
+    // Two pixels of 0xDB, one in each of two frames, both in the face between
+    // skin and hair: an eye, left as drawn.
+    fixed: [0xDB],
+    parts: [
+      { key: 'hair', label: 'hair', sure: [0x22, 0x35, 0x36, 0x37, 0x38, 0x39] },
+      { key: 'skin', label: 'skin', sure: [0xA3, 0xA4, 0xA6, 0xA8, 0xAB, 0xAD, 0xB2, 0xB3, 0xB4] },
+      { key: 'shirt', label: 'shirt', sure: [0x76, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E] },
+      { key: 'trousers', label: 'trousers', sure: [0x07, 0x08, 0x12, 0x13, 0x14, 0x16, 0x17, 0x18, 0x19, 0x1B, 0x1C] },
+      { key: 'belt', label: 'belt and sandals', sure: [0x46, 0xB5, 0xB6, 0xB8] },
+    ],
+    // The browns shade the arms and face and also draw the belt; the belt is
+    // the run that sits against the trousers.
+    shared: [
+      { idx: [0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E],
+        votes: { skin: ['skin', 'hair', 'shirt'], belt: ['trousers', 'trousers', 'belt'] }, otherwise: 'skin' },
+    ] },
+  { key: 'heroine', proptype: 33,
+    parts: [
+      { key: 'hair', label: 'hair', sure: [0x04, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x46, 0xB7] },
+      { key: 'skin', label: 'skin', sure: [0xA3, 0xA5, 0xA6, 0xB2, 0xB3] },
+      { key: 'shirt', label: 'top', sure: [] },
+      { key: 'trousers', label: 'leggings', sure: [0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D] },
+      { key: 'belt', label: 'boots and belt', sure: [0x7C] },
+    ],
+    // The greys are the halter and the boots; a boot is the run that meets
+    // only the leggings. The dark browns shade both the arms and the legs.
+    shared: [
+      { idx: [0x07, 0x08, 0x14, 0x16, 0x17, 0x18, 0x19, 0x1B, 0x1C],
+        votes: { shirt: ['hair', 'skin', 'shirt', 'belt'], belt: ['trousers'] }, otherwise: 'belt' },
+      { idx: [0xA8, 0xAB, 0xAD, 0xAF],
+        votes: { skin: ['skin', 'hair', 'shirt'], trousers: ['trousers'] }, otherwise: 'skin' },
+    ] },
+];
+
+/* Every pixel of a sheet labelled with the index of the part it belongs to
+   in def.parts, or -1 for transparency, the outline, the figure's fixed
+   indices, and any index the table does not know. `unknown` counts the last kind, so a caller can tell a sheet
+   it recognises from one somebody has redrawn. A run of shared shades is
+   4-connected and never crosses from one 32-row frame into the next. */
+function heroPartMap(image, W, H, def) {
+  const label = new Int8Array(W * H).fill(-1);
+  const partIx = {};
+  def.parts.forEach((p, i) => { partIx[p.key] = i; });
+  const sure = new Int8Array(256).fill(-1);
+  def.parts.forEach((p, i) => { for (const v of p.sure) sure[v] = i; });
+  const sharedOf = new Int8Array(256).fill(-1);
+  def.shared.forEach((s, i) => { for (const v of s.idx) sharedOf[v] = i; });
+  const fixed = new Set([0xFF, 0x1D, 0x1E].concat(def.fixed || []));
+  let unknown = 0;
+  for (let i = 0; i < W * H; i++) {
+    const v = image[i];
+    label[i] = sure[v];
+    if (v && sure[v] < 0 && sharedOf[v] < 0 && !fixed.has(v)) unknown++;
+  }
+  const seen = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) {
+    const sh = sharedOf[image[i]];
+    if (sh < 0 || seen[i]) continue;
+    const frame = Math.floor(i / W / 32);
+    const run = [i];
+    seen[i] = 1;
+    const border = {};
+    for (let k = 0; k < run.length; k++) {
+      const p = run[k], x = p % W, y = Math.floor(p / W);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || nx >= W || ny < 0 || ny >= H || Math.floor(ny / 32) !== frame) continue;
+        const q = ny * W + nx;
+        if (sharedOf[image[q]] === sh) { if (!seen[q]) { seen[q] = 1; run.push(q); } }
+        else if (sure[image[q]] >= 0) {
+          const key = def.parts[sure[image[q]]].key;
+          border[key] = (border[key] || 0) + 1;
+        }
+      }
+    }
+    let best = def.shared[sh].otherwise, most = 0;
+    for (const [to, voters] of Object.entries(def.shared[sh].votes)) {
+      const n = voters.reduce((s, v) => s + (border[v] || 0), 0);
+      if (n > most) { best = to; most = n; }
+    }
+    for (const p of run) label[p] = partIx[best];
+  }
+  label.unknown = unknown;
+  return label;
+}
+
+/* sRGB to CIE L*a*b* (D65). The matching below is done here rather than in
+   RGB because what a recolour has to keep is lightness -- the shading is
+   what makes a sprite read as a body -- and RGB distance trades lightness
+   against hue as though they were the same thing. */
+function heroLab(rgb) {
+  const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const r = lin(rgb[0]), g = lin(rgb[1]), b = lin(rgb[2]);
+  const f = t => t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116;
+  const X = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047);
+  const Y = f(0.2126 * r + 0.7152 * g + 0.0722 * b);
+  const Z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+  return [116 * Y - 16, 500 * (X - Y), 200 * (Y - Z)];
+}
+
+/* The indices a recoloured pixel may take: everything but 0, which is the
+   sheet's transparency, and 0xE0 up, which is the engine's five cycling
+   ramps and the fixed black and white above them. A pixel put on a ramp
+   would shimmer as the palette turns (see ramp_patch.mjs, which does that on
+   purpose), and 0xFF is the outline. */
+const HERO_INKS = (() => { const a = []; for (let i = 0x01; i < 0xE0; i++) a.push(i); return a; })();
+
+/* One remap table per part, shipped index to new index, or null for a part
+   left as shipped. `choices` maps a part key to an [r, g, b].
+
+   The part's own shading is kept: each index moves by its lightness away
+   from the part's mean, so the chosen colour lands at the part's middle and
+   the folds and highlights keep their distance from it. When that would run
+   off either end of the scale (a pale skin, a white shirt) the spread is
+   compressed rather than clipped, since clipping turns every highlight the
+   same flat white. Colour fades towards black and white, as a real shade of
+   it would. The weight on lightness is under 1 because the palette is thin
+   in the dark purples and a heavier one reached for a blue of the right
+   lightness instead. */
+function heroRemapTables(image, labels, def, choices) {
+  const labOf = new Array(256);
+  const lab = i => labOf[i] || (labOf[i] = heroLab(PAL_RGB[i]));
+  return def.parts.map((part, pi) => {
+    const want = choices && choices[part.key];
+    if (!want) return null;
+    let sum = 0, n = 0, lo = 100, hi = 0;
+    const used = new Set();
+    for (let i = 0; i < image.length; i++) if (labels[i] === pi) {
+      const L = lab(image[i])[0];
+      sum += L; n++; used.add(image[i]);
+      if (L < lo) lo = L;
+      if (L > hi) hi = L;
+    }
+    if (!n) return null;
+    const mean = sum / n;
+    const t = heroLab(want);
+    const spread = Math.max(0.35, Math.min(1,
+      hi > mean ? (96 - t[0]) / (hi - mean) : 1,
+      mean > lo ? (t[0] - 6) / (mean - lo) : 1));
+    const tab = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) tab[i] = i;
+    for (const src of used) {
+      const L = Math.max(0, Math.min(100, t[0] + (lab(src)[0] - mean) * spread));
+      const k = Math.max(0, Math.min(1, Math.min(L, 100 - L) / 25));
+      const a = t[1] * k, b = t[2] * k;
+      let best = src, bd = Infinity;
+      for (const i of HERO_INKS) {
+        const c = lab(i);
+        const d = (c[0] - L) * (c[0] - L) * 0.8 + (c[1] - a) * (c[1] - a) + (c[2] - b) * (c[2] - b);
+        if (d < bd) { bd = d; best = i; }
+      }
+      tab[src] = best;
+    }
+    return tab;
+  });
+}
+
+/* The sheet with each labelled pixel sent through its part's table. Pixels
+   outside every part, and parts with no table, come through unchanged, so
+   choosing nothing hands back the shipped sheet byte for byte. */
+function heroRecolour(image, labels, tables) {
+  const out = Uint8Array.from(image);
+  for (let i = 0; i < out.length; i++) {
+    const p = labels[i];
+    if (p >= 0 && tables[p]) out[i] = tables[p][image[i]];
+  }
+  return out;
+}

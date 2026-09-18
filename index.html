@@ -1046,6 +1046,21 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 .patchTile { width:64px; height:64px; image-rendering:pixelated; display:block; }
 .patchTileNo { position:absolute; left:0; right:0; bottom:1px; text-align:center; color:#8c8980; font-size:0.625rem;
   font-variant-numeric:tabular-nums; }
+/* The hero's colours. A swatch is a button, so it wears the gold ring when
+   it is the one chosen; the frames reuse the patch reader's pairs. */
+.heroPicks { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 8px; }
+.heroPick { display:flex; align-items:center; gap:6px; width:auto; margin:0; padding:4px 10px 4px 4px; background:#1a1712;
+  border:1px solid rgba(155,136,80,.35); border-radius:3px; color:var(--gold); cursor:pointer; }
+.heroPick.on { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
+.heroParts { display:flex; flex-direction:column; gap:6px; margin:0 0 8px; }
+.heroPart { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; }
+.heroPartName { color:#b5b2a8; font-size:0.6875rem; min-width:96px; }
+.heroSwatches { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+.heroSwatch { width:24px; height:24px; min-width:0; margin:0; padding:0; border:1px solid rgba(0,0,0,.6); border-radius:3px; cursor:pointer; }
+.heroSwatch.on { box-shadow:0 0 0 2px var(--gold); }
+.heroShipped { width:auto; padding:0 8px; background:#1a1712; color:var(--gold); font-size:0.6875rem; border-color:rgba(155,136,80,.35); }
+.heroAny { width:32px; height:24px; margin:0; padding:0; border:1px solid rgba(155,136,80,.35); border-radius:3px; background:#1a1712; cursor:pointer; }
+.heroDesc { width:100%; max-width:480px; box-sizing:border-box; margin:0 0 6px; }
 .mechTable { width:100%; }
 .mechTable th { border-bottom:1px solid rgba(155,136,80,.45); padding-bottom:4px; }
 .mechTable th.num, .mechTable td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; padding-right:10px; }
@@ -1974,7 +1989,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.107.1';
+const GRIMOIRE_VERSION = '1.108.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
