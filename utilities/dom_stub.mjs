@@ -45,6 +45,7 @@ function keepaliveFreeInterval(fn, ms, ...rest) {
 
 // A 2D context good enough to decode into. viewer_smoke.mjs imports this too,
 // so there is one canvas implementation rather than two that can disagree.
+const LITTLE_ENDIAN = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
 export function makeCanvasContext(cv) {
   const im = (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(Math.max(0, w * h * 4)) });
   return {
@@ -62,16 +63,22 @@ export function makeCanvasContext(cv) {
     putImageData(d) { cv._px = d; cv.width = cv.width || d.width; cv.height = cv.height || d.height; },
     getImageData(x, y, w, h) { return cv._px || im(w, h); },
     drawImage(src) { if (src && src._px) cv._px = src._px; },
+    // A row at a time through a 32-bit view rather than a byte at a time:
+    // the map renderer fills every square of every map it draws, and the
+    // byte loop was 70% of the UI smoke's four minutes (profiled
+    // 18 September 2026). Same pixels; the swatch grids hash as before.
     fillRect(x, y, w, h) {
       if (!cv.width || !cv.height) return;
       if (!cv._px) cv._px = im(cv.width, cv.height);
       const m = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(this.fillStyle) || [];
       const [r, g, b] = [+m[1] || 0, +m[2] || 0, +m[3] || 0];
-      for (let yy = Math.max(0, y); yy < y + h && yy < cv.height; yy++)
-        for (let xx = Math.max(0, x); xx < x + w && xx < cv.width; xx++) {
-          const o = (yy * cv.width + xx) * 4;
-          cv._px.data[o] = r; cv._px.data[o + 1] = g; cv._px.data[o + 2] = b; cv._px.data[o + 3] = 255;
-        }
+      const x0 = Math.max(0, Math.floor(x)), x1 = Math.min(cv.width, Math.ceil(x + w));
+      const y0 = Math.max(0, Math.floor(y)), y1 = Math.min(cv.height, Math.ceil(y + h));
+      if (x1 <= x0 || y1 <= y0) return;
+      const d = cv._px.data;
+      if (!cv._px._u32 || cv._px._u32.buffer !== d.buffer) cv._px._u32 = new Uint32Array(d.buffer, d.byteOffset, d.length >> 2);
+      const px = LITTLE_ENDIAN ? ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0 : ((r << 24) | (g << 16) | (b << 8) | 255) >>> 0;
+      for (let yy = y0; yy < y1; yy++) cv._px._u32.fill(px, yy * cv.width + x0, yy * cv.width + x1);
     },
     clearRect() {}, strokeRect() {},
     beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, arc() {}, stroke() {}, fill() {},
