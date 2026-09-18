@@ -61,8 +61,7 @@ for (let i = 0; i < 256; i++) {
   mi.push((off >= 0x888 && len > 0 && len % 8 === 0 && off + len <= archive.length) ? [off, len] : [0, 0]);
 }
 ctx.__archive = archive; ctx.__mi = mi;
-peek('fileBytes = window.__archive');
-peek('masterIndexGlobal = window.__mi');
+const arc = peek('ARCHIVE = openDelverArchive(window.__archive); dvmSetResourceSymbols(loadResourceSymbols(ARCHIVE)); ARCHIVE');
 
 const sha = b => createHash('sha256').update(Buffer.from(b.buffer ? b : Uint8Array.from(b))).digest('hex').slice(0, 16);
 
@@ -74,7 +73,7 @@ const warned = new Map();
 
 for (const ref of REF) {
   const {resid, subindex} = ref;
-  const raw = ctx.getResourceBytes(resid);
+  const raw = ctx.getResourceBytes(arc, resid);
   if (!raw || !raw.length) { notFound++; continue; }
   if (!ref.ok) { refFailed++; continue; }
 
@@ -83,11 +82,11 @@ for (const ref of REF) {
   // to TileSheet, so this is a deliberate divergence and is reported as one
   // below rather than counted as a failure.
   const sizedSheet = subindex === 141 && ctx.tileSheetIsSized &&
-                     ctx.tileSheetIsSized(resid, raw);
+                     ctx.tileSheetIsSized(arc, resid, raw);
   if (sizedSheet) { divergedByDesign.push(resid); continue; }
 
   let got;
-  try { got = ctx.decodeResource(raw, subindex, resid); }
+  try { got = ctx.decodeResource(arc, raw, subindex, resid); }
   catch (e) {
     viewerFailed++;
     problems.push(`0x${resid.toString(16).toUpperCase()} (sub ${subindex}) the viewer threw: ${e.message}`);
@@ -159,7 +158,7 @@ if (warned.size) {
   const bump = op => census.set(op, (census.get(op) || 0) + 1);
   let walked = 0, ranOff = 0;
   for (const ref of REF) {
-    const raw = ctx.getResourceBytes(ref.resid);
+    const raw = ctx.getResourceBytes(arc, ref.resid);
     if (!raw || !raw.length) continue;
     // Skip the uncompressed skill icons and step over the 4-byte header where
     // there is one, so the walk starts on a real opcode.

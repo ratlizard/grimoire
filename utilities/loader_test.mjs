@@ -249,10 +249,10 @@ ctx.location.hash = '';
   let threw3 = null;
   try { await peek('loadDefaultArchive')(); }
   catch (e) { threw3 = e; }
-  check('the default URL loads when it serves a .hqx', !threw3 && peek('fileBytes') !== null,
+  check('the default URL loads when it serves a .hqx', !threw3 && peek('ARCHIVE && ARCHIVE.bytes') !== null,
         threw3 ? threw3.message : `${served.length} candidate(s) tried`);
   check('the archive came out of the BinHex intact',
-        peek('fileBytes') && h(peek('fileBytes')) === h(refData), h(peek('fileBytes') || []));
+        peek('ARCHIVE && ARCHIVE.bytes') && h(peek('ARCHIVE && ARCHIVE.bytes')) === h(refData), h(peek('ARCHIVE && ARCHIVE.bytes') || []));
   const fork = ctx.window.CYTHERA_RSRC;
   check('and the resource fork came with it', !!(fork && fork.typeList && fork.typeList.length),
         fork && fork.typeList
@@ -297,7 +297,7 @@ if (visePath) {
   let threwI = null;
   try { await peek('ingestArchiveFile')({ name: 'Cythera.bin', size: vise.length, arrayBuffer: async () => vise.buffer.slice(vise.byteOffset, vise.byteOffset + vise.length) }); }
   catch (e) { threwI = e; }
-  check('a dropped installer opens', !threwI && peek('fileBytes') && h(peek('fileBytes')) === h(refData), threwI ? threwI.message : 'opened');
+  check('a dropped installer opens', !threwI && peek('ARCHIVE && ARCHIVE.bytes') && h(peek('ARCHIVE && ARCHIVE.bytes')) === h(refData), threwI ? threwI.message : 'opened');
   check('the archive is called by its own name, not the installer’s',
         ctx.window.ARCHIVE_SOURCE_NAME === 'Cythera Data', String(ctx.window.ARCHIVE_SOURCE_NAME));
   check('the installer is kept for the Data › Installer tab',
@@ -336,7 +336,7 @@ if (visePath) {
   try { await peek('loadDefaultArchive')(); }
   catch (e) { threwU = e; }
   check('the default URL loads when it serves the installer' + (served === vise ? ' (.bin standing in for the .sit)' : ' as StuffIt 5'),
-        !threwU && peek('fileBytes') && h(peek('fileBytes')) === h(refData), threwU ? threwU.message : 'loaded');
+        !threwU && peek('ARCHIVE && ARCHIVE.bytes') && h(peek('ARCHIVE && ARCHIVE.bytes')) === h(refData), threwU ? threwU.message : 'loaded');
   check('the default URL is archive.org’s CORS path', /^https:\/\/archive\.org\/cors\//.test(peek('DEFAULT_ARCHIVE_URL')), peek('DEFAULT_ARCHIVE_URL'));
   if (served !== vise) {
     const st = ctx.document.getElementById('sourceStatus').textContent || '';
@@ -350,11 +350,11 @@ if (visePath) {
     ctx.fetch = async () => { fetched++; throw new Error('should not fetch'); };
     peek('switchInstaller')('Cythera 1.0.2 Installer');
     check('switching version opens the other archive without a fetch',
-          ctx.window.INSTALLER && ctx.window.INSTALLER.picked === 'Cythera 1.0.2 Installer' && h(peek('fileBytes')) !== h(refData) && fetched === 0,
+          ctx.window.INSTALLER && ctx.window.INSTALLER.picked === 'Cythera 1.0.2 Installer' && h(peek('ARCHIVE && ARCHIVE.bytes')) !== h(refData) && fetched === 0,
           `${ctx.window.INSTALLER && ctx.window.INSTALLER.picked}, ${fetched} fetches; raw ${ctx.window.INSTALLER && ctx.window.INSTALLER.raw ? ctx.window.INSTALLER.raw.length : 'none'}; last error "${peek('lastArchiveError')}"; status "${(ctx.document.getElementById('sourceStatus').textContent || '').slice(-90)}"`);
     check('and the archive is still called Cythera Data', ctx.window.ARCHIVE_SOURCE_NAME === 'Cythera Data', String(ctx.window.ARCHIVE_SOURCE_NAME));
     peek('switchInstaller')('Cythera 1.0.4 Installer');
-    check('and back again is byte-identical to the .hqx', h(peek('fileBytes')) === h(refData));
+    check('and back again is byte-identical to the .hqx', h(peek('ARCHIVE && ARCHIVE.bytes')) === h(refData));
   }
 
   // An installer that is not Cythera's: the catalog reads, there is no

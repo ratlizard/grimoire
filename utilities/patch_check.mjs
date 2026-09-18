@@ -183,7 +183,7 @@ const desc = ev(`(() => {
   let tiles = 0, sheets = 0;
   for (const r of rep.resources) {
     if (!r.inBase || r.identical || r.subn !== 141) continue;
-    const a = decodeResource(r.baseData, 141, r.resid), b = decodeResource(r.patchData, 141, r.resid);
+    const a = decodeResource(null, r.baseData, 141, r.resid), b = decodeResource(null, r.patchData, 141, r.resid);
     if (a.W !== b.W || a.H !== b.H) continue;
     let n = 0;
     for (let t = 0; t < a.H / 32; t++) {

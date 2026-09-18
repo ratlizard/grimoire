@@ -33,7 +33,7 @@ function extractFullTile(sheetImg, tileInSheet) {
 let _propTileListCache = null, _propOffXCache = null, _propOffYCache = null, _compTableCache = null;
 function getPropTileList() {
   if (_propTileListCache) return _propTileListCache;
-  const data = getResourceBytes(0xF000);
+  const data = getResourceBytes(ARCHIVE, 0xF000);
   if (!data) { _propTileListCache = []; return _propTileListCache; }
   const arr = [];
   for (let i=0;i+1<data.length;i+=2) arr.push(u16be(data, i));
@@ -42,8 +42,8 @@ function getPropTileList() {
 }
 function getPropOffsets() {
   if (_propOffXCache && _propOffYCache) return [_propOffXCache, _propOffYCache];
-  _propOffXCache = getResourceBytes(0xF011) || new Uint8Array(0);
-  _propOffYCache = getResourceBytes(0xF012) || new Uint8Array(0);
+  _propOffXCache = getResourceBytes(ARCHIVE, 0xF011) || new Uint8Array(0);
+  _propOffYCache = getResourceBytes(ARCHIVE, 0xF012) || new Uint8Array(0);
   return [_propOffXCache, _propOffYCache];
 }
 // A prop's draw offset, in source pixels, ready to be SUBTRACTED from the
@@ -81,7 +81,7 @@ function getFauxProps() {
   if (_fauxPropCache) return _fauxPropCache;
   const out = new Map();
   try {
-    const b = getResourceBytes(0xF010);
+    const b = getResourceBytes(ARCHIVE, 0xF010);
     if (b) for (let i = 0; i + 1 < b.length; i += 2) {
       const w = u16be(b, i);
       const pt = w & 0x3FF;
@@ -240,7 +240,7 @@ function drawTileAt(ctx, tileId, px, py, transparent, size, frame, rotated) {
 //   0xC0 -> three extra pieces; non-rotated: (x-1,y-1,tile-3) (x,y-1,tile-2) (x-1,y,tile-1)
 //                                rotated:     (x-1,y-1,tile-3) (x-1,y,tile-2) (x,y-1,tile-1)
 function multiTilePieces(tileId, rotated) {
-  const attrs = getTileAttributes();
+  const attrs = getTileAttributes(ARCHIVE);
   const attr = attrs[tileId] || 0;
   const span = attr & 0xC0;
   if (!span) return null;
@@ -276,7 +276,7 @@ function multiTilePieces(tileId, rotated) {
 window.SCHEDULES = null;
 function loadSchedules() {
   if (window.SCHEDULES) return window.SCHEDULES;
-  const raw = getResourceBytes(0xF00B);
+  const raw = getResourceBytes(ARCHIVE, 0xF00B);
   if (!raw) return (window.SCHEDULES = []);
   const lengths = [];
   for (let i = 0; i < 0x100; i++) lengths.push(u16be(raw, i*2));
@@ -315,7 +315,7 @@ function characterProptypes() {
    have one. */
 function loadCharacterTable() {
   if (window.CHAR_TABLE) return window.CHAR_TABLE;
-  const raw = getResourceBytes(0xF009);
+  const raw = getResourceBytes(ARCHIVE, 0xF009);
   if (!raw) return (window.CHAR_TABLE = []);
   return (window.CHAR_TABLE = parseDelverCharacterRecords(smartDecrypt(raw, 0xF009).data));
 }
@@ -657,7 +657,7 @@ function buildLightSources(resid, m) {
   const key = resid + ':' + m.width;
   if (window.LIGHT_SOURCES && window.LIGHT_SOURCES.key === key) return window.LIGHT_SOURCES.list;
   const list = [];
-  const attrs = getTileAttributes();
+  const attrs = getTileAttributes(ARCHIVE);
   // Terrain tiles that are themselves lit (braziers baked into the floor).
   for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) {
     const t = mapTileAt(m, x, y);
@@ -672,7 +672,7 @@ function buildLightSources(resid, m) {
   }
   // Lit props (wall torches, lanterns, braziers).
   try {
-    const praw = getResourceBytes(resid + 0x100);
+    const praw = getResourceBytes(ARCHIVE, resid + 0x100);
     if (praw) {
       const recs = parseDelverPropList(smartDecrypt(praw, resid + 0x100).data);
       const tiles = getPropTileList();
@@ -970,7 +970,7 @@ function worldGateways() {
   const out = [];
   try {
     const propResid = WORLD_MAP_RESID + 0x100;
-    const raw = getResourceBytes(propResid);
+    const raw = getResourceBytes(ARCHIVE, propResid);
     const propTiles = getPropTileList();
     const recs = raw ? parseDelverPropList(smartDecrypt(raw, propResid).data) : [];
     const byPort = new Map();
@@ -1051,7 +1051,7 @@ function clusterRecords(recs, reach) {
    click and left by the way back. */
 function mapIsSealed(resid) {
   try {
-    const raw = getResourceBytes(resid);
+    const raw = getResourceBytes(ARCHIVE, resid);
     if (!raw) return true;
     let { data, wasDecrypted } = smartDecrypt(raw, resid);
     let m = parseDelverMap(data);
@@ -1114,7 +1114,7 @@ function mapRoofSections(mapResid) {
   const propResid = mapResid + 0x0100;
   let recs = null;
   try {
-    const raw = getResourceBytes(propResid);
+    const raw = getResourceBytes(ARCHIVE, propResid);
     if (raw) recs = parseDelverPropList(smartDecrypt(raw, propResid).data);
   } catch (e) { return []; }
   if (!recs) return [];
@@ -1342,7 +1342,7 @@ function ropeSquares(resid) {
   if (window.MAP_ROPES && window.MAP_ROPES.key === key) return window.MAP_ROPES.set;
   const set = new Set();
   try {
-    const raw = getResourceBytes(resid + 0x100);
+    const raw = getResourceBytes(ARCHIVE, resid + 0x100);
     if (raw) for (const r of parseDelverPropList(smartDecrypt(raw, resid + 0x100).data)) {
       if (r.flags === 0xFF || (r.flags & 0x58)) continue;
       if (r.proptype === ROPE_PROPTYPE) set.add(r.x + ',' + r.y);
@@ -1508,7 +1508,7 @@ function drawMapMarks(lensCtx, lensTS) {
   }
 
   if (anyMark) {
-    const attrs = getTileAttributes();
+    const attrs = getTileAttributes(ARCHIVE);
     const ropes_ = ropeSquares(cm.resid);
     const markedOnce = new Set();
     // What is drawn on each square, in draw order, so "hidden behind
@@ -1880,11 +1880,11 @@ function buildPropBlockers(resid, m) {
   const blocked = new Set();
   const doors = new Map();
   try {
-    const praw = getResourceBytes(resid + 0x100);
+    const praw = getResourceBytes(ARCHIVE, resid + 0x100);
     if (praw) {
       const recs = parseDelverPropList(smartDecrypt(praw, resid + 0x100).data);
       const tiles = getPropTileList();
-      const attrs = getTileAttributes();
+      const attrs = getTileAttributes(ARCHIVE);
       for (const r of recs) {
         if (r.flags === 0xFF) continue;
         const base = tiles[r.proptype];
@@ -2002,11 +2002,11 @@ function mapTileAt(m, x, y) {
   const o = m.mapDataOffset + (x + y*m.width)*2;
   return u16be(d, o);
 }
-// getTileAttributes() returns one packed u32 per tile (b0<<24|b1<<16|b2<<8|b3),
+// getTileAttributes(ARCHIVE) returns one packed u32 per tile (b0<<24|b1<<16|b2<<8|b3),
 // not raw bytes -- indexing it as bytes read only a quarter of the table and
 // found almost nothing blocking, which is why characters walked through walls.
 function tileAttrByte(tileId, which) {
-  const a = getTileAttributes();
+  const a = getTileAttributes(ARCHIVE);
   if (!a || a[tileId] === undefined) return undefined;
   return (a[tileId] >>> ((3 - which) * 8)) & 0xFF;
 }
@@ -2206,12 +2206,12 @@ function seatsOnMap(resid, m) {
   if (window.MAP_SEATS && window.MAP_SEATS.key === key) return window.MAP_SEATS.map;
   const seats = new Map();
   try {
-    const praw = getResourceBytes(resid + 0x100);
+    const praw = getResourceBytes(ARCHIVE, resid + 0x100);
     if (praw && m) {
       const recs = parseDelverPropList(smartDecrypt(praw, resid + 0x100).data);
       // Blocking squares, for the fallback below. Same test the walkability
       // check uses: attribute byte 2, bit 0x02.
-      const tiles = getPropTileList(), attrs = getTileAttributes();
+      const tiles = getPropTileList(), attrs = getTileAttributes(ARCHIVE);
       const blocked = new Set();
       for (const r of recs) {
         if (r.flags === 0xFF || (r.flags & 0x58)) continue;
@@ -2333,7 +2333,8 @@ function charactersOnLevel(level, hour) {
 // same methods actually use (UseOn is 0x3004 here but method 0x000A in
 // objects). Treated here as a best-effort naming hint, read from the data
 // rather than hardcoded, and never as authority about what a resource is.
-window.RESOURCE_SYMBOLS = null;
+// The table itself is loadResourceSymbols in js/delv-script.js, built per
+// archive and handed to the disassembler by parseArchiveBytes.
 function renderMapVisual(resid, mapData, opts) {
   const m = parseDelverMap(mapData);
   if (m) m.raw = mapData;
@@ -2462,7 +2463,7 @@ function renderMapVisual(resid, mapData, opts) {
   // speculative decryptor (see DELV_CLEAR_SUBN) -- doing so scrambled
   // the packed 12-bit x/y fields and pushed every prop off the map.
   const propResid = resid + 0x0100;
-  const propDataRaw = getResourceBytes(propResid);
+  const propDataRaw = getResourceBytes(ARCHIVE, propResid);
   let propCount = 0;
   // Every record, drawn or not. The ones that are NOT drawn are the
   // interesting half: 990 of the archive's prop records are inside a chest, a
@@ -2477,7 +2478,7 @@ function renderMapVisual(resid, mapData, opts) {
     const recs = parseDelverPropList(propData);
     allRecs = recs;
     const propTiles = getPropTileList();
-    const attrs = getTileAttributes();
+    const attrs = getTileAttributes(ARCHIVE);
     const visible = [];
     for (const r of recs) {
       // Ported from delv/level.py PropListEntry.show_in_map(): hide deleted

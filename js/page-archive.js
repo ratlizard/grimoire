@@ -37,6 +37,15 @@
 // missing from it, including the tile bitmaps, the character table and the
 // schedules -- so a second archive was drawn with the first one's sprites and
 // populated with the first one's people. Anything memoised belongs here.
+/* The page's open file, as js/delv-archive.js's openDelverArchive returns it:
+   { bytes, index, derived }. Assigned in parseArchiveBytes and nowhere else;
+   null until a file is open. Every reader in js/delv-*.js takes it as its
+   first argument, so the page passes ARCHIVE and a harness passes whichever
+   archive it opened, and two can be open at once. It was two variables,
+   `ARCHIVE.bytes` and `ARCHIVE.index`, declared in delv-archive.js and read
+   there as ambient globals, until 18 September 2026. */
+let ARCHIVE = null;
+
 function resetDerivedCaches() {
   // The decoded-resource cache and the application's fork are both keyed to
   // the file that is open, so a different archive has to drop them too.
@@ -54,7 +63,6 @@ function resetDerivedCaches() {
   window.MAP_SEATS = null;
   window.MAP_ITEM_SPOTS = null;
   window.KEY_LOCK_INDEX = null;
-  window._dvmStrMemo = new Map();
   window.TERRAIN_NAMES = null;
   window.STORE_SYMBOLS = null;
   window.XREF_INDEX = null;
@@ -66,7 +74,6 @@ function resetDerivedCaches() {
   window.SPRITE_REPEATS = null;
   window.MONSTER_STATS = null;
   window.MECH_WEAPONS = null;
-  window.RESOURCE_SYMBOLS = null;
   window.ZONE_NAMES = null;
   window.EDITOR_ZONE_NAMES = null;
   window.AI_HOOK_NAMES = null;
@@ -116,18 +123,17 @@ function resetDerivedCaches() {
   window.EGGS = null;
   window.SCRIPTED_WINDOWS = null;
   window.ZONE_BACKDROPS = null;
-  /* The undither's frame lock reads the whole portrait corpus to decide which
-     pixels one portrait shares with another, so both it and the undithered
-     images it produced are keyed to the open archive even though each is
-     memoised on pixels alone. A modded archive has different frames. */
-  if (typeof resetSharedArt === 'function') resetSharedArt();
-  if (typeof UNDITHER_CACHE !== 'undefined') UNDITHER_CACHE.clear();
+  /* The tables js/delv-*.js build from the archive -- the portrait corpus
+     and the frame locks, the undithered images, the tile attributes, the
+     resource symbols, the string objects -- are not here. They live on the
+     archive object itself (derivedTable in js/delv-archive.js) and went with
+     the old one the moment ARCHIVE was reassigned; this list is the page's
+     own tables, and grows only when the page builds a new one. */
   // CYTHERA_RSRC is not reset here: it is set from the container by
   // parseArchiveBytes immediately after this runs, and clearing it afterwards
   // would throw the fork away every load.
   _propTileListCache = null; _propOffXCache = null;
   _propOffYCache = null; _compTableCache = null;
-  tileAttrCache = null;
   window.TILE_USAGE = null;
   for (const k of Object.keys(tileSheetCache)) delete tileSheetCache[k];
   spriteCountCache.clear();
@@ -136,7 +142,6 @@ function resetDerivedCaches() {
   pathCache.clear();
   _tileFillCache.clear();
   _frameColourCache.clear();
-  _sizedSheetCache.clear();
   _fauxPropCache = null;
   window.MAP_SEATS = null;
   window.LIGHT_SOURCES = null;
@@ -398,7 +403,7 @@ function adoptArchive(raw, sourceName, opts) {
      the file whose resources it replaces -- so with a game already open it
      goes to that section instead. With none open it still opens on its own,
      which is the only way to look inside a patch before applying it. */
-  if (typeof fileBytes !== 'undefined' && fileBytes && delverArchivePatchPeek(found.bytes) &&
+  if (ARCHIVE && delverArchivePatchPeek(found.bytes) &&
       patchesOpenBytes(found.bytes, (found.forks && found.forks.name) || sourceName)) {
     setStatus('That is a Magpie patch, not a game file, so it has been read against the open one instead of replacing it. ' +
               'Mechanics \u203a The community\u2019s patches says what it changes, and applies it.');
@@ -684,7 +689,7 @@ function goViewBack() {
 }
 
 function syncDeepLink() {
-  if (!fileBytes || !masterIndexGlobal) return;
+  if (!ARCHIVE) return;
   // A view reached through a category switch (jumpToResource, openVia) is
   // one step, not two: the gallery the switch renders on the way is never
   // written into the history or the trail, so the back button returns to
@@ -797,12 +802,11 @@ function openResource(resid) {
 }
 
 function parseArchiveBytes(bytes, sourceName, meta) {
-  fileBytes = bytes;
   meta = meta || {};
   /* The archive exactly as it arrived, before any edit rebuilt it. A patch
      describes byte positions in the file the player already has, and an edit
      relays the whole archive -- the rebuild of the shipped Cythera Data is
-     12,542 bytes shorter -- so after one edit `fileBytes` no longer agrees
+     12,542 bytes shorter -- so after one edit `ARCHIVE.bytes` no longer agrees
      with anyone's installed copy. Every patch is computed against this. */
   if (meta.via !== 'edit') window.PRISTINE_BYTES = bytes;
   // Kept for the edit path: a rebuild re-enters here and needs the name to
@@ -849,25 +853,14 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     return q;
   })();
   try {
-    const r = new BinReader(fileBytes);
-    const title = r.pstring(0);
-    const mi = delverMasterIndexExtent(fileBytes);
-    if (!mi) throw new Error('no master index: the (offset,length) pair at 0x80 does not describe one');
-    r.seek(mi.first);
-    // Bounds-check every entry instead of trusting it, and keep 256 slots
-    // whatever the header says so that a subindex number is always its own
-    // index here. Everything downstream -- getResourceBytes, buildXrefIndex,
-    // buildScriptTextIndex -- sees 34 real subindexes.
-    const masterIndex = [];
-    for (let i=0; i<256; i++) {
-      let off = 0, len = 0;
-      if (i < mi.count) {
-        off = r.u32(); len = r.u32();
-        if (!(off >= mi.dataStart && len > 0 && len % 8 === 0 && off + len <= fileBytes.length)) { off = 0; len = 0; }
-      }
-      masterIndex.push([off, len]);
-    }
-    masterIndexGlobal = masterIndex;
+    const title = pstring(bytes, 0);
+    const arc = openDelverArchive(bytes);
+    if (!arc) throw new Error('no master index: the (offset,length) pair at 0x80 does not describe one');
+    // The file that was open stays open, whole, until the new one has parsed:
+    // a failure above leaves the page on the archive it had.
+    ARCHIVE = arc;
+    const masterIndex = arc.index;
+    dvmSetResourceSymbols(loadResourceSymbols(arc));
     resetDerivedCaches();
     openCytheraResourceFork(meta.rsrc);
     installGameFont();
@@ -890,7 +883,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     ss.innerHTML = '';
     const populated = masterIndex.filter(m => m[0]).length;
     ss.appendChild(document.createTextNode(
-      'Loaded: ' + sourceName + ', ' + fmtBytes(fileBytes.length) + ', ' +
+      'Loaded: ' + sourceName + ', ' + fmtBytes(ARCHIVE.bytes.length) + ', ' +
       populated + ' subindexes' + (savedAs ? ', a saved game (“' + savedAs + '”)' : '') +
       (meta.via && meta.via !== 'data fork' ? ', unwrapped from ' + meta.via : '') +
       (window.CYTHERA_RSRC ? ', plus a ' + window.CYTHERA_RSRC.total() + '-resource fork' : '') +
@@ -914,7 +907,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     // atlas over it would be a zoom slider over nothing, so such a file
     // opens on the Data Fork sheet, which lists what it does hold and where
     // each part is shown.
-    const hasWorld = !!getResourceBytes(WORLD_MAP_RESID);
+    const hasWorld = !!getResourceBytes(ARCHIVE, WORLD_MAP_RESID);
     /* An EDIT's rebuild is the same file arriving again, and the visitor is
        standing somewhere in it -- mid-stroke on a map, usually. Opening the
        world first and letting applyDeepLink walk back from it was both wrong
@@ -932,7 +925,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
        where such a file landed until now -- lists six subindexes and says
        nothing about any of them. The Saved Game sheet reads the one that
        matters. */
-    const landOn = hasWorld ? 'WORLD' : (savedAs && getResourceBytes(0xF009) ? 'SAVEGAME' : 'DATAFORK');
+    const landOn = hasWorld ? 'WORLD' : (savedAs && getResourceBytes(ARCHIVE, 0xF009) ? 'SAVEGAME' : 'DATAFORK');
     if (!restoring && !showCategory(landOn)) onCategoryChange();
     out.textContent = 'Title: ' + title + (savedAs ? ', saved game “' + savedAs + '”' : '') + ', ' + sourceName;
     // A link to the world -- or the World tab carried across a swap, which
@@ -1031,8 +1024,8 @@ function onCategoryChangeImpl() {
     return;
   }
   const subn = parseInt(rawval);
-  const r = new BinReader(fileBytes);
-  const [subOff, subLen] = masterIndexGlobal[subn] || [0,0];
+  const r = new BinReader(ARCHIVE.bytes);
+  const [subOff, subLen] = ARCHIVE.index[subn] || [0,0];
   const select = document.getElementById('residSelect');
   select.innerHTML = '';
   if (!subOff) { out.textContent = "This subindex (" + subn + ") has no indexed resources in this archive."; window.CUR_RESIDS=[]; return; }
@@ -1055,7 +1048,7 @@ function onCategoryChangeImpl() {
     if (roff && !(subn === 141 && n === 0xFF)) addEntry((subn+1)*0x100 + n, roff, rlen);
   }
   if (subn === 142) {
-    const [so, sl] = masterIndexGlobal[141] || [0, 0];
+    const [so, sl] = ARCHIVE.index[141] || [0, 0];
     if (so && Math.floor(sl / 8) > 0xFF) {
       r.seek(so + 0xFF * 8);
       const roff = r.u32(), rlen = r.u32();
@@ -1122,7 +1115,7 @@ function setAnimMode(mode) {
   window.SPRITE_ANIM = mode === 'all' || mode === 'graphics';
   if (!window.PALETTE_ANIM) stopPaletteAnimation();
   if (!window.SPRITE_ANIM) stopSpriteAnimations();
-  try { if (typeof onCategoryChange === 'function' && window.masterIndexGlobal) onCategoryChange(); } catch (e) {}
+  try { if (typeof onCategoryChange === 'function' && ARCHIVE) onCategoryChange(); } catch (e) {}
 }
 window.UNDITHER = false;
 
@@ -1179,7 +1172,9 @@ function setUnditherPreset(id) {
   window.UNDITHER_PRESET = (id === 'measured') ? 'measured' : 'original';
   try { localStorage.setItem('cythera.undither.preset', window.UNDITHER_PRESET); } catch (e) {}
   cancelUndither();
-  if (typeof UNDITHER_CACHE !== 'undefined') UNDITHER_CACHE.clear();
+  // The undithered images are keyed by preset, so the other preset's stay
+  // right; dropping them is for memory, not correctness.
+  if (ARCHIVE) ARCHIVE.derived.delete('undithered');
   if (typeof setMode === 'function') setMode(currentMode);
 }
 
@@ -1202,7 +1197,7 @@ function pumpUndither() {
     try {
       const key = job.W + 'x' + job.H + ':' + hashIndices(job.image) +
                   ':' + job.transparentIndex;
-      const img = unditherIndexed(job.W, job.H, job.image, job.transparentIndex,
+      const img = unditherIndexed(ARCHIVE, job.W, job.H, job.image, job.transparentIndex,
                                   job.palette, key);
       if (job.gen !== unditherGen) continue;
       const c = job.canvas;
@@ -1269,7 +1264,7 @@ function loadStoreSymbols() {
   if (window.STORE_SYMBOLS) return window.STORE_SYMBOLS;
   const names = {};
   try {
-    const raw = getResourceBytes(0xF015);
+    const raw = getResourceBytes(ARCHIVE, 0xF015);
     if (raw) {
       let i = 0;
       while (i + 3 <= raw.length) {

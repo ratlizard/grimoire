@@ -36,13 +36,14 @@ const ctx = vm.createContext(sandbox);
 const EXPORT_CONSTS = ['PALETTE', 'PAL_RGB', 'CYTHERA_CHARACTERS', 'CYTHERA_LANDSCAPES',
   'ZONES', 'PROP_TYPE_NAMES', 'CATEGORY_NAMES', 'CANONICAL_SIZE', 'TAB_TREE',
   'MACROMAN_HIGH', 'PALETTE_CYCLES', 'TILE_SHEET_HINTS'];
-// Assigning g.fileBytes from out here creates a property on the vm global that
-// the page's own functions never see: `fileBytes` is a top-level `let`, so it
-// lives in the global *lexical* environment. This setter is defined inside that
-// scope, which is the only way to reach it.
+// The page's open archive is `ARCHIVE`, a top-level `let` in the global
+// *lexical* environment, which a property assigned on the vm global from out
+// here would never reach. This setter is defined inside that scope, which is
+// the only way to reach it; it opens the archive the way parseArchiveBytes
+// does and hands the object back, and every reader below is given it.
 const epilogue = '\n;' + EXPORT_CONSTS
   .map(n => `try{window.__${n}=${n}}catch(e){}`).join('') +
-  '\n;window.__bind = (a, m) => { fileBytes = a; masterIndexGlobal = m; };\n';
+  '\n;window.__bind = (a) => { ARCHIVE = openDelverArchive(a); dvmSetResourceSymbols(ARCHIVE ? loadResourceSymbols(ARCHIVE) : null); return ARCHIVE; };\n';
 try {
   new vm.Script(js + epilogue, { filename: htmlPath }).runInContext(ctx);
 } catch (e) {
@@ -63,9 +64,8 @@ function readU32(off) {
 }
 const masterIndex = [];
 for (let i = 0; i < 256; i++) masterIndex.push([readU32(0x88 + i * 8), readU32(0x88 + i * 8 + 4)]);
-g.fileBytes = archive;
-g.masterIndexGlobal = masterIndex;
-if (typeof ctx.__bind === 'function') ctx.__bind(archive, masterIndex);
+const arc = ctx.__bind(archive);
+if (!arc) { console.error('FATAL: the archive has no master index'); process.exit(1); }
 
 say(`archive ${archive.length} bytes, title "${new TextDecoder('latin1').decode(archive.slice(1, 1 + archive[0]))}"`);
 
@@ -107,7 +107,7 @@ for (const subn of IMG_SUBN) {
     // The resid matters: one 0x8Exx resource is a sized picture rather than a
     // tile strip, and decodeResource can only tell which from its id.
     const resid = ((subn + 1) << 8) | idx;
-    const r = tryCall('decodeResource', () => g.decodeResource(bytes, subn, resid));
+    const r = tryCall('decodeResource', () => g.decodeResource(arc, bytes, subn, resid));
     if (!r.ok) { fail++; continue; }
     const img = r.v && (r.v.image || r.v);
     if (!img || !img.length) { blank++; continue; }
@@ -165,7 +165,7 @@ for (const subn of IMG_SUBN) {
     for (let ri = 0, n = Math.min(256, cnt / 8); ri < n; ri++) {
       const resid = (subn + 1) * 0x100 + ri;
       let raw;
-      try { raw = g.getResourceBytes(resid); } catch (e) { continue; }
+      try { raw = g.getResourceBytes(arc, resid); } catch (e) { continue; }
       if (!raw || !raw.length) continue;
       let v;
       try { v = g.smartDecrypt(raw, resid); } catch (e) { continue; }
@@ -193,10 +193,10 @@ for (const subn of IMG_SUBN) {
     for (let ri = 0, n = Math.min(256, cnt / 8); ri < n; ri++) {
       const resid = (subn + 1) * 0x100 + ri;
       let raw;
-      try { raw = g.getResourceBytes(resid); } catch (e) { continue; }
+      try { raw = g.getResourceBytes(arc, resid); } catch (e) { continue; }
       if (!raw || !raw.length) continue;
       let text = '';
-      try { text = g.dvmRender(g.smartDecrypt(raw, resid).data, resid) || ''; } catch (e) { text = 'ERR'; }
+      try { text = g.dvmRender(arc, g.smartDecrypt(raw, resid).data, resid) || ''; } catch (e) { text = 'ERR'; }
       if (!text) continue;
       rendered++; chars += text.length;
       d.update(text);

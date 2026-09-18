@@ -1157,9 +1157,9 @@ function renderCharacterSheet() {
     const pc = document.createElement('canvas');
     let drew = false;
     try {
-      const praw = getResourceBytes(0x8800 + (i - 1));
+      const praw = getResourceBytes(ARCHIVE, 0x8800 + (i - 1));
       if (praw) {
-        const dec = decodeResource(praw, 135);
+        const dec = decodeResource(ARCHIVE, praw, 135);
         drawToCanvas(pc, dec.W, dec.H, dec.image, 0);
         pc.style.cssText = 'width:76px;height:76px;image-rendering:pixelated;object-fit:contain;display:block';
         drew = true;
@@ -1284,8 +1284,8 @@ function showCharacterDetail(i) {
   art.style.cssText = 'display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;margin-bottom:12px';
   const pc = document.createElement('canvas');
   try {
-    const praw = getResourceBytes(0x8800 + (i - 1));
-    const dec = decodeResource(praw, 135);
+    const praw = getResourceBytes(ARCHIVE, 0x8800 + (i - 1));
+    const dec = decodeResource(ARCHIVE, praw, 135);
     drawToCanvas(pc, dec.W, dec.H, dec.image, 0);
     pc.style.cssText = 'width:128px;height:128px;image-rendering:pixelated';
   } catch (e) {}

@@ -61,7 +61,7 @@ const chars = ev(`(() => {
   const out = {};
   for (let n = 1; n < 0x100; n++) {
     const rid = 0x1800 | n;
-    let raw; try { raw = getResourceBytes(rid); } catch (e) { continue; }
+    let raw; try { raw = getResourceBytes(ARCHIVE, rid); } catch (e) { continue; }
     if (!raw) continue;
     const c = dvmConversation(smartDecrypt(raw, rid).data, rid);
     if (!c) continue;

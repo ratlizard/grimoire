@@ -493,7 +493,7 @@ function buildScriptedWindows() {
   if (fromData2.size) for (let z = 0; z < 0x100; z++) {
     if (!refExists(0x8100 + z)) continue;
     let list;
-    try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
+    try { list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
     // Each class tests the prop before it builds this window -- the poster
     // wants a Data1 of 0 and a Data2, the paper a Data1 of 255 -- and opens
     // the helper's picture otherwise. Every placed one in the shipped file
@@ -762,7 +762,7 @@ function buildSoundUsage() {
           fields.get(tag).via.add(e.resid);
         } else if (s.data !== undefined && s.slot !== undefined) {
           let list = null;
-          try { list = dvmDataValue(smartDecrypt(getResourceBytes(e.resid), e.resid).data, s.data + 3); } catch (err) {}
+          try { list = dvmDataValue(smartDecrypt(getResourceBytes(ARCHIVE, e.resid), e.resid).data, s.data + 3); } catch (err) {}
           if (Array.isArray(list) && typeof list[s.slot] === 'number') put(u.lists, list[s.slot], e.resid);
         }
       }
@@ -947,7 +947,7 @@ function eggsOfKind(kind) {
     for (let z = 0; z < 0x100; z++) {
       if (!refExists(0x8100 + z)) continue;
       let list;
-      try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
+      try { list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
       for (const r of list) {
         if (r.flags !== 0x42) continue;
         if (!all.has(r.aspect)) all.set(r.aspect, new Map());
@@ -1128,7 +1128,7 @@ function parseMonsterStats() {
   if (window.MONSTER_STATS) return window.MONSTER_STATS;
   const out = [];
   try {
-    const d = getResourceBytes(0xF008);
+    const d = getResourceBytes(ARCHIVE, 0xF008);
     if (d) {
       for (let i = 0; i * 16 + 16 <= d.length; i++) {
         const p = i * 16, r = d.subarray(p, p + 16);
@@ -1308,7 +1308,7 @@ function renderTableInspector(resid) {
   if (!host) return;
   window.CUR_TABLE_RESID = resid;
   let d = null;
-  try { d = smartDecrypt(getResourceBytes(resid), resid).data; } catch (e) {}
+  try { d = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data; } catch (e) {}
   if (!d || !d.length) { host.style.display = 'none'; return; }
   host.style.display = '';
   const w = window.TABLE_WIDTH || 16;
@@ -1349,7 +1349,7 @@ function renderText() {
   // navigation, Apply would write them into whatever is showing now.
   cancelResourceEdit();
   try {
-    const resDataRaw = fileBytes.slice(roff, roff+rlen);
+    const resDataRaw = ARCHIVE.bytes.slice(roff, roff+rlen);
     const { data: resData, wasDecrypted, rawScore, decScore, allZero } = smartDecrypt(resDataRaw, resid);
 
     document.getElementById('textPreview').style.display = 'block';
@@ -1423,7 +1423,7 @@ function renderText() {
 
     // The strings pane is built for every category, not just the ones that
     // fall through to it -- a prop list or a map header can still carry text.
-    stringsText = extractReadableStrings(resData, resid) || '(No readable strings in this resource.)';
+    stringsText = extractReadableStrings(ARCHIVE, resData, resid) || '(No readable strings in this resource.)';
     hexText = hexDump(resData);
 
     const midiBtn = document.getElementById('midiBtn');
@@ -1473,7 +1473,7 @@ function renderText() {
                        'produces confident nonsense -- and its real format is unknown.\n' +
                        'The bytes are in the raw dump below.';
         } else {
-          const dis = dvmRender(resData, resid);
+          const dis = dvmRender(ARCHIVE, resData, resid);
           if (dis && dis.split('\n').length > 2) scriptText = dis;
         }
       } catch (e) {
@@ -1571,7 +1571,7 @@ function conversationFor(resid) {
   if (window.CONV_CACHE.has(resid)) return window.CONV_CACHE.get(resid);
   let conv = null;
   try {
-    const raw = getResourceBytes(resid);
+    const raw = getResourceBytes(ARCHIVE, resid);
     if (raw) conv = dvmConversation(smartDecrypt(raw, resid).data, resid);
   } catch (e) {}
   window.CONV_CACHE.set(resid, conv);
@@ -1735,7 +1735,7 @@ function renderDialoguePane(data, subn, resid) {
   // stitching them would glue unrelated lines together. Only the fragmentary
   // Pascal fallback gets stitched.
   let lines;
-  const owned = (resid !== undefined) ? dvmStringObjects(data, resid) : [];
+  const owned = (resid !== undefined) ? dvmStringObjects(ARCHIVE, data, resid) : [];
   if (owned.length) {
     lines = owned.filter(e => /[A-Za-z]{2}/.test(e.str))
                  .map(e => ({ offset: e.offset, text: e.str }));
@@ -1814,13 +1814,13 @@ function downloadCurrentRawBytes() {  const bytes = window.CUR_RAW_BYTES;
 // ENTIRE archive through writeDelverArchive (the writer delv_write_check.mjs
 // holds byte-identical to delvmod's), and re-enter through parseArchiveBytes
 // as if the rebuilt file had just been opened. Rebuilding wholesale instead
-// of patching fileBytes in place costs ~none (a 5.6 MB archive re-serializes
+// of patching ARCHIVE.bytes in place costs ~none (a 5.6 MB archive re-serializes
 // in milliseconds) and buys everything: every derived cache resets, every
 // gallery and map redraws from the edited bytes, and the thing on screen is
 // provably the thing a download produces -- there is no second, edited-but-
 // unserialized state to drift.
 //
-// Edits live only in fileBytes. The IndexedDB copy is deliberately NOT
+// Edits live only in ARCHIVE.bytes. The IndexedDB copy is deliberately NOT
 // updated -- a reload restores the original, and "Download edited archive"
 // is the way to keep work. The download is the bare data fork (.data):
 // delvmod, mag.py and this page all read it directly; the resource fork the
@@ -1828,8 +1828,8 @@ function downloadCurrentRawBytes() {  const bytes = window.CUR_RAW_BYTES;
 window.EDITED_RESIDS = new Set();
 
 function startResourceEdit() {
-  if (currentResid == null || !fileBytes) return;
-  const raw = getResourceBytes(currentResid);
+  if (currentResid == null || !ARCHIVE) return;
+  const raw = getResourceBytes(ARCHIVE, currentResid);
   if (!raw) { setStatus('This resource has no bytes to edit.', true); return; }
   const dec = smartDecrypt(raw, currentResid);
   let hex = '';
@@ -1866,7 +1866,7 @@ function applyResourceEditFromText() {
 }
 
 function applyResourceEdit(resid, newData) {
-  const spec = delverArchiveSpec(fileBytes);
+  const spec = delverArchiveSpec(ARCHIVE.bytes);
   if (!spec) { setStatus('The open archive did not re-parse; nothing changed.', true); return false; }
   const entry = spec.resources.find(r => r.resid === resid);
   if (!entry) { setStatus('0x' + resid.toString(16).toUpperCase() + ' is not in the archive.', true); return false; }
@@ -1904,10 +1904,10 @@ function showEditNotice(resid, what, count) {
 }
 
 function downloadEditedArchive() {
-  if (!fileBytes) return;
+  if (!ARCHIVE) return;
   const base = (window.ARCHIVE_SOURCE_NAME || 'Cythera Data')
     .replace(/\.(hqx|data|bin)$/i, '');
-  dlBlob(new Blob([fileBytes], { type: 'application/octet-stream' }),
+  dlBlob(new Blob([ARCHIVE.bytes], { type: 'application/octet-stream' }),
          safeFileName(base + ' (edited)') + '.data');
 }
 
@@ -1923,7 +1923,7 @@ function togglePropEdit(propResid, index) {
   const host = document.getElementById('propEdit-' + index);
   if (!host) return;
   if (host.style.display !== 'none') { host.style.display = 'none'; host.innerHTML = ''; return; }
-  const raw = getResourceBytes(propResid);
+  const raw = getResourceBytes(ARCHIVE, propResid);
   if (!raw) { setStatus('Prop list 0x' + propResid.toString(16).toUpperCase() + ' is not readable.', true); return; }
   const rec = parseDelverPropList(smartDecrypt(raw, propResid).data)[index];
   if (!rec) return;
@@ -1964,7 +1964,7 @@ function applyPropEditForm(propResid, index) {
 }
 
 function applyPropRecordEdit(propResid, index, fields) {
-  const raw = getResourceBytes(propResid);
+  const raw = getResourceBytes(ARCHIVE, propResid);
   if (!raw) return false;
   const records = parseDelverPropList(smartDecrypt(raw, propResid).data);
   if (!records[index]) return false;
@@ -1973,7 +1973,7 @@ function applyPropRecordEdit(propResid, index, fields) {
 }
 
 function downloadEditedMacBinary() {
-  if (!fileBytes) return;
+  if (!ARCHIVE) return;
   // Both forks in one emulator-ready file: the edited data fork, and the
   // resource fork exactly as it arrived -- data-fork edits never touch it.
   // The Finder identity is whatever the container that brought the archive
@@ -1981,7 +1981,7 @@ function downloadEditedMacBinary() {
   const f = window.ARCHIVE_FINDER || { name: 'Cythera Data', type: 'DelS', creator: 'Delv' };
   const bin = writeMacBinary({
     name: f.name, type: f.type, creator: f.creator,
-    data: fileBytes, rsrc: window.CYTHERA_RSRC_RAW || new Uint8Array(0)
+    data: ARCHIVE.bytes, rsrc: window.CYTHERA_RSRC_RAW || new Uint8Array(0)
   });
   const base = (window.ARCHIVE_SOURCE_NAME || f.name || 'Cythera Data')
     .replace(/\.(hqx|data|bin)$/i, '');

@@ -176,9 +176,9 @@ function decompressDCG(data, width, height) {
 
    Row-to-row self-similarity confirms the reading: 0.58 flat against 0.82 at
    the header's width. */
-const _sizedSheetCache = new Map();
-function tileSheetIsSized(resid, resData) {
-  if (_sizedSheetCache.has(resid)) return _sizedSheetCache.get(resid);
+function tileSheetIsSized(arc, resid, resData) {
+  const memo = derivedTable(arc, 'sizedSheets', () => new Map());
+  if (memo.has(resid)) return memo.get(resid);
   let ok = false;
   try {
     if (resData && resData.length >= 8) {
@@ -187,7 +187,7 @@ function tileSheetIsSized(resid, resData) {
       const h2 = bitsOf(h, 15, 16) << 1, fl2 = bitsOf(h, 1, 31);
       const lw = w2 + (fl ? 4 : 0), lh = h2 + fl2;
       if (lw >= 8 && lw <= 1024 && lh >= 8 && lh <= 1024 && lw * lh >= 1024) {
-        const attrs = getTileAttributes();
+        const attrs = getTileAttributes(arc);
         const first = (resid & 0xFF) << 4;
         let used = false;
         for (let t = first; t < first + 16; t++) if (attrs[t]) { used = true; break; }
@@ -195,14 +195,14 @@ function tileSheetIsSized(resid, resData) {
       }
     }
   } catch (e) {}
-  _sizedSheetCache.set(resid, ok);
+  memo.set(resid, ok);
   return ok;
 }
 
-function decodeResource(resData, subn, resid) {
+function decodeResource(arc, resData, subn, resid) {
   let W, H, logW, logH, image;
   if (UNCOMPRESSED[subn]) { [W,H] = CANONICAL_SIZE[subn]; image = resData.slice(0, W*H); return {W,H,image}; }
-  if (subn === 141 && resid !== undefined && tileSheetIsSized(resid, resData)) subn = 142;
+  if (subn === 141 && resid !== undefined && tileSheetIsSized(arc, resid, resData)) subn = 142;
   if (HAS_HEADER[subn] && resData.length >= 4) {
     const header = resData.slice(0,4);
     let W2 = bitsOf(header, 14, 0) << 2;
@@ -394,36 +394,33 @@ function isAnimatedIndex(n){ return n >= 0xE0 && n < 0xFC; }
    ------------------------------------------------------------ */
 const SHARED_ART_R = 2;              /* the 5x5 above */
 const PORTRAIT_SUBN = 135;
-let _portraitCorpus = null, _sharedArtCache = new Map();
 
-/* Cleared by resetDerivedCaches() in the page, like everything else
-   keyed to the open archive -- the corpus IS the open archive. */
-function resetSharedArt(){ _portraitCorpus = null; _sharedArtCache = new Map(); }
-
-function portraitCorpus(){
-  if (_portraitCorpus) return _portraitCorpus;
-  _portraitCorpus = [];
-  /* Ambient, exactly as getResourceBytes is everywhere else in this tier;
-     and absent in a harness that hands bytes straight to the decoders, where
-     the answer is simply an empty corpus and no lock. */
-  try {
-    const mi = (typeof masterIndexGlobal !== 'undefined') ? masterIndexGlobal : null;
-    if (!mi || !mi[PORTRAIT_SUBN]) return _portraitCorpus;
-    const cnt = mi[PORTRAIT_SUBN][1] | 0;
-    for (let i = 0; i < cnt / 8; i++) {
-      const resid = ((PORTRAIT_SUBN + 1) << 8) | i;
-      try {
-        const b = getResourceBytes(resid); if (!b) continue;
-        const d = decodeResource(b, PORTRAIT_SUBN, resid);
-        if (d && d.image) _portraitCorpus.push(d);
-      } catch (e) {}
-    }
-  } catch (e) { _portraitCorpus = []; }
-  return _portraitCorpus;
+/* Every portrait in the archive, decoded once per archive: the corpus IS
+   the open archive. With no archive -- a harness handing bytes straight to
+   the decoders -- the corpus is empty and nothing is locked. */
+function portraitCorpus(arc){
+  if (!arc) return [];
+  return derivedTable(arc, 'portraitCorpus', () => {
+    const corpus = [];
+    try {
+      const mi = arc.index[PORTRAIT_SUBN];
+      if (!mi || !mi[0]) return corpus;
+      const cnt = mi[1] | 0;
+      for (let i = 0; i < cnt / 8; i++) {
+        const resid = ((PORTRAIT_SUBN + 1) << 8) | i;
+        try {
+          const b = getResourceBytes(arc, resid); if (!b) continue;
+          const d = decodeResource(arc, b, PORTRAIT_SUBN, resid);
+          if (d && d.image) corpus.push(d);
+        } catch (e) {}
+      }
+    } catch (e) { corpus.length = 0; }
+    return corpus;
+  });
 }
 
-function sharedArtMask(image, W, H){
-  const corpus = portraitCorpus();
+function sharedArtMask(arc, image, W, H){
+  const corpus = portraitCorpus(arc);
   if (!corpus.length) return null;
   const R = SHARED_ART_R, N = W * H;
   const m = new Uint8Array(N), eq = new Uint8Array(N);
@@ -467,7 +464,7 @@ function sharedArtMask(image, W, H){
    drawing. It locked 48% of one portrait and 89% of a texture,
    and scored worse on every resource class tried. Removed.
    ------------------------------------------------------------ */
-function buildLockedMask(indexPlane, opt, rgba, W, H){
+function buildLockedMask(arc, indexPlane, opt, rgba, W, H){
   const N = rgba ? rgba.length/4 : (indexPlane ? indexPlane.length : 0);
   const locked = new Uint8Array(N);
   for(let i=0;i<N;i++){
@@ -476,13 +473,15 @@ function buildLockedMask(indexPlane, opt, rgba, W, H){
   }
   /* Third, and the only one that has to look outside this picture: art this
      portrait shares with another, which is its frame. See the block above
-     buildLockedMask's neighbour, sharedArtMask. Memoised on the pixels, since
-     a gallery redraws constantly and the answer depends on nothing else. */
-  if(opt.lockSharedArt!==false && indexPlane && W && H && indexPlane.length===W*H){
+     buildLockedMask's neighbour, sharedArtMask. Memoised on the pixels and
+     on the archive, since a gallery redraws constantly and the answer depends
+     on nothing but the two. */
+  if(opt.lockSharedArt!==false && arc && indexPlane && W && H && indexPlane.length===W*H){
     const k = W + 'x' + H + ':' + hashIndices(indexPlane);
+    const memo = derivedTable(arc, 'sharedArt', () => new Map());
     let m;
-    if(_sharedArtCache.has(k)) m = _sharedArtCache.get(k);
-    else { m = sharedArtMask(indexPlane, W, H); _sharedArtCache.set(k, m); }
+    if(memo.has(k)) m = memo.get(k);
+    else { m = sharedArtMask(arc, indexPlane, W, H); memo.set(k, m); }
     if(m) for(let i=0;i<N;i++) if(m[i]) locked[i]=1;
   }
   return locked;
@@ -972,16 +971,18 @@ function undither(rgba, W, H, p, locked, cls){
   return {out, map, pct: dcount?dsum/dcount:0, colors: seen.size, specks: speckCount, strays: strayCount, outW, outH};
 }
 
-// Indexed resource in, undithered ImageData out. Cached: a gallery redraws
-// constantly (hover, palette cycling, mode changes) and this is far too much
-// work to repeat for a picture that has not changed.
-const UNDITHER_CACHE = new Map();
-function unditherIndexed(W, H, image, transparentIndex, palette, key) {
+// Indexed resource in, undithered ImageData out. Cached per archive: a
+// gallery redraws constantly (hover, palette cycling, mode changes) and this
+// is far too much work to repeat for a picture that has not changed. The
+// archive is part of what the answer depends on, through the frame lock,
+// which reads every other portrait in it.
+function unditherIndexed(arc, W, H, image, transparentIndex, palette, key) {
   // The preset belongs in the key: the same pixels under the other settings
   // are a different picture, and a gallery that switched would show the one
   // it had already made.
   if (key) key = ((typeof window !== 'undefined' && window.UNDITHER_PRESET) || 'original') + ':' + key;
-  if (key && UNDITHER_CACHE.has(key)) return UNDITHER_CACHE.get(key);
+  const cache = derivedTable(arc, 'undithered', () => new Map());
+  if (key && cache.has(key)) return cache.get(key);
   const P = palette || PAL_RGB;
   const t = (transparentIndex === undefined || transparentIndex === null) ? -1 : transparentIndex;
   const N = W * H;
@@ -993,12 +994,12 @@ function unditherIndexed(W, H, image, transparentIndex, palette, key) {
     rgba[i*4]=c[0]; rgba[i*4+1]=c[1]; rgba[i*4+2]=c[2]; rgba[i*4+3]=255;
   }
   const P2 = activeUD();
-  const locked = buildLockedMask(image, P2, rgba, W, H);
+  const locked = buildLockedMask(arc, image, P2, rgba, W, H);
   const r = undither(rgba, W, H, P2, locked, null);
   const out = new ImageData(new Uint8ClampedArray(r.out), r.outW, r.outH);
   if (key) {
-    if (UNDITHER_CACHE.size > 400) UNDITHER_CACHE.clear();
-    UNDITHER_CACHE.set(key, out);
+    if (cache.size > 400) cache.clear();
+    cache.set(key, out);
   }
   return out;
 }
@@ -1025,18 +1026,17 @@ function transparentIndexFor(subn) { return TRANSPARENT_SUBN.has(subn) ? 0 : nul
 // the last 0x1000 describe composed tiles. Bits 0xC0 encode how many map
 // squares a prop's sprite spans, which is how large creatures and big
 // objects (beds, tables, trees) are drawn across more than one tile.
-let tileAttrCache = null;
-function getTileAttributes() {
-  if (tileAttrCache !== null) return tileAttrCache;
-  const data = getResourceBytes(0xF002);
-  if (!data) { tileAttrCache = []; return tileAttrCache; }
-  const n = Math.floor(data.length / 4);
-  const arr = new Uint32Array(n);
-  for (let i = 0; i < n; i++) {
-    arr[i] = u32be(data, i*4);
-  }
-  tileAttrCache = arr;
-  return arr;
+function getTileAttributes(arc) {
+  return derivedTable(arc, 'tileAttributes', () => {
+    const data = getResourceBytes(arc, 0xF002);
+    if (!data) return [];
+    const n = Math.floor(data.length / 4);
+    const arr = new Uint32Array(n);
+    for (let i = 0; i < n; i++) {
+      arr[i] = u32be(data, i*4);
+    }
+    return arr;
+  });
 }
 function isCompletelyWhite(image) {
   let nonwhite=0;

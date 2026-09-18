@@ -65,7 +65,7 @@ vm.runInContext('parseArchiveBytes(__archive, {name:"Cythera Data"})', ctx);
 // prose is rendered as a string and never disassembled; it is reported as
 // {prose:1} and checked more loosely below.
 vm.runInContext(`function __dasmEvents(resid) {
-  let raw; try { raw = getResourceBytes(resid); } catch (e) { return { missing: true }; }
+  let raw; try { raw = getResourceBytes(ARCHIVE, resid); } catch (e) { return { missing: true }; }
   if (!raw || raw.length < 4) return { empty: true };
   const b = smartDecrypt(raw, resid).data;
   const objs = dvmExtents(b, resid);

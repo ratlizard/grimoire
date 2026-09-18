@@ -287,11 +287,16 @@ function dvmArrayContents(seg) {
 // `set_field aspect` in a door disassembly to be mislabelled; the struct
 // table has not been rewritten here because nothing else contradicts it.
 const DVM_SYM = {"syscall":{"160":"RangeIterator","161":"ArrayIterator","162":"GameOver","163":"UseTime","164":"TalkParticipant","165":"UnseenA5","166":"Delay","167":"Delete","168":"Create","169":"GetMapTile","170":"UnseenAA","171":"TakeItem","172":"Random","173":"New","174":"WhoHasItem","175":"UnseenAF","176":"UnseenB0","177":"RemoveItem","178":"UnseenB2","179":"UnseenB3","180":"ModalNumberInput","181":"UnseenB5","182":"UnseenB6","183":"WeightCapacity","184":"GetWeight","185":"JoinParty","186":"LeaveParty","187":"ModalPartySelector","188":"IsInParty","189":"PassTime","190":"UpdateLighting","191":"ChangeZone","192":"ShowMenu","193":"SetFlag","194":"ClearFlag","195":"StatusEffect","196":"TestFlag","197":"EmitSignal","198":"UnseenC6","199":"PropListIterator","200":"ContainerIterator","201":"RecursiveContainerIterator","202":"PartyIterator","203":"LocationIterator","204":"EquipmentIterator","205":"UnseenCD","206":"EnemyIterator","207":"EffectIterator","208":"MonsterIterator","209":"NearbyIterator","210":"PlayNote","211":"PlaySound","212":"UnknownD4","213":"UnseenD5","214":"PlayMusic","215":"PlayAmbientSound","216":"SetAmbientLighting","217":"SetLandscapeImage","218":"SetTitle","219":"HasWindow","220":"GetState","221":"SetState","222":"GetStateFlag","223":"SetStateFlag","224":"UnknownE0","225":"MagicAuraEffect","226":"ShootEffect","227":"FlashTile","228":"HitWithTile","229":"GetNextProp","230":"RefreshView","231":"SpecialView","232":"OpenConversation","233":"FinishConversation","234":"BeginCutscene","235":"EndCutscene","236":"BeginSlideshow","237":"EndSlideshow","238":"Slideshow","239":"UnseenEF","240":"AddTask","241":"FinishTasks","242":"AddQuest","243":"CompleteQuest","244":"AddConversationKeyword","245":"GetSkill","246":"SetViewPosition","247":"HasSightLine","248":"CDPlayerControl","249":"UnseenF9","250":"GetProp","251":"UnseenFB","252":"SetAutomapping","253":"SetBackgroundColor","254":"UnseenFE","255":"UnseenFF"},"field":{"0":"flags","1":"x","2":"y","3":"aspect","4":"obj_type","5":"aspect_and_proptype","6":"data1","7":"data2","8":"data3","9":"quantity","10":"tile","11":"container","12":"erode_effect","13":"rotate","17":"has_storage","18":"storage","19":"bit_flags","20":"status_flags","21":"behavior","22":"behavior2","23":"body","24":"reflex","25":"mind","26":"exp","27":"level","28":"health","29":"full_health","30":"magic","31":"full_magic","32":"dispatch_thing","33":"training","34":"target","35":"timing","38":"talk_balloon","40":"nutrition","41":"room_occupied","50":"monster_flags","53":"alignment"},"method":{"2":"Look","4":"HasSkill","7":"LookAt","8":"Examine","9":"Use","10":"UseOn","11":"UseAt","12":"Talk","13":"Wear","14":"UnWear","15":"Take","16":"PutInside","17":"Relinquish","20":"Enter","21":"GetMessage","23":"IsContainer","26":"Learn","29":"OnDeath","31":"StepOn","32":"EveryTurn","34":"Chair","35":"Mirror","36":"Weight","38":"Equipment","39":"ClassFlags","40":"Stacking","42":"MeleeWeapon","43":"ThrownWeapon","44":"ArmorValue","45":"Ammunition","46":"RangedWeapon","47":"Shield","48":"AlchemicalReagent","50":"LightSource","51":"AskedAbout","52":"Lockable","53":"UseLock","54":"AIInformation","57":"Dug","58":"Portal","59":"SoundEffects","60":"MoneyValue","64":"ResistDamage","65":"TakeDamage","68":"SpellsKnown","69":"NegotiationPoints"},"gui":{"4":"Create","6":"Text","8":"Button","15":"Instrument","17":"Spinner","20":"TextBox"},"global":{"0":"CurrentHour","1":"CurrentTime","2":"PlayerCharacterName","5":"PlayerCharacter","6":"CharactersInParty","7":"CharactersInParty2","9":"CurrentCharacter","10":"ConversationResponse","12":"Karma","13":"Registered","14":"LanguagesKnown","15":"GameDay","16":"CurrentZone","17":"DifficultyLevel","18":"CurrentRoom","19":"IsPlayerTurn"},"objtype":{"0":"Prop","32":"Zone","64":"Character","72":"Monster","80":"Skill","88":"Room"},"resource":{"2070":"GiveDirections","3206":"BlacksmithTasker","3332":"CountMoneyInParty","3651":"PickLock","3718":"AdjCharLevel","3723":"GainExp","3745":"CastSpell","3766":"AskAbout","3840":"SetCharacterFlag"},"character":{"0":"NoCharacter","1":"Hero","2":"Alaric","3":"Magpie","4":"Hadrian","5":"Emesa","6":"Hector","7":"LKH_Guard","8":"Cademia_Guard","9":"Ruins_Guard","10":"Myus","11":"Naxos","12":"Darius","13":"Pelagon","14":"Deiphobus","15":"Kosha_Guard","16":"Atreus","17":"Ennomus","18":"Ariethous","19":"Laodice","20":"Thuria","21":"Malis","22":"Cybele","23":"Amphidamas","24":"Eurybates","25":"Rhesus","26":"Lycurgus","27":"Erechtheus","28":"Thamyris","29":"Atymnius","30":"Milcom","31":"Sardis","32":"Ake","33":"Neoptolemus","34":"Meleager","35":"Hebe","36":"Antenor","37":"Alastor","38":"Aeneas","39":"Eioneus","40":"Parium","41":"Crito","42":"Apis","45":"Dares","46":"Diomede","48":"Thetis","49":"Bias","50":"Philinus","51":"Opheltius","52":"Ascalon","53":"Ariadne","54":"Odemia_Guard","55":"Tlepolemus","56":"Eteocles","57":"Laomedon","58":"Ilus","59":"Autonous","60":"Propontis","61":"Mantinea","62":"Halos","63":"Catamarca_Guard","64":"Oeneus","65":"Periphas","66":"Theano","67":"Hypsenor","68":"Thoas","69":"Dymas","70":"Sacas","71":"Metopes","72":"Berossus","73":"Itanos","74":"Timon","75":"Prusa","76":"Bryaxis","77":"Anisa","78":"Pheres","79":"Charax","80":"Lindus","81":"Selinus","82":"Palaestra","83":"Tros","84":"Pnyx_Guard","85":"Alcestris","86":"Asius","87":"Paris","88":"Helen","89":"Niobe","90":"Larisa","91":"Joppa","92":"Eudoxus","93":"Eumelus","94":"Antiphus","95":"Polydamas","96":"Peirithous","97":"Aethon","98":"Dryas","100":"Gate_Guard","101":"Thersites","102":"Glaucus","103":"Borus","104":"Briseis","105":"Pelops","106":"Alcmena","107":"Asteropaeus","108":"Stentor","109":"Demodocus","110":"Thrasymedes","111":"Protesilaus","112":"Menelaus","113":"Lycaon","114":"Peleus","115":"Peisander","116":"Danae","117":"Semele","118":"Alcyone","119":"Clytemnestra","120":"Sabinate","121":"Jhiaxus","122":"Unhayt","123":"Seqedher","124":"Uset","125":"Ignae","126":"Omen","127":"UrSylph","189":"Wishing_Fountain","190":"Degree_Hall_Door"}};
-function loadResourceSymbols() {
-  if (window.RESOURCE_SYMBOLS) return window.RESOURCE_SYMBOLS;
+/* The names an archive gives its own resources, read out of its 0x0101:
+   "LKH_Guard", "Od_Trough1", the code identifiers the scripts were compiled
+   with. Built once per archive. */
+function loadResourceSymbols(arc) {
+  return derivedTable(arc, 'resourceSymbols', () => loadResourceSymbolsFrom(arc));
+}
+function loadResourceSymbolsFrom(arc) {
   const names = {};
   try {
-    const raw = getResourceBytes(0x0101);
+    const raw = getResourceBytes(arc, 0x0101);
     if (raw) {
       const d = smartDecrypt(raw, 0x0101).data;
       const n = u16be(d, 0) & 0x0FFF;
@@ -308,9 +313,18 @@ function loadResourceSymbols() {
       }
     }
   } catch (e) {}
-  return (window.RESOURCE_SYMBOLS = names);
+  return names;
 }
-function resourceSymbol(resid) { return loadResourceSymbols()[resid] || null; }
+/* The symbol table the disassembler names resources from. The disassembler
+   is handed one rather than reading the archive itself, the way objdump is
+   handed a symbol file: dvmDisassemble, dvmWord and dvmResourceName run deep
+   inside renders that have no archive in hand, and the table is the only
+   thing they need from it. Whoever opens an archive sets it --
+   parseArchiveBytes in the page, __bind in a harness -- with the names
+   loadResourceSymbols read out of that archive, or null for none. */
+let DVM_RESOURCE_SYMBOLS = null;
+function dvmSetResourceSymbols(names) { DVM_RESOURCE_SYMBOLS = names || null; }
+function resourceSymbol(resid) { return (DVM_RESOURCE_SYMBOLS && DVM_RESOURCE_SYMBOLS[resid]) || null; }
 
 function dvmSym(table, code) {
   const t = DVM_SYM[table];
@@ -719,7 +733,7 @@ function dvmLooksLikeText(seg) {
   return (ascii / seg.length > 0.9) || (ctrl / seg.length < 0.02);
 }
 
-function dvmRender(b, resid) {
+function dvmRender(arc, b, resid) {
   // So a dref back into this same resource reads as `here:0x0031`.
   dvmContextResid = (typeof resid === 'number') ? resid : null;
   const objs = dvmExtents(b, resid);
@@ -775,7 +789,7 @@ function dvmRender(b, resid) {
   // function's output, so a search for a line of dialogue lands on the
   // resource that says it.
   try {
-    const raw = dvmStringObjects(b, resid).filter(e => e.kind === 'raw');
+    const raw = dvmStringObjects(arc, b, resid).filter(e => e.kind === 'raw');
     if (raw.length) {
       lines.push('', '// text in regions the decoder could not reach:');
       for (const e of raw)
@@ -797,14 +811,13 @@ function dvmRender(b, resid) {
 //
 // The logic below deliberately mirrors dvmRender's, so a string shown in the
 // preview is character-for-character the string shown in the disassembly.
-function dvmStringObjects(b, resid) {
-  // Memoised per resource: dvmRender now calls this for its recovered-text
-  // tail, and the search index calls dvmRender over every script resource,
-  // so without the memo each function body would be disassembled twice per
-  // resource per index build. The page's resetDerivedCaches clears it with
-  // everything else keyed to the open archive.
-  const memo = (typeof window !== 'undefined')
-    ? (window._dvmStrMemo || (window._dvmStrMemo = new Map())) : null;
+function dvmStringObjects(arc, b, resid) {
+  // Memoised per resource, on the archive: dvmRender calls this for its
+  // recovered-text tail, and the search index calls dvmRender over every
+  // script resource, so without the memo each function body would be
+  // disassembled twice per resource per index build. With no archive in
+  // hand there is nothing to key the memo to and none is kept.
+  const memo = arc ? derivedTable(arc, 'stringObjects', () => new Map()) : null;
   if (memo && typeof resid === 'number' && b && memo.has(resid)) {
     const hit = memo.get(resid);
     if (hit.len === b.length) return hit.out;

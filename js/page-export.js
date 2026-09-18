@@ -284,7 +284,7 @@ function buildInstallScript(archiveName, note) {
    two things to do with it now -- save it, or hand it to the retired mobile shell. They
    have to be the same bytes, so the build is here and the callers are thin. */
 function buildEditedDiskImage() {
-  if (!fileBytes) return null;
+  if (!ARCHIVE) return null;
   const f = window.ARCHIVE_FINDER || { name: DISK_ARCHIVE_NAME, type: 'DelS', creator: 'Delv' };
   const base = (window.ARCHIVE_SOURCE_NAME || f.name || DISK_ARCHIVE_NAME)
     .replace(/\.(hqx|data|bin|dsk)$/i, '');
@@ -320,7 +320,7 @@ function buildEditedDiskImage() {
       volumeName: DISK_VOLUME_NAME,
       entries: [
         { name: archiveName, type: f.type, creator: f.creator,
-          data: fileBytes, rsrc: rsrc },
+          data: ARCHIVE.bytes, rsrc: rsrc },
         // TEXT with creator ToyS is what makes the Finder open this in Script
         // Editor. See the comment above buildInstallScript.
         { name: DISK_SCRIPT_NAME, type: 'TEXT', creator: 'ToyS',
@@ -354,9 +354,9 @@ function buildEditedDiskImage() {
 function buildResourcePatch() {
   const pristine = window.PRISTINE_BYTES;
   const edited = window.EDITED_RESIDS;
-  if (!pristine || !fileBytes || !edited || !edited.size) return null;
+  if (!pristine || !ARCHIVE || !edited || !edited.size) return null;
   const before = delverArchiveSpec(pristine);
-  const after = delverArchiveSpec(fileBytes);
+  const after = delverArchiveSpec(ARCHIVE.bytes);
   const byId = new Map(before.resources.map(r => [r.resid, r]));
   const runs = [];
   for (const resid of edited) {
@@ -420,13 +420,13 @@ function finderInfoBytes(type, creator) {
 }
 
 async function buildForkZip() {
-  if (!fileBytes) return null;
+  if (!ARCHIVE) return null;
   const f = window.ARCHIVE_FINDER || { name: DISK_ARCHIVE_NAME, type: 'DelS', creator: 'Delv' };
   const archiveName = (f.name || DISK_ARCHIVE_NAME).replace(/\.(hqx|data|bin|dsk|zip)$/i, '')
                       || DISK_ARCHIVE_NAME;
   const rsrc = window.CYTHERA_RSRC_RAW || new Uint8Array(0);
   const entries = [
-    { name: archiveName, bytes: fileBytes },
+    { name: archiveName, bytes: ARCHIVE.bytes },
     { name: '.rsrc/' + archiveName, bytes: rsrc },
     { name: '.finf/' + archiveName, bytes: finderInfoBytes(f.type, f.creator) },
   ];
@@ -745,9 +745,9 @@ function buildTileSheetUsage() {
   const idx = {};
   const bucket = r => idx[r] || (idx[r] = { maps: [], props: [], composites: [] });
 
-  for (let n = 0; n < subindexCount(127); n++) {
+  for (let n = 0; n < subindexCount(ARCHIVE, 127); n++) {
     const mapResid = 0x8000 + n;
-    const raw = getResourceBytes(mapResid);
+    const raw = getResourceBytes(ARCHIVE, mapResid);
     if (!raw) continue;
     let data = smartDecrypt(raw, mapResid).data;
     let m = parseDelverMap(data);
@@ -851,8 +851,8 @@ function renderImage() {
   const idx = parseInt(sel.value);
   const [resid, roff, rlen] = window.CUR_RESIDS[idx];
   try {
-    const resData = fileBytes.slice(roff, roff+rlen);
-    let {W,H,image} = decodeResource(resData, subn, resid);
+    const resData = ARCHIVE.bytes.slice(roff, roff+rlen);
+    let {W,H,image} = decodeResource(ARCHIVE, resData, subn, resid);
     if (subn === 141) ({W,H,image} = reshapeTileSheet(W,H,image, window.SHEET_SHAPE || 'grid'));
     const canvas = document.getElementById('canvas');
     document.getElementById('singlePreview').style.display = 'block';
@@ -1193,13 +1193,13 @@ function sheetTextSnippet(resid, roff, rlen, limit) {
     return (sp > limit * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,;:.\u2014-]+$/, '') + '\u2026';
   };
   try {
-    const raw = fileBytes.slice(roff, roff + Math.min(rlen, 4096));
+    const raw = ARCHIVE.bytes.slice(roff, roff + Math.min(rlen, 4096));
     const { data } = smartDecrypt(raw, resid);
     // Third algorithm for the same job, and it disagreed with the other two:
     // this one collected printable runs and then sorted them BY LENGTH, so a
     // gallery tile showed a resource's text in an order it does not appear in.
     // Container strings first, in file order, same as everywhere else.
-    const owned = dvmStringObjects(data, resid);
+    const owned = dvmStringObjects(ARCHIVE, data, resid);
     if (owned.length) {
       const joined = tidy(owned.map(e => e.str).join(' \u00b7 '));
       if (joined) return clip(joined);
@@ -1239,7 +1239,7 @@ function attachMapThumb(canvas, resid) {
   lazyTile(canvas, () => {
     {
       try {
-        const raw = getResourceBytes(resid);
+        const raw = getResourceBytes(ARCHIVE, resid);
         if (!raw) return;
         const { data } = smartDecrypt(raw, resid);
         const result = renderMapVisual(resid, data);
@@ -1264,7 +1264,7 @@ function attachMapThumb(canvas, resid) {
 // on screen rather than from a copy checked into the repo.
 function installBackgroundTexture() {
   try {
-    const r = decodeResource(getResourceBytes(0x8F00), 142);
+    const r = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, 0x8F00), 142);
     if (!r || !r.W) return;
     const c = document.createElement('canvas');
     drawToCanvas(c, r.W, r.H, r.image, null);

@@ -61,14 +61,14 @@ window.SCENARIO_ZONE_NAMES = null;
 function loadDerivedNames() {
   window.DERIVED_NAMES = null;
   try {
-    const raw = getResourceBytes(0x0201);
+    const raw = getResourceBytes(ARCHIVE, 0x0201);
     if (!raw) return;
     const { data } = smartDecrypt(raw, 0x0201);
     const t = parseDelverStringTable(data);
     if (t && t.length > 16) window.SCENARIO_NAMES = window.DERIVED_NAMES = t;
   } catch (e) { /* fall back to the built-in table */ }
   // A scenario's full stomach is kept for a saved game opened after it.
-  try { if (getResourceBytes(0x0A00)) fullStomach(); } catch (e) { /* no potion scripts */ }
+  try { if (getResourceBytes(ARCHIVE, 0x0A00)) fullStomach(); } catch (e) { /* no potion scripts */ }
 }
 // The names the open file gives, or the last file that gave any. `borrowed`
 // says which, so a sheet can admit it.
@@ -109,10 +109,10 @@ function selfNameFor(resid) {
   if (resid in window.SELF_NAMES) return window.SELF_NAMES[resid];
   let name = null;
   try {
-    const raw = getResourceBytes(resid);
+    const raw = getResourceBytes(ARCHIVE, resid);
     if (raw) {
       const d = smartDecrypt(raw, resid).data;
-      const strs = dvmStringObjects(d, resid);
+      const strs = dvmStringObjects(ARCHIVE, d, resid);
       for (const e of strs) {
         let t = e.str.replace(/[\s\u0000-\u001f]+$/, '');
         if (t.length < 2 || t.length > 34) continue;
@@ -325,7 +325,7 @@ function loadZoneports() {
   if (window.ZONEPORTS) return window.ZONEPORTS;
   const out = [];
   try {
-    const b = getResourceBytes(0xF00C);
+    const b = getResourceBytes(ARCHIVE, 0xF00C);
     if (b) for (let i = 0; i + 4 <= b.length; i += 4) {
       const xy = (b[i+1] << 16) | u16be(b, i+2);
       out.push({ map: 0x8000 | b[i], x: xy >> 12, y: xy & 0xFFF });
@@ -346,7 +346,7 @@ function loadZoneNames() {
   for (let n = 0; n < 0x100; n++) {
     const resid = 0x1400 | n;
     let raw;
-    try { raw = getResourceBytes(resid); } catch (e) { raw = null; }
+    try { raw = getResourceBytes(ARCHIVE, resid); } catch (e) { raw = null; }
     if (!raw) continue;
     let data;
     try { data = smartDecrypt(raw, resid).data; } catch (e) { continue; }
@@ -466,7 +466,7 @@ function setBuiltinLabels(on) {
   try { localStorage.setItem('cythera.builtinLabels', on ? '1' : '0'); } catch (e) {}
   // The atlas names its places once, when the scene is built.
   try { window.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) {}
-  if (window.masterIndexGlobal || typeof masterIndexGlobal !== 'undefined') {
+  if (ARCHIVE) {
     try { onCategoryChange(); } catch (e) {}
   }
 }
@@ -555,7 +555,7 @@ function renderSound() {
   const idx = parseInt(sel.value);
   const [resid, roff, rlen] = window.CUR_RESIDS[idx];
   try {
-    const resData = fileBytes.slice(roff, roff+rlen);
+    const resData = ARCHIVE.bytes.slice(roff, roff+rlen);
     const {rate, samples} = decodeSound(resData);
     currentWavBlob = samplesToWavBlob(rate, samples);
     currentSoundResid = resid;
@@ -641,7 +641,7 @@ function redrawCurrentView() {
 }
 
 function loadCompositionTable() {
-  const data = getResourceBytes(0xF013);
+  const data = getResourceBytes(ARCHIVE, 0xF013);
   if (!data) return [];
   const entries = [];
   let p = 0;
@@ -656,10 +656,10 @@ function loadCompositionTable() {
 const tileSheetCache = {};
 function getTileSheetImage(resid) {
   if (tileSheetCache[resid] !== undefined) return tileSheetCache[resid];
-  const data = getResourceBytes(resid);
+  const data = getResourceBytes(ARCHIVE, resid);
   if (!data) { tileSheetCache[resid] = null; return null; }
   try {
-    const decoded = decodeResource(data, 141, resid);
+    const decoded = decodeResource(ARCHIVE, data, 141, resid);
     tileSheetCache[resid] = decoded;
     return decoded;
   } catch(e) { tileSheetCache[resid] = null; return null; }
@@ -737,7 +737,7 @@ function loadTerrainNames() {
   if (window.TERRAIN_NAMES) return window.TERRAIN_NAMES;
   const list = [];
   try {
-    const raw = getResourceBytes(0xF004);
+    const raw = getResourceBytes(ARCHIVE, 0xF004);
     if (raw) {
       let i = 0, prev = -1;
       while (i + 3 <= raw.length) {

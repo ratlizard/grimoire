@@ -80,8 +80,7 @@ for (let i = 0; i < 256; i++) {
 }
 ctx.__archive = archive;
 ctx.__mi = masterIndex;
-peek('fileBytes = window.__archive');
-peek('masterIndexGlobal = window.__mi');
+const arc = peek('ARCHIVE = openDelverArchive(window.__archive); dvmSetResourceSymbols(loadResourceSymbols(ARCHIVE)); ARCHIVE');
 
 function residsFor(subn) {
   const [off, len] = masterIndex[subn];

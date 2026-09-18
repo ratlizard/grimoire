@@ -124,7 +124,7 @@ function gatewayTransform(gw) {
 function mapDescents(resid) {
   const out = [];
   try {
-    const raw = getResourceBytes(resid + 0x100);
+    const raw = getResourceBytes(ARCHIVE, resid + 0x100);
     if (!raw) return out;
     for (const r of parseDelverPropList(smartDecrypt(raw, resid + 0x100).data)) {
       if (!r.onMap || r.flags === 0xFF || (r.flags & 0x58)) continue;
@@ -167,7 +167,7 @@ function mapWorldAnchor(resid) {
   if (locatedCache.has(resid)) return locatedCache.get(resid);
   let anchor = null;
   try {
-    const raw = getResourceBytes(resid);
+    const raw = getResourceBytes(ARCHIVE, resid);
     if (raw) {
       let { data, wasDecrypted } = smartDecrypt(raw, resid);
       let m = parseDelverMap(data);
@@ -1781,7 +1781,7 @@ function propTextByData1(pt, d1) {
 }
 function dvmFarString(resid, k) {
   let d = null;
-  try { const raw = getResourceBytes(resid); if (raw) d = smartDecrypt(raw, resid).data; } catch (err) { d = null; }
+  try { const raw = getResourceBytes(ARCHIVE, resid); if (raw) d = smartDecrypt(raw, resid).data; } catch (err) { d = null; }
   if (!d || d[0] !== 0x90 || k < 0 || k >= d[1]) return '';
   const p = 2 + 4 * k;
   if (p + 4 > d.length || d[p] !== 0x82) return '';
@@ -1962,9 +1962,9 @@ function characterFace(i) {
   if (_faceCache.has(i)) return _faceCache.get(i);
   let out = null;
   try {
-    const raw = getResourceBytes(0x8800 + (i - 1));
+    const raw = getResourceBytes(ARCHIVE, 0x8800 + (i - 1));
     if (raw) {
-      const dec = decodeResource(raw, 135);
+      const dec = decodeResource(ARCHIVE, raw, 135);
       if (dec && dec.W) {
         const c = document.createElement('canvas');
         drawToCanvas(c, dec.W, dec.H, dec.image, 0);

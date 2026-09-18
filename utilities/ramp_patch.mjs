@@ -93,7 +93,7 @@ const { sandbox } = makeSandbox();
 const ctx = vm.createContext(sandbox);
 const EXPORT_CONSTS = ['PAL_RGB', 'DELV_PATCH_EXPORT_TYPE', 'DELV_PATCH_CREATOR'];
 const epilogue = '\n;' + EXPORT_CONSTS.map(n => `try{window.__${n}=${n}}catch(e){}`).join('') +
-  '\n;window.__bind = (a, m) => { fileBytes = a; masterIndexGlobal = m; };\n';
+  '\n;window.__bind = (a) => { ARCHIVE = openDelverArchive(a); dvmSetResourceSymbols(ARCHIVE ? loadResourceSymbols(ARCHIVE) : null); return ARCHIVE; };\n';
 try {
   new vm.Script(pageSource(htmlPath) + epilogue, { filename: htmlPath }).runInContext(ctx);
 } catch (e) {
@@ -106,7 +106,7 @@ const g = ctx;
 const readU32 = o => ((archive[o] * 0x1000000) + (archive[o+1] << 16) + (archive[o+2] << 8) + archive[o+3]) >>> 0;
 const masterIndex = [];
 for (let i = 0; i < 256; i++) masterIndex.push([readU32(0x88 + i * 8), readU32(0x88 + i * 8 + 4)]);
-g.fileBytes = archive; g.masterIndexGlobal = masterIndex; g.__bind(archive, masterIndex);
+const arc = g.__bind(archive);
 
 // Plaintext for every resource, which is also what the patch writer wants: the
 // cipher is keyed by resource id, so an edit made here re-encrypts wherever
@@ -169,9 +169,9 @@ const luma = i => {
 const SHEETS = [];
 for (const r of spec.resources) {
   if ((r.resid & 0xFF00) !== 0x8E00) continue;         // subindex 141
-  if (g.tileSheetIsSized(r.resid, r.data)) { SHEETS.push({ resid: r.resid, skip: 'sized picture' }); continue; }
+  if (g.tileSheetIsSized(arc, r.resid, r.data)) { SHEETS.push({ resid: r.resid, skip: 'sized picture' }); continue; }
   let d = null;
-  try { d = g.decodeResource(r.data, 141, r.resid); } catch (e) { d = null; }
+  try { d = g.decodeResource(arc, r.data, 141, r.resid); } catch (e) { d = null; }
   if (!d || d.W !== 32 || d.H !== 512) { SHEETS.push({ resid: r.resid, skip: d ? `${d.W}x${d.H}` : 'undecodable' }); continue; }
   SHEETS.push({ resid: r.resid, W: d.W, H: d.H, image: Uint8Array.from(d.image) });
 }
@@ -230,7 +230,7 @@ for (const s of SHEETS) {
   const encoded = g.encodeDCGLiterals(out);
   // The encoder is the part most likely to be wrong in a way nothing else
   // would notice, so the bytes that go in the patch are decoded again here.
-  const back = g.decodeResource(encoded, 141, s.resid);
+  const back = g.decodeResource(arc, encoded, 141, s.resid);
   if (!back || back.W !== 32 || back.H !== 512) {
     console.error(`FAIL 0x${s.resid.toString(16)}: re-decoded as ${back ? back.W + 'x' + back.H : 'nothing'}`);
     process.exit(1);

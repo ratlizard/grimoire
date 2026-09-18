@@ -631,9 +631,9 @@ function buildContainerView(rec, contents) {
   // The zoomrect is a frame with a hollow middle, so it goes on as a
   // background stretched to the card and the contents sit in the hollow.
   try {
-    const raw = getResourceBytes(rid);
+    const raw = getResourceBytes(ARCHIVE, rid);
     if (raw) {
-      const d = decodeResource(raw, 142);
+      const d = decodeResource(ARCHIVE, raw, 142);
       const back = document.createElement('canvas');
       drawToCanvas(back, d.W, d.H, d.image, null);
       box.style.backgroundImage = 'url(' + back.toDataURL('image/png') + ')';
@@ -710,7 +710,7 @@ function inspectMapSquare(tx, ty) {
      Here there is a square to stand on, so here it can be said. */
   if (window.SHOW_LIGHTING && cm.m && cm.resid !== WORLD_MAP_RESID) {
     const zl = zoneAmbientLevel(cm.resid);
-    const attr = getTileAttributes()[tileId] || 0, ownLvl = attr & 3;
+    const attr = getTileAttributes(ARCHIVE)[tileId] || 0, ownLvl = attr & 3;
     const { sum, n } = lightSumAt(cm.resid, cm.m, tx, ty);
     const hour = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
     const withView = zl === null ? null : ambientBase(zl, hour, sum);
@@ -806,7 +806,7 @@ function inspectMapSquare(tx, ty) {
     const ways = [];
     if (isExitProp(p.rec.proptype)) ways.push('a way out of here');
     if (isConcealedProp(p.rec.proptype)) ways.push('concealed');
-    if (isWallProp(p.rec.proptype) && !(((getTileAttributes()[p.tileId] || 0) >> 8) & 0x02))
+    if (isWallProp(p.rec.proptype) && !(((getTileAttributes(ARCHIVE)[p.tileId] || 0) >> 8) & 0x02))
       ways.push('a wall you can walk through');
     const acts = ['<button class="sv-chip" onclick="showPropTypeDetail(' + p.rec.proptype + ')">Prop type</button>'];
     if (isInventoryItem(p.rec.proptype))
@@ -874,7 +874,7 @@ function renderMapPreview() {
    had been reached from are the caller's business now, because the World tab
    has no gallery to go back to. The bytes come from getResourceBytes rather
    than from the (resid, offset, length) triple the dropdown carries, which is
-   the same slice of the same fileBytes -- see js/delv-archive.js. */
+   the same slice of the same ARCHIVE.bytes -- see js/delv-archive.js. */
 function renderMapResource(resid) {
   const out = document.getElementById('output');
   try {
@@ -1043,7 +1043,7 @@ function mapRenderFor(resid, cache) {
 function renderMapUncached(resid) {
   let entry = null;
   try {
-    const raw = getResourceBytes(resid);
+    const raw = getResourceBytes(ARCHIVE, resid);
     if (!raw) return null;
     // Maps are structured binary data, not text -- the printable-ASCII /
     // entropy heuristic in smartDecrypt() was designed for narrative text and
@@ -1127,7 +1127,7 @@ function contentBox(resid) {
   if (contentBoxes.has(resid)) return contentBoxes.get(resid);
   let box = null;
   try {
-    const raw = getResourceBytes(resid + 0x100);
+    const raw = getResourceBytes(ARCHIVE, resid + 0x100);
     const recs = raw ? parseDelverPropList(smartDecrypt(raw, resid + 0x100).data)
       .filter(r => r.onMap && r.flags !== 0xFF && !(r.flags & 0x58) &&
                    r.flags !== 0x42 && r.flags !== 0x44) : [];

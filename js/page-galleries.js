@@ -56,7 +56,7 @@ async function exportGallery() {
     const hex = '0x' + resid.toString(16).toUpperCase();
     const lbl = labelFor(resid);
     const stem = folder + safeFileName(hex + (lbl ? ' ' + lbl : ''));
-    const raw = fileBytes.slice(roff, roff + rlen);
+    const raw = ARCHIVE.bytes.slice(roff, roff + rlen);
     const wrote = [];
     try {
       if (SOUND_CATEGORIES.has(subn)) {
@@ -68,7 +68,7 @@ async function exportGallery() {
         files.push({ name: stem + '.mid', bytes: m.midi });
         wrote.push('midi (' + m.noteCount + ' notes)');
       } else if (!isText && subn !== 127) {
-        let { W, H, image } = decodeResource(raw, subn, resid);
+        let { W, H, image } = decodeResource(ARCHIVE, raw, subn, resid);
         if (subn === 141) ({ W, H, image } = reshapeTileSheetGrid(W, H, image));
         files.push({ name: stem + '.png',
                      bytes: await encodeIndexedPNG(W, H, image, PAL_RGB, transparentIndexFor(subn)) });
@@ -76,8 +76,8 @@ async function exportGallery() {
       } else {
         const d = smartDecrypt(raw, resid).data;
         let text = '';
-        try { text = dvmRender(d, resid) || ''; } catch (e) { text = ''; }
-        if (!text) { try { text = extractReadableStrings(d, resid) || ''; } catch (e) { text = ''; } }
+        try { text = dvmRender(ARCHIVE, d, resid) || ''; } catch (e) { text = ''; }
+        if (!text) { try { text = extractReadableStrings(ARCHIVE, d, resid) || ''; } catch (e) { text = ''; } }
         if (text) { files.push({ name: stem + '.txt', bytes: utf8(text) }); wrote.push('txt'); }
         files.push({ name: stem + '.bin', bytes: raw });
         wrote.push('raw');
@@ -335,7 +335,7 @@ function locatePascalString(data, approxOffset) {
 }
 
 function editStringAt(resid, approxOffset) {
-  const raw = getResourceBytes(resid);
+  const raw = getResourceBytes(ARCHIVE, resid);
   if (!raw) return;
   const data = smartDecrypt(raw, resid).data;
   const loc = locatePascalString(data, approxOffset);
@@ -376,7 +376,7 @@ function applyStringEdit(resid, textOffset, cap) {
     setStatus('That text is ' + enc.length + ' bytes; the slot holds ' + cap + '. Shorten it.', true);
     return;
   }
-  const data = smartDecrypt(getResourceBytes(resid), resid).data;
+  const data = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data;
   const out = Uint8Array.from(data);
   out.set(enc, textOffset);
   for (let i = textOffset + enc.length; i < textOffset + cap; i++) out[i] = 0x20;
@@ -442,7 +442,7 @@ function openDitherTool() {
   const portraits = [];
   for (let n = 0; n < 256; n++) {
     const rid = 0x8800 + n;
-    try { if (getResourceBytes(rid)) portraits.push(rid); } catch (e) {}
+    try { if (getResourceBytes(ARCHIVE, rid)) portraits.push(rid); } catch (e) {}
   }
   ov.innerHTML =
     '<div class="dtPanel">' +
@@ -497,8 +497,8 @@ function openDitherTool() {
    the slider. The picture is cover-cropped into the hole's box and the
    frame painted over it. */
 function ditherFrameMask(resid, inset) {
-  const b = getResourceBytes(resid);
-  const d = decodeResource(b, 135, resid);
+  const b = getResourceBytes(ARCHIVE, resid);
+  const d = decodeResource(ARCHIVE, b, 135, resid);
   const W = d.W, H = d.H, img = d.image;
   const hole = new Uint8Array(W * H);
   if (resid === 0x887E) {
@@ -572,7 +572,7 @@ function ditherFillTargets() {
   const opts = [];
   for (let n = 0; n < 256; n++) {
     const rid = page + n;
-    try { if (!getResourceBytes(rid)) continue; } catch (e) { continue; }
+    try { if (!getResourceBytes(ARCHIVE, rid)) continue; } catch (e) { continue; }
     opts.push('<option value="' + rid + '">0x' + rid.toString(16).toUpperCase() + (labelFor(rid) ? ', ' + svEsc(labelFor(rid)) : '') + '</option>');
   }
   sel.innerHTML = opts.join('');
@@ -707,7 +707,7 @@ function buildKeyLockIndex() {
   const locks = [], keys = [];
   for (let subN = 0; subN < 256; subN++) {
     const mr = 0x8000 + subN;
-    let raw; try { raw = getResourceBytes(mr + 0x100); } catch (e) { continue; }
+    let raw; try { raw = getResourceBytes(ARCHIVE, mr + 0x100); } catch (e) { continue; }
     if (!raw) continue;
     let recs; try { recs = parseDelverPropList(smartDecrypt(raw, mr + 0x100).data); } catch (e) { continue; }
     for (const r of recs) {
@@ -737,7 +737,7 @@ function keyLocationChip(k) {
   if (k.rec.container !== null) {
     let host = null;
     try {
-      const raw = getResourceBytes(k.map + 0x100);
+      const raw = getResourceBytes(ARCHIVE, k.map + 0x100);
       host = parseDelverPropList(smartDecrypt(raw, k.map + 0x100).data)[k.rec.container];
     } catch (e) {}
     if (!host) return '';
@@ -968,7 +968,7 @@ function renderContactSheet() {
       miniWave.width=160; miniWave.height=46; miniWave.style.cssText='width:84px;height:38px;background:#090806;border:1px solid #9b8850;margin-bottom:4px';
       // Decoding 46 sounds to draw 46 waveforms was the slowest gallery here.
       lazyTile(cell, () => {
-      try { const snd=decodeSound(fileBytes.slice(roff,roff+rlen)); const c=miniWave.getContext('2d'), s=snd.samples, w=miniWave.width,h=miniWave.height,mid=h/2, step=Math.max(1,Math.ceil(s.length/w)); c.strokeStyle='#f9f86f'; c.beginPath(); for(let x=0;x<w;x++){let lo=32767,hi=-32768;for(let j=x*step;j<Math.min(s.length,(x+1)*step);j++){if(s[j]<lo)lo=s[j];if(s[j]>hi)hi=s[j];}c.moveTo(x,mid-hi/32768*(mid-2));c.lineTo(x,mid-lo/32768*(mid-2));}c.stroke(); } catch(e) {}
+      try { const snd=decodeSound(ARCHIVE.bytes.slice(roff,roff+rlen)); const c=miniWave.getContext('2d'), s=snd.samples, w=miniWave.width,h=miniWave.height,mid=h/2, step=Math.max(1,Math.ceil(s.length/w)); c.strokeStyle='#f9f86f'; c.beginPath(); for(let x=0;x<w;x++){let lo=32767,hi=-32768;for(let j=x*step;j<Math.min(s.length,(x+1)*step);j++){if(s[j]<lo)lo=s[j];if(s[j]>hi)hi=s[j];}c.moveTo(x,mid-hi/32768*(mid-2));c.lineTo(x,mid-lo/32768*(mid-2));}c.stroke(); } catch(e) {}
       });
       cell.appendChild(miniWave);
       const lbl = labelFor(resid);
@@ -1073,8 +1073,8 @@ function renderContactSheet() {
     // the cell is removed at that point instead of never being added.
     lazyTile(cell, () => {
       try {
-        const resData = fileBytes.slice(roff, roff+rlen);
-        let {W,H,image} = decodeResource(resData, subn, resid);
+        const resData = ARCHIVE.bytes.slice(roff, roff+rlen);
+        let {W,H,image} = decodeResource(ARCHIVE, resData, subn, resid);
         const shape = window.SHEET_SHAPE || 'grid';
         if (subn === 141) ({W,H,image} = reshapeTileSheet(W,H,image, shape));
         if (isCompletelyWhite(image)) {

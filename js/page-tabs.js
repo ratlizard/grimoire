@@ -34,15 +34,15 @@ window.XREF_INDEX = null;
 function buildXrefIndex() {
   if (window.XREF_INDEX) return window.XREF_INDEX;
   const outbound = {}, inbound = {};
-  if (masterIndexGlobal) {
+  if (ARCHIVE) {
     for (let subn = 0; subn < 256; subn++) {
-      const mi = masterIndexGlobal[subn];
+      const mi = ARCHIVE.index[subn];
       if (!mi || !mi[0] || XREF_SKIP_SUBN.has(subn)) continue;
-      const count = subindexCount(subn);
+      const count = subindexCount(ARCHIVE, subn);
       for (let ri = 0; ri < count; ri++) {
         const resid = ((subn + 1) << 8) | ri;
         let raw;
-        try { raw = getResourceBytes(resid); } catch (e) { raw = null; }
+        try { raw = getResourceBytes(ARCHIVE, resid); } catch (e) { raw = null; }
         if (!raw || !raw.length) continue;
         let data;
         try { data = smartDecrypt(raw, resid).data; } catch (e) { continue; }
@@ -349,20 +349,20 @@ window.SCRIPT_TEXT = null;
 function buildScriptTextIndex() {
   if (window.SCRIPT_TEXT) return window.SCRIPT_TEXT;
   const map = [];
-  if (masterIndexGlobal) {
+  if (ARCHIVE) {
     for (let subn = 0; subn < 256; subn++) {
-      const mi = masterIndexGlobal[subn];
+      const mi = ARCHIVE.index[subn];
       if (!mi || !mi[0] || XREF_SKIP_SUBN.has(subn)) continue;
-      const count = subindexCount(subn);
+      const count = subindexCount(ARCHIVE, subn);
       for (let ri = 0; ri < count; ri++) {
         const resid = ((subn + 1) << 8) | ri;
         let raw;
-        try { raw = getResourceBytes(resid); } catch (e) { raw = null; }
+        try { raw = getResourceBytes(ARCHIVE, resid); } catch (e) { raw = null; }
         if (!raw || !raw.length) continue;
         let text = '';
         try {
           const d = smartDecrypt(raw, resid).data;
-          text = dvmRender(d, resid) || '';
+          text = dvmRender(ARCHIVE, d, resid) || '';
         } catch (e) { continue; }
         if (text) map.push({ resid, subn, text });
       }
@@ -548,7 +548,7 @@ function askOneShape(shape, hit) {
           for (let n = 0; n < 0x100 && where.length < 6; n++) {
             const mr = 0x8000 + n;
             let recs = null;
-            try { const raw = getResourceBytes(mr + 0x100); if (raw) recs = parseDelverPropList(smartDecrypt(raw, mr + 0x100).data); } catch (e) {}
+            try { const raw = getResourceBytes(ARCHIVE, mr + 0x100); if (raw) recs = parseDelverPropList(smartDecrypt(raw, mr + 0x100).data); } catch (e) {}
             if (!recs) continue;
             const hit = recs.find(r => r.proptype === pt && r.onMap && r.flags !== 0xFF && r.flags !== 0x42 && r.flags !== 0x44);
             if (hit) where.push('<button class="sv-chip" onclick="showSquareOnMap(' + mr + ',' + hit.x + ',' + hit.y + ')">' + svEsc(atlasMapName(mr)) + ' (' + hit.x + ',' + hit.y + ')</button>');
@@ -578,7 +578,7 @@ function runSearch() {
   if (hx) {
     const rid = parseInt(hx[1], 16);
     let exists = false;
-    try { const r = getResourceBytes(rid); exists = !!(r && r.length); } catch (e) {}
+    try { const r = getResourceBytes(ARCHIVE, rid); exists = !!(r && r.length); } catch (e) {}
     if (exists) {
       host.innerHTML = '<div class="sv-note">Opening resource 0x' +
         rid.toString(16).toUpperCase().padStart(4, '0') + '\u2026</div>';
@@ -727,7 +727,7 @@ function refDescription(rid) {
 }
 
 function refExists(rid) {
-  try { const r = getResourceBytes(rid); return !!(r && r.length); } catch (e) { return false; }
+  try { const r = getResourceBytes(ARCHIVE, rid); return !!(r && r.length); } catch (e) { return false; }
 }
 
 function refLink(rid) {

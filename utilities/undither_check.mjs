@@ -40,7 +40,7 @@ const EXPORT = ['PAL_RGB', 'UD', 'UD_PRESETS'];
 const epilogue = '\n;' + EXPORT.map(n => `try{window.__${n}=${n}}catch(e){}`).join('') +
   '\n;window.__undither=(a,w,h,p,l)=>undither(a,w,h,p,l,null);' +
   '\n;window.__dither=(a,w,h,o)=>ditherToCytheraPalette(a,w,h,o);' +
-  '\n;window.__locked=(img,p,rgba,w,h)=>buildLockedMask(img,p,rgba,w,h);\n';
+  '\n;window.__locked=(img,p,rgba,w,h)=>buildLockedMask(null,img,p,rgba,w,h);\n';
 try {
   new vm.Script(pageSource(html) + epilogue, { filename: html }).runInContext(ctx);
 } catch (e) {

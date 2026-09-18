@@ -272,8 +272,7 @@ if (!dataPath) {
     mi.push((off >= 0x888 && len > 0 && len % 8 === 0 && off + len <= archive.length) ? [off, len] : [0, 0]);
   }
   ctx.__archive = archive; ctx.__mi = mi;
-  peek('fileBytes = window.__archive');
-  peek('masterIndexGlobal = window.__mi');
+  const arc = peek('ARCHIVE = openDelverArchive(window.__archive); dvmSetResourceSymbols(loadResourceSymbols(ARCHIVE)); ARCHIVE');
 
   let agree = 0, noOpinion = 0;
   const disagree = [];
@@ -281,7 +280,7 @@ if (!dataPath) {
     if (!mi[subn][0]) continue;
     for (let ri = 0, n = Math.min(256, mi[subn][1] / 8); ri < n; ri++) {
       const resid = (subn + 1) * 0x100 + ri;
-      const raw = ctx.getResourceBytes(resid);
+      const raw = ctx.getResourceBytes(arc, resid);
       if (!raw || !raw.length) continue;
       let v;
       try { v = ctx.smartDecrypt(raw, resid); } catch (e) { continue; }
@@ -314,7 +313,7 @@ if (dataPath && existsSync(dataPath) && typeof ctx.dvmExtents === 'function') {
     for (let ri = 0; ri < 256; ri++) {
       const resid = (subn + 1) * 0x100 + ri;
       let raw;
-      try { raw = ctx.getResourceBytes(resid); } catch (e) { continue; }
+      try { raw = ctx.getResourceBytes(arc, resid); } catch (e) { continue; }
       if (!raw || !raw.length) continue;
       let data, objs;
       try { data = ctx.smartDecrypt(raw, resid).data; objs = ctx.dvmExtents(data, resid); }
@@ -369,7 +368,7 @@ if (dataPath && existsSync(dataPath) && typeof ctx.parseDelverPropList === 'func
   for (let n = 0; n < 256; n++) {
     const propResid = 0x8100 + n;
     let raw;
-    try { raw = ctx.getResourceBytes(propResid); } catch (e) { continue; }
+    try { raw = ctx.getResourceBytes(arc, propResid); } catch (e) { continue; }
     if (!raw || !raw.length) continue;
     let recs;
     try { recs = ctx.parseDelverPropList(ctx.smartDecrypt(raw, propResid).data); } catch (e) { continue; }
@@ -420,7 +419,7 @@ if (dataPath && existsSync(dataPath) && typeof ctx.parseDelverPropList === 'func
     for (let n = 0; n < 256; n++) {
       const resid = 0x8100 + n;
       let raw;
-      try { raw = ctx.getResourceBytes(resid); } catch (e) { continue; }
+      try { raw = ctx.getResourceBytes(arc, resid); } catch (e) { continue; }
       if (!raw || !raw.length) continue;
       let recs;
       try { recs = ctx.parseDelverPropList(ctx.smartDecrypt(raw, resid).data); } catch (e) { continue; }
@@ -453,7 +452,7 @@ if (dataPath && existsSync(dataPath) && typeof ctx.mapRoofSections === 'function
   for (let n = 0; n < 256; n++) {
     const mapResid = 0x8000 + n;
     let raw;
-    try { raw = ctx.getResourceBytes(mapResid); } catch (e) { continue; }
+    try { raw = ctx.getResourceBytes(arc, mapResid); } catch (e) { continue; }
     if (!raw) continue;
     let data = ctx.smartDecrypt(raw, mapResid).data;
     let m = ctx.parseDelverMap(data);

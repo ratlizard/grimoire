@@ -39,16 +39,16 @@ function buildBarkCatalogue() {
     if (cur.length >= 3) r.push(cur);
     return r;
   };
-  if (!masterIndexGlobal) return (window.BARKS = out);
+  if (!ARCHIVE) return (window.BARKS = out);
   for (let subn = 0; subn < 256; subn++) {
-    const mi = masterIndexGlobal[subn];
+    const mi = ARCHIVE.index[subn];
     if (!mi || !mi[0] || XREF_SKIP_SUBN.has(subn)) continue;
-    const count = subindexCount(subn);
+    const count = subindexCount(ARCHIVE, subn);
     for (let ri = 0; ri < count; ri++) {
       const resid = ((subn + 1) << 8) | ri;
       let data;
       try {
-        const raw = getResourceBytes(resid);
+        const raw = getResourceBytes(ARCHIVE, resid);
         if (!raw || !raw.length) continue;
         data = smartDecrypt(raw, resid).data;
         if (dvmNamedScript(data)) continue;
@@ -337,8 +337,8 @@ function skillIconURL(resid) {
   if (_skillIconURLs.has(icon)) return _skillIconURLs.get(icon);
   let url = '';
   try {
-    const raw = refExists(icon) ? getResourceBytes(icon) : null;
-    const dec = raw ? decodeResource(raw, 137, icon) : null;
+    const raw = refExists(icon) ? getResourceBytes(ARCHIVE, icon) : null;
+    const dec = raw ? decodeResource(ARCHIVE, raw, 137, icon) : null;
     if (dec && dec.W) {
       const c = document.createElement('canvas');
       drawToCanvas(c, dec.W, dec.H, dec.image, 0);
@@ -688,7 +688,7 @@ function karmaRules() {
   // The kill table: 0xE8D's data block, indexed by the victim's alignment.
   let byAlignment = null, byAlignmentSrc = null;
   try {
-    const raw = getResourceBytes(0xE8D);
+    const raw = getResourceBytes(ARCHIVE, 0xE8D);
     const d = raw ? smartDecrypt(raw, 0xE8D).data : null;
     if (d) for (let i = 0; i + 5 < d.length; i++) {
       if (d[i] === 0x45 && d[i + 3] === 0x90 && d[i + 4] >= 2 && d[i + 4] <= 8 && u16be(d, i + 1) === 2 + d[i + 4] * 4) {
@@ -814,7 +814,7 @@ function foodRules() {
       const mul = parseInt(/index[\s\S]*?byte (0x[0-9A-F]+)\s+mul/i.exec(after)[1]);
       let table = null, tableSrc = null;
       try {
-        const raw = getResourceBytes(e.resid); const d = smartDecrypt(raw, e.resid).data;
+        const raw = getResourceBytes(ARCHIVE, e.resid); const d = smartDecrypt(raw, e.resid).data;
         for (let k = 0; k + 5 < d.length; k++) if (d[k] === 0x45 && d[k + 3] === 0x90 && u16be(d, k + 1) === 2 + d[k + 4] * 4) {
           table = []; for (let q = 0; q < d[k + 4]; q++) table.push(u32be(d, k + 5 + q * 4) & 0x0FFFFFFF);
           tableSrc = { resid: e.resid, at: k };   // the data block's line
@@ -830,7 +830,7 @@ function foodRules() {
         const c = /string "([^"]*)"/.exec(balloon[0]);
         if (/get_field aspect(?: \(0x[0-9A-F]+\))?\s+index/.test(balloon[0])) {
           try {
-            const raw = getResourceBytes(e.resid); const d = smartDecrypt(raw, e.resid).data;
+            const raw = getResourceBytes(ARCHIVE, e.resid); const d = smartDecrypt(raw, e.resid).data;
             // The block is 0x45, a length, 0x90, a count, then drefs
             // (0x80000000 | resid << 16 | offset) back into this resource,
             // each at a string.
@@ -1294,15 +1294,15 @@ function dvmCallDataAt(d, off, ops, k, before) {
 // Every call of `resid` in every script, with the caller and the ops around it.
 function dvmCallSites(target) {
   const out = [];
-  if (!masterIndexGlobal) return out;
+  if (!ARCHIVE) return out;
   for (let subn = 0; subn < 256; subn++) {
-    const mi = masterIndexGlobal[subn];
+    const mi = ARCHIVE.index[subn];
     if (!mi || !mi[0] || XREF_SKIP_SUBN.has(subn)) continue;
-    const count = subindexCount(subn);
+    const count = subindexCount(ARCHIVE, subn);
     for (let ri = 0; ri < count; ri++) {
       const resid = ((subn + 1) << 8) | ri;
       let data;
-      try { const raw = getResourceBytes(resid); if (!raw || !raw.length) continue; data = smartDecrypt(raw, resid).data; if (dvmNamedScript(data)) continue; } catch (e) { continue; }
+      try { const raw = getResourceBytes(ARCHIVE, resid); if (!raw || !raw.length) continue; data = smartDecrypt(raw, resid).data; if (dvmNamedScript(data)) continue; } catch (e) { continue; }
       let disc; try { disc = dvmDiscover(data, resid); } catch (e) { continue; }
       if (disc.tableOffset === null) continue;
       const offs = Object.keys(disc.kinds).map(Number).sort((x, y) => x - y);
@@ -1716,7 +1716,7 @@ function springRules() {
   const placed = new Map();
   try {
     for (let z = 1; z < 0x100; z++) {
-      const praw = refExists(0x8100 + z) ? getResourceBytes(0x8100 + z) : null;
+      const praw = refExists(0x8100 + z) ? getResourceBytes(ARCHIVE, 0x8100 + z) : null;
       if (!praw) continue;
       for (const r of parseDelverPropList(smartDecrypt(praw, 0x8100 + z).data)) {
         if (r.proptype !== 0x36 || !r.onMap || r.flags === 0xFF || (r.flags & 0x40)) continue;
@@ -1850,7 +1850,7 @@ function todoRules() {
   let lines = null;
   if (textResid !== null && refExists(textResid)) {
     try {
-      const d = smartDecrypt(getResourceBytes(textResid), textResid);
+      const d = smartDecrypt(getResourceBytes(ARCHIVE, textResid), textResid);
       lines = new Map(parseDelverTextArray(d.data).map(x => [x.index, x.str]));
     } catch (err) { lines = null; }
   }
@@ -2008,7 +2008,7 @@ function eggKinds() {
     for (let z = 1; z < 0x100; z++) {
       if (!refExists(0x8100 + z)) continue;
       zones++;
-      const list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data);
+      const list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data);
       for (const r of list) {
         if (r.flags === 0x44) { roofs++; continue; }
         if (r.flags !== 0x42) continue;
@@ -2116,14 +2116,14 @@ function libraryRules() {
   }
   if (!docs.size) return null;
   for (const d of docs.values()) {
-    try { d.entries = parseDelverTextArray(smartDecrypt(getResourceBytes(d.resid), d.resid).data); }
+    try { d.entries = parseDelverTextArray(smartDecrypt(getResourceBytes(ARCHIVE, d.resid), d.resid).data); }
     catch (e) { d.entries = []; }
   }
   // Where each passage is shown: every placed record of a reading class.
   try {
     for (let z = 1; z < 0x100; z++) {
       if (!refExists(0x8100 + z)) continue;
-      for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data)) {
+      for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data)) {
         const ws = want.get(r.proptype);
         if (!ws || r.flags === 0xFF || (r.flags & 0x40)) continue;
         for (const w of ws) {
@@ -2349,7 +2349,7 @@ function looseEnds() {
       const lv = a && /^local Var([0-9A-F]+)$/i.exec(a.text);
       const g = lv && dvmSeqFirst(call.ops, [new RegExp('^set_local 0x' + lv[1] + '$', 'i'), /^data </]);
       let words = null;
-      if (g) { try { words = dvmArrayWords(smartDecrypt(getResourceBytes(call.caller), call.caller).data, g[1].at + 3); } catch (err) { words = null; } }
+      if (g) { try { words = dvmArrayWords(smartDecrypt(getResourceBytes(ARCHIVE, call.caller), call.caller).data, g[1].at + 3); } catch (err) { words = null; } }
       if (words && words.every(w => w >= 0 && w < 512)) words.forEach(c => cfSets.add(c + ':' + t.bit));
       else cfWild.add(t.bit);
     }
@@ -2374,10 +2374,10 @@ function looseEnds() {
     const add = (pt, v) => { if (!have.has(pt)) have.set(pt, new Set()); have.get(pt).add(v); };
     for (let rid = 0x8100; rid < 0x8200; rid++) {
       if (!refExists(rid)) continue;
-      let l; try { l = parseDelverPropList(smartDecrypt(getResourceBytes(rid), rid).data); } catch (err) { continue; }
+      let l; try { l = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, rid), rid).data); } catch (err) { continue; }
       for (const r of l) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1);
     }
-    try { for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(0xF306), 0xF306).data)) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1); } catch (err) {}
+    try { for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0xF306), 0xF306).data)) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1); } catch (err) {}
     for (const e of buildScriptTextIndex()) {
       let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
       for (let i = 0; i < ops.length; i++) {
@@ -2473,7 +2473,7 @@ function looseEnds() {
   for (const e of buildScriptTextIndex()) {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
     let objs = null;
-    try { objs = dvmExtents(smartDecrypt(getResourceBytes(e.resid), e.resid).data, e.resid); } catch (err) { objs = null; }
+    try { objs = dvmExtents(smartDecrypt(getResourceBytes(ARCHIVE, e.resid), e.resid).data, e.resid); } catch (err) { objs = null; }
     if (!objs) continue;
     const startOf = at => { for (const [st, en] of objs) if (at >= st && at < en) return st; return null; };
     const resp = [];
@@ -2504,7 +2504,7 @@ function looseEnds() {
   for (const e of buildScriptTextIndex()) {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
     let objs = null;
-    try { objs = dvmExtents(smartDecrypt(getResourceBytes(e.resid), e.resid).data, e.resid); } catch (err) { objs = null; }
+    try { objs = dvmExtents(smartDecrypt(getResourceBytes(ARCHIVE, e.resid), e.resid).data, e.resid); } catch (err) { objs = null; }
     if (!objs) continue;
     for (const [st, en, kind] of objs) {
       if (kind !== 'function') continue;
@@ -2611,7 +2611,7 @@ function goesDarkStillLit() {
   const SAYS_DARK = /stops glowing|goes out|burn(?:s|ed)? out|extinguish|snuff|turning gr[ae]y|goes dark|put out/i;
   const out = [];
   let attrs = null, props = null;
-  try { attrs = getTileAttributes(); props = getPropTileList(); } catch (e) { return out; }
+  try { attrs = getTileAttributes(ARCHIVE); props = getPropTileList(); } catch (e) { return out; }
   for (const e of buildScriptTextIndex()) {
     if (e.resid < 0x1000 || e.resid >= 0x1400) continue;
     const pt = e.resid - 0x1000, base = props[pt];
@@ -2897,7 +2897,7 @@ function containedUnseen() {
   const places = new Map();
   for (let z = 0; z < 0x100; z++) {
     if (!refExists(0x8100 + z)) continue;
-    let list; try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
+    let list; try { list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
     for (const r of list) {
       if (r.flags === 0xFF || (r.flags & 0x40)) continue;
       if (!places.has(r.proptype)) places.set(r.proptype, { loose: 0, inside: 0, hosts: new Set() });
@@ -3032,7 +3032,7 @@ function deletedAcrossZoneChange() {
       const places = new Map();
       for (let zn = 0; zn < 0x100; zn++) {
         if (!refExists(0x8100 + zn)) continue;
-        let list; try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + zn), 0x8100 + zn).data); } catch (err) { continue; }
+        let list; try { list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + zn), 0x8100 + zn).data); } catch (err) { continue; }
         for (const r of list) if (r.proptype === pt && r.flags !== 0xFF && !(r.flags & 0x40) && moves.has(r.d3)) places.set(r.d3, (places.get(r.d3) || []).concat(zn));
       }
       for (const [skill, zones] of places) out.push({ pt, resid: 0x1000 + pt, at: selfDelete.at, skill: moves.get(skill).resid, skillAt: moves.get(skill).at, zones });
@@ -3191,7 +3191,7 @@ function puzzleRules() {
   const bt = dvmScriptEntry(0x1104);
   if (bt) {
     let bytes = null;
-    try { bytes = smartDecrypt(getResourceBytes(0x1104), 0x1104).data; } catch (e) { bytes = null; }
+    try { bytes = smartDecrypt(getResourceBytes(ARCHIVE, 0x1104), 0x1104).data; } catch (e) { bytes = null; }
     const ops = dvmOpsOf(bt);
     const blob = ops.find(o => /^data </.test(o.text));
     let arrays = null;
@@ -3215,7 +3215,7 @@ function puzzleRules() {
     try {
       for (let z = 1; z < 0x100; z++) {
         if (!refExists(0x8100 + z)) continue;
-        const list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data);
+        const list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data);
         const here = list.filter(r => r.proptype === pt && r.flags !== 0xFF && !(r.flags & 0x40));
         if (!here.length) continue;
         zone = 0x8000 + z;
@@ -3317,7 +3317,7 @@ function tuneRules() {
     try {
       for (let z = 1; z < 0x100; z++) {
         if (!refExists(0x8100 + z)) continue;
-        const here = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data)
+        const here = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data)
           .filter(r => r.proptype === 0xC1 && r.flags !== 0xFF && !(r.flags & 0x40) && r.d1);
         if (here.length < 2) continue;
         zone = 0x8000 + z;
@@ -3333,7 +3333,7 @@ function tuneRules() {
     const entry = dvmScriptEntry(resid);
     if (!entry) continue;
     let bytes = null;
-    try { bytes = smartDecrypt(getResourceBytes(resid), resid).data; } catch (e) { continue; }
+    try { bytes = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data; } catch (e) { continue; }
     const ops = dvmOpsOf(entry);
     // the test is `arg, word mask, bitwise_and, word tune, eq`
     const m = dvmSeqFirst(ops, [/^arg /, DVM_NUM, /^bitwise_and$/, DVM_NUM, /^eq$/]);
@@ -3435,9 +3435,9 @@ function createsOf(proptype) {
   const RECIPIENT = CREATE_RECIPIENT;
   try {
     for (let subn = 0; subn < 256; subn++) {
-      const mi = masterIndexGlobal && masterIndexGlobal[subn];
+      const mi = ARCHIVE && ARCHIVE.index[subn];
       if (!mi || !mi[0]) continue;
-      for (let ri = 0, n = subindexCount(subn); ri < n; ri++) {
+      for (let ri = 0, n = subindexCount(ARCHIVE, subn); ri < n; ri++) {
         const resid = ((subn + 1) << 8) | ri;
         if (!refExists(resid)) continue;
         let ops = null;
@@ -3482,7 +3482,7 @@ function riddleRules() {
   const entry = dvmScriptEntry(0x1110);
   if (!entry) return null;
   let bytes = null;
-  try { bytes = smartDecrypt(getResourceBytes(0x1110), 0x1110).data; } catch (e) { return null; }
+  try { bytes = smartDecrypt(getResourceBytes(ARCHIVE, 0x1110), 0x1110).data; } catch (e) { return null; }
   const ops = dvmOpsOf(entry);
   const blob = ops.find(o => /^data </.test(o.text));
   const table = blob ? dvmArrayWords(bytes, blob.at + 3) : null;
@@ -3506,7 +3506,7 @@ function riddleRules() {
   try {
     for (let z = 1; z < 0x100; z++) {
       if (!refExists(0x8100 + z)) continue;
-      const list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data);
+      const list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data);
       const here = list.filter(r => r.proptype === 0x110 && r.flags !== 0xFF && !(r.flags & 0x40));
       if (!here.length) continue;
       zone = 0x8000 + z;
@@ -3565,7 +3565,7 @@ function convRules() {
     let c = null;
     try { c = conversationFor(rid); } catch (e) { c = null; }
     let bytes = 0;
-    try { bytes = getResourceBytes(rid).length; } catch (e) { bytes = 0; }
+    try { bytes = getResourceBytes(ARCHIVE, rid).length; } catch (e) { bytes = 0; }
     const topics = c && c.entries ? c.entries.length : 0;
     groups.push({ rid, topics, bytes,
                   name: (typeof DIALOGUE_GROUP_NAMES === 'object' && DIALOGUE_GROUP_NAMES[rid]) || null,
@@ -3624,15 +3624,15 @@ function leanRules() {
   const ranges = [];
   try {
     for (let subn = 0; subn < 256; subn++) {
-      const mi = masterIndexGlobal && masterIndexGlobal[subn];
+      const mi = ARCHIVE && ARCHIVE.index[subn];
       if (!mi || !mi[0] || XREF_SKIP_SUBN.has(subn)) continue;
       let live = 0;
       const dead = [];
-      const count = subindexCount(subn);
+      const count = subindexCount(ARCHIVE, subn);
       for (let ri = 0; ri < count; ri++) {
         const rid = ((subn + 1) << 8) | ri;
         let raw = null;
-        try { raw = getResourceBytes(rid); } catch (e) { raw = null; }
+        try { raw = getResourceBytes(ARCHIVE, rid); } catch (e) { raw = null; }
         if (!raw || !raw.length) continue;
         if (inb[rid]) live++; else dead.push({ rid, name: labelFor(rid) || null });
       }

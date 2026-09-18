@@ -29,7 +29,7 @@ function zoneLandscapeArg(level) {
   let found = null;
   try {
     const resid = 0x1400 + level;
-    const raw = getResourceBytes(resid);
+    const raw = getResourceBytes(ARCHIVE, resid);
     const data = raw && raw.length ? smartDecrypt(raw, resid).data : null;
     const disc = data ? dvmDiscover(data, resid) : null;
     if (disc && disc.tableOffset !== null) {
@@ -71,7 +71,7 @@ function backdropPattern(ctx, resid, TS) {
   try {
     let c = _backdropCanvases.get(resid);
     if (!c) {
-      const d = decodeResource(getResourceBytes(resid), 142, resid);
+      const d = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, resid), 142, resid);
       c = document.createElement('canvas');
       // Index 0 is the transparent slot, and in the game the void behind it
       // is black; drawn opaque it came out as white with black waves.
@@ -704,7 +704,7 @@ function cheatTeleporters() {
    against 40% and 41% on real maps. The reading is the workbench's
    (doc/cheats.md); this computes it off whatever file is open. */
 function nothingMapHeap(resid) {
-  const m = getResourceBytes(resid);
+  const m = getResourceBytes(ARCHIVE, resid);
   if (!m || m.length < 48) return null;
   const words = [];
   for (let i = 32; i + 1 < m.length; i += 2) words.push((m[i] << 8) | m[i + 1]);
@@ -790,7 +790,7 @@ function renderCheatsSheet() {
       fallsInto: c.fallsInto && caseAt(c.fallsInto) ? comboOf(caseAt(c.fallsInto).keys[0].v) : null,
       walls: () => {
         const w = exeWallMask(); if (!w) return 'MakeBitMap walks every square of the level and sets a bit for each wall.';
-        const attrs = getTileAttributes(), names = new Set(); let n = 0;
+        const attrs = getTileAttributes(ARCHIVE), names = new Set(); let n = 0;
         for (let t = 0; t <= w.tiles.v && t < attrs.length; t++) if ((attrs[t] & w.mask.v) === w.mask.v) { n++; const nm = terrainNameFor(t); if (nm) names.add(nm); }
         return srcNum(w.mask, 'MakeBitMap') + ' walks every square of the level and sets a bit where the terrain tile’s attributes carry every bit of ' + srcNum(w.mask, '0x' + w.mask.v.toString(16).toUpperCase().padStart(4, '0')) + '. ' +
           'In this file that is ' + n + ' tiles, ' + [...names].map(svEsc).join(', ') + ', so it is the level’s static skeleton, one bit a square.';
@@ -1147,7 +1147,7 @@ function renderSaveSheet() {
     h += '<h4 class="saveH4">What this file holds</h4><div class="tableScroll"><table class="forkTable">' +
       '<thead><tr><th>resource</th><th>what it is</th><th>bytes</th></tr></thead><tbody>' +
       parts.map(p => {
-        let n = 0; try { n = (getResourceBytes(p.rid) || []).length; } catch (e) {}
+        let n = 0; try { n = (getResourceBytes(ARCHIVE, p.rid) || []).length; } catch (e) {}
         return '<tr><td class="num">0x' + p.rid.toString(16).toUpperCase().padStart(4, '0') + '</td>' +
           '<td>' + svEsc(p.what) + '</td><td class="num">' + fmtBytes(n) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
@@ -1291,7 +1291,7 @@ function fullStomach() {
 }
 
 function applyCharacterRecordEdit(index, fields) {
-  const raw = getResourceBytes(0xF009);
+  const raw = getResourceBytes(ARCHIVE, 0xF009);
   if (!raw) { setStatus('This file has no character table.', true); return false; }
   const records = parseDelverCharacterRecords(smartDecrypt(raw, 0xF009).data);
   if (!records[index]) return false;
@@ -1308,11 +1308,11 @@ function renderDataForkSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
-  const r = new BinReader(fileBytes);
+  const r = new BinReader(ARCHIVE.bytes);
   const rows = [];
   let total = 0, totalBytes = 0;
   for (let subn = 0; subn < 256; subn++) {
-    const [off, len] = masterIndexGlobal[subn] || [0, 0];
+    const [off, len] = ARCHIVE.index[subn] || [0, 0];
     if (!off) continue;
     r.seek(off);
     let count = 0, bytes = 0;
@@ -1352,7 +1352,7 @@ function renderDataForkSheet() {
   scroll.appendChild(table);
   grid.appendChild(scroll);
   const rsrc = window.CYTHERA_RSRC_RAW;
-  out.textContent = (window.ARCHIVE_SOURCE_NAME || 'The data fork') + ': ' + fmtBytes(fileBytes.length) +
+  out.textContent = (window.ARCHIVE_SOURCE_NAME || 'The data fork') + ': ' + fmtBytes(ARCHIVE.bytes.length) +
     ', ' + rows.length + ' subindexes, ' + total + ' resources (' + fmtBytes(totalBytes) + ' of payload)' +
     (rsrc && rsrc.length ? '; a resource fork of ' + fmtBytes(rsrc.length) + ' beside it'
                          : '; no resource fork came with it') + '.';
@@ -1736,7 +1736,7 @@ function renderChangesSheet() {
     b.textContent = '0x' + resid.toString(16).toUpperCase();
     b.onclick = () => jumpToResource(resid);
     row.appendChild(b);
-    const raw = getResourceBytes(resid);
+    const raw = getResourceBytes(ARCHIVE, resid);
     const was = before && before.has(resid) ? before.get(resid) : null;
     const lbl = labelFor(resid);
     const t = document.createElement('span');

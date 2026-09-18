@@ -361,7 +361,7 @@ function renderPropTypeSheet() {
     // square, not the first -- so drawing frame 0 shows one quarter of a tree.
     // Pick the first frame that actually carries span bits, and fall back to
     // frame 0 for everything single-square.
-    const attrs = getTileAttributes();
+    const attrs = getTileAttributes(ARCHIVE);
     const own = framesSharingName(e.base, e.info.present);
     let rep = own[0] || 0;
     for (const f of own) {
@@ -583,7 +583,7 @@ function parseClassTable(resid) {
   const cache = window.ITEM_CLASSES || (window.ITEM_CLASSES = {});
   if (resid in cache) return cache[resid];
   let b = null;
-  try { const raw = getResourceBytes(resid); if (raw) b = smartDecrypt(raw, resid).data; } catch (e) {}
+  try { const raw = getResourceBytes(ARCHIVE, resid); if (raw) b = smartDecrypt(raw, resid).data; } catch (e) {}
   if (!b || b.length < 8) return (cache[resid] = null);
   let disc = null;
   try { disc = dvmDiscover(b, resid); } catch (e) {}
@@ -663,7 +663,7 @@ function buildItemIndex() {
     total: 0, loose: 0, contained: 0, carried: 0, equipped: 0, takeable: 0,
     zones: {}, inside: [], held: []
   });
-  const count = subindexCount(128);
+  const count = subindexCount(ARCHIVE, 128);
   const chars = characterProptypes();
   // Which (class, aspect) pairs the file actually places, for the aspect
   // rule on the Items sheet: an egg (flags 0x42, 0x44) is a scripted
@@ -674,7 +674,7 @@ function buildItemIndex() {
     const resid = 0x8100 + n;
     let recs = null;
     try {
-      const raw = getResourceBytes(resid);
+      const raw = getResourceBytes(ARCHIVE, resid);
       if (raw) recs = parseDelverPropList(smartDecrypt(raw, resid).data);
     } catch (e) {}
     if (!recs) continue;
@@ -891,10 +891,10 @@ function propWordRules() {
     if (has(0x2D)) ammoCls.add(pt);
   }
   const placed = [], ammo = [];
-  const count = subindexCount(128);
+  const count = subindexCount(ARCHIVE, 128);
   for (let n = 0; n < count; n++) {
     const resid = 0x8100 + n; let recs = null;
-    try { const raw = getResourceBytes(resid); if (raw) recs = parseDelverPropList(smartDecrypt(raw, resid).data); } catch (e) {}
+    try { const raw = getResourceBytes(ARCHIVE, resid); if (raw) recs = parseDelverPropList(smartDecrypt(raw, resid).data); } catch (e) {}
     if (!recs) continue;
     for (const r of recs) {
       if (r.flags === 0xFF || r.flags === 0x42 || r.flags === 0x44 || !r.d1) continue;
@@ -999,7 +999,7 @@ function weaponSwingFrames(pt) {
   const e = cls && cls.data.find(x => x.key === 0x2A);
   if (!e) return null;
   const w = (e.words[6] || 0) >>> 0;
-  const read = resid => { try { const raw = getResourceBytes(resid); return raw ? smartDecrypt(raw, resid).data : null; } catch (err) { return null; } };
+  const read = resid => { try { const raw = getResourceBytes(ARCHIVE, resid); return raw ? smartDecrypt(raw, resid).data : null; } catch (err) { return null; } };
   if (w >= 0x80000000) {
     const resid = (w & 0x7FFF0000) >>> 16, off = w & 0xFFFF;
     const words = dvmWordArrayAt(read(resid), off);
@@ -1290,7 +1290,7 @@ function itemPlaces(pt) {
     for (let z = 0; z < 0x100; z++) {
       if (!refExists(0x8100 + z)) continue;
       let list;
-      try { list = parseDelverPropList(smartDecrypt(getResourceBytes(0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
+      try { list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
       for (const r of list) {
         if (r.flags === 0xFF || (r.flags & 0x40)) continue;
         const p = { zone: z, aspect: r.aspect, d1: r.d1, d2: r.d2, host: null };

@@ -306,7 +306,10 @@ try {
 const status = REGISTRY.get('sourceStatus').textContent;
 console.log(`  parseArchiveBytes: ${Date.now() - t0} ms — status "${status.slice(0, 80)}"`);
 if (!/Loaded:/.test(status)) fail('status line', 'did not report a load: ' + status);
-if (!ctx.__peek('masterIndexGlobal').filter(m => m[0]).length) fail('master index', 'no subindexes');
+if (!ctx.__peek('ARCHIVE.index').filter(m => m[0]).length) fail('master index', 'no subindexes');
+// The open archive, read afresh each time: parseArchiveBytes replaces the
+// object, and every reload and edit below goes through it.
+const A = () => ctx.__peek('ARCHIVE');
 // v1.47.0: the dialogue box is read off the file -- the frame from a tile
 // as a border-image, the blue from a clut's ColorSpec in the fork -- and
 // since v1.52.0 which tile, which clut and where in it are the
@@ -877,7 +880,7 @@ try {
 
   // Cross-check one claim the hard way: re-read the map and look for the sheet.
   const sheet = withMaps[0], mapResid = idx[sheet].maps[0];
-  const raw = ctx.getResourceBytes(mapResid);
+  const raw = ctx.getResourceBytes(A(), mapResid);
   let data = ctx.smartDecrypt(raw, mapResid).data;
   let m = ctx.parseDelverMap(data);
   if (!m) { const alt = ctx.decryptResource(raw, mapResid); const m2 = ctx.parseDelverMap(alt); if (m2) { data = alt; m = m2; } }
@@ -2730,12 +2733,13 @@ try {
 try {
   const marked = ['SCHEDULES', 'CHAR_TABLE', 'LIVING_PROPTYPES', '_CHAR_PROPTYPES',
                   'TERRAIN_NAMES', 'ZONE_NAMES', 'ZONEPORTS', 'STORE_SYMBOLS',
-                  'XREF_INDEX', 'SCRIPT_TEXT', 'MONSTER_STATS', 'RESOURCE_SYMBOLS',
+                  'XREF_INDEX', 'SCRIPT_TEXT', 'MONSTER_STATS',
                   'EDITED_RESIDS', 'CONV_CACHE', 'PATCH_BASE_SPEC', 'PATCH_REPORT',
                   'COMPARE_REPORT', 'COMPARE_APP', 'APP_RSRC_RAW'];
   for (const k of marked) ctx[k] = '__stale__';
   peek('tileCanvasCache').set(-1, '__stale__');
-  ctx._dvmStrMemo.set(-1, '__stale__');
+  A().derived.set('__stale__', 1);
+  const staleArc = A();
   peek('spriteCountCache').set(-1, '__stale__');
   peek('pathCache').set('__stale__', 1);
   peek('_tileImageCache')['-1'] = '__stale__';
@@ -2743,7 +2747,7 @@ try {
   const survivors = marked.filter(k => ctx[k] === '__stale__');
   for (const [name, present] of [
     ['tileCanvasCache', peek('tileCanvasCache').has(-1)],
-    ['_dvmStrMemo', ctx._dvmStrMemo.has(-1)],
+    ['the archive object', A() === staleArc || A().derived.has('__stale__')],
     ['spriteCountCache', peek('spriteCountCache').has(-1)],
     ['pathCache', peek('pathCache').has('__stale__')],
     ['_tileImageCache', '-1' in peek('_tileImageCache')],
@@ -2931,14 +2935,14 @@ try {
 // anything new that writes belongs in it.
 try {
   // Any resource of subindex 1 (known_encrypted) proves re-encryption.
-  const specBefore = peek('delverArchiveSpec')(peek('fileBytes'));
+  const specBefore = peek('delverArchiveSpec')(peek('ARCHIVE.bytes'));
   const countBefore = specBefore.resources.length;
   const resid = specBefore.resources.find(r => (r.resid >> 8) === 2).resid;
-  const before = ctx.smartDecrypt(ctx.getResourceBytes(resid), resid).data;
+  const before = ctx.smartDecrypt(ctx.getResourceBytes(A(), resid), resid).data;
   const edited = Uint8Array.from(before);
   edited[0] = edited[0] ^ 0xFF;
   if (!ctx.applyResourceEdit(resid, edited)) throw new Error('applyResourceEdit returned false');
-  const raw = ctx.getResourceBytes(resid);
+  const raw = ctx.getResourceBytes(A(), resid);
   const after = ctx.smartDecrypt(raw, resid).data;
   if (Buffer.from(after).toString('hex') !== Buffer.from(edited).toString('hex'))
     fail('edit path', 'rebuilt archive does not serve the edited bytes back');
@@ -2947,9 +2951,9 @@ try {
   else if (!ctx.EDITED_RESIDS || !ctx.EDITED_RESIDS.has(resid))
     fail('edit path', 'the dirty list did not survive the rebuild');
   else {
-    const countAfter = peek('delverArchiveSpec')(peek('fileBytes')).resources.length;
+    const countAfter = peek('delverArchiveSpec')(peek('ARCHIVE.bytes')).resources.length;
     if (countAfter !== countBefore) fail('edit path', `resource count moved: ${countBefore} -> ${countAfter}`);
-    else console.log(`  edit path: 0x${resid.toString(16).toUpperCase()} edited, re-encrypted, and served back from a ${peek('fileBytes').length}-byte rebuild`);
+    else console.log(`  edit path: 0x${resid.toString(16).toUpperCase()} edited, re-encrypted, and served back from a ${peek('ARCHIVE.bytes').length}-byte rebuild`);
   }
 } catch (e) { fail('edit path', e); }
 
@@ -2958,10 +2962,10 @@ try {
 // with exactly that field changed -- same record count, neighbours
 // byte-identical.
 try {
-  const propResid = peek('delverArchiveSpec')(peek('fileBytes')).resources
+  const propResid = peek('delverArchiveSpec')(peek('ARCHIVE.bytes')).resources
     .map(r => r.resid).find(r => (r >> 8) === 0x81);
   const parse = () => ctx.parseDelverPropList(
-    ctx.smartDecrypt(ctx.getResourceBytes(propResid), propResid).data);
+    ctx.smartDecrypt(ctx.getResourceBytes(A(), propResid), propResid).data);
   const before = parse();
   const idx = before.findIndex(r => r.onMap);
   const want = { x: before[idx].x + 1 };
@@ -3266,7 +3270,7 @@ try {
   for (const resid of victims) {
     const src = base.resources.find(r => r.resid === resid);
     if (!src) { fail('patches', 'the archive has no ' + resid.toString(16)); throw new Error('no sheet'); }
-    const dec = ctx.decodeResource(src.data, 141, resid);
+    const dec = ctx.decodeResource(A(), src.data, 141, resid);
     const img = dec.image.slice();
     for (const t of WANT[resid]) {
       for (let y = t * 32; y < (t + 1) * 32; y++)
@@ -3324,17 +3328,17 @@ try {
        returned something: patchesApply goes through parseArchiveBytes, and a
        version of it that merged correctly and forgot to re-enter would look
        identical from the outside. */
-    // PRISTINE_BYTES, not fileBytes: the two differ already by this point,
+    // PRISTINE_BYTES, not ARCHIVE.bytes: the two differ already by this point,
     // because a rebuild lays the archive out shorter than Ambrosia's and
     // earlier blocks in this file have edited. Comparing the wrong one made
     // this pin fail on its first run against correct code.
     const before = peek('window.PRISTINE_BYTES').length;
     const sheetBefore = JSON.stringify(Array.from(
-      ctx.decodeResource(ctx.getResourceBytes(0x8E04), 141, 0x8E04).image.slice(0, 4096)));
+      ctx.decodeResource(A(), ctx.getResourceBytes(A(), 0x8E04), 141, 0x8E04).image.slice(0, 4096)));
     if (!ctx.patchesApply()) fail('patches', 'the patch would not apply');
     else {
       const sheetAfter = JSON.stringify(Array.from(
-        ctx.decodeResource(ctx.getResourceBytes(0x8E04), 141, 0x8E04).image.slice(0, 4096)));
+        ctx.decodeResource(A(), ctx.getResourceBytes(A(), 0x8E04), 141, 0x8E04).image.slice(0, 4096)));
       if (sheetBefore === sheetAfter)
         fail('patches', 'applying the patch left the open archive unchanged');
       else if (!peek('window.EDITED_RESIDS').size)
@@ -3434,7 +3438,7 @@ try {
     const pristine = peek('window.PRISTINE_BYTES').length;
     if (!ctx.heroSpriteApply()) fail('hero colours', 'the patch would not apply');
     else {
-      const got = peek(`(() => { const d = decodeResource(getResourceBytes(${sheet}), 141, ${sheet}); return Array.from(d.image); })()`);
+      const got = peek(`(() => { const d = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, ${sheet}), 141, ${sheet}); return Array.from(d.image); })()`);
       const want = peek(`Array.from(heroRecoloured(heroFigure('heroine')).image)`);
       if (got.length !== want.length || got.some((v, i) => v !== want[i]))
         fail('hero colours', 'the open file does not carry the recoloured sheet');
@@ -3495,7 +3499,7 @@ try {
       if (!w) return null;
       const spec = delverArchiveSpec(w.bytes);
       const r = spec.resources.find(x => x.resid === f.sheet);
-      const img = decodeResource(r.data, 141, f.sheet).image;
+      const img = decodeResource(ARCHIVE, r.data, 141, f.sheet).image;
       const g = heroSpriteClasses().find(k => k.pt === ${golem});
       let golemMoved = 0, demonMoved = 0;
       for (let i = 0; i < img.length; i++) {
@@ -3561,13 +3565,13 @@ try {
      run: five changed where three were asked for. */
   const ids = [0x8E04, 0x1801, 0x021A];
   const otherBytes = peek(`(() => {
-    const spec = delverArchiveSpec(fileBytes);
+    const spec = delverArchiveSpec(ARCHIVE.bytes);
     for (const id of [${ids.join(', ')}]) {
       const r = spec.resources.find(x => x.resid === id);
       if (!r) throw new Error('the archive has no 0x' + id.toString(16));
       r.data = r.data.slice();
       if (id === 0x8E04) {
-        const dec = decodeResource(r.data, 141, id);
+        const dec = decodeResource(ARCHIVE, r.data, 141, id);
         const img = dec.image.slice();
         for (const t of [2, 7]) for (let y = t * 32; y < (t + 1) * 32; y++)
           for (let x = 0; x < dec.W; x++) img[y * dec.W + x] = ((x ^ y) & 1) ? 5 : 248;
@@ -3666,7 +3670,7 @@ try {
   if (!ctx.applyResourceEdit(resid, ctx.encodeDCGLiterals(indexed)))
     throw new Error('applyResourceEdit refused the portrait');
   const back = ctx.decompressDCG(
-    ctx.smartDecrypt(ctx.getResourceBytes(resid), resid).data, 64, 64);
+    ctx.smartDecrypt(ctx.getResourceBytes(A(), resid), resid).data, 64, 64);
   if (Buffer.from(back).toString('hex') !== Buffer.from(indexed).toString('hex'))
     fail('ditherize', 'rebuilt archive does not decode the dithered portrait back');
   else console.log('  ditherize: a dithered 64x64 portrait wrote into 0x8805 and decoded back exactly');
@@ -3679,7 +3683,7 @@ try {
   for (const [kind, W, H, subn] of [['icon', 32, 16, 137], ['landscape', 288, 32, 131], ['sheet', 128, 128, 141], ['free', 61, 37, 142]]) {
     const src = mk(W, H);
     const bytes = ctx.encodeGraphicResource(kind, W, H, src);
-    let dec = ctx.decodeResource(bytes, subn, undefined);
+    let dec = ctx.decodeResource(A(), bytes, subn, undefined);
     if (kind === 'sheet') dec = ctx.reshapeTileSheetGrid(dec.W, dec.H, dec.image);
     if (!(dec.W === W && dec.H === H && same(dec.image, src))) { fail('ditherize', kind + ' did not decode back: ' + dec.W + 'x' + dec.H); break; }
   }
@@ -3713,7 +3717,7 @@ if (savePath && !onlyCat) {
     const savedAs = m ? m[1] : '';
     if (REGISTRY.get('categorySelect').value !== 'SAVEGAME')
       fail('saved game', 'did not land on the Saved Game sheet: ' + REGISTRY.get('categorySelect').value);
-    const populated = peek('masterIndexGlobal').filter(x => x[0]).length;
+    const populated = peek('ARCHIVE.index').filter(x => x[0]).length;
     ctx.showCategory('DATAFORK');
     // The body rows are nodes; the head row is innerHTML, which this stub
     // does not parse into nodes, so the count is the body alone.
@@ -3732,7 +3736,7 @@ if (savePath && !onlyCat) {
     const lists = (ctx.CUR_RESIDS || []).map(r => r[0]);
     let records = 0;
     if (!lists.length || !ctx.openResource(lists[0])) fail('saved game', 'the prop list of the zone the player stands in did not open');
-    else records = ctx.parseDelverPropList(ctx.smartDecrypt(ctx.getResourceBytes(lists[0]), lists[0]).data).length;
+    else records = ctx.parseDelverPropList(ctx.smartDecrypt(ctx.getResourceBytes(A(), lists[0]), lists[0]).data).length;
     if (!records) fail('saved game', 'the prop list parsed to no records');
     console.log(`  saved game: “${savedAs}” opened, ${populated} subindexes listed, ` +
                 `zone prop list 0x${(lists[0] || 0).toString(16).toUpperCase()} with ${records} records, exports as DelP`);
@@ -4105,9 +4109,9 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       ctx.showCategory('INSTALLER');
       const chips = (REGISTRY.get('sheetGrid').children || []).filter(c => c.className && /installerVersions/.test(c.className));
       if (!chips.length) fail('installer versions', 'no version row drawn for a file with ' + ctx.INSTALLER.installers.length + ' installers');
-      const before = peek('fileBytes').length;
+      const before = peek('ARCHIVE.bytes').length;
       ctx.switchInstaller('Cythera 1.0.1 Installer');
-      const after = peek('fileBytes').length;
+      const after = peek('ARCHIVE.bytes').length;
       if (ctx.INSTALLER.picked !== 'Cythera 1.0.1 Installer' || after === before)
         fail('installer versions', `switch to 1.0.1 left ${ctx.INSTALLER.picked} open (${before} -> ${after} bytes)`);
       else console.log(`  installer versions: ${ctx.INSTALLER.installers.length} in the file; 1.0.1 opened, ${before} -> ${after} bytes, status "${REGISTRY.get('sourceStatus').textContent.slice(0, 70)}"`);

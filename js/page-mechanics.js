@@ -791,20 +791,20 @@ function mechSkillsFigure(sk) {
    is a separate act, offered by the report's Apply button (patchesApply,
    below) and done in memory like every other edit here.
 
-   THE TWO ARCHIVES PROBLEM DOES NOT ARISE, and it is worth saying why, since
-   it is what blocks a save comparison. That needs `getResourceBytes`, which
-   reads the open archive out of `fileBytes` as an ambient global. Nothing
-   here does: `delverArchiveSpec` takes bytes and `decodeResource` takes a
-   resource's bytes, so a patch's tile sheet decodes without the open file
-   ever being displaced. */
+   THE TWO ARCHIVES PROBLEM DOES NOT ARISE: `delverArchiveSpec` takes bytes
+   and `decodeResource` takes a resource's bytes, so a patch's tile sheet
+   decodes without the open file ever being displaced. Since 18 September
+   2026 that is true of every reader in js/delv-*.js, which take the archive
+   as an argument; before that `getResourceBytes` read the open one out of a
+   global, and this section was written around it. */
 
 /* The open archive as a writer spec, which is what the patch readers compare
    against. 12 ms over the shipped file and 1,558 resources, so this is a
    cache for tidiness rather than for speed; resetDerivedCaches drops it with
    everything else keyed to the file that is open. */
 function patchBaseSpec() {
-  if (!window.PATCH_BASE_SPEC && typeof fileBytes !== 'undefined' && fileBytes)
-    window.PATCH_BASE_SPEC = delverArchiveSpec(fileBytes);
+  if (!window.PATCH_BASE_SPEC && ARCHIVE)
+    window.PATCH_BASE_SPEC = delverArchiveSpec(ARCHIVE.bytes);
   return window.PATCH_BASE_SPEC;
 }
 
@@ -879,9 +879,9 @@ function patchesApply() {
   const note = document.getElementById('patchNote');
   const say = (m, bad) => { if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
   if (!rep || !bytes) { say('No patch is open.', true); return false; }
-  if (typeof fileBytes === 'undefined' || !fileBytes) { say('No game file is open.', true); return false; }
+  if (!ARCHIVE) { say('No game file is open.', true); return false; }
   let merged;
-  try { merged = mergeDelverPatch(fileBytes, bytes); }
+  try { merged = mergeDelverPatch(ARCHIVE.bytes, bytes); }
   catch (e) { say('That patch could not be applied: ' + e.message, true); return false; }
   const dirty = new Set(window.EDITED_RESIDS);
   for (const id of merged.replaced) dirty.add(id);
@@ -916,7 +916,7 @@ function patchTileCanvas(dec, t, subn) {
    cannot describe rather than a patch that is wrong. */
 function patchSheetDiff(r) {
   let a, b;
-  try { a = decodeResource(r.baseData, r.subn, r.resid); b = decodeResource(r.patchData, r.subn, r.resid); }
+  try { a = decodeResource(ARCHIVE, r.baseData, r.subn, r.resid); b = decodeResource(ARCHIVE, r.patchData, r.subn, r.resid); }
   catch (e) { return null; }
   if (!a || !b || a.W !== b.W || a.H !== b.H) return null;
   const tiles = Math.floor(a.H / 32);
@@ -1097,7 +1097,7 @@ function heroState(key) {
 /* The file the art is taken from, as a writer spec, cached against the bytes
    object so a different file is noticed without a reset hook. */
 function heroSourceSpec() {
-  const bytes = window.PRISTINE_BYTES || (typeof fileBytes !== 'undefined' ? fileBytes : null);
+  const bytes = window.PRISTINE_BYTES || (ARCHIVE ? ARCHIVE.bytes : null);
   if (!bytes) return null;
   const c = window.HERO_SOURCE_SPEC;
   if (c && c.bytes === bytes) return c.spec;
@@ -1113,7 +1113,7 @@ function heroSheetImage(sheet) {
   const res = spec && spec.resources.find(r => r.resid === sheet);
   if (!res) return null;
   let dec = null;
-  try { dec = decodeResource(res.data, 141, sheet); } catch (e) { dec = null; }
+  try { dec = decodeResource(ARCHIVE, res.data, 141, sheet); } catch (e) { dec = null; }
   return dec && dec.W === 32 && dec.H >= 32 ? Uint8Array.from(dec.image) : null;
 }
 
@@ -1573,9 +1573,9 @@ function compareEdits() {
   const note = document.getElementById('compareNote');
   const say = (m, bad) => { if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
   const pristine = window.PRISTINE_BYTES;
-  if (!pristine || typeof fileBytes === 'undefined' || !fileBytes) { say('No file is open.', true); return false; }
-  if (pristine === fileBytes) { say('Nothing has been edited in this file yet.', true); return false; }
-  const a = compareSpecOf(pristine), b = compareSpecOf(fileBytes);
+  if (!pristine || !ARCHIVE) { say('No file is open.', true); return false; }
+  if (pristine === ARCHIVE.bytes) { say('Nothing has been edited in this file yet.', true); return false; }
+  const a = compareSpecOf(pristine), b = compareSpecOf(ARCHIVE.bytes);
   if (!a || !b) { say('That file could not be read as a Delver Archive.', true); return false; }
   window.COMPARE_REPORT = Object.assign(describeDelverDiff(a, b),
     { aName: 'as it arrived', bName: 'as it stands', bSpec: b, kind: 'edits' });
@@ -1591,13 +1591,13 @@ function compareEdits() {
 function compareOpenBytes(bytes, name) {
   const note = document.getElementById('compareNote');
   const say = (m, bad) => { if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
-  if (typeof fileBytes === 'undefined' || !fileBytes) { say('No file is open to compare against.', true); return false; }
+  if (!ARCHIVE) { say('No file is open to compare against.', true); return false; }
   let got;
   try { got = extractDelverArchive(bytes); }
   catch (e) { say('That file could not be opened: ' + e.message, true); return false; }
   const other = compareSpecOf(got.bytes);
   if (!other) { say('That file is not a Delver Archive.', true); return false; }
-  const mine = compareSpecOf(fileBytes);
+  const mine = compareSpecOf(ARCHIVE.bytes);
   /* The file you opened is the OLDER side. Comparing a 1.0.1 installer
      against an open 1.0.4 should read as "what 1.0.4 changed", which is the
      way round a reader expects and the opposite of what naming the open file
@@ -1679,7 +1679,7 @@ function findApplicationIn(bytes) {
 const COMPARE_IMAGE_SUBN = new Set([135, 137, 131, 142]);
 function compareImageCanvas(data, subn, resid) {
   let d;
-  try { d = decodeResource(data, subn, resid); } catch (e) { return null; }
+  try { d = decodeResource(ARCHIVE, data, subn, resid); } catch (e) { return null; }
   if (!d || !d.W || !d.H) return null;
   const c = document.createElement('canvas');
   drawToCanvas(c, d.W, d.H, d.image, transparentIndexFor(subn));

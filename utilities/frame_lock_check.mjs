@@ -43,25 +43,22 @@ const { sandbox } = makeSandbox();
 const ctx = vm.createContext(sandbox);
 const EXPORT = ['PAL_RGB', 'UD_PRESETS'];
 const epilogue = '\n;' + EXPORT.map(n => `try{window.__${n}=${n}}catch(e){}`).join('') +
-  '\n;window.__bind=(a,m)=>{fileBytes=a;masterIndexGlobal=m;};' +
-  '\n;window.__locked=(img,p,rgba,w,h)=>buildLockedMask(img,p,rgba,w,h);' +
+  '\n;window.__bind = (a) => { ARCHIVE = openDelverArchive(a); dvmSetResourceSymbols(ARCHIVE ? loadResourceSymbols(ARCHIVE) : null); return ARCHIVE; };\n' +
+  '\n;window.__locked=(arc,img,p,rgba,w,h)=>buildLockedMask(arc,img,p,rgba,w,h);' +
   '\n;window.__undither=(a,w,h,p,l)=>undither(a,w,h,p,l,null);' +
-  '\n;window.__shared=(img,w,h)=>sharedArtMask(img,w,h);' +
-  '\n;window.__resetShared=()=>resetSharedArt();\n';
+  '\n;window.__shared=(arc,img,w,h)=>sharedArtMask(arc,img,w,h);\n';
 try {
   new vm.Script(pageSource(htmlPath) + epilogue, { filename: htmlPath }).runInContext(ctx);
 } catch (e) { console.error('FATAL: script body threw while loading: ' + e.message); process.exit(1); }
 
-const rd = o => ((archive[o] * 0x1000000) + (archive[o+1] << 16) + (archive[o+2] << 8) + archive[o+3]) >>> 0;
-const mi = []; for (let i = 0; i < 256; i++) mi.push([rd(0x88 + i*8), rd(0x88 + i*8 + 4)]);
-ctx.__bind(archive, mi);
+const arc = ctx.__bind(archive);
 const PAL = ctx.__PAL_RGB, PRE = ctx.__UD_PRESETS;
 
 let failures = 0;
 const fail = m => { console.log('  FAIL ' + m); failures++; };
 
 function portrait(resid) {
-  const d = ctx.decodeResource(ctx.getResourceBytes(resid), 135, resid);
+  const d = ctx.decodeResource(arc, ctx.getResourceBytes(arc, resid), 135, resid);
   const { W, H, image } = d;
   const rgba = new Uint8ClampedArray(W * H * 4);
   for (let i = 0; i < W * H; i++) {
@@ -76,7 +73,7 @@ function portrait(resid) {
 const SUBJECTS = [0x8811, 0x8812, 0x8805];
 for (const resid of SUBJECTS) {
   const p = portrait(resid);
-  const mask = ctx.__shared(p.image, p.W, p.H);
+  const mask = ctx.__shared(arc, p.image, p.W, p.H);
   if (!mask) { fail(`${resid.toString(16)}: no shared art found at all`); continue; }
   const n = mask.reduce((a, b) => a + b, 0);
   const pct = (100 * n / (p.W * p.H)).toFixed(1);
@@ -85,7 +82,7 @@ for (const resid of SUBJECTS) {
   if (n < 300) fail(`${resid.toString(16)}: only ${n} pixels locked — the frame is not being found`);
   if (n > 2400) fail(`${resid.toString(16)}: ${n} pixels locked — the face is being locked too`);
 
-  const locked = ctx.__locked(p.image, PRE.original, p.rgba, p.W, p.H);
+  const locked = ctx.__locked(arc, p.image, PRE.original, p.rgba, p.W, p.H);
   const r = ctx.__undither(p.rgba, p.W, p.H, PRE.original, locked);
   const out = new Uint8ClampedArray(r.out);
   if (r.outW !== p.W || r.outH !== p.H) { fail(`${resid.toString(16)}: not native size back`); continue; }
@@ -110,7 +107,7 @@ for (const resid of SUBJECTS) {
    the cluster comes back as the artist drew it. */
 {
   const p = portrait(0x8811);
-  const locked = ctx.__locked(p.image, PRE.original, p.rgba, p.W, p.H);
+  const locked = ctx.__locked(arc, p.image, PRE.original, p.rgba, p.W, p.H);
   const r = ctx.__undither(p.rgba, p.W, p.H, PRE.original, locked);
   const out = new Uint8ClampedArray(r.out);
   // The cluster is named by its own colours rather than by a rectangle: the
@@ -137,12 +134,9 @@ for (const resid of SUBJECTS) {
    straight to the decoders gets, and it must be the filter as it always was. */
 {
   const p = portrait(0x8811);
-  ctx.__bind(archive, []);          // an archive with no portrait subindex
-  ctx.__resetShared();
-  const m = ctx.__shared(p.image, p.W, p.H);
+  const m = ctx.__shared(null, p.image, p.W, p.H);   // no archive behind the pixels
   if (m) fail('a portrait with no corpus behind it still locked something');
   else console.log('  with no corpus: nothing locked, as before');
-  ctx.__bind(archive, mi); ctx.__resetShared();
 }
 
 console.log(failures ? `\nFAIL — ${failures} problem(s)` : '\nframe lock: clean');
