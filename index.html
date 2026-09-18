@@ -166,10 +166,10 @@ body { color:#fff; font-family:var(--face-text); font-synthesis:none;
 /* One dialogue frame, the outermost. There were two stacked -- this one at
    inset 7px and #frameFill's border-image at inset 24px -- which read as a
    double border and darkened everything between them. #frameFill is gone. */
-/* Dialogue_Background.png is the game's dialogue box: 552x336, a 4px band top
-   and bottom, 8px each side, and every pixel between them a one-pixel
-   checkerboard of rgb(31,0,183) and nothing (a capture: the game's colour is
-   clut 256 entry 1, 0,0,168, and the frame is tile 0x19D; see .tabSheet). It used to be stretched over the
+/* The game's dialogue box is 552x336, a 4px band top and bottom, 8px each
+   side, and every pixel between them a one-pixel checkerboard of
+   rgb(31,0,183) and nothing (the game's colour is clut 256 entry 1, 0,0,168,
+   and the frame is tile 0x19D; see .tabSheet). A capture of it used to be stretched over the
    whole viewport, which made the entire page one blue box and left the sheets
    inside it nothing to sit on. Now only its border frames the viewport, at
    half strength, and the boxes are the folder sheets below (.tabSheet), which
@@ -474,8 +474,8 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    its parts come out of the open file (installDialogueBox, which has the
    trace). The frame is game tile 0x19D cut into 4px bands top and bottom
    and 8px bands at the sides, which is what the executable's FrameBox does
-   with the same tile for every bordered window; the res/ PNG is the same
-   frame, captured upside down, and stands in until a file is open. The
+   with the same tile for every bordered window; before a file is open there
+   is no frame, only a plain line. The
    interior is the game's own box: the scene beneath, then QuickDraw's 50%
    gray pattern painted over it in OR mode in the fore colour of entry 1 of
    the game's colour table (clut 256: 0x0000 0x0000 0xA800, the old
@@ -485,9 +485,9 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    of the period. The thin dark scrim on top is the one concession to
    reading yellow text on it. */
 /* The frame and the blue both come out of the open file now
-   (installDialogueBox), and the shipped res/Dialogue_Background.png -- a
-   capture of this same frame, upside down -- is no longer used by the page
-   (the maintainer, 13 September 2026).
+   (installDialogueBox). A capture of this same frame, upside down, was
+   shipped in res/ until the page stopped using it (13 September 2026) and
+   the maintainer removed it (17 September).
 
    The blue here is the DEFAULT, and it is deliberately showing before a file
    is open: seeing it is how a reader knows they are looking at the
