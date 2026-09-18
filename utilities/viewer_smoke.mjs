@@ -3513,6 +3513,21 @@ try {
     else if (res.golemMoved) fail('shade colours', `${res.golemMoved} pixels of the golem changed with the demon`);
     else console.log(`  shade colours: the demon's main family recoloured, ${res.demonMoved} pixels, and the golem beside it on 0x${res.sheet.toString(16)} untouched`);
   }
+  /* The fool's motley is red and yellow in one palette row, checkerboarded,
+     which is the case that split him into one lump and a scatter when the
+     groups were palette rows. His red and his yellow must be two groups, and
+     neither may hold the other's shades. */
+  const fool = byName('fool');
+  if (fool) {
+    const fg = peek(`heroFigure('pt${fool}').shades.parts.map(p => p.sure)`);
+    const red = fg.find(g => g.includes(0x27)), yellow = fg.find(g => g.includes(0x35));
+    if (!red || !yellow) fail('shade colours', "the fool's red or yellow is in no group");
+    else if (red === yellow || red.some(i => yellow.includes(i))) fail('shade colours', "the fool's red and yellow are one group");
+    // 0x23 is a yellow in row 0x20, the red row; grouped by palette row it
+    // sat with the red, which is exactly the fault. It must be with 0x35.
+    else if (!yellow.includes(0x23)) fail('shade colours', "the fool's 0x23 is not with his yellow, so the groups are palette rows again");
+    else console.log(`  shade colours: the fool in ${fg.length} groups, his red and his yellow apart`);
+  }
   peek(`window.HERO_SPRITE_STATE = { which: 'hero', choices: {} }`);
   ctx.patchesForget();
 } catch (e) { fail('hero colours', e); }

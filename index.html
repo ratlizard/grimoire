@@ -1046,23 +1046,27 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 .patchTile { width:64px; height:64px; image-rendering:pixelated; display:block; }
 .patchTileNo { position:absolute; left:0; right:0; bottom:1px; text-align:center; color:#8c8980; font-size:0.625rem;
   font-variant-numeric:tabular-nums; }
-/* The hero's colours. A swatch is a button, so it wears the gold ring when
-   it is the one chosen; the frames reuse the patch reader's pairs. */
-.heroPicks { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 8px; }
-.heroPick { display:flex; align-items:center; gap:6px; width:auto; margin:0; padding:4px 10px 4px 4px; background:#1a1712;
-  border:1px solid rgba(155,136,80,.35); border-radius:3px; color:var(--gold); cursor:pointer; }
-.heroPick.on { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
+/* The sprite section. The page's button rule is !important on background,
+   border, padding and box-shadow, so a swatch coloured on the button itself
+   drew nothing at all (the maintainer's screenshot, 18 September 2026): the
+   colour is on an inner square the rule does not reach, the button's own
+   padding and height are taken back with the one selector that outranks
+   `#sheetGrid button`, and the chosen ring is an outline, which the rule
+   leaves alone. */
+.heroPicks { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:6px 0 8px; }
+#sheetGrid button.heroPick { display:flex; align-items:center; gap:6px; width:auto; margin:0; padding:4px 10px 4px 4px !important; }
+#sheetGrid button.heroPick.on { outline:2px solid var(--gold); outline-offset:-2px; }
 .heroParts { display:flex; flex-direction:column; gap:6px; margin:0 0 8px; }
 .heroPart { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; }
-.heroPartName { color:#b5b2a8; font-size:0.6875rem; min-width:96px; }
-.heroSwatches { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
-.heroSwatch { width:24px; height:24px; min-width:0; margin:0; padding:0; border:1px solid rgba(0,0,0,.6); border-radius:3px; cursor:pointer; }
-.heroSwatch.on { box-shadow:0 0 0 2px var(--gold); }
-.heroShipped { width:auto; padding:0 8px; background:#1a1712; color:var(--gold); font-size:0.6875rem; border-color:rgba(155,136,80,.35); }
-.heroAny { width:32px; height:24px; margin:0; padding:0; border:1px solid rgba(155,136,80,.35); border-radius:3px; background:#1a1712; cursor:pointer; }
+.heroPartName { display:flex; align-items:center; gap:6px; color:#b5b2a8; font-size:0.6875rem; min-width:96px; }
+.heroSwatches { display:flex; flex-wrap:wrap; align-items:center; gap:2px; }
+#sheetGrid button.heroSwatch { width:auto; margin:0; padding:3px !important; min-height:0 !important; line-height:0 !important; }
+.heroChip { display:block; width:22px; height:22px; border-radius:3px; border:1px solid rgba(0,0,0,.6); box-sizing:border-box; }
+#sheetGrid button.heroSwatch.on { outline:2px solid var(--gold); outline-offset:-1px; }
+#sheetGrid button.heroShipped { padding:4px 8px !important; line-height:1.2 !important; font-size:0.6875rem !important; }
+.heroAny { width:32px; height:24px; margin:0 0 0 4px; padding:0; border:1px solid rgba(155,136,80,.35); border-radius:3px; background:#1a1712; cursor:pointer; }
 .heroDesc { width:100%; max-width:480px; box-sizing:border-box; margin:0 0 6px; }
 .heroSelect { width:auto; max-width:100%; margin:0; padding:4px 6px; }
-.heroPartName { display:flex; align-items:center; gap:6px; }
 .heroThumb { width:48px; height:48px; image-rendering:pixelated; display:block; border:1px solid rgba(155,136,80,.35); border-radius:3px; background:#1a1712; }
 .mechTable { width:100%; }
 .mechTable th { border-bottom:1px solid rgba(155,136,80,.45); padding-bottom:4px; }
@@ -1992,7 +1996,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.109.0';
+const GRIMOIRE_VERSION = '1.109.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

@@ -1428,68 +1428,117 @@ function heroWearFrames(body, perFacing) {
 }
 
 /* RECOLOURING BY SHADE. The part table is a judgement made for two sheets;
-   this is the version that needs none. The palette is laid out in rows of
-   sixteen, and each row from 0x10 to 0xDF is one family of shades -- the
-   greys, the reds into yellows, the blues, the skin tones -- so a sprite's
-   colours group by the row they sit in, and "replace this colour" means
-   "replace this row as the sprite uses it". Row 0 is not a family (it holds
-   odd single colours), so each of its indices joins the row whose nearest
-   colour is nearest it. The outline and the near-blacks are left out, as
-   they are from the parts.
+   this is the version that needs none: it finds the regions a sprite is
+   painted in from the art, and a region is replaced as a whole.
 
-   The price is the one the part table exists to avoid: where an artist used
-   one shade for two things, both change. The result is a def shaped like a
-   HERO_SPRITES entry, one part per family with no shared runs, so
-   heroPartMap and heroRemapTables take it unchanged. Parts are ordered by
-   how many pixels each covers, most first, and `top` is each family's most
-   used index, which is what the page draws it as. Tried first and dropped:
-   grouping by hue, which runs skin, hair, leather and a demon's red into one
-   group, since the warm end of this palette is a continuum. */
+   WHAT MAKES A REGION. A painted area is a ramp of shades that touch each
+   other all over it, while two areas meet only along a seam. So shades are
+   joined strongest contact first -- how many times two shades sit side by
+   side, over the smaller one's pixel count -- down to a tenth, and two
+   groups join only while they still look like one colour: the same greyness
+   (a grey never joins a colour, which is what kept trousers apart from the
+   skin they touch), mean hues within 18 degrees, and mean colourfulness
+   within 32 in L*a*b* (skin against a vivid red). The means, not the
+   members, because a ramp's dark end is less colourful than its bright end
+   and the hero's shirt is both.
+
+   TRIED AND DROPPED, all on 18 September 2026 against the fool, the hero,
+   the heroine, the demon, the nobleman, a Seldane, the guard, the mage, the
+   ruffian, the king, the woman and the golem:
+   - the palette's rows, which was the first version: row 0x20 runs from
+     yellow to red, so the fool's motley came out as one group holding most
+     of him and a handful of scattered yellows (the maintainer's screenshot);
+   - hue gaps alone: the warm half of the palette is a continuum, and skin,
+     hair, leather and a demon's red became one group;
+   - contact alone: the fool's motley is a checkerboard, so his red and
+     yellow touch everywhere and joined;
+   - a limit on the spread of hues over the members rather than the means:
+     it broke every shaded blue in two.
+   Nothing is right for every sprite. The guard's armour and his skin are one
+   group, and a Seldane's robe is three.
+
+   What is left under a fiftieth of the pixels is folded into the group it
+   touches most (a buckle into its belt), or failing that the nearest in
+   colour, so the list is the handful of things a person would name. The
+   outline and the near-blacks are left out, as they are from the parts.
+
+   The result is a def shaped like a HERO_SPRITES entry, one part per group
+   with no shared runs, so heroPartMap and heroRemapTables take it unchanged.
+   Parts are ordered by pixel count, most first; `top` is a group's most used
+   index, and a group's key is its lowest index, which does not depend on
+   the order the joins happened in. */
 function heroShadeDef(image) {
-  const count = new Uint32Array(256);
-  for (let i = 0; i < image.length; i++) count[image[i]]++;
   const skip = new Set([0, 0xFF, 0x1D, 0x1E]);
-  const rowOf = new Int16Array(256).fill(-1);
-  for (let i = 0x10; i < 0xE0; i++) rowOf[i] = i >> 4;
-  for (let i = 1; i < 0x10; i++) {
-    const c = heroLab(PAL_RGB[i]);
-    let best = -1, bd = Infinity;
-    for (let j = 0x10; j < 0xE0; j++) {
-      const d = heroLab(PAL_RGB[j]);
-      const e = (c[0] - d[0]) ** 2 + (c[1] - d[1]) ** 2 + (c[2] - d[2]) ** 2;
-      if (e < bd) { bd = e; best = j; }
-    }
-    rowOf[i] = best >> 4;
+  const count = new Uint32Array(256);
+  const touch = new Map();
+  const pair = (a, b) => a < b ? a * 256 + b : b * 256 + a;
+  const W = 32;
+  for (let i = 0; i < image.length; i++) {
+    const v = image[i];
+    if (skip.has(v)) continue;
+    count[v]++;
+    const x = i % W, y = Math.floor(i / W);
+    const right = x + 1 < W ? image[i + 1] : 0;
+    const down = (y + 1) % 32 !== 0 && i + W < image.length ? image[i + W] : 0;
+    for (const w of [right, down])
+      if (!skip.has(w) && w !== v) touch.set(pair(v, w), (touch.get(pair(v, w)) || 0) + 1);
   }
-  const fam = new Map();
+  const groups = new Map();
   for (let i = 1; i < 256; i++) {
-    if (!count[i] || skip.has(i) || rowOf[i] < 0) continue;
-    const r = rowOf[i];
-    if (!fam.has(r)) fam.set(r, { key: 'row' + r.toString(16), label: 'palette row 0x' + r.toString(16).toUpperCase() + '0', sure: [], pixels: 0, top: i });
-    const f = fam.get(r);
-    f.sure.push(i);
-    f.pixels += count[i];
-    if (count[i] > count[f.top]) f.top = i;
+    if (!count[i] || skip.has(i)) continue;
+    const [, a, b] = heroLab(PAL_RGB[i]);
+    groups.set(i, { members: [i], pixels: count[i], sa: a * count[i], sb: b * count[i], grey: Math.hypot(a, b) < 10 });
   }
-  /* A family under a fiftieth of the sprite's pixels -- a highlight, one
-     odd shade -- is folded into the family whose main colour is nearest, so
-     the list is the handful of things a person would name rather than every
-     row the artist touched once. */
-  const all = [...fam.values()];
-  const total = all.reduce((n, f) => n + f.pixels, 0);
-  const big = all.filter(f => f.pixels >= total / 50);
-  const keep = big.length ? big : all;
-  for (const f of all) {
-    if (keep.includes(f)) continue;
-    const c = heroLab(PAL_RGB[f.top]);
-    let into = keep[0], bd = Infinity;
-    for (const k of keep) {
-      const d = heroLab(PAL_RGB[k.top]);
-      const e = (c[0] - d[0]) ** 2 + (c[1] - d[1]) ** 2 + (c[2] - d[2]) ** 2;
-      if (e < bd) { bd = e; into = k; }
+  const owner = new Map([...groups.keys()].map(k => [k, k]));
+  const root = k => { while (owner.get(k) !== k) k = owner.get(k); return k; };
+  const meanOf = g => { const a = g.sa / g.pixels, b = g.sb / g.pixels; return { C: Math.hypot(a, b), h: Math.atan2(b, a) * 180 / Math.PI }; };
+  const joins = [...touch.entries()].map(([k, n]) => ({ a: k >> 8, b: k & 255, s: n / Math.min(count[k >> 8], count[k & 255]) }))
+    .sort((x, y) => y.s - x.s);
+  for (const j of joins) {
+    if (j.s < 0.1) break;
+    const ra = root(j.a), rb = root(j.b);
+    if (ra === rb) continue;
+    const A = groups.get(ra), B = groups.get(rb);
+    if (A.grey !== B.grey) continue;
+    if (!A.grey) {
+      const ma = meanOf(A), mb = meanOf(B);
+      let dh = Math.abs(ma.h - mb.h);
+      if (dh > 180) dh = 360 - dh;
+      if (dh > 18 || Math.abs(ma.C - mb.C) > 32) continue;
     }
-    into.sure.push(...f.sure);
-    into.pixels += f.pixels;
+    owner.set(rb, ra);
+    A.members.push(...B.members); A.pixels += B.pixels; A.sa += B.sa; A.sb += B.sb;
+    groups.delete(rb);
   }
-  return { key: 'shades', parts: keep.sort((a, b) => b.pixels - a.pixels), shared: [] };
+  const all = [...groups.values()];
+  const total = all.reduce((n, g) => n + g.pixels, 0);
+  const big = all.filter(g => g.pixels >= total / 50);
+  const keep = big.length ? big : all;
+  const topOf = g => g.members.reduce((t, i) => count[i] > count[t] ? i : t, g.members[0]);
+  for (const g of all) {
+    if (keep.includes(g)) continue;
+    let into = null, most = 0;
+    for (const k of keep) {
+      let n = 0;
+      for (const a of g.members) for (const b of k.members) n += touch.get(pair(a, b)) || 0;
+      if (n > most) { most = n; into = k; }
+    }
+    if (!into) {
+      const c = heroLab(PAL_RGB[topOf(g)]);
+      let bd = Infinity;
+      for (const k of keep) {
+        const d = heroLab(PAL_RGB[topOf(k)]);
+        const e = (c[0] - d[0]) ** 2 + (c[1] - d[1]) ** 2 + (c[2] - d[2]) ** 2;
+        if (e < bd) { bd = e; into = k; }
+      }
+    }
+    into.members.push(...g.members);
+    into.pixels += g.pixels;
+  }
+  const parts = keep.map(g => {
+    const low = Math.min(...g.members);
+    return { key: 'shade' + low.toString(16), label: 'the colours around 0x' + low.toString(16).toUpperCase(),
+             sure: g.members.slice().sort((a, b) => a - b), pixels: g.pixels, top: topOf(g) };
+  });
+  return { key: 'shades', parts: parts.sort((a, b) => b.pixels - a.pixels), shared: [] };
 }

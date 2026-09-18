@@ -1051,10 +1051,10 @@ function renderPatchReport() {
      their sheet (heroWearFrames; which bodies qualify is heroBodies below);
    - for the hero and the heroine in their own body, the PARTS: hair, skin
      and clothes, from the hand-made table HERO_SPRITES;
-   - for any sprite, COLOUR BY COLOUR: each family of shades the art uses
+   - for any sprite, COLOUR BY COLOUR: each region the art is painted in
      (heroShadeDef), replaced as a whole. Each row carries a frame with only
-     that family in colour, since "palette row 0x20" means nothing until you
-     see which pixels it is.
+     that region in colour, since a list of palette indices means nothing
+     until you see which pixels they are.
    The recolouring is all in js/delv-graphics.js, indices to indices; what is
    here is the choosing and the drawing.
 
@@ -1424,7 +1424,9 @@ function renderHeroSprite() {
       b.type = 'button';
       b.title = nm;
       b.setAttribute('aria-label', (label || 'colour') + ' ' + nm);
-      b.style.background = hex;
+      const chip = el('span', 'heroChip');
+      chip.style.background = hex;
+      b.appendChild(chip);
       b.onclick = function () { choose(nm, hex); };
       sw.appendChild(b);
     }
@@ -2825,7 +2827,7 @@ function renderMechanicsSheet(value) {
       [
         'The hero and the heroine can wear any person, or any monster drawn in four or eight frames. A person is laid out as they are; a monster has fewer poses, and its strides stand in for the rest.',
         'Their hair, skin and clothes are told apart by this page, not read from the file: the art has no such layer. A shade two parts share goes to the part it touches most.',
-        'Colour by colour works on any sprite: each family of shades in the palette that the art uses is changed as a whole, so where one shade draws two things, both change.',
+        'Colour by colour works on any sprite: the page finds the areas the art is painted in, a ramp of shades that touch each other, and each is changed as a whole. Where one shade draws two things, both change.',
         'Each colour keeps its shading. New colours are taken from the game’s palette, and never from the ranges the engine cycles, so the sprite does not shimmer.',
         'Only the chosen sprite’s own frames change. The portrait chosen when the hero is made is a different resource and is not changed.',
         'The patch is read by this page and by the browser player, and Magpie installs it on a Mac.'
