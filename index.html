@@ -1061,6 +1061,9 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 .heroShipped { width:auto; padding:0 8px; background:#1a1712; color:var(--gold); font-size:0.6875rem; border-color:rgba(155,136,80,.35); }
 .heroAny { width:32px; height:24px; margin:0; padding:0; border:1px solid rgba(155,136,80,.35); border-radius:3px; background:#1a1712; cursor:pointer; }
 .heroDesc { width:100%; max-width:480px; box-sizing:border-box; margin:0 0 6px; }
+.heroSelect { width:auto; max-width:100%; margin:0; padding:4px 6px; }
+.heroPartName { display:flex; align-items:center; gap:6px; }
+.heroThumb { width:48px; height:48px; image-rendering:pixelated; display:block; border:1px solid rgba(155,136,80,.35); border-radius:3px; background:#1a1712; }
 .mechTable { width:100%; }
 .mechTable th { border-bottom:1px solid rgba(155,136,80,.45); padding-bottom:4px; }
 .mechTable th.num, .mechTable td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; padding-right:10px; }
@@ -1989,7 +1992,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.108.0';
+const GRIMOIRE_VERSION = '1.109.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

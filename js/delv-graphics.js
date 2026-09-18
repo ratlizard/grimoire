@@ -1393,3 +1393,103 @@ function heroRecolour(image, labels, tables) {
   }
   return out;
 }
+
+/* ---- wearing another body, and recolouring by shade -----------------------
+   Two things the hero section does beyond its part table, and both are for
+   any sprite rather than for the hero alone.
+
+   WEARING A BODY. The hero is drawn as facing * 4 + pose: four facings, and
+   in each the left foot forward, standing, the right foot forward and seated
+   (the map view's gait reading, confirmed by Alaric on his throne at frame
+   11). Every person in the file is laid out the same way, so their sixteen
+   frames go straight onto the hero's. A monster is not: the program sets a
+   monster's frame in TActiveMonster::AdjustAspect(facing, step), switching on
+   a per-class property, and the layouts it can choose include facing * 2 +
+   (step & 1), two strides a facing, and facing alone, one frame a facing,
+   both with the same facing number the people use. So an eight-frame
+   monster's frames are spread over the hero's four poses by HERO_WEAR_POSE
+   (a stride on each foot, the first stride standing and seated, since such
+   a body has no frame for either) and a four-frame one shows its one frame
+   for all four. Sixteen-frame monsters are not worn: AdjustAspect has more
+   than one sixteen-frame layout, the gator's frames visibly change facing
+   every two, and which a class uses is the class's property 55, which
+   nothing here reads yet. */
+const HERO_WEAR_POSE = { 1: [0, 0, 0, 0], 2: [0, 0, 1, 0], 4: [0, 1, 2, 3] };
+function heroWearFrames(body, perFacing) {
+  const map = HERO_WEAR_POSE[perFacing];
+  if (!map) return null;
+  const out = new Uint8Array(16 * 1024);
+  for (let facing = 0; facing < 4; facing++)
+    for (let pose = 0; pose < 4; pose++) {
+      const from = facing * perFacing + map[pose];
+      out.set(body.subarray(from * 1024, (from + 1) * 1024), (facing * 4 + pose) * 1024);
+    }
+  return out;
+}
+
+/* RECOLOURING BY SHADE. The part table is a judgement made for two sheets;
+   this is the version that needs none. The palette is laid out in rows of
+   sixteen, and each row from 0x10 to 0xDF is one family of shades -- the
+   greys, the reds into yellows, the blues, the skin tones -- so a sprite's
+   colours group by the row they sit in, and "replace this colour" means
+   "replace this row as the sprite uses it". Row 0 is not a family (it holds
+   odd single colours), so each of its indices joins the row whose nearest
+   colour is nearest it. The outline and the near-blacks are left out, as
+   they are from the parts.
+
+   The price is the one the part table exists to avoid: where an artist used
+   one shade for two things, both change. The result is a def shaped like a
+   HERO_SPRITES entry, one part per family with no shared runs, so
+   heroPartMap and heroRemapTables take it unchanged. Parts are ordered by
+   how many pixels each covers, most first, and `top` is each family's most
+   used index, which is what the page draws it as. Tried first and dropped:
+   grouping by hue, which runs skin, hair, leather and a demon's red into one
+   group, since the warm end of this palette is a continuum. */
+function heroShadeDef(image) {
+  const count = new Uint32Array(256);
+  for (let i = 0; i < image.length; i++) count[image[i]]++;
+  const skip = new Set([0, 0xFF, 0x1D, 0x1E]);
+  const rowOf = new Int16Array(256).fill(-1);
+  for (let i = 0x10; i < 0xE0; i++) rowOf[i] = i >> 4;
+  for (let i = 1; i < 0x10; i++) {
+    const c = heroLab(PAL_RGB[i]);
+    let best = -1, bd = Infinity;
+    for (let j = 0x10; j < 0xE0; j++) {
+      const d = heroLab(PAL_RGB[j]);
+      const e = (c[0] - d[0]) ** 2 + (c[1] - d[1]) ** 2 + (c[2] - d[2]) ** 2;
+      if (e < bd) { bd = e; best = j; }
+    }
+    rowOf[i] = best >> 4;
+  }
+  const fam = new Map();
+  for (let i = 1; i < 256; i++) {
+    if (!count[i] || skip.has(i) || rowOf[i] < 0) continue;
+    const r = rowOf[i];
+    if (!fam.has(r)) fam.set(r, { key: 'row' + r.toString(16), label: 'palette row 0x' + r.toString(16).toUpperCase() + '0', sure: [], pixels: 0, top: i });
+    const f = fam.get(r);
+    f.sure.push(i);
+    f.pixels += count[i];
+    if (count[i] > count[f.top]) f.top = i;
+  }
+  /* A family under a fiftieth of the sprite's pixels -- a highlight, one
+     odd shade -- is folded into the family whose main colour is nearest, so
+     the list is the handful of things a person would name rather than every
+     row the artist touched once. */
+  const all = [...fam.values()];
+  const total = all.reduce((n, f) => n + f.pixels, 0);
+  const big = all.filter(f => f.pixels >= total / 50);
+  const keep = big.length ? big : all;
+  for (const f of all) {
+    if (keep.includes(f)) continue;
+    const c = heroLab(PAL_RGB[f.top]);
+    let into = keep[0], bd = Infinity;
+    for (const k of keep) {
+      const d = heroLab(PAL_RGB[k.top]);
+      const e = (c[0] - d[0]) ** 2 + (c[1] - d[1]) ** 2 + (c[2] - d[2]) ** 2;
+      if (e < bd) { bd = e; into = k; }
+    }
+    into.sure.push(...f.sure);
+    into.pixels += f.pixels;
+  }
+  return { key: 'shades', parts: keep.sort((a, b) => b.pixels - a.pixels), shared: [] };
+}

@@ -3351,8 +3351,9 @@ try {
   }
 } catch (e) { fail('patches', e); }
 
-/* The hero's colours, end to end: the part table against the shipped art,
-   a recolour that moves only what was chosen, and the patch it writes read
+/* A sprite of your own, end to end: the part table against the shipped art,
+   a recolour that moves only what was chosen, a worn body, colour by colour
+   on a monster that shares its sheet, and the patches all of it writes, read
    back through the patches section and applied.
 
    THE PART TABLE IS A JUDGEMENT, SO WHAT IS PINNED IS ITS COVERAGE. Nothing
@@ -3370,31 +3371,36 @@ try {
     (el.children || []).reduce((n, c) => n + countTag(c, tag), 0);
   const host = REGISTRY.get('heroSprite');
   if (!host) throw new Error('no host for the section');
-  peek(`window.HERO_SPRITE_STATE = { which: 'heroine', choices: { hero: {}, heroine: {} } }`);
+  peek(`window.HERO_SPRITE_STATE = { which: 'heroine', choices: {} }`);
   ctx.renderHeroSprite();
   const cover = peek(`HERO_SPRITES.map(d => {
     const fixed = new Set([0xFF, 0x1D, 0x1E].concat(d.fixed || []));
     const f = heroFigure(d.key);
-    if (!f) return { key: d.key, missing: true };
+    if (!f || !f.labels) return { key: d.key, missing: true };
     let loose = 0; const per = d.parts.map(() => 0);
     for (let i = 0; i < f.image.length; i++) {
       const v = f.image[i], l = f.labels[i];
       if (l >= 0) per[l]++;
       else if (v && !fixed.has(v)) loose++;
     }
-    return { key: d.key, sheet: f.sheet, loose, unknown: f.unknown, empty: d.parts.filter((p, i) => !per[i]).map(p => p.key), others: f.others.length };
+    return { key: d.key, sheet: f.sheet, loose, unknown: f.unknown, empty: d.parts.filter((p, i) => !per[i]).map(p => p.key),
+             others: f.others.length, shades: f.shades.parts.length };
   })`);
   for (const c of cover) {
     if (c.missing) fail('hero colours', `no sheet for the ${c.key}`);
     else if (c.loose || c.unknown) fail('hero colours', `the ${c.key}'s sheet has ${c.loose} pixels in no part`);
     else if (c.empty.length) fail('hero colours', `the ${c.key} has no pixels for ${c.empty.join(', ')}`);
-    else if (c.others) fail('hero colours', `the ${c.key}'s sheet is shared with ${c.others} other prop type(s)`);
+    else if (c.others) fail('hero colours', `the ${c.key}'s sheet is shared with ${c.others} other sprite class(es)`);
   }
   const sheet = cover[1] && cover[1].sheet;
   const plainCanvases = countTag(host, 'CANVAS');
+  const plainInputs = countTag(host, 'INPUT');
+  const wantInputs = 5 + cover[1].shades;
+  const wantCanvases = 2 + cover[1].shades + 32;
   if (peek('heroSpritePatch()') !== null) fail('hero colours', 'a patch is offered with nothing chosen');
-  else if (countTag(host, 'INPUT') !== 5) fail('hero colours', `${countTag(host, 'INPUT')} inputs with nothing chosen, expected a colour for each of five parts and no description`);
-  else if (plainCanvases !== 2 + 32) fail('hero colours', `${plainCanvases} canvases, expected 2 figures and 16 pairs`);
+  else if (plainInputs !== wantInputs) fail('hero colours', `${plainInputs} inputs with nothing chosen, expected a colour for each of five parts and ${cover[1].shades} shades and no description`);
+  else if (plainCanvases !== wantCanvases) fail('hero colours', `${plainCanvases} canvases, expected 2 figures, ${cover[1].shades} shade rows and 16 pairs`);
+  else if (!REGISTRY.get('heroBody') || !REGISTRY.get('heroOther')) fail('hero colours', 'no body or sprite list');
 
   // Blond hair and a blue top on the heroine.
   ctx.heroSpriteChoose('hair', 'blond', '#d8b050');
@@ -3437,7 +3443,77 @@ try {
       else console.log(`  hero colours: both sheets fully labelled (${cover.map(c => c.key + ' 0x' + c.sheet.toString(16)).join(', ')}), nothing chosen writes nothing, ${moved.n} pixels of hair and top recoloured off the ramps, and the one-resource patch verifies and applies`);
     }
   }
-  peek(`window.HERO_SPRITE_STATE = { which: 'hero', choices: { hero: {}, heroine: {} } }`);
+  ctx.patchesForget();
+
+  /* Bodies. The list is read, so what is pinned is the rule: the people and
+     the four- and eight-frame monsters are in, a sixteen-frame monster, a
+     sprite of several tiles and a still one are out. Then the demon, worn:
+     its facing 1, second stride, must be the hero's facing 1, right foot. */
+  const bodies = peek(`heroBodies(32).map(k => k.pt)`);
+  const byName = n => peek(`(heroSpriteClasses().find(k => k.name === ${JSON.stringify(n)}) || {}).pt`);
+  const demon = byName('demon'), golem = byName('golem'), gator = byName('gator'), titan = byName('titan'), noble = byName('nobleman'), corpse = byName('corpse');
+  if (!demon || !golem || !noble) fail('hero bodies', 'the demon, the golem or the nobleman is not among the sprite classes');
+  else if (!bodies.includes(demon) || !bodies.includes(noble) || !bodies.includes(33))
+    fail('hero bodies', 'the demon, the nobleman or the heroine cannot be worn');
+  else if ([gator, titan, corpse, 32].some(p => p && bodies.includes(p)))
+    fail('hero bodies', 'a sixteen-frame monster, the titan, the corpse or the hero himself is offered as a body');
+  else {
+    peek(`window.HERO_SPRITE_STATE = { which: 'hero', choices: {} }`);
+    ctx.heroSpriteBody(String(demon));
+    const worn = peek(`(() => {
+      const f = heroFigure('hero'), d = heroSpriteClasses().find(k => k.pt === ${demon});
+      const src = heroSheetImage(d.sheet);
+      let same = true;
+      for (let i = 0; i < 1024; i++) if (f.image[(1 * 4 + 2) * 1024 + i] !== src[(d.start + 1 * 2 + 1) * 1024 + i]) same = false;
+      return { body: f.body && f.body.pt, labels: !!f.labels, same, shades: f.shades.parts.map(p => p.key) };
+    })()`);
+    if (worn.body !== demon) fail('hero bodies', 'the demon was not worn');
+    else if (worn.labels) fail('hero bodies', 'the part table was applied to a body it was not made for');
+    else if (!worn.same) fail('hero bodies', "the hero's facing 1, right foot is not the demon's facing 1, second stride");
+    else {
+      // Every family the demon's art has, to yellow: a yellow demon hero.
+      for (const k of worn.shades) peek(`heroState('hero').shades[${JSON.stringify(k)}] = { name: 'yellow', hex: '#e8c020' }`);
+      ctx.renderHeroSprite();
+      const wp = peek('heroSpritePatch()');
+      if (!wp || wp.resids.length !== 1 || wp.resids[0] !== cover[0].sheet || !wp.checkValueValid)
+        fail('hero bodies', 'the worn body did not write a verifying patch of the hero\'s sheet alone');
+      else if (!/hero, as the demon, \d+ colours? changed/.test(wp.description)) fail('hero bodies', 'the description is ' + JSON.stringify(wp.description));
+      else console.log(`  hero bodies: ${bodies.length} bodies offered, the gator, the titan and the corpse not; the demon worn stride for facing, turned yellow in ${worn.shades.length} families, and written as one resource`);
+    }
+  }
+
+  /* Colour by colour on a monster that shares its sheet: the demon's frames
+     change and the golem's, the other half of the sheet, come back as they
+     were. */
+  if (demon && golem) {
+    peek(`window.HERO_SPRITE_STATE = { which: 'pt${demon}', choices: {} }`);
+    ctx.renderHeroSprite();
+    const top = peek(`heroFigure('pt${demon}').shades.parts[0].key`);
+    ctx.heroSpriteShade(top, 'yellow', '#e8c020');
+    const res = peek(`(() => {
+      const f = heroFigure('pt${demon}'), w = heroSpritePatch();
+      if (!w) return null;
+      const spec = delverArchiveSpec(w.bytes);
+      const r = spec.resources.find(x => x.resid === f.sheet);
+      const img = decodeResource(r.data, 141, f.sheet).image;
+      const g = heroSpriteClasses().find(k => k.pt === ${golem});
+      let golemMoved = 0, demonMoved = 0;
+      for (let i = 0; i < img.length; i++) {
+        const t = Math.floor(i / 1024);
+        if (img[i] === f.sheetImage[i]) continue;
+        if (t >= g.start && t < g.start + g.frames) golemMoved++;
+        if (t >= f.start && t < f.start + f.frames) demonMoved++;
+      }
+      return { sheet: f.sheet, resids: w.resids, valid: w.checkValueValid, golemMoved, demonMoved, sameSheet: g.sheet === f.sheet };
+    })()`);
+    if (!res) fail('shade colours', 'no patch after changing the demon\'s main colour');
+    else if (!res.sameSheet) fail('shade colours', 'the golem is no longer on the demon\'s sheet, so this pin proves nothing');
+    else if (res.resids.length !== 1 || res.resids[0] !== res.sheet || !res.valid) fail('shade colours', 'the patch is not one verifying resource');
+    else if (!res.demonMoved) fail('shade colours', 'the demon did not change');
+    else if (res.golemMoved) fail('shade colours', `${res.golemMoved} pixels of the golem changed with the demon`);
+    else console.log(`  shade colours: the demon's main family recoloured, ${res.demonMoved} pixels, and the golem beside it on 0x${res.sheet.toString(16)} untouched`);
+  }
+  peek(`window.HERO_SPRITE_STATE = { which: 'hero', choices: {} }`);
   ctx.patchesForget();
 } catch (e) { fail('hero colours', e); }
 
