@@ -4,6 +4,14 @@
 //   node utilities/check_all.mjs
 //   node utilities/check_all.mjs --quick     (skip the slow ones)
 //   node utilities/check_all.mjs viewer      (one page: viewer | browser | mobile)
+//   CHECK_JOBS=1 node utilities/check_all.mjs   (one at a time, as it ran until 18 September 2026)
+//
+// The checks run several at a time, up to CHECK_JOBS of them (four unless
+// told otherwise: each is a Node process holding the whole page, and this
+// is an 8 GB machine). Every check is its own process writing to its own
+// temp directory, so the only order that matters is written down as `after`
+// on the checks that read what another one unpacks; the table is printed in
+// the list's order whatever order they finished in.
 //
 // There are fifteen harnesses across three pages, each with its own argument
 // list, spread across three handoff documents. Nobody runs all of them by hand
@@ -14,8 +22,9 @@
 // This also does the setup. The forks have to be extracted from the .hqx files
 // before most checks can run, and that is the step most likely to be forgotten.
 
-import {execFileSync, execSync} from 'node:child_process';
+import {execFile, execFileSync, execSync} from 'node:child_process';
 import {existsSync, mkdirSync, readdirSync} from 'node:fs';
+import {availableParallelism} from 'node:os';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -25,6 +34,7 @@ const TMP = process.env.TMPDIR ? resolve(process.env.TMPDIR) : '/tmp';
 const args = process.argv.slice(2);
 const quick = args.includes('--quick');
 const only = args.find(a => !a.startsWith('--'));
+const JOBS = Math.max(1, parseInt(process.env.CHECK_JOBS, 10) || Math.min(4, availableParallelism()));
 
 const DATA = `${TMP}/Cythera Data.data`;
 const DATA_RSRC = `${TMP}/Cythera Data.rsrc`;
@@ -128,9 +138,9 @@ const LLVM_MC = findLlvmMc();
 const ADDONS = firstExisting('reference/community/addons', 'reference/user_addons');
 // A Cythera saved game, for the smoke test's saved-game section. It is the
 // one complete player file in the add-ons, and addons_check.mjs unpacks it
-// here on its run, which comes first in the list; without unar, or without
-// the add-ons, the section notes the absence and the rest of the smoke test
-// runs as before.
+// here on its run, which the three checks that read it wait for (`after`);
+// without unar, or without the add-ons, the section notes the absence and
+// the rest of the smoke test runs as before.
 const SAVE = `${TMP}/cythera_addons/606_CheaterSavedGame/I.M.Cheater`;
 const GFX_REF = `${TMP}/gfx_ref.json`;
 const EXPORTS = `${TMP}/check_all_exports`;
@@ -219,7 +229,7 @@ const CHECKS = [
   // built on the fly -- so unlike the read checks it runs on a checkout
   // without the game. DATA is passed anyway: when the game is there the
   // check also proves the real archive re-serializes byte-identically.
-  {page: 'viewer', name: 'delvmod write', want: [DELV],
+  {page: 'viewer', name: 'delvmod write', want: [DELV], after: ['addons + heuristic'],
    cmd: ['utilities/delv_write_check.mjs', 'index.html', DELV, DATA, SAVE],
    grep: /all comparisons passed/},
   // ddasm's Disassembler RUN against dvmDisassemble, decode event by decode
@@ -256,7 +266,7 @@ const CHECKS = [
      which extracted the patch out of its StuffIt archive; the page does that
      itself since method 13 landed, so getting the patch out of the .hqx is
      part of what this proves now. */
-  {page: 'viewer', name: 'magpie patch', want: [DATA],
+  {page: 'viewer', name: 'magpie patch', want: [DATA], after: ['addons + heuristic'],
    cmd: ['utilities/patch_check.mjs', 'index.html', DATA, ADDONS],
    grep: /\d+ of [\d,]+ resources replaced, [\d,]+ bytes out(?:; \d+ tiles of \d+ redrawn across \d+ sheets)?/},
   /* The two StuffIt compressions this page decompresses, 13 and 15, against
@@ -341,7 +351,7 @@ const CHECKS = [
   {page: 'viewer', name: 'version',
    cmd: ['utilities/version_check.mjs', 'index.html'],
    grep: /version [\d.]+[^\n]*/},
-  {page: 'viewer', name: 'ui smoke', want: [DATA], slow: true,
+  {page: 'viewer', name: 'ui smoke', want: [DATA], slow: true, after: ['addons + heuristic'],
    cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL, SAVE],
    grep: /\d+ galleries, [\d,]+ tiles/},
   {page: 'viewer', name: 'zip export', want: [DATA], slow: true,
@@ -384,32 +394,14 @@ await ensureForks();
 if (!only || only === 'viewer') ensureGraphicsRef();
 mkdirSync(EXPORTS, {recursive: true});
 
-const rows = [];
+const rows = new Array(CHECKS.length);
 let failed = 0, skipped = 0;
-for (const check of CHECKS) {
-  if (only && check.page !== only) continue;
-  if (quick && check.slow) { rows.push([check.page, check.name, 'skip', '--quick']); skipped++; continue; }
-  const missing = (check.want || []).filter(p => !existsSync(p));
-  if (missing.length) {
-    rows.push([check.page, check.name, 'skip', 'needs ' + missing.map(m => m.replace(TMP + '/', '')).join(', ')]);
-    skipped++;
-    continue;
-  }
-  const t0 = Date.now();
-  let out = '', ok = true;
-  try {
-    out = execFileSync('node', check.cmd, {maxBuffer: 64 << 20, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
-  } catch (e) {
-    ok = false;
-    out = (e.stdout || '') + (e.stderr || '');
-  }
-  // A hand-written zip is exactly the sort of thing that looks fine and
-  // unpacks to nothing, so the archives get validated rather than trusted.
-  if (ok && check.zips) {
-    try { execSync(`for z in "${check.zips}"/*.zip; do unzip -t "$z" > /dev/null || exit 1; done`, {stdio: 'ignore'}); }
-    catch (e) { ok = false; out += '\nunzip -t rejected an archive'; }
-  }
-  const secs = ((Date.now() - t0) / 1000).toFixed(1);
+
+// What one check's run decides: the row, and whether it counts as failed.
+// Written for one process at a time and unchanged by running several: each
+// check is its own child process, and nothing here is shared between them
+// but the table.
+function judge(check, ok, out, secs) {
   let note = '';
   if (check.grep) { const m = check.grep.exec(out); if (m) note = m[0].trim(); }
   /* A SNAPSHOT THAT MOVES MUST MOVE ITS RECORDED VALUE WITH IT.
@@ -445,8 +437,65 @@ for (const check of CHECKS) {
     const lines = out.trim().split('\n').filter(l => /FAIL|Error|error/.test(l));
     note = (lines[0] || out.trim().split('\n').pop() || 'failed').slice(0, 96);
   }
-  rows.push([check.page, check.name, ok ? 'ok' : 'FAIL', `${note}${note ? '  ' : ''}(${secs}s)`]);
+  return [check.page, check.name, ok ? 'ok' : 'FAIL', `${note}${note ? '  ' : ''}(${secs}s)`];
 }
+
+// One check, in a child process, to a row.
+function runCheck(check) {
+  const t0 = Date.now();
+  return new Promise(res => {
+    execFile('node', check.cmd, {maxBuffer: 64 << 20, encoding: 'utf8'}, (err, stdout, stderr) => {
+      let ok = !err, out = ok ? stdout : (stdout || '') + (stderr || '');
+      // A hand-written zip is exactly the sort of thing that looks fine and
+      // unpacks to nothing, so the archives get validated rather than trusted.
+      if (ok && check.zips) {
+        try { execSync(`for z in "${check.zips}"/*.zip; do unzip -t "$z" > /dev/null || exit 1; done`, {stdio: 'ignore'}); }
+        catch (e) { ok = false; out += '\nunzip -t rejected an archive'; }
+      }
+      res(judge(check, ok, out, ((Date.now() - t0) / 1000).toFixed(1)));
+    });
+  });
+}
+
+// The pool: up to JOBS checks at once, taken in the list's order, a check
+// waiting for the ones it names in `after` to be done (finished, failed or
+// skipped alike). Rows land at the check's own index, so the table reads in
+// the list's order whatever order the processes finished in; one line per
+// finish says which are still running when the table is a while coming.
+const done = new Set();
+const pending = [];
+for (let i = 0; i < CHECKS.length; i++) {
+  const check = CHECKS[i];
+  if (only && check.page !== only) { rows[i] = null; done.add(check.name); continue; }
+  if (quick && check.slow) { rows[i] = [check.page, check.name, 'skip', '--quick']; skipped++; done.add(check.name); continue; }
+  const missing = (check.want || []).filter(p => !existsSync(p));
+  if (missing.length) {
+    rows[i] = [check.page, check.name, 'skip', 'needs ' + missing.map(m => m.replace(TMP + '/', '')).join(', ')];
+    skipped++; done.add(check.name);
+    continue;
+  }
+  pending.push(i);
+}
+const started = Date.now();
+await new Promise(resolve => {
+  let running = 0;
+  const pump = () => {
+    if (!pending.length && !running) return resolve();
+    for (let k = 0; k < pending.length && running < JOBS; k++) {
+      const i = pending[k], check = CHECKS[i];
+      if ((check.after || []).some(n => !done.has(n))) continue;
+      pending.splice(k, 1); k--; running++;
+      runCheck(check).then(row => {
+        rows[i] = row; done.add(check.name); running--;
+        say(`  ${row[2] === 'ok' ? 'ok  ' : 'FAIL'}  ${check.name}  ${row[3].match(/\([\d.]+s\)$/)[0]}`);
+        pump();
+      });
+    }
+  };
+  pump();
+});
+const wall = ((Date.now() - started) / 1000).toFixed(1);
+for (let i = rows.length - 1; i >= 0; i--) if (rows[i] === null) rows.splice(i, 1);
 
 const w0 = Math.max(...rows.map(r => r[0].length));
 const w1 = Math.max(...rows.map(r => r[1].length));
@@ -457,7 +506,7 @@ for (const [page, name, status, note] of rows) {
 }
 
 const ran = rows.length - skipped;
-say(`\n  ${ran} checks run, ${failed} failed, ${skipped} skipped`);
+say(`\n  ${ran} checks run, ${failed} failed, ${skipped} skipped, ${wall}s wall clock with ${JOBS} at a time`);
 // CLAUDE.md used to state the clean-run figure in prose, and it went stale
 // four times -- each time on the day a check was added, silently, while the
 // file still read as authoritative. The fifth time, on 8 September 2026, the
