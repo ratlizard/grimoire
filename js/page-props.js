@@ -475,11 +475,11 @@ function showPropTypeDetail(pt) {
       const spr = drawPropSprite(base + f, 24);
       if (spr) holder.appendChild(spr.canvas);
       const col = colours && colours.get(f);
-      holder.title = 'frame ' + f + ' \u00b7 tile 0x' + (base + f).toString(16).toUpperCase() +
-                     (run.name ? ' \u00b7 ' + run.name : '') + (col ? ' \u00b7 ' + col : '') +
-                     ', click to enlarge';
-      holder.style.cursor = 'zoom-in';
-      holder.onclick = () => showSpriteZoom(base + f, run.name || '');
+      // A tap opens the sheet the frame is on; the enlargement with its
+      // downloads is in the sheet's own view. The maintainer's ask of
+      // 18 September 2026: an image goes to its resource.
+      imageOpens(holder, sheetOfTile(base + f), 'frame ' + f + ' \u00b7 tile 0x' + (base + f).toString(16).toUpperCase() +
+                     (run.name ? ' \u00b7 ' + run.name : '') + (col ? ' \u00b7 ' + col : '') + ', sheet');
       if (!own) holder.style.opacity = '.5';
       cellw.appendChild(holder);
       const cap = document.createElement('div');
@@ -1256,7 +1256,7 @@ function renderItemSheet() {
         o.reach.map(r => (terrainNameFor(getPropTileList()[r.pt] || 0) || ('0x' + r.pt.toString(16))) + ' ' + r.aspect).join(', ') +
         ' \u00b7 in no prop list';
       cell.appendChild(sub);
-      cell.onclick = () => showSpriteZoom(o.tile, o.name);
+      imageOpens(cell, sheetOfTile(o.tile), o.name + ', sheet');
       grid.appendChild(cell);
     }
   }

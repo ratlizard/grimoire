@@ -451,8 +451,8 @@ function archiveLoadFailed(failures) {
 }
 
 async function ingestArchiveFile(f) {
-  loadingFileNote();
   if (!f) return;
+  await loadingFileNote();
   setStatus('Reading ' + f.name + ' (' + fmtBytes(f.size) + ')…');
   let raw;
   try { raw = new Uint8Array(await f.arrayBuffer()); }
@@ -462,13 +462,27 @@ async function ingestArchiveFile(f) {
 }
 
 // The output line under the tabs says "Load the archive to begin..." until a
-// file is known; once one is on its way it says so instead.
-function loadingFileNote() {
+// file is known; once one is on its way it says "Loading…" instead. It then
+// gives the browser a frame to paint the word: parsing a file blocks the
+// page for a second or more, and a note set on the same task as the parse
+// is never seen. That is what happened to the remembered copy, which went
+// from "Load the archive to begin" straight to the title with the note set
+// and never shown (the maintainer, 18 September 2026).
+async function loadingFileNote() {
   const out = document.getElementById('output');
-  if (out && /Load the archive to begin/.test(out.textContent || '')) out.textContent = 'Loading file\u2026';
+  if (out && /Load the archive to begin/.test(out.textContent || '')) out.textContent = 'Loading\u2026';
+  // A frame and then a task, so the word is on screen before the parse
+  // starts; or 20 ms, where nothing draws frames (the harness stub's
+  // requestAnimationFrame never calls back, and a load that awaited it
+  // never finished).
+  await new Promise(r => {
+    let done = false;
+    const go = () => { if (!done) { done = true; r(); } };
+    setTimeout(go, 20);
+    try { requestAnimationFrame(() => setTimeout(go, 0)); } catch (e) {}
+  });
 }
 function loadArchive() {
-  loadingFileNote();
   ingestArchiveFile(document.getElementById('fileInput').files[0]);
 }
 
@@ -499,7 +513,7 @@ async function loadDefaultArchive() {
     try {
       const rec = await archiveCacheGet();
       if (rec && rec.bytes && rec.bytes.length) {
-        loadingFileNote();
+        await loadingFileNote();
         const bytes = rec.bytes instanceof Uint8Array ? rec.bytes : new Uint8Array(rec.bytes);
         if (adoptArchive(bytes, rec.name || 'remembered archive',
                          { cached: true, savedAt: rec.savedAt, rsrc: rec.rsrc || null, pick: rec.pick, source: rec.source })) return;
@@ -528,11 +542,11 @@ async function loadDefaultArchive() {
     }
     return false;
   };
-  if (forced) { loadingFileNote(); if (!(await tryUrl(forced))) archiveLoadFailed(failures); return; }
+  if (forced) { await loadingFileNote(); if (!(await tryUrl(forced))) archiveLoadFailed(failures); return; }
   for (const u of LOCAL_ARCHIVE_CANDIDATES) if (await tryUrl(u)) return;
   const gate = await landingGate();
   if (gate === 'own') { openArchiveMenu(true); setStatus('Choose or drop the Cythera installer (.sit or .bin) or a "Cythera Data" file.'); return; }
-  loadingFileNote();
+  await loadingFileNote();
   for (const u of REMOTE_ARCHIVE_URLS) if (await tryUrl(u)) return;
   archiveLoadFailed(failures);
 }

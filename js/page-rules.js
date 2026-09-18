@@ -3854,6 +3854,30 @@ function exeBarkRules() {
   return r.ticks || r.width ? r : null;
 }
 
+/* WHERE THE HERO'S PORTRAIT COMES FROM. The scenario's 0x8800 is never
+   seen in play. CreatePlayer takes the dialog's pick as a slot number --
+   TCreatePlayerDialog::GetPortrait answers 240 plus six a row plus the
+   column, off the picker item's two shorts -- reads the resource that many
+   past 0x87FF (addis 4, 27, 1 then addi 4, 4, -30721) and writes its bytes
+   into the player file as 0x8800 (lis 4, 1 then addi 4, 4, -30720). So a
+   saved game's 0x8800 is one of the shipped 0x88EF.. byte for byte, which
+   the cheater save bears out: its portrait is 0x88F0. Read here by the
+   shape of the instructions; the maintainer asked how the chosen portrait
+   reaches the hero, 18 September 2026. */
+function exePortraitChoice() {
+  const gp = exeOpsNamed('TCreatePlayerDialog::GetPortrait'), cp = exeOpsNamed('CreatePlayer');
+  const mi = gp.findIndex(o => o.d && o.d.mn === 'mulli' && o.d.rd === 4);
+  const fi = mi >= 0 ? exeFind(gp, mi + 1, 4, d => d.mn === 'addi' && d.rd === 3 && d.ra === 4) : -1;
+  const hi = cp.findIndex(o => o.d && o.d.mn === 'addis' && o.d.rd === 4 && o.d.imm === 1);
+  const bi = hi >= 0 ? exeFind(cp, hi + 1, 2, d => d.mn === 'addi' && d.rd === 4 && d.ra === 4) : -1;
+  const li = cp.findIndex(o => o.d && o.d.mn === 'lis' && o.d.rd === 4 && o.d.imm === 1);
+  const di = li >= 0 ? exeFind(cp, li + 1, 6, d => d.mn === 'addi' && d.rd === 4 && d.ra === 4) : -1;
+  if (mi < 0 || fi < 0 || bi < 0 || di < 0) return null;
+  return { perRow: exeVal(gp[mi], gp[mi].d.imm), first: exeVal(gp[fi], gp[fi].d.imm),
+           base: exeVal(cp[bi], (0x10000 + cp[bi].d.imm) & 0xFFFF),
+           writes: exeVal(cp[di], (0x10000 + cp[di].d.imm) & 0xFFFF) };
+}
+
 /* WHAT A COMMAND COSTS IN TIME. TGameSys::HeartBeat(n) is how a command
    spends the player's time, so every call of it with a constant in r4 is a
    cost, named by the routine that makes the call. A call whose r4 is worked

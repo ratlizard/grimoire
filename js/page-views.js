@@ -409,6 +409,18 @@ function propTypeForTile(tileId) {
   }
   return best;
 }
+/* An image of one resource opens that resource when tapped: the portrait
+   on a character's page, a frame on a prop's, the sprite an item leaves
+   behind. The maintainer's ask of 18 September 2026: every isolated image
+   links to the graphical resource it was drawn from. A tile's resource is
+   its sheet, sixteen tiles a sheet. */
+function sheetOfTile(tileId) { return 0x8E00 + (tileId >> 4); }
+function imageOpens(el, resid, what) {
+  el.style.cursor = 'pointer';
+  el.title = (what ? what + ' ' : '') + '0x' + resid.toString(16).toUpperCase() + ', tap to open';
+  el.onclick = e => { e.stopPropagation(); jumpToResource(resid); };
+  return el;
+}
 function tileTapTarget(tileId) {
   const pt = propTypeForTile(tileId);
   if (pt <= 0) return null;
@@ -1229,6 +1241,7 @@ function showMonsterDetail(idx) {
       holder.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:#1c1913;border:1px solid #33302a;overflow:hidden';
       const spr = drawPropSprite(base + f, 20);
       if (spr) holder.appendChild(spr.canvas);
+      imageOpens(holder, sheetOfTile(base + f), 'frame ' + f + ', sheet');
       strip.appendChild(holder);
     }
     panel.appendChild(strip);
@@ -1248,7 +1261,7 @@ function showMonsterDetail(idx) {
     const cbase = tiles[r.corpseType];
     if (cbase !== undefined) {
       const spr = drawPropSprite(cbase + r.corpseAspect, 40);
-      if (spr) { spr.canvas.style.marginTop = '6px'; cd.appendChild(spr.canvas); }
+      if (spr) { spr.canvas.style.marginTop = '6px'; imageOpens(spr.canvas, sheetOfTile(cbase + r.corpseAspect), 'sheet'); cd.appendChild(spr.canvas); }
     }
   } else {
     cd.innerHTML = '<b style="color:#b5b2a8">Leaves behind</b> nothing.';

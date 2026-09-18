@@ -1288,6 +1288,7 @@ function showCharacterDetail(i) {
     const dec = decodeResource(ARCHIVE, praw, 135);
     drawToCanvas(pc, dec.W, dec.H, dec.image, 0);
     pc.style.cssText = 'width:128px;height:128px;image-rendering:pixelated';
+    imageOpens(pc, 0x8800 + (i - 1), 'portrait');
   } catch (e) {}
   // Every frame of the sheet, laid out 4 facings x 4 poses.
   const sprInfo = spriteFrameInfo(d.tile, d.rec.proptype);
@@ -1299,12 +1300,14 @@ function showCharacterDetail(i) {
     if (sprInfo.present.indexOf(f) >= 0) { try { drawTileToCanvas(cv, sprInfo.base + f, 32); } catch (e) {} }
     else cv.style.opacity = '0.25';
     cv.title = 'frame ' + f + (sprInfo.present.indexOf(f) >= 0 ? '' : ' (empty)');
+    if (sprInfo.present.indexOf(f) >= 0) imageOpens(cv, sheetOfTile(sprInfo.base + f), cv.title + ', sheet');
     sheet.appendChild(cv);
   }
   art.append(pc, sheet);
   // The walk-as-a-GIF button that stood here left on 10 September 2026 at
   // the maintainer's word; the single view's GIF export remains.
   panel.appendChild(art);
+  if (i === 1) panel.appendChild(heroPortraitCard());
 
   const r = d.rec;
   const info = document.createElement('div');
@@ -1359,6 +1362,58 @@ function showCharacterDetail(i) {
   }
   grid.appendChild(panel);
   out.textContent = d.name + ', character ' + i;
+}
+
+/* The hero's portrait: where the one in play comes from. exePortraitChoice
+   in js/page-rules.js reads the slot arithmetic and the two ids out of the
+   program, so with no application open the card says where the figures
+   come from and shows none. What the file holds at those ids is the file's
+   own evidence: twelve in the shipped scenario, six of them one blank face,
+   counted here rather than typed. A saved game holds the chosen one as its
+   0x8800 and none of the twelve. */
+function heroPortraitCard() {
+  const card = document.createElement('div');
+  card.style.cssText = 'font-size:0.8125rem;line-height:1.7;margin:0 0 12px';
+  const isSave = (window.ARCHIVE_FINDER || {}).type === 'DelP';
+  const pc = (typeof exePortraitChoice === 'function') ? exePortraitChoice() : null;
+  const head = '<b style="color:#b5b2a8">Portrait</b> ';
+  if (!pc) {
+    card.innerHTML = head + (isSave
+      ? 'The one above is this file\u2019s own 0x8800, the portrait chosen when the character was made. '
+      : 'The one above is the scenario\u2019s 0x8800 and is never shown in play. ') +
+      'Which portraits the game offers at creation, and where the chosen one is written, is read out of the application, which is not open.';
+    return card;
+  }
+  const hex = v => '0x' + v.toString(16).toUpperCase();
+  const first = pc.base.v + pc.first.v;
+  const slots = [];
+  for (let r = first; r < first + 64 && getResourceBytes(ARCHIVE, r); r++) slots.push(r);
+  let text = head + (isSave
+    ? 'The one above is this file\u2019s own 0x8800: at creation the game copies the chosen portrait into the player file as ' + srcNum(pc.writes, hex(pc.writes.v)) + '. '
+    : 'The one above is the scenario\u2019s 0x8800 and is never shown in play: at creation the game copies the chosen portrait into the player file as ' + srcNum(pc.writes, hex(pc.writes.v)) + '. ') +
+    'The choice is the resource ' + srcNum(pc.first) + ' plus ' + srcNum(pc.perRow) + ' a row plus the column past ' + srcNum(pc.base, hex(pc.base.v));
+  if (!slots.length) { card.innerHTML = text + '; this file holds none of them.'; return card; }
+  const faces = new Map();
+  const strip = document.createElement('div');
+  strip.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:6px';
+  for (const r of slots) {
+    const c = document.createElement('canvas');
+    try {
+      const dec = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, r), 135, r);
+      drawToCanvas(c, dec.W, dec.H, dec.image, 0);
+      const k = hashIndices(dec.image);
+      faces.set(k, (faces.get(k) || 0) + 1);
+    } catch (e) {}
+    c.style.cssText = 'width:48px;height:48px;image-rendering:pixelated;background:#1c1913;border:1px solid #33302a';
+    imageOpens(c, r, 'portrait');
+    strip.appendChild(c);
+  }
+  const repeated = [...faces.values()].filter(n => n > 1).reduce((a, b) => a + b, 0);
+  text += ': ' + slots.length + ' here, ' + hex(slots[0]) + ' to ' + hex(slots[slots.length - 1]) +
+    (repeated ? ', ' + repeated + ' of them one face' : '') + '.';
+  card.innerHTML = text;
+  card.appendChild(strip);
+  return card;
 }
 
 function renderCompositeSheet() {

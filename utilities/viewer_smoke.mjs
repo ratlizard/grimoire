@@ -3916,6 +3916,31 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         fail('program signals', 'a figure carries no address, so it cannot link to the instruction holding it');
       else console.log(`  program signals: GetMessage to the zone and the room, then things below ${sg.under.v} by Data1, then ${sg.slots.v} character slots, then ${sg.gremlin.name}; ${sg.sends} dispatches`);
     } catch (e) { fail('program signals', e); }
+    /* The hero's portrait off the program, v1.111.0: the slot arithmetic in
+       TCreatePlayerDialog::GetPortrait and the two ids in CreatePlayer, and
+       the hero's page stating them as links with the file's twelve choices,
+       each an image that opens its resource. The application is open here,
+       so a null is a failure. */
+    try {
+      const pc = ctx.exePortraitChoice();
+      const inRoutine = (val, name) => { const r = val && ctx.exeRoutineAt(val.exe); return !!(r && r.name.startsWith(name + '(')); };
+      if (!pc || pc.perRow.v !== 6 || pc.first.v !== 240 || pc.base.v !== 0x87FF || pc.writes.v !== 0x8800)
+        fail('hero portrait', 'the portrait choice was misread: ' + JSON.stringify(pc));
+      else if (!inRoutine(pc.first, 'TCreatePlayerDialog::GetPortrait') || !inRoutine(pc.writes, 'CreatePlayer'))
+        fail('hero portrait', 'a figure is not in the routine that holds it: ' + JSON.stringify(pc));
+      else {
+        ctx.showCharacterDetail(1);
+        const grid = REGISTRY.get('sheetGrid');
+        const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(grid);
+        const titles = []; (function w(el) { if (el.title) titles.push(el.title); (el.children || []).forEach(w); })(grid);
+        const opens = titles.filter(t => /^portrait 0x88[0-9A-F]{2}, tap to open$/.test(t));
+        if (!new RegExp('jumpToExeAt\\(' + pc.writes.exe + '\\)').test(html) || !/12 here, 0x88EF to 0x88FA, 6 of them one face/.test(html))
+          fail('hero portrait', 'the hero’s page does not state the program’s figures as links: ' + html.replace(/<[^>]+>/g, '').slice(0, 300));
+        else if (opens.length !== 13 || !opens.includes('portrait 0x8800, tap to open') || !opens.includes('portrait 0x88F0, tap to open'))
+          fail('hero portrait', 'the portraits do not open their resources: ' + JSON.stringify(opens));
+        else console.log(`  hero portrait: slot ${pc.first.v} + ${pc.perRow.v} a row past ${pc.base.v.toString(16)}, written as ${pc.writes.v.toString(16)}; ${opens.length - 1} choices on the hero’s page, each opening its resource`);
+      }
+    } catch (e) { fail('hero portrait', e); }
     /* The Cheats sheet off the program, v1.52.0: the gate, every case of the
        key routine's switch, the preferences record scanned out of the whole
        program, what the game stores and the file's keys. The figures pinned
