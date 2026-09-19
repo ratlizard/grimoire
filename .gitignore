@@ -243,8 +243,8 @@ reference/
 # Claude Code's per-checkout settings and commands are local to the machine.
 .claude/
 
-# The working notes and the handoff are local to the machine, not part of
-# the published tree.
-/CLAUDE.md
+# The two pointers left where the handoff and the log used to be, when they
+# moved to the private workbench on 14 September 2026, are local to the
+# machine. CLAUDE.md itself is tracked since 19 September 2026.
 /NEXT.md
 /NOTES.md

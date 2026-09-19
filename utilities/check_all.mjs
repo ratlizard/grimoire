@@ -455,10 +455,10 @@ function judge(check, ok, out, secs) {
    * because the suite will not go green until they agree.
    *
    * It is deliberately NOT read out of `grimoire/CLAUDE.md`, which is where
-   * the values used to be written down. That file is untracked and exists
-   * only in the main checkout, so every front lacks it -- and a front is
-   * where all the work happens, which would have made the guard skip in the
-   * one place it is needed. The guide points at this line instead. */
+   * the values used to be written down. Until 19 September 2026 that file
+   * was untracked and absent from every front -- and a front is where all
+   * the work happens, which would have made the guard skip in the one place
+   * it is needed. The guide points at this line instead. */
   if (ok && check.expect && note !== check.expect) {
     ok = false;
     /* The row truncates a note at 96 characters, and the half worth reading is
