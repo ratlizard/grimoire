@@ -1297,6 +1297,24 @@ function applyCharacterRecordEdit(index, fields) {
   if (!records[index]) return false;
   Object.assign(records[index], fields);
   const ok = applyResourceEdit(0xF009, writeDelverCharacterRecords(records));
+  /* A placed character stands in two places in a saved game: this record,
+     and prop record `index` of 0xF306, the characters' prop list, which is
+     what the game places them from when the file loads. Moved here alone
+     the hero loaded where the prop record said and was saved back there,
+     the edit gone -- which is how utilities/game_check.mjs first failed,
+     19 September 2026, the first time a save this page wrote was put in
+     front of the game. So a square edited here moves the prop record too.
+     A zone is not carried across: a character in another zone belongs in
+     that zone's list, which is a move this form does not make. */
+  if (ok && (fields.x !== undefined || fields.y !== undefined) && getResourceBytes(ARCHIVE, 0xF306)) {
+    const props = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0xF306), 0xF306).data);
+    if (props[index]) {
+      const move = {};
+      if (fields.x !== undefined) move.x = fields.x;
+      if (fields.y !== undefined) move.y = fields.y;
+      applyPropRecordEdit(0xF306, index, move);
+    }
+  }
   if (ok) setStatus('Record ' + index + ' (' + characterName(index) + ') rewritten.');
   return ok;
 }

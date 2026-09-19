@@ -156,6 +156,17 @@ const ADDONS = firstExisting('reference/community/addons', 'reference/user_addon
 // the rest of the smoke test runs as before.
 const SAVE = `${TMP}/cythera_addons/606_CheaterSavedGame/I.M.Cheater`;
 const GFX_REF = `${TMP}/gfx_ref.json`;
+// The game itself, for game_check.mjs: the playthrough kit beside the
+// workspace (saves reached by play, in no repository), the fork's binary
+// built against the patched m68k crate (the stock crate halts a new game;
+// `m68k-patched/README.md` in the workspace), and the registered licence,
+// without which the shareware notice swallows the first click. A front's
+// `..` is the front, so the workspace is one more level up. Without any of
+// the three the row skips and says so.
+const KIT = firstHolding('work/pristine/.systemless', process.env.PLAYKIT, '../playthrough-2026-09-08', '../../../playthrough-2026-09-08');
+const GAME_BIN = firstExisting(process.env.SYSTEMLESS_BIN, '../m68k-patched/systemless', '../../../m68k-patched/systemless');
+const LICENCE = firstExisting('reference/game/installed-folders/Cythera License (registered).data',
+  '../cythera-reference/game/installed-folders/Cythera License (registered).data');
 const EXPORTS = `${TMP}/check_all_exports`;
 
 process.chdir(ROOT);
@@ -398,6 +409,14 @@ const CHECKS = [
    cmd: ['utilities/fuzz_check.mjs', 'index.html', DATA, DATA_RSRC, HQX, VISE_BIN, VISE_ALL,
          firstExisting('reference/community/addons/616_Rocky_the_Flying_Chicken.zip')],
    grep: /fuzz: [^\n]*/},
+  /* The game accepts what the site writes: a save edited through the page's
+     own writer is seeded as the player file, the fork runs Cythera headless
+     to open it and save it again, and the file the game wrote must carry
+     the edit; the unedited seed is the control. The one oracle the writers
+     had lacked -- delvmod is not the game. About forty seconds. */
+  {page: 'viewer', name: 'in the game', want: [KIT, GAME_BIN, LICENCE], slow: true,
+   cmd: ['utilities/game_check.mjs', 'index.html', KIT, GAME_BIN, LICENCE],
+   grep: /game: [^\n]*/},
   {page: 'viewer', name: 'zip export', want: [DATA], slow: true,
    cmd: ['utilities/export_test.mjs', 'index.html', DATA, EXPORTS], zips: EXPORTS},
 
