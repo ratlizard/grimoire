@@ -3068,6 +3068,9 @@ function renderMechanicsSheet(value) {
       if (window.MECH_OPEN && window.MECH_OPEN.has(sn.el.id)) sn.el.open = true;
       box.appendChild(sn.el);
     }
+    // A tab opened on its first section rather than on a column of closed
+    // headings, unless the visitor has opened sections of their own.
+    if (only && mine[0] && !(window.MECH_OPEN && window.MECH_OPEN.size)) mine[0].el.open = true;
   }
   /* A section no group names still has to be reachable rather than vanish.
      On the whole sheet it went under Other at the end; with a tab each there

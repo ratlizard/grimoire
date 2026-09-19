@@ -1172,7 +1172,7 @@ function renderSaveSheet() {
     h += '<tr' + (i === 1 ? ' class="saveHero"' : '') + '>' +
       '<td class="num">' + i + '</td>' +
       '<td class="who">' + svEsc(i ? characterName(i) : 'slot 0, not a character') + '</td>' +
-      '<td>' + svEsc(r.zone ? zoneDisplayName(r.zone) + ' (' + r.x + ', ' + r.y + ')' : 'nowhere') + '</td>' +
+      '<td class="where">' + svEsc(r.zone ? zoneDisplayName(r.zone) + ' (' + r.x + ', ' + r.y + ')' : 'nowhere') + '</td>' +
       '<td class="num">' + r.level + '</td><td class="num">' + r.xp + '</td>' +
       '<td class="num">' + r.health + '/' + r.healthMax + '</td>' +
       '<td class="num">' + r.magic + '/' + r.magicMax + '</td>' +

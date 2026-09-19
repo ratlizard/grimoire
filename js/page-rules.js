@@ -477,7 +477,7 @@ function renderSchedulesSheet() {
     const head = document.createElement('summary'); head.className = 'mechHead';
     head.innerHTML = '<h3>' + svEsc(p.name) + '</h3><span class="foldGist">' + p.real.length + ' post' + (p.real.length === 1 ? '' : 's') +
       ', ' + [...new Set(p.real.map(e => zoneDisplayName(e.level)))].slice(0, 3).map(svEsc).join(', ') + '</span>' +
-      '<span class="mechFrom">' + characterChip(p.i) + '</span>';
+      '<span class="mechFrom">' + characterChip(p.i, true) + '</span>';
     sec.appendChild(head);
     const rows = p.real.slice().sort((a, b) => a.hour - b.hour).map(e =>
       '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + svLink(zoneDisplayName(e.level) || ('zone ' + e.level), 'atlasOpenSquare(' + (0x8000 + e.level) + ',' + e.x + ',' + e.y + ')', e.x + ', ' + e.y) + '</td>' +
@@ -2377,7 +2377,9 @@ function looseEnds() {
       let l; try { l = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, rid), rid).data); } catch (err) { continue; }
       for (const r of l) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1);
     }
-    try { for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0xF306), 0xF306).data)) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1); } catch (err) { quiet(err); }
+    // 0xF306 is a saved game's list; the scenario has none, and asking for
+    // it was the one failure the Tools sheet listed on every visit.
+    if (refExists(0xF306)) try { for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0xF306), 0xF306).data)) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1); } catch (err) { quiet(err); }
     for (const e of buildScriptTextIndex()) {
       let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
       for (let i = 0; i < ops.length; i++) {

@@ -53,8 +53,10 @@
   .cell.charCell .portraitBox > canvas.walker { width:26px !important; height:26px !important; }
   .cell.charCell .lbl { margin-top:6px; display:-webkit-box; -webkit-line-clamp:2;
     -webkit-box-orient:vertical; overflow:hidden; }
-  .cell.charCell .resid { white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    max-width:100%; }
+  /* Two lines rather than an ellipsis: "Lv 8 · Land King Hall" was cut to
+     "Land K…" in a cell with a line to spare. */
+  .cell.charCell .resid { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden; max-width:100%; line-height:1.25; }
   .cell .lbl { font-size:0.875rem; color:#fff; font-weight:600; margin-top:4px; word-break:break-word; line-height:1.3; }
   .cell .lbl.nolabel { font-size:0.75rem; color:#c9c9c9; font-weight:400; }
   .cell .resid { font-size:0.6875rem; color:#d8c98a; opacity:0.85; margin-top:2px; }
@@ -184,7 +186,13 @@ h2, #soundLabel { color:#fff !important; font-family:var(--face); }
 /* A label is two lines at most and stays inside its cell; a long unit name
    used to run out of the square (the maintainer, 9 September 2026). */
 .cell { overflow:hidden; }
-.cell .lbl { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; max-width:100%; }
+.cell .lbl { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; max-width:100%;
+  /* The cell is a flex column of a fixed height, and a clamped box has no
+     minimum height of its own, so when the caption under it ran to two
+     lines the NAME was what shrank -- to nothing, on a desktop, where the
+     prop and monster galleries showed a sprite over a bare hex id. The
+     name keeps its size; what overflows is clipped at the foot. */
+  flex:0 0 auto; }
 #soundPreview, pre { background:var(--panel); border-color:var(--edge) !important; }
 #singlePreview { background:transparent !important; border:0 !important; }
 #singleControls, #pickerWrap { background:transparent !important; border:none !important; }
@@ -206,6 +214,11 @@ button.secondary, .modebtns button.inactive {
     linear-gradient(160deg,#797365 0%,#575147 30%,#413d36 60%,#5f594e 100%);
   color:#e2d6ab; }
 select, input[type=file] { color:var(--gold); background:rgba(25,22,17,.94); border:1px solid var(--edge); font-family:var(--face); }
+/* The browser's own "Choose File" button was the one control on the site
+   drawn in the platform's grey; it wears the section chip's shape. */
+input[type=file]::file-selector-button { font-family:var(--face); color:var(--gold); background:#1d1a15;
+  border:1px solid var(--edge); border-radius:13px; padding:4px 12px; margin-right:10px; cursor:pointer; }
+input[type=file]::file-selector-button:hover { border-color:var(--gold); }
 
 /* Custom-styled dropdowns (categorySelect + residSelect) matching the
    parchment/gold theme, replacing the plain OS-default select look. */
@@ -274,8 +287,12 @@ button::before, button::after { display:none !important; }
 *, *::before, *::after { box-sizing: border-box; }
 html, body { max-width:100%; overflow-x:hidden; }
 body { padding:0 !important; }
-#appShell { max-width:900px; margin:0 auto; padding:44px 34px calc(112px + env(safe-area-inset-bottom)); }
-@media (max-width:520px) { #appShell { padding:40px 26px calc(104px + env(safe-area-inset-bottom)); } }
+/* The top inset was 44px, and 40px on a phone, from when the two controls
+   at the top were fixed to the viewport and the page had to clear them.
+   They scroll with the page since 9 September 2026, so the inset is the
+   ordinary margin above a heading. */
+#appShell { max-width:900px; margin:0 auto; padding:18px 34px calc(112px + env(safe-area-inset-bottom)); }
+@media (max-width:520px) { #appShell { padding:12px 18px calc(104px + env(safe-area-inset-bottom)); } }
 
 /* Never let a control or media element push past its parent. */
 #appShell button, #appShell select, #appShell input, #appShell pre,
@@ -307,6 +324,12 @@ select { text-overflow:ellipsis; }
 
 /* Scroll panes get a sane height instead of running off-screen. */
 pre { max-height:52vh !important; overflow:auto; overscroll-behavior:contain; }
+/* The line under the gallery saying what is open. It is a <pre> because the
+   harnesses read its text, but it is a caption, not a console: the text
+   face at caption size, grey, and no box. It sat in a black monospace slab
+   at 18px, which read as a debugger's readout at the foot of every view. */
+#output { background:none !important; border:0 !important; padding:8px 2px 0; margin:6px 0 0; max-height:none !important;
+  font-family:var(--face-text); font-size:0.75rem; line-height:1.45; color:#b5b2a8; text-align:center; white-space:pre-wrap; }
 #textContent { max-height:56vh !important; }
 
 /* The map canvas is deliberately larger than the viewport (it pans/zooms),
@@ -422,7 +445,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 #tabShell { margin:6px 0 10px; }
 /* The site's name and version, at the top between the two fixed buttons. */
 #topBar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; position:relative; }
-#brand { flex:1 1 auto; text-align:left; margin:0; font-size:0.8125rem; letter-spacing:.04em; color:#b5b2a8; min-width:0; }
+#brand { flex:1 1 auto; text-align:left; margin:0; font-size:0.8125rem; letter-spacing:.04em; color:#b5b2a8; min-width:0; white-space:nowrap; }
 #brand .brandName { color:#fff; font-size:1.0625rem; font-weight:600; }
 #brand .brandTile { width:20px; height:20px; image-rendering:pixelated; vertical-align:-4px; margin-right:2px; }
 #brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; letter-spacing:.04em; color:#8c8980; }
@@ -541,6 +564,30 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .propHead .groupTitle { display:block; color:#fff; font-size:0.9375rem; font-weight:600; }
 .propHead .groupNote { display:block; color:#8c8980; font-size:0.75rem; font-weight:400; margin-top:1px; }
 #navSubNote { text-align:center; color:#8c8980; font-size:0.75rem; margin:0 auto 8px; max-width:64ch; line-height:1.4; }
+/* The flat-button rule further down sets background, border, padding and
+   height with !important, and it was winning over the two rules above and
+   over every link built as a <button> inside the gallery: the open section
+   chip drew no fill, so "Tile Sheets" and "Sprites, by prop type" were two
+   gold headings with nothing to say which was showing; and a figure in a
+   sentence (srcNum) sat in a 34px box with 10px either side, which read as
+   a gap in the prose. Same weight, higher specificity. */
+#navSub .navChip, #sheetGrid .navChip { background:#1d1a15 !important; border:1px solid var(--edge) !important;
+  border-radius:14px !important; padding:4px 12px !important; min-height:0 !important; font-size:0.75rem !important;
+  width:auto; line-height:1.3 !important; }
+#navSub .navChip.active, #sheetGrid .navChip.active { background:var(--gold) !important; color:#141210 !important;
+  border-color:var(--gold) !important; font-weight:600 !important; }
+#navSub .navChip:hover, #sheetGrid .navChip:hover { border-color:var(--gold) !important; text-decoration:none; }
+#sheetGrid .svLink { padding:0 !important; min-height:0 !important; font-size:inherit !important; line-height:inherit !important; }
+/* A detail view's own "All characters" is the second of the two backs (see
+   "Two kinds of back" in js/page-archive.js): the same pill as the trail's,
+   at the left, rather than a gold heading centred over the page. */
+#sheetGrid[style*="block"] > button.secondary:first-child { width:auto !important; margin:0 0 8px !important; min-height:0 !important;
+  padding:4px 12px !important; border-radius:14px !important; background:#1d1a15 !important; border:1px solid var(--edge) !important;
+  font-size:0.7812rem !important; font-weight:400 !important; letter-spacing:0; font-family:var(--face); display:inline-block; }
+#sheetGrid[style*="block"] > button.secondary:first-child:hover { border-color:var(--gold) !important; text-decoration:none; }
+/* A name set in the code face inside a sentence keeps the sentence's size. */
+.tabSheet code { font-size:0.9em; }
+#sheetGrid .sv-chip { padding:0 !important; min-height:0 !important; }
 .navChip { background:#1d1a15; border:1px solid var(--edge); color:var(--gold); border-radius:13px;
   padding:5px 11px; font-size:0.6875rem; min-height:0; width:auto; margin:0; clip-path:none;
   box-shadow:none; text-shadow:none; letter-spacing:0; }
@@ -998,7 +1045,12 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
    A section per rule: a game tile where one fits, a title, chips to
    the scripts it was read from, one line saying what it is, the rule as
    short items, and the table under it. Numbers sit in stat pills. */
-.mechView { grid-column:1/-1; text-align:left; max-width:920px; margin:0 auto; }
+.mechView { grid-column:1/-1; text-align:left; max-width:920px; margin:0 auto;
+  /* Auto margins on a grid item shrink it to its content, so every rules
+     column was as wide as its widest closed heading and no two tabs
+     matched; a card put above a gallery (Who answers as whom) was a box
+     the width of its title. */
+  width:100%; }
 .mechSec { margin:18px 0 0; padding:12px 12px 10px; background:rgba(20,18,14,.42); border:1px solid rgba(155,136,80,.35); border-radius:8px;
   display:block; width:100%; box-sizing:border-box; min-width:0; }
 /* A card is a <details>; its head is the summary. The marker is a chevron
@@ -1331,7 +1383,7 @@ body.atlasFull { overflow:hidden; }
 #exportNote { font-size:0.75rem; color:#b5b2a8; }
 #galleryArrange { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:0.7812rem; }
 #gallerySortWrap { display:flex; align-items:center; gap:6px; color:#b5b2a8; }
-#gallerySortSel { width:auto; margin:0; min-height:32px !important;
+#gallerySortSel, #sheetShapeSel { width:auto; margin:0; min-height:32px !important;
   padding:3px 30px 3px 10px !important; font-size:0.7812rem !important; }
 
 #sheetGrid .listMeta { display:none; }
@@ -1433,6 +1485,42 @@ body.atlasFull { overflow:hidden; }
 
 @media (prefers-reduced-motion: reduce) { * { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
 
+/* ---- Sideways scrollers say so at their edge -----------------------------
+   A tab row or a table wider than the screen slid with no sign that more
+   existed past its right edge, and on a phone the third tab strip was cut
+   mid-word ("Compos", "Sk"). While there is more to the right the element
+   carries .moreRight (scrollHintWatch in js/page-galleries.js keeps it), and
+   the edge fades: a sticky pseudo-element over the tabs, since they are
+   positioned and an inset shadow would paint under them; an inset shadow on
+   a table wrapper, which is painted over the rows. Both are hints, not
+   controls, and take no pointer. */
+.ftabRow::after { content:''; display:none; flex:0 0 34px; margin-left:-34px; align-self:stretch; position:sticky; right:0;
+  z-index:4; pointer-events:none; background:linear-gradient(90deg, rgba(0,0,0,0), var(--fadeTo, rgba(20,15,9,.92))); }
+.ftabRow.moreRight::after { display:block; }
+#tabFolder1 > .ftabRow, #tabFolder2 > .ftabRow { --fadeTo:var(--card); }
+.tableScroll.moreRight { box-shadow:inset -30px 0 22px -20px rgba(0,0,0,.8); }
+
+/* ---- A phone --------------------------------------------------------------
+   Read from the browser check's screenshots, 19 September 2026. */
+@media (max-width:640px) {
+  /* A box that scrolls inside the page traps the finger: the listing, the
+     decoded text, the hex and the installer's text flow with the page. */
+  .dlgWrap, pre.pane, #textContent, .installerText { max-height:none !important; }
+  /* Four buttons in one row broke their words over three lines and pushed
+     the last past the panel's edge; two to a row, each on one line. */
+  #resourceNav { flex-wrap:wrap; }
+  #resourceNav button { flex:1 1 42%; white-space:nowrap; min-height:44px !important; font-size:1rem !important; }
+  /* The saved game's place column wrapped to three lines; the table scrolls
+     sideways anyway, so a place keeps its line. */
+  .forkTable td.where { white-space:nowrap; }
+  #topLinks { gap:16px; }
+  /* The world on a portrait screen: the viewport was 78vh tall for a square
+     map fitted to its width, so two thirds of it was painted sea. Square. */
+  #atlasViewport { height:auto; aspect-ratio:1 / 1; }
+  #atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport,
+  body.atlasFull #atlasPanel #atlasViewport { height:100%; aspect-ratio:auto; }
+}
+
 /* ---- Desktop -----------------------------------------------------------
    Everything above was sized on a phone, and on a 27-inch screen the whole
    page sat in a 900px column of 11-13px text. From 900px up the shell
@@ -1442,7 +1530,7 @@ body.atlasFull { overflow:hidden; }
    is-clickable rule all stand -- only the scale. The !importants match the
    ones on the rules they override; a later rule of equal weight wins. */
 @media (min-width: 900px) {
-  #appShell { max-width:1280px; padding:48px 44px calc(112px + env(safe-area-inset-bottom)); }
+  #appShell { max-width:1280px; padding:22px 44px calc(112px + env(safe-area-inset-bottom)); }
   html { font-size:125%; }
   button, select { font-size:1rem !important; }
   #brand .brandName { font-size:1.25rem; }
@@ -1458,9 +1546,11 @@ body.atlasFull { overflow:hidden; }
   .tabSheet { padding:16px 16px 20px; }
   #navSub { gap:8px; margin-bottom:12px; }
   .navChip { font-size:0.9375rem; padding:8px 16px; }
+  #navSub .navChip, #sheetGrid .navChip { font-size:0.9375rem !important; padding:7px 16px !important; }
   .sv-chip { font-size:0.9375rem !important; padding:7px 18px !important; }
   #sheetGrid { grid-template-columns:repeat(auto-fill, minmax(152px, 1fr)); gap:16px; }
   .cell { height:220px; padding:8px; }
+  .cell.propCell { height:180px; }
   .cell .lbl { font-size:1.0312rem; }
   .cell .lbl.nolabel { font-size:0.9062rem; }
   .cell .resid { font-size:0.8438rem; }
@@ -1472,7 +1562,8 @@ body.atlasFull { overflow:hidden; }
   .installerText { font-size:0.9375rem; }
   .installerVersions .amNote, .installerOpen .amNote { font-size:0.9375rem; }
   .installerOpen .installerOpenName { font-size:1.375rem; }
-  pre, #output { font-size:1rem; }
+  pre { font-size:1rem; }
+  #output { font-size:0.875rem; }
   .sv-head .sv-id { font-size:1.75rem; }
   .sv-head .sv-lbl { font-size:1.25rem; }
   .sv-head .sv-kind { font-size:0.875rem; }
@@ -1996,7 +2087,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.112.3';
+const GRIMOIRE_VERSION = '1.113.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

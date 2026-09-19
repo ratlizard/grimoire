@@ -558,6 +558,11 @@ const STRING_DETAIL_IDS = new Set(['rsrc', 'macrsrc']);
 function markDetailView(kind, id) {
   window.DETAIL_VIEW = { kind, id };
   syncDeepLink();
+  // The gallery's furniture -- the filter box, the sort, the export -- is
+  // for the gallery, and it stayed up over every detail view, so on a
+  // phone the thing tapped began about 900px down. updateGalleryTools
+  // reads DETAIL_VIEW and takes it down.
+  try { updateGalleryTools(); } catch (e) { quiet(e); }
 }
 
 /* ---------------------------------------------------------------------------
@@ -603,7 +608,9 @@ function viewLabel(hash) {
     return (l ? l + ' ' : '') + '0x' + q.r.toUpperCase();
   }
   if (q.c === 'WORLD') return 'the world map';
-  return q.c ? (optionLabel(q.c) || ('category ' + q.c)) : 'the last page';
+  // The option's name and not its whole label: "Saved game", not "Saved
+  // game: the party and everyone else", on a button.
+  return q.c ? ((optionLabel(q.c) || ('category ' + q.c)).replace(/\s*[:(].*$/, '')) : 'the last page';
 }
 
 function renderCrumbBar() {
@@ -611,6 +618,14 @@ function renderCrumbBar() {
   if (!bar) return;
   if (!window.VIEW_TRAIL.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   const prev = window.VIEW_TRAIL[window.VIEW_TRAIL.length - 1];
+  // Only where a link was followed. Between two galleries reached by their
+  // tabs the button duplicated the browser's own back and, labelled with
+  // wherever the visitor had last been, read as though the tabs had a
+  // parent ("Back to Sounds" over the rules). A detail view or a single
+  // resource at either end of the step is what makes the trail worth a
+  // button; the tabs are the navigation otherwise.
+  const linked = h => /[#&](d|r)=/.test(String(h));
+  if (!linked(location.hash) && !linked(prev)) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   bar.style.display = '';
   bar.innerHTML = '<button class="crumbBtn" onclick="goViewBack()">Back to ' +
     svEsc(String(viewLabel(prev)).replace(/\s*\([^)]*\)/g, '')) + '</button>';

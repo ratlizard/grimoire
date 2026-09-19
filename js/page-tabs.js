@@ -1131,6 +1131,9 @@ function optionLabel(v) {
 function renderTabRow(row, nodes, selectedId) {
   if (!row) return;
   row.innerHTML = '';
+  // The fade at the right edge while the row has more past it; see
+  // scrollHintWatch. Measured once the tabs are in, at the foot.
+  const watched = () => { try { scrollHintWatch(row); } catch (e) { quiet(e); } };
   for (const n of nodes) {
     const b = document.createElement('button');
     b.className = 'ftab' + (n.id === selectedId ? ' sel' : '') + (n.wip ? ' wip' : '');
@@ -1163,6 +1166,7 @@ function renderTabRow(row, nodes, selectedId) {
     b.onclick = () => selectTab(n.id);
     row.appendChild(b);
   }
+  watched();
 }
 
 // "1.0.4", from the name of the installer that is open; '' without one.

@@ -829,8 +829,10 @@ function updateGalleryTools() {
   if (!wrap) return;
   const grid = document.getElementById('sheetGrid');
   const hasCells = grid && grid.querySelector('.cell');
-  const inGallery = currentMode === 'sheet' && !!hasCells;
-  const on = (galleryIsExportable() && currentMode === 'sheet') || inGallery;
+  // A detail view is drawn into the grid, and it is not a gallery, whatever
+  // cells it happens to carry (a portrait strip), so nothing below applies.
+  const inGallery = currentMode === 'sheet' && !!hasCells && !window.DETAIL_VIEW;
+  const on = ((galleryIsExportable() && currentMode === 'sheet') || inGallery) && !window.DETAIL_VIEW;
   wrap.style.display = on ? 'flex' : 'none';
   const exp = document.getElementById('exportBtn');
   if (exp) exp.style.display = galleryIsExportable() && currentMode === 'sheet' ? '' : 'none';
@@ -1136,10 +1138,31 @@ function enhanceCellsForKeyboard(root) {
     cell.tabIndex = 0;
     cell.setAttribute('role', 'button');
     if (!cell.getAttribute('aria-label')) {
-      const t = (cell.textContent || '').replace(/\s+/g, ' ').trim();
+      // The name and the caption as two phrases, not run together
+      // ("beggar0x32 · 16 frames" was what a screen reader got).
+      const parts = Array.from(cell.querySelectorAll('.lbl, .resid')).map(e => (e.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+      const t = parts.length ? parts.join(', ') : (cell.textContent || '').replace(/\s+/g, ' ').trim();
       if (t) cell.setAttribute('aria-label', t);
     }
   }
+}
+
+/* Something that scrolls sideways says so at its right edge while there is
+   more past it: the class is the whole of what the script decides, and the
+   stylesheet draws the fade (.ftabRow::after, .tableScroll.moreRight). A tab
+   row is watched when it is rendered (renderTabRow); a table wrapper when
+   the sheet that built it lands in the grid (the observer at boot). */
+function scrollHintUpdate(el) {
+  const more = el.scrollWidth - el.clientWidth - el.scrollLeft > 2;
+  if (el.classList.toggle('moreRight', more) !== more) el.classList.toggle('moreRight', more);
+}
+function scrollHintWatch(el) {
+  if (!el) return;
+  if (!el.dataset.scrollHint) {
+    el.dataset.scrollHint = '1';
+    el.addEventListener('scroll', () => scrollHintUpdate(el), { passive: true });
+  }
+  scrollHintUpdate(el);
 }
 
 function gridColumnCount(grid) {
@@ -1198,6 +1221,17 @@ document.addEventListener('DOMContentLoaded', () => {
   slider.addEventListener('pointermove', e => { if(e.buttons){ const r=slider.getBoundingClientRect(); const min=+slider.min,max=+slider.max; slider.value=Math.round(min+(e.clientX-r.left)/r.width*(max-min)); applyZoom(); } });
   installArchiveDropTarget();
   installKeyboardShortcuts();
+  // Every table wrapper a sheet builds gets its edge hint as it lands, and
+  // a resize re-measures everything watched. Coalesced to a frame, since a
+  // gallery landing is hundreds of insertions.
+  try {
+    const grid = document.getElementById('sheetGrid');
+    let due = false;
+    const sweep = () => { due = false; for (const el of document.querySelectorAll('.tableScroll, .ftabRow')) scrollHintWatch(el); };
+    const queue = () => { if (due) return; due = true; (window.requestAnimationFrame || setTimeout)(sweep); };
+    if (grid && typeof MutationObserver === 'function') new MutationObserver(queue).observe(grid, { childList: true, subtree: true });
+    window.addEventListener('resize', () => { for (const el of document.querySelectorAll('[data-scroll-hint]')) scrollHintUpdate(el); });
+  } catch (e) { quiet(e); }
   try { receiveFromCanvas(); } catch (e) { quiet(e); }
   try { for (const r of document.querySelectorAll('input[name="animMode"]')) r.checked = r.value === window.ANIM_MODE; } catch (e) { quiet(e); }
   window.addEventListener('hashchange', () => {

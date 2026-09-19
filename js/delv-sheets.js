@@ -214,8 +214,10 @@ function tabLink(value, label) {
   return '<button class="navChip" onclick="showCategory(\'' + value + '\')">' + svEsc(label) + '</button>';
 }
 // A card on the sheet already showing: open it where it stands.
+// In running text, so it is a link and not a chip: the Spells intro ends in
+// one, and as a chip it broke the sentence.
 function cardLink(id, label) {
-  return '<button class="navChip" onclick="mechGo(\'' + id + '\')">' + svEsc(label) + '</button>';
+  return '<button class="svLink" onclick="mechGo(\'' + id + '\')">' + svEsc(label) + '</button>';
 }
 // The rule behind a skill, wherever that rule now lives.
 function ruleLink(id) {

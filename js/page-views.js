@@ -319,7 +319,8 @@ function renderToolsSheet() {
     if (QUIET_FAILURES.size) {
       const ul = document.createElement('div');
       ul.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:0.75rem;line-height:1.6;color:#b5b2a8;margin-left:0;white-space:pre-wrap';
-      ul.textContent = [...QUIET_FAILURES].map(([m, v]) => (v.count > 1 ? v.count + '\u00d7 ' : '') + m + (v.where ? '\n    ' + v.where : '')).join('\n');
+      // The file and line, not the origin it was served from.
+      ul.textContent = [...QUIET_FAILURES].map(([m, v]) => (v.count > 1 ? v.count + '\u00d7 ' : '') + m + (v.where ? '\n    ' + v.where.replace(/https?:\/\/[^/\s]+\//g, '') : '')).join('\n');
       q.appendChild(ul);
     }
   }
@@ -617,7 +618,9 @@ function openSchedule(i) {
 // sprite only names a class (the maintainer, 8 September 2026: a portrait is
 // the better way to identify a character wherever one is cited). The sprite
 // stands in where there is no portrait, the tab's tile where there is neither.
-function characterChip(i) {
+// `terse` names the record and not the person, for a row whose title is
+// already the person's name (the schedules list).
+function characterChip(i, terse) {
   let icon = '', face = false;
   try { const f = characterFace(i); if (f && f.url) { icon = f.url; face = true; } } catch (e) { icon = ''; }
   if (!icon) try {
@@ -626,7 +629,7 @@ function characterChip(i) {
     if (base !== undefined) icon = relIconURL({ tile: base + (c.aspect || 0) });
   } catch (e) { icon = ''; }
   if (!icon) { const leaf = TAB_BY_ID.get('characters'); icon = leaf ? relIconURL({ tile: leaf.tile }) : ''; }
-  return relChip({ js: 'openCharacter(' + i + ')', main: characterName(i), sub: 'character ' + i, icon, face,
+  return relChip({ js: 'openCharacter(' + i + ')', main: terse ? 'character ' + i : characterName(i), sub: terse ? '' : 'character ' + i, icon, face,
                    title: 'Scenario › Characters' });
 }
 
