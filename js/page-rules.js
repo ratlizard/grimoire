@@ -4197,36 +4197,90 @@ function exeIntfCache() {
 
 /* Every routine that loads a pointer kept beside the TOC and tests bits of
    what it finds there: the reader list for the per-class cache and its
-   side tables. One pass over the code section per displacement, kept on
-   the program. A mask is what an `rlwinm.`, `andi.` or `andis.` within the
-   next twenty-four instructions tests; a routine with no mask read the
-   table for a value rather than a bit. */
+   side tables. One pass over the code section finds the loads; then each
+   routine that has one is followed register by register -- the pointer,
+   any register it is copied into, the word loaded through it, and any
+   register that word is copied into -- and a mask tested on the word
+   anywhere in the routine is a reader, at that instruction. The first
+   version looked only twenty-four instructions past the load and missed
+   the tests of four bits that sit further down (LoadLevelProps on 0x200,
+   MoveCommand on 0x02, SetStage on the Stacking bits); a routine with no
+   mask read the table for a value rather than a bit. Kept on the
+   program per displacement. */
 function exeTocReaders(disp) {
   const img = appImage(), pef = appPef();
   if (!img || !pef) return [];
   if (!pef._tocReaders) pef._tocReaders = new Map();
   if (pef._tocReaders.has(disp)) return pef._tocReaders.get(disp);
   const code = img.code, out = [];
+  const reg = d => d.rt !== undefined ? d.rt : d.rd !== undefined ? d.rd : d.rs;
+  const src = d => d.rs !== undefined ? d.rs : (d.args ? d.args[1] : undefined);
+  const seen = new Set();
   for (let at = 0; at + 4 <= code.length; at += 4) {
     const d = ppcDecode(pefU32(code, at));
     if (!d || d.mn !== 'lwz' || d.ra !== 2 || d.d !== disp) continue;
     const r = exeRoutineAt(at);
-    if (r && /^FillIntfCache\b/.test(r.name)) continue;
-    const masks = [];
-    for (let k = 4; k <= 96; k += 4) {
-      const e = ppcDecode(pefU32(code, at + k));
+    if (!r || /^FillIntfCache\b/.test(r.name) || seen.has(r.offset)) continue;
+    seen.add(r.offset);
+    const ops = exeOpsOf(r);
+    const ptr = new Set(), word = new Set(), masks = [];
+    let first = null;
+    for (const o of ops) {
+      const e = o.d;
       if (!e) continue;
-      if (e.mn === 'blr') break;
-      let m = null;
-      if ((e.mn === 'rlwinm.' || e.mn === 'rlwinm') && e.sh === 0 && e.mb !== undefined) { m = 0; for (let b = e.mb; b <= e.me; b++) m |= 1 << (31 - b); m >>>= 0; }
-      else if (e.mn === 'andi.') m = e.imm;
-      else if (e.mn === 'andis.') m = (e.imm << 16) >>> 0;
-      if (m !== null && m !== 0xFFFFFFFF) masks.push({ mask: m, at: at + k });
+      if (e.mn === 'lwz' && e.ra === 2 && e.d === disp) { ptr.add(reg(e)); if (first === null) first = o.at; continue; }
+      if (e.mn === 'mr' && ptr.has(src(e))) { ptr.add(reg(e)); continue; }
+      if ((e.mn === 'lwzx' || e.mn === 'lwz' || e.mn === 'lbzx' || e.mn === 'lhzx') && ptr.has(e.ra)) { word.add(reg(e)); continue; }
+      if (e.mn === 'mr' && word.has(src(e))) { word.add(reg(e)); continue; }
+      let m = null, from = null;
+      if ((e.mn === 'rlwinm.' || e.mn === 'rlwinm') && e.sh === 0 && e.mb !== undefined) { m = 0; for (let b = e.mb; b <= e.me; b++) m |= 1 << (31 - b); m >>>= 0; from = e.rs; }
+      else if (e.mn === 'andi.') { m = e.imm; from = e.rs; }
+      else if (e.mn === 'andis.') { m = (e.imm << 16) >>> 0; from = e.rs; }
+      if (m === null || m === 0xFFFFFFFF || !word.has(from)) continue;
+      masks.push({ mask: m, at: o.at });
     }
-    out.push({ at, routine: r ? r.name.replace(/\(.*$/, '') : propWordHex(at), masks });
+    out.push({ at: first, routine: r.name.replace(/\(.*$/, ''), masks });
   }
   pef._tocReaders.set(disp, out);
   return out;
+}
+
+/* ---- how a character is seated, read off InteractProps ---------------------
+   TViewer::InteractProps finds each seat by the per-class Chair table
+   (FillIntfCache keeps the Chair word plus one there), and for a four-way
+   sprite standing on it -- key 55's first word is 4 -- sets the sitter's
+   aspect: with a Chair word of 0, the seat's own aspect times four plus
+   three, so the seat's aspect is the facing and column three is the seated
+   pose; with a word of 1 to 4, a fixed frame, which the routine holds as
+   `li` operands of 3, 7, 11 and 15 -- north, east, south and west seated.
+   Read here as the switch's four constants and the 'or 3' of the aspect
+   case. Null with no application open or when the shape is not found. */
+function exeSeatRule() {
+  const ops = exeOpsNamed('TViewer::InteractProps');
+  if (!ops.length) return null;
+  const ic = exeIntfCache();
+  const chair = ic && ic.tables.find(t => t.key === 34);
+  if (!chair) return null;
+  const li = ops.findIndex(o => o.d && o.d.mn === 'lwz' && o.d.ra === 2 && o.d.d === chair.disp.v);
+  if (li < 0) return null;
+  // The layout test: the sitter's key-55 byte compared against 4.
+  const t55 = ic.tables.find(t => t.key === 55);
+  const lt = t55 ? ops.findIndex(o => o.at > ops[li].at && o.d && o.d.mn === 'lwz' && o.d.ra === 2 && o.d.d === t55.disp.v) : -1;
+  const facings = lt >= 0 ? exeFind(ops, lt, 6, d => d.mn === 'cmplwi') : -1;
+  // The fixed frames: the `li` operands inserted into the sitter's aspect
+  // after the switch on the Chair word less one.
+  const fixed = [];
+  const own = exeFind(ops, li, 200, d => d.mn === 'ori' && d.imm === 3);
+  for (let i = li; i < Math.min(ops.length, li + 200); i++) {
+    const d = ops[i].d;
+    if (d && d.mn === 'li' && (d.imm === 3 || d.imm === 7 || d.imm === 11 || d.imm === 15)) {
+      const ins = exeFind(ops, i + 1, 3, e => e.mn === 'rlwimi');
+      if (ins >= 0) fixed.push(exeVal(ops[i], d.imm));
+    }
+  }
+  if (fixed.length < 4) return null;
+  fixed.sort((a, b) => a.v - b.v);
+  return { chair, facings: facings >= 0 ? exeVal(ops[facings], ops[facings].d.imm) : null, fixed, ownAspect: own >= 0 ? exeVal(ops[own], 3) : null };
 }
 
 /* ---- the syscall table, read off the interpreter ----------------------------

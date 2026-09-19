@@ -391,6 +391,20 @@ function atlasMouths(node) {
                  kind: 'map’s edge' });
     }
   }
+  // What lies beyond a mouth: the ways on from the map it leads to that
+  // are neither back up nor within that map, so a ring says the chain --
+  // the world's hole is "Harpy Abyss, then Harpy Cave", the cave being
+  // two steps down and reached no other way (19 September 2026).
+  for (const m of out) {
+    if (m.up || m.within) continue;
+    try {
+      m.beyond = mapDescents(m.dest.resid)
+        .filter(d => d.dest.resid !== m.dest.resid && d.dest.resid !== node.resid && d.dest.resid !== WORLD_MAP_RESID && !mapIsSurface(d.dest.resid))
+        .map(d => atlasMapName(d.dest.resid) || d.name)
+        .filter((n, i, a) => n && a.indexOf(n) === i);
+    } catch (e) { m.beyond = []; }
+    m.label = m.name + (m.beyond && m.beyond.length ? ', then ' + m.beyond.join(', ') : '');
+  }
   return (node._mouths = out);
 }
 
@@ -894,14 +908,15 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
     ctx.restore();
   }
   for (const { m, x, y, rad } of labelQueue) {
-    const tw = atlasTextWidth(ctx, m.name);
+    const text = m.label || m.name;
+    const tw = atlasTextWidth(ctx, text);
     const box = { x0: x + rad + 3, y0: y - 9, x1: x + rad + 11 + tw, y1: y + 9 };
     if (labelled.some(q => box.x0 < q.x1 && box.x1 > q.x0 && box.y0 < q.y1 && box.y1 > q.y0)) continue;
     labelled.push(box);
     ctx.fillStyle = 'rgba(8,7,5,.78)';
     ctx.fillRect(box.x0, box.y0, tw + 8, 18);
     ctx.fillStyle = '#e8dfc0';
-    ctx.fillText(m.name, x + rad + 7, y + 4);
+    ctx.fillText(text, x + rad + 7, y + 4);
   }
   // The eggs: records with flags 0x42, which delvmod names EGG and which
   // are scripted triggers rather than props -- the disturbed sand on the

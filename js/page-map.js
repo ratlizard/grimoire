@@ -2210,7 +2210,24 @@ function walkingPosition(entries, t, m) {
 // aspect 0 has its table north 32:1, aspect 1 east 41:2, aspect 2 south 40:0,
 // aspect 3 west 33:1. Four-frame chair aspects are simply the sprite facing
 // order, N/E/S/W -- identity, no table needed.
-const CHAIR_FACING = [SPR_S, SPR_W, SPR_N, SPR_E];    // one-frame seats only
+/* How the program seats a character, read off TViewer::InteractProps on
+   19 September 2026 (exeSeatRule, which holds these constants to the
+   routine when the application is open): a seat is a class with a Chair
+   member, and the sitter's aspect becomes the seat's own aspect times four
+   plus three when the Chair word is 0 -- the seat's aspect is the facing
+   and column three is the seated pose -- or one of four fixed frames, 3,
+   7, 11 and 15, north, east, south and west, when the word is 1 to 4. Only
+   a four-way sprite is seated: the sitter's class must carry 4 as the
+   first word of key 55. The throne's word is 3, south, which is the
+   frame the wiki's saved game shows Alaric in; the two chairs' words are
+   0. `CHAIR_FACING`, a tally of one-frame seats against tables, stood here
+   and is not needed: no one-frame seat with a word of 0 is placed. */
+const SEAT_FIXED = [SPR_N, SPR_E, SPR_S, SPR_W];
+function seatChairWord(pt) {
+  const cls = parseItemClass(pt);
+  const f = cls && cls.data.find(x => x.key === 34);
+  return f && f.words.length && (f.words[0] & 0xF0000000) === 0 ? (f.words[0] & 0x0FFFFFFF) : null;
+}
 // A seat is a class with a Chair member (34), the file's own word; the
 // four-entry set this replaced counted prop type 227, which has no class
 // table at all, and so is not a chair to the program either.
@@ -2260,15 +2277,17 @@ function seatsOnMap(resid, m) {
         if (r.flags === 0xFF || r.flags === 0x42 || r.flags === 0x44) continue;
         if (!isSeatProp(r.proptype)) continue;
         const own = seatOwnFrames(r.proptype);
-        // The aspect can only BE a four-way facing where the seat has four
-        // frames to hold one -- or where it has exactly one, so aspect 0 is
-        // the only value it can take and the saved game above says what that
-        // one means (the throne). Two- and three-frame seats fall through.
-        const aspectIsFacing = (own >= 4 || own === 1) && r.aspect < Math.max(own, 1);
+        const word = seatChairWord(r.proptype);
+        // The program's rule (see SEAT_FIXED): a Chair word of 1 to 4 is a
+        // fixed facing; a word of 0 takes the seat's aspect, which is a
+        // facing where the seat has the frames to hold one. An aspect past
+        // the seat's own frames is drawn by the program as whatever frame
+        // that is, and is left to the placement here.
+        const aspectIsFacing = (word >= 1 && word <= 4) || (word === 0 && own >= 4 && r.aspect < own);
         let face = null, why = '';
         if (aspectIsFacing) {
-          face = (own === 1) ? CHAIR_FACING[r.aspect & 3] : (r.aspect & 3);
-          why = 'aspect ' + r.aspect;
+          face = (word >= 1) ? SEAT_FIXED[word - 1] : (r.aspect & 3);
+          why = word >= 1 ? 'the class’s Chair word, ' + word : 'aspect ' + r.aspect;
           // A rotated chair is the transposed image, and transposing swaps
           // north with west and south with east.
           if (r.rotated) {
