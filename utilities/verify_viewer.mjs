@@ -186,6 +186,35 @@ function analyze(path) {
     }
   }
 
+  // ---- 4c. a function declared in two scripts ----------------------------
+  // The other side of 4b. Classic scripts share one global scope, and a
+  // function declaration is a global binding, so two files declaring the
+  // same name do not collide loudly: the later file wins and the earlier
+  // function is dead, whatever its callers expected. When the resource
+  // browser's decoders came into js/ two names collided that way
+  // (samplesToWav, hexDump) and were renamed by hand; encodeGIF collided the
+  // same way on 16 September 2026 and sat shadowed until this check found it
+  // on 18 September. reach_check cannot see it, since the name is reached.
+  // Top-level declarations only: a name declared inside two functions is
+  // two locals. Counted per script file, and twice in one file counts too.
+  {
+    const where = new Map();
+    collected.sources.forEach((s, i) => {
+      const code = stripJsText(s.code);
+      for (const m of code.matchAll(/^(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*\(/gm)) {
+        const list = where.get(m[1]) || where.set(m[1], []).get(m[1]);
+        list.push(s.name || `${path}#script${i}`);
+      }
+    });
+    let twice = 0;
+    for (const [name, files] of where) if (files.length > 1) {
+      twice++;
+      r.errors.push(`function "${name}" is declared ${files.length}x (${files.join(', ')}); the last one wins and the others are dead`);
+    }
+    r.stats.topLevelFunctions = where.size;
+    r.stats.declaredTwice = twice;
+  }
+
   // ---- 5. getElementById targets exist in the markup ---------------------
   const markupIds = new Set([...html.matchAll(/\bid\s*=\s*(?:"([^"]+)"|'([^']+)')/g)]
     .map(m => m[1] || m[2]));
