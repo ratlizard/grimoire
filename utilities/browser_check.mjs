@@ -46,7 +46,7 @@
 
 import {spawn, execFileSync} from 'node:child_process';
 import {createServer} from 'node:http';
-import {existsSync, mkdtempSync, rmSync, createReadStream, statSync} from 'node:fs';
+import {existsSync, mkdtempSync, mkdirSync, rmSync, createReadStream, statSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, extname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -132,7 +132,7 @@ class Browser {
    true or the deadline passes, and return the DOM and what the console and
    the exception stream said. Each page is a fresh browser, so nothing is
    remembered between loads or from a previous run. */
-async function load(url, until, deadlineMs) {
+async function load(url, until, deadlineMs, opts = {}) {
   const b = new Browser();
   const console_ = [];
   // The whole load under one deadline as well, whatever stalls inside it.
@@ -158,6 +158,10 @@ async function load(url, until, deadlineMs) {
         console_.push({level: 'error', text: msg.params.entry.text + (msg.params.entry.url ? ' ' + msg.params.entry.url.replace(base, '') : '')});
     });
     await s('Runtime.enable'); await s('Log.enable'); await s('Page.enable');
+    if (opts.device) {
+      await s('Emulation.setDeviceMetricsOverride', {width: opts.device.width, height: opts.device.height, deviceScaleFactor: opts.device.scale || 2, mobile: true});
+      await s('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
+    }
     await s('Page.navigate', {url});
     const t0 = Date.now();
     let met = false;
@@ -166,7 +170,15 @@ async function load(url, until, deadlineMs) {
       await new Promise(r => setTimeout(r, 200));
     }
     const dom = await s('Runtime.evaluate', {expression: 'document.documentElement.outerHTML', returnByValue: true});
-    return {dom: (dom.result && dom.result.value) || '', console: console_, met, ms: Date.now() - t0};
+    // A hook to drive the page further and take screenshots once it is up:
+    // evaluate(expr) runs in the page and returns the value, shot(path)
+    // writes a PNG of the viewport.
+    let more = null;
+    if (opts.then && met) more = await opts.then({
+      evaluate: async expr => { const r = await s('Runtime.evaluate', {expression: expr, returnByValue: true, awaitPromise: true}); return r.result ? r.result.value : undefined; },
+      shot: async path => { const r = await s('Page.captureScreenshot', {format: 'png'}); writeFileSync(path, Buffer.from(r.data, 'base64')); return path; },
+    });
+    return {dom: (dom.result && dom.result.value) || '', console: console_, met, ms: Date.now() - t0, more};
   }
 }
 
@@ -219,7 +231,79 @@ if (archive && existsSync(resolve(ROOT, archive))) {
   }
 } else console.log('  ' + (archive ? 'no archive at ' + archive : 'no archive given') + ', so the open-over-http half is not run');
 
-// ---- 3. canvas.html -----------------------------------------------------------
+// ---- 3. the page at phone width ---------------------------------------------
+// The maintainer reviews every revision on an iPhone, and five handoff items
+// are "unjudged on a screen". This is the part of that a check can do: the
+// archive opened at 390 by 844 with touch emulated (an iPhone 14's points),
+// then the views he keeps having to visit, each measured and photographed.
+// Measured: the page must not be wider than the phone (a horizontal scroll
+// is the layout fault a phone shows first), and no visible element may
+// reach past its right edge; tap targets under 24 px tall are counted and
+// reported, not failed, since the site's chips are small by design. The
+// screenshots go to $TMPDIR/grimoire_shots/, one per view, to be looked at
+// instead of the phone; they are evidence for a person, not a pin.
+const SHOTS = join(process.env.TMPDIR || tmpdir(), 'grimoire_shots');
+let phone = 'not run';
+if (archive && existsSync(resolve(ROOT, archive))) {
+  mkdirSync(SHOTS, {recursive: true});
+  const VIEWS = [
+    ['world', ''],
+    ['hero', "showCategory('CHARACTERS'); showCharacterDetail(1)"],
+    ['prop', "showCategory('PROPS'); showPropTypeDetail(76)"],
+    ['mechanics', "showCategory('MECHANICS')"],
+    ['skills', "showCategory('SKILLS')"],
+    ['tools', "showCategory('TOOLS')"],
+    ['dataFork', "showCategory('DATAFORK')"],
+  ];
+  const MEASURE = `(() => {
+    const w = window.innerWidth, out = {innerWidth: w, scrollWidth: document.documentElement.scrollWidth, over: [], small: 0, buttons: 0};
+    for (const el of document.querySelectorAll('body *')) {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      const cs = getComputedStyle(el);
+      if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+      // Inside something that scrolls sideways on purpose -- the tab strips,
+      // a wide table in its wrapper -- an element past the edge is what the
+      // scroll is for; it is only a fault when nothing between it and the
+      // page scrolls.
+      let scroller = false;
+      for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) { const o = getComputedStyle(a).overflowX; if (o === 'auto' || o === 'scroll' || o === 'hidden') { scroller = true; break; } }
+      if (r.right > w + 1 && cs.position !== 'fixed' && !scroller && out.over.length < 6)
+        out.over.push(el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/)[0] : '') + ' right=' + Math.round(r.right));
+      if ((el.tagName === 'BUTTON' || el.tagName === 'A') && r.height < 24) out.small++;
+      if (el.tagName === 'BUTTON' || el.tagName === 'A') out.buttons++;
+    }
+    return out;
+  })()`;
+  // The installer beside the page when there is one, so the program's
+  // figures are on the sheets photographed; the bare archive otherwise.
+  const phoneUrl = base + indexPage + (existsSync(resolve(ROOT, 'reference/game/installers/Cythera.bin')) ? '?cache=skip&loud=1' : '?cache=skip&loud=1&src=' + encodeURIComponent(archive));
+  const r = await load(phoneUrl,
+    '/^(Title: |Archive error)/.test(document.getElementById("output").textContent) || document.getElementById("sourceStatus").classList.contains("failed")', 120000,
+    {device: {width: 390, height: 844, scale: 2}, then: async page => {
+      const views = [];
+      for (const [name, drive] of VIEWS) {
+        if (drive) { await page.evaluate(`(() => { try { ${drive}; } catch (e) { return String(e); } return 'ok'; })()`); }
+        await page.evaluate('new Promise(r => setTimeout(r, 400))');
+        const m = await page.evaluate(MEASURE);
+        const path = await page.shot(join(SHOTS, name + '.png'));
+        views.push({name, m, path});
+      }
+      return views;
+    }});
+  const errs = errors(r.console);
+  if (errs.length) fail('phone', 'console errors at phone width: ' + errs.map(describe).join(' | '));
+  else if (!r.met || !r.more) fail('phone', 'the archive did not open at phone width');
+  else {
+    const wide = r.more.filter(v => v.m.scrollWidth > v.m.innerWidth + 1 || v.m.over.length);
+    for (const v of wide) fail('phone', `${v.name}: the page is ${v.m.scrollWidth} px wide on a ${v.m.innerWidth} px phone` + (v.m.over.length ? '; past the edge: ' + v.m.over.join(', ') : ''));
+    const small = r.more.reduce((a, v) => a + v.m.small, 0), buttons = r.more.reduce((a, v) => a + v.m.buttons, 0);
+    phone = `${r.more.length} views at 390 px, ${wide.length ? wide.length + ' wider than the phone' : 'none wider than the phone'}, ${small} of ${buttons} tap targets under 24 px; screenshots in ${SHOTS}`;
+    console.log('  phone: ' + phone);
+  }
+}
+
+// ---- 4. canvas.html -----------------------------------------------------------
 if (canvasPage && existsSync(resolve(ROOT, canvasPage))) {
   const r = await load(base + canvasPage, 'document.readyState === "complete" && document.querySelector("canvas") !== null', 20000);
   const errs = errors(r.console);
@@ -230,5 +314,5 @@ if (canvasPage && existsSync(resolve(ROOT, canvasPage))) {
 
 clearTimeout(watchdog);
 server.close();
-console.log(failures ? `\nFAIL — ${failures} problem(s)` : `\nbrowser: index.html and canvas.html load clean; ${opened}`);
+console.log(failures ? `\nFAIL — ${failures} problem(s)` : `\nbrowser: index.html and canvas.html load clean; ${opened}; ${phone}`);
 process.exit(failures ? 1 : 0);
