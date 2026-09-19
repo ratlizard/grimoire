@@ -389,6 +389,15 @@ const CHECKS = [
     page: 'viewer', name: 'smoke ' + part, want: [DATA], slow: true, after: ['addons + heuristic'],
     cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL, SAVE, part],
     grep: part.startsWith('galleries') ? /\d+ galleries, [\d,]+ tiles[^\n]*/ : /clean in [\d.]+ s/})),
+  /* Bad input: every real input corrupted a fixed number of ways from a
+     fixed seed and handed to the page's own entry point, each case in a
+     worker under a deadline. A decoder may return or throw; it may not
+     fail to stop or take the process down. Carries a control that loops on
+     purpose and must be reported as a hang. */
+  {page: 'viewer', name: 'bad input', want: [DATA], slow: true,
+   cmd: ['utilities/fuzz_check.mjs', 'index.html', DATA, DATA_RSRC, HQX, VISE_BIN, VISE_ALL,
+         firstExisting('reference/community/addons/616_Rocky_the_Flying_Chicken.zip')],
+   grep: /fuzz: [^\n]*/},
   {page: 'viewer', name: 'zip export', want: [DATA], slow: true,
    cmd: ['utilities/export_test.mjs', 'index.html', DATA, EXPORTS], zips: EXPORTS},
 

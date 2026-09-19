@@ -549,6 +549,7 @@ guide carried it*.
 | version | `version_check.mjs` | the number moved when what a visitor receives moved |
 | browser | `browser_check.mjs` | the page in headless Chrome: loads clean, the archive opens over HTTP, `canvas.html` loads |
 | smoke, eight rows | `viewer_smoke.mjs` + `smoke_*.mjs` | every category, gallery and resource driven through the stub, and the sections the parts pin: `galleries` (the loop; the maps alone as `galleries-a`, the rest as `galleries-b`), `views`, `atlas`, `rules`, `edits`, `saves`, `installer`, each from a fresh boot (`smoke_boot.mjs`) as its own process; a run with no part named is the whole drive in one process. A new section goes in the part whose open file it needs: the bare archive, the save or the installer |
+| bad input | `fuzz_check.mjs` | every real input corrupted from a fixed seed and handed to its entry point, each case in a worker under a deadline: a decoder may refuse, never hang or crash; a control that loops on purpose must be caught |
 | zip export | `export_test.mjs` | the exported zips unpack |
 | bitmap font write | `nfnt_write_check.mjs` | the strikes written back byte for byte and as TrueType |
 | resource snapshot | `rsrc_snapshot.mjs` | a hash of the classic-Mac decoders over both forks |
