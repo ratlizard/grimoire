@@ -4134,6 +4134,130 @@ function characterFlagPlace(flag) {
   return null;
 }
 
+/* ---- the per-class cache, read off FillIntfCache -------------------------
+   At load the application walks every prop type and builds a long per
+   class from the class table: the low bits of ClassFlags (key 39) copied or
+   moved, a bit for each of several members the class has (GetMessage,
+   Mirror, Weight, Equipment, Portal and two unnamed keys), the bits of
+   Stacking (key 40), and four side tables of one byte or halfword a class
+   (the weight, the Chair word plus one, key 55's word, the first word of
+   SoundEffects). This reads the routine rather than stating the map: each
+   `li 4, K` names the key the next HasProperty or GetProperty asks about,
+   a single-bit test of the value followed by an `ori`/`oris` into the
+   cache is a value bit moved to a cache bit, an `ori`/`oris` after a
+   HasProperty alone is a has-bit, and a store through a register loaded
+   beside the TOC is a side table. Null with no application open. */
+function exeIntfCache() {
+  const r = exeRoutineNamed('FillIntfCache');
+  const ops = exeOpsOf(r);
+  if (!ops.length) return null;
+  const reg = d => d.rt !== undefined ? d.rt : d.rd !== undefined ? d.rd : d.rs;
+  // The cache base is the register a stwx stores through, loaded beside
+  // the TOC; the side tables are the other registers so loaded, tracked
+  // in program order since one register serves several tables in turn.
+  const firstLoads = new Map();
+  for (const o of ops) if (o.d && o.d.mn === 'lwz' && o.d.ra === 2 && !firstLoads.has(reg(o.d))) firstLoads.set(reg(o.d), { disp: o.d.d, op: o });
+  const cacheReg = (ops.find(o => o.d && o.d.mn === 'stwx' && firstLoads.has(o.d.ra)) || { d: {} }).d.ra;
+  const cache = firstLoads.get(cacheReg);
+  if (!cache) return null;
+  const out = { routine: r, cacheDisp: exeVal(cache.op, cache.disp), bits: [], has: [], tables: [] };
+  const tocLoads = new Map();
+  let key = null, mode = null, keyOp = null;
+  for (let i = 0; i < ops.length; i++) {
+    const d = ops[i].d;
+    if (!d) continue;
+    if (d.mn === 'lwz' && d.ra === 2) { tocLoads.set(reg(d), { disp: d.d, op: ops[i] }); continue; }
+    if (d.mn === 'li' && reg(d) === 4) { key = d.imm; keyOp = ops[i]; continue; }
+    if (d.mn === 'bl') { if (exeCalls(ops[i], 'TInterp::HasProperty')) mode = 'has'; else if (exeCalls(ops[i], 'TInterp::GetProperty')) mode = 'get'; continue; }
+    if (key === null) continue;
+    if ((d.mn === 'ori' || d.mn === 'oris') && d.imm !== undefined) {
+      // Into the cache: the register was just loaded through the cache base.
+      const ld = exeFindBack(ops, i, 3, e => e.mn === 'lwzx' && e.ra === cacheReg);
+      if (ld < 0) continue;
+      const bit = d.mn === 'oris' ? (d.imm << 16) >>> 0 : d.imm;
+      // A single-bit test of the value just before it, or a tag test.
+      const t = exeFindBack(ops, ld, 5, e => (e.mn === 'rlwinm.' && e.sh === 0) || e.mn === 'clrlwi.');
+      if (mode === 'get' && t >= 0) {
+        const e = ops[t].d;
+        let mask = 0;
+        if (e.mn === 'clrlwi.') mask = (1 << (32 - e.mb)) - 1 & 0xFF;
+        else for (let b = e.mb; b <= e.me; b++) mask |= 1 << (31 - b);
+        if (e.mn === 'rlwinm.' && e.mb === 0) out.bits.push({ key, tag: true, cacheBit: exeVal(ops[i], bit), keyOp });
+        else out.bits.push({ key, mask: exeVal(ops[t], mask >>> 0), cacheBit: exeVal(ops[i], bit), keyOp });
+      } else out.has.push({ key, cacheBit: exeVal(ops[i], bit), keyOp });
+      continue;
+    }
+    if ((d.mn === 'stbx' || d.mn === 'sthx') && tocLoads.has(d.ra) && tocLoads.get(d.ra).disp !== cache.disp) {
+      const plus = exeFindBack(ops, i, 4, e => e.mn === 'addi' && e.imm === 1 && reg(e) === d.rs);
+      out.tables.push({ key, disp: exeVal(tocLoads.get(d.ra).op, tocLoads.get(d.ra).disp), width: d.mn === 'stbx' ? 1 : 2, plusOne: plus >= 0, at: ops[i].at, keyOp });
+    }
+  }
+  return out;
+}
+
+/* Every routine that loads a pointer kept beside the TOC and tests bits of
+   what it finds there: the reader list for the per-class cache and its
+   side tables. One pass over the code section per displacement, kept on
+   the program. A mask is what an `rlwinm.`, `andi.` or `andis.` within the
+   next twenty-four instructions tests; a routine with no mask read the
+   table for a value rather than a bit. */
+function exeTocReaders(disp) {
+  const img = appImage(), pef = appPef();
+  if (!img || !pef) return [];
+  if (!pef._tocReaders) pef._tocReaders = new Map();
+  if (pef._tocReaders.has(disp)) return pef._tocReaders.get(disp);
+  const code = img.code, out = [];
+  for (let at = 0; at + 4 <= code.length; at += 4) {
+    const d = ppcDecode(pefU32(code, at));
+    if (!d || d.mn !== 'lwz' || d.ra !== 2 || d.d !== disp) continue;
+    const r = exeRoutineAt(at);
+    if (r && /^FillIntfCache\b/.test(r.name)) continue;
+    const masks = [];
+    for (let k = 4; k <= 96; k += 4) {
+      const e = ppcDecode(pefU32(code, at + k));
+      if (!e) continue;
+      if (e.mn === 'blr') break;
+      let m = null;
+      if ((e.mn === 'rlwinm.' || e.mn === 'rlwinm') && e.sh === 0 && e.mb !== undefined) { m = 0; for (let b = e.mb; b <= e.me; b++) m |= 1 << (31 - b); m >>>= 0; }
+      else if (e.mn === 'andi.') m = e.imm;
+      else if (e.mn === 'andis.') m = (e.imm << 16) >>> 0;
+      if (m !== null && m !== 0xFFFFFFFF) masks.push({ mask: m, at: at + k });
+    }
+    out.push({ at, routine: r ? r.name.replace(/\(.*$/, '') : propWordHex(at), masks });
+  }
+  pef._tocReaders.set(disp, out);
+  return out;
+}
+
+/* ---- the syscall table, read off the interpreter ----------------------------
+   TInterp::DoExpr takes an opcode of 0xA0 or more, subtracts 0xA0, and
+   calls through a table of transition vectors beside the TOC; the vector's
+   first word is the routine, and the routine has the program's own name
+   for the call (cbrnd, cbwhohas). delvmod's names for the same numbers are
+   behavioural, from watching scripts; this puts the two side by side. The
+   compare against 0xA0 and the table's displacement are read off the
+   routine. Null with no application open. */
+function exeSyscallTable() {
+  const img = appImage();
+  if (!img) return null;
+  const ops = exeOpsNamed('TInterp::DoExpr');
+  const ci = ops.findIndex(o => o.d && o.d.mn === 'cmplwi' && o.d.imm === 160);
+  if (ci < 0) return null;
+  const ti = exeFind(ops, ci, 60, d => d.mn === 'addi' && d.ra === 2);
+  const si = exeFind(ops, ci, 60, d => d.mn === 'addi' && d.imm === -160);
+  if (ti < 0) return null;
+  const off = exeTocOffset(ops[ti].d.imm);
+  const base = si >= 0 ? -ops[si].d.imm : 160;
+  const entries = [];
+  for (let i = 0; i < 96; i++) {
+    let p = null, q = null;
+    try { p = pefPointerAt(img, img.toc.section, off + 4 * i); q = p && p.section === img.toc.section ? pefPointerAt(img, p.section, p.offset) : null; } catch (e) { p = null; }
+    const r = q && q.section === img.codeIndex ? exeRoutineAt(q.offset) : null;
+    entries.push({ op: base + i, at: r && r.offset === q.offset ? r.offset : null, name: r && r.offset === q.offset ? r.name.replace(/\(.*$/, '') : null });
+  }
+  return { table: exeVal(ops[ti], ops[ti].d.imm), base: exeVal(ops[si >= 0 ? si : ci], base), entries };
+}
+
 // The flag number of a status-word bit, with where its subtrahend was read.
 function exeFlagOfStatusBit(bit, statusOffset) {
   const m = exeAbilityMap().find(x => x.word && x.offset && x.offset.v === statusOffset);

@@ -655,6 +655,30 @@ function classTravels(pt) {
   return classHasMember(pt, 57) && /\bget_field data3\b/.test(e.text);
 }
 
+/* The picture a container opens as, off its class: every container class
+   calls the helper 0xE66 with itself, a picture number and the window's
+   size, and the picture is general graphic 0x8F00 plus the number -- the
+   chest and the coffer 0x0A, the crate 0x09, the sack and the pouch 0x0D,
+   the desk and the dresser 0x0E, the corpses 0x0F. Read off the class's
+   own call, with its offset; null for a class that makes no such call. */
+function classZoomrect(pt) {
+  const cache = DERIVED.CLASS_ZOOMRECT || (DERIVED.CLASS_ZOOMRECT = {});
+  if (pt in cache) return cache[pt];
+  let out = null;
+  try {
+    const e = refExists(0x1000 + pt) ? buildScriptTextIndex().find(x => x.resid === 0x1000 + pt) : null;
+    const ops = e ? dvmOpsOf(e) : [];
+    for (let i = 0; i < ops.length && !out; i++) {
+      if (!/^call_resource 0xE66\b/.test(ops[i].text)) continue;
+      const kids = [];
+      for (let j = i + 1; j < ops.length && ops[j].depth > ops[i].depth; j++) if (ops[j].depth === ops[i].depth + 1) kids.push(ops[j]);
+      const m = kids[1] && /^(?:byte|short|word) (0x[0-9A-F]+|\d+)$/i.exec(kids[1].text);
+      if (m) out = { resid: 0x8F00 + parseInt(m[1]), at: kids[1].at, classResid: e.resid, helper: 0xE66 };
+    }
+  } catch (err) { quiet(err); }
+  return (cache[pt] = out);
+}
+
 /* Every script that reads or writes a class field, by key: the
    `has_member`, `get_field` and `set_field` ops over the whole archive,
    each with its offset, so an item's field can say who consults it. */

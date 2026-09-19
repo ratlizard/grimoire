@@ -2554,19 +2554,65 @@ function renderMechanicsSheet(value) {
       table(['#flag', 'name', 'in the record', 'set by', 'cleared by', 'tested by', 'as an effect'], rows));
   }
 
-  // ---- ClassFlags, bit by bit ----
+  // ---- ClassFlags, bit by bit, and the per-class cache ----
   {
     const cb = classFlagBits();
+    const ic = appImage() ? exeIntfCache() : null;
+    const readers = ic ? exeTocReaders(ic.cacheDisp.v) : [];
     const who = list => list.slice(0, 14).map(w => svLink(propDisplayName(w.pt) || ('prop ' + w.pt), 'showPropTypeDetail(' + w.pt + ')')).join(', ') + (list.length > 14 ? ' and ' + (list.length - 14) + ' more' : '');
-    const rows = cb.bits.map(b => '<tr><td class="num">' + propWordHex(b.bit) + '</td>' + num(b.who.length) + '<td>' + who(b.who) + '</td>' +
-      '<td>' + srcNum({ resid: b.who[0].resid, at: b.who[0].at }, propWordHex(b.who[0].word)) + '</td></tr>');
-    add('classflags', 'ClassFlags, bit by bit', null, '',
-      cb.classes + ' classes carry a ClassFlags word (key 39) in their table, and no script reads it: it is the application’s, read when the classes are loaded. What each bit means is not read here; the table shows which classes carry it, which is the file’s own grouping.',
+    // The routines that test a cache bit, each linked at the instruction.
+    const testedBy = bit => {
+      const hits = [];
+      for (const r of readers) for (const m of r.masks) if ((m.mask & bit) === bit && !hits.some(h => h.routine === r.routine)) hits.push({ routine: r.routine, at: m.at });
+      return hits.length ? hits.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : '<span class="mechSub" style="display:inline">no test of this bit within twenty-four instructions of a load</span>';
+    };
+    const keyName = k => (DVM_SYM.method[String(k)] ? prettyLabel(DVM_SYM.method[String(k)]) : 'key ' + k);
+    const rows = cb.bits.map(b => {
+      const moved = ic && ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === b.bit);
+      return '<tr><td class="num">' + propWordHex(b.bit) + '</td>' + num(b.who.length) + '<td>' + who(b.who) + '</td>' +
+        (ic ? '<td>' + (moved ? srcNum(moved.cacheBit, propWordHex(moved.cacheBit.v)) : '<span class="mechSub" style="display:inline">not copied</span>') + '</td><td>' + (moved ? testedBy(moved.cacheBit.v) : '') + '</td>' : '') + '</tr>';
+    });
+    const hasRows = ic ? ic.has.map(h => '<tr><td>' + srcNum({ exe: h.keyOp.at }, keyName(h.key)) + '</td><td class="num">' + srcNum(h.cacheBit, propWordHex(h.cacheBit.v)) + '</td><td>' + testedBy(h.cacheBit.v) + '</td></tr>') : [];
+    const stackRows = ic ? ic.bits.filter(x => x.key !== 39).map(x => '<tr><td>' + keyName(x.key) + (x.tag ? ', not a plain number' : ' bit ' + propWordHex(x.mask.v)) + '</td><td class="num">' + srcNum(x.cacheBit, propWordHex(x.cacheBit.v)) + '</td><td>' + testedBy(x.cacheBit.v) + '</td></tr>') : [];
+    const tableRows = ic ? ic.tables.map(t => { const rs = exeTocReaders(t.disp.v).filter((x, i, a) => a.findIndex(y => y.routine === x.routine) === i); return '<tr><td>' + srcNum({ exe: t.keyOp.at }, keyName(t.key)) + (t.plusOne ? ' plus one' : '') + '</td><td>' + (t.width === 1 ? 'a byte' : 'a halfword') + ' a class, ' + srcNum(t.disp, 'at ' + t.disp.v + ' off the TOC') + '</td><td>' + (rs.length ? rs.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : '') + '</td></tr>'; }) : [];
+    add('classflags', 'ClassFlags, and the per-class cache', null, '',
+      cb.classes + ' classes carry a ClassFlags word (key 39) in their table, and no script reads it: it is the application’s. ' +
+      (ic ? 'At load ' + pefChip('FillIntfCache') + ' builds one long a class out of the table -- these bits moved, a bit for each of several members the class has, the Stacking word’s bits -- and four side tables of a value a class; every routine that then tests a bit of the long is listed at the instruction, so a bit is named by what reads it rather than by a guess.'
+          : 'What each bit means is not read here; the table shows which classes carry it, which is the file’s own grouping.'),
       [
         'The word is the class’s own; a prop of that class carries it wherever it stands. The item page shows it under Class data as “Class flags”.',
-        appImage() ? 'The application builds its per-class table from these and from which methods a class has (' + pefChip('FillIntfCache') + '); which bit stands for which method is not read.' : MECH_NO_APP
-      ],
-      table(['#bit', '#classes', 'carried by', 'one of them'], rows));
+        ic ? 'So ' + propWordHex(0x80) + ' is the bit ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x80) || { cacheBit: { v: 0 } }).cacheBit.v) + ' test: the doors, the passthrough and the curtain carry it, and it is what lets a character walk into the square. ' + propWordHex(0x08) + ' is read by ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x08) || { cacheBit: { v: 0 } }).cacheBit.v) + ': the key, the grimoire, the amulet and the rest that cannot be dropped.' : MECH_NO_APP,
+        ic ? 'The Chair word is kept plus one in a side table and read when props interact, which is as far as the seated facing has been traced; the four-frame chairs’ aspects are the facing order and the one-frame seats’ facings are a tally of chairs against tables.' : ''
+      ].filter(Boolean),
+      '<div class="mechSub">The ClassFlags bits</div>' +
+      table(ic ? ['#bit', '#classes', 'carried by', 'in the cache as', 'tested by'] : ['#bit', '#classes', 'carried by'], rows) +
+      (hasRows.length ? '<div class="mechSub">A member the class has</div>' + table(['member', '#in the cache as', 'tested by'], hasRows) : '') +
+      (stackRows.length ? '<div class="mechSub">Other words moved into the cache</div>' + table(['from', '#in the cache as', 'tested by'], stackRows) : '') +
+      (tableRows.length ? '<div class="mechSub">The side tables</div>' + table(['from', 'kept as', 'read by'], tableRows) : ''));
+  }
+
+  // ---- the syscalls, by the program's own names ----
+  {
+    const st = appImage() ? exeSyscallTable() : null;
+    // How often each is called in this archive, by delvmod's name in the listings.
+    const counts = new Map();
+    for (const e of buildScriptTextIndex()) for (const m of e.text.matchAll(/^\s+[0-9A-F]+\s+sys (\S+)/gm)) counts.set(m[1], (counts.get(m[1]) || 0) + 1);
+    const rows = st ? st.entries.filter(x => x.name || DVM_SYM.syscall[String(x.op)]).map(x => {
+      const dv = DVM_SYM.syscall[String(x.op)] || '';
+      const a = x.name ? x.name.replace(/^cb/i, '').toLowerCase() : '', b = dv.toLowerCase();
+      const same = a && b && (a === b || a.startsWith(b) || b.startsWith(a));
+      return '<tr><td class="num">' + propWordHex(x.op) + '</td><td>' + svEsc(dv) + '</td><td>' + (x.name ? pefChip(x.name) : '<span class="mechSub" style="display:inline">no routine</span>') +
+        (x.name && dv && !same ? ' <span class="mechSub" style="display:inline">differs</span>' : '') + '</td>' + num(counts.get(dv) || 0) + '</tr>';
+    }) : [];
+    const differ = st ? st.entries.filter(x => { const dv = DVM_SYM.syscall[String(x.op)]; if (!x.name || !dv) return false; const a = x.name.replace(/^cb/i, '').toLowerCase(), b = dv.toLowerCase(); return !(a === b || a.startsWith(b) || b.startsWith(a)); }).length : 0;
+    add('syscalls', 'The syscalls, by the program’s own names', null, '',
+      st ? 'A script’s call into the engine is an opcode of ' + srcNum(st.base, propWordHex(st.base.v)) + ' or more, and ' + pefChip('TInterp::DoExpr') + ' calls it through the table of ' + srcNum(st.table, 'transition vectors') + ' beside the TOC, one a number. The routine each points at carries the program’s own name for the call; the name the listings use is delvmod’s, given from watching what the scripts do with it.'
+         : MECH_NO_APP,
+      st ? [
+        '<b>' + st.entries.filter(x => x.name).length + ' of the 96 slots</b> point at a named routine. ' + (differ ? '<b>' + differ + '</b> are named differently by the program and by delvmod; where they differ, delvmod’s is the reading and the program’s is the symbol, and neither is wrong.' : 'Every name agrees with delvmod’s.'),
+        'The count is how many times this archive’s scripts make the call.'
+      ] : [],
+      table(['#opcode', 'in the listings', 'the program’s routine', '#calls here'], rows));
   }
 
   // ---- what an egg does ----

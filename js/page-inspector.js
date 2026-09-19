@@ -562,21 +562,13 @@ function propInspectRows(p) {
    drawer -- and the mapping from a container to its picture is by kind, since
    nothing in the archive links a prop type to a zoomrect.
 --------------------------------------------------------------------------- */
-const CONTAINER_ZOOMRECT = [
-  [/crate/,                                   0x8F09],
-  [/chest|coffer|trunk/,                      0x8F0A],
-  [/jar|urn|vat|pitcher|bowl|pot\b/,          0x8F0C],
-  [/sack|pouch|bag|basket/,                   0x8F0D],
-  [/dresser|desk|cupboard|cabinet|wardrobe|drawer|end table|table/, 0x8F0E],
-  [/corpse|skeleton|bones/,                   0x8F0F],
-  [/bookshelf|shelf/,                         0x8F02],
-  [/tombstone|grave/,                         0x8F10],
-  [/scroll/,                                  0x8F03],
-];
+// Since 19 September 2026 the class says which (classZoomrect): the helper
+// call in its own script names the picture. A name list stood here; it
+// agreed with the file on every class that has the call, and named
+// pictures for jars, shelves and graves that no class opens.
 function containerZoomrect(pt) {
-  const nm = (propTypeName(pt) || '').toLowerCase();
-  for (const [re, rid] of CONTAINER_ZOOMRECT) if (re.test(nm)) return rid;
-  return 0x8F0A;                                  // a chest, for want of better
+  const z = classZoomrect(pt);
+  return z ? z.resid : 0x8F0A;                    // a chest, for a class with no call
 }
 
 // The records this one holds, from the map's full prop list.
@@ -675,8 +667,10 @@ function buildContainerView(rec, contents) {
   wrap.appendChild(box);
   const cap = document.createElement('div');
   cap.className = 'zrCap';
-  cap.textContent = contents.length + (contents.length === 1 ? ' thing inside' : ' things inside') +
-                    (label ? ' \u00b7 shown in the game\u2019s ' + label.toLowerCase() : '');
+  const z = classZoomrect(rec.proptype);
+  cap.innerHTML = contents.length + (contents.length === 1 ? ' thing inside' : ' things inside') +
+                    (label ? ' \u00b7 shown in the game\u2019s ' + svEsc(label.toLowerCase()) : '') +
+                    (z ? ', which ' + srcNum({ resid: z.classResid, at: z.at }, 'its class asks for') : '');
   wrap.appendChild(cap);
   return wrap;
 }
@@ -804,8 +798,7 @@ function inspectMapSquare(tx, ty) {
     const rows = propInspectRows(p).map(([k, v]) =>
       '<dt>' + svEsc(k) + '</dt><dd>' + svEsc(v) + '</dd>').join('');
     const ways = [];
-    if (isExitProp(p.rec.proptype)) ways.push('a way out of here');
-    if (classTravels(p.rec.proptype)) ways.push('changes zone by its class');
+    if (isExitProp(p.rec.proptype, window.CUR_MAP ? window.CUR_MAP.resid : undefined)) ways.push('a way out of here, by its class');
     if (isConcealedProp(p.rec.proptype)) ways.push('concealed');
     if (isWallProp(p.rec.proptype) && !(((getTileAttributes(ARCHIVE)[p.tileId] || 0) >> 8) & 0x02))
       ways.push('a wall you can walk through');

@@ -870,8 +870,19 @@ function isWallLikeProp(pt) {
    all until a rope has been fixed to them -- which the archive records as a
    rope prop placed on the square, so those are called out separately.
 --------------------------------------------------------------------------- */
-const EXIT_PROPS = /^(cave|mineshaft|sewer|portal|trapdoor|ladder|stairs|hole|small hole|tight passage|crack|mousehole|passthrough|loose dirt|loose board|secret passage)$/;
-// "tight passage" joined the list when the marks were reworked: it is a
+// A way out is what the class says since 19 September 2026: a Portal
+// member, a script that changes zone, or a dug way (classTravels). The
+// name list this replaced also named the mousehole, the crack, the loose
+// board and the passages, which are concealed ways THROUGH and never
+// change zone; concealment beat exit-ness in the marks, so none of those
+// was ever ringed as an exit. It named the trapdoor too, whose script
+// only locks and unlocks. The kind-1 eggs were laid over the passage
+// props to see whether the file marks exits that way: they cover almost
+// none (the Land King Hall arch, a secret passage, two tight passages),
+// and stand instead on the town entrances of the world and the interior
+// doors of Pnyx, so an egg is a way to another place and not a mark on a
+// prop.
+// "tight passage" joined the hidden list when the marks were reworked: it is a
 // squeeze-through gap in cave walls, concealed in exactly the way a crack
 // is, and listing it only as an exit was painting Land King Hall's cave
 // gaps pink instead of blue.
@@ -892,7 +903,10 @@ function classifyProp(pt, tileId) {
   return null;
 }
 // Is this prop a way off the map or down to another level?
-function isExitProp(pt) { return EXIT_PROPS.test((propTypeName(pt) || '').toLowerCase()); }
+function isExitProp(pt, mapResid) {
+  if (!classTravels(pt)) return false;
+  return mapResid === undefined || mapResid === WORLD_MAP_RESID || !SETTLEMENT_PROPS.test((propTypeName(pt) || '').toLowerCase());
+}
 // Is this prop concealed by its own nature (rather than by something drawn
 // over it, which drawMapMarks works out from the draw stack)?
 function isConcealedProp(pt) { return HIDDEN_PROPS.test((propTypeName(pt) || '').toLowerCase()); }
@@ -1538,7 +1552,7 @@ function drawMapMarks(lensCtx, lensTS) {
       // Something drawn over a passage hides it as surely as a secret door
       // does, and unlike a secret door nothing in the record says so.
       let buried = false;
-      if (kind === 'secret' || isExitProp(r.proptype)) {
+      if (kind === 'secret' || isExitProp(r.proptype, cm.resid)) {
         const later = (stack.get(r.y * 4096 + r.x) || []);
         const mine = later.indexOf(d);
         for (let i = mine + 1; i < later.length; i++)
@@ -1549,7 +1563,7 @@ function drawMapMarks(lensCtx, lensTS) {
       // the cave floor is a zone exit, the crack that leads to its room is a
       // hidden way, not both, not the other way round. Only unconcealed
       // passages (cave mouths, holes, stairs, ladders) count as exits.
-      const isExit = isExitProp(r.proptype) && !isConcealedProp(r.proptype);
+      const isExit = isExitProp(r.proptype, cm.resid) && !isConcealedProp(r.proptype);
       const isHidden = kind === 'secret' && (isConcealedProp(r.proptype) || buried ||
                                              isWallProp(r.proptype));
       const needsRope = ropes_.has(r.x + ',' + r.y);
