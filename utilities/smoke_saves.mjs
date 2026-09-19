@@ -1,0 +1,103 @@
+// smoke_saves.mjs -- one part of the UI smoke: a saved game opened through adoptArchive and what a visitor sees of it, then the archive reopened.
+// Cut out of viewer_smoke.mjs on 18 September 2026 at a point where the open
+// file changes, so it runs from a fresh boot (smoke_boot.mjs) as its own
+// process. Run alone with
+//   node utilities/viewer_smoke.mjs index.html "$TMPDIR/Cythera Data.data" "" <installers .sit> <saved game> saves
+// and with the other parts by naming them; with none named the runner drives
+// all six in this process, in order.
+import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsrcPath, rsrcFork, missingIds,
+         El, REGISTRY, catSel, optionSource, CATEGORY_VALUES, body, documentStub, rafQueue, drainRaf, sandbox,
+         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally } from './smoke_boot.mjs';
+
+if (savePath && !onlyCat) {
+  if (!existsSync(savePath)) console.log('  (no saved game at ' + savePath + '; the saved-game section is skipped)');
+  else try {
+    const save = new Uint8Array(readFileSync(savePath));
+    const name = savePath.replace(/^.*\//, '');
+    // Dropped while the World tab is up, which is where a visit starts: the
+    // page carries the current view across a swap through the hash, and a
+    // world link names nothing in a file with no world, so this is the case
+    // the landing rule has to win.
+    ctx.location.hash = '#c=WORLD';
+    if (!ctx.adoptArchive(save, name, {})) throw new Error(peek('lastArchiveError'));
+    const st = REGISTRY.get('sourceStatus').textContent;
+    const m = /a saved game \(“([^”]+)”\)/.exec(st);
+    if (!m) fail('saved game', 'the status does not call it a saved game: ' + st.slice(0, 100));
+    const savedAs = m ? m[1] : '';
+    if (REGISTRY.get('categorySelect').value !== 'SAVEGAME')
+      fail('saved game', 'did not land on the Saved Game sheet: ' + REGISTRY.get('categorySelect').value);
+    const populated = peek('ARCHIVE.index').filter(x => x[0]).length;
+    ctx.showCategory('DATAFORK');
+    // The body rows are nodes; the head row is innerHTML, which this stub
+    // does not parse into nodes, so the count is the body alone.
+    const rows = (function count(el) { return (el.tagName === 'TR' ? 1 : 0) + (el.children || []).reduce((n, c) => n + count(c), 0); })(REGISTRY.get('sheetGrid'));
+    if (rows !== populated) fail('saved game', `the Data Fork sheet lists ${rows} subindexes for a file with ${populated}`);
+    const f = ctx.ARCHIVE_FINDER;
+    if (!f || f.type !== 'DelP' || f.creator !== 'Delv' || f.name !== savedAs)
+      fail('saved game', 'the Finder identity for exports is ' + JSON.stringify(f) + ', expected DelP under “' + savedAs + '”');
+    ctx.showCategory('WORLD');
+    const bar = REGISTRY.get('atlasBar');
+    if (!bar || !/no world map/.test(bar.innerHTML)) fail('saved game', 'the World tab does not say there is no world map');
+    let bad = 0;
+    for (const v of CATEGORY_VALUES) { try { if (!ctx.showCategory(v)) bad++; } catch (e) { bad++; if (bad <= 2) fail('saved game gallery ' + v, e); } }
+    if (bad) fail('saved game', bad + ' galleries failed');
+    ctx.showCategory('128');
+    const lists = (ctx.CUR_RESIDS || []).map(r => r[0]);
+    let records = 0;
+    if (!lists.length || !ctx.openResource(lists[0])) fail('saved game', 'the prop list of the zone the player stands in did not open');
+    else records = ctx.parseDelverPropList(ctx.smartDecrypt(ctx.getResourceBytes(A(), lists[0]), lists[0]).data).length;
+    if (!records) fail('saved game', 'the prop list parsed to no records');
+    console.log(`  saved game: “${savedAs}” opened, ${populated} subindexes listed, ` +
+                `zone prop list 0x${(lists[0] || 0).toString(16).toUpperCase()} with ${records} records, exports as DelP`);
+
+    /* The Saved Game sheet, and the edit that is the whole point of it. Judged
+       by what the REBUILT archive holds rather than by what the form returned:
+       every commit re-serializes the table, rebuilds the archive and re-enters
+       parseArchiveBytes, so a changed field is only changed if it comes back
+       out of the rebuilt file. The names are the borrowed ones -- this run
+       opened Cythera Data first, which is also how a visitor gets here -- so
+       the sheet has to say so. */
+    ctx.showCategory('SAVEGAME');
+    const sheet = REGISTRY.get('sheetGrid').innerHTML || '';
+    const heroBefore = ctx.loadCharacterTable()[1];
+    if (!heroBefore) fail('saved game sheet', 'no character record 1');
+    else {
+      const where = ctx.zoneDisplayName(heroBefore.zone);
+      if (!sheet.includes(where)) fail('saved game sheet', 'the head does not say where the player is: ' + where);
+      if (!ctx.namesAreBorrowed() || !/come from the scenario opened earlier/.test(sheet))
+        fail('saved game sheet', 'the borrowed names are not admitted');
+      if (!sheet.includes('0xF307')) fail('saved game sheet', 'the parts table does not list the persistent store');
+      // I.M.Cheater is the community's cheated save and its hero carries 255
+      // training points; if that stops being true the file is not the one.
+      if (heroBefore.training !== 255)
+        fail('saved game sheet', 'I.M.Cheater\u2019s hero has ' + heroBefore.training + ' training points, expected 255');
+      const wasMagic = heroBefore.magic, wasMax = heroBefore.magicMax;
+      ctx.applyCharacterRecordEdit(1, { level: 7, health: 99, healthMax: 99, zone: heroBefore.zone });
+      const heroAfter = ctx.loadCharacterTable()[1];
+      if (heroAfter.level !== 7 || heroAfter.health !== 99 || heroAfter.healthMax !== 99)
+        fail('saved game sheet', 'the edit did not reach the rebuilt archive: ' + JSON.stringify(heroAfter));
+      else if (heroAfter.magic !== wasMagic || heroAfter.magicMax !== wasMax ||
+               heroAfter.training !== 255 || heroAfter.nutrition !== heroBefore.nutrition)
+        fail('saved game sheet', 'the edit moved a field it was not given');
+      else if (REGISTRY.get('categorySelect').value !== 'SAVEGAME')
+        fail('saved game sheet', 'the rebuild left the sheet: ' + REGISTRY.get('categorySelect').value);
+      else if (!(ctx.EDITED_RESIDS || new Set()).has(0xF009))
+        fail('saved game sheet', '0xF009 is not on the session\u2019s dirty list');
+      else {
+        ctx.healCharacterRecord(1);
+        const well = ctx.loadCharacterTable()[1];
+        if (well.health !== well.healthMax || well.nutrition !== 24)
+          fail('saved game sheet', 'Make them well left ' + well.health + '/' + well.healthMax + ', food ' + well.nutrition);
+        else console.log('  saved game sheet: the player placed and named, 255 training points read back, ' +
+                         'a three-field edit through the rebuild, and a full stomach');
+      }
+    }
+    // Back to the game archive, and the identity goes back with it. With no
+    // hash to carry a view across, the landing is the default one.
+    ctx.location.hash = '';
+    ctx.parseArchiveBytes(archive, 'Cythera Data (after the saved game)', { via: 'data fork', rsrc: rsrcFork });
+    if (ctx.ARCHIVE_FINDER.type !== 'DelS') fail('saved game', 'Cythera Data reopened as ' + JSON.stringify(ctx.ARCHIVE_FINDER));
+    if (REGISTRY.get('categorySelect').value !== 'WORLD') fail('saved game', 'Cythera Data did not land back on the world');
+  } catch (e) { fail('saved game', e); }
+}
+

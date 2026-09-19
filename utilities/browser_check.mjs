@@ -107,9 +107,15 @@ class Browser {
     });
     this.exited = new Promise(r => this.proc.on('exit', r));
   }
+  // Every call has a deadline. Under the suite, with four processes at
+  // full tilt, one run of this check sat ten minutes on a call Chrome never
+  // answered (19 September 2026); a hang is a failure here, not a wait.
   send(method, params = {}, sessionId) {
     const id = this.next++;
-    const p = new Promise((res, rej) => this.waiting.set(id, {res, rej}));
+    const p = new Promise((res, rej) => {
+      const t = setTimeout(() => { this.waiting.delete(id); rej(new Error(method + ' was not answered in 30 s')); }, 30000);
+      this.waiting.set(id, {res: v => { clearTimeout(t); res(v); }, rej: e => { clearTimeout(t); rej(e); }});
+    });
     this.proc.stdio[3].write(JSON.stringify({id, method, params, sessionId}) + '\0');
     return p;
   }
@@ -129,7 +135,15 @@ class Browser {
 async function load(url, until, deadlineMs) {
   const b = new Browser();
   const console_ = [];
+  // The whole load under one deadline as well, whatever stalls inside it.
+  let killer;
+  const overall = new Promise((_, rej) => { killer = setTimeout(() => rej(new Error('the load did not finish in ' + Math.round((deadlineMs + 60000) / 1000) + ' s')), deadlineMs + 60000); });
   try {
+    return await Promise.race([overall, drive()]);
+  } catch (e) {
+    return {dom: '', console: console_.concat([{level: 'exception', text: e.message, where: 'browser_check'}]), met: false, ms: 0};
+  } finally { clearTimeout(killer); await b.close(); }
+  async function drive() {
     const {targetId} = await b.send('Target.createTarget', {url: 'about:blank'});
     const {sessionId} = await b.send('Target.attachToTarget', {targetId, flatten: true});
     const s = (m, p) => b.send(m, p, sessionId);
@@ -153,8 +167,11 @@ async function load(url, until, deadlineMs) {
     }
     const dom = await s('Runtime.evaluate', {expression: 'document.documentElement.outerHTML', returnByValue: true});
     return {dom: (dom.result && dom.result.value) || '', console: console_, met, ms: Date.now() - t0};
-  } finally { await b.close(); }
+  }
 }
+
+// And the process itself: nothing here may outlive ten minutes.
+const watchdog = setTimeout(() => { console.log('\nFAIL — the browser check did not finish in ten minutes'); process.exit(1); }, 600000);
 
 let failures = 0;
 const fail = (what, why) => { failures++; console.log(`  FAIL ${what} — ${why}`); };
@@ -211,6 +228,7 @@ if (canvasPage && existsSync(resolve(ROOT, canvasPage))) {
   else console.log(`  canvas.html: loads clean in a browser in ${r.ms} ms`);
 }
 
+clearTimeout(watchdog);
 server.close();
 console.log(failures ? `\nFAIL — ${failures} problem(s)` : `\nbrowser: index.html and canvas.html load clean; ${opened}`);
 process.exit(failures ? 1 : 0);

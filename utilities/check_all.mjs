@@ -381,9 +381,14 @@ const CHECKS = [
   {page: 'viewer', name: 'browser', want: [CHROME],
    cmd: ['utilities/browser_check.mjs', 'index.html', 'canvas.html', HQX],
    grep: /browser: [^\n]*/},
-  {page: 'viewer', name: 'ui smoke', want: [DATA], slow: true, after: ['addons + heuristic'],
-   cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL, SAVE],
-   grep: /\d+ galleries, [\d,]+ tiles/},
+  /* The UI smoke, in eight rows that each start from a fresh boot and run
+     at once (viewer_smoke.mjs with no part named is the whole drive in one
+     process). The galleries loop is halved across two rows, since it is
+     most of the drive's time. */
+  ...['galleries-a', 'galleries-b', 'views', 'atlas', 'rules', 'edits', 'saves', 'installer'].map(part => ({
+    page: 'viewer', name: 'smoke ' + part, want: [DATA], slow: true, after: ['addons + heuristic'],
+    cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL, SAVE, part],
+    grep: part.startsWith('galleries') ? /\d+ galleries, [\d,]+ tiles[^\n]*/ : /clean in [\d.]+ s/})),
   {page: 'viewer', name: 'zip export', want: [DATA], slow: true,
    cmd: ['utilities/export_test.mjs', 'index.html', DATA, EXPORTS], zips: EXPORTS},
 
@@ -474,8 +479,10 @@ function judge(check, ok, out, secs) {
 function runCheck(check) {
   const t0 = Date.now();
   return new Promise(res => {
-    execFile('node', check.cmd, {maxBuffer: 64 << 20, encoding: 'utf8'}, (err, stdout, stderr) => {
-      let ok = !err, out = ok ? stdout : (stdout || '') + (stderr || '');
+    // Fifteen minutes is a hang, not a slow check: the browser check sat
+    // ten minutes on an unanswered call once and the suite sat with it.
+    execFile('node', check.cmd, {maxBuffer: 64 << 20, encoding: 'utf8', timeout: 900000, killSignal: 'SIGKILL'}, (err, stdout, stderr) => {
+      let ok = !err, out = ok ? stdout : (stdout || '') + (stderr || '') + (err && err.killed ? '\nFAIL: killed after fifteen minutes' : '');
       // A hand-written zip is exactly the sort of thing that looks fine and
       // unpacks to nothing, so the archives get validated rather than trusted.
       if (ok && check.zips) {
