@@ -1203,6 +1203,31 @@ function toggleSaveShowAll() { window.SAVE_SHOW_ALL = !window.SAVE_SHOW_ALL; ren
    bytes it cannot are shown as hex and are not editable here -- Edit Bytes on
    the resource itself is the tool for those, and pretending a slider knows
    what byte 22 means would be worse than saying it does not. */
+/* The byte each form field reads, as the parser lays the record out
+   (parseDelverCharacterRecords), joined to the program's own map: GetField
+   dispatches fields 19 to 40 through a table whose handlers each load one
+   byte or halfword of the record (exeCharacterFields), and delvmod names the
+   fields the scripts read them by. So "body" here is byte 9, which the
+   program serves as field 23 and the scripts call `body`; the party byte is
+   byte 18, field 35, which the scripts call `timing`. Null offsets are
+   fields below 19, which the table does not cover. */
+const SAVE_BYTES = { zone: [0, 1], proptype: [4, 2], aspect: [4, 2], state: [8, 1], body: [9, 1], reflex: [10, 1], mind: [11, 1],
+  xp: [12, 2], health: [14, 1], healthMax: [15, 1], magic: [16, 1], magicMax: [17, 1], party: [18, 1], level: [19, 1],
+  nutrition: [27, 1], training: [28, 1] };
+function saveFieldsProgramNote() {
+  const cf = appImage() ? exeCharacterFields() : null;
+  if (!cf) return '<div class="inspDim">' + svEsc(MECH_NO_APP) + '</div>';
+  const parts = [];
+  for (const [key, label] of SAVE_FIELDS) {
+    const b = SAVE_BYTES[key];
+    const f = b && cf.fields.find(x => x.offset && x.offset.v === b[0] && x.width === b[1]);
+    if (!f) continue;
+    parts.push(svEsc(label) + ': field ' + srcNum({ exe: f.at }, String(f.field)) + (f.name ? ' <span style="color:#8c8980">(' + svEsc(f.name) + ' to the scripts)</span>' : ''));
+  }
+  const unread = cf.fields.filter(f => f.offset && !Object.values(SAVE_BYTES).some(b => b[0] === f.offset.v)).map(f => 'byte ' + f.offset.v + ' as field ' + srcNum({ exe: f.at }, String(f.field)) + (f.name ? ' (' + svEsc(f.name) + ')' : ''));
+  return '<div class="inspDim">Read by the program’s ' + pefChip('GetField(short, short, short)') + ' as ' + parts.join('; ') + '.' +
+    (unread.length ? ' The program also serves ' + unread.join(', ') + ', which this form does not name.' : '') + '</div>';
+}
 const SAVE_FIELDS = [
   ['zone', 'zone', 10, 0xFF, 'the low byte of the map’s resource id'],
   ['x', 'x', 10, 0xFFF, ''], ['y', 'y', 10, 0xFFF, ''],
@@ -1246,7 +1271,7 @@ function toggleCharEdit(index) {
     Array.from(rec.raw).map(b => b.toString(16).padStart(2, '0')).join(' ') +
     '</code><br>Bytes 6 and 7, 20 to 26 and 29 to 31 are not identified and are carried through ' +
     'an edit unchanged; 20 and 21 are a second appearance word that is usually, but not ' +
-    'always, the one at 4 and 5. Apply rebuilds the whole archive.</div>';
+    'always, the one at 4 and 5. Apply rebuilds the whole archive.</div>' + saveFieldsProgramNote();
   host.style.display = '';
   window.SAVE_EDIT_OPEN = index;
 }

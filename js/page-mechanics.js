@@ -2525,14 +2525,69 @@ function renderMechanicsSheet(value) {
       table(['#slot', 'line', 'added by', 'struck off by'], rows));
   }
 
+  // ---- the character flags, and where they are set ----
+  {
+    const cf = characterFlagSites();
+    const link = s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid));
+    const cell = list => {
+      if (!list.length) return '<td></td>';
+      const seen = new Map(); for (const s of list) if (!seen.has(s.resid)) seen.set(s.resid, s);
+      const u = [...seen.values()];
+      return '<td>' + u.slice(0, 4).map(link).join(', ') + (u.length > 4 ? ' and ' + (u.length - 4) + ' more' : '') +
+        (list.length > u.length ? ' <span class="mechSub" style="display:inline">(' + list.length + ' sites)</span>' : '') + '</td>';
+    };
+    const place = f => { const p = characterFlagPlace(f); return p ? srcNum(p.offset, (p.word ? 'halfword' : 'byte') + ' +' + p.offset.v) + ', bit ' + p.bit : ''; };
+    const flags = new Set(cf.flags.map(f => f.flag));
+    for (const k of Object.keys(DVM_FLAG_NAMES)) flags.add(+k);
+    const rows = [...flags].sort((a, b) => a - b).map(f => {
+      const s = cf.flags.find(x => x.flag === f) || { set: [], clear: [], test: [], effect: [] };
+      return '<tr>' + num(f) + '<td>' + (DVM_FLAG_NAMES[f] ? svEsc(DVM_FLAG_NAMES[f]) : '') + '</td><td>' + place(f) + '</td>' +
+        cell(s.set) + cell(s.clear) + cell(s.test) + cell(s.effect) + '</tr>';
+    });
+    add('charflags', 'The character flags', null, src('set', 0xF00) + src('clear', 0xF01) + src('test', 0xF02),
+      'A character record carries a flag word that the scripts set, clear and test by number: poison, sleep, fear, the lava protection Eioneus’s dialogue grants. The numbers are the file’s; the names are this page’s, and a flag with no name is one nothing here has read.',
+      [
+        '<b>' + cf.flags.length + ' flags</b> are reached by a literal number in this archive, through the four syscalls (SetFlag, ClearFlag, TestFlag and StatusEffect, the character first and the flag second) and the three helpers that wrap them.' + (cf.unknown ? ' ' + cf.unknown + ' site' + (cf.unknown === 1 ? ' passes' : 's pass') + ' a computed flag and ' + (cf.unknown === 1 ? 'is' : 'are') + ' not counted.' : ''),
+        appImage() ? 'Where a flag lives is read off ' + pefChip('TSpellFX::AddAbility') + ': flags below 8 are bits of one byte of the record, 8 to 23 bits of a halfword, and the rest of a further byte, each less the number the routine subtracts.' : MECH_NO_APP,
+        'A named flag with no site is one the application sets on its own, or one this page named from the executable rather than from a script.'
+      ],
+      table(['#flag', 'name', 'in the record', 'set by', 'cleared by', 'tested by', 'as an effect'], rows));
+  }
+
+  // ---- ClassFlags, bit by bit ----
+  {
+    const cb = classFlagBits();
+    const who = list => list.slice(0, 14).map(w => svLink(propDisplayName(w.pt) || ('prop ' + w.pt), 'showPropTypeDetail(' + w.pt + ')')).join(', ') + (list.length > 14 ? ' and ' + (list.length - 14) + ' more' : '');
+    const rows = cb.bits.map(b => '<tr><td class="num">' + propWordHex(b.bit) + '</td>' + num(b.who.length) + '<td>' + who(b.who) + '</td>' +
+      '<td>' + srcNum({ resid: b.who[0].resid, at: b.who[0].at }, propWordHex(b.who[0].word)) + '</td></tr>');
+    add('classflags', 'ClassFlags, bit by bit', null, '',
+      cb.classes + ' classes carry a ClassFlags word (key 39) in their table, and no script reads it: it is the application’s, read when the classes are loaded. What each bit means is not read here; the table shows which classes carry it, which is the file’s own grouping.',
+      [
+        'The word is the class’s own; a prop of that class carries it wherever it stands. The item page shows it under Class data as “Class flags”.',
+        appImage() ? 'The application builds its per-class table from these and from which methods a class has (' + pefChip('FillIntfCache') + '); which bit stands for which method is not read.' : MECH_NO_APP
+      ],
+      table(['#bit', '#classes', 'carried by', 'one of them'], rows));
+  }
+
   // ---- what an egg does ----
   {
     const eg = eggKinds();
+    // The dispatch table, read off DrawRoutine when the application is
+    // open: each kind's handler address and what it calls, beside the words
+    // this page gives the kind.
+    const eh = appImage() ? exeEggHandlers() : null;
+    const handlerCell = kind => {
+      const h = eh && eh.handlers[kind];
+      if (!h || h.at === null) return '<td></td>';
+      if (h.nothing) return '<td>' + srcNum({ exe: h.at }, propWordHex(h.at)) + ' <span class="mechSub" style="display:inline">the loop’s end: nothing</span></td>';
+      return '<td>' + srcNum({ exe: h.at }, propWordHex(h.at)) +
+        (h.calls.length ? ' <span class="mechSub" style="display:inline">calls ' + h.calls.map(c => srcNum({ exe: c.at }, c.name)).join(', ') + '</span>' : '') + '</td>';
+    };
     const rows = eg ? eg.kinds.map(k => {
       const nm = EGG_KIND_NAMES[k.kind];
       const args = [...k.args].sort((a, b) => a - b);
       return '<tr>' + num(k.kind) + '<td>' + svEsc(nm ? nm.what : 'not known here') + '</td>' +
-        '<td>' + (nm && nm.arg ? svEsc(nm.arg) : '') + '</td>' + num(k.n) +
+        '<td>' + (nm && nm.arg ? svEsc(nm.arg) : '') + '</td>' + (eh ? handlerCell(k.kind) : '') + num(k.n) +
         '<td class="mechSub">' + svEsc(args.length > 6 ? args.slice(0, 6).join(', ') + ', …' : args.join(', ')) + '</td></tr>';
     }) : [];
     add('eggs', 'What an egg does', null, '',
@@ -2546,7 +2601,8 @@ function renderMechanicsSheet(value) {
         '<b>A kind-0 egg’s argument says nothing about what hatches.</b> The creature is the contained record, and the argument is the same value whatever that record is: every one of Odemia’s thirteen carries 0xE4, whether it holds a chicken, a goat or a guard. The column below lists the arguments each kind is placed with, which is the file’s own content and not a meaning.',
         'Records with flags 0x44 are roofs rather than eggs, and there are <b>' + eg.roofs + '</b> of them here.'
       ].filter(Boolean) : [],
-      table(['#kind', 'what it does', 'argument', '#here', 'arguments used'], rows) +
+      (eh ? '<div class="mechSub">The dispatch table is ' + srcNum(eh.table, eh.count ? eh.count.v + ' entries' : 'read') + ' beside the TOC, in ' + pefChip('TGameViewer::DrawRoutine') + '; each handler is a piece of that routine, and what it calls is read off its instructions.</div>' : '<div class="mechSub">' + MECH_NO_APP + '</div>') +
+      table(eh ? ['#kind', 'what it does', 'argument', 'handler', '#here', 'arguments used'] : ['#kind', 'what it does', 'argument', '#here', 'arguments used'], rows) +
       // Which creatures, and not only that there are some. The inspector has
       // said this for one egg at a time since the reading was new; this is
       // the whole archive's, so a reader can see what the island hatches
@@ -2753,6 +2809,24 @@ function renderMechanicsSheet(value) {
     if (lib2) for (const d of lib2) for (const k of d.dangling)
       rows.push('<tr><td>a thing pointing at nothing</td><td>Data1 ' + k + ' of ' + propWordHex(d.resid) + ', which has no such passage</td><td>' +
         where(d.readers) + '</td></tr>');
+  // ---- the palette and its ramps ----
+  {
+    const pr = appImage() ? exePaletteRamps() : null;
+    const clut = window.CYTHERA_RSRC && typeof showMacRsrcDetail === 'function' ? svLink('clut 256', "showMacRsrcDetail('clut', 256)") : 'clut 256';
+    const ours = PALETTE_CYCLES.map(([s, n]) => propWordHex(s) + ' to ' + propWordHex(s + n - 1)).join(', ');
+    add('palette', 'The palette and its ramps', null, '',
+      'Every picture in the file is indices into one 256-entry colour table, ' + clut + ' in the data file’s resource fork, and the water, lava and magic move because the program remaps a few runs of those indices each tick. The table this page draws with is a copy of that clut; the runs it cycles are a constant of this page, held against the program below.',
+      [
+        'This page cycles <b>' + ours + '</b>: the first two runs of eight and the last three of four, walked backwards a step a tick.',
+        pr ? (pr.agrees ? '<b>The program’s ramps agree.</b> ' : '<b>The program’s ramps differ from this page’s.</b> ') +
+             pefChip('TViewer::BuildFilters') + ' builds ' + (pr.phases ? srcNum(pr.phases, pr.phases.v + ' remap tables') : 'the remap tables') + ', one a phase, and inside each an index below ' +
+             pr.bands.map(b => srcNum(b.bound, propWordHex(b.bound.v)) + (b.bits ? ' keeps ' + srcNum(b.bits, b.bits.v + ' low bits') + ' of itself less the phase, a ramp of ' + (1 << b.bits.v) : ' is left alone')).join(', then below ') + ', and the rest is left alone: ' + pr.ramps.map(r => propWordHex(r.start) + ' to ' + propWordHex(r.start + r.len - 1)).join(', ') + '.'
+           : MECH_NO_APP,
+        appImage() ? 'The remap is applied to the finished frame by ' + pefChip('TViewer::ApplyFilter') + ' from ' + pefChip('TMapWindow::AnimThread') + '; the colour table itself is never rotated (' + pefChip('ColorCycle') + ' is one instruction).' : ''
+      ].filter(Boolean),
+      '');
+  }
+
     add('loose', 'Loose ends', null, '',
       rows.length ? 'Things the scenario’s own scripts get wrong, each read off the line that causes it. None of this is the page’s opinion: a line nothing strikes off is a line no script names in a CompleteQuest, and a test nothing can satisfy is a number no script ever assigns.'
                   : 'Nothing of this kind was found in this archive.',

@@ -3944,6 +3944,196 @@ function exeAbilityMap() {
   }
   return out;
 }
+/* ---- the egg dispatch, read off the program ------------------------------
+   TGameViewer::DrawRoutine walks a zone's eggs and dispatches each kind
+   through an eleven-entry table of code addresses beside the TOC. The
+   table's displacement is read off the `addi r, r2, d` whose register an
+   `lwzx` then indexes, and its length off the `cmplwi` bound that guards the
+   index, so nothing here names a displacement or a count. Each entry is a
+   handler inside DrawRoutine; what it calls is the `bl`s between its start
+   and the next handler's, by the traceback names. The words for each kind
+   (EGG_KIND_NAMES) remain this page's; the addresses and the calls are the
+   file's. Null with no application open, or when the shape is not found. */
+// A jump table in a routine: an `addi r, r2, d` whose register an `lwzx`
+// indexes within a few instructions and a `bctr` then jumps through, with
+// the `cmplwi` just above it as the bound. Null when the routine has none.
+function exeJumpTable(ops) {
+  for (let i = 0; i < ops.length; i++) {
+    const d = ops[i].d;
+    if (!d || d.mn !== 'addi' || d.ra !== 2) continue;
+    const lw = exeFind(ops, i + 1, 4, e => e.mn === 'lwzx' && (e.ra === d.rd || e.rb === d.rd));
+    if (lw < 0) continue;
+    const bc = exeFind(ops, lw + 1, 4, e => e.mn === 'bctr');
+    if (bc < 0) continue;
+    const bi = exeFindBack(ops, i, 8, e => e.mn === 'cmplwi' || e.mn === 'cmpwi');
+    return { at: i, bound: bi };
+  }
+  return null;
+}
+function exeEggHandlers() {
+  const img = appImage();
+  if (!img) return null;
+  const ops = exeOpsNamed('TGameViewer::DrawRoutine');
+  if (!ops.length) return null;
+  const jt = exeJumpTable(ops);
+  if (!jt) return null;
+  const ti = jt.at, bi = jt.bound;
+  const count = bi >= 0 ? ops[bi].d.imm + 1 : 11;
+  const off = exeTocOffset(ops[ti].d.imm);
+  if (off === null) return null;
+  const starts = [];
+  for (let i = 0; i < count; i++) {
+    let p = null;
+    try { p = pefPointerAt(img, img.toc.section, off + 4 * i); } catch (e) { p = null; }
+    starts.push(p && p.section === img.codeIndex ? p.offset : null);
+  }
+  const ends = [...new Set(starts.filter(s => s !== null))].sort((a, b) => a - b);
+  // The loop's end is where the bound's branch goes when the kind is out of
+  // range; a handler that IS the loop's end does nothing, and no handler
+  // runs past it.
+  const guard = bi >= 0 && ops[bi + 1] && ops[bi + 1].to !== null && ops[bi + 1].to !== undefined ? ops[bi + 1].to : null;
+  const last = guard !== null ? guard : ops[ops.length - 1].at + 4;
+  const handlers = starts.map((at, kind) => {
+    if (at === null) return { kind, at: null, calls: [] };
+    if (guard !== null && at >= guard) return { kind, at, calls: [], nothing: true };
+    const next = Math.min(ends.find(e => e > at) || last, last);
+    const calls = [];
+    for (const o of ops) {
+      if (o.at < at || o.at >= next || !o.d || o.d.mn !== 'bl' || o.to === null) continue;
+      const nm = exeTargetName(o.to).replace(/\(.*$/, '');
+      if (nm && !calls.some(c => c.name === nm)) calls.push({ name: nm, at: o.at });
+    }
+    return { kind, at, calls };
+  });
+  return { table: exeVal(ops[ti], ops[ti].d.imm), count: bi >= 0 ? exeVal(ops[bi], count) : null, handlers };
+}
+
+/* ---- the palette ramps, read off the program ------------------------------
+   TViewer::BuildFilters fills eight remap tables, one per phase: for every
+   index n it compares n against three bounds in turn and, between the first
+   two, keeps the low bits of n minus the phase under the high bits of n --
+   which is a ramp of 2^k colours walked backwards. The bounds are the
+   `cmpwi` immediates in that loop and the ramp width is the `clrlwi` that
+   keeps k bits, both read here; the identity outside the bounds is the
+   fall-through. The renderer's own constant, PALETTE_CYCLES, is compared
+   against what is read, so a program whose ramps differ says so. Null with
+   no application open, or when the loop is not found. */
+function exePaletteRamps() {
+  const ops = exeOpsNamed('TViewer::BuildFilters');
+  if (!ops.length) return null;
+  // The phase loop: eight tables (cmpwi 8 with the counter), and inside it
+  // the index loop to 256.
+  // The index loop is the last one that runs to 256; the lighting ramps
+  // earlier in the routine compare against 0xE0 and 0xFF too and are not
+  // the animation. Its body runs from the loop's last entry, the `cmpwi 8`
+  // of the table loop before it, to that `cmpwi 256`.
+  let end = -1;
+  for (let i = ops.length - 1; i >= 0; i--) if (ops[i].d && ops[i].d.mn === 'cmpwi' && ops[i].d.imm === 256) { end = i; break; }
+  if (end < 0) return null;
+  const startTables = exeFindBack(ops, end, 120, d => d.mn === 'cmpwi' && d.imm === 8);
+  const start = startTables >= 0 ? startTables : Math.max(0, end - 80);
+  // Each `cmpwi n, bound` guards a block for the indices BELOW the bound
+  // and above the previous one; a clrlwi in the block is the ramp's width
+  // in bits, and a block without one leaves the index alone.
+  const bands = [];
+  for (let i = start; i < end; i++) {
+    const d = ops[i].d;
+    if (!d || d.mn !== 'cmpwi' || d.imm < 0x80 || d.imm > 0xFF) continue;
+    const nextBound = exeFind(ops, i + 1, end - i, e => e.mn === 'cmpwi' && e.imm >= 0x80);
+    const stop = nextBound < 0 ? end : nextBound;
+    const clr = exeFind(ops, i + 1, stop - i, e => e.mn === 'clrlwi');
+    bands.push({ bound: exeVal(ops[i], d.imm), bits: clr >= 0 ? exeVal(ops[clr], 32 - ops[clr].d.mb) : null });
+  }
+  if (bands.length < 2) return null;
+  const ramps = [];
+  for (let i = 0; i < bands.length; i++) {
+    const b = bands[i], from = i ? bands[i - 1].bound.v : 0;
+    if (!b.bits) continue;
+    const len = 1 << b.bits.v;
+    for (let s = from; s + len <= b.bound.v; s += len) ramps.push({ start: s, len, bound: b.bound, bits: b.bits });
+  }
+  const phases = exeFind(ops, end, ops.length - end, d => d.mn === 'cmpwi' && d.imm === 8);
+  const same = ramps.length === PALETTE_CYCLES.length && ramps.every((r, i) => r.start === PALETTE_CYCLES[i][0] && r.len === PALETTE_CYCLES[i][1]);
+  return { bands, ramps, phases: phases >= 0 ? exeVal(ops[phases], 8) : null, agrees: same };
+}
+
+/* ---- the character record's fields, read off the program ------------------
+   GetField(short, short, short) hands fields 19 to 40 of a Character to a
+   jump table beside the TOC, one handler each, and every handler's first
+   load through the record pointer says which byte or halfword of the
+   32-byte record that field is. The table's displacement and its bound are
+   read the way the egg table's are. The scripts' names for the fields are
+   delvmod's (DVM_SYM.field), and a field the handler reads through a helper
+   rather than a load is reported with no offset. Null with no application
+   open. */
+function exeCharacterFields() {
+  const img = appImage();
+  if (!img) return null;
+  const r = exeRoutineNamed('GetField(short, short, short)');
+  const ops = exeOpsOf(r);
+  if (!ops.length) return null;
+  const jt = exeJumpTable(ops);
+  if (!jt) return null;
+  const ti = jt.at, bound = jt.bound;
+  const base = exeFindBack(ops, ti, 30, d => d.mn === 'addi' && d.imm < 0 && d.ra !== 1 && d.ra !== 2);
+  const first = base >= 0 ? -ops[base].d.imm : 19;
+  const count = bound >= 0 ? ops[bound].d.imm + 1 : 22;
+  const off = exeTocOffset(ops[ti].d.imm);
+  if (off === null) return null;
+  const fields = [];
+  for (let i = 0; i < count; i++) {
+    let p = null;
+    try { p = pefPointerAt(img, img.toc.section, off + 4 * i); } catch (e) { p = null; }
+    const field = first + i;
+    if (!p || p.section !== img.codeIndex) { fields.push({ field, at: null, offset: null, width: 0 }); continue; }
+    const hops = exeOpsOf({ offset: p.offset, length: 48, name: 'field ' + field });
+    const ld = hops.find(o => o.d && /^(lbz|lhz|lwz|lha)$/.test(o.d.mn) && o.d.ra === 31);
+    fields.push({ field, at: p.offset, name: DVM_SYM.field[String(field)] || null,
+                  offset: ld ? exeVal(ld, ld.d.d) : null, width: ld ? (ld.d.mn === 'lbz' ? 1 : ld.d.mn === 'lwz' ? 4 : 2) : 0 });
+  }
+  return { routine: r, first: base >= 0 ? exeVal(ops[base], first) : null, count: bound >= 0 ? exeVal(ops[bound], count) : null, fields };
+}
+
+/* ---- where every character flag is set, cleared and tested -----------------
+   A character's flags are two things in the record: bits 0 to 7 in one
+   byte and 8 up in a halfword and a further byte, which AddAbility maps
+   (exeAbilityMap). The scripts reach them through four syscalls with the
+   character first and the flag second -- SetFlag, ClearFlag, TestFlag and
+   StatusEffect -- and through the three 0x0Fxx helpers that wrap the first
+   three. Every site with a literal flag is counted here, by flag and by
+   verb, with its offset, so the names in DVM_FLAG_NAMES (this page's) stand
+   beside the sites (the file's). */
+function characterFlagSites() {
+  if (DERIVED.CHAR_FLAG_SITES) return DERIVED.CHAR_FLAG_SITES;
+  const by = new Map();
+  const VERB = { SetFlag: 'set', ClearFlag: 'clear', TestFlag: 'test', StatusEffect: 'effect',
+                 SetCharacterFlag: 'set', ClearCharacterFlag: 'clear', TestCharacterFlag: 'test' };
+  const LIT = /^(?:byte|short|word) (-?0x[0-9A-F]+|-?\d+)$/i;
+  let unknown = 0;
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    for (let i = 0; i < ops.length; i++) {
+      const m = /^(?:sys (SetFlag|ClearFlag|TestFlag|StatusEffect)|call_resource (SetCharacterFlag|ClearCharacterFlag|TestCharacterFlag) \(0xF0[012]\))$/.exec(ops[i].text);
+      if (!m) continue;
+      const verb = VERB[m[1] || m[2]];
+      const kids = [];
+      for (let j = i + 1; j < ops.length && ops[j].depth > ops[i].depth; j++) if (ops[j].depth === ops[i].depth + 1) kids.push(ops[j]);
+      const lit = kids[1] && LIT.exec(kids[1].text);
+      if (!lit) { unknown++; continue; }
+      const f = parseInt(lit[1]);
+      if (!by.has(f)) by.set(f, { flag: f, set: [], clear: [], test: [], effect: [] });
+      by.get(f)[verb].push({ resid: e.resid, at: kids[1].at });
+    }
+  }
+  return (DERIVED.CHAR_FLAG_SITES = { flags: [...by.values()].sort((a, b) => a.flag - b.flag), unknown });
+}
+// The record byte and bit a flag lives in, by the program's own map.
+function characterFlagPlace(flag) {
+  const map = appImage() ? exeAbilityMap() : [];
+  for (const m of map) if (m.below && flag < m.below.v && m.offset) return { offset: m.offset, bit: flag - (m.sub ? m.sub.v : 0), word: m.word };
+  return null;
+}
+
 // The flag number of a status-word bit, with where its subtrahend was read.
 function exeFlagOfStatusBit(bit, statusOffset) {
   const m = exeAbilityMap().find(x => x.word && x.offset && x.offset.v === statusOffset);

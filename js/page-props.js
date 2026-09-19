@@ -630,6 +630,86 @@ function classFieldNumber(cls, key, word, slot) {
   return (w & 0xF0000000) === 0 ? w : null;
 }
 
+/* Whether a class carries a member, by its table: what `has_member` in a
+   script answers. Every class table is "Item" (no class here names a
+   parent), so a class without the key has not got it. This is the file's
+   own rule for lockable (Lockable, 52), container (IsContainer, 23), seat
+   (Chair, 34) and portal (Portal, 58), and it replaced four name lists on
+   19 September 2026: the wooden door, the portcullis and the secret door
+   are not Lockable in this archive, the urns are not containers, and the
+   coffer and the trapdoor are locks the names had missed. */
+function classHasMember(pt, key) {
+  const cls = parseItemClass(pt);
+  return !!(cls && (cls.data.some(x => x.key === key) || cls.code.some(x => x.key === key) || cls.text.some(x => x.key === key)));
+}
+// A class whose script changes zone, or that the application treats as a
+// portal: what makes a prop record's Data2 a zoneport (propTravelsTo).
+function classTravels(pt) {
+  if (classHasMember(pt, 58)) return true;
+  const e = refExists(0x1000 + pt) ? buildScriptTextIndex().find(x => x.resid === 0x1000 + pt) : null;
+  if (!e) return false;
+  if (/\bsys ChangeZone\b/.test(e.text)) return true;
+  // A thing that is dug (Dug, 57) and reads its own Data3 is a buried way
+  // somewhere: the loose dirt on the world map carries the zoneport the
+  // hole it becomes will use.
+  return classHasMember(pt, 57) && /\bget_field data3\b/.test(e.text);
+}
+
+/* Every script that reads or writes a class field, by key: the
+   `has_member`, `get_field` and `set_field` ops over the whole archive,
+   each with its offset, so an item's field can say who consults it. */
+function dvmFieldReaders() {
+  if (DERIVED.FIELD_READERS) return DERIVED.FIELD_READERS;
+  const by = new Map();
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    for (const o of ops) {
+      const m = /^(has_member|get_field|set_field) (?:\S+ )?\(?(0x[0-9A-F]+)\)?$/.exec(o.text);
+      if (!m) continue;
+      const key = parseInt(m[2], 16);
+      if (!by.has(key)) by.set(key, []);
+      by.get(key).push({ resid: e.resid, at: o.at, how: m[1] });
+    }
+  }
+  return (DERIVED.FIELD_READERS = by);
+}
+// The readers of one key as links, a script once, the first site each.
+function fieldReadersHTML(key, cap) {
+  const all = dvmFieldReaders().get(key) || [];
+  const seen = new Map();
+  for (const s of all) if (!seen.has(s.resid)) seen.set(s.resid, s);
+  const sites = [...seen.values()];
+  if (!sites.length) return '';
+  const n = cap || 8;
+  return sites.slice(0, n).map(s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid))).join(', ') +
+    (sites.length > n ? ' and ' + (sites.length - n) + ' more' : '') +
+    ' <span style="color:#8c8980">(' + all.length + ' site' + (all.length === 1 ? '' : 's') + ')</span>';
+}
+
+/* The ClassFlags word (key 39), by bit: which classes carry each. The
+   application's per-class flag table is filled at load from the classes
+   (FillIntfCache), and this word is the part of that the file states
+   outright; what a bit means is not read here, so the sheet shows the
+   classes and lets the reader see the pattern. */
+function classFlagBits() {
+  const tiles = getPropTileList();
+  const bits = new Map();
+  let classes = 0;
+  for (let pt = 0; pt < tiles.length; pt++) {
+    if (tiles[pt] === undefined) continue;
+    const cls = parseItemClass(pt);
+    const f = cls && cls.data.find(x => x.key === 39);
+    if (!f || f.words.length !== 1 || (f.words[0] & 0xF0000000)) continue;
+    classes++;
+    const w = f.words[0] & 0x0FFFFFFF;
+    for (let b = 1; b <= 0x8000; b <<= 1) if (w & b) {
+      if (!bits.has(b)) bits.set(b, []);
+      bits.get(b).push({ pt, resid: cls.resid, at: f.off, word: w });
+    }
+  }
+  return { classes, bits: [...bits.entries()].sort((a, b) => a[0] - b[0]).map(([bit, who]) => ({ bit, who })) };
+}
+
 function itemFieldValue(f) {
   const info = ITEM_FIELD_INFO[f.key] || {};
   if (info.scalar && f.words.length === 1 && (f.words[0] & 0xF0000000) === 0) {
@@ -1498,15 +1578,20 @@ function showItemDetail(pt) {
     let rows = '';
     for (const f of cls.data) {
       const meta = ITEM_FIELD_INFO[f.key] || {};
+      const readers = fieldReadersHTML(f.key, 6);
       rows += '<tr><td style="padding:3px 10px 3px 0;color:#fff;white-space:nowrap">' +
         svEsc(itemFieldLabel(f.key)) +
         '<span style="color:#8c8980;font-size:0.6875rem"> 0x' + f.key.toString(16).toUpperCase().padStart(4,'0') + '</span></td>' +
         '<td style="padding:3px 0;font-family:ui-monospace,Menlo,Consolas,monospace">' +
         srcNum({ resid: cls.resid, at: f.off }, itemFieldValue(f)) + '</td></tr>' +
-        (meta.gloss ? '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">' +
+        (meta.gloss ? '<tr><td colspan="2" style="padding:0 0 2px;color:#8c8980;font-size:0.75rem">' +
           svEsc(meta.gloss) + '</td></tr>'
-        : '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">' +
-          'No published meaning for this key.</td></tr>');
+        : '<tr><td colspan="2" style="padding:0 0 2px;color:#8c8980;font-size:0.75rem">' +
+          'No published meaning for this key.</td></tr>') +
+        // Who consults it: every script with a has_member, get_field or
+        // set_field of this key, the first site in each as a link.
+        (readers ? '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">Read by ' + readers + '</td></tr>'
+                 : '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">No script in this archive reads this key by name.</td></tr>');
     }
     fold('data', 'Class data', cls.data.length + ' field' + (cls.data.length === 1 ? '' : 's'), '<table style="border-collapse:collapse;width:100%">' + rows + '</table>');
   } else if (cls) {

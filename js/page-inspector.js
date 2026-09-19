@@ -513,7 +513,7 @@ function propInspectRows(p) {
     if (!info || !info.scalar) continue;
     rows.push([itemFieldLabel(f.key), itemFieldValue(f)]);
   }
-  const lockable = LOCKABLE_PROPS.test((propTypeName(r.proptype) || '').toLowerCase());
+  const lockable = classHasMember(r.proptype, 52);
   if (lockable && r.d1) {
     const haveKey = keysForLock(r.d1).length;
     rows.push(['Lock', 'id ' + r.d1 + (haveKey
@@ -805,6 +805,7 @@ function inspectMapSquare(tx, ty) {
       '<dt>' + svEsc(k) + '</dt><dd>' + svEsc(v) + '</dd>').join('');
     const ways = [];
     if (isExitProp(p.rec.proptype)) ways.push('a way out of here');
+    if (classTravels(p.rec.proptype)) ways.push('changes zone by its class');
     if (isConcealedProp(p.rec.proptype)) ways.push('concealed');
     if (isWallProp(p.rec.proptype) && !(((getTileAttributes(ARCHIVE)[p.tileId] || 0) >> 8) & 0x02))
       ways.push('a wall you can walk through');
@@ -818,7 +819,7 @@ function inspectMapSquare(tx, ty) {
     acts.push('<button class="sv-chip" onclick="togglePropEdit(' + p.propResid + ',' + p.rec.index + ')">Edit</button>');
     // The lock/key cross-references: a locked thing offers its keys, a key
     // offers its locks, each chip a jump to the other end.
-    if (p.rec.d1 && LOCKABLE_PROPS.test((propTypeName(p.rec.proptype) || '').toLowerCase()))
+    if (p.rec.d1 && classHasMember(p.rec.proptype, 52))
       for (const k of keysForLock(p.rec.d1)) { const c = keyLocationChip(k); if (c) acts.push(c); }
     if (p.rec.proptype === KEY_PROPTYPE && p.rec.d1)
       for (const l of locksForKey(p.rec.d1).slice(0, 8)) acts.push(lockLocationChip(l));

@@ -1153,6 +1153,36 @@ function monsterFlagsText(f) {
   return bits.length ? bits.join(' · ') : 'none set';
 }
 
+/* Where the default ResistDamage (0x3040) tests each flag bit: the `word N`
+   that follows a `get_field monster_flags`, with its offset, so a flag on a
+   monster's page opens the line that reads it. Bits 0x3040 does not test
+   are named from gandreas's list (MONSTER_FLAG_NAMES) with no link. */
+function monsterFlagSites() {
+  if (DERIVED.MONSTER_FLAG_SITES) return DERIVED.MONSTER_FLAG_SITES;
+  const out = new Map();
+  try {
+    const e = buildScriptTextIndex().find(x => x.resid === 0x3040);
+    const ops = e ? dvmOpsOf(e) : [];
+    for (let i = 0; i + 1 < ops.length; i++) {
+      if (!/^get_field monster_flags\b/.test(ops[i].text)) continue;
+      const m = /^(?:byte|short|word) (-?0x[0-9A-F]+|-?\d+)$/i.exec(ops[i + 1].text);
+      if (!m) continue;
+      const mask = parseInt(m[1]);
+      if (!out.has(mask)) out.set(mask, { resid: 0x3040, at: ops[i + 1].at });
+    }
+  } catch (e) { quiet(e); }
+  return (DERIVED.MONSTER_FLAG_SITES = out);
+}
+function monsterFlagsHTML(f) {
+  const sites = monsterFlagSites();
+  const bits = [];
+  let rest = f;
+  for (const [bit, name] of MONSTER_FLAG_NAMES)
+    if (f & bit) { const s = sites.get(bit); bits.push(s ? srcNum(s, name) : svEsc(name)); rest &= ~bit; }
+  if (rest) bits.push('+0x' + rest.toString(16).toUpperCase() + ' (unidentified)');
+  return bits.length ? bits.join(' · ') : 'none set';
+}
+
 function parseMonsterStats() {
   if (DERIVED.MONSTER_STATS) return DERIVED.MONSTER_STATS;
   const out = [];
@@ -1243,7 +1273,8 @@ function showMonsterDetail(idx) {
     '<div><b>Health</b>' + r.hp + (r.armor ? ' &nbsp; <b>Armor</b> ' + r.armor : '') +
       (r.size ? ' &nbsp; <b>Size?</b> ' + r.size : '') + '</div>' +
     '<div><b>Special flags</b>0x' + r.flags.toString(16).toUpperCase().padStart(4, '0') +
-      ' <span style="font-size:0.6875rem;color:#b5b2a8">' + svEsc(monsterFlagsText(r.flags)) + '</span></div>' +
+      ' <span style="font-size:0.6875rem;color:#b5b2a8">' + monsterFlagsHTML(r.flags) + '</span>' +
+      '<br><span style="font-size:0.6875rem;color:#8c8980">A linked flag opens the line of the default ResistDamage that tests it; the rest are named from gandreas’s list and tested elsewhere.</span></div>' +
     '</div>';
   panel.innerHTML = h;
 

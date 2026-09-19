@@ -699,7 +699,13 @@ function ditherReplacePortrait() { ditherReplace(); }
 // key items exist, and all 8 match a lock -- no key opens nothing. The 54
 // ids with no key are the lockpick's and the scripts' business, and the UI
 // says so instead of hunting for a key that does not exist.
-const LOCKABLE_PROPS = /door$|gate$|portcullis|^chest|trunk/;
+// Lockable is the class's own word for it since 19 September 2026: key 52
+// of its table, what `has_member Lockable` answers (classHasMember). A
+// name list stood here and disagreed with the file five times.
+// The key's prop type is still a number: nothing in a class table says
+// "this is a key" -- the lock's side is UseLock (53), and the key class
+// carries only ClassFlags 0x08, which it shares with the amulet and the
+// grimoire.
 const KEY_PROPTYPE = 66;
 DERIVED.KEY_LOCK_INDEX = null;
 function buildKeyLockIndex() {
@@ -714,7 +720,7 @@ function buildKeyLockIndex() {
       if (r.flags === 0xFF || r.flags === 0x42 || r.flags === 0x44) continue;
       if (r.proptype === KEY_PROPTYPE) {
         if (r.d1) keys.push({ map: mr, id: r.d1, rec: r });
-      } else if (r.d1 && LOCKABLE_PROPS.test((propTypeName(r.proptype) || '').toLowerCase())) {
+      } else if (r.d1 && classHasMember(r.proptype, 52)) {
         locks.push({ map: mr, id: r.d1, rec: r,
                      name: propDisplayName(r.proptype) || ('0x' + r.proptype.toString(16)) });
       }

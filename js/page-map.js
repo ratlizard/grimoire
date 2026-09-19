@@ -885,7 +885,10 @@ function classifyProp(pt, tileId) {
   // door. A "doorway" is the arch a door hangs in, and between two hallways
   // it hangs nothing, so it is not a door.
   if (/\bdoor$|gate|portcullis/.test(nm)) return 'doors';
-  if (/chest|barrel|crate|sack|cupboard|cabinet|dresser|wardrobe|trunk|urn|pot\b|coffer|bookshelf/.test(nm)) return 'chest';
+  // A container is a class with IsContainer (23), the file's own word for
+  // it (classHasMember); the name list this replaced marked urns and the
+  // bookshelf, which no record is ever inside.
+  if (classHasMember(pt, 23)) return 'chest';
   return null;
 }
 // Is this prop a way off the map or down to another level?
@@ -929,24 +932,27 @@ function isConcealedProp(pt) { return HIDDEN_PROPS.test((propTypeName(pt) || '')
    arch at (63,32) has data2 -> world (164,20).
 --------------------------------------------------------------------------- */
 const WORLD_MAP_RESID = 0x8001;
-// Trusted anywhere: an arch is a gate, and the pair above proves it.
-// "steps" was already read this way by the square inspector -- see the
-// comment there -- and stays out of EXIT_PROPS so the map marks do not
-// repaint every decorative flight of stairs. It contributes no gateway to the
-// world map, as it happens: all three `steps` records there carry flags 0x42,
-// which is an EGG rather than a prop on the ground, so their "proptype" is
-// not a proptype at all and the record filter below drops them.
-const PORTAL_PROPS = /^(steps|arch)$/;
-// Trusted on the world map only. Elsewhere these are buildings.
+// The one name list left in this reading, and it scopes rather than
+// decides: the settlement classes are Portal classes like any other, but
+// a `ruins` or a `large city` standing on a town map is a building whose
+// Data2 is not a zoneport (see above), so their Data2 is read only on the
+// world map. Which classes are settlements is this page's word; the file
+// does not distinguish them from the other portals.
 const SETTLEMENT_PROPS = /^(large city|small city|ruins)$/;
 
 // Where a prop record travels to, or null. mapResid is the map the record was
 // read from, which is what scopes the settlement icons.
 function propTravelsTo(rec, mapResid) {
   if (!rec || !rec.d2) return null;
-  const nm = (propTypeName(rec.proptype) || '').toLowerCase();
-  const known = EXIT_PROPS.test(nm) || PORTAL_PROPS.test(nm) ||
-                (mapResid === WORLD_MAP_RESID && SETTLEMENT_PROPS.test(nm));
+  // Since 19 September 2026 the class decides: a Portal member (58), a
+  // script that calls ChangeZone, or a Dug class reading its Data3
+  // (classTravels), which is the set the application and the scripts
+  // actually read Data2 as a zoneport for. The passages the old list also
+  // named -- mousehole, crack, loose board -- have no class or no such
+  // member, and their zone change is an egg's. The settlement scoping
+  // above is the one judgement left.
+  const known = classTravels(rec.proptype) &&
+                (mapResid === WORLD_MAP_RESID || !SETTLEMENT_PROPS.test((propTypeName(rec.proptype) || '').toLowerCase()));
   return known ? zoneportInfo(rec.d2) : null;
 }
 
@@ -1580,7 +1586,7 @@ function drawMapMarks(lensCtx, lensTS) {
       // A locked door or container wears a keyhole over its ring: the lock
       // id is the record's first data byte (see buildKeyLockIndex).
       if (((M.doors && kind === 'doors') || (M.chest && kind === 'chest')) &&
-          r.d1 && LOCKABLE_PROPS.test((propTypeName(r.proptype) || '').toLowerCase()) &&
+          r.d1 && classHasMember(r.proptype, 52) &&
           !seen('l')) {
         locked++;
         ctx.save();
@@ -2191,7 +2197,10 @@ function walkingPosition(entries, t, m) {
 // aspect 3 west 33:1. Four-frame chair aspects are simply the sprite facing
 // order, N/E/S/W -- identity, no table needed.
 const CHAIR_FACING = [SPR_S, SPR_W, SPR_N, SPR_E];    // one-frame seats only
-const SEAT_PROPTYPES = new Set([12, 41, 220, 227]);   // chair, throne, chair, chair
+// A seat is a class with a Chair member (34), the file's own word; the
+// four-entry set this replaced counted prop type 227, which has no class
+// table at all, and so is not a chair to the program either.
+const isSeatProp = pt => classHasMember(pt, 34);
 // How many frames of its own a seat prop has, so an aspect can be told from an
 // index that has run off the end of the chair and into the next thing on the
 // sheet.
@@ -2235,7 +2244,7 @@ function seatsOnMap(resid, m) {
       }
       for (const r of recs) {
         if (r.flags === 0xFF || r.flags === 0x42 || r.flags === 0x44) continue;
-        if (!SEAT_PROPTYPES.has(r.proptype)) continue;
+        if (!isSeatProp(r.proptype)) continue;
         const own = seatOwnFrames(r.proptype);
         // The aspect can only BE a four-way facing where the seat has four
         // frames to hold one -- or where it has exactly one, so aspect 0 is
