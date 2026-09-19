@@ -55,8 +55,8 @@ function swapGameFont(bytes, filename) {
   const reopened = openResourceFork(raw);     // it must read back, or it is not written
   window.CYTHERA_RSRC_RAW = raw;
   window.CYTHERA_RSRC = reopened;
-  window.EDITOR_ZONE_NAMES = null;            // named out of the fork
-  window.AI_HOOK_NAMES = null;
+  DERIVED.EDITOR_ZONE_NAMES = null;            // named out of the fork
+  DERIVED.AI_HOOK_NAMES = null;
   window.FONT_SWAP = { name: filename || 'a font', mapped: made.mapped, format: made.format,
                        from: target.id, bytes: made.bytes.length, was: bytes.length };
   // The page is set in the game's font, so it now shows the new one: the
@@ -117,7 +117,7 @@ function undoFontSwap() {
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.FONT_SWAP = null;
-  window.EDITOR_ZONE_NAMES = null;
+  DERIVED.EDITOR_ZONE_NAMES = null;
   try { installGameFont(); } catch (e) { quiet(e); }
   try { installDialogueBox(); } catch (e) { quiet(e); }
   setStatus('The game’s own font is back.');
@@ -855,7 +855,7 @@ async function loadApplicationFork() {
       window.APP_DATA = c.data && c.data.length ? c.data : null; window.APP_PEF = null;
       window.APP_RSRC_STATE = '';
       try { installDialogueBox(); } catch (e) { quiet(e); }
-      window.AI_HOOK_NAMES = null;
+      DERIVED.AI_HOOK_NAMES = null;
       syncInstallerTabs();
       syncTabsTo(document.getElementById('categorySelect').value);
       rerenderForkView();

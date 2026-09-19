@@ -12,6 +12,43 @@
    that needed a later file, the brand line, stayed in the page after the
    last of these. File 1 of 14. */
 
+/* THE PAGE'S OWN TABLES LIVE ON THE ARCHIVE. Everything the page derives
+   from the open file -- the schedules, the character table, the barks, the
+   item index, the zone names, the map's tile canvases and paths, forty-odd
+   tables in all -- used to be `window.NAME` memos and module-level Maps,
+   cleared by name in resetDerivedCaches() when another file opened. That
+   list missed ten entries at once on 16 September 2026 and could miss more.
+   Since 19 September they live on the archive object js/delv-archive.js
+   returns, under its `derived` map, the way the delv tier's own tables do:
+   `DERIVED.SCHEDULES` reads and writes the open archive's entry and is
+   undefined with no file open, and a Map declared as derivedMap('name') is
+   the open archive's Map, so opening another file leaves nothing behind
+   and nothing needs listing. Both are defined here, in the first page file,
+   because the Maps are declared at load time in the files that follow.
+   ARCHIVE itself is declared here as well, and not in js/page-archive.js
+   where it is assigned: a `let` cannot be reached until its declaration
+   has run, and a table set to null at load by a file before that one --
+   which the harnesses, running the scripts as one string, report as
+   "cannot access ARCHIVE before initialization" -- has to find it already
+   declared. What stays in resetDerivedCaches is state, not tables: where
+   the visitor stands, what they edited, which fork is shown. */
+let ARCHIVE = null;   // the open file, { bytes, index, derived } from openDelverArchive; null until one is open
+const DERIVED = new Proxy({}, {
+  get: (_, k) => ARCHIVE ? ARCHIVE.derived.get('page:' + k) : undefined,
+  set: (_, k, v) => { if (ARCHIVE) ARCHIVE.derived.set('page:' + k, v); return true; },
+  has: (_, k) => !!(ARCHIVE && ARCHIVE.derived.has('page:' + k)),
+  deleteProperty: (_, k) => { if (ARCHIVE) ARCHIVE.derived.delete('page:' + k); return true; },
+});
+function derivedMap(name) {
+  const none = new Map();   // with no file open: a Map that belongs to nothing
+  const m = () => ARCHIVE ? derivedTable(ARCHIVE, 'page:' + name, () => new Map()) : none;
+  return {
+    get: k => m().get(k), set(k, v) { m().set(k, v); return this; }, has: k => m().has(k), delete: k => m().delete(k),
+    clear: () => m().clear(), get size() { return m().size; }, keys: () => m().keys(), values: () => m().values(),
+    entries: () => m().entries(), forEach: (f, t) => m().forEach(f, t), [Symbol.iterator]: () => m()[Symbol.iterator](),
+  };
+}
+
 let currentMode = 'sheet';
 let currentResid = null;
 let lastSheetScrollY = 0;
@@ -101,12 +138,12 @@ function dialogueSpeakerFor(resid) {
 // resource is the name the game shows, and the second is its description.
 // Read out of the archive rather than guessed, but cached, since it costs a
 // decode and a container walk per resource.
-window.SELF_NAMES = null;
+DERIVED.SELF_NAMES = null;
 function selfNameFor(resid) {
   const subn = Math.floor(resid / 0x100) - 1;
   if (subn !== 25) return null;
-  if (!window.SELF_NAMES) window.SELF_NAMES = {};
-  if (resid in window.SELF_NAMES) return window.SELF_NAMES[resid];
+  if (!DERIVED.SELF_NAMES) DERIVED.SELF_NAMES = {};
+  if (resid in DERIVED.SELF_NAMES) return DERIVED.SELF_NAMES[resid];
   let name = null;
   try {
     const raw = getResourceBytes(ARCHIVE, resid);
@@ -128,7 +165,7 @@ function selfNameFor(resid) {
       }
     }
   } catch (e) { quiet(e); }
-  return (window.SELF_NAMES[resid] = name);
+  return (DERIVED.SELF_NAMES[resid] = name);
 }
 
 function labelForResource(subn, n, resid) {
@@ -259,7 +296,7 @@ for (const k of Object.keys(ZONES)) { const n = +k; RESHINTS[0x8000+n]=ZONES[n];
 // 0x14nn, and the prop list 0x81nn with the same nn. This gives the game's own
 // names ("Land King Hall", "Kosha Grotto", "Omen's Test") instead of the
 // hand-annotated guesses we were shipping.
-window.ZONE_NAMES = null;
+DERIVED.ZONE_NAMES = null;
 /* A second set of names, the editor's, from the resource fork: STR# 135 in
    Cythera Data lists every zone in map order, one entry per map from map 1
    -- entry 0 is the world, map 1; map 0, the editor's blank "Map", has none.
@@ -278,13 +315,13 @@ window.ZONE_NAMES = null;
    own copy, so a label drawn from it is data rather than a built-in. The
    script name still leads where there is one; the editor's name is shown
    beside it when it differs. */
-window.EDITOR_ZONE_NAMES = null;
+DERIVED.EDITOR_ZONE_NAMES = null;
 function loadEditorZoneNames() {
-  if (window.EDITOR_ZONE_NAMES) return window.EDITOR_ZONE_NAMES;
+  if (DERIVED.EDITOR_ZONE_NAMES) return DERIVED.EDITOR_ZONE_NAMES;
   const names = {};
   const list = forkStringList(window.CYTHERA_RSRC, 135);
   if (list) list.forEach((nm, i) => { if (nm) names[i + 1] = nm; });
-  return (window.EDITOR_ZONE_NAMES = names);
+  return (DERIVED.EDITOR_ZONE_NAMES = names);
 }
 // The combat AI's scripted tests and actions, named by the application's own
 // lists: STR# 9307 has the six tests in the order of 0x901-0x906 and STR# 9308
@@ -294,13 +331,13 @@ function loadEditorZoneNames() {
 // UsingRangedWeapon(@,#)). The entries are the file's, signature and all.
 // Null without the application's fork, when the static table in
 // js/delv-script.js is all a script gets.
-window.AI_HOOK_NAMES = null;
+DERIVED.AI_HOOK_NAMES = null;
 function aiHookName(resid) {
   const t = resid >= 0x901 && resid <= 0x906 ? ['tests', 9307, resid - 0x901]
           : resid >= 0x981 && resid <= 0x98D ? ['actions', 9308, resid - 0x981] : null;
   if (!t || !window.APP_RSRC) return null;
-  if (!window.AI_HOOK_NAMES) window.AI_HOOK_NAMES = { tests: forkStringList(window.APP_RSRC, 9307) || [], actions: forkStringList(window.APP_RSRC, 9308) || [] };
-  return window.AI_HOOK_NAMES[t[0]][t[2]] || null;
+  if (!DERIVED.AI_HOOK_NAMES) DERIVED.AI_HOOK_NAMES = { tests: forkStringList(window.APP_RSRC, 9307) || [], actions: forkStringList(window.APP_RSRC, 9308) || [] };
+  return DERIVED.AI_HOOK_NAMES[t[0]][t[2]] || null;
 }
 function editorZoneName(resid) {
   const subn = Math.floor(resid / 0x100) - 1;
@@ -320,9 +357,9 @@ function editorNameSuffix(resid, shown) {
 // fields are zoneport indices, so they resolve to a real destination.
 // Validated against Selax's hand-made list: 07 -> Abandoned Farmhouse,
 // 08 -> Cellar, 0B -> Catamarca, 02/05/06/0A -> the world map.
-window.ZONEPORTS = null;
+DERIVED.ZONEPORTS = null;
 function loadZoneports() {
-  if (window.ZONEPORTS) return window.ZONEPORTS;
+  if (DERIVED.ZONEPORTS) return DERIVED.ZONEPORTS;
   const out = [];
   try {
     const b = getResourceBytes(ARCHIVE, 0xF00C);
@@ -331,7 +368,7 @@ function loadZoneports() {
       out.push({ map: 0x8000 | b[i], x: xy >> 12, y: xy & 0xFFF });
     }
   } catch (e) { quiet(e); }
-  return (window.ZONEPORTS = out);
+  return (DERIVED.ZONEPORTS = out);
 }
 function zoneportInfo(idx) {
   const z = loadZoneports()[idx];
@@ -341,7 +378,7 @@ function zoneportInfo(idx) {
 }
 
 function loadZoneNames() {
-  if (window.ZONE_NAMES) return window.ZONE_NAMES;
+  if (DERIVED.ZONE_NAMES) return DERIVED.ZONE_NAMES;
   const names = {};
   for (let n = 0; n < 0x100; n++) {
     const resid = 0x1400 | n;
@@ -360,7 +397,7 @@ function loadZoneNames() {
     }
   }
   if (Object.keys(names).length) window.SCENARIO_ZONE_NAMES = names;
-  return (window.ZONE_NAMES = names);
+  return (DERIVED.ZONE_NAMES = names);
 }
 // The same borrowing for the zone names: a save's zone byte is the low byte
 // of a map resource id, and the map itself is in the scenario rather than in
@@ -459,13 +496,13 @@ function applyNamesDefault(own) {
   try { stored = localStorage.getItem('cythera.builtinLabels'); } catch (e) { stored = null; }
   if (stored !== null) return;
   window.SHOW_BUILTIN_LABELS = !own;
-  try { window.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) { quiet(e); }
+  try { DERIVED.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) { quiet(e); }
 }
 function setBuiltinLabels(on) {
   window.SHOW_BUILTIN_LABELS = !!on;
   try { localStorage.setItem('cythera.builtinLabels', on ? '1' : '0'); } catch (e) { quiet(e); }
   // The atlas names its places once, when the scene is built.
-  try { window.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) { quiet(e); }
+  try { DERIVED.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) { quiet(e); }
   if (ARCHIVE) {
     try { onCategoryChange(); } catch (e) { quiet(e); }
   }
@@ -724,7 +761,7 @@ function buildCompositeTile(entry) {
 // is how an irregular plural is spelled out: "obol\s/oi" gives "obols" and
 // "oboloi". Eight entries in 0xF004 use it, and this viewer was showing all
 // eight raw, backslash and all.
-window.TERRAIN_NAMES = null;
+DERIVED.TERRAIN_NAMES = null;
 function delverNameCode(nameCode, plural) {
   const b = String(nameCode).indexOf('\\');
   if (b < 0) return nameCode;
@@ -734,7 +771,7 @@ function delverNameCode(nameCode, plural) {
   return plural ? stem + ending : stem;
 }
 function loadTerrainNames() {
-  if (window.TERRAIN_NAMES) return window.TERRAIN_NAMES;
+  if (DERIVED.TERRAIN_NAMES) return DERIVED.TERRAIN_NAMES;
   const list = [];
   try {
     const raw = getResourceBytes(ARCHIVE, 0xF004);
@@ -760,7 +797,7 @@ function loadTerrainNames() {
       }
     }
   } catch (e) { quiet(e); }
-  window.TERRAIN_NAMES = list;
+  DERIVED.TERRAIN_NAMES = list;
   return list;
 }
 function terrainNameFor(tileId, plural) {
@@ -895,7 +932,7 @@ function stopSpriteAnimations() {
 }
 // Not every character has a full 4x4 sheet. Count frames that actually carry
 // pixels so the UI can say so rather than showing blanks.
-const spriteCountCache = new Map();
+const spriteCountCache = derivedMap('spriteCountCache');
 // How many frames a character actually owns is set by the prop->tile table:
 // a proptype's sprite block runs from its base tile up to the next proptype's
 // base tile. Most characters get a full 16 (4 facings x 4 poses) and their

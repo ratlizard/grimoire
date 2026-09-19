@@ -12,12 +12,16 @@ import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsr
 // Opening a second archive must not leave the first one's derived tables
 // behind. Sentinels survive only if something is not being reset.
 try {
-  const marked = ['SCHEDULES', 'CHAR_TABLE', 'LIVING_PROPTYPES', '_CHAR_PROPTYPES',
+  // Two kinds since 19 September 2026: the tables, which live on the archive
+  // object (DERIVED) and go with it, and the state resetDerivedCaches still
+  // clears by name. Both are marked and neither may survive a reload.
+  const tables = ['SCHEDULES', 'CHAR_TABLE', 'LIVING_PROPTYPES', '_CHAR_PROPTYPES',
                   'TERRAIN_NAMES', 'ZONE_NAMES', 'ZONEPORTS', 'STORE_SYMBOLS',
-                  'XREF_INDEX', 'SCRIPT_TEXT', 'MONSTER_STATS',
-                  'EDITED_RESIDS', 'CONV_CACHE', 'PATCH_BASE_SPEC', 'PATCH_REPORT',
-                  'COMPARE_REPORT', 'COMPARE_APP', 'APP_RSRC_RAW'];
-  for (const k of marked) ctx[k] = '__stale__';
+                  'XREF_INDEX', 'SCRIPT_TEXT', 'MONSTER_STATS', 'CONV_CACHE', 'PATCH_BASE_SPEC'];
+  const state = ['EDITED_RESIDS', 'PATCH_REPORT', 'COMPARE_REPORT', 'COMPARE_APP', 'APP_RSRC_RAW'];
+  const marked = tables.concat(state);
+  for (const k of tables) peek('DERIVED')[k] = '__stale__';
+  for (const k of state) ctx[k] = '__stale__';
   peek('tileCanvasCache').set(-1, '__stale__');
   A().derived.set('__stale__', 1);
   const staleArc = A();
@@ -25,7 +29,7 @@ try {
   peek('pathCache').set('__stale__', 1);
   peek('_tileImageCache')['-1'] = '__stale__';
   ctx.parseArchiveBytes(archive, 'Cythera Data (reloaded)', { via: 'data fork' });
-  const survivors = marked.filter(k => ctx[k] === '__stale__');
+  const survivors = tables.filter(k => peek('DERIVED')[k] === '__stale__').concat(state.filter(k => ctx[k] === '__stale__'));
   for (const [name, present] of [
     ['tileCanvasCache', peek('tileCanvasCache').has(-1)],
     ['the archive object', A() === staleArc || A().derived.has('__stale__')],
@@ -504,7 +508,7 @@ try {
   else if (!new RegExp('jumpToResource\\(' + 0x8E20 + '\\)').test(view) || !/No class owns this picture/.test(view)) fail('tile view', 'the hatchet’s view does not name its sheet or say no class owns it');
   else {
     ctx.openItem(spear, 1); drainRaf();
-    const pw = peek('window.PROP_WORD');
+    const pw = peek('DERIVED.PROP_WORD');
     if (ctx.CUR_SUBN !== 'ITEMS' || !pw || pw.aspect !== 1 || pw.pt !== spear) fail('tile view', 'the spear chip does not open the spear at aspect 1');
     else console.log('  tile view: the hatchet and the flail open their own views, which lead to the classes that draw them');
   }

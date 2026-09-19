@@ -24,8 +24,8 @@
    engine keeps, and nothing is drawn for them. This is a reading of the
    scripts plus the one image pair that fits, not a documented rule. */
 function zoneLandscapeArg(level) {
-  if (!window.ZONE_BACKDROPS) window.ZONE_BACKDROPS = Object.create(null);
-  if (level in window.ZONE_BACKDROPS) return window.ZONE_BACKDROPS[level];
+  if (!DERIVED.ZONE_BACKDROPS) DERIVED.ZONE_BACKDROPS = Object.create(null);
+  if (level in DERIVED.ZONE_BACKDROPS) return DERIVED.ZONE_BACKDROPS[level];
   let found = null;
   try {
     const resid = 0x1400 + level;
@@ -52,7 +52,7 @@ function zoneLandscapeArg(level) {
       }
     }
   } catch (e) { quiet(e); }
-  return (window.ZONE_BACKDROPS[level] = found);
+  return (DERIVED.ZONE_BACKDROPS[level] = found);
 }
 // The zones whose entry script sets landscape strip `resid` (0x8400 + n).
 function landscapeZones(resid) {
@@ -66,7 +66,7 @@ function landscapeZones(resid) {
 function zoneBackdrop(level) {
   return zoneLandscapeArg(level) === -1 && refExists(0x8F50) && refExists(0x8F51) ? [0x8F50, 0x8F51] : null;
 }
-const _backdropCanvases = new Map();
+const _backdropCanvases = derivedMap('_backdropCanvases');
 function backdropPattern(ctx, resid, TS) {
   try {
     let c = _backdropCanvases.get(resid);
@@ -84,7 +84,7 @@ function backdropPattern(ctx, resid, TS) {
     return pat;
   } catch (e) { return null; }
 }
-const _tileClearCache = new Map();
+const _tileClearCache = derivedMap('_tileClearCache');
 function tileHasTransparency(t) {
   if (_tileClearCache.has(t)) return _tileClearCache.get(t);
   let clear = false;
@@ -1425,7 +1425,7 @@ function switchInstaller(name) {
    the bundle has no icon of its own for one. Anything else gets no icon rather
    than a wrong one. */
 function bundleIconMap(fork, cacheKey) {
-  const cache = window._BUNDLE_ICONS || (window._BUNDLE_ICONS = {});
+  const cache = DERIVED._BUNDLE_ICONS || (DERIVED._BUNDLE_ICONS = {});
   if (cache[cacheKey]) return cache[cacheKey];
   const map = {};
   try {
@@ -1491,7 +1491,7 @@ function finderIconFor(type) {
 function installerIcon(which) {
   const inst = window.INSTALLER;
   if (!inst) return null;
-  const cache = window._INSTALLER_ICONS || (window._INSTALLER_ICONS = {});
+  const cache = DERIVED._INSTALLER_ICONS || (DERIVED._INSTALLER_ICONS = {});
   if (which in cache) return cache[which];
   let art = null;
   try {

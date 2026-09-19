@@ -303,13 +303,13 @@ function diceSimHtml() {
    weapons. It is rebuilt on every render of the sheet rather than memoised
    for the session, and cleared with everything else archive-keyed. */
 function mechWeapons() {
-  if (!window.MECH_WEAPONS) {
+  if (!DERIVED.MECH_WEAPONS) {
     try {
-      window.MECH_WEAPONS = gearTable().filter(g => g.damage !== null && g.damage !== undefined && g.damage > 0)
+      DERIVED.MECH_WEAPONS = gearTable().filter(g => g.damage !== null && g.damage !== undefined && g.damage > 0)
         .sort((a, b) => b.damage - a.damage);
-    } catch (e) { window.MECH_WEAPONS = []; }
+    } catch (e) { DERIVED.MECH_WEAPONS = []; }
   }
-  return window.MECH_WEAPONS;
+  return DERIVED.MECH_WEAPONS;
 }
 function mechShields() {
   try { return gearTable().filter(g => g.block !== null && g.block !== undefined).sort((a, b) => b.block - a.block); }
@@ -803,9 +803,9 @@ function mechSkillsFigure(sk) {
    cache for tidiness rather than for speed; resetDerivedCaches drops it with
    everything else keyed to the file that is open. */
 function patchBaseSpec() {
-  if (!window.PATCH_BASE_SPEC && ARCHIVE)
-    window.PATCH_BASE_SPEC = delverArchiveSpec(ARCHIVE.bytes);
-  return window.PATCH_BASE_SPEC;
+  if (!DERIVED.PATCH_BASE_SPEC && ARCHIVE)
+    DERIVED.PATCH_BASE_SPEC = delverArchiveSpec(ARCHIVE.bytes);
+  return DERIVED.PATCH_BASE_SPEC;
 }
 
 /* A patch's bytes, however they got here. Split from the file control below
@@ -1943,7 +1943,7 @@ function renderMechanicsSheet(value) {
   // The figures' weapon list is derived, so it is dropped here and rebuilt
   // with the sheet rather than kept for the session; resetDerivedCaches()
   // drops it too, for the archive that is swapped while it is not showing.
-  window.MECH_WEAPONS = null;
+  DERIVED.MECH_WEAPONS = null;
   const grid = document.getElementById('sheetGrid');
   const out = document.getElementById('output');
   grid.style.display = '';

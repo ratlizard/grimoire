@@ -75,7 +75,7 @@ try {
       // by their test, and the one placed sword that carries one.
       const walk = el => (el.innerHTML || '') + (el.textContent || '') + (el.children || []).map(walk).join('');
       const pw = ctx.propWordRules();
-      const st = ctx.__peek('window.PROP_WORD');
+      const st = ctx.__peek('DERIVED.PROP_WORD');
       if (!st || st.pt !== 94 || st.slots.length !== 32) fail('items', 'the prop record block did not mount on the mace’s page with 32 slots: ' + JSON.stringify(st && [st.pt, st.slots && st.slots.length]));
       else {
         ctx.propWordSet(8);

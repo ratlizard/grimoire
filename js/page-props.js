@@ -29,14 +29,14 @@ const PROP_TYPE_NAMES = {130:"obols",244:"[LandKing](LandKing) Amulet"};
 // table is somebody rather than something. Read from 0xF009, not guessed from
 // the names -- "goat" and "harpy" are creatures, but so is "king", and no
 // keyword list gets that right.
-window.LIVING_PROPTYPES = null;
+DERIVED.LIVING_PROPTYPES = null;
 function livingPropTypes() {
-  if (window.LIVING_PROPTYPES) return window.LIVING_PROPTYPES;
+  if (DERIVED.LIVING_PROPTYPES) return DERIVED.LIVING_PROPTYPES;
   const set = new Set();
   try {
     for (const c of loadCharacterTable()) if (c && c.proptype) set.add(c.proptype);
   } catch (e) { quiet(e); }
-  return (window.LIVING_PROPTYPES = set);
+  return (DERIVED.LIVING_PROPTYPES = set);
 }
 
 // A prop type's name for deciding what it is: the two entries above where
@@ -163,7 +163,7 @@ function frameRuns(base, present) {
    outline are shared by every frame and say nothing) and names the hue. */
 const HUE_WORDS = [[15,'red'],[45,'orange'],[70,'yellow'],[160,'green'],[200,'cyan'],
                    [258,'blue'],[320,'purple'],[345,'pink'],[361,'red']];
-const _frameColourCache = new Map();
+const _frameColourCache = derivedMap('_frameColourCache');
 function frameColourWord(tileId) {
   if (_frameColourCache.has(tileId)) return _frameColourCache.get(tileId);
   let word = null;
@@ -577,10 +577,10 @@ function itemFieldLabel(key) {
 /* Any class's table, not only an item's: a monster class at 0x19xx is laid
    out the same way, and the sound reader wants both. `bytes` is kept so a
    word that points at another array in the same class can be followed. */
-window.ITEM_CLASSES = null;
+DERIVED.ITEM_CLASSES = null;
 function parseItemClass(pt) { return parseClassTable(0x1000 + pt); }
 function parseClassTable(resid) {
-  const cache = window.ITEM_CLASSES || (window.ITEM_CLASSES = {});
+  const cache = DERIVED.ITEM_CLASSES || (DERIVED.ITEM_CLASSES = {});
   if (resid in cache) return cache[resid];
   let b = null;
   try { const raw = getResourceBytes(ARCHIVE, resid); if (raw) b = smartDecrypt(raw, resid).data; } catch (e) { quiet(e); }
@@ -655,9 +655,9 @@ function itemWeight(pt) {
    floor but inside something, and reading their location word as containment
    (see parseDelverPropList) turns them into "Larisa's dresser holds four keys"
    and "Deiphobus carries a mace, a cuirass and a round shield". */
-window.ITEM_INDEX = null;
+DERIVED.ITEM_INDEX = null;
 function buildItemIndex() {
-  if (window.ITEM_INDEX) return window.ITEM_INDEX;
+  if (DERIVED.ITEM_INDEX) return DERIVED.ITEM_INDEX;
   const byType = {};
   const get = pt => byType[pt] || (byType[pt] = {
     total: 0, loose: 0, contained: 0, carried: 0, equipped: 0, takeable: 0,
@@ -701,8 +701,8 @@ function buildItemIndex() {
       } else e.loose++;
     }
   }
-  window.ITEM_WORN = worn;
-  return (window.ITEM_INDEX = byType);
+  DERIVED.ITEM_WORN = worn;
+  return (DERIVED.ITEM_INDEX = byType);
 }
 
 /* THE ASPECT RULE, and the art no class owns.
@@ -739,15 +739,15 @@ function buildItemIndex() {
    dried foods, a plow, a broken axe, a broken bow, and four petroglyph
    tiles the two traps reach. "Placed" means by a prop record; whether a
    map's own tile layer draws any of them is not asked here. */
-window.ORPHAN_ART = null;
+DERIVED.ORPHAN_ART = null;
 function orphanItemArt() {
-  if (window.ORPHAN_ART) return window.ORPHAN_ART;
+  if (DERIVED.ORPHAN_ART) return DERIVED.ORPHAN_ART;
   const tiles = getPropTileList();
   const bases = propBaseTileSet();
   const baseNames = new Set();
   for (let pt = 0; pt < tiles.length; pt++) { const nm = tiles[pt] ? terrainNameFor(tiles[pt]) : ''; if (nm) baseNames.add(nm); }
   const out = new Map();
-  const worn = (buildItemIndex(), window.ITEM_WORN || new Map());
+  const worn = (buildItemIndex(), DERIVED.ITEM_WORN || new Map());
   // Every (class, aspect) the file places, by the tile it lands on, over
   // all classes and not only the items; and the tiles a class owns as its
   // states because its script writes its aspect.
@@ -779,7 +779,7 @@ function orphanItemArt() {
       o.reach.push({ pt: e.pt, aspect: n, word: (n << 10) | e.pt });
     }
   }
-  return (window.ORPHAN_ART = [...out.values()].sort((a, b) => a.tile - b.tile));
+  return (DERIVED.ORPHAN_ART = [...out.values()].sort((a, b) => a.tile - b.tile));
 }
 // The orphans one item can wear, by aspect.
 function orphanArtReachable(pt) {
@@ -840,9 +840,9 @@ function aspectUseAt(pt, a) {
    byte. Each pattern below is a shape in the listing, so an archive whose
    resolver has been edited shows what it has. Read by the item page's word
    block and the Mechanics section of the same name. */
-window.PROP_WORD_RULES = null;
+DERIVED.PROP_WORD_RULES = null;
 function propWordRules() {
-  if (window.PROP_WORD_RULES) return window.PROP_WORD_RULES;
+  if (DERIVED.PROP_WORD_RULES) return DERIVED.PROP_WORD_RULES;
   const idx = buildScriptTextIndex();
   const strip = t => t.replace(/^\s*[0-9A-F]{4}\s+/gm, '');
   const resolve = idx.find(e => e.resid === 0xE87);
@@ -908,7 +908,7 @@ function propWordRules() {
   // sentence it feeds is about the enchantment. It was told apart by the
   // number in the inner test, `byte 0x02`, until 11 September 2026.
   const weaponExamines = examines.filter(x => melee.has(x.pt) && x.hiVal && x.loVal);
-  return (window.PROP_WORD_RULES = { ench, readers, examines: weaponExamines, zoneReaders, scripts, placed, ammo, melee });
+  return (DERIVED.PROP_WORD_RULES = { ench, readers, examines: weaponExamines, zoneReaders, scripts, placed, ammo, melee });
 }
 // The ops of one reader in words: "reads Data1, Data3, writes Data1".
 function propWordOps(ops) {
@@ -917,7 +917,7 @@ function propWordOps(ops) {
   return [r.length ? 'reads ' + r.join(', ') : '', w.length ? 'writes ' + w.join(', ') : ''].filter(Boolean).join(', ');
 }
 
-/* THE WORD BLOCK ON AN ITEM'S PAGE (v1.33.0). One state, window.PROP_WORD:
+/* THE WORD BLOCK ON AN ITEM'S PAGE (v1.33.0). One state, DERIVED.PROP_WORD:
    the item, an aspect, Data1 and Data2. The rail of 32 slots is built once
    with the tile each aspect lands on drawn in it; the bits, the readout and
    the meaning line re-render when the aspect or a byte changes. The two
@@ -925,10 +925,10 @@ function propWordOps(ops) {
    does not lose the caret. Brought in from a standalone page the maintainer
    made on 9 September 2026, which had the weapon list typed in; here
    everything comes off the open file. */
-window.PROP_WORD = null;
+DERIVED.PROP_WORD = null;
 function propWordHex(n, w) { return '0x' + n.toString(16).toUpperCase().padStart(w || 4, '0'); }
 function propWordMount(pt, host) {
-  const st = window.PROP_WORD = { pt, aspect: 0, d1: 0, d2: 0, host, slots: [] };
+  const st = DERIVED.PROP_WORD = { pt, aspect: 0, d1: 0, d2: 0, host, slots: [] };
   const base = getPropTileList()[pt] || 0;
   host.className = 'sv-block';
   host.innerHTML = '';
@@ -965,13 +965,13 @@ function propWordMount(pt, host) {
   propWordRender();
 }
 function propWordSet(n) {
-  const st = window.PROP_WORD; if (!st) return;
+  const st = DERIVED.PROP_WORD; if (!st) return;
   st.aspect = Math.max(0, Math.min(31, n | 0));
   st.slots.forEach((b, i) => { b.className = b.className.replace(/ pwOn/g, '') + (i === st.aspect ? ' pwOn' : ''); });
   propWordRender();
 }
 function propWordData(k, v) {
-  const st = window.PROP_WORD; if (!st) return;
+  const st = DERIVED.PROP_WORD; if (!st) return;
   st['d' + k] = Math.max(0, Math.min(255, parseInt(v, 10) || 0));
   propWordRender();
 }
@@ -1054,7 +1054,7 @@ function propWordUseSentence(pt, a) {
   return '';
 }
 function propWordRender() {
-  const st = window.PROP_WORD; if (!st || !st.read) return;
+  const st = DERIVED.PROP_WORD; if (!st || !st.read) return;
   const pt = st.pt, a = st.aspect, tiles = getPropTileList(), base = tiles[pt] || 0, tile = base + a, word = (a << 10) | pt;
   const w = s => '<b style="color:#fff">' + s + '</b>';
   const name = terrainNameFor(tile) || '', own = terrainNameFor(base) || propDisplayName(pt) || '';
@@ -1133,9 +1133,9 @@ function itemGroup(pt) {
   return 'Carried goods';
 }
 
-window.ITEM_LIST = null;
+DERIVED.ITEM_LIST = null;
 function inventoryItemList() {
-  if (window.ITEM_LIST) return window.ITEM_LIST;
+  if (DERIVED.ITEM_LIST) return DERIVED.ITEM_LIST;
   const tiles = getPropTileList();
   const list = [];
   for (let pt = 1; pt < tiles.length && pt < 1024; pt++) {
@@ -1149,7 +1149,7 @@ function inventoryItemList() {
       instances: e ? e.total : 0, cls: parseItemClass(pt)
     });
   }
-  return (window.ITEM_LIST = list);
+  return (DERIVED.ITEM_LIST = list);
 }
 
 const ITEM_GROUP_ORDER = ['Weapons & armour', 'Containers', 'Carried goods'];
@@ -1283,9 +1283,9 @@ function renderItemSheet() {
    one carried names who carries it. Eggs and roofs (flags 0x40) are records
    whose prop-type field is an argument, not a prop, and are left out, as the
    library leaves them out. */
-window.ITEM_PLACES = null;
+DERIVED.ITEM_PLACES = null;
 function itemPlaces(pt) {
-  if (!window.ITEM_PLACES) {
+  if (!DERIVED.ITEM_PLACES) {
     const all = new Map();
     for (let z = 0; z < 0x100; z++) {
       if (!refExists(0x8100 + z)) continue;
@@ -1306,9 +1306,9 @@ function itemPlaces(pt) {
         all.get(r.proptype).push(p);
       }
     }
-    window.ITEM_PLACES = all;
+    DERIVED.ITEM_PLACES = all;
   }
-  return window.ITEM_PLACES.get(pt) || [];
+  return DERIVED.ITEM_PLACES.get(pt) || [];
 }
 
 // What a class reads its Data1 and Data2 as, where it opens a passage by them.

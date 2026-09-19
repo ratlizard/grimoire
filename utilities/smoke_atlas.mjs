@@ -397,11 +397,11 @@ try {
             fail('atlas', 'taking the mouth did not arrive in the Sewers');
           else if (bs.surface !== false)
             fail('atlas', 'an unlocated place was shown as part of the surface');
-          else if (!ctx.ATLAS_BELOW.length)
+          else if (!peek('DERIVED').ATLAS_BELOW.length)
             fail('atlas', 'nothing recorded how the Sewers were reached');
           else {
             // and back out again, to exactly where it was left
-            const before = { x: ctx.ATLAS_BELOW[0].view.x, Z: ctx.ATLAS_BELOW[0].view.Z };
+            const before = { x: peek('DERIVED').ATLAS_BELOW[0].view.x, Z: peek('DERIVED').ATLAS_BELOW[0].view.Z };
             ctx.atlasAscend();
             const now = peek('atlasView');
             if (peek('atlasScene')().root.resid !== 0x8001)
@@ -413,7 +413,7 @@ try {
           }
         }
       }
-      ctx.ATLAS_BELOW = [];
+      peek('DERIVED').ATLAS_BELOW = [];
     }
 
     /* People are drawn on whichever node they stand on. charactersOnLevel is
@@ -457,7 +457,7 @@ try {
        and the baseline has to be taken before the atlas has ever run or it
        compares two post-atlas states and cannot fail. */
     {
-      ctx.ATLAS_BELOW = [];
+      peek('DERIVED').ATLAS_BELOW = [];
       ctx.showCategory('WORLD');
       const ap = ctx.document.getElementById('atlasPanel');
       const sheet = ctx.document.getElementById('tabSheet');
@@ -570,7 +570,7 @@ try {
       peek('paintAtlas')();
       if (peek('atlasFolkCache').size !== folkKeys) fail('atlas', 'a repaint recomputed the schedules');
     } else console.log('  note: could not magnify Cademia past its render in a 300px panel; window cache not exercised' +
-                       ` (Z ${av2.Z.toFixed(2)}, s ${cad2.s}, ppt ${peek('atlasNodePpt')(cad2, av2).toFixed(1)}, ts ${cad2.ts}, maxZ ${peek('atlasMaxZ')().toFixed(1)}, below ${(ctx.ATLAS_BELOW || []).length})`);
+                       ` (Z ${av2.Z.toFixed(2)}, s ${cad2.s}, ppt ${peek('atlasNodePpt')(cad2, av2).toFixed(1)}, ts ${cad2.ts}, maxZ ${peek('atlasMaxZ')().toFixed(1)}, below ${(peek('DERIVED').ATLAS_BELOW || []).length})`);
 
     // The card over a square: who, what, and -- only when asked -- the ground.
     const ode = peek('atlasScene')().nodes.find(n => n.resid === 0x8002) || cad2;

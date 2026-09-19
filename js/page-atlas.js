@@ -241,7 +241,7 @@ function mapIsSurface(resid) {
    median scale, because the archive has said where it is even though nothing
    on the world map draws it. */
 function surfaceScene() {
-  if (window.ATLAS_SCENE) return window.ATLAS_SCENE;
+  if (DERIVED.ATLAS_SCENE) return DERIVED.ATLAS_SCENE;
   const nodes = [];
   const world = mapRenderFor(WORLD_MAP_RESID, true);
   if (!world || !world.result) return null;
@@ -263,7 +263,7 @@ function surfaceScene() {
   // its edge names, at the median scale. It is a mouth now (atlasMouths):
   // the square is the file's, the extent was ours.
   nodes.sort((a, b) => a.depth - b.depth);
-  return (window.ATLAS_SCENE = { root, nodes, surface: true });
+  return (DERIVED.ATLAS_SCENE = { root, nodes, surface: true });
 }
 
 /* A place the archive does not locate, shown on its own.
@@ -293,9 +293,9 @@ function belowScene(resid) {
    ordinary thing to do. It is state, but it is the only state in this
    renderer -- and it is honest state, because "which unlocated map am I
    looking at" genuinely is not derivable from a position on the world. */
-window.ATLAS_BELOW = [];
+DERIVED.ATLAS_BELOW = [];
 function atlasBelowTop() {
-  const st = window.ATLAS_BELOW;
+  const st = DERIVED.ATLAS_BELOW;
   return (st && st.length) ? st[st.length - 1] : null;
 }
 function atlasScene() {
@@ -344,7 +344,7 @@ function atlasMouths(node) {
   // not rings. Below ground every way out is a ring: down into somewhere
   // deeper, or up -- to the world, to a surface place, or back to the map
   // you came through -- and the ring says which.
-  const onSurface = !!(window.ATLAS_SCENE && window.ATLAS_SCENE.nodes.includes(node));
+  const onSurface = !!(DERIVED.ATLAS_SCENE && DERIVED.ATLAS_SCENE.nodes.includes(node));
   const from = atlasBelowTop();
   const out = mapDescents(node.resid)
     .filter(d => onSurface ? (!mapIsSurface(d.dest.resid) && d.dest.resid !== WORLD_MAP_RESID) : true)
@@ -374,7 +374,7 @@ function atlasMouths(node) {
     // Catamarca, the upstairs of Pnyx -- is that place's ring, not a ring
     // out on the world at the square its own edge happens to name.
     try {
-      const sc = window.ATLAS_SCENE;
+      const sc = DERIVED.ATLAS_SCENE;
       if (sc) for (const n of sc.nodes) if (n.depth) for (const d of mapDescents(n.resid)) have.add(d.dest.resid);
     } catch (e) { quiet(e); }
     for (let n = 0; n < 0x100; n++) {
@@ -1304,7 +1304,7 @@ function atlasAt(px, py) {
    gesture worth having in both directions and it costs a line. */
 function atlasDescend(m, node, arriveZ) {
   const b = atlasBelowTop();
-  window.ATLAS_BELOW.push({
+  DERIVED.ATLAS_BELOW.push({
     resid: m.dest.resid,
     name: m.name,
     fromName: node.name, fromResid: node.resid, kind: m.kind,
@@ -1340,7 +1340,7 @@ function atlasDescend(m, node, arriveZ) {
 }
 
 function atlasAscend() {
-  const prev = window.ATLAS_BELOW.pop();
+  const prev = DERIVED.ATLAS_BELOW.pop();
   if (!prev) return;
   if (prev.view) { atlasView.x = prev.view.x; atlasView.y = prev.view.y; atlasView.Z = prev.view.Z; }
   atlasSyncZoomLabel();
@@ -1501,8 +1501,8 @@ function atlasRiseVia(m, node) {
     // Up to the surface: all the way out of the stack. Up to the map you
     // came through: one level.
     let prev = null;
-    if (dest === WORLD_MAP_RESID || mapIsSurface(dest)) { while (window.ATLAS_BELOW.length) prev = window.ATLAS_BELOW.pop(); }
-    else { prev = window.ATLAS_BELOW.pop(); while (window.ATLAS_BELOW.length && atlasBelowTop().resid !== dest) prev = window.ATLAS_BELOW.pop(); }
+    if (dest === WORLD_MAP_RESID || mapIsSurface(dest)) { while (DERIVED.ATLAS_BELOW.length) prev = DERIVED.ATLAS_BELOW.pop(); }
+    else { prev = DERIVED.ATLAS_BELOW.pop(); while (DERIVED.ATLAS_BELOW.length && atlasBelowTop().resid !== dest) prev = DERIVED.ATLAS_BELOW.pop(); }
     renderAtlasBar();
     const sc = atlasScene();
     const dn = (sc && sc.nodes.find(n => n.resid === dest)) || (sc && sc.root);
@@ -1550,7 +1550,7 @@ function showZoneOnWorld() {
   const go = tries => {
     const vp = document.getElementById('atlasViewport');
     if (!vp || vp.clientWidth < 40) { if (tries > 0) setTimeout(() => go(tries - 1), 60); return; }
-    window.ATLAS_BELOW = [];
+    DERIVED.ATLAS_BELOW = [];
     const sc = atlasScene();
     if (!sc) return;
     const vw = vp.clientWidth, vh = vp.clientHeight;
@@ -1594,7 +1594,7 @@ function atlasRiseOut() {
   const zDot = Math.min(z0 / 60, 4 / Math.max(atlasScene().root.w, atlasScene().root.h));
   atlasAnimateTo(e => { atlasZoomOnto(ax, ay, z0, zDot, e, vw, vh, x0, y0); atlasFadeTo(e); }, window.ATLAS_TUNE.animMs, () => {
     // shrunk to nothing; now the map above, from the blank middle of the hole
-    const prev = window.ATLAS_BELOW.pop();
+    const prev = DERIVED.ATLAS_BELOW.pop();
     renderAtlasBar();
     const sc = atlasScene();
     const node = (sc && sc.nodes.find(n => n.resid === prev.fromResid)) || (sc && sc.root);

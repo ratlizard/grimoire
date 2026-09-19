@@ -37,16 +37,15 @@
 // missing from it, including the tile bitmaps, the character table and the
 // schedules -- so a second archive was drawn with the first one's sprites and
 // populated with the first one's people. Anything memoised belongs here.
-/* The page's open file, as js/delv-archive.js's openDelverArchive returns it:
-   { bytes, index, derived }. Assigned in parseArchiveBytes and nowhere else;
-   null until a file is open. Every reader in js/delv-*.js takes it as its
-   first argument, so the page passes ARCHIVE and a harness passes whichever
-   archive it opened, and two can be open at once. It was two variables,
-   `ARCHIVE.bytes` and `ARCHIVE.index`, declared in delv-archive.js and read
-   there as ambient globals, until 18 September 2026. */
-let ARCHIVE = null;
+/* The page's open file, ARCHIVE, is declared at the top of js/page-labels.js
+   beside the tables that hang off it, and assigned in parseArchiveBytes below
+   and nowhere else. */
 
 function resetDerivedCaches() {
+  // The tables live on the archive now (DERIVED, js/page-labels.js) and
+  // went with the old object; one of them is read as a list before anything
+  // fills it, so it starts as one.
+  DERIVED.ATLAS_BELOW = [];
   // The decoded-resource cache and the application's fork are both keyed to
   // the file that is open, so a different archive has to drop them too.
   if (typeof _rsrcArtifactCache !== 'undefined') _rsrcArtifactCache.clear();
@@ -59,70 +58,25 @@ function resetDerivedCaches() {
   window.MAP_VIEW_MEMORY = Object.create(null);
   window.MAP_SEL_MEMORY = Object.create(null);
   window.MAP_SEL = null;
-  window.MAP_ROPES = null;
-  window.MAP_SEATS = null;
-  window.MAP_ITEM_SPOTS = null;
-  window.KEY_LOCK_INDEX = null;
-  window.TERRAIN_NAMES = null;
-  window.STORE_SYMBOLS = null;
-  window.XREF_INDEX = null;
-  window.SCRIPT_TEXT = null;
-  window.BARKS = null;
-  window.CONV_CACHE = null;
-  window.CONV_RULES = null;
-  window.LIBRARY_RULES = null;
-  window.SPRITE_REPEATS = null;
-  window.MONSTER_STATS = null;
-  window.MECH_WEAPONS = null;
-  window.ZONE_NAMES = null;
-  window.EDITOR_ZONE_NAMES = null;
-  window.AI_HOOK_NAMES = null;
-  window.ZONEPORTS = null;
-  window.WORLD_GATEWAYS = null;
-  window.ATLAS_SCENE = null;
-  window.ATLAS_BELOW = [];
   atlasNameCounts = null;
   atlasWaterCache = null;
   atlasDetailWindows.clear();
   atlasFolkCache.clear();
   _faceCache.clear();
-  _skillIconURLs.clear();
   atlasTransforms.clear();
   belowScenes.clear();
   locatedCache.clear();
   surfaceCache.clear();
-  zoneMapCache.clear();
-  worldThumbs.clear();
-  contentBoxes.clear();
-  window._WORLD_RATIO = null;
-  window.PATCH_BASE_SPEC = null;
   window.PATCH_REPORT = null;
   window.PATCH_BYTES = null;
   window.COMPARE_REPORT = null;
   window.COMPARE_APP = null;
-  window.PROP_BLOCK = null;
-  window.LIVING_PROPTYPES = null;
-  window.SCHEDULES = null;
-  window.CHAR_TABLE = null;
-  window._CHAR_PROPTYPES = null;
   window.CUR_MAP = null;
-  window.ITEM_CLASSES = null;
-  window.ITEM_INDEX = null;
-  window.ITEM_PLACES = null;
-  window.ITEM_WORN = null;
-  window.ORPHAN_ART = null;
-  window.PROP_WORD_RULES = null;
-  window.PROP_WORD = null;
-  window.ITEM_LIST = null;
   // Not a memoisation, but keyed to the open file all the same: which
   // resources this session has edited. applyResourceEdit carries it across
   // its own rebuild by hand; any other arrival here is a different archive
   // and the dirty list must not outlive the bytes it described.
   window.EDITED_RESIDS = new Set();
-  window.SOUND_USAGE = null;
-  window.EGGS = null;
-  window.SCRIPTED_WINDOWS = null;
-  window.ZONE_BACKDROPS = null;
   /* The tables js/delv-*.js build from the archive -- the portrait corpus
      and the frame locks, the undithered images, the tile attributes, the
      resource symbols, the string objects -- are not here. They live on the
@@ -134,28 +88,12 @@ function resetDerivedCaches() {
   // would throw the fork away every load.
   _propTileListCache = null; _propOffXCache = null;
   _propOffYCache = null; _compTableCache = null;
-  window.TILE_USAGE = null;
   for (const k of Object.keys(tileSheetCache)) delete tileSheetCache[k];
-  spriteCountCache.clear();
-  tileCanvasCache.clear();
-  tileAnimCache.clear();
-  pathCache.clear();
-  _tileFillCache.clear();
-  _frameColourCache.clear();
   _fauxPropCache = null;
-  window.MAP_SEATS = null;
-  window.LIGHT_SOURCES = null;
   for (const k of Object.keys(_tileImageCache)) delete _tileImageCache[k];
   // Named and drawn from the archive too, and missed here until 16 September
   // 2026: an applied patch kept the shipped art on the relation chips and the
   // zone backdrops until a reload.
-  window.SELF_NAMES = null;
-  window.ZONE_AMBIENT = null;
-  window._BUNDLE_ICONS = null;
-  window._INSTALLER_ICONS = null;
-  _relIconURLs.clear();
-  _backdropCanvases.clear();
-  _tileClearCache.clear();
   _propTextShape.clear();
   _atlasTextW.clear();
 }
@@ -1273,9 +1211,9 @@ function autoZoom(W, H) {
 // handful of props that use the persistence store (bellows, troughs, shutters
 // and candlesticks, twelve in the whole game). The key is a prop record's
 // StoreRef, so this turns a bare 0x0007 into "Od_Trough1".
-window.STORE_SYMBOLS = null;
+DERIVED.STORE_SYMBOLS = null;
 function loadStoreSymbols() {
-  if (window.STORE_SYMBOLS) return window.STORE_SYMBOLS;
+  if (DERIVED.STORE_SYMBOLS) return DERIVED.STORE_SYMBOLS;
   const names = {};
   try {
     const raw = getResourceBytes(ARCHIVE, 0xF015);
@@ -1291,6 +1229,6 @@ function loadStoreSymbols() {
       }
     }
   } catch (e) { quiet(e); }
-  return (window.STORE_SYMBOLS = names);
+  return (DERIVED.STORE_SYMBOLS = names);
 }
 function storeSymbol(key) { return key ? (loadStoreSymbols()[key] || null) : null; }

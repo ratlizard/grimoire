@@ -30,9 +30,9 @@ const XREF_SKIP_SUBN = new Set([127, 128, 131, 135, 137, 141, 142, 143, 144, 239
 
 // Whole-archive index, built once and cached. Media subindexes are skipped:
 // they are pixels and PCM, so any "atom" found in them is noise.
-window.XREF_INDEX = null;
+DERIVED.XREF_INDEX = null;
 function buildXrefIndex() {
-  if (window.XREF_INDEX) return window.XREF_INDEX;
+  if (DERIVED.XREF_INDEX) return DERIVED.XREF_INDEX;
   const outbound = {}, inbound = {};
   if (ARCHIVE) {
     for (let subn = 0; subn < 256; subn++) {
@@ -64,7 +64,7 @@ function buildXrefIndex() {
       }
     }
   }
-  return (window.XREF_INDEX = { outbound, inbound });
+  return (DERIVED.XREF_INDEX = { outbound, inbound });
 }
 
 function xrefReport(resid) {
@@ -181,7 +181,7 @@ function jumpToResource(resid) {
    a map wears the town, and a reader learns where a click will land before
    making it. Data URLs, cached per tile, so a strip of thirty chips costs
    one small draw per distinct icon and not thirty canvases. */
-const _relIconURLs = new Map();
+const _relIconURLs = derivedMap('_relIconURLs');
 function relIconURL(spec) {
   const key = spec && spec.tile !== undefined ? 't' + spec.tile : spec && spec.icon !== undefined ? 'p' + spec.icon : '';
   if (!key) return '';
@@ -344,10 +344,10 @@ function buildScriptView(o) {
 // what answers questions of the form "under what circumstances can one take
 // fire damage" -- the answer is the set of resources that talk about fire and
 // about damage, which is something no reference graph will tell you.
-window.SCRIPT_TEXT = null;
+DERIVED.SCRIPT_TEXT = null;
 
 function buildScriptTextIndex() {
-  if (window.SCRIPT_TEXT) return window.SCRIPT_TEXT;
+  if (DERIVED.SCRIPT_TEXT) return DERIVED.SCRIPT_TEXT;
   const map = [];
   if (ARCHIVE) {
     for (let subn = 0; subn < 256; subn++) {
@@ -368,7 +368,7 @@ function buildScriptTextIndex() {
       }
     }
   }
-  return (window.SCRIPT_TEXT = map);
+  return (DERIVED.SCRIPT_TEXT = map);
 }
 
 // A few starting points, because the useful queries are rarely one word and

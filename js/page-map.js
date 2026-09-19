@@ -146,9 +146,9 @@ function resolveTileImage(tileId) {
 // and it *overwrites* the destination pixels including their alpha, so a
 // prop's transparent pixels used to erase the terrain tile underneath
 // instead of letting it show through.
-const tileCanvasCache = new Map();
+const tileCanvasCache = derivedMap('tileCanvasCache');
 // Which tiles contain palette-animated indices (0xE0-0xFB). Cached per tile.
-const tileAnimCache = new Map();
+const tileAnimCache = derivedMap('tileAnimCache');
 function tileIsAnimated(tileId) {
   if (tileAnimCache.has(tileId)) return tileAnimCache.get(tileId);
   const img = resolveTileImage(tileId);
@@ -273,11 +273,11 @@ function multiTilePieces(tileId, rotated) {
 // Verified end to end: character 2 -> proptype 34 -> tile 0x710 -> sheet 113
 // (Alaric), character 3 -> sheet 114 (Magpie). The three generic guards all
 // resolve to one shared sprite, which nothing in the derivation forced.
-window.SCHEDULES = null;
+DERIVED.SCHEDULES = null;
 function loadSchedules() {
-  if (window.SCHEDULES) return window.SCHEDULES;
+  if (DERIVED.SCHEDULES) return DERIVED.SCHEDULES;
   const raw = getResourceBytes(ARCHIVE, 0xF00B);
-  if (!raw) return (window.SCHEDULES = []);
+  if (!raw) return (DERIVED.SCHEDULES = []);
   const lengths = [];
   for (let i = 0; i < 0x100; i++) lengths.push(u16be(raw, i*2));
   let p = 512;
@@ -293,17 +293,17 @@ function loadSchedules() {
     }
     all.push(entries);
   }
-  return (window.SCHEDULES = all);
+  return (DERIVED.SCHEDULES = all);
 }
 
-window.CHAR_TABLE = null;
+DERIVED.CHAR_TABLE = null;
 // Proptypes that some character record uses as its sprite.
-window._CHAR_PROPTYPES = null;
+DERIVED._CHAR_PROPTYPES = null;
 function characterProptypes() {
-  if (window._CHAR_PROPTYPES) return window._CHAR_PROPTYPES;
+  if (DERIVED._CHAR_PROPTYPES) return DERIVED._CHAR_PROPTYPES;
   const s = new Set();
   for (const c of loadCharacterTable()) if (c && c.proptype) s.add(c.proptype);
-  return (window._CHAR_PROPTYPES = s);
+  return (DERIVED._CHAR_PROPTYPES = s);
 }
 
 /* The field map lives in `js/delv-archive.js` now, with the writer that is
@@ -314,10 +314,10 @@ function characterProptypes() {
    known-clear table, so the verdict is a table lookup in both files that
    have one. */
 function loadCharacterTable() {
-  if (window.CHAR_TABLE) return window.CHAR_TABLE;
+  if (DERIVED.CHAR_TABLE) return DERIVED.CHAR_TABLE;
   const raw = getResourceBytes(ARCHIVE, 0xF009);
-  if (!raw) return (window.CHAR_TABLE = []);
-  return (window.CHAR_TABLE = parseDelverCharacterRecords(smartDecrypt(raw, 0xF009).data));
+  if (!raw) return (DERIVED.CHAR_TABLE = []);
+  return (DERIVED.CHAR_TABLE = parseDelverCharacterRecords(smartDecrypt(raw, 0xF009).data));
 }
 
 // Entries with mode 0 carry no placement: they are auxiliary records attached
@@ -651,11 +651,11 @@ function toggleMapWalk(on) { window.MAP_WALK = on; }
 // Props block movement too. Terrain-only walkability is why characters walked
 // through walls: in Land King Hall the interior walls are props sitting on
 // passable floor tiles, so 0xF002 alone says the whole interior is open.
-window.PROP_BLOCK = null;
-window.LIGHT_SOURCES = null;
+DERIVED.PROP_BLOCK = null;
+DERIVED.LIGHT_SOURCES = null;
 function buildLightSources(resid, m) {
   const key = resid + ':' + m.width;
-  if (window.LIGHT_SOURCES && window.LIGHT_SOURCES.key === key) return window.LIGHT_SOURCES.list;
+  if (DERIVED.LIGHT_SOURCES && DERIVED.LIGHT_SOURCES.key === key) return DERIVED.LIGHT_SOURCES.list;
   const list = [];
   const attrs = getTileAttributes(ARCHIVE);
   // Terrain tiles that are themselves lit (braziers baked into the floor).
@@ -689,7 +689,7 @@ function buildLightSources(resid, m) {
   // tick has to repaint the lighting layer; on a map of steady lights it
   // would be redrawing an identical picture seven times a second.
   window.LIGHT_FLICKER = list.some(s => s.flicker);
-  window.LIGHT_SOURCES = { key, list };
+  DERIVED.LIGHT_SOURCES = { key, list };
   return list;
 }
 
@@ -730,10 +730,10 @@ function buildLightSources(resid, m) {
    inspector reports it there. It can only make a level lighter, never darker.
 
    The workbench's GRIMOIRE-NOTES.md has the six measurements. */
-window.ZONE_AMBIENT = null;
+DERIVED.ZONE_AMBIENT = null;
 function zoneAmbientLevel(resid) {
-  if (!window.ZONE_AMBIENT) window.ZONE_AMBIENT = {};
-  if (resid in window.ZONE_AMBIENT) return window.ZONE_AMBIENT[resid];
+  if (!DERIVED.ZONE_AMBIENT) DERIVED.ZONE_AMBIENT = {};
+  if (resid in DERIVED.ZONE_AMBIENT) return DERIVED.ZONE_AMBIENT[resid];
   let out = null;
   try {
     const sid = 0x1400 + (resid - 0x8000);
@@ -750,7 +750,7 @@ function zoneAmbientLevel(resid) {
       }
     }
   } catch (e) { out = null; }
-  return (window.ZONE_AMBIENT[resid] = out);
+  return (DERIVED.ZONE_AMBIENT[resid] = out);
 }
 // `sum` is the viewer-relative term and is not passed here; see the comment
 // above and lightAtSquare(), which is where it does apply.
@@ -966,7 +966,7 @@ function propTravelsTo(rec, mapResid) {
    over (170,95)..(173,98). The World tab rings this rectangle, so a footprint
    one square short would draw a ring through the middle of the pictogram. */
 function worldGateways() {
-  if (window.WORLD_GATEWAYS) return window.WORLD_GATEWAYS;
+  if (DERIVED.WORLD_GATEWAYS) return DERIVED.WORLD_GATEWAYS;
   const out = [];
   try {
     const propResid = WORLD_MAP_RESID + 0x100;
@@ -1009,7 +1009,7 @@ function worldGateways() {
     }
     out.sort((a, b) => a.name.localeCompare(b.name) || a.x0 - b.x0);
   } catch (e) { quiet(e); }
-  return (window.WORLD_GATEWAYS = out);
+  return (DERIVED.WORLD_GATEWAYS = out);
 }
 
 // Single-linkage clustering of prop records by Chebyshev distance. n is at
@@ -1275,7 +1275,7 @@ function ensureMarkLayer() {
 
 // How much of a tile is opaque, 0..1. Used to tell "a passage with something
 // standing over it" from "a passage in plain sight".
-const _tileFillCache = new Map();
+const _tileFillCache = derivedMap('_tileFillCache');
 function tileOpacity(tileId) {
   if (_tileFillCache.has(tileId)) return _tileFillCache.get(tileId);
   let v = 0;
@@ -1339,7 +1339,7 @@ function mapExitEdges(resid, m) {
 // cannot simply walk into.
 function ropeSquares(resid) {
   const key = 'rope:' + resid;
-  if (window.MAP_ROPES && window.MAP_ROPES.key === key) return window.MAP_ROPES.set;
+  if (DERIVED.MAP_ROPES && DERIVED.MAP_ROPES.key === key) return DERIVED.MAP_ROPES.set;
   const set = new Set();
   try {
     const raw = getResourceBytes(ARCHIVE, resid + 0x100);
@@ -1348,7 +1348,7 @@ function ropeSquares(resid) {
       if (r.proptype === ROPE_PROPTYPE) set.add(r.x + ',' + r.y);
     }
   } catch (e) { quiet(e); }
-  window.MAP_ROPES = { key, set };
+  DERIVED.MAP_ROPES = { key, set };
   return set;
 }
 
@@ -1356,7 +1356,7 @@ function drawMapMarks(lensCtx, lensTS) {
   const cm = window.CUR_MAP;
   if (!cm) return;
   const M = window.MAP_MARKS;
-  const spots_ = window.MAP_ITEM_SPOTS;
+  const spots_ = DERIVED.MAP_ITEM_SPOTS;
   const anything = M.doors || M.secret || M.chest || M.exits || M.grid || M.rooms || M.path || window.MAP_SEL ||
                    (spots_ && spots_.resid === cm.resid && spots_.cells.length);
   let ctx, TS;
@@ -1614,7 +1614,7 @@ function drawMapMarks(lensCtx, lensTS) {
 
   // The ringed instances of one item, put there by showItemOnMap. Keyed to
   // the map it was asked about, so navigating to another map drops it.
-  const spots = window.MAP_ITEM_SPOTS;
+  const spots = DERIVED.MAP_ITEM_SPOTS;
   let itemSpots = 0;
   if (spots && spots.resid === cm.resid && spots.cells.length) {
     itemSpots = spots.cells.length;
@@ -1876,7 +1876,7 @@ function drawLighting(lensCtx, lensTS, rect) {
 
 function buildPropBlockers(resid, m) {
   const key = resid + ':' + m.width;
-  if (window.PROP_BLOCK && window.PROP_BLOCK.key === key) return window.PROP_BLOCK.set;
+  if (DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.key === key) return DERIVED.PROP_BLOCK.set;
   const blocked = new Set();
   const doors = new Map();
   try {
@@ -1961,10 +1961,10 @@ function buildPropBlockers(resid, m) {
       }
     }
   } catch (e) { quiet(e); }
-  window.PROP_BLOCK = { key, set: blocked, doors };
+  DERIVED.PROP_BLOCK = { key, set: blocked, doors };
   return blocked;
 }
-function propDoors() { return (window.PROP_BLOCK && window.PROP_BLOCK.doors) || new Map(); }
+function propDoors() { return (DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.doors) || new Map(); }
 
 // Redraw, on the character overlay, any door someone currently occupies with
 // its OPEN frame -- on top of whatever the static base map drew for it
@@ -2015,7 +2015,7 @@ function tilePassable(tileId) {
   if (b2 === undefined) return true;
   return !(b2 & 0x02) && !(b2 & 0x01);
 }
-const pathCache = new Map();
+const pathCache = derivedMap('pathCache');
 function findPath(m, x0, y0, x1, y1) {
   /* Keyed to the MAP as well as the endpoints. The key was the four
      coordinates and the width, which is only safe while every caller happens
@@ -2025,7 +2025,7 @@ function findPath(m, x0, y0, x1, y1) {
      exactly the map this route was found through, because buildPropBlockers
      always runs first. The cache itself is dropped with the archive, in
      resetDerivedCaches, not with the map. */
-  const key = ((window.PROP_BLOCK && window.PROP_BLOCK.key) || '?') + ':' +
+  const key = ((DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.key) || '?') + ':' +
               x0+','+y0+','+x1+','+y1+','+m.width;
   if (pathCache.has(key)) return pathCache.get(key);
   const straight = [[x0,y0],[x1,y1]];
@@ -2055,7 +2055,7 @@ function findPath(m, x0, y0, x1, y1) {
       if (ni !== goal) {
         if (!tilePassable(mapTileAt(m, nx, ny))) continue;
         // Props block, except unlocked doors, which a character opens.
-        const pb = window.PROP_BLOCK && window.PROP_BLOCK.set;
+        const pb = DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.set;
         if (pb && pb.has(ni) && !propDoors().has(ni)) continue;
       }
       const ng = g[cur] + ((dx&&dy)?1.414:1);
@@ -2203,7 +2203,7 @@ function seatOwnFrames(pt) {
 
 function seatsOnMap(resid, m) {
   const key = resid + ':' + (m ? m.width : 0);
-  if (window.MAP_SEATS && window.MAP_SEATS.key === key) return window.MAP_SEATS.map;
+  if (DERIVED.MAP_SEATS && DERIVED.MAP_SEATS.key === key) return DERIVED.MAP_SEATS.map;
   const seats = new Map();
   try {
     const praw = getResourceBytes(ARCHIVE, resid + 0x100);
@@ -2277,7 +2277,7 @@ function seatsOnMap(resid, m) {
       }
     }
   } catch (e) { quiet(e); }
-  window.MAP_SEATS = { key, map: seats };
+  DERIVED.MAP_SEATS = { key, map: seats };
   return seats;
 }
 

@@ -980,8 +980,8 @@ function renderMapResource(resid) {
    the two is the pictogram's own size, which gatewayRatio measures.
 --------------------------------------------------------------------------- */
 let worldGateTimer = null;
-const zoneMapCache = new Map();
-const worldThumbs = new Map();
+const zoneMapCache = derivedMap('zoneMapCache');
+const worldThumbs = derivedMap('worldThumbs');
 
 /* Decrypt and render a map, and -- for the World tab -- keep it.
 
@@ -1122,7 +1122,7 @@ function thumbKey(resid, size, roofed) { return resid + ':' + size + ':' + (roof
    the middle of it. The bounding box of the props is what a settlement is:
    walls, doors, furniture, crops. Trimmed to the 2nd and 98th percentile on
    each axis, so one lamp-post out on the moor does not double the box. */
-const contentBoxes = new Map();
+const contentBoxes = derivedMap('contentBoxes');
 function contentBox(resid) {
   if (contentBoxes.has(resid)) return contentBoxes.get(resid);
   let box = null;
@@ -1157,7 +1157,7 @@ function contentBox(resid) {
    so the Farm and the Encampment should not come out the same size when one
    is 26 squares of content and the other is 35. */
 function worldSquareRatio() {
-  if (window._WORLD_RATIO) return window._WORLD_RATIO;
+  if (DERIVED._WORLD_RATIO) return DERIVED._WORLD_RATIO;
   const rs = [];
   for (const gw of worldGateways()) {
     if (gw.sealed) continue;
@@ -1170,7 +1170,7 @@ function worldSquareRatio() {
   }
   rs.sort((a, b) => a - b);
   const median = rs.length ? rs[rs.length >> 1] : 24;
-  return (window._WORLD_RATIO = Math.max(4, Math.min(64, median)));
+  return (DERIVED._WORLD_RATIO = Math.max(4, Math.min(64, median)));
 }
 
 /* The ratio for one place.

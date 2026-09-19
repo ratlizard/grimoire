@@ -337,9 +337,14 @@ the tier still holds as state is the disassembler's symbol table,
 `dvmSetResourceSymbols`, handed to it by whoever opens an archive, because
 `dvmDisassemble` runs deep inside renders that carry no archive. Before that
 day the two were `fileBytes` and `masterIndexGlobal`, ambient globals of the
-tier that `resetDerivedCaches()` had to know every memo of by name; the
-page's own tables (`window.SCHEDULES` and the rest) are still that, and that
-list is the page's to keep.
+tier that `resetDerivedCaches()` had to know every memo of by name. The
+page's own tables followed on 19 September 2026: `DERIVED.SCHEDULES` and
+forty-odd others, and the map's Maps declared as `derivedMap('name')`, live
+on the archive's `derived` too (the two helpers are at the top of
+`js/page-labels.js`, the first page file, since the Maps are declared at
+load). What `resetDerivedCaches()` still clears is state, not tables: where
+the visitor stands, what they edited, which fork is shown. A new table the
+page derives from the file goes on `DERIVED`, never on `window`.
 
 These came out of three different pages for three different reasons. The
 mac-bytes/containers/media/export four existed twice, once each in the viewer

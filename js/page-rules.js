@@ -31,7 +31,7 @@
    the character whose dialogue script it is in; a line in a shared or an
    object script is anyone's. */
 function buildBarkCatalogue() {
-  if (window.BARKS) return window.BARKS;
+  if (DERIVED.BARKS) return DERIVED.BARKS;
   const out = [];
   const runsOf = bytes => {
     const r = []; let cur = '';
@@ -39,7 +39,7 @@ function buildBarkCatalogue() {
     if (cur.length >= 3) r.push(cur);
     return r;
   };
-  if (!ARCHIVE) return (window.BARKS = out);
+  if (!ARCHIVE) return (DERIVED.BARKS = out);
   for (let subn = 0; subn < 256; subn++) {
     const mi = ARCHIVE.index[subn];
     if (!mi || !mi[0] || XREF_SKIP_SUBN.has(subn)) continue;
@@ -117,7 +117,7 @@ function buildBarkCatalogue() {
       }
     }
   }
-  return (window.BARKS = out);
+  return (DERIVED.BARKS = out);
 }
 
 /* THE DICE GAME. Innkeepers offer it (Parium, Crito, Apis: "a game of
@@ -331,7 +331,7 @@ function mechLink(id, label) {
    data URL per resource, like the relation chips' tile icons, and dropped
    with the other archive-keyed caches. A class with no icon gets the tab's
    own tile, so a card never goes without a picture. */
-const _skillIconURLs = new Map();
+const _skillIconURLs = derivedMap('_skillIconURLs');
 function skillIconURL(resid) {
   const icon = 0x8A00 | (resid & 0xFF);
   if (_skillIconURLs.has(icon)) return _skillIconURLs.get(icon);
@@ -2066,7 +2066,7 @@ function libraryRules() {
   // Memoised: Loose ends and the Writings sheet both read this, and it is a
   // walk over every item class, every prop list and every script. A gallery
   // redraws far more often than the Mechanics sheet ever did.
-  if (window.LIBRARY_RULES) return window.LIBRARY_RULES;
+  if (DERIVED.LIBRARY_RULES) return DERIVED.LIBRARY_RULES;
   const docs = new Map();
   const want = new Map();
   const sent = new Map();
@@ -2159,7 +2159,7 @@ function libraryRules() {
       !d.readers.some(r => (sent.get(r.pt) || new Set()).has(k))).sort((a, b) => a - b);
     d.shownCount = d.entries.length - d.unshown.length;
   }
-  return window.LIBRARY_RULES = [...docs.values()].sort((a, b) => a.resid - b.resid);
+  return DERIVED.LIBRARY_RULES = [...docs.values()].sort((a, b) => a.resid - b.resid);
 }
 
 /* LOOSE ENDS. Things the scenario's own scripts get wrong, each read off
@@ -2576,12 +2576,12 @@ function looseEnds() {
    identical as well, which in a creature that does not stride may be meant;
    the row says what the pixels say and no more. */
 function spriteRepeats() {
-  if (window.SPRITE_REPEATS) return window.SPRITE_REPEATS;
+  if (DERIVED.SPRITE_REPEATS) return DERIVED.SPRITE_REPEATS;
   const out = [];
   const facing = ['north', 'east', 'south', 'west'], pose = ['left foot', 'standing', 'right foot', 'sitting'];
   let props = null;
   try { props = getPropTileList(); } catch (e) { props = null; }
-  if (!props) return (window.SPRITE_REPEATS = out);
+  if (!props) return (DERIVED.SPRITE_REPEATS = out);
   for (const pt of [...characterProptypes()].sort((a, b) => a - b)) {
     const base = props[pt];
     if (base === undefined) continue;
@@ -2594,7 +2594,7 @@ function spriteRepeats() {
       if (d <= 2) out.push({ pt, a: base + i, b: base + j, aName: facing[i >> 2] + ' ' + pose[i & 3], bName: facing[j >> 2] + ' ' + pose[j & 3], pixels: d });
     }
   }
-  return (window.SPRITE_REPEATS = out);
+  return (DERIVED.SPRITE_REPEATS = out);
 }
 
 /* FOUR MORE KINDS OF LOOSE END, 17 September 2026, each off an entry of the
@@ -3547,7 +3547,7 @@ function riddleRules() {
 function convRules() {
   // Memoised for the same reason as libraryRules: the Dialogue gallery shows
   // this card, and building it walks all 256 conversation resources.
-  if (window.CONV_RULES) return window.CONV_RULES;
+  if (DERIVED.CONV_RULES) return DERIVED.CONV_RULES;
   const chars = [];
   for (let rid = 0x1800; rid <= 0x18FF; rid++) {
     if (!refExists(rid)) continue;
@@ -3583,7 +3583,7 @@ function convRules() {
     if (!shapes.has(key)) shapes.set(key, []);
     shapes.get(key).push(ch);
   }
-  return window.CONV_RULES = { chars, groups, gname,
+  return DERIVED.CONV_RULES = { chars, groups, gname,
            shapes: [...shapes.entries()].map(([k, who]) => ({ shape: k, who }))
                      .sort((a, b) => b.who.length - a.who.length) };
 }

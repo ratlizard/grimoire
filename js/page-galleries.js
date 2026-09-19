@@ -242,7 +242,7 @@ function tileFactsHTML(tileId) {
   const sheet = 0x8E00 + (tileId >> 4);
   if (refExists(sheet)) rows.push(partsStrip('Cut from', [partChip('Sheet', sheet)]));
   const tiles = getPropTileList();
-  const worn = (buildItemIndex(), window.ITEM_WORN || new Map());
+  const worn = (buildItemIndex(), DERIVED.ITEM_WORN || new Map());
   const baseOf = [], atAspect = [];
   for (let pt = 1; pt < tiles.length; pt++) {
     const b = tiles[pt];
@@ -701,9 +701,9 @@ function ditherReplacePortrait() { ditherReplace(); }
 // says so instead of hunting for a key that does not exist.
 const LOCKABLE_PROPS = /door$|gate$|portcullis|^chest|trunk/;
 const KEY_PROPTYPE = 66;
-window.KEY_LOCK_INDEX = null;
+DERIVED.KEY_LOCK_INDEX = null;
 function buildKeyLockIndex() {
-  if (window.KEY_LOCK_INDEX) return window.KEY_LOCK_INDEX;
+  if (DERIVED.KEY_LOCK_INDEX) return DERIVED.KEY_LOCK_INDEX;
   const locks = [], keys = [];
   for (let subN = 0; subN < 256; subN++) {
     const mr = 0x8000 + subN;
@@ -720,7 +720,7 @@ function buildKeyLockIndex() {
       }
     }
   }
-  return (window.KEY_LOCK_INDEX = { locks, keys });
+  return (DERIVED.KEY_LOCK_INDEX = { locks, keys });
 }
 function keysForLock(id) { return buildKeyLockIndex().keys.filter(k => k.id === id); }
 function locksForKey(id) { return buildKeyLockIndex().locks.filter(l => l.id === id); }
@@ -811,7 +811,7 @@ function showItemOnMap(mapResid, pt) {
       r.proptype === pt && r.flags !== 0xFF && !(r.flags & 0x58) &&
       r.flags !== 0x42 && r.flags !== 0x44);
     if (!spots.length) return;
-    window.MAP_ITEM_SPOTS = { resid: mapResid, pt, cells: spots.map(r => [r.x, r.y]) };
+    DERIVED.MAP_ITEM_SPOTS = { resid: mapResid, pt, cells: spots.map(r => [r.x, r.y]) };
     drawMapMarks();
     const vp = document.getElementById('mapViewport');
     if (vp) {

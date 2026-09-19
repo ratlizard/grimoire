@@ -980,12 +980,12 @@ try {
   const m = (ctx.CUR_MAP || {}).m;
   if (!m) fail('route cache', 'no map is open, so nothing can be routed');
   else {
-    const keep = ctx.PROP_BLOCK;
-    ctx.PROP_BLOCK = { key: 'mapA:' + m.width, set: new Set(), doors: new Map() };
+    const keep = peek('DERIVED').PROP_BLOCK;
+    peek('DERIVED').PROP_BLOCK = { key: 'mapA:' + m.width, set: new Set(), doors: new Map() };
     const a = ctx.findPath(m, 2, 2, 9, 9);
-    ctx.PROP_BLOCK = { key: 'mapB:' + m.width, set: new Set(), doors: new Map() };
+    peek('DERIVED').PROP_BLOCK = { key: 'mapB:' + m.width, set: new Set(), doors: new Map() };
     const b = ctx.findPath(m, 2, 2, 9, 9);
-    ctx.PROP_BLOCK = keep;
+    peek('DERIVED').PROP_BLOCK = keep;
     if (!a || !b) fail('route cache', 'no route came back');
     else if (a === b) fail('route cache', 'two maps were handed the same cached route: the key has lost the map');
     else console.log(`  route cache: a route is keyed to the map it was found through, ${a.length} squares`);

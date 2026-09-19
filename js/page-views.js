@@ -480,9 +480,9 @@ function tileSheetClick(ev, resid) {
    rather than the open book, and the lute class opens 0x8F12, the pipes, the
    same picture as the panpipes. Nothing opens 0x8F15, the lute. That is the
    scenario as shipped, and it is shown as the script has it. */
-window.SCRIPTED_WINDOWS = null;
+DERIVED.SCRIPTED_WINDOWS = null;
 function buildScriptedWindows() {
-  if (window.SCRIPTED_WINDOWS) return window.SCRIPTED_WINDOWS;
+  if (DERIVED.SCRIPTED_WINDOWS) return DERIVED.SCRIPTED_WINDOWS;
   const byScript = new Map(), byPicture = new Map();
   const add = (resid, n) => {
     const pic = 0x8F00 + n;
@@ -527,7 +527,7 @@ function buildScriptedWindows() {
     // this reads.
     for (const r of list) if (r.flags !== 0xFF && r.d2 && fromData2.has(0x1000 + r.proptype)) add(0x1000 + r.proptype, r.d2);
   }
-  return (window.SCRIPTED_WINDOWS = { byScript, byPicture });
+  return (DERIVED.SCRIPTED_WINDOWS = { byScript, byPicture });
 }
 function containerWindowsFor(pt) {
   let w = null;
@@ -761,9 +761,9 @@ function soundValueSources(ops, v, depth) {
   return [];
 }
 
-window.SOUND_USAGE = null;
+DERIVED.SOUND_USAGE = null;
 function buildSoundUsage() {
-  if (window.SOUND_USAGE) return window.SOUND_USAGE;
+  if (DERIVED.SOUND_USAGE) return DERIVED.SOUND_USAGE;
   const u = { scripts: new Map(), classes: new Map(), lists: new Map(), props: new Map(), eggs: new Map(), music: new Map() };
   const put = (map, n, v) => { if (!(n > 0)) return; if (!map.has(n)) map.set(n, []); map.get(n).push(v); };
   const count = (map, n, resid) => {
@@ -824,7 +824,7 @@ function buildSoundUsage() {
     if (own > 0) put(u.props, own, resid);
   }
   for (const [n, eggs] of eggsOfKind(3)) for (const g of eggs) put(u.eggs, n, g);
-  return (window.SOUND_USAGE = u);
+  return (DERIVED.SOUND_USAGE = u);
 }
 
 // The sounds a class names, for its owner's parts strip.
@@ -966,9 +966,9 @@ function zoneSquareChips(spots) {
 
 // Every egg in the file, by kind and then by its argument (the prop-type
 // field): the zone and the square. A room is kind 8, an ambient sound kind 3.
-window.EGGS = null;
+DERIVED.EGGS = null;
 function eggsOfKind(kind) {
-  if (!window.EGGS) {
+  if (!DERIVED.EGGS) {
     const all = new Map();
     for (let z = 0; z < 0x100; z++) {
       if (!refExists(0x8100 + z)) continue;
@@ -982,9 +982,9 @@ function eggsOfKind(kind) {
         byArg.get(r.proptype).push({ zone: z, x: r.x, y: r.y });
       }
     }
-    window.EGGS = all;
+    DERIVED.EGGS = all;
   }
-  return window.EGGS.get(kind) || new Map();
+  return DERIVED.EGGS.get(kind) || new Map();
 }
 function roomEggIndex() { return eggsOfKind(8); }
 
@@ -1151,7 +1151,7 @@ function monsterFlagsText(f) {
 }
 
 function parseMonsterStats() {
-  if (window.MONSTER_STATS) return window.MONSTER_STATS;
+  if (DERIVED.MONSTER_STATS) return DERIVED.MONSTER_STATS;
   const out = [];
   try {
     const d = getResourceBytes(ARCHIVE, 0xF008);
@@ -1172,7 +1172,7 @@ function parseMonsterStats() {
       }
     }
   } catch (e) { quiet(e); }
-  return (window.MONSTER_STATS = out);
+  return (DERIVED.MONSTER_STATS = out);
 }
 
 function renderMonsterSheet() {
@@ -1594,14 +1594,14 @@ const DIALOGUE_GROUP_NAMES = {
 };
 
 function conversationFor(resid) {
-  if (!window.CONV_CACHE) window.CONV_CACHE = new Map();
-  if (window.CONV_CACHE.has(resid)) return window.CONV_CACHE.get(resid);
+  if (!DERIVED.CONV_CACHE) DERIVED.CONV_CACHE = new Map();
+  if (DERIVED.CONV_CACHE.has(resid)) return DERIVED.CONV_CACHE.get(resid);
   let conv = null;
   try {
     const raw = getResourceBytes(ARCHIVE, resid);
     if (raw) conv = dvmConversation(smartDecrypt(raw, resid).data, resid);
   } catch (e) { quiet(e); }
-  window.CONV_CACHE.set(resid, conv);
+  DERIVED.CONV_CACHE.set(resid, conv);
   return conv;
 }
 

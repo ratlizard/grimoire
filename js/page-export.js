@@ -741,7 +741,7 @@ function downloadCurrentMidi(){
 const sheetResidForTile = t => 0x8E00 + ((t >> 4) & 0xFF);
 
 function buildTileSheetUsage() {
-  if (window.TILE_USAGE) return window.TILE_USAGE;
+  if (DERIVED.TILE_USAGE) return DERIVED.TILE_USAGE;
   const idx = {};
   const bucket = r => idx[r] || (idx[r] = { maps: [], props: [], composites: [] });
 
@@ -781,7 +781,7 @@ function buildTileSheetUsage() {
     for (const f of comp[i] || []) if (f && f.resid !== undefined) seen.add(f.resid);
     for (const s of seen) bucket(s).composites.push(0x1000 + i);
   }
-  return (window.TILE_USAGE = idx);
+  return (DERIVED.TILE_USAGE = idx);
 }
 
 function usageChips(list, render, limit) {
@@ -826,7 +826,7 @@ function updateUsagePanel(resid, subn) {
     // The panel renders itself: a button that says "click me to find out" was
     // an extra step in front of information that takes ~40ms to build once
     // and is memoised after. First visit shows the building note for one beat.
-    if (window.TILE_USAGE) el.innerHTML = renderArtUsage(resid);
+    if (DERIVED.TILE_USAGE) el.innerHTML = renderArtUsage(resid);
     else showArtUsage(resid);
     return;
   }
