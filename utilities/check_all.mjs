@@ -132,6 +132,19 @@ function findLlvmMc() {
   return 'llvm-mc';
 }
 const LLVM_MC = findLlvmMc();
+// A Chrome or Chromium, for browser_check.mjs: the one check that runs the
+// page in a browser rather than in node:vm. $CHROME, the PATH, then the
+// Mac's Applications folder; without one that row skips and says so.
+function findChrome() {
+  if (process.env.CHROME && existsSync(process.env.CHROME)) return process.env.CHROME;
+  for (const name of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']) {
+    try { const p = execSync(`command -v ${name}`, {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim(); if (p) return p; } catch (e) { /* not on the path */ }
+  }
+  for (const p of ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium'])
+    if (existsSync(p)) return p;
+  return 'google-chrome';
+}
+const CHROME = findChrome();
 // The community's add-ons. Not required: without them addons_check.mjs still
 // scores the heuristic against the shipped archive, which is the half that
 // matters most.
@@ -203,6 +216,13 @@ const CHECKS = [
   {page: 'viewer', name: 'unreached code',
    cmd: ['utilities/reach_check.mjs', 'index.html'],
    grep: /\d+ functions declared[^\n]*/},
+  /* Is every class the page puts on an element styled? Deleting the old
+     World renderer took the atlas panel's stylesheet with it and nothing
+     here noticed: markup intact, ids resolved, functions declared. Pinned
+     baseline of the hooks nothing styles, in reach_check's manner. */
+  {page: 'viewer', name: 'stylesheet',
+   cmd: ['utilities/css_check.mjs', 'index.html'],
+   grep: /css: [^\n]*/},
   {page: 'viewer', name: 'decoder snapshot', want: [DATA],
    cmd: ['utilities/decoder_snapshot.mjs', 'index.html', DATA], grep: /SNAPSHOT \w+/,
    expect: 'SNAPSHOT 10e7cd6d5787a66b'},
@@ -351,6 +371,16 @@ const CHECKS = [
   {page: 'viewer', name: 'version',
    cmd: ['utilities/version_check.mjs', 'index.html'],
    grep: /version [\d.]+[^\n]*/},
+  /* The page in a real browser, over HTTP on a loopback port: index.html
+     loads with no console error and the last script ran (a load-order fault
+     is what stops it, and the node:vm harnesses run the scripts as one
+     string, so none of them can see one); the archive opens through the
+     page's own ?src= path and the world comes up; canvas.html loads clean,
+     which is that page's only check. Quiet failures are counted from the
+     console (?loud=1). Skips without a Chrome. */
+  {page: 'viewer', name: 'browser', want: [CHROME],
+   cmd: ['utilities/browser_check.mjs', 'index.html', 'canvas.html', HQX],
+   grep: /browser: [^\n]*/},
   {page: 'viewer', name: 'ui smoke', want: [DATA], slow: true, after: ['addons + heuristic'],
    cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL, SAVE],
    grep: /\d+ galleries, [\d,]+ tiles/},

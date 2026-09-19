@@ -421,11 +421,11 @@ function adoptArchive(raw, sourceName, opts) {
       if (window.CUR_SUBN === 'MACRSRC' && window.RSRC_SOURCE === 'app') renderMacRsrcSheet();
       // The dialogue box's constants are the application's, so it is drawn
       // again now that the application is here.
-      try { installDialogueBox(); } catch (e) {}
+      try { installDialogueBox(); } catch (e) { quiet(e); }
       // The Data Fork tab unfades with the data fork, which is set just above
       // and after the sync parseArchiveBytes ran.
       syncInstallerTabs();
-      try { syncTabsTo(document.getElementById('categorySelect').value); } catch (e) {}
+      try { syncTabsTo(document.getElementById('categorySelect').value); } catch (e) { quiet(e); }
     }
   }
   if (opts.store) {
@@ -479,7 +479,7 @@ async function loadingFileNote() {
     let done = false;
     const go = () => { if (!done) { done = true; r(); } };
     setTimeout(go, 20);
-    try { requestAnimationFrame(() => setTimeout(go, 0)); } catch (e) {}
+    try { requestAnimationFrame(() => setTimeout(go, 0)); } catch (e) { quiet(e); }
   });
 }
 function loadArchive() {
@@ -495,13 +495,13 @@ function landingGate() {
   const g = document.getElementById('landingGate');
   if (!g) return Promise.resolve('download');
   g.style.display = 'flex';
-  try { document.body.classList.add('gated'); } catch (e) {}
+  try { document.body.classList.add('gated'); } catch (e) { quiet(e); }
   return new Promise(res => { landingGateResolve = res; });
 }
 function landingGateAnswer(which) {
   const g = document.getElementById('landingGate');
   if (g) g.style.display = 'none';
-  try { document.body.classList.remove('gated'); } catch (e) {}
+  try { document.body.classList.remove('gated'); } catch (e) { quiet(e); }
   const r = landingGateResolve; landingGateResolve = null;
   if (r) r(which);
 }
@@ -563,7 +563,7 @@ function installArchiveDropTarget() {
     const el = document.getElementById(id);
     if (el) el.addEventListener('dragstart', e => e.preventDefault());
   }
-  try { if (matchMedia('(hover: none) and (pointer: coarse)').matches) return; } catch (e) {}
+  try { if (matchMedia('(hover: none) and (pointer: coarse)').matches) return; } catch (e) { quiet(e); }
   const kill = e => { e.preventDefault(); e.stopPropagation(); };
   window.addEventListener('dragover', e => { kill(e); document.body.classList.add('dropping'); });
   window.addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('dropping'); });
@@ -656,7 +656,7 @@ function viewLabel(hash) {
       if (kind === 'item') return propDisplayName(parseInt(id, 10)) || ('item 0x' + id);
       if (kind === 'monster') return 'monster ' + id;
       if (kind === 'rsrc') return id;
-    } catch (e) {}
+    } catch (e) { quiet(e); }
     return kind + ' ' + id;
   }
   if (q.r) {
@@ -863,7 +863,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     const d = window.DETAIL_VIEW;
     if (d && DETAIL_OPENERS[d.kind]) q.d = d.kind + ':' + d.id;
     try { const r = currentMode === 'single' ? currentSelectedResid() : null;
-          if (r != null) q.r = r.toString(16).toUpperCase(); } catch (e) {}
+          if (r != null) q.r = r.toString(16).toUpperCase(); } catch (e) { quiet(e); }
     return q;
   })();
   try {
@@ -878,7 +878,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     resetDerivedCaches();
     openCytheraResourceFork(meta.rsrc);
     installGameFont();
-    try { installDialogueBox(); } catch (e) {}
+    try { installDialogueBox(); } catch (e) { quiet(e); }
     loadDerivedNames();
     installBackgroundTexture();
     document.getElementById('pickerWrap').style.display = 'block';
@@ -1118,18 +1118,18 @@ const PREFERS_REDUCED_MOTION = (() => {
    The three flags below are what the rest of the page reads; they are set
    from the mode and nowhere else. */
 window.ANIM_MODE = PREFERS_REDUCED_MOTION ? 'off' : 'all';
-try { const v = localStorage.getItem('cythera.animMode'); if (v) window.ANIM_MODE = v; } catch (e) {}
+try { const v = localStorage.getItem('cythera.animMode'); if (v) window.ANIM_MODE = v; } catch (e) { quiet(e); }
 window.PALETTE_ANIM = window.ANIM_MODE !== 'off';
 window.SPRITE_ANIM = window.ANIM_MODE === 'all' || window.ANIM_MODE === 'graphics';
 function setAnimMode(mode) {
   window.ANIM_MODE = mode;
-  try { localStorage.setItem('cythera.animMode', mode); } catch (e) {}
+  try { localStorage.setItem('cythera.animMode', mode); } catch (e) { quiet(e); }
   window.PALETTE_ANIM = mode !== 'off';
   window.MAP_ANIM = mode === 'all';
   window.SPRITE_ANIM = mode === 'all' || mode === 'graphics';
   if (!window.PALETTE_ANIM) stopPaletteAnimation();
   if (!window.SPRITE_ANIM) stopSpriteAnimations();
-  try { if (typeof onCategoryChange === 'function' && ARCHIVE) onCategoryChange(); } catch (e) {}
+  try { if (typeof onCategoryChange === 'function' && ARCHIVE) onCategoryChange(); } catch (e) { quiet(e); }
 }
 window.UNDITHER = false;
 
@@ -1184,7 +1184,7 @@ function unditherPreset() {
 }
 function setUnditherPreset(id) {
   window.UNDITHER_PRESET = (id === 'measured') ? 'measured' : 'original';
-  try { localStorage.setItem('cythera.undither.preset', window.UNDITHER_PRESET); } catch (e) {}
+  try { localStorage.setItem('cythera.undither.preset', window.UNDITHER_PRESET); } catch (e) { quiet(e); }
   cancelUndither();
   // The undithered images are keyed by preset, so the other preset's stay
   // right; dropping them is for memory, not correctness.
@@ -1290,7 +1290,7 @@ function loadStoreSymbols() {
         if (nm) names[key] = nm;
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return (window.STORE_SYMBOLS = names);
 }
 function storeSymbol(key) { return key ? (loadStoreSymbols()[key] || null) : null; }

@@ -62,8 +62,8 @@ function swapGameFont(bytes, filename) {
   // The page is set in the game's font, so it now shows the new one: the
   // preview is the whole site, which is as close to seeing it in the game as
   // a browser gets.
-  try { installGameFont(); } catch (e) {}
-  try { installDialogueBox(); } catch (e) {}
+  try { installGameFont(); } catch (e) { quiet(e); }
+  try { installDialogueBox(); } catch (e) { quiet(e); }
   return window.FONT_SWAP;
 }
 function fontSwapPanel() {
@@ -118,8 +118,8 @@ function undoFontSwap() {
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.FONT_SWAP = null;
   window.EDITOR_ZONE_NAMES = null;
-  try { installGameFont(); } catch (e) {}
-  try { installDialogueBox(); } catch (e) {}
+  try { installGameFont(); } catch (e) { quiet(e); }
+  try { installDialogueBox(); } catch (e) { quiet(e); }
   setStatus('The game’s own font is back.');
   renderMacRsrcSheet();
 }
@@ -529,7 +529,7 @@ function setFace() {
   try {
     document.documentElement.style.setProperty('--face', stack);
     document.documentElement.style.setProperty('--face-text', text);
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   // Published for canvasFace, which is called from the atlas paint loop and
   // must not read the document to find out what it is drawing in.
   window.FACE_STACK_NOW = stack;
@@ -539,7 +539,7 @@ function setFace() {
   return pick;
 }
 function setFaceChoice(v) {
-  try { localStorage.setItem('cythera.face', v); } catch (e) {}
+  try { localStorage.setItem('cythera.face', v); } catch (e) { quiet(e); }
   setFace();
 }
 /* Canvas takes a font string rather than a stack, so the face in use has to be
@@ -560,7 +560,7 @@ function canvasFace(px) {
 // default covers the first paint, but a reader who chose Chicago or this
 // device's face last time would otherwise have that choice ignored until a
 // file opened, and the radio would show nothing checked.
-try { setFace(); } catch (e) {}
+try { setFace(); } catch (e) { quiet(e); }
 function installGameFont() {
   window.GAME_FONT = null;
   const fork = window.CYTHERA_RSRC;
@@ -575,7 +575,7 @@ function installGameFont() {
   try {
     // A second face under the same family name would not replace the first,
     // so a re-install after a font swap takes the old one out first.
-    try { if (window.GAME_FONT_FACE) document.fonts.delete(window.GAME_FONT_FACE); } catch (e) {}
+    try { if (window.GAME_FONT_FACE) document.fonts.delete(window.GAME_FONT_FACE); } catch (e) { quiet(e); }
     window.GAME_FONT_FACE = null;
     const face = new FontFace('ArgosGame', ttf.buffer.slice(ttf.byteOffset, ttf.byteOffset + ttf.byteLength));
     window.GAME_FONT_STATE = 'loading';
@@ -583,7 +583,7 @@ function installGameFont() {
                             // The face only becomes choosable once it has
                             // loaded, so the stack is settled here rather
                             // than when the fork was opened.
-                            try { setFace(); } catch (e) {} })
+                            try { setFace(); } catch (e) { quiet(e); } })
                .catch(e => { window.GAME_FONT_STATE = 'the browser refused sfnt ' + entry.id + ': ' + (e && e.message || e); });
   } catch (e) { window.GAME_FONT_STATE = 'FontFace: ' + e.message; }
 }
@@ -854,7 +854,7 @@ async function loadApplicationFork() {
       window.APP_RSRC_RAW = c.rsrc;
       window.APP_DATA = c.data && c.data.length ? c.data : null; window.APP_PEF = null;
       window.APP_RSRC_STATE = '';
-      try { installDialogueBox(); } catch (e) {}
+      try { installDialogueBox(); } catch (e) { quiet(e); }
       window.AI_HOOK_NAMES = null;
       syncInstallerTabs();
       syncTabsTo(document.getElementById('categorySelect').value);
@@ -1164,10 +1164,10 @@ function renderCharacterSheet() {
         pc.style.cssText = 'width:76px;height:76px;image-rendering:pixelated;object-fit:contain;display:block';
         drew = true;
       }
-    } catch (e) {}
+    } catch (e) { quiet(e); }
     if (!drew) {
       try { drawTileToCanvas(pc, d.tile, 32); pc.style.cssText = 'width:76px;height:76px;image-rendering:pixelated'; }
-      catch (e) {}
+      catch (e) { quiet(e); }
     }
     // Front-facing walk cycle (frames 0-3), overlapping the portrait's
     // bottom-right corner rather than cropping either one.
@@ -1289,7 +1289,7 @@ function showCharacterDetail(i) {
     drawToCanvas(pc, dec.W, dec.H, dec.image, 0);
     pc.style.cssText = 'width:128px;height:128px;image-rendering:pixelated';
     imageOpens(pc, 0x8800 + (i - 1), 'portrait');
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   // Every frame of the sheet, laid out 4 facings x 4 poses.
   const sprInfo = spriteFrameInfo(d.tile, d.rec.proptype);
   const sheet = document.createElement('div');
@@ -1297,7 +1297,7 @@ function showCharacterDetail(i) {
   for (let f = 0; f < Math.max(sprInfo.count ? sprInfo.slots : 1, 1); f++) {
     const cv = document.createElement('canvas');
     cv.style.cssText = 'width:40px;height:40px;image-rendering:pixelated;background:#1c1913;border:1px solid #33302a';
-    if (sprInfo.present.indexOf(f) >= 0) { try { drawTileToCanvas(cv, sprInfo.base + f, 32); } catch (e) {} }
+    if (sprInfo.present.indexOf(f) >= 0) { try { drawTileToCanvas(cv, sprInfo.base + f, 32); } catch (e) { quiet(e); } }
     else cv.style.opacity = '0.25';
     cv.title = 'frame ' + f + (sprInfo.present.indexOf(f) >= 0 ? '' : ' (empty)');
     if (sprInfo.present.indexOf(f) >= 0) imageOpens(cv, sheetOfTile(sprInfo.base + f), cv.title + ', sheet');
@@ -1403,7 +1403,7 @@ function heroPortraitCard() {
       drawToCanvas(c, dec.W, dec.H, dec.image, 0);
       const k = hashIndices(dec.image);
       faces.set(k, (faces.get(k) || 0) + 1);
-    } catch (e) {}
+    } catch (e) { quiet(e); }
     c.style.cssText = 'width:48px;height:48px;image-rendering:pixelated;background:#1c1913;border:1px solid #33302a';
     imageOpens(c, r, 'portrait');
     strip.appendChild(c);
@@ -1477,7 +1477,7 @@ function onCategoryChange() { clearPropFilter(); onCategoryChangeImpl(); syncDee
 // page. The map cycle and the audio element had the same problem: sound went
 // on playing from a panel that was no longer on screen.
 function stopAllViewActivity() {
-  try { document.body.classList.remove('worldTab'); } catch (e) {}
+  try { document.body.classList.remove('worldTab'); } catch (e) { quiet(e); }
   stopLazyTiles();
   stopSpriteAnimations();
   stopMapAnimation();
@@ -1513,7 +1513,7 @@ function setModeImpl(m) {
   // back to where it was left.
   const wasSingle = currentMode === 'single';
   currentMode = m;
-  const go = y => { try { if (typeof window.scrollTo === 'function') window.scrollTo(0, y); } catch (e) {} };
+  const go = y => { try { if (typeof window.scrollTo === 'function') window.scrollTo(0, y); } catch (e) { quiet(e); } };
   if (m === 'single') setTimeout(() => go(0), 0);
   else if (wasSingle && m === 'sheet') setTimeout(() => go(lastSheetScrollY || 0), 0);
   // Before the early returns below, so a view without a bar (Tools, the

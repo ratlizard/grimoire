@@ -87,7 +87,7 @@ function drawSchedulePath(ctx, TS, cm, colour) {
   // findPath reads the blockers of whichever map was built last, and its
   // cache is keyed on that, so this has to run before any route is asked
   // for -- exactly as walkingPosition does it.
-  if (m) { try { buildPropBlockers(cm.resid, m); } catch (e) {} }
+  if (m) { try { buildPropBlockers(cm.resid, m); } catch (e) { quiet(e); } }
 
   /* A leg is walked at an hour, and its colour says which.
 

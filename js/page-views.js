@@ -309,6 +309,20 @@ function renderToolsSheet() {
      gate on the cheat keys, which nothing in the game ever sets. The long
      comment above buildCytheraPreferences says where each came from and, just
      as plainly, that this file has never been put in front of the game. */
+  {
+    /* What fell back without saying so. Every optional decode that failed
+       since the page loaded, kept by quiet() in js/mac-bytes.js, so a
+       missing picture or an empty sheet has a reason a visitor can find. */
+    const q = sec('Fell back quietly', QUIET_FAILURES.size
+      ? 'What could not be read or drawn since the page loaded, and fell back instead. Each is one line, with how many times.'
+      : 'Nothing has fallen back quietly since the page loaded.');
+    if (QUIET_FAILURES.size) {
+      const ul = document.createElement('div');
+      ul.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:0.75rem;line-height:1.6;color:#b5b2a8;margin-left:0;white-space:pre-wrap';
+      ul.textContent = [...QUIET_FAILURES].map(([m, v]) => (v.count > 1 ? v.count + '\u00d7 ' : '') + m + (v.where ? '\n    ' + v.where : '')).join('\n');
+      q.appendChild(ul);
+    }
+  }
   const layout = cytheraPrefsLayout();
   const pf = sec('Cythera’s preferences file', '');
   const pfNote = document.createElement('div');
@@ -679,7 +693,7 @@ function mapParts(resid, propResid) {
     if (land !== null && land >= 0 && refExists(0x8400 + land)) chips.push(partChip('Landscape', 0x8400 + land));
     else if (land === -1) chips.push(actionChip('Landscape', "showCategory('142')", 'the ethereal void'));
     else if (land !== null && land < 0) chips.push(actionChip('Landscape', "showCategory('131')", 'one the engine keeps'));
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return chips;
 }
 
@@ -774,7 +788,7 @@ function buildSoundUsage() {
           fields.get(tag).via.add(e.resid);
         } else if (s.data !== undefined && s.slot !== undefined) {
           let list = null;
-          try { list = dvmDataValue(smartDecrypt(getResourceBytes(ARCHIVE, e.resid), e.resid).data, s.data + 3); } catch (err) {}
+          try { list = dvmDataValue(smartDecrypt(getResourceBytes(ARCHIVE, e.resid), e.resid).data, s.data + 3); } catch (err) { quiet(err); }
           if (Array.isArray(list) && typeof list[s.slot] === 'number') put(u.lists, list[s.slot], e.resid);
         }
       }
@@ -896,7 +910,7 @@ function openPropType(pt) { openVia('PROPS', () => showPropTypeDetail(pt)); }
 // openSchedule gives. A command has no card; the sheet is where it is listed.
 function openClassCard(resid) {
   let spell = false;
-  try { spell = spellRules().spells.some(s => s.resid === resid); } catch (e) {}
+  try { spell = spellRules().spells.some(s => s.resid === resid); } catch (e) { quiet(e); }
   openVia(spell ? 'SPELLS' : 'SKILLS', () => {
     setTimeout(() => {
       const el = document.getElementById((spell ? 'spell-' : 'skill-') + resid.toString(16));
@@ -1000,7 +1014,7 @@ function ownerRows(resid, subn) {
     const cls = 0x1A00 | (resid & 0xFF);
     if (refExists(cls)) {
       let spell = false;
-      try { spell = spellRules().spells.some(s => s.resid === cls); } catch (e) {}
+      try { spell = spellRules().spells.some(s => s.resid === cls); } catch (e) { quiet(e); }
       const kind = spell ? 'spell' : skillKind(cls) === 'command' ? 'command' : 'skill';
       const chip = ownerChip(spell ? 'SPELLS' : 'SKILLS', 'openClassCard(' + cls + ')',
                              selfNameFor(cls) || labelFor(cls) || kind, kind);
@@ -1027,7 +1041,7 @@ function ownerRows(resid, subn) {
   if (subn === 3 || subn === 8) rows.push(['Rules on', [combatAiRuleChip()], '']);
   if (subn === 9 && refExists(0x101F)) {
     let potion = null;
-    try { potion = foodRules().potions.find(p => p.resid === resid); } catch (e) {}
+    try { potion = foodRules().potions.find(p => p.resid === resid); } catch (e) { quiet(e); }
     if (potion) rows.push(['Drunk as', [ownerChip('ITEMS', 'openItem(' + 0x1F + ',' + (resid - 0xA00) + ')', potion.name, 'aspect ' + (resid - 0xA00), 0x1F)], '']);
   }
   return rows;
@@ -1048,10 +1062,10 @@ function renderUsage(resid, subn) {
     const map = 0x8000 + (resid & 0xFF);
     if (refExists(map)) rows.push(['Runs for', [partChip(subn === 19 ? 'Zone' : 'Sub-zone of', map)], '']);
   }
-  try { for (const r of ownerRows(resid, subn)) rows.push(r); } catch (e) {}
+  try { for (const r of ownerRows(resid, subn)) rows.push(r); } catch (e) { quiet(e); }
   if (subn === 144 || subn === 143) for (const r of soundUsageRows(resid, subn)) rows.push(r);
   let ins = [];
-  try { ins = buildXrefIndex().inbound[resid] || []; } catch (e) {}
+  try { ins = buildXrefIndex().inbound[resid] || []; } catch (e) { quiet(e); }
   if (ins.length) {
     const shown = ins.slice(0, 24);
     rows.push(['Referenced by', shown.map(e => svChip(e.from, (refDescription(e.from) || e.via) + (e.count > 1 ? ' ×' + e.count : ''))),
@@ -1157,7 +1171,7 @@ function parseMonsterStats() {
         });
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return (window.MONSTER_STATS = out);
 }
 
@@ -1288,7 +1302,7 @@ function showMonsterDetail(idx) {
   try {
     const chars = loadCharacterTable();
     for (let i = 1; i < chars.length; i++) if (chars[i].proptype === r.proptype) users.push(i);
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   if (users.length) {
     const u = document.createElement('div');
     u.style.cssText = 'font-size:0.8125rem;line-height:1.9;margin-bottom:10px';
@@ -1321,7 +1335,7 @@ function renderTableInspector(resid) {
   if (!host) return;
   window.CUR_TABLE_RESID = resid;
   let d = null;
-  try { d = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data; } catch (e) {}
+  try { d = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data; } catch (e) { quiet(e); }
   if (!d || !d.length) { host.style.display = 'none'; return; }
   host.style.display = '';
   const w = window.TABLE_WIDTH || 16;
@@ -1586,7 +1600,7 @@ function conversationFor(resid) {
   try {
     const raw = getResourceBytes(ARCHIVE, resid);
     if (raw) conv = dvmConversation(smartDecrypt(raw, resid).data, resid);
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   window.CONV_CACHE.set(resid, conv);
   return conv;
 }
@@ -1686,7 +1700,7 @@ function convCardHtml(resid, e, depth) {
 
 function renderConversationPane(data, subn, resid) {
   let conv = null;
-  try { conv = dvmConversation(data, resid); } catch (e) {}
+  try { conv = dvmConversation(data, resid); } catch (e) { quiet(e); }
   if (!conv || !conv.entries.length) return false;
   const wrap = document.getElementById('dlgWrap');
   if (!wrap) return false;

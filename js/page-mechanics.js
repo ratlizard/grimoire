@@ -712,7 +712,7 @@ function mechSleepFigure(sl, clock) {
   // character record has no name field, the name is the page's own lookup.
   for (const inn of sl.inns) if (inn.quality !== null) {
     let who = 'character ' + inn.who;
-    try { who = characterName(inn.who) || who; } catch (e) {}
+    try { who = characterName(inn.who) || who; } catch (e) { quiet(e); }
     rows.push({ name: who + '’s inn', quality: inn.quality });
   }
   rows.push({ name: 'the bare ground', quality: 0 });
@@ -762,7 +762,7 @@ function mechSkillsFigure(sk) {
   const rows = [];
   for (const [id, resids] of sk.by) {
     let name = 'skill 0x' + id.toString(16).toUpperCase();
-    try { if (refExists(0x1A00 + id)) name = selfNameFor(0x1A00 + id) || name; } catch (e) {}
+    try { if (refExists(0x1A00 + id)) name = selfNameFor(0x1A00 + id) || name; } catch (e) { quiet(e); }
     rows.push({ label: name, value: resids.size, text: String(resids.size) });
   }
   if (rows.length < 2) return '';
@@ -1142,7 +1142,7 @@ function heroSpriteClasses() {
     const start = base & 15;
     own = Math.min(own, 16 - start);
     if (!own) continue;
-    try { for (let f = 0; f < own; f++) if (multiTilePieces(base + f, false)) multi = true; } catch (e) {}
+    try { for (let f = 0; f < own; f++) if (multiTilePieces(base + f, false)) multi = true; } catch (e) { quiet(e); }
     out.push({ pt: k.pt, name: k.name, kind: k.kind, base, sheet: 0x8E00 + (base >> 4), start, frames: own,
                multi, still: !!(info && info.isStatic) });
   }
@@ -1189,7 +1189,7 @@ function heroFigure(key) {
   const shades = heroShadeDef(image);
   const shadeLabels = heroPartMap(image, 32, H, shades);
   let wearers = 0;
-  try { for (const c of loadCharacterTable()) if (c && c.proptype === pt) wearers++; } catch (e) {}
+  try { for (const c of loadCharacterTable()) if (c && c.proptype === pt) wearers++; } catch (e) { quiet(e); }
   const others = heroSpriteClasses().filter(k => k.pt !== pt && k.sheet === cls.sheet &&
     k.start < cls.start + cls.frames && cls.start < k.start + k.frames);
   return { key, def: labels ? def : null, pt, cls, name: cls.label, sheet: cls.sheet, start: cls.start,

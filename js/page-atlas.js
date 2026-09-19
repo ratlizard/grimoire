@@ -65,7 +65,7 @@
 // this feature has been found. Once the atlas has earned it, the other one
 // and its 425 lines of compensation go.
 window.ATLAS = (() => {
-  try { const v = localStorage.getItem('cythera.atlas'); if (v !== null) return v === '1'; } catch (e) {}
+  try { const v = localStorage.getItem('cythera.atlas'); if (v !== null) return v === '1'; } catch (e) { quiet(e); }
   return true;
 })();
 
@@ -135,7 +135,7 @@ function mapDescents(resid) {
                  name: zoneNameFor(dest.resid) || dest.name,
                  kind: (propDisplayName(r.proptype) || 'way down').toLowerCase() });
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return out;
 }
 
@@ -181,7 +181,7 @@ function mapWorldAnchor(resid) {
         }
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   locatedCache.set(resid, anchor);
   return anchor;
 }
@@ -318,7 +318,7 @@ function atlasMapName(resid) {
     for (let n = 0; n < 0x100; n++) {
       const r = 0x8000 | n;
       let nm = null;
-      try { if (refExists(r)) nm = zoneNameFor(r); } catch (e) {}
+      try { if (refExists(r)) nm = zoneNameFor(r); } catch (e) { quiet(e); }
       if (nm) atlasNameCounts.set(nm, (atlasNameCounts.get(nm) || 0) + 1);
     }
   }
@@ -376,7 +376,7 @@ function atlasMouths(node) {
     try {
       const sc = window.ATLAS_SCENE;
       if (sc) for (const n of sc.nodes) if (n.depth) for (const d of mapDescents(n.resid)) have.add(d.dest.resid);
-    } catch (e) {}
+    } catch (e) { quiet(e); }
     for (let n = 0; n < 0x100; n++) {
       const resid = 0x8000 | n;
       if (resid === WORLD_MAP_RESID || have.has(resid) || !refExists(resid)) continue;
@@ -1152,7 +1152,7 @@ function hideAtlasHover() {
    the sheet. */
 function renderAtlasView() {
   stopAllViewActivity();
-  try { document.body.classList.add('worldTab'); } catch (e) {}
+  try { document.body.classList.add('worldTab'); } catch (e) { quiet(e); }
   const sheet = document.getElementById('tabSheet');
   if (sheet) sheet.style.display = 'none';
   const panel = document.getElementById('atlasPanel');
@@ -1199,7 +1199,7 @@ function atlasToggleFull() {
     try {
       if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
       else if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
-    } catch (e) {}
+    } catch (e) { quiet(e); }
     document.body.classList.remove('atlasFull');
   } else {
     const req = panel.requestFullscreen || panel.webkitRequestFullscreen;
@@ -1985,7 +1985,7 @@ function appendFaceOrSprite(el, c) {
     cv.getContext('2d').drawImage(face.canvas, 0, 0);
     cv.className = 'hvFace';
   } else {
-    try { drawTileToCanvas(cv, getPropTileList()[c.proptype] + c.aspect, 32, c.rotated); } catch (e) {}
+    try { drawTileToCanvas(cv, getPropTileList()[c.proptype] + c.aspect, 32, c.rotated); } catch (e) { quiet(e); }
   }
   el.appendChild(cv);
 }
@@ -2058,7 +2058,7 @@ function downloadMapPNG() {
       try {
         full = renderMapVisual(cm.resid, cm.mapData, { forceTS: tryTS });
         if (full && full.canvas && full.canvas.getContext('2d')) { wantTS = tryTS; break; }
-      } catch (e) {}
+      } catch (e) { quiet(e); }
       full = null;
     }
     if (full && full.canvas) {

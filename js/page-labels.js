@@ -127,7 +127,7 @@ function selfNameFor(resid) {
         break;
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return (window.SELF_NAMES[resid] = name);
 }
 
@@ -330,7 +330,7 @@ function loadZoneports() {
       const xy = (b[i+1] << 16) | u16be(b, i+2);
       out.push({ map: 0x8000 | b[i], x: xy >> 12, y: xy & 0xFFF });
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return (window.ZONEPORTS = out);
 }
 function zoneportInfo(idx) {
@@ -446,7 +446,7 @@ window.SHOW_BUILTIN_LABELS = true;   // on by default since 6 September 2026 (th
 try {
   const st = localStorage.getItem('cythera.builtinLabels');
   if (st !== null) window.SHOW_BUILTIN_LABELS = st === '1';
-} catch (e) {}
+} catch (e) { quiet(e); }
 /* The default for the switch follows where the file came from (10 September
    2026): a file the visitor supplied -- dropped, picked, or remembered from
    one of those -- starts with the names off, since it may not be the shipped
@@ -459,15 +459,15 @@ function applyNamesDefault(own) {
   try { stored = localStorage.getItem('cythera.builtinLabels'); } catch (e) { stored = null; }
   if (stored !== null) return;
   window.SHOW_BUILTIN_LABELS = !own;
-  try { window.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) {}
+  try { window.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) { quiet(e); }
 }
 function setBuiltinLabels(on) {
   window.SHOW_BUILTIN_LABELS = !!on;
-  try { localStorage.setItem('cythera.builtinLabels', on ? '1' : '0'); } catch (e) {}
+  try { localStorage.setItem('cythera.builtinLabels', on ? '1' : '0'); } catch (e) { quiet(e); }
   // The atlas names its places once, when the scene is built.
-  try { window.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) {}
+  try { window.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) { quiet(e); }
   if (ARCHIVE) {
-    try { onCategoryChange(); } catch (e) {}
+    try { onCategoryChange(); } catch (e) { quiet(e); }
   }
 }
 
@@ -480,10 +480,10 @@ function labelForUnnormalized(resid) {
   // The archive names many of its own resources; prefer that over our tables.
   // They are code identifiers -- "LKH_Guard", "Od_Trough1" -- so the
   // underscores become spaces for display. The symbol itself is untouched.
-  try { const sy = resourceSymbol(resid); if (sy) return sy.replace(/_/g, ' '); } catch (e) {}
+  try { const sy = resourceSymbol(resid); if (sy) return sy.replace(/_/g, ' '); } catch (e) { quiet(e); }
   // The AI vocabulary out of the application's lists, and the helpers read
   // off their bytecode (dvmScriptName in js/delv-script.js).
-  try { const sn = dvmScriptName(resid); if (sn) return sn; } catch (e) {}
+  try { const sn = dvmScriptName(resid); if (sn) return sn; } catch (e) { quiet(e); }
   const subn = Math.floor(resid / 0x100) - 1;
   const n = resid % 0x100;
   if (window.SHOW_BUILTIN_LABELS) {
@@ -628,7 +628,7 @@ function refreshUnditherControls() {
   try {
     const want = !window.UNDITHER ? 'off' : window.UNDITHER_ALL ? 'all' : 'portraits';
     for (const r of document.querySelectorAll('input[name="unditherScope"]')) r.checked = r.value === want;
-  } catch (e) {}
+  } catch (e) { quiet(e); }
 }
 
 // Called from both setMode and onCategoryChange: whichever of them runs last
@@ -759,7 +759,7 @@ function loadTerrainNames() {
         list.push([id, nm.replace(/\\[A-Za-z\/]*$/, '')]);
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   window.TERRAIN_NAMES = list;
   return list;
 }
@@ -811,7 +811,7 @@ function showCompositeDetail(tileId, entry, builtCanvas) {
     drawToCanvas(big, W, H, image);
     const sc = Math.min(256 / W, 256 / H, 8);
     big.style.cssText = 'width:' + (W*sc) + 'px;height:' + (H*sc) + 'px;image-rendering:pixelated;border:1px solid #9b8850';
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   head.appendChild(big);
   const cap = document.createElement('div');
   cap.style.cssText = 'color:var(--gold);margin-top:6px';
@@ -837,7 +837,7 @@ function showCompositeDetail(tileId, entry, builtCanvas) {
           present++;
         }
       }
-    } catch (e) {}
+    } catch (e) { quiet(e); }
     cell.appendChild(c);
     const l = document.createElement('div');
     l.className = 'lbl';
@@ -1012,7 +1012,7 @@ function animateSpriteTile(host, info, rec) {
     c.style.left = 'calc(100% - ' + Math.round(SIZE * 0.55) + 'px)';
     c.style.top  = 'calc(100% - ' + Math.round(SIZE * 0.55) + 'px)';
     const f = info.present.indexOf(staticFrame) >= 0 ? staticFrame : restingFrame(info);
-    try { drawTileToCanvas(c, info.base + f, 32); } catch (e) {}
+    try { drawTileToCanvas(c, info.base + f, 32); } catch (e) { quiet(e); }
     return c;
   }
 
@@ -1074,7 +1074,7 @@ function animateSpriteTile(host, info, rec) {
     const col = WALK_CYCLE[((k % WALK_CYCLE.length) + WALK_CYCLE.length) % WALK_CYCLE.length];
     let f = row * 4 + col;
     if (info.present.indexOf(f) < 0) f = restingFrame(info);
-    try { drawTileToCanvas(c, info.base + f, 32); } catch (e) {}
+    try { drawTileToCanvas(c, info.base + f, 32); } catch (e) { quiet(e); }
     c.style.left = Math.round(x - SIZE / 2) + 'px';
     c.style.top  = Math.round(y - SIZE / 2) + 'px';
   };

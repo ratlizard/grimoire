@@ -286,7 +286,7 @@ function buildScriptView(o) {
   // 3. WHERE IT IS USED -----------------------------------------------------
   if (isScript) {
     let idx = null;
-    try { idx = buildXrefIndex(); } catch (e) {}
+    try { idx = buildXrefIndex(); } catch (e) { quiet(e); }
     const ins = (idx && idx.inbound[resid]) || [];
     const outs = (idx && idx.outbound[resid]) || [];
     h += '<div class="sv-block"><h4>Where this is used</h4>';
@@ -437,7 +437,7 @@ function askCard(title, note, rows, chips) {
     (chips ? '<div class="partsStrip">' + chips + '</div>' : '') + '</section>';
 }
 function askCharacterChip(who, fallback) {
-  try { if (who !== null && who !== undefined && loadCharacterTable()[who]) return characterChip(who); } catch (e) {}
+  try { if (who !== null && who !== undefined && loadCharacterTable()[who]) return characterChip(who); } catch (e) { quiet(e); }
   return fallback || '';
 }
 /* One question. Returns HTML, or null when the shape was not recognised or
@@ -548,7 +548,7 @@ function askOneShape(shape, hit) {
           for (let n = 0; n < 0x100 && where.length < 6; n++) {
             const mr = 0x8000 + n;
             let recs = null;
-            try { const raw = getResourceBytes(ARCHIVE, mr + 0x100); if (raw) recs = parseDelverPropList(smartDecrypt(raw, mr + 0x100).data); } catch (e) {}
+            try { const raw = getResourceBytes(ARCHIVE, mr + 0x100); if (raw) recs = parseDelverPropList(smartDecrypt(raw, mr + 0x100).data); } catch (e) { quiet(e); }
             if (!recs) continue;
             const hit = recs.find(r => r.proptype === pt && r.onMap && r.flags !== 0xFF && r.flags !== 0x42 && r.flags !== 0x44);
             if (hit) where.push('<button class="sv-chip" onclick="showSquareOnMap(' + mr + ',' + hit.x + ',' + hit.y + ')">' + svEsc(atlasMapName(mr)) + ' (' + hit.x + ',' + hit.y + ')</button>');
@@ -578,7 +578,7 @@ function runSearch() {
   if (hx) {
     const rid = parseInt(hx[1], 16);
     let exists = false;
-    try { const r = getResourceBytes(ARCHIVE, rid); exists = !!(r && r.length); } catch (e) {}
+    try { const r = getResourceBytes(ARCHIVE, rid); exists = !!(r && r.length); } catch (e) { quiet(e); }
     if (exists) {
       host.innerHTML = '<div class="sv-note">Opening resource 0x' +
         rid.toString(16).toUpperCase().padStart(4, '0') + '\u2026</div>';
@@ -722,7 +722,7 @@ function refDescription(rid) {
     const ins = (buildXrefIndex().inbound[rid] || []).length;
     if (ins > 3) return (purpose ? purpose[0].toLowerCase() : 'routine') +
                         ', shared by ' + ins + ' resources';
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return purpose ? purpose[0].toLowerCase() : null;
 }
 
@@ -763,7 +763,7 @@ function renderLinked(text, resid) {
 // A plain-language header: what this script reaches out to, before the code.
 function linkedSummary(resid) {
   let outs = [];
-  try { outs = buildXrefIndex().outbound[resid] || []; } catch (e) {}
+  try { outs = buildXrefIndex().outbound[resid] || []; } catch (e) { quiet(e); }
   if (!outs.length) return '';
   const calls = outs.filter(e => e.kind === 'call');
   const holds = outs.filter(e => e.kind !== 'call');
@@ -1073,7 +1073,7 @@ function navIconFromFork(spec) {
   if (!spec || typeof spec !== 'object') return null;
   // The installer's own icons come from the installer, which is open before
   // the application's fork is and sometimes instead of it.
-  if (spec.installed) { try { const a = installerIcon(spec.installed); if (a) return a; } catch (e) {} }
+  if (spec.installed) { try { const a = installerIcon(spec.installed); if (a) return a; } catch (e) { quiet(e); } }
   if (!window.APP_RSRC) return null;
   try {
     if (spec.finder) return finderIconFor(spec.finder);
@@ -1084,7 +1084,7 @@ function navIconFromFork(spec) {
       const pic = rsrcArtifacts(fork, 'crsr', e).find(a => a.canvas && a.canvas.width);
       return pic ? pic.canvas : null;
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return null;
 }
 
@@ -1111,13 +1111,13 @@ function navIconCanvas(spec, px) {
       let best = info.present[0] || 0, bestN = -1;
       for (const f of info.present.slice(0, 4)) {
         let n = 0;
-        try { const img = resolveTileImage(base + f); if (img) for (const v of img) if (v) n++; } catch (e) {}
+        try { const img = resolveTileImage(base + f); if (img) for (const v of img) if (v) n++; } catch (e) { quiet(e); }
         if (n > bestN) { bestN = n; best = f; }
       }
       tile = base + best;
     }
     if (tile !== null) drawTileToCanvas(c, tile, 32);
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   c.style.cssText = 'width:' + px + 'px;height:' + px + 'px;image-rendering:pixelated;display:block;margin:0 auto';
   return c;
 }

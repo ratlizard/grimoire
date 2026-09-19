@@ -35,7 +35,7 @@ function livingPropTypes() {
   const set = new Set();
   try {
     for (const c of loadCharacterTable()) if (c && c.proptype) set.add(c.proptype);
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return (window.LIVING_PROPTYPES = set);
 }
 
@@ -121,7 +121,7 @@ let _propBaseTiles = null;
 function propBaseTileSet() {
   if (_propBaseTiles) return _propBaseTiles;
   const set = new Set();
-  try { for (const t of getPropTileList()) if (t) set.add(t); } catch (e) {}
+  try { for (const t of getPropTileList()) if (t) set.add(t); } catch (e) { quiet(e); }
   return (_propBaseTiles = set);
 }
 function framesSharingName(base, present) {
@@ -197,7 +197,7 @@ function frameColourWord(tileId) {
         word = mean < 70 ? 'dark' : mean > 185 ? 'pale' : 'grey';
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   _frameColourCache.set(tileId, word);
   return word;
 }
@@ -496,7 +496,7 @@ function showPropTypeDetail(pt) {
   try {
     const chars = loadCharacterTable();
     for (let i = 1; i < chars.length; i++) if (chars[i].proptype === pt) users.push(i);
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   if (users.length) {
     const u = document.createElement('div');
     u.style.cssText = 'font-size:0.8125rem;line-height:1.8';
@@ -583,10 +583,10 @@ function parseClassTable(resid) {
   const cache = window.ITEM_CLASSES || (window.ITEM_CLASSES = {});
   if (resid in cache) return cache[resid];
   let b = null;
-  try { const raw = getResourceBytes(ARCHIVE, resid); if (raw) b = smartDecrypt(raw, resid).data; } catch (e) {}
+  try { const raw = getResourceBytes(ARCHIVE, resid); if (raw) b = smartDecrypt(raw, resid).data; } catch (e) { quiet(e); }
   if (!b || b.length < 8) return (cache[resid] = null);
   let disc = null;
-  try { disc = dvmDiscover(b, resid); } catch (e) {}
+  try { disc = dvmDiscover(b, resid); } catch (e) { quiet(e); }
   const toff = disc ? disc.tableOffset : null;
   if (toff === null || toff + 2 > b.length || (b[toff] & 0xF0) !== 0xA0) return (cache[resid] = null);
   const count = u16be(b, toff) & 0x0FFF;
@@ -676,7 +676,7 @@ function buildItemIndex() {
     try {
       const raw = getResourceBytes(ARCHIVE, resid);
       if (raw) recs = parseDelverPropList(smartDecrypt(raw, resid).data);
-    } catch (e) {}
+    } catch (e) { quiet(e); }
     if (!recs) continue;
     for (const r of recs) {
       if (r.flags === 0xFF || !r.proptype) continue;
@@ -894,7 +894,7 @@ function propWordRules() {
   const count = subindexCount(ARCHIVE, 128);
   for (let n = 0; n < count; n++) {
     const resid = 0x8100 + n; let recs = null;
-    try { const raw = getResourceBytes(ARCHIVE, resid); if (raw) recs = parseDelverPropList(smartDecrypt(raw, resid).data); } catch (e) {}
+    try { const raw = getResourceBytes(ARCHIVE, resid); if (raw) recs = parseDelverPropList(smartDecrypt(raw, resid).data); } catch (e) { quiet(e); }
     if (!recs) continue;
     for (const r of recs) {
       if (r.flags === 0xFF || r.flags === 0x42 || r.flags === 0x44 || !r.d1) continue;
@@ -946,7 +946,7 @@ function propWordMount(pt, host) {
     b.title = 'aspect ' + n + ' · tile ' + propWordHex(base + n) + (nm ? ' · ' + nm : '');
     const num = document.createElement('span'); num.className = 'pwN'; num.textContent = String(n); b.appendChild(num);
     const art = document.createElement('div'); art.className = 'pwArt';
-    try { const spr = drawPropSprite(base + n, 20); if (spr) art.appendChild(spr.canvas); } catch (e) {}
+    try { const spr = drawPropSprite(base + n, 20); if (spr) art.appendChild(spr.canvas); } catch (e) { quiet(e); }
     b.appendChild(art);
     const t = document.createElement('span'); t.className = 'pwT'; t.textContent = nm || 'unnamed'; b.appendChild(t);
     rail.appendChild(b); st.slots.push(b);
@@ -1141,7 +1141,7 @@ function inventoryItemList() {
   for (let pt = 1; pt < tiles.length && pt < 1024; pt++) {
     if (!tiles[pt]) continue;
     let ok = false;
-    try { ok = isInventoryItem(pt); } catch (e) {}
+    try { ok = isInventoryItem(pt); } catch (e) { quiet(e); }
     if (!ok) continue;
     const e = buildItemIndex()[pt] || null;
     list.push({

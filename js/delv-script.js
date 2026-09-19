@@ -312,7 +312,7 @@ function loadResourceSymbolsFrom(arc) {
         if (str) names[k] = str;
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return names;
 }
 /* The symbol table the disassembler names resources from. The disassembler
@@ -371,7 +371,7 @@ function dvmAnnotateInt(encl, argIdx, v) {
         const z = zoneportInfo(v);
         if (z) return 'zoneport ' + v + ' → ' + z.name;
       }
-    } catch (e) {}
+    } catch (e) { quiet(e); }
     return 'zoneport ' + v;
   }
   if (encl === 0xA8 && argIdx === 1 && v > 0 && v <= 0xFFFF) {
@@ -795,7 +795,7 @@ function dvmRender(arc, b, resid) {
       for (const e of raw)
         lines.push('//   +0x' + e.offset.toString(16).toUpperCase() + ': ' + JSON.stringify(e.str));
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return lines.join('\n');
 }
 
@@ -902,7 +902,7 @@ function dvmStringObjects(arc, b, resid) {
         if (t.trim()) out.push({ offset: st, str: t, kind: 'delver' });
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   if (memo && typeof resid === 'number' && b) memo.set(resid, { len: b.length, out });
   return out;
 }
@@ -1041,7 +1041,7 @@ function dvmConversation(b, resid) {
       if (mn === 'conversation_response') {
         const cut = arg.lastIndexOf(' -> 0x');
         let kw = arg.slice(0, cut), target = parseInt(arg.slice(cut + 6), 16);
-        try { kw = JSON.parse(kw); } catch (e) {}
+        try { kw = JSON.parse(kw); } catch (e) { quiet(e); }
         const entry = { kw, at: st + at, text: [], actions: [], conds: [], sub: [] };
         (into ? into.sub : entries).push(entry);
         const segEnd = target - st;
@@ -1050,10 +1050,10 @@ function dvmConversation(b, resid) {
       }
       const e = into || preamble;
       if (mn === 'string(implicit)') {
-        try { e.text.push({ off: st + at, str: JSON.parse(arg) }); } catch (err) {}
+        try { e.text.push({ off: st + at, str: JSON.parse(arg) }); } catch (err) { quiet(err); }
         pendingSys = null;
       } else if (mn === 'string') {
-        try { e.text.push({ off: st + at + 1, str: JSON.parse(arg) }); } catch (err) {}
+        try { e.text.push({ off: st + at + 1, str: JSON.parse(arg) }); } catch (err) { quiet(err); }
         pendingSys = null;
       } else if (mn === 'call_resource') {
         const m = /0x([0-9A-Fa-f]{1,4})/.exec(arg);

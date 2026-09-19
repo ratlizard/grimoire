@@ -4151,6 +4151,15 @@ if (visePath && existsSync(visePath) && !onlyCat) {
 
 while (rafQueue.length) { const cb = rafQueue.shift(); try { cb(0); } catch (e) { fail('rAF callback', e); } }
 
+{
+  // What fell back quietly over the whole drive: every empty catch reports
+  // to quiet() since 18 September 2026, so this is the first time the
+  // number has been visible. Printed, not pinned: the stub throws where a
+  // browser would not, and the list is for reading.
+  const qf = peek('QUIET_FAILURES');
+  console.log(`  quiet failures over the drive: ${qf.size} distinct`);
+  for (const [m, v] of [...qf].sort((a, b) => b[1].count - a[1].count).slice(0, 12)) console.log(`    ${v.count}x ${m.slice(0, 110)}${v.where ? '  <- ' + v.where.replace(/^\s*at /, '').slice(-70) : ''}`);
+}
 console.log(`\n  ${galleries} galleries, ${cellsSeen} tiles, ${opened} resources opened in ${Date.now() - t0} ms`);
 if (missingIds.size) console.log('  ids looked up but not in the markup: ' + [...missingIds].join(', '));
 if (ctx.__alerts.length) console.log('  alert() calls: ' + ctx.__alerts.length);

@@ -2124,7 +2124,7 @@ function lookupCursor(fork, id, preferType){
     const list=fork.resourcesByType[t]; if(!list) continue;
     const e=list.find(r=>r.id===id); if(!e) continue;
     const data=fork.dataOf(t,e);
-    try{ return {type:t, entry:e, ...(t==='crsr'?decodeCrsr(data):decodeCURS(data))}; }catch(_){ }
+    try{ return {type:t, entry:e, ...(t==='crsr'?decodeCrsr(data):decodeCURS(data))}; }catch (_) { quiet(_); }
   }
   return null;
 }

@@ -442,7 +442,7 @@ function openDitherTool() {
   const portraits = [];
   for (let n = 0; n < 256; n++) {
     const rid = 0x8800 + n;
-    try { if (getResourceBytes(ARCHIVE, rid)) portraits.push(rid); } catch (e) {}
+    try { if (getResourceBytes(ARCHIVE, rid)) portraits.push(rid); } catch (e) { quiet(e); }
   }
   ov.innerHTML =
     '<div class="dtPanel">' +
@@ -739,7 +739,7 @@ function keyLocationChip(k) {
     try {
       const raw = getResourceBytes(ARCHIVE, k.map + 0x100);
       host = parseDelverPropList(smartDecrypt(raw, k.map + 0x100).data)[k.rec.container];
-    } catch (e) {}
+    } catch (e) { quiet(e); }
     if (!host) return '';
     x = host.x; y = host.y;
     how = ', in a ' + svEsc((propDisplayName(host.proptype) || 'container'));
@@ -792,7 +792,7 @@ function showSquareOnMap(mapResid, x, y) {
     mapView.x = vp.clientWidth / 2 - (x + 0.5) * cm.TS * mapView.scale;
     mapView.y = vp.clientHeight / 2 - (y + 0.5) * cm.TS * mapView.scale;
     clampMapPan(); applyMapTransform();
-    try { updateMapArrows(); } catch (e) {}
+    try { updateMapArrows(); } catch (e) { quiet(e); }
     inspectMapSquare(x, y);
     setMapSelection(x, y);
   });
@@ -968,7 +968,7 @@ function renderContactSheet() {
       miniWave.width=160; miniWave.height=46; miniWave.style.cssText='width:84px;height:38px;background:#090806;border:1px solid #9b8850;margin-bottom:4px';
       // Decoding 46 sounds to draw 46 waveforms was the slowest gallery here.
       lazyTile(cell, () => {
-      try { const snd=decodeSound(ARCHIVE.bytes.slice(roff,roff+rlen)); const c=miniWave.getContext('2d'), s=snd.samples, w=miniWave.width,h=miniWave.height,mid=h/2, step=Math.max(1,Math.ceil(s.length/w)); c.strokeStyle='#f9f86f'; c.beginPath(); for(let x=0;x<w;x++){let lo=32767,hi=-32768;for(let j=x*step;j<Math.min(s.length,(x+1)*step);j++){if(s[j]<lo)lo=s[j];if(s[j]>hi)hi=s[j];}c.moveTo(x,mid-hi/32768*(mid-2));c.lineTo(x,mid-lo/32768*(mid-2));}c.stroke(); } catch(e) {}
+      try { const snd=decodeSound(ARCHIVE.bytes.slice(roff,roff+rlen)); const c=miniWave.getContext('2d'), s=snd.samples, w=miniWave.width,h=miniWave.height,mid=h/2, step=Math.max(1,Math.ceil(s.length/w)); c.strokeStyle='#f9f86f'; c.beginPath(); for(let x=0;x<w;x++){let lo=32767,hi=-32768;for(let j=x*step;j<Math.min(s.length,(x+1)*step);j++){if(s[j]<lo)lo=s[j];if(s[j]>hi)hi=s[j];}c.moveTo(x,mid-hi/32768*(mid-2));c.lineTo(x,mid-lo/32768*(mid-2));}c.stroke(); } catch (e) { quiet(e); }
       });
       cell.appendChild(miniWave);
       const lbl = labelFor(resid);
@@ -1179,13 +1179,27 @@ function installKeyboardShortcuts() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // An error nothing caught used to go to the console and nowhere else, so
+  // a click that did nothing had no explanation on a phone. It reaches the
+  // status line now and the Tools sheet's list, with everything else that
+  // fell back. ?loud=1 also prints each quiet failure to the console, for a
+  // headless load that wants to count them (utilities/browser_check.mjs).
+  try { window.LOUD_QUIET = /[?&]loud\b/.test(location.search); } catch (e) { quiet(e); }
+  window.addEventListener('error', ev => {
+    quiet(ev.error || ev.message, 'uncaught');
+    try { setStatus('Something went wrong: ' + (ev.message || ev.error) + '. Tools lists what fell back.', true); } catch (e) { quiet(e); }
+  });
+  window.addEventListener('unhandledrejection', ev => {
+    quiet(ev.reason, 'unhandled');
+    try { setStatus('Something went wrong: ' + (ev.reason && ev.reason.message || ev.reason) + '. Tools lists what fell back.', true); } catch (e) { quiet(e); }
+  });
   const slider=document.getElementById('zoomSlider');
   slider.addEventListener('pointerdown', e => { slider.setPointerCapture?.(e.pointerId); });
   slider.addEventListener('pointermove', e => { if(e.buttons){ const r=slider.getBoundingClientRect(); const min=+slider.min,max=+slider.max; slider.value=Math.round(min+(e.clientX-r.left)/r.width*(max-min)); applyZoom(); } });
   installArchiveDropTarget();
   installKeyboardShortcuts();
-  try { receiveFromCanvas(); } catch (e) {}
-  try { for (const r of document.querySelectorAll('input[name="animMode"]')) r.checked = r.value === window.ANIM_MODE; } catch (e) {}
+  try { receiveFromCanvas(); } catch (e) { quiet(e); }
+  try { for (const r of document.querySelectorAll('input[name="animMode"]')) r.checked = r.value === window.ANIM_MODE; } catch (e) { quiet(e); }
   window.addEventListener('hashchange', () => {
     if (_hashWrite) return;
     // Back or forward. Back to the trail's top pops it; anywhere else --

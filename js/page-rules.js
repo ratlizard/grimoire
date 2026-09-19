@@ -381,7 +381,7 @@ function renderSkillsSheet() {
   box.className = 'mechView';
   // What a script asks about a skill, above the skills it asks about. This
   // was a section of the Mechanics sheet until 13 September 2026.
-  try { box.appendChild(skillsMechSection()); } catch (e) {}
+  try { box.appendChild(skillsMechSection()); } catch (e) { quiet(e); }
   const kinds = [['attribute', 'Attributes', 'The four figures every character has a number for.'],
                  ['weapon', 'Weapon skills', 'One per kind of weapon; the skill goes on the blow’s margin and its damage.'],
                  ['special', 'Special skills', 'Learned from a teacher and asked about by the scripts that need them.'],
@@ -521,7 +521,7 @@ function renderSpellsSheet() {
   box.appendChild(intro);
   // How a cast works, above the spells it works on. This was a section of the
   // Mechanics sheet until 13 September 2026.
-  try { box.appendChild(spellsMechSection()); } catch (e) {}
+  try { box.appendChild(spellsMechSection()); } catch (e) { quiet(e); }
   let level = null, count = 0;
   for (const x of shown) {
     if (x.level !== level) { level = x.level; const h = document.createElement('div'); h.className = 'propHead'; h.innerHTML = 'Level ' + level; box.appendChild(h); }
@@ -2355,7 +2355,7 @@ function looseEnds() {
     }
   }
   // A flag already set in the shipped character table is not "never set".
-  try { loadCharacterTable().forEach((c, i) => { if (c && c.raw) for (let b = 0; b < 8; b++) if ((c.raw[8] >> b) & 1) cfSets.add(i + ':' + b); }); } catch (err) {}
+  try { loadCharacterTable().forEach((c, i) => { if (c && c.raw) for (let b = 0; b < 8; b++) if ((c.raw[8] >> b) & 1) cfSets.add(i + ':' + b); }); } catch (err) { quiet(err); }
   /* A quest value that only a thing with a given Data1 sets, when no such
      thing exists. An item class that branches `data1 == v` and sets quest
      value k there is counted against every record of that class in every
@@ -2377,7 +2377,7 @@ function looseEnds() {
       let l; try { l = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, rid), rid).data); } catch (err) { continue; }
       for (const r of l) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1);
     }
-    try { for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0xF306), 0xF306).data)) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1); } catch (err) {}
+    try { for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0xF306), 0xF306).data)) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1); } catch (err) { quiet(err); }
     for (const e of buildScriptTextIndex()) {
       let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
       for (let i = 0; i < ops.length; i++) {
@@ -2407,7 +2407,7 @@ function looseEnds() {
         }
       }
     }
-  } catch (err) {}
+  } catch (err) { quiet(err); }
   /* A keyword list with a space after a comma. The conversation_response
      handler in TInterp::DoInterpAt copies a keyword up to the next comma,
      NUL or byte of 0x80 and above, skipping nothing, and compares it with

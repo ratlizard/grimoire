@@ -194,7 +194,7 @@ function tileSheetIsSized(arc, resid, resData) {
         ok = !used;
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   memo.set(resid, ok);
   return ok;
 }
@@ -412,7 +412,7 @@ function portraitCorpus(arc){
           const b = getResourceBytes(arc, resid); if (!b) continue;
           const d = decodeResource(arc, b, PORTRAIT_SUBN, resid);
           if (d && d.image) corpus.push(d);
-        } catch (e) {}
+        } catch (e) { quiet(e); }
       }
     } catch (e) { corpus.length = 0; }
     return corpus;

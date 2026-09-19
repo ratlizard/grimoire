@@ -114,7 +114,7 @@ function restoreMapView(resid) {
   // A restored selection brings its inspector card back with it -- a ring with
   // nothing under it would be a puzzle rather than a reminder.
   const sel = window.MAP_SEL_MEMORY[resid];
-  if (sel) { try { inspectMapSquare(sel.tx, sel.ty); } catch (e) {} }
+  if (sel) { try { inspectMapSquare(sel.tx, sel.ty); } catch (e) { quiet(e); } }
   return true;
 }
 // Called instead of fitMapToView when a map is opened: the same retry loop,
@@ -434,7 +434,7 @@ function guardHoverCardTaps() {
     }
   }
 }
-try { guardHoverCardTaps(); } catch (e) {}
+try { guardHoverCardTaps(); } catch (e) { quiet(e); }
 
 /* Where the card goes, for both panels.
 
@@ -612,11 +612,11 @@ function containedItemSummary(rec) {
       if (cls.code.length) bits.push('responds to ' + cls.code.length + ' method' +
                                      (cls.code.length === 1 ? '' : 's'));
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   try {
     const idx = buildItemIndex()[pt];
     if (idx && idx.total) bits.push(idx.total + ' placed in the world');
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   bits.push(isInventoryItem(pt) ? 'click for its item page' : 'click for its prop type');
   return bits.join(' · ');
 }
@@ -639,7 +639,7 @@ function buildContainerView(rec, contents) {
       box.style.backgroundImage = 'url(' + back.toDataURL('image/png') + ')';
       box.style.minHeight = Math.min(190, Math.round(d.H * 0.62)) + 'px';
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   const label = RESOURCE_LABELS[rid] || labelFor(rid) || '';
   const items = document.createElement('div');
   items.className = 'zrItems';
@@ -650,7 +650,7 @@ function buildContainerView(rec, contents) {
     const base = tiles[o.proptype];
     if (base !== undefined) {
       const c = document.createElement('canvas');
-      try { drawTileToCanvas(c, base + o.aspect, 32, o.rotated); } catch (e) {}
+      try { drawTileToCanvas(c, base + o.aspect, 32, o.rotated); } catch (e) { quiet(e); }
       c.style.cssText = 'width:32px;height:32px;image-rendering:pixelated';
       chip.appendChild(c);
     }
@@ -1137,7 +1137,7 @@ function contentBox(resid) {
       const q = (a, p) => a[Math.min(a.length - 1, Math.max(0, Math.round((a.length - 1) * p)))];
       box = { x0: q(xs, 0.02), y0: q(ys, 0.02), x1: q(xs, 0.98), y1: q(ys, 0.98) };
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   contentBoxes.set(resid, box);
   return box;
 }
@@ -1265,7 +1265,7 @@ function buildThumbsFor(gw, sizes) {
     const rc = src.getContext('2d');
     if (rc) paintRoofsInto(rc, e.result.tileSize, e.result.m, mapRoofSections(gw.destResid));
     for (const sz of need) worldThumbs.set(thumbKey(gw.destResid, sz, true), shrink(sz));
-  } catch (err) {}
+  } catch (err) { quiet(err); }
 }
 
 // Kept for the checks and for anything that wants one picture of a town.
@@ -1388,7 +1388,7 @@ let zonePrefetching = 0;
 function prefetchZone(resid) {
   if (!resid || zoneMapCache.has(resid) || zonePrefetching) return;
   zonePrefetching = 1;
-  const run = () => { zonePrefetching = 0; try { mapRenderFor(resid, true); } catch (e) {} };
+  const run = () => { zonePrefetching = 0; try { mapRenderFor(resid, true); } catch (e) { quiet(e); } };
   // Through `window.` deliberately: it is not in every engine, and
   // verify_viewer's check 4b is right to object to a bare name nothing
   // declares -- that check is what caught setStatus being called seven times

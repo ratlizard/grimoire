@@ -1059,10 +1059,10 @@ async function downloadMapPNGStreamed(cm, TS, name) {
     sc.setTransform(1, 0, 0, 1, 0, 0);
     sc.fillStyle = '#333'; sc.fillRect(0, 0, pw, TS);
     sc.setTransform(1, 0, 0, 1, 0, -y * TS);
-    try { paintMapBaseRegion(sc, TS, 0, y, W - 1, y, cm, 0); } catch (e) {}
-    try { if (window.SHOW_ROOFS) drawRoofLayer(sc, TS); } catch (e) {}
-    try { if (window.SHOW_CHARACTERS) drawCharacterLayer(sc, TS); } catch (e) {}
-    try { drawMapMarks(sc, TS); } catch (e) {}
+    try { paintMapBaseRegion(sc, TS, 0, y, W - 1, y, cm, 0); } catch (e) { quiet(e); }
+    try { if (window.SHOW_ROOFS) drawRoofLayer(sc, TS); } catch (e) { quiet(e); }
+    try { if (window.SHOW_CHARACTERS) drawCharacterLayer(sc, TS); } catch (e) { quiet(e); }
+    try { drawMapMarks(sc, TS); } catch (e) { quiet(e); }
     const d = sc.getImageData(0, 0, pw, TS).data;
     for (let yy = 0; yy < TS; yy++) {
       row[0] = 0;
@@ -1273,7 +1273,7 @@ function installBackgroundTexture() {
       'linear-gradient(rgba(14,10,6,.62),rgba(20,15,9,.62)), url(' + url + ')';
     document.body.style.backgroundRepeat = 'repeat';
     document.body.style.backgroundSize = 'auto, ' + (r.W * 2) + 'px';
-  } catch (e) {}
+  } catch (e) { quiet(e); }
 }
 
 function refreshLabelLegend() {

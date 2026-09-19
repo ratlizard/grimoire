@@ -87,7 +87,7 @@ function getFauxProps() {
       const pt = w & 0x3FF;
       if (pt) out.set(i >> 1, { proptype: pt, aspect: (w >> 10) & 0x1F, rotated: w >> 15 });
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return (_fauxPropCache = out);
 }
 
@@ -684,7 +684,7 @@ function buildLightSources(resid, m) {
         if (lvl) list.push({ x: r.x, y: r.y, lvl, flicker: !!(a & 0x10000) });
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   // Whether anything on this map gutters at all decides whether the animation
   // tick has to repaint the lighting layer; on a map of steady lights it
   // would be redrawing an identical picture seven times a second.
@@ -1008,7 +1008,7 @@ function worldGateways() {
       }
     }
     out.sort((a, b) => a.name.localeCompare(b.name) || a.x0 - b.x0);
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return (window.WORLD_GATEWAYS = out);
 }
 
@@ -1282,7 +1282,7 @@ function tileOpacity(tileId) {
   try {
     const img = resolveTileImage(tileId);
     if (img) { let n = 0; for (let i = 0; i < img.length; i++) if (img[i]) n++; v = n / img.length; }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   _tileFillCache.set(tileId, v);
   return v;
 }
@@ -1347,7 +1347,7 @@ function ropeSquares(resid) {
       if (r.flags === 0xFF || (r.flags & 0x58)) continue;
       if (r.proptype === ROPE_PROPTYPE) set.add(r.x + ',' + r.y);
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   window.MAP_ROPES = { key, set };
   return set;
 }
@@ -1960,7 +1960,7 @@ function buildPropBlockers(resid, m) {
         }
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   window.PROP_BLOCK = { key, set: blocked, doors };
   return blocked;
 }
@@ -2276,7 +2276,7 @@ function seatsOnMap(resid, m) {
                                      certain: aspectIsFacing });
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   window.MAP_SEATS = { key, map: seats };
   return seats;
 }

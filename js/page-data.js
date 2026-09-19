@@ -51,7 +51,7 @@ function zoneLandscapeArg(level) {
         }
       }
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   return (window.ZONE_BACKDROPS[level] = found);
 }
 // The zones whose entry script sets landscape strip `resid` (0x8400 + n).
@@ -88,7 +88,7 @@ const _tileClearCache = new Map();
 function tileHasTransparency(t) {
   if (_tileClearCache.has(t)) return _tileClearCache.get(t);
   let clear = false;
-  try { const img = resolveTileImage(t); if (img) for (const v of img) if (!v) { clear = true; break; } } catch (e) {}
+  try { const img = resolveTileImage(t); if (img) for (const v of img) if (!v) { clear = true; break; } } catch (e) { quiet(e); }
   _tileClearCache.set(t, clear);
   return clear;
 }
@@ -498,9 +498,9 @@ function exeCaseValues(ops, i, lo, hi) {
   const reg = ops[c].d.ra;
   const isCmp = d => d && (d.mn === 'cmpwi' || d.mn === 'cmplwi') && d.ra === reg;
   const isBranch = d => d && (d.mn === 'bt' || d.mn === 'bf' || (d.mn === 'b' && !d.aa));
-  const quiet = (k) => { const d = ops[k] && ops[k].d, n = ops[k + 1] && ops[k + 1].d; return d && n && (n.mn === 'bt' || n.mn === 'bf') && !/\.$|^cmp|^b/.test(d.mn); };
+  const quietOp = (k) => { const d = ops[k] && ops[k].d, n = ops[k + 1] && ops[k + 1].d; return d && n && (n.mn === 'bt' || n.mn === 'bf') && !/\.$|^cmp|^b/.test(d.mn); };
   let root = c;
-  while (root > 0 && (isCmp(ops[root - 1].d) || isBranch(ops[root - 1].d) || quiet(root - 1))) root--;
+  while (root > 0 && (isCmp(ops[root - 1].d) || isBranch(ops[root - 1].d) || quietOp(root - 1))) root--;
   let load = root > 0 && ops[root - 1].d && (ops[root - 1].d.ra === reg || ops[root - 1].d.rt === reg || ops[root - 1].d.rd === reg) ? root - 1 : -1;
   // Back along a chain: an earlier identical load and test whose branch
   // lands on this load.
@@ -530,7 +530,7 @@ function exeCaseValues(ops, i, lo, hi) {
       }
       if (d && (d.mn === 'bt' || d.mn === 'bf') && d.bi <= 2) { const set = (cr & [8, 4, 2][d.bi]) !== 0; k = (d.mn === 'bt' ? set : !set) ? index(ops[k].at + d.disp) : k + 1; continue; }
       if (d && d.mn === 'b' && !d.aa) { k = index(ops[k].at + d.disp); continue; }
-      if (quiet(k)) { k++; continue; }
+      if (quietOp(k)) { k++; continue; }
       return k;
     }
     return -1;
@@ -643,7 +643,7 @@ function shippedMenuBars() {
   if (!fork) return null;
   const titles = new Map();
   for (const e of (fork.resourcesByType['MENU'] || [])) {
-    try { const d = fork.dataOf('MENU', e); titles.set(u16be(d, 0), pstr(d, 14).s); } catch (err) {}
+    try { const d = fork.dataOf('MENU', e); titles.set(u16be(d, 0), pstr(d, 14).s); } catch (err) { quiet(err); }
   }
   const bars = [];
   const listed = new Set();
@@ -730,13 +730,13 @@ function cheatSpriteClasses() {
   const add = (pt, kind) => {
     if (!pt || seen.has(pt)) return;
     let nm = null;
-    try { nm = propDisplayName(pt); } catch (e) {}
+    try { nm = propDisplayName(pt); } catch (e) { quiet(e); }
     if (nm) seen.set(pt, { pt, name: nm, kind });
   };
   // The people first, then the monsters: 0xF009 says which classes a named
   // character wears, 0xF008 which ones a monster does.
-  try { for (const pt of [...characterProptypes()].sort((a, b) => a - b)) add(pt, 'person'); } catch (e) {}
-  try { for (const m of parseMonsterStats()) if (!m.blank) add(m.proptype, 'monster'); } catch (e) {}
+  try { for (const pt of [...characterProptypes()].sort((a, b) => a - b)) add(pt, 'person'); } catch (e) { quiet(e); }
+  try { for (const m of parseMonsterStats()) if (!m.blank) add(m.proptype, 'monster'); } catch (e) { quiet(e); }
   return [...seen.values()].sort((a, b) => a.pt - b.pt);
 }
 
@@ -1147,7 +1147,7 @@ function renderSaveSheet() {
     h += '<h4 class="saveH4">What this file holds</h4><div class="tableScroll"><table class="forkTable">' +
       '<thead><tr><th>resource</th><th>what it is</th><th>bytes</th></tr></thead><tbody>' +
       parts.map(p => {
-        let n = 0; try { n = (getResourceBytes(ARCHIVE, p.rid) || []).length; } catch (e) {}
+        let n = 0; try { n = (getResourceBytes(ARCHIVE, p.rid) || []).length; } catch (e) { quiet(e); }
         return '<tr><td class="num">0x' + p.rid.toString(16).toUpperCase().padStart(4, '0') + '</td>' +
           '<td>' + svEsc(p.what) + '</td><td class="num">' + fmtBytes(n) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
@@ -1450,7 +1450,7 @@ function bundleIconMap(fork, cacheKey) {
       const iconId = (arrays['ICN#'] || {})[iconLocal];
       if (iconId !== undefined) map[ftype] = iconId;
     }
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   cache[cacheKey] = map;
   return map;
 }
@@ -1727,7 +1727,7 @@ function renderChangesSheet() {
   let before = null;
   try {
     before = new Map(delverArchiveSpec(window.PRISTINE_BYTES).resources.map(x => [x.resid, x.data.length]));
-  } catch (e) {}
+  } catch (e) { quiet(e); }
   for (const resid of edited) {
     const row = document.createElement('div');
     row.className = 'changesRow';
