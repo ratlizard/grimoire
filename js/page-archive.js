@@ -1121,7 +1121,7 @@ function drawToCanvas(canvas, W, H, image, transparentIndex, palette) {
   // Portraits only, since 9 September 2026: the reconstruction was tuned on
   // them and they are what it is for; the tiles, icons and landscapes
   // stay the pixels.
-  if (unditherOn() && W*H > 0 && (window.UNDITHER_ALL || String(window.CUR_SUBN) === '135')) queueUndither(canvas, W, H, image, t, P);
+  if (unditherOn() && W*H > 0 && (window.UNDITHER_ALL || String(window.CUR_SUBN) === '135' || window.UNDITHER_PREVIEW !== null)) queueUndither(canvas, W, H, image, t, P);
 }
 
 /* Which of the two sets of undither settings is in force.

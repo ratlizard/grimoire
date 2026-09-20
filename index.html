@@ -1837,6 +1837,11 @@ body.atlasFull { overflow:hidden; }
   <button class="secondary" onclick="downloadCurrentPNG()">Save as PNG</button>
   <button class="secondary" onclick="downloadCurrentGIF()">Save as GIF</button>
   <button class="secondary" onclick="sendToCanvas()">Edit in ColorCycleCanvas</button>
+  <!-- The undither preview for this one picture, back since 19 September
+       2026 (it went with the Settings switch on the 9th, and the maintainer
+       asked for it): the switch under Settings stays the standing choice,
+       this shows the other reading of the picture in hand. -->
+  <button class="secondary" id="unditherBtn" style="display:none" onclick="toggleUnditherPreview()">Preview undithered</button>
 </div>
 <div id="artUsage" style="display:none"></div>
 
@@ -2095,7 +2100,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.116.1';
+const GRIMOIRE_VERSION = '1.117.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

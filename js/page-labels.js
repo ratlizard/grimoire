@@ -653,6 +653,7 @@ function setUnditherPreview(on) {
   window.UNDITHER_PREVIEW = on ? !window.UNDITHER : null;
   cancelUndither();
   refreshUnditherControls();
+  try { updateGalleryTools(); } catch (e) { quiet(e); }
   if (unditherOn() && typeof stopPaletteAnimation === 'function') stopPaletteAnimation();
   redrawCurrentView();
 }

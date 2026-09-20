@@ -502,7 +502,7 @@ function startPaletteAnimation(canvas, W, H, image, transparentIndex) {
   // Cycling redraws several times a second and each redraw would queue a fresh
   // reconstruction, so the two are mutually exclusive. Undithering wins while
   // it is on; turning it off restores the cycle on the next render.
-  if (unditherOn() && (window.UNDITHER_ALL || String(window.CUR_SUBN) === '135')) return;
+  if (unditherOn() && (window.UNDITHER_ALL || String(window.CUR_SUBN) === '135' || window.UNDITHER_PREVIEW !== null)) return;
   if (!PALETTE_CYCLE_SUBN.has(window.CUR_SUBN)) return;
   if (!window.PALETTE_ANIM || !imageUsesAnimatedColors(image)) return;
   const el = document.getElementById('animNote');

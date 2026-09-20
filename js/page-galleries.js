@@ -855,6 +855,14 @@ function updateGalleryTools() {
   // Edit bytes goes with any open resource, whatever it is shown as.
   const eb = document.getElementById('editAnyBtn');
   if (eb) eb.style.display = (currentMode === 'single' && currentResid != null) ? '' : 'none';
+  // The undither preview goes with one picture of a kind the undither
+  // reads, and its label says which way the preview would go from here.
+  const ub = document.getElementById('unditherBtn');
+  if (ub) {
+    const can = currentMode === 'single' && UNDITHER_SUBN.has(+window.CUR_SUBN);
+    ub.style.display = can ? '' : 'none';
+    if (can) ub.textContent = unditherOn() ? 'Preview dithered' : 'Preview undithered';
+  }
   const ss = document.getElementById('gallerySortSel');
   if (ss && ss.value !== window.GALLERY_SORT) ss.value = window.GALLERY_SORT;
   const note = document.getElementById('exportNote');

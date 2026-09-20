@@ -84,7 +84,7 @@ const ALLOWED = new Map([
   // allowlist that fails when an entry stops being unreached.
   'dvmLooksLikeText',                                     // js/delv-script.js
   'mechLevelForExp',                                      // js/delv-mechanics.js
-  'toggleUnditherPreview', 'unditherPreset', 'setUnditherPreset', 'ditherReplacePortrait',
+  'unditherPreset', 'setUnditherPreset', 'ditherReplacePortrait',   // toggleUnditherPreview left here 19 September 2026: the button is back
   'togglePaletteAnim', 'toggleMapAnim',
   'worldThumb', 'thumbRect', 'buildNearThumbs', 'prefetchZone', 'zoneMapCanvas',
   'propFrameFill', 'activeScheduleEntry', 'amountRange',
