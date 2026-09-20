@@ -1269,7 +1269,7 @@ function showMonsterDetail(idx) {
   const panel = document.createElement('div');
   panel.style.cssText = 'width:100%;max-width:560px;margin:12px auto;text-align:left';
 
-  let h = '<div style="font-size:1.25rem;color:var(--gold)">' + svEsc(nm) +
+  let h = '<div style="font-size:1.25rem;color:#fff">' + svEsc(nm) +
           '</div><div style="font-size:0.75rem;color:#b5b2a8;margin-bottom:10px">' +
           'record ' + r.index + ' of 0xF008 \u00b7 prop type 0x' +
           r.proptype.toString(16).toUpperCase() + '</div>';

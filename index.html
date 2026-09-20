@@ -359,7 +359,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .dlgLine { margin:0 0 10px; line-height:1.55; color:#fff; overflow-wrap:anywhere; }
 .dlgOff { color:#b5b2a8; font-family:ui-monospace,Menlo,Consolas,monospace;
   font-size:.78em; margin-right:8px; }
-.dlgKw { color:#f9f86f; font-weight:700; }
+.dlgKw { color:#fff; font-weight:700; }
 .dlgSep { color:#b5b2a8; }
 
 /* The conversation view: topics extracted from the script's own
@@ -369,7 +369,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .convCard { border-top:1px solid rgba(155,136,80,.35); padding:8px 0 4px; }
 .convCard.convHit { background:rgba(249,248,111,.08); }
 .convKw { display:inline-block; font-family:ui-monospace,Menlo,Consolas,monospace;
-  color:#f9f86f; border:1px solid rgba(155,136,80,.5); border-radius:10px;
+  color:#fff; border:1px solid rgba(155,136,80,.5); border-radius:10px;
   padding:0 8px; margin:0 6px 4px 0; font-size:.85em; }
 .convBadge { display:inline-block; color:#b5b2a8; font-size:.78em;
   border:1px dashed rgba(155,136,80,.5); border-radius:10px;
@@ -400,14 +400,14 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 /* 8px monospace in an 84px box fits a lot of characters and none of them can
    be read. Prose gets the page's own serif at a size a person can take in at a
    glance, and the tail is faded out rather than chopped square. */
-.cellChars { font:11px/1.32 var(--face-text); color:#fff;
+.cellChars { font:11px/1.32 var(--face-text); color:var(--gold);
   background:#12100c; border:1px solid #4a432f; border-radius:4px;
   width:84px; height:84px; padding:5px 6px; overflow:hidden; word-break:normal;
   overflow-wrap:break-word; hyphens:auto;
   text-align:left; white-space:normal;
   -webkit-mask-image:linear-gradient(#000 62%, rgba(0,0,0,.15) 100%);
   mask-image:linear-gradient(#000 62%, rgba(0,0,0,.15) 100%); }
-.cellChars.binary { font:9px/1.3 ui-monospace,Menlo,Consolas,monospace; color:#b5b2a8;
+.cellChars.binary { font:9px/1.3 ui-monospace,Menlo,Consolas,monospace; color:var(--gold); opacity:.72;
   -webkit-mask-image:none; mask-image:none; }
 /* One colour for every name. There used to be three -- gold for a name read
    out of the archive, a duller ochre plus a dagger for one this tool supplies,
@@ -529,7 +529,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
   text-shadow:0 1px 2px rgba(0,0,0,.9); }
 .tabSheet #labelLegend, .tabSheet #filterNote, .tabSheet .propHead, .tabSheet #exportNote,
 .tabSheet .sv-why, .tabSheet .mapToggleGroup .mtgLabel, .tabSheet .mapToggleGroup.mtgNotes,
-.tabSheet .crumbNote, .tabSheet .sv-chip i, .tabSheet .sv-chip em { color:#fff; }
+.tabSheet .crumbNote { color:#fff; }
 /* A branch only two deep (Entities) has no third row: the row hides and the
    innermost folder collapses to nothing, so the sheet sits directly in the
    second folder. Before a file is open there are no rows at all, and the
@@ -557,7 +557,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 /* The section chips wear the crumb button's look (the maintainer, 9
    September 2026), at their own size; the open one is filled. */
 #navSub .navChip { background:#1d1a15; border:1px solid var(--edge); color:var(--gold); border-radius:14px; padding:4px 12px; }
-#navSub .navChip.active { background:var(--gold); color:#141210; border-color:var(--gold); font-weight:600; }
+#navSub .navChip.active { background:#1d1a15; color:var(--gold); border:2px solid var(--gold); font-weight:600; }
 /* A group head with a note under it: the title white and a size up, the
    note grey on its own line. The two were one grey line once the capitals
    went (v1.30.0), and read as one sentence. */
@@ -574,8 +574,8 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 #navSub .navChip, #sheetGrid .navChip { background:#1d1a15 !important; border:1px solid var(--edge) !important;
   border-radius:14px !important; padding:4px 12px !important; min-height:0 !important; font-size:0.75rem !important;
   width:auto; line-height:1.3 !important; }
-#navSub .navChip.active, #sheetGrid .navChip.active { background:var(--gold) !important; color:#141210 !important;
-  border-color:var(--gold) !important; font-weight:600 !important; }
+#navSub .navChip.active, #sheetGrid .navChip.active { background:#1d1a15 !important; color:var(--gold) !important;
+  border:2px solid var(--gold) !important; font-weight:600 !important; }
 #navSub .navChip:hover, #sheetGrid .navChip:hover { border-color:var(--gold) !important; text-decoration:none; }
 #sheetGrid .svLink { padding:0 !important; min-height:0 !important; font-size:inherit !important; line-height:inherit !important; }
 /* A detail view's own "All characters" is the second of the two backs (see
@@ -592,7 +592,9 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
   padding:5px 11px; font-size:0.6875rem; min-height:0; width:auto; margin:0; clip-path:none;
   box-shadow:none; text-shadow:none; letter-spacing:0; }
 .navChip::after { display:none; }
-.navChip.active { background:var(--gold); color:#141210; border-color:var(--gold); font-weight:600; }
+.navChip.active { background:#1d1a15; color:var(--gold); border:2px solid var(--gold); font-weight:600; }
+/* A chip that is a span is a name, not a link, and wears white. */
+span.navChip { color:#fff; }
 #propFilterWrap { margin:8px 0 2px; }
 #filterNote { font-size:0.75rem; color:#b5b2a8; min-height:15px; padding:2px 2px 0; }
 .propHead { grid-column:1/-1; text-align:left; color:#b5b2a8; font-size:0.6875rem;
@@ -677,7 +679,7 @@ pre.pane { background:#090806; color:#fff; padding:12px; overflow:auto; max-heig
   clip-path:none; border-radius:12px; padding:3px 11px; min-height:0; width:auto; margin:0;
   font-size:0.6875rem; color:var(--gold); opacity:.72; text-shadow:none; font-weight:400; letter-spacing:0; }
 .dswitch button.dsw::after { display:none; }
-.dswitch button.dsw.active { color:#141210; background:var(--gold); border-color:var(--gold); font-weight:600; }
+.dswitch button.dsw.active { color:var(--gold); opacity:1; border:2px solid var(--gold); font-weight:600; }
 a.reflink { color:var(--gold); text-decoration:underline; cursor:pointer; }
 span.refnote { color:#b5b2a8; font-style:italic; }
 b.refname { color:#fff; font-weight:600; }
@@ -746,8 +748,8 @@ details.sv[open] > summary::before { content:'\25BE '; }
 .sv-chips .sv-chip { margin:0; }
 .sv-chip::before, .sv-chip::after { display:none !important; }
 .sv-chip:hover { background:none !important; color:var(--gold) !important; text-decoration:underline; filter:none; }
-.sv-chip i { font-style:normal; color:#8c8980; font-size:0.9em; }
-.sv-chip em { font-style:normal; color:#8c8980; font-size:0.9em; }
+.sv-chip i { font-style:normal; color:var(--gold); opacity:.72; font-size:0.9em; }
+.sv-chip em { font-style:normal; color:var(--gold); opacity:.72; font-size:0.9em; }
 .sv-warn { font-size:0.8125rem; line-height:1.55; color:#d8c98e; background:#1a1610;
            border-left:3px solid var(--gold); padding:9px 11px; border-radius:0 4px 4px 0; }
 .sv-note { font-size:0.75rem; color:#b5b2a8; margin-top:5px; }
@@ -762,7 +764,7 @@ details.sv[open] > summary::before { content:'\25BE '; }
   cursor:pointer; text-decoration:none; line-height:inherit !important; vertical-align:baseline; }
 .svLink::before, .svLink::after { display:none !important; }
 .svLink:hover { text-decoration:underline; background:none !important; }
-.svLink i { font-style:normal; color:#8c8980; font-size:0.9em; }
+.svLink i { font-style:normal; color:var(--gold); opacity:.72; font-size:0.9em; }
 /* A number read off a script (srcNum) keeps the weight of the text around
    it, so a bold figure in a rule stays bold, and the line it opens on is
    ringed in the listing. */
@@ -775,7 +777,7 @@ details.itemFold[open] { padding-bottom:10px; }
 details.itemFold > summary.mechHead { margin:0; gap:8px; }
 details.itemFold[open] > summary.mechHead { margin-bottom:8px; }
 .foldTitle { color:#fff; font-size:0.8125rem; font-weight:600; }
-.foldGist { color:#8c8980; font-size:0.7188rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.foldGist { color:var(--gold); opacity:.72; font-size:0.7188rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 details.itemFold > summary:hover .foldTitle { color:var(--gold); }
 .foldAll { display:flex; gap:12px; justify-content:flex-end; margin:6px 0 0; font-size:0.7188rem; color:#8c8980; }
 /* The prop word on an item's page (v1.33.0): the sixteen bits, the readout,
@@ -807,11 +809,11 @@ details.itemFold > summary:hover .foldTitle { color:var(--gold); }
 .pwSlot.pwOn { border-color:var(--gold) !important; color:var(--gold) !important; background:#26211a !important; }
 .pwSlot.pwHome { box-shadow:inset 0 2px 0 #b5b2a8 !important; }
 .pwSlot.pwEdge { margin-left:3px; }
-.pwSlot .pwN { color:#8c8980; font-family:ui-monospace,Menlo,Consolas,monospace; }
-.pwSlot.pwOn .pwN { color:var(--gold); }
+.pwSlot .pwN { color:var(--gold); opacity:.72; font-family:ui-monospace,Menlo,Consolas,monospace; }
+.pwSlot.pwOn .pwN { opacity:1; }
 .pwSlot .pwArt { width:24px; height:24px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
 .pwSlot .pwArt canvas { width:20px !important; height:20px !important; image-rendering:pixelated; margin:0 !important; }
-.pwSlot .pwT { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.2; }
+.pwSlot .pwT { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.2; color:var(--gold); }
 .pwData { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin:4px 0 6px; font-size:0.75rem; color:#b5b2a8; }
 .pwData label { display:inline-flex; align-items:center; gap:6px; }
 .pwData input { width:64px; font:inherit; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:0.875rem; color:#fff; background:#1c1913;
@@ -918,10 +920,10 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
 /* The name, then its kind and hex on the same line, quiet. */
 .relText { display:inline-flex; flex-direction:row; align-items:baseline; gap:5px; min-width:0; }
 .relMain { color:inherit; }
-.relSub { color:#8c8980; font-size:0.7em; }
-.relHex, .relNote { color:#8c8980; font-size:0.7em; font-family:ui-monospace,Menlo,monospace; margin-left:1px; }
+.relSub { color:var(--gold); opacity:.72; font-size:0.7em; }
+.relHex, .relNote { color:var(--gold); opacity:.72; font-size:0.7em; font-family:ui-monospace,Menlo,monospace; margin-left:1px; }
 .relNote { font-family:inherit; }
-.relChip:hover .relSub, .relChip:hover .relHex { color:#b5b2a8; }
+.relChip:hover .relSub, .relChip:hover .relHex { opacity:1; }
 .partsNote { color:#fff; font-size:0.75rem; flex-basis:100%; line-height:1.4; }
 #mapParts { max-width:720px; margin:0 auto 6px; text-align:left; }
 #artUsage .partsStrip { margin:4px 0; }
@@ -963,7 +965,7 @@ button:focus-visible {
 input:focus-visible, select:focus-visible {
   outline: 2px solid var(--gold); outline-offset: 1px; }
 /* Reachable by keyboard, but only shown once it is focused. */
-.skipToGallery { position:absolute; left:-9999px; top:0; z-index:100; width:auto !important; }
+.skipToGallery { position:absolute; left:-9999px; top:0; z-index:100; width:auto !important; color:var(--gold); }
 .skipToGallery:focus { left:8px; }
 
 body.dropping::after { content:'Drop the Cythera installer (.sit or .bin) or a Cythera Data file (.hqx) to open it';
@@ -975,12 +977,17 @@ body.dropping::after { content:'Drop the Cythera installer (.sit or .bin) or a C
 
 /* The Tools sheet's log of what fell back: a folded grey line at the foot. */
 .quietLog { margin-top:22px; padding-top:8px; border-top:1px solid rgba(155,136,80,.25); font-size:0.7188rem; color:#8c8980; }
+.quietLog > summary { color:var(--gold); opacity:.55; }
 .quietLog > summary { cursor:pointer; list-style:none; }
 .quietLog > summary::-webkit-details-marker { display:none; }
 .quietLog > summary::before { content:''; display:inline-block; width:6px; height:6px; margin:0 6px 1px 0;
   border-right:1.5px solid #8c8980; border-bottom:1.5px solid #8c8980; transform:rotate(-45deg); }
 .quietLog[open] > summary::before { transform:rotate(45deg); }
-.quietLog > summary:hover { color:#b5b2a8; }
+.quietLog > summary:hover { opacity:1; }
+/* A label is a control (it focuses or toggles what it wraps), and a cell is
+   one; both wear gold throughout. */
+label { color:var(--gold); }
+.cell { color:var(--gold); }
 /* A text link that is a <button> because it does something rather than going
    somewhere -- the plaque styling would be absurd at 11px. */
 button.linkbtn { all:unset; cursor:pointer; color:var(--gold); text-decoration:underline;
@@ -1028,7 +1035,7 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
   #mapPreview.hasInspect > #mapInspect { grid-area:inspect; margin:0; max-width:none;
     position:sticky; top:8px; max-height:calc(62vh + 44px); overflow-y:auto; }
 }
-#mapInspect .inspHead { color:var(--gold); font-weight:600; margin-bottom:8px;
+#mapInspect .inspHead { color:#fff; font-weight:600; margin-bottom:8px;
   display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
 #mapInspect .inspClose { margin-left:auto; font-size:0.75rem; }
 #mapInspect .inspCard { border-top:1px solid rgba(155,136,80,.35); padding:8px 0; }
@@ -1072,6 +1079,13 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 .mechHead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 4px; }
 .mechHead canvas { width:22px !important; height:22px !important; image-rendering:pixelated; flex:none; margin:0 !important; }
 .mechHead h3 { margin:0; font-size:1.0625rem; color:#fff; font-weight:600; letter-spacing:.01em; }
+/* A summary is a control: what it says is gold, like every other thing a
+   tap does something to (the maintainer, 20 September 2026: all linked text
+   yellow, all yellow text linked). The figures and the notes inside it wear
+   the same gold, dimmed. */
+summary, summary h3, summary.mechHead h3, summary b, summary .mechStat, summary .mechStat b, summary .foldTitle { color:var(--gold); }
+summary .foldGist, summary .mechStatNote { color:var(--gold); opacity:.72; }
+summary .mechStat { border-color:rgba(249,248,111,.35); }
 .mechFrom { display:inline-flex; gap:5px; flex-wrap:wrap; margin-left:auto; }
 .mechFrom .relChip { font-size:0.75rem; }
 .mechFrom { gap:4px 12px; }
@@ -1188,12 +1202,12 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 .mechBars .bLabel { color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:44vw; }
 .mechBars .bTrack { background:rgba(255,248,220,.05); border-radius:2px; height:11px; position:relative; overflow:hidden; }
 .mechBars .bFill { position:absolute; top:0; bottom:0; border-radius:2px; }
-.mechBars .bVal { color:var(--gold); font-variant-numeric:tabular-nums; font-size:0.7188rem; white-space:nowrap; }
+.mechBars .bVal { color:#fff; font-variant-numeric:tabular-nums; font-size:0.7188rem; white-space:nowrap; }
 .mechStack { display:flex; height:18px; border-radius:3px; overflow:hidden; border:1px solid rgba(155,136,80,.35); }
 .mechStack i { display:block; height:100%; }
 .mechKeys { display:flex; flex-wrap:wrap; gap:3px 12px; margin-top:5px; font-size:0.7188rem; color:#b5b2a8; align-items:center; }
 .mechKeys i { width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:5px; vertical-align:-1px; }
-.mechKeys b { color:var(--gold); font-weight:600; font-variant-numeric:tabular-nums; }
+.mechKeys b { color:#fff; font-weight:600; font-variant-numeric:tabular-nums; }
 /* The columns stretch to the row's height: a flex item sized by its content
    is one pixel tall, and a percentage height inside it then resolves to
    nothing -- which is exactly how the first version of this drew an empty
@@ -1211,7 +1225,7 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 .mechPlot .pArea svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
 .mechPlot .pX { grid-area:2/2; position:relative; height:15px; margin-top:3px; }
 .mechPlot .pX span { position:absolute; transform:translateX(-50%); font-size:0.625rem; color:#8c8980; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.mechPlot .pMark { position:absolute; transform:translate(-50%,-50%); font-size:0.6562rem; color:var(--gold); white-space:nowrap; pointer-events:none; }
+.mechPlot .pMark { position:absolute; transform:translate(-50%,-50%); font-size:0.6562rem; color:#fff; white-space:nowrap; pointer-events:none; }
 .mechPlot .pMark.right { transform:translate(-100%,-50%); }
 .mechPlot .pMark.left { transform:translate(0,-50%); }
 .mechPlot .pMark b { font-weight:600; text-shadow:0 0 4px #14120e, 0 0 4px #14120e; }
@@ -1229,7 +1243,7 @@ details.mechSec > summary:hover h3 { color:var(--gold); }
 .mechLine .lTick { position:absolute; top:9px; width:1px; height:15px; background:rgba(155,136,80,.6); }
 .mechLine .lLab { position:absolute; transform:translateX(-50%); font-size:0.625rem; color:#b5b2a8; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .mechLine .lLab.below { top:20px; }
-.mechLine .lLab.above { top:0; color:var(--gold); }
+.mechLine .lLab.above { top:0; color:#fff; }
 .mechCtl { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; margin:6px 0 8px; font-size:0.75rem; color:#b5b2a8; }
 .mechCtl label { display:inline-flex; align-items:center; gap:5px; }
 .mechCtl input[type=range] { width:104px; accent-color:#9b8850; }
@@ -1318,7 +1332,7 @@ body.atlasFull { overflow:hidden; }
 #atlasBar .wbNote { color:#b5b2a8; font-size:0.75rem; }
 #atlasInspect { margin:6px 0 0; padding:10px 14px; text-align:left;
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:0.8125rem; }
-#atlasInspect .inspHead { color:var(--gold); font-weight:600; margin-bottom:8px; }
+#atlasInspect .inspHead { color:#fff; font-weight:600; margin-bottom:8px; }
 #atlasInspect .inspCard { border-top:1px solid rgba(155,136,80,.35); padding:6px 0; }
 #atlasInspect .inspDim { color:#b5b2a8; font-size:0.75rem; }
 #atlasInspect .inspActs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
@@ -1339,7 +1353,7 @@ body.atlasFull { overflow:hidden; }
    both cards are children of their viewport. */
 #atlasHover.hvPinned, #mapHover.hvPinned { pointer-events:auto; }
 #atlasHover.hvPinned .svLink, #mapHover.hvPinned .svLink { cursor:pointer; }
-#atlasHover .hvName { color:var(--gold); font-weight:600; display:block; }
+#atlasHover .hvName { color:#fff; font-weight:600; display:block; }
 #atlasHover .hvWhat { color:#b5b2a8; font-size:0.6875rem; display:block; }
 #atlasHover .hvWhere, #mapHover .hvWhere { color:#8c8980; font-size:0.6562rem; display:block; margin-top:2px; }
 /* Who that is, under the pointer. */
@@ -1351,7 +1365,7 @@ body.atlasFull { overflow:hidden; }
   display:flex; align-items:center; gap:7px; max-width:min(260px, calc(100vw - 24px)); }
 #mapHover canvas { image-rendering:pixelated; width:32px; height:32px; flex:none;
   background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
-#mapHover .hvName { color:var(--gold); font-weight:600; display:block; }
+#mapHover .hvName { color:#fff; font-weight:600; display:block; }
 #mapHover .hvWhat { color:#b5b2a8; font-size:0.6875rem; display:block; }
 
 /* An opened container, the way the game shows one: the zoomrect graphic for
@@ -1387,7 +1401,7 @@ body.atlasFull { overflow:hidden; }
 #galleryTools button { width:auto; margin:0; }
 #exportNote { font-size:0.75rem; color:#b5b2a8; }
 #galleryArrange { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:0.7812rem; }
-#gallerySortWrap { display:flex; align-items:center; gap:6px; color:#b5b2a8; }
+#gallerySortWrap { display:flex; align-items:center; gap:6px; color:var(--gold); }
 #gallerySortSel, #sheetShapeSel { width:auto; margin:0; min-height:32px !important;
   padding:3px 30px 3px 10px !important; font-size:0.7812rem !important; }
 
@@ -1587,11 +1601,11 @@ body.atlasFull { overflow:hidden; }
   /* The muted browns that read on a phone held close are too faint at
      arm's length: every secondary line comes up a shade. */
   .tabSheet #labelLegend, .tabSheet #filterNote, .tabSheet .propHead, .tabSheet #exportNote,
-  .tabSheet .sv-why, .tabSheet .crumbNote, .tabSheet .sv-chip i, .tabSheet .sv-chip em,
+  .tabSheet .sv-why, .tabSheet .crumbNote,
   .installerVersions .amNote, .installerOpen .amNote { color:#e4dbb8; }
   .forkTable th, .propHead, .sv-head .sv-kind, .convHead, .linksum b { color:#c3b78d; }
   .sv-facts > div { color:#fff; }
-  .cell .lbl.nolabel { color:#e0dcd0; }
+  .cell .lbl.nolabel { color:var(--gold); opacity:.72; }
 }
 </style>
 </head>
@@ -1915,7 +1929,7 @@ body.atlasFull { overflow:hidden; }
 
 <!-- New Text & Hex Viewer -->
 <div id="textPreview" style="display:none; margin-top:12px; padding:14px; background:var(--panel); border:1px solid var(--edge); border-radius:8px;">
-  <div id="textLabel" style="color:var(--gold); margin-bottom:10px; font-size:1rem; text-align:center;"></div>
+  <div id="textLabel" style="color:#fff; margin-bottom:10px; font-size:1rem; text-align:center;"></div>
   <div id="dlgWrap" class="dlgWrap" style="display:none"></div>
   <button class="secondary" id="dlgToggle" style="display:none" onclick="toggleRawDump()">Show Decoded / Strings / Hex</button>
   <div id="scriptView"></div>
@@ -2096,7 +2110,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.118.0';
+const GRIMOIRE_VERSION = '1.119.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

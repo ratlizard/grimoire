@@ -761,7 +761,7 @@ function showRsrcDetail(type, id) {
     head.appendChild(big);
   }
   const cap = document.createElement('div');
-  cap.style.cssText = 'color:var(--gold);margin-top:8px;white-space:pre-line';
+  cap.style.cssText = 'color:#fff;margin-top:8px;white-space:pre-line';
   cap.textContent = (entry.name || '(unnamed)') + '\n' +
     type + ' ' + entry.id + ': ' + RSRC_DELVER_TYPES[type] + ', ' + data.length + ' bytes' +
     (pat ? ', ' + pat.tiles.length + ' tiles in a ' + pat.cols + '×' + pat.rows + ' grid' : '') +
@@ -1016,7 +1016,7 @@ function renderMacRsrcSheet() {
             const txt = arts.find(a => a.text);
             if (txt) { textual++; note.textContent = txt.text.slice(0, 120); }
             else { raw++; note.textContent = fmtBytes(fork.sizeOf(it.type, it.entry)); }
-            note.style.cssText = 'font-size:0.6875rem;color:#b5b2a8;padding:6px;max-height:96px;overflow:hidden;white-space:pre-wrap';
+            note.style.cssText = 'font-size:0.6875rem;color:var(--gold);opacity:.72;padding:6px;max-height:96px;overflow:hidden;white-space:pre-wrap';
             imgwrap.appendChild(note);
           }
         });
@@ -1065,7 +1065,7 @@ function showMacRsrcDetail(type, id, source) {
 
   const data = fork.dataOf(type, entry);
   const head = document.createElement('div');
-  head.style.cssText = 'width:100%;text-align:center;margin:12px 0;color:var(--gold);white-space:pre-line';
+  head.style.cssText = 'width:100%;text-align:center;margin:12px 0;color:#fff;white-space:pre-line';
   head.textContent = (entry.name || '(unnamed)') + '\n' + type + ' ' + entry.id +
     (rsrcTypeLabel(type) ? ', ' + rsrcTypeLabel(type) : '') + ', ' + fmtBytes(data.length) +
     (entry.attrs ? '\nattributes: ' + (resourceAttrNames(entry.attrs).join(', ') || 'none') : '');
@@ -1313,7 +1313,7 @@ function showCharacterDetail(i) {
   const info = document.createElement('div');
   info.style.cssText = 'font-size:0.875rem;line-height:1.7';
   info.innerHTML =
-    '<div style="font-size:1.1875rem;color:var(--gold);margin-bottom:6px">' + d.name +
+    '<div style="font-size:1.1875rem;color:#fff;margin-bottom:6px">' + d.name +
       ' <span style="font-size:0.75rem;color:#b5b2a8">character ' + i + '</span></div>' +
     // A zero in this table nearly always means "no value recorded", not
     // "zero of it" -- printing "XP 0 Training 0 Magic 0/0" for a farmhand
@@ -1342,7 +1342,7 @@ function showCharacterDetail(i) {
   const sh = document.createElement('div');
   sh.style.cssText = 'margin-top:14px';
   if (d.schedule.length) {
-    sh.innerHTML = '<div style="color:var(--gold);margin-bottom:4px">Daily schedule</div>' +
+    sh.innerHTML = '<div style="color:#fff;margin-bottom:4px">Daily schedule</div>' +
       d.schedule.map(e => {
         const h = e.hour, ampm = h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
         return '<div style="font-size:0.8125rem">' + ampm.padStart(5) + ', ' + e.where +

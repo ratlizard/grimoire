@@ -412,7 +412,7 @@ function showPropTypeDetail(pt) {
   const head = document.createElement('div');
   const sheetResid = 0x8E00 + (base >> 4);
   const scriptResid = 0x1000 + pt;
-  head.innerHTML = '<div style="font-size:1.1875rem;color:var(--gold)">' +
+  head.innerHTML = '<div style="font-size:1.1875rem;color:#fff">' +
     propNameHTML(pt, base) +
     ' <span style="font-size:0.75rem;color:#b5b2a8">proptype 0x' + pt.toString(16).toUpperCase() + '</span></div>' +
     '<div style="font-size:0.8125rem;color:#fff;margin:4px 0 10px">Sheet ' + residLink(sheetResid) +
