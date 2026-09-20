@@ -408,28 +408,20 @@ function renderToolsSheet() {
   out.textContent = 'Settings and links; nothing here is read from the archive except the font.';
 }
 
-/* ---- A tile on a sheet opens what uses it ------------------------------------
+/* ---- A tile on a sheet opens on its own ---------------------------------------
    The sheet is drawn at whatever shape the gallery tools chose, so the click
-   is mapped back through that shape to a tile index; the tile belongs to the
-   prop type whose block holds it (the highest base at or below it, within
-   its own 16-tile sheet), and that prop type's page opens under Sprites
-   when the tile is one of its own frames: the base, or a frame named as the
-   base is named, which is the test that page uses for the frames it shows.
-   Any other tile opens its own view, the sprite zoom, which says what draws
-   it. Until 16 September 2026 every tile in a block went to the block's
-   prop type, so the hatchet, the tile after the spear, opened the spear's
-   page, which does not show it, and the hatchet itself could not be reached
-   from its sheet at all (the maintainer). */
-function propTypeForTile(tileId) {
-  const tiles = getPropTileList();
-  let best = -1, bestBase = -1;
-  for (let pt = 1; pt < tiles.length; pt++) {
-    const base = tiles[pt];
-    if (base === undefined || !base || base > tileId || base < bestBase) continue;
-    if (tileId < base + (16 - (base & 0x0F))) { best = pt; bestBase = base; }
-  }
-  return best;
-}
+   is mapped back through that shape to a tile index, and the tile opens in
+   the sprite zoom: the picture at sixteen times, what it was cut from, and
+   every class that is drawn by it -- the class whose base it is, and each
+   one that reaches it at an aspect -- each a chip to that class's page.
+
+   A tap used to leave the sheet. Until 16 September 2026 it went to the prop
+   type whose block held the tile, so the hatchet, the tile after the spear,
+   opened the spear's page, which does not show it. That was narrowed to a
+   prop type's own frames, which left the same gesture doing two different
+   things -- a named frame navigated, anything else opened the zoom. Since
+   20 September 2026 it always opens the zoom (the maintainer), and the
+   chips there are the way on. */
 /* An image of one resource opens that resource when tapped: the portrait
    on a character's page, a frame on a prop's, the sprite an item leaves
    behind. The maintainer's ask of 18 September 2026: every isolated image
@@ -441,13 +433,6 @@ function imageOpens(el, resid, what) {
   el.title = (what ? what + ' ' : '') + '0x' + resid.toString(16).toUpperCase() + ', tap to open';
   el.onclick = e => { e.stopPropagation(); jumpToResource(resid); };
   return el;
-}
-function tileTapTarget(tileId) {
-  const pt = propTypeForTile(tileId);
-  if (pt <= 0) return null;
-  const base = getPropTileList()[pt];
-  const own = terrainNameFor(base);
-  return tileId === base || (own && terrainNameFor(tileId) === own) ? pt : null;
 }
 function tileSheetClick(ev, resid) {
   const canvas = ev.currentTarget;
@@ -463,9 +448,13 @@ function tileSheetClick(ev, resid) {
   else idx = Math.floor(py / 32) * 4 + Math.floor(px / 32);
   if (!(idx >= 0 && idx < 16)) return;
   const tileId = ((resid - 0x8E00) << 4) | idx;
-  const pt = tileTapTarget(tileId);
-  if (pt) openVia('PROPS', () => showPropTypeDetail(pt));
-  else showSpriteZoom(tileId, terrainNameFor(tileId) || '');
+  // The tile on its own, and nowhere else. A tap used to leave the sheet
+  // for the prop type that wears the tile, where a tile whose prop could
+  // not be named stayed and opened the zoom -- so the same gesture did two
+  // different things depending on the tile. The zoom names the prop type
+  // and links to it (tileFactsHTML), which is the route out for anyone who
+  // wants it (the maintainer, 20 September 2026).
+  showSpriteZoom(tileId, terrainNameFor(tileId) || '');
 }
 
 /* ---- What a window shows -----------------------------------------------------

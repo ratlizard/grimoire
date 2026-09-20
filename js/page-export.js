@@ -864,7 +864,7 @@ function renderImage() {
     if (subn === 141) drawSheetGridlines(canvas, W, H, window.SHEET_SHAPE || 'grid');
     if (subn === 141) {
       canvas.style.cursor = 'pointer';
-      canvas.title = 'Click a tile to open the prop type that uses it';
+      canvas.title = 'Click a tile to see it on its own';
       canvas.onclick = ev => tileSheetClick(ev, resid);
     } else { canvas.style.cursor = ''; canvas.title = ''; canvas.onclick = null; }
     startPaletteAnimation(canvas, W, H, image, transparentIndexFor(subn));

@@ -487,30 +487,32 @@ try {
   else console.log('  each one: the book lists each passage where it lies, eggs left out, and a class of alike props lists nothing');
 } catch (e) { fail('each one', e); }
 
-/* A tile no prop type draws as its own, 16 September 2026. The maintainer could
-   not reach the hatchet from its sheet: it is the tile after the spear, and a
-   tap went to the spear's page, which shows only frames named "spear". A tap
-   now opens a prop type's page only for its own frames, and any other tile
-   opens its sprite view, which names what draws it. Pinned on the weapon
-   sheet: the spear's own tile goes to the spear, the hatchet and the flail to
-   their own views, and the third sword (0x209), which is a class's base, to
-   that class and not to the spear it follows. The hatchet's view offers the
-   spear at aspect 1 and its sheet, and says no class owns it; the tap on the
-   spear chip opens the spear with its prop record at aspect 1. */
+/* A tap on a tile of a sheet opens that tile on its own, and nowhere else.
+
+   The gesture used to do two different things: a tile that was a prop type's
+   own frame left the sheet for that prop type's page, and any other tile
+   opened the sprite zoom. It always opens the zoom since 20 September 2026
+   (the maintainer), and the zoom is what carries the way on -- the classes
+   the tile draws, each a chip. Pinned on the weapon sheet, where the old
+   rule was worked out: the spear's own tile 0x206 names the spear as the
+   class it is the base of, and the hatchet 0x207, which no class owns,
+   still offers the spear at aspect 1 and its sheet and says so. */
 try {
   const walk = el => (el.innerHTML || '') + (el.children || []).map(walk).join('');
-  const spear = ctx.tileTapTarget(0x206), hatchet = ctx.tileTapTarget(0x207), flail = ctx.tileTapTarget(0x208), sword = ctx.tileTapTarget(0x209);
+  ctx.showSpriteZoom(0x206, 'spear'); drainRaf();
+  const spearView = walk(REGISTRY.get('spriteZoom'));
+  const spear = ctx.inventoryItemList().find(e => e.name === 'spear');
   ctx.showSpriteZoom(0x207, 'hatchet'); drainRaf();
   const view = walk(REGISTRY.get('spriteZoom'));
-  if (ctx.propDisplayName(spear) !== 'spear' || hatchet !== null || flail !== null) fail('tile view', 'the weapon sheet taps are spear ' + spear + ', hatchet ' + hatchet + ', flail ' + flail);
-  else if (!sword || sword === spear || ctx.getPropTileList()[sword] !== 0x209) fail('tile view', 'the sword at 0x209 does not open its own class');
-  else if (!/openItem\((\d+),1\)/.test(view) || +/openItem\((\d+),1\)/.exec(view)[1] !== spear) fail('tile view', 'the hatchet’s view does not offer the spear at aspect 1');
+  if (!spear) fail('tile view', 'the spear is not in the item list');
+  else if (!new RegExp('openItem\\(' + spear.pt + '\\)').test(spearView)) fail('tile view', 'the spear’s own tile does not name the spear as the class it is the base of');
+  else if (!/openItem\((\d+),1\)/.test(view) || +/openItem\((\d+),1\)/.exec(view)[1] !== spear.pt) fail('tile view', 'the hatchet’s view does not offer the spear at aspect 1');
   else if (!new RegExp('jumpToResource\\(' + 0x8E20 + '\\)').test(view) || !/No class owns this picture/.test(view)) fail('tile view', 'the hatchet’s view does not name its sheet or say no class owns it');
   else {
-    ctx.openItem(spear, 1); drainRaf();
+    ctx.openItem(spear.pt, 1); drainRaf();
     const pw = peek('DERIVED.PROP_WORD');
-    if (ctx.CUR_SUBN !== 'ITEMS' || !pw || pw.aspect !== 1 || pw.pt !== spear) fail('tile view', 'the spear chip does not open the spear at aspect 1');
-    else console.log('  tile view: the hatchet and the flail open their own views, which lead to the classes that draw them');
+    if (ctx.CUR_SUBN !== 'ITEMS' || !pw || pw.aspect !== 1 || pw.pt !== spear.pt) fail('tile view', 'the spear chip does not open the spear at aspect 1');
+    else console.log('  tile view: a tile opens on its own, and the classes it draws are the way on');
   }
 } catch (e) { fail('tile view', e); }
 

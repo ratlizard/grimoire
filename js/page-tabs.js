@@ -844,11 +844,24 @@ const TAB_TREE = [
   // The top row's three folders open when selected: chest, crate and book
   // each have a closed and an open frame, and `tileOpen` is the second.
   { id: 'entities', label: 'Scenario', tile: 0x285, tileOpen: 0x284, children: [      // the large chest. Scenario is Delver's own word for the game's content, the SCEN the editor writes; the label was Entities, then Game, on 9 September 2026
+      /* The order is the maintainer's, 20 September 2026: the places first,
+         then who is in them, then what is in them -- units, the things
+         carried, every prop type, and the placed scenery assembled. */
+      { id: 'regions',    label: 'Zones',      tile: 0x120, values: ['127'] },         // the encampment, the maintainer's pick, 9 September 2026
       { id: 'characters', label: 'Characters', tile: 0x719, values: ['CHARACTERS'] },  // the king, standing, facing the reader
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
-      { id: 'scenery',    label: 'Scenery',    tile: 0x386, values: ['SCENERY'] },     // the fountain (prop 0x36), 20 September 2026: what is placed and is neither a unit nor carried
-      { id: 'regions',    label: 'Zones',      tile: 0x120, values: ['127'] },         // the encampment, the maintainer's pick, 9 September 2026
+      // Every prop type with art, by what wears it. It was the second chip on
+      // Components > Graphics > Tilesets until 20 September 2026, which put
+      // the scenario's own furniture under the components of the file; the
+      // value moved rather than being added here, since TAB_LEAF_FOR keeps
+      // the first leaf to claim one and the tree must not name a value twice.
+      { id: 'props',      label: 'Props',      tile: 0x386, values: ['PROPS'] },       // the fountain (prop 0x36), which Scenery wore until this tab took it
+      // Scenery is what is placed and is neither a unit nor carried, and the
+      // composites are the same thing assembled: the editor's stamps and
+      // brushes, and the composition table's pieces of terrain. They were
+      // under Components > Graphics until 20 September 2026.
+      { id: 'scenery',    label: 'Scenery',    tile: 0x321, values: ['SCENERY', 'COMPOSITE', 'RSRC'] },   // the rug (prop 15) at aspect 1, the maintainer's pick, 20 September 2026; it was the fountain (0x386), which Props wears now
       { id: 'skills',     label: 'Skills',     tile: 0x2D1, values: ['SKILLS'] },   // the rolling pin, the maintainer's pick, 17 September 2026; it was a distiller (0x3DB)
       { id: 'spells',     label: 'Spells',     tile: 0x888, values: ['SPELLS'] },   // a staff (prop 343), the maintainer's pick
       /* Mechanics is not a table: the rules the code implies, read out of the
@@ -912,8 +925,7 @@ const TAB_TREE = [
       { id: 'graphics', label: 'Graphics', tile: 0x861, children: [                           // the easel, with its painting
           { id: 'portraits',  label: 'Portraits',  tile: 0x33F, values: ['135'] },                      // the mirror
           { id: 'landscapes', label: 'Landscapes', tile: 0x890, values: ['131'] },                      // the landscape painting
-          { id: 'tilesets',   label: 'Tilesets',   tile: 0x0D5, values: ['141', 'PROPS'] },    // the quartered blue floor; sprites by prop type are the same tiles viewed by what wears them (a Scenario tab for a day, 9-10 September 2026)
-          { id: 'composites', label: 'Composites', tile: 0x0D4, values: ['COMPOSITE', 'RSRC'] },        // grass meeting sand
+          { id: 'tilesets',   label: 'Tilesets',   tile: 0x0D5, values: ['141'] },    // the quartered blue floor. Sprites by prop type were a second chip here until 20 September 2026 and are Scenario > Props now
           // Misc is the archive's general graphics and, since 8 September
           // 2026, the whole screens in the resource fork beside them (the
           // title, the main menu and its parts, the DELVER stone, the paper
