@@ -867,7 +867,7 @@ function onCategoryChangeImpl() {
     setMode('sheet');
     return;
   }
-  if (rawval === 'PROPS' || rawval === 'ITEMS' || rawval === 'RSRC') {
+  if (rawval === 'PROPS' || rawval === 'SCENERY' || rawval === 'ITEMS' || rawval === 'RSRC') {
     window.CUR_SUBN = rawval;
     document.getElementById('residSelect').innerHTML = '';
     setMode('sheet');

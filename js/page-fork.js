@@ -1525,7 +1525,7 @@ function setModeImpl(m) {
   // to block and must switch it back -- see returnToSheet()).
   document.getElementById('sheetGrid').style.display = '';
   if (window.CUR_SUBN === 'CHARACTERS') { renderCharacterSheet(); return; }
-  if (window.CUR_SUBN === 'PROPS') { renderPropTypeSheet(); return; }
+  if (window.CUR_SUBN === 'PROPS' || window.CUR_SUBN === 'SCENERY') { renderPropTypeSheet(); return; }
   if (window.CUR_SUBN === 'ITEMS') { renderItemSheet(); return; }
   if (window.CUR_SUBN === 'RSRC') {
     renderRsrcSheet();

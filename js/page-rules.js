@@ -4134,6 +4134,59 @@ function characterFlagPlace(flag) {
   return null;
 }
 
+/* ---- how a monster is built, read off CreateMonster and the constructors --
+   A creature's class carries a layout code as the first word of key 55, and
+   TActiveMonster::CreateMonster picks a kind of monster by it: one code is a
+   dragon (four extra records copying the head's, a 2x2), a run of codes is
+   a crawler (a head with a tail record behind it), one code is an octopus
+   (a body with eight arm records of another class around it), and the rest
+   are one record. The bounds are the routine's three compares, read here,
+   with the constructor each branch calls as the control. Then each
+   constructor says the rest: TCrawlMonster compares the code against one
+   value (10) for a single tail whose aspect is the head's plus 8, else
+   takes the segment count from key 54; TOctoMonster reads the arm class
+   from key 54 and places eight arms at the offsets in two tables of
+   halfwords beside the TOC, arm i at aspect i. The page assembles a unit's
+   picture by these (unitPieces in js/page-props.js), and with no
+   application open uses the same constants, which is what a reader here
+   returning null means. */
+function exeMonsterKinds() {
+  const ops = exeOpsNamed('TActiveMonster::CreateMonster');
+  if (!ops.length) return null;
+  const cmp = ops.filter(o => o.d && o.d.mn === 'cmpwi');
+  const ctor = name => ops.find(o => exeCalls(o, name));
+  const crawl = ctor('TCrawlMonster::TCrawlMonster'), dragon = ctor('TDragonMonster::TDragonMonster'), octo = ctor('TOctoMonster::TOctoMonster');
+  if (!crawl || !dragon || !octo || cmp.length < 3) return null;
+  const a = cmp[0].d.imm, b = cmp[1].d.imm, c = cmp[2].d.imm;
+  const range = (lo, hi) => { const r = []; for (let i = lo; i <= hi; i++) r.push(i); return r; };
+  return { dragon: range(a, a), crawl: range(b, a - 1), octo: range(a + 1, c - 1),
+           bounds: cmp.slice(0, 3).map(o => exeVal(o, o.d.imm)), ctors: { crawl, dragon, octo } };
+}
+function exeCrawlRule() {
+  const ops = exeOpsNamed('TCrawlMonster::TCrawlMonster');
+  if (!ops.length) return null;
+  const k55 = ops.findIndex(o => o.d && o.d.mn === 'li' && o.d.imm === 55 && (o.d.rt === 4 || o.d.rd === 4));
+  const lit = exeFindBack(ops, k55, 30, d => d.mn === 'li' && d.imm > 0 && d.imm < 64 && (d.rt === 0 || d.rd === 0));
+  const k54 = exeFind(ops, k55, 60, d => d.mn === 'li' && d.imm === 54);
+  const tail = exeFind(ops, k55, 200, d => d.mn === 'addi' && d.imm === 8 && d.ra === 3);
+  if (k55 < 0 || lit < 0 || tail < 0) return null;
+  return { tailOnly: exeVal(ops[lit], ops[lit].d.imm), tailOffset: exeVal(ops[tail], 8), segmentsKey: k54 >= 0 ? exeVal(ops[k54], 54) : null };
+}
+function exeOctoRule() {
+  const img = appImage();
+  const ops = exeOpsNamed('TOctoMonster::TOctoMonster');
+  if (!img || !ops.length) return null;
+  const tabs = ops.filter(o => o.d && o.d.mn === 'addi' && o.d.ra === 2).slice(0, 2);
+  const k54 = ops.findIndex(o => o.d && o.d.mn === 'li' && o.d.imm === 54);
+  const bound = ops.findIndex(o => o.d && o.d.mn === 'cmpwi' && o.d.imm > 1 && o.d.imm <= 16);
+  if (tabs.length < 2 || k54 < 0 || bound < 0) return null;
+  const n = ops[bound].d.imm;
+  const sec = img.contents[img.toc.section].bytes;
+  const read = d => { const o = img.toc.offset + d, a = []; for (let i = 0; i < n; i++) { let v = (sec[o + 2 * i] << 8) | sec[o + 2 * i + 1]; if (v & 0x8000) v -= 0x10000; a.push(v); } return a; };
+  // The loop adds the first table to x and the second to y.
+  return { armKey: exeVal(ops[k54], 54), arms: exeVal(ops[bound], n), dx: exeVal(tabs[0], read(tabs[0].d.imm)), dy: exeVal(tabs[1], read(tabs[1].d.imm)) };
+}
+
 /* ---- the per-class cache, read off FillIntfCache -------------------------
    At load the application walks every prop type and builds a long per
    class from the class table: the low bits of ClassFlags (key 39) copied or

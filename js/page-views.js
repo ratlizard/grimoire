@@ -1229,8 +1229,8 @@ function renderMonsterSheet() {
     wrap.className = 'cellimgwrap';
     const base = tiles[r.proptype];
     if (base !== undefined) {
-      const info = spriteFrameInfo(0, r.proptype);
-      const spr = drawPropSprite(base + (info.present[0] || 0), 34);
+      // Assembled the way the program builds it, facing the reader.
+      const spr = drawUnitSprite(r.proptype, 34);
       if (spr) wrap.appendChild(spr.canvas);
     }
     cell.appendChild(wrap);
@@ -1284,9 +1284,33 @@ function showMonsterDetail(idx) {
     '</div>';
   panel.innerHTML = h;
 
-  // Sprite strip for the living creature.
+  // The unit as the program builds it, then every frame of its own.
   const base = tiles[r.proptype];
   if (base !== undefined) {
+    const whole = drawUnitSprite(r.proptype, 48);
+    if (whole && whole.unit) {
+      const u = whole.unit;
+      const box = document.createElement('div');
+      box.style.cssText = 'display:flex;gap:14px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap';
+      const holder = document.createElement('div');
+      holder.style.cssText = 'padding:6px;background:#1c1913;border:1px solid #33302a';
+      holder.appendChild(whole.canvas);
+      box.appendChild(holder);
+      const how = document.createElement('div');
+      how.style.cssText = 'font-size:0.75rem;color:#b5b2a8;line-height:1.5;max-width:380px';
+      const lay = u.layout ? 'Layout ' + srcNum({ resid: u.layout.resid, at: u.layout.at }, String(u.layout.code)) + ' (the first word of its key 55)' : 'No layout word';
+      const app = appImage();
+      if (u.kind === 'octo') how.innerHTML = lay + ': <b>a body with ' + (u.rule ? srcNum(u.rule.arms, u.rule.arms.v + ' arms') : '8 arms') + '</b> of ' +
+        (u.arm !== null ? svLink(propDisplayName(u.arm) || ('prop ' + u.arm), 'showMonsterDetail(' + (parseMonsterStats().findIndex(m => m.proptype === u.arm)) + ')') : 'no class') +
+        ', the class its key 54 names, arm <i>i</i> at aspect <i>i</i> on the ' + (u.rule ? srcNum(u.rule.dx, 'eight squares') : 'eight squares') + ' around it' +
+        (app ? ', as ' + pefChip('TOctoMonster::TOctoMonster') + ' builds it' : '') + '.';
+      else if (u.kind === 'crawl') how.innerHTML = lay + ': <b>a head with its tail behind it</b>, the tail a second record at the head’s aspect plus ' + (u.rule ? srcNum(u.rule.tailOffset, '8') : '8') +
+        (app ? ', as ' + pefChip('TCrawlMonster::TCrawlMonster') + ' builds it; ' + pefChip('TActiveMonster::CreateMonster') + ' picks that kind by the layout' : '') + '.';
+      else if (u.kind === 'span') how.innerHTML = lay + ': one record, and <b>its tiles span ' + whole.cols + ' by ' + whole.rows + '</b> by their attributes, the way a placed thing’s do.';
+      else how.innerHTML = lay + ': one record, one tile' + (app ? '; ' + pefChip('TActiveMonster::AdjustAspect') + ' picks the frame by the layout' : '') + '.';
+      box.appendChild(how);
+      panel.appendChild(box);
+    }
     const info = spriteFrameInfo(0, r.proptype);
     const strip = document.createElement('div');
     strip.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;margin-bottom:12px';

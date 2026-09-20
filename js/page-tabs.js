@@ -847,6 +847,7 @@ const TAB_TREE = [
       { id: 'characters', label: 'Characters', tile: 0x719, values: ['CHARACTERS'] },  // the king, standing, facing the reader
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
+      { id: 'scenery',    label: 'Scenery',    tile: 0x386, values: ['SCENERY'] },     // the fountain (prop 0x36), 20 September 2026: what is placed and is neither a unit nor carried
       { id: 'regions',    label: 'Zones',      tile: 0x120, values: ['127'] },         // the encampment, the maintainer's pick, 9 September 2026
       { id: 'skills',     label: 'Skills',     tile: 0x2D1, values: ['SKILLS'] },   // the rolling pin, the maintainer's pick, 17 September 2026; it was a distiller (0x3DB)
       { id: 'spells',     label: 'Spells',     tile: 0x888, values: ['SPELLS'] },   // a staff (prop 343), the maintainer's pick

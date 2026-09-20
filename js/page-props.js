@@ -282,6 +282,78 @@ function drawPropSprite(tileId, px) {
   return { canvas: c, cols, rows, multi: pieces.length > 0 };
 }
 
+/* A unit's picture, assembled the way the program builds the monster (the
+   readers above exeIntfCache in js/page-rules.js): a crawler is its head
+   with the tail record behind it, an octopus its body with the arms of the
+   class its key 54 names around it, and anything else the frame the tile
+   attributes anchor a span on, or the resting frame alone. Facing the
+   reader where a facing is chosen. The constants stand in when the
+   application is not open, and are what it read when it was. */
+const UNIT_KINDS_DEFAULT = { crawl: [9, 10], dragon: [11], octo: [12] };
+const CRAWL_DEFAULT = { tailOnly: 10, tailOffset: 8 };
+const OCTO_DEFAULT = { arms: 8, dx: [0, 1, 1, 1, 0, -1, -1, -1], dy: [-1, -1, 0, 1, 1, 1, 0, -1] };
+function unitLayout(pt) {
+  const cls = parseItemClass(pt);
+  const k = cls && cls.data.find(x => x.key === 55);
+  return k && k.words.length && !(k.words[0] & 0xF0000000) ? { code: k.words[0] & 0x0FFFFFFF, resid: cls.resid, at: k.off } : null;
+}
+function unitPieces(pt) {
+  const tiles = getPropTileList();
+  const base = tiles[pt];
+  if (base === undefined) return null;
+  const info = spriteFrameInfo(0, pt);
+  if (!info.count) return null;
+  const lay = unitLayout(pt);
+  const kinds = (appImage() && exeMonsterKinds()) || UNIT_KINDS_DEFAULT;
+  const attrs = getTileAttributes(ARCHIVE);
+  const pieces = [];
+  if (lay && kinds.octo.includes(lay.code)) {
+    const cls = parseItemClass(pt);
+    const k54 = cls.data.find(x => x.key === 54);
+    const arm = k54 && k54.words.length && !(k54.words[0] & 0xF0000000) ? (k54.words[0] & 0x0FFFFFFF) : null;
+    const rule = (appImage() && exeOctoRule()) || null;
+    const dx = rule ? rule.dx.v : OCTO_DEFAULT.dx, dy = rule ? rule.dy.v : OCTO_DEFAULT.dy, n = rule ? rule.arms.v : OCTO_DEFAULT.arms;
+    pieces.push({ tile: base, dx: 0, dy: 0, what: 'the body' });
+    if (arm !== null && tiles[arm] !== undefined) for (let i = 0; i < n; i++) pieces.push({ tile: tiles[arm] + i, dx: dx[i], dy: dy[i], what: 'arm ' + i, pt: arm });
+    return { pieces, kind: 'octo', layout: lay, arm, rule };
+  }
+  if (lay && kinds.crawl.includes(lay.code)) {
+    const rule = (appImage() && exeCrawlRule()) || null;
+    const tailOnly = rule ? rule.tailOnly.v : CRAWL_DEFAULT.tailOnly, off = rule ? rule.tailOffset.v : CRAWL_DEFAULT.tailOffset;
+    // Facing the reader: the head's aspect is the facing times two plus
+    // the step (AdjustAspect), so south at rest is 4.
+    const head = SPR_S * 2;
+    pieces.push({ tile: base + head, dx: 0, dy: 0, what: 'the head' });
+    if (lay.code === tailOnly && info.present.includes(head + off)) pieces.push({ tile: base + head + off, dx: 0, dy: -1, what: 'the tail' });
+    return { pieces, kind: 'crawl', layout: lay, rule };
+  }
+  let rep = null;
+  for (const f of info.present) if ((attrs[base + f] || 0) & 0xC0) { rep = f; break; }
+  if (rep === null) rep = restingFrame(info);
+  const span = multiTilePieces(base + rep, false) || [];
+  pieces.push({ tile: base + rep, dx: 0, dy: 0, what: 'frame ' + rep });
+  for (const p of span) pieces.push({ tile: p.tile, dx: p.dx, dy: p.dy, what: 'a piece' });
+  return { pieces, kind: span.length ? 'span' : 'single', layout: lay, frame: rep };
+}
+function drawUnitSprite(pt, px) {
+  const u = unitPieces(pt);
+  if (!u) return null;
+  let minX = 0, minY = 0, maxX = 0, maxY = 0;
+  for (const p of u.pieces) { minX = Math.min(minX, p.dx); minY = Math.min(minY, p.dy); maxX = Math.max(maxX, p.dx); maxY = Math.max(maxY, p.dy); }
+  const cols = maxX - minX + 1, rows = maxY - minY + 1;
+  const c = document.createElement('canvas');
+  c.width = cols * 32; c.height = rows * 32;
+  const ctx = c.getContext('2d');
+  for (const p of u.pieces) {
+    const tmp = document.createElement('canvas');
+    try { drawTileToCanvas(tmp, p.tile, 32); } catch (e) { continue; }
+    ctx.drawImage(tmp, (p.dx - minX) * 32, (p.dy - minY) * 32);
+  }
+  c.style.width = (cols * px) + 'px'; c.style.height = (rows * px) + 'px';
+  c.style.imageRendering = 'pixelated';
+  return { canvas: c, cols, rows, multi: u.pieces.length > 1, unit: u };
+}
+
 function propFrameFill(tile) {
   try {
     const img = resolveTileImage(tile);
@@ -299,7 +371,7 @@ function propFrameFill(tile) {
    no per-gallery code. That is what makes "a search bar on every gallery"
    one function rather than a dozen. */
 window.PROP_FILTER = '';
-const REBUILDING_GALLERIES = new Set(['PROPS', 'ITEMS', 'RSRC', 'MACRSRC', 'BARKS', ...Object.keys(FORK_VIEWS)]);
+const REBUILDING_GALLERIES = new Set(['PROPS', 'SCENERY', 'ITEMS', 'RSRC', 'MACRSRC', 'BARKS', ...Object.keys(FORK_VIEWS)]);
 function setPropFilter(v) {
   window.PROP_FILTER = v;
   if (window.CUR_SUBN === 'ITEMS') renderItemSheet();
@@ -324,6 +396,13 @@ function renderPropTypeSheet() {
   const tiles = getPropTileList();
   const living = livingPropTypes();
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
+  // Under Scenario, Scenery is what is placed and is neither a unit (a
+  // character's class or a class with a stats record) nor a thing that is
+  // carried (the Items gallery): doors, furniture, trees, the towns. The
+  // same gallery, filtered by what the file says a class is.
+  const scenery = window.CUR_SUBN === 'SCENERY';
+  const units = new Set();
+  if (scenery) try { for (const m of parseMonsterStats()) if (!m.blank) units.add(m.proptype); } catch (e) { quiet(e); }
 
   const entries = [];
   for (let pt = 1; pt < tiles.length && pt < 1024; pt++) {
@@ -332,6 +411,7 @@ function renderPropTypeSheet() {
     const name = propDisplayName(pt);
     const info = spriteFrameInfo(0, pt);
     if (!info.count) continue;
+    if (scenery && (living.has(pt) || units.has(pt) || isInventoryItem(pt))) continue;
     const own = terrainNameFor(base);
     if (q && !(name || '').toLowerCase().includes(q) && !(own || '').toLowerCase().includes(q) &&
         !('0x' + pt.toString(16)).includes(q)) continue;
@@ -346,7 +426,7 @@ function renderPropTypeSheet() {
   let heading = null;
   for (const e of entries) {
     const want = e.alive ? 'Creatures & people' : 'Objects & scenery';
-    if (want !== heading) {
+    if (want !== heading && !scenery) {
       heading = want;
       const h = document.createElement('div');
       h.className = 'propHead';
@@ -388,8 +468,9 @@ function renderPropTypeSheet() {
     cell.onclick = () => showPropTypeDetail(e.pt);
     grid.appendChild(cell);
   }
-  out.textContent = entries.length + ' prop types with artwork' +
-    (q ? ' matching \u201c' + q + '\u201d' : '') + '.';
+  out.textContent = scenery
+    ? entries.length + ' placed things that are neither a unit nor carried, each drawn whole where its tiles span more than one square' + (q ? ' matching \u201c' + q + '\u201d' : '') + '.'
+    : entries.length + ' prop types with artwork' + (q ? ' matching \u201c' + q + '\u201d' : '') + '.';
 }
 
 function showPropTypeDetail(pt) {
