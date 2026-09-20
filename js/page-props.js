@@ -291,7 +291,7 @@ function drawPropSprite(tileId, px) {
    application is not open, and are what it read when it was. */
 const UNIT_KINDS_DEFAULT = { crawl: [9, 10], dragon: [11], octo: [12] };
 const CRAWL_DEFAULT = { tailOnly: 10, tailOffset: 8 };
-const OCTO_DEFAULT = { arms: 8, dx: [0, 1, 1, 1, 0, -1, -1, -1], dy: [-1, -1, 0, 1, 1, 1, 0, -1] };
+const OCTO_DEFAULT = { arms: 8, aspectStep: 4, dx: [0, 1, 1, 1, 0, -1, -1, -1], dy: [-1, -1, 0, 1, 1, 1, 0, -1] };
 function unitLayout(pt) {
   const cls = parseItemClass(pt);
   const k = cls && cls.data.find(x => x.key === 55);
@@ -313,9 +313,19 @@ function unitPieces(pt) {
     const arm = k54 && k54.words.length && !(k54.words[0] & 0xF0000000) ? (k54.words[0] & 0x0FFFFFFF) : null;
     const rule = (appImage() && exeOctoRule()) || null;
     const dx = rule ? rule.dx.v : OCTO_DEFAULT.dx, dy = rule ? rule.dy.v : OCTO_DEFAULT.dy, n = rule ? rule.arms.v : OCTO_DEFAULT.arms;
+    const step = (rule && rule.aspectStep ? rule.aspectStep.v : OCTO_DEFAULT.aspectStep) || 1;
     pieces.push({ tile: base, dx: 0, dy: 0, what: 'the body' });
-    if (arm !== null && tiles[arm] !== undefined) for (let i = 0; i < n; i++) pieces.push({ tile: tiles[arm] + i, dx: dx[i], dy: dy[i], what: 'arm ' + i, pt: arm });
-    return { pieces, kind: 'octo', layout: lay, arm, rule };
+    if (arm !== null && tiles[arm] !== undefined) {
+      const ainfo = spriteFrameInfo(0, arm);
+      for (let i = 0; i < n; i++) {
+        // Arm i takes the whole run of frames its direction owns; the arms
+        // wave through them together.
+        const frames = [];
+        for (let f = 0; f < step; f++) if (ainfo.present.indexOf(i * step + f) >= 0) frames.push(tiles[arm] + i * step + f);
+        pieces.push({ tile: tiles[arm] + i * step, frames, dx: dx[i], dy: dy[i], what: 'arm ' + i, pt: arm });
+      }
+    }
+    return { pieces, kind: 'octo', layout: lay, arm, rule, step };
   }
   if (lay && kinds.crawl.includes(lay.code)) {
     const rule = (appImage() && exeCrawlRule()) || null;
@@ -323,9 +333,11 @@ function unitPieces(pt) {
     // Facing the reader: the head's aspect is the facing times two plus
     // the step (AdjustAspect), so south at rest is 4.
     const head = SPR_S * 2;
-    pieces.push({ tile: base + head, dx: 0, dy: 0, what: 'the head' });
-    if (lay.code === tailOnly && info.present.includes(head + off)) pieces.push({ tile: base + head + off, dx: 0, dy: -1, what: 'the tail' });
-    return { pieces, kind: 'crawl', layout: lay, rule };
+    // Two aspects a facing, so the stride is the pair.
+    const pair = (a) => [a, a + 1].filter(f => info.present.indexOf(f) >= 0).map(f => base + f);
+    pieces.push({ tile: base + head, frames: pair(head), dx: 0, dy: 0, what: 'the head' });
+    if (lay.code === tailOnly && info.present.includes(head + off)) pieces.push({ tile: base + head + off, frames: pair(head + off), dx: 0, dy: -1, what: 'the tail' });
+    return { pieces, kind: 'crawl', layout: lay, rule, step: 2 };
   }
   let rep = null;
   for (const f of info.present) if ((attrs[base + f] || 0) & 0xC0) { rep = f; break; }
@@ -344,14 +356,107 @@ function drawUnitSprite(pt, px) {
   const c = document.createElement('canvas');
   c.width = cols * 32; c.height = rows * 32;
   const ctx = c.getContext('2d');
-  for (const p of u.pieces) {
-    const tmp = document.createElement('canvas');
-    try { drawTileToCanvas(tmp, p.tile, 32); } catch (e) { continue; }
-    ctx.drawImage(tmp, (p.dx - minX) * 32, (p.dy - minY) * 32);
-  }
+  // One painting a frame, so the same canvas can be repainted in place: a
+  // piece that carries a run of frames advances through it, the rest hold.
+  let frames = 1;
+  for (const p of u.pieces) if (p.frames && p.frames.length > frames) frames = p.frames.length;
+  const paint = (k) => {
+    ctx.clearRect(0, 0, c.width, c.height);
+    for (const p of u.pieces) {
+      const tile = p.frames && p.frames.length ? p.frames[((k % p.frames.length) + p.frames.length) % p.frames.length] : p.tile;
+      const tmp = document.createElement('canvas');
+      try { drawTileToCanvas(tmp, tile, 32); } catch (e) { continue; }
+      ctx.drawImage(tmp, (p.dx - minX) * 32, (p.dy - minY) * 32);
+    }
+  };
+  paint(0);
   c.style.width = (cols * px) + 'px'; c.style.height = (rows * px) + 'px';
   c.style.imageRendering = 'pixelated';
-  return { canvas: c, cols, rows, multi: u.pieces.length > 1, unit: u };
+  return { canvas: c, cols, rows, multi: u.pieces.length > 1, unit: u, paint, frames };
+}
+
+/* Cycling an assembled unit where it stands. The character gallery's walkers
+   orbit a portrait; a unit has no portrait to orbit, so it holds its square
+   and moves through its own frames. Same timer registry, so navigating away
+   stops it. The jitter keeps a gallery of them from beating as one. */
+function animateUnitSprite(spr, seed) {
+  if (!spr || spr.frames < 2 || !window.SPRITE_ANIM) return;
+  let k = 0;
+  spriteTimers.push(setInterval(() => {
+    if (!spr.canvas.isConnected) return;
+    spr.paint(++k);
+  }, 220 + ((seed | 0) % 5) * 40));
+}
+
+/* A gallery cell stepping through its frames where it stands. The frames are
+   absolute tile ids, so a caller can hand it a run of aspects or a single
+   facing's stride.
+
+   One timer for the whole gallery, not one a cell: the props gallery is some
+   four hundred cells and better than half of them have frames to step
+   through, and that many intervals each decoding a tile is work a phone can
+   feel. The shared tick runs at a tenth of a second and each cell advances on
+   its own period, so they still do not beat as one. A cell whose square is
+   off the screen is skipped rather than drawn, and a cell whose canvas has
+   left the document drops out -- which is what retires the list when a
+   gallery re-renders, since stopSpriteAnimations clears the timer and the
+   next registration starts a fresh one. */
+const CELL_CYCLES = [];
+let cellCycleObs = null, cellCycleTimer = null;
+function cyclePropCell(spr, frames, px, ms, seed) {
+  if (!spr || !frames || frames.length < 2 || !window.SPRITE_ANIM) return;
+  // The wrap around the canvas, not the canvas: a step replaces the canvas,
+  // and an observer would be watching the element that just left.
+  const host = spr.canvas.parentNode;
+  const ent = { spr, frames, px, period: ms + ((seed | 0) % 7) * 60, fi: 0, due: 0, host, seen: true };
+  CELL_CYCLES.push(ent);
+  if (host && typeof IntersectionObserver === 'function') {
+    if (!cellCycleObs) cellCycleObs = new IntersectionObserver(es => {
+      for (const e of es) for (const c of CELL_CYCLES) if (c.host === e.target) c.seen = e.isIntersecting;
+    }, { rootMargin: '200px' });
+    try { ent.seen = false; cellCycleObs.observe(host); } catch (e) { ent.seen = true; quiet(e); }
+  }
+  // Still in the registry means the tick is still running; gone means
+  // stopSpriteAnimations cleared it and this gallery needs a new one.
+  if (cellCycleTimer !== null && spriteTimers.indexOf(cellCycleTimer) >= 0) return;
+  cellCycleTimer = setInterval(() => {
+    const now = Date.now();
+    for (let i = CELL_CYCLES.length - 1; i >= 0; i--) {
+      const e = CELL_CYCLES[i];
+      if (!e.spr.canvas.isConnected) {
+        if (cellCycleObs && e.host) try { cellCycleObs.unobserve(e.host); } catch (x) { quiet(x); }
+        CELL_CYCLES.splice(i, 1);
+        continue;
+      }
+      if (!e.seen || now < e.due) continue;
+      e.due = now + e.period;
+      e.fi = (e.fi + 1) % e.frames.length;
+      const next = drawPropSprite(e.frames[e.fi], e.px);
+      if (next) { e.spr.canvas.replaceWith(next.canvas); e.spr.canvas = next.canvas; }
+    }
+  }, 100);
+  spriteTimers.push(cellCycleTimer);
+}
+
+/* Which frames a props-gallery cell shows, in order. A multi-square prop's
+   span bits live on its anchor tile, so the anchors are the frames worth
+   drawing where there are any. A creature's sheet is four frames a facing:
+   it walks the south row's stride, facing the reader, rather than spinning
+   through all four facings -- which is what restingFrame already picks for
+   a still one. */
+function galleryFrames(e) {
+  const attrs = getTileAttributes(ARCHIVE);
+  const own = framesSharingName(e.base, e.info.present);
+  const anchors = own.filter(f => (attrs[e.base + f] || 0) & 0xC0);
+  const pool = anchors.length ? anchors : own;
+  // Indexed into the pool rather than by frame number, so a beast whose
+  // facing is four tiles -- the titan -- walks its anchors the same way.
+  if (e.alive && pool.length >= SPR_S * 4 + 4 && pool.length % 4 === 0) {
+    const row = pool.slice(SPR_S * 4, SPR_S * 4 + 4);
+    const cyc = WALK_CYCLE.map(c => row[c]).filter(f => f !== undefined);
+    if (cyc.length > 1) return cyc;
+  }
+  return pool;
 }
 
 function propFrameFill(tile) {
@@ -437,18 +542,13 @@ function renderPropTypeSheet() {
     cell.className = 'cell propCell';
     const wrap = document.createElement('div');
     wrap.className = 'cellimgwrap';
-    // A multi-square prop's span bits live on its ANCHOR tile -- the last
-    // square, not the first -- so drawing frame 0 shows one quarter of a tree.
-    // Pick the first frame that actually carries span bits, and fall back to
-    // frame 0 for everything single-square.
-    const attrs = getTileAttributes(ARCHIVE);
-    const own = framesSharingName(e.base, e.info.present);
-    let rep = own[0] || 0;
-    for (const f of own) {
-      if ((attrs[e.base + f] || 0) & 0xC0) { rep = f; break; }
-    }
+    // galleryFrames picks the anchors and the stride; the cell shows the
+    // first of them and then walks the rest.
+    const cyc = galleryFrames(e);
+    const rep = cyc.length ? cyc[0] : 0;
     const spr = drawPropSprite(e.base + rep, 34);
     if (spr) wrap.appendChild(spr.canvas);
+    cyclePropCell(spr, cyc.map(f => e.base + f), 34, e.alive ? 220 : 700, e.pt);
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
     lbl.className = 'lbl';
@@ -1312,9 +1412,12 @@ function isInventoryItem(pt) {
 function itemGroup(pt) {
   const cls = parseItemClass(pt);
   if (cls && ITEM_COMBAT_KEYS.some(k => cls.data.some(f => f.key === k))) return 'Weapons & armour';
-  const e = buildItemIndex()[pt];
-  if (e && e.contained && cls && cls.code.some(f => f.key === 0x17)) return 'Containers';
-  if (cls && cls.data.some(f => f.key === 0x34)) return 'Containers';
+  // A container is a class that answers IsContainer or is Lockable, and
+  // nothing else. It used also to want a prop list to have put something
+  // inside one, which is a fact about the shipped scenario rather than about
+  // the class: it left the corpse -- which answers IsContainer, opens a
+  // window and holds what the body was carrying -- filed under carried goods.
+  if (classHasMember(pt, 0x17) || classHasMember(pt, 0x34)) return 'Containers';
   return 'Carried goods';
 }
 
@@ -1344,7 +1447,7 @@ const ITEM_GROUP_ORDER = ['Weapons & armour', 'Containers', 'Carried goods'];
 function itemGroupNote(group) {
   const nm = k => itemFieldLabel(k);
   if (group === 'Weapons & armour') return 'The class script has a combat member: ' + ITEM_COMBAT_KEYS.map(nm).join(', ') + '.';
-  if (group === 'Containers') return 'The class script has ' + nm(0x34) + ', or answers ' + nm(0x17) + ' and a prop list puts something inside one.';
+  if (group === 'Containers') return 'The class script answers ' + nm(0x17) + ' or has ' + nm(0x34) + '.';
   return 'The rest of what the file treats as an item: a class with a weight, or a prop that a prop list has carried, inside a container or marked takeable, and no combat member.';
 }
 
@@ -1388,15 +1491,7 @@ function renderItemSheet() {
     // An item with several frames shows them all, in turn: one jittered
     // timer per multi-frame cell, on the same registry the character
     // gallery's walkers use, so navigation stops every one of them.
-    if (spr && own.length > 1 && window.SPRITE_ANIM) {
-      let fi = 0;
-      spriteTimers.push(setInterval(() => {
-        if (!spr.canvas.isConnected) return;
-        fi = (fi + 1) % own.length;
-        const next = drawPropSprite(base + own[fi], 34);
-        if (next) spr.canvas.replaceWith(next.canvas), spr.canvas = next.canvas;
-      }, 800 + (e.pt % 7) * 60));
-    }
+    cyclePropCell(spr, own.map(f => base + f), 34, 800, e.pt);
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
     lbl.className = 'lbl';

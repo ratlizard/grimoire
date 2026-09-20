@@ -4183,9 +4183,26 @@ function exeOctoRule() {
   const n = ops[bound].d.imm;
   const sec = img.contents[img.toc.section].bytes;
   const read = d => { const o = img.toc.offset + d, a = []; for (let i = 0; i < n; i++) { let v = (sec[o + 2 * i] << 8) | sec[o + 2 * i + 1]; if (v & 0x8000) v -= 0x10000; a.push(v); } return a; };
+  // Arm i is not given aspect i. The loop counter is shifted left, the rlwimi
+  // that writes the aspect byte rotates it again, and the aspect field sits
+  // two bits up in that byte, so the aspect steps by 1 << (sh + sh' - (31-me))
+  // -- which is the number of frames one direction of the arm's sheet owns.
+  // Reading it as i put seven of the eight arms on a frame of the wrong
+  // direction, which is what the assembled hydra looked like.
+  const ctr = ops.find(o => o.d && o.d.mn === 'addi' && o.d.imm === 1 && o.d.ra === exeDestReg(o.d));
+  let step = null;
+  if (ctr) for (const o of ops) {
+    if (!o.d || o.d.mn !== 'slwi' || o.d.rs !== ctr.d.ra) continue;
+    const m = ops.find(e => e.d && e.d.mn === 'rlwimi' && e.d.rs === o.d.ra && e.d.mb >= 24);
+    if (!m) continue;
+    const sh = o.d.sh + m.d.sh - (31 - m.d.me);
+    if (sh >= 0 && sh < 8) step = exeVal(m, 1 << sh);
+    break;
+  }
   // The loop adds the first table to x and the second to y.
-  return { armKey: exeVal(ops[k54], 54), arms: exeVal(ops[bound], n), dx: exeVal(tabs[0], read(tabs[0].d.imm)), dy: exeVal(tabs[1], read(tabs[1].d.imm)) };
+  return { armKey: exeVal(ops[k54], 54), arms: exeVal(ops[bound], n), aspectStep: step, dx: exeVal(tabs[0], read(tabs[0].d.imm)), dy: exeVal(tabs[1], read(tabs[1].d.imm)) };
 }
+function exeDestReg(d) { return d.rt !== undefined ? d.rt : d.rd !== undefined ? d.rd : d.rs; }
 
 /* ---- the per-class cache, read off FillIntfCache -------------------------
    At load the application walks every prop type and builds a long per

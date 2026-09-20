@@ -1231,7 +1231,7 @@ function renderMonsterSheet() {
     if (base !== undefined) {
       // Assembled the way the program builds it, facing the reader.
       const spr = drawUnitSprite(r.proptype, 34);
-      if (spr) wrap.appendChild(spr.canvas);
+      if (spr) { wrap.appendChild(spr.canvas); animateUnitSprite(spr, r.proptype); }
     }
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
@@ -1295,6 +1295,7 @@ function showMonsterDetail(idx) {
       const holder = document.createElement('div');
       holder.style.cssText = 'padding:6px;background:#1c1913;border:1px solid #33302a';
       holder.appendChild(whole.canvas);
+      animateUnitSprite(whole, r.proptype);
       box.appendChild(holder);
       const how = document.createElement('div');
       how.style.cssText = 'font-size:0.75rem;color:#b5b2a8;line-height:1.5;max-width:380px';
@@ -1302,7 +1303,9 @@ function showMonsterDetail(idx) {
       const app = appImage();
       if (u.kind === 'octo') how.innerHTML = lay + ': <b>a body with ' + (u.rule ? srcNum(u.rule.arms, u.rule.arms.v + ' arms') : '8 arms') + '</b> of ' +
         (u.arm !== null ? svLink(propDisplayName(u.arm) || ('prop ' + u.arm), 'showMonsterDetail(' + (parseMonsterStats().findIndex(m => m.proptype === u.arm)) + ')') : 'no class') +
-        ', the class its key 54 names, arm <i>i</i> at aspect <i>i</i> on the ' + (u.rule ? srcNum(u.rule.dx, 'eight squares') : 'eight squares') + ' around it' +
+        ', the class its key 54 names, arm <i>i</i> at aspect <i>i</i> \u00d7 ' +
+        (u.rule && u.rule.aspectStep ? srcNum(u.rule.aspectStep, String(u.step)) : String(u.step)) +
+        ' -- the frames one direction owns -- on the ' + (u.rule ? srcNum(u.rule.dx, 'eight squares') : 'eight squares') + ' around it' +
         (app ? ', as ' + pefChip('TOctoMonster::TOctoMonster') + ' builds it' : '') + '.';
       else if (u.kind === 'crawl') how.innerHTML = lay + ': <b>a head with its tail behind it</b>, the tail a second record at the head’s aspect plus ' + (u.rule ? srcNum(u.rule.tailOffset, '8') : '8') +
         (app ? ', as ' + pefChip('TCrawlMonster::TCrawlMonster') + ' builds it; ' + pefChip('TActiveMonster::CreateMonster') + ' picks that kind by the layout' : '') + '.';
