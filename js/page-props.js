@@ -297,7 +297,13 @@ function unitLayout(pt) {
   const k = cls && cls.data.find(x => x.key === 55);
   return k && k.words.length && !(k.words[0] & 0xF0000000) ? { code: k.words[0] & 0x0FFFFFFF, resid: cls.resid, at: k.off } : null;
 }
-function unitPieces(pt) {
+/* A unit as a list of animation steps, each step a list of pieces to draw.
+   A still picture is the first step. The steps are the thing that moves:
+   the arms take the four frames their direction owns, a crawler its head
+   and tail through the two aspects a facing has, and everything else its
+   own frames, or the spans those frames anchor where it covers more than
+   one square. */
+function unitSteps(pt) {
   const tiles = getPropTileList();
   const base = tiles[pt];
   if (base === undefined) return null;
@@ -306,7 +312,6 @@ function unitPieces(pt) {
   const lay = unitLayout(pt);
   const kinds = (appImage() && exeMonsterKinds()) || UNIT_KINDS_DEFAULT;
   const attrs = getTileAttributes(ARCHIVE);
-  const pieces = [];
   if (lay && kinds.octo.includes(lay.code)) {
     const cls = parseItemClass(pt);
     const k54 = cls.data.find(x => x.key === 54);
@@ -314,18 +319,19 @@ function unitPieces(pt) {
     const rule = (appImage() && exeOctoRule()) || null;
     const dx = rule ? rule.dx.v : OCTO_DEFAULT.dx, dy = rule ? rule.dy.v : OCTO_DEFAULT.dy, n = rule ? rule.arms.v : OCTO_DEFAULT.arms;
     const step = (rule && rule.aspectStep ? rule.aspectStep.v : OCTO_DEFAULT.aspectStep) || 1;
-    pieces.push({ tile: base, dx: 0, dy: 0, what: 'the body' });
-    if (arm !== null && tiles[arm] !== undefined) {
-      const ainfo = spriteFrameInfo(0, arm);
-      for (let i = 0; i < n; i++) {
-        // Arm i takes the whole run of frames its direction owns; the arms
-        // wave through them together.
-        const frames = [];
-        for (let f = 0; f < step; f++) if (ainfo.present.indexOf(i * step + f) >= 0) frames.push(tiles[arm] + i * step + f);
-        pieces.push({ tile: tiles[arm] + i * step, frames, dx: dx[i], dy: dy[i], what: 'arm ' + i, pt: arm });
-      }
+    // The arm class's own run is n aspects of `step` frames, and that is
+    // what the constructor addresses. It is not what spriteFrameInfo
+    // reports: a frame block stops at the end of the sheet its base tile
+    // is on, and the hydra's thirty-two arm tiles are two sheets, so the
+    // last four arms fell outside the block and stood still.
+    const steps = [];
+    for (let k = 0; k < step; k++) {
+      const ps = [{ tile: base, dx: 0, dy: 0, what: 'the body' }];
+      if (arm !== null && tiles[arm] !== undefined)
+        for (let i = 0; i < n; i++) ps.push({ tile: tiles[arm] + i * step + k, dx: dx[i], dy: dy[i], what: 'arm ' + i, pt: arm });
+      steps.push(ps);
     }
-    return { pieces, kind: 'octo', layout: lay, arm, rule, step };
+    return { steps, kind: 'octo', layout: lay, arm, rule, step };
   }
   if (lay && kinds.crawl.includes(lay.code)) {
     const rule = (appImage() && exeCrawlRule()) || null;
@@ -333,82 +339,92 @@ function unitPieces(pt) {
     // Facing the reader: the head's aspect is the facing times two plus
     // the step (AdjustAspect), so south at rest is 4.
     const head = SPR_S * 2;
-    // Two aspects a facing, so the stride is the pair.
-    const pair = (a) => [a, a + 1].filter(f => info.present.indexOf(f) >= 0).map(f => base + f);
-    pieces.push({ tile: base + head, frames: pair(head), dx: 0, dy: 0, what: 'the head' });
-    if (lay.code === tailOnly && info.present.includes(head + off)) pieces.push({ tile: base + head + off, frames: pair(head + off), dx: 0, dy: -1, what: 'the tail' });
-    return { pieces, kind: 'crawl', layout: lay, rule, step: 2 };
+    const steps = [];
+    for (let k = 0; k < 2; k++) {
+      if (info.present.indexOf(head + k) < 0) continue;
+      const ps = [{ tile: base + head + k, dx: 0, dy: 0, what: 'the head' }];
+      if (lay.code === tailOnly && info.present.includes(head + off + k)) ps.push({ tile: base + head + off + k, dx: 0, dy: -1, what: 'the tail' });
+      steps.push(ps);
+    }
+    if (steps.length) return { steps, kind: 'crawl', layout: lay, rule, step: steps.length };
   }
-  let rep = null;
-  for (const f of info.present) if ((attrs[base + f] || 0) & 0xC0) { rep = f; break; }
-  if (rep === null) rep = restingFrame(info);
-  const span = multiTilePieces(base + rep, false) || [];
-  pieces.push({ tile: base + rep, dx: 0, dy: 0, what: 'frame ' + rep });
-  for (const p of span) pieces.push({ tile: p.tile, dx: p.dx, dy: p.dy, what: 'a piece' });
-  return { pieces, kind: span.length ? 'span' : 'single', layout: lay, frame: rep };
+  // Everything else: its own frames, and the spans they anchor. Same choice
+  // the props gallery makes for a cell, so a creature walks the row that
+  // faces the reader rather than turning on the spot.
+  const pool = galleryFrames({ pt, base, info, alive: true });
+  const steps = pool.map(f => {
+    const ps = [{ tile: base + f, dx: 0, dy: 0, what: 'frame ' + f }];
+    for (const p of (multiTilePieces(base + f, false) || [])) ps.push({ tile: p.tile, dx: p.dx, dy: p.dy, what: 'a piece' });
+    return ps;
+  });
+  if (!steps.length) steps.push([{ tile: base + restingFrame(info), dx: 0, dy: 0, what: 'frame ' + restingFrame(info) }]);
+  return { steps, kind: steps[0].length > 1 ? 'span' : 'single', layout: lay, frame: pool[0] || 0, step: steps.length };
+}
+function unitPieces(pt) {
+  const u = unitSteps(pt);
+  if (!u) return null;
+  u.pieces = u.steps[0];
+  return u;
 }
 function drawUnitSprite(pt, px) {
   const u = unitPieces(pt);
   if (!u) return null;
+  // Bounded over every step, so a step that reaches further does not move
+  // the picture or get clipped.
   let minX = 0, minY = 0, maxX = 0, maxY = 0;
-  for (const p of u.pieces) { minX = Math.min(minX, p.dx); minY = Math.min(minY, p.dy); maxX = Math.max(maxX, p.dx); maxY = Math.max(maxY, p.dy); }
+  for (const ps of u.steps) for (const p of ps) { minX = Math.min(minX, p.dx); minY = Math.min(minY, p.dy); maxX = Math.max(maxX, p.dx); maxY = Math.max(maxY, p.dy); }
   const cols = maxX - minX + 1, rows = maxY - minY + 1;
   const c = document.createElement('canvas');
   c.width = cols * 32; c.height = rows * 32;
   const ctx = c.getContext('2d');
-  // One painting a frame, so the same canvas can be repainted in place: a
-  // piece that carries a run of frames advances through it, the rest hold.
-  let frames = 1;
-  for (const p of u.pieces) if (p.frames && p.frames.length > frames) frames = p.frames.length;
+  // One painting a step, so the same canvas is repainted in place and
+  // whatever size the caller gave it is kept.
   const paint = (k) => {
+    const ps = u.steps[((k % u.steps.length) + u.steps.length) % u.steps.length];
     ctx.clearRect(0, 0, c.width, c.height);
-    for (const p of u.pieces) {
-      const tile = p.frames && p.frames.length ? p.frames[((k % p.frames.length) + p.frames.length) % p.frames.length] : p.tile;
+    for (const p of ps) {
       const tmp = document.createElement('canvas');
-      try { drawTileToCanvas(tmp, tile, 32); } catch (e) { continue; }
+      try { drawTileToCanvas(tmp, p.tile, 32); } catch (e) { continue; }
       ctx.drawImage(tmp, (p.dx - minX) * 32, (p.dy - minY) * 32);
     }
   };
   paint(0);
   c.style.width = (cols * px) + 'px'; c.style.height = (rows * px) + 'px';
   c.style.imageRendering = 'pixelated';
-  return { canvas: c, cols, rows, multi: u.pieces.length > 1, unit: u, paint, frames };
+  return { canvas: c, cols, rows, multi: u.pieces.length > 1, unit: u, paint, frames: u.steps.length };
 }
 
-/* Cycling an assembled unit where it stands. The character gallery's walkers
-   orbit a portrait; a unit has no portrait to orbit, so it holds its square
-   and moves through its own frames. Same timer registry, so navigating away
-   stops it. The jitter keeps a gallery of them from beating as one. */
-function animateUnitSprite(spr, seed) {
-  if (!spr || spr.frames < 2 || !window.SPRITE_ANIM) return;
-  let k = 0;
-  spriteTimers.push(setInterval(() => {
-    if (!spr.canvas.isConnected) return;
-    spr.paint(++k);
-  }, 220 + ((seed | 0) % 5) * 40));
-}
+/* Everything that moves in a gallery, on one timer.
 
-/* A gallery cell stepping through its frames where it stands. The frames are
-   absolute tile ids, so a caller can hand it a run of aspects or a single
-   facing's stride.
+   A cell either steps through a run of tiles -- a prop's own frames, an
+   item's variants -- or repaints an assembled unit at its next step. Both
+   are the same thing to the tick, so both are registered here.
 
-   One timer for the whole gallery, not one a cell: the props gallery is some
+   One timer for a whole gallery, not one a cell: the props gallery is some
    four hundred cells and better than half of them have frames to step
    through, and that many intervals each decoding a tile is work a phone can
-   feel. The shared tick runs at a tenth of a second and each cell advances on
-   its own period, so they still do not beat as one. A cell whose square is
-   off the screen is skipped rather than drawn, and a cell whose canvas has
-   left the document drops out -- which is what retires the list when a
-   gallery re-renders, since stopSpriteAnimations clears the timer and the
-   next registration starts a fresh one. */
+   feel. The tick runs at a tenth of a second and each entry advances on its
+   own period. A cell whose square is off the screen is skipped rather than
+   drawn, and one whose canvas has left the document drops out -- which is
+   what retires the list when a gallery re-renders, since
+   stopSpriteAnimations clears the timer and the next registration starts a
+   fresh one.
+
+   Units all move at the same pace and in step with each other. The
+   maintainer asked for that on 20 September 2026, having seen the hydra's
+   arms run at their own speed beside a gator walking at another: a gallery
+   of creatures each on its own clock reads as noise. Things that are not
+   creatures keep a slower beat, because what they are showing is a set of
+   variants rather than a movement. */
+const UNIT_FRAME_MS = 440;      // every unit, and every creature in a gallery
+const PROP_FRAME_MS = 880;      // an object's variants, half as often
 const CELL_CYCLES = [];
 let cellCycleObs = null, cellCycleTimer = null;
-function cyclePropCell(spr, frames, px, ms, seed) {
-  if (!spr || !frames || frames.length < 2 || !window.SPRITE_ANIM) return;
-  // The wrap around the canvas, not the canvas: a step replaces the canvas,
-  // and an observer would be watching the element that just left.
-  const host = spr.canvas.parentNode;
-  const ent = { spr, frames, px, period: ms + ((seed | 0) % 7) * 60, fi: 0, due: 0, host, seen: true };
+function registerCellCycle(ent) {
+  // The wrap around the canvas, not the canvas: a stepping cell replaces
+  // its canvas, and an observer would be watching the element that left.
+  const host = ent.spr.canvas.parentNode;
+  ent.host = host; ent.fi = 0; ent.due = 0; ent.seen = true;
   CELL_CYCLES.push(ent);
   if (host && typeof IntersectionObserver === 'function') {
     if (!cellCycleObs) cellCycleObs = new IntersectionObserver(es => {
@@ -416,7 +432,7 @@ function cyclePropCell(spr, frames, px, ms, seed) {
     }, { rootMargin: '200px' });
     try { ent.seen = false; cellCycleObs.observe(host); } catch (e) { ent.seen = true; quiet(e); }
   }
-  // Still in the registry means the tick is still running; gone means
+  // Still in the registry means the tick is running; gone means
   // stopSpriteAnimations cleared it and this gallery needs a new one.
   if (cellCycleTimer !== null && spriteTimers.indexOf(cellCycleTimer) >= 0) return;
   cellCycleTimer = setInterval(() => {
@@ -430,12 +446,29 @@ function cyclePropCell(spr, frames, px, ms, seed) {
       }
       if (!e.seen || now < e.due) continue;
       e.due = now + e.period;
-      e.fi = (e.fi + 1) % e.frames.length;
-      const next = drawPropSprite(e.frames[e.fi], e.px);
+      e.fi++;
+      if (e.spr.paint) { e.spr.paint(e.fi); continue; }
+      const next = drawPropSprite(e.frames[e.fi % e.frames.length], e.px);
       if (next) { e.spr.canvas.replaceWith(next.canvas); e.spr.canvas = next.canvas; }
     }
   }, 100);
   spriteTimers.push(cellCycleTimer);
+}
+
+/* An assembled unit repainting where it stands. The character gallery's
+   walkers orbit a portrait; a unit has no portrait to orbit, so it holds
+   its square and moves through its own steps. */
+function animateUnitSprite(spr) {
+  if (!spr || !spr.paint || spr.frames < 2 || !window.SPRITE_ANIM) return;
+  registerCellCycle({ spr, period: UNIT_FRAME_MS });
+}
+
+/* A gallery cell stepping through a run of tiles. The frames are absolute
+   tile ids, so a caller can hand it a run of aspects or one facing's
+   stride. */
+function cyclePropCell(spr, frames, px, ms) {
+  if (!spr || !frames || frames.length < 2 || !window.SPRITE_ANIM) return;
+  registerCellCycle({ spr, frames, px, period: ms });
 }
 
 /* Which frames a props-gallery cell shows, in order. A multi-square prop's
@@ -548,7 +581,7 @@ function renderPropTypeSheet() {
     const rep = cyc.length ? cyc[0] : 0;
     const spr = drawPropSprite(e.base + rep, 34);
     if (spr) wrap.appendChild(spr.canvas);
-    cyclePropCell(spr, cyc.map(f => e.base + f), 34, e.alive ? 220 : 700, e.pt);
+    cyclePropCell(spr, cyc.map(f => e.base + f), 34, e.alive ? UNIT_FRAME_MS : PROP_FRAME_MS);
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
     lbl.className = 'lbl';
@@ -1491,7 +1524,7 @@ function renderItemSheet() {
     // An item with several frames shows them all, in turn: one jittered
     // timer per multi-frame cell, on the same registry the character
     // gallery's walkers use, so navigation stops every one of them.
-    cyclePropCell(spr, own.map(f => base + f), 34, 800, e.pt);
+    cyclePropCell(spr, own.map(f => base + f), 34, PROP_FRAME_MS);
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
     lbl.className = 'lbl';

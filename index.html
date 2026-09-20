@@ -602,6 +602,14 @@ span.navChip { color:#fff; }
   border-bottom:1px solid var(--edge); padding-bottom:4px; }
 .cell.propCell { height:150px; justify-content:flex-start; }
 .cell.propCell .cellimgwrap { flex:0 0 78px; height:78px; }
+/* A unit that covers more than one square takes more than one cell of the
+   grid, in the shape it is: the hydra is three squares by three and in a
+   cell sized for one it was cut off on every side, the gator is one by two.
+   The taller height is two rows plus the gap between them, so a big cell
+   still lines up with the single ones beside it. */
+.cell.propCell.wideCell { grid-column:span 2; }
+.cell.propCell.tallCell { grid-row:span 2; height:310px; }
+.cell.propCell.tallCell .cellimgwrap { flex:0 0 238px; height:238px; }
 /* Both search fields, one rule. type="search" carries WebKit's `searchfield`
    appearance, and that appearance imposes the control font metrics on the
    TEXT YOU TYPE while leaving the placeholder styled from this sheet -- which
@@ -2111,7 +2119,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.121.0';
+const GRIMOIRE_VERSION = '1.122.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).
