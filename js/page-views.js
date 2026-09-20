@@ -309,21 +309,6 @@ function renderToolsSheet() {
      gate on the cheat keys, which nothing in the game ever sets. The long
      comment above buildCytheraPreferences says where each came from and, just
      as plainly, that this file has never been put in front of the game. */
-  {
-    /* What fell back without saying so. Every optional decode that failed
-       since the page loaded, kept by quiet() in js/mac-bytes.js, so a
-       missing picture or an empty sheet has a reason a visitor can find. */
-    const q = sec('Fell back quietly', QUIET_FAILURES.size
-      ? 'What could not be read or drawn since the page loaded, and fell back instead. Each is one line, with how many times.'
-      : 'Nothing has fallen back quietly since the page loaded.');
-    if (QUIET_FAILURES.size) {
-      const ul = document.createElement('div');
-      ul.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:0.75rem;line-height:1.6;color:#b5b2a8;margin-left:0;white-space:pre-wrap';
-      // The file and line, not the origin it was served from.
-      ul.textContent = [...QUIET_FAILURES].map(([m, v]) => (v.count > 1 ? v.count + '\u00d7 ' : '') + m + (v.where ? '\n    ' + v.where.replace(/https?:\/\/[^/\s]+\//g, '') : '')).join('\n');
-      q.appendChild(ul);
-    }
-  }
   const layout = cytheraPrefsLayout();
   const pf = sec('Cythera’s preferences file', '');
   const pfNote = document.createElement('div');
@@ -399,6 +384,27 @@ function renderToolsSheet() {
           : 'No file is open to read the game’s own out of.');
   font.appendChild(fn);
   grid.appendChild(box);
+  /* What fell back without saying so. Every optional decode that failed
+     since the page loaded, kept by quiet() in js/mac-bytes.js, so a
+     missing picture or an empty sheet has a reason a visitor can find. At
+     the foot of the sheet and folded, one grey line (the maintainer, 19
+     September 2026: it was the second thing on the page); the count is in
+     the line, so a fault still shows without the list being open. */
+  {
+    const q = document.createElement('details');
+    q.className = 'quietLog';
+    const n = QUIET_FAILURES.size;
+    const line = n ? n + (n === 1 ? ' thing' : ' things') + ' fell back quietly since the page loaded' : 'Nothing has fallen back quietly since the page loaded';
+    q.innerHTML = '<summary>' + line + '</summary>';
+    if (n) {
+      const ul = document.createElement('div');
+      ul.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:0.75rem;line-height:1.6;color:#b5b2a8;white-space:pre-wrap;margin-top:6px';
+      // The file and line, not the origin it was served from.
+      ul.textContent = [...QUIET_FAILURES].map(([m, v]) => (v.count > 1 ? v.count + '\u00d7 ' : '') + m + (v.where ? '\n    ' + v.where.replace(/https?:\/\/[^/\s]+\//g, '') : '')).join('\n');
+      q.appendChild(ul);
+    } else q.innerHTML += '<div class="changesNote" style="margin:6px 0 0">Every optional decode the page attempted has succeeded. What could not be read or drawn would be listed here, one line each with how many times.</div>';
+    box.appendChild(q);
+  }
   out.textContent = 'Settings and links; nothing here is read from the archive except the font.';
 }
 
