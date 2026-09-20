@@ -730,15 +730,14 @@ function renderRsrcSheet() {
       (it.pat.table ? ' table' : ' squares');
     cell.appendChild(residDiv);
 
-    // Four cells of the grid, not one. An eight by eight stamp is 256 pixels
-    // square and was being shown at 84, which is ten pixels a square: every
-    // meadow looked like the same speckle.
-    cell.classList.add('propCell', 'wideCell', 'tallCell');
+    // One scale for stamps and brushes alike, and the cell grows to hold
+    // what it is given. An eight by eight stamp is 256 pixels square and
+    // was being shown at 84, which is ten pixels a square: every meadow
+    // looked like the same speckle.
+    cell.classList.add('propCell');
     lazyTile(cell, () => {
-      drawTilePattern(canvas, it.pat, it.pat.cols > 4 ? 12 : 32);
-      const scale = Math.min(200 / canvas.width, 228 / canvas.height, 8);
-      canvas.style.width = Math.round(canvas.width * scale) + 'px';
-      canvas.style.height = Math.round(canvas.height * scale) + 'px';
+      drawTilePattern(canvas, it.pat, 24);
+      fitGalleryCell(cell, imgwrap, { canvas, cols: it.pat.cols, rows: it.pat.rows }, 24);
     });
     cell.title = 'Click for the tiles it is made of';
     cell.onclick = () => showRsrcDetail(it.type, it.entry.id);

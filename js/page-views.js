@@ -1219,22 +1219,12 @@ function renderMonsterSheet() {
     const base = tiles[r.proptype];
     if (base !== undefined) {
       // Assembled the way the program builds it, facing the reader.
-      // A unit that covers more than one square gets four cells of the grid
-      // and fills them: the hydra is three squares by three, and in a cell
-      // sized for one it was cut off on every side.
-      const spr = drawUnitSprite(r.proptype, 34);
-      if (spr) {
-        if (spr.cols > 1) cell.classList.add('wideCell');
-        if (spr.rows > 1) cell.classList.add('tallCell');
-        if (spr.cols > 1 || spr.rows > 1) {
-          const w = spr.cols > 1 ? 200 : 92, h = spr.rows > 1 ? 232 : 72;
-          const px = Math.floor(Math.min(w / spr.cols, h / spr.rows));
-          spr.canvas.style.width = (spr.cols * px) + 'px';
-          spr.canvas.style.height = (spr.rows * px) + 'px';
-        }
-        wrap.appendChild(spr.canvas);
-        animateUnitSprite(spr);
-      }
+      // Every unit at the same pixels a square, and the cell grows to hold
+      // it: the hydra covers nine squares and the crab one, and they are
+      // drawn at one scale so the two can be compared.
+      const spr = drawUnitSprite(r.proptype, GALLERY_TILE_PX);
+      fitGalleryCell(cell, wrap, spr);
+      if (spr) { wrap.appendChild(spr.canvas); animateUnitSprite(spr); }
     }
     cell.appendChild(wrap);
     const lbl = document.createElement('div');

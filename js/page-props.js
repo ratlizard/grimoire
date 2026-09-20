@@ -525,6 +525,31 @@ function clearPropFilter() {
   if (el) el.value = '';
 }
 
+/* ---- A gallery cell, sized to its picture ---------------------------------
+   One scale for the whole gallery. A thing that covers three squares is
+   three squares at the same pixels a square as a thing that covers one:
+   nothing is ever enlarged to fill a cell, because then the hydra's pixels
+   are bigger than the crab's and the two cannot be compared (the
+   maintainer, 20 September 2026). It is the CELL that grows, and only as
+   far as the picture needs -- a fixed big cell left most of them mostly
+   empty. */
+const GALLERY_TILE_PX = 34;
+const GALLERY_CELL_W = 92;   // what fits across one column inside the padding
+const GALLERY_CELL_H = 78;   // the image band of an ordinary cell
+function fitGalleryCell(cell, wrap, spr, px) {
+  if (!spr) return;
+  const size = px || GALLERY_TILE_PX;
+  const w = spr.cols * size, h = spr.rows * size;
+  spr.canvas.style.width = w + 'px';
+  spr.canvas.style.height = h + 'px';
+  if (w > GALLERY_CELL_W) cell.style.gridColumn = 'span ' + Math.min(4, Math.ceil((w + 22) / 114));
+  if (h > GALLERY_CELL_H) {
+    cell.classList.add('tallCell');
+    wrap.style.flex = '0 0 ' + (h + 6) + 'px';
+    wrap.style.height = (h + 6) + 'px';
+  }
+}
+
 /* ---- Scenery, whole -----------------------------------------------------
    What the Scenery gallery shows is a placed thing, and a placed thing is
    often several props standing next to each other: the conjurer's triangle
@@ -578,7 +603,14 @@ function buildSceneryGroups() {
         for (let h = SCENERY_GROUP_SIDE; h >= 1; h--) {
           for (let w = SCENERY_GROUP_SIDE; w >= 1; w--) {
             const prev = best.get(pt);
-            if (w * h < 2 || (prev && prev.cells.length >= w * h)) continue;
+            // Three squares, not two. Two of a thing side by side is the
+            // weakest evidence there is that they are one thing, and the
+            // file is full of pairs that are simply two of the thing: two
+            // archery targets, two chests, two stalagmites. Taken as one
+            // object they also stopped the cell showing the class's other
+            // frames, so a class with four targets showed two of them and
+            // held still (the maintainer, 20 September 2026).
+            if (w * h < 3 || (prev && prev.cells.length >= w * h)) continue;
             const cells = [], aspects = new Set(), covered = new Set();
             const base = tiles[pt];
             let ok = base !== undefined, axis = 0;
@@ -706,24 +738,12 @@ function renderPropTypeSheet() {
     // still, because the aspects in it are the scenario's, not a cycle.
     // Otherwise galleryFrames picks the anchors and the stride, and the cell
     // shows the first of them and then walks the rest.
-    let spr = scenery ? drawSceneryWhole(e.pt, 34) : null;
+    let spr = scenery ? drawSceneryWhole(e.pt, GALLERY_TILE_PX) : null;
     const cyc = spr ? null : galleryFrames(e);
-    if (!spr) spr = drawPropSprite(e.base + (cyc.length ? cyc[0] : 0), 34);
-    if (spr) {
-      // A thing that covers more than one square is drawn at a square's
-      // size, not squeezed into one square's worth of cell: half-resolution
-      // was what made a two-tile bookshelf read as a fragment.
-      if (spr.cols > 1) cell.classList.add('wideCell');
-      if (spr.rows > 1) cell.classList.add('tallCell');
-      if (spr.cols > 1 || spr.rows > 1) {
-        const w = spr.cols > 1 ? 200 : 92, h = spr.rows > 1 ? 232 : 72;
-        const px = Math.floor(Math.min(w / spr.cols, h / spr.rows, 48));
-        spr.canvas.style.width = (spr.cols * px) + 'px';
-        spr.canvas.style.height = (spr.rows * px) + 'px';
-      }
-      wrap.appendChild(spr.canvas);
-    }
-    if (cyc) cyclePropCell(spr, cyc.map(f => e.base + f), 34, e.alive ? UNIT_FRAME_MS : PROP_FRAME_MS);
+    if (!spr) spr = drawPropSprite(e.base + (cyc.length ? cyc[0] : 0), GALLERY_TILE_PX);
+    fitGalleryCell(cell, wrap, spr);
+    if (spr) wrap.appendChild(spr.canvas);
+    if (cyc) cyclePropCell(spr, cyc.map(f => e.base + f), GALLERY_TILE_PX, e.alive ? UNIT_FRAME_MS : PROP_FRAME_MS);
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
     lbl.className = 'lbl';
