@@ -1260,7 +1260,6 @@ document.addEventListener('DOMContentLoaded', () => {
     _navBack = true;
     try { applyDeepLink(); } finally { _navBack = false; }
     _lastHash = location.hash;
-    renderCrumbBar();
   });
   window.addEventListener('popstate', () => { _lastHash = _lastHash || location.hash; });
   loadDefaultArchive();

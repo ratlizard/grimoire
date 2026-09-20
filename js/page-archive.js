@@ -575,85 +575,16 @@ function markDetailView(kind, id) {
    portrait gallery, which is not anywhere you had been.
 
    The deep link is already a complete description of a view, so the trail is
-   just the hashes, and the two controls can be labelled for what they do:
-   "Back to <the last page>" against "All <this category>".
+   just the hashes: what the browser's back button walks.
 --------------------------------------------------------------------------- */
 window.VIEW_TRAIL = [];
 let _navBack = false;
 
-function viewLabel(hash) {
-  const q = {};
-  for (const part of String(hash).replace(/^#/, '').split('&')) {
-    const i = part.indexOf('=');
-    if (i > 0) q[part.slice(0, i)] = decodeURIComponent(part.slice(i + 1));
-  }
-  if (q.d) {
-    const [kind, ...rest] = q.d.split(':');
-    const id = rest.join(':');
-    try {
-      if (kind === 'char') return characterName(parseInt(id, 10));
-      if (kind === 'prop') {
-        const b = getPropTileList()[parseInt(id, 10)];
-        return propDisplayName(parseInt(id, 10), b) || ('prop 0x' + id);
-      }
-      if (kind === 'item') return propDisplayName(parseInt(id, 10)) || ('item 0x' + id);
-      if (kind === 'monster') return 'monster ' + id;
-      if (kind === 'rsrc') return id;
-    } catch (e) { quiet(e); }
-    return kind + ' ' + id;
-  }
-  if (q.r) {
-    const rid = parseInt(q.r, 16);
-    const l = labelFor(rid);
-    return (l ? l + ' ' : '') + '0x' + q.r.toUpperCase();
-  }
-  if (q.c === 'WORLD') return 'the world map';
-  // The option's name and not its whole label: "Saved game", not "Saved
-  // game: the party and everyone else", on a button.
-  return q.c ? ((optionLabel(q.c) || ('category ' + q.c)).replace(/\s*[:(].*$/, '')) : 'the last page';
-}
-
-function renderCrumbBar() {
-  const bar = document.getElementById('crumbBar');
-  if (!bar) return;
-  if (!window.VIEW_TRAIL.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
-  const prev = window.VIEW_TRAIL[window.VIEW_TRAIL.length - 1];
-  // Only where a link was followed. Between two galleries reached by their
-  // tabs the button duplicated the browser's own back and, labelled with
-  // wherever the visitor had last been, read as though the tabs had a
-  // parent ("Back to Sounds" over the rules). A detail view or a single
-  // resource at either end of the step is what makes the trail worth a
-  // button; the tabs are the navigation otherwise.
-  const linked = h => /[#&](d|r)=/.test(String(h));
-  if (!linked(location.hash) && !linked(prev)) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
-  bar.style.display = '';
-  bar.innerHTML = '<button class="crumbBtn" onclick="goViewBack()">Back to ' +
-    svEsc(String(viewLabel(prev)).replace(/\s*\([^)]*\)/g, '')) + '</button>';
-}
-
-function goViewBack() {
-  if (!window.VIEW_TRAIL.length) return;
-  // Through the browser's history where there is one to walk, so that
-  // forward can undo it; the hashchange listener pops the trail. Without an
-  // entry (the page was opened straight onto a view) fall back to applying
-  // the remembered hash in place.
-  if (history.state && history.state.v > 0) { history.back(); return; }
-  const prev = window.VIEW_TRAIL.pop();
-  if (!prev) return;
-  _navBack = true;
-  try {
-    window.DETAIL_VIEW = null;
-    const q = {};
-    for (const part of prev.replace(/^#/, '').split('&')) {
-      const i = part.indexOf('=');
-      if (i > 0) q[part.slice(0, i)] = decodeURIComponent(part.slice(i + 1));
-    }
-    applyDeepLink(q);
-  } finally {
-    _navBack = false;
-    renderCrumbBar();
-  }
-}
+/* The trail is kept for the browser's own back and forward (the hashchange
+   listener pops and pushes it); the in-page "Back to <the last page>"
+   button that used to draw it went on 20 September 2026, the maintainer's
+   call: the tabs and each view's own "All <this>" go up, and the browser
+   goes back. */
 
 function syncDeepLink() {
   if (!ARCHIVE) return;
@@ -687,15 +618,13 @@ function syncDeepLink() {
   // forward buttons walk the interface: popping an entry changes the hash,
   // the hashchange listener re-applies the deep link, and the guard flag
   // keeps this function's own writes from being mistaken for navigation.
-  // The in-page back (goViewBack) goes through history.back() for the same
-  // reason, so the two backs and the forward button agree on one sequence.
+  // The forward button re-applies the hash the same way.
   try {
     if (!_navBack && location.hash) history.pushState({ v: ++_histDepth }, '', h);
     else history.replaceState(history.state, '', h);
   } catch (e) { location.hash = h; }
   setTimeout(() => { _hashWrite = false; }, 0);
   _lastHash = location.hash;
-  renderCrumbBar();
 }
 let _histDepth = 0;
 
