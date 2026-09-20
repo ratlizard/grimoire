@@ -515,7 +515,7 @@ function setPropFilter(v) {
   if (window.CUR_SUBN === 'ITEMS') renderItemSheet();
   else if (window.CUR_SUBN === 'RSRC') renderRsrcSheet();
   else if (window.CUR_SUBN === 'MACRSRC') renderMacRsrcSheet();
-  else if (window.CUR_SUBN === 'PROPS') renderPropTypeSheet();
+  else if (window.CUR_SUBN === 'PROPS' || window.CUR_SUBN === 'SCENERY') renderPropTypeSheet();
   else applyGalleryArrangement();
 }
 // Category changed: the old query would silently hide the new gallery.
@@ -523,6 +523,120 @@ function clearPropFilter() {
   window.PROP_FILTER = '';
   const el = document.getElementById('propFilter');
   if (el) el.value = '';
+}
+
+/* ---- Scenery, whole -----------------------------------------------------
+   What the Scenery gallery shows is a placed thing, and a placed thing is
+   often several props standing next to each other: the conjurer's triangle
+   is four props, one at each of four aspects, and an altar is two. The tile
+   attributes cannot say so -- they carry a span of one or two squares and
+   nothing wider -- so the arrangement is read from where the scenario
+   actually puts them.
+
+   The rule (the maintainer's, 20 September 2026, tightened after looking at
+   what it caught): a group is a RECTANGLE of squares, every one of them an
+   instance of the class, and no aspect twice. The aspects are what separate
+   one object from a repetition of one -- a fence is the same rail laid end
+   to end for a hundred squares and stays a single rail here, where the
+   triangle's pieces are all different. The rectangle is what separates an
+   object from things that merely stand near each other: four boulders at
+   four aspects scattered over six squares were being drawn as one boulder
+   with holes in it, and a wall of bookshelves along two walls as an L.
+
+   Measured against the shipped file: most of the 337 classes the scenario
+   places are placed one at a time, so for almost everything this finds
+   nothing and the gallery falls back to the class's own span.
+
+   The group is the largest found anywhere in the file, and it remembers
+   which prop list it came from so the cell can say where it stands. */
+const SCENERY_GROUP_SIDE = 4;   // the widest and tallest group looked for
+DERIVED.SCENERY_GROUPS = null;
+function buildSceneryGroups() {
+  if (DERIVED.SCENERY_GROUPS) return DERIVED.SCENERY_GROUPS;
+  const best = new Map();
+  const count = subindexCount(ARCHIVE, 128);
+  for (let n = 0; n < count; n++) {
+    const resid = 0x8100 + n;
+    let recs = null;
+    try {
+      const raw = getResourceBytes(ARCHIVE, resid);
+      if (raw) recs = parseDelverPropList(smartDecrypt(raw, resid).data);
+    } catch (e) { quiet(e); }
+    if (!recs) continue;
+    // One square index a class, so a neighbour is a lookup rather than a scan.
+    const byType = new Map();
+    for (const r of recs) {
+      if (!r.onMap || !r.proptype || r.flags === 0xFF) continue;
+      let m = byType.get(r.proptype);
+      if (!m) byType.set(r.proptype, m = new Map());
+      if (!m.has(r.x + ',' + r.y)) m.set(r.x + ',' + r.y, r);
+    }
+    for (const [pt, m] of byType) {
+      for (const seed of m.values()) {
+        for (let h = SCENERY_GROUP_SIDE; h >= 1; h--) {
+          for (let w = SCENERY_GROUP_SIDE; w >= 1; w--) {
+            const prev = best.get(pt);
+            if (w * h < 2 || (prev && prev.cells.length >= w * h)) continue;
+            const cells = [], aspects = new Set(), covered = new Set();
+            const base = getPropTileList()[pt];
+            let ok = base !== undefined;
+            for (let dy = 0; ok && dy < h; dy++) for (let dx = 0; ok && dx < w; dx++) {
+              const c = m.get((seed.x + dx) + ',' + (seed.y + dy));
+              if (!c || aspects.has(c.aspect)) { ok = false; break; }
+              // Two of the class cannot stand on the same square, so a
+              // rectangle whose members' own spans collide is not one thing
+              // standing there: it is a run of shelves along a wall, each
+              // reaching over its neighbour. Those were drawing as a shelf
+              // with a hole beside it.
+              const squares = [[dx, dy]];
+              for (const sp of (multiTilePieces(base + c.aspect, !!c.rotated) || [])) squares.push([dx + sp.dx, dy + sp.dy]);
+              for (const sq of squares) {
+                const k = sq[0] + ',' + sq[1];
+                if (covered.has(k)) { ok = false; break; }
+                covered.add(k);
+              }
+              if (!ok) break;
+              aspects.add(c.aspect);
+              cells.push({ dx, dy, aspect: c.aspect, rotated: !!c.rotated, x: c.x, y: c.y });
+            }
+            if (ok) best.set(pt, { resid, cells, cols: w, rows: h });
+          }
+        }
+      }
+    }
+  }
+  return (DERIVED.SCENERY_GROUPS = best);
+}
+
+/* A placed group drawn as one picture: each prop at its own aspect, with
+   the rotate bit the record carries -- which transposes both the tile image
+   and the direction its span runs -- and the squares its span covers. Null
+   where the class is placed alone, and the caller draws the class's own
+   frames instead. */
+function drawSceneryWhole(pt, px) {
+  const g = buildSceneryGroups().get(pt);
+  const base = getPropTileList()[pt];
+  if (!g || g.cells.length < 2 || base === undefined) return null;
+  const pieces = [];
+  for (const c of g.cells) {
+    const tile = base + c.aspect;
+    for (const s of (multiTilePieces(tile, c.rotated) || [])) pieces.push({ tile: s.tile, dx: c.dx + s.dx, dy: c.dy + s.dy, rotated: c.rotated });
+    pieces.push({ tile, dx: c.dx, dy: c.dy, rotated: c.rotated });
+  }
+  let minX = 0, minY = 0, maxX = g.cols - 1, maxY = g.rows - 1;
+  for (const p of pieces) { minX = Math.min(minX, p.dx); minY = Math.min(minY, p.dy); maxX = Math.max(maxX, p.dx); maxY = Math.max(maxY, p.dy); }
+  const cols = maxX - minX + 1, rows = maxY - minY + 1;
+  const c = document.createElement('canvas');
+  c.width = cols * 32; c.height = rows * 32;
+  const ctx = c.getContext('2d');
+  for (const p of pieces) {
+    const tmp = document.createElement('canvas');
+    try { drawTileToCanvas(tmp, p.tile, 32, p.rotated); } catch (e) { continue; }
+    ctx.drawImage(tmp, (p.dx - minX) * 32, (p.dy - minY) * 32);
+  }
+  c.style.width = (cols * px) + 'px'; c.style.height = (rows * px) + 'px';
+  c.style.imageRendering = 'pixelated';
+  return { canvas: c, cols, rows, multi: true, group: g };
 }
 
 function renderPropTypeSheet() {
@@ -575,13 +689,28 @@ function renderPropTypeSheet() {
     cell.className = 'cell propCell';
     const wrap = document.createElement('div');
     wrap.className = 'cellimgwrap';
-    // galleryFrames picks the anchors and the stride; the cell shows the
-    // first of them and then walks the rest.
-    const cyc = galleryFrames(e);
-    const rep = cyc.length ? cyc[0] : 0;
-    const spr = drawPropSprite(e.base + rep, 34);
-    if (spr) wrap.appendChild(spr.canvas);
-    cyclePropCell(spr, cyc.map(f => e.base + f), 34, e.alive ? UNIT_FRAME_MS : PROP_FRAME_MS);
+    // Under Scenery, the placed group where there is one -- and it stands
+    // still, because the aspects in it are the scenario's, not a cycle.
+    // Otherwise galleryFrames picks the anchors and the stride, and the cell
+    // shows the first of them and then walks the rest.
+    let spr = scenery ? drawSceneryWhole(e.pt, 34) : null;
+    const cyc = spr ? null : galleryFrames(e);
+    if (!spr) spr = drawPropSprite(e.base + (cyc.length ? cyc[0] : 0), 34);
+    if (spr) {
+      // A thing that covers more than one square is drawn at a square's
+      // size, not squeezed into one square's worth of cell: half-resolution
+      // was what made a two-tile bookshelf read as a fragment.
+      if (spr.cols > 1) cell.classList.add('wideCell');
+      if (spr.rows > 1) cell.classList.add('tallCell');
+      if (spr.cols > 1 || spr.rows > 1) {
+        const w = spr.cols > 1 ? 200 : 92, h = spr.rows > 1 ? 232 : 72;
+        const px = Math.floor(Math.min(w / spr.cols, h / spr.rows, 48));
+        spr.canvas.style.width = (spr.cols * px) + 'px';
+        spr.canvas.style.height = (spr.rows * px) + 'px';
+      }
+      wrap.appendChild(spr.canvas);
+    }
+    if (cyc) cyclePropCell(spr, cyc.map(f => e.base + f), 34, e.alive ? UNIT_FRAME_MS : PROP_FRAME_MS);
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
     lbl.className = 'lbl';
@@ -596,13 +725,16 @@ function renderPropTypeSheet() {
     const bits = ['0x' + e.pt.toString(16).toUpperCase()];
     bits.push(e.info.count + (e.info.count === 1 ? ' frame' : ' frames'));
     if (spr && spr.multi) bits.push(spr.cols + '\u00d7' + spr.rows);
+    // Where the group came from, so the arrangement is traceable to the
+    // prop list that holds it rather than asserted.
+    if (spr && spr.group) bits.push(spr.group.cells.length + ' placed together');
     sub.textContent = bits.join(' \u00b7 ');
     cell.appendChild(sub);
     cell.onclick = () => showPropTypeDetail(e.pt);
     grid.appendChild(cell);
   }
   out.textContent = scenery
-    ? entries.length + ' placed things that are neither a unit nor carried, each drawn whole where its tiles span more than one square' + (q ? ' matching \u201c' + q + '\u201d' : '') + '.'
+    ? entries.length + ' placed things that are neither a unit nor carried. Each is drawn whole: the squares its own tiles span, and where the scenario puts several of the class side by side at different aspects, that group as it stands' + (q ? ', matching \u201c' + q + '\u201d' : '') + '.'
     : entries.length + ' prop types with artwork' + (q ? ' matching \u201c' + q + '\u201d' : '') + '.';
 }
 

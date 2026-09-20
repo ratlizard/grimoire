@@ -851,12 +851,6 @@ const TAB_TREE = [
       { id: 'characters', label: 'Characters', tile: 0x719, values: ['CHARACTERS'] },  // the king, standing, facing the reader
       { id: 'units',      label: 'Units',      tile: 0x7D4, values: ['MONSTERS'] },    // the small polyp (sheet 0x8E7D)
       { id: 'items',      label: 'Items',      tile: 0x225, values: ['ITEMS'] },       // the LandKing amulet
-      // Every prop type with art, by what wears it. It was the second chip on
-      // Components > Graphics > Tilesets until 20 September 2026, which put
-      // the scenario's own furniture under the components of the file; the
-      // value moved rather than being added here, since TAB_LEAF_FOR keeps
-      // the first leaf to claim one and the tree must not name a value twice.
-      { id: 'props',      label: 'Props',      tile: 0x386, values: ['PROPS'] },       // the fountain (prop 0x36), which Scenery wore until this tab took it
       // Scenery is what is placed and is neither a unit nor carried, and the
       // composites are the same thing assembled: the editor's stamps and
       // brushes, and the composition table's pieces of terrain. They were
@@ -925,7 +919,11 @@ const TAB_TREE = [
       { id: 'graphics', label: 'Graphics', tile: 0x861, children: [                           // the easel, with its painting
           { id: 'portraits',  label: 'Portraits',  tile: 0x33F, values: ['135'] },                      // the mirror
           { id: 'landscapes', label: 'Landscapes', tile: 0x890, values: ['131'] },                      // the landscape painting
-          { id: 'tilesets',   label: 'Tilesets',   tile: 0x0D5, values: ['141'] },    // the quartered blue floor. Sprites by prop type were a second chip here until 20 September 2026 and are Scenario > Props now
+          // Sprites by prop type are the same tiles viewed by what wears them:
+          // the components of what Scenario > Scenery shows whole, which is
+          // why they are here and not there (the maintainer, 20 September
+          // 2026, after a day with a Props tab of its own).
+          { id: 'tilesets',   label: 'Tilesets',   tile: 0x0D5, values: ['141', 'PROPS'] },    // the quartered blue floor
           // Misc is the archive's general graphics and, since 8 September
           // 2026, the whole screens in the resource fork beside them (the
           // title, the main menu and its parts, the DELVER stone, the paper

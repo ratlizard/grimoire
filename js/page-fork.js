@@ -595,7 +595,19 @@ const RSRC_DELVER_TYPES = {
   FILT: 'unread ("FILT")'
 };
 
-// A stamp declares its own dimensions; a brush is a flat run of tiles.
+/* A stamp declares its own dimensions. A brush is sixteen entries, and they
+   are a four by four table rather than a run: every brush in the file holds
+   exactly sixteen, and in the ones whose four corners of the diagonal are
+   zero the other twelve are the twelve tiles of one sheet -- one terrain
+   meeting another, with the diagonal empty because a terrain meeting itself
+   needs no transition. The wall brushes carry a tile on the diagonal too and
+   have eight distinct tiles rather than twelve. Five of them (the beaches,
+   the sand edge, Better Caves, Cave Ridge) point at composite tiles, ids
+   above 0x1000, which is the composition table rather than a sheet.
+
+   What the four rows and columns are named is not read: nothing in the fork
+   labels them, and the editor that did is not here. So the table is shown as
+   a table and nothing is claimed about which terrain is which. */
 function rsrcTilePattern(type, data) {
   if (type === 'eSTM') {
     if (data.length < 8) return null;
@@ -614,7 +626,10 @@ function rsrcTilePattern(type, data) {
   const tiles = [];
   for (let i = 0; i < n; i++) tiles.push(u16be(data, i * 2));
   const cols = n === 16 ? 4 : Math.min(n, 8);
-  return { tiles, cols, rows: Math.ceil(n / cols), extraBytes: data.length - n * 2, guessedShape: true };
+  // A zero entry is an empty cell of the table, not tile 0. Drawing tile 0
+  // put a black square in each corner of the diagonal, which read as art
+  // that had failed to load.
+  return { tiles, cols, rows: Math.ceil(n / cols), extraBytes: data.length - n * 2, table: n === 16, blankZero: true };
 }
 
 function drawTilePattern(canvas, pat, px) {
@@ -626,7 +641,15 @@ function drawTilePattern(canvas, pat, px) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   for (let i = 0; i < pat.tiles.length; i++) {
     const x = (i % pat.cols) * size, y = Math.floor(i / pat.cols) * size;
-    try { drawTileAt(ctx, pat.tiles[i], x, y, false, size); } catch (e) { /* one blank tile */ }
+    if (!pat.tiles[i] && pat.blankZero) continue;
+    try { drawTileAt(ctx, pat.tiles[i], x, y, false, size); } catch (e) { quiet(e); }
+  }
+  // A table is ruled, so an empty cell reads as a cell rather than a hole.
+  if (pat.table) {
+    ctx.strokeStyle = 'rgba(232,220,184,.35)';
+    ctx.lineWidth = 1;
+    for (let c = 0; c <= pat.cols; c++) { ctx.beginPath(); ctx.moveTo(c * size + .5, 0); ctx.lineTo(c * size + .5, canvas.height); ctx.stroke(); }
+    for (let r = 0; r <= pat.rows; r++) { ctx.beginPath(); ctx.moveTo(0, r * size + .5); ctx.lineTo(canvas.width, r * size + .5); ctx.stroke(); }
   }
   canvas.style.imageRendering = 'pixelated';
   return canvas;
@@ -703,12 +726,17 @@ function renderRsrcSheet() {
 
     const residDiv = document.createElement('div');
     residDiv.className = 'resid';
-    residDiv.textContent = it.type + ' ' + it.entry.id + ' · ' + it.pat.cols + '×' + it.pat.rows;
+    residDiv.textContent = it.type + ' ' + it.entry.id + ' · ' + it.pat.cols + '×' + it.pat.rows +
+      (it.pat.table ? ' table' : ' squares');
     cell.appendChild(residDiv);
 
+    // Four cells of the grid, not one. An eight by eight stamp is 256 pixels
+    // square and was being shown at 84, which is ten pixels a square: every
+    // meadow looked like the same speckle.
+    cell.classList.add('propCell', 'wideCell', 'tallCell');
     lazyTile(cell, () => {
-      drawTilePattern(canvas, it.pat, 12);
-      const scale = Math.min(84 / canvas.width, 96 / canvas.height, 4);
+      drawTilePattern(canvas, it.pat, it.pat.cols > 4 ? 12 : 32);
+      const scale = Math.min(200 / canvas.width, 228 / canvas.height, 8);
       canvas.style.width = Math.round(canvas.width * scale) + 'px';
       canvas.style.height = Math.round(canvas.height * scale) + 'px';
     });
@@ -725,6 +753,7 @@ function renderRsrcSheet() {
     fmtBytes(inv.bytes) + '. Showing ' +
     Object.keys(kinds).map(k => kinds[k] + ' ' + RSRC_DELVER_TYPES[k]).join(' and ') +
     (q ? ' matching “' + q + '”' : '') + '. ' +
+    'A stamp is a patch of terrain at the size it declares. A brush is sixteen entries read as a four by four table of one terrain meeting another, ruled here, with the empty cells the ones the resource leaves at zero; what the rows and columns are named is not recorded in the fork. ' +
     'Also in the fork, under Data › Cythera Data › Resource Fork: ' +
     inv.other.map(r => r.count + ' ' + r.type.trim()).join(', ') + '.';
 }
