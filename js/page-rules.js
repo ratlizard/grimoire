@@ -998,6 +998,18 @@ function srcNum(val, text) {
     const r = exeRoutineAt(val.exe);
     return '<button class="svLink srcNum" onclick="jumpToExeAt(' + val.exe + ')" title="' + svEsc((r ? r.name + ', ' : '') + 'code 0x' + val.exe.toString(16).toUpperCase().padStart(6, '0')) + '">' + svEsc(shown) + '</button>';
   }
+  /* A figure read out of a record opens the bytes it was read from: the
+     resource in the Data Fork, its table inspector set to the record's
+     stride, with that byte ringed. This is the link that always works.
+     The executable's is better where it exists -- it says what the program
+     does with the byte, not only where the byte is -- but the application
+     is open only when the visit came through the installer, and most do
+     not, so every figure linked to a routine and to nothing else read as
+     a page with no links at all (the maintainer, 20 September 2026). */
+  if (val && typeof val.resid === 'number' && typeof val.byte === 'number') {
+    const t = propWordHex(val.resid) + ' byte ' + val.byte + (val.what ? ', ' + val.what : '');
+    return '<button class="svLink srcNum" onclick="jumpToTableAt(' + val.resid + ',' + val.byte + ',' + (val.stride || 16) + ')" title="' + svEsc(t) + '">' + svEsc(shown) + '</button>';
+  }
   if (!val || typeof val.resid !== 'number' || typeof val.at !== 'number') return svEsc(shown);
   return '<button class="svLink srcNum" onclick="jumpToScriptAt(' + val.resid + ',' + val.at + ')" title="' +
     propWordHex(val.resid) + ' at ' + propWordHex(val.at) + '">' + svEsc(shown) + '</button>';
@@ -1014,6 +1026,22 @@ function srcCell(val, text) {
    belongs to this one jump and to no later visit of the same script. The
    scroll waits a beat because setMode puts a detail view at the top of
    the page on a timeout of its own. */
+/* Open a resource's bytes with one of them ringed, at the stride the
+   record it belongs to is read at. The ring is painted by
+   renderTableInspector from TABLE_AT, the way a script line's is painted
+   from LISTING_AT. */
+window.TABLE_AT = null;
+function jumpToTableAt(resid, byte, stride) {
+  window.TABLE_AT = { resid, byte };
+  if (stride) window.TABLE_WIDTH = stride;
+  if (!jumpToResource(resid)) { window.TABLE_AT = null; return false; }
+  setTimeout(() => {
+    try { renderTableInspector(resid); } catch (e) { quiet(e); }
+    const hit = document.getElementById('tableHit');
+    if (hit && hit.scrollIntoView) hit.scrollIntoView({ block: 'center' });
+  }, 60);
+  return true;
+}
 window.LISTING_AT = null;
 function jumpToScriptAt(resid, at) {
   if (window.CUR_SUBN === 'MECHANICS' || MECH_GROUP_BY_VALUE[window.CUR_SUBN]) mechKeepPlace();

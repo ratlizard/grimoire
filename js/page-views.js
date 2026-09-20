@@ -1317,16 +1317,22 @@ function showMonsterDetail(idx) {
 
   let h = '<div style="font-size:1.25rem;color:#fff">' + svEsc(nm) +
           '</div><div style="font-size:0.75rem;color:#b5b2a8;margin-bottom:10px">' +
-          'record ' + r.index + ' of 0xF008 \u00b7 prop type 0x' +
-          r.proptype.toString(16).toUpperCase() + '</div>';
+          'record ' + srcNum({ resid: 0xF008, byte: r.index * 16, stride: 16, what: 'the whole record' }, String(r.index)) +
+          ' of 0xF008 \u00b7 prop type ' +
+          srcNum({ resid: 0xF008, byte: r.index * 16 + 12, stride: 16, what: 'the prop type ObjToMonst searches on' },
+                 '0x' + r.proptype.toString(16).toUpperCase()) + '</div>';
   // Every figure opens the instruction that reads its byte: the handler
   // GetField jumps to for the field a script asks for. `stat` takes the
   // byte's offset in the record and finds the field whose handler loads it.
   const mf = appImage() ? exeMonsterFields() : null;
   const fieldAt = off => mf ? mf.fields.find(f => f.offset && f.offset.v === off) : null;
+  const stride = mf && mf.stride ? mf.stride.v : 16;
+  // The byte it was read from, always; the field that reads it named in
+  // the title where the application is open.
   const stat = (off, v) => {
     const f = fieldAt(off);
-    return f && f.at ? srcNum({ exe: f.at }, String(v)) : String(v);
+    return srcNum({ resid: 0xF008, byte: r.index * stride + off, stride,
+                    what: f ? 'field ' + f.field + ' reads it' : null }, String(v));
   };
   h += '<div class="sv-facts">' +
     '<div><b>Body / Reflex / Mind</b>' + stat(0, r.body) + ' \u00b7 ' + stat(1, r.reflex) + ' \u00b7 ' + stat(2, r.mind) +
@@ -1335,10 +1341,12 @@ function showMonsterDetail(idx) {
       (r.damage ? ' &nbsp; <b>Damage</b> ' + stat(4, r.damage) : '') +
       (r.alignment ? ' &nbsp; <b>Alignment</b> ' + stat(6, r.alignment) : '') +
       '<br><span style="font-size:0.6875rem;color:#8c8980">' + monsterByteNote() + '</span></div>' +
-    '<div><b>Special flags</b>0x' + r.flags.toString(16).toUpperCase().padStart(8, '0') +
+    '<div><b>Special flags</b>' + srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' },
+      '0x' + r.flags.toString(16).toUpperCase().padStart(8, '0')) +
       ' <span style="font-size:0.6875rem;color:#b5b2a8">' + monsterFlagsHTML(r.flags) + '</span>' +
-      '<br><span style="font-size:0.6875rem;color:#8c8980">A linked flag opens the line of the default ResistDamage that tests it; the rest are named from gandreas’s list and tested elsewhere. The flags are the word at byte 8, which ' +
-      (mf ? srcNum({ exe: (fieldAt(8) || {}).at }, 'the field that reads them') : 'the field that reads them') + ' takes whole.</span></div>' +
+      '<br><span style="font-size:0.6875rem;color:#8c8980">A linked flag opens the line of the default ResistDamage that tests it; the rest are named from gandreas’s list and tested elsewhere. The flags are ' +
+      srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' }, 'the word at byte 8') +
+      (mf && fieldAt(8) ? ', which ' + srcNum({ exe: fieldAt(8).at }, 'the field that reads them') + ' takes whole' : '') + '.</span></div>' +
     '</div>';
   panel.innerHTML = h;
 
@@ -1392,10 +1400,11 @@ function showMonsterDetail(idx) {
   cd.style.cssText = 'font-size:0.8125rem;line-height:1.7;margin-bottom:10px';
   if (r.corpseWord) {
     const cnm = propDisplayName(r.corpseType) || ('0x' + r.corpseType.toString(16).toUpperCase());
+    const cSrc = { resid: 0xF008, byte: r.index * 16 + 14, stride: 16, what: 'the corpse word' };
     cd.innerHTML = '<b style="color:#b5b2a8">Leaves behind</b> ' + svEsc(cnm) +
-                   ' at aspect ' + r.corpseAspect +
-                   ' <span style="font-size:0.6875rem;color:#8c8980">(corpse_type 0x' +
-                   r.corpseWord.toString(16).toUpperCase().padStart(4, '0') +
+                   ' at aspect ' + srcNum(cSrc, String(r.corpseAspect)) +
+                   ' <span style="font-size:0.6875rem;color:#8c8980">(corpse_type ' +
+                   srcNum(cSrc, '0x' + r.corpseWord.toString(16).toUpperCase().padStart(4, '0')) +
                    ', packed 6-bit aspect + 10-bit prop type)</span>';
     const cbase = tiles[r.corpseType];
     if (cbase !== undefined) {
@@ -1437,10 +1446,15 @@ function showMonsterDetail(idx) {
     panel.appendChild(u);
   }
 
+  // The record itself, a byte at a time, each one opening its own byte in
+  // the table. This is the bottom of the chain: below it there is only the
+  // file.
   const raw = document.createElement('div');
   raw.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:0.6875rem;color:#b5b2a8';
-  raw.textContent = 'raw: ' + Array.from(r.raw).map(b => b.toString(16).padStart(2, '0')).join(' ') +
-                    (r.unknown7 ? '   byte 7 = ' + r.unknown7 + ', which no field reads' : '');
+  raw.innerHTML = 'raw: ' + Array.from(r.raw).map((b, k) =>
+      srcNum({ resid: 0xF008, byte: r.index * 16 + k, stride: 16, what: 'byte ' + k },
+             b.toString(16).padStart(2, '0'))).join(' ') +
+    (r.unknown7 ? '<br><span style="color:#8c8980">byte 7 is ' + r.unknown7 + ', which no field reads</span>' : '');
   panel.appendChild(raw);
   grid.appendChild(panel);
   document.getElementById('output').textContent = nm + ', record ' + r.index + ' of 0xF008';
@@ -1472,13 +1486,23 @@ function renderTableInspector(resid) {
         '<button class="navChip' + (x === w ? ' active' : '') + '" onclick="setTableWidth(' + x + ')">' +
         x + ' \u00d7 ' + Math.floor(d.length / x) + (d.length % x ? ' +' + (d.length % x) : '') +
         '</button>').join('') + '</div>';
-  const rows = Math.min(Math.floor(d.length / w), 400);
+  // A byte ringed by jumpToTableAt, the way a script line is by
+  // jumpToScriptAt. The record it is in is brought into view whether or
+  // not it is inside the first four hundred.
+  const hitByte = window.TABLE_AT && window.TABLE_AT.resid === resid ? window.TABLE_AT.byte : null;
+  const hitRow = hitByte === null ? -1 : Math.floor(hitByte / w);
+  const from = hitRow > 380 ? hitRow - 190 : 0;
+  const rows = Math.min(Math.floor(d.length / w), from + 400);
   h += '<pre class="pane" style="max-height:340px;font-size:0.6875rem;white-space:pre">';
   let body = '';
-  for (let i = 0; i < rows; i++) {
+  if (from) body += '... ' + from + ' earlier records\n';
+  for (let i = from; i < rows; i++) {
     const p = i * w;
     let hexs = '', words = '';
-    for (let k = 0; k < w; k++) hexs += d[p + k].toString(16).padStart(2, '0') + ' ';
+    for (let k = 0; k < w; k++) {
+      const one = d[p + k].toString(16).padStart(2, '0') + ' ';
+      hexs += (p + k === hitByte) ? '\u0001' + one.trimEnd() + '\u0002 ' : one;
+    }
     for (let k = 0; k + 1 < w; k += 2) words += (u16be(d, p+k) + '').padStart(6) + ' ';
     body += String(i).padStart(4) + '  ' + hexs + ' |' + words + '\n';
   }
@@ -1488,7 +1512,8 @@ function renderTableInspector(resid) {
     for (let k = d.length - (d.length % w); k < d.length; k++) tail += d[k].toString(16).padStart(2, '0') + ' ';
     body += '\ntail (' + (d.length % w) + ' bytes): ' + tail + '\n';
   }
-  h += svEsc(body) + '</pre></div></details>';
+  h += svEsc(body).replace(/\u0001/g, '<span id="tableHit" class="listingHit">').replace(/\u0002/g, '</span>') +
+       '</pre></div></details>';
   host.innerHTML = h;
 }
 
