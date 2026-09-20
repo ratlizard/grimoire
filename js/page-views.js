@@ -1189,11 +1189,19 @@ function parseMonsterStats() {
         let blank = true;
         for (const v of r) if (v) { blank = false; break; }
         const cw = u16be(r, 14);
+        // The layout is GetField's second jump table (exeMonsterFields),
+        // not a guess: field 44 reads byte 0 and so on down to field 54,
+        // the halfword at 14. Two corrections came out of reading it. The
+        // special flags are the WORD at 8, and this parsed the halfword at
+        // 10, so the top half -- set on eleven of the fifty -- was never
+        // shown. And byte 6 is delvmod's `alignment`, which used to be
+        // swallowed by an "unknown2" spanning bytes 6 to 9, a field that
+        // straddled the alignment and half the flags and meant nothing.
         out.push({
           index: i, blank, raw: r,
-          body: r[0], reflex: r[1], mind: r[2], armor: r[3], size: r[4], hp: r[5],
-          unknown2: u32be(r, 6),
-          flags: u16be(r, 10),
+          body: r[0], reflex: r[1], mind: r[2], armor: r[3], damage: r[4], hp: r[5],
+          alignment: r[6], unknown7: r[7],
+          flags: u32be(r, 8),
           proptype: u16be(r, 12),
           corpseWord: cw, corpseType: cw & 0x03FF, corpseAspect: (cw >> 10) & 0x3F
         });
@@ -1243,6 +1251,51 @@ function renderMonsterSheet() {
                     parseMonsterStats().length + ' record slots).';
 }
 
+/* ---- byte 4 of a unit's record ------------------------------------------
+   gandreas's 1999 field list calls it Size with a question mark, and the
+   question mark was right: nothing in the application reads it. What does
+   read it is a script, through GetField -- the field whose handler loads
+   byte 4 (exeMonsterFields) -- and exactly one script in the shipped file
+   asks for that field. It builds a blow as the byte plus a random amount
+   drawn from the attacker's Body and hands the sum to the damage helper,
+   so the byte is the fixed part of what a blow does.
+
+   The figures agree with that and not with size: a bird 1, a child 2, a
+   crab 8, a gator 10, and the king 100 beside 255 health and 30 armor.
+   That corroboration is in GRIMOIRE-NOTES.md and not in the sentence the
+   page prints, which says what the script does and stops.
+
+   The site is found rather than written down: the field number comes from
+   the executable and the line from the script that names it. Null with no
+   application open, and then the page says only that the byte is byte 4. */
+DERIVED.MONSTER_DAMAGE_SITE = undefined;
+function monsterDamageSite() {
+  if (DERIVED.MONSTER_DAMAGE_SITE !== undefined) return DERIVED.MONSTER_DAMAGE_SITE;
+  let out = null;
+  try {
+    const mf = appImage() ? exeMonsterFields() : null;
+    const f = mf && mf.fields.find(x => x.offset && x.offset.v === 4);
+    if (f) {
+      const named = DVM_SYM.field[String(f.field)];
+      const tag = new RegExp('^\\s*([0-9A-Fa-f]{4})\\s+get_field\\s+(?:0x' +
+        f.field.toString(16).toUpperCase() + '\\b|' + (named ? named + '\\b' : '(?!)') + ')', 'm');
+      for (const e of buildScriptTextIndex()) {
+        const m = tag.exec(e.text);
+        if (m) { out = { resid: e.resid, at: parseInt(m[1], 16), field: f.field }; break; }
+      }
+    }
+  } catch (e) { quiet(e); }
+  return (DERIVED.MONSTER_DAMAGE_SITE = out);
+}
+function monsterByteNote() {
+  const site = monsterDamageSite();
+  if (!site) return 'Damage is byte 4 of the record, which gandreas\u2019s list calls Size with a question mark.';
+  return 'Damage is byte 4, which gandreas\u2019s list calls Size with a question mark. ' +
+    'Nothing in the application reads it and one script does: ' +
+    srcNum({ resid: site.resid, at: site.at }, 'it asks for field ' + site.field) +
+    ', adds a random amount drawn from Body, and passes the sum to the damage helper.';
+}
+
 function showMonsterDetail(idx) {
   stopSpriteAnimations();
   markDetailView('monster', idx);
@@ -1266,14 +1319,26 @@ function showMonsterDetail(idx) {
           '</div><div style="font-size:0.75rem;color:#b5b2a8;margin-bottom:10px">' +
           'record ' + r.index + ' of 0xF008 \u00b7 prop type 0x' +
           r.proptype.toString(16).toUpperCase() + '</div>';
+  // Every figure opens the instruction that reads its byte: the handler
+  // GetField jumps to for the field a script asks for. `stat` takes the
+  // byte's offset in the record and finds the field whose handler loads it.
+  const mf = appImage() ? exeMonsterFields() : null;
+  const fieldAt = off => mf ? mf.fields.find(f => f.offset && f.offset.v === off) : null;
+  const stat = (off, v) => {
+    const f = fieldAt(off);
+    return f && f.at ? srcNum({ exe: f.at }, String(v)) : String(v);
+  };
   h += '<div class="sv-facts">' +
-    '<div><b>Body / Reflex / Mind</b>' + r.body + ' \u00b7 ' + r.reflex + ' \u00b7 ' + r.mind +
+    '<div><b>Body / Reflex / Mind</b>' + stat(0, r.body) + ' \u00b7 ' + stat(1, r.reflex) + ' \u00b7 ' + stat(2, r.mind) +
       '<br><span style="font-size:0.6875rem;color:#b5b2a8">The wiki cautions these three may be in a different order than named.</span></div>' +
-    '<div><b>Health</b>' + r.hp + (r.armor ? ' &nbsp; <b>Armor</b> ' + r.armor : '') +
-      (r.size ? ' &nbsp; <b>Size?</b> ' + r.size : '') + '</div>' +
-    '<div><b>Special flags</b>0x' + r.flags.toString(16).toUpperCase().padStart(4, '0') +
+    '<div><b>Health</b>' + stat(5, r.hp) + (r.armor ? ' &nbsp; <b>Armor</b> ' + stat(3, r.armor) : '') +
+      (r.damage ? ' &nbsp; <b>Damage</b> ' + stat(4, r.damage) : '') +
+      (r.alignment ? ' &nbsp; <b>Alignment</b> ' + stat(6, r.alignment) : '') +
+      '<br><span style="font-size:0.6875rem;color:#8c8980">' + monsterByteNote() + '</span></div>' +
+    '<div><b>Special flags</b>0x' + r.flags.toString(16).toUpperCase().padStart(8, '0') +
       ' <span style="font-size:0.6875rem;color:#b5b2a8">' + monsterFlagsHTML(r.flags) + '</span>' +
-      '<br><span style="font-size:0.6875rem;color:#8c8980">A linked flag opens the line of the default ResistDamage that tests it; the rest are named from gandreas’s list and tested elsewhere.</span></div>' +
+      '<br><span style="font-size:0.6875rem;color:#8c8980">A linked flag opens the line of the default ResistDamage that tests it; the rest are named from gandreas’s list and tested elsewhere. The flags are the word at byte 8, which ' +
+      (mf ? srcNum({ exe: (fieldAt(8) || {}).at }, 'the field that reads them') : 'the field that reads them') + ' takes whole.</span></div>' +
     '</div>';
   panel.innerHTML = h;
 
@@ -1375,7 +1440,7 @@ function showMonsterDetail(idx) {
   const raw = document.createElement('div');
   raw.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:0.6875rem;color:#b5b2a8';
   raw.textContent = 'raw: ' + Array.from(r.raw).map(b => b.toString(16).padStart(2, '0')).join(' ') +
-                    '   unknown2=0x' + r.unknown2.toString(16).toUpperCase().padStart(8, '0');
+                    (r.unknown7 ? '   byte 7 = ' + r.unknown7 + ', which no field reads' : '');
   panel.appendChild(raw);
   grid.appendChild(panel);
   document.getElementById('output').textContent = nm + ', record ' + r.index + ' of 0xF008';

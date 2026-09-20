@@ -3957,8 +3957,8 @@ function exeAbilityMap() {
 // A jump table in a routine: an `addi r, r2, d` whose register an `lwzx`
 // indexes within a few instructions and a `bctr` then jumps through, with
 // the `cmplwi` just above it as the bound. Null when the routine has none.
-function exeJumpTable(ops) {
-  for (let i = 0; i < ops.length; i++) {
+function exeJumpTable(ops, from) {
+  for (let i = from || 0; i < ops.length; i++) {
     const d = ops[i].d;
     if (!d || d.mn !== 'addi' || d.ra !== 2) continue;
     const lw = exeFind(ops, i + 1, 4, e => e.mn === 'lwzx' && (e.ra === d.rd || e.rb === d.rd));
@@ -4092,6 +4092,81 @@ function exeCharacterFields() {
                   offset: ld ? exeVal(ld, ld.d.d) : null, width: ld ? (ld.d.mn === 'lbz' ? 1 : ld.d.mn === 'lwz' ? 4 : 2) : 0 });
   }
   return { routine: r, first: base >= 0 ? exeVal(ops[base], first) : null, count: bound >= 0 ? exeVal(ops[bound], count) : null, fields };
+}
+
+/* ---- the monster-statistics record, off GetField's second table ----------
+   `0xF008` is 128 records of 16 bytes, and what each byte means was a
+   1999 field list with question marks on it. The application says so
+   itself: `GetField` dispatches on the field a script asks for, and it
+   has two jump tables -- the first for a character's record (19 to 40,
+   exeCharacterFields above) and a second, further down the routine, for
+   a unit's. Each handler loads one field out of the record at a fixed
+   displacement, so the table is the map from the script's field number to
+   the byte, read rather than asserted.
+
+   The record's base comes from the same global `ObjToMonst` walks: the
+   handle at TOC-30376, indexed by the record number times sixteen. That
+   is also where the count of 128 and the stride of 16 come from, and
+   `ObjToMonst` searching on the halfword at +12 is what makes that one
+   the prop type.
+
+   Null with no application open, and then the sheet says only what the
+   record holds and not what the program does with it. */
+function exeMonsterFields() {
+  const img = appImage();
+  if (!img) return null;
+  const r = exeRoutineNamed('GetField(short, short, short)');
+  const ops = exeOpsOf(r);
+  if (!ops.length) return null;
+  // The table is found by its record, not by its position: the one whose
+  // base is the global `LoadGlobals` puts 0xF008 in and `ObjToMonst`
+  // walks. GetField has several tables and counting them would break the
+  // day another is added.
+  const globals = exeOpsNamed('ObjToMonst').find(o => o.d && o.d.mn === 'lwz' && o.d.ra === 2);
+  if (!globals) return null;
+  const disp = globals.d.d;
+  let jt = null, rec = -1;
+  for (let from = 0; ; from = jt.at + 1) {
+    jt = exeJumpTable(ops, from);
+    if (!jt) return null;
+    const ld = exeFindBack(ops, jt.at, 24, d => d.mn === 'lwz' && d.ra === 2 && d.d === disp);
+    if (ld < 0) continue;
+    // The record pointer is the base plus the index, so the `add` between
+    // that load and the table names the register the handlers read from.
+    const ad = exeFindBack(ops, jt.at, 12, d => d.mn === 'add');
+    if (ad < 0) continue;
+    const a = ops[ad].d;
+    rec = a.rt !== undefined ? a.rt : a.rd !== undefined ? a.rd : a.rs;
+    break;
+  }
+  const ti = jt.at, bound = jt.bound;
+  // `addi 0, r, -44` just before the bound: the field the table starts at.
+  const base = exeFindBack(ops, ti, 30, d => d.mn === 'addi' && d.imm < 0 && d.ra !== 1 && d.ra !== 2);
+  const first = base >= 0 ? -ops[base].d.imm : 44;
+  const count = bound >= 0 ? ops[bound].d.imm + 1 : 11;
+  const off = exeTocOffset(ops[ti].d.imm);
+  if (off === null) return null;
+  const fields = [];
+  for (let i = 0; i < count; i++) {
+    let p = null;
+    try { p = pefPointerAt(img, img.toc.section, off + 4 * i); } catch (e) { p = null; }
+    const field = first + i;
+    if (!p || p.section !== img.codeIndex) { fields.push({ field, at: null, offset: null, width: 0 }); continue; }
+    const hops = exeOpsOf({ offset: p.offset, length: 48, name: 'field ' + field });
+    // The load through the register the index was added into.
+    const ld = hops.find(o => o.d && /^(lbz|lhz|lwz|lha)$/.test(o.d.mn) && o.d.ra === rec && o.d.d >= 0 && o.d.d < 16);
+    fields.push({ field, at: p.offset, name: DVM_SYM.field[String(field)] || null,
+                  offset: ld ? exeVal(ld, ld.d.d) : null, width: ld ? (ld.d.mn === 'lbz' ? 1 : ld.d.mn === 'lwz' ? 4 : 2) : 0 });
+  }
+  // The table itself: where the records are, how many and how wide, off
+  // the routine that searches them.
+  const walk = exeOpsNamed('ObjToMonst');
+  const cnt = walk.find(o => o.d && o.d.mn === 'cmpwi' && o.d.imm > 1);
+  const step = walk.find(o => o.d && o.d.mn === 'addi' && o.d.imm === 16);
+  const key = walk.find(o => o.d && (o.d.mn === 'lha' || o.d.mn === 'lhz') && o.d.d === 12);
+  return { routine: r, first: base >= 0 ? exeVal(ops[base], first) : null, count: bound >= 0 ? exeVal(ops[bound], count) : null,
+           fields, records: cnt ? exeVal(cnt, cnt.d.imm) : null, stride: step ? exeVal(step, 16) : null,
+           keyOffset: key ? exeVal(key, 12) : null };
 }
 
 /* ---- where every character flag is set, cleared and tested -----------------
