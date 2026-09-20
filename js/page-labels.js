@@ -921,7 +921,7 @@ function characterDossier(i) {
     tile: (getPropTileList()[c.proptype] || 0) + c.aspect,
     homeZone: zoneDisplayName(c.zone),
     schedule: sched.map(e => ({ hour: e.hour, mode: e.mode,
-      where: zoneDisplayName(e.level), x: e.x, y: e.y }))
+      where: zoneDisplayName(e.level), x: e.x, y: e.y, at: e.at }))
   };
 }
 

@@ -1263,9 +1263,11 @@ function showCharacterOnMap(i) {
 
 // Join only the fields that carry a value, and emit nothing at all if none of
 // them do, so an empty row never appears.
+// A third element is where the figure was read from, and the figure opens
+// it (srcNum). A pair with none prints plain, as it did.
 function statLine(pairs) {
   const parts = pairs.filter(p => p[1] !== 0 && p[1] !== undefined && p[1] !== null && p[1] !== '')
-                     .map(p => '<b>' + p[0] + '</b> ' + p[1]);
+                     .map(p => '<b>' + p[0] + '</b> ' + (p[2] ? srcNum(p[2], String(p[1])) : p[1]));
   return parts.length ? parts.join(' &nbsp; ') + '<br>' : '';
 }
 
@@ -1338,27 +1340,35 @@ function showCharacterDetail(i) {
   if (i === 1) panel.appendChild(heroPortraitCard());
 
   const r = d.rec;
+  // Every figure below opens the byte of 0xF009 it was read from. The
+  // record is 32 bytes and the index is the character's own.
+  const cSrc = (off, what) => ({ resid: 0xF009, byte: r.index * 32 + off, stride: 32, what });
   const info = document.createElement('div');
   info.style.cssText = 'font-size:0.875rem;line-height:1.7';
   info.innerHTML =
     '<div style="font-size:1.1875rem;color:#fff;margin-bottom:6px">' + d.name +
-      ' <span style="font-size:0.75rem;color:#b5b2a8">character ' + i + '</span></div>' +
+      ' <span style="font-size:0.75rem;color:#b5b2a8">character ' +
+      srcNum(cSrc(0, 'the whole record'), String(i)) + '</span></div>' +
     // A zero in this table nearly always means "no value recorded", not
     // "zero of it" -- printing "XP 0 Training 0 Magic 0/0" for a farmhand
     // invented three facts about them. Absent fields are simply left out, and
     // a character with no placement gets no location line at all.
-    statLine([['Level', r.level], ['XP', r.xp], ['Training', r.training]]) +
-    statLine([['Body', r.body], ['Reflex', r.reflex], ['Mind', r.mind]]) +
-    statLine([['Health', r.healthMax ? r.health + '/' + r.healthMax : 0],
-              ['Magic', r.magicMax ? r.magic + '/' + r.magicMax : 0]]) +
-    (r.zone ? '<b>Home</b> ' + d.homeZone + ' at (' + r.x + ', ' + r.y + ')<br>' : '') +
+    statLine([['Level', r.level, cSrc(19, 'level')], ['XP', r.xp, cSrc(12, 'experience, two bytes')],
+              ['Training', r.training, cSrc(28, 'training points')]]) +
+    statLine([['Body', r.body, cSrc(9, 'body')], ['Reflex', r.reflex, cSrc(10, 'reflex')],
+              ['Mind', r.mind, cSrc(11, 'mind')]]) +
+    statLine([['Health', r.healthMax ? srcNum(cSrc(14, 'health'), String(r.health)) + '/' + srcNum(cSrc(15, 'health at full'), String(r.healthMax)) : 0],
+              ['Magic', r.magicMax ? srcNum(cSrc(16, 'magic'), String(r.magic)) + '/' + srcNum(cSrc(17, 'magic at full'), String(r.magicMax)) : 0]]) +
+    (r.zone ? '<b>Home</b> ' + d.homeZone + ' at (' +
+      srcNum(cSrc(1, 'the packed level, x and y'), String(r.x)) + ', ' +
+      srcNum(cSrc(1, 'the packed level, x and y'), String(r.y)) + ')<br>' : '') +
     '<b>Sprite</b> ' + (sprInfo.none ? '<span style="color:#e07a5f">none</span>'
       : (sprInfo.staticKind ? sprInfo.staticKind + ', ' : '') +
         sprInfo.count + ' frame' + (sprInfo.count === 1 ? '' : 's') +
         (sprInfo.rows > 1 ? ' (' + sprInfo.rows + ' facings)' : '')) +
-      ' \u00b7 base tile 0x' + sprInfo.base.toString(16).toUpperCase() +
-      ' \u00b7 proptype 0x' + r.proptype.toString(16).toUpperCase() +
-      (r.aspect ? ' \u00b7 aspect ' + r.aspect : '');
+      ' \u00b7 base tile ' + srcNum(propTileSrc(r.proptype), '0x' + sprInfo.base.toString(16).toUpperCase()) +
+      ' \u00b7 proptype ' + srcNum(cSrc(4, 'the aspect and prop type, two bytes'), '0x' + r.proptype.toString(16).toUpperCase()) +
+      (r.aspect ? ' \u00b7 aspect ' + srcNum(cSrc(4, 'the aspect and prop type, two bytes'), String(r.aspect)) : '');
   panel.appendChild(info);
   // What this person is assembled from, each chip a jump to the component
   // under Components. The dossier used to draw the portrait and the sprite
@@ -1373,8 +1383,13 @@ function showCharacterDetail(i) {
     sh.innerHTML = '<div style="color:#fff;margin-bottom:4px">Daily schedule</div>' +
       d.schedule.map(e => {
         const h = e.hour, ampm = h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
-        return '<div style="font-size:0.8125rem">' + ampm.padStart(5) + ', ' + e.where +
-               ' (' + e.x + ', ' + e.y + ') <span style="color:#8c8980">mode ' + e.mode + '</span></div>';
+        // A schedule entry is eight bytes of 0xF00B, and `at` is where this
+        // one sits, so each figure opens the bytes it was read from.
+        const sSrc = (off, what) => e.at === undefined ? null : { resid: 0xF00B, byte: e.at + off, stride: 8, what };
+        return '<div style="font-size:0.8125rem">' + srcNum(sSrc(0, 'the hour'), ampm.padStart(5)) + ', ' + e.where +
+               ' (' + srcNum(sSrc(5, 'the packed level, x and y'), String(e.x)) + ', ' +
+               srcNum(sSrc(5, 'the packed level, x and y'), String(e.y)) + ')' +
+               ' <span style="color:#8c8980">mode ' + srcNum(sSrc(1, 'the mode'), String(e.mode)) + '</span></div>';
       }).join('');
   } else {
     sh.innerHTML = '<div style="color:#8c8980;font-size:0.8125rem">No schedule entries, placed directly in a map\u2019s prop list rather than moving on a clock.</div>';

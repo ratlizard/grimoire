@@ -40,6 +40,10 @@ function getPropTileList() {
   _propTileListCache = arr;
   return arr;
 }
+/* Where a prop type's base tile was read from: 0xF000 is one halfword a
+   prop type, so the figure opens its own two bytes. Every page that prints
+   a base tile uses this. */
+function propTileSrc(pt) { return { resid: 0xF000, byte: pt * 2, stride: 2, what: 'the base tile of prop type ' + pt }; }
 function getPropOffsets() {
   if (_propOffXCache && _propOffYCache) return [_propOffXCache, _propOffYCache];
   _propOffXCache = getResourceBytes(ARCHIVE, 0xF011) || new Uint8Array(0);
@@ -286,9 +290,11 @@ function loadSchedules() {
     const entries = [];
     for (let k = 0; k < len && p + 8 <= raw.length; k++) {
       const xy = (raw[p+5] << 16) | u16be(raw, p+6);
+      // `at` is where the entry sits in 0xF00B, so a figure read off it
+      // can open the bytes it came from.
       entries.push({ hour: raw[p], mode: raw[p+1],
                      script: u16be(raw, p+2), level: raw[p+4],
-                     x: xy >> 12, y: xy & 0xFFF });
+                     x: xy >> 12, y: xy & 0xFFF, at: p });
       p += 8;
     }
     all.push(entries);

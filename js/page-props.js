@@ -795,7 +795,7 @@ function showPropTypeDetail(pt) {
     propNameHTML(pt, base) +
     ' <span style="font-size:0.75rem;color:#b5b2a8">proptype 0x' + pt.toString(16).toUpperCase() + '</span></div>' +
     '<div style="font-size:0.8125rem;color:#fff;margin:4px 0 10px">Sheet ' + residLink(sheetResid) +
-      ', base tile 0x' + base.toString(16).toUpperCase() +
+      ', base tile ' + srcNum(propTileSrc(pt), '0x' + base.toString(16).toUpperCase()) +
       (info.rows > 1 ? ' \u00b7 ' + info.rows + ' facings' : '') +
       ' \u00b7 ' + (refExists(scriptResid)
         ? 'script ' + residLink(scriptResid)
@@ -1504,8 +1504,10 @@ function swingFramesHTML(pt) {
   let sw = null;
   try { sw = weaponSwingFrames(pt); } catch (e) { sw = null; }
   if (!sw || !sw.tiles.length) return '';
+  // Each tile opens the line of the list it was read from.
   const tiles = sw.tiles.map(t => { let u = ''; try { u = relIconURL({ tile: t }); } catch (e) { u = ''; }
-    return (u ? '<img class="brandTile" src="' + u + '" alt="" width="20" height="20"> ' : '') + propWordHex(t); }).join(', ');
+    return (u ? '<img class="brandTile" src="' + u + '" alt="" width="20" height="20"> ' : '') +
+           srcNum({ resid: sw.resid, at: sw.off }, propWordHex(t)); }).join(', ');
   const where = svLink(sw.own ? 'its class script' : 'the outcome routine’s default', 'jumpToResource(' + sw.resid + ')', propWordHex(sw.resid) + ' at ' + propWordHex(sw.off));
   return ' The swing in a fight is ' + (sw.own ? 'a list of tiles in ' : 'not the weapon’s own: it has no list, so it plays ') + where + ': ' + tiles + '.';
 }
@@ -1771,7 +1773,9 @@ function itemPlaces(pt) {
       try { list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
       for (const r of list) {
         if (r.flags === 0xFF || (r.flags & 0x40)) continue;
-        const p = { zone: z, aspect: r.aspect, d1: r.d1, d2: r.d2, host: null };
+        // Where the record sits, so a figure read off it opens its bytes.
+        const p = { zone: z, resid: 0x8100 + z, at: r.index * 16,
+                    aspect: r.aspect, d1: r.d1, d2: r.d2, host: null };
         let top = r;
         for (let k = 0; k < 8 && top && top.container !== null; k++) {
           const h = list[top.container];
@@ -1840,6 +1844,9 @@ function itemEachOneHTML(pt) {
     if (u && u.kind === 'potion' && !u.beyond && u.name) return u.name;
     return tileNames.size > 1 ? (terrainNameFor(base + a) || '') : '';
   };
+  // A prop record is sixteen bytes of a prop list, and `at` is where this
+  // one sits in its own.
+  const recSrc = (p, off, what) => p.at === undefined ? null : { resid: p.resid, byte: p.at + off, stride: 16, what };
   const rows = all.slice(0, 40).map(list => {
     const p = list[0];
     let icon = '';
@@ -1847,7 +1854,9 @@ function itemEachOneHTML(pt) {
     const said = (meaning.d1 && meaning.d1.get(p.d1)) || (byD2 && meaning.d2.get(p.d2)) || '';
     const head = (icon ? '<img class="relIcon" src="' + icon + '" alt="" width="16" height="16"> ' : '') +
       (lookName(p.aspect) ? svEsc(lookName(p.aspect)) + ', ' : '') +
-      'aspect ' + p.aspect + ', Data1 ' + p.d1 + (byD2 ? ', Data2 ' + p.d2 : '') +
+      'aspect ' + srcNum(recSrc(p, 4, 'the aspect and prop type'), String(p.aspect)) +
+      ', Data1 ' + srcNum(recSrc(p, 6, 'Data1'), String(p.d1)) +
+      (byD2 ? ', Data2 ' + srcNum(recSrc(p, 7, 'Data2'), String(p.d2)) : '') +
       (said ? '<br>“' + svEsc(said) + '”' : '');
     // Props on the same square, in the same container or with the same
     // carrier are one chip with a count.
@@ -1890,7 +1899,7 @@ function showItemDetail(pt) {
   let h = '<div class="sv-head"><span class="sv-id">' +
     propNameHTML(pt, base) + '</span></div>' +
     '<div style="font-size:0.8125rem;color:#fff;margin:4px 0 10px">prop type 0x' +
-    pt.toString(16).toUpperCase() + ' \u00b7 base tile 0x' + base.toString(16).toUpperCase() +
+    pt.toString(16).toUpperCase() + ' \u00b7 base tile ' + srcNum(propTileSrc(pt), '0x' + base.toString(16).toUpperCase()) +
     (cls ? ' \u00b7 class ' + '0x' + cls.resid.toString(16).toUpperCase() + ', ' + cls.size + ' bytes'
          : ' \u00b7 no class script at 0x' + (0x1000 + pt).toString(16).toUpperCase()) + '</div>';
   {
