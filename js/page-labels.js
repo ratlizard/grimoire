@@ -852,7 +852,7 @@ function showCompositeDetail(tileId, entry, builtCanvas) {
   } catch (e) { quiet(e); }
   head.appendChild(big);
   const cap = document.createElement('div');
-  cap.style.cssText = 'color:var(--gold);margin-top:6px';
+  cap.style.cssText = 'color:#fff;margin-top:6px';
   const nm = compositeTileName(tileId);
   cap.textContent = 'Tile 0x' + tileId.toString(16).toUpperCase() + (nm ? ', ' + nm : '') +
     '\n' + compositeSourceSummary(entry);
@@ -947,11 +947,22 @@ const spriteCountCache = derivedMap('spriteCountCache');
 // half of sheet 0x7D and owns all eight of 0x7D8-0x7DF, which is exactly what
 // "16 minus the offset into the sheet" gives. Ur-Sylph at 0x89C gets 4, Alaric
 // at 0x710 gets 16.
+/* A prop's frames run from its base tile to the next prop type's base in
+   the same 16-tile sheet, or to the sheet's end: the prop-tile table
+   (0xF000) is the file's own boundary. It ran to the sheet's end alone until
+   20 September 2026, so the gecko's page showed the sylph's four frames
+   after its own (the maintainer's report); the two share a sheet, the
+   gecko at 0x898 and the sylph at 0x89C. */
 function spriteBlockSize(proptype) {
   const tiles = getPropTileList();
   const base = tiles[proptype];
   if (base === undefined || !proptype) return 0;
-  return 16 - (base & 0x0F);
+  let end = (base | 0x0F) + 1;
+  for (let pt = 0; pt < tiles.length; pt++) {
+    const b = tiles[pt];
+    if (b !== undefined && pt !== proptype && b > base && b < end) end = b;
+  }
+  return end - base;
 }
 // Prop types that are scenery wearing a character record rather than someone
 // who walks. There is exactly one among Cythera's characters -- Aeneas is

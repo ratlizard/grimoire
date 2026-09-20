@@ -327,14 +327,19 @@ try {
   console.log('  map selection: set, remembered across a map switch, and cleared on close');
 } catch (e) { fail('map selection', e); }
 
-// A frame block ends where the 16-tile sheet does, not where the thing does.
-// Prop 0x141 is four crystal balls followed by a board, four staves and four
-// paintings, and the galleries must not call the lot "crystal ball".
+// A frame block ends at the next prop type's base tile in the sheet (the
+// prop-tile table's own boundary, since 20 September 2026), not at the
+// sheet's end: prop 0x141 is four crystal balls, and the board, the staves
+// and the paintings after them on the sheet are other prop types' frames.
+// Until then the block ran to the sheet's end and this pinned the four runs
+// by name; the gecko's page showed the sylph's frames that way.
 try {
   const base = ctx.getPropTileList()[0x141];
-  const runs = ctx.frameRuns(base, ctx.spriteFrameInfo(0, 0x141).present);
+  const info = ctx.spriteFrameInfo(0, 0x141);
+  if (info.slots !== 4) fail('frame runs', `0x141 claimed ${info.slots} slots, not the four to the next prop type's base`);
+  const runs = ctx.frameRuns(base, info.present);
   const names = runs.map(r => r.name).join('/');
-  if (names !== 'crystal ball/boards/staff/painting')
+  if (names !== 'crystal ball')
     fail('frame runs', `0x141 came out as ${names}`);
   const own = ctx.framesSharingName(base, ctx.spriteFrameInfo(0, 0x141).present);
   if (own.length !== 4) fail('frame runs', `0x141 claimed ${own.length} frames of its own`);
