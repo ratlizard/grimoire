@@ -554,6 +554,8 @@ DERIVED.SCENERY_GROUPS = null;
 function buildSceneryGroups() {
   if (DERIVED.SCENERY_GROUPS) return DERIVED.SCENERY_GROUPS;
   const best = new Map();
+  const attrs = getTileAttributes(ARCHIVE);
+  const tiles = getPropTileList();
   const count = subindexCount(ARCHIVE, 128);
   for (let n = 0; n < count; n++) {
     const resid = 0x8100 + n;
@@ -578,11 +580,22 @@ function buildSceneryGroups() {
             const prev = best.get(pt);
             if (w * h < 2 || (prev && prev.cells.length >= w * h)) continue;
             const cells = [], aspects = new Set(), covered = new Set();
-            const base = getPropTileList()[pt];
-            let ok = base !== undefined;
+            const base = tiles[pt];
+            let ok = base !== undefined, axis = 0;
             for (let dy = 0; ok && dy < h; dy++) for (let dx = 0; ok && dx < w; dx++) {
               const c = m.get((seed.x + dx) + ',' + (seed.y + dy));
               if (!c || aspects.has(c.aspect)) { ok = false; break; }
+              // The span bit says which way this one lies, and two that lie
+              // different ways are two different pieces of furniture, not one.
+              // The bookshelf's twelve frames are six pairs: 1, 3 and 5 span
+              // left, along a wall that runs north and south, and 7, 9 and 11
+              // span up, along one that runs east and west. A rectangle that
+              // took three of the first and one of the second drew a wall of
+              // shelves with a single shelf of the other kind stranded at the
+              // end of it. A frame with no span at all joins either.
+              const sp = (attrs[base + c.aspect] || 0) & 0xC0;
+              const lie = !sp ? 0 : (c.rotated && sp !== 0xC0 ? (sp === 0x40 ? 0x80 : 0x40) : sp);
+              if (lie) { if (axis && axis !== lie) { ok = false; break; } axis = lie; }
               // Two of the class cannot stand on the same square, so a
               // rectangle whose members' own spans collide is not one thing
               // standing there: it is a run of shelves along a wall, each
