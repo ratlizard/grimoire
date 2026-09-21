@@ -1835,3 +1835,214 @@ function renderChangesSheet() {
   out.textContent = edited.length + ' edited resource' + (edited.length === 1 ? '' : 's') +
     '; the archive on screen is the rebuilt one every route below writes.';
 }
+
+/* ---- Records: the tables the scenario is built from -----------------------
+   A figure on a Scenario page is read out of a table, and a table is a
+   component of the scenario in the same way a sprite sheet or a script is:
+   the thing that holds the fact, where the fork is the file that holds the
+   bytes. So the tables have a leaf of their own under Components and a
+   figure's link lands here, on its own record, laid out field by field with
+   the byte it came from ringed. The Data Fork is one more step down and
+   every record links to it.
+
+   The maintainer's ask, 20 September 2026: a link out of Scenario should go
+   through its component before it reaches the file. Anything read off a
+   script already did -- it lands on the script under Functions -- and the
+   record tables were the ones jumping straight to the hex.
+
+   The field maps are read where the file or the program says them.
+   0xF008's offsets and field numbers come from GetField's second jump table
+   (exeMonsterFields); its names are this page's, and the page says which
+   are which. 0xF009's are delvmod's, worked out by diffing saves, with
+   nutrition read out of the executable. A prop list's are
+   parseDelverPropList's. 0xF000 is one halfword a prop type and needs no
+   map. */
+function recordTables() {
+  const out = [];
+  const has = id => { try { return !!getResourceBytes(ARCHIVE, id); } catch (e) { return false; } };
+  if (has(0xF008)) out.push({ resid: 0xF008, stride: 16, label: 'Unit statistics',
+    note: 'One record a unit: what it is made of, what it does and what it leaves behind.' });
+  if (has(0xF009)) out.push({ resid: 0xF009, stride: 32, label: 'Characters',
+    note: 'One record a character, and in a saved game the live state of the world.' });
+  if (has(0xF000)) out.push({ resid: 0xF000, stride: 2, label: 'Prop tiles',
+    note: 'One halfword a prop type: the tile its frames begin at.' });
+  for (let z = 0; z < 0x100; z++) {
+    if (!refExists(0x8100 + z)) continue;
+    out.push({ resid: 0x8100 + z, stride: 16, label: 'Prop list, ' + (zoneDisplayName(z) || ('zone ' + z)),
+      note: 'Everything placed in this zone, and everything carried or contained in it.', zone: z });
+  }
+  return out;
+}
+
+// The fields of one table, as offsets into a record. `src` is where the
+// map itself was read, so a name can be checked rather than believed.
+function recordFieldMap(resid) {
+  if (resid === 0xF008) {
+    const mf = appImage() ? exeMonsterFields() : null;
+    const named = { 0: 'Body', 1: 'Reflex', 2: 'Mind', 3: 'Armor', 4: 'Damage', 5: 'Health',
+                    6: 'Alignment', 8: 'Special flags', 12: 'Prop type', 14: 'Corpse' };
+    const width = { 8: 4, 12: 2, 14: 2 };
+    const rows = [];
+    for (const off of [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 14]) {
+      const f = mf ? mf.fields.find(x => x.offset && x.offset.v === off) : null;
+      rows.push({ off, width: width[off] || 1, name: named[off] || null,
+                  field: f ? f.field : null, at: f ? f.at : null,
+                  note: off === 7 ? 'no field reads it' : null });
+    }
+    return rows;
+  }
+  if (resid === 0xF009) return [
+    { off: 0, width: 1, name: 'Zone' }, { off: 1, width: 3, name: 'Level, x and y, packed' },
+    { off: 4, width: 2, name: 'Aspect and prop type' }, { off: 6, width: 2, name: null },
+    { off: 8, width: 1, name: 'State' }, { off: 9, width: 1, name: 'Body' },
+    { off: 10, width: 1, name: 'Reflex' }, { off: 11, width: 1, name: 'Mind' },
+    { off: 12, width: 2, name: 'Experience' }, { off: 14, width: 1, name: 'Health' },
+    { off: 15, width: 1, name: 'Health at full' }, { off: 16, width: 1, name: 'Magic' },
+    { off: 17, width: 1, name: 'Magic at full' }, { off: 18, width: 1, name: 'Party' },
+    { off: 19, width: 1, name: 'Level' }, { off: 20, width: 2, name: 'A second appearance word' },
+    { off: 22, width: 5, name: null }, { off: 27, width: 1, name: 'Nutrition' },
+    { off: 28, width: 1, name: 'Training' }, { off: 29, width: 3, name: null }];
+  if (resid >= 0x8100 && resid < 0x8200) return [
+    { off: 0, width: 1, name: 'Flags' }, { off: 1, width: 3, name: 'x and y, or what holds it' },
+    { off: 4, width: 2, name: 'Aspect and prop type' }, { off: 6, width: 1, name: 'Data1' },
+    { off: 7, width: 1, name: 'Data2' }, { off: 8, width: 2, name: 'Store reference' },
+    { off: 10, width: 6, name: null }];
+  if (resid === 0xF000) return [{ off: 0, width: 2, name: 'Base tile' }];
+  return [];
+}
+
+window.RECORD_AT = null;   // { resid, byte } -- which byte a jump asked for
+function renderRecordsSheet() {
+  stopSpriteAnimations();
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  const tables = recordTables();
+  const q = (window.PROP_FILTER || '').trim().toLowerCase();
+  let shown = 0;
+  for (const t of tables) {
+    if (q && !t.label.toLowerCase().includes(q) && !('0x' + t.resid.toString(16)).includes(q)) continue;
+    shown++;
+    let len = 0;
+    try { len = (getResourceBytes(ARCHIVE, t.resid) || []).length; } catch (e) { len = 0; }
+    const cell = document.createElement('div');
+    cell.className = 'cell propCell';
+    const wrap = document.createElement('div');
+    wrap.className = 'cellimgwrap';
+    const icon = document.createElement('div');
+    icon.style.cssText = 'font-size:1.375rem;color:#cfc4a0';
+    icon.textContent = Math.floor(len / t.stride) + '';
+    wrap.appendChild(icon);
+    cell.appendChild(wrap);
+    const lbl = document.createElement('div');
+    lbl.className = 'lbl';
+    lbl.textContent = t.label;
+    cell.appendChild(lbl);
+    const sub = document.createElement('div');
+    sub.className = 'resid';
+    sub.textContent = propWordHex(t.resid) + ' · ' + t.stride + ' bytes a record';
+    cell.appendChild(sub);
+    cell.onclick = () => showRecordDetail(t.resid, 0);
+    grid.appendChild(cell);
+  }
+  out.textContent = shown + ' of the tables the scenario is built from' +
+    (q ? ' matching “' + q + '”' : '') +
+    '. A figure on a Scenario page opens its own record here, and every record links on to the bytes in the fork.';
+}
+
+/* One record, field by field, with the byte a jump asked for ringed. The
+   chips at the head are the two directions: up to the thing the record
+   describes, down to the same bytes in the Data Fork. */
+function showRecordDetail(resid, byte) {
+  stopSpriteAnimations();
+  markDetailView('record', resid + ':' + byte);
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  grid.style.display = 'block';
+  grid.innerHTML = '';
+  const t = recordTables().find(x => x.resid === resid);
+  let d = null;
+  try { d = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data; } catch (e) { quiet(e); }
+  if (!t || !d) { out.textContent = 'No table ' + propWordHex(resid) + ' in this archive.'; return; }
+  const back = document.createElement('button');
+  back.className = 'secondary';
+  back.textContent = 'All records';
+  back.onclick = () => { window.RECORD_AT = null; renderRecordsSheet(); };
+  grid.appendChild(back);
+
+  const n = Math.floor(d.length / t.stride);
+  const idx = Math.max(0, Math.min(n - 1, Math.floor(byte / t.stride)));
+  const start = idx * t.stride;
+  const panel = document.createElement('div');
+  panel.style.cssText = 'width:100%;max-width:560px;margin:12px auto;text-align:left';
+
+  let h = '<div style="font-size:1.25rem;color:#fff">' + svEsc(t.label) + '</div>' +
+    '<div style="font-size:0.75rem;color:#b5b2a8;margin-bottom:10px">record ' + idx + ' of ' + n +
+    ' · ' + propWordHex(resid) + ' · ' + t.stride + ' bytes a record</div>' +
+    '<div class="sv-note" style="margin-top:0">' + svEsc(t.note) + '</div>';
+  panel.innerHTML = h;
+
+  // Up to what the record describes, and down to the bytes in the fork.
+  const ways = [];
+  if (resid === 0xF008) {
+    const m = parseMonsterStats()[idx];
+    if (m && !m.blank) ways.push(relChip({ js: 'openUnit(' + idx + ')', main: propDisplayName(m.proptype) || ('prop type ' + m.proptype),
+      sub: 'the unit this describes', icon: relIconURL({ icon: m.proptype }), title: tabTrail(TAB_LEAF_FOR.get('MONSTERS')) }));
+  } else if (resid === 0xF009) {
+    ways.push(relChip({ js: 'openCharacter(' + idx + ')', main: characterName(idx),
+      sub: 'the character this describes', title: tabTrail(TAB_LEAF_FOR.get('CHARACTERS')) }));
+  } else if (resid === 0xF000) {
+    ways.push(relChip({ js: 'openPropType(' + idx + ')', main: propDisplayName(idx) || ('prop type ' + idx),
+      sub: 'the prop type this describes', icon: relIconURL({ icon: idx }), title: tabTrail(TAB_LEAF_FOR.get('PROPS')) }));
+  } else if (t.zone !== undefined) {
+    ways.push(relChip({ resid: 0x8000 + t.zone, main: zoneDisplayName(t.zone) || ('zone ' + t.zone),
+      sub: 'the map these stand on', title: trailForResid(0x8000 + t.zone) }));
+  }
+  ways.push(relChip({ js: 'jumpToForkBytes(' + resid + ',' + start + ',' + t.stride + ')',
+    main: 'The bytes in the fork', sub: propWordHex(resid) + ' at ' + start,
+    title: tabTrail(TAB_LEAF_FOR.get('DATAFORK')) }));
+  const strip = document.createElement('div');
+  strip.innerHTML = partsStrip('Leads to', ways);
+  panel.appendChild(strip);
+
+  // The record itself.
+  const map = recordFieldMap(resid);
+  const hex = k => d[start + k] === undefined ? '--' : d[start + k].toString(16).padStart(2, '0');
+  const val = (off, w) => { let v = 0; for (let k = 0; k < w; k++) v = (v * 256) + (d[start + off + k] || 0); return v; };
+  let rows = '';
+  for (const f of map) {
+    const bytes = [];
+    for (let k = 0; k < f.width; k++) bytes.push(hex(f.off + k));
+    const hit = byte >= start + f.off && byte < start + f.off + f.width;
+    rows += '<tr' + (hit ? ' class="listingHit"' : '') + '><td class="num">' + f.off + '</td>' +
+      '<td>' + (f.name ? svEsc(f.name) : '<span style="color:#8c8980">unnamed</span>') +
+      (f.field !== null && f.field !== undefined ? ' <span style="color:#8c8980;font-size:0.6875rem">field ' +
+        (f.at ? srcNum({ exe: f.at }, String(f.field)) : f.field) + '</span>' : '') +
+      (f.note ? ' <span style="color:#8c8980;font-size:0.6875rem">' + svEsc(f.note) + '</span>' : '') + '</td>' +
+      '<td class="num">' + val(f.off, f.width) + '</td>' +
+      '<td class="num" style="font-family:ui-monospace,Menlo,monospace">' +
+      srcNum({ resid, byte: start + f.off, stride: t.stride, what: f.name || ('byte ' + f.off) }, bytes.join(' ')) + '</td></tr>';
+  }
+  const tbl = document.createElement('div');
+  tbl.innerHTML = '<table class="mechTable" style="margin-top:12px"><thead><tr><th class="num">byte</th><th>field</th><th class="num">value</th><th class="num">hex</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  panel.appendChild(tbl);
+
+  // Step to the record either side, so a table can be walked.
+  const nav = document.createElement('div');
+  nav.style.cssText = 'display:flex;gap:8px;margin-top:12px;flex-wrap:wrap';
+  const step = (to, label) => {
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.textContent = label;
+    b.onclick = () => showRecordDetail(resid, to * t.stride);
+    b.disabled = to < 0 || to >= n;
+    nav.appendChild(b);
+  };
+  step(idx - 1, 'Previous record');
+  step(idx + 1, 'Next record');
+  panel.appendChild(nav);
+
+  grid.appendChild(panel);
+  out.textContent = t.label + ', record ' + idx + ' of ' + n;
+}

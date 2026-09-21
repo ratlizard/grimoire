@@ -916,6 +916,14 @@ const TAB_TREE = [
       // belongs here beside the other components a dossier chips into
       // (the maintainer, 13 September 2026). It was under Scenario.
       { id: 'schedules', label: 'Schedules', tile: 0x803, values: ['SCHEDULES'] },                           // the hourglass
+      /* The tables a scenario is assembled from -- a unit's statistics, a
+         character's record, the prop-tile table, every zone's prop list --
+         are components in the same way a sprite sheet or a script is: the
+         thing that holds the fact, where the fork is the file that holds
+         the bytes. A figure on a Scenario page lands here on its own
+         record and the record links on to the fork (the maintainer,
+         20 September 2026). */
+      { id: 'records', label: 'Records', tile: 0x227, values: ['RECORDS'] },                                 // the tome (prop 261)
       { id: 'graphics', label: 'Graphics', tile: 0x861, children: [                           // the easel, with its painting
           { id: 'portraits',  label: 'Portraits',  tile: 0x33F, values: ['135'] },                      // the mirror
           { id: 'landscapes', label: 'Landscapes', tile: 0x890, values: ['131'] },                      // the landscape painting

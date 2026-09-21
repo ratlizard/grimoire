@@ -1031,7 +1031,24 @@ function srcCell(val, text) {
    renderTableInspector from TABLE_AT, the way a script line's is painted
    from LISTING_AT. */
 window.TABLE_AT = null;
+/* A figure lands on its own record under Components > Records where the
+   table is one this page knows, and in the Data Fork's hex where it is
+   not. The record page carries the step down to the same bytes
+   (jumpToForkBytes), so the chain reads Scenario, Components, Data rather
+   than Scenario, Data. */
 function jumpToTableAt(resid, byte, stride) {
+  let known = false;
+  try { known = recordTables().some(t => t.resid === resid); } catch (e) { known = false; }
+  if (known) {
+    window.RECORD_AT = { resid, byte };
+    if (!showCategory('RECORDS')) return false;
+    showRecordDetail(resid, byte);
+    window.scrollTo(0, 0);
+    return true;
+  }
+  return jumpToForkBytes(resid, byte, stride);
+}
+function jumpToForkBytes(resid, byte, stride) {
   window.TABLE_AT = { resid, byte };
   if (stride) window.TABLE_WIDTH = stride;
   if (!jumpToResource(resid)) { window.TABLE_AT = null; return false; }

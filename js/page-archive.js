@@ -899,7 +899,7 @@ function onCategoryChangeImpl() {
   if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
   // The Data tab's own views: not subindexes, no resources to list.
   if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' || rawval === 'SKILLS' || rawval === 'SPELLS' || rawval === 'SCHEDULES' ||
-      rawval === 'SAVEGAME' || rawval === 'CHEATS' || MECH_GROUP_BY_VALUE[rawval] ||
+      rawval === 'SAVEGAME' || rawval === 'CHEATS' || rawval === 'RECORDS' || MECH_GROUP_BY_VALUE[rawval] ||
       rawval === 'WORLD' || PLACEHOLDER_TABS[rawval]) {
     window.CUR_SUBN = rawval;
     window.CUR_RESIDS = [];

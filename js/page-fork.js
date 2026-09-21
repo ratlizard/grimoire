@@ -1576,6 +1576,7 @@ function setModeImpl(m) {
   }
   if (window.CUR_SUBN === 'MACRSRC' || FORK_VIEWS[window.CUR_SUBN]) { renderMacRsrcSheet(); return; }
   if (window.CUR_SUBN === 'MONSTERS') { renderMonsterSheet(); return; }
+  if (window.CUR_SUBN === 'RECORDS') { renderRecordsSheet(); return; }
   if (window.CUR_SUBN === 'SAVEGAME') { renderSaveSheet(); return; }
   if (window.CUR_SUBN === 'CHEATS') { renderCheatsSheet(); return; }
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
