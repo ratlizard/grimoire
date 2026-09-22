@@ -1009,6 +1009,10 @@ function renderContactSheet() {
   out.textContent = "Gallery: " + okCount + " sound resources found. Click a tile to play.";
     return;
   } else if (isText) {
+    // A script with no prose says what its code calls, wherever the script
+    // is opened for its code (scriptPaneFor); every other tile says what its
+    // strings say, which tells one spell or sign from the next.
+    const asCode = SCRIPT_SUBN.has(subn) && scriptPaneFor(String(subn)) === 'code';
     for (const [resid, roff, rlen] of resids) {
       const cell = document.createElement('div');
       cell.className = 'cell';
@@ -1018,8 +1022,10 @@ function renderContactSheet() {
       // Show what the bytes actually say, the same way the resource-fork
       // browser previews undecodable types.
       const snip = document.createElement('div');
-      const text = sheetTextSnippet(resid, roff, rlen, 110);
-      snip.className = 'cellChars' + (/^\(/.test(text) ? ' binary' : '');
+      let text = sheetTextSnippet(resid, roff, rlen, 110), outline = false;
+      if (asCode && /^\(/.test(text))
+        try { const o = scriptOutline(resid, roff, rlen); if (o) { text = o; outline = true; } } catch (e) { quiet(e, 'the outline of 0x' + resid.toString(16)); }
+      snip.className = 'cellChars' + (outline ? ' outline' : /^\(/.test(text) ? ' binary' : '');
       snip.textContent = text;
       snip.title = text;
       cell.appendChild(snip);

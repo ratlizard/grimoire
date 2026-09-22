@@ -254,6 +254,9 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     ['skills', "showCategory('SKILLS')"],
     ['tools', "showCategory('TOOLS')"],
     ['dataFork', "showCategory('DATAFORK')"],
+    // A script's page: the head, the one row of views and the code, which
+    // scrolls sideways inside its pane rather than widening the page.
+    ['script', "setScriptFold('structured'); jumpToResource(0x1A13)"],
   ];
   const MEASURE = `(() => {
     const w = window.innerWidth, out = {innerWidth: w, scrollWidth: document.documentElement.scrollWidth, over: [], small: 0, buttons: 0};

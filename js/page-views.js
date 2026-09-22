@@ -1520,19 +1520,39 @@ function renderTableInspector(resid) {
 /* Which listing the script views show. The raw one is the default and is what
    everything else in this repository reads; folded is a view, not a reading.
    Kept on `window` because the script view's buttons are inline handlers and
-   both files are classic scripts sharing one scope. */
+   both files are classic scripts sharing one scope, and remembered in the
+   browser so a reader who prefers one is not asked again on every visit. */
 window.SCRIPT_FOLD = false;          // 'folded' or 'structured' when set
+try {
+  const v = localStorage.getItem('cythera.listing');
+  if (v === 'folded' || v === 'structured') window.SCRIPT_FOLD = v;
+} catch (e) { quiet(e); }
 function setScriptFold(on) {
   window.SCRIPT_FOLD = on === true ? 'folded' : (on || false);
-  const mode = window.SCRIPT_FOLD || 'raw';
-  for (const [id, m] of [['listRaw', 'raw'], ['listFolded', 'folded'], ['listStructured', 'structured']]) {
-    const b = document.getElementById(id);
-    if (b) b.classList.toggle('active', mode === m);
-  }
-  try { renderText(); } catch (e) { quiet(e); }
+  window.SCRIPT_PANE = 'code';
+  try { localStorage.setItem('cythera.listing', window.SCRIPT_FOLD || 'raw'); } catch (e) { quiet(e); }
+  try { renderText(true); } catch (e) { quiet(e); }
 }
 
-function renderText() {
+/* Which view a script opens on. Under Components > Text a script is there for
+   its words -- a book, a sign, a conversation -- so it opens on them; under
+   Functions, and anywhere else, it is there for its code. Until 22 September
+   2026 every script whose subindex can hold dialogue opened on its words,
+   which is nearly all of them, so the Functions tab showed a list of strings
+   and hid the code it is named for behind a button. */
+function scriptPaneFor(value) {
+  for (let n = TAB_LEAF_FOR.get(value); n; n = n.parent) if (n.id === 'text') return 'text';
+  return 'code';
+}
+
+// The subindexes that hold Delver VM containers, which renderText
+// disassembles and the gallery outlines. At top level since 22 September
+// 2026, when the gallery needed it too; the reasoning is in renderText.
+const SCRIPT_SUBN = new Set([0,1,2,3,4,7,8,9,10,11,12,13,14,15,16,19,20,23,24,25,26,27,29,47]);
+
+// `sameResource` is a re-render of what is already open (a listing chosen),
+// which keeps the view the reader is on rather than choosing afresh.
+function renderText(sameResource) {
   const out = document.getElementById('output');
   const sel = document.getElementById('residSelect');
   const idx = parseInt(sel.value);
@@ -1552,8 +1572,7 @@ function renderText() {
     // The identity of the resource is now the job of the script view's header,
     // so this line carries only what that panel does not: the decision the
     // decryptor made, and how close it was.
-    const lbl = labelFor(resid);
-    document.getElementById('textLabel').textContent =
+    const readNote =
       (wasDecrypted ? 'decrypted' : 'read as stored') +
       (known ? "  (from delvmod's tables)"
              : shape ? '  (by its shape: ' + shape + ')'
@@ -1561,6 +1580,7 @@ function renderText() {
                ? '  (entropy ' + Math.min(rawEntropy, decEntropy).toFixed(2) +
                  ' against ' + Math.max(rawEntropy, decEntropy).toFixed(2) + ')'
                : '  (all zero bytes)');
+    document.getElementById('textLabel').textContent = readNote;
     updateUsagePanel(resid, window.CUR_SUBN);
 
     // Three separate views rather than one concatenated blob.
@@ -1650,8 +1670,7 @@ function renderText() {
     // resources -- 0x0301 among them -- rendered as anonymous hex. They were
     // decrypting correctly the entire time and the disassembler could already
     // read them; it was simply never called. 0x0301 is `[2, 3, 1, 1]`.
-    const SCRIPT_SUBN = new Set([0,1,2,3,4,7,8,9,10,11,12,13,14,15,16,19,20,23,24,25,26,27,29,47]);
-    let scriptText = '';
+    let scriptText = '', rawText = '';
     if (SCRIPT_SUBN.has(subn)) {
       try {
         const named = dvmNamedScript(resData);
@@ -1681,22 +1700,28 @@ function renderText() {
             dvmRender;
           const dis = render(ARCHIVE, resData, resid);
           if (dis && dis.split('\n').length > 2) scriptText = dis;
+          // The folded views name a call without its id; the links in them
+          // are learned from this (paintDecodedPane, renderLinked).
+          if (render !== dvmRender) rawText = dvmRender(ARCHIVE, resData, resid) || '';
         }
       } catch (e) {
         scriptText = '// disassembly failed: ' + e.message;
       }
     }
     const sv = document.getElementById('scriptView');
-    if (SCRIPT_SUBN.has(subn)) {
-      buildScriptView({ resid, subn, byteLength: rlen, wasDecrypted, allZero,
-                        resData, scriptText: '', isScript: true });
+    const isScript = SCRIPT_SUBN.has(subn);
+    // The script's head carries the decryption note; the centred line above
+    // it would say it twice.
+    document.getElementById('textLabel').style.display = isScript ? 'none' : '';
+    if (isScript) {
+      buildScriptView({ resid, subn, byteLength: rlen, readNote: readNote.replace(/\s+/g, ' '), resData });
       content = (scriptText ? scriptText + '\n\n' : '') + content;
       if (!scriptText && !content.trim()) content = 'Nothing in this resource decoded as Delver VM code.';
     } else if (sv) {
       sv.style.display = 'none'; sv.innerHTML = '';
     }
-    window.LAST_DECODED = { resid, text: content || '(nothing decoded)',
-                            isScript: SCRIPT_SUBN.has(subn) };
+    window.LAST_DECODED = { resid, text: content || '(nothing decoded)', raw: rawText, isScript };
+    if (!sameResource) window.SCRIPT_PANE = scriptPaneFor(document.getElementById('categorySelect').value);
     paintDecodedPane();
     // The F0xx tables are the ones with no field map, so they get the stride
     // explorer. Everything else keeps a plain hex pane.
@@ -1705,11 +1730,17 @@ function renderText() {
     else if (insp) { insp.style.display = 'none'; insp.innerHTML = ''; }
     document.getElementById('paneStrings').textContent = stringsText;
     document.getElementById('paneHex').textContent = hexText;
-    document.getElementById('viewTabs').style.display = '';
-    document.getElementById('tabDecoded').classList.toggle('empty', !content.trim());
-    document.getElementById('tabStrings').classList.toggle('empty', stringsText.charAt(0) === '(');
-    showPane('textContent');
-    renderDialoguePane(resData, subn, resid);
+    if (isScript) {
+      // Its words first, then the row that chooses between them and the code.
+      renderDialoguePane(resData, subn, resid);
+      paintDecodedPane();
+    } else {
+      document.getElementById('dlgWrap').style.display = 'none';
+      document.getElementById('viewTabs').style.display = '';
+      document.getElementById('tabDecoded').classList.toggle('empty', !content.trim());
+      document.getElementById('tabStrings').classList.toggle('empty', stringsText.charAt(0) === '(');
+      showPane('textContent');
+    }
     out.textContent = "Rendered resource 0x" + resid.toString(16).toUpperCase() +
       (wasDecrypted ? " (auto-decrypted)" : " (no decryption applied)");
     currentResid = resid;
@@ -1909,11 +1940,15 @@ function renderConversationPane(data, subn, resid) {
   return true;
 }
 
+/* A script's words, into #dlgWrap: the conversation's topic cards for a
+   dialogue script, or its strings one to a line with an edit button each.
+   Whether they are what is showing is paintDecodedPane's to decide; this only
+   fills the pane, or empties it when there are none, and an empty pane is
+   what takes the Text button off the row. */
 function renderDialoguePane(data, subn, resid) {
   const wrap = document.getElementById('dlgWrap');
-  const toggle = document.getElementById('dlgToggle');
-  const pre = document.getElementById('textContent');
   if (!wrap) return;
+  wrap.innerHTML = '';
   // Dialogue scripts (0x18xx) and the generic-prompt archetypes (0x08xx) get
   // the structured conversation view when the extractor finds topics; the
   // twelve one-liner characters and anything the disassembler cannot follow
@@ -1921,22 +1956,8 @@ function renderDialoguePane(data, subn, resid) {
   // subn: this function's subn parameter is the master-index slot, which
   // runs one below the resid's high byte.
   const convSub = resid !== undefined ? (resid >> 8) : -1;
-  if ((convSub === 0x18 || convSub === 0x08) && renderConversationPane(data, convSub, resid)) {
-    if (toggle) { toggle.style.display = ''; toggle.textContent = 'Show Decoded / Strings / Hex'; }
-    const tabs = document.getElementById('viewTabs');
-    if (tabs) tabs.style.display = 'none';
-    for (const id of ['textContent', 'paneStrings', 'paneHex']) {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    }
-    return;
-  }
-  if (!DIALOGUE_SUBN.has(subn)) {
-    wrap.style.display = 'none';
-    if (toggle) toggle.style.display = 'none';
-    pre.style.display = '';
-    return;
-  }
+  if ((convSub === 0x18 || convSub === 0x08) && renderConversationPane(data, convSub, resid)) return;
+  if (!DIALOGUE_SUBN.has(subn)) return;
   // Container strings are already whole -- they do not need stitching, and
   // stitching them would glue unrelated lines together. Only the fragmentary
   // Pascal fallback gets stitched.
@@ -1948,12 +1969,7 @@ function renderDialoguePane(data, subn, resid) {
   } else {
     lines = stitchDialogue(extractPascalStrings(data).filter(e => /[A-Za-z]{2}/.test(e.str)));
   }
-  if (!lines.length) {
-    wrap.style.display = 'none';
-    if (toggle) toggle.style.display = 'none';
-    pre.style.display = '';
-    return;
-  }
+  if (!lines.length) return;
   let html = '';
   for (const ln of lines) {
     // '*' separates alternate/among-many responses in the same block.
@@ -1973,9 +1989,6 @@ function renderDialoguePane(data, subn, resid) {
     });
   }
   wrap.innerHTML = html;
-  wrap.style.display = '';
-  pre.style.display = 'none';
-  if (toggle) { toggle.style.display = ''; toggle.textContent = 'Show Raw Hex / Strings'; }
 }
 
 // One pane visible at a time; a tab with nothing behind it is dimmed rather
@@ -1989,22 +2002,6 @@ function showPane(id) {
     pane.style.display = on ? '' : 'none';
     tab.classList.toggle('active', on);
   }
-}
-
-// When a dialogue pane is showing, this collapses the whole tabbed area
-// rather than just the decoded pane -- hiding one pane while its tab stayed
-// lit left the tab bar pointing at nothing.
-function toggleRawDump() {
-  const tabs = document.getElementById('viewTabs');
-  const toggle = document.getElementById('dlgToggle');
-  const hidden = tabs.style.display === 'none';
-  tabs.style.display = hidden ? '' : 'none';
-  for (const id of ['textContent','paneStrings','paneHex']) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  }
-  if (hidden) showPane('textContent');
-  toggle.textContent = hidden ? 'Hide Decoded / Strings / Hex' : 'Show Decoded / Strings / Hex';
 }
 
 function downloadCurrentRawBytes() {  const bytes = window.CUR_RAW_BYTES;

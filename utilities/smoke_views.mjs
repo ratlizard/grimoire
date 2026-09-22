@@ -558,3 +558,64 @@ try {
     }
   }
 } catch (e) { fail('listing toggle', e); }
+
+/* A script's page, as the Functions tab shows it (22 September 2026). Four
+ * things, each of which shipped broken with every other check green:
+ *
+ *   - Leaving the World for a numbered gallery gives the panel back. The
+ *     category change drew the gallery without passing setMode, which is
+ *     where the atlas used to be put away, so the tab lit and the world stayed
+ *     on screen. The sentinel is set here because the stub reads no stylesheet
+ *     and no inline style attribute: without it `display` is '' whatever the
+ *     page does, and the assertion could not fail.
+ *   - Under Functions a script opens on its code, under Text on its words,
+ *     and a script's only control is the one row above whichever is showing.
+ *     Nearly every script subindex can hold dialogue, and every one of them
+ *     opened on its strings with the code behind a button and three rows of
+ *     switches standing over no pane.
+ *   - A line ringed from a figure is ringed in the folded listing too. The
+ *     ring read only the raw gutter, and the listing chosen is remembered.
+ *   - The folded listings link the resources they call. They spell a call
+ *     `0x904(...)` or `CastSpell(...)`, which the raw listing's patterns never
+ *     matched, so the Linked switch did nothing in two of its three states.
+ */
+try {
+  const ap = ctx.document.getElementById('atlasPanel');
+  ap.style.display = 'block';
+  ctx.showCategory('8');
+  if (ap.style.display !== 'none') fail('script page', 'opening a gallery from the World leaves the world on screen');
+
+  const shown = id => ctx.document.getElementById(id).style.display !== 'none';
+  ctx.setScriptFold(false);
+  ctx.showCategory('25');                        // Functions > Actions, the skills and spells
+  ctx.openResource(0x1A13);                      // Awaken, which has words of its own
+  if (!shown('textContent') || shown('dlgWrap'))
+    fail('script page', 'a script under Functions does not open on its code');
+  if (shown('viewTabs')) fail('script page', 'a script shows the Decoded / Strings / Hex bar beside its own row');
+  if (!ctx.document.getElementById('dlgWrap').innerHTML) fail('script page', 'Awaken has no Text to switch to');
+  ctx.setScriptPane('text');
+  if (shown('textContent') || !shown('dlgWrap')) fail('script page', 'the Text button does not show the words');
+  ctx.jumpToResource(0x180B);                    // Naxos, under Text > Dialogue
+  if (!shown('dlgWrap') || shown('textContent'))
+    fail('script page', 'a conversation under Text does not open on its words');
+  const head = ctx.document.getElementById('scriptView');
+  if (!/0x1(80B|A13)/i.test(head.innerHTML) || head.style.display === 'none')
+    fail('script page', 'the script head is not built and shown');
+
+  ctx.setScriptFold('folded');
+  ctx.jumpToScriptAt(0x987, 0x34);
+  // The line itself, not only a ring: with the folded gutter unread, the ring
+  // falls back to the function's header line and is still a ring.
+  const ringed = /class="listingHit">([^\n]*)/.exec(ctx.document.getElementById('textContent').innerHTML);
+  if (!ringed || !/^    0034  /.test(ringed[1]))
+    fail('script page', 'the folded listing rings ' + (ringed ? '"' + ringed[1].slice(0, 40) + '"' : 'nothing') + ', not the line at 0x34');
+  ctx.setScriptFold('structured');
+  const pane = ctx.document.getElementById('textContent').innerHTML;
+  if (!/<a class="reflink"[^>]*jumpToResource\(2308\)[^>]*>0x904<\/a>/.test(pane))
+    fail('script page', 'the structured listing does not link its call to 0x904');
+  ctx.jumpToResource(0x1A13);
+  if (!/>CastSpell<\/a>/.test(ctx.document.getElementById('textContent').innerHTML))
+    fail('script page', 'the structured listing does not link a named call (CastSpell)');
+  ctx.setScriptFold(false);
+  console.log('  script page: the World gives the panel back, code first under Functions and words under Text, rings and links in the folded views');
+} catch (e) { fail('script page', e); }

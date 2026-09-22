@@ -1064,9 +1064,8 @@ function jumpToScriptAt(resid, at) {
   if (window.CUR_SUBN === 'MECHANICS' || MECH_GROUP_BY_VALUE[window.CUR_SUBN]) mechKeepPlace();
   if (!jumpToResource(resid)) return false;
   window.LISTING_AT = { resid, at };
-  const tabs = document.getElementById('viewTabs');
-  if (tabs && tabs.style.display === 'none') toggleRawDump();
-  showPane('textContent');
+  // A script under Text opens on its words; a jump to a line wants the code.
+  window.SCRIPT_PANE = 'code';
   paintDecodedPane();
   setTimeout(() => {
     const hit = document.getElementById('listingHit');
@@ -1076,9 +1075,28 @@ function jumpToScriptAt(resid, at) {
 }
 // The line of a listing an offset falls on: the last instruction at or
 // before it, within the object that holds it.
+//
+// The raw listing's gutter counts from the object's start, two spaces in,
+// under an `obj_NNNN` or `function obj_NNNN` header. The folded and
+// structured listings print the resource's own offset four spaces in, and
+// name a function where the dispatch table names it, so their header says
+// nothing about the base; there the line is simply the one whose offset is
+// the greatest at or before `at`. Until 22 September 2026 only the first was
+// read, so a figure's link opened a folded listing with nothing ringed.
 function listingLineFor(text, at) {
   const lines = String(text).split('\n');
   let base = -1, best = -1;
+  const folded = /^    [0-9A-F]{4}  /m.test(text) && !/^  [0-9A-F]{4}  /m.test(text);
+  if (folded) {
+    let bestAt = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const m = /^    ([0-9A-F]{4})  /.exec(lines[i]);
+      if (!m) continue;
+      const o = parseInt(m[1], 16);
+      if (o <= at && o > bestAt) { bestAt = o; best = i; }
+    }
+    return best;
+  }
   for (let i = 0; i < lines.length; i++) {
     const h = /^(?:function )?obj_([0-9A-F]{4})\b/.exec(lines[i]);
     if (h) {

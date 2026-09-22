@@ -237,93 +237,61 @@ function svChip(resid, note) {
   return relChip({ resid, main, sub: kind && kind !== main.toLowerCase() ? kind : '', note, title: trailForResid(resid) });
 }
 
+/* The head of a script's page: what it is and what it is joined to, in two
+   or three lines, above the one row of views.
+
+   Until 22 September 2026 this was a five-part essay -- the id large, the
+   subindex's purpose, a grid of facts, "How this was read" in five steps and
+   "How to read the decoded view" -- and none of it was ever on a screen:
+   the stylesheet said `#scriptView { display:none }` and this function set
+   the inline display to '', which hands the element back to that rule. The
+   stub-driven checks saw it built, since the stub reads no stylesheet. The
+   purpose line repeated the gallery's own caption just above it, the steps
+   described the loader rather than this resource, and the legend named
+   mnemonics (push_byte, call_method) the listing does not print; so what
+   came back is the part that says something about this one resource. */
 function buildScriptView(o) {
   const host = document.getElementById('scriptView');
   if (!host) return;
-  const { resid, subn, byteLength, wasDecrypted, allZero, resData, scriptText, isScript } = o;
+  const { resid, subn, byteLength, readNote, resData } = o;
   const purpose = SUBINDEX_PURPOSE[subn];
   const lbl = labelFor(resid);
   const hex = '0x' + resid.toString(16).toUpperCase().padStart(4, '0');
-  let h = '';
+  let shape = '';
+  try { shape = dvmShapeSummary(resData, resid); } catch (e) { quiet(e); }
+  let h = '<div class="sv-head"><span class="sv-id">' + hex + '</span>' +
+          (lbl ? ' <span class="sv-lbl">' + svEsc(lbl) + '</span>' : '') +
+          '<div class="sv-kind">' + [purpose ? purpose[0] : 'subindex ' + subn, shape,
+            byteLength + ' bytes', readNote].filter(Boolean).map(svEsc).join(' · ') + '</div></div>';
 
-  // 1. WHAT THIS IS ---------------------------------------------------------
-  h += '<div class="sv-head"><div class="sv-id">' + hex + '</div>' +
-       (lbl ? '<div class="sv-lbl">' + svEsc(lbl) + '</div>' : '') +
-       '<div class="sv-kind">' + (purpose ? svEsc(purpose[0]) : 'Uncategorised') +
-       ' &middot; subindex ' + subn + '</div></div>';
-  if (purpose) h += '<p class="sv-why">' + svEsc(purpose[1]) + '</p>';
-
-  const storage = allZero
-    ? 'Encrypted, and decrypts to nothing but zero bytes -- an empty placeholder.'
-    : (wasDecrypted
-        ? 'Stored encrypted. Decrypted here with key ' + hex + '.'
-        : 'Stored in the clear. No decryption needed.');
-  h += '<div class="sv-facts">' +
-       '<div><b>Storage</b>' + svEsc(storage) + '</div>' +
-       '<div><b>Size</b>' + byteLength + ' bytes</div>' +
-       (isScript ? '<div><b>Contains</b>' + svEsc(dvmShapeSummary(resData, resid)) + '</div>' : '') +
-       '</div>';
-
-  // 2. HOW IT WAS READ ------------------------------------------------------
-  if (isScript) {
-    h += '<details class="sv"><summary>How this was read</summary><ol class="sv-steps">' +
-      '<li><b>Located.</b> The master index at file offset 0x88 gives one entry per subindex; entry ' +
-        subn + ' points at a table of 256 offset/length pairs, and slot ' + (resid & 0xFF) +
-        ' of that table is this resource.</li>' +
-      '<li><b>Decrypted.</b> ' + svEsc(storage) + ' Nothing in the archive flags which resources are ' +
-        'encrypted, so both readings are produced and the one that parses as a valid container wins. ' +
-        'The cipher is a 16-bit PRNG seeded from the resource id, so the id is the key.</li>' +
-      '<li><b>Structure found.</b> A leading 0x81 is a function; 0x9n an array; 0xAn a table; anything ' +
-        'else means the first two bytes point at a dispatch table. References inside the resource are ' +
-        'followed to find the rest, so objects are discovered rather than assumed.</li>' +
-      '<li><b>Disassembled.</b> Each function body is decoded against the Delver VM opcode table, with ' +
-        'system calls, methods, fields and globals resolved to names.</li>' +
-      '<li><b>Cross-referenced.</b> Every other resource in the archive is parsed the same way and its ' +
-        'atoms collected, to find who points here.</li>' +
-      '</ol></details>';
-  }
-
-  // 3. WHERE IT IS USED -----------------------------------------------------
-  if (isScript) {
-    let idx = null;
-    try { idx = buildXrefIndex(); } catch (e) { quiet(e); }
-    const ins = (idx && idx.inbound[resid]) || [];
-    const outs = (idx && idx.outbound[resid]) || [];
-    h += '<div class="sv-block"><h4>Where this is used</h4>';
-    if (ins.length) {
-      h += '<div class="sv-sub">Loaded by ' + ins.length + ' resource' + (ins.length === 1 ? '' : 's') +
-           ', tap to follow</div><div class="sv-chips">' +
-           ins.slice(0, 60).map(e => svChip(e.from, e.count > 1 ? '\u00d7' + e.count : '')).join('') +
-           '</div>';
-      if (ins.length > 60) h += '<div class="sv-note">' + (ins.length - 60) + ' more not shown.</div>';
-    } else {
-      h += '<div class="sv-warn">Nothing in the archive loads this resource. No array entry, table ' +
-           'value or code operand anywhere points at it. Either the Cythera application hardcodes ' +
-           'the id, or it is dead data left in the file.</div>';
-    }
-    if (outs.length) {
-      h += '<div class="sv-sub">This one calls or loads ' + outs.length + '</div><div class="sv-chips">' +
-           outs.slice(0, 60).map(e => svChip(e.target, e.kind)).join('') + '</div>';
-    }
-    h += '</div>';
-  }
-
-  // 4. THE CODE -------------------------------------------------------------
-  if (isScript) {
-    h += '<details class="sv"><summary>How to read the decoded view</summary><div class="sv-legend">' +
-         '<p>Each object found in the resource is listed as <code>obj_NNNN</code>, where NNNN is its ' +
-         'byte offset. Arrays and strings are printed as values; functions are disassembled.</p>' +
-         '<p>Inside a function, the left column is the byte offset of the instruction. Delver is a ' +
-         'stack machine, so an instruction that takes arguments opens an indented block and the ' +
-         'instructions under it are what get pushed. <code>end</code> closes that block.</p>' +
-         '<p>Common instructions: <code>push_byte</code>/<code>short</code>/<code>word</code> put a ' +
-         'constant on the stack; <code>pushc</code> pushes a string; <code>get_field</code> and ' +
-         '<code>set_field</code> read and write an object\'s data; <code>call_method</code> invokes ' +
-         'another object; <code>sys</code> calls into the game engine; <code>ret</code> returns.</p>' +
-         '<p>A line reading <em>decoder desynced</em> means the bytes stopped making sense as code at ' +
-         'that point. Everything above it is still valid; everything below is not to be trusted.</p>' +
-         '</div></details>';
-  }
+  let idx = null;
+  try { idx = buildXrefIndex(); } catch (e) { quiet(e); }
+  const ins = (idx && idx.inbound[resid]) || [];
+  const outs = (idx && idx.outbound[resid]) || [];
+  // A dozen links, then the rest behind one tap: the libraries are named by
+  // hundreds of scripts, and sixty links pushed the code off a phone's screen.
+  // A link here names the resource or, with no name, says its id and what
+  // kind of thing it is; svChip's longer description ("helper, shared by 49
+  // resources") is for pages with room for it.
+  const relLink = (rid, note) => {
+    const name = labelFor(rid), kind = resourceKindName(rid);
+    const hx = '0x' + rid.toString(16).toUpperCase().padStart(4, '0');
+    return relChip({ resid: rid, main: name || hx, sub: kind && (!name || kind !== name.toLowerCase()) ? kind : '',
+                     note, title: trailForResid(rid) });
+  };
+  const chips = list => {
+    const one = e => e.chip;
+    const head = '<div class="sv-chips">' + list.slice(0, 12).map(one).join('') + '</div>';
+    const more = list.length <= 12 ? '' : '<details class="sv-more"><summary>' +
+           (list.length - 12) + ' more</summary><div class="sv-chips">' +
+           list.slice(12).map(one).join('') + '</div></details>';
+    return '<div class="sv-relBody">' + head + more + '</div>';
+  };
+  h += '<div class="sv-rel"><b>Named by</b>' + (ins.length
+    ? chips(ins.map(e => ({ chip: relLink(e.from, e.count > 1 ? '\u00d7' + e.count : '') })))
+    : '<span class="sv-none">nothing in the archive names this id</span>') + '</div>';
+  if (outs.length)
+    h += '<div class="sv-rel"><b>Names</b>' + chips(outs.map(e => ({ chip: relLink(e.target, e.kind) }))) + '</div>';
   host.innerHTML = h;
   host.style.display = '';
 }
@@ -704,7 +672,6 @@ function namedThingsMatching(re) {
 // exactly as the raw view shows it. Numeric constants stay numeric constants:
 // a byte pushed before `sys PlaySound` is usually computed at runtime, so
 // guessing a sound name for it would be fiction.
-window.DECODE_VIEW = 'linked';
 window.LAST_DECODED = null;
 
 function refDescription(rid) {
@@ -741,8 +708,31 @@ function refLink(rid) {
 // Only hex in positions the disassembler guarantees is a resource reference is
 // touched. Bare 0x#### elsewhere is a jump target or a byte offset, and those
 // collide with real resource ids (a jump to 0x0301 is not resource 0x0301).
-function renderLinked(text, resid) {
+//
+// The folded and structured listings spell a call as `CastSpell(...)` or
+// `0x904(...)` -- the name or the id, never both -- so for those the names are
+// learned from the raw listing of the same resource, where every call is
+// `call_resource Name (0xNNNN)`, and only a name this resource is seen to call
+// is linked. A bare `0xNNN(` is always a resource call in those two views:
+// nothing else in them is printed as hex followed by a bracket.
+function renderLinked(text, resid, raw) {
   let h = svEsc(text);
+  if (raw) {
+    const ids = new Map();
+    for (const m of raw.matchAll(/\bcall_(?:resource|index) ([A-Za-z_]\w*) \(0x([0-9A-Fa-f]{1,4})\)/g))
+      ids.set(m[1], parseInt(m[2], 16));
+    h = h.replace(/(^|[^\w.])([A-Za-z_]\w*)(?=[\[(])/gm, (m, pre, nm) =>
+      ids.has(nm) && refExists(ids.get(nm))
+        ? pre + '<a class="reflink" title="' + svEsc(refTitle(ids.get(nm))) + '" onclick="jumpToResource(' + ids.get(nm) + ')">' + nm + '</a>'
+        : m);
+    h = h.replace(/(^|[^\w.])0x([0-9A-Fa-f]{3,4})(?=[\[(])/gm, (m, pre, hx) => {
+      const rid = parseInt(hx, 16);
+      return refExists(rid)
+        ? pre + '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>'
+        : m;
+    });
+    return h;
+  }
   h = h.replace(/\bcall_resource ([A-Za-z_]\w*) \(0x([0-9A-Fa-f]{1,4})\)/g,
     (m, nm, hx) => 'call_resource <b class="refname">' + nm + '</b> (' + refLink(parseInt(hx, 16)) + ')');
   h = h.replace(/\bcall_resource 0x([0-9A-Fa-f]{1,4})/g,
@@ -759,56 +749,70 @@ function renderLinked(text, resid) {
     (m, hx) => 'Resource ' + refLink(parseInt(hx, 16)));
   return h;
 }
-
-// A plain-language header: what this script reaches out to, before the code.
-function linkedSummary(resid) {
-  let outs = [];
-  try { outs = buildXrefIndex().outbound[resid] || []; } catch (e) { quiet(e); }
-  if (!outs.length) return '';
-  const calls = outs.filter(e => e.kind === 'call');
-  const holds = outs.filter(e => e.kind !== 'call');
-  let h = '<div class="linksum">';
-  if (calls.length) h += '<div><b>Calls</b> ' + calls.map(e => refLink(e.target)).join(', ') + '</div>';
-  if (holds.length) h += '<div><b>Refers to</b> ' + holds.map(e => refLink(e.target)).join(', ') + '</div>';
-  return h + '</div>';
+// What a link in the folded views says on hover, since those have no room
+// for the note the raw listing prints after one.
+function refTitle(rid) {
+  const hex = '0x' + rid.toString(16).toUpperCase().padStart(4, '0');
+  const d = refDescription(rid);
+  return d ? hex + ', ' + d : hex;
 }
 
-function setDecodeView(mode) {
-  window.DECODE_VIEW = mode;
-  document.getElementById('viewCode').classList.toggle('active', mode === 'code');
-  document.getElementById('viewLinked').classList.toggle('active', mode === 'linked');
+/* Which of a script's views is showing: its words ('text'), its code
+   ('code', in whichever listing SCRIPT_FOLD says) or its bytes ('hex'). Set
+   afresh for each resource by renderText -- the words first under Text, the
+   code first everywhere else -- and by the row's buttons after that. */
+window.SCRIPT_PANE = 'code';
+function setScriptPane(p) {
+  window.SCRIPT_PANE = p;
   paintDecodedPane();
 }
 
 function paintDecodedPane() {
   const pane = document.getElementById('textContent');
   const d = window.LAST_DECODED;
-  const sw = document.getElementById('decodeSwitch');
-  /* The listing switch rides with it. It used to be a row inside the script
-     view panel, which is ABOVE the Decoded / Strings / Hex tab bar while the
-     listing it controls is below -- so reading a listing put the control off the
-     top of the screen, and the maintainer could not find it at all. A control
-     belongs with the thing it changes. */
+  /* A script has one row of views, `#listingSwitch`, directly above whichever
+     is showing. Until 22 September 2026 it had three: the Decoded / Strings /
+     Hex bar, a Linked / Raw code switch and the Raw / Folded / Structured
+     switch -- and on the many scripts that open on their words, all three
+     stood over no pane at all, the listing hidden behind a separate button.
+     Linking is always on now, since it only annotates, and a script's
+     readable strings are its Text; so the row is words, code three ways,
+     bytes. Everything else keeps the tab bar. */
   const ls = document.getElementById('listingSwitch');
+  const tabs = document.getElementById('viewTabs');
+  const dlg = document.getElementById('dlgWrap');
   if (!pane || !d) return;
   if (!d.isScript) {
-    if (sw) sw.style.display = 'none';
     if (ls) ls.style.display = 'none';
+    pane.classList.remove('scriptCode');
     pane.textContent = d.text;
     return;
   }
-  if (sw) sw.style.display = '';
+  const hasText = !!(dlg && dlg.innerHTML);
+  let which = window.SCRIPT_PANE;
+  if (which === 'text' && !hasText) which = 'code';
+  const mode = window.SCRIPT_FOLD || 'raw';
   if (ls) ls.style.display = '';
-  // A line ringed by jumpToScriptAt, in either view.
-  const at = window.LISTING_AT && window.LISTING_AT.resid === d.resid ? window.LISTING_AT.at : null;
-  if (window.DECODE_VIEW === 'linked') {
-    const body = renderLinked(d.text, d.resid);
-    pane.innerHTML = linkedSummary(d.resid) + (at === null ? body : listingRing(body, d.text, at));
-  } else if (at !== null) {
-    pane.innerHTML = listingRing(svEsc(d.text), d.text, at);
-  } else {
-    pane.textContent = d.text;
+  if (tabs) tabs.style.display = 'none';
+  for (const [id, on] of [['listText', which === 'text'], ['listRaw', which === 'code' && mode === 'raw'],
+                          ['listFolded', which === 'code' && mode === 'folded'],
+                          ['listStructured', which === 'code' && mode === 'structured'], ['listHex', which === 'hex']]) {
+    const b = document.getElementById(id);
+    if (b) b.classList.toggle('active', on);
   }
+  const t = document.getElementById('listText');
+  if (t) t.style.display = hasText ? '' : 'none';
+  if (dlg) dlg.style.display = which === 'text' ? '' : 'none';
+  pane.style.display = which === 'code' ? '' : 'none';
+  const strs = document.getElementById('paneStrings');
+  if (strs) strs.style.display = 'none';
+  const hexPane = document.getElementById('paneHex');
+  if (hexPane) hexPane.style.display = which === 'hex' ? '' : 'none';
+  pane.classList.add('scriptCode');
+  // A line ringed by jumpToScriptAt.
+  const at = window.LISTING_AT && window.LISTING_AT.resid === d.resid ? window.LISTING_AT.at : null;
+  const body = renderLinked(d.text, d.resid, mode === 'raw' ? null : d.raw);
+  pane.innerHTML = at === null ? body : listingRing(body, d.text, at);
 }
 
 /* ---- The tab tree ------------------------------------------------------

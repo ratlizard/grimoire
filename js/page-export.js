@@ -1168,6 +1168,34 @@ function snippetWorth(run) {
   return score;
 }
 
+/* What a script's tile says under Functions when it has no prose of its own:
+   its class and what its code calls, "AITest: GetSkill, Random, 0x904".
+   The tile used to show the readable runs of its bytes like any text
+   resource, which for a script without strings was "(binary, 153 bytes)",
+   the same on every tile and nothing about the code the tab is for. The
+   dispatch table's names were tried first and are the same on every script
+   of a class ("Skill: Look(), Examine(), Use()"), so they do not tell one
+   tile from the next; what a script calls does. Read off the folded
+   listing, which names the calls, in the order the code first makes them. */
+const OUTLINE_NOT_CALLS = new Set(['if', 'while', 'switch', 'return', 'print', 'function', 'not', 'len']);
+function scriptOutline(resid, roff, rlen) {
+  const raw = ARCHIVE.bytes.slice(roff, roff + rlen);
+  const { data } = smartDecrypt(raw, resid);
+  // A named script's body is not bytecode, and folding it invents calls;
+  // renderText refuses to disassemble one for the same reason.
+  if (dvmNamedScript(data)) return '';
+  const text = dvmFoldRender(ARCHIVE, data, resid) || '';
+  const calls = [];
+  for (const line of text.split('\n')) {
+    if (!/^    [0-9A-F]{4}  /.test(line)) continue;
+    for (const m of line.slice(10).matchAll(/(?:^|[^\w.])([A-Za-z_]\w*|0x[0-9A-Fa-f]{3,4})(?=\()/g))
+      if (!OUTLINE_NOT_CALLS.has(m[1]) && calls.indexOf(m[1]) < 0) calls.push(m[1]);
+  }
+  const cls = dvmClassName(resid);
+  const body = calls.length ? calls.join(', ') : (rlen + ' bytes');
+  return cls ? cls + ': ' + body : body;
+}
+
 function sheetTextSnippet(resid, roff, rlen, limit) {
   limit = limit || 150;
   // A string object picks up the odd opcode byte at either end -- the same
