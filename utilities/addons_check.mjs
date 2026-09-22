@@ -90,7 +90,8 @@ function verdicts(bytes, withTables) {
           const resid = (subn + 1) * 0x100 + n;
           const d = smartDecrypt(__a.slice(roff, roff + rlen), resid);
           out.push([resid, !!d.wasDecrypted, !!d.known, d.allZero ? 'zero' :
-                    d.byStructure ? d.shape : d.exempt ? 'exempt' : 'entropy']);
+                    d.byStructure ? d.shape : d.exempt ? 'exempt' :
+                    d.constantKeystream ? 'constant key' : 'entropy']);
         }
       }
     } finally {
@@ -119,8 +120,8 @@ function scoreHeuristic(label, bytes) {
     const g = byId.get(resid);
     if (!g) continue;
     known++;
-    const w = byWay[g[3]] || (byWay[g[3]] = {n: 0, agree: 0});
-    w.n++;
+    const w = byWay[g[3]] || (byWay[g[3]] = {n: 0, agree: 0, ids: []});
+    w.n++; w.ids.push(resid);
     if (g[1] === wasDec) { agree++; w.agree++; } else wrong.push(resid);
   }
   const pct = known ? (100 * agree / known) : 0;
@@ -129,8 +130,9 @@ function scoreHeuristic(label, bytes) {
   console.log(`      by path: ` + paths.map(k => `${k} ${byWay[k].agree}/${byWay[k].n}`).join(', '));
   return {known, agree, pct, wrong, byWay,
           structure: paths.filter(k => k !== 'zero' && k !== 'entropy')
+            .filter(k => k !== 'constant key')
             .reduce((a, k) => ({n: a.n + byWay[k].n, agree: a.agree + byWay[k].agree}), {n: 0, agree: 0}),
-          entropy: byWay.entropy || {n: 0, agree: 0}};
+          entropy: byWay.entropy || {n: 0, agree: 0, ids: []}};
 }
 
 // ---- the shipped archive ----------------------------------------------------
@@ -154,9 +156,11 @@ if (dataPath && existsSync(dataPath)) {
 //
 // It was 62.0 for a fallback that scored 63.3%, where the shape bank did not
 // exist and everything that was not a script fell to a printable-ratio score
-// that noise beat by construction. The fallback that replaced it is right
-// about the archive to within a resource, so the floor moved with it.
-const FLOOR = 99.0;
+// that noise beat by construction. Its replacement reached 99.9%, and then the
+// symbol-table shape and the constant-keystream rule took the last resource,
+// so there is no margin left to give: the fallback and the tables now agree
+// completely, and anything less than that is a regression by definition.
+const FLOOR = 100.0;
 /* And two assertions the floor does NOT make, which is the whole reason they
    are here. Disabling the image test outright and re-running took the
    agreement from 1,557 of 1,558 to 1,556: the entropy comparison catches the
@@ -185,9 +189,11 @@ const FLOOR = 99.0;
 // resources) or the map test (44) left the count above the floor and the
 // agreement inside it, because an `asnd` body is mostly 0x00 and 0xFF bytes
 // and the entropy comparison covers for it, so a dead test was invisible to
-// all three assertions. The shipped archive is a fixed file, so this count
-// moves only when the code does, which is exactly when it should be read.
-const SHAPE_FLOOR = 1460;
+// all three assertions. The smallest test in the bank is now the symbol table
+// at two resources, so the floor sits two under the measurement. The shipped
+// archive is a fixed file, so this count moves only when the code does, which
+// is exactly when it should be read.
+const SHAPE_FLOOR = 1470;
 if (shipped) {
   if (shipped.pct >= FLOOR)
     ok(`the heuristic agrees with the tables on at least ${FLOOR}% of the shipped archive`,
@@ -203,6 +209,31 @@ if (shipped) {
     fail('the shape bank',
          `${shipped.structure.n - shipped.structure.agree} of ${shipped.structure.n} shape verdicts ` +
          `disagree with the tables, so a test is firing on the wrong candidate`);
+  /* And the one invariant that guards the constant-keystream rule, which
+     nothing else does: disabling that rule outright failed no assertion,
+     because the symbol-table shape happens to catch the one resource it was
+     written for. The invariant is structural rather than statistical -- for a
+     resource id whose keystream is a single repeated byte the two candidates
+     are one histogram relabelled, so the entropy comparison is blind to them
+     by construction, and a verdict reached that way is luck whether or not it
+     is right. No such resource may be decided by entropy. */
+  const constKeystream = resid => {
+    let key = (resid ^ (resid >> 8)) & 0xFFFF;
+    const m = ((resid & 0x3F) << 2) + 1, b = resid >> 6;
+    key = (key * m + b) & 0xFFFF;
+    const first = key & 0xFF;
+    key = (key * m + b) & 0xFFFF;
+    return (key & 0xFF) === first;
+  };
+  const blind = (shipped.entropy.ids || []).filter(constKeystream);
+  if (blind.length === 0)
+    ok('no resource with a constant keystream was decided by byte entropy',
+       `${(shipped.entropy.ids || []).length} decided by entropy, none of them blind`);
+  else
+    fail('the constant-keystream rule',
+         `${blind.length} resource(s) whose keystream is one repeated byte were decided by ` +
+         `the entropy comparison, which cannot see the difference: ` +
+         blind.slice(0, 8).map(r => '0x' + r.toString(16).padStart(4, '0')).join(', '));
   if (shipped.structure.n >= SHAPE_FLOOR)
     ok(`the shape bank still decides at least ${SHAPE_FLOOR} of the shipped archive`,
        `${shipped.structure.n}`);

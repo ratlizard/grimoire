@@ -107,18 +107,30 @@ const jsEvents = resid =>
 //     drefs, so an unreferenced function (0x1828 has one at offset 2) is
 //     invisible to it. A viewer feature gap, not a desync.
 //   decrypt -- delvmod's known_encrypted/known_clear say nothing about these
-//     eighteen and its default leaves them as ciphertext it then fails to
-//     parse; the viewer's entropy heuristic decrypts them and gets valid
-//     bytecode that disassembles cleanly. These are the same 18 resources
-//     CLAUDE.md records the old viewer heuristic disagreeing on -- here the
-//     ORACLE is the short side.
+//     and its fallback leaves them as ciphertext it then fails to parse, while
+//     the page's decides correctly. Here the ORACLE is the short side, and it
+//     was eighteen resources until 22 September 2026.
+//
+//     Fourteen of the eighteen left this list that day, and they left it
+//     because the ORACLE was fixed rather than the page. Their resource ids
+//     have a constant keystream -- the cipher's PRNG starts on a fixed point,
+//     so the encryption is a XOR with one byte -- which makes the two
+//     candidates one byte histogram relabelled, and delvmod's entropy measure
+//     returns the identical number for both. Its `>` test was therefore always
+//     False and it always answered "not encrypted". ratlizard/delvmod decides
+//     those by zero-byte count now; `delv_crosscheck.mjs` still holds the
+//     three tables to delvmod's source, and this is a change beneath them.
+//
+//     The four that remain are the honest residue: their keystreams are not
+//     constant, delvmod's measure simply loses, and the page wins them on
+//     payload shape rather than on any statistic. Fixing those upstream would
+//     mean giving delvmod a shape bank, which is a larger thing than this.
 const KNOWN_CLASSES = [
   ['recovery: ddasm finds an unreferenced function the viewer does not', [
     '1024', '1148', '1174', '1175', '180D', '1828', '1829', '182A', '182D',
     '182E', '183E', '1848', '1858']],
-  ['decrypt: delvmod leaves it encrypted, the heuristic rightly does not', [
-    '1402', '1406', '140A', '140E', '1412', '1416', '141A', '141E', '1422',
-    '1426', '3004', '3006', '300A', '300C', '300E', '3010', '3014', '301C']],
+  ['decrypt: delvmod leaves it encrypted, the fallback rightly does not', [
+    '3006', '300A', '300E', '3010']],
 ];
 const KNOWN = new Map();
 for (const [why, list] of KNOWN_CLASSES)

@@ -738,6 +738,33 @@ function delvLooksLikeImage(b) {
   return delvDcgStream(b, 0) || (b.length > 4 && delvDcgStream(b, 4));
 }
 
+function delvLooksLikeSymbolTable(b) {
+  /* A symbol table pairs a two-byte key with a NUL-terminated name, and the
+     archive holds two: 0xF015, whose keys match the StoreRef field of a prop
+     record, and 0xF014 beside it. The test is that the records tile the
+     resource EXACTLY -- every name printable, every one terminated, the last
+     ending on the final byte -- which no keystream output does.
+
+     0xF014 is why this is here. It is the one resource in the whole archive
+     that the entropy comparison cannot reach, and not by a narrow margin:
+     see delvConstantKeystream below. */
+  if (b.length < 8) return false;
+  let p = 0, records = 0;
+  while (p < b.length) {
+    if (p + 3 > b.length) return false;        // no room for a key and a name
+    p += 2;
+    let q = p;
+    while (q < b.length && b[q] !== 0) {
+      if (b[q] < 0x20 || b[q] > 0x7E) return false;
+      q++;
+    }
+    if (q >= b.length) return false;           // ran off the end unterminated
+    if (q - p < 2) return false;               // a name of one character or none
+    p = q + 1; records++;
+  }
+  return records >= 2;
+}
+
 function delvLooksLikePropList(b) {
   /* parseDelverPropList reads 16-byte records and validates nothing, so the
      test is the one field that is dead in a stored file: the 4 bytes at +10,
@@ -754,6 +781,52 @@ function delvLooksLikePropList(b) {
   return true;
 }
 
+/* Is the keystream for this resource id a single repeated byte?
+ * ---------------------------------------------------------------------------
+ * The PRNG is `key = (key * m + b) mod 65536` and only `key & 0xFF` is used, so
+ * the low byte evolves on its own: `(key * m + b) mod 256` depends on nothing
+ * but `key mod 256`. That orbit can land on a fixed point, and for **120 of the
+ * 65,280 valid resource ids it starts on one** -- so the whole "encryption" is
+ * XOR with one constant byte. They fall in subindexes 19, 47, 63, 83, 111, 127,
+ * 147, 175, 191, 211 and 239, eight or sixteen to a subindex; 23 of them hold a
+ * resource in the shipped archive.
+ *
+ * This matters because a constant XOR is a PERMUTATION of byte values, so the
+ * two candidates have the same byte histogram with the labels moved. Every
+ * statistic that reads only the shape of that histogram is blind to the
+ * difference **by construction** -- Shannon entropy here, and delvmod's own
+ * flatness measure in `decrypt_if_required` for the same reason. Their two
+ * values are not merely close, they are mathematically equal, and what actually
+ * decided the comparison was the order the terms were summed in: of the 23,
+ * eleven came out exactly equal in floating point and twelve differed in the
+ * last bits, which is a coin toss wearing a measurement's clothes.
+ *
+ * What is NOT blind is where the histogram sits. Almost every payload here is
+ * full of 0x00 -- padding, the high halves of words, NUL terminators -- and a
+ * constant XOR by k moves all of that to k. So the candidate with more zero
+ * bytes is the plaintext: right on all 23, and the rule is only ever consulted
+ * for an id whose keystream is provably constant.
+ *
+ * The short periods are fine and were checked rather than assumed: period 2, 4,
+ * 8, 16, 32, 64, 128 and 256 agree on every resource in the archive, because a
+ * period above 1 is several interleaved permutations and no longer preserves
+ * the histogram. The blind spot is period 1 alone.
+ */
+function delvConstantKeystream(resid) {
+  let key = (resid ^ (resid >> 8)) & 0xFFFF;
+  const m = ((resid & 0x3F) << 2) + 1, b = resid >> 6;
+  key = (key * m + b) & 0xFFFF;
+  const first = key & 0xFF;
+  key = (key * m + b) & 0xFFFF;
+  return (key & 0xFF) === first ? first : null;
+}
+
+function delvZeroBytes(data) {
+  let n = 0;
+  for (let i = 0; i < data.length; i++) if (data[i] === 0) n++;
+  return n;
+}
+
 /* The bank, most specific first, so that a four-byte magic outranks a parse
    that only has to be self-consistent. The two script tests are last and are
    reached through `typeof` because js/delv-script.js is not one of the four
@@ -766,6 +839,7 @@ const DELV_SHAPES = [
   ['image', b => delvLooksLikeImage(b)],
   ['map', b => !!parseDelverMap(b)],
   ['prop list', b => delvLooksLikePropList(b)],
+  ['symbol table', b => delvLooksLikeSymbolTable(b)],
   ['named script', b => (typeof dvmNamedScript === 'function') && !!dvmNamedScript(b)],
   ['script', (b, resid) => (typeof dvmPlausibleContainer === 'function') && dvmPlausibleContainer(b, resid)],
 ];
@@ -894,6 +968,16 @@ function smartDecrypt(data, resid) {
      an encrypted resource as stored shows noise, while decrypting a clear one
      rewrites it, and the second is the failure that made 36 of 42 map headers
      unparseable and drew props off the canvas. */
+  /* Before the histogram statistic, the case it cannot see: a constant
+     keystream, where the two candidates are the same histogram relabelled.
+     Zero bytes decide it instead. If the two hold equally many -- which no
+     resource in the shipped archive does -- this says nothing and the
+     comparison below runs anyway, blind but no worse than before. */
+  if (delvConstantKeystream(resid) !== null) {
+    const rawZeros = delvZeroBytes(data), decZeros = delvZeroBytes(decrypted);
+    if (decZeros > rawZeros) return { data: decrypted, wasDecrypted: true, rawEntropy: 0, decEntropy: 0, constantKeystream: true };
+    if (rawZeros > decZeros) return { data: data, wasDecrypted: false, rawEntropy: 0, decEntropy: 0, constantKeystream: true };
+  }
   const rawEntropy = byteEntropy(data), decEntropy = byteEntropy(decrypted);
   if (decEntropy < rawEntropy) {
     return { data: decrypted, wasDecrypted: true, rawEntropy, decEntropy };
