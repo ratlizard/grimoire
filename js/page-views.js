@@ -1066,7 +1066,11 @@ function renderUsage(resid, subn) {
   try { ins = buildXrefIndex().inbound[resid] || []; } catch (e) { quiet(e); }
   if (ins.length) {
     const shown = ins.slice(0, 24);
-    rows.push(['Referenced by', shown.map(e => svChip(e.from, (refDescription(e.from) || e.via) + (e.count > 1 ? ' ×' + e.count : ''))),
+    // A reference made by code opens that script ringed at the line that makes
+    // it; one held in an array or a table opens the script, since a listing
+    // prints an array as one line with no offset to ring.
+    rows.push(['Referenced by', shown.map(e => svChip(e.from, (refDescription(e.from) || e.via) + (e.count > 1 ? ' ×' + e.count : ''),
+      e.via === 'code' && Number.isFinite(e.at) ? 'jumpToScriptAt(' + e.from + ',' + e.at + ')' : undefined)),
                ins.length > shown.length ? 'and ' + (ins.length - shown.length) + ' more' : '']);
   }
   return rows.map(([t, c, n]) => partsStrip(t, c, n)).join('');

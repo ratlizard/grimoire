@@ -59,7 +59,9 @@ function buildXrefIndex() {
         const list = Object.keys(seen).map(k => seen[k]);
         if (list.length) outbound[resid] = list;
         for (const e of list) {
-          (inbound[e.target] = inbound[e.target] || []).push({ from: resid, via: e.via, kind: e.kind, detail: e.detail, count: e.count });
+          // `at` is where in `from` the first of them is, so Referenced by can
+          // open that script ringed at the line rather than at its head.
+          (inbound[e.target] = inbound[e.target] || []).push({ from: resid, via: e.via, kind: e.kind, detail: e.detail, count: e.count, at: e.first });
         }
       }
     }
@@ -227,14 +229,16 @@ function resourceKindName(resid) {
   return RESOURCE_KIND[subn] || (CATEGORY_NAMES[subn] ? CATEGORY_NAMES[subn].toLowerCase() : '');
 }
 // A resource named by what it is called, with what it is under that.
-function svChip(resid, note) {
+// `js` replaces the plain jump, for a chip that should land somewhere in the
+// resource rather than at its head (renderUsage's Referenced by).
+function svChip(resid, note, js) {
   const lbl = labelFor(resid);
   let what = '';
   try { what = refDescription(resid) || ''; } catch (e) { what = ''; }
   const hex = '0x' + resid.toString(16).toUpperCase().padStart(4, '0');
   const kind = resourceKindName(resid);
   const main = lbl || (what && what !== hex ? what : hex);
-  return relChip({ resid, main, sub: kind && kind !== main.toLowerCase() ? kind : '', note, title: trailForResid(resid) });
+  return relChip({ resid, main, sub: kind && kind !== main.toLowerCase() ? kind : '', note, title: trailForResid(resid), js });
 }
 
 /* The head of a script's page: what it is, in two lines above the one row of
@@ -577,10 +581,20 @@ function runSearch() {
     try { things = namedThingsMatching(re); } catch (e) { things = ''; }
     const hits = [];
     for (const entry of index) {
+      // Each hit keeps the offset of its line, read the way listingLineFor
+      // reads the raw listing -- the object's base from its header, the line's
+      // own from its gutter -- so the hit can open the script ringed there.
       const lines = entry.text.split('\n');
       const matched = [];
+      let base = -1;
       for (const ln of lines) {
-        if (re.test(ln)) { matched.push(ln.trim()); if (matched.length >= 3) break; }
+        const h = /^(?:function )?obj_([0-9A-F]{4})\b/.exec(ln);
+        if (h) base = parseInt(h[1], 16);
+        const g = base >= 0 && /^  ([0-9A-F]{4})  /.exec(ln);
+        if (re.test(ln)) {
+          matched.push({ text: ln.trim(), at: g ? base + parseInt(g[1], 16) : null });
+          if (matched.length >= 3) break;
+        }
       }
       if (matched.length) hits.push({ resid: entry.resid, subn: entry.subn, matched, count: matched.length });
     }
@@ -595,7 +609,11 @@ function runSearch() {
       const purpose = SUBINDEX_PURPOSE[hit.subn];
       h += '<div class="sr-item">' + svChip(hit.resid, purpose ? purpose[0] : '') +
            '<div class="sr-lines">' +
-           hit.matched.map(l => '<div>' + svEsc(l.length > 160 ? l.slice(0, 160) + '\u2026' : l) + '</div>').join('') +
+           hit.matched.map(m => {
+             const l = svEsc(m.text.length > 160 ? m.text.slice(0, 160) + '\u2026' : m.text);
+             return m.at === null ? '<div>' + l + '</div>'
+               : '<div><a class="srLine" onclick="jumpToScriptAt(' + hit.resid + ',' + m.at + ')">' + l + '</a></div>';
+           }).join('') +
            '</div></div>';
     }
     if (hits.length > 60) h += '<div class="sv-note">' + (hits.length - 60) + ' more not shown.</div>';
@@ -810,8 +828,28 @@ function paintDecodedPane() {
   pane.classList.add('scriptCode');
   // A line ringed by jumpToScriptAt.
   const at = window.LISTING_AT && window.LISTING_AT.resid === d.resid ? window.LISTING_AT.at : null;
-  const body = renderLinked(d.text, d.resid, mode === 'raw' ? null : d.raw);
+  const body = listingJumps(renderLinked(d.text, d.resid, mode === 'raw' ? null : d.raw), mode === 'raw');
   pane.innerHTML = at === null ? body : listingRing(body, d.text, at);
+}
+
+/* A branch in a listing is a link to where it goes. In the structured and
+   folded listings a target is a label, `goto L0042` or a switch's
+   `-> L0015, L0019`, and the label's own line (`L0042:`) is left alone; in the
+   raw one it is `then -> 0x0094`. Both are offsets into the resource, which is
+   what the ring counts in (listingLineFor), so a tap rings the statement at
+   the target and scrolls to it without leaving the page. */
+function listingJumps(html, raw) {
+  const go = hx => '<a class="reflink" onclick="ringListingAt(' + parseInt(hx, 16) + ')">';
+  if (raw) return html.replace(/(then -&gt; )0x([0-9A-F]{4})\b/g, (m, pre, hx) => pre + go(hx) + '0x' + hx + '</a>');
+  return html.replace(/\bL([0-9A-F]{4})\b(?!:)/g, (m, hx) => go(hx) + m + '</a>');
+}
+function ringListingAt(at) {
+  const d = window.LAST_DECODED;
+  if (!d) return;
+  window.LISTING_AT = { resid: d.resid, at };
+  paintDecodedPane();
+  const hit = document.getElementById('listingHit');
+  if (hit && hit.scrollIntoView) hit.scrollIntoView({ block: 'center' });
 }
 
 /* ---- The tab tree ------------------------------------------------------

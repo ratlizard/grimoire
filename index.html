@@ -656,6 +656,9 @@ span.navChip { color:#fff; }
 .sr-lines { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:0.6875rem;
   line-height:1.5; color:#fff; margin-top:5px; padding-left:4px;
   border-left:2px solid #3a3527; padding-left:8px; white-space:pre-wrap; word-break:break-word; }
+/* A hit's line is the way to it: it opens the script ringed there. */
+.sr-lines a.srLine { color:var(--gold); cursor:pointer; text-decoration:none; }
+.sr-lines a.srLine:hover { text-decoration:underline; }
 /* Decoded / Strings / Hex used to be one scroll of concatenated text with
    --- HEADERS --- between them, which meant scrolling past a 4KB hex dump to
    reach the strings. Three panes, one visible at a time. */
@@ -2154,7 +2157,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.135.0';
+const GRIMOIRE_VERSION = '1.136.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

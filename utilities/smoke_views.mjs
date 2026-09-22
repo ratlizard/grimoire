@@ -640,6 +640,30 @@ try {
     fail('script page', 'what the script belongs to and names is not below the code');
   if (/Rules on/.test(ctx.document.getElementById('artUsage').innerHTML))
     fail('script page', 'a script\'s usage rows are drawn above the code as well');
+  /* A reference lands on its line (23 September 2026): Referenced by opens
+     the referring script ringed where it makes the reference, a label in the
+     listing rings its statement, and a search hit rings the line it matched. */
+  const hitLine = () => { const m = /class="listingHit">([^\n]*)/.exec(ctx.document.getElementById('textContent').innerHTML); return m ? m[1] : ''; };
+  ctx.jumpToResource(0x904);
+  const refJs = /jumpToScriptAt\(2439,(\d+)\)/.exec(ctx.document.getElementById('scriptRefs').innerHTML);
+  if (!refJs) fail('script page', 'Referenced by 0x987 on 0x904 does not open the line that makes the call');
+  else {
+    ctx.jumpToScriptAt(0x987, +refJs[1]);
+    if (!/0x904/.test(hitLine())) fail('script page', 'Referenced by rings "' + hitLine().slice(0, 50) + '", not the call to 0x904');
+  }
+  if (!/ringListingAt\(66\)[^>]*>L0042</.test(ctx.document.getElementById('textContent').innerHTML))
+    fail('script page', 'goto L0042 in 0x987 is not a link to its label');
+  ctx.ringListingAt(0x42);
+  if (!/^    0042  /.test(hitLine())) fail('script page', 'following L0042 rings "' + hitLine().slice(0, 50) + '"');
+  REGISTRY.get('searchBox').value = 'EquipmentIterator';
+  ctx.runSearch();
+  await new Promise(r => setTimeout(r, 300));     // runSearch draws on a timer
+  const sres = /onclick="jumpToScriptAt\((\d+),(\d+)\)"[^>]*>([^<]*EquipmentIterator)/.exec(REGISTRY.get('searchResults') ? REGISTRY.get('searchResults').innerHTML : '');
+  if (sres) {
+    ctx.jumpToScriptAt(+sres[1], +sres[2]);
+    if (!/EquipmentIterator/.test(hitLine())) fail('script page', 'a search hit rings "' + hitLine().slice(0, 50) + '", not its line');
+  } else fail('script page', 'a search hit for EquipmentIterator is not a link to its line');
+
   /* A gallery read for its code is a list of rows: name, id, and what the
      code calls. The row keeps .lbl and .resid, which the filter reads. */
   ctx.showCategory('8');
