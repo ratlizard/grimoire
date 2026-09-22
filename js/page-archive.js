@@ -840,6 +840,8 @@ function onCategoryChangeImpl() {
   window.DETAIL_VIEW = null;
   const out = document.getElementById('output');
   const rawval = document.getElementById('categorySelect').value;
+  // Keyed on the value being opened: CUR_SUBN is still the one being left.
+  if (rawval !== 'WORLD') leaveAtlas();
   // Changing category always drops back to the gallery -- previously a
   // category change while a detail view was open just re-rendered a
   // different resource inside that same detail view instead of returning.

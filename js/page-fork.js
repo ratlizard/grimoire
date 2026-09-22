@@ -1532,6 +1532,19 @@ function stopAllViewActivity() {
   if (audio && !audio.paused) audio.pause();
 }
 
+/* The sheet comes back and the atlas panel goes. Called from setModeImpl and,
+   since a numbered gallery never passes through setMode (onCategoryChangeImpl
+   draws its contact sheet directly), from the category change as well: with
+   only the first, going from the World to any gallery of the archive --
+   Functions, Portraits, Music -- lit the new tab and left the world on
+   screen, with the gallery drawn out of sight under it (22 September 2026). */
+function leaveAtlas() {
+  const sheet = document.getElementById('tabSheet');
+  if (sheet) sheet.style.display = '';
+  const ap = document.getElementById('atlasPanel');
+  if (ap) ap.style.display = 'none';
+}
+
 function setModeImpl(m) {
   stopAllViewActivity();
   /* Give the panel back before anything decides what to put in it.
@@ -1543,12 +1556,7 @@ function setModeImpl(m) {
      vanishing from Entities > Regions after a visit to the World tab. First,
      then whatever this view wants. */
   // Coming back from the atlas: the sheet returns and the atlas panel goes.
-  if (window.CUR_SUBN !== 'WORLD') {
-    const sheet = document.getElementById('tabSheet');
-    if (sheet) sheet.style.display = '';
-    const ap = document.getElementById('atlasPanel');
-    if (ap) ap.style.display = 'none';
-  }
+  if (window.CUR_SUBN !== 'WORLD') leaveAtlas();
   window.DETAIL_VIEW = null;   // a detail view is what we are leaving
   if (currentMode === 'sheet' && m === 'single') lastSheetScrollY = window.scrollY;
   // A detail view opens at the top of the page, whichever way it was
