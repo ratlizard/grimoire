@@ -264,22 +264,7 @@ function buildScriptView(o) {
        (isScript ? '<div><b>Contains</b>' + svEsc(dvmShapeSummary(resData, resid)) + '</div>' : '') +
        '</div>';
 
-  // 2. WHICH LISTING ---------------------------------------------------------
-  // Three readings of one disassembly. Raw is one op a line with its offset and
-  // is what every check in utilities/ reads. Folded collapses the expression
-  // tree into calls and infix operators, names the functions from the dispatch
-  // table and labels every branch target. Structured also turns the jumps into
-  // blocks where a block can be proven, and leaves them as gotos where one
-  // cannot.
-  if (isScript) {
-    const mode = window.SCRIPT_FOLD || 'raw';
-    const btn = (m, t) => '<button class="sv-mode' + (mode === m ? ' on' : '') +
-                          '" onclick="setScriptFold(' + (m === 'raw' ? 'false' : "'" + m + "'") + ')">' + t + '</button>';
-    h += '<div class="sv-modes">Listing' + btn('raw', 'Raw') + btn('folded', 'Folded') +
-         btn('structured', 'Structured') + '</div>';
-  }
-
-  // 3. HOW IT WAS READ ------------------------------------------------------
+  // 2. HOW IT WAS READ ------------------------------------------------------
   if (isScript) {
     h += '<details class="sv"><summary>How this was read</summary><ol class="sv-steps">' +
       '<li><b>Located.</b> The master index at file offset 0x88 gives one entry per subindex; entry ' +
@@ -298,7 +283,7 @@ function buildScriptView(o) {
       '</ol></details>';
   }
 
-  // 4. WHERE IT IS USED -----------------------------------------------------
+  // 3. WHERE IT IS USED -----------------------------------------------------
   if (isScript) {
     let idx = null;
     try { idx = buildXrefIndex(); } catch (e) { quiet(e); }
@@ -799,13 +784,21 @@ function paintDecodedPane() {
   const pane = document.getElementById('textContent');
   const d = window.LAST_DECODED;
   const sw = document.getElementById('decodeSwitch');
+  /* The listing switch rides with it. It used to be a row inside the script
+     view panel, which is ABOVE the Decoded / Strings / Hex tab bar while the
+     listing it controls is below -- so reading a listing put the control off the
+     top of the screen, and the maintainer could not find it at all. A control
+     belongs with the thing it changes. */
+  const ls = document.getElementById('listingSwitch');
   if (!pane || !d) return;
   if (!d.isScript) {
     if (sw) sw.style.display = 'none';
+    if (ls) ls.style.display = 'none';
     pane.textContent = d.text;
     return;
   }
   if (sw) sw.style.display = '';
+  if (ls) ls.style.display = '';
   // A line ringed by jumpToScriptAt, in either view.
   const at = window.LISTING_AT && window.LISTING_AT.resid === d.resid ? window.LISTING_AT.at : null;
   if (window.DECODE_VIEW === 'linked') {

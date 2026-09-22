@@ -479,50 +479,82 @@ try {
   ctx.location.hash = '';
 } catch (e) { fail('deep link', e); }
 
-/* The listing toggle: is it in the DOM, and does each state change the text?
+/* The listing toggle: is it where the listing is, and does each state change
+ * the text?
  *
  * This exists because the maintainer opened the site after the three-state
  * toggle shipped and could not find it, and NOTHING in the suite could say
- * whether it was there. `css_check` had proved its two classes were styled,
- * `verify_viewer` had proved `setScriptFold` was a declared function, the fold
- * and structure checks had proved both renderers correct over the whole
- * archive -- and not one of them touched the row of buttons that reaches them.
- * A feature whose every part is checked and whose way in is not is a feature
- * nobody can use.
+ * whether it was there. `css_check` had proved its classes were styled,
+ * `verify_viewer` that `setScriptFold` was a declared function, and the fold and
+ * structure checks that both renderers were right over the whole archive -- and
+ * not one of them touched the row of buttons that reaches them. A feature whose
+ * every part is checked and whose way in is not is a feature nobody can use.
  *
- * So: the buttons must be in the panel, each state must be selectable, and each
- * must produce DIFFERENT text from the other two. That last clause is the one
- * with teeth -- three buttons that all render the raw listing would pass
+ * It was there, and it was in the wrong place: a row inside the script view
+ * panel, which sits ABOVE the Decoded / Strings / Hex tab bar while the listing
+ * it controls is below it. So this asserts WHERE as well as whether -- the row
+ * has to be `#listingSwitch`, which is the element between the tab bar and the
+ * pane, beside the `Show as` switch that was already there. Checking only that
+ * the buttons exist somewhere is what let the first version ship unfindable.
+ *
+ * And each state must produce DIFFERENT text from the other two, which is the
+ * clause with teeth: three buttons that all render the raw listing pass
  * everything else here.
  */
 try {
-  ctx.showCategory('25');                        // Skill & Spell Descriptions
+  ctx.showCategory('0');                         // Global Symbols & Scripts
   const first = (ctx.CUR_RESIDS || [])[0];
   if (!first) fail('listing toggle', 'no resource in a script category to open');
   else {
-    ctx.openResource(first[0]);
-    const sv = ctx.document.getElementById('scriptView');
-    const html = (sv && sv.innerHTML) || '';
-    if (!/sv-modes/.test(html)) fail('listing toggle', 'the Listing row is not in the script view');
-    for (const label of ['>Raw<', '>Folded<', '>Structured<'])
-      if (!html.includes(label)) fail('listing toggle', 'no ' + label.slice(1, -1) + ' button');
-    if (sv && sv.style.display === 'none') fail('listing toggle', 'the script view panel is hidden');
+    /* Hide it first and require opening a script to reveal it. The markup says
+       `display:none` but the DOM stub does not parse an inline style attribute,
+       so a fresh element reads as `''` and a test for `'none'` can never fire --
+       which it did not: deleting the line in paintDecodedPane that shows the
+       switch failed nothing at all. Setting the sentinel makes the assertion
+       about what the page DOES rather than about what it started as. */
+    const sw = ctx.document.getElementById('listingSwitch');
+    if (!sw) fail('listing toggle', 'there is no #listingSwitch in the markup');
+    else {
+      sw.style.display = 'none';
+      ctx.openResource(first[0]);
+      if (sw.style.display === 'none')
+        fail('listing toggle', 'opening a script does not reveal the listing switch');
+      for (const id of ['listRaw', 'listFolded', 'listStructured'])
+        if (!ctx.document.getElementById(id)) fail('listing toggle', 'no #' + id + ' button');
 
-    const texts = {};
-    for (const mode of [false, 'folded', 'structured']) {
-      ctx.setScriptFold(mode);
-      texts[String(mode)] = ((ctx.LAST_DECODED && ctx.LAST_DECODED.text) || '');
-      const now = ctx.document.getElementById('scriptView').innerHTML || '';
-      const want = mode === false ? 'Raw' : mode === 'folded' ? 'Folded' : 'Structured';
-      if (!new RegExp('sv-mode on"[^>]*>' + want + '<').test(now))
-        fail('listing toggle', want + ' is not marked as the one in hand after setScriptFold');
+      const texts = {};
+      for (const mode of [false, 'folded', 'structured']) {
+        ctx.setScriptFold(mode);
+        texts[String(mode)] = ((ctx.LAST_DECODED && ctx.LAST_DECODED.text) || '');
+        const want = mode === false ? 'listRaw' : mode === 'folded' ? 'listFolded' : 'listStructured';
+        for (const id of ['listRaw', 'listFolded', 'listStructured']) {
+          const b = ctx.document.getElementById(id);
+          const on = b && b.className && /\bactive\b/.test(b.className);
+          if ((id === want) !== !!on)
+            fail('listing toggle', id + ' active is ' + !!on + ' with ' + String(mode) + ' in hand');
+        }
+      }
+      ctx.setScriptFold(false);
+      const [raw, folded, structured] = [texts['false'], texts['folded'], texts['structured']];
+      if (!raw.trim()) fail('listing toggle', 'the raw listing came out empty');
+      if (raw === folded) fail('listing toggle', 'the folded listing is identical to the raw one');
+      if (folded === structured) fail('listing toggle', 'the structured listing is identical to the folded one');
+      if (!folded.trim() || !structured.trim()) fail('listing toggle', 'a listing came out empty');
+
+      /* And it must be out of sight for a resource that is not a script, or it
+         is a control over nothing. Effective visibility, not its own `display`:
+         a tile sheet hides the whole `#textPreview` around it, which is how the
+         `Show as` switch beside it has always gone away, and asserting the inner
+         element's own style reported a fault that was not one. */
+      ctx.showCategory('141');
+      const tile = (ctx.CUR_RESIDS || [])[0];
+      if (tile) {
+        ctx.openResource(tile[0]);
+        const s2 = ctx.document.getElementById('listingSwitch');
+        const host = ctx.document.getElementById('textPreview');
+        const hidden = (s2 && s2.style.display === 'none') || (host && host.style.display === 'none');
+        if (!hidden) fail('listing toggle', 'the listing switch is still on screen for a tile sheet');
+      }
     }
-    ctx.setScriptFold(false);
-    const [raw, folded, structured] = [texts['false'], texts['folded'], texts['structured']];
-    if (!raw.trim()) fail('listing toggle', 'the raw listing came out empty');
-    if (raw === folded) fail('listing toggle', 'the folded listing is identical to the raw one');
-    if (folded === structured) fail('listing toggle', 'the structured listing is identical to the folded one');
-    if (/^\s*$/.test(folded) || /^\s*$/.test(structured))
-      fail('listing toggle', 'a listing came out empty');
   }
 } catch (e) { fail('listing toggle', e); }

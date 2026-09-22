@@ -1524,6 +1524,11 @@ function renderTableInspector(resid) {
 window.SCRIPT_FOLD = false;          // 'folded' or 'structured' when set
 function setScriptFold(on) {
   window.SCRIPT_FOLD = on === true ? 'folded' : (on || false);
+  const mode = window.SCRIPT_FOLD || 'raw';
+  for (const [id, m] of [['listRaw', 'raw'], ['listFolded', 'folded'], ['listStructured', 'structured']]) {
+    const b = document.getElementById(id);
+    if (b) b.classList.toggle('active', mode === m);
+  }
   try { renderText(); } catch (e) { quiet(e); }
 }
 
