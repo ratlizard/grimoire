@@ -620,19 +620,42 @@ function dvmPlausibleContainer(b, resid) {
   if (!b || b.length < 4) return false;
   const v = b[0];
   if (v === 0x81) return b[1] < 0x10 && b[2] < 0x30;
-  if ((v & 0xF0) === 0x90 || (v & 0xF0) === 0xA0) return true;
+  /* An array or table head used to be accepted on the nibble alone, and that
+     one line was every wrong verdict the structure path reached: 0x90-0xAF is
+     32 of the 256 possible first bytes, so one resource in eight of ANY
+     keystream output was called a container, and 78 clear graphics resources
+     were decrypted because their noise happened to start there. The same
+     evidence the dispatch-table arm below demands is available here -- a sane
+     entry count and at least one reference back into this resource -- and
+     asking for it takes the false hits over the whole archive to nil while
+     costing two real plaintexts, which the entropy comparison then settles. */
+  if ((v & 0xF0) === 0x90 || (v & 0xF0) === 0xA0) {
+    const stride = (v & 0xF0) === 0xA0 ? 6 : 4;
+    const count = u16be(b, 0) & 0x0FFF;
+    if (count === 0 || 2 + count * stride > b.length + stride) return false;
+    return dvmSelfRefs(b, resid, 0, stride, count) > 0;
+  }
   const toff = u16be(b, 0);
   if (toff < 2 || toff + 2 > b.length) return false;
   const count = u16be(b, toff) & 0x0FFF;
   if (count === 0 || toff + 2 + count * 6 > b.length + 6) return false;
+  return dvmSelfRefs(b, resid, toff, 6, count) > 0;
+}
+
+// How many of the `count` entries at `off` are drefs into this same resource?
+// A dref has the top bit set, carries its resource id in bits 16..30 and its
+// offset in the low word; one that names this resource and lands inside it is
+// the evidence that the bytes really are a container and not something that
+// merely begins with the right nibble.
+function dvmSelfRefs(b, resid, off, stride, count) {
   let hits = 0;
-  for (let i = 0, p = toff + 2; i < count && p + 6 <= b.length; i++, p += 6) {
+  for (let i = 0, p = off + 2; i < count && p + stride <= b.length; i++, p += stride) {
     const value = u32be(b, p);
     if (!(value & 0x80000000)) continue;
     if (((value & 0x7FFF0000) >>> 16) !== resid) continue;
     if ((value & 0xFFFF) < b.length) hits++;
   }
-  return hits > 0;
+  return hits;
 }
 
 function dvmDiscover(b, resid) {

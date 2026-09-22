@@ -1527,7 +1527,7 @@ function renderText() {
   cancelResourceEdit();
   try {
     const resDataRaw = ARCHIVE.bytes.slice(roff, roff+rlen);
-    const { data: resData, wasDecrypted, rawScore, decScore, allZero } = smartDecrypt(resDataRaw, resid);
+    const { data: resData, wasDecrypted, rawEntropy, decEntropy, shape, allZero, known } = smartDecrypt(resDataRaw, resid);
 
     document.getElementById('textPreview').style.display = 'block';
     document.getElementById('zoomControls').style.display = 'none';
@@ -1540,8 +1540,12 @@ function renderText() {
     const lbl = labelFor(resid);
     document.getElementById('textLabel').textContent =
       (wasDecrypted ? 'decrypted' : 'read as stored') +
-      (rawScore || decScore ? '  (plaintext score ' + Math.max(rawScore, decScore).toFixed(2) +
-                              ' vs ' + Math.min(rawScore, decScore).toFixed(2) + ')' : '  (decided by structure)');
+      (known ? "  (from delvmod's tables)"
+             : shape ? '  (by its shape: ' + shape + ')'
+             : rawEntropy || decEntropy
+               ? '  (entropy ' + Math.min(rawEntropy, decEntropy).toFixed(2) +
+                 ' against ' + Math.max(rawEntropy, decEntropy).toFixed(2) + ')'
+               : '  (all zero bytes)');
     updateUsagePanel(resid, window.CUR_SUBN);
 
     // Three separate views rather than one concatenated blob.

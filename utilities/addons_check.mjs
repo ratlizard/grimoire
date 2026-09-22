@@ -8,8 +8,9 @@
 //
 // WHY. js/delv-archive.js decides whether a resource is encrypted from three
 // tables -- DELV_ENCRYPTED_SUBN, DELV_CLEAR_SUBN, DELV_CLEAR_RESID -- and
-// falls back to a heuristic (all-zero detection, then container structure,
-// then printable-ratio-minus-entropy) for anything they do not cover. The
+// falls back to a heuristic (all-zero detection, then the DELV_SHAPES bank of
+// payload-shape tests, then a comparison of byte entropy) for anything they do
+// not cover. The
 // tables cover the shipped archive completely, so in normal use the fallback
 // never runs, and nothing exercised it. The comment above smartDecrypt records
 // what guessing wrong cost the first time; none of that was under a check.
@@ -89,7 +90,7 @@ function verdicts(bytes, withTables) {
           const resid = (subn + 1) * 0x100 + n;
           const d = smartDecrypt(__a.slice(roff, roff + rlen), resid);
           out.push([resid, !!d.wasDecrypted, !!d.known, d.allZero ? 'zero' :
-                    d.byStructure ? 'structure' : d.exempt ? 'exempt' : 'score']);
+                    d.byStructure ? d.shape : d.exempt ? 'exempt' : 'entropy']);
         }
       }
     } finally {
@@ -106,25 +107,30 @@ function scoreHeuristic(label, bytes) {
   const guess = verdicts(bytes, false);
   if (!truth.length) return null;
   const byId = new Map(guess.map(g => [g[0], g]));
-  let known = 0, agree = 0, ways = {zero: 0, structure: 0, score: 0};
-  const byWay = {zero: {n: 0, agree: 0}, structure: {n: 0, agree: 0}, score: {n: 0, agree: 0}};
+  let known = 0, agree = 0;
+  // One row per path the fallback took: the two all-zero certainties, each
+  // shape in DELV_SHAPES that decided anything, and the entropy comparison.
+  // The names come from the code rather than being listed here, so a shape
+  // added to the bank appears in this table without the check being edited.
+  const byWay = {};
   const wrong = [];
   for (const [resid, wasDec, isKnown] of truth) {
     if (!isKnown) continue;
     const g = byId.get(resid);
     if (!g) continue;
     known++;
-    ways[g[3]] = (ways[g[3]] || 0) + 1;
     const w = byWay[g[3]] || (byWay[g[3]] = {n: 0, agree: 0});
     w.n++;
     if (g[1] === wasDec) { agree++; w.agree++; } else wrong.push(resid);
   }
   const pct = known ? (100 * agree / known) : 0;
-  console.log(`  ${label}: ${agree}/${known} agree (${pct.toFixed(1)}%)  ` +
-    `[all-zero ${ways.zero}, structure ${ways.structure}, score ${ways.score}]`);
-  console.log(`      by path: ` + ['zero','structure','score'].map(k =>
-    `${k} ${byWay[k].agree}/${byWay[k].n}`).join(', '));
-  return {known, agree, pct, wrong, byWay};
+  const paths = Object.keys(byWay).sort((a, b) => byWay[b].n - byWay[a].n);
+  console.log(`  ${label}: ${agree}/${known} agree (${pct.toFixed(1)}%)`);
+  console.log(`      by path: ` + paths.map(k => `${k} ${byWay[k].agree}/${byWay[k].n}`).join(', '));
+  return {known, agree, pct, wrong, byWay,
+          structure: paths.filter(k => k !== 'zero' && k !== 'entropy')
+            .reduce((a, k) => ({n: a.n + byWay[k].n, agree: a.agree + byWay[k].agree}), {n: 0, agree: 0}),
+          entropy: byWay.entropy || {n: 0, agree: 0}};
 }
 
 // ---- the shipped archive ----------------------------------------------------
@@ -136,18 +142,52 @@ if (dataPath && existsSync(dataPath)) {
   console.log('  (no shipped archive given; the labelled-corpus half is skipped)');
 }
 
-// The recorded floor, set from what the heuristic actually scores today:
-// 62.5% over 1,558 labelled resources. It is not a target, it is a baseline.
-// What matters is that it does not get WORSE -- a change to the scoring, the
-// container test or the named-script test that drops this number has made
-// modded archives read worse, silently, and nothing else would say so.
+// The recorded floor. It is not a target, it is a baseline: what matters is
+// that the agreement does not get WORSE, because a change to a shape test, to
+// the container test or to the entropy comparison that drops this number has
+// made modded archives read worse, silently, and nothing else would say so.
 //
-// The breakdown is the interesting part and is printed on every run. As of
-// 3 September 2026: the structure test gets 840 of 920 right (91%), and the
-// score test -- printable ratio minus entropy -- gets 130 of 635 (20%), which
-// is worse than deciding at random. Anything that widens the structure test's
-// reach at the score test's expense should move this number up a lot.
-const FLOOR = 62.0;
+// No figure is written into this comment, because every one that was went
+// stale: the breakdown is printed on every run and that printed line is the
+// record. The floor sits a little under the measured agreement, which is why
+// it is a round number and not the measurement.
+//
+// It was 62.0 for a fallback that scored 63.3%, where the shape bank did not
+// exist and everything that was not a script fell to a printable-ratio score
+// that noise beat by construction. The fallback that replaced it is right
+// about the archive to within a resource, so the floor moved with it.
+const FLOOR = 99.0;
+/* And two assertions the floor does NOT make, which is the whole reason they
+   are here. Disabling the image test outright and re-running took the
+   agreement from 1,557 of 1,558 to 1,556: the entropy comparison catches the
+   graphics too, well enough that the floor above cannot see a shape test die.
+   A percentage of the total is the wrong instrument for the bank.
+
+   So: every verdict the bank reaches must be RIGHT -- there is no floor on
+   that one, because a shape test firing on the wrong candidate is a defect and
+   not a degradation, and it was measured at nil over the whole archive and its
+   decrypted twins. And the bank must go on deciding about as much as it does
+   today, which is what catches a test that has stopped firing at all.
+
+   All three were held to a deliberate break before being trusted: disabling
+   the image test fails the reach assertion, disabling the smallest test in the
+   bank fails it too, inverting the image test so that it fires on the noise
+   fails the verdict assertion with 379 wrong, and inverting the entropy
+   comparison fails the floor at 95.4%. One control turned out not to
+   be one -- a shape test rewritten to accept ANYTHING fires on both candidates,
+   which the `rawOk === decOk` rule discards, so it reads exactly like a test
+   that was deleted. A false positive only shows when a test prefers the wrong
+   candidate, which is what the second assertion is about. */
+// The floor is within the SMALLEST shape's count of the measurement, not a
+// round number under it, and that is the point: a bank of seven tests where
+// one contributes eleven resources cannot be guarded by a loose figure. At
+// 1,400 -- a comfortable margin below -- disabling the sound test (46
+// resources) or the map test (44) left the count above the floor and the
+// agreement inside it, because an `asnd` body is mostly 0x00 and 0xFF bytes
+// and the entropy comparison covers for it, so a dead test was invisible to
+// all three assertions. The shipped archive is a fixed file, so this count
+// moves only when the code does, which is exactly when it should be read.
+const SHAPE_FLOOR = 1460;
 if (shipped) {
   if (shipped.pct >= FLOOR)
     ok(`the heuristic agrees with the tables on at least ${FLOOR}% of the shipped archive`,
@@ -156,6 +196,20 @@ if (shipped) {
     fail('the heuristic against the tables',
          `${shipped.pct.toFixed(1)}% agreement, below the recorded ${FLOOR}% floor; ` +
          `first disagreements: ${shipped.wrong.slice(0, 8).map(r => '0x' + r.toString(16).padStart(4, '0')).join(', ')}`);
+  if (shipped.structure.agree === shipped.structure.n)
+    ok('every verdict the shape bank reached is the one the tables give',
+       `${shipped.structure.n} of ${shipped.known} resources decided by shape`);
+  else
+    fail('the shape bank',
+         `${shipped.structure.n - shipped.structure.agree} of ${shipped.structure.n} shape verdicts ` +
+         `disagree with the tables, so a test is firing on the wrong candidate`);
+  if (shipped.structure.n >= SHAPE_FLOOR)
+    ok(`the shape bank still decides at least ${SHAPE_FLOOR} of the shipped archive`,
+       `${shipped.structure.n}`);
+  else
+    fail('the shape bank\'s reach',
+         `it decided ${shipped.structure.n} resources, under the recorded ${SHAPE_FLOOR}; ` +
+         `a test has stopped firing, and the entropy comparison is covering for it`);
 }
 
 // ---- oracle 2: the add-ons --------------------------------------------------
@@ -261,7 +315,7 @@ if (files.length) {
 console.log(failures
   ? `\nFAIL — ${failures} check(s) failed`
   : `\nheuristic ${shipped ? shipped.pct.toFixed(1) + '% vs the tables' : 'not measured'}` +
-    `${shipped ? ' (structure ' + shipped.byWay.structure.agree + '/' + shipped.byWay.structure.n +
-      ', score ' + shipped.byWay.score.agree + '/' + shipped.byWay.score.n + ')' : ''}` +
+    `${shipped ? ' (by shape ' + shipped.structure.agree + '/' + shipped.structure.n +
+      ', by entropy ' + shipped.entropy.agree + '/' + shipped.entropy.n + ')' : ''}` +
     `, ${archives} third-party archives, ${roundTripped} kept every resource`);
 process.exit(failures ? 1 : 0);

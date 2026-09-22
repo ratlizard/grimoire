@@ -642,9 +642,9 @@ keeping green.** It has earned its keep: the viewer used to *guess* which
 resources were encrypted, scoring printable-ASCII ratio minus entropy, and
 disagreed with delvmod's `known_encrypted` / `known_clear` on 18 of 1,558
 resources — always by leaving an encrypted resource undecrypted and showing
-noise. `smartDecrypt` now consults those tables first and falls back to the
-heuristic only for subindexes the tables say nothing about, which is what a
-modded archive would present.
+noise. `smartDecrypt` now consults those tables first and falls back to a
+bank of payload-shape tests, then to byte entropy, only for subindexes the
+tables say nothing about, which is what a modded archive would present.
 
 Two things to know before extending it:
 
@@ -947,15 +947,24 @@ knowing about:
   shipped archive, so the tables become a labelled corpus of 1,558 resources
   and the fallback can be scored against them.
 
-  **It scores 63.3%**, and the breakdown says where: the structure test
-  (`dvmPlausibleContainer`, `dvmNamedScript`) gets 840 of 918 right, and the
-  printable-ratio-minus-entropy score gets **130 of 624** — worse than
-  deciding at random. (It was 62.5% over 920 and 635 until 7 September 2026,
-  when the raw-all-zero certainty below took a handful of resources out of
-  the scored population entirely.) A modded archive is read substantially wrong today, and
-  widening the structure test at the score test's expense is what would fix
-  it. The check's floor is set at the measured number so a change that makes
-  it worse fails rather than passing quietly.
+  **It agrees with the tables to within a resource**, and the run prints the
+  figure and the breakdown by path — read it there rather than from any line
+  of prose. Until 22 September 2026 it scored a little under two thirds,
+  because everything that was not a script container fell to a printable-ratio
+  score that the cipher beat by construction: an XOR keystream's output is
+  uniform, so it is 37% printable at 8 bits of entropy, which outscored every
+  graphic, sound and table in the archive. The fallback asks what SHAPE the
+  bytes are now — `DELV_SHAPES` in `js/delv-archive.js` — and falls through to
+  comparing byte entropy, which is the one statistic the cipher cannot escape.
+
+  **Three assertions, not one**, because a percentage of the whole archive
+  cannot see a single shape test die: the entropy comparison is good enough to
+  cover for one. So the check also asserts that every verdict the bank reaches
+  is the one the tables give — no floor, since a test firing on the wrong
+  candidate is a defect — and that the bank still decides about as much of the
+  archive as it does today. All three were held to a deliberate break; the
+  comment beside them says which break fails which, and which plausible-looking
+  break turns out not to be a control at all.
 
   Seven of the add-ons are Delver archives, and all seven survive
   `delverArchiveSpec` → `writeDelverArchive` with every resource intact. They
