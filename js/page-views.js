@@ -1521,9 +1521,9 @@ function renderTableInspector(resid) {
    everything else in this repository reads; folded is a view, not a reading.
    Kept on `window` because the script view's buttons are inline handlers and
    both files are classic scripts sharing one scope. */
-window.SCRIPT_FOLD = false;
+window.SCRIPT_FOLD = false;          // 'folded' or 'structured' when set
 function setScriptFold(on) {
-  window.SCRIPT_FOLD = !!on;
+  window.SCRIPT_FOLD = on === true ? 'folded' : (on || false);
   try { renderText(); } catch (e) { quiet(e); }
 }
 
@@ -1670,8 +1670,10 @@ function renderText() {
              folded view in js/delv-fold.js is a second reading of the same
              disassembly and is the visitor's choice, remembered in
              SCRIPT_FOLD. */
-          const render = (window.SCRIPT_FOLD && typeof dvmFoldRender === 'function')
-            ? dvmFoldRender : dvmRender;
+          const render =
+            (window.SCRIPT_FOLD === 'structured' && typeof dvmStructureRender === 'function') ? dvmStructureRender :
+            (window.SCRIPT_FOLD && typeof dvmFoldRender === 'function') ? dvmFoldRender :
+            dvmRender;
           const dis = render(ARCHIVE, resData, resid);
           if (dis && dis.split('\n').length > 2) scriptText = dis;
         }

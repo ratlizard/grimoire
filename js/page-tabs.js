@@ -265,16 +265,18 @@ function buildScriptView(o) {
        '</div>';
 
   // 2. WHICH LISTING ---------------------------------------------------------
-  // The raw listing is one op a line with its offset, and is what every check
-  // in utilities/ reads. The folded one is the same disassembly with the
-  // expression tree collapsed into calls and infix operators, the dispatch
-  // table's names on the functions and a label at every branch target.
+  // Three readings of one disassembly. Raw is one op a line with its offset and
+  // is what every check in utilities/ reads. Folded collapses the expression
+  // tree into calls and infix operators, names the functions from the dispatch
+  // table and labels every branch target. Structured also turns the jumps into
+  // blocks where a block can be proven, and leaves them as gotos where one
+  // cannot.
   if (isScript) {
-    const fold = !!window.SCRIPT_FOLD;
-    h += '<div class="sv-modes">Listing' +
-         '<button class="sv-mode' + (fold ? '' : ' on') + '" onclick="setScriptFold(false)">Raw</button>' +
-         '<button class="sv-mode' + (fold ? ' on' : '') + '" onclick="setScriptFold(true)">Folded</button>' +
-         '</div>';
+    const mode = window.SCRIPT_FOLD || 'raw';
+    const btn = (m, t) => '<button class="sv-mode' + (mode === m ? ' on' : '') +
+                          '" onclick="setScriptFold(' + (m === 'raw' ? 'false' : "'" + m + "'") + ')">' + t + '</button>';
+    h += '<div class="sv-modes">Listing' + btn('raw', 'Raw') + btn('folded', 'Folded') +
+         btn('structured', 'Structured') + '</div>';
   }
 
   // 3. HOW IT WAS READ ------------------------------------------------------

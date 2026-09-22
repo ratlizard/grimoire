@@ -295,6 +295,15 @@ const CHECKS = [
    cmd: ['utilities/fold_check.mjs', 'index.html', DATA],
    want: [DATA],
    grep: /folded \d+ functions[^\n]*/},
+  /* And does turning those jumps into blocks preserve the control flow? A
+     different kind of risk from the fold's: a misread jump renders a wrong
+     program that looks right, which no assertion about statements can catch.
+     See the harness header for the five assertions and the one that has no
+     control. */
+  {page: 'viewer', name: 'recovered structure',
+   cmd: ['utilities/structure_check.mjs', 'index.html', DATA],
+   want: [DATA],
+   grep: /structured \d+ of \d+[^\n]*/},
   {page: 'viewer', name: 'addons + heuristic', want: [DATA],
    cmd: ['utilities/addons_check.mjs', 'index.html', DATA, ADDONS],
    grep: /heuristic [\d.]+% vs the tables \([^)]*\)/},

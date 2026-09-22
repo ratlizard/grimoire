@@ -311,7 +311,21 @@ function dvmFoldStatement(n, ctx) {
     case 'if': { const t = target(); return 'if (' + g[0] + ')' + (t ? ' goto ' + ctx.label(t) : ''); }
     case 'if_not': { const t = target(); return 'if (!(' + g[0] + '))' + (t ? ' goto ' + ctx.label(t) : ''); }
     case 'branch': return 'goto ' + ctx.label(bare);
-    case 'set_local': return bare + ' = ' + (g[0] || '');
+    case 'set_local': {
+      /* The operand is a slot in the same numbering the `local` and `arg` ops
+         use: below 0x30 a local, 0x30 and up an argument. The local half is
+         certain and is spelt `VarNN` here. The argument half is NOT: the
+         handoff's own item on `set_local 0x31` says the interpreter's handler
+         for opcode 0x82 has not been read, and 24 scripts use it -- so it is
+         left in the raw spelling, which looks different enough to send a reader
+         to the raw listing rather than quietly asserting a reading nobody has
+         confirmed. */
+      const slot = parseInt(bare, 16);
+      const lhs = (Number.isFinite(slot) && slot < 0x30)
+        ? 'Var' + slot.toString(16).toUpperCase().padStart(2, '0')
+        : 'set_local ' + bare;
+      return lhs + ' = ' + (g[0] || '');
+    }
     case 'set_global': return dvmPlainName(bare) + ' = ' + (g[0] || '');
     case 'set_field': return (g[0] || '') + '.' + bare + ' = ' + (g[1] || '');
     case 'set_index': return (g[0] || '') + '[' + (g[1] || '') + '] = ' + (g[2] || '');
@@ -425,5 +439,530 @@ function dvmExpandForest(forest) {
     }
   };
   walk(forest);
+  return out;
+}
+
+/* ===========================================================================
+ * Structure recovery: the jumps as blocks.
+ * ===========================================================================
+ *
+ * The folded view above leaves control flow exactly as the bytes have it --
+ * `if (!(C)) goto L0094` and a label at 0x0094 -- because every line of it is a
+ * local reorganisation of ops that are there, and three assertions in
+ * utilities/fold_check.mjs say so. This half is different in kind, and the
+ * difference is the whole reason it is separate:
+ *
+ *   A MISREAD JUMP RENDERS A WRONG PROGRAM THAT LOOKS RIGHT.
+ *
+ * Nothing in the fold's assertions catches that. Every statement would still be
+ * individually correct; only their nesting would lie, and a nesting that lies is
+ * worse than a goto that does not, because a reader believes it.
+ *
+ * So the recovery is built around two rules.
+ *
+ * FIRST, IT REFUSES RATHER THAN GUESSES. Each pattern below is matched only
+ * when the region it would build is closed -- nothing outside it jumps into its
+ * middle, and nothing inside it leaves except to the one place control is meant
+ * to continue. A jump that fits no pattern stays a `goto` with its label, which
+ * is the honest rendering and is what the folded view already gives. A function
+ * can come out wholly structured, partly, or not at all, and the header line
+ * says which.
+ *
+ * SECOND, THE CONTROL-FLOW GRAPH HAS TO SURVIVE IT. Every statement has
+ * successors that the flat listing fixes: a conditional goes to its target and
+ * to the statement after it, a `branch` only to its target, a `return` nowhere.
+ * Re-derive that edge set from the NESTING -- an `if (C) { A }` means the
+ * condition reaches the first statement of A and also the statement after the
+ * block, the last statement of A reaches the statement after the block, and a
+ * `while` sends its body's end back to the condition -- and the two sets must be
+ * identical. Equal edge sets mean the recovery moved the braces and nothing
+ * else. `utilities/structure_check.mjs` does that for every function in the
+ * archive and has a control that swaps a branch target to prove it can fail.
+ *
+ * That is the analogue of the fold's re-expansion, one level up, and it is the
+ * only reason this half is shippable at all.
+ */
+
+/* The top-level statements of a function, in address order, each with what the
+   listing says its successors are. `abs` is the offset in the resource, which
+   is the coordinate the branch targets use. */
+function dvmStatementList(forest, segStart) {
+  const out = [];
+  for (const n of forest) {
+    const abs = segStart + n.at;
+    const targetOf = mn => {
+      const c = n.close.find(c => c.mn === mn);
+      const m = c && /0x[0-9A-F]+/i.exec(c.arg);
+      return m ? parseInt(m[0], 16) : null;
+    };
+    let kind = 'plain', targets = [];
+    if (n.mn === 'if' || n.mn === 'if_not') {
+      const t = targetOf('then');
+      if (t === null) kind = 'plain'; else { kind = 'cond'; targets = [t]; }
+    } else if (n.mn === 'branch') {
+      const m = /0x[0-9A-F]+/i.exec(dvmBareOperand(n.arg));
+      if (m) { kind = 'jump'; targets = [parseInt(m[0], 16)]; }
+    } else if (n.mn === 'switch') {
+      const c = n.close.find(c => c.mn === 'cases');
+      const list = c ? (c.arg.match(/0x[0-9A-F]+/gi) || []) : [];
+      kind = 'switch'; targets = list.map(t => parseInt(t, 16));
+    } else if (n.mn === 'return' || n.mn === 'exit') {
+      kind = 'end';
+    }
+    out.push({ abs, node: n, kind, targets, negated: n.mn === 'if' });
+  }
+  return out;
+}
+
+/* The edge set the flat listing fixes. A `cond` and a `switch` fall through as
+   well as branching; a `jump` does not; an `end` goes nowhere. An edge off the
+   end of the function is dropped and counted, since there is nothing to point
+   at -- compiler output does not do it, and a function that does is left
+   unstructured rather than explained. */
+function dvmFlatEdges(stmts) {
+  const edges = new Set();
+  let offEnd = 0;
+  for (let i = 0; i < stmts.length; i++) {
+    const s = stmts[i];
+    const next = (i + 1 < stmts.length) ? stmts[i + 1].abs : null;
+    for (const t of s.targets) edges.add(s.abs + '>' + t);
+    if (s.kind === 'end' || s.kind === 'jump') continue;
+    if (next === null) { offEnd++; continue; }
+    edges.add(s.abs + '>' + next);
+  }
+  return { edges, offEnd };
+}
+
+/* Is [lo, hi) a region a block can be built from? Two conditions, and refusing
+ * when either fails is the whole of what keeps this half honest:
+ *
+ *   nothing outside the range jumps into its MIDDLE -- an entry past `lo` means
+ *   the range is not a block, it is part of something larger, and
+ *
+ *   nothing inside leaves except to one of `allowed`, which is the place control
+ *   is meant to continue -- a jump out to anywhere else means the same thing.
+ *
+ * A fallthrough into the middle is impossible, the statements being in address
+ * order. This is a top-level function rather than a closure inside the recovery
+ * so that utilities/structure_check.mjs can replace it with one that says yes to
+ * everything: a recovery that cannot be caught claiming a region it has no right
+ * to is not one anybody should trust.
+ */
+function dvmRegionClosed(stmts, index, lo, hi, allowed, sources) {
+  if (hi <= lo) return false;
+  /* `sources[j]` is every statement index that jumps to j, built once per
+     function. Without it this walked the whole function for every candidate
+     region, and the recovery did not finish on the archive at all. */
+  for (let j = lo + 1; j < hi; j++) {
+    const from = sources[j];
+    if (!from) continue;
+    for (const k of from) if (k < lo || k >= hi) return false;
+  }
+  const ok = new Set(allowed);
+  for (let k = lo; k < hi; k++) {
+    for (const t of stmts[k].targets) {
+      if (ok.has(t)) continue;
+      const j = index.get(t);
+      if (j === undefined || j < lo || j >= hi) return false;
+    }
+  }
+  return true;
+}
+
+/* ---- the recovery --------------------------------------------------------
+ * A recursive reduction over the statement list. `build(lo, hi, follow)` turns
+ * statements [lo, hi) into a list of nodes, given that control continues at
+ * `follow` when the range runs out. Every pattern checks that the region it
+ * would claim is closed before claiming it.
+ */
+function dvmRecoverStructure(stmts) {
+  const index = new Map();
+  for (let i = 0; i < stmts.length; i++) index.set(stmts[i].abs, i);
+  const sources = [];
+  for (let i = 0; i < stmts.length; i++) {
+    for (const t of stmts[i].targets) {
+      const j = index.get(t);
+      if (j === undefined) continue;
+      (sources[j] || (sources[j] = [])).push(i);
+    }
+  }
+  let gotos = 0, structured = 0;
+  /* The unconditional jumps the structure swallows: an if-else's `goto Lend` at
+     the end of its then-branch, and a loop's `goto Lhead` at the end of its
+     body. Each exists only to reach a place the braces now say, so it is not
+     rendered -- and utilities/structure_check.mjs has to be told, because the
+     control-flow graph is legitimately one node shorter for each of them. A
+     jump with one outgoing edge can be contracted out of a graph without
+     changing what reaches what, which is why absorbing it is safe and why the
+     check contracts rather than excuses. */
+  const absorbed = new Set();
+
+  const closed = (lo, hi, allowed) => dvmRegionClosed(stmts, index, lo, hi, allowed, sources);
+  /* A jump may only be absorbed if nothing else jumps TO it. The check found
+     this: 0x1804's function at +0x2 has `goto 0x57B` at 0x40F, and 0x57B is
+     itself the `goto` closing a loop. Absorbing 0x57B left 0x40F pointing at a
+     label that no longer existed -- a dangling `goto L057B` for a reader, and an
+     edge to a node that is not in the tree for the graph. Refusing to absorb it
+     keeps the label, which is the same rule as everywhere else here: when the
+     structure cannot account for something, leave it as the bytes have it. */
+  const absorbable = i => !sources[i] || sources[i].length === 0;
+
+  function build(lo, hi, follow) {
+    const out = [];
+    let i = lo;
+    while (i < hi) {
+      const s = stmts[i];
+      const after = (i + 1 < stmts.length) ? stmts[i + 1].abs : follow;
+
+      if (s.kind === 'cond' && s.targets.length === 1) {
+        const tIdx = index.get(s.targets[0]);
+        if (tIdx !== undefined) {
+
+          // while (C) { body }:  Lhead: if_not C -> Lafter / body / goto Lhead
+          if (tIdx > i + 1 && tIdx <= hi) {
+            const last = stmts[tIdx - 1];
+            if (last.kind === 'jump' && last.targets[0] === s.abs &&
+                absorbable(tIdx - 1) &&
+                closed(i + 1, tIdx - 1, [s.abs, s.targets[0]])) {
+              out.push({ kind: 'while', cond: s, body: build(i + 1, tIdx - 1, s.abs) });
+              absorbed.add(last.abs);
+              structured += 2;
+              i = tIdx; continue;
+            }
+          }
+
+          // if (C) { then } else { else }:
+          //   if_not C -> Lelse / then / goto Lend / Lelse: else / Lend:
+          if (tIdx > i + 1 && tIdx <= hi) {
+            const beforeElse = stmts[tIdx - 1];
+            if (beforeElse.kind === 'jump') {
+              const endIdx = index.get(beforeElse.targets[0]);
+              if (endIdx !== undefined && endIdx >= tIdx && endIdx <= hi &&
+                  absorbable(tIdx - 1) &&
+                  closed(i + 1, tIdx - 1, [beforeElse.targets[0]]) &&
+                  closed(tIdx, endIdx, [beforeElse.targets[0]])) {
+                out.push({ kind: 'ifelse', cond: s,
+                           then: build(i + 1, tIdx - 1, beforeElse.targets[0]),
+                           els: build(tIdx, endIdx, beforeElse.targets[0]) });
+                absorbed.add(beforeElse.abs);
+                structured += 2;
+                i = endIdx; continue;
+              }
+            }
+          }
+
+          // if (C) { then }:  if_not C -> Lafter / then / Lafter:
+          if (tIdx > i + 1 && tIdx <= hi && closed(i + 1, tIdx, [s.targets[0]])) {
+            out.push({ kind: 'if', cond: s, then: build(i + 1, tIdx, s.targets[0]) });
+            structured++;
+            i = tIdx; continue;
+          }
+
+          // do { body } while (C):  Lhead: body / if C -> Lhead
+          if (tIdx < i && tIdx >= lo && closed(tIdx, i, [s.abs, s.targets[0]])) {
+            /* The body is what has just been emitted for [tIdx, i). Take those
+               nodes back off `out` rather than building them again: building
+               twice is what made this not finish, and it also risked counting
+               the same block twice. */
+            const body = dvmTakeBack(out, stmts[tIdx].abs);
+            if (body) {
+              out.push({ kind: 'dowhile', cond: s, body });
+              structured++;
+              i = i + 1; continue;
+            }
+          }
+        }
+      }
+
+      // loop { body }:  Lhead: body / goto Lhead, with no condition at all
+      if (s.kind === 'jump' && s.targets.length === 1) {
+        const tIdx = index.get(s.targets[0]);
+        if (tIdx !== undefined && tIdx <= i && tIdx >= lo &&
+            absorbable(i) && closed(tIdx, i + 1, [s.abs])) {
+          const body = dvmTakeBack(out, stmts[tIdx].abs);
+          if (body) {
+            out.push({ kind: 'loop', body });
+            absorbed.add(s.abs);
+            structured++;
+            i = i + 1; continue;
+          }
+        }
+      }
+
+      if (s.targets.length) gotos++;
+      out.push({ kind: 'stmt', stmt: s });
+      i++;
+    }
+    return out;
+  }
+
+  const tree = build(0, stmts.length, null);
+  return { tree, gotos, structured, absorbed };
+}
+
+/* Take the trailing nodes of `out` that start at or after `abs`, in order, for a
+ * backward jump to claim as its body. Returns null when they do not line up with
+ * a node boundary -- which means the loop's head is in the middle of a block
+ * already built, and a region that cannot be taken cleanly is one to refuse.
+ */
+function dvmTakeBack(out, abs) {
+  let i = out.length;
+  while (i > 0) {
+    const f = dvmFirstAbs(out[i - 1]);
+    if (f === null || f < abs) break;
+    i--;
+  }
+  if (i >= out.length) return null;                 // nothing to take
+  if (dvmFirstAbs(out[i]) !== abs) return null;     // the head is not a boundary
+  return out.splice(i, out.length - i);
+}
+
+/* The first statement offset a node reaches, which is what an edge into it
+   points at. */
+function dvmFirstAbs(node) {
+  switch (node.kind) {
+    case 'stmt': return node.stmt.abs;
+    case 'if': case 'ifelse': case 'while': return node.cond.abs;
+    case 'dowhile': case 'loop':
+      return node.body.length ? dvmFirstAbs(node.body[0]) : null;
+    default: return null;
+  }
+}
+
+/* The edge set the NESTING implies. Compared with dvmFlatEdges over every
+   function by utilities/structure_check.mjs; equal means the braces moved and
+   nothing else did. */
+function dvmStructureEdges(tree, follow) {
+  const edges = new Set();
+  const walk = (list, cont) => {
+    for (let i = 0; i < list.length; i++) {
+      const n = list[i];
+      const after = (i + 1 < list.length) ? dvmFirstAbs(list[i + 1]) : cont;
+      switch (n.kind) {
+        case 'stmt': {
+          const s = n.stmt;
+          for (const t of s.targets) edges.add(s.abs + '>' + t);
+          if (s.kind !== 'end' && s.kind !== 'jump' && after !== null)
+            edges.add(s.abs + '>' + after);
+          break;
+        }
+        case 'if': {
+          const head = n.then.length ? dvmFirstAbs(n.then[0]) : after;
+          if (head !== null) edges.add(n.cond.abs + '>' + head);
+          if (after !== null) edges.add(n.cond.abs + '>' + after);
+          walk(n.then, after);
+          break;
+        }
+        case 'ifelse': {
+          const a = n.then.length ? dvmFirstAbs(n.then[0]) : after;
+          const b = n.els.length ? dvmFirstAbs(n.els[0]) : after;
+          if (a !== null) edges.add(n.cond.abs + '>' + a);
+          if (b !== null) edges.add(n.cond.abs + '>' + b);
+          walk(n.then, after); walk(n.els, after);
+          break;
+        }
+        case 'while': {
+          const head = n.body.length ? dvmFirstAbs(n.body[0]) : n.cond.abs;
+          edges.add(n.cond.abs + '>' + head);
+          if (after !== null) edges.add(n.cond.abs + '>' + after);
+          walk(n.body, n.cond.abs);
+          break;
+        }
+        case 'dowhile': {
+          const head = n.body.length ? dvmFirstAbs(n.body[0]) : n.cond.abs;
+          edges.add(n.cond.abs + '>' + head);
+          if (after !== null) edges.add(n.cond.abs + '>' + after);
+          walk(n.body, n.cond.abs);
+          break;
+        }
+        case 'loop': {
+          const head = n.body.length ? dvmFirstAbs(n.body[0]) : null;
+          walk(n.body, head);
+          break;
+        }
+      }
+    }
+  };
+  walk(tree, follow);
+  return edges;
+}
+
+/* A conditional's expression, in the polarity the reader needs.
+ * `if_not C -> T` jumps when C is false, so the statements it falls through to
+ * run when C is TRUE -- which is the `if (C)` a reader wants. `if C -> T` is the
+ * other way round, and its fallthrough block is `if (!(C))`. A backward jump
+ * wants the opposite of both, since a loop repeats when the jump IS taken.
+ */
+function dvmCondFallthrough(s, ctx) {
+  const e = dvmFoldFrame(s.node.groups[0] || [], ctx);
+  return s.negated ? '!(' + e + ')' : e;
+}
+function dvmCondTaken(s, ctx) {
+  const e = dvmFoldFrame(s.node.groups[0] || [], ctx);
+  return s.negated ? e : '!(' + e + ')';
+}
+
+/* Which offsets a goto still points at once the structure is recovered, so a
+   label is printed only where one is needed. */
+function dvmRemainingLabels(tree) {
+  const out = new Set();
+  const walk = list => {
+    for (const n of list) {
+      if (n.kind === 'stmt') { for (const t of n.stmt.targets) out.add(t); }
+      for (const k of ['then', 'els', 'body']) if (n[k]) walk(n[k]);
+    }
+  };
+  walk(tree);
+  return out;
+}
+
+function dvmRenderStructured(tree, ctx, labels, indent, lines) {
+  const pad = '    '.repeat(indent);
+  for (const n of tree) {
+    const at = dvmFirstAbs(n);
+    if (at !== null && labels.has(at) && n.kind === 'stmt')
+      lines.push('  ' + ctx.label('0x' + at.toString(16).toUpperCase().padStart(4, '0')) + ':');
+    switch (n.kind) {
+      case 'stmt': {
+        const gutter = n.stmt.abs.toString(16).toUpperCase().padStart(4, '0');
+        lines.push('    ' + gutter + pad + '  ' + dvmFoldStatement(n.stmt.node, ctx));
+        break;
+      }
+      case 'if':
+        lines.push('    ' + n.cond.abs.toString(16).toUpperCase().padStart(4, '0') + pad +
+                   '  if (' + dvmCondFallthrough(n.cond, ctx) + ') {');
+        dvmRenderStructured(n.then, ctx, labels, indent + 1, lines);
+        lines.push('        ' + pad + '}');
+        break;
+      case 'ifelse':
+        lines.push('    ' + n.cond.abs.toString(16).toUpperCase().padStart(4, '0') + pad +
+                   '  if (' + dvmCondFallthrough(n.cond, ctx) + ') {');
+        dvmRenderStructured(n.then, ctx, labels, indent + 1, lines);
+        lines.push('        ' + pad + '} else {');
+        dvmRenderStructured(n.els, ctx, labels, indent + 1, lines);
+        lines.push('        ' + pad + '}');
+        break;
+      case 'while':
+        lines.push('    ' + n.cond.abs.toString(16).toUpperCase().padStart(4, '0') + pad +
+                   '  while (' + dvmCondFallthrough(n.cond, ctx) + ') {');
+        dvmRenderStructured(n.body, ctx, labels, indent + 1, lines);
+        lines.push('        ' + pad + '}');
+        break;
+      case 'dowhile':
+        lines.push('        ' + pad + '  do {');
+        dvmRenderStructured(n.body, ctx, labels, indent + 1, lines);
+        lines.push('    ' + n.cond.abs.toString(16).toUpperCase().padStart(4, '0') + pad +
+                   '  } while (' + dvmCondTaken(n.cond, ctx) + ')');
+        break;
+      case 'loop':
+        lines.push('        ' + pad + '  loop {');
+        dvmRenderStructured(n.body, ctx, labels, indent + 1, lines);
+        lines.push('        ' + pad + '}');
+        break;
+    }
+  }
+}
+
+/* The third state of the script view's toggle. Same decode and same fold as
+   dvmFoldRender; the difference is that the jumps become blocks where a block
+   can be proven, and stay gotos where one cannot. The header line says how many
+   of each, because a reader is entitled to know whether they are looking at
+   recovered structure or at the same gotos with extra indentation. */
+function dvmStructureRender(arc, b, resid) {
+  dvmContextResid = (typeof resid === 'number') ? resid : null;
+  const objs = dvmExtents(b, resid);
+  const slots = dvmSlotNames(b, resid);
+  const lines = [];
+  const hex4 = v => v.toString(16).padStart(4, '0').toUpperCase();
+  const str = seg => decodeMacRoman(seg.filter(c => c));
+  let whole = 0, partial = 0, plain = 0;
+  for (const [st, en, kind] of objs) {
+    const seg = b.subarray(st, Math.min(en, b.length));
+    if (!seg.length) continue;
+    const name = slots.get(st) || ('obj_' + hex4(st));
+    if (kind !== 'function') {
+      if (kind === 'array') {
+        const v = dvmArrayContents(seg);
+        lines.push('', name + ' = ' + (v ? '[' + v.join(', ') + ']' : '<array>'));
+      } else if (kind === 'table') lines.push('', name + ' = <table>');
+      else if (dvmIsProse(seg) || dvmIsIdentifier(seg)) lines.push('', name + ' = ' + JSON.stringify(str(seg)));
+      else lines.push('', name + ' = <' + seg.length + ' bytes>');
+      continue;
+    }
+    const ph = dvmProseHead(seg.subarray(3));
+    if (ph && ph.bare) { lines.push('', name + ' = ' + JSON.stringify(str(ph.head))); continue; }
+    const r = dvmDisassemble(seg, 3);
+    const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0') };
+    const args = [];
+    for (let i = 0; i < seg[1]; i++) args.push('Arg' + i.toString(16).padStart(2, '0').toUpperCase());
+    const locals = seg[2] ? '   // ' + seg[2] + ' local' + (seg[2] === 1 ? '' : 's') : '';
+    lines.push('', 'function ' + name + '(' + args.join(', ') + ') {' + locals);
+    const forest = dvmForest(r.ops);
+    const stmts = dvmStatementList(forest, st);
+    const rec = dvmRecoverStructure(stmts);
+    const labels = dvmRemainingLabels(rec.tree);
+    dvmRenderStructured(rec.tree, ctx, labels, 0, lines);
+    lines.push('}');
+    if (r.bad) lines.push('// ^ decoder desynced (' + r.bad + ' unrecognised bytes) - unreliable');
+    else if (!stmts.some(s => s.targets.length)) plain++;
+    else if (rec.gotos) { lines.push('// ^ ' + rec.gotos + ' jump(s) fit no block and are left as goto'); partial++; }
+    else whole++;
+  }
+  const cls = dvmClassName(resid);
+  const sym = resourceSymbol(resid);
+  if (sym) lines.unshift('// name: ' + sym);
+  lines.unshift('// ' + whole + ' function(s) fully structured, ' + partial +
+                ' with jumps left over, ' + plain + ' with no jumps at all');
+  if (cls) lines.unshift('// class: ' + cls + ' (resource 0x' + resid.toString(16).toUpperCase() + ')');
+  return lines.join('\n');
+}
+
+/* Every block in a recovered tree, with the statement control reaches when the
+ * block ends. utilities/structure_check.mjs walks these to re-derive, from the
+ * tree alone, that each is a region with one way in and one way out -- the
+ * property dvmRegionClosed enforces while building, and which has to be checked
+ * from the outside or the check is only asking the recovery whether it agrees
+ * with itself.
+ */
+function dvmBlocksOf(tree, follow) {
+  const out = [];
+  const walk = (list, cont) => {
+    for (let i = 0; i < list.length; i++) {
+      const n = list[i];
+      const after = (i + 1 < list.length) ? dvmFirstAbs(list[i + 1]) : cont;
+      /* `exits` is every place a block may legitimately be left for. An if or
+         else block has one: the statement after it. A LOOP body has two, and the
+         second is a break -- a jump straight out to the statement after the loop,
+         which real code here does (20 while bodies in the archive) and which is
+         rendered as the `goto` it is. Two named exits is still a region; a jump
+         to a third place is not, and that is what the check is for. */
+      switch (n.kind) {
+        case 'if':
+          out.push({ kind: 'if', body: n.then, exits: [after] });
+          walk(n.then, after);
+          break;
+        case 'ifelse':
+          out.push({ kind: 'if', body: n.then, exits: [after] });
+          out.push({ kind: 'else', body: n.els, exits: [after] });
+          walk(n.then, after); walk(n.els, after);
+          break;
+        case 'while':
+          out.push({ kind: 'while', body: n.body, exits: [n.cond.abs, after] });
+          walk(n.body, n.cond.abs);
+          break;
+        case 'dowhile':
+          out.push({ kind: 'do', body: n.body, exits: [n.cond.abs, after] });
+          walk(n.body, n.cond.abs);
+          break;
+        case 'loop': {
+          const head = n.body.length ? dvmFirstAbs(n.body[0]) : null;
+          out.push({ kind: 'loop', body: n.body, exits: [head, after] });
+          walk(n.body, head);
+          break;
+        }
+      }
+    }
+  };
+  walk(tree, follow);
   return out;
 }
