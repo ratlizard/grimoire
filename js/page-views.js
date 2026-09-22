@@ -1517,29 +1517,42 @@ function renderTableInspector(resid) {
   host.innerHTML = h;
 }
 
-/* Which listing the script views show. The raw one is the default and is what
-   everything else in this repository reads; folded is a view, not a reading.
-   Kept on `window` because the script view's buttons are inline handlers and
-   both files are classic scripts sharing one scope, and remembered in the
-   browser so a reader who prefers one is not asked again on every visit. */
-window.SCRIPT_FOLD = false;          // 'folded' or 'structured' when set
+/* Which listing the script views show: 'structured' or false for the raw one.
+   Structured is what a script opens on, since 23 September 2026 at the
+   maintainer's word; the raw listing is one tap away and is still what
+   everything else in this repository reads (the snapshot, the search, the
+   rule matchers), since a listing on screen is a view, not a reading.
+
+   The folded listing had a button of its own between the two until the same
+   day, and was taken off the row when the maintainer asked whether it was
+   needed: it is the structured listing without the braces, every function
+   the one renders the other renders too (structure_check), and where a jump
+   cannot be proven a block the structured listing already leaves the goto
+   the folded one would show. dvmFoldRender stays, since the structured
+   listing and the gallery's outlines are built on it, and 'folded' still
+   selects it for a caller that asks.
+
+   Kept on `window` because the row's buttons are inline handlers, and
+   remembered in the browser so a reader who prefers raw is not asked again
+   on every visit. */
+window.SCRIPT_FOLD = 'structured';
 try {
   const v = localStorage.getItem('cythera.listing');
-  if (v === 'folded' || v === 'structured') window.SCRIPT_FOLD = v;
+  if (v === 'raw') window.SCRIPT_FOLD = false;
 } catch (e) { quiet(e); }
 function setScriptFold(on) {
   window.SCRIPT_FOLD = on === true ? 'folded' : (on || false);
-  window.SCRIPT_PANE = 'code';
+  setScriptPane('code');
   try { localStorage.setItem('cythera.listing', window.SCRIPT_FOLD || 'raw'); } catch (e) { quiet(e); }
   try { renderText(true); } catch (e) { quiet(e); }
 }
 
-/* Which view a script opens on. Under Components > Text a script is there for
-   its words -- a book, a sign, a conversation -- so it opens on them; under
-   Functions, and anywhere else, it is there for its code. Until 22 September
-   2026 every script whose subindex can hold dialogue opened on its words,
-   which is nearly all of them, so the Functions tab showed a list of strings
-   and hid the code it is named for behind a button. */
+/* What a script is there for where it is being read. Under Components > Text
+   it is there for its words -- a book, a sign, a conversation -- and under
+   Functions, and anywhere else, for its code. Until 22 September 2026 every
+   script whose subindex can hold dialogue opened on its words, which is
+   nearly all of them, so the Functions tab showed a list of strings and hid
+   the code it is named for behind a button. */
 function scriptPaneFor(value) {
   for (let n = TAB_LEAF_FOR.get(value); n; n = n.parent) if (n.id === 'text') return 'text';
   return 'code';
@@ -1719,9 +1732,13 @@ function renderText(sameResource) {
       if (!scriptText && !content.trim()) content = 'Nothing in this resource decoded as Delver VM code.';
     } else if (sv) {
       sv.style.display = 'none'; sv.innerHTML = '';
+      const refs = document.getElementById('scriptRefs');
+      if (refs) { refs.style.display = 'none'; refs.innerHTML = ''; }
     }
     window.LAST_DECODED = { resid, text: content || '(nothing decoded)', raw: rawText, isScript };
-    if (!sameResource) window.SCRIPT_PANE = scriptPaneFor(document.getElementById('categorySelect').value);
+    // The view the reader last chose where scripts are read for the same
+    // thing (SCRIPT_PANE_FOR), not the one this resource would choose.
+    if (!sameResource) window.SCRIPT_PANE = window.SCRIPT_PANE_FOR[scriptPaneFor(document.getElementById('categorySelect').value)];
     paintDecodedPane();
     // The F0xx tables are the ones with no field map, so they get the stride
     // explorer. Everything else keeps a plain hex pane.

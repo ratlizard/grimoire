@@ -515,19 +515,22 @@ try {
     const sw = ctx.document.getElementById('listingSwitch');
     if (!sw) fail('listing toggle', 'there is no #listingSwitch in the markup');
     else {
+      // Structured is what a first visit opens on (23 September 2026).
+      if (ctx.SCRIPT_FOLD !== 'structured') fail('listing toggle', 'the listing a visit opens on is ' + ctx.SCRIPT_FOLD + ', not structured');
       sw.style.display = 'none';
       ctx.openResource(first[0]);
       if (sw.style.display === 'none')
         fail('listing toggle', 'opening a script does not reveal the listing switch');
-      for (const id of ['listRaw', 'listFolded', 'listStructured'])
+      // Folded left the row the same day; its renderer stays under Structured.
+      for (const id of ['listStructured', 'listRaw', 'listHex'])
         if (!ctx.document.getElementById(id)) fail('listing toggle', 'no #' + id + ' button');
 
       const texts = {};
-      for (const mode of [false, 'folded', 'structured']) {
+      for (const mode of [false, 'structured']) {
         ctx.setScriptFold(mode);
         texts[String(mode)] = ((ctx.LAST_DECODED && ctx.LAST_DECODED.text) || '');
-        const want = mode === false ? 'listRaw' : mode === 'folded' ? 'listFolded' : 'listStructured';
-        for (const id of ['listRaw', 'listFolded', 'listStructured']) {
+        const want = mode === false ? 'listRaw' : 'listStructured';
+        for (const id of ['listRaw', 'listStructured']) {
           const b = ctx.document.getElementById(id);
           const on = b && b.className && /\bactive\b/.test(b.className);
           if ((id === want) !== !!on)
@@ -535,11 +538,9 @@ try {
         }
       }
       ctx.setScriptFold(false);
-      const [raw, folded, structured] = [texts['false'], texts['folded'], texts['structured']];
-      if (!raw.trim()) fail('listing toggle', 'the raw listing came out empty');
-      if (raw === folded) fail('listing toggle', 'the folded listing is identical to the raw one');
-      if (folded === structured) fail('listing toggle', 'the structured listing is identical to the folded one');
-      if (!folded.trim() || !structured.trim()) fail('listing toggle', 'a listing came out empty');
+      const [raw, structured] = [texts['false'], texts['structured']];
+      if (!raw.trim() || !structured.trim()) fail('listing toggle', 'a listing came out empty');
+      if (raw === structured) fail('listing toggle', 'the structured listing is identical to the raw one');
 
       /* And it must be out of sight for a resource that is not a script, or it
          is a control over nothing. Effective visibility, not its own `display`:
@@ -602,9 +603,9 @@ try {
   if (!/0x1(80B|A13)/i.test(head.innerHTML) || head.style.display === 'none')
     fail('script page', 'the script head is not built and shown');
 
-  ctx.setScriptFold('folded');
+  ctx.setScriptFold('structured');
   ctx.jumpToScriptAt(0x987, 0x34);
-  // The line itself, not only a ring: with the folded gutter unread, the ring
+  // The line itself, not only a ring: with the absolute gutter unread, the ring
   // falls back to the function's header line and is still a ring.
   const ringed = /class="listingHit">([^\n]*)/.exec(ctx.document.getElementById('textContent').innerHTML);
   if (!ringed || !/^    0034  /.test(ringed[1]))
@@ -616,6 +617,23 @@ try {
   ctx.jumpToResource(0x1A13);
   if (!/>CastSpell<\/a>/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the structured listing does not link a named call (CastSpell)');
-  ctx.setScriptFold(false);
-  console.log('  script page: the World gives the panel back, code first under Functions and words under Text, rings and links in the folded views');
+  /* The view holds from one script to the next until changed (23 September
+     2026), and separately where scripts are read for their words: Hex chosen
+     among the Functions carries to the next AI action and not to a
+     conversation, which opens on its words. */
+  ctx.jumpToResource(0x180B);
+  ctx.setScriptPane('text');       // a choice made under Text, which Structured above changed
+  ctx.jumpToResource(0x987);
+  ctx.setScriptPane('hex');
+  ctx.navigateResource(1);
+  if (!shown('paneHex') || shown('textContent')) fail('script page', 'Hex chosen on one script is not kept for the next');
+  ctx.jumpToResource(0x180B);
+  if (!shown('dlgWrap')) fail('script page', 'Hex chosen under Functions carried to a conversation under Text');
+  ctx.jumpToResource(0x987);
+  if (!shown('paneHex')) fail('script page', 'going to Text and back lost the view chosen under Functions');
+  ctx.setScriptFold('structured');
+  const refs = ctx.document.getElementById('scriptRefs');
+  if (!refs || !/Named by/.test(refs.innerHTML) || refs.style.display === 'none')
+    fail('script page', 'what names the script is not below the code');
+  console.log('  script page: the World gives the panel back, code first under Functions and words under Text, the view kept from one script to the next, rings and links in the structured listing, what names it below the code');
 } catch (e) { fail('script page', e); }

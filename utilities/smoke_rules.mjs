@@ -277,11 +277,17 @@ try {
   else if ([/Damage to things/, /The door is now bashed open!/, /It is slightly dented, but still intact\./, /a bare hand/].some(re => !re.test(html))) fail('damage', 'the Mechanics section does not state the door and chest rules in the file’s words: missing ' + [/Damage to things/, /The door is now bashed open!/, /It is slightly dented, but still intact\./, /a bare hand/].filter(re => !re.test(html)).join(' '));
   else if (!new RegExp('jumpToScriptAt\\(' + 0xE49 + ',' + dt.door.destroy.factor.at + '\\)').test(html)) fail('damage', 'the door’s destroying factor is not a link to its line');
   else {
-    // Follow the factor's link, as a click would, and read the ring.
+    // Follow the factor's link, as a click would, and read the ring: in the
+    // raw listing it is the operand's own line, and in the structured one,
+    // which a visit opens on since 23 September 2026, the statement holding it.
+    const ringOf = () => /<span id="listingHit" class="listingHit">([^\n]*)<\/span>/.exec(REGISTRY.get('textContent').innerHTML || '');
     ctx.jumpToScriptAt(0xE49, dt.door.destroy.factor.at);
-    const pane = REGISTRY.get('textContent');
-    const ring = /<span id="listingHit" class="listingHit">([^\n]*)<\/span>/.exec(pane.innerHTML || '');
+    const sring = ringOf();
+    ctx.setScriptFold(false);
+    ctx.jumpToScriptAt(0xE49, dt.door.destroy.factor.at);
+    const ring = ringOf();
     const was = peek('window.LISTING_AT');
+    ctx.setScriptFold('structured');
     ctx.jumpToResource(0xE49);
     peek('paintDecodedPane')();
     const cleared = !/listingHit/.test(REGISTRY.get('textContent').innerHTML || '');
@@ -290,6 +296,7 @@ try {
     const within = peek('listingLineFor')('function obj_0000(1 args, 0 locals) {\n  0003      byte 0x05\n  0005      end\n}', 0x0004);
     const before = peek('listingLineFor')('\nfunction obj_0010(1 args, 0 locals) {\n  0003      byte 0x05\n}', 0x0004);
     if (!ring || !/byte 0x05/.test(ring[1])) fail('damage', 'following the factor did not ring the line that holds it: ' + JSON.stringify(ring && ring[1]));
+    else if (!sring || !/\* 5\)/.test(sring[1])) fail('damage', 'in the structured listing the factor rings ' + JSON.stringify(sring && sring[1]) + ', not its statement');
     else if (!was || was.resid !== 0xE49) fail('damage', 'the ring was not kept for the jump');
     else if (!cleared) fail('damage', 'a plain jump to the same script kept the ring');
     else if (within !== 1 || before !== -1) fail('damage', 'listingLineFor rings the wrong line: ' + JSON.stringify([within, before]));

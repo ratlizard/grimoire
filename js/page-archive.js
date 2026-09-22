@@ -855,7 +855,7 @@ function onCategoryChangeImpl() {
   // like it still had the old resource open. Clear them all up front, for
   // every branch below.
   for (const id of ['singlePreview','zoomControls','soundPreview','textPreview',
-                    'mapPreview','resourceNav','scriptView','viewTabs','artUsage']) {
+                    'mapPreview','resourceNav','scriptView','scriptRefs','viewTabs','artUsage']) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   }

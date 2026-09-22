@@ -268,9 +268,14 @@ button { line-height:1.35 !important; min-height:44px;
   { padding-left:10px !important; padding-right:10px !important; font-size:0.8125rem !important; min-height:34px !important; }
 button:hover { color:#ffe98a !important; text-decoration:underline; background:rgba(255,255,255,.05) !important; }
 button::before, button::after { display:none !important; }
-#resourceNav { max-width:760px !important; gap:12px !important; }
-#resourceNav button { font-size:1.18rem !important; font-weight:700; min-height:52px !important; }
-#backToSheet { flex:1.6 !important; }
+/* The way round a gallery from an open resource: a quiet line of small links
+   under the gallery's chips, not four plaques. They were 1.18rem, bold and
+   52 px tall, two to a row on a phone, and took more of the screen above a
+   listing than the listing's own head (the maintainer, 23 September 2026). */
+#resourceNav { justify-content:center; flex-wrap:wrap; max-width:none !important; gap:2px 18px !important; margin:4px auto 6px; }
+#resourceNav button { flex:none; width:auto; font-size:0.8125rem !important; font-weight:400 !important;
+  min-height:30px !important; padding:4px 6px !important; margin:0 !important; letter-spacing:0; opacity:.75; white-space:nowrap; }
+#resourceNav button:hover { opacity:1; }
 .resid, .hex, #residSelect { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace !important; letter-spacing:.02em; }
 #residSelect option { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace !important; }
 #zoomControls input[type=range] { touch-action:none; cursor:ew-resize; pointer-events:auto; }
@@ -319,7 +324,6 @@ button, select { white-space:normal; overflow-wrap:break-word; word-break:normal
    map at TS=4, where the lens does not engage until the zoom slider is at
    its 400% ceiling. It was equally wrong everywhere. */
 #mapViewport canvas, #mapCanvasWrap canvas, #canvasViewport canvas { max-width:none !important; }
-#resourceNav button { font-size:clamp(0.95rem, 3.6vw, 1.18rem) !important; }
 select { text-overflow:ellipsis; }
 
 /* Scroll panes get a sane height instead of running off-screen. */
@@ -692,11 +696,8 @@ pre.pane { background:#090806; color:#fff; padding:12px; overflow:auto; max-heig
 .dswitch button.dsw::after { display:none; }
 .dswitch button.dsw.active { color:var(--gold); opacity:1; border:2px solid var(--gold); font-weight:600; }
 /* A script's row sits on top of its pane rather than under a tab bar. */
-#listingSwitch { border-top:1px solid var(--edge); border-radius:6px 6px 0 0; flex-wrap:wrap; gap:6px 10px; }
-#listingSwitch .dswGroup { display:inline-flex; gap:4px; padding:0 10px;
-  border-left:1px solid var(--edge); border-right:1px solid var(--edge); }
+#listingSwitch { border-top:1px solid var(--edge); border-radius:6px 6px 0 0; flex-wrap:wrap; gap:6px; }
 #listingSwitch button.dsw { padding:3px 11px !important; min-height:30px; white-space:nowrap; }
-#listText[style*="none"] + .dswGroup { border-left:0; padding-left:0; }
 #listingSwitch + .dlgWrap { border-top:0; border-radius:0 0 8px 8px; }
 /* Code keeps its indentation: a wrapped line of a listing starts at the left
    edge and reads as a statement of its own. It scrolls sideways instead. */
@@ -731,11 +732,12 @@ button.linky:hover { color:var(--gold); filter:none; }
    row of views. Shown and hidden by renderText; a stylesheet display:none
    here kept it off every screen until 22 September 2026. */
 #scriptView { text-align:left; margin-bottom:10px; }
-.sv-head { padding-bottom:8px; border-bottom:1px solid var(--edge); margin-bottom:8px; }
+.sv-head { margin-bottom:2px; }
 .sv-head .sv-id { font-size:1.125rem; color:#fff; font-weight:600; letter-spacing:0.5px;
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
 .sv-head .sv-lbl { font-size:1.125rem; color:#fff; margin-left:6px; }
 .sv-head .sv-kind { font-size:0.75rem; color:#b5b2a8; margin-top:3px; letter-spacing:0; line-height:1.5; }
+#scriptRefs { margin:10px 0 4px; text-align:left; }
 .sv-rel { display:flex; align-items:baseline; gap:10px; margin:0 0 4px; font-size:0.8125rem; line-height:1.5; }
 .sv-rel > b { flex:0 0 5.5em; color:#b5b2a8; font-size:0.6875rem; font-weight:600; }
 .sv-rel .sv-relBody { flex:1 1 auto; min-width:0; }
@@ -1550,15 +1552,12 @@ body.atlasFull { overflow:hidden; }
   .sv-rel { flex-direction:column; gap:2px; margin-bottom:8px; }
   .sv-rel > b { flex:none; }
   #textPreview { padding:10px 6px !important; }
-  #listingSwitch { gap:2px; padding:4px 2px; justify-content:space-between; }
-  #listingSwitch .dswGroup { border:0; padding:0; gap:2px; }
+  #listingSwitch { gap:4px; padding:4px 2px; }
   #listingSwitch button.dsw { padding:3px 6px !important; min-height:34px; font-size:0.8125rem !important; white-space:nowrap; }
   .sv-rel .relChip { flex-wrap:wrap; row-gap:0; font-size:0.875rem !important; }
   #textContent.scriptCode { font-size:0.6875rem; padding:10px 8px; }
-  /* Four buttons in one row broke their words over three lines and pushed
-     the last past the panel's edge; two to a row, each on one line. */
-  #resourceNav { flex-wrap:wrap; }
-  #resourceNav button { flex:1 1 42%; white-space:nowrap; min-height:44px !important; font-size:1rem !important; }
+  #resourceNav { gap:0 8px !important; }
+  #resourceNav button { font-size:0.8125rem !important; min-height:34px !important; padding:4px 3px !important; }
   /* The saved game's place column wrapped to three lines; the table scrolls
      sideways anyway, so a place keeps its line. */
   .forkTable td.where { white-space:nowrap; }
@@ -1625,7 +1624,7 @@ body.atlasFull { overflow:hidden; }
   .sr-lines, #paneHex, .peForm, .peForm input, #editBytesNote { font-size:0.8125rem; }
   .dswitch { font-size:0.8125rem; }
   .dlgEdit { font-size:0.8125rem; }
-  #resourceNav button { font-size:1.2rem !important; }
+  #resourceNav button { font-size:0.9375rem !important; }
   /* The muted browns that read on a phone held close are too faint at
      arm's length: every secondary line comes up a shade. */
   .tabSheet #labelLegend, .tabSheet #filterNote, .tabSheet .propHead, .tabSheet #exportNote,
@@ -1961,16 +1960,13 @@ body.atlasFull { overflow:hidden; }
 <div id="textPreview" style="display:none; margin-top:12px; padding:14px; background:var(--panel); border:1px solid var(--edge); border-radius:8px;">
   <div id="textLabel" style="color:#fff; margin-bottom:10px; font-size:1rem; text-align:center;"></div>
   <div id="scriptView"></div>
-  <!-- A script's one row of views: its words, its code three ways, its bytes.
+  <!-- A script's one row of views: its code two ways, its bytes, its words.
        Every other resource keeps the Decoded / Strings / Hex bar below. -->
   <div id="listingSwitch" class="dswitch" style="display:none">
-    <button id="listText" class="dsw" onclick="setScriptPane('text')">Text</button>
-    <span class="dswGroup">
-      <button id="listRaw" class="dsw active" onclick="setScriptFold(false)">Raw</button>
-      <button id="listFolded" class="dsw" onclick="setScriptFold('folded')">Folded</button>
-      <button id="listStructured" class="dsw" onclick="setScriptFold('structured')">Structured</button>
-    </span>
+    <button id="listStructured" class="dsw active" onclick="setScriptFold('structured')">Structured</button>
+    <button id="listRaw" class="dsw" onclick="setScriptFold(false)">Raw</button>
     <button id="listHex" class="dsw" onclick="setScriptPane('hex')">Hex</button>
+    <button id="listText" class="dsw" onclick="setScriptPane('text')">Text</button>
   </div>
   <div id="dlgWrap" class="dlgWrap" style="display:none"></div>
   <div id="viewTabs" class="tabbar">
@@ -1981,6 +1977,7 @@ body.atlasFull { overflow:hidden; }
   <pre id="textContent" class="pane"></pre>
   <pre id="paneStrings" class="pane" style="display:none"></pre>
   <pre id="paneHex" class="pane" style="display:none"></pre>
+  <div id="scriptRefs" style="display:none"></div>
   <div id="tableInspector" style="display:none"></div>
   <button class="secondary" onclick="downloadCurrentRawBytes()">Download Raw Bytes</button>
   <button class="secondary" id="midiBtn" style="display:none" onclick="downloadCurrentMidi()">Download as MIDI</button>
@@ -2146,7 +2143,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.133.0';
+const GRIMOIRE_VERSION = '1.134.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

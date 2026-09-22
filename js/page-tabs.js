@@ -237,8 +237,8 @@ function svChip(resid, note) {
   return relChip({ resid, main, sub: kind && kind !== main.toLowerCase() ? kind : '', note, title: trailForResid(resid) });
 }
 
-/* The head of a script's page: what it is and what it is joined to, in two
-   or three lines, above the one row of views.
+/* The head of a script's page: what it is, in two lines above the one row of
+   views, and what it is joined to, in #scriptRefs below the code.
 
    Until 22 September 2026 this was a five-part essay -- the id large, the
    subindex's purpose, a grid of facts, "How this was read" in five steps and
@@ -287,13 +287,21 @@ function buildScriptView(o) {
            list.slice(12).map(one).join('') + '</div></details>';
     return '<div class="sv-relBody">' + head + more + '</div>';
   };
-  h += '<div class="sv-rel"><b>Named by</b>' + (ins.length
+  host.innerHTML = h;
+  host.style.display = '';
+  /* What names this resource and what it names, below the code rather than
+     between the head and the row (the maintainer, 23 September 2026): the
+     code is what the page is for, and a helper named by a hundred scripts
+     pushed it a screen down on a phone. */
+  const refs = document.getElementById('scriptRefs');
+  if (!refs) return;
+  h = '<div class="sv-rel"><b>Named by</b>' + (ins.length
     ? chips(ins.map(e => ({ chip: relLink(e.from, e.count > 1 ? '\u00d7' + e.count : '') })))
     : '<span class="sv-none">nothing in the archive names this id</span>') + '</div>';
   if (outs.length)
     h += '<div class="sv-rel"><b>Names</b>' + chips(outs.map(e => ({ chip: relLink(e.target, e.kind) }))) + '</div>';
-  host.innerHTML = h;
-  host.style.display = '';
+  refs.innerHTML = h;
+  refs.style.display = '';
 }
 
 // --- Concept search --------------------------------------------------------
@@ -758,12 +766,22 @@ function refTitle(rid) {
 }
 
 /* Which of a script's views is showing: its words ('text'), its code
-   ('code', in whichever listing SCRIPT_FOLD says) or its bytes ('hex'). Set
-   afresh for each resource by renderText -- the words first under Text, the
-   code first everywhere else -- and by the row's buttons after that. */
+   ('code', in whichever listing SCRIPT_FOLD says) or its bytes ('hex').
+
+   It holds from one script to the next until the reader changes it, which is
+   the maintainer's rule of 23 September 2026: before that every resource
+   chose afresh, so reading the Hex of one AI action and pressing Next showed
+   the code of the next. There are two memories, not one, because a script
+   under Text is read for its words and under Functions for its code
+   (scriptPaneFor): a tap of Hex among the Functions is not a reason for a
+   conversation to open on its bytes. A script with no words shows its code
+   when Text is remembered, and the memory stays Text for the next one. */
+window.SCRIPT_PANE_FOR = { code: 'code', text: 'text' };
 window.SCRIPT_PANE = 'code';
 function setScriptPane(p) {
   window.SCRIPT_PANE = p;
+  const cat = document.getElementById('categorySelect');
+  window.SCRIPT_PANE_FOR[scriptPaneFor(cat ? cat.value : '')] = p;
   paintDecodedPane();
 }
 
@@ -795,8 +813,7 @@ function paintDecodedPane() {
   if (ls) ls.style.display = '';
   if (tabs) tabs.style.display = 'none';
   for (const [id, on] of [['listText', which === 'text'], ['listRaw', which === 'code' && mode === 'raw'],
-                          ['listFolded', which === 'code' && mode === 'folded'],
-                          ['listStructured', which === 'code' && mode === 'structured'], ['listHex', which === 'hex']]) {
+                          ['listStructured', which === 'code' && mode !== 'raw'], ['listHex', which === 'hex']]) {
     const b = document.getElementById(id);
     if (b) b.classList.toggle('active', on);
   }
