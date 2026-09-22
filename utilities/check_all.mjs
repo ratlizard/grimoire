@@ -287,6 +287,14 @@ const CHECKS = [
   // The heuristic half of smartDecrypt, scored against the tables that
   // normally answer for it, plus the community's add-ons -- the only Cythera
   // archives here that nobody in this project made.
+  /* Is the folded script view a faithful reorganisation of the disassembly?
+     It rests on an arity table that is written down in no source anywhere --
+     not delvmod, not the wiki -- so the check measures it three ways and has
+     a control of its own. See the harness header. */
+  {page: 'viewer', name: 'folded listing',
+   cmd: ['utilities/fold_check.mjs', 'index.html', DATA],
+   want: [DATA],
+   grep: /folded \d+ functions[^\n]*/},
   {page: 'viewer', name: 'addons + heuristic', want: [DATA],
    cmd: ['utilities/addons_check.mjs', 'index.html', DATA, ADDONS],
    grep: /heuristic [\d.]+% vs the tables \([^)]*\)/},

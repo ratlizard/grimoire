@@ -264,7 +264,20 @@ function buildScriptView(o) {
        (isScript ? '<div><b>Contains</b>' + svEsc(dvmShapeSummary(resData, resid)) + '</div>' : '') +
        '</div>';
 
-  // 2. HOW IT WAS READ ------------------------------------------------------
+  // 2. WHICH LISTING ---------------------------------------------------------
+  // The raw listing is one op a line with its offset, and is what every check
+  // in utilities/ reads. The folded one is the same disassembly with the
+  // expression tree collapsed into calls and infix operators, the dispatch
+  // table's names on the functions and a label at every branch target.
+  if (isScript) {
+    const fold = !!window.SCRIPT_FOLD;
+    h += '<div class="sv-modes">Listing' +
+         '<button class="sv-mode' + (fold ? '' : ' on') + '" onclick="setScriptFold(false)">Raw</button>' +
+         '<button class="sv-mode' + (fold ? ' on' : '') + '" onclick="setScriptFold(true)">Folded</button>' +
+         '</div>';
+  }
+
+  // 3. HOW IT WAS READ ------------------------------------------------------
   if (isScript) {
     h += '<details class="sv"><summary>How this was read</summary><ol class="sv-steps">' +
       '<li><b>Located.</b> The master index at file offset 0x88 gives one entry per subindex; entry ' +
@@ -283,7 +296,7 @@ function buildScriptView(o) {
       '</ol></details>';
   }
 
-  // 3. WHERE IT IS USED -----------------------------------------------------
+  // 4. WHERE IT IS USED -----------------------------------------------------
   if (isScript) {
     let idx = null;
     try { idx = buildXrefIndex(); } catch (e) { quiet(e); }

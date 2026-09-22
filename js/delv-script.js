@@ -471,14 +471,14 @@ function dvmDisassemble(b, start) {
   let lastDrain = null;
   {
     const imp = dvmImplicitString(b, p);
-    if (imp && imp.text !== null) { out.push([p, 0, 'string(implicit)', JSON.stringify(imp.text)]); p = imp.next; }
+    if (imp && imp.text !== null) { out.push([p, 0, 'string(implicit)', JSON.stringify(imp.text), 0, -1]); p = imp.next; }
   }
   const hex = (o,n) => { let s=''; for (let i=0;i<n;i++) s += b[o+i].toString(16).padStart(2,'0').toUpperCase(); return s; };
   while (p < b.length) {
     const op = b[p], at = p; p++;
     if (op !== 0x40 && argn.length) argn[argn.length - 1]++;
-    if (op < 0x30) { out.push([at, 0, 'local', 'Var' + op.toString(16).padStart(2,'0').toUpperCase()]); continue; }
-    if (op < 0x40) { out.push([at, 0, 'arg', 'Arg' + (op - 0x30).toString(16).padStart(2,'0').toUpperCase()]); continue; }
+    if (op < 0x30) { out.push([at, 0, 'local', 'Var' + op.toString(16).padStart(2,'0').toUpperCase(), 0, op]); continue; }
+    if (op < 0x40) { out.push([at, 0, 'arg', 'Arg' + (op - 0x30).toString(16).padStart(2,'0').toUpperCase(), 0, op]); continue; }
     if (op === 0x40) {
       const owner = stack.pop(); argn.pop();
       if (owner === 0x89 && p + 2 <= b.length) {
@@ -491,10 +491,10 @@ function dvmDisassemble(b, start) {
         const cases = [];
         for (let i = 0; i < n && p + 2 <= b.length; i++, p += 2)
           cases.push('0x' + u16be(b, p).toString(16).padStart(4,'0').toUpperCase());
-        out.push([at, -1, 'cases', '( ' + cases.join(', ') + ' )']);
+        out.push([at, -1, 'cases', '( ' + cases.join(', ') + ' )', 0, 0x40]);
       } else if (DVM_TARGETED.has(owner) && p + 2 <= b.length) {
-        out.push([at, -1, 'then', '-> 0x' + u16be(b, p).toString(16).padStart(4,'0').toUpperCase()]); p += 2;
-      } else out.push([at, -1, 'end', '']);
+        out.push([at, -1, 'then', '-> 0x' + u16be(b, p).toString(16).padStart(4,'0').toUpperCase(), 0, 0x40]); p += 2;
+      } else out.push([at, -1, 'end', '', 0, 0x40]);
       // delvmod drops out of code mode whenever the expectation stack drains,
       // and can re-enter it, so a drain is NOT the end of the function -- it is
       // a safe place to cut if what follows turns out not to be code. Record
@@ -503,7 +503,7 @@ function dvmDisassemble(b, start) {
         lastDrain = [out.length, p];
         const imp = dvmImplicitString(b, p);
         if (imp && imp.text !== null) {
-          out.push([p, 0, 'string(implicit)', JSON.stringify(imp.text)]);
+          out.push([p, 0, 'string(implicit)', JSON.stringify(imp.text), 0, -1]);
           p = imp.next;
           lastDrain = [out.length, p];
         }
@@ -515,7 +515,7 @@ function dvmDisassemble(b, start) {
       // Garbage after a complete statement means code ended there and the rest
       // is data; rewind to that boundary rather than report a desync.
       if (lastDrain) return { ops: out.slice(0, lastDrain[0]), bad: 0 };
-      bad++; out.push([at, 0, '??', '0x' + op.toString(16).padStart(2,'0')]); continue;
+      bad++; out.push([at, 0, '??', '0x' + op.toString(16).padStart(2,'0'), 0, op]); continue;
     }
     const mn = e[0], spec = e[1], expect = e[2];
     const encl = stack.length ? stack[stack.length - 1] : -1;
@@ -576,14 +576,20 @@ function dvmDisassemble(b, start) {
         if (parts.length) arg += '  // ' + parts.join(', ');
       }
     }
-    out.push([at, expect ? 1 : 0, mn, arg]);
+    /* [4] and [5] are for the folded views in js/delv-fold.js: how many
+       expression frames this op opens, and the opcode byte, which is what says
+       whether a frameless op is a value or an operator that consumes the
+       values before it. Nothing in the raw listing reads them, and every other
+       consumer destructures the first four, so appending them changes no text
+       and no behaviour -- `decoder snapshot` in the suite is the proof. */
+    out.push([at, expect ? 1 : 0, mn, arg, expect, op]);
     for (let k = 0; k < expect; k++) { stack.push(op); argn.push(0); opened = true; }
     // An empty stack is the VM's own cue that what follows need not be code
     // (Strings Problem page), so probe for an implicit string here too.
     if (!expect && !stack.length) {
       const imp2 = dvmImplicitString(b, p);
       if (imp2 && imp2.text !== null) {
-        out.push([p, 0, 'string(implicit)', JSON.stringify(imp2.text)]);
+        out.push([p, 0, 'string(implicit)', JSON.stringify(imp2.text), 0, -1]);
         p = imp2.next;
         lastDrain = [out.length, p];
       }

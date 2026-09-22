@@ -727,6 +727,13 @@ button.linky:hover { color:var(--gold); filter:none; }
 .sv-head .sv-lbl { font-size:1rem; color:#fff; margin-top:2px; }
 .sv-head .sv-kind { font-size:0.75rem; color:#b5b2a8; margin-top:4px; letter-spacing:0; }
 .sv-why { font-size:0.875rem; line-height:1.55; color:#fff; margin:0 0 12px; }
+/* Which listing the script view shows. The selected one is marked with an
+   outline and not a background: the button rule further down this sheet is
+   !important on background, border, padding and box-shadow, so a background
+   set here would draw nothing at all. Both are clickable, so both are gold. */
+.sv-modes { display:flex; align-items:center; gap:8px; margin:0 0 12px; font-size:0.75rem; color:#b5b2a8; }
+.sv-modes .sv-mode { font-size:0.75rem; color:var(--gold); }
+.sv-modes .sv-mode.on { outline:1px solid var(--gold); outline-offset:1px; }
 .sv-facts { display:grid; gap:8px; margin-bottom:12px; }
 .sv-facts > div { background:#141210; border:1px solid var(--edge); border-radius:6px; padding:8px 10px; font-size:0.8125rem; line-height:1.5; color:#fff; }
 .sv-facts b { display:block; font-size:0.6875rem; letter-spacing:0; color:#b5b2a8; margin-bottom:2px; font-weight:600; }
@@ -2084,6 +2091,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
 <script src="js/delv-archive.js"></script>
 <script src="js/delv-graphics.js"></script>
 <script src="js/delv-script.js"></script>
+<script src="js/delv-fold.js"></script>
 <!-- The rules as models: the arithmetic behind the Mechanics sheet, in
      numbers rather than markup, and cross-checked against an independent
      simulation by utilities/mech_check.mjs. Last, since it needs nothing. -->
@@ -2121,7 +2129,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.130.1';
+const GRIMOIRE_VERSION = '1.131.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

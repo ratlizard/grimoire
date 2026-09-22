@@ -1517,6 +1517,16 @@ function renderTableInspector(resid) {
   host.innerHTML = h;
 }
 
+/* Which listing the script views show. The raw one is the default and is what
+   everything else in this repository reads; folded is a view, not a reading.
+   Kept on `window` because the script view's buttons are inline handlers and
+   both files are classic scripts sharing one scope. */
+window.SCRIPT_FOLD = false;
+function setScriptFold(on) {
+  window.SCRIPT_FOLD = !!on;
+  try { renderText(); } catch (e) { quiet(e); }
+}
+
 function renderText() {
   const out = document.getElementById('output');
   const sel = document.getElementById('residSelect');
@@ -1654,7 +1664,15 @@ function renderText() {
                        'produces confident nonsense -- and its real format is unknown.\n' +
                        'The bytes are in the raw dump below.';
         } else {
-          const dis = dvmRender(ARCHIVE, resData, resid);
+          /* Two renderers over one decoder. `dvmRender` is the raw listing and
+             is what the decoder snapshot, the search index and the rule
+             matchers in js/page-rules.js all read, so it never varies; the
+             folded view in js/delv-fold.js is a second reading of the same
+             disassembly and is the visitor's choice, remembered in
+             SCRIPT_FOLD. */
+          const render = (window.SCRIPT_FOLD && typeof dvmFoldRender === 'function')
+            ? dvmFoldRender : dvmRender;
+          const dis = render(ARCHIVE, resData, resid);
           if (dis && dis.split('\n').length > 2) scriptText = dis;
         }
       } catch (e) {
