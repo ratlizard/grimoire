@@ -478,3 +478,51 @@ try {
     fail('deep link', 'opening with #c=144&r=9103 landed on 0x' + (ctx.currentSelectedResid() || 0).toString(16));
   ctx.location.hash = '';
 } catch (e) { fail('deep link', e); }
+
+/* The listing toggle: is it in the DOM, and does each state change the text?
+ *
+ * This exists because the maintainer opened the site after the three-state
+ * toggle shipped and could not find it, and NOTHING in the suite could say
+ * whether it was there. `css_check` had proved its two classes were styled,
+ * `verify_viewer` had proved `setScriptFold` was a declared function, the fold
+ * and structure checks had proved both renderers correct over the whole
+ * archive -- and not one of them touched the row of buttons that reaches them.
+ * A feature whose every part is checked and whose way in is not is a feature
+ * nobody can use.
+ *
+ * So: the buttons must be in the panel, each state must be selectable, and each
+ * must produce DIFFERENT text from the other two. That last clause is the one
+ * with teeth -- three buttons that all render the raw listing would pass
+ * everything else here.
+ */
+try {
+  ctx.showCategory('25');                        // Skill & Spell Descriptions
+  const first = (ctx.CUR_RESIDS || [])[0];
+  if (!first) fail('listing toggle', 'no resource in a script category to open');
+  else {
+    ctx.openResource(first[0]);
+    const sv = ctx.document.getElementById('scriptView');
+    const html = (sv && sv.innerHTML) || '';
+    if (!/sv-modes/.test(html)) fail('listing toggle', 'the Listing row is not in the script view');
+    for (const label of ['>Raw<', '>Folded<', '>Structured<'])
+      if (!html.includes(label)) fail('listing toggle', 'no ' + label.slice(1, -1) + ' button');
+    if (sv && sv.style.display === 'none') fail('listing toggle', 'the script view panel is hidden');
+
+    const texts = {};
+    for (const mode of [false, 'folded', 'structured']) {
+      ctx.setScriptFold(mode);
+      texts[String(mode)] = ((ctx.LAST_DECODED && ctx.LAST_DECODED.text) || '');
+      const now = ctx.document.getElementById('scriptView').innerHTML || '';
+      const want = mode === false ? 'Raw' : mode === 'folded' ? 'Folded' : 'Structured';
+      if (!new RegExp('sv-mode on"[^>]*>' + want + '<').test(now))
+        fail('listing toggle', want + ' is not marked as the one in hand after setScriptFold');
+    }
+    ctx.setScriptFold(false);
+    const [raw, folded, structured] = [texts['false'], texts['folded'], texts['structured']];
+    if (!raw.trim()) fail('listing toggle', 'the raw listing came out empty');
+    if (raw === folded) fail('listing toggle', 'the folded listing is identical to the raw one');
+    if (folded === structured) fail('listing toggle', 'the structured listing is identical to the folded one');
+    if (/^\s*$/.test(folded) || /^\s*$/.test(structured))
+      fail('listing toggle', 'a listing came out empty');
+  }
+} catch (e) { fail('listing toggle', e); }
