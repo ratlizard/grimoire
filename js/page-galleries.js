@@ -928,6 +928,7 @@ function renderContactSheet() {
   const grid = document.getElementById('sheetGrid');
   grid.innerHTML = '';
   grid.classList.toggle('landscapeGrid', window.CUR_SUBN === 131);
+  grid.classList.remove('scriptList');
   const subn = window.CUR_SUBN;
   /* Two galleries carry a rules card above the tiles, which is where the
      rule and the thing it describes finally sit together: the game's own
@@ -1009,27 +1010,70 @@ function renderContactSheet() {
   out.textContent = "Gallery: " + okCount + " sound resources found. Click a tile to play.";
     return;
   } else if (isText) {
-    // A script with no prose says what its code calls, wherever the script
-    // is opened for its code (scriptPaneFor); every other tile says what its
-    // strings say, which tells one spell or sign from the next.
+    /* A script read for its code (scriptPaneFor) is a row, not a tile: its
+       name, id and class, the first of its prose, and what its code calls.
+       The tile was 84 px square with the text at 10 or 11 px and cut after
+       four lines, and for a script without strings it said "(binary, 153
+       bytes)"; a hundred scripts of one class are a list to be read down,
+       which is what the maintainer asked for on 23 September 2026. The
+       cells keep .lbl and .resid, so the filter, the sort and the keyboard
+       work on them as on any gallery. Scripts under Text, whose words are
+       the point, keep their tiles. */
     const asCode = SCRIPT_SUBN.has(subn) && scriptPaneFor(String(subn)) === 'code';
+    grid.classList.toggle('scriptList', asCode);
+    if (asCode) {
+      for (const [resid, roff, rlen] of resids) {
+        const cell = document.createElement('div');
+        cell.className = 'cell scriptRow';
+        let o = null;
+        try { o = scriptOutline(resid, roff, rlen); } catch (e) { quiet(e, 'the outline of 0x' + resid.toString(16)); }
+        // The snippet leads with a skill's own name, which the row has just said.
+        let prose = sheetTextSnippet(resid, roff, rlen, 160);
+        const nm = labelFor(resid);
+        if (nm && prose.startsWith(nm + ' \u00b7 ')) prose = prose.slice(nm.length + 3);
+        const head = document.createElement('div');
+        head.className = 'srHead';
+        const lblDiv = document.createElement('div');
+        if (labelFor(resid)) { lblDiv.className = 'lbl'; applyLabel(lblDiv, resid); }
+        else { lblDiv.className = 'lbl srUnnamed'; lblDiv.textContent = (o && o.cls) || 'unnamed'; }
+        head.appendChild(lblDiv);
+        const residDiv = document.createElement('div');
+        residDiv.className = 'resid'; residDiv.textContent = '0x' + resid.toString(16).toUpperCase();
+        head.appendChild(residDiv);
+        if (o && o.cls && labelFor(resid)) {
+          const k = document.createElement('div'); k.className = 'srKind'; k.textContent = o.cls; head.appendChild(k);
+        }
+        cell.appendChild(head);
+        if (!/^\(/.test(prose)) {
+          const p = document.createElement('div'); p.className = 'srProse'; p.textContent = prose; cell.appendChild(p);
+        }
+        if (o && o.calls.length) {
+          const c = document.createElement('div'); c.className = 'srCalls';
+          c.textContent = o.calls.join(', '); cell.appendChild(c);
+        }
+        cell.onclick = () => { openResource(resid); };
+        grid.appendChild(cell);
+        okCount++;
+      }
+      refreshLabelLegend();
+      out.textContent = "Gallery: " + okCount + " scripts.";
+      return;
+    }
     for (const [resid, roff, rlen] of resids) {
       const cell = document.createElement('div');
       cell.className = 'cell';
       cell.style.justifyContent = 'center';
-      
+
       // A generic page glyph told you nothing about which resource this is.
       // Show what the bytes actually say, the same way the resource-fork
       // browser previews undecodable types.
       const snip = document.createElement('div');
-      let text = sheetTextSnippet(resid, roff, rlen, 110), outline = false;
-      if (asCode && /^\(/.test(text))
-        try { const o = scriptOutline(resid, roff, rlen); if (o) { text = o; outline = true; } } catch (e) { quiet(e, 'the outline of 0x' + resid.toString(16)); }
-      snip.className = 'cellChars' + (outline ? ' outline' : /^\(/.test(text) ? ' binary' : '');
+      const text = sheetTextSnippet(resid, roff, rlen, 110);
+      snip.className = 'cellChars' + (/^\(/.test(text) ? ' binary' : '');
       snip.textContent = text;
       snip.title = text;
       cell.appendChild(snip);
-      
+
       const lbl = labelFor(resid);
       const lblDiv = document.createElement('div');
       lblDiv.className = lbl ? 'lbl' : 'lbl nolabel';

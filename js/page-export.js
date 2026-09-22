@@ -831,7 +831,8 @@ function updateUsagePanel(resid, subn) {
     return;
   }
   let html = '';
-  try { html = renderUsage(resid, subn); } catch (e) { html = ''; }
+  // A script's rows are drawn under its code instead, by buildScriptView.
+  if (!SCRIPT_SUBN.has(subn)) try { html = renderUsage(resid, subn); } catch (e) { html = ''; }
   el.innerHTML = html;
   el.style.display = html ? 'block' : 'none';
 }
@@ -1168,22 +1169,22 @@ function snippetWorth(run) {
   return score;
 }
 
-/* What a script's tile says under Functions when it has no prose of its own:
-   its class and what its code calls, "AITest: GetSkill, Random, 0x904".
-   The tile used to show the readable runs of its bytes like any text
-   resource, which for a script without strings was "(binary, 153 bytes)",
-   the same on every tile and nothing about the code the tab is for. The
-   dispatch table's names were tried first and are the same on every script
-   of a class ("Skill: Look(), Examine(), Use()"), so they do not tell one
-   tile from the next; what a script calls does. Read off the folded
-   listing, which names the calls, in the order the code first makes them. */
+/* A script's row in a Functions gallery says its class and what its code
+   calls: { cls: 'AITest', calls: ['GetSkill', 'Monster', 'ArrayIterator'] }.
+   The dispatch table's names were tried first and are the same on every
+   script of a class ("Look, Examine, Use" across all 87 skills), so they do
+   not tell one row from the next; what a script calls does. Read off the
+   folded listing, which names the calls, in the order the code first makes
+   them. A cast (`Character(Arg01)`) is spelt like a call there and is
+   counted as one. */
 const OUTLINE_NOT_CALLS = new Set(['if', 'while', 'switch', 'return', 'print', 'function', 'not', 'len']);
 function scriptOutline(resid, roff, rlen) {
   const raw = ARCHIVE.bytes.slice(roff, roff + rlen);
   const { data } = smartDecrypt(raw, resid);
+  const cls = dvmClassName(resid) || '';
   // A named script's body is not bytecode, and folding it invents calls;
   // renderText refuses to disassemble one for the same reason.
-  if (dvmNamedScript(data)) return '';
+  if (dvmNamedScript(data)) return { cls, calls: [] };
   const text = dvmFoldRender(ARCHIVE, data, resid) || '';
   const calls = [];
   for (const line of text.split('\n')) {
@@ -1191,9 +1192,7 @@ function scriptOutline(resid, roff, rlen) {
     for (const m of line.slice(10).matchAll(/(?:^|[^\w.])([A-Za-z_]\w*|0x[0-9A-Fa-f]{3,4})(?=\()/g))
       if (!OUTLINE_NOT_CALLS.has(m[1]) && calls.indexOf(m[1]) < 0) calls.push(m[1]);
   }
-  const cls = dvmClassName(resid);
-  const body = calls.length ? calls.join(', ') : (rlen + ' bytes');
-  return cls ? cls + ': ' + body : body;
+  return { cls, calls };
 }
 
 function sheetTextSnippet(resid, roff, rlen, limit) {

@@ -632,8 +632,25 @@ try {
   ctx.jumpToResource(0x987);
   if (!shown('paneHex')) fail('script page', 'going to Text and back lost the view chosen under Functions');
   ctx.setScriptFold('structured');
+  // Its usage rows ("Rules on", "Referenced by") and what it names are below
+  // the code, and not in the panel above it as well.
+  ctx.jumpToResource(0x987);
   const refs = ctx.document.getElementById('scriptRefs');
-  if (!refs || !/Named by/.test(refs.innerHTML) || refs.style.display === 'none')
-    fail('script page', 'what names the script is not below the code');
-  console.log('  script page: the World gives the panel back, code first under Functions and words under Text, the view kept from one script to the next, rings and links in the structured listing, what names it below the code');
+  if (!refs || !/Rules on/.test(refs.innerHTML) || !/Names/.test(refs.innerHTML) || refs.style.display === 'none')
+    fail('script page', 'what the script belongs to and names is not below the code');
+  if (/Rules on/.test(ctx.document.getElementById('artUsage').innerHTML))
+    fail('script page', 'a script\'s usage rows are drawn above the code as well');
+  /* A gallery read for its code is a list of rows: name, id, and what the
+     code calls. The row keeps .lbl and .resid, which the filter reads. */
+  ctx.showCategory('8');
+  const grid = ctx.document.getElementById('sheetGrid');
+  const rows = grid.children.filter ? grid.children.filter(c => /scriptRow/.test(c.className)) : [];
+  if (!/scriptList/.test(grid.className) || rows.length < 19)
+    fail('script page', 'the combat AI tests and actions are not a list of rows (' + rows.length + ')');
+  else if (!/EquipmentIterator/.test(rows.map(r => r.textContent || (r.innerHTML || '')).join(' ') + grid.innerHTML))
+    fail('script page', 'a row does not say what its code calls');
+  ctx.showCategory('23');
+  if (/scriptList/.test(ctx.document.getElementById('sheetGrid').className))
+    fail('script page', 'the conversations under Text lost their tiles for the list');
+  console.log('  script page: the World gives the panel back, code first under Functions and words under Text, the view kept from one script to the next, rings and links in the structured listing, what names it below the code, the gallery a list');
 } catch (e) { fail('script page', e); }

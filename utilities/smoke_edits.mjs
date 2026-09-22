@@ -349,7 +349,10 @@ try {
    places (0x1C5F) must say so and link nothing. A join that matched loosely
    -- every zone for every landscape -- would pass every presence test here. */
 try {
-  const usage = r => { ctx.jumpToResource(r); drainRaf(); return REGISTRY.get('artUsage')._html || ''; };
+  // A script's owner rows are under its code (#scriptRefs) since 23 September
+  // 2026; every other resource's are in the panel above it.
+  const usage = r => { ctx.jumpToResource(r); drainRaf();
+    return (REGISTRY.get('artUsage')._html || '') + (REGISTRY.get('scriptRefs')._html || REGISTRY.get('scriptRefs').innerHTML || ''); };
   const owned = subn => {
     let n = 0, missing = [];
     for (let i = 0; i < 256; i++) {
@@ -393,7 +396,10 @@ try {
    hero -- a join keyed on subindex 1 alone would pass everything else. */
 try {
   const walk = el => (el.innerHTML || '') + (el.children || []).map(walk).join('');
-  const usage = r => { ctx.jumpToResource(r); drainRaf(); return REGISTRY.get('artUsage')._html || ''; };
+  // A script's owner rows are under its code (#scriptRefs) since 23 September
+  // 2026; every other resource's are in the panel above it.
+  const usage = r => { ctx.jumpToResource(r); drainRaf();
+    return (REGISTRY.get('artUsage')._html || '') + (REGISTRY.get('scriptRefs')._html || REGISTRY.get('scriptRefs').innerHTML || ''); };
   ctx.showCharacterDetail(1); drainRaf();
   const hero = walk(REGISTRY.get('sheetGrid'));
   ctx.showCharacterDetail(2); drainRaf();
@@ -433,7 +439,10 @@ try {
    pipes as the shipped script does -- so the lute's own picture, which
    nothing opens, must carry no window row. */
 try {
-  const usage = r => { ctx.jumpToResource(r); drainRaf(); return REGISTRY.get('artUsage')._html || ''; };
+  // A script's owner rows are under its code (#scriptRefs) since 23 September
+  // 2026; every other resource's are in the panel above it.
+  const usage = r => { ctx.jumpToResource(r); drainRaf();
+    return (REGISTRY.get('artUsage')._html || '') + (REGISTRY.get('scriptRefs')._html || REGISTRY.get('scriptRefs').innerHTML || ''); };
   const SILENT = [0x911E, 0x911F, 0x9120, 0x9122, 0x912B];
   const silent = [];
   for (let n = 0; n < 256; n++) {

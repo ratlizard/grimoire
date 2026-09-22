@@ -264,42 +264,24 @@ function buildScriptView(o) {
           '<div class="sv-kind">' + [purpose ? purpose[0] : 'subindex ' + subn, shape,
             byteLength + ' bytes', readNote].filter(Boolean).map(svEsc).join(' · ') + '</div></div>';
 
-  let idx = null;
-  try { idx = buildXrefIndex(); } catch (e) { quiet(e); }
-  const ins = (idx && idx.inbound[resid]) || [];
-  const outs = (idx && idx.outbound[resid]) || [];
-  // A dozen links, then the rest behind one tap: the libraries are named by
-  // hundreds of scripts, and sixty links pushed the code off a phone's screen.
-  // A link here names the resource or, with no name, says its id and what
-  // kind of thing it is; svChip's longer description ("helper, shared by 49
-  // resources") is for pages with room for it.
-  const relLink = (rid, note) => {
-    const name = labelFor(rid), kind = resourceKindName(rid);
-    const hx = '0x' + rid.toString(16).toUpperCase().padStart(4, '0');
-    return relChip({ resid: rid, main: name || hx, sub: kind && (!name || kind !== name.toLowerCase()) ? kind : '',
-                     note, title: trailForResid(rid) });
-  };
-  const chips = list => {
-    const one = e => e.chip;
-    const head = '<div class="sv-chips">' + list.slice(0, 12).map(one).join('') + '</div>';
-    const more = list.length <= 12 ? '' : '<details class="sv-more"><summary>' +
-           (list.length - 12) + ' more</summary><div class="sv-chips">' +
-           list.slice(12).map(one).join('') + '</div></details>';
-    return '<div class="sv-relBody">' + head + more + '</div>';
-  };
   host.innerHTML = h;
   host.style.display = '';
-  /* What names this resource and what it names, below the code rather than
-     between the head and the row (the maintainer, 23 September 2026): the
-     code is what the page is for, and a helper named by a hundred scripts
-     pushed it a screen down on a phone. */
+  /* What the script belongs to and what names it -- the page-wide usage
+     panel's rows, "Script of", "Rules on", "Referenced by" -- and what it
+     names, all below the code rather than above it (the maintainer, 23
+     September 2026): the code is what the page is for, and a helper named by
+     a hundred scripts pushed it a screen down on a phone. updateUsagePanel
+     leaves #artUsage empty for a script so the rows are not said twice. */
   const refs = document.getElementById('scriptRefs');
   if (!refs) return;
-  h = '<div class="sv-rel"><b>Named by</b>' + (ins.length
-    ? chips(ins.map(e => ({ chip: relLink(e.from, e.count > 1 ? '\u00d7' + e.count : '') })))
-    : '<span class="sv-none">nothing in the archive names this id</span>') + '</div>';
+  let outs = [];
+  try { outs = buildXrefIndex().outbound[resid] || []; } catch (e) { quiet(e); }
+  const shown = outs.slice(0, 24);
+  h = '';
+  try { h = renderUsage(resid, subn); } catch (e) { quiet(e); }
   if (outs.length)
-    h += '<div class="sv-rel"><b>Names</b>' + chips(outs.map(e => ({ chip: relLink(e.target, e.kind) }))) + '</div>';
+    h += partsStrip('Names', shown.map(e => svChip(e.target, e.kind)),
+                    outs.length > shown.length ? 'and ' + (outs.length - shown.length) + ' more' : '');
   refs.innerHTML = h;
   refs.style.display = '';
 }
@@ -1264,9 +1246,20 @@ function syncTabsTo(v) {
   const vals = leaf ? leaf.values.filter(x => have.has(x)) : [];
   const sub = document.getElementById('navSub');
   if (sub) {
+    /* A chip says the section's name and, smaller, its id range; the whole
+       label is its title. "Character Action Scripts (0x30xx)" put five chips
+       one to a line on a phone; the word Scripts says nothing where every
+       section is scripts, and the range is for the reader who wants it
+       (the maintainer, 23 September 2026). */
+    const chipLabel = x => {
+      const full = optionLabel(x);
+      const m = /^(.*?)\s*\((0x[0-9A-Fa-f]+x*)\)\s*$/.exec(full);
+      const name = (m ? m[1] : full).replace(/\s+Scripts?$/, '') || full;
+      return svEsc(name) + (m ? '<span class="navHex">' + svEsc(m[2]) + '</span>' : '');
+    };
     sub.innerHTML = vals.length > 1 ? vals.map(x =>
       '<button class="navChip' + (x === v ? ' active' : '') + '" data-v="' + x +
-      '" onclick="pickCategory(\'' + x + '\')">' + svEsc(optionLabel(x)) + '</button>').join('') : '';
+      '" title="' + svEsc(optionLabel(x)) + '" onclick="pickCategory(\'' + x + '\')">' + chipLabel(x) + '</button>').join('') : '';
   }
   // One line under the sections saying what the open one holds.
   const note = document.getElementById('navSubNote');
