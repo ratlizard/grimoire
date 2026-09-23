@@ -564,6 +564,7 @@ function drawCharacterLayer(lensCtx, lensTS) {
       ctx.fillText(c.name, px, py);
     }
   }
+  if (window.SHOW_BARKS) drawBarks(ctx, people, TS, 0, 0);
   if (lbl) {
     lbl.textContent = people.length + (people.length === 1 ? ' inhabitant' : ' inhabitants');
   }
@@ -659,9 +660,11 @@ function startMapAnimation() {
   // 35ms ticks: the palette advances every fourth tick (140ms a frame, as
   // it always was) and the walkers move every tick, which is the four
   // sub-steps a square that make them slide rather than jump.
-  let subTick = 0;
+  let subTick = 0, lastBarks = barkBucket();
   mapAnimTimer = setInterval(() => {
     let painted = false;
+    // The next line of every speaker, when the last has been up its time.
+    if (window.SHOW_BARKS && !window.MAP_WALK && barkBucket() !== lastBarks) { lastBarks = barkBucket(); drawCharacterLayer(); }
     subTick = (subTick + 1) & 3;
     if (subTick === 0 && window.MAP_ANIM && ((cm.animCells && cm.animCells.length) || (cm.animReplay && cm.animReplay.length))) {
       mapAnimFrame = (mapAnimFrame + 1) % 8;
@@ -2296,6 +2299,111 @@ function setMapHour(h) {
 }
 function toggleCharacters(on) { window.SHOW_CHARACTERS = on; drawCharacterLayer(); }
 function toggleCharNames(on) { window.SHOW_CHAR_NAMES = on; drawCharacterLayer(); }
+
+/* Barks on the map (the maintainer's list, 22 September 2026).
+
+   A bark is a line a script puts in a character's talk balloon
+   (buildBarkCatalogue has every one). The ones drawn here are the lines a
+   character's own conversation script gives it -- the vendors' cries,
+   Alaric's "Yum", the diners calling for wine -- which is twelve people;
+   the shared lines (sleep, hunger, a fight, a theft) are anyone's and wait
+   on what happens, so they are not put on anybody. The game says a line
+   when its script's condition comes round and keeps it up for the tick
+   count TBark::SetBark adds; here each speaker holds one of its lines up
+   for that long and then the next, so the map shows what each can say. The
+   balloon is the size TBark::TBark makes it and its words the game's face
+   at the size TBark uses (Argos at 14 in a 32 pixel square). With no
+   application open neither figure is read: the balloon fits its words and
+   stays on the first line. */
+window.SHOW_BARKS = true;
+function barksByCharacter() {
+  if (DERIVED.BARKS_BY_CHAR) return DERIVED.BARKS_BY_CHAR;
+  const by = new Map();
+  try {
+    for (const e of buildBarkCatalogue()) {
+      if (e.who === null || e.who === undefined) continue;
+      if (!by.has(e.who)) by.set(e.who, []);
+      for (const w of e.words) if (!by.get(e.who).includes(w)) by.get(e.who).push(w);
+    }
+  } catch (e) { quiet(e, 'the barks by speaker'); }
+  return (DERIVED.BARKS_BY_CHAR = by);
+}
+let _barkRules = { app: undefined, r: null };
+function barkRulesRead() {
+  const app = window.APP_PEF || null;
+  if (_barkRules.app !== app) {
+    let r = null;
+    if (app) try { r = exeBarkRules(); } catch (e) { quiet(e, 'the balloon rules'); }
+    _barkRules = { app, r };
+  }
+  return _barkRules.r;
+}
+// Which of a speaker's lines is up now: a new one every balloon's life.
+function barkMillis() { const r = barkRulesRead(); return r && r.ticks ? r.ticks.v / 60 * 1000 : 0; }
+function barkBucket() { const ms = barkMillis(); return ms ? Math.floor(Date.now() / ms) : 0; }
+function toggleBarks(on) {
+  window.SHOW_BARKS = !!on;
+  for (const id of ['chkBarks', 'atlasChkBarks']) { const el = document.getElementById(id); if (el) el.checked = !!on; }
+  drawCharacterLayer();
+  if (typeof atlasPaintFolk === 'function' && window.CUR_SUBN === 'WORLD') atlasPaintFolk();
+}
+/* The balloons over everybody in `people` who has lines of their own, on a
+   canvas where a square is TS pixels and the map's corner is at (ox, oy).
+   A rounded box with a tail down to the speaker, over the name. */
+function drawBarks(ctx, people, TS, ox, oy) {
+  const by = barksByCharacter();
+  if (!by.size) return;
+  const rules = barkRulesRead(), s = TS / 32, bucket = barkBucket();
+  const fontPx = 14 * s;
+  if (fontPx < 7) return;                         // too small to read
+  ctx.save();
+  ctx.font = canvasFace(Math.round(fontPx));
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  for (const c of people) {
+    const lines = by.get(c.index);
+    if (!lines || !lines.length) continue;
+    // Staggered by speaker, so the town does not change its lines at once.
+    const text = lines[barkMillis() ? (bucket + c.index) % lines.length : 0];
+    // Two lines when one would not fit, broken at the space nearest the middle.
+    let rows = [text];
+    const maxW = rules && rules.width ? rules.width.v * s - 8 * s : Infinity;
+    if (ctx.measureText(text).width > maxW && text.includes(' ')) {
+      let best = -1;
+      for (let i = 0; i < text.length; i++) if (text[i] === ' ' && (best < 0 || Math.abs(i - text.length / 2) < Math.abs(best - text.length / 2))) best = i;
+      rows = [text.slice(0, best), text.slice(best + 1)];
+    }
+    const textW = Math.max(...rows.map(t => ctx.measureText(t).width));
+    const bw = rules && rules.width ? rules.width.v * s : textW + 12 * s;
+    const bh = rules && rules.height ? rules.height.v * s : (rows.length * 12 + 8) * s;
+    const cx = ox + ((c.fx !== undefined ? c.fx : c.x) + (c.nudgeX || 0)) * TS + TS / 2;
+    const top = oy + ((c.fy !== undefined ? c.fy : c.y) + (c.nudgeY || 0)) * TS - TS * 0.55 - bh;
+    const x = Math.round(cx - bw / 2), y = Math.round(top), rr = 8 * s, tail = 5 * s;
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.lineTo(x + bw - rr, y);
+    ctx.quadraticCurveTo(x + bw, y, x + bw, y + rr);
+    ctx.lineTo(x + bw, y + bh - rr);
+    ctx.quadraticCurveTo(x + bw, y + bh, x + bw - rr, y + bh);
+    ctx.lineTo(cx + 4 * s, y + bh);
+    ctx.lineTo(cx, y + bh + tail);
+    ctx.lineTo(cx - 4 * s, y + bh);
+    ctx.lineTo(x + rr, y + bh);
+    ctx.quadraticCurveTo(x, y + bh, x, y + bh - rr);
+    ctx.lineTo(x, y + rr);
+    ctx.quadraticCurveTo(x, y, x + rr, y);
+    ctx.closePath();
+    ctx.fillStyle = '#efeade';
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, s);
+    ctx.strokeStyle = '#2a2419';
+    ctx.stroke();
+    ctx.fillStyle = '#2a2419';
+    const lineH = 12 * s, first = y + bh / 2 - (rows.length - 1) * lineH / 2 + fontPx * 0.35;
+    rows.forEach((t, i) => ctx.fillText(t, Math.round(cx), Math.round(first + i * lineH)));
+  }
+  ctx.restore();
+}
 
 // Position at a continuous time: characters spend the first stretch of each
 // schedule interval walking the A* route to their next post, then stand there.

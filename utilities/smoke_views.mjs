@@ -824,6 +824,32 @@ try {
   else console.log('  tile animation: 0xF001 animates ' + tab.size + ' tiles; Cademia\'s fountain repaints its square and shows 0x388 at phase 2');
 } catch (e) { fail('tile animation', e); }
 
+/* Barks on the map (drawBarks). Twelve characters have lines in their own
+   conversation scripts; a vendor standing on a square gets a balloon with
+   the cry its script gives it, and somebody with no lines gets none. The
+   switch is one setting for the Zones view and the World tab alike. */
+try {
+  const by = ctx.barksByCharacter();
+  const said = [];
+  const g = ctx.document.createElement('canvas').getContext('2d');
+  const realFill = g.fillText;
+  g.fillText = function (t) { said.push(t); return realFill.apply(this, arguments); };
+  const vendor = [...by.entries()].find(([, ls]) => ls.length === 1);   // one line, so no rotation to allow for
+  const silent = [...Array(200).keys()].find(i => !by.has(i));
+  ctx.drawBarks(g, [{ index: vendor[0], x: 5, y: 5 }], 32, 0, 0);
+  const one = said.slice(); said.length = 0;
+  ctx.drawBarks(g, [{ index: silent, x: 5, y: 5 }], 32, 0, 0);
+  const none = said.slice();
+  ctx.toggleBarks(false);
+  const off = ['chkBarks', 'atlasChkBarks'].every(id => REGISTRY.get(id) && !REGISTRY.get(id).checked) && !peek('window.SHOW_BARKS');
+  ctx.toggleBarks(true);
+  if (by.size < 10) fail('barks', 'only ' + by.size + ' characters have lines of their own');
+  else if (one.join(' ') !== vendor[1][0]) fail('barks', ctx.characterName(vendor[0]) + ' said ' + JSON.stringify(one) + ', not ' + vendor[1][0]);
+  else if (none.length) fail('barks', 'character ' + silent + ', who has no lines, said ' + JSON.stringify(none));
+  else if (!off) fail('barks', 'the Zones and World switches did not turn off together');
+  else console.log('  barks: ' + by.size + ' characters speak their own lines; ' + ctx.characterName(vendor[0]) + ' says "' + one[0] + '", character ' + silent + ' nothing');
+} catch (e) { fail('barks', e); }
+
 /* Walking, as the engine does it, 23 September 2026 (buildPropBlockers,
    findPath, keepApart). Cademia's portcullis at (52,35) is flagged 0x80 --
    raised -- so the engine neither draws it nor stops at it; the page did

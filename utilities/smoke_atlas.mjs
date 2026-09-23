@@ -423,7 +423,10 @@ try {
       const before = peek('CUR_MAP');
       const cadN = peek('atlasScene')().nodes.find(n => n.resid === 0x8002);   // Odemia
       let painted = 0;
-      const spy = { globalAlpha: 1, imageSmoothingEnabled: false, drawImage() { painted++; } };
+      // A real stub context, since the people now carry balloons with text.
+      const spy = ctx.document.createElement('canvas').getContext('2d');
+      const realDraw = spy.drawImage;
+      spy.drawImage = function () { painted++; return realDraw.apply(this, arguments); };
       peek('atlasPeople')(spy, cadN, { x: 0, y: 0, w: 2000, h: 2000 }, 40);
       if (!painted) fail('atlas', 'nobody was drawn on a populated node');
       else if (peek('CUR_MAP') !== before)

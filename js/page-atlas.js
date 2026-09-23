@@ -1011,6 +1011,7 @@ function atlasPeople(ctx, node, r, ppt) {
                true, per, 0, c.rotated);
   }
   ctx.imageSmoothingEnabled = true;
+  if (window.SHOW_BARKS) drawBarks(ctx, folk, per, r.x, r.y);
 }
 
 /* The ways through, marked where they are.
@@ -1280,8 +1281,10 @@ function startAtlasAnimation() {
      every one of those frames. */
   atlasWalkTimer = setInterval(atlasWalkTick, 35);
   if (atlasWalkTimer && typeof atlasWalkTimer.unref === 'function') atlasWalkTimer.unref();
+  let lastBarks = barkBucket();
   atlasAnimTimer = setInterval(() => {
     if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
+    if (window.SHOW_BARKS && barkBucket() !== lastBarks && !atlasIsBusy()) { lastBarks = barkBucket(); atlasPaintFolk(); }
     if (!window.MAP_ANIM || atlasView.touching) return;
     if (typeof document !== 'undefined' && document.hidden) return;
     mapAnimFrame = (mapAnimFrame + 1) % 8;
