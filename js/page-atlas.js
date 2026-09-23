@@ -912,9 +912,14 @@ function atlasDetailWindow(node, src, x0, y0, x1, y1, frame) {
   let animated = false;
   if (!fits) {
     const m = src.m, md = src.mapData;
+    const faux = getFauxProps(), fauxTiles = getPropTileList();
     for (let y = cy0; y <= cy1 && !animated; y++)
-      for (let x = cx0; x <= cx1; x++)
-        if (tileIsAnimated(u16be(md, m.mapDataOffset + (x + y * m.width) * 2))) { animated = true; break; }
+      for (let x = cx0; x <= cx1; x++) {
+        const t = u16be(md, m.mapDataOffset + (x + y * m.width) * 2), fp = faux.get(t);
+        if (tileIsAnimated(t) || (fp && fauxTiles[fp.proptype] !== undefined && tileIsAnimated(fauxTiles[fp.proptype] + fp.aspect))) { animated = true; break; }
+      }
+    // A fountain or a flag among the placed props animates the window too.
+    if (!animated) animated = (src.drawOps || []).some(op => op.x >= cx0 && op.x <= cx1 && op.y >= cy0 && op.y <= cy1 && tileIsAnimated(op.tile));
   } else animated = w.animated;
   w = { x0: cx0, y0: cy0, x1: cx1, y1: cy1, frame, walls, animated, canvas: cv };
   atlasDetailWindows.delete(node.resid);

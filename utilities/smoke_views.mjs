@@ -801,6 +801,29 @@ try {
   else console.log('  draw order: Cademia\'s pillar top over its pool, a square at a time, and within a pass the later record first');
 } catch (e) { fail('draw order', e); }
 
+/* The game's tile animation, 0xF001 (23 September 2026, tileAnimTable). The
+   fountain in Cademia at (48,30) is tile 0x386, which the table runs through
+   0x386..0x389 a phase a frame. It stands on a floor that does not cycle, so
+   only the table makes its square one the animation repaints (Land King
+   Hall's fountains stand in water and cannot show that); drawn at phase 2 it
+   is 0x388. The control is the same draw with no phase, which a gallery
+   makes: the tile's own art. */
+try {
+  const tab = ctx.tileAnimTable(), f = tab.get(0x386);
+  const r = ctx.renderMapUncached(0x8008).result;
+  const drawn = [];
+  const realGet = ctx.getTileCanvas;
+  ctx.getTileCanvas = function (t) { drawn.push(t); return realGet.apply(this, arguments); };
+  const cv = ctx.document.createElement('canvas'); const g = cv.getContext('2d');
+  ctx.drawTileAt(g, 0x386, 0, 0, true, 32, 2); ctx.drawTileAt(g, 0x386, 0, 0, true, 32, 0);
+  ctx.getTileCanvas = realGet;
+  if (tab.size !== 8 || !f || f.first !== 0x386 || f.count !== 4 || f.div !== 1) fail('tile animation', '0xF001 read as ' + JSON.stringify([...tab]));
+  else if (!r.animCells.some(([x, y]) => x === 48 && y === 30)) fail('tile animation', 'the fountain square at (48,30) is not repainted');
+  else if (!r.animReplay.some(b => b[0] === 0x386)) fail('tile animation', 'the fountain is not replayed over its floor');
+  else if (drawn[0] !== 0x388 || drawn[1] !== 0x386) fail('tile animation', 'the fountain at phase 2 and with no phase drew ' + drawn.map(t => t.toString(16)));
+  else console.log('  tile animation: 0xF001 animates ' + tab.size + ' tiles; Cademia\'s fountain repaints its square and shows 0x388 at phase 2');
+} catch (e) { fail('tile animation', e); }
+
 /* Walking, as the engine does it, 23 September 2026 (buildPropBlockers,
    findPath, keepApart). Cademia's portcullis at (52,35) is flagged 0x80 --
    raised -- so the engine neither draws it nor stops at it; the page did

@@ -140,7 +140,7 @@ function getFauxProps() {
 
 // Draw one prop sprite -- its own tile plus whatever extra squares the tile
 // attributes say it spans -- at a map square. Returns the squares it covered.
-function drawPropAt(ctx, TS, gx, gy, tileId, rotated, ox, oy, mw, mh) {
+function drawPropAt(ctx, TS, gx, gy, tileId, rotated, ox, oy, mw, mh, frame) {
   const scale = TS / 32;
   const dx = -ox * scale, dy = -oy * scale;
   const cells = [[gx, gy]];
@@ -149,11 +149,11 @@ function drawPropAt(ctx, TS, gx, gy, tileId, rotated, ox, oy, mw, mh) {
     for (const p of extra) {
       const ex = gx + p.dx, ey = gy + p.dy;
       if (ex < 0 || ey < 0 || ex >= mw || ey >= mh) continue;
-      drawTileAt(ctx, p.tile, ex*TS + dx, ey*TS + dy, true, TS, 0, rotated);
+      drawTileAt(ctx, p.tile, ex*TS + dx, ey*TS + dy, true, TS, frame || 0, rotated);
       cells.push([ex, ey]);
     }
   }
-  drawTileAt(ctx, tileId, gx*TS + dx, gy*TS + dy, true, TS, 0, rotated);
+  drawTileAt(ctx, tileId, gx*TS + dx, gy*TS + dy, true, TS, frame || 0, rotated);
   return cells;
 }
 
@@ -199,12 +199,48 @@ const tileAnimCache = derivedMap('tileAnimCache');
 function tileIsAnimated(tileId) {
   if (tileAnimCache.has(tileId)) return tileAnimCache.get(tileId);
   const img = resolveTileImage(tileId);
-  let anim = false;
+  let anim = tileAnimTable().has(tileId);
   if (img) for (let i = 0; i < img.length; i++) {
     if (img[i] >= 0xE0 && img[i] <= 0xFB) { anim = true; break; }
   }
   tileAnimCache.set(tileId, anim);
   return anim;
+}
+
+/* The game's own tile animation, 0xF001 (23 September 2026). LoadGlobals
+   builds eight tables of tile pictures, one for each phase of the clock
+   that also cycles the palette (the viewer's byte 0xBA, which
+   TMapWindow::AnimThread steps modulo 8), and points every tile at its own
+   picture in all eight; then it reads 0xF001, eight bytes an entry until a
+   tile of 0 -- the tile, its first frame, how many frames, and how many
+   phases each frame lasts -- and points the tile at frame
+   first + (phase / divisor) mod count in phase `phase`. MaskAnyTile draws
+   every tile through the table of the current phase. The shipped list is
+   eight tiles: the fountain, four flags, the burning incense, the distiller
+   and a button that blinks. No script touches it (the syscall that could,
+   cbanimatetiles, is called by none), and nothing else animates a sprite:
+   the units whose layout AdjustAspect maps to aspect 0 stand still. */
+function tileAnimTable() {
+  if (DERIVED.TILE_ANIM) return DERIVED.TILE_ANIM;
+  const out = new Map();
+  try {
+    const b = getResourceBytes(ARCHIVE, 0xF001);
+    const s16 = o => ((b[o] << 8 | b[o + 1]) << 16) >> 16;
+    for (let o = 0; b && o + 8 <= b.length; o += 8) {
+      const t = s16(o);
+      if (!t) break;
+      const count = s16(o + 4), div = s16(o + 6);
+      if (count > 0 && div > 0) out.set(t, { first: s16(o + 2), count, div, at: o });
+    }
+  } catch (e) { quiet(e, 'the tile animation table'); }
+  return (DERIVED.TILE_ANIM = out);
+}
+// The picture a tile shows at a phase of the clock. A draw with no phase --
+// a gallery, a still render -- is the tile's own art.
+function animatedTile(tileId, frame) {
+  if (!frame) return tileId;
+  const a = tileAnimTable().get(tileId);
+  return a ? a.first + (Math.floor((frame % 8) / a.div) % a.count) : tileId;
 }
 
 // delvmod's Tile.rotate(): row y of the result is column y of the source, a
@@ -269,7 +305,7 @@ function drawTileAt(ctx, tileId, px, py, transparent, size, frame, rotated) {
   // overlap animated water -- see the animReplay comment there. Everything
   // else (galleries, sprites, the character layer) runs with the log unset.
   if (window.__MAP_BLIT_LOG) window.__MAP_BLIT_LOG.push([tileId, px, py, transparent, TS, rotated]);
-  const c = getTileCanvas(tileId, transparent, frame, rotated);
+  const c = getTileCanvas(animatedTile(tileId, frame), transparent, frame, rotated);
   if (!c) return;
   ctx.drawImage(c, px, py, TS, TS);
 }
@@ -319,9 +355,9 @@ function propPieceList(tileId, rotated) {
   const extra = multiTilePieces(tileId, rotated) || [];
   return [{ dx: 0, dy: 0, tile: tileId }].concat(extra.slice().sort((a, b) => b.tile - a.tile));
 }
-function drawPropPiece(ctx, TS, x, y, tile, rotated, ox, oy) {
+function drawPropPiece(ctx, TS, x, y, tile, rotated, ox, oy, frame) {
   const s = TS / 32;
-  drawTileAt(ctx, tile, x * TS - ox * s, y * TS - oy * s, true, TS, 0, rotated);
+  drawTileAt(ctx, tile, x * TS - ox * s, y * TS - oy * s, true, TS, frame || 0, rotated);
 }
 
 // ===================== inhabitants =====================
@@ -2857,6 +2893,23 @@ function renderMapVisual(resid, mapData, opts) {
   // same order they were first drawn.
   const blits = window.__MAP_BLIT_LOG || [];
   window.__MAP_BLIT_LOG = null;
+  // A square a fountain or a flag stands on is repainted with the water: a
+  // frame of it drawn over the last would leave the last showing through
+  // its transparent pixels, so the floor goes down first and everything
+  // drawn on the square is replayed over it (tileAnimTable).
+  const animTable = tileAnimTable();
+  if (animTable.size) {
+    const have = new Set(animCells.map(([tx, ty]) => ty * 4096 + tx));
+    for (const [t, px, py, , sz] of blits) {
+      if (!animTable.has(t)) continue;
+      for (let cy = Math.floor(py / TS); cy <= Math.floor((py + sz - 1) / TS); cy++)
+        for (let cx = Math.floor(px / TS); cx <= Math.floor((px + sz - 1) / TS); cx++) {
+          if (cx < 0 || cy < 0 || cx >= m.width || cy >= m.height || have.has(cy * 4096 + cx)) continue;
+          have.add(cy * 4096 + cx);
+          animCells.push([cx, cy, u16be(mapData, m.mapDataOffset + (cx + cy * m.width) * 2)]);
+        }
+    }
+  }
   const animKey = new Set(animCells.map(([tx, ty]) => ty * 4096 + tx));
   for (const [tx, ty] of backdropCells) animKey.add(ty * 4096 + tx);   // the backdrop swaps under them too
   // A prop whose own art uses the cycling colours -- a fountain, a firepit,
@@ -3182,7 +3235,7 @@ function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, frame) {
     }
   }
   for (const bucket of buckets) for (const op of bucket)
-    drawPropPiece(ctx, TS, op.x, op.y, op.tile, op.d ? op.d.rec.rotated : op.rot, op.ox, op.oy);
+    drawPropPiece(ctx, TS, op.x, op.y, op.tile, op.d ? op.d.rec.rotated : op.rot, op.ox, op.oy, frame);
   // The full render dropped wall props before recording cm.props, so the
   // hatching recovers them from the raw records the same way it decided.
   if (!window.MAP_WALLS) {
@@ -3266,13 +3319,13 @@ function repaintLensAnim(frame) {
     const base = fauxTiles[fp.proptype];
     if (base === undefined) continue;
     const [ox, oy] = propOffsetFor(fp.proptype, fp.aspect, fp.rotated);
-    drawPropAt(ctx, LENS_TS, tx, ty, base + fp.aspect, fp.rotated, ox, oy, cm.m.width, cm.m.height);
+    drawPropAt(ctx, LENS_TS, tx, ty, base + fp.aspect, fp.rotated, ox, oy, cm.m.width, cm.m.height, frame);
   }
   for (const d of lensAnimArt(cm)) {
     const r = d.rec;
     if (r.x < x0 - 4 || r.x > x1 + 4 || r.y < y0 - 4 || r.y > y1 + 4) continue;
     const [ox, oy] = propOffsetFor(r.proptype, r.aspect, r.rotated);
-    drawPropAt(ctx, LENS_TS, r.x, r.y, d.tileId, r.rotated, ox, oy, cm.m.width, cm.m.height);
+    drawPropAt(ctx, LENS_TS, r.x, r.y, d.tileId, r.rotated, ox, oy, cm.m.width, cm.m.height, frame);
   }
 }
 

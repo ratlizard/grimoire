@@ -529,12 +529,17 @@ function galleryFrames(e) {
 
    How many frames a facing owns is the class's layout, key 55, which
    TActiveMonster::AdjustAspect switches on: code 4 is facing x 4 + step,
-   0, 1 and 10 facing x 2 + step, 3 the facing alone, 7 facing x 8. Every
-   other code sets aspect 0 and leaves it there, so those frames are not
-   facings at all but an animation the tile runs on its own -- the bird's
-   wings, the hydra's mouth, the ooze -- and they keep cycling through the
-   whole pool. A class with no key 55 is a person when it has sixteen
-   frames, which is the one layout every character sheet has.
+   0, 1 and 10 facing x 2 + step, 3 the facing alone, 7 facing x 8, 9
+   facing x 2 with no step (no class uses it). Every other code sets aspect
+   0 and leaves it there, and nothing else in the game moves those frames:
+   the tile animation table (0xF001, tileAnimTable) lists none of them. So
+   in the game the bird, the ooze and the hydra's body stand on frame 0; the
+   gallery cycles the whole pool to show what the sheet holds, which is the
+   rule above rather than the game's (read 23 September 2026). Nor does a
+   unit tread when it stops: only HandleMove and HandleSubMove advance the
+   step; every other call -- turning, pacing, the turn's DoMove -- passes
+   step 1, the standing frame. A class with no key 55 is a person when it
+   has sixteen frames, which is the one layout every character sheet has.
 
    A four-a-facing row is walked as the stride 1-2-3-2 (WALK_CYCLE), the
    fourth column being the standing pose; anything else in its order.
