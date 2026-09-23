@@ -3075,20 +3075,28 @@ function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, frame) {
   // renderMapVisual say why). cm.props is already in that order and carries
   // each record's pass.
   const margin = 4;                       // sprites overhang their square
-  const items = [];
-  (cm.props || []).forEach((d, i) => {
+  /* Six buckets filled in order rather than a sort: this runs on every frame
+     the World tab paints, over thousands of the terrain's own props, and a
+     sort there made zooming choppy (23 September 2026). Records go in before
+     faux props, so within a pass the order is the full render's. A faux
+     tile's pass is kept per tile. */
+  const buckets = [[], [], [], [], [], []];
+  for (const d of (cm.props || [])) {
     const r = d.rec;
-    if (r.x < x0 - margin || r.x > x1 + margin || r.y < y0 - margin || r.y > y1 + margin) return;
-    items.push({ d, pass: d.pass === undefined ? 3 : d.pass, i });
-  });
-  fauxDrawn.forEach(([x, y, fp], k) => {
+    if (r.x < x0 - margin || r.x > x1 + margin || r.y < y0 - margin || r.y > y1 + margin) continue;
+    buckets[d.pass === undefined ? 3 : d.pass].push({ d });
+  }
+  const fauxPass = DERIVED.FAUX_PASS || (DERIVED.FAUX_PASS = new Map());
+  for (const [x, y, fp] of fauxDrawn) {
     const base = fauxTiles[fp.proptype];
-    if (base === undefined) return;
-    if (!window.MAP_WALLS && isWallLikeProp(fp.proptype)) { suppressed.push([x, y]); return; }
-    items.push({ x, y, fp, t: base + fp.aspect, pass: enginePass(base + fp.aspect, 0, false), i: 1e6 + k });
-  });
-  items.sort((a, b) => (a.pass - b.pass) || (a.i - b.i));
-  for (const it of items) {
+    if (base === undefined) continue;
+    if (!window.MAP_WALLS && isWallLikeProp(fp.proptype)) { suppressed.push([x, y]); continue; }
+    const t = base + fp.aspect;
+    let pass = fauxPass.get(t);
+    if (pass === undefined) { pass = enginePass(t, 0, false); fauxPass.set(t, pass); }
+    buckets[pass].push({ x, y, fp, t });
+  }
+  for (const bucket of buckets) for (const it of bucket) {
     if (it.d) {
       const r = it.d.rec;
       const [ox, oy] = propOffsetFor(r.proptype, r.aspect, r.rotated);
