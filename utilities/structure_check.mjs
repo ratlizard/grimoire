@@ -63,12 +63,31 @@
 // a change that quietly stops recovering anything shows up as a number moving
 // and not as a failure. The pinned floor below is what makes that visible.
 //
-// NEGATIVE CONTROL. `--control` replaces dvmRegionClosed with one that says yes
-// to every region. The recovery then claims 4,577 blocks where it should claim
-// 4,012, and 486 of them are left for somewhere that is neither their
-// continuation nor a break, so the run fails. A recovery that cannot be caught
-// overreaching is not one to trust, and that is this check's whole reason for
-// existing.
+// NEGATIVE CONTROLS, one per assertion that has one, each named on the command
+// line and each required to fail the assertion it was written for -- not merely
+// to fail something:
+//
+//   --control (or --control=region) replaces dvmRegionClosed with one that says
+//     yes to every region. The recovery then claims 4,577 blocks where it should
+//     claim 4,012, and 486 of them are left for somewhere that is neither their
+//     continuation nor a break (22 September 2026; with the merged conditions of
+//     later the same day, 4,365 where it should claim 3,803, and 483). A recovery that
+//     cannot be caught overreaching is not one to trust, and that is this
+//     check's whole reason for existing.
+//   --control=merge merges any two conditionals in a row, whatever they jump
+//     to: 161 functions lose an edge, and 218 merged conditions go somewhere
+//     their text does not say.
+//   --control=or joins a merged condition's parts with the wrong operator; all
+//     152 fail their truth table, and the edge check passes, which is why the
+//     truth table exists.
+//   --control=exits prints every `break` as `continue` and every `continue` as
+//     `break`; 306 of the 307 are caught. The one that is not is in 0x1879,
+//     whose conversation is seven `loop`s nested one inside the next: there the
+//     inner loop's exit and its first statement are the same statement, so
+//     `break` and `continue` go to one place and either word is true.
+//   --control=for names the loop variable of every `for` one slot along; all
+//     152 are caught.
+//   --control=labels prints no label at all; 803 gotos name a missing one.
 //
 // THE ENTRY ASSERTION HAS NO CONTROL, and saying so is better than implying it
 // has. Removing only the entry half of the region test was tried and changes
@@ -79,7 +98,55 @@
 // property that makes a block a block, and a hand-edited archive is entitled to
 // violate it where Ambrosia's compiler never did -- but nothing here
 // demonstrates the entry assertion working, and a later session should not read
-// its `ok` as evidence that it would.
+// its `ok` as evidence that it would. It has fired once, under --control=merge:
+// merging tests that jump to different places builds 115 blocks that are
+// entered in the middle. That is the assertion working on a broken merge, not
+// on the entry half of the region test, which still has no control.
+
+// FOUR MORE, added on 22 September 2026 with the three things the listing
+// learned to print that day, and each of them a claim a reader takes on trust.
+//
+//   A MERGED CONDITION MEANS WHAT ITS PARTS DID. `if_not A -> L; if_not B -> L`
+//   is printed `if (A && B)`, and the edge check cannot tell `&&` from `||`: both
+//   leave the same node for the same two places. So every merged condition is
+//   run both ways for every truth assignment of its parts -- once through the
+//   flat statements, a part jumping when it is an `if` and its value is true or
+//   an `if_not` and it is false, and once by evaluating the text the listing
+//   prints with each part named c0, c1 ... -- and the two must agree on where
+//   control goes, for the falling-through spelling (`if (...) {`) and the jumping
+//   one (`goto`, `} while`) alike. The parts have to be consecutive statements
+//   of the flat listing too, which is what makes "not jumping means the next
+//   part" true.
+//
+//   A `break` OR `continue` GOES WHERE THE BRACES SAY. The listing is read back
+//   as a reader reads it -- nested blocks from its braces, the offset in each
+//   gutter -- by parseStructured below, which knows nothing of the recovery.
+//   Each `break` is held to the statement that follows its innermost loop and
+//   each `continue` to where that loop goes round (a `while`'s test, a `for`'s
+//   step, a `do`'s closing test, a `loop`'s first statement), and the flat
+//   statement at its offset must jump exactly there. A jump the recovery
+//   absorbed is followed to where it goes, since it is not printed.
+//
+//   A `for` LINE IS THE ITERATOR PROTOCOL. The statement at the `for` line's
+//   offset must be `set_local` of the printed variable from the printed syscall
+//   called with a state word and 0; the next flat statement an `if` on the same
+//   syscall with the same word and 1, jumping to whatever follows the loop; the
+//   statement at the closing brace's offset the same `set_local` from the same
+//   call with 2; and the statement after that a jump back to the test. Read off
+//   the ops, not off the text the fold made of them.
+//
+//   EVERY LABEL A GOTO NAMES IS PRINTED. Until 22 September 2026 a label was
+//   printed only before a plain statement, so 94 gotos into the head of an if
+//   or a while named a label that appeared nowhere, and nothing here read the
+//   text to see it. A target that is not the start of any statement -- it falls
+//   inside a run of text the disassembler read as one string -- has no line to
+//   put a label on; those are counted and reported, not failed, since they are
+//   the disassembler's question and not the recovery's.
+//
+// THE MERGE'S GUARD HAS NO CONTROL. A pair is merged only when nothing else
+// jumps to its second test; on this archive nothing ever does, so removing the
+// guard changes nothing and no run here demonstrates it. It is kept for a
+// hand-edited archive, like the entry assertion above.
 
 import {readFileSync, existsSync} from 'node:fs';
 import vm from 'node:vm';
@@ -87,11 +154,13 @@ import {makeSandbox} from './dom_stub.mjs';
 import {pageSource} from './page_scripts.mjs';
 
 const args = process.argv.slice(2);
-const control = args.includes('--control');
+const controlArg = args.find(a => a.startsWith('--control'));
+const control = controlArg ? (controlArg.split('=')[1] || 'region') : null;
 const [htmlPath = 'index.html', dataPath] = args.filter(a => !a.startsWith('--'));
 
 let failures = 0;
-const fail = (what, why) => { failures++; console.error(`FAIL ${what}: ${why}`); };
+const failed = new Set();
+const fail = (what, why, key) => { failures++; if (key) failed.add(key); console.error(`FAIL ${what}: ${why}`); };
 const ok = (what, detail) => console.log(`  ok   ${what}${detail ? '  — ' + detail : ''}`);
 
 if (!dataPath || !existsSync(dataPath)) {
@@ -106,25 +175,117 @@ new vm.Script(pageSource(htmlPath), {filename: htmlPath}).runInContext(ctx);
 const ev = code => vm.runInContext(code, ctx);
 sandbox.__a = new Uint8Array(readFileSync(dataPath));
 
+/* Each control, what it does to the page, and the assertion it must fail. */
+const CONTROLS = {
+  region: {mustFail: 'exit', say: 'every region declared closed, so the recovery overreaches',
+    code: 'dvmRegionClosed = function () { return true; };'},
+  merge: {mustFail: 'edges', say: 'any two conditionals in a row merged, whatever they jump to',
+    code: `dvmMergeConditions = function (stmts) {
+      const list = [], merged = new Map();
+      for (let i = 0; i < stmts.length; i++) {
+        const s = stmts[i], b = stmts[i + 1];
+        if (s.kind === 'cond' && b && b.kind === 'cond' && s.negated === b.negated) {
+          i++; merged.set(b.abs, s.abs);
+          list.push({abs: s.abs, node: s.node, kind: 'cond', targets: [s.targets[0]], negated: s.negated, parts: [s, b]});
+        } else list.push(s);
+      }
+      return {list, merged};
+    };`},
+  or: {mustFail: 'truth', say: 'a merged condition joined with the wrong operator',
+    code: `(() => { const was = dvmCondJoined;
+      dvmCondJoined = function (s, ctx) { const t = was(s, ctx);
+        return s.parts ? t.split(' && ').join(' #OR# ').split(' || ').join(' && ').split(' #OR# ').join(' || ') : t; }; })();`},
+  exits: {mustFail: 'exits', say: 'break printed as continue and continue as break',
+    code: `(() => { const was = dvmLoopExits;
+      dvmLoopExits = function (tree, ctx) { const r = was(tree, ctx);
+        for (const [k, v] of r.exits) r.exits.set(k, v === 'break' ? 'continue' : 'break'); return r; }; })();`},
+  for: {mustFail: 'for', say: 'every for loop names its variable one slot along',
+    code: `(() => { const was = dvmForEach;
+      dvmForEach = function (p, w, ctx) { const f = was(p, w, ctx);
+        if (f) f.variable = 'Var' + (parseInt(f.variable.slice(3), 16) + 1).toString(16).toUpperCase().padStart(2, '0');
+        return f; }; })();`},
+  labels: {mustFail: 'labels', say: 'no label printed', code: 'dvmRemainingLabels = function () { return new Set(); };'},
+};
 if (control) {
-  ev('dvmRegionClosed = function () { return true; };');
-  console.log('  (control: every region declared closed, so the recovery overreaches)');
+  if (!CONTROLS[control]) { console.error(`no control called ${control}; there are ${Object.keys(CONTROLS).join(', ')}`); process.exit(2); }
+  ev(CONTROLS[control].code);
+  console.log(`  (control: ${CONTROLS[control].say})`);
 }
+
 // How much of the archive comes out structured. Not a target and not a ceiling:
 // a pinned floor, so that a change which quietly stops recovering anything is a
 // failure rather than a number nobody read. Set just under the measurement.
-// Measured at 376 of the 589 functions that have any jump in them, with 213
-// partly recovered. The floor sits just under, and it is a floor and not a
-// target: recovering less is allowed by design -- refusing is always safe -- but
-// recovering a lot less means a pattern stopped matching, which is worth a
-// failure rather than a number nobody reads.
-const WHOLE_FLOOR = 370;
+// Measured at 376 of the 589 functions that have any jump in them on
+// 22 September 2026, and at 420 later that day once a jump out of a loop or round
+// it was printed as `break` or `continue`. Recovering less is allowed by design
+// -- refusing is always safe -- but recovering a lot less means a pattern
+// stopped matching, which is worth a failure rather than a number nobody reads.
+// The same goes for the two printings added that day: 152 for-each loops and
+// 152 merged conditions (from 212 pairs of tests; some conditions are three).
+const WHOLE_FLOOR = 415;
+const FOR_FLOOR = 150;
+const MERGE_FLOOR = 150;
+
+/* The structured listing as a reader takes it: blocks nested by their braces,
+   and the offset in each gutter. Deliberately knows nothing of the recovery --
+   it is the text and only the text -- so that what it concludes about a
+   `break` or a `for` is a reading of what is printed. Evaluated in the page's
+   scope by its source, being a plain function. */
+function parseStructured(text) {
+  const funcs = [];
+  let cur = null, stack = null;
+  const open = (node, key) => { stack[stack.length - 1].push(node); node[key] = []; stack.push(node[key]); stack[stack.length - 1].owner = node; };
+  for (const raw of String(text).split('\n')) {
+    if (/^function /.test(raw)) { cur = {body: [], labels: new Set(), uses: []}; stack = [cur.body]; funcs.push(cur); continue; }
+    if (!cur) continue;
+    if (raw === '}') { cur = null; continue; }
+    const lab = /^  L([0-9A-F]{4}):$/.exec(raw);
+    if (lab) { cur.labels.add(parseInt(lab[1], 16)); continue; }
+    const g = /^    ([0-9A-F]{4}| {4})\s*(\S.*)$/.exec(raw);
+    if (!g) continue;
+    const at = g[1].trim() ? parseInt(g[1], 16) : null, t = g[2];
+    for (const m of t.matchAll(/\bL([0-9A-F]{4})\b/g)) cur.uses.push({at, to: parseInt(m[1], 16)});
+    let m;
+    if (t === '}') { stack.pop().owner.closeAt = at; continue; }
+    if (t === '} else {') { const owner = stack.pop().owner; owner.els = []; stack.push(owner.els); owner.els.owner = owner; continue; }
+    if (/^\} while \(.*\)$/.test(t)) { stack.pop().owner.closeAt = at; continue; }
+    if ((m = /^for (\w+) in (\w+)\((.*)\) \{$/.exec(t))) { open({type: 'for', at, variable: m[1], name: m[2]}, 'body'); continue; }
+    if (/^while \(.*\) \{$/.test(t)) { open({type: 'while', at}, 'body'); continue; }
+    if (/^if \(.*\) \{$/.test(t)) { open({type: 'if', at}, 'then'); continue; }
+    if (t === 'do {') { open({type: 'do', at: null}, 'body'); continue; }
+    if (t === 'loop {') { open({type: 'loop', at: null}, 'body'); continue; }
+    const w = /(?:^|\) )(break|continue)$/.exec(t);
+    stack[stack.length - 1].push({type: 'stmt', at, text: t, word: w ? w[1] : null});
+  }
+  // Where control goes when each node is done, and where each loop goes round.
+  const first = n => (n.type === 'do' || n.type === 'loop') ? (n.body.length ? first(n.body[0]) : null) : n.at;
+  const walk = (list, cont, loop) => {
+    for (let i = 0; i < list.length; i++) {
+      const n = list[i];
+      n.after = (i + 1 < list.length) ? first(list[i + 1]) : cont;
+      n.loop = loop;
+      if (n.type === 'if') { walk(n.then, n.after, loop); if (n.els) walk(n.els, n.after, loop); }
+      else if (n.type !== 'stmt') {
+        n.round = n.type === 'while' ? n.at : (n.type === 'for' || n.type === 'do') ? n.closeAt
+                : (n.body.length ? first(n.body[0]) : null);
+        walk(n.body, n.round, n);
+      }
+    }
+  };
+  for (const f of funcs) walk(f.body, null, null);
+  return funcs;
+}
+ev(parseStructured.toString());
 
 const report = ev(`(() => {
   const arc = openDelverArchive(__a);
   const out = {functions: 0, withJumps: 0, whole: 0, partial: 0,
-               edgeBad: [], stmtBad: [], entryBad: [], exitBad: [],
-               offEnd: 0, gotosLeft: 0, blocks: 0};
+               edgeBad: [], stmtBad: [], entryBad: [], exitBad: [], mergeBad: [],
+               truthBad: [], exitWordBad: [], forBad: [], labelBad: [],
+               offEnd: 0, gotosLeft: 0, blocks: 0, merged: 0, fors: 0, breaks: 0, continues: 0,
+               intoText: 0, truthRows: 0};
+  const hex = v => '0x' + v.toString(16).toUpperCase();
+  const bare = n => dvmBareOperand(n.arg);
   for (let subn = 0; subn < 256; subn++) {
     const e = arc.index[subn];
     if (!e || !e[0]) continue;
@@ -136,6 +297,10 @@ const report = ev(`(() => {
       const b = smartDecrypt(raw, resid).data;
       let objs = [];
       try { objs = dvmExtents(b, resid); } catch (err) { continue; }
+      // Per resource, for the text: every walked statement by its offset, the
+      // one after it in the flat listing, and the jumps the recovery absorbed.
+      const flatAt = new Map(), nextOf = new Map(), absorbedTo = new Map();
+      let walked = 0;
       for (const [st, en, kind] of objs) {
         if (kind !== 'function') continue;
         const seg = b.subarray(st, Math.min(en, b.length));
@@ -145,26 +310,52 @@ const report = ev(`(() => {
         let r = null;
         try { r = dvmDisassemble(seg, 3); } catch (err) { continue; }
         if (!r || !r.ops.length || r.bad) continue;
-        const where = '0x' + resid.toString(16).toUpperCase() + '+0x' + st.toString(16).toUpperCase();
+        const where = hex(resid) + '+' + hex(st);
 
         const stmts = dvmStatementList(dvmForest(r.ops), st);
         if (!stmts.length) continue;
+        walked++;
         out.functions++;
+        for (let i = 0; i < stmts.length; i++) {
+          flatAt.set(stmts[i].abs, stmts[i]);
+          if (i + 1 < stmts.length) nextOf.set(stmts[i].abs, stmts[i + 1].abs);
+        }
         const flat = dvmFlatEdges(stmts);
         out.offEnd += flat.offEnd;
         const rec = dvmRecoverStructure(stmts);
-        out.gotosLeft += rec.gotos;
+        for (const a of rec.absorbed) absorbedTo.set(a, flatAt.get(a).targets[0]);
+        const loops = dvmLoopExits(rec.tree, {label: t => t});
+        out.gotosLeft += rec.gotos - loops.exits.size;
         out.blocks += rec.structured;
         const hasJumps = stmts.some(s => s.targets.length);
         if (hasJumps) {
           out.withJumps++;
-          if (rec.gotos) out.partial++; else out.whole++;
+          if (rec.gotos - loops.exits.size) out.partial++; else out.whole++;
         }
 
-        // (1) the edge sets, with the absorbed jumps contracted out of the flat
-        //     one. Iterated to a fixed point because a goto can reach a goto.
-        const got = dvmStructureEdges(rec.tree, null);
+        // (1) the edge sets. First the merged tests: a part folded into the
+        //     condition before it is not a node of the recovered graph, so its
+        //     edges become the condition's. The only edge allowed INTO a part
+        //     is the fallthrough from the part before it -- anything else would
+        //     be a jump into the middle of one condition.
         let want = flat.edges;
+        if (rec.merged.size) {
+          const next = new Set();
+          for (const k of want) {
+            const [from, to] = k.split('>').map(Number);
+            const head = rec.merged.has(from) ? rec.merged.get(from) : from;
+            if (rec.merged.has(to)) {
+              if (rec.merged.get(to) !== head || nextOf.get(from) !== to)
+                out.mergeBad.push(where + ': ' + hex(from) + ' jumps into the middle of the condition at ' + hex(rec.merged.get(to)));
+              continue;
+            }
+            next.add(head + '>' + to);
+          }
+          want = next;
+        }
+        //     Then the absorbed jumps, contracted out of the flat graph.
+        //     Iterated to a fixed point because a goto can reach a goto.
+        const got = dvmStructureEdges(rec.tree, null);
         if (rec.absorbed.size) {
           const succ = new Map();
           for (const st2 of stmts) if (rec.absorbed.has(st2.abs)) succ.set(st2.abs, st2.targets[0]);
@@ -212,26 +403,28 @@ const report = ev(`(() => {
           for (const k of want) {
             const [from, to] = k.split('>').map(Number);
             if (inside.has(to) && !inside.has(from) && to !== head) {
-              out.entryBad.push(where + ' ' + blk.kind + ' block at 0x' + head.toString(16).toUpperCase() +
-                ': 0x' + from.toString(16).toUpperCase() + ' jumps into its middle at 0x' + to.toString(16).toUpperCase());
+              out.entryBad.push(where + ' ' + blk.kind + ' block at ' + hex(head) +
+                ': ' + hex(from) + ' jumps into its middle at ' + hex(to));
               break;
             }
             if (inside.has(from) && !inside.has(to) && blk.exits.indexOf(to) < 0) {
-              out.exitBad.push(where + ' ' + blk.kind + ' block at 0x' + head.toString(16).toUpperCase() +
-                ': 0x' + from.toString(16).toUpperCase() + ' leaves it for 0x' + to.toString(16).toUpperCase() +
-                ' rather than ' + blk.exits.map(e => e === null ? 'the end' : '0x' + e.toString(16).toUpperCase()).join(' or '));
+              out.exitBad.push(where + ' ' + blk.kind + ' block at ' + hex(head) +
+                ': ' + hex(from) + ' leaves it for ' + hex(to) +
+                ' rather than ' + blk.exits.map(e => e === null ? 'the end' : hex(e)).join(' or '));
               break;
             }
           }
         }
 
-        // (3) every statement exactly once
+        // (3) every statement exactly once, a merged test counting each part
         const seen = [];
+        const partsOf = s => s.parts ? s.parts.map(p => p.abs) : [s.abs];
+        const conds = [];
         const walk = list => {
           for (const nd of list) {
-            if (nd.kind === 'stmt') seen.push(nd.stmt.abs);
+            if (nd.kind === 'stmt') { seen.push(...partsOf(nd.stmt)); if (nd.stmt.parts) conds.push(nd.stmt); }
             for (const k of ['then', 'els', 'body']) if (nd[k]) walk(nd[k]);
-            if (nd.cond) seen.push(nd.cond.abs);
+            if (nd.cond) { seen.push(...partsOf(nd.cond)); if (nd.cond.parts) conds.push(nd.cond); }
           }
         };
         walk(rec.tree);
@@ -239,6 +432,87 @@ const report = ev(`(() => {
                        .map(s => s.abs).sort((x, y) => x - y).join(',');
         const c = seen.slice().sort((x, y) => x - y).join(',');
         if (a !== c) out.stmtBad.push(where + ': ' + stmts.length + ' statements in, ' + seen.length + ' out');
+
+        // (4) each merged condition, every truth assignment, flat against printed
+        for (const m of conds) {
+          out.merged++;
+          const ps = m.parts, T = m.targets[0];
+          for (let k = 0; k + 1 < ps.length; k++)
+            if (nextOf.get(ps[k].abs) !== ps[k + 1].abs) out.truthBad.push(where + ' ' + hex(m.abs) + ': its parts are not consecutive');
+          const names = ps.map((p, k) => 'c' + k);
+          const lctx = {label: t => t, leaf: p => names[ps.indexOf(p)]};
+          const fallText = dvmCondFallthrough(m, lctx), takenText = dvmCondTaken(m, lctx);
+          let fall, taken;
+          try { fall = Function(...names, 'return !!(' + fallText + ')'); taken = Function(...names, 'return !!(' + takenText + ')'); }
+          catch (err) { out.truthBad.push(where + ' ' + hex(m.abs) + ': ' + fallText + ' does not parse'); continue; }
+          for (let v = 0; v < (1 << ps.length); v++) {
+            const vals = names.map((x, k) => !!(v & (1 << k)));
+            let where2 = 'fall';
+            for (let k = 0; k < ps.length; k++) {
+              const jumps = ps[k].node.mn === 'if' ? vals[k] : !vals[k];
+              if (jumps) { where2 = ps[k].targets[0] === T ? 'jump' : 'elsewhere'; break; }
+            }
+            out.truthRows++;
+            if (where2 === 'elsewhere' || fall(...vals) !== (where2 === 'fall') || taken(...vals) !== (where2 === 'jump')) {
+              out.truthBad.push(where + ' ' + hex(m.abs) + ': with ' + names.map((x, k) => x + '=' + vals[k]).join(' ') +
+                ' the listing goes to ' + where2 + ' but it prints (' + fallText + ')');
+              break;
+            }
+          }
+        }
+      }
+      if (!walked) continue;
+
+      // The text, read back as a reader reads it.
+      const text = dvmStructureRender(arc, b, resid);
+      const through = t => { let k = 0; while (absorbedTo.has(t) && k++ < 8) t = absorbedTo.get(t); return t; };
+      const at4 = v => v === null || v === undefined ? 'the end' : hex(v);
+      for (const f of parseStructured(text)) {
+        const visit = list => {
+          for (const n of list) {
+            // (5) a break or continue goes where its innermost loop says
+            if (n.type === 'stmt' && n.word && flatAt.has(n.at)) {
+              out[n.word === 'break' ? 'breaks' : 'continues']++;
+              const s = flatAt.get(n.at);
+              const want2 = !n.loop ? undefined : n.word === 'break' ? n.loop.after : n.loop.round;
+              const to = s.targets.length === 1 ? through(s.targets[0]) : null;
+              if (!n.loop || want2 === null || to !== want2)
+                out.exitWordBad.push(hex(resid) + ' ' + at4(n.at) + ': ' + n.word + (n.loop ? ' in the ' + n.loop.type + ' at ' + at4(n.loop.at) + ' reads as ' + at4(want2) : ' outside any loop') +
+                  ', the listing jumps to ' + at4(to));
+            }
+            // (6) a for line is the iterator protocol
+            if (n.type === 'for' && flatAt.has(n.at)) {
+              out.fors++;
+              const bad = why => out.forBad.push(hex(resid) + ' for at ' + at4(n.at) + ': ' + why);
+              const start = flatAt.get(n.at), test = flatAt.get(nextOf.get(n.at)), step = flatAt.get(n.closeAt),
+                    back = step && flatAt.get(nextOf.get(step.abs));
+              const call = (s, mn) => {
+                if (!s || s.node.mn !== mn) return null;
+                const g = s.node.groups[0] || [];
+                if (g.length !== 1 || g[0].mn !== 'sys ' + n.name) return null;
+                return (g[0].groups[0] || []).map(x => x.mn + ' ' + bare(x));
+              };
+              const slotName = s => 'Var' + parseInt(bare(s.node), 16).toString(16).toUpperCase().padStart(2, '0');
+              const a0 = call(start, 'set_local'), a1 = call(test, 'if'), a2 = call(step, 'set_local');
+              if (!a0 || !a1 || !a2) bad('the start, test or step is not ' + n.name + ' called as the listing says');
+              else if (!/^word /.test(a0[0]) || a0[1] !== 'byte 0x00') bad('the start is not ' + n.name + '(state, 0, ...)');
+              else if (a1.join() !== [a0[0], 'byte 0x01'].join()) bad('the test is not ' + n.name + '(the same state, 1)');
+              else if (a2.join() !== [a0[0], 'byte 0x02'].join()) bad('the step is not ' + n.name + '(the same state, 2)');
+              else if (slotName(start) !== n.variable || slotName(step) !== n.variable)
+                bad('the loop variable is printed ' + n.variable + ' and set in ' + slotName(start) + ' and ' + slotName(step));
+              else if (through(test.targets[0]) !== n.after) bad('the test leaves for ' + at4(through(test.targets[0])) + ', not ' + at4(n.after));
+              else if (!back || back.kind !== 'jump' || back.targets[0] !== test.abs) bad('the step is not followed by a jump back to the test');
+            }
+            for (const k of ['then', 'els', 'body']) if (n[k]) visit(n[k]);
+          }
+        };
+        visit(f.body);
+        // (7) every label a goto names is printed
+        for (const u of f.uses) {
+          if (f.labels.has(u.to)) continue;
+          if (!flatAt.has(u.to)) { out.intoText++; continue; }
+          out.labelBad.push(hex(resid) + ' ' + at4(u.at) + ' names L' + u.to.toString(16).toUpperCase().padStart(4, '0') + ', which is not printed');
+        }
       }
     }
   }
@@ -250,46 +524,71 @@ const cap = (l, n) => l.slice(0, n).join('; ') + (l.length > n ? ` (+${l.length 
 
 if (!r.functions) fail('the recovery', 'no function was walked, so nothing was measured');
 
-if (!r.edgeBad.length)
+if (!r.edgeBad.length && !r.mergeBad.length)
   ok('the recovered nesting has exactly the control flow the listing has',
-     `${r.functions} functions, ${r.blocks} blocks built`);
+     `${r.functions} functions, ${r.blocks} blocks built, ${r.merged} merged conditions`);
 else
   fail('the recovery changed the control-flow graph',
-       `${r.edgeBad.length} function(s): ${cap(r.edgeBad, 3)}`);
+       `${r.edgeBad.length + r.mergeBad.length} function(s): ${cap(r.mergeBad.concat(r.edgeBad), 3)}`, 'edges');
 
 if (!r.entryBad.length)
   ok('every block has one way in, and it is the block\'s first statement');
 else
   fail('a block is entered in the middle',
-       `${r.entryBad.length}, so the braces claim a region the jumps contradict: ${cap(r.entryBad, 3)}`);
+       `${r.entryBad.length}, so the braces claim a region the jumps contradict: ${cap(r.entryBad, 3)}`, 'entry');
 
 if (!r.exitBad.length)
   ok('every block leaves only for its continuation, or out of its loop');
 else
   fail('a block is left for somewhere other than its continuation',
-       `${r.exitBad.length}: ${cap(r.exitBad, 3)}`);
+       `${r.exitBad.length}: ${cap(r.exitBad, 3)}`, 'exit');
 
 if (!r.stmtBad.length)
   ok('every statement appears exactly once in the recovered tree');
 else
-  fail('the recovery lost or duplicated statements', `${r.stmtBad.length}: ${cap(r.stmtBad, 3)}`);
+  fail('the recovery lost or duplicated statements', `${r.stmtBad.length}: ${cap(r.stmtBad, 3)}`, 'stmts');
 
-if (r.whole >= WHOLE_FLOOR)
-  ok(`at least ${WHOLE_FLOOR} functions with jumps come out with none left`,
+if (!r.truthBad.length)
+  ok('every merged condition goes where its parts went, for every truth assignment',
+     `${r.merged} conditions, ${r.truthRows} assignments`);
+else
+  fail('a merged condition says something its tests do not', `${r.truthBad.length}: ${cap(r.truthBad, 3)}`, 'truth');
+
+if (!r.exitWordBad.length)
+  ok('every break and continue goes where its innermost loop, read from the braces, says',
+     `${r.breaks} break, ${r.continues} continue`);
+else
+  fail('a break or continue goes somewhere its loop does not', `${r.exitWordBad.length}: ${cap(r.exitWordBad, 3)}`, 'exits');
+
+if (!r.forBad.length)
+  ok('every for line is the iterator protocol over the variable it names', `${r.fors} loops`);
+else
+  fail('a for line is not the iterator protocol', `${r.forBad.length}: ${cap(r.forBad, 3)}`, 'for');
+
+if (!r.labelBad.length)
+  ok('every label a goto names is printed',
+     r.intoText ? `${r.intoText} goto(s) aim inside text, where no statement starts, and have no line to label` : '');
+else
+  fail('a goto names a label that is not printed', `${r.labelBad.length}: ${cap(r.labelBad, 3)}`, 'labels');
+
+if (r.whole >= WHOLE_FLOOR && r.fors >= FOR_FLOOR && r.merged >= MERGE_FLOOR)
+  ok(`at least ${WHOLE_FLOOR} functions with jumps come out with none left, ${FOR_FLOOR} for loops, ${MERGE_FLOOR} merged conditions`,
      `${r.whole} whole, ${r.partial} with jumps left over, ${r.gotosLeft} gotos remaining`);
 else
   fail('the recovery stopped recovering',
-       `${r.whole} functions fully structured, under the recorded ${WHOLE_FLOOR}; ` +
-       `${r.partial} partial, ${r.gotosLeft} gotos left`);
+       `${r.whole} functions fully structured (floor ${WHOLE_FLOOR}), ${r.fors} for loops (floor ${FOR_FLOOR}), ` +
+       `${r.merged} merged conditions (floor ${MERGE_FLOOR}); ${r.partial} partial, ${r.gotosLeft} gotos left`, 'floor');
 
 if (r.offEnd) console.log(`  note: ${r.offEnd} statement(s) fall off the end of a function with nowhere to go`);
 
 if (control) {
-  if (failures) { console.log(`\nok — the control failed the check, as it must (${failures})`); process.exit(0); }
-  console.error('\nFAIL — the control passed, so this check cannot see the recovery overreach');
+  const want = CONTROLS[control].mustFail;
+  if (failed.has(want)) { console.log(`\nok — the control failed the ${want} assertion, as it must (${failures} failure(s) in all)`); process.exit(0); }
+  console.error(`\nFAIL — the control did not fail the ${want} assertion, so that assertion cannot see what it is for`);
   process.exit(1);
 }
 console.log(failures ? `\nFAIL — ${failures} check(s) failed`
   : `\nstructured ${r.whole} of ${r.withJumps} functions with jumps, ${r.blocks} blocks, ` +
+    `${r.fors} for loops, ${r.merged} merged conditions, ${r.breaks + r.continues} break or continue, ` +
     `${r.gotosLeft} gotos left, control flow identical in all ${r.functions}`);
 process.exit(failures ? 1 : 0);

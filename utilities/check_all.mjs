@@ -298,8 +298,8 @@ const CHECKS = [
   /* And does turning those jumps into blocks preserve the control flow? A
      different kind of risk from the fold's: a misread jump renders a wrong
      program that looks right, which no assertion about statements can catch.
-     See the harness header for the five assertions and the one that has no
-     control. */
+     See the harness header for the nine assertions and the six
+     controls, each named for the assertion it must fail. */
   {page: 'viewer', name: 'recovered structure',
    cmd: ['utilities/structure_check.mjs', 'index.html', DATA],
    want: [DATA],

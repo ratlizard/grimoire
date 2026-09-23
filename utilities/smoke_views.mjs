@@ -651,10 +651,24 @@ try {
     ctx.jumpToScriptAt(0x987, +refJs[1]);
     if (!/0x904/.test(hitLine())) fail('script page', 'Referenced by rings "' + hitLine().slice(0, 50) + '", not the call to 0x904');
   }
-  if (!/ringListingAt\(66\)[^>]*>L0042</.test(ctx.document.getElementById('textContent').innerHTML))
-    fail('script page', 'goto L0042 in 0x987 is not a link to its label');
+  /* 0x987's loop reads as a for-each since 22 September 2026: its goto to the
+     iterator's step is a continue, its goto out of the loop a break, and the
+     step's offset is on the closing brace, so a ring on it lands there and not
+     on the break before it. */
+  const t987 = ctx.document.getElementById('textContent').innerHTML;
+  if (!/\n    001A  for Var01 in EquipmentIterator\(Arg01\) \{\n/.test(t987) ||
+      !/\n    0034      if \(!\(Arg01 has MeleeWeapon\)\) continue\n/.test(t987) || !/\n    003F      break\n/.test(t987))
+    fail('script page', '0x987 does not read as a for loop with a continue and a break');
   ctx.ringListingAt(0x42);
-  if (!/^    0042  /.test(hitLine())) fail('script page', 'following L0042 rings "' + hitLine().slice(0, 50) + '"');
+  if (!/^    0042  \}/.test(hitLine())) fail('script page', 'a ring on the step of 0x987 lands on "' + hitLine().slice(0, 50) + '", not the closing brace');
+  /* A goto that is left is a link to its label, and the label is printed even
+     where it heads an if: 0x812's L0488 was one of 94 printed nowhere. */
+  ctx.jumpToResource(0x812);
+  const t812 = ctx.document.getElementById('textContent').innerHTML;
+  if (!/ringListingAt\(1160\)[^>]*>L0488</.test(t812)) fail('script page', 'goto L0488 in 0x812 is not a link to its label');
+  if (!/\n  L0488:\n    0488          if \(/.test(t812)) fail('script page', 'the label L0488 over an if in 0x812 is not printed');
+  ctx.ringListingAt(0x488);
+  if (!/^    0488  /.test(hitLine())) fail('script page', 'following L0488 rings "' + hitLine().slice(0, 50) + '"');
   REGISTRY.get('searchBox').value = 'EquipmentIterator';
   ctx.runSearch();
   await new Promise(r => setTimeout(r, 300));     // runSearch draws on a timer

@@ -569,13 +569,81 @@ function dvmRegionClosed(stmts, index, lo, hi, allowed, sources) {
   return true;
 }
 
+/* ---- two tests, one condition --------------------------------------------
+ * Two conditionals in a row that jump to the same place are one condition:
+ *
+ *     if_not A -> L0094               if (A && B) {
+ *     if_not B -> L0094      -->          ...
+ *     ...                             }
+ *   L0094:
+ *
+ * which is what a compiler emits for `if (A && B)`, and also for
+ * `if (A) { if (B) { ... } }`. The two are the same program, so the merged
+ * spelling costs nothing when the nesting was already recoverable -- and where
+ * it was not, it is the only spelling that is: `if (A && B) { .. } else { .. }`
+ * shares its else between both tests, which nested ifs cannot say, and a loop
+ * whose test is two tests (`while (A && B)`) otherwise keeps its second test as
+ * a goto out of its own body. Measured on 22 September 2026: 212 such pairs,
+ * every one of them two `if_not`s.
+ *
+ * Merged only when nothing else jumps to the second test. If something did, the
+ * second test would be a place of its own that control can reach without the
+ * first, and one condition cannot be entered halfway. On the shipped archive no
+ * pair fails that, so the guard is never exercised here and nothing here
+ * demonstrates it working; it is kept because a hand-edited archive can do
+ * what Ambrosia's compiler did not.
+ *
+ * A pair of `if`s (jump when true) would merge the same way into
+ * `if (A || B) goto L`; the archive has none, and a mixed pair is left alone
+ * rather than spelt with a negation inside a conjunction.
+ *
+ * ONE CAUTION ABOUT THE SPELLING. The VM also has `and` and `or` opcodes (0x5C,
+ * 0x5D; 245 uses in the archive), which the fold prints as `&&` and `||` too.
+ * They are not the same thing: an opcode consumes two values already on the
+ * stack, so both sides were evaluated, where the jump pair never evaluates B
+ * when A is false. A reader can tell them apart only by the brackets -- the
+ * opcode's form is always bracketed as one value, `((A && B))` inside an `if`,
+ * and the merged form is the whole condition, `if (A && B)`.
+ *
+ * utilities/structure_check.mjs tests each merged condition against the flat
+ * listing for every truth assignment of its parts, reading the text the
+ * listing prints; the edge check sees the pair as one node.
+ */
+function dvmMergeConditions(stmts) {
+  const jumpedTo = new Set();
+  for (const s of stmts) for (const t of s.targets) jumpedTo.add(t);
+  const list = [], merged = new Map();
+  for (let i = 0; i < stmts.length; i++) {
+    const s = stmts[i];
+    const parts = [s];
+    while (s.kind === 'cond' && s.targets.length === 1 && i + 1 < stmts.length) {
+      const b = stmts[i + 1];
+      if (b.kind !== 'cond' || b.targets.length !== 1 || b.targets[0] !== s.targets[0] ||
+          b.negated !== s.negated || jumpedTo.has(b.abs)) break;
+      parts.push(b);
+      i++;
+    }
+    if (parts.length === 1) { list.push(s); continue; }
+    for (const p of parts.slice(1)) merged.set(p.abs, s.abs);
+    list.push({ abs: s.abs, node: s.node, kind: 'cond', targets: [s.targets[0]],
+                negated: s.negated, parts });
+  }
+  return { list, merged };
+}
+
 /* ---- the recovery --------------------------------------------------------
  * A recursive reduction over the statement list. `build(lo, hi, follow)` turns
  * statements [lo, hi) into a list of nodes, given that control continues at
  * `follow` when the range runs out. Every pattern checks that the region it
  * would claim is closed before claiming it.
+ *
+ * It runs over the list with its paired tests merged (above), and says which
+ * statements were folded into another's condition in `merged`, because the
+ * flat control-flow graph the check compares against has them as nodes of
+ * their own.
  */
-function dvmRecoverStructure(stmts) {
+function dvmRecoverStructure(flat) {
+  const { list: stmts, merged } = dvmMergeConditions(flat);
   const index = new Map();
   for (let i = 0; i < stmts.length; i++) index.set(stmts[i].abs, i);
   const sources = [];
@@ -697,7 +765,7 @@ function dvmRecoverStructure(stmts) {
   }
 
   const tree = build(0, stmts.length, null);
-  return { tree, gotos, structured, absorbed };
+  return { tree, gotos, structured, absorbed, merged };
 }
 
 /* Take the trailing nodes of `out` that start at or after `abs`, in order, for a
@@ -792,23 +860,193 @@ function dvmStructureEdges(tree, follow) {
  * run when C is TRUE -- which is the `if (C)` a reader wants. `if C -> T` is the
  * other way round, and its fallthrough block is `if (!(C))`. A backward jump
  * wants the opposite of both, since a loop repeats when the jump IS taken.
+ *
+ * A merged condition (dvmMergeConditions) joins its parts: two `if_not`s fall
+ * through when both hold, so `A && B`, and jump when that fails; two `if`s jump
+ * when either holds, so `A || B`. `ctx.leaf`, when given, spells a part --
+ * utilities/structure_check.mjs names each one `c0`, `c1`, ... and evaluates the
+ * result, which is how the joined text is held to the flat listing.
  */
+function dvmCondJoined(s, ctx) {
+  const leaf = p => (ctx && ctx.leaf) ? ctx.leaf(p) : dvmFoldFrame(p.node.groups[0] || [], ctx);
+  if (!s.parts) return leaf(s);
+  return s.parts.map(p => dvmCondOperand(leaf(p))).join(s.negated ? ' || ' : ' && ');
+}
 function dvmCondFallthrough(s, ctx) {
-  const e = dvmFoldFrame(s.node.groups[0] || [], ctx);
+  const e = dvmCondJoined(s, ctx);
   return s.negated ? '!(' + e + ')' : e;
 }
 function dvmCondTaken(s, ctx) {
-  const e = dvmFoldFrame(s.node.groups[0] || [], ctx);
+  const e = dvmCondJoined(s, ctx);
   return s.negated ? e : '!(' + e + ')';
+}
+/* A part of a joined condition, bracketed when it has a space outside every
+   bracket: `Arg01 has MeleeWeapon && Var00` reads either way, and
+   `(Arg01 has MeleeWeapon) && Var00` reads one. A call, a comparison (the fold
+   brackets every infix operator) and a negation are already one piece. */
+function dvmCondOperand(e) {
+  let depth = 0;
+  for (const c of e) {
+    if (c === '(' || c === '[') depth++;
+    else if (c === ')' || c === ']') depth--;
+    else if (c === ' ' && depth === 0) return '(' + e + ')';
+  }
+  return e;
+}
+
+/* ---- for-each, break and continue ------------------------------------------
+ * The engine's iterators are one syscall called three ways, and the compiler
+ * lays a loop over one out the same way every time:
+ *
+ *     Var01 = EquipmentIterator(&Var1, 0, Arg01)      the first item
+ *     while (!(EquipmentIterator(&Var1, 1))) {         not yet finished
+ *         ...
+ *         Var01 = EquipmentIterator(&Var1, 2)          the next item
+ *     }
+ *
+ * which is `for Var01 in EquipmentIterator(Arg01) { ... }`. 152 loops in the
+ * archive, measured on 22 September 2026, and every one recovers as a `while`
+ * with its start just before it and its step last in its body -- so this is a
+ * way of printing a recovered `while`, not a new pattern for the recovery, and
+ * the tree the structure check compares is the same tree either way.
+ *
+ * The state word (`&Var1`) is not printed on the `for` line: it is the
+ * iterator's bookkeeping, it names the slot one early (the handoff's item on
+ * iterator storage), and the raw and folded listings still show it. The
+ * iterator keeps its name as the listing gives it rather than losing the
+ * `Iterator`, so it can be searched for.
+ *
+ * The step moves to the loop's closing brace, which carries its offset in the
+ * gutter so that a ring on the step lands on the brace rather than on the
+ * statement before it; the `for` line carries the start's, and the test,
+ * between the two, rings the `for` line.
+ *
+ * What makes it safe to print, beyond the three calls agreeing on the name,
+ * the state word and the loop variable:
+ *
+ *   nothing jumps to the TEST except the loop's own back edge, which the
+ *   recovery absorbed -- in a `for` there is nowhere to jump that runs the test
+ *   without the step, and
+ *
+ *   every goto to the STEP can be printed without a label: a `continue` of
+ *   this loop, or a `break` out of a loop nested in it whose exit is the step.
+ *   Four jumps in three functions (0xEA3, 0xEB7, 0x1827) are the second kind,
+ *   an inner loop left for the outer one's step, and read as the `break` they
+ *   are. A goto to the step that is neither would leave the loop a `while`;
+ *   the archive has none.
+ *
+ * `continue` and `break` are printed for every kind of loop, and only for a
+ * jump whose innermost enclosing loop is the one it continues or leaves -- the
+ * loop a reader would take it to mean. A jump from an inner loop to an outer
+ * one's step or exit stays a goto. utilities/structure_check.mjs reads each
+ * `break` and `continue` in the printed text, finds its loop by the braces as
+ * a reader would, and holds the flat statement's target to that loop's step or
+ * exit.
+ */
+
+/* The three calls, read off the ops rather than the text. Returns what the
+   `for` line needs, or null. `prev` is the node before the `while`. */
+function dvmForEach(prev, w, ctx) {
+  if (!prev || prev.kind !== 'stmt' || w.kind !== 'while' || !w.body.length) return null;
+  const last = w.body[w.body.length - 1];
+  if (last.kind !== 'stmt' || last.stmt.parts || w.cond.parts || w.cond.node.mn !== 'if') return null;
+  // `Var = Name(args)` with Name an iterator syscall; the values its frame
+  // folds to, which are exactly the arguments the folded listing prints.
+  const call = n => {
+    const g = n.groups[0] || [];
+    if (g.length !== 1 || !/^sys \w*Iterator$/.test(g[0].mn) || g[0].expect !== 1) return null;
+    return { name: g[0].mn.slice(4), vals: dvmReduceFrame(g[0].groups[0] || [], ctx) };
+  };
+  const setOf = n => (n.mn === 'set_local' && /^0x[0-9A-F]+$/i.test(dvmBareOperand(n.arg)) &&
+                      parseInt(dvmBareOperand(n.arg), 16) < 0x30) ? dvmBareOperand(n.arg) : null;
+  const slot = setOf(prev.stmt.node);
+  if (slot === null || setOf(last.stmt.node) !== slot) return null;
+  const start = call(prev.stmt.node), test = w.cond.node.groups[0] && w.cond.node.groups[0].length === 1 &&
+    /^sys /.test(w.cond.node.groups[0][0].mn) ? { name: w.cond.node.groups[0][0].mn.slice(4),
+    vals: dvmReduceFrame(w.cond.node.groups[0][0].groups[0] || [], ctx) } : null, step = call(last.stmt.node);
+  if (!start || !test || !step || start.name !== test.name || step.name !== start.name) return null;
+  const state = start.vals[0];
+  if (!/^&Var\w+$/.test(state || '') || start.vals[1] !== '0') return null;
+  if (test.vals.length !== 2 || test.vals[0] !== state || test.vals[1] !== '1') return null;
+  if (step.vals.length !== 2 || step.vals[0] !== state || step.vals[1] !== '2') return null;
+  return { start: prev.stmt, step: last.stmt, name: start.name, args: start.vals.slice(2),
+           variable: 'Var' + parseInt(slot, 16).toString(16).toUpperCase().padStart(2, '0') };
+}
+
+/* Which `while`s print as `for`, and which jumps print as `break` or
+   `continue`. `fors` maps a while node to its dvmForEach reading; `exits` maps a
+   statement object to the word it prints instead of `goto`. */
+function dvmLoopExits(tree, ctx) {
+  const fors = new Map();
+  let exits = new Map();
+  const jumps = [];
+  (function collect(list) {
+    for (const n of list) {
+      if (n.kind === 'stmt' && n.stmt.targets.length) jumps.push(n.stmt);
+      for (const k of ['then', 'els', 'body']) if (n[k]) collect(n[k]);
+    }
+  })(tree);
+  (function findFors(list) {
+    for (let i = 0; i < list.length; i++) {
+      const n = list[i];
+      if (n.kind === 'while') {
+        const f = dvmForEach(list[i - 1], n, ctx);
+        if (f && !jumps.some(s => s.targets.includes(n.cond.abs))) fors.set(n, f);
+      }
+      for (const k of ['then', 'els', 'body']) if (n[k]) findFors(n[k]);
+    }
+  })(tree);
+  // Where each loop continues and where it is left.
+  const mark = (list, cont) => {
+    for (let i = 0; i < list.length; i++) {
+      const n = list[i];
+      const after = (i + 1 < list.length) ? dvmFirstAbs(list[i + 1]) : cont;
+      let at = null;
+      if (n.kind === 'while') at = { cont: fors.has(n) ? fors.get(n).step.abs : n.cond.abs, exit: n.cond.targets[0] };
+      else if (n.kind === 'dowhile') at = { cont: n.cond.abs, exit: after };
+      else if (n.kind === 'loop') at = { cont: n.body.length ? dvmFirstAbs(n.body[0]) : null, exit: after };
+      if (at) {
+        (function direct(l) {
+          for (const x of l) {
+            if (x.kind === 'stmt' && x.stmt.targets.length === 1 && (x.stmt.kind === 'jump' || x.stmt.kind === 'cond')) {
+              const t = x.stmt.targets[0];
+              if (t === at.exit && at.exit !== null) exits.set(x.stmt, 'break');
+              else if (t === at.cont && at.cont !== null) exits.set(x.stmt, 'continue');
+            }
+            // A nested loop's statements belong to it, not to this one.
+            if (x.kind === 'if' || x.kind === 'ifelse') { direct(x.then); if (x.els) direct(x.els); }
+          }
+        })(n.body);
+      }
+      const inner = n.kind === 'while' || n.kind === 'dowhile' ? n.cond.abs
+                  : n.kind === 'loop' ? (n.body.length ? dvmFirstAbs(n.body[0]) : null) : after;
+      for (const k of ['then', 'els', 'body']) if (n[k]) mark(n[k], inner);
+    }
+  };
+  /* A `for` stands only if every jump to its step is printed as a `continue`
+     of it or a `break` out of a loop nested in it that ends on the step; a
+     jump left as a goto would need a label on the step, which has no line of
+     its own. Dropping one `for` changes where that loop continues, so mark
+     again until nothing is dropped. */
+  for (;;) {
+    exits = new Map();
+    mark(tree, null);
+    let dropped = false;
+    for (const [w, f] of fors)
+      if (jumps.some(s => s.targets.includes(f.step.abs) && !exits.has(s))) { fors.delete(w); dropped = true; }
+    if (!dropped) break;
+  }
+  return { fors, exits };
 }
 
 /* Which offsets a goto still points at once the structure is recovered, so a
-   label is printed only where one is needed. */
-function dvmRemainingLabels(tree) {
+   label is printed only where one is needed. A jump printed as `break` or
+   `continue` needs none. */
+function dvmRemainingLabels(tree, exits) {
   const out = new Set();
   const walk = list => {
     for (const n of list) {
-      if (n.kind === 'stmt') { for (const t of n.stmt.targets) out.add(t); }
+      if (n.kind === 'stmt' && !(exits && exits.has(n.stmt))) { for (const t of n.stmt.targets) out.add(t); }
       for (const k of ['then', 'els', 'body']) if (n[k]) walk(n[k]);
     }
   };
@@ -816,48 +1054,75 @@ function dvmRemainingLabels(tree) {
   return out;
 }
 
-function dvmRenderStructured(tree, ctx, labels, indent, lines) {
+/* The listing, from the recovered tree. `loops` is dvmLoopExits' reading.
+ *
+ * A label goes on the line of whatever node begins at its offset. Until
+ * 22 September 2026 only a plain statement took one, so a goto into the head
+ * of an `if` or a `while` named a label that was printed nowhere -- 94 of
+ * them across the archive. (Another 116 aim inside a run of text, where no
+ * statement starts, and have no line a label could go on; that is the
+ * disassembler's question.) A `do` and a `loop` have no line of their own at
+ * their first offset, so theirs is left to the first node of the body, which
+ * does.
+ *
+ * Every closing brace sits under the keyword it closes. It sat two columns
+ * left of it until the `for` loop's brace needed the step's offset in the
+ * gutter, and a brace with a gutter cannot be further left than the text.
+ */
+function dvmRenderStructured(tree, ctx, labels, indent, lines, loops) {
   const pad = '    '.repeat(indent);
+  const hex4 = v => v.toString(16).toUpperCase().padStart(4, '0');
+  const line = (at, text) => lines.push('    ' + (at === null ? '    ' : hex4(at)) + pad + '  ' + text);
+  const label = at => { if (at !== null && labels.has(at)) lines.push('  ' + ctx.label('0x' + hex4(at)) + ':'); };
+  const fors = loops ? loops.fors : new Map(), exits = loops ? loops.exits : new Map();
+  const skip = new Set();
+  for (const f of fors.values()) skip.add(f.start);
   for (const n of tree) {
-    const at = dvmFirstAbs(n);
-    if (at !== null && labels.has(at) && n.kind === 'stmt')
-      lines.push('  ' + ctx.label('0x' + at.toString(16).toUpperCase().padStart(4, '0')) + ':');
+    if (n.kind === 'stmt' && skip.has(n.stmt)) continue;
+    const f = n.kind === 'while' ? fors.get(n) : null;
+    if (f) label(f.start.abs);
+    else if (n.kind !== 'dowhile' && n.kind !== 'loop') label(dvmFirstAbs(n));
     switch (n.kind) {
       case 'stmt': {
-        const gutter = n.stmt.abs.toString(16).toUpperCase().padStart(4, '0');
-        lines.push('    ' + gutter + pad + '  ' + dvmFoldStatement(n.stmt.node, ctx));
+        const s = n.stmt, word = exits.get(s);
+        const go = word || (s.targets.length === 1 ? 'goto ' + ctx.label('0x' + hex4(s.targets[0])) : null);
+        if (s.kind === 'cond' && go && (word || s.parts)) line(s.abs, 'if (' + dvmCondTaken(s, ctx) + ') ' + go);
+        else if (s.kind === 'jump' && word) line(s.abs, word);
+        else line(s.abs, dvmFoldStatement(s.node, ctx));
         break;
       }
       case 'if':
-        lines.push('    ' + n.cond.abs.toString(16).toUpperCase().padStart(4, '0') + pad +
-                   '  if (' + dvmCondFallthrough(n.cond, ctx) + ') {');
-        dvmRenderStructured(n.then, ctx, labels, indent + 1, lines);
-        lines.push('        ' + pad + '}');
+        line(n.cond.abs, 'if (' + dvmCondFallthrough(n.cond, ctx) + ') {');
+        dvmRenderStructured(n.then, ctx, labels, indent + 1, lines, loops);
+        line(null, '}');
         break;
       case 'ifelse':
-        lines.push('    ' + n.cond.abs.toString(16).toUpperCase().padStart(4, '0') + pad +
-                   '  if (' + dvmCondFallthrough(n.cond, ctx) + ') {');
-        dvmRenderStructured(n.then, ctx, labels, indent + 1, lines);
-        lines.push('        ' + pad + '} else {');
-        dvmRenderStructured(n.els, ctx, labels, indent + 1, lines);
-        lines.push('        ' + pad + '}');
+        line(n.cond.abs, 'if (' + dvmCondFallthrough(n.cond, ctx) + ') {');
+        dvmRenderStructured(n.then, ctx, labels, indent + 1, lines, loops);
+        line(null, '} else {');
+        dvmRenderStructured(n.els, ctx, labels, indent + 1, lines, loops);
+        line(null, '}');
         break;
       case 'while':
-        lines.push('    ' + n.cond.abs.toString(16).toUpperCase().padStart(4, '0') + pad +
-                   '  while (' + dvmCondFallthrough(n.cond, ctx) + ') {');
-        dvmRenderStructured(n.body, ctx, labels, indent + 1, lines);
-        lines.push('        ' + pad + '}');
+        if (f) {
+          line(f.start.abs, 'for ' + f.variable + ' in ' + f.name + '(' + f.args.join(', ') + ') {');
+          dvmRenderStructured(n.body.slice(0, -1), ctx, labels, indent + 1, lines, loops);
+          line(f.step.abs, '}');
+        } else {
+          line(n.cond.abs, 'while (' + dvmCondFallthrough(n.cond, ctx) + ') {');
+          dvmRenderStructured(n.body, ctx, labels, indent + 1, lines, loops);
+          line(null, '}');
+        }
         break;
       case 'dowhile':
-        lines.push('        ' + pad + '  do {');
-        dvmRenderStructured(n.body, ctx, labels, indent + 1, lines);
-        lines.push('    ' + n.cond.abs.toString(16).toUpperCase().padStart(4, '0') + pad +
-                   '  } while (' + dvmCondTaken(n.cond, ctx) + ')');
+        line(null, 'do {');
+        dvmRenderStructured(n.body, ctx, labels, indent + 1, lines, loops);
+        line(n.cond.abs, '} while (' + dvmCondTaken(n.cond, ctx) + ')');
         break;
       case 'loop':
-        lines.push('        ' + pad + '  loop {');
-        dvmRenderStructured(n.body, ctx, labels, indent + 1, lines);
-        lines.push('        ' + pad + '}');
+        line(null, 'loop {');
+        dvmRenderStructured(n.body, ctx, labels, indent + 1, lines, loops);
+        line(null, '}');
         break;
     }
   }
@@ -900,12 +1165,15 @@ function dvmStructureRender(arc, b, resid) {
     const forest = dvmForest(r.ops);
     const stmts = dvmStatementList(forest, st);
     const rec = dvmRecoverStructure(stmts);
-    const labels = dvmRemainingLabels(rec.tree);
-    dvmRenderStructured(rec.tree, ctx, labels, 0, lines);
+    const loops = dvmLoopExits(rec.tree, ctx);
+    const labels = dvmRemainingLabels(rec.tree, loops.exits);
+    dvmRenderStructured(rec.tree, ctx, labels, 0, lines, loops);
     lines.push('}');
+    // A jump printed as `break` or `continue` is structure, not a goto.
+    const left = rec.gotos - loops.exits.size;
     if (r.bad) lines.push('// ^ decoder desynced (' + r.bad + ' unrecognised bytes) - unreliable');
     else if (!stmts.some(s => s.targets.length)) plain++;
-    else if (rec.gotos) { lines.push('// ^ ' + rec.gotos + ' jump(s) fit no block and are left as goto'); partial++; }
+    else if (left) { lines.push('// ^ ' + left + ' jump(s) fit no block and are left as goto'); partial++; }
     else whole++;
   }
   const cls = dvmClassName(resid);
