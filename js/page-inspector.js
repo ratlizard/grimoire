@@ -690,7 +690,7 @@ function inspectMapSquare(tx, ty) {
   const faux = tileId ? getFauxProps().get(tileId) : null;
   const needsRope = ropeSquares(cm.resid).has(tx + ',' + ty);
 
-  const parts = ['<div class="inspHead">Square ' + tx + ', ' + ty +
+  const parts = ['<div class="inspHead">Square ' + tx + ', ' + ty + ' <span class="inspDim">(' + gameSquare(tx, ty) + ')</span>' +
     (tileId ? ' &nbsp;·&nbsp; terrain tile 0x' + tileId.toString(16).toUpperCase() +
       (terrain ? ' <i>' + svEsc(terrain) + '</i>' : '') : '') +
     (tileId && !tilePassable(tileId) ? ' &nbsp;·&nbsp; <span class="inspDim">blocks movement</span>' : '') +
@@ -1038,6 +1038,12 @@ function mapRenderIfCheap(resid) {
   if (!atlasInMotion() || zoneMapCache.has(resid)) return mapRenderFor(resid, true);
   return null;
 }
+/* A square as the game prints it: X and Y in lower-case hex. The cheats'
+   Look prints "Location %x,%x,%x" and the jump asks "Jump from [%x,%x,%x]"
+   (TGameSys::LookCommand), so a square the site calls 62, 57 is 3e, 39 to
+   the game. Both count from the top left; only the base differs (the
+   maintainer kept landing somewhere else, 23 September 2026). */
+function gameSquare(tx, ty) { return 'hex ' + tx.toString(16) + ', ' + ty.toString(16); }
 function mapRenderFor(resid, cache) {
   if (zoneMapCache.has(resid)) {
     const hit = zoneMapCache.get(resid);

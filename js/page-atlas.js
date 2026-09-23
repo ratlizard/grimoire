@@ -1930,7 +1930,8 @@ function atlasInspect(px, py) {
   window.ATLAS_SEL = { resid: node.resid, tx, ty };
   paintAtlas();
   const e = mapRenderFor(node.resid, true);
-  const parts = ['<div class="inspHead">' + svLink(node.name + ', square ' + tx + ', ' + ty, 'atlasOpenSquare(' + node.resid + ',' + tx + ',' + ty + ')') + '</div>'];
+  const parts = ['<div class="inspHead">' + svLink(node.name + ', square ' + tx + ', ' + ty, 'atlasOpenSquare(' + node.resid + ',' + tx + ',' + ty + ')') +
+                 ' <span class="inspDim">(' + gameSquare(tx, ty) + ')</span></div>'];
   if (e && e.result) {
     const tileId = e.result.m ? mapTileAt(e.result.m, tx, ty) : 0;
     const terrain = tileId ? (terrainNameFor(tileId) || compositeTileName(tileId)) : null;
@@ -2174,7 +2175,7 @@ function squareCard(level, e, tx, ty, placeName, asked) {
   if (shown.length) lines.push('<span class="' + (c ? 'hvWhat' : 'hvName') + '">' + svEsc(shown.join(', ')) +
     (props.length > shown.length ? ', and ' + (props.length - shown.length) + ' more' : '') + '</span>');
   if (asked && ground) lines.push('<span class="hvWhat">' + svEsc(ground) + '</span>');
-  if (placeName) lines.push('<span class="hvWhere">' + svEsc(placeName) + ' &nbsp;·&nbsp; ' + tx + ', ' + ty + '</span>');
+  if (placeName) lines.push('<span class="hvWhere">' + svEsc(placeName) + ' &nbsp;·&nbsp; ' + tx + ', ' + ty + ' (' + gameSquare(tx, ty) + ')</span>');
   return { html: '<div>' + lines.join('') + '</div>', person: c };
 }
 
