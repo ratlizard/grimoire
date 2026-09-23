@@ -4810,6 +4810,71 @@ function exeSyscallTable() {
   return { table: exeVal(ops[ti], ops[ti].d.imm), base: exeVal(ops[si >= 0 ? si : ci], base), entries };
 }
 
+/* Which syscalls take a character by its number, and in which argument,
+   read off each handler. A handler gets the argument array in r4; an
+   argument whose number (its tag stripped) is multiplied by 32 and used to
+   index the character table (the words at r2-30352, 32 bytes a character,
+   the table cbpartyjoin sets the in-party bit in) is a character -- there,
+   or in a routine the handler hands it to, two calls deep, which is how
+   TalkParticipant (cbsetportrait) reaches it through
+   TConversation::ShowPortrait. The reader follows a value through register
+   moves, stack slots and the shifts that strip the tag, and forgets a
+   register the moment anything else writes it. Map of syscall op to the
+   argument indices; null with no application open. */
+let _sysCharArgs = { app: undefined, v: null };
+function exeSyscallCharacterArgs() {
+  const app = window.APP_PEF || (typeof appPef === 'function' ? appPef() : null);
+  if (_sysCharArgs.app === app) return _sysCharArgs.v;
+  let v = null;
+  try {
+    const st = app ? exeSyscallTable() : null;
+    if (st) {
+      v = new Map();
+      const reach = (r, reg0, depth) => {
+        const reg = Object.assign({}, reg0), stack = {}, hits = new Set();
+        for (const o of exeOpsOf(r)) {
+          const d = o.d; if (!d) continue; const mn = d.mn;
+          if (mn === 'bl' && o.to !== null) {
+            const callee = depth > 0 ? exeRoutineAt(o.to) : null;
+            if (callee && callee.offset === o.to) {
+              const pass = {};
+              for (let p = 3; p <= 10; p++) if (reg[p] && reg[p].arg !== undefined && !reg[p].x32) pass[p] = reg[p];
+              if (Object.keys(pass).length) for (const h of reach(callee, pass, depth - 1)) hits.add(h);
+            }
+            for (let p = 0; p <= 12; p++) reg[p] = undefined;
+            continue;
+          }
+          if (mn === 'mr' || (mn === 'addi' && d.imm === 0 && d.ra !== 0)) { reg[mn === 'mr' ? d.ra : d.rd] = reg[mn === 'mr' ? d.rs : d.ra]; continue; }
+          if ((mn === 'stw' || mn === 'sth') && d.ra === 1) { stack[d.d] = reg[d.rt]; continue; }
+          if ((mn === 'lwz' || mn === 'lha') && d.ra === 1) { reg[d.rt] = stack[d.d] || (mn === 'lha' ? stack[d.d - 2] : undefined); continue; }
+          if (mn === 'lwz' && d.ra === 2 && d.d === -30352) { reg[d.rt] = { chars: true }; continue; }
+          if (mn === 'lwz' && reg[d.ra] && reg[d.ra].args) { reg[d.rt] = { arg: d.d / 4 }; continue; }
+          if ((mn === 'slwi' || mn === 'srawi' || mn === 'extsh' || mn === 'clrlwi') && reg[d.rs] && reg[d.rs].arg !== undefined) {
+            reg[d.ra] = { arg: reg[d.rs].arg, x32: mn === 'slwi' && d.sh === 5 ? true : reg[d.rs].x32 }; continue;
+          }
+          if (mn === 'addi' && reg[d.ra] && reg[d.ra].x32) { reg[d.rd] = reg[d.ra]; continue; }
+          if (/^(l|st)[bhw][a-z]*x$/.test(mn) || mn === 'add') {
+            const a = reg[d.ra], b = reg[d.rb];
+            if (a && a.chars && b && b.x32) hits.add(b.arg);
+            if (b && b.chars && a && a.x32) hits.add(a.arg);
+          }
+          if (/^(cmp|st|b|mt)/.test(mn)) continue;
+          const dest = /^l[bhw]/.test(mn) ? d.rt : d.rd !== undefined ? d.rd : d.rs !== undefined ? d.ra : undefined;
+          if (dest !== undefined) reg[dest] = undefined;
+        }
+        return hits;
+      };
+      for (const e of st.entries) {
+        if (!e.at) continue;
+        const hits = reach(exeRoutineAt(e.at), { 4: { args: true } }, 2);
+        if (hits.size) v.set(e.op, hits);
+      }
+    }
+  } catch (e) { quiet(e, 'the syscalls that take a character'); v = null; }
+  _sysCharArgs = { app, v };
+  return v;
+}
+
 // The flag number of a status-word bit, with where its subtrahend was read.
 function exeFlagOfStatusBit(bit, statusOffset) {
   const m = exeAbilityMap().find(x => x.word && x.offset && x.offset.v === statusOffset);

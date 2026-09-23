@@ -136,6 +136,20 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (paint(Q / 2) === paint(0) || paint(Q / 2) !== paint(Q / 2)) fail('sky', 'the strip does not change between noon and midnight, or changes by itself');
       else console.log('  sky: sunrise ' + rise + ':00, sunset ' + set + ':00, ' + r.moons.length + ' moons; black at midnight, the sun overhead at noon');
     } catch (e) { fail('sky', e); }
+    /* Which syscalls take a character, read off their handlers
+       (exeSyscallCharacterArgs): JoinParty's first argument indexes the
+       character table, so Aethon's "join party 97" names him, and
+       TalkParticipant's reaches it two calls down. PlaySound's does not. */
+    try {
+      const ca = ctx.exeSyscallCharacterArgs();
+      const SYM = peek('DVM_SYM').syscall, op = nm => +Object.keys(SYM).find(k => SYM[k] === nm);
+      ctx.jumpToResource(0x1861); ctx.setScriptPane('read');
+      const h = REGISTRY.get('textContent').innerHTML;
+      ctx.setScriptFold('structured');
+      if (!ca || !ca.get(op('JoinParty')) || !ca.get(op('TalkParticipant')) || ca.get(op('PlaySound'))) fail('read view', 'the syscalls that take a character were misread: ' + JSON.stringify(ca && [...ca].map(([k, v]) => [k, [...v]])));
+      else if (!/Join party Aethon \(97\)/.test(h) || !/Talk participant Meleager \(34\), 1/.test(h)) fail('read view', 'a character given by number to a syscall is not named');
+      else console.log('  read view: ' + ca.size + ' syscalls take a character by the program; Aethon joins by name');
+    } catch (e) { fail('read view', e); }
     /* What a signal reaches, 12 September 2026. These figures are the
        APPLICATION's, so they are pinned here and not in the puzzles block.
        signalRules() returns null until the application is adopted, and the

@@ -1469,10 +1469,10 @@ function dvmSayOperator(n, args, ctx) {
        use -- and such a test compared with 0 is the test itself. */
     if (infix === '&') {
       const m = /^\(1 << (\w+)\)$/.exec(args[1]), v = /^\d+$/.test(args[1]) ? +args[1] : 0;
-      if (m) return args[0] + ' has bit ' + m[1];
+      if (m) { dvmSayBitNote(ctx, args[0], m[1]); return args[0] + ' has bit ' + m[1]; }
       const k = /^~\(1 << (\w+)\)$/.exec(args[1]);
       if (k) return args[0] + ' without bit ' + k[1];
-      if (v && (v & (v - 1)) === 0) return args[0] + ' has bit ' + Math.log2(v);
+      if (v && (v & (v - 1)) === 0) { dvmSayBitNote(ctx, args[0], String(Math.log2(v))); return args[0] + ' has bit ' + Math.log2(v); }
     }
     if (infix === '|') { const m = /^\(1 << (\w+)\)$/.exec(args[1]); if (m) return args[0] + ' with bit ' + m[1]; }
     if ((infix === '!=' || infix === '==') && args[1] === '0' && / has bit \w+$/.test(args[0]))
@@ -1556,6 +1556,70 @@ function dvmInlineHelper(arc, rid) {
   all.set(rid, out);
   return out;
 }
+/* Where a character's bit is set, said beside a test of it: every "set
+   bit n of X's F" and "clear bit n of X's F" the Read view says anywhere in
+   the archive, for a named character (a number the table names) or for
+   "it" in a character's own conversation script, which is that character.
+   The table is built from the sayer's own sentences, so a test and the
+   settings it names are in the same words by construction. */
+function dvmSayBitNote(ctx, owner, bit) {
+  if (!ctx || !ctx.say || !ctx.arc || ctx.noBitNotes || !/^\d+$/.test(bit)) return;
+  const who = dvmSayWhose(ctx, owner);
+  if (!who) return;
+  const table = derivedTable(ctx.arc, 'bitSetters', () => {
+    const m = new Map();
+    for (let subn = 0; subn < 256; subn++) {
+      if (!ctx.arc.index[subn] || !ctx.arc.index[subn][0] || (typeof SCRIPT_SUBN !== 'undefined' && !SCRIPT_SUBN.has(subn))) continue;
+      const count = subindexCount(ctx.arc, subn);
+      for (let i = 0; i < count; i++) {
+        const resid = ((subn + 1) << 8) | i;
+        let fns;
+        try { const raw = getResourceBytes(ctx.arc, resid); if (!raw || !raw.length) continue; fns = dvmReadRender(ctx.arc, smartDecrypt(raw, resid).data, resid, { noBitNotes: true }); } catch (e) { continue; }
+        const c2 = { arc: ctx.arc, resid };
+        (function walk(cl, asked) {
+          for (const c of cl || []) {
+            const mm = /^(set|clear) bit (\d+) of (.+?)(?:’s | )(bit flags|[a-z ]+)$/.exec(c.text.replace(/ \([^()]*\)$/, ''));
+            if (mm) {
+              const w = dvmSayWhose(c2, mm[3] === 'its' ? 'it' : mm[3]);
+              if (w) {
+                const key = w.index + ':' + mm[4] + ':' + mm[2];
+                if (!m.has(key)) m.set(key, []);
+                const row = m.get(key);
+                if (!row.some(x => x.resid === resid && x.how === mm[1] && x.asked === asked)) row.push({ resid, how: mm[1], asked });
+              }
+            }
+            walk(c.kids, c.prompt !== undefined ? c.prompt : asked);
+          }
+        })((fns || []).flatMap(f => f.clauses || []), null);
+      }
+    }
+    return m;
+  });
+  const field = /(?:’s |^its )(.+)$/.exec(owner);
+  const row = field && table.get(who.index + ':' + field[1] + ':' + bit);
+  if (!row || !row.length) return;
+  // A conversation by whose it is, and the prompt the setting answers.
+  const name = x => { const nm = (x.resid >> 8) === 0x18 ? dvmFoldPage(ctx, () => characterName(x.resid - 0x1800)) : null;
+    return (nm ? dvmSayPossessive(nm) + ' conversation' : dvmFoldResourceName(x.resid)) + (x.asked && x.asked !== '*' ? ', asked about ' + x.asked.split(',').map(k => {
+      const w = dvmFoldPage(ctx, () => typeof convIntendedFor === 'function' ? convIntendedFor(k) : null);
+      return (w && w[0] ? w[0] : k).toUpperCase();
+    }).join(' or ') : ''); };
+  const set = row.filter(x => x.how === 'set').map(name), clr = row.filter(x => x.how === 'clear').map(name);
+  dvmFoldNote(ctx, 'bit ' + bit + ' of ' + dvmSayPossessive(who.name) + ' ' + field[1] + ' is set by ' + (set.slice(0, 3).join('; ') || 'nothing') +
+    (set.length > 3 ? ' and ' + (set.length - 3) + ' more' : '') + (clr.length ? '; cleared by ' + clr.slice(0, 3).join('; ') : ''));
+}
+function dvmSayPossessive(nm) { return nm + (/s$/.test(nm) ? '’' : '’s'); }
+// Which character a phrase is: "Name (n)'s ..." by its number, "it" or
+// "its ..." in a character's own conversation script by the script's.
+function dvmSayWhose(ctx, owner) {
+  const m = /\((\d+)\)(?:’s .*)?$/.exec(owner);
+  if (m) { const nm = dvmFoldPage(ctx, () => characterName(+m[1])); return nm ? { index: +m[1], name: nm } : null; }
+  if ((owner === 'it' || /^its /.test(owner)) && ctx.resid && (ctx.resid >> 8) === 0x18) {
+    const nm = dvmFoldPage(ctx, () => characterName(ctx.resid - 0x1800));
+    return nm ? { index: ctx.resid - 0x1800, name: nm } : null;
+  }
+  return null;
+}
 /* Where a game state is set, said beside a read of it: every SetState and
    SetStateFlag call with numbers for both arguments, in every script, by
    the resource that makes it. The state's meaning is in no file; where it
@@ -1602,7 +1666,7 @@ function dvmSayStateNote(ctx, name, k) {
   // A character's conversation by whose it is; anything else by its name or id.
   const who = rid => {
     const nm = (rid >> 8) === 0x18 ? dvmFoldPage(ctx, () => characterName(rid - 0x1800)) : null;
-    return nm ? nm + '’s conversation' : dvmFoldResourceName(rid);
+    return nm ? dvmSayPossessive(nm) + ' conversation' : dvmFoldResourceName(rid);
   };
   for (const x of row) { if (!byV.has(x.v)) byV.set(x.v, []); byV.get(x.v).push(who(x.resid)); }
   dvmFoldNote(ctx, (name === 'GetState' ? 'state ' : 'state flag ') + k + ' is set ' +
@@ -1667,6 +1731,14 @@ function dvmSayCall(n, ctx) {
     const name = n.mn.slice(4), v = vals(n.groups[0]);
     dvmFoldCallNotes(name, v, ctx);
     if ((name === 'GetState' || name === 'GetStateFlag') && /^\d+$/.test(v[0] || '') && ctx.arc) dvmSayStateNote(ctx, name, +v[0]);
+    // A character given by number to a syscall that takes one (the program
+    // says which: exeSyscallCharacterArgs), named from the character table.
+    const chars = dvmFoldPage(ctx, () => typeof exeSyscallCharacterArgs === 'function' ? exeSyscallCharacterArgs() : null);
+    const which = chars && chars.get(n.op);
+    if (which) for (const k of which) if (/^\d+$/.test(v[k] || '')) {
+      const nm = dvmFoldPage(ctx, () => characterName(+v[k]));
+      if (nm) v[k] = nm + ' (' + v[k] + ')';
+    }
     return withArgs(dvmSayName(name), v);
   }
   switch (n.mn) {
@@ -1898,7 +1970,8 @@ function dvmSayConversation(stmts, ctx) {
 }
 /* Every function of a resource, said. The same extents, names and recovery as
    dvmStructureRender; a prose object is said as what it holds. */
-function dvmReadRender(arc, b, resid) {
+function dvmReadRender(arc, b, resid, opts) {
+  const extra = Object.assign({ resid }, opts || {});
   dvmContextResid = (typeof resid === 'number') ? resid : null;
   const objs = dvmExtents(b, resid);
   const slots = dvmSlotNames(b, resid);
@@ -1921,7 +1994,7 @@ function dvmReadRender(arc, b, resid) {
     const answers = r.ops.filter(o => o[2] === 'conversation_response').length;
     if (answers) {
       const self = slots.has(st) && args.length ? 'Arg00' : null;
-      const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true, self };
+      const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true, self }, extra);
       let clauses = null;
       try { clauses = dvmSayConversation(dvmStatementList(dvmForest(r.ops), st), ctx); } catch (e) { clauses = null; }
       out.push({ at: st, name, args: self ? ['it'].concat(args.slice(1)) : args, answers, clauses,
@@ -1940,7 +2013,7 @@ function dvmReadRender(arc, b, resid) {
        others' second arguments are whatever each engine call passes, and
        are not read. */
     const target = self && name === DVM_SYM.method['10'] && args.length > 1 ? 'Arg01' : null;
-    const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true, self, target };
+    const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true, self, target }, extra);
     const stmts = dvmStatementList(dvmForest(r.ops), st);
     const rec = dvmRecoverStructure(stmts);
     const loops = dvmLoopExits(rec.tree, ctx);

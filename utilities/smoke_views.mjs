@@ -904,8 +904,8 @@ try {
   if (!/When asked about DEMODOCUS \(demo\):/.test(h) || !/Join party 97/.test(h)) fail('read view', 'Aethon\'s conversation is not read in full: ' + h.replace(/<[^>]+>/g, ' ').slice(0, 300));
   // Helpers read through (0xF02, SetCharacterFlag), a character by its
   // number named from the table, and a state's setters beside its test.
-  else if (!/Halos \(62\)\u2019s bit flags has bit 3: \(0xF02\)/.test(h) || !/Set bit 7 of its bit flags \(SetCharacterFlag\)/.test(h) ||
-           !/to 2 by Berossus\u2019s conversation/.test(h))
+  else if (!/Halos \(62\)\u2019s bit flags has bit 3: \([^)]*0xF02\)/.test(h) || !/Set bit 7 of its bit flags \(SetCharacterFlag\)/.test(h) ||
+           !/to 2 by Berossus\u2019 conversation/.test(h) || !/bit 3 of Halos\u2019 bit flags is set by Halos\u2019 conversation, asked about [A-Z]/.test(h))
     fail('read view', 'Aethon\'s helpers, Halos or state 3 are not read through: ' + h.replace(/<[^>]+>/g, ' ').slice(0, 400));
   else if (!/UseOn\(it, the target\)/.test(f) || !/the target as character/.test(f)) fail('read view', 'a UseOn\'s second argument is not the target');
   else console.log('  read view: Aethon\'s conversation read in full under its prompts, and a UseOn\'s second argument is the target');
