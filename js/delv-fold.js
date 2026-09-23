@@ -266,7 +266,17 @@ function dvmFoldOperator(n, args, ctx) {
     case 0x46: return args[0] + '[' + args[1] + ']';           // index
     case 0x5F: return 'len(' + args[0] + ')';
     case 0x60: return args[0] + ' has ' + bare;                // has_member
-    case 0x61: return args[0] + '.' + bare;                    // class_member
+    case 0x61: {                                               // class_member
+      /* `class_member 0xKKWW` reads word WW of the class's member KK -- the
+         member a `has` tests, by the same key -- so 0x2A03 is
+         `.MeleeWeapon[3]`, which is how the page's own readers write it
+         (weaponSkillOffLoop in js/page-rules.js). A key delvmod's method
+         table does not name stays as the number. */
+      const m = /^0x([0-9A-F]{2})([0-9A-F]{2})$/i.exec(bare);
+      const k = m && String(parseInt(m[1], 16));
+      const key = m && ((DVM_SYM.method && DVM_SYM.method[k]) || (DVM_SYM.field && DVM_SYM.field[k]));
+      return args[0] + '.' + (key ? key + '[' + parseInt(m[2], 16) + ']' : bare);
+    }
     case 0x62: return args[0] + '.' + bare;                    // get_field
     case 0x63: return bare + '(' + args[0] + ')';              // cast
     case 0x64: return args[0] + ' is ' + bare;                 // is_type
@@ -286,8 +296,12 @@ function dvmFoldCall(n, ctx) {
     return name + '(' + vals.join(', ') + ')';
   }
   switch (n.mn) {
-    case 'call_resource': case 'call_subroutine':
-      return bare + '(' + dvmArgList(n.groups[0], ctx) + ')';
+    case 'call_resource': case 'call_subroutine': {
+      // A resource the raw listing leaves as its id may have a name the page
+      // reads off its bytecode (dvmFoldResourceName); the call says it.
+      const id = n.mn === 'call_resource' && /^0x([0-9A-F]+)$/i.exec(bare);
+      return (id ? dvmFoldResourceName(parseInt(id[1], 16)) : bare) + '(' + dvmArgList(n.groups[0], ctx) + ')';
+    }
     case 'call_index':
       /* `9C rr rr (i...) 40 (p...) 40` -- the wiki's table: calls the resource
          at r plus the index expression, with the second frame as its
@@ -405,6 +419,25 @@ function dvmArgList(nodes, ctx) {
   return dvmReduceFrame(nodes || [], ctx).join(', ');
 }
 
+/* What a resource is called in the folded listings, at a call to it and at the
+   head of the function that is the whole of it. The raw listing's order --
+   the archive's own symbol table, then delvmod's short list -- and then the
+   names this page reads off the bytecode (dvmScriptName: the 0x0Fxx helpers,
+   and the AI's hooks when the application is open), which the raw listing
+   does not print. With none, the id as a call site spells it, `0x904`, so the
+   head of 0x904's own listing reads `function 0x904(...)`, as its callers do.
+   It was `function obj_0000(...)` until 22 September 2026: the object at
+   offset 0 of a resource that is one function, named by nothing because the
+   dispatch table that names the others is not there. */
+function dvmFoldResourceName(rid) {
+  let n = null;
+  try {
+    n = (typeof resourceSymbol === 'function' && resourceSymbol(rid)) ||
+        (DVM_SYM.resource && DVM_SYM.resource[String(rid)]) || dvmScriptName(rid);
+  } catch (e) { quiet(e); }
+  return n || ('0x' + rid.toString(16).toUpperCase().padStart(2, '0'));
+}
+
 /* ---- statements -----------------------------------------------------------
  * The top level of a function body, and of any frame that holds statements
  * rather than one value. A statement keeps its offset, because the offset is
@@ -486,7 +519,7 @@ function dvmFoldRender(arc, b, resid) {
   for (const [st, en, kind] of objs) {
     const seg = b.subarray(st, Math.min(en, b.length));
     if (!seg.length) continue;
-    const named = slots.get(st);
+    const named = slots.get(st) || (st === 0 && kind === 'function' ? dvmFoldResourceName(resid) : null);
     const name = named || ('obj_' + hex4(st));
     if (kind === 'function') {
       const body = seg.subarray(3);
@@ -1273,7 +1306,7 @@ function dvmStructureRender(arc, b, resid, out) {
   for (const [st, en, kind] of objs) {
     const seg = b.subarray(st, Math.min(en, b.length));
     if (!seg.length) continue;
-    const name = slots.get(st) || ('obj_' + hex4(st));
+    const name = slots.get(st) || (st === 0 && kind === 'function' ? dvmFoldResourceName(resid) : null) || ('obj_' + hex4(st));
     if (kind !== 'function') {
       if (kind === 'array') {
         const v = dvmArrayContents(seg);

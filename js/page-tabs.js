@@ -729,13 +729,21 @@ function renderLinked(text, resid, raw) {
     const ids = new Map();
     for (const m of raw.matchAll(/\bcall_(?:resource|index) ([A-Za-z_]\w*) \(0x([0-9A-Fa-f]{1,4})\)/g))
       ids.set(m[1], parseInt(m[2], 16));
+    // A call the raw listing leaves as an id and the folded one names
+    // (dvmFoldResourceName), and the function that is the whole resource,
+    // which is not a link to where the reader already is.
+    for (const m of raw.matchAll(/\bcall_resource 0x([0-9A-Fa-f]{1,4})\b/g)) {
+      const rid = parseInt(m[1], 16), nm = dvmFoldResourceName(rid);
+      if (/^[A-Za-z_]\w*$/.test(nm)) ids.set(nm, rid);
+    }
+    ids.delete(dvmFoldResourceName(resid));
     h = h.replace(/(^|[^\w.])([A-Za-z_]\w*)(?=[\[(])/gm, (m, pre, nm) =>
       ids.has(nm) && refExists(ids.get(nm))
         ? pre + '<a class="reflink" title="' + svEsc(refTitle(ids.get(nm))) + '" onclick="jumpToResource(' + ids.get(nm) + ')">' + nm + '</a>'
         : m);
     h = h.replace(/(^|[^\w.])0x([0-9A-Fa-f]{3,4})(?=[\[(])/gm, (m, pre, hx) => {
       const rid = parseInt(hx, 16);
-      return refExists(rid)
+      return rid !== resid && refExists(rid)
         ? pre + '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>'
         : m;
     });

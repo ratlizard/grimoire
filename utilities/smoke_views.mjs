@@ -679,6 +679,19 @@ try {
   ctx.jumpToResource(0x1820);
   if (!/AddQuest\(10, [^\n]*\/\/ To Do 10: (&quot;|")Ask Thuria about Iron Mine/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the To Do line Ake (0x1820) adds is not named');
+  /* A member read is named (`class_member 0x3400` is Lockable's first word),
+     a resource that is one function is headed with the name its callers use,
+     and not linked to itself, and a helper the raw listing leaves as an id is
+     called by the page's name for it, as a link: 0x98C calls 0xF13, IsMet. */
+  ctx.jumpToResource(0xE49);
+  if (!/Arg00\.Lockable\[0\] \* 5/.test(ctx.document.getElementById('textContent').innerHTML))
+    fail('script page', 'the door helper 0xE49 does not read its class member as Lockable[0]');
+  ctx.jumpToResource(0x987);
+  if (!/\nfunction 0x987\(Arg00, Arg01, Arg02\) \{/.test(ctx.document.getElementById('textContent').innerHTML))
+    fail('script page', '0x987 is not headed function 0x987(...), the name its callers use');
+  ctx.jumpToResource(0x98C);
+  if (!/jumpToResource\(3859\)[^>]*>IsMet</.test(ctx.document.getElementById('textContent').innerHTML))
+    fail('script page', '0x98C does not call 0xF13 as IsMet, as a link');
   ctx.jumpToResource(0x1403);
   if (!/SetAmbientLighting\(-128\)/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'a negative byte in 0x1403 is not printed as a negative number');
