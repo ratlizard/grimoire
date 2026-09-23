@@ -828,7 +828,8 @@ function paintDecodedPane() {
   pane.classList.add('scriptCode');
   // A line ringed by jumpToScriptAt.
   const at = window.LISTING_AT && window.LISTING_AT.resid === d.resid ? window.LISTING_AT.at : null;
-  const body = listingJumps(renderLinked(d.text, d.resid, mode === 'raw' ? null : d.raw), mode === 'raw');
+  const body = listingJumps(renderLinked(d.text, d.resid, mode === 'raw' ? null : d.raw), mode === 'raw',
+                            mode === 'structured' ? d.exits : null);
   pane.innerHTML = at === null ? body : listingRing(body, d.text, at);
 }
 
@@ -837,11 +838,22 @@ function paintDecodedPane() {
    `-> L0015, L0019`, and the label's own line (`L0042:`) is left alone; in the
    raw one it is `then -> 0x0094`. Both are offsets into the resource, which is
    what the ring counts in (listingLineFor), so a tap rings the statement at
-   the target and scrolls to it without leaving the page. */
-function listingJumps(html, raw) {
+   the target and scrolls to it without leaving the page.
+
+   A `break` or `continue` in the structured listing names no label, so where
+   it goes comes from the renderer (`exits`, by the offset in its gutter) and
+   the word itself is the link: a break rings the statement after its loop, a
+   continue the place the loop goes round. */
+function listingJumps(html, raw, exits) {
   const go = hx => '<a class="reflink" onclick="ringListingAt(' + parseInt(hx, 16) + ')">';
   if (raw) return html.replace(/(then -&gt; )0x([0-9A-F]{4})\b/g, (m, pre, hx) => pre + go(hx) + '0x' + hx + '</a>');
-  return html.replace(/\bL([0-9A-F]{4})\b(?!:)/g, (m, hx) => go(hx) + m + '</a>');
+  html = html.replace(/\bL([0-9A-F]{4})\b(?!:)/g, (m, hx) => go(hx) + m + '</a>');
+  if (exits && exits.size)
+    html = html.replace(/^(    ([0-9A-F]{4}) .*?)\b(break|continue)$/gm, (m, pre, hx, word) => {
+      const t = exits.get(parseInt(hx, 16));
+      return t === undefined ? m : pre + go(t.toString(16)) + word + '</a>';
+    });
+  return html;
 }
 function ringListingAt(at) {
   const d = window.LAST_DECODED;

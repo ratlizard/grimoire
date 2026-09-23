@@ -1133,7 +1133,7 @@ function dvmRenderStructured(tree, ctx, labels, indent, lines, loops) {
    can be proven, and stay gotos where one cannot. The header line says how many
    of each, because a reader is entitled to know whether they are looking at
    recovered structure or at the same gotos with extra indentation. */
-function dvmStructureRender(arc, b, resid) {
+function dvmStructureRender(arc, b, resid, out) {
   dvmContextResid = (typeof resid === 'number') ? resid : null;
   const objs = dvmExtents(b, resid);
   const slots = dvmSlotNames(b, resid);
@@ -1141,6 +1141,12 @@ function dvmStructureRender(arc, b, resid) {
   const hex4 = v => v.toString(16).padStart(4, '0').toUpperCase();
   const str = seg => decodeMacRoman(seg.filter(c => c));
   let whole = 0, partial = 0, plain = 0;
+  /* Where each `break` and `continue` goes, by the offset in its gutter, for a
+     caller that makes them links (`out.exits`, read by listingJumps). The text
+     cannot say it: the words carry no label, which is the point of them. A
+     target that is a jump the braces absorbed is followed to where that jump
+     goes, since the absorbed jump has no line of its own to ring. */
+  const exitsAt = new Map();
   for (const [st, en, kind] of objs) {
     const seg = b.subarray(st, Math.min(en, b.length));
     if (!seg.length) continue;
@@ -1169,6 +1175,12 @@ function dvmStructureRender(arc, b, resid) {
     const labels = dvmRemainingLabels(rec.tree, loops.exits);
     dvmRenderStructured(rec.tree, ctx, labels, 0, lines, loops);
     lines.push('}');
+    const jumpOf = new Map(stmts.filter(s => rec.absorbed.has(s.abs)).map(s => [s.abs, s.targets[0]]));
+    for (const s of loops.exits.keys()) {
+      let t = s.targets[0];
+      for (let k = 0; jumpOf.has(t) && k < 8; k++) t = jumpOf.get(t);
+      exitsAt.set(s.abs, t);
+    }
     // A jump printed as `break` or `continue` is structure, not a goto.
     const left = rec.gotos - loops.exits.size;
     if (r.bad) lines.push('// ^ decoder desynced (' + r.bad + ' unrecognised bytes) - unreliable');
@@ -1179,6 +1191,7 @@ function dvmStructureRender(arc, b, resid) {
   const cls = dvmClassName(resid);
   const sym = resourceSymbol(resid);
   if (sym) lines.unshift('// name: ' + sym);
+  if (out) out.exits = exitsAt;
   lines.unshift('// ' + whole + ' function(s) fully structured, ' + partial +
                 ' with jumps left over, ' + plain + ' with no jumps at all');
   if (cls) lines.unshift('// class: ' + cls + ' (resource 0x' + resid.toString(16).toUpperCase() + ')');

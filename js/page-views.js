@@ -1688,6 +1688,7 @@ function renderText(sameResource) {
     // decrypting correctly the entire time and the disassembler could already
     // read them; it was simply never called. 0x0301 is `[2, 3, 1, 1]`.
     let scriptText = '', rawText = '';
+    const listingExtra = {};
     if (SCRIPT_SUBN.has(subn)) {
       try {
         const named = dvmNamedScript(resData);
@@ -1715,7 +1716,7 @@ function renderText(sameResource) {
             (window.SCRIPT_FOLD === 'structured' && typeof dvmStructureRender === 'function') ? dvmStructureRender :
             (window.SCRIPT_FOLD && typeof dvmFoldRender === 'function') ? dvmFoldRender :
             dvmRender;
-          const dis = render(ARCHIVE, resData, resid);
+          const dis = render(ARCHIVE, resData, resid, listingExtra);
           if (dis && dis.split('\n').length > 2) scriptText = dis;
           // The folded views name a call without its id; the links in them
           // are learned from this (paintDecodedPane, renderLinked).
@@ -1739,7 +1740,8 @@ function renderText(sameResource) {
       const refs = document.getElementById('scriptRefs');
       if (refs) { refs.style.display = 'none'; refs.innerHTML = ''; }
     }
-    window.LAST_DECODED = { resid, text: content || '(nothing decoded)', raw: rawText, isScript };
+    window.LAST_DECODED = { resid, text: content || '(nothing decoded)', raw: rawText, isScript,
+                            exits: listingExtra.exits || null };
     // The view the reader last chose where scripts are read for the same
     // thing (SCRIPT_PANE_FOR), not the one this resource would choose.
     if (!sameResource) window.SCRIPT_PANE = window.SCRIPT_PANE_FOR[scriptPaneFor(document.getElementById('categorySelect').value)];

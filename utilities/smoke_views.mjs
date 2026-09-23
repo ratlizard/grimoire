@@ -657,8 +657,14 @@ try {
      on the break before it. */
   const t987 = ctx.document.getElementById('textContent').innerHTML;
   if (!/\n    001A  for Var01 in EquipmentIterator\(Arg01\) \{\n/.test(t987) ||
-      !/\n    0034      if \(!\(Arg01 has MeleeWeapon\)\) continue\n/.test(t987) || !/\n    003F      break\n/.test(t987))
+      !/\n    0034      if \(!\(Arg01 has MeleeWeapon\)\) (<a [^>]*>)?continue(<\/a>)?\n/.test(t987) || !/\n    003F      (<a [^>]*>)?break(<\/a>)?\n/.test(t987))
     fail('script page', '0x987 does not read as a for loop with a continue and a break');
+  // Each is a link to where it goes: the continue to the step's brace, the
+  // break to the statement after the loop.
+  if (!/ringListingAt\(66\)[^>]*>continue</.test(t987) || !/ringListingAt\(81\)[^>]*>break</.test(t987))
+    fail('script page', 'the continue and break in 0x987 are not links to 0x42 and 0x51');
+  ctx.ringListingAt(0x51);
+  if (!/^    0051  if/.test(hitLine())) fail('script page', 'following the break in 0x987 rings "' + hitLine().slice(0, 50) + '"');
   ctx.ringListingAt(0x42);
   if (!/^    0042  \}/.test(hitLine())) fail('script page', 'a ring on the step of 0x987 lands on "' + hitLine().slice(0, 50) + '", not the closing brace');
   /* A goto that is left is a link to its label, and the label is printed even
