@@ -1701,8 +1701,14 @@ function drawMapMarks(lensCtx, lensTS) {
   let itemSpots = 0;
   if (spots && spots.resid === cm.resid && spots.cells.length) {
     itemSpots = spots.cells.length;
-    ring(spots.cells, '#ffffff', false);
-    wash(spots.cells, '#ffffff', 0.18);
+    // Gold and thick, and a second ring a square out, so the spots read at
+    // any zoom (they were a thin white line, easy to miss on a busy map).
+    ctx.save(); ctx.lineWidth = Math.max(2, TS / 8); ctx.strokeStyle = '#f9f86f';
+    for (const [x, y] of spots.cells) ctx.strokeRect(x * TS + 1, y * TS + 1, TS - 2, TS - 2);
+    ctx.globalAlpha = 0.5; ctx.lineWidth = Math.max(1, TS / 16);
+    for (const [x, y] of spots.cells) ctx.strokeRect((x - 1) * TS, (y - 1) * TS, TS * 3, TS * 3);
+    ctx.restore();
+    wash(spots.cells, '#f9f86f', 0.2);
   }
 
   drawMapSelection(ctx, TS);

@@ -1849,14 +1849,22 @@ function atlasInspect(px, py) {
     const egg = atlasEggAt(node, tx, ty, true);
     if (egg) parts.push('<div class="inspCard"><b>egg</b> <span class="inspDim">' + egg + '</span></div>');
     const hits = (e.result.props || []).filter(p => p.cells.some(c => c[0] === tx && c[1] === ty));
+    var boxes = [];
     for (const p of hits.slice(0, 6)) {
       const pt = p.rec.proptype;
       const name = propDisplayName(pt) || ('prop 0x' + pt.toString(16));
       let says = '';
       try { says = propTextByData1(pt, p.rec.d1) || ''; } catch (err) { says = ''; }
       const item = (function () { try { return isInventoryItem(pt); } catch (err) { return false; } })();
+      // A container opens as the game shows it: its own window with what is
+      // inside, the view the Zones panel has had (the maintainer, 22
+      // September 2026). Hung in place once the card is in the document.
+      const contents = containerContents(p.rec, e.result.allProps || []);
+      const slot = contents.length ? 'atlas-box-' + p.rec.index : null;
+      if (slot) boxes.push([slot, p.rec, contents]);
       parts.push('<div class="inspCard"><b>' + svEsc(name) + '</b>' +
         (says ? ' <span class="inspDim">' + svEsc(says) + '</span>' : '') +
+        (slot ? '<div id="' + slot + '"></div>' : '') +
         '<div class="inspActs">' + svLink('Open ' + name + (says ? ' “' + says + '”' : '') + ' in ' + (item ? 'Items' : 'Tilesets'),
           "openVia('" + (item ? 'ITEMS' : 'PROPS') + "', () => " + (item ? 'showItemDetail(' : 'showPropTypeDetail(') + pt + '))') + '</div></div>');
     }
@@ -1875,6 +1883,10 @@ function atlasInspect(px, py) {
   parts.push('<div class="inspActs">' + svLink('Open ' + node.name + ' in Zones', 'jumpToResource(' + node.resid + ')') + '</div>');
   host.innerHTML = parts.join('');
   host.style.display = 'block';
+  for (const [slot, rec, contents] of (typeof boxes !== 'undefined' ? boxes : [])) {
+    const el = document.getElementById(slot);
+    if (el) el.appendChild(buildContainerView(rec, contents));
+  }
 }
 
 /* What a sign says: the text a prop's Data1 picks. The sign classes' Examine

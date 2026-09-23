@@ -860,25 +860,50 @@ function showSquareOnMap(mapResid, x, y) {
 // finding to the reader. Now the map opens with every loose instance of
 // the item ringed and the view centred on the first, the same after-load
 // settle showCharacterOnMap uses.
-function showItemOnMap(mapResid, pt) {
+/* The squares a prop type is found on in one map's records: its own square
+   where it lies loose, and where it is inside something, the square of the
+   container it is in (climbing through a pouch in a chest to the chest).
+   Carried things have no square of their own and are left to the "Carried
+   by" chips. Until 23 September 2026 only the loose ones were found, so a
+   zone chip for something kept in a chest opened a map with nothing marked. */
+function itemSpotsIn(recs, pt) {
+  const out = [], seen = new Set();
+  for (const r of recs || []) {
+    if (r.proptype !== pt || r.flags === 0xFF || r.flags === 0x42 || r.flags === 0x44) continue;
+    if (r.carriedBy !== null && r.carriedBy !== undefined) continue;
+    let h = r, hops = 0;
+    while (h && (h.flags & 0x58) && h.container !== null && h.container !== undefined && recs[h.container] && hops++ < 8) h = recs[h.container];
+    if (!h || (h.flags & 0x58) || (h.carriedBy !== null && h.carriedBy !== undefined)) continue;
+    const k = h.x + ',' + h.y;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push({ x: h.x, y: h.y, inside: h !== r ? h : null });
+  }
+  return out;
+}
+function showItemOnMap(mapResid, pt, which) {
   window.MAP_SETTLED = null;
   jumpToResource(mapResid);
   whenMapSettled(mapResid, (cm) => {
-    const spots = (cm.allProps || []).filter(r =>
-      r.proptype === pt && r.flags !== 0xFF && !(r.flags & 0x58) &&
-      r.flags !== 0x42 && r.flags !== 0x44);
+    const spots = itemSpotsIn(cm.allProps, pt);
     if (!spots.length) return;
-    DERIVED.MAP_ITEM_SPOTS = { resid: mapResid, pt, cells: spots.map(r => [r.x, r.y]) };
+    const at = spots[Math.max(0, Math.min(spots.length - 1, which || 0))];
+    DERIVED.MAP_ITEM_SPOTS = { resid: mapResid, pt, cells: spots.map(s => [s.x, s.y]) };
     drawMapMarks();
     const vp = document.getElementById('mapViewport');
     if (vp) {
-      mapView.x = vp.clientWidth / 2 - spots[0].x * cm.TS * mapView.scale;
-      mapView.y = vp.clientHeight / 2 - spots[0].y * cm.TS * mapView.scale;
+      mapView.x = vp.clientWidth / 2 - at.x * cm.TS * mapView.scale;
+      mapView.y = vp.clientHeight / 2 - at.y * cm.TS * mapView.scale;
       clampMapPan(); applyMapTransform();
     }
-    inspectMapSquare(spots[0].x, spots[0].y);
-    setMapSelection(spots[0].x, spots[0].y);   // the ring, as well as the wash on every spot
+    inspectMapSquare(at.x, at.y);
+    setMapSelection(at.x, at.y);   // the ring, as well as the wash on every spot
   });
+}
+// The squares of one prop type in one zone, from the zone's prop list.
+function itemSpotsInZone(propResid, pt) {
+  try { const raw = getResourceBytes(ARCHIVE, propResid); return raw ? itemSpotsIn(parseDelverPropList(smartDecrypt(raw, propResid).data), pt) : []; }
+  catch (e) { quiet(e); return []; }
 }
 
 function updateGalleryTools() {

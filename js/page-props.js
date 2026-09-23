@@ -2184,10 +2184,18 @@ function showItemDetail(pt) {
       facts.join('') + '</div>';
 
     const zoneIds = Object.keys(idx.zones).map(Number).sort((a, b) => idx.zones[b] - idx.zones[a]);
-    body += '<div style="margin-top:8px">' + zoneIds.slice(0, 16).map(rid =>
-      '<button class="sv-chip" onclick="showItemOnMap(' + (rid - 0x100) + ',' + pt + ')">' +
-      svEsc(zoneNameFor(rid) || ('0x' + rid.toString(16).toUpperCase())) +
-      ' <em>\u00d7' + idx.zones[rid] + '</em></button>').join(' ') +
+    /* Each zone goes to the map with every one ringed; where there are a
+       handful, each square is its own chip as well, so the page says where
+       and not only how many (the maintainer, 22 September 2026). */
+    body += '<div style="margin-top:8px">' + zoneIds.slice(0, 16).map(rid => {
+      const spots = itemSpotsInZone(rid, pt);
+      const zn = svEsc(zoneNameFor(rid) || ('0x' + rid.toString(16).toUpperCase()));
+      const each = spots.length > 1 && spots.length <= 6 ? spots.map((s, k) =>
+        '<button class="sv-chip" onclick="showItemOnMap(' + (rid - 0x100) + ',' + pt + ',' + k + ')">(' + s.x + ', ' + s.y + ')' +
+        (s.inside ? ' <em>in the ' + svEsc(propDisplayName(s.inside.proptype) || 'container') + '</em>' : '') + '</button>').join(' ') : '';
+      return '<div class="itemWhere"><button class="sv-chip" onclick="showItemOnMap(' + (rid - 0x100) + ',' + pt + ')">' +
+        (spots.length ? 'Show on the map: ' : '') + zn + ' <em>\u00d7' + idx.zones[rid] + '</em></button>' + (each ? ' ' + each : '') + '</div>';
+    }).join('') +
       (zoneIds.length > 16 ? ' <span style="color:#8c8980">+' + (zoneIds.length - 16) + ' more</span>' : '') +
       '</div>';
 
