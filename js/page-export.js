@@ -1018,6 +1018,105 @@ function showArtUsage(resid) {
 // census; everything else gets what renderUsage knows -- who wears a
 // portrait, who speaks a dialogue, which zone an entry script runs for, which
 // scripts play a sound, and what references the resource at all.
+/* A landscape strip as the status window shows it, over the sky of a time
+   of a day (exeSkyRules, skyScene): outdoors the sky's pattern, the sun and
+   the moons, then the strip copied over it with its blank pixels
+   transparent; where every script names the strip with no sky, the black
+   fill and the strip copied solid (TStatusWindow::ChangeOutdoor). The fore
+   and back colours are QuickDraw's; on an 8-bit screen QuickDraw draws the
+   nearest entry of the colour table, which is what is drawn here. The sky
+   is drawn the strip's own width: if the status window is wider, the game's
+   sky goes on past its ends. */
+window.SKY_DAY = 0;
+window.SKY_QUARTER = null;
+function nearestPaletteIndex(rgb) {
+  let best = 0, bd = Infinity;
+  for (let i = 0; i < PAL_RGB.length; i++) {
+    const c = PAL_RGB[i], d = (c[0] - rgb[0]) ** 2 + (c[1] - rgb[1]) ** 2 + (c[2] - rgb[2]) ** 2;
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
+function paintStripSky(cv, resid, sky, rules, day, quarter) {
+  const W = 288, H = 32;
+  const idx = new Uint8Array(W * H);
+  const fg = nearestPaletteIndex([0, 0, 0]);
+  if (sky && rules) {
+    const scene = skyScene(rules, day, quarter);
+    const rows = QD_PATTERNS[scene.pattern.name];
+    const bg = nearestPaletteIndex(QD_OLD_COLOURS[rules.back.v] || [255, 255, 255]);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) idx[y * W + x] = (rows[y & 7] >> (7 - (x & 7))) & 1 ? fg : bg;
+    for (const b of scene.bodies) {
+      const img = resolveTileImage(b.tile);
+      if (!img) continue;
+      for (let ty = 0; ty < 32; ty++) for (let tx = 0; tx < 32; tx++) {
+        const x = b.x + tx, y = b.y + ty, v = img[ty * 32 + tx];
+        if (v && x >= 0 && y >= 0 && x < W && y < H) idx[y * W + x] = v;
+      }
+    }
+  } else idx.fill(fg);
+  let strip = null;
+  try { const raw = getResourceBytes(ARCHIVE, resid); if (raw) strip = decodeResource(ARCHIVE, raw, 131, resid); } catch (e) { quiet(e); }
+  if (strip && strip.image) for (let y = 0; y < Math.min(H, strip.H); y++) for (let x = 0; x < Math.min(W, strip.W); x++) {
+    const v = strip.image[y * strip.W + x];
+    if (v || !sky) idx[y * W + x] = v;
+  }
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const im = g.createImageData(W, H);
+  for (let i = 0; i < W * H; i++) { const c = PAL_RGB[idx[i]] || [0, 0, 0]; im.data[i * 4] = c[0]; im.data[i * 4 + 1] = c[1]; im.data[i * 4 + 2] = c[2]; im.data[i * 4 + 3] = 255; }
+  g.putImageData(im, 0, 0);
+}
+function buildStripSky(resid) {
+  let setters = [];
+  try { setters = landscapeZones(resid); } catch (e) { quiet(e); }
+  const sky = !setters.length || setters.some(st => st.sky);
+  const rules = sky ? exeSkyRules() : null;
+  const wrap = document.createElement('div');
+  wrap.id = 'stripSky';
+  const cv = document.createElement('canvas');
+  cv.style.cssText = 'display:block;width:576px;max-width:100%;image-rendering:pixelated;margin:6px 0';
+  wrap.appendChild(cv);
+  if (sky && !rules) {
+    const note = document.createElement('div');
+    note.className = 'sv-note';
+    note.textContent = 'Open the application to see this strip over the sky of the hour.';
+    wrap.appendChild(note);
+    paintStripSky(cv, resid, false, null, 0, 0);
+    return wrap;
+  }
+  if (!sky) { paintStripSky(cv, resid, false, null, 0, 0); return wrap; }
+  if (window.SKY_QUARTER === null) window.SKY_QUARTER = Math.round((window.MAP_HOUR || 0) * (rules.quarters.v / 24));
+  const row = document.createElement('div');
+  row.className = 'zoomrow';
+  const time = document.createElement('input');
+  time.type = 'range'; time.min = '0'; time.max = String(rules.quarters.v - 1); time.value = String(window.SKY_QUARTER);
+  time.setAttribute('aria-label', 'Time');
+  const lbl = document.createElement('span');
+  const day = document.createElement('input');
+  day.type = 'number'; day.min = '0'; day.value = String(window.SKY_DAY); day.style.width = '5em';
+  day.setAttribute('aria-label', 'Day');
+  const per = rules.quarters.v / 24;
+  const draw = () => {
+    window.SKY_QUARTER = +time.value; window.SKY_DAY = Math.max(0, Math.floor(+day.value || 0));
+    const h = Math.floor(window.SKY_QUARTER / per), m = Math.round((window.SKY_QUARTER % per) * 60 / per);
+    lbl.textContent = h + ':' + String(m).padStart(2, '0');
+    paintStripSky(cv, resid, true, rules, window.SKY_DAY, window.SKY_QUARTER);
+  };
+  time.addEventListener('input', draw);
+  day.addEventListener('input', draw);
+  const dl = document.createElement('span'); dl.textContent = 'Day';
+  row.appendChild(time); row.appendChild(lbl); row.appendChild(dl); row.appendChild(day);
+  wrap.appendChild(row);
+  const say = document.createElement('div');
+  say.className = 'sv-note';
+  const hh = v => Math.floor(v.v / (1 << rules.hourUnit.v)) + ':00';
+  say.innerHTML = 'Sunrise ' + srcNum(rules.sunrise, hh(rules.sunrise)) + ', sunset ' + srcNum(rules.sunset, hh(rules.sunset)) + '.';
+  wrap.appendChild(say);
+  draw();
+  return wrap;
+}
+
 function updateUsagePanel(resid, subn) {
   const el = document.getElementById('artUsage');
   if (!el) return;
@@ -1034,7 +1133,10 @@ function updateUsagePanel(resid, subn) {
   // A script's rows are drawn under its code instead, by buildScriptView.
   if (!SCRIPT_SUBN.has(subn)) try { html = linksFold(renderUsage(resid, subn)); } catch (e) { html = ''; }
   el.innerHTML = html;
-  el.style.display = html ? 'block' : 'none';
+  let skyEl = null;
+  if (subn === 131) try { skyEl = buildStripSky(resid); } catch (e) { quiet(e, 'the strip over the sky'); }
+  if (skyEl) el.insertBefore(skyEl, el.firstChild);
+  el.style.display = html || skyEl ? 'block' : 'none';
 }
 
 function renderImage() {

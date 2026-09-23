@@ -3940,6 +3940,171 @@ function exeClockWords(units, perHour) {
 /* THE TALK BALLOON, off TBark: SetBark returns what TickCount answered plus
    a constant, the expiry ShowBarks tests each frame, and the constructor
    hands SetRect the balloon's width and height. */
+/* THE SKY OF THE HOUR (23 September 2026). TStatusWindow::ChangeOutdoor
+   draws a zone's landscape strip over DrawSky's sky when the strip was named
+   with a positive number, and over a black fill when negative. DrawSky:
+
+   - BackColor with an old QuickDraw colour constant (cyanColor, 273), then
+     FillRect of the strip with one of QuickDraw's standard patterns chosen
+     by the hour from a 24-entry table it builds once: the pattern's set bits
+     are the foreground, black, and its clear bits that cyan. The patterns
+     are fields of the QuickDraw globals (dkGray 162, ltGray 170, gray 178,
+     black 186, white 194, Inside Macintosh's QDGlobals), so night is solid
+     black, the day solid cyan, and the hours round sunrise and sunset
+     dithered between. Sunrise and sunset are two words in the data section,
+     in the game clock's units (4,096 an hour, srawi 12).
+   - The sun, a 32-pixel tile, and then each "moon" CalcLocations places,
+     each a tile, CopyBits'd transparent at x = gXPos(quarter hour) and
+     y = 16 - height[quarter], clipped to the strip. CalcLocations turns the
+     day and the quarter into a moon's quarter-hour position and phase from
+     four small tables (speed, offset, phases, first tile).
+
+   Everything below is read off those three routines by the shape of the
+   instructions, so a program edited elsewhere draws its own sky. */
+const QD_PATTERN_FIELDS = { 162: 'dkGray', 170: 'ltGray', 178: 'gray', 186: 'black', 194: 'white' };
+// QuickDraw's eight old-style colours (Inside Macintosh: Imaging With
+// QuickDraw, "Color QuickDraw" constants), as RGB.
+const QD_OLD_COLOURS = { 33: [0, 0, 0], 30: [255, 255, 255], 205: [255, 0, 0], 341: [0, 255, 0],
+                         409: [0, 0, 255], 273: [0, 255, 255], 137: [255, 0, 255], 69: [255, 255, 0] };
+// The standard patterns' eight rows, set bit = foreground (Inside Macintosh).
+const QD_PATTERNS = { white: [0,0,0,0,0,0,0,0], black: [255,255,255,255,255,255,255,255],
+                      gray: [0xAA,0x55,0xAA,0x55,0xAA,0x55,0xAA,0x55], ltGray: [0x88,0x22,0x88,0x22,0x88,0x22,0x88,0x22],
+                      dkGray: [0x77,0xDD,0x77,0xDD,0x77,0xDD,0x77,0xDD] };
+let _skyRules = { app: undefined, r: null };
+function exeSkyRules() {
+  const app = window.APP_PEF || (typeof appPef === 'function' ? appPef() : null);
+  if (_skyRules.app === app) return _skyRules.r;
+  let r = null;
+  try { r = readSkyRules(); } catch (e) { quiet(e, 'the sky rules'); }
+  _skyRules = { app, r };
+  return r;
+}
+function readSkyRules() {
+  const ds = exeOpsNamed('DrawSky'), cl = exeOpsNamed('CalcLocations'), gx = exeOpsNamed('gXPos');
+  if (!ds.length || !cl.length || !gx.length) return null;
+  const s16 = w => (w << 16) >> 16;
+  // A halfword or a word at an offset from the TOC, where the data tables are.
+  const tocH = off => { const a = exeTocOffset(off); const w = a === null ? null : exeDataWords(a & ~3, 1); return w ? (a & 2 ? s16(w[0]) : w[0] >> 16) : null; };
+  const tocW = off => { const a = exeTocOffset(off); const w = a === null ? null : exeDataWords(a, 1); return w ? (w[0] | 0) : null; };
+  const out = {};
+  // The background colour, the first BackColor's constant.
+  const bc = ds.findIndex(o => exeCalls(o, 'BackColor'));
+  const bl = bc >= 0 ? exeFindBack(ds, bc, 16, d => d.mn === 'li' && d.rd === 3) : -1;
+  if (bl < 0) return null;
+  out.back = exeVal(ds[bl], ds[bl].d.imm);
+  // The hour table: a walk of the straight code up to the FillRect, tracking
+  // what each register holds -- a data word's address, a sunrise or sunset
+  // time and an offset from it, or a pattern field.
+  const fill = ds.findIndex(o => exeCalls(o, 'FillRect'));
+  const reg = {}, cmps = [], loopPats = [], sets = [];
+  let qdReg = null, hourShift = null, quarterShift = null;
+  for (let i = 0; i < fill; i++) {
+    const o = ds[i], d = o.d;
+    if (!d) continue;
+    if (d.mn === 'lwz' && d.ra === 2) { reg[d.rt] = { tocSlot: d.d }; continue; }
+    if (d.mn === 'addi' && d.ra === 2) { reg[d.rd] = { toc: d.imm, op: o }; continue; }
+    if (d.mn === 'lwz' && d.d === 0 && reg[d.ra] && reg[d.ra].toc !== undefined) { reg[d.rt] = { time: reg[d.ra], delta: 0 }; continue; }
+    if (d.mn === 'addi' && reg[d.ra] && reg[d.ra].time) { reg[d.rd] = { time: reg[d.ra].time, delta: d.imm, op: o }; continue; }
+    if (d.mn === 'addi' && reg[d.ra] && reg[d.ra].tocSlot !== undefined) { qdReg = d.ra; reg[d.rd] = { pat: d.imm, op: o }; continue; }
+    if (d.mn === 'srawi' && reg[d.rs] && reg[d.rs].time) { hourShift = hourShift || exeVal(o, d.sh); reg[d.ra] = reg[d.rs]; continue; }
+    if (d.mn === 'srawi' && d.ra === d.rs && d.sh === 10 && quarterShift === null) { quarterShift = exeVal(o, d.sh); reg[d.ra] = {}; continue; }
+    if (d.mn === 'cmpw' && reg[d.rb] && reg[d.rb].time) { cmps.push(reg[d.rb]); continue; }
+    if (d.mn === 'stwx' && d.rb === 0) {
+      const v = reg[d.rt];
+      if (v && v.pat !== undefined) (reg[0] && reg[0].time ? sets.push({ at: reg[0], pat: v }) : loopPats.push(v));
+      continue;
+    }
+    if (d.mn === 'slwi' && reg[d.rs] && reg[d.rs].time) { reg[d.ra] = reg[d.rs]; continue; }
+    // Anything else that writes a register leaves it holding nothing known.
+    if (/^(cmp|st|b)/.test(d.mn)) continue;
+    const dest = /^l[bhw]/.test(d.mn) ? d.rt : d.rd !== undefined ? d.rd : d.rs !== undefined ? d.ra : undefined;
+    if (dest !== undefined) reg[dest] = {};
+  }
+  if (cmps.length < 2 || loopPats.length < 3 || !hourShift || !sets.length) return null;
+  // Sunrise and sunset: the two data words the compares and the fixed hours
+  // are counted from.
+  out.times = {};
+  for (const x of [...cmps, ...sets.map(z => z.at)]) out.times[x.time.toc] = out.times[x.time.toc] || exeVal(x.time.op, tocW(x.time.toc));
+  const tv = Object.values(out.times).sort((a, b) => a.v - b.v);
+  if (tv.length !== 2 || tv.some(t => t.v === null)) return null;
+  out.sunrise = tv[0]; out.sunset = tv[1];
+  const unit = 1 << hourShift.v;
+  out.hourUnit = hourShift;
+  // Hours before the first compare's hour and after the second's take the
+  // loop's first and second pattern; the rest its third; then the fixed
+  // hours round sunrise and sunset are overwritten.
+  const hourOf = at => Math.floor((out.times[at.time.toc].v + at.delta) / unit);
+  const pats = new Array(24);
+  const before = hourOf(cmps[0]), after = hourOf(cmps[1]);
+  for (let h = 0; h < 24; h++) pats[h] = h < before ? loopPats[0] : h > after ? loopPats[1] : loopPats[2];
+  for (const st of sets) { const h = hourOf(st.at); if (h >= 0 && h < 24) pats[h] = st.pat; }
+  out.hours = pats.map(p => ({ field: p.pat, name: QD_PATTERN_FIELDS[p.pat] || null, op: p.op }));
+  if (out.hours.some(h => !h.name)) return null;
+  out.quarterShift = quarterShift;
+  // The sun: a tile address built as (hi << 16) + lo from the tile images.
+  const sunHi = ds.findIndex((o, i) => i > fill && o.d && o.d.mn === 'addis' && o.d.ra === o.d.rd);
+  const sunLo = sunHi >= 0 ? exeFind(ds, sunHi + 1, 2, d => d.mn === 'addi') : -1;
+  if (sunLo < 0) return null;
+  out.sunTile = exeVal(ds[sunHi], ((ds[sunHi].d.imm << 16) + ds[sunLo].d.imm) >> 10);
+  // The height table, indexed by the quarter hour: the halfword table the
+  // placement reads with lhax after gXPos.
+  const firstX = ds.findIndex(o => exeCalls(o, 'gXPos'));
+  const lh = exeFind(ds, firstX + 1, 4, d => d.mn === 'lhax');
+  const hReg = lh >= 0 ? ds[lh].d.ra : null;
+  const hAddr = ds.find(o => o.d && o.d.mn === 'addi' && o.d.ra === 2 && o.d.rd === hReg);
+  // A day of quarter hours, from CalcLocations' modulus.
+  const mq = cl.find(o => o.d && o.d.mn === 'mulli' && o.d.imm > 24);
+  if (!hAddr || !mq) return null;
+  out.quarters = exeVal(mq, mq.d.imm);
+  out.heights = { exe: hAddr.at, v: Array.from({ length: mq.d.imm }, (_, i) => tocH(hAddr.d.imm + 2 * i)), toc: hAddr.d.imm };
+  // gXPos(q) = right - trunc((q + c) * scale / div), off its five constants.
+  const g = (mn, test) => gx.find(o => o.d && o.d.mn === mn && (!test || test(o.d)));
+  const gAdd = g('addi', d => d.imm < 0), gShl = g('slwi'), gMag = g('addi', d => d.imm !== gAdd.d.imm), gShr = g('srawi'), gRt = g('subfic');
+  const gLis = g('lis');
+  if (!gAdd || !gShl || !gMag || !gShr || !gRt || !gLis) return null;
+  const magic = ((gLis.d.imm << 16) + gMag.d.imm) >>> 0;
+  const divBy = Math.round(Math.pow(2, 32) / magic) * (1 << gShr.d.sh);
+  out.xpos = { add: exeVal(gAdd, gAdd.d.imm), scale: exeVal(gShl, 1 << gShl.d.sh), div: exeVal(gShr, divBy), right: exeVal(gRt, gRt.d.imm) };
+  // The moons: CalcLocations' count and four tables, and DrawSky's first
+  // tiles, by the data addresses each routine takes.
+  const tocAt = ops => ops.filter(o => o.d && o.d.mn === 'addi' && o.d.ra === 2).map(o => ({ op: o, off: o.d.imm }));
+  const clT = tocAt(cl).sort((a, b) => a.off - b.off);
+  if (clT.length < 6) return null;
+  const [cnt, speed, offset, phases] = clT;
+  const n = tocH(cnt.off);
+  const tileT = tocAt(ds).find(t => t.off > phases.off && t.off < clT[4].off);
+  if (!tileT || !(n > 0 && n <= 8)) return null;
+  const add = cl.find(o => o.d && o.d.mn === 'addi' && o.d.ra !== 2 && o.d.imm > out.quarters.v);
+  const half = cl.find(o => o.d && o.d.mn === 'addi' && o.d.ra !== 2 && o.d.imm === out.quarters.v / 2);
+  out.moons = Array.from({ length: n }, (_, i) => ({
+    speed: exeVal(speed.op, tocH(speed.off + 2 * i)), offset: exeVal(offset.op, tocH(offset.off + 2 * i)),
+    phases: exeVal(phases.op, tocH(phases.off + 2 * i)), tile: exeVal(tileT.op, tocH(tileT.off + 2 * i)) }));
+  out.moonCount = exeVal(cnt.op, n);
+  out.moonBias = add ? exeVal(add, add.d.imm) : null;
+  out.moonRound = half ? exeVal(half, half.d.imm) : null;
+  if (!out.moonBias || !out.moonRound) return null;
+  return out;
+}
+// What the strip's sky holds at a quarter hour of a day: the fill pattern,
+// and the sun and moons as tiles at their places (CalcLocations, gXPos).
+function skyScene(rules, day, quarter) {
+  const Q = rules.quarters.v, q = ((quarter % Q) + Q) % Q;
+  const x = p => rules.xpos.right.v - Math.trunc((p + rules.xpos.add.v) * rules.xpos.scale.v / rules.xpos.div.v);
+  const y = p => 16 - rules.heights.v[p];
+  const hour = q >> (rules.hourUnit.v - rules.quarterShift.v);
+  const bodies = [{ tile: rules.sunTile.v, x: x(q), y: y(q), what: 'sun' }];
+  const t = day * Q + q;
+  for (const m of rules.moons) {
+    let pos = (m.offset.v + Math.trunc(t * m.speed.v / Q) + rules.moonBias.v) % Q;
+    const P = m.phases.v;
+    let ph = Math.trunc((pos * P + rules.moonRound.v) / Q) % P;
+    ph = (P - ph) % P;
+    pos = (q + pos) % Q;
+    bodies.push({ tile: m.tile.v + ph, x: x(pos), y: y(pos), what: 'moon' });
+  }
+  return { hour, pattern: rules.hours[hour], bodies };
+}
+
 function exeBarkRules() {
   const sb = exeOpsNamed('TBark::SetBark'), ct = exeOpsNamed('TBark::TBark');
   const r = {};

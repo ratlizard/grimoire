@@ -117,6 +117,25 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         }
       }
     } catch (e) { fail('program figures', e); }
+    /* The sky of the hour, off DrawSky, CalcLocations and gXPos (exeSkyRules).
+       The hour table comes out black at midnight, cyan ("white") at noon and
+       half and half ("gray") in the sunrise and sunset hours; the sun at noon
+       stands in the middle of the strip; a strip painted at noon and at
+       midnight differs, and one painted twice at the same time does not. */
+    try {
+      const r = ctx.exeSkyRules();
+      const rise = r && Math.floor(r.sunrise.v / (1 << r.hourUnit.v)), set = r && Math.floor(r.sunset.v / (1 << r.hourUnit.v));
+      const Q = r && r.quarters.v, noon = r && ctx.skyScene(r, 0, Q / 2);
+      const paint = q => { const cv = ctx.document.createElement('canvas'); ctx.paintStripSky(cv, 0x8400, true, r, 0, q);
+                           const d = cv.getContext('2d').getImageData(0, 0, 288, 32); return Array.from((d.data || d).subarray(0, 288 * 32 * 4)).join(','); };
+      if (!r) fail('sky', 'the sky was not read out of DrawSky');
+      else if (r.hours[0].name !== 'black' || r.hours[12].name !== 'white' || r.hours[rise].name !== 'gray' || r.hours[set].name !== 'gray')
+        fail('sky', 'the hour table reads ' + r.hours.map(h => h.name).join(' '));
+      else if (!(rise < set) || !r.moons.length) fail('sky', 'sunrise ' + rise + ', sunset ' + set + ', ' + r.moons.length + ' moons');
+      else if (Math.abs(noon.bodies[0].x + 16 - 144) > 16) fail('sky', 'the sun at noon is at x ' + noon.bodies[0].x);
+      else if (paint(Q / 2) === paint(0) || paint(Q / 2) !== paint(Q / 2)) fail('sky', 'the strip does not change between noon and midnight, or changes by itself');
+      else console.log('  sky: sunrise ' + rise + ':00, sunset ' + set + ':00, ' + r.moons.length + ' moons; black at midnight, the sun overhead at noon');
+    } catch (e) { fail('sky', e); }
     /* What a signal reaches, 12 September 2026. These figures are the
        APPLICATION's, so they are pinned here and not in the puzzles block.
        signalRules() returns null until the application is adopted, and the
