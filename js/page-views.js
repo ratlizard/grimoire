@@ -1943,7 +1943,10 @@ function convJumpWord(resid, word) {
     if (hit) return convScrollTo(resid, hit.at);
     for (const gid of conv.groups) {
       const g = conversationFor(gid);
-      if (g && convFindEntry(g.entries, word)) {
+      const gh = g && convFindEntry(g.entries, word);
+      if (gh) {
+        // The character's view carries its groups' topics too.
+        if (document.getElementById('conv-' + gid + '-' + gh.at)) return convScrollTo(gid, gh.at);
         window.PENDING_CONV_WORD = word;
         return jumpToResource(gid);
       }
@@ -1996,9 +1999,54 @@ function convTextHtml(resid, e) {
   return html;
 }
 
+/* What the player means by a prompt (the maintainer, 23 September 2026:
+   the "real" four letters and the "intended" word, both at once). The code
+   stores only what it matches -- "demo", "eteo", "job" -- and the words
+   those stand for are in the game's own text: every @word in every response
+   is a word the player can ask about, spelt in full. So a stored keyword's
+   intended words are the @words the engine's four-letter rule would send to
+   it, most used first; one no response names stays as it is stored. */
+function convIntendedWords() {
+  if (DERIVED.CONV_WORDS) return DERIVED.CONV_WORDS;
+  const words = new Map();
+  const walk = es => { for (const e of es || []) {
+    for (const t of e.text || []) for (const m of String(t.str).matchAll(/@([A-Za-z][A-Za-z'-]*)/g)) {
+      const k = m[1].toLowerCase(), o = words.get(k) || { text: m[1], n: 0 };
+      o.n++; words.set(k, o);
+    }
+    walk(e.sub);
+  } };
+  for (const [subn, base] of [[23, 0x1800], [7, 0x800]]) {
+    const count = subindexCount(ARCHIVE, subn);
+    for (let i = 0; i < count; i++) {
+      const c = conversationFor(base + i);
+      if (c) { walk(c.entries); if (c.preamble) walk([c.preamble]); }
+    }
+  }
+  return (DERIVED.CONV_WORDS = words);
+}
+function convIntendedFor(stub) {
+  // Only a stub of exactly four letters is a word cut short; a shorter one
+  // ("job", "bye", the "y" and "n" of a question) is the whole word, and a
+  // longer one ("very easy") is spelt out already.
+  if (!/^[a-z]{4}$/i.test(stub)) return [];
+  const out = [];
+  for (const [k, o] of convIntendedWords()) if (convKwMatches(stub, k)) out.push(o);
+  return out.sort((a, b) => b.n - a.n || a.text.localeCompare(b.text)).map(o => o.text);
+}
+// A prompt as the player types it, and as the code stores it.
+function convPromptHtml(e) {
+  if (e.kw === '*') return '<span class="convKw">anything else</span>';
+  return String(e.kw).split(',').map(k => {
+    const w = convIntendedFor(k);
+    return '<span class="convAsk">' + svEsc((w[0] || k).toUpperCase()) + '</span>' +
+      (w.length > 1 ? '<span class="convAlso">or ' + w.slice(1, 3).map(x => svEsc(x.toUpperCase())).join(', ') + '</span>' : '') +
+      '<span class="convKw" title="what the game matches">' + svEsc(k) + '</span>';
+  }).join(' ');
+}
+
 function convCardHtml(resid, e, depth) {
-  const kws = e.kw === '*' ? '<span class="convKw">anything else</span>'
-    : String(e.kw).split(',').map(k => '<span class="convKw">' + svEsc(k) + '</span>').join('');
+  const kws = convPromptHtml(e);
   const badges = [];
   if (e.conds.length) badges.push('depends on: ' + e.conds.join(', '));
   for (const a of e.actions) { const b = convBadgeFor(a); if (b) badges.push(b); }
@@ -2007,6 +2055,48 @@ function convCardHtml(resid, e, depth) {
     convTextHtml(resid, e);
   for (const s of e.sub) html += convCardHtml(resid, s, depth + 1);
   return html + '</div>';
+}
+
+/* A character's conversation, everything at once: the person as the
+   window shows them -- the portrait, the name, and the line the window
+   opens with -- then every topic they answer, their own first and then each
+   group they fall through to in the order the catch-all calls them (the
+   engine's lookup), each group's topics that nobody earlier answers. A
+   group topic the character or an earlier group already answers is not
+   repeated; the group's heading says how many. The catch-all's own words
+   come last, after the groups, which is when the engine reaches them. */
+function convWhoHtml(resid, conv) {
+  const ci = resid - 0x1800;
+  let face = null;
+  try { face = typeof characterFace === 'function' ? characterFace(ci) : null; } catch (e) { face = null; }
+  const name = (typeof characterName === 'function' && characterName(ci)) || ('0x' + resid.toString(16).toUpperCase());
+  const greet = conv.preamble ? convTextHtml(resid, conv.preamble) : '';
+  return '<div class="convWho">' +
+    (face && face.url ? '<img class="convFace" alt="" src="' + face.url + '">' : '') +
+    '<div><b>' + svEsc(name) + '</b>' + greet + '</div></div>';
+}
+function convEverythingHtml(resid, conv, ordered) {
+  const layers = [{ resid, entries: ordered.filter(e => e.kw !== '*'), own: true }];
+  for (const g of conv.groups) {
+    const gc = conversationFor(g);
+    if (gc) layers.push({ resid: g, entries: gc.entries.filter(e => e.kw !== '*') });
+  }
+  const answered = [];
+  let html = '';
+  for (const L of layers) {
+    const shown = [], hidden = [];
+    for (const e of L.entries) {
+      const stubs = String(e.kw).split(',');
+      (!L.own && stubs.every(k => answered.some(a => convKwMatches(a, k))) ? hidden : shown).push(e);
+    }
+    const nm = L.own ? null : ((window.SHOW_BUILTIN_LABELS && DIALOGUE_GROUP_NAMES[L.resid]) || ('0x' + L.resid.toString(16).toUpperCase()));
+    if (!L.own) html += '<div class="convAs">Answers as <button class="sv-chip" onclick="jumpToResource(' + L.resid + ')">' + svEsc(nm) + '</button>' +
+      (hidden.length ? ' <span class="inspDim">' + hidden.length + ' of its topics answered above</span>' : '') + '</div>';
+    for (const e of shown) html += convCardHtml(L.resid, e, 0);
+    for (const e of L.entries) answered.push(...String(e.kw).split(','));
+  }
+  for (const e of ordered.filter(x => x.kw === '*')) html += convCardHtml(resid, e, 0);
+  return html;
 }
 
 function renderConversationPane(data, subn, resid) {
@@ -2028,9 +2118,11 @@ function renderConversationPane(data, subn, resid) {
       ', read from the code' + (chain ? ' · also answers as: ' + chain : '');
   }
   let html = '<div class="convHead">' + head + '</div>';
+  if (subn !== 8) html += convWhoHtml(resid, conv);
   // The catch-all last, whatever order the chain tests it in.
   const ordered = conv.entries.filter(e => e.kw !== '*').concat(conv.entries.filter(e => e.kw === '*'));
-  for (const e of ordered) html += convCardHtml(resid, e, 0);
+  if (subn === 8) for (const e of ordered) html += convCardHtml(resid, e, 0);
+  else html += convEverythingHtml(resid, conv, ordered);
   wrap.innerHTML = html;
   wrap.style.display = '';
   if (window.PENDING_CONV_WORD) {

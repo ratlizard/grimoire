@@ -74,6 +74,25 @@ try {
   console.log('  conversation: Naxos renders ' + cards + ' topics; generic prompts and prefix lookup work');
 } catch (e) { fail('conversation', e); }
 
+/* Everything at once (23 September 2026, convEverythingHtml): Aethon's view
+   carries his groups' topics under an "Answers as" heading, a group topic he
+   answers himself is not repeated (Cademia's own "job" never shows under
+   Cademia when Aethon has one), and a stored four-letter keyword is shown
+   with the word the game's text spells it as ("demo", DEMODOCUS). */
+try {
+  ctx.jumpToResource(0x1861);
+  const h = REGISTRY.get('dlgWrap').innerHTML;
+  const conv = ctx.conversationFor(0x1861);
+  const own = new Set(conv.entries.flatMap(e => String(e.kw).split(',')));
+  const groupHtml = h.slice(h.indexOf('class="convAs"'));
+  const repeated = [...own].filter(k => k !== '*' && new RegExp('<span class="convKw"[^>]*>' + k.replace(/[^a-z]/gi, '') + '</span>').test(groupHtml));
+  if (!/Answers as/.test(h) || !conv.groups.every(g => h.includes('jumpToResource(' + g + ')'))) fail('conversation', 'Aethon\'s groups are not in his view');
+  else if (repeated.length) fail('conversation', 'topics Aethon answers are repeated under his groups: ' + repeated.join(', '));
+  else if (!/convAsk">DEMODOCUS</.test(h)) fail('conversation', '"demo" is not shown as DEMODOCUS');
+  else if (!/convFace/.test(h)) fail('conversation', 'Aethon\'s portrait is not at the head of his conversation');
+  else console.log('  conversation: Aethon answers ' + (h.match(/convCard/g) || []).length + ' topics at once, his groups\' under their names, none twice; demo is DEMODOCUS');
+} catch (e) { fail('conversation', e); }
+
 // The detail lens: zoomed into the world map (whose base canvas is budgeted
 // well below native tile size), the visible window must re-render at TS=32
 // into a viewport-sized canvas. This is the only check that would notice the
