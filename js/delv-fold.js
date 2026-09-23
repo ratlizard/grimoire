@@ -77,7 +77,11 @@ const DVM_INFIX = {
   0x4A: '+', 0x4B: '-', 0x4C: '*', 0x4D: '/', 0x4E: '%',
   0x4F: '<', 0x50: '<=', 0x51: '>', 0x52: '>=', 0x53: '!=', 0x54: '==',
   0x56: '&', 0x57: '|', 0x58: '^', 0x5A: '<<', 0x5B: '>>',
-  0x5C: '&&', 0x5D: '||',
+  // The VM's logical `and` and `or` consume two values already computed, so
+  // both sides have run. They are spelt as words, not `&&` and `||`, because a
+  // reader takes those to stop at the first side that settles it -- which is
+  // what a merged condition (dvmMergeConditions) does, and these do not.
+  0x5C: 'and', 0x5D: 'or',
 };
 const DVM_PREFIX = { 0x55: '-', 0x59: '~', 0x5E: '!' };
 
@@ -597,13 +601,13 @@ function dvmRegionClosed(stmts, index, lo, hi, allowed, sources) {
  * `if (A || B) goto L`; the archive has none, and a mixed pair is left alone
  * rather than spelt with a negation inside a conjunction.
  *
- * ONE CAUTION ABOUT THE SPELLING. The VM also has `and` and `or` opcodes (0x5C,
- * 0x5D; 245 uses in the archive), which the fold prints as `&&` and `||` too.
- * They are not the same thing: an opcode consumes two values already on the
- * stack, so both sides were evaluated, where the jump pair never evaluates B
- * when A is false. A reader can tell them apart only by the brackets -- the
- * opcode's form is always bracketed as one value, `((A && B))` inside an `if`,
- * and the merged form is the whole condition, `if (A && B)`.
+ * THE SPELLING. The VM also has `and` and `or` opcodes (0x5C, 0x5D; 245 uses
+ * in the archive). They are not the same thing: an opcode consumes two values
+ * already on the stack, so both sides were evaluated, where the jump pair never
+ * evaluates B when A is false. So `&&` and `||` are kept for this, which is
+ * what a reader of C-like text takes them to mean, and the opcodes are spelt
+ * `and` and `or` (DVM_INFIX). They were both `&&` until 22 September 2026, and
+ * only the brackets told them apart.
  *
  * utilities/structure_check.mjs tests each merged condition against the flat
  * listing for every truth assignment of its parts, reading the text the
