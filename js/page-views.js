@@ -334,7 +334,10 @@ function renderToolsSheet() {
       'The row below holds the settings that are a choice rather than a switch, and the file’s other keys — the sound and music volumes, the ambient sounds, and the pattern the screen behind every window is filled with, which no menu item and no dialog in the game ever writes. ' +
       'Each starts where a fresh install would be, and a key left there is not written at all. ' +
       'The last is the gate on the cheat keys, which nothing in the game ever sets, so a shipped copy cannot enter cheat mode however long you type ' + layout.gate.word + ' at it. ' +
-      'The Cheats sheet has the record field by field.');
+      'The Cheats sheet has the record field by field. ' +
+      (layout.from === 'shipped'
+        ? 'These are the numbers the four releases Ambrosia shipped all agree on, so the file can be written with nothing open. Open the game \u2014 Data \u203a Installer, or drop the application on the page \u2014 and the page reads your own copy instead, which is what makes a patched build right.'
+        : 'Read out of the application open here, rather than from the shipped releases\u2019 numbers.'));
     const prefsRow = document.createElement('div');
     prefsRow.style.cssText = 'display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin:8px 0 6px';
     const prefBox = (id, label, on) => '<label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '> ' + svEsc(label) + '</label>';

@@ -1197,22 +1197,27 @@ try {
   }
 } catch (e) { fail('cheats', e); }
 
-/* The preferences file, on the Tools tab. The bytes are pinned by
-   resfork_write_check; what this adds is that the section renders, that the
-   switches are there for a visitor to reach -- the two that were always
-   there and the five named on 9 September 2026 -- that each named bit lands
-   where the record's table says, and that the page still says the file
-   replaces what is stored. (It said "untried" until v1.35.0, when the file
-   was put in front of the game; this check used to guard that sentence.) */
+/* The preferences file, on the Tools tab, with NO application open -- which
+   is the state a visitor who dropped the data file is in, and until v1.150.0
+   was the state where this section offered nothing at all. It offers
+   everything now: the four releases Ambrosia shipped give byte-for-byte the
+   same layout, so PREF_SHIPPED stands in for a program that is not there,
+   and smoke_installer holds that constant to every one of the four. What
+   this checks is the half that one cannot: that the fallback reaches the
+   visitor -- the switches render, the file builds, and the section says the
+   numbers are the shipped ones rather than the open copy's. */
 try {
   ctx.showCategory('TOOLS');
   const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-  // No application: the record's layout is the program's, so there are no
-  // switches and no file to write, and the section says why.
-  let threw = false;
-  try { ctx.buildCytheraPreferences({ cheats: true }); } catch (e) { threw = true; }
-  if (/id="prefCheats"/.test(tools) || !/switches are offered here/.test(tools)) fail('preferences', 'with no application open the Tools tab offers switches it cannot place');
-  else if (!threw) fail('preferences', 'the preferences file was built with no application to read its record from');
-  else console.log('  preferences: no application, so no switches and no file');
+  const L = ctx.cytheraPrefsLayout();
+  let built = null;
+  try { built = ctx.buildCytheraPreferences({ cheats: true, Backdrop: -2 }); } catch (e) { built = null; }
+  const names = built ? ctx.openResourceFork(built).all().map(x => x.entry.name).join(',') : null;
+  if (!L || L.from !== 'shipped') fail('preferences', 'with no application open the layout is not the shipped one: ' + (L && L.from));
+  else if (!/id="prefCheats"/.test(tools) || !/<select id="prefOrd_Backdrop"/.test(tools))
+    fail('preferences', 'with no application open the Tools tab does not offer the switches');
+  else if (!/releases Ambrosia shipped/.test(tools)) fail('preferences', 'the section does not say the numbers are the shipped releases\u2019');
+  else if (names !== 'UI Prefs,Backdrop') fail('preferences', 'the file built with no application open is not the two-resource one: ' + names);
+  else console.log(`  preferences: no application, so the shipped layout -- ${L.controls.length + 2} switches, ${L.choices.length + L.ordinals.length} choosers, a ${built.length}-byte fork`);
 } catch (e) { fail('preferences', e); }
 

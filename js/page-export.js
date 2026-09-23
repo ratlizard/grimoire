@@ -130,9 +130,34 @@ const PREF_STARTUP_ITEMS = ['Switch to 256 Colors', "Don't Ask Again"];
    the machine's own level alone; MENU 131 calls that one "System Volume".
    Ambient is a flag. `Backdrop` is deliberately absent: its values are read
    out of the program and the two files instead (cytheraBackdropOptions). */
+/* WHAT THE FOUR SHIPPED RELEASES SAY, so that the file can be written
+   with no application open. Every number here was read out of a program
+   by the code above and printed, never typed: 1.0.1, 1.0.2, 1.0.3 and
+   1.0.4 give byte-for-byte the same answer for all of it -- the same bit
+   positions, the same menu items, the same ordinal defaults, the same two
+   'ppat' ids -- so there is nothing for a version to disagree about and no
+   reason to make a visitor open the game before the page will write a
+   file. It is still only the fallback: with a program open the page reads
+   that one, which is what keeps a patched or unknown build right.
+   utilities/smoke_installer.mjs holds this to the program across all four
+   releases, so it cannot drift without a check going red. */
+const PREF_SHIPPED = {
+  key: "UI Prefs",
+  bytes: 4,
+  base: 411041792,
+  type: "Pref",
+  gate: {"byte": 3, "bit": 0, "word": "©gra"},
+  controls: [{"opt": "liveDrag", "label": "Live Dragging", "byte": 0, "bit": 0}, {"opt": "manualContainers", "label": "Manually Place Containers", "byte": 0, "bit": 6}, {"opt": "motionFilters", "label": "Motion Filters", "byte": 1, "bit": 3}, {"opt": "walkAround", "label": "Walk around obstacles", "byte": 1, "bit": 6}, {"opt": "zoomRects", "label": "Use 'ZoomRects'", "byte": 1, "bit": 7}],
+  smooth: [{"byte": 0, "lo": 7, "hi": 7, "value": 1}, {"byte": 0, "lo": 1, "hi": 1, "value": 1}],
+  smoothLabel: "Smoother Movement",
+  startup: [{"byte": 1, "bit": 5, "text": "Switch to 256 Colors", "value": 1}, {"byte": 1, "bit": 4, "text": "Don't Ask Again", "value": 1}],
+  choices: [{"opt": "c0_7_0_1", "options": [{"text": "Smoother Movement", "sets": [{"byte": 0, "lo": 7, "hi": 7, "value": 1}, {"byte": 0, "lo": 1, "hi": 1, "value": 1}]}, {"text": "Faster Movement", "sets": [{"byte": 0, "lo": 7, "hi": 7, "value": 1}, {"byte": 0, "lo": 1, "hi": 1, "value": 0}]}, {"text": "Fastest Movement", "sets": [{"byte": 0, "lo": 7, "hi": 7, "value": 0}, {"byte": 0, "lo": 1, "hi": 1, "value": 0}]}]}, {"opt": "c0_2", "options": [{"text": "Limit to 16 FPS", "sets": [{"byte": 0, "lo": 2, "hi": 5, "value": 4}]}, {"text": "Limit to 10 FPS", "sets": [{"byte": 0, "lo": 2, "hi": 5, "value": 6}]}, {"text": "Limit to 8 FPS", "sets": [{"byte": 0, "lo": 2, "hi": 5, "value": 8}]}]}],
+  ordinals: [{"key": "Music", "index": 0, "code": 8, "shipped": 2}, {"key": "Ambient", "index": 0, "code": 1, "shipped": null}, {"key": "Volume", "index": 0, "code": 5, "shipped": 5}, {"key": "Backdrop", "index": 0, "code": 0, "shipped": null}],
+  backdrop: {"limit": 2, "graphic": [36608, 36609], "ppat": [128, 129], "pixPat": 127},
+};
 const PREF_ORDINAL_RANGE = { Volume: { min: -1, max: 8 }, Music: { min: 0, max: 8 }, Ambient: { min: 0, max: 1 } };
 function cytheraPrefsLayout() {
-  if (!appImage()) return null;
+  if (!appImage()) return cytheraShippedLayout();
   const kr = exeKeyRoutine(), fields = exePrefFields(), defaults = exePrefDefaults(), acc = exePrefsAccess();
   if (!kr || !kr.gate || !kr.gate.byte || !kr.gate.bit || !fields || !defaults || !acc) return null;
   const rec = exePrefKeys().find(e => e.kind === 'Prefs' && e.len && e.writers.some(w => acc.passes.some(p2 => p2.routine === w.routine)));
@@ -198,8 +223,24 @@ function cytheraPrefsLayout() {
     .map(o => Object.assign(o, { dflt: o.shipped === null ? o.code : o.shipped }));
   return { key: rec.key.v, bytes: rec.len.v, base: defaults.words[0].v >>> 0, controls, smooth, smoothLabel: smooth.length ? PREF_SMOOTH_ITEM : null,
            startup, startupLabel: startup.length === PREF_STARTUP_ITEMS.length ? startup.map(x => x.text).join(', and ') : null,
-           choices, ordinals, backdrop: cytheraBackdropOptions(),
+           choices, ordinals, backdrop: cytheraBackdropOptions(), from: 'program',
            gate: { byte: kr.gate.byte.v, bit: kr.gate.bit.v, word: kr.gate.word.v }, type: type.v };
+}
+
+/* The same layout from PREF_SHIPPED, for a visitor with no game open. Every
+   field has the shape the reading above produces, so everything downstream --
+   the record writer, the ordinals, the Tools tab -- cannot tell the
+   difference except by `from`, which the section says out loud. */
+function cytheraShippedLayout() {
+  const S = PREF_SHIPPED;
+  if (!S) return null;
+  return { key: S.key, bytes: S.bytes, base: S.base, type: S.type, gate: S.gate,
+           controls: S.controls, smooth: S.smooth, smoothLabel: S.smoothLabel,
+           startup: S.startup, startupLabel: S.startup.map(x => x.text).join(', and '),
+           choices: S.choices,
+           ordinals: S.ordinals.map(o => Object.assign({}, o, { dflt: o.shipped === null ? o.code : o.shipped, writers: 0 })),
+           backdrop: cytheraBackdropList(S.backdrop.limit, S.backdrop.graphic[0], S.backdrop.pixPat, S.backdrop.ppat),
+           from: 'shipped' };
 }
 
 /* What `Backdrop` can be set to, from the program's three numbers and the
@@ -211,21 +252,26 @@ function cytheraPrefsLayout() {
 function cytheraBackdropOptions() {
   const b = exeBackdropChoices();
   if (!b) return null;
+  const fork = window.APP_RSRC;
+  const pats = [];
+  try { for (const e of (fork ? fork.resourcesByType['ppat'] || [] : [])) pats.push(e.id); } catch (e) { /* none */ }
+  return cytheraBackdropList(b.limit.v, b.graphic.v, b.pixPat.v, pats.length ? pats : PREF_SHIPPED.backdrop.ppat);
+}
+// The list itself, from four numbers, whichever they came from. A graphic
+// wears the name the rest of the page gives that resource, which answers
+// differently with and without an archive open and is right either way; a
+// pixel pattern has no name anywhere, so it wears its id.
+function cytheraBackdropList(limit, graphicBase, pixPatBase, ppatIds) {
   const out = [];
-  for (let n = 0; n < b.limit.v; n++) {
-    const resid = b.graphic.v + n;
-    // Not gated on the open archive: the range is the program's statement,
-    // and which archive happens to be loaded here is a different question.
+  for (let n = 0; n < limit; n++) {
+    const resid = graphicBase + n;
     let name = null;
     try { name = typeof labelFor === 'function' ? labelFor(resid) : null; } catch (e) { name = null; }
     out.push({ value: n, what: 'graphic', resid, label: name || ('graphic 0x' + resid.toString(16).toUpperCase()) });
   }
-  const fork = window.APP_RSRC;
-  const pats = [];
-  try { for (const e of (fork ? fork.resourcesByType['ppat'] || [] : [])) pats.push(e.id); } catch (e) { /* none */ }
-  for (const id of pats.sort((x, y) => x - y)) {
-    const n = b.pixPat.v - id;
-    if (n >= 0 && n < b.limit.v) continue;          // the graphics' own range
+  for (const id of (ppatIds || []).slice().sort((x, y) => x - y)) {
+    const n = pixPatBase - id;
+    if (n >= 0 && n < limit) continue;          // the graphics' own range
     out.push({ value: n, what: 'ppat', resid: id, label: '\u2018ppat\u2019 ' + id });
   }
   return out.length ? out : null;

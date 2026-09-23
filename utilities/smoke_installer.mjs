@@ -232,6 +232,35 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // the name the rest of the page uses for that resource.
       const choices = ['Smoother Movement', 'Fastest Movement', 'Limit to 10 FPS'];
       const missingChoices = choices.filter(t => !tools.includes(t));
+      /* The fallback the page writes a file from with nothing open, held to
+         every release Ambrosia shipped. It exists because all four agree; if
+         one of them ever does not, or the constant is edited, this goes red
+         rather than a visitor getting a file built for the wrong build. The
+         installer in hand carries all four, so each is opened in turn. */
+      const strip = L => JSON.stringify({
+        key: L.key, bytes: L.bytes, base: L.base, type: L.type, gate: L.gate, controls: L.controls,
+        smooth: L.smooth, smoothLabel: L.smoothLabel,
+        startup: L.startup.map(x => ({ byte: x.byte, bit: x.bit, text: x.text, value: x.value })),
+        choices: L.choices.map(c => ({ opt: c.opt, options: c.options.map(o => ({ text: o.text, sets: o.sets })) })),
+        ordinals: L.ordinals.map(o => ({ key: o.key, index: o.index, code: o.code, shipped: o.shipped, dflt: o.dflt })),
+        backdrop: L.backdrop.map(b => ({ value: b.value, what: b.what, resid: b.resid })) });
+      let shippedDrift = null;
+      {
+        const want = strip(ctx.cytheraShippedLayout());
+        const opened = ctx.INSTALLER && ctx.INSTALLER.picked;
+        let seen = 0;
+        for (const inst of (ctx.INSTALLER ? ctx.INSTALLER.installers : [])) {
+          const name = inst.name || inst.title;
+          try {
+            if (name !== ctx.INSTALLER.picked) ctx.switchInstaller(name);
+            const got = strip(ctx.cytheraPrefsLayout());
+            seen++;
+            if (got !== want && !shippedDrift) shippedDrift = name + ' reads differently from PREF_SHIPPED';
+          } catch (e) { shippedDrift = shippedDrift || (name + ': ' + e.message); }
+        }
+        if (!shippedDrift && seen < 2) shippedDrift = 'only ' + seen + ' release(s) were opened';
+        if (opened && ctx.INSTALLER.picked !== opened) { try { ctx.switchInstaller(opened); } catch (e) { /* leave it */ } }
+      }
       const back = ctx.cytheraPrefsLayout().backdrop || [];
       const backWrong = back.map(b => b.value).join() !== '0,1,-1,-2' ||
         back.filter(b => b.what === 'ppat').map(b => b.resid).join() !== '128,129' ||
@@ -254,6 +283,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (ords.length) fail('preferences', 'ordinal choosers missing from the Tools tab: ' + ords.join(', '));
       else if (missingChoices.length) fail('preferences', 'the Tools tab does not offer: ' + missingChoices.join(', '));
       else if (backWrong) fail('preferences', 'the backdrop choices are not the four the program and the two files give: ' + JSON.stringify(back));
+      else if (shippedDrift) fail('preferences', 'PREF_SHIPPED does not match the program: ' + shippedDrift);
       else if (ordWrong) fail('preferences', 'an ordinal key is written when it should not be, or with the wrong bytes');
       else if (!/Manually Place Containers/.test(tools) || !/Smoother Movement/.test(tools)) fail('preferences', 'the switches do not wear the game’s own labels');
       else if (bitsWrong) fail('preferences', 'a switch does not land on the bit the program writes for it: ' + JSON.stringify(ctx.cytheraPrefsLayout()));
