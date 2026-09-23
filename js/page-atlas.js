@@ -391,20 +391,11 @@ function atlasMouths(node) {
                  kind: 'map’s edge' });
     }
   }
-  // What lies beyond a mouth: the ways on from the map it leads to that
-  // are neither back up nor within that map, so a ring says the chain --
-  // the world's hole is "Harpy Abyss, then Harpy Cave", the cave being
-  // two steps down and reached no other way (19 September 2026).
-  for (const m of out) {
-    if (m.up || m.within) continue;
-    try {
-      m.beyond = mapDescents(m.dest.resid)
-        .filter(d => d.dest.resid !== m.dest.resid && d.dest.resid !== node.resid && d.dest.resid !== WORLD_MAP_RESID && !mapIsSurface(d.dest.resid))
-        .map(d => atlasMapName(d.dest.resid) || d.name)
-        .filter((n, i, a) => n && a.indexOf(n) === i);
-    } catch (e) { m.beyond = []; }
-    m.label = m.name + (m.beyond && m.beyond.length ? ', then ' + m.beyond.join(', ') : '');
-  }
+  // A ring is named for where it goes and nothing further. It used to add
+  // the ways on from there -- "Harpy Abyss, then Harpy Cave" (19 September
+  // 2026) -- which read as two places at one hole, and on 22 September the
+  // maintainer asked for the place alone.
+  for (const m of out) m.label = m.name;
   return (node._mouths = out);
 }
 
@@ -422,15 +413,44 @@ function atlasNodePpt(node, view) { return node.s * view.Z; }
 /* The view. Three numbers, and every other position on screen is derived. */
 const atlasView = { x: 0, y: 0, Z: 2, dragging: false, lastX: 0, lastY: 0, touching: false };
 
-// The whole world in the panel, which is where a visit starts.
+// The whole world in the panel, which is where a visit starts: the island
+// rather than the square map it sits in, so the sea round it is cropped
+// (atlasLandBounds). A map below ground is fitted whole.
 function atlasFit() {
   const vp = document.getElementById('atlasViewport');
   const sc = atlasScene();
   if (!vp || !sc || vp.clientWidth < 40) return;
   const vw = vp.clientWidth, vh = vp.clientHeight;
-  atlasView.Z = Math.min(vw / sc.root.w, vh / sc.root.h);
-  atlasView.x = (vw - sc.root.w * atlasView.Z) / 2;
-  atlasView.y = (vh - sc.root.h * atlasView.Z) / 2;
+  const b = (sc.surface && atlasLandBounds()) || { x0: 0, y0: 0, x1: sc.root.w, y1: sc.root.h };
+  const bw = b.x1 - b.x0, bh = b.y1 - b.y0;
+  atlasView.Z = Math.min(vw / bw, vh / bh);
+  atlasView.x = (vw - bw * atlasView.Z) / 2 - b.x0 * atlasView.Z;
+  atlasView.y = (vh - bh * atlasView.Z) / 2 - b.y0 * atlasView.Z;
+}
+/* The island's extent on the world map, in squares, with a margin of sea.
+   The sea is whatever the map's outermost ring is drawn with, and the land
+   every square drawn with anything else; the world is 256 squares a side
+   and the island a narrow thing in the middle of it, so fitting the square
+   put two thirds of a phone's picture in water (the maintainer, 22
+   September 2026: the world did not use the height of the screen). Null
+   when the ring is not all one kind of thing or nothing else is found. */
+function atlasLandBounds() {
+  if (DERIVED.ATLAS_LAND !== undefined) return DERIVED.ATLAS_LAND;
+  let out = null;
+  try {
+    const m = mapRenderFor(WORLD_MAP_RESID, true).result.m;
+    const W = m.width, H = m.height, sea = new Set();
+    for (let x = 0; x < W; x++) { sea.add(mapTileAt(m, x, 0)); sea.add(mapTileAt(m, x, H - 1)); }
+    for (let y = 0; y < H; y++) { sea.add(mapTileAt(m, 0, y)); sea.add(mapTileAt(m, W - 1, y)); }
+    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (sea.has(mapTileAt(m, x, y))) continue;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    const pad = 4;
+    if (x1 >= 0 && sea.size <= 8) out = { x0: Math.max(0, x0 - pad), y0: Math.max(0, y0 - pad), x1: Math.min(W, x1 + 1 + pad), y1: Math.min(H, y1 + 1 + pad) };
+  } catch (e) { quiet(e); }
+  return (DERIVED.ATLAS_LAND = out);
 }
 
 /* The most a node is worth magnifying: its own art is 32 pixels a square, so

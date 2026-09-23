@@ -56,15 +56,26 @@ try {
     else if (!(gif2.length > gif.length && String.fromCharCode(...gif2.slice(0x30D, 0x30D + 3)) === '!\xff\x0b'.replace('\\xff', '\xff'))) fail('gif', 'an eight-frame GIF has no loop block after its global table: ' + gif2.length);
     else console.log('  gif: GIF89a, ' + gif.length + ' bytes for a 4x3, and a looping eight-frame one for a cycling picture');
   }
-  // The ditherizer's frames: a hole with a box inside the picture, and the Seldane palette.
+  // The ditherizer's frames: a hole with a box inside the picture, and the
+  // Seldane ramp. 0x887E's hole starts at the braid's inner edge, ring 9,
+  // read off the picture (it was a slider at 6, which cut into the braid).
+  // The ramp is the portraits' blues and cyans by lightness: a grey
+  // gradient drawn on it must climb, never fall, from one end to the other.
   {
-    const fm = ctx.ditherFrameMask(0x88A2, 6);
-    const fm2 = ctx.ditherFrameMask(0x887E, 6);
-    const sel = ctx.seldanePalette();
+    const fm = ctx.ditherFrameMask(0x88A2);
+    const fm2 = ctx.ditherFrameMask(0x887E);
+    const tones = ctx.seldaneTones();
+    const pal = ctx.__peek('PAL_RGB'), Y = i => 0.3 * pal[i][0] + 0.59 * pal[i][1] + 0.11 * pal[i][2];
+    const Wg = 256, grad = new Uint8Array(Wg * 4);
+    for (let x = 0; x < Wg; x++) { grad[x * 4] = grad[x * 4 + 1] = grad[x * 4 + 2] = x; grad[x * 4 + 3] = 255; }
+    const flat = ctx.ditherToCytheraPalette(grad, Wg, 1, { checker: 0, tones });
+    let falls = 0; for (let x = 1; x < Wg; x++) if (Y(flat[x]) < Y(flat[x - 1])) falls++;
+    const used = new Set(flat).size;
     if (!(fm.box && fm.box.x0 > 2 && fm.box.y0 > 2 && fm.box.x1 < 62 && fm.box.y1 < 62 && fm.box.x1 - fm.box.x0 > 30)) fail('dither', 'the frame 0x88A2 has no sensible hole: ' + JSON.stringify(fm.box));
-    else if (!(fm2.box && fm2.box.x0 === 6 && fm2.box.x1 === 57)) fail('dither', 'the inset frame is not the slider’s rectangle: ' + JSON.stringify(fm2.box));
-    else if (!(sel.length > 20 && sel.length < 120 && !sel.includes(0))) fail('dither', 'the Seldane palette is not a few dozen indices without 0: ' + sel.length);
-    else console.log('  dither: frame 0x88A2 holds a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' picture, the inset frame the slider’s, the Seldane palette ' + sel.length + ' colours');
+    else if (!(fm2.box && fm2.box.x0 === 9 && fm2.box.x1 === 54)) fail('dither', 'the hole of 0x887E does not start at the braid’s inner edge: ' + JSON.stringify(fm2.box));
+    else if (!(tones.includes(3) && tones.includes(11) && tones.includes(255) && !tones.includes(0) && tones.length < 30)) fail('dither', 'the Seldane ramp is not the portraits’ blues and cyans with black: ' + JSON.stringify(tones));
+    else if (falls || used !== tones.length) fail('dither', 'a grey gradient on the Seldane ramp does not climb through every step: ' + falls + ' falls, ' + used + ' of ' + tones.length + ' steps');
+    else console.log('  dither: frame 0x88A2 holds a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' picture, 0x887E keeps its braid to ring 9, the Seldane ramp is ' + tones.length + ' steps and a gradient climbs through all of them');
   }
   // One animation setting drives the three flags.
   {
@@ -761,7 +772,8 @@ try {
   else if (!(topNearFinger > 30 && topNearFinger < 200)) fail('world tab', 'a card by a finger near the top landed at ' + topNearFinger + ', not below the finger');
   else if (!(topAbove < 400)) fail('world tab', 'a card with room above it went below the finger: top ' + topAbove);
   else if (!/hatches sea monster and tentacle/.test(hatch)) fail('world tab', 'the hatching egg does not say what comes out: ' + JSON.stringify(hatch));
-  else if (!/always|times in 100/.test(hatch)) fail('world tab', 'the hatching egg does not say how likely: ' + JSON.stringify(hatch));
+  else if (!/every time|times? in 100/.test(hatch)) fail('world tab', 'the hatching egg does not say how likely: ' + JSON.stringify(hatch));
+  else if (!/same walled area/.test(hatch)) fail('world tab', 'the hatching egg does not say what sets it off: ' + JSON.stringify(hatch));
   else if (!/a room, room \d+/.test(room)) fail('world tab', 'the room egg stopped reading as a room: ' + JSON.stringify(room));
   else if (!/sound of waves/i.test(surf)) fail('world tab', 'a kind-3 egg is not naming its ambient sound: ' + JSON.stringify(surf));
   // A room is a rectangle, not the egg's square. Room 800 is the way into the

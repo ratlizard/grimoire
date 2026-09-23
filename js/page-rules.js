@@ -419,7 +419,7 @@ function renderSkillsSheet() {
       }
       if (rows.length) {
         const d = document.createElement('div'); d.className = 'mechBody';
-        d.innerHTML = '<table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
+        d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table></div>';
         sec.appendChild(d);
       }
       // What it is made of, beside what it does. The script is already named
@@ -541,7 +541,7 @@ function renderSpellsSheet() {
       ((x.target.word & 0x8000) ? ' <span class="inspDim">(a neighbour)</span>' : '')]);
     if (!rows.length) rows.push(['Does', '<span class="inspDim">something other than health: the light, a lock, a rune, the map, or a look</span>']);
     const d = document.createElement('div'); d.className = 'mechBody';
-    d.innerHTML = '<table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
+    d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table></div>';
     sec.appendChild(d);
     // The same strip the skills carry: the icon it wears, the script being
     // already named on the summary.
@@ -1974,6 +1974,30 @@ const EGG_KIND_NAMES = [
    what a tap opens and what can hold them. So the sentence is built once
    and each piece is wrapped by `one`, which is a chip in the inspector and
    escaped text in the card. */
+/* The hours a hatching egg keeps, off TActiveMonster::HatchEgg: its day and
+   night bits compare the clock with two constants, a `cmpwi` for the dawn
+   and a `lis`/`addi` pair for the dusk, and the clock's units an hour
+   (exeClockRules) make them hours. Null with no application open, and then
+   the egg says only "by day" or "by night". */
+function exeHatchHours() {
+  if (!appImage()) return null;
+  if (DERIVED.HATCH_HOURS !== undefined) return DERIVED.HATCH_HOURS;
+  let out = null;
+  try {
+    const ops = exeOpsNamed('TActiveMonster::HatchEgg');
+    const clk = exeClockRules();
+    const per = clk && clk.model && clk.model.unitsPerHour;
+    const i = ops.findIndex(o => o.d && o.d.mn === 'cmpwi' && o.d.imm > 0 && per && o.d.imm % per === 0);
+    const j = i >= 0 ? exeFind(ops, i + 1, 6, d => d.mn === 'lis') : -1;
+    const k = j >= 0 ? exeFind(ops, j + 1, 3, d => d.mn === 'addi' && d.ra === ops[j].d.rd) : -1;
+    if (k >= 0) {
+      const dusk = (ops[j].d.imm << 16) + ops[k].d.imm;
+      out = { dawn: exeVal(ops[i], ops[i].d.imm / per), dusk: exeVal(ops[k], dusk / per) };
+    }
+  } catch (e) { quiet(e); }
+  return (DERIVED.HATCH_HOURS = out);
+}
+function clockHourText(h) { return h === 0 ? 'midnight' : h === 12 ? 'noon' : (h % 12) + (h < 12 ? ' am' : ' pm'); }
 function eggDetail(g, allProps, linked) {
   const k = EGG_KIND_NAMES[g.aspect];
   const one = (text, js) => linked && js ? svLink(String(text), js) : svEsc(String(text));
@@ -1984,11 +2008,21 @@ function eggDetail(g, allProps, linked) {
               : 'an ambient sound, ' + one(propWordHex(rid), refExists(rid) ? 'jumpToResource(' + rid + ')' : null);
   }
   if (g.aspect === 0) {
+    /* What sets it off, which the line did not say (the maintainer,
+       22 September 2026, asking what the trigger is and what night is).
+       TGameViewer::DrawRoutine walks the zone's eggs each time the view is
+       drawn and hatches one only where TGameViewer::InZone says its square
+       is in the zone MakeZone made: the open area flood-filled from the
+       party's square, walls bounding it. So an egg hatches when the party
+       is in the same walled area as it, rolled again on every draw until
+       it passes. "Hatch" is the program's own word, HatchEgg. */
     const held = containerContents(g, allProps || []);
-    const chance = g.d2 >= 99 ? 'always' : (g.d2 + 1) + (g.d2 === 0 ? ' time in 100' : ' times in 100');
+    const chance = g.d2 >= 99 ? 'every time' : (g.d2 + 1) + (g.d2 === 0 ? ' time in 100' : ' times in 100');
+    const hrs = exeHatchHours();
+    const hour = v => linked ? srcNum(v, clockHourText(v.v)) : svEsc(clockHourText(v.v));
     const when = [];
-    if (g.d1 & 0x10) when.push('by day');
-    if (g.d1 & 0x20) when.push('by night');
+    if (g.d1 & 0x10) when.push(hrs ? 'only between ' + hour(hrs.dawn) + ' and ' + hour(hrs.dusk) : 'by day');
+    if (g.d1 & 0x20) when.push(hrs ? 'only between ' + hour(hrs.dusk) + ' and ' + hour(hrs.dawn) : 'by night');
     /* Bit 0x08 is set and not decoded. Odemia's five chicken eggs carry d1
        0x18, its goat 0x0A and its guards 0x14 and 0x24, so the bit appears
        beside day, beside night and on its own: it is a real condition of the
@@ -2005,8 +2039,9 @@ function eggDetail(g, allProps, linked) {
     // gives it nothing to hatch, which is worth seeing rather than hiding.
     const names = held.map(h => one(propDisplayName(h.proptype) || ('prop ' + h.proptype),
                                     'showItemDetail(' + h.proptype + ')'));
-    return 'hatches ' + (names.length ? names.join(' and ') : 'something') + ', ' + svEsc(chance) +
-           (when.length ? ', ' + svEsc(when.join(' and ')) : '');
+    return 'hatches ' + (names.length ? names.join(' and ') : 'something') +
+           ' when the party is in the same walled area, ' + svEsc(chance) +
+           (when.length ? ', ' + when.join(' and ') : '');
   }
   if (g.aspect === 1) {
     // A way somewhere: name where it lands rather than the number alone.

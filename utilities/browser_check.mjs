@@ -257,6 +257,11 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     // A script's page: the head, the one row of views and the code, which
     // scrolls sideways inside its pane rather than widening the page.
     ['script', "setScriptFold('structured'); jumpToResource(0x1A13)"],
+    // A zone: the map, its toggles and the square panel (22 September 2026,
+    // when the toggles moved up under the map).
+    ['zone', "jumpToResource(0x8003); document.getElementById('charControls').scrollIntoView()"],
+    // The dialogue tab, whose cards carry wide tables.
+    ['dialogue', "showCategory('23'); document.querySelector('#sheetGrid details').open = true; document.querySelector('#sheetGrid details').scrollIntoView()"],
   ];
   const MEASURE = `(() => {
     const w = window.innerWidth, out = {innerWidth: w, scrollWidth: document.documentElement.scrollWidth, over: [], small: 0, buttons: 0};

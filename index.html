@@ -966,6 +966,13 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
 .relHex, .relNote { color:var(--gold); opacity:.72; font-size:0.7em; font-family:ui-monospace,Menlo,monospace; margin-left:1px; }
 .relNote { font-family:inherit; }
 .relChip:hover .relSub, .relChip:hover .relHex { opacity:1; }
+/* A chip in a table cell keeps to one line. Its name, kind, hex and note
+   are separate spans in a row that was free to wrap, and in a table on a
+   phone each wrapped to a word a line, so a column of chips pressed every
+   other column to a sliver (the maintainer, 22 September 2026: the
+   Dialogue tab's tables). On one line the table is as wide as it needs to
+   be, and .tableScroll scrolls it sideways with its fade. */
+td .relChip, td .relText, td .relMain, td .relSub, td .relNote { white-space:nowrap; }
 .partsNote { color:#fff; font-size:0.75rem; flex-basis:100%; line-height:1.4; }
 #mapParts { max-width:720px; margin:0 auto 6px; text-align:left; }
 #artUsage .partsStrip { margin:4px 0; }
@@ -1060,7 +1067,7 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 @media (min-width:900px) {
   #mapPreview.hasInspect { display:grid; grid-template-columns:minmax(0,1fr) 320px;
     grid-template-areas: 'label label' 'parts parts' 'stage inspect' 'zoom inspect'
-                         'legend inspect' 'save inspect' 'chars chars';
+                         'chars inspect' 'legend inspect' 'save inspect';
     gap:0 16px; align-items:start; }
   #mapPreview.hasInspect > #mapLabel { grid-area:label; }
   #mapPreview.hasInspect > #mapParts { grid-area:parts; }
@@ -1208,13 +1215,21 @@ summary .mechStat { border-color:rgba(249,248,111,.35); }
    what a number belonged to (the maintainer, 13 September 2026). Three things
    fix that without a second table implementation: a header may wrap rather
    than forcing the table wider than the screen, the right-hand padding that
-   was sized for a desktop comes off, and a cell may break a long word instead
-   of setting the table's minimum width. The columns still line up; they are
-   just allowed to be narrow. */
+   was sized for a desktop comes off, and a cell may break a word too long
+   for its line. The columns still line up; they are just allowed to be
+   narrow, down to their longest word. */
 @media (max-width:640px) {
   .mechTable, .vocabTable { font-size:0.7188rem; }
   .mechTable th, .vocabTable th { white-space:normal; padding-right:6px; }
-  .mechTable td, .vocabTable td { padding:4px 6px 4px 0; overflow-wrap:anywhere; }
+  /* break-word, not anywhere: "anywhere" also lets the table size a column
+     to a single character, and on a phone the prose column of every table
+     came out a letter a line (the maintainer, 22 September 2026). The tables
+     sit in .tableScroll, which scrolls sideways when the words need it. */
+  .mechTable td, .vocabTable td { padding:4px 6px 4px 0; overflow-wrap:break-word; }
+  /* A note column is prose: held to the screen's width it came out a word a
+     line beside a column of chips. It keeps room for a few words, and the
+     table scrolls sideways past the screen when that is wider. */
+  .mechTable td.mechSub { min-width:10em; }
   /* The divider's own left padding has to come down with the rest. The base
      rule sets 10px to clear the border, and a media query adds no
      specificity, so without this a phone cell had 10px on the left against
@@ -1463,6 +1478,10 @@ body.atlasFull { overflow:hidden; }
   color:#b5b2a8; }
 .mapToggleGroup label { display:flex; align-items:center; gap:5px; cursor:pointer;
   white-space:nowrap; }
+/* Each switch a pill that lights when it is on, so what is showing reads at
+   a glance and a finger has more than a checkbox to hit. */
+.mapToggleGroup label:has(input[type=checkbox]) { min-height:30px; padding:2px 9px; border:1px solid rgba(155,136,80,.35); border-radius:15px; }
+.mapToggleGroup label:has(input[type=checkbox]:checked) { background:rgba(196,164,100,.2); border-color:#c4a464; color:#fff; }
 /* ---- the Cheats sheet -----------------------------------------------------
    Two-column tables of key and effect, so the key caps line up down the left
    and the prose wraps under its own heading rather than beside it. */
@@ -1587,8 +1606,17 @@ body.atlasFull { overflow:hidden; }
   .forkTable td.where { white-space:nowrap; }
   #topLinks { gap:16px; }
   /* The world on a portrait screen: the viewport was 78vh tall for a square
-     map fitted to its width, so two thirds of it was painted sea. Square. */
-  #atlasViewport { height:auto; aspect-ratio:1 / 1; }
+     map fitted to its width, so two thirds of it was painted sea, and then
+     a square, which left half the screen empty below it. It is the height
+     of the screen under the tabs now, and the fit is to the island, which
+     is taller than it is wide (atlasLandBounds). */
+  #atlasViewport { height:calc(100vh - 250px); height:calc(100svh - 250px); min-height:320px; aspect-ratio:auto; }
+  /* A zone's map box was 62vh tall round a square map fitted to the
+     screen's width, a band of empty box above and below it and the
+     toggles pushed off the screen. Square on a phone, as most maps are.
+     The inline height is the desktop's and is what the atlas check watches,
+     hence the !important. */
+  #mapViewport { height:auto !important; aspect-ratio:1 / 1; max-height:62vh; }
   #atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport,
   body.atlasFull #atlasPanel #atlasViewport { height:100%; aspect-ratio:auto; }
 }
@@ -1928,12 +1956,9 @@ body.atlasFull { overflow:hidden; }
     <span id="mapZoomLabel" style="min-width:52px; text-align:right;">100%</span>
     <button class="secondary" style="width:auto; margin:0; padding:8px 14px;" onclick="onMapFit()">Fit</button>
   </div>
-  <div id="markLegend" style="font-size:0.75rem; margin-top:6px; min-height:16px;"></div>
-  <div id="mapInspect" style="display:none"></div>
-  <div id="mapSaveRow" style="margin-top:8px;">
-    <button class="secondary" onclick="downloadMapPNG()">Save Map as PNG</button>
-    <button class="secondary" onclick="showZoneOnWorld()">Show on the world</button>
-  </div>
+  <!-- The toggles sit straight under the zoom row (22 September 2026): they
+       were below the square's panel and the save buttons, a screen away from
+       the map they change on a phone. -->
   <div id="charControls">
     <div class="mapToggleGroup">
       <span class="mtgLabel">Show</span>
@@ -1952,6 +1977,7 @@ body.atlasFull { overflow:hidden; }
       <label><input type="checkbox" id="chkMarkExits" onchange="toggleMapMarks('exits',this.checked)"> Zone exits</label>
       <label><input type="checkbox" id="chkMarkGrid" onchange="toggleMapMarks('grid',this.checked)"> Grid</label>
       <label><input type="checkbox" id="chkMarkRooms" onchange="toggleMapMarks('rooms',this.checked)"> Rooms</label>
+      <label><input type="checkbox" id="chkMarkEggs" onchange="toggleMapMarks('eggs',this.checked)"> Eggs</label>
       <label><input type="checkbox" id="chkMarkPath" onchange="toggleMapMarks('path',this.checked)"> Path of</label>
       <select id="pathWho" onchange="setMapPathWho(this.value)"></select>
     </div>
@@ -1978,6 +2004,13 @@ body.atlasFull { overflow:hidden; }
       <button id="charBackLink" class="secondary" style="display:none"></button>
     </div>
   </div>
+  <div id="markLegend" style="font-size:0.75rem; margin-top:6px; min-height:16px;"></div>
+  <div id="mapInspect" style="display:none"></div>
+  <div id="mapSaveRow" style="margin-top:8px;">
+    <button class="secondary" onclick="downloadMapPNG()">Save Map as PNG</button>
+    <button class="secondary" onclick="showZoneOnWorld()">Show on the world</button>
+  </div>
+
 </div>
 
 <!-- New Text & Hex Viewer -->
@@ -2167,7 +2200,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.140.0';
+const GRIMOIRE_VERSION = '1.141.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

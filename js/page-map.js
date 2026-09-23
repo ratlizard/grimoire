@@ -823,7 +823,7 @@ function nightAlpha(hour) {
 // The classification is by name, so it is only as good as the wiki's list and
 // is marked as such in the legend. What is NOT guessed: whether a wall blocks
 // comes from tile attribute byte 3 bit 0x02, straight out of 0xF002.
-window.MAP_MARKS = { doors: false, secret: false, chest: false, exits: false, grid: false, rooms: false, path: false };
+window.MAP_MARKS = { doors: false, secret: false, chest: false, exits: false, grid: false, rooms: false, eggs: false, path: false };
 function toggleMapMarks(kind, on) { window.MAP_MARKS[kind] = on; drawMapMarks(); }
 // The Path mark's state, its picker and its drawing are in
 // js/delv-mapview.js: MAP_PATH_WHO, setMapPathWho, refreshPathPicker and
@@ -1383,7 +1383,7 @@ function drawMapMarks(lensCtx, lensTS) {
   if (!cm) return;
   const M = window.MAP_MARKS;
   const spots_ = DERIVED.MAP_ITEM_SPOTS;
-  const anything = M.doors || M.secret || M.chest || M.exits || M.grid || M.rooms || M.path || window.MAP_SEL ||
+  const anything = M.doors || M.secret || M.chest || M.exits || M.grid || M.rooms || M.eggs || M.path || window.MAP_SEL ||
                    (spots_ && spots_.resid === cm.resid && spots_.cells.length);
   let ctx, TS;
   const legend = lensCtx ? null : document.getElementById('markLegend');
@@ -1504,6 +1504,30 @@ function drawMapMarks(lensCtx, lensTS) {
       ctx.fillRect(b.q.left * TS + 3, b.q.top * TS + 3, tw + 8, 15);
       ctx.fillStyle = '#c9b6ff';
       ctx.fillText(label, b.q.left * TS + 7, b.q.top * TS + 14);
+    }
+    ctx.restore();
+  }
+
+  /* The eggs of this map: every trigger that is not a room (rooms have their
+     own mark and are rectangles), a dotted circle on its square with a
+     letter for its kind, counted by kind in the legend. Eggs are drawn
+     nowhere else on a map; the square's panel says what each does
+     (eggDetail). Off until asked for, like every mark (the maintainer,
+     22 September 2026). */
+  const eggCounts = new Map();
+  if (M.eggs) {
+    const LETTER = ['H', 'W', 'S', 'A', 'Z', 'M', 'S', 'N', 'R', '-', 'C'];
+    ctx.save();
+    ctx.strokeStyle = '#ffb36b'; ctx.lineWidth = Math.max(1, TS / 18);
+    ctx.setLineDash([TS / 8, TS / 8]);
+    ctx.font = canvasFace(Math.max(8, Math.min(14, Math.round(TS / 2.2))));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const r of (cm.allProps || [])) {
+      if (r.flags !== 0x42 || r.aspect === 8) continue;
+      eggCounts.set(r.aspect, (eggCounts.get(r.aspect) || 0) + 1);
+      const cx = r.x * TS + TS / 2, cy = r.y * TS + TS / 2;
+      ctx.beginPath(); ctx.arc(cx, cy, TS * 0.38, 0, Math.PI * 2); ctx.stroke();
+      if (TS >= 14) { ctx.fillStyle = '#ffb36b'; ctx.fillText(LETTER[r.aspect] || '?', cx, cy + 1); }
     }
     ctx.restore();
   }
@@ -1669,6 +1693,12 @@ function drawMapMarks(lensCtx, lensTS) {
         (occluded ? ', ' + occluded + ' buried under scenery' : ''));
     }
     if (M.chest) chip('chest', 'containers');
+    if (M.eggs) {
+      const LETTER = ['H', 'W', 'S', 'A', 'Z', 'M', 'S', 'N', 'R', '-', 'C'];
+      const by = [...eggCounts.entries()].sort((a, b) => a[0] - b[0])
+        .map(([k, n]) => LETTER[k] + ' ' + n + ' ' + ((EGG_KIND_NAMES[k] || {}).what || 'kind ' + k));
+      parts.push('<span style="color:#ffb36b">' + BOX + (by.length ? 'eggs: ' + svEsc(by.join('; ')) : 'no eggs but rooms') + '</span>');
+    }
     if (M.exits) chip('exits', (counts.exits === 1 ? 'zone exit' : 'zone exits') +
       (edges ? ' + ' + edges + (edges === 1 ? ' open edge' : ' open edges') : ''));
     if (M.path && pathStops) parts.push('<span style="color:' + colours.path + '">' + LINE +

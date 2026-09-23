@@ -395,7 +395,7 @@ function askRow(k, v) { return '<tr><td class="skillKey">' + k + '</td><td>' + v
 function askCard(title, note, rows, chips) {
   return '<section class="mechSec askCard"><div class="mechHead"><h3>' + svEsc(title) + '</h3></div>' +
     (note ? '<p class="mechLede">' + note + '</p>' : '') +
-    (rows && rows.length ? '<div class="mechBody"><table class="vocabTable barkTable mechTable"><tbody>' + rows.join('') + '</tbody></table></div>' : '') +
+    (rows && rows.length ? '<div class="mechBody tableScroll"><table class="vocabTable barkTable mechTable"><tbody>' + rows.join('') + '</tbody></table></div>' : '') +
     (chips ? '<div class="partsStrip">' + chips + '</div>' : '') + '</section>';
 }
 function askCharacterChip(who, fallback) {

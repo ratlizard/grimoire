@@ -1933,7 +1933,7 @@ function itemEachOneHTML(pt) {
     return '<tr><td class="skillKey">' + head + '</td><td>' + chips + '</td></tr>';
   });
   return '<div class="eachOne" style="margin-top:10px"><b style="color:#b5b2a8;font-size:0.6875rem;letter-spacing:0">Each one</b>' +
-    '<table class="vocabTable barkTable mechTable"><tbody>' + rows.join('') + '</tbody></table>' +
+    '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><tbody>' + rows.join('') + '</tbody></table></div>' +
     (all.length > 40 ? '<div class="inspDim">and ' + (all.length - 40) + ' more kinds</div>' : '') + '</div>';
 }
 

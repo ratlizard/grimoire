@@ -1129,6 +1129,16 @@ function ditherToCytheraPalette(rgba, W, H, opts) {
     usable.push(i);
   }
   if (!usable.length) usable.push(255);
+  /* opts.tones: an ordered ramp of indices, darkest first, to draw by
+     LIGHTNESS alone -- the Seldane portraits, which are one teal-blue ramp
+     whatever the colour of the thing they show. Matching a photograph's
+     colours to a handful of greens and blues by distance put each pixel on
+     whichever hue happened to be nearest, so a smooth cheek broke into
+     bands of unrelated colours (the maintainer, 22 September 2026: "too
+     stepped"). Here a pixel's lightness is placed on the ramp and drawn as
+     the nearest step or as a checker of the two steps either side of it,
+     under the same contrast limit the slider sets for pairs. */
+  if (o.tones && o.tones.length) return ditherByTone(rgba, W, H, o.tones, maxContrast);
   const dist = (r, g, b, c) =>
     2 * (r - c[0]) * (r - c[0]) + 4 * (g - c[1]) * (g - c[1]) + 3 * (b - c[2]) * (b - c[2]);
   const luma = i => PAL_RGB[i][0] * 3 + PAL_RGB[i][1] * 6 + PAL_RGB[i][2];
@@ -1163,6 +1173,34 @@ function ditherToCytheraPalette(rgba, W, H, opts) {
         memo.set(key, sol);
       }
       out[y * W + x] = sol.pair ? sol.pair[(x + y) & 1] : sol.flat;
+    }
+  }
+  return out;
+}
+
+function ditherByTone(rgba, W, H, tones, maxContrast) {
+  const Y = i => 0.3 * PAL_RGB[i][0] + 0.59 * PAL_RGB[i][1] + 0.11 * PAL_RGB[i][2];
+  const ramp = tones.slice().sort((a, b) => Y(a) - Y(b));
+  const ys = ramp.map(Y);
+  // The contrast limit is in the weighted RGB distance's units (0 to 765);
+  // a lightness step of d is about d * 3 of those for a grey.
+  const maxStep = maxContrast / 3;
+  const out = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const p = (y * W + x) * 4;
+      if (rgba[p + 3] < 128) { out[y * W + x] = 0; continue; }
+      const t = 0.3 * rgba[p] + 0.59 * rgba[p + 1] + 0.11 * rgba[p + 2];
+      let k = 0;
+      while (k + 1 < ys.length && ys[k + 1] <= t) k++;
+      // Nearest single step.
+      let best = ramp[k], err = Math.abs(ys[k] - t);
+      if (k + 1 < ys.length && Math.abs(ys[k + 1] - t) < err) { best = ramp[k + 1]; err = Math.abs(ys[k + 1] - t); }
+      // The checker of the steps either side, where it is closer and within
+      // the contrast the slider allows.
+      if (k + 1 < ys.length && ys[k + 1] - ys[k] <= maxStep && Math.abs((ys[k] + ys[k + 1]) / 2 - t) < err)
+        best = ((x + y) & 1) ? ramp[k + 1] : ramp[k];
+      out[y * W + x] = best;
     }
   }
   return out;

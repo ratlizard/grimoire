@@ -82,6 +82,10 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // order the wiki doubted, byte 0 body, 1 reflex, 2 mind, 5 health.
       else if ((sc => !sc || [[0, 9, 'body'], [1, 10, 'reflex'], [2, 11, 'mind'], [5, 14, 'health']].some(([b, to, nm]) => !sc[b] || sc[b].to.v !== to || sc[b].name !== nm || !inRoutine(sc[b].to, 'TActiveMonster::TActiveMonster')))(ctx.exeMonsterStatCopy()))
         fail('program figures', 'the unit stat copy was misread: ' + JSON.stringify(ctx.exeMonsterStatCopy()));
+      // The hours a hatching egg keeps: day from 6 to 18, off HatchEgg's two
+      // clock constants over the clock's units an hour.
+      else if ((h => !h || h.dawn.v !== 6 || h.dusk.v !== 18 || !inRoutine(h.dawn, 'TActiveMonster::HatchEgg'))(ctx.exeHatchHours()))
+        fail('program figures', 'the hatching hours were misread: ' + JSON.stringify(ctx.exeHatchHours()));
       // The five 2012 bed measurements, with the program's clock.
       else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
         .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== want))

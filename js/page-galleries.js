@@ -434,6 +434,14 @@ function receiveFromCanvas() {
 }
 if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('storage', e => { if (e.key === 'grimoire.return') receiveFromCanvas(); });
 
+/* Whether a tile sheet keeps off the colour-cycling ramps. Only a tile sheet
+   is offered the choice (a tile is where water and lava are drawn on
+   purpose); every other kind always keeps off them, since a portrait or a
+   strip on a cycling ramp shimmers with the sea. On by default, and the
+   last choice holds for the rest of the visit (the maintainer, 22 September
+   2026). */
+window.DITHER_SUBST = true;
+function ditherAllowAnimated() { return ditherKind() === 'sheet' && !window.DITHER_SUBST; }
 function openDitherTool() {
   let ov = document.getElementById('ditherTool');
   if (ov) ov.remove();
@@ -459,9 +467,9 @@ function openDitherTool() {
       '<option value="sheet">128×128 tile sheet, sixteen tiles (cover crop)</option>' +
       '<option value="free">original size (up to 512px), a sized graphic</option></select></label>' +
     '<label>Checker <input type="range" id="dtChecker" min="0" max="100" value="60"></label>' +
-    '<label><input type="checkbox" id="dtAnim"> allow animated ramps</label></div>' +
-    '<div class="dtRow"><label id="dtInsetWrap">Frame inset <input type="range" id="dtInset" min="2" max="24" value="6"></label>' +
-    '<label><input type="checkbox" id="dtSeldane"> Seldane colours only <span class="inspDim">(the palette of portraits 0x8877 to 0x887B)</span></label></div>' +
+    '<label id="dtSubstWrap"><input type="checkbox" id="dtSubst"' + (window.DITHER_SUBST ? ' checked' : '') + '> Automatically substitute out colour-cycling colours</label></div>' +
+    '<div class="dtRow">' +
+    '<label><input type="checkbox" id="dtSeldane"> Seldane colours only <span class="inspDim">(the blues and cyans of portraits 0x8877 to 0x887B, by lightness)</span></label></div>' +
     '<div class="dtRow"><canvas id="dtSrc" width="64" height="64"></canvas>' +
     '<canvas id="dtOut" width="64" height="64"></canvas></div>' +
     '<div class="dtRow">' +
@@ -485,23 +493,39 @@ function openDitherTool() {
   };
   document.getElementById('dtMode').onchange = () => { ditherFillTargets(); renderDither(); };
   document.getElementById('dtChecker').oninput = renderDither;
-  document.getElementById('dtAnim').onchange = renderDither;
-  document.getElementById('dtInset').oninput = renderDither;
+  document.getElementById('dtSubst').onchange = e => { window.DITHER_SUBST = e.target.checked; renderDither(); };
   document.getElementById('dtSeldane').onchange = renderDither;
 }
 
 /* A frame from the archive to set a picture in. 0x88A2 and 0x88F2 are
    frames with a hole: the hole is the run of index 0 (white, the cut-out
    slot) that does not touch the outside. 0x887E is a framed portrait with
-   somebody already in it, so its hole is a rectangle inset from the edge by
-   the slider. The picture is cover-cropped into the hole's box and the
-   frame painted over it. */
-function ditherFrameMask(resid, inset) {
+   something already in it, so its hole is the square inside the frame: the
+   first ring in from the edge that is all the background colour (its most
+   common index) is the frame's inner edge, and everything from there in is
+   the hole. It was a slider defaulting to 6, which cut three rings into
+   the braid, whose inner edge is at 9 (the maintainer, 22 September 2026:
+   not enough of the frame kept). The picture is cover-cropped into the
+   hole's box and the frame painted over it. */
+function ditherFrameMask(resid) {
   const b = getResourceBytes(ARCHIVE, resid);
   const d = decodeResource(ARCHIVE, b, 135, resid);
   const W = d.W, H = d.H, img = d.image;
   const hole = new Uint8Array(W * H);
   if (resid === 0x887E) {
+    const count = new Uint32Array(256);
+    for (const v of img) count[v]++;
+    let bg = 0; for (let i = 1; i < 256; i++) if (count[i] > count[bg]) bg = i;
+    let inset = -1;
+    for (let k = 0; k < Math.min(W, H) / 2 && inset < 0; k++) {
+      let clean = true;
+      for (let y = k; y < H - k && clean; y++) for (let x = k; x < W - k; x++) {
+        if (Math.min(x - k, y - k, W - 1 - k - x, H - 1 - k - y) !== 0) continue;
+        if (img[y * W + x] !== bg) { clean = false; break; }
+      }
+      if (clean) inset = k;
+    }
+    if (inset < 0) inset = 6;
     for (let y = inset; y < H - inset; y++) for (let x = inset; x < W - inset; x++) hole[y * W + x] = 1;
   } else {
     // The hole is the largest run of one colour that does not touch the
@@ -534,20 +558,47 @@ function ditherFrameMask(resid, inset) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (hole[y * W + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   return { W, H, frame: img, hole, box: x1 >= 0 ? { x0, y0, x1, y1 } : null };
 }
-// The colours the five Seldane portraits are made of, and nothing else.
-let _seldanePalette = null;
-/* The Seldane are the blue-green people, so their colours are the palette's
-   greens, cyans and blues, hard-coded (the maintainer, 9 September 2026):
-   reading them off the five portraits brought every brown and grey of
-   the frames and backgrounds with them, ninety indices, and the result
-   was not Seldane at all. The green ramp 104–111 and the blue ramp
-   114–127, with the two cyans and the bright greens the portraits use. */
-const SELDANE_PALETTE = [2, 3, 10, 11, 99, 104, 105, 106, 107, 108, 109, 110, 111, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 248, 249];
-function seldanePalette() { return SELDANE_PALETTE.slice(); }
+/* The ramp the five Seldane portraits are drawn in, read off them.
+
+   Reading every colour they hold brought the frames' browns and the walls'
+   greys with it, ninety indices (the maintainer, 9 September 2026), so the
+   list was typed in instead: the green and blue ramps with the two cyans,
+   matched by colour. That was "too stepped" (22 September 2026), because a
+   photograph's colours landed on whichever green or blue was nearest. The
+   faces are one ramp of lightness in one family: black, the dark blues and
+   the grey-blues in the shadows, cyan 3 in the middle and cyan 11 in the
+   light. So the ramp is the colours the five use, inside the frame, in the
+   blue-cyan hues (170 to 250 degrees, saturation from a tenth), with black,
+   each used at least twenty times; the ditherer places a pixel on it by
+   lightness (ditherByTone). */
+function seldaneTones() {
+  if (DERIVED.SELDANE_TONES) return DERIVED.SELDANE_TONES;
+  const count = new Uint32Array(256);
+  for (let r = 0x8877; r <= 0x887B; r++) {
+    try {
+      const d = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, r), 135, r);
+      for (let y = 9; y < d.H - 9; y++) for (let x = 9; x < d.W - 9; x++) count[d.image[y * d.W + x]]++;
+    } catch (e) { quiet(e); }
+  }
+  const tones = [];
+  for (let i = 1; i < 256; i++) {
+    if (count[i] < 20 || (i >= 0xE0 && i <= 0xFB)) continue;
+    const [r, g, b] = PAL_RGB[i];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (mx === 0) { tones.push(i); continue; }                // black
+    const l = (mx + mn) / 510, d = (mx - mn) / 255;
+    const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+    let h = 0;
+    if (d) h = mx === r ? 60 * (((g - b) / (mx - mn)) % 6) : mx === g ? 60 * ((b - r) / (mx - mn) + 2) : 60 * ((r - g) / (mx - mn) + 4);
+    if (h < 0) h += 360;
+    if (s >= 0.1 && h >= 170 && h <= 250) tones.push(i);
+  }
+  return (DERIVED.SELDANE_TONES = tones);
+}
 function ditherDownloadGIF() {
   const d = window.DITHER_RESULT;
   if (!d) return;
-  const anim = document.getElementById('dtAnim').checked && imageUsesAnimatedColors(d.indexed);
+  const anim = ditherAllowAnimated() && imageUsesAnimatedColors(d.indexed);
   const frames = anim ? Array.from({ length: 8 }, (_, f) => ({ indexed: d.indexed, palette: cycledPalette(f) })) : [{ indexed: d.indexed, palette: PAL_RGB }];
   downloadGIF(d.W, d.H, frames, 140, 'cythera_dithered.gif');
 }
@@ -614,13 +665,13 @@ function renderDither() {
   const portrait = mode === 'portrait' || frameMode;
   const kind = ditherKind();
   const FIXED = { landscape: [288, 32], icon: [32, 16], sheet: [128, 128] };
-  const insetWrap = document.getElementById('dtInsetWrap');
-  if (insetWrap) insetWrap.style.display = mode === 'frame:887E' ? '' : 'none';
+  const substWrap = document.getElementById('dtSubstWrap');
+  if (substWrap) substWrap.style.display = kind === 'sheet' ? '' : 'none';
   const img = _ditherSrc;
   let W, H, sx = 0, sy = 0, sw = img.width, sh = img.height;
   let fm = null;
   if (frameMode) {
-    try { fm = ditherFrameMask(parseInt(mode.slice(6), 16), +document.getElementById('dtInset').value); } catch (e) { fm = null; }
+    try { fm = ditherFrameMask(parseInt(mode.slice(6), 16)); } catch (e) { fm = null; }
   }
   if (portrait) {
     W = H = 64;
@@ -652,8 +703,8 @@ function renderDither() {
   const rgba = wc.getImageData(0, 0, W, H).data;
   let indexed = ditherToCytheraPalette(rgba, W, H, {
     checker: (+document.getElementById('dtChecker').value) / 100,
-    allowAnimated: document.getElementById('dtAnim').checked,
-    usable: document.getElementById('dtSeldane').checked ? seldanePalette() : null
+    allowAnimated: ditherAllowAnimated(),
+    tones: document.getElementById('dtSeldane').checked ? seldaneTones() : null
   });
   if (fm) {
     const out = new Uint8Array(W * H);

@@ -2437,8 +2437,8 @@ function renderMechanicsSheet(value) {
         'A light is <b>blocked by nothing</b>. Each lit square lays its own cone over whatever is beneath it and no wall is consulted; what looks like falloff is the cone’s own shading. A level-1 source’s pool is about 1¼ tiles across, a level-3 source’s about 2¾.',
         'The map’s lighting layer draws only the two things that are fixed to the map: this table, and each source’s cone. The part that depends on where you are standing is reported on a square when you select it.'
       ],
-      '<table class="vocabTable barkTable mechTable"><thead><tr><th>zone</th><th>sets</th><th>base at night</th><th>base at noon</th></tr></thead><tbody>' +
-      body + '</tbody></table>', '');
+      '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>zone</th><th>sets</th><th>base at night</th><th>base at noon</th></tr></thead><tbody>' +
+      body + '</tbody></table></div>', '');
   }
 
   // ---- springs and fountains ----

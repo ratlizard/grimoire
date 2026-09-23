@@ -174,8 +174,13 @@ function talkMechSection() {
   const alone = cv.shapes.find(s => s.shape === '');
   const topics = cv.chars.reduce((n, c) => n + c.topics, 0);
   const deeper = cv.chars.reduce((n, c) => n + c.deeper, 0);
+  /* The group by its name, which is what the card is about; svChip leads
+     with the resource's label ("group dialogue, shared by 91 resources")
+     and put the name last, so each chip ran to four lines in a phone's
+     table (the maintainer, 22 September 2026). */
+  const groupChip = (g, note) => relChip({ resid: g.rid, main: g.name || propWordHex(g.rid), note, title: trailForResid(g.rid) });
   const groupRows = real.sort((a, b) => b.inherited - a.inherited).map(g =>
-    '<tr><td>' + svChip(g.rid, g.name || '') + '</td>' + mechNum(g.topics) + mechNum(g.inherited) +
+    '<tr><td>' + groupChip(g) + '</td>' + mechNum(g.topics) + mechNum(g.inherited) +
     '<td class="mechSub">' + (g.called ? 'called from a topic by ' + g.called : '') + '</td></tr>');
   const shapeRows = cv.shapes.filter(s => s.shape).map(s =>
     '<tr>' + mechNum(s.who.length) + '<td>' + svEsc(s.shape) + '</td>' +
@@ -188,7 +193,7 @@ function talkMechSection() {
       '<b>' + cv.chars.length + ' characters</b> hold <b>' + topics + ' topics</b> between them, of which <b>' + deeper + '</b> open further topics of their own.',
       '<b>' + real.length + ' groups</b> are inherited. The deepest chains are four long, and most of the cast is a House, then a city, then Human.',
       alone ? '<b>' + alone.who.length + ' answer as nobody but themselves</b>: ' + svEsc(alone.who.map(c => c.name).join(', ')) + '.' : '',
-      others.length ? 'Not every 0x8xx resource is a group: ' + others.map(g => svChip(g.rid, (g.name || propWordHex(g.rid)) + ', ' + g.kind)).join(' ') : ''
+      others.length ? 'Not every 0x8xx resource is a group: ' + others.map(g => groupChip(g, g.kind)).join(' ') : ''
     ].filter(Boolean) : [],
     mechTable(['group', '#topics', '#inherit it', ''], groupRows) +
     '<div class="partsTitle">The chains</div>' +
