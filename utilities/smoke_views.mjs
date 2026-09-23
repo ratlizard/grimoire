@@ -761,3 +761,23 @@ try {
     fail('landscapes', 'strip 9 is set both over the sky and without it, and was not read so');
   else console.log('  landscapes: strip 1 is Land King Hall with no sky, 12, 13 and 15 are set, 17 by nothing, 9 both ways');
 } catch (e) { fail('landscapes', e); }
+
+/* The engine's draw passes, 22 September 2026 (enginePass). In Land King
+   Hall the carpet runner at (42,18) is record 737 and the archway it runs
+   under is 709, so list order drew the carpet over the arch; the carpet is
+   flat (pass 0) and the arch tall (pass 5). On the world the arch into the
+   hall at (163,20) stands on a mountain whose faux prop was drawn after
+   every record; the mountain is flat too. Both fail under the old order. */
+try {
+  const props = ctx.renderMapUncached(0x8003).result.props;
+  const at = (x, y, pt) => props.findIndex(d => d.rec.x === x && d.rec.y === y && d.rec.proptype === pt);
+  const rug = at(42, 18, 0x0F), arch = at(43, 18, 0x08);
+  const fx = ctx.getFauxProps(), tl = ctx.getPropTileList();
+  const wm = ctx.renderMapUncached(0x8001).result;
+  const mt = fx.get(ctx.mapTileAt(wm.m, 163, 20));
+  const archRec = wm.props.find(d => d.rec.x === 163 && d.rec.y === 20);
+  if (rug < 0 || arch < 0 || rug > arch) fail('draw passes', `the carpet at (42,18) is drawn at ${rug}, the archway at ${arch}: the carpet must go first`);
+  else if (!mt || !archRec || !(ctx.enginePass(tl[mt.proptype] + mt.aspect, 0, false) < archRec.pass))
+    fail('draw passes', 'the mountain under the arch at (163,20) is not in an earlier pass than the arch');
+  else console.log('  draw passes: Land King Hall\'s carpet goes under its arch, the world\'s mountain under the arch into the hall');
+} catch (e) { fail('draw passes', e); }

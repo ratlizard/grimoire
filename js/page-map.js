@@ -81,6 +81,39 @@ function propOffsetFor(proptype, aspect, rotated) {
 // the caves had no walls at all, and the world map's trees, shrubs, mountains
 // and snowcaps are all faux props too.
 let _fauxPropCache = null;
+/* THE ENGINE'S DRAW ORDER, off TViewer::Render (22 September 2026).
+   Render draws the whole view in six passes, and in each draws the props
+   whose record flags and tile attributes match that pass's masks, read from
+   four halfword and two word tables beside the TOC:
+
+     pass  flags & mask == value   attributes & mask == value
+      0    & 0x9E == 0             & 0x100000 == 0x100000   flat: floors, rugs, blood, runes, mountains
+      1    & 0x9E == 0             & 0x100210 == 0x200
+      2    the living, from their own list
+      3    & 0x9E == 0             & 0x100210 == 0
+      4    & 0x44 == 4             anything                 records flagged 4 or 0x24
+      5    & 0x9E == 0             & 0x10 == 0x10           arches, walls, the tall
+
+   so a pass is a layer over the whole map, and within one the props keep
+   the order they are listed in. This page drew the records in list order
+   and the terrain's own props after them all, which put a carpet over the
+   arch it runs under in Land King Hall (42,18) and the world's mountains
+   over the arch into it at (163,20) (the maintainer, 22 September 2026).
+   A flat tile with 0x10 is drawn in pass 0 and again in 5, which comes to
+   the same pixels as drawing it once in 5. Pass 2's flag is set by a loop
+   this reading did not follow; the living are put there because nothing
+   else in the passes takes them. TViewer::SetStage also sorts every prop
+   into a layer of its own from the class's flags as well (the table
+   FillIntfCache builds); that is not read, and the passes alone decide. */
+function enginePass(tileId, flags, living) {
+  if ((flags & 0x44) === 4) return 4;
+  if (living) return 2;
+  const a = getTileAttributes(ARCHIVE)[tileId] || 0;
+  if (a & 0x10) return 5;
+  if (a & 0x100000) return 0;
+  if (a & 0x200) return 1;
+  return 3;
+}
 function getFauxProps() {
   if (_fauxPropCache) return _fauxPropCache;
   const out = new Map();
@@ -2610,18 +2643,30 @@ function renderMapVisual(resid, mapData, opts) {
     // drawn over the pillar at (62,57), an earlier record. List order and
     // faux-last put both the way he expects. The priority mask
     // (attributes & 0xBFCDFD1C) that ordered a square is not used now.
-    for (const r of visible) {
+    // Since 22 September 2026 that order holds only within one of the
+    // engine's passes (enginePass, above): the passes are drawn one after
+    // another over the whole map.
+    const living = characterProptypes();
+    const items = visible.map((r, i) => {
       const tileId = propTiles[r.proptype] + r.aspect;
+      return { r, tileId, pass: enginePass(tileId, r.flags, living.has(r.proptype)), i };
+    });
+    fauxLate.forEach((f, i) => items.push({ faux: f, pass: enginePass(f[2], 0, false), i: visible.length + i }));
+    items.sort((a, b) => (a.pass - b.pass) || (a.i - b.i));
+    for (const it of items) {
+      if (it.faux) { const [x, y, t, rot, ox, oy] = it.faux; drawPropAt(ctx, TS, x, y, t, rot, ox, oy, m.width, m.height); continue; }
+      const r = it.r, tileId = it.tileId;
       const [ox, oy] = propOffsetFor(r.proptype, r.aspect, r.rotated);
       // Multi-square props (large creatures, beds, tables, trees) store
       // only their bottom-right square in the prop record; the remaining
       // squares are the immediately preceding tile indices.
       const cells = drawPropAt(ctx, TS, r.x, r.y, tileId, r.rotated, ox, oy, m.width, m.height);
-      drawnProps.push({ rec: r, tileId, cells, propResid });
+      drawnProps.push({ rec: r, tileId, cells, propResid, pass: it.pass });
       propCount++;
     }
+  } else {
+    for (const [x, y, t, rot, ox, oy] of fauxLate) drawPropAt(ctx, TS, x, y, t, rot, ox, oy, m.width, m.height);
   }
-  for (const [x, y, t, rot, ox, oy] of fauxLate) drawPropAt(ctx, TS, x, y, t, rot, ox, oy, m.width, m.height);
   // Hatch whatever the Walls toggle took away. Diagonal strokes rather than a
   // flat wash: a wash reads as a highlight, and this is the opposite -- the
   // square is still solid, it is just being drawn through.
@@ -2952,21 +2997,33 @@ function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, frame) {
       if (fp) fauxDrawn.push([x, y, fp]);
     }
   }
-  // The records first, in list order, then the terrain's own props: the
-  // order the full render uses (renderMapVisual says why).
+  // The engine's passes, and within a pass the records in list order then
+  // the terrain's own props: the order the full render uses (enginePass and
+  // renderMapVisual say why). cm.props is already in that order and carries
+  // each record's pass.
   const margin = 4;                       // sprites overhang their square
-  for (const d of (cm.props || [])) {
+  const items = [];
+  (cm.props || []).forEach((d, i) => {
     const r = d.rec;
-    if (r.x < x0 - margin || r.x > x1 + margin || r.y < y0 - margin || r.y > y1 + margin) continue;
-    const [ox, oy] = propOffsetFor(r.proptype, r.aspect, r.rotated);
-    drawPropAt(ctx, TS, r.x, r.y, d.tileId, r.rotated, ox, oy, m.width, m.height);
-  }
-  for (const [x, y, fp] of fauxDrawn) {
+    if (r.x < x0 - margin || r.x > x1 + margin || r.y < y0 - margin || r.y > y1 + margin) return;
+    items.push({ d, pass: d.pass === undefined ? 3 : d.pass, i });
+  });
+  fauxDrawn.forEach(([x, y, fp], k) => {
     const base = fauxTiles[fp.proptype];
-    if (base === undefined) continue;
-    if (!window.MAP_WALLS && isWallLikeProp(fp.proptype)) { suppressed.push([x, y]); continue; }
-    const [ox, oy] = propOffsetFor(fp.proptype, fp.aspect, fp.rotated);
-    drawPropAt(ctx, TS, x, y, base + fp.aspect, fp.rotated, ox, oy, m.width, m.height);
+    if (base === undefined) return;
+    if (!window.MAP_WALLS && isWallLikeProp(fp.proptype)) { suppressed.push([x, y]); return; }
+    items.push({ x, y, fp, t: base + fp.aspect, pass: enginePass(base + fp.aspect, 0, false), i: 1e6 + k });
+  });
+  items.sort((a, b) => (a.pass - b.pass) || (a.i - b.i));
+  for (const it of items) {
+    if (it.d) {
+      const r = it.d.rec;
+      const [ox, oy] = propOffsetFor(r.proptype, r.aspect, r.rotated);
+      drawPropAt(ctx, TS, r.x, r.y, it.d.tileId, r.rotated, ox, oy, m.width, m.height);
+    } else {
+      const [ox, oy] = propOffsetFor(it.fp.proptype, it.fp.aspect, it.fp.rotated);
+      drawPropAt(ctx, TS, it.x, it.y, it.t, it.fp.rotated, ox, oy, m.width, m.height);
+    }
   }
   // The full render dropped wall props before recording cm.props, so the
   // hatching recovers them from the raw records the same way it decided.
