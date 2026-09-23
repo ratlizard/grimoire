@@ -212,6 +212,7 @@ function dvmFoldFrame(nodes, ctx) {
 
 function dvmFoldValue(n, ctx) {
   const bare = dvmBareOperand(n.arg);
+  if (ctx && ctx.say && n.mn === 'global') return dvmSayName(dvmPlainName(bare));
   switch (n.mn) {
     case 'local': case 'arg': return bare;
     case 'byte': case 'short': case 'word': {
@@ -254,6 +255,7 @@ function dvmFoldNumber(bare) {
 }
 
 function dvmFoldOperator(n, args, ctx) {
+  if (ctx && ctx.say) return dvmSayOperator(n, args, ctx);
   const infix = DVM_INFIX[n.op];
   if (infix) return '(' + args[0] + ' ' + infix + ' ' + args[1] + ')';
   const prefix = DVM_PREFIX[n.op];
@@ -284,6 +286,7 @@ function dvmFoldOperator(n, args, ctx) {
 /* An op that opened frames. Most are calls or statements; the ones that take
    more than one frame spell out where each frame went. */
 function dvmFoldCall(n, ctx) {
+  if (ctx && ctx.say) return dvmSayCall(n, ctx);
   const bare = dvmPlainName(dvmBareOperand(n.arg));
   const g = n.groups.map(f => dvmFoldFrame(f, ctx));
   // `sys Name` arrives as one mnemonic with the name inside it.
@@ -1420,3 +1423,225 @@ function dvmBlocksOf(tree, follow) {
   walk(tree, follow);
   return out;
 }
+
+/* ---- the code read as sentences ---------------------------------------------
+ * The maintainer's "functions read in full" (23 September 2026): each part of
+ * a function as a plain sentence, derived from the code wherever it can be.
+ * This walks the same recovered tree the structured listing prints
+ * (dvmRecoverStructure, dvmLoopExits) and says each statement in words, with
+ * the conditions as clauses and the blocks nested under them.
+ *
+ * NO VOCABULARY IS TYPED IN. A call's words are its own name taken apart --
+ * PlaySound is "play sound", ClearFlag "clear flag", a field talk_balloon
+ * "talk balloon" -- so what a sentence says a call does is exactly what the
+ * name says and no more; the names are delvmod's symbols, the one outside
+ * source the listings already use, and the file-derived notes the fold makes
+ * (a sound's id, a zoneport's zone, a To Do line, a prop type's name) come
+ * along in brackets. The only words this adds are the language's own: if,
+ * otherwise, for each, repeat, set, print, return, and the comparisons.
+ * Unknowns stay numbers, as in the listings: an argument slot written by
+ * `set_local 0x31` is "local 0x31", a flag is its number.
+ *
+ * A conversation's function is its answers, which the Text view lays out
+ * whole; here it is one line that says how many it answers.
+ *
+ * The say switch is `ctx.say`: dvmFoldValue, dvmFoldOperator and dvmFoldCall
+ * hand over to the functions below when it is set, so a value is read
+ * through the same walk as the listing and cannot disagree with it about
+ * what is inside what. utilities/read_check.mjs holds every call and
+ * condition of every function to its sentences.
+ */
+function dvmSayName(name) {
+  return String(name || '').replace(/_/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .split(' ').map(w => /^[A-Z]{2,}$/.test(w) ? w : w.toLowerCase()).join(' ').trim();
+}
+const DVM_SAY_INFIX = { '==': 'is', '!=': 'is not', '<': 'is less than', '>': 'is more than',
+  '<=': 'is at most', '>=': 'is at least', 'and': 'and', 'or': 'or' };
+function dvmSayOperator(n, args, ctx) {
+  const infix = DVM_INFIX[n.op];
+  if (infix) {
+    const w = DVM_SAY_INFIX[infix];
+    return w ? args[0] + ' ' + w + ' ' + args[1] : '(' + args[0] + ' ' + infix + ' ' + args[1] + ')';
+  }
+  const prefix = DVM_PREFIX[n.op];
+  if (prefix === '!') return 'not ' + dvmSayGroup(args[0]);
+  if (prefix) return prefix + args[0];
+  const bare = dvmPlainName(dvmBareOperand(n.arg));
+  switch (n.op) {
+    case 0x46: return args[0] + '[' + args[1] + ']';
+    case 0x5F: return 'the length of ' + args[0];
+    case 0x60: return args[0] + ' has ' + dvmSayName(bare);
+    case 0x61: {
+      const m = /^0x([0-9A-F]{2})([0-9A-F]{2})$/i.exec(bare);
+      const k = m && String(parseInt(m[1], 16));
+      const key = m && ((DVM_SYM.method && DVM_SYM.method[k]) || (DVM_SYM.field && DVM_SYM.field[k]));
+      return args[0] + '’s ' + (key ? dvmSayName(key) + ' ' + parseInt(m[2], 16) : bare);
+    }
+    case 0x62: return args[0] + '’s ' + dvmSayName(bare);
+    case 0x63: return args[0] + ' as ' + dvmSayName(bare);
+    case 0x64: return args[0] + ' is ' + dvmSayName(bare);
+    default: return dvmSayName(n.mn) + ' ' + args.join(', ');
+  }
+}
+// A phrase that needs no brackets when it follows "not".
+function dvmSayGroup(e) { return / (is|and|or|has) /.test(e) ? '(' + e + ')' : e; }
+function dvmSayCall(n, ctx) {
+  const bare = dvmPlainName(dvmBareOperand(n.arg));
+  const vals = f => dvmReduceFrame(f || [], ctx);
+  const withArgs = (verb, a) => verb + (a.length ? ' ' + a.join(', ') : '');
+  if (/^sys /.test(n.mn)) {
+    const name = n.mn.slice(4), v = vals(n.groups[0]);
+    dvmFoldCallNotes(name, v, ctx);
+    return withArgs(dvmSayName(name), v);
+  }
+  switch (n.mn) {
+    case 'call_resource': case 'call_subroutine': {
+      const id = n.mn === 'call_resource' && /^0x([0-9A-F]+)$/i.exec(bare);
+      const nm = id ? dvmFoldResourceName(parseInt(id[1], 16)) : bare;
+      return withArgs(/^0x/i.test(nm) ? 'run ' + nm : dvmSayName(nm), vals(n.groups[0]));
+    }
+    case 'call_index': return withArgs('run ' + bare + '[' + dvmFoldFrame(n.groups[0] || [], ctx) + ']', vals(n.groups[1]));
+    case 'method': {
+      const v = vals(n.groups[0]);
+      return withArgs(dvmSayName(bare) + (v.length ? ' ' + v[0] : ''), v.slice(1));
+    }
+    case 'gui': return withArgs('window ' + dvmSayName(bare), vals(n.groups[0]));
+    case 'gui_close': return 'close window ' + dvmFoldFrame(n.groups[0] || [], ctx);
+    case 'ai_state': return 'AI state ' + bare + (n.groups[0] ? ', ' + dvmFoldFrame(n.groups[0], ctx) : '');
+    default: return withArgs(dvmSayName(n.mn) + (bare ? ' ' + bare : ''), n.groups.map(f => dvmFoldFrame(f, ctx)));
+  }
+}
+function dvmSayStatement(n, ctx) {
+  const bare = dvmPlainName(dvmBareOperand(n.arg));
+  const g = n.groups.map(f => dvmFoldFrame(f, ctx));
+  switch (n.mn) {
+    case 'return': return g[0] ? 'return ' + g[0] : 'return';
+    case 'print': return 'print ' + (g[0] || '');
+    case 'string(implicit)': return 'print ' + dvmBareOperand(n.arg);
+    case 'set_local': {
+      const slot = parseInt(bare, 16);
+      const lhs = (Number.isFinite(slot) && slot < 0x30) ? 'Var' + slot.toString(16).toUpperCase().padStart(2, '0') : 'local ' + bare;
+      return 'set ' + lhs + ' to ' + (g[0] || '');
+    }
+    case 'set_global': return 'set ' + dvmSayName(bare) + ' to ' + (g[0] || '');
+    case 'set_field': return 'set ' + (g[0] || '') + '’s ' + dvmSayName(bare) + ' to ' + (g[1] || '');
+    case 'set_index': return 'set ' + (g[0] || '') + '[' + (g[1] || '') + '] to ' + (g[2] || '');
+    case 'write_near_word': case 'write_far_word': return 'set word@' + bare + ' to ' + (g[0] || '');
+    case 'exit': return 'stop';
+    case 'conversation_prompt': return 'ask ' + dvmBareOperand(n.arg);
+    case 'conversation_response': return 'answer ' + dvmBareOperand(n.arg);
+    default:
+      if (n.expect > 0) return dvmSayCall(n, ctx);
+      return dvmFoldValue(n, ctx);
+  }
+}
+function dvmSayCond(s, ctx, taken) {
+  const leaf = p => dvmFoldFrame(p.node.groups[0] || [], ctx);
+  const j = s.parts ? s.parts.map(p => dvmSayGroup(leaf(p))).join(s.negated ? ' or ' : ' and ') : leaf(s);
+  const positive = taken ? s.negated : !s.negated;
+  if (positive) return j;
+  // Not of a not is the thing itself.
+  if (!s.parts && /^not /.test(j)) { const r = j.slice(4); return /^\(.*\)$/.test(r) && dvmSayGroup(r.slice(1, -1)) === r ? r.slice(1, -1) : r; }
+  const m = !s.parts && /^(.+) is (?!not |less |more |at )(.+)$/.exec(j);
+  return m ? m[1] + ' is not ' + m[2] : 'not ' + dvmSayGroup(j);
+}
+/* The tree as clauses: { text, kids } with the blocks as kids. `notes` a
+   clause gathered while it folded are said after it in brackets. */
+function dvmSayTree(tree, ctx, loops) {
+  const out = [];
+  const fors = loops.fors, exits = loops.exits;
+  const skip = new Set();
+  for (const f of fors.values()) skip.add(f.start);
+  const push = (text, kids, at) => {
+    const notes = ctx.notes.splice(0);
+    out.push({ text: text + (notes.length ? ' (' + notes.join('; ') + ')' : ''), kids: kids || null, at: at === undefined ? null : at });
+  };
+  let prints = null, printAt = null;
+  const flush = () => { if (prints) { push('print ' + prints.join(', '), null, printAt); prints = null; } };
+  for (const n of tree) {
+    if (n.kind === 'stmt' && skip.has(n.stmt)) continue;
+    if (n.kind === 'stmt' && n.stmt.kind !== 'cond' && !exits.has(n.stmt)) {
+      const node = n.stmt.node;
+      if (node.mn === 'print' || node.mn === 'string(implicit)') {
+        const v = node.mn === 'print' ? dvmFoldFrame(node.groups[0] || [], ctx) : dvmBareOperand(node.arg);
+        if (!prints) printAt = n.stmt.abs;
+        (prints = prints || []).push(v);
+        continue;
+      }
+    }
+    flush();
+    switch (n.kind) {
+      case 'stmt': {
+        const s = n.stmt, word = exits.get(s);
+        const go = word === 'break' ? 'stop the loop' : word === 'continue' ? 'go round again'
+          : (s.targets.length === 1 ? 'go to ' + ctx.label('0x' + s.targets[0].toString(16).toUpperCase().padStart(4, '0')) : null);
+        if (s.kind === 'cond' && go) push('if ' + dvmSayCond(s, ctx, true) + ', ' + go, null, s.abs);
+        else if (s.kind === 'jump' && go) push(go, null, s.abs);
+        else push(dvmSayStatement(s.node, ctx), null, s.abs);
+        break;
+      }
+      case 'if': { const c = dvmSayCond(n.cond, ctx, false); push('if ' + c + ':', dvmSayTree(n.then, ctx, loops), n.cond.abs); break; }
+      case 'ifelse': {
+        const c = dvmSayCond(n.cond, ctx, false);
+        push('if ' + c + ':', dvmSayTree(n.then, ctx, loops), n.cond.abs);
+        push('otherwise:', dvmSayTree(n.els, ctx, loops));
+        break;
+      }
+      case 'while': {
+        const f = fors.get(n);
+        if (f) {
+          for (const t of f.notes || []) dvmFoldNote(ctx, t);
+          push('for each ' + f.variable + ' in ' + dvmSayName(f.name) + (f.args.length ? ' of ' + f.args.join(', ') : '') + ':',
+               dvmSayTree(n.body.slice(0, -1), ctx, loops), f.start.abs);
+        } else {
+          const c = dvmSayCond(n.cond, ctx, false);
+          push('while ' + c + ':', dvmSayTree(n.body, ctx, loops), n.cond.abs);
+        }
+        break;
+      }
+      case 'dowhile': {
+        const kids = dvmSayTree(n.body, ctx, loops);
+        push('repeat, and go round again while ' + dvmSayCond(n.cond, ctx, true) + ':', kids, dvmFirstAbs(n));
+        break;
+      }
+      case 'loop': push('repeat:', dvmSayTree(n.body, ctx, loops), dvmFirstAbs(n)); break;
+    }
+  }
+  flush();
+  return out;
+}
+/* Every function of a resource, said. The same extents, names and recovery as
+   dvmStructureRender; a prose object is said as what it holds. */
+function dvmReadRender(arc, b, resid) {
+  dvmContextResid = (typeof resid === 'number') ? resid : null;
+  const objs = dvmExtents(b, resid);
+  const slots = dvmSlotNames(b, resid);
+  const hex4 = v => v.toString(16).padStart(4, '0').toUpperCase();
+  const str = seg => decodeMacRoman(seg.filter(c => c));
+  const out = [];
+  for (const [st, en, kind] of objs) {
+    const seg = b.subarray(st, Math.min(en, b.length));
+    if (!seg.length) continue;
+    const name = slots.get(st) || (st === 0 && kind === 'function' ? dvmFoldResourceName(resid) : null) || ('obj_' + hex4(st));
+    if (kind !== 'function') {
+      if (kind !== 'array' && kind !== 'table' && (dvmIsProse(seg) || dvmIsIdentifier(seg))) out.push({ at: st, name, prose: str(seg) });
+      continue;
+    }
+    const ph = dvmProseHead(seg.subarray(3));
+    if (ph && ph.bare) { out.push({ at: st, name, prose: str(ph.head) }); continue; }
+    const r = dvmDisassemble(seg, 3);
+    const args = [];
+    for (let i = 0; i < seg[1]; i++) args.push('Arg' + i.toString(16).padStart(2, '0').toUpperCase());
+    const answers = r.ops.filter(o => o[2] === 'conversation_response').length;
+    if (answers) { out.push({ at: st, name, args, answers }); continue; }
+    const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true };
+    const stmts = dvmStatementList(dvmForest(r.ops), st);
+    const rec = dvmRecoverStructure(stmts);
+    const loops = dvmLoopExits(rec.tree, ctx);
+    ctx.notes.length = 0;
+    out.push({ at: st, name, args, clauses: dvmSayTree(rec.tree, ctx, loops), bad: r.bad || 0, tree: rec.tree, ops: r.ops });
+  }
+  return out;
+}
+

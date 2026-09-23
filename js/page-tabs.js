@@ -821,29 +821,59 @@ function paintDecodedPane() {
   }
   const hasText = !!(dlg && dlg.innerHTML);
   let which = window.SCRIPT_PANE;
+  if (which === 'read') {
+    // The Read view: the functions said as sentences (dvmReadRender), worked
+    // out when first asked for and kept with the decode.
+    if (d.read === undefined) { try { d.read = d.resData ? dvmReadRender(ARCHIVE, d.resData, d.resid) : null; } catch (e) { quiet(e, 'the Read view'); d.read = null; } }
+    if (!d.read || !d.read.length) which = 'code';
+  }
   if (which === 'text' && !hasText) which = 'code';
   const mode = window.SCRIPT_FOLD || 'raw';
   if (ls) ls.style.display = '';
   if (tabs) tabs.style.display = 'none';
   for (const [id, on] of [['listText', which === 'text'], ['listRaw', which === 'code' && mode === 'raw'],
-                          ['listStructured', which === 'code' && mode !== 'raw'], ['listHex', which === 'hex']]) {
+                          ['listStructured', which === 'code' && mode !== 'raw'], ['listHex', which === 'hex'], ['listRead', which === 'read']]) {
     const b = document.getElementById(id);
     if (b) b.classList.toggle('active', on);
   }
   const t = document.getElementById('listText');
   if (t) t.style.display = hasText ? '' : 'none';
   if (dlg) dlg.style.display = which === 'text' ? '' : 'none';
-  pane.style.display = which === 'code' ? '' : 'none';
+  pane.style.display = which === 'code' || which === 'read' ? '' : 'none';
   const strs = document.getElementById('paneStrings');
   if (strs) strs.style.display = 'none';
   const hexPane = document.getElementById('paneHex');
   if (hexPane) hexPane.style.display = which === 'hex' ? '' : 'none';
+  if (which === 'read') {
+    pane.classList.remove('scriptCode');
+    pane.classList.add('scriptRead');
+    pane.innerHTML = readViewHtml(d.read);
+    return;
+  }
+  pane.classList.remove('scriptRead');
   pane.classList.add('scriptCode');
   // A line ringed by jumpToScriptAt.
   const at = window.LISTING_AT && window.LISTING_AT.resid === d.resid ? window.LISTING_AT.at : null;
   const body = listingJumps(renderLinked(d.text, d.resid, mode === 'raw' ? null : d.raw), mode === 'raw',
                             mode === 'structured' ? d.exits : null);
   pane.innerHTML = at === null ? body : listingRing(body, d.text, at);
+}
+
+/* The Read view's HTML: each function's name and arguments, then its
+   sentences as nested lists, each with the offset its statement has in the
+   listings' gutter, so a "go to L0042" can be found and any line checked
+   against the code. A prose object is said as what it holds. */
+function readViewHtml(fns) {
+  const hex4 = v => v.toString(16).toUpperCase().padStart(4, '0');
+  const list = cl => '<ul class="readList">' + cl.map(c => '<li>' + (c.at !== null && c.at !== undefined ? '<span class="readAt">' + hex4(c.at) + '</span>' : '') +
+    svEsc(c.text.charAt(0).toUpperCase() + c.text.slice(1)) + (c.kids ? list(c.kids) : '') + '</li>').join('') + '</ul>';
+  return fns.map(f => {
+    if (f.prose !== undefined) return '<div class="readFn"><div class="readHead">' + svEsc(f.name) + '</div><div class="readProse">' + svEsc(f.prose) + '</div></div>';
+    const head = '<div class="readHead">' + svEsc(f.name) + '(' + (f.args || []).join(', ') + ')</div>';
+    if (f.answers) return '<div class="readFn">' + head + '<div class="readProse">Answers ' + f.answers + ' prompt' + (f.answers === 1 ? '' : 's') +
+      '; the Text view lays them out.</div></div>';
+    return '<div class="readFn">' + head + (f.bad ? '<div class="readProse">Part of this did not decode; the Raw view shows it.</div>' : '') + list(f.clauses || []) + '</div>';
+  }).join('');
 }
 
 /* A branch in a listing is a link to where it goes. In the structured and

@@ -733,6 +733,14 @@ pre.pane { background:#090806; color:#fff; padding:12px; overflow:auto; max-heig
 /* Code keeps its indentation: a wrapped line of a listing starts at the left
    edge and reads as a statement of its own. It scrolls sideways instead. */
 #textContent.scriptCode { white-space:pre; overflow-x:auto; }
+/* The Read view: each function's code as sentences, nested as the blocks are. */
+#textContent.scriptRead { white-space:normal; font-family:var(--face); }
+.readFn { margin:0 0 14px; }
+.readHead { color:#fff; font-weight:700; margin:0 0 4px; }
+.readProse { color:#fff; margin:0 0 10px; }
+.readList { margin:0; padding-left:18px; }
+.readList li { color:#fff; margin:2px 0; line-height:1.45; overflow-wrap:anywhere; }
+.readAt { color:#8c8980; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.75em; margin-right:6px; }
 a.reflink { color:var(--gold); text-decoration:underline; cursor:pointer; }
 span.refnote { color:#b5b2a8; font-style:italic; }
 b.refname { color:#fff; font-weight:600; }
@@ -2042,6 +2050,7 @@ body.atlasFull { overflow:hidden; }
     <button id="listRaw" class="dsw" onclick="setScriptFold(false)">Raw</button>
     <button id="listHex" class="dsw" onclick="setScriptPane('hex')">Hex</button>
     <button id="listText" class="dsw" onclick="setScriptPane('text')">Text</button>
+    <button id="listRead" class="dsw" onclick="setScriptPane('read')">Read</button>
   </div>
   <div id="dlgWrap" class="dlgWrap" style="display:none"></div>
   <div id="viewTabs" class="tabbar">
@@ -2233,7 +2242,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.156.0';
+const GRIMOIRE_VERSION = '1.157.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

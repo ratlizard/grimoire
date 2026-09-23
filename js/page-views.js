@@ -1819,7 +1819,7 @@ function renderText(sameResource) {
       if (refs) { refs.style.display = 'none'; refs.innerHTML = ''; }
     }
     window.LAST_DECODED = { resid, text: content || '(nothing decoded)', raw: rawText, isScript,
-                            exits: listingExtra.exits || null };
+                            exits: listingExtra.exits || null, resData };
     // The view the reader last chose where scripts are read for the same
     // thing (SCRIPT_PANE_FOR), not the one this resource would choose.
     if (!sameResource) window.SCRIPT_PANE = window.SCRIPT_PANE_FOR[scriptPaneFor(document.getElementById('categorySelect').value)];

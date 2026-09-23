@@ -869,6 +869,23 @@ try {
                    [...new Set(lettered.map(x => ctx.itemLetter(x.rec)))].sort().join(''));
 } catch (e) { fail('key letters', e); }
 
+/* The Read view (dvmReadRender, readViewHtml): a script's functions as
+   sentences in the script page's own pane, and the listings back when
+   Structured is chosen. Awaken (0x1A13) clears flag 22 on its target and
+   prints that it is awoken; both must be said. */
+try {
+  ctx.jumpToResource(0x1A13);
+  ctx.setScriptPane('read');
+  const read = REGISTRY.get('textContent').innerHTML;
+  const on = REGISTRY.get('listRead') && REGISTRY.get('listRead').classList.contains('active');
+  ctx.setScriptFold('structured');
+  const back = REGISTRY.get('textContent').innerHTML;
+  if (!on || !/readList/.test(read)) fail('read view', 'the Read view did not show on a script');
+  else if (!/Clear flag Arg01, 22/.test(read) || !/is awoken/.test(read)) fail('read view', 'Awaken\'s UseOn is not said: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 200));
+  else if (/readList/.test(back) || !/function UseOn/.test(back)) fail('read view', 'Structured did not bring the listing back');
+  else console.log('  read view: Awaken said in sentences, and Structured brings the listing back');
+} catch (e) { fail('read view', e); }
+
 /* Walking, as the engine does it, 23 September 2026 (buildPropBlockers,
    findPath, keepApart). Cademia's portcullis at (52,35) is flagged 0x80 --
    raised -- so the engine neither draws it nor stops at it; the page did

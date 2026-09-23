@@ -460,7 +460,7 @@ from outside the repository.
   `--quick` skips it.
 
 A check whose inputs are genuinely missing is reported as **skip**, not fail.
-A clean run is **29 ok, 0 failed, 0 skipped**. Anything else is a
+A clean run is **43 ok, 0 failed, 0 skipped**. Anything else is a
 regression. **This number has gone stale five times**, always on the day a
 check was added and always silently, so `check_all.mjs` now prints the
 sentence this paragraph should carry: paste it in rather than counting by
@@ -537,6 +537,7 @@ guide carried it*.
 | delvmod graphics | `delv_graphics_check.mjs` + `delv_graphics_ref.py` | `decompressDCG` pixel for pixel against delvmod |
 | delvmod write | `delv_write_check.mjs` + `delv_write_ref.py` | `writeDelverArchive` byte for byte against `Archive.to_file`; the record writers against their parsers |
 | delvmod disassembly | `delv_dasm_check.mjs` + `delv_dasm_ref.py` | `dvmDisassemble`'s decode events against ddasm over every script, divergences pinned |
+| code read aloud | `read_check.mjs` | the Read view says every call, test and string of every function the structure recovery reads |
 | dialogue vs guides | `dialogue_check.mjs` | `dvmConversation` against the archive's structure and the community's transcription |
 | archive loading | `loader_test.mjs` | unwrapping, validation, refusals, deep links and the default path |
 | installer | `vise_check.mjs` | `js/mac-vise.js` against the catalog's own CRCs and the BinHex copies; StuffIt folders |

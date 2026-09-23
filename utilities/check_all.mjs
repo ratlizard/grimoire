@@ -304,6 +304,13 @@ const CHECKS = [
    cmd: ['utilities/structure_check.mjs', 'index.html', DATA],
    want: [DATA],
    grep: /structured \d+ of \d+[^\n]*/},
+  /* And does the Read view say everything the recovered tree does? Every
+     call, every test and every string of every function, held to the
+     function's own ops; three controls in the harness header. */
+  {page: 'viewer', name: 'code read aloud',
+   cmd: ['utilities/read_check.mjs', 'index.html', DATA],
+   want: [DATA],
+   grep: /read \d+ functions[^\n]*/},
   {page: 'viewer', name: 'addons + heuristic', want: [DATA],
    cmd: ['utilities/addons_check.mjs', 'index.html', DATA, ADDONS],
    grep: /heuristic [\d.]+% vs the tables \([^)]*\)/},
