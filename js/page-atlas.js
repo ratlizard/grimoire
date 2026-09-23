@@ -849,7 +849,7 @@ function paintAtlasDetail(ctx, node, r, vw, vh) {
                  (Math.min(node.h - 1, y1 + M) - Math.max(0, y0 - M) + 1) * TS;
     if (need > 6000000) return false;
   }
-  const src = { m: e.result.m, mapData: e.mapData, props: e.result.props,
+  const src = { m: e.result.m, mapData: e.mapData, props: e.result.props, drawOps: e.result.drawOps,
                 allProps: e.result.allProps, backdrop: e.result.backdrop, backdropFrame: 0,
                 TS: e.result.tileSize };
   const win = atlasDetailWindow(node, src, x0, y0, x1, y1, mapAnimFrame || 8);

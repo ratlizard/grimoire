@@ -946,7 +946,7 @@ function renderMapResource(resid) {
                        canvas: result.canvas, m: result.m, animCells: result.animCells,
                        animReplay: result.animReplay,
                        backdrop: result.backdrop, backdropCells: result.backdropCells, backdropFrame: 0,
-                       props: result.props, propResid: result.propResid,
+                       props: result.props, drawOps: result.drawOps, propResid: result.propResid,
                        allProps: result.allProps,
                        tilesW: result.width, tilesH: result.height, mapData,
                        roofSections: mapRoofSections(resid) };

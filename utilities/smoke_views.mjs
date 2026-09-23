@@ -782,6 +782,25 @@ try {
   else console.log('  draw passes: Land King Hall\'s carpet goes under its arch, the world\'s mountain under the arch into the hall');
 } catch (e) { fail('draw passes', e); }
 
+/* Square by square, and last first, 23 September 2026 (propPieceList,
+   renderMapVisual). TViewer::Render tests each square of a prop against its
+   own tile's pass and walks its list from the end. Cademia's pool at
+   (61,58), record 49, and the pillar at (62,57), record 1923, both have
+   their corners in pass 1; the pillar's other three squares are tall. So
+   the pillar's corner goes before the pool's (the later record first), and
+   its top after the whole pool, which is how the game shows it (the
+   maintainer). The page drew the pillar whole in its corner's pass until
+   then, and records first first; each of those fails one half of this. */
+try {
+  const ops = ctx.renderMapUncached(0x8008).result.drawOps;
+  const at = (i, x, y) => ops.findIndex(op => op.d.i !== undefined && op.d.rec.index === i && op.x === x && op.y === y);
+  const pillarFoot = at(1923, 62, 57), pillarTop = at(1923, 61, 57), pool = at(49, 61, 58), poolLast = ops.map(op => op.d.rec.index).lastIndexOf(49);
+  if ([pillarFoot, pillarTop, pool].some(v => v < 0)) fail('draw order', 'Cademia\'s pool or pillar is not drawn: ' + [pillarFoot, pillarTop, pool]);
+  else if (!(pillarFoot < pool)) fail('draw order', `the pillar's corner is drawn at ${pillarFoot}, after the pool's at ${pool}: within a pass the later record goes first`);
+  else if (!(pillarTop > poolLast)) fail('draw order', `the pillar's top at (61,57) is drawn at ${pillarTop}, before the pool is finished at ${poolLast}`);
+  else console.log('  draw order: Cademia\'s pillar top over its pool, a square at a time, and within a pass the later record first');
+} catch (e) { fail('draw order', e); }
+
 /* Walking, as the engine does it, 23 September 2026 (buildPropBlockers,
    findPath, keepApart). Cademia's portcullis at (52,35) is flagged 0x80 --
    raised -- so the engine neither draws it nor stops at it; the page did
