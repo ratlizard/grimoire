@@ -219,16 +219,13 @@ function dvmFoldValue(n, ctx) {
          byte or short is negative (`byte 0xFB  // -5`), then whatever
          dvmAnnotateInt knows the number to mean. The signed reading IS the
          value -- 0xFB as 251 reads every dark zone's light level backwards --
-         so it replaces the number; the rest becomes the line's comment. */
-      let note = String(n.arg || '').split('  //')[1];
-      let num = dvmFoldNumber(bare);
-      if (note) {
-        note = note.trim();
-        const neg = /^(-\d+)(?:, |$)/.exec(note);
-        if (neg) { num = neg[1]; note = note.slice(neg[0].length); }
-        if (note) dvmFoldNote(ctx, dvmFoldRawNote(num, note));
-      }
-      return num;
+         so it replaces the number. The rest of the note is not carried: its
+         names are tables typed into this page from the board and the wiki,
+         and a name in these listings is one computed from the game's files
+         (dvmFoldCallNotes). */
+      const note = String(n.arg || '').split('  //')[1];
+      const neg = note && /^\s*(-\d+)(?:,|$)/.exec(note);
+      return neg ? neg[1] : dvmFoldNumber(bare);
     }
     case 'string': case 'string(implicit)': return bare;
     case 'global': return dvmPlainName(bare);
@@ -324,46 +321,53 @@ function dvmFoldCall(n, ctx) {
 }
 
 /* ---- what a number stands for ----------------------------------------------
- * A statement's numbers that the file, or this page, can name are said in a
- * comment at the end of its line: `SetFlag(Arg01, 9)   // flag 9: poison`. The
- * number stays in the code, where it is what the bytes say, and the name goes
- * beside it rather than in its place, because several of the names are the
- * page's readings and not the file's (the flag names are the Ambrosia board's,
- * the sound labels the wiki's) and a comment says so where a substituted
- * identifier would not. `ctx.notes` collects them while a statement folds; the
- * renderer takes them when it prints the line.
+ * A statement's numbers that the game's own files name are said in a comment
+ * at the end of its line: `ChangeZone(Arg00, 12)   // zoneport 12: Iron Mine`.
+ * The number stays in the code, where it is what the bytes say.
  *
- * Three sources, and nothing is named that none of them names:
- *   - what the raw listing already notes (dvmAnnotateInt: status flags,
- *     zoneports, the prop types Create and New make, New's flags);
- *   - a sound, the number every sound call adds to 0x9100, named as the
- *     page names that resource (labelFor, which honours the built-in labels
- *     setting);
- *   - a To Do line, AddQuest's text reference read in the array it points
+ * ONLY WHAT THE FILES SAY. The maintainer's rule of 22 September 2026: a name
+ * here is computed from the game's data or code, never typed in. The page
+ * carries hand-made tables beside the file's names -- the Ambrosia board's
+ * status flag names (DVM_FLAG_NAMES), the wiki's sound labels and prop types
+ * (RESOURCE_LABELS, PROP_TYPE_NAMES), helper names an earlier session wrote
+ * after reading their bytecode (DVM_SCRIPT_NAMES) -- and none of them is
+ * used for these listings. The first version of this, the same day, used
+ * several, and was taken out. What is used:
+ *   - a To Do line: AddQuest's text reference read in the array it points
  *     into, and CompleteQuest's slot read in the same array, which is the
- *     page's own convention for the slot a line is struck from (todoRules).
- * The quest values and quest flags (GetState, GetStateFlag) have no names
- * anywhere: the workbench's reading says who sets and reads each, and that is
- * not a name. */
+ *     page's own convention for the slot a line is struck from (todoRules);
+ *   - a sound, the number every sound call adds to 0x9100: its id, as a link,
+ *     and a name only where the archive's own symbol table has one;
+ *   - a zoneport: the zone the 0xF00C entry sends to, named by the title its
+ *     own entry script sets (loadZoneports, zoneNameFor);
+ *   - the prop type Create and New make: named by the file's name for its
+ *     base tile (0xF004, terrainNameFor), not by the wiki's list.
+ * delvmod's symbol tables -- the syscall, method and field names the whole
+ * listing is spelt in -- are the one outside source kept, as they are
+ * everywhere else on the site. `ctx.notes` collects the notes while a
+ * statement folds; the renderer takes them when it prints the line. */
 function dvmFoldNote(ctx, text) {
   if (ctx && ctx.notes && text && ctx.notes.indexOf(text) < 0) ctx.notes.push(text);
-}
-// dvmAnnotateInt's wording, with the number it is about put back in and its
-// em dash made a colon (no em dash is printed anywhere on the site).
-function dvmFoldRawNote(num, note) {
-  return note.replace(/^(flags?|proptype):? (?:\u2014 )?/, (m, w) => w + ' ' + num + ': ').replace(/ \u2014 /g, ': ');
 }
 // Which argument of a sound call is the sound (SOUND_CALLS in the page says
 // the same, and why ShootEffect's is its eighth).
 const DVM_SOUND_ARG = { PlaySound: 0, UnknownD4: 0, PlayAmbientSound: 0, ShootEffect: 7 };
+// Page readers of the file, called only where the page has them and the
+// archive being rendered is the one they read.
+function dvmFoldPage(ctx, f) {
+  try { return (typeof ARCHIVE !== 'undefined' && ARCHIVE && ctx && ctx.arc === ARCHIVE) ? f() : null; }
+  catch (e) { quiet(e); return null; }
+}
+function dvmFoldPropName(ctx, pt) {
+  return dvmFoldPage(ctx, () => { const b = getPropTileList()[pt]; return b !== undefined && b !== null ? terrainNameFor(b) : null; });
+}
 function dvmFoldCallNotes(name, vals, ctx) {
   const si = DVM_SOUND_ARG[name];
   if (si !== undefined && /^\d+$/.test(vals[si] || '')) {
     const v = +vals[si], rid = 0x9100 + v;
-    let label = null;
-    try { if (typeof labelFor === 'function') label = labelFor(rid); } catch (e) { quiet(e); }
-    if (label === 'Sound ' + v) label = null;
-    dvmFoldNote(ctx, 'sound ' + v + (label ? ': ' + label : '') + ' (0x' + rid.toString(16).toUpperCase() + ')');
+    let sym = null;
+    try { sym = resourceSymbol(rid); } catch (e) { quiet(e); }
+    dvmFoldNote(ctx, 'sound ' + v + (sym ? ': ' + sym : '') + ' (0x' + rid.toString(16).toUpperCase() + ')');
   }
   if ((name === 'AddQuest' || name === 'CompleteQuest') && /^\d+$/.test(vals[0] || '') && ctx && ctx.arc) {
     const ref = name === 'AddQuest' && /^\((0x[0-9A-F]+)\[(\d+)\] \+ (\d+)\)$/i.exec(vals[1] || '');
@@ -372,6 +376,17 @@ function dvmFoldCallNotes(name, vals, ctx) {
     const lines = resid !== null ? dvmFoldTextArray(ctx.arc, resid) : null;
     const text = lines && lines.get(line);
     if (text) dvmFoldNote(ctx, 'To Do ' + vals[0] + ': "' + text + '"');
+  }
+  if (name === 'ChangeZone' && /^\d+$/.test(vals[1] || '')) {
+    const z = dvmFoldPage(ctx, () => loadZoneports()[+vals[1]]);
+    const zn = z && z.map ? dvmFoldPage(ctx, () => zoneNameFor(z.map)) : null;
+    if (zn) dvmFoldNote(ctx, 'zoneport ' + vals[1] + ': ' + zn);
+  }
+  const pti = name === 'Create' ? 1 : name === 'New' ? 4 : -1;
+  if (pti >= 0 && /^\d+$/.test(vals[pti] || '')) {
+    const v = +vals[pti], pt = name === 'Create' ? v & 0x3FF : v;
+    const nm = pt > 0 && pt <= 0x3FF ? dvmFoldPropName(ctx, pt) : null;
+    if (nm) dvmFoldNote(ctx, 'prop type ' + pt + (name === 'Create' && v >> 10 ? ', aspect ' + (v >> 10) : '') + ': ' + nm);
   }
 }
 // A text array's entries by their own index field, which is not their
@@ -422,9 +437,10 @@ function dvmArgList(nodes, ctx) {
 /* What a resource is called in the folded listings, at a call to it and at the
    head of the function that is the whole of it. The raw listing's order --
    the archive's own symbol table, then delvmod's short list -- and then the
-   names this page reads off the bytecode (dvmScriptName: the 0x0Fxx helpers,
-   and the AI's hooks when the application is open), which the raw listing
-   does not print. With none, the id as a call site spells it, `0x904`, so the
+   AI's tests and actions by the application's own string lists (aiHookName),
+   when the application is open, which the raw listing does not print. Not
+   DVM_SCRIPT_NAMES: those helper names were written by a session reading
+   the bytecode, not read out of a file (dvmFoldNote says why that matters). With none, the id as a call site spells it, `0x904`, so the
    head of 0x904's own listing reads `function 0x904(...)`, as its callers do.
    It was `function obj_0000(...)` until 22 September 2026: the object at
    offset 0 of a resource that is one function, named by nothing because the
@@ -433,7 +449,8 @@ function dvmFoldResourceName(rid) {
   let n = null;
   try {
     n = (typeof resourceSymbol === 'function' && resourceSymbol(rid)) ||
-        (DVM_SYM.resource && DVM_SYM.resource[String(rid)]) || dvmScriptName(rid);
+        (DVM_SYM.resource && DVM_SYM.resource[String(rid)]) ||
+        (typeof aiHookName === 'function' && aiHookName(rid));
   } catch (e) { quiet(e); }
   return n || ('0x' + rid.toString(16).toUpperCase().padStart(2, '0'));
 }

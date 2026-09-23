@@ -676,13 +676,31 @@ try {
   const t1A00 = ctx.document.getElementById('textContent').innerHTML;
   if (!/PlaySound\(48, [^\n]*\/\/ sound 48[^\n]*jumpToResource\(37168\)/.test(t1A00))
     fail('script page', 'the sound in 0x1A00 is not named in a comment with a link to 0x9130');
+  // The wiki's label for 0x9130 and the board's name for status flag 9 are
+  // tables typed into the page, and must not reach these comments.
+  // A zoneport by the title its zone's entry script sets, a prop type by the
+  // file's name for its base tile (0xF004).
+  ctx.jumpToResource(0x1001);
+  if (!/ChangeZone\(13, 141, 0\)   \/\/ zoneport 141: Cythera/.test(ctx.document.getElementById('textContent').innerHTML))
+    fail('script page', 'the zoneport 0x1001 changes to is not named from the file');
+  ctx.jumpToResource(0xD09);
+  if (!/Create\(Arg00, 130, [^\n]*\/\/ prop type 130: obol/.test(ctx.document.getElementById('textContent').innerHTML))
+    fail('script page', 'the prop type 0xD09 creates is not named from the file');
+  ctx.setBuiltinLabels(true);
+  for (const rid of [0x1A00, 0xA04]) {
+    ctx.jumpToResource(rid);
+    const t = ctx.document.getElementById('textContent').innerHTML;
+    if (/\/\/[^\n]*(poison|Directed Nexus)/.test(t)) fail('script page', 'a hand-typed name reached a comment in 0x' + rid.toString(16));
+  }
   ctx.jumpToResource(0x1820);
   if (!/AddQuest\(10, [^\n]*\/\/ To Do 10: (&quot;|")Ask Thuria about Iron Mine/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the To Do line Ake (0x1820) adds is not named');
   /* A member read is named (`class_member 0x3400` is Lockable's first word),
      a resource that is one function is headed with the name its callers use,
      and not linked to itself, and a helper the raw listing leaves as an id is
-     called by the page's name for it, as a link: 0x98C calls 0xF13, IsMet. */
+     called by its id, as a link: 0x98C calls 0xF13. The page's own name for
+     that helper (IsMet) was written by hand, and these listings name nothing
+     the game's files do not (the maintainer's rule of 22 September 2026). */
   ctx.jumpToResource(0xE49);
   if (!/Arg00\.Lockable\[0\] \* 5/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the door helper 0xE49 does not read its class member as Lockable[0]');
@@ -690,8 +708,8 @@ try {
   if (!/\nfunction 0x987\(Arg00, Arg01, Arg02\) \{/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', '0x987 is not headed function 0x987(...), the name its callers use');
   ctx.jumpToResource(0x98C);
-  if (!/jumpToResource\(3859\)[^>]*>IsMet</.test(ctx.document.getElementById('textContent').innerHTML))
-    fail('script page', '0x98C does not call 0xF13 as IsMet, as a link');
+  if (!/jumpToResource\(3859\)[^>]*>0xF13</.test(ctx.document.getElementById('textContent').innerHTML))
+    fail('script page', '0x98C does not call 0xF13 by its id, as a link');
   ctx.jumpToResource(0x1403);
   if (!/SetAmbientLighting\(-128\)/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'a negative byte in 0x1403 is not printed as a negative number');
