@@ -806,6 +806,9 @@ function inspectMapSquare(tx, ty) {
           : c.sitting ? ('sitting, facing ' + ['north','east','south','west'][(c.aspect >> 2) & 3] +
               ', ' + svEsc(c.seat ? c.seat.why : ''))
           : svEsc(String(c.mode || 'here'))) + '</span>' +
+      (carriedByCharacter(c.index).length ? '<div class="inspDim">carries ' +
+        carriedByCharacter(c.index).map(it => svEsc((propDisplayName(it.pt, (getPropTileList()[it.pt] || 0) + it.aspect) || 'prop type ' + it.pt) +
+          (it.equipped ? ' (equipped)' : ''))).join(', ') + '</div>' : '') +
       '<div class="inspActs">' +
       '<button class="sv-chip" onclick="showCharacterDetail(' + c.index + ')">Dossier</button>' +
       // 0x8800 is character 1's portrait (the dossier and the gallery agree),

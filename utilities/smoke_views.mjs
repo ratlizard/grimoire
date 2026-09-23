@@ -836,3 +836,17 @@ try {
   else if (!rv || rv.kind !== 'rock outcropping' || !/Caves/.test(rv.name) || off) fail('hidden ways', 'the Harpy Abyss\'s crack does not lead to the outcropping: ' + JSON.stringify([rv, off]));
   else console.log('  hidden ways: Catamarca\'s secret passage leads to the ' + ctx.zoneNameFor(secret.dest.resid) + ', and the abyss\'s cracks to the rock outcropping and the ' + rv.name);
 } catch (e) { fail('hidden ways', e); }
+
+/* What characters carry, 23 September 2026 (carriedByCharacter): Deiphobus
+   (14) carries a mace, a cloak, a leather helmet, a cuirass and a round
+   shield in the shipped file, and his dossier says so. Alaric carries
+   nothing, which is the control. */
+try {
+  const names = ctx.carriedByCharacter(14).map(it => ctx.propDisplayName(it.pt, ctx.getPropTileList()[it.pt] + it.aspect));
+  ctx.showCharacterDetail(14);
+  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  if (!names.includes('mace') || !names.includes('round shield')) fail('carries', 'Deiphobus does not carry his mace and shield: ' + JSON.stringify(names));
+  else if (!/Carries/.test(html) || !/mace/.test(html)) fail('carries', 'his dossier does not say what he carries');
+  else if (ctx.carriedByCharacter(2).length) fail('carries', 'Alaric carries something');
+  else console.log('  carries: Deiphobus\'s dossier lists ' + names.join(', ') + '; Alaric carries nothing');
+} catch (e) { fail('carries', e); }

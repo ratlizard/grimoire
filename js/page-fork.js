@@ -1368,6 +1368,9 @@ function showCharacterDetail(i) {
               ['Mind', r.mind, cSrc(11, 'mind')]]) +
     statLine([['Health', r.healthMax ? srcNum(cSrc(14, 'health'), String(r.health)) + '/' + srcNum(cSrc(15, 'health at full'), String(r.healthMax)) : 0],
               ['Magic', r.magicMax ? srcNum(cSrc(16, 'magic'), String(r.magic)) + '/' + srcNum(cSrc(17, 'magic at full'), String(r.magicMax)) : 0]]) +
+    // Byte 25, the alignment, named by the combat AI's own groups
+    // (exeAlignmentNames). Zero is a value here, neutral, so it is shown.
+    (r.proptype ? '<b>Alignment</b> ' + alignmentHTML(r.raw[25], cSrc(25, 'the alignment')) + '<br>' : '') +
     (r.zone ? '<b>Home</b> ' + d.homeZone + ' at (' +
       srcNum(cSrc(1, 'the packed level, x and y'), String(r.x)) + ', ' +
       srcNum(cSrc(1, 'the packed level, x and y'), String(r.y)) + ')<br>' : '') +
@@ -1385,6 +1388,21 @@ function showCharacterDetail(i) {
   const parts = document.createElement('div');
   parts.innerHTML = linksFold(partsStrip('Made of', characterParts(i, d)) + characterSays(i));
   panel.appendChild(parts);
+  // What they carry, in the open: it is the character, not a link to
+  // something else, so it is not folded with the parts.
+  {
+    const held = carriedByCharacter(i);
+    if (held.length) {
+      const c = document.createElement('div');
+      const chips = [];
+      for (const it of held) {
+        chips.push(carriedChip(it));
+        for (const o of it.inside) chips.push(carriedChip(Object.assign({ equipped: false }, o)).replace('class="relChip"', 'class="relChip carriedInside"'));
+      }
+      c.innerHTML = partsStrip('Carries', chips);
+      panel.appendChild(c);
+    }
+  }
 
   const sh = document.createElement('div');
   sh.style.cssText = 'margin-top:14px';

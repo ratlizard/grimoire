@@ -1194,6 +1194,42 @@ function itemWeight(pt) {
   return null;
 }
 
+/* What each character carries, from every prop list: the records whose
+   location word names the character (parseDelverPropList's carriedBy), and
+   inside a carried container what that holds. Keyed by character index;
+   each entry { pt, aspect, equipped, count, resid, index, inside }. The
+   maintainer asked for it on 22 September 2026 ("show what items
+   characters are holding"); the Items sheet had counted these for a while
+   without ever saying whose they were. */
+function carriedByCharacter(ci) {
+  if (!DERIVED.CARRIED) {
+    const by = new Map();
+    const count = subindexCount(ARCHIVE, 128);
+    const chars = characterProptypes();
+    for (let n = 0; n < count; n++) {
+      const resid = 0x8100 + n;
+      let recs = null;
+      try { const raw = getResourceBytes(ARCHIVE, resid); if (raw) recs = parseDelverPropList(smartDecrypt(raw, resid).data); } catch (e) { quiet(e); }
+      if (!recs) continue;
+      for (const r of recs) {
+        if (r.flags === 0xFF || !r.proptype || r.carriedBy === null || r.carriedBy === undefined || chars.has(r.proptype)) continue;
+        const inside = recs.filter(o => o.container === r.index && o.flags !== 0xFF && o.proptype && o.carriedBy === null)
+          .map(o => ({ pt: o.proptype, aspect: o.aspect, count: o.quantity || 1 }));
+        if (!by.has(r.carriedBy)) by.set(r.carriedBy, []);
+        by.get(r.carriedBy).push({ pt: r.proptype, aspect: r.aspect, equipped: !!r.equipped, count: r.quantity || 1, resid, index: r.index, inside });
+      }
+    }
+    DERIVED.CARRIED = by;
+  }
+  return DERIVED.CARRIED.get(ci) || [];
+}
+// One carried thing as a chip: its own picture, its name, and "equipped".
+function carriedChip(it) {
+  const nm = propDisplayName(it.pt, (getPropTileList()[it.pt] || 0) + it.aspect) || ('prop type ' + it.pt);
+  return relChip({ js: 'openItem(' + it.pt + ',' + it.aspect + ')', main: nm + (it.count > 1 ? ' \u00d7' + it.count : ''),
+                   sub: it.equipped ? 'equipped' : '', icon: relIconURL({ icon: it.pt }) });
+}
+
 /* Where the items actually are. The prop lists are the shipped scenario's
    inventories: 990 of the 14,485 prop records in this archive are not on the
    floor but inside something, and reading their location word as containment

@@ -4055,6 +4055,58 @@ function exeAbilityMap() {
 // A jump table in a routine: an `addi r, r2, d` whose register an `lwzx`
 // indexes within a few instructions and a `bctr` then jumps through, with
 // the `cmplwi` just above it as the bound. Null when the routine has none.
+/* WHAT AN ALIGNMENT IS CALLED (23 September 2026). A character's byte 25
+   is its alignment: the unit constructor fills it from 0xF008 byte 6
+   (exeMonsterStatCopy) and GetEnemyStatus looks it up in the enemy table.
+   The game names the values in one place, the combat AI: its base groups
+   are STR# 9301, which the resource fork itself calls "Groups" -- good,
+   evil, neutral, feral, then ally, enemy, bystander, everybody -- and
+   SCombatAIEntry::CalculateObject switches on the group's token through a
+   jump table, where tokens 1 to 4 each load byte 25 and compare it with a
+   constant. So a value is named by the group whose case compares with it:
+   2 good, 1 evil, 0 neutral, 3 feral, read here rather than written down.
+   (gandreas's monster list calls the same four Good, Chaotic, Neutral and
+   Wild, which agrees.) Null without the application. */
+function exeAlignmentNames() {
+  if (!appImage() || !window.APP_RSRC) return null;
+  if (DERIVED.ALIGN_NAMES !== undefined) return DERIVED.ALIGN_NAMES;
+  let out = null;
+  try {
+    const f = window.APP_RSRC;
+    const e = (f.resourcesByType['STR#'] || []).find(x => x.name === 'Groups');
+    const words = e ? decodeSTRList(f.dataOf('STR#', e)) : null;
+    const r = exeRoutineNamed('SCombatAIEntry::CalculateObject');
+    const ops = exeOpsOf(r);
+    const jt = words && ops.length ? exeJumpTable(ops) : null;
+    if (jt) {
+      const img = appImage(), off = exeTocOffset(ops[jt.at].d.imm);
+      const byValue = {};
+      for (let tok = 1; tok <= 4; tok++) {
+        const p = pefPointerAt(img, img.toc.section, off + 4 * tok);
+        if (!p || p.section !== img.codeIndex) continue;
+        const body = exeOpsOf({ offset: p.offset, length: 40, name: 'group ' + tok });
+        const li = body.findIndex(o => o.d && o.d.mn === 'lbz' && o.d.d === 25);
+        const ci = li >= 0 ? exeFind(body, li + 1, 3, d => d.mn === 'cmplwi' || d.mn === 'cmpwi') : -1;
+        if (ci < 0) continue;
+        byValue[body[ci].d.imm] = { name: words[tok - 1], at: exeVal(body[ci], body[ci].d.imm) };
+      }
+      if (Object.keys(byValue).length === 4) out = { byValue, strings: e.id };
+    }
+  } catch (err) { quiet(err); }
+  return (DERIVED.ALIGN_NAMES = out);
+}
+// The name alone, a link to the comparison that names it, and a space; or
+// nothing without the application.
+function alignmentNameHTML(v) {
+  const an = exeAlignmentNames(), hit = an && an.byValue[v];
+  return hit ? srcNum(hit.at, hit.name) + ' ' : '';
+}
+// "neutral (0)", a link to the comparison that names it, or the bare number.
+function alignmentHTML(v, src) {
+  const an = exeAlignmentNames(), hit = an && an.byValue[v];
+  return hit ? srcNum(hit.at, hit.name) + ' <span class="inspDim">(' + (src ? srcNum(src, String(v)) : v) + ')</span>'
+             : (src ? srcNum(src, String(v)) : String(v));
+}
 function exeJumpTable(ops, from) {
   for (let i = from || 0; i < ops.length; i++) {
     const d = ops[i].d;

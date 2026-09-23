@@ -86,6 +86,9 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // clock constants over the clock's units an hour.
       else if ((h => !h || h.dawn.v !== 6 || h.dusk.v !== 18 || !inRoutine(h.dawn, 'TActiveMonster::HatchEgg'))(ctx.exeHatchHours()))
         fail('program figures', 'the hatching hours were misread: ' + JSON.stringify(ctx.exeHatchHours()));
+      // The alignment's names: the AI's groups by the value each compares.
+      else if ((a => !a || ['neutral', 'evil', 'good', 'feral'].some((n, v) => !a.byValue[v] || a.byValue[v].name !== n || !inRoutine(a.byValue[v].at, 'SCombatAIEntry::CalculateObject')))(ctx.exeAlignmentNames()))
+        fail('program figures', 'the alignments were misnamed: ' + JSON.stringify(ctx.exeAlignmentNames()));
       // The five 2012 bed measurements, with the program's clock.
       else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
         .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== want))
