@@ -187,6 +187,18 @@ check('smooth movement and the cheat gate together are 9a800001', hex(prefRecord
 check('neither is 18800000, the 68040 default the game would pick', hex(prefRecord({})) === '18800000', hex(prefRecord({})));
 check('the cheat gate alone is 18800001, the record watched to print “Cheat mode activated.”',
       hex(prefRecord({ cheats: true })) === '18800001', hex(prefRecord({ cheats: true })));
+// The 256-colour answer, added 23 September 2026. Two bits of byte 1 that
+// TDelverApp::PostInitMac writes from its own startup dialog and no control of
+// the Preferences dialog touches, so they are the one thing in the record this
+// page sets that the game's stored default never has. Pinned by value because
+// a file that answers the question wrongly is worse than one that leaves it.
+check('the 256-colour answer is byte 1 bits 5 and 4', hex(prefRecord({ switch256: true })) === '18b00000', hex(prefRecord({ switch256: true })));
+check('it touches nothing else',
+      (function () { const a = prefRecord({ smooth: true, cheats: true }), b = prefRecord({ smooth: true, cheats: true, switch256: true });
+        return a.length === 4 && b.length === 4 && a.every((v, i) => i === 1 ? (v ^ b[i]) === 0x30 : v === b[i]); })());
+check('its two bits wear the startup dialog\u2019s own labels',
+      (ctx.cytheraPrefsLayout().startup || []).map(x => x.text).join('|') === "Switch to 256 Colors|Don't Ask Again",
+      JSON.stringify(ctx.cytheraPrefsLayout().startup));
 check('the cheat gate is bit 0 of byte 3 and touches nothing else',
       (function () { const a = prefRecord({ smooth: true }), b = prefRecord({ smooth: true, cheats: true });
         return a.length === 4 && b.length === 4 && a.every((v, i) => i === 3 ? (v ^ b[i]) === 1 : v === b[i]); })());

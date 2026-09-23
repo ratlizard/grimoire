@@ -321,6 +321,7 @@ function renderToolsSheet() {
   } else {
     pfNote.innerHTML = svEsc('The ' + layout.bytes + '-byte ‘' + layout.type + '’ “' + layout.key + '” record, which lives in the System Folder’s Preferences folder. ' +
       'The switches are the game’s own: the labels of its Preferences dialog' + (layout.smoothLabel ? ', and “' + layout.smoothLabel + '” from its unlisted Preferences menu, which the record the game first stores leaves off' : '') + '. ' +
+      (layout.startupLabel ? 'Then the answer to the one question the game asks on its own, on a screen deeper than 256 colours: this writes “' + layout.startupLabel + '”, so it switches and does not ask. ' : '') +
       'The last is the gate on the cheat keys, which nothing in the game ever sets, so a shipped copy cannot enter cheat mode however long you type ' + layout.gate.word + ' at it. ' +
       'The Cheats sheet has the record field by field.');
     const prefsRow = document.createElement('div');
@@ -330,6 +331,7 @@ function renderToolsSheet() {
     prefsRow.innerHTML =
       (layout.smoothLabel ? prefBox('prefSmooth', layout.smoothLabel, true) : '') +
       layout.controls.map(c => prefBox(idOf(c.opt), c.label, !!((layout.base >>> (24 - 8 * c.byte)) & (1 << c.bit)))).join('') +
+      (layout.startupLabel ? prefBox('prefSwitch256', layout.startupLabel, true) : '') +
       prefBox('prefCheats', 'Allow the cheat keys', true);
     pf.appendChild(prefsRow);
     const pbtns = document.createElement('div');

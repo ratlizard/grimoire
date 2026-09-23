@@ -221,18 +221,24 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     try {
       ctx.showCategory('TOOLS');
       const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-      const switches = ['prefSmooth', 'prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects'];
+      const switches = ['prefSmooth', 'prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects', 'prefSwitch256'];
       const missing = switches.filter(id => !new RegExp(`id="${id}"`).test(tools));
       const rec = o => [...ctx.cytheraPrefsRecord(o)];
       const bitsWrong = rec({ liveDrag: true })[0] !== 0x19 || rec({ manualContainers: true })[0] !== 0x58 ||
         rec({ motionFilters: true })[1] !== 0x88 || rec({ walkAround: true })[1] !== 0xC0 || rec({ zoomRects: false })[1] !== 0x00 ||
-        rec({ smooth: true, cheats: true }).join() !== [0x9A, 0x80, 0, 1].join();
+        rec({ smooth: true, cheats: true }).join() !== [0x9A, 0x80, 0, 1].join() ||
+        rec({ switch256: true })[1] !== 0xB0;
       if (missing.length) fail('preferences', 'switches missing from the Tools tab: ' + missing.join(', '));
       else if (!/Manually Place Containers/.test(tools) || !/Smoother Movement/.test(tools)) fail('preferences', 'the switches do not wear the game’s own labels');
       else if (bitsWrong) fail('preferences', 'a switch does not land on the bit the program writes for it: ' + JSON.stringify(ctx.cytheraPrefsLayout()));
       else if (/never been tried|untried/.test(tools)) fail('preferences', 'the section still calls the file untried');
       else if (!/replaces any settings already stored/.test(tools)) fail('preferences', 'the section no longer says the file replaces the stored settings');
       else if (!/©gra/.test(tools)) fail('preferences', 'the section does not name the code');
+      // The 256-colour answer is the one switch this page turns on that the
+      // game's own default leaves off, so it has to arrive ticked or the file
+      // people download is not the one the section describes.
+      else if (!/id="prefSwitch256" checked/.test(tools)) fail('preferences', 'the 256-colour answer is not ticked by default');
+      else if (!/Switch to 256 Colors/.test(tools) || !/Don't Ask Again/.test(tools)) fail('preferences', 'the 256-colour switch does not wear the dialog\u2019s own labels');
       else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
       else console.log(`  preferences: ${switches.length} switches on the Tools tab with the game's labels, each bit where the program writes it, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);
     } catch (e) { fail('preferences', e); }

@@ -59,26 +59,38 @@
    at 6, so the writer leaves it as it finds it; byte 1's bit 2 is read once
    and written by nothing, and stays clear.
 
-   Three things are deliberately left out. There is no `CurScen` and no
+   Two things are deliberately left out. There is no `CurScen` and no
    `CurPlayer`, the two other `'Pref'` resources a played copy has, so the
    start screen will say "No Player Selected" exactly as a fresh install does
-   -- this file is a switch, not a saved session. The Finder identity is
-   **read rather than guessed**, which it was for an hour: fixing the StuffIt
-   5 folder walk made `Cythera Installed Folder with Preferences & License.sit`
-   list its whole tree, and the real `Cythera Preferences` is in it -- type
-   `pref`, creator four zero bytes, an **empty data fork** and a 638-byte
-   resource fork. Type and empty data fork are what this writes; the creator
-   was `Delv` here and is four zeros now, to match. The fork itself is method
-   13 and stays shut, so the three resources inside it are still unread and
-   the record below is still the executable's word rather than the file's.
+   -- this file is a switch, not a saved session. Nothing is lost by leaving
+   `CurScen` out in particular: the program writes it and never reads it
+   back, which is the whole of that key.
+
+   The Finder identity is **read rather than guessed**, which it was for an
+   hour: fixing the StuffIt 5 folder walk made `Cythera Installed Folder with
+   Preferences & License.sit` list its whole tree, and the real `Cythera
+   Preferences` is in it -- type `pref`, creator `????`, an **empty data
+   fork** and a 638-byte resource fork. All three are what this writes. The
+   creator was `Delv` here, then four zero bytes on a misreading of the
+   archive, and has been `????` since 23 September 2026: the archive's own
+   catalogue says so, the disk image's says so, and
+   `TPrefs::OpenPrefsResFile` hands `FSpCreateResFile` that very long, so it
+   is what the game itself would have made. The fork inside the archive is no
+   longer unread either -- it holds four resources, not three: `UI Prefs`
+   `9A 80 00 00`, `Volume` -1, `Music` 8 and a `CurScen` alias, which is a
+   real file to check this one against rather than only the executable's
+   word. The workbench's `doc/preferences-file.md` is the whole of that file,
+   key by key.
+
    And the file is offered on its own disk rather than added to
    the archive's export disk, because a third file on that volume pushes its
    catalog past one leaf node and raises a modal Finder alert that breaks the
    automated install -- see buildEditedDiskImage, where that was paid for. */
 const PREFS_FILE_NAME = 'Cythera Preferences';
-// Four zero bytes, as the real file has: it belongs to no application, and
-// the Finder shows it the generic document icon accordingly.
-const PREFS_CREATOR = '\u0000\u0000\u0000\u0000';
+// '????', as the real file has and as the game's own FSpCreateResFile call
+// passes: it belongs to no application, and the Finder shows it the generic
+// document icon accordingly.
+const PREFS_CREATOR = '????';
 const PREFS_VOLUME_NAME = 'Cythera Prefs';
 const PREFS_SCRIPT_NAME = 'Install Preferences';
 
@@ -96,6 +108,18 @@ const PREFS_SCRIPT_NAME = 'Install Preferences';
 const PREF_OPTIONS = [['liveDrag', 'Live Dragging'], ['manualContainers', 'Manually Place Containers'],
   ['motionFilters', 'Motion Filters'], ['walkAround', 'Walk around obstacles'], ['zoomRects', 'Use \'ZoomRects\'']];
 const PREF_SMOOTH_ITEM = 'Smoother Movement';
+/* The one question the game asks on its own, and the two bits that answer it.
+   On a display deeper than eight bits TDelverApp::PostInitMac puts up a dialog
+   -- "This game runs faster in 256 colors.  Would you like to automatically
+   switch at startup?" -- and writes the answer into the record: the button
+   into one bit, the checkbox that stops it asking again into another. Neither
+   is the Preferences dialog's, which is why the record's own sheet had them
+   down as dead until 23 September 2026. Both are found here the way every
+   other switch is, by the text the program hands GetDialogItem, so the labels
+   below are the dialog's own and nothing is typed in. This page turns both on:
+   256 colours is what the game recommends in its own words, and a file written
+   to change a setting should not then stop to ask a question. */
+const PREF_STARTUP_ITEMS = ['Switch to 256 Colors', "Don't Ask Again"];
 function cytheraPrefsLayout() {
   if (!appImage()) return null;
   const kr = exeKeyRoutine(), fields = exePrefFields(), defaults = exePrefDefaults(), acc = exePrefsAccess();
@@ -110,7 +134,17 @@ function cytheraPrefsLayout() {
   }
   const smooth = [];
   for (const f of fields) for (const w of f.writers) if (w.item && w.item.texts.includes(PREF_SMOOTH_ITEM) && w.value && typeof w.value.v === 'number') smooth.push({ byte: f.byte, lo: f.lo, hi: f.hi, value: w.value.v });
+  // The startup question's two bits, in the order its dialog asks them. A
+  // checkbox's write takes its value from the control rather than from a
+  // constant, so a bit with no value read is the ticked box, 1.
+  const startup = [];
+  for (const text of PREF_STARTUP_ITEMS)
+    for (const f of fields) for (const w of f.writers)
+      if (f.lo === f.hi && w.item && w.item.dialog && w.item.texts.length === 1 && w.item.texts[0] === text &&
+          !startup.some(x => x.text === text))
+        startup.push({ byte: f.byte, bit: f.lo, text, value: w.value && typeof w.value.v === 'number' ? w.value.v : 1 });
   return { key: rec.key.v, bytes: rec.len.v, base: defaults.words[0].v >>> 0, controls, smooth, smoothLabel: smooth.length ? PREF_SMOOTH_ITEM : null,
+           startup, startupLabel: startup.length === PREF_STARTUP_ITEMS.length ? startup.map(x => x.text).join(', and ') : null,
            gate: { byte: kr.gate.byte.v, bit: kr.gate.bit.v, word: kr.gate.word.v }, type: type.v };
 }
 // The resource type the store files a key under: the four characters
@@ -133,6 +167,7 @@ function cytheraPrefsRecord(opts, layout) {
   const put = (byte, lo, hi, v) => { const m = ((1 << (hi - lo + 1)) - 1) << lo; b[byte] = (b[byte] & ~m) | ((v << lo) & m); };
   for (const c of L.controls) if (o[c.opt] !== undefined) put(c.byte, c.bit, c.bit, o[c.opt] ? 1 : 0);
   if (o.smooth) for (const x of L.smooth) put(x.byte, x.lo, x.hi, x.value);
+  if (o.switch256) for (const x of L.startup) put(x.byte, x.bit, x.bit, x.value);
   if (o.cheats) put(L.gate.byte, L.gate.bit, L.gate.bit, 1);
   return b;
 }
@@ -140,6 +175,7 @@ function cytheraPrefsRecord(opts, layout) {
 function prefsSummary(o) {
   const parts = [o.smooth ? 'smoother movement' : 'the stepped movement',
                  o.cheats ? 'the cheat keys allowed' : 'no cheat keys'];
+  if (o.switch256) parts.push('256 colours chosen at startup without asking');
   if (o.liveDrag) parts.push('live dragging');
   if (o.manualContainers) parts.push('containers placed by hand');
   if (o.motionFilters) parts.push('motion filters');
@@ -200,7 +236,7 @@ function buildPrefsDiskImage(opts) {
 }
 function prefsOptionsFromUI() {
   const on = id => { const e = document.getElementById(id); return e ? !!e.checked : undefined; };
-  const o = { smooth: on('prefSmooth'), cheats: on('prefCheats') };
+  const o = { smooth: on('prefSmooth'), cheats: on('prefCheats'), switch256: on('prefSwitch256') };
   for (const [opt] of PREF_OPTIONS) o[opt] = on('pref' + opt[0].toUpperCase() + opt.slice(1));
   return o;
 }
