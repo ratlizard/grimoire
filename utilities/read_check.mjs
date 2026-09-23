@@ -22,6 +22,9 @@
 //   prompts     in a conversation, every `answer "kw" -> target` guard is a
 //               "when asked about" clause of its own, the follow-ups nested
 //               in the answer whose stretch holds them;
+//   helpers     a call to a helper said by what it returns or sets
+//               (dvmInlineHelper) still names the helper, so no call is
+//               hidden by being read through;
 //   self        in a method -- a function its class's table reaches, which the
 //               engine calls with the object it belongs to first -- that first
 //               argument is said "it" throughout, and "Arg00" appears nowhere.
@@ -36,6 +39,7 @@
 //   --control=strings     every print clause dropped
 //   --control=self        no function taken to be a method
 //   --control=prompts     every follow-up prompt flattened into its parent
+//   --control=helpers     a helper read through without its name
 import {readFileSync, existsSync} from 'node:fs';
 import vm from 'node:vm';
 import {makeSandbox} from './dom_stub.mjs';
@@ -65,6 +69,8 @@ const CONTROLS = {
     code: `(() => { const was = dvmSayTree; dvmSayTree = function (t, c, l) { return was(t, c, l).flatMap(x => x.kids ? x.kids : [x]); }; })();`},
   self: {say: 'no function taken to be a method',
     code: `(() => { const was = dvmReadRender; dvmReadRender = function (a, b, r) { return was(a, b, r).map(f => f.self ? Object.assign({}, f, { self: true, clauses: JSON.parse(JSON.stringify(f.clauses).split('"it"').join('"Arg00"').split(' it ').join(' Arg00 ').split('its ').join('Arg00\u2019s ')) }) : f); }; })();`},
+  helpers: {say: 'a helper read through without its name',
+    code: `(() => { const was = dvmFoldNote; dvmFoldNote = function (c, t) { if (typeof t === 'string' && /^(0x[0-9A-F]+|[A-Z]\\w+)$/.test(t)) return; return was(c, t); }; })();`},
   prompts: {say: 'every follow-up prompt flattened into its parent',
     code: `(() => { const was = dvmSayConversation; dvmSayConversation = function (s, c) { return was(s, c).map(x => x.kids ? Object.assign({}, x, { kids: x.kids.filter(k => k.prompt === undefined) }) : x); }; })();`},
   strings: {say: 'every print clause dropped',
@@ -76,9 +82,9 @@ if (control) {
   console.log(`  (control: ${CONTROLS[control].say})`);
 }
 
-const fails = {calls: [], conditions: [], strings: [], words: [], self: [], prompts: []};
+const fails = {calls: [], conditions: [], strings: [], words: [], self: [], prompts: [], helpers: []};
 const stats = ev(`(() => {
-  const out = { functions: 0, answers: 0, calls: 0, conditions: 0, strings: 0, methods: 0, fails: { calls: [], conditions: [], strings: [], words: [], self: [], prompts: [] } };
+  const out = { functions: 0, answers: 0, calls: 0, conditions: 0, strings: 0, methods: 0, fails: { calls: [], conditions: [], strings: [], words: [], self: [], prompts: [], helpers: [] }, inlined: 0 };
   const flat = cl => cl.flatMap(c => [c.text].concat(c.kids ? flat(c.kids) : []));
   const heads = cl => cl.reduce((k, c) => k + (/^(if |while |for each |repeat, and go round again while )/.test(c.text) ? 1 : 0) + (c.kids ? heads(c.kids) : 0), 0);
   const tests = t => t.reduce((k, n) => k + (n.kind === 'if' || n.kind === 'ifelse' || n.kind === 'while' || n.kind === 'dowhile' ? 1 : 0) +
@@ -111,6 +117,14 @@ const stats = ev(`(() => {
           if (/^sys /.test(mn)) name = mn.slice(4);
           else if (mn === 'method') name = dvmPlainName(dvmBareOperand(o[3]));
           if (name) { out.calls++; if (text.indexOf(dvmSayName(name)) < 0) out.fails.calls.push(where + ': ' + name); }
+          if (mn === 'call_resource') {
+            const id = /0x([0-9A-F]{2,4})\\b/i.exec(String(o[3] || ''));
+            const rid = id ? parseInt(id[1], 16) : null;
+            if (rid !== null && dvmInlineHelper(ARCHIVE, rid)) {
+              out.inlined++;
+              if (text.indexOf(dvmFoldResourceName(rid)) < 0) out.fails.helpers.push(where + ': ' + dvmFoldResourceName(rid));
+            }
+          }
           if (mn === 'string' || mn === 'string(implicit)') { out.strings++; const lit = dvmBareOperand(o[3]); if (text.indexOf(lit) < 0) out.fails.strings.push(where + ': ' + lit.slice(0, 40)); }
         }
         if (f.tree) {
@@ -134,7 +148,7 @@ for (const [what, list] of Object.entries(stats.fails)) {
   failures++;
   console.error(`FAIL ${what}: ${list.length} -- ${list.slice(0, 6).join('; ')}${list.length > 6 ? '; ...' : ''}`);
 }
-const line = `read ${stats.functions} functions: ${stats.calls} calls, ${stats.conditions} tests and ${stats.strings} strings said, ${stats.methods} methods said of "it"; ` +
+const line = `read ${stats.functions} functions: ${stats.calls} calls, ${stats.conditions} tests and ${stats.strings} strings said, ${stats.methods} methods said of "it", ${stats.inlined} helper calls read through and named; ` +
   `${stats.answers} of them conversations, every prompt a clause`;
 if (failures) { console.error(line); process.exit(1); }
 console.log(line);

@@ -213,6 +213,7 @@ function dvmFoldFrame(nodes, ctx) {
 function dvmFoldValue(n, ctx) {
   const bare = dvmBareOperand(n.arg);
   if (ctx && ctx.say && n.mn === 'global') return dvmSayName(dvmPlainName(bare));
+  if (ctx && ctx.say && ctx.subst && (n.mn === 'arg' || n.mn === 'local') && ctx.subst.has(bare)) return ctx.subst.get(bare);
   if (ctx && ctx.say && ctx.self && n.mn === 'arg' && bare === ctx.self) return 'it';
   if (ctx && ctx.say && ctx.target && n.mn === 'arg' && bare === ctx.target) return 'the target';
   switch (n.mn) {
@@ -1463,6 +1464,19 @@ const DVM_SAY_INFIX = { '==': 'is', '!=': 'is not', '<': 'is less than', '>': 'i
 function dvmSayOperator(n, args, ctx) {
   const infix = DVM_INFIX[n.op];
   if (infix) {
+    /* A bit test reads as the bit: `X & 64` is "X has bit 6", `X & (1 << n)`
+       "X has bit n" -- the numbering SetCharacterFlag and the other setters
+       use -- and such a test compared with 0 is the test itself. */
+    if (infix === '&') {
+      const m = /^\(1 << (\w+)\)$/.exec(args[1]), v = /^\d+$/.test(args[1]) ? +args[1] : 0;
+      if (m) return args[0] + ' has bit ' + m[1];
+      const k = /^~\(1 << (\w+)\)$/.exec(args[1]);
+      if (k) return args[0] + ' without bit ' + k[1];
+      if (v && (v & (v - 1)) === 0) return args[0] + ' has bit ' + Math.log2(v);
+    }
+    if (infix === '|') { const m = /^\(1 << (\w+)\)$/.exec(args[1]); if (m) return args[0] + ' with bit ' + m[1]; }
+    if ((infix === '!=' || infix === '==') && args[1] === '0' && / has bit \w+$/.test(args[0]))
+      return infix === '!=' ? args[0] : args[0].replace(/ has bit /, ' has not got bit ');
     const w = DVM_SAY_INFIX[infix];
     const rhs = (infix === '==' || infix === '!=') && /\bbehavior$/.test(args[0]) ? dvmSayBehaviour('behavior', args[1], ctx) : args[1];
     return w ? args[0] + ' ' + w + ' ' + rhs : '(' + args[0] + ' ' + infix + ' ' + args[1] + ')';
@@ -1482,13 +1496,118 @@ function dvmSayOperator(n, args, ctx) {
       return dvmSayOwner(args[0]) + (key ? dvmSayName(key) + ' ' + parseInt(m[2], 16) : bare);
     }
     case 0x62: return dvmSayOwner(args[0]) + dvmSayName(bare);
-    case 0x63: return args[0] + ' as ' + dvmSayName(bare);
+    case 0x63: {
+      // A character by its number, named from the character table.
+      if (/^\d+$/.test(args[0]) && /^Character$/i.test(bare)) {
+        const nm = dvmFoldPage(ctx, () => characterName(+args[0]));
+        if (nm) return nm + ' (' + args[0] + ')';
+      }
+      return args[0] + ' as ' + dvmSayName(bare);
+    }
     case 0x64: return args[0] + ' is ' + dvmSayName(bare);
     default: return dvmSayName(n.mn) + ' ' + args.join(', ');
   }
 }
 // Whose: "its" for the receiver, "X's" for anything else.
-function dvmSayOwner(x) { return x === 'it' ? 'its ' : x + '’s '; }
+function dvmSayOwner(x) {
+  // A cast changes what the engine checks, not whose field it is.
+  const y = String(x).replace(/ as [a-z ]+$/, '');
+  return y === 'it' ? 'its ' : /^\w+$|^the target$|^[A-Z][\w' -]* \(\d+\)$/.test(y) ? y + '’s ' : '(' + y + ')’s ';
+}
+/* A helper that is only a few settings of its own locals and one return --
+   `Var00 = Character(Arg00); return (Var00.bit_flags & 64)` -- is said by
+   what it returns, with the caller's arguments put in: "its bit flags has
+   bit 6" in place of "run 0xF13 it". The helper's name or id follows in
+   brackets, so nothing is hidden. Anything with a jump, a call of its own
+   that has effects, or a second return that is not the dead `return 0`
+   after the first is left as a call. */
+function dvmInlineHelper(arc, rid) {
+  const all = derivedTable(arc, 'inlineHelpers', () => new Map());
+  if (all.has(rid)) return all.get(rid);
+  let out = null;
+  try {
+    const raw = getResourceBytes(arc, rid);
+    const b = raw && smartDecrypt(raw, rid).data;
+    const objs = b ? dvmExtents(b, rid) : [];
+    const fns = objs.filter(o => o[2] === 'function');
+    if (fns.length === 1 && fns[0][0] === 0 && !dvmNamedScript(b)) {
+      const [st, en] = fns[0];
+      const seg = b.subarray(st, en);
+      const stmts = dvmStatementList(dvmForest(dvmDisassemble(seg, 3).ops), st);
+      const sets = [];
+      let ret = null, ok = true;
+      for (const s of stmts) {
+        const n = s.node;
+        if (ret) { if (!(n.mn === 'return')) ok = false; break; }
+        if (s.targets.length || s.kind === 'cond') { ok = false; break; }
+        const slot = n.mn === 'set_local' ? parseInt(dvmBareOperand(n.arg), 16) : NaN;
+        if (Number.isFinite(slot) && slot < 0x30) { sets.push(['Var' + slot.toString(16).toUpperCase().padStart(2, '0'), n]); continue; }
+        if (n.mn === 'return' && n.groups[0] && n.groups[0].length) { ret = n; continue; }
+        // One setting of a field, then the dead `return 0`: an effect helper.
+        if (n.mn === 'set_field' && !sets.eff) { sets.eff = n; continue; }
+        ok = false; break;
+      }
+      const effects = JSON.stringify(stmts.map(s => s.node.mn)).match(/"sys |"method"|"call_/);
+      const eff = sets.eff || null;
+      if (ok && ret && !effects && !/"sys |"call_|"method"/.test(JSON.stringify(ret.groups, (k, v) => k === 'op' ? undefined : v)))
+        out = eff ? { args: seg[1], sets, eff } : { args: seg[1], sets, ret };
+    }
+  } catch (e) { out = null; }
+  all.set(rid, out);
+  return out;
+}
+/* Where a game state is set, said beside a read of it: every SetState and
+   SetStateFlag call with numbers for both arguments, in every script, by
+   the resource that makes it. The state's meaning is in no file; where it
+   changes is, and that is what a reader follows. */
+function dvmSayStateNote(ctx, name, k) {
+  const table = derivedTable(ctx.arc, 'stateSetters', () => {
+    const m = new Map();
+    for (let subn = 0; subn < 256; subn++) {
+      if (!ctx.arc.index[subn] || !ctx.arc.index[subn][0] || (typeof SCRIPT_SUBN !== 'undefined' && !SCRIPT_SUBN.has(subn))) continue;
+      const count = subindexCount(ctx.arc, subn);
+      for (let i = 0; i < count; i++) {
+        const resid = ((subn + 1) << 8) | i;
+        let b;
+        try { const raw = getResourceBytes(ctx.arc, resid); if (!raw || !raw.length) continue; b = smartDecrypt(raw, resid).data; } catch (e) { continue; }
+        let objs;
+        try { objs = dvmExtents(b, resid); } catch (e) { continue; }
+        for (const [st, en, kind] of objs) {
+          if (kind !== 'function') continue;
+          let forest;
+          try { forest = dvmForest(dvmDisassemble(b.subarray(st, en), 3).ops); } catch (e) { continue; }
+          const c = { label: t => t, notes: [] };
+          (function walk(list) {
+            for (const n of list) {
+              if (n.mn === 'sys SetState' || n.mn === 'sys SetStateFlag') {
+                const v = dvmReduceFrame(n.groups[0] || [], c);
+                if (/^\d+$/.test(v[0] || '') && /^\d+$/.test(v[1] || '')) {
+                  const key = n.mn.slice(4) + ':' + v[0];
+                  if (!m.has(key)) m.set(key, []);
+                  const row = m.get(key), val = +v[1];
+                  if (!row.some(x => x.v === val && x.resid === resid)) row.push({ v: val, resid });
+                }
+              }
+              for (const g of n.groups || []) walk(g);
+            }
+          })(forest);
+        }
+      }
+    }
+    return m;
+  });
+  const row = table.get((name === 'GetState' ? 'SetState' : 'SetStateFlag') + ':' + k);
+  if (!row || !row.length) return;
+  const byV = new Map();
+  // A character's conversation by whose it is; anything else by its name or id.
+  const who = rid => {
+    const nm = (rid >> 8) === 0x18 ? dvmFoldPage(ctx, () => characterName(rid - 0x1800)) : null;
+    return nm ? nm + '’s conversation' : dvmFoldResourceName(rid);
+  };
+  for (const x of row) { if (!byV.has(x.v)) byV.set(x.v, []); byV.get(x.v).push(who(x.resid)); }
+  dvmFoldNote(ctx, (name === 'GetState' ? 'state ' : 'state flag ') + k + ' is set ' +
+    [...byV].sort((a, b) => a[0] - b[0]).map(([v, who]) => 'to ' + v + ' by ' + who.slice(0, 3).join(', ') + (who.length > 3 ? ' and ' + (who.length - 3) + ' more' : '')).join('; '));
+}
 /* A behaviour number said with the word the game's own text gives it. The
    game names some behaviours where it describes a person: a script that
    tests `X.behavior == N` and at once prints a word (the Look helper,
@@ -1547,11 +1666,30 @@ function dvmSayCall(n, ctx) {
   if (/^sys /.test(n.mn)) {
     const name = n.mn.slice(4), v = vals(n.groups[0]);
     dvmFoldCallNotes(name, v, ctx);
+    if ((name === 'GetState' || name === 'GetStateFlag') && /^\d+$/.test(v[0] || '') && ctx.arc) dvmSayStateNote(ctx, name, +v[0]);
     return withArgs(dvmSayName(name), v);
   }
   switch (n.mn) {
     case 'call_resource': case 'call_subroutine': {
       const id = n.mn === 'call_resource' && /^0x([0-9A-F]+)$/i.exec(bare);
+      // A named helper's operand carries its name; its id is in the raw operand.
+      const rawId = n.mn === 'call_resource' && /0x([0-9A-F]{3,4})\b/i.exec(String(n.arg || ''));
+      const rid = id ? parseInt(id[1], 16) : rawId ? parseInt(rawId[1], 16) : null;
+      const inl = rid !== null && ctx.arc ? dvmInlineHelper(ctx.arc, rid) : null;
+      // An effect helper is said by its effect only where it is a statement.
+      if (inl && (!inl.eff || ctx.asStatement)) {
+        const a = vals(n.groups[0]);
+        if (a.length === inl.args) {
+          const subst = new Map();
+          a.forEach((v, k) => subst.set('Arg' + k.toString(16).toUpperCase().padStart(2, '0'), v));
+          const c2 = Object.assign({}, ctx, { subst, self: null, target: null, notes: [] });
+          for (const [slot, node] of inl.sets) subst.set(slot, dvmFoldFrame(node.groups[0] || [], c2));
+          const said = inl.eff ? dvmSayStatement(inl.eff, Object.assign(c2, { asStatement: false })) : dvmFoldFrame(inl.ret.groups[0] || [], c2);
+          for (const t of c2.notes) dvmFoldNote(ctx, t);
+          dvmFoldNote(ctx, dvmFoldResourceName(rid));
+          return said;
+        }
+      }
       const nm = id ? dvmFoldResourceName(parseInt(id[1], 16)) : bare;
       return withArgs(/^0x/i.test(nm) ? 'run ' + nm : dvmSayName(nm), vals(n.groups[0]));
     }
@@ -1580,14 +1718,26 @@ function dvmSayStatement(n, ctx) {
       return 'set ' + lhs + ' to ' + (g[0] || '');
     }
     case 'set_global': return 'set ' + dvmSayName(bare) + ' to ' + (g[0] || '');
-    case 'set_field': return 'set ' + dvmSayOwner(g[0] || '') + dvmSayName(bare) + ' to ' + dvmSayBehaviour(bare, g[1] || '', ctx);
+    case 'set_field': {
+      const lhs = dvmSayOwner(g[0] || '') + dvmSayName(bare), v = g[1] || '';
+      // Setting a field to itself with a bit more or less is setting or clearing the bit.
+      const on = v.startsWith(lhs + ' with bit ') ? v.slice(lhs.length + 10) : null;
+      const off = v.startsWith(lhs + ' without bit ') ? v.slice(lhs.length + 13) : null;
+      if (on && /^\w+$/.test(on)) return 'set bit ' + on + ' of ' + lhs;
+      if (off && /^\w+$/.test(off)) return 'clear bit ' + off + ' of ' + lhs;
+      return 'set ' + lhs + ' to ' + dvmSayBehaviour(bare, v, ctx);
+    }
     case 'set_index': return 'set ' + (g[0] || '') + '[' + (g[1] || '') + '] to ' + (g[2] || '');
     case 'write_near_word': case 'write_far_word': return 'set word@' + bare + ' to ' + (g[0] || '');
     case 'exit': return 'stop';
     case 'conversation_prompt': return 'ask ' + dvmBareOperand(n.arg);
     case 'conversation_response': return 'answer ' + dvmBareOperand(n.arg);
     default:
-      if (n.expect > 0) return dvmSayCall(n, ctx);
+      if (n.expect > 0) {
+        const was = ctx.asStatement;
+        ctx.asStatement = true;
+        try { return dvmSayCall(n, ctx); } finally { ctx.asStatement = was; }
+      }
       return dvmFoldValue(n, ctx);
   }
 }
@@ -1649,6 +1799,8 @@ function dvmSayTree(tree, ctx, loops) {
   };
   let prints = null, printAt = null;
   const flush = () => { if (prints) { push('print ' + prints.join(', '), null, printAt, { verb: 'print' }); prints = null; } };
+  // A heading takes the notes its condition gathered before its block is said.
+  const head = text => { const nt = ctx.notes.splice(0); return text + (nt.length ? ' (' + nt.join('; ') + ')' : ''); };
   for (const n of tree) {
     if (n.kind === 'stmt' && skip.has(n.stmt)) continue;
     if (n.kind === 'stmt' && n.stmt.kind !== 'cond' && !exits.has(n.stmt)) {
@@ -1671,10 +1823,10 @@ function dvmSayTree(tree, ctx, loops) {
         else push(dvmSayStatement(s.node, ctx), null, s.abs, dvmSayMeta(s.node, ctx));
         break;
       }
-      case 'if': { const c = dvmSayCond(n.cond, ctx, false); push('if ' + c + ':', dvmSayTree(n.then, ctx, loops), n.cond.abs, { test: true }); break; }
+      case 'if': { const t = head('if ' + dvmSayCond(n.cond, ctx, false) + ':'); push(t, dvmSayTree(n.then, ctx, loops), n.cond.abs, { test: true }); break; }
       case 'ifelse': {
-        const c = dvmSayCond(n.cond, ctx, false);
-        push('if ' + c + ':', dvmSayTree(n.then, ctx, loops), n.cond.abs, { test: true });
+        const t = head('if ' + dvmSayCond(n.cond, ctx, false) + ':');
+        push(t, dvmSayTree(n.then, ctx, loops), n.cond.abs, { test: true });
         push('otherwise:', dvmSayTree(n.els, ctx, loops));
         break;
       }
@@ -1682,11 +1834,11 @@ function dvmSayTree(tree, ctx, loops) {
         const f = fors.get(n);
         if (f) {
           for (const t of f.notes || []) dvmFoldNote(ctx, t);
-          push('for each ' + f.variable + ' in ' + dvmSayName(f.name) + (f.args.length ? ' of ' + f.args.join(', ') : '') + ':',
-               dvmSayTree(n.body.slice(0, -1), ctx, loops), f.start.abs, { verb: 'go through ' + dvmSayName(f.name) });
+          const t = head('for each ' + f.variable + ' in ' + dvmSayName(f.name) + (f.args.length ? ' of ' + f.args.join(', ') : '') + ':');
+          push(t, dvmSayTree(n.body.slice(0, -1), ctx, loops), f.start.abs, { verb: 'go through ' + dvmSayName(f.name) });
         } else {
-          const c = dvmSayCond(n.cond, ctx, false);
-          push('while ' + c + ':', dvmSayTree(n.body, ctx, loops), n.cond.abs, { test: true });
+          const t = head('while ' + dvmSayCond(n.cond, ctx, false) + ':');
+          push(t, dvmSayTree(n.body, ctx, loops), n.cond.abs, { test: true });
         }
         break;
       }
