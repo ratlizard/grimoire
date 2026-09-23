@@ -316,8 +316,17 @@ function renderToolsSheet() {
   pfNote.style.cssText = 'margin-left:0';
   pf.appendChild(pfNote);
   if (!layout) {
-    pfNote.innerHTML = svEsc('The file in the System Folder’s Preferences folder that holds the game’s settings and the gate on its cheat keys. ' +
-      'Its record is read out of the application; open the game from its installer, under Settings, and the switches are offered here.');
+    /* Nothing can be offered here without the application. Every bit position,
+       every key and every choice in this section is read out of its code as
+       the page opens, which is what keeps them right for the build in hand --
+       so with only the data file open there is no file to write, and the one
+       thing worth saying is how to get one. Said first, and short: the
+       sentence that used to carry it put the action last and read as a
+       description of a tool that was not there (the maintainer, 23 September
+       2026). */
+    pfNote.innerHTML = '<b>' + svEsc('Open the game itself — Data › Installer, or drop the application on the page — and the settings appear here.') + '</b><br>' +
+      svEsc('This writes Cythera’s preferences file: the settings in the System Folder’s Preferences folder, and the gate on its cheat keys. ' +
+            'Every switch in it is read out of the application’s own code, so the game has to be open for there to be anything to write.');
   } else {
     pfNote.innerHTML = svEsc('The ' + layout.bytes + '-byte ‘' + layout.type + '’ “' + layout.key + '” record, which lives in the System Folder’s Preferences folder. ' +
       'The switches are the game’s own: the labels of its Preferences dialog' + (layout.smoothLabel ? ', and “' + layout.smoothLabel + '” from its unlisted Preferences menu, which the record the game first stores leaves off' : '') + '. ' +
