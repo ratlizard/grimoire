@@ -865,12 +865,18 @@ function paintDecodedPane() {
    against the code. A prose object is said as what it holds. */
 function readViewHtml(fns) {
   const hex4 = v => v.toString(16).toUpperCase().padStart(4, '0');
+  // A prompt as the player types it and as the game stores it, as the
+  // conversation view says it (convIntendedFor).
+  const prompt = kw => kw === '*' ? 'When asked about anything else:' : 'When asked about ' + String(kw).split(',').map(k => {
+    const w = typeof convIntendedFor === 'function' ? convIntendedFor(k) : [];
+    return (w[0] || k).toUpperCase() + ' (' + k + ')';
+  }).join(', ') + ':';
   const list = cl => '<ul class="readList">' + cl.map(c => '<li>' + (c.at !== null && c.at !== undefined ? '<span class="readAt">' + hex4(c.at) + '</span>' : '') +
-    svEsc(c.text.charAt(0).toUpperCase() + c.text.slice(1)) + (c.kids ? list(c.kids) : '') + '</li>').join('') + '</ul>';
+    svEsc(c.prompt !== undefined ? prompt(c.prompt) : c.text.charAt(0).toUpperCase() + c.text.slice(1)) + (c.kids ? list(c.kids) : '') + '</li>').join('') + '</ul>';
   return fns.map(f => {
     if (f.prose !== undefined) return '<div class="readFn"><div class="readHead">' + svEsc(f.name) + '</div><div class="readProse">' + svEsc(f.prose) + '</div></div>';
     const head = '<div class="readHead">' + svEsc(f.name) + '(' + (f.args || []).join(', ') + ')</div>';
-    if (f.answers) return '<div class="readFn">' + head + '<div class="readProse">Answers ' + f.answers + ' prompt' + (f.answers === 1 ? '' : 's') +
+    if (f.answers && !f.clauses) return '<div class="readFn">' + head + '<div class="readProse">Answers ' + f.answers + ' prompt' + (f.answers === 1 ? '' : 's') +
       '; the Text view lays them out.</div></div>';
     const sum = f.summary ? '<div class="readSum">' + svEsc(f.summary.charAt(0).toUpperCase() + f.summary.slice(1)) + '.</div>' : '';
     return '<div class="readFn">' + head + sum + (f.bad ? '<div class="readProse">Part of this did not decode; the Raw view shows it.</div>' : '') + list(f.clauses || []) + '</div>';

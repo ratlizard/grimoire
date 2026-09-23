@@ -214,6 +214,7 @@ function dvmFoldValue(n, ctx) {
   const bare = dvmBareOperand(n.arg);
   if (ctx && ctx.say && n.mn === 'global') return dvmSayName(dvmPlainName(bare));
   if (ctx && ctx.say && ctx.self && n.mn === 'arg' && bare === ctx.self) return 'it';
+  if (ctx && ctx.say && ctx.target && n.mn === 'arg' && bare === ctx.target) return 'the target';
   switch (n.mn) {
     case 'local': case 'arg': return bare;
     case 'byte': case 'short': case 'word': {
@@ -1700,6 +1701,49 @@ function dvmSayTree(tree, ctx, loops) {
   flush();
   return out;
 }
+/* A conversation, said. A character's Talk is a loop: it opens with the
+   lines the window starts on, then an `exit` that waits for a word, then a
+   chain of `answer "kw" -> target` guards -- each "if the word typed is not
+   this, go on at target" -- whose bodies end by jumping back to the `exit`.
+   So an answer is its guard and the statements up to its target, and a
+   guard inside that stretch is a follow-up prompt of its own. Each stretch
+   between guards goes through the same recovery and sayer as any code; the
+   jump back to the wait is not said, since every answer makes it. */
+function dvmSayConversation(stmts, ctx) {
+  const wait = stmts.find(s => s.node && s.node.mn === 'exit');
+  const loopAt = wait ? wait.abs : null;
+  const guard = s => s.node && s.node.mn === 'conversation_response';
+  const guardTo = s => { const m = /->\s*0x([0-9A-F]+)/i.exec(dvmBareOperand(s.node.arg)); return m ? parseInt(m[1], 16) : null; };
+  const guardKw = s => { const m = /^"([^"]*)"/.exec(dvmBareOperand(s.node.arg)); return m ? m[1] : dvmBareOperand(s.node.arg); };
+  const sayRun = run => {
+    const back = new Set(run.filter(s => s.kind === 'jump' && s.targets.length === 1 && s.targets[0] === loopAt).map(s => s.abs));
+    const body = run.filter(s => s !== wait);
+    if (!body.length) return [];
+    const rec = dvmRecoverStructure(body);
+    const loops = dvmLoopExits(rec.tree, ctx);
+    ctx.notes.length = 0;
+    const drop = cl => cl.filter(c => !(c.at !== null && back.has(c.at) && /^go to /.test(c.text))).map(c => c.kids ? Object.assign(c, { kids: drop(c.kids) }) : c);
+    return drop(dvmSayTree(rec.tree, ctx, loops));
+  };
+  const build = list => {
+    const out = [];
+    let run = [];
+    const flush = () => { if (run.length) { out.push(...sayRun(run)); run = []; } };
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i];
+      if (!guard(s)) { run.push(s); continue; }
+      flush();
+      const to = guardTo(s);
+      const inner = [];
+      while (i + 1 < list.length && to !== null && list[i + 1].abs < to) inner.push(list[++i]);
+      const kw = guardKw(s);
+      out.push({ text: kw === '*' ? 'when asked about anything else:' : 'when asked about "' + kw + '":', kids: build(inner), at: s.abs, prompt: kw, test: true });
+    }
+    flush();
+    return out;
+  };
+  return build(stmts);
+}
 /* Every function of a resource, said. The same extents, names and recovery as
    dvmStructureRender; a prose object is said as what it holds. */
 function dvmReadRender(arc, b, resid) {
@@ -1723,20 +1767,35 @@ function dvmReadRender(arc, b, resid) {
     const args = [];
     for (let i = 0; i < seg[1]; i++) args.push('Arg' + i.toString(16).padStart(2, '0').toUpperCase());
     const answers = r.ops.filter(o => o[2] === 'conversation_response').length;
-    if (answers) { out.push({ at: st, name, args, answers }); continue; }
+    if (answers) {
+      const self = slots.has(st) && args.length ? 'Arg00' : null;
+      const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true, self };
+      let clauses = null;
+      try { clauses = dvmSayConversation(dvmStatementList(dvmForest(r.ops), st), ctx); } catch (e) { clauses = null; }
+      out.push({ at: st, name, args: self ? ['it'].concat(args.slice(1)) : args, answers, clauses,
+                 summary: clauses ? 'answers ' + answers + ' prompt' + (answers === 1 ? '' : 's') : '', self: !!self, bad: r.bad || 0, ops: r.ops });
+      continue;
+    }
     /* A method is reached through its class's table, and the engine calls it
        with the object it belongs to first: TInterp::DoInterp pushes its
        first address as the first argument and DoInterp0 finds the method
        by that address's class. So in a method Arg00 is "it". A resource
        that is one function is a helper, called with whatever it is given. */
     const self = slots.has(st) && args.length ? 'Arg00' : null;
-    const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true, self };
+    /* Method 10's second argument is what it is used on: TGameSys::UseOnCommand
+       (thing, target) calls DoInterp(10, thing, 0x40000000 | target), the
+       second a prop the player chose. Only this method's is named; the
+       others' second arguments are whatever each engine call passes, and
+       are not read. */
+    const target = self && name === DVM_SYM.method['10'] && args.length > 1 ? 'Arg01' : null;
+    const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true, self, target };
     const stmts = dvmStatementList(dvmForest(r.ops), st);
     const rec = dvmRecoverStructure(stmts);
     const loops = dvmLoopExits(rec.tree, ctx);
     ctx.notes.length = 0;
     const clauses = dvmSayTree(rec.tree, ctx, loops);
-    out.push({ at: st, name, args: self ? ['it'].concat(args.slice(1)) : args, clauses, summary: dvmSaySummary(clauses),
+    const said = args.map((a, k) => a === self ? 'it' : a === target ? 'the target' : a);
+    out.push({ at: st, name, args: said, clauses, summary: dvmSaySummary(clauses),
                self: !!self, bad: r.bad || 0, tree: rec.tree, ops: r.ops });
   }
   return out;

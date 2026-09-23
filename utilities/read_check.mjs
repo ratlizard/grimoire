@@ -19,6 +19,9 @@
 //   strings     every string the function holds is in its sentences, which is
 //               what catches a print lost in the merging of prints;
 //   words       nothing reads "undefined", "null" or the fold's "/*under*/";
+//   prompts     in a conversation, every `answer "kw" -> target` guard is a
+//               "when asked about" clause of its own, the follow-ups nested
+//               in the answer whose stretch holds them;
 //   self        in a method -- a function its class's table reaches, which the
 //               engine calls with the object it belongs to first -- that first
 //               argument is said "it" throughout, and "Arg00" appears nowhere.
@@ -32,6 +35,7 @@
 //   --control=conditions  every block's heading dropped, its body kept
 //   --control=strings     every print clause dropped
 //   --control=self        no function taken to be a method
+//   --control=prompts     every follow-up prompt flattened into its parent
 import {readFileSync, existsSync} from 'node:fs';
 import vm from 'node:vm';
 import {makeSandbox} from './dom_stub.mjs';
@@ -61,6 +65,8 @@ const CONTROLS = {
     code: `(() => { const was = dvmSayTree; dvmSayTree = function (t, c, l) { return was(t, c, l).flatMap(x => x.kids ? x.kids : [x]); }; })();`},
   self: {say: 'no function taken to be a method',
     code: `(() => { const was = dvmReadRender; dvmReadRender = function (a, b, r) { return was(a, b, r).map(f => f.self ? Object.assign({}, f, { self: true, clauses: JSON.parse(JSON.stringify(f.clauses).split('"it"').join('"Arg00"').split(' it ').join(' Arg00 ').split('its ').join('Arg00\u2019s ')) }) : f); }; })();`},
+  prompts: {say: 'every follow-up prompt flattened into its parent',
+    code: `(() => { const was = dvmSayConversation; dvmSayConversation = function (s, c) { return was(s, c).map(x => x.kids ? Object.assign({}, x, { kids: x.kids.filter(k => k.prompt === undefined) }) : x); }; })();`},
   strings: {say: 'every print clause dropped',
     code: `(() => { const was = dvmSayTree; dvmSayTree = function (t, c, l) { return was(t, c, l).filter(x => !/^print /.test(x.text)); }; })();`},
 };
@@ -70,9 +76,9 @@ if (control) {
   console.log(`  (control: ${CONTROLS[control].say})`);
 }
 
-const fails = {calls: [], conditions: [], strings: [], words: [], self: []};
+const fails = {calls: [], conditions: [], strings: [], words: [], self: [], prompts: []};
 const stats = ev(`(() => {
-  const out = { functions: 0, answers: 0, calls: 0, conditions: 0, strings: 0, methods: 0, fails: { calls: [], conditions: [], strings: [], words: [], self: [] } };
+  const out = { functions: 0, answers: 0, calls: 0, conditions: 0, strings: 0, methods: 0, fails: { calls: [], conditions: [], strings: [], words: [], self: [], prompts: [] } };
   const flat = cl => cl.flatMap(c => [c.text].concat(c.kids ? flat(c.kids) : []));
   const heads = cl => cl.reduce((k, c) => k + (/^(if |while |for each |repeat, and go round again while )/.test(c.text) ? 1 : 0) + (c.kids ? heads(c.kids) : 0), 0);
   const tests = t => t.reduce((k, n) => k + (n.kind === 'if' || n.kind === 'ifelse' || n.kind === 'while' || n.kind === 'dowhile' ? 1 : 0) +
@@ -88,7 +94,13 @@ const stats = ev(`(() => {
       let fns;
       try { fns = dvmReadRender(ARCHIVE, data, resid); } catch (e) { out.fails.words.push(hex(resid) + ' threw ' + e.message); continue; }
       for (const f of fns) {
-        if (f.answers) { out.answers++; continue; }
+        if (f.answers) {
+          out.answers++;
+          const count = cl => cl.reduce((k, c) => k + (c.prompt !== undefined ? 1 : 0) + (c.kids ? count(c.kids) : 0), 0);
+          if (!f.clauses) { out.fails.prompts.push(hex(resid) + ' ' + f.name + ' was not read'); continue; }
+          const have = count(f.clauses);
+          if (have !== f.answers) out.fails.prompts.push(hex(resid) + ' ' + f.name + ': ' + f.answers + ' guards, ' + have + ' prompts');
+        }
         if (!f.clauses || f.bad) continue;
         out.functions++;
         const where = hex(resid) + ' ' + f.name;
@@ -101,9 +113,11 @@ const stats = ev(`(() => {
           if (name) { out.calls++; if (text.indexOf(dvmSayName(name)) < 0) out.fails.calls.push(where + ': ' + name); }
           if (mn === 'string' || mn === 'string(implicit)') { out.strings++; const lit = dvmBareOperand(o[3]); if (text.indexOf(lit) < 0) out.fails.strings.push(where + ': ' + lit.slice(0, 40)); }
         }
-        const want = tests(f.tree), have = heads(f.clauses);
-        out.conditions += want;
-        if (want !== have) out.fails.conditions.push(where + ': ' + want + ' tests, ' + have + ' clauses');
+        if (f.tree) {
+          const want = tests(f.tree), have = heads(f.clauses);
+          out.conditions += want;
+          if (want !== have) out.fails.conditions.push(where + ': ' + want + ' tests, ' + have + ' clauses');
+        }
         if (f.self) { out.methods++; if (/\\bArg00\\b/.test(text)) out.fails.self.push(where + ' says Arg00'); }
         const bad = /\\bundefined\\b|\\bnull\\b|\\/\\*under\\*\\//.exec(text);
         if (bad) out.fails.words.push(where + ': "' + bad[0] + '"');
@@ -121,6 +135,6 @@ for (const [what, list] of Object.entries(stats.fails)) {
   console.error(`FAIL ${what}: ${list.length} -- ${list.slice(0, 6).join('; ')}${list.length > 6 ? '; ...' : ''}`);
 }
 const line = `read ${stats.functions} functions: ${stats.calls} calls, ${stats.conditions} tests and ${stats.strings} strings said, ${stats.methods} methods said of "it"; ` +
-  `${stats.answers} conversation functions left to the Text view`;
+  `${stats.answers} of them conversations, every prompt a clause`;
 if (failures) { console.error(line); process.exit(1); }
 console.log(line);

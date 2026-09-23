@@ -881,14 +881,29 @@ try {
   ctx.setScriptFold('structured');
   const back = REGISTRY.get('textContent').innerHTML;
   if (!on || !/readList/.test(read)) fail('read view', 'the Read view did not show on a script');
-  else if (!/Clear flag Arg01, 22/.test(read) || !/is awoken/.test(read)) fail('read view', 'Awaken\'s UseOn is not said: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 200));
+  else if (!/Clear flag the target, 22/.test(read) || !/is awoken/.test(read)) fail('read view', 'Awaken\'s UseOn is not said: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 200));
   // A method's first argument is the thing it belongs to, said "it"; a
   // behaviour the game's own Look text names is said with that word; and
   // each function heads with what it does.
-  else if (!/UseOn\(it, Arg01\)/.test(read) || !/145 \(sleeping\)/.test(read) || !/readSum">Magic aura effect, play sound, clear flag/.test(read))
+  else if (!/UseOn\(it, the target\)/.test(read) || !/145 \(sleeping\)/.test(read) || !/readSum">Magic aura effect, play sound, clear flag/.test(read))
     fail('read view', 'Awaken is not read with "it", the behaviour\'s word or its summary: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 300));
   else if (/readList/.test(back) || !/function UseOn/.test(back)) fail('read view', 'Structured did not bring the listing back');
   else console.log('  read view: Awaken said in sentences, "it" for what the method belongs to, 145 as sleeping by the game\'s own Look text, a summary at its head; Structured brings the listing back');
+} catch (e) { fail('read view', e); }
+/* A conversation read in full: Aethon's Talk says each answer under the
+   prompt as the player types it and as the game stores it, and the test
+   inside an answer as a clause; a UseOn's second argument is the target. */
+try {
+  ctx.jumpToResource(0x1861);
+  ctx.setScriptPane('read');
+  const h = REGISTRY.get('textContent').innerHTML;
+  ctx.jumpToResource(0x1045);
+  ctx.setScriptPane('read');
+  const f = REGISTRY.get('textContent').innerHTML;
+  ctx.setScriptFold('structured');
+  if (!/When asked about DEMODOCUS \(demo\):/.test(h) || !/Join party 97/.test(h)) fail('read view', 'Aethon\'s conversation is not read in full: ' + h.replace(/<[^>]+>/g, ' ').slice(0, 300));
+  else if (!/UseOn\(it, the target\)/.test(f) || !/the target as character/.test(f)) fail('read view', 'a UseOn\'s second argument is not the target');
+  else console.log('  read view: Aethon\'s conversation read in full under its prompts, and a UseOn\'s second argument is the target');
 } catch (e) { fail('read view', e); }
 
 /* Walking, as the engine does it, 23 September 2026 (buildPropBlockers,
