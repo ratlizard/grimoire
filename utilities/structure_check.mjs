@@ -243,7 +243,8 @@ function parseStructured(text) {
     if (lab) { cur.labels.add(parseInt(lab[1], 16)); continue; }
     const g = /^    ([0-9A-F]{4}| {4})\s*(\S.*)$/.exec(raw);
     if (!g) continue;
-    const at = g[1].trim() ? parseInt(g[1], 16) : null, t = g[2];
+    // The comment a line may end in (dvmFoldNote) is not code.
+    const at = g[1].trim() ? parseInt(g[1], 16) : null, t = g[2].split('   // ')[0];
     for (const m of t.matchAll(/\bL([0-9A-F]{4})\b/g)) cur.uses.push({at, to: parseInt(m[1], 16)});
     let m;
     if (t === '}') { stack.pop().owner.closeAt = at; continue; }

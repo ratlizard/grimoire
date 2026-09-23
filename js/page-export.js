@@ -1189,7 +1189,8 @@ function scriptOutline(resid, roff, rlen) {
   const calls = [];
   for (const line of text.split('\n')) {
     if (!/^    [0-9A-F]{4}  /.test(line)) continue;
-    for (const m of line.slice(10).matchAll(/(?:^|[^\w.])([A-Za-z_]\w*|0x[0-9A-Fa-f]{3,4})(?=\()/g))
+    // The code, not the comment a line may end in (dvmFoldNote).
+    for (const m of line.split('   // ')[0].slice(10).matchAll(/(?:^|[^\w.])([A-Za-z_]\w*|0x[0-9A-Fa-f]{3,4})(?=\()/g))
       if (!OUTLINE_NOT_CALLS.has(m[1]) && calls.indexOf(m[1]) < 0) calls.push(m[1]);
   }
   return { cls, calls };

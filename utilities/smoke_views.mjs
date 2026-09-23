@@ -667,6 +667,21 @@ try {
   if (!/^    0051  if/.test(hitLine())) fail('script page', 'following the break in 0x987 rings "' + hitLine().slice(0, 50) + '"');
   ctx.ringListingAt(0x42);
   if (!/^    0042  \}/.test(hitLine())) fail('script page', 'a ring on the step of 0x987 lands on "' + hitLine().slice(0, 50) + '", not the closing brace');
+  /* A number the file or the page can name is named in a comment at the end of
+     its line: a sound, with a link to it; a To Do line, read in the array
+     AddQuest points into (Ake, 0x1820, has slot 10 show line 114, which is
+     the scenario's own slip); a status flag. And a negative byte is printed as the
+     negative number it is, as the raw listing's note says. */
+  ctx.jumpToResource(0x1A00);
+  const t1A00 = ctx.document.getElementById('textContent').innerHTML;
+  if (!/PlaySound\(48, [^\n]*\/\/ sound 48[^\n]*jumpToResource\(37168\)/.test(t1A00))
+    fail('script page', 'the sound in 0x1A00 is not named in a comment with a link to 0x9130');
+  ctx.jumpToResource(0x1820);
+  if (!/AddQuest\(10, [^\n]*\/\/ To Do 10: (&quot;|")Ask Thuria about Iron Mine/.test(ctx.document.getElementById('textContent').innerHTML))
+    fail('script page', 'the To Do line Ake (0x1820) adds is not named');
+  ctx.jumpToResource(0x1403);
+  if (!/SetAmbientLighting\(-128\)/.test(ctx.document.getElementById('textContent').innerHTML))
+    fail('script page', 'a negative byte in 0x1403 is not printed as a negative number');
   /* A goto that is left is a link to its label, and the label is printed even
      where it heads an if: 0x812's L0488 was one of 94 printed nowhere. */
   ctx.jumpToResource(0x812);

@@ -214,7 +214,22 @@ function dvmFoldValue(n, ctx) {
   const bare = dvmBareOperand(n.arg);
   switch (n.mn) {
     case 'local': case 'arg': return bare;
-    case 'byte': case 'short': case 'word': return dvmFoldNumber(bare);
+    case 'byte': case 'short': case 'word': {
+      /* The raw listing's note after an operand: a signed reading where a
+         byte or short is negative (`byte 0xFB  // -5`), then whatever
+         dvmAnnotateInt knows the number to mean. The signed reading IS the
+         value -- 0xFB as 251 reads every dark zone's light level backwards --
+         so it replaces the number; the rest becomes the line's comment. */
+      let note = String(n.arg || '').split('  //')[1];
+      let num = dvmFoldNumber(bare);
+      if (note) {
+        note = note.trim();
+        const neg = /^(-\d+)(?:, |$)/.exec(note);
+        if (neg) { num = neg[1]; note = note.slice(neg[0].length); }
+        if (note) dvmFoldNote(ctx, dvmFoldRawNote(num, note));
+      }
+      return num;
+    }
     case 'string': case 'string(implicit)': return bare;
     case 'global': return dvmPlainName(bare);
     case 'load_near_word': return 'word@' + bare;
@@ -265,7 +280,11 @@ function dvmFoldCall(n, ctx) {
   const bare = dvmPlainName(dvmBareOperand(n.arg));
   const g = n.groups.map(f => dvmFoldFrame(f, ctx));
   // `sys Name` arrives as one mnemonic with the name inside it.
-  if (/^sys /.test(n.mn)) return n.mn.slice(4) + '(' + dvmArgList(n.groups[0], ctx) + ')';
+  if (/^sys /.test(n.mn)) {
+    const name = n.mn.slice(4), vals = dvmReduceFrame(n.groups[0] || [], ctx);
+    dvmFoldCallNotes(name, vals, ctx);
+    return name + '(' + vals.join(', ') + ')';
+  }
   switch (n.mn) {
     case 'call_resource': case 'call_subroutine':
       return bare + '(' + dvmArgList(n.groups[0], ctx) + ')';
@@ -288,6 +307,97 @@ function dvmFoldCall(n, ctx) {
     case 'ai_state': return 'ai_state(' + bare + (g[0] ? ', ' + g[0] : '') + ')';
     default: return n.mn + (bare ? ' ' + bare : '') + '(' + g.join(', ') + ')';
   }
+}
+
+/* ---- what a number stands for ----------------------------------------------
+ * A statement's numbers that the file, or this page, can name are said in a
+ * comment at the end of its line: `SetFlag(Arg01, 9)   // flag 9: poison`. The
+ * number stays in the code, where it is what the bytes say, and the name goes
+ * beside it rather than in its place, because several of the names are the
+ * page's readings and not the file's (the flag names are the Ambrosia board's,
+ * the sound labels the wiki's) and a comment says so where a substituted
+ * identifier would not. `ctx.notes` collects them while a statement folds; the
+ * renderer takes them when it prints the line.
+ *
+ * Three sources, and nothing is named that none of them names:
+ *   - what the raw listing already notes (dvmAnnotateInt: status flags,
+ *     zoneports, the prop types Create and New make, New's flags);
+ *   - a sound, the number every sound call adds to 0x9100, named as the
+ *     page names that resource (labelFor, which honours the built-in labels
+ *     setting);
+ *   - a To Do line, AddQuest's text reference read in the array it points
+ *     into, and CompleteQuest's slot read in the same array, which is the
+ *     page's own convention for the slot a line is struck from (todoRules).
+ * The quest values and quest flags (GetState, GetStateFlag) have no names
+ * anywhere: the workbench's reading says who sets and reads each, and that is
+ * not a name. */
+function dvmFoldNote(ctx, text) {
+  if (ctx && ctx.notes && text && ctx.notes.indexOf(text) < 0) ctx.notes.push(text);
+}
+// dvmAnnotateInt's wording, with the number it is about put back in and its
+// em dash made a colon (no em dash is printed anywhere on the site).
+function dvmFoldRawNote(num, note) {
+  return note.replace(/^(flags?|proptype):? (?:\u2014 )?/, (m, w) => w + ' ' + num + ': ').replace(/ \u2014 /g, ': ');
+}
+// Which argument of a sound call is the sound (SOUND_CALLS in the page says
+// the same, and why ShootEffect's is its eighth).
+const DVM_SOUND_ARG = { PlaySound: 0, UnknownD4: 0, PlayAmbientSound: 0, ShootEffect: 7 };
+function dvmFoldCallNotes(name, vals, ctx) {
+  const si = DVM_SOUND_ARG[name];
+  if (si !== undefined && /^\d+$/.test(vals[si] || '')) {
+    const v = +vals[si], rid = 0x9100 + v;
+    let label = null;
+    try { if (typeof labelFor === 'function') label = labelFor(rid); } catch (e) { quiet(e); }
+    if (label === 'Sound ' + v) label = null;
+    dvmFoldNote(ctx, 'sound ' + v + (label ? ': ' + label : '') + ' (0x' + rid.toString(16).toUpperCase() + ')');
+  }
+  if ((name === 'AddQuest' || name === 'CompleteQuest') && /^\d+$/.test(vals[0] || '') && ctx && ctx.arc) {
+    const ref = name === 'AddQuest' && /^\((0x[0-9A-F]+)\[(\d+)\] \+ (\d+)\)$/i.exec(vals[1] || '');
+    const resid = ref ? parseInt(ref[1], 16) : dvmTodoTextResid(ctx.arc);
+    const line = ref ? +ref[2] + +ref[3] : +vals[0];
+    const lines = resid !== null ? dvmFoldTextArray(ctx.arc, resid) : null;
+    const text = lines && lines.get(line);
+    if (text) dvmFoldNote(ctx, 'To Do ' + vals[0] + ': "' + text + '"');
+  }
+}
+// A text array's entries by their own index field, which is not their
+// position beyond entry 37 of 0x021A (todoRules says the same).
+function dvmFoldTextArray(arc, resid) {
+  return derivedTable(arc, 'foldText' + resid, () => {
+    try {
+      const d = smartDecrypt(getResourceBytes(arc, resid), resid);
+      return new Map(parseDelverTextArray(d.data).map(x => [x.index, x.str]));
+    } catch (e) { quiet(e); return null; }
+  });
+}
+/* The array CompleteQuest's slot is read in: whichever one the archive's own
+   AddQuest calls point into. Found once per archive by walking every function
+   for an AddQuest, which is the only place the file says it; a CompleteQuest
+   carries no reference of its own. */
+function dvmTodoTextResid(arc) {
+  return derivedTable(arc, 'foldTodoResid', () => {
+    for (let subn = 0; subn < 256; subn++) {
+      const e = arc.index[subn];
+      if (!e || !e[0]) continue;
+      for (let k = 0; k < 256; k++) {
+        const resid = (subn + 1) * 0x100 + k;
+        let b;
+        try { const raw = getResourceBytes(arc, resid); if (!raw || !raw.length) continue; b = smartDecrypt(raw, resid).data; }
+        catch (err) { continue; }
+        let objs; try { objs = dvmExtents(b, resid); } catch (err) { continue; }
+        for (const [st, en, kind] of objs) {
+          if (kind !== 'function') continue;
+          let r; try { r = dvmDisassemble(b.subarray(st, Math.min(en, b.length)), 3); } catch (err) { continue; }
+          for (let i = 0; i + 2 < r.ops.length; i++) {
+            if (r.ops[i][2] !== 'sys AddQuest') continue;
+            const m = /(0x[0-9A-F]+)\[\d+\]/i.exec(String(r.ops[i + 2][3]));
+            if (m) return parseInt(m[1], 16);
+          }
+        }
+      }
+    }
+    return null;
+  });
 }
 
 /* A frame whose values are an argument list rather than one expression. */
@@ -390,7 +500,7 @@ function dvmFoldRender(arc, b, resid) {
          below is absolute: the gutter, the labels and the object names then all
          mean the same thing, and it is the thing Edit Bytes shows. */
       const targets = dvmBranchTargets(r.ops);
-      const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0') };
+      const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [] };
       const args = [];
       for (let i = 0; i < seg[1]; i++) args.push('Arg' + i.toString(16).padStart(2, '0').toUpperCase());
       const locals = seg[2] ? '   // ' + seg[2] + ' local' + (seg[2] === 1 ? '' : 's') : '';
@@ -400,9 +510,10 @@ function dvmFoldRender(arc, b, resid) {
       for (const n of forest) {
         const abs = st + n.at;
         if (targets.has(abs)) lines.push('  ' + ctx.label('0x' + hex4(abs)) + ':');
+        ctx.notes = [];
         const text = dvmFoldStatement(n, ctx);
         if (/\/\*under\*\//.test(text)) over++;
-        lines.push('    ' + hex4(abs) + '  ' + text);
+        lines.push('    ' + hex4(abs) + '  ' + text + (ctx.notes.length ? '   // ' + ctx.notes.join('; ') : ''));
       }
       lines.push('}');
       if (r.bad) { lines.push('// ^ decoder desynced (' + r.bad + ' unrecognised bytes) - unreliable'); partial++; }
@@ -950,7 +1061,10 @@ function dvmCondOperand(e) {
 
 /* The three calls, read off the ops rather than the text. Returns what the
    `for` line needs, or null. `prev` is the node before the `while`. */
-function dvmForEach(prev, w, ctx) {
+function dvmForEach(prev, w, ctxIn) {
+  // Its own notes, since this folds before anything is printed; the `for`
+  // line takes them when it is.
+  const ctx = Object.assign({}, ctxIn, { notes: [] });
   if (!prev || prev.kind !== 'stmt' || w.kind !== 'while' || !w.body.length) return null;
   const last = w.body[w.body.length - 1];
   if (last.kind !== 'stmt' || last.stmt.parts || w.cond.parts || w.cond.node.mn !== 'if') return null;
@@ -973,7 +1087,7 @@ function dvmForEach(prev, w, ctx) {
   if (!/^&Var\w+$/.test(state || '') || start.vals[1] !== '0') return null;
   if (test.vals.length !== 2 || test.vals[0] !== state || test.vals[1] !== '1') return null;
   if (step.vals.length !== 2 || step.vals[0] !== state || step.vals[1] !== '2') return null;
-  return { start: prev.stmt, step: last.stmt, name: start.name, args: start.vals.slice(2),
+  return { start: prev.stmt, step: last.stmt, name: start.name, args: start.vals.slice(2), notes: ctx.notes,
            variable: 'Var' + parseInt(slot, 16).toString(16).toUpperCase().padStart(2, '0') };
 }
 
@@ -1076,7 +1190,11 @@ function dvmRemainingLabels(tree, exits) {
 function dvmRenderStructured(tree, ctx, labels, indent, lines, loops) {
   const pad = '    '.repeat(indent);
   const hex4 = v => v.toString(16).toUpperCase().padStart(4, '0');
-  const line = (at, text) => lines.push('    ' + (at === null ? '    ' : hex4(at)) + pad + '  ' + text);
+  // A line takes the notes its text gathered as it folded (dvmFoldNote).
+  const line = (at, text) => {
+    const notes = ctx.notes ? ctx.notes.splice(0) : [];
+    lines.push('    ' + (at === null ? '    ' : hex4(at)) + pad + '  ' + text + (notes.length ? '   // ' + notes.join('; ') : ''));
+  };
   const label = at => { if (at !== null && labels.has(at)) lines.push('  ' + ctx.label('0x' + hex4(at)) + ':'); };
   const fors = loops ? loops.fors : new Map(), exits = loops ? loops.exits : new Map();
   const skip = new Set();
@@ -1109,6 +1227,7 @@ function dvmRenderStructured(tree, ctx, labels, indent, lines, loops) {
         break;
       case 'while':
         if (f) {
+          if (ctx.notes) for (const t of f.notes || []) dvmFoldNote(ctx, t);
           line(f.start.abs, 'for ' + f.variable + ' in ' + f.name + '(' + f.args.join(', ') + ') {');
           dvmRenderStructured(n.body.slice(0, -1), ctx, labels, indent + 1, lines, loops);
           line(f.step.abs, '}');
@@ -1167,7 +1286,7 @@ function dvmStructureRender(arc, b, resid, out) {
     const ph = dvmProseHead(seg.subarray(3));
     if (ph && ph.bare) { lines.push('', name + ' = ' + JSON.stringify(str(ph.head))); continue; }
     const r = dvmDisassemble(seg, 3);
-    const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0') };
+    const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [] };
     const args = [];
     for (let i = 0; i < seg[1]; i++) args.push('Arg' + i.toString(16).padStart(2, '0').toUpperCase());
     const locals = seg[2] ? '   // ' + seg[2] + ' local' + (seg[2] === 1 ? '' : 's') : '';
