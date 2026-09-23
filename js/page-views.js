@@ -279,12 +279,12 @@ function renderAppPefSheet() {
    switch moved here from every gallery that had one: it is one setting for
    every image, and the galleries keep only a preview the other way. */
 function renderToolsSheet() {
-  stopAllViewActivity();
+  /* The file tools -- patches, a sprite of your own, the comparison -- are
+     sections of the rules renderer (MECH_TOOL_GROUP), so it draws the grid
+     first and this sheet's own settings go above them. */
+  renderMechanicsSheet(MECH_TOOL_GROUP.value);
   const grid = document.getElementById('sheetGrid');
   const out = document.getElementById('output');
-  grid.style.display = '';
-  grid.innerHTML = '';
-  document.getElementById('singleControls').style.display = 'none';
   const box = document.createElement('div');
   box.className = 'changesView';
   const sec = (title, note) => {
@@ -383,7 +383,7 @@ function renderToolsSheet() {
           : window.GAME_FONT_STATE ? 'The file’s own could not be used: ' + window.GAME_FONT_STATE + '.'
           : 'No file is open to read the game’s own out of.');
   font.appendChild(fn);
-  grid.appendChild(box);
+  grid.insertBefore(box, grid.firstChild);
   /* What fell back without saying so. Every optional decode that failed
      since the page loaded, kept by quiet() in js/mac-bytes.js, so a
      missing picture or an empty sheet has a reason a visitor can find. At
@@ -1241,7 +1241,7 @@ function renderMonsterSheet() {
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
     lbl.className = 'lbl';
-    lbl.innerHTML = propNameHTML(r.proptype);
+    lbl.innerHTML = unitNameHTML(r.proptype);
     cell.appendChild(lbl);
     const sub = document.createElement('div');
     sub.className = 'resid';
@@ -1251,13 +1251,15 @@ function renderMonsterSheet() {
     cell.onclick = () => showMonsterDetail(r.index);
     grid.appendChild(cell);
   }
-  out.textContent = recs.length + ' monsters defined in 0xF008 (of ' +
+  out.textContent = recs.length + ' units defined in 0xF008 (of ' +
                     parseMonsterStats().length + ' record slots).';
 }
 
 /* ---- byte 4 of a unit's record ------------------------------------------
-   gandreas's 1999 field list calls it Size with a question mark, and the
-   question mark was right: nothing in the application reads it. What does
+   The delvmod wiki's field table calls it "unknown1, probably size" (the
+   page used to say that was gandreas's list, which has no such field and
+   never prints this byte), and the guess was wrong: nothing in the
+   application reads it. What does
    read it is a script, through GetField -- the field whose handler loads
    byte 4 (exeMonsterFields) -- and exactly one script in the shipped file
    asks for that field. It builds a blow as the byte plus a random amount
@@ -1293,8 +1295,8 @@ function monsterDamageSite() {
 }
 function monsterByteNote() {
   const site = monsterDamageSite();
-  if (!site) return 'Damage is byte 4 of the record, which gandreas\u2019s list calls Size with a question mark.';
-  return 'Damage is byte 4, which gandreas\u2019s list calls Size with a question mark. ' +
+  if (!site) return 'Damage is byte 4 of the record.';
+  return 'Damage is byte 4. ' +
     'Nothing in the application reads it and one script does: ' +
     srcNum({ resid: site.resid, at: site.at }, 'it asks for field ' + site.field) +
     ', adds a random amount drawn from Body, and passes the sum to the damage helper.';
@@ -1308,14 +1310,14 @@ function showMonsterDetail(idx) {
   grid.innerHTML = '';
   const back = document.createElement('button');
   back.className = 'secondary';
-  back.textContent = 'All monsters';
+  back.textContent = 'All units';
   back.onclick = renderMonsterSheet;
   grid.appendChild(back);
 
   const r = parseMonsterStats()[idx];
   if (!r) return;
   const tiles = getPropTileList();
-  const nm = propDisplayName(r.proptype) || ('prop type 0x' + r.proptype.toString(16).toUpperCase());
+  const nm = unitDisplayName(r.proptype) || ('prop type 0x' + r.proptype.toString(16).toUpperCase());
   const panel = document.createElement('div');
   panel.style.cssText = 'width:100%;max-width:560px;margin:12px auto;text-align:left';
 
@@ -1338,9 +1340,17 @@ function showMonsterDetail(idx) {
     return srcNum({ resid: 0xF008, byte: r.index * stride + off, stride,
                     what: f ? 'field ' + f.field + ' reads it' : null }, String(v));
   };
+  // Which character stat each of the first three bytes becomes, read off the
+  // constructor that copies them (exeMonsterStatCopy); each name opens the
+  // store. With no application open, the names the record has always had.
+  const copy = appImage() ? exeMonsterStatCopy() : null;
+  const statNames = ['Body', 'Reflex', 'Mind'].map((dflt, k) => {
+    const c = copy && copy[k];
+    return c && c.name ? srcNum(c.to, c.name.charAt(0).toUpperCase() + c.name.slice(1)) : dflt;
+  }).join(' / ');
   h += '<div class="sv-facts">' +
-    '<div><b>Body / Reflex / Mind</b>' + stat(0, r.body) + ' \u00b7 ' + stat(1, r.reflex) + ' \u00b7 ' + stat(2, r.mind) +
-      '<br><span style="font-size:0.6875rem;color:#b5b2a8">The wiki cautions these three may be in a different order than named.</span></div>' +
+    '<div><b>' + statNames + '</b>' + stat(0, r.body) + ' \u00b7 ' + stat(1, r.reflex) + ' \u00b7 ' + stat(2, r.mind) +
+      (copy ? '<br><span style="font-size:0.6875rem;color:#b5b2a8">Each name is the character field the unit\u2019s byte is copied into when the unit is made.</span>' : '') + '</div>' +
     '<div><b>Health</b>' + stat(5, r.hp) + (r.armor ? ' &nbsp; <b>Armor</b> ' + stat(3, r.armor) : '') +
       (r.damage ? ' &nbsp; <b>Damage</b> ' + stat(4, r.damage) : '') +
       (r.alignment ? ' &nbsp; <b>Alignment</b> ' + stat(6, r.alignment) : '') +

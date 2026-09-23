@@ -1093,7 +1093,7 @@ const PLACEHOLDER_TABS = {
     'The 68K CODE resources are in its resource fork, listed under Resource Fork.',
   AISCRIPTS: 'The Combat AI scripts ship beside the game as separate .ai text files, not inside ' +
     'the archive. What the engine runs is the compiled ' +
-    'form, subindex 3, AI Combat Scripts, under Components › Functions › Actors.',
+    'form, subindex 3, AI Combat Scripts, under Components › Functions › Actions.',
   AIRULES: 'The rules those scripts are written against, the AI Scripting Document that ' +
     'ships with them, is a text file beside the game, not inside the archive.',
 };

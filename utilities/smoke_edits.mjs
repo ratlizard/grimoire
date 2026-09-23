@@ -93,6 +93,15 @@ try {
       if (h.indexOf(MARK[o.value]) >= 0) strayTab.push(g.title + ' also shows ' + o.title + '’s ' + MARK[o.value]);
     }
   }
+  // The three sections that write a file are on Tools since 22 September
+  // 2026, and on no Mechanics tab.
+  ctx.showCategory('TOOLS');
+  const tools = walk();
+  for (const t of ['The community’s patches', 'A sprite of your own, as a patch', 'Two files against each other']) {
+    if (tools.indexOf(t) < 0) strayTab.push('Tools does not show ' + t);
+    ctx.showCategory('HACKERY');
+    if (walk().indexOf(t) >= 0) strayTab.push('Hackery still shows ' + t);
+  }
   // foldCard sets sec.id as a PROPERTY, which the stub's `set id` records in
   // REGISTRY; it never appears as an attribute in innerHTML. Grepping the
   // serialised markup for it reported all twenty-five sections missing, which
@@ -546,7 +555,7 @@ try {
    must be empty, so a section that drew its pairs unconditionally would fail
    here rather than look right. */
 try {
-  ctx.showCategory('HACKERY');
+  ctx.showCategory('TOOLS');
   const walk = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const before = walk();
   if (before.indexOf('records no patches applied to it') < 0)
@@ -666,7 +675,7 @@ try {
    back byte for byte and no patch must be offered, so a section that always
    wrote something would fail rather than look right. */
 try {
-  ctx.showCategory('HACKERY');
+  ctx.showCategory('TOOLS');
   const countTag = (el, tag) => (el.tagName === tag ? 1 : 0) +
     (el.children || []).reduce((n, c) => n + countTag(c, tag), 0);
   const host = REGISTRY.get('heroSprite');
@@ -844,7 +853,7 @@ try {
    The download is caught rather than performed: the stub records the last
    blob handed to downloadBlob, which is how export_test works too. */
 try {
-  ctx.showCategory('HACKERY');
+  ctx.showCategory('TOOLS');
   const walk = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!REGISTRY.has('compareFile')) fail('compare', 'no file control on the comparison section');
   const countTag = (el, tag) => (el.tagName === tag ? 1 : 0) +

@@ -271,11 +271,11 @@ const MECH_GROUPS = [
     note: 'What a character gains, and what it costs to be taught.',
     ids: ['experience', 'karma', 'training', 'todo'] },
   { value: 'MECH_STATUS', title: 'Status', tile: 0x3CE,
-    note: 'The body and the clock: what feeds, heals, poisons and wears off.',
-    ids: ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'light', 'springs'] },
+    note: 'The body, the clock, the ground and the light: what feeds, heals, poisons and wears off.',
+    ids: ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'light'] },
   { value: 'MECH_INTERACT', title: 'Interactions', tile: 0x29D,
     note: 'What a thing does when it is used.',
-    ids: ['locks'] },
+    ids: ['target', 'locks', 'springs'] },
   { value: 'MECH_PUZZLES', title: 'Puzzles', tile: 0x266,
     note: 'The ones the file answers outright, a section each.',
     ids: ['braziers', 'buttons', 'riddles', 'tunes', 'signals'] },
@@ -287,8 +287,18 @@ const MECH_GROUPS = [
     ids: ['shops', 'dice'] },
   { value: 'HACKERY', title: 'Hackery', tile: 0x207,
     note: 'The machinery under the scenario, and the places it does not add up.',
-    ids: ['propword', 'charflags', 'classflags', 'target', 'eggs', 'palette', 'syscalls', 'leans', 'loose', 'patches', 'herosprite', 'compare'] },
+    ids: ['propword', 'charflags', 'classflags', 'eggs', 'palette', 'syscalls', 'leans', 'loose'] },
 ];
+/* The sections that write a file rather than read a rule: a patch opened
+   and applied, a sprite made into one, and one file compared with another.
+   They were the tail of Hackery until 22 September 2026, when the maintainer
+   moved them to the Tools tab. They are still built by renderMechanicsSheet,
+   which is where the reading they share lives, and drawn only by the Tools
+   sheet, so the group is kept apart from MECH_GROUPS: a Mechanics tab never
+   lists it and the whole-sheet view does not include it. */
+const MECH_TOOL_GROUP = { value: 'TOOLS', title: 'Files',
+  note: 'Patches, a sprite of your own, and one file against another.',
+  ids: ['patches', 'herosprite', 'compare'] };
 // A group by the category value its tab is selected with.
 const MECH_GROUP_BY_VALUE = {};
 for (const g of MECH_GROUPS) MECH_GROUP_BY_VALUE[g.value] = g;
@@ -301,5 +311,6 @@ for (const g of MECH_GROUPS) MECH_GROUP_BY_VALUE[g.value] = g;
    built section to be in a group so that never ships. */
 function mechGroupOf(id) {
   for (const g of MECH_GROUPS) if (g.ids.indexOf(id) >= 0) return g;
+  if (MECH_TOOL_GROUP.ids.indexOf(id) >= 0) return MECH_TOOL_GROUP;
   return null;
 }

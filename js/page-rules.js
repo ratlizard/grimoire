@@ -4232,6 +4232,44 @@ function exeMonsterFields() {
            keyOffset: key ? exeVal(key, 12) : null };
 }
 
+/* ---- which unit byte becomes which of a character's stats ----------------
+   0xF008's first three bytes were labelled Body, Reflex, Mind by the delvmod
+   wiki's field table, which then said it was not sure of the order, because
+   gandreas's 1999 list does not line up with it: all forty-four of his
+   entries print byte 1 as Body, byte 2 as Reflex and byte 0 as both Mind
+   and Damage. The program settles it. `TActiveMonster::TActiveMonster(short)`
+   builds the live character a unit is: for each stat it loads a byte of the
+   0xF008 record, scales it by a percentage, and stores it into a byte of the
+   character record -- byte 0 into 9, 1 into 10, 2 into 11, 5 (health) into
+   14. GetField's first table says which field serves each of those bytes
+   (exeCharacterFields), and delvmod's symbols name the fields: 9 is `body`,
+   10 `reflex`, 11 `mind`. So the wiki's order was right and the list is
+   shifted, and the unit page's names are read here rather than assumed.
+
+   Found by shape: an `lbz` at 0 to 15 through the register the record
+   pointer was loaded into (`lwz rX, 4(this)`), then the first `stb` after it
+   before another record load. Null with no application open. */
+function exeMonsterStatCopy() {
+  if (!appImage()) return null;
+  const ops = exeOpsNamed('TActiveMonster::TActiveMonster(short)');
+  if (!ops.length) return null;
+  const cf = exeCharacterFields();
+  const out = {};
+  for (let i = 0; i < ops.length; i++) {
+    const d = ops[i].d;
+    if (!d || d.mn !== 'lbz' || d.d < 0 || d.d > 15) continue;
+    // The load's base was fetched as the second word of the object.
+    const src = exeFindBack(ops, i - 1, 6, x => x.mn === 'lwz' && exeDestReg(x) === d.ra);
+    if (src < 0 || ops[src].d.d !== 4) continue;
+    const st = exeFind(ops, i + 1, 12, x => x.mn === 'stb' || x.mn === 'lbz');
+    if (st < 0 || ops[st].d.mn !== 'stb' || out[d.d]) continue;
+    const to = ops[st].d.d;
+    const f = cf && cf.fields ? cf.fields.find(x => x.offset && x.offset.v === to) : null;
+    out[d.d] = { from: exeVal(ops[i], d.d), to: exeVal(ops[st], to), field: f ? f.field : null, name: f ? f.name : null };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 /* ---- where every character flag is set, cleared and tested -----------------
    A character's flags are two things in the record: bits 0 to 7 in one
    byte and 8 up in a halfword and a further byte, which AddAbility maps

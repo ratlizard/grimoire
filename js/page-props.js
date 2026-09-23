@@ -297,6 +297,30 @@ function unitLayout(pt) {
   const k = cls && cls.data.find(x => x.key === 55);
   return k && k.words.length && !(k.words[0] & 0xF0000000) ? { code: k.words[0] & 0x0FFFFFFF, resid: cls.resid, at: k.off } : null;
 }
+/* The class an octopus-kind unit hangs its arms on (its key 54), or null.
+   The hydra is the case: its body is prop type 0x117, whose tiles 0xF004
+   names "polyp" -- the same word as the separate polyp unit 0x115 -- while
+   the arms' class 0x116 is "hydra". So a unit of that kind is called by its
+   arms' name, which is the file's own word for the assembled creature, and
+   the body's name is said beside it. */
+function unitArmClass(pt) {
+  const lay = unitLayout(pt);
+  const kinds = (appImage() && exeMonsterKinds()) || UNIT_KINDS_DEFAULT;
+  if (!lay || !kinds.octo.includes(lay.code)) return null;
+  const cls = parseItemClass(pt);
+  const k54 = cls && cls.data.find(x => x.key === 54);
+  return k54 && k54.words.length && !(k54.words[0] & 0xF0000000) ? (k54.words[0] & 0x0FFFFFFF) : null;
+}
+function unitDisplayName(pt) {
+  const arm = unitArmClass(pt);
+  return (arm !== null && propDisplayName(arm)) || propDisplayName(pt);
+}
+function unitNameHTML(pt) {
+  const arm = unitArmClass(pt);
+  const armName = arm !== null ? propDisplayName(arm) : null;
+  if (!armName || armName === propDisplayName(pt)) return propNameHTML(pt);
+  return propNameHTML(arm);
+}
 /* A unit as a list of animation steps, each step a list of pieces to draw.
    A still picture is the first step. The steps are the thing that moves:
    the arms take the four frames their direction owns, a crawler its head
@@ -324,11 +348,15 @@ function unitSteps(pt) {
     // reports: a frame block stops at the end of the sheet its base tile
     // is on, and the hydra's thirty-two arm tiles are two sheets, so the
     // last four arms fell outside the block and stood still.
+    // The body is aspect 0 to AdjustAspect, and its frames -- the polyp's
+    // mouth -- run on their own as a bird's wings do, so it steps through
+    // them beside the arms rather than standing on its first.
+    const body = info.present.length ? info.present : [0];
     const steps = [];
-    for (let k = 0; k < step; k++) {
-      const ps = [{ tile: base, dx: 0, dy: 0, what: 'the body' }];
+    for (let k = 0; k < Math.max(step, body.length); k++) {
+      const ps = [{ tile: base + body[k % body.length], dx: 0, dy: 0, what: 'the body' }];
       if (arm !== null && tiles[arm] !== undefined)
-        for (let i = 0; i < n; i++) ps.push({ tile: tiles[arm] + i * step + k, dx: dx[i], dy: dy[i], what: 'arm ' + i, pt: arm });
+        for (let i = 0; i < n; i++) ps.push({ tile: tiles[arm] + i * step + (k % step), dx: dx[i], dy: dy[i], what: 'arm ' + i, pt: arm });
       steps.push(ps);
     }
     return { steps, kind: 'octo', layout: lay, arm, rule, step };
@@ -482,14 +510,47 @@ function galleryFrames(e) {
   const own = framesSharingName(e.base, e.info.present);
   const anchors = own.filter(f => (attrs[e.base + f] || 0) & 0xC0);
   const pool = anchors.length ? anchors : own;
-  // Indexed into the pool rather than by frame number, so a beast whose
-  // facing is four tiles -- the titan -- walks its anchors the same way.
-  if (e.alive && pool.length >= SPR_S * 4 + 4 && pool.length % 4 === 0) {
-    const row = pool.slice(SPR_S * 4, SPR_S * 4 + 4);
-    const cyc = WALK_CYCLE.map(c => row[c]).filter(f => f !== undefined);
-    if (cyc.length > 1) return cyc;
+  if (e.alive) {
+    const south = facingReaderFrames(e.pt, own, pool);
+    if (south) return south;
   }
   return pool;
+}
+
+/* The frames a creature walks on the spot facing the reader: every frame
+   its south facing owns, and no other. The maintainer's rule, 20 and
+   22 September 2026: every unit walks, none turns.
+
+   It used to take the south row only when the pool held at least twelve
+   frames, which is the people's layout of four a facing. Everything with
+   fewer -- the eight-frame monsters (the demon, the golem) at two strides a
+   facing, the four-frame ones at one -- fell through to the whole pool, so
+   they turned through all four facings in place and started facing away.
+
+   How many frames a facing owns is the class's layout, key 55, which
+   TActiveMonster::AdjustAspect switches on: code 4 is facing x 4 + step,
+   0, 1 and 10 facing x 2 + step, 3 the facing alone, 7 facing x 8. Every
+   other code sets aspect 0 and leaves it there, so those frames are not
+   facings at all but an animation the tile runs on its own -- the bird's
+   wings, the hydra's mouth, the ooze -- and they keep cycling through the
+   whole pool. A class with no key 55 is a person when it has sixteen
+   frames, which is the one layout every character sheet has.
+
+   A four-a-facing row is walked as the stride 1-2-3-2 (WALK_CYCLE), the
+   fourth column being the standing pose; anything else in its order.
+   Anchors -- the titan's spans -- are filtered by the same test. */
+const FRAMES_PER_FACING = { 4: 4, 0: 2, 1: 2, 10: 2, 3: 1, 7: 8 };
+function facingReaderFrames(pt, own, pool) {
+  if (STATIC_PROPTYPES.has(pt)) return null;
+  const n = own.length;
+  if (!n || own[0] !== 0 || own[n - 1] !== n - 1) return null;
+  const lay = unitLayout(pt);
+  const per = lay ? FRAMES_PER_FACING[lay.code] : (n === 16 ? 4 : undefined);
+  if (!per) return null;
+  const south = pool.filter(f => Math.floor(f / per) === SPR_S);
+  if (!south.length) return null;
+  if (per === 4 && south.length === 4) return WALK_CYCLE.map(c => south[c]);
+  return south;
 }
 
 function propFrameFill(tile) {

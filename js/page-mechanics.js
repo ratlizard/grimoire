@@ -3175,7 +3175,7 @@ function renderMechanicsSheet(value) {
      instead (parseDeepLink). Every section is built either way -- they are read
      off the scripts and the reading is the cost, not the placing -- so a tab
      shows its own and leaves the rest unplaced. */
-  const only = value ? MECH_GROUP_BY_VALUE[value] : null;
+  const only = value ? (value === MECH_TOOL_GROUP.value ? MECH_TOOL_GROUP : MECH_GROUP_BY_VALUE[value]) : null;
   const showing = only ? [only] : MECH_GROUPS;
   const seen = new Set();
   for (const { title, note, ids } of showing) {
@@ -3201,7 +3201,7 @@ function renderMechanicsSheet(value) {
      which is where unplaced machinery belongs anyway. The smoke requires
      this to be empty, so it is a net rather than a habit. */
   const lastGroup = MECH_GROUPS[MECH_GROUPS.length - 1];
-  const orphans = sections.filter(s => !MECH_GROUPS.some(g => g.ids.indexOf(s.id) >= 0));
+  const orphans = sections.filter(s => !MECH_GROUPS.some(g => g.ids.indexOf(s.id) >= 0) && MECH_TOOL_GROUP.ids.indexOf(s.id) < 0);
   // What the smoke reads to fail on an unplaced section, rather than having
   // to infer it from the markup of whichever tab happened to catch it.
   window.MECH_UNPLACED = orphans.map(s => s.id);

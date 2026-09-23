@@ -78,6 +78,10 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         fail('program figures', 'the command costs were misread: ' + JSON.stringify(costs.map(c => [c.routine.name, c.cost && c.cost.v])));
       else if (!et || JSON.stringify(et.table.v) !== '[2,2,2,2,2,1,0,0,2,0,1,0,2,0,0,2]' || et.alignmentByte.v !== 25 || !et.enemy || et.enemy.v !== 0 || !et.peace || et.peace.v !== 1)
         fail('program figures', 'the enemy table was misread: ' + JSON.stringify(et));
+      // Which character stat each unit byte becomes, off the constructor: the
+      // order the wiki doubted, byte 0 body, 1 reflex, 2 mind, 5 health.
+      else if ((sc => !sc || [[0, 9, 'body'], [1, 10, 'reflex'], [2, 11, 'mind'], [5, 14, 'health']].some(([b, to, nm]) => !sc[b] || sc[b].to.v !== to || sc[b].name !== nm || !inRoutine(sc[b].to, 'TActiveMonster::TActiveMonster')))(ctx.exeMonsterStatCopy()))
+        fail('program figures', 'the unit stat copy was misread: ' + JSON.stringify(ctx.exeMonsterStatCopy()));
       // The five 2012 bed measurements, with the program's clock.
       else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
         .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== want))
