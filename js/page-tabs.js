@@ -872,7 +872,8 @@ function readViewHtml(fns) {
     const head = '<div class="readHead">' + svEsc(f.name) + '(' + (f.args || []).join(', ') + ')</div>';
     if (f.answers) return '<div class="readFn">' + head + '<div class="readProse">Answers ' + f.answers + ' prompt' + (f.answers === 1 ? '' : 's') +
       '; the Text view lays them out.</div></div>';
-    return '<div class="readFn">' + head + (f.bad ? '<div class="readProse">Part of this did not decode; the Raw view shows it.</div>' : '') + list(f.clauses || []) + '</div>';
+    const sum = f.summary ? '<div class="readSum">' + svEsc(f.summary.charAt(0).toUpperCase() + f.summary.slice(1)) + '.</div>' : '';
+    return '<div class="readFn">' + head + sum + (f.bad ? '<div class="readProse">Part of this did not decode; the Raw view shows it.</div>' : '') + list(f.clauses || []) + '</div>';
   }).join('');
 }
 

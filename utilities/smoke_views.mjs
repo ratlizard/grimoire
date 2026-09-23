@@ -882,8 +882,13 @@ try {
   const back = REGISTRY.get('textContent').innerHTML;
   if (!on || !/readList/.test(read)) fail('read view', 'the Read view did not show on a script');
   else if (!/Clear flag Arg01, 22/.test(read) || !/is awoken/.test(read)) fail('read view', 'Awaken\'s UseOn is not said: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 200));
+  // A method's first argument is the thing it belongs to, said "it"; a
+  // behaviour the game's own Look text names is said with that word; and
+  // each function heads with what it does.
+  else if (!/UseOn\(it, Arg01\)/.test(read) || !/145 \(sleeping\)/.test(read) || !/readSum">Magic aura effect, play sound, clear flag/.test(read))
+    fail('read view', 'Awaken is not read with "it", the behaviour\'s word or its summary: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 300));
   else if (/readList/.test(back) || !/function UseOn/.test(back)) fail('read view', 'Structured did not bring the listing back');
-  else console.log('  read view: Awaken said in sentences, and Structured brings the listing back');
+  else console.log('  read view: Awaken said in sentences, "it" for what the method belongs to, 145 as sleeping by the game\'s own Look text, a summary at its head; Structured brings the listing back');
 } catch (e) { fail('read view', e); }
 
 /* Walking, as the engine does it, 23 September 2026 (buildPropBlockers,

@@ -18,7 +18,10 @@
 //               or "repeat, and go round again while";
 //   strings     every string the function holds is in its sentences, which is
 //               what catches a print lost in the merging of prints;
-//   words       nothing reads "undefined", "null" or the fold's "/*under*/".
+//   words       nothing reads "undefined", "null" or the fold's "/*under*/";
+//   self        in a method -- a function its class's table reaches, which the
+//               engine calls with the object it belongs to first -- that first
+//               argument is said "it" throughout, and "Arg00" appears nowhere.
 //
 // What it cannot see: whether the words chosen are the right words. A name
 // taken apart says what the name says; if delvmod's name for a syscall is
@@ -28,6 +31,7 @@
 //   --control=calls       every syscall said as nothing
 //   --control=conditions  every block's heading dropped, its body kept
 //   --control=strings     every print clause dropped
+//   --control=self        no function taken to be a method
 import {readFileSync, existsSync} from 'node:fs';
 import vm from 'node:vm';
 import {makeSandbox} from './dom_stub.mjs';
@@ -55,6 +59,8 @@ const CONTROLS = {
     code: `(() => { const was = dvmSayCall; dvmSayCall = function (n, c) { return /^sys /.test(n.mn) ? '' : was(n, c); }; })();`},
   conditions: {say: 'every block’s heading dropped, its body kept',
     code: `(() => { const was = dvmSayTree; dvmSayTree = function (t, c, l) { return was(t, c, l).flatMap(x => x.kids ? x.kids : [x]); }; })();`},
+  self: {say: 'no function taken to be a method',
+    code: `(() => { const was = dvmReadRender; dvmReadRender = function (a, b, r) { return was(a, b, r).map(f => f.self ? Object.assign({}, f, { self: true, clauses: JSON.parse(JSON.stringify(f.clauses).split('"it"').join('"Arg00"').split(' it ').join(' Arg00 ').split('its ').join('Arg00\u2019s ')) }) : f); }; })();`},
   strings: {say: 'every print clause dropped',
     code: `(() => { const was = dvmSayTree; dvmSayTree = function (t, c, l) { return was(t, c, l).filter(x => !/^print /.test(x.text)); }; })();`},
 };
@@ -64,9 +70,9 @@ if (control) {
   console.log(`  (control: ${CONTROLS[control].say})`);
 }
 
-const fails = {calls: [], conditions: [], strings: [], words: []};
+const fails = {calls: [], conditions: [], strings: [], words: [], self: []};
 const stats = ev(`(() => {
-  const out = { functions: 0, answers: 0, calls: 0, conditions: 0, strings: 0, fails: { calls: [], conditions: [], strings: [], words: [] } };
+  const out = { functions: 0, answers: 0, calls: 0, conditions: 0, strings: 0, methods: 0, fails: { calls: [], conditions: [], strings: [], words: [], self: [] } };
   const flat = cl => cl.flatMap(c => [c.text].concat(c.kids ? flat(c.kids) : []));
   const heads = cl => cl.reduce((k, c) => k + (/^(if |while |for each |repeat, and go round again while )/.test(c.text) ? 1 : 0) + (c.kids ? heads(c.kids) : 0), 0);
   const tests = t => t.reduce((k, n) => k + (n.kind === 'if' || n.kind === 'ifelse' || n.kind === 'while' || n.kind === 'dowhile' ? 1 : 0) +
@@ -98,6 +104,7 @@ const stats = ev(`(() => {
         const want = tests(f.tree), have = heads(f.clauses);
         out.conditions += want;
         if (want !== have) out.fails.conditions.push(where + ': ' + want + ' tests, ' + have + ' clauses');
+        if (f.self) { out.methods++; if (/\\bArg00\\b/.test(text)) out.fails.self.push(where + ' says Arg00'); }
         const bad = /\\bundefined\\b|\\bnull\\b|\\/\\*under\\*\\//.exec(text);
         if (bad) out.fails.words.push(where + ': "' + bad[0] + '"');
       }
@@ -113,7 +120,7 @@ for (const [what, list] of Object.entries(stats.fails)) {
   failures++;
   console.error(`FAIL ${what}: ${list.length} -- ${list.slice(0, 6).join('; ')}${list.length > 6 ? '; ...' : ''}`);
 }
-const line = `read ${stats.functions} functions: ${stats.calls} calls, ${stats.conditions} tests and ${stats.strings} strings said; ` +
+const line = `read ${stats.functions} functions: ${stats.calls} calls, ${stats.conditions} tests and ${stats.strings} strings said, ${stats.methods} methods said of "it"; ` +
   `${stats.answers} conversation functions left to the Text view`;
 if (failures) { console.error(line); process.exit(1); }
 console.log(line);
