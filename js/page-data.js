@@ -486,6 +486,34 @@ function exePrefDefaults() {
   return out.words.length ? out : null;
 }
 
+/* The backdrop, read out of TBackdropWind::LoadPattern. The window behind
+   every other window fills itself with one pattern, and which pattern is the
+   only setting in the game that no menu item and no dialog control writes --
+   the `Backdrop` ordinal, which nothing in the program stores at all.
+
+   LoadPattern branches on the stored long. Below a constant it is a general
+   graphic, whose resource id is the long plus a base the code adds with an
+   `addis`/`addi` pair; at or above it, and for every negative, it is a
+   'ppat' whose id is a base MINUS the long, made with `neg` and an `addi`.
+   All three numbers are read here, so a build that moved any of them moves
+   the choices with it. Which ids actually exist is then a question for the
+   files rather than for the program: the graphics are the archive's, the
+   pixel patterns the application fork's. */
+function exeBackdropChoices() {
+  const ops = exeOpsNamed('TBackdropWind::LoadPattern');
+  if (!ops.length) return null;
+  const get = ops.findIndex(o => exeCalls(o, 'GetPixPat'));
+  const neg = get >= 0 ? exeFindBack(ops, get, 8, d => d.mn === 'neg') : -1;
+  const sub = neg >= 0 ? exeFind(ops, neg + 1, 4, d => d.mn === 'addi' && d.ra === ops[neg].d.rd) : -1;
+  const hi = ops.findIndex(o => o.d && o.d.mn === 'addis' && o.d.imm === 1 && o.d.ra !== 0);
+  const lo = hi >= 0 ? exeFind(ops, hi + 1, 4, d => d.mn === 'addi' && d.ra === ops[hi].d.rd) : -1;
+  const cmp = ops.findIndex(o => o.d && o.d.mn === 'cmpwi');
+  if (sub < 0 || lo < 0 || cmp < 0) return null;
+  return { limit: exeVal(ops[cmp], ops[cmp].d.imm),
+           pixPat: exeVal(ops[sub], ops[sub].d.imm),
+           graphic: exeVal(ops[lo], (0x10000 + ops[lo].d.imm) >>> 0) };
+}
+
 /* The startup wait: main tests the gate's bit and, when it is set, spins on
    TickCount until the tick count it started at plus a constant. */
 function exeStartupWait(gate) {
@@ -519,10 +547,19 @@ function exePrefKeys() {
         }
       }
       if (name === 'SavePrefs' || name === 'LoadPrefs') len = exeArgOf(ops, c.i, 6);
+      // An ordinal is a long inside the key's resource, picked by a short:
+      // GetOrdinal(key, index, default) takes the fallback in r6 as well, and
+      // that fallback is the only statement of a setting's default the
+      // program makes.
+      let index = null, dflt = null;
+      if (name === 'GetOrdinal') { index = exeArgOf(ops, c.i, 5); dflt = exeArgOf(ops, c.i, 6); }
+      else if (name === 'SetOrdinal') index = exeArgOf(ops, c.i, 5);
       if (!key) continue;
-      if (!out.has(key.v)) out.set(key.v, { key, kind: name.replace(/^(Save|Load)Prefs$/, 'Prefs').replace(/^(Set|Get)/, ''), len: null, writers: [], readers: [] });
+      if (!out.has(key.v)) out.set(key.v, { key, kind: name.replace(/^(Save|Load)Prefs$/, 'Prefs').replace(/^(Set|Get)/, ''), len: null, index: null, dflt: null, writers: [], readers: [] });
       const e = out.get(key.v);
       if (len && !e.len) e.len = len;
+      if (index && e.index === null) e.index = index;
+      if (dflt && e.dflt === null) e.dflt = dflt;
       e[dir === 'write' ? 'writers' : 'readers'].push({ routine: c.routine, exe: ops[c.i].at });
     }
   }

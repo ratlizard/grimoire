@@ -120,6 +120,17 @@ const PREF_SMOOTH_ITEM = 'Smoother Movement';
    256 colours is what the game recommends in its own words, and a file written
    to change a setting should not then stop to ask a question. */
 const PREF_STARTUP_ITEMS = ['Switch to 256 Colors', "Don't Ask Again"];
+/* The ordinals' ranges, which are the one thing here the program does not
+   state. Each is a plain long and the code clamps nothing, so the limit is
+   what the Toolbox call at the end of the chain means by "full":
+   TAudio::SetSoundVolume multiplies by 32 into the Sound Manager's 0-256,
+   and GMSSetVolume multiplies by 8,192 into a Fixed, where 65,536 is unity
+   gain -- so both scales top out at 8, and both are eighths. Volume also
+   takes -1, which SetSoundVolume sends down a different branch that leaves
+   the machine's own level alone; MENU 131 calls that one "System Volume".
+   Ambient is a flag. `Backdrop` is deliberately absent: its values are read
+   out of the program and the two files instead (cytheraBackdropOptions). */
+const PREF_ORDINAL_RANGE = { Volume: { min: -1, max: 8 }, Music: { min: 0, max: 8 }, Ambient: { min: 0, max: 1 } };
 function cytheraPrefsLayout() {
   if (!appImage()) return null;
   const kr = exeKeyRoutine(), fields = exePrefFields(), defaults = exePrefDefaults(), acc = exePrefsAccess();
@@ -143,9 +154,81 @@ function cytheraPrefsLayout() {
       if (f.lo === f.hi && w.item && w.item.dialog && w.item.texts.length === 1 && w.item.texts[0] === text &&
           !startup.some(x => x.text === text))
         startup.push({ byte: f.byte, bit: f.lo, text, value: w.value && typeof w.value.v === 'number' ? w.value.v : 1 });
+  /* The record's settings that are a CHOICE rather than a switch, gathered
+     without being named. Every menu item that writes the record is a named
+     value for some run of bits; group the items by the set of fields they
+     write, and a group with three or more numeric options is a choice. That
+     picks out exactly two on this build -- the three movement stops, which
+     write two bits between them, and the three frame-rate caps, which write
+     one four-bit field -- and leaves the on/off items to the checkboxes
+     above. A build that added a fourth stop would grow the control. */
+  const byText = new Map();
+  for (const f of fields) for (const w of f.writers)
+    if (w.item && w.item.menu && w.item.texts.length === 1 && w.value && typeof w.value.v === 'number') {
+      const t = w.item.texts[0];
+      if (!byText.has(t)) byText.set(t, []);
+      byText.get(t).push({ byte: f.byte, lo: f.lo, hi: f.hi, value: w.value.v });
+    }
+  const groups = new Map();
+  for (const [text, sets] of byText) {
+    const k = sets.map(x => x.byte + ':' + x.lo + ':' + x.hi).sort().join(',');
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push({ text, sets });
+  }
+  const choices = [...groups.values()].filter(g => g.length >= 3)
+    .map(g => ({ opt: 'c' + g[0].sets.map(x => x.byte + '_' + x.lo).join('_'), options: g }));
+
+  /* The other keys of the file: the four ordinals, each a long the program
+     fetches with a fallback. The fallback in the code is not the whole
+     default, because GetOrdinal searches the resource chain and the
+     application's own fork ships two of these keys -- so the value a fresh
+     install reads is the shipped resource when there is one, and the code's
+     fallback otherwise. Both are carried; `dflt` is the one a visitor is
+     actually changing away from. */
+  const fork = window.APP_RSRC;
+  const shipped = key => {
+    try {
+      const e = fork && (fork.resourcesByType[type.v] || []).find(x => x.name === key);
+      const d = e ? fork.dataOf(type.v, e) : null;
+      return d && d.length >= 4 ? ((d[0] << 24 | d[1] << 16 | d[2] << 8 | d[3]) | 0) : null;
+    } catch (e) { return null; }
+  };
+  const ordinals = exePrefKeys().filter(e => e.kind === 'Ordinal' && e.index && e.dflt)
+    .map(e => ({ key: e.key.v, index: e.index.v, code: e.dflt.v | 0, shipped: shipped(e.key.v), writers: e.writers.length }))
+    .map(o => Object.assign(o, { dflt: o.shipped === null ? o.code : o.shipped }));
   return { key: rec.key.v, bytes: rec.len.v, base: defaults.words[0].v >>> 0, controls, smooth, smoothLabel: smooth.length ? PREF_SMOOTH_ITEM : null,
            startup, startupLabel: startup.length === PREF_STARTUP_ITEMS.length ? startup.map(x => x.text).join(', and ') : null,
+           choices, ordinals, backdrop: cytheraBackdropOptions(),
            gate: { byte: kr.gate.byte.v, bit: kr.gate.bit.v, word: kr.gate.word.v }, type: type.v };
+}
+
+/* What `Backdrop` can be set to, from the program's three numbers and the
+   two files' contents. Below the limit the long is a general graphic, `base
+   + n`; at or above it, and for every negative, it is a 'ppat' of
+   `base - n`, and the application's fork says which of those exist -- so the
+   list is short because the game ships two of each, not because two were
+   chosen here. Null when the program is not open. */
+function cytheraBackdropOptions() {
+  const b = exeBackdropChoices();
+  if (!b) return null;
+  const out = [];
+  for (let n = 0; n < b.limit.v; n++) {
+    const resid = b.graphic.v + n;
+    // Not gated on the open archive: the range is the program's statement,
+    // and which archive happens to be loaded here is a different question.
+    let name = null;
+    try { name = typeof labelFor === 'function' ? labelFor(resid) : null; } catch (e) { name = null; }
+    out.push({ value: n, what: 'graphic', resid, label: name || ('graphic 0x' + resid.toString(16).toUpperCase()) });
+  }
+  const fork = window.APP_RSRC;
+  const pats = [];
+  try { for (const e of (fork ? fork.resourcesByType['ppat'] || [] : [])) pats.push(e.id); } catch (e) { /* none */ }
+  for (const id of pats.sort((x, y) => x - y)) {
+    const n = b.pixPat.v - id;
+    if (n >= 0 && n < b.limit.v) continue;          // the graphics' own range
+    out.push({ value: n, what: 'ppat', resid: id, label: '\u2018ppat\u2019 ' + id });
+  }
+  return out.length ? out : null;
 }
 // The resource type the store files a key under: the four characters
 // TPrefs::SavePrefs hands Get1NamedResource.
@@ -167,15 +250,43 @@ function cytheraPrefsRecord(opts, layout) {
   const put = (byte, lo, hi, v) => { const m = ((1 << (hi - lo + 1)) - 1) << lo; b[byte] = (b[byte] & ~m) | ((v << lo) & m); };
   for (const c of L.controls) if (o[c.opt] !== undefined) put(c.byte, c.bit, c.bit, o[c.opt] ? 1 : 0);
   if (o.smooth) for (const x of L.smooth) put(x.byte, x.lo, x.hi, x.value);
+  // A choice is named by the game's own item text; every field that item
+  // writes is written, so a stop spread over two bits lands whole.
+  for (const c of L.choices) {
+    const want = o[c.opt];
+    const picked = want ? c.options.find(x => x.text === want) : null;
+    if (picked) for (const x of picked.sets) put(x.byte, x.lo, x.hi, x.value);
+  }
   if (o.switch256) for (const x of L.startup) put(x.byte, x.bit, x.bit, x.value);
   if (o.cheats) put(L.gate.byte, L.gate.bit, L.gate.bit, 1);
   return b;
 }
+// One ordinal's resource: (index + 1) longs, the value at its index and the
+// rest zero. Exactly that length, because GetOrdinal answers its caller's
+// fallback for a resource that holds more longs than the index asks for.
+function cytheraOrdinalRecord(value, index) {
+  const b = new Uint8Array((index + 1) * 4), at = index * 4, v = value | 0;
+  b[at] = (v >>> 24) & 255; b[at + 1] = (v >>> 16) & 255; b[at + 2] = (v >>> 8) & 255; b[at + 3] = v & 255;
+  return b;
+}
+// The ordinals a set of options actually changes: a key left at the value a
+// fresh install would read is not written at all, so the file says only what
+// it means to say.
+function cytheraOrdinalsFor(opts, L) {
+  const o = opts || {};
+  return (L.ordinals || []).filter(x => o[x.key] !== undefined && (o[x.key] | 0) !== x.dflt)
+                           .map(x => ({ key: x.key, index: x.index, value: o[x.key] | 0 }));
+}
 // One line naming what a record asks for, for the status line and the script.
 function prefsSummary(o) {
-  const parts = [o.smooth ? 'smoother movement' : 'the stepped movement',
-                 o.cheats ? 'the cheat keys allowed' : 'no cheat keys'];
+  const parts = [o.cheats ? 'the cheat keys allowed' : 'no cheat keys'];
+  if (o.smooth) parts.unshift('smoother movement');
   if (o.switch256) parts.push('256 colours chosen at startup without asking');
+  const L = cytheraPrefsLayout();
+  if (L) {
+    for (const c of L.choices) if (o[c.opt] && c.options.some(x => x.text === o[c.opt])) parts.push('\u201c' + o[c.opt] + '\u201d');
+    for (const x of cytheraOrdinalsFor(o, L)) parts.push(x.key + ' ' + x.value);
+  }
   if (o.liveDrag) parts.push('live dragging');
   if (o.manualContainers) parts.push('containers placed by hand');
   if (o.motionFilters) parts.push('motion filters');
@@ -188,9 +299,11 @@ function prefsSummary(o) {
 function buildCytheraPreferences(opts) {
   const L = cytheraPrefsLayout();
   if (!L) throw new Error('the preferences record is read out of the application, and it is not open');
-  return writeResourceFork([
-    { type: L.type, id: 130, name: L.key, data: cytheraPrefsRecord(opts, L) }
-  ]);
+  const out = [{ type: L.type, id: 130, name: L.key, data: cytheraPrefsRecord(opts, L) }];
+  let id = 131;
+  for (const x of cytheraOrdinalsFor(opts, L))
+    out.push({ type: L.type, id: id++, name: x.key, data: cytheraOrdinalRecord(x.value, x.index) });
+  return writeResourceFork(out);
 }
 function prefsInstallScript(opts) {
   const o = opts || {};
@@ -204,9 +317,8 @@ function prefsInstallScript(opts) {
     '-- It replaces the file, so any settings already stored are lost with it.',
     '-- Move the old one aside first if you care about them.',
     '--',
-    '-- Smoother movement: ' + (o.smooth ? 'ON' : 'off') +
-      '. Cheat keys allowed: ' + (o.cheats ? 'ON: type ' + ((cytheraPrefsLayout() || { gate: {} }).gate.word || 'the code') + ' in the map window' : 'off') + '.',
-    '-- The record asks for ' + prefsSummary(o) + '.',
+    '-- Cheat keys allowed: ' + (o.cheats ? 'ON: type ' + ((cytheraPrefsLayout() || { gate: {} }).gate.word || 'the code') + ' in the map window' : 'off') + '.',
+    '-- The file asks for ' + prefsSummary(o) + '.',
     '--',
     'tell application "Finder"',
     '\tset src to file "' + PREFS_FILE_NAME + '" of disk "' + PREFS_VOLUME_NAME + '"',
@@ -236,8 +348,14 @@ function buildPrefsDiskImage(opts) {
 }
 function prefsOptionsFromUI() {
   const on = id => { const e = document.getElementById(id); return e ? !!e.checked : undefined; };
-  const o = { smooth: on('prefSmooth'), cheats: on('prefCheats'), switch256: on('prefSwitch256') };
+  const pick = id => { const e = document.getElementById(id); return e && e.value !== '' ? e.value : undefined; };
+  const o = { cheats: on('prefCheats'), switch256: on('prefSwitch256') };
   for (const [opt] of PREF_OPTIONS) o[opt] = on('pref' + opt[0].toUpperCase() + opt.slice(1));
+  const L = cytheraPrefsLayout();
+  if (L) {
+    for (const c of L.choices) o[c.opt] = pick('pref_' + c.opt);
+    for (const x of L.ordinals) { const v = pick('prefOrd_' + x.key.replace(/\W/g, '')); if (v !== undefined) o[x.key] = parseInt(v, 10); }
+  }
   return o;
 }
 function downloadCytheraPrefs(kind) {

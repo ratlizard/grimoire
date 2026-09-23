@@ -221,14 +221,40 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     try {
       ctx.showCategory('TOOLS');
       const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-      const switches = ['prefSmooth', 'prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects', 'prefSwitch256'];
+      const switches = ['prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects', 'prefSwitch256'];
+      // The settings that are a choice rather than a switch, and the file's
+      // other keys. Named by what they say rather than by an element id,
+      // since a field's id is its own bit positions.
+      // The record's own choices wear the game's menu text. The backdrop's
+      // options are checked by the values they write, not by their labels:
+      // a graphic is labelled by the page's own labelFor, which answers
+      // differently with and without an archive open, and either answer is
+      // the name the rest of the page uses for that resource.
+      const choices = ['Smoother Movement', 'Fastest Movement', 'Limit to 10 FPS'];
+      const missingChoices = choices.filter(t => !tools.includes(t));
+      const back = ctx.cytheraPrefsLayout().backdrop || [];
+      const backWrong = back.map(b => b.value).join() !== '0,1,-1,-2' ||
+        back.filter(b => b.what === 'ppat').map(b => b.resid).join() !== '128,129' ||
+        !back.every(b => new RegExp(`value="${b.value}"`).test(tools));
+      const ords = ['prefOrd_Volume', 'prefOrd_Music', 'prefOrd_Ambient', 'prefOrd_Backdrop'].filter(id => !new RegExp(`id="${id}"`).test(tools));
       const missing = switches.filter(id => !new RegExp(`id="${id}"`).test(tools));
       const rec = o => [...ctx.cytheraPrefsRecord(o)];
       const bitsWrong = rec({ liveDrag: true })[0] !== 0x19 || rec({ manualContainers: true })[0] !== 0x58 ||
         rec({ motionFilters: true })[1] !== 0x88 || rec({ walkAround: true })[1] !== 0xC0 || rec({ zoomRects: false })[1] !== 0x00 ||
         rec({ smooth: true, cheats: true }).join() !== [0x9A, 0x80, 0, 1].join() ||
         rec({ switch256: true })[1] !== 0xB0;
+      // A file that sets one ordinal carries two resources, not one, and an
+      // ordinal left at what a fresh install reads is not written at all.
+      const forkOf = o => ctx.openResourceFork(ctx.buildCytheraPreferences(o));
+      const names = o => forkOf(o).all().map(x => x.entry.name).join(',');
+      const ordWrong = names({}) !== 'UI Prefs' || names({ Backdrop: -2 }) !== 'UI Prefs,Backdrop' ||
+        names({ Volume: 5 }) !== 'UI Prefs' ||
+        [...forkOf({ Backdrop: -2 }).dataOf('Pref', forkOf({ Backdrop: -2 }).resourcesByType['Pref'][1])].join() !== [255, 255, 255, 254].join();
       if (missing.length) fail('preferences', 'switches missing from the Tools tab: ' + missing.join(', '));
+      else if (ords.length) fail('preferences', 'ordinal choosers missing from the Tools tab: ' + ords.join(', '));
+      else if (missingChoices.length) fail('preferences', 'the Tools tab does not offer: ' + missingChoices.join(', '));
+      else if (backWrong) fail('preferences', 'the backdrop choices are not the four the program and the two files give: ' + JSON.stringify(back));
+      else if (ordWrong) fail('preferences', 'an ordinal key is written when it should not be, or with the wrong bytes');
       else if (!/Manually Place Containers/.test(tools) || !/Smoother Movement/.test(tools)) fail('preferences', 'the switches do not wear the game’s own labels');
       else if (bitsWrong) fail('preferences', 'a switch does not land on the bit the program writes for it: ' + JSON.stringify(ctx.cytheraPrefsLayout()));
       else if (/never been tried|untried/.test(tools)) fail('preferences', 'the section still calls the file untried');
@@ -240,7 +266,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!/id="prefSwitch256" checked/.test(tools)) fail('preferences', 'the 256-colour answer is not ticked by default');
       else if (!/Switch to 256 Colors/.test(tools) || !/Don't Ask Again/.test(tools)) fail('preferences', 'the 256-colour switch does not wear the dialog\u2019s own labels');
       else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
-      else console.log(`  preferences: ${switches.length} switches on the Tools tab with the game's labels, each bit where the program writes it, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);
+      else console.log(`  preferences: ${switches.length} switches and ${ctx.cytheraPrefsLayout().choices.length + ctx.cytheraPrefsLayout().ordinals.length} choosers on the Tools tab with the game's labels, each bit where the program writes it, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);
     } catch (e) { fail('preferences', e); }
     // The dialogue box, drawn now the application is here. The frame is a
     // PNG encoded asynchronously, so it is waited for rather than timed.

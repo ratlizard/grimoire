@@ -202,6 +202,31 @@ check('its two bits wear the startup dialog\u2019s own labels',
 check('the cheat gate is bit 0 of byte 3 and touches nothing else',
       (function () { const a = prefRecord({ smooth: true }), b = prefRecord({ smooth: true, cheats: true });
         return a.length === 4 && b.length === 4 && a.every((v, i) => i === 3 ? (v ^ b[i]) === 1 : v === b[i]); })());
+// The other keys. Until v1.149.0 this writer made one resource; the file it
+// makes now has one per key the visitor moved, and only those -- an ordinal
+// left where a fresh install would read it is not written, so the file says
+// only what it means to say. Exactly four bytes each, because GetOrdinal
+// hands its caller the fallback for a resource holding more longs than the
+// index asks for.
+const forkNames = o => ctx.openResourceFork(ctx.buildCytheraPreferences(o)).all().map(x => `${x.entry.name}`);
+const ordBytes = (o, name) => { const f = ctx.openResourceFork(ctx.buildCytheraPreferences(o));
+  const e = (f.resourcesByType['Pref'] || []).find(x => x.name === name); return e ? [...f.dataOf('Pref', e)] : null; };
+check('a file that changes nothing else holds only the record', forkNames({}).join() === 'UI Prefs', forkNames({}).join());
+check('an ordinal left at what a fresh install reads is not written',
+      forkNames({ Volume: 5, Music: 2, Ambient: 1, Backdrop: 0 }).join() === 'UI Prefs',
+      forkNames({ Volume: 5, Music: 2, Ambient: 1, Backdrop: 0 }).join());
+check('each ordinal moved adds its own named resource',
+      forkNames({ Volume: -1, Backdrop: -2 }).join() === 'UI Prefs,Volume,Backdrop',
+      forkNames({ Volume: -1, Backdrop: -2 }).join());
+check('an ordinal is four bytes, and a negative is written whole',
+      (ordBytes({ Backdrop: -2 }, 'Backdrop') || []).join() === [255, 255, 255, 254].join() &&
+      (ordBytes({ Volume: -1 }, 'Volume') || []).join() === [255, 255, 255, 255].join(),
+      JSON.stringify(ordBytes({ Backdrop: -2 }, 'Backdrop')));
+check('the record’s own choices land where the game’s menu items write them',
+      (function () { const L = ctx.cytheraPrefsLayout(), m = L.choices.find(c => c.options.some(o => /Movement$/.test(o.text)));
+        if (!m) return false;
+        const at = t => [...ctx.cytheraPrefsRecord({ [m.opt]: t }, L)][0];
+        return at('Fastest Movement') === 0x18 && at('Faster Movement') === 0x98 && at('Smoother Movement') === 0x9A; })());
 check('the data fork is empty, as the real file’s is', ctx.buildCytheraPreferences({}).length > 0);
 // The two ways out. Neither is read back here -- loader_test drives MacBinary
 // and hfs_check drives the disk image -- but a builder that throws or writes

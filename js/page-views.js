@@ -322,18 +322,55 @@ function renderToolsSheet() {
     pfNote.innerHTML = svEsc('The ' + layout.bytes + '-byte ‘' + layout.type + '’ “' + layout.key + '” record, which lives in the System Folder’s Preferences folder. ' +
       'The switches are the game’s own: the labels of its Preferences dialog' + (layout.smoothLabel ? ', and “' + layout.smoothLabel + '” from its unlisted Preferences menu, which the record the game first stores leaves off' : '') + '. ' +
       (layout.startupLabel ? 'Then the answer to the one question the game asks on its own, on a screen deeper than 256 colours: this writes “' + layout.startupLabel + '”, so it switches and does not ask. ' : '') +
+      'The row below holds the settings that are a choice rather than a switch, and the file’s other keys — the sound and music volumes, the ambient sounds, and the pattern the screen behind every window is filled with, which no menu item and no dialog in the game ever writes. ' +
+      'Each starts where a fresh install would be, and a key left there is not written at all. ' +
       'The last is the gate on the cheat keys, which nothing in the game ever sets, so a shipped copy cannot enter cheat mode however long you type ' + layout.gate.word + ' at it. ' +
       'The Cheats sheet has the record field by field.');
     const prefsRow = document.createElement('div');
     prefsRow.style.cssText = 'display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin:8px 0 6px';
     const prefBox = (id, label, on) => '<label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '> ' + svEsc(label) + '</label>';
+    const prefSel = (id, label, opts, chosen) => '<label style="display:inline-flex;align-items:center;gap:6px">' + svEsc(label) +
+      ' <select id="' + svEsc(id) + '">' + opts.map(o => '<option value="' + svEsc(String(o.v)) + '"' +
+        (o.v === chosen ? ' selected' : '') + '>' + svEsc(o.t) + '</option>').join('') + '</select></label>';
     const idOf = opt => 'pref' + opt[0].toUpperCase() + opt.slice(1);
     prefsRow.innerHTML =
-      (layout.smoothLabel ? prefBox('prefSmooth', layout.smoothLabel, true) : '') +
       layout.controls.map(c => prefBox(idOf(c.opt), c.label, !!((layout.base >>> (24 - 8 * c.byte)) & (1 << c.bit)))).join('') +
       (layout.startupLabel ? prefBox('prefSwitch256', layout.startupLabel, true) : '') +
       prefBox('prefCheats', 'Allow the cheat keys', true);
     pf.appendChild(prefsRow);
+    /* The settings that are a choice rather than a switch: the record's own
+       multi-value fields, then the file's other keys. Each wears the game's
+       words -- a field's options are the menu items that write it and its
+       label is what those items say in common, and an ordinal is labelled by
+       the key it is stored under. Every one starts where a fresh install
+       would be, so a row left alone writes nothing but the record. */
+    const choiceRow = document.createElement('div');
+    choiceRow.style.cssText = prefsRow.style.cssText;
+    const field = (byte, lo, hi) => (((layout.base >>> (24 - 8 * byte)) & 255) >> lo) & ((1 << (hi - lo + 1)) - 1);
+    const affix = texts => {
+      const w = texts.map(t => t.split(/\s+/).filter(Boolean)), n = Math.min(...w.map(x => x.length));
+      const tail = [];
+      for (let i = 1; i <= n; i++) { const last = w.map(x => x[x.length - i]); if (last.every(x => x === last[0])) tail.unshift(last[0]); else break; }
+      if (tail.length) return tail.join(' ');
+      const head = [];
+      for (let i = 0; i < n; i++) { const first = w.map(x => x[i]); if (first.every(x => x === first[0])) head.push(first[0]); else break; }
+      return head.join(' ');
+    };
+    let choiceHTML = '';
+    for (const c of layout.choices) {
+      const cur = c.options.find(op => op.sets.every(x => field(x.byte, x.lo, x.hi) === x.value));
+      choiceHTML += prefSel('pref_' + c.opt, affix(c.options.map(o => o.text)) || 'Setting',
+                            c.options.map(o => ({ v: o.text, t: o.text })), cur ? cur.text : null);
+    }
+    for (const o of layout.ordinals) {
+      let opts = null;
+      const r = PREF_ORDINAL_RANGE[o.key];
+      if (r) { opts = []; for (let v = r.min; v <= r.max; v++) opts.push({ v, t: String(v) }); }
+      else if (layout.backdrop) opts = layout.backdrop.map(b => ({ v: b.value, t: b.label }));
+      if (!opts || !opts.some(x => x.v === o.dflt)) continue;
+      choiceHTML += prefSel('prefOrd_' + o.key.replace(/\W/g, ''), o.key, opts, o.dflt);
+    }
+    if (choiceHTML) { choiceRow.innerHTML = choiceHTML; pf.appendChild(choiceRow); }
     const pbtns = document.createElement('div');
     pbtns.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
     for (const [label, kind, title] of [
