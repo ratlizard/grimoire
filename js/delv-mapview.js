@@ -111,7 +111,7 @@ function drawSchedulePath(ctx, TS, cm, colour) {
     for (let i = 0; i < here.length; i++) {
       const a = here[i], b = here[(i + 1) % here.length];
       let leg = null;
-      if (m) { try { leg = findPath(m, a.x, a.y, b.x, b.y); } catch (e) { leg = null; } }
+      if (m) { try { leg = findPath(m, a.x, a.y, b.x, b.y, keysCarriedBy(who)); } catch (e) { leg = null; } }
       legs.push({ pts: leg && leg.length ? leg : [[a.x, a.y], [b.x, b.y]], hour: a.hour, i });
     }
   }

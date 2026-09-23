@@ -781,3 +781,42 @@ try {
     fail('draw passes', 'the mountain under the arch at (163,20) is not in an earlier pass than the arch');
   else console.log('  draw passes: Land King Hall\'s carpet goes under its arch, the world\'s mountain under the arch into the hall');
 } catch (e) { fail('draw passes', e); }
+
+/* Walking, as the engine does it, 23 September 2026 (buildPropBlockers,
+   findPath, keepApart). Cademia's portcullis at (52,35) is flagged 0x80 --
+   raised -- so the engine neither draws it nor stops at it; the page did
+   both, and Naxos could not reach the hall behind it. The control is the
+   same leg with the 0x80 record counted: it does not arrive. */
+try {
+  const e = ctx.renderMapUncached(0x8008), m = e.result.m, W = m.width;
+  ctx.CUR_MAP = { resid: 0x8008, level: 8, m };
+  peek('DERIVED').PROP_BLOCK = null;
+  const bl = ctx.buildPropBlockers(0x8008, m);
+  const sc = ctx.loadSchedules();
+  let legs = 0, crossed = 0, reached = 0;
+  sc.forEach((s, ci) => {
+    const real = (s || []).filter(x => x.mode !== 0);
+    for (let k = 0; k < real.length; k++) {
+      const a = real[k], b = real[(k + 1) % real.length];
+      if (a.level !== 8 || b.level !== 8) continue;
+      legs++;
+      const p = ctx.findPath(m, a.x, a.y, b.x, b.y, ctx.keysCarriedBy(ci));
+      if (p.reached) reached++;
+      for (let j = 1; j < p.length - 1; j++) if (bl.has(p[j][1] * W + p[j][0])) crossed++;
+    }
+  });
+  const port = e.result.props.some(d => d.rec.x === 52 && d.rec.y === 35 && d.rec.flags === 0x80);
+  const naxos = ctx.findPath(m, 29, 45, 51, 24, null);
+  // The control: the portcullis's square blocked as the old rule had it.
+  bl.add(35 * W + 52); peek('pathCache').clear();
+  const shut = ctx.findPath(m, 29, 45, 51, 24, null);
+  bl.delete(35 * W + 52); peek('pathCache').clear();
+  const two = [{ walking: false, x: 5, y: 5 }, { walking: true, x: 5, y: 5, pi: 2, dir: 1, base: 0, path: [[3, 5], [4, 5], [5, 5]] }];
+  ctx.keepApart(two);
+  if (crossed) fail('walking', crossed + ' squares of Cademia\'s routes are blocked ones');
+  else if (reached < legs * 0.9) fail('walking', 'only ' + reached + ' of ' + legs + ' of Cademia\'s legs arrive');
+  else if (port) fail('walking', 'the raised portcullis at (52,35) is drawn');
+  else if (!naxos.reached || shut.reached) fail('walking', 'Naxos\'s way to the hall does not turn on the portcullis: open ' + naxos.reached + ', shut ' + shut.reached);
+  else if (two[1].x !== 4) fail('walking', 'a walker stepped onto a square somebody stands on');
+  else console.log('  walking: ' + reached + ' of ' + legs + ' of Cademia\'s legs arrive, none through a blocked square; the raised portcullis is not drawn and not in the way; a walker waits behind someone standing');
+} catch (e) { fail('walking', e); }

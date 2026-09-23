@@ -1963,94 +1963,87 @@ function drawLighting(lensCtx, lensTS, rect) {
   if (!lensCtx) scheduleLensPaint();
 }
 
+/* WHERE A PERSON CAN WALK, as the engine decides it (22 September 2026).
+
+   TGameSys::CanMove asks TViewer::BuildStageEntry for the square, which is
+   every attribute word on it OR'd together -- the terrain tile, the faux
+   prop the terrain carries, and every prop standing there -- and for a
+   walker with the flags a person has (GetMonstAttrs | 0x08000000, which is
+   what TPathFinder::FindPath passes) the square is closed exactly when that
+   word has 0x200, byte 2's 0x02. Water carries 0x200 as well; the flag that
+   lets a swimmer or a flyer through is not a person's.
+
+   Two things this page got wrong before: it tested the terrain and the
+   placed props but not the terrain's faux props (the trees and rocks drawn
+   on a square by its tile), and it let a door through only by an aspect
+   test. The engine's door is a prop whose tile carries 0x20000000: when a
+   step into it is refused, TActiveMonster's move (CanPMove) sends the prop
+   Use -- method 9 -- and if its tile changes, as an opened door's does, the
+   step is tried again. So a door, a curtain or a passthrough is walkable to
+   a person unless it is locked, and a locked one is a wall: Use does
+   nothing to it. The lock is the record's first data byte on a class that
+   answers Lockable (52), as buildKeyLockIndex reads it.
+
+   `blocked` keeps its old shape, a set of square keys, for the callers that
+   read it; `doors` is every use-to-pass square with its frames. */
 function buildPropBlockers(resid, m) {
   const key = resid + ':' + m.width;
   if (DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.key === key) return DERIVED.PROP_BLOCK.set;
+  const W = m.width, H = m.height;
+  const word = new Uint32Array(W * H);
+  const attrs = getTileAttributes(ARCHIVE) || [];
   const blocked = new Set();
   const doors = new Map();
+  const locked = new Map();      // square -> lock id
   try {
+    const faux = getFauxProps();
+    const tiles = getPropTileList();
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const t = mapTileAt(m, x, y);
+      let w = attrs[t] || 0;
+      const fp = faux.get(t);
+      if (fp && tiles[fp.proptype] !== undefined) w |= attrs[tiles[fp.proptype] + fp.aspect] || 0;
+      word[y * W + x] = w;
+    }
     const praw = getResourceBytes(ARCHIVE, resid + 0x100);
     if (praw) {
       const recs = parseDelverPropList(smartDecrypt(praw, resid + 0x100).data);
-      const tiles = getPropTileList();
-      const attrs = getTileAttributes(ARCHIVE);
+      const living = characterProptypes();
       for (const r of recs) {
-        if (r.flags === 0xFF) continue;
+        if (r.flags === 0xFF || r.flags === 0x42 || r.flags === 0x44) continue;
+        if ((r.flags & 0x58) || living.has(r.proptype)) continue;
+        // Only what the engine stages: the records its draw passes take,
+        // flags & 0x9E clear or flagged 4 (enginePass). A portcullis raised
+        // by its lever is a record with 0x80 set, and it is not there.
+        if ((r.flags & 0x9E) && (r.flags & 0x44) !== 4) continue;
         const base = tiles[r.proptype];
         if (base === undefined) continue;
         const t = base + r.aspect;
-        /* Every square the prop covers, each judged by ITS OWN tile.
-
-           A large prop anchors bottom-right and multiTilePieces gives the
-           rest at negative offsets, each with its own tile (tileId-1, -2,
-           -3) and so its own attribute byte 2. Blocking only the record's
-           square left the other half of a two-square stone doorway walkable,
-           which is how a character walked through the wall beside a doorway
-           in Odemia (reported 13 September 2026). Blocking the pieces only
-           when the ANCHOR blocks was the first attempt at this and closed
-           one hole of five: where the anchor is passable and a piece is not,
-           the hole stayed. So each cell is tested on its own tile.
-
-           seatsOnMap has expanded footprints this way since 9 September, for
-           the same reason -- "tables are multi-square and anchor
-           bottom-right, so testing only the record's square missed a chair
-           beside the table's left half". The walkability set never learned
-           it, and findPath is what walkingPosition routes the inhabitants
-           through, so this is their geometry too and not only the overlay's. */
-        for (const pc of (multiTilePieces(t, r.rotated) || [])) {
-          const cx = r.x + pc.dx, cy = r.y + pc.dy;
-          if (cx < 0 || cy < 0 || cx >= m.width || cy >= m.height) continue;
-          const pb2 = tileAttrByte(pc.tile, 2);
-          if (pb2 !== undefined && (pb2 & 0x02)) blocked.add(cy * m.width + cx);
+        // Every square the prop covers, each by its own tile: a large prop
+        // anchors bottom-right and its pieces are the tiles before it.
+        const cells = [[r.x, r.y, t]];
+        for (const pc of (multiTilePieces(t, r.rotated) || [])) cells.push([r.x + pc.dx, r.y + pc.dy, pc.tile]);
+        for (const [cx, cy, ct] of cells) {
+          if (cx < 0 || cy < 0 || cx >= W || cy >= H) continue;
+          word[cy * W + cx] |= attrs[ct] || 0;
         }
-        const b2 = tileAttrByte(t, 2);
-        if (b2 === undefined) continue;
-        if (b2 & 0x02) {
-          /* Every square the prop covers, not only the one its record sits
-             on. A large prop is anchored BOTTOM-RIGHT and multiTilePieces
-             gives the rest at negative offsets, so a two-square stone
-             doorway blocked its anchor and left the square beside it open --
-             which is how a character walked through the wall next to a
-             doorway in Odemia (reported 13 September 2026: 193 squares on
-             that map are covered by a multi-square prop against 211 blocked,
-             and Ake's route crossed five of the holes).
-
-             seatsOnMap has expanded footprints this way since 9 September,
-             for exactly the same reason -- "tables are multi-square and
-             anchor bottom-right, so testing only the record's square missed
-             a chair beside the table's left half". The walkability set never
-             learned it. This is the engine's own geometry, so widening it
-             makes the routes the inhabitants walk right as well: findPath is
-             what walkingPosition uses. */
-          blocked.add(r.y * m.width + r.x);
-          // A door is a blocker you can open. The Door Script keeps its LOCK
-          // STATE in field 3 and its DRAWN FRAME in field 1, and they are not
-          // the same thing:
-          //   field 3: 0 = closed and unlocked, 1 = locked,
-          //            2 = magically locked, 4 = open
-          //   opening  -> set_field 3 = 4  AND  set_field 1 = field1 - 1
-          //   closing  -> set_field 3 = 0  AND  set_field 1 = field1 + 1
-          // So the open frame is one BELOW the placed frame, and ToggleLock
-          // flipping field 3 between 0 and 1 locks and unlocks the door
-          // without opening it at all. This code used to treat aspect 0 and 1
-          // as a closed/open pair, which drew the LOCKED state as "open" and
-          // skipped every real door: counted across all 42 prop lists in this
-          // archive, oak doors are placed at aspects 5, 7, 9, 11 and 23 and
-          // never at 0 or 1, so the aspect cannot be the lock state.
-          //
-          // The scenario file does not record which doors START locked -- d1
-          // is 0 for almost every door record -- so the preview shows the open
-          // leaf for any door a character is standing in, locked or not.
-          if (r.aspect >= 1) {
-            doors.set(r.y * m.width + r.x, {
-              placedAspect: r.aspect, openAspect: r.aspect - 1, tileId: t
-            });
-          }
+        if ((attrs[t] || 0) & 0x20000000) {
+          const k = r.y * W + r.x;
+          if (r.d1 && classHasMember(r.proptype, 52)) {
+            locked.set(k, r.d1);
+            doors.set(k, { placedAspect: r.aspect, openAspect: Math.max(0, r.aspect - 1), tileId: t, lock: r.d1 });
+          } else if (r.aspect >= 1) doors.set(k, { placedAspect: r.aspect, openAspect: r.aspect - 1, tileId: t });
+          else doors.set(k, { placedAspect: r.aspect, openAspect: r.aspect, tileId: t });
         }
       }
     }
+    for (let i = 0; i < W * H; i++) {
+      if (!(word[i] & 0x200)) continue;
+      if ((word[i] & 0x20000000) && doors.has(i) && !locked.has(i)) continue;
+      blocked.add(i);
+    }
   } catch (e) { quiet(e); }
-  DERIVED.PROP_BLOCK = { key, set: blocked, doors };
+  DERIVED.PROP_BLOCK = { key, set: blocked, doors, word, locked };
   return blocked;
 }
 function propDoors() { return (DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.doors) || new Map(); }
@@ -2105,63 +2098,91 @@ function tilePassable(tileId) {
   return !(b2 & 0x02) && !(b2 & 0x01);
 }
 const pathCache = derivedMap('pathCache');
-function findPath(m, x0, y0, x1, y1) {
-  /* Keyed to the MAP as well as the endpoints. The key was the four
-     coordinates and the width, which is only safe while every caller happens
-     to be asking about the map whose blockers were built last: two maps of
-     equal width would otherwise hand each other's routes back, walked around
-     the wrong walls. PROP_BLOCK.key is `resid + ':' + m.width`, and it names
-     exactly the map this route was found through, because buildPropBlockers
-     always runs first. The cache itself is dropped with the archive, in
-     resetDerivedCaches, not with the map. */
+/* A route, the way TPathFinder::FindPath finds one (22 September 2026).
+
+   Not A*. The engine keeps a list of candidate squares sorted by one number,
+   CalcWeight, which is the Manhattan distance from the square to the target
+   and nothing else -- no cost of the way already walked -- and always
+   expands the nearest. From a candidate it tries the eight directions in the
+   engine's order (north first, clockwise), each through TGameSys::TryMove:
+   an upright step needs its square open, and a diagonal needs its square
+   AND the two squares beside the corner open, so nobody cuts a corner. A
+   square is marked with the direction it was reached from and is never
+   reached twice. When the target cannot be reached, the route goes to the
+   nearest square it did reach, which is FindPath's own answer.
+
+   Kept from the engine: the weight, the order, the corners, the fallback.
+   Left out: its 31-square window round the view and its hundred-candidate
+   list, both there because the engine walks one step at a time and only
+   near the player. A greedy search is quick, so the 4,000-step cap this
+   replaced -- after which a route became a straight line through the walls
+   -- is gone.
+
+   A locked door is a wall except to a walker carrying its key: the door's
+   Use, which the move sends, opens it for the key's holder. `keys` is the
+   set of lock ids the walker carries (keysCarriedBy), or nothing.
+
+   Returns the squares from start to end; `.reached` says whether the end is
+   the target. */
+function findPath(m, x0, y0, x1, y1, keys) {
   const key = ((DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.key) || '?') + ':' +
-              x0+','+y0+','+x1+','+y1+','+m.width;
+              x0+','+y0+','+x1+','+y1+','+m.width + (keys && keys.size ? ':' + [...keys].join('.') : '');
   if (pathCache.has(key)) return pathCache.get(key);
-  const straight = [[x0,y0],[x1,y1]];
-  const W = m.width, H = m.height, N = W*H;
-  if (x0===x1 && y0===y1) { const r=[[x0,y0]]; pathCache.set(key,r); return r; }
-  const idx = (x,y) => y*W + x;
-  const g = new Float32Array(N).fill(Infinity);
-  const f = new Float32Array(N).fill(Infinity);
-  const came = new Int32Array(N).fill(-1);
-  const open = new Set([idx(x0,y0)]);
-  g[idx(x0,y0)] = 0; f[idx(x0,y0)] = 0;
-  const goal = idx(x1,y1);
-  // Hard cap: this runs from the animation timer, and an unbounded search on a
-  // 128x128 map was enough to lock the tab. Beyond the cap we fall back to a
-  // straight line rather than stall.
-  let steps = 0, found = false;
-  while (open.size && steps++ < 4000) {
-    let cur = -1, best = Infinity;
-    for (const n of open) if (f[n] < best) { best = f[n]; cur = n; }
-    if (cur === goal) { found = true; break; }
-    open.delete(cur);
-    const cx = cur % W, cy = (cur / W) | 0;
-    for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]) {
-      const nx = cx+dx, ny = cy+dy;
-      if (nx<0||ny<0||nx>=W||ny>=H) continue;
-      const ni = idx(nx,ny);
-      if (ni !== goal) {
-        if (!tilePassable(mapTileAt(m, nx, ny))) continue;
-        // Props block, except unlocked doors, which a character opens.
-        const pb = DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.set;
-        if (pb && pb.has(ni) && !propDoors().has(ni)) continue;
-      }
-      const ng = g[cur] + ((dx&&dy)?1.414:1);
-      if (ng < g[ni]) {
-        g[ni] = ng; came[ni] = cur;
-        f[ni] = ng + Math.abs(nx-x1) + Math.abs(ny-y1);
-        open.add(ni);
-      }
+  const W = m.width, H = m.height, N = W * H;
+  const done = r => { pathCache.set(key, r); return r; };
+  if (x0 === x1 && y0 === y1) { const r = [[x0, y0]]; r.reached = true; return done(r); }
+  // Either end off this map means the leg is not on it: a schedule's two
+  // posts on another level were being routed across this one, and a start
+  // outside the array never led the walk back to it.
+  const inMap = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+  if (!inMap(x0, y0) || !inMap(x1, y1)) { const r = [[x0, y0], [x1, y1]]; r.reached = false; return done(r); }
+  const pb = (DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.set) || new Set();
+  const goal = y1 * W + x1;
+  // The target itself is always enterable: a post can be a chair, a bed or
+  // a counter, and the engine's own check at the end is the move routine's.
+  const lk = (DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.locked) || new Map();
+  const open = (x, y) => {
+    if (x < 0 || y < 0 || x >= W || y >= H) return false;
+    const i = y * W + x;
+    if (i === goal || !pb.has(i)) return true;
+    return !!(keys && lk.has(i) && keys.has(lk.get(i)));
+  };
+  const DIRS = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];
+  const came = new Int32Array(N).fill(-2);   // -2 unvisited, -1 the start
+  const weight = (x, y) => Math.abs(x - x1) + Math.abs(y - y1);
+  // A binary heap on (weight, order added), which is the engine's sorted
+  // list: a new candidate goes after those of equal weight.
+  const heap = []; let seq = 0;
+  const push = (i, w) => { heap.push([w, seq++, i]); let k = heap.length - 1;
+    while (k) { const p = (k - 1) >> 1; if (heap[p][0] < w || (heap[p][0] === w && heap[p][1] < heap[k][1])) break; [heap[p], heap[k]] = [heap[k], heap[p]]; k = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop();
+    if (heap.length) { heap[0] = last; let k = 0; for (;;) { const l = 2 * k + 1, r = l + 1; let m_ = k;
+      const lt = (a, b) => heap[a][0] < heap[b][0] || (heap[a][0] === heap[b][0] && heap[a][1] < heap[b][1]);
+      if (l < heap.length && lt(l, m_)) m_ = l; if (r < heap.length && lt(r, m_)) m_ = r;
+      if (m_ === k) break; [heap[m_], heap[k]] = [heap[k], heap[m_]]; k = m_; } }
+    return top; };
+  const start = y0 * W + x0;
+  came[start] = -1; push(start, weight(x0, y0));
+  let best = start, bestW = weight(x0, y0), reached = false;
+  while (heap.length) {
+    const [w, , cur] = pop();
+    if (w < bestW) { bestW = w; best = cur; }
+    if (cur === goal) { reached = true; best = cur; break; }
+    const cx = cur % W, cy = (cur - cx) / W;
+    for (const [dx, dy] of DIRS) {
+      const nx = cx + dx, ny = cy + dy, ni = ny * W + nx;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H || came[ni] !== -2) continue;
+      if (!open(nx, ny)) continue;
+      if (dx && dy && (!open(cx + dx, cy) || !open(cx, cy + dy))) continue;
+      came[ni] = cur;
+      push(ni, weight(nx, ny));
     }
   }
-  if (!found) { pathCache.set(key, straight); return straight; }
   const path = [];
-  let c = goal;
-  while (c !== -1) { path.push([c % W, (c / W) | 0]); c = came[c]; }
+  for (let c = best; c !== -1; c = came[c]) path.push([c % W, (c - c % W) / W]);
   path.reverse();
-  pathCache.set(key, path);
-  return path;
+  path.reached = reached;
+  return done(path);
 }
 
 function setMapHour(h) {
@@ -2188,7 +2209,19 @@ function toggleCharNames(on) { window.SHOW_CHAR_NAMES = on; drawCharacterLayer()
 // at 1x teleported the walker a square and a half at a time.
 const MAP_TICK_HOURS = 0.02;
 
-function walkingPosition(entries, t, m) {
+// The lock ids a character carries keys to, off the key index.
+function keysCarriedBy(ci) {
+  if (!DERIVED.KEYS_BY_HOLDER) {
+    const by = new Map();
+    try { for (const k of buildKeyLockIndex().keys) if (k.rec.carriedBy !== null && k.rec.carriedBy !== undefined) {
+      if (!by.has(k.rec.carriedBy)) by.set(k.rec.carriedBy, new Set());
+      by.get(k.rec.carriedBy).add(k.id);
+    } } catch (e) { quiet(e); }
+    DERIVED.KEYS_BY_HOLDER = by;
+  }
+  return DERIVED.KEYS_BY_HOLDER.get(ci) || null;
+}
+function walkingPosition(entries, t, m, keys) {
   const real = entries.filter(e => e.mode !== 0);
   if (!real.length) return null;
   let cur = null, curIdx = -1;
@@ -2201,8 +2234,10 @@ function walkingPosition(entries, t, m) {
   let dt = t - cur.hour;
   if (dt < 0) dt += 24;
   if (!m) return { e: cur, x: cur.x, y: cur.y };
+  // Routed only on the map it is on; elsewhere the posts are all that matter.
+  if (window.CUR_MAP && window.CUR_MAP.level !== undefined && cur.level !== window.CUR_MAP.level) return { e: cur, x: cur.x, y: cur.y };
   buildPropBlockers(window.CUR_MAP ? window.CUR_MAP.resid : 0, m);
-  const path = findPath(m, cur.x, cur.y, nxt.x, nxt.y);   // findPath caches
+  const path = findPath(m, cur.x, cur.y, nxt.x, nxt.y, keys);   // findPath caches
   const squares = Math.max(1, path.length - 1);
   // Long enough for one square per frame at 1x, and never longer than the
   // interval itself -- so they still arrive at the next post on the hour, and
@@ -2229,7 +2264,7 @@ function walkingPosition(entries, t, m) {
   // fx,fy are where to draw.
   return { e: cur, x: path[i][0], y: path[i][1],
            fx: path[i][0] + dx * frac, fy: path[i][1] + dy * frac,
-           walking: true, dir, step: Math.floor(pos * 2) };
+           walking: true, dir, step: Math.floor(pos * 2), path, i };
 }
 
 /* ---------------------------------------------------------------------------
@@ -2399,7 +2434,7 @@ function charactersOnLevel(level, hour) {
   const m = window.CUR_MAP && window.CUR_MAP.m;
   const seats = (window.CUR_MAP && m) ? seatsOnMap(window.CUR_MAP.resid, m) : null;
   for (let i = 0; i < scheds.length; i++) {
-    const w = walkingPosition(scheds[i], hour, m);
+    const w = walkingPosition(scheds[i], hour, m, keysCarriedBy(i));
     const e = w && w.e;
     if (!e || e.level !== level) continue;
     const c = chars[i];
@@ -2427,10 +2462,33 @@ function charactersOnLevel(level, hour) {
     out.push({ index: i, name: characterName(i), x: w.x, y: w.y, mode: e.mode,
                fx: w.fx !== undefined ? w.fx : w.x, fy: w.fy !== undefined ? w.fy : w.y,
                walking: !!w.walking, dir: w.dir, sitting: !!sitting,
-               seat: sitting || null,
-               proptype: c.proptype, aspect, tile: base + aspect });
+               seat: sitting || null, path: w.path || null, pi: w.i,
+               proptype: c.proptype, aspect, base, tile: base + aspect });
   }
+  keepApart(out);
   return out;
+}
+/* Nobody walks into a square somebody is standing in (the maintainer,
+   22 September 2026). The engine's stage marks the living, so a step into
+   one is refused and the walker tries again next turn. Here the people who
+   are standing are placed first; a walker whose square is taken steps back
+   along its own route to the last square that is free, and stands there
+   facing the way it was going. Two people scheduled to the same post still
+   share it, which deconflictPositions draws side by side. */
+function keepApart(people) {
+  const taken = new Set();
+  for (const c of people) if (!c.walking) taken.add(c.x + ',' + c.y);
+  for (const c of people) {
+    if (!c.walking || !c.path) continue;
+    let i = c.pi;
+    while (i > 0 && taken.has(c.path[i][0] + ',' + c.path[i][1])) i--;
+    if (i !== c.pi) {
+      c.x = c.path[i][0]; c.y = c.path[i][1]; c.fx = c.x; c.fy = c.y;
+      c.aspect = ((c.dir || 0) & 3) * 4 + 1;
+      c.tile = c.base + c.aspect;
+    }
+    taken.add(c.x + ',' + c.y);
+  }
 }
 
 // Resource 0x0101 is a `table` of 127 entries whose values are drefs to name
@@ -2623,6 +2681,15 @@ function renderMapVisual(resid, mapData, opts) {
       // the map. Roofs now have their own layer and their own toggle.
       if (r.flags === 0x42 || r.flags === 0x44) continue;
       if ((r.flags & 0x58) && !characterProptypes().has(r.proptype)) continue;
+      /* What the engine's passes never draw (enginePass): a record with any
+         of flags 0x9E set, unless it is flagged 4. On the maps that is 0x02,
+         the hidden traps -- loose rock, spikes, fine wire -- and 0x80, what
+         is down or not there yet: the twelve raised portcullises, the
+         boulders and the stretches of shore, wall and stepping stone a
+         script brings in. They were all drawn until 22 September 2026, so a
+         raised portcullis stood across its gate. The square's panel still
+         lists them. The living are exempt, as above. */
+      if ((r.flags & 0x9E) && (r.flags & 0x44) !== 4 && !characterProptypes().has(r.proptype)) continue;
       if (r.x >= m.width || r.y >= m.height) continue;
       // Interior walls are props, not terrain, on most indoor maps. Hiding
       // them is the indoor equivalent of lifting the roof: the floor plan,
