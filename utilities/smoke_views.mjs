@@ -820,3 +820,19 @@ try {
   else if (two[1].x !== 4) fail('walking', 'a walker stepped onto a square somebody stands on');
   else console.log('  walking: ' + reached + ' of ' + legs + ' of Cademia\'s legs arrive, none through a blocked square; the raised portcullis is not drawn and not in the way; a walker waits behind someone standing');
 } catch (e) { fail('walking', e); }
+
+/* Hidden ways, 23 September 2026 (mapEggWays, ravineWayAt). A secret or
+   tight passage travels by the egg drawn under it, which the ways out of a
+   map never read: Catamarca's secret passage to the Underground was nowhere
+   on the World tab or the square's panel. The Harpy Abyss's cracks lead to
+   the rock outcropping the rope is tied to. The control is a crack's square
+   off the ravine, which leads nowhere. */
+try {
+  const cat = [...Array(0x30).keys()].map(l => 0x8000 + l).find(r => ctx.refExists(r) && ctx.zoneNameFor(r) === 'Catamarca');
+  const ways = cat ? ctx.mapDescents(cat) : [];
+  const secret = ways.find(d => d.egg && d.kind === 'secret passage');
+  const rv = ctx.ravineWayAt(0x8029, 20, 13), off = ctx.ravineWayAt(0x8029, 5, 5);
+  if (!secret || ctx.zoneNameFor(secret.dest.resid) !== 'Underground') fail('hidden ways', 'Catamarca\'s secret passage is not a way to the Underground: ' + JSON.stringify(ways.map(w => w.kind)));
+  else if (!rv || rv.kind !== 'rock outcropping' || !/Caves/.test(rv.name) || off) fail('hidden ways', 'the Harpy Abyss\'s crack does not lead to the outcropping: ' + JSON.stringify([rv, off]));
+  else console.log('  hidden ways: Catamarca\'s secret passage leads to the ' + ctx.zoneNameFor(secret.dest.resid) + ', and the abyss\'s cracks to the rock outcropping and the ' + rv.name);
+} catch (e) { fail('hidden ways', e); }

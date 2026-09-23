@@ -121,8 +121,94 @@ function gatewayTransform(gw) {
    Sewers, Pnyx upstairs -- so the surface filter in atlasMouths never meets
    one. Taking one moves within the map rather than down a level:
    atlasCrossWithin. */
+/* The ways a map's eggs make, 23 September 2026. A crack, a mousehole, a
+   tight or secret passage has no class that travels: the zone change is an
+   egg's. TGameViewer::DrawRoutine walks the eggs, and a kind-1 egg whose
+   rectangle the hero stands in sends him through its zoneport (the argument)
+   with GoToLocation, a kind-4 egg calls ChangeZone with its argument, a map.
+   So a hidden way is the egg, and the passage drawn on it is its picture.
+
+   Each is { x, y, rect, dest, name, kind }: dest is where it lands (for a
+   kind-4 egg the destination map's own entry square is not in the egg, so
+   its centre stands in), and kind names the concealed thing drawn on the
+   egg's rectangle (and then `hidden` is set), or failing that whatever is
+   drawn on the egg's own square, or "way". Ways within the same
+   map -- Pnyx's floors, the slime pits below Cademia -- are kept; the atlas
+   leaves them out since they go nowhere else. */
+function mapEggWays(resid) {
+  const cache = DERIVED.EGG_WAYS || (DERIVED.EGG_WAYS = new Map());
+  if (cache.has(resid)) return cache.get(resid);
+  const out = [];
+  try {
+    const raw = getResourceBytes(ARCHIVE, resid + 0x100);
+    const recs = raw ? parseDelverPropList(smartDecrypt(raw, resid + 0x100).data) : [];
+    for (const g of recs) {
+      if (g.flags !== 0x42 || (g.aspect !== 1 && g.aspect !== 4)) continue;
+      let dest = null;
+      if (g.aspect === 1) dest = zoneportInfo(g.proptype);
+      else if (refExists(0x8000 + g.proptype)) {
+        const mr = mapRenderFor(0x8000 + g.proptype, false);
+        const w = mr && mr.result ? mr.result.width : 0, h = mr && mr.result ? mr.result.height : 0;
+        dest = { resid: 0x8000 + g.proptype, x: w >> 1, y: h >> 1, name: labelFor(0x8000 + g.proptype) || '' };
+      }
+      if (!dest || !refExists(dest.resid)) continue;
+      const q = eggRect(g);
+      let kind = null, onSquare = null;
+      for (const r of recs) {
+        if (r.flags === 0x42 || r.flags === 0x44 || r.flags === 0xFF || (r.flags & 0x58)) continue;
+        if (r.x < q.left || r.x > q.right || r.y < q.top || r.y > q.bottom) continue;
+        if (isConcealedProp(r.proptype)) { kind = (propDisplayName(r.proptype) || '').toLowerCase(); break; }
+        if (!onSquare && r.x === g.x && r.y === g.y) onSquare = (propDisplayName(r.proptype) || '').toLowerCase() || null;
+      }
+      out.push({ x: g.x, y: g.y, rect: q, dest, egg: g, hidden: !!kind,
+                 name: zoneNameFor(dest.resid) || dest.name,
+                 kind: kind || onSquare || 'way' });
+    }
+  } catch (e) { quiet(e); }
+  cache.set(resid, out);
+  return out;
+}
+/* The ravines a travelling prop stands on the edge of. The Harpy Abyss is a
+   line of cracks with no class and no egg; what takes you down is the rock
+   outcropping on its edge, whose Use -- once the rope's UseOn has tied the
+   rope to it, setting its aspect to 1 -- calls ChangeZone through its Data3.
+   So every square of a run of cracks (eight-connected) that touches such a
+   prop leads to it. Returns { x, y, kind, name, dest } or null. */
+function ravineWayAt(resid, tx, ty) {
+  const cache = DERIVED.RAVINES || (DERIVED.RAVINES = new Map());
+  if (!cache.has(resid)) {
+    const by = new Map();
+    try {
+      const raw = getResourceBytes(ARCHIVE, resid + 0x100);
+      const recs = raw ? parseDelverPropList(smartDecrypt(raw, resid + 0x100).data) : [];
+      const cracks = new Set();
+      for (const r of recs) if (r.flags !== 0x42 && r.flags !== 0x44 && r.flags !== 0xFF && /(^|\s)crack$/.test((propDisplayName(r.proptype) || '').toLowerCase())) cracks.add(r.x + ',' + r.y);
+      const ways = mapDescents(resid).filter(d => !d.egg);
+      const seen = new Set();
+      for (const start of cracks) {
+        if (seen.has(start)) continue;
+        const comp = [], stack = [start]; seen.add(start);
+        while (stack.length) {
+          const k = stack.pop(); comp.push(k);
+          const [x, y] = k.split(',').map(Number);
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const n = (x + dx) + ',' + (y + dy);
+            if (cracks.has(n) && !seen.has(n)) { seen.add(n); stack.push(n); }
+          }
+        }
+        const way = ways.find(d => comp.some(k => { const [x, y] = k.split(',').map(Number); return Math.abs(x - d.x) <= 1 && Math.abs(y - d.y) <= 1; }));
+        if (way) for (const k of comp) by.set(k, { x: way.x, y: way.y, kind: way.kind, name: way.name, dest: way.dest });
+      }
+    } catch (e) { quiet(e); }
+    cache.set(resid, by);
+  }
+  return cache.get(resid).get(tx + ',' + ty) || null;
+}
 function mapDescents(resid) {
   const out = [];
+  // The eggs' ways to another map first, so a prop that travels to the same
+  // place from the same square (Land King Hall's arch) is not said twice.
+  for (const w of mapEggWays(resid)) if (w.dest.resid !== resid) out.push({ dest: w.dest, x: w.x, y: w.y, name: w.name, kind: w.kind, egg: true });
   try {
     const raw = getResourceBytes(ARCHIVE, resid + 0x100);
     if (!raw) return out;
@@ -131,6 +217,7 @@ function mapDescents(resid) {
       if (r.flags === 0x42 || r.flags === 0x44) continue;
       const dest = propTravelsTo(r, resid);
       if (!dest || !refExists(dest.resid)) continue;
+      if (out.some(d => d.egg && d.dest.resid === dest.resid && Math.abs(d.x - r.x) <= 1 && Math.abs(d.y - r.y) <= 1)) continue;
       out.push({ dest, x: r.x, y: r.y,
                  name: zoneNameFor(dest.resid) || dest.name,
                  kind: (propDisplayName(r.proptype) || 'way down').toLowerCase() });

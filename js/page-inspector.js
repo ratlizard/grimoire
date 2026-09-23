@@ -743,6 +743,28 @@ function inspectMapSquare(tx, ty) {
       ')">Enter ' + svEsc(gate.name) + '</button></div></div>');
   }
 
+  /* A way an egg makes (mapEggWays): the hero standing in its rectangle is
+     sent through its zoneport, so a secret passage, a tight passage or a
+     mousehole drawn there is a way you can take. And a crack in a ravine
+     is the ravine, not a way: the way down is the rope tied to the
+     outcropping on its edge (ravineWayAt), which the crack points to. */
+  for (const w of mapEggWays(cm.resid)) {
+    const q = w.rect;
+    if (tx < q.left || tx > q.right || ty < q.top || ty > q.bottom) continue;
+    parts.push('<div class="inspCard"><b>' + svEsc(w.hidden ? 'A hidden way, ' + w.kind : w.kind === 'way' ? 'A way' : w.kind) + '</b> ' +
+      '<span class="inspDim">to ' + svEsc(w.name) + ', by a trigger (an egg) covering ' + q.w + ' by ' + q.h +
+      (w.egg.aspect === 1 ? ', zoneport ' + w.egg.proptype : ', a change of zone') + '</span>' +
+      '<div class="inspActs"><button class="sv-chip" onclick="showSquareOnMap(' + w.dest.resid + ',' + w.dest.x + ',' + w.dest.y +
+      ')">Go to ' + svEsc(w.name) + '</button></div></div>');
+  }
+  {
+    const rv = ravineWayAt(cm.resid, tx, ty);
+    if (rv) parts.push('<div class="inspCard"><b>A ravine</b> <span class="inspDim">the way down is the ' +
+      svEsc(rv.kind) + ' at (' + rv.x + ',' + rv.y + '), with a rope tied to it, to ' + svEsc(rv.name) + '</span>' +
+      '<div class="inspActs"><button class="sv-chip" onclick="showSquareOnMap(' + cm.resid + ',' + rv.x + ',' + rv.y + ')">The ' + svEsc(rv.kind) + '</button>' +
+      '<button class="sv-chip" onclick="showSquareOnMap(' + rv.dest.resid + ',' + rv.dest.x + ',' + rv.dest.y + ')">Go to ' + svEsc(rv.name) + '</button></div></div>');
+  }
+
   for (const e of exits) {
     parts.push('<div class="inspCard"><b>Zone exit</b> <span class="inspDim">zoneport 0x' +
       e.idx.toString(16).toUpperCase() + '</span><div class="inspDim">The map graph arrives on this ' +
