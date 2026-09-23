@@ -921,6 +921,8 @@ function renderMapResource(resid) {
     document.getElementById('textPreview').style.display = 'none';
     const ac = document.getElementById('atlasCanvas');
     if (ac) { ac.style.display = 'none'; }
+    const af = document.getElementById('atlasFolkCanvas');
+    if (af) { af.style.display = 'none'; }
 
     const lbl = labelFor(resid);
     const result = entry.result;

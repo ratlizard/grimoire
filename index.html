@@ -1360,6 +1360,7 @@ body.atlasFull { overflow:hidden; }
    the strip and the tuning rows go, and one small overlay in the corner
    says where you are and is the way out (and, below ground, the way up). */
 #atlasPanel:fullscreen #atlasZoomRow, #atlasPanel:-webkit-full-screen #atlasZoomRow, body.atlasFull #atlasPanel #atlasZoomRow,
+#atlasPanel:fullscreen #atlasTimeRow, #atlasPanel:-webkit-full-screen #atlasTimeRow, body.atlasFull #atlasPanel #atlasTimeRow,
 #atlasPanel:fullscreen #atlasInspect, #atlasPanel:-webkit-full-screen #atlasInspect, body.atlasFull #atlasPanel #atlasInspect,
 #atlasPanel:fullscreen #atlasBar, #atlasPanel:-webkit-full-screen #atlasBar, body.atlasFull #atlasPanel #atlasBar { display:none !important; }
 #atlasPanel:fullscreen, #atlasPanel:-webkit-full-screen, body.atlasFull #atlasPanel { padding:0; }
@@ -1379,10 +1380,14 @@ body.atlasFull { overflow:hidden; }
 #mapViewport { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
 /* The row under the map sat straight on the planks and its two buttons ran
    off the right of a phone: it wraps now, and has the bar's own dark ground. */
-#atlasZoomRow { flex-wrap:wrap; row-gap:6px; margin:6px 0 0; padding:6px 10px;
+#atlasZoomRow, #atlasTimeRow { flex-wrap:wrap; row-gap:6px; margin:6px 0 0; padding:6px 10px;
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; color:#fff; }
-#atlasZoomRow input[type=range] { flex:1 1 120px; min-width:90px; }
-#atlasZoomLabel { color:#fff; font-variant-numeric:tabular-nums; }
+#atlasZoomRow input[type=range], #atlasTimeRow input[type=range] { flex:1 1 120px; min-width:90px; }
+#atlasZoomLabel, #atlasHourLabel { color:#fff; font-variant-numeric:tabular-nums; }
+#atlasHourLabel { min-width:64px; text-align:right; }
+#atlasTimeRow label { display:flex; align-items:center; gap:5px; cursor:pointer; min-height:30px;
+  padding:2px 9px; border:1px solid rgba(155,136,80,.35); border-radius:15px; white-space:nowrap; }
+#atlasTimeRow label:has(input[type=checkbox]:checked) { background:rgba(196,164,100,.2); border-color:#c4a464; color:#fff; }
 #atlasZoomRow button { flex:0 0 auto; }
 #atlasViewport canvas { display:block; }
 #atlasBar { padding:7px 12px; margin:0 0 6px; text-align:left;
@@ -1988,7 +1993,7 @@ body.atlasFull { overflow:hidden; }
       <span class="mtgLabel">Time</span>
       <label><input type="checkbox" id="chkWalk" onchange="toggleMapWalk(this.checked)"> Walk the day</label>
       <label style="gap:6px">Speed
-        <select id="walkSpeed" onchange="window.MAP_WALK_SPEED=+this.value">
+        <select id="walkSpeed" onchange="setMapWalkSpeed(this.value)">
           <option value="0.25">0.25&times;</option>
           <option value="1" selected>1&times;</option>
           <option value="4">4&times;</option>
@@ -2136,6 +2141,20 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
             <button class="secondary" id="atlasFullBtn" style="width:auto;margin:0;padding:8px 14px"
                     onclick="atlasToggleFull()">Full screen</button>
           </div>
+          <!-- The same clock as the Zones view's Time row: the hour and the
+               walk carry between the two tabs (syncMapTimeControls). -->
+          <div id="atlasTimeRow" class="zoomrow">
+            <label><input type="checkbox" id="atlasChkWalk" onchange="toggleMapWalk(this.checked)"> Walk the day</label>
+            <select id="atlasWalkSpeed" aria-label="Speed" onchange="setMapWalkSpeed(this.value)">
+              <option value="0.25">0.25&times;</option>
+              <option value="1" selected>1&times;</option>
+              <option value="4">4&times;</option>
+              <option value="12">12&times;</option>
+              <option value="40">40&times;</option>
+            </select>
+            <input type="range" id="atlasHourSlider" min="0" max="23" value="12" aria-label="Hour" oninput="setMapHour(this.value)">
+            <span id="atlasHourLabel">12:00 pm</span>
+          </div>
           <div id="atlasInspect"></div>
         </div>
       </div>
@@ -2203,7 +2222,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.146.1';
+const GRIMOIRE_VERSION = '1.147.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

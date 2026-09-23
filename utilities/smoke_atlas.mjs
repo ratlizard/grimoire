@@ -432,6 +432,65 @@ try {
                        'and the borrowed CUR_MAP put back');
     }
 
+    /* Walk the day on the World tab (23 September 2026). A tick of the clock
+       moves it a quarter of a square's walk, repaints the people's own layer
+       and not the scene, and somebody on Cademia is further along their
+       route after it. The walls they route round are lent in per node and
+       the Zones view's are put back. The control is the same tick with the
+       day not walking: it moves nothing. The two sets of controls tick
+       together whichever one is used. */
+    {
+      const cadW = peek('atlasScene')().nodes.find(n => n.resid === 0x8008);
+      const avW = peek('atlasView');
+      peek('atlasFit')();
+      for (let k = 0; k < 16 && peek('atlasNodePpt')(cadW, avW) < 12; k++) {
+        const rc = peek('atlasRect')(cadW, avW);
+        peek('atlasZoomAround')(avW.Z * 2, rc.x + rc.w / 2, rc.y + rc.h / 2);
+      }
+      drainRaf();
+      ctx.mapRenderFor(0x8008, true);
+      ctx.toggleMapWalk(true);
+      const ticked = ['chkWalk', 'atlasChkWalk'].every(id => REGISTRY.get(id) && REGISTRY.get(id).checked);
+      // An hour at which somebody on Cademia is on the move: a walk ends on
+      // the hour at the next post, so just before one.
+      let hour = null, before = null;
+      for (let h = 1; h <= 24 && hour === null; h++) {
+        ctx.MAP_TIME = h - 0.1;
+        const f = peek('atlasFolk')(cadW).filter(c => c.walking);
+        if (f.length) { hour = ctx.MAP_TIME; before = new Map(f.map(c => [c.index, c.fx + ',' + c.fy])); }
+      }
+      peek('atlasPaintFolk')();
+      const keepBlock = peek('DERIVED').PROP_BLOCK;
+      const folkCv = REGISTRY.get('atlasFolkCanvas');
+      const fctx = folkCv && folkCv.getContext('2d');
+      let blits = 0, scenes = 0;
+      const realBlit = fctx && fctx.drawImage, realPaint = ctx.paintAtlas;
+      if (fctx) fctx.drawImage = function () { blits++; return realBlit.apply(this, arguments); };
+      ctx.paintAtlas = function () { scenes++; return realPaint.apply(this, arguments); };
+      ctx.__peek('atlasBusyUntil = 0');
+      const t0w = ctx.MAP_TIME;
+      const ran = peek('atlasWalkTick')();
+      const step = ctx.MAP_TIME - t0w;
+      const moved = hour === null ? 0 : peek('atlasFolk')(cadW).filter(c => before.has(c.index) && before.get(c.index) !== c.fx + ',' + c.fy).length;
+      ctx.toggleMapWalk(false);
+      const t1w = ctx.MAP_TIME;
+      const ranOff = peek('atlasWalkTick')();
+      const unticked = ['chkWalk', 'atlasChkWalk'].every(id => REGISTRY.get(id) && !REGISTRY.get(id).checked);
+      if (fctx) fctx.drawImage = realBlit;
+      ctx.paintAtlas = realPaint;
+      if (!folkCv) fail('world walk', 'the people have no layer of their own');
+      else if (!ticked || !unticked) fail('world walk', 'the Zones and World walk boxes did not tick and untick together');
+      else if (hour === null) fail('world walk', 'nobody on Cademia walks at any hour');
+      else if (!ran || Math.abs(step - 0.005) > 1e-9) fail('world walk', 'a tick did not move the clock a quarter square: ' + JSON.stringify([ran, step]));
+      else if (scenes) fail('world walk', 'a tick repainted the whole scene ' + scenes + ' times');
+      else if (!blits) fail('world walk', 'a tick drew nobody on the people\'s layer');
+      else if (!moved) fail('world walk', 'nobody walking at ' + hour.toFixed(2) + ' was further along after a tick');
+      else if (peek('DERIVED').PROP_BLOCK !== keepBlock) fail('world walk', 'the lent walls were not put back');
+      else if (ranOff || ctx.MAP_TIME !== t1w) fail('world walk', 'the clock ticked with the day not walking');
+      else console.log('  world walk: a tick moves ' + moved + ' walker(s) on Cademia a quarter square, repainting ' +
+                       blits + ' sprites and not the scene; with the day stopped it moves nothing');
+    }
+
     /* The panel needs its rules as much as its markup.
 
      A sweep that deleted an old full-bleed CSS block ran from one comment to

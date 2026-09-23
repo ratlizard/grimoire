@@ -662,10 +662,7 @@ function startMapAnimation() {
       painted = true;
     }
     if (window.MAP_WALK) {
-      window.MAP_TIME = (window.MAP_TIME + 0.005 * (window.MAP_WALK_SPEED || 1)) % 24;
-      const sl = document.getElementById('mapHourSlider');
-      if (sl) sl.value = Math.floor(window.MAP_TIME);
-      setMapHourLabel(window.MAP_TIME);
+      advanceMapClock();
       drawCharacterLayer();
       drawLighting();
     } else if (painted) {
@@ -678,14 +675,46 @@ function startMapAnimation() {
   }, 35);
 }
 function setMapHourLabel(t) {
-  const el = document.getElementById('mapHourLabel');
-  if (!el) return;
   const h = Math.floor(t) % 24, mnt = Math.floor((t - Math.floor(t)) * 60);
   const ampm = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  el.textContent = ampm + ':' + String(mnt).padStart(2,'0') + (h < 12 ? ' am' : ' pm');
+  for (const id of MAP_TIME_IDS.label) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = ampm + ':' + String(mnt).padStart(2,'0') + (h < 12 ? ' am' : ' pm');
+  }
+}
+/* The clock has two sets of controls, the Zones view's and the World tab's,
+   and one clock behind them: the hour carries from one tab to the other, and
+   a walk started on either is the same walk. Every change goes through the
+   setters below, which write both sets, so neither can show a box unticked
+   while the day is walking. */
+const MAP_TIME_IDS = { walk: ['chkWalk', 'atlasChkWalk'], speed: ['walkSpeed', 'atlasWalkSpeed'],
+                       slider: ['mapHourSlider', 'atlasHourSlider'], label: ['mapHourLabel', 'atlasHourLabel'] };
+function syncMapTimeControls() {
+  const set = (ids, f) => { for (const id of ids) { const el = document.getElementById(id); if (el) f(el); } };
+  set(MAP_TIME_IDS.walk, el => { el.checked = !!window.MAP_WALK; });
+  set(MAP_TIME_IDS.speed, el => { el.value = String(window.MAP_WALK_SPEED || 1); });
+  const t = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
+  set(MAP_TIME_IDS.slider, el => { el.value = Math.floor(t); });
+  setMapHourLabel(t);
+}
+/* One tick of a walking day, for whichever view is ticking: a quarter of a
+   square's walk at 1x (MAP_TICK_HOURS), which is what lets a walker slide
+   between squares rather than jump. */
+function advanceMapClock() {
+  window.MAP_TIME = (window.MAP_TIME + MAP_TICK_HOURS / 4 * (window.MAP_WALK_SPEED || 1)) % 24;
+  syncMapTimeControls();
 }
 function toggleMapAnim(on) { window.MAP_ANIM = on; }
-function toggleMapWalk(on) { window.MAP_WALK = on; }
+function toggleMapWalk(on) {
+  window.MAP_WALK = !!on;
+  // Stopping leaves the people at the hour the slider shows, rather than at
+  // whatever hour was last chosen before the walk began.
+  if (!on) window.MAP_HOUR = Math.floor(window.MAP_TIME);
+  syncMapTimeControls();
+  drawCharacterLayer();
+  if (typeof atlasPaintFolk === 'function' && window.CUR_SUBN === 'WORLD') atlasPaintFolk();
+}
+function setMapWalkSpeed(v) { window.MAP_WALK_SPEED = +v || 1; syncMapTimeControls(); }
 
 // Props block movement too. Terrain-only walkability is why characters walked
 // through walls: in Land King Hall the interior walls are props sitting on
@@ -2061,11 +2090,16 @@ function propDoors() { return (DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.doors) |
 // The open frame is placedAspect - 1, matching the Door Script's
 // `set_field 1 (field 1 sub 1)`; see buildPropBlockers for the full state
 // table and for why the lock state is not knowable from the prop record.
-function drawOpenDoors(ctx, TS, people) {
-  const doors = propDoors();
-  const cm = window.CUR_MAP;
-  if (!doors.size || !cm || !cm.m) return;
-  const W = cm.m.width;
+// The World tab passes the doors and the width of the node it is drawing,
+// having worked them out while that node's map was lent to the schedules,
+// and where on its canvas the node's corner is.
+function drawOpenDoors(ctx, TS, people, doors, W, ox = 0, oy = 0) {
+  if (!doors) {
+    const cm = window.CUR_MAP;
+    if (!cm || !cm.m) return;
+    doors = propDoors(); W = cm.m.width;
+  }
+  if (!doors.size || !W) return;
   const occupied = new Set(people.map(p => p.y * W + p.x));
   for (const [posKey, info] of doors) {
     if (!occupied.has(posKey)) continue;
@@ -2073,9 +2107,9 @@ function drawOpenDoors(ctx, TS, people) {
     const openTile = info.tileId - info.placedAspect + info.openAspect;
     const extra = multiTilePieces(openTile, 0);
     if (extra) for (const pc of extra) {
-      drawTileAt(ctx, pc.tile, (dx0 + pc.dx) * TS, (dy0 + pc.dy) * TS, true, TS);
+      drawTileAt(ctx, pc.tile, ox + (dx0 + pc.dx) * TS, oy + (dy0 + pc.dy) * TS, true, TS);
     }
-    drawTileAt(ctx, openTile, dx0 * TS, dy0 * TS, true, TS);
+    drawTileAt(ctx, openTile, ox + dx0 * TS, oy + dy0 * TS, true, TS);
   }
 }
 
@@ -2194,14 +2228,10 @@ function findPath(m, x0, y0, x1, y1, keys) {
 function setMapHour(h) {
   window.MAP_HOUR = ((+h % 24) + 24) % 24;
   window.MAP_TIME = window.MAP_HOUR;
-  const t = document.getElementById('mapHourLabel');
-  if (t) {
-    const hh = window.MAP_HOUR;
-    const ampm = hh === 0 ? '12 am' : hh < 12 ? hh + ' am' : hh === 12 ? '12 pm' : (hh - 12) + ' pm';
-    t.textContent = ampm;
-  }
+  syncMapTimeControls();
   drawCharacterLayer();
   drawLighting();
+  if (typeof atlasPaintFolk === 'function' && window.CUR_SUBN === 'WORLD') atlasPaintFolk();
 }
 function toggleCharacters(on) { window.SHOW_CHARACTERS = on; drawCharacterLayer(); }
 function toggleCharNames(on) { window.SHOW_CHAR_NAMES = on; drawCharacterLayer(); }

@@ -589,6 +589,7 @@ function paintAtlas() {
   // frame is what it could not keep up with. The moment the finger lifts
   // the scene is painted sharp again (setupAtlasInteraction).
   const dpr = atlasView.touching ? 1 : Math.min((typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1, 2);
+  atlasDpr = dpr;
   if (cv.width !== Math.round(vw * dpr) || cv.height !== Math.round(vh * dpr)) {
     cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
     cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
@@ -609,12 +610,7 @@ function paintAtlas() {
     const alpha = !node.depth ? 1
       : Math.max(0, Math.min(1, (r.w - window.ATLAS_TUNE.nodeFadeFrom) /
                 (window.ATLAS_TUNE.nodeFadeTo - window.ATLAS_TUNE.nodeFadeFrom)));
-    if (drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh)) {
-      ctx.globalAlpha = alpha;
-      atlasPeople(ctx, node, r, ppt);
-      ctx.globalAlpha = 1;
-      drawn.push({ node, r });
-    }
+    if (drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh)) drawn.push({ node, r, ppt, alpha });
   }
   const mouths = atlasPaintMouths(ctx, drawn, vw, vh);
   atlasPaintTowns(ctx, drawn, vw, vh);
@@ -622,7 +618,66 @@ function paintAtlas() {
   atlasLabels(ctx, drawn, vw, vh);
   window.ATLAS_DRAWN = drawn;
   window.ATLAS_MOUTHS = mouths;
+  atlasPaintFolk();
   if (atlasIsFull()) atlasUpdateFullOverlay(drawn);
+}
+
+/* The people have a canvas of their own, over the scene's.
+
+   A walking day moves them thirty times a second, and repainting the whole
+   scene that often is what made the zoom choppy before (the handoff's
+   caution when this was asked for, 22 September 2026). So a tick of the
+   clock repaints this layer alone, from the nodes the last scene paint
+   placed (ATLAS_DRAWN); and every scene paint repaints it too, from the same
+   list, so the two never disagree about where a node is. Nothing on it is
+   painted once and moved, which is the rule the scene keeps.
+
+   It sits over the rings and the names, where the people used to be under
+   them; they are drawn inside a node and the names below it, so the two
+   rarely meet. A node drawn over its parent hides the parent's people, as
+   it did when both were on one canvas: its rectangle is cut out of this
+   layer, at the node's own opacity, before its people go on. */
+// The device pixels a CSS pixel the scene was last painted at, which the
+// people's layer has to match.
+let atlasDpr = 1;
+function ensureAtlasFolkCanvas() {
+  const vp = document.getElementById('atlasViewport');
+  if (!vp) return null;
+  let cv = document.getElementById('atlasFolkCanvas');
+  if (!cv) {
+    cv = document.createElement('canvas');
+    cv.id = 'atlasFolkCanvas';
+    cv.style.cssText = 'position:absolute; top:0; left:0; z-index:3; pointer-events:none; ' +
+                       'max-width:none; max-height:none;';
+    vp.appendChild(cv);
+  }
+  return cv;
+}
+function atlasPaintFolk() {
+  const scene = document.getElementById('atlasCanvas');
+  const cv = ensureAtlasFolkCanvas();
+  if (!cv || !scene) return;
+  cv.style.display = scene.style.display;
+  if (cv.width !== scene.width || cv.height !== scene.height) {
+    cv.width = scene.width; cv.height = scene.height;
+  }
+  cv.style.width = scene.style.width; cv.style.height = scene.style.height;
+  const ctx = cv.getContext('2d');
+  if (!ctx) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(atlasDpr, 0, 0, atlasDpr, 0, 0);
+  for (const { node, r, ppt, alpha } of (window.ATLAS_DRAWN || [])) {
+    if (node.depth) {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.globalAlpha = alpha;
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.globalAlpha = alpha;
+    atlasPeople(ctx, node, r, ppt);
+  }
+  ctx.globalAlpha = 1;
 }
 
 /* One node, at the best resolution it has.
@@ -880,11 +935,18 @@ function atlasDetailWindow(node, src, x0, y0, x1, y1, frame) {
 
    Only worth doing when a square is big enough to hold a person: below that
    they are smaller than the sprite's own outline and the node is a picture of
-   a town rather than a place with anybody in it. */
+   a town rather than a place with anybody in it.
+
+   The walls a walker routes round are borrowed the same way. buildPropBlockers
+   keeps one map's (DERIVED.PROP_BLOCK), which is right for the Zones view and
+   wrong here: with a town and the world on screen during a walking day, each
+   tick rebuilt both, a scan of every square and every prop, thirty times a
+   second. So each node keeps its own, lent in with its map and taken back. */
 // Where everyone on a node is at this hour: worked out from the schedules
 // once per node and hour rather than once per frame, since a pan does not
 // move the clock. Dropped with the other derived tables.
 const atlasFolkCache = new Map();
+const atlasBlockers = derivedMap('atlasBlockers');
 function atlasFolk(node) {
   const hour = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
   const key = node.resid + '@' + hour;
@@ -894,14 +956,24 @@ function atlasFolk(node) {
   // back the moment the gesture ends.
   const e = mapRenderIfCheap(node.resid);
   if (!e || !e.result) return [];
-  const keep = window.CUR_MAP;
+  const keep = window.CUR_MAP, keepBlock = DERIVED.PROP_BLOCK;
   let folk = [];
   try {
     window.CUR_MAP = { resid: node.resid, level: node.resid & 0xFF, m: e.result.m,
                        mapData: e.mapData, TS: e.result.tileSize,
                        tilesW: node.w, tilesH: node.h };
+    DERIVED.PROP_BLOCK = atlasBlockers.get(node.resid) || null;
+    buildPropBlockers(node.resid, e.result.m);
     folk = charactersOnLevel(node.resid & 0xFF, hour);
-  } catch (err) { folk = []; } finally { window.CUR_MAP = keep; }
+    deconflictPositions(folk);
+    // Which doors somebody is standing in, for atlasPeople to draw open.
+    folk.doors = propDoors();
+    folk.W = e.result.m.width;
+  } catch (err) { folk = []; quiet(err, 'the people on 0x' + node.resid.toString(16)); }
+  finally {
+    if (DERIVED.PROP_BLOCK) atlasBlockers.set(node.resid, DERIVED.PROP_BLOCK);
+    window.CUR_MAP = keep; DERIVED.PROP_BLOCK = keepBlock;
+  }
   if (atlasFolkCache.size > 64) atlasFolkCache.clear();
   atlasFolkCache.set(key, folk);
   return folk;
@@ -919,8 +991,13 @@ function atlasPeople(ctx, node, r, ppt) {
   // smoothing on for its scaled renders, and a person drawn through it was
   // a blur at every zoom (the maintainer, 9 September 2026).
   ctx.imageSmoothingEnabled = false;
+  if (folk.doors) drawOpenDoors(ctx, per, folk, folk.doors, folk.W, r.x, r.y);
   for (const c of folk) {
-    const x = c.x * per, y = c.y * per;
+    // Where the Zones view draws them: mid-stride between two squares while
+    // the day walks, and nudged apart where two share a post.
+    const cx = (c.fx !== undefined ? c.fx : c.x) + (c.nudgeX || 0);
+    const cy = (c.fy !== undefined ? c.fy : c.y) + (c.nudgeY || 0);
+    const x = cx * per, y = cy * per;
     if (r.x + x < -per || r.y + y < -per) continue;
     const base = tiles[c.proptype];
     if (base === undefined) continue;
@@ -1187,9 +1264,17 @@ function atlasLabels(ctx, drawn, vw, vh) {
 
    Seven frames a second, the rate the palette has always cycled at, and only
    while the tab is the one on screen. */
-let atlasAnimTimer = null;
+let atlasAnimTimer = null, atlasWalkTimer = null;
 function startAtlasAnimation() {
   stopAtlasAnimation();
+  /* A walking day, at the Zones view's own cadence (startMapAnimation): a
+     tick every 35 ms and a quarter of a square each. It repaints the people's
+     layer and nothing else, and it holds still while the view is moving:
+     the scene paints each frame of a gesture, the people with it, and a
+     clock that went on ticking would work out everyone's route again on
+     every one of those frames. */
+  atlasWalkTimer = setInterval(atlasWalkTick, 35);
+  if (atlasWalkTimer && typeof atlasWalkTimer.unref === 'function') atlasWalkTimer.unref();
   atlasAnimTimer = setInterval(() => {
     if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
     if (!window.MAP_ANIM || atlasView.touching) return;
@@ -1199,8 +1284,17 @@ function startAtlasAnimation() {
   }, 140);
   if (atlasAnimTimer && typeof atlasAnimTimer.unref === 'function') atlasAnimTimer.unref();
 }
+function atlasWalkTick() {
+  if (!window.MAP_WALK || !window.ATLAS || window.CUR_SUBN !== 'WORLD') return false;
+  if (atlasIsBusy()) return false;
+  if (typeof document !== 'undefined' && document.hidden) return false;
+  advanceMapClock();
+  atlasPaintFolk();
+  return true;
+}
 function stopAtlasAnimation() {
   if (atlasAnimTimer) { clearInterval(atlasAnimTimer); atlasAnimTimer = null; }
+  if (atlasWalkTimer) { clearInterval(atlasWalkTimer); atlasWalkTimer = null; }
 }
 
 /* What is outside the map: the folder it is lying on.
