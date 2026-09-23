@@ -202,7 +202,7 @@ check('its two bits wear the startup dialog\u2019s own labels',
 check('the cheat gate is bit 0 of byte 3 and touches nothing else',
       (function () { const a = prefRecord({ smooth: true }), b = prefRecord({ smooth: true, cheats: true });
         return a.length === 4 && b.length === 4 && a.every((v, i) => i === 3 ? (v ^ b[i]) === 1 : v === b[i]); })());
-// The other keys. Until v1.149.0 this writer made one resource; the file it
+// The other keys. Until v1.151.0 this writer made one resource; the file it
 // makes now has one per key the visitor moved, and only those -- an ordinal
 // left where a fresh install would read it is not written, so the file says
 // only what it means to say. Exactly four bytes each, because GetOrdinal

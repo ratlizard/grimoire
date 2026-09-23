@@ -1198,7 +1198,7 @@ try {
 } catch (e) { fail('cheats', e); }
 
 /* The preferences file, on the Tools tab, with NO application open -- which
-   is the state a visitor who dropped the data file is in, and until v1.150.0
+   is the state a visitor who dropped the data file is in, and until v1.152.0
    was the state where this section offered nothing at all. It offers
    everything now: the four releases Ambrosia shipped give byte-for-byte the
    same layout, so PREF_SHIPPED stands in for a program that is not there,
