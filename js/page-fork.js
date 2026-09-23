@@ -1209,7 +1209,16 @@ function renderCharacterSheet() {
     inner.appendChild(pc);
     wrap.appendChild(inner);
     const info = spriteFrameInfo(d.tile, d.rec.proptype);
-    animateSpriteTile(inner, info, d.rec);
+    /* The hero's record is the player, who is the hero or the heroine; the
+       file has a sprite for each (HERO_SPRITES), so both walk round the one
+       portrait, half a loop apart (the maintainer, 22 September 2026). */
+    const heroine = HERO_SPRITES.find(h => h.key === 'heroine');
+    const isHero = d.rec.proptype && d.rec.proptype === (HERO_SPRITES.find(h => h.key === 'hero') || {}).proptype;
+    const herInfo = isHero && heroine ? spriteFrameInfo(0, heroine.proptype) : null;
+    if (herInfo && !herInfo.none) {
+      animateSpriteTile(inner, info, d.rec, { dir: 1, phase: 0 });
+      animateSpriteTile(inner, herInfo, d.rec, { dir: 1, phase: 0.5 });
+    } else animateSpriteTile(inner, info, d.rec);
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
     lbl.className = 'lbl'; lbl.textContent = d.name;
@@ -1374,7 +1383,7 @@ function showCharacterDetail(i) {
   // under Components. The dossier used to draw the portrait and the sprite
   // sheet without ever saying which resources they were.
   const parts = document.createElement('div');
-  parts.innerHTML = partsStrip('Made of', characterParts(i, d)) + characterSays(i);
+  parts.innerHTML = linksFold(partsStrip('Made of', characterParts(i, d)) + characterSays(i));
   panel.appendChild(parts);
 
   const sh = document.createElement('div');

@@ -564,6 +564,21 @@ function actionChip(label, js, note) {
     (note ? ' <i>' + svEsc(note) + '</i>' : '') + '</button>';
 }
 
+/* The links a detail page carries to other resources -- what it is made of,
+   what it belongs to, who plays or opens or references it -- folded shut
+   under one line with their count (the maintainer, 22 September 2026: the
+   chips were the bulk of every page and the thing itself came below them).
+   Opening one opens them all for the rest of the visit, since a reader who
+   wants the links on one page wants them on the next. */
+window.LINKS_OPEN = false;
+function linksFold(html) {
+  if (!html) return '';
+  const n = (html.match(/<button/g) || []).length;
+  return '<details class="linksFold"' + (window.LINKS_OPEN ? ' open' : '') + ' ontoggle="linksFoldToggle(this)">' +
+    '<summary>Links' + (n ? ' (' + n + ')' : '') + '</summary>' + html + '</details>';
+}
+function linksFoldToggle(el) { window.LINKS_OPEN = !!el.open; }
+
 function partsStrip(title, chips, note) {
   if (!chips.length && !note) return '';
   return '<div class="partsStrip"><span class="partsTitle">' + svEsc(title) + '</span>' +
@@ -1028,9 +1043,19 @@ function ownerRows(resid, subn) {
       eggs.length ? '' : 'No zone places this room.']);
   }
   if (subn === 131) {
-    const n = resid - 0x8400, zones = [];
-    for (let z = 0; z < 0x100; z++) if (refExists(0x8000 + z) && zoneLandscapeArg(z) === n) zones.push(svChip(0x8000 + z));
-    rows.push(['Behind', zones, zones.length ? '' : 'No zone’s entry script sets this landscape.']);
+    // Every script that names this strip, the zone's own where it is an
+    // entry script; a negative number is the strip with no sky
+    // (landscapeSetters).
+    const chips = [], said = new Set();
+    for (const st of landscapeZones(resid)) {
+      const key = st.resid + (st.sky ? '' : '-');
+      if (said.has(key)) continue;
+      said.add(key);
+      chips.push(relChip({ js: 'jumpToScriptAt(' + st.resid + ',' + st.at + ')',
+        main: landscapeSetterName(st.resid), sub: st.sky ? 'over the sky' : 'no sky',
+        icon: relIconFor(st.resid), title: trailForResid(st.resid) }));
+    }
+    rows.push(['Set by', chips, chips.length ? '' : 'No script sets this landscape.']);
   }
   if (subn === 1 && HERO_CLASS_TEXT.some(([, r]) => r === resid) && loadCharacterTable()[1])
     rows.push(['Offered to', [characterChip(1)], '']);
@@ -1077,7 +1102,7 @@ function renderUsage(resid, subn) {
 }
 
 // --- Monster stats (0xF008) ------------------------------------------------
-// 128 records of 16 bytes. The field map is the wiki's F008 page, and it holds
+// 128 records of 16 bytes. The field map was the wiki's F008 page, and it holds
 // up against this archive: record 22 is prop type 0x5A, which the prop-type
 // list names "goat", and the wiki's own note says the goat is entry 0x16 = 22.
 // Records 21/23/24 line up with bird, crab and ratlizard the same way.
@@ -1087,14 +1112,6 @@ function renderUsage(resid, subn) {
 // row of hex and becomes a creature. corpse_type is packed the same way a prop
 // record's aspect/proptype word is (6 bits aspect, 10 bits type), which is
 // what says a dead goat is a goat at aspect 2 while an undead leaves "bones".
-const MONSTER_FIELDS = [
-  ['body', 'One of the three main stats. The wiki warns these three may be out of order.'],
-  ['reflex', 'One of the three main stats.'],
-  ['mind', 'One of the three main stats.'],
-  ['armor', 'Damage reduction.'],
-  ['size', 'Unidentified; the wiki guesses size.'],
-  ['hp', 'Hit points.']
-];
 
 /* The 0xF008 flags word, decoded. Neither delvmod (monster.py is a stub) nor
    the wiki ever worked these out. They fell to a cross-reference: gandreas
@@ -1441,7 +1458,7 @@ function showMonsterDetail(idx) {
     if (refExists(0xF008)) chips.push(partChip('Stats table', 0xF008));
     chips.push(actionChip('Prop type', 'showPropTypeDetail(' + r.proptype + ')', 'every frame'));
     const made = document.createElement('div');
-    made.innerHTML = partsStrip('Made of', chips);
+    made.innerHTML = linksFold(partsStrip('Made of', chips));
     panel.appendChild(made);
   }
 

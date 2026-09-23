@@ -867,7 +867,7 @@ function showPropTypeDetail(pt) {
     const wins = containerWindowsFor(pt);
     if (wins.length) {
       const strip = document.createElement('div');
-      strip.innerHTML = partsStrip('Opens as', wins.map(w => partChip('Window', w)));
+      strip.innerHTML = linksFold(partsStrip('Opens as', wins.map(w => partChip('Window', w))));
       panel.appendChild(strip);
     }
   }
@@ -1970,7 +1970,7 @@ function showItemDetail(pt) {
     chips.push(actionChip('Prop type', 'showPropTypeDetail(' + pt + ')', 'every frame'));
     for (const w of containerWindowsFor(pt)) chips.push(partChip('Opens as', w));
     for (const n of classSounds(0x1000 + pt)) chips.push(partChip('Sound', 0x9100 + n));
-    h += partsStrip('Made of', chips);
+    h += linksFold(partsStrip('Made of', chips));
   }
   panel.innerHTML = h;
   // Every section below the frames is a fold, shut by default, its summary

@@ -811,7 +811,7 @@ function showArtUsage(resid) {
   if (!el) return;
   el.innerHTML = '<span class="inspDim">Reading every map&hellip;</span>';
   // Yield so that note paints before the scan blocks the thread.
-  setTimeout(() => { el.innerHTML = renderArtUsage(resid); }, 0);
+  setTimeout(() => { el.innerHTML = linksFold(renderArtUsage(resid)); }, 0);
 }
 
 // The same panel for every open resource. Tile sheets keep their map/prop
@@ -826,13 +826,13 @@ function updateUsagePanel(resid, subn) {
     // The panel renders itself: a button that says "click me to find out" was
     // an extra step in front of information that takes ~40ms to build once
     // and is memoised after. First visit shows the building note for one beat.
-    if (DERIVED.TILE_USAGE) el.innerHTML = renderArtUsage(resid);
+    if (DERIVED.TILE_USAGE) el.innerHTML = linksFold(renderArtUsage(resid));
     else showArtUsage(resid);
     return;
   }
   let html = '';
   // A script's rows are drawn under its code instead, by buildScriptView.
-  if (!SCRIPT_SUBN.has(subn)) try { html = renderUsage(resid, subn); } catch (e) { html = ''; }
+  if (!SCRIPT_SUBN.has(subn)) try { html = linksFold(renderUsage(resid, subn)); } catch (e) { html = ''; }
   el.innerHTML = html;
   el.style.display = html ? 'block' : 'none';
 }

@@ -949,7 +949,7 @@ function renderMapResource(resid) {
       (wasDecrypted ? '  |  decrypted' : '') +
       (usedFallback ? '  |  (auto-decrypt guess corrected)' : '');
     const mp = document.getElementById('mapParts');
-    if (mp) mp.innerHTML = partsStrip('Made of', mapParts(resid, result.propResid));
+    if (mp) mp.innerHTML = linksFold(partsStrip('Made of', mapParts(resid, result.propResid)));
     out.textContent = "Rendered map 0x" + resid.toString(16).toUpperCase() +
       (lbl ? " (" + lbl + ")" : "") + " with " + result.propCount + " props";
     currentResid = resid;

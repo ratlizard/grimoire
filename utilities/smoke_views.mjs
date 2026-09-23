@@ -744,3 +744,20 @@ try {
     fail('script page', 'the conversations under Text lost their tiles for the list');
   console.log('  script page: the World gives the panel back, code first under Functions and words under Text, the view kept from one script to the next, rings and links in the structured listing, what names it below the code, the gallery a list');
 } catch (e) { fail('script page', e); }
+
+/* Landscape strips and who sets them, 22 September 2026. SetLandscapeImage
+   negates a negative argument into a strip with no sky (cbSetZonePic), so
+   the strips named only by a negative number -- 1 for Land King Hall, 12,
+   13, 15 -- are used, and the old reading, which matched the signed number,
+   called them unused. The control is strip 17, which nothing sets. */
+try {
+  const set = n => ctx.landscapeZones(0x8400 + n);
+  const lkh = set(1);
+  if (!lkh.length || lkh.some(s => s.sky) || !/Land King Hall/.test(ctx.landscapeSetterName(lkh[0].resid)))
+    fail('landscapes', 'strip 1 is not set by Land King Hall with no sky: ' + JSON.stringify(lkh));
+  else if (![12, 13, 15].every(n => set(n).length) || set(17).length)
+    fail('landscapes', 'strips 12, 13 and 15 should be set and 17 not: ' + [12, 13, 15, 17].map(n => n + '=' + set(n).length).join(' '));
+  else if (!(set(9).some(s => s.sky) && set(9).some(s => !s.sky)))
+    fail('landscapes', 'strip 9 is set both over the sky and without it, and was not read so');
+  else console.log('  landscapes: strip 1 is Land King Hall with no sky, 12, 13 and 15 are set, 17 by nothing, 9 both ways');
+} catch (e) { fail('landscapes', e); }

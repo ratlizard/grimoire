@@ -426,7 +426,7 @@ function renderSkillsSheet() {
       // on the summary, so the strip carries the icon it wears.
       {
         const chips = skillSpellParts(x.resid);
-        if (chips.length) { const p = document.createElement('div'); p.innerHTML = partsStrip('Made of', chips); sec.appendChild(p); }
+        if (chips.length) { const p = document.createElement('div'); p.innerHTML = linksFold(partsStrip('Made of', chips)); sec.appendChild(p); }
       }
       if (x.lessons.length) {
         const sub = document.createElement('div'); sub.className = 'mechSub'; sub.textContent = kind === 'command' ? 'What it says' : 'What a teacher says, lesson by lesson';
@@ -547,7 +547,7 @@ function renderSpellsSheet() {
     // already named on the summary.
     {
       const chips = skillSpellParts(x.resid);
-      if (chips.length) { const p = document.createElement('div'); p.innerHTML = partsStrip('Made of', chips); sec.appendChild(p); }
+      if (chips.length) { const p = document.createElement('div'); p.innerHTML = linksFold(partsStrip('Made of', chips)); sec.appendChild(p); }
     }
     box.appendChild(sec);
   }

@@ -354,7 +354,7 @@ try {
        game and not from this code; effect 0xA03 on the potion at aspect 3;
      - a tap arrives: openClassCard opens the card itself, not only the sheet.
 
-   The negative half: a landscape no zone sets (0x8401) and a room no zone
+   The negative half: a landscape no script sets (0x8411) and a room no zone
    places (0x1C5F) must say so and link nothing. A join that matched loosely
    -- every zone for every landscape -- would pass every presence test here. */
 try {
@@ -375,15 +375,20 @@ try {
   const fam = [15, 16, 24, 25].map(s => [s, owned(s)]);
   const short = fam.find(([, o]) => !o.n || o.missing.length);
   const gator = usage(0x1910), icon = usage(0x8A05), room = usage(0x1B01), fx = usage(0xA03);
-  const bare = usage(0x8401), lost = usage(0x1C5F);
+  const bare = usage(0x8411), lkhStrip = usage(0x8401), lost = usage(0x1C5F);
   if (short)
     fail('component owners', `subindex ${short[0]}: ${short[1].n} class scripts, ${short[1].missing.length} with no owner row (${short[1].missing.slice(0, 5).join(' ')})`);
   else if (!/openUnit\(16\)/.test(gator)) fail('component owners', '0x1910 does not name monster record 16 as its owner');
   else if (!new RegExp('openClassCard\\(' + 0x1A05 + '\\)').test(icon)) fail('component owners', 'icon 0x8A05 does not name class 0x1A05');
   else if (!new RegExp('showSquareOnMap\\(' + 0x8003 + ',19,24\\)').test(room)) fail('component owners', 'room 1 does not land on Land King Hall at (19,24)');
   else if (!/openItem\(31,3\)/.test(fx)) fail('component owners', 'effect 0xA03 does not name the potion at aspect 3');
-  else if (!/No zone’s entry script sets this landscape/.test(bare) || /jumpToResource\(3276[89]/.test(bare))
-    fail('component owners', 'landscape 0x8401, which no zone sets, links a zone or does not say so');
+  else if (!/No script sets this landscape/.test(bare) || /jumpToScriptAt\(/.test(bare))
+    fail('component owners', 'landscape 0x8411, which no script sets, links a script or does not say so');
+  // Strip 1 is set by Land King Hall's entry script as -1: the strip with
+  // no sky (cbSetZonePic negates it). Until 22 September 2026 this pin held
+  // it up as the landscape nothing sets.
+  else if (!new RegExp('jumpToScriptAt\\(' + 0x1403 + ',').test(lkhStrip) || !/no sky/.test(lkhStrip))
+    fail('component owners', 'landscape 0x8401 does not name Land King Hall’s entry script, with no sky');
   else if (!/No zone places this room/.test(lost) || /showSquareOnMap/.test(lost))
     fail('component owners', 'room 0x1C5F, which no egg places, links a square or does not say so');
   else {

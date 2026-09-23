@@ -286,7 +286,7 @@ function buildScriptView(o) {
   if (outs.length)
     h += partsStrip('Names', shown.map(e => svChip(e.target, e.kind)),
                     outs.length > shown.length ? 'and ' + (outs.length - shown.length) + ' more' : '');
-  refs.innerHTML = h;
+  refs.innerHTML = linksFold(h);
   refs.style.display = '';
 }
 
@@ -978,7 +978,7 @@ const TAB_TREE = [
           // the wrong content under the right name (the maintainer); those
           // are scripts and have gone to Functions > Places beside the zone
           // entry scripts.
-          { id: 'writings', label: 'Writings', tile: 0x263, values: ['1'] },                               // the scroll
+          { id: 'writings', label: 'Writings', tile: 0x260, values: ['1'] },                               // the maintainer's pick, 22 September 2026; it was the scroll (0x263)
           // The faces the text is set in: Argos A Nouveau and the Seldane
           // script, out of the resource fork, and the styles that assign them.
           { id: 'fonts',    label: 'Fonts',    tile: 0x180, values: ['FONTS'] },                              // the maintainer's pick, 9 September 2026

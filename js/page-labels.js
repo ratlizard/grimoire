@@ -63,14 +63,10 @@ function prettyLabel(s) { return String(s).replace(/([a-z])([A-Z])/g, '$1 $2').r
 // which no portrait reaches. The three left are the ones the file names
 // otherwise: "UrSylph", "Fountain" and "Door".
 const CYTHERA_CHARACTERS = {127:"UrSylph",189:"WishingFountain",190:"DegreeHallDoor"};
-// Landscape backdrops (subindex 131, 0x84nn). There are only 18 of them and
-// they are a shared pool of backdrop art with their own numbering -- they do
-// NOT run parallel to the 42 maps at any offset. This list previously did not
-// exist and 0x84nn fell through to a zone lookup at [n+1], which showed
-// 0x8401 as "Odemia", 0x8404 as "Farmhouse Cellar" and 0x8406 as "Under
-// Catamarca" when the wiki's subindex 131 listing has LandKing Hall,
-// Catamarca and Pnyx. Question marks below are the wiki's own uncertainty.
-const CYTHERA_LANDSCAPES = ["Outside (Cythera mainland)","LandKing Hall","Odemia (?)","Unidentified","Catamarca","Unknown","Pnyx","Odemia or Stronghold (?)","Ruins","Underground / Cave","Ayrit (Seldane underground city)","A Vineyard","Iron Mine","Volcano Underground","Forest","Sewers","Underground (developed)","Abydos Ruins"];
+// Landscape strips (subindex 131, 0x84nn) carry no built-in names since
+// 22 September 2026: the community's list was guesses with question marks,
+// and each strip's cell now says which zones and rooms set it
+// (landscapeSetters), which is the file's own answer.
 // Skill icon names used to be 49 hardcoded strings transcribed by hand -- and
 // transcribed from buggy decoder output, which is why the list contained
 // "DirectedNexus" and "Acertainment". They are read from the archive now:
@@ -177,8 +173,6 @@ function labelForResource(subn, n, resid) {
     if (window.SHOW_BUILTIN_LABELS && CYTHERA_CHARACTERS[n+1] !== undefined)
       return prettyLabel(CYTHERA_CHARACTERS[n+1]);
   }
-  if (subn === 131 && window.SHOW_BUILTIN_LABELS && CYTHERA_LANDSCAPES[n] !== undefined)
-    return CYTHERA_LANDSCAPES[n];
   if (subn === 137) { const sk = skillNameForIcon(n); if (sk) return sk; }
   return null;
 }
@@ -472,7 +466,7 @@ function residLink(resid, text) {
 }
 
 // Names this tool supplies rather than reads. RESOURCE_LABELS, RESHINTS, the
-// ZONES fallbacks, TILE_SHEET_HINTS, CYTHERA_LANDSCAPES and the character-name
+// ZONES fallbacks, TILE_SHEET_HINTS and the character-name
 // fallback are all hand-identified from the wiki -- good guesses, but guesses,
 // and they used to be indistinguishable from the archive's own strings except
 // for a dagger nobody reads. They were off by default until 6 September
@@ -1044,7 +1038,10 @@ function spriteFrameInfo(baseTile, proptype) {
 // rate of reflex 6 -- and Body sets how willing they are to stop and rest,
 // with heavier characters pausing more often. Nothing here is invented data:
 // both fields are read straight out of F009.
-function animateSpriteTile(host, info, rec) {
+// `opts`, where given, fixes the direction and where on the loop the walker
+// starts, as a fraction of it: the hero's cell has two walkers, the hero and
+// the heroine, half a loop apart and going the same way, so they never meet.
+function animateSpriteTile(host, info, rec, opts) {
   if (!info || info.none) return null;
   const SIZE = 26;                       // 32px tile, shown small enough to
                                          // read as a figure beside a portrait
@@ -1078,7 +1075,7 @@ function animateSpriteTile(host, info, rec) {
   const rows = Math.max(1, Math.floor(info.present.length / 4));
 
   let W = 0, H = 0, per = 0, steps = 0, k = 0, sw = 0, sh = 0;
-  const dir = Math.random() < 0.5 ? 1 : -1;
+  const dir = opts && opts.dir ? opts.dir : (Math.random() < 0.5 ? 1 : -1);
   const measure = () => {
     W = host.clientWidth || 76;
     H = host.clientHeight || 76;
@@ -1089,7 +1086,7 @@ function animateSpriteTile(host, info, rec) {
     sw = Math.max(2, Math.round(W / (SIZE / 2)));
     sh = Math.max(2, Math.round(H / (SIZE / 2)));
     steps = 2 * (sw + sh);
-    if (!k) k = Math.floor(Math.random() * steps);
+    if (!k) k = opts && opts.phase !== undefined ? Math.round(opts.phase * steps) : Math.floor(Math.random() * steps);
   };
 
   // Where step n sits on the perimeter. Position and facing are worked out

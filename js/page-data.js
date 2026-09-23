@@ -22,7 +22,17 @@
    that range, alternating. The other negatives (-9, -12, -13, -15, -16) have
    no image in the archive at all, so they are taken to be solid colours the
    engine keeps, and nothing is drawn for them. This is a reading of the
-   scripts plus the one image pair that fits, not a documented rule. */
+   scripts plus the one image pair that fits, not a documented rule.
+
+   CORRECTION, 22 September 2026, from the program: that reading of the
+   number is wrong. SetLandscapeImage is cbSetZonePic, which negates a
+   negative argument and clears the outdoor flag, so -1 is landscape strip 1
+   with no sky, and the strip is the picture in the status window, not
+   anything behind the map (landscapeSetters, below). Nothing in that path
+   touches 0x8F50/0x8F51. The void backdrop below is still keyed on -1 and
+   still drawn, because what the game draws through Land King Hall's
+   transparent void tiles was not read; the key is a coincidence of the one
+   zone, not the rule it was taken for. */
 function zoneLandscapeArg(level) {
   if (!DERIVED.ZONE_BACKDROPS) DERIVED.ZONE_BACKDROPS = Object.create(null);
   if (level in DERIVED.ZONE_BACKDROPS) return DERIVED.ZONE_BACKDROPS[level];
@@ -54,14 +64,57 @@ function zoneLandscapeArg(level) {
   } catch (e) { quiet(e); }
   return (DERIVED.ZONE_BACKDROPS[level] = found);
 }
-// The zones whose entry script sets landscape strip `resid` (0x8400 + n).
-function landscapeZones(resid) {
-  const n = resid - 0x8400, out = [];
-  for (let level = 0; level < 256; level++) {
-    if (!refExists(0x8000 + level)) continue;
-    if (zoneLandscapeArg(level) === n) out.push(zoneNameFor(0x8000 + level) || ('0x' + (0x8000 + level).toString(16).toUpperCase()));
+/* Who sets landscape strip n, and with or without a sky.
+
+   SetLandscapeImage is the program's cbSetZonePic, and it is two things in
+   one number: a negative argument is negated and the outdoor flag cleared,
+   so -9 is strip 9 with no sky and 9 is strip 9 over the sky. It stores the
+   strip in the one global TStatusWindow::ChangeOutdoor reads, and that
+   routine draws 0x8400 plus it into the 288 by 32 picture in the status
+   window, over DrawSky's sky of the hour when the flag is set and over a
+   plain fill when it is not. Nothing else writes the global.
+
+   So every strip a negative number names is used, which this page missed
+   until 22 September 2026: it matched the signed argument against the
+   strip number, so -1 (Land King Hall), -9 (the caves and cellars), -10,
+   -12, -13, -15 and -16 were read as "set by no zone" and the strips they
+   name as unused. And it read only the zones' entry scripts; three sub-zone
+   scripts and one room script set a strip too. */
+function landscapeSetters() {
+  if (DERIVED.LANDSCAPE_SETTERS) return DERIVED.LANDSCAPE_SETTERS;
+  const out = [];
+  try {
+    for (const e of buildScriptTextIndex()) {
+      const ops = dvmOpsOf(e);
+      for (let i = 0; i + 1 < ops.length; i++) {
+        if (ops[i].text !== 'sys SetLandscapeImage') continue;
+        const lit = /^(?:byte|short|word) (-?0x[0-9A-F]+|-?\d+)$/i.exec(ops[i + 1].text);
+        if (!lit) continue;
+        const v = lit[1].replace('-', '').startsWith('0x') ? (lit[1][0] === '-' ? -1 : 1) * parseInt(lit[1].replace('-', ''), 16) : parseInt(lit[1], 10);
+        out.push({ resid: e.resid, at: ops[i + 1].at, v, n: Math.abs(v), sky: v >= 0 });
+      }
+    }
+  } catch (e) { quiet(e); }
+  return (DERIVED.LANDSCAPE_SETTERS = out);
+}
+// What names the script that sets it: the zone for an entry script, the
+// resource's own label otherwise.
+function landscapeSetterName(resid) {
+  const hex = '0x' + resid.toString(16).toUpperCase();
+  const hi = resid >> 8;
+  if (hi === 0x14) return zoneNameFor(0x8000 + (resid & 0xFF)) || labelFor(resid) || hex;
+  // A room's script: the room, in the zone whose egg places it.
+  if (hi === 0x1B || hi === 0x1C || hi === 0x1E) {
+    const eggs = roomEggIndex().get(resid - 0x1B00) || [];
+    const zones = [...new Set(eggs.map(e => zoneLabel(e.zone)))];
+    return 'room ' + (resid - 0x1B00) + (zones.length ? ' in ' + zones.join(', ') : '');
   }
-  return out;
+  return labelFor(resid) || ('sub-zone script ' + hex);
+}
+// The setters of landscape strip `resid` (0x8400 + n).
+function landscapeZones(resid) {
+  const n = resid - 0x8400;
+  return landscapeSetters().filter(s => s.n === n);
 }
 function zoneBackdrop(level) {
   return zoneLandscapeArg(level) === -1 && refExists(0x8F50) && refExists(0x8F51) ? [0x8F50, 0x8F51] : null;
@@ -2003,7 +2056,7 @@ function showRecordDetail(resid, byte) {
     main: 'The bytes in the fork', sub: propWordHex(resid) + ' at ' + start,
     title: tabTrail(TAB_LEAF_FOR.get('DATAFORK')) }));
   const strip = document.createElement('div');
-  strip.innerHTML = partsStrip('Leads to', ways);
+  strip.innerHTML = linksFold(partsStrip('Leads to', ways));
   panel.appendChild(strip);
 
   // The record itself.

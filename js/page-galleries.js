@@ -263,7 +263,7 @@ function tileFactsHTML(tileId) {
   let orphan = false;
   try { orphan = orphanItemArt().some(o => o.tile === tileId); } catch (e) { orphan = false; }
   if (orphan) rows.push('<div class="partsNote" style="color:#b5b2a8">No class owns this picture, and nothing in the file places it.</div>');
-  return rows.join('');
+  return linksFold(rows.join(''));
 }
 
 function showSpriteZoom(tileId, label) {
@@ -920,7 +920,7 @@ function updateSheetSummary() {
     (s.blank ? ', ' + s.blank + ' blank hidden' : '') +
     (pending > 0 ? ', ' + pending + ' still off screen' : '') +
     ' (' + s.total + ' total) in ' + (CATEGORY_NAMES[s.subn] || 'Unknown Category') + '.' +
-    (s.subn === 131 ? ' Each strip is the backdrop a zone’s entry script names with SetLandscapeImage, drawn behind the map where it ends; the cell says which zones name it.' : '');
+    (s.subn === 131 ? ' Each strip is the picture in the status window a script names with SetLandscapeImage, drawn over the sky of the hour, or with no sky where the script gives the number negated. The cell says which zones and rooms name it.' : '');
 }
 
 function renderContactSheet() {
@@ -1131,7 +1131,12 @@ function renderContactSheet() {
       try { zones = landscapeZones(resid); } catch (e) { zones = []; }
       const z = document.createElement('div');
       z.className = 'resid';
-      z.textContent = zones.length ? 'behind ' + zones.join(', ') : 'set by no zone’s entry script';
+      const said = new Set(), names = [];
+      for (const st of zones) {
+        const nm = landscapeSetterName(st.resid) + (st.sky ? '' : ', no sky');
+        if (!said.has(nm)) { said.add(nm); names.push(nm); }
+      }
+      z.textContent = names.length ? names.join('; ') : 'set by no script';
       cell.appendChild(z);
     }
     // Decoded when the tile is nearly on screen, not now. A blank resource is
@@ -1219,6 +1224,10 @@ function enhanceCellsForKeyboard(root) {
 function scrollHintUpdate(el) {
   const more = el.scrollWidth - el.clientWidth - el.scrollLeft > 2;
   if (el.classList.toggle('moreRight', more) !== more) el.classList.toggle('moreRight', more);
+  // And the left edge, once the row has been slid along (the maintainer,
+  // 22 September 2026: the fade was on the right only).
+  const back = el.scrollLeft > 2;
+  if (el.classList.toggle('moreLeft', back) !== back) el.classList.toggle('moreLeft', back);
 }
 function scrollHintWatch(el) {
   if (!el) return;
