@@ -220,8 +220,8 @@ reference/  (gitignored — supplied by you)
         installed-folders/             the .sit folders systemless launches from
         combat-ai/, manuals/           the shipped .ai scripts; Ambrosia's PDFs
     community/
-        dialogue/Dialogue/             the verified dialogue, the oracle below
-        guides-site/, fandom-wiki/, delver-homepage/, forum-writing/
+        guides-site/                   the Cythera Guides pages; dialogue/Dialogue/ is the verified dialogue, the oracle below
+        fandom-wiki/, delver-homepage/, forum-writing/
         addons/, editors/              player-made add-ons; ACE
     apple-documentation/               the cited Inside Macintosh and technical notes
     saves/, screenshots/
@@ -467,7 +467,7 @@ sentence this paragraph should carry: paste it in rather than counting by
 hand. Without the game in `reference/` most checks skip, and `delvmod
 write` and `disk image` are the two checks with an oracle still running — its synthetic archives are built on the fly. `dialogue vs
 guides` has a second, optional input of its own — the community's dialogue
-collection at `reference/community/dialogue/Dialogue` (the ZIP
+collection at `reference/community/guides-site/dialogue/Dialogue` (the ZIP
 from cytheraguides.com, unpacked) — and runs its structural half without it.
 
 Two of the checks report a hash rather than a figure, so that a deliberate

@@ -3,7 +3,7 @@
 // verified in play?
 //
 //   node utilities/dialogue_check.mjs index.html "$TMPDIR/Cythera Data.data" \
-//        [reference/community/dialogue/Dialogue]
+//        [reference/community/guides-site/dialogue/Dialogue]
 //
 // dvmConversation (js/delv-script.js) claims to turn a dialogue script's
 // conversation_response chain into topics, responses and an inheritance
@@ -42,8 +42,14 @@ import { execFileSync } from 'node:child_process';
 import { makeSandbox } from './dom_stub.mjs';
 import { pageSource } from './page_scripts.mjs';
 
-const [htmlPath = 'index.html', dataPath, oracleDir =
-  'reference/community/dialogue/Dialogue'] = process.argv.slice(2);
+// The community's collection moved beside the Cythera Guides site's other
+// pages on 23 September 2026 (reference/community/guides-site/dialogue); a
+// copy of the reference made before that still has it at the old place.
+// Until this looked in both, the move left the check running its structural
+// half only, reporting ok with "oracle not present".
+const [htmlPath = 'index.html', dataPath, oracleArg] = process.argv.slice(2);
+const oracleDir = oracleArg || ['reference/community/guides-site/dialogue/Dialogue',
+  'reference/community/dialogue/Dialogue'].find(p => existsSync(p)) || 'reference/community/guides-site/dialogue/Dialogue';
 
 let failures = 0;
 const fail = (what, why) => { failures++; console.error(`FAIL ${what}: ${why}`); };
