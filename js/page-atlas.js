@@ -1955,7 +1955,7 @@ function atlasInspect(px, py) {
     var boxes = [];
     for (const p of hits.slice(0, 6)) {
       const pt = p.rec.proptype;
-      const name = propDisplayName(pt) || ('prop 0x' + pt.toString(16));
+      const name = recDisplayName(p.rec);
       let says = '';
       try { says = propTextByData1(pt, p.rec.d1) || ''; } catch (err) { says = ''; }
       const item = (function () { try { return isInventoryItem(pt); } catch (err) { return false; } })();
@@ -2168,7 +2168,7 @@ function squareCard(level, e, tx, ty, placeName, asked) {
   } catch (err) { people = []; }
   const props = (e && e.result && e.result.props ? e.result.props : [])
     .filter(p => p.cells.some(c => c[0] === tx && c[1] === ty))
-    .map(p => propDisplayName(p.rec.proptype) || ('prop 0x' + p.rec.proptype.toString(16)));
+    .map(p => recDisplayName(p.rec));
   const tileId = e && e.result && e.result.m ? mapTileAt(e.result.m, tx, ty) : 0;
   const ground = tileId ? (terrainNameFor(tileId) || compositeTileName(tileId) || '') : '';
   if (!people.length && !props.length && !asked) return null;

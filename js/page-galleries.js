@@ -779,6 +779,8 @@ function buildKeyLockIndex() {
   }
   return (DERIVED.KEY_LOCK_INDEX = { locks, keys });
 }
+// A key by the letter it wears in the game, with the lock id it carries.
+function keyLabel(k) { const L = itemLetter(k.rec); return 'key ' + (L ? L + ' (' + k.id + ')' : k.id); }
 function keysForLock(id) { return buildKeyLockIndex().keys.filter(k => k.id === id); }
 function locksForKey(id) { return buildKeyLockIndex().locks.filter(l => l.id === id); }
 
@@ -788,7 +790,7 @@ function locksForKey(id) { return buildKeyLockIndex().locks.filter(l => l.id ===
 function keyLocationChip(k) {
   const zone = zoneNameFor(k.map) || ('0x' + k.map.toString(16).toUpperCase());
   if (k.rec.carriedBy !== null)
-    return '<button class="sv-chip" onclick="showCharacterDetail(' + k.rec.carriedBy + ')">key ' + k.id +
+    return '<button class="sv-chip" onclick="showCharacterDetail(' + k.rec.carriedBy + ')">' + keyLabel(k) +
       ', ' + svEsc(characterName(k.rec.carriedBy)) + (k.rec.equipped ? ' (equipped)' : ' carries it') + '</button>';
   let x = k.rec.x, y = k.rec.y, how = '';
   if (k.rec.container !== null) {
@@ -801,7 +803,7 @@ function keyLocationChip(k) {
     x = host.x; y = host.y;
     how = ', in a ' + svEsc((propDisplayName(host.proptype) || 'container'));
   }
-  return '<button class="sv-chip" onclick="showSquareOnMap(' + k.map + ',' + x + ',' + y + ')">key ' + k.id +
+  return '<button class="sv-chip" onclick="showSquareOnMap(' + k.map + ',' + x + ',' + y + ')">' + keyLabel(k) +
     ', ' + svEsc(zone) + how + '</button>';
 }
 function lockLocationChip(l) {

@@ -993,7 +993,10 @@ const ITEM_FIELD_INFO = {
   0x24: { scalar:true, unit:'grains', gloss:'Carry weight. System.WeightCapacity measures a container against the sum of these.' },
   0x26: { scalar:true, gloss:'Equipment slot this occupies when worn or wielded.' },
   0x27: { scalar:true, hex:true, gloss:'Bit flags. The individual bits are not documented.' },
-  0x28: { scalar:true, gloss:'How many fit in one inventory slot.' },
+  // Read by FillIntfCache as seven flag bits (0x01 to 0x40), not a count:
+  // 0x04 is the letter under the picture (itemLetter). The rest are copied
+  // into the class flag table and not yet followed to their readers.
+  0x28: { scalar:true, hex:true, gloss:'Bit flags. 0x04: the item wears a letter under its picture, as the keys do.' },
   // The combat fields were decoded on 5 September 2026 by following the
   // routines that read them: the attack resolver 0xE87 (type, skill, the
   // two sounds, the hit effect), the AI's weapon choice 0x3042 (reach,
@@ -1179,6 +1182,35 @@ function classFlagBits() {
   return { classes, bits: [...bits.entries()].sort((a, b) => a[0] - b[0]).map(([bit, who]) => ({ bit, who })) };
 }
 
+/* The letter under a key (the maintainer, 23 September 2026: in the game
+   the keys are labelled with a letter under the sprite that says what they
+   open). Read off the program: DrawInventoryIcon draws an item's count
+   under its picture when it has more than one, and otherwise asks
+   GetItemLetter, which answers byte 6 of the item's record -- the high byte
+   of d3 -- when the class's cached flags carry 0x400, and 0; a byte above
+   0 is drawn as the one character 'A' + byte, centred and outlined.
+   FillIntfCache sets 0x400 from bit 0x04 of the class's member 40, so the
+   classes that can wear a letter are the file's: the key, and the mushroom
+   steak and the flatbread, none of which carries one in the shipped
+   scenario but the key. The keys there wear B to I. */
+function classWearsLetter(pt) {
+  const cls = parseItemClass(pt);
+  const f = cls && cls.data.find(x => x.key === 40);
+  return !!(f && f.words.length === 1 && !(f.words[0] & 0xF0000000) && (f.words[0] & 0x04));
+}
+function itemLetter(rec) {
+  if (!rec || !classWearsLetter(rec.proptype)) return '';
+  const n = ((rec.d3 || 0) >> 8) & 0xFF;
+  return n > 0 ? decodeMacRoman(new Uint8Array([(0x41 + n) & 0xFF])) : '';
+}
+// A placed or carried thing's name, with the letter it wears when it has one.
+function recDisplayName(rec, tileId) {
+  const nm = (tileId !== undefined && terrainNameFor(tileId)) || propDisplayName(rec.proptype) ||
+             ('prop 0x' + rec.proptype.toString(16).toUpperCase());
+  const L = itemLetter(rec);
+  return L ? nm + ' ' + L : nm;
+}
+
 function itemFieldValue(f) {
   const info = ITEM_FIELD_INFO[f.key] || {};
   if (info.scalar && f.words.length === 1 && (f.words[0] & 0xF0000000) === 0) {
@@ -1221,7 +1253,8 @@ function carriedByCharacter(ci) {
         const inside = recs.filter(o => o.container === r.index && o.flags !== 0xFF && o.proptype && o.carriedBy === null)
           .map(o => ({ pt: o.proptype, aspect: o.aspect, count: o.quantity || 1 }));
         if (!by.has(r.carriedBy)) by.set(r.carriedBy, []);
-        by.get(r.carriedBy).push({ pt: r.proptype, aspect: r.aspect, equipped: !!r.equipped, count: r.quantity || 1, resid, index: r.index, inside });
+        by.get(r.carriedBy).push({ pt: r.proptype, aspect: r.aspect, equipped: !!r.equipped, count: r.quantity || 1, resid, index: r.index, inside,
+                                   letter: itemLetter(r) });
       }
     }
     DERIVED.CARRIED = by;
@@ -1231,7 +1264,7 @@ function carriedByCharacter(ci) {
 // One carried thing as a chip: its own picture, its name, and "equipped".
 function carriedChip(it) {
   const nm = propDisplayName(it.pt, (getPropTileList()[it.pt] || 0) + it.aspect) || ('prop type ' + it.pt);
-  return relChip({ js: 'openItem(' + it.pt + ',' + it.aspect + ')', main: nm + (it.count > 1 ? ' \u00d7' + it.count : ''),
+  return relChip({ js: 'openItem(' + it.pt + ',' + it.aspect + ')', main: nm + (it.letter ? ' ' + it.letter : '') + (it.count > 1 ? ' \u00d7' + it.count : ''),
                    sub: it.equipped ? 'equipped' : '', icon: relIconURL({ icon: it.pt }) });
 }
 

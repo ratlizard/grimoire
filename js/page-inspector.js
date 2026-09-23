@@ -643,6 +643,15 @@ function buildContainerView(rec, contents) {
     if (base !== undefined) {
       const c = document.createElement('canvas');
       try { drawTileToCanvas(c, base + o.aspect, 32, o.rotated); } catch (e) { quiet(e); }
+      // The letter a key wears, where the game draws it: centred under the
+      // picture, outlined (itemLetter).
+      const L = itemLetter(o);
+      if (L) try {
+        const g = c.getContext('2d');
+        g.font = canvasFace(12); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+        g.lineWidth = 3; g.strokeStyle = '#000'; g.strokeText(L, 16, 31);
+        g.fillStyle = '#fff'; g.fillText(L, 16, 31);
+      } catch (e) { quiet(e); }
       c.style.cssText = 'width:32px;height:32px;image-rendering:pixelated';
       chip.appendChild(c);
     }
@@ -652,8 +661,9 @@ function buildContainerView(rec, contents) {
     // the number it printed was carry weight, which is a fact about the ITEM
     // and belongs on the item's own page. The details are one hover away and
     // that page is one click away instead.
-    nm.textContent = terrainNameFor((tiles[o.proptype] || 0) + o.aspect) ||
-                     propDisplayName(o.proptype, base) || ('0x' + o.proptype.toString(16));
+    nm.textContent = (terrainNameFor((tiles[o.proptype] || 0) + o.aspect) ||
+                      propDisplayName(o.proptype, base) || ('0x' + o.proptype.toString(16))) +
+                     (itemLetter(o) ? ' ' + itemLetter(o) : '');
     chip.appendChild(nm);
     chip.title = containedItemSummary(o);
     const goesToItem = isInventoryItem(o.proptype);
@@ -853,8 +863,7 @@ function inspectMapSquare(tx, ty) {
     const slot = contents.length ? ('insp-box-' + p.rec.index) : null;
     if (slot) boxes.push([slot, p.rec, contents]);
     parts.push('<div class="inspCard"><b>' +
-      svEsc(terrainNameFor(p.tileId) || propDisplayName(p.rec.proptype) ||
-            ('prop 0x' + p.rec.proptype.toString(16).toUpperCase())) +
+      svEsc(recDisplayName(p.rec, p.tileId)) +
       '</b> <span class="inspDim">record ' + p.rec.index +
       (ways.length ? ' · ' + svEsc(ways.join(', ')) : '') + '</span>' +
       '<dl class="inspRows">' + rows + '</dl>' +

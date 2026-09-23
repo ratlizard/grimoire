@@ -850,6 +850,25 @@ try {
   else console.log('  barks: ' + by.size + ' characters speak their own lines; ' + ctx.characterName(vendor[0]) + ' says "' + one[0] + '", character ' + silent + ' nothing');
 } catch (e) { fail('barks', e); }
 
+/* The letter a key wears (itemLetter). The class's member 40 bit 0x04 says
+   it can wear one, and byte 6 of the record which: 'A' plus the byte. The
+   keys in the scenario wear letters and each key ring label says its own;
+   a record of a class without the bit wears none, whatever its byte 6. */
+try {
+  const { keys } = ctx.buildKeyLockIndex();
+  const lettered = keys.filter(k => ctx.itemLetter(k.rec));
+  const k = lettered[0];
+  const n = k ? (k.rec.d3 >> 8) & 0xFF : 0;
+  const plain = Object.assign({}, k ? k.rec : {}, { proptype: 1 });
+  if (!ctx.classWearsLetter(66)) fail('key letters', 'the key class does not carry member 40 bit 0x04');
+  else if (lettered.length < keys.length / 2) fail('key letters', 'only ' + lettered.length + ' of ' + keys.length + ' keys wear a letter');
+  else if (ctx.itemLetter(k.rec) !== String.fromCharCode(65 + n)) fail('key letters', 'a key with byte 6 = ' + n + ' wears ' + ctx.itemLetter(k.rec));
+  else if (!ctx.keyLabel(k).includes(' ' + ctx.itemLetter(k.rec) + ' ')) fail('key letters', 'the key ring says ' + ctx.keyLabel(k));
+  else if (ctx.classWearsLetter(1) || ctx.itemLetter(plain)) fail('key letters', 'prop type 1 wears a letter');
+  else console.log('  key letters: ' + lettered.length + ' of ' + keys.length + ' keys wear one, ' +
+                   [...new Set(lettered.map(x => ctx.itemLetter(x.rec)))].sort().join(''));
+} catch (e) { fail('key letters', e); }
+
 /* Walking, as the engine does it, 23 September 2026 (buildPropBlockers,
    findPath, keepApart). Cademia's portcullis at (52,35) is flagged 0x80 --
    raised -- so the engine neither draws it nor stops at it; the page did
