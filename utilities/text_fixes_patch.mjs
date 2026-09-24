@@ -62,7 +62,7 @@ const textEdits = [
   T('"live live"', 0x021D, 'live live', 'live', 1),
   T('"A expedition"', 0x021D, 'A expedition', 'An expedition', 1),
   T('"it wasn\'t 174"', 0x021D, "it wasn't 174 when", "it wasn't until 174 when", 1),
-  T('"Alaric, Landking"', 0x021B, 'Alaric, Landking', 'Alaric, LandKing', 1),
+  T('"Alaric, Landking"', 0x021B, 'Alaric, Landking', 'Alaric, Land King', 1),
   // the To Do lines
   T('To Do, "has be kidnapped"', 0x021A, 'has be kidnapped', 'has been kidnapped', 1),
   T('To Do, "suggest taking"', 0x021A, 'Metopes suggest taking', 'Metopes suggests taking', 1),
@@ -192,6 +192,32 @@ const textEdits = [
   // offset moves).
   T('Sardis\u2019s keyword "attu"', 0x181F, 'attu', 'atus', 1),
   T('Ignae\u2019s keyword "jhai"', 0x187D, 'jhai', 'jhia', 1),
+  // "LandKing" to "Land King" (24 September 2026, at the maintainer's
+  // word): the author's own unit table names Alaric's unit "Land King",
+  // both manuals write it so 39 times and "LandKing" never, the zone is
+  // titled "Land King Hall", and the dialogue itself says "the Land King's
+  // side" beside its forty "LandKing"s. The keywords are "land" and
+  // "king", which the two words still match.
+  T('"LandKing"', 0x021A, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x021B, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x0242, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x0801, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x0804, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x0809, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x080A, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x080B, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x080C, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x080D, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x080E, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x0811, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x1801, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x1802, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x1803, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x1804, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x1807, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x180D, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x1846, 'LandKing', 'Land King'),
+  T('"LandKing"', 0x1A00, 'LandKing', 'Land King'),
   // tab bytes
   { ...T('Tavara’s tabs', 0x1CC3, '\t', '', 10), mid: true },
   { ...T('a rumour’s tab', 0x0813, '\t', '', 1), mid: true },
