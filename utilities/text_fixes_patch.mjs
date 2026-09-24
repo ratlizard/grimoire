@@ -186,6 +186,12 @@ const textEdits = [
   T('"bare looking"', 0x1B36, 'bare looking', 'bare-looking', 1),
   T('"sly looking,"', 0x1818, 'sly looking,', 'sly-looking,', 1),
   T('Helen, "wearly looking"', 0x1858, 'wearly looking', 'weary-looking', 1),
+  // Two keywords that matched only the misspelling they answered: Sardis's
+  // "attu" for House Atussa, Ignae's "jhai" for Jhiaxus. With the words
+  // corrected above, the keywords follow them (the same length, so no
+  // offset moves).
+  T('Sardis\u2019s keyword "attu"', 0x181F, 'attu', 'atus', 1),
+  T('Ignae\u2019s keyword "jhai"', 0x187D, 'jhai', 'jhia', 1),
   // tab bytes
   { ...T('Tavara’s tabs', 0x1CC3, '\t', '', 10), mid: true },
   { ...T('a rumour’s tab', 0x0813, '\t', '', 1), mid: true },
