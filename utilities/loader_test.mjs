@@ -228,7 +228,7 @@ ctx.location.hash = '';
   check('it says what it tried', /Tried, in order/.test(out) && /Cythera Data/.test(out),
         out.split('\n')[0] || '(nothing)');
   const status = ctx.document.getElementById('sourceStatus').textContent || '';
-  check('the status line was written', /No archive loaded/.test(status), status.slice(0, 60) || '(empty)');
+  check('the status line was written', /No file loaded/.test(status), status.slice(0, 60) || '(empty)');
 
   // ---- and the path that has to work: the default URL serves a .hqx --------
   // The page used to fetch the bare data fork. It now fetches the BinHex, so

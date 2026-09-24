@@ -174,7 +174,7 @@ function labelForResource(subn, n, resid) {
 
 /* The resource forks, read by kind rather than by type code.
 
-   Cythera Data's fork holds 113 resources of 18 types and the application's
+   Cythera Data's fork holds 113 resources of 18 types and the program's
    339 of 52, and a flat gallery of type codes says nothing about what any of
    them is for. This table does: each kind names the four-letter types that
    make it up, says in a sentence what they are (from looking at every one of
@@ -197,7 +197,7 @@ const RSRC_KINDS = [
     note: 'The program’s own sounds, named for when they play: get, use, look, talk, attack. The game’s sound effects and music are in the data file, under Audio.',
     view: 'APPSND' },
   { id: 'icons', label: 'Finder and command icons', types: ['ICN#', 'icl4', 'icl8', 'ics#', 'ics4', 'ics8', 'cicn', 'BNDL', 'FREF'],
-    note: 'The Finder icons for the application, the data file, a saved game and a patch, with the bundle (BNDL) and file references (FREF) that say which is which, and the command icons the game draws: move, take, look, talk, attack.',
+    note: 'The Finder icons for the program, the data file, a saved game and a patch, with the bundle (BNDL) and file references (FREF) that say which is which, and the command icons the game draws: move, take, look, talk, attack.',
     view: null },
   { id: 'cursors', label: 'Cursors', types: ['crsr', 'CURS', 'acur'],
     note: 'The pointer in every state: eight walking directions in two weights, the hand, the eye, the speech bubble, the sword, the magnifier, the pointing finger, and the spinning ball the animated cursor (acur) cycles through.',
@@ -209,7 +209,7 @@ const RSRC_KINDS = [
     note: 'The dialog boxes and alerts (a DLOG or ALRT names its DITL, the item list), the window templates, the controls, their colour tables, the backdrop patterns (ppat: the default and black), and the palettes.',
     view: null },
   { id: 'editor', label: 'Editor', types: ['eSTM', 'eBRS', 'MSta', 'FILT', 'LINF', 'DATA', 'PORT', 'RMAP', 'TMPL'],
-    note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three saved game states (MSta: “Base”, “Plague Cured” and “Olpheltius Murdered”, which differ from Base at one byte each), the editor’s own tile names (DATA 260, a short list beside the archive’s terrain table), three twelve-byte LINF records whose first two numbers read as a size (256 by 256, and 64 by 64 twice) though nothing here reads what they are for, the colour cycles (DATA 261), the record that says TxSt 999 is really a colour (RMAP), and the ResEdit templates. Four DATA resources are 512, 1,024, 4,096 and 8,192 bytes of nothing. FILT, PORT and three DATA resources are listed and unread.',
+    note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three saved game states (MSta: “Base”, “Plague Cured” and “Olpheltius Murdered”, which differ from Base at one byte each), the editor’s own tile names (DATA 260, a short list beside the file’s terrain table), three twelve-byte LINF records whose first two numbers read as a size (256 by 256, and 64 by 64 twice) though nothing here reads what they are for, the colour cycles (DATA 261), the record that says TxSt 999 is really a colour (RMAP), and the ResEdit templates. Four DATA resources are 512, 1,024, 4,096 and 8,192 bytes of nothing. FILT, PORT and three DATA resources are listed and unread.',
     view: 'RSRC' },
   { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
     note: 'What the game program reads about itself: the 25 light cones (Lite: one byte of side, then that many squared bytes of brightness, 0 to 32; sides 8 to 120), one Delver tile sheet (TILE 282, sixteen tiles that appear nowhere in the game’s own art), the Delver engine’s help pages (Page, three carry text, ten are empty), the two preference defaults (volume 5 and music 2), the thirteen audit categories, the version records, the code fragment map and the nine 68K CODE segments. The two MemU records, one named for each processor, hold the same nine bytes, and they are not how much memory the program asks for: that is in the SIZE resource, 12,288K and 10,240K, and these bytes do not hold either number however they are read.',
@@ -218,7 +218,7 @@ const RSRC_KINDS = [
 const RSRC_KIND_OF = new Map();
 for (const k of RSRC_KINDS) for (const t of k.types) RSRC_KIND_OF.set(t, k);
 // A category value that is a fork gallery filtered to some kinds. `source`
-// is which fork: the data file's, the application's, or both, one after the
+// is which fork: the data file's, the program's, or both, one after the
 // other. The application's fork is fetched on first use, as for APPRSRC.
 const FORK_VIEWS = {
   SCREENS:   { source: 'both', kinds: ['screens'] },
@@ -315,7 +315,7 @@ function loadEditorZoneNames() {
   if (list) list.forEach((nm, i) => { if (nm) names[i + 1] = nm; });
   return (DERIVED.EDITOR_ZONE_NAMES = names);
 }
-// The combat AI's scripted tests and actions, named by the application's own
+// The combat AI's scripted tests and actions, named by the program's own
 // lists: STR# 9307 has the six tests in the order of 0x901-0x906 and STR# 9308
 // the thirteen actions in the order of 0x981-0x98D (workbench
 // doc/save-format.md has the reading; the scripts match the names one for one
@@ -427,7 +427,7 @@ function applyLabel(el, resid) {
   el.classList.toggle('placeholder', !txt);
   // Still recorded in the tooltip -- just not in the colour of the text.
   if (txt && labelSource(resid) === 'builtin')
-    el.title = 'Name supplied by this tool, not found in the archive';
+    el.title = 'Name supplied by this tool, not found in the file';
   else if (txt && editorNameSuffix(resid, txt))
     el.title = editorNameSuffix(resid, txt).replace(/^ \(|\)$/g, '');
   else el.removeAttribute('title');
@@ -466,7 +466,7 @@ function residLink(resid, text) {
 // Names this tool supplies rather than reads. Since 23 September 2026 that is
 // RESHINTS alone, the descriptions of the data tables; the wiki's and the
 // community's labels for sounds, pictures, tile sheets, zones, portraits,
-// prop types and dialogue groups went at the maintainer's word. They used to be indistinguishable from the archive's own strings except
+// prop types and dialogue groups went at the maintainer's word. They used to be indistinguishable from the file's own strings except
 // for a dagger nobody reads. They were off by default until 6 September
 // 2026 and are on by default since (the maintainer's call: one name per
 // place); switched from the archive menu, and with them off the gallery

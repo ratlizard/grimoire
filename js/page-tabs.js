@@ -101,7 +101,7 @@ const SUBINDEX_PURPOSE = {
   24:  ['Monster classes', 'What each kind of monster is. The script that sets one up is handed the monster and the thing it stands as, and what happens when it dies is entry 0x1D.'],
   25:  ['Skill & spell classes', 'Descriptions and scripts for spells, skills and actions. Usually several small functions: one gives the name, another the description.'],
   26:  ['Room scripts', 'One for each room, id 0x1B00 plus the room number: the description shown the first time you enter, and for some rooms an Enter that does more. A room is a rectangle marked on the map by an egg, which is a trigger with nothing to see.'],
-  27:  ['Room scripts', 'Rooms 256 to 511 fall here, the same shape as 0x1Bxx; the archive has 301 to 454.'],
+  27:  ['Room scripts', 'Rooms 256 to 511 fall here, the same shape as 0x1Bxx; the file has 301 to 454.'],
   29:  ['Room scripts', 'Room 800, the one room numbered past 511: entering it changes zone.'],
   47:  ['Character actions', 'Scripts that seem to be for things done to a character, ToggleLock among them.'],
   127: ['Maps', 'The grid of tiles a map is made of, with its size and its four exits, one to each point of the compass.'],
@@ -399,7 +399,7 @@ function askOneShape(shape, hit) {
       const skills = skillCatalogue().filter(x => like(x.name) && x.kind !== 'command');
       if (!skills.length) return null;
       return skills.map(x => askCard('Who teaches ' + x.name,
-        x.teachers.length ? 'Every script that teaches it.' : 'Nobody in this archive teaches it.',
+        x.teachers.length ? 'Every script that teaches it.' : 'Nobody in this file teaches it.',
         x.teachers.map(t => askRow(t.mastery ? 'to mastery' : 'teaches',
           askCharacterChip(t.who, svChip(t.resid)))),
         partChip(x.name, x.resid))).join('');
@@ -428,7 +428,7 @@ function askOneShape(shape, hit) {
       }
       const sk = skillCatalogue().find(x => like(x.name));
       if (sk) return askCard(sk.name, svEsc(sk.description || ''),
-        [askRow('taught by', sk.teachers.map(t => askCharacterChip(t.who, svChip(t.resid))).join(' ') || '<span class="inspDim">nobody in this archive</span>')]
+        [askRow('taught by', sk.teachers.map(t => askCharacterChip(t.who, svChip(t.resid))).join(' ') || '<span class="inspDim">nobody in this file</span>')]
           .concat(sk.askedBy.length ? [askRow('asked about by', sk.askedBy.map(r => svChip(r)).join(' '))] : [])
           .concat(sk.weapons.length ? [askRow('swung with it', sk.weapons.map(w => svEsc(w.name)).join(', '))] : []),
         partChip(sk.name, sk.resid));
@@ -518,7 +518,7 @@ function runSearch() {
       return;
     }
     host.innerHTML = '<div class="sv-warn">No resource 0x' +
-      rid.toString(16).toUpperCase().padStart(4, '0') + ' in this archive.</div>';
+      rid.toString(16).toUpperCase().padStart(4, '0') + ' in this file.</div>';
     return;
   }
   // A question first: nine shapes that name a table rather than a word to
@@ -528,7 +528,7 @@ function runSearch() {
   try { answer = window.ASK_SKIP ? null : answerQuestion(q); } catch (e) { answer = null; }
   if (answer) {
     host.innerHTML = '<div class="mechView askAnswer">' + answer +
-      '<div class="sv-note">Read out of this archive. ' +
+      '<div class="sv-note">Read out of this file. ' +
       '<button class="linkbtn" onclick="askSearchAnyway()">Search the text for “' + svEsc(q) + '” instead</button></div></div>';
     return;
   }
@@ -968,7 +968,7 @@ const TAB_TREE = [
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
       { id: 'text', label: 'Text', tile: 0x4D5, children: [                                   // graffiti, the maintainer's pick, 16 September 2026; it was the tombstone's second frame (0x3AE)
           { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['STRINGS'] },                          // a poster; the forks' string lists
-          // The dialogue box's own frame tile, which is what the executable's
+          // The dialogue box's own frame tile, which is what the program's
           // FrameBox draws round every bordered window -- so the tab wears the
           // thing a conversation is actually presented in, rather than a
           // picture of somebody talking (the maintainer, 13 September 2026;
@@ -1024,7 +1024,7 @@ const TAB_TREE = [
           { id: 'misc',       label: 'Misc',       tile: 0x2F1, values: ['142', '137', 'SCREENS'] } ] },  // the urn, second frame
       { id: 'audio', label: 'Audio', tile: 0x215, children: [                                 // the strange rod
           { id: 'music', label: 'Music', tile: 0x2BD, values: ['143'] },                                // a lute
-          { id: 'sfx',   label: 'SFX',   tile: 0x1B2, values: ['144', 'APPSND'] } ] },                  // the explosion, sheet 0x8E1B; the application's own sounds beside the archive's
+          { id: 'sfx',   label: 'SFX',   tile: 0x1B2, values: ['144', 'APPSND'] } ] },                  // the explosion, sheet 0x8E1B; the application's own sounds beside the file's
       { id: 'functions', label: 'Functions', tile: 0x3CB, children: [                         // a lever: pull it and something happens (prop 187)
           { id: 'actors',  label: 'Actions', tile: 0x572, values: ['47', '24', '3', '8', '25'] },   // the skill and spell classes (25) are here too, so a link to one has a tab                  // the fighter mid-swing: something that acts (prop 116)
           { id: 'objects', label: 'Objects', tile: 0x28B, values: ['16', '15'] },                             // a key: a thing that is used (prop 66)
@@ -1092,14 +1092,14 @@ const TAB_TREE = [
 
 // What the faded tabs with nothing behind them say when opened.
 const PLACEHOLDER_TABS = {
-  APPPEF: 'The application’s data fork is the PowerPC executable, a PEF container: its sections, ' +
-    'the shared libraries it imports and the routines it names for itself are read here once the application is open. ' +
+  APPPEF: 'The program’s data fork is the PowerPC executable, a PEF container: its sections, ' +
+    'the shared libraries it imports and the routines it names for itself are read here once the program is open. ' +
     'The 68K CODE resources are in its resource fork, listed under Resource Fork.',
   AISCRIPTS: 'The Combat AI scripts ship beside the game as separate .ai text files, not inside ' +
-    'the archive. What the engine runs is the compiled ' +
+    'the file. What the engine runs is the compiled ' +
     'form, subindex 3, AI Combat Scripts, under Components › Functions › Actions.',
   AIRULES: 'The rules those scripts are written against, the AI Scripting Document that ' +
-    'ships with them, is a text file beside the game, not inside the archive.',
+    'ships with them, is a text file beside the game, not inside the file.',
 };
 
 // Added to a placeholder when the file it describes would have come with the
@@ -1127,7 +1127,7 @@ function syncInstallerTabs() {
   /* `cheats` left this list on 14 September 2026 with the tab itself. It is a
      value of Hackery now, and Hackery must NOT fade: its other five sections
      are read off the archive and stand up with no application open, where the
-     Cheats view's figures are the executable's. Fading the tab would grey out
+     Cheats view's figures are the program's. Fading the tab would grey out
      five readings that work. The id is simply gone, rather than repointed. */
   for (const id of ['apprsrc', 'interface']) { const n = TAB_BY_ID.get(id); if (n) n.wip = !window.APP_RSRC; }
 }

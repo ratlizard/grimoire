@@ -289,7 +289,7 @@ function exePrefResourceType() {
 }
 function cytheraPrefsRecord(opts, layout) {
   const L = layout || cytheraPrefsLayout();
-  if (!L) throw new Error('the preferences record is read out of the application, and it is not open');
+  if (!L) throw new Error('the preferences record is read out of the program, and it is not open');
   const o = opts || {};
   const b = new Uint8Array(L.bytes);
   for (let i = 0; i < Math.min(4, L.bytes); i++) b[i] = (L.base >>> (24 - 8 * i)) & 255;
@@ -344,7 +344,7 @@ function prefsSummary(o) {
 // new one whatever UniqueID answers, so 130 is only what this file uses.
 function buildCytheraPreferences(opts) {
   const L = cytheraPrefsLayout();
-  if (!L) throw new Error('the preferences record is read out of the application, and it is not open');
+  if (!L) throw new Error('the preferences record is read out of the program, and it is not open');
   const out = [{ type: L.type, id: 130, name: L.key, data: cytheraPrefsRecord(opts, L) }];
   let id = 131;
   for (const x of cytheraOrdinalsFor(opts, L))
@@ -511,7 +511,7 @@ function buildEditedDiskImage() {
   const note = [
     'Written ' + new Date().toISOString().slice(0, 10) + '. ' +
     (edited ? edited + ' resource(s) were edited before this disk was made.'
-            : 'The archive on this disk is unmodified.'),
+            : 'The file on this disk is unmodified.'),
   ];
   if (forkWarning) note.push('', 'WARNING: ' + forkWarning.replace(/“|”/g, '"'));
   let image;
@@ -992,7 +992,7 @@ function usageChips(list, render, limit) {
 function renderArtUsage(resid) {
   const u = buildTileSheetUsage()[resid];
   if (!u || (!u.maps.length && !u.props.length && !u.composites.length))
-    return '<span class="inspDim">Nothing in the archive draws from this sheet ' +
+    return '<span class="inspDim">Nothing in the file draws from this sheet ' +
            ', it may be unused, or used by code rather than by data.</span>';
   const rows = [];
   if (u.maps.length) rows.push('<dt>Maps</dt><dd>' + usageChips(u.maps,
@@ -1080,7 +1080,7 @@ function buildStripSky(resid) {
   if (sky && !rules) {
     const note = document.createElement('div');
     note.className = 'sv-note';
-    note.textContent = 'Open the application to see this strip over the sky of the hour.';
+    note.textContent = 'Open the program to see this strip over the sky of the hour.';
     wrap.appendChild(note);
     paintStripSky(cv, resid, false, null, 0, 0);
     return wrap;

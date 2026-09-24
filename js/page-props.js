@@ -90,7 +90,7 @@ function propDisplayName(pt, base) {
   return (b && terrainNameFor(b)) || propTypeNameShown(pt) || null;
 }
 const WIKI_TAG = '<span class="guessTag" title="Name from the delvmod wiki\u2019s prop-type list, ' +
-  'not from the archive. Switch these off under \u201cSettings\u201d.">wiki</span>';
+  'not from the file. Switch these off under \u201cSettings\u201d.">wiki</span>';
 // Name plus provenance, as HTML, for a gallery caption. The name itself is
 // wrapped so that sorting and filtering read the name and not the tag beside
 // it -- cellSortKeys prefers .lblText where there is one.
@@ -2135,7 +2135,7 @@ function showItemDetail(pt) {
         // Who consults it: every script with a has_member, get_field or
         // set_field of this key, the first site in each as a link.
         (readers ? '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">Read by ' + readers + '</td></tr>'
-                 : '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">No script in this archive reads this key by name.</td></tr>');
+                 : '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">No script in this file reads this key by name.</td></tr>');
     }
     fold('data', 'Class data', cls.data.length + ' field' + (cls.data.length === 1 ? '' : 's'), '<table style="border-collapse:collapse;width:100%">' + rows + '</table>');
   } else if (cls) {

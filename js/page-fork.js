@@ -75,7 +75,7 @@ function fontSwapPanel() {
     (target
       ? '<p class="mechLede">The game draws its text with <b>sfnt ' + target.id + '</b>, named ' +
         svEsc(target.name || 'ArgosANouveau') + ' by the family record. A TrueType font (<b>.ttf</b>) chosen here takes that resource’s place in the copy ' +
-        'of the archive in this browser. It is given the Mac Roman character map the game looks glyphs up by, and its layout and signature tables are ' +
+        'of the file in this browser. It is given the Mac Roman character map the game looks glyphs up by, and its layout and signature tables are ' +
         'dropped, which the classic rasteriser does not read.</p>' +
         '<ul class="ruleList"><li>Nothing is written to disk and nothing on the server changes.</li>' +
         '<li>To play with it, export <b>Data file › the disk image</b>, which carries the fork, and run the script on it in the emulator.</li>' +
@@ -83,7 +83,7 @@ function fontSwapPanel() {
         '<div class="mechStats"><input type="file" id="fontSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoFontSwap()">Put the game’s own font back</button>' : '') +
         '</div>' +
-        (sw ? '<blockquote class="mechQuote">' + svEsc(sw.name) + ' is in the archive as sfnt ' + sw.from + '. ' +
+        (sw ? '<blockquote class="mechQuote">' + svEsc(sw.name) + ' is in the file as sfnt ' + sw.from + '. ' +
               sw.mapped + ' of the characters the game uses were found, in a format ' + sw.format + ' character map, ' +
               (sw.bytes / 1024).toFixed(0) + ' KB of outlines.</blockquote>' : '') +
         '<div id="fontSwapNote" class="mechSub"></div>'
@@ -113,7 +113,7 @@ function fontSwapPanel() {
 }
 function undoFontSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The original fork was not kept; re-open the archive to get it back.', true); return; }
+  if (!rec) { setStatus('The original fork was not kept; re-open the file to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.FONT_SWAP = null;
@@ -268,7 +268,7 @@ function swapSeldane(bytes, filename) {
 }
 function undoStrikeSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The original fork was not kept; re-open the archive to get it back.', true); return; }
+  if (!rec) { setStatus('The original fork was not kept; re-open the file to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.STRIKE_SWAP = null;
@@ -325,7 +325,7 @@ function strikeSwapPanel() {
     (strikes
       ? '<p class="mechLede">Seldane is a bitmap font: ' +
         strikes.map(e => 'NFNT ' + e.id).join(' and ') +
-        ', named by the family record at 12 and 18 point. A TrueType font chosen here is drawn into both strikes at their own cell heights and written into the copy of the archive in this browser.</p>' +
+        ', named by the family record at 12 and 18 point. A TrueType font chosen here is drawn into both strikes at their own cell heights and written into the copy of the file in this browser.</p>' +
         '<ul class="ruleList">' +
         '<li>Only the letters the strike already draws are replaced, and the missing-character box is carried through untouched. ' +
         'Seldane draws 24 letters: it has no L and no O at 12 point, and at 18 point it has an entry for each of them one pixel wide and empty.</li>' +
@@ -702,9 +702,9 @@ function renderRsrcSheet() {
 
   const inv = rsrcInventory();
   if (!inv) {
-    out.textContent = 'No resource fork. It comes from the container the archive was in, ' +
+    out.textContent = 'No resource fork. It comes from the container the file was in, ' +
       'a .hqx, MacBinary or AppleSingle file carries both forks, a bare data fork does not. ' +
-      'Re-open the archive from "Cythera Data.hqx" to get it.';
+      'Re-open the file from "Cythera Data.hqx" to get it.';
     return;
   }
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
@@ -874,7 +874,7 @@ async function loadApplicationFork() {
   const candidates = forcedApp ? [forcedApp].concat(APP_HQX_CANDIDATES) : APP_HQX_CANDIDATES;
   for (const url of candidates) {
     try {
-      const raw = await fetchWithProgress(url, 'Downloading the application');
+      const raw = await fetchWithProgress(url, 'Downloading the program');
       const c = sniffMacContainer(raw);
       if (!c || !c.rsrc || !c.rsrc.length) { lastErr = 'no resource fork in ' + url; continue; }
       window.APP_RSRC = openResourceFork(c.rsrc);
@@ -892,7 +892,7 @@ async function loadApplicationFork() {
       return window.APP_RSRC;
     } catch (e) { lastErr = e.message; }
   }
-  window.APP_RSRC_STATE = 'Could not load the application: ' + lastErr;
+  window.APP_RSRC_STATE = 'Could not load the program: ' + lastErr;
   rerenderForkView();
   return null;
 }
@@ -968,9 +968,9 @@ function renderMacRsrcSheet() {
     const fork = src === 'app' ? window.APP_RSRC : window.CYTHERA_RSRC;
     if (!fork) {
       missing.push(src === 'app'
-        ? (window.APP_RSRC_STATE === 'loading' ? 'Loading the application…'
-           : window.APP_RSRC_STATE || 'The application’s fork is not loaded yet.')
-        : 'No resource fork came with the archive. It comes from the container the archive was in, a .hqx, MacBinary or AppleSingle file carries both forks, a bare data fork does not.');
+        ? (window.APP_RSRC_STATE === 'loading' ? 'Loading the program…'
+           : window.APP_RSRC_STATE || 'The program’s fork is not loaded yet.')
+        : 'No resource fork came with the file. It comes from the container the file was in, a .hqx, MacBinary or AppleSingle file carries both forks, a bare data fork does not.');
       continue;
     }
     total += fork.total();
@@ -1305,7 +1305,7 @@ function showCharacterDetail(i) {
     note.className = 'sv-warn';
     note.textContent = 'This file has no character ' + i + '. A saved game carries only what play changed, and a link outlives the file it was made from.';
     g.appendChild(note);
-    document.getElementById('output').textContent = 'No character ' + i + ' in this archive.';
+    document.getElementById('output').textContent = 'No character ' + i + ' in this file.';
     return;
   }
   const grid = document.getElementById('sheetGrid');
@@ -1453,7 +1453,7 @@ function heroPortraitCard() {
     card.innerHTML = head + (isSave
       ? 'The one above is this file\u2019s own 0x8800, the portrait chosen when the character was made. '
       : 'The one above is the scenario\u2019s 0x8800 and is never shown in play. ') +
-      'Which portraits the game offers at creation, and where the chosen one is written, is read out of the application, which is not open.';
+      'Which portraits the game offers at creation, and where the chosen one is written, is read out of the program, which is not open.';
     return card;
   }
   const hex = v => '0x' + v.toString(16).toUpperCase();
@@ -1494,7 +1494,7 @@ function renderCompositeSheet() {
   const grid = document.getElementById('sheetGrid');
   grid.innerHTML = '';
   const entries = loadCompositionTable();
-  if (!entries.length) { out.textContent = "No composition table (resource 0xF013) found in this archive."; return; }
+  if (!entries.length) { out.textContent = "No composition table (resource 0xF013) found in this file."; return; }
   let okCount = 0;
   entries.forEach((entry, idx) => {
     const tileId = 0x1000 + idx;

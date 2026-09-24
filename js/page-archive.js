@@ -355,9 +355,9 @@ function adoptArchive(raw, sourceName, opts) {
     const app = found.installer.archive.entries.find(e => e.type === 'APPL' && e.creator === 'Delv');
     if (app) {
       try { const both = viseExtract(found.installer.archive, app); window.APP_RSRC = openResourceFork(both.rsrc); window.APP_RSRC_RAW = both.rsrc; window.APP_DATA = both.data && both.data.length ? both.data : null; window.APP_PEF = null; window.APP_RSRC_STATE = ''; }
-      catch (e) { window.APP_RSRC = null; window.APP_RSRC_RAW = null; window.APP_DATA = null; window.APP_PEF = null; window.APP_RSRC_STATE = 'Could not open the application’s fork from the installer: ' + e.message; }
+      catch (e) { window.APP_RSRC = null; window.APP_RSRC_RAW = null; window.APP_DATA = null; window.APP_PEF = null; window.APP_RSRC_STATE = 'Could not open the program’s fork from the installer: ' + e.message; }
       if (window.CUR_SUBN === 'MACRSRC' && window.RSRC_SOURCE === 'app') renderMacRsrcSheet();
-      // The dialogue box's constants are the application's, so it is drawn
+      // The dialogue box's constants are the program's, so it is drawn
       // again now that the application is here.
       try { installDialogueBox(); } catch (e) { quiet(e); }
       // The Data Fork tab unfades with the data fork, which is set just above
@@ -378,7 +378,7 @@ function adoptArchive(raw, sourceName, opts) {
 }
 
 function archiveLoadFailed(failures) {
-  setStatus('No archive loaded. Choose or drop the Cythera installer (.sit or .bin) or a "Cythera Data" file (.hqx is fine).', true);
+  setStatus('No file loaded. Choose or drop the Cythera installer (.sit or .bin) or a "Cythera Data" file (.hqx is fine).', true);
   const mb = document.getElementById('archiveMenuBtn');
   if (mb) { mb.classList.add('urgent'); mb.textContent = 'Select Cythera Data file'; }
   openArchiveMenu(true);
@@ -399,12 +399,12 @@ async function ingestArchiveFile(f) {
   if (!adoptArchive(raw, f.name, { store: true })) archiveLoadFailed([f.name + ': ' + lastArchiveError]);
 }
 
-// The output line under the tabs says "Load the archive to begin..." until a
+// The output line under the tabs says "Load the file to begin..." until a
 // file is known; once one is on its way it says "Loading…" instead. It then
 // gives the browser a frame to paint the word: parsing a file blocks the
 // page for a second or more, and a note set on the same task as the parse
 // is never seen. That is what happened to the remembered copy, which went
-// from "Load the archive to begin" straight to the title with the note set
+// from "Load the file to begin" straight to the title with the note set
 // and never shown (the maintainer, 18 September 2026).
 async function loadingFileNote() {
   const out = document.getElementById('output');
@@ -469,7 +469,7 @@ async function loadDefaultArchive() {
   const failures = [];
   const tryUrl = async u => {
     const remote = /^https?:/i.test(u);
-    const label = remote ? 'Downloading the archive' : 'Looking for ' + u;
+    const label = remote ? 'Downloading the file' : 'Looking for ' + u;
     try {
       setStatus(label + '…');
       const raw = await fetchWithProgress(u, label);
@@ -926,7 +926,7 @@ function onCategoryChangeImpl() {
   const [subOff, subLen] = ARCHIVE.index[subn] || [0,0];
   const select = document.getElementById('residSelect');
   select.innerHTML = '';
-  if (!subOff) { out.textContent = "This subindex (" + subn + ") has no indexed resources in this archive."; window.CUR_RESIDS=[]; return; }
+  if (!subOff) { out.textContent = "This subindex (" + subn + ") has no indexed resources in this file."; window.CUR_RESIDS=[]; return; }
   r.seek(subOff);
   const size = Math.floor(subLen/8);
   const resids = [];

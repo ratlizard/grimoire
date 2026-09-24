@@ -737,7 +737,7 @@ function inspectMapSquare(tx, ty) {
       '<div class="inspDim">That is the base value of every square of the level, not of this ' +
       'one: anything bright in the eleven-by-eleven view lifts the whole map, and walking it out ' +
       'of view puts the map back. The game also passes over sources it counts as unseen, which ' +
-      'the archive does not record, so every source in the window is counted here.</div></div>');
+      'the file does not record, so every source in the window is counted here.</div></div>');
   }
 
   // A square inside a gateway's footprint says so first, and offers the

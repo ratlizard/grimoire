@@ -839,7 +839,7 @@ function renderCheatsSheet() {
   document.getElementById('singleControls').style.display = 'none';
   const key = k => k ? '<kbd class="cheatKey">' + svEsc(k) + '</kbd>' : '';
   const kr = appImage() ? exeKeyRoutine() : null;
-  const noApp = 'Open the game from its installer, under Settings, and the application’s code is read here.';
+  const noApp = 'Open the game from its installer, under Settings, and the program’s code is read here.';
   let h = '<h3 class="cheatH">Cheat mode</h3>' +
     '<div class="mechLede">Cythera has a cheat mode, and no copy as released can switch it on. Typing four letters in the map window ' +
     'is what turns it on, but only when a switch is set in Cythera Preferences, the file the game keeps its settings in, and nothing ' +
@@ -847,7 +847,7 @@ function renderCheatsSheet() {
     'read out of the game program itself (<code>TMapWindow::KeyRoutine</code>, and every routine that touches the settings) rather ' +
     'than collected from players, so some of it no amount of playing would show.' +
     (kr ? '' : ' ' + noApp) + '</div>' +
-    (kr ? '<div class="partsStrip"><span class="partsTitle">In the executable</span>' + pefChip('TMapWindow::KeyRoutine') + '</div>' : '');
+    (kr ? '<div class="partsStrip"><span class="partsTitle">In the program</span>' + pefChip('TMapWindow::KeyRoutine') + '</div>' : '');
 
   // The helpers a key's sentence is built with, over one case.
   const chars = w => [...w].map(ch => { const b = encodeMacRoman(ch)[0]; return US_OPTION_KEYS[b] || ch; });
@@ -955,7 +955,7 @@ function renderCheatsSheet() {
       ', as a MacBinary for a real Mac or a small disk image for an emulator.</div></div>';
   }
 
-  // The record, the file's keys, and the menu bars off the application's fork.
+  // The record, the file's keys, and the menu bars off the program's fork.
   if (fields) {
     const name = r2 => r2.name.replace(/\(.*$/, '');
     const bitsText = f => f.lo === f.hi ? String(f.lo) : f.lo + ' to ' + f.hi;
@@ -989,7 +989,7 @@ function renderCheatsSheet() {
     h += '<div class="mechSec"><h4 class="cheatH4">The preferences record (the settings the file holds)</h4>' +
       '<div class="cheatNote">' + (rec ? srcNum(rec.len || rec.key, bytes + ' bytes') + ', stored under “' + srcNum(rec.key, rec.key.v) + '”. ' : '') +
       'Every field some routine reads or writes, found by scanning the whole program for the record’s address' + (unused.length ? '; byte' + (unused.length > 1 ? 's ' : ' ') + unused.join(' and ') + ' nothing touches' : '') + '. ' +
-      'A menu or dialog item is named as the application’s own MENU or DITL resource names it.</div>' +
+      'A menu or dialog item is named as the program’s own MENU or DITL resource names it.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">byte</th><th class="num">bits</th><th>set by</th><th>read by</th></tr></thead><tbody>' +
       fields.map(f => '<tr><td class="num">' + f.byte + '</td><td class="num">' + bitsText(f) + '</td><td>' + (f.writers.length ? setBy(f) : 'nothing') + '</td><td>' + readBy(f) + '</td></tr>').join('') +
       '</tbody></table></div>' +
@@ -1010,7 +1010,7 @@ function renderCheatsSheet() {
     const bars = shippedMenuBars();
     if (bars && bars.bars.length) {
       const menuName = m => (m.title ? svEsc(m.title) : 'MENU ' + m.id);
-      h += '<div class="cheatNote">The menu bar is built from the application’s MBAR resources, ' +
+      h += '<div class="cheatNote">The menu bar is built from the program’s MBAR resources, ' +
         bars.bars.map(b => 'MBAR ' + b.id + ' (' + b.menus.map(menuName).join(', ') + ')').join(' and ') +
         (bars.unlisted.length
           ? ', so ' + bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are' : ' is') + ' defined in the fork with working handlers and in no bar. ' +
@@ -1664,7 +1664,7 @@ function renderInstallerSheet() {
   document.getElementById('singleControls').style.display = 'none';
   const inst = window.INSTALLER;
   if (!inst) {
-    out.textContent = 'The archive did not come in through the installer, so there is nothing else here.' + NO_INSTALLER_HINT;
+    out.textContent = 'The file did not come in through the installer, so there is nothing else here.' + NO_INSTALLER_HINT;
     return;
   }
   const arc = inst.archive;
@@ -1714,7 +1714,7 @@ function renderInstallerSheet() {
     const tr = document.createElement('tr');
     const isArchive = e === inst.entry;
     const isApp = e.type === 'APPL' && e.creator === 'Delv';
-    const role = isArchive ? ' <span class="amNote">, the archive this page is showing</span>'
+    const role = isArchive ? ' <span class="amNote">, the file this page is showing</span>'
                : isApp ? ' <span class="amNote">, its resource fork is Cythera (App) › Resource Fork</span>' : '';
     const acts = [];
     if (installerIsText(e)) acts.push('<button class="navChip" onclick="showInstallerText(' + e.index + ')">Read</button>');
@@ -1739,9 +1739,9 @@ function renderInstallerSheet() {
   out.textContent = (c && c.name ? '“' + c.name + '”' : inst.sourceName) +
     (c && c.name && c.name !== inst.sourceName ? ' from ' + inst.sourceName : '') + ', ' + arc.versionName +
     ', ' + arc.entries.length + ' files in ' + arc.dirs.length + ' folders, ' + fmtBytes(total) +
-    ' once unpacked' + (c ? ', from a ' + c.kind + ' file (' + fmtBytes(arc.bytes.length) + ' of it the archive)' : '') +
+    ' once unpacked' + (c ? ', from a ' + c.kind + ' file (' + fmtBytes(arc.bytes.length) + ' of it the file)' : '') +
     '. A .bin here is the file itself with both forks, the form to hand a real Mac' +
-    (inst.crcOk ? '' : '. The installer’s own checksum for the archive did NOT match, treat the data with suspicion') + '.';
+    (inst.crcOk ? '' : '. The installer’s own checksum for the file did NOT match, treat the data with suspicion') + '.';
 }
 
 /* ---- Data > Combat AI > Scripts / Rules ----------------------------------
@@ -1774,25 +1774,25 @@ function renderCombatAISheet(which) {
     }
     const box = document.createElement('div');
     box.style.cssText = 'grid-column:1/-1';
-    // Which of the words are the executable's and which are this archive's:
+    // Which of the words are the executable's and which are this file's:
     // the Tests and Actions lists are native, and the Scenario lists are
     // Delver scripts, one resource per word, in the order the lists give.
     const tests = [], actions = [];
     for (let i = 0; i < 6; i++) if (refExists(0x901 + i)) tests.push(svChip(0x901 + i));
     for (let i = 0; i < 13; i++) if (refExists(0x981 + i)) actions.push(svChip(0x981 + i));
     const split = (tests.length || actions.length)
-      ? '<div class="changesNote" style="margin-left:0">The Tests list and the two Actions are the executable’s own. ' +
-        'The Scenario lists are scripts in this archive, one a word, in the order given' +
+      ? '<div class="changesNote" style="margin-left:0">The Tests list and the two Actions are the program’s own. ' +
+        'The Scenario lists are scripts in this file, one a word, in the order given' +
         (tests.length ? ': the tests ' + tests.join(' ') : '') + (actions.length ? (tests.length ? ', the actions ' : ': the actions ') + actions.join(' ') : '') +
         '. CastSpell calls HasSpell first and casts nothing a character does not know. ' +
         'A file written to the AI Scripting Document is compiled into one of 31 user slots, numbers 176 to 206, from a companion’s character window: ' +
         'its Strategy tab, the popup at the bottom left, Edit User Strategies…, then Import. The same dialog’s Debug button marks a slot, and a companion running a marked slot opens the game’s own AI debugger, ' +
         'a listing with Step, Go and Clear Debug, on every evaluation. The Debug(#) action only prints its number.</div>'
       : '';
-    box.innerHTML = '<div class="propHead">The vocabulary, from the application’s resource fork' +
+    box.innerHTML = '<div class="propHead">The vocabulary, from the program’s resource fork' +
       (rows.length ? '' : (app ? ', none of the lists is in this fork' :
-        (window.APP_RSRC_STATE === 'loading' ? ', loading the application…' :
-         ', ' + (window.APP_RSRC_STATE || 'the application’s fork is not loaded')))) + '</div>' +
+        (window.APP_RSRC_STATE === 'loading' ? ', loading the program…' :
+         ', ' + (window.APP_RSRC_STATE || 'the program’s fork is not loaded')))) + '</div>' +
       (rows.length ? '<div class="tableScroll"><table class="vocabTable">' + rows.join('') + '</table></div>' : '') + split;
     grid.appendChild(box);
   }
@@ -1811,10 +1811,10 @@ function renderCombatAISheet(which) {
   }
   out.textContent = files.length
     ? (which === 'AIRULES'
-        ? 'The words the scripts are written in, from the application’s resource fork; then the AI Scripting Document, from the installer’s CombatAI folder: the rules the .ai scripts are written against.'
+        ? 'The words the scripts are written in, from the program’s resource fork; then the AI Scripting Document, from the installer’s CombatAI folder: the rules the .ai scripts are written against.'
         : files.length + ' Combat AI scripts from the installer’s CombatAI folder. The compiled form the engine runs is subindex 3, under Components › Functions › Actions.')
     : (which === 'AIRULES' && !arc)
-      ? 'The words the scripts are written in, from the application’s resource fork. The AI Scripting Document itself ships beside the game, not inside it.' + NO_INSTALLER_HINT
+      ? 'The words the scripts are written in, from the program’s resource fork. The AI Scripting Document itself ships beside the game, not inside it.' + NO_INSTALLER_HINT
       : 'The installer has no ' + (which === 'AIRULES' ? 'AI Scripting Document' : '.ai scripts') + ' in it.';
 }
 
@@ -1925,7 +1925,7 @@ function renderChangesSheet() {
   }
   grid.appendChild(box);
   out.textContent = edited.length + ' edited resource' + (edited.length === 1 ? '' : 's') +
-    '; the archive on screen is the rebuilt one every route below writes.';
+    '; the file on screen is the rebuilt one every route below writes.';
 }
 
 /* ---- Records: the tables the scenario is built from -----------------------
@@ -2056,7 +2056,7 @@ function showRecordDetail(resid, byte) {
   const t = recordTables().find(x => x.resid === resid);
   let d = null;
   try { d = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data; } catch (e) { quiet(e); }
-  if (!t || !d) { out.textContent = 'No table ' + propWordHex(resid) + ' in this archive.'; return; }
+  if (!t || !d) { out.textContent = 'No table ' + propWordHex(resid) + ' in this file.'; return; }
   const back = document.createElement('button');
   back.className = 'secondary';
   back.textContent = 'All records';

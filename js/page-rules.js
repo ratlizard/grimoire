@@ -411,7 +411,7 @@ function renderSkillsSheet() {
       if (x.description) { const p = document.createElement('p'); p.className = 'mechLede'; p.innerHTML = svEsc(x.description); sec.appendChild(p); }
       const rows = [];
       if (kind !== 'command') {
-        rows.push(['Taught by', x.teachers.length ? x.teachers.map(t => (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + (t.mastery ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') : '<span class="inspDim">no teacher in this archive</span>']);
+        rows.push(['Taught by', x.teachers.length ? x.teachers.map(t => (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + (t.mastery ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') : '<span class="inspDim">no teacher in this file</span>']);
         if (x.askedBy.length) rows.push(['Asked about by', x.askedBy.map(r => svChip(r)).join(' ')]);
         if (x.weapons.length) rows.push(['Swung with it', x.weapons.map(w => propChip(w.pt, w.name)).join(' ')]);
         const rule = SKILL_RULES[x.name];
@@ -622,7 +622,7 @@ function renderBarksSheet() {
   scroll.className = 'tableScroll';
   scroll.innerHTML = rows.length
     ? '<table class="vocabTable barkTable"><thead><tr><th>who</th><th>says</th><th>where</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>'
-    : '<div class="changesNote">' + (barks.length ? 'Nothing matches the filter.' : 'No script in this archive sets a talk balloon.') + '</div>';
+    : '<div class="changesNote">' + (barks.length ? 'Nothing matches the filter.' : 'No script in this file sets a talk balloon.') + '</div>';
   // How a balloon works, above the lines themselves. This was a section of
   // the Mechanics sheet until 13 September 2026.
   mechCardAboveGallery(grid, balloonsMechSection);
@@ -631,7 +631,7 @@ function renderBarksSheet() {
   out.textContent = barks.length
     ? barks.length + ' places in the scripts put a line over a character’s head, ' + distinct + ' distinct lines' +
       (q ? '; ' + shown.length + ' shown' : '') + '. How the balloon works is in the card above.'
-    : 'No script in this archive sets a talk balloon.';
+    : 'No script in this file sets a talk balloon.';
 }
 
 /* WEAPONS AND ARMOUR. Every item class script carries a keyed table
@@ -2206,7 +2206,7 @@ function eggKinds() {
    volumes are handed over by Itanos, Prusa and Unhayt rather than placed,
    and the Wine Contract is handed over by Apis, so all four read as
    unreachable until `sys Create` was counted as a second source. */
-/* sys Create's recipient is not always a register. Thirteen of the archive's
+/* sys Create's recipient is not always a register. Thirteen of the file's
    twenty-seven flat Creates address it as a plain number, character 1 being
    the hero, so a pattern that insists on `global`/`arg`/`local` cannot see any
    of them. Both readers of Create below match on this one shape, so they

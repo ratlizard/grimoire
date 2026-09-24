@@ -95,7 +95,7 @@ async function exportGallery() {
   }
 
   index.push('', 'Written by index.html. Labels marked in the gallery with † are',
-             'supplied by that tool and are not present in the archive.');
+             'supplied by that tool and are not present in the file.');
   files.push({ name: folder + 'index.txt', bytes: utf8(index.join('\n')) });
 
   const blob = buildZip(files);
@@ -150,7 +150,7 @@ function applyGalleryArrangement() {
 
   const cells = Array.from(grid.children).filter(c => c.classList && c.classList.contains('cell'));
   if (!cells.length) return;
-  // The order the gallery built, captured once so "as the archive has them"
+  // The order the gallery built, captured once so "as the file has them"
   // can be restored exactly, headings and all.
   if (!grid._origOrder || grid._origOrder.length !== grid.children.length ||
       grid._origOrder[0] !== grid.children[0]) {
@@ -353,7 +353,7 @@ function editStringAt(resid, approxOffset) {
       ' bytes: shorter is padded with spaces, and growing a string would move every ' +
       'byte after it, which is the future script editor’s job. * separates alternate ' +
       'lines; @word marks a conversation keyword.</div>' +
-    '<div><button onclick="applyStringEdit(' + resid + ',' + loc.textOffset + ',' + loc.cap + ')">Apply and rebuild the archive</button></div>' +
+    '<div><button onclick="applyStringEdit(' + resid + ',' + loc.textOffset + ',' + loc.cap + ')">Apply and rebuild the file</button></div>' +
     '</div>';
   document.body.appendChild(ov);
   const ta = document.getElementById('teText');
@@ -480,7 +480,7 @@ function openDitherTool() {
     '</div>' +
     '<div class="inspDim">Each mode writes a real resource of its kind: a portrait, a landscape strip, an icon, a ' +
     'sixteen-tile sheet or a sized graphic. Transparent pixels stay the cut-out slot, animated palette ramps are ' +
-    'avoided so nothing shimmers, and Replace rebuilds the archive in memory; the Changes tab is where it leaves the page.</div>' +
+    'avoided so nothing shimmers, and Replace rebuilds the file in memory; the Changes tab is where it leaves the page.</div>' +
     '</div>';
   document.body.appendChild(ov);
   ditherFillTargets();

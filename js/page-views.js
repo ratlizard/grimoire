@@ -18,7 +18,7 @@
    498 of its 563 imports from InterfaceLib), its two exports, and every
    routine the code section names for itself in its traceback tables --
    1,992 in 1.0.4, grouped by class. The sheets that cite a routine
-   ("read from the executable") carry a chip here (pefChip), which opens
+   ("read from the program") carry a chip here (pefChip), which opens
    this sheet filtered to the name. Addresses are offsets into the code
    section, the convention the workbench's traces use, except that a trace
    written down as 0x0437BC names the word after the entry: the entry
@@ -245,7 +245,7 @@ function renderAppPefSheet() {
   box.className = 'mechView';
   const ld = pef.loader;
   const code = pef.sections.find(x => x.kind === 0);
-  let h = '<div class="changesHead">The application’s data fork: a PEF container, ' + svEsc(pef.arch === 'pwpc' ? 'PowerPC' : pef.arch) + '</div>';
+  let h = '<div class="changesHead">The program’s data fork: a PEF container, ' + svEsc(pef.arch === 'pwpc' ? 'PowerPC' : pef.arch) + '</div>';
   h += '<p class="mechLede">' + pef.sections.length + ' sections' + (ld ? ', entry in section ' + ld.mainSection + ' at ' + hex(ld.mainOffset) + ', ' + ld.libraries.length + ' libraries imported for ' + ld.symbols.length + ' symbols, ' + ld.exports.length + ' exported' : '') +
     (pef.routines.length ? ', and ' + pef.routines.length.toLocaleString() + ' routines named in the code section’s traceback tables.' : '.') + '</p>';
   h += '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>no.</th><th>section</th><th class="num">unpacked</th><th class="num">packed</th><th class="num">at</th></tr></thead><tbody>' +
@@ -270,7 +270,7 @@ function renderAppPefSheet() {
   h += '<p class="mechLede" style="margin-top:10px">An address is an offset into the code section, where a call lands. The routines are read from the traceback table the compiler leaves after each one: its length and its name, mangled; the name is read back as far as the mangling allows and left as written where it does not.</p>';
   box.innerHTML = h;
   grid.appendChild(box);
-  out.textContent = pef.routines.length.toLocaleString() + ' routines named in the executable' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '; ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
+  out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '; ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
 }
 
 /* ---- Tools -------------------------------------------------------------------
@@ -324,9 +324,9 @@ function renderToolsSheet() {
        sentence that used to carry it put the action last and read as a
        description of a tool that was not there (the maintainer, 23 September
        2026). */
-    pfNote.innerHTML = '<b>' + svEsc('Open the game itself — Data › Installer, or drop the application on the page — and the settings appear here.') + '</b><br>' +
+    pfNote.innerHTML = '<b>' + svEsc('Open the game itself — Data › Installer, or drop the program on the page — and the settings appear here.') + '</b><br>' +
       svEsc('This writes Cythera’s preferences file: the settings in the System Folder’s Preferences folder, and the gate on its cheat keys. ' +
-            'Every switch in it is read out of the application’s own code, so the game has to be open for there to be anything to write.');
+            'Every switch in it is read out of the program’s own code, so the game has to be open for there to be anything to write.');
   } else {
     pfNote.innerHTML = svEsc('The ' + layout.bytes + '-byte ‘' + layout.type + '’ “' + layout.key + '” record, which lives in the System Folder’s Preferences folder. ' +
       'The switches are the game’s own: the labels of its Preferences dialog' + (layout.smoothLabel ? ', and “' + layout.smoothLabel + '” from its unlisted Preferences menu, which the record the game first stores leaves off' : '') + '. ' +
@@ -336,8 +336,8 @@ function renderToolsSheet() {
       'The last is the gate on the cheat keys, which nothing in the game ever sets, so a shipped copy cannot enter cheat mode however long you type ' + layout.gate.word + ' at it. ' +
       'The Cheats sheet has the record field by field. ' +
       (layout.from === 'shipped'
-        ? 'These are the numbers the four releases Ambrosia shipped all agree on, so the file can be written with nothing open. Open the game \u2014 Data \u203a Installer, or drop the application on the page \u2014 and the page reads your own copy instead, which is what makes a patched build right.'
-        : 'Read out of the application open here, rather than from the shipped releases\u2019 numbers.'));
+        ? 'These are the numbers the four releases Ambrosia shipped all agree on, so the file can be written with nothing open. Open the game \u2014 Data \u203a Installer, or drop the program on the page \u2014 and the page reads your own copy instead, which is what makes a patched build right.'
+        : 'Read out of the program open here, rather than from the shipped releases\u2019 numbers.'));
     const prefsRow = document.createElement('div');
     prefsRow.style.cssText = 'display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin:8px 0 6px';
     const prefBox = (id, label, on) => '<label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '> ' + svEsc(label) + '</label>';
@@ -456,7 +456,7 @@ function renderToolsSheet() {
     } else q.innerHTML += '<div class="changesNote" style="margin:6px 0 0">Every optional decode the page attempted has succeeded. What could not be read or drawn would be listed here, one line each with how many times.</div>';
     box.appendChild(q);
   }
-  out.textContent = 'Settings and links; nothing here is read from the archive except the font.';
+  out.textContent = 'Settings and links; nothing here is read from the file except the font.';
 }
 
 /* ---- A tile on a sheet opens on its own ---------------------------------------
@@ -923,7 +923,7 @@ function soundUsageRows(resid, subn) {
   } else if (subn === 143) {
     const chips = chipsFor(u.music.get(resid - 0x9000));
     rows.push(['Played by', chips, chips.length ? '' :
-      'No script names this music by number; the application starts some itself.']);
+      'No script names this music by number; the program starts some itself.']);
   }
   return rows;
 }
@@ -1368,7 +1368,7 @@ function monsterByteNote() {
   const site = monsterDamageSite();
   if (!site) return 'Damage is byte 4 of the record.';
   return 'Damage is byte 4. ' +
-    'Nothing in the application reads it and one script does: ' +
+    'Nothing in the program reads it and one script does: ' +
     srcNum({ resid: site.resid, at: site.at }, 'it asks for field ' + site.field) +
     ', adds a random amount drawn from Body, and passes the sum to the damage helper.';
 }
@@ -2313,7 +2313,7 @@ function startResourceEdit() {
     'Plaintext bytes of 0x' + currentResid.toString(16).toUpperCase() +
     (dec.wasDecrypted ? ' (stored encrypted; re-encrypted on rebuild)' : '') +
     '. Whitespace is ignored; the length may change; emptying it removes the ' +
-    'resource from the archive.';
+    'resource from the file.';
   document.getElementById('editBytesWrap').style.display = '';
 }
 
@@ -2401,7 +2401,7 @@ function applyResourceEdit(resid, newData) {
   const spec = delverArchiveSpec(ARCHIVE.bytes);
   if (!spec) { setStatus('The open archive did not re-parse; nothing changed.', true); return false; }
   const entry = spec.resources.find(r => r.resid === resid);
-  if (!entry) { setStatus('0x' + resid.toString(16).toUpperCase() + ' is not in the archive.', true); return false; }
+  if (!entry) { setStatus('0x' + resid.toString(16).toUpperCase() + ' is not in the file.', true); return false; }
   if (newData.length) entry.data = newData;
   else spec.resources.splice(spec.resources.indexOf(entry), 1);
   // resetDerivedCaches clears EDITED_RESIDS along with everything else keyed
@@ -2414,7 +2414,7 @@ function applyResourceEdit(resid, newData) {
   parseArchiveBytes(writeDelverArchive(spec), name, { rsrc: window.CYTHERA_RSRC_RAW, via: 'edit' });
   window.EDITED_RESIDS = dirty;
   refreshChangesBadge();
-  setStatus('Rebuilt the archive with 0x' + resid.toString(16).toUpperCase() +
+  setStatus('Rebuilt the file with 0x' + resid.toString(16).toUpperCase() +
     (newData.length ? ' edited' : ' removed') + ', ' + dirty.size +
     ' resource(s) changed this session. Edits live in memory only: ' +
     'Data › Cythera Data › Changes is where they leave the page.');
