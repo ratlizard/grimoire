@@ -641,6 +641,27 @@ try {
   else console.log(`  library and puzzles: ${passages} passages in ${lib.length} arrays, ${unshown.length} shown by nothing and ${lib.reduce((n, d) => n + d.dangling.length, 0)} pointing at nothing; ${le.unreachable.length} test nothing can satisfy; ${bu.buttons.length} buttons through ${bu.arrays.length} tables of ${bu.arrays[0].length}, driving ${bu.rooms.length} rooms of two panels and a door; ${ri.text.length} riddles taking ${ri.answers.join(', ')}`);
 } catch (e) { fail('library', e); }
 
+/* The strange device (thinkADotRules, 24 September 2026). Its reading is
+   pinned, and each press sequence the reader worked out is played back
+   here through the tables it read: a sequence that does not end on its
+   pattern means the rule or the search is wrong, whichever made it. */
+try {
+  const td = ctx.thinkADotRules();
+  const replay = (ps) => { let st = td.start.slice(); for (const c of ps) { for (let p = c, n = 0; p !== null && p !== undefined && n < 16; n++) { st[p] ^= 1; p = st[p] ? td.lit.v[p] : td.dark.v[p]; } } return st.join(''); };
+  ctx.showCategory('MECHANICS');
+  const mh = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid')).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  if (!td) fail('strange device', 'the device was not read');
+  else if (td.start.join('') !== '01011010' || td.lit.v.join() !== '5,3,4,5,6,,,' || td.dark.v.join() !== '3,4,7,6,7,,,')
+    fail('strange device', 'the start or the tables were misread: ' + JSON.stringify([td.start, td.lit.v, td.dark.v]));
+  else if (td.patterns.map(p => p.signal).join() !== '132,133,134' || !td.patterns.every(p => p.doors.length === 1))
+    fail('strange device', 'the patterns, their signals or their doors were misread: ' + JSON.stringify(td.patterns.map(p => [p.v.join(''), p.signal, p.doors.length])));
+  else if (!td.patterns.every(p => p.presses && replay(p.presses) === p.v.join('')))
+    fail('strange device', 'a press sequence does not end on its pattern');
+  else if (!/Every dot dark sends signal 133 , which opens the stone door in Caves/.test(mh))
+    fail('strange device', 'the Mechanics sheet does not state it: ' + (/Eight dots[^]{0,300}/.exec(mh) || [''])[0]);
+  else console.log('  strange device: start ' + td.start.join('') + ', three patterns, each a door and a shortest sequence that plays back true (' + td.patterns.map(p => p.presses.length).join(', ') + ' presses)');
+} catch (e) { fail('strange device', e); }
+
 /* The face, 12 September 2026. The page used to be set in Cythera's own
    typeface from the first paint, served out of res/, whether or not the
    reader had opened a copy of the game. It is Chicago Kare until a file is

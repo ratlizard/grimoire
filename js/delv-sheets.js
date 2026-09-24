@@ -283,7 +283,7 @@ const MECH_GROUPS = [
     ids: ['target', 'locks', 'springs'] },
   { value: 'MECH_PUZZLES', title: 'Puzzles', tile: 0x266,
     note: 'The ones the file answers outright, a section each.',
-    ids: ['braziers', 'buttons', 'riddles', 'tunes', 'signals'] },
+    ids: ['braziers', 'buttons', 'riddles', 'tunes', 'thinkadot', 'signals'] },
   { value: 'MECH_COMBAT', title: 'Combat', tile: 0x21E,
     note: 'What a blow does, who swings it, and what it does to a thing.',
     ids: ['combat', 'combatai', 'damage', 'gear'] },

@@ -3316,6 +3316,78 @@ const VAL_ANY = /^(?:byte|short|word) (?:-?0x[0-9A-F]+|-?\d+)$/i;
    takes each panel's aspect, reads it through the array, and stores the
    result, then signals when the two panels agree. The arrays are a blob in
    the class: seven pointers, then sixteen entries each. */
+/* THE STRANGE DEVICE (24 September 2026), 0x1175, the Think-a-Dot the
+   handoff carried: readable since v1.170.0, when its window's callbacks
+   stopped being read as array data. Its Use builds eight dots (a list of
+   eight literals is the starting state, kept in storage 256) and three
+   buttons; a button drops a marble in at dot 0, 1 or 2 (the callbacks at
+   0x01FB, 0x0209 and 0x0217). The marble flips the dot it is on and moves on
+   through one of two tables -- the one stored in local 2 when the dot is
+   now lit, the one in local 3 when it is dark -- until a table says None.
+   Then the eight dots are compared with three patterns, each passed with
+   the signal it sends. A signal reaches the props of the zone whose Data1
+   is the signal and whose class answers one (TGameSys::SendSignal), so the
+   doors are found that way. Every number is read off the script, and the
+   shortest presses to each pattern are worked out here from the rule. Null
+   when the shape is not found. */
+function thinkADotRules() {
+  const e = dvmScriptEntry(0x1175);
+  if (!e) return null;
+  let bytes = null;
+  try { bytes = smartDecrypt(getResourceBytes(ARCHIVE, 0x1175), 0x1175).data; } catch (err) { return null; }
+  const ops = dvmOpsOf(e);
+  const arr = o => {
+    const v = dvmArrayContents(bytes.subarray(o.at + 3, o.at + 3 + 2 + 8 * 4));
+    return v && v.length === 8 ? v.map(x => /^-?\d+$/.test(String(x)) ? +x : null) : null;
+  };
+  const tableAfter = slot => { const i = ops.findIndex((o, k) => o.text === 'set_local ' + slot && ops[k + 1] && /^data </.test(ops[k + 1].text)); return i >= 0 ? { at: ops[i + 1].at, v: arr(ops[i + 1]) } : null; };
+  const lit = tableAfter('0x02'), dark = tableAfter('0x03');
+  const patterns = [];
+  ops.forEach((o, k) => {
+    if (!/^data </.test(o.text) || !ops[k + 1] || !DVM_NUM.test(ops[k + 1].text)) return;
+    const v = arr(o);
+    if (v) patterns.push({ v, at: o.at, signal: dvmNum(ops[k + 1]), sigAt: dvmVal(0x1175, ops[k + 1]) });
+  });
+  const gi = ops.findIndex((o, k) => /^gui 0x01$/.test(o.text) && ops.slice(k + 1, k + 9).every(x => DVM_NUM.test(x.text)));
+  const start = gi >= 0 ? ops.slice(gi + 1, gi + 9).map(dvmNum) : null;
+  if (!lit || !dark || !lit.v || !dark.v || !start || patterns.length < 1) return null;
+  // The rule, and the fewest presses from the start to each pattern.
+  const press = (st, col) => { const d = st.slice(); for (let p = col, n = 0; p !== null && p !== undefined && n < 16; n++) { d[p] ^= 1; p = d[p] ? lit.v[p] : dark.v[p]; } return d; };
+  const key = st => st.join('');
+  const prev = new Map([[key(start), null]]), queue = [start];
+  while (queue.length) { const st = queue.shift(); for (let c = 0; c < 3; c++) { const nx = press(st, c); if (!prev.has(key(nx))) { prev.set(key(nx), [key(st), c]); queue.push(nx); } } }
+  const path = st => { const out = []; for (let k = key(st); prev.get(k); k = prev.get(k)[0]) out.unshift(prev.get(k)[1]); return prev.has(key(st)) ? out : null; };
+  // The doors: a placed prop whose Data1 is the signal, of a class with a
+  // GetMessage of its own.
+  const doors = new Map(), listens = new Map();
+  const answers = pt => {
+    if (!listens.has(pt)) {
+      let yes = false;
+      try { const raw = getResourceBytes(ARCHIVE, 0x1000 + pt); if (raw) yes = dvmReadRender(ARCHIVE, smartDecrypt(raw, 0x1000 + pt).data, 0x1000 + pt).some(f => f.name === 'GetMessage'); } catch (err) { quiet(err); }
+      listens.set(pt, yes);
+    }
+    return listens.get(pt);
+  };
+  for (let z = 0; z < 0x100; z++) {
+    if (!refExists(0x8100 + z)) continue;
+    let list; try { list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data); } catch (err) { continue; }
+    for (const r of list) {
+      if (r.flags === 0x42 || r.flags === 0x44 || !patterns.some(p => p.signal === r.d1)) continue;
+      if (!answers(r.proptype)) continue;
+      if (!doors.has(r.d1)) doors.set(r.d1, []);
+      doors.get(r.d1).push({ zone: z, x: r.x, y: r.y, pt: r.proptype });
+    }
+  }
+  for (const p of patterns) { p.presses = path(p.v); p.doors = doors.get(p.signal) || []; }
+  // Where the device itself lies in the shipped file.
+  const placed = [];
+  for (let z = 0; z < 0x100; z++) {
+    if (!refExists(0x8100 + z)) continue;
+    let list; try { list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data); } catch (err) { continue; }
+    for (const r of list) if (r.proptype === 0x175 && r.flags !== 0x42) placed.push({ zone: z, x: r.x, y: r.y, onMap: !!r.onMap });
+  }
+  return { resid: 0x1175, start, startAt: ops[gi].at, lit, dark, patterns, placed, reachable: prev.size };
+}
 function puzzleRules() {
   const out = { braziers: null, buttons: null };
   const bz = dvmScriptEntry(0x113F);

@@ -3112,6 +3112,29 @@ function renderMechanicsSheet(value) {
       (tu.instruments.length ? tu.instruments.map(it => src(it.what, it.resid)).join('') : ''),
       'An order of notes held as one number, a digit to each note, compared against a single value.',
       [], tunesHtml);
+    // The strange device (thinkADotRules): its rule, the three patterns, the
+    // doors they open and the fewest presses to each, all read off 0x1175.
+    const td = (function () { try { return thinkADotRules(); } catch (e) { quiet(e); return null; } })();
+    if (td) {
+      const nm = propTypeName(0x175) || 'device';
+      const lit = a => a.map((d, i) => d ? i : null).filter(i => i !== null);
+      const at = (v, text) => srcNum({ v, resid: 0x1175, at: v }, text);
+      const moves = t => t.v.map((to, i) => to === null ? null : i + ' to ' + to).filter(Boolean).join(', ');
+      const off = td.lit.v.map((to, i) => to === null && td.dark.v[i] === null ? i : null).filter(i => i !== null);
+      const side = ['left', 'middle', 'right'];
+      const presses = ps => { const out = []; for (let i = 0; i < ps.length; ) { let j = i; while (j < ps.length && ps[j] === ps[i]) j++; out.push(side[ps[i]] + (j - i > 1 ? ' ' + (j - i) + ' times' : '')); i = j; } return out.join(', '); };
+      const door = d => svLink((propTypeName(d.pt) || 'door') + ' in ' + (zoneDisplayName(d.zone) || ('zone ' + d.zone)), 'atlasOpenSquare(' + (0x8000 + d.zone) + ',' + d.x + ',' + d.y + ')', d.x + ', ' + d.y);
+      add('thinkadot', 'The ' + nm, null, src('the ' + nm, 0x1175),
+        'Eight dots and three buttons. A pattern of dots sends a signal, and the signal opens a door in the zone it is made in.',
+        [
+          'The dots stand in rows of three, two and three, and ' + srcNum({ v: 0, resid: 0x1175, at: td.startAt }, 'start') + ' with ' + lit(td.start).join(', ') + ' lit.' +
+            (td.placed.length ? ' The ' + svEsc(nm) + ' lies ' + td.placed.map(pl => pl.onMap ? 'in ' + svLink(zoneDisplayName(pl.zone) || ('zone ' + pl.zone), 'atlasOpenSquare(' + (0x8000 + pl.zone) + ',' + pl.x + ',' + pl.y + ')', pl.x + ', ' + pl.y) : 'inside something in ' + svEsc(zoneDisplayName(pl.zone) || ('zone ' + pl.zone))).join(', ') + '.' : ''),
+          'A button drops a marble onto dot 0, 1 or 2. The marble flips the dot it lands on and rolls on: from a dot now lit ' + at(td.lit.at, moves(td.lit)) + ', from a dot now dark ' + at(td.dark.at, moves(td.dark)) + ', and off the board from ' + off.join(', ') + '. The dots keep their state between uses.',
+          ...td.patterns.map(p => (lit(p.v).length ? 'Dots ' + lit(p.v).join(', ') + ' lit' : 'Every dot dark').replace(/^Dots 0, 1, 2, 3, 4, 5, 6, 7 lit$/, 'Every dot lit') +
+            ' sends signal ' + srcNum(p.sigAt) + (p.doors.length ? ', which opens the ' + p.doors.map(door).join(' and the ') : ', which nothing in the file answers') +
+            (p.presses ? '. From the start: ' + presses(p.presses) + '.' : '. It cannot be reached from the start.'))
+        ], '');
+    }
     add('signals', 'What a signal reaches', null, '',
       sig ? 'What a button, a bell or an instrument actually sends, and everything the application offers it to, read out of the program rather than the archive.'
           : 'The order a signal travels in is the application’s, not the archive’s.',
