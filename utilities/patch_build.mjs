@@ -16,6 +16,17 @@
              applied, so edits to one resource are applied in the order
              given: put the higher offsets first, or keep the earlier
              edits the same length.
+     textEdits: [{ what, resid, find, replace, count?, mid? }] -- every
+             occurrence of the text `find` in the resource (count says how
+             many there must be; omitted means at least one) is replaced by
+             `replace`, right to left, each through dvmRelink with the new
+             bytes, so the offsets past it move; and where the text sits
+             inside a `data` block (the direction lists, the shop's lines,
+             a rumour) the block's size word is corrected by the difference,
+             which the relinker does not know to do. Text is bytes below
+             0x80 wherever it is -- an implicit string, a NUL-terminated
+             string operand, an array entry, a data block -- so this is the
+             same edit for all of them.
      dataEdits: [{ what, resid, fn }] -- fn is the SOURCE of a function
              (b) => string, run inside the sandbox on the decrypted bytes
              (a copy); it edits b in place and returns a log line, or
@@ -30,7 +41,7 @@ import vm from 'node:vm';
 import {makeSandbox} from './dom_stub.mjs';
 import {pageSource} from './page_scripts.mjs';
 
-export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, description, edits = [], dataEdits = []}) {
+export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, description, edits = [], dataEdits = [], textEdits = []}) {
   const {sandbox} = makeSandbox();
   sandbox.Buffer = Buffer;
   const ctx = vm.createContext(sandbox);
@@ -39,6 +50,7 @@ export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, des
   const out = vm.runInContext(`(() => {
     const EDITS = ${JSON.stringify(edits)};
     const DATA = ${JSON.stringify(dataEdits.map(d => ({what: d.what, resid: d.resid, src: d.fn.toString()})))};
+    const TEXT = ${JSON.stringify(textEdits)};
     const arc = openDelverArchive(__a);
     dvmSetResourceSymbols(loadResourceSymbolsFrom(arc));
     const spec = delverArchiveSpec(__a);
@@ -67,6 +79,58 @@ export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, des
       const rl = dvmRelink(b, e.resid, e.at, to === undefined ? 0 : to - e.at, asm);
       plain.set(e.resid, rl.bytes);
       log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', ' + (rl.delta >= 0 ? '+' : '') + rl.delta + ' bytes, ' + rl.moved + ' offsets moved');
+    }
+    const dataBlocks = (b, resid) => {
+      const out = [];
+      for (const [st, en, kind] of dvmExtents(b, resid)) {
+        if (kind !== 'function') continue;
+        dvmContextResid = resid;
+        let r; try { r = dvmDisassemble(b.subarray(st, en), 3); } catch (e) { continue; }
+        for (const op of r.ops) if (op[2] === 'data') { const a = st + op[0]; out.push({ a, size: (b[a + 1] << 8) | b[a + 2] }); }
+      }
+      return out;
+    };
+    const toBytes = s => Uint8Array.from(s, c => { const v = c.charCodeAt(0); if (v >= 0x80) throw new Error('text edit has a byte above 0x7F: ' + s); return v; });
+    const findAll = (b, needle) => { const out = []; for (let i = 0; i + needle.length <= b.length; i++) { let k = 0; while (k < needle.length && b[i + k] === needle[k]) k++; if (k === needle.length) out.push(i); } return out; };
+    for (const e of TEXT) {
+      let b = bytesOf(e.resid);
+      const needle = toBytes(e.find), repl = toBytes(e.replace);
+      // 'mid': only in the middle of a sentence, a space before and a
+      // lower-case letter after, which keeps an operand byte that happens
+      // to equal the text (a tab is 9, and 0x813 has three of those between
+      // bytes that print as '@' and a digit) out.
+      const lower = v => v >= 0x61 && v <= 0x7A;
+      const hits = findAll(b, needle).filter(i => !e.mid || (i > 0 && b[i - 1] === 0x20 && i + needle.length < b.length && lower(b[i + needle.length])));
+      if (e.count !== undefined ? hits.length !== e.count : hits.length < 1) throw new Error(e.what + ': "' + e.find + '" found ' + hits.length + ' times in 0x' + e.resid.toString(16) + (e.count !== undefined ? ', not ' + e.count : ''));
+      const blocks = dataBlocks(b, e.resid);
+      let moved = 0;
+      for (const off of hits.reverse()) {
+        // dvmRelink's splice and check, with one step it cannot take put
+        // between them: a data block's size word corrected before the
+        // result is read back, since the block is read by that size and a
+        // stale one throws every site after it off.
+        const delta = repl.length - needle.length, cutEnd = off + needle.length;
+        const sites = dvmOffsetSites(b, e.resid);
+        const out = new Uint8Array(b.length + delta);
+        out.set(b.subarray(0, off), 0); out.set(repl, off); out.set(b.subarray(cutEnd), off + repl.length);
+        if (delta) for (const blk of blocks) if (off >= blk.a + 3 && off < blk.a + 3 + blk.size) { blk.size += delta; out[blk.a + 1] = (blk.size >> 8) & 0xFF; out[blk.a + 2] = blk.size & 0xFF; }
+        const expect = new Map();
+        for (const s of sites) {
+          const p = s.at < off ? s.at : s.at >= cutEnd ? s.at + delta : null;
+          if (p === null) continue;
+          const v = s.value <= off ? s.value : s.value < cutEnd ? null : s.value + delta;
+          if (v === null) throw new Error(e.what + ': 0x' + s.value.toString(16) + ', which a ' + s.kind + ' points at, is inside the text replaced');
+          if (v !== s.value) { dvmWriteSite(out, { at: p, size: s.size }, v); moved++; }
+          expect.set(p, v);
+        }
+        const again = dvmOffsetSites(out, e.resid);
+        const bad = again.filter(s => expect.has(s.at) && expect.get(s.at) !== s.value);
+        const lost = [...expect.keys()].filter(q => !again.some(s => s.at === q));
+        if (bad.length || lost.length) throw new Error(e.what + ' at 0x' + off.toString(16) + ' in 0x' + e.resid.toString(16) + ': the resource does not read back, ' + bad.length + ' offsets wrong, ' + lost.length + ' no longer found');
+        b = out;
+      }
+      plain.set(e.resid, b);
+      log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', ' + hits.length + ' place' + (hits.length === 1 ? '' : 's') + ', ' + moved + ' offsets moved');
     }
     for (const d of DATA) {
       const b = bytesOf(d.resid).slice();
