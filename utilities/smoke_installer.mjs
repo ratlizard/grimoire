@@ -184,6 +184,14 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (ctx.dvmFlagName(9) !== 'Poisoned' || ctx.dvmFlagName(18) !== 'Night Vision' || ctx.dvmFlagName(0) !== null) fail('flag names', 'dvmFlagName misprints: ' + [9, 18, 0].map(ctx.dvmFlagName).join(', '));
       else console.log('  flag names: the stored ' + O.length + ' are STR# 9321, flags 8 to 23 by AddAbility');
     } catch (e) { fail('flag names', e); }
+    // The two bits of byte 8 the combat AI names, held to its tests.
+    try {
+      const got = ctx.exeAiBitTests() || {}, B = peek('DVM_BIT_FLAG_NAMES') || {};
+      const g = Object.fromEntries(Object.entries(got).map(([k, v]) => [k, v.name]));
+      if (!Object.keys(g).length) fail('bit names', 'no AI test of a byte-8 bit was read, so the stored names cannot be checked');
+      else if (JSON.stringify(g) !== JSON.stringify(B)) fail('bit names', 'DVM_BIT_FLAG_NAMES and the AI tests disagree: ' + JSON.stringify(B) + ' / ' + JSON.stringify(g));
+      else console.log('  bit names: byte 8 bits ' + Object.keys(g).join(' and ') + ' are the AI\u2019s ' + Object.values(g).join(' and '));
+    } catch (e) { fail('bit names', e); }
     /* What a signal reaches, 12 September 2026. These figures are the
        APPLICATION's, so they are pinned here and not in the puzzles block.
        signalRules() returns null until the application is adopted, and the

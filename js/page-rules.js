@@ -4314,6 +4314,35 @@ function alignmentHTML(v, src) {
   return hit ? srcNum(hit.at, hit.name) + ' <span class="inspDim">(' + (src ? srcNum(src, String(v)) : v) + ')</span>'
              : (src ? srcNum(src, String(v)) : String(v));
 }
+/* Which combat-AI tests read a single bit of a character's byte 8, by the
+   program (24 September 2026): SCombatAIEntry::EvaluateCondition switches on
+   a test's token through a table beside the TOC, token = position in STR#
+   9304 plus one; a case that loads byte 8 and masks one bit is that bit's
+   test, and its name is the list's entry without the argument list. What
+   DVM_BIT_FLAG_NAMES is held to. Null without the application. */
+function exeAiBitTests() {
+  if (!appImage() || !window.APP_RSRC) return null;
+  try {
+    const f = window.APP_RSRC, e = (f.resourcesByType['STR#'] || []).find(x => x.name === 'Tests');
+    const words = e ? decodeSTRList(f.dataOf('STR#', e)) : null;
+    const ops = exeOpsNamed('SCombatAIEntry::EvaluateCondition');
+    const jt = words && ops.length ? exeJumpTable(ops) : null;
+    if (!jt) return null;
+    const img = appImage(), off = exeTocOffset(ops[jt.at].d.imm), out = {};
+    for (let tok = 1; tok <= words.length; tok++) {
+      const p = pefPointerAt(img, img.toc.section, off + 4 * tok);
+      if (!p || p.section !== img.codeIndex) continue;
+      const body = exeOpsOf({ offset: p.offset, length: 48, name: 'test ' + tok });
+      const li = body.findIndex(o => o.d && o.d.mn === 'lbz' && o.d.d === 8);
+      const ri = li >= 0 ? exeFind(body, li + 1, 3, d => d.mn === 'rlwinm' || d.mn === 'rlwinm.') : -1;
+      if (ri < 0) continue;
+      const d = body[ri].d;
+      if (d.mb !== d.me || d.sh !== 0) continue;
+      out[31 - d.mb] = { name: String(words[tok - 1]).replace(/\(.*$/, ''), at: exeVal(body[ri], 31 - d.mb) };
+    }
+    return Object.keys(out).length ? out : null;
+  } catch (err) { quiet(err); return null; }
+}
 function exeJumpTable(ops, from) {
   for (let i = from || 0; i < ops.length; i++) {
     const d = ops[i].d;

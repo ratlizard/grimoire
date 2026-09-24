@@ -1474,13 +1474,15 @@ function dvmSayOperator(n, args, ctx) {
        use -- and such a test compared with 0 is the test itself. */
     if (infix === '&') {
       const m = /^\(1 << (\w+)\)$/.exec(args[1]), v = /^\d+$/.test(args[1]) ? +args[1] : 0;
-      if (m) { dvmSayBitNote(ctx, args[0], m[1]); return args[0] + ' has bit ' + m[1]; }
+      // A bit of the bit flags the program names is said with its word.
+      const bw = b => /bit flags$/.test(args[0]) && dvmBitFlagName(+b) ? ' (' + dvmBitFlagName(+b) + ')' : '';
+      if (m) { dvmSayBitNote(ctx, args[0], m[1]); return args[0] + ' has bit ' + m[1] + bw(m[1]); }
       const k = /^~\(1 << (\w+)\)$/.exec(args[1]);
       if (k) return args[0] + ' without bit ' + k[1];
-      if (v && (v & (v - 1)) === 0) { dvmSayBitNote(ctx, args[0], String(Math.log2(v))); return args[0] + ' has bit ' + Math.log2(v); }
+      if (v && (v & (v - 1)) === 0) { dvmSayBitNote(ctx, args[0], String(Math.log2(v))); return args[0] + ' has bit ' + Math.log2(v) + bw(Math.log2(v)); }
     }
     if (infix === '|') { const m = /^\(1 << (\w+)\)$/.exec(args[1]); if (m) return args[0] + ' with bit ' + m[1]; }
-    if ((infix === '!=' || infix === '==') && args[1] === '0' && / has bit \w+$/.test(args[0]))
+    if ((infix === '!=' || infix === '==') && args[1] === '0' && / has bit \w+(?: \(\w+\))?$/.test(args[0]))
       return infix === '!=' ? args[0] : args[0].replace(/ has bit /, ' has not got bit ');
     const w = DVM_SAY_INFIX[infix];
     const rhs = (infix === '==' || infix === '!=') && /\bbehavior$/.test(args[0]) ? dvmSayBehaviour('behavior', args[1], ctx) : args[1];

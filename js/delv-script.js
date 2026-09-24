@@ -350,6 +350,14 @@ function dvmSym(table, code) {
    checked*, has how the two compared. The "Is" the authors put before each
    is not printed, and the words are spaced at their capitals. */
 const DVM_OBJECT_FLAGS = ["IsAlive","IsPoisoned","IsEnhorsed","IsAngry","IsRegen","IsFear","IsParalyse","IsInvisible","IsXray","IsCharmed","IsNightVision","IsCursed","IsBlessed","IsConfused","IsSleep","IsLavaProof"];
+/* Two bits of a character's bit flags (byte 8) by the program's words
+   (24 September 2026): the combat AI's tests InParty(@) and BeenMet(@)
+   (STR# 9304, tokens 8 and 9 in SCombatAIEntry::EvaluateCondition's table)
+   test byte 8 & 0x40 and & 0x80. 0x40 is what JoinParty sets and death
+   clears. Kept here for a visitor without the application; the installer
+   smoke holds it to the program (exeAiBitTests). */
+const DVM_BIT_FLAG_NAMES = { 6: 'InParty', 7: 'BeenMet' };
+function dvmBitFlagName(bit) { return DVM_BIT_FLAG_NAMES[bit] || null; }
 function dvmFlagName(flag) {
   const n = DVM_OBJECT_FLAGS[flag - 8];
   return flag >= 8 && n ? n.replace(/^Is/, '').replace(/([a-z])([A-Z])/g, '$1 $2') : null;
