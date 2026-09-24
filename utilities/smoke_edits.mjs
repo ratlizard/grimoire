@@ -283,8 +283,17 @@ try {
   const sh = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const cards = (function count(el) { return (/^sched-\d+$/.test(el.id || '') ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
   const links = (sh.match(/atlasOpenSquare\(/g) || []).length;
+  // A schedule is a program (24 September 2026): Pelagon's reads, in the
+  // file's order, the grotto if quest value 3 is 3, a stop, off every map
+  // if he has flag 0, a stop, then Kosha. Stripped of markup and taken from
+  // his card alone.
+  const find = (el, id) => el.id === id ? el : (el.children || []).reduce((f, c) => f || find(c, id), null);
+  const pc = find(REGISTRY.get('sheetGrid'), 'sched-13');
+  const pel = (pc ? (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(pc) : '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   if (cards < 100 || links < 500 || !/Alaric/.test(sh)) fail('schedules', `the sheet shows ${cards} characters and ${links} posts`);
-  else console.log(`  schedules: ${cards} characters, ${links} posts, each a link into its zone`);
+  else if (!/if quest value 3 is 3[\s\S]*stop if one above was taken[\s\S]*off every map if Pelagon has flag 0/.test(pel))
+    fail('schedules', 'Pelagon\u2019s schedule is not read as a program: ' + pel.slice(0, 300));
+  else console.log(`  schedules: ${cards} characters, ${links} posts, each a link into its zone; conditions read, Pelagon's in order`);
 } catch (e) { fail('schedules', e); }
 
 

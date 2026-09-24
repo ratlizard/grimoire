@@ -386,8 +386,10 @@ function loadSchedules() {
       const xy = (raw[p+5] << 16) | u16be(raw, p+6);
       // `at` is where the entry sits in 0xF00B, so a figure read off it
       // can open the bytes it came from.
+      // Bytes 2 and 3 are a condition and its argument (scheduleCondition);
+      // `script` keeps the two as one word for what read it that way.
       entries.push({ hour: raw[p], mode: raw[p+1],
-                     script: u16be(raw, p+2), level: raw[p+4],
+                     script: u16be(raw, p+2), cond: raw[p+2], arg: raw[p+3], level: raw[p+4],
                      x: xy >> 12, y: xy & 0xFFF, at: p });
       p += 8;
     }

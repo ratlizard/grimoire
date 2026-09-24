@@ -463,7 +463,9 @@ function renderSchedulesSheet() {
   const ampm = h => h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
   const people = [];
   for (let i = 0; i < scheds.length; i++) {
-    const real = scheds[i].filter(e => e.mode !== 0);
+    // A post with a behaviour, or a segment that is part of the program:
+    // a condition, a stop, or a place off every map (level 255).
+    const real = scheds[i].filter(e => e.mode !== 0 || e.cond !== 0);
     if (!real.length) continue;
     const name = characterName(i) || ('Character ' + i);
     if (q && !name.toLowerCase().includes(q)) continue;
@@ -476,15 +478,22 @@ function renderSchedulesSheet() {
     const sec = foldCard('sched-' + p.i, 'skillCard', !!q);
     const head = document.createElement('summary'); head.className = 'mechHead';
     head.innerHTML = '<h3>' + svEsc(p.name) + '</h3><span class="foldGist">' + p.real.length + ' post' + (p.real.length === 1 ? '' : 's') +
-      ', ' + [...new Set(p.real.map(e => zoneDisplayName(e.level)))].slice(0, 3).map(svEsc).join(', ') + '</span>' +
+      ', ' + [...new Set(p.real.filter(e => e.level !== 255 && !(scheduleCondition(e) || {}).stop).map(e => zoneDisplayName(e.level)))].slice(0, 3).map(svEsc).join(', ') + '</span>' +
       '<span class="mechFrom">' + characterChip(p.i, true) + '</span>';
     sec.appendChild(head);
-    const rows = p.real.slice().sort((a, b) => a.hour - b.hour).map(e =>
-      '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + svLink(zoneDisplayName(e.level) || ('zone ' + e.level), 'atlasOpenSquare(' + (0x8000 + e.level) + ',' + e.x + ',' + e.y + ')', e.x + ', ' + e.y) + '</td>' +
-      '<td>' + (e.script ? (refExists(e.script) ? svLink(labelFor(e.script) || ('0x' + e.script.toString(16).toUpperCase()), 'jumpToResource(' + e.script + ')') : '0x' + e.script.toString(16).toUpperCase()) : '') + '</td>' +
-      '<td class="num">0x' + e.mode.toString(16).toUpperCase().padStart(2, '0') + '</td></tr>').join('');
+    // A day with no conditions reads by the clock; a program keeps the
+    // file's order, which is the order the game tests it in.
+    const programmed = p.real.some(e => e.cond);
+    const rows = (programmed ? p.real : p.real.slice().sort((a, b) => a.hour - b.hour)).map(e => {
+      const c = scheduleCondition(e);
+      if (c && c.stop) return '<tr><td></td><td colspan="3" class="inspDim">' + svEsc(c.text) + '</td></tr>';
+      const where = e.level === 255 ? '<span class="inspDim">off every map</span>'
+        : svLink(zoneDisplayName(e.level) || ('zone ' + e.level), 'atlasOpenSquare(' + (0x8000 + e.level) + ',' + e.x + ',' + e.y + ')', e.x + ', ' + e.y);
+      return '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + where + '</td><td>' + (c ? svEsc(c.text) : '') + '</td>' +
+        '<td class="num">0x' + e.mode.toString(16).toUpperCase().padStart(2, '0') + '</td></tr>';
+    }).join('');
     const d = document.createElement('div'); d.className = 'mechBody';
-    d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">from</th><th>where</th><th>script</th><th class="num">behaviour</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">from</th><th>where</th><th>when</th><th class="num">behaviour</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
     sec.appendChild(d);
     box.appendChild(sec);
   }
@@ -493,7 +502,40 @@ function renderSchedulesSheet() {
   all.innerHTML = svLink('Open all', 'mechOpenAll(true)') + svLink('Close all', 'mechOpenAll(false)');
   box.insertBefore(all, box.firstChild);
   grid.appendChild(box);
-  out.textContent = people.length + ' characters with a day in 0xF00B, ' + entries + ' posts' + (q ? ' matching “' + q + '”' : '') + '. A post holds from its hour until the next; the square opens the zone there.';
+  out.textContent = people.length + ' characters with a day in 0xF00B, ' + entries + ' posts' + (q ? ' matching “' + q + '”' : '') + '. A post holds from its hour until the next; one with a condition is an alternative the game takes when the condition holds, in the order listed; the square opens the zone there.';
+}
+/* A SCHEDULE IS A PROGRAM (read 24 September 2026). ScheduleOne walks a
+   character's segments in the file's order and EvalCondition tests each
+   segment's condition byte against its argument byte: the first segment
+   that passes is taken, a later passing one replaces it once its hour has
+   come, and a segment of condition 1 ends the walk once one has been taken.
+   ScheduleTime runs it for every character alive and not flagged 0x40 in
+   byte 8. The condition byte, by EvalCondition's branches and its jump
+   table: 0 always; 1 the stop; 2 and 3 a quest flag set or clear; 0x20 to
+   0x3F a roll of 0 to 2^(n+1) - 1 (n its low three bits; none when n is 0)
+   set against the argument; 0x40 to 0x7F the argument character's flag
+   (its low five bits), 0x60 up negated; 0x80 up a quest value (low five
+   bits) against the argument. The four comparisons are the same for a roll
+   and a quest value, by bits 3-4 and 5-6 respectively: equal, at least, not
+   equal, less than. Any other byte is never true. GRIMOIRE-NOTES.md, *Code
+   reached by call_subroutine*, has the reading; Pelagon's schedule (13) is
+   the worked case. Null for a segment that holds always. */
+const SCHED_COMPARE = ['is', 'is at least', 'is not', 'is less than'];
+function scheduleCondition(e) {
+  const k = e.cond, a = e.arg;
+  if (!k) return null;
+  if (k === 1) return { stop: true, text: 'stop if one above was taken' };
+  if (k === 2 || k === 3) return { text: 'if quest flag ' + a + (k === 2 ? ' is set' : ' is clear') };
+  if (k >= 0x20 && k < 0x40) {
+    const n = k & 7, top = n ? (1 << (n + 1)) - 1 : 0;
+    return { text: 'if a roll of 0 to ' + top + ' ' + SCHED_COMPARE[(k >> 3) & 3] + ' ' + a };
+  }
+  if (k >= 0x40 && k < 0x80) {
+    const f = k & 0x1F, nm = dvmFlagName(f);
+    return { text: 'if ' + (characterName(a) || ('character ' + a)) + ((k & 0x60) === 0x60 ? ' has not' : ' has') + ' flag ' + f + (nm ? ' (' + nm + ')' : '') };
+  }
+  if (k >= 0x80) return { text: 'if quest value ' + (k & 0x1F) + ' ' + SCHED_COMPARE[(k >> 5) & 3] + ' ' + a };
+  return { text: 'never (condition ' + propWordHex(k) + ')' };
 }
 function renderSpellsSheet() {
   stopAllViewActivity();
