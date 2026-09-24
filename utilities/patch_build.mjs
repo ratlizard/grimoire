@@ -16,7 +16,7 @@
              applied, so edits to one resource are applied in the order
              given: put the higher offsets first, or keep the earlier
              edits the same length.
-     textEdits: [{ what, resid, find, replace, count?, mid? }] -- every
+     textEdits: [{ what, resid, find, replace, count?, mid?, at? }] -- every
              occurrence of the text `find` in the resource (count says how
              many there must be; omitted means at least one) is replaced by
              `replace`, right to left, each through dvmRelink with the new
@@ -92,15 +92,22 @@ export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, des
     };
     const toBytes = s => Uint8Array.from(s, c => { const v = c.charCodeAt(0); if (v >= 0x80) throw new Error('text edit has a byte above 0x7F: ' + s); return v; });
     const findAll = (b, needle) => { const out = []; for (let i = 0; i + needle.length <= b.length; i++) { let k = 0; while (k < needle.length && b[i + k] === needle[k]) k++; if (k === needle.length) out.push(i); } return out; };
+    // An edit anchored to an offset ('at', in the resource as shipped) is
+    // applied after every anchored edit further on in the same resource, so
+    // its offset is still where the text is.
+    TEXT.sort((x, y) => x.resid - y.resid || ((y.at === undefined ? -1 : y.at) - (x.at === undefined ? -1 : x.at)));
     for (const e of TEXT) {
       let b = bytesOf(e.resid);
       const needle = toBytes(e.find), repl = toBytes(e.replace);
+      if (e.at !== undefined) {
+        for (let k = 0; k < needle.length; k++) if (b[e.at + k] !== needle[k]) throw new Error(e.what + ': "' + e.find + '" is not at 0x' + e.at.toString(16) + ' in 0x' + e.resid.toString(16));
+      }
       // 'mid': only in the middle of a sentence, a space before and a
       // lower-case letter after, which keeps an operand byte that happens
       // to equal the text (a tab is 9, and 0x813 has three of those between
       // bytes that print as '@' and a digit) out.
       const lower = v => v >= 0x61 && v <= 0x7A;
-      const hits = findAll(b, needle).filter(i => !e.mid || (i > 0 && b[i - 1] === 0x20 && i + needle.length < b.length && lower(b[i + needle.length])));
+      const hits = e.at !== undefined ? [e.at] : findAll(b, needle).filter(i => !e.mid || (i > 0 && b[i - 1] === 0x20 && i + needle.length < b.length && lower(b[i + needle.length])));
       if (e.count !== undefined ? hits.length !== e.count : hits.length < 1) throw new Error(e.what + ': "' + e.find + '" found ' + hits.length + ' times in 0x' + e.resid.toString(16) + (e.count !== undefined ? ', not ' + e.count : ''));
       const blocks = dataBlocks(b, e.resid);
       let moved = 0;
@@ -155,3 +162,30 @@ export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, des
   console.log(`  patch: ${out.resids.length} resources, ${out.patch.length} bytes; merged onto the shipped file it ${out.same ? 'gives the patched file byte for byte' : 'does NOT give the patched file (' + out.mergeInfo + ')'}`);
   return out.same;
 }
+
+/* The text of every script resource, decrypted, as one latin1 string each,
+   keyed by resource id: what a builder that matches text before it edits
+   (community_text_patch.mjs) searches. Scripts only, by delvmod's hints:
+   subindexes 0..14 and 47 direct, 15..125 class, less the graphics, map,
+   prop and sound subindexes. */
+export function resourceTexts({htmlPath = 'index.html', dataPath}) {
+  const {sandbox} = makeSandbox();
+  sandbox.Buffer = Buffer;
+  const ctx = vm.createContext(sandbox);
+  new vm.Script(pageSource(htmlPath), {filename: htmlPath}).runInContext(ctx);
+  sandbox.__a = new Uint8Array(readFileSync(dataPath));
+  return vm.runInContext(`(() => {
+    const arc = openDelverArchive(__a);
+    const NON = new Set([127, 128, 131, 135, 137, 141, 142, 144]);
+    const out = {};
+    for (const r of delverArchiveSpec(__a).resources) {
+      const si = (r.resid >> 8) - 1;
+      if (NON.has(si) || si === 3 || !((si >= 0 && si <= 14) || si === 47 || (si >= 15 && si <= 125))) continue;
+      const b = smartDecrypt(getResourceBytes(arc, r.resid), r.resid).data;
+      let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+      out[r.resid] = s;
+    }
+    return out;
+  })()`, ctx);
+}
+
