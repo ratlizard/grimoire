@@ -398,6 +398,58 @@ function loadSchedules() {
   return (DERIVED.SCHEDULES = all);
 }
 
+/* A character's day as the game would walk it from the start of a new
+   game (24 September 2026). A schedule is a program (scheduleCondition in
+   js/page-rules.js has the format): ScheduleOne takes the segments whose
+   conditions hold, in the file's order, and a stop ends the walk once one
+   has been taken. So the posts drawn on the map are those, under a new
+   game's state: every quest value 0 and quest flag clear, and each
+   character's flags as their record in 0xF009 starts them -- the table the
+   application schedules from is those records, 32 bytes each, the flags in
+   byte 8 (0 to 7), the halfword at 6 (8 to 23) and byte 26 (24 to 31). A
+   roll counts as holding when at least half the numbers it can come up
+   pass, so the picture does not change from one drawing to the next. A
+   schedule with no conditions is its posts, as before. */
+function scheduleHoldsAtStart(e) {
+  const k = e.cond, a = e.arg;
+  if (!k) return true;
+  if (k === 1) return false;
+  if (k === 2) return false;           // a quest flag set: none is, at the start
+  if (k === 3) return true;            // clear
+  const cmp = (v, op) => op === 0 ? v === a : op === 1 ? v >= a : op === 2 ? v !== a : v < a;
+  if (k >= 0x20 && k < 0x40) {
+    const n = k & 7, top = n ? (1 << (n + 1)) - 1 : 0;
+    let pass = 0;
+    for (let v = 0; v <= top; v++) if (cmp(v, (k >> 3) & 3)) pass++;
+    return pass * 2 >= top + 1;
+  }
+  if (k >= 0x40 && k < 0x80) {
+    const f = k & 0x1F, raw = getResourceBytes(ARCHIVE, 0xF009), p = a * 32;
+    let on = false;
+    if (raw && p + 32 <= raw.length)
+      on = f < 8 ? !!(raw[p + 8] & (1 << f)) : f < 24 ? !!(u16be(raw, p + 6) & (1 << (f - 8))) : !!(raw[p + 26] & (1 << (f - 24)));
+    return (k & 0x60) === 0x60 ? !on : on;
+  }
+  if (k >= 0x80) return cmp(0, (k >> 5) & 3);
+  return false;
+}
+function scheduleDay(i) {
+  const segs = loadSchedules()[i] || [];
+  if (!segs.some(e => e.cond)) return segs;
+  const out = [];
+  for (const e of segs) {
+    if (e.cond === 1) { if (out.length) break; continue; }
+    if (scheduleHoldsAtStart(e)) out.push(e);
+  }
+  // Nothing holds: ScheduleOne moves no one, so the character stands where
+  // the record puts them, which is a post of its own for all day.
+  if (!out.length) {
+    const c = loadCharacterTable()[i];
+    if (c && c.zone) out.push({ hour: 0, mode: 0x86, cond: 0, arg: 0, script: 0, level: c.zone, x: c.x, y: c.y, at: null, fromRecord: true });
+  }
+  return out;
+}
+
 DERIVED.CHAR_TABLE = null;
 // Proptypes that some character record uses as its sprite.
 DERIVED._CHAR_PROPTYPES = null;
@@ -2641,7 +2693,7 @@ function charactersOnLevel(level, hour) {
   const m = window.CUR_MAP && window.CUR_MAP.m;
   const seats = (window.CUR_MAP && m) ? seatsOnMap(window.CUR_MAP.resid, m) : null;
   for (let i = 0; i < scheds.length; i++) {
-    const w = walkingPosition(scheds[i], hour, m, keysCarriedBy(i));
+    const w = walkingPosition(scheduleDay(i), hour, m, keysCarriedBy(i));
     const e = w && w.e;
     if (!e || e.level !== level) continue;
     const c = chars[i];

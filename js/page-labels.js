@@ -903,7 +903,7 @@ function zoneDisplayName(zone) {
 function characterDossier(i) {
   const c = loadCharacterTable()[i];
   if (!c) return null;
-  const sched = (loadSchedules()[i] || []).filter(e => e.mode !== 0);
+  const sched = scheduleDay(i).filter(e => e.mode !== 0);
   const zones = loadZoneNames();
   return {
     index: i, name: characterName(i), rec: c,

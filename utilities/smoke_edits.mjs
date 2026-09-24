@@ -293,7 +293,11 @@ try {
   if (cards < 100 || links < 500 || !/Alaric/.test(sh)) fail('schedules', `the sheet shows ${cards} characters and ${links} posts`);
   else if (!/if quest value 3 is 3[\s\S]*stop if one above was taken[\s\S]*off every map if Pelagon has flag 0/.test(pel))
     fail('schedules', 'Pelagon\u2019s schedule is not read as a program: ' + pel.slice(0, 300));
-  else console.log(`  schedules: ${cards} characters, ${links} posts, each a link into its zone; conditions read, Pelagon's in order`);
+  // And the map walks the day a new game starts with (scheduleDay): quest
+  // value 3 is 0 and Pelagon's flag 0 is clear, so his day is Kosha alone.
+  else if (JSON.stringify(ctx.scheduleDay(13).filter(e => e.mode).map(e => [e.level, e.x, e.y])) !== '[[13,39,35]]')
+    fail('schedules', 'Pelagon\u2019s day at the start of a game is not Kosha (39, 35): ' + JSON.stringify(ctx.scheduleDay(13).map(e => [e.cond, e.level, e.x, e.y])));
+  else console.log(`  schedules: ${cards} characters, ${links} posts, each a link into its zone; conditions read, Pelagon's in order, and his day at the start is Kosha alone`);
 } catch (e) { fail('schedules', e); }
 
 

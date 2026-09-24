@@ -885,9 +885,10 @@ try {
     ctx.openResource(0x8003); drainRaf();            // Land King Hall
     const who = ctx.MAP_PATH_WHO;
     const cm = ctx.CUR_MAP || {};
-    const scheds = ctx.loadSchedules();
-    const posts = (who !== null && who !== undefined && scheds[who])
-      ? scheds[who].filter(e => e.mode !== 0 && e.level === cm.level).length : 0;
+    // The day the path draws is the one the game walks from a new game
+    // (scheduleDay), not every post in the program.
+    const posts = (who !== null && who !== undefined)
+      ? ctx.scheduleDay(who).filter(e => e.mode !== 0 && e.level === cm.level).length : 0;
     const mc = ctx.document.getElementById('markLayer');
     const c2 = mc && mc.getContext && mc.getContext('2d');
     const realArc = c2 && c2.arc;
@@ -928,11 +929,14 @@ try {
   const before = { ...marks };
   ctx.showCategory('127');
   ctx.openResource(0x8003); drainRaf();            // Land King Hall
-  const who = ctx.MAP_PATH_WHO;
   const cm = ctx.CUR_MAP || {};
-  const scheds = ctx.loadSchedules();
-  const posts = (who !== null && who !== undefined && scheds[who])
-    ? scheds[who].filter(e => e.mode !== 0 && e.level === cm.level).length : 0;
+  // Somebody who walks here: the most posts on this map in the day a new
+  // game starts with (scheduleDay), so there are legs to colour.
+  const onMap = i => ctx.scheduleDay(i).filter(e => e.mode !== 0 && e.level === cm.level).length;
+  let who = null;
+  for (let i = 0; i < ctx.loadSchedules().length; i++) if (who === null || onMap(i) > onMap(who)) who = i;
+  ctx.setMapPathWho(who);
+  const posts = who !== null ? onMap(who) : 0;
   const mc = ctx.document.getElementById('markLayer');
   const c2 = mc && mc.getContext && mc.getContext('2d');
   const styles = [];

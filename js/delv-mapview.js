@@ -45,7 +45,7 @@ function refreshPathPicker() {
   const scheds = loadSchedules();
   const here = [];
   for (let i = 0; i < scheds.length; i++) {
-    if (scheds[i].some(e => e.mode !== 0 && e.level === cm.level)) here.push({ i, name: characterName(i) });
+    if (scheduleDay(i).some(e => e.mode !== 0 && e.level === cm.level)) here.push({ i, name: characterName(i) });
   }
   here.sort((a, b) => a.name.localeCompare(b.name));
   sel.innerHTML = here.length
@@ -78,7 +78,7 @@ function refreshPathPicker() {
 function drawSchedulePath(ctx, TS, cm, colour) {
   const scheds = loadSchedules();
   const who = window.MAP_PATH_WHO;
-  const mine = (who !== null && who !== undefined && scheds[who]) ? scheds[who] : [];
+  const mine = (who !== null && who !== undefined && scheds[who]) ? scheduleDay(who) : [];
   const here = mine.filter(e => e.mode !== 0 && e.level === cm.level).sort((a, b) => a.hour - b.hour);
   if (!here.length) return { stops: 0, name: '' };
 
