@@ -190,7 +190,7 @@ function dvmWord(v) {
 // of the combat AI's vocabulary -- the six tests and thirteen actions the
 // application's own string lists STR# 9307 and 9308 name, in that order, and
 // which compiled .ai rules invoke rather than scripts. 0x0Fxx is a library
-// of one-function character helpers (DVM_SCRIPT_NAMES below); 0x0Cxx-0x0Exx
+// of one-function character helpers, named by nothing in the files; 0x0Cxx-0x0Exx
 // are helpers too, called from dialogue and object scripts. 0x03xx is data
 // reached by far words, 0x0Axx the potion and food effects, 0x0B00 a
 // seven-byte stub nothing calls.
@@ -222,32 +222,13 @@ function dvmClassName(resid) {
 // thing to it; the names say the thing. "status bit n" is a bit of field 20
 // (status_flags), which the application's ObjectFlags list names (see
 // DVM_OBJECT_FLAGS below): bit 0 IsAlive, 1 IsPoisoned, 2 IsEnhorsed.
-const DVM_SCRIPT_NAMES = {
-  0x0F00: 'SetCharacterFlag',       // bit_flags |= 1 << arg
-  0x0F01: 'ClearCharacterFlag',     // bit_flags &= ~(1 << arg)
-  0x0F02: 'TestCharacterFlag',      // (bit_flags >> arg) & 1
-  0x0F03: 'SetBehavior',
-  0x0F04: 'GetBehavior',
-  0x0F05: 'HealFully',              // health = full_health
-  0x0F06: 'CurePoison',             // status bit 1 cleared
-  0x0F07: 'Revive',                 // status bit 0 set, health = full_health
-  0x0F08: 'SetEnhorsed',            // status bit 2, ObjectFlags' IsEnhorsed
-  0x0F09: 'AddMind',
-  0x0F0A: 'AddReflex',
-  0x0F0B: 'AddBody',
-  0x0F0C: 'AddExp',
-  0x0F0D: 'AddLevel',
-  0x0F0E: 'DamageTaken',            // full_health - health
-  0x0F0F: 'IsPoisoned',             // status bit 1
-  0x0F10: 'IsEnhorsed',             // status bit 2
-  0x0F11: 'KarmaDown',
-  0x0F12: 'KarmaUp',
-  0x0F13: 'InParty',                // bit_flags & 0x40, what JoinParty sets and FinishCombat asks: the
-                                    // AI test InParty(@), token 8 (BeenMet, token 9, is 0x80)
-  0x0F14: 'NewCarried',             // New(flags 0x1C, type, aspect)
-  0x0F15: 'NewEgg',                 // New(flags 0x42, type, kind 9, x, y, arg)
-  0x0B00: 'Stub',
-};
+/* Empty since 24 September 2026. It held names for the 0x0Fxx helpers
+   (SetCharacterFlag, HealFully, InParty and the rest) that sessions wrote
+   after reading their bytecode, and the files name none of them; the
+   maintainer's rule is that a name shown is read out of the game's files or
+   program. A helper is its id; the Read view reads a small one through, so
+   what it does is said anyway. */
+const DVM_SCRIPT_NAMES = {};
 
 // A name for a script the file does not name itself: the AI vocabulary from
 // the application's own string lists when the page has that fork open

@@ -1121,7 +1121,9 @@ try {
   else if (!ln.kinds.call || !ln.kinds.resource) fail('leans', 'the kinds of reference collapsed: ' + JSON.stringify(ln.kinds));
   else if (!top || top.refs < 50 || top.calls !== top.refs) fail('leans', 'the busiest resource reads as ' + JSON.stringify(top));
   else if (!quest || quest.calls !== 0) fail('leans', 'the To Do text array reports ' + (quest && quest.calls) + ' calls; operands are being counted as calls');
-  else if (!chars || !chars.dead.some(d => d.name === 'CurePoison')) fail('leans', 'the named character helpers nothing calls are missing from 0xFxx');
+  // CurePoison was the session's name for 0xF06; the helpers carry no names
+  // since 24 September 2026, so it is found by id.
+  else if (!chars || !chars.dead.some(d => d.rid === 0xF06)) fail('leans', 'the character helpers nothing calls are missing from 0xFxx: ' + JSON.stringify(chars && chars.dead.map(d => d.rid)));
   else if (labels.indexOf('0x10xx') >= 0 || labels.indexOf('0x18xx') >= 0 || labels.indexOf('0x1Bxx') >= 0)
     fail('leans', 'a wholly structural range is being listed as uncalled: ' + JSON.stringify(labels));
   else if (!/What calls what/.test(html)) fail('leans', 'the sheet does not state it');

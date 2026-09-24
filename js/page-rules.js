@@ -4678,16 +4678,16 @@ function exeMonsterStatCopy() {
 function characterFlagSites() {
   if (DERIVED.CHAR_FLAG_SITES) return DERIVED.CHAR_FLAG_SITES;
   const by = new Map();
-  const VERB = { SetFlag: 'set', ClearFlag: 'clear', TestFlag: 'test', StatusEffect: 'effect',
-                 SetCharacterFlag: 'set', ClearCharacterFlag: 'clear', TestCharacterFlag: 'test' };
+  const VERB = { SetFlag: 'set', ClearFlag: 'clear', TestFlag: 'test', StatusEffect: 'effect' };
   const LIT = /^(?:byte|short|word) (-?0x[0-9A-F]+|-?\d+)$/i;
   let unknown = 0;
   for (const e of buildScriptTextIndex()) {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
     for (let i = 0; i < ops.length; i++) {
-      const m = /^(?:sys (SetFlag|ClearFlag|TestFlag|StatusEffect)|call_resource (SetCharacterFlag|ClearCharacterFlag|TestCharacterFlag) \(0xF0[012]\))$/.exec(ops[i].text);
+      // The three flag helpers by id (their names were a session's, and went).
+      const m = /^(?:sys (SetFlag|ClearFlag|TestFlag|StatusEffect)|call_resource (?:\w+ \()?0xF0([012])\)?)$/.exec(ops[i].text);
       if (!m) continue;
-      const verb = VERB[m[1] || m[2]];
+      const verb = m[1] ? VERB[m[1]] : ['set', 'clear', 'test'][+m[2]];
       const kids = [];
       for (let j = i + 1; j < ops.length && ops[j].depth > ops[i].depth; j++) if (ops[j].depth === ops[i].depth + 1) kids.push(ops[j]);
       const lit = kids[1] && LIT.exec(kids[1].text);
