@@ -291,6 +291,16 @@ const CHECKS = [
      It rests on an arity table that is written down in no source anywhere --
      not delvmod, not the wiki -- so the check measures it three ways and has
      a control of its own. See the harness header. */
+  /* Can the page write what it reads? js/delv-asm.js assembles one
+     instruction a line and relinks a resource around a splice; the check
+     assembles every instruction in the archive back to its bytes, relinks
+     every resource with a header four bytes on and reads it back from
+     outside, and makes the relinker forget one kind of target to prove the
+     reading back can fail. See the harness header. */
+  {page: 'viewer', name: 'script writing',
+   cmd: ['utilities/asm_check.mjs', 'index.html', DATA],
+   want: [DATA],
+   grep: /script writing: [^\n]*/},
   {page: 'viewer', name: 'folded listing',
    cmd: ['utilities/fold_check.mjs', 'index.html', DATA],
    want: [DATA],

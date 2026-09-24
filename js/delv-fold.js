@@ -2035,6 +2035,19 @@ function dvmReadRender(arc, b, resid, opts) {
     const loops = dvmLoopExits(rec.tree, ctx);
     ctx.notes.length = 0;
     const clauses = dvmSayTree(rec.tree, ctx, loops);
+    /* The compiler ends every function with `return 0`, reached or not
+       (the maintainer asked how Look could return twice: it cannot). A bare
+       return straight after another at the top, with nothing jumping to it,
+       is never run, so it is not said and not counted in what the function
+       returns. */
+    {
+      const jumped = new Set();
+      for (const s of stmts) for (const t of s.targets) jumped.add(t);
+      for (let i = 1; i < clauses.length; i++) {
+        const c = clauses[i], prev = clauses[i - 1];
+        if (prev.returns !== undefined && !prev.kids && c.returns !== undefined && !c.kids && !jumped.has(c.at)) { clauses.splice(i, 1); i--; }
+      }
+    }
     const said = args.map((a, k) => a === self ? 'it' : a === target ? 'the target' : a);
     out.push({ at: st, name, args: said, clauses, summary: dvmSaySummary(clauses),
                self: !!self, bad: r.bad || 0, tree: rec.tree, ops: r.ops });

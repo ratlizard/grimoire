@@ -933,6 +933,9 @@ function updateGalleryTools() {
   // Edit bytes goes with any open resource, whatever it is shown as.
   const eb = document.getElementById('editAnyBtn');
   if (eb) eb.style.display = (currentMode === 'single' && currentResid != null) ? '' : 'none';
+  // Change code goes with a script, which is what it can relink.
+  const cb = document.getElementById('editCodeBtn');
+  if (cb) cb.style.display = (currentMode === 'single' && currentResid != null && window.LAST_DECODED && window.LAST_DECODED.isScript && window.LAST_DECODED.resid === currentResid) ? '' : 'none';
   // The undither preview goes with one picture of a kind the undither
   // reads, and its label says which way the preview would go from here.
   const ub = document.getElementById('unditherBtn');

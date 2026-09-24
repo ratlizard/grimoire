@@ -272,6 +272,7 @@ loads all twelve, in this order, before the two tiers below:
 | `js/delv-archive.js` | master index, `getResourceBytes`, `smartDecrypt`, the record parsers (maps, prop lists, character records, schedules, string tables) and the writers that invert them |
 | `js/delv-graphics.js` | `PALETTE`, `decompressDCG`, `decodeResource`, the undither filter |
 | `js/delv-script.js` | the Delver VM: `dvmWord`, the opcode table, the symbol tables, `dvmDisassemble`, `dvmRender` |
+| `js/delv-asm.js` | the other half: `dvmAssemble` (one instruction a line, in the listing's own words), `dvmOffsetSites` and `dvmRelink`, which splice code into a script resource and move every offset round it. The script page's *Change code* uses them. Held to the archive by `asm_check.mjs` |
 | `js/delv-mechanics.js` | the *rules* as models — the dice game enumerated, the combat margin convolved, the lock and casting odds, the clock's healing and a night's sleep. Numbers to numbers, no DOM and no archive; the figures that draw them are in the page. Cross-checked by `utilities/mech_check.mjs` |
 
 **The page's own furniture** — loaded last, because it is the only tier that
@@ -460,7 +461,7 @@ from outside the repository.
   `--quick` skips it.
 
 A check whose inputs are genuinely missing is reported as **skip**, not fail.
-A clean run is **43 ok, 0 failed, 0 skipped**. Anything else is a
+A clean run is **44 ok, 0 failed, 0 skipped**. Anything else is a
 regression. **This number has gone stale five times**, always on the day a
 check was added and always silently, so `check_all.mjs` now prints the
 sentence this paragraph should carry: paste it in rather than counting by
@@ -537,6 +538,7 @@ guide carried it*.
 | delvmod graphics | `delv_graphics_check.mjs` + `delv_graphics_ref.py` | `decompressDCG` pixel for pixel against delvmod |
 | delvmod write | `delv_write_check.mjs` + `delv_write_ref.py` | `writeDelverArchive` byte for byte against `Archive.to_file`; the record writers against their parsers |
 | delvmod disassembly | `delv_dasm_check.mjs` + `delv_dasm_ref.py` | `dvmDisassemble`'s decode events against ddasm over every script, divergences pinned |
+| script writing | `asm_check.mjs` | every instruction assembles back to its bytes; every resource with a header relinks four bytes on and reads back from outside; a relinker made to forget a kind of target is caught |
 | code read aloud | `read_check.mjs` | the Read view says every call, test and string of every function the structure recovery reads |
 | dialogue vs guides | `dialogue_check.mjs` | `dvmConversation` against the archive's structure and the community's transcription |
 | archive loading | `loader_test.mjs` | unwrapping, validation, refusals, deep links and the default path |
@@ -561,6 +563,11 @@ guide carried it*.
 | bitmap font write | `nfnt_write_check.mjs` | the strikes written back byte for byte and as TrueType |
 | resource snapshot | `rsrc_snapshot.mjs` | a hash of the classic-Mac decoders over both forks |
 | disk image | `hfs_check.mjs` | `writeHfsImage` structurally, and through systemless's reader |
+
+`bugfix_patch.mjs` is a builder too: the six fixes of Bryce Schroeder's
+unofficial bugfix patch, written through `js/delv-asm.js` and exported as a
+Magpie patch through `writeDelverPatch`; what it writes belongs in no
+repository either.
 
 `ramp_patch.mjs` is a **builder, not a check**: it writes a Magpie patch that
 puts every tile on the engine's cycling ramps, leans on the page's writers

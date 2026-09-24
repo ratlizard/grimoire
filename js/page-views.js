@@ -2317,6 +2317,67 @@ function startResourceEdit() {
   document.getElementById('editBytesWrap').style.display = '';
 }
 
+/* ---- Changing a script's code (24 September 2026) ------------------------
+   New instructions, in the listing's own words, put in at an instruction of
+   the raw listing -- the line last ringed, when there is one -- in place of
+   the instructions up to "Take out up to", and the resource relinked round
+   them (dvmAssemble, dvmRelink in js/delv-asm.js), which refuses an edit
+   whose offsets do not read back. Apply goes through applyResourceEdit, the
+   same rebuild Edit bytes uses, so the change is in the comparison section's
+   export as a Magpie patch like any other. Offsets are the raw listing's,
+   from the start of the resource. */
+function codeEditBytes() {
+  const resid = currentResid;
+  const raw = getResourceBytes(ARCHIVE, resid);
+  if (!raw) throw new Error('this resource has no bytes');
+  const b = smartDecrypt(raw, resid).data;
+  const num = id => { const v = document.getElementById(id).value.trim(); if (!v) return null; const n = /^0x/i.test(v) ? parseInt(v, 16) : parseInt(v, 16); if (!Number.isFinite(n)) throw new Error(v + ' is not an offset'); return n; };
+  const at = num('editCodeAt'), to = num('editCodeTo');
+  if (at === null) throw new Error('say where the new code goes');
+  // Both ends must be where an instruction starts, in one function.
+  const fn = dvmExtents(b, resid).find(([st, en, kind]) => kind === 'function' && at >= st && at < en);
+  if (!fn) throw new Error('0x' + at.toString(16).toUpperCase() + ' is not in a function');
+  const starts = new Set(dvmDisassemble(b.subarray(fn[0], fn[1]), 3).ops.map(o => fn[0] + o[0]));
+  starts.add(fn[1]);
+  if (!starts.has(at)) throw new Error('0x' + at.toString(16).toUpperCase() + ' is not where an instruction starts');
+  if (to !== null && (to < at || to > fn[1] || !starts.has(to))) throw new Error('0x' + to.toString(16).toUpperCase() + ' is not where an instruction starts, after the first, in the same function');
+  const asm = dvmAssemble(document.getElementById('editCodeText').value, resid);
+  const rl = dvmRelink(b, resid, at, to === null ? 0 : to - at, asm);
+  return { resid, at, fn, asm, rl };
+}
+function startCodeEdit() {
+  if (currentResid == null || !ARCHIVE) return;
+  const ring = window.LISTING_AT && window.LISTING_AT.resid === currentResid ? window.LISTING_AT.at : null;
+  document.getElementById('editCodeAt').value = ring !== null ? '0x' + ring.toString(16).toUpperCase().padStart(4, '0') : '';
+  document.getElementById('editCodeTo').value = '';
+  document.getElementById('editCodePreview').textContent = '';
+  document.getElementById('editCodeNote').textContent = 'Instructions for 0x' + currentResid.toString(16).toUpperCase() +
+    ', one a line, as the raw listing prints them. They go in at the offset given, in place of the instructions up to the second offset if there is one; every offset in the resource moves round them. A label is a name and a colon on its own line, and a jump to it is "then -> name" or "branch name".';
+  document.getElementById('editCodeWrap').style.display = '';
+}
+function cancelCodeEdit() { document.getElementById('editCodeWrap').style.display = 'none'; }
+function previewCodeEdit() {
+  const pre = document.getElementById('editCodePreview');
+  try {
+    const e = codeEditBytes();
+    const b = e.rl.bytes, st = e.fn[0];
+    const fn = dvmExtents(b, e.resid).find(([s0, en, kind]) => kind === 'function' && s0 === st);
+    const ops = fn ? dvmDisassemble(b.subarray(fn[0], fn[1]), 3).ops : [];
+    const lo = e.at - 24, hi = e.at + e.asm.bytes.length + 24;
+    const lines = ops.filter(o => fn[0] + o[0] >= lo && fn[0] + o[0] < hi).map(o => {
+      const a = fn[0] + o[0], mark = a >= e.at && a < e.at + e.asm.bytes.length ? '+ ' : '  ';
+      return mark + a.toString(16).toUpperCase().padStart(4, '0') + '  ' + o[2] + (o[3] ? ' ' + o[3] : '');
+    });
+    pre.textContent = (e.rl.delta >= 0 ? '+' : '') + e.rl.delta + ' bytes, ' + e.rl.moved + ' offsets moved. The new lines are marked +.\n\n' + lines.join('\n');
+  } catch (err) { pre.textContent = err.message; }
+}
+function applyCodeEdit() {
+  try {
+    const e = codeEditBytes();
+    if (applyResourceEdit(e.resid, e.rl.bytes)) cancelCodeEdit();
+  } catch (err) { document.getElementById('editCodePreview').textContent = err.message; }
+}
+
 function cancelResourceEdit() {
   document.getElementById('editBytesWrap').style.display = 'none';
 }

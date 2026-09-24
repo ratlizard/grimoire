@@ -1017,6 +1017,35 @@ try {
   }
 } catch (e) { fail('ditherize', e); }
 
+/* Change code (24 September 2026): the script page's code editor, driven the
+   way a visitor drives it. Paris's name topic gets the four instructions
+   every other character's has; the preview marks them, an offset that is not
+   where an instruction starts is refused, and Apply goes through the same
+   rebuild as Edit bytes, so the resource is among the edits the comparison
+   section exports. The rebuilt script is read back: the new call is there,
+   and the topic's resume point moved past it. */
+try {
+  ctx.jumpToResource(0x1857);
+  ctx.startCodeEdit();
+  REGISTRY.get('editCodeAt').value = '0x013E';
+  REGISTRY.get('editCodeText').value = 'call_resource SetCharacterFlag (0xF00)\narg Arg00\nbyte 0x07\nend';
+  ctx.previewCodeEdit();
+  const refused = REGISTRY.get('editCodePreview').textContent;
+  REGISTRY.get('editCodeAt').value = '0x013D';
+  ctx.previewCodeEdit();
+  const preview = REGISTRY.get('editCodePreview').textContent;
+  ctx.applyCodeEdit();
+  const b = ctx.smartDecrypt(ctx.getResourceBytes(A(), 0x1857), 0x1857).data;
+  const fn = ctx.dvmExtents(b, 0x1857).find(([st, en, k]) => k === 'function' && 0x13D >= st && 0x13D < en);
+  const ops = fn ? ctx.dvmDisassemble(b.subarray(fn[0], fn[1]), 3).ops.map(o => [fn[0] + o[0], o[2], o[3]]) : [];
+  const at = ops.find(o => o[0] === 0x13D), resp = ops.find(o => o[1] === 'conversation_response' && /^"name"/.test(o[2]));
+  if (!/not where an instruction starts/.test(refused)) fail('change code', 'an offset inside an instruction was not refused: ' + refused.slice(0, 120));
+  else if (!/\+7 bytes/.test(preview) || !/\+ 013D  call_resource/.test(preview)) fail('change code', 'the preview does not mark the new code: ' + preview.slice(0, 200));
+  else if (!peek('window.EDITED_RESIDS').has(0x1857)) fail('change code', 'the edit did not go through the rebuild');
+  else if (!at || at[1] !== 'call_resource' || !resp || !/-> 0x0147$/.test(resp[2])) fail('change code', 'Paris\u2019s rebuilt name topic does not read back: ' + JSON.stringify([at, resp]));
+  else console.log('  change code: Paris\u2019s name topic took four instructions at 0x013D through the editor, previewed, refused mid-instruction, rebuilt, and read back with its resume point moved');
+} catch (e) { fail('change code', e); }
+
 // A saved game. The page refused every Cythera player file until September
 // 2026 -- describeDelverArchive wanted eight populated subindexes and a save
 // has six -- so nothing had ever driven the page over one. Opened through
