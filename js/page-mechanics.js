@@ -2677,7 +2677,7 @@ function renderMechanicsSheet(value) {
     const testedBy = bit => {
       const hits = [];
       for (const r of readers) for (const m of r.masks) if ((m.mask & bit) === bit && !hits.some(h => h.routine === r.routine)) hits.push({ routine: r.routine, at: m.at });
-      return hits.length ? hits.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : '<span class="mechSub" style="display:inline">no test of this bit within twenty-four instructions of a load</span>';
+      return hits.length ? hits.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : '<span class="mechSub" style="display:inline">nothing reads this switch within twenty-four instructions of a load</span>';
     };
     const keyName = k => (DVM_SYM.method[String(k)] ? prettyLabel(DVM_SYM.method[String(k)]) : 'key ' + k);
     const rows = cb.bits.map(b => {
@@ -2703,7 +2703,7 @@ function renderMechanicsSheet(value) {
           const names = rd.slice(0, 4).map(r2 => srcNum({ exe: r2.at }, r2.routine.replace(/^.*::/, '')));
           return '<b>' + rd.length + ' routines</b> read that copy while the game runs, among them ' + names.join(', ') + '.';
         })() : '',
-        ic ? 'So ' + propWordHex(0x80) + ' is the bit ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x80) || { cacheBit: { v: 0 } }).cacheBit.v) + ' test: the doors, the passthrough and the curtain carry it, and it is what lets a character walk into the square. ' + propWordHex(0x08) + ' is read by ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x08) || { cacheBit: { v: 0 } }).cacheBit.v) + ': the key, the grimoire, the amulet and the rest that cannot be dropped.' : MECH_NO_APP,
+        ic ? 'So the switch worth ' + propWordHex(0x80) + ' is the one read by ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x80) || { cacheBit: { v: 0 } }).cacheBit.v) + ': the doors, the passthrough and the curtain carry it, and it is what lets a character walk into the square. The one worth ' + propWordHex(0x08) + ' is read by ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x08) || { cacheBit: { v: 0 } }).cacheBit.v) + ': the key, the grimoire, the amulet and the rest that cannot be dropped.' : MECH_NO_APP,
         ic ? 'The Chair word is kept plus one in one of those tables, and ' + pefChip('TViewer::InteractProps') + ' seats a character from it: the last table below says how. The Regions maps sit their people by that rule.' : ''
       ].filter(Boolean),
       '<div class="mechSub">The switches</div>' +
@@ -3282,17 +3282,17 @@ function renderMechanicsSheet(value) {
     }) : [];
     const busiest = ln && ln.ranked.length ? ln.ranked[0] : null;
     add('leans', 'What calls what', null, '',
-      ln ? 'The file is made of small pieces called resources: a script, a picture or a passage of text is one each. This shows which of them the scripts use, and which nothing uses. A script can use a piece in four ways: calling it, which means running it; naming it; listing it in a table; and pointing at a spot inside it. All four count here. That is how a passage of text comes to be named by two dozen scripts and called by none.'
-         : 'No archive is open to read references out of.',
+      ln ? 'The file is made of small parts called resources: a script, a picture or a passage of text is one each. This shows which resources the scripts use, and which nothing uses. A script can use one in four ways: calling it, which means running it; naming it; listing it in a table; and pointing at a spot inside it. All four count here. That is how a passage of text comes to be named by two dozen scripts and called by none.'
+         : 'No file is open to read this from.',
       ln ? [
-        '<b>' + ln.referencing + ' resources</b> reference something and <b>' + ln.referenced + '</b> are referenced, over <b>' + ln.edges + ' references</b>: ' +
-          Object.keys(ln.kinds).map(k => '<b>' + ln.kinds[k] + '</b> ' + svEsc(k === 'call' ? 'calls' : k === 'resource' ? 'named in an operand' : k)).join(', ') + '.',
-        busiest ? 'The graph is lopsided: the busiest is ' + svChip(busiest.rid, labelFor(busiest.rid) || '') + ' at <b>' + busiest.refs + '</b>, and most resources are reached by nothing at all.' : '',
-        'A piece nothing names is rarely a loose end. The program finds an item’s class by what kind of item it is, a dialogue by the person you are talking to, a room’s script by the room number, so none of them has to be named anywhere. What is worth a look is a piece nothing calls sitting among neighbours that are called, and that is what the table shows.',
-        'Even there, the likeliest answer is that the application calls it by a hardcoded id. The combat AI hooks are invoked by the compiled .ai rules beside the game, and the character-creation tables are read by the dialog, so neither is dead.'
+        '<b>' + ln.referencing + ' resources</b> use another and <b>' + ln.referenced + '</b> are used, over <b>' + ln.edges + ' uses</b> in all: ' +
+          Object.keys(ln.kinds).map(k => '<b>' + ln.kinds[k] + '</b> ' + svEsc(k === 'call' ? 'by calling' : k === 'resource' ? 'by naming' : k === 'dref' ? 'by pointing inside' : k === 'table' ? 'by a table entry' : k)).join(', ') + '.',
+        busiest ? 'Use is very uneven: the busiest is ' + svChip(busiest.rid, labelFor(busiest.rid) || '') + ', used <b>' + busiest.refs + '</b> times, while most resources are used by nothing at all.' : '',
+        'A resource nothing names is rarely a loose end. The program finds an item’s class by what kind of item it is, a dialogue by the person you are talking to, a room’s script by the room number, so none of them has to be named anywhere. What is worth a look is a resource nothing calls sitting among neighbours that are called, and that is what the table shows.',
+        'Even then, the likeliest answer is that the program asks for it by a number written into the program itself. The combat AI hooks are run by the rules files beside the game, and the character-creation tables are read by the dialog that makes a character, so neither is unused.'
       ].filter(Boolean) : [],
       table(['resource', '#references', 'of which'], topRows) +
-      (deadRows.length ? '<div class="partsTitle">No script in this archive calls these</div>' +
+      (deadRows.length ? '<div class="partsTitle">No script in this file calls these</div>' +
         table(['range', '#uncalled', '#in range', 'which'], deadRows) : ''));
   }
 
