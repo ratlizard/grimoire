@@ -398,6 +398,43 @@ function dvmAnnotateInt(encl, argIdx, v) {
   return null;
 }
 
+/* The syscalls by the program's own names (the maintainer, 23 September
+   2026: the program's names replace delvmod's everywhere a name is shown).
+   TInterp::DoExpr calls a syscall through a table of the handlers, and each
+   handler carries its authors' name (cbnearby, cbAddAbility); exeSyscallTable
+   reads them when the application is open. They are kept here as well so a
+   visitor without the application reads the same names, and the installer
+   smoke fails if this table and the program ever disagree -- the arrangement
+   DLG_BOX_DEFAULTS has. What delvmod calls them stays the key inside the page
+   (DVM_SYM.syscall, which delv_crosscheck holds to delvmod's source): every
+   reader and matcher keys on those, and only what is printed changes. The
+   "cb" the authors put before a callback's name is not printed.
+   GRIMOIRE-NOTES.md, *What the disputed syscalls do*, has why: delvmod's
+   names were inferred from use, and several say something the handler does
+   not (IsInParty is cbnearby, a test of being near and awake). */
+const DVM_PROGRAM_SYSCALL = { 160: "RangeIter", 161: "EachIter", 162: "cbEndGame", 163: "cbHeartBeat", 164: "cbsetportrait", 165: "cbanimatetiles", 166: "cbrender", 167: "cbdeleteprop", 168: "cbaddinv", 169: "cbgetmap", 170: "cbsetmap", 171: "cbsetpropowner", 172: "cbrnd", 173: "cbcreateprop", 174: "cbwhohas", 175: "cbgetinv", 176: "cbcountinv", 177: "cbsubinv", 178: "cbpartychar", 179: "cbwhowill", 180: "cbhowmany", 181: "cbgetdigit", 182: "cbwhosaid", 183: "cbinvspace", 184: "cbgetweight", 185: "cbpartyjoin", 186: "cbpartyleave", 187: "cbwhichofyou", 188: "cbnearby", 189: "cbpasstime", 190: "cbRecalcLight", 191: "cbteleport", 192: "cbPickItem", 193: "cbAddAbility", 194: "cbRemoveAbility", 195: "cbTempAbility", 196: "cbHasAbility", 197: "cbSendSignal", 198: "cbShortName", 199: "cbAllProps", 200: "cbInventory", 201: "cbWithin", 202: "cbInParty", 203: "cbPropsAt", 204: "cbWorn", 205: "cbPropsOf", 206: "cbEnemies", 207: "cbAreaOfEffect", 208: "cbMonsterParts", 209: "cbInRange", 210: "cbPlayNote", 211: "cbPlaySound", 212: "cbPlaySoundSync", 213: "cbPlayMusic", 214: "cbPlayAmbientMusic", 215: "cbPlayAmbientSound", 216: "cbSetAmbientLight", 217: "cbSetZonePic", 218: "cbSetZoneName", 219: "cbShowWindow", 220: "cbGetQV", 221: "cbSetQV", 222: "cbGetQF", 223: "cbSetQF", 224: "cbReschedule", 225: "cbCastSpellFX", 226: "cbMissileFX", 227: "cbHitFX", 228: "cbAttackFX", 229: "cbNext", 230: "cbFadeFX", 231: "cbScreenFX", 232: "cbBeginConversation", 233: "cbEndConversation", 234: "cbHideConversation", 235: "cbShowConversation", 236: "cbBeginCutScene", 237: "cbEndCutScene", 238: "cbScrollText", 239: "cbSetWaypoint", 240: "cbQueueAction", 241: "cbWaitForFlag", 242: "cbAddToDo", 243: "cbDoneToDo", 244: "cbAddKeyword", 245: "cbGetSkill", 246: "cbRenderAt", 247: "cbIsLOS", 248: "cbCD_Tool", 249: "cbNewUniqueName", 250: "cbGetNamedProp", 251: "cbGetNamedProxy", 252: "cbEnableAutoMap", 253: "cbSetFillColor", 254: "cbDebugStr" };
+let _dvmShownOf = null;
+function dvmSyscallShown(name) {
+  if (!_dvmShownOf) {
+    _dvmShownOf = new Map();
+    for (const [op, n] of Object.entries(DVM_SYM.syscall || {})) {
+      const p = DVM_PROGRAM_SYSCALL[op];
+      if (p) _dvmShownOf.set(n, p.replace(/^cb/, ''));
+    }
+  }
+  return _dvmShownOf.get(name) || name;
+}
+/* A listing as it is shown: each syscall by the program's name. The text the
+   page keeps (LAST_DECODED, the snapshots, the rule readers) keeps delvmod's,
+   so this runs at the moment of printing only. Raw: `sys Name`; folded and
+   structured: a call `Name(` that is not a method (`.Name(`). */
+let _dvmSyscallNames = null;
+function dvmShowSyscalls(text, raw) {
+  const names = _dvmSyscallNames || (_dvmSyscallNames = new Set(Object.values(DVM_SYM.syscall || {})));
+  return raw ? text.replace(/\bsys ([A-Za-z]\w*)/g, (m, n) => names.has(n) ? 'sys ' + dvmSyscallShown(n) : m)
+             : text.replace(/(^|[^.\w])([A-Za-z]\w*)(?=\()/gm, (m, pre, n) => names.has(n) ? pre + dvmSyscallShown(n) : m);
+}
+
 function dvmOpEntry(op) {
   const e = DVM_OPS[op];
   if (e) return e;

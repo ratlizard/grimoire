@@ -2547,7 +2547,7 @@ function renderMechanicsSheet(value) {
     add('charflags', 'The character flags', null, src('set', 0xF00) + src('clear', 0xF01) + src('test', 0xF02),
       'A character record carries a flag word that the scripts set, clear and test by number: poison, sleep, fear, the lava protection Eioneus’s dialogue grants. The numbers are the file’s; the names are this page’s, and a flag with no name is one nothing here has read.',
       [
-        '<b>' + cf.flags.length + ' flags</b> are reached by a literal number in this archive, through the four syscalls (SetFlag, ClearFlag, TestFlag and StatusEffect, the character first and the flag second) and the three helpers that wrap them.' + (cf.unknown ? ' ' + cf.unknown + ' site' + (cf.unknown === 1 ? ' passes' : 's pass') + ' a computed flag and ' + (cf.unknown === 1 ? 'is' : 'are') + ' not counted.' : ''),
+        '<b>' + cf.flags.length + ' flags</b> are reached by a literal number in this archive, through the four syscalls (' + ['SetFlag', 'ClearFlag', 'TestFlag'].map(dvmSyscallShown).join(', ') + ' and ' + dvmSyscallShown('StatusEffect') + ', the character first and the flag second) and the three helpers that wrap them.' + (cf.unknown ? ' ' + cf.unknown + ' site' + (cf.unknown === 1 ? ' passes' : 's pass') + ' a computed flag and ' + (cf.unknown === 1 ? 'is' : 'are') + ' not counted.' : ''),
         appImage() ? 'Where a flag lives is read off ' + pefChip('TSpellFX::AddAbility') + ': flags below 8 are bits of one byte of the record, 8 to 23 bits of a halfword, and the rest of a further byte, each less the number the routine subtracts.' : MECH_NO_APP,
         'A named flag with no site is one the application sets on its own, or one this page named from the executable rather than from a script.'
       ],
@@ -2877,7 +2877,7 @@ function renderMechanicsSheet(value) {
   }
 
     add('loose', 'Loose ends', null, '',
-      rows.length ? 'Things the scenario’s own scripts get wrong, each read off the line that causes it. None of this is the page’s opinion: a line nothing strikes off is a line no script names in a CompleteQuest, and a test nothing can satisfy is a number no script ever assigns.'
+      rows.length ? 'Things the scenario’s own scripts get wrong, each read off the line that causes it. None of this is the page’s opinion: a line nothing strikes off is a line no script names in a ' + dvmSyscallShown('CompleteQuest') + ', and a test nothing can satisfy is a number no script ever assigns.'
                   : 'Nothing of this kind was found in this archive.',
       rows.length ? [
         never.length ? '<b>' + never.length + '</b> To Do lines are added and struck off by nothing.' : '',

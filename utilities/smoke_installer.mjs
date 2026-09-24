@@ -147,9 +147,29 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       const h = REGISTRY.get('textContent').innerHTML;
       ctx.setScriptFold('structured');
       if (!ca || !ca.get(op('JoinParty')) || !ca.get(op('TalkParticipant')) || ca.get(op('PlaySound'))) fail('read view', 'the syscalls that take a character were misread: ' + JSON.stringify(ca && [...ca].map(([k, v]) => [k, [...v]])));
-      else if (!/Join party Aethon \(97\)/.test(h) || !/Talk participant Meleager \(34\), 1/.test(h)) fail('read view', 'a character given by number to a syscall is not named');
+      else if (!/partyjoin Aethon \(97\)/i.test(h) || !/setportrait Meleager \(34\), 1/i.test(h)) fail('read view', 'a character given by number to a syscall is not named');
       else console.log('  read view: ' + ca.size + ' syscalls take a character by the program; Aethon joins by name');
     } catch (e) { fail('read view', e); }
+    /* The syscalls are shown by the program's names, and the page keeps them
+       in DVM_PROGRAM_SYSCALL so a visitor without the application reads the
+       same ones. That copy is held here to the handler table the program
+       carries (exeSyscallTable), both ways: an op the program names that the
+       copy lacks or names otherwise fails, and so does an op the copy names
+       that the program does not. A listing and the Read view must then print
+       the program's name (sys nearby) and not delvmod's (sys IsInParty). */
+    try {
+      const st = ctx.exeSyscallTable(), P = peek('DVM_PROGRAM_SYSCALL') || {};
+      const got = new Map((st ? st.entries : []).filter(x => x.name).map(x => [String(x.op), x.name]));
+      const bad = [...new Set([...got.keys(), ...Object.keys(P)])].filter(k => got.get(k) !== P[k]);
+      ctx.jumpToResource(0x1861); ctx.setScriptFold(false);
+      const raw = REGISTRY.get('textContent').innerHTML;
+      ctx.setScriptFold('structured');
+      const folded = REGISTRY.get('textContent').innerHTML;
+      if (!got.size) fail('program names', 'the handler table was not read, so the stored names cannot be checked');
+      else if (bad.length) fail('program names', 'DVM_PROGRAM_SYSCALL and the program disagree at ' + bad.map(k => k + ': ' + P[k] + ' / ' + got.get(k)).join(', '));
+      else if (!/sys nearby/.test(raw) || /sys IsInParty/.test(raw) || !/\bnearby\(/.test(folded) || /IsInParty\(/.test(folded)) fail('program names', 'the listing does not print the program\'s names');
+      else console.log('  program names: the stored ' + got.size + ' agree with the handler table, and the listing prints them');
+    } catch (e) { fail('program names', e); }
     /* What a signal reaches, 12 September 2026. These figures are the
        APPLICATION's, so they are pinned here and not in the puzzles block.
        signalRules() returns null until the application is adopted, and the

@@ -114,7 +114,7 @@ const stats = ev(`(() => {
         for (const o of f.ops) {
           const mn = o[2];
           let name = null;
-          if (/^sys /.test(mn)) name = mn.slice(4);
+          if (/^sys /.test(mn)) name = dvmSyscallShown(mn.slice(4));
           else if (mn === 'method') name = dvmPlainName(dvmBareOperand(o[3]));
           if (name) { out.calls++; if (text.indexOf(dvmSayName(name)) < 0) out.fails.calls.push(where + ': ' + name); }
           if (mn === 'call_resource') {

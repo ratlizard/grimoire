@@ -1980,7 +1980,7 @@ function convBadgeFor(a) {
     SetFlag: 'sets a status flag', SetStateFlag: 'sets a game flag',
     AddTask: null, FinishTasks: null, TakeItem: 'takes something',
     AddConversationKeyword: 'unlocks a keyword', GameOver: 'ends the game' };
-  let label = M[a.sys] !== undefined ? M[a.sys] : a.sys;
+  let label = M[a.sys] !== undefined ? M[a.sys] : dvmSyscallShown(a.sys);
   if (!label) return null;
   if (a.note && (a.sys === 'Create' || a.sys === 'New'))
     label = 'gives: ' + a.note.replace(/^.*proptype \d+ (, )?/, '').replace(/^proptype, /, '');
@@ -2048,7 +2048,7 @@ function convPromptHtml(e) {
 function convCardHtml(resid, e, depth) {
   const kws = convPromptHtml(e);
   const badges = [];
-  if (e.conds.length) badges.push('depends on: ' + e.conds.join(', '));
+  if (e.conds.length) badges.push('depends on: ' + e.conds.map(dvmSyscallShown).join(', '));
   for (const a of e.actions) { const b = convBadgeFor(a); if (b) badges.push(b); }
   let html = '<div class="convCard' + (depth ? ' convSub' : '') + '" id="conv-' + resid + '-' + e.at + '">' +
     kws + badges.map(b => '<span class="convBadge">' + svEsc(b) + '</span>').join('') +

@@ -1739,7 +1739,12 @@ function dvmSayCall(n, ctx) {
       const nm = dvmFoldPage(ctx, () => characterName(+v[k]));
       if (nm) v[k] = nm + ' (' + v[k] + ')';
     }
-    return withArgs(dvmSayName(name), v);
+    // The program's name for it (dvmSyscallShown). cbHeartBeat's says least
+    // of what it does, so the handler's effect is said with it: it adds its
+    // argument to the countdown the current character's turn waits out
+    // (byte 18, TActiveMonster::DoTick).
+    if (name === 'UseTime' && /^\d+$/.test(v[0] || '')) dvmFoldNote(ctx, 'the current character spends ' + v[0] + ' ticks');
+    return withArgs(dvmSayName(dvmSyscallShown(name)), v);
   }
   switch (n.mn) {
     case 'call_resource': case 'call_subroutine': {
@@ -1832,7 +1837,7 @@ function dvmSayCond(s, ctx, taken) {
 function dvmSayMeta(n, ctx) {
   const bare = dvmPlainName(dvmBareOperand(n.arg));
   if (n.mn === 'return') return { returns: n.groups[0] ? dvmFoldFrame(n.groups[0], ctx) : '' };
-  if (/^sys /.test(n.mn)) return { verb: dvmSayName(n.mn.slice(4)) };
+  if (/^sys /.test(n.mn)) return { verb: dvmSayName(dvmSyscallShown(n.mn.slice(4))) };
   if (n.mn === 'method') return { verb: dvmSayName(bare) };
   if (n.mn === 'call_resource') { const id = /^0x([0-9A-F]+)$/i.exec(bare); const nm = id ? dvmFoldResourceName(parseInt(id[1], 16)) : bare; return { verb: /^0x/i.test(nm) ? 'run ' + nm : dvmSayName(nm) }; }
   if (n.mn === 'set_field') return { verb: 'set ' + dvmSayName(bare) };
@@ -1906,8 +1911,8 @@ function dvmSayTree(tree, ctx, loops) {
         const f = fors.get(n);
         if (f) {
           for (const t of f.notes || []) dvmFoldNote(ctx, t);
-          const t = head('for each ' + f.variable + ' in ' + dvmSayName(f.name) + (f.args.length ? ' of ' + f.args.join(', ') : '') + ':');
-          push(t, dvmSayTree(n.body.slice(0, -1), ctx, loops), f.start.abs, { verb: 'go through ' + dvmSayName(f.name) });
+          const t = head('for each ' + f.variable + ' in ' + dvmSayName(dvmSyscallShown(f.name)) + (f.args.length ? ' of ' + f.args.join(', ') : '') + ':');
+          push(t, dvmSayTree(n.body.slice(0, -1), ctx, loops), f.start.abs, { verb: 'go through ' + dvmSayName(dvmSyscallShown(f.name)) });
         } else {
           const t = head('while ' + dvmSayCond(n.cond, ctx, false) + ':');
           push(t, dvmSayTree(n.body, ctx, loops), n.cond.abs, { test: true });

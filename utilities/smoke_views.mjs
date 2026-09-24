@@ -656,7 +656,7 @@ try {
      step's offset is on the closing brace, so a ring on it lands there and not
      on the break before it. */
   const t987 = ctx.document.getElementById('textContent').innerHTML;
-  if (!/\n    001A  for Var01 in EquipmentIterator\(Arg01\) \{\n/.test(t987) ||
+  if (!/\n    001A  for Var01 in Worn\(Arg01\) \{\n/.test(t987) ||
       !/\n    0034      if \(!\(Arg01 has MeleeWeapon\)\) (<a [^>]*>)?continue(<\/a>)?\n/.test(t987) || !/\n    003F      (<a [^>]*>)?break(<\/a>)?\n/.test(t987))
     fail('script page', '0x987 does not read as a for loop with a continue and a break');
   // Each is a link to where it goes: the continue to the step's brace, the
@@ -681,10 +681,10 @@ try {
   // A zoneport by the title its zone's entry script sets, a prop type by the
   // file's name for its base tile (0xF004).
   ctx.jumpToResource(0x1001);
-  if (!/ChangeZone\(13, 141, 0\)   \/\/ zoneport 141: Cythera/.test(ctx.document.getElementById('textContent').innerHTML))
+  if (!/teleport\(13, 141, 0\)   \/\/ zoneport 141: Cythera/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the zoneport 0x1001 changes to is not named from the file');
   ctx.jumpToResource(0xD09);
-  if (!/Create\(Arg00, 130, [^\n]*\/\/ prop type 130: obol/.test(ctx.document.getElementById('textContent').innerHTML))
+  if (!/addinv\(Arg00, 130, [^\n]*\/\/ prop type 130: obol/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the prop type 0xD09 creates is not named from the file');
   ctx.setBuiltinLabels(true);
   for (const rid of [0x1A00, 0xA04]) {
@@ -693,7 +693,7 @@ try {
     if (/\/\/[^\n]*(poison|Directed Nexus)/.test(t)) fail('script page', 'a hand-typed name reached a comment in 0x' + rid.toString(16));
   }
   ctx.jumpToResource(0x1820);
-  if (!/AddQuest\(10, [^\n]*\/\/ To Do 10: (&quot;|")Ask Thuria about Iron Mine/.test(ctx.document.getElementById('textContent').innerHTML))
+  if (!/AddToDo\(10, [^\n]*\/\/ To Do 10: (&quot;|")Ask Thuria about Iron Mine/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the To Do line Ake (0x1820) adds is not named');
   /* A member read is named (`class_member 0x3400` is Lockable's first word),
      a resource that is one function is headed with the name its callers use,
@@ -711,7 +711,7 @@ try {
   if (!/jumpToResource\(3859\)[^>]*>0xF13</.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', '0x98C does not call 0xF13 by its id, as a link');
   ctx.jumpToResource(0x1403);
-  if (!/SetAmbientLighting\(-128\)/.test(ctx.document.getElementById('textContent').innerHTML))
+  if (!/SetAmbientLight\(-128\)/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'a negative byte in 0x1403 is not printed as a negative number');
   /* A goto that is left is a link to its label, and the label is printed even
      where it heads an if: 0x812's L0488 was one of 94 printed nowhere. */
@@ -721,13 +721,14 @@ try {
   if (!/\n  L0488:\n    0488          if \(/.test(t812)) fail('script page', 'the label L0488 over an if in 0x812 is not printed');
   ctx.ringListingAt(0x488);
   if (!/^    0488  /.test(hitLine())) fail('script page', 'following L0488 rings "' + hitLine().slice(0, 50) + '"');
+  // Searched by delvmod's name, found and ringed by the program's.
   REGISTRY.get('searchBox').value = 'EquipmentIterator';
   ctx.runSearch();
   await new Promise(r => setTimeout(r, 300));     // runSearch draws on a timer
-  const sres = /onclick="jumpToScriptAt\((\d+),(\d+)\)"[^>]*>([^<]*EquipmentIterator)/.exec(REGISTRY.get('searchResults') ? REGISTRY.get('searchResults').innerHTML : '');
+  const sres = /onclick="jumpToScriptAt\((\d+),(\d+)\)"[^>]*>([^<]*Worn)/.exec(REGISTRY.get('searchResults') ? REGISTRY.get('searchResults').innerHTML : '');
   if (sres) {
     ctx.jumpToScriptAt(+sres[1], +sres[2]);
-    if (!/EquipmentIterator/.test(hitLine())) fail('script page', 'a search hit rings "' + hitLine().slice(0, 50) + '", not its line');
+    if (!/Worn/.test(hitLine())) fail('script page', 'a search hit rings "' + hitLine().slice(0, 50) + '", not its line');
   } else fail('script page', 'a search hit for EquipmentIterator is not a link to its line');
 
   /* A gallery read for its code is a list of rows: name, id, and what the
@@ -737,7 +738,7 @@ try {
   const rows = grid.children.filter ? grid.children.filter(c => /scriptRow/.test(c.className)) : [];
   if (!/scriptList/.test(grid.className) || rows.length < 19)
     fail('script page', 'the combat AI tests and actions are not a list of rows (' + rows.length + ')');
-  else if (!/EquipmentIterator/.test(rows.map(r => r.textContent || (r.innerHTML || '')).join(' ') + grid.innerHTML))
+  else if (!/\bWorn\b/.test(rows.map(r => r.textContent || (r.innerHTML || '')).join(' ') + grid.innerHTML))
     fail('script page', 'a row does not say what its code calls');
   ctx.showCategory('23');
   if (/scriptList/.test(ctx.document.getElementById('sheetGrid').className))
@@ -881,11 +882,11 @@ try {
   ctx.setScriptFold('structured');
   const back = REGISTRY.get('textContent').innerHTML;
   if (!on || !/readList/.test(read)) fail('read view', 'the Read view did not show on a script');
-  else if (!/Clear flag the target, 22/.test(read) || !/is awoken/.test(read)) fail('read view', 'Awaken\'s UseOn is not said: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 200));
+  else if (!/Remove ability the target, 22/i.test(read) || !/is awoken/.test(read)) fail('read view', 'Awaken\'s UseOn is not said: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 200));
   // A method's first argument is the thing it belongs to, said "it"; a
   // behaviour the game's own Look text names is said with that word; and
   // each function heads with what it does.
-  else if (!/UseOn\(it, the target\)/.test(read) || !/145 \(sleeping\)/.test(read) || !/readSum">Magic aura effect, play sound, clear flag/.test(read))
+  else if (!/UseOn\(it, the target\)/.test(read) || !/145 \(sleeping\)/.test(read) || !/readSum">Cast spell FX, play sound, remove ability/i.test(read))
     fail('read view', 'Awaken is not read with "it", the behaviour\'s word or its summary: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 300));
   else if (/readList/.test(back) || !/function UseOn/.test(back)) fail('read view', 'Structured did not bring the listing back');
   else console.log('  read view: Awaken said in sentences, "it" for what the method belongs to, 145 as sleeping by the game\'s own Look text, a summary at its head; Structured brings the listing back');
@@ -901,7 +902,7 @@ try {
   ctx.setScriptPane('read');
   const f = REGISTRY.get('textContent').innerHTML;
   ctx.setScriptFold('structured');
-  if (!/When asked about DEMODOCUS \(demo\):/.test(h) || !/Join party 97/.test(h)) fail('read view', 'Aethon\'s conversation is not read in full: ' + h.replace(/<[^>]+>/g, ' ').slice(0, 300));
+  if (!/When asked about DEMODOCUS \(demo\):/.test(h) || !/partyjoin 97/i.test(h)) fail('read view', 'Aethon\'s conversation is not read in full: ' + h.replace(/<[^>]+>/g, ' ').slice(0, 300));
   // Helpers read through (0xF02, SetCharacterFlag), a character by its
   // number named from the table, and a state's setters beside its test.
   else if (!/Halos \(62\)\u2019s bit flags has bit 3: \([^)]*0xF02\)/.test(h) || !/Set bit 7 of its bit flags \(SetCharacterFlag\)/.test(h) ||

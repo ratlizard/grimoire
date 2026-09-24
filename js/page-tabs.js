@@ -591,8 +591,12 @@ function runSearch() {
         const h = /^(?:function )?obj_([0-9A-F]{4})\b/.exec(ln);
         if (h) base = parseInt(h[1], 16);
         const g = base >= 0 && /^  ([0-9A-F]{4})  /.exec(ln);
-        if (re.test(ln)) {
-          matched.push({ text: ln.trim(), at: g ? base + parseInt(g[1], 16) : null });
+        // The index keeps delvmod's names and the listing shows the
+        // program's (dvmShowSyscalls), so a line is found by either and
+        // printed as it is shown.
+        const shown = dvmShowSyscalls(ln, true);
+        if (re.test(ln) || re.test(shown)) {
+          matched.push({ text: shown.trim(), at: g ? base + parseInt(g[1], 16) : null });
           if (matched.length >= 3) break;
         }
       }
@@ -854,7 +858,7 @@ function paintDecodedPane() {
   pane.classList.add('scriptCode');
   // A line ringed by jumpToScriptAt.
   const at = window.LISTING_AT && window.LISTING_AT.resid === d.resid ? window.LISTING_AT.at : null;
-  const body = listingJumps(renderLinked(d.text, d.resid, mode === 'raw' ? null : d.raw), mode === 'raw',
+  const body = listingJumps(renderLinked(dvmShowSyscalls(d.text, mode === 'raw'), d.resid, mode === 'raw' ? null : d.raw), mode === 'raw',
                             mode === 'structured' ? d.exits : null);
   pane.innerHTML = at === null ? body : listingRing(body, d.text, at);
 }
