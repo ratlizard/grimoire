@@ -770,34 +770,61 @@ function dvmDiscover(b, resid) {
      twelve-word array before it, so the Naxos trial's closing scene -- and
      the one `SetQV 3, 3` in the archive -- was in no listing, no Read view
      and no rule reader. delvmod's ddasm recovers such bodies by sweeping;
-     here each discovered function is disassembled for its subroutine calls
-     and every target with a function header that falls outside every
+     here each discovered function is disassembled for its subroutine calls,
+     and for `word` operands that point into the same resource (a callback
+     handed to a window), and every target with a function header that falls outside every
      known function's body is added, until nothing new turns up. Skipped when the resource has no 0x9E byte at all. */
-  if (b.indexOf(0x9E) >= 0) {
+  // Worth the second pass only where there is something to find: a
+  // subroutine call, or a `word` whose value points into this resource.
+  const selfHi = 0x80 | ((resid >> 8) & 0x7F), selfLo = resid & 0xFF;
+  let selfRef = false;
+  for (let i = 0; i + 2 < n && !selfRef; i++) if (b[i] === 0x43 && b[i + 1] === selfHi && b[i + 2] === selfLo) selfRef = true;
+  if (b.indexOf(0x9E) >= 0 || selfRef) {
     for (let grew = true; grew; ) {
       grew = false;
       const offs = Object.keys(kinds).map(Number).sort((x, y) => x - y);
+      const found = [];
       for (let i = 0; i < offs.length; i++) {
         const off = offs[i];
         if (kinds[off] !== 'function') continue;
         let end = i + 1 < offs.length ? offs[i + 1] : tableOffset;
         if (end <= off) end = tableOffset;
+        const seg = b.subarray(off, Math.min(end, n));
         let r;
-        try { r = dvmDisassemble(b.subarray(off, Math.min(end, n)), 3); } catch (e) { continue; }
+        try { r = dvmDisassemble(seg, 3); } catch (e) { continue; }
         for (const op of r.ops) {
-          if (op[2] !== 'call_subroutine') continue;
-          const m = /0x([0-9A-Fa-f]+)/.exec(op[3] || '');
-          const t = m ? parseInt(m[1], 16) : NaN;
-          if (!(t > 0 && t < n) || seen.has(t) || kindAt(t) !== 'function') continue;
-          // A target inside a function's own body is a nested subroutine of
-          // that function, and stays part of it (as ddasm reads it); only one
-          // that lands in what was taken for an array or data is a body of
-          // its own.
-          let host = -1;
-          for (const o of offs) { if (o <= t) host = o; else break; }
-          if (host >= 0 && kinds[host] === 'function') continue;
-          seen.add(t); kinds[t] = 'function'; grew = true;
+          let t = NaN, sub = false;
+          if (op[2] === 'call_subroutine') {
+            sub = true;
+            const m = /0x([0-9A-Fa-f]+)/.exec(op[3] || '');
+            t = m ? parseInt(m[1], 16) : NaN;
+          } else if (op[2] === 'word' && op[0] + 5 <= seg.length) {
+            // A pointer into this resource handed to something as a value:
+            // the strange device (0x1174) passes `word here:0x001C` to the
+            // window it builds, the function a button runs.
+            const v = u32be(seg, op[0] + 1);
+            if ((v & 0x80000000) && ((v & 0x7FFF0000) >>> 16) === resid) t = v & 0xFFFF;
+          }
+          if (t > 0 && t < n && !seen.has(t) && kindAt(t) === 'function' && !found.some(x => x.t === t)) found.push({ t, sub });
         }
+      }
+      // Lowest first, each against the objects as they stand after the ones
+      // before it. A subroutine target inside a function's own body --
+      // including one added a moment ago -- is a nested subroutine of that
+      // function and stays part of it, as ddasm reads it (Alaric's 0x1802,
+      // whose 0x42 came up five events short when it was split out). A
+      // callback is a function the engine enters by itself, so it is one
+      // wherever it lies: 0x1175's 0x00BE follows 0x0063's `return` and
+      // closing `end`, and ddasm's sweep, which reads the two as one, is the
+      // short side there.
+      for (const { t, sub } of found.sort((x, y) => x.t - y.t)) {
+        if (sub) {
+          const now = Object.keys(kinds).map(Number).sort((x, y) => x - y);
+          let host = -1;
+          for (const o of now) { if (o <= t) host = o; else break; }
+          if (host >= 0 && kinds[host] === 'function') continue;
+        }
+        seen.add(t); kinds[t] = 'function'; grew = true;
       }
     }
   }

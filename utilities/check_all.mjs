@@ -236,7 +236,7 @@ const CHECKS = [
    grep: /css: [^\n]*/},
   {page: 'viewer', name: 'decoder snapshot', want: [DATA],
    cmd: ['utilities/decoder_snapshot.mjs', 'index.html', DATA], grep: /SNAPSHOT \w+/,
-   expect: 'SNAPSHOT 1acceced49f4e59f'},
+   expect: 'SNAPSHOT c4779213f7148459'},
   // Synthetic on purpose: none of Cythera's twenty-one PICTs uses the
   // uncompressed 1-bit opcodes, so no snapshot over the game's resources can
   // notice this path breaking. The viewer opens any resource fork, not only

@@ -110,7 +110,13 @@ const jsEvents = resid =>
 //     functions are reached by `call_subroutine` from the resource's own code,
 //     which dvmDiscover now follows (Berossus's 0x003A, which holds the Naxos
 //     trial's end and the archive's one `SetQV 3, 3`, among them). The two
-//     left, the strange device's pair, are not reached that way.
+//     left, the CD player (0x1174) and the strange device (0x1175), hand
+//     their windows pointers to functions (`word here:0x001C`), and since
+//     the same night the viewer follows those too -- which turned both
+//     around: each callback is a function of its own, ending in `return`
+//     and `end` before the next header, and ddasm's sweep, which reads the
+//     run as one function, is the side that merges. They are pinned under
+//     `split` for that reason.
 //   decrypt -- delvmod's known_encrypted/known_clear say nothing about these
 //     and its fallback leaves them as ciphertext it then fails to parse, while
 //     the page's decides correctly. Here the ORACLE is the short side, and it
@@ -131,7 +137,7 @@ const jsEvents = resid =>
 //     payload shape rather than on any statistic. Fixing those upstream would
 //     mean giving delvmod a shape bank, which is a larger thing than this.
 const KNOWN_CLASSES = [
-  ['recovery: ddasm finds an unreferenced function the viewer does not', [
+  ['split: ddasm\u2019s sweep reads consecutive callbacks as one function; the viewer finds each by the pointer its window is handed', [
     '1174', '1175']],
   ['decrypt: delvmod leaves it encrypted, the fallback rightly does not', [
     '3006', '300A', '300E', '3010']],
