@@ -105,7 +105,12 @@ const jsEvents = resid =>
 //   recovery -- ddasm sweeps regions no reference points at and recovers
 //     functions from them; the viewer discovers objects only by following
 //     drefs, so an unreferenced function (0x1828 has one at offset 2) is
-//     invisible to it. A viewer feature gap, not a desync.
+//     invisible to it. A viewer feature gap, not a desync. Eleven of the
+//     thirteen left this list on 24 September 2026: their "unreferenced"
+//     functions are reached by `call_subroutine` from the resource's own code,
+//     which dvmDiscover now follows (Berossus's 0x003A, which holds the Naxos
+//     trial's end and the archive's one `SetQV 3, 3`, among them). The two
+//     left, the strange device's pair, are not reached that way.
 //   decrypt -- delvmod's known_encrypted/known_clear say nothing about these
 //     and its fallback leaves them as ciphertext it then fails to parse, while
 //     the page's decides correctly. Here the ORACLE is the short side, and it
@@ -127,8 +132,7 @@ const jsEvents = resid =>
 //     mean giving delvmod a shape bank, which is a larger thing than this.
 const KNOWN_CLASSES = [
   ['recovery: ddasm finds an unreferenced function the viewer does not', [
-    '1024', '1148', '1174', '1175', '180D', '1828', '1829', '182A', '182D',
-    '182E', '183E', '1848', '1858']],
+    '1174', '1175']],
   ['decrypt: delvmod leaves it encrypted, the fallback rightly does not', [
     '3006', '300A', '300E', '3010']],
 ];

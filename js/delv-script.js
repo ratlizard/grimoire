@@ -753,6 +753,45 @@ function dvmDiscover(b, resid) {
       }
     }
   }
+  /* A function reached by `call_subroutine` rather than by a reference in
+     the table (24 September 2026). Opcode 0x9E jumps to an offset in the
+     same resource, and the compiler put some of those bodies straight after
+     an array, where nothing in the table points: Berossus's script (0x1848)
+     calls 0x003A twice from his conversation, and 0x003A sat inside the
+     twelve-word array before it, so the Naxos trial's closing scene -- and
+     the one `SetQV 3, 3` in the archive -- was in no listing, no Read view
+     and no rule reader. delvmod's ddasm recovers such bodies by sweeping;
+     here each discovered function is disassembled for its subroutine calls
+     and every target with a function header that falls outside every
+     known function's body is added, until nothing new turns up. Skipped when the resource has no 0x9E byte at all. */
+  if (b.indexOf(0x9E) >= 0) {
+    for (let grew = true; grew; ) {
+      grew = false;
+      const offs = Object.keys(kinds).map(Number).sort((x, y) => x - y);
+      for (let i = 0; i < offs.length; i++) {
+        const off = offs[i];
+        if (kinds[off] !== 'function') continue;
+        let end = i + 1 < offs.length ? offs[i + 1] : tableOffset;
+        if (end <= off) end = tableOffset;
+        let r;
+        try { r = dvmDisassemble(b.subarray(off, Math.min(end, n)), 3); } catch (e) { continue; }
+        for (const op of r.ops) {
+          if (op[2] !== 'call_subroutine') continue;
+          const m = /0x([0-9A-Fa-f]+)/.exec(op[3] || '');
+          const t = m ? parseInt(m[1], 16) : NaN;
+          if (!(t > 0 && t < n) || seen.has(t) || kindAt(t) !== 'function') continue;
+          // A target inside a function's own body is a nested subroutine of
+          // that function, and stays part of it (as ddasm reads it); only one
+          // that lands in what was taken for an array or data is a body of
+          // its own.
+          let host = -1;
+          for (const o of offs) { if (o <= t) host = o; else break; }
+          if (host >= 0 && kinds[host] === 'function') continue;
+          seen.add(t); kinds[t] = 'function'; grew = true;
+        }
+      }
+    }
+  }
   return { tableOffset, kinds };
 }
 

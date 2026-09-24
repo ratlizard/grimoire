@@ -470,7 +470,15 @@ try {
   else if (/Wine Contract/.test(said)) fail('library', 'the Wine Contract is listed as never shown, but Apis hands it over');
   else if (!/The game’s own writing/.test(libHtml)) fail('library', 'the Writings gallery does not carry the library card');
   else if (/The game’s own writing/.test(html)) fail('library', 'the library card is still on the Mechanics sheet, so the move is half done');
-  else if (!le.unreachable.length) fail('loose', 'no unsatisfiable comparison was found, and the murder thread has one');
+  /* The murder thread's `GetState(3) == 3` was this list's one entry until
+     24 September 2026, when dvmDiscover began following call_subroutine:
+     Berossus's 0x003A, which sets it, had been read as part of an array. So
+     the list is empty, and the positive half is that his script now holds
+     the write and the scene around it. */
+  else if (le.unreachable.length) fail('loose', 'a comparison is listed as unsatisfiable: ' + JSON.stringify(le.unreachable.map(u => [u.state, u.want.v])));
+  else if (!((ctx.buildScriptTextIndex().find(e => e.resid === 0x1848) || {}).text || '').match(/sys SetState\n\s+[0-9A-F]{4}\s+byte 0x03\n\s+[0-9A-F]{4}\s+byte 0x03\n/) ||
+           !/Stentor claimed to have seen Pelagon/.test((ctx.buildScriptTextIndex().find(e => e.resid === 0x1848) || {}).text || ''))
+    fail('loose', 'Berossus\u2019s subroutine 0x003A, with SetState 3, 3, is not in his listing');
   else if (!/Loose ends/.test(html)) fail('loose', 'the sheet does not state the loose ends');
   /* Three kinds added 17 September 2026, each a bug the community or the
      workbench had on record and each read off its line. The flag pins carry
