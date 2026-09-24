@@ -221,7 +221,7 @@ function dvmClassName(resid) {
 // Every 0x0Fxx script casts its first argument to a Character and does one
 // thing to it; the names say the thing. "status bit n" is a bit of field 20
 // (status_flags), which the application's ObjectFlags list names (see
-// DVM_OBJECT_FLAGS below): bit 0 IsAlive, 1 IsPoisoned, 2 IsEnhorsed.
+// ObjectFlags list, dvmFlagName below): bit 0 IsAlive, 1 IsPoisoned, 2 IsEnhorsed.
 /* Empty since 24 September 2026. It held names for the 0x0Fxx helpers
    (SetCharacterFlag, HealFully, InParty and the rest) that sessions wrote
    after reading their bytecode, and the files name none of them; the
@@ -314,34 +314,26 @@ function dvmSym(table, code) {
   return n ? n + ' (0x' + code.toString(16).toUpperCase() + ')' : '0x' + code.toString(16).padStart(2,'0').toUpperCase();
 }
 
-/* The character flags by the program's own names (23 September 2026). The
-   application's resource fork carries STR# 9321, titled "ObjectFlags", and the
-   combat AI's test TestFlag(@,1) takes a word of it: EvaluateCondition turns
-   the word's position n (from 1) into bit n-1 of the halfword at byte 6 of
-   the character's record. TSpellFX::AddAbility keeps flags 8 to 23 in that
-   same halfword, bit = flag - 8 (exeAbilityMap), so flag 8 + i is entry i.
-   Flags 0 to 7 (byte 8, the character's own bits: the dialogue scripts set
-   them on themselves, and character 0's three are the Embrightenment
-   spells' light) and 24 to 31 (byte 26) are named nowhere in the files and
-   print as numbers. The list is kept here so a visitor with no application
-   open reads the same names; the installer smoke holds it to STR# 9321 and
-   to AddAbility's map. This replaced a table the Ambrosia board worked out
-   (Wizard, forum t2432), which the maintainer asked on 23 September 2026 to
-   give way to the game's labels: GRIMOIRE-NOTES.md, *The typed names,
-   checked*, has how the two compared. The "Is" the authors put before each
-   is not printed, and the words are spaced at their capitals. */
-const DVM_OBJECT_FLAGS = ["IsAlive","IsPoisoned","IsEnhorsed","IsAngry","IsRegen","IsFear","IsParalyse","IsInvisible","IsXray","IsCharmed","IsNightVision","IsCursed","IsBlessed","IsConfused","IsSleep","IsLavaProof"];
-/* Two bits of a character's bit flags (byte 8) by the program's words
-   (24 September 2026): the combat AI's tests InParty(@) and BeenMet(@)
-   (STR# 9304, tokens 8 and 9 in SCombatAIEntry::EvaluateCondition's table)
-   test byte 8 & 0x40 and & 0x80. 0x40 is what JoinParty sets and death
-   clears. Kept here for a visitor without the application; the installer
-   smoke holds it to the program (exeAiBitTests). */
-const DVM_BIT_FLAG_NAMES = { 6: 'InParty', 7: 'BeenMet' };
-function dvmBitFlagName(bit) { return DVM_BIT_FLAG_NAMES[bit] || null; }
+/* The character flags by the program's own names (23 September 2026; read
+   out of the application since the 24th, programNames in js/page-rules.js).
+   The application's STR# titled "ObjectFlags" names the bits of the
+   halfword that the combat AI's TestFlag reads, and TSpellFX::AddAbility
+   keeps a range of flag numbers in that halfword; so the flag a word names
+   is that range's first number plus its place in the list. Flags outside the
+   range, and every flag without the application, print as numbers. The
+   "Is" the authors put before each is not printed, and the words are spaced
+   at their capitals. GRIMOIRE-NOTES.md, *The typed names, checked*, has how
+   the board's old table compared. */
 function dvmFlagName(flag) {
-  const n = DVM_OBJECT_FLAGS[flag - 8];
-  return flag >= 8 && n ? n.replace(/^Is/, '').replace(/([a-z])([A-Z])/g, '$1 $2') : null;
+  const pn = dvmProgramNames(), n = pn && pn.flags ? pn.flags[flag] : null;
+  return n ? n.replace(/^Is/, '').replace(/([a-z])([A-Z])/g, '$1 $2') : null;
+}
+/* Two bits of a character's bit flags (byte 8) by the program's words: the
+   combat AI's tests that read a single bit of byte 8 (exeAiBitTests), named
+   from its own list of tests. Nothing without the application. */
+function dvmBitFlagName(bit) {
+  const pn = dvmProgramNames();
+  return pn && pn.bits && pn.bits[bit] ? pn.bits[bit] : null;
 }
 
 // What an integer operand MEANS, by enclosing syscall and argument position.
@@ -393,26 +385,25 @@ function dvmAnnotateInt(encl, argIdx, v) {
 }
 
 /* The syscalls by the program's own names (the maintainer, 23 September
-   2026: the program's names replace delvmod's everywhere a name is shown).
-   TInterp::DoExpr calls a syscall through a table of the handlers, and each
-   handler carries its authors' name (cbnearby, cbAddAbility); exeSyscallTable
-   reads them when the application is open. They are kept here as well so a
-   visitor without the application reads the same names, and the installer
-   smoke fails if this table and the program ever disagree -- the arrangement
-   DLG_BOX_DEFAULTS has. What delvmod calls them stays the key inside the page
-   (DVM_SYM.syscall, which delv_crosscheck holds to delvmod's source): every
-   reader and matcher keys on those, and only what is printed changes. The
-   "cb" the authors put before a callback's name is not printed.
-   GRIMOIRE-NOTES.md, *What the disputed syscalls do*, has why: delvmod's
-   names were inferred from use, and several say something the handler does
-   not (IsInParty is cbnearby, a test of being near and awake). */
-const DVM_PROGRAM_SYSCALL = { 160: "RangeIter", 161: "EachIter", 162: "cbEndGame", 163: "cbHeartBeat", 164: "cbsetportrait", 165: "cbanimatetiles", 166: "cbrender", 167: "cbdeleteprop", 168: "cbaddinv", 169: "cbgetmap", 170: "cbsetmap", 171: "cbsetpropowner", 172: "cbrnd", 173: "cbcreateprop", 174: "cbwhohas", 175: "cbgetinv", 176: "cbcountinv", 177: "cbsubinv", 178: "cbpartychar", 179: "cbwhowill", 180: "cbhowmany", 181: "cbgetdigit", 182: "cbwhosaid", 183: "cbinvspace", 184: "cbgetweight", 185: "cbpartyjoin", 186: "cbpartyleave", 187: "cbwhichofyou", 188: "cbnearby", 189: "cbpasstime", 190: "cbRecalcLight", 191: "cbteleport", 192: "cbPickItem", 193: "cbAddAbility", 194: "cbRemoveAbility", 195: "cbTempAbility", 196: "cbHasAbility", 197: "cbSendSignal", 198: "cbShortName", 199: "cbAllProps", 200: "cbInventory", 201: "cbWithin", 202: "cbInParty", 203: "cbPropsAt", 204: "cbWorn", 205: "cbPropsOf", 206: "cbEnemies", 207: "cbAreaOfEffect", 208: "cbMonsterParts", 209: "cbInRange", 210: "cbPlayNote", 211: "cbPlaySound", 212: "cbPlaySoundSync", 213: "cbPlayMusic", 214: "cbPlayAmbientMusic", 215: "cbPlayAmbientSound", 216: "cbSetAmbientLight", 217: "cbSetZonePic", 218: "cbSetZoneName", 219: "cbShowWindow", 220: "cbGetQV", 221: "cbSetQV", 222: "cbGetQF", 223: "cbSetQF", 224: "cbReschedule", 225: "cbCastSpellFX", 226: "cbMissileFX", 227: "cbHitFX", 228: "cbAttackFX", 229: "cbNext", 230: "cbFadeFX", 231: "cbScreenFX", 232: "cbBeginConversation", 233: "cbEndConversation", 234: "cbHideConversation", 235: "cbShowConversation", 236: "cbBeginCutScene", 237: "cbEndCutScene", 238: "cbScrollText", 239: "cbSetWaypoint", 240: "cbQueueAction", 241: "cbWaitForFlag", 242: "cbAddToDo", 243: "cbDoneToDo", 244: "cbAddKeyword", 245: "cbGetSkill", 246: "cbRenderAt", 247: "cbIsLOS", 248: "cbCD_Tool", 249: "cbNewUniqueName", 250: "cbGetNamedProp", 251: "cbGetNamedProxy", 252: "cbEnableAutoMap", 253: "cbSetFillColor", 254: "cbDebugStr" };
-let _dvmShownOf = null;
+   2026: the program's names replace delvmod's everywhere a name is shown;
+   and on the 24th: read them out of the files, which the page has through
+   the installer, rather than keep a copy). TInterp::DoExpr calls a syscall
+   through a table of the handlers, and each handler carries its authors'
+   name (cbnearby, cbAddAbility); programNames() in js/page-rules.js reads
+   them off that table when the application is open (exeSyscallTable).
+   Without it, delvmod's name stands. What delvmod calls them stays the key
+   inside the page (DVM_SYM.syscall, which delv_crosscheck holds to
+   delvmod's source): every reader and matcher keys on those, and only what
+   is printed changes. The "cb" the authors put before a callback's name is
+   not printed. */
+function dvmProgramNames() { return typeof programNames === 'function' ? programNames() : null; }
+let _dvmShownOf = null, _dvmShownFrom;
 function dvmSyscallShown(name) {
-  if (!_dvmShownOf) {
-    _dvmShownOf = new Map();
-    for (const [op, n] of Object.entries(DVM_SYM.syscall || {})) {
-      const p = DVM_PROGRAM_SYSCALL[op];
+  const pn = dvmProgramNames();
+  if (!_dvmShownOf || _dvmShownFrom !== pn) {
+    _dvmShownOf = new Map(); _dvmShownFrom = pn;
+    if (pn && pn.syscalls) for (const [op, n] of Object.entries(DVM_SYM.syscall || {})) {
+      const p = pn.syscalls.get(+op);
       if (p) _dvmShownOf.set(n, p.replace(/^cb/, ''));
     }
   }

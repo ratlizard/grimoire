@@ -2538,7 +2538,7 @@ function renderMechanicsSheet(value) {
     };
     const place = f => { const p = characterFlagPlace(f); return p ? srcNum(p.offset, (p.word ? 'halfword' : 'byte') + ' +' + p.offset.v) + ', bit ' + p.bit : ''; };
     const flags = new Set(cf.flags.map(f => f.flag));
-    DVM_OBJECT_FLAGS.forEach((n, i) => flags.add(8 + i));
+    { const pn = programNames(); if (pn && pn.flags) for (const k of Object.keys(pn.flags)) flags.add(+k); }
     const rows = [...flags].sort((a, b) => a - b).map(f => {
       const s = cf.flags.find(x => x.flag === f) || { set: [], clear: [], test: [], effect: [] };
       return '<tr>' + num(f) + '<td>' + (dvmFlagName(f) ? svEsc(dvmFlagName(f)) : '') + '</td><td>' + place(f) + '</td>' +

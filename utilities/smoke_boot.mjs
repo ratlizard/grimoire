@@ -309,6 +309,30 @@ try {
 } catch (e) { fail('parseArchiveBytes', e); process.exit(1); }
 const status = REGISTRY.get('sourceStatus').textContent;
 console.log(`  parseArchiveBytes: ${Date.now() - t0} ms — status "${status.slice(0, 80)}"`);
+/* The application beside the data file, as the site's default path has it:
+   the installer carries both, and adoptArchive opens the application out of
+   it. Since 24 September 2026 the names the listings print (the syscalls,
+   the character flags) are read out of it, so a smoke without it would be
+   testing the fallback everywhere. SMOKE_NO_APP=1 leaves it out; the
+   installer part checks the fallback by clearing it. */
+try {
+  const dir = dataPath.replace(/[^/]*$/, '');
+  if (process.env.SMOKE_NO_APP !== '1' && existsSync(dir + 'Cythera.data') && existsSync(dir + 'Cythera.rsrc')) {
+    ctx.APP_DATA = new Uint8Array(readFileSync(dir + 'Cythera.data'));
+    const r = new Uint8Array(readFileSync(dir + 'Cythera.rsrc'));
+    ctx.APP_RSRC = ctx.openResourceFork(r); ctx.APP_RSRC_RAW = r; ctx.APP_PEF = null;
+  }
+} catch (e) { fail('application', e); }
+// Put the application back after a part reopens the archive (which drops it,
+// as adoptArchive's reset does on the site), and run something with no
+// application at all, for the checks written for that case.
+const APP_KEPT = { data: ctx.APP_DATA, rsrc: ctx.APP_RSRC, raw: ctx.APP_RSRC_RAW };
+export function readoptApp() { ctx.APP_DATA = APP_KEPT.data; ctx.APP_RSRC = APP_KEPT.rsrc; ctx.APP_RSRC_RAW = APP_KEPT.raw; ctx.APP_PEF = null; }
+export function withoutApp(fn) {
+  const keep = [ctx.APP_DATA, ctx.APP_RSRC, ctx.APP_RSRC_RAW, ctx.APP_PEF];
+  ctx.APP_DATA = null; ctx.APP_RSRC = null; ctx.APP_RSRC_RAW = null; ctx.APP_PEF = null;
+  try { return fn(); } finally { [ctx.APP_DATA, ctx.APP_RSRC, ctx.APP_RSRC_RAW, ctx.APP_PEF] = keep; }
+}
 if (!/Loaded:/.test(status)) fail('status line', 'did not report a load: ' + status);
 if (!ctx.__peek('ARCHIVE.index').filter(m => m[0]).length) fail('master index', 'no subindexes');
 // The open archive, read afresh each time: parseArchiveBytes replaces the

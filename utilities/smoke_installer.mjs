@@ -150,48 +150,36 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!/partyjoin Aethon \(97\)/i.test(h) || !/setportrait Meleager \(34\), 1/i.test(h)) fail('read view', 'a character given by number to a syscall is not named');
       else console.log('  read view: ' + ca.size + ' syscalls take a character by the program; Aethon joins by name');
     } catch (e) { fail('read view', e); }
-    /* The syscalls are shown by the program's names, and the page keeps them
-       in DVM_PROGRAM_SYSCALL so a visitor without the application reads the
-       same ones. That copy is held here to the handler table the program
-       carries (exeSyscallTable), both ways: an op the program names that the
-       copy lacks or names otherwise fails, and so does an op the copy names
-       that the program does not. A listing and the Read view must then print
-       the program's name (sys nearby) and not delvmod's (sys IsInParty). */
+    /* The program's names, read out of the application at every render
+       (programNames), and nothing when it is not open. The syscalls against
+       the handler table read here, a listing and the Read view printing
+       them; the flags against the ObjectFlags list placed by AddAbility's
+       range; the two bits against the AI's tests. Then the application is
+       cleared and the same three must fall back -- delvmod's name, a
+       number, nothing -- which is the control that the names are read and
+       not kept. */
     try {
-      const st = ctx.exeSyscallTable(), P = peek('DVM_PROGRAM_SYSCALL') || {};
-      const got = new Map((st ? st.entries : []).filter(x => x.name).map(x => [String(x.op), x.name]));
-      const bad = [...new Set([...got.keys(), ...Object.keys(P)])].filter(k => got.get(k) !== P[k]);
+      const st = ctx.exeSyscallTable(), pn = ctx.programNames();
+      const got = new Map((st ? st.entries : []).filter(x => x.name).map(x => [x.op, x.name]));
       ctx.jumpToResource(0x1861); ctx.setScriptFold(false);
       const raw = REGISTRY.get('textContent').innerHTML;
       ctx.setScriptFold('structured');
       const folded = REGISTRY.get('textContent').innerHTML;
-      if (!got.size) fail('program names', 'the handler table was not read, so the stored names cannot be checked');
-      else if (bad.length) fail('program names', 'DVM_PROGRAM_SYSCALL and the program disagree at ' + bad.map(k => k + ': ' + P[k] + ' / ' + got.get(k)).join(', '));
-      else if (!/sys nearby/.test(raw) || /sys IsInParty/.test(raw) || !/\bnearby\(/.test(folded) || /IsInParty\(/.test(folded)) fail('program names', 'the listing does not print the program\'s names');
-      else console.log('  program names: the stored ' + got.size + ' agree with the handler table, and the listing prints them');
+      if (!pn || !pn.syscalls || !got.size) fail('program names', 'the handler table was not read');
+      else if ([...got].some(([op, n]) => pn.syscalls.get(op) !== n)) fail('program names', 'programNames and the handler table disagree');
+      else if (!/sys nearby/.test(raw) || /sys IsInParty/.test(raw) || !/\bnearby\(/.test(folded)) fail('program names', 'the listing does not print the program\u2019s names');
+      else if (ctx.dvmFlagName(9) !== 'Poisoned' || ctx.dvmFlagName(18) !== 'Night Vision' || ctx.dvmFlagName(0) !== null || ctx.dvmFlagName(24) !== null)
+        fail('program names', 'the flags are misnamed: ' + [9, 18, 0, 24].map(ctx.dvmFlagName).join(', '));
+      else if (ctx.dvmBitFlagName(6) !== 'InParty' || ctx.dvmBitFlagName(7) !== 'BeenMet') fail('program names', 'the byte-8 bits are misnamed');
+      else {
+        const keep = [ctx.APP_DATA, ctx.APP_RSRC];
+        ctx.APP_DATA = null; ctx.APP_RSRC = null;
+        const off = [ctx.dvmSyscallShown('IsInParty'), ctx.dvmFlagName(9), ctx.dvmBitFlagName(6)];
+        [ctx.APP_DATA, ctx.APP_RSRC] = keep;
+        if (off[0] !== 'IsInParty' || off[1] !== null || off[2] !== null) fail('program names', 'without the application the names do not fall back: ' + JSON.stringify(off));
+        else console.log('  program names: ' + got.size + ' syscalls, ' + Object.keys(pn.flags || {}).length + ' flags and ' + Object.keys(pn.bits || {}).length + ' bits read out of the application; without it, delvmod\u2019s names and numbers');
+      }
     } catch (e) { fail('program names', e); }
-    /* The character flags by the program's names: DVM_OBJECT_FLAGS is a copy
-       of STR# 9321 (ObjectFlags), which the combat AI's TestFlag tests as bits
-       of the halfword at byte 6, and it is printed as flag 8 + i because
-       AddAbility keeps flags 8 to 23 in that halfword less 8. Both halves are
-       held here: the words to the list, the numbering to AddAbility's map. */
-    try {
-      const O = peek('DVM_OBJECT_FLAGS') || [], list = ctx.forkStringList(peek('APP_RSRC') || ctx.APP_RSRC, 9321) || [];
-      const half = (ctx.exeAbilityMap() || []).find(m => m.word);
-      if (!list.length) fail('flag names', 'STR# 9321 was not read, so the stored names cannot be checked');
-      else if (JSON.stringify(O) !== JSON.stringify(list)) fail('flag names', 'DVM_OBJECT_FLAGS and STR# 9321 disagree: ' + JSON.stringify(O) + ' / ' + JSON.stringify(list));
-      else if (!half || half.sub.v !== 8 || half.below.v !== 24 || half.offset.v !== 6) fail('flag names', 'AddAbility no longer keeps flags 8 to 23 in the halfword at 6: ' + JSON.stringify(half));
-      else if (ctx.dvmFlagName(9) !== 'Poisoned' || ctx.dvmFlagName(18) !== 'Night Vision' || ctx.dvmFlagName(0) !== null) fail('flag names', 'dvmFlagName misprints: ' + [9, 18, 0].map(ctx.dvmFlagName).join(', '));
-      else console.log('  flag names: the stored ' + O.length + ' are STR# 9321, flags 8 to 23 by AddAbility');
-    } catch (e) { fail('flag names', e); }
-    // The two bits of byte 8 the combat AI names, held to its tests.
-    try {
-      const got = ctx.exeAiBitTests() || {}, B = peek('DVM_BIT_FLAG_NAMES') || {};
-      const g = Object.fromEntries(Object.entries(got).map(([k, v]) => [k, v.name]));
-      if (!Object.keys(g).length) fail('bit names', 'no AI test of a byte-8 bit was read, so the stored names cannot be checked');
-      else if (JSON.stringify(g) !== JSON.stringify(B)) fail('bit names', 'DVM_BIT_FLAG_NAMES and the AI tests disagree: ' + JSON.stringify(B) + ' / ' + JSON.stringify(g));
-      else console.log('  bit names: byte 8 bits ' + Object.keys(g).join(' and ') + ' are the AI\u2019s ' + Object.values(g).join(' and '));
-    } catch (e) { fail('bit names', e); }
     /* What a signal reaches, 12 September 2026. These figures are the
        APPLICATION's, so they are pinned here and not in the puzzles block.
        signalRules() returns null until the application is adopted, and the

@@ -7,7 +7,7 @@
 //   node utilities/viewer_smoke.mjs index.html "$TMPDIR/Cythera Data.data" "" <installers .sit> <saved game> views
 import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsrcPath, rsrcFork, missingIds,
          El, REGISTRY, catSel, optionSource, CATEGORY_VALUES, body, documentStub, rafQueue, drainRaf, sandbox,
-         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally } from './smoke_boot.mjs';
+         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally, readoptApp } from './smoke_boot.mjs';
 
 
 // The detail views that are not resource-backed.
@@ -474,6 +474,7 @@ try {
   // was opened with, not the default category it renders on the way in.
   ctx.location.hash = '#c=144&r=9103';
   ctx.parseArchiveBytes(archive, 'Cythera Data (arrived on a link)', { via: 'data fork' });
+  readoptApp();                                   // as the installer path would
   if (ctx.currentSelectedResid() !== 0x9103)
     fail('deep link', 'opening with #c=144&r=9103 landed on 0x' + (ctx.currentSelectedResid() || 0).toString(16));
   ctx.location.hash = '';
@@ -612,7 +613,8 @@ try {
     fail('script page', 'the folded listing rings ' + (ringed ? '"' + ringed[1].slice(0, 40) + '"' : 'nothing') + ', not the line at 0x34');
   ctx.setScriptFold('structured');
   const pane = ctx.document.getElementById('textContent').innerHTML;
-  if (!/<a class="reflink"[^>]*jumpToResource\(2308\)[^>]*>0x904<\/a>/.test(pane))
+  // 0x904 by its id, or by the AI's name for it when the application is open.
+  if (!/<a class="reflink"[^>]*jumpToResource\(2308\)[^>]*>(?:0x904|UsingMeleeWeapon)<\/a>/.test(pane))
     fail('script page', 'the structured listing does not link its call to 0x904');
   ctx.jumpToResource(0x1A13);
   if (!/>CastSpell<\/a>/.test(ctx.document.getElementById('textContent').innerHTML))
@@ -649,7 +651,7 @@ try {
   if (!refJs) fail('script page', 'Referenced by 0x987 on 0x904 does not open the line that makes the call');
   else {
     ctx.jumpToScriptAt(0x987, +refJs[1]);
-    if (!/0x904/.test(hitLine())) fail('script page', 'Referenced by rings "' + hitLine().slice(0, 50) + '", not the call to 0x904');
+    if (!/0x904|UsingMeleeWeapon/.test(hitLine())) fail('script page', 'Referenced by rings "' + hitLine().slice(0, 50) + '", not the call to 0x904');
   }
   /* 0x987's loop reads as a for-each since 22 September 2026: its goto to the
      iterator's step is a continue, its goto out of the loop a break, and the
@@ -705,7 +707,7 @@ try {
   if (!/Arg00\.Lockable\[0\] \* 5/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the door helper 0xE49 does not read its class member as Lockable[0]');
   ctx.jumpToResource(0x987);
-  if (!/\nfunction 0x987\(Arg00, Arg01, Arg02\) \{/.test(ctx.document.getElementById('textContent').innerHTML))
+  if (!/\nfunction (?:0x987|[A-Z]\w+)\(Arg00, Arg01, Arg02\) \{/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', '0x987 is not headed function 0x987(...), the name its callers use');
   ctx.jumpToResource(0x98C);
   if (!/jumpToResource\(3859\)[^>]*>0xF13</.test(ctx.document.getElementById('textContent').innerHTML))
@@ -907,7 +909,7 @@ try {
   ctx.setScriptPane('read');
   const f = REGISTRY.get('textContent').innerHTML;
   ctx.setScriptFold('structured');
-  if (!/When asked about DEMODOCUS \(demo\):/.test(h) || !/partyjoin 97/i.test(h)) fail('read view', 'Aethon\'s conversation is not read in full: ' + h.replace(/<[^>]+>/g, ' ').slice(0, 300));
+  if (!/When asked about DEMODOCUS \(demo\):/.test(h) || !/partyjoin (?:97|Aethon \(97\))/i.test(h)) fail('read view', 'Aethon\'s conversation is not read in full: ' + h.replace(/<[^>]+>/g, ' ').slice(0, 300));
   // Helpers read through (0xF02, SetCharacterFlag), a character by its
   // number named from the table, and a state's setters beside its test.
   else if (!/Halos \(62\)\u2019s bit flags has bit 3: \([^)]*0xF02\)/.test(h) || !/Set bit 7 of its bit flags \(SetCharacterFlag\)/.test(h) ||

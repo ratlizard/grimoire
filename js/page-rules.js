@@ -812,11 +812,11 @@ function effectSummary(entry) {
     if (/set_field nutrition/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); if (m) out.push({ text: 'nutrition set to ' + parseInt(m[1]), src: at(i), field: 'nutrition', set: parseInt(m[1]) }); }
     else if (/set_field health/.test(l)) { const m = /byte (0x[0-9A-F]+)[\s\S]*?add[\s\S]*?sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(next); out.push({ text: m ? 'health +' + parseInt(m[1]) + ' plus ' + rollWords([parseInt(m[2]), parseInt(m[3])]) : 'health changed', src: at(i) }); }
     else if (/set_field magic \(/.test(l) && !/full_magic/.test(l)) out.push({ text: 'magic restored', src: at(i) });
-    else if (/sys ClearFlag/.test(l)) { const m = /flag: ([A-Za-z\/ -]+)/.exec(lines[i + 2] || ''); if (m) out.push({ text: 'clears ' + m[1].trim(), src: at(i) }); }
+    else if (/sys ClearFlag/.test(l)) { const nm = dvmFlagNameOfLine(lines[i + 2]); if (nm) out.push({ text: 'clears ' + nm, src: at(i) }); }
     else if (/sys StatusEffect/.test(l)) {
-      const m = /flag: ([A-Za-z\/ -]+)/.exec(lines[i + 2] || '');
+      const fnm = dvmFlagNameOfLine(lines[i + 2]);
       const c = /byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)\s+sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(lines.slice(i + 3, i + 9).join(' '));
-      out.push({ text: (m ? m[1].trim() : 'a status') + (c ? ' for ' + parseInt(c[1]) + ' plus ' + parseInt(c[2]) + ' times ' + rollWords([parseInt(c[3]), parseInt(c[4])]) : ''), src: at(i) });
+      out.push({ text: (fnm || 'a status') + (c ? ' for ' + parseInt(c[1]) + ' plus ' + parseInt(c[2]) + ' times ' + rollWords([parseInt(c[3]), parseInt(c[4])]) : ''), src: at(i) });
     }
     else if (/sys SpecialView/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); out.push({ text: 'a special view' + (m ? ' (' + parseInt(m[1]) + ')' : ''), src: at(i) }); }
   }
@@ -907,8 +907,8 @@ function statusRules() {
     for (let i = 0; i < lines.length; i++) {
       const l = lines[i];
       if (/sys StatusEffect/.test(l)) {
-        const f = /flag: ([A-Za-z\/ -]+)/.exec(lines[i + 2] || '');
-        const nm = f ? f[1].trim() : (/byte (0x[0-9A-F]+)/i.exec(lines[i + 2] || '') ? 'flag ' + parseInt(/byte (0x[0-9A-F]+)/i.exec(lines[i + 2])[1]) : 'a status');
+        const fnm = dvmFlagNameOfLine(lines[i + 2]);
+        const nm = fnm ? fnm : (/byte (0x[0-9A-F]+)/i.exec(lines[i + 2] || '') ? 'flag ' + parseInt(/byte (0x[0-9A-F]+)/i.exec(lines[i + 2])[1]) : 'a status');
         const d = /(?:word|short|byte) (0x[0-9A-F]+|\d+)/i.exec(lines[i + 3] || '');
         // A duration with a roll in it is reported as computed, not as its base.
         const dur = d && !/sys Random/.test(lines.slice(i + 4, i + 9).join(' ')) ? parseInt(d[1]) : null;
@@ -916,9 +916,8 @@ function statusRules() {
         applies.get(nm).push({ resid: e.resid, duration: dur, durationVal: dur !== null ? dvmValAtLine(e, i + 3) : null,
                                at: (dvmOpAtLine(e, i) || {}).at });
       } else if (/sys ClearFlag/.test(l)) {
-        const f = /flag: ([A-Za-z\/ -]+)/.exec(lines[i + 2] || '');
-        if (!f) continue;
-        const nm = f[1].trim();
+        const nm = dvmFlagNameOfLine(lines[i + 2]);
+        if (!nm) continue;
         if (!cures.has(nm)) cures.set(nm, new Set());
         cures.get(nm).add(e.resid);
       }
@@ -1001,6 +1000,16 @@ function dvmNum(op) {
   return v;
 }
 // The number an instruction pushes, with where: { v, resid, at }.
+/* A flag's name from the program (dvmFlagName), by the number on a
+   listing line or an op, asked at the moment it is said. The listing's own
+   `flag:` note is written when the text is built and cached, which on the
+   page is before the application has been adopted, so the rule readers do
+   not read it back. */
+function dvmFlagNameOfLine(line) {
+  const m = /\b(?:byte|short|word) (-?0x[0-9A-F]+|-?\d+)/i.exec(line || '');
+  return m ? dvmFlagName(parseInt(m[1])) : null;
+}
+function dvmFlagNameOfOp(op) { const v = dvmNum(op); return v === null ? null : dvmFlagName(v); }
 function dvmVal(resid, op) {
   const v = dvmNum(op);
   return v === null ? null : { v, resid, at: op.at };
@@ -1729,7 +1738,7 @@ function terrainRules() {
   if (!e) return null;
   const ops = dvmOpsOf(e);
   const val = op => dvmVal(0x301F, op);
-  const flagName = op => (op && /flag: ([A-Za-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
+  const flagName = dvmFlagNameOfOp;
   // The swamp: a code between two bounds, a flag, an immunity, a roll.
   const band = dvmSeqFirst(ops, [DVM_NUM, /^arg Arg01$/, /^le$/, /^arg Arg01$/, DVM_NUM, /^le$/, /^and$/]);
   const guard = k => dvmSeqFirst(ops, [/^sys TestFlag$/, /^arg Arg00$/, DVM_NUM, /^end$/, /^not$/], k);
@@ -1780,7 +1789,7 @@ function springRules() {
   if (!e) return null;
   const ops = dvmOpsOf(e);
   const val = op => dvmVal(0x1036, op);
-  const flagName = op => (op && /flag: ([A-Za-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
+  const flagName = dvmFlagNameOfOp;
   // Each kind's test: `if_not (the Data1 local == n)`, in the order written.
   const tests = dvmSeqAll(ops, [/^if_not$/, /^local Var00$/, DVM_NUM, /^eq$/]).map(g => ({ at: ops.indexOf(g[0]), kind: dvmNum(g[2]), val: val(g[2]) }));
   if (!tests.length) return null;
@@ -1847,7 +1856,7 @@ function chanceCures() {
     if (!g) continue;
     const clear = dvmSeqFirst(ops, [/^sys ClearFlag$/, /^local Var\w+$/, DVM_NUM], ops.indexOf(g[10]));
     if (!clear) continue;
-    const flag = (/flag: ([A-Za-z\/ -]+)/.exec(g[2].note || '') || [])[1] || null;
+    const flag = dvmFlagNameOfOp(g[2]);
     const pt = e.resid >= 0x1000 && e.resid < 0x1200 ? e.resid - 0x1000 : null;
     out.push({ resid: e.resid, pt, name: pt !== null ? (propDisplayName(pt) || ('prop 0x' + pt.toString(16))) : (labelFor(e.resid) || ''),
                flag, lo: dvmVal(e.resid, g[5]), hi: dvmVal(e.resid, g[6]), is: dvmVal(e.resid, g[8]) });
@@ -1873,7 +1882,7 @@ function grantRules() {
       const sets = dvmSeqAll(mine, [/^sys SetFlag$/, /^arg Arg\d+$/, DVM_NUM]).map(g => g[2]);
       if (!sets.length) continue;
       for (const op of sets) {
-        const name = (/flag: ([A-Za-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
+        const name = dvmFlagNameOfOp(op);
         // The method that takes it away again, where the class has one: the
         // same flag cleared in another of its methods. Without this the page
         // would have to say "while worn" on faith.
@@ -4392,7 +4401,7 @@ function alignmentHTML(v, src) {
    a test's token through a table beside the TOC, token = position in STR#
    9304 plus one; a case that loads byte 8 and masks one bit is that bit's
    test, and its name is the list's entry without the argument list. What
-   DVM_BIT_FLAG_NAMES is held to. Null without the application. */
+   dvmBitFlagName says. Null without the application. */
 function exeAiBitTests() {
   if (!appImage() || !window.APP_RSRC) return null;
   try {
@@ -4415,6 +4424,67 @@ function exeAiBitTests() {
     }
     return Object.keys(out).length ? out : null;
   } catch (err) { quiet(err); return null; }
+}
+/* THE PROGRAM'S NAMES, read out of the application whenever it is open
+   (24 September 2026, the maintainer: the program's own words are to be
+   derived from the files, which the page has through the installer, not
+   kept as a copy). One object per application, rebuilt when a different one
+   is adopted:
+     syscalls  op to the handler's name, off TInterp::DoExpr's table
+               (exeSyscallTable): cbnearby, cbAddAbility;
+     flags     character flag to its word in the STR# titled ObjectFlags,
+               the bits of the halfword the combat AI's TestFlag reads, placed
+               by the range TSpellFX::AddAbility keeps in that halfword
+               (exeAbilityMap) -- and only when the two read the same halfword;
+     bits      a bit of byte 8 to the AI test that reads it alone
+               (exeAiBitTests): InParty, BeenMet.
+   The delv tier asks through dvmProgramNames; each part is null when its
+   reading fails, and the names then fall back to delvmod's or to numbers. */
+let _programNames = { data: null, rsrc: null, v: null };
+function programNames() {
+  const data = window.APP_DATA, rsrc = window.APP_RSRC;
+  if (!data || !rsrc) return null;
+  if (_programNames.data === data && _programNames.rsrc === rsrc) return _programNames.v;
+  _programNames = { data, rsrc, v: null };
+  const v = { syscalls: null, flags: null, bits: null };
+  try {
+    const st = exeSyscallTable();
+    if (st) { v.syscalls = new Map(); for (const x of st.entries) if (x.name) v.syscalls.set(x.op, x.name); }
+  } catch (err) { quiet(err, 'reading the syscall handlers\u2019 names'); }
+  try {
+    const e = (rsrc.resourcesByType['STR#'] || []).find(x => x.name === 'ObjectFlags');
+    const words = e ? decodeSTRList(rsrc.dataOf('STR#', e)) : null;
+    const half = (exeAbilityMap() || []).find(m => m.word);
+    const tf = exeAiFlagHalfword();
+    if (words && half && half.offset && tf !== null && half.offset.v === tf) {
+      v.flags = {};
+      words.forEach((w, i) => { const f = half.sub.v + i; if (w && f < half.below.v) v.flags[f] = w; });
+    }
+  } catch (err) { quiet(err, 'reading the flag names'); }
+  try {
+    const b = exeAiBitTests();
+    if (b) { v.bits = {}; for (const [bit, x] of Object.entries(b)) v.bits[bit] = x.name; }
+  } catch (err) { quiet(err, 'reading the AI\u2019s bit tests'); }
+  _programNames.v = v;
+  return v;
+}
+/* The halfword of a character's record the combat AI's TestFlag reads: the
+   case of SCombatAIEntry::EvaluateCondition for the token whose entry in
+   the AI's list of tests begins "TestFlag", its first halfword load. Null
+   without the application or when the shape is not found. */
+function exeAiFlagHalfword() {
+  if (!appImage() || !window.APP_RSRC) return null;
+  const f = window.APP_RSRC, e = (f.resourcesByType['STR#'] || []).find(x => x.name === 'Tests');
+  const words = e ? decodeSTRList(f.dataOf('STR#', e)) : null;
+  const k = words ? words.findIndex(w => /^TestFlag\b/.test(String(w))) : -1;
+  const ops = exeOpsNamed('SCombatAIEntry::EvaluateCondition');
+  const jt = k >= 0 && ops.length ? exeJumpTable(ops) : null;
+  if (!jt) return null;
+  const img = appImage(), p = pefPointerAt(img, img.toc.section, exeTocOffset(ops[jt.at].d.imm) + 4 * (k + 1));
+  if (!p || p.section !== img.codeIndex) return null;
+  const body = exeOpsOf({ offset: p.offset, length: 120, name: 'TestFlag' });
+  const lh = body.find(o => o.d && o.d.mn === 'lhz' && o.d.d > 0);
+  return lh ? lh.d.d : null;
 }
 function exeJumpTable(ops, from) {
   for (let i = from || 0; i < ops.length; i++) {

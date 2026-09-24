@@ -7,14 +7,15 @@
 // all six in this process, in order.
 import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsrcPath, rsrcFork, missingIds,
          El, REGISTRY, catSel, optionSource, CATEGORY_VALUES, body, documentStub, rafQueue, drainRaf, sandbox,
-         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally } from './smoke_boot.mjs';
+         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally, withoutApp, readoptApp } from './smoke_boot.mjs';
 
 // Mechanics: two rules read out of the scripts on the spot. The balloon
 // catalogue must find the lines the trace found by hand, and the dice
 // section must state the payout the script pays.
 try {
-  ctx.showCategory('MECHANICS');
-  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  // The sheet as a visitor with no application sees it, which the checks
+  // below on where its figures come from are written for.
+  const html = withoutApp(() => { ctx.showCategory('MECHANICS'); return (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid')); });
   const dice = ctx.diceGame();
   const mechSecs = (function count(el) { return (el.className === 'mechSec' ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
   const mechFolds = (function count(el) { return ((el.tagName || '').toUpperCase() === 'DETAILS' && el.className === 'mechSec' ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
@@ -95,7 +96,7 @@ try {
     const fs = await import('node:fs');
     // The deep-link check above re-opened the data fork alone; the swap needs
     // the resource fork, so the archive is opened once more with it.
-    if (!peek('window.CYTHERA_RSRC') && rsrcFork) ctx.parseArchiveBytes(archive, 'Cythera Data (for the font swap)', { via: 'data fork', rsrc: rsrcFork });
+    if (!peek('window.CYTHERA_RSRC') && rsrcFork) { ctx.parseArchiveBytes(archive, 'Cythera Data (for the font swap)', { via: 'data fork', rsrc: rsrcFork }); readoptApp(); }
     const paths = ['/System/Library/Fonts/Supplemental/Andale Mono.ttf', process.env.TMPDIR + '/Argos_from_fork.ttf'];
     let tried = 0;
     for (const path of paths) {
@@ -1187,9 +1188,10 @@ try {
    off 0x8000 -- with the negative control the workbench ran, the same test
    on Land King Hall finding no header at all. */
 try {
-  if (!ctx.showCategory('CHEATS')) fail('cheats', 'the Cheats tab refused to open');
+  const cheatsHtml = withoutApp(() => ctx.showCategory('CHEATS') ? (REGISTRY.get('sheetGrid').innerHTML || '') : null);
+  if (cheatsHtml === null) fail('cheats', 'the Cheats tab refused to open');
   else {
-    const html = REGISTRY.get('sheetGrid').innerHTML || '';
+    const html = cheatsHtml;
     const sprites = ctx.cheatSpriteClasses();
     const hero = sprites.find(s => s.pt === 32);
     const rows = (html.match(/<td class="cheatCombo">/g) || []).length;
@@ -1240,11 +1242,13 @@ try {
    visitor -- the switches render, the file builds, and the section says the
    numbers are the shipped ones rather than the open copy's. */
 try {
-  ctx.showCategory('TOOLS');
-  const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-  const L = ctx.cytheraPrefsLayout();
-  let built = null;
-  try { built = ctx.buildCytheraPreferences({ cheats: true, Backdrop: -2 }); } catch (e) { built = null; }
+  const [tools, L, built] = withoutApp(() => {
+    ctx.showCategory('TOOLS');
+    const t = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+    let b = null;
+    try { b = ctx.buildCytheraPreferences({ cheats: true, Backdrop: -2 }); } catch (e) { b = null; }
+    return [t, ctx.cytheraPrefsLayout(), b];
+  });
   const names = built ? ctx.openResourceFork(built).all().map(x => x.entry.name).join(',') : null;
   if (!L || L.from !== 'shipped') fail('preferences', 'with no application open the layout is not the shipped one: ' + (L && L.from));
   else if (!/id="prefCheats"/.test(tools) || !/<select id="prefOrd_Backdrop"/.test(tools))

@@ -466,6 +466,10 @@ function dvmFoldResourceName(rid) {
         (DVM_SYM.resource && DVM_SYM.resource[String(rid)]) ||
         (typeof aiHookName === 'function' && aiHookName(rid));
   } catch (e) { quiet(e); }
+  // The AI's list writes each name with the argument kinds the rule
+  // language takes, "UsingMeleeWeapon(@)"; a listing calls it with the
+  // script's own arguments, so the name is printed without them.
+  if (n) n = String(n).replace(/\(.*\)$/, '');
   return n || ('0x' + rid.toString(16).toUpperCase().padStart(2, '0'));
 }
 
