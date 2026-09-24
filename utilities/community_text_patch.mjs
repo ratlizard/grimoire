@@ -36,7 +36,7 @@ if (!dataPath || !collDir || !outDir) { console.error('usage: community_text_pat
 const LEAVE = new Set(['travelling', '@travelling', 'Two-Taled', 'Ariethous',
   // applied by text_fixes_patch.mjs
   'Halso', 'Opheltuis', 'Jhaixus', 'Atusa', 'Eigth', 'knowlege', 'enscription', 'embarassed',
-  'Catamarca', 'east', 'northwest', 'eastern', 'Your']);
+  'Catamarca', 'east', 'northwest', 'eastern', 'Your', 'wearly']);
 // One place the text patch already changes, under a word other places need.
 const LEAVE_IN = new Set(['Its|Emesa', 'Its|Generic Land King Hall', "He's|Generic Iron Mine", "He's|Eurybates"]);
 // Where the collection's fix is itself wrong: "Perhaps I'm not strong
