@@ -297,7 +297,12 @@ try {
   // value 3 is 0 and Pelagon's flag 0 is clear, so his day is Kosha alone.
   else if (JSON.stringify(ctx.scheduleDay(13).filter(e => e.mode).map(e => [e.level, e.x, e.y])) !== '[[13,39,35]]')
     fail('schedules', 'Pelagon\u2019s day at the start of a game is not Kosha (39, 35): ' + JSON.stringify(ctx.scheduleDay(13).map(e => [e.cond, e.level, e.x, e.y])));
-  else console.log(`  schedules: ${cards} characters, ${links} posts, each a link into its zone; conditions read, Pelagon's in order, and his day at the start is Kosha alone`);
+  // A block head (a segment placed nowhere) guards the posts up to its
+  // stop: Philinus's opens with one that holds at the start, so his day is
+  // the Odemia block, seven posts; read segment by segment it came out empty.
+  else if (ctx.scheduleDay(50).filter(e => e.mode && e.level === 2).length !== 7)
+    fail('schedules', 'Philinus\u2019s block is not walked: ' + JSON.stringify(ctx.scheduleDay(50).map(e => [e.cond, e.level, e.x, e.y])));
+  else console.log(`  schedules: ${cards} characters, ${links} posts, each a link into its zone; conditions read, Pelagon's in order, his day at the start Kosha alone, Philinus's block walked`);
 } catch (e) { fail('schedules', e); }
 
 

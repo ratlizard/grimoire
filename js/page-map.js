@@ -433,13 +433,25 @@ function scheduleHoldsAtStart(e) {
   if (k >= 0x80) return cmp(0, (k >> 5) & 3);
   return false;
 }
+/* A segment whose place is nothing (level, x and y all 0) is not a post
+   but the head of a block, which runs to its matching stop: ScheduleOne
+   (0x006B00 on) skips the whole block when the head's condition fails,
+   counting a nested head up and a stop down, and walks into it when the
+   condition holds. Philinus, Timon and Eudoxus open with one. */
+function scheduleIsHead(e) { return e.level === 0 && e.x === 0 && e.y === 0 && e.cond !== 1; }
 function scheduleDay(i) {
   const segs = loadSchedules()[i] || [];
   if (!segs.some(e => e.cond)) return segs;
   const out = [];
-  for (const e of segs) {
+  for (let k = 0; k < segs.length; k++) {
+    const e = segs[k];
     if (e.cond === 1) { if (out.length) break; continue; }
-    if (scheduleHoldsAtStart(e)) out.push(e);
+    const ok = scheduleHoldsAtStart(e);
+    if (scheduleIsHead(e)) {
+      if (!ok) for (let depth = 1; depth && k + 1 < segs.length; ) { k++; if (segs[k].cond === 1) depth--; else if (scheduleIsHead(segs[k])) depth++; }
+      continue;
+    }
+    if (ok) out.push(e);
   }
   // Nothing holds: ScheduleOne moves no one, so the character stands where
   // the record puts them, which is a post of its own for all day.

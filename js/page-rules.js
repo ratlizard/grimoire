@@ -487,6 +487,7 @@ function renderSchedulesSheet() {
     const rows = (programmed ? p.real : p.real.slice().sort((a, b) => a.hour - b.hour)).map(e => {
       const c = scheduleCondition(e);
       if (c && c.stop) return '<tr><td></td><td colspan="3" class="inspDim">' + svEsc(c.text) + '</td></tr>';
+      if (scheduleIsHead(e)) return '<tr><td></td><td colspan="3">' + svEsc((c ? c.text : 'always') + ', the posts below up to the matching stop; otherwise skip them') + '</td></tr>';
       const where = e.level === 255 ? '<span class="inspDim">off every map</span>'
         : svLink(zoneDisplayName(e.level) || ('zone ' + e.level), 'atlasOpenSquare(' + (0x8000 + e.level) + ',' + e.x + ',' + e.y + ')', e.x + ', ' + e.y);
       return '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + where + '</td><td>' + (c ? svEsc(c.text) : '') + '</td>' +
