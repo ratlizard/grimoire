@@ -28,8 +28,9 @@
              string operand, an array entry, a data block -- so this is the
              same edit for all of them.
      dataEdits: [{ what, resid, fn }] -- fn is the SOURCE of a function
-             (b) => string, run inside the sandbox on the decrypted bytes
-             (a copy); it edits b in place and returns a log line, or
+             (b) => string | Uint8Array, run inside the sandbox on the
+             decrypted bytes (a copy); it edits b in place and returns a
+             log line, or returns a new array to replace the resource, or
              throws when the bytes are not what it expects.
    Writes "<name>" (the bare patch), "<name>.bin" (MacBinary, DelP) and
    the patched "Cythera Data.data" into outDir, and exits 1 when the patch
@@ -95,6 +96,18 @@ export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, des
     // An edit anchored to an offset ('at', in the resource as shipped) is
     // applied after every anchored edit further on in the same resource, so
     // its offset is still where the text is.
+    // Data edits first: a resource laid out afresh (the name table) must
+    // be whole before a text edit looks for a word in it.
+    for (const d of DATA) {
+      const b = bytesOf(d.resid).slice();
+      const fn = (0, eval)('(' + d.src + ')');
+      const res = fn(b);
+      // A data edit may return a new array (a resource laid out afresh) or a
+      // line about the array it edited in place.
+      const line = res instanceof Uint8Array ? 'laid out again, ' + b.length + ' to ' + res.length + ' bytes' : res;
+      plain.set(d.resid, res instanceof Uint8Array ? res : b);
+      log.push(d.what + ': 0x' + d.resid.toString(16).toUpperCase() + ', ' + line);
+    }
     // resid null: the same edit over every script resource, each allowed
     // to match nothing (the UK spellings, which are not tied to a place).
     const NON = new Set([127, 128, 131, 135, 137, 141, 142, 144]);
@@ -147,13 +160,6 @@ export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, des
       }
       plain.set(e.resid, b);
       log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', ' + hits.length + ' place' + (hits.length === 1 ? '' : 's') + ', ' + moved + ' offsets moved');
-    }
-    for (const d of DATA) {
-      const b = bytesOf(d.resid).slice();
-      const fn = (0, eval)('(' + d.src + ')');
-      const line = fn(b);
-      plain.set(d.resid, b);
-      log.push(d.what + ': 0x' + d.resid.toString(16).toUpperCase() + ', ' + line);
     }
     for (const [resid, data] of plain) { const r = spec.resources.find(x => x.resid === resid); r.data = data; }
     const patched = writeDelverArchive(spec);
