@@ -841,9 +841,11 @@ function renderCheatsSheet() {
   const kr = appImage() ? exeKeyRoutine() : null;
   const noApp = 'Open the game from its installer, under Settings, and the application’s code is read here.';
   let h = '<h3 class="cheatH">Cheat mode</h3>' +
-    '<div class="mechLede">Cythera has one, and no shipped copy can reach it. The keys, the gate and the preferences record on this page ' +
-    'are read out of the application’s own code, <code>TMapWindow::KeyRoutine</code> and every routine that touches the record, ' +
-    'rather than collected from players, which is how the things below are known that no amount of playing would show.' +
+    '<div class="mechLede">Cythera has a cheat mode, and no copy as released can switch it on. Typing four letters in the map window ' +
+    'is what turns it on, but only when a switch is set in Cythera Preferences, the file the game keeps its settings in, and nothing ' +
+    'in the game ever sets it. What each cheat key does, both of those conditions, and the rest of the settings in that file are ' +
+    'read out of the game program itself (<code>TMapWindow::KeyRoutine</code>, and every routine that touches the settings) rather ' +
+    'than collected from players, so some of it no amount of playing would show.' +
     (kr ? '' : ' ' + noApp) + '</div>' +
     (kr ? '<div class="partsStrip"><span class="partsTitle">In the executable</span>' + pefChip('TMapWindow::KeyRoutine') + '</div>' : '');
 
@@ -938,7 +940,7 @@ function renderCheatsSheet() {
     const distinct = defaults ? [...new Set(defaults.words.map(w => w.v))] : [];
     const clear = distinct.every(v => !((v >>> (24 - 8 * g.byte.v)) & (1 << g.bit.v)));
     const letters = chars(g.word.v);
-    h += '<div class="mechSec"><h4 class="cheatH4">The gate</h4><ul class="ruleList">' +
+    h += '<div class="mechSec"><h4 class="cheatH4">The gate (how it switches on)</h4><ul class="ruleList">' +
       '<li>The map window shifts each key’s low byte into a word, ' + srcNum(kr.shift) + ' bits at a time, so the word holds the last four. When it is ' +
       '<b>' + srcNum(g.word, g.word.v) + '</b> (' + letters.map(t => '<b>' + svEsc(t) + '</b>').join(', then ') + ' on a US layout), <i>and</i> ' +
       '<b>bit ' + srcNum(g.bit) + ' of byte ' + srcNum(g.byte) + '</b> of the ' + (recKey && recKey.len ? srcNum(recKey.len) + '-byte “' + srcNum(recKey.key, recKey.key.v) + '”' : 'preferences') + ' record is set, the cheat flag flips (' + srcNum(g.flip, 'here') + ') and the ' +
@@ -984,7 +986,7 @@ function renderCheatsSheet() {
     const unused = []; for (let b = 0; b < bytes; b++) if (!fields.some(f => f.byte === b)) unused.push(b);
     const hex8 = v => (v >>> 0).toString(16).toUpperCase().padStart(8, '0');
     const ranges = vals => { const out2 = []; let a = null, b = null; for (const v of vals) { if (a === null) { a = b = v; } else if (v === b + 1) b = v; else { out2.push([a, b]); a = b = v; } } if (a !== null) out2.push([a, b]); return out2.map(([x0, x1]) => x0 === x1 ? String(x0) : x0 + ' to ' + x1).join(', '); };
-    h += '<div class="mechSec"><h4 class="cheatH4">The preferences record</h4>' +
+    h += '<div class="mechSec"><h4 class="cheatH4">The preferences record (the settings the file holds)</h4>' +
       '<div class="cheatNote">' + (rec ? srcNum(rec.len || rec.key, bytes + ' bytes') + ', stored under “' + srcNum(rec.key, rec.key.v) + '”. ' : '') +
       'Every field some routine reads or writes, found by scanning the whole program for the record’s address' + (unused.length ? '; byte' + (unused.length > 1 ? 's ' : ' ') + unused.join(' and ') + ' nothing touches' : '') + '. ' +
       'A menu or dialog item is named as the application’s own MENU or DITL resource names it.</div>' +
@@ -1025,7 +1027,7 @@ function renderCheatsSheet() {
     h += '<div class="mechSec"><h4 class="cheatH4">With the cheat flag on</h4>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + gated.map(caseRow).join('') +
       '</tbody></table></div></div>';
-    h += '<div class="mechSec"><h4 class="cheatH4">In the same routine, and not gated at all</h4>' +
+    h += '<div class="mechSec"><h4 class="cheatH4">In the same routine, and working whether cheat mode is on or not</h4>' +
       '<div class="cheatNote">These work in any copy of the game, cheat mode or not.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + open.map(caseRow).join('') +
       (vol.length >= 2 ? '<tr><td class="cheatCombo">' + key(vol.map(v => decodeMacRoman(new Uint8Array([v.key.v]))).join(' ')) + '<span class="cheatCode">' + vol.map(v => srcNum(v.key, '$' + v.key.v.toString(16).toUpperCase())).join(' ') + '</span></td>' +

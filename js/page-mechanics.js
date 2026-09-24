@@ -2688,23 +2688,29 @@ function renderMechanicsSheet(value) {
     const hasRows = ic ? ic.has.map(h => '<tr><td>' + srcNum({ exe: h.keyOp.at }, keyName(h.key)) + '</td><td class="num">' + srcNum(h.cacheBit, propWordHex(h.cacheBit.v)) + '</td><td>' + testedBy(h.cacheBit.v) + '</td></tr>') : [];
     const stackRows = ic ? ic.bits.filter(x => x.key !== 39).map(x => '<tr><td>' + keyName(x.key) + (x.tag ? ', not a plain number' : ' bit ' + propWordHex(x.mask.v)) + '</td><td class="num">' + srcNum(x.cacheBit, propWordHex(x.cacheBit.v)) + '</td><td>' + testedBy(x.cacheBit.v) + '</td></tr>') : [];
     const seat = ic ? exeSeatRule() : null;
-    const tableRows = ic ? ic.tables.map(t => { const rs = exeTocReaders(t.disp.v).filter((x, i, a) => a.findIndex(y => y.routine === x.routine) === i); return '<tr><td>' + srcNum({ exe: t.keyOp.at }, keyName(t.key)) + (t.plusOne ? ' plus one' : '') + '</td><td>' + (t.width === 1 ? 'a byte' : 'a halfword') + ' a class, ' + srcNum(t.disp, 'at ' + t.disp.v + ' off the TOC') + '</td><td>' + (rs.length ? rs.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : '') +
+    const tableRows = ic ? ic.tables.map(t => { const rs = exeTocReaders(t.disp.v).filter((x, i, a) => a.findIndex(y => y.routine === x.routine) === i); return '<tr><td>' + srcNum({ exe: t.keyOp.at }, keyName(t.key)) + (t.plusOne ? ' plus one' : '') + '</td><td>' + (t.width === 1 ? 'one byte' : 'two bytes') + ' for each class, ' + srcNum(t.disp, 'at ' + t.disp.v + ' off the TOC') + '</td><td>' + (rs.length ? rs.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : '') +
       (t.key === 34 && seat ? '<br><span class="mechSub" style="display:inline">which seats a ' + srcNum(seat.facings, seat.facings.v + '-way') + ' sprite standing on it: a word of 0 takes the seat’s own aspect as the facing, ' + srcNum(seat.ownAspect, 'column three') + ' as the pose; 1 to 4 are frames ' + seat.fixed.map(f => srcNum(f, String(f.v))).join(', ') + ', north, east, south, west</span>' : '') +
       (t.key === 55 && seat ? '<br><span class="mechSub" style="display:inline">its first word is the sprite’s facings; the seating test wants ' + srcNum(seat.facings, String(seat.facings.v)) + '</span>' : '') + '</td></tr>'; }) : [];
-    add('classflags', 'ClassFlags, and the per-class cache', null, '',
-      cb.classes + ' classes carry a ClassFlags word (key 39) in their table, and no script reads it: it is the application’s. ' +
-      (ic ? 'At load ' + pefChip('FillIntfCache') + ' builds one long a class out of the table -- these bits moved, a bit for each of several members the class has, the Stacking word’s bits -- and four side tables of a value a class; every routine that then tests a bit of the long is listed at the instruction, so a bit is named by what reads it rather than by a guess.'
-          : 'What each bit means is not read here; the table shows which classes carry it, which is the file’s own grouping.'),
+    add('classflags', 'ClassFlags, and the copy the program keeps', null, '',
+      'Each switch below is named after the part of the program that reads it, not guessed at. A class is a kind of thing in the world: a door, a key, a chair. Some classes carry a row of yes/no switches called ClassFlags (key 39 in the file), and ' + cb.classes + ' in this file do. The game’s scripts never read them; only the program does. ' +
+      (ic ? 'As a game loads ' + pefChip('FillIntfCache') + ' collects each class’s switches into one place it keeps to hand, and adds a switch for each of several other entries a class either has or has not. Four more entries are numbers rather than switches, so they are kept whole, each in a small table of its own holding one value for every class; the last table below names them. Every routine that reads a switch is listed beside it, which is how each one is named.'
+          : 'What each switch means is not read here; the table shows which classes carry it, which is the file’s own grouping.'),
       [
-        'The word is the class’s own; a prop of that class carries it wherever it stands. The item page shows it under Class data as “Class flags”.',
+        'The row is the class’s own; a prop of that class carries it wherever it stands. The item page shows it under Class data as “Class flags”.',
+        ic ? (() => {
+          const rd = exeTocReaders(ic.cacheDisp.v);
+          if (!rd.length) return '';
+          const names = rd.slice(0, 4).map(r2 => srcNum({ exe: r2.at }, r2.routine.replace(/^.*::/, '')));
+          return '<b>' + rd.length + ' routines</b> read that copy while the game runs, among them ' + names.join(', ') + '.';
+        })() : '',
         ic ? 'So ' + propWordHex(0x80) + ' is the bit ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x80) || { cacheBit: { v: 0 } }).cacheBit.v) + ' test: the doors, the passthrough and the curtain carry it, and it is what lets a character walk into the square. ' + propWordHex(0x08) + ' is read by ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x08) || { cacheBit: { v: 0 } }).cacheBit.v) + ': the key, the grimoire, the amulet and the rest that cannot be dropped.' : MECH_NO_APP,
-        ic ? 'The Chair word is kept plus one in a side table, and ' + pefChip('TViewer::InteractProps') + ' seats a character from it: the side tables below say how. The Regions maps sit their people by that rule.' : ''
+        ic ? 'The Chair word is kept plus one in one of those tables, and ' + pefChip('TViewer::InteractProps') + ' seats a character from it: the last table below says how. The Regions maps sit their people by that rule.' : ''
       ].filter(Boolean),
-      '<div class="mechSub">The ClassFlags bits</div>' +
-      table(ic ? ['#bit', '#classes', 'carried by', 'in the cache as', 'tested by'] : ['#bit', '#classes', 'carried by'], rows) +
-      (hasRows.length ? '<div class="mechSub">A member the class has</div>' + table(['member', '#in the cache as', 'tested by'], hasRows) : '') +
-      (stackRows.length ? '<div class="mechSub">Other words moved into the cache</div>' + table(['from', '#in the cache as', 'tested by'], stackRows) : '') +
-      (tableRows.length ? '<div class="mechSub">The side tables</div>' + table(['from', 'kept as', 'read by'], tableRows) : ''));
+      '<div class="mechSub">The switches</div>' +
+      table(ic ? ['#switch', '#classes', 'carried by', 'in the copy as', 'read by'] : ['#switch', '#classes', 'carried by'], rows) +
+      (hasRows.length ? '<div class="mechSub">Entries a class has or has not</div>' + table(['entry', '#in the copy as', 'read by'], hasRows) : '') +
+      (stackRows.length ? '<div class="mechSub">Other rows moved into the copy</div>' + table(['from', '#in the copy as', 'read by'], stackRows) : '') +
+      (tableRows.length ? '<div class="mechSub">The four numbers kept beside it</div>' + table(['from', 'kept as', 'read by'], tableRows) : ''));
   }
 
   // ---- the syscalls, by the program's own names ----
@@ -3276,13 +3282,13 @@ function renderMechanicsSheet(value) {
     }) : [];
     const busiest = ln && ln.ranked.length ? ln.ranked[0] : null;
     add('leans', 'What calls what', null, '',
-      ln ? 'Which resources the archive’s scripts reach for, and which of them nothing reaches. The index counts a call, a resource named in an operand, a table entry and a dref, so a text array can be referenced by two dozen scripts without being called once.'
+      ln ? 'The file is made of small pieces called resources: a script, a picture or a passage of text is one each. This shows which of them the scripts use, and which nothing uses. A script can use a piece in four ways: calling it, which means running it; naming it; listing it in a table; and pointing at a spot inside it. All four count here. That is how a passage of text comes to be named by two dozen scripts and called by none.'
          : 'No archive is open to read references out of.',
       ln ? [
         '<b>' + ln.referencing + ' resources</b> reference something and <b>' + ln.referenced + '</b> are referenced, over <b>' + ln.edges + ' references</b>: ' +
           Object.keys(ln.kinds).map(k => '<b>' + ln.kinds[k] + '</b> ' + svEsc(k === 'call' ? 'calls' : k === 'resource' ? 'named in an operand' : k)).join(', ') + '.',
         busiest ? 'The graph is lopsided: the busiest is ' + svChip(busiest.rid, labelFor(busiest.rid) || '') + ' at <b>' + busiest.refs + '</b>, and most resources are reached by nothing at all.' : '',
-        'Being reached by nothing is usually structural rather than telling: an item class is reached by its prop type, a dialogue by its character index, a room script by its room number. The table below shows only the cut that means something, which is a resource nothing calls sitting among siblings that are called.',
+        'A piece nothing names is rarely a loose end. The program finds an item’s class by what kind of item it is, a dialogue by the person you are talking to, a room’s script by the room number, so none of them has to be named anywhere. What is worth a look is a piece nothing calls sitting among neighbours that are called, and that is what the table shows.',
         'Even there, the likeliest answer is that the application calls it by a hardcoded id. The combat AI hooks are invoked by the compiled .ai rules beside the game, and the character-creation tables are read by the dialog, so neither is dead.'
       ].filter(Boolean) : [],
       table(['resource', '#references', 'of which'], topRows) +
