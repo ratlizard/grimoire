@@ -67,11 +67,12 @@ try {
   if (!/>0x804<\/button>/.test(wrap.innerHTML)) fail('conversation', 'inheritance chain chips missing');
   if (!/convLink/.test(wrap.innerHTML)) fail('conversation', '@keyword links missing');
   // A card says what its answer depends on as the Read view says it, a
-  // helper's test included: Aethon's "demo" asks 0xF13 whether Demodocus
-  // has been met, which the old badge, a list of test names, missed.
+  // helper's test included: Aethon's "demo" asks 0xF13 whether he is in the
+  // party (bit 0x40 of byte 8), which the old badge, a list of test names,
+  // missed.
   ctx.jumpToResource(0x1861);
   const demo = (/id="conv-6241-651"[\s\S]*?<\/div>/.exec(REGISTRY.get('dlgWrap').innerHTML) || [''])[0];
-  if (!/convBadge">if its bit flags has bit 6</.test(demo) || /calls BeenMet/.test(demo))
+  if (!/convBadge">if its bit flags has bit 6</.test(demo) || /calls InParty/.test(demo))
     fail('conversation', 'Aethon\u2019s "demo" card does not say its condition: ' + demo.replace(/<[^>]+>/g, ' ').slice(0, 200));
   // And each line says the conditions that pick it, an otherwise as the
   // negation of the if before it, without a doubled not.

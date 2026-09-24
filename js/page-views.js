@@ -2061,8 +2061,8 @@ function convPromptHtml(e) {
    which is a card of its own. Keyed by the prompt's offset, which the Read
    clause and the conversation entry share. Until 24 September 2026 a card
    said only which tests it called ("depends on: GetQV"), and missed a test
-   made through a helper altogether: Aethon's "demo" asks 0xF13 whether
-   Demodocus has been met and its card said nothing. */
+   made through a helper altogether: Aethon's "demo" asks 0xF13 whether he
+   is in the party and its card said nothing. */
 // "not (x)" of a condition, without doubling a not: a test the Read view
 // already said as "not (x)" or "not x" is turned back to x when x is one
 // clause (no "and" or "or" at its top).

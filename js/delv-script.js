@@ -242,7 +242,8 @@ const DVM_SCRIPT_NAMES = {
   0x0F10: 'IsEnhorsed',             // status bit 2
   0x0F11: 'KarmaDown',
   0x0F12: 'KarmaUp',
-  0x0F13: 'BeenMet',                // bit_flags & 0x40; the AI test BeenMet(@), what FinishCombat asks
+  0x0F13: 'InParty',                // bit_flags & 0x40, what JoinParty sets and FinishCombat asks: the
+                                    // AI test InParty(@), token 8 (BeenMet, token 9, is 0x80)
   0x0F14: 'NewCarried',             // New(flags 0x1C, type, aspect)
   0x0F15: 'NewEgg',                 // New(flags 0x42, type, kind 9, x, y, arg)
   0x0B00: 'Stub',
