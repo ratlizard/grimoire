@@ -1989,11 +1989,21 @@ function convBadgeFor(a) {
 
 function convTextHtml(resid, e) {
   let html = '';
+  // Which conditions pick each line: the Read clause at or before the
+  // string's offset, within this prompt (convReadConds). Said when it
+  // changes from the line before, so a run under one test reads once.
+  const lines = e.kw && e.kw !== '*' ? (convReadConds(resid).lines.get(e.at) || []) : [];
+  let prev = '';
   for (const t of e.text) {
+    let chain = [];
+    for (const l of lines) { if (l.at > t.off) break; chain = l.chain; }
+    const said = chain.join(' and ');
+    const lead = said && said !== prev ? '<span class="inspDim">if ' + escHtml(said) + ':</span> ' : '';
+    prev = said;
     const body = escHtml(t.str)
       .replace(/@([A-Za-z][A-Za-z'-]*)/g,
         '<span class="convLink" onclick="convJumpWord(' + resid + ',\'$1\')">$1</span>');
-    html += '<p class="dlgLine">' + body +
+    html += '<p class="dlgLine">' + lead + body +
       ' <button class="linkbtn dlgEdit" onclick="editStringAt(' + resid + ',' + t.off + ')">edit</button></p>';
   }
   return html;
@@ -2053,24 +2063,48 @@ function convPromptHtml(e) {
    said only which tests it called ("depends on: GetQV"), and missed a test
    made through a helper altogether: Aethon's "demo" asks 0xF13 whether
    Demodocus has been met and its card said nothing. */
+// "not (x)" of a condition, without doubling a not: a test the Read view
+// already said as "not (x)" or "not x" is turned back to x when x is one
+// clause (no "and" or "or" at its top).
+function convNegate(k) {
+  const top = t => { let d = 0; for (let i = 0; i < t.length; i++) { const ch = t[i]; if (ch === '(') d++; else if (ch === ')') { d--; if (d < 0) return false; } else if (d === 0 && (t.startsWith(' and ', i) || t.startsWith(' or ', i))) return false; } return d === 0; };
+  const m = /^not \((.*)\)$/.exec(k);
+  if (m && top(m[1]) !== false && (() => { let d = 0; for (const ch of m[1]) { if (ch === '(') d++; else if (ch === ')' && --d < 0) return false; } return d === 0; })()) return m[1];
+  if (/^not /.test(k) && top(k.slice(4))) return k.slice(4);
+  return 'not (' + k + ')';
+}
 function convReadConds(resid) {
   if (!DERIVED.CONV_READ_CONDS) DERIVED.CONV_READ_CONDS = new Map();
   if (DERIVED.CONV_READ_CONDS.has(resid)) return DERIVED.CONV_READ_CONDS.get(resid);
   const out = new Map();
+  out.lines = new Map();
   try {
     const raw = getResourceBytes(ARCHIVE, resid);
     const fns = raw ? dvmReadRender(ARCHIVE, smartDecrypt(raw, resid).data, resid) : [];
-    const conds = (kids, into) => {
+    const cond = t => { const m = /^(?:otherwise )?if (.*?):(?: .*)?$/.exec(t); return m ? m[1] : null; };
+    // Every clause under a prompt, with the conditions it sits under there:
+    // an if's own, and "not (...)" of the if before an "otherwise".
+    const inside = (kids, chain, into, lines) => {
+      let last = null;
       for (const c of kids || []) {
-        if (/^when asked about /.test(c.text)) continue;
-        const m = /^(?:otherwise )?if (.*?):(?: .*)?$/.exec(c.text);
-        if (m && into.indexOf(m[1]) < 0) into.push(m[1]);
-        conds(c.kids, into);
+        if (/^when asked about /.test(c.text)) { last = null; continue; }
+        const k = cond(c.text);
+        let sub = chain;
+        if (k) { if (into.indexOf(k) < 0) into.push(k); sub = chain.concat([k]); last = k; }
+        else if (/^otherwise:/.test(c.text) && last) { sub = chain.concat([convNegate(last)]); last = null; }
+        else last = null;
+        if (c.at != null && !k) lines.push({ at: c.at, chain });
+        inside(c.kids, sub, into, lines);
       }
     };
     const walk = cl => {
       for (const c of cl || []) {
-        if (/^when asked about /.test(c.text) && c.at != null) { const into = []; conds(c.kids, into); if (into.length) out.set(c.at, into); }
+        if (/^when asked about /.test(c.text) && c.at != null) {
+          const into = [], lines = [];
+          inside(c.kids, [], into, lines);
+          if (into.length) out.set(c.at, into);
+          out.lines.set(c.at, lines.sort((x, y) => x.at - y.at));
+        }
         walk(c.kids);
       }
     };

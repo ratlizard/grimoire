@@ -73,6 +73,11 @@ try {
   const demo = (/id="conv-6241-651"[\s\S]*?<\/div>/.exec(REGISTRY.get('dlgWrap').innerHTML) || [''])[0];
   if (!/convBadge">if its bit flags has bit 6</.test(demo) || /calls BeenMet/.test(demo))
     fail('conversation', 'Aethon\u2019s "demo" card does not say its condition: ' + demo.replace(/<[^>]+>/g, ' ').slice(0, 200));
+  // And each line says the conditions that pick it, an otherwise as the
+  // negation of the if before it, without a doubled not.
+  const aeText = REGISTRY.get('dlgWrap').innerHTML.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"');
+  if (!/if not \(its bit flags has bit 6\): "Fine, be that way\."/.test(aeText) || !/if its bit flags has bit 6: "Maybe it is time/.test(aeText) || /not \(not/.test(aeText))
+    fail('conversation', 'Aethon\u2019s lines are not tied to their conditions: ' + (/[^\n]{0,80}Fine, be that way[^\n]{0,80}/.exec(aeText) || [''])[0]);
   ctx.jumpToResource(0x801);                      // the Human archetype
   if (!/Generic prompts/.test(REGISTRY.get('dlgWrap').innerHTML))
     fail('conversation', 'the Human generic-prompt page did not render as a conversation');
