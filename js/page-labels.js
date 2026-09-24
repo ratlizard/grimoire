@@ -185,16 +185,16 @@ function labelForResource(subn, n, resid) {
    A type in no kind falls under "Other". */
 const RSRC_KINDS = [
   { id: 'screens', label: 'Screens', types: ['PICT'],
-    note: 'Whole pictures. In Cythera Data: the title screen (130), the main menu (132) with its seven plank labels (139 to 145) and six torch frames (133 to 138), the DELVER stone (131), two night-dark title scenes (512, 513) and the paper doll (129). In the application: the two Ambrosia logos.',
+    note: 'Whole pictures. In Cythera Data: the title screen (130), the main menu (132) with its seven plank labels (139 to 145) and six torch frames (133 to 138), the DELVER stone (131), two night-dark title scenes (512, 513) and the paper doll (129). In the program: the two Ambrosia logos.',
     view: 'SCREENS' },
   { id: 'fonts', label: 'Fonts', types: ['sfnt', 'NFNT', 'FOND', 'TxSt'],
     note: 'Argos A Nouveau as a TrueType font (sfnt 7289, the face this page uses), the Seldane script as two bitmap strikes (NFNT 25740 and 25746, 12 and 18 point), the family records that tie them together, and the text styles (TxSt) that say which face and size each kind of text is drawn in, “Labels”, “Stats”, “Text”, three Seldane sizes.',
     view: 'FONTS' },
   { id: 'strings', label: 'Strings', types: ['STR#', 'STR ', 'TEXT', 'styl'],
-    note: 'String lists. In Cythera Data: the four default conversation keywords (128), the editor’s palette categories (134), the editor’s list of every zone (135), the credits (255). In the application: the equipment slots (501), the combat buttons (500), the seven strategies (502), the help balloons (503), and the combat AI vocabulary in seven lists (9300 to 9308).',
+    note: 'String lists. In Cythera Data: the four default conversation keywords (128), the editor’s palette categories (134), the editor’s list of every zone (135), the credits (255). In the program: the equipment slots (501), the combat buttons (500), the seven strategies (502), the help balloons (503), and the combat AI vocabulary in seven lists (9300 to 9308).',
     view: 'STRINGS' },
   { id: 'sounds', label: 'Sounds', types: ['snd '],
-    note: 'The application’s own sounds, named for when they play: get, use, look, talk, attack. The game’s sound effects and music are in the archive, under Audio.',
+    note: 'The program’s own sounds, named for when they play: get, use, look, talk, attack. The game’s sound effects and music are in the data file, under Audio.',
     view: 'APPSND' },
   { id: 'icons', label: 'Finder and command icons', types: ['ICN#', 'icl4', 'icl8', 'ics#', 'ics4', 'ics8', 'cicn', 'BNDL', 'FREF'],
     note: 'The Finder icons for the application, the data file, a saved game and a patch, with the bundle (BNDL) and file references (FREF) that say which is which, and the command icons the game draws: move, take, look, talk, attack.',
@@ -209,10 +209,10 @@ const RSRC_KINDS = [
     note: 'The dialog boxes and alerts (a DLOG or ALRT names its DITL, the item list), the window templates, the controls, their colour tables, the backdrop patterns (ppat: the default and black), and the palettes.',
     view: null },
   { id: 'editor', label: 'Editor', types: ['eSTM', 'eBRS', 'MSta', 'FILT', 'LINF', 'DATA', 'PORT', 'RMAP', 'TMPL'],
-    note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three saved game states (MSta: “Base”, “Plague Cured” and “Olpheltius Murdered”, which differ from Base at one byte each), the editor’s own tile names (DATA 260, a short list beside the archive’s terrain table), three twelve-byte LINF records whose first two shorts read as a size (256 by 256, and 64 by 64 twice) though what they are for is not read, the colour cycles (DATA 261), the record that says TxSt 999 is really a colour (RMAP), and the ResEdit templates. Four DATA resources are 512, 1,024, 4,096 and 8,192 bytes of nothing. FILT, PORT and three DATA resources are listed and unread.',
+    note: 'What the map editor kept in the data file: the stamps and brushes (their own gallery, under Composites), three saved game states (MSta: “Base”, “Plague Cured” and “Olpheltius Murdered”, which differ from Base at one byte each), the editor’s own tile names (DATA 260, a short list beside the archive’s terrain table), three twelve-byte LINF records whose first two numbers read as a size (256 by 256, and 64 by 64 twice) though nothing here reads what they are for, the colour cycles (DATA 261), the record that says TxSt 999 is really a colour (RMAP), and the ResEdit templates. Four DATA resources are 512, 1,024, 4,096 and 8,192 bytes of nothing. FILT, PORT and three DATA resources are listed and unread.',
     view: 'RSRC' },
   { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
-    note: 'What the executable reads about itself: the 25 light cones (Lite: one byte of side, then that many squared bytes of brightness, 0 to 32; sides 8 to 120), one Delver tile sheet (TILE 282, sixteen tiles that appear nowhere in the game’s own art), the Delver engine’s help pages (Page, three carry text, ten are empty), the two preference defaults (volume 5 and music 2), the thirteen audit categories, the version records, the code fragment map and the nine 68K CODE segments. The two MemU records, one named for each processor, hold the same nine bytes, and they are not the application’s memory partition: the SIZE resource asks for 12,288K and 10,240K, which these bytes do not carry however they are read.',
+    note: 'What the game program reads about itself: the 25 light cones (Lite: one byte of side, then that many squared bytes of brightness, 0 to 32; sides 8 to 120), one Delver tile sheet (TILE 282, sixteen tiles that appear nowhere in the game’s own art), the Delver engine’s help pages (Page, three carry text, ten are empty), the two preference defaults (volume 5 and music 2), the thirteen audit categories, the version records, the code fragment map and the nine 68K CODE segments. The two MemU records, one named for each processor, hold the same nine bytes, and they are not how much memory the program asks for: that is in the SIZE resource, 12,288K and 10,240K, and these bytes do not hold either number however they are read.',
     view: null }
 ];
 const RSRC_KIND_OF = new Map();
