@@ -93,7 +93,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
         .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== want))
         fail('program figures', 'the bed rates on the program’s clock do not reproduce the 2012 measurements');
-      else if (/the application’s figures are read here/.test(mh) || !new RegExp('jumpToExeAt\\(' + clk.hourShift.exe + '\\)').test(mh) || !/flag <button[^>]*>9<\/button>, poison/.test(mh) || !/every <button[^>]*>30 minutes<\/button> at levels 2 and 3/.test(mh))
+      else if (/the application’s figures are read here/.test(mh) || !new RegExp('jumpToExeAt\\(' + clk.hourShift.exe + '\\)').test(mh) || !/flag <button[^>]*>9<\/button>, Poisoned/.test(mh) || !/every <button[^>]*>30 minutes<\/button> at levels 2 and 3/.test(mh))
         fail('program figures', 'the Mechanics sheet does not state the program’s figures as links');
       else if (!/<b>4 seconds<\/b>/.test(bh) || !new RegExp('jumpToExeAt\\(' + bark.ticks.exe + '\\)').test(bh))
         fail('program figures', 'the Barks sheet does not state the balloon’s figures as links');
@@ -170,6 +170,20 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!/sys nearby/.test(raw) || /sys IsInParty/.test(raw) || !/\bnearby\(/.test(folded) || /IsInParty\(/.test(folded)) fail('program names', 'the listing does not print the program\'s names');
       else console.log('  program names: the stored ' + got.size + ' agree with the handler table, and the listing prints them');
     } catch (e) { fail('program names', e); }
+    /* The character flags by the program's names: DVM_OBJECT_FLAGS is a copy
+       of STR# 9321 (ObjectFlags), which the combat AI's TestFlag tests as bits
+       of the halfword at byte 6, and it is printed as flag 8 + i because
+       AddAbility keeps flags 8 to 23 in that halfword less 8. Both halves are
+       held here: the words to the list, the numbering to AddAbility's map. */
+    try {
+      const O = peek('DVM_OBJECT_FLAGS') || [], list = ctx.forkStringList(peek('APP_RSRC') || ctx.APP_RSRC, 9321) || [];
+      const half = (ctx.exeAbilityMap() || []).find(m => m.word);
+      if (!list.length) fail('flag names', 'STR# 9321 was not read, so the stored names cannot be checked');
+      else if (JSON.stringify(O) !== JSON.stringify(list)) fail('flag names', 'DVM_OBJECT_FLAGS and STR# 9321 disagree: ' + JSON.stringify(O) + ' / ' + JSON.stringify(list));
+      else if (!half || half.sub.v !== 8 || half.below.v !== 24 || half.offset.v !== 6) fail('flag names', 'AddAbility no longer keeps flags 8 to 23 in the halfword at 6: ' + JSON.stringify(half));
+      else if (ctx.dvmFlagName(9) !== 'Poisoned' || ctx.dvmFlagName(18) !== 'Night Vision' || ctx.dvmFlagName(0) !== null) fail('flag names', 'dvmFlagName misprints: ' + [9, 18, 0].map(ctx.dvmFlagName).join(', '));
+      else console.log('  flag names: the stored ' + O.length + ' are STR# 9321, flags 8 to 23 by AddAbility');
+    } catch (e) { fail('flag names', e); }
     /* What a signal reaches, 12 September 2026. These figures are the
        APPLICATION's, so they are pinned here and not in the puzzles block.
        signalRules() returns null until the application is adopted, and the

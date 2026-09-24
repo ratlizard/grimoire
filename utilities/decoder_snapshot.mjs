@@ -33,9 +33,9 @@ const {sandbox} = makeSandbox();
 const ctx = vm.createContext(sandbox);
 // Top-level const/let never become properties of the vm context, so the tables
 // declared that way are re-exported onto window before the script ends.
-const EXPORT_CONSTS = ['PALETTE', 'PAL_RGB', 'CYTHERA_CHARACTERS',
-  'ZONES', 'PROP_TYPE_NAMES', 'CATEGORY_NAMES', 'CANONICAL_SIZE', 'TAB_TREE',
-  'MACROMAN_HIGH', 'PALETTE_CYCLES', 'TILE_SHEET_HINTS'];
+const EXPORT_CONSTS = ['PALETTE', 'PAL_RGB',
+  'PROP_TYPE_NAMES', 'CATEGORY_NAMES', 'CANONICAL_SIZE', 'TAB_TREE',
+  'MACROMAN_HIGH', 'PALETTE_CYCLES'];
 // The page's open archive is `ARCHIVE`, a top-level `let` in the global
 // *lexical* environment, which a property assigned on the vm global from out
 // here would never reach. This setter is defined inside that scope, which is

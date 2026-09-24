@@ -1197,19 +1197,21 @@ function renderUsage(resid, subn) {
    check for death-immunity 0x0020, so that flag must be tested by each
    spell -- which is where "Death Strike hurts demons despite Immune to
    Death" lives. */
+/* Since 23 September 2026 a bit is named only where a script shows what it
+   does, and the words say that (the maintainer had the typed names give way
+   to the game's; the files name none of these bits). gandreas's list named
+   0x0001 swim, 0x0002 fly, 0x0010 sleep and 0x0020 death immunity too, but no
+   script tests those four, so they print as numbers. 0x0100, which the list
+   called resisting non-magical weapons, returns zero damage in 0x3040. */
 const MONSTER_FLAG_NAMES = [
-  [0x0001, 'can swim'],
-  [0x0002, 'can fly'],
-  [0x0010, 'immune to sleep'],
-  [0x0020, 'immune to death magic'],
-  [0x0040, 'immune to poison'],
-  [0x0080, 'immune to fire'],
-  [0x0100, 'resists non-magical weapons'],
-  [0x0200, 'vulnerable to fire'],
-  [0x0400, 'resists non-blunt weapons'],
-  [0x0800, 'resists magic'],
-  [0x4000, 'bleeds'],
-  [0x8000, 'immune to electricity'],
+  [0x0040, 'immune to poison'],          // 0x301F, 0x3041
+  [0x0080, 'immune to fire'],            // 0x3040: type 0x08 returns 0; 0x301F
+  [0x0100, 'immune to non-magical damage'], // 0x3040: no 0xC0 bit returns 0
+  [0x0200, 'vulnerable to fire'],        // 0x3040: type 0x08 doubled
+  [0x0400, 'resists non-blunt weapons'], // 0x3040: types 1 and 2 without 4 halved
+  [0x0800, 'resists magic'],             // 0x3040: type 0x40 halved
+  [0x4000, 'bleeds'],                    // 0xE8D leaves blood (prop type 77)
+  [0x8000, 'immune to electricity'],     // 0x3040: type 0x20 returns 0 (Lightning)
 ];
 function monsterFlagsText(f) {
   const bits = [];
@@ -1223,7 +1225,8 @@ function monsterFlagsText(f) {
 /* Where the default ResistDamage (0x3040) tests each flag bit: the `word N`
    that follows a `get_field monster_flags`, with its offset, so a flag on a
    monster's page opens the line that reads it. Bits 0x3040 does not test
-   are named from gandreas's list (MONSTER_FLAG_NAMES) with no link. */
+   are named from what another script does with them (MONSTER_FLAG_NAMES),
+   with no link. */
 function monsterFlagSites() {
   if (DERIVED.MONSTER_FLAG_SITES) return DERIVED.MONSTER_FLAG_SITES;
   const out = new Map();
@@ -1895,14 +1898,11 @@ function stitchDialogue(strs) {
    the House is defunct -- but Sardis, Ake and Milcom (all tied to Atussa)
    still call it, which is how it was identified. 0x814 is an empty stub.
 --------------------------------------------------------------------------- */
-const DIALOGUE_GROUP_NAMES = {
-  0x801:'Human', 0x802:'House Attis', 0x803:'House Atussa',
-  0x804:'House Comana', 0x805:'House Dodona',
-  0x806:'House Nicander', 0x807:'House Strymon', 0x808:'Mage', 0x809:'Land King Hall',
-  0x80A:'Odemia', 0x80B:'Catamarca', 0x80C:'Pnyx', 0x80D:'Kosha', 0x80E:'Cademia',
-  0x80F:'Seldane', 0x810:'Student', 0x811:'Iron Mine', 0x812:'Bartender',
-  0x813:'Tavern rumors', 0x817:'Judge'
-};
+// Empty since 23 September 2026: the files name no group, and the names the
+// community gave them (above) went with the other typed names at the
+// maintainer's word. A group is shown by its id; utilities/dialogue_check.mjs
+// keeps the community's names to find each group in its collection.
+const DIALOGUE_GROUP_NAMES = {};
 
 function conversationFor(resid) {
   if (!DERIVED.CONV_CACHE) DERIVED.CONV_CACHE = new Map();

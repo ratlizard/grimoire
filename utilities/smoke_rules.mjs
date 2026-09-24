@@ -127,7 +127,7 @@ try {
   {
     const ask = q => { let a = null; try { a = ctx.answerQuestion(q); } catch (e) { a = null; } return a ? String(a).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ') : null; };
     const want = [['who teaches axe', /Thersites/], ['what does fireball do', /burst of flame/],
-                  ['what cures poison', /clears poison/], ['who says Yum', /Alaric/],
+                  ['what cures poison', /clears Poisoned/], ['who says Yum', /Alaric/],
                   ['what is a lich immune to', /non-magical/], ['who is Alaric', /Land King Hall/],
                   ['how much is a sword', /45/], ['what does haggling do', /haggle better/]];
     const bad = want.filter(([q, re]) => { const a = ask(q); return !a || !re.test(a); }).map(x => x[0]);
@@ -222,7 +222,7 @@ try {
   else if (!(ctx.skillConsultations().by.get(0xCF) || new Set()).has(0x812)) fail('mechanics', 'Gambling is not listed as asked about by the dice game');
   else if (!ctx.karmaRules().writes.some(w => w.set === 55) || JSON.stringify(ctx.karmaRules().byAlignment) !== '[1,4,-10,0]') fail('mechanics', 'karma does not start at 55 or the kill table is not 1,4,-10,0: ' + JSON.stringify(ctx.karmaRules().byAlignment));
   else if (!(ctx.experienceRules().rule && ctx.experienceRules().rule.cap && ctx.experienceRules().rule.doubling) || !ctx.experienceRules().awards.some(a => a.amount === 100)) fail('mechanics', 'the experience rule or a 100-point award was not read');
-  else if (!ctx.foodRules().potions.some(p => /Antidote/.test(p.name) && p.does.some(d => /clears poison/.test(d))) || !ctx.foodRules().potions.some(p => /Healing/.test(p.name) && p.does.some(d => /health \+10/.test(d)))) fail('mechanics', 'the potions were not read: ' + JSON.stringify(ctx.foodRules().potions.map(p => [p.name, p.does])));
+  else if (!ctx.foodRules().potions.some(p => /Antidote/.test(p.name) && p.does.some(d => /clears Poisoned/.test(d))) || !ctx.foodRules().potions.some(p => /Healing/.test(p.name) && p.does.some(d => /health \+10/.test(d)))) fail('mechanics', 'the potions were not read: ' + JSON.stringify(ctx.foodRules().potions.map(p => [p.name, p.does])));
   else if (!ctx.foodRules().foods.some(f => f.variants && f.variants.length > 5)) fail('mechanics', 'the foodstuff class did not give a value per variant');
   // v1.43.0: which classes read their aspect, and the line a food says.
   // The mushroom steak class indexes a string table by the aspect (three
@@ -231,7 +231,7 @@ try {
   else if ((function () { const ar = ctx.aspectReaders(); const reads = [...ar.values()].filter(v => v.reads).length; return !(ar.size > 150 && reads >= 20 && reads < 60 && (ar.get(213) || {}).reads && (ar.get(0x1F) || {}).reads && !(ar.get(100) || {}).reads && !(ar.get(94) || {}).reads && ctx.gearTable().every(r => !(ar.get(r.pt) || {}).reads)); })()) fail('mechanics', 'the aspect readers were not counted as expected: ' + JSON.stringify([...ctx.aspectReaders()].filter(([, v]) => v.reads).map(([pt]) => pt)));
   else if ((function () { const f = ctx.foodRules().foods.find(f => f.pt === 213), b = ctx.foodRules().foods.find(f => f.pt === 69); return !(f && f.saysPer && f.variants.length === 3 && f.variants[1].name === 'dried jellyfish' && f.variants[1].plus === 8 && f.variants[1].says === 'Yetch!' && f.variants[0].says === 'Not very good' && b && !b.saysPer && b.variants.every(v => v.says === 'Tasty')); })()) fail('mechanics', 'the foods’ lines were not read: ' + JSON.stringify(ctx.foodRules().foods.filter(f => f.variants).map(f => [f.pt, f.saysPer, f.variants.map(v => v.says)])));
   else if (!/of 180<\/b> item class scripts read it/.test(html) || !/No weapon or piece of armour reads it/.test(html) || !/0x0464/.test(html) || !/dried jellyfish<\/b> that feeds \+8 and says “Yetch!”/.test(html) || !/“Not very good”/.test(html)) fail('mechanics', 'the prop record section does not say which classes read their aspect, or the spear and mushroom steak contrast is missing');
-  else if (!(ctx.statusRules().applies.get('sleep') || []).some(a => a.duration === 4096) || !(ctx.statusRules().cures.get('poison') || new Set()).size) fail('mechanics', 'status effects were not read: sleep for 4096, poison cleared');
+  else if (!(ctx.statusRules().applies.get('Sleep') || []).some(a => a.duration === 4096) || !(ctx.statusRules().cures.get('Poisoned') || new Set()).size) fail('mechanics', 'status effects were not read: sleep for 4096, poison cleared');
   else if (!(ctx.lockRules().rule && ctx.lockRules().rule.formula && ctx.lockRules().needsSkill) || !ctx.lockRules().classes.some(c => c.name === 'chest' && c.words[0] === 15)) fail('mechanics', 'the lock rule or the chest’s parameter was not read');
   else if (!ctx.shopRules().shops.some(sp => sp.who === 30 && sp.goods.some(g => g.name === 'Sword' && g.price === 45)) || !ctx.shopRules().haggling) fail('mechanics', 'Milcom’s sword at 45 or the haggling roll was not read');
   else if (!ctx.trainingRules().teachers.some(t => t.who === 101 && t.skills.has(0xC5) && t.skills.has(0xC6)) || ctx.trainingRules().points.atStart !== 4 || !ctx.trainingRules().points.perLevel) fail('mechanics', 'Thersites’ axe and mace or the training points were not read: ' + JSON.stringify(ctx.trainingRules().points));
@@ -342,13 +342,13 @@ try {
   else if (!link(unguent).test(html) || !link(reach[0]).test(html)) fail('aim', 'a target word is not a link to the line that holds it');
   else if (!/What a use can be aimed at/.test(html) || !/within reach/.test(html)) fail('aim', 'the Mechanics sheet does not state what a use is aimed at');
   else if (!tn || !tn.swamp || !tn.lava) fail('ground', 'the ground script was misread: ' + JSON.stringify([!!(tn && tn.swamp), !!(tn && tn.lava)]));
-  else if (tn.swamp.flagName !== 'swamp-poison protection' || tn.lava.flagName !== 'fire/lava protection') fail('ground', 'the flags that protect were misread: ' + JSON.stringify([tn.swamp.flagName, tn.lava.flagName]));
+  else if (!tn.swamp.flag || tn.swamp.flag.v !== 31 || tn.swamp.flagName !== null || tn.lava.flagName !== 'Lava Proof') fail('ground', 'the flags that protect were misread: ' + JSON.stringify([tn.swamp.flagName, tn.lava.flagName]));
   else if (!new RegExp(String(swampChance)).test(html) || !/Ouch! Something bit me!/.test(html) || !/Ouch! That's hot!/.test(html)) fail('ground', 'the sheet does not state the swamp and the lava in the file’s words');
   else if (!wt || wt.kinds.length < 8 || !mineral) fail('water', 'the fountain kinds were misread: ' + JSON.stringify(wt && wt.kinds.length));
   else if (!wt.gate || !wt.setter || wt.setter.pt !== 0x25) fail('water', 'the state behind the changing water, or what sets it, was misread: ' + JSON.stringify([wt.gate && wt.gate.state.v, wt.setter && wt.setter.name]));
   else if (!/Springs and fountains/.test(html) || !/heavy taste of/.test(html)) fail('water', 'the sheet does not state the fountains');
   else if (!cures.length || cures[0].hi.v - cures[0].lo.v < 2) fail('cures', 'no cure with a roll behind it was read');
-  else if (!grants.some(g => g.pt === 0x135 && g.flagName === 'fire/lava protection') || !grants.some(g => g.clearedBy)) fail('grants', 'the worn statuses were misread: ' + JSON.stringify(grants.map(g => g.name + '/' + g.flagName)));
+  else if (!grants.some(g => g.pt === 0x135 && g.flagName === 'Lava Proof') || !grants.some(g => g.clearedBy)) fail('grants', 'the worn statuses were misread: ' + JSON.stringify(grants.map(g => g.name + '/' + g.flagName)));
   else if (!bl || !bl.centre || !bl.edge || bl.centre.v <= bl.edge.v) fail('blast', 'the bomb was misread: ' + JSON.stringify(bl && [bl.centre, bl.edge, bl.corner]));
   else console.log(`  aim and ground: ${tg.length} scripts ask for a target, ${reach.length} of them a neighbour; the swamp bites one step in ${swampChance} and lava does ${tn.lava.plus.v} to ${tn.lava.roll.hi.v - 1 + tn.lava.plus.v}; ${wt.kinds.length} kinds of water, ${mineral.clears.length} statuses cleared by the mineral spring; the unguent cures one time in ${cures[0].hi.v - cures[0].lo.v}; the bomb ${bl.centre.v}/${bl.edge.v}/${bl.corner.v}`);
 } catch (e) { fail('aim', e); }
@@ -775,7 +775,7 @@ try {
   else if (!/every time|times? in 100/.test(hatch)) fail('world tab', 'the hatching egg does not say how likely: ' + JSON.stringify(hatch));
   else if (!/same walled area/.test(hatch)) fail('world tab', 'the hatching egg does not say what sets it off: ' + JSON.stringify(hatch));
   else if (!/a room, room \d+/.test(room)) fail('world tab', 'the room egg stopped reading as a room: ' + JSON.stringify(room));
-  else if (!/sound of waves/i.test(surf)) fail('world tab', 'a kind-3 egg is not naming its ambient sound: ' + JSON.stringify(surf));
+  else if (!/an ambient sound, [^\n]*sound 6/i.test(surf)) fail('world tab', 'a kind-3 egg is not naming its ambient sound: ' + JSON.stringify(surf));
   // A room is a rectangle, not the egg's square. Room 800 is the way into the
   // Tree of Life: its script 0x1E20 is one instruction, sys ChangeZone through
   // zoneport 146, and the egg at (125,139) sized 3 by 5 covers x 124..126,
@@ -1047,7 +1047,7 @@ try {
   if (cv.chars.length < 100 || topics < 1200) fail('talk', `${cv.chars.length} characters and ${topics} topics`);
   else if (!naxos || JSON.stringify(naxos.chain) !== JSON.stringify([0x804, 0x80E, 0x801]))
     fail('talk', 'Naxos is ' + JSON.stringify(naxos && naxos.chain) + ', expected House Comana, Cademia, Human');
-  else if (real.some(g => !g.name)) fail('talk', 'a group has no name: ' + JSON.stringify(real.filter(g => !g.name).map(g => g.rid)));
+  else if (real.some(g => g.name)) fail('talk', 'a group carries a typed name, which went on 23 September 2026: ' + JSON.stringify(real.filter(g => g.name).map(g => g.rid)));
   else if (notGroups.indexOf(0x813) < 0 || notGroups.indexOf(0x816) < 0)
     fail('talk', 'the routines that are not groups are being counted as groups: ' + JSON.stringify(notGroups));
   else if (!bartender || bartender.inherited !== 0 || bartender.called < 1)
@@ -1126,21 +1126,19 @@ try {
     // A third element says which sheet the figure is on; the rest are on
     // Mechanics, which stays the default.
   ].filter(([, re, where]) => !re || !re.test(where || html)).map(([what]) => what);
-  // The names that stayed are the ones the file does not give.
-  const names = peek('PROP_TYPE_NAMES'), chars = peek('CYTHERA_CHARACTERS'), zones = peek('ZONES');
-  const tiles = ctx.getPropTileList();
-  const dupProps = Object.keys(names).filter(k => ctx.terrainNameFor(tiles[+k]) === names[k]);
-  ctx.loadDerivedNames();
-  const dupChars = Object.keys(chars).filter(k => ctx.derivedCharacterName(+k - 1) === ctx.prettyLabel(chars[k]));
-  const zn = ctx.loadZoneNames(), ez = ctx.loadEditorZoneNames();
-  const dupZones = Object.keys(zones).filter(k => zn[+k] === zones[k] || ez[+k] === zones[k]);
+  // No typed names for prop types, portraits or zones since 23 September
+  // 2026: the files' names are all there is.
+  const names = peek('PROP_TYPE_NAMES') || {};
+  const gone = ['CYTHERA_CHARACTERS', 'ZONES', 'RESOURCE_LABELS', 'TILE_SHEET_HINTS', 'DVM_FLAG_NAMES'].filter(n => peek('typeof ' + n) !== 'undefined');
   if (unlinked.length) fail('file figures', 'not a link to the line that holds it: ' + unlinked.join(', '));
   else if (!/Haggling<\/b> skill takes a further roll of 0 to (?:<button[^>]*>)?4(?:<\/button>)? off/.test(html)) fail('file figures', 'the haggling roll is not 0 to 4, one short of its operand of 5');
   else if (/capped at <b>65,535/.test(html) || /plus a roll of 0 to 29<\/b>/.test(html)) fail('file figures', 'a figure is typed into its sentence rather than read');
-  else if (dupProps.length || dupChars.length || dupZones.length) fail('names', 'built-in names the file already gives: ' + JSON.stringify({ props: dupProps, characters: dupChars, zones: dupZones }));
-  else if (ctx.propTypeName(3) !== 'metal door' || ctx.propTypeName(130) !== 'obols') fail('names', 'propTypeName does not take the file’s name, or lost a kept entry: ' + JSON.stringify([ctx.propTypeName(3), ctx.propTypeName(130)]));
+  else if (Object.keys(names).length || gone.length) fail('names', 'typed name tables are back: ' + JSON.stringify({ props: Object.keys(names), tables: gone }));
+  else if (!/^Tile Sheet 35: unlit torch, lit torch/.test(ctx.labelFor(0x8E23) || '') || ctx.labelFor(0x8F0A) !== 'General Graphic 10: chest, coffer')
+    fail('names', 'a tile sheet or a picture is not named by the game\u2019s words: ' + JSON.stringify([ctx.labelFor(0x8E23), ctx.labelFor(0x8F0A)]));
+  else if (ctx.propTypeName(3) !== 'metal door' || ctx.propTypeName(130) !== 'obol') fail('names', 'propTypeName does not take the file’s name: ' + JSON.stringify([ctx.propTypeName(3), ctx.propTypeName(130)]));
   else if (ctx.mechDiceOpts({}).matchPay !== undefined || ctx.mechDiceOpts({}).fa !== undefined || peek('typeof MECH_BLOW_WORDS') !== 'undefined' || peek('typeof mechExpCap') !== 'undefined') fail('file figures', 'the rule models still carry the shipped numbers as defaults');
-  else console.log(`  file figures: ${Object.keys(names).length} prop, ${Object.keys(chars).length} character and ${Object.keys(zones).length} zone names kept, none the file's; the sheet's figures are links to their lines; the models have no defaults`);
+  else console.log(`  file figures: no typed prop, portrait, zone, sound or flag names; the sheet's figures are links to their lines; the models have no defaults`);
 } catch (e) { fail('file figures', e); }
 
 /* The Cheats sheet. Its key tables and the preferences record are constants

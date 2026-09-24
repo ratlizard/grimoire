@@ -85,7 +85,19 @@ const chars = ev(`(() => {
   }
   return out;
 })()`);
-const groupNames = ev('DIALOGUE_GROUP_NAMES');
+/* The community's names for the dialogue groups, which is what its
+   collection files the groups under. They were the page's own labels until
+   23 September 2026, when the maintainer had the typed names give way to the
+   game's (the files name no group); the check still needs them to find each
+   group's file, so they live here, where nothing shows them. */
+const groupNames = {
+  0x801:'Human', 0x802:'House Attis', 0x803:'House Atussa',
+  0x804:'House Comana', 0x805:'House Dodona',
+  0x806:'House Nicander', 0x807:'House Strymon', 0x808:'Mage', 0x809:'Land King Hall',
+  0x80A:'Odemia', 0x80B:'Catamarca', 0x80C:'Pnyx', 0x80D:'Kosha', 0x80E:'Cademia',
+  0x80F:'Seldane', 0x810:'Student', 0x811:'Iron Mine', 0x812:'Bartender',
+  0x813:'Tavern rumors', 0x817:'Judge'
+};
 const charKeywords = Object.fromEntries(
   Object.entries(chars).map(([n, c]) => [n, c.kws || []]));
 

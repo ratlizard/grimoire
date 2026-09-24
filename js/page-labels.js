@@ -55,14 +55,11 @@ let lastSheetScrollY = 0;
 let currentObjectUrl = null;
 function prettyLabel(s) { return String(s).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2'); }
 
-// Portrait labels behind the names switch, for a file whose 0x0201 names
-// nobody. The table was delvmod's character symbols with the underscores
-// dropped (DVM_SYM.character has them), 126 entries; the 122
-// whose spaced form (prettyLabel) is the name 0x0201 gives went on 11
-// September 2026 with the other copies of the file's words, and entry 0,
-// which no portrait reaches. The three left are the ones the file names
-// otherwise: "UrSylph", "Fountain" and "Door".
-const CYTHERA_CHARACTERS = {127:"UrSylph",189:"WishingFountain",190:"DegreeHallDoor"};
+// Portraits are named by 0x0201 alone. A table of delvmod's character
+// symbols stood behind the names switch until 23 September 2026, when the
+// three entries left in it (UrSylph, which 0x0201 already says, and
+// WishingFountain and DegreeHallDoor, where 0x0201 says Fountain and Door)
+// went with the other names the files do not give (the maintainer's call).
 // Landscape strips (subindex 131, 0x84nn) carry no built-in names since
 // 22 September 2026: the community's list was guesses with question marks,
 // and each strip's cell now says which zones and rooms set it
@@ -170,8 +167,6 @@ function labelForResource(subn, n, resid) {
   if (subn === 135) {
     const d = derivedCharacterName(n);
     if (d) return d;
-    if (window.SHOW_BUILTIN_LABELS && CYTHERA_CHARACTERS[n+1] !== undefined)
-      return prettyLabel(CYTHERA_CHARACTERS[n+1]);
   }
   if (subn === 137) { const sk = skillNameForIcon(n); if (sk) return sk; }
   return null;
@@ -239,21 +234,37 @@ const FORK_VIEWS = {
 const CATEGORY_NAMES = { 0:"Global Symbols & Scripts", 1:"Text & Names", 135:"Character Portraits", 137:"Skill & Spell Icons", 141:"Tile Graphics", 131:"Landscape Graphics", 142:"General Graphics", 144:"Sounds", 127:"Maps", 128:"Prop Lists", 239:"Game Data Tables",
   143:"Music (QTMA)", 2:"Global Store", 3:"AI Combat Scripts", 4:"Archetypes", 7:"Generic Group Dialogue", 8:"Combat AI Tests & Actions", 9:"Eating & Potion Effects", 10:"Stub Script", 14:"Character Helpers", 11:"Task Helpers", 12:"Party & Inventory Helpers", 13:"Rule Helpers", 15:"Object Interaction Text", 16:"Object Scripts", 19:"Zone Entry Scripts", 20:"Sub-zone Scripts", 23:"Character Dialogue", 24:"Monster Class Scripts", 25:"Skill & Spell Classes", 26:"Room Scripts A", 27:"Room Scripts B", 29:"Room Scripts C", 47:"Character Action Scripts"
 };
-const RESOURCE_LABELS = {
-  0x8F00:'Background Texture',0x8F01:'Main View Frame',0x8F02:'Open Book',0x8F03:'Scroll',0x8F04:'Planks',0x8F05:'Paper',0x8F06:'Automap',0x8F07:'Open Book',0x8F08:'Metal Plaque',0x8F09:'Crate',0x8F0A:'Chest',0x8F0B:'Large Wooden Sign',0x8F0C:'Jar',0x8F0D:'Sack',0x8F0E:'Drawer',0x8F0F:'Corpse Inventory',0x8F10:'Tombstone',0x8F11:'Scroll with Spindles',0x8F12:'Pipes',0x8F13:'Map of Cythera',0x8F14:'Lyre',0x8F15:'Lute',0x8F16:'Wooden Sign',0x8F17:'Wooden Sign Left',0x8F18:'Wooden Sign Right',0x8F19:'Map to Harpy Cave',0x8F1A:'Wanted Poster',
-  0x9101:'Door Opens',0x9102:'Water Fountain Loop',0x9103:'Swamp Loop',0x9104:'Water Drip',0x9105:'Chicken Cluck',0x9106:'Waves / Seashore Loop',0x9107:'Goat Bleats',0x9108:'Bell Ring',0x9109:'Secret Door Opens',0x910A:'Portcullis Opens',0x910B:'Arrow Fired',0x9110:'Combat Swing',0x9111:'Clang',0x9112:'Damaging Hit',0x9113:'Male Cry of Pain',0x9114:'Male Cry of Pain (fatal?)',0x9115:'Male Cry of Pain',0x9116:'Male Death',0x9117:'Gator Roar',0x9118:'Cave-in / Earthquake',0x9119:'Locked Metal Door',0x911A:'Locked Wooden Door (?)',0x911C:'Bird Cry',0x911D:'Another Bird',0x911E:'Eating',0x911F:'Buzz',0x9121:'Fire (?)',0x912A:'Fire (?)',0x9123:'Snoring',0x9124:'Frogs / Swamp',0x9125:'Frog Croak',0x9126:'Cricket',0x9127:'Bomb Explosion',0x9129:'Arrow Hits',0x912B:'Gong',0x912C:'Terrorisation',0x912D:'Mystic Arrow',0x912E:'Magic Sound',0x912F:'Vision of the Night',0x9130:'Directed Nexus',0x9131:'Blacksmith Quenching',0x9132:'Blacksmith Hammering'
-};
-// Tile-sheet names taken from the wiki's subindex 141 listing rather than
-// invented here. 0x8E00-0x8E06 are all OUTDOOR GROUND tiles; the previous
-// table called them Walls / Architecture / Props / Dungeon Features, which
-// was wrong for every one of the seven. Props do not begin until around
-// 0x8E20. Sheets the wiki leaves unidentified stay unnamed here too.
-const TILE_SHEET_HINTS = {0:'Grass',1:'Shoreline',2:'Shoreline',3:'Grass with Red Dirt',4:'Scrub',5:'Red Dirt / Grass Border',6:'Grass / Cliff',7:'Mountains',8:'Mountains (?)',0x22:'Potions, Rings, Scrolls',0x23:'Torches, Keys, Disc Halves',0x33:'Bookshelves',0x91:'Certain Trees',0xFF:'Tombstone'};
+/* Pictures, sounds and tile sheets carry no names in the files, and the
+   typed labels they had -- the wiki's and the community's, behind the names
+   switch -- went on 23 September 2026 at the maintainer's word, after they
+   were checked (GRIMOIRE-NOTES.md, *The typed names, checked*): the gavel's
+   sound was "Arrow Hits", the dice's "Fire (?)", and sheet 0 "Grass" where
+   its tiles are grass, swamp, shrub, bush and water. What names them now is
+   the game's own words: a tile sheet by 0xF004's names for its sixteen
+   tiles, a picture by the names of the things whose scripts open it
+   (buildScriptedWindows). A sound keeps its number; its page says what plays
+   it. */
+function tileSheetWords(n) {
+  const seen = [];
+  for (let i = 0; i < 16; i++) { const w = terrainNameFor(n * 16 + i); if (w && seen.indexOf(w) < 0) seen.push(w); }
+  return seen.length ? seen.slice(0, 4).join(', ') + (seen.length > 4 ? ', \u2026' : '') : null;
+}
+function pictureWords(resid) {
+  let users = null;
+  try { users = buildScriptedWindows().byPicture.get(resid); } catch (e) { quiet(e); }
+  if (!users || !users.size) return null;
+  const seen = [];
+  for (const r of [...users].sort((a, b) => a - b)) {
+    const w = r >= 0x1000 && r < 0x1200 ? propTypeName(r - 0x1000) : null;
+    if (w && seen.indexOf(w) < 0) seen.push(w);
+  }
+  return seen.length ? seen.slice(0, 3).join(', ') + (seen.length > 3 ? ', \u2026' : '') : null;
+}
 
 const RESHINTS = {
   0x0101:"Global Symbol List", 0x0201:"Character Names", 0x0203:"Character Class Names",
   0x0204:"Character Class Descriptions", 0x0205:"Character Class Stats", 0x0206:"Character Class Skills",
-  0x0218:"Sign Text", 0x0219:"Scroll Text", 0x021A:"Quest Text", 0x021B:"Book Item Text",
+  0x0218:"Sign Text", 0x0219:"Scroll Text", 0x021A:"To Do Text", 0x021B:"Book Item Text",
   0x021D:"Bookshelf Text", 0x021F:"Ring Inscriptions", 0x0220:"Gravestone Inscriptions",
   0x0241:"Death Text", 0x0242:"Defeat Text", 0x0243:"Victory Text",
   // Nothing for 0x80xx/0x81xx/0x14xx belongs here: the zone loop below fills
@@ -267,21 +278,11 @@ const RESHINTS = {
   0xF00C:"Zoneports", 0xF010:"Faux Prop Information", 0xF011:"Prop-aspect X offsets",
   0xF012:"Prop-aspect Y offsets", 0xF015:"Persistence Store Symbols"
 };
-// Zone names behind the names switch, used only where neither the map's own
-// entry script (loadZoneNames) nor the editor's list in the resource fork
-// (loadEditorZoneNames) names it. This was a 42-name list, the community's,
-// reconciled against the wiki's subindex 19 listing; the 24 that are a map's
-// script name or its editor name letter for letter went on 11 September 2026
-// with the other copies of the file's words. The 18 left are the
-// community's own descriptive names, which neither of the file's lists
-// gives: "LandKing Hall" where the script says "Land King Hall" and the
-// editor "LKH", "Mining camp" [sic] against "Mining Camp", and so on. Keyed
-// by map number.
-const ZONES = {0:"Nowhere",3:"LandKing Hall",5:"Farmhouse Cellar",7:"Under Catamarca",9:"UrSylph's Prison",
-11:"Maayti Ruins",16:"Land's End Volcano",17:"Charax's House",18:"North Shore Vineyard",20:"Southland Vineyard",
-22:"Goat Farm",24:"Mining camp",30:"Under Abydos",31:"Inner Brotherhood",32:"Bandit Camp",33:"Brotherhood Dungeon",
-36:"Tavara Fort",37:"Tavara No Fort"};
-for (const k of Object.keys(ZONES)) { const n = +k; RESHINTS[0x8000+n]=ZONES[n]; RESHINTS[0x8100+n]=ZONES[n]; RESHINTS[0x1400+n]=ZONES[n]; }
+// Zone names are the map's entry script's (loadZoneNames) and the editor's
+// list in the resource fork (loadEditorZoneNames). The community's
+// descriptive names for eighteen maps stood here behind the names switch
+// until 23 September 2026 and went with the other typed names; one of them,
+// "Goat Farm", is the map the editor calls "Flax Farm".
 // Distinguish a name we read out of the archive from one supplied by our own
 // built-in tables, so a hardcoded guess is never mistaken for game data.
 // Zone names are not a lookup table anywhere -- they are string literals
@@ -304,10 +305,7 @@ DERIVED.ZONE_NAMES = null;
    names (LKH / Land King Hall, Catamarca Springs / the underground under
    Catamarca, Cademia Sewers / Sewers, and so on down the list).
 
-   These replace the ZONES table above wherever the fork is open: the table
-   is the same list as the community wrote it down, and this is the game's
-   own copy, so a label drawn from it is data rather than a built-in. The
-   script name still leads where there is one; the editor's name is shown
+   The script name still leads where there is one; the editor's name is shown
    beside it when it differs. */
 DERIVED.EDITOR_ZONE_NAMES = null;
 function loadEditorZoneNames() {
@@ -465,10 +463,10 @@ function residLink(resid, text) {
     ');return false">' + (text || '0x' + hex) + '</a>';
 }
 
-// Names this tool supplies rather than reads. RESOURCE_LABELS, RESHINTS, the
-// ZONES fallbacks, TILE_SHEET_HINTS and the character-name
-// fallback are all hand-identified from the wiki -- good guesses, but guesses,
-// and they used to be indistinguishable from the archive's own strings except
+// Names this tool supplies rather than reads. Since 23 September 2026 that is
+// RESHINTS alone, the descriptions of the data tables; the wiki's and the
+// community's labels for sounds, pictures, tile sheets, zones, portraits,
+// prop types and dialogue groups went at the maintainer's word. They used to be indistinguishable from the archive's own strings except
 // for a dagger nobody reads. They were off by default until 6 September
 // 2026 and are on by default since (the maintainer's call: one name per
 // place); switched from the archive menu, and with them off the gallery
@@ -517,18 +515,15 @@ function labelForUnnormalized(resid) {
   try { const sn = dvmScriptName(resid); if (sn) return sn; } catch (e) { quiet(e); }
   const subn = Math.floor(resid / 0x100) - 1;
   const n = resid % 0x100;
-  if (window.SHOW_BUILTIN_LABELS) {
-    if (RESOURCE_LABELS[resid]) return RESOURCE_LABELS[resid];
-    if (RESHINTS[resid]) return RESHINTS[resid];
-  }
+  if (window.SHOW_BUILTIN_LABELS && RESHINTS[resid]) return RESHINTS[resid];
   const structural = labelForResource(subn, n, resid);
   if (structural) return structural;
   // 0x8EFF is IN the tile-sheet subindex but is not a tile sheet: it is the
   // sized 194x127 tombstone slab (see tileSheetIsSized). Say so where it is
   // listed, so nobody reads it as sixteen tiles.
   if (resid === 0x8EFF) return 'Tombstone Slab, a sized image, not a tile sheet';
-  if (subn === 141) return (window.SHOW_BUILTIN_LABELS && TILE_SHEET_HINTS[n]) || ('Tile Sheet ' + n);
-  if (subn === 142) return 'General Graphic ' + n;
+  if (subn === 141) { const w = tileSheetWords(n); return 'Tile Sheet ' + n + (w ? ': ' + w : ''); }
+  if (subn === 142) { const w = pictureWords(resid); return 'General Graphic ' + n + (w ? ': ' + w : ''); }
   if (subn === 144) return 'Sound ' + n;
   return null;
 }

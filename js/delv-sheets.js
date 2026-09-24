@@ -187,7 +187,7 @@ function talkMechSection() {
     '<td class="mechSub">' + svEsc(s.who.slice(0, 5).map(c => c.name).join(', ') +
       (s.who.length > 5 ? ', and ' + (s.who.length - 5) + ' more' : '')) + '</td></tr>');
   return mechSectionEl('talk', 'Who answers as whom', null, '',
-    cv.chars.length ? 'A character answers with their own topics and then falls through to a generic set: Naxos answers as House Comana, then as Cademia, then as Human. The chain is read out of the catch-all entry of each conversation, and the groups are the archive’s own.'
+    cv.chars.length ? 'A character answers with their own topics and then falls through to a generic set: Naxos answers as 0x804, then as 0x80E, then as 0x801. The chain is read out of the catch-all entry of each conversation, and the groups are the archive’s own.'
                     : 'No conversation in this archive.',
     cv.chars.length ? [
       '<b>' + cv.chars.length + ' characters</b> hold <b>' + topics + ' topics</b> between them, of which <b>' + deeper + '</b> open further topics of their own.',

@@ -2373,7 +2373,7 @@ function renderMechanicsSheet(value) {
       const twice = costs.filter(c => c.routine.name.startsWith(base + '(')).length > 1;
       return { method: method + (twice && p >= 0 ? r.name.slice(p) : ''), cls: cut >= 0 ? base.slice(0, cut) : '' };
     };
-    const flagWords = (bit) => { const f = clk && clk.statusWord ? exeFlagOfStatusBit(bit, clk.statusWord.v) : null; return f ? ' (flag ' + srcNum(f) + (DVM_FLAG_NAMES[f.v] ? ', ' + svEsc(DVM_FLAG_NAMES[f.v]) + ' to the scripts' : '') + ')' : ''; };
+    const flagWords = (bit) => { const f = clk && clk.statusWord ? exeFlagOfStatusBit(bit, clk.statusWord.v) : null; return f ? ' (flag ' + srcNum(f) + (dvmFlagName(f.v) ? ', ' + svEsc(dvmFlagName(f.v)) : '') + ')' : ''; };
     add('clock', 'The clock, poison and time', null, '',
       model ? 'The game keeps one clock, a word the application counts in units of <b>1/' + srcNum(clk.unitsPerHour) + ' of an hour</b>, the hour being the word shifted right by ' + srcNum(clk.hourShift) + '.' +
           (clk.day ? ' ' + srcNum(clk.day, clk.day.v / perHour) + ' hours make a day, when the word rolls over.' : '') + ' Every duration a script hands the engine is in these units.'
@@ -2401,9 +2401,9 @@ function renderMechanicsSheet(value) {
       tn ? [
         swamp ? 'On <b>swamp</b> (codes ' + srcNum(swamp.from) + ' to ' + srcNum(swamp.to) + '), one step in ' + srcNum(swamp.chance ? swamp.chance.is : null, swamp.chance ? (swamp.chance.hi.v - swamp.chance.lo.v) : '') +
           ' brings “' + svEsc(swamp.says) + '”, ' + (swamp.poisonName ? svEsc(swamp.poisonName) : 'a status') + ' and ' + srcNum(swamp.damage) + ' damage of type ' + srcNum(swamp.type) + '.' +
-          (swamp.flagName ? ' A character with <b>' + svEsc(swamp.flagName) + '</b> (' + srcNum(swamp.flag) + ') is not bitten' + (wearers(swamp.flag.v) ? ', which is what ' + wearers(swamp.flag.v) + ' give' : '') + ', and neither is a monster immune to it.' : '') : '',
+          (swamp.flag ? ' A character with ' + (swamp.flagName ? '<b>' + svEsc(swamp.flagName) + '</b> (flag ' + srcNum(swamp.flag) + ')' : 'flag ' + srcNum(swamp.flag)) + ' is not bitten' + (wearers(swamp.flag.v) ? ', which is what ' + wearers(swamp.flag.v) + ' give' : '') + ', and neither is a monster immune to it.' : '') : '',
         lava ? 'On <b>lava</b> (code ' + srcNum(lava.code) + '), every step brings “' + svEsc(lava.says) + '” and <b>' + srcNum(lava.plus, rollWords([lava.roll.lo.v, lava.roll.hi.v]).replace('a roll of ', '') + ' plus ' + lava.plus.v) + '</b> damage of type ' + srcNum(lava.type) + '.' +
-          (lava.flagName ? ' A character with <b>' + svEsc(lava.flagName) + '</b> (' + srcNum(lava.flag) + ') takes none' + (wearers(lava.flag.v) ? ', which ' + wearers(lava.flag.v) + ' give' : '') + '.' : '') : '',
+          (lava.flag ? ' A character with ' + (lava.flagName ? '<b>' + svEsc(lava.flagName) + '</b> (flag ' + srcNum(lava.flag) + ')' : 'flag ' + srcNum(lava.flag)) + ' takes none' + (wearers(lava.flag.v) ? ', which ' + wearers(lava.flag.v) + ' give' : '') + '.' : '') : '',
         'Both hand the damage straight to the thing’s TakeDamage, not through the resistance step a blow takes, so armour takes nothing off either.'
       ].filter(Boolean) : [], '', '');
   }
@@ -2538,18 +2538,18 @@ function renderMechanicsSheet(value) {
     };
     const place = f => { const p = characterFlagPlace(f); return p ? srcNum(p.offset, (p.word ? 'halfword' : 'byte') + ' +' + p.offset.v) + ', bit ' + p.bit : ''; };
     const flags = new Set(cf.flags.map(f => f.flag));
-    for (const k of Object.keys(DVM_FLAG_NAMES)) flags.add(+k);
+    DVM_OBJECT_FLAGS.forEach((n, i) => flags.add(8 + i));
     const rows = [...flags].sort((a, b) => a - b).map(f => {
       const s = cf.flags.find(x => x.flag === f) || { set: [], clear: [], test: [], effect: [] };
-      return '<tr>' + num(f) + '<td>' + (DVM_FLAG_NAMES[f] ? svEsc(DVM_FLAG_NAMES[f]) : '') + '</td><td>' + place(f) + '</td>' +
+      return '<tr>' + num(f) + '<td>' + (dvmFlagName(f) ? svEsc(dvmFlagName(f)) : '') + '</td><td>' + place(f) + '</td>' +
         cell(s.set) + cell(s.clear) + cell(s.test) + cell(s.effect) + '</tr>';
     });
     add('charflags', 'The character flags', null, src('set', 0xF00) + src('clear', 0xF01) + src('test', 0xF02),
-      'A character record carries a flag word that the scripts set, clear and test by number: poison, sleep, fear, the lava protection Eioneus’s dialogue grants. The numbers are the file’s; the names are this page’s, and a flag with no name is one nothing here has read.',
+      'A character record carries a flag word that the scripts set, clear and test by number: poison, sleep, fear, the lava protection Eioneus’s dialogue grants. The numbers are the file’s, and so are the names: the application’s own list of them, ObjectFlags, names flags 8 to 23. The rest are named nowhere in the files.',
       [
         '<b>' + cf.flags.length + ' flags</b> are reached by a literal number in this archive, through the four syscalls (' + ['SetFlag', 'ClearFlag', 'TestFlag'].map(dvmSyscallShown).join(', ') + ' and ' + dvmSyscallShown('StatusEffect') + ', the character first and the flag second) and the three helpers that wrap them.' + (cf.unknown ? ' ' + cf.unknown + ' site' + (cf.unknown === 1 ? ' passes' : 's pass') + ' a computed flag and ' + (cf.unknown === 1 ? 'is' : 'are') + ' not counted.' : ''),
         appImage() ? 'Where a flag lives is read off ' + pefChip('TSpellFX::AddAbility') + ': flags below 8 are bits of one byte of the record, 8 to 23 bits of a halfword, and the rest of a further byte, each less the number the routine subtracts.' : MECH_NO_APP,
-        'A named flag with no site is one the application sets on its own, or one this page named from the executable rather than from a script.'
+        'A named flag with no site is one the application sets on its own.'
       ],
       table(['#flag', 'name', 'in the record', 'set by', 'cleared by', 'tested by', 'as an effect'], rows));
   }

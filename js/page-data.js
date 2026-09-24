@@ -870,7 +870,7 @@ function renderCheatsSheet() {
       ori: () => { const f = opFact(d => d.mn === 'ori' && d.imm > 0, d => d.imm); return f ? srcNum(f) : '?'; },
       less: () => { const f = opFact(d => d.mn === 'addi' && d.ra === kr.keyReg && d.imm < 0, d => -d.imm); return f ? srcNum(f) : '?'; },
       flip: () => c.flips[0] ? srcNum(c.flips[0], 'here') : '',
-      flag: () => { const k = callOf('AddAbility'); const f = k && k.args[4]; return f ? srcNum(f) + (DVM_FLAG_NAMES[f.v] ? ' (' + svEsc(DVM_FLAG_NAMES[f.v]) + ')' : '') : '?'; },
+      flag: () => { const k = callOf('AddAbility'); const f = k && k.args[4]; return f ? srcNum(f) + (dvmFlagName(f.v) ? ' (' + svEsc(dvmFlagName(f.v)) + ')' : '') : '?'; },
       statusBit: () => {
         const k = callOf('AddAbility'), f = k && k.args[4]; if (!f) return '';
         const m = exeAbilityMap().find(r => r.word && r.below.v > f.v && r.sub.v <= f.v);
@@ -906,7 +906,7 @@ function renderCheatsSheet() {
       broken: () => {
         const k = callOf('AddAbility'), f = k && k.args[4], who = k && k.args[3];
         const test = opFact(d => d.mn === 'lbz' && d.d > 0, d => d.d);
-        return 'Means to toggle flag ' + (f ? srcNum(f) + (DVM_FLAG_NAMES[f.v] ? ', ' + svEsc(DVM_FLAG_NAMES[f.v]) : '') : '?') + '. It tests byte ' + (test ? srcNum(test) : '?') + ' of the first character record and hands ' + x.call('AddAbility') + ' character ' + (who ? srcNum(who) : '?') + ', rather than the player, so it toggles a flag on nobody and does nothing.';
+        return 'Means to toggle flag ' + (f ? srcNum(f) + (dvmFlagName(f.v) ? ', ' + svEsc(dvmFlagName(f.v)) : '') : '?') + '. It tests byte ' + (test ? srcNum(test) : '?') + ' of the first character record and hands ' + x.call('AddAbility') + ' character ' + (who ? srcNum(who) : '?') + ', rather than the player, so it toggles a flag on nobody and does nothing.';
       },
       zstats: () => { const z = exeStringsOf('PrintZStats'); return z.length ? z.map(t => '“' + srcNum(t, t.v.replace(/\n+$/, '')) + '”').join(', ') : 'the build’s statistics'; }
     };

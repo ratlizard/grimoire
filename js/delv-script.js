@@ -220,8 +220,8 @@ function dvmClassName(resid) {
 // these are read off the bytecode, one function each, on 8 September 2026.
 // Every 0x0Fxx script casts its first argument to a Character and does one
 // thing to it; the names say the thing. "status bit n" is a bit of field 20
-// (status_flags); bit 1 is poison by DVM_FLAG_NAMES (flag 9 = 8 + 1), bits
-// 0 and 2 are not named anywhere, so the name says the bit.
+// (status_flags), which the application's ObjectFlags list names (see
+// DVM_OBJECT_FLAGS below): bit 0 IsAlive, 1 IsPoisoned, 2 IsEnhorsed.
 const DVM_SCRIPT_NAMES = {
   0x0F00: 'SetCharacterFlag',       // bit_flags |= 1 << arg
   0x0F01: 'ClearCharacterFlag',     // bit_flags &= ~(1 << arg)
@@ -231,7 +231,7 @@ const DVM_SCRIPT_NAMES = {
   0x0F05: 'HealFully',              // health = full_health
   0x0F06: 'CurePoison',             // status bit 1 cleared
   0x0F07: 'Revive',                 // status bit 0 set, health = full_health
-  0x0F08: 'SetStatusBit2',
+  0x0F08: 'SetEnhorsed',            // status bit 2, ObjectFlags' IsEnhorsed
   0x0F09: 'AddMind',
   0x0F0A: 'AddReflex',
   0x0F0B: 'AddBody',
@@ -239,10 +239,10 @@ const DVM_SCRIPT_NAMES = {
   0x0F0D: 'AddLevel',
   0x0F0E: 'DamageTaken',            // full_health - health
   0x0F0F: 'IsPoisoned',             // status bit 1
-  0x0F10: 'TestStatusBit2',
+  0x0F10: 'IsEnhorsed',             // status bit 2
   0x0F11: 'KarmaDown',
   0x0F12: 'KarmaUp',
-  0x0F13: 'IsMet',                  // bit_flags & 0x40; what FinishCombat asks
+  0x0F13: 'BeenMet',                // bit_flags & 0x40; the AI test BeenMet(@), what FinishCombat asks
   0x0F14: 'NewCarried',             // New(flags 0x1C, type, aspect)
   0x0F15: 'NewEgg',                 // New(flags 0x42, type, kind 9, x, y, arg)
   0x0B00: 'Stub',
@@ -332,23 +332,27 @@ function dvmSym(table, code) {
   return n ? n + ' (0x' + code.toString(16).toUpperCase() + ')' : '0x' + code.toString(16).padStart(2,'0').toUpperCase();
 }
 
-// Character status-flag numbers. These are NOT in delvmod and NOT read from
-// the archive: they were worked out on the Ambrosia board by cross-referencing
-// SetFlag / TestFlag / StatusEffect call sites against item and spell
-// behaviour (Wizard, forum t2432 -- see reference/community/forum-writing/
-// CYTHERA-COMPENDIUM.md, "CHARACTER STATUS FLAGS"). Rings set their flag from
-// the ring's data2 field. Flag 23 is why Eioneus can cross lava: his own
-// dialogue script sets it, which these labels make visible in the decoder.
-// Flag 12, regeneration, is from the executable (5 September 2026): AddAbility
-// maps it to status bit 4, the bit the tick routine reads for one health every
-// six minutes, and the cheat key option-r toggles it.
-// Kept separate from DVM_SYM, whose tables delv_crosscheck.mjs proves against
-// delvmod line by line -- this one has no delvmod counterpart to prove
-// against, so it must not sit inside the oracle-checked object.
-const DVM_FLAG_NAMES = {0:'embrightenment',9:'poison',12:'regeneration',13:'fear',14:'paralysis',
-  17:'charm',18:'vision of night',20:'resist blows',21:'confusion',22:'sleep',
-  23:'fire/lava protection',27:'fear protection',28:'second stronghold visible',
-  29:'ascertainment',31:'swamp-poison protection'};
+/* The character flags by the program's own names (23 September 2026). The
+   application's resource fork carries STR# 9321, titled "ObjectFlags", and the
+   combat AI's test TestFlag(@,1) takes a word of it: EvaluateCondition turns
+   the word's position n (from 1) into bit n-1 of the halfword at byte 6 of
+   the character's record. TSpellFX::AddAbility keeps flags 8 to 23 in that
+   same halfword, bit = flag - 8 (exeAbilityMap), so flag 8 + i is entry i.
+   Flags 0 to 7 (byte 8, the character's own bits: the dialogue scripts set
+   them on themselves, and character 0's three are the Embrightenment
+   spells' light) and 24 to 31 (byte 26) are named nowhere in the files and
+   print as numbers. The list is kept here so a visitor with no application
+   open reads the same names; the installer smoke holds it to STR# 9321 and
+   to AddAbility's map. This replaced a table the Ambrosia board worked out
+   (Wizard, forum t2432), which the maintainer asked on 23 September 2026 to
+   give way to the game's labels: GRIMOIRE-NOTES.md, *The typed names,
+   checked*, has how the two compared. The "Is" the authors put before each
+   is not printed, and the words are spaced at their capitals. */
+const DVM_OBJECT_FLAGS = ["IsAlive","IsPoisoned","IsEnhorsed","IsAngry","IsRegen","IsFear","IsParalyse","IsInvisible","IsXray","IsCharmed","IsNightVision","IsCursed","IsBlessed","IsConfused","IsSleep","IsLavaProof"];
+function dvmFlagName(flag) {
+  const n = DVM_OBJECT_FLAGS[flag - 8];
+  return flag >= 8 && n ? n.replace(/^Is/, '').replace(/([a-z])([A-Z])/g, '$1 $2') : null;
+}
 
 // What an integer operand MEANS, by enclosing syscall and argument position.
 // The signatures come from the board (Pallas Athene, forum t2409: Create is
@@ -364,7 +368,7 @@ const DVM_FLAG_NAMES = {0:'embrightenment',9:'poison',12:'regeneration',13:'fear
 // its unit is not established.
 function dvmAnnotateInt(encl, argIdx, v) {
   if ((encl === 0xC1 || encl === 0xC2 || encl === 0xC3 || encl === 0xC4) && argIdx === 1)
-    return DVM_FLAG_NAMES[v] ? 'flag: ' + DVM_FLAG_NAMES[v] : null;
+    return dvmFlagName(v) ? 'flag: ' + dvmFlagName(v) : null;
   if (encl === 0xBF && argIdx === 1) {
     try {
       if (typeof zoneportInfo === 'function') {

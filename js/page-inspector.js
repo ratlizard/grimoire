@@ -632,7 +632,7 @@ function buildContainerView(rec, contents) {
       box.style.minHeight = Math.min(190, Math.round(d.H * 0.62)) + 'px';
     }
   } catch (e) { quiet(e); }
-  const label = RESOURCE_LABELS[rid] || labelFor(rid) || '';
+  const label = labelFor(rid) || '';
   const items = document.createElement('div');
   items.className = 'zrItems';
   const tiles = getPropTileList();

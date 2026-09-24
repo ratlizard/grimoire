@@ -769,9 +769,9 @@ function effectSummary(entry) {
     if (/set_field nutrition/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); if (m) out.push({ text: 'nutrition set to ' + parseInt(m[1]), src: at(i), field: 'nutrition', set: parseInt(m[1]) }); }
     else if (/set_field health/.test(l)) { const m = /byte (0x[0-9A-F]+)[\s\S]*?add[\s\S]*?sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(next); out.push({ text: m ? 'health +' + parseInt(m[1]) + ' plus ' + rollWords([parseInt(m[2]), parseInt(m[3])]) : 'health changed', src: at(i) }); }
     else if (/set_field magic \(/.test(l) && !/full_magic/.test(l)) out.push({ text: 'magic restored', src: at(i) });
-    else if (/sys ClearFlag/.test(l)) { const m = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || ''); if (m) out.push({ text: 'clears ' + m[1].trim(), src: at(i) }); }
+    else if (/sys ClearFlag/.test(l)) { const m = /flag: ([A-Za-z\/ -]+)/.exec(lines[i + 2] || ''); if (m) out.push({ text: 'clears ' + m[1].trim(), src: at(i) }); }
     else if (/sys StatusEffect/.test(l)) {
-      const m = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || '');
+      const m = /flag: ([A-Za-z\/ -]+)/.exec(lines[i + 2] || '');
       const c = /byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)\s+sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(lines.slice(i + 3, i + 9).join(' '));
       out.push({ text: (m ? m[1].trim() : 'a status') + (c ? ' for ' + parseInt(c[1]) + ' plus ' + parseInt(c[2]) + ' times ' + rollWords([parseInt(c[3]), parseInt(c[4])]) : ''), src: at(i) });
     }
@@ -853,7 +853,7 @@ function foodRules() {
 }
 
 /* STATUS EFFECTS. Every StatusEffect call, by flag -- the disassembler
-   names the flags (DVM_FLAG_NAMES) -- with the duration the call gives and
+   names the flags (dvmFlagName) -- with the duration the call gives and
    who gives it: a spell, a trap, a potion, a place. And every ClearFlag,
    which is what cures. The unit of a duration is the engine's; only the
    numbers are the scripts'. */
@@ -864,7 +864,7 @@ function statusRules() {
     for (let i = 0; i < lines.length; i++) {
       const l = lines[i];
       if (/sys StatusEffect/.test(l)) {
-        const f = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || '');
+        const f = /flag: ([A-Za-z\/ -]+)/.exec(lines[i + 2] || '');
         const nm = f ? f[1].trim() : (/byte (0x[0-9A-F]+)/i.exec(lines[i + 2] || '') ? 'flag ' + parseInt(/byte (0x[0-9A-F]+)/i.exec(lines[i + 2])[1]) : 'a status');
         const d = /(?:word|short|byte) (0x[0-9A-F]+|\d+)/i.exec(lines[i + 3] || '');
         // A duration with a roll in it is reported as computed, not as its base.
@@ -873,7 +873,7 @@ function statusRules() {
         applies.get(nm).push({ resid: e.resid, duration: dur, durationVal: dur !== null ? dvmValAtLine(e, i + 3) : null,
                                at: (dvmOpAtLine(e, i) || {}).at });
       } else if (/sys ClearFlag/.test(l)) {
-        const f = /flag: ([a-z\/ -]+)/.exec(lines[i + 2] || '');
+        const f = /flag: ([A-Za-z\/ -]+)/.exec(lines[i + 2] || '');
         if (!f) continue;
         const nm = f[1].trim();
         if (!cures.has(nm)) cures.set(nm, new Set());
@@ -1686,7 +1686,7 @@ function terrainRules() {
   if (!e) return null;
   const ops = dvmOpsOf(e);
   const val = op => dvmVal(0x301F, op);
-  const flagName = op => (op && /flag: ([a-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
+  const flagName = op => (op && /flag: ([A-Za-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
   // The swamp: a code between two bounds, a flag, an immunity, a roll.
   const band = dvmSeqFirst(ops, [DVM_NUM, /^arg Arg01$/, /^le$/, /^arg Arg01$/, DVM_NUM, /^le$/, /^and$/]);
   const guard = k => dvmSeqFirst(ops, [/^sys TestFlag$/, /^arg Arg00$/, DVM_NUM, /^end$/, /^not$/], k);
@@ -1737,7 +1737,7 @@ function springRules() {
   if (!e) return null;
   const ops = dvmOpsOf(e);
   const val = op => dvmVal(0x1036, op);
-  const flagName = op => (op && /flag: ([a-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
+  const flagName = op => (op && /flag: ([A-Za-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
   // Each kind's test: `if_not (the Data1 local == n)`, in the order written.
   const tests = dvmSeqAll(ops, [/^if_not$/, /^local Var00$/, DVM_NUM, /^eq$/]).map(g => ({ at: ops.indexOf(g[0]), kind: dvmNum(g[2]), val: val(g[2]) }));
   if (!tests.length) return null;
@@ -1804,7 +1804,7 @@ function chanceCures() {
     if (!g) continue;
     const clear = dvmSeqFirst(ops, [/^sys ClearFlag$/, /^local Var\w+$/, DVM_NUM], ops.indexOf(g[10]));
     if (!clear) continue;
-    const flag = (/flag: ([a-z\/ -]+)/.exec(g[2].note || '') || [])[1] || null;
+    const flag = (/flag: ([A-Za-z\/ -]+)/.exec(g[2].note || '') || [])[1] || null;
     const pt = e.resid >= 0x1000 && e.resid < 0x1200 ? e.resid - 0x1000 : null;
     out.push({ resid: e.resid, pt, name: pt !== null ? (propDisplayName(pt) || ('prop 0x' + pt.toString(16))) : (labelFor(e.resid) || ''),
                flag, lo: dvmVal(e.resid, g[5]), hi: dvmVal(e.resid, g[6]), is: dvmVal(e.resid, g[8]) });
@@ -1830,7 +1830,7 @@ function grantRules() {
       const sets = dvmSeqAll(mine, [/^sys SetFlag$/, /^arg Arg\d+$/, DVM_NUM]).map(g => g[2]);
       if (!sets.length) continue;
       for (const op of sets) {
-        const name = (/flag: ([a-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
+        const name = (/flag: ([A-Za-z\/ -]+)/.exec(op.note || '') || [])[1] || null;
         // The method that takes it away again, where the class has one: the
         // same flag cleared in another of its methods. Without this the page
         // would have to say "while worn" on faith.
@@ -2004,8 +2004,8 @@ function eggDetail(g, allProps, linked) {
   if (g.aspect === 3) {
     const rid = 0x9100 + g.proptype;
     const nm = refExists(rid) ? labelFor(rid) : null;
-    return nm ? 'the sound of ' + one(String(nm).toLowerCase(), 'jumpToResource(' + rid + ')')
-              : 'an ambient sound, ' + one(propWordHex(rid), refExists(rid) ? 'jumpToResource(' + rid + ')' : null);
+    return 'an ambient sound, ' + (nm ? one(String(nm).replace(/^Sound /, 'sound '), 'jumpToResource(' + rid + ')')
+                                      : one(propWordHex(rid), refExists(rid) ? 'jumpToResource(' + rid + ')' : null));
   }
   if (g.aspect === 0) {
     /* What sets it off, which the line did not say (the maintainer,
@@ -4529,8 +4529,8 @@ function exeMonsterStatCopy() {
    character first and the flag second -- SetFlag, ClearFlag, TestFlag and
    StatusEffect -- and through the three 0x0Fxx helpers that wrap the first
    three. Every site with a literal flag is counted here, by flag and by
-   verb, with its offset, so the names in DVM_FLAG_NAMES (this page's) stand
-   beside the sites (the file's). */
+   verb, with its offset, so the program's names (dvmFlagName) stand beside
+   the sites. */
 function characterFlagSites() {
   if (DERIVED.CHAR_FLAG_SITES) return DERIVED.CHAR_FLAG_SITES;
   const by = new Map();

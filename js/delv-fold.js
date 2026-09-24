@@ -333,10 +333,10 @@ function dvmFoldCall(n, ctx) {
  *
  * ONLY WHAT THE FILES SAY. The maintainer's rule of 22 September 2026: a name
  * here is computed from the game's data or code, never typed in. The page
- * carries hand-made tables beside the file's names -- the Ambrosia board's
- * status flag names (DVM_FLAG_NAMES), the wiki's sound labels and prop types
- * (RESOURCE_LABELS, PROP_TYPE_NAMES), helper names an earlier session wrote
- * after reading their bytecode (DVM_SCRIPT_NAMES) -- and none of them is
+ * carried hand-made tables beside the file's names -- the Ambrosia board's
+ * status flag names, the wiki's sound labels and prop types, which went on
+ * 23 September 2026 -- and still carries helper names an earlier session
+ * wrote after reading their bytecode (DVM_SCRIPT_NAMES); none of them is
  * used for these listings. The first version of this, the same day, used
  * several, and was taken out. What is used:
  *   - a To Do line: AddQuest's text reference read in the array it points

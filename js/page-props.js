@@ -22,8 +22,10 @@
 // two the file does not say: "obols", where 0xF004 has "obol", and the wiki
 // scrape's "[LandKing](LandKing) Amulet" [sic], where it has "LandKing
 // Amulet". The file names no prop type the table did not, so taking the
-// file's name first changed no classification (propTypeName).
-const PROP_TYPE_NAMES = {130:"obols",244:"[LandKing](LandKing) Amulet"};
+// file's name first changed no classification (propTypeName). Those two went
+// on 23 September 2026 with the other typed names (the maintainer's call):
+// the table is empty, and kept so the paths that read it stay one shape.
+const PROP_TYPE_NAMES = {};
 
 // Which prop types are inhabited: any type used by a record in the character
 // table is somebody rather than something. Read from 0xF009, not guessed from

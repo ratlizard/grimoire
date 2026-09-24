@@ -115,7 +115,7 @@ const SUBINDEX_PURPOSE = {
   2:   ['Global store', '0x301 is a four-entry array the innkeepers’ scripts read and write through far words (the inn qualities). 0x33F is four bytes nothing references.'],
   3:   ['AI combat scripts', 'Named behaviour routines -- Attack Nearest, Defend, Beserk, Healer. Stored in the clear as a Pascal name plus a body that is NOT VM bytecode.'],
   4:   ['Archetypes', '0x501 is the nine starting archetypes, in the order 0x203 names them (Explorer, Fighter, Swordsman, Beserker [sic], Mage, Wizard, Mystic, Storyteller, Rogue) and 0x204 describes them: each an array of body, reflex and mind, then the starting skills as skill number plus 1,024 times the level, a level of 0 being an aptitude. The character creation dialog reads it. 0x500 and 0x540 are zero bytes.'],
-  7:   ['Group dialogue', 'Generic dialogue for factions and groups, such as House Comana.'],
+  7:   ['Group dialogue', 'Generic dialogue shared by a faction or a place.'],
   8:   ['Combat AI tests and actions', 'The scripted half of the combat AI’s vocabulary: six tests at 0x901 and thirteen actions at 0x981, in the order of the application’s own lists (STR# 9307 and 9308), which name them when the application is open. Compiled .ai rules call them; four dialogues call two directly.'],
   9:   ['Effect scripts', 'Effects of eating, and possibly of spells and potions.'],
   10:  ['Stub', 'One seven-byte function returning 0. Nothing in the archive or the application refers to it.'],
@@ -661,13 +661,6 @@ function namedThingsMatching(re) {
     tl.push(actionChip(nm, 'showSpriteZoom(' + t + ', ' + JSON.stringify(nm) + ')', 'tile 0x' + t.toString(16).toUpperCase()));
   }
   if (tl.length) groups.push(['Tiles', tl]);
-  const res = [];
-  for (const k of Object.keys(RESOURCE_LABELS)) {
-    if (res.length >= cap) break;
-    const rid = Number(k);
-    if (re.test(RESOURCE_LABELS[k]) && refExists(rid)) res.push(svChip(rid));
-  }
-  if (res.length) groups.push(['Resources', res]);
   if (!groups.length) return '';
   return groups.map(([t, c]) => partsStrip(t, c)).join('') + '<div style="height:8px"></div>';
 }

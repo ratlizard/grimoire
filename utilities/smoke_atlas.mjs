@@ -64,10 +64,10 @@ try {
   const chips = (wrap.innerHTML.match(/convKw/g) || []).length;
   if (cards < 10) fail('conversation', `Naxos rendered ${cards} topic cards, expected 12`);
   if (chips < 10) fail('conversation', 'keyword chips missing');
-  if (!/House Comana/.test(wrap.innerHTML)) fail('conversation', 'inheritance chain chips missing');
+  if (!/>0x804<\/button>/.test(wrap.innerHTML)) fail('conversation', 'inheritance chain chips missing');
   if (!/convLink/.test(wrap.innerHTML)) fail('conversation', '@keyword links missing');
   ctx.jumpToResource(0x801);                      // the Human archetype
-  if (!/Generic <b>Human<\/b>/.test(REGISTRY.get('dlgWrap').innerHTML))
+  if (!/Generic prompts/.test(REGISTRY.get('dlgWrap').innerHTML))
     fail('conversation', 'the Human generic-prompt page did not render as a conversation');
   const found = ctx.convFindEntry(ctx.conversationFor(0x801).entries, 'Alaric');
   if (!found) fail('conversation', 'four-letter prefix lookup found nothing for "Alaric"');
