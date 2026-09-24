@@ -2045,11 +2045,52 @@ function convPromptHtml(e) {
   }).join(' ');
 }
 
+/* What a prompt's answer depends on, as the Read view says it: for each
+   "when asked about" clause of the conversation's Read (dvmReadRender), the
+   conditions of the ifs inside it, down to but not into a nested prompt,
+   which is a card of its own. Keyed by the prompt's offset, which the Read
+   clause and the conversation entry share. Until 24 September 2026 a card
+   said only which tests it called ("depends on: GetQV"), and missed a test
+   made through a helper altogether: Aethon's "demo" asks 0xF13 whether
+   Demodocus has been met and its card said nothing. */
+function convReadConds(resid) {
+  if (!DERIVED.CONV_READ_CONDS) DERIVED.CONV_READ_CONDS = new Map();
+  if (DERIVED.CONV_READ_CONDS.has(resid)) return DERIVED.CONV_READ_CONDS.get(resid);
+  const out = new Map();
+  try {
+    const raw = getResourceBytes(ARCHIVE, resid);
+    const fns = raw ? dvmReadRender(ARCHIVE, smartDecrypt(raw, resid).data, resid) : [];
+    const conds = (kids, into) => {
+      for (const c of kids || []) {
+        if (/^when asked about /.test(c.text)) continue;
+        const m = /^(?:otherwise )?if (.*?):(?: .*)?$/.exec(c.text);
+        if (m && into.indexOf(m[1]) < 0) into.push(m[1]);
+        conds(c.kids, into);
+      }
+    };
+    const walk = cl => {
+      for (const c of cl || []) {
+        if (/^when asked about /.test(c.text) && c.at != null) { const into = []; conds(c.kids, into); if (into.length) out.set(c.at, into); }
+        walk(c.kids);
+      }
+    };
+    for (const f of fns) walk(f.clauses);
+  } catch (err) { quiet(err, 'reading a conversation\u2019s conditions'); }
+  DERIVED.CONV_READ_CONDS.set(resid, out);
+  return out;
+}
 function convCardHtml(resid, e, depth) {
   const kws = convPromptHtml(e);
   const badges = [];
-  if (e.conds.length) badges.push('depends on: ' + e.conds.map(dvmSyscallShown).join(', '));
-  for (const a of e.actions) { const b = convBadgeFor(a); if (b) badges.push(b); }
+  const said = e.kw === '*' ? null : convReadConds(resid).get(e.at);
+  if (said) for (const c of said.slice(0, 3)) badges.push('if ' + c);
+  else if (e.conds.length) badges.push('depends on: ' + e.conds.map(dvmSyscallShown).join(', '));
+  // A character helper (0xF00 up) the condition already reads through is
+  // not said a second time as a call.
+  for (const a of e.actions) {
+    if (said && a.call !== undefined && (a.call >> 8) === 0x0F) continue;
+    const b = convBadgeFor(a); if (b) badges.push(b);
+  }
   let html = '<div class="convCard' + (depth ? ' convSub' : '') + '" id="conv-' + resid + '-' + e.at + '">' +
     kws + badges.map(b => '<span class="convBadge">' + svEsc(b) + '</span>').join('') +
     convTextHtml(resid, e);
