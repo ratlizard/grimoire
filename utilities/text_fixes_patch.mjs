@@ -12,8 +12,7 @@
    What is deliberately NOT here: the community's own 161 dialogue typos
    (a patch of their own, from their collection), "Beserk" and "celstial"
    and the rest of the application's strings (a Magpie patch cannot reach
-   them), "Ariethous"/"Areithous" (the name table and the dialogue disagree
-   and which is meant is not settled), and "Two-Taled Rat", which the
+   them), and "Two-Taled Rat", which the
    maintainer confirms is the inn's name: the three "Two Tailed" in the
    Cademia directions are the slip and are fixed the other way. */
 import {buildPatch} from './patch_build.mjs';
@@ -111,6 +110,33 @@ const textEdits = [
   T('Cademia, "Opheltuis"', 0x080E, 'Opheltuis', 'Opheltius', 1),
   T('the mine, "He\'s quarters"', 0x0811, "He's quarters are", 'His quarters are', 1),
   T('the general group, Pnyx’s coast', 0x0801, 'on the eastern coast of Cythera', 'on the western coast of Cythera', 1),
+  // Areithous: the Hintbook spells him so, twice, as do his own "I'm called
+  // Areithous", Laodice's three, the Kosha group and the community; the
+  // name table, Atreus and one of Laodice's are the odd ones out (settled
+  // 24 September 2026).
+  T('the name table, "Ariethous"', 0x0201, 'Ariethous', 'Areithous', 1),
+  T('Atreus, "Ariethous"', 0x1810, 'Ariethous', 'Areithous', 1),
+  T('Laodice, "Ariethous"', 0x1813, 'Ariethous', 'Areithous', 1),
+  // Meleager: a typo the collection mis-transcribed ("I am use to"), placed
+  // by hand; the same edit takes its "travelling".
+  T('Meleager, "use to travelling"', 0x1822, "I'm use to travelling", "I'm used to traveling", 1),
+  // British spellings in a game whose text, and whose Hintbook ("traveling",
+  // "Terrorization"), are otherwise American: changed to American, leaving
+  // the quoted passages in the books ("many colours", "shall be burnt") as
+  // their authors wrote them.
+  T('"travelling"', 0x0801, 'travelling', 'traveling', 1),
+  T('"travelling"', 0x1805, 'travelling', 'traveling', 1),
+  T('"travelling"', 0x186D, 'travelling', 'traveling', 2),
+  T('"traveller"', 0x021D, 'traveller', 'traveler'),
+  T('"traveller"', 0x0813, 'traveller', 'traveler', 1),
+  T('"judgement"', 0x021B, 'judgement', 'judgment'),
+  T('"judgement"', 0x1801, 'judgement', 'judgment'),
+  T('"judgement"', 0x1848, 'judgement', 'judgment', 1),
+  T('"saviour"', 0x0240, 'saviour', 'savior', 1),
+  T('"saviour"', 0x1864, 'saviour', 'savior', 1),
+  T('"Terrorisation"', 0x1A0E, 'Terrorisation', 'Terrorization', 1),
+  T('"Mass Terrorisation"', 0x1A26, 'Terrorisation', 'Terrorization', 1),
+  T('"grey slime"', 0x021D, 'grey slime', 'gray slime', 1),
   // tab bytes
   { ...T('Tavara’s tabs', 0x1CC3, '\t', '', 10), mid: true },
   { ...T('a rumour’s tab', 0x0813, '\t', '', 1), mid: true },

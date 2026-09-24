@@ -41,7 +41,7 @@ const LEAVE = new Set(['travelling', '@travelling', 'Two-Taled', 'Ariethous',
 const LEAVE_IN = new Set(['Its|Emesa', 'Its|Generic Land King Hall', "He's|Generic Iron Mine", "He's|Eurybates"]);
 // Where the collection's fix is itself wrong: "Perhaps I'm not strong
 // enough" is the device, so "it's", not the collection's "its".
-const OVERRIDE = { "I'm|its": "it's" };
+const OVERRIDE = { "I'm|its": "it's", 'endevour|endeavour': 'endeavor' };   // the game's text is American (the Hintbook: "traveling", "Terrorization")
 
 // Every pair, with the words around it in the game's own wording.
 const files = [];
