@@ -16,11 +16,51 @@
    maintainer confirms is the inn's name: the three "Two Tailed" in the
    Cademia directions are the slip and are fixed the other way. */
 import {buildPatch} from './patch_build.mjs';
-const [htmlPath = 'index.html', dataPath, outDir] = process.argv.slice(2);
-if (!dataPath || !outDir) { console.error('usage: text_fixes_patch.mjs index.html <Cythera Data.data> <out dir>'); process.exit(2); }
+import {fileURLToPath} from 'node:url';
 
-const T = (what, resid, find, replace, count) => ({ what, resid, find, replace, ...(count !== undefined ? { count } : {}) });
-const textEdits = [
+export const T = (what, resid, find, replace, count) => ({ what, resid, find, replace, ...(count !== undefined ? { count } : {}) });
+/* The edits, for either spelling. `uk` keeps the game's British forms and
+   turns its American ones British instead (the "UK English" variant, 24
+   September 2026, at the maintainer's word); otherwise the British forms go
+   American as the Hintbook has them. Everything else is the same list. */
+export function textFixEdits({ uk = false } = {}) {
+  const AMERICAN = [
+  // British spellings in a game whose text, and whose Hintbook ("traveling",
+  // "Terrorization"), are otherwise American: changed to American, leaving
+  // the quoted passages in the books ("many colours", "shall be burnt") as
+  // their authors wrote them.
+  T('"travelling"', 0x0801, 'travelling', 'traveling', 1),
+  T('"travelling"', 0x1805, 'travelling', 'traveling', 1),
+  T('"travelling"', 0x186D, 'travelling', 'traveling', 2),
+  T('"traveller"', 0x021D, 'traveller', 'traveler'),
+  T('"traveller"', 0x0813, 'traveller', 'traveler', 1),
+  T('"judgement"', 0x021B, 'judgement', 'judgment'),
+  T('"judgement"', 0x1801, 'judgement', 'judgment'),
+  T('"judgement"', 0x1848, 'judgement', 'judgment', 1),
+  T('"saviour"', 0x0240, 'saviour', 'savior', 1),
+  T('"saviour"', 0x1864, 'saviour', 'savior', 1),
+  T('"Terrorisation"', 0x1A0E, 'Terrorisation', 'Terrorization', 1),
+  T('"Mass Terrorisation"', 0x1A26, 'Terrorisation', 'Terrorization', 1),
+  T('"grey slime"', 0x021D, 'grey slime', 'gray slime', 1),
+  ];
+  // Both cases of a stem; a form that may not occur is allowed to match nothing.
+  const both = (what, resid, stem, to) => [
+    { ...T(what, resid, stem, to), optional: true },
+    { ...T(what, resid, stem[0].toUpperCase() + stem.slice(1), to[0].toUpperCase() + to.slice(1)), optional: true } ];
+  const UK_STEMS = [['centered', 'centred'], ['honor', 'honour'], ['rumor', 'rumour'], ['favor', 'favour'], ['color', 'colour'], ['savior', 'saviour'],
+    ['gray', 'grey'], ['defense', 'defence'], ['offense', 'offence'], ['center', 'centre'], ['odor', 'odour'],
+    ['artifact', 'artefact'], ['mommy', 'mummy'], ['recogniz', 'recognis'], ['organiz', 'organis'], ['specializ', 'specialis'],
+    ['neutraliz', 'neutralis'], ['harmoniz', 'harmonis'], ['realiz', 'realis'], ['paralyz', 'paralys'], ['fiber', 'fibre'],
+    ['plow', 'plough'], ['mold', 'mould'], ['sulfur', 'sulphur'], ['armor', 'armour']];
+  const UK = [];
+  for (const [s, to] of UK_STEMS) UK.push(...both('UK "' + s + '"', null, s, to));
+  // Niobe's keywords answer "mom" and "momm"; with her "@mommy" now "@mummy" they follow it.
+  UK.push(T('Niobe\u2019s keywords "mom,momm"', 0x1859, 'mom,momm', 'mum,mumm', 1));
+  const meleager = uk ? T('Meleager, "use to travelling"', 0x1822, "I'm use to travelling", "I'm used to travelling", 1)
+                      : T('Meleager, "use to travelling"', 0x1822, "I'm use to travelling", "I'm used to traveling", 1);
+  return [...BASE, meleager, ...(uk ? UK : AMERICAN)];
+}
+const BASE = [
   // dialogue
   T('Helen, "Yery"', 0x1858, 'Yery well', 'Very well', 1),
   T('Helen, "daugther"', 0x1858, 'daugther', 'daughter', 1),
@@ -119,24 +159,6 @@ const textEdits = [
   T('Laodice, "Ariethous"', 0x1813, 'Ariethous', 'Areithous', 1),
   // Meleager: a typo the collection mis-transcribed ("I am use to"), placed
   // by hand; the same edit takes its "travelling".
-  T('Meleager, "use to travelling"', 0x1822, "I'm use to travelling", "I'm used to traveling", 1),
-  // British spellings in a game whose text, and whose Hintbook ("traveling",
-  // "Terrorization"), are otherwise American: changed to American, leaving
-  // the quoted passages in the books ("many colours", "shall be burnt") as
-  // their authors wrote them.
-  T('"travelling"', 0x0801, 'travelling', 'traveling', 1),
-  T('"travelling"', 0x1805, 'travelling', 'traveling', 1),
-  T('"travelling"', 0x186D, 'travelling', 'traveling', 2),
-  T('"traveller"', 0x021D, 'traveller', 'traveler'),
-  T('"traveller"', 0x0813, 'traveller', 'traveler', 1),
-  T('"judgement"', 0x021B, 'judgement', 'judgment'),
-  T('"judgement"', 0x1801, 'judgement', 'judgment'),
-  T('"judgement"', 0x1848, 'judgement', 'judgment', 1),
-  T('"saviour"', 0x0240, 'saviour', 'savior', 1),
-  T('"saviour"', 0x1864, 'saviour', 'savior', 1),
-  T('"Terrorisation"', 0x1A0E, 'Terrorisation', 'Terrorization', 1),
-  T('"Mass Terrorisation"', 0x1A26, 'Terrorisation', 'Terrorization', 1),
-  T('"grey slime"', 0x021D, 'grey slime', 'gray slime', 1),
   // Compound modifiers before a noun, hyphenated as the game does elsewhere
   // ("rat-faced", "round-faced", "wide-eyed", "kind-hearted"): every "X
   // looking", "X faced" and "X eyed" it left open, 46 places.
@@ -223,7 +245,12 @@ const textEdits = [
   { ...T('a rumour’s tab', 0x0813, '\t', '', 1), mid: true },
 ];
 
-const ok = buildPatch({ htmlPath, dataPath, outDir, name: 'Cythera Text Fixes',
-  description: 'Misspellings and slips in Cythera’s text, found by reading every string with Grimoire and reviewed by the maintainer: dialogue, spell and training text, books, the To Do lines, signs and notes, the opening and endings, the Where Is answers, and the tab bytes.',
-  edits: [], dataEdits: [], textEdits });
-process.exit(ok ? 0 : 1);
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  const uk = process.argv.includes('--uk');
+  const [htmlPath = 'index.html', dataPath, outDir] = process.argv.slice(2).filter(a => a !== '--uk');
+  if (!dataPath || !outDir) { console.error('usage: text_fixes_patch.mjs [--uk] index.html <Cythera Data.data> <out dir>'); process.exit(2); }
+  const ok = buildPatch({ htmlPath, dataPath, outDir, name: uk ? 'Cythera Text Fixes (UK English)' : 'Cythera Text Fixes',
+    description: 'Misspellings and slips in Cythera\u2019s text, found by reading every string with Grimoire and reviewed by the maintainer: dialogue, spell and training text, books, the To Do lines, signs and notes, the opening and endings, the Where Is answers, and the tab bytes' + (uk ? '; with the game\u2019s spelling made British throughout.' : '.'),
+    edits: [], dataEdits: [], textEdits: textFixEdits({ uk }) });
+  process.exit(ok ? 0 : 1);
+}

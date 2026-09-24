@@ -16,7 +16,7 @@
              applied, so edits to one resource are applied in the order
              given: put the higher offsets first, or keep the earlier
              edits the same length.
-     textEdits: [{ what, resid, find, replace, count?, mid?, at? }] -- every
+     textEdits: [{ what, resid, find, replace, count?, mid?, at?, optional? }] -- every
              occurrence of the text `find` in the resource (count says how
              many there must be; omitted means at least one) is replaced by
              `replace`, right to left, each through dvmRelink with the new
@@ -95,6 +95,14 @@ export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, des
     // An edit anchored to an offset ('at', in the resource as shipped) is
     // applied after every anchored edit further on in the same resource, so
     // its offset is still where the text is.
+    // resid null: the same edit over every script resource, each allowed
+    // to match nothing (the UK spellings, which are not tied to a place).
+    const NON = new Set([127, 128, 131, 135, 137, 141, 142, 144]);
+    const scriptResids = spec.resources.map(r => r.resid).filter(id => { const si = (id >> 8) - 1; return !NON.has(si) && si !== 3 && ((si >= 0 && si <= 14) || si === 47 || (si >= 15 && si <= 125)); });
+    for (let k = TEXT.length - 1; k >= 0; k--) if (TEXT[k].resid === null) {
+      const e = TEXT[k];
+      TEXT.splice(k, 1, ...scriptResids.map(resid => ({ ...e, resid, optional: true, quiet: true })));
+    }
     TEXT.sort((x, y) => x.resid - y.resid || ((y.at === undefined ? -1 : y.at) - (x.at === undefined ? -1 : x.at)));
     for (const e of TEXT) {
       let b = bytesOf(e.resid);
@@ -108,6 +116,7 @@ export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, des
       // bytes that print as '@' and a digit) out.
       const lower = v => v >= 0x61 && v <= 0x7A;
       const hits = e.at !== undefined ? [e.at] : findAll(b, needle).filter(i => !e.mid || (i > 0 && b[i - 1] === 0x20 && i + needle.length < b.length && lower(b[i + needle.length])));
+      if (!hits.length && e.optional) { if (!e.quiet) log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', 0 places'); continue; }
       if (e.count !== undefined ? hits.length !== e.count : hits.length < 1) throw new Error(e.what + ': "' + e.find + '" found ' + hits.length + ' times in 0x' + e.resid.toString(16) + (e.count !== undefined ? ', not ' + e.count : ''));
       const blocks = dataBlocks(b, e.resid);
       let moved = 0;
