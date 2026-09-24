@@ -352,6 +352,14 @@ function dvmFoldCall(n, ctx) {
  * listing is spelt in -- are the one outside source kept, as they are
  * everywhere else on the site. `ctx.notes` collects the notes while a
  * statement folds; the renderer takes them when it prints the line. */
+// A slot of opcode 0x82, as `local` and `arg` spell it: below 0x30 VarNN,
+// 0x30 to 0x3F ArgNN (TInterp::DoInterpAt stores the second kind in the
+// arguments at the slot less 0x30). Null for anything else.
+function dvmSlotName(bare) {
+  const slot = parseInt(bare, 16);
+  if (!Number.isFinite(slot) || slot < 0 || slot >= 0x40) return null;
+  return (slot < 0x30 ? 'Var' : 'Arg') + (slot < 0x30 ? slot : slot - 0x30).toString(16).toUpperCase().padStart(2, '0');
+}
 function dvmFoldNote(ctx, text) {
   if (ctx && ctx.notes && text && ctx.notes.indexOf(text) < 0) ctx.notes.push(text);
 }
@@ -483,18 +491,15 @@ function dvmFoldStatement(n, ctx) {
     case 'branch': return 'goto ' + ctx.label(bare);
     case 'set_local': {
       /* The operand is a slot in the same numbering the `local` and `arg` ops
-         use: below 0x30 a local, 0x30 and up an argument. The local half is
-         certain and is spelt `VarNN` here. The argument half is NOT: the
-         handoff's own item on `set_local 0x31` says the interpreter's handler
-         for opcode 0x82 has not been read, and 24 scripts use it -- so it is
-         left in the raw spelling, which looks different enough to send a reader
-         to the raw listing rather than quietly asserting a reading nobody has
-         confirmed. */
-      const slot = parseInt(bare, 16);
-      const lhs = (Number.isFinite(slot) && slot < 0x30)
-        ? 'Var' + slot.toString(16).toUpperCase().padStart(2, '0')
-        : 'set_local ' + bare;
-      return lhs + ' = ' + (g[0] || '');
+         use: below 0x30 a local, 0x30 to 0x3F an argument. Read in the
+         interpreter on 23 September 2026: TInterp::DoInterpAt's case for
+         opcode 0x82 evaluates the expression and, for an operand below 48,
+         stores it in the frame's locals at that index, and for 48 to 63 in
+         its arguments at the operand less 48 (the two arrays `local` and
+         `arg` read). So `set_local 0x31` is `Arg01 = ...`. The raw listing
+         keeps delvmod's spelling. */
+      const lhs = dvmSlotName(bare);
+      return (lhs || 'set_local ' + bare) + ' = ' + (g[0] || '');
     }
     case 'set_global': return dvmPlainName(bare) + ' = ' + (g[0] || '');
     case 'set_field': return (g[0] || '') + '.' + bare + ' = ' + (g[1] || '');
@@ -1442,8 +1447,8 @@ function dvmBlocksOf(tree, follow) {
  * (a sound's id, a zoneport's zone, a To Do line, a prop type's name) come
  * along in brackets. The only words this adds are the language's own: if,
  * otherwise, for each, repeat, set, print, return, and the comparisons.
- * Unknowns stay numbers, as in the listings: an argument slot written by
- * `set_local 0x31` is "local 0x31", a flag is its number.
+ * Unknowns stay numbers, as in the listings: a flag with no name in the
+ * program is its number.
  *
  * A conversation's function is its answers, which the Text view lays out
  * whole; here it is one line that says how many it answers.
@@ -1790,8 +1795,8 @@ function dvmSayStatement(n, ctx) {
     case 'print': return 'print ' + (g[0] || '');
     case 'string(implicit)': return 'print ' + dvmBareOperand(n.arg);
     case 'set_local': {
-      const slot = parseInt(bare, 16);
-      const lhs = (Number.isFinite(slot) && slot < 0x30) ? 'Var' + slot.toString(16).toUpperCase().padStart(2, '0') : 'local ' + bare;
+      let lhs = dvmSlotName(bare) || 'local ' + bare;
+      if (lhs === ctx.self) lhs = 'it'; else if (lhs === ctx.target) lhs = 'the target';
       return 'set ' + lhs + ' to ' + (g[0] || '');
     }
     case 'set_global': return 'set ' + dvmSayName(bare) + ' to ' + (g[0] || '');

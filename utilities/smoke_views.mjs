@@ -889,6 +889,11 @@ try {
   else if (!/UseOn\(it, the target\)/.test(read) || !/145 \(sleeping\)/.test(read) || !/readSum">Cast spell FX, play sound, remove ability/i.test(read))
     fail('read view', 'Awaken is not read with "it", the behaviour\'s word or its summary: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 300));
   else if (/readList/.test(back) || !/function UseOn/.test(back)) fail('read view', 'Structured did not bring the listing back');
+  // Opcode 0x82 with an operand of 0x30 up stores an argument
+  // (TInterp::DoInterpAt, read 23 September 2026), so Awaken's cast is an
+  // assignment to Arg01 in the listing and to the target in the Read view.
+  else if (!/Arg01 = Character\(Arg01\)/.test(back.replace(/<[^>]+>/g, '')) || !/set the target to the target as character/i.test(read.replace(/<[^>]+>/g, '')))
+    fail('read view', 'an assignment to an argument is not spelt as one: ' + (/set [^<]{0,80}as character/.exec(read) || [read.slice(read.indexOf('awoken'), read.indexOf('awoken') + 400)])[0]);
   else console.log('  read view: Awaken said in sentences, "it" for what the method belongs to, 145 as sleeping by the game\'s own Look text, a summary at its head; Structured brings the listing back');
 } catch (e) { fail('read view', e); }
 /* A conversation read in full: Aethon's Talk says each answer under the
