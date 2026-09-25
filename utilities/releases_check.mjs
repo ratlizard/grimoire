@@ -62,7 +62,33 @@ const out = ev(`(() => {
   for (const [x, y] of [['1.0.1','1.0.2'], ['1.0.2','1.0.3'], ['1.0.3','1.0.4']]) {
     if (!specs[x] || !specs[y]) { rows.push({pair: x + ' to ' + y, missing: true}); continue; }
     const d = describeDelverDiff(specs[x], specs[y]);
-    rows.push({pair: x + ' to ' + y, changed: d.changed.length, added: d.added.length,
+    // Where in a changed resource the bytes differ. A script resource ends
+    // in its object table, and an entry of that table whose value is None
+    // (0x5000FFFF) has a key half the compiler never set: whatever the
+    // build's buffer held, which differs from build to build. A resource
+    // whose only differences are in those two-byte slots did not change.
+    const A = new Map(specs[x].resources.map(r => [r.resid, r]));
+    const B = new Map(specs[y].resources.map(r => [r.resid, r]));
+    let unsetKeysOnly = 0;
+    const real = [];
+    for (const c of d.changed) {
+      const a = A.get(c.resid).data, b = B.get(c.resid).data;
+      let only = a.length === b.length, toff = null;
+      if (only) { try { toff = dvmDiscover(b, c.resid).tableOffset; } catch (err) { toff = null; } }
+      if (toff === null) only = false;
+      if (only) {
+        const count = ((b[toff] << 8) | b[toff + 1]) & 0x0FFF, tend = toff + 2 + count * 6;
+        const none = p => (((b[p] << 24) | (b[p + 1] << 16) | (b[p + 2] << 8) | b[p + 3]) >>> 0) === 0x5000FFFF && (((a[p] << 24) | (a[p + 1] << 16) | (a[p + 2] << 8) | a[p + 3]) >>> 0) === 0x5000FFFF;
+        for (let i = 0; i < a.length && only; i++) {
+          if (a[i] === b[i]) continue;
+          if (i < toff + 2 || i >= tend) { only = false; break; }
+          const p = toff + 2 + Math.floor((i - toff - 2) / 6) * 6;
+          if (i - p < 4 || !none(p)) only = false;
+        }
+      }
+      if (only) unsetKeysOnly++; else real.push(c.resid);
+    }
+    rows.push({pair: x + ' to ' + y, changed: d.changed.length, added: d.added.length, unsetKeysOnly, real: real.length,
                removed: d.removed.length, count: d.aCount, identical: d.identical,
                // The subindexes a reader would want named, biggest first.
                where: d.groups.slice(0, 3).map(g => (CATEGORY_NAMES[g.subn] || ('subindex ' + g.subn)) +
@@ -74,16 +100,22 @@ const out = ev(`(() => {
 
 // Each row's figures, pinned. A release that is re-mirrored or a decoder that
 // changes what counts as the same resource moves one of these.
+// `unsetKeysOnly` is the part of `changed` that is not a change at all: the
+// resource's bytes differ only in the key halves of its object table's None
+// entries, which the compiler left unset (24 September 2026; the table used
+// to stand in the handoff as an unidentified trailing table, and every
+// count here carried an asterisk for it). `real` is the rest, and is the
+// figure to read as what the release changed.
 const WANT = {
-  '1.0.1 to 1.0.2': {changed: 246, added: 1, removed: 0, count: 1557},
-  '1.0.2 to 1.0.3': {changed: 125, added: 0, removed: 0, count: 1558},
-  '1.0.3 to 1.0.4': {changed: 0, added: 0, removed: 0, count: 1558},
+  '1.0.1 to 1.0.2': {changed: 246, added: 1, removed: 0, count: 1557, unsetKeysOnly: 213, real: 33},
+  '1.0.2 to 1.0.3': {changed: 125, added: 0, removed: 0, count: 1558, unsetKeysOnly: 103, real: 22},
+  '1.0.3 to 1.0.4': {changed: 0, added: 0, removed: 0, count: 1558, unsetKeysOnly: 0, real: 0},
 };
 for (const row of out) {
   if (row.missing) { fail(row.pair, 'one of the two releases is not in the archive'); continue; }
   const w = WANT[row.pair];
-  const got = `${row.changed} changed, ${row.added} added, ${row.removed} removed, of ${row.count}`;
-  const want = `${w.changed} changed, ${w.added} added, ${w.removed} removed, of ${w.count}`;
+  const got = `${row.changed} changed, ${row.added} added, ${row.removed} removed, of ${row.count}; ${row.unsetKeysOnly} differ only in unset table keys, ${row.real} really changed`;
+  const want = `${w.changed} changed, ${w.added} added, ${w.removed} removed, of ${w.count}; ${w.unsetKeysOnly} differ only in unset table keys, ${w.real} really changed`;
   if (got !== want) fail(row.pair, got + ' against ' + want);
   else ok(row.pair, got + (row.where ? '  (' + row.where + ')' : ''));
 }
