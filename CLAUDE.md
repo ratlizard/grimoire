@@ -68,8 +68,11 @@ page for you — run the checks below before pushing.
 decisions, open questions and what was learned, read in full by a session
 working here and edited only by one. It never carries a tip, a version or a
 count: the suite prints its own figures and the workspace's `tools/status.sh`
-derives the rest. It sat here as an ignored `NEXT.md` until 14 September 2026;
-see the workbench's `CLAUDE.md` for why it moved.
+derives the rest. Every item in it has a name that does not change,
+`grimoire/<word>-<six characters>`; cite the name rather than a position in the
+list, and grep the six characters to find every mention of it. It sat here as
+an ignored `NEXT.md` until 14 September 2026; see the workbench's `CLAUDE.md`
+for why it moved.
 
 **GitHub Pages gives no logs and no analytics, and the site carries no
 tracking.** Measured 8 September 2026 rather than assumed, and the numbers
