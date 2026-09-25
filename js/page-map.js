@@ -410,12 +410,39 @@ function loadSchedules() {
    roll counts as holding when at least half the numbers it can come up
    pass, so the picture does not change from one drawing to the next. A
    schedule with no conditions is its posts, as before. */
-function scheduleHoldsAtStart(e) {
+/* A save's quest state, read out of its 0x0400 segment: the stream's first
+   block is tagged Char, and from the tag the 32 quest values are one byte
+   each at +16 and the 256 quest flags eight big-endian longs at +48
+   (save-format.md, *The Char block, in full*). With it, the save's own
+   character table, whose records carry the character flags a schedule may
+   test and the party, alive and waiting bytes the hour tests. Null when
+   the segment or the tag is not there. */
+function saveQuestState(spec) {
+  const seg = spec && spec.resources.find(r => r.resid === 0x0400);
+  const b = seg && seg.data;
+  if (!b || b.length < 80 || String.fromCharCode(b[0], b[1], b[2], b[3]) !== 'Char') return null;
+  const values = Array.from(b.subarray(16, 48));
+  const flags = [];
+  for (let n = 0; n < 256; n++) flags.push(!!((b[48 + (n >> 5) * 4 + 3 - ((n & 31) >> 3)] >> (n & 7)) & 1));
+  let chars = null;
+  try { const t = spec.resources.find(r => r.resid === 0xF009); if (t) chars = parseDelverCharacterRecords(t.data); } catch (e) { quiet(e, 'the save’s character table'); chars = null; }
+  return { values, flags, chars, flagsSet: flags.filter(Boolean).length, valuesSet: values.filter(v => v).length };
+}
+/* The state the day is judged under: the save beside the file, when the
+   map's Save mark is on and the save has a Char block; otherwise a new
+   game's, which is what every walker of the day drew until 25 September
+   2026. Turning the mark on is what says "the save's day", so the map,
+   the path and the dossier agree on whose day it is. */
+function scheduleState() {
+  const sb = window.SAVE_BESIDE;
+  return window.MAP_MARKS && window.MAP_MARKS.save && sb && sb.quest ? sb.quest : null;
+}
+function scheduleHoldsAtStart(e, state) {
   const k = e.cond, a = e.arg;
   if (!k) return true;
   if (k === 1) return false;
-  if (k === 2) return false;           // a quest flag set: none is, at the start
-  if (k === 3) return true;            // clear
+  if (k === 2) return state ? !!state.flags[a] : false;   // a quest flag set: none is, at the start
+  if (k === 3) return state ? !state.flags[a] : true;     // clear
   const cmp = (v, op) => op === 0 ? v === a : op === 1 ? v >= a : op === 2 ? v !== a : v < a;
   if (k >= 0x20 && k < 0x40) {
     const n = k & 7, top = n ? (1 << (n + 1)) - 1 : 0;
@@ -424,13 +451,15 @@ function scheduleHoldsAtStart(e) {
     return pass * 2 >= top + 1;
   }
   if (k >= 0x40 && k < 0x80) {
-    const f = k & 0x1F, raw = getResourceBytes(ARCHIVE, 0xF009), p = a * 32;
+    const f = k & 0x1F;
+    const rec = state && state.chars && state.chars[a] ? state.chars[a].raw : null;
+    const raw = rec || getResourceBytes(ARCHIVE, 0xF009), p = rec ? 0 : a * 32;
     let on = false;
     if (raw && p + 32 <= raw.length)
       on = f < 8 ? !!(raw[p + 8] & (1 << f)) : f < 24 ? !!(u16be(raw, p + 6) & (1 << (f - 8))) : !!(raw[p + 26] & (1 << (f - 24)));
     return (k & 0x60) === 0x60 ? !on : on;
   }
-  if (k >= 0x80) return cmp(0, (k >> 5) & 3);
+  if (k >= 0x80) return cmp(state ? (state.values[k & 0x1F] || 0) : 0, (k >> 5) & 3);
   return false;
 }
 /* A segment whose place is nothing (level, x and y all 0) is not a post
@@ -446,7 +475,8 @@ function scheduleIsHead(e) { return e.level === 0 && e.x === 0 && e.y === 0 && e
    and the page states nothing of them without it. The fourth test, the
    active monster's word, is the game's runtime and has no reading here. */
 function scheduleSkipReason(i) {
-  const c = loadCharacterTable()[i];
+  const state = scheduleState();
+  const c = state && state.chars && state.chars[i] ? state.chars[i] : loadCharacterTable()[i];
   const who = c && appImage() ? exeScheduleWho() : null;
   if (!who) return null;
   const raw = c.raw;
@@ -467,11 +497,12 @@ function scheduleDay(i) {
     return c && c.zone ? [{ hour: 0, mode: 0x86, cond: 0, arg: 0, script: 0, level: c.zone, x: c.x, y: c.y, at: null, fromRecord: true, why }] : [];
   }
   if (!segs.some(e => e.cond)) return segs;
+  const state = scheduleState();
   const out = [];
   for (let k = 0; k < segs.length; k++) {
     const e = segs[k];
     if (e.cond === 1) { if (out.length) break; continue; }
-    const ok = scheduleHoldsAtStart(e);
+    const ok = scheduleHoldsAtStart(e, state);
     if (scheduleIsHead(e)) {
       if (!ok) for (let depth = 1; depth && k + 1 < segs.length; ) { k++; if (segs[k].cond === 1) depth--; else if (scheduleIsHead(segs[k])) depth++; }
       continue;
@@ -1952,6 +1983,7 @@ function drawMapMarks(lensCtx, lensTS) {
       if (moved.length) bits.push(moved.length + ' moved');
       if (changed.length) bits.push(changed.length + ' changed where it stands');
       if (people.length) bits.push(people.length + (people.length === 1 ? ' character' : ' characters') + ' here');
+      if (sb.quest) bits.push('the day drawn is the save’s, ' + sb.quest.flagsSet + ' quest flag' + (sb.quest.flagsSet === 1 ? '' : 's') + ' set and ' + sb.quest.valuesSet + ' value' + (sb.quest.valuesSet === 1 ? '' : 's') + ' nonzero');
       saveLegend = svEsc(sb.name) + (sb.player ? ' (' + svEsc(sb.player) + ')' : '') + ' over this zone: ' + (bits.length ? bits.join(', ') : 'the same records');
     }
   }

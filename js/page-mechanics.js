@@ -1708,7 +1708,7 @@ function compareOpenBytes(bytes, name) {
   // A saved game compared is also held beside the open file for the map's
   // Save mark (drawMapMarks), which draws its records over the scenario's
   // list of the zone shown; a player name at 0x20 is what makes it a save.
-  window.SAVE_BESIDE = got.info && got.info.player ? { name: name || 'the save', spec: other, player: got.info.player } : null;
+  window.SAVE_BESIDE = got.info && got.info.player ? { name: name || 'the save', spec: other, player: got.info.player, quest: saveQuestState(other) } : null;
   compareApplications(bytes, name);
   say('');
   renderCompareReport();
