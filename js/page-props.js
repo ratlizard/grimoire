@@ -1099,6 +1099,15 @@ function classFieldNumber(cls, key, word, slot) {
    19 September 2026: the wooden door, the portcullis and the secret door
    are not Lockable in this archive, the urns are not containers, and the
    coffer and the trapdoor are locks the names had missed. */
+// Does a class's ClassFlags word (key 39) carry `bit`: the file's own word
+// for a door (0x200, which the level loader tests) and the rest of the bits
+// the Mechanics sheet lists by their readers. False where the word is not a
+// plain number.
+function classCarriesFlag(pt, bit) {
+  const cls = parseItemClass(pt);
+  const f = cls && cls.data.find(x => x.key === 39);
+  return !!(f && f.words.length === 1 && !(f.words[0] & 0xF0000000) && (f.words[0] & bit));
+}
 function classHasMember(pt, key) {
   const cls = parseItemClass(pt);
   return !!(cls && (cls.data.some(x => x.key === key) || cls.code.some(x => x.key === key) || cls.text.some(x => x.key === key)));

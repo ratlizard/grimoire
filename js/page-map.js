@@ -1032,7 +1032,13 @@ function nightAlpha(hour) {
 // --- Map markers -----------------------------------------------------------
 // Now that prop types have names, a prop list can be read as a list of THINGS
 // rather than numbers. Three overlays fall straight out of that:
-//   doors     -- anything named as a door or gate, drawn with its lock state
+//   doors     -- the classes carrying ClassFlags 0x200, which is the bit the
+//                level loader tests to carry a placed record's words over
+//                from the list it merges on a reload, so a door's lock and
+//                open state survive leaving the zone: the six doors, drawn
+//                with their lock state. A name test until 25 September 2026,
+//                which took the portcullis too; it carries no bit and no
+//                lock, and is opened by its lever
 //   secret    -- secret doors, and walls that do not block, which is what a
 //                hidden passage looks like from the tile attributes
 //   chest     -- containers, plus anything carrying a persistence StoreRef,
@@ -1115,10 +1121,11 @@ const ROPE_PROPTYPE = 0x14B;              // "rope" -- 4 records, all on ravines
 function classifyProp(pt, tileId) {
   const nm = (propTypeName(pt) || '').toLowerCase();
   if (/secret/.test(nm) || PASSAGE_PROPS.test(nm)) return 'secret';
-  // "door" at the end of the name: a metal, oak, stone, wooden or windowed
-  // door. A "doorway" is the arch a door hangs in, and between two hallways
-  // it hangs nothing, so it is not a door.
-  if (/\bdoor$|gate|portcullis/.test(nm)) return 'doors';
+  // A door is a class whose ClassFlags carry 0x200, the file's own word for
+  // it (classCarriesFlag): the loader keeps such a record's state across a
+  // reload. The name test this replaced took a "doorway", the arch a door
+  // hangs in, out by its spelling and the portcullis in by its name.
+  if (classCarriesFlag(pt, 0x200)) return 'doors';
   // A container is a class with IsContainer (23), the file's own word for
   // it (classHasMember); the name list this replaced marked urns and the
   // bookshelf, which no record is ever inside.
