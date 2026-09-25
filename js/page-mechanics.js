@@ -196,7 +196,7 @@ function mechDiceBytes(dice) {
     tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + hex4(fix.at) + ' and the skill’s fix-up runs whatever it rolled, so every game with Gambling is a match: <b>' + mean({ skillAlways: true, gambling: true }) + '</b> a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + hex4(gate.at) + ' as well and no skill is needed.');
   return '<div class="mechSub">What to edit</div>' +
     '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>byte</th><th class="num">at, in 0x812</th><th class="num">now</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<p class="mechLede">A two-byte entry is a branch target, the offset of the instruction the test jumps to when it fails; the offset of the instruction after it turns the test into a fall-through. A one-byte entry is a number as the script uses it, a range of 0 to one less for a die.</p>' +
+    '<p class="mechLede">A two-byte entry says where the script goes when the test fails: the place of the instruction it jumps to, or, where that is the next instruction anyway, the script carries straight on. A one-byte entry is a number as the script uses it, a range of 0 to one less for a die.</p>' +
     (tries.length ? '<ul class="ruleList">' + tries.map(t => '<li>' + t + '</li>').join('') + '</ul>' : '');
 }
 
@@ -361,7 +361,7 @@ function combatSimHtml(p, cb) {
       { label: 'misses', value: x.miss, colour: MECH_INK.miss }
     ]),
     'A blow that lands does <b>' + x.meanDamage.toFixed(1) + '</b> points on average, so an exchange is worth <b>' +
-    (x.meanDamage * x.hit).toFixed(1) + '</b>.' + (p.shield ? ' The resolver tests the miss before the parry, so every parry here is a blow the shield took out of the hits.' : '') +
+    (x.meanDamage * x.hit).toFixed(1) + '</b>.' + (p.shield ? ' A blow is tested for a miss before it is tested for a parry, so every parry here is a blow the shield took out of the hits.' : '') +
     (cb.skillOffLoop ? ' The weapon’s skill adds nothing to it, as shipped, so the skill moves only the shield’s roll.' : '')) +
   mechFig('The margin, and where it is spent', mechPlot({
     height: 130,
@@ -372,7 +372,7 @@ function combatSimHtml(p, cb) {
   }), 'Two rolls of 0 to ' + (cb.roll.v - 1) + (cb.rollDefender.v !== cb.roll.v ? ' and 0 to ' + (cb.rollDefender.v - 1) : '') + ' make a triangle; the six other terms only slide it. Here it is centred on <b>' +
     (x.constant > 0 ? '+' : '') + x.constant + '</b>.') +
   (blows.length ? mechFig('What the game would print', mechBars(blows),
-    'Of the blows that land, as a share of all exchanges. The words are read off the resolver, and each names the <b>raw roll</b>. The defender’s resistance is taken afterwards, so a blow that ground you to dust can still come to nothing.') : '');
+    'Of the blows that land, as a share of all exchanges. The words are read off the routine that settles a blow, and each names the <b>raw roll</b>. The defender’s resistance is taken afterwards, so a blow that ground you to dust can still come to nothing.') : '');
 }
 function combatSimUpdate() {
   const el = document.getElementById('combatOut');
@@ -461,8 +461,8 @@ function mechGearFigure(gear) {
   return mechFig(offLoop ? 'Damage, the most a blow can do' : 'Damage, the most a blow can do before the skill',
     mechBars(arms) + '<div class="mechKeys">' + skills.map(s => '<span><i style="background:' + hue[s] + '"></i>' + svEsc(s) + '</span>').join('') + '</div>',
     offLoop
-      ? 'The resolver rolls <b>1 to this figure</b> and adds the enchantment. It is written to widen the figure by the weapon’s skill first, and as shipped that adds ' + srcNum(offLoop[1] || offLoop[0], 'nothing') + '. Colour is the skill the weapon would be swung with.'
-      : 'The resolver rolls <b>1 to this figure</b> and adds the enchantment; the weapon’s skill widens the figure before the roll rather than being added after it. Colour is the skill the weapon is swung with.') +
+      ? 'The game rolls <b>1 to this figure</b> and adds the enchantment. It is written to widen the figure by the weapon’s skill first, and as shipped that adds ' + srcNum(offLoop[1] || offLoop[0], 'nothing') + '. Colour is the skill the weapon would be swung with.'
+      : 'The game rolls <b>1 to this figure</b> and adds the enchantment; the weapon’s skill widens the figure before the roll rather than being added after it. Colour is the skill the weapon is swung with.') +
     (armour.length ? mechFig('Armour, in points of protection', mechBars(armour)) : '') +
     (shields.length ? mechFig('Shields, the roll they block', mechBars(shields),
       'A blow that would have landed is parried when the margin is under a roll of <b>0 to this plus the Shield skill</b>, summed over every shielding thing worn. A shield is worth more against a weak attacker than a strong one, and never saves a blow that was going to miss.') : '');
@@ -544,7 +544,7 @@ function mechKarmaFigure(km) {
       return who.slice(0, -1).join(', ') + (who.length > 1 ? ' and ' : '') + who[who.length - 1] + ' refuse' + (who.length === 1 ? 's' : '') + ' below <b>' + srcNum(low.find(r => r.n === n).val, n) + '</b>.';
     })()) +
     (kills.length ? mechFig('What a kill is worth, by the victim’s alignment', mechBars(kills),
-      srcNum(km.byAlignmentSrc, km.byAlignment.length + ' numbers') + ' in the kill helper’s own data block, read as signed. Nothing in the file names the alignments.') : '');
+      srcNum(km.byAlignmentSrc, km.byAlignment.length + ' numbers') + ' in the kill helper’s own data, read as a number that can be negative. Nothing in the file names the alignments.') : '');
 }
 
 // Nutrition falls one an hour, so a food's figure is also the hours it buys.
@@ -577,7 +577,7 @@ function mechStatusFigure(st, unit) {
   return mechFig(unit ? 'How long a status lasts, against the game hour' : 'How long a status lasts, in clock units',
     mechBars(rows.map(r => ({ label: r.label, value: r.value, colour: MECH_INK.violet,
       text: !unit ? String(r.value) : r.value >= unit ? (r.value / unit).toFixed(r.value % unit ? 1 : 0) + ' h' : Math.round(60 * r.value / unit) + ' min' })), { max: Math.max(unit || 0, rows[0].value) }),
-    'The longest duration each status is given anywhere in the file; a call with a roll in it is left out, since it has no one number.' + (unit ? ' <b>' + unit + '</b> units is an hour, by the program’s clock.' : ''));
+    'The longest each status is made to last anywhere in the file. A call that rolls for the duration is left out, since it has no single number.' + (unit ? ' <b>' + unit + '</b> units is an hour, by the program’s clock.' : ''));
 }
 
 // The clock's own arithmetic, over four days: the belly empties in a hundred
@@ -636,7 +636,7 @@ function mechLockFigure(lk) {
   }), (rules.addend === rules.per - 1
       ? rules.step + ' points are added for <b>every ' + rules.per + ' of difficulty, rounded up</b>, so the curve is a staircase: a lock of 1 is already a lock of ' + rules.per + ', and only a difficulty of nothing is free.'
       : rules.step + ' points are added for every ' + rules.per + ' of difficulty after adding ' + rules.addend + ', so the curve is a staircase.') +
-    ' The dots are the classes’ own parameters at reflex 20; the difficulty a placed lock actually uses is its own <b>data1</b>. Every failure breaks the pick.');
+    ' The dots are the numbers each class carries, at reflex 20; the difficulty a placed lock actually uses is its own <b>data1</b>. Every failure breaks the pick.');
 }
 
 // What a shop asks. The interesting thing is the range -- three orders of
@@ -2139,7 +2139,7 @@ function renderMechanicsSheet(value) {
           ? (cb.barehand ? ', plus Barehand when nothing is wielded' : '') + (cb.missileSkill ? ' (Missile for a launcher)' : '')
           : ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')')) +
         ', <b>less the defender’s reflex' + (cb.rollDefender ? ' plus a roll of 0 to ' + rollTo(cb.rollDefender) : '') + '</b>, plus Attack less Defence. A monster flagged so uses body for reflex.',
-      cb.skillOffLoop ? '<b>A weapon’s own skill adds nothing.</b> The resolver is written to add it to the margin and to the damage figure, but reads it off ' +
+      cb.skillOffLoop ? '<b>A weapon’s own skill adds nothing.</b> The routine that settles a blow is written to add it to the margin and to the damage figure, but reads it off ' +
         srcNum(cb.skillOffLoop[0], 'what the shield loop leaves behind') + ' instead of off the weapon, and that is always nothing, so Sword, Axe and Mace change no armed blow.' : '',
       'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
         (cb.parry ? 'what is left is offered to the shields: each shielding thing the defender wears rolls <b>0 to its block plus the Shield skill</b>, the rolls are added up, and a margin under the total is <b>parried</b>' : 'what is left lands') +
@@ -2147,7 +2147,7 @@ function renderMechanicsSheet(value) {
       cb.dmgAdd ? 'A hit does <b>' + srcNum(cb.dmgAdd) + ' plus a roll under the damage figure, plus the enchantment</b>, so ' + cb.dmgAdd.v + ' to the figure' + (cb.dmgAdd.v === 1 ? ' rather than nothing to it' : ' less one, and more') + (cb.skillOffLoop ? '' : ', with the skill widening the figure before the roll') + '. The defender’s resistance takes the damage type afterwards, so the word the game prints can be bigger than what is felt.' : '',
       ar && ar.bodyRoll && ar.scale ? 'The damage figure of a blow is the weapon’s plus ' + rollFrom('body') + (ar.reflexRoll ? '; a throw’s is its throw entry’s plus ' + rollFrom('reflex') : '') + '.' : '',
       ar && ar.lodges && ar.drops ? (wrongCarryFlags().some(w => w.resid === 0x3042)
-        ? 'A thrown weapon that <b>hits or is parried</b> is given the target as its container but flags of 9, not the carried flag, so it ends inside no one and is lost; one that misses lies on the target’s square. Nothing brings either back.'
+        ? 'A thrown weapon that <b>hits or is parried</b> is put inside the target but with flags of 9 rather than the flag that means carried, so it ends up inside nobody and is lost; one that misses lies on the target’s square. Nothing brings either back.'
         : 'A thrown weapon that <b>hits or is parried</b> goes into the target, carried, which is where it is when the target dies; one that misses lies on the target’s square. Nothing brings it back.') + (ar.ammoSpent ? ' A launcher spends one of its ammunition a shot.' : '') : '',
       cb.words.length ? 'The blow is named by its size: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + srcNum(w.val)).join(', ') + (cb.last ? ', and <i>' + svEsc(cb.last.word) + '</i> above.' : '.') : ''
     ].filter(Boolean) : [],
@@ -2231,13 +2231,13 @@ function renderMechanicsSheet(value) {
   const pwEx = pw.examines.length ? pw.examines[0] : null;
   const pwByByte = k => ({ r: pw.readers.filter(x => x.ops.includes('get ' + k)), w: pw.readers.filter(x => x.ops.includes('set ' + k)) });
   add('propword', 'Prop records: type, aspect, Data1 and Data2', null, src('the outcome', 0xE87) + (pwEx ? src('Examine', 0x1000 + pwEx.pt) : ''),
-    'A prop record names what it is with one 16-bit word, and carries two bytes beside it that each class script reads for its own purpose.',
+    'A prop record names what it is with one two-byte number, and carries two bytes beside it that each class script reads for its own purpose.',
     [
-      'The word is <b>the prop type in the low ten bits and an aspect in the five above</b>, so a step of aspect is worth 1,024 and a step of type 1. The create-a-prop cheat asks for this word, then Data1 in decimal, then Data2 in hex.' +
+      'The number holds <b>the kind of thing in its lowest ten bits and the aspect in the five above them</b>, so a step of aspect is worth 1,024 and a step of type 1. The create-a-prop cheat asks for this word, then Data1 in decimal, then Data2 in hex.' +
         (pwBuild ? ' Build one on any item’s page, under Prop record: ' + svLink(pwBuild.name, 'showItemDetail(' + pwBuild.pt + ')') + '.' : ''),
       'Aspect <i>n</i> draws the prop type’s base tile + <i>n</i> and the prop <b>takes that tile’s name</b>. Whether it changes anything else is decided by the class script: ' + mechAspectReaders() + ' The pictures that leaves no class owning are at the foot of Items.',
       mechAspectContrast(),
-      pw.ench && pw.ench.guarded && pw.ench.added ? '<b>Data1 on a weapon is its enchantment.</b> The outcome routine reads it off a weapon that is both a melee weapon and equipment and adds it to the damage of every blow' +
+      pw.ench && pw.ench.guarded && pw.ench.added ? '<b>Data1 on a weapon is its enchantment.</b> The routine that settles a blow reads it off a weapon that is both a melee weapon and equipment and adds it to the damage of every blow' +
         (pw.ench.magic ? ', and <b>a blow with any enchantment counts as magical</b>, which is what gets past the monsters that resist non-magical weapons' : '') + '. An arrow’s Data1 is not read: the test is for a melee weapon.' : '',
       pwEx && pwEx.hiVal && pwEx.loVal ? 'Examine reports it on ' + pw.examines.map(e => pwName(e.pt)).join(', ') + ': “' + svEsc(pwEx.above2) + '” above ' + srcNum(pwEx.hiVal) + ', “' + svEsc(pwEx.above0) + '” above ' + srcNum(pwEx.loVal) + '.' : '',
       pw.zoneReaders.length ? '<b>Data3</b> is both bytes read as one value; ' + pw.zoneReaders.length + ' passage classes hand it to ChangeZone as the destination.' : '',
@@ -2386,7 +2386,7 @@ function renderMechanicsSheet(value) {
         const names = hg.ceilingBy.map(r => svLink((r >= 0x1000 && r < 0x1200 ? propDisplayName(r - 0x1000) : labelFor(r)) || ('0x' + r.toString(16).toUpperCase()), 'jumpToResource(' + r + ')'));
         return names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names[names.length - 1] + ' add only up to <b>' + srcNum(hg.ceilingVal) + '</b>; a food adds its own figure, listed above.';
       })() : ''),
-      model && clk.healthBytes && clk.magicBytes ? 'While nutrition is above ' + srcNum(clk.fedGate, '0') + ', <b>health and magic each rise by 1</b> each time the clock passes a period chosen by the level, the level shifted right by ' + srcNum(clk.levelShift) + ' and capped at ' + srcNum(clk.levelCap) + ': ' +
+      model && clk.healthBytes && clk.magicBytes ? 'While nutrition is above ' + srcNum(clk.fedGate, '0') + ', <b>health and magic each rise by 1</b> each time the clock passes a period chosen by the level, the level halved as many times as ' + srcNum(clk.levelShift) + ' and capped at ' + srcNum(clk.levelCap) + ': ' +
         Array.from({ length: model.levelCap + 1 }, (_, i) => {
           const lo = i << model.levelShift, hi = ((i + 1) << model.levelShift) - 1;
           return 'every ' + period(i).replace(/^(<button[^>]*>)(an |a )?/, '$1') + (i === model.levelCap ? ' from level ' + lo + ' up' : lo === hi ? ' at level ' + lo : ' at levels ' + lo + ' and ' + hi);
@@ -2421,7 +2421,7 @@ function renderMechanicsSheet(value) {
         const pcSkill = it && /sys GetSkill\s+global PlayerCharacter/.test(strip(it.text));
         return pcReflex || pcSkill ? 'The reflex rolled is <b>the player character’s</b>' + (pcSkill ? ', and the lockpick asks the player character for the skill' : '') + ', whoever is holding the pick.' : '';
       })(),
-      'The difficulty is the placed lock’s own. The classes carry a parameter of their own, shown as stored.'
+      'The difficulty is the placed lock’s own. Each class carries a number of its own, shown as it is stored.'
     ].filter(Boolean) : [], mechLockFigure(lk),
     lk.classes.length ? '<span class="partsTitle">Lock parameter</span>' + lk.classes.map(c => propChip(c.pt, c.name) + ' ' + srcNum(c.src, c.words.join(' '))).join(' ') : '');
 
@@ -2429,7 +2429,7 @@ function renderMechanicsSheet(value) {
   const sh = shopRules();
   add('shops', 'Shops', null, src('the counter', 0xEA5),
     sh.shops.length ? sh.shops.length + ' shops, each one call of the same helper with what the vendor lists and at what price.' : 'No script in this file opens a shop.',
-    sh.shops.length ? ['The helper bargains from the listed price with four figures of the vendor’s, shown as stored.', sh.haggling ? 'The <b>Haggling</b> skill takes a further roll of 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) + ' off the vendor’s figure.' : ''].filter(Boolean) : [],
+    sh.shops.length ? ['The helper bargains down from the listed price using four figures of the vendor’s own, shown as they are stored.', sh.haggling ? 'The <b>Haggling</b> skill takes a further roll of 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) + ' off the vendor’s figure.' : ''].filter(Boolean) : [],
     mechShopFigure(sh) +
     table(['vendor', 'goods, at the listed price in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.who !== null && loadCharacterTable()[spn.who] ? characterChip(spn.who) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
@@ -2460,7 +2460,7 @@ function renderMechanicsSheet(value) {
       sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (perHour && sl.quarterVal.v * sl.hoursVal.v === perHour ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + ', ' + srcNum(sl.hoursVal) + ' to the hour asked for' + (sl.owner ? ', and the bed’s owner turning up throws you out (“Hey! Out of my bed!”)' : '') + '.' : '',
       sl.half ? 'Then, when the quality is not 0' + (sl.soundly ? ' (“You sleep soundly”)' : '') + ', every party member gets <b>what they healed during the night times the quality over ' + srcNum(sl.div) + '</b> on top, for health and for magic, up to full.' + (sl.own !== null ? ' <b>Quality ' + sl.own + ' is ' + (1 + sl.own / sl.div.v) + ' times the engine’s rate.</b>' : '') : '',
       sl.toss ? 'Quality 0 is “You toss and turn” and the engine’s rate alone.' : '',
-      'The engine’s rate is the one under Hunger and healing: a fed character’s level rate, plus the six-minute regeneration where a worn item grants it, and nothing at all for a hungry one.',
+      'The game’s own rate is the one under Hunger and healing: a fed character’s level rate, plus the six-minute regeneration where a worn item grants it, and nothing at all for a hungry one.',
       sl.magicGuard || sl.magicCap ? 'The magic half reads <i>full health</i> where it means full magic: ' +
         [sl.magicGuard ? 'the bonus is given only while magic is under ' + srcNum(sl.magicGuard, 'full health') : '',
          sl.magicCap ? 'and a figure past full magic sets magic to ' + srcNum(sl.magicCap, 'full health') : ''].filter(Boolean).join(', ') +
@@ -2490,7 +2490,7 @@ function renderMechanicsSheet(value) {
     add('clock', 'The clock, poison and time', null, '',
       model ? 'The game keeps one clock, a word the program counts in units of <b>1/' + srcNum(clk.unitsPerHour) + ' of an hour</b>, the hour being the word shifted right by ' + srcNum(clk.hourShift) + '.' +
           (clk.day ? ' ' + srcNum(clk.day, clk.day.v / perHour) + ' hours make a day, when the word rolls over.' : '') + ' Every duration a script hands the engine is in these units.'
-        : 'The game keeps one clock that every duration a script hands the engine is counted in. ' + noApp,
+        : 'The game keeps one clock, and every duration a script asks for is counted in it. ' + noApp,
       model ? [
         'Its table of periods is ' + clk.table.v.map((u, i) => srcNum(clk.table, u) + ' <span class="inspDim">(' + exeClockWords(u, perHour) + ')</span>').join(', ') + '; each tick the routine counts how many of each the clock has passed.',
         clk.poisonBit && clk.regenBit && clk.deathAt && clk.statusWord ? 'Each time it passes ' + period(model.poisonIndex) + ', a character whose record word at ' + srcNum(clk.statusWord) + ' has bit ' + srcNum(clk.poisonBit) + ' set' + flagWords(clk.poisonBit) + ' loses ' + srcNum(clk.poisonStep) + ' health, and <b>dies</b> instead when health is ' + srcNum(clk.deathAt) + ' or less; one with bit ' + srcNum(clk.regenBit) + flagWords(clk.regenBit) + ' gains ' + srcNum(clk.regenStep) + '; one with both takes a coin toss (' + srcNum(clk.coinToss) + ') each time.' : '',
@@ -2544,8 +2544,8 @@ function renderMechanicsSheet(value) {
     if (rows.length) add('light', 'Light: the zone, and what is in view', null, '',
       'A zone sets one light value when you arrive and it is the base for the whole level, not for a square. A square left at 32 is not darkened at all; one at 0 is painted black; between them the screen is dithered down towards it.',
       [
-        'The number is <b>signed</b>, and a negative one means the day and night clock is skipped: the place is that dark at every hour. ' + fixed + ' of the ' + rows.length + ' zones are written that way, and they are the interiors.',
-        'The base is <b>min(32, v / 5)</b>, where v is the number’s magnitude, or the daylight level instead where the number is positive and the sun is higher.',
+        'The number <b>can be negative</b>, and a negative one means the day and night clock is skipped: the place is that dark at every hour. ' + fixed + ' of the ' + rows.length + ' zones are written that way, and they are the interiors.',
+        'The base is <b>min(32, v / 5)</b>, where v is the number with its sign dropped, or the daylight level instead where the number is positive and the sun is higher.',
         'Anything bright <b>in view lifts the whole level</b>. The engine adds <b>2<sup>2L-b</sup></b> for every light source in the eleven-by-eleven window around the player (L is the source’s level, 1 to 3, and b is 0 within four tiles, 1 within eight and 2 beyond), and a third of that total becomes a floor under the zone’s own number. Eight level-3 sources close by are enough that nothing on screen is darkened, which is what standing in a lava field does; walk them out of view and the level goes back to dark.',
         'A light is <b>blocked by nothing</b>. Each lit square lays its own cone over whatever is beneath it and no wall is consulted; what looks like falloff is the cone’s own shading. A level-1 source’s pool is about 1¼ tiles across, a level-3 source’s about 2¾.',
         'The map’s lighting layer draws only the two things that are fixed to the map: this table, and each source’s cone. The part that depends on where you are standing is reported on a square when you select it.'
@@ -2592,7 +2592,7 @@ function renderMechanicsSheet(value) {
     if (app) for (const [id, what] of lists) { const l = forkStringList(app, id); if (l && l.length) rows.push('<tr><td>' + svEsc(what) + '</td><td>' + l.map(svEsc).join(', ') + '</td></tr>'); }
     const tests = buildScriptTextIndex().filter(e => e.resid >= 0x901 && e.resid < 0x981).length, acts = buildScriptTextIndex().filter(e => e.resid >= 0x981 && e.resid < 0xA00).length;
     add('combatai', 'Combat AI', null, '',
-      'A monster fights by a script written in a vocabulary the program carries as string lists: tests about the field, actions to take, and the strategies that pick between them. The scenario adds tests and actions of its own.',
+      'A monster fights by a script written in a vocabulary the program carries as lists of words: tests about the field, actions to take, and the strategies that pick between them. The scenario adds tests and actions of its own.',
       [
         (tests || acts) ? 'This archive adds <b>' + tests + ' tests</b> and <b>' + acts + ' actions</b> in 0x09xx, named one for one by the program’s lists.' : '',
         'The scripts themselves ship beside the game as .ai text files, and the rules they are written against as the AI Scripting Document; both are under Data › Combat AI when the installer is open.'
@@ -2632,7 +2632,7 @@ function renderMechanicsSheet(value) {
       td.adds.length ? [
         '<b>' + td.adds.length + ' lines are added</b> and <b>' + td.dones.length + ' struck off</b>, over <b>' + slots.size + ' slots</b>.',
         elsewhere.length ? '<b>' + elsewhere.length + ' of them show a different line</b> than their slot’s: the same errand named after whoever told you about it.' : '',
-        counted.length ? 'One site builds its line from a quest value as it goes, which is how a line that counts what you have found is written: ' + counted.map(a => srcNum(a.state, nameOf(a.resid))).join(', ') + '.' : '',
+        counted.length ? 'One place in the scripts builds its line from a quest value as it goes, which is how a line that counts what you have found is written: ' + counted.map(a => srcNum(a.state, nameOf(a.resid))).join(', ') + '.' : '',
         never.length ? '<b>' + never.length + (never.length === 1 ? ' line is' : ' lines are') + ' never struck off</b> by any script: ' + never.map(s => (td.lines && td.lines.get(s) ? '“' + svEsc(td.lines.get(s)) + '”' : 'slot ' + s)).join(', ') + '.' : ''
       ].filter(Boolean) : [],
       table(['#slot', 'line', 'added by', 'struck off by'], rows));
@@ -2660,8 +2660,8 @@ function renderMechanicsSheet(value) {
     add('charflags', 'The character flags', null, src('set', 0xF00) + src('clear', 0xF01) + src('test', 0xF02),
       'A character record carries a flag word that the scripts set, clear and test by number: poison, sleep, fear, the lava protection Eioneus’s dialogue grants. The numbers are the file’s, and so are the names: the program’s own list of them, ObjectFlags, names flags 8 to 23. The rest are named nowhere in the files.',
       [
-        '<b>' + cf.flags.length + ' flags</b> are reached by a literal number in this file, through the four syscalls (' + ['SetFlag', 'ClearFlag', 'TestFlag'].map(dvmSyscallShown).join(', ') + ' and ' + dvmSyscallShown('StatusEffect') + ', the character first and the flag second) and the three helpers that wrap them.' + (cf.unknown ? ' ' + cf.unknown + ' site' + (cf.unknown === 1 ? ' passes' : 's pass') + ' a computed flag and ' + (cf.unknown === 1 ? 'is' : 'are') + ' not counted.' : ''),
-        appImage() ? 'Where a flag lives is read off ' + pefChip('TSpellFX::AddAbility') + ': flags below 8 are bits of one byte of the record, 8 to 23 bits of a halfword, and the rest of a further byte, each less the number the routine subtracts.' : MECH_NO_APP,
+        '<b>' + cf.flags.length + ' flags</b> are reached by a number written into a script in this file, through the four built-in calls (' + ['SetFlag', 'ClearFlag', 'TestFlag'].map(dvmSyscallShown).join(', ') + ' and ' + dvmSyscallShown('StatusEffect') + ', the character first and the flag second) and the three helpers that wrap them.' + (cf.unknown ? ' ' + cf.unknown + ' site' + (cf.unknown === 1 ? ' passes' : 's pass') + ' a computed flag and ' + (cf.unknown === 1 ? 'is' : 'are') + ' not counted.' : ''),
+        appImage() ? 'Where a flag lives is read off ' + pefChip('TSpellFX::AddAbility') + ': flags below 8 are bits of one byte of the record, 8 to 23 bits of a two-byte number, and the rest of a further byte, each less the number the routine subtracts.' : MECH_NO_APP,
         'A named flag with no site is one the program sets on its own.'
       ],
       table(['#flag', 'name', 'in the record', 'set by', 'cleared by', 'tested by', 'as an effect'], rows));
@@ -2727,8 +2727,8 @@ function renderMechanicsSheet(value) {
         (x.name && dv && !same ? ' <span class="mechSub" style="display:inline">differs</span>' : '') + '</td>' + num(counts.get(dv) || 0) + '</tr>';
     }) : [];
     const differ = st ? st.entries.filter(x => { const dv = DVM_SYM.syscall[String(x.op)]; if (!x.name || !dv) return false; const a = x.name.replace(/^cb/i, '').toLowerCase(), b = dv.toLowerCase(); return !(a === b || a.startsWith(b) || b.startsWith(a)); }).length : 0;
-    add('syscalls', 'The syscalls, by the program’s own names', null, '',
-      st ? 'A script’s call into the engine is an opcode of ' + srcNum(st.base, propWordHex(st.base.v)) + ' or more, and ' + pefChip('TInterp::DoExpr') + ' calls it through the table of ' + srcNum(st.table, 'transition vectors') + ' beside the TOC, one a number. The routine each points at carries the program’s own name for the call; the name the listings use is delvmod’s, given from watching what the scripts do with it.'
+    add('syscalls', 'The built-in calls, by the program’s own names', null, '',
+      st ? 'A script calls into the game itself with an instruction numbered ' + srcNum(st.base, propWordHex(st.base.v)) + ' or above, and ' + pefChip('TInterp::DoExpr') + ' looks that number up in a table of ' + srcNum(st.table, 'addresses') + ' the program keeps, one for each call. The routine each address points at carries the program’s own name for the call; the name the listings use is delvmod’s, given from watching what the scripts do with it.'
          : MECH_NO_APP,
       st ? [
         '<b>' + st.entries.filter(x => x.name).length + ' of the 96 slots</b> point at a named routine. ' + (differ ? '<b>' + differ + '</b> are named differently by the program and by delvmod; where they differ, delvmod’s is the reading and the program’s is the symbol, and neither is wrong.' : 'Every name agrees with delvmod’s.'),
@@ -2759,7 +2759,7 @@ function renderMechanicsSheet(value) {
         '<td class="mechSub">' + svEsc(args.length > 6 ? args.slice(0, 6).join(', ') + ', …' : args.join(', ')) + '</td></tr>';
     }) : [];
     add('eggs', 'What an egg does', null, '',
-      eg ? 'An egg is a record on a zone’s list with no picture and no place in the world: a trigger on a rectangle of squares. Its aspect is which kind of trigger, and the bits a thing would keep its type in are the kind’s argument. The file names neither, so the kinds are named here from the eleven the program dispatches through; the counts and the arguments are this file’s.'
+      eg ? 'An egg is a record on a zone’s list with nothing to see and nowhere to stand: a trigger laid over a rectangle of squares. Its aspect says which kind of trigger it is, and where an ordinary thing would keep what kind of thing it is, an egg keeps the one number its kind is given to work with. The file names neither, so the kinds are named here after the eleven the program hands them to; the counts and the numbers are this file’s.'
          : 'No zone list in this file places an egg.',
       eg ? [
         '<b>' + eg.kinds.reduce((n, k) => n + k.n, 0) + ' eggs</b> across <b>' + eg.zones + ' zones</b>, of <b>' + eg.kinds.length + ' kinds</b>.',
@@ -2769,7 +2769,7 @@ function renderMechanicsSheet(value) {
         '<b>A kind-0 egg’s argument says nothing about what hatches.</b> The creature is the contained record, and the argument is the same value whatever that record is: every one of Odemia’s thirteen carries 0xE4, whether it holds a chicken, a goat or a guard. The column below lists the arguments each kind is placed with, which is the file’s own content and not a meaning.',
         'Records with flags 0x44 are roofs rather than eggs, and there are <b>' + eg.roofs + '</b> of them here.'
       ].filter(Boolean) : [],
-      (eh ? '<div class="mechSub">The dispatch table is ' + srcNum(eh.table, eh.count ? eh.count.v + ' entries' : 'read') + ' beside the TOC, in ' + pefChip('TGameViewer::DrawRoutine') + '; each handler is a piece of that routine, and what it calls is read off its instructions.</div>' : '<div class="mechSub">' + MECH_NO_APP + '</div>') +
+      (eh ? '<div class="mechSub">The dispatch table is ' + srcNum(eh.table, eh.count ? eh.count.v + ' entries' : 'read') + ' beside the TOC, in ' + pefChip('TGameViewer::DrawRoutine') + '; the part of that routine which handles each kind is read for what it calls.</div>' : '<div class="mechSub">' + MECH_NO_APP + '</div>') +
       table(eh ? ['#kind', 'what it does', 'argument', 'handler', '#here', 'arguments used'] : ['#kind', 'what it does', 'argument', '#here', 'arguments used'], rows) +
       // Which creatures, and not only that there are some. The inspector has
       // said this for one egg at a time since the reading was new; this is
@@ -2879,7 +2879,7 @@ function renderMechanicsSheet(value) {
     const twoErrands = [...bySharedLine.values()].filter(list => new Set(list.map(a => a.slot.v)).size > 1);
     // The resolver's weapon-skill term, read in combatRules (`cb` above).
     const skillOff = cb && cb.skillOffLoop;
-    if (skillOff) rows.push('<tr><td>a term read off the wrong thing</td><td>The combat resolver adds the weapon’s skill to the margin and to the damage figure, but reads it off the local its shield loop leaves at nothing rather than off the weapon, so Sword, Axe and Mace add nothing to an armed blow.</td><td>' +
+    if (skillOff) rows.push('<tr><td>a term read off the wrong thing</td><td>The routine that settles a blow adds the weapon’s skill to the margin and to the damage figure, but reads it off a value its shield loop leaves at nothing rather than off the weapon, so Sword, Axe and Mace add nothing to an armed blow.</td><td>' +
       where(skillOff) + '</td></tr>');
     // Four readers of 17 September 2026's fourth batch (page-rules.js).
     for (const d of goesDarkStillLit().filter(x => x.light > 0)) rows.push('<tr><td>a light that stays on</td><td>The ' + svEsc(propDisplayName(d.pt) || ('prop ' + d.pt)) +
@@ -2968,7 +2968,7 @@ function renderMechanicsSheet(value) {
       where([slp.magicGuard, slp.magicCap]) + '</td></tr>');
     // The three "use a thing" task scripts, read in looseEnds (unusedCast).
     for (const u of le.unusedCast) rows.push('<tr><td>a task that does nothing</td><td>Task ' + u.task + ' converts its item to a prop and then sends ' + svEsc(u.method) +
-      ' to the item unconverted. A queued task’s item arrives as a number, and the interpreter sends no method to a number, so the task never acts.' +
+      ' to the item unconverted. A queued task’s item arrives as a plain number rather than as the thing itself, and nothing can be asked of a number, so the task never acts.' +
       (u.queuedBy.length ? ' Queued by ' + where(u.queuedBy) + '.' : ' Nothing queues it.') + '</td><td>' + where([u]) + '</td></tr>');
     for (const list of twoErrands) rows.push('<tr><td>one line shown for two errands</td><td>line ' + list[0].line.v + lineText(list[0].line.v) +
       ' is shown for ' + [...new Set(list.map(a => a.slot.v))].map(s => 'slot ' + s + lineText(s)).join(' and for ') +
@@ -2983,7 +2983,7 @@ function renderMechanicsSheet(value) {
     const clut = window.CYTHERA_RSRC && typeof showMacRsrcDetail === 'function' ? svLink('clut 256', "showMacRsrcDetail('clut', 256)") : 'clut 256';
     const ours = PALETTE_CYCLES.map(([s, n]) => propWordHex(s) + ' to ' + propWordHex(s + n - 1)).join(', ');
     add('palette', 'The palette and its ramps', null, '',
-      'Every picture in the file is indices into one 256-entry colour table, ' + clut + ' in the data file’s resource fork, and the water, lava and magic move because the program remaps a few runs of those indices each tick. The table this page draws with is a copy of that clut; the runs it cycles are a constant of this page, held against the program below.',
+      'Every picture in the file is drawn as numbers that point into one table of 256 colours, ' + clut + ' in the data file’s resource fork, and the water, lava and magic move because the program shuffles a few stretches of that table every tick. The table this page draws with is a copy of it; which stretches move is written into this page, and checked against the program below.',
       [
         'This page cycles <b>' + ours + '</b>: the first two runs of eight and the last three of four, walked backwards a step a tick.',
         pr ? (pr.agrees ? '<b>The program’s ramps agree.</b> ' : '<b>The program’s ramps differ from this page’s.</b> ') +
@@ -2996,16 +2996,16 @@ function renderMechanicsSheet(value) {
   }
 
     add('loose', 'Loose ends', null, '',
-      rows.length ? 'Things the scenario’s own scripts get wrong, each read off the line that causes it. None of this is the page’s opinion: a line nothing strikes off is a line no script names in a ' + dvmSyscallShown('CompleteQuest') + ', and a test nothing can satisfy is a number no script ever assigns.'
+      rows.length ? 'Things the scenario’s own scripts get wrong, each read off the line that causes it. None of this is the page’s opinion: a line nothing strikes off is a line no script names in a ' + dvmSyscallShown('CompleteQuest') + ', and a test nothing can satisfy is a number no script ever sets.'
                   : 'Nothing of this kind was found in this file.',
       rows.length ? [
         never.length ? '<b>' + never.length + '</b> To Do lines are added and struck off by nothing.' : '',
-        le.unreachable.length ? '<b>' + le.unreachable.length + '</b> comparison against a value that is never assigned, so the branch behind it is out of reach.' : '',
+        le.unreachable.length ? '<b>' + le.unreachable.length + '</b> test against a value nothing ever sets, so what it guards can never happen.' : '',
         wrongLine.length ? '<b>' + wrongLine.length + '</b> lines show a different line’s words, which is usually deliberate and names the informant instead of the errand.' : '',
         twoErrands.length ? '<b>' + twoErrands.length + '</b> of those ' + (twoErrands.length === 1 ? 'is' : 'are') + ' shown for two different errands, so one of the two names the wrong one.' : '',
         le.exactStrikes.length ? '<b>' + le.exactStrikes.length + '</b> ' + (le.exactStrikes.length === 1 ? 'line is' : 'lines are') + ' struck off only at an exact count, which a visit can step past.' : '',
         le.flagReadNeverWritten.length ? '<b>' + le.flagReadNeverWritten.length + '</b> quest ' + (le.flagReadNeverWritten.length === 1 ? 'flag is' : 'flags are') + ' tested and never set.' : '',
-        skillOff ? 'The combat resolver reads the weapon’s skill off the wrong thing, so no armed blow gets it.' : '',
+        skillOff ? 'The routine that settles a blow reads the weapon’s skill off the wrong thing, so no armed blow gets it.' : '',
         le.spacedKeywords.length ? '<b>' + le.spacedKeywords.length + '</b> keyword ' + (le.spacedKeywords.length === 1 ? 'list has' : 'lists have') + ' a space after a comma, so the keyword after it needs a space typed first.' : '',
         le.charFlagNeverSet.length ? '<b>' + le.charFlagNeverSet.length + '</b> character ' + (le.charFlagNeverSet.length === 1 ? 'flag is' : 'flags are') + ' tested and never set, which leaves the lines behind them unsaid or said every time.' : '',
         le.unusedCast.length ? '<b>' + le.unusedCast.length + '</b> of the tasks a character can be given ' + (le.unusedCast.length === 1 ? 'does' : 'do') + ' nothing' + (le.unusedCast.some(u => u.queuedBy.some(q => q.resid === 0x1AD5)) ? ', and Lock Picking queues one of them, which is why a companion told to pick a lock never does.' : '.') : ''
@@ -3174,7 +3174,7 @@ function renderMechanicsSheet(value) {
     if (tu && tu.bells) {
       const bl = tu.bells;
       tunesHtml += '<div class="partsTitle">The bells, and the orders they are rung in</div>' +
-        '<ul class="ruleList"><li>Each bell keeps its number in its own Data1, and ringing one shifts it into a register: ' +
+        '<ul class="ruleList"><li>Each bell keeps its number in its own Data1, and ringing one pushes that number into a running total of the last few rings: ' +
         'the register becomes itself times ' + srcNum(bl.base) + ' plus the number.</li>' +
         '<li>Only the last four rings are kept, so a wrong ring can be rung out rather than started again.</li></ul>' +
         (bl.bells.length ? table(['#bell', 'square'], bl.bells.map(b =>
@@ -3199,7 +3199,7 @@ function renderMechanicsSheet(value) {
       (sig ? '<ul class="ruleList">' +
         '<li>A signal is sent to the zone and then to the room, as ' + srcNum(sig.method, 'GetMessage') + ', whatever its number.</li>' +
         '<li>A signal <b>below ' + srcNum(sig.under) + '</b> also goes to every thing on the level whose class listens and <b>whose Data1 is the signal</b>. That is how a button opens one door and not another.</li>' +
-        (sig.mask ? '<li>A thing is passed over unless its flags, masked with ' + srcNum(sig.mask, '0x5D') + ', are nothing or one, which leaves out eggs, roofs and anything inside something else.</li>' : '') +
+        (sig.mask ? '<li>A thing is passed over unless its flags, taken against ' + srcNum(sig.mask, '0x5D') + ', come to nothing or one, which leaves out eggs, roofs and anything inside something else.</li>' : '') +
         '<li>Then every one of <b>' + srcNum(sig.slots) + '</b> character slots in that zone, and last a call to ' + svEsc(sig.gremlin ? sig.gremlin.name : 'the gremlin') + '.</li>' +
         '<li class="mechSub">Which classes listen is a table the program builds as it loads, so it is not in the file and is not stated here.</li>' +
         '</ul>'
@@ -3222,10 +3222,10 @@ function renderMechanicsSheet(value) {
       [], braziersHtml);
     if (bu) add('buttons', 'The buttons and the pattern rooms', null, src('the buttons', 0x1104),
       'Five rooms, each a pair of lit panels and a door that opens when they match.',
-      (bu && bu.arrays) ? ['A button is a lookup and nothing more: it takes a panel’s aspect, reads it through one of the <b>' + bu.arrays.length + ' tables</b>, and stores what comes back. There is no rotation and no arithmetic.'] : [],
+      (bu && bu.arrays) ? ['A button does one thing: it takes the panel’s aspect, looks it up in one of the <b>' + bu.arrays.length + ' tables</b>, and puts back whatever it finds there. Nothing is turned and nothing is worked out.'] : [],
       buttonsHtml);
     if (ri && ri.buttons.length) add('riddles', 'The riddles', null, src('the riddles', 0x1110),
-      'Five riddles, each taking a word typed at it, read off the opcodes that compare it.',
+      'Five riddles, each taking a word typed at it, read off the instructions that compare what you typed.',
       [], riddlesHtml);
     if (tu && (tu.bells || tu.instruments.length)) add('tunes', 'The bells and the music locks', null,
       (tu.bells ? src('the bells', 0x10C1) : '') +
