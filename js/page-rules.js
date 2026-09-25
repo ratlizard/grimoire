@@ -449,6 +449,63 @@ function renderSkillsSheet() {
    small numbers (0xEA3 asks for 4, 6 and 7) and most entries carry 0x80 on
    top of one, and what that bit means is not read here. The script field
    is nearly always 0; the few that are not name a resource. */
+/* ---- who ScheduleTime schedules, read off the routine ----------------------
+   Each hour ScheduleTime walks the 256 character records, 32 bytes each,
+   and runs ScheduleOne for a character unless one of four tests says not
+   to: bit 0x40 of byte 8 is set (JoinParty sets it; the InParty helper
+   tests it), bit 1 of the halfword at byte 6 is clear (what a script's
+   test of status_flags for being alive reads), byte 22 -- the behaviour --
+   is 112, or TActiveMonster::GetCharacter finds an active monster for the
+   character whose word at 28 is not zero. Read here as the loads through
+   the table register at a displacement from the record and the test that
+   follows each, and the load after the call; nothing is typed but the
+   shapes. 112 is the behaviour the Wait command and a companion's "wait"
+   answer set and "Follow" lifts (behaviorSetSites), which is why a
+   companion told to wait stays where they stood: the hour does not move
+   them. What the active monster's word at 28 is has not been read. Null
+   with no application open or when the shape is not found. */
+function exeScheduleWho() {
+  const ops = exeOpsNamed('ScheduleTime');
+  if (!ops.length) return null;
+  const out = {};
+  for (let i = 0; i + 1 < ops.length; i++) {
+    const d = ops[i].d, n = ops[i + 1].d;
+    if (!d || !n) continue;
+    if ((d.mn === 'lbzx' || d.mn === 'lhzx') && out.monsterWord === undefined) {
+      const add = exeFindBack(ops, i, 2, e => e.mn === 'addi' && e.imm !== undefined);
+      if (add < 0) continue;
+      const byte = exeVal(ops[add], ops[add].d.imm);
+      if (n.mn === 'rlwinm.' && n.sh === 0 && n.mb === n.me && !out.partyBit) out.partyBit = { byte, bit: exeVal(ops[i + 1], 1 << (31 - n.mb)) };
+      else if (n.mn === 'clrlwi.' && !out.aliveBit) out.aliveBit = { byte, mask: exeVal(ops[i + 1], (1 << (32 - n.mb)) - 1) };
+      else if (n.mn === 'cmplwi' && !out.waiting) out.waiting = { byte, value: exeVal(ops[i + 1], n.imm) };
+    }
+    if (d.mn === 'bl' && exeCalls(ops[i], 'TActiveMonster::GetCharacter')) {
+      const lw = exeFind(ops, i + 1, 6, e => e.mn === 'lwz' && e.ra !== 1 && e.ra !== 2);
+      if (lw >= 0) out.monsterWord = { call: exeVal(ops[i], 'TActiveMonster::GetCharacter'), disp: exeVal(ops[lw], ops[lw].d.d) };
+    }
+  }
+  return out.partyBit && out.aliveBit && out.waiting && out.monsterWord ? out : null;
+}
+// Every script site that sets a character's behaviour to `value`: a
+// set_field of the behaviour key followed, within its operands, by that
+// number. One site a script, the first.
+function behaviorSetSites(value) {
+  const cache = DERIVED.BEHAVIOR_SET || (DERIVED.BEHAVIOR_SET = {});
+  if (cache[value]) return cache[value];
+  const out = [], seen = new Set();
+  for (const e of buildScriptTextIndex()) {
+    let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
+    for (let i = 0; i < ops.length; i++) {
+      if (!/^set_field behavior\b/.test(ops[i].text) || seen.has(e.resid)) continue;
+      for (let k = i + 1; k < Math.min(ops.length, i + 6); k++) {
+        const m = /^(?:byte|short) (0x[0-9A-F]+|\d+)$/.exec(ops[k].text);
+        if (m && parseInt(m[1], m[1].startsWith('0x') ? 16 : 10) === value) { out.push({ resid: e.resid, at: ops[i].at }); seen.add(e.resid); break; }
+      }
+    }
+  }
+  return (cache[value] = out);
+}
+
 function renderSchedulesSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -460,6 +517,24 @@ function renderSchedulesSheet() {
   const scheds = loadSchedules();
   const box = document.createElement('div');
   box.className = 'mechView';
+  // Who is scheduled at all, read off ScheduleTime (exeScheduleWho); with
+  // no application open the sheet says where the rule comes from and
+  // states none of it.
+  {
+    const who = appImage() ? exeScheduleWho() : null;
+    const lede = document.createElement('p');
+    lede.className = 'mechLede';
+    if (who) {
+      const waits = behaviorSetSites(who.waiting.value.v);
+      lede.innerHTML = 'Each hour ' + pefChip('ScheduleTime') + ' walks the character records and schedules everyone but four kinds: a character with bit ' +
+        srcNum(who.partyBit.bit, propWordHex(who.partyBit.bit.v, 2)) + ' of byte ' + srcNum(who.partyBit.byte, String(who.partyBit.byte.v)) + ' set, which JoinParty sets; one with bit ' +
+        srcNum(who.aliveBit.mask, String(who.aliveBit.mask.v)) + ' of the word at byte ' + srcNum(who.aliveBit.byte, String(who.aliveBit.byte.v)) + ' clear, the bit a script tests to ask if a character is alive; one whose behaviour, byte ' +
+        srcNum(who.waiting.byte, String(who.waiting.byte.v)) + ', is ' + srcNum(who.waiting.value, String(who.waiting.value.v)) +
+        (waits.length ? ', which ' + waits.map(w => srcNum({ resid: w.resid, at: w.at }, labelFor(w.resid) || propWordHex(w.resid))).join(', ') + (waits.length === 1 ? ' sets' : ' set') + ' when a companion is told to wait, so the hour does not move them' : '') +
+        '; and one whose active monster (' + srcNum(who.monsterWord.call, 'TActiveMonster::GetCharacter') + ') has a word at ' + srcNum(who.monsterWord.disp, String(who.monsterWord.disp.v)) + ' set, which is not read here.';
+    } else lede.innerHTML = 'Who is scheduled at all each hour is read out of the application, which is not open; the days below are the file’s.';
+    box.appendChild(lede);
+  }
   const ampm = h => h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
   const people = [];
   for (let i = 0; i < scheds.length; i++) {

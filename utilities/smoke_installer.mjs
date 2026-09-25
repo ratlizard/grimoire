@@ -7,7 +7,7 @@
 // all six in this process, in order.
 import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsrcPath, rsrcFork, missingIds,
          El, REGISTRY, catSel, optionSource, CATEGORY_VALUES, body, documentStub, rafQueue, drainRaf, sandbox,
-         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally } from './smoke_boot.mjs';
+         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally, withoutApp } from './smoke_boot.mjs';
 
 // The installer. The page's default input is the whole game as one file,
 // and three views exist only when it arrived that way: Data › Installer, and
@@ -160,6 +160,30 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         else console.log(`  class cache: ${classes} classes, ${listeners} with a GetMessage, ${weighed} with a plain weight and ${tagged} with another kind; class ${doorPt} shows ${hexw}`);
       }
     } catch (e) { fail('class cache', e); }
+
+    /* Who ScheduleTime schedules, read off the routine (exeScheduleWho):
+       the four tests as the notes read them on 24 September 2026, the
+       behaviour 112 traced to the scripts that set it, and the Schedules
+       sheet stating the rule with the application open and not without. */
+    try {
+      const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
+      const inRoutine = (val, name) => { const r = val && ctx.exeRoutineAt(val.exe); return !!(r && r.name.startsWith(name + '(')); };
+      const who = ctx.exeScheduleWho();
+      const waits = who ? ctx.behaviorSetSites(who.waiting.value.v) : [];
+      if (!who) fail('who is scheduled', 'ScheduleTime was not read');
+      else if (who.partyBit.byte.v !== 8 || who.partyBit.bit.v !== 0x40 || who.aliveBit.byte.v !== 6 || who.aliveBit.mask.v !== 1 || who.waiting.byte.v !== 22 || who.waiting.value.v !== 112 || who.monsterWord.disp.v !== 28)
+        fail('who is scheduled', 'the tests were misread: ' + JSON.stringify([who.partyBit, who.aliveBit, who.waiting, who.monsterWord]));
+      else if (!inRoutine(who.waiting.value, 'ScheduleTime') || !inRoutine(who.monsterWord.disp, 'ScheduleTime')) fail('who is scheduled', 'a figure is linked outside ScheduleTime');
+      else if (waits.length < 2 || !waits.some(w => w.resid === 0x1806) || !waits.some(w => w.resid === 0x1AF6)) fail('who is scheduled', 'behaviour 112 is set by ' + waits.map(w => '0x' + w.resid.toString(16)).join(' '));
+      else {
+        ctx.showCategory('SCHEDULES');
+        const sh = all(REGISTRY.get('sheetGrid'));
+        const wh = withoutApp(() => { ctx.showCategory('SCHEDULES'); return all(REGISTRY.get('sheetGrid')); });
+        if (!/ScheduleTime/.test(sh) || !/told to wait/.test(sh) || !/jumpToExeAt\(/.test(sh)) fail('who is scheduled', 'the Schedules sheet does not state the rule with the application open');
+        else if (/told to wait|jumpToExeAt\(/.test(wh) || !/not open/.test(wh)) fail('who is scheduled', 'with no application the sheet states the rule or does not say the program is not open');
+        else console.log(`  who is scheduled: four tests read off ScheduleTime; behaviour 112 is set by ${waits.length} scripts, the Wait command among them, and the sheet says so`);
+      }
+    } catch (e) { fail('who is scheduled', e); }
     /* The sky of the hour, off DrawSky, CalcLocations and gXPos (exeSkyRules).
        The hour table comes out black at midnight, cyan ("white") at noon and
        half and half ("gray") in the sunrise and sunset hours; the sun at noon
