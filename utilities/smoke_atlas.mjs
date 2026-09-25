@@ -459,6 +459,9 @@ try {
       const spy = ctx.document.createElement('canvas').getContext('2d');
       const realDraw = spy.drawImage;
       spy.drawImage = function () { painted++; return realDraw.apply(this, arguments); };
+      // The render the people stand on, made now: the tab makes it a slice
+      // at a time over frames (atlasRenderStep), which is not what this pins.
+      ctx.mapRenderFor(0x8002, true);
       peek('atlasPeople')(spy, cadN, { x: 0, y: 0, w: 2000, h: 2000 }, 40);
       if (!painted) fail('atlas', 'nobody was drawn on a populated node');
       else if (peek('CUR_MAP') !== before)
@@ -635,7 +638,13 @@ try {
     ctx.paintAtlas = realPaint;
 
     // Magnified past its own render, a node's native art is a cached window:
-    // the second frame at the same view rasterises no square at all.
+    // the second frame at the same view rasterises no square at all. Native
+    // art is off by default since 25 September 2026 and asked for with
+    // ?nativeAt=, so it is asked for here at the old 1.2; and Cademia's
+    // render is made now, since the tab makes one a slice at a time.
+    const nativeWas = ctx.ATLAS_NATIVE_AT;
+    ctx.ATLAS_NATIVE_AT = 1.2;
+    ctx.mapRenderFor(0x8008, true);
     const av2 = peek('atlasView');
     const cad2 = peek('atlasScene')().nodes.find(n => n.resid === 0x8008);
     peek('atlasFit')();
@@ -665,6 +674,7 @@ try {
       if (peek('atlasFolkCache').size !== folkKeys) fail('atlas', 'a repaint recomputed the schedules');
     } else console.log('  note: could not magnify Cademia past its render in a 300px panel; window cache not exercised' +
                        ` (Z ${av2.Z.toFixed(2)}, s ${cad2.s}, ppt ${peek('atlasNodePpt')(cad2, av2).toFixed(1)}, ts ${cad2.ts}, maxZ ${peek('atlasMaxZ')().toFixed(1)}, below ${(peek('DERIVED').ATLAS_BELOW || []).length})`);
+    ctx.ATLAS_NATIVE_AT = nativeWas;
 
     // The card over a square: who, what, and -- only when asked -- the ground.
     const ode = peek('atlasScene')().nodes.find(n => n.resid === 0x8002) || cad2;

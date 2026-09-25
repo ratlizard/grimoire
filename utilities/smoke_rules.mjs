@@ -708,15 +708,16 @@ try {
    The one worth a real check is the judder. A node past the 448 pixel
    threshold used to ask for a full map render every node, every frame, and
    ZONE_CACHE_KEEP is two on iOS: three big towns at an intermediate zoom
-   evicted each other and re-rendered continuously. drawAtlasNode now takes a
-   render while the view is moving only if it is already cached. So: clear the
-   cache, paint with a finger down, and require that nothing was rendered.
+   evicted each other and re-rendered continuously. Since 25 September 2026
+   the tab never renders a zone in one piece at all: a paint at rest starts
+   a render a slice at a time (atlasRenderStep), and a paint with a finger
+   down starts nothing. So: clear the cache, paint with a finger down and
+   require no render and no job; paint at rest and require no render in one
+   piece but a job started; then run the frames and require the zone cached.
 
-   renderMapUncached is what is counted, not mapRenderFor, because a cache hit
-   calls mapRenderFor too and only the miss is expensive. And the negative
-   control matters more than the assertion here: at rest the same paint MUST
-   render something, or the wrapper is not intercepting and a check that
-   proves nothing would sit here passing for ever. */
+   renderMapUncached is what is counted, because a cache hit calls
+   mapRenderFor too and only the miss is expensive. The control is the job
+   at rest: without it the wrappers could be intercepting nothing. */
 try {
   ctx.showCategory('WORLD');
   const av = peek('atlasView');
@@ -728,10 +729,14 @@ try {
   const vw = (vp && vp.clientWidth) || 390, vh = (vp && vp.clientHeight) || 700;
   // An intermediate zoom: big enough that nodes pass the render threshold.
   const place = () => { av.Z = 12; av.x = vw / 2 - 163.5 * 12; av.y = vh / 2 - 20.5 * 12; };
+  drainRaf(); ctx.ATLAS_RENDER_JOB = null;
   cache.clear(); renders = 0; av.touching = true; place(); ctx.paintAtlas();
-  const moving = renders;
+  const moving = renders + (ctx.ATLAS_RENDER_JOB ? 1 : 0);
   cache.clear(); renders = 0; av.touching = false; place(); ctx.paintAtlas();
-  const atRest = renders;
+  const job = ctx.ATLAS_RENDER_JOB, onePiece = renders;
+  for (let i = 0; i < 400 && ctx.ATLAS_RENDER_JOB; i++) drainRaf();
+  const atRest = job && cache.has(job.resid) ? 1 : 0;
+  if (onePiece) fail('world tab', onePiece + ' map renders in one piece at rest: a paint should start a render a slice at a time instead');
   av.touching = false;
   ctx.renderMapUncached = real;
 
@@ -797,8 +802,8 @@ try {
   const onRoom800 = ctx.atlasEggAt({ resid: 0x8001 }, 125, 139);
   const outRoom800 = ctx.atlasEggAt({ resid: 0x8001 }, 123, 137);
 
-  if (atRest === 0) fail('world tab', 'the render counter never fired even at rest, so it is not intercepting and this check proves nothing');
-  else if (moving !== 0) fail('world tab', moving + ' map renders in one paint with a finger down: the judder guard is not holding');
+  if (atRest === 0) fail('world tab', 'a paint at rest did not start a render a slice at a time, or it never finished: ' + JSON.stringify(job && { resid: job.resid }));
+  else if (moving !== 0) fail('world tab', 'a paint with a finger down rendered or started a render: the judder guard is not holding');
   else if (!(topNearFinger > 30 && topNearFinger < 200)) fail('world tab', 'a card by a finger near the top landed at ' + topNearFinger + ', not below the finger');
   else if (!(topAbove < 400)) fail('world tab', 'a card with room above it went below the finger: top ' + topAbove);
   else if (!/hatches sea monster and tentacle/.test(hatch)) fail('world tab', 'the hatching egg does not say what comes out: ' + JSON.stringify(hatch));

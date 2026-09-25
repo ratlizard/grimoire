@@ -1045,8 +1045,61 @@ const ZONE_CACHE_KEEP = IS_IOS_WEBKIT ? 2 : 4;
    animation's done() calls one. Callers that must have the real thing, the
    hover card and the inspector, keep calling mapRenderFor directly. */
 function mapRenderIfCheap(resid) {
-  if (!atlasInMotion() || zoneMapCache.has(resid)) return mapRenderFor(resid, true);
+  if (zoneMapCache.has(resid)) return mapRenderFor(resid, true);
+  if (!atlasInMotion()) atlasRenderStep(resid);
   return null;
+}
+/* A render the World tab wants and has not got is made a slice at a time
+   (25 September 2026). Until then this asked for it in one piece whenever
+   the view was still, and for a big zone that one piece was the jerk: the
+   miniature was on screen, the gesture ended, and the next frame waited on
+   Cademia's whole render. Now the miniature stays while
+   renderMapVisualSteps runs a few milliseconds a frame, and the render
+   takes over when it is done. Nothing is started or advanced while the
+   view is moving, which is the guard of 12 September kept: a gesture's
+   frames are the gesture's. One zone at a time, the latest asked for;
+   a zone asked for again while it is under way keeps its progress. Made on
+   the page's open file under the Walls setting it started with, and thrown
+   away if either changed before it finished. */
+const ATLAS_RENDER_SLICE_MS = 6;
+window.ATLAS_RENDER_JOB = null;
+function atlasRenderStep(resid) {
+  const j = window.ATLAS_RENDER_JOB;
+  if (j && j.resid === resid) return;
+  window.ATLAS_RENDER_JOB = { resid, arc: ARCHIVE, walls: !!window.MAP_WALLS, gen: null, mapData: null, wasDecrypted: false, usedFallback: false };
+  if (!j) requestAnimationFrame(atlasRenderTick);
+}
+function atlasRenderTick() {
+  const j = window.ATLAS_RENDER_JOB;
+  if (!j) return;
+  if (j.arc !== ARCHIVE || j.walls !== !!window.MAP_WALLS || zoneMapCache.has(j.resid)) { window.ATLAS_RENDER_JOB = null; return; }
+  if (atlasInMotion()) { requestAnimationFrame(atlasRenderTick); return; }
+  const t0 = performance.now();
+  try {
+    if (!j.gen) {
+      // renderMapUncached's reading of the map, the fallback included.
+      const raw = getResourceBytes(ARCHIVE, j.resid);
+      if (!raw) { window.ATLAS_RENDER_JOB = null; return; }
+      let { data, wasDecrypted } = smartDecrypt(raw, j.resid);
+      let usedFallback = false;
+      if (!parseDelverMap(data)) {
+        const alt = wasDecrypted ? raw : decryptResource(raw, j.resid);
+        if (parseDelverMap(alt)) { data = alt; wasDecrypted = !wasDecrypted; usedFallback = true; }
+      }
+      Object.assign(j, { mapData: data, wasDecrypted, usedFallback, gen: renderMapVisualSteps(j.resid, data) });
+    }
+    let r = j.gen.next();
+    while (!r.done && performance.now() - t0 < ATLAS_RENDER_SLICE_MS) r = j.gen.next();
+    if (r.done) {
+      window.ATLAS_RENDER_JOB = null;
+      if (r.value) zoneCachePut(j.resid, { resid: j.resid, result: r.value, mapData: j.mapData, wasDecrypted: j.wasDecrypted, usedFallback: j.usedFallback });
+      if (typeof paintAtlas === 'function') paintAtlas();
+      // Another zone may have been asked for by that paint.
+      if (window.ATLAS_RENDER_JOB) requestAnimationFrame(atlasRenderTick);
+      return;
+    }
+  } catch (e) { quiet(e, 'a render a slice at a time, 0x' + j.resid.toString(16)); window.ATLAS_RENDER_JOB = null; return; }
+  requestAnimationFrame(atlasRenderTick);
 }
 /* A square as the game prints it: X and Y in lower-case hex. The cheats'
    Look prints "Location %x,%x,%x" and the jump asks "Jump from [%x,%x,%x]"
@@ -1061,14 +1114,17 @@ function mapRenderFor(resid, cache) {
     return hit;
   }
   const entry = renderMapUncached(resid);
-  if (cache && entry && entry.result) {
-    for (const k of zoneMapCache.keys()) {
-      if (zoneMapCache.size < ZONE_CACHE_KEEP) break;
-      if (k !== WORLD_MAP_RESID) zoneMapCache.delete(k);
-    }
-    zoneMapCache.set(resid, entry);
-  }
+  if (cache && entry && entry.result) zoneCachePut(resid, entry);
   return entry;
+}
+// Keep a render, making room the way the cache always has: oldest first,
+// never the world's.
+function zoneCachePut(resid, entry) {
+  for (const k of zoneMapCache.keys()) {
+    if (zoneMapCache.size < ZONE_CACHE_KEEP) break;
+    if (k !== WORLD_MAP_RESID) zoneMapCache.delete(k);
+  }
+  zoneMapCache.set(resid, entry);
 }
 
 /* A render nobody else holds a reference to.

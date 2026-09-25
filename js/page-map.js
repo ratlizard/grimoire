@@ -2875,7 +2875,26 @@ function keepApart(people) {
 // rather than hardcoded, and never as authority about what a resource is.
 // The table itself is loadResourceSymbols in js/delv-script.js, built per
 // archive and handed to the disassembler by parseArchiveBytes.
+/* The render, whole, for every caller that wants it now: the zone panel,
+   the hover card, the PNG export. It runs renderMapVisualSteps to the end,
+   so what it draws is exactly what the steps draw. */
 function renderMapVisual(resid, mapData, opts) {
+  const g = renderMapVisualSteps(resid, mapData, opts);
+  let r = g.next();
+  while (!r.done) r = g.next();
+  return r.value;
+}
+/* The same render as a generator that pauses after each row of terrain, so
+   the World tab can spread a zone's render over several frames
+   (atlasRenderStep). The terrain pass is a square at a time and is most of
+   the cost: Cademia, 128 squares a side, took about 180 ms in one piece
+   in Chrome with the processor slowed fourfold, the jerk the maintainer
+   felt as a big town grew past its miniature (25 September 2026, on a
+   phone and on an M1 laptop). It pauses after each row of terrain and
+   after every 256 pieces of the prop pass. The prop pass logs what it
+   draws into window.__MAP_BLIT_LOG, which drawTileAt writes to whoever
+   calls it, so at each of its pauses the log is set aside and put back. */
+function* renderMapVisualSteps(resid, mapData, opts) {
   const m = parseDelverMap(mapData);
   if (m) m.raw = mapData;
   if (!m) return null;
@@ -2978,11 +2997,13 @@ function renderMapVisual(resid, mapData, opts) {
       const fp = faux.get(tileId);
       if (fp) fauxDrawn.push([x, y, fp]);
     }
+    yield;
   }
   // Everything from here to the end of the prop pass is logged, so the
   // animation loop can repaint the art that overlaps animated water. See
   // drawTileAt.
-  window.__MAP_BLIT_LOG = [];
+  const blitLog = [];
+  window.__MAP_BLIT_LOG = blitLog;
   // In a second pass so a faux prop is never clipped by the terrain tile of
   // the square below it -- the sprites are authored to overhang.
   for (const [x, y, fp] of fauxDrawn) {
@@ -3118,7 +3139,14 @@ function renderMapVisual(resid, mapData, opts) {
     });
     // Stable, so a prop's own squares keep the corner-first order.
     ops.sort((a, b) => (a.pass - b.pass) || (a.k - b.k));
-    for (const op of ops) drawPropPiece(ctx, TS, op.x, op.y, op.tile, op.d ? op.d.rec.rotated : op.rot, op.ox, op.oy);
+    let drawn = 0;
+    for (const op of ops) {
+      drawPropPiece(ctx, TS, op.x, op.y, op.tile, op.d ? op.d.rec.rotated : op.rot, op.ox, op.oy);
+      // A pause between pieces sets the log aside, so a paint made while
+      // this render waits (the world's, the zone panel's) logs nothing into
+      // it, and puts it back before the next piece.
+      if (++drawn % 256 === 0) { window.__MAP_BLIT_LOG = null; yield; window.__MAP_BLIT_LOG = blitLog; }
+    }
     // The records' squares in the order they were drawn, for the region
     // painter and for what a square's marks call hidden.
     drawOps = ops.filter(op => op.d);

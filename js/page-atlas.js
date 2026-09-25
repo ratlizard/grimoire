@@ -688,12 +688,28 @@ function atlasPaintFolk() {
    panel's own region painter. That last step is what the detail lens was, with
    the difference that it is drawn straight into the scene rather than being a
    second canvas kept in step with a first. */
+/* Where native art starts, as a multiple of a node's own render's tile
+   size; by default nowhere (25 September 2026). It started at 1.2, which
+   put the world's at 9.6 px a square, where the tab was jerkiest and never
+   diagnosed from here: just past it the world's native window is millions
+   of pixels and is rebuilt whenever the view leaves its six-square margin,
+   which at 10 px a square is every 60 px of pan. With `?nativeAt=100` the
+   maintainer found most of the jerk gone, on a phone and on an M1 laptop,
+   so that is the default now. The cost is sharpness only where a render is
+   coarser than the art: the world's is 8 px a square and Cademia's 16, the
+   64-square towns' 32, which is the art's own. `?nativeAt=1.2` brings the
+   old behaviour back for a comparison, and the smoke sets it to test the
+   native window, which is still there to be asked for. */
+window.ATLAS_NATIVE_AT = (function () {
+  try { const m = /[?&]nativeAt=([0-9.]+)/.exec(location.search || ''); const v = m ? parseFloat(m[1]) : NaN; return v > 0 ? v : Infinity; }
+  catch (e) { quiet(e); return Infinity; }
+})();
 function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
   ctx.globalAlpha = alpha;
   ctx.imageSmoothingEnabled = true;
   let ok = false;
   // Native art, when the node is being magnified past its own render.
-  if (ppt > node.ts * 1.2) ok = paintAtlasDetail(ctx, node, r, vw, vh);
+  if (ppt > node.ts * window.ATLAS_NATIVE_AT) ok = paintAtlasDetail(ctx, node, r, vw, vh);
   // The roofs come off as the node grows: a town at a distance is roofs,
   // and close up they are the thing in the way. They used to vanish at the
   // step from the miniature to the render, at 448 screen pixels across,
