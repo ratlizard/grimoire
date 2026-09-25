@@ -313,6 +313,23 @@ function unitArmClass(pt) {
   const k54 = cls && cls.data.find(x => x.key === 54);
   return k54 && k54.words.length && !(k54.words[0] & 0xF0000000) ? (k54.words[0] & 0x0FFFFFFF) : null;
 }
+/* How many frames an arm class owns, when some octopus-kind unit hangs its
+   arms on it (key 54): the arms times the aspect step the program draws
+   with, off exeOctoRule when the application is open and its constants
+   otherwise. 0 for a class no unit names. */
+function unitArmsFrames(pt) {
+  const cache = DERIVED.ARM_FRAMES || (DERIVED.ARM_FRAMES = {});
+  if (pt in cache) return cache[pt];
+  let out = 0;
+  try {
+    const tiles = getPropTileList();
+    for (let u = 0; u < tiles.length && !out; u++) if (tiles[u] !== undefined && u !== pt && unitArmClass(u) === pt) {
+      const rule = (appImage() && exeOctoRule()) || null;
+      out = (rule ? rule.arms.v : OCTO_DEFAULT.arms) * ((rule && rule.aspectStep ? rule.aspectStep.v : OCTO_DEFAULT.aspectStep) || 1);
+    }
+  } catch (e) { quiet(e, 'the arm class’s frame count'); out = 0; }
+  return (cache[pt] = out);
+}
 function unitDisplayName(pt) {
   const arm = unitArmClass(pt);
   return (arm !== null && propDisplayName(arm)) || propDisplayName(pt);

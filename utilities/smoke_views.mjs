@@ -341,6 +341,11 @@ try {
   if (names !== 'crystal ball')
     fail('frame runs', `0x141 came out as ${names}`);
   const own = ctx.framesSharingName(base, ctx.spriteFrameInfo(0, 0x141).present);
+  // The hydra's arms (0x116) run over two sheets: the arm class's block is
+  // the eight arms' four frames each, and the body's (0x117) is its own.
+  const arms = ctx.spriteFrameInfo(0, 0x116), body = ctx.spriteFrameInfo(0, 0x117);
+  if (ctx.spriteBlockSize(0x116) !== 32 || arms.present.length !== 32) fail('frame blocks', 'the hydra’s arm class owns ' + ctx.spriteBlockSize(0x116) + ' frames, ' + arms.present.length + ' present, not 32');
+  else if (ctx.spriteBlockSize(0x117) > 16) fail('frame blocks', 'the hydra’s body class runs past its sheet');
   if (own.length !== 4) fail('frame runs', `0x141 claimed ${own.length} frames of its own`);
   const cols = ctx.distinguishingColours(base, own);
   if (!cols || new Set([...cols.values()]).size < 3)

@@ -948,6 +948,13 @@ function spriteBlockSize(proptype) {
   const base = tiles[proptype];
   if (base === undefined || !proptype) return 0;
   let end = (base | 0x0F) + 1;
+  // The arms of an octopus-kind unit run over two sheets: the program draws
+  // arms times aspectStep frames of the arm class (exeOctoRule, 32 for the
+  // hydra's), so an arm class's block is that long, still stopped at the
+  // next prop type's base (25 September 2026; the hydra's own page showed
+  // sixteen of its thirty-two until then).
+  const arms = typeof unitArmsFrames === 'function' ? unitArmsFrames(proptype) : 0;
+  if (arms > end - base) end = base + arms;
   for (let pt = 0; pt < tiles.length; pt++) {
     const b = tiles[pt];
     if (b !== undefined && pt !== proptype && b > base && b < end) end = b;
