@@ -907,6 +907,7 @@ function characterDossier(i) {
   const zones = loadZoneNames();
   return {
     index: i, name: characterName(i), rec: c,
+    notScheduled: (sched[0] && sched[0].why) || null,
     tile: (getPropTileList()[c.proptype] || 0) + c.aspect,
     homeZone: zoneDisplayName(c.zone),
     schedule: sched.map(e => ({ hour: e.hour, mode: e.mode,

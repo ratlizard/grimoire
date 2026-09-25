@@ -439,8 +439,33 @@ function scheduleHoldsAtStart(e) {
    counting a nested head up and a stop down, and walks into it when the
    condition holds. Philinus, Timon and Eudoxus open with one. */
 function scheduleIsHead(e) { return e.level === 0 && e.x === 0 && e.y === 0 && e.cond !== 1; }
+/* Why ScheduleTime would not schedule a character at all, from the record
+   as the file has it and the tests read off the routine (exeScheduleWho):
+   in the party, dead, or waiting. Null when the character is scheduled,
+   and null with no application open, since the tests are the program's
+   and the page states nothing of them without it. The fourth test, the
+   active monster's word, is the game's runtime and has no reading here. */
+function scheduleSkipReason(i) {
+  const c = loadCharacterTable()[i];
+  const who = c && appImage() ? exeScheduleWho() : null;
+  if (!who) return null;
+  const raw = c.raw;
+  if (raw[who.partyBit.byte.v] & who.partyBit.bit.v) return 'in the party';
+  const hw = (raw[who.aliveBit.byte.v] << 8) | raw[who.aliveBit.byte.v + 1];
+  if (!(hw & who.aliveBit.mask.v)) return 'dead';
+  if (raw[who.waiting.byte.v] === who.waiting.value.v) return 'waiting';
+  return null;
+}
+
 function scheduleDay(i) {
   const segs = loadSchedules()[i] || [];
+  // A character the hour never schedules stands where the record puts
+  // them all day, as one whose segments never hold does; `why` says which.
+  const why = scheduleSkipReason(i);
+  if (why) {
+    const c = loadCharacterTable()[i];
+    return c && c.zone ? [{ hour: 0, mode: 0x86, cond: 0, arg: 0, script: 0, level: c.zone, x: c.x, y: c.y, at: null, fromRecord: true, why }] : [];
+  }
   if (!segs.some(e => e.cond)) return segs;
   const out = [];
   for (let k = 0; k < segs.length; k++) {

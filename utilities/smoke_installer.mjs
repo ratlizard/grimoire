@@ -184,7 +184,19 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         const wh = withoutApp(() => { ctx.showCategory('SCHEDULES'); return all(REGISTRY.get('sheetGrid')); });
         if (!/ScheduleTime/.test(sh) || !/told to wait/.test(sh) || !/jumpToExeAt\(/.test(sh)) fail('who is scheduled', 'the Schedules sheet does not state the rule with the application open');
         else if (/told to wait|jumpToExeAt\(/.test(wh) || !/not open/.test(wh)) fail('who is scheduled', 'with no application the sheet states the rule or does not say the program is not open');
-        else console.log(`  who is scheduled: four tests read off ScheduleTime; behaviour 112 is set by ${waits.length} scripts, the Wait command among them, and the sheet says so`);
+        else {
+          // And the day walker applies the three tests the record can answer:
+          // character 96 starts with the alive bit clear and the hero in the
+          // party, so each stands at their record's square all day with the
+          // reason on the post; without the program, no reason is given.
+          const d96 = ctx.scheduleDay(96), d1 = ctx.scheduleDay(1);
+          const plain = withoutApp(() => ctx.scheduleDay(96).some(e => e.why));
+          if (!(d96.length === 1 && d96[0].fromRecord && d96[0].why === 'dead')) fail('who is scheduled', 'character 96 is not left standing as dead: ' + JSON.stringify(d96.slice(0, 2)));
+          else if (!(d1.length === 1 && d1[0].why === 'in the party')) fail('who is scheduled', 'the hero is not left standing as in the party: ' + JSON.stringify(d1.slice(0, 2)));
+          else if (plain) fail('who is scheduled', 'with no application open the day walker still applies the program’s tests');
+          else if (!/not scheduled, dead/.test((ctx.characterDossier(96) || {}).notScheduled ? 'not scheduled, ' + ctx.characterDossier(96).notScheduled : '')) fail('who is scheduled', 'the dossier does not say why 96 is not scheduled');
+          else console.log(`  who is scheduled: four tests read off ScheduleTime; behaviour 112 is set by ${waits.length} scripts, the Wait command among them, and the sheet says so; character 96 stands dead all day and the hero in the party`);
+        }
       }
     } catch (e) { fail('who is scheduled', e); }
     /* The sky of the hour, off DrawSky, CalcLocations and gXPos (exeSkyRules).

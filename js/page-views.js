@@ -731,7 +731,7 @@ function characterParts(i, d) {
   if (refExists(0xF009)) chips.push(partChip('Record', 0xF009));
   // Through the Schedules sheet, not at the raw table: a component is
   // reached by the Components tab that shows it, and the bytes from there.
-  if (d.schedule.length) chips.push(actionChip('Schedule', 'openSchedule(' + i + ')', 'their day'));
+  if (d.schedule.length) chips.push(actionChip('Schedule', 'openSchedule(' + i + ')', d.notScheduled ? 'not scheduled, ' + d.notScheduled : 'their day'));
   return chips;
 }
 
