@@ -652,18 +652,18 @@ try {
     ctx.jumpToScriptAt(0x987, +refJs[1]);
     if (!/0x904|UsingMeleeWeapon/.test(hitLine())) fail('script page', 'Referenced by rings "' + hitLine().slice(0, 50) + '", not the call to 0x904');
   }
-  /* 0x987's loop reads as a for-each since 22 September 2026: its goto to the
-     iterator's step is a continue, its goto out of the loop a break, and the
-     step's offset is on the closing brace, so a ring on it lands there and not
-     on the break before it. */
+  /* 0x987's loop reads as a for-each since 22 September 2026, its goto out
+     of the loop a break, and the step's offset is on the closing brace, so
+     a ring on it lands there and not on the break before it. Its `if (!c)
+     continue` became a block since 25 September 2026, when a block was
+     allowed to leave for its loop's exits: `if (c) { ...; break }`. */
   const t987 = ctx.document.getElementById('textContent').innerHTML;
   if (!/\n    001A  for Var01 in Worn\(Arg01\) \{\n/.test(t987) ||
-      !/\n    0034      if \(!\(Arg01 has MeleeWeapon\)\) (<a [^>]*>)?continue(<\/a>)?\n/.test(t987) || !/\n    003F      (<a [^>]*>)?break(<\/a>)?\n/.test(t987))
-    fail('script page', '0x987 does not read as a for loop with a continue and a break');
-  // Each is a link to where it goes: the continue to the step's brace, the
-  // break to the statement after the loop.
-  if (!/ringListingAt\(66\)[^>]*>continue</.test(t987) || !/ringListingAt\(81\)[^>]*>break</.test(t987))
-    fail('script page', 'the continue and break in 0x987 are not links to 0x42 and 0x51');
+      !/\n    0034      if \(Arg01 has MeleeWeapon\) \{\n/.test(t987) || !/\n    003F          (<a [^>]*>)?break(<\/a>)?\n/.test(t987))
+    fail('script page', '0x987 does not read as a for loop with an if holding a break');
+  // The break is a link to where it goes, the statement after the loop.
+  if (!/ringListingAt\(81\)[^>]*>break</.test(t987))
+    fail('script page', 'the break in 0x987 is not a link to 0x51');
   ctx.ringListingAt(0x51);
   if (!/^    0051  if/.test(hitLine())) fail('script page', 'following the break in 0x987 rings "' + hitLine().slice(0, 50) + '"');
   ctx.ringListingAt(0x42);
@@ -714,14 +714,16 @@ try {
   ctx.jumpToResource(0x1403);
   if (!/SetAmbientLight\(-128\)/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'a negative byte in 0x1403 is not printed as a negative number');
-  /* A goto that is left is a link to its label, and the label is printed even
-     where it heads an if: 0x812's L0488 was one of 94 printed nowhere. */
-  ctx.jumpToResource(0x812);
-  const t812 = ctx.document.getElementById('textContent').innerHTML;
-  if (!/ringListingAt\(1160\)[^>]*>L0488</.test(t812)) fail('script page', 'goto L0488 in 0x812 is not a link to its label');
-  if (!/\n  L0488:\n    0488          if \(/.test(t812)) fail('script page', 'the label L0488 over an if in 0x812 is not printed');
-  ctx.ringListingAt(0x488);
-  if (!/^    0488  /.test(hitLine())) fail('script page', 'following L0488 rings "' + hitLine().slice(0, 50) + '"');
+  /* A goto that is left is a link to its label, and the label is printed.
+     0x812's L0488 over an if was the example until 25 September 2026, when
+     the dice game came out whole; 0x80E's entry jump over the subroutine
+     laid inline at its head is a goto no block can take. */
+  ctx.jumpToResource(0x80E);
+  const t80e = ctx.document.getElementById('textContent').innerHTML;
+  if (!/ringListingAt\(53\)[^>]*>L0035</.test(t80e)) fail('script page', 'goto L0035 in 0x80E is not a link to its label');
+  if (!/\n  L0035:\n    0035  answer /.test(t80e)) fail('script page', 'the label L0035 over the first answer in 0x80E is not printed');
+  ctx.ringListingAt(0x35);
+  if (!/^    0035  /.test(hitLine())) fail('script page', 'following L0035 rings "' + hitLine().slice(0, 50) + '"');
   // Searched by delvmod's name, found and ringed by the program's.
   REGISTRY.get('searchBox').value = 'EquipmentIterator';
   ctx.runSearch();

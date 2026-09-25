@@ -291,8 +291,13 @@ if (control) {
 // Raised to 480 on 24 September 2026, when folding jumps to a return took
 // the archive from 431 whole functions to 490 and the gotos left from 917
 // to 455; and to 540 on 25 September, when splitting a text run at the
-// jump that lands in it (dvmSplitTextAtTargets) took it to 554 and 193.
-const WHOLE_FLOOR = 540;
+// jump that lands in it (dvmSplitTextAtTargets) took it to 554 and 193;
+// and to 575 the same day, when a jump to a block's own absorbed goto was
+// allowed from inside the block and an if-else could have an empty
+// then-branch, which took it to 586 and 39; and to 590 when a block could
+// leave for an enclosing loop's exits and an if could have nothing in it
+// or no else, which took it to 596 and 7.
+const WHOLE_FLOOR = 590;
 const FOR_FLOOR = 150;
 const MERGE_FLOOR = 150;
 

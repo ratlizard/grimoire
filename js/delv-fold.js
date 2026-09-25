@@ -945,8 +945,31 @@ function dvmRecoverStructure(flat) {
      keeps the label, which is the same rule as everywhere else here: when the
      structure cannot account for something, leave it as the bytes have it. */
   const absorbable = i => !sources[i] || sources[i].length === 0;
+  /* Since 25 September 2026 a jump to the goto a block absorbs is allowed
+     from INSIDE the block: the dice game's inner if-else ends its then-branch
+     by jumping to the outer if-else's closing goto, and a loop body may jump
+     to its own closing goto, which is a `continue`. The absorbed goto exists
+     only to reach the place the braces say, so a jump to it is a jump to
+     that place, and `retarget` says so on the node (`goes`), which is what
+     the renderers, the loop exits and the labels then read. A jump to it
+     from outside the block is still refused: that would enter the block at
+     its end. */
+  const absorbableFrom = (k, lo) => !sources[k] || sources[k].every(j => j >= lo && j < k);
+  const retarget = (list, from, to) => {
+    for (const nd of list) {
+      if (nd.kind === 'stmt' && nd.stmt.targets.length === 1 && nd.stmt.targets[0] === from) nd.goes = to;
+      for (const k of ['then', 'els', 'body']) if (nd[k]) retarget(nd[k], from, to);
+    }
+  };
 
-  function build(lo, hi, follow) {
+  /* `loops` is every place the enclosing loops may be left for or gone
+     round from -- a `break` or a `continue` -- which a block inside them may
+     leave for as well as for its own continuation (25 September 2026: `if
+     (c) break` was refused as a block that leaves for a third place, and
+     printed as `if (!c) goto L; break; L:`). utilities/structure_check.mjs
+     allows the same exits in its region test, through dvmBlocksOf. */
+  function build(lo, hi, follow, loops) {
+    loops = loops || [];
     const out = [];
     let i = lo;
     while (i < hi) {
@@ -961,9 +984,11 @@ function dvmRecoverStructure(flat) {
           if (tIdx > i + 1 && tIdx <= hi) {
             const last = stmts[tIdx - 1];
             if (last.kind === 'jump' && last.targets[0] === s.abs &&
-                absorbable(tIdx - 1) &&
-                closed(i + 1, tIdx - 1, [s.abs, s.targets[0]])) {
-              out.push({ kind: 'while', cond: s, body: build(i + 1, tIdx - 1, s.abs) });
+                absorbableFrom(tIdx - 1, i + 1) &&
+                closed(i + 1, tIdx - 1, [s.abs, s.targets[0], last.abs].concat(loops))) {
+              const body = build(i + 1, tIdx - 1, s.abs, loops.concat([s.abs, s.targets[0]]));
+              retarget(body, last.abs, s.abs);
+              out.push({ kind: 'while', cond: s, body });
               absorbed.add(last.abs);
               structured += 2;
               i = tIdx; continue;
@@ -976,13 +1001,31 @@ function dvmRecoverStructure(flat) {
             const beforeElse = stmts[tIdx - 1];
             if (beforeElse.kind === 'jump') {
               const endIdx = index.get(beforeElse.targets[0]);
+              // A then-branch that is only the goto is an if-else with an
+              // empty then, which is `if (!C) { else }`: the renderers print
+              // the condition in its taken sense over the else alone.
+              const lend = beforeElse.targets[0], emptyThen = tIdx - 1 === i + 1;
+              // An else that is empty -- the then-branch's closing goto lands
+              // on the statement the test jumps to -- is a plain if whose last
+              // statement is a jump to its own continuation, absorbed like an
+              // if-else's (0xEAB's "around two hundred paces").
+              if (endIdx !== undefined && endIdx === tIdx && tIdx - 1 > i + 1 &&
+                  absorbableFrom(tIdx - 1, i + 1) &&
+                  closed(i + 1, tIdx - 1, [lend, beforeElse.abs].concat(loops))) {
+                const then = build(i + 1, tIdx - 1, lend, loops);
+                retarget(then, beforeElse.abs, lend);
+                out.push({ kind: 'if', cond: s, then });
+                absorbed.add(beforeElse.abs);
+                structured += 2;
+                i = endIdx; continue;
+              }
               if (endIdx !== undefined && endIdx >= tIdx && endIdx <= hi &&
-                  absorbable(tIdx - 1) &&
-                  closed(i + 1, tIdx - 1, [beforeElse.targets[0]]) &&
-                  closed(tIdx, endIdx, [beforeElse.targets[0]])) {
-                out.push({ kind: 'ifelse', cond: s,
-                           then: build(i + 1, tIdx - 1, beforeElse.targets[0]),
-                           els: build(tIdx, endIdx, beforeElse.targets[0]) });
+                  absorbableFrom(tIdx - 1, i + 1) &&
+                  (emptyThen || closed(i + 1, tIdx - 1, [lend, beforeElse.abs].concat(loops))) &&
+                  closed(tIdx, endIdx, [lend].concat(loops))) {
+                const then = emptyThen ? [] : build(i + 1, tIdx - 1, lend, loops);
+                retarget(then, beforeElse.abs, lend);
+                out.push({ kind: 'ifelse', cond: s, then, els: build(tIdx, endIdx, lend, loops) });
                 absorbed.add(beforeElse.abs);
                 structured += 2;
                 i = endIdx; continue;
@@ -990,9 +1033,18 @@ function dvmRecoverStructure(flat) {
             }
           }
 
+          // if (C) { }: a test that jumps to the very next statement, which
+          // the compiler emits for a body that came to nothing (0x1428's
+          // GetMessage). The test is still run, so it is printed as an if
+          // with nothing in it rather than dropped.
+          if (tIdx === i + 1) {
+            out.push({ kind: 'if', cond: s, then: [] });
+            structured++;
+            i = tIdx; continue;
+          }
           // if (C) { then }:  if_not C -> Lafter / then / Lafter:
-          if (tIdx > i + 1 && tIdx <= hi && closed(i + 1, tIdx, [s.targets[0]])) {
-            out.push({ kind: 'if', cond: s, then: build(i + 1, tIdx, s.targets[0]) });
+          if (tIdx > i + 1 && tIdx <= hi && closed(i + 1, tIdx, [s.targets[0]].concat(loops))) {
+            out.push({ kind: 'if', cond: s, then: build(i + 1, tIdx, s.targets[0], loops) });
             structured++;
             i = tIdx; continue;
           }
@@ -1017,9 +1069,10 @@ function dvmRecoverStructure(flat) {
       if (s.kind === 'jump' && s.targets.length === 1) {
         const tIdx = index.get(s.targets[0]);
         if (tIdx !== undefined && tIdx <= i && tIdx >= lo &&
-            absorbable(i) && closed(tIdx, i + 1, [s.abs])) {
+            absorbableFrom(i, tIdx) && closed(tIdx, i + 1, [s.abs])) {
           const body = dvmTakeBack(out, stmts[tIdx].abs);
           if (body) {
+            retarget(body, s.abs, s.targets[0]);
             out.push({ kind: 'loop', body });
             absorbed.add(s.abs);
             structured++;
@@ -1107,7 +1160,7 @@ function dvmStructureEdges(tree, follow) {
       switch (n.kind) {
         case 'stmt': {
           const s = n.stmt;
-          for (const t of s.targets) edges.add(s.abs + '>' + t);
+          for (const t of s.targets) edges.add(s.abs + '>' + (n.goes !== undefined ? n.goes : t));
           if (s.kind !== 'end' && s.kind !== 'jump' && after !== null)
             edges.add(s.abs + '>' + after);
           break;
@@ -1310,7 +1363,7 @@ function dvmLoopExits(tree, ctx) {
         (function direct(l) {
           for (const x of l) {
             if (x.kind === 'stmt' && x.stmt.targets.length === 1 && (x.stmt.kind === 'jump' || x.stmt.kind === 'cond')) {
-              const t = x.stmt.targets[0];
+              const t = x.goes !== undefined ? x.goes : x.stmt.targets[0];
               if (t === at.exit && at.exit !== null) exits.set(x.stmt, 'break');
               else if (t === at.cont && at.cont !== null) exits.set(x.stmt, 'continue');
             }
@@ -1347,7 +1400,7 @@ function dvmRemainingLabels(tree, exits) {
   const out = new Set();
   const walk = list => {
     for (const n of list) {
-      if (n.kind === 'stmt' && !(exits && exits.has(n.stmt))) { for (const t of n.stmt.targets) out.add(t); }
+      if (n.kind === 'stmt' && !(exits && exits.has(n.stmt))) { for (const t of n.stmt.targets) out.add(n.goes !== undefined ? n.goes : t); }
       for (const k of ['then', 'els', 'body']) if (n[k]) walk(n[k]);
     }
   };
@@ -1390,9 +1443,9 @@ function dvmRenderStructured(tree, ctx, labels, indent, lines, loops) {
     switch (n.kind) {
       case 'stmt': {
         const s = n.stmt, word = exits.get(s);
-        const go = word || (s.targets.length === 1 ? 'goto ' + ctx.label('0x' + hex4(s.targets[0])) : null);
+        const go = word || (s.targets.length === 1 ? 'goto ' + ctx.label('0x' + hex4(n.goes !== undefined ? n.goes : s.targets[0])) : null);
         if (s.kind === 'cond' && go && (word || s.parts)) line(s.abs, 'if (' + dvmCondTaken(s, ctx) + ') ' + go);
-        else if (s.kind === 'jump' && word) line(s.abs, word);
+        else if (s.kind === 'jump' && (word || n.goes !== undefined)) line(s.abs, word || go);
         else line(s.abs, dvmFoldStatement(s.node, ctx));
         break;
       }
@@ -1402,6 +1455,12 @@ function dvmRenderStructured(tree, ctx, labels, indent, lines, loops) {
         line(null, '}');
         break;
       case 'ifelse':
+        if (!n.then.length) {
+          line(n.cond.abs, 'if (' + dvmCondTaken(n.cond, ctx) + ') {');
+          dvmRenderStructured(n.els, ctx, labels, indent + 1, lines, loops);
+          line(null, '}');
+          break;
+        }
         line(n.cond.abs, 'if (' + dvmCondFallthrough(n.cond, ctx) + ') {');
         dvmRenderStructured(n.then, ctx, labels, indent + 1, lines, loops);
         line(null, '} else {');
@@ -1513,7 +1572,10 @@ function dvmStructureRender(arc, b, resid, out) {
  */
 function dvmBlocksOf(tree, follow) {
   const out = [];
-  const walk = (list, cont) => {
+  // `loops`: the enclosing loops' exits, which any block inside them may
+  // be left for (a break, a continue) as well as for its own continuation.
+  const walk = (list, cont, loops) => {
+    loops = loops || [];
     for (let i = 0; i < list.length; i++) {
       const n = list[i];
       const after = (i + 1 < list.length) ? dvmFirstAbs(list[i + 1]) : cont;
@@ -1525,32 +1587,32 @@ function dvmBlocksOf(tree, follow) {
          to a third place is not, and that is what the check is for. */
       switch (n.kind) {
         case 'if':
-          out.push({ kind: 'if', body: n.then, exits: [after] });
-          walk(n.then, after);
+          out.push({ kind: 'if', body: n.then, exits: [after].concat(loops) });
+          walk(n.then, after, loops);
           break;
         case 'ifelse':
-          out.push({ kind: 'if', body: n.then, exits: [after] });
-          out.push({ kind: 'else', body: n.els, exits: [after] });
-          walk(n.then, after); walk(n.els, after);
+          out.push({ kind: 'if', body: n.then, exits: [after].concat(loops) });
+          out.push({ kind: 'else', body: n.els, exits: [after].concat(loops) });
+          walk(n.then, after, loops); walk(n.els, after, loops);
           break;
         case 'while':
-          out.push({ kind: 'while', body: n.body, exits: [n.cond.abs, after] });
-          walk(n.body, n.cond.abs);
+          out.push({ kind: 'while', body: n.body, exits: [n.cond.abs, after].concat(loops) });
+          walk(n.body, n.cond.abs, loops.concat([n.cond.abs, after]));
           break;
         case 'dowhile':
-          out.push({ kind: 'do', body: n.body, exits: [n.cond.abs, after] });
-          walk(n.body, n.cond.abs);
+          out.push({ kind: 'do', body: n.body, exits: [n.cond.abs, after].concat(loops) });
+          walk(n.body, n.cond.abs, loops.concat([n.cond.abs, after]));
           break;
         case 'loop': {
           const head = n.body.length ? dvmFirstAbs(n.body[0]) : null;
-          out.push({ kind: 'loop', body: n.body, exits: [head, after] });
-          walk(n.body, head);
+          out.push({ kind: 'loop', body: n.body, exits: [head, after].concat(loops) });
+          walk(n.body, head, loops.concat([head, after]));
           break;
         }
       }
     }
   };
-  walk(tree, follow);
+  walk(tree, follow, []);
   return out;
 }
 
@@ -2023,7 +2085,7 @@ function dvmSayTree(tree, ctx, loops) {
       case 'stmt': {
         const s = n.stmt, word = exits.get(s);
         const go = word === 'break' ? 'stop the loop' : word === 'continue' ? 'go round again'
-          : (s.targets.length === 1 ? 'go to ' + ctx.label('0x' + s.targets[0].toString(16).toUpperCase().padStart(4, '0')) : null);
+          : (s.targets.length === 1 ? 'go to ' + ctx.label('0x' + (n.goes !== undefined ? n.goes : s.targets[0]).toString(16).toUpperCase().padStart(4, '0')) : null);
         if (s.kind === 'cond' && go) push('if ' + dvmSayCond(s, ctx, true) + ', ' + go, null, s.abs, { test: true });
         else if (s.kind === 'jump' && go) push(go, null, s.abs);
         else push(dvmSayStatement(s.node, ctx), null, s.abs, dvmSayMeta(s.node, ctx));
@@ -2031,6 +2093,7 @@ function dvmSayTree(tree, ctx, loops) {
       }
       case 'if': { const t = head('if ' + dvmSayCond(n.cond, ctx, false) + ':'); push(t, dvmSayTree(n.then, ctx, loops), n.cond.abs, { test: true }); break; }
       case 'ifelse': {
+        if (!n.then.length) { const t = head('if ' + dvmSayCond(n.cond, ctx, true) + ':'); push(t, dvmSayTree(n.els, ctx, loops), n.cond.abs, { test: true }); break; }
         const t = head('if ' + dvmSayCond(n.cond, ctx, false) + ':');
         push(t, dvmSayTree(n.then, ctx, loops), n.cond.abs, { test: true });
         push('otherwise:', dvmSayTree(n.els, ctx, loops));
