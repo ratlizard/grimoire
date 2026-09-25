@@ -89,19 +89,36 @@
 //     152 are caught.
 //   --control=labels prints no label at all; 803 gotos name a missing one.
 //
-// THE ENTRY ASSERTION HAS NO CONTROL, and saying so is better than implying it
-// has. Removing only the entry half of the region test was tried and changes
-// nothing at all: the same 4,012 blocks, every assertion still passing. On this
-// archive every region the recovery would wrongly claim is caught by its exits
-// first, so the entry half of the test is not load-bearing here and the
-// assertion that mirrors it never fires. Both are kept -- single entry is the
-// property that makes a block a block, and a hand-edited archive is entitled to
-// violate it where Ambrosia's compiler never did -- but nothing here
-// demonstrates the entry assertion working, and a later session should not read
-// its `ok` as evidence that it would. It has fired once, under --control=merge:
-// merging tests that jump to different places builds 115 blocks that are
-// entered in the middle. That is the assertion working on a broken merge, not
-// on the entry half of the region test, which still has no control.
+//   --control=entry drops the entry half of the region test (nothing outside
+//     may jump into a region's middle). The archive does not notice: the same
+//     blocks, every assertion passing, because on Ambrosia's output every
+//     region the recovery would wrongly claim is caught by its exits first. The
+//     synthetic function below is what catches it: one block claimed, entered
+//     in its middle, and the entry assertion fails.
+//   --control=guard drops the merge's guard (a second test nothing else jumps
+//     to). Again the archive does not notice, since no pair in it fails the
+//     guard; the other synthetic function merges a pair whose second test is a
+//     jump target, and the edge check reports a jump into the middle of a
+//     condition.
+//
+// TWO SYNTHETIC FUNCTIONS, since 24 September 2026, because two of the
+// assertions had no control on this archive and saying so was all that could
+// be done. The entry half of the region test and the merge's guard both exist
+// for what a hand-edited archive can do and Ambrosia's compiler never did, so
+// no function in the shipped file exercises either: removing the entry half was
+// tried and changed nothing at all (the same 4,012 blocks, every assertion
+// passing), and the entry assertion had fired only under --control=merge, from
+// a broken merge rather than from the test it mirrors. The remedy is the first
+// input here that is not the archive: two functions written in the listing's
+// own words, assembled by dvmAssemble (js/delv-asm.js, held to the archive by
+// asm_check.mjs), given a function header and measured exactly as a resource
+// is -- the same statements, the same recovery, the same text read back. One
+// has a jump from outside into the middle of what would be an if-block; the
+// other has a pair of tests whose second test is itself a jump target. The
+// normal run asserts the recovery REFUSES both (no block built for the first,
+// nothing merged in the second), and the two controls above assert that without
+// the test in question it accepts them and the assertion sees it. They count
+// towards no floor.
 
 // FOUR MORE, added on 22 September 2026 with the three things the listing
 // learned to print that day, and each of them a claim a reader takes on trust.
@@ -143,10 +160,9 @@
 //   put a label on; those are counted and reported, not failed, since they are
 //   the disassembler's question and not the recovery's.
 //
-// THE MERGE'S GUARD HAS NO CONTROL. A pair is merged only when nothing else
-// jumps to its second test; on this archive nothing ever does, so removing the
-// guard changes nothing and no run here demonstrates it. It is kept for a
-// hand-edited archive, like the entry assertion above.
+// THE MERGE'S GUARD is exercised by the second synthetic function above and by
+// --control=guard, since 24 September 2026; on the archive alone nothing ever
+// jumps to a second test, so removing the guard changed nothing there.
 
 import {readFileSync, existsSync} from 'node:fs';
 import vm from 'node:vm';
@@ -205,6 +221,33 @@ const CONTROLS = {
         if (f) f.variable = 'Var' + (parseInt(f.variable.slice(3), 16) + 1).toString(16).toUpperCase().padStart(2, '0');
         return f; }; })();`},
   labels: {mustFail: 'labels', say: 'no label printed', code: 'dvmRemainingLabels = function () { return new Set(); };'},
+  entry: {mustFail: 'entry', say: 'the region test no longer refuses a region something jumps into the middle of',
+    code: `dvmRegionClosed = function (stmts, index, lo, hi, allowed) {
+      if (hi <= lo) return false;
+      const ok = new Set(allowed);
+      for (let k = lo; k < hi; k++) for (const t of stmts[k].targets) {
+        if (ok.has(t)) continue;
+        const j = index.get(t);
+        if (j === undefined || j < lo || j >= hi) return false;
+      }
+      return true;
+    };`},
+  guard: {mustFail: 'edges', say: 'a pair of tests merged although something jumps to the second',
+    code: `dvmMergeConditions = function (stmts) {
+      const list = [], merged = new Map();
+      for (let i = 0; i < stmts.length; i++) {
+        const s = stmts[i], parts = [s];
+        while (s.kind === 'cond' && s.targets.length === 1 && i + 1 < stmts.length) {
+          const b = stmts[i + 1];
+          if (b.kind !== 'cond' || b.targets.length !== 1 || b.targets[0] !== s.targets[0] || b.negated !== s.negated) break;
+          parts.push(b); i++;
+        }
+        if (parts.length === 1) { list.push(s); continue; }
+        for (const p of parts.slice(1)) merged.set(p.abs, s.abs);
+        list.push({abs: s.abs, node: s.node, kind: 'cond', targets: [s.targets[0]], negated: s.negated, parts});
+      }
+      return {list, merged};
+    };`},
 };
 if (control) {
   if (!CONTROLS[control]) { console.error(`no control called ${control}; there are ${Object.keys(CONTROLS).join(', ')}`); process.exit(2); }
@@ -278,26 +321,72 @@ function parseStructured(text) {
 }
 ev(parseStructured.toString());
 
+/* The two synthetic functions, in the raw listing's own words with local
+   labels. Each is the one shape its assertion exists for and the shipped
+   archive never has. `entry`: the `branch Mid` at the end jumps into the
+   middle of the range the first `if_not` would make a block of, so the block
+   may not be built. `guard`: `branch Second` jumps to the second of two tests
+   that go to the same place, so the two may not be merged. Assembled and
+   given the three-byte function header (0x81, arguments, locals) a class
+   script's function carries, at offset 0 of a resource of its own. */
+const SYNTHETIC = {
+  entry: `
+    if_not
+      local Var00
+    then -> ThenEnd
+    set_local 0x01
+      byte 0x01
+    end
+    Mid:
+    set_local 0x01
+      byte 0x02
+    end
+    ThenEnd:
+    if_not
+      local Var01
+    then -> Done
+    branch Mid
+    Done:
+    return`,
+  guard: `
+    if_not
+      local Var00
+    then -> L
+    Second:
+    if_not
+      local Var01
+    then -> L
+    set_local 0x02
+      byte 0x01
+    end
+    L:
+    set_local 0x02
+      byte 0x02
+    end
+    if_not
+      local Var02
+    then -> Done
+    branch Second
+    Done:
+    return`,
+};
+
 const report = ev(`(() => {
   const arc = openDelverArchive(__a);
-  const out = {functions: 0, withJumps: 0, whole: 0, partial: 0,
+  const counters = () => ({functions: 0, withJumps: 0, whole: 0, partial: 0,
+               offEnd: 0, gotosLeft: 0, blocks: 0, merged: 0, fors: 0, breaks: 0, continues: 0,
+               intoText: 0, truthRows: 0});
+  const out = Object.assign(counters(), {
                edgeBad: [], stmtBad: [], entryBad: [], exitBad: [], mergeBad: [],
                truthBad: [], exitWordBad: [], forBad: [], labelBad: [],
-               offEnd: 0, gotosLeft: 0, blocks: 0, merged: 0, fors: 0, breaks: 0, continues: 0,
-               intoText: 0, truthRows: 0};
+               synthetic: {}});
   const hex = v => '0x' + v.toString(16).toUpperCase();
   const bare = n => dvmBareOperand(n.arg);
-  for (let subn = 0; subn < 256; subn++) {
-    const e = arc.index[subn];
-    if (!e || !e[0]) continue;
-    for (let n = 0; n < 256; n++) {
-      const resid = (subn + 1) * 0x100 + n;
-      let raw = null;
-      try { raw = getResourceBytes(arc, resid); } catch (err) { continue; }
-      if (!raw || !raw.length) continue;
-      const b = smartDecrypt(raw, resid).data;
+  // One resource's functions, measured: the counters go to stats (the
+  // archive's, or a synthetic function's own) and the failures to out.
+  const measure = (b, resid, stats, label) => {
       let objs = [];
-      try { objs = dvmExtents(b, resid); } catch (err) { continue; }
+      try { objs = dvmExtents(b, resid); } catch (err) { return; }
       // Per resource, for the text: every walked statement by its offset, the
       // one after it in the flat listing, and the jumps the recovery absorbed.
       const flatAt = new Map(), nextOf = new Map(), absorbedTo = new Map();
@@ -311,27 +400,27 @@ const report = ev(`(() => {
         let r = null;
         try { r = dvmDisassemble(seg, 3); } catch (err) { continue; }
         if (!r || !r.ops.length || r.bad) continue;
-        const where = hex(resid) + '+' + hex(st);
+        const where = label + '+' + hex(st);
 
         const stmts = dvmStatementList(dvmForest(r.ops), st);
         if (!stmts.length) continue;
         walked++;
-        out.functions++;
+        stats.functions++;
         for (let i = 0; i < stmts.length; i++) {
           flatAt.set(stmts[i].abs, stmts[i]);
           if (i + 1 < stmts.length) nextOf.set(stmts[i].abs, stmts[i + 1].abs);
         }
         const flat = dvmFlatEdges(stmts);
-        out.offEnd += flat.offEnd;
+        stats.offEnd += flat.offEnd;
         const rec = dvmRecoverStructure(stmts);
         for (const a of rec.absorbed) absorbedTo.set(a, flatAt.get(a).targets[0]);
         const loops = dvmLoopExits(rec.tree, {label: t => t});
-        out.gotosLeft += rec.gotos - loops.exits.size;
-        out.blocks += rec.structured;
+        stats.gotosLeft += rec.gotos - loops.exits.size;
+        stats.blocks += rec.structured;
         const hasJumps = stmts.some(s => s.targets.length);
         if (hasJumps) {
-          out.withJumps++;
-          if (rec.gotos - loops.exits.size) out.partial++; else out.whole++;
+          stats.withJumps++;
+          if (rec.gotos - loops.exits.size) stats.partial++; else stats.whole++;
         }
 
         // (1) the edge sets. First the merged tests: a part folded into the
@@ -436,7 +525,7 @@ const report = ev(`(() => {
 
         // (4) each merged condition, every truth assignment, flat against printed
         for (const m of conds) {
-          out.merged++;
+          stats.merged++;
           const ps = m.parts, T = m.targets[0];
           for (let k = 0; k + 1 < ps.length; k++)
             if (nextOf.get(ps[k].abs) !== ps[k + 1].abs) out.truthBad.push(where + ' ' + hex(m.abs) + ': its parts are not consecutive');
@@ -453,7 +542,7 @@ const report = ev(`(() => {
               const jumps = ps[k].node.mn === 'if' ? vals[k] : !vals[k];
               if (jumps) { where2 = ps[k].targets[0] === T ? 'jump' : 'elsewhere'; break; }
             }
-            out.truthRows++;
+            stats.truthRows++;
             if (where2 === 'elsewhere' || fall(...vals) !== (where2 === 'fall') || taken(...vals) !== (where2 === 'jump')) {
               out.truthBad.push(where + ' ' + hex(m.abs) + ': with ' + names.map((x, k) => x + '=' + vals[k]).join(' ') +
                 ' the listing goes to ' + where2 + ' but it prints (' + fallText + ')');
@@ -462,7 +551,7 @@ const report = ev(`(() => {
           }
         }
       }
-      if (!walked) continue;
+      if (!walked) return;
 
       // The text, read back as a reader reads it.
       const text = dvmStructureRender(arc, b, resid);
@@ -473,18 +562,18 @@ const report = ev(`(() => {
           for (const n of list) {
             // (5) a break or continue goes where its innermost loop says
             if (n.type === 'stmt' && n.word && flatAt.has(n.at)) {
-              out[n.word === 'break' ? 'breaks' : 'continues']++;
+              stats[n.word === 'break' ? 'breaks' : 'continues']++;
               const s = flatAt.get(n.at);
               const want2 = !n.loop ? undefined : n.word === 'break' ? n.loop.after : n.loop.round;
               const to = s.targets.length === 1 ? through(s.targets[0]) : null;
               if (!n.loop || want2 === null || to !== want2)
-                out.exitWordBad.push(hex(resid) + ' ' + at4(n.at) + ': ' + n.word + (n.loop ? ' in the ' + n.loop.type + ' at ' + at4(n.loop.at) + ' reads as ' + at4(want2) : ' outside any loop') +
+                out.exitWordBad.push(label + ' ' + at4(n.at) + ': ' + n.word + (n.loop ? ' in the ' + n.loop.type + ' at ' + at4(n.loop.at) + ' reads as ' + at4(want2) : ' outside any loop') +
                   ', the listing jumps to ' + at4(to));
             }
             // (6) a for line is the iterator protocol
             if (n.type === 'for' && flatAt.has(n.at)) {
-              out.fors++;
-              const bad = why => out.forBad.push(hex(resid) + ' for at ' + at4(n.at) + ': ' + why);
+              stats.fors++;
+              const bad = why => out.forBad.push(label + ' for at ' + at4(n.at) + ': ' + why);
               const start = flatAt.get(n.at), test = flatAt.get(nextOf.get(n.at)), step = flatAt.get(n.closeAt),
                     back = step && flatAt.get(nextOf.get(step.abs));
               const call = (s, mn) => {
@@ -511,11 +600,37 @@ const report = ev(`(() => {
         // (7) every label a goto names is printed
         for (const u of f.uses) {
           if (f.labels.has(u.to)) continue;
-          if (!flatAt.has(u.to)) { out.intoText++; continue; }
-          out.labelBad.push(hex(resid) + ' ' + at4(u.at) + ' names L' + u.to.toString(16).toUpperCase().padStart(4, '0') + ', which is not printed');
+          if (!flatAt.has(u.to)) { stats.intoText++; continue; }
+          out.labelBad.push(label + ' ' + at4(u.at) + ' names L' + u.to.toString(16).toUpperCase().padStart(4, '0') + ', which is not printed');
         }
       }
+  };
+  for (let subn = 0; subn < 256; subn++) {
+    const e = arc.index[subn];
+    if (!e || !e[0]) continue;
+    for (let n = 0; n < 256; n++) {
+      const resid = (subn + 1) * 0x100 + n;
+      let raw = null;
+      try { raw = getResourceBytes(arc, resid); } catch (err) { continue; }
+      if (!raw || !raw.length) continue;
+      measure(smartDecrypt(raw, resid).data, resid, out, hex(resid));
     }
+  }
+  // The synthetic functions, each as a one-function resource of its own,
+  // under a resource id the archive does not use so nothing here reads as
+  // the archive's. A site the assembler writes counts from the text's own
+  // start; the three header bytes move each by three.
+  const SYN = ${JSON.stringify(SYNTHETIC)};
+  for (const [name, text] of Object.entries(SYN)) {
+    const resid = 0x0FFF;
+    const asm = dvmAssemble(text, resid);
+    const b = new Uint8Array(asm.bytes.length + 3);
+    b[0] = 0x81; b[1] = 0; b[2] = 3;
+    b.set(asm.bytes, 3);
+    for (const site of asm.sites) dvmWriteSite(b, {at: site.at + 3, size: 2}, site.value + 3);
+    const stats = counters();
+    measure(b, resid, stats, 'synthetic ' + name);
+    out.synthetic[name] = stats;
   }
   return out;
 })()`);
@@ -571,6 +686,19 @@ if (!r.labelBad.length)
      r.intoText ? `${r.intoText} goto(s) aim inside text, where no statement starts, and have no line to label` : '');
 else
   fail('a goto names a label that is not printed', `${r.labelBad.length}: ${cap(r.labelBad, 3)}`, 'labels');
+
+{
+  const syn = r.synthetic, why = [];
+  if (!syn.entry || syn.entry.functions !== 1) why.push('the entry function was not measured');
+  else if (syn.entry.blocks !== 0) why.push(`the entry function came out with ${syn.entry.blocks} block(s), so a jump into a block's middle was accepted`);
+  if (!syn.guard || syn.guard.functions !== 1) why.push('the guard function was not measured');
+  else if (syn.guard.merged !== 0) why.push(`the guard function came out with ${syn.guard.merged} merged condition(s), so a jumped-to second test was merged`);
+  if (!why.length)
+    ok('the two synthetic functions are refused: no block for the jump into a middle, no merge over a jumped-to test',
+       `${syn.entry.gotosLeft + syn.guard.gotosLeft} gotos left between them`);
+  else
+    fail('a synthetic function the recovery must refuse was accepted', why.join('; '), 'synthetic');
+}
 
 if (r.whole >= WHOLE_FLOOR && r.fors >= FOR_FLOOR && r.merged >= MERGE_FLOOR)
   ok(`at least ${WHOLE_FLOOR} functions with jumps come out with none left, ${FOR_FLOOR} for loops, ${MERGE_FLOOR} merged conditions`,
