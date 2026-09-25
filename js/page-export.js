@@ -535,60 +535,6 @@ function buildEditedDiskImage() {
            forkWarning: forkWarning };
 }
 
-/* An edit as a handful of bytes instead of a disk image.
-
-   Cythera's resource cipher is a position-indexed keystream XOR: the key
-   evolves from the resource id and the byte index and never from the data
-   (see decryptResource in js/delv-archive.js). So changing plaintext changes
-   the ciphertext at exactly the same positions and nowhere else, and an edit
-   that keeps a resource's length is a few (file offset, old byte, new byte)
-   triples -- for one word of dialogue, measured, a single byte.
-
-   That is small enough to travel in a URL, which is what makes it the only
-   route onto a phone: the retired mobile shell can type it into the emulated Mac as an
-   AppleScript, and nothing has to cross the file system at all.
-
-   Returns null when a patch cannot describe the edit -- which is any edit
-   that changed a resource's length, because then every later resource moves
-   and the diff is the whole file. The caller offers the disk image instead. */
-function buildResourcePatch() {
-  const pristine = window.PRISTINE_BYTES;
-  const edited = window.EDITED_RESIDS;
-  if (!pristine || !ARCHIVE || !edited || !edited.size) return null;
-  const before = delverArchiveSpec(pristine);
-  const after = delverArchiveSpec(ARCHIVE.bytes);
-  const byId = new Map(before.resources.map(r => [r.resid, r]));
-  const runs = [];
-  for (const resid of edited) {
-    const a = byId.get(resid), b = after.resources.find(r => r.resid === resid);
-    if (!a || !b) return null;
-    if (a.data.length !== b.data.length) return null;   // the file would relay
-    // Re-encrypt both sides at the resource's own id: the cipher is its own
-    // inverse, so this is the same call that decrypted them.
-    const oldCipher = a.encrypted ? decryptResource(a.data, resid) : a.data;
-    const newCipher = b.encrypted ? decryptResource(b.data, resid) : b.data;
-    for (let i = 0; i < newCipher.length; i++) {
-      if (newCipher[i] === oldCipher[i]) continue;
-      const start = i;
-      while (i < newCipher.length && newCipher[i] !== oldCipher[i]) i++;
-      runs.push({ offset: a.fileOffset + start,
-                  old: Array.from(oldCipher.slice(start, i)),
-                  now: Array.from(newCipher.slice(start, i)) });
-    }
-  }
-  if (!runs.length) return null;
-  return runs;
-}
-
-/* offset:old:new, in hex, comma separated. The OLD bytes travel too, and the
-   script checks them before it writes: a patch is only valid against the exact
-   file it was diffed from, and reading one byte proves that. Without it a
-   patch aimed at 1.0.4 would quietly corrupt some other build. */
-function encodeResourcePatch(runs) {
-  const hex = a => a.map(b => b.toString(16).padStart(2, '0')).join('');
-  return runs.map(r => r.offset.toString(16) + ':' + hex(r.old) + ':' + hex(r.now)).join(',');
-}
-
 /* The same archive as a zip infinite-mac already knows how to unpack.
 
    Its `uploadsFromFile` checks two conventions before anything else, and the

@@ -1095,27 +1095,6 @@ function drawToCanvas(canvas, W, H, image, transparentIndex, palette) {
   if (unditherOn() && W*H > 0 && (window.UNDITHER_ALL || String(window.CUR_SUBN) === '135' || window.UNDITHER_PREVIEW !== null)) queueUndither(canvas, W, H, image, t, P);
 }
 
-/* Which of the two sets of undither settings is in force.
-
-   Remembered, because it is a preference about how every image on the page
-   looks rather than a thing to re-choose each visit. Changing it drops the
-   cache and redraws: the same pixels under the other settings are a different
-   picture, and a gallery that kept the old one would show it. */
-function unditherPreset() {
-  // The measured settings, always, since 9 September 2026: the choice
-  // between them and the ones tuned by eye was the maintainer's to drop.
-  return 'measured';
-}
-function setUnditherPreset(id) {
-  window.UNDITHER_PRESET = (id === 'measured') ? 'measured' : 'original';
-  try { localStorage.setItem('cythera.undither.preset', window.UNDITHER_PRESET); } catch (e) { quiet(e); }
-  cancelUndither();
-  // The undithered images are keyed by preset, so the other preset's stay
-  // right; dropping them is for memory, not correctness.
-  if (ARCHIVE) ARCHIVE.derived.delete('undithered');
-  if (typeof setMode === 'function') setMode(currentMode);
-}
-
 // One at a time, yielding between, so the page stays responsive while a whole
 // gallery is reprocessed. Superseded jobs are dropped: switching category or
 // turning the option off bumps the generation and everything older is

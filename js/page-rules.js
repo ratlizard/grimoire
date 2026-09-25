@@ -5274,9 +5274,6 @@ function amountWords(a) {
   else a.rolls.forEach(r => parts.push(rollWords(r)));
   return parts.join(' + ');
 }
-// The range an amount can come out at, the top end one short of the operand
-// for the same reason rollWords is.
-function amountRange(a) { return a ? [a.base + a.rolls.reduce((s, r) => s + r[0], 0), a.base + a.rolls.reduce((s, r) => s + Math.max(r[0], r[1] - 1), 0)] : null; }
 // The damage type is a bit set: 0x03 edged or piercing, 0x04 blunt, 0x08
 // fire, 0x20 electric, 0xC0 magic (Rules › resistance, 0x100 and 0x3040).
 function damageTypeName(t) {

@@ -542,19 +542,6 @@ function loadCharacterTable() {
   return (DERIVED.CHAR_TABLE = parseDelverCharacterRecords(smartDecrypt(raw, 0xF009).data));
 }
 
-// Entries with mode 0 carry no placement: they are auxiliary records attached
-// to the preceding entry (character 11 has one repeating its neighbour's exact
-// position, and most level-0 (0,0) rows are of this kind), so they are skipped.
-// If nothing has come into force yet today we carry the last entry over from
-// the previous day.
-function activeScheduleEntry(entries, hour) {
-  const real = entries.filter(e => e.mode !== 0);
-  if (!real.length) return null;
-  let best = null;
-  for (const e of real) if (e.hour <= hour) best = e;
-  return best || real[real.length - 1];
-}
-
 function characterName(i) {
   const t = nameTable();
   const nm = (t && t[i] ? String(t[i]).trim() : '');
@@ -736,11 +723,6 @@ function startPaletteAnimation(canvas, W, H, image, transparentIndex) {
     drawToCanvas(canvas, W, H, image, transparentIndex, cycledPalette(frame));
   }, 140);
 }
-function togglePaletteAnim(on) {
-  window.PALETTE_ANIM = on;
-  if (!on) { stopPaletteAnimation(); renderImage(); }
-  else renderImage();
-}
 
 let mapAnimTimer = null;
 window.MAP_ANIM = window.ANIM_MODE === 'all';
@@ -890,7 +872,6 @@ function advanceMapClock() {
   window.MAP_TIME = (window.MAP_TIME + MAP_TICK_HOURS / 4 * (window.MAP_WALK_SPEED || 1)) % 24;
   syncMapTimeControls();
 }
-function toggleMapAnim(on) { window.MAP_ANIM = on; }
 function toggleMapWalk(on) {
   window.MAP_WALK = !!on;
   // Stopping leaves the people at the hour the slider shows, rather than at

@@ -560,15 +560,6 @@ function facingReaderFrames(pt, own, pool) {
   return south;
 }
 
-function propFrameFill(tile) {
-  try {
-    const img = resolveTileImage(tile);
-    if (!img) return 0;
-    let n = 0; for (let i = 0; i < img.length; i++) if (img[i]) n++;
-    return n;
-  } catch (e) { return 0; }
-}
-
 /* Filtering a gallery.
    The three synthesised galleries -- props, items, fork resources -- build
    their cells from tables and re-render to filter. Every OTHER gallery is a

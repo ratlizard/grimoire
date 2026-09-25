@@ -740,7 +740,6 @@ function ditherReplace() {
     if (t) t.remove();
   }
 }
-function ditherReplacePortrait() { ditherReplace(); }
 
 // --- Locks and the keys that fit them ---------------------------------
 // A door, gate, portcullis, chest or trunk with a nonzero first data byte is

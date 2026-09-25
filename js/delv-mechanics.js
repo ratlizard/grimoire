@@ -309,7 +309,6 @@ function mechCastFailure(casting, level) {
    is GainExp's 100 and the cap its 65535, both read by the page off 0xE8B;
    the cap was a function here returning the number until 11 September 2026. */
 function mechLevelThreshold(level, base) { return base * Math.pow(2, Math.max(1, level) - 1); }
-function mechLevelForExp(exp, base) { let l = 1; while (exp > mechLevelThreshold(l, base) && l < 20) l++; return l; }
 // Full health and full magic were modelled here too, with the helper's 2, 5
 // and 15 written in, and nothing called either; they went on 11 September
 // 2026 with the other copies of script numbers. The sheet reads the formula

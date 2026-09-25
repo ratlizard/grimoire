@@ -1824,9 +1824,10 @@ function renderCombatAISheet(which) {
    (see applyResourceEdit); this is the one place they are listed.
 
    The typed patch leads on a phone because it is the only route that works
-   there unassisted -- no picker, no drag, no disk -- and it is offered only
-   while every edit keeps its resource the same length, which is
-   buildResourcePatch's own rule. On a computer the file routes lead. The
+   there unassisted -- no picker, no drag, no disk -- and it was offered only
+   while every edit kept its resource the same length, the rule of the
+   byte-run patch writer that a Magpie patch replaced (deleted 25 September
+   2026). On a computer the file routes lead. The
    missing-resource-fork warning the exports already raise is printed here
    under the file routes, since a disk without the fork installs perfectly and
    then will not open. */

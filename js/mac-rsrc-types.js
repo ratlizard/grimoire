@@ -454,9 +454,6 @@ const TYPE_BADGES={
   // as the fork's owner resource, one byte with nothing in it to read.
   'Delv':'owner resource'
 };
-function decodableBadge(type){
-  return TYPE_BADGES[type] || COLOR_TABLE_TYPES[type] || null;
-}
 
 // downloadBlob and dlBlob are in js/mac-export.js.
 
@@ -2096,16 +2093,6 @@ const COLOR_TABLE_TYPES={'clut':'colour table','dctb':'dialog colour table','act
 //  Cursor gallery: one tile per cursor, PNG 1x/4x, animated GIF
 // ============================================================
 
-// ---- nearest-neighbour upscale -----------------------------
-function scaleCanvas(src, mult){
-  if(mult===1) return src;
-  const c=document.createElement('canvas');
-  c.width=src.width*mult; c.height=src.height*mult;
-  const x=c.getContext('2d');
-  x.imageSmoothingEnabled=false;
-  x.drawImage(src,0,0,c.width,c.height);
-  return c;
-}
 // ---- acur ---------------------------------------------------
 // acur is 4-byte header (count, current index) then one 4-byte entry per
 // frame: cursor resource ID + a reserved word. It carries NO timing data --

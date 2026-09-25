@@ -77,18 +77,12 @@ const htmlPath = process.argv[2] || 'index.html';
 const REASON = 'unreached on 14 September 2026, the run that added this check; ' +
                'kept as a baseline, awaiting a decision to wire or delete';
 const ALLOWED = new Map([
-  'decodableBadge', 'scaleCanvas',                        // js/mac-rsrc-types.js
-  // makeDelverPropRecord and delverPropsAtSquare were here until the browser
-  // player was added to the corpus, which reaches both. The list said so
-  // itself rather than being noticed by hand, which is the whole point of an
-  // allowlist that fails when an entry stops being unreached.
-  'dvmLooksLikeText',                                     // js/delv-script.js
-  'mechLevelForExp',                                      // js/delv-mechanics.js
-  'unditherPreset', 'setUnditherPreset', 'ditherReplacePortrait',   // toggleUnditherPreview left here 19 September 2026: the button is back
-  'togglePaletteAnim', 'toggleMapAnim',
-  'worldThumb', 'thumbRect', 'buildNearThumbs', 'prefetchZone', 'zoneMapCanvas',
-  'propFrameFill', 'activeScheduleEntry', 'amountRange',
-  'buildResourcePatch', 'encodeResourcePatch',
+  // Nineteen names stood here from 14 to 25 September 2026, the remains of
+  // features the notes record as removed or reworked -- the World tab's
+  // preload, the animation checkboxes, the earlier ditherizer and the
+  // byte-run patch format among them -- and were deleted on the 25th, each
+  // confirmed unreached by this check first (the notes, *Nineteen dead
+  // functions*). A name that belongs here again needs its reason beside it.
 ].map(n => [n, REASON]));
 
 // ---- the corpus ------------------------------------------------------------

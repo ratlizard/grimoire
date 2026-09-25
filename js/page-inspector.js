@@ -1020,8 +1020,9 @@ const worldThumbs = derivedMap('worldThumbs');
    panel the overlay uncovers, and both of those happened inside the
    transition: Cademia is 128x128 squares with props on most of them, and the
    fade was covering that work rather than covering a change of place. Now the
-   overlay and the panel are handed the same render, and prefetchZone has
-   usually done it before the reader is anywhere near the threshold.
+   overlay and the panel are handed the same render; the preload that once
+   did it before the reader reached the threshold went with the old World
+   renderer, and its last functions on 25 September 2026.
 
    ZONE_CACHE_KEEP entries, most-recently-used last, and the world map itself
    is pinned: it is what the reader keeps coming back to, and it is also the
@@ -1072,10 +1073,11 @@ function mapRenderFor(resid, cache) {
 
 /* A render nobody else holds a reference to.
 
-   worldThumb paints roofs straight onto the canvas it is about to shrink,
-   which is only safe on a canvas of its own: handed a cached entry it would
-   have roofed the copy the panel puts on screen, permanently and only for the
-   towns whose miniature had happened to be built. */
+   The town miniature (gone since 25 September 2026) painted roofs straight
+   onto the canvas it was about to shrink, which is only safe on a canvas of
+   its own: handed a cached entry it would have roofed the copy the panel puts
+   on screen, permanently and only for the towns whose miniature had happened
+   to be built. Kept for whatever draws on a render next. */
 function renderMapUncached(resid) {
   let entry = null;
   try {
@@ -1101,11 +1103,6 @@ function renderMapUncached(resid) {
    swaps the canvas out from under it (rerenderMapTerrain), so a kept entry
    would hand the next visit a detached canvas drawn under the other setting. */
 function forgetZoneRender(resid) { zoneMapCache.delete(resid); }
-
-function zoneMapCanvas(resid) {
-  const e = mapRenderFor(resid, true);
-  return (e && e.result) ? e.result.canvas : null;
-}
 
 /* ---------------------------------------------------------------------------
    The towns, on the world map
@@ -1304,35 +1301,6 @@ function buildThumbsFor(gw, sizes) {
   } catch (err) { quiet(err); }
 }
 
-// Kept for the checks and for anything that wants one picture of a town.
-function worldThumb(gw, size, roofed) {
-  const sz = size || THUMB_LEVELS[0];
-  const key = thumbKey(gw && gw.destResid, sz, roofed !== false);
-  if (!worldThumbs.has(key)) buildThumbsFor(gw, [sz]);
-  return worldThumbs.get(key) || null;
-}
-
-/* Where a town's miniature sits, in screen pixels.
-
-   Sized by the measured ratio rather than by the footprint: the built part of
-   the map, divided by however many region squares one world square stands
-   for, is how many world squares the place occupies. Cademia's 107 squares
-   of town over a ratio of about 27 is four world squares, which is exactly
-   the block of pictogram props the world map draws there -- so it lands on
-   its own icon rather than near it. A Vineyard 45 by 14 comes out as the wide
-   strip it is, where sizing by a one-square footprint made it a small square.
-
-   Centred on the footprint, which is where the world map put the place. */
-function thumbRect(gw, thumb, cm) {
-  const k = cm.TS * mapView.scale;
-  const ratio = gatewayRatio(gw);
-  const w = ((thumb.x1 - thumb.x0 + 1) / ratio) * k;
-  const h = ((thumb.y1 - thumb.y0 + 1) / ratio) * k;
-  const cx = mapView.x + ((gw.x0 + gw.x1 + 1) / 2) * k;
-  const cy = mapView.y + ((gw.y0 + gw.y1 + 1) / 2) * k;
-  return { x: cx - w / 2, y: cy - h / 2, w, h };
-}
-
 /* Draw a town into a rectangle, from the best level it has.
 
    The smallest level at least as wide as the rectangle, so a town sharpens as
@@ -1395,17 +1363,6 @@ function buildWorldThumbs() {
 /* The bigger level, for the one town the view is beside. Nine times the
    pixels of the first, so it is not built for the other eighteen. */
 let levelQueue = null;
-function buildNearThumbs(gw) {
-  if (levelQueue || !gw || gw.sealed) return;
-  if (worldThumbs.has(thumbKey(gw.destResid, THUMB_LEVELS[1], true))) return;
-  const step = () => {
-    levelQueue = null;
-    buildThumbsFor(gw, [THUMB_LEVELS[1]]);
-    if (window.CUR_SUBN === 'WORLD') paintAtlas();
-  };
-  levelQueue = 1;
-  atlasWhenStill(step, 2000);
-}
 
 /* The "Keep every place" preload and the "Full resolution" canvas were
    offered here from 9 to 10 September 2026 and removed at the maintainer's
@@ -1421,16 +1378,6 @@ function buildNearThumbs(gw) {
    this is a whole map render and it must never land in the middle of a drag;
    a plain timer where there is not. */
 let zonePrefetching = 0;
-function prefetchZone(resid) {
-  if (!resid || zoneMapCache.has(resid) || zonePrefetching) return;
-  zonePrefetching = 1;
-  const run = () => { zonePrefetching = 0; try { mapRenderFor(resid, true); } catch (e) { quiet(e); } };
-  // Through `window.` deliberately: it is not in every engine, and
-  // verify_viewer's check 4b is right to object to a bare name nothing
-  // declares -- that check is what caught setStatus being called seven times
-  // and defined nowhere.
-  atlasWhenStill(run, 1500);
-}
 /* The world map rings its gateways; a town shows the world around it and
    watches for the reader zooming back out of it. One settle, because they are
    two halves of one continuous view rather than two screens. */

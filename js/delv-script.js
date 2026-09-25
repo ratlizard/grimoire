@@ -840,16 +840,6 @@ function dvmIsProse(seg) {
   return hasSpace && good / seg.length > 0.95;
 }
 
-function dvmLooksLikeText(seg) {
-  if (seg.length < 4) return false;
-  let ascii = 0, ctrl = 0;
-  for (const c of seg) {
-    if ((c >= 32 && c < 127) || c === 9 || c === 10 || c === 13) ascii++;
-    else if (c < 0x20) ctrl++;
-  }
-  return (ascii / seg.length > 0.9) || (ctrl / seg.length < 0.02);
-}
-
 function dvmRender(arc, b, resid) {
   // So a dref back into this same resource reads as `here:0x0031`.
   dvmContextResid = (typeof resid === 'number') ? resid : null;
