@@ -698,7 +698,7 @@ const CHEAT_KEY_WORDS = {
   0xC6: ['Jump', x => 'Prints ' + x.q(0) + ' with the player’s level and square, asks ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then calls ' + x.call('GoToLocation') + ': teleport anywhere in the game.'],
   0xEF: ['Take teleporter', x => 'Asks ' + x.q(0) + ' ' + x.base() + ', then calls ' + x.call('TeleportTo') + '(' + x.arg('TeleportTo', 4) + ', the number, ' + x.arg('TeleportTo', 6) + ').'],
   0xA7: ['Create a prop', x => 'Asks ' + x.asks() + '; ' + x.call('NewProp') + ' makes it, the owner is set to character ' + x.ori() + ' and ' + x.call('Invalidate') + ' redraws the inventory, so the object lands in the hero’s pack. ' +
-    'The number is the record’s word, the prop type in the low ten bits and an aspect in the five above: 0x0064 is a spear, 0x0864 the same prop type at aspect 2, wearing the picture two tiles along and named for it. ' +
+    'The number is the record’s own, the kind of thing in its lowest ten bits and the aspect in the five above them: 0x0064 is a spear, 0x0864 the same prop type at aspect 2, wearing the picture two tiles along and named for it. ' +
     'The picture in the pack and the name are the aspect’s; the swing in a fight is the class’s own animation, whatever the aspect. Each item’s page under Entities › Items says what it wears.'],
   0xB9: ['What prop is this?', x => 'Asks ' + x.q(0) + ' ' + x.base() + ' and prints the record as ' + x.q(1) + ' and ' + x.q(2) + ': class and state bytes, position, Data1, Data2.' +
     (x.fallsInto ? ' Then runs on into ' + x.fallsInto + '’s case with no branch between them, a missing break in the game’s own switch.' : '')],
@@ -708,8 +708,8 @@ const CHEAT_KEY_WORDS = {
   0x3C: ['Darken', x => x.call('DarkenLight') + ': the level’s ambient light, a step darker.'],
   0x3E: ['Brighten', x => x.call('BrightenLight') + ': the level’s ambient light, a step brighter.'],
   0xC3: ['Magic map', x => x.call('MakeZone') + ' then ' + x.call('MagicMap') + ' around the player, shown until ' + x.call('Button') + ' says the mouse button is down.'],
-  0xBD: ['Show the room you are in', x => 'The zone bitmap, drawn with ' + x.call('CopyBits') + ' over the window and offset to the player until the button is pressed. MakeZone(x, y) copies the wall bitmap below and flood-fills it from the player’s square, so what is left clear is the connected open area, which is what InZone answers and what the magic map is built on.'],
-  0xB5: ['Show the walls', x => 'The other bitmap, drawn the same way, and the one the flood fill runs against: ' + x.walls()],
+  0xBD: ['Show the room you are in', x => 'The zone bitmap, drawn with ' + x.call('CopyBits') + ' over the window and offset to the player until the button is pressed. MakeZone(x, y) copies the wall map below and floods it outward from the player’s square, so what is left clear is the stretch of open ground the player can reach, which is what InZone answers and what the magic map is built on.'],
+  0xB5: ['Show the walls', x => 'The other map of walls, drawn the same way, and the one the flooding runs against: ' + x.walls()],
   0xB7: ['Walk through anything', x => 'Flips a byte of the game viewer (' + x.flip() + ') that TGameSys::CanMove and TryMove test first, so nothing blocks.'],
   0xFA: ['Nobody is anybody’s enemy', x => x.peace()],
   0xFE: ['See in the dark', x => 'Toggles flag ' + x.flag() + ' on the player, ' + x.call('RemoveAbility') + ' when it is set and ' + x.call('AddAbility') + ' when it is not.'],
@@ -881,11 +881,11 @@ function renderCheatsSheet() {
       clockWords: (name, reg) => { const k = callOf(name), clk = exeClockRules(); return k && k.args[reg] && clk && clk.unitsPerHour ? ', ' + exeClockWords(k.args[reg].v, clk.unitsPerHour.v) : ''; },
       fallsInto: c.fallsInto && caseAt(c.fallsInto) ? comboOf(caseAt(c.fallsInto).keys[0].v) : null,
       walls: () => {
-        const w = exeWallMask(); if (!w) return 'MakeBitMap walks every square of the level and sets a bit for each wall.';
+        const w = exeWallMask(); if (!w) return 'MakeBitMap walks every square of the level and marks each wall.';
         const attrs = getTileAttributes(ARCHIVE), names = new Set(); let n = 0;
         for (let t = 0; t <= w.tiles.v && t < attrs.length; t++) if ((attrs[t] & w.mask.v) === w.mask.v) { n++; const nm = terrainNameFor(t); if (nm) names.add(nm); }
-        return srcNum(w.mask, 'MakeBitMap') + ' walks every square of the level and sets a bit where the terrain tile’s attributes carry every bit of ' + srcNum(w.mask, '0x' + w.mask.v.toString(16).toUpperCase().padStart(4, '0')) + '. ' +
-          'In this file that is ' + n + ' tiles, ' + [...names].map(svEsc).join(', ') + ', so it is the level’s static skeleton, one bit a square.';
+        return srcNum(w.mask, 'MakeBitMap') + ' walks every square of the level and marks it where the terrain tile carries every one of the attributes in ' + srcNum(w.mask, '0x' + w.mask.v.toString(16).toUpperCase().padStart(4, '0')) + '. ' +
+          'In this file that is ' + n + ' tiles, ' + [...names].map(svEsc).join(', ') + ', so it is the fixed shape of the level, one mark a square.';
       },
       peace: () => {
         if (!enemy || !enemy.peace || !enemy.peaceKey) return 'Flips a byte the enemy test reads first.';
@@ -1077,9 +1077,9 @@ function renderCheatsSheet() {
       '<li>Map 0 has a header, ' + heap.w + ' by ' + heap.h + ', no roof and no exits, and ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') +
       '; the editor’s list has no name for it, and the map window’s caption reads Untitled there. Every other table keyed by zone starts at 1.</li>' +
       '<li><b>Its grid is not tiles.</b> ' + (heap.high ? heap.high + ' of its ' + heap.words + ' words have a high byte' : 'Every one of its ' + heap.words + ' words has a zero high byte') +
-      ', so the grid is that many bytes of memory widened to words. The low bytes hold <b>' + heap.heads + '</b> allocator headers, a pointer, a tag, a size and a back-pointer, ' +
-      'and adding a header’s size to its position lands on the next header <b>' + heap.hits + ' times of ' + heap.heads + '</b>. The same test on a real map finds no header. ' +
-      'So the map was made and its header written while its tile buffer was never filled, and the file carries what those bytes last held.</li>' +
+      ', so the grid is that many bytes of the game’s own memory, each byte spread over two. The lower halves hold <b>' + heap.heads + '</b> headings of the kind the game writes at the front of every piece of memory it hands out: where it points, what it is, how big it is, and what came before it, ' +
+      'and adding a heading’s size to where it sits lands on the next heading <b>' + heap.hits + ' times of ' + heap.heads + '</b>. The same test on a real map finds no heading. ' +
+      'So the map was made and its heading written while the tiles themselves were never filled in, and the file carries whatever that memory last held.</li>' +
       '<li>Players reached it long before any of this: web board topic 1570 (2004) has two arriving by accident, from a bed in Cademia and from beneath Pnyx, ' +
       'and topic 1830 reports a figure with a guard’s sprite standing there called Nothing, Omen if killed twice. ' +
       'That figure is character record 0, one byte 01 and thirty-one zeros in the shipped table, the record option-x writes to. ' +
@@ -1173,20 +1173,20 @@ function savedGameParts() {
   const out = [];
   const add = (rid, what) => { if (refExists(rid)) out.push({ rid, what }); };
   add(0xF009, 'the character records, everybody’s position, stats and condition (SaveGlobals)');
-  add(0xF00E, 'one 16-bit word per room, 1,024 rooms; bit 0 is set once a room has been entered and its description shown (SaveGlobals)');
+  add(0xF00E, 'two bytes for each of 1,024 rooms; the first switch in them is set once a room has been entered and its description shown (SaveGlobals)');
   const hero = loadCharacterTable()[1];
   if (hero && hero.zone) {
     add(0x8100 | hero.zone, 'the props of the zone the player stands in, from record 256 up (SaveLevelProps)');
-    add(0x8200 | hero.zone, 'that zone’s map memory: width ÷ 8, rounded up, × height bytes, one bit a square (SaveLevelProps)');
+    add(0x8200 | hero.zone, 'what the player has seen of that zone, one switch for each square: width ÷ 8, rounded up, times the height, in bytes (SaveLevelProps)');
   }
   add(0xF306, 'the first 256 prop records, the characters as they stand on that zone (SaveLevelProps)');
   add(0x8800, 'the player’s own portrait, written when the character was made (CreatePlayer)');
   add(0x0400, 'the live game, five tagged chunks: the quest values and flags, the active monsters with their queued activities, the spell effects in flight, the open windows, and the 256 gremlin frames (SaveToFile)');
   add(0x0401, 'the To Do list (SaveToDo)');
   add(0x0404, 'the twenty macro slots; 0xFF is unassigned (SaveMacros)');
-  add(0xF307, 'the script system’s persistent heap, 256 KB: 8-byte block headers carrying a reference number and a kind, one free block when empty (THeap::Save)');
-  add(0xF308, '4,096 16-bit words indexed by a prop’s storage reference, each the heap reference of that prop’s frame (THeap::Save)');
-  for (let n = 0; n < 256; n++) add(0xE000 | n, 'a page of the journal, 8 KB; entries are a length, a day byte, a kind, a speaker and the text (TJournalSegment::Flush)');
+  add(0xF307, 'the store the scripts keep things in between sessions, 256 KB: each block starts with eight bytes giving its number and its kind, and an empty store is one free block (THeap::Save)');
+  add(0xF308, '4,096 two-byte entries, one for each thing that has something in that store, each giving where in the store to find it (THeap::Save)');
+  for (let n = 0; n < 256; n++) add(0xE000 | n, 'a page of the journal, 8 KB; each entry is its length, the day, what kind of entry it is, who spoke and the text (TJournalSegment::Flush)');
   return out;
 }
 
