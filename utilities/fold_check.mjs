@@ -122,7 +122,7 @@ const report = ev(`(() => {
         const ph = dvmProseHead(seg.subarray(3));
         if (ph && ph.bare) continue;
         let r = null;
-        try { r = dvmDisassemble(seg, 3); } catch (err) { continue; }
+        try { r = dvmDisassembleFolded(seg, st); } catch (err) { continue; }
         if (!r || !r.ops.length) continue;
         if (r.bad) continue;                 // a desynced walk is not the fold's to explain
         sawFn = true; out.functions++;

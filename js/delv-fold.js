@@ -557,7 +557,7 @@ function dvmFoldRender(arc, b, resid) {
       const body = seg.subarray(3);
       const ph = dvmProseHead(body);
       if (ph && ph.bare) { lines.push('', name + ' = ' + JSON.stringify(str(ph.head))); folded++; continue; }
-      const r = dvmDisassemble(seg, 3);
+      const r = dvmDisassembleFolded(seg, st);
       /* A branch target is an offset into the RESOURCE, and an op's `at` is an
          offset into the function -- 0x0061 + 0x2F is the 0x0090 that `if_not`
          jumps to. The raw listing prints the relative one and leaves the reader
@@ -662,6 +662,56 @@ function dvmExpandForest(forest) {
  * That is the analogue of the fold's re-expansion, one level up, and it is the
  * only reason this half is shippable at all.
  */
+
+/* ---- text split where a jump lands in it ------------------------------------
+ * The disassembler reads direct text as delvmod does -- any byte below 0x80
+ * on an empty expectation stack, until the first byte that is not -- and
+ * delv_dasm_check.mjs holds it to that. But the compiler shares the tails of
+ * strings: 0xE91 prints "You don't have enough money." on one path and
+ * `"` + name + " doesn't have enough money." on the other, and both end by
+ * printing `"*`, so the first path's `branch` lands two bytes from the end
+ * of the second's text run. A label inside a run has no line, the goto
+ * that names it stays a goto, and the block round it cannot close: 117
+ * gotos on 24 September 2026, the largest class left once jumps to a
+ * return were folded. So the fold tier -- the folded, structured and Read
+ * views and their checks -- splits a text run at every jump target inside
+ * it, into two runs of the same bytes, which is exact: direct text is
+ * printed byte by byte and a run's boundary means nothing to the machine.
+ * The raw listing keeps delvmod's one run, since that is what the oracle
+ * reads. `segStart` is the function's offset in the resource, which is
+ * what the targets count from.
+ */
+function dvmSplitTextAtTargets(ops, segStart) {
+  const targets = new Set();
+  for (const o of ops) {
+    const mn = o[2], arg = String(o[3] || '');
+    let list = null;
+    if (mn === 'then' || mn === 'conversation_response') { const m = /-> (0x[0-9A-F]+)\s*$/i.exec(arg); list = m ? [m[1]] : null; }
+    else if (mn === 'branch') { const m = /^(0x[0-9A-F]+)/i.exec(dvmBareOperand(arg)); list = m ? [m[1]] : null; }
+    else if (mn === 'cases') list = arg.match(/0x[0-9A-F]+/gi) || [];
+    if (list) for (const t of list) targets.add(parseInt(t, 16) - segStart);
+  }
+  if (!targets.size) return ops;
+  const out = [];
+  for (const o of ops) {
+    if (o[2] !== 'string(implicit)') { out.push(o); continue; }
+    const text = JSON.parse(o[3]), at = o[0], end = at + text.length;
+    const cuts = [...targets].filter(t => t > at && t < end).sort((a, b) => a - b);
+    if (!cuts.length) { out.push(o); continue; }
+    let from = at;
+    for (const t of cuts.concat([end])) {
+      out.push([from, o[1], 'string(implicit)', JSON.stringify(text.slice(from - at, t - at)), o[4], o[5]]);
+      from = t;
+    }
+  }
+  return out;
+}
+// The disassembly the fold tier works from: dvmDisassemble's, with the text
+// runs a jump lands in split there.
+function dvmDisassembleFolded(seg, st) {
+  const r = dvmDisassemble(seg, 3);
+  return { ops: dvmSplitTextAtTargets(r.ops, st), bad: r.bad };
+}
 
 /* The top-level statements of a function, in address order, each with what the
    listing says its successors are. `abs` is the offset in the resource, which
@@ -1418,7 +1468,7 @@ function dvmStructureRender(arc, b, resid, out) {
     }
     const ph = dvmProseHead(seg.subarray(3));
     if (ph && ph.bare) { lines.push('', name + ' = ' + JSON.stringify(str(ph.head))); continue; }
-    const r = dvmDisassemble(seg, 3);
+    const r = dvmDisassembleFolded(seg, st);
     const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [] };
     const args = [];
     for (let i = 0; i < seg[1]; i++) args.push('Arg' + i.toString(16).padStart(2, '0').toUpperCase());
@@ -1612,7 +1662,7 @@ function dvmInlineHelper(arc, rid) {
     if (fns.length === 1 && fns[0][0] === 0 && !dvmNamedScript(b)) {
       const [st, en] = fns[0];
       const seg = b.subarray(st, en);
-      const stmts = dvmStatementList(dvmForest(dvmDisassemble(seg, 3).ops), st);
+      const stmts = dvmStatementList(dvmForest(dvmDisassembleFolded(seg, st).ops), st);
       const sets = [];
       let ret = null, ok = true;
       for (const s of stmts) {
@@ -1718,7 +1768,7 @@ function dvmSayStateNote(ctx, name, k) {
         for (const [st, en, kind] of objs) {
           if (kind !== 'function') continue;
           let forest;
-          try { forest = dvmForest(dvmDisassemble(b.subarray(st, en), 3).ops); } catch (e) { continue; }
+          try { forest = dvmForest(dvmDisassembleFolded(b.subarray(st, en), st).ops); } catch (e) { continue; }
           const c = { label: t => t, notes: [] };
           (function walk(list) {
             for (const n of list) {
@@ -1779,7 +1829,7 @@ function dvmBehaviourWords(arc) {
         for (const [st, en, kind] of objs) {
           if (kind !== 'function') continue;
           let stmts;
-          try { const seg = b.subarray(st, en); stmts = dvmStatementList(dvmForest(dvmDisassemble(seg, 3).ops), st); } catch (e) { continue; }
+          try { const seg = b.subarray(st, en); stmts = dvmStatementList(dvmForest(dvmDisassembleFolded(seg, st).ops), st); } catch (e) { continue; }
           const ctx = { label: t => t, notes: [] };
           for (let k = 0; k + 1 < stmts.length; k++) {
             const s = stmts[k];
@@ -2072,7 +2122,7 @@ function dvmReadRender(arc, b, resid, opts) {
     }
     const ph = dvmProseHead(seg.subarray(3));
     if (ph && ph.bare) { out.push({ at: st, name, prose: str(ph.head) }); continue; }
-    const r = dvmDisassemble(seg, 3);
+    const r = dvmDisassembleFolded(seg, st);
     const args = [];
     for (let i = 0; i < seg[1]; i++) args.push('Arg' + i.toString(16).padStart(2, '0').toUpperCase());
     const answers = r.ops.filter(o => o[2] === 'conversation_response').length;

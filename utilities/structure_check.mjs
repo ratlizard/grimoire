@@ -158,7 +158,10 @@
 //   text to see it. A target that is not the start of any statement -- it falls
 //   inside a run of text the disassembler read as one string -- has no line to
 //   put a label on; those are counted and reported, not failed, since they are
-//   the disassembler's question and not the recovery's.
+//   the disassembler's question and not the recovery's. Since 25 September
+//   2026 the fold tier splits such a run at the target (dvmSplitTextAtTargets,
+//   which is what dvmDisassembleFolded adds to the disassembly), so the count
+//   is zero on the archive; the report stays for a hand-edited one.
 //
 // THE MERGE'S GUARD is exercised by the second synthetic function above and by
 // --control=guard, since 24 September 2026; on the archive alone nothing ever
@@ -287,8 +290,9 @@ if (control) {
 // 152 merged conditions (from 212 pairs of tests; some conditions are three).
 // Raised to 480 on 24 September 2026, when folding jumps to a return took
 // the archive from 431 whole functions to 490 and the gotos left from 917
-// to 455.
-const WHOLE_FLOOR = 480;
+// to 455; and to 540 on 25 September, when splitting a text run at the
+// jump that lands in it (dvmSplitTextAtTargets) took it to 554 and 193.
+const WHOLE_FLOOR = 540;
 const FOR_FLOOR = 150;
 const MERGE_FLOOR = 150;
 
@@ -421,7 +425,7 @@ const report = ev(`(() => {
         const ph = dvmProseHead(seg.subarray(3));
         if (ph && ph.bare) continue;
         let r = null;
-        try { r = dvmDisassemble(seg, 3); } catch (err) { continue; }
+        try { r = dvmDisassembleFolded(seg, st); } catch (err) { continue; }
         if (!r || !r.ops.length || r.bad) continue;
         const where = label + '+' + hex(st);
 
