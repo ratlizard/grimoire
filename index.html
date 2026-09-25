@@ -1550,6 +1550,25 @@ body.atlasFull { overflow:hidden; }
    right of the panel. */
 .forkTable td.who { min-width:96px; }
 .forkTable tr.saveEditRow td { padding:0; border-bottom:none; }
+/* A record's form: a group a heading, a byte a row, the row's label and
+   input first, where it lives beside them, and what it is under them in
+   the quiet grey. On a phone the where-line wraps under the input. */
+/* The form sits in a row of the records table, which is wider than a
+   phone and scrolls sideways; pinned to its left edge, and given the width
+   that shows when it opens (toggleCharEdit), it reads without scrolling. */
+.saveEditRow .propEdit { position:sticky; left:0; box-sizing:border-box; }
+.charGroup { margin:8px 0 12px; padding:6px 8px; border-left:2px solid rgba(155,136,80,.35); white-space:normal; overflow-wrap:anywhere; }
+.charGroupHead { font-size:0.8125rem; color:#fff; margin:0 0 4px; }
+.charRow { padding:4px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+.charRow label { display:inline-flex; align-items:center; gap:6px; min-width:180px; color:#fff; }
+.charRow input { width:auto; }
+.charWhere { font-size:0.6875rem; color:#8c8980; }
+.charName { color:#8c8980; }
+.charWhat { font-size:0.6875rem; color:#b5b2a8; line-height:1.45; margin:2px 0 0; }
+.charFlags { display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:2px 10px; margin:6px 0 0; font-size:0.75rem; }
+.charFlags label { display:flex; align-items:center; gap:4px; color:#fff; }
+.charFlags input[type=checkbox] { width:auto; min-height:0; margin:0; accent-color:#c4a464; }
+.charActions { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0; }
 .mapToggleGroup input[type=checkbox] { width:auto; min-height:0; margin:0; accent-color:#c4a464; }
 .mapToggleGroup select { width:auto; min-height:30px !important; margin:0;
   padding:2px 26px 2px 8px !important; font-size:0.75rem !important; }
@@ -2269,7 +2288,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.193.1';
+const GRIMOIRE_VERSION = '1.194.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

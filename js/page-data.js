@@ -1276,8 +1276,8 @@ function renderSaveSheet() {
   // The rest of a save, each where the file has it (the scenario has none).
   const words = saveWords();
   h += questStateHTML(words) + roomsEnteredHTML(words) + todoHTML(words);
-  h += '<div class="saveNote">Every field above is a byte or two of the record, and the ' +
-    'eleven bytes this project has not identified are shown with it when a row is opened. ' +
+  h += '<div class="saveNote">Every field above is a byte or two of the record; Edit opens all 32 ' +
+    'of them, grouped, each with what it is and where the program reads it. ' +
     'Editing rebuilds the whole archive in memory; nothing on disk changes, and ' +
     actionChip('Changes', "showCategory('CHANGES')") + ' is where an edited file leaves the page.</div>';
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
@@ -1294,53 +1294,99 @@ function renderSaveSheet() {
 
 function toggleSaveShowAll() { window.SAVE_SHOW_ALL = !window.SAVE_SHOW_ALL; renderSaveSheet(); }
 
-/* One record's form. The fields this project can name are inputs; the eleven
-   bytes it cannot are shown as hex and are not editable here -- Edit Bytes on
-   the resource itself is the tool for those, and pretending a slider knows
-   what byte 22 means would be worse than saying it does not. */
-/* The byte each form field reads, as the parser lays the record out
-   (parseDelverCharacterRecords), joined to the program's own map: GetField
-   dispatches fields 19 to 40 through a table whose handlers each load one
-   byte or halfword of the record (exeCharacterFields), and delvmod names the
-   fields the scripts read them by. So "body" here is byte 9, which the
-   program serves as field 23 and the scripts call `body`; the party byte is
-   byte 18, field 35, which the scripts call `timing`. Null offsets are
-   fields below 19, which the table does not cover. */
-const SAVE_BYTES = { zone: [0, 1], proptype: [4, 2], aspect: [4, 2], state: [8, 1], body: [9, 1], reflex: [10, 1], mind: [11, 1],
-  xp: [12, 2], health: [14, 1], healthMax: [15, 1], magic: [16, 1], magicMax: [17, 1], party: [18, 1], level: [19, 1],
-  nutrition: [27, 1], training: [28, 1] };
-function saveFieldsProgramNote() {
+/* One record's form, every byte of it (25 September 2026, at the
+   maintainer's asking what the party and state bytes were and whether the
+   eleven unnamed bytes could be named). All 32 are, now, from three
+   readings that already existed: GetField's table of the character's fields
+   19 to 40 (exeCharacterFields, which gives each field's byte and the
+   handler that loads it), the routines that use the bytes the table does
+   not serve (TActiveMonster::DoTick's move countdown and sub-move counter,
+   DoMove's behaviour switch, the unit constructor's alignment), and the
+   scripts that read a field (0xE95, the defence helper's stand-in). The
+   form groups them by what they are for, and each says what it is, links
+   to its own byte of 0xF009, and with the application open to the handler
+   that serves it. What was wrong before: byte 8, called the "state byte"
+   and described as movement and orientation, is the character's first
+   eight flags (bit 6 is in the party); byte 18, called the "party byte"
+   and "0 before Hector joins and 5 after", is the countdown to the next
+   move, which is why it changed on every step in the saves. Byte 23 and
+   byte 31 are the two left: 23 is served as field 39 and nothing here reads
+   what it holds, and 31 is served by no field at all. */
+function charFieldAt(offset) {
   const cf = appImage() ? exeCharacterFields() : null;
-  if (!cf) return '<div class="inspDim">' + svEsc(MECH_NO_APP) + '</div>';
-  const parts = [];
-  for (const [key, label] of SAVE_FIELDS) {
-    const b = SAVE_BYTES[key];
-    const f = b && cf.fields.find(x => x.offset && x.offset.v === b[0] && x.width === b[1]);
-    if (!f) continue;
-    parts.push(svEsc(label) + ': field ' + srcNum({ exe: f.at }, String(f.field)) + (f.name ? ' <span style="color:#8c8980">(' + svEsc(f.name) + ' to the scripts)</span>' : ''));
-  }
-  const unread = cf.fields.filter(f => f.offset && !Object.values(SAVE_BYTES).some(b => b[0] === f.offset.v)).map(f => 'byte ' + f.offset.v + ' as field ' + srcNum({ exe: f.at }, String(f.field)) + (f.name ? ' (' + svEsc(f.name) + ')' : ''));
-  return '<div class="inspDim">Read by the program’s ' + pefChip('GetField(short, short, short)') + ' as ' + parts.join('; ') + '.' +
-    (unread.length ? ' The program also serves ' + unread.join(', ') + ', which this form does not name.' : '') + '</div>';
+  return cf ? cf.fields.find(f => f.offset && f.offset.v === offset) || null : null;
 }
-const SAVE_FIELDS = [
-  ['zone', 'zone', 10, 0xFF, 'the low byte of the map’s resource id'],
-  ['x', 'x', 10, 0xFFF, ''], ['y', 'y', 10, 0xFFF, ''],
-  ['proptype', 'sprite class', 10, 0x3FF, 'which prop class draws them, 32 is the hero, 33 the heroine'],
-  ['aspect', 'aspect', 10, 0x3F, 'the frame within that class'],
-  ['body', 'body', 10, 0xFF, ''], ['reflex', 'reflex', 10, 0xFF, ''], ['mind', 'mind', 10, 0xFF, ''],
-  ['level', 'level', 10, 0xFF, ''], ['xp', 'experience', 10, 0xFFFF, () => { const r = experienceRules().rule; return r && r.cap ? 'the experience script caps it at ' + r.cap.v.toLocaleString('en-US') : ''; }],
-  ['health', 'health', 10, 0xFF, ''], ['healthMax', 'full health', 10, 0xFF, ''],
-  ['magic', 'magic', 10, 0xFF, ''], ['magicMax', 'full magic', 10, 0xFF, ''],
-  ['nutrition', 'food', 10, 0xFF, () => {
-    const clk = appImage() ? exeClockRules() : null, full = fullStomach();
-    return [clk && clk.model ? clk.fall.v + ' comes off each time the clock passes ' + exeClockWords(clk.table.v[clk.model.hungerIndex], clk.unitsPerHour.v) : '',
-            full ? 'the ' + full.potion + ' sets it to ' + full.v : ''].filter(Boolean).join('; ');
-  }],
-  ['training', 'training points', 10, 0xFF, () => { const t = trainingRules().points; return t && t.perLessonVal && t.masteryVal ? 'a lesson costs ' + t.perLessonVal.v + ', a mastery ' + t.masteryVal.v : ''; }],
-  ['party', 'party byte', 16, 0xFF, '0 before Hector joins and 5 after'],
-  ['state', 'state byte', 16, 0xFF, 'C0/D0/80 on the placed; movement and orientation'],
+function charFieldNumbered(n) {
+  const cf = appImage() ? exeCharacterFields() : null;
+  return cf ? cf.fields.find(f => f.field === n) || null : null;
+}
+// "byte 9, field 23": the byte a link to 0xF009 at that record, the field a
+// link to its handler in the program.
+function charWhere(index, off, width, fieldNo) {
+  const f = fieldNo !== undefined ? charFieldNumbered(fieldNo) : charFieldAt(off);
+  const bytes = srcNum({ resid: 0xF009, byte: index * 32 + off, stride: 32 }, width > 2 ? 'bytes ' + off + ' to ' + (off + width - 1) : width > 1 ? 'bytes ' + off + ' and ' + (off + width - 1) : 'byte ' + off);
+  return bytes + (f ? ', ' + srcNum({ exe: f.at }, 'field ' + f.field) + (f.name ? ' <span class="charName">' + svEsc(f.name) + '</span>' : '') : '');
+}
+const u16raw = (r, o) => (r.raw[o] << 8) | r.raw[o + 1];
+const CHAR_GROUPS = [
+  { head: 'Where', items: [
+    { id: 'zone', key: 'zone', label: 'zone', off: 0, max: 0xFF,
+      what: (r, v) => v ? svEsc(zoneDisplayName(v)) + ', map 0x' + (0x8000 | v).toString(16).toUpperCase() : 'placed in no zone' },
+    { id: 'x', key: 'x', label: 'x', off: 1, width: 3, max: 0xFFF, what: () => 'squares from the left; x is the top twelve bits of the three bytes, y the bottom twelve' },
+    { id: 'y', key: 'y', label: 'y', off: 1, width: 3, max: 0xFFF, what: () => 'squares from the top' },
+  ]},
+  { head: 'Looks', items: [
+    { id: 'proptype', key: 'proptype', label: 'sprite class', off: 4, width: 2, fieldNo: 36, max: 0x3FF,
+      what: (r, v) => { const n = propDisplayName(v, (getPropTileList()[v] || 0)); return (n ? svEsc(n) + ', ' : '') + 'the prop class they are drawn as'; } },
+    { id: 'aspect', key: 'aspect', label: 'aspect', off: 4, width: 2, fieldNo: 36, max: 0x3F, what: () => 'the frame of that class, the top six bits of the same word' },
+    { id: 'look2', raw: [20, 2], label: 'second look', base: 16, max: 0xFFFF, fieldNo: 37,
+      what: r => 'a second word laid out like bytes 4 and 5' + (u16raw(r, 20) === u16raw(r, 4) ? ', the same as them here' : ', different from them here') + '; the program serves it and no script names it' },
+  ]},
+  { head: 'Stats', items: [
+    { id: 'body', key: 'body', label: 'body', off: 9, max: 0xFF },
+    { id: 'reflex', key: 'reflex', label: 'reflex', off: 10, max: 0xFF },
+    { id: 'mind', key: 'mind', label: 'mind', off: 11, max: 0xFF },
+    { id: 'level', key: 'level', label: 'level', off: 19, max: 0xFF },
+    { id: 'xp', key: 'xp', label: 'experience', off: 12, width: 2, max: 0xFFFF,
+      what: () => { const r = experienceRules().rule; return r && r.cap ? 'the experience script caps it at ' + r.cap.v.toLocaleString('en-US') : ''; } },
+    { id: 'health', key: 'health', label: 'health', off: 14, max: 0xFF },
+    { id: 'healthMax', key: 'healthMax', label: 'full health', off: 15, max: 0xFF },
+    { id: 'magic', key: 'magic', label: 'magic', off: 16, max: 0xFF },
+    { id: 'magicMax', key: 'magicMax', label: 'full magic', off: 17, max: 0xFF },
+    { id: 'nutrition', key: 'nutrition', label: 'food', off: 27, max: 0xFF, what: () => {
+      const clk = appImage() ? exeClockRules() : null, full = fullStomach();
+      return [clk && clk.model ? clk.fall.v + ' comes off each time the clock passes ' + exeClockWords(clk.table.v[clk.model.hungerIndex], clk.unitsPerHour.v) : '',
+              full ? 'the ' + svEsc(full.potion) + ' sets it to ' + full.v : ''].filter(Boolean).join('; ');
+    } },
+    { id: 'training', key: 'training', label: 'training points', off: 28, max: 0xFF,
+      what: () => { const t = trainingRules().points; return t && t.perLessonVal && t.masteryVal ? 'a lesson costs ' + t.perLessonVal.v + ', a mastery ' + t.masteryVal.v : ''; } },
+  ]},
+  { head: 'Behaviour', items: [
+    { id: 'behaviour', raw: [22, 1], label: 'behaviour', fieldNo: 21, max: 0xFF,
+      what: (r, v) => { let w = null; try { w = ARCHIVE && refExists(0x3007) ? dvmBehaviourWords(ARCHIVE).get(v) : null; } catch (e) { quiet(e); }
+        return (w ? '<b>' + svEsc(w) + '</b>, ' : '') + 'what they do each turn: TActiveMonster::DoMove switches on it, and the hour leaves a character on 112, waiting, where they stand'; } },
+    { id: 'behaviour2', raw: [30, 1], label: 'second behaviour', max: 0xFF, what: () => 'a second behaviour the scripts read and set' },
+    { id: 'timing', key: 'party', label: 'move countdown', off: 18, max: 0xFF,
+      what: () => 'ticks before their next move: TActiveMonster::DoTick counts it down and moves them at 0, so it changes on every step' },
+    { id: 'submove', raw: [24, 1], label: 'sub-move counter', max: 0xFF, what: () => 'the parts of a move still to take; DoTick takes the next while it runs' },
+    { id: 'alignment', raw: [25, 1], label: 'alignment', max: 0xFF,
+      what: (r, v) => { const a = appImage() ? exeAlignmentNames() : null, n = a && a.byValue[v];
+        return (n ? '<b>' + srcNum(n.at, n.name) + '</b>, ' : '') + 'which side they are on: the combat AI groups by it and a character’s enemies are looked up by it'; } },
+    { id: 'rating', raw: [29, 1], label: 'defence stand-in', max: 0xFF,
+      what: (r, v) => 'for a character with no Defense skill, the defence figure (0xE82) uses the level worked out from its low two bits (0xE95): ' +
+        ['none', 'half their level', 'their level', 'twice their level'][v & 3] },
+    { id: 'b23', raw: [23, 1], label: 'byte 23', max: 0xFF, what: () => 'served to scripts as field 39, which delvmod does not name; what it holds is not read here' },
+    { id: 'b31', raw: [31, 1], label: 'byte 31', max: 0xFF, what: () => 'no field serves it and nothing here reads it' },
+  ]},
 ];
+// Flags 0 to 7 are byte 8, 8 to 23 the halfword at 6, 24 to 31 byte 26:
+// the order AddAbility and the schedules test them in (scheduleHoldsAtStart).
+function charFlagOn(r, f) { return f < 8 ? !!(r.raw[8] & (1 << f)) : f < 24 ? !!(u16raw(r, 6) & (1 << (f - 8))) : !!(r.raw[26] & (1 << (f - 24))); }
+function charFlagName(f) { return f < 8 ? dvmBitFlagName(f) : dvmFlagName(f); }
+function charItemValue(r, it) {
+  if (it.key) return r[it.key];
+  return it.raw[1] === 2 ? u16raw(r, it.raw[0]) : r.raw[it.raw[0]];
+}
 function toggleCharEdit(index) {
   const host = document.getElementById('charEdit-' + index);
   if (!host) return;
@@ -1349,41 +1395,73 @@ function toggleCharEdit(index) {
     if (window.SAVE_EDIT_OPEN === index) window.SAVE_EDIT_OPEN = null;
     return;
   }
-  const rec = loadCharacterTable()[index];
-  if (!rec) return;
-  const noteOf = note => { if (typeof note !== 'function') return note || ''; try { return note() || ''; } catch (e) { return ''; } };
-  const fld = ([key, label, base, max, note]) =>
-    '<label title="' + svEsc(noteOf(note)) + '">' + svEsc(label) + ' ' +
-    (base === 16 ? '0x' : '') +
-    '<input id="ce-' + index + '-' + key + '" value="' +
-    (base === 16 ? rec[key].toString(16).toUpperCase().padStart(2, '0') : rec[key]) +
-    '" size="' + (max > 0xFF ? 5 : 4) + '" spellcheck="false"></label>';
-  host.innerHTML = SAVE_FIELDS.map(fld).join('') +
-    '<button class="sv-chip" onclick="applyCharEditForm(' + index + ')">Apply</button>' +
-    (index === 1 ? actionChip('Make them well', 'healCharacterRecord(1)',
-                              fullStomach() ? 'health, magic and a full stomach' : 'health and magic') : '') +
-    '<div class="inspDim">The 32 bytes as stored: <code>' +
-    Array.from(rec.raw).map(b => b.toString(16).padStart(2, '0')).join(' ') +
-    '</code><br>Bytes 6 and 7, 20 to 26 and 29 to 31 are not identified and are carried through ' +
-    'an edit unchanged; 20 and 21 are a second appearance word that is usually, but not ' +
-    'always, the one at 4 and 5. Apply rebuilds the whole archive.</div>' + saveFieldsProgramNote() +
-    ((window.ARCHIVE_FINDER || {}).type === 'DelP' ? giveFormHTML(index) : '');
+  const html = charEditHTML(index);
+  if (!html) return;
+  host.innerHTML = html;
   host.style.display = '';
+  // As wide as the part of the table that shows, not as the table: the
+  // records table scrolls sideways on a phone, and the form in its row
+  // would otherwise run off the right with it.
+  const box = typeof host.closest === 'function' ? host.closest('.tableScroll') : null;
+  if (box && box.clientWidth) host.style.maxWidth = Math.max(240, box.clientWidth - 12) + 'px';
   window.SAVE_EDIT_OPEN = index;
+}
+// The form's markup, apart from where it is put, so the smoke can read it.
+function charEditHTML(index) {
+  const rec = loadCharacterTable()[index];
+  if (!rec) return '';
+  const whatOf = (it, v) => { if (!it.what) return ''; try { return it.what(rec, v) || ''; } catch (e) { quiet(e); return ''; } };
+  let h = '';
+  for (const g of CHAR_GROUPS) {
+    h += '<div class="charGroup"><div class="charGroupHead">' + svEsc(g.head) + '</div>';
+    for (const it of g.items) {
+      const v = charItemValue(rec, it), hex = it.base === 16;
+      const off = it.raw ? it.raw[0] : it.off, width = it.raw ? it.raw[1] : (it.width || 1);
+      h += '<div class="charRow"><label>' + svEsc(it.label) + ' ' + (hex ? '0x' : '') +
+        '<input id="ce-' + index + '-' + it.id + '" value="' + (hex ? v.toString(16).toUpperCase().padStart(width * 2, '0') : v) +
+        '" size="' + (it.max > 0xFF ? 5 : 4) + '" spellcheck="false"></label> <span class="charWhere">' + charWhere(index, off, width, it.fieldNo) + '</span>' +
+        (whatOf(it, v) ? '<div class="charWhat">' + whatOf(it, v) + '</div>' : '') + '</div>';
+    }
+    h += '</div>';
+  }
+  h += '<div class="charGroup"><div class="charGroupHead">Flags</div><div class="charWhat">The character flags the scripts set, clear and test by number. ' +
+    'Flags 0 to 7 are ' + charWhere(index, 8, 1) + ', 8 to 23 ' + charWhere(index, 6, 2) + ' and 24 to 31 ' + charWhere(index, 26, 1) +
+    '. The names are the program’s' + (appImage() ? '' : ', and need the application open') + '.</div><div class="charFlags">';
+  for (let f = 0; f < 32; f++) {
+    const nm = appImage() ? charFlagName(f) : null;
+    h += '<label><input type="checkbox" id="ce-' + index + '-flag' + f + '"' + (charFlagOn(rec, f) ? ' checked' : '') + '> ' + f + (nm ? ' ' + svEsc(nm.replace(/^Is/, '').replace(/([a-z])([A-Z])/g, '$1 $2')) : '') + '</label>';
+  }
+  h += '</div></div>';
+  return h +
+    '<div class="charActions"><button class="sv-chip" onclick="applyCharEditForm(' + index + ')">Apply</button>' +
+    (index === 1 ? actionChip('Make them well', 'healCharacterRecord(1)', fullStomach() ? 'health, magic and a full stomach' : 'health and magic') : '') + '</div>' +
+    '<div class="inspDim">Every byte of the 32 is above. Apply rebuilds the whole archive.</div>' +
+    ((window.ARCHIVE_FINDER || {}).type === 'DelP' ? giveFormHTML(index) : '');
 }
 
 function applyCharEditForm(index) {
-  const fields = {};
-  for (const [key, label, base, max] of SAVE_FIELDS) {
-    const el = document.getElementById('ce-' + index + '-' + key);
+  const rec = loadCharacterTable()[index];
+  if (!rec) return;
+  const fields = {}, raw = {};
+  for (const g of CHAR_GROUPS) for (const it of g.items) {
+    const el = document.getElementById('ce-' + index + '-' + it.id);
     if (!el) return;
-    const v = parseInt(el.value, base);
-    if (!Number.isInteger(v) || v < 0 || v > max) {
-      setStatus('Bad value for ' + label + ', nothing changed.', true); return;
-    }
-    fields[key] = v;
+    const v = parseInt(el.value, it.base || 10);
+    if (!Number.isInteger(v) || v < 0 || v > it.max) { setStatus('Bad value for ' + it.label + ', nothing changed.', true); return; }
+    if (it.key) fields[it.key] = v;
+    else if (it.raw[1] === 2) { raw[it.raw[0]] = v >> 8; raw[it.raw[0] + 1] = v & 0xFF; }
+    else raw[it.raw[0]] = v;
   }
-  applyCharacterRecordEdit(index, fields);
+  // The flags into bytes 8, 6 and 7, and 26; byte 8 goes by its field, which
+  // the writer lays over the raw bytes.
+  let b8 = 0, w6 = 0, b26 = 0;
+  for (let f = 0; f < 32; f++) {
+    const el = document.getElementById('ce-' + index + '-flag' + f);
+    if (!el || !el.checked) continue;
+    if (f < 8) b8 |= 1 << f; else if (f < 24) w6 |= 1 << (f - 8); else b26 |= 1 << (f - 24);
+  }
+  fields.state = b8; raw[6] = w6 >> 8; raw[7] = w6 & 0xFF; raw[26] = b26;
+  applyCharacterRecordEdit(index, fields, raw);
 }
 
 // Health, magic and a full stomach: the one convenience offered, because it
@@ -1411,11 +1489,14 @@ function fullStomach() {
   return found || window.SCENARIO_FULL_STOMACH;
 }
 
-function applyCharacterRecordEdit(index, fields) {
+function applyCharacterRecordEdit(index, fields, rawBytes) {
   const raw = getResourceBytes(ARCHIVE, 0xF009);
   if (!raw) { setStatus('This file has no character table.', true); return false; }
   const records = parseDelverCharacterRecords(smartDecrypt(raw, 0xF009).data);
   if (!records[index]) return false;
+  // Bytes no field of the parser carries, written into the record's raw
+  // bytes, which the writer lays down before the fields.
+  for (const [o, v] of Object.entries(rawBytes || {})) records[index].raw[+o] = v & 0xFF;
   Object.assign(records[index], fields);
   const ok = applyResourceEdit(0xF009, writeDelverCharacterRecords(records));
   /* A placed character stands in two places in a saved game: this record,

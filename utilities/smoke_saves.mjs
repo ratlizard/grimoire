@@ -128,6 +128,28 @@ if (savePath && !onlyCat) {
       else console.log('  save forms: the scenario\u2019s words kept, quest flags 77 and 200 and value 5 through the Char block, room 2 entered, ' +
                        'To Do line 114 in slot 10 shown by its text, and prop type 66 given to the hero');
     } catch (e) { fail('save forms', e); }
+    /* A record's form names all 32 bytes (25 September 2026): five groups,
+       32 flags, the two bytes nothing reads said to be so, and bytes the
+       parser carries no field for written through the raw path and read
+       back from the rebuilt table. */
+    try {
+      {
+        const f = ctx.charEditHTML(1);
+        for (const g of ['Where', 'Looks', 'Stats', 'Behaviour', 'Flags'])
+          if (!f.includes('charGroupHead">' + g)) fail('record form', 'no ' + g + ' group');
+        const boxes = (f.match(/id="ce-1-flag\d+"/g) || []).length;
+        if (boxes !== 32) fail('record form', boxes + ' flag boxes, not 32');
+        if (!/move countdown/.test(f) || !/byte 31/.test(f) || /party byte|state byte/.test(f)) fail('record form', 'the relabelled bytes are not as written');
+      }
+      const before = ctx.loadCharacterTable()[1];
+      ctx.applyCharacterRecordEdit(1, { state: before.state | 0x80 }, { 22: 136, 25: 2, 31: 7 });
+      const after = ctx.loadCharacterTable()[1];
+      if (after.raw[22] !== 136 || after.raw[25] !== 2 || after.raw[31] !== 7 || !(after.raw[8] & 0x80) || after.body !== before.body)
+        fail('record form', 'raw bytes did not come back from the rebuilt table: ' + Array.from(after.raw).join(','));
+      else if (!ctx.charFlagOn(after, 7) || ctx.charFlagOn(after, 6) !== !!(before.raw[8] & 0x40))
+        fail('record form', 'flag 7 is not bit 7 of byte 8');
+      else console.log('  record form: five groups, 32 flags, bytes 22, 25 and 31 and flag 7 written and read back');
+    } catch (e) { fail('record form', e); }
     // Back to the game archive, and the identity goes back with it. With no
     // hash to carry a view across, the landing is the default one.
     ctx.location.hash = '';

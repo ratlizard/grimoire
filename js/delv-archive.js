@@ -2006,12 +2006,12 @@ function parseDelverCharacterRecords(data) {
       index: out.length, raw,
       zone: raw[0], x: xy >> 12, y: xy & 0xFFF,
       proptype: ap & 0x3FF, aspect: ap >> 10,
-      state: raw[8],                       // C0/D0/80 on the placed, 00 otherwise
+      state: raw[8],                       // bit_flags, field 19: character flags 0 to 7, bit 6 in the party
       body: raw[9], reflex: raw[10], mind: raw[11],
       xp: (raw[12] << 8) | raw[13],
       health: raw[14], healthMax: raw[15],
       magic: raw[16], magicMax: raw[17],
-      party: raw[18],                      // 0 until Hector joins, 5 after
+      party: raw[18],                      // timing, field 35: ticks to the next move, counted down by TActiveMonster::DoTick
       level: raw[19],
       nutrition: raw[27], training: raw[28]
     });

@@ -1798,8 +1798,8 @@ function compareImageCanvas(data, subn, resid) {
 /* The records that differ, where the two files' tables can be read as
    records rather than bytes (25 September 2026, the readable half of
    showing a save against the scenario): the character table (0xF009), a
-   character at a time and a named field at a time, the fields by
-   SAVE_BYTES and the bytes those do not name counted; and each zone's prop
+   character at a time and a named field at a time, by the Saved Game
+   form's names (CHAR_GROUPS) and the flags; and each zone's prop
    list (0x81xx) and the cast (0xF306), a record at a time by index --
    added, gone, or changed in its square, its type, its state or its
    holder. Names are the open file's. The drawing of a save's props over
@@ -1819,24 +1819,23 @@ function compareRecordsHTML(rep) {
       if (!a || !b) { if (a || b) { people++; rows.push('<tr><td>' + characterChip(i) + '</td><td>' + (a ? 'only in ' + svEsc(rep.aName) : 'only in ' + svEsc(rep.bName)) + '</td><td></td><td></td></tr>'); } continue; }
       if (a.raw.every((v, k) => v === b.raw[k])) continue;
       people++;
-      const named = new Set();
-      for (const [key, [off, w]] of Object.entries(SAVE_BYTES)) {
-        for (let k = 0; k < w; k++) named.add(off + k);
-        let same = true;
-        for (let k = 0; k < w; k++) if (a.raw[off + k] !== b.raw[off + k]) same = false;
-        if (same) continue;
-        const va = key === 'zone' ? zoneDisplayName(a.zone) : key === 'proptype' ? (propDisplayName(a.proptype) || String(a.proptype)) : String(a[key]);
-        const vb = key === 'zone' ? zoneDisplayName(b.zone) : key === 'proptype' ? (propDisplayName(b.proptype) || String(b.proptype)) : String(b[key]);
-        rows.push('<tr><td>' + characterChip(i) + '</td><td>' + svEsc(key) + '</td>' + num(svEsc(va)) + num(svEsc(vb)) + '</tr>');
+      // Every byte is named since 25 September 2026: the form's groups
+      // (CHAR_GROUPS) and the flags, by the same names.
+      for (const g of CHAR_GROUPS) for (const it of g.items) {
+        if (it.id === 'x' || it.id === 'y') continue;
+        const va = charItemValue(a, it), vb = charItemValue(b, it);
+        if (va === vb) continue;
+        const say = (r, v) => it.id === 'zone' ? zoneDisplayName(v) : it.id === 'proptype' ? (propDisplayName(v) || String(v)) : it.base === 16 ? '0x' + v.toString(16).toUpperCase() : String(v);
+        rows.push('<tr><td>' + characterChip(i) + '</td><td>' + svEsc(it.label) + '</td>' + num(svEsc(say(a, va))) + num(svEsc(say(b, vb))) + '</tr>');
       }
-      // The square is bytes 1 to 3 and has no field of its own in SAVE_BYTES.
       if (a.x !== b.x || a.y !== b.y) { rows.push('<tr><td>' + characterChip(i) + '</td><td>square</td>' + num(a.x + ', ' + a.y) + num(b.x + ', ' + b.y) + '</tr>'); }
-      for (let k = 1; k <= 3; k++) named.add(k);
-      let other = 0;
-      for (let k = 0; k < 32; k++) if (!named.has(k) && a.raw[k] !== b.raw[k]) other++;
-      if (other) rows.push('<tr><td>' + characterChip(i) + '</td><td>' + other + ' byte' + (other === 1 ? '' : 's') + ' the page does not name</td><td></td><td></td></tr>');
+      for (let f = 0; f < 32; f++) {
+        if (charFlagOn(a, f) === charFlagOn(b, f)) continue;
+        const nm = appImage() ? charFlagName(f) : null;
+        rows.push('<tr><td>' + characterChip(i) + '</td><td>flag ' + f + (nm ? ' ' + svEsc(nm.replace(/^Is/, '').replace(/([a-z])([A-Z])/g, '$1 $2')) : '') + '</td>' + num(charFlagOn(a, f) ? 'on' : 'off') + num(charFlagOn(b, f) ? 'on' : 'off') + '</tr>');
+      }
     }
-    if (rows.length) parts.push('<div class="partsTitle">Characters</div><p class="mechSub">' + people + ' character record' + (people === 1 ? '' : 's') + ' differ' + (people === 1 ? 's' : '') + ', field by field where the page names the field.</p>' +
+    if (rows.length) parts.push('<div class="partsTitle">Characters</div><p class="mechSub">' + people + ' character record' + (people === 1 ? '' : 's') + ' differ' + (people === 1 ? 's' : '') + ', field by field.</p>' +
       mechTable(['character', 'field', '#in ' + svEsc(rep.aName), '#in ' + svEsc(rep.bName)], rows));
   }
   const lists = rep.changed.filter(c => (c.resid >= 0x8100 && c.resid <= 0x81FF) || c.resid === 0xF306);

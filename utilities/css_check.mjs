@@ -36,7 +36,7 @@ const html = readFileSync(resolve(ROOT, page), 'utf8');
 // a stylesheet that loses a rule fails and this list does not grow unseen.
 const UNSTYLED = new Set([
   'f1',          // the second tab folder is `folder f1`; `folder` is styled and `f1` never was
-  'propEdit', 'lblText', 'eachOne', 'exeListing', 'pwReadout', 'orphanCell',   // named for reading, not for style
+  'lblText', 'eachOne', 'exeListing', 'pwReadout', 'orphanCell',   // named for reading, not for style
   'mechBody',    // the body of a rules card (mechSectionEl); nothing styles it by that name
   'tileFacts',   // the facts under a zoomed tile, styled inline where it is made
   'gated',       // on <body> while the gate stands; the script reads it
