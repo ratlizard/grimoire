@@ -1505,19 +1505,28 @@ function heroWearFrames(body, perFacing) {
    Parts are ordered by pixel count, most first; `top` is a group's most used
    index, and a group's key is its lowest index, which does not depend on
    the order the joins happened in. */
-function heroShadeDef(image) {
+function heroShadeDef(image, W, frameH, opts) {
+  // How alike two touching shades must be to be one family: hue within
+  // `hue` degrees and chroma within `chroma`, and two greys within `greyL`
+  // of lightness. The defaults are the sprites' readings; a portrait's
+  // caller tightens them, since a face's skin, hair and clothes are painted
+  // in neighbouring browns that a sprite's smaller art keeps apart.
+  const O = Object.assign({ hue: 18, chroma: 32, greyL: 100, small: 50 }, opts || {});
   const skip = new Set([0, 0xFF, 0x1D, 0x1E]);
   const count = new Uint32Array(256);
   const touch = new Map();
   const pair = (a, b) => a < b ? a * 256 + b : b * 256 + a;
-  const W = 32;
+  // A sheet is 32 wide in 32-row frames, and a run of touching shades never
+  // crosses from one frame into the next; a portrait (64 by 64, since
+  // 24 September 2026) is one frame the size of the image.
+  W = W || 32; frameH = frameH || 32;
   for (let i = 0; i < image.length; i++) {
     const v = image[i];
     if (skip.has(v)) continue;
     count[v]++;
     const x = i % W, y = Math.floor(i / W);
     const right = x + 1 < W ? image[i + 1] : 0;
-    const down = (y + 1) % 32 !== 0 && i + W < image.length ? image[i + W] : 0;
+    const down = (y + 1) % frameH !== 0 && i + W < image.length ? image[i + W] : 0;
     for (const w of [right, down])
       if (!skip.has(w) && w !== v) touch.set(pair(v, w), (touch.get(pair(v, w)) || 0) + 1);
   }
@@ -1525,7 +1534,7 @@ function heroShadeDef(image) {
   for (let i = 1; i < 256; i++) {
     if (!count[i] || skip.has(i)) continue;
     const [, a, b] = heroLab(PAL_RGB[i]);
-    groups.set(i, { members: [i], pixels: count[i], sa: a * count[i], sb: b * count[i], grey: Math.hypot(a, b) < 10 });
+    groups.set(i, { members: [i], pixels: count[i], sa: a * count[i], sb: b * count[i], sl: heroLab(PAL_RGB[i])[0] * count[i], grey: Math.hypot(a, b) < 10 });
   }
   const owner = new Map([...groups.keys()].map(k => [k, k]));
   const root = k => { while (owner.get(k) !== k) k = owner.get(k); return k; };
@@ -1542,15 +1551,15 @@ function heroShadeDef(image) {
       const ma = meanOf(A), mb = meanOf(B);
       let dh = Math.abs(ma.h - mb.h);
       if (dh > 180) dh = 360 - dh;
-      if (dh > 18 || Math.abs(ma.C - mb.C) > 32) continue;
-    }
+      if (dh > O.hue || Math.abs(ma.C - mb.C) > O.chroma) continue;
+    } else if (Math.abs(A.sl / A.pixels - B.sl / B.pixels) > O.greyL) continue;
     owner.set(rb, ra);
-    A.members.push(...B.members); A.pixels += B.pixels; A.sa += B.sa; A.sb += B.sb;
+    A.members.push(...B.members); A.pixels += B.pixels; A.sa += B.sa; A.sb += B.sb; A.sl += B.sl;
     groups.delete(rb);
   }
   const all = [...groups.values()];
   const total = all.reduce((n, g) => n + g.pixels, 0);
-  const big = all.filter(g => g.pixels >= total / 50);
+  const big = all.filter(g => g.pixels >= total / O.small);
   const keep = big.length ? big : all;
   const topOf = g => g.members.reduce((t, i) => count[i] > count[t] ? i : t, g.members[0]);
   for (const g of all) {

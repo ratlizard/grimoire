@@ -1153,6 +1153,55 @@ function heroSpriteClasses() {
   return out;
 }
 
+/* ---- a portrait, the same way (24 September 2026, at the maintainer's word)
+   Every portrait in the file is a 64 by 64 indexed picture in the same
+   palette, so colour by colour applies to it unchanged: the families are
+   found over the one frame, each recoloured as a whole, and the patch
+   replaces that one resource. A character's portrait shows wherever the
+   game draws it; the hero's is copied into the saved game when the
+   character is made, so a recoloured one shows in a game begun after the
+   patch. The list is the file's: every 0x88xx that decodes to a picture,
+   named as the page names it. */
+// The thresholds a portrait's families are found with (heroShadeDef): see
+// the probe of 24 September 2026 in the notes for what the sprites' gave.
+const HERO_PORTRAIT_JOIN = { hue: 10, chroma: 16, greyL: 25, small: 50 };
+function heroPortraits() {
+  heroSourceSpec();
+  const c = window.HERO_SOURCE_SPEC;
+  if (!c || !c.spec) return [];
+  if (c.portraits) return c.portraits;
+  const out = [];
+  for (const r of c.spec.resources) {
+    if (((r.resid >> 8) - 1) !== 135) continue;
+    let dec = null;
+    try { dec = decodeResource(ARCHIVE, r.data, 135, r.resid); } catch (e) { dec = null; }
+    if (!dec || !dec.W || !dec.H || !dec.image) continue;
+    const name = labelFor(r.resid) || '';
+    out.push({ resid: r.resid, W: dec.W, H: dec.H, name, label: (name || 'portrait') + ' ' + propWordHex(r.resid) });
+  }
+  c.portraits = out;
+  return out;
+}
+function heroPortraitFigure(resid) {
+  const p = heroPortraits().find(x => x.resid === resid);
+  const spec = heroSourceSpec();
+  const res = spec && spec.resources.find(r => r.resid === resid);
+  if (!p || !res) return null;
+  let dec = null;
+  try { dec = decodeResource(ARCHIVE, res.data, 135, resid); } catch (e) { dec = null; }
+  if (!dec) return null;
+  const image = Uint8Array.from(dec.image);
+  const shades = heroShadeDef(image, p.W, p.H, HERO_PORTRAIT_JOIN);
+  const shadeLabels = heroPartMap(image, p.W, p.H, shades);
+  // Whose face it is: the character whose record wears this portrait, by
+  // the numbering the resource view uses (character n wears 0x8800 + n - 1).
+  let wearer = null;
+  try { const i = resid - 0x8800 + 1; if (loadCharacterTable()[i]) wearer = { i, name: characterName(i) }; } catch (e) { quiet(e); }
+  return { key: 'pr' + resid.toString(16), kind: 'portrait', resid, name: 'portrait of ' + (p.name || propWordHex(resid)), label: p.name,
+           W: p.W, H: p.H, frames: 1, shipped: image, image, def: null, labels: null, body: null, cls: null,
+           shades, shadeLabels, wearer, wearers: wearer ? 1 : 0, others: [], unknown: 0 };
+}
+
 /* What the hero or the heroine can wear: a person's sixteen frames, which
    are laid out as theirs are, or a monster's eight or four, which
    heroWearFrames spreads over their poses. Not a sixteen-frame monster, not
@@ -1168,6 +1217,7 @@ function heroBodies(pt) {
    when the open file has no such sprite, which is what a saved game gives.
    `key` is 'hero' or 'heroine', or 'pt' and a class number for any other. */
 function heroFigure(key) {
+  if (/^pr[0-9a-f]+$/i.test(key)) return heroPortraitFigure(parseInt(key.slice(2), 16));
   const def = HERO_SPRITES.find(d => d.key === key) || null;
   const pt = def ? def.proptype : (/^pt\d+$/.test(key) ? parseInt(key.slice(2), 10) : null);
   if (pt === null) return null;
@@ -1220,7 +1270,7 @@ function heroRecoloured(fig) {
   });
   if (byHex.size) {
     const merged = { parts: [...byHex.values()], shared: [] };
-    const labels = heroPartMap(fig.image, 32, fig.H, merged);
+    const labels = heroPartMap(fig.image, fig.W, fig.H, merged);
     const sc = {};
     for (const hex of byHex.keys()) sc[hex] = heroHexRgb(hex);
     const tables = heroRemapTables(fig.image, labels, merged, sc);
@@ -1253,16 +1303,27 @@ function heroSpritePatch() {
   if (!fig || !base) return null;
   const rec = heroRecoloured(fig);
   if (!rec.moved) return null;
-  const sheet = Uint8Array.from(fig.sheetImage);
-  sheet.set(rec.image, fig.start * 1024);
-  const data = encodeDCGLiterals(sheet);
-  if (!base.resources.find(r => r.resid === fig.sheet)) return null;
+  let resid, data, name;
+  if (fig.kind === 'portrait') {
+    // A portrait resource is the picture's DCG stream and nothing else,
+    // which is what the ditherizer writes for one too (encodeGraphicResource).
+    resid = fig.resid;
+    data = encodeDCGLiterals(rec.image);
+    name = (fig.label || propWordHex(fig.resid)) + ' Portrait Colours';
+  } else {
+    const sheet = Uint8Array.from(fig.sheetImage);
+    sheet.set(rec.image, fig.start * 1024);
+    resid = fig.sheet;
+    data = encodeDCGLiterals(sheet);
+    name = fig.name.charAt(0).toUpperCase() + fig.name.slice(1) + ' Colours';
+  }
+  if (!base.resources.find(r => r.resid === resid)) return null;
   const spec = Object.assign({}, base, {
-    resources: base.resources.map(r => r.resid === fig.sheet ? Object.assign({}, r, { data }) : r) });
+    resources: base.resources.map(r => r.resid === resid ? Object.assign({}, r, { data }) : r) });
   const d = document.getElementById('heroDesc');
-  const w = writeDelverPatch(spec, [fig.sheet],
+  const w = writeDelverPatch(spec, [resid],
     { description: (d && d.value) || heroDescription(fig), typeCode: DELV_PATCH_EXPORT_TYPE });
-  w.name = safeFileName(fig.name.charAt(0).toUpperCase() + fig.name.slice(1) + ' Colours');
+  w.name = safeFileName(name);
   return w;
 }
 
@@ -1344,19 +1405,28 @@ function heroSpriteReset() {
 /* The frame a family shows best in, with every pixel outside the family
    put to a dark grey and the outline kept, so the row says what it covers. */
 function heroShadeThumb(fig, pi) {
+  const size = fig.W * (fig.kind === 'portrait' ? fig.H : 32);
   let best = 0, most = -1;
   const frames = fig.frames;
   for (let t = 0; t < frames; t++) {
     let n = 0;
-    for (let i = t * 1024; i < (t + 1) * 1024; i++) if (fig.shadeLabels[i] === pi) n++;
+    for (let i = t * size; i < (t + 1) * size; i++) if (fig.shadeLabels[i] === pi) n++;
     if (n > most) { most = n; best = t; }
   }
-  const img = new Uint8Array(1024);
-  for (let i = 0; i < 1024; i++) {
-    const v = fig.image[best * 1024 + i];
-    img[i] = !v || v === 0xFF || fig.shadeLabels[best * 1024 + i] === pi ? v : 0x1C;
+  const img = new Uint8Array(size);
+  for (let i = 0; i < size; i++) {
+    const v = fig.image[best * size + i];
+    img[i] = !v || v === 0xFF || fig.shadeLabels[best * size + i] === pi ? v : 0x1C;
   }
+  if (fig.kind === 'portrait') return heroPortraitCanvas(img, fig.W, fig.H);
   return patchTileCanvas({ image: img, W: 32, H: 32 }, 0, 141);
+}
+// A whole portrait as a canvas, drawn as the portrait gallery draws one.
+function heroPortraitCanvas(image, W, H) {
+  const c = document.createElement('canvas');
+  drawToCanvas(c, W, H, image, transparentIndexFor(135));
+  c.className = 'patchTile';
+  return c;
 }
 
 /* The controls, the frames and the buttons, redrawn whole on every choice.
@@ -1404,6 +1474,23 @@ function renderHeroSprite() {
       sel.appendChild(o);
     }
     sel.onchange = function () { if (sel.value) heroSpritePick('pt' + sel.value); };
+    pick.appendChild(sel);
+  }
+  const portraits = heroPortraits();
+  if (portraits.length) {
+    const sel = document.createElement('select');
+    sel.id = 'heroPortrait'; sel.className = 'heroSelect';
+    sel.setAttribute('aria-label', 'a portrait');
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = 'a portrait';
+    sel.appendChild(none);
+    for (const p of portraits) {
+      const o = document.createElement('option');
+      o.value = String(p.resid); o.textContent = p.label;
+      if (fig.key === 'pr' + p.resid.toString(16)) o.selected = true;
+      sel.appendChild(o);
+    }
+    sel.onchange = function () { if (sel.value) heroSpritePick('pr' + (+sel.value).toString(16)); };
     pick.appendChild(sel);
   }
   host.appendChild(pick);
@@ -1487,28 +1574,41 @@ function renderHeroSprite() {
 
   // The frames: shipped on the left of each pair, chosen on the right.
   const rec = heroRecoloured(fig);
-  host.appendChild(el('div', 'partsTitle', 'The ' + svEsc(fig.name) + '’s ' + fig.frames + ' frames, from sheet ' + propWordHex(fig.sheet)));
   const strip = el('div', 'patchStrip');
-  for (let t = 0; t < fig.frames; t++) {
+  if (fig.kind === 'portrait') {
+    host.appendChild(el('div', 'partsTitle', 'The ' + svEsc(fig.name) + ', ' + propWordHex(fig.resid)));
     const pair = el('div', 'patchPair');
-    pair.appendChild(patchTileCanvas({ image: fig.shipped, W: 32, H: fig.H }, t, 141));
-    pair.appendChild(patchTileCanvas({ image: rec.image, W: 32, H: fig.H }, t, 141));
-    pair.appendChild(el('span', 'patchTileNo', String(fig.start + t)));
+    pair.appendChild(heroPortraitCanvas(fig.shipped, fig.W, fig.H));
+    pair.appendChild(heroPortraitCanvas(rec.image, fig.W, fig.H));
     strip.appendChild(pair);
+  } else {
+    host.appendChild(el('div', 'partsTitle', 'The ' + svEsc(fig.name) + '’s ' + fig.frames + ' frames, from sheet ' + propWordHex(fig.sheet)));
+    for (let t = 0; t < fig.frames; t++) {
+      const pair = el('div', 'patchPair');
+      pair.appendChild(patchTileCanvas({ image: fig.shipped, W: 32, H: fig.H }, t, 141));
+      pair.appendChild(patchTileCanvas({ image: rec.image, W: 32, H: fig.H }, t, 141));
+      pair.appendChild(el('span', 'patchTileNo', String(fig.start + t)));
+      strip.appendChild(pair);
+    }
   }
   host.appendChild(strip);
   const facts = [];
-  if (fig.body) facts.push(fig.body.frames === 16
+  if (fig.kind === 'portrait') {
+    facts.push(fig.wearer ? 'Character ' + fig.wearer.i + ', ' + svEsc(fig.wearer.name) + ', wears this portrait, and it changes wherever the game shows it.'
+                          : 'No character record wears this portrait.');
+    facts.push('The patch replaces this one resource, ' + propWordHex(fig.resid) + '.');
+  }
+  if (fig.kind !== 'portrait' && fig.body) facts.push(fig.body.frames === 16
     ? 'The ' + svEsc(fig.body.label) + '’s frames are laid out as the ' + svEsc(fig.name) + '’s, and are worn as they are.'
     : 'The ' + svEsc(fig.body.label) + ' has ' + fig.body.frames / 4 + (fig.body.frames === 8 ? ' strides' : ' frame') +
       ' a facing where the ' + svEsc(fig.name) + ' has four poses, so ' +
       (fig.body.frames === 8 ? 'the first stride stands in for standing and sitting.' : 'that frame stands in for all four.'));
-  facts.push(fig.others.length
+  if (fig.kind !== 'portrait') facts.push(fig.others.length
     ? svEsc(fig.others.map(k => k.label).join(', ')) + ' also ' + (fig.others.length === 1 ? 'draws' : 'draw') + ' from these frames and would change with them.'
     : fig.start || fig.frames < 16
       ? 'Only these ' + fig.frames + ' frames of the sheet change; the rest of it is written back as it was.'
       : 'Nothing else in the file draws from this sheet.');
-  if (fig.wearers > 1) facts.push('<b>' + fig.wearers + '</b> characters wear this sprite, and all of them change with it.');
+  if (fig.kind !== 'portrait' && fig.wearers > 1) facts.push('<b>' + fig.wearers + '</b> characters wear this sprite, and all of them change with it.');
   if (fig.unknown) facts.push('<b>' + fig.unknown + '</b> pixels use colours the part table does not know, so this sheet is not the shipped art and those pixels are left as they are.');
   facts.push(rec.moved ? '<b>' + rec.moved.toLocaleString() + '</b> pixels change.' : 'Nothing is chosen, so the frames are as shipped.');
   host.appendChild(el('ul', 'ruleList', facts.map(f => '<li>' + f + '</li>').join('')));
@@ -2957,15 +3057,16 @@ function renderMechanicsSheet(value) {
 
   // ---- the hero's colours, as a patch ----
   {
-    add('herosprite', 'A sprite of your own, as a patch', null, '',
-      'Choose a sprite and change its colours, and for the hero or the heroine a body to wear. ' +
-      'The sprite sheet is redrawn from the shipped art and written as a Magpie patch that replaces that one resource.',
+    add('herosprite', 'A sprite or a portrait of your own, as a patch', null, '',
+      'Choose a sprite or a portrait and change its colours, and for the hero or the heroine a body to wear. ' +
+      'The art is redrawn from the shipped file and written as a Magpie patch that replaces that one resource.',
       [
         'The hero and the heroine can wear any person, or any monster drawn in four or eight frames. A person is laid out as they are; a monster has fewer poses, and its strides stand in for the rest.',
         'Their hair, skin and clothes are told apart by this page, not read from the file: the art has no such layer. A shade two parts share goes to the part it touches most.',
         'Colour by colour works on any sprite: the page finds the areas the art is painted in, a ramp of shades that touch each other, and each is changed as a whole. Where one shade draws two things, both change.',
         'Each colour keeps its shading. New colours are taken from the game’s palette, and never from the ranges the engine cycles, so the sprite does not shimmer.',
-        'Only the chosen sprite’s own frames change. The portrait chosen when the hero is made is a different resource and is not changed.',
+        'Only the chosen sprite’s own frames change.',
+        'A portrait is recoloured the same way, colour by colour. A character’s portrait changes wherever the game shows it; the hero’s is copied into the saved game when the character is made, so a recoloured one shows in a game begun after the patch.',
         'The patch is read by this page and by the browser player, and Magpie installs it on a Mac.'
       ], '');
     const sec = sections[sections.length - 1].el;
