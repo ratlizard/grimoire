@@ -905,6 +905,26 @@ try {
   ctx.patchesForget();
 } catch (e) { fail('hero colours', e); }
 
+/* A save against the scenario, the readable half (25 September 2026): the
+   shipped save compared with the open file lists the character records
+   that differ field by field and the zone lists record by record. */
+try {
+  if (!savePath || !existsSync(savePath)) console.log('  (no saved game; the save comparison is skipped)');
+  else {
+    ctx.showCategory('TOOLS');
+    if (!ctx.compareOpenBytes(new Uint8Array(readFileSync(savePath)), 'I.M.Cheater')) fail('save comparison', 'the save was refused');
+    else {
+      const h = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('compareReport'));
+      const rep = peek('window.COMPARE_REPORT');
+      if (!/Characters<\/div>/.test(h) || !/openCharacter\(1\)|showCharacterDetail\(1\)/.test(h)) fail('save comparison', 'the hero’s record is not listed against the scenario’s');
+      else if (!/<td>health<\/td>|<td>square<\/td>|<td>xp<\/td>/.test(h)) fail('save comparison', 'no named field of a character is listed');
+      else if (!/Zones<\/div>/.test(h) || !/only in I\.M\.Cheater|only in/.test(h)) fail('save comparison', 'no zone list is compared record by record');
+      else console.log(`  save comparison: I.M.Cheater against the scenario, ${rep.changed.length} resources differ; the character records and the zone lists are read as records`);
+    }
+    ctx.compareForget();
+  }
+} catch (e) { fail('save comparison', e); }
+
 /* The comparison section, and the patch it writes, end to end through the DOM.
 
    The engine is proven in patch_check; what this pins is the part that only

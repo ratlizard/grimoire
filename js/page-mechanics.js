@@ -1791,6 +1791,81 @@ function compareImageCanvas(data, subn, resid) {
   return c;
 }
 
+/* The records that differ, where the two files' tables can be read as
+   records rather than bytes (25 September 2026, the readable half of
+   showing a save against the scenario): the character table (0xF009), a
+   character at a time and a named field at a time, the fields by
+   SAVE_BYTES and the bytes those do not name counted; and each zone's prop
+   list (0x81xx) and the cast (0xF306), a record at a time by index --
+   added, gone, or changed in its square, its type, its state or its
+   holder. Names are the open file's. The drawing of a save's props over
+   the scenario's map is the other half and is not here. */
+function compareRecordsHTML(rep) {
+  const parts = [];
+  const num = v => '<td class="num">' + v + '</td>';
+  const chars = rep.changed.find(c => c.resid === 0xF009);
+  if (chars) {
+    let A = [], B = [];
+    try { A = parseDelverCharacterRecords(chars.a.data); B = parseDelverCharacterRecords(chars.b.data); } catch (e) { quiet(e, 'comparing the character tables'); }
+    const rows = [];
+    let people = 0;
+    const n = Math.max(A.length, B.length);
+    for (let i = 1; i < n && rows.length < 400; i++) {
+      const a = A[i], b = B[i];
+      if (!a || !b) { if (a || b) { people++; rows.push('<tr><td>' + characterChip(i) + '</td><td>' + (a ? 'only in ' + svEsc(rep.aName) : 'only in ' + svEsc(rep.bName)) + '</td><td></td><td></td></tr>'); } continue; }
+      if (a.raw.every((v, k) => v === b.raw[k])) continue;
+      people++;
+      const named = new Set();
+      for (const [key, [off, w]] of Object.entries(SAVE_BYTES)) {
+        for (let k = 0; k < w; k++) named.add(off + k);
+        let same = true;
+        for (let k = 0; k < w; k++) if (a.raw[off + k] !== b.raw[off + k]) same = false;
+        if (same) continue;
+        const va = key === 'zone' ? zoneDisplayName(a.zone) : key === 'proptype' ? (propDisplayName(a.proptype) || String(a.proptype)) : String(a[key]);
+        const vb = key === 'zone' ? zoneDisplayName(b.zone) : key === 'proptype' ? (propDisplayName(b.proptype) || String(b.proptype)) : String(b[key]);
+        rows.push('<tr><td>' + characterChip(i) + '</td><td>' + svEsc(key) + '</td>' + num(svEsc(va)) + num(svEsc(vb)) + '</tr>');
+      }
+      // The square is bytes 1 to 3 and has no field of its own in SAVE_BYTES.
+      if (a.x !== b.x || a.y !== b.y) { rows.push('<tr><td>' + characterChip(i) + '</td><td>square</td>' + num(a.x + ', ' + a.y) + num(b.x + ', ' + b.y) + '</tr>'); }
+      for (let k = 1; k <= 3; k++) named.add(k);
+      let other = 0;
+      for (let k = 0; k < 32; k++) if (!named.has(k) && a.raw[k] !== b.raw[k]) other++;
+      if (other) rows.push('<tr><td>' + characterChip(i) + '</td><td>' + other + ' byte' + (other === 1 ? '' : 's') + ' the page does not name</td><td></td><td></td></tr>');
+    }
+    if (rows.length) parts.push('<div class="partsTitle">Characters</div><p class="mechSub">' + people + ' character record' + (people === 1 ? '' : 's') + ' differ' + (people === 1 ? 's' : '') + ', field by field where the page names the field.</p>' +
+      mechTable(['character', 'field', '#in ' + svEsc(rep.aName), '#in ' + svEsc(rep.bName)], rows));
+  }
+  const lists = rep.changed.filter(c => (c.resid >= 0x8100 && c.resid <= 0x81FF) || c.resid === 0xF306);
+  if (lists.length) {
+    const rows = [];
+    for (const c of lists) {
+      let A = [], B = [];
+      try { A = parseDelverPropList(c.a.data); B = parseDelverPropList(c.b.data); } catch (e) { quiet(e, 'comparing a prop list'); continue; }
+      const where = c.resid === 0xF306 ? 'the cast' : zoneDisplayName(c.resid & 0xFF);
+      const name = r => propDisplayName(r.proptype) || ('prop ' + r.proptype);
+      const same = (x, y) => x.x === y.x && x.y === y.y && x.proptype === y.proptype && x.aspect === y.aspect && x.flags === y.flags && x.d1 === y.d1 && x.d2 === y.d2 && x.container === y.container;
+      const n = Math.max(A.length, B.length);
+      let added = 0, gone = 0, changed = 0;
+      const detail = [];
+      for (let i = 0; i < n; i++) {
+        const a = A[i], b = B[i];
+        if (!a && b) { added++; if (detail.length < 12) detail.push(svEsc(name(b)) + ' at ' + b.x + ', ' + b.y + ' only in ' + svEsc(rep.bName)); continue; }
+        if (a && !b) { gone++; if (detail.length < 12) detail.push(svEsc(name(a)) + ' at ' + a.x + ', ' + a.y + ' only in ' + svEsc(rep.aName)); continue; }
+        if (same(a, b)) continue;
+        changed++;
+        if (detail.length < 12) detail.push(svEsc(name(a)) + (a.x !== b.x || a.y !== b.y ? ' from ' + a.x + ', ' + a.y + ' to ' + b.x + ', ' + b.y : ' at ' + a.x + ', ' + a.y) +
+          (a.proptype !== b.proptype ? ', now ' + svEsc(name(b)) : '') + (a.flags !== b.flags ? ', flags ' + propWordHex(a.flags, 2) + ' to ' + propWordHex(b.flags, 2) : '') +
+          (a.d1 !== b.d1 || a.d2 !== b.d2 ? ', data ' + a.d1 + '/' + a.d2 + ' to ' + b.d1 + '/' + b.d2 : '') + (a.container !== b.container ? ', held by another' : ''));
+      }
+      if (!added && !gone && !changed) continue;
+      rows.push('<tr><td>' + svChip(c.resid, where) + '</td>' + num(added || '') + num(gone || '') + num(changed || '') + '<td>' + detail.join('<br>') + (added + gone + changed > detail.length ? '<br>and ' + (added + gone + changed - detail.length) + ' more' : '') + '</td></tr>');
+    }
+    if (rows.length) parts.push('<div class="partsTitle">Zones</div><p class="mechSub">Each list a record at a time, by index: a record the other file has not got, or one whose square, type, state or holder differs.</p>' +
+      mechTable(['list', '#only in ' + svEsc(rep.bName), '#only in ' + svEsc(rep.aName), '#changed', 'which'], rows));
+  }
+  return parts.join('');
+}
+
 function renderCompareReport() {
   const host = document.getElementById('compareReport');
   if (!host) return;
@@ -1843,6 +1918,11 @@ function renderCompareReport() {
     host.appendChild(el('div', 'partsTitle', 'Differ only in unset table keys'));
     host.appendChild(el('p', 'mechSub', unset.length + ' script resource' + (unset.length === 1 ? '' : 's') + ' differ only in the key halves of object table entries that have no value, which the compiler left unset. Nothing in them changed.'));
     host.appendChild(el('div', '', unset.slice(0, 400).map(c => svChip(c.resid, labelFor(c.resid) || '')).join(' ')));
+  }
+  {
+    let recs = '';
+    try { recs = compareRecordsHTML(rep); } catch (e) { quiet(e, 'the records that differ'); recs = ''; }
+    if (recs) host.appendChild(el('div', '', recs));
   }
   if (rep.added.length) {
     host.appendChild(el('div', 'partsTitle', 'Only in ' + svEsc(rep.bName)));
