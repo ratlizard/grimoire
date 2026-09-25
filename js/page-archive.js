@@ -302,6 +302,17 @@ document.addEventListener('click', e => {
   closeTopPanels();
 });
 
+/* Open another of the Delver archives the same zip or StuffIt file holds,
+   from the bytes kept when the file was opened; the Settings menu's chips
+   call this. The same shape as switchInstaller. */
+function switchContained(name) {
+  const c = window.CONTAINED;
+  if (!c || !c.raw || name === c.picked) return;
+  setStatus('Opening ' + name + '…');
+  if (!adoptArchive(c.raw, c.sourceName, { pick: name, store: true, url: c.url || undefined }))
+    setStatus('Could not open ' + name + ': ' + lastArchiveError, true);
+}
+
 function adoptArchive(raw, sourceName, opts) {
   opts = opts || {};
   let found;
@@ -326,6 +337,11 @@ function adoptArchive(raw, sourceName, opts) {
   // at another version without fetching again (switchInstaller).
   window.INSTALLER = found.installer
     ? Object.assign({ sourceName, raw, url: opts.url || null }, found.installer) : null;
+  // A zip or a StuffIt archive holding several Delver archives: the others
+  // are offered by name in the Settings menu (switchContained), and `raw`
+  // is kept for that, as it is for an installer.
+  window.CONTAINED = found.container
+    ? Object.assign({ sourceName, raw, url: opts.url || null }, found.container) : null;
   if (found.installer) sourceName = found.forks.name || sourceName;
   // opts first, then what the unwrap found. The other way round, a remembered
   // installer -- stored with `rsrc: null` because the installer carries its
@@ -371,6 +387,8 @@ function adoptArchive(raw, sourceName, opts) {
     // every file back; anything else is remembered as its forks, as before.
     const rec = found.installer
       ? { name: window.INSTALLER.sourceName, bytes: raw, via: found.via, rsrc: null, pick: found.installer.picked }
+      : found.container
+      ? { name: sourceName, bytes: raw, via: found.via, rsrc: null, pick: found.container.picked }
       : { name: sourceName, bytes: found.bytes, via: found.via, rsrc: rsrc };
     archiveCachePut(Object.assign(rec, { source: opts.url || 'local file', savedAt: Date.now() })).catch(() => {});
   }
@@ -786,7 +804,28 @@ function parseArchiveBytes(bytes, sourceName, meta) {
       (window.INSTALLER ? ', with ' + (window.INSTALLER.archive.entries.length - 1) + ' other files under Data › Installer' +
         (window.INSTALLER.installers && window.INSTALLER.installers.length > 1
           ? ' (' + window.INSTALLER.installers.length + ' versions in the file)' : '') : '') +
+      (window.CONTAINED ? ' (' + window.CONTAINED.entries.length + ' archives in the file)' : '') +
       (meta.cached ? ' (remembered from ' + new Date(meta.savedAt || Date.now()).toLocaleDateString() + ') ' : ' ')));
+    // The other archives the same file holds, each a chip that opens it.
+    {
+      const row = document.getElementById('containedRow');
+      if (row) row.innerHTML = '';
+      if (row) row.style.display = window.CONTAINED ? '' : 'none';
+      if (row && window.CONTAINED) {
+        const label = document.createElement('span');
+        label.className = 'amNote';
+        label.textContent = 'This file holds ' + window.CONTAINED.entries.length + ' archives, the open one is marked:';
+        row.appendChild(label);
+        for (const it of window.CONTAINED.entries) {
+          const b = document.createElement('button');
+          b.className = 'navChip' + (it.name === window.CONTAINED.picked ? ' active' : '');
+          b.textContent = it.name + (it.player ? ' (' + it.player + ')' : '');
+          b.title = it.path + ', ' + fmtBytes(it.len) + ', ' + it.title;
+          b.onclick = () => switchContained(it.name);
+          row.appendChild(b);
+        }
+      }
+    }
     const fb = document.getElementById('forgetArchiveBtn');
     if (fb) fb.style.display = meta.cached ? '' : 'none';
     const btn = document.getElementById('archiveMenuBtn');

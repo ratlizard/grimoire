@@ -231,6 +231,28 @@ function describeDelverArchive(bytes) {
   return { ok: true, title, player, populated };
 }
 
+/* Which of several Delver archives in one container to open. Until
+   24 September 2026 the first entry that read as one won and the rest were
+   unreachable: the Rocky the Flying Chicken add-on is a zip with two saves
+   in it, and the second could only be opened by unpacking the zip. Now
+   `opts.pick` names an entry (its name, or its path in a zip) and the first
+   is the default, and what comes back lists every one under `container`
+   when there is more than one, so the page can offer the others by name
+   without reading the file again (switchContained). A pick that names
+   nothing in the file falls back to the first, as an installer pick does. */
+function pickContained(found, where, pick) {
+  if (!found.length) return null;
+  const chosen = (pick && found.find(f => f.entry.name === pick || f.entry.path === pick)) || found[0];
+  const e = chosen.entry;
+  const out = { bytes: chosen.data, via: where, info: chosen.info,
+                forks: { kind: where, name: e.name, type: e.type, creator: e.creator, data: chosen.data, rsrc: chosen.rsrc() } };
+  if (found.length > 1) out.container = {
+    kind: where, picked: e.name,
+    entries: found.map(f => ({ name: f.entry.name, path: f.entry.path || f.entry.name, len: f.data.length,
+                               title: f.info.title, player: f.info.player || '' })) };
+  return out;
+}
+
 function extractDelverArchive(bytes, opts) {
   opts = opts || {};
   const notes = [];
@@ -284,7 +306,7 @@ function extractDelverArchive(bytes, opts) {
     let arc = null;
     try { arc = parseStuffItArchive(buf); } catch (e) { return null; }
     const where = arc.format + ' archive' + (wrapper ? ' in ' + wrapper : '');
-    const refused = [];
+    const refused = [], found = [];
     for (const e of arc.entries) {
       if (e.isFolder || !e.dataLen) continue;
       let data;
@@ -292,13 +314,10 @@ function extractDelverArchive(bytes, opts) {
       catch (err) { refused.push(e.name + ' (' + err.message.replace(/^"[^"]*" data fork /, '') + ')'); continue; }
       const d = describeDelverArchive(data);
       if (!d.ok) { notes.push('"' + e.name + '" in the ' + where + ', ' + d.reason); continue; }
-      let rsrc = null;
-      try { rsrc = stuffItFork(buf, e, 'rsrc'); } catch (err) { rsrc = null; }
-      return { bytes: data, via: where, info: d,
-               forks: { kind: where, name: e.name, type: e.type, creator: e.creator, data, rsrc } };
+      found.push({ entry: e, data, info: d, rsrc: () => { try { return stuffItFork(buf, e, 'rsrc'); } catch (err) { return null; } } });
     }
     if (refused.length) notes.push('in the ' + where + ', could not decompress ' + refused.join(', '));
-    return null;
+    return pickContained(found, where, opts.pick);
   };
   const bare = fromStuffIt(bytes, '');
   if (bare) return bare;
@@ -317,7 +336,7 @@ function extractDelverArchive(bytes, opts) {
     try { arc = parseZipArchive(buf); }
     catch (e) { notes.push('a zip archive that will not read: ' + e.message); return null; }
     const where = 'zip archive';
-    const refused = [];
+    const refused = [], found = [];
     for (const e of arc.entries) {
       if (e.isFolder || !e.len) continue;
       let data;
@@ -325,12 +344,10 @@ function extractDelverArchive(bytes, opts) {
       catch (err) { refused.push(err.message); continue; }
       const d = describeDelverArchive(data);
       if (!d.ok) { notes.push('"' + e.path + '" in the ' + where + ', ' + d.reason); continue; }
-      const rsrc = zipFork(buf, e, 'rsrc');
-      return { bytes: data, via: where, info: d,
-               forks: { kind: where, name: e.name, type: e.type, creator: e.creator, data, rsrc } };
+      found.push({ entry: e, data, info: d, rsrc: () => zipFork(buf, e, 'rsrc') });
     }
     if (refused.length) notes.push('in the ' + where + ', could not read ' + refused.join(', '));
-    return null;
+    return pickContained(found, where, opts.pick);
   };
   const zipped = fromZip(bytes);
   if (zipped) return zipped;

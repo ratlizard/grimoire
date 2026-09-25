@@ -1575,6 +1575,7 @@ body.atlasFull { overflow:hidden; }
   border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,.7); font-size:0.7812rem;
   text-align:left; line-height:1.6; }
 #archiveMenu { right:0; }
+.containedRow { margin:6px 0; }
 #searchWrap, #creditsMenu { right:0; max-width:min(560px, calc(100vw - 24px)); width:min(560px, calc(100vw - 24px)); }
 #archiveMenu.open, #creditsMenu.open, #searchWrap.open { display:block; }
 #creditsMenu h4 { margin:10px 0 3px; font-size:0.8125rem; font-weight:normal; color:#c9bd93; }
@@ -1740,6 +1741,7 @@ body.atlasFull { overflow:hidden; }
 <input type="file" id="fileInput" accept="*/*" onchange="loadArchive()" style="display:none">
 <div id="archiveMenu" role="dialog" aria-label="Settings">
   <div id="sourceStatus" role="status" aria-live="polite">Looking for the Cythera Data archive…</div>
+  <div id="containedRow" class="sv-chips containedRow" style="display:none"></div>
   <button class="secondary" id="chooseFileBtn"
           onclick="document.getElementById('fileInput').click()">Open a different file…</button>
   <button class="secondary" id="forgetArchiveBtn" onclick="archiveCacheClear()">Forget the remembered copy</button>
@@ -2266,7 +2268,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.180.0';
+const GRIMOIRE_VERSION = '1.181.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

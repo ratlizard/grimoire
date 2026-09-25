@@ -279,6 +279,36 @@ function unpackAddons() {
 }
 
 const files = unpackAddons();
+
+/* A container holding several archives (24 September 2026). The Rocky the
+   Flying Chicken add-on is a zip with two saves in it: the page must list
+   both, open the first by default, open the second by name, fall back to
+   the first for a name it does not hold, and hand back different bytes for
+   the two. Read straight from the zip, before anything is unpacked. */
+{
+  const rocky = existsSync(addonDir) ? readdirSync(addonDir).find(f => /Rocky.*\.zip$/i.test(f)) : null;
+  if (!rocky) console.log('  (no Rocky the Flying Chicken zip; the several-archives half is skipped)');
+  else {
+    sandbox.__z = new Uint8Array(readFileSync(join(addonDir, rocky)));
+    const r = ev(`(() => {
+      const first = extractDelverArchive(__z);
+      const c = first.container;
+      if (!c) return { bad: 'no container listed' };
+      const second = extractDelverArchive(__z, { pick: c.entries[1].name });
+      const stray = extractDelverArchive(__z, { pick: 'no such file' });
+      const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+      return { n: c.entries.length, picked: c.picked, names: c.entries.map(e => e.name), players: c.entries.map(e => e.player),
+               firstIsFirst: c.picked === c.entries[0].name, secondPicked: second.container && second.container.picked,
+               differ: !same(first.bytes, second.bytes), strayIsFirst: same(stray.bytes, first.bytes), secondPlayer: second.info.player };
+    })()`);
+    if (r.bad) fail('several archives in one file', r.bad);
+    else if (r.n !== 2 || !r.firstIsFirst) fail('several archives in one file', 'the zip lists ' + r.n + ' archives, picked ' + r.picked);
+    else if (r.secondPicked !== r.names[1] || !r.differ) fail('several archives in one file', 'picking the second by name did not open it: ' + JSON.stringify(r));
+    else if (!r.strayIsFirst) fail('several archives in one file', 'a pick naming nothing did not fall back to the first');
+    else console.log(`  several archives in one file: the Rocky zip lists ${r.n} (${r.names.join(', ')}), players ${r.players.map(p => JSON.stringify(p)).join(' and ')}; the second opens by name and a stray pick opens the first`);
+  }
+}
+
 let archives = 0, roundTripped = 0, bytewise = 0, refused = 0;
 const saves = [];
 for (const p of files) {
