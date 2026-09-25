@@ -811,6 +811,42 @@ function dvmMergeConditions(stmts) {
   return { list, merged };
 }
 
+/* ---- a jump to a return is that return -------------------------------------
+ * The largest class of goto the first pass leaves (24 September 2026, the
+ * census in the notes: about three in ten of every goto left, nearly all in
+ * the conversations) is a plain `branch` to the function's shared `return`
+ * or `exit`, each answer ending by jumping to it; and the next largest is the
+ * if-block whose then-branch ends in that jump, which the region test cannot
+ * close because the block leaves for the exit rather than its continuation.
+ * A jump to a return IS that return: nothing runs between the jump and the
+ * statement it lands on, and a return has no successor, so the jump can be
+ * printed as the return's own text (`exit`, `return 0`, `return Var00`) and
+ * treated as an end. Folding it closes the blocks around it too.
+ *
+ * Folded only where the first pass left it as a goto, so every block the
+ * first pass built stands as it was: an if-else's `goto Lend` is still
+ * absorbed into its braces even when Lend is a return, and a jump a loop
+ * would print as `break` is folded first and prints as the return, which
+ * says where control goes more directly than `break` does. The fold is
+ * this function so that utilities/structure_check.mjs can replace it with
+ * one that folds a jump onto a statement that is not a return: the check
+ * reads the target off the ops for every folded statement, and that
+ * control must fail it. `index` is the merged list's; `stmts` is the merged
+ * list, and the result is its indices that hold such a jump. A jump to a
+ * jump folded on an earlier pass counts, since that one is an end now, and
+ * the recovery names the return at the end of the chain.
+ */
+function dvmEndJumps(stmts, index, left) {
+  const out = [];
+  for (const i of left) {
+    const s = stmts[i];
+    if (s.kind !== 'jump' || s.targets.length !== 1) continue;
+    const j = index.get(s.targets[0]);
+    if (j !== undefined && stmts[j].kind === 'end') out.push(i);
+  }
+  return out;
+}
+
 /* ---- the recovery --------------------------------------------------------
  * A recursive reduction over the statement list. `build(lo, hi, follow)` turns
  * statements [lo, hi) into a list of nodes, given that control continues at
@@ -826,15 +862,20 @@ function dvmRecoverStructure(flat) {
   const { list: stmts, merged } = dvmMergeConditions(flat);
   const index = new Map();
   for (let i = 0; i < stmts.length; i++) index.set(stmts[i].abs, i);
-  const sources = [];
-  for (let i = 0; i < stmts.length; i++) {
-    for (const t of stmts[i].targets) {
-      const j = index.get(t);
-      if (j === undefined) continue;
-      (sources[j] || (sources[j] = [])).push(i);
+  let sources = [];
+  const findSources = () => {
+    sources = [];
+    for (let i = 0; i < stmts.length; i++) {
+      for (const t of stmts[i].targets) {
+        const j = index.get(t);
+        if (j === undefined) continue;
+        (sources[j] || (sources[j] = [])).push(i);
+      }
     }
-  }
+  };
+  findSources();
   let gotos = 0, structured = 0;
+  const ended = new Map();
   /* The unconditional jumps the structure swallows: an if-else's `goto Lend` at
      the end of its then-branch, and a loop's `goto Lhead` at the end of its
      body. Each exists only to reach a place the braces now say, so it is not
@@ -944,8 +985,35 @@ function dvmRecoverStructure(flat) {
     return out;
   }
 
-  const tree = build(0, stmts.length, null);
-  return { tree, gotos, structured, absorbed, merged };
+  let tree = build(0, stmts.length, null);
+  /* Then the jumps to a return the pass left as gotos, folded (dvmEndJumps),
+     and the pass run again over the list with them as ends: the blocks it
+     built stand, since their jumps were absorbed rather than left, and the
+     regions those gotos kept open can close now. Once is enough in
+     principle -- no fold makes a new jump -- and the loop is bounded in
+     case. */
+  for (let pass = 0; pass < 3; pass++) {
+    const left = [];
+    (function collect(list) {
+      for (const n of list) {
+        if (n.kind === 'stmt' && n.stmt.kind === 'jump') left.push(index.get(n.stmt.abs));
+        for (const k of ['then', 'els', 'body']) if (n[k]) collect(n[k]);
+      }
+    })(tree);
+    const fold = dvmEndJumps(stmts, index, left);
+    if (!fold.length) break;
+    for (const i of fold) {
+      // A jump to a jump already folded lands on the return that one goes
+      // to: `ended` names the return, and the check follows the chain.
+      const s = stmts[i], t = stmts[index.get(s.targets[0])], end = t.ended || t.abs;
+      ended.set(s.abs, end);
+      stmts[i] = { abs: s.abs, node: t.node, kind: 'end', targets: [], negated: false, ended: end, jump: s };
+    }
+    findSources();
+    gotos = 0; structured = 0; absorbed.clear();
+    tree = build(0, stmts.length, null);
+  }
+  return { tree, gotos, structured, absorbed, merged, ended };
 }
 
 /* Take the trailing nodes of `out` that start at or after `abs`, in order, for a

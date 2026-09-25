@@ -163,6 +163,19 @@
 // THE MERGE'S GUARD is exercised by the second synthetic function above and by
 // --control=guard, since 24 September 2026; on the archive alone nothing ever
 // jumps to a second test, so removing the guard changed nothing there.
+//
+// A JUMP TO A RETURN IS THAT RETURN, since 24 September 2026 (dvmEndJumps):
+// a `branch` the first pass left as a goto whose target is a `return` or an
+// `exit` is folded into an end statement carrying the target's text, and the
+// pass runs again with the regions it kept open now closed. The recovery says
+// which (`ended`, the jump's offset to its target's), and for each the flat
+// statement at the jump's offset must be a jump to exactly that target and the
+// flat statement there an end whose op is `return` or `exit` -- read off the
+// ops, not off anything the recovery says -- and the printed line at the
+// jump's offset must be the target's own printed text. The edge `jump>target`
+// is contracted out of the flat graph for the comparison, an end having no
+// successor; that is the one edge a folded statement had. --control=ended folds
+// a jump onto a statement that is not a return, and must fail this.
 
 import {readFileSync, existsSync} from 'node:fs';
 import vm from 'node:vm';
@@ -232,6 +245,13 @@ const CONTROLS = {
       }
       return true;
     };`},
+  ended: {mustFail: 'ended', say: 'a jump to a plain statement folded as if it were a jump to a return',
+    code: `(() => { const was = dvmEndJumps;
+      dvmEndJumps = function (stmts, index, left) {
+        const out = was(stmts, index, left);
+        for (const i of left) { const s = stmts[i]; const j = s.kind === 'jump' && s.targets.length === 1 ? index.get(s.targets[0]) : undefined;
+          if (j !== undefined && stmts[j].kind === 'plain' && !stmts[j].parts) { out.push(i); break; } }
+        return out; }; })();`},
   guard: {mustFail: 'edges', say: 'a pair of tests merged although something jumps to the second',
     code: `dvmMergeConditions = function (stmts) {
       const list = [], merged = new Map();
@@ -265,7 +285,10 @@ if (control) {
 // stopped matching, which is worth a failure rather than a number nobody reads.
 // The same goes for the two printings added that day: 152 for-each loops and
 // 152 merged conditions (from 212 pairs of tests; some conditions are three).
-const WHOLE_FLOOR = 415;
+// Raised to 480 on 24 September 2026, when folding jumps to a return took
+// the archive from 431 whole functions to 490 and the gotos left from 917
+// to 455.
+const WHOLE_FLOOR = 480;
 const FOR_FLOOR = 150;
 const MERGE_FLOOR = 150;
 
@@ -375,10 +398,10 @@ const report = ev(`(() => {
   const arc = openDelverArchive(__a);
   const counters = () => ({functions: 0, withJumps: 0, whole: 0, partial: 0,
                offEnd: 0, gotosLeft: 0, blocks: 0, merged: 0, fors: 0, breaks: 0, continues: 0,
-               intoText: 0, truthRows: 0});
+               intoText: 0, truthRows: 0, ended: 0});
   const out = Object.assign(counters(), {
                edgeBad: [], stmtBad: [], entryBad: [], exitBad: [], mergeBad: [],
-               truthBad: [], exitWordBad: [], forBad: [], labelBad: [],
+               truthBad: [], exitWordBad: [], forBad: [], labelBad: [], endedBad: [],
                synthetic: {}});
   const hex = v => '0x' + v.toString(16).toUpperCase();
   const bare = n => dvmBareOperand(n.arg);
@@ -389,7 +412,7 @@ const report = ev(`(() => {
       try { objs = dvmExtents(b, resid); } catch (err) { return; }
       // Per resource, for the text: every walked statement by its offset, the
       // one after it in the flat listing, and the jumps the recovery absorbed.
-      const flatAt = new Map(), nextOf = new Map(), absorbedTo = new Map();
+      const flatAt = new Map(), nextOf = new Map(), absorbedTo = new Map(), endedTo = new Map();
       let walked = 0;
       for (const [st, en, kind] of objs) {
         if (kind !== 'function') continue;
@@ -414,6 +437,7 @@ const report = ev(`(() => {
         stats.offEnd += flat.offEnd;
         const rec = dvmRecoverStructure(stmts);
         for (const a of rec.absorbed) absorbedTo.set(a, flatAt.get(a).targets[0]);
+        if (rec.ended) for (const [a, t] of rec.ended) endedTo.set(a, t);
         const loops = dvmLoopExits(rec.tree, {label: t => t});
         stats.gotosLeft += rec.gotos - loops.exits.size;
         stats.blocks += rec.structured;
@@ -423,12 +447,33 @@ const report = ev(`(() => {
           if (rec.gotos - loops.exits.size) stats.partial++; else stats.whole++;
         }
 
+        // (0) the jumps folded into the return they go to: each must be a
+        //     jump, in the flat list, to exactly the statement the recovery
+        //     names, and that statement a return or an exit by its op. Its
+        //     one edge is then contracted out, an end having no successor.
+        let want = flat.edges;
+        if (rec.ended && rec.ended.size) {
+          const next = new Set(want);
+          for (const [from, to] of rec.ended) {
+            const j = flatAt.get(from), t = flatAt.get(to);
+            // The jump's own target, followed through any jumps folded
+            // before it (a goto to a goto to the return), must reach the
+            // return the recovery names.
+            let x = j && j.kind === 'jump' && j.targets.length === 1 ? j.targets[0] : null, hops = 0;
+            while (x !== null && x !== to && rec.ended.has(x) && hops++ < 8) x = rec.ended.get(x);
+            if (x !== to)
+              out.endedBad.push(where + ': ' + hex(from) + ' is printed as a return but is not a jump to ' + hex(to));
+            else if (!t || t.kind !== 'end' || (t.node.mn !== 'return' && t.node.mn !== 'exit'))
+              out.endedBad.push(where + ': ' + hex(from) + ' is printed as the statement at ' + hex(to) + ', which is ' + (t ? t.node.mn : 'no statement'));
+            else { next.delete(from + '>' + j.targets[0]); stats.ended++; }
+          }
+          want = next;
+        }
         // (1) the edge sets. First the merged tests: a part folded into the
         //     condition before it is not a node of the recovered graph, so its
         //     edges become the condition's. The only edge allowed INTO a part
         //     is the fallthrough from the part before it -- anything else would
         //     be a jump into the middle of one condition.
-        let want = flat.edges;
         if (rec.merged.size) {
           const next = new Set();
           for (const k of want) {
@@ -557,6 +602,17 @@ const report = ev(`(() => {
       const text = dvmStructureRender(arc, b, resid);
       const through = t => { let k = 0; while (absorbedTo.has(t) && k++ < 8) t = absorbedTo.get(t); return t; };
       const at4 = v => v === null || v === undefined ? 'the end' : hex(v);
+      // (8) a jump folded into its return prints the return's own text: the
+      //     line at the jump's offset reads as the line at the target's.
+      if (endedTo.size) {
+        const lineAt = new Map();
+        for (const raw of text.split('\\n')) { const g = /^    ([0-9A-F]{4})\\s*(\\S.*)$/.exec(raw); if (g) lineAt.set(parseInt(g[1], 16), g[2].split('   // ')[0].trim()); }
+        for (const [a, t] of endedTo) {
+          const la = lineAt.get(a), lt = lineAt.get(t);
+          if (la === undefined || lt === undefined || la !== lt)
+            out.endedBad.push(label + ' ' + at4(a) + ' prints ' + JSON.stringify(la) + ' for the return at ' + at4(t) + ', which prints ' + JSON.stringify(lt));
+        }
+      }
       for (const f of parseStructured(text)) {
         const visit = list => {
           for (const n of list) {
@@ -681,6 +737,11 @@ if (!r.forBad.length)
 else
   fail('a for line is not the iterator protocol', `${r.forBad.length}: ${cap(r.forBad, 3)}`, 'for');
 
+if (!r.endedBad.length)
+  ok('every jump printed as a return is a jump to that return, by the ops, and prints its text', `${r.ended} folded`);
+else
+  fail('a jump was folded into a statement that is not the return it goes to', `${r.endedBad.length}: ${cap(r.endedBad, 3)}`, 'ended');
+
 if (!r.labelBad.length)
   ok('every label a goto names is printed',
      r.intoText ? `${r.intoText} goto(s) aim inside text, where no statement starts, and have no line to label` : '');
@@ -718,6 +779,6 @@ if (control) {
 }
 console.log(failures ? `\nFAIL — ${failures} check(s) failed`
   : `\nstructured ${r.whole} of ${r.withJumps} functions with jumps, ${r.blocks} blocks, ` +
-    `${r.fors} for loops, ${r.merged} merged conditions, ${r.breaks + r.continues} break or continue, ` +
+    `${r.fors} for loops, ${r.merged} merged conditions, ${r.breaks + r.continues} break or continue, ${r.ended} jumps folded into their return, ` +
     `${r.gotosLeft} gotos left, control flow identical in all ${r.functions}`);
 process.exit(failures ? 1 : 0);
