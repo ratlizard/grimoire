@@ -2142,6 +2142,29 @@ function showItemDetail(pt) {
     fold('data', 'Class data', 'no data fields', '<div class="sv-note">This class carries only behaviour, no data fields.</div>');
   }
 
+  // The long the application keeps for this class at load, computed from
+  // the table above as FillIntfCache computes it, each bit joined to the
+  // routines that test it (classCacheWord). Only with the application open:
+  // the map of what goes where is read off the routine, never stated.
+  if (cls) {
+    let cw = null;
+    try { cw = classCacheWord(pt); } catch (e) { quiet(e, 'the class cache word'); cw = null; }
+    if (cw) {
+      const cell = 'padding:3px 10px 3px 0;vertical-align:top';
+      const from = b => b.kind === 'has' ? 'has ' + svEsc(itemFieldLabel(b.key))
+        : b.kind === 'tag' ? svEsc(itemFieldLabel(b.key)) + ' is not a plain number'
+        : svEsc(itemFieldLabel(b.key)) + ' bit ' + (b.at ? srcNum(b.at, propWordHex(b.mask.v)) : propWordHex(b.mask.v));
+      const tested = list => list.length ? list.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : 'no routine tests it';
+      const rows = cw.bits.map(b => '<tr><td class="num" style="' + cell + '">' + srcNum(b.bit, propWordHex(b.bit.v)) + '</td><td style="' + cell + ';color:#fff">' + from(b) + '</td><td style="' + cell + ';color:#8c8980;font-size:0.75rem">' + tested(b.testedBy) + '</td></tr>').join('');
+      const side = cw.tables.map(t => '<tr><td class="num" style="' + cell + '">' + srcNum(t.at, String(t.value)) + '</td><td style="' + cell + ';color:#fff">' + svEsc(itemFieldLabel(t.key)) + (t.plusOne ? ' plus one' : '') + ', ' + (t.width === 1 ? 'a byte' : 'a halfword') + ' a class</td><td style="' + cell + ';color:#8c8980;font-size:0.75rem">' + (t.readBy.length ? t.readBy.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : 'no routine reads it') + '</td></tr>').join('');
+      fold('cache', 'In the application', propWordHex(cw.value) + (cw.bits.length ? ', ' + cw.bits.length + ' bit' + (cw.bits.length === 1 ? '' : 's') : ', no bits') + (cw.tables.length ? ', ' + cw.tables.length + ' side table' + (cw.tables.length === 1 ? '' : 's') : ''),
+        '<div class="sv-note" style="margin:0 0 6px">At load ' + pefChip('FillIntfCache') + ' builds one long a class from the table above. This class’s is ' + propWordHex(cw.value) + '; each bit says where it came from and which routines test it.</div>' +
+        (rows ? '<table style="border-collapse:collapse;width:100%">' + rows + '</table>' : '') +
+        (side ? '<div class="sv-note" style="margin:8px 0 4px">The side tables, one value a class</div><table style="border-collapse:collapse;width:100%">' + side + '</table>' : '') +
+        '<div class="sv-note" style="margin-top:6px">' + mechLink('classflags', 'Mechanics › ClassFlags, and the per-class cache') + '</div>');
+    }
+  }
+
   // Behaviour: which methods have code behind them.
   if (cls && cls.code.length) {
     fold('code', 'Responds to', cls.code.map(f => itemFieldLabel(f.key)).join(', '),

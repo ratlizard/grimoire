@@ -4887,8 +4887,23 @@ function exeIntfCache() {
       const ld = exeFindBack(ops, i, 3, e => e.mn === 'lwzx' && e.ra === cacheReg);
       if (ld < 0) continue;
       const bit = d.mn === 'oris' ? (d.imm << 16) >>> 0 : d.imm;
-      // A single-bit test of the value just before it, or a tag test.
-      const t = exeFindBack(ops, ld, 5, e => (e.mn === 'rlwinm.' && e.sh === 0) || e.mn === 'clrlwi.');
+      // A single-bit test of the value just before it, or a tag test: the
+      // nearest test since the GetProperty call, not only the five
+      // instructions before the load. The Weight's tag test sits sixteen
+      // instructions before the `oris` it decides, on the far side of the
+      // plain-number arm that stores the byte table, and a five-deep look
+      // read that bit (0x02000000, a weight that is not a plain number) as
+      // a second has-bit of key 36 until 24 September 2026.
+      const isTest = e => (e.mn === 'rlwinm.' && e.sh === 0) || e.mn === 'clrlwi.';
+      let t = exeFindBack(ops, ld, 5, isTest);
+      if (t < 0 && mode === 'get') {
+        for (let k = ld - 1; k >= Math.max(0, ld - 40) && t < 0; k--) {
+          const e = ops[k].d, br = ops[k + 1] && ops[k + 1].d;
+          if (!e || !isTest(e) || !br || !br.conditional || br.aa) continue;
+          const to = ops[k + 1].at + br.disp;
+          if (to <= ops[ld].at && to >= ops[Math.max(0, ld - 3)].at) t = k;
+        }
+      }
       if (mode === 'get' && t >= 0) {
         const e = ops[t].d;
         let mask = 0;
@@ -4993,6 +5008,53 @@ function exeSeatRule() {
   if (fixed.length < 4) return null;
   fixed.sort((a, b) => a.v - b.v);
   return { chair, facings: facings >= 0 ? exeVal(ops[facings], ops[facings].d.imm) : null, fixed, ownAspect: own >= 0 ? exeVal(ops[own], 3) : null };
+}
+
+/* ---- one class's long in the per-class cache ----------------------------
+   What FillIntfCache would build for a class, computed here from the
+   class's own table and the map read off the routine (exeIntfCache): a
+   has-bit is set when the class has the member at all, in its data, its
+   code or its strings; a moved bit when the member's one word is a plain
+   number carrying it; a tag bit when the member is there and is not a
+   plain number (a class whose weight is not a number, for one); and the
+   side tables take the member's word as the routine keeps it. The class is
+   read as the file has it and nothing is followed to a parent or a
+   default: TInterp::HasProperty is asked about the class script itself,
+   which is also how thinkADotRules decides which classes answer a signal.
+   Each bit is joined to the routines that test it (exeTocReaders), so a
+   bit is named by what reads it and by where it came from, never by a
+   guess. Null with no application open or no class table. */
+function classCacheWord(pt) {
+  const ic = appImage() ? exeIntfCache() : null;
+  const cls = ic && parseClassTable(0x1000 + pt);
+  if (!cls) return null;
+  const has = key => cls.data.some(f => f.key === key) || cls.code.some(f => f.key === key) || cls.text.some(f => f.key === key);
+  const plain = key => { const f = cls.data.find(x => x.key === key); return f && f.words.length === 1 && !(f.words[0] & 0xF0000000) ? { v: f.words[0] & 0x0FFFFFFF, off: f.off } : null; };
+  const readers = exeTocReaders(ic.cacheDisp.v);
+  const testedBy = bit => {
+    const hits = [];
+    for (const r of readers) for (const m of r.masks) if ((m.mask & bit) === bit && !hits.some(h => h.routine === r.routine)) hits.push({ routine: r.routine, at: m.at });
+    return hits;
+  };
+  let value = 0;
+  const bits = [];
+  for (const h of ic.has) if (has(h.key)) { value = (value | h.cacheBit.v) >>> 0; bits.push({ bit: h.cacheBit, key: h.key, kind: 'has', testedBy: testedBy(h.cacheBit.v) }); }
+  for (const b of ic.bits) {
+    const w = plain(b.key);
+    if (b.tag ? (has(b.key) && !w) : (w && (w.v & b.mask.v))) {
+      value = (value | b.cacheBit.v) >>> 0;
+      bits.push({ bit: b.cacheBit, key: b.key, kind: b.tag ? 'tag' : 'moved', mask: b.tag ? null : b.mask, at: w ? { resid: cls.resid, at: w.off } : null, testedBy: testedBy(b.cacheBit.v) });
+    }
+  }
+  bits.sort((x, y) => x.bit.v - y.bit.v);
+  const tables = [];
+  for (const t of ic.tables) {
+    const w = plain(t.key);
+    if (!w) continue;
+    tables.push({ key: t.key, disp: t.disp, width: t.width, plusOne: t.plusOne, value: (t.plusOne ? w.v + 1 : w.v) & (t.width === 1 ? 0xFF : 0xFFFF), at: { resid: cls.resid, at: w.off },
+                  readBy: exeTocReaders(t.disp.v).filter((x, i, a) => a.findIndex(y => y.routine === x.routine) === i) });
+  }
+  return { pt, resid: cls.resid, value, bits, tables, routine: ic.routine };
 }
 
 /* ---- the syscall table, read off the interpreter ----------------------------

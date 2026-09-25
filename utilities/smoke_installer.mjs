@@ -117,6 +117,49 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         }
       }
     } catch (e) { fail('program figures', e); }
+
+    /* The per-class cache, computed for every class (classCacheWord) from
+       the class table and the map read off FillIntfCache (exeIntfCache).
+       Held to two facts the notes established by reading the routine: a
+       class carries the GetMessage has-bit exactly when its own table has
+       a member 21, and a class whose Weight is a plain number keeps that
+       number in the byte side table and does NOT carry the tag bit, which
+       until 24 September 2026 the reader gave every class with a weight.
+       Then the item page must show the word. */
+    try {
+      const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
+      const ic = ctx.exeIntfCache();
+      const tiles = ctx.getPropTileList();
+      const msgBit = ic && ic.has.find(h => h.key === 21), tagBit = ic && ic.bits.find(b => b.key === 36 && b.tag);
+      let classes = 0, listeners = 0, weighed = 0, tagged = 0, bad = null, doorPt = null, doorWord = null;
+      if (!ic || !msgBit || !tagBit) bad = 'the map read off FillIntfCache has no GetMessage has-bit or no Weight tag bit: ' + JSON.stringify(ic && { has: ic.has.map(h => h.key), tags: ic.bits.filter(b => b.tag).map(b => b.key) });
+      for (let pt = 0; pt < tiles.length && !bad; pt++) {
+        if (tiles[pt] === undefined) continue;
+        const cw = ctx.classCacheWord(pt), cls = ctx.parseItemClass(pt);
+        if (!cw || !cls) continue;
+        classes++;
+        const has = key => cls.data.some(f => f.key === key) || cls.code.some(f => f.key === key) || cls.text.some(f => f.key === key);
+        if (!!(cw.value & msgBit.cacheBit.v) !== has(21)) { bad = 'class ' + pt + ': the GetMessage bit disagrees with the table'; break; }
+        if (has(21)) { listeners++; if (doorPt === null) { doorPt = pt; doorWord = cw.value; } }
+        const w = cls.data.find(f => f.key === 36);
+        if (w && w.words.length === 1 && !(w.words[0] & 0xF0000000)) {
+          weighed++;
+          const side = cw.tables.find(t => t.key === 36);
+          if (!side || side.value !== (w.words[0] & 0xFF)) { bad = 'class ' + pt + ': a plain weight of ' + w.words[0] + ' is not in the byte side table'; break; }
+          if (cw.value & tagBit.cacheBit.v) { bad = 'class ' + pt + ': a plain weight carries the not-a-plain-number bit'; break; }
+        } else if (has(36)) { tagged++; if (!(cw.value & tagBit.cacheBit.v)) { bad = 'class ' + pt + ': a weight that is not a plain number lacks the tag bit'; break; } }
+        for (const b of cw.bits) if (!(cw.value & b.bit.v)) { bad = 'class ' + pt + ': a bit listed is not in the word'; break; }
+      }
+      if (bad) fail('class cache', bad);
+      else if (!listeners || !weighed) fail('class cache', 'no class with a GetMessage or a plain weight, so nothing was measured');
+      else {
+        ctx.showItemDetail(doorPt);
+        const ph = all(REGISTRY.get('sheetGrid'));
+        const hexw = ctx.propWordHex(doorWord);
+        if (!/In the application/.test(ph) || ph.indexOf(hexw) < 0 || !/FillIntfCache/.test(ph)) fail('class cache', 'the item page for class ' + doorPt + ' does not show its cache word ' + hexw);
+        else console.log(`  class cache: ${classes} classes, ${listeners} with a GetMessage, ${weighed} with a plain weight and ${tagged} with another kind; class ${doorPt} shows ${hexw}`);
+      }
+    } catch (e) { fail('class cache', e); }
     /* The sky of the hour, off DrawSky, CalcLocations and gXPos (exeSkyRules).
        The hour table comes out black at midnight, cyan ("white") at noon and
        half and half ("gray") in the sunrise and sunset hours; the sun at noon

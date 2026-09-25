@@ -140,9 +140,11 @@ function undoFontSwap() {
    on the panel: each glyph the strike already has an image for is drawn from
    the chosen font at the strike's own cell height, thresholded to one bit, and
    packed back in at its measured width. A glyph the strike has no image for
-   stays without one -- the Seldane alphabet is 25 letters, not 26, and
-   inventing the missing one would put a letter in the game that Ambrosia
-   never drew.
+   stays without one -- the strike draws 24 letters, with no L and no O
+   (at 18 point each has an entry one pixel wide and empty), and its 25th
+   image is the missing-character box, carried through as it is; inventing
+   the missing letters would put letters in the game that Ambrosia never
+   drew.
 
    Both strikes are rewritten together, because a family whose two sizes are
    different alphabets would be worse than either.
