@@ -156,6 +156,20 @@ if (!rsrcFork) {
       ctx.showCategory('RSRC');
       const galleryText = REGISTRY.get('output').textContent || '';
       if (!/Resource fork: /.test(galleryText)) fail('resource fork', 'gallery said: ' + galleryText.slice(0, 80));
+      /* The displacement filters (25 September 2026): seven FILT resources
+         read as a period, a colour set and frames of offsets, each joined to
+         the tiles 0xF016 names for it. FILT 128 is the water: six frames,
+         stepped every tick, 28 colours, on the 72 water and shore tiles;
+         FILT 132 is on no tile. The sheet carries a card each. */
+      const filters = ctx.rsrcDisplacementFilters();
+      const f128 = filters.find(f => f.entry.id === 128), f132 = filters.find(f => f.entry.id === 132);
+      const sheetHtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+      if (filters.length !== 7) fail('displacement filters', filters.length + ' filters read, expected 7');
+      else if (!f128 || f128.period !== 0 || f128.frames !== 6 || f128.mask.length !== 28 || f128.tiles.length !== 72 || !f128.tiles.every(t => /^(water|shore)$/.test(ctx.terrainNameFor(t) || '')))
+        fail('displacement filters', 'FILT 128 is not the water filter: ' + JSON.stringify(f128 && [f128.period, f128.frames, f128.mask.length, f128.tiles.length]));
+      else if (!f132 || f132.tiles.length !== 0 || f132.period !== 1 || f132.frames !== 8) fail('displacement filters', 'FILT 132 is not the unused eight-frame filter: ' + JSON.stringify(f132 && [f132.period, f132.frames, f132.tiles.length]));
+      else if (!/Displacement filters/.test(sheetHtml) || !/shore ×64/.test(sheetHtml) || (sheetHtml.match(/FILT \d+/g) || []).length < 7) fail('displacement filters', 'the sheet does not carry a card for each filter with its tiles');
+      else console.log(`  displacement filters: 7 read; 128 ripples ${f128.tiles.length} water and shore tiles over ${f128.mask.length} colours in ${f128.frames} frames, 132 is on no tile, and the sheet shows each`);
       const stamp = list.find(i => i.type === 'eSTM');
       ctx.location.hash = `#c=RSRC&d=rsrc:eSTM:${stamp.entry.id}`;
       if (!ctx.applyDeepLink()) fail('resource fork', 'the deep link to a stamp was not applied');

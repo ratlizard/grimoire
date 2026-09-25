@@ -593,8 +593,63 @@ const RSRC_DELVER_TYPES = {
   eSTM: 'editor stamp',
   eBRS: 'editor brush',
   MSta: 'saved game state',
-  FILT: 'unread ("FILT")'
+  FILT: 'displacement filter'
 };
+
+/* ---- the displacement filters -----------------------------------------------
+   Read on 25 September 2026, off the program rather than guessed: the seven
+   FILT resources are the game's, not the editor's. LoadGlobals reads the
+   archive's 0xF016 into a byte a tile and calls LoadDisplacementFilters,
+   which fetches FILT 0 to 255 and keeps each one's first byte, a period, its
+   32 bytes at +4, a bit a palette index, and its body at +36. The tile
+   copiers (TViewer::CopyTile, TCopyTile and MaskAnyTile) run
+   DisplacementFilterTile over a tile whose 0xF016 byte is nonzero, unless
+   the preferences byte turns filters off: for each of the 1,024 pixels, one
+   whose colour has its bit in the mask is fetched from the source tile at
+   the signed offset the current frame holds for that pixel, the rest copied
+   as they are. AdvanceDisplacementFilters steps every filter's frame by 1,024
+   bytes each tick, or every other when the period is 1, and back to the
+   first past the end. So a filter is a period, a set of colours, and frames
+   of per-pixel offsets, and it is water, shore and seaweed rippling, lava
+   and the void churning, fire shimmering, and trees and crops swaying. The
+   68K slice does the same by GetResource('FILT') in CODE 1. Which tiles a
+   filter covers is 0xF016's, read here; the mask's colours are the game's
+   own palette. */
+function rsrcDisplacementFilters() {
+  const fork = window.CYTHERA_RSRC;
+  if (!fork) return [];
+  let table = null;
+  try { const raw = ARCHIVE && getResourceBytes(ARCHIVE, 0xF016); if (raw) table = smartDecrypt(raw, 0xF016).data; } catch (e) { quiet(e, 'the displacement filter table'); table = null; }
+  const out = [];
+  for (const entry of fork.resourcesByType.FILT || []) {
+    let data; try { data = fork.dataOf('FILT', entry); } catch (e) { continue; }
+    if (data.length < 36 + 1024) continue;
+    const mask = [];
+    for (let p = 0; p < 256; p++) if ((data[4 + (p >> 3)] >> (p & 7)) & 1) mask.push(p);
+    const frames = Math.floor((data.length - 36) / 1024);
+    const tiles = [];
+    if (table) for (let t = 0; t < table.length; t++) if (table[t] === entry.id) tiles.push(t);
+    out.push({ entry, data, period: data[0], mask, frames, tiles });
+  }
+  return out;
+}
+// One frame of a filter as a picture: each pixel's offset by its size, the
+// still ones dark, forward offsets warm and backward ones cool.
+function drawFilterFrame(canvas, f, frame, px) {
+  const size = px || 3;
+  canvas.width = 32 * size; canvas.height = 32 * size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  const base = 36 + frame * 1024;
+  for (let i = 0; i < 1024; i++) {
+    let v = f.data[base + i]; if (v > 127) v -= 256;
+    const a = Math.min(1, Math.abs(v) / 100);
+    ctx.fillStyle = v === 0 ? '#1c1913' : v > 0 ? 'rgba(232,180,90,' + (0.35 + 0.65 * a) + ')' : 'rgba(110,170,232,' + (0.35 + 0.65 * a) + ')';
+    ctx.fillRect((i % 32) * size, Math.floor(i / 32) * size, size, size);
+  }
+  canvas.style.imageRendering = 'pixelated';
+  return canvas;
+}
 
 /* A stamp declares its own dimensions. A brush is sixteen entries, and they
    are a four by four table rather than a run: every brush in the file holds
@@ -743,6 +798,38 @@ function renderRsrcSheet() {
     cell.title = 'Click for the tiles it is made of';
     cell.onclick = () => showRsrcDetail(it.type, it.entry.id);
     grid.appendChild(cell);
+  }
+  // The displacement filters, a card each, after the stamps and brushes.
+  const filters = rsrcDisplacementFilters().filter(f => !q || 'filt'.includes(q) || String(f.entry.id).includes(q) || f.tiles.some(t => (terrainNameFor(t) || '').toLowerCase().includes(q)));
+  if (filters.length) {
+    const box = document.createElement('div');
+    box.className = 'mechView';
+    box.style.cssText = 'grid-column:1/-1';
+    box.innerHTML = '<div class="partsTitle">Displacement filters</div>' +
+      '<p class="mechSub">The game reads these at start (' + pefChip('LoadDisplacementFilters') + ') and runs one over every tile the table 0xF016 names for it (' + pefChip('DisplacementFilterTile') +
+      '): a pixel whose colour is in the filter’s set is fetched from the tile at the offset the frame holds for that pixel, and the frame steps each tick (' + pefChip('AdvanceDisplacementFilters') +
+      '), or every other when the period is 1. So water, shore and seaweed ripple, lava and the void churn, fire shimmers, and trees and crops sway.</p>';
+    for (const f of filters) {
+      const card = document.createElement('div');
+      card.style.cssText = 'margin:8px 0 14px';
+      const names = new Map();
+      for (const t of f.tiles) { const nm = terrainNameFor(t) || ('tile 0x' + t.toString(16).toUpperCase()); names.set(nm, (names.get(nm) || 0) + 1); }
+      const runs = []; let s = null, prev = null;
+      for (const p of f.mask.concat([null])) { if (s === null) { s = prev = p; continue; } if (p !== prev + 1) { runs.push([s, prev]); s = p; } prev = p; }
+      card.innerHTML = '<div style="color:#fff">FILT ' + f.entry.id + (f.entry.name ? ' “' + svEsc(f.entry.name) + '”' : '') + ': ' + f.frames + ' frames of 32 by 32 offsets, stepped ' + (f.period ? 'every ' + (f.period + 1) + ' ticks' : 'every tick') +
+        ', over ' + f.mask.length + ' colour' + (f.mask.length === 1 ? '' : 's') + (f.tiles.length ? ', on ' + f.tiles.length + ' tile' + (f.tiles.length === 1 ? '' : 's') + ': ' + svEsc([...names.entries()].map(([k, v]) => k + (v > 1 ? ' ×' + v : '')).join(', ')) : ', on no tile the table names') + '</div>';
+      const sw = document.createElement('div');
+      sw.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;margin:4px 0';
+      for (const p of f.mask) { const d = document.createElement('span'); const c = PAL_RGB[p] || [0, 0, 0]; d.style.cssText = 'width:10px;height:10px;display:inline-block;background:rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; d.title = 'colour ' + p; sw.appendChild(d); }
+      card.appendChild(sw);
+      const strip = document.createElement('div');
+      strip.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end';
+      for (let k = 0; k < f.frames; k++) { const c = document.createElement('canvas'); drawFilterFrame(c, f, k, 2); c.title = 'frame ' + k; strip.appendChild(c); }
+      for (const t of f.tiles.slice(0, 8)) { const c = document.createElement('canvas'); c.width = 32; c.height = 32; try { drawTileAt(c.getContext('2d'), t, 0, 0, false, 32); } catch (e) { quiet(e); } c.style.cssText = 'width:32px;height:32px;image-rendering:pixelated;border:1px solid #33302a'; c.title = terrainNameFor(t) || ('tile 0x' + t.toString(16)); strip.appendChild(c); }
+      card.appendChild(strip);
+      box.appendChild(card);
+    }
+    grid.appendChild(box);
   }
   refreshLabelLegend();
 
