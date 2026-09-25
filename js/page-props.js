@@ -958,6 +958,17 @@ function showPropTypeDetail(pt) {
     const each = itemEachOneHTML(pt);
     if (each) { const d = document.createElement('div'); d.innerHTML = each; panel.appendChild(d); }
   }
+  // What the application caches for this class, the same block the item
+  // page folds (classCacheBlock).
+  {
+    const cw = classCacheBlock(pt);
+    if (cw) {
+      const d = document.createElement('div');
+      d.style.cssText = 'font-size:0.8125rem;line-height:1.6;margin-top:10px';
+      d.innerHTML = '<b style="color:#b5b2a8">In the application</b> <span style="color:#8c8980">' + svEsc(cw.gist) + '</span>' + cw.html;
+      panel.appendChild(d);
+    }
+  }
   grid.appendChild(panel);
   out.textContent = (propDisplayName(pt, base) || 'prop type 0x' + pt.toString(16).toUpperCase()) +
     (info.rows > 1 ? ', ' + info.rows + ' facings' : '');
@@ -2013,6 +2024,31 @@ function itemEachOneHTML(pt) {
     (all.length > 40 ? '<div class="inspDim">and ' + (all.length - 40) + ' more kinds</div>' : '') + '</div>';
 }
 
+/* One class's cache word as a block of html: the word, each bit's source
+   and the routines that test it, the side tables' values. Null with no
+   application open or no class table (classCacheWord). The item page shows
+   it as a fold, the creatures-and-props page as a block; both since
+   24 and 25 September 2026. */
+function classCacheBlock(pt) {
+  let cw = null;
+  try { cw = classCacheWord(pt); } catch (e) { quiet(e, 'the class cache word'); cw = null; }
+  if (!cw) return null;
+  const cell = 'padding:3px 10px 3px 0;vertical-align:top';
+  const from = b => b.kind === 'has' ? 'has ' + svEsc(itemFieldLabel(b.key))
+    : b.kind === 'tag' ? svEsc(itemFieldLabel(b.key)) + ' is not a plain number'
+    : svEsc(itemFieldLabel(b.key)) + ' bit ' + (b.at ? srcNum(b.at, propWordHex(b.mask.v)) : propWordHex(b.mask.v));
+  const tested = list => list.length ? list.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : 'no routine tests it';
+  const rows = cw.bits.map(b => '<tr><td class="num" style="' + cell + '">' + srcNum(b.bit, propWordHex(b.bit.v)) + '</td><td style="' + cell + ';color:#fff">' + from(b) + '</td><td style="' + cell + ';color:#8c8980;font-size:0.75rem">' + tested(b.testedBy) + '</td></tr>').join('');
+  const side = cw.tables.map(t => '<tr><td class="num" style="' + cell + '">' + srcNum(t.at, String(t.value)) + '</td><td style="' + cell + ';color:#fff">' + svEsc(itemFieldLabel(t.key)) + (t.plusOne ? ' plus one' : '') + ', ' + (t.width === 1 ? 'a byte' : 'a halfword') + ' a class</td><td style="' + cell + ';color:#8c8980;font-size:0.75rem">' + (t.readBy.length ? t.readBy.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : 'no routine reads it') + '</td></tr>').join('');
+  return {
+    gist: propWordHex(cw.value) + (cw.bits.length ? ', ' + cw.bits.length + ' bit' + (cw.bits.length === 1 ? '' : 's') : ', no bits') + (cw.tables.length ? ', ' + cw.tables.length + ' side table' + (cw.tables.length === 1 ? '' : 's') : ''),
+    html: '<div class="sv-note" style="margin:0 0 6px">At load ' + pefChip('FillIntfCache') + ' builds one long a class from the class table. This class’s is ' + propWordHex(cw.value) + '; each bit says where it came from and which routines test it.</div>' +
+      (rows ? '<table style="border-collapse:collapse;width:100%">' + rows + '</table>' : '') +
+      (side ? '<div class="sv-note" style="margin:8px 0 4px">The side tables, one value a class</div><table style="border-collapse:collapse;width:100%">' + side + '</table>' : '') +
+      '<div class="sv-note" style="margin-top:6px">' + mechLink('classflags', 'Mechanics › ClassFlags, and the per-class cache') + '</div>'
+  };
+}
+
 function showItemDetail(pt) {
   stopSpriteAnimations();
   markDetailView('item', pt);
@@ -2143,26 +2179,12 @@ function showItemDetail(pt) {
   }
 
   // The long the application keeps for this class at load, computed from
-  // the table above as FillIntfCache computes it, each bit joined to the
-  // routines that test it (classCacheWord). Only with the application open:
-  // the map of what goes where is read off the routine, never stated.
-  if (cls) {
-    let cw = null;
-    try { cw = classCacheWord(pt); } catch (e) { quiet(e, 'the class cache word'); cw = null; }
-    if (cw) {
-      const cell = 'padding:3px 10px 3px 0;vertical-align:top';
-      const from = b => b.kind === 'has' ? 'has ' + svEsc(itemFieldLabel(b.key))
-        : b.kind === 'tag' ? svEsc(itemFieldLabel(b.key)) + ' is not a plain number'
-        : svEsc(itemFieldLabel(b.key)) + ' bit ' + (b.at ? srcNum(b.at, propWordHex(b.mask.v)) : propWordHex(b.mask.v));
-      const tested = list => list.length ? list.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : 'no routine tests it';
-      const rows = cw.bits.map(b => '<tr><td class="num" style="' + cell + '">' + srcNum(b.bit, propWordHex(b.bit.v)) + '</td><td style="' + cell + ';color:#fff">' + from(b) + '</td><td style="' + cell + ';color:#8c8980;font-size:0.75rem">' + tested(b.testedBy) + '</td></tr>').join('');
-      const side = cw.tables.map(t => '<tr><td class="num" style="' + cell + '">' + srcNum(t.at, String(t.value)) + '</td><td style="' + cell + ';color:#fff">' + svEsc(itemFieldLabel(t.key)) + (t.plusOne ? ' plus one' : '') + ', ' + (t.width === 1 ? 'a byte' : 'a halfword') + ' a class</td><td style="' + cell + ';color:#8c8980;font-size:0.75rem">' + (t.readBy.length ? t.readBy.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : 'no routine reads it') + '</td></tr>').join('');
-      fold('cache', 'In the application', propWordHex(cw.value) + (cw.bits.length ? ', ' + cw.bits.length + ' bit' + (cw.bits.length === 1 ? '' : 's') : ', no bits') + (cw.tables.length ? ', ' + cw.tables.length + ' side table' + (cw.tables.length === 1 ? '' : 's') : ''),
-        '<div class="sv-note" style="margin:0 0 6px">At load ' + pefChip('FillIntfCache') + ' builds one long a class from the table above. This class’s is ' + propWordHex(cw.value) + '; each bit says where it came from and which routines test it.</div>' +
-        (rows ? '<table style="border-collapse:collapse;width:100%">' + rows + '</table>' : '') +
-        (side ? '<div class="sv-note" style="margin:8px 0 4px">The side tables, one value a class</div><table style="border-collapse:collapse;width:100%">' + side + '</table>' : '') +
-        '<div class="sv-note" style="margin-top:6px">' + mechLink('classflags', 'Mechanics › ClassFlags, and the per-class cache') + '</div>');
-    }
+  // the table above as FillIntfCache computes it (classCacheWord); the
+  // same block the creatures-and-props page shows. Only with the
+  // application open: the map of what goes where is read off the routine.
+  {
+    const cw = classCacheBlock(pt);
+    if (cw) fold('cache', 'In the application', cw.gist, cw.html);
   }
 
   // Behaviour: which methods have code behind them.

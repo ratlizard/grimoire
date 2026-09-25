@@ -156,7 +156,10 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         ctx.showItemDetail(doorPt);
         const ph = all(REGISTRY.get('sheetGrid'));
         const hexw = ctx.propWordHex(doorWord);
+        ctx.showPropTypeDetail(doorPt);
+        const pp = all(REGISTRY.get('sheetGrid'));
         if (!/In the application/.test(ph) || ph.indexOf(hexw) < 0 || !/FillIntfCache/.test(ph)) fail('class cache', 'the item page for class ' + doorPt + ' does not show its cache word ' + hexw);
+        else if (!/In the application/.test(pp) || pp.indexOf(hexw) < 0) fail('class cache', 'the creatures-and-props page for class ' + doorPt + ' does not show its cache word ' + hexw);
         else console.log(`  class cache: ${classes} classes, ${listeners} with a GetMessage, ${weighed} with a plain weight and ${tagged} with another kind; class ${doorPt} shows ${hexw}`);
       }
     } catch (e) { fail('class cache', e); }
