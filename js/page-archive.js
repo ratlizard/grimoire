@@ -71,6 +71,7 @@ function resetDerivedCaches() {
   window.PATCH_BYTES = null;
   window.COMPARE_REPORT = null;
   window.COMPARE_APP = null;
+  window.SAVE_BESIDE = null;
   window.CUR_MAP = null;
   // Not a memoisation, but keyed to the open file all the same: which
   // resources this session has edited. applyResourceEdit carries it across

@@ -1046,7 +1046,7 @@ function nightAlpha(hour) {
 // The classification is by name, so it is only as good as the wiki's list and
 // is marked as such in the legend. What is NOT guessed: whether a wall blocks
 // comes from tile attribute byte 3 bit 0x02, straight out of 0xF002.
-window.MAP_MARKS = { doors: false, secret: false, chest: false, exits: false, grid: false, rooms: false, eggs: false, path: false };
+window.MAP_MARKS = { doors: false, secret: false, chest: false, exits: false, grid: false, rooms: false, eggs: false, path: false, save: false };
 function toggleMapMarks(kind, on) { window.MAP_MARKS[kind] = on; drawMapMarks(); }
 // The Path mark's state, its picker and its drawing are in
 // js/delv-mapview.js: MAP_PATH_WHO, setMapPathWho, refreshPathPicker and
@@ -1608,7 +1608,7 @@ function drawMapMarks(lensCtx, lensTS) {
   if (!cm) return;
   const M = window.MAP_MARKS;
   const spots_ = DERIVED.MAP_ITEM_SPOTS;
-  const anything = M.doors || M.secret || M.chest || M.exits || M.grid || M.rooms || M.eggs || M.path || window.MAP_SEL ||
+  const anything = M.doors || M.secret || M.chest || M.exits || M.grid || M.rooms || M.eggs || M.path || M.save || window.MAP_SEL ||
                    (spots_ && spots_.resid === cm.resid && spots_.cells.length);
   let ctx, TS;
   const legend = lensCtx ? null : document.getElementById('markLegend');
@@ -1902,6 +1902,60 @@ function drawMapMarks(lensCtx, lensTS) {
     wash(spots.cells, '#f9f86f', 0.2);
   }
 
+  /* A save beside the open file (SAVE_BESIDE, from the comparison), its
+     records drawn over the scenario's list of this zone (25 September 2026,
+     the drawing half of a save against the scenario). By index, as the
+     comparison reads them: a record only the save has is washed green and
+     ringed, one only the scenario has is ringed red and dashed, one that
+     moved is ringed at both squares with a line between, one changed where
+     it stands is ringed amber. The save's characters whose record puts them
+     in this zone are ringed blue at their square. */
+  let saveLegend = null;
+  if (M.save) {
+    const sb = window.SAVE_BESIDE;
+    if (!sb) saveLegend = 'no save beside this file: compare one under Tools';
+    else {
+      const listId = 0x8100 + cm.level;
+      const sres = sb.spec.resources.find(r => r.resid === listId);
+      let A = [], B = [];
+      try { const raw = getResourceBytes(ARCHIVE, listId); if (raw) A = parseDelverPropList(smartDecrypt(raw, listId).data); } catch (e) { quiet(e, 'the zone list under the save mark'); }
+      try { if (sres) B = parseDelverPropList(sres.data); } catch (e) { quiet(e, 'the save’s zone list'); }
+      const placed = [], gone = [], moved = [], changed = [];
+      const n = Math.max(A.length, B.length);
+      for (let i = 0; i < n; i++) {
+        const a = A[i], b = B[i];
+        if (!a && b) { placed.push([b.x, b.y]); continue; }
+        if (a && !b) { gone.push([a.x, a.y]); continue; }
+        if (a.x !== b.x || a.y !== b.y) moved.push([[a.x, a.y], [b.x, b.y]]);
+        else if (a.proptype !== b.proptype || a.aspect !== b.aspect || a.flags !== b.flags || a.d1 !== b.d1 || a.d2 !== b.d2 || a.container !== b.container) changed.push([a.x, a.y]);
+      }
+      const people = [];
+      try {
+        const cres = sb.spec.resources.find(r => r.resid === 0xF009);
+        if (cres) parseDelverCharacterRecords(cres.data).forEach((c, i) => { if (i && delverCharacterInUse(c) && c.zone === cm.level) people.push([c.x, c.y]); });
+      } catch (e) { quiet(e, 'the save’s characters'); }
+      wash(placed, '#a8e06a', 0.35); ring(placed, '#a8e06a');
+      ring(gone, '#ff7b7b', true);
+      ring(changed, '#ffd166');
+      if (moved.length) {
+        ctx.save();
+        ctx.strokeStyle = '#7ec8ff'; ctx.lineWidth = Math.max(1, TS / 12);
+        for (const [[x0, y0], [x1, y1]] of moved) { ctx.beginPath(); ctx.moveTo(x0 * TS + TS / 2, y0 * TS + TS / 2); ctx.lineTo(x1 * TS + TS / 2, y1 * TS + TS / 2); ctx.stroke(); }
+        ctx.restore();
+        ring(moved.map(m => m[0]), '#7ec8ff', true); ring(moved.map(m => m[1]), '#7ec8ff');
+      }
+      ring(people, '#8fb8ff');
+      const bits = [];
+      if (!sres) bits.push('no list for this zone in the save, so the scenario’s stands');
+      if (placed.length) bits.push(placed.length + ' placed');
+      if (gone.length) bits.push(gone.length + ' gone');
+      if (moved.length) bits.push(moved.length + ' moved');
+      if (changed.length) bits.push(changed.length + ' changed where it stands');
+      if (people.length) bits.push(people.length + (people.length === 1 ? ' character' : ' characters') + ' here');
+      saveLegend = svEsc(sb.name) + (sb.player ? ' (' + svEsc(sb.player) + ')' : '') + ' over this zone: ' + (bits.length ? bits.join(', ') : 'the same records');
+    }
+  }
+
   drawMapSelection(ctx, TS);
 
   if (legend) {
@@ -1940,9 +1994,10 @@ function drawMapMarks(lensCtx, lensTS) {
       (ropes === 1 ? ' needs a rope' : ' need a rope') + '</span>');
     if (itemSpots) parts.push('<span style="color:#fff">' + BOX + itemSpots + ' × ' +
       svEsc(propDisplayName(spots.pt) || ('0x' + spots.pt.toString(16).toUpperCase())) + '</span>');
+    if (saveLegend) parts.push('<span style="color:#a8e06a">' + BOX + 'save: ' + saveLegend + '</span>');
     legend.innerHTML = parts.length
-      ? parts.join(' &nbsp; ') + ' <span style="color:#8c8980">, doors, ways and containers are identified by ' +
-        'prop-type name; zone exits are visible passages out (holes, stairs, cave mouths) plus the map header’s ' +
+      ? parts.join(' &nbsp; ') + ' <span style="color:#8c8980">, doors are the classes the game keeps the state of across a reload, ' +
+        'containers the classes with IsContainer, and hidden ways are identified by prop-type name; zone exits are visible passages out (holes, stairs, cave mouths) plus the map header’s ' +
         'open edges, which you leave by walking off at any row or column; concealed passages are marked as ' +
         'hidden ways instead</span>'
       : '';

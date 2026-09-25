@@ -919,7 +919,21 @@ try {
       if (!/Characters<\/div>/.test(h) || !/openCharacter\(1\)|showCharacterDetail\(1\)/.test(h)) fail('save comparison', 'the hero’s record is not listed against the scenario’s');
       else if (!/<td>health<\/td>|<td>square<\/td>|<td>xp<\/td>/.test(h)) fail('save comparison', 'no named field of a character is listed');
       else if (!/Zones<\/div>/.test(h) || !/only in I\.M\.Cheater|only in/.test(h)) fail('save comparison', 'no zone list is compared record by record');
-      else console.log(`  save comparison: I.M.Cheater against the scenario, ${rep.changed.length} resources differ; the character records and the zone lists are read as records`);
+      else {
+        // And the map's Save mark draws the save's records over a zone the
+        // save has a list for, and says so in the legend.
+        const zone = rep.changed.map(c => c.resid).find(r => r >= 0x8100 && r <= 0x81FF);
+        if (!peek('window.SAVE_BESIDE') || zone === undefined) fail('save comparison', 'the save is not held beside the file, or it changes no zone list');
+        else {
+          ctx.showCategory('127');
+          ctx.openResource(0x8000 + (zone & 0xFF));
+          ctx.toggleMapMarks('save', true);
+          const legend = REGISTRY.get('markLegend').innerHTML;
+          ctx.toggleMapMarks('save', false);
+          if (!/save: I\.M\.Cheater/.test(legend) || !/placed|gone|moved|changed where it stands|characters? here/.test(legend)) fail('save comparison', 'the Save mark’s legend does not describe the save over the zone: ' + legend.replace(/<[^>]+>/g, '').slice(0, 160));
+          else console.log(`  save comparison: I.M.Cheater against the scenario, ${rep.changed.length} resources differ; the character records and the zone lists are read as records, and the Save mark draws zone ${zone & 0xFF}: ${legend.replace(/<[^>]+>/g, '').replace(/^.*save: /, '').slice(0, 90)}`);
+        }
+      }
     }
     ctx.compareForget();
   }

@@ -1705,6 +1705,10 @@ function compareOpenBytes(bytes, name) {
   window.COMPARE_REPORT = Object.assign(describeDelverDiff(other, mine),
     { aName: name || 'the other file', bName: window.ARCHIVE_SOURCE_NAME || 'the open file',
       bSpec: mine, kind: 'files', via: got.via });
+  // A saved game compared is also held beside the open file for the map's
+  // Save mark (drawMapMarks), which draws its records over the scenario's
+  // list of the zone shown; a player name at 0x20 is what makes it a save.
+  window.SAVE_BESIDE = got.info && got.info.player ? { name: name || 'the save', spec: other, player: got.info.player } : null;
   compareApplications(bytes, name);
   say('');
   renderCompareReport();
@@ -1727,7 +1731,7 @@ function compareApplications(bytes, name) {
                                           bName: 'the open application', via: other.via });
 }
 
-function compareForget() { window.COMPARE_REPORT = null; window.COMPARE_APP = null; renderCompareReport(); }
+function compareForget() { window.COMPARE_REPORT = null; window.COMPARE_APP = null; window.SAVE_BESIDE = null; renderCompareReport(); if (window.MAP_MARKS && window.MAP_MARKS.save) drawMapMarks(); }
 
 /* An application inside whatever file was chosen, with both its forks.
 
