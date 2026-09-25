@@ -569,10 +569,10 @@ unofficial bugfix patch, written through `js/delv-asm.js` and exported as a
 Magpie patch through `writeDelverPatch`; what it writes belongs in no
 repository either.
 
-`combined_patch.mjs` is a builder too: the four fix patches of
-24 September 2026 run as stages, each on the one before, and written as
-one Magpie patch, with each stage also run alone and compared; its header
-says why the order is the one it is.
+`combined_patch.mjs` is a builder too: every fix patch here, Bryce's six
+among them, run as stages, each on the one before, and written as one
+Magpie patch, "Cythera All Fixes", with each stage also run alone and
+compared; its header says why the order is the one it is.
 
 `ramp_patch.mjs` is a **builder, not a check**: it writes a Magpie patch that
 puts every tile on the engine's cycling ramps, leans on the page's writers

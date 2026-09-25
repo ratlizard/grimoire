@@ -1,22 +1,27 @@
 #!/usr/bin/env node
-/* A builder, not a check: the four fix patches of 24 September 2026 as one
-   Magpie patch. (25 September 2026.)
+/* A builder, not a check: every fix patch this project builds, as one
+   Magpie patch: the four of 24 September 2026 and Bryce Schroeder's six.
+   (25 September 2026; Bryce's six joined the same day at the maintainer's
+   word, "all in one".)
 
    A Magpie patch carries whole resources, so two patches that touch one
    script cannot both apply: the second replaces the first's copy of it.
-   Apis, the Cademia group and a dozen more scripts are in two or three of
-   community_fixes_patch.mjs, found_fixes_patch.mjs, text_fixes_patch.mjs
-   and community_text_patch.mjs. This runs them as stages, each on the
+   Apis, Aethon, the Cademia group and a dozen more scripts are in two or
+   more of found_fixes_patch.mjs, community_fixes_patch.mjs,
+   bugfix_patch.mjs, text_fixes_patch.mjs and community_text_patch.mjs.
+   This runs them as stages, each on the
    previous one's patched data file, in the order below, and writes one
    patch holding every resource that differs from the shipped file.
 
    Usage: node utilities/combined_patch.mjs index.html "<Cythera Data.data>" <collection dir> <out dir>
 
-   THE ORDER IS THE POINT. The two code stages go first, on the shipped
-   file, because their edits are anchored to offsets and say what they
+   THE ORDER IS THE POINT. The three code stages go first, because their edits are anchored to offsets and say what they
    expect to find there; every stage checks those expectations, so a stage
    that found its script moved would stop the build rather than write
-   something wrong. The two text stages go last because they find their
+   something wrong. Bryce's six come after the community's fixes because
+   both change Aethon's script, his edit near its start (0x0078) and theirs
+   further on (0x0765): only in that order does the earlier edit leave the
+   later one's offsets where it expects them. The two text stages go last because they find their
    words rather than their offsets. The community's typo list comes after
    this project's text fixes: where both fix one sentence, the text stage's
    wording stands and the list reports the place as fixed already or not
@@ -34,9 +39,7 @@
    edits: a code stage checks what it expects at every offset it edits, on
    the file it is given, and the text stages after it change words and move
    offsets without touching an instruction. What a shared resource can lose
-   is a text fix another stage made first, and the three known are above. Bryce Schroeder's six (bugfix_patch.mjs) are not a stage:
-   they stay a patch of their own, and the run says which resources the
-   two patches share, since those two cannot be applied together either.
+   is a text fix another stage made first, and the three known are above.
 
    `--control` leaves the found fixes out of the chain and in the
    comparison, and must fail: the run then names Ake's To Do line, sleep,
@@ -57,10 +60,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const CONTROL = process.argv.includes('--control');
 const [htmlPath = 'index.html', dataPath, collDir, outDir] = process.argv.slice(2).filter(a => a !== '--control');
 if (!dataPath || !collDir || !outDir) { console.error('usage: combined_patch.mjs index.html <Cythera Data.data> <collection dir> <out dir>'); process.exit(2); }
-const NAME = 'Cythera Combined Fixes';
+const NAME = 'Cythera All Fixes';
 const STAGES = [
   { name: 'found', script: 'found_fixes_patch.mjs' },
   { name: 'community', script: 'community_fixes_patch.mjs' },
+  { name: 'bugfix', script: 'bugfix_patch.mjs' },
   { name: 'text', script: 'text_fixes_patch.mjs' },
   { name: 'community-text', script: 'community_text_patch.mjs', coll: true },
 ];
@@ -91,8 +95,6 @@ const ctx = vm.createContext(sandbox);
 new vm.Script(pageSource(htmlPath), {filename: htmlPath}).runInContext(ctx);
 sandbox.__files = { shipped: new Uint8Array(readFileSync(dataPath)), final: new Uint8Array(readFileSync(input)),
                     alone: alone.map(a => new Uint8Array(readFileSync(join(a.out, 'Cythera Data.data')))) };
-const bugfixPath = join(outDir, '..', 'bugfix', 'Cythera Data.data');
-sandbox.__files.bugfix = existsSync(bugfixPath) ? new Uint8Array(readFileSync(bugfixPath)) : null;
 const res = vm.runInContext(`(() => {
   const spec = b => delverArchiveSpec(b);
   const plainOf = (s, arcBytes) => { const arc = openDelverArchive(arcBytes); const m = new Map(); for (const r of s.resources) m.set(r.resid, smartDecrypt(getResourceBytes(arc, r.resid), r.resid).data); return m; };
@@ -113,16 +115,13 @@ const res = vm.runInContext(`(() => {
   const missing = [];
   touched.forEach((s, i) => { for (const id of s) if (!changed.includes(id)) missing.push({ id, stage: i }); });
   const finalSpec = spec(__files.final);
-  const w = writeDelverPatch(finalSpec, changed, { description: ${JSON.stringify('The four fix patches in one: Cythera Community Fixes, Cythera Found Fixes, Cythera Text Fixes and Cythera Community Text Fixes, built in that order of stages and checked against each alone.')}, typeCode: DELV_PATCH_EXPORT_TYPE });
+  const w = writeDelverPatch(finalSpec, changed, { description: ${JSON.stringify('Every fix in one: Cythera Found Fixes, Cythera Community Fixes, Bryce Schroeder\u2019s unofficial bugfixes, Cythera Text Fixes and Cythera Community Text Fixes, built in that order and checked against each alone.')}, typeCode: DELV_PATCH_EXPORT_TYPE });
   const bin = writeMacBinary({ name: ${JSON.stringify(NAME)}, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
   const merged = mergeDelverPatch(__files.shipped, w.bytes);
   const same = !!(merged && merged.bytes && eq(merged.bytes, __files.final));
-  let withBugfix = null;
-  if (__files.bugfix) { const bf = plainOf(spec(__files.bugfix), __files.bugfix); withBugfix = changedFrom(bf).filter(id => changed.includes(id)); }
   const label = id => '0x' + id.toString(16).toUpperCase() + ((typeof labelFor === 'function' && labelFor(id)) ? ' ' + labelFor(id) : '');
   return { patch: Array.from(w.bytes), bin: Array.from(bin), count: changed.length, same,
-           shared: shared.map(s => label(s.id) + ' (' + s.who.join('+') + ')'), wrong: wrong.map(label), missing: missing.map(m => label(m.id) + ' of stage ' + m.stage),
-           withBugfix: withBugfix && withBugfix.map(label) };
+           shared: shared.map(s => label(s.id) + ' (' + s.who.join('+') + ')'), wrong: wrong.map(label), missing: missing.map(m => label(m.id) + ' of stage ' + m.stage) };
 })()`, ctx);
 writeFileSync(join(outDir, NAME), Buffer.from(res.patch));
 writeFileSync(join(outDir, NAME + '.bin'), Buffer.from(res.bin));
@@ -132,5 +131,4 @@ console.log(`  ${NAME}: ${res.count} resources, ${res.patch.length} bytes; merge
 console.log(`  changed by more than one stage (${res.shared.length}): ` + res.shared.map(s => s.replace(/\((\d(?:\+\d)*)\)/, (m, g) => '(' + g.split('+').map(i => names[+i]).join(', ') + ')')).join('; '));
 if (res.wrong.length) console.log('  NOT as its one stage makes it alone: ' + res.wrong.join(', '));
 if (res.missing.length) console.log('  changed by a stage alone and not in the chain: ' + res.missing.join(', '));
-if (res.withBugfix) console.log(`  shared with Bryce’s six (patches/bugfix), so the two cannot be applied together: ${res.withBugfix.length ? res.withBugfix.join(', ') : 'none'}`);
 process.exit(res.same && !res.wrong.length && !res.missing.length ? 0 : 1);
