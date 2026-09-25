@@ -1812,7 +1812,7 @@ function renderCombatAISheet(which) {
   out.textContent = files.length
     ? (which === 'AIRULES'
         ? 'The words the scripts are written in, from the program’s resource fork; then the AI Scripting Document, from the installer’s CombatAI folder: the rules the .ai scripts are written against.'
-        : files.length + ' Combat AI scripts from the installer’s CombatAI folder. The compiled form the engine runs is subindex 3, under Components › Functions › Actions.')
+        : files.length + ' Combat AI scripts from the installer’s CombatAI folder. The compiled form the game runs is subindex 3, under Components › Functions › Actions.')
     : (which === 'AIRULES' && !arc)
       ? 'The words the scripts are written in, from the program’s resource fork. The AI Scripting Document itself ships beside the game, not inside it.' + NO_INSTALLER_HINT
       : 'The installer has no ' + (which === 'AIRULES' ? 'AI Scripting Document' : '.ai scripts') + ' in it.';

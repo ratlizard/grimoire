@@ -93,7 +93,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
         .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== want))
         fail('program figures', 'the bed rates on the program’s clock do not reproduce the 2012 measurements');
-      else if (/the application’s figures are read here/.test(mh) || !new RegExp('jumpToExeAt\\(' + clk.hourShift.exe + '\\)').test(mh) || !/flag <button[^>]*>9<\/button>, Poisoned/.test(mh) || !/every <button[^>]*>30 minutes<\/button> at levels 2 and 3/.test(mh))
+      else if (/the program’s figures are read here/.test(mh) || !new RegExp('jumpToExeAt\\(' + clk.hourShift.exe + '\\)').test(mh) || !/flag <button[^>]*>9<\/button>, Poisoned/.test(mh) || !/every <button[^>]*>30 minutes<\/button> at levels 2 and 3/.test(mh))
         fail('program figures', 'the Mechanics sheet does not state the program’s figures as links');
       else if (!/<b>4 seconds<\/b>/.test(bh) || !new RegExp('jumpToExeAt\\(' + bark.ticks.exe + '\\)').test(bh))
         fail('program figures', 'the Barks sheet does not state the balloon’s figures as links');
@@ -303,7 +303,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         fail('program keys', 'the stored defaults were misread: ' + JSON.stringify(defaults));
       else if (keys.map(e => e.key.v).sort().join() !== 'Ambient,Backdrop,CurPlayer,CurScen,Map Window Loc,Music,UI Prefs,Volume')
         fail('program keys', 'the file’s keys were misread: ' + keys.map(e => e.key.v).join());
-      else if (rows !== kr.cases.length + 2 || !/option-l/.test(html) || !/broken/.test(html) || /Everyone is hostile/.test(html) || !/enemy/.test(html) || !/0x0864/.test(html) || !/low ten bits/.test(html) || !/class’s own animation/.test(html) || !/Motion Filters/.test(html) || !/Map Window Loc/.test(html) || !/DBC80000/.test(html) || !/2 to 5/.test(html) || !/Don't Ask Again/.test(html))
+      else if (rows !== kr.cases.length + 2 || !/option-l/.test(html) || !/broken/.test(html) || /Everyone is hostile/.test(html) || !/enemy/.test(html) || !/0x0864/.test(html) || !/lowest ten bits/.test(html) || !/class’s own animation/.test(html) || !/Motion Filters/.test(html) || !/Map Window Loc/.test(html) || !/DBC80000/.test(html) || !/2 to 5/.test(html) || !/Don't Ask Again/.test(html))
         fail('program keys', `the Cheats sheet does not state what was read: ${rows} key rows for ${kr.cases.length} cases`);
       else if (!new RegExp('jumpToExeAt\\(' + kr.gate.word.exe + '\\)').test(html) || !inRoutine(kr.gate.word.exe, 'TMapWindow::KeyRoutine') || !new RegExp('jumpToExeAt\\(' + caseOf(0xA0).calls.find(c => /DoTicks/.test(c.v)).args[4].exe + '\\)').test(html))
         fail('program keys', 'the gate’s code or option-t’s 1024 is not a link to its instruction');

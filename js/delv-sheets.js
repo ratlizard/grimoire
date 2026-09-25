@@ -96,7 +96,7 @@ function spellsMechSection() {
       'Damage goes through the same helper as a blow: the victim’s resistance takes the type first, and the caster earns experience by the usual rule.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn to a radius of five and the script walks everyone inside it, but the damage call runs for the one on the target square alone; the spell’s own description says it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Damage without the magic bit, fire, electric, blunt, edged, is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
-      'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the program’s enemy iterator). Tremor shakes the screen and hurts enemies you cannot see.',
+      'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the program’s own way of finding enemies). Tremor shakes the screen and hurts enemies you cannot see.',
       (function () {
         const et = appImage() ? exeEnemyTable() : null;
         if (!et || !et.alignmentByte || !et.enemy) return '';
@@ -111,7 +111,7 @@ function spellsMechSection() {
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
         if (!t.length) return '';
         const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: their target word carries within reach, which is the eight squares around the caster. The rest reach anywhere the pointer does. ' + mechLink('target', 'What a use can be aimed at') : '';
+        return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: their target must be within reach, which is the eight squares around the caster. The rest reach anywhere the pointer does. ' + mechLink('target', 'What a use can be aimed at') : '';
       })()
     ].filter(Boolean) : [],
     mechSpellFigures(sp) +
@@ -131,7 +131,7 @@ function balloonsMechSection() {
   const barks = buildBarkCatalogue();
   const bark = appImage() ? exeBarkRules() : null;
   return mechSectionEl('balloons', 'Talk balloons', null, '',
-    'The short lines over a character’s head are a field on the character that a script writes a string into. ' +
+    'The short lines over a character’s head are a place on the character that a script writes words into. ' +
       (bark && bark.ticks && bark.width ? 'The program draws it in a ' + srcNum(bark.width) + '×' + srcNum(bark.height) + ' rounded balloon with a tail and takes it down <b>' + (bark.ticks.v / 60) + ' seconds</b> later: the routine that puts it up returns the tick count plus ' + srcNum(bark.ticks) + ', a tick being a sixtieth of a second, and the one that shows the balloons each frame removes it once the tick count reaches that.'
         : 'The program draws it and takes it down again. ' + MECH_NO_APP),
     ['A line is a literal, or one picked at random from a list.', 'Two tavern helpers take a list of shouts and a list of replies for when the food or wine comes.',
@@ -153,7 +153,7 @@ function libraryMechSection(lib) {
   const dangling = lib ? lib.reduce((a, d) => a.concat(d.dangling.map(k => ({ d, k }))), []) : [];
   const passages = lib ? lib.reduce((n, d) => n + d.entries.length, 0) : 0;
   return mechSectionEl('library', 'The game’s own writing', null, '',
-    lib ? 'The books on Cythera’s shelves, the prophecies, the scrolls and letters, the signs and the gravestones. Each passage is one entry of a text array, and a thing in the world shows it: the class hands the helper the array plus its own Data1, so a bookshelf’s Data1 is which book stands on it. Every pairing below is read off the class that makes it.'
+    lib ? 'The books on Cythera’s shelves, the prophecies, the scrolls and letters, the signs and the gravestones. Each passage is one entry in a list, and a thing in the world shows it: the class hands the helper the list plus its own Data1, so a bookshelf’s Data1 is which book stands on it. Every pairing below is read off the class that makes it.'
         : 'No class in this file reads a document.',
     lib ? [
       '<b>' + passages + ' passages</b> across <b>' + lib.length + ' arrays</b>, shown by ' + [...new Set(lib.flatMap(d => d.readers.map(r => r.name)))].join(', ') + '.',

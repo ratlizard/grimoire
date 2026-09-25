@@ -1096,7 +1096,7 @@ const PLACEHOLDER_TABS = {
     'the shared libraries it imports and the routines it names for itself are read here once the program is open. ' +
     'The 68K CODE resources are in its resource fork, listed under Resource Fork.',
   AISCRIPTS: 'The Combat AI scripts ship beside the game as separate .ai text files, not inside ' +
-    'the file. What the engine runs is the compiled ' +
+    'the file. What the game runs is the compiled ' +
     'form, subindex 3, AI Combat Scripts, under Components › Functions › Actions.',
   AIRULES: 'The rules those scripts are written against, the AI Scripting Document that ' +
     'ships with them, is a text file beside the game, not inside the file.',

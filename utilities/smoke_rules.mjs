@@ -190,7 +190,7 @@ try {
   // No application in this run, so none of its figures: the clock, the
   // balloon and the enemy table say where they come from and state nothing.
   // The installer section below opens the application and requires them.
-  else if (!/the application’s figures are read here/.test(html) || /jumpToExeAt\(/.test(html) || /4096 is one hour|four seconds|one off every game hour|128×32/.test(html)) fail('mechanics', 'with no application open the sheet states a figure of the program, or does not say where the figures come from');
+  else if (!/the program’s figures are read here/.test(html) || /jumpToExeAt\(/.test(html) || /4096 is one hour|four seconds|one off every game hour|128×32/.test(html)) fail('mechanics', 'with no application open the sheet states a figure of the program, or does not say where the figures come from');
   else if (mechFolds < mechSecs || (html.match(/mechOpenAll\(/g) || []).length < 2) fail('mechanics', `the sections do not fold: ${mechFolds} of ${mechSecs} are details, open/close all ${(html.match(/mechOpenAll\(/g) || []).length}`);
   // The dice game's numbers are read off 0x812 with their offsets, v1.31.0:
   // three dice of six, the skill's roll of six, a match paying 2 at 0x0506,
@@ -1198,7 +1198,7 @@ try {
     // No application in this run: the keys, the gate and the record are the
     // program's, so none of them is stated, and the sheet says where they
     // come from. The installer section requires them.
-    if (!/the application’s code is read here/.test(html) || rows || /©gra|jumpToExeAt\(/.test(html))
+    if (!/the program’s code is read here/.test(html) || rows || /©gra|jumpToExeAt\(/.test(html))
       fail('cheats', `with no application open the sheet states the keys or the gate (${rows} key rows)`);
     else if (!hero || !/hero/i.test(hero.name))
       fail('cheats', 'class 32 is not in the sprite list as the hero: ' + JSON.stringify(hero));

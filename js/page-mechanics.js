@@ -2454,12 +2454,12 @@ function renderMechanicsSheet(value) {
   // ---- sleep ----
   const sl = sleepRules();
   add('sleep', 'Sleeping', null, src('the bed', 0x100E) + src('the night', 0xE93),
-    sl ? 'A bed picks a quality for the sleep and hands the hours to one helper, which passes the night and multiplies what the engine healed during it.' : 'The bed class (0x100E) or the sleep helper (0xE93) is not in this file.',
+    sl ? 'A bed picks a quality for the sleep and hands the hours to one helper, which passes the night and multiplies what the game healed during it.' : 'The bed class (0x100E) or the sleep helper (0xE93) is not in this file.',
     sl ? [
       sl.own !== null ? 'Your own bed in Land King Hall has quality <b>' + srcNum(sl.ownVal) + '</b>; an inn’s bed takes its innkeeper’s figure from a table in the global store (0x301), at the slot the innkeeper’s dialogue wrote when the room was paid for, and a bed nobody paid for is refused.' : '',
       sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (perHour && sl.quarterVal.v * sl.hoursVal.v === perHour ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + ', ' + srcNum(sl.hoursVal) + ' to the hour asked for' + (sl.owner ? ', and the bed’s owner turning up throws you out (“Hey! Out of my bed!”)' : '') + '.' : '',
-      sl.half ? 'Then, when the quality is not 0' + (sl.soundly ? ' (“You sleep soundly”)' : '') + ', every party member gets <b>what they healed during the night times the quality over ' + srcNum(sl.div) + '</b> on top, for health and for magic, up to full.' + (sl.own !== null ? ' <b>Quality ' + sl.own + ' is ' + (1 + sl.own / sl.div.v) + ' times the engine’s rate.</b>' : '') : '',
-      sl.toss ? 'Quality 0 is “You toss and turn” and the engine’s rate alone.' : '',
+      sl.half ? 'Then, when the quality is not 0' + (sl.soundly ? ' (“You sleep soundly”)' : '') + ', every party member gets <b>what they healed during the night times the quality over ' + srcNum(sl.div) + '</b> on top, for health and for magic, up to full.' + (sl.own !== null ? ' <b>Quality ' + sl.own + ' is ' + (1 + sl.own / sl.div.v) + ' times the game’s rate.</b>' : '') : '',
+      sl.toss ? 'Quality 0 is “You toss and turn” and the game’s rate alone.' : '',
       'The game’s own rate is the one under Hunger and healing: a fed character’s level rate, plus the six-minute regeneration where a worn item grants it, and nothing at all for a hungry one.',
       sl.magicGuard || sl.magicCap ? 'The magic half reads <i>full health</i> where it means full magic: ' +
         [sl.magicGuard ? 'the bonus is given only while magic is under ' + srcNum(sl.magicGuard, 'full health') : '',
@@ -3070,7 +3070,7 @@ function renderMechanicsSheet(value) {
         'The hero and the heroine can wear any person, or any monster drawn in four or eight frames. A person is laid out as they are; a monster has fewer poses, and its strides stand in for the rest.',
         'Their hair, skin and clothes are told apart by this page, not read from the file: the art has no such layer. A shade two parts share goes to the part it touches most.',
         'Colour by colour works on any sprite: the page finds the areas the art is painted in, a ramp of shades that touch each other, and each is changed as a whole. Where one shade draws two things, both change.',
-        'Each colour keeps its shading. New colours are taken from the game’s palette, and never from the ranges the engine cycles, so the sprite does not shimmer.',
+        'Each colour keeps its shading. New colours are taken from the game’s palette, and never from the ranges the game cycles, so the sprite does not shimmer.',
         'Only the chosen sprite’s own frames change.',
         'A portrait is recoloured the same way, colour by colour. A character’s portrait changes wherever the game shows it; the hero’s is copied into the saved game when the character is made, so a recoloured one shows in a game begun after the patch.',
         'The patch is read by this page and by the browser player, and Magpie installs it on a Mac.'

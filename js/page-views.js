@@ -233,7 +233,7 @@ function renderAppPefSheet() {
     box.innerHTML = '<div class="foldAll" style="justify-content:flex-start">' + svLink('All routines', 'pefBackToList()') + '</div>' +
       '<div class="changesHead">' + svEsc(view.name) + '</div>' +
       '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
-      (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A branch or a call is a link to where it goes; a TOC slot says what the loader puts there.</p>' +
+      (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call is a link to where it goes; a slot in the program’s own table of addresses says what is put there when the game starts.</p>' +
       exeListingHTML(view, window.PEF_VIEW.at);
     grid.appendChild(box);
     out.textContent = view.name + ', ' + (view.length / 4) + ' instructions';
@@ -267,7 +267,7 @@ function renderAppPefSheet() {
   if (q) h += rs.length ? table(rs) : '<div class="changesNote">No routine matches.</div>';
   else h += [...byClass.entries()].sort((a, b) => (a[0] || '~').localeCompare(b[0] || '~')).map(([c, list]) =>
     '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(c || 'functions outside a class') + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + list.length + '</b></span></span></summary><div class="mechBody">' + table(list) + '</div></details>').join('');
-  h += '<p class="mechLede" style="margin-top:10px">An address is an offset into the code section, where a call lands. The routines are read from the traceback table the compiler leaves after each one: its length and its name, mangled; the name is read back as far as the mangling allows and left as written where it does not.</p>';
+  h += '<p class="mechLede" style="margin-top:10px">An address is a place in the program’s code, where a call lands. The routines are read from the note the compiler leaves after each one, which gives its length and its name in the compiler’s own shorthand; the name is read back as far as that shorthand allows and left as written where it cannot be.</p>';
   box.innerHTML = h;
   grid.appendChild(box);
   out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '; ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
@@ -324,19 +324,19 @@ function renderToolsSheet() {
        sentence that used to carry it put the action last and read as a
        description of a tool that was not there (the maintainer, 23 September
        2026). */
-    pfNote.innerHTML = '<b>' + svEsc('Open the game itself — Data › Installer, or drop the program on the page — and the settings appear here.') + '</b><br>' +
-      svEsc('This writes Cythera’s preferences file: the settings in the System Folder’s Preferences folder, and the gate on its cheat keys. ' +
+    pfNote.innerHTML = '<b>' + svEsc('Open the game itself (Data › Installer, or drop the program on the page) and the settings appear here.') + '</b><br>' +
+      svEsc('This writes Cythera’s preferences file: the settings the game keeps in the System Folder’s Preferences folder, and the switch that lets its cheat keys work. ' +
             'Every switch in it is read out of the program’s own code, so the game has to be open for there to be anything to write.');
   } else {
     pfNote.innerHTML = svEsc('The ' + layout.bytes + '-byte ‘' + layout.type + '’ “' + layout.key + '” record, which lives in the System Folder’s Preferences folder. ' +
       'The switches are the game’s own: the labels of its Preferences dialog' + (layout.smoothLabel ? ', and “' + layout.smoothLabel + '” from its unlisted Preferences menu, which the record the game first stores leaves off' : '') + '. ' +
       (layout.startupLabel ? 'Then the answer to the one question the game asks on its own, on a screen deeper than 256 colours: this writes “' + layout.startupLabel + '”, so it switches and does not ask. ' : '') +
-      'The row below holds the settings that are a choice rather than a switch, and the file’s other keys — the sound and music volumes, the ambient sounds, and the pattern the screen behind every window is filled with, which no menu item and no dialog in the game ever writes. ' +
+      'The row below holds the settings that are a choice rather than a switch, and the file’s other keys: the sound and music volumes, the ambient sounds, and the pattern the screen behind every window is filled with, which no menu item and no dialog in the game ever writes. ' +
       'Each starts where a fresh install would be, and a key left there is not written at all. ' +
-      'The last is the gate on the cheat keys, which nothing in the game ever sets, so a shipped copy cannot enter cheat mode however long you type ' + layout.gate.word + ' at it. ' +
+      'The last is the switch that lets the cheat keys work, which nothing in the game ever sets, so a copy as released cannot enter cheat mode however long you type ' + layout.gate.word + ' at it. ' +
       'The Cheats sheet has the record field by field. ' +
       (layout.from === 'shipped'
-        ? 'These are the numbers the four releases Ambrosia shipped all agree on, so the file can be written with nothing open. Open the game \u2014 Data \u203a Installer, or drop the program on the page \u2014 and the page reads your own copy instead, which is what makes a patched build right.'
+        ? 'These are the numbers the four releases Ambrosia shipped all agree on, so the file can be written with nothing open. Open the game (Data \u203a Installer, or drop the program on the page) and the page reads your own copy instead, which is what makes a patched build right.'
         : 'Read out of the program open here, rather than from the shipped releases\u2019 numbers.'));
     const prefsRow = document.createElement('div');
     prefsRow.style.cssText = 'display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin:8px 0 6px';

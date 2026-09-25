@@ -1901,7 +1901,7 @@ function drawMapMarks(lensCtx, lensTS) {
       (edges ? ' + ' + edges + (edges === 1 ? ' open edge' : ' open edges') : ''));
     if (M.path && pathStops) parts.push('<span style="color:' + colours.path + '">' + LINE +
       svEsc(pathName) + ', ' + pathStops + (pathStops === 1 ? ' post' : ' posts') +
-      ' on this map, joined by the route the engine would walk, each leg' +
+      ' on this map, joined by the route the game would walk, each leg' +
       ' coloured by the hour it sets out and drawn on its own rail where a' +
       ' way is walked twice</span>');
     if (ropes) parts.push('<span style="color:#fff">' + ROPE + ropes +

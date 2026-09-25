@@ -75,8 +75,7 @@ function fontSwapPanel() {
     (target
       ? '<p class="mechLede">The game draws its text with <b>sfnt ' + target.id + '</b>, named ' +
         svEsc(target.name || 'ArgosANouveau') + ' by the family record. A TrueType font (<b>.ttf</b>) chosen here takes that resource’s place in the copy ' +
-        'of the file in this browser. It is given the Mac Roman character map the game looks glyphs up by, and its layout and signature tables are ' +
-        'dropped, which the classic rasteriser does not read.</p>' +
+        'of the file in this browser. It is given the table the game looks its letters up in, and the tables an old Mac never reads are left out.</p>' +
         '<ul class="ruleList"><li>Nothing is written to disk and nothing on the server changes.</li>' +
         '<li>To play with it, export <b>Data file › the disk image</b>, which carries the fork, and run the script on it in the emulator.</li>' +
         '<li>An <b>.otf</b> is refused: those draw with PostScript outlines, which the classic Mac cannot rasterise.</li></ul>' +
@@ -329,7 +328,7 @@ function strikeSwapPanel() {
         '<ul class="ruleList">' +
         '<li>Only the letters the strike already draws are replaced, and the missing-character box is carried through untouched. ' +
         'Seldane draws 24 letters: it has no L and no O at 12 point, and at 18 point it has an entry for each of them one pixel wide and empty.</li>' +
-        '<li>The rasteriser has no greys to work with, so a light face at 12 point will come out broken up.</li>' +
+        '<li>Nothing here can draw in grey, so a light face at 12 point will come out broken up.</li>' +
         '<li>Nothing is written to disk and nothing on the server changes.</li></ul>' +
         '<div class="mechStats"><input type="file" id="strikeSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoStrikeSwap()">Put the file’s own script back</button>' : '') +
@@ -754,7 +753,7 @@ function renderRsrcSheet() {
     fmtBytes(inv.bytes) + '. Showing ' +
     Object.keys(kinds).map(k => kinds[k] + ' ' + RSRC_DELVER_TYPES[k]).join(' and ') +
     (q ? ' matching “' + q + '”' : '') + '. ' +
-    'A stamp is a patch of terrain at the size it declares. A brush is sixteen entries read as a four by four table of one terrain meeting another, ruled here, with the empty cells the ones the resource leaves at zero; what the rows and columns are named is not recorded in the fork. ' +
+    'A stamp is a patch of terrain at the size it declares. A brush is sixteen entries, read here as a four by four table of one terrain meeting another, and the empty cells are the ones the resource leaves at zero; what the rows and columns are named is not recorded in the fork. ' +
     'Also in the fork, under Data › Cythera Data › Resource Fork: ' +
     inv.other.map(r => r.count + ' ' + r.type.trim()).join(', ') + '.';
 }
