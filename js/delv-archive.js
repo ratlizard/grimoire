@@ -1711,6 +1711,33 @@ function describeDelverPatch(baseSpec, patchSpec) {
    changed; comparing what was stored would call that a difference, and every
    rebuild would look like a change to half the file. `encryptionChanged` says
    so separately for the handful where the verdict differs. */
+/* Do two versions of a script resource differ only in the unset keys of its
+   object table? A script resource ends in that table -- a count word, then
+   six bytes an entry, a value and a key -- and an entry whose value is None
+   (0x5000FFFF) has a key the compiler never wrote: the slot holds whatever
+   its buffer did, which differs from build to build. Between Ambrosia's
+   releases two thirds of the resources whose bytes differ differ there and
+   nowhere else (24 September 2026, `releases_check.mjs`), and until that
+   was read every count of what a release changed carried an asterisk. Two
+   resources of different lengths, or with no table, are a real change; the
+   table is found by dvmDiscover, which loads after this file and is only
+   called from here at comparison time. */
+function delverUnsetKeysOnly(a, b, resid) {
+  if (a.length !== b.length || typeof dvmDiscover !== 'function') return false;
+  let toff = null;
+  try { toff = dvmDiscover(b, resid).tableOffset; } catch (e) { return false; }
+  if (toff === null || toff + 2 > b.length) return false;
+  const count = ((b[toff] << 8) | b[toff + 1]) & 0x0FFF, tend = toff + 2 + count * 6;
+  const none = (x, p) => (((x[p] << 24) | (x[p + 1] << 16) | (x[p + 2] << 8) | x[p + 3]) >>> 0) === 0x5000FFFF;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] === b[i]) continue;
+    if (i < toff + 2 || i >= tend) return false;
+    const p = toff + 2 + Math.floor((i - toff - 2) / 6) * 6;
+    if (i - p < 4 || !none(a, p) || !none(b, p)) return false;
+  }
+  return true;
+}
+
 function describeDelverDiff(a, b) {
   if (!a || !b) return null;
   const same = (x, y) => x.length === y.length && x.every((v, i) => v === y[i]);
@@ -1724,7 +1751,8 @@ function describeDelverDiff(a, b) {
     if (!!ar.encrypted !== !!br.encrypted) encryptionChanged.push(resid);
     if (same(ar.data, br.data)) { unchanged++; continue; }
     changed.push({ resid, subn: (resid >> 8) - 1, a: ar, b: br,
-                   aLength: ar.data.length, bLength: br.data.length });
+                   aLength: ar.data.length, bLength: br.data.length,
+                   unsetKeysOnly: delverUnsetKeysOnly(ar.data, br.data, resid) });
   }
   for (const [resid, br] of bm) if (!am.has(resid)) added.push({ resid, subn: (resid >> 8) - 1, b: br });
   const bySubn = new Map();
@@ -1735,6 +1763,10 @@ function describeDelverDiff(a, b) {
   }
   return {
     changed, added, removed, encryptionChanged, unchanged,
+    // How many of `changed` differ only in unset table keys, which is not
+    // a change; `changed` keeps them, since a caller writing a patch of
+    // every difference wants the file as it is.
+    unsetKeysOnly: changed.filter(c => c.unsetKeysOnly).length,
     aCount: am.size, bCount: bm.size,
     identical: !changed.length && !added.length && !removed.length,
     // Sorted so the biggest difference leads, which is what a reader wants to

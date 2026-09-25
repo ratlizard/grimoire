@@ -62,33 +62,12 @@ const out = ev(`(() => {
   for (const [x, y] of [['1.0.1','1.0.2'], ['1.0.2','1.0.3'], ['1.0.3','1.0.4']]) {
     if (!specs[x] || !specs[y]) { rows.push({pair: x + ' to ' + y, missing: true}); continue; }
     const d = describeDelverDiff(specs[x], specs[y]);
-    // Where in a changed resource the bytes differ. A script resource ends
-    // in its object table, and an entry of that table whose value is None
-    // (0x5000FFFF) has a key half the compiler never set: whatever the
-    // build's buffer held, which differs from build to build. A resource
-    // whose only differences are in those two-byte slots did not change.
-    const A = new Map(specs[x].resources.map(r => [r.resid, r]));
-    const B = new Map(specs[y].resources.map(r => [r.resid, r]));
-    let unsetKeysOnly = 0;
-    const real = [];
-    for (const c of d.changed) {
-      const a = A.get(c.resid).data, b = B.get(c.resid).data;
-      let only = a.length === b.length, toff = null;
-      if (only) { try { toff = dvmDiscover(b, c.resid).tableOffset; } catch (err) { toff = null; } }
-      if (toff === null) only = false;
-      if (only) {
-        const count = ((b[toff] << 8) | b[toff + 1]) & 0x0FFF, tend = toff + 2 + count * 6;
-        const none = p => (((b[p] << 24) | (b[p + 1] << 16) | (b[p + 2] << 8) | b[p + 3]) >>> 0) === 0x5000FFFF && (((a[p] << 24) | (a[p + 1] << 16) | (a[p + 2] << 8) | a[p + 3]) >>> 0) === 0x5000FFFF;
-        for (let i = 0; i < a.length && only; i++) {
-          if (a[i] === b[i]) continue;
-          if (i < toff + 2 || i >= tend) { only = false; break; }
-          const p = toff + 2 + Math.floor((i - toff - 2) / 6) * 6;
-          if (i - p < 4 || !none(p)) only = false;
-        }
-      }
-      if (only) unsetKeysOnly++; else real.push(c.resid);
-    }
-    rows.push({pair: x + ' to ' + y, changed: d.changed.length, added: d.added.length, unsetKeysOnly, real: real.length,
+    // Where in a changed resource the bytes differ is the diff's own
+    // reading (delverUnsetKeysOnly in js/delv-archive.js): a script
+    // resource whose only differences are the key halves of its object
+    // table's None entries, which the compiler never set, did not change.
+    const unsetKeysOnly = d.unsetKeysOnly, real = d.changed.length - unsetKeysOnly;
+    rows.push({pair: x + ' to ' + y, changed: d.changed.length, added: d.added.length, unsetKeysOnly, real,
                removed: d.removed.length, count: d.aCount, identical: d.identical,
                // The subindexes a reader would want named, biggest first.
                where: d.groups.slice(0, 3).map(g => (CATEGORY_NAMES[g.subn] || ('subindex ' + g.subn)) +

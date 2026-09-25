@@ -17,7 +17,6 @@ for (const [name, call] of [
   ['monster detail',   () => ctx.showMonsterDetail(22)],
   ['composite detail', () => ctx.showCompositeDetail(0x1000, ctx.loadCompositionTable()[0])],
   ['search',           () => { REGISTRY.get('searchBox').value = 'locked'; ctx.runSearch(); }],
-  ['xref report',      () => ctx.xrefReport(0x8801)],
 ]) {
   try { call(); } catch (e) { fail(name, e); }
 }

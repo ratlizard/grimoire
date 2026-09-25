@@ -69,36 +69,6 @@ function buildXrefIndex() {
   return (DERIVED.XREF_INDEX = { outbound, inbound });
 }
 
-function xrefReport(resid) {
-  const idx = buildXrefIndex();
-  const outs = idx.outbound[resid] || [];
-  const ins = idx.inbound[resid] || [];
-  const name = r => {
-    const l = labelFor(r);
-    return '0x' + r.toString(16).toUpperCase() + (l ? ' (' + l + ')' : '');
-  };
-  let s = '--- CROSS-REFERENCES ---\n';
-  if (ins.length) {
-    s += 'Referenced by ' + ins.length + ':\n';
-    s += ins.map(e => '  ' + name(e.from) + '  via ' + e.via + ' as ' + e.kind +
-         (e.count > 1 ? ' x' + e.count : '')).join('\n') + '\n';
-  } else {
-    s += 'Referenced by: nothing in the archive.\n' +
-         '  No array entry, table value, `word` operand or call_resource anywhere\n' +
-         '  points here, so nothing loads this resource. Either it is reached by\n' +
-         '  a path this tool cannot see (a hardcoded id inside the Cythera\n' +
-         '  application rather than the data file), or it is dead.\n';
-  }
-  if (outs.length) {
-    s += 'References out ' + outs.length + ':\n';
-    s += outs.map(e => '  ' + name(e.target) + '  via ' + e.via + ' as ' + e.kind +
-         ' ' + e.detail + (e.count > 1 ? ' x' + e.count : '')).join('\n') + '\n';
-  } else {
-    s += 'References out: none.\n';
-  }
-  return s;
-}
-
 // --- Script view -----------------------------------------------------------
 // A resource used to arrive as one undifferentiated wall of text: class header,
 // cross-references, disassembly, extracted strings and a hex dump, all in the

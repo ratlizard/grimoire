@@ -1707,7 +1707,9 @@ function renderCompareReport() {
     return;
   }
   const bits = [];
-  if (rep.changed.length) bits.push('<b>' + rep.changed.length + '</b> changed');
+  const real = rep.changed.filter(c => !c.unsetKeysOnly), unset = rep.changed.filter(c => c.unsetKeysOnly);
+  if (real.length) bits.push('<b>' + real.length + '</b> changed');
+  if (unset.length) bits.push('<b>' + unset.length + '</b> differ only in unset table keys');
   if (rep.added.length) bits.push('<b>' + rep.added.length + '</b> only in ' + svEsc(rep.bName));
   if (rep.removed.length) bits.push('<b>' + rep.removed.length + '</b> only in ' + svEsc(rep.aName));
   host.appendChild(el('p', 'mechLede', bits.join(', ') + ', and <b>' + rep.unchanged +
@@ -1723,14 +1725,25 @@ function renderCompareReport() {
       '<span class="mechSub"> ' + propWordHex((g.subn + 1) * 0x100) + ' to ' + propWordHex((g.subn + 1) * 0x100 + 255) + '</span></td>' +
       mechNum(g.changed || '') + mechNum(g.added || '') + mechNum(g.removed || '') + '</tr>'))));
 
-  const rows = rep.changed.slice(0, 400).map(c => '<tr>' +
+  const rows = real.slice(0, 400).map(c => '<tr>' +
     '<td>' + svChip(c.resid, labelFor(c.resid) || '') + '</td>' +
     mechNum(c.aLength) + mechNum(c.bLength) +
     mechNum((c.bLength - c.aLength > 0 ? '+' : '') + (c.bLength - c.aLength)) + '</tr>');
-  host.appendChild(el('div', 'partsTitle', 'What changed'));
-  host.appendChild(el('div', '', mechTable(['resource', '#in ' + svEsc(rep.aName), '#in ' + svEsc(rep.bName), '#difference'], rows)));
-  if (rep.changed.length > rows.length)
-    host.appendChild(el('p', 'mechSub', 'The first ' + rows.length + ' of ' + rep.changed.length + '.'));
+  if (rows.length) {
+    host.appendChild(el('div', 'partsTitle', 'What changed'));
+    host.appendChild(el('div', '', mechTable(['resource', '#in ' + svEsc(rep.aName), '#in ' + svEsc(rep.bName), '#difference'], rows)));
+    if (real.length > rows.length)
+      host.appendChild(el('p', 'mechSub', 'The first ' + rows.length + ' of ' + real.length + '.'));
+  }
+  // A script resource ends in its object table, and an entry with no value
+  // has a key the compiler never set. Two builds differ there without
+  // either having changed, so these are named and set apart rather than
+  // listed as changes (delverUnsetKeysOnly).
+  if (unset.length) {
+    host.appendChild(el('div', 'partsTitle', 'Differ only in unset table keys'));
+    host.appendChild(el('p', 'mechSub', unset.length + ' script resource' + (unset.length === 1 ? '' : 's') + ' differ only in the key halves of object table entries that have no value, which the compiler left unset. Nothing in them changed.'));
+    host.appendChild(el('div', '', unset.slice(0, 400).map(c => svChip(c.resid, labelFor(c.resid) || '')).join(' ')));
+  }
   if (rep.added.length) {
     host.appendChild(el('div', 'partsTitle', 'Only in ' + svEsc(rep.bName)));
     host.appendChild(el('div', '', mechTable(['resource', '#bytes'],
