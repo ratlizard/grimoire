@@ -1273,6 +1273,9 @@ function renderSaveSheet() {
       '<tr class="saveEditRow"><td colspan="10"><div class="propEdit" id="charEdit-' + i + '" style="display:none"></div></td></tr>';
   }
   h += '</tbody></table></div>';
+  // The rest of a save, each where the file has it (the scenario has none).
+  const words = saveWords();
+  h += questStateHTML(words) + roomsEnteredHTML(words) + todoHTML(words);
   h += '<div class="saveNote">Every field above is a byte or two of the record, and the ' +
     'eleven bytes this project has not identified are shown with it when a row is opened. ' +
     'Editing rebuilds the whole archive in memory; nothing on disk changes, and ' +
@@ -1363,7 +1366,8 @@ function toggleCharEdit(index) {
     Array.from(rec.raw).map(b => b.toString(16).padStart(2, '0')).join(' ') +
     '</code><br>Bytes 6 and 7, 20 to 26 and 29 to 31 are not identified and are carried through ' +
     'an edit unchanged; 20 and 21 are a second appearance word that is usually, but not ' +
-    'always, the one at 4 and 5. Apply rebuilds the whole archive.</div>' + saveFieldsProgramNote();
+    'always, the one at 4 and 5. Apply rebuilds the whole archive.</div>' + saveFieldsProgramNote() +
+    ((window.ARCHIVE_FINDER || {}).type === 'DelP' ? giveFormHTML(index) : '');
   host.style.display = '';
   window.SAVE_EDIT_OPEN = index;
 }
@@ -1434,6 +1438,322 @@ function applyCharacterRecordEdit(index, fields) {
   }
   if (ok) setStatus('Record ' + index + ' (' + characterName(index) + ') rewritten.');
   return ok;
+}
+
+/* ---- The rest of a save, a form each (25 September 2026) -----------------
+   The character records were the only part of a player file the sheet
+   edited. Four more are small and fully read, so each has a form here on
+   the same seam as the records: read the segment, change the bytes the form
+   names, hand the whole segment to applyResourceEdit, and let the sheet
+   redraw from the rebuilt file.
+
+   - The quest values and flags, in the Char block at the head of 0x0400:
+     32 value bytes at +16, then 256 flags as eight big-endian longs at +48,
+     flag n being bit n & 31 of long n >> 5 counted from the least
+     significant (saveQuestState reads them the same way; the writer below
+     is its inverse and the smoke holds the two together).
+   - The rooms entered, 0xF00E: a halfword a room, and bit 0 is "entered
+     once, description shown" (TGameSys::HeartBeat sets it and runs the
+     room's LookAt only while it is clear). Only bit 0 is ever set by the
+     game, and the form touches no other.
+   - The To Do list, 0x0401: 256 entries of eight bytes. +0 is the struck-off
+     byte (TToDo::DoneToDo writes 1 there and nothing else), +2 a halfword
+     TToDo::AddToDo takes from the global at r2 - 5220, which is also the
+     Char block's short at +84 (1 in every save on the disk, and the stamp
+     on the one live entry any of them holds), and +4 the text reference.
+     An empty slot reads 00 00 00 00 50 00 FF FF. The reference for line n
+     is the line-0 word with n in bits 16 to 27, because that is what the
+     interpreter's add does to a resource reference: TInterp::DoExpr's
+     handler for opcode 0x4A, when the left operand's top nibble is 3 and the
+     right one is a plain number, adds the number to the low twelve bits of
+     the high halfword and keeps the tag (0x07F364 on). So a script's
+     `0x021A[0] + 114` is 0x3072021A. Adding to a slot that holds a line
+     changes only the reference, as AddToDo does.
+   - A thing given to a character: a sixteen-byte record appended to the
+     prop list of the zone the character stands in, flags 0x10 and the
+     character's number in the low sixteen bits of the location word, which
+     is how every carried thing in a played save sits (the hero's amulet in
+     cp1-intro-done is record 1121 of 0x8103, flags 0x10). A skill or spell
+     is the same record with flags 0x1C, which is what the game writes when
+     a scroll teaches one. Equipping is not offered: 0x18 on a record the
+     character does not wear-check is a state the game never made.
+
+   Two loads were tried in the fork on the same day, which is what decides
+   the gating: a hero moved into a zone the save holds no list for loads,
+   and the game reads the scenario's list for it and writes it into the save
+   on the next save; but a thing can only be given where a list exists,
+   since there is nothing to append to otherwise. And a save whose Mons
+   chunk has lost the hero's entry loads and then halts the game when it
+   next saves, so nothing here touches Mons.
+
+   WHAT THE ROWS ARE CALLED. A save carries no scripts, no To Do text and no
+   room descriptions, so those are taken from the scenario at the moment a
+   save replaces it (keepScenarioSaveWords, called from parseArchiveBytes),
+   the way the character names are. Opened with no scenario before it, the
+   forms still work and say numbers. */
+window.SCENARIO_SAVE_WORDS = null;
+function scenarioSaveWords() {
+  const le = looseEnds(), td = todoRules();
+  const sites = m => {
+    const o = {};
+    for (const [k, v] of m) {
+      const seen = new Map();
+      for (const s of v.values()) if (!seen.has(s.resid)) seen.set(s.resid, { resid: s.resid, at: s.at, name: labelFor(s.resid) || propWordHex(s.resid) });
+      o[k] = [...seen.values()];
+    }
+    return o;
+  };
+  const rooms = [];
+  for (const [n, eggs] of roomEggIndex()) {
+    const rid = 0x1B00 + n;
+    if (!refExists(rid)) continue;
+    let text = '';
+    const e = buildScriptTextIndex().find(x => x.resid === rid);
+    const m = e && /"((?:[^"\\]|\\.)*)"/.exec(e.text);
+    if (m) { try { text = JSON.parse('"' + m[1] + '"').trim(); } catch (err) { text = ''; } }
+    rooms.push({ n, zones: [...new Set(eggs.map(g => g.zone))], text });
+  }
+  rooms.sort((a, b) => a.n - b.n);
+  // Every line a script can put in a slot: the pairs the scripts state, and
+  // for the one computed site (slot 18, the Books of Wisdom) each line its
+  // count can reach that the text array holds.
+  const pairs = new Map();
+  for (const a of td.adds) {
+    if (!a.slot || !a.line) continue;
+    const top = a.state === null ? 0 : 31;
+    for (let k = 0; k <= top; k++) {
+      const line = a.line.v + k;
+      if (k && !(td.lines && td.lines.has(line))) continue;
+      pairs.set(a.slot.v + ':' + line, { slot: a.slot.v, line });
+    }
+  }
+  return { values: { writes: sites(le.writes), reads: sites(le.reads) }, flags: { writes: sites(le.flagWrites), reads: sites(le.flagReads) },
+           todo: { textResid: td.textResid, lines: td.lines ? [...td.lines] : [], pairs: [...pairs.values()].sort((a, b) => a.slot - b.slot || a.line - b.line) },
+           rooms };
+}
+// Called by parseArchiveBytes while the scenario is still the open file and
+// a save is about to replace it.
+function keepScenarioSaveWords() {
+  try { window.SCENARIO_SAVE_WORDS = scenarioSaveWords(); } catch (e) { quiet(e, 'the scenario’s words for the save forms'); }
+}
+// The open file's own words when it has scripts, else the kept ones.
+function saveWords() {
+  if (refExists(0x1802) || refExists(0x021A)) {
+    try { return scenarioSaveWords(); } catch (e) { quiet(e, 'the open file’s words for the save forms'); }
+  }
+  return window.SCENARIO_SAVE_WORDS;
+}
+// A script named as a site: a link when the open file has the script, its
+// name alone when the name was kept from the scenario.
+function saveSiteList(list) {
+  if (!list || !list.length) return '';
+  return list.map(s => refExists(s.resid) ? srcNum(s, s.name) : svEsc(s.name)).join(', ');
+}
+function saveSegment(rid) {
+  const raw = getResourceBytes(ARCHIVE, rid);
+  return raw ? new Uint8Array(smartDecrypt(raw, rid).data) : null;
+}
+function saveCharBlock() {
+  const b = saveSegment(0x0400);
+  return b && b.length >= 90 && String.fromCharCode(b[0], b[1], b[2], b[3]) === 'Char' ? b : null;
+}
+// Where flag n lives in the Char block: the inverse of saveQuestState.
+function questFlagSpot(n) { return { byte: 48 + (n >> 5) * 4 + 3 - ((n & 31) >> 3), bit: n & 7 }; }
+function questFlagOf(b, n) { const s = questFlagSpot(n); return !!((b[s.byte] >> s.bit) & 1); }
+
+/* The quest block's form. Rows are the values and flags some script sets or
+   tests, and any the save has set; the rest keep what they hold. */
+function questStateHTML(words) {
+  const b = saveCharBlock();
+  if (!b) return '';
+  const vw = words ? words.values : null, fw = words ? words.flags : null;
+  const valueRows = [], flagRows = [];
+  for (let n = 0; n < 32; n++) {
+    const used = vw && (vw.writes[n] || vw.reads[n]);
+    if (!used && !b[16 + n] && vw) continue;
+    valueRows.push('<tr><td class="num">' + n + '</td><td><input id="qv-' + n + '" value="' + b[16 + n] + '" size="4" spellcheck="false"></td>' +
+      '<td>' + saveSiteList(vw && vw.writes[n]) + '</td><td>' + saveSiteList(vw && vw.reads[n]) + '</td></tr>');
+  }
+  for (let n = 0; n < 256; n++) {
+    const on = questFlagOf(b, n), used = fw && (fw.writes[n] || fw.reads[n]);
+    if (!used && !on) continue;
+    flagRows.push('<tr><td class="num">' + n + '</td><td><input type="checkbox" id="qf-' + n + '"' + (on ? ' checked' : '') + '></td>' +
+      '<td>' + saveSiteList(fw && fw.writes[n]) + '</td><td>' + saveSiteList(fw && fw.reads[n]) + '</td></tr>');
+  }
+  const head = '<thead><tr><th class="num">no.</th><th>value</th><th>set by</th><th>tested by</th></tr></thead>';
+  let h = '<h4 class="saveH4">Quest values and flags</h4>' +
+    '<div class="saveNote">The 32 quest values and 256 quest flags the scripts keep the story in, from the head of 0x0400. ' +
+    (words ? 'Listed are the ones a script sets or tests, and any this save has set; the rest keep what they hold. What each one means is not in the files, so they are numbers.'
+           : 'No scenario was opened before this save, so which scripts use each is not known here and every value is listed.') + '</div>' +
+    '<div class="tableScroll"><table class="forkTable">' + head + '<tbody>' + valueRows.join('') + '</tbody></table></div>' +
+    '<div class="tableScroll"><table class="forkTable">' + head.replace('<th>value</th>', '<th>set</th>') + '<tbody>' + flagRows.join('') + '</tbody></table></div>' +
+    '<div class="propEdit"><button class="sv-chip" onclick="applyQuestStateForm()">Apply</button>' +
+    '<label>any other flag <input id="qf-other" value="" size="4" spellcheck="false"></label>' +
+    actionChip('Set it', 'setQuestFlagByNumber(true)') + actionChip('Clear it', 'setQuestFlagByNumber(false)') + '</div>';
+  return h;
+}
+function writeQuestState(values, flags) {
+  const b = saveCharBlock();
+  if (!b) { setStatus('This file has no quest block.', true); return false; }
+  for (const [n, v] of Object.entries(values || {})) b[16 + +n] = v;
+  for (const [n, on] of Object.entries(flags || {})) {
+    const s = questFlagSpot(+n);
+    b[s.byte] = on ? (b[s.byte] | (1 << s.bit)) : (b[s.byte] & ~(1 << s.bit));
+  }
+  const ok = applyResourceEdit(0x0400, b);
+  if (ok) setStatus('The quest values and flags rewritten.');
+  return ok;
+}
+function applyQuestStateForm() {
+  const values = {}, flags = {};
+  for (let n = 0; n < 32; n++) {
+    const el = document.getElementById('qv-' + n);
+    if (!el) continue;
+    const v = parseInt(el.value, 10);
+    if (!Number.isInteger(v) || v < 0 || v > 255) { setStatus('Bad value for quest value ' + n + ', nothing changed.', true); return; }
+    values[n] = v;
+  }
+  for (let n = 0; n < 256; n++) { const el = document.getElementById('qf-' + n); if (el) flags[n] = !!el.checked; }
+  writeQuestState(values, flags);
+}
+function setQuestFlagByNumber(on) {
+  const el = document.getElementById('qf-other');
+  const n = el ? parseInt(el.value, 10) : NaN;
+  if (!Number.isInteger(n) || n < 0 || n > 255) { setStatus('A quest flag is a number from 0 to 255; nothing changed.', true); return; }
+  writeQuestState({}, { [n]: on });
+}
+
+/* The rooms entered. */
+function roomsEnteredHTML(words) {
+  const b = saveSegment(0xF00E);
+  if (!b) return '';
+  const known = new Map((words ? words.rooms : []).map(r => [r.n, r]));
+  const count = b.length >> 1;
+  for (let n = 0; n < count; n++) if ((b[2 * n + 1] & 1) && !known.has(n)) known.set(n, { n, zones: [], text: '' });
+  const rows = [...known.values()].sort((a, c) => a.n - c.n);
+  const entered = rows.filter(r => b[2 * r.n + 1] & 1).length;
+  return '<h4 class="saveH4">Rooms entered</h4>' +
+    '<div class="saveNote">0xF00E has a switch for each room, set the first time the player walks in; a room whose switch is clear shows its description when entered. ' +
+    entered + ' of the ' + rows.length + ' rooms listed are entered.' + (words ? '' : ' No scenario was opened before this save, so only the entered ones are listed.') + '</div>' +
+    '<details><summary>Every room</summary><div class="tableScroll"><table class="forkTable">' +
+    '<thead><tr><th class="num">room</th><th>entered</th><th>where</th><th>its description</th></tr></thead><tbody>' +
+    rows.map(r => '<tr><td class="num">' + r.n + '</td><td><input type="checkbox" id="rm-' + r.n + '"' + ((b[2 * r.n + 1] & 1) ? ' checked' : '') + '></td>' +
+      '<td>' + svEsc(r.zones.map(zoneDisplayName).join(', ')) + '</td><td>' + svEsc(r.text) + '</td></tr>').join('') +
+    '</tbody></table></div><div class="propEdit"><button class="sv-chip" onclick="applyRoomsForm()">Apply</button></div></details>';
+}
+function writeRoomsEntered(changes) {
+  const b = saveSegment(0xF00E);
+  if (!b) { setStatus('This file has no rooms table.', true); return false; }
+  for (const [n, on] of Object.entries(changes)) {
+    const p = 2 * +n + 1;
+    if (p >= b.length) continue;
+    b[p] = on ? (b[p] | 1) : (b[p] & ~1);
+  }
+  const ok = applyResourceEdit(0xF00E, b);
+  if (ok) setStatus('The rooms entered rewritten.');
+  return ok;
+}
+function applyRoomsForm() {
+  const b = saveSegment(0xF00E), changes = {};
+  if (!b) return;
+  for (let n = 0; n < b.length >> 1; n++) { const el = document.getElementById('rm-' + n); if (el) changes[n] = !!el.checked; }
+  writeRoomsEntered(changes);
+}
+
+/* The To Do list. */
+const TODO_EMPTY = [0, 0, 0, 0, 0x50, 0x00, 0xFF, 0xFF];
+function todoEntries() {
+  const b = saveSegment(0x0401);
+  if (!b) return null;
+  const out = [];
+  for (let s = 0; s < b.length >> 3; s++) {
+    const p = s * 8, ref = u32be(b, p + 4);
+    if (ref === 0x5000FFFF) continue;
+    out.push({ slot: s, struck: b[p] !== 0, day: u16be(b, p + 2), ref, resid: ref & 0xFFFF, line: (ref >>> 16) & 0x0FFF });
+  }
+  return out;
+}
+function todoHTML(words) {
+  const live = todoEntries();
+  if (!live) return '';
+  const lines = new Map(words ? words.todo.lines : []);
+  const lineText = (resid, line) => (words && resid === words.todo.textResid && lines.has(line)) ? lines.get(line) : 'line ' + line + ' of 0x' + resid.toString(16).toUpperCase();
+  let h = '<h4 class="saveH4">The To Do list</h4><div class="saveNote">0x0401, one entry for each of 256 slots: the line, whether it is struck off, and the day it went on the list.</div>';
+  if (live.length)
+    h += '<div class="tableScroll"><table class="forkTable"><thead><tr><th class="num">slot</th><th>line</th><th class="num">day</th><th></th></tr></thead><tbody>' +
+      live.map(e => '<tr><td class="num">' + e.slot + '</td><td>' + (e.struck ? '<s>' : '') + svEsc(lineText(e.resid, e.line)) + (e.struck ? '</s>' : '') + '</td>' +
+        '<td class="num">' + e.day + '</td><td>' + actionChip(e.struck ? 'Reopen' : 'Strike off', 'setTodoStruck(' + e.slot + ',' + !e.struck + ')') +
+        actionChip('Remove', 'removeTodoEntry(' + e.slot + ')') + '</td></tr>').join('') + '</tbody></table></div>';
+  else h += '<div class="saveNote">The list is empty.</div>';
+  if (words && words.todo.textResid !== null && words.todo.pairs.length) {
+    h += '<div class="propEdit"><label>add <select id="todo-add">' +
+      words.todo.pairs.map(p => '<option value="' + p.slot + ':' + p.line + '">' + svEsc('slot ' + p.slot + ': ' + (lines.get(p.line) || 'line ' + p.line)) + '</option>').join('') +
+      '</select></label>' + actionChip('Add', 'addTodoFromForm()') + '</div>' +
+      '<div class="inspDim">The lines offered are the ones some script adds, in the slot it adds them to. A slot that already holds a line takes the new wording and keeps its day and its struck-off mark, which is what the game does.</div>';
+  }
+  return h;
+}
+function writeTodoEntry(slot, fn) {
+  const b = saveSegment(0x0401);
+  if (!b || slot < 0 || slot * 8 + 8 > b.length) { setStatus('This file has no such To Do slot.', true); return false; }
+  fn(b, slot * 8);
+  return applyResourceEdit(0x0401, b);
+}
+function setTodoStruck(slot, struck) {
+  if (writeTodoEntry(slot, (b, p) => { b[p] = struck ? 1 : 0; })) setStatus('To Do slot ' + slot + (struck ? ' struck off.' : ' reopened.'));
+}
+function removeTodoEntry(slot) {
+  if (writeTodoEntry(slot, (b, p) => b.set(TODO_EMPTY, p))) setStatus('To Do slot ' + slot + ' emptied.');
+}
+function addTodoLine(slot, line, textResid) {
+  const q = saveCharBlock();
+  const day = q ? u16be(q, 84) : 1;
+  const ref = (0x30000000 | ((line & 0x0FFF) << 16) | (textResid & 0xFFFF)) >>> 0;
+  return writeTodoEntry(slot, (b, p) => {
+    if (u32be(b, p + 4) === 0x5000FFFF) { b[p] = 0; b[p + 1] = 0; b[p + 2] = (day >> 8) & 0xFF; b[p + 3] = day & 0xFF; }
+    b[p + 4] = ref >>> 24; b[p + 5] = (ref >> 16) & 0xFF; b[p + 6] = (ref >> 8) & 0xFF; b[p + 7] = ref & 0xFF;
+  });
+}
+function addTodoFromForm() {
+  const el = document.getElementById('todo-add'), w = saveWords();
+  if (!el || !w || w.todo.textResid === null) return;
+  const [slot, line] = el.value.split(':').map(Number);
+  if (addTodoLine(slot, line, w.todo.textResid)) setStatus('Line ' + line + ' added to To Do slot ' + slot + '.');
+}
+
+/* Giving a character a thing. */
+function giveListFor(index) {
+  const rec = loadCharacterTable()[index];
+  return rec && rec.zone && getResourceBytes(ARCHIVE, 0x8100 | rec.zone) ? 0x8100 | rec.zone : null;
+}
+function giveFormHTML(index) {
+  const rid = giveListFor(index);
+  if (!rid) return '<div class="inspDim">Nothing can be given here: the character stands in no zone whose prop list this file holds.</div>';
+  const f = (id, label, val, size) => '<label>' + label + ' <input id="gv-' + index + '-' + id + '" value="' + val + '" size="' + size + '" spellcheck="false"></label>';
+  return '<div class="propEdit"><b>Give</b> ' + f('pt', 'prop type', '', 5) + f('aspect', 'aspect', 0, 3) + f('d3', 'data 0x', '0000', 5) +
+    '<label>as <select id="gv-' + index + '-kind"><option value="16">a thing carried</option><option value="28">a skill or spell</option></select></label>' +
+    '<button class="sv-chip" onclick="applyGiveForm(' + index + ')">Give</button>' +
+    '<div class="inspDim">A record is added to the end of 0x' + rid.toString(16).toUpperCase() + ', the prop list of the zone they stand in, held by them. ' +
+    'A skill or spell is a record of the same shape whose prop type is the skill’s number and whose aspect is its level.</div></div>';
+}
+function giveToCharacter(index, fields) {
+  const rid = giveListFor(index);
+  if (!rid) { setStatus('Nothing can be given: the character stands in no zone whose prop list this file holds.', true); return false; }
+  const records = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, rid), rid).data);
+  records.push({ flags: fields.flags, x: 0, y: index, aspect: fields.aspect & 0x1F, rotated: 0, proptype: fields.proptype,
+                 d3: fields.d3 || 0, storeref: 0, tail: '000000000000' });
+  const ok = applyResourceEdit(rid, writeDelverPropList(records));
+  if (ok) setStatus('Prop type ' + fields.proptype + ' given to ' + characterName(index) + ', record ' + (records.length - 1) + ' of 0x' + rid.toString(16).toUpperCase() + '.');
+  return ok;
+}
+function applyGiveForm(index) {
+  const get = id => document.getElementById('gv-' + index + '-' + id);
+  const pt = parseInt(get('pt').value, 10), aspect = parseInt(get('aspect').value, 10), d3 = parseInt(get('d3').value, 16), flags = parseInt(get('kind').value, 10);
+  if (!Number.isInteger(pt) || pt < 1 || pt > 0x3FF) { setStatus('A prop type is a number from 1 to 1023; nothing given.', true); return; }
+  if (!Number.isInteger(aspect) || aspect < 0 || aspect > 31) { setStatus('An aspect is a number from 0 to 31; nothing given.', true); return; }
+  if (!Number.isInteger(d3) || d3 < 0 || d3 > 0xFFFF) { setStatus('Bad data word; nothing given.', true); return; }
+  window.SAVE_EDIT_OPEN = index;
+  giveToCharacter(index, { proptype: pt, aspect, d3, flags });
 }
 
 function renderDataForkSheet() {

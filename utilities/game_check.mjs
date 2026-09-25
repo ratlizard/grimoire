@@ -84,6 +84,17 @@ const heroProp = () => ctx.parseDelverPropList(ctx.smartDecrypt(ctx.getResourceB
 const propBefore = heroProp();
 if (!propBefore || propBefore.x !== 29 || propBefore.y !== 27) fail(`the hero's prop record is not at (29, 27): ${JSON.stringify(propBefore && {x: propBefore.x, y: propBefore.y})}`);
 if (!ctx.applyCharacterRecordEdit(1, {y: 26, training: wantTraining})) fail('the page refused the character record edit');
+/* The rest of the save's forms ride in the same run (25 September 2026): a
+   quest value and a quest flag no script touches in this state, a room
+   switch, a thing given to the hero and a To Do line. The game loads each
+   into its own globals and writes them back from there on the save, so
+   each has to come back; the control must come back without them. What this
+   cannot prove is that a To Do line other than 0 DRAWS as its text: the
+   game echoes the entry whatever it points at. */
+if (!ctx.writeQuestState({5: 3}, {77: true})) fail('the page refused the quest state edit');
+if (!ctx.writeRoomsEntered({4: true})) fail('the page refused the rooms edit');
+if (!ctx.giveToCharacter(1, {proptype: 66, aspect: 0, d3: 0x300, flags: 0x10})) fail('the page refused to give the hero a thing');
+if (!ctx.addTodoLine(10, 114, 0x021A)) fail('the page refused the To Do line');
 const edited = peek('ARCHIVE.bytes');
 const after = hero(), propAfter = heroProp();
 if (after.y !== 26 || after.training !== wantTraining || propAfter.y !== 26) fail('the edits did not reach the rebuilt file: ' + JSON.stringify({after, propAfter}));
@@ -108,9 +119,16 @@ function run(label, dataFork) {
   const opened = /FSpOpenDF\("Bellerophon"/.test(log), completed = /complete frontend_ticks=1800/.test(log);
   const written = new Uint8Array(readFileSync(join(STORE, 'data.fork')));
   const same = written.length === dataFork.length && written.every((b, i) => b === dataFork[i]);
-  let read = null;
-  try { const arc = ctx.openDelverArchive(written); read = ctx.parseDelverCharacterRecords(ctx.smartDecrypt(ctx.getResourceBytes(arc, 0xF009), 0xF009).data)[1]; } catch (e) { fail(`${label}: the file the game wrote does not parse: ` + e.message); }
-  return {opened, completed, same, read, log: join(PLAY, label + '.log')};
+  let read = null, rest = null;
+  try {
+    const arc = ctx.openDelverArchive(written);
+    read = ctx.parseDelverCharacterRecords(ctx.smartDecrypt(ctx.getResourceBytes(arc, 0xF009), 0xF009).data)[1];
+    const seg = rid => ctx.smartDecrypt(ctx.getResourceBytes(arc, rid), rid).data;
+    const q = ctx.saveQuestState(ctx.delverArchiveSpec(written)), rooms = seg(0xF00E), todo = seg(0x0401);
+    const given = ctx.parseDelverPropList(seg(0x8128)).filter(r => r.flags === 0x10 && r.carriedBy === 1 && r.proptype === 66 && r.d3 === 0x300).length;
+    rest = {value5: q.values[5], flag77: q.flags[77], room4: rooms[9] & 1, given, todo10: Array.from(todo.subarray(84, 88)).map(b => b.toString(16).padStart(2, '0')).join('')};
+  } catch (e) { fail(`${label}: the file the game wrote does not parse: ` + e.message); }
+  return {opened, completed, same, read, rest, log: join(PLAY, label + '.log')};
 }
 
 const control = run('control', seedBytes);
@@ -124,6 +142,12 @@ if (control.read && (control.read.x !== 29 || control.read.y !== 27 || control.r
   fail(`control: the unedited seed came back changed: (${control.read.x}, ${control.read.y}), training ${control.read.training}`);
 if (trial.read && (trial.read.x !== 29 || trial.read.y !== 26 || trial.read.training !== wantTraining))
   fail(`edited: the game did not keep the edit: (${trial.read.x}, ${trial.read.y}), training ${trial.read.training}; wanted (29, 26), training ${wantTraining}`);
+const WANT = {value5: 3, flag77: true, room4: 1, given: 1, todo10: '3072021a'};
+if (control.rest && (control.rest.value5 || control.rest.flag77 || control.rest.room4 || control.rest.given || control.rest.todo10 !== '5000ffff'))
+  fail('control: the unedited seed came back with a quest value, flag, room, gift or To Do line it never had: ' + JSON.stringify(control.rest));
+if (trial.rest && JSON.stringify(trial.rest) !== JSON.stringify(WANT))
+  fail('edited: the game did not keep the quest value, flag, room, gift and To Do line: ' + JSON.stringify(trial.rest) + ', wanted ' + JSON.stringify(WANT));
+if (!failures) console.log('  and it kept quest value 5 at 3, flag 77, room 4 entered, the thing given and To Do line 114 in slot 10; the control has none of them');
 if (!failures) console.log(`  the game loaded the edited save and saved it back: hero at (${trial.read.x}, ${trial.read.y}) with ${trial.read.training} training points, from (${before.x}, ${before.y}) and ${before.training}; the unedited seed came back as itself`);
 console.log(failures ? `\nFAIL — ${failures} problem(s)` : `\ngame: the game accepts a save the page edited; hero moved to (${trial.read.x}, ${trial.read.y}), training ${before.training} to ${trial.read.training}, and the control kept (${control.read.x}, ${control.read.y})`);
 process.exit(failures ? 1 : 0);

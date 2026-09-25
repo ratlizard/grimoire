@@ -772,7 +772,11 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     const arc = openDelverArchive(bytes);
     if (!arc) throw new Error('no master index: the (offset,length) pair at 0x80 does not describe one');
     // The file that was open stays open, whole, until the new one has parsed:
-    // a failure above leaves the page on the archive it had.
+    // a failure above leaves the page on the archive it had. A save replacing
+    // the scenario takes the scenario's words for its forms first, while the
+    // scenario is still what every reader reads (keepScenarioSaveWords).
+    if (savedAs && meta.via !== 'edit' && ARCHIVE && ARCHIVE.bytes && !(ARCHIVE.bytes[0x20] >= 1 && ARCHIVE.bytes[0x20] <= 31))
+      keepScenarioSaveWords();
     ARCHIVE = arc;
     const masterIndex = arc.index;
     dvmSetResourceSymbols(loadResourceSymbols(arc));

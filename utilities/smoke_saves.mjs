@@ -92,6 +92,42 @@ if (savePath && !onlyCat) {
                          'a three-field edit through the rebuild, and a full stomach');
       }
     }
+    /* The rest of a save's forms (25 September 2026). The words come from
+       the scenario this run opened first, kept as the save replaced it; the
+       quest flags are read back through saveQuestState, which the map's day
+       also reads, so a writer that put a flag in the wrong bit would come back
+       as a different flag here. I.M.Cheater sets quest flag 0 and holds To Do
+       slot 0, line 0. */
+    try {
+      const w = ctx.SCENARIO_SAVE_WORDS;
+      if (!w || !w.rooms.length || !w.todo.pairs.length || !Object.keys(w.flags.reads).length)
+        fail('save forms', 'the scenario\u2019s words were not kept when the save replaced it');
+      ctx.renderSaveSheet();
+      const sh = REGISTRY.get('sheetGrid').innerHTML || '';
+      for (const t of ['Quest values and flags', 'Rooms entered', 'The To Do list', 'Cure Alaric'])
+        if (!sh.includes(t)) fail('save forms', 'the sheet does not show ' + t);
+      if (!/id="qf-0" checked/.test(sh)) fail('save forms', 'quest flag 0 is not shown set');
+      const qs = () => ctx.saveQuestState(ctx.delverArchiveSpec(peek('ARCHIVE.bytes')));
+      ctx.writeQuestState({ 5: 3 }, { 0: false, 77: true, 200: true });
+      const q = qs(), set = q.flags.map((f, i) => f ? i : -1).filter(i => i >= 0).join(',');
+      if (set !== '77,200' || q.values[5] !== 3) fail('save forms', 'the quest block came back as flags ' + set + ', value 5 ' + q.values[5]);
+      ctx.writeRoomsEntered({ 2: true });
+      if (!(ctx.saveSegment(0xF00E)[5] & 1)) fail('save forms', 'room 2 is not entered after the edit');
+      ctx.addTodoLine(10, 114, w.todo.textResid); ctx.setTodoStruck(0, true);
+      const td = ctx.todoEntries(), e10 = td.find(e => e.slot === 10), e0 = td.find(e => e.slot === 0);
+      if (!e10 || e10.ref !== 0x3072021A || e10.struck || !e0 || !e0.struck)
+        fail('save forms', 'the To Do list came back as ' + JSON.stringify(td));
+      ctx.renderSaveSheet();
+      if (!/Ask Thuria about Iron Mine/.test(REGISTRY.get('sheetGrid').innerHTML || '')) fail('save forms', 'line 114 is not shown by its text');
+      const hero = ctx.loadCharacterTable()[1], rid = 0x8100 | hero.zone;
+      const n0 = ctx.parseDelverPropList(ctx.smartDecrypt(ctx.getResourceBytes(A(), rid), rid).data).length;
+      ctx.giveToCharacter(1, { proptype: 66, aspect: 0, d3: 0x300, flags: 0x10 });
+      const recs = ctx.parseDelverPropList(ctx.smartDecrypt(ctx.getResourceBytes(A(), rid), rid).data), last = recs[recs.length - 1];
+      if (recs.length !== n0 + 1 || last.carriedBy !== 1 || last.flags !== 0x10 || last.proptype !== 66 || last.d3 !== 0x300)
+        fail('save forms', 'the thing given came back as ' + JSON.stringify(last));
+      else console.log('  save forms: the scenario\u2019s words kept, quest flags 77 and 200 and value 5 through the Char block, room 2 entered, ' +
+                       'To Do line 114 in slot 10 shown by its text, and prop type 66 given to the hero');
+    } catch (e) { fail('save forms', e); }
     // Back to the game archive, and the identity goes back with it. With no
     // hash to carry a view across, the landing is the default one.
     ctx.location.hash = '';
