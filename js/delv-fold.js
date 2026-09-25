@@ -215,7 +215,7 @@ function dvmFoldValue(n, ctx) {
   if (ctx && ctx.say && n.mn === 'global') return dvmSayName(dvmPlainName(bare));
   if (ctx && ctx.say && ctx.subst && (n.mn === 'arg' || n.mn === 'local') && ctx.subst.has(bare)) return ctx.subst.get(bare);
   if (ctx && ctx.say && ctx.self && n.mn === 'arg' && bare === ctx.self) return 'it';
-  if (ctx && ctx.say && ctx.target && n.mn === 'arg' && bare === ctx.target) return 'the target';
+  if (ctx && ctx.say && ctx.target && n.mn === 'arg' && bare === ctx.target) return ctx.targetName || 'the target';
   switch (n.mn) {
     case 'local': case 'arg': return bare;
     case 'byte': case 'short': case 'word': {
@@ -1703,7 +1703,7 @@ function dvmSayOperator(n, args, ctx) {
 function dvmSayOwner(x) {
   // A cast changes what the engine checks, not whose field it is.
   const y = String(x).replace(/ as [a-z ]+$/, '');
-  return y === 'it' ? 'its ' : /^\w+$|^the target$|^[A-Z][\w' -]* \(\d+\)$/.test(y) ? y + '’s ' : '(' + y + ')’s ';
+  return y === 'it' ? 'its ' : /^\w+$|^the (target|signal|wearer)$|^[A-Z][\w' -]* \(\d+\)$/.test(y) ? y + '’s ' : '(' + y + ')’s ';
 }
 /* A helper that is only a few settings of its own locals and one return --
    `Var00 = Character(Arg00); return (Var00.bit_flags & 64)` -- is said by
@@ -1982,7 +1982,7 @@ function dvmSayStatement(n, ctx) {
     case 'string(implicit)': return 'print ' + dvmBareOperand(n.arg);
     case 'set_local': {
       let lhs = dvmSlotName(bare) || 'local ' + bare;
-      if (lhs === ctx.self) lhs = 'it'; else if (lhs === ctx.target) lhs = 'the target';
+      if (lhs === ctx.self) lhs = 'it'; else if (lhs === ctx.target) lhs = ctx.targetName || 'the target';
       return 'set ' + lhs + ' to ' + (g[0] || '');
     }
     case 'set_global': return 'set ' + dvmSayName(bare) + ' to ' + (g[0] || '');
@@ -2204,13 +2204,23 @@ function dvmReadRender(arc, b, resid, opts) {
        by that address's class. So in a method Arg00 is "it". A resource
        that is one function is a helper, called with whatever it is given. */
     const self = slots.has(st) && args.length ? 'Arg00' : null;
-    /* Method 10's second argument is what it is used on: TGameSys::UseOnCommand
+    /* A method's second argument is named where the engine's own calls say
+       what it is, and nowhere else. Method 10, UseOn: TGameSys::UseOnCommand
        (thing, target) calls DoInterp(10, thing, 0x40000000 | target), the
-       second a prop the player chose. Only this method's is named; the
-       others' second arguments are whatever each engine call passes, and
-       are not read. */
-    const target = self && name === DVM_SYM.method['10'] && args.length > 1 ? 'Arg01' : null;
-    const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true, self, target }, extra);
+       second a prop the player chose -- "the target". Method 21, GetMessage:
+       every caller is a signal's sender -- TGameSys::SendSignal passes the
+       signal it was given, TGameViewer::DoTicks, TSpellFX::PassTime and
+       RemoveAllAbility pass 32 and 64, TGremlin::OnSignal passes its own --
+       so it is "the signal". Methods 13 and 14, Wear and UnWear:
+       TGameSys::WieldCommand passes the item and then the character wielding
+       it -- "the wearer". Read off a scan of every call into TInterp::DoInterp
+       by method number on 25 September 2026 (the notes, *The engine's names
+       for a method's second argument*). HasSkill's, Learn's, PutInside's and
+       the rest are whatever each engine call passes and are not named. */
+    const ARG2 = { 10: 'the target', 21: 'the signal', 13: 'the wearer', 14: 'the wearer' };
+    const methodNo = Object.keys(ARG2).find(k => DVM_SYM.method[k] === name);
+    const target = self && methodNo !== undefined && args.length > 1 ? 'Arg01' : null;
+    const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true, self, target, targetName: target ? ARG2[methodNo] : null }, extra);
     const stmts = dvmStatementList(dvmForest(r.ops), st);
     const rec = dvmRecoverStructure(stmts);
     const loops = dvmLoopExits(rec.tree, ctx);
@@ -2229,7 +2239,7 @@ function dvmReadRender(arc, b, resid, opts) {
         if (prev.returns !== undefined && !prev.kids && c.returns !== undefined && !c.kids && !jumped.has(c.at)) { clauses.splice(i, 1); i--; }
       }
     }
-    const said = args.map((a, k) => a === self ? 'it' : a === target ? 'the target' : a);
+    const said = args.map((a, k) => a === self ? 'it' : a === target ? ctx.targetName : a);
     out.push({ at: st, name, args: said, clauses, summary: dvmSaySummary(clauses),
                self: !!self, bad: r.bad || 0, tree: rec.tree, ops: r.ops });
   }
