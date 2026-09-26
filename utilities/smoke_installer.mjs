@@ -89,6 +89,28 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // The alignment's names: the AI's groups by the value each compares.
       else if ((a => !a || ['neutral', 'evil', 'good', 'feral'].some((n, v) => !a.byValue[v] || a.byValue[v].name !== n || !inRoutine(a.byValue[v].at, 'SCombatAIEntry::CalculateObject')))(ctx.exeAlignmentNames()))
         fail('program figures', 'the alignments were misnamed: ' + JSON.stringify(ctx.exeAlignmentNames()));
+      // A unit's flags as the creature moves (exeUnitMoveRules): CanMove's
+      // five rules, unit bits against square bits, and the two tests of the
+      // word through the monster's pointer, each in the routine that holds
+      // it. Then the names on four units, linked; the harpy's 0x0002 said
+      // for what the code does with it and nowhere as flight; and with no
+      // application open the same bits left as numbers.
+      else if ((r => !r || JSON.stringify(r.map(x => [x.kind, x.unit >>> 0, x.square === undefined ? null : x.square >>> 0])) !==
+                  JSON.stringify([['onto', 0x40000008, 0x80000200], ['onto', 0xB, 0x300], ['only', 0x20000000, 0x100], ['off', 0x10000000, 0x40000000],
+                                  ['onto', 0x80, 0x10800], ['steps', 2, null], ['doors', 4, null]]) ||
+                  !r.slice(0, 5).every(x => inRoutine({ exe: x.at }, 'TGameSys::CanMove')) ||
+                  !inRoutine({ exe: r[5].at }, 'TActiveMonster::HandleMove') || !inRoutine({ exe: r[6].at }, 'TActiveMonster::CanMove'))(ctx.exeUnitMoveRules()))
+        fail('program figures', 'the movement rules of a unit’s flags were misread: ' + JSON.stringify(ctx.exeUnitMoveRules()));
+      else if ((() => {
+        const said = f => ctx.monsterFlagsHTML(f).replace(/<[^>]+>/g, '');
+        const harpy = ctx.monsterFlagsHTML(0x00083042);
+        return !/jumpToExeAt\(\d+\)[^>]*>can move onto water or pool</.test(harpy) || !/>sets off nothing it steps on</.test(harpy) || /\bfl(y|ies|ight)\b/.test(harpy) ||
+               !/cannot move onto a rope or fence/.test(said(0x10004000)) || !/moves only onto water, shore or pool/.test(said(0x20001001)) ||
+               !/can move onto a mousehole/.test(said(0x40084040)) || !/immune to fire · can move onto lava/.test(said(0x000200F2));
+      })())
+        fail('program figures', 'a unit’s flags do not say what the program does with them: ' + ctx.monsterFlagsHTML(0x00083042));
+      else if ((h => /water|steps on|jumpToExeAt/.test(h) || !/\+0x83002 \(unidentified\)/.test(h))(withoutApp(() => ctx.monsterFlagsHTML(0x00083042))))
+        fail('program figures', 'with no application open a unit’s flags still name what only the program says: ' + withoutApp(() => ctx.monsterFlagsHTML(0x00083042)));
       // The five 2012 bed measurements, with the program's clock.
       else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
         .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== want))

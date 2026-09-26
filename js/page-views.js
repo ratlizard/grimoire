@@ -1174,11 +1174,11 @@ function renderUsage(resid, subn) {
    (delvmod's rdasm header), confirmed by the same solve: every human and
    animal has it, no undead, construct, spirit or ooze does.
 
-   Three bits remain unnamed. 0x0004 sits on every humanoid (and tracks
-   gandreas's "Body based attack" imperfectly); 0x1000 is bird + harpy +
-   sea monster; 0x2000 is ghost, golem, harpy and the oozes. Do not guess
-   labels for them here -- an unlabeled bit prints as hex below, which is
-   honest.
+   Two bits remain unnamed. 0x1000 is bird + harpy + sea monster; 0x2000 is
+   ghost, golem, harpy and the oozes. Do not guess labels for them here --
+   an unlabeled bit prints as hex below, which is honest. 0x0004, on every
+   humanoid, was a third until 26 September 2026: the program opens doors
+   with it (exeUnitMoveRules, below).
 
    How the engine consumes these is not a guess: the default ResistDamage
    is a script in the archive, at 0x3040 -- default methods live at
@@ -1201,8 +1201,10 @@ function renderUsage(resid, subn) {
    does, and the words say that (the maintainer had the typed names give way
    to the game's; the files name none of these bits). gandreas's list named
    0x0001 swim, 0x0002 fly, 0x0010 sleep and 0x0020 death immunity too, but no
-   script tests those four, so they print as numbers. 0x0100, which the list
-   called resisting non-magical weapons, returns zero damage in 0x3040. */
+   script tests those four. 0x0100, which the list called resisting
+   non-magical weapons, returns zero damage in 0x3040. The program tests
+   0x0001 and 0x0002 as a creature moves, and those names are read out of
+   it (exeUnitMoveRules); 0x0002 turns out not to be flight. */
 const MONSTER_FLAG_NAMES = [
   [0x0040, 'immune to poison'],          // 0x301F, 0x3041
   [0x0080, 'immune to fire'],            // 0x3040: type 0x08 returns 0; 0x301F
@@ -1243,12 +1245,175 @@ function monsterFlagSites() {
   } catch (e) { quiet(e); }
   return (DERIVED.MONSTER_FLAG_SITES = out);
 }
+/* What the program does with a unit's flags as the creature moves, read on
+   26 September 2026, when the maintainer's list asked what gandreas's "Can
+   Fly" does (until then nothing here was to say a creature flies).
+   TActiveMonster::GetMonstAttrs hands TGameSys::CanMove the word at 8 of
+   the unit the monster points to (its field at 4, set from ObjToMonst),
+   with 0x80000000 for a party member and 0x80 from its character, and
+   TGameSys::TryMove passes it through unchanged. The square's word is the
+   attribute words of its tile and of every thing on it ORed together
+   (TViewer::SetStage fills the grid, BuildStageEntry copies a square out).
+   So each place CanMove tests one of the unit's bits beside one of the
+   square's, with a result straight after, is a rule:
+
+   - square, then unit: a unit with the bit may go where the rest may not.
+     Inside the stretch that runs only for a square that blocks (0x200, the
+     bit tilePassable walks by), 0x0001 and 0x0002 get onto water and pools
+     (0x100) and 0x40000000 onto a mousehole (0x80000000); outside it, lava
+     (0x10000 with 0x800, tested whole) is closed to a unit without 0x0080.
+   - unit, then square, then `li 3, 0`: the unit is kept to the squares with
+     the bit (`bf`: 0x20000000, the tentacle and the sea monster, to water,
+     pool and shore) or off them (`bt`: 0x10000000, the child, the gator,
+     the goat, the unicorn and the titan, off rope and fence).
+
+   A rule wanting two of the unit's bits at once (a door, for 0x0C with
+   0x08000000, which no unit carries) has a third test where the result
+   would be and is left out. Two single tests read the word through the
+   monster's own pointer: TActiveMonster::HandleMove, on a square carrying
+   0x800, skips the ground's method for a unit with 0x0002 (StepOn, 31,
+   which no class defines, so the default 0x301F: the swamp, lava, a rune's
+   UseOn), and TActiveMonster::CanMove, when its way is shut, runs a door's
+   Use for a unit with 0x0004. So 0x0002, gandreas's "Can Fly", is water and
+   a step that sets nothing off; nothing in the program is flight.
+
+   The kinds ('onto', 'only', 'off', 'steps', 'doors') are this reading's;
+   the bits, both sides of each rule, and the instructions are read. */
+function exeUnitMoveRules() {
+  if (!appImage()) return null;
+  if (DERIVED.UNIT_MOVE_RULES !== undefined) return DERIVED.UNIT_MOVE_RULES;
+  const out = [];
+  const bits = (mb, me) => { let x = 0; for (let b = mb; b <= me; b++) x |= 1 << (31 - b); return x >>> 0; };
+  try {
+    const ops = exeOpsNamed('TGameSys::CanMove');
+    // The unit's word is the third argument, copied out of r6 at the top;
+    // the square's is the first word of the entry BuildStageEntry fills,
+    // loaded back from the stack slot handed to it in r4.
+    const argAt = exeFind(ops, 0, 16, d => d.mn === 'addi' && d.ra === 6 && d.imm === 0);
+    const bse = ops.findIndex(o => exeCalls(o, 'TViewer::BuildStageEntry'));
+    const slotAt = bse >= 0 ? exeFindBack(ops, bse - 1, 24, d => d.mn === 'addi' && d.rd === 4 && d.ra === 1) : -1;
+    const sqAt = slotAt >= 0 ? exeFind(ops, bse + 1, 8, d => d.mn === 'lwz' && d.ra === 1 && d.d === ops[slotAt].d.imm) : -1;
+    const unitReg = argAt >= 0 ? ops[argAt].d.rd : null, sqReg = sqAt >= 0 ? ops[sqAt].d.rt : null;
+    // A constant built by `lis r, hi` and `addi r, r, lo` just before op i.
+    const constBefore = (i, r) => {
+      const a = ops[i - 2] && ops[i - 2].d, b = ops[i - 1] && ops[i - 1].d;
+      return a && b && a.mn === 'lis' && a.rd === r && b.mn === 'addi' && b.rd === r && b.ra === r ? ((a.imm << 16) + b.imm) >>> 0 : null;
+    };
+    // A bit test at op i: its register and mask, whether the code goes on
+    // when the bits are set, where it starts and the op after its branch.
+    const testAt = i => {
+      const d = ops[i] && ops[i].d; if (!d) return null;
+      let reg = null, mask = null, from = i, br = i + 1, whole = false;
+      if (d.mn === 'rlwinm.' && d.sh === 0) { reg = d.rs; mask = bits(d.mb, d.me); }
+      else if (d.mn === 'andi.') { reg = d.rs; mask = d.imm >>> 0; }
+      else if (d.mn === 'and.') { reg = d.rs; mask = constBefore(i, d.rb); from = i - 2; }
+      else if (d.mn === 'and') {
+        // `and t, reg, c`, `addis 0, t, -hi`, `cmplwi 0, lo`: all of c set.
+        const c = constBefore(i, d.rb), e = ops[i + 1] && ops[i + 1].d, f = ops[i + 2] && ops[i + 2].d;
+        if (c !== null && e && f && e.mn === 'addis' && e.ra === d.ra && f.mn === 'cmplwi' && (((-e.imm << 16) + f.imm) >>> 0) === c) {
+          reg = d.rs; mask = c; from = i - 2; br = i + 3; whole = true;
+        }
+      }
+      const b = ops[br] && ops[br].d;
+      if (mask === null || !b || !b.conditional || b.bi !== 2 || (b.mn !== 'bt' && b.mn !== 'bf')) return null;
+      return { reg, mask, from, at: ops[i].at, next: br + 1, target: ops[br].to, onSet: whole ? b.mn === 'bf' : b.mn === 'bt' };
+    };
+    const result = i => { const d = ops[i] && ops[i].d; return d && d.mn === 'li' && d.rd === 3 ? d.imm : null; };
+    if (unitReg !== null && sqReg !== null) {
+      const tests = [];
+      for (let i = 0; i < ops.length; i++) { const t = testAt(i); if (t && (t.reg === unitReg || t.reg === sqReg)) tests.push(t); }
+      for (let k = 0; k + 1 < tests.length; k++) {
+        const a = tests[k], b = tests[k + 1], res = result(b.next);
+        if (b.from !== a.next || res === null) continue;
+        if (a.reg === sqReg && b.reg === unitReg && a.onSet && ((b.onSet && res === 1) || (!b.onSet && res === 0))) {
+          // The square bits of every stretch this rule sits inside.
+          const within = tests.filter(h => h.reg === sqReg && h.onSet && h.at < a.at && h.target !== null && h.target > a.at)
+                              .reduce((m, h) => (m | h.mask) >>> 0, 0);
+          out.push({ kind: 'onto', unit: b.mask, square: (a.mask | within) >>> 0, only: a.mask, at: b.at });
+        } else if (a.reg === unitReg && b.reg === sqReg && a.onSet && res === 0) {
+          out.push({ kind: b.onSet ? 'off' : 'only', unit: a.mask, square: b.mask, at: a.at });
+        }
+      }
+    }
+    // The two tests of the word through the monster's pointer to its unit:
+    // `lwz u, 4(m)`, `lwz w, 8(u)`, `rlwinm. _, w, 0, b, b`.
+    for (const [name, kind] of [['TActiveMonster::HandleMove', 'steps'], ['TActiveMonster::CanMove', 'doors']]) {
+      const hops = exeOpsNamed(name);
+      for (let i = 0; i + 2 < hops.length; i++) {
+        const a = hops[i].d, b = hops[i + 1].d, c = hops[i + 2].d;
+        if (a && b && c && a.mn === 'lwz' && a.d === 4 && b.mn === 'lwz' && b.d === 8 && b.ra === a.rt &&
+            c.mn === 'rlwinm.' && c.sh === 0 && c.rs === b.rt) out.push({ kind, unit: bits(c.mb, c.me), at: hops[i + 2].at });
+      }
+    }
+  } catch (e) { quiet(e); }
+  return (DERIVED.UNIT_MOVE_RULES = out.length ? out : null);
+}
+// How many squares of all the maps hold each tile.
+function mapTileCensus() {
+  if (DERIVED.MAP_TILE_CENSUS) return DERIVED.MAP_TILE_CENSUS;
+  const n = new Uint32Array(0x2000);
+  for (let k = 0; k < subindexCount(ARCHIVE, 127); k++) {
+    const resid = 0x8000 + k;
+    try {
+      const raw = getResourceBytes(ARCHIVE, resid);
+      if (!raw) continue;
+      let data = smartDecrypt(raw, resid).data, m = parseDelverMap(data);
+      if (!m) { data = decryptResource(raw, resid); m = parseDelverMap(data); }
+      if (!m) continue;
+      for (let s = 0; s < m.width * m.height; s++) n[u16be(data, m.mapDataOffset + 2 * s) & 0x1FFF]++;
+    } catch (e) { quiet(e); }
+  }
+  return (DERIVED.MAP_TILE_CENSUS = n);
+}
+/* The 0xF004 names of the tiles whose attribute words carry all of `bits`:
+   the ones the maps place, most-placed first, or where the maps place none,
+   the art of the things that carry them (the mousehole, rope and fence are
+   things), which then take "a". */
+function tileNamesCarrying(bits) {
+  const attrs = getTileAttributes(ARCHIVE);
+  if (!attrs || !attrs.length) return null;
+  const placed = mapTileCensus(), count = new Map();
+  const has = t => ((attrs[t] & bits) >>> 0) === (bits >>> 0);
+  for (let t = 0; t < attrs.length; t++) if (placed[t] && has(t)) { const nm = terrainNameFor(t); if (nm) count.set(nm, (count.get(nm) || 0) + placed[t]); }
+  const onMaps = count.size > 0;
+  if (!onMaps) for (let t = 0; t < attrs.length; t++) if (has(t)) { const nm = terrainNameFor(t); if (nm && !count.has(nm)) count.set(nm, 1); }
+  if (!count.size) return null;
+  const names = [...count.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+  const list = names.length < 2 ? names[0] : names.slice(0, -1).join(', ') + ' or ' + names[names.length - 1];
+  return onMaps ? list : 'a ' + list;
+}
+/* The names the program's movement rules give a unit's bits, each with the
+   instruction that tests it: [{ mask, name, site }], or none with no
+   application open. A bit the rule reads that no unit carries (0x0008) is
+   named on no page, since only a unit's own bits are looked up. */
+function monsterMoveNames() {
+  if (DERIVED.MONSTER_MOVE_NAMES !== undefined) return DERIVED.MONSTER_MOVE_NAMES;
+  const rules = exeUnitMoveRules(), out = [];
+  for (const r of rules || []) {
+    let name = null;
+    if (r.kind === 'steps') name = 'sets off nothing it steps on';
+    else if (r.kind === 'doors') name = 'opens doors';
+    else {
+      const where = tileNamesCarrying(r.square) || (r.only !== undefined ? tileNamesCarrying(r.only) : null);
+      if (where) name = (r.kind === 'onto' ? 'can move onto ' : r.kind === 'only' ? 'moves only onto ' : 'cannot move onto ') + where;
+    }
+    if (name) out.push({ mask: r.unit, name, site: { v: r.unit, exe: r.at } });
+  }
+  return (DERIVED.MONSTER_MOVE_NAMES = out);
+}
 function monsterFlagsHTML(f) {
   const sites = monsterFlagSites();
-  const bits = [];
-  let rest = f;
+  const named = [];
+  let rest = f >>> 0;
   for (const [bit, name] of MONSTER_FLAG_NAMES)
-    if (f & bit) { const s = sites.get(bit); bits.push(s ? srcNum(s, name) : svEsc(name)); rest &= ~bit; }
+    if (f & bit) { const s = sites.get(bit); named.push({ low: bit, html: s ? srcNum(s, name) : svEsc(name) }); rest = (rest & ~bit) >>> 0; }
+  // The program's names only with the program open: without it the bits
+  // stay numbers, as a figure that is not read drops its sentence.
+  if (appImage())
+    for (const m of monsterMoveNames())
+      if (f & m.mask) { named.push({ low: (f & m.mask & -(f & m.mask)) >>> 0, html: srcNum(m.site, m.name) }); rest = (rest & ~m.mask) >>> 0; }
+  named.sort((a, b) => a.low - b.low);
+  const bits = named.map(x => x.html);
   if (rest) bits.push('+0x' + rest.toString(16).toUpperCase() + ' (unidentified)');
   return bits.length ? bits.join(' · ') : 'none set';
 }
@@ -1429,7 +1594,7 @@ function showMonsterDetail(idx) {
     '<div><b>Special flags</b>' + srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' },
       '0x' + r.flags.toString(16).toUpperCase().padStart(8, '0')) +
       ' <span style="font-size:0.6875rem;color:#b5b2a8">' + monsterFlagsHTML(r.flags) + '</span>' +
-      '<br><span style="font-size:0.6875rem;color:#8c8980">A linked flag opens the line of the default ResistDamage that tests it; the rest are named from gandreas’s list and tested elsewhere. The flags are ' +
+      '<br><span style="font-size:0.6875rem;color:#8c8980">A linked flag opens the line that tests it: in the default ResistDamage, or in the program for how the creature moves. The rest are named from what the scripts do with them. The flags are ' +
       srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' }, 'the word at byte 8') +
       (mf && fieldAt(8) ? ', which ' + srcNum({ exe: fieldAt(8).at }, 'the field that reads them') + ' takes whole' : '') + '.</span></div>' +
     '</div>';
