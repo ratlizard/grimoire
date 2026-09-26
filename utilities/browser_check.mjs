@@ -213,10 +213,50 @@ const quietOnes = c => c.filter(l => l.level === 'warning' && /^quietly:/.test(l
 }
 
 // ---- 2. the archive opens over HTTP --------------------------------------
-let opened = 'no archive given';
+/* With the archive open, the Seldane rasteriser against a face whose answer
+   is known: each strike written as a TrueType by the panel's own export
+   (nfntToTrueType, one pixel to 64 units), loaded as a FontFace, and drawn
+   back into the strike by rebuildStrike. A faithful rasteriser gives the
+   strike back: the same metrics, location table, offset/width table and
+   every bit inside the glyph columns. Not the same bytes: both shipped
+   strikes carry some sixty lit bits in the row padding past their last
+   glyph, which nothing reads and a rewrite writes as zero. This is the only
+   harness with real fonts, which is why it is here. Added 26 September 2026,
+   when it was the control that showed the rasteriser drew every letter two
+   thirds of its height and a column to the left; the control below, the
+   sizing it replaced, must fail, or the check could not tell. */
+const SELDANE_ROUND_TRIP = `(async () => { try {
+  const fork = window.CYTHERA_RSRC; const strikes = seldaneStrikes() || [];
+  const bits = (s, y, x) => (s.strike[y * s.rowWords * 2 + (x >> 3)] >> (7 - (x & 7))) & 1;
+  const whole = (a, b) => {
+    for (const k of ['firstChar', 'lastChar', 'widMax', 'kernMax', 'nDescent', 'fRectWidth', 'fRectHeight', 'ascent', 'descent', 'leading'])
+      if (a[k] !== b[k]) return k + ' ' + b[k] + ' for ' + a[k];
+    if (a.loc.join() !== b.loc.join()) return 'the location table';
+    if (a.ow.join() !== b.ow.join()) return 'the offset/width table';
+    const end = a.loc[a.nGlyphs];
+    for (let y = 0; y < a.fRectHeight; y++) for (let x = 0; x < end; x++) if (bits(a, y, x) !== bits(b, y, x)) return 'the bit at (' + x + ', ' + y + ')';
+    return '';
+  };
+  const out = [];
+  for (const e of strikes) {
+    const spec = nfntSpec(fork.dataOf('NFNT', e));
+    const fam = 'RoundTrip' + e.id;
+    const ttf = nfntToTrueType(spec, { family: fam });
+    const bytes = ttf instanceof Uint8Array ? ttf : new Uint8Array(await ttf.arrayBuffer());
+    const face = new FontFace(fam, bytes.slice().buffer); await face.load(); document.fonts.add(face);
+    const why = whole(spec, nfntSpec(writeNFNT(rebuildStrike(spec, fam))));
+    const keep = strikeFit; strikeFit = s => ({ px: s.fRectHeight - s.descent, base: s.ascent });
+    let control; try { control = !whole(spec, nfntSpec(writeNFNT(rebuildStrike(spec, fam)))); } finally { strikeFit = keep; }
+    let letters = 0; for (let i = 0; i < spec.nGlyphs - 1; i++) if (spec.loc[i + 1] > spec.loc[i]) letters++;
+    out.push({ id: e.id, same: !why, why, control, letters });
+  }
+  return { strikes: out };
+} catch (e) { return { error: e.message }; } })()`;
+let opened = 'no archive given', seldane = 'not run';
 if (archive && existsSync(resolve(ROOT, archive))) {
   const r = await load(base + indexPage + '?cache=skip&loud=1&src=' + encodeURIComponent(archive),
-    '/^(Title: |Archive error)/.test(document.getElementById("output").textContent) || document.getElementById("sourceStatus").classList.contains("failed")', 90000);
+    '/^(Title: |Archive error)/.test(document.getElementById("output").textContent) || document.getElementById("sourceStatus").classList.contains("failed")', 90000,
+    { then: ({evaluate}) => evaluate(SELDANE_ROUND_TRIP) });
   const errs = errors(r.console), quiet = quietOnes(r.console);
   const title = text((/id="output"[^>]*>([\s\S]*?)<\/pre>/.exec(r.dom) || ['', ''])[1]).trim();
   const status = text((/id="sourceStatus"[^>]*>([\s\S]*?)<\/(?:pre|div|span)>/.exec(r.dom) || ['', ''])[1]).trim();
@@ -224,7 +264,13 @@ if (archive && existsSync(resolve(ROOT, archive))) {
   else if (!/^Title: /.test(title)) fail('archive over http', 'the page did not open the archive' + (r.met ? '' : ' in 90 s') + ': output says "' + title.slice(0, 100) + '"; status: ' + status.slice(0, 160));
   else if (!/id="atlasPanel" style="display: (block|flex|grid)/.test(r.dom))
     fail('archive over http', 'the world did not come up after the archive opened: ' + (r.dom.match(/id="atlasPanel"[^>]*/) || ['no atlas panel'])[0]);
+  else if (!r.more || r.more.error) fail('seldane round trip', 'it did not run: ' + (r.more ? r.more.error : 'no result'));
+  else if (!r.more.strikes.length) fail('seldane round trip', 'the fork has no NFNT to rewrite');
+  else if (r.more.strikes.some(t => !t.same)) fail('seldane round trip', 'a strike rewritten from its own TrueType is not the strike: ' + r.more.strikes.map(t => t.id + ' ' + t.why).join('; '));
+  else if (r.more.strikes.some(t => t.control)) fail('seldane round trip', 'the control, the sizing this replaced, gave a strike back too, so the check cannot tell');
   else {
+    seldane = 'both Seldane strikes rewritten from their own TrueType come back whole (' + r.more.strikes.map(t => t.letters + ' letters').join(', ') + ') and the old sizing does not';
+    console.log('  ' + seldane);
     opened = `the archive opens over http in ${r.ms} ms (${title.slice(0, 60)}), ${quiet.length} quiet failures on the way`;
     console.log('  ' + opened);
     for (const l of quiet.slice(0, 8)) console.log('    ' + l.text.slice(0, 140));

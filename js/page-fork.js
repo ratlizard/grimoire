@@ -137,8 +137,11 @@ function undoFontSwap() {
 
    Rasterising is the easy half to get wrong, so what it does is stated plainly
    on the panel: each glyph the strike already has an image for is drawn from
-   the chosen font at the strike's own cell height, thresholded to one bit, and
-   packed back in at its measured width. A glyph the strike has no image for
+   the chosen font with its capitals as tall as the strike's letters and its
+   feet where theirs are (strikeFit), thresholded to one bit, and packed back
+   in with the face's own advance and overhang (rebuildStrike). Fed the
+   strike's own TrueType it gives the strike back, which browser_check.mjs
+   holds. A glyph the strike has no image for
    stays without one -- the strike draws 24 letters, with no L and no O
    (at 18 point each has an entry one pixel wide and empty), and its 25th
    image is the missing-character box, carried through as it is; inventing
@@ -158,9 +161,15 @@ function seldaneStrikes() {
 // returned as the set bits of each row. Threshold on alpha: the rasteriser is
 // antialiasing and a bitmap strike has no grey.
 function rasteriseGlyph(ch, family, px, height, ascent) {
-  const pad = 4;
+  // Room on both sides of the pen for ink that overhangs it: the image is
+  // the ink from the leftmost of the pen and its first inked column to its
+  // last inked column, and `left` is where that starts against the pen,
+  // which is what an NFNT's offset records (Seldane's R starts one column
+  // left of it). The advance is the face's own, which may be wider than
+  // the ink.
+  const pad = Math.ceil(px) + 4;
   const c = document.createElement('canvas');
-  c.width = Math.max(1, px * 2 + pad * 2); c.height = height;
+  c.width = Math.max(1, Math.ceil(px) * 3 + pad * 2); c.height = height;
   const ctx = c.getContext('2d');
   if (!ctx) return null;
   ctx.font = px + 'px "' + family + '"';
@@ -170,13 +179,19 @@ function rasteriseGlyph(ch, family, px, height, ascent) {
   ctx.fillStyle = '#000';
   ctx.fillText(ch, pad, ascent);
   const im = ctx.getImageData(0, 0, c.width, c.height);
+  const on = (x, y) => im.data[(y * c.width + x) * 4 + 3] > 128;
+  let lo = c.width, hi = -1;
+  for (let x = 0; x < c.width; x++)
+    for (let y = 0; y < height; y++) if (on(x, y)) { if (x < lo) lo = x; if (x > hi) hi = x; break; }
+  if (hi < 0) return { rows: [], width: 0, left: 0, advance: adv };
+  const x0 = Math.min(pad, lo), x1 = hi + 1;
   const rows = [];
   for (let y = 0; y < height; y++) {
     const row = [];
-    for (let x = 0; x < adv; x++) row.push(im.data[(y * c.width + (x + pad)) * 4 + 3] > 128 ? 1 : 0);
+    for (let x = x0; x < x1; x++) row.push(on(x, y) ? 1 : 0);
     rows.push(row);
   }
-  return { rows, width: adv };
+  return { rows, width: x1 - x0, left: x0 - pad, advance: adv };
 }
 // One glyph out of the strike as it stands, in the same shape rasteriseGlyph
 // returns, so a slot can be carried through a rewrite untouched.
@@ -192,49 +207,109 @@ function copyStrikeGlyph(spec, i) {
   }
   return { rows, width: w };
 }
+/* How big to draw the chosen face, and where its baseline goes, read off the
+   strike's own letters and the face's own capital. Until 26 September 2026
+   the face was drawn with its em at the cell less the descent (12 and 18
+   px) on the strike's nominal baseline, and that is wrong twice over for
+   Seldane: its letters fill the whole cell, descent rows included (14 and
+   21 rows, feet on the last row), and a face's capitals are some 0.7 of its
+   em, so every letter came out two thirds of the height of the one it
+   replaced and two rows too high. The control was Cythera Guides' own
+   Seldane TrueType, traced from these strikes: drawn the old way it
+   overlapped the strike's letters by 0.14 of their ink, and sized so its
+   capitals matched them, by 0.7 (the workbench's GRIMOIRE-NOTES.md has the
+   sweep). So the size is the letters' median height over the height of
+   the face's capital H per pixel, measured by the canvas, and the baseline
+   is set so that the H's foot lands on the letters' median foot. A face
+   whose H draws nothing falls back to the old sizing. The panel's own
+   TrueType of a strike, fed back in, gives the strike back pixel for pixel
+   (browser_check.mjs holds that). */
+function strikeFit(spec, family) {
+  const n = spec.nGlyphs, heights = [], feet = [];
+  for (let i = 0; i < n - 1; i++) {
+    if (spec.loc[i + 1] - spec.loc[i] <= 0) continue;
+    const g = copyStrikeGlyph(spec, i);
+    let t = -1, b = -1;
+    g.rows.forEach((row, y) => { if (row.some(v => v)) { if (t < 0) t = y; b = y; } });
+    if (t >= 0) { heights.push(b - t + 1); feet.push(b); }
+  }
+  const median = a => a.slice().sort((x, y) => x - y)[a.length >> 1];
+  const old = { px: spec.fRectHeight - spec.descent, base: spec.ascent };
+  if (!heights.length) return old;
+  const c = document.createElement('canvas');
+  const ctx = c.getContext('2d');
+  if (!ctx || !ctx.measureText) return old;
+  ctx.font = '100px "' + family + '"';
+  // The H's whole ink, above the baseline and below it: Seldane's own letters
+  // hang two rows under theirs, so a face made from the strike (the panel's
+  // own TrueType export) would be sized wrong by its ascent alone.
+  const m = ctx.measureText('H');
+  const up = m ? m.actualBoundingBoxAscent : 0, down = (m && m.actualBoundingBoxDescent) || 0;
+  const tall = (up + down) / 100;
+  if (!(up > 0 && tall > 0)) return old;
+  const px = median(heights) / tall;
+  return { px, base: Math.round(median(feet) + 1 - down / 100 * px) };
+}
 function rebuildStrike(spec, family) {
   const n = spec.nGlyphs;
   // Which codes carry an image today. The last index is the missing symbol.
   const had = [];
   for (let i = 0; i < n; i++) had.push(spec.loc[i + 1] - spec.loc[i] > 0);
-  const px = spec.fRectHeight - spec.descent;      // the cell, less the tail
-  const glyphs = [];
+  const fit = strikeFit(spec, family);
+  // Each entry is either drawn from the face (`g`, with its own left and
+  // advance) or carried through as it stands: its image, if it has one,
+  // and its offset/width word. Carried through are the missing symbol, and
+  // every code that has a width and no image -- the tab and the return
+  // (advance 4) and code 98 (advance 1) in both Seldane strikes. Those were
+  // written as 0xFFFF, "no character", until 26 September 2026, which would
+  // have had the game draw its missing box for a tab.
+  const entries = [];
   for (let i = 0; i < n; i++) {
-    if (!had[i]) { glyphs.push(null); continue; }
     // The last index is the missing symbol rather than a character, and
     // firstChar + i is then the code one past lastChar -- 'c' in both Seldane
     // strikes, whose box was being replaced by whatever the chosen face draws
     // for a lowercase c. It is carried through as it stands.
-    if (i === n - 1) { glyphs.push(copyStrikeGlyph(spec, i)); continue; }
-    const code = spec.firstChar + i;
-    const g = rasteriseGlyph(String.fromCharCode(code), family, px, spec.fRectHeight, spec.ascent);
-    glyphs.push(g && g.width > 0 ? g : null);
+    if (!had[i] || i === n - 1) { entries.push({ keep: spec.ow[i], img: had[i] ? copyStrikeGlyph(spec, i) : null }); continue; }
+    const g = rasteriseGlyph(String.fromCharCode(spec.firstChar + i), family, fit.px, spec.fRectHeight, fit.base);
+    entries.push(g && g.width > 0 ? { g, img: g } : { keep: spec.ow[i], img: copyStrikeGlyph(spec, i) });
   }
+  /* The offset is counted from kernMax: an image starts at the pen plus
+     kernMax plus the offset. Both strikes have kernMax -1 and an offset of 1
+     on an ordinary letter, and every drawn letter was written with offset 0,
+     so each came out one column left of its pen. kernMax is lowered if a
+     drawn letter overhangs further left than the strike's own, and the
+     entries carried through keep their place by the same amount. */
+  let kernMax = spec.kernMax;
+  for (const e of entries) if (e.g && e.g.left < kernMax) kernMax = e.g.left;
+  const shift = spec.kernMax - kernMax;
   let total = 0;
-  for (const g of glyphs) total += g ? g.width : 0;
+  for (const e of entries) total += e.img ? e.img.width : 0;
   const rowWords = Math.max(1, Math.ceil(total / 16));
   const rowBytes = rowWords * 2;
   const strike = new Uint8Array(rowBytes * spec.fRectHeight);
   const loc = [], ow = [];
-  let x = 0, widMax = 0;
-  for (let i = 0; i < n; i++) {
+  let x = 0, widMax = 0, rectMax = 0;
+  for (const e of entries) {
     loc.push(x);
-    const g = glyphs[i];
-    if (!g) { ow.push(0xFFFF); continue; }         // no image, and none claimed
-    for (let y = 0; y < spec.fRectHeight; y++)
-      for (let k = 0; k < g.width; k++)
-        if (g.rows[y][k]) strike[y * rowBytes + ((x + k) >> 3)] |= 0x80 >> ((x + k) & 7);
-    ow.push((0 << 8) | Math.min(255, g.width));    // no left bearing, the measured width
-    if (g.width > widMax) widMax = g.width;
-    x += g.width;
+    const img = e.img;
+    if (img) for (let y = 0; y < spec.fRectHeight; y++)
+      for (let k = 0; k < img.width; k++)
+        if (img.rows[y][k]) strike[y * rowBytes + ((x + k) >> 3)] |= 0x80 >> ((x + k) & 7);
+    let word;
+    if (e.g) word = (Math.min(255, e.g.left - kernMax) << 8) | Math.min(255, e.g.advance);
+    else word = e.keep === 0xFFFF ? 0xFFFF : ((((e.keep >> 8) + shift) & 0xFF) << 8) | (e.keep & 0xFF);
+    ow.push(word);
+    if (word !== 0xFFFF && (word & 0xFF) > widMax) widMax = word & 0xFF;
+    if (img && img.width > rectMax) rectMax = img.width;
+    x += img ? img.width : 0;
   }
   loc.push(x);                                      // the sentinel
   const strikeBytes = strike.length;
   const owOff = 26 + strikeBytes + (loc.length) * 2;
   return Object.assign({}, spec, {
-    strike, strikeBytes, rowWords, loc, ow,
+    strike, strikeBytes, rowWords, loc, ow, kernMax,
     widMax: widMax || spec.widMax,
-    fRectWidth: widMax || spec.fRectWidth,
+    fRectWidth: Math.max(widMax, rectMax) || spec.fRectWidth,
     owTLoc: (owOff - 16) / 2,
     owOff, tail: new Uint8Array(0)
   });
@@ -324,7 +399,7 @@ function strikeSwapPanel() {
     (strikes
       ? '<p class="mechLede">Seldane is a bitmap font: ' +
         strikes.map(e => 'NFNT ' + e.id).join(' and ') +
-        ', named by the family record at 12 and 18 point. A TrueType font chosen here is drawn into both strikes at their own cell heights and written into the copy of the file in this browser.</p>' +
+        ', named by the family record at 12 and 18 point. A TrueType font chosen here is drawn into both strikes, its capitals as tall as the letters they replace, and written into the copy of the file in this browser.</p>' +
         '<ul class="ruleList">' +
         '<li>Only the letters the strike already draws are replaced, and the missing-character box is carried through untouched. ' +
         'Seldane draws 24 letters: it has no L and no O at 12 point, and at 18 point it has an entry for each of them one pixel wide and empty.</li>' +
