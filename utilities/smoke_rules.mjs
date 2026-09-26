@@ -791,6 +791,25 @@ try {
   const hatchLink = ctx.atlasEggAt({ resid: 0x8001 }, 137, 9, true);
   const hatch = ctx.atlasEggAt({ resid: 0x8001 }, 137, 9);
   const room = ctx.atlasEggAt({ resid: 0x8001 }, 187, 76);
+  /* Three bits of a hatching egg, as TActiveMonster::HatchEgg reads them
+     (eggDetail's header has the reading). The unicorn's egg at 138,176
+     carries 0x01 with a chance of 1 in 100, and 0x01 makes it certain once
+     it has hatched; the seedpod egg at 148,210 carries 0x04 and holds a
+     thing, whose count 0x04 keeps; and Odemia's night guard at 10,14
+     carries 0x04 too, but a guard is a creature and the bit is not read for
+     one, so its card must not say so. The sea monster's eight tentacles are
+     one record's count, which hatches whole. */
+  const unicorn = ctx.atlasEggAt({ resid: 0x8001 }, 138, 176);
+  const seedpod = ctx.atlasEggAt({ resid: 0x8001 }, 148, 210);
+  const nightGuard = ctx.atlasEggAt({ resid: 0x8002 }, 10, 14);
+  if (!/on 1 visit in 100[^\n]*on every visit once it has hatched/.test(unicorn))
+    fail('world tab', 'the unicorn egg does not say that bit 0x01 makes it certain once hatched: ' + JSON.stringify(unicorn));
+  else if (!/without running out/.test(seedpod))
+    fail('world tab', 'a thing egg with bit 0x04 does not say it keeps its count: ' + JSON.stringify(seedpod));
+  else if (!/hatches guard/.test(nightGuard) || /running out/.test(nightGuard))
+    fail('world tab', 'a creature egg with bit 0x04 says what the bit does for things only: ' + JSON.stringify(nightGuard));
+  else if (!/tentacle ×8/.test(hatch))
+    fail('world tab', 'the sea monster egg does not give the tentacles\' count: ' + JSON.stringify(hatch));
   // Kind 3 is an ambient sound, not "nothing": every one of the hundred
   // carrying sound 6 stands on water, and 0x9106 is named Waves / Seashore
   // Loop in the file. 151,13 is one of them.
@@ -807,7 +826,7 @@ try {
   else if (!(topNearFinger > 30 && topNearFinger < 200)) fail('world tab', 'a card by a finger near the top landed at ' + topNearFinger + ', not below the finger');
   else if (!(topAbove < 400)) fail('world tab', 'a card with room above it went below the finger: top ' + topAbove);
   else if (!/hatches sea monster and tentacle/.test(hatch)) fail('world tab', 'the hatching egg does not say what comes out: ' + JSON.stringify(hatch));
-  else if (!/every time|times? in 100/.test(hatch)) fail('world tab', 'the hatching egg does not say how likely: ' + JSON.stringify(hatch));
+  else if (!/every visit|visits? in 100/.test(hatch)) fail('world tab', 'the hatching egg does not say how likely: ' + JSON.stringify(hatch));
   else if (!/same walled area/.test(hatch)) fail('world tab', 'the hatching egg does not say what sets it off: ' + JSON.stringify(hatch));
   else if (!/a room, room \d+/.test(room)) fail('world tab', 'the room egg stopped reading as a room: ' + JSON.stringify(room));
   else if (!/an ambient sound, [^\n]*sound 6/i.test(surf)) fail('world tab', 'a kind-3 egg is not naming its ambient sound: ' + JSON.stringify(surf));

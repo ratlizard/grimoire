@@ -2081,10 +2081,24 @@ const EGG_KIND_NAMES = [
    hundred rather than never, and 100 is always. Data1 bit 0x10 holds it to
    daylight and 0x20 to the night, the clock being compared against 24576 and
    73728, which at 4096 units an hour are six in the morning and six at night.
-   Bit 0x01 is "only once", done by writing 101 into the chance so no later
-   roll can pass. Bit 0x04 stops the hatched creature being turned to face a
-   random way. Bit 0x08 is set on a few eggs and is read nowhere in the
-   hatching path, so nothing is claimed for it.
+   Bit 0x01 writes 101 into the egg's own chance when it hatches, and since
+   the roll passes at or under the chance, every later roll passes: the egg
+   hatches on every visit after its first. It was read on 12 September 2026
+   as "only once" off the same instruction, which the comparison beside it
+   contradicts; it matters for the four such eggs whose chance is not
+   already 100, the unicorn's, a polyp's and two of wolflizards.
+
+   Bit 0x04 is read on one branch alone. For each record it hatches, the
+   routine asks TInterp::HasProperty for the class's property 55: a class
+   that has it is a creature, made through CreateMonster, taken off the
+   record's count (Data2) and turned to a facing its property 55 picks from
+   a jump table; a class without it is a thing, placed as a plain prop, and
+   there bit 0x04 skips taking it off the count, so the egg makes as many
+   again on its next visit. 63 of the 67 eggs that hold things carry it:
+   the herbs, seedpods, beans, obsidian, sulfur, webs and eggs. It was read
+   on 12 September 2026 as keeping the creature's facing, which is the other
+   branch. Bit 0x08 is set on a few eggs and is read nowhere in the hatching
+   path, so nothing is claimed for it.
 
    An AMBIENT SOUND egg names a sound resource, 0x9100 plus the argument, and
    these are placed by terrain rather than by event: every one of the hundred
@@ -2141,10 +2155,29 @@ function eggDetail(g, allProps, linked) {
        drawn and hatches one only where TGameViewer::InZone says its square
        is in the zone MakeZone made: the open area flood-filled from the
        party's square, walls bounding it. So an egg hatches when the party
-       is in the same walled area as it, rolled again on every draw until
-       it passes. "Hatch" is the program's own word, HatchEgg. */
+       is in the same walled area as it. "Hatch" is the program's own word,
+       HatchEgg.
+
+       It is tried only while its first byte is exactly 0x42. Out of its
+       hours HatchEgg returns and the egg waits, tried again on the next
+       draw; in its hours it rolls, and a miss and a hatch both set 0x80 on
+       that byte, so it is not tried again until ChainFreeProps, which
+       LoadLevelProps runs, turns every 0xC2 back to 0x42 when the zone is
+       next loaded. THood::ResetHood does the same for an egg more than 32
+       squares from the party, but only in a level of 1,536 records or more
+       counting the 256 character slots, which is Cademia alone as shipped;
+       a smaller level's neighbourhood is the whole of it. Hence "visits":
+       the chance is a chance a visit, which the card said was rolled again
+       on every draw until 25 September 2026. The eggs are read in the
+       workbench's save-format.md, which has the addresses.
+
+       A hatch makes the whole of each record's count (its Data2) at once:
+       one of Odemia's chicken eggs six, the sea monster's eight
+       tentacles. Nothing that compares the clock with the eggs' hours
+       removes what hatched, so a creature hatched by day is still there
+       when the night egg beside it hatches at six. */
     const held = containerContents(g, allProps || []);
-    const chance = g.d2 >= 99 ? 'every time' : (g.d2 + 1) + (g.d2 === 0 ? ' time in 100' : ' times in 100');
+    const chance = g.d2 >= 99 ? 'on every visit' : 'on ' + (g.d2 + 1) + (g.d2 === 0 ? ' visit in 100' : ' visits in 100');
     const hrs = exeHatchHours();
     const hour = v => linked ? srcNum(v, clockHourText(v.v)) : svEsc(clockHourText(v.v));
     const when = [];
@@ -2156,19 +2189,25 @@ function eggDetail(g, allProps, linked) {
        kind-0 egg and nothing here knows what it says. Said out loud rather
        than dropped, because a reader comparing two eggs would otherwise see
        them described identically when the file distinguishes them. */
-    if (g.d1 & 0x08) when.push('and a condition at bit 0x08 that is not read here');
-    // "only once" rather than "once": with the chance at always, a bare
-    // "always, once" reads as a contradiction where it means guaranteed the
-    // first time and never after.
-    if (g.d1 & 0x01) when.push('only once');
+    if (g.d1 & 0x08) when.push('with a condition at bit 0x08 that is not read here');
+    // Bit 0x01 makes the chance certain once it has hatched, which says
+    // nothing new where the chance is certain already.
+    if ((g.d1 & 0x01) && g.d2 < 99) when.push('on every visit once it has hatched');
+    // Bit 0x04 is read only for a thing (a class without property 55), and
+    // only an egg holding one with a count to keep is told of it.
+    if ((g.d1 & 0x04) && held.some(h => h.d2 > 0 && !classHasMember(h.proptype, 55)))
+      when.push('without running out');
     // Each creature by name, and in the inspector each one opens its own
-    // page. An egg holding no records says "something" because the file
-    // gives it nothing to hatch, which is worth seeing rather than hiding.
+    // page, with the record's count beside it when it is not one: that many
+    // hatch at once. An egg holding no records says "something" because the
+    // file gives it nothing to hatch, which is worth seeing rather than
+    // hiding.
     const names = held.map(h => one(propDisplayName(h.proptype) || ('prop ' + h.proptype),
-                                    'showItemDetail(' + h.proptype + ')'));
+                                    'showItemDetail(' + h.proptype + ')') +
+                                (h.d2 !== 1 ? svEsc(' ×' + h.d2) : ''));
     return 'hatches ' + (names.length ? names.join(' and ') : 'something') +
            ' when the party is in the same walled area, ' + svEsc(chance) +
-           (when.length ? ', ' + when.join(' and ') : '');
+           (when.length ? ', ' + when.join(', ') : '');
   }
   if (g.aspect === 1) {
     // A way somewhere: name where it lands rather than the number alone.
