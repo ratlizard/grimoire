@@ -2138,6 +2138,28 @@ function exeHatchHours() {
   } catch (e) { quiet(e); }
   return (DERIVED.HATCH_HOURS = out);
 }
+/* How near an egg must be to be tried, off TViewer::SetStage: an armed
+   egg that is not kind 10 joins the viewer's list only if it lies within a
+   window of so many squares each side of the stage's centre, which
+   TGameViewer::DrawRoutine passes as the party's square. Tested as a
+   `cmplwi` against 10 for the kind and then an `addi` of minus the reach.
+   The same window re-arms a tried egg that has left it. Null with no
+   application open, and then the card says only "near". */
+function exeEggReach() {
+  if (!appImage()) return null;
+  if (DERIVED.EGG_REACH !== undefined) return DERIVED.EGG_REACH;
+  let out = null;
+  try {
+    const ops = exeOpsNamed('TViewer::SetStage');
+    for (let i = 0; i < ops.length && !out; i++) {
+      const d = ops[i].d;
+      if (!d || d.mn !== 'cmplwi' || d.imm !== 10) continue;
+      const k = exeFind(ops, i + 1, 6, e => e.mn === 'addi' && e.imm < 0);
+      if (k >= 0) out = exeVal(ops[k], -ops[k].d.imm);
+    }
+  } catch (e) { quiet(e); }
+  return (DERIVED.EGG_REACH = out);
+}
 function clockHourText(h) { return h === 0 ? 'midnight' : h === 12 ? 'noon' : (h % 12) + (h < 12 ? ' am' : ' pm'); }
 function eggDetail(g, allProps, linked) {
   const k = EGG_KIND_NAMES[g.aspect];
@@ -2151,25 +2173,36 @@ function eggDetail(g, allProps, linked) {
   if (g.aspect === 0) {
     /* What sets it off, which the line did not say (the maintainer,
        22 September 2026, asking what the trigger is and what night is).
-       TGameViewer::DrawRoutine walks the zone's eggs each time the view is
-       drawn and hatches one only where TGameViewer::InZone says its square
-       is in the zone MakeZone made: the open area flood-filled from the
-       party's square, walls bounding it. So an egg hatches when the party
-       is in the same walled area as it. "Hatch" is the program's own word,
-       HatchEgg.
+       TGameViewer::DrawRoutine calls TViewer::SetStage on each draw, which
+       lists the eggs within 15 squares of the party's square on both axes
+       (exeEggReach reads the 15), and hatches a listed egg only where
+       TGameViewer::InZone says its square is in the area MakeZone made:
+       SeedFill over a bitmap of the map's wall tiles (MakeBitMap sets a
+       square whose tile carries both 0x200 and 0x004 of its attribute
+       word), grown one square all round. MakeZone is called with the
+       party's square when the party comes into the zone (GoToLocation),
+       when a game begins or is loaded (BeginPlay) and when a magic map is
+       drawn (MagicMap, from a script's screen effect or the cheat key), and
+       at no other time; but every tile in the bitmap also carries 0x200,
+       which blocks a step (TGameSys::CanMove), so a party on foot cannot
+       leave the area it was filled in, and in play it is the ground the
+       party can reach on foot with every door counted open. A door placed
+       as a thing is not in the bitmap: Odemia's walls have such doors in
+       all their gaps, and from its barracks the area is the whole map. The
+       card said "in the same walled area" until 26 September 2026, which
+       read as a room. "Hatch" is the program's own word, HatchEgg.
 
        It is tried only while its first byte is exactly 0x42. Out of its
        hours HatchEgg returns and the egg waits, tried again on the next
        draw; in its hours it rolls, and a miss and a hatch both set 0x80 on
-       that byte, so it is not tried again until ChainFreeProps, which
-       LoadLevelProps runs, turns every 0xC2 back to 0x42 when the zone is
-       next loaded. THood::ResetHood does the same for an egg more than 32
-       squares from the party, but only in a level of 1,536 records or more
-       counting the 256 character slots, which is Cademia alone as shipped;
-       a smaller level's neighbourhood is the whole of it. Hence "visits":
-       the chance is a chance a visit, which the card said was rolled again
-       on every draw until 25 September 2026. The eggs are read in the
-       workbench's save-format.md, which has the addresses.
+       that byte. SetStage turns a 0xC2 back to 0x42 once it lies beyond the
+       same 15 squares, ChainFreeProps (from LoadLevelProps) turns every
+       one back when the zone loads, and THood::ResetHood does it for one
+       beyond 32 squares in a level of 1,536 records or more. Hence
+       "visits": the chance is a chance each time the party comes within
+       reach, which the card said was rolled again on every draw until
+       25 September 2026. The eggs are read in the workbench's
+       save-format.md, which has the addresses.
 
        A hatch makes the whole of each record's count (its Data2) at once:
        one of Odemia's chicken eggs six, the sea monster's eight
@@ -2178,7 +2211,7 @@ function eggDetail(g, allProps, linked) {
        when the night egg beside it hatches at six. */
     const held = containerContents(g, allProps || []);
     const chance = g.d2 >= 99 ? 'on every visit' : 'on ' + (g.d2 + 1) + (g.d2 === 0 ? ' visit in 100' : ' visits in 100');
-    const hrs = exeHatchHours();
+    const hrs = exeHatchHours(), reach = exeEggReach();
     const hour = v => linked ? srcNum(v, clockHourText(v.v)) : svEsc(clockHourText(v.v));
     const when = [];
     if (g.d1 & 0x10) when.push(hrs ? 'only between ' + hour(hrs.dawn) + ' and ' + hour(hrs.dusk) : 'by day');
@@ -2206,7 +2239,8 @@ function eggDetail(g, allProps, linked) {
                                     'showItemDetail(' + h.proptype + ')') +
                                 (h.d2 !== 1 ? svEsc(' ×' + h.d2) : ''));
     return 'hatches ' + (names.length ? names.join(' and ') : 'something') +
-           ' when the party is in the same walled area, ' + svEsc(chance) +
+           ' when the party comes ' + (reach ? 'within ' + (linked ? srcNum(reach, String(reach.v)) : svEsc(String(reach.v))) + ' squares of it'
+                                             : 'near it') + ', unless walls cut it off from the party, ' + svEsc(chance) +
            (when.length ? ', ' + when.join(', ') : '');
   }
   if (g.aspect === 1) {

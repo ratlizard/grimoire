@@ -799,6 +799,18 @@ try {
      carries 0x04 too, but a guard is a creature and the bit is not read for
      one, so its card must not say so. The sea monster's eight tentacles are
      one record's count, which hatches whole. */
+  /* How near: TViewer::SetStage lists an egg only within 15 squares of the
+     party's square on both axes (exeEggReach). With the application open
+     the card says the 15 and links it to the instruction; without it the
+     card says "near" and states no figure. Each half fails on its own if
+     the reader stops finding the number or starts guessing one. */
+  const hatchBare = withoutApp(() => ctx.atlasEggAt({ resid: 0x8001 }, 137, 9));
+  if (!/when the party comes within 15 squares of it,/.test(hatch))
+    fail('world tab', 'the hatching egg does not give the reach read off SetStage: ' + JSON.stringify(hatch));
+  else if (!/within <button[^>]*jumpToExeAt\(\d+\)[^>]*>15<\/button> squares/.test(hatchLink))
+    fail('world tab', 'the inspector form of an egg does not link its reach to the instruction: ' + JSON.stringify(hatchLink));
+  else if (!/when the party comes near it,/.test(hatchBare) || /\d+ squares/.test(hatchBare))
+    fail('world tab', 'with no application open the hatching egg states a reach or does not say "near": ' + JSON.stringify(hatchBare));
   const unicorn = ctx.atlasEggAt({ resid: 0x8001 }, 138, 176);
   const seedpod = ctx.atlasEggAt({ resid: 0x8001 }, 148, 210);
   const nightGuard = ctx.atlasEggAt({ resid: 0x8002 }, 10, 14);
@@ -827,7 +839,7 @@ try {
   else if (!(topAbove < 400)) fail('world tab', 'a card with room above it went below the finger: top ' + topAbove);
   else if (!/hatches sea monster and tentacle/.test(hatch)) fail('world tab', 'the hatching egg does not say what comes out: ' + JSON.stringify(hatch));
   else if (!/every visit|visits? in 100/.test(hatch)) fail('world tab', 'the hatching egg does not say how likely: ' + JSON.stringify(hatch));
-  else if (!/same walled area/.test(hatch)) fail('world tab', 'the hatching egg does not say what sets it off: ' + JSON.stringify(hatch));
+  else if (!/when the party comes (within \d+ squares of it|near it), unless walls cut it off from the party/.test(hatch)) fail('world tab', 'the hatching egg does not say what sets it off: ' + JSON.stringify(hatch));
   else if (!/a room, room \d+/.test(room)) fail('world tab', 'the room egg stopped reading as a room: ' + JSON.stringify(room));
   else if (!/an ambient sound, [^\n]*sound 6/i.test(surf)) fail('world tab', 'a kind-3 egg is not naming its ambient sound: ' + JSON.stringify(surf));
   // A room is a rectangle, not the egg's square. Room 800 is the way into the
