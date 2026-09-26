@@ -936,25 +936,29 @@ function dvmStringObjects(arc, b, resid) {
       const seg = b.subarray(st, Math.min(en, b.length));
       if (!seg.length) continue;
       if (kind === 'function') {
-        // A "function" whose body is prose up to the first NUL is a string
-        // constant, which is how Delver stores most of its text.
+        // A "function" whose body is text and a return is a string
+        // constant, which is how Delver stores most of its text. The head is
+        // dvmProseHead's, the one dvmRender shows: it ends at a NUL or at the
+        // first byte of 0x80 up, since script text is seven-bit. This path
+        // cut at the NUL alone after dvmRender had stopped doing so, and the
+        // two drifted: 247 strings here kept the return's `8B 41` as "ãA",
+        // which every Functions row and gallery tile then printed, and the
+        // sixty-odd functions that go on past their text gave the code and
+        // the next sentence as one string ("...in his mind.*çü...Leave me
+        // alone - "). Such a function is disassembled below like any other,
+        // which is what dvmRender does, and its opening text comes back as
+        // the disassembler's implicit string.
         const body = seg.subarray(3);
-        let z = -1;
-        for (let i = 0; i < body.length; i++) if (body[i] === 0) { z = i; break; }
-        const head = z > 0 ? body.subarray(0, z) : body;
+        const ph = dvmProseHead(body);
         const claimed = [];
         let sweepFrom = st + 3;
-        // Same first-byte guard as dvmRender's, and for the same reason --
-        // this path deliberately mirrors it, so the two must agree on what
-        // counts as a string constant.
-        if (body.length && body[0] < 0x80 && dvmIsProse(head)) {
-          const t = decodeMacRoman(head.filter(c => c));
+        if (ph && ph.bare) {
+          const t = decodeMacRoman(ph.head.filter(c => c));
           if (t.trim()) out.push({ offset: st + 3, str: t, kind: 'delver' });
-          // Do NOT stop at the string constant: 0x1802's biggest "function"
-          // is a prose head followed by nine kilobytes of code and dialogue.
-          // The old `continue` here is why Alaric's opening line was
-          // invisible everywhere but a byte search.
-          sweepFrom = st + 3 + (z > 0 ? z + 1 : head.length);
+          // A bare head is followed by its return and nothing else, so the
+          // sweep below finds nothing past it; it still runs, from there,
+          // for the extents that turn out longer than their function.
+          sweepFrom = st + 3 + ph.head.length;
         } else {
           // Most dialogue is not a standalone string object -- it is a
           // `pushc` operand inside a function, which only the disassembler
@@ -966,6 +970,9 @@ function dvmStringObjects(arc, b, resid) {
             if (op[2] !== 'string' && op[2] !== 'string(implicit)') continue;
             let t;
             try { t = JSON.parse(op[3].replace(/ -> 0x[0-9A-F]{4}$/, '')); } catch (e) { continue; }
+            // The implicit string keeps the NULs ddasm's direct mode reads
+            // (dvmImplicitString); the head above drops them, and so does this.
+            if (op[2] === 'string(implicit)' && t) t = t.replace(/\0/g, '');
             if (t && t.trim() && /[A-Za-z]{2}/.test(t)) {
               out.push({ offset: st + op[0], str: t, kind: 'delver' });
               claimed.push([st + op[0], st + op[0] + t.length + 4]);

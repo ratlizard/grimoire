@@ -1452,7 +1452,10 @@ function sheetTextSnippet(resid, roff, rlen, limit) {
   // bytes decode as Mac Roman rather than vanishing into C1 controls, it shows
   // as a lone accented capital after the final stop ("...proud demeanor.*Ç").
   // Both are dropped only in those exact positions, and only for display: the
-  // Strings and Hex tabs still show the raw bytes.
+  // Strings and Hex tabs still show the raw bytes. The back one came from
+  // dvmStringObjects reading a string to its NUL, past the return's opcode;
+  // since v1.194.1 it stops where dvmProseHead does, no string in the shipped
+  // archive ends in such a byte, and the rule is kept for a modded one.
   const tidy = t => t.replace(/[\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ')
                      .replace(/^[\x40-\x50](?=["'*\u2018\u201c])/, '')
                      .replace(/^@(?=[A-Za-z])/, '')
