@@ -925,6 +925,14 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
 .forkTable th { text-align:left; color:#b5b2a8; font-size:0.6875rem; 
   letter-spacing:1.2px; padding:4px 6px; border-bottom:1px solid var(--edge); }
 .forkTable td { padding:4px 6px; border-bottom:1px solid rgba(155,136,80,.25); vertical-align:middle; }
+/* A save's every byte (saveByteMapHTML): a part a <details>, a record a
+   nested one, and the tag for a field whose meaning is not read. */
+.byteMapPart { margin:6px 0; }
+.byteMapPart > summary, .byteMapRec > summary { cursor:pointer; }
+.byteMapSize { color:#8c8980; font-size:0.6875rem; margin-left:6px; }
+.byteMapBody { margin-top:4px; }
+.byteMapTable td { vertical-align:top; overflow-wrap:anywhere; }
+.byteUnread { display:inline-block; margin-left:5px; padding:0 5px; border-radius:8px; font-size:0.625rem; color:#b5b2a8; border:1px solid #8c8980; }
 .forkTable td.num { text-align:right; font-family:ui-monospace,Menlo,Consolas,monospace; white-space:nowrap; }
 .forkTable .navChip { margin:0; }
 .installerVersions { grid-column:1/-1; justify-content:flex-start; align-items:center; gap:6px; margin:2px 0 8px; }
@@ -2288,7 +2296,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.196.0';
+const GRIMOIRE_VERSION = '1.197.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

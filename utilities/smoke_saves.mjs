@@ -8,6 +8,8 @@
 import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsrcPath, rsrcFork, missingIds,
          El, REGISTRY, catSel, optionSource, CATEGORY_VALUES, body, documentStub, rafQueue, drainRaf, sandbox,
          ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally, withoutApp } from './smoke_boot.mjs';
+import { readdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 if (savePath && !onlyCat) {
   if (!existsSync(savePath)) console.log('  (no saved game at ' + savePath + '; the saved-game section is skipped)');
@@ -160,6 +162,49 @@ if (savePath && !onlyCat) {
         fail('record form', 'flag 7 is not bit 7 of byte 8');
       else console.log('  record form: five groups, 32 flags, bytes 22, 25 and 31 and flag 7 written and read back');
     } catch (e) { fail('record form', e); }
+    /* Every byte of a save in a labelled field (saveByteMap, 26 September
+       2026): on this save, every add-on save the suite unpacks, and every
+       save of the playthrough kit when it is on the disk. Each part's leaves
+       must cover it exactly, the counted total must be the files' bytes,
+       and the sheet must say so. The scenario is opened before each save,
+       as a visitor's page would have it, so the map memory has its rows. */
+    try {
+      const saves = [[savePath, savePath + '/..namedfork/rsrc']];
+      const tmp = dirname(dirname(savePath));
+      for (const d of ['616_Rocky_the_Flying_Chicken', '618_Teleporter', '619_Tree', '620_Zone']) {
+        const walk = dir => { let out = []; try { for (const x of readdirSync(dir, { withFileTypes: true })) { const q = dir + '/' + x.name; if (x.isDirectory()) out = out.concat(walk(q)); else out.push(q); } } catch (e) { return []; } return out; };
+        for (const f of walk(tmp + '/' + d)) if (!/\.(txt|rtf|jpg|gif|zip)$/i.test(f)) saves.push([f, f + '/..namedfork/rsrc']);
+      }
+      const kit = join(dirname(htmlPath), '..', 'playthrough-2026-09-08', 'saves');
+      if (existsSync(kit)) for (const d of readdirSync(kit).sort()) saves.push([kit + '/' + d + '/data.fork', kit + '/' + d + '/resource.fork']);
+      let opened = 0, bytes = 0, unread = 0;
+      const bad = [];
+      for (const [data, rsrc] of saves) {
+        let b, r = null;
+        try { b = new Uint8Array(readFileSync(data)); } catch (e) { continue; }
+        if (b.length < 0x888 || b[0x20] < 1) continue;
+        try { r = new Uint8Array(readFileSync(rsrc)); if (!r.length) r = null; } catch (e) { r = null; }
+        ctx.parseArchiveBytes(archive, 'Cythera Data', { via: 'data fork', rsrc: rsrcFork });
+        ctx.parseArchiveBytes(b, data.split('/').pop(), { via: 'data fork', rsrc: r });
+        if ((ctx.ARCHIVE_FINDER || {}).type !== 'DelP' || peek('ARCHIVE').bytes.length !== b.length) continue;
+        const m = ctx.saveByteMap();
+        if (!m) { bad.push(data + ': no map'); continue; }
+        opened++; bytes += m.files; unread += m.unread;
+        for (const p of m.parts) { const g = ctx.saveByteMapGaps(p); if (g.length) bad.push(data.split('/').slice(-2).join('/') + ' ' + String(p.key) + ': ' + g.slice(0, 2).map(x => x.kind + ' at ' + x.at + ', ' + x.len).join('; ')); }
+        if (m.total !== b.length + (r ? r.length : 0)) bad.push(data + ': ' + m.total + ' bytes labelled of ' + (b.length + (r ? r.length : 0)));
+      }
+      ctx.parseArchiveBytes(new Uint8Array(readFileSync(savePath)), 'I.M.Cheater', { via: 'data fork', rsrc: new Uint8Array(readFileSync(savePath + '/..namedfork/rsrc')) });
+      ctx.renderSaveSheet();
+      const sheet = REGISTRY.get('sheetGrid').innerHTML || '';
+      const stream = ctx.saveByteMap().parts.find(p => p.key === 0x400);
+      if (bad.length) fail('every byte', bad.slice(0, 6).join(' | '));
+      else if (opened < 5) fail('every byte', 'only ' + opened + ' saves were opened');
+      else if (!/Every byte/.test(sheet) || !/every one in a labelled field;/.test(sheet) || / but for \d+ stretches/.test(sheet))
+        fail('every byte', 'the Saved Game sheet does not say every byte is labelled');
+      else if (!stream || !/the block’s tag<\/td><td>Char</.test(ctx.byteMapTableHTML(stream.fields).replace(/ <span[^>]*>not read<\/span>/g, '')))
+        fail('every byte', 'the stream’s first field is not the Char tag');
+      else console.log('  every byte: ' + opened + ' saves, ' + bytes.toLocaleString('en-US') + ' bytes, each in one labelled field; ' + unread.toLocaleString('en-US') + ' in fields not read yet');
+    } catch (e) { fail('every byte', e); }
     // Back to the game archive, and the identity goes back with it. With no
     // hash to carry a view across, the landing is the default one.
     ctx.location.hash = '';
