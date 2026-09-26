@@ -192,6 +192,9 @@ if (savePath && !onlyCat) {
         opened++; bytes += m.files; unread += m.unread;
         for (const p of m.parts) { const g = ctx.saveByteMapGaps(p); if (g.length) bad.push(data.split('/').slice(-2).join('/') + ' ' + String(p.key) + ': ' + g.slice(0, 2).map(x => x.kind + ' at ' + x.at + ', ' + x.len).join('; ')); }
         if (m.total !== b.length + (r ? r.length : 0)) bad.push(data + ': ' + m.total + ' bytes labelled of ' + (b.length + (r ? r.length : 0)));
+        // Every field's meaning is read for every save here (26 September
+        // 2026); a field that comes up "not read" names itself.
+        for (const p of m.parts) for (const x of ctx.byteMapLeaves(p)) if (x.unread && !x.part) { bad.push(data.split('/').slice(-2).join('/') + ' ' + String(p.key) + ': not read, ' + x.name + ' = ' + x.value); break; }
       }
       ctx.parseArchiveBytes(new Uint8Array(readFileSync(savePath)), 'I.M.Cheater', { via: 'data fork', rsrc: new Uint8Array(readFileSync(savePath + '/..namedfork/rsrc')) });
       ctx.renderSaveSheet();
@@ -199,11 +202,12 @@ if (savePath && !onlyCat) {
       const stream = ctx.saveByteMap().parts.find(p => p.key === 0x400);
       if (bad.length) fail('every byte', bad.slice(0, 6).join(' | '));
       else if (opened < 5) fail('every byte', 'only ' + opened + ' saves were opened');
-      else if (!/Every byte/.test(sheet) || !/every one in a labelled field;/.test(sheet) || / but for \d+ stretches/.test(sheet))
+      else if (!/Every byte/.test(sheet) || !/every one in a labelled field[,;]/.test(sheet) || / but for \d+ stretches/.test(sheet))
         fail('every byte', 'the Saved Game sheet does not say every byte is labelled');
       else if (!stream || !/the block’s tag<\/td><td>Char</.test(ctx.byteMapTableHTML(stream.fields).replace(/ <span[^>]*>not read<\/span>/g, '')))
         fail('every byte', 'the stream’s first field is not the Char tag');
-      else console.log('  every byte: ' + opened + ' saves, ' + bytes.toLocaleString('en-US') + ' bytes, each in one labelled field; ' + unread.toLocaleString('en-US') + ' in fields not read yet');
+      else if (!/whose meaning is read/.test(sheet)) fail('every byte', 'the Saved Game sheet does not say every field is read');
+      else console.log('  every byte: ' + opened + ' saves, ' + bytes.toLocaleString('en-US') + ' bytes, each in one labelled field whose meaning is read');
     } catch (e) { fail('every byte', e); }
     // Back to the game archive, and the identity goes back with it. With no
     // hash to carry a view across, the landing is the default one.

@@ -1250,21 +1250,16 @@ function saveByteMapGaps(p) {
   if (pos > p.size) out.push({ at: p.size, len: pos - p.size, kind: 'past the end' });
   return out;
 }
-// Fill the stretches of [from, to) no field covers with a field saying what
-// is there: zero, or bytes nothing here reads.
-function byteMapFillGaps(p, from, to, zeroName, restName) {
+// Fill each stretch of [from, to) that no field covers with one field
+// saying what it is: all zero, or bytes the file keeps there without any
+// index pointing to them (an older copy of a resource, in cp1-intro-done a
+// stream beginning with the tag Char).
+function byteMapFillGaps(p, from, to, name) {
   const covered = byteMapLeaves(p).filter(x => x.at < to && x.at + x.len > from);
   let pos = from;
-  const fill = (a, e) => {
-    while (a < e) {
-      let z = a; const zero = p.bytes[a] === 0;
-      while (z < e && (p.bytes[z] === 0) === zero) z++;
-      p.f(a, z - a, zero ? zeroName : restName, { value: zero ? 'all zero' : byteMapHex(p.bytes, a, z - a), unread: !zero });
-      a = z;
-    }
-  };
+  const fill = (a, e) => { if (e > a) p.f(a, e - a, name, { value: byteMapAllZero(p.bytes, a, e - a) ? 'all zero' : (e - a) + ' bytes, starting ' + byteMapHex(p.bytes, a, e - a) }); };
   for (const x of covered) { if (x.at > pos) fill(pos, x.at); pos = Math.max(pos, x.at + x.len); }
-  if (pos < to) fill(pos, to);
+  fill(pos, to);
 }
 
 // The 32 bytes of a character record, named as the record form names them
@@ -1286,11 +1281,14 @@ function byteMapCharRecord(p, at, name) {
   for (const l of charRecordLayout()) rec.f(l.off, l.w, l.name, { value: byteMapHex(b, at + l.off, l.w) });
   return rec;
 }
-/* A 16-byte prop record (parseDelverPropList). Bytes 8 to 15 are read by
-   the page as far as the notes go: delvmod calls 8 and 9 `propref`, 10 to 13
-   `storeref` and 14 and 15 `u`, and save-format.md puts the frame-table
-   index at 8; what the program keeps in each is read further in the notes
-   of 26 September 2026 and named here only where it is. */
+/* A 16-byte prop record (parseDelverPropList). Bytes 8 to 15 read off
+   GetField's cases for a prop and the routines behind them (26 September
+   2026): 8 and 9 are field 14, the prop's slot in the frame table, and 12
+   and 13 its frame's heap reference, both as PropItem::AllocateFrame uses
+   them; 10 and 11 are field 15, which nothing else found reads; byte 14's
+   low six bits, signed, are field 16, which TViewer::Render multiplies by
+   four and adds to both draw offsets; byte 15 is read by nothing found.
+   delvmod's `propref`, `storeref` (a long at 10) and `u` do not match. */
 function byteMapPropRecord(p, at, name) {
   const b = p.bytes, rec = byteMapRecord(p, at, 16, name, { empty: byteMapAllZero(b, at, 16) });
   const flags = b[at], loc = (b[at + 1] << 16) | u16be(b, at + 2), aw = u16be(b, at + 4);
@@ -1300,9 +1298,12 @@ function byteMapPropRecord(p, at, name) {
   rec.f(4, 2, 'its class and frame: the class in the low ten bits, the aspect above', { value: 'class ' + (aw & 0x3FF) + ', aspect ' + ((aw >> 10) & 0x3F) });
   rec.f(6, 1, 'Data1', { value: String(b[at + 6]) });
   rec.f(7, 1, 'Data2', { value: String(b[at + 7]) });
-  rec.f(8, 2, 'bytes 8 and 9 (delvmod’s propref)', { value: byteMapHex(b, at + 8, 2), unread: true });
-  rec.f(10, 4, 'bytes 10 to 13 (delvmod’s storeref)', { value: byteMapHex(b, at + 10, 4), unread: true });
-  rec.f(14, 2, 'bytes 14 and 15 (delvmod’s u)', { value: byteMapHex(b, at + 14, 2), unread: true });
+  const s6 = ((b[at + 14] & 0x3F) << 26) >> 26;
+  rec.f(8, 2, 'its slot in the frame table (0xF308), where AllocateFrame copies its frame’s reference; field 14', { value: String(u16be(b, at + 8)) });
+  rec.f(10, 2, 'field 15, which no script and nothing else found reads', { value: String(u16be(b, at + 10)), unread: !!u16be(b, at + 10) });
+  rec.f(12, 2, 'the heap reference of its frame, a dict AllocateFrame makes the first time a script stores something on it (has_storage, storage)', { value: String(u16be(b, at + 12)) });
+  rec.f(14, 1, 'how far it is drawn shifted along the diagonal, four pixels a step: the low six bits, signed, which TViewer::Render adds to both draw offsets (field 16)', { value: String(s6) + (b[at + 14] & 0xC0 ? ', top bits ' + (b[at + 14] >> 6) : ''), unread: !!(b[at + 14] & 0xC0) });
+  rec.f(15, 1, 'a byte nothing found reads', { value: String(b[at + 15]), unread: !!b[at + 15] });
   return rec;
 }
 
@@ -1316,7 +1317,12 @@ function byteMapDataFork(arc) {
   const b = arc.bytes, p = byteMapPart('file', 'the data fork’s own structure: header, indexes and where each resource sits', b);
   p.f(0, 32, 'the scenario’s title, a Pascal string', { value: pstring(b, 0) });
   p.f(0x20, 32, 'the player’s name, a Pascal string', { value: pstring(b, 0x20) });
-  for (const o of [0x40, 0x42, 0x48]) p.f(o, 1, 'byte 0x' + o.toString(16).toUpperCase() + ', which delvmod keeps and does not name', { value: String(b[o]), unread: true });
+  // Halfwords, not the bytes delvmod keeps: OpenScenFile, CheckPlayerFile,
+  // NewGame and InitWorld read them (save-format.md, the header).
+  const ver = v => (v >> 8) + '.' + (v & 0xFF);
+  p.f(0x40, 2, 'the Delver file format’s version, major and minor: the program opens a file whose major is its own and whose minor is no higher (SegFileHeader::CompatibleVersions, against 0x1300)', { value: ver(u16be(b, 0x40)) });
+  p.f(0x42, 2, 'the scenario’s version: a save copies it from its scenario when the game begins, and the program opens the save only with a scenario it is compatible with', { value: ver(u16be(b, 0x42)) });
+  p.f(0x48, 2, 'the side, in squares, of the map buffer the program sets aside for a level (CreateGlobals; 1,024 when 0)', { value: String(u16be(b, 0x48)) });
   const mi = delverMasterIndexExtent(b);
   if (mi) {
     p.f(mi.off, 8, 'the master index’s own offset and length', { value: '0x' + mi.off.toString(16).toUpperCase() + ', ' + mi.len + ' bytes' });
@@ -1335,7 +1341,8 @@ function byteMapDataFork(arc) {
   }
   // What lies between: the header's other bytes and any space between
   // resources. None of it is read by delvmod.
-  byteMapFillGaps(p, 0, b.length, 'zero, and delvmod does not read it', 'bytes delvmod does not read');
+  byteMapFillGaps(p, 0, 0x80, 'zero, and nothing found reads it');
+  byteMapFillGaps(p, 0x80, b.length, 'free space: no index entry points here');
   p.fields.sort((x, y) => x.at - y.at);
   return p;
 }
@@ -1354,38 +1361,42 @@ function byteMapStream(p) {
     const leaf = (at, n, name, o) => chunk.f(at - pos, n, name, o);
     let q = body;
     if (tag === 'Char') {
-      const shortNames = ['header short 1: the value SaveToFile writes from TOC+8560', 'header short 2: the value from *(r2 − 30092)',
-                          'header short 3: the band a created creature’s size is drawn from (2 is 50 to 149 percent)', 'header short 4: the value from TOC+8564'];
-      for (let k = 0; k < 4; k++) leaf(body + 2 * k, 2, shortNames[k], { value: String(u16be(b, body + 2 * k)), unread: k !== 2 });
+      const shortNames = ['the party’s karma (the scripts’ global 12, Karma)', 'the languages the party knows (global 14, LanguagesKnown, which the text drawer also reads)',
+                          'the band a created creature’s size is drawn from (2 is 50 to 149 percent)', 'the next number the scripts’ NewUniqueName call hands out (it returns this and adds one)'];
+      for (let k = 0; k < 4; k++) leaf(body + 2 * k, 2, shortNames[k], { value: String(u16be(b, body + 2 * k)) });
       for (let v = 0; v < 32; v++) leaf(pos + 16 + v, 1, 'quest value ' + v, { value: String(b[pos + 16 + v]) });
       for (let w = 0; w < 8; w++) leaf(pos + 48 + 4 * w, 4, 'quest flags ' + (32 * w) + ' to ' + (32 * w + 31) + ', one bit each, the first in the lowest bit', { value: byteMapHex(b, pos + 48 + 4 * w, 4) });
       leaf(pos + 80, 4, 'the game clock, 4,096 units an hour', { value: String(u32be(b, pos + 80)) });
       leaf(pos + 84, 2, 'the day (the scripts’ GameDay)', { value: String(u16be(b, pos + 84)) });
-      leaf(pos + 86, 1, 'a byte from +13 of the game viewer', { value: String(b[pos + 86]), unread: true });
-      leaf(pos + 87, 4, 'a long SaveToFile works out from two clock globals as it saves', { value: String(u32be(b, pos + 87)), unread: true });
+      leaf(pos + 86, 1, 'whether the automap is on: the byte the scripts’ SetAutomapping call sets (cbEnableAutoMap)', { value: String(b[pos + 86]) });
+      leaf(pos + 87, 4, 'real time played, in seconds: SaveToFile adds the time since it last looked at the Mac’s clock (GetDateTime)', { value: String(u32be(b, pos + 87)) });
       if (end > pos + 91) leaf(pos + 91, end - (pos + 91), 'zeros SaveToFile writes to fill the block', { value: byteMapAllZero(b, pos + 91, end - pos - 91) ? 'all zero' : byteMapHex(b, pos + 91, end - pos - 91) });
       q = end;
     } else if (tag === 'Mons') {
-      // TActiveMonster::SaveMonsters and ::Save; a byte that is not one the
-      // saves have shown (4, or 0xFF for Aeneas) may be a subclass with
-      // more to say, so the rest of the block is left in one field.
+      // TActiveMonster::SaveMonsters and ::Save. The first byte is property
+      // 55 of the monster's class, and LoadMonsters rebuilds 9 and 10 as a
+      // crawling monster, 11 a dragon, 12 an octo, anything else an
+      // ordinary one; each of the three writes more after the record
+      // (TCrawlMonster::Save a count and its segments, TDragonMonster::Save
+      // four parts, TOctoMonster::Save eight arms, all prop indices).
       let m = 0;
       while (q < end) {
         const kind = b[q];
-        if (kind !== 4 && kind !== 0xFF) { leaf(q, end - q, 'the rest of the block, from a monster whose first byte (' + kind + ') no save here has shown', { value: byteMapHex(b, q, end - q), unread: true }); q = end; break; }
         if (q + 7 > end) break;
         const id = u16be(b, q + 1);
         let n = 7 + (id >= 256 ? 34 : 0) + 9 + 2;
         if (q + n > end) break;
         const cnt = u16be(b, q + n - 2);
         n += cnt * 9;
+        const extra = kind === 9 || kind === 10 ? (q + n + 2 <= end ? 2 + 2 * u16be(b, q + n) : 0) : kind === 11 ? 8 : kind === 12 ? 16 : 0;
+        n += extra;
         if (q + n > end) break;
         const who = id < 256 ? characterName(id) || ('character ' + id) : 'prop ' + id;
         const rec = byteMapRecord({ fields: chunk.kids, bytes: b }, q, n, 'monster ' + m + ': ' + who);
-        rec.f(0, 1, 'a byte SaveMonsters writes from a lookup keyed by the monster (4, or 0xFF for Aeneas)', { value: String(kind), unread: true });
+        rec.f(0, 1, 'property 55 of its class: 9 or 10 make it a crawling monster, 11 a dragon, 12 an octo, anything else an ordinary one (0xFF when the class has none)', { value: String(kind) });
         rec.f(1, 2, 'the monster’s object: a character below 256, a prop of the level from 256', { value: String(id) });
-        rec.f(3, 2, 'a short from +10 of the monster, which changes between two saves of one state', { value: String(u16be(b, q + 3)), unread: true });
-        rec.f(5, 2, 'a short from +12 of the monster, the same', { value: String(u16be(b, q + 5)), unread: true });
+        rec.f(3, 2, 'the frame it is showing (AdjustAspect sets it as it turns and walks)', { value: String(u16be(b, q + 3)) });
+        rec.f(5, 2, 'the way it faces (HandleMove sets it from DxDyToFace)', { value: String(u16be(b, q + 5)) });
         let o = 7;
         if (id >= 256) {
           rec.f(o, 2, 'its index in the level’s list', { value: String(u16be(b, q + o)) }); o += 2;
@@ -1393,28 +1404,42 @@ function byteMapStream(p) {
           for (const l of charRecordLayout()) cr.f(l.off, l.w, l.name, { value: byteMapHex(b, q + o + l.off, l.w) });
           o += 32;
         }
-        rec.f(o, 1, 'a byte from +76 of the monster', { value: String(b[q + o]), unread: true }); o += 1;
-        rec.f(o, 4, 'a square: x and y', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')', unread: true }); o += 4;
-        rec.f(o, 4, 'another square: x and y', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')', unread: true }); o += 4;
+        rec.f(o, 1, '1 while it has a waypoint to walk to (SetWaypoint)', { value: String(b[q + o]) }); o += 1;
+        rec.f(o, 4, 'where it is going: x and y (SetWaypoint; 0xA5A5 when it has never been sent anywhere)', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')' }); o += 4;
+        rec.f(o, 4, 'the next waypoint on the way there: x and y (TPathFinder::FindWaypoint)', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')' }); o += 4;
         rec.f(o, 2, 'how many activities it has queued', { value: String(cnt) }); o += 2;
         for (let a = 0; a < cnt; a++) {
           const ar = byteMapRecord({ fields: rec.kids, bytes: b }, q + o, 9, 'queued activity ' + a);
-          ar.f(0, 1, 'its code (TActiveMonster::QueueActivity’s first argument)', { value: '0x' + b[q + o].toString(16).toUpperCase(), unread: true });
-          ar.f(1, 2, 'its first short argument', { value: String(u16be(b, q + o + 1)), unread: true });
-          ar.f(3, 2, 'its second short argument', { value: String(u16be(b, q + o + 3)), unread: true });
+          // DoMove switches on the first queued entry's code in place of
+          // the character's own behaviour (byte 22), so a code is a
+          // behaviour; scripts queue them (cbQueueAction, the one caller).
+          const beh = b[q + o]; let word = null;
+          try { word = refExists(0x3007) ? dvmBehaviourWords(ARCHIVE).get(beh) : null; } catch (e) { quiet(e); }
+          ar.f(0, 1, 'the behaviour it carries out before its own: TActiveMonster::DoMove switches on this in place of the character’s byte 22', { value: String(beh) + (word ? ', ' + word : '') });
+          ar.f(1, 2, 'the behaviour’s first argument', { value: String(u16be(b, q + o + 1)) });
+          ar.f(3, 2, 'its second argument', { value: String(u16be(b, q + o + 3)) });
           ar.f(5, 4, 'what it is about: a reference in the scripts’ form (0x5000FFFF is none)', { value: '0x' + u32be(b, q + o + 5).toString(16).toUpperCase().padStart(8, '0') });
           o += 9;
+        }
+        if (kind === 9 || kind === 10) {
+          const segs = u16be(b, q + o);
+          rec.f(o, 2, 'how many body segments it has (TCrawlMonster::Save)', { value: String(segs) }); o += 2;
+          for (let k = 0; k < segs; k++, o += 2) rec.f(o, 2, 'body segment ' + k + ', a prop of the level', { value: String(u16be(b, q + o)) });
+        } else if (kind === 11 || kind === 12) {
+          for (let k = 0; k < (kind === 11 ? 4 : 8); k++, o += 2) rec.f(o, 2, (kind === 11 ? 'part ' : 'arm ') + k + ', a prop of the level (' + (kind === 11 ? 'TDragonMonster' : 'TOctoMonster') + '::Save)', { value: String(u16be(b, q + o)) });
         }
         q += n; m++;
       }
       if (q < end) { leaf(q, end - q, 'the rest of the block, which does not parse as a monster', { value: byteMapHex(b, q, end - q), unread: true }); q = end; }
     } else if (tag === 'FXQ ') {
-      // TSpellFX::WriteFXQueue: three shorts a queued effect.
+      // TSpellFX::WriteFXQueue: each entry of the effects map, a character
+      // and a flag and when it wears off, which TSpellFX::PassTime reads.
       for (let e = 0; body + 6 * (e + 1) <= end; e++, q += 6) {
-        const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 6, 'spell effect in flight ' + e);
-        r.f(0, 2, 'a short from +12 of the effect', { value: String(u16be(b, q)), unread: true });
-        r.f(2, 2, 'a short from +2 of the effect', { value: String(u16be(b, q + 2)), unread: true });
-        r.f(4, 2, 'a short from +4 of the effect', { value: String(u16be(b, q + 4)), unread: true });
+        const who = u16be(b, q), flag = u16be(b, q + 2), until = u16be(b, q + 4);
+        const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 6, 'spell effect ' + e + ': ' + (characterName(who) || 'character ' + who) + ', flag ' + flag);
+        r.f(0, 2, 'the character it is on', { value: String(who) });
+        r.f(2, 2, 'the character flag it holds on: under 8 in byte 8, under 24 in the status flags, else in byte 26', { value: String(flag) });
+        r.f(4, 2, 'when it wears off: PassTime removes it once the time passes this, and 0xF000 or more never does', { value: until >= 0xF000 ? 'never (' + until + ')' : String(until) });
       }
     } else if (tag === 'Grem') {
       // TGremlin::SaveGremlins: 256 frames of a state and a heap reference.
@@ -1423,9 +1448,22 @@ function byteMapStream(p) {
         r.f(0, 2, 'its state: 2 is cleared, which ClearGremlins sets', { value: String(u16be(b, q)), unread: u16be(b, q) !== 2 });
         r.f(2, 2, 'the heap reference of its frame, 0 for none', { value: String(u16be(b, q + 2)) });
       }
+    } else if (tag === 'Wind') {
+      // TInventoryWindow::MarshalAll, last window first; a character
+      // window (TCharacterWindow::Marshal) is its class code, its base
+      // class's short (TInventoryWindow::Marshal, from +16), and its left,
+      // top and a short from +134. Another class is left whole.
+      for (let w = 0; q + 12 <= end && String.fromCharCode(b[q], b[q + 1], b[q + 2], b[q + 3]) === 'ChrW'; w++, q += 12) {
+        const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 12, 'open window ' + w + ', a character’s');
+        r.f(0, 4, 'the window’s class code', { value: 'ChrW' });
+        r.f(4, 2, 'whose things it shows (+16, which the inventory window’s constructor sets and RenumberParent moves)', { value: String(u16be(b, q + 4)) });
+        r.f(6, 2, 'the window’s left edge', { value: String(u16be(b, q + 6)) });
+        r.f(8, 2, 'its top edge', { value: String(u16be(b, q + 8)) });
+        r.f(10, 2, 'which pane it shows (+134, TCharacterWindow::ChangePane)', { value: String(u16be(b, q + 10)) });
+      }
     }
-    // Wind, and anything a block holds past what is read above.
-    if (q < end) leaf(q, end - q, tag === 'Wind' ? 'the open windows (TInventoryWindow::MarshalAll), whose records only the character window’s are read' : 'the rest of the block', { value: byteMapHex(b, q, end - q), unread: true });
+    // Anything a block holds past what is read above.
+    if (q < end) leaf(q, end - q, tag === 'Wind' ? 'an open window of a class whose record is not read' : 'the rest of the block', { value: byteMapHex(b, q, end - q), unread: true });
     pos += 4 + len;
     if (len < 4) break;
   }
@@ -1439,7 +1477,7 @@ function byteMapToDo(p) {
     const at = s * 8, ref = u32be(b, at + 4);
     const r = byteMapRecord(p, at, 8, 'slot ' + s, { empty: ref === 0x5000FFFF && !b[at] && !b[at + 1] && !u16be(b, at + 2) });
     r.f(0, 1, '1 when the line has been struck off (DoneToDo)', { value: String(b[at]) });
-    r.f(1, 1, 'the byte after it', { value: String(b[at + 1]), unread: true });
+    r.f(1, 1, 'padding: nothing writes it (AddToDo and DoneToDo write byte 0)', { value: String(b[at + 1]), unread: !!b[at + 1] });
     r.f(2, 2, 'the day the line went on the list', { value: String(u16be(b, at + 2)) });
     r.f(4, 4, 'the line: the To Do text resource in the low half and the line’s number in the high twelve bits, 0x5000FFFF for none', { value: ref === 0x5000FFFF ? 'none' : 'line ' + ((ref >>> 16) & 0xFFF) + ' of 0x' + (ref & 0xFFFF).toString(16).toUpperCase().padStart(4, '0') });
   }
@@ -1474,26 +1512,65 @@ function zoneMapSize(zone) {
     return kept && kept[zone] ? kept[zone] : null;
   } catch (e) { quiet(e); return null; }
 }
-/* The heap (THeap): blocks of an 8-byte header and their data, each rounded
-   to four and kept eight-aligned. +0 the data's length, +4 the reference
-   number, +6 the kind in bits 4 to 6 of the byte and another field in the
-   low ten bits of the halfword. One free block when empty. */
+/* The heap (THeap): blocks of an 8-byte header and their data. +0 the
+   data's length, +4 the reference number (0 for a free block), +6 the kind
+   in bits 4 to 6 of its first byte (1 a list, 2 a dict) and the reference
+   count in the low ten bits (THeapObj::IncRef adds one). The add-on saves
+   that hold blocks lay them end to end with the data rounded to four and
+   no more: the Tree save's are at 0 and 36. save-format.md read THeap::Next
+   as adding four more when a header's address has bit 2 set, which is an
+   address in memory, not in the file; that rule is the fallback here, for
+   either parity of the heap's base, when the plain chain does not end at
+   the heap's end.
+   A dict's data (THeapDict::CalcSize, lookup) is a count and the table's
+   size, then that many eight-byte entries: a short key, two bytes the
+   lookup does not read, and the value, a script value, or the program's
+   empty mark (0x5000FFFE in every save here) for an empty entry. A list's
+   (THeapList::CalcSize, GetItem) is its length, two bytes GetItem does not
+   read, and four-byte items. */
+function byteMapHeapChain(b, pad) {
+  const out = [];
+  let q = 0;
+  while (q + 8 <= b.length && out.length < 70000) {
+    const len = u32be(b, q);
+    let step = 8 + ((len + 3) & ~3);
+    if (pad !== null && ((q + pad) & 4)) step += 4;
+    if (len > b.length || q + step > b.length) return null;
+    out.push({ q, len, step });
+    q += step;
+  }
+  return q === b.length ? out : null;
+}
 function byteMapHeap(p) {
   const b = p.bytes;
-  let q = 0, n = 0;
-  while (q + 8 <= b.length && n < 70000) {
-    const len = u32be(b, q), ref = u16be(b, q + 4), kind = (b[q + 6] >> 4) & 7;
-    let step = 8 + ((len + 3) & ~3); if (q & 4) step += 4;
-    if (q + step > b.length || len > b.length) { p.f(q, b.length - q, 'the rest of the heap, which does not parse as blocks', { value: byteMapHex(b, q, b.length - q), unread: true }); q = b.length; break; }
-    const free = !ref && !kind;
+  const chain = byteMapHeapChain(b, null) || byteMapHeapChain(b, 0) || byteMapHeapChain(b, 4);
+  if (!chain) { p.f(0, b.length, 'the heap, which does not parse as a chain of blocks', { value: byteMapHex(b, 0, b.length), unread: true }); return; }
+  for (const { q, len, step } of chain) {
+    const ref = u16be(b, q + 4), kind = (b[q + 6] >> 4) & 7, count = u16be(b, q + 6) & 0x3FF, free = !ref && !kind;
     const r = byteMapRecord(p, q, step, free ? 'a free block' : 'block ' + ref + (kind === 1 ? ', a list' : kind === 2 ? ', a dict' : ', kind ' + kind));
     r.f(0, 4, 'the data’s length', { value: String(len) });
     r.f(4, 2, 'the block’s reference number, 0 for a free block', { value: String(ref) });
-    r.f(6, 2, 'its kind (bits 4 to 6 of the first byte: 1 a list, 2 a dict) and a field in the low ten bits, zeroed on load', { value: byteMapHex(b, q + 6, 2) });
-    if (step > 8) r.f(8, step - 8, free ? 'free space' : 'the block’s data, whose layout for a list or a dict is not read', { value: byteMapAllZero(b, q + 8, step - 8) ? 'all zero' : byteMapHex(b, q + 8, step - 8), unread: !free });
-    q += step; n++;
+    r.f(6, 2, 'its kind (bits 4 to 6 of the first byte: 1 a list, 2 a dict) and its reference count (the low ten bits)', { value: 'kind ' + kind + ', count ' + count });
+    let o = 8;
+    const d = q + 8;
+    if (!free && kind === 2 && len >= 4) {
+      const n = u16be(b, d), size = u16be(b, d + 2);
+      r.f(o, 2, 'how many entries are in use', { value: String(n) }); r.f(o + 2, 2, 'how many the table holds', { value: String(size) }); o += 4;
+      for (let k = 0; k < size && o + 8 <= 8 + len; k++, o += 8) {
+        const v = u32be(b, q + o + 4), empty = v === 0x5000FFFE;
+        const e = byteMapRecord({ fields: r.kids }, q + o, 8, empty ? 'entry ' + k + ', empty' : 'entry ' + k);
+        e.f(0, 2, 'its key', { value: String(u16be(b, q + o)) });
+        e.f(2, 2, 'two bytes the lookup does not read', { value: byteMapHex(b, q + o + 2, 2) });
+        e.f(4, 4, empty ? 'the empty mark' : 'its value, a script value', { value: '0x' + v.toString(16).toUpperCase().padStart(8, '0') });
+      }
+    } else if (!free && kind === 1 && len >= 4) {
+      const n = u16be(b, d);
+      r.f(o, 2, 'the list’s length', { value: String(n) }); r.f(o + 2, 2, 'two bytes GetItem does not read', { value: byteMapHex(b, d + 2, 2) }); o += 4;
+      for (let k = 0; o + 4 <= 8 + len; k++, o += 4) r.f(o, 4, k < n ? 'item ' + k + ', a script value' : 'room for another item', { value: '0x' + u32be(b, q + o).toString(16).toUpperCase().padStart(8, '0') });
+    }
+    if (o < step) r.f(o, step - o, free ? 'free space' + (byteMapAllZero(b, q + o, step - o) ? '' : ', holding what a freed block left') : o < 8 + len ? 'the block’s data, not read' : 'rounding to four',
+                      { value: byteMapAllZero(b, q + o, step - o) ? 'all zero' : byteMapHex(b, q + o, step - o), unread: !free && o < 8 + len });
   }
-  if (q < b.length) p.f(q, b.length - q, 'the heap’s last bytes', { value: byteMapHex(b, q, b.length - q), unread: true });
 }
 // The prop frame table (THeap::Save, PropItem::AllocateFrame): 4,096 shorts.
 function byteMapFrames(p) {
@@ -1565,7 +1642,7 @@ function byteMapResourceFork(raw) {
       byteMapForkResource(p, t.type, r.id, d + 4, len);
     });
   });
-  byteMapFillGaps(p, 0, b.length, 'zero, between the parts of the fork', 'bytes between the parts of the fork');
+  byteMapFillGaps(p, 0, b.length, 'space between the parts of the fork');
   p.fields.sort((x, y) => x.at - y.at);
   return p;
 }
@@ -1647,8 +1724,9 @@ function saveByteMapHTML() {
   if (!m) return '';
   const gaps = m.parts.reduce((n, p) => n + saveByteMapGaps(p).length, 0);
   return '<h4 class="saveH4">Every byte</h4><div class="saveNote">' + m.files.toLocaleString('en-US') + ' bytes in ' + m.parts.length + ' parts, every one in a labelled field' +
-    (gaps ? ' but for ' + gaps + ' stretches (a fault in this reading)' : '') + '; ' + m.unread.toLocaleString('en-US') +
-    ' of them in fields whose meaning is not read yet, marked <span class="byteUnread">not read</span>.</div>' +
+    (gaps ? ' but for ' + gaps + ' stretches (a fault in this reading)' : '') +
+    (m.unread ? '; ' + m.unread.toLocaleString('en-US') + ' of them in fields whose meaning is not read yet, marked <span class="byteUnread">not read</span>.'
+              : ', each field one whose meaning is read.') + '</div>' +
     m.parts.map(p => '<details class="byteMapPart" ontoggle="openSaveBytePart(this, ' + JSON.stringify(String(p.key)).replace(/"/g, '&quot;') + ')"><summary>' +
       svEsc(p.title) + ' <span class="byteMapSize">' + fmtBytes(p.size) + '</span></summary><div class="byteMapBody"></div></details>').join('');
 }
