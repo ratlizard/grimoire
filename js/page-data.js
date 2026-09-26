@@ -1310,8 +1310,54 @@ function toggleSaveShowAll() { window.SAVE_SHOW_ALL = !window.SAVE_SHOW_ALL; ren
    eight flags (bit 6 is in the party); byte 18, called the "party byte"
    and "0 before Hector joins and 5 after", is the countdown to the next
    move, which is why it changed on every step in the saves. Byte 23 and
-   byte 31 are the two left: 23 is served as field 39 and nothing here reads
-   what it holds, and 31 is served by no field at all. */
+   byte 31 were the two left, and were read on 26 September 2026: 23 is a
+   merchant's price (shopPriceRule) and 31 the size a created creature was
+   made at (exeCreatureSize). */
+/* A merchant's price, byte 23, which GetField serves as field 39. Every
+   shop script hands the merchant's field 39 to the buying helper 0xEA5 or
+   the selling helper 0xEA9 and stores back what it returns
+   (`Arg00.0x27 = 0xEA5(greeting, stock, Arg00.0x27, ...)`). 0xEA5 prices a
+   thing at its worth times the factor over ten, starts a factor under 9 at
+   20, and haggling takes it down a tenth at a time; 0xEA9 pays the worth
+   times ten over the factor and starts a 0 at 10. One byte serves both, so
+   a merchant who has sold at double buys at half. The two starting values
+   are the first `set_local 0x32` (the third argument) of each helper. */
+function shopPriceRule() {
+  if (DERIVED.SHOP_PRICE !== undefined) return DERIVED.SHOP_PRICE;
+  let out = null;
+  try {
+    const start = rid => { const e = dvmScriptEntry(rid), g = e ? dvmSeqFirst(dvmOpsOf(e), [/^set_local 0x32$/, DVM_NUM]) : null; return g ? dvmVal(rid, g[1]) : null; };
+    const buy = start(0xEA5), sell = start(0xEA9);
+    if (buy && sell) out = { buy, sell };
+  } catch (e) { quiet(e); }
+  return (DERIVED.SHOP_PRICE = out);
+}
+/* The size a created creature was made at, byte 31. A creature from a
+   map's list gets a character record of its own, the first free one from
+   256 on, and TActiveMonster::TActiveMonster(short) draws a percentage,
+   stores it in byte 31 and makes the unit's body, reflex, mind and health
+   (0xF008 bytes 0, 1, 2 and 5) that percentage of themselves, rounded and
+   at least 1. The band it is drawn from is picked by the third short of the
+   save's Char block (TOC+8562, which only SaveToFile and RestoreModel touch
+   besides): 0 to 4 give 10 to 49, 25 to 99, 50 to 149, 100 to 199 and 150
+   to 299, anything else 100, and the program starts it at 2, which every
+   save on this disk carries. The 64 created creatures in the playthrough
+   saves all match: stats equal to the unit's times byte 31 over 100, byte
+   31 from 63 to 135, and none with byte 30, byte 23 or a flat 100 in its
+   place. Named characters (0 to 255) keep their own stats and are not
+   given it. The reader finds the `stb` of byte 31 in the constructor, to
+   link to. */
+function exeCreatureSize() {
+  if (!appImage()) return null;
+  if (DERIVED.CREATURE_SIZE !== undefined) return DERIVED.CREATURE_SIZE;
+  let out = null;
+  try {
+    const ops = exeOpsNamed('TActiveMonster::TActiveMonster(short)');
+    const k = exeFind(ops, 0, ops.length, d => d.mn === 'stb' && d.d === 31);
+    if (k >= 0) out = exeVal(ops[k], 31);
+  } catch (e) { quiet(e); }
+  return (DERIVED.CREATURE_SIZE = out);
+}
 function charFieldAt(offset) {
   const cf = appImage() ? exeCharacterFields() : null;
   return cf ? cf.fields.find(f => f.offset && f.offset.v === offset) || null : null;
@@ -1375,8 +1421,14 @@ const CHAR_GROUPS = [
     { id: 'rating', raw: [29, 1], label: 'defence stand-in', max: 0xFF,
       what: (r, v) => 'for a character with no Defense skill, the defence figure (0xE82) uses the level worked out from its low two bits (0xE95): ' +
         ['none', 'half their level', 'their level', 'twice their level'][v & 3] },
-    { id: 'b23', raw: [23, 1], label: 'byte 23', max: 0xFF, what: () => 'served to scripts as field 39, which delvmod does not name; what it holds is not read here' },
-    { id: 'b31', raw: [31, 1], label: 'byte 31', max: 0xFF, what: () => 'no field serves it and nothing here reads it' },
+    { id: 'b23', raw: [23, 1], label: 'price', max: 0xFF,
+      what: () => { const p = shopPriceRule();
+        return 'a merchant’s price, in tenths of a thing’s worth: a thing costs its worth times this over ten, and the merchant pays its worth times ten over this' +
+               (p ? '; the shops start it at ' + srcNum(p.buy, String(p.buy.v)) + ' to sell to you and ' + srcNum(p.sell, String(p.sell.v)) + ' to buy from you, and keep what haggling leaves' : ''); } },
+    { id: 'b31', raw: [31, 1], label: 'size', max: 0xFF,
+      what: () => { const c = exeCreatureSize();
+        return 'for a creature made from a map’s list, the percentage of its unit’s body, reflex, mind and health it was ' + (c ? srcNum({ exe: c.exe }, 'made at') : 'made at') +
+               '; a named character keeps their own stats and does not use it'; } },
   ]},
 ];
 // Flags 0 to 7 are byte 8, 8 to 23 the halfword at 6, 24 to 31 byte 26:

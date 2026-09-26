@@ -7,7 +7,7 @@
 // all six in this process, in order.
 import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsrcPath, rsrcFork, missingIds,
          El, REGISTRY, catSel, optionSource, CATEGORY_VALUES, body, documentStub, rafQueue, drainRaf, sandbox,
-         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally } from './smoke_boot.mjs';
+         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally, withoutApp } from './smoke_boot.mjs';
 
 if (savePath && !onlyCat) {
   if (!existsSync(savePath)) console.log('  (no saved game at ' + savePath + '; the saved-game section is skipped)');
@@ -140,6 +140,16 @@ if (savePath && !onlyCat) {
         const boxes = (f.match(/id="ce-1-flag\d+"/g) || []).length;
         if (boxes !== 32) fail('record form', boxes + ' flag boxes, not 32');
         if (!/move countdown/.test(f) || !/byte 31/.test(f) || /party byte|state byte/.test(f)) fail('record form', 'the relabelled bytes are not as written');
+        // Bytes 23 and 31, read on 26 September 2026. A save holds no
+        // scripts and this part opens no application, so here the price
+        // says what it is with no starting value (pinned below, on the
+        // scenario) and the size says what it is with no link (pinned with
+        // the application in the installer part's program figures).
+        const plain = withoutApp(() => ctx.charEditHTML(1));
+        if (!/a merchant’s price, in tenths of a thing’s worth/.test(f) || /start it at/.test(f))
+          fail('record form', 'byte 23 is not the price, or states starting values a save cannot hold');
+        else if (!/health it was made at;/.test(plain) || /jumpToExeAt/.test(plain))
+          fail('record form', 'byte 31 is not the size, or links to the program with no application open');
       }
       const before = ctx.loadCharacterTable()[1];
       ctx.applyCharacterRecordEdit(1, { state: before.state | 0x80 }, { 22: 136, 25: 2, 31: 7 });
@@ -156,6 +166,11 @@ if (savePath && !onlyCat) {
     ctx.parseArchiveBytes(archive, 'Cythera Data (after the saved game)', { via: 'data fork', rsrc: rsrcFork });
     if (ctx.ARCHIVE_FINDER.type !== 'DelS') fail('saved game', 'Cythera Data reopened as ' + JSON.stringify(ctx.ARCHIVE_FINDER));
     if (REGISTRY.get('categorySelect').value !== 'WORLD') fail('saved game', 'Cythera Data did not land back on the world');
+    // On the scenario the price gives the two shop helpers' starting values,
+    // each a link to its line: 0xEA5's for selling to you, 0xEA9's for
+    // buying from you.
+    if (!/start it at <button[^>]*jumpToScriptAt\(3749,\d+\)[^>]*>20<\/button> to sell to you and <button[^>]*jumpToScriptAt\(3753,\d+\)[^>]*>10<\/button> to buy from you/.test(ctx.charEditHTML(1)))
+      fail('record form', 'on the scenario byte 23 does not give the shops’ starting values off their lines');
   } catch (e) { fail('saved game', e); }
 }
 

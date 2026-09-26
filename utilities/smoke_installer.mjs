@@ -109,6 +109,11 @@ if (visePath && existsSync(visePath) && !onlyCat) {
                !/can move onto a mousehole/.test(said(0x40084040)) || !/immune to fire · can move onto lava/.test(said(0x000200F2));
       })())
         fail('program figures', 'a unit’s flags do not say what the program does with them: ' + ctx.monsterFlagsHTML(0x00083042));
+      // A record's byte 31, the size a created creature was made at: the
+      // constructor's store of it, and the form's link to that store.
+      else if ((c => !c || c.v !== 31 || !inRoutine(c, 'TActiveMonster::TActiveMonster') ||
+                     !new RegExp('health it was <button[^>]*jumpToExeAt\\(' + c.exe + '\\)[^>]*>made at</button>').test(ctx.charEditHTML(1)))(ctx.exeCreatureSize()))
+        fail('program figures', 'byte 31 is not linked to the constructor that stores it: ' + JSON.stringify(ctx.exeCreatureSize()));
       else if ((h => /water|steps on|jumpToExeAt/.test(h) || !/\+0x83002 \(unidentified\)/.test(h))(withoutApp(() => ctx.monsterFlagsHTML(0x00083042))))
         fail('program figures', 'with no application open a unit’s flags still name what only the program says: ' + withoutApp(() => ctx.monsterFlagsHTML(0x00083042)));
       // The five 2012 bed measurements, with the program's clock.
