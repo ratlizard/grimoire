@@ -1300,10 +1300,10 @@ function byteMapPropRecord(p, at, name) {
   rec.f(7, 1, 'Data2', { value: String(b[at + 7]) });
   const s6 = ((b[at + 14] & 0x3F) << 26) >> 26;
   rec.f(8, 2, 'its slot in the frame table (0xF308), where AllocateFrame copies its frame’s reference; field 14', { value: String(u16be(b, at + 8)) });
-  rec.f(10, 2, 'field 15, which no script and nothing else found reads', { value: String(u16be(b, at + 10)), unread: !!u16be(b, at + 10) });
+  rec.f(10, 2, 'field 15, a spare field a script could read and set; none does, and nothing else in the program was found to use it', { value: String(u16be(b, at + 10)) });
   rec.f(12, 2, 'the heap reference of its frame, a dict AllocateFrame makes the first time a script stores something on it (has_storage, storage)', { value: String(u16be(b, at + 12)) });
-  rec.f(14, 1, 'how far it is drawn shifted along the diagonal, four pixels a step: the low six bits, signed, which TViewer::Render adds to both draw offsets (field 16)', { value: String(s6) + (b[at + 14] & 0xC0 ? ', top bits ' + (b[at + 14] >> 6) : ''), unread: !!(b[at + 14] & 0xC0) });
-  rec.f(15, 1, 'a byte nothing found reads', { value: String(b[at + 15]), unread: !!b[at + 15] });
+  rec.f(14, 1, 'how far it is drawn shifted along the diagonal, four pixels a step: the low six bits, signed, which TViewer::Render adds to both draw offsets (field 16); every reader masks off the top two', { value: String(s6) + (b[at + 14] & 0xC0 ? ', top bits ' + (b[at + 14] >> 6) : '') });
+  rec.f(15, 1, 'a spare byte: nothing in the program was found to read or write it', { value: String(b[at + 15]) });
   return rec;
 }
 
@@ -1445,7 +1445,7 @@ function byteMapStream(p) {
       // TGremlin::SaveGremlins: 256 frames of a state and a heap reference.
       for (let g = 0; g < 256 && q + 4 <= end; g++, q += 4) {
         const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 4, 'gremlin ' + g, { empty: u32be(b, q) === 0x00020000 });
-        r.f(0, 2, 'its state: 2 is cleared, which ClearGremlins sets', { value: String(u16be(b, q)), unread: u16be(b, q) !== 2 });
+        r.f(0, 2, 'its state, which a script reads and sets as field 20: 0 hears the party enter and the zone’s signals (OnEnter, OnSignal), 1 and below 0 do not, and 2 is no gremlin, which ClearGremlins sets for every number without a script (all of them in the shipped game)', { value: String((u16be(b, q) << 16) >> 16) });
         r.f(2, 2, 'the heap reference of its frame, 0 for none', { value: String(u16be(b, q + 2)) });
       }
     } else if (tag === 'Wind') {
@@ -1477,22 +1477,29 @@ function byteMapToDo(p) {
     const at = s * 8, ref = u32be(b, at + 4);
     const r = byteMapRecord(p, at, 8, 'slot ' + s, { empty: ref === 0x5000FFFF && !b[at] && !b[at + 1] && !u16be(b, at + 2) });
     r.f(0, 1, '1 when the line has been struck off (DoneToDo)', { value: String(b[at]) });
-    r.f(1, 1, 'padding: nothing writes it (AddToDo and DoneToDo write byte 0)', { value: String(b[at + 1]), unread: !!b[at + 1] });
+    r.f(1, 1, 'padding: nothing in the program writes it (AddToDo and DoneToDo write byte 0)', { value: String(b[at + 1]) });
     r.f(2, 2, 'the day the line went on the list', { value: String(u16be(b, at + 2)) });
     r.f(4, 4, 'the line: the To Do text resource in the low half and the line’s number in the high twelve bits, 0x5000FFFF for none', { value: ref === 0x5000FFFF ? 'none' : 'line ' + ((ref >>> 16) & 0xFFF) + ' of 0x' + (ref & 0xFFFF).toString(16).toUpperCase().padStart(4, '0') });
   }
 }
-// The macro slots (TStatusWindow::SaveMacros): 20 bytes, 0xFF unassigned.
+/* The macro slots (TStatusWindow::SaveMacros): ten halfwords, not twenty
+   bytes. DefineFKey puts a skill number in a slot (SetMacro), and a key
+   whose code is 256 plus the slot's number runs it (PerformMacro): FindSkill
+   on the current character, then TTaskMaster::ScheduleSkill. −1 is none. */
 function byteMapMacros(p) {
   const b = p.bytes;
-  for (let s = 0; s < b.length; s++) p.f(s, 1, 'macro slot ' + s + ': 0xFF is unassigned', { value: b[s] === 0xFF ? 'unassigned' : String(b[s]), unread: b[s] !== 0xFF });
+  for (let s = 0; s * 2 + 2 <= b.length; s++) {
+    const v = (u16be(b, s * 2) << 16) >> 16;
+    p.f(s * 2, 2, 'macro slot ' + s + ', the key with code ' + (256 + s) + ': the skill it runs, −1 for none', { value: v === -1 ? 'none' : 'skill ' + v, empty: v === -1 });
+  }
+  if (b.length & 1) p.f(b.length - 1, 1, 'a last byte past the slots', { value: String(b[b.length - 1]), unread: true });
 }
 // The rooms (SaveGlobals, GetField for a Room): 1,024 halfwords.
 function byteMapRooms(p) {
   const b = p.bytes;
   for (let n = 0; n * 2 + 2 <= b.length; n++) {
     const v = u16be(b, n * 2);
-    p.f(n * 2, 2, 'room ' + n + ': bit 0 is set once it has been entered and its description shown; the other bits are not read', { value: '0x' + v.toString(16).toUpperCase().padStart(4, '0'), empty: !v, unread: !!(v & 0xFFFE) });
+    p.f(n * 2, 2, 'room ' + n + ': bit 0 is set the first time the party enters it, when its description runs (TGameSys::HeartBeat); nothing in the program or the scripts sets another bit', { value: '0x' + v.toString(16).toUpperCase().padStart(4, '0'), empty: !v, unread: !!(v & 0xFFFE) });
   }
 }
 // A zone's map memory (SaveLevelProps): one bit a square, LSB first, rows of
