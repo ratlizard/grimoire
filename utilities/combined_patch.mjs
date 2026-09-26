@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* A builder, not a check: every fix patch this project builds, as one
-   Magpie patch: the four of 24 September 2026 and Bryce Schroeder's six.
+   Magpie patch: the four of 24 September 2026, Bryce Schroeder's six, and
+   the two map fixes of 26 September.
    (25 September 2026; Bryce's six joined the same day at the maintainer's
    word, "all in one".)
 
@@ -27,7 +28,9 @@
    wording stands and the list reports the place as fixed already or not
    found (three places when this was written: "take the road" in Kosha,
    "quaters" in Pnyx, "kind looking" in Bryaxis's description, each read
-   corrected in the result).
+   corrected in the result). The map stage comes last and could come
+   anywhere: it changes two maps, 0x8006 and 0x801F, which no other stage
+   touches, and it finds its squares by the tiles on them.
 
    WHAT IS CHECKED. The combined patch merged onto the shipped file must
    give the last stage's file byte for byte. And each stage is also run
@@ -67,6 +70,7 @@ const STAGES = [
   { name: 'bugfix', script: 'bugfix_patch.mjs' },
   { name: 'text', script: 'text_fixes_patch.mjs' },
   { name: 'community-text', script: 'community_text_patch.mjs', coll: true },
+  { name: 'map', script: 'map_fixes_patch.mjs' },
 ];
 const stagesDir = join(outDir, 'stages');
 rmSync(stagesDir, {recursive: true, force: true});
@@ -115,7 +119,7 @@ const res = vm.runInContext(`(() => {
   const missing = [];
   touched.forEach((s, i) => { for (const id of s) if (!changed.includes(id)) missing.push({ id, stage: i }); });
   const finalSpec = spec(__files.final);
-  const w = writeDelverPatch(finalSpec, changed, { description: ${JSON.stringify('Every fix in one: Cythera Found Fixes, Cythera Community Fixes, Bryce Schroeder\u2019s unofficial bugfixes, Cythera Text Fixes and Cythera Community Text Fixes, built in that order and checked against each alone.')}, typeCode: DELV_PATCH_EXPORT_TYPE });
+  const w = writeDelverPatch(finalSpec, changed, { description: ${JSON.stringify('Every fix in one: Cythera Found Fixes, Cythera Community Fixes, Bryce Schroeder\u2019s unofficial bugfixes, Cythera Text Fixes, Cythera Community Text Fixes and Cythera Map Fixes, built in that order and checked against each alone.')}, typeCode: DELV_PATCH_EXPORT_TYPE });
   const bin = writeMacBinary({ name: ${JSON.stringify(NAME)}, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
   const merged = mergeDelverPatch(__files.shipped, w.bytes);
   const same = !!(merged && merged.bytes && eq(merged.bytes, __files.final));
