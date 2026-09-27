@@ -203,7 +203,7 @@ const desc = ev(`(() => {
           checkValid: d && d.checkValueValid,
           format: rep.format, baseFormat: rep.baseFormat, usable: rep.usable, reasons: rep.reasons,
           installedInBase: rep.installedIds.length, isInstalled: rep.isInstalled,
-          willReplace: rep.willReplace, notInBase: rep.notInBase.length,
+          willReplace: rep.willReplace, willAdd: rep.willAdd.length,
           disagreed: rep.disagreed.length, unchanged: rep.unchanged.length,
           sheets, tiles,
           baseDescriptor: !!delverPatchDescriptor(B)};
@@ -245,7 +245,7 @@ want('the shipped archive lists no applied patches', desc.installedInBase, 0);
 want('the shipped archive has no descriptor of its own', desc.baseDescriptor, false);
 want('so this patch does not read as installed', desc.isInstalled, false);
 want('resources it would replace', desc.willReplace, 12);
-want('resources it names that are not in the game', desc.notInBase, 0);
+want('resources it names that are not in the game', desc.willAdd, 0);
 want('resources refused on an encryption disagreement', desc.disagreed, 0);
 want('resources already identical', desc.unchanged, 0);
 want('tile sheets it redraws', desc.sheets, 12);
@@ -415,6 +415,42 @@ for (const [what, got] of Object.entries(rtneg))
   if (!got) fail('the writer can fail: ' + what, 'it did not');
 if (Object.values(rtneg).every(Boolean))
   ok('the writer can fail', Object.keys(rtneg).length + ' ways it must refuse or narrow, each held');
+
+/* ---- a resource the game file does not have is added -------------------------
+   Added 26 September 2026 with the gremlin trial: the shipped file has no
+   0x1Fxx script, and a patch that brings one must put it in. The bytes are
+   arbitrary; what is held is that the merge adds the one resource, byte for
+   byte, keeps the descriptor out, changes nothing else, and that describing
+   the patch says so before it is applied. A patch that only adds is accepted
+   rather than refused as applying nothing. */
+const add = ev(`(() => {
+  const edited = delverArchiveSpec(__base);
+  const bytes = new Uint8Array(40); for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 37 + 11) & 0xFF;
+  edited.resources.push({ resid: 0x1F00, data: bytes, encrypted: true });
+  const w = writeDelverPatch(edited, [0x1F00], {});
+  const rep = describeDelverPatch(delverArchiveSpec(__base), delverArchiveSpec(w.bytes));
+  const m = mergeDelverPatch(__base, w.bytes);
+  const A = new Map(delverArchiveSpec(writeDelverArchive(delverArchiveSpec(__base))).resources.map(r => [r.resid, r.data]));
+  const B = new Map(delverArchiveSpec(m.bytes).resources.map(r => [r.resid, r.data]));
+  const same = (x, y) => !!x && !!y && x.length === y.length && x.every((v, i) => v === y[i]);
+  let others = 0; for (const [id, d] of A) if (!same(d, B.get(id))) others++;
+  const back = getResourceBytes(openDelverArchive(m.bytes), 0x1F00);
+  return { willAdd: rep.willAdd.map(i => i.toString(16)).join(' '), usable: rep.usable,
+           added: m.added.map(i => i.toString(16)).join(' '), replaced: m.replaced.length,
+           skipped: m.skipped.map(i => i.toString(16)).join(' '), hasDescriptor: B.has(0xFFFF),
+           sameBytes: same(back, getResourceBytes(openDelverArchive(w.bytes), 0x1F00)), storedEncrypted: same(back, decryptResource(bytes, 0x1F00)),
+           others, count: B.size - A.size };
+})()`);
+want('describing a patch with a new resource says it would be added', add.willAdd, '1f00');
+want('and that patch is usable', add.usable, true);
+want('the merge adds it', add.added, '1f00');
+want('and replaces nothing', add.replaced, 0);
+want('the descriptor stays out of the game file', add.skipped + (add.hasDescriptor ? ' and 0xffff is in it' : ''), 'ffff');
+// Stored bytes, not plaintext: the spec reader guesses encryption, and on
+// arbitrary bytes the guess differs from the flag the patch was written with.
+want('the added resource is stored as the patch stores it', add.sameBytes, true);
+want('stored encrypted by its id, as the game reads it', add.storedEncrypted, true);
+want('one resource more, the rest byte for byte', add.others + ' changed, ' + add.count + ' more', '0 changed, 1 more');
 
 /* ---- the check value discriminates, and the two steps that were missing ----
    A digest recovered from a disassembly is exactly the kind of thing that can

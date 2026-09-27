@@ -884,13 +884,14 @@ function patchesApply() {
   try { merged = mergeDelverPatch(ARCHIVE.bytes, bytes); }
   catch (e) { say('That patch could not be applied: ' + e.message, true); return false; }
   const dirty = new Set(window.EDITED_RESIDS);
-  for (const id of merged.replaced) dirty.add(id);
+  for (const id of merged.replaced.concat(merged.added)) dirty.add(id);
   parseArchiveBytes(merged.bytes, window.ARCHIVE_SOURCE_NAME || 'archive',
                     { rsrc: window.CYTHERA_RSRC_RAW, via: 'edit' });
   window.EDITED_RESIDS = dirty;
   if (typeof refreshChangesBadge === 'function') refreshChangesBadge();
   const what = (rep.descriptor && rep.descriptor.description) || rep.fileName || 'that patch';
-  setStatus(merged.replaced.length + ' resource(s) replaced by ' + what +
+  setStatus(merged.replaced.length + ' resource(s) replaced' +
+    (merged.added.length ? ' and ' + merged.added.length + ' added' : '') + ' by ' + what +
     '. The patch is applied to the copy in this browser only, and the galleries and maps show it now. ' +
     'Data \u203a Cythera Data \u203a Changes is where it leaves the page.');
   return true;
@@ -977,8 +978,8 @@ function renderPatchReport() {
       : 'This file lists no applied patches.');
   if (rep.usable) verdicts.push('Magpie’s own three tests pass: the scenario matches, the format is compatible, and the descriptor was written for this file.');
   else for (const r of rep.reasons) verdicts.push('Magpie would refuse it: ' + svEsc(r) + '.');
-  if (rep.notInBase.length) verdicts.push('<b>' + rep.notInBase.length + '</b> resource' + (rep.notInBase.length === 1 ? '' : 's') +
-    ' the patch carries are not in this file and would be left out rather than added.');
+  if (rep.willAdd.length) verdicts.push('<b>' + rep.willAdd.length + '</b> resource' + (rep.willAdd.length === 1 ? '' : 's') +
+    ' the patch carries ' + (rep.willAdd.length === 1 ? 'is' : 'are') + ' not in this file and would be added.');
   if (rep.disagreed.length) verdicts.push('<b>' + rep.disagreed.length + '</b> would be refused because the two sides disagree about whether the resource is encrypted.');
   if (rep.unchanged.length) verdicts.push('<b>' + rep.unchanged.length + '</b> are already byte for byte what this file holds.');
   host.appendChild(el('ul', 'ruleList', verdicts.map(v => '<li>' + v + '</li>').join('')));
@@ -986,7 +987,7 @@ function renderPatchReport() {
   const rows = rep.resources.map(r => '<tr>' +
     '<td>' + (r.inBase ? svChip(r.resid, labelFor(r.resid) || '') : '<span class="patchMono">' + propWordHex(r.resid) + '</span>') + '</td>' +
     mechNum(r.baseLength === null ? '' : r.baseLength) + mechNum(r.patchLength) +
-    '<td class="mechSub">' + (!r.inBase ? 'not in this file' : !r.encryptionAgrees ? 'encryption verdicts disagree' :
+    '<td class="mechSub">' + (!r.inBase ? 'added' : !r.encryptionAgrees ? 'encryption verdicts disagree' :
       r.identical ? 'identical' : 'replaced') + '</td></tr>');
   host.appendChild(el('div', 'partsTitle', 'The resources it names'));
   host.appendChild(el('div', '', mechTable(['resource', '#in this file', '#in the patch', ''], rows)));
@@ -1020,10 +1021,13 @@ function renderPatchReport() {
   }
   /* Applying is offered only when the merge would do something, and the lines
      above the button say what will move rather than leaving it to be found. */
-  if (rep.usable && rep.willReplace) {
+  if (rep.usable && (rep.willReplace || rep.willAdd.length)) {
+    const moves = [];
+    if (rep.willReplace) moves.push('Replaces <b>' + rep.willReplace + '</b> resource' + (rep.willReplace === 1 ? '' : 's'));
+    if (rep.willAdd.length) moves.push((moves.length ? 'adds' : 'Adds') + ' <b>' + rep.willAdd.length + '</b>');
     host.appendChild(el('div', 'partsTitle', 'Apply it'));
     host.appendChild(el('ul', 'ruleList',
-      '<li>Replaces <b>' + rep.willReplace + '</b> resource' + (rep.willReplace === 1 ? '' : 's') +
+      '<li>' + moves.join(' and ') +
       ' in the copy of the file in this browser. <b>Nothing is written to disk.</b></li>' +
       '<li>Every view redraws from the patched archive, so the tiles above appear in the galleries and on the maps.</li>' +
       '<li>The file as it arrived is kept, so <b>Two files against each other</b> can then show exactly what changed.</li>'));

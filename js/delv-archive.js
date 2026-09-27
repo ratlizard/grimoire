@@ -1332,10 +1332,20 @@ function mergeDelverPatch(baseBytes, patchBytes) {
   if (!patch.resources.length) throw new Error('that patch holds no resources');
 
   const byId = new Map(base.resources.map(r => [r.resid, r]));
-  const replaced = [], skipped = [], disagreed = [];
+  const replaced = [], added = [], skipped = [], disagreed = [];
   for (const r of patch.resources) {
     const target = byId.get(r.resid);
-    if (!target) { skipped.push(r.resid); continue; }
+    if (!target) {
+      // A resource the game file does not have is added: a gremlin's script
+      // (0x1F00 + n) is one the shipped file has none of, and the engine
+      // runs it once it is there (26 September 2026). The two records that
+      // are Magpie's rather than the game's stay out: the patch's own
+      // descriptor, and the installed list, which Magpie writes itself.
+      if (r.resid === DELV_PATCH_DESCRIPTOR || r.resid === DELV_PATCH_INSTALLED) { skipped.push(r.resid); continue; }
+      base.resources.push(r);
+      added.push(r.resid);
+      continue;
+    }
     // Both sides ran the same smartDecrypt on the same id. When they reach
     // different verdicts one of the two plaintexts is not plaintext, and the
     // writer re-encrypts from the base's verdict -- so writing this resource
@@ -1346,10 +1356,10 @@ function mergeDelverPatch(baseBytes, patchBytes) {
     target.data = r.data;
     replaced.push(r.resid);
   }
-  if (!replaced.length)
+  if (!replaced.length && !added.length)
     throw new Error('none of that patch\'s ' + patch.resources.length +
                     ' resource(s) could be applied to the game archive');
-  return { bytes: writeDelverArchive(base), replaced, skipped, disagreed,
+  return { bytes: writeDelverArchive(base), replaced, added, skipped, disagreed,
            title: patch.scenarioTitle };
 }
 
@@ -1699,7 +1709,7 @@ function describeDelverPatch(baseSpec, patchSpec) {
     isInstalled: !!(desc && desc.uuidText && installed.indexOf(desc.uuidText) >= 0),
     resources,
     willReplace: resources.filter(r => r.inBase && r.encryptionAgrees).length,
-    notInBase: resources.filter(r => !r.inBase).map(r => r.resid),
+    willAdd: resources.filter(r => !r.inBase).map(r => r.resid),
     disagreed: resources.filter(r => r.inBase && !r.encryptionAgrees).map(r => r.resid),
     unchanged: resources.filter(r => r.identical).map(r => r.resid),
     usable: !reasons.length,
