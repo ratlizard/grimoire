@@ -15,7 +15,11 @@
              offsets are the resource's as it stands when the edit is
              applied, so edits to one resource are applied in the order
              given: put the higher offsets first, or keep the earlier
-             edits the same length.
+             edits the same length. `shiftAt: true` sends a jump that
+             lands exactly at `at` past the new code rather than into it
+             (dvmRelink's opts.shiftAt): what a `return` put after an
+             answer wants, since the jump there is the previous keyword
+             test skipping to the next one, and must still reach it.
      textEdits: [{ what, resid, find, replace, count?, mid?, at?, optional? }] -- every
              occurrence of the text `find` in the resource (count says how
              many there must be; omitted means at least one) is replaced by
@@ -77,7 +81,7 @@ export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, des
       let to = e.to;
       if (e.replaceOp) { const g = opAt(b, e.resid, e.at); if (!g) throw new Error(e.what + ': no instruction at 0x' + e.at.toString(16)); to = g.next; }
       const asm = dvmAssemble(e.code, e.resid);
-      const rl = dvmRelink(b, e.resid, e.at, to === undefined ? 0 : to - e.at, asm);
+      const rl = dvmRelink(b, e.resid, e.at, to === undefined ? 0 : to - e.at, asm, e.shiftAt ? { shiftAt: true } : undefined);
       plain.set(e.resid, rl.bytes);
       log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', ' + (rl.delta >= 0 ? '+' : '') + rl.delta + ' bytes, ' + rl.moved + ' offsets moved');
     }

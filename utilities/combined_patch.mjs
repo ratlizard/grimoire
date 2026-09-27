@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* A builder, not a check: every fix patch this project builds, as one
-   Magpie patch: the four of 24 September 2026, Bryce Schroeder's six, and
-   the two map fixes of 26 September.
+   Magpie patch: the four of 24 September 2026, Bryce Schroeder's six, the
+   two map fixes of 26 September, and the further fixes of 27 September.
    (25 September 2026; Bryce's six joined the same day at the maintainer's
    word, "all in one".)
 
@@ -22,7 +22,12 @@
    something wrong. Bryce's six come after the community's fixes because
    both change Aethon's script, his edit near its start (0x0078) and theirs
    further on (0x0765): only in that order does the earlier edit leave the
-   later one's offsets where it expects them. The two text stages go last because they find their
+   later one's offsets where it expects them. The further fixes come after
+   the three, because they share scripts with all of them (Crito, Apis and
+   Parium with the community's, Demodocus with the found, Paris with
+   Bryce's) and find each place by its instructions rather than by an
+   offset, so they can follow any of them; put first, they would move the
+   offsets the others expect. The two text stages go last because they find their
    words rather than their offsets. The community's typo list comes after
    this project's text fixes: where both fix one sentence, the text stage's
    wording stands and the list reports the place as fixed already or not
@@ -68,6 +73,7 @@ const STAGES = [
   { name: 'found', script: 'found_fixes_patch.mjs' },
   { name: 'community', script: 'community_fixes_patch.mjs' },
   { name: 'bugfix', script: 'bugfix_patch.mjs' },
+  { name: 'further', script: 'further_fixes_patch.mjs' },
   { name: 'text', script: 'text_fixes_patch.mjs' },
   { name: 'community-text', script: 'community_text_patch.mjs', coll: true },
   { name: 'map', script: 'map_fixes_patch.mjs' },
