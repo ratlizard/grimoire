@@ -985,7 +985,7 @@ const TAB_TREE = [
           { id: 'writings', label: 'Writings', tile: 0x260, values: ['1'] },                               // the maintainer's pick, 22 September 2026; it was the scroll (0x263)
           // The faces the text is set in: Argos A Nouveau and the Seldane
           // script, out of the resource fork, and the styles that assign them.
-          { id: 'fonts',    label: 'Fonts',    tile: 0x180, values: ['FONTS'] },                              // the maintainer's pick, 9 September 2026
+          { id: 'fonts',    label: 'Fonts',    tile: 0x264, values: ['FONTS'] },                              // the inkwell, the maintainer's pick, 27 September 2026; it was 0x180
           // The short lines a character says over their head, read out of
           // every script that sets one (buildBarkCatalogue).
           { id: 'barks',    label: 'Barks',    tile: 0x185, values: ['BARKS'] } ] },                          // the maintainer's pick, 8 September; it was the bell (0x488)
@@ -1001,7 +1001,7 @@ const TAB_TREE = [
          the bytes. A figure on a Scenario page lands here on its own
          record and the record links on to the fork (the maintainer,
          20 September 2026). */
-      { id: 'records', label: 'Records', tile: 0x227, values: ['RECORDS'] },                                 // the tome (prop 261)
+      { id: 'records', label: 'Records', tile: 0x265, values: ['RECORDS'] },                                 // the magic map, the maintainer's pick, 27 September 2026; it was the tome (0x227)
       { id: 'graphics', label: 'Graphics', tile: 0x861, children: [                           // the easel, with its painting
           { id: 'portraits',  label: 'Portraits',  tile: 0x33F, values: ['135'] },                      // the mirror
           { id: 'landscapes', label: 'Landscapes', tile: 0x890, values: ['131'] },                      // the landscape painting
@@ -1093,10 +1093,11 @@ const TAB_TREE = [
       // Magpie's, its bundle's FREF for DelP, the Delver document frame with
       // a square patched into its corner. The tab wears it when the file open
       // is a patch rather than Cythera Data (openFileIsPatch), the
-      // maintainer's rule, and the cloth otherwise. It is not ours to ship,
+      // maintainer's rule, and the fishing pole otherwise (0x29A, the
+      // maintainer's pick; it was the cloth). It is not ours to ship,
       // so it is there once a Magpie archive has been opened on this device
       // (magpieIcon, which remembers it).
-      { id: 'patches', label: 'Patches', tile: 0x2B8, magpie: 'DelP', values: ['PATCHES'] },
+      { id: 'patches', label: 'Patches', tile: 0x29A, magpie: 'DelP', values: ['PATCHES'] },
       // The folder's own icon, a folder with an axe across it, drawn in 1999
       // for these files and no others; the rolling pin stands in before a
       // file is open.

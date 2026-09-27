@@ -1048,7 +1048,7 @@ function atlasPeople(ctx, node, r, ppt) {
    old face's widths and mis-size every box behind every label. */
 const _atlasTextW = new Map();
 function atlasTextWidth(ctx, s) {
-  const key = ctx.font + ' ' + s;
+  const key = ctx.font + '\u0000' + s;
   let w = _atlasTextW.get(key);
   if (w === undefined) {
     w = Math.round(ctx.measureText(s).width);

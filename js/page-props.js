@@ -260,7 +260,10 @@ function colourWordFor(rgb) {
 
 // Draw a prop's sprite, assembling the extra squares when the tile attributes
 // say it spans more than one. Returns the canvas, or null if there is nothing.
-function drawPropSprite(tileId, px) {
+// With `later`, the canvas comes back sized and blank, with paintNow() to
+// draw it: the size is the tile attributes' alone, so a gallery can lay out
+// every cell and paint only the ones that come near the screen.
+function drawPropSprite(tileId, px, later) {
   const pieces = multiTilePieces(tileId, false) || [];
   let minX = 0, minY = 0, maxX = 0, maxY = 0;
   for (const p of pieces) {
@@ -276,12 +279,13 @@ function drawPropSprite(tileId, px) {
     try { drawTileToCanvas(tmp, tile, 32); } catch (e) { return; }
     ctx.drawImage(tmp, (dx - minX) * 32, (dy - minY) * 32);
   };
-  for (const p of pieces) put(p.tile, p.dx, p.dy);
-  put(tileId, 0, 0);
+  let painted = false;
+  const paintNow = () => { if (painted) return; painted = true; for (const p of pieces) put(p.tile, p.dx, p.dy); put(tileId, 0, 0); };
+  if (!later) paintNow();
   c.style.width = (cols * px) + 'px';
   c.style.height = (rows * px) + 'px';
   c.style.imageRendering = 'pixelated';
-  return { canvas: c, cols, rows, multi: pieces.length > 0 };
+  return { canvas: c, cols, rows, multi: pieces.length > 0, paintNow };
 }
 
 /* A unit's picture, assembled the way the program builds the monster (the
@@ -827,12 +831,19 @@ function renderPropTypeSheet() {
     // still, because the aspects in it are the scenario's, not a cycle.
     // Otherwise galleryFrames picks the anchors and the stride, and the cell
     // shows the first of them and then walks the rest.
+    // A sprite is laid out at once and painted, and set walking, when its
+    // cell comes near the screen (lazyTile): 392 of them drawn before the
+    // gallery showed was most of its first paint on a phone, for the twenty
+    // a phone's screen holds (27 September 2026).
     let spr = scenery ? drawSceneryWhole(e.pt, GALLERY_TILE_PX) : null;
     const cyc = spr ? null : galleryFrames(e);
-    if (!spr) spr = drawPropSprite(e.base + (cyc.length ? cyc[0] : 0), GALLERY_TILE_PX);
+    if (!spr) spr = drawPropSprite(e.base + (cyc.length ? cyc[0] : 0), GALLERY_TILE_PX, true);
     fitGalleryCell(cell, wrap, spr);
     if (spr) wrap.appendChild(spr.canvas);
-    if (cyc) cyclePropCell(spr, cyc.map(f => e.base + f), GALLERY_TILE_PX, e.alive ? UNIT_FRAME_MS : PROP_FRAME_MS);
+    if (cyc && spr) {
+      const s0 = spr, frames = cyc.map(f => e.base + f), ms = e.alive ? UNIT_FRAME_MS : PROP_FRAME_MS;
+      lazyTile(wrap, () => { s0.paintNow(); cyclePropCell(s0, frames, GALLERY_TILE_PX, ms); });
+    }
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
     lbl.className = 'lbl';

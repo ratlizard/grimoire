@@ -92,6 +92,23 @@ function analyze(path) {
     }
   }
 
+  // ---- 1b. no control characters in the source ---------------------------
+  // A literal NUL sat inside a string in js/page-atlas.js until 27 September
+  // 2026 (a cache key's separator, typed as the byte rather than as
+  // '\u0000'). It ran the same either way, but grep reads a file with a NUL
+  // in it as binary and skips it without a word, so every search over js/
+  // was blind to that file: a caller of buildWorldThumbs "did not exist"
+  // while a profile showed it running. Tab, newline and carriage return are
+  // the only ones a script here needs; anything else is written as an
+  // escape.
+  for (let i = 0; i < scripts.length; i++) {
+    const m = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.exec(scripts[i]);
+    if (m) {
+      const line = scripts[i].slice(0, m.index).split('\n').length;
+      r.errors.push(`${scriptNames[i] || 'script #' + i} carries a raw control character (0x${m[0].charCodeAt(0).toString(16).padStart(2, '0')}) at line ${line}: write it as an escape, or grep reads the file as binary and skips it`);
+    }
+  }
+
   // ---- 2. CSS block balance ----------------------------------------------
   const styles = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map(m => m[1]);
   r.stats.styleBlocks = styles.length;

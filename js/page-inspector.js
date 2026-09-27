@@ -1397,7 +1397,15 @@ function drawTown(ctx, gw, rect, alpha, roofT) {
    One town per idle slice: each one is a whole map rendered and thrown away,
    and a loop over 19 of them would be a visible stall on the first zoom. They
    arrive over a second or two of an ordinary visit, and the world map
-   repaints as each lands. */
+   repaints as each lands.
+
+   Only while the World tab is showing. The queue went on after the reader
+   left it, and on a phone each town is a whole map render on the main
+   thread: profiled at a sixth of desktop speed, the sprites gallery opened
+   a few seconds after the page spent more time building towns behind it
+   than drawing itself (the maintainer, 27 September 2026: "takes longer
+   than needed to load"). Off World a slice stops the queue, and
+   renderAtlasView starts it again on the way back. */
 let thumbQueue = null;
 function buildWorldThumbs() {
   if (thumbQueue) return;
@@ -1406,6 +1414,7 @@ function buildWorldThumbs() {
   if (!todo.length) return;
   const step = () => {
     thumbQueue = null;
+    if (window.CUR_SUBN !== 'WORLD') return;
     const gw = todo.shift();
     if (!gw) return;
     buildThumbsFor(gw, [THUMB_LEVELS[0]]);
