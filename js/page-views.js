@@ -420,8 +420,8 @@ function renderPrefsSheet() {
 /* Data › Patches: a patch read and applied, a sprite or a gremlin made into
    one, and one file compared with another, the sections of MECH_TOOL_GROUP,
    which the rules renderer builds because the reading they share lives
-   there. The tab wears Magpie's own icon for a patch once a Magpie archive
-   has been opened here (magpieIcon). */
+   there. The tab wears Magpie's own icon for a patch while a patch rather
+   than Cythera Data is the file open (openFileIsPatch, magpieIcon). */
 function renderPatchesSheet() { renderMechanicsSheet(MECH_TOOL_GROUP.value); }
 
 /* ---- Tools -------------------------------------------------------------------

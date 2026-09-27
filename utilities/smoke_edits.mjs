@@ -765,7 +765,20 @@ try {
     const icon = ctx.magpieIcon('DelP');
     if (none) fail('patch icon', 'the data file was taken for an archive holding Magpie');
     else if (!got || !icon || !icon.width) fail('patch icon', 'the Pumpkin Patch archive gave no Magpie icon for a patch');
-    else console.log('  patch icon: Magpie\u2019s DelP icon, ' + icon.width + 'x' + icon.height + ', out of the Pumpkin Patch archive, and none out of the data file');
+    else {
+      // The Patches tab wears it only while a patch is the file open: with
+      // Cythera Data open, the cloth; with the Pumpkin Patch itself as the
+      // open archive, Magpie's icon.
+      const spec = peek('TAB_LEAF_FOR').get('PATCHES');
+      const withData = ctx.navIconFromFork(spec);
+      sandbox.__pumpkin = ctx.extractDelverArchive(new Uint8Array(readFileSync(MAGPIE))).bytes;
+      peek('(window.__keptArc = ARCHIVE, ARCHIVE = openDelverArchive(window.__pumpkin), 0)');
+      let withPatch = null;
+      try { withPatch = ctx.navIconFromFork(spec); } finally { peek('(ARCHIVE = window.__keptArc, 0)'); }
+      if (withData) fail('patch icon', 'the Patches tab wears a patch icon with Cythera Data open');
+      else if (withPatch !== icon) fail('patch icon', 'with a patch as the open file the Patches tab does not wear Magpie\u2019s icon');
+      else console.log('  patch icon: Magpie\u2019s DelP icon, ' + icon.width + 'x' + icon.height + ', out of the Pumpkin Patch archive and none out of the data file; the Patches tab wears it with the patch open and not with Cythera Data');
+    }
   }
 } catch (e) { fail('patch icon', e); }
 

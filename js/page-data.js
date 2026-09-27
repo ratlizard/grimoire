@@ -2737,7 +2737,8 @@ function finderIconFor(type) {
    (614_MagpiePumpkinPatch.sit.hqx). So when an archive opened here holds a
    program with Magpie's creator, its resource fork is kept, and remembered
    in this browser, which is the only place it goes: from then on the
-   Patches tab wears the icon without the archive being opened again.
+   Patches tab can wear the icon, when a patch is the file open, without the
+   archive being opened again.
    Asked for by the maintainer, 27 September 2026. */
 const MAGPIE_FORK_KEY = 'grimoire.magpieFork';
 function noteMagpieFrom(raw) {
@@ -2769,6 +2770,17 @@ function magpieFork() {
     if (s) fork = openResourceFork(Uint8Array.from(window.atob(s), ch => ch.charCodeAt(0)));
   } catch (err) { quiet(err, 'reading Magpie\u2019s remembered icons'); fork = null; }
   return (window.MAGPIE_FORK = fork);
+}
+// Whether the file open is a Magpie patch rather than Cythera Data, which is
+// when the Patches tab wears a patch's Finder icon. Once a file.
+function openFileIsPatch() {
+  if (!ARCHIVE) return false;
+  if (DERIVED.OPEN_IS_PATCH === undefined) {
+    let p = false;
+    try { p = !!delverArchivePatchPeek(ARCHIVE.bytes); } catch (e) { quiet(e, 'asking whether the open file is a patch'); }
+    DERIVED.OPEN_IS_PATCH = p;
+  }
+  return DERIVED.OPEN_IS_PATCH;
 }
 function magpieIcon(type) {
   const fork = magpieFork();
