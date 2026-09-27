@@ -1020,7 +1020,7 @@ function renderPatchReport() {
     }
   }
   scriptDiffSection(host, el, rep.resources.filter(r => !r.identical && SCRIPT_SUBN.has(r.subn))
-    .map(r => ({ resid: r.resid, a: r.baseData, b: r.patchData })), 'the open file', 'the patch');
+    .map(r => ({ resid: r.resid, a: r.baseData, b: r.patchData })), 'the open file', 'the patch', rep.scriptDiffs || (rep.scriptDiffs = new Map()));
   /* Applying is offered only when the merge would do something, and the lines
      above the button say what will move rather than leaving it to be found. */
   if (rep.usable && (rep.willReplace || rep.willAdd.length)) {
@@ -1052,16 +1052,22 @@ function renderPatchReport() {
    One fold a script, its counts on the fold and its lines drawn when it is
    first opened, since a patch of a hundred and sixty scripts drawn at once
    is a long page on a phone. `pairs` is [{ resid, a, b }], each side's
-   plaintext or null. */
-function scriptDiffSection(host, el, pairs, aName, bName) {
+   plaintext or null; `memo` is a Map kept on the report, since the Tools
+   tab draws the report again every time it is shown and the diffs of a
+   hundred and sixty scripts were worked out again with it. */
+function scriptDiffSection(host, el, pairs, aName, bName, memo) {
   if (!pairs.length) return;
   host.appendChild(el('div', 'partsTitle', 'The scripts, line by line: ' + pairs.length));
   host.appendChild(el('p', 'mechSub', 'Each script as its code view lists it, the lines that differ and two either side. ' +
     '− is ' + svEsc(aName) + ', + is ' + svEsc(bName) + ', and the words that differ are underlined. ' +
     'Text kept in a script’s data, which the listing shows only as a size, follows its code.'));
   for (const p of pairs) {
-    let d = null;
-    try { d = dvmScriptDiff(ARCHIVE, p.resid, p.a, p.b); } catch (e) { quiet(e, 'comparing script ' + propWordHex(p.resid)); }
+    let d = memo && memo.get(p.resid);
+    if (d === undefined) {
+      d = null;
+      try { d = dvmScriptDiff(ARCHIVE, p.resid, p.a, p.b); } catch (e) { quiet(e, 'comparing script ' + propWordHex(p.resid)); }
+      if (memo) memo.set(p.resid, d);
+    }
     const det = document.createElement('details');
     det.className = 'sdScript';
     const counts = !d ? 'could not be read' :
@@ -2293,7 +2299,8 @@ function renderCompareReport() {
   }
 
   scriptDiffSection(host, el, real.filter(c => SCRIPT_SUBN.has(c.subn)).map(c => ({ resid: c.resid, a: c.a.data, b: c.b.data }))
-    .concat(rep.added.filter(x => SCRIPT_SUBN.has((x.resid >> 8) - 1)).map(x => ({ resid: x.resid, a: null, b: x.b.data }))), rep.aName, rep.bName);
+    .concat(rep.added.filter(x => SCRIPT_SUBN.has((x.resid >> 8) - 1)).map(x => ({ resid: x.resid, a: null, b: x.b.data }))), rep.aName, rep.bName,
+    rep.scriptDiffs || (rep.scriptDiffs = new Map()));
 
   /* The export. Only offered when the newer side is a file this page can take
      the resources OUT of, which is the open file -- a patch has to carry the

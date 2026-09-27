@@ -4941,56 +4941,62 @@ function characterFlagPlace(flag) {
    application open uses the same constants, which is what a reader here
    returning null means. */
 function exeMonsterKinds() {
-  const ops = exeOpsNamed('TActiveMonster::CreateMonster');
-  if (!ops.length) return null;
-  const cmp = ops.filter(o => o.d && o.d.mn === 'cmpwi');
-  const ctor = name => ops.find(o => exeCalls(o, name));
-  const crawl = ctor('TCrawlMonster::TCrawlMonster'), dragon = ctor('TDragonMonster::TDragonMonster'), octo = ctor('TOctoMonster::TOctoMonster');
-  if (!crawl || !dragon || !octo || cmp.length < 3) return null;
-  const a = cmp[0].d.imm, b = cmp[1].d.imm, c = cmp[2].d.imm;
-  const range = (lo, hi) => { const r = []; for (let i = lo; i <= hi; i++) r.push(i); return r; };
-  return { dragon: range(a, a), crawl: range(b, a - 1), octo: range(a + 1, c - 1),
-           bounds: cmp.slice(0, 3).map(o => exeVal(o, o.d.imm)), ctors: { crawl, dragon, octo } };
+  return exeMemo('exeMonsterKinds', () => {
+    const ops = exeOpsNamed('TActiveMonster::CreateMonster');
+    if (!ops.length) return null;
+    const cmp = ops.filter(o => o.d && o.d.mn === 'cmpwi');
+    const ctor = name => ops.find(o => exeCalls(o, name));
+    const crawl = ctor('TCrawlMonster::TCrawlMonster'), dragon = ctor('TDragonMonster::TDragonMonster'), octo = ctor('TOctoMonster::TOctoMonster');
+    if (!crawl || !dragon || !octo || cmp.length < 3) return null;
+    const a = cmp[0].d.imm, b = cmp[1].d.imm, c = cmp[2].d.imm;
+    const range = (lo, hi) => { const r = []; for (let i = lo; i <= hi; i++) r.push(i); return r; };
+    return { dragon: range(a, a), crawl: range(b, a - 1), octo: range(a + 1, c - 1),
+             bounds: cmp.slice(0, 3).map(o => exeVal(o, o.d.imm)), ctors: { crawl, dragon, octo } };
+  });
 }
 function exeCrawlRule() {
-  const ops = exeOpsNamed('TCrawlMonster::TCrawlMonster');
-  if (!ops.length) return null;
-  const k55 = ops.findIndex(o => o.d && o.d.mn === 'li' && o.d.imm === 55 && (o.d.rt === 4 || o.d.rd === 4));
-  const lit = exeFindBack(ops, k55, 30, d => d.mn === 'li' && d.imm > 0 && d.imm < 64 && (d.rt === 0 || d.rd === 0));
-  const k54 = exeFind(ops, k55, 60, d => d.mn === 'li' && d.imm === 54);
-  const tail = exeFind(ops, k55, 200, d => d.mn === 'addi' && d.imm === 8 && d.ra === 3);
-  if (k55 < 0 || lit < 0 || tail < 0) return null;
-  return { tailOnly: exeVal(ops[lit], ops[lit].d.imm), tailOffset: exeVal(ops[tail], 8), segmentsKey: k54 >= 0 ? exeVal(ops[k54], 54) : null };
+  return exeMemo('exeCrawlRule', () => {
+    const ops = exeOpsNamed('TCrawlMonster::TCrawlMonster');
+    if (!ops.length) return null;
+    const k55 = ops.findIndex(o => o.d && o.d.mn === 'li' && o.d.imm === 55 && (o.d.rt === 4 || o.d.rd === 4));
+    const lit = exeFindBack(ops, k55, 30, d => d.mn === 'li' && d.imm > 0 && d.imm < 64 && (d.rt === 0 || d.rd === 0));
+    const k54 = exeFind(ops, k55, 60, d => d.mn === 'li' && d.imm === 54);
+    const tail = exeFind(ops, k55, 200, d => d.mn === 'addi' && d.imm === 8 && d.ra === 3);
+    if (k55 < 0 || lit < 0 || tail < 0) return null;
+    return { tailOnly: exeVal(ops[lit], ops[lit].d.imm), tailOffset: exeVal(ops[tail], 8), segmentsKey: k54 >= 0 ? exeVal(ops[k54], 54) : null };
+  });
 }
 function exeOctoRule() {
-  const img = appImage();
-  const ops = exeOpsNamed('TOctoMonster::TOctoMonster');
-  if (!img || !ops.length) return null;
-  const tabs = ops.filter(o => o.d && o.d.mn === 'addi' && o.d.ra === 2).slice(0, 2);
-  const k54 = ops.findIndex(o => o.d && o.d.mn === 'li' && o.d.imm === 54);
-  const bound = ops.findIndex(o => o.d && o.d.mn === 'cmpwi' && o.d.imm > 1 && o.d.imm <= 16);
-  if (tabs.length < 2 || k54 < 0 || bound < 0) return null;
-  const n = ops[bound].d.imm;
-  const sec = img.contents[img.toc.section].bytes;
-  const read = d => { const o = img.toc.offset + d, a = []; for (let i = 0; i < n; i++) { let v = (sec[o + 2 * i] << 8) | sec[o + 2 * i + 1]; if (v & 0x8000) v -= 0x10000; a.push(v); } return a; };
-  // Arm i is not given aspect i. The loop counter is shifted left, the rlwimi
-  // that writes the aspect byte rotates it again, and the aspect field sits
-  // two bits up in that byte, so the aspect steps by 1 << (sh + sh' - (31-me))
-  // -- which is the number of frames one direction of the arm's sheet owns.
-  // Reading it as i put seven of the eight arms on a frame of the wrong
-  // direction, which is what the assembled hydra looked like.
-  const ctr = ops.find(o => o.d && o.d.mn === 'addi' && o.d.imm === 1 && o.d.ra === exeDestReg(o.d));
-  let step = null;
-  if (ctr) for (const o of ops) {
-    if (!o.d || o.d.mn !== 'slwi' || o.d.rs !== ctr.d.ra) continue;
-    const m = ops.find(e => e.d && e.d.mn === 'rlwimi' && e.d.rs === o.d.ra && e.d.mb >= 24);
-    if (!m) continue;
-    const sh = o.d.sh + m.d.sh - (31 - m.d.me);
-    if (sh >= 0 && sh < 8) step = exeVal(m, 1 << sh);
-    break;
-  }
-  // The loop adds the first table to x and the second to y.
-  return { armKey: exeVal(ops[k54], 54), arms: exeVal(ops[bound], n), aspectStep: step, dx: exeVal(tabs[0], read(tabs[0].d.imm)), dy: exeVal(tabs[1], read(tabs[1].d.imm)) };
+  return exeMemo('exeOctoRule', () => {
+    const img = appImage();
+    const ops = exeOpsNamed('TOctoMonster::TOctoMonster');
+    if (!img || !ops.length) return null;
+    const tabs = ops.filter(o => o.d && o.d.mn === 'addi' && o.d.ra === 2).slice(0, 2);
+    const k54 = ops.findIndex(o => o.d && o.d.mn === 'li' && o.d.imm === 54);
+    const bound = ops.findIndex(o => o.d && o.d.mn === 'cmpwi' && o.d.imm > 1 && o.d.imm <= 16);
+    if (tabs.length < 2 || k54 < 0 || bound < 0) return null;
+    const n = ops[bound].d.imm;
+    const sec = img.contents[img.toc.section].bytes;
+    const read = d => { const o = img.toc.offset + d, a = []; for (let i = 0; i < n; i++) { let v = (sec[o + 2 * i] << 8) | sec[o + 2 * i + 1]; if (v & 0x8000) v -= 0x10000; a.push(v); } return a; };
+    // Arm i is not given aspect i. The loop counter is shifted left, the rlwimi
+    // that writes the aspect byte rotates it again, and the aspect field sits
+    // two bits up in that byte, so the aspect steps by 1 << (sh + sh' - (31-me))
+    // -- which is the number of frames one direction of the arm's sheet owns.
+    // Reading it as i put seven of the eight arms on a frame of the wrong
+    // direction, which is what the assembled hydra looked like.
+    const ctr = ops.find(o => o.d && o.d.mn === 'addi' && o.d.imm === 1 && o.d.ra === exeDestReg(o.d));
+    let step = null;
+    if (ctr) for (const o of ops) {
+      if (!o.d || o.d.mn !== 'slwi' || o.d.rs !== ctr.d.ra) continue;
+      const m = ops.find(e => e.d && e.d.mn === 'rlwimi' && e.d.rs === o.d.ra && e.d.mb >= 24);
+      if (!m) continue;
+      const sh = o.d.sh + m.d.sh - (31 - m.d.me);
+      if (sh >= 0 && sh < 8) step = exeVal(m, 1 << sh);
+      break;
+    }
+    // The loop adds the first table to x and the second to y.
+    return { armKey: exeVal(ops[k54], 54), arms: exeVal(ops[bound], n), aspectStep: step, dx: exeVal(tabs[0], read(tabs[0].d.imm)), dy: exeVal(tabs[1], read(tabs[1].d.imm)) };
+  });
 }
 function exeDestReg(d) { return d.rt !== undefined ? d.rt : d.rd !== undefined ? d.rd : d.rs; }
 
@@ -5092,7 +5098,12 @@ function exeTocReaders(disp) {
   const src = d => d.rs !== undefined ? d.rs : (d.args ? d.args[1] : undefined);
   const seen = new Set();
   for (let at = 0; at + 4 <= code.length; at += 4) {
-    const d = ppcDecode(pefU32(code, at));
+    // lwz is primary opcode 32 with rA in bits 11-15 and the displacement
+    // in the low half; the bits are tested before the decoder, which over
+    // the whole code section was half a second a displacement.
+    const w = pefU32(code, at);
+    if ((w >>> 26) !== 32 || ((w >>> 16) & 31) !== 2 || ((w & 0xFFFF) << 16 >> 16) !== disp) continue;
+    const d = ppcDecode(w);
     if (!d || d.mn !== 'lwz' || d.ra !== 2 || d.d !== disp) continue;
     const r = exeRoutineAt(at);
     if (!r || /^FillIntfCache\b/.test(r.name) || seen.has(r.offset)) continue;

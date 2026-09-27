@@ -360,6 +360,24 @@ try {
   const arms = ctx.spriteFrameInfo(0, 0x116), body = ctx.spriteFrameInfo(0, 0x117);
   if (ctx.spriteBlockSize(0x116) !== 32 || arms.present.length !== 32) fail('frame blocks', 'the hydra’s arm class owns ' + ctx.spriteBlockSize(0x116) + ' frames, ' + arms.present.length + ' present, not 32');
   else if (ctx.spriteBlockSize(0x117) > 16) fail('frame blocks', 'the hydra’s body class runs past its sheet');
+  // And the program is read for it once. Until 27 September 2026 every
+  // prop type's frame count asked exeMonsterKinds of every other prop type
+  // and the program was read again each time: the Props tab drew in half a
+  // minute here and in about as long on the maintainer's phone. With the
+  // arm table and the program's own answers dropped, drawing Props must
+  // read CreateMonster exactly once: none would mean the path was not
+  // taken, and more that something stopped keeping the answer.
+  {
+    let reads = 0;
+    const was = ctx.exeOpsNamed;
+    ctx.exeOpsNamed = function (name) { if (name === 'TActiveMonster::CreateMonster') reads++; return was(name); };
+    ctx.__peek('delete DERIVED.ARM_FRAMES');
+    const pef = ctx.appPef(); if (pef) pef.readerMemo = null;
+    try { ctx.showCategory('PROPS'); } finally { ctx.exeOpsNamed = was; }
+    if (!pef) fail('frame blocks', 'no program open to read the monster kinds from');
+    else if (reads !== 1) fail('frame blocks', 'drawing Props read the monster kinds off the program ' + reads + ' times, not once');
+    else console.log('  frame blocks: the hydra’s arm class owns 32 frames and its body 16 or fewer, and Props reads the monster kinds off the program once');
+  }
   if (own.length !== 4) fail('frame runs', `0x141 claimed ${own.length} frames of its own`);
   const cols = ctx.distinguishingColours(base, own);
   if (!cols || new Set([...cols.values()]).size < 3)

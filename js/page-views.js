@@ -89,10 +89,30 @@ function exeRoutineAt(at) {
   while (lo <= hi) { const m = (lo + hi) >> 1; if (rs[m].offset <= at) { best = rs[m]; lo = m + 1; } else hi = m - 1; }
   return best && at < best.offset + best.length ? best : null;
 }
-// A routine by its name, with or without its argument list.
+// A routine by its name, with or without its argument list. Kept with the
+// program once found: it is a walk of two thousand routines, and the unit
+// readers below were asking it a thousand times a render.
 function exeRoutineNamed(name) {
   const pef = appPef(); if (!pef || !pef.routines) return null;
-  return pef.routines.find(r => r.name === name) || pef.routines.find(r => r.name.startsWith(name + '(')) || pef.routines.find(r => r.mangled === name) || null;
+  const memo = pef.namedMemo || (pef.namedMemo = new Map());
+  if (memo.has(name)) return memo.get(name);
+  const r = pef.routines.find(r => r.name === name) || pef.routines.find(r => r.name.startsWith(name + '(')) || pef.routines.find(r => r.mangled === name) || null;
+  memo.set(name, r);
+  return r;
+}
+/* A reader's answer, kept with the program it was read from, for a reader
+   asked once a prop type. The first was exeMonsterKinds: spriteBlockSize
+   asks unitArmsFrames, which asks unitArmClass of every prop type, which
+   asked exeMonsterKinds each time, and the hero's sprite section drew
+   through that for four and a half of the Tools tab's six and a half
+   seconds (the maintainer, 27 September 2026: "Tools tab takes a long time
+   to load now"). A new program is a new appPef object, so what is kept goes
+   with the one it came from. */
+function exeMemo(key, build) {
+  const pef = appPef(); if (!pef) return build();
+  const memo = pef.readerMemo || (pef.readerMemo = new Map());
+  if (!memo.has(key)) memo.set(key, build());
+  return memo.get(key);
 }
 // A routine's instructions: address, word, the decode, and where a branch goes.
 function exeOpsOf(r) {

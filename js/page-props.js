@@ -307,8 +307,9 @@ function unitLayout(pt) {
    the body's name is said beside it. */
 function unitArmClass(pt) {
   const lay = unitLayout(pt);
+  if (!lay) return null;
   const kinds = (appImage() && exeMonsterKinds()) || UNIT_KINDS_DEFAULT;
-  if (!lay || !kinds.octo.includes(lay.code)) return null;
+  if (!kinds.octo.includes(lay.code)) return null;
   const cls = parseItemClass(pt);
   const k54 = cls && cls.data.find(x => x.key === 54);
   return k54 && k54.words.length && !(k54.words[0] & 0xF0000000) ? (k54.words[0] & 0x0FFFFFFF) : null;
@@ -316,19 +317,31 @@ function unitArmClass(pt) {
 /* How many frames an arm class owns, when some octopus-kind unit hangs its
    arms on it (key 54): the arms times the aspect step the program draws
    with, off exeOctoRule when the application is open and its constants
-   otherwise. 0 for a class no unit names. */
+   otherwise. 0 for a class no unit names. Worked out for every class in
+   one pass over the prop types and kept: asked a class at a time, it
+   walked all of them for each sprite a gallery drew, and with the program
+   read again each time the Props tab took half a minute (27 September
+   2026). */
 function unitArmsFrames(pt) {
-  const cache = DERIVED.ARM_FRAMES || (DERIVED.ARM_FRAMES = {});
-  if (pt in cache) return cache[pt];
-  let out = 0;
-  try {
-    const tiles = getPropTileList();
-    for (let u = 0; u < tiles.length && !out; u++) if (tiles[u] !== undefined && u !== pt && unitArmClass(u) === pt) {
-      const rule = (appImage() && exeOctoRule()) || null;
-      out = (rule ? rule.arms.v : OCTO_DEFAULT.arms) * ((rule && rule.aspectStep ? rule.aspectStep.v : OCTO_DEFAULT.aspectStep) || 1);
-    }
-  } catch (e) { quiet(e, 'the arm class’s frame count'); out = 0; }
-  return (cache[pt] = out);
+  if (!DERIVED.ARM_FRAMES) {
+    const table = {};
+    try {
+      const tiles = getPropTileList();
+      let n = null;
+      for (let u = 0; u < tiles.length; u++) {
+        if (tiles[u] === undefined) continue;
+        const arm = unitArmClass(u);
+        if (arm === null || arm === u || arm in table) continue;
+        if (n === null) {
+          const rule = (appImage() && exeOctoRule()) || null;
+          n = (rule ? rule.arms.v : OCTO_DEFAULT.arms) * ((rule && rule.aspectStep ? rule.aspectStep.v : OCTO_DEFAULT.aspectStep) || 1);
+        }
+        table[arm] = n;
+      }
+    } catch (e) { quiet(e, 'the arm classes\u2019 frame counts'); }
+    DERIVED.ARM_FRAMES = table;
+  }
+  return DERIVED.ARM_FRAMES[pt] || 0;
 }
 function unitDisplayName(pt) {
   const arm = unitArmClass(pt);
