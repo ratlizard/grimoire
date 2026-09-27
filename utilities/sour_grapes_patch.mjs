@@ -42,14 +42,14 @@
      of each, the dying one's own not yet cleared, CharEntry::DeathRites
      clears it after) and, when none is, plays the ending; then it hands on
      to the default OnDeath (0x301D), so a grape dies as an ooze does.
-   - Each grape's portrait (0x888B to 0x8890) is made here from the game's
-     own pixels, as the maintainer asked: the grape cluster at the upper
-     left of the frame that Ariethous, Dares and Diomede share (portraits
-     18, 45 and 46), drawn in two magentas, taken at its own size with the
-     black that outlines it and set in the middle of a plain white field,
-     the way portrait 206 is drawn: no frame, no scaling. (Portrait 206, a
-     flowering bush that nothing draws, was taken for grapes first; it is
-     not.)
+   - The grapes are the game's own: tile 0x249, named "grapes" in the
+     tile-name table, aspect 3 of the food type the page shows as
+     flatbread (the maintainer, who saw them on Glaucus's table). The
+     bird's four frames take them where the food tile has them, every other
+     frame a pixel higher; each grape's portrait (0x888B to 0x8890) is them
+     at their own size on white, with no frame. (Portrait 206, taken first,
+     is a flowering bush; the cluster in the vintner's portrait frame came
+     next, before the food was found.)
    A save carries its own character table, so a game begun before the patch
    has no grapes; then Glaucus signs without a fight. A save made before it
    also keeps gremlin 17 off until the save sheet switches it on.
@@ -64,7 +64,7 @@ import {pageSource} from './page_scripts.mjs';
 const [htmlPath = 'index.html', dataPath, outDir] = process.argv.slice(2);
 if (!dataPath || !outDir) { console.error('usage: sour_grapes_patch.mjs index.html <Cythera Data.data> <out dir>'); process.exit(2); }
 const NAME = 'Cythera Sour Grapes';
-const GREMLIN = 0x1F11, APIS = 42, GLAUCUS = 102, VINEYARD = 18, BIRD = 89, GRAPE_FRAME = [18, 45, 46];
+const GREMLIN = 0x1F11, APIS = 42, GLAUCUS = 102, VINEYARD = 18, BIRD = 89;
 // The behaviour a hatched creature is given from its egg's record (Data1 into
 // byte 22): 8 is the commonest among the ones that attack -- ruffians, asps,
 // skeletons, undead -- in the shipped eggs. At 0 the grapes stood still.
@@ -156,24 +156,22 @@ const out = vm.runInContext(`(() => {
     if (spec.resources.some(r => r.resid === resid)) throw new Error('this Cythera Data already has 0x' + resid.toString(16));
     spec.resources.push({ resid, data, encrypted }); added.push(resid);
   };
-  // The grape itself: the upper-left cluster of the grape frame Ariethous,
-  // Dares and Diomede share, its six magentas and the black that outlines
-  // them, as a list of pixels at their own size.
+  // The grape itself: the game's own "grapes", a food drawn on tile 0x249
+  // (aspect 3 of the type the page shows as flatbread, since a type is named
+  // by its base tile), found by that name in the tile-name table, where it
+  // is an entry of one tile. Its pixels at their own size and place.
   const cluster = (() => {
-    const pic = n => decodeResource(arc, getResourceBytes(arc, 0x87FF + n), 135, 0x87FF + n).image;
-    const [a, b, c] = ${JSON.stringify(GRAPE_FRAME)}.map(pic);
-    const GRAPE = new Set([146, 147, 150, 152, 156, 159]), BLACK = 255;
-    const frame = i => a[i] === b[i] && a[i] === c[i];
-    const cl = [];
-    for (let y = 2; y < 28; y++) for (let x = 0; x < 16; x++) {
-      const i = y * 64 + x, v = a[i];
-      if (!frame(i)) continue;
-      const near = [[0,0],[1,0],[-1,0],[0,1],[0,-1]].some(([dx, dy]) => { const X = x + dx, Y = y + dy; return X >= 0 && Y >= 0 && X < 64 && Y < 64 && GRAPE.has(a[Y * 64 + X]); });
-      if (GRAPE.has(v) || (v === BLACK && near)) cl.push([x, y, v]);
-    }
-    if (cl.filter(([, , v]) => GRAPE.has(v)).length < 60) throw new Error('portrait ${GRAPE_FRAME[0]} has no grape cluster where one was read');
-    const x0 = Math.min(...cl.map(p => p[0])), y0 = Math.min(...cl.map(p => p[1]));
-    return { px: cl.map(([x, y, v]) => [x - x0, y - y0, v]), w: Math.max(...cl.map(p => p[0])) - x0 + 1, h: Math.max(...cl.map(p => p[1])) - y0 + 1 };
+    const names = loadTerrainNames();
+    const k = names.findIndex(([, nm]) => nm === 'grapes');
+    if (k < 1 || names[k][0] - names[k - 1][0] !== 1) throw new Error('no single tile is named grapes');
+    const tile = names[k][0], img = resolveTileImage(tile);
+    if (!img) throw new Error('tile 0x' + tile.toString(16) + ' does not decode');
+    const px = [];
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (img[y * 32 + x]) px.push([x, y, img[y * 32 + x]]);
+    if (px.length < 20) throw new Error('the grapes tile is nearly empty');
+    const x0 = Math.min(...px.map(p => p[0])), y0 = Math.min(...px.map(p => p[1]));
+    return { tile, x0, y0, px: px.map(([x, y, v]) => [x - x0, y - y0, v]),
+             w: Math.max(...px.map(p => p[0])) - x0 + 1, h: Math.max(...px.map(p => p[1])) - y0 + 1 };
   })();
   // The grapes' records, after Aeneas and Eudoxus: the bird's body (the one
   // unit nothing in the files places), feral, in the vineyard, not alive
@@ -217,22 +215,21 @@ const out = vm.runInContext(`(() => {
     if (!done) throw new Error('no entry names the bird');
     const n = parts.reduce((s, p) => s + p.length, 0), out = new Uint8Array(n); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
     r.data = out; changed.push(0xF004); }
-  // The bird's frames are the grape, standing on the square's foot, every
+  // The bird's frames are the grapes where the food tile has them, every
   // other frame a pixel higher so a moving grape bobs.
   { const base = birdBase, sheet = 0x8E00 + (base >> 4), first = base & 15;
     if (!(birdFrames > 0) || first + birdFrames > 16) throw new Error('the bird does not sit in one sheet');
     const r = spec.resources.find(x => x.resid === sheet), col = decompressDCG(smartDecrypt(getResourceBytes(arc, sheet), sheet).data, 32, 512);
-    const ox = Math.round((32 - cluster.w) / 2);
     for (let f = 0; f < birdFrames; f++) {
       const at = (first + f) * 1024; col.fill(0, at, at + 1024);
-      const oy = 30 - cluster.h - (f & 1);
+      const ox = cluster.x0, oy = Math.max(0, cluster.y0 - (f & 1));
       for (const [x, y, v] of cluster.px) col[at + (oy + y) * 32 + ox + x] = v;
     }
     const bytes = encodeDCGLiterals(col), back = decompressDCG(bytes, 32, 512);
     for (let i = 0; i < col.length; i++) if (back[i] !== col[i]) throw new Error('the sheet of the bird does not decode back');
     r.data = bytes; changed.push(sheet); }
-  // The grape's face: the cluster at its own size in the middle of a white
-  // field.
+  // The grape's face: the grapes at their own size in the middle of a white
+  // field, no frame.
   const face = (() => {
     const out = new Uint8Array(4096).fill(0);
     const ox = Math.round((64 - cluster.w) / 2), oy = Math.round((64 - cluster.h) / 2);
