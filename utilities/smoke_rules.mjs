@@ -78,6 +78,28 @@ try {
     else if (falls || used !== tones.length) fail('dither', 'a grey gradient on the Seldane ramp does not climb through every step: ' + falls + ' falls, ' + used + ' of ' + tones.length + ' steps');
     else console.log('  dither: frame 0x88A2 holds a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' picture, 0x887E keeps its braid to ring 9, the Seldane ramp is ' + tones.length + ' steps and a gradient climbs through all of them');
   }
+  // The frames the portraits share (sharedPortraitFrames), as the ditherizer
+  // offers them: the grape frame is exactly Ariethous's, Dares's and
+  // Diomede's, the guards' is all nine, the white field of the fountain and
+  // the door is no frame and not offered, nor are the three the list names
+  // with a rule of their own; and a shared frame's hole takes the middle of
+  // the picture with the frame, the portrait's own pixels, kept around it.
+  // Not a box inset from the edge: the grape frame is open at its sides and
+  // its hole runs to within a pixel of them.
+  {
+    const offered = ctx.ditherSharedFrames();
+    const has = r => offered.find(f => f.members.includes(r));
+    const grapes = has(0x8811), guards = has(0x8806);
+    const fm = ctx.ditherFrameMask(0x8811);
+    let kept = 0, frameN = 0;
+    const own = ctx.decodeResource(ctx.__peek('ARCHIVE'), ctx.getResourceBytes(ctx.__peek('ARCHIVE'), 0x8811), 135, 0x8811).image;
+    for (let i = 0; i < 4096; i++) if (!fm.hole[i]) { frameN++; if (fm.frame[i] === own[i]) kept++; }
+    if (!grapes || grapes.members.join() !== [0x8811, 0x882C, 0x882D].join()) fail('frames', 'the grape frame is not exactly 0x8811, 0x882C and 0x882D: ' + JSON.stringify(grapes && grapes.members));
+    else if (!guards || guards.members.length !== 9) fail('frames', 'the guards\u2019 frame is not all nine: ' + JSON.stringify(guards && guards.members));
+    else if (has(0x88BC) || has(0x88A2) || has(0x887E) || has(0x88F2)) fail('frames', 'a white field or a frame with its own rule is offered as a shared frame');
+    else if (!(fm.box && fm.hole[32 * 64 + 32] && fm.box.x1 - fm.box.x0 > 30 && fm.box.y1 - fm.box.y0 > 30 && frameN >= 1500 && kept === frameN)) fail('frames', 'the grape frame\u2019s hole or frame is wrong: ' + JSON.stringify(fm.box) + ', ' + kept + ' of ' + frameN);
+    else console.log('  frames: ' + offered.length + ' shared frames offered, the grapes\u2019 of three portraits and the guards\u2019 of nine, the white field left out; the grape frame keeps ' + frameN + ' pixels round a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' hole');
+  }
   // One animation setting drives the three flags.
   {
     const before = ctx.ANIM_MODE;

@@ -444,6 +444,86 @@ function sharedArtMask(arc, image, W, H){
 }
 
 /* ------------------------------------------------------------
+   The frames themselves, one per family of portraits.
+
+   The same evidence, the other way round: sharedArtMask asks which
+   of one portrait's pixels some other portrait also has, and this
+   asks which portraits share a frame and what the frame is. The
+   maintainer asked for every shared frame to be offered in the
+   ditherizer, as the grape frame of Ariethous, Dares and Diomede had
+   been drawn out by hand for the sour grapes (27 September 2026).
+
+   Two portraits are linked when at least SHARED_LINK_MIN of their
+   pixels have their whole 5x5 neighbourhood alike, the lock's rule.
+   Grouping is greedy from the strongest link down, and a merge is
+   kept only while the group's frame stays SHARED_FRAME_MIN pixels:
+   linked in chains alone, the fountain, the door and a flowering
+   bush joined twenty portraits through a white margin and left a
+   frame of 292 pixels, and at a strict link the twenty-five mages
+   fell apart into pairs. The frame is what every member has alike
+   AND reaches the picture's edge through such pixels, so a
+   coincidence inside the faces is not taken for it; the rest is
+   the hole. A frame shared by nobody is no family. Returns
+   [{ members: [resid], image, frame }], image the first member's
+   pixels and frame a 0/1 mask, largest family first.
+   ------------------------------------------------------------ */
+const SHARED_LINK_MIN = 300, SHARED_FRAME_MIN = 1200;
+function sharedPortraitFrames(arc){
+  if (!arc) return [];
+  return derivedTable(arc, 'sharedPortraitFrames', () => {
+    const ps = [];
+    for (let n = 0; n < 256; n++) {
+      const resid = ((PORTRAIT_SUBN + 1) << 8) | n;
+      try {
+        const b = getResourceBytes(arc, resid); if (!b) continue;
+        const d = decodeResource(arc, b, PORTRAIT_SUBN, resid);
+        if (d && d.image && d.W === 64 && d.H === 64) ps.push({ resid, image: d.image });
+      } catch (e) { quiet(e); }
+    }
+    const W = 64, N = W * W, R = SHARED_ART_R, eq = new Uint8Array(N), links = [];
+    for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+      const a = ps[i].image, b = ps[j].image; let same = 0;
+      for (let k = 0; k < N; k++) { eq[k] = a[k] === b[k] ? 1 : 0; same += eq[k]; }
+      if (same === N || same < 2 * SHARED_LINK_MIN) continue;
+      let lock = 0;
+      for (let y = R; y < W - R; y++) for (let x = R; x < W - R; x++) {
+        let ok = 1;
+        for (let dy = -R; dy <= R && ok; dy++) for (let dx = -R; dx <= R; dx++) if (!eq[(y + dy) * W + x + dx]) { ok = 0; break; }
+        lock += ok;
+      }
+      if (lock >= SHARED_LINK_MIN) links.push([i, j, lock]);
+    }
+    const frameOf = members => {
+      const first = ps[members[0]].image, agree = new Uint8Array(N), frame = new Uint8Array(N), stack = [];
+      for (let k = 0; k < N; k++) agree[k] = members.every(m => ps[m].image[k] === first[k]) ? 1 : 0;
+      for (let k = 0; k < N; k++) { const x = k % W, y = (k - x) / W; if ((x === 0 || y === 0 || x === W - 1 || y === W - 1) && agree[k]) { frame[k] = 1; stack.push(k); } }
+      while (stack.length) {
+        const k = stack.pop(), x = k % W;
+        for (const j of [k - 1, k + 1, k - W, k + W]) {
+          if (j < 0 || j >= N || frame[j] || !agree[j]) continue;
+          if ((j === k - 1 && x === 0) || (j === k + 1 && x === W - 1)) continue;
+          frame[j] = 1; stack.push(j);
+        }
+      }
+      let n = 0; for (let k = 0; k < N; k++) n += frame[k];
+      return { frame, n };
+    };
+    const groups = ps.map((_, i) => [i]), of = ps.map((_, i) => i);
+    links.sort((x, y) => y[2] - x[2]);
+    for (const [i, j] of links) {
+      const gi = of[i], gj = of[j]; if (gi === gj) continue;
+      const merged = groups[gi].concat(groups[gj]);
+      if (frameOf(merged).n < SHARED_FRAME_MIN) continue;
+      for (const m of groups[gj]) of[m] = gi;
+      groups[gi] = merged; groups[gj] = [];
+    }
+    return groups.filter(g => g.length > 1)
+      .map(g => { g.sort((x, y) => ps[x].resid - ps[y].resid); return { members: g.map(m => ps[m].resid), image: ps[g[0]].image, frame: frameOf(g).frame }; })
+      .sort((x, y) => y.members.length - x.members.length || x.members[0] - y.members[0]);
+  });
+}
+
+/* ------------------------------------------------------------
    Protected pixels.
 
    Two things are never touched by any stage:

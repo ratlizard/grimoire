@@ -462,6 +462,7 @@ function openDitherTool() {
       '<option value="frame:887E">64×64 in the frame of 0x887E, its middle cleared</option>' +
       '<option value="frame:88A2">64×64 in the frame of 0x88A2</option>' +
       '<option value="frame:88F2">64×64 in the frame of 0x88F2</option>' +
+      ditherSharedFrames().map(f => '<option value="frame:' + f.members[0].toString(16).toUpperCase() + '">64×64 in the frame of ' + svEsc(ditherFrameOwners(f.members)) + '</option>').join('') +
       '<option value="landscape">288×32 landscape strip (cover crop)</option>' +
       '<option value="icon">32×16 icon (cover crop)</option>' +
       '<option value="sheet">128×128 tile sheet, sixteen tiles (cover crop)</option>' +
@@ -497,6 +498,27 @@ function openDitherTool() {
   document.getElementById('dtSeldane').onchange = renderDither;
 }
 
+/* The frames the portraits share, as the ditherizer offers them
+   (sharedPortraitFrames in js/delv-graphics.js finds them): every family
+   but the three the list above names with their own rule for the hole
+   (0x887E, 0x88A2, 0x88F2), and not a family whose shared pixels are mostly
+   index 0, the white field the fountain, the door and two pictures that are
+   not faces have in common rather than a frame. */
+const DITHER_OWN_FRAMES = [0x887E, 0x88A2, 0x88F2];
+function ditherSharedFrames() {
+  return sharedPortraitFrames(ARCHIVE).filter(f => {
+    if (f.members.some(r => DITHER_OWN_FRAMES.includes(r))) return false;
+    let n = 0, white = 0;
+    for (let i = 0; i < f.frame.length; i++) if (f.frame[i]) { n++; if (!f.image[i]) white++; }
+    return white < n * 0.6;
+  });
+}
+// Whose portraits wear a frame, by the names the file gives them.
+function ditherFrameOwners(members) {
+  const names = members.map(r => characterName(r - 0x87FF) || ('0x' + r.toString(16).toUpperCase()));
+  if (names.length > 4) return names.slice(0, 2).join(', ') + ' and ' + (names.length - 2) + ' more';
+  return names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+}
 /* A frame from the archive to set a picture in. 0x88A2 and 0x88F2 are
    frames with a hole: the hole is the run of index 0 (white, the cut-out
    slot) that does not touch the outside. 0x887E is a framed portrait with
@@ -508,6 +530,17 @@ function openDitherTool() {
    not enough of the frame kept). The picture is cover-cropped into the
    hole's box and the frame painted over it. */
 function ditherFrameMask(resid) {
+  // A portrait of a shared family: the family's frame, and the hole all it
+  // does not cover.
+  if (!DITHER_OWN_FRAMES.includes(resid)) {
+    const f = sharedPortraitFrames(ARCHIVE).find(g => g.members.includes(resid));
+    if (f) {
+      const hole = new Uint8Array(4096);
+      let x0 = 64, y0 = 64, x1 = -1, y1 = -1;
+      for (let i = 0; i < 4096; i++) if (!f.frame[i]) { hole[i] = 1; const x = i % 64, y = (i - x) / 64; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      return { W: 64, H: 64, frame: f.image, hole, box: x1 >= 0 ? { x0, y0, x1, y1 } : null };
+    }
+  }
   const b = getResourceBytes(ARCHIVE, resid);
   const d = decodeResource(ARCHIVE, b, 135, resid);
   const W = d.W, H = d.H, img = d.image;
