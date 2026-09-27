@@ -468,9 +468,6 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!/id="prefSwitch256" checked/.test(tools)) fail('preferences', 'the 256-colour answer is not ticked by default');
       else if (!/Switch to 256 Colors/.test(tools) || !/Don't Ask Again/.test(tools)) fail('preferences', 'the 256-colour switch does not wear the dialog\u2019s own labels');
       else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
-      // The tab wears the scratch file's Finder icon, the bundle having none
-      // for a preferences file; with the program open it must be there.
-      else if (!(ctx.finderIconFor('Temp') || {}).width) fail('preferences', 'the program\u2019s bundle gives the scratch file no icon for the Preferences tab to wear');
       else console.log(`  preferences: ${switches.length} switches and ${ctx.cytheraPrefsLayout().choices.length + ctx.cytheraPrefsLayout().ordinals.length} choosers on the Preferences tab with the game's labels, each bit where the program writes it, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);
     } catch (e) { fail('preferences', e); }
     // The dialogue box, drawn now the application is here. The frame is a

@@ -1341,7 +1341,7 @@ try {
   });
   const names = built ? ctx.openResourceFork(built).all().map(x => x.entry.name).join(',') : null;
   if (!L || L.from !== 'shipped') fail('preferences', 'with no application open the layout is not the shipped one: ' + (L && L.from));
-  else if (!tab || tab.id !== 'prefs' || !tab.parent || tab.parent.id !== 'data' || tab.finder !== 'Temp') fail('preferences', 'PREFS is not the Preferences tab under Data wearing the scratch file\u2019s icon');
+  else if (!tab || tab.id !== 'prefs' || !tab.parent || tab.parent.id !== 'data' || tab.tile !== 0x1AC || tab.finder) fail('preferences', 'PREFS is not the Preferences tab under Data wearing tile 0x1AC');
   else if (onTools) fail('preferences', 'the Tools tab still carries the preferences file');
   else if (!/id="prefCheats"/.test(tools) || !/<select id="prefOrd_Backdrop"/.test(tools))
     fail('preferences', 'with no application open the Preferences tab does not offer the switches');

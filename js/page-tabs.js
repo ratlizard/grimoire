@@ -1083,11 +1083,10 @@ const TAB_TREE = [
       // The game's settings file, a tab of its own since 27 September 2026
       // (it was a section of Tools). Its type is `pref`, and the bundle has
       // no icon for that: the Finder drew its generic preferences icon out of
-      // the System. So it wears the one file-type icon of the four the bundle
-      // gives that no other tab wears, the scratch file's `Temp`, the frame
-      // with nothing in it (the maintainer: "something from file types").
-      // The key stands in before the program is open.
-      { id: 'prefs', label: 'Preferences', tile: 0x233, finder: 'Temp', values: ['PREFS'] },
+      // the System. It wore the scratch file's `Temp` icon for an hour, and
+      // wears tile 0x1AC now, four round grey knobs, the maintainer's pick
+      // (0xF004 names it "pyramid").
+      { id: 'prefs', label: 'Preferences', tile: 0x1AC, values: ['PREFS'] },
       // Patches, a tab of their own since 27 September 2026 (they were
       // sections of Tools). A Magpie patch is a DelP file with Magpie's
       // creator, so Cythera's bundle has no icon for one: the icon is
