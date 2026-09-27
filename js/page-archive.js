@@ -316,6 +316,7 @@ function switchContained(name) {
 
 function adoptArchive(raw, sourceName, opts) {
   opts = opts || {};
+  noteMagpieFrom(raw);
   let found;
   try { found = extractDelverArchive(raw, { pick: opts.pick }); }
   catch (err) { lastArchiveError = err.message; return false; }
@@ -361,7 +362,7 @@ function adoptArchive(raw, sourceName, opts) {
   if (ARCHIVE && delverArchivePatchPeek(found.bytes) &&
       patchesOpenBytes(found.bytes, (found.forks && found.forks.name) || sourceName)) {
     setStatus('That is a Magpie patch, not a game file, so it has been read against the open one instead of replacing it. ' +
-              'Mechanics \u203a The community\u2019s patches says what it changes, and applies it.');
+              'Data \u203a Patches says what it changes, and applies it.');
     return true;
   }
   applyNamesDefault(opts.cached ? opts.source === 'local file' : !opts.url);
@@ -945,7 +946,7 @@ function onCategoryChangeImpl() {
   if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
   // The Data tab's own views: not subindexes, no resources to list.
   if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' || rawval === 'SKILLS' || rawval === 'SPELLS' || rawval === 'SCHEDULES' ||
-      rawval === 'SAVEGAME' || rawval === 'PREFS' || rawval === 'CHEATS' || rawval === 'RECORDS' || MECH_GROUP_BY_VALUE[rawval] ||
+      rawval === 'SAVEGAME' || rawval === 'PREFS' || rawval === 'PATCHES' || rawval === 'CHEATS' || rawval === 'RECORDS' || MECH_GROUP_BY_VALUE[rawval] ||
       rawval === 'WORLD' || PLACEHOLDER_TABS[rawval]) {
     window.CUR_SUBN = rawval;
     window.CUR_RESIDS = [];

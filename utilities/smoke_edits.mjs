@@ -93,12 +93,19 @@ try {
       if (h.indexOf(MARK[o.value]) >= 0) strayTab.push(g.title + ' also shows ' + o.title + '’s ' + MARK[o.value]);
     }
   }
-  // The three sections that write a file are on Tools since 22 September
-  // 2026, and on no Mechanics tab.
-  ctx.showCategory('TOOLS');
+  // The sections that read or write a patch were on Tools from
+  // 22 September 2026 and are Data › Patches since the 27th: on that tab,
+  // and on neither Tools nor any Mechanics tab. Under Data, and wearing
+  // Magpie's patch icon when there is one.
+  ctx.showCategory('PATCHES');
   const tools = walk();
+  ctx.showCategory('TOOLS');
+  const toolsNow = walk();
+  const patchLeaf = peek('TAB_LEAF_FOR').get('PATCHES');
+  if (!patchLeaf || patchLeaf.id !== 'patches' || !patchLeaf.parent || patchLeaf.parent.id !== 'data' || patchLeaf.magpie !== 'DelP') strayTab.push('PATCHES is not the Patches tab under Data with Magpie\u2019s DelP icon');
   for (const t of ['The community’s patches', 'A sprite or a portrait of your own, as a patch', 'Two files against each other']) {
-    if (tools.indexOf(t) < 0) strayTab.push('Tools does not show ' + t);
+    if (tools.indexOf(t) < 0) strayTab.push('Patches does not show ' + t);
+    if (toolsNow.indexOf(t) >= 0) strayTab.push('Tools still shows ' + t);
     ctx.showCategory('HACKERY');
     if (walk().indexOf(t) >= 0) strayTab.push('Hackery still shows ' + t);
   }
@@ -578,7 +585,7 @@ try {
    must be empty, so a section that drew its pairs unconditionally would fail
    here rather than look right. */
 try {
-  ctx.showCategory('TOOLS');
+  ctx.showCategory('PATCHES');
   const walk = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const before = walk();
   if (before.indexOf('records no patches applied to it') < 0)
@@ -743,6 +750,25 @@ try {
   ctx.patchesForget();
 } catch (e) { fail('script diff', e); }
 
+/* Magpie's icon for the Patches tab (noteMagpieFrom, magpieIcon). The one
+   Magpie there is comes in the Pumpkin Patch archive among the community's
+   add-ons, which is not ours and not in the repository, so this runs where
+   that file is and says so where it is not. The archive must be recognised
+   and give the DelP icon; the data file, which holds no Magpie, must not. */
+try {
+  const MAGPIE = 'reference/community/addons/614_MagpiePumpkinPatch.sit.hqx';
+  if (!existsSync(MAGPIE)) console.log('  (no Magpie archive among the add-ons; the patch icon is not checked)');
+  else {
+    ctx.MAGPIE_FORK = undefined;
+    const none = ctx.noteMagpieFrom(archive);
+    const got = ctx.noteMagpieFrom(new Uint8Array(readFileSync(MAGPIE)));
+    const icon = ctx.magpieIcon('DelP');
+    if (none) fail('patch icon', 'the data file was taken for an archive holding Magpie');
+    else if (!got || !icon || !icon.width) fail('patch icon', 'the Pumpkin Patch archive gave no Magpie icon for a patch');
+    else console.log('  patch icon: Magpie\u2019s DelP icon, ' + icon.width + 'x' + icon.height + ', out of the Pumpkin Patch archive, and none out of the data file');
+  }
+} catch (e) { fail('patch icon', e); }
+
 /* A sprite of your own, end to end: the part table against the shipped art,
    a recolour that moves only what was chosen, a worn body, colour by colour
    on a monster that shares its sheet, and the patches all of it writes, read
@@ -758,7 +784,7 @@ try {
    back byte for byte and no patch must be offered, so a section that always
    wrote something would fail rather than look right. */
 try {
-  ctx.showCategory('TOOLS');
+  ctx.showCategory('PATCHES');
   const countTag = (el, tag) => (el.tagName === tag ? 1 : 0) +
     (el.children || []).reduce((n, c) => n + countTag(c, tag), 0);
   const host = REGISTRY.get('heroSprite');
@@ -971,7 +997,7 @@ try {
 try {
   if (!savePath || !existsSync(savePath)) console.log('  (no saved game; the save comparison is skipped)');
   else {
-    ctx.showCategory('TOOLS');
+    ctx.showCategory('PATCHES');
     if (!ctx.compareOpenBytes(new Uint8Array(readFileSync(savePath)), 'I.M.Cheater')) fail('save comparison', 'the save was refused');
     else {
       const h = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('compareReport'));
@@ -1021,7 +1047,7 @@ try {
    The download is caught rather than performed: the stub records the last
    blob handed to downloadBlob, which is how export_test works too. */
 try {
-  ctx.showCategory('TOOLS');
+  ctx.showCategory('PATCHES');
   const walk = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!REGISTRY.has('compareFile')) fail('compare', 'no file control on the comparison section');
   const countTag = (el, tag) => (el.tagName === tag ? 1 : 0) +
@@ -1200,7 +1226,7 @@ try {
    the gremlin is in the open file under the first free number, read back
    through the engine's rule for its subindex, and the form moves on. */
 try {
-  ctx.showCategory('TOOLS');
+  ctx.showCategory('PATCHES');
   if (!REGISTRY.get('gremlinMaker')) throw new Error('no host for the section');
   const first = peek('gremlinNumber()');
   const form = (o) => peek(`(window.GREMLIN_STATE = Object.assign({ num: null, when: 'zone', which: '40', flag: '0', flagIs: 'set', say: 'The test gremlin wakes.', setFlag: '250', setTo: 'set', once: true, listing: null }, ${JSON.stringify(o || {})}), true)`);

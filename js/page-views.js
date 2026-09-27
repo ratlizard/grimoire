@@ -417,18 +417,30 @@ function renderPrefsSheet() {
   out.textContent = PREFS_FILE_NAME + ', the file the game keeps its settings in.';
 }
 
+/* Data › Patches: a patch read and applied, a sprite or a gremlin made into
+   one, and one file compared with another, the sections of MECH_TOOL_GROUP,
+   which the rules renderer builds because the reading they share lives
+   there. The tab wears Magpie's own icon for a patch once a Magpie archive
+   has been opened here (magpieIcon). */
+function renderPatchesSheet() { renderMechanicsSheet(MECH_TOOL_GROUP.value); }
+
 /* ---- Tools -------------------------------------------------------------------
    The page's own switches and its sister pages, which are not part of the
    archive and so have no place under the other three tabs. The undither
    switch moved here from every gallery that had one: it is one setting for
    every image, and the galleries keep only a preview the other way. */
 function renderToolsSheet() {
-  /* The file tools -- patches, a sprite of your own, the comparison -- are
-     sections of the rules renderer (MECH_TOOL_GROUP), so it draws the grid
-     first and this sheet's own settings go above them. */
-  renderMechanicsSheet(MECH_TOOL_GROUP.value);
+  /* The file tools -- a patch read, a sprite or a gremlin made into one, the
+     comparison -- were drawn here through the rules renderer until
+     27 September 2026 and are Data › Patches now (renderPatchesSheet), which
+     also spares this tab building every rule of the sheet to show four. */
+  stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
   const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  document.getElementById('singleControls').style.display = 'none';
+  out.textContent = 'The ditherizer, the other pages, and the face this page is set in.';
   const box = document.createElement('div');
   box.className = 'changesView';
   const sec = (title, note) => {

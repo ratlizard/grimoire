@@ -297,11 +297,14 @@ const MECH_GROUPS = [
 /* The sections that write a file rather than read a rule: a patch opened
    and applied, a sprite made into one, and one file compared with another.
    They were the tail of Hackery until 22 September 2026, when the maintainer
-   moved them to the Tools tab. They are still built by renderMechanicsSheet,
-   which is where the reading they share lives, and drawn only by the Tools
-   sheet, so the group is kept apart from MECH_GROUPS: a Mechanics tab never
-   lists it and the whole-sheet view does not include it. */
-const MECH_TOOL_GROUP = { value: 'TOOLS', title: 'Files',
+   moved them to the Tools tab, and every one of them reads or makes a patch,
+   so on 27 September 2026 they became Data › Patches, a tab of their own
+   among the files (the maintainer). They are still built by
+   renderMechanicsSheet, which is where the reading they share lives, and
+   drawn only by that tab, so the group is kept apart from MECH_GROUPS: a
+   Mechanics tab never lists it and the whole-sheet view does not include
+   it. */
+const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Patches',
   note: 'Patches, a sprite or a gremlin of your own, and one file against another.',
   ids: ['patches', 'herosprite', 'gremlins', 'compare'] };
 // A group by the category value its tab is selected with.

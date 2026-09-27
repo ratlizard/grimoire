@@ -841,7 +841,7 @@ function patchesOpenBytes(bytes, name) {
    and extractDelverArchive is what already knows the order to try them in. */
 function patchesOpenFile(file) {
   if (!file) return;
-  file.arrayBuffer().then(buf => patchesOpenBytes(new Uint8Array(buf), file.name)).catch(e => {
+  file.arrayBuffer().then(buf => { const b = new Uint8Array(buf); noteMagpieFrom(b); patchesOpenBytes(b, file.name); }).catch(e => {
     const note = document.getElementById('patchNote');
     if (note) { note.textContent = 'That file could not be read: ' + e.message; note.className = 'mechSub patchBad'; }
   });
@@ -3802,7 +3802,8 @@ function renderMechanicsSheet(value) {
      tab is open -- the reading is the cost, not the placing -- so
      sections.length would have every tab claiming all twenty-five while it
      displayed four. */
-  out.textContent = (seen.size + rest.length) + ' rules read out of this file’s scripts' +
+  out.textContent = only === MECH_TOOL_GROUP ? MECH_TOOL_GROUP.note :
+    (seen.size + rest.length) + ' rules read out of this file’s scripts' +
     (only ? ', under ' + only.title : '') + '. Each says which script it came from.';
   /* The patches section's file control and its report, wired after the
      sections are in the document. A patch already open is drawn again rather

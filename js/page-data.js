@@ -2729,6 +2729,54 @@ function finderIconFor(type) {
   return id === undefined ? null : iconFromFork(fork, id);
 }
 
+/* Magpie's icon for a patch. A Magpie patch is a DelP file with Magpie's
+   creator, Delp, so Cythera's bundle has nothing for one; Magpie's own
+   bundle does, a FREF for DelP whose icon is the Delver document frame with
+   a square patched into its corner. Magpie is Glenn Andreas's, not ours to
+   ship, and the one copy there is comes inside the Pumpkin Patch archive
+   (614_MagpiePumpkinPatch.sit.hqx). So when an archive opened here holds a
+   program with Magpie's creator, its resource fork is kept, and remembered
+   in this browser, which is the only place it goes: from then on the
+   Patches tab wears the icon without the archive being opened again.
+   Asked for by the maintainer, 27 September 2026. */
+const MAGPIE_FORK_KEY = 'grimoire.magpieFork';
+function noteMagpieFrom(raw) {
+  try {
+    let buf = raw;
+    const c = sniffMacContainer(raw);
+    if (c && c.data && c.data.length) buf = c.data;
+    if (typeof looksLikeStuffIt !== 'function' || !looksLikeStuffIt(buf)) return false;
+    const e = parseStuffItArchive(buf).entries.find(x => !x.isFolder && x.type === 'APPL' && x.creator === DELV_PATCH_CREATOR && x.rsrcLen);
+    if (!e) return false;
+    const rsrc = stuffItFork(buf, e, 'rsrc');
+    const fork = openResourceFork(rsrc);
+    if (bundleIconMap(fork, 'magpie:' + rsrc.length)['DelP'] === undefined) return false;
+    window.MAGPIE_FORK = fork;
+    try {
+      let s = '';
+      for (let i = 0; i < rsrc.length; i += 0x8000) s += String.fromCharCode.apply(null, rsrc.subarray(i, i + 0x8000));
+      localStorage.setItem(MAGPIE_FORK_KEY, window.btoa(s));
+    } catch (err) { quiet(err, 'remembering Magpie\u2019s icons'); }
+    try { syncTabsTo(document.getElementById('categorySelect').value); } catch (err) { quiet(err); }
+    return true;
+  } catch (err) { quiet(err, 'looking for Magpie in an archive'); return false; }
+}
+function magpieFork() {
+  if (window.MAGPIE_FORK !== undefined) return window.MAGPIE_FORK;
+  let fork = null;
+  try {
+    const s = localStorage.getItem(MAGPIE_FORK_KEY);
+    if (s) fork = openResourceFork(Uint8Array.from(window.atob(s), ch => ch.charCodeAt(0)));
+  } catch (err) { quiet(err, 'reading Magpie\u2019s remembered icons'); fork = null; }
+  return (window.MAGPIE_FORK = fork);
+}
+function magpieIcon(type) {
+  const fork = magpieFork();
+  if (!fork) return null;
+  const id = bundleIconMap(fork, 'magpie')[type];
+  return id === undefined ? null : iconFromFork(fork, id);
+}
+
 /* Two icons that are not the game's, and are not in the game's fork either.
 
    The installer is a Macintosh file like any other and carries two kinds of

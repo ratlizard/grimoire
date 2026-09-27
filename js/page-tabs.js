@@ -1088,6 +1088,14 @@ const TAB_TREE = [
       // with nothing in it (the maintainer: "something from file types").
       // The key stands in before the program is open.
       { id: 'prefs', label: 'Preferences', tile: 0x233, finder: 'Temp', values: ['PREFS'] },
+      // Patches, a tab of their own since 27 September 2026 (they were
+      // sections of Tools). A Magpie patch is a DelP file with Magpie's
+      // creator, so Cythera's bundle has no icon for one: the icon is
+      // Magpie's, its bundle's FREF for DelP, the Delver document frame with
+      // a square patched into its corner. It is not ours to ship, so the tab
+      // wears it once a Magpie archive has been opened on this device
+      // (magpieIcon, which remembers it); the cloth stands in until then.
+      { id: 'patches', label: 'Patches', tile: 0x2B8, magpie: 'DelP', values: ['PATCHES'] },
       // The folder's own icon, a folder with an axe across it, drawn in 1999
       // for these files and no others; the rolling pin stands in before a
       // file is open.
@@ -1179,6 +1187,9 @@ function navIconFromFork(spec) {
   // The installer's own icons come from the installer, which is open before
   // the application's fork is and sometimes instead of it.
   if (spec.installed) { try { const a = installerIcon(spec.installed); if (a) return a; } catch (e) { quiet(e); } }
+  // Magpie's, remembered from a Magpie archive opened here, with or without
+  // the application.
+  if (spec.magpie) { try { const a = magpieIcon(spec.magpie); if (a) return a; } catch (e) { quiet(e); } }
   if (!window.APP_RSRC) return null;
   try {
     if (spec.finder) return finderIconFor(spec.finder);
@@ -1249,7 +1260,7 @@ function renderTabRow(row, nodes, selectedId) {
     // The whole icon spec, not just the tile: a Data tab may name the file
     // type or the cursor its picture comes from, with the tile as the
     // fallback for before the application is open.
-    b.appendChild(navIconCanvas({ tile: (n.id === selectedId && n.tileOpen) ? n.tileOpen : n.tile, finder: n.finder, crsr: n.crsr, installed: n.installed }, 18));
+    b.appendChild(navIconCanvas({ tile: (n.id === selectedId && n.tileOpen) ? n.tileOpen : n.tile, finder: n.finder, crsr: n.crsr, installed: n.installed, magpie: n.magpie }, 18));
     const t = document.createElement('span');
     t.textContent = n.label;
     b.appendChild(t);
