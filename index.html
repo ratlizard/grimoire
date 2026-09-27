@@ -1200,6 +1200,23 @@ summary .mechStat { border-color:rgba(249,248,111,.35); }
 .patchTile { width:64px; height:64px; image-rendering:pixelated; display:block; }
 .patchTileNo { position:absolute; left:0; right:0; bottom:1px; text-align:center; color:#8c8980; font-size:0.625rem;
   font-variant-numeric:tabular-nums; }
+/* A script's changes, line by line (scriptDiffSection). One fold a script,
+   shut until opened; the lines wrap rather than scroll, since a line of
+   dialogue is a paragraph and a phone is 390 px. The mark column holds the
+   minus or the plus; the words that differ are bold and underlined, since
+   the colours are white and the two greys and nothing else. */
+.sdScript { margin:2px 0; }
+.sdScript > summary { cursor:pointer; color:var(--gold); font-size:0.8125rem; padding:3px 0; }
+.sdCount { color:#8c8980; margin-left:8px; font-variant-numeric:tabular-nums; }
+.sdBody { margin:2px 0 10px 12px; }
+.sdHunk { margin:6px 0; padding:3px 0 3px 6px; border-left:2px solid rgba(155,136,80,.35); }
+.sdLine { display:flex; font-family:ui-monospace, Menlo, Consolas, monospace; font-size:0.6875rem; line-height:1.45; }
+.sdMark { flex:0 0 1.3em; }
+.sdText { flex:1; min-width:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.sdSame { color:#8c8980; }
+.sdOld { color:#b5b2a8; }
+.sdNew { color:#fff; }
+.sdLine b { text-decoration:underline; }
 /* The sprite section. The page's button rule is !important on background,
    border, padding and box-shadow, so a swatch coloured on the button itself
    drew nothing at all (the maintainer's screenshot, 18 September 2026): the
@@ -2302,7 +2319,7 @@ this tool from the delvmod wiki and is not in the archive. Turn tool-supplied na
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.202.0';
+const GRIMOIRE_VERSION = '1.203.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

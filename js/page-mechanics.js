@@ -1019,6 +1019,8 @@ function renderPatchReport() {
       host.appendChild(strip);
     }
   }
+  scriptDiffSection(host, el, rep.resources.filter(r => !r.identical && SCRIPT_SUBN.has(r.subn))
+    .map(r => ({ resid: r.resid, a: r.baseData, b: r.patchData })), 'the open file', 'the patch');
   /* Applying is offered only when the merge would do something, and the lines
      above the button say what will move rather than leaving it to be found. */
   if (rep.usable && (rep.willReplace || rep.willAdd.length)) {
@@ -1041,6 +1043,54 @@ function renderPatchReport() {
     host.appendChild(bar);
   }
   host.appendChild(el('div', '', svLink('Forget this patch', 'patchesForget()')));
+}
+
+/* The scripts a patch or a comparison changes, each line by line
+   (dvmScriptDiff in js/delv-fold.js). The sections said which scripts
+   changed and by how many bytes; the maintainer asked for the exact
+   difference (27 September 2026), and a fix patch is nearly all scripts.
+   One fold a script, its counts on the fold and its lines drawn when it is
+   first opened, since a patch of a hundred and sixty scripts drawn at once
+   is a long page on a phone. `pairs` is [{ resid, a, b }], each side's
+   plaintext or null. */
+function scriptDiffSection(host, el, pairs, aName, bName) {
+  if (!pairs.length) return;
+  host.appendChild(el('div', 'partsTitle', 'The scripts, line by line: ' + pairs.length));
+  host.appendChild(el('p', 'mechSub', 'Each script as its code view lists it, the lines that differ and two either side. ' +
+    '− is ' + svEsc(aName) + ', + is ' + svEsc(bName) + ', and the words that differ are underlined. ' +
+    'Text kept in a script’s data, which the listing shows only as a size, follows its code.'));
+  for (const p of pairs) {
+    let d = null;
+    try { d = dvmScriptDiff(ARCHIVE, p.resid, p.a, p.b); } catch (e) { quiet(e, 'comparing script ' + propWordHex(p.resid)); }
+    const det = document.createElement('details');
+    det.className = 'sdScript';
+    const counts = !d ? 'could not be read' :
+      (d.removed || d.added ? '−' + d.removed + ' +' + d.added : '') +
+      (d.textRemoved || d.textAdded ? (d.removed || d.added ? ', ' : '') + 'text −' + d.textRemoved + ' +' + d.textAdded : '') ||
+      'no line differs';
+    det.innerHTML = '<summary>' + svEsc(labelFor(p.resid) || propWordHex(p.resid)) + '<span class="sdCount">' + counts + '</span></summary>';
+    let drawn = false;
+    det.ontoggle = () => {
+      if (!det.open || drawn) return;
+      drawn = true;
+      det.appendChild(el('div', 'sdBody', scriptDiffHTML(p, d)));
+    };
+    host.appendChild(det);
+  }
+}
+function scriptDiffHTML(p, d) {
+  const line = l => '<div class="sdLine ' + (l.k === '-' ? 'sdOld' : l.k === '+' ? 'sdNew' : 'sdSame') + '">' +
+    '<span class="sdMark">' + (l.k === '-' ? '−' : l.k === '+' ? '+' : '') + '</span><span class="sdText">' +
+    (l.parts ? l.parts.map(([t, c]) => c ? '<b>' + svEsc(t) + '</b>' : svEsc(t)).join('') : svEsc(l.text)) + '</span></div>';
+  const hunks = hs => hs.map(h => '<div class="sdHunk">' + h.map(line).join('') + '</div>').join('');
+  let h = '<div>' + (p.a || p.b ? svChip(p.resid, labelFor(p.resid) || '') : '') + '</div>';
+  if (!d) return h + '<p class="mechSub">This script could not be read.</p>';
+  h += hunks(d.hunks);
+  if (d.text.length) h += '<div class="mechSub">Text in its data</div>' + hunks(d.text);
+  if (!d.hunks.length && !d.text.length)
+    h += '<p class="mechSub">No line of its listing and no text in its data differs. The bytes do: ' +
+      (p.a ? p.a.length : 0) + ' against ' + (p.b ? p.b.length : 0) + '.</p>';
+  return h;
 }
 
 /* ---- a patch of your own: a sprite's body and colours -----------------------
@@ -2241,6 +2291,9 @@ function renderCompareReport() {
     }
     if (strip.children.length) host.appendChild(strip);
   }
+
+  scriptDiffSection(host, el, real.filter(c => SCRIPT_SUBN.has(c.subn)).map(c => ({ resid: c.resid, a: c.a.data, b: c.b.data }))
+    .concat(rep.added.filter(x => SCRIPT_SUBN.has((x.resid >> 8) - 1)).map(x => ({ resid: x.resid, a: null, b: x.b.data }))), rep.aName, rep.bName);
 
   /* The export. Only offered when the newer side is a file this page can take
      the resources OUT of, which is the open file -- a patch has to carry the

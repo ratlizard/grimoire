@@ -683,6 +683,66 @@ try {
   }
 } catch (e) { fail('patches', e); }
 
+/* The scripts a patch changes, line by line (scriptDiffSection, over
+   dvmScriptDiff). A patch made here changes three scripts, one each of the
+   three kinds of change: a word of Glaucus's dialogue respelt in place
+   ("vacently", the game's own slip), a word inside a block of data, which
+   the listing shows only as `<data <2920 bytes>>` ("obolio", in 0x1036),
+   and one instruction put into the head of
+   Thoas's Talk through the page's own assembler and relinker, which moves
+   every offset after it. Each must read as exactly that: the one line with
+   the one word underlined, the one word under "Text in its data", and the
+   one new line with nothing taken out -- a diff that compared offsets would
+   report every line after the insertion, which is the control on the
+   masking. Under all of it diffSequences is held to rebuilding both sides
+   of a thousand random pairs, which is what an edit script is for. */
+try {
+  let bad = 0;
+  let seed = 7;
+  const rnd = n => { seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF; return seed % n; };
+  for (let t = 0; t < 1000; t++) {
+    const a = Array.from({ length: rnd(12) }, () => rnd(4)), b = Array.from({ length: rnd(12) }, () => rnd(4));
+    const ra = [], rb = [];
+    for (const [op, i, j] of ctx.diffSequences(a, b)) { if (op !== '+') ra.push(a[i]); if (op !== '-') rb.push(b[j]); if (op === '=' && a[i] !== b[j]) bad++; }
+    if (ra.join() !== a.join() || rb.join() !== b.join()) bad++;
+  }
+  // From the open file, not the file as it arrived: blocks above have
+  // edited it, and the report reads against what is open. (gCharNames was
+  // the first choice for the data case; those blocks rename characters in
+  // it, which is why it is not.)
+  const base = ctx.delverArchiveSpec(A().bytes);
+  const plain = rid => base.resources.find(r => r.resid === rid);
+  const swap = (rid, from, to) => {
+    const r = plain(rid), d = r.data.slice(), s = ctx.decodeMacRoman(d), at = s.indexOf(from);
+    if (at < 0 || from.length !== to.length) throw new Error('no ' + from + ' in ' + rid.toString(16));
+    for (let k = 0; k < to.length; k++) d[at + k] = to.charCodeAt(k);
+    return { resid: rid, data: d, encrypted: r.encrypted };
+  };
+  const thoas = (() => {
+    const r = plain(0x1844), fn = ctx.dvmExtents(r.data, 0x1844).find(o => o[2] === 'function');
+    const at = fn[0] + ctx.dvmDisassemble(r.data.subarray(fn[0], fn[1]), 3).ops[0][0];
+    const rl = ctx.dvmRelink(r.data, 0x1844, at, 0, ctx.dvmAssemble('set_local 0x00\nword True\nend', 0x1844));
+    return { resid: 0x1844, data: rl.bytes, encrypted: r.encrypted };
+  })();
+  const spec = { scenarioTitle: base.scenarioTitle, playerName: '', formatMajor: base.formatMajor, formatMinor: base.formatMinor,
+                 resources: [swap(0x1866, 'vacently', 'vacantly'), swap(0x1036, 'obolio', 'oboloi'), thoas] };
+  if (!ctx.patchesOpenBytes(ctx.writeDelverArchive(spec), 'Smoke Scripts')) throw new Error('the script patch was refused');
+  const found = [];
+  (function scan(el) { if (el.className === 'sdScript') found.push(el); (el.children || []).forEach(scan); })(REGISTRY.get('patchReport'));
+  const shut = found.map(d => (d.children || []).length);
+  const body = {};
+  for (const d of found) { d.open = true; d.ontoggle(); const m = /<summary>(.*?)<\/summary>/.exec(d.innerHTML); body[m ? m[1].replace(/<[^>]+>/g, ' ') : '?'] = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(d); }
+  const glaucus = Object.keys(body).find(k => /Glaucus/.test(k)), names = Object.keys(body).find(k => /1036/.test(k)), th = Object.keys(body).find(k => /Thoas/.test(k));
+  const d1844 = ctx.dvmScriptDiff(A(), 0x1844, plain(0x1844).data, thoas.data);
+  if (bad) fail('script diff', bad + ' of a thousand random pairs do not rebuild from their edit script');
+  else if (found.length !== 3 || shut.some(n => n)) fail('script diff', found.length + ' folds for three changed scripts, or one drawn before it was opened');
+  else if (!glaucus || !/<b>vacently<\/b>/.test(body[glaucus]) || !/<b>vacantly<\/b>/.test(body[glaucus]) || !/−1 \+1/.test(glaucus)) fail('script diff', 'Glaucus’s respelt word is not the one line, underlined: ' + glaucus);
+  else if (!names || !/Text in its data/.test(body[names]) || !/<b>oboloi<\/b>/.test(body[names]) || /−\d+ \+\d+,/.test(names)) fail('script diff', 'the word in a data block is not under the text in its data: ' + names);
+  else if (!th || d1844.removed !== 0 || d1844.added !== 1 || !/Var00 = True/.test(body[th])) fail('script diff', 'one instruction put into Thoas reads as ' + d1844.removed + ' lines out and ' + d1844.added + ' in');
+  else console.log('  script diff: three changed scripts, three folds drawn when opened; a respelt word underlined, a word in a data block under its data, an inserted instruction as one new line; a thousand random edit scripts rebuild both sides');
+  ctx.patchesForget();
+} catch (e) { fail('script diff', e); }
+
 /* A sprite of your own, end to end: the part table against the shipped art,
    a recolour that moves only what was chosen, a worn body, colour by colour
    on a monster that shares its sheet, and the patches all of it writes, read

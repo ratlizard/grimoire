@@ -600,6 +600,177 @@ function dvmFoldRender(arc, b, resid) {
   return lines.join('\n');
 }
 
+/* ---- two versions of a script, line by line ----------------------------------
+   The patches section and the comparison said which scripts a patch changes
+   and by how many bytes, and nothing of what: the maintainer asked for the
+   exact difference (27 September 2026), and nearly all of what the fix
+   patches change is scripts, the dialogue among them.
+
+   The two sides are read in the folded view, one statement a line, rather
+   than the structured one: a conversation there is a loop a keyword deep,
+   sixteen levels of indentation on a phone, where folded it is flat. A line
+   is compared with its offsets masked -- the gutter, the labels, an answer's
+   target, an unnamed object's name -- because one inserted instruction moves
+   every offset after it, and unmasked every later line would differ. What is
+   shown is each side's own line without its gutter.
+
+   diffSequences is Myers's difference over two arrays, the common head and
+   tail taken off first; it gives up past MAX_DIFF_EDITS and reports the rest
+   as all removed and all added, which a rewritten script is anyway. Returns
+   [op, i, j]: '=' a[i] is b[j], '-' a[i] only, '+' b[j] only. */
+const MAX_DIFF_EDITS = 2000;
+function diffSequences(a, b) {
+  let s = 0;
+  while (s < a.length && s < b.length && a[s] === b[s]) s++;
+  let ea = a.length, eb = b.length;
+  while (ea > s && eb > s && a[ea - 1] === b[eb - 1]) { ea--; eb--; }
+  const N = ea - s, M = eb - s, out = [];
+  for (let k = 0; k < s; k++) out.push(['=', k, k]);
+  const mid = [];
+  // trace[d] holds v[k] for k in -(d+1)..d+1 as it stood before round d.
+  const trace = [];
+  let v = new Map([[1, 0]]), D = -1;
+  if (N && M) {
+    search: for (let d = 0; d <= Math.min(N + M, MAX_DIFF_EDITS); d++) {
+      const snap = new Int32Array(2 * d + 3);
+      for (let k = -(d + 1); k <= d + 1; k++) snap[k + d + 1] = v.has(k) ? v.get(k) : -1;
+      trace.push(snap);
+      for (let k = -d; k <= d; k += 2) {
+        let x = (k === -d || (k !== d && v.get(k - 1) < v.get(k + 1))) ? v.get(k + 1) : v.get(k - 1) + 1;
+        let y = x - k;
+        while (x < N && y < M && a[s + x] === b[s + y]) { x++; y++; }
+        v.set(k, x);
+        if (x >= N && y >= M) { D = d; break search; }
+      }
+    }
+  }
+  if (!N) for (let j = 0; j < M; j++) mid.push(['+', -1, s + j]);
+  else if (!M) for (let i = 0; i < N; i++) mid.push(['-', s + i, -1]);
+  else if (D < 0) { for (let i = 0; i < N; i++) mid.push(['-', s + i, -1]); for (let j = 0; j < M; j++) mid.push(['+', -1, s + j]); }
+  else {
+    let x = N, y = M;
+    for (let d = D; d > 0; d--) {
+      const t = trace[d], at = k => t[k + d + 1], k = x - y;
+      const down = k === -d || (k !== d && at(k - 1) < at(k + 1));
+      const pk = down ? k + 1 : k - 1, px = at(pk), py = px - pk;
+      while (x > px && y > py) { x--; y--; mid.push(['=', s + x, s + y]); }
+      if (down) { y--; mid.push(['+', -1, s + y]); } else { x--; mid.push(['-', s + x, -1]); }
+    }
+    while (x > 0 && y > 0) { x--; y--; mid.push(['=', s + x, s + y]); }
+    mid.reverse();
+  }
+  out.push(...mid);
+  for (let k = 0; k < a.length - ea; k++) out.push(['=', ea + k, eb + k]);
+  return out;
+}
+
+/* The script diff itself: the two folded renders compared a line at a time,
+   in hunks with `context` unchanged lines round each change. Where a hunk
+   takes out and puts in lines, they are paired in order and compared a word
+   at a time, so a changed word in a long line of dialogue can be picked out
+   (`parts`, [text, changed]). Either side may be null, for a script only one
+   file has.
+
+   The listing does not show everything a script holds: an array of names
+   is `<array>` there, and a block of data inside a function is `<data <N
+   bytes>>`. The text patches' first run had two changes with no line to
+   show them, a character's name in gCharNames and "obolio" in a notice's
+   data. So the text in those places is read as well -- every run of
+   printable characters that reads as words, in the objects that are not
+   functions and the data blocks of those that are -- and compared the same
+   way, as `text`. The whole resource's text was tried first and gave
+   hundreds of false changes: a string beside code carries the code's
+   offsets as stray characters, and they move when the code does. */
+function dvmDiffHunks(A, B, keys, context, tokenKey) {
+  const C = context === undefined ? 2 : context;
+  const ops = diffSequences(keys ? A.map(keys) : A, keys ? B.map(keys) : B);
+  const words = s => s.match(/[A-Za-z0-9_']+|\s+|[^A-Za-z0-9_'\s]/g) || [];
+  const pairParts = (x, y) => {
+    const wx = words(x), wy = words(y), px = [], py = [], tk = tokenKey || (t => t);
+    const add = (list, text, ch) => { const last = list[list.length - 1]; if (last && last[1] === ch) last[0] += text; else list.push([text, ch]); };
+    for (const [op, i, j] of diffSequences(wx.map(tk), wy.map(tk))) {
+      if (op === '=') { add(px, wx[i], false); add(py, wy[j], false); }
+      else if (op === '-') add(px, wx[i], true);
+      else add(py, wy[j], true);
+    }
+    return [px, py];
+  };
+  const hunks = [];
+  let removed = 0, added = 0;
+  const changedAt = ops.map(o => o[0] !== '=');
+  for (let p = 0; p < ops.length;) {
+    if (!changedAt[p]) { p++; continue; }
+    const from = Math.max(0, p - C);
+    let end = p;
+    // run on while the next change is within 2C unchanged lines
+    for (let q = p; q < ops.length; q++) { if (changedAt[q]) end = q; else if (q - end > 2 * C) break; }
+    const to = Math.min(ops.length, end + C + 1), lines = [];
+    for (let q = from; q < to;) {
+      if (!changedAt[q]) { lines.push({ k: '=', text: B[ops[q][2]] }); q++; continue; }
+      const outs = [], ins = [];
+      while (q < to && changedAt[q]) { if (ops[q][0] === '-') outs.push(A[ops[q][1]]); else ins.push(B[ops[q][2]]); q++; }
+      removed += outs.length; added += ins.length;
+      const n = Math.min(outs.length, ins.length), po = [], pi = [];
+      for (let k = 0; k < n; k++) { const [x, y] = pairParts(outs[k], ins[k]); po.push(x); pi.push(y); }
+      outs.forEach((t, k) => lines.push({ k: '-', text: t, parts: po[k] || null }));
+      ins.forEach((t, k) => lines.push({ k: '+', text: t, parts: pi[k] || null }));
+    }
+    hunks.push(lines);
+    p = to;
+  }
+  return { hunks, removed, added };
+}
+function dvmScriptText(d, resid) {
+  const out = [];
+  if (!d) return out;
+  const words = bytes => {
+    let run = [];
+    const flush = () => {
+      if (run.length >= 4) {
+        // A table of strings keeps a byte of offset or length before each,
+        // and it is printable as often as not ("vMaster Tros", "™Librarian
+        // Selinus", "7Master Pheres"); it moves when an earlier entry grows.
+        // One such first character is dropped: anything outside ASCII but
+        // the typographic quotes and dashes, a closing quote, or a letter,
+        // digit or mark before a capitalised word. Not an @, which marks a
+        // keyword in the game's text, nor a quote or bracket; the
+        // comparison looks past those (dvmScriptDiff).
+        const t = decodeMacRoman(Uint8Array.from(run)).replace(/^(?:[^\x20-\x7E\u201C\u201D\u2018\u2019\u2026\u2013\u2014]|[\u201D\u2019](?=[A-Z])|[^\s"'\u201C\u2018(@](?=[A-Z][a-z]))/, '');
+        const letters = (t.match(/[A-Za-z ]/g) || []).length;
+        if (/[A-Za-z]{3}/.test(t) && letters >= t.length * 0.6) out.push(t);
+      }
+      run = [];
+    };
+    for (const c of bytes) { if (c >= 0x20 && c !== 0x7F) run.push(c); else flush(); }
+    flush();
+  };
+  for (const [st, en, kind] of dvmExtents(d, resid)) {
+    const seg = d.subarray(st, Math.min(en, d.length));
+    if (!seg.length) continue;
+    if (kind !== 'function') { if (!(dvmIsProse(seg) || dvmIsIdentifier(seg))) words(seg); continue; }
+    for (const op of dvmDisassemble(seg, 3).ops) {
+      if (op[2] !== 'data') continue;
+      const at = op[0] + 1, sz = at + 2 <= seg.length ? u16be(seg, at) : 0;
+      words(seg.subarray(at + 2, Math.min(seg.length, at + 2 + sz)));
+    }
+  }
+  return out;
+}
+function dvmScriptDiff(arc, resid, aData, bData, context) {
+  const read = d => d ? dvmFoldRender(arc, d, resid).split('\n') : [];
+  const shown = l => l.replace(/^\s{4}[0-9A-F]{4}  /, '').replace(/^\s+/, '');
+  const A = read(aData).map(shown), B = read(bData).map(shown);
+  const key = l => l.replace(/\bL[0-9A-F]{4}\b/g, 'L').replace(/-> 0x[0-9A-F]{4}\b/g, '->').replace(/\bobj_[0-9A-F]{4}\b/g, 'obj');
+  // Within a changed line a label or a target is not a change either.
+  const code = dvmDiffHunks(A, B, key, context, t => /^(?:L|0x)[0-9A-F]{4}$/.test(t) ? t[0] : t);
+  // The comparison looks past any one mark before a capital, a leading @
+  // or quote or bracket that is shown but may be a table's offset byte.
+  const tx = dvmDiffHunks(dvmScriptText(aData, resid), dvmScriptText(bData, resid), t => t.replace(/^[^A-Za-z0-9](?=["'\u201C]?[A-Z])/, ''), context);
+  return { hunks: code.hunks, removed: code.removed, added: code.added,
+           text: tx.hunks, textRemoved: tx.removed, textAdded: tx.added,
+           aLines: A.length, bLines: B.length };
+}
+
 /* ---- the round trip ------------------------------------------------------
  * Re-emit the flat op sequence a tree came from. utilities/fold_check.mjs
  * compares this with dvmDisassemble's own output for every function in the
