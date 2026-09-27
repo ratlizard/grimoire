@@ -1318,7 +1318,8 @@ try {
   }
 } catch (e) { fail('cheats', e); }
 
-/* The preferences file, on the Tools tab, with NO application open -- which
+/* The preferences file, on its own tab under Data (on Tools until
+   27 September 2026, which must not carry it now), with NO application open -- which
    is the state a visitor who dropped the data file is in, and until v1.152.0
    was the state where this section offered nothing at all. It offers
    everything now: the four releases Ambrosia shipped give byte-for-byte the
@@ -1328,19 +1329,24 @@ try {
    visitor -- the switches render, the file builds, and the section says the
    numbers are the shipped ones rather than the open copy's. */
 try {
-  const [tools, L, built] = withoutApp(() => {
+  const grid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  const [tools, L, built, onTools, tab] = withoutApp(() => {
     ctx.showCategory('TOOLS');
-    const t = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+    const was = grid();
+    ctx.showCategory('PREFS');
+    const t = grid();
     let b = null;
     try { b = ctx.buildCytheraPreferences({ cheats: true, Backdrop: -2 }); } catch (e) { b = null; }
-    return [t, ctx.cytheraPrefsLayout(), b];
+    return [t, ctx.cytheraPrefsLayout(), b, /id="prefCheats"/.test(was), peek('TAB_LEAF_FOR').get('PREFS')];
   });
   const names = built ? ctx.openResourceFork(built).all().map(x => x.entry.name).join(',') : null;
   if (!L || L.from !== 'shipped') fail('preferences', 'with no application open the layout is not the shipped one: ' + (L && L.from));
+  else if (!tab || tab.id !== 'prefs' || !tab.parent || tab.parent.id !== 'data' || tab.finder !== 'Temp') fail('preferences', 'PREFS is not the Preferences tab under Data wearing the scratch file\u2019s icon');
+  else if (onTools) fail('preferences', 'the Tools tab still carries the preferences file');
   else if (!/id="prefCheats"/.test(tools) || !/<select id="prefOrd_Backdrop"/.test(tools))
-    fail('preferences', 'with no application open the Tools tab does not offer the switches');
+    fail('preferences', 'with no application open the Preferences tab does not offer the switches');
   else if (!/releases Ambrosia shipped/.test(tools)) fail('preferences', 'the section does not say the numbers are the shipped releases\u2019');
   else if (names !== 'UI Prefs,Backdrop') fail('preferences', 'the file built with no application open is not the two-resource one: ' + names);
-  else console.log(`  preferences: no application, so the shipped layout -- ${L.controls.length + 2} switches, ${L.choices.length + L.ordinals.length} choosers, a ${built.length}-byte fork`);
+  else console.log(`  preferences: its own tab under Data and gone from Tools; no application, so the shipped layout -- ${L.controls.length + 2} switches, ${L.choices.length + L.ordinals.length} choosers, a ${built.length}-byte fork`);
 } catch (e) { fail('preferences', e); }
 

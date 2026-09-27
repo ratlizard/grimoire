@@ -387,11 +387,11 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         else console.log(`  program keys: the ©gra gate at byte ${kr.gate.byte.v} bit ${kr.gate.bit.v}, ${kr.cases.length} cases (${kr.cases.filter(c => c.gated).length} gated), ${fields.length} fields of the record, ${keys.length} keys of the file; a changed compare prints ©grb`);
       }
     } catch (e) { fail('program keys', e); }
-    // The Tools tab's preferences file, from the program's layout of the
+    // The Preferences tab's file, from the program's layout of the
     // record: the switches wear the game's own labels, and the bytes are the
     // ones the file was put in front of the game with.
     try {
-      ctx.showCategory('TOOLS');
+      ctx.showCategory('PREFS');
       const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
       const switches = ['prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects', 'prefSwitch256'];
       // The settings that are a choice rather than a switch, and the file's
@@ -452,8 +452,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         names({ Volume: 5 }) !== 'UI Prefs' ||
         [...forkOf({ Backdrop: -2 }).dataOf('Pref', forkOf({ Backdrop: -2 }).resourcesByType['Pref'][1])].join() !== [255, 255, 255, 254].join();
       if (missing.length) fail('preferences', 'switches missing from the Tools tab: ' + missing.join(', '));
-      else if (ords.length) fail('preferences', 'ordinal choosers missing from the Tools tab: ' + ords.join(', '));
-      else if (missingChoices.length) fail('preferences', 'the Tools tab does not offer: ' + missingChoices.join(', '));
+      else if (ords.length) fail('preferences', 'ordinal choosers missing from the Preferences tab: ' + ords.join(', '));
+      else if (missingChoices.length) fail('preferences', 'the Preferences tab does not offer: ' + missingChoices.join(', '));
       else if (backWrong) fail('preferences', 'the backdrop choices are not the four the program and the two files give: ' + JSON.stringify(back));
       else if (shippedDrift) fail('preferences', 'PREF_SHIPPED does not match the program: ' + shippedDrift);
       else if (ordWrong) fail('preferences', 'an ordinal key is written when it should not be, or with the wrong bytes');
@@ -468,7 +468,10 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!/id="prefSwitch256" checked/.test(tools)) fail('preferences', 'the 256-colour answer is not ticked by default');
       else if (!/Switch to 256 Colors/.test(tools) || !/Don't Ask Again/.test(tools)) fail('preferences', 'the 256-colour switch does not wear the dialog\u2019s own labels');
       else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
-      else console.log(`  preferences: ${switches.length} switches and ${ctx.cytheraPrefsLayout().choices.length + ctx.cytheraPrefsLayout().ordinals.length} choosers on the Tools tab with the game's labels, each bit where the program writes it, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);
+      // The tab wears the scratch file's Finder icon, the bundle having none
+      // for a preferences file; with the program open it must be there.
+      else if (!(ctx.finderIconFor('Temp') || {}).width) fail('preferences', 'the program\u2019s bundle gives the scratch file no icon for the Preferences tab to wear');
+      else console.log(`  preferences: ${switches.length} switches and ${ctx.cytheraPrefsLayout().choices.length + ctx.cytheraPrefsLayout().ordinals.length} choosers on the Preferences tab with the game's labels, each bit where the program writes it, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);
     } catch (e) { fail('preferences', e); }
     // The dialogue box, drawn now the application is here. The frame is a
     // PNG encoded asynchronously, so it is waited for rather than timed.

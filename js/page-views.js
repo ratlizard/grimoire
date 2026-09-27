@@ -293,18 +293,21 @@ function renderAppPefSheet() {
   out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '; ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
 }
 
-/* ---- Tools -------------------------------------------------------------------
-   The page's own switches and its sister pages, which are not part of the
-   archive and so have no place under the other three tabs. The undither
-   switch moved here from every gallery that had one: it is one setting for
-   every image, and the galleries keep only a preview the other way. */
-function renderToolsSheet() {
-  /* The file tools -- patches, a sprite of your own, the comparison -- are
-     sections of the rules renderer (MECH_TOOL_GROUP), so it draws the grid
-     first and this sheet's own settings go above them. */
-  renderMechanicsSheet(MECH_TOOL_GROUP.value);
+/* Cythera Preferences, the file the game keeps its settings in, on a tab of
+   its own under Data beside the other files (the maintainer, 27 September
+   2026; it was a section of the Tools tab). It is the only thing on the page
+   that changes how the GAME behaves rather than how the page reads it: the
+   smooth movement Cythera has always had and gates on a preference, the
+   gate on the cheat keys, which nothing in the game ever sets, and the rest
+   of the record and the file's other keys. The long comment above
+   buildCytheraPreferences in js/page-export.js says where each came from. */
+function renderPrefsSheet() {
+  stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
   const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  document.getElementById('singleControls').style.display = 'none';
   const box = document.createElement('div');
   box.className = 'changesView';
   const sec = (title, note) => {
@@ -315,20 +318,6 @@ function renderToolsSheet() {
     box.appendChild(d);
     return d;
   };
-  const d = sec('Ditherizer', 'Any image in, Cythera-palette checkerboard art out, the undither run ' +
-    'backwards. It lives on the Portraits gallery because that is where a result can be written ' +
-    'straight into a portrait resource.');
-  const db = document.createElement('button');
-  db.className = 'secondary';
-  db.textContent = 'Open the ditherizer';
-  db.onclick = () => { showCategory('135'); openDitherTool(); };
-  d.appendChild(db);
-  /* The preferences file, which is the only thing on this page that changes
-     how the GAME behaves rather than how this page reads it. Two bits: the
-     smooth movement Cythera has always had and gates on a preference, and the
-     gate on the cheat keys, which nothing in the game ever sets. The long
-     comment above buildCytheraPreferences says where each came from and, just
-     as plainly, that this file has never been put in front of the game. */
   const layout = cytheraPrefsLayout();
   const pf = sec('Cythera’s preferences file', '');
   const pfNote = document.createElement('div');
@@ -424,6 +413,40 @@ function renderToolsSheet() {
       'It replaces any settings already stored.';
     pf.appendChild(pnote);
   }
+  grid.appendChild(box);
+  out.textContent = PREFS_FILE_NAME + ', the file the game keeps its settings in.';
+}
+
+/* ---- Tools -------------------------------------------------------------------
+   The page's own switches and its sister pages, which are not part of the
+   archive and so have no place under the other three tabs. The undither
+   switch moved here from every gallery that had one: it is one setting for
+   every image, and the galleries keep only a preview the other way. */
+function renderToolsSheet() {
+  /* The file tools -- patches, a sprite of your own, the comparison -- are
+     sections of the rules renderer (MECH_TOOL_GROUP), so it draws the grid
+     first and this sheet's own settings go above them. */
+  renderMechanicsSheet(MECH_TOOL_GROUP.value);
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  const box = document.createElement('div');
+  box.className = 'changesView';
+  const sec = (title, note) => {
+    const d = document.createElement('div');
+    d.className = 'changesGroup';
+    d.innerHTML = '<div class="changesGroupTitle">' + svEsc(title) + '</div>' +
+      (note ? '<div class="changesNote" style="margin-left:0">' + svEsc(note) + '</div>' : '');
+    box.appendChild(d);
+    return d;
+  };
+  const d = sec('Ditherizer', 'Any image in, Cythera-palette checkerboard art out, the undither run ' +
+    'backwards. It lives on the Portraits gallery because that is where a result can be written ' +
+    'straight into a portrait resource.');
+  const db = document.createElement('button');
+  db.className = 'secondary';
+  db.textContent = 'Open the ditherizer';
+  db.onclick = () => { showCategory('135'); openDitherTool(); };
+  d.appendChild(db);
 
   const pages = sec('The other pages', '');
   for (const [href, label, note] of [

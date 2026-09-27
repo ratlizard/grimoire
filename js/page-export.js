@@ -46,14 +46,14 @@
    first -- `18800001` in a stored preferences file was watched to print
    "Cheat mode activated." on 5 September 2026, and `0x9A` was measured the
    same week -- and on 9 September 2026 a file this page wrote was read by
-   the game and the code typed: cheat mode activated. The Tools tab has said
+   the game and the code typed: cheat mode activated. The page has said
    so since v1.35.0; the paragraph that stood here until v1.41.0 still called
    the file untried and asked for five minutes with a Mac.
 
    **The rest of the record is named** (v1.41.0, from the workbench's reading
    of `TApPrefWindow::AddContent`, `SaveSettings` and `TDelverApp::DefaultMenu`,
    and since v1.52.0 read out of the program as the page opens: see
-   cytheraPrefsLayout and exePrefFields), and the Tools tab offers every bit
+   cytheraPrefsLayout and exePrefFields), and the Preferences tab offers every bit
    a dialog control writes. The frame-rate cap, which only the unreachable
    Preferences menu sets, is a four-bit field the first stored record leaves
    at 6, so the writer leaves it as it finds it; byte 1's bit 2 is read once

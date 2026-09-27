@@ -1776,6 +1776,7 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'MONSTERS') { renderMonsterSheet(); return; }
   if (window.CUR_SUBN === 'RECORDS') { renderRecordsSheet(); return; }
   if (window.CUR_SUBN === 'SAVEGAME') { renderSaveSheet(); return; }
+  if (window.CUR_SUBN === 'PREFS') { renderPrefsSheet(); return; }
   if (window.CUR_SUBN === 'CHEATS') { renderCheatsSheet(); return; }
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
   if (window.CUR_SUBN === 'CHANGES') { renderChangesSheet(); return; }

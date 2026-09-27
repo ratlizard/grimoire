@@ -678,7 +678,7 @@ function exePascalAt(op) {
    colours, where the typed table called them written by nothing.
 
    The gate is why this page can offer the mode at all: `writeResourceFork`
-   arrived in v1.18.0 and the Tools tab writes a `Cythera Preferences` file
+   arrived in v1.18.0 and the Preferences tab writes a `Cythera Preferences` file
    with that bit set. Verified once in systemless on 5 September 2026, the
    code typed, "Cheat mode activated." printed, and option-shift-/ answering
    with the player's position in hex.
@@ -951,7 +951,7 @@ function renderCheatsSheet() {
         (wait ? ', which spins on TickCount for ' + srcNum(wait.ticks) + ' ticks, ' + (wait.ticks.v / 60) + ' seconds, at startup when it is set' : '') + '.</li>' : '') +
       '<li>The letters of the code arm targeting modes as they go, so the tab reads ATTACK afterwards until you press <b>M</b>.</li></ul>' +
       '<div class="cheatNote">This page can write the preferences file with that bit set, ' +
-      actionChip('Tools › Cythera Preferences', "showCategory('TOOLS')") +
+      actionChip('Data › Preferences', "showCategory('PREFS')") +
       ', as a MacBinary for a real Mac or a small disk image for an emulator.</div></div>';
   }
 

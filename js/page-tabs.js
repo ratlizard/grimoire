@@ -1080,6 +1080,14 @@ const TAB_TREE = [
       // application open the tab wears the Finder's own icon for a saved game
       // instead, and the tile is only what stands in before that.
       { id: 'savegame', label: 'Saved Game', tile: 0x263, finder: 'DelP', values: ['SAVEGAME'] },
+      // The game's settings file, a tab of its own since 27 September 2026
+      // (it was a section of Tools). Its type is `pref`, and the bundle has
+      // no icon for that: the Finder drew its generic preferences icon out of
+      // the System. So it wears the one file-type icon of the four the bundle
+      // gives that no other tab wears, the scratch file's `Temp`, the frame
+      // with nothing in it (the maintainer: "something from file types").
+      // The key stands in before the program is open.
+      { id: 'prefs', label: 'Preferences', tile: 0x233, finder: 'Temp', values: ['PREFS'] },
       // The folder's own icon, a folder with an axe across it, drawn in 1999
       // for these files and no others; the rolling pin stands in before a
       // file is open.
