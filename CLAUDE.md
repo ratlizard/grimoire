@@ -575,7 +575,11 @@ repository either.
 `combined_patch.mjs` is a builder too: every fix patch here, Bryce's six
 among them, run as stages, each on the one before, and written as one
 Magpie patch, "Cythera All Fixes", with each stage also run alone and
-compared; its header says why the order is the one it is.
+compared; its header says why the order is the one it is. Its
+`further_fixes_patch.mjs` stage finds each place by the instructions
+around it rather than by an offset, which is what lets it share scripts
+with the stages before it. `karma_patch.mjs` and `wine_gremlin_patch.mjs`
+are builders of patches of their own, outside the combined build.
 
 `ramp_patch.mjs` is a **builder, not a check**: it writes a Magpie patch that
 puts every tile on the engine's cycling ramps, leans on the page's writers
