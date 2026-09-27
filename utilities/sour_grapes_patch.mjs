@@ -7,29 +7,41 @@
    gremlin in the words.) The shipped task cannot be finished -- Ambrosia
    called it a red herring (the board, topic 87) -- and the fix patches
    leave it so. This replaces wine_gremlin_patch.mjs, which only printed.
+   Then, the same day: something only a gremlin could do, which the
+   maintainer chose as the grapes growing stronger the longer the contract
+   is left, and the unit named "bunch of grapes".
 
    Usage: node utilities/sour_grapes_patch.mjs index.html "<Cythera Data.data>" <out dir>
 
    WHAT HAPPENS. Walk into Glaucus's vineyard (zone 18) with Apis's contract
    open (her character flag 5): a conversation window, Glaucus's portrait
    and the hero's, says the grapes have been thinking since his must went
-   sour and do not want to be wine; six grapes rise around the party and
-   fight. Killing the last one opens the conversation again, Glaucus signs
+   sour and do not want to be wine; six bunches of grapes rise around the
+   party and fight. They are as strong as the days since the contract was
+   taken make them: level 2, body 8, reflex 7 and 18 health on the first
+   day, and a level and a point of reflex every two days, a point of body
+   and four of health every day, to 12, 24, 18 and 120. Elsewhere, at
+   two, five, nine and fourteen days, entering a zone prints a line that
+   says so. Killing the last one opens the conversation again, Glaucus signs
    for nine hundred and forty barrels of sour must, the To Do line is struck
    (CompleteQuest(17)), Apis's flag 5 is cleared and her flag 2 set, the one
    her own "Hungry for that meal I promised?" waits on.
 
    HOW, ALL OF IT THE ENGINE'S OWN ROUTES:
-   - Gremlin 17 (0x1F11) is the trigger. Its Enter runs on a zone change,
-     after the zone's things are loaded when the change is in play
-     (TGameViewer::GoToLocation loads the level, then calls ChangeZone,
-     which runs the zone's Enter and TGremlin::OnEnter), and after the party
-     is rebuilt on a load (TDelverApp::BeginPlay). It switches itself off
-     before anything else, so it acts once.
+   - Gremlin 17 (0x1F11) is the trigger and the clock. Its Enter runs on
+     every zone change, anywhere, after the zone's things are loaded when
+     the change is in play (TGameViewer::GoToLocation loads the level, then
+     calls ChangeZone, which runs the zone's Enter and TGremlin::OnEnter),
+     and after the party is rebuilt on a load (TDelverApp::BeginPlay). No
+     script of a zone or a character sees every zone change, which is why
+     the wait is a gremlin's: the first one after Apis's flag 5 is set
+     writes the day into the hero's quest value 30, and each after reads the
+     days since. It switches itself off at the vineyard, so the fight
+     happens once.
    - The grapes are characters 140 to 145, free records in the scenario's
      0xF009 (130 to 188 are all zero), laid out after the game's two hostile
-     named characters, Aeneas and Eudoxus: the ooze's body (prop type 115,
-     the lavender blob, which has no part in the plot), feral (byte 25, 3:
+     named characters, Aeneas and Eudoxus: the bird's body (prop type 89,
+     the one unit nothing in the files places), feral (byte 25, 3:
      an enemy to the party and neither to Glaucus, by the enemy table),
      zone 18, not alive. Setting a character's x and y writes its record
      (SetField, fields 1 and 2), and setting status_flags with the alive bit
@@ -41,7 +53,7 @@
      "Glurp.", and OnDeath counts the other five still alive (the alive bit
      of each, the dying one's own not yet cleared, CharEntry::DeathRites
      clears it after) and, when none is, plays the ending; then it hands on
-     to the default OnDeath (0x301D), so a grape dies as an ooze does.
+     to the default OnDeath (0x301D), so a grape dies as any creature does.
    - The grapes are the game's own: tile 0x249, named "grapes" in the
      tile-name table, aspect 3 of the food type the page shows as
      flatbread (the maintainer, who saw them on Glaucus's table). The
@@ -54,8 +66,9 @@
    has no grapes; then Glaucus signs without a fight. A save made before it
    also keeps gremlin 17 off until the save sheet switches it on.
 
-   Everything is added but 0xF009, which no other patch here changes. The
-   words are ours, not the game's, and seven-bit like every script's. */
+   Everything is added but four: the character table 0xF009, the unit
+   table 0xF008, the tile names 0xF004 and the bird's sheet, which no other
+   patch here changes. The words are ours, not the game's, and seven-bit like every script's. */
 import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
 import vm from 'node:vm';
 import {makeSandbox} from './dom_stub.mjs';
@@ -71,6 +84,7 @@ const GREMLIN = 0x1F11, APIS = 42, GLAUCUS = 102, VINEYARD = 18, BIRD = 89;
 const ATTACK = 8;
 const GRAPES = [140, 141, 142, 143, 144, 145];
 const AROUND = [[-2, -1], [2, -1], [-2, 1], [2, 1], [0, -2], [0, 2]];
+const QV_START = 30, QV_STAGE = 31, WRAP = 120, HOLD = 40;
 
 // A line the game prints: quoted text is the speaker's balloon, a * after it
 // waits for a click, text outside quotes goes to the message line.
@@ -88,10 +102,30 @@ const ending = ['sys OpenConversation', 'end', ...speaker(GLAUCUS, 0),
   say('"She\'ll love it."*"She won\'t love it."*"Tell her it\'s a vintage."*'),
   'sys FinishConversation', 'end', ...settle];
 
-const gremlin = ['subroutine 0x0200',
+// The days since the contract was taken: quest values 30 and 31 of the
+// hero, which no script of the game reads or writes (it uses 0 to 16). 30
+// holds the day the wait began, as GameDay mod 120 plus one so that 0 can
+// mean not yet, and 31 the last warning printed. The count is taken mod 120
+// too, and held at 40 by moving the start along, so a wait longer than the
+// wrap cannot come round to none; every figure below has stopped by 26.
+const DAY = ['global GameDay (0xF)', 'byte ' + WRAP, 'mod'];
+const START = ['sys GetState', 'byte ' + QV_START, 'end'];
+const cap = (v, n) => ['if_not', 'local Var0' + v, 'byte ' + n, 'gt', 'then -> cap' + v, 'set_local 0x0' + v, 'byte ' + n, 'end', 'cap' + v + ':'];
+const warning = (days, stage, line) => ['if_not', 'local Var00', 'byte ' + days, 'ge', 'sys GetState', 'byte ' + QV_STAGE, 'end', 'byte ' + stage, 'lt', 'and', 'then -> warned' + stage,
+  'sys SetState', 'byte ' + QV_STAGE, 'byte ' + stage, 'end', say(line + '\n'), 'branch done', 'warned' + stage + ':'];
+
+const gremlin = ['subroutine 0x0205',
   'if_not', 'arg Arg01', 'is_type Zone', 'then -> done',
-  'if_not', 'global CurrentZone (0x10)', 'short ' + VINEYARD, 'eq', 'then -> done',
   'if_not', 'call_resource 0xF02', 'short ' + APIS, 'byte 5', 'end', 'then -> done',
+  'if_not', ...START, 'byte 0', 'eq', 'then -> started',
+  'sys SetState', 'byte ' + QV_START, ...DAY, 'byte 1', 'add', 'end',
+  'started:',
+  'set_local 0x00', ...DAY, ...START, 'sub', 'byte ' + (WRAP + 1), 'add', 'byte ' + WRAP, 'mod', 'end',
+  'if_not', 'local Var00', 'byte ' + HOLD, 'gt', 'then -> held',
+  'sys SetState', 'byte ' + QV_START, 'global GameDay (0xF)', 'byte ' + (WRAP - HOLD), 'add', 'byte ' + WRAP, 'mod', 'byte 1', 'add', 'end',
+  'set_local 0x00', 'byte ' + HOLD, 'end',
+  'held:',
+  'if_not', 'global CurrentZone (0x10)', 'short ' + VINEYARD, 'eq', 'then -> travel',
   'set_field status_flags', 'arg Arg00', 'end', 'byte 1', 'end',
   'sys OpenConversation', 'end',
   ...speaker(1, 2),
@@ -99,34 +133,63 @@ const gremlin = ['subroutine 0x0200',
   ...speaker(GLAUCUS, 0),
   say('"Barrels?  Haven\'t you heard?  Every drop I had went sour overnight."*'),
   'if_not', 'word Character.' + GRAPES[0], 'get_field full_health (0x1D)', 'byte 0', 'gt', 'then -> nogrape',
+  'if_not', 'local Var00', 'byte 5', 'lt', 'then -> days',
   say('"And ever since, the grapes have been... thinking."*'),
+  'branch talked',
+  'days:',
+  'if_not', 'local Var00', 'byte 14', 'lt', 'then -> weeks',
+  say('"And ever since, the grapes have been thinking.  They\'ve had days to think."*"They look... potent."*'),
+  'branch talked',
+  'weeks:',
+  say('"And ever since, the grapes have been thinking.  For weeks."*"At night I hear them doing push-ups."*'),
+  'talked:',
   say('Out among the trellises, something goes squelch.*'),
   say('"Oh no.  Oh no.  They heard you say barrels."*"They do NOT want to be wine."*"Squash them before they get to the rest of the vines, and I\'ll sign anything you like!"*'),
   'sys FinishConversation', 'end',
+  // How strong the wait has made them: level, body, reflex and health, each
+  // from the shipped record's figure up by the days, each to a ceiling.
+  'set_local 0x01', 'byte 2', 'local Var00', 'byte 2', 'div', 'add', 'end', ...cap(1, 12),
+  'set_local 0x02', 'byte 8', 'local Var00', 'add', 'end', ...cap(2, 24),
+  'set_local 0x03', 'byte 7', 'local Var00', 'byte 2', 'div', 'add', 'end', ...cap(3, 18),
+  'set_local 0x04', 'byte 18', 'local Var00', 'byte 4', 'mul', 'add', 'end', ...cap(4, 120),
   // Each grape: its prop slot (the working list's record of the same number,
   // where HatchEgg takes the creature's type from) made a placed prop of the
   // bird's type, flags 4 as a character standing in the zone has; its square
-  // on both the slot and the record; then the alive bit, which hatches it.
+  // on both the slot and the record; its figures; then the alive bit, which
+  // hatches it.
   ...GRAPES.flatMap((g, k) => {
-    const slot = 'word 0x' + g.toString(16).padStart(4, '0') + '@Type.Prop';
+    const slot = 'word 0x' + g.toString(16).padStart(4, '0') + '@Type.Prop', me = 'word Character.' + g;
     const heroAt = (f, d) => ['global PlayerCharacter (0x5)', 'cast Character (0x40)', 'get_field ' + f, 'byte ' + d, 'add'];
     return [
       'set_field flags (0x0)', slot, 'end', 'byte 4', 'end',
       'set_field aspect_and_proptype (0x5)', slot, 'end', 'short ' + BIRD, 'end',
       'set_field x (0x1)', slot, 'end', ...heroAt('x (0x1)', AROUND[k][0]), 'end',
       'set_field y (0x2)', slot, 'end', ...heroAt('y (0x2)', AROUND[k][1]), 'end',
-      'set_field x (0x1)', 'word Character.' + g, 'end', ...heroAt('x (0x1)', AROUND[k][0]), 'end',
-      'set_field y (0x2)', 'word Character.' + g, 'end', ...heroAt('y (0x2)', AROUND[k][1]), 'end',
-      'set_field behavior (0x15)', 'word Character.' + g, 'end', 'byte ' + ATTACK, 'end',
-      'set_field status_flags (0x14)', 'word Character.' + g, 'end', 'byte 1', 'end'];
+      'set_field x (0x1)', me, 'end', ...heroAt('x (0x1)', AROUND[k][0]), 'end',
+      'set_field y (0x2)', me, 'end', ...heroAt('y (0x2)', AROUND[k][1]), 'end',
+      'set_field level (0x1B)', me, 'end', 'local Var01', 'end',
+      'set_field body (0x17)', me, 'end', 'local Var02', 'end',
+      'set_field reflex (0x18)', me, 'end', 'local Var03', 'end',
+      'set_field full_health (0x1D)', me, 'end', 'local Var04', 'end',
+      'set_field health (0x1C)', me, 'end', 'local Var04', 'end',
+      'set_field behavior (0x15)', me, 'end', 'byte ' + ATTACK, 'end',
+      'set_field status_flags (0x14)', me, 'end', 'byte 1', 'end'];
   }),
-  say('Six grapes the size of sheep rise from the vines, dripping sour must.\n'),
+  say('Six bunches of grapes the size of sheep rise from the vines, dripping sour must.\n'),
   'branch done',
   'nogrape:',
   say('"...you know what?  Give me that."*'),
   say('Glaucus fills in every blank: nine hundred and forty barrels of sour must, for delivery to Apis.*'),
   say('"She\'ll love it."*"She won\'t love it."*'),
   'sys FinishConversation', 'end', ...settle,
+  'branch done',
+  // Anywhere else, a line now and then while the grapes wait, the latest
+  // one due and never the same one twice.
+  'travel:',
+  ...warning(14, 4, 'Far away, something purple is doing push-ups.'),
+  ...warning(9, 3, 'Your left boot feels oddly sticky.'),
+  ...warning(5, 2, 'You catch a whiff of fermenting fruit on the wind.'),
+  ...warning(2, 1, 'Somewhere, grapes are ripening.'),
   'done:', 'return', 'byte 0', 'end'].join('\n');
 
 const grapeTalk = ['subroutine 0x0100', say('"Glurp."*"...we are not wine."'), 'return', 'byte 0', 'end'].join('\n');
@@ -193,8 +256,9 @@ const out = vm.runInContext(`(() => {
     d[k * 16] = 8; d[k * 16 + 1] = 7; d[k * 16 + 2] = 1; d[k * 16 + 5] = 18; d[k * 16 + 6] = 3;
     u.data = d; changed.push(0xF008); }
   // Its name: the tile-name table's entry that runs over the bird's tiles
-  // and nothing else says "grape", with the game's own plural mark. That
-  // entry also says how many tiles are the bird's: four, 0x508 to 0x50B.
+  // and nothing else says "bunch of grapes", with no plural mark, since the
+  // game's mark only adds an ending and "bunches" is not one. That entry
+  // also says how many tiles are the bird's: four, 0x508 to 0x50B.
   // The four after them are the chicken's, named so, and stay a chicken.
   let birdFrames = 0;
   { const r = spec.resources.find(x => x.resid === 0xF004), d = getResourceBytes(arc, 0xF004);
@@ -207,7 +271,7 @@ const out = vm.runInContext(`(() => {
       if (!done && id >= base) {
         if (nm !== 'bird' || prev !== base - 1 || id > base + 15) throw new Error('the tiles of the bird are not named by one entry of their own: ' + nm);
         birdFrames = id - base + 1;
-        parts.push(d.subarray(i, i + 2), Uint8Array.of(...[...'grape'].map(ch => ch.charCodeAt(0)), 92, 115), Uint8Array.of(0)); done = true;
+        parts.push(d.subarray(i, i + 2), Uint8Array.of(...[...'bunch of grapes'].map(ch => ch.charCodeAt(0)), 0)); done = true;
       } else parts.push(d.subarray(i, end + 1));
       if (id < prev) { parts.push(d.subarray(end + 1)); break; }
       prev = id; i = end + 1;
