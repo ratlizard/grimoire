@@ -463,12 +463,16 @@ function openDitherTool() {
       '<option value="frame:88A2">64×64 in the frame of 0x88A2</option>' +
       '<option value="frame:88F2">64×64 in the frame of 0x88F2</option>' +
       ditherSharedFrames().map(f => '<option value="frame:' + f.members[0].toString(16).toUpperCase() + '">64×64 in the frame of ' + svEsc(ditherFrameOwners(f.members)) + '</option>').join('') +
+      '<option value="items">64×64 in a frame of items</option>' +
       '<option value="landscape">288×32 landscape strip (cover crop)</option>' +
       '<option value="icon">32×16 icon (cover crop)</option>' +
       '<option value="sheet">128×128 tile sheet, sixteen tiles (cover crop)</option>' +
       '<option value="free">original size (up to 512px), a sized graphic</option></select></label>' +
     '<label>Checker <input type="range" id="dtChecker" min="0" max="100" value="60"></label>' +
     '<label id="dtSubstWrap"><input type="checkbox" id="dtSubst"' + (window.DITHER_SUBST ? ' checked' : '') + '> Automatically substitute out colour-cycling colours</label></div>' +
+    '<div class="dtRow" id="dtItemsRow" style="display:none">' +
+    '<label>Corners <select id="dtCorner">' + ditherItemOptions('axe') + '</select></label>' +
+    '<label>Edges <select id="dtEdge">' + ditherItemOptions('sword') + '</select></label></div>' +
     '<div class="dtRow">' +
     '<label><input type="checkbox" id="dtSeldane"> Seldane colours only <span class="inspDim">(the blues and cyans of portraits 0x8877 to 0x887B, by lightness)</span></label></div>' +
     '<div class="dtRow"><canvas id="dtSrc" width="64" height="64"></canvas>' +
@@ -496,6 +500,41 @@ function openDitherTool() {
   document.getElementById('dtChecker').oninput = renderDither;
   document.getElementById('dtSubst').onchange = e => { window.DITHER_SUBST = e.target.checked; renderDither(); };
   document.getElementById('dtSeldane').onchange = renderDither;
+  document.getElementById('dtCorner').onchange = renderDither;
+  document.getElementById('dtEdge').onchange = renderDither;
+}
+
+/* The items a frame can be built of (itemFramePixels in
+   js/delv-graphics.js lays them out): every tile of every item the
+   Items sheet lists, from its prop type's base tile to the next type's,
+   the first tile of each name the tile-name table gives them, so the
+   food type offers its bread, cheese and grapes and a creature its
+   first frame. Named as the file names them, with the tile, since three
+   swords share a name. */
+DERIVED.DITHER_ITEM_TILES = null;
+function ditherItemTiles() {
+  if (DERIVED.DITHER_ITEM_TILES) return DERIVED.DITHER_ITEM_TILES;
+  const tiles = getPropTileList(), bases = [...new Set(tiles.filter(t => t))].sort((a, b) => a - b), seen = new Set(), out = [];
+  for (const e of inventoryItemList()) {
+    const b = tiles[e.pt], next = bases.find(t => t > b) || b + 1, names = new Set();
+    for (let t = b; t < Math.min(next, b + 32); t++) {
+      const name = terrainNameFor(t);
+      if (!name || names.has(name) || seen.has(t)) continue;
+      names.add(name); seen.add(t);
+      const im = resolveTileImage(t);
+      if (im && im.some(v => v)) out.push({ tile: t, name });
+    }
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name) || a.tile - b.tile);
+  return (DERIVED.DITHER_ITEM_TILES = out);
+}
+// A picker's options, the first item of the given name chosen.
+function ditherItemOptions(pick) {
+  let list = [];
+  try { list = ditherItemTiles(); } catch (e) { quiet(e, 'listing the items a frame can be built of'); }
+  const chosen = list.find(t => t.name === pick);
+  return '<option value="">none</option>' + list.map(t => '<option value="' + t.tile + '"' + (t === chosen ? ' selected' : '') + '>' +
+    svEsc(t.name) + ' (0x' + t.tile.toString(16).toUpperCase() + ')</option>').join('');
 }
 
 /* The frames the portraits share, as the ditherizer offers them
@@ -645,7 +684,7 @@ function ditherDownloadGIF() {
 const DITHER_KINDS = { portrait: 135, landscape: 131, icon: 137, sheet: 141, free: 142 };
 function ditherKind() {
   const mode = (document.getElementById('dtMode') || {}).value || 'portrait';
-  return /^frame:/.test(mode) ? 'portrait' : mode;
+  return /^frame:/.test(mode) || mode === 'items' ? 'portrait' : mode;
 }
 function ditherFillTargets() {
   const sel = document.getElementById('dtTarget');
@@ -694,12 +733,14 @@ function encodeGraphicResource(kind, W, H, indexed) {
 function renderDither() {
   if (!_ditherSrc) return;
   const mode = document.getElementById('dtMode').value;
-  const frameMode = /^frame:/.test(mode);
-  const portrait = mode === 'portrait' || frameMode;
+  const frameMode = /^frame:/.test(mode), itemMode = mode === 'items';
+  const portrait = mode === 'portrait' || frameMode || itemMode;
   const kind = ditherKind();
   const FIXED = { landscape: [288, 32], icon: [32, 16], sheet: [128, 128] };
   const substWrap = document.getElementById('dtSubstWrap');
   if (substWrap) substWrap.style.display = kind === 'sheet' ? '' : 'none';
+  const itemsRow = document.getElementById('dtItemsRow');
+  if (itemsRow) itemsRow.style.display = itemMode ? '' : 'none';
   const img = _ditherSrc;
   let W, H, sx = 0, sy = 0, sw = img.width, sh = img.height;
   let fm = null;
@@ -742,6 +783,14 @@ function renderDither() {
   if (fm) {
     const out = new Uint8Array(W * H);
     for (let i = 0; i < W * H; i++) out[i] = fm.hole[i] ? indexed[i] : fm.frame[i];
+    indexed = out;
+  }
+  if (itemMode) {
+    // the picture fills the square and the items go over its border
+    const tileOf = id => { const v = (document.getElementById(id) || {}).value; return v ? resolveTileImage(+v) : null; };
+    const items = itemFramePixels(tileOf('dtCorner'), tileOf('dtEdge'), W, H);
+    const out = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) out[i] = items[i] || indexed[i];
     indexed = out;
   }
   window.DITHER_RESULT = { indexed, W, H, portrait, kind };

@@ -524,6 +524,79 @@ function sharedPortraitFrames(arc){
 }
 
 /* ------------------------------------------------------------
+   A frame made of items.
+
+   Meleager's family's frame is items: the axe (tile 0x203) at the
+   top-left corner with its drawn pixels flush to the picture's
+   corner, the same axe mirrored at the top-right, a shield at each
+   foot, and swords along the top and bottom and turned along the
+   sides. The maintainer asked for frames like it to be built from
+   any item (27 September 2026) and chose corners and edges: one
+   item at the four corners, mirrored so that each faces out as the
+   axes do, and one along the four edges, as drawn along the top,
+   flipped for the bottom and turned for the sides. Turned is the
+   top's rows made the left side's columns, so what faces out at
+   the top faces out at the side; the right side and the bottom are
+   mirrors of the left and the top. An edge item lies along its
+   edge, so one taller than wide is turned before any of that.
+
+   Each item is its tile's drawn pixels cropped to their box, at
+   their own size. An edge takes as many as fit between the
+   corners, evenly spaced, and at least one, centred; the corners
+   go on last. Index 0 is a tile's transparency and is the frame's
+   too: where the result is 0 the picture shows. Takes two 32x32
+   tile images, either of which may be null, and returns a W x H
+   array of indices.
+   ------------------------------------------------------------ */
+function itemFramePixels(corner, edge, W, H) {
+  const out = new Uint8Array(W * H);
+  const crop = im => {
+    if (!im) return null;
+    let x0 = 32, y0 = 32, x1 = -1, y1 = -1;
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (im[y * 32 + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return null;
+    const w = x1 - x0 + 1, h = y1 - y0 + 1, px = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px[y * w + x] = im[(y0 + y) * 32 + x0 + x];
+    return { w, h, px };
+  };
+  const put = (it, ox, oy, flipX, flipY, turn) => {
+    const w = turn ? it.h : it.w, h = turn ? it.w : it.h;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let sx = flipX ? w - 1 - x : x, sy = flipY ? h - 1 - y : y;
+      if (turn) { const t = sx; sx = sy; sy = t; }
+      const v = it.px[sy * it.w + sx], X = ox + x, Y = oy + y;
+      if (v && X >= 0 && Y >= 0 && X < W && Y < H) out[Y * W + X] = v;
+    }
+  };
+  // Where n items of length len go in the span from a to a + span.
+  const spread = (a, span, len) => {
+    const n = Math.max(1, Math.floor(span / len)), gap = (span - n * len) / (n + 1), at = [];
+    for (let k = 0; k < n; k++) at.push(Math.round(a + gap + k * (len + gap)));
+    return at;
+  };
+  const c = crop(corner);
+  let e = crop(edge);
+  // An edge item lies along its edge, as Meleager's swords do: one taller
+  // than it is wide is turned first, or an arrow would stand across the
+  // top like a fence and take a third of the picture.
+  if (e && e.h > e.w) {
+    const px = new Uint8Array(e.w * e.h);
+    for (let y = 0; y < e.w; y++) for (let x = 0; x < e.h; x++) px[y * e.h + x] = e.px[x * e.w + y];
+    e = { w: e.h, h: e.w, px };
+  }
+  if (e) {
+    const cw = c ? c.w : 0, ch = c ? c.h : 0;
+    for (const x of spread(cw, W - 2 * cw, e.w)) { put(e, x, 0, false, false, false); put(e, x, H - e.h, false, true, false); }
+    for (const y of spread(ch, H - 2 * ch, e.w)) { put(e, 0, y, false, false, true); put(e, W - e.h, y, true, false, true); }
+  }
+  if (c) {
+    put(c, 0, 0, false, false, false); put(c, W - c.w, 0, true, false, false);
+    put(c, 0, H - c.h, false, true, false); put(c, W - c.w, H - c.h, true, true, false);
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------
    Protected pixels.
 
    Two things are never touched by any stage:

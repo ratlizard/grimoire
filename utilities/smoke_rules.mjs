@@ -100,6 +100,34 @@ try {
     else if (!(fm.box && fm.hole[32 * 64 + 32] && fm.box.x1 - fm.box.x0 > 30 && fm.box.y1 - fm.box.y0 > 30 && frameN >= 1500 && kept === frameN)) fail('frames', 'the grape frame\u2019s hole or frame is wrong: ' + JSON.stringify(fm.box) + ', ' + kept + ' of ' + frameN);
     else console.log('  frames: ' + offered.length + ' shared frames offered, the grapes\u2019 of three portraits and the guards\u2019 of nine, the white field left out; the grape frame keeps ' + frameN + ' pixels round a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' hole');
   }
+  // A frame of items (itemFramePixels). The axe at the corners lands where
+  // Meleager's frame has it, every pixel of the top two. The edges, with an
+  // L four wide and three high between plain corners so that nothing
+  // overlaps: the L as drawn at the top, the sides the top turned (the
+  // whole frame is its own transpose), the bottom the top flipped and the
+  // right side the left mirrored.
+  {
+    const A = ctx.__peek('ARCHIVE'), items = ctx.ditherItemTiles(), axe = items.find(t => t.name === 'axe');
+    const mel = ctx.decodeResource(A, ctx.getResourceBytes(A, 0x8821), 135, 0x8821).image;
+    const f = axe ? ctx.itemFramePixels(ctx.resolveTileImage(axe.tile), null, 64, 64) : new Uint8Array(4096);
+    let top = 0, same = 0;
+    for (let i = 0; i < 2048; i++) if (f[i]) { top++; if (f[i] === mel[i]) same++; }
+    const tile = () => new Uint8Array(1024);
+    const block = tile(), L = tile();
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) block[(10 + y) * 32 + 12 + x] = 5;
+    for (const [x, y] of [[0, 0], [0, 1], [0, 2], [1, 2], [2, 2], [3, 2]]) L[(20 + y) * 32 + 7 + x] = 9;
+    const g = ctx.itemFramePixels(block, L, 64, 64), at = (x, y) => g[y * 64 + x];
+    let bad = 0;
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+      if (at(x, y) !== at(y, x)) bad++;
+      if (x >= 8 && x < 56 && at(x, y) !== at(x, 63 - y)) bad++;
+      if (y >= 8 && y < 56 && at(x, y) !== at(63 - x, y)) bad++;
+    }
+    const drawn = [at(8, 0), at(8, 1), at(8, 2), at(9, 2), at(11, 2), at(9, 0), at(9, 1)].join();
+    if (!axe || top !== 206 || same !== top) fail('item frame', 'the axe corners are not where Meleager\u2019s frame has them: ' + same + ' of ' + top + ' pixels');
+    else if (drawn !== '9,9,9,9,9,0,0' || bad) fail('item frame', 'the edges are not the item as drawn at the top, turned at the sides and mirrored opposite: ' + drawn + ', ' + bad + ' pixels off');
+    else console.log('  item frame: ' + items.length + ' items to build a frame of; the axe corners are Meleager\u2019s to the pixel, and an edge is laid as drawn, turned and mirrored');
+  }
   // One animation setting drives the three flags.
   {
     const before = ctx.ANIM_MODE;
