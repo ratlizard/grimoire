@@ -1855,7 +1855,7 @@ function renderSaveSheet() {
   h += '</tbody></table></div>';
   // The rest of a save, each where the file has it (the scenario has none).
   const words = saveWords();
-  h += questStateHTML(words) + roomsEnteredHTML(words) + todoHTML(words);
+  h += questStateHTML(words) + roomsEnteredHTML(words) + gremlinsHTML(words) + todoHTML(words);
   if (isSave) h += saveByteMapHTML();
   h += '<div class="saveNote">Every field above is a byte or two of the record; Edit opens all 32 ' +
     'of them, grouped, each with what it is and where the program reads it. ' +
@@ -2243,7 +2243,7 @@ function scenarioSaveWords() {
   }
   return { values: { writes: sites(le.writes), reads: sites(le.reads) }, flags: { writes: sites(le.flagWrites), reads: sites(le.flagReads) },
            todo: { textResid: td.textResid, lines: td.lines ? [...td.lines] : [], pairs: [...pairs.values()].sort((a, b) => a.slot - b.slot || a.line - b.line) },
-           rooms };
+           rooms, gremlins: Array.from({ length: 256 }, (_, n) => n).filter(n => refExists(0x1F00 + n)) };
 }
 // Called by parseArchiveBytes while the scenario is still the open file and
 // a save is about to replace it.
@@ -2367,6 +2367,83 @@ function roomsEnteredHTML(words) {
     rows.map(r => '<tr><td class="num">' + r.n + '</td><td><input type="checkbox" id="rm-' + r.n + '"' + ((b[2 * r.n + 1] & 1) ? ' checked' : '') + '></td>' +
       '<td>' + svEsc(r.zones.map(zoneDisplayName).join(', ')) + '</td><td>' + svEsc(r.text) + '</td></tr>').join('') +
     '</tbody></table></div><div class="propEdit"><button class="sv-chip" onclick="applyRoomsForm()">Apply</button></div></details>';
+}
+/* The gremlins a save holds (TGremlin::SaveGremlins): a state for each of
+   the 256, four bytes apiece in the Grem block of 0x0400, the second two a
+   heap reference. 0 hears the party enter and the zone's signals, 1 does
+   not, and 2 is no gremlin. A save keeps the states it was made with --
+   LoadGremlins puts them back and nothing checks them against the scenario
+   -- so a gremlin added to Cythera Data afterwards is 2 in an older save, and
+   switching it to 0 here is what lets that save run it (run in the fork,
+   26 September 2026: a save with 2 left the gremlin silent, one with 0 ran
+   it). The table lists every gremlin a save has on or off, and every one
+   the scenario opened before it has a script for. */
+function saveGremlinBlock(b) {
+  let pos = 0;
+  while (b && pos + 8 <= b.length) {
+    const tag = String.fromCharCode(b[pos], b[pos + 1], b[pos + 2], b[pos + 3]), len = u32be(b, pos + 4);
+    if (tag === 'Grem') return { at: pos + 8, end: Math.min(b.length, pos + 4 + len) };
+    if (len < 4) break;
+    pos += 4 + len;
+  }
+  return null;
+}
+const SAVE_GREMLIN_STATES = [[0, 'on'], [1, 'off'], [2, 'none']];
+// A state's options, the one it has selected; a state the three do not name is kept as its number.
+function gremlinStateOptions(state) {
+  const known = SAVE_GREMLIN_STATES.some(([v]) => v === state);
+  return (known ? '' : '<option value="' + state + '" selected>' + state + '</option>') +
+    SAVE_GREMLIN_STATES.map(([v, t]) => '<option value="' + v + '"' + (v === state ? ' selected' : '') + '>' + t + '</option>').join('');
+}
+function gremlinsHTML(words) {
+  const b = saveSegment(0x0400), g = saveGremlinBlock(b);
+  if (!g) return '';
+  const scripted = new Set(words && words.gremlins ? words.gremlins : []);
+  const rows = [];
+  for (let n = 0; n < 256 && g.at + 4 * n + 2 <= g.end; n++) {
+    const st = (u16be(b, g.at + 4 * n) << 16) >> 16;
+    if (st !== 2 || scripted.has(n)) rows.push({ n, st });
+  }
+  return '<h4 class="saveH4">Gremlins</h4>' +
+    '<div class="saveNote">A gremlin is a script the game runs when the party enters a room or a zone and when a signal is sent. ' +
+    'A save keeps each one on, off or none as it was when the save was made, so a gremlin added to Cythera Data later is none here until it is switched on. ' +
+    (words ? (scripted.size ? 'The scenario opened before this save has ' + scripted.size + ' gremlin' + (scripted.size === 1 ? '' : 's') + '.' : 'The scenario opened before this save has no gremlins.')
+           : 'No scenario was opened before this save, so only the gremlins it has on or off are listed.') + '</div>' +
+    '<div class="tableScroll"><table class="forkTable"><thead><tr><th class="num">gremlin</th><th>state</th><th>in the scenario</th></tr></thead><tbody>' +
+    rows.map(r => '<tr><td class="num">' + r.n + '</td><td><select id="grem-' + r.n + '">' + gremlinStateOptions(r.st) + '</select></td><td>' +
+      (!words ? '' : scripted.has(r.n) ? 'has a script' : 'no script') + '</td></tr>').join('') +
+    '<tr><td class="num"><input type="text" id="gremAddN" size="4" placeholder="number"></td><td><select id="gremAddState">' + gremlinStateOptions(0) + '</select></td><td>another gremlin</td></tr>' +
+    '</tbody></table></div><div class="propEdit"><button class="sv-chip" onclick="applyGremlinsForm()">Apply</button></div>';
+}
+function applyGremlinsForm() {
+  const want = new Map();
+  for (let n = 0; n < 256; n++) {
+    const sel = document.getElementById('grem-' + n);
+    if (sel) want.set(n, +sel.value);
+  }
+  const add = document.getElementById('gremAddN'), addState = document.getElementById('gremAddState');
+  if (add && add.value.trim() !== '') {
+    const t = add.value.trim();
+    if (!/^\d+$/.test(t) || +t > 255) { setStatus('A gremlin is numbered 0 to 255.', true); return false; }
+    want.set(+t, addState ? +addState.value : 0);
+  }
+  return writeGremlinStates(want);
+}
+// Each gremlin named, set to the state given, in the save's Grem block.
+function writeGremlinStates(changes) {
+  const b = saveSegment(0x0400), g = saveGremlinBlock(b);
+  if (!g) { setStatus('This file has no gremlins block.', true); return false; }
+  const want = changes instanceof Map ? changes : new Map(Object.entries(changes).map(([n, v]) => [+n, +v]));
+  let changed = 0;
+  for (const [n, v] of want) {
+    const p = g.at + 4 * n;
+    if (p + 2 > g.end || ((u16be(b, p) << 16) >> 16) === v) continue;
+    b[p] = (v >> 8) & 0xFF; b[p + 1] = v & 0xFF; changed++;
+  }
+  if (!changed) { setStatus('No gremlin changed.'); return false; }
+  const ok = applyResourceEdit(0x0400, b);
+  if (ok) setStatus(changed + ' gremlin' + (changed === 1 ? '' : 's') + ' rewritten.');
+  return ok;
 }
 function writeRoomsEntered(changes) {
   const b = saveSegment(0xF00E);

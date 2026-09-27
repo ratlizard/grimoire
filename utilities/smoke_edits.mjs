@@ -1131,6 +1131,73 @@ try {
   else console.log('  change code: Paris\u2019s name topic took four instructions at 0x013D through the editor, previewed, refused mid-instruction, rebuilt, and read back with its resume point moved');
 } catch (e) { fail('change code', e); }
 
+/* A gremlin of your own (26 September 2026): the Tools section's form,
+   filled in as a visitor fills it. The method it writes is read back by the
+   page's own disassembler, and the class table is searched here the way
+   TInterp::At searches it, written out again rather than calling the page's
+   writer, so a table the writer got wrong cannot pass by agreeing with
+   itself. A bad number and a line the game cannot print are refused. Applied,
+   the gremlin is in the open file under the first free number, read back
+   through the engine's rule for its subindex, and the form moves on. */
+try {
+  ctx.showCategory('TOOLS');
+  if (!REGISTRY.get('gremlinMaker')) throw new Error('no host for the section');
+  const first = peek('gremlinNumber()');
+  const form = (o) => peek(`(window.GREMLIN_STATE = Object.assign({ num: null, when: 'zone', which: '40', flag: '0', flagIs: 'set', say: 'The test gremlin wakes.', setFlag: '250', setTo: 'set', once: true, listing: null }, ${JSON.stringify(o || {})}), true)`);
+  const read = `(() => {
+    const c = gremlinClass(), b = c.bytes, t = (b[0] << 8) | b[1], size = ((b[t] << 8) | b[t + 1]) & 0xFFF;
+    const find = k => {
+      let v = k * 3 + 1; while ((v & 0xFFFF) % size === 0) v = v * 3 + 1;
+      const step = (v & 0xFFFF) % size;
+      for (let slot = k % size, n = 0; n <= size; n++, slot = (slot + step) % size) {
+        const p = t + 2 + slot * 6, val = ((b[p] << 24) | (b[p + 1] << 16) | (b[p + 2] << 8) | b[p + 3]) >>> 0;
+        if (val === 0x5000FFFF) return 'none';
+        if (((b[p + 4] << 8) | b[p + 5]) === k) return val;
+      }
+      return 'no end';
+    };
+    const ops = dvmDisassemble(b.subarray(2, t), 3).ops.map(o => [o[0] + 2, o[2], o[3]]);
+    return { n: c.n, size, enter: find(20), signal: find(21), missing: [7, 2, 60].map(find), ops, bytes: Array.from(b) };
+  })()`;
+  form();
+  ctx.renderGremlinMaker();
+  const r = peek(read);
+  const text = r.ops.map(o => o[1] + (o[2] ? ' ' + o[2] : ''));
+  const ret = r.ops.find(o => o[1] === 'return'), targets = r.ops.filter(o => o[1] === 'then').map(o => o[2]);
+  const refused = peek(`[{ flag: '300' }, { say: 'Café' }, { which: 'x' }, { when: 'signal', which: '' }].map(o => {
+    window.GREMLIN_STATE = Object.assign({}, window.GREMLIN_STATE, o, { listing: null });
+    try { gremlinListingFromForm(window.GREMLIN_STATE); return null; } catch (e) { return e.message; } })`);
+  form({ when: 'signal', which: '3001' });
+  const sig = peek(read);
+  if (r.size !== 3 || typeof r.enter !== 'number' || (r.enter & 0xFFFF) !== 2 || (r.enter >>> 16) !== (0x8000 | (0x1F00 + r.n)))
+    fail('gremlin maker', 'Enter is not where the engine looks: size ' + r.size + ', found ' + r.enter);
+  else if (r.missing.some(m => m !== 'none')) fail('gremlin maker', 'a method the class lacks is not None: ' + r.missing.join(','));
+  else if (typeof sig.signal !== 'number' || sig.enter !== 'none') fail('gremlin maker', 'a signal gremlin is not method 21 alone: ' + sig.enter + ' ' + sig.signal);
+  else if (text[0] !== 'if_not' || !text.includes('word 0x0028@Type.Zone') || !text.includes('sys GetStateFlag') ||
+           !text.includes('string(implicit) "The test gremlin wakes.\\n"') || text[text.indexOf('sys SetStateFlag') + 1] !== 'word 250' ||
+           !text.some(t => /^set_field status_flags/.test(t)) || text.slice(-3).join(' | ') !== 'return | byte 0x00 | end')
+    fail('gremlin maker', 'the method reads back as ' + text.join(' | '));
+  else if (!ret || targets.length !== 2 || targets.some(t => !new RegExp('-> 0x' + ret[0].toString(16).toUpperCase().padStart(4, '0') + '$').test(t)))
+    fail('gremlin maker', 'a test does not jump to the end: ' + targets.join(', ') + ', return at ' + (ret && ret[0]));
+  else if (refused.some(m => !m)) fail('gremlin maker', 'a form that cannot be written was accepted: ' + JSON.stringify(refused));
+  else {
+    form();
+    const w = peek('gremlinPatch()'), rid = 0x1F00 + first;
+    if (!w || w.resids.length !== 1 || w.resids[0] !== rid || !w.checkValueValid) fail('gremlin maker', 'the patch is not the one gremlin: ' + JSON.stringify(w && w.resids));
+    else if (!ctx.gremlinShowPatch() || !peek('window.PATCH_REPORT.usable') || peek('window.PATCH_REPORT.willAdd.length') !== 1)
+      fail('gremlin maker', 'the patches section did not read it as a usable patch that adds one resource');
+    else if (!ctx.gremlinApply()) fail('gremlin maker', 'the gremlin would not apply');
+    else {
+      const back = peek(`Array.from(smartDecrypt(getResourceBytes(ARCHIVE, ${rid}), ${rid}).data)`);
+      if (back.length !== r.bytes.length || back.some((v, i) => v !== r.bytes[i])) fail('gremlin maker', 'the open file does not read back the class written');
+      else if (!peek('window.EDITED_RESIDS').has(rid)) fail('gremlin maker', 'the gremlin is not among the edits');
+      else if (peek('gremlinNumber()') === first) fail('gremlin maker', 'the form did not move to the next free number');
+      else console.log(`  gremlin maker: gremlin ${first} for zone 40, on quest flag 0, printing, setting flag 250 and switching itself off, found by the engine's lookup where the table puts it, a signal gremlin as method 21 alone, four bad forms refused, and the one-resource patch added and read back`);
+    }
+  }
+  ctx.patchesForget();
+} catch (e) { fail('gremlin maker', e); }
+
 // A saved game. The page refused every Cythera player file until September
 // 2026 -- describeDelverArchive wanted eight populated subindexes and a save
 // has six -- so nothing had ever driven the page over one. Opened through

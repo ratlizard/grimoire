@@ -1642,6 +1642,268 @@ function renderHeroSprite() {
   host.appendChild(bar);
 }
 
+/* ---- a gremlin of your own ----
+   A gremlin is a script the game runs at three moments and no others: the
+   party walking into a room (TGameSys::HeartBeat), a zone being entered, a
+   save loading included (TGameViewer::ChangeZone), and a script sending a
+   signal (TGameSys::SendSignal, then TGremlin::OnSignal). There are 256 of
+   them, 0x1F00 plus the number, and the shipped game has none. A new game
+   switches on every one whose script is in the file (ClearGremlins); a save
+   keeps the states it was made with, so a gremlin added later is off in it
+   until the save sheet switches it on.
+
+   The maker writes one from a form -- when it acts, on what condition, and
+   what it does -- as a listing in the page's own words. dvmAssemble turns
+   that into the method and dvmWriteClass into a class the engine can look
+   the method up in; it leaves the page as a patch, as the sprite does, and
+   the merge adds a resource the file lacks. The listing can be edited
+   before it is written, for anything the form does not offer.
+
+   Every test and action the form writes was run in the fork before it was
+   offered (the workbench's save-format.md, "What a gremlin can react to and
+   do, tried"): a zone by object and by type, a quest flag set and clear, a
+   signal, a line printed, a flag set, and switching itself off. A method's
+   first argument is the gremlin itself and the second is the room, the zone
+   or the signal, which is why every test reads Arg01; the first gremlin
+   written by hand read Arg00 and could never have seen a room. */
+window.GREMLIN_STATE = { num: null, when: 'room', which: '', flag: '', flagIs: 'set',
+                         say: 'Something stirs.', setFlag: '', setTo: 'set', once: false, listing: null };
+
+function gremlinNumbersIn(spec) {
+  const out = new Set();
+  if (spec) for (const r of spec.resources) if (r.resid >= 0x1F00 && r.resid <= 0x1FFF) out.add(r.resid - 0x1F00);
+  return out;
+}
+// The number chosen, or the first the open file does not use.
+function gremlinNumber() {
+  const st = window.GREMLIN_STATE;
+  if (st.num !== null) return st.num;
+  const used = gremlinNumbersIn(patchBaseSpec());
+  for (let n = 0; n < 256; n++) if (!used.has(n)) return n;
+  return 0;
+}
+function gremlinInt(v, lo, hi, what) {
+  const t = String(v).trim();
+  if (!/^\d+$/.test(t)) throw new Error(what + ' is not a number');
+  const n = parseInt(t, 10);
+  if (n < lo || n > hi) throw new Error(what + ' runs from ' + lo + ' to ' + hi);
+  return n;
+}
+/* The listing the form stands for. Each test is an if_not that jumps to the
+   end when it fails, so the tests read in the order the form asks them. A
+   flag's number is a word: a byte operand is signed, and `byte 250` reached
+   the game as -6 and set flag 26 in the fork run of the first maker-built
+   gremlin. */
+function gremlinListingFromForm(st) {
+  const L = ['subroutine 0x0200'];
+  const skipUnless = test => L.push('if_not', ...test, 'then -> done');
+  const which = String(st.which).trim();
+  if (st.when === 'signal') skipUnless(['arg Arg01', 'short ' + gremlinInt(which, 1, 32767, 'The signal'), 'eq']);
+  else {
+    const type = st.when === 'room' ? 'Room' : 'Zone';
+    if (which === '') skipUnless(['arg Arg01', 'is_type ' + type]);
+    else skipUnless(['arg Arg01', 'word 0x' + gremlinInt(which, 0, 0xFFFF, 'The ' + st.when).toString(16) + '@Type.' + type, 'eq']);
+  }
+  if (String(st.flag).trim() !== '') {
+    const f = gremlinInt(st.flag, 0, 255, 'The quest flag');
+    skipUnless(st.flagIs === 'set' ? ['sys GetStateFlag', 'word ' + f, 'end'] : ['sys GetStateFlag', 'word ' + f, 'end', 'not']);
+  }
+  const say = String(st.say || '').trim();
+  if (say) {
+    // A line in a script is printed up to the first byte the interpreter
+    // reads as an instruction, which is any byte from 0x80 up.
+    if (!/^[\x20-\x7E]+$/.test(say)) throw new Error('The line takes plain letters, digits and punctuation only');
+    if (/\s\/\//.test(say)) throw new Error('The line cannot hold " //", which the listing reads as a note');
+    L.push('string(implicit) ' + JSON.stringify(say + '\n'));
+  }
+  if (String(st.setFlag).trim() !== '')
+    L.push('sys SetStateFlag', 'word ' + gremlinInt(st.setFlag, 0, 255, 'The flag to set'), 'byte ' + (st.setTo === 'set' ? 1 : 0), 'end');
+  if (st.once) L.push('set_field status_flags', 'arg Arg00', 'end', 'byte 1', 'end');
+  L.push('done:', 'return', 'byte 0', 'end');
+  return L.join('\n');
+}
+// Enter (20) for a room or a zone, GetMessage (21) for a signal.
+function gremlinMethodKey(st) { return st.when === 'signal' ? 21 : 20; }
+function gremlinClass() {
+  const st = window.GREMLIN_STATE, n = gremlinNumber();
+  const text = st.listing !== null ? st.listing : gremlinListingFromForm(st);
+  return Object.assign(dvmWriteClass(0x1F00 + n, [{ key: gremlinMethodKey(st), text }]), { n, text });
+}
+function gremlinDescription(st, n) {
+  const w = String(st.which).trim();
+  return 'Gremlin ' + n + ', ' + (st.when === 'signal' ? 'on signal ' + w
+    : 'when the party enters ' + (w === '' ? 'any ' + st.when : st.when + ' ' + w));
+}
+function gremlinPatch() {
+  const base = patchBaseSpec();
+  if (!base) return null;
+  const c = gremlinClass(), resid = 0x1F00 + c.n;
+  const spec = Object.assign({}, base, {
+    resources: base.resources.filter(r => r.resid !== resid).concat([{ resid, data: c.bytes, encrypted: true }]) });
+  const w = writeDelverPatch(spec, [resid], { description: gremlinDescription(window.GREMLIN_STATE, c.n), typeCode: DELV_PATCH_EXPORT_TYPE });
+  w.name = safeFileName('Gremlin ' + c.n);
+  w.gremlin = c.n;
+  return w;
+}
+function gremlinSay(m, bad) {
+  const note = document.getElementById('gremlinNote');
+  if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
+}
+// Apply goes through the patches section, as the sprite's does.
+function gremlinApply() {
+  let w;
+  try { w = gremlinPatch(); } catch (e) { gremlinSay('The gremlin could not be written: ' + e.message, true); return false; }
+  if (!w) { gremlinSay('No game file is open.', true); return false; }
+  if (!patchesOpenBytes(w.bytes, w.name)) { gremlinSay('The patch was not accepted.', true); return false; }
+  const ok = patchesApply();
+  if (ok) {
+    window.GREMLIN_STATE.num = null;
+    renderPatchReport();
+    renderGremlinMaker();
+    gremlinSay('Gremlin ' + w.gremlin + ' is in the copy of the file in this browser. Data › Cythera Data › Changes is where it leaves the page.');
+  }
+  return ok;
+}
+function gremlinShowPatch() {
+  let w;
+  try { w = gremlinPatch(); } catch (e) { gremlinSay('The gremlin could not be written: ' + e.message, true); return false; }
+  if (!w) { gremlinSay('No game file is open.', true); return false; }
+  const ok = patchesOpenBytes(w.bytes, w.name);
+  const host = document.getElementById('patchReport');
+  if (ok && host && host.scrollIntoView) host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return ok;
+}
+function gremlinDownload(asMacBinary) {
+  let w;
+  try { w = gremlinPatch(); } catch (e) { gremlinSay('The gremlin could not be written: ' + e.message, true); return null; }
+  if (!w) { gremlinSay('No game file is open.', true); return null; }
+  if (asMacBinary) {
+    const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
+    dlBlob(new Blob([bin], { type: 'application/macbinary' }), w.name + '.bin');
+  } else downloadBlob(w.bytes, w.name);
+  gremlinSay(w.bytes.length.toLocaleString() + ' bytes, one resource, identity ' + w.uuidText + '.');
+  return w;
+}
+// One field of the form, set from a control; the listing follows the form again.
+function gremlinSet(key, value) {
+  const st = window.GREMLIN_STATE;
+  st[key] = value;
+  st.listing = null;
+  renderGremlinMaker();
+}
+function renderGremlinMaker() {
+  const host = document.getElementById('gremlinMaker');
+  if (!host) return;
+  host.innerHTML = '';
+  const el = (tag, cls, html) => { const d = document.createElement(tag); if (cls) d.className = cls; if (html !== undefined) d.innerHTML = html; return d; };
+  const st = window.GREMLIN_STATE, base = patchBaseSpec();
+  if (!base) { host.appendChild(el('p', 'mechSub', 'No game file is open.')); return; }
+  if (base.playerName) {
+    host.appendChild(el('p', 'mechSub', 'This is a saved game. A gremlin is written into Cythera Data; the save sheet switches one on in a save.'));
+    return;
+  }
+  const used = gremlinNumbersIn(base), n = gremlinNumber();
+  const form = el('div', 'gremlinForm');
+  const label = t => form.appendChild(el('span', '', t));
+  const cell = (...kids) => { const d = el('div', ''); for (const k of kids) d.appendChild(k); form.appendChild(d); return d; };
+  const text = (id, value, cls, placeholder, key) => {
+    const i = document.createElement('input');
+    i.type = 'text'; i.id = id; i.value = value; if (cls) i.className = cls; if (placeholder) i.placeholder = placeholder;
+    i.onchange = function () { gremlinSet(key, i.value); };
+    return i;
+  };
+  const choice = (id, options, value, key) => {
+    const s = document.createElement('select');
+    s.id = id;
+    for (const [v, t] of options) { const o = document.createElement('option'); o.value = v; o.textContent = t; if (v === value) o.selected = true; s.appendChild(o); }
+    s.onchange = function () { gremlinSet(key, s.value); };
+    return s;
+  };
+  const num = document.createElement('input');
+  num.type = 'text'; num.id = 'gremlinNum'; num.value = String(n);
+  num.onchange = function () {
+    const t = num.value.trim();
+    gremlinSet('num', /^\d+$/.test(t) && +t <= 255 ? +t : null);
+  };
+  label('Gremlin');
+  cell(num, el('span', 'mechSub', used.has(n) ? ' replaces the gremlin of that number in this file' : ' not used in this file'));
+  label('When');
+  const which = String(st.which).trim();
+  let whichName = '';
+  if (which !== '' && /^\d+$/.test(which)) {
+    if (st.when === 'zone') whichName = zoneDisplayName(+which);
+    else if (st.when === 'room') {
+      const e = buildScriptTextIndex().find(x => x.resid === 0x1B00 + +which);
+      const m = e && /"((?:[^"\\]|\\.)*)"/.exec(e.text);
+      whichName = m ? m[1].replace(/\\n/g, ' ').slice(0, 60) : 'no room script of that number';
+    }
+  }
+  cell(choice('gremlinWhen', [['room', 'the party enters a room'], ['zone', 'a zone is entered, or a save loads'], ['signal', 'a script sends a signal']], st.when, 'when'),
+       text('gremlinWhich', st.which, 'gremlinNum', st.when === 'signal' ? 'number' : 'any', 'which'),
+       el('span', 'mechSub', whichName ? ' ' + svEsc(whichName) : ''));
+  label('Only if quest flag');
+  cell(text('gremlinFlag', st.flag, 'gremlinNum', 'none', 'flag'),
+       choice('gremlinFlagIs', [['set', 'is set'], ['clear', 'is clear']], st.flagIs, 'flagIs'));
+  label('Print');
+  cell(text('gremlinSayText', st.say, 'gremlinSay', 'nothing', 'say'));
+  label('Quest flag');
+  cell(text('gremlinSetFlag', st.setFlag, 'gremlinNum', 'none', 'setFlag'),
+       choice('gremlinSetTo', [['set', 'set'], ['clear', 'clear']], st.setTo, 'setTo'));
+  label('Then');
+  const once = document.createElement('input');
+  once.type = 'checkbox'; once.id = 'gremlinOnce'; once.checked = !!st.once;
+  once.onchange = function () { gremlinSet('once', once.checked); };
+  const onceLabel = el('label', 'mechSub');
+  onceLabel.appendChild(once);
+  onceLabel.appendChild(el('span', '', ' switch itself off, so it acts once'));
+  cell(onceLabel);
+  host.appendChild(form);
+
+  // The listing: the form's, or the visitor's own once it is edited.
+  let formText = null, formError = null;
+  try { formText = gremlinListingFromForm(st); } catch (e) { formError = e.message; }
+  host.appendChild(el('div', 'partsTitle', 'The script it writes'));
+  const area = document.createElement('textarea');
+  area.id = 'gremlinListing'; area.className = 'gremlinListing'; area.spellcheck = false;
+  area.value = st.listing !== null ? st.listing : (formText || '');
+  area.oninput = function () { st.listing = area.value; gremlinCheck(); };
+  host.appendChild(area);
+  const status = el('div', 'mechSub'); status.id = 'gremlinCheck';
+  host.appendChild(status);
+  if (st.listing !== null) {
+    const back = el('div', 'mechSub', 'Your own listing is used. ' + svLink('Back to the form', 'gremlinSet(\'listing\', null)'));
+    host.appendChild(back);
+  }
+  const bar = el('div', 'mechStats');
+  const btn = (label, fn) => {
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+    b.textContent = label;
+    b.onclick = fn;
+    bar.appendChild(b);
+  };
+  btn('Apply to the open file', gremlinApply);
+  btn('Read it as a patch', gremlinShowPatch);
+  btn('Download the patch', function () { gremlinDownload(false); });
+  btn('Download for a Mac', function () { gremlinDownload(true); });
+  host.appendChild(bar);
+  gremlinCheck(formError);
+}
+// Whether the listing assembles, said under it as it is typed.
+function gremlinCheck(formError) {
+  const out = document.getElementById('gremlinCheck');
+  if (!out) return;
+  const st = window.GREMLIN_STATE;
+  if (st.listing === null && formError) { out.textContent = formError + '.'; out.className = 'mechSub patchBad'; return; }
+  try {
+    const c = gremlinClass();
+    out.textContent = c.bytes.length + ' bytes, ' + (DVM_SYM.method[gremlinMethodKey(st)] || 'method') + ' at ' + c.methods[0].at +
+      ' and a table of ' + c.size + ' slots, as resource ' + propWordHex(0x1F00 + c.n) + '.';
+    out.className = 'mechSub';
+  } catch (e) { out.textContent = e.message + '.'; out.className = 'mechSub patchBad'; }
+}
+
 /* ---- two archives against each other, and a patch out of the difference ----
    The patches section reads a patch someone else made. This is the other two
    directions: comparing any two archives, and writing a patch out of what
@@ -3171,6 +3433,28 @@ function renderMechanicsSheet(value) {
     sec.appendChild(note);
   }
 
+  // ---- a gremlin of your own ----
+  {
+    add('gremlins', 'A gremlin of your own, as a patch', null, '',
+      'A gremlin is a script the game runs when the party walks into a room, when a zone is entered or a save loads, and when a script sends a signal. ' +
+      'Choose when yours acts and what it does, and it is written as a Magpie patch that adds it to the file.',
+      [
+        'There are 256 gremlins, numbered 0 to 255, and the shipped game has none.',
+        'A new game switches on every gremlin whose script is in the file. A save keeps the ones it was made with, so a gremlin added later is off in an older save until its sheet switches it on.',
+        'A room and a zone are numbers: a room’s is the one its egg carries, and a zone’s is its map’s. Left empty, any room or any zone will do.',
+        'A signal below 256 is the one the scenario’s own props answer to, the bells and the music locks among them; one of 256 or more reaches the gremlins and no prop.',
+        'The script is shown as it will be written, and can be edited before it is.',
+        'The patch is read by this page and by the browser player, which add a resource the file lacks.'
+      ], '');
+    const sec = sections[sections.length - 1].el;
+    const host = document.createElement('div');
+    host.id = 'gremlinMaker';
+    sec.appendChild(host);
+    const note = document.createElement('div');
+    note.className = 'mechSub'; note.id = 'gremlinNote';
+    sec.appendChild(note);
+  }
+
   // ---- comparing two archives ----
   {
     const edits = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
@@ -3485,6 +3769,7 @@ function renderMechanicsSheet(value) {
   }
   // The hero's colours draw into their host once it is in the document.
   if (document.getElementById('heroSprite')) renderHeroSprite();
+  if (document.getElementById('gremlinMaker')) renderGremlinMaker();
 }
 // The cards open when a number on the sheet was followed into its script,
 // so that back from the script finds them open again and setMode's scroll

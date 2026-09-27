@@ -130,6 +130,28 @@ if (savePath && !onlyCat) {
       else console.log('  save forms: the scenario\u2019s words kept, quest flags 77 and 200 and value 5 through the Char block, room 2 entered, ' +
                        'To Do line 114 in slot 10 shown by its text, and prop type 66 given to the hero');
     } catch (e) { fail('save forms', e); }
+    /* The gremlins a save holds (26 September 2026). I.M.Cheater has every
+       one as none, since the shipped game has no gremlin scripts, and the
+       scenario kept before it lists none. Switching gremlin 5 on goes
+       through the rebuild and reads back from the Grem block with its
+       neighbours untouched, and the sheet then shows it on. */
+    try {
+      const w = ctx.SCENARIO_SAVE_WORDS;
+      const stateOf = n => { const b = ctx.saveSegment(0x0400), g = ctx.saveGremlinBlock(b); return (((b[g.at + 4 * n] << 8) | b[g.at + 4 * n + 1]) << 16) >> 16; };
+      ctx.renderSaveSheet();
+      const before = REGISTRY.get('sheetGrid').innerHTML || '';
+      if (!w || !Array.isArray(w.gremlins) || w.gremlins.length) fail('save gremlins', 'the kept scenario words list gremlins: ' + JSON.stringify(w && w.gremlins));
+      else if (!before.includes('>Gremlins</h4>')) fail('save gremlins', 'the sheet does not show the gremlins');
+      else if ([4, 5, 6].some(n => stateOf(n) !== 2)) fail('save gremlins', 'I.M.Cheater has a gremlin that is not none: ' + [4, 5, 6].map(stateOf).join(','));
+      else if (!ctx.writeGremlinStates({ 5: 0 })) fail('save gremlins', 'the page refused the edit');
+      else if (stateOf(5) !== 0 || stateOf(4) !== 2 || stateOf(6) !== 2) fail('save gremlins', 'the Grem block reads ' + [4, 5, 6].map(stateOf).join(','));
+      else if (!(ctx.EDITED_RESIDS || new Set()).has(0x0400)) fail('save gremlins', '0x0400 is not on the dirty list');
+      else {
+        ctx.renderSaveSheet();
+        if (!/id="grem-5"><option value="0" selected>on/.test(REGISTRY.get('sheetGrid').innerHTML || '')) fail('save gremlins', 'the sheet does not show gremlin 5 on');
+        else console.log('  save gremlins: none in I.M.Cheater, gremlin 5 switched on through the rebuild, its neighbours untouched, and shown on');
+      }
+    } catch (e) { fail('save gremlins', e); }
     /* A record's form names all 32 bytes (25 September 2026): five groups,
        32 flags, the two bytes nothing reads said to be so, and bytes the
        parser carries no field for written through the raw path and read

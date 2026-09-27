@@ -302,8 +302,8 @@ const MECH_GROUPS = [
    sheet, so the group is kept apart from MECH_GROUPS: a Mechanics tab never
    lists it and the whole-sheet view does not include it. */
 const MECH_TOOL_GROUP = { value: 'TOOLS', title: 'Files',
-  note: 'Patches, a sprite of your own, and one file against another.',
-  ids: ['patches', 'herosprite', 'compare'] };
+  note: 'Patches, a sprite or a gremlin of your own, and one file against another.',
+  ids: ['patches', 'herosprite', 'gremlins', 'compare'] };
 // A group by the category value its tab is selected with.
 const MECH_GROUP_BY_VALUE = {};
 for (const g of MECH_GROUPS) MECH_GROUP_BY_VALUE[g.value] = g;

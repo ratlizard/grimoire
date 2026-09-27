@@ -334,3 +334,61 @@ function dvmAssemble(text, resid) {
   }
   return { bytes: Uint8Array.from(bytes), sites, labels };
 }
+
+/* A class written from its methods, for a script the file does not have yet:
+   the gremlin maker's (26 September 2026). The layout is the one shipped
+   class in the gremlins' range has, 0x1E20's: a word pointing at the table,
+   the functions from offset 2, then the table.
+
+   THE TABLE IS A HASH TABLE, read by `TInterp::At`, and that is the whole
+   reason this is not a list. The low twelve bits of its first halfword are
+   its size; a key's first slot is the key mod the size; and a probe moves on
+   by the first of k*3+1, (k*3+1)*3+1, ... (the low sixteen bits) that is not
+   0 mod the size, until a slot holds the key or None. A table of one slot
+   never yields a step, and the first gremlin written by hand had one: the
+   game froze on the lookup, before any of its code ran. The size here is the
+   smallest prime above the number of methods and at least 3, as 0x1E20's
+   is, so a slot stays empty and a probe from any key visits every slot: a
+   lookup for a method the class lacks ends at None, and the engine runs its
+   default instead.
+
+   `methods` is [{ key, text }], each text a listing dvmAssemble takes. A
+   label is counted from the method's own first byte and moved here to where
+   the method lands, since the engine counts a target from the resource's. */
+function dvmWriteClass(resid, methods) {
+  const fns = [];
+  let where = 2;
+  for (const m of methods) {
+    let a;
+    try { a = dvmAssemble(m.text, resid); }
+    catch (e) { throw new Error((DVM_SYM.method[m.key] || 'method ' + m.key) + ', ' + e.message); }
+    const b = Array.from(a.bytes);
+    for (const site of a.sites) {
+      const v = site.label ? site.value + where : site.value;
+      b[site.at] = (v >> 8) & 0xFF; b[site.at + 1] = v & 0xFF;
+    }
+    fns.push({ key: m.key, at: where, bytes: b });
+    where += b.length;
+  }
+  const prime = n => { for (let d = 2; d * d <= n; d++) if (n % d === 0) return false; return n >= 2; };
+  let size = Math.max(3, fns.length + 1);
+  while (!prime(size)) size++;
+  const table = new Array(size).fill(null);
+  for (const f of fns) {
+    if (table.some(t => t && t.key === f.key)) throw new Error('two methods are both ' + (DVM_SYM.method[f.key] || f.key));
+    let v = f.key * 3 + 1;
+    while ((v & 0xFFFF) % size === 0) v = v * 3 + 1;
+    const step = (v & 0xFFFF) % size;
+    let slot = f.key % size;
+    while (table[slot]) slot = (slot + step) % size;
+    table[slot] = f;
+  }
+  const out = [(where >> 8) & 0xFF, where & 0xFF];
+  for (const f of fns) out.push(...f.bytes);
+  out.push(0xA0 | (size >> 8), size & 0xFF);
+  for (const f of table) {
+    const v = f ? (0x80000000 | ((resid & 0x7FFF) << 16) | f.at) >>> 0 : 0x5000FFFF;
+    out.push(v >>> 24, (v >>> 16) & 0xFF, (v >>> 8) & 0xFF, v & 0xFF, f ? (f.key >> 8) & 0xFF : 0, f ? f.key & 0xFF : 0);
+  }
+  return { bytes: Uint8Array.from(out), size, methods: fns.map(f => ({ key: f.key, at: f.at, length: f.bytes.length })) };
+}
