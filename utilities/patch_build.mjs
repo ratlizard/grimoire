@@ -47,6 +47,13 @@ import {makeSandbox} from './dom_stub.mjs';
 import {pageSource} from './page_scripts.mjs';
 
 export function buildPatch({htmlPath = 'index.html', dataPath, outDir, name, description, edits = [], dataEdits = [], textEdits = []}) {
+  // A patch's description is a Pascal string, 255 bytes at most, and
+  // writeDelverPatch cuts a longer one without a word. Three builders did
+  // exactly that until 27 September 2026 ("Community Fixes" lost its last
+  // sixty characters), and only the further and combined builders checked
+  // for themselves; here every builder is checked. Mac Roman keeps a
+  // curly quote in one byte, so the length in characters is the length.
+  if (String(description).length > 255) throw new Error(name + ': the description is ' + String(description).length + ' characters, and a patch holds 255');
   const {sandbox} = makeSandbox();
   sandbox.Buffer = Buffer;
   const ctx = vm.createContext(sandbox);

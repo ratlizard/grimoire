@@ -29,7 +29,7 @@ import {buildCast} from './hall_lines.mjs';
 
 export const CAST = {
   name: 'Cythera Voices of the Hall',
-  description: 'The text fixes, and the people of Land King Hall with new names and voices: Rick the surfer, Piemag who speaks as Yoda, Ollum who speaks as Gollum, Hecky who worships his daddy, RAMBO, Emetic who loathes flatbread, LKH Bro from the gym, and the Test\u2019s scrolls as villainy.',
+  description: 'The text fixes, and Land King Hall\u2019s people with new names and voices: Rick the surfer, Piemag as Yoda, Ollum as Gollum, Hecky who worships his daddy, RAMBO, Emetic who loathes flatbread, LKH Bro from the gym, and the Test\u2019s scrolls as villainy.',
   names: { Alaric: 'Rick', Magpie: 'Piemag', Hadrian: 'RAMBO', Emesa: 'Emetic', Hector: 'Hecky', 'LKH Guard': 'LKH Bro', Omen: 'Ollum' },
   // Omen only where it is the creature: Prusa's prophecy (0x021D) counts its Omens Five, a common noun, and keeps them.
   omenResids: [0x0242, 0x10EA, 0x1428, 0x1801, 0x1CC3],

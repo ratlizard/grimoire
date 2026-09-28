@@ -60,7 +60,15 @@
        0x8108): the count moves from Data1 to Data2.
    19. Kilts inside kilts (0x810D): the four kilts inside record 676 go
        into the dresser, record 673.
-   20. The spent staff's light (0xF002): tile 0x88B's light level goes to 0. */
+   20. The spent staff's light (0xF002): tile 0x88B's light level goes to 0.
+   Added 27 September 2026:
+   21. The Pelagon ending's black screen (0x180D): SpecialView(3) is the
+       program's GammaFadeOut and SpecialView(4) its GammaFadeIn
+       (cbScreenFX's switch), and the other three endings fade out, show
+       the first slide, then fade back in; this one never fades in, so
+       its four slides are clicked through at black. SpecialView(4) goes
+       after the first slide, where Alaric's endings have it; a jump to
+       the loop after it still lands on the loop. */
 import {buildPatch} from './patch_build.mjs';
 const [htmlPath = 'index.html', dataPath, outDir] = process.argv.slice(2);
 if (!dataPath || !outDir) { console.error('usage: community_fixes_patch.mjs index.html <Cythera Data.data> <out dir>'); process.exit(2); }
@@ -98,6 +106,9 @@ const edits = [
   { what: 'a thrown weapon, placed', resid: 0x3042, at: 0x0158, expect: { 0x0150: 'set_field container', 0x0158: 'branch' },
     code: 'set_field x (0x1)\nlocal Var03\nend\nbyte 0x00\nend\nset_field y (0x2)\nlocal Var03\nend\nbyte 0x01\nend\nmethod PutInside (0x10)\nlocal Var03\nend' },
   { what: 'a thrown weapon, carried', resid: 0x3042, at: 0x014D, replaceOp: true, expect: { 0x0149: 'set_field flags', 0x014D: 'byte 0x09' }, code: 'byte 0x10' },
+  { what: 'the Pelagon ending fades in', resid: 0x180D, at: 0x011B, shiftAt: true,
+    expect: { 0x0109: 'sys SpecialView', 0x010A: 'byte 0x03', 0x010F: 'sys Slideshow', 0x011A: 'end', 0x011B: 'set_local 0x00' },
+    code: 'sys SpecialView\nbyte 0x04\nend' },
   { what: 'Eteocles’s "kesh"', resid: 0x1838, at: 0x01ED, replaceOp: true, expect: { 0x01E4: 'conversation_response "kesh"', 0x01ED: 'sys GetState', 0x01EE: 'byte 0x04' }, code: 'sys GetStateFlag' },
 ];
 
@@ -146,6 +157,6 @@ const dataEdits = [
 ];
 
 const ok = buildPatch({ htmlPath, dataPath, outDir, name: 'Cythera Community Fixes',
-  description: 'Twenty fixes for bugs the Cythera community reported, built with Grimoire: weapon training, Hadrian, Aethon, Alaric, Awakening, Niobe, Lindus, five keywords, Sabinate, the rolling pin, the wine urn, the carcass, thrown weapons, Eteocles, Pelagon, the panpipes, the kesh vials, the arrow stacks, the kilts, the staff.',
+  description: 'Twenty-one fixes for bugs the Cythera community reported: training, Hadrian, Aethon, Alaric, Awakening, Niobe, Lindus, keywords, Sabinate, rolling pin, wine urn, carcass, thrown weapons, Eteocles, Pelagon twice, panpipes, kesh, arrows, kilts, staff.',
   edits, dataEdits });
 process.exit(ok ? 0 : 1);
