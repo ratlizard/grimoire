@@ -105,10 +105,13 @@
        unit's index would name.
    24. People gone from the zone after a sleep (the sleep helper, 0xE93).
        A night is PassTime(1024) an hour, and DoTicks schedules an hour
-       passed in more than 100 ticks as instant: RepositionChar then takes
-       anyone whose new post is out of sight off the map, creature and all,
-       and leaves their record hidden (255) rather than an egg (66), which
-       is what the draw loop hatches. They came back only when a later
+       passed in more than 100 ticks as instant: RepositionChar then leaves
+       anyone not yet hatched whose new post is out of sight hidden (255)
+       rather than an egg (66), which is what the draw loop hatches; one
+       already hatched is moved to the post. (This said on first writing
+       that the creature was taken off the map as well; the call that
+       would do it sits behind a test its branch has already failed and
+       never runs.) They came back only when a later
        hour, schedule while awake, or a new visit to the zone put them
        there. The helper now runs Reschedule (0xE0, ScheduleTime for the
        current hour, not instant) when the night ends, and when an owner
