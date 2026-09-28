@@ -637,44 +637,80 @@ try {
     else console.log('  atlas: five pans in a frame are one paint, at the frame');
     ctx.paintAtlas = realPaint;
 
-    // Magnified past its own render, a node's native art is a cached window:
-    // the second frame at the same view rasterises no square at all. Native
-    // art is off by default since 25 September 2026 and asked for with
-    // ?nativeAt=, so it is asked for here at the old 1.2; and Cademia's
-    // render is made now, since the tab makes one a slice at a time.
-    const nativeWas = ctx.ATLAS_NATIVE_AT;
-    ctx.ATLAS_NATIVE_AT = 1.2;
+    // Magnified past its own render, a node's native art is tiles
+    // (paintAtlasTiles, 28 September 2026), and three rules keep them from
+    // being the jerk the one window of native art was: with a finger down
+    // no art is painted and no tile is made; a paint never paints art, the
+    // frames after it make the tiles; and once made they are what a small
+    // pan draws. Painting art inside the paint again fails the second;
+    // making tiles with a finger down fails the first. Cademia's render is
+    // made now, since the tab makes one a slice at a time.
     ctx.mapRenderFor(0x8008, true);
     const av2 = peek('atlasView');
     const cad2 = peek('atlasScene')().nodes.find(n => n.resid === 0x8008);
+    const tileTS = n => peek('atlasTileTS')(n, peek('atlasNodePpt')(n, av2));
     peek('atlasFit')();
-    for (let k = 0; k < 16 && peek('atlasNodePpt')(cad2, av2) <= cad2.ts * 1.2; k++) {
+    for (let k = 0; k < 16 && !tileTS(cad2); k++) {
       const rc = peek('atlasRect')(cad2, av2);
       peek('atlasZoomAround')(av2.Z * 2, rc.x + rc.w / 2, rc.y + rc.h / 2);
     }
+    ctx.__peek('atlasMovedAt = 0');
     drainRaf();
-    if (peek('atlasNodePpt')(cad2, av2) > cad2.ts * 1.2) {
+    const TSc = tileTS(cad2);
+    if (TSc) {
       let regions = 0;
       const realRegion = ctx.paintMapBaseRegion;
       ctx.paintMapBaseRegion = function () { regions++; return realRegion.apply(this, arguments); };
-      peek('atlasDetailWindows').clear();      // the zoom's own frame built one already
+      const tiles = peek('atlasTiles');
+      const onScreenWanted = () => peek('atlasTileWant').filter(w => !w.tile && w.d < 1e6).length;
+      peek('atlasTilesClear')();
+      av2.touching = true;
+      peek('paintAtlas')(); drainRaf();
+      const moving = regions + tiles.size;
+      av2.touching = false;
+      ctx.__peek('atlasMovedAt = 0');
       peek('paintAtlas')();
-      const first = regions;
+      const inPaint = regions, wanted = onScreenWanted();
+      drainRaf();
+      const made = tiles.size, madeRegions = regions, left = onScreenWanted();
+      peek('atlasPanBy')(3, 2);
       peek('paintAtlas')();
-      const second = regions - first;
-      peek('atlasPanBy')(3, 2); drainRaf();
-      const third = regions - first - second;
+      const panRegions = regions - madeRegions, panWanted = onScreenWanted();
+      ctx.__peek('atlasMovedAt = 0');
+      drainRaf();
       ctx.paintMapBaseRegion = realRegion;
-      if (!first || second || third) fail('atlas', `native art rasterised ${first}, then ${second}, then ${third} times after a small pan`);
-      else console.log('  atlas: the native-art window is rasterised once and blitted after — ' +
-                       peek('atlasDetailWindows').size + ' window(s) kept');
+      if (moving || inPaint || !wanted || !made || madeRegions !== made || left || panRegions || panWanted)
+        fail('atlas', `native art: ${moving} painted or made with a finger down, ${inPaint} in the paint, ` +
+                      `${wanted} wanted, ${made} tiles from ${madeRegions} paintings, ${left} left, ` +
+                      `${panRegions} painted and ${panWanted} wanted by a small pan`);
+      else console.log(`  atlas: Cademia's native art is ${made} tiles at ${TSc} px a square, made after the paint ` +
+                       'and none with a finger down, and a small pan draws from them');
       // The people on the node are worked out once for the hour.
       const folkKeys = peek('atlasFolkCache').size;
       peek('paintAtlas')();
       if (peek('atlasFolkCache').size !== folkKeys) fail('atlas', 'a repaint recomputed the schedules');
-    } else console.log('  note: could not magnify Cademia past its render in a 300px panel; window cache not exercised' +
+    } else console.log('  note: could not magnify Cademia past its render in a 300px panel; native art not exercised' +
                        ` (Z ${av2.Z.toFixed(2)}, s ${cad2.s}, ppt ${peek('atlasNodePpt')(cad2, av2).toFixed(1)}, ts ${cad2.ts}, maxZ ${peek('atlasMaxZ')().toFixed(1)}, below ${(peek('DERIVED').ATLAS_BELOW || []).length})`);
-    ctx.ATLAS_NATIVE_AT = nativeWas;
+    // The world itself, at the closest zoom: the art's own 32 px a square.
+    {
+      const root = peek('atlasScene')().root;
+      const was = { x: av2.x, y: av2.y, Z: av2.Z };
+      peek('atlasFit')();
+      const vpw = REGISTRY.get('atlasViewport');
+      const cxw = (vpw && vpw.clientWidth || 300) / 2, cyw = (vpw && vpw.clientHeight || 300) / 2;
+      for (let k = 0; k < 24 && av2.Z < peek('atlasMaxZ')() * 0.99; k++) peek('atlasZoomAround')(av2.Z * 2, cxw, cyw);
+      ctx.__peek('atlasMovedAt = 0');
+      drainRaf();
+      const wTS = tileTS(root);
+      const worldTiles = Array.from(peek('atlasTiles').values()).filter(t => t.key.startsWith(root.resid + ':'));
+      if (wTS !== 32 || !worldTiles.length || worldTiles.some(t => t.TS !== 32) || onScreenWantedWorld())
+        fail('atlas', `the world at its closest zoom (${peek('atlasNodePpt')(root, av2).toFixed(1)} px a square) wants tiles of ${wTS} px and has ${worldTiles.length}`);
+      else console.log(`  atlas: the world at its closest zoom is ${worldTiles.length} tiles of its native 32 px a square`);
+      function onScreenWantedWorld() { return peek('atlasTileWant').filter(w => !w.tile && w.d < 1e6 && w.node === root).length; }
+      Object.assign(av2, was);
+      ctx.__peek('atlasMovedAt = 0');
+      peek('paintAtlas')(); drainRaf();
+    }
 
     // The card over a square: who, what, and -- only when asked -- the ground.
     const ode = peek('atlasScene')().nodes.find(n => n.resid === 0x8002) || cad2;

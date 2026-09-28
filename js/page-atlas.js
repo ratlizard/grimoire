@@ -599,6 +599,10 @@ function paintAtlas() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   paintAtlasGround(ctx, vw, vh);
 
+  // The tiles of native art this paint draws, and the ones it lists to be
+  // made (paintAtlasTiles).
+  atlasTileSerial++;
+  atlasTileWant = [];
   const drawn = [];
   for (const node of sc.nodes) {
     const r = atlasRect(node, atlasView);
@@ -620,6 +624,7 @@ function paintAtlas() {
   window.ATLAS_MOUTHS = mouths;
   atlasPaintFolk();
   if (atlasIsFull()) atlasUpdateFullOverlay(drawn);
+  if (atlasTileWant.length) atlasTileSchedule();
 }
 
 /* The people have a canvas of their own, over the scene's.
@@ -684,32 +689,27 @@ function atlasPaintFolk() {
 
    The ladder is the same one the old renderer used and it is kept: two
    thumbnail levels, then the whole render, then -- when even that is being
-   magnified -- the node's own art painted a window at a time through the map
-   panel's own region painter. That last step is what the detail lens was, with
-   the difference that it is drawn straight into the scene rather than being a
+   magnified -- the node's own art, in tiles made while the view is still
+   (paintAtlasTiles). That last step is what the detail lens was, with the
+   difference that it is drawn straight into the scene rather than being a
    second canvas kept in step with a first. */
 /* Where native art starts, as a multiple of a node's own render's tile
-   size; by default nowhere (25 September 2026). It started at 1.2, which
-   put the world's at 9.6 px a square, where the tab was jerkiest and never
-   diagnosed from here: just past it the world's native window is millions
-   of pixels and is rebuilt whenever the view leaves its six-square margin,
-   which at 10 px a square is every 60 px of pan. With `?nativeAt=100` the
-   maintainer found most of the jerk gone, on a phone and on an M1 laptop,
-   so that is the default now. The cost is sharpness only where a render is
-   coarser than the art: the world's is 8 px a square and Cademia's 16, the
-   64-square towns' 32, which is the art's own. `?nativeAt=1.2` brings the
-   old behaviour back for a comparison, and the smoke sets it to test the
-   native window, which is still there to be asked for. */
+   size, counted in device pixels a square: at 1, the moment the render
+   would be magnified at all. It was off from 25 to 28 September 2026
+   (Infinity), because the one window it was painted into then was the
+   World tab's jerk (paintAtlasTiles says how); `?nativeAt=100` still puts
+   the tab back to the renders alone for a comparison. */
 window.ATLAS_NATIVE_AT = (function () {
-  try { const m = /[?&]nativeAt=([0-9.]+)/.exec(location.search || ''); const v = m ? parseFloat(m[1]) : NaN; return v > 0 ? v : Infinity; }
-  catch (e) { quiet(e); return Infinity; }
+  try { const m = /[?&]nativeAt=([0-9.]+)/.exec(location.search || ''); const v = m ? parseFloat(m[1]) : NaN; return v > 0 ? v : 1; }
+  catch (e) { quiet(e); return 1; }
 })();
 function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
   ctx.globalAlpha = alpha;
   ctx.imageSmoothingEnabled = true;
   let ok = false;
   // Native art, when the node is being magnified past its own render.
-  if (ppt > node.ts * window.ATLAS_NATIVE_AT) ok = paintAtlasDetail(ctx, node, r, vw, vh);
+  const tileTS = atlasTileTS(node, ppt);
+  if (tileTS) ok = paintAtlasTiles(ctx, node, r, ppt, tileTS, vw, vh);
   // The roofs come off as the node grows: a town at a distance is roofs,
   // and close up they are the thing in the way. They used to vanish at the
   // step from the miniature to the render, at 448 screen pixels across,
@@ -776,7 +776,7 @@ function atlasRoofT(w) { return Math.max(0, Math.min(1, (540 - w) / (540 - 360))
    roofs. Now the built part is always drawn whole and the margin at what
    the roofs have given up -- the same band, run the other way -- so the
    two changes are one change: the place resolves and its ground with it.
-   Both the render and the native-art window go through this. */
+   Both the render and the tiles of native art go through this. */
 function drawWithMargin(ctx, node, r, alpha, roofT, draw) {
   // The world itself has no built part and no roofs: it is drawn whole.
   // Clipping it to its prop box cut the top forty rows and the bottom
@@ -833,115 +833,337 @@ function atlasCropRect(node, r) {
            w: (th.x1 - th.x0 + 1) * per, h: (th.y1 - th.y0 + 1) * per };
 }
 
-/* The node's own art, for the part of it on screen.
+/* The node's own art, in tiles (28 September 2026).
 
-   paintMapBaseRegion draws at `square * TS`, so the context is put into the
-   node's own pixel space first and the region asked for is whatever the
-   viewport covers. This is the detail lens's job without the detail lens:
-   there is no second canvas, no margin to budget, nothing to slide, and no
-   settle to wait for -- it is simply what this node looks like this frame. */
-function paintAtlasDetail(ctx, node, r, vw, vh) {
-  // Magnified native art is the nicest thing on the tab and the dearest; a
-  // moving view falls back to the node's own render or its miniature.
-  const e = mapRenderIfCheap(node.resid);
-  if (!e || !e.result || !e.result.m) return false;
-  const TS = 32;
-  const per = r.w / node.w;                 // screen px per node square
-  const x0 = Math.max(0, Math.floor((0 - r.x) / per) - 1);
-  const y0 = Math.max(0, Math.floor((0 - r.y) / per) - 1);
-  const x1 = Math.min(node.w - 1, Math.ceil((vw - r.x) / per) + 1);
-  const y1 = Math.min(node.h - 1, Math.ceil((vh - r.y) / per) + 1);
-  if (x1 < x0 || y1 < y0) return false;
-  // The window the cache would keep, at the art's 32 px a square. Past the
-  // cache's size there is no window, and there used to be a fallback that
-  // painted every square on screen on every frame instead -- which on a
-  // 1,200 px viewport is the world between 10 and 20 px a square, some
-  // fifteen thousand squares a frame, and the judder the maintainer felt
-  // below 20 (9 September 2026). Now the node's render is drawn scaled
-  // instead: softer for that band, and one drawImage.
-  {
-    const M = 6, TS = 32;
-    const need = (Math.min(node.w - 1, x1 + M) - Math.max(0, x0 - M) + 1) * TS *
-                 (Math.min(node.h - 1, y1 + M) - Math.max(0, y0 - M) + 1) * TS;
-    if (need > 6000000) return false;
-  }
-  const src = { m: e.result.m, mapData: e.mapData, props: e.result.props, drawOps: e.result.drawOps,
-                allProps: e.result.allProps, backdrop: e.result.backdrop, backdropFrame: 0,
-                TS: e.result.tileSize };
-  const win = atlasDetailWindow(node, src, x0, y0, x1, y1, mapAnimFrame || 8);
-  ctx.save();
-  ctx.imageSmoothingEnabled = false;
-  const alpha = ctx.globalAlpha;
-  if (win) {
-    // One scaled blit of the cached window; the cache handles the frame,
-    // drawWithMargin the fade of the unbuilt part.
-    drawWithMargin(ctx, node, r, alpha, atlasRoofT(r.w), () =>
-      ctx.drawImage(win.canvas, r.x + win.x0 * per, r.y + win.y0 * per,
-                    (win.x1 - win.x0 + 1) * per, (win.y1 - win.y0 + 1) * per));
-  } else {
-    drawWithMargin(ctx, node, r, alpha, atlasRoofT(r.w), () => {
-      ctx.save();
-      ctx.translate(r.x, r.y);
-      ctx.scale(per / TS, per / TS);
-      paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, mapAnimFrame || 8);
-      ctx.restore();
-    });
-  }
-  ctx.restore();
-  return true;
+   The maintainer's word that day: the world map has to be shown at full
+   resolution. Its render is 8 px a square, because a 256-square map at the
+   art's own 32 is 67 megapixels and no browser tried keeps that as one
+   canvas, and Cademia's is 16; from 25 September those renders were all the
+   tab showed, scaled up to 64 px a square, because the native art before
+   them was the jerk. That art was one window, six squares wider than the
+   screen on every side, painted square by square inside the paint whenever
+   the view left it -- every 60 px of pan at 10 px a square, millions of
+   pixels each time -- and painted again whole on every palette frame, since
+   the world's window always holds sea.
+
+   The art is now cut into tiles of about ATLAS_TILE_PX pixels a side, made
+   at the size the screen needs and kept. Three rules make that the fix
+   rather than the same jerk in pieces:
+
+   - A paint never paints art. It draws the tiles it has, and where one is
+     missing the render, with any kept tile of another size over it; the
+     tiles it wanted go on a list (atlasTileWant) that atlasTileTick works
+     through a few milliseconds a frame, nearest the middle of the screen
+     first, once the view has been still for ATLAS_TILE_SETTLE_MS. A
+     gesture's frames are the gesture's, as the render's slicing already
+     has it (atlasRenderStep).
+   - A tile is made at the size a square covers on the screen at rest,
+     counted in device pixels and rounded up to the next of
+     ATLAS_TILE_LEVELS: the art's own 32 from 24 device pixels a square up,
+     and 12, 16 or 24 below that, where a 32 px tile would be shrunk to a
+     third and cost nine times the pixels. So what is kept is never much
+     more than twice the screen, whatever the zoom, and one set of tiles
+     serves every zoom within a level.
+   - A ring of tiles one wide beyond the screen is made after the screen,
+     so a pan that stays inside it shows nothing coarse at all.
+
+   Tiles are kept up to ATLAS_TILE_BUDGET device pixels, the least recently
+   drawn dropped first and never one the last paint used. A tile is made
+   from the render's own records (drawOps, in the order the full render drew
+   them), so its art is the render's at another size, and a new render, as
+   the Walls setting makes, retires the tiles made from the old one. Each is
+   painted with four squares of map beyond its edge on every side, the
+   overhang paintMapBaseRegion allows a prop, so a tree standing just outside
+   still reaches into it; the canvas clips what falls beyond. Its edges are
+   put on whole device pixels, where its neighbour's are, so no line of sea
+   shows between two. */
+const ATLAS_TILE_LEVELS = [8, 12, 16, 24, 32];
+const ATLAS_TILE_PX = 512;
+const ATLAS_TILE_SETTLE_MS = 150;
+const ATLAS_TILE_SLICE_MS = 6;
+// 64 MB of tiles, or 24 on iOS, where renderMapVisualSteps says why; and no
+// ring there, since the screen's own tiles are most of that.
+const ATLAS_TILE_BUDGET = IS_IOS_WEBKIT ? 6e6 : 16e6;
+const ATLAS_TILE_RING = IS_IOS_WEBKIT ? 0 : 1;
+/* The water. A tile logs every blit it is painted with (drawTileAt's
+   __MAP_BLIT_LOG, which the render's own animation uses), and keeps, for
+   each of its squares that a blit of an animated tile touches, the blits
+   that touch that square, in the order they were drawn. A palette frame
+   draws those again at the new frame, clipped to the square, which is
+   the square as a painting at that frame would leave it, pixel for pixel.
+   Replaying the blits unclipped, as the render's animReplay is replayed,
+   was tried first: a blit drawn again whole lands on its neighbours over
+   whatever was drawn there after it, and put the mountains' edges over
+   the trees below them.
+
+   Only the squares on screen are repainted, once the view is still. Past
+   ATLAS_TILE_ANIM_SQUARES of them, the world at the lower levels, mostly
+   sea, the tiles hold the render's resting colours instead and the sea
+   stands still, as the render's always has on this tab. */
+const ATLAS_TILE_ANIM_SQUARES = 1500;
+const atlasTiles = new Map();
+const atlasTileNone = new Set();       // tiles that could not be made, not asked for again
+let atlasTilePx = 0;
+let atlasTileWant = [];
+let atlasTileSerial = 0;
+let atlasTilePending = false, atlasTileTimer = null;
+
+// The squares a side of a tile at a tile size.
+function atlasTileSquares(TS) { return Math.max(8, Math.round(ATLAS_TILE_PX / TS)); }
+// The device pixels a CSS pixel the scene is painted at when still, which is
+// what a tile is made for: a finger down paints at one (paintAtlas), and the
+// tiles do not change size because a finger is down.
+function atlasRestDpr() { return Math.min((typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1, 2); }
+// The tile size a node wants at a zoom, or 0 when its render is enough.
+function atlasTileTS(node, ppt) {
+  const want = ppt * atlasRestDpr();
+  if (!(want > node.ts * window.ATLAS_NATIVE_AT)) return 0;
+  let ts = 0;
+  for (const L of ATLAS_TILE_LEVELS) if (L > node.ts) { ts = L; if (L >= want) break; }
+  return ts;
+}
+function atlasTileKey(resid, TS, cx, cy) { return resid + ':' + TS + ':' + cx + ':' + cy; }
+// A kept tile, if it was made from this render under this Walls setting.
+function atlasTileGet(resid, TS, cx, cy, res) {
+  const t = atlasTiles.get(atlasTileKey(resid, TS, cx, cy));
+  if (!t) return null;
+  if (t.res !== res || t.walls !== !!window.MAP_WALLS) { atlasTileDrop(t); return null; }
+  return t;
+}
+// A dropped tile's canvas is sized to nothing, as the map panel's layers
+// are when off, so its pixels go now rather than whenever it is collected.
+function atlasTileDrop(t) {
+  if (atlasTiles.get(t.key) === t) { atlasTiles.delete(t.key); atlasTilePx -= t.px; }
+  t.canvas.width = 0; t.canvas.height = 0;
+}
+function atlasTilesClear() {
+  for (const t of Array.from(atlasTiles.values())) atlasTileDrop(t);
+  atlasTileNone.clear();
+  atlasTileWant = [];
+}
+function atlasTileEvict() {
+  if (atlasTilePx <= ATLAS_TILE_BUDGET) return;
+  const old = Array.from(atlasTiles.values()).filter(t => t.used !== atlasTileSerial).sort((a, b) => a.used - b.used);
+  for (const t of old) { if (atlasTilePx <= ATLAS_TILE_BUDGET) break; atlasTileDrop(t); }
 }
 
-/* The window of native art a magnified node shows, kept between frames.
-
-   paintMapBaseRegion draws a square at a time -- the terrain, the faux
-   props, the placed props -- and doing that for every square on screen on
-   every frame of a pan was most of what a phone was asked to do. The window
-   is now rasterised once at the art's own 32px into a canvas of its own,
-   six squares wider than the screen needs on every side, and a frame that
-   stays inside it is one drawImage. It is rebuilt when the view leaves it,
-   when walls are toggled, and -- only if the window holds a square that
-   animates -- when the palette frame advances: the seven-frames-a-second
-   cycle repainted every square before, and a window with no water or fire
-   in it now costs the animation nothing. Four windows are kept, which is
-   more nodes than are ever magnified at once. */
-const atlasDetailWindows = new Map();
-function atlasDetailWindow(node, src, x0, y0, x1, y1, frame) {
-  const M = 6, TS = 32;
-  const walls = !!window.MAP_WALLS;
-  let w = atlasDetailWindows.get(node.resid);
-  const fits = w && w.walls === walls && w.x0 <= x0 && w.y0 <= y0 && w.x1 >= x1 && w.y1 >= y1;
-  if (fits && (w.frame === frame || !w.animated)) {
-    atlasDetailWindows.delete(node.resid); atlasDetailWindows.set(node.resid, w);   // most recent last
-    return w;
+/* A render's animated squares by tile, sorted once per render and tile
+   size: how many squares of the water on screen would move, counted before
+   any tile is made, so the answer does not change as they are made. */
+function atlasTileAnimIndex(res, C) {
+  const all = res._atlasTileAnim || (res._atlasTileAnim = new Map());
+  let idx = all.get(C);
+  if (idx) return idx;
+  idx = new Map();
+  for (const c of (res.animCells || [])) {
+    const k = Math.floor(c[1] / C) * 4096 + Math.floor(c[0] / C);
+    let l = idx.get(k);
+    if (!l) idx.set(k, l = []);
+    l.push(c);
   }
-  const cx0 = fits ? w.x0 : Math.max(0, x0 - M), cy0 = fits ? w.y0 : Math.max(0, y0 - M);
-  const cx1 = fits ? w.x1 : Math.min(node.w - 1, x1 + M), cy1 = fits ? w.y1 : Math.min(node.h - 1, y1 + M);
-  const pw = (cx1 - cx0 + 1) * TS, ph = (cy1 - cy0 + 1) * TS;
-  if (pw * ph > 6000000) return null;         // a window this size is drawn straight
-  const cv = (w && w.canvas) || document.createElement('canvas');
-  if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
+  all.set(C, idx);
+  return idx;
+}
+// The squares of a tile that a palette frame changes, each with the blits
+// that touch it in the order they were drawn, from the log of its painting.
+// A square with no blit of its own filling it (a wall the Walls setting
+// hides is a fill, not a blit) is left as painted.
+function atlasTileMoving(log, t) {
+  const { x0, y0, x1, y1, TS } = t, W = x1 - x0 + 1, H = y1 - y0 + 1;
+  const lists = new Array(W * H), own = new Uint8Array(W * H), moving = new Uint8Array(W * H);
+  for (const b of log) {
+    const px = b[1], py = b[2], sz = b[4];
+    const sx0 = Math.max(x0, Math.floor(px / TS)), sx1 = Math.min(x1, Math.floor((px + sz - 1e-6) / TS));
+    const sy0 = Math.max(y0, Math.floor(py / TS)), sy1 = Math.min(y1, Math.floor((py + sz - 1e-6) / TS));
+    if (sx1 < sx0 || sy1 < sy0) continue;
+    const anim = tileIsAnimated(b[0]);
+    for (let sy = sy0; sy <= sy1; sy++)
+      for (let sx = sx0; sx <= sx1; sx++) {
+        const i = (sy - y0) * W + (sx - x0);
+        (lists[i] || (lists[i] = [])).push(b);
+        if (anim) moving[i] = 1;
+        if (px === sx * TS && py === sy * TS && sz === TS) own[i] = 1;
+      }
+  }
+  const out = [];
+  for (let i = 0; i < W * H; i++) if (moving[i] && own[i]) out.push([x0 + i % W, y0 + ((i / W) | 0), lists[i]]);
+  return out.length ? out : null;
+}
+// Whether a tile's water is behind a frame over a range of squares (null
+// for the whole tile). A tile repainted only where it was on screen is at
+// no one frame (-1), and remembers which part is at which.
+function atlasTileStale(t, frame, clip) {
+  if (!t.anim || t.frame === frame) return false;
+  if (t.frame !== -1 || !clip || !t.part || t.part.frame !== frame) return true;
+  return !(clip.x0 >= t.part.x0 && clip.x1 <= t.part.x1 && clip.y0 >= t.part.y0 && clip.y1 <= t.part.y1);
+}
+// A tile's water at a palette frame, or 0 for the resting colours, over the
+// squares in clip or, with none, the whole tile.
+function atlasTileAnimate(t, frame, clip) {
+  const a = t.anim;
+  if (!a) { t.frame = frame; return; }
+  const g = t.canvas.getContext('2d');
+  if (!g) return;
+  const TS = t.TS;
+  g.setTransform(1, 0, 0, 1, -t.x0 * TS, -t.y0 * TS);
+  g.imageSmoothingEnabled = false;
+  let whole = true;
+  for (const [sx, sy, list] of a) {
+    if (clip && (sx < clip.x0 || sx > clip.x1 || sy < clip.y0 || sy > clip.y1)) { whole = false; continue; }
+    // A square nothing else touches is its own blit, which fills it exactly.
+    if (list.length === 1) { const b = list[0]; drawTileAt(g, b[0], b[1], b[2], b[3], b[4], frame, b[5]); continue; }
+    g.save();
+    g.beginPath(); g.rect(sx * TS, sy * TS, TS, TS); g.clip();
+    for (const b of list) drawTileAt(g, b[0], b[1], b[2], b[3], b[4], frame, b[5]);
+    g.restore();
+  }
+  t.frame = whole ? frame : -1;
+  t.part = whole ? null : { frame, x0: clip.x0, y0: clip.y0, x1: clip.x1, y1: clip.y1 };
+}
+function atlasTileMake(w, frame) {
+  const { node, TS, cx, cy, e } = w;
+  const res = e.result, m = res.m, C = atlasTileSquares(TS);
+  const x0 = cx * C, y0 = cy * C;
+  const x1 = Math.min(node.w, x0 + C) - 1, y1 = Math.min(node.h, y0 + C) - 1;
+  if (x1 < x0 || y1 < y0) return null;
+  const cv = document.createElement('canvas');
+  cv.width = (x1 - x0 + 1) * TS; cv.height = (y1 - y0 + 1) * TS;
   const g = cv.getContext('2d');
   if (!g) return null;
-  g.setTransform(1, 0, 0, 1, -cx0 * TS, -cy0 * TS);
+  g.setTransform(1, 0, 0, 1, -x0 * TS, -y0 * TS);
   g.imageSmoothingEnabled = false;
-  paintMapBaseRegion(g, TS, cx0, cy0, cx1, cy1, src, frame);
-  let animated = false;
-  if (!fits) {
-    const m = src.m, md = src.mapData;
-    const faux = getFauxProps(), fauxTiles = getPropTileList();
-    for (let y = cy0; y <= cy1 && !animated; y++)
-      for (let x = cx0; x <= cx1; x++) {
-        const t = u16be(md, m.mapDataOffset + (x + y * m.width) * 2), fp = faux.get(t);
-        if (tileIsAnimated(t) || (fp && fauxTiles[fp.proptype] !== undefined && tileIsAnimated(fauxTiles[fp.proptype] + fp.aspect))) { animated = true; break; }
+  const src = { m, mapData: e.mapData, props: res.props, drawOps: res.drawOps, allProps: res.allProps,
+                backdrop: res.backdrop, backdropFrame: 0, TS: res.tileSize };
+  const M = 4;
+  // The log is the render's while a render is being made a slice at a time;
+  // renderMapVisualSteps empties it at every pause, so it is ours to borrow.
+  const log = [], was = window.__MAP_BLIT_LOG;
+  window.__MAP_BLIT_LOG = log;
+  try {
+    paintMapBaseRegion(g, TS, Math.max(0, x0 - M), Math.max(0, y0 - M),
+                       Math.min(m.width - 1, x1 + M), Math.min(m.height - 1, y1 + M), src, frame);
+  } finally { window.__MAP_BLIT_LOG = was; }
+  const t = { key: atlasTileKey(node.resid, TS, cx, cy), TS, x0, y0, x1, y1, res, walls: !!window.MAP_WALLS,
+              frame, part: null, anim: null, canvas: cv, px: cv.width * cv.height, used: atlasTileSerial };
+  t.anim = atlasTileMoving(log, t);
+  atlasTiles.set(t.key, t);
+  atlasTilePx += t.px;
+  return t;
+}
+function atlasTileSchedule() {
+  if (atlasTilePending) return;
+  atlasTilePending = true;
+  requestAnimationFrame(atlasTileTick);
+}
+function atlasTileTick() {
+  atlasTilePending = false;
+  if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') { atlasTileWant = []; return; }
+  if (!atlasTileWant.length) return;
+  // Moving: the paint that ends the gesture lists the tiles again.
+  if (atlasInMotion()) return;
+  const wait = ATLAS_TILE_SETTLE_MS - (Date.now() - atlasMovedAt);
+  if (wait > 0) {
+    if (atlasTileTimer) clearTimeout(atlasTileTimer);
+    atlasTileTimer = setTimeout(() => { atlasTileTimer = null; atlasTileSchedule(); }, wait + 4);
+    return;
+  }
+  const t0 = performance.now();
+  const want = atlasTileWant.sort((a, b) => a.d - b.d);
+  atlasTileWant = [];
+  let done = 0;
+  for (const w of want) {
+    if (done && performance.now() - t0 >= ATLAS_TILE_SLICE_MS) break;
+    done++;
+    const frame = w.animOn ? (mapAnimFrame || 8) : 0;
+    if (w.tile) { if (atlasTiles.get(w.tile.key) === w.tile && atlasTileStale(w.tile, frame, null)) atlasTileAnimate(w.tile, frame, null); continue; }
+    if (atlasTileGet(w.node.resid, w.TS, w.cx, w.cy, w.e.result)) continue;
+    const key = atlasTileKey(w.node.resid, w.TS, w.cx, w.cy);
+    let t = null;
+    try { t = atlasTileMake(w, frame); } catch (e) { quiet(e, 'a tile of native art, ' + key); }
+    if (!t) atlasTileNone.add(key);
+  }
+  atlasTileEvict();
+  // The paint lists what is still wanted, from wherever the view is now.
+  paintAtlas();
+}
+
+function paintAtlasTiles(ctx, node, r, ppt, TS, vw, vh) {
+  const e = mapRenderIfCheap(node.resid);
+  if (!e || !e.result || !e.result.m || !e.result.canvas) return false;
+  const res = e.result;
+  const per = r.w / node.w;                 // screen px per node square
+  const x0 = Math.max(0, Math.floor(-r.x / per)), y0 = Math.max(0, Math.floor(-r.y / per));
+  const x1 = Math.min(node.w - 1, Math.floor((vw - r.x) / per)), y1 = Math.min(node.h - 1, Math.floor((vh - r.y) / per));
+  if (x1 < x0 || y1 < y0) return false;
+  const C = atlasTileSquares(TS);
+  const cx0 = Math.floor(x0 / C), cx1 = Math.floor(x1 / C), cy0 = Math.floor(y0 / C), cy1 = Math.floor(y1 / C);
+  const nx = Math.ceil(node.w / C), ny = Math.ceil(node.h / C);
+  const midX = (x0 + x1 + 1) / 2, midY = (y0 + y1 + 1) / 2;
+  const onScreen = { x0, y0, x1, y1 };
+  const idx = atlasTileAnimIndex(res, C);
+  let moving = 0;
+  for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++)
+    for (const c of (idx.get(cy * 4096 + cx) || []))
+      if (c[0] >= x0 && c[0] <= x1 && c[1] >= y0 && c[1] <= y1) moving++;
+  const animOn = !!window.MAP_ANIM && moving <= ATLAS_TILE_ANIM_SQUARES;
+  const frame = animOn ? (mapAnimFrame || 8) : 0;
+  const still = atlasSettled();
+  const have = [], missing = [];
+  for (let cy = Math.max(0, cy0 - ATLAS_TILE_RING); cy <= Math.min(ny - 1, cy1 + ATLAS_TILE_RING); cy++)
+    for (let cx = Math.max(0, cx0 - ATLAS_TILE_RING); cx <= Math.min(nx - 1, cx1 + ATLAS_TILE_RING); cx++) {
+      const on = cx >= cx0 && cx <= cx1 && cy >= cy0 && cy <= cy1;
+      const d = Math.hypot((cx + 0.5) * C - midX, (cy + 0.5) * C - midY) + (on ? 0 : 1e6);
+      const t = atlasTileGet(node.resid, TS, cx, cy, res);
+      if (!t) {
+        if (!atlasTileNone.has(atlasTileKey(node.resid, TS, cx, cy))) atlasTileWant.push({ node, TS, cx, cy, e, animOn, d });
+        if (on) missing.push(cx, cy);
+        continue;
       }
-    // A fountain or a flag among the placed props animates the window too.
-    if (!animated) animated = (src.drawOps || []).some(op => op.x >= cx0 && op.x <= cx1 && op.y >= cy0 && op.y <= cy1 && tileIsAnimated(op.tile));
-  } else animated = w.animated;
-  w = { x0: cx0, y0: cy0, x1: cx1, y1: cy1, frame, walls, animated, canvas: cv };
-  atlasDetailWindows.delete(node.resid);
-  atlasDetailWindows.set(node.resid, w);
-  while (atlasDetailWindows.size > 4) atlasDetailWindows.delete(atlasDetailWindows.keys().next().value);
-  return w;
+      t.used = atlasTileSerial;
+      if (!on) continue;
+      // The water on screen, once the view is still: every tile now while
+      // that is cheap, or back to the resting colours a tile at a time.
+      if (still && atlasTileStale(t, frame, animOn ? onScreen : null)) {
+        if (animOn) atlasTileAnimate(t, frame, onScreen);
+        else atlasTileWant.push({ tile: t, animOn, d });
+      }
+      have.push(t);
+    }
+  const dpr = atlasDpr;
+  const X = s => Math.round((r.x + s * per) * dpr) / dpr, Y = s => Math.round((r.y + s * per) * dpr) / dpr;
+  const blit = t => ctx.drawImage(t.canvas, X(t.x0), Y(t.y0), X(t.x1 + 1) - X(t.x0), Y(t.y1 + 1) - Y(t.y0));
+  const draw = () => {
+    if (missing.length) {
+      // The render, and over it any tile of another size still kept, until
+      // this size's are made.
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(atlasMip(res.canvas, r.w), r.x, r.y, r.w, r.h);
+      for (const L of ATLAS_TILE_LEVELS) {
+        if (L === TS || L <= node.ts) continue;
+        const CL = atlasTileSquares(L), seen = new Set();
+        ctx.imageSmoothingEnabled = L > ppt * dpr;
+        for (let i = 0; i < missing.length; i += 2) {
+          const sx0 = missing[i] * C, sy0 = missing[i + 1] * C;
+          const sx1 = Math.min(node.w, sx0 + C) - 1, sy1 = Math.min(node.h, sy0 + C) - 1;
+          for (let ly = Math.floor(sy0 / CL); ly <= Math.floor(sy1 / CL); ly++)
+            for (let lx = Math.floor(sx0 / CL); lx <= Math.floor(sx1 / CL); lx++) {
+              const k = ly * 4096 + lx;
+              if (seen.has(k)) continue;
+              seen.add(k);
+              const t = atlasTileGet(node.resid, L, lx, ly, res);
+              if (t) { t.used = atlasTileSerial; blit(t); }
+            }
+        }
+      }
+    }
+    // Shrunk, a tile is smoothed; magnified, its squares stay squares.
+    ctx.imageSmoothingEnabled = TS > ppt * dpr;
+    for (const t of have) blit(t);
+  };
+  ctx.save();
+  drawWithMargin(ctx, node, r, ctx.globalAlpha, atlasRoofT(r.w), draw);
+  ctx.restore();
+  return true;
 }
 
 /* The people, on whichever node they are standing on.
@@ -1606,8 +1828,11 @@ const atlasGesture = { active: false, z0: null, timer: null };
 // The last moment the reader moved the world. A background render (a
 // miniature, a kept place, the map beside a ring) waits until the world has
 // been still for a little, so it never lands in the middle of a pan.
-let atlasBusyUntil = 0;
-function atlasMarkBusy() { atlasBusyUntil = Date.now() + 500; }
+let atlasBusyUntil = 0, atlasMovedAt = 0;
+function atlasMarkBusy() { atlasMovedAt = Date.now(); atlasBusyUntil = atlasMovedAt + 500; }
+// Still for long enough to make a tile of native art in (paintAtlasTiles):
+// a shorter wait than the tail above, since a tile is what the eye is on.
+function atlasSettled() { return !atlasInMotion() && Date.now() - atlasMovedAt >= ATLAS_TILE_SETTLE_MS; }
 function atlasIsBusy() { return !!(atlasView.touching || window._atlasAnimating || Date.now() < atlasBusyUntil); }
 /* Moving *now*, which is a different question from the one above and must
    stay one. atlasIsBusy carries a 500 ms tail after a gesture so that

@@ -60,7 +60,7 @@ function resetDerivedCaches() {
   window.MAP_SEL = null;
   atlasNameCounts = null;
   atlasWaterCache = null;
-  atlasDetailWindows.clear();
+  atlasTilesClear();
   atlasFolkCache.clear();
   _faceCache.clear();
   atlasTransforms.clear();
