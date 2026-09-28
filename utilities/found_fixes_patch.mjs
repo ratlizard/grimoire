@@ -22,7 +22,13 @@
       54, the Odemia Guard; it is given to himself. The two share a
       portrait, so nothing changes on screen, but the number is right.
    6. Keywords typed with a space (0x186D, 0x1878): Demodocus's "fish, tlep"
-      and Sabinate's "form, shap" lose the space after the comma. */
+      and Sabinate's "form, shap" lose the space after the comma.
+   7. Water into a full pitcher (0xE0A): the water helper printed "The
+      pitcher is already full." and ran on to "You can't use water
+      there...", having no return after the line; it returns False there,
+      as the milk (0xE0B) and wine (0xE0D) helpers do after the same line.
+      (27 September 2026, found while reading every UseOn that deletes one
+      of its arguments; 0xE0A is the one helper among them that does.) */
 import {buildPatch} from './patch_build.mjs';
 const [htmlPath = 'index.html', dataPath, outDir] = process.argv.slice(2);
 if (!dataPath || !outDir) { console.error('usage: found_fixes_patch.mjs index.html <Cythera Data.data> <out dir>'); process.exit(2); }
@@ -39,8 +45,10 @@ const edits = [
   { what: 'the Gate Guard speaks', resid: 0x1864, at: 0x058D, replaceOp: true, expect: { 0x058C: 'sys TalkParticipant', 0x058D: 'short 0x0036', 0x0590: 'byte 0x00' }, code: 'arg Arg00' },
   keyword('Demodocus’s "tlep"', 0x186D, 0x155F, 'fish,tlep', '0x15E0'),
   keyword('Sabinate’s "shap"', 0x1878, 0x0975, 'form,shap', '0x0A11'),
+  { what: 'water into a full pitcher', resid: 0xE0A, at: 0x00EA, expect: { 0x00CD: 'string(implicit) "The pitcher is already full.', 0x00EA: 'branch 0x0121', 0x00ED: 'string(implicit) "The pitcher is now filled with water' },
+    code: 'return\nword False\nend' },
 ];
 const ok = buildPatch({ htmlPath, dataPath, outDir, name: 'Cythera Found Fixes',
-  description: 'Nine fixes for bugs found by reading Cythera’s files with Grimoire: Ake’s To Do line, sleep’s magic bonus, the bartenders’ rumours, eating, the Gate Guard’s speaker, two keywords.',
+  description: 'Ten fixes for bugs found by reading Cythera’s files with Grimoire: Ake’s To Do line, sleep’s magic bonus, the bartenders’ rumours, eating, the Gate Guard’s speaker, two keywords, water poured into a full pitcher.',
   edits, dataEdits: [] });
 process.exit(ok ? 0 : 1);

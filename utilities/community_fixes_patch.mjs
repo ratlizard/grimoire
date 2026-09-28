@@ -35,8 +35,12 @@
     9. Sabinate's mushroom every time (0x1878): his flag 4 is set when the
        mushroom is given.
    10. The rolling pin vanishing (0x10A3): the dough is deleted, not the pin.
-   11. The wine urn's empty pitcher (0xE0D): the pitcher's Data1 is set, as
-       the water helper sets it.
+   11. The wine urn's empty pitcher (0xE0D): the pitcher's Data1 is set to
+       3, as the water helper sets 1 and the milk helper 2. The pitcher
+       (0x10A0) reads 0 to 3 as empty, water, milk and wine, in its Examine
+       and Use tables and in its UseOn, which pours wine through this
+       helper only at 3. This edit set 1 until 27 September 2026, which
+       filled the pitcher with water.
    12. "You can't stuff the carcass!" on every check (0x10D2): the refusal
        no longer prints.
    13. A thrown weapon lost on a hit (0x3042): flags 0x10 with an inventory
@@ -89,7 +93,7 @@ const edits = [
     code: 'call_resource SetCharacterFlag (0xF00)\narg Arg00\nbyte 0x04\nend' },
   { what: 'the rolling pin', resid: 0x10A3, at: 0x0162, replaceOp: true, expect: { 0x0131: 'string(implicit) "You end up kneading', 0x0161: 'sys Delete', 0x0162: 'arg Arg00' }, code: 'arg Arg01' },
   { what: 'the wine urn', resid: 0xE0D, at: 0x0061, expect: { 0x003C: 'string(implicit) "The pitcher is now filled with wine', 0x0061: 'return' },
-    code: 'set_field data1 (0x6)\narg Arg00\nend\nbyte 0x01\nend' },
+    code: 'set_field data1 (0x6)\narg Arg00\nend\nbyte 0x03\nend' },
   { what: 'the carcass', resid: 0x10D2, at: 0x0049, to: 0x0066, expect: { 0x0049: 'string(implicit) "You can\'t stuff the carcass', 0x0066: 'return' }, code: '' },
   { what: 'a thrown weapon, placed', resid: 0x3042, at: 0x0158, expect: { 0x0150: 'set_field container', 0x0158: 'branch' },
     code: 'set_field x (0x1)\nlocal Var03\nend\nbyte 0x00\nend\nset_field y (0x2)\nlocal Var03\nend\nbyte 0x01\nend\nmethod PutInside (0x10)\nlocal Var03\nend' },
