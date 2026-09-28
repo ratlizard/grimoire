@@ -327,9 +327,22 @@ function combatSimParams() {
   return {
     weapon, shield: shieldOn ? shield : null,
     attackerReflex: val('cbAtkRef', 20), defenderReflex: val('cbDefRef', 20), body: val('cbBody', 20),
+    bodyForReflex: (() => { const e = el('cbBodyRef'); return e ? !!e.checked : false; })(),
     weaponSkill: val('cbSkill', 8), attackSkill: val('cbAtk', 4), defenceSkill: val('cbDef', 4),
     enchant: 0
   };
+}
+// Who fights with the body: how many units carry the bit 0xE88 tests, and
+// whether the hero's does, the hero being character 1 and its unit the one
+// whose prop type is the hero's. Nothing without the program, which is what
+// says the bit is the unit's field 0x33.
+function combatBodyUnitsText(bit) {
+  const units = unitsWithTopFlag(bit);
+  if (!units.length) return '';
+  const all = parseMonsterStats().filter(m => m && !m.blank).length;
+  let hero = null;
+  try { const c = loadCharacterTable()[1]; hero = c ? parseMonsterStats().find(m => m && !m.blank && m.proptype === c.proptype) : null; } catch (e) { quiet(e, 'the hero’s unit'); }
+  return ' (' + units.length + ' of the ' + all + ' units' + (hero ? (units.includes(hero) ? ', the hero’s among them' : ', not the hero’s') : '') + ')';
 }
 // How many values the attack routine's body roll takes: Random(0, (body - 12)
 // / 4 + 1), the 12, the 4 and the 1 read off 0xE90 and 0x3042, the division
@@ -348,7 +361,8 @@ function combatSimHtml(p, cb) {
   const model = {
     // As shipped the resolver's weapon-skill term adds nothing to an armed
     // blow (combatRules().skillOffLoop), and every weapon here is armed.
-    attackerReflex: p.attackerReflex, defenderReflex: p.defenderReflex, weaponSkill: cb.skillOffLoop ? 0 : p.weaponSkill,
+    // A unit flagged so starts the margin from its body (cb.bodyForReflex).
+    attackerReflex: p.bodyForReflex && cb.bodyForReflex ? p.body : p.attackerReflex, defenderReflex: p.defenderReflex, weaponSkill: cb.skillOffLoop ? 0 : p.weaponSkill,
     attackSkill: p.attackSkill, defenceSkill: p.defenceSkill, enchant: p.enchant || 0,
     damage: p.weapon.damage, shieldBlock: p.shield ? p.shield.block : null, shieldSkill: p.shield ? p.weaponSkill : 0,
     roll: cb.roll.v, rollDefender: cb.rollDefender.v, dmgAdd: cb.dmgAdd.v, bodyRoll
@@ -373,7 +387,8 @@ function combatSimHtml(p, cb) {
     ]),
     'A blow that lands does <b>' + x.meanDamage.toFixed(1) + '</b> points on average, so an exchange is worth <b>' +
     (x.meanDamage * x.hit).toFixed(1) + '</b>.' +
-    (bodyRoll > 1 ? ' A body of ' + p.body + ' adds a roll of 0 to ' + (bodyRoll - 1) + ' to the ' + p.weapon.name + '’s ' + p.weapon.damage + ' before the damage is rolled.' : '') + (p.shield ? ' A blow is tested for a miss before it is tested for a parry, so every parry here is a blow the shield took out of the hits.' : '') +
+    (bodyRoll > 1 ? ' A body of ' + p.body + ' adds a roll of 0 to ' + (bodyRoll - 1) + ' to the ' + p.weapon.name + '’s ' + p.weapon.damage + ' before the damage is rolled.' : '') +
+    (p.bodyForReflex && cb.bodyForReflex ? ' The margin starts from the body, ' + p.body + ', as it does for a unit flagged so.' : '') + (p.shield ? ' A blow is tested for a miss before it is tested for a parry, so every parry here is a blow the shield took out of the hits.' : '') +
     (cb.skillOffLoop ? ' The weapon’s skill adds nothing to it, as shipped, so the skill moves only the shield’s roll.' : '')) +
   mechFig('The margin, and where it is spent', mechPlot({
     height: 130,
@@ -400,6 +415,8 @@ function combatSimUpdate() {
 }
 function combatSimControls() {
   const ws = mechWeapons(), sh = mechShields();
+  let cbRead = null;
+  try { cbRead = combatRules(); } catch (e) { quiet(e, 'the combat rules, for the controls'); }
   const slider = (id, label, min, max, v) => '<label>' + svEsc(label) +
     ' <input type="range" id="' + id + '" min="' + min + '" max="' + max + '" value="' + v + '" oninput="combatSimUpdate()"><b id="' + id + 'V">' + v + '</b></label>';
   return '<div class="mechCtl">' +
@@ -408,6 +425,7 @@ function combatSimControls() {
     slider('cbSkill', 'your skill', 0, 15, 8) +
     slider('cbAtkRef', 'your reflex', 5, 40, 20) +
     slider('cbBody', 'your body', 5, 40, 20) +
+    (cbRead && cbRead.bodyForReflex ? '<label><input type="checkbox" id="cbBodyRef" onchange="combatSimUpdate()"> body for reflex</label>' : '') +
     slider('cbDefRef', 'their reflex', 5, 40, 20) +
     (sh.length ? '<label><input type="checkbox" id="cbShield" checked onchange="combatSimUpdate()"> they carry a ' + svEsc(sh[0].name) + '</label>' : '') +
     '</div>';
@@ -2560,7 +2578,8 @@ function renderMechanicsSheet(value) {
         (cb.skillOffLoop
           ? (cb.barehand ? ', plus Barehand when nothing is wielded' : '') + (cb.missileSkill ? ' (Missile for a launcher)' : '')
           : ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')')) +
-        ', <b>less the defender’s reflex' + (cb.rollDefender ? ' plus a roll of 0 to ' + rollTo(cb.rollDefender) : '') + '</b>, plus Attack less Defence. A monster flagged so uses body for reflex.',
+        ', <b>less the defender’s reflex' + (cb.rollDefender ? ' plus a roll of 0 to ' + rollTo(cb.rollDefender) : '') + '</b>, plus Attack less Defence. ' +
+        (cb.bodyForReflex ? 'An attacker whose unit is ' + srcNum(cb.bodyForReflex, 'flagged so') + ' starts from its <b>body</b> instead of its reflex' + combatBodyUnitsText(cb.bodyForReflex.v) + '.' : 'A monster flagged so uses body for reflex.'),
       cb.skillOffLoop ? '<b>A weapon’s own skill adds nothing.</b> The routine that settles a blow is written to add it to the margin and to the damage figure, but reads it off ' +
         srcNum(cb.skillOffLoop[0], 'what the shield loop leaves behind') + ' instead of off the weapon, and that is always nothing, so Sword, Axe and Mace change no armed blow.' : '',
       'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +

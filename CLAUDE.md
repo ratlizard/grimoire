@@ -556,7 +556,7 @@ guide carried it*.
 | resource fork write | `resfork_write_check.mjs` | `writeResourceFork` against the two forks Apple's Resource Manager wrote |
 | executable | `pef_check.mjs` | `js/mac-pef.js` against the workbench's routine list; the loader |
 | powerpc decoder | `ppc_check.mjs` | `js/mac-ppc.js` against `llvm-mc`, word for word |
-| rule models | `mech_check.mjs` + `mech_ref.mjs` | the closed forms against a Monte Carlo written from the prose |
+| rule models | `mech_check.mjs` + `mech_ref.mjs` | the closed forms against a Monte Carlo written from the same prose, so the two can be wrong together: both left out the attacker's body roll until 28 September 2026. The check against the game is the workbench's `tools/combat-check/`, which counts blows in the fork, and it covers combat only |
 | version | `version_check.mjs` | the number moved when what a visitor receives moved |
 | browser | `browser_check.mjs` | the page in headless Chrome: loads clean, the archive opens over HTTP, `canvas.html` loads; then seven views at 390 px with touch emulated, none wider than the phone, tap targets under 24 px counted, and a screenshot of each in `$TMPDIR/grimoire_shots/` to look at instead of the phone |
 | smoke, eight rows | `viewer_smoke.mjs` + `smoke_*.mjs` | every category, gallery and resource driven through the stub, and the sections the parts pin: `galleries` (the loop; the maps alone as `galleries-a`, the rest as `galleries-b`), `views`, `atlas`, `rules`, `edits`, `saves`, `installer`, each from a fresh boot (`smoke_boot.mjs`) as its own process; a run with no part named is the whole drive in one process. A new section goes in the part whose open file it needs: the bare archive, the save or the installer |

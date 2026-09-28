@@ -1668,9 +1668,19 @@ function combatRules() {
   const skillOffLoop = dvmSeqAll(ro, [/^call_resource 0xEAC$/, /^arg Arg00$/, /^local Var[0-9A-F]+$/i, /^class_member 0x2A03$/])
     .filter(g => iterSet.includes(parseInt(g[2].text.slice('local Var'.length), 16)))
     .map(g => ({ resid: 0xE87, at: g[2].at }));
+  /* Body for reflex. 0xE88 starts the attacker's side from its reflex and
+     puts its body there instead when a bit of its unit's field 0x33 is set:
+     `get_field 0x33`, the bit, `bitwise_and`, and in the branch `get_field
+     body`. Only the attacker's: the defender's side is always its reflex.
+     Field 0x33 is the top half of the unit's flag word (exeMonsterFields),
+     so the bit is 0x10000 of the word; which units carry it is the unit
+     table's (monsterTopFlagSites). Counted in the fork on 27 September
+     2026: a fighter's blows missed 16.9% of 496 times, against 17.0% with
+     his body and 25.7% with his reflex. */
+  const bfr = dvmSeqFirst(mo, [/^get_field 0x33$/, DVM_NUM, /^bitwise_and$/, /^then /, /^set_local 0x[0-9A-F]+$/i, /^arg Arg00$/, /^get_field body\b/]);
   return { d30: !!(roll && rollDefender && sr.length >= 2), roll, rollDefender, missileRolls: sr.slice(0, 2),
            barehand, missileSkill, parry, dmgAdd: add ? dvmVal(0xE87, add[4]) : null, words, last,
-           skillOffLoop: skillOffLoop.length ? skillOffLoop : null };
+           skillOffLoop: skillOffLoop.length ? skillOffLoop : null, bodyForReflex: bfr ? dvmVal(0xE88, bfr[1]) : null };
 }
 
 /* THE ATTACK ITSELF. Before a blow or a missile is resolved, one routine
@@ -4836,8 +4846,16 @@ function exeMonsterFields() {
     const hops = exeOpsOf({ offset: p.offset, length: 48, name: 'field ' + field });
     // The load through the register the index was added into.
     const ld = hops.find(o => o.d && /^(lbz|lhz|lwz|lha)$/.test(o.d.mn) && o.d.ra === rec && o.d.d >= 0 && o.d.d < 16);
+    // Two handlers load the same long, at 8, and keep half of it each:
+    // `clrlwi 16` the low half (field 50, monster_flags) and `srawi 16` the
+    // top half (field 51, 0x33, which delvmod never named). Read on
+    // 28 September 2026; until then the page took both for the whole word
+    // and called the top half unidentified, though three scripts test it.
+    const li = ld ? hops.indexOf(ld) : -1;
+    const cut = li >= 0 ? hops.slice(li + 1, li + 4).find(o => o.d && ((o.d.mn === 'clrlwi' && o.d.mb === 16) || (o.d.mn === 'srawi' && o.d.sh === 16))) : null;
     fields.push({ field, at: p.offset, name: DVM_SYM.field[String(field)] || null,
-                  offset: ld ? exeVal(ld, ld.d.d) : null, width: ld ? (ld.d.mn === 'lbz' ? 1 : ld.d.mn === 'lwz' ? 4 : 2) : 0 });
+                  offset: ld ? exeVal(ld, ld.d.d) : null, width: ld ? (ld.d.mn === 'lbz' ? 1 : ld.d.mn === 'lwz' ? 4 : 2) : 0,
+                  half: cut ? (cut.d.mn === 'clrlwi' ? 'low' : 'high') : null, halfAt: cut ? exeVal(cut, 16) : null });
   }
   // The table itself: where the records are, how many and how wide, off
   // the routine that searches them.

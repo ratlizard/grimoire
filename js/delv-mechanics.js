@@ -30,6 +30,13 @@
    decoders and the port gives the classic-Mac ones: two implementations, one
    set of rules, neither derived from the other.
 
+   It is weaker than theirs in one respect, which cost a term. delvmod was
+   written by other people from the bytes; mech_ref.mjs was written here from
+   the page's own prose. So a rule both readings leave out passes: the body
+   roll of the attack routine (0x3042) did from 6 to 28 September 2026. The
+   check against the game itself is the workbench's tools/combat-check/,
+   which counts blows in the fork, and it covers combat only.
+
    THE ROLL CONVENTION, SETTLED IN THE EXECUTABLE. `Random(a, b)` yields
    a .. b-1 -- `b - a` equally likely values, the top one short of b. That is
    not inferred from the scripts: `cbrnd` in the PowerPC binary is

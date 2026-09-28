@@ -3156,12 +3156,18 @@ function recordTables() {
 function recordFieldMap(resid) {
   if (resid === 0xF008) {
     const mf = appImage() ? exeMonsterFields() : null;
+    // The flags are one long to the program, served as two fields: the top
+    // half at 8 and 9 (field 51, `srawi 16`) and the low half at 10 and 11
+    // (field 50, `clrlwi 16`). Split where the handlers say so; one row, as
+    // the long, where the program is not open to say it.
+    const top = mf ? mf.fields.find(x => x.half === 'high') : null, low = mf ? mf.fields.find(x => x.half === 'low') : null;
+    const split = !!(top && low);
     const named = { 0: 'Body', 1: 'Reflex', 2: 'Mind', 3: 'Armor', 4: 'Damage', 5: 'Health',
-                    6: 'Alignment', 8: 'Special flags', 12: 'Prop type', 14: 'Corpse' };
-    const width = { 8: 4, 12: 2, 14: 2 };
+                    6: 'Alignment', 8: split ? 'Special flags, top half' : 'Special flags', 10: 'Special flags', 12: 'Prop type', 14: 'Corpse' };
+    const width = split ? { 8: 2, 10: 2, 12: 2, 14: 2 } : { 8: 4, 12: 2, 14: 2 };
     const rows = [];
-    for (const off of [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 14]) {
-      const f = mf ? mf.fields.find(x => x.offset && x.offset.v === off) : null;
+    for (const off of split ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 14]) {
+      const f = split && off === 8 ? top : split && off === 10 ? low : mf ? mf.fields.find(x => x.offset && x.offset.v === off) : null;
       rows.push({ off, width: width[off] || 1, name: named[off] || null,
                   field: f ? f.field : null, at: f ? f.at : null,
                   note: off === 7 ? 'no field reads it' : null });

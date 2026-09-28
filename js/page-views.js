@@ -1270,11 +1270,30 @@ const MONSTER_FLAG_NAMES = [
   [0x4000, 'bleeds'],                    // 0xE8D leaves blood (prop type 77)
   [0x8000, 'immune to electricity'],     // 0x3040: type 0x20 returns 0 (Lightning)
 ];
+/* The top half of the word is a field of its own, 0x33: GetField serves it
+   by shifting the long at 8 right sixteen (exeMonsterFields reads which
+   field that is). delvmod never named it, so the listings print `get_field
+   0x33`, and the scan below for monster_flags could not see its tests;
+   until 28 September 2026 the page called the half unidentified. Its bits
+   are named here as the low half's are, from what the script that tests
+   each does, and only where that test is found (monsterTopFlagSites). The
+   bits are the field's; in the word they are these shifted up sixteen. */
+const MONSTER_TOP_FLAG_NAMES = [
+  [0x0001, 'fights with its body for its reflex'], // 0xE88: the margin starts from body
+  [0x0002, 'takes no damage'],                     // 0x3040 returns 0 before anything else
+  [0x0004, 'takes no edged damage'],               // 0x3040: type 0x01 returns 0
+  [0x0008, 'poisons with its blows'],              // 0xE87 adds 0x100 to the type; 0x3041 sets flag 9 for it
+];
 function monsterFlagsText(f) {
   const bits = [];
-  let rest = f;
+  let rest = f >>> 0;
   for (const [bit, name] of MONSTER_FLAG_NAMES)
-    if (f & bit) { bits.push(name); rest &= ~bit; }
+    if (f & bit) { bits.push(name); rest = (rest & ~bit) >>> 0; }
+  const tops = monsterTopFlagSites();
+  for (const [bit, name] of MONSTER_TOP_FLAG_NAMES) {
+    const w = (bit << 16) >>> 0;
+    if (tops.has(bit) && (f & w)) { bits.push(name); rest = (rest & ~w) >>> 0; }
+  }
   if (rest) bits.push('+0x' + rest.toString(16).toUpperCase() + ' (unidentified)');
   return bits.length ? bits.join(' · ') : 'none set';
 }
@@ -1299,6 +1318,41 @@ function monsterFlagSites() {
     }
   } catch (e) { quiet(e); }
   return (DERIVED.MONSTER_FLAG_SITES = out);
+}
+/* Where a script tests each bit of field 0x33, the top half: a `get_field`
+   of the field the program serves that half with, a number, `bitwise_and`.
+   The field's number is the program's (the handler with `srawi 16`), so
+   with no application open nothing is found and the bits stay numbers, as
+   a figure that is not read drops its sentence. Kept only once found. */
+function monsterTopFlagSites() {
+  if (!appImage()) return new Map();
+  if (DERIVED.MONSTER_TOP_FLAG_SITES) return DERIVED.MONSTER_TOP_FLAG_SITES;
+  const out = new Map();
+  let mf = null;
+  try { mf = appImage() ? exeMonsterFields() : null; } catch (e) { quiet(e, 'the unit fields, for the top half of the flags'); }
+  const f = mf && mf.fields.find(x => x.half === 'high');
+  if (!f) return out;
+  try {
+    const named = DVM_SYM.field[String(f.field)];
+    const spelt = '(?:0x' + f.field.toString(16).toUpperCase() + '\\b' + (named ? '|' + named + '\\b' : '') + ')';
+    const hint = new RegExp('get_field ' + spelt), get = new RegExp('^get_field ' + spelt);
+    for (const e of buildScriptTextIndex()) {
+      if (!hint.test(e.text)) continue;
+      const ops = dvmOpsOf(e);
+      for (let i = 0; i + 2 < ops.length; i++) {
+        if (!get.test(ops[i].text) || !/^bitwise_and$/.test(ops[i + 2].text)) continue;
+        const m = /^(?:byte|short|word) (-?0x[0-9A-F]+|-?\d+)$/i.exec(ops[i + 1].text);
+        if (m && !out.has(parseInt(m[1]))) out.set(parseInt(m[1]), { resid: e.resid, at: ops[i + 1].at });
+      }
+    }
+  } catch (e) { quiet(e); }
+  return (DERIVED.MONSTER_TOP_FLAG_SITES = out);
+}
+// The units whose field 0x33 has a bit, by the unit table: for the combat
+// section's count of who fights with the body. Empty with no program open.
+function unitsWithTopFlag(bit) {
+  if (!monsterTopFlagSites().has(bit)) return [];
+  return parseMonsterStats().filter(m => m && !m.blank && ((m.flags >>> 16) & bit));
 }
 /* What the program does with a unit's flags as the creature moves, read on
    26 September 2026, when the maintainer's list asked what gandreas's "Can
@@ -1467,6 +1521,11 @@ function monsterFlagsHTML(f) {
   if (appImage())
     for (const m of monsterMoveNames())
       if (f & m.mask) { named.push({ low: (f & m.mask & -(f & m.mask)) >>> 0, html: srcNum(m.site, m.name) }); rest = (rest & ~m.mask) >>> 0; }
+  const tops = monsterTopFlagSites();
+  for (const [bit, name] of MONSTER_TOP_FLAG_NAMES) {
+    const w = (bit << 16) >>> 0, site = tops.get(bit);
+    if (site && (f & w)) { named.push({ low: w, html: srcNum(site, name) }); rest = (rest & ~w) >>> 0; }
+  }
   named.sort((a, b) => a.low - b.low);
   const bits = named.map(x => x.html);
   if (rest) bits.push('+0x' + rest.toString(16).toUpperCase() + ' (unidentified)');
@@ -1624,6 +1683,7 @@ function showMonsterDetail(idx) {
   const mf = appImage() ? exeMonsterFields() : null;
   const fieldAt = off => mf ? mf.fields.find(f => f.offset && f.offset.v === off) : null;
   const stride = mf && mf.stride ? mf.stride.v : 16;
+  const lowHalf = mf ? mf.fields.find(f => f.half === 'low' && f.halfAt) : null, topHalf = mf ? mf.fields.find(f => f.half === 'high' && f.halfAt) : null;
   // The byte it was read from, always; the field that reads it named in
   // the title where the application is open.
   const stat = (off, v) => {
@@ -1649,9 +1709,11 @@ function showMonsterDetail(idx) {
     '<div><b>Special flags</b>' + srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' },
       '0x' + r.flags.toString(16).toUpperCase().padStart(8, '0')) +
       ' <span style="font-size:0.6875rem;color:#b5b2a8">' + monsterFlagsHTML(r.flags) + '</span>' +
-      '<br><span style="font-size:0.6875rem;color:#8c8980">A linked flag opens the line that tests it: in the default ResistDamage, or in the program for how the creature moves. The rest are named from what the scripts do with them. The flags are ' +
+      '<br><span style="font-size:0.6875rem;color:#8c8980">A linked flag opens the line that tests it: in a script, or in the program for how the creature moves. The rest are named from what the scripts do with them. The flags are ' +
       srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' }, 'the word at byte 8') +
-      (mf && fieldAt(8) ? ', which ' + srcNum({ exe: fieldAt(8).at }, 'the field that reads them') + ' takes whole' : '') + '.</span></div>' +
+      (lowHalf && topHalf
+        ? ': ' + srcNum({ exe: lowHalf.halfAt.exe }, 'field ' + lowHalf.field) + ' reads its low half and ' + srcNum({ exe: topHalf.halfAt.exe }, 'field ' + topHalf.field) + ' its top half'
+        : mf && fieldAt(8) ? ', which ' + srcNum({ exe: fieldAt(8).at }, 'the field that reads them') + ' takes whole' : '') + '.</span></div>' +
     '</div>';
   panel.innerHTML = h;
 

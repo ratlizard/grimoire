@@ -319,6 +319,23 @@ try {
   // its default body of 20, a roll of 0 to 2.
   else if ((function () { const ar = ctx.attackRules(); return !(ctx.combatBodyRoll(25, ar) === 4 && ctx.combatBodyRoll(15, ar) === 1 && ctx.combatBodyRoll(5, ar) <= 1 && ctx.combatBodyRoll(25, null) === 0); })()) fail('mechanics', 'the body roll is not worked out from 0xE90 and 0x3042');
   else if (!/A body of 20 adds a roll of 0 to 2 to the /.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules()))) fail('mechanics', 'the combat figure does not say what the body roll adds');
+  // Body for reflex (0xE88), and the unit field it tests: the top half of
+  // the flag word, which the program serves as field 51 by shifting the long
+  // right sixteen and the low half as field 50 by clearing it. Each of the
+  // top half's four bits is named where a script tests it, and only there:
+  // 0xE88 and 0xE87 one each, the default ResistDamage two. The count is the
+  // shipped file's (the fighter, the guard and most of the people), the
+  // hero's unit not among them.
+  else if (!(function () { const b = ctx.combatRules().bodyForReflex; return b && b.v === 1 && b.resid === 0xE88; })()) fail('mechanics', 'body for reflex was not read off 0xE88: ' + JSON.stringify(ctx.combatRules().bodyForReflex));
+  else if (!(function () { const f = ctx.exeMonsterFields().fields, h = n => (f.find(x => x.field === n) || {}).half; return h(50) === 'low' && h(51) === 'high'; })()) fail('mechanics', 'the two halves of the unit flags were not read off GetField');
+  else if (!(function () { const t = ctx.monsterTopFlagSites(), r = b => (t.get(b) || {}).resid; return r(1) === 0xE88 && r(2) === 0x3040 && r(4) === 0x3040 && r(8) === 0xE87 && t.size === 4; })()) fail('mechanics', 'the top half of the unit flags is not found tested where it is: ' + JSON.stringify([...ctx.monsterTopFlagSites()]));
+  else if (ctx.unitsWithTopFlag(1).length !== 21 || !/flagged so(?:<\/button>)? starts from its <b>body<\/b> instead of its reflex\./.test(html) ||
+           !/flagged so(?:<\/button>)? starts from its <b>body<\/b> instead of its reflex \(21 of the \d+ units, not the hero’s\)/.test((function () { ctx.showCategory('MECHANICS'); return (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid')); })()))
+    fail('mechanics', 'the combat section does not say who fights with the body, with the program open, and only then: ' + ctx.unitsWithTopFlag(1).length);
+  else if (/unidentified/.test(ctx.monsterFlagsHTML(0x00014004)) || !/fights with its body/.test(ctx.monsterFlagsHTML(0x00014004))) fail('mechanics', 'the fighter\'s flags are not all named: ' + ctx.monsterFlagsHTML(0x00014004));
+  else if (!/The margin starts from the body, 25,/.test(ctx.combatSimHtml(Object.assign({}, ctx.combatSimParams(), { body: 25, bodyForReflex: true }), ctx.combatRules()))) fail('mechanics', 'the combat figure does not start the margin from the body when asked');
+  else if (withoutApp(() => ctx.monsterTopFlagSites().size !== 0 || ctx.recordFieldMap(0xF008).length !== 11 || /fights with its body/.test(ctx.monsterFlagsHTML(0x00014004)))) fail('mechanics', 'the top half of the unit flags is named with no program open');
+  else if (ctx.recordFieldMap(0xF008).length !== 12 || !ctx.recordFieldMap(0xF008).some(r => r.off === 8 && r.width === 2 && r.field === 51) || !ctx.recordFieldMap(0xF008).some(r => r.off === 10 && r.width === 2 && r.field === 50)) fail('mechanics', 'the unit record does not split the flags into their two fields');
   else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${(html.match(/class="mechFig"/g) || []).length} figures drawn; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);
 } catch (e) { fail('mechanics', e); }
 

@@ -22,6 +22,13 @@
 // transcription of what the script does, the arithmetic there is a derivation
 // from it, and they agree only if the derivation is right.
 //
+// WHAT IT CANNOT SEE. It is written from the same statement of the rules as
+// the closed form, so a term both readings missed passes: the attack
+// routine's body roll did until 28 September 2026, when blows counted in the
+// fork (cythera-workbench/tools/combat-check/) printed a word neither could
+// produce. Agreement here says the closed form computes the prose; only the
+// game says the prose is the game's.
+//
 // WHAT IT DELIBERATELY DOES NOT DO. No memoised distributions, no convolution,
 // no "the sum of two uniforms is a triangle so we can skip the inner loop", no
 // early exit when the answer is already decided, no caching of a result across
