@@ -2068,7 +2068,7 @@ function renderAppFixMaker() {
   let trial = null, why = '';
   if (src) { try { trial = applyAppFixes(src, APP_FIXES); } catch (e) { why = e.message; } }
   if (why) host.appendChild(el('p', 'mechSub patchBad', why));
-  const kinds = [['fix', 'Bugs'], ['hook', 'Hooks'], ['text', 'Misspellings'], ['menu', 'Menus']];
+  const kinds = [['fix', 'Bugs'], ['hook', 'Hooks'], ['text', 'Text'], ['menu', 'Menus']];
   for (const [kind, heading] of kinds) {
     const list = APP_FIXES.filter(f => f.kind === kind);
     if (!list.length) continue;
@@ -3670,7 +3670,7 @@ function renderMechanicsSheet(value) {
   {
     add('appfixes', 'Fixes to the program', null, '',
       'Fixes to Cythera itself rather than to its data: bugs in the program, three places where the program asks the scenario what to do, ' +
-      'three misspellings in the program and two in its resources, and the two menus it has and never shows. Choose them and the program is written out with them.',
+      'slips in the program’s text and its resources, and the two menus it has and never shows. Choose them and the program is written out with them.',
       [
         'They change the PowerPC half of the program, which a PowerPC Mac and SheepShaver run. A 68K Mac runs the other half, which they leave alone. The menus and the two resource strings are read by both.',
         'Every word a fix replaces is checked first, so any program but 1.0.4, or one fixed already, is refused.',
