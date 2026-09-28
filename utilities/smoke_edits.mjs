@@ -1056,8 +1056,10 @@ try {
    ground. Built here rather than loaded, so it cannot skip: the scenario's
    own list of the Ruins with two records added, one lying on the floor and
    one carried by the hero, must read as one placed and one carried; the
-   code before the fix read two placed. And a save with no list for the
-   zone keeps the scenario's, so nothing is gone; before, every record was. */
+   code before the fix read two placed. The comparison's list must say the
+   carried one is carried, where it said "at 0, 1". And a save with no list
+   for the zone keeps the scenario's, so nothing is gone; before, every
+   record was. */
 try {
   const listId = 0x810B;
   const own = ctx.smartDecrypt(ctx.getResourceBytes(A(), listId), listId).data;
@@ -1084,11 +1086,17 @@ try {
     const both = legendWith([{ resid: listId, data: made }]);
     const none = legendWith([]);
     ctx.SAVE_BESIDE = null;
-    if (!/\b1 placed\b/.test(both) || !/\b1 carried or inside something, not drawn/.test(both))
+    // The comparison's list says the same in words: the carried record is
+    // carried by someone, not "at 0, 1", its holder's number read as a square.
+    const words = ctx.compareRecordsHTML({ changed: [{ resid: listId, a: { data: own }, b: { data: made } }],
+                                           aName: 'the scenario', bName: 'a made save' }).replace(/<[^>]+>/g, ' ');
+    if (!/carried by [^,]+ only in a made save/.test(words) || /at 0, 1 only in/.test(words))
+      fail('save mark, off the map', 'the comparison does not say the carried record is carried: ' + words.replace(/^.*Zones/, '').slice(0, 160));
+    else if (!/\b1 placed\b/.test(both) || !/\b1 carried or inside something, not drawn/.test(both))
       fail('save mark, off the map', 'a record on the floor and one carried did not read as one placed and one carried: ' + both.replace(/^.*over this zone: /, '').slice(0, 120));
     else if (!/scenario’s stands/.test(none) || /\bgone\b/.test(none))
       fail('save mark, off the map', 'a save with no list for the zone did not keep the scenario’s: ' + none.replace(/^.*over this zone: /, '').slice(0, 120));
-    else console.log('  save mark, off the map: a made save over the Ruins reads one placed and one carried, and a save with no list there changes nothing');
+    else console.log('  save mark, off the map: a made save over the Ruins reads one placed and one carried, on the map and in the comparison, and a save with no list there changes nothing');
   }
 } catch (e) { fail('save mark, off the map', e); }
 

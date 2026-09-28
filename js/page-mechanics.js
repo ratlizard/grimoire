@@ -2319,18 +2319,30 @@ function compareRecordsHTML(rep) {
       const where = c.resid === 0xF306 ? 'the cast' : zoneDisplayName(c.resid & 0xFF);
       const name = r => propDisplayName(r.proptype) || ('prop ' + r.proptype);
       const same = (x, y) => x.x === y.x && x.y === y.y && x.proptype === y.proptype && x.aspect === y.aspect && x.flags === y.flags && x.d1 === y.d1 && x.d2 === y.d2 && x.container === y.container;
+      /* Where a record is. Its x and y are a square only while it is on the
+         floor; carried or inside another prop they are the holder's number
+         (parseDelverPropList), and printing them as a square put a save's
+         inventory "at 32, 1" and "at 1024, 1" (28 September 2026, the Save
+         mark's fault in words). A container is another record of the same
+         list, by index. */
+      const place = (r, list) => r.flags === 0xFF ? 'deleted'
+        : r.carriedBy !== null ? (r.equipped ? 'worn by ' : 'carried by ') + svEsc(characterName(r.carriedBy))
+        : r.container !== null ? 'inside ' + (list[r.container] ? svEsc(name(list[r.container])) : 'record ' + r.container)
+        : 'at ' + r.x + ', ' + r.y;
       const n = Math.max(A.length, B.length);
       let added = 0, gone = 0, changed = 0;
       const detail = [];
       for (let i = 0; i < n; i++) {
         const a = A[i], b = B[i];
-        if (!a && b) { added++; if (detail.length < 12) detail.push(svEsc(name(b)) + ' at ' + b.x + ', ' + b.y + ' only in ' + svEsc(rep.bName)); continue; }
-        if (a && !b) { gone++; if (detail.length < 12) detail.push(svEsc(name(a)) + ' at ' + a.x + ', ' + a.y + ' only in ' + svEsc(rep.aName)); continue; }
+        if (!a && b) { added++; if (detail.length < 12) detail.push(svEsc(name(b)) + ' ' + place(b, B) + ' only in ' + svEsc(rep.bName)); continue; }
+        if (a && !b) { gone++; if (detail.length < 12) detail.push(svEsc(name(a)) + ' ' + place(a, A) + ' only in ' + svEsc(rep.aName)); continue; }
         if (same(a, b)) continue;
         changed++;
-        if (detail.length < 12) detail.push(svEsc(name(a)) + (a.x !== b.x || a.y !== b.y ? ' from ' + a.x + ', ' + a.y + ' to ' + b.x + ', ' + b.y : ' at ' + a.x + ', ' + a.y) +
+        const moved = a.x !== b.x || a.y !== b.y;
+        if (detail.length < 12) detail.push(svEsc(name(a)) +
+          (moved && a.onMap && b.onMap ? ' from ' + a.x + ', ' + a.y + ' to ' + b.x + ', ' + b.y : moved ? ' ' + place(a, A) + ', now ' + place(b, B) : ' ' + place(a, A)) +
           (a.proptype !== b.proptype ? ', now ' + svEsc(name(b)) : '') + (a.flags !== b.flags ? ', flags ' + propWordHex(a.flags, 2) + ' to ' + propWordHex(b.flags, 2) : '') +
-          (a.d1 !== b.d1 || a.d2 !== b.d2 ? ', data ' + a.d1 + '/' + a.d2 + ' to ' + b.d1 + '/' + b.d2 : '') + (a.container !== b.container ? ', held by another' : ''));
+          (a.d1 !== b.d1 || a.d2 !== b.d2 ? ', data ' + a.d1 + '/' + a.d2 + ' to ' + b.d1 + '/' + b.d2 : '') + (a.container !== b.container && !moved ? ', held by another' : ''));
       }
       if (!added && !gone && !changed) continue;
       rows.push('<tr><td>' + svChip(c.resid, where) + '</td>' + num(added || '') + num(gone || '') + num(changed || '') + '<td>' + detail.join('<br>') + (added + gone + changed > detail.length ? '<br>and ' + (added + gone + changed - detail.length) + ' more' : '') + '</td></tr>');
