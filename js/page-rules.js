@@ -1713,10 +1713,14 @@ function attackRules() {
   // (stat - n) / m, with the two numbers' lines.
   const scm = sc ? dvmSeqIn(0xE90, [DVM_NUM, /^sub$/, DVM_NUM, /^div$/]) : null;
   const one = dvmSeqIn(0x3042, [/^set_local 0x02$/, /^local Var02$/, DVM_NUM, /^sub$/]);
+  // The + 1 after the scale, which is what makes the body roll's top
+  // inclusive: Random(0, 0xE90(body) + 1). The combat figure needs it as a
+  // number, to know how many values the roll takes.
+  const bodyAdd = dvmSeqIn(0x3042, [/^call_resource 0xE90$/, /^arg Arg00$/, /^get_field body\b/, /^end$/, DVM_NUM, /^add$/]);
   const ammoSpent = /set_field quantity \(0x9\)[\s\S]{0,60}byte 0x01[\s\S]{0,500}sys Delete/.test(a);
   return { squared, lessOne, reach, range, launcher, meleeFirst, beyondAdjacent, flies, lodges, drops, bodyRoll, reflexRoll,
     scale: scm ? { sub: dvmNum(scm[0]), div: dvmNum(scm[2]), subVal: dvmVal(0xE90, scm[0]), divVal: dvmVal(0xE90, scm[2]) } : null,
-    lessOneVal: one ? dvmVal(0x3042, one[2]) : null, ammoSpent };
+    lessOneVal: one ? dvmVal(0x3042, one[2]) : null, bodyAddVal: bodyAdd ? dvmVal(0x3042, bodyAdd[4]) : null, ammoSpent };
 }
 
 /* WHAT A SPELL OR A USE CAN BE AIMED AT. A script that wants a target says

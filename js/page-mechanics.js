@@ -326,21 +326,32 @@ function combatSimParams() {
   const shield = shields.length ? shields[0] : null;
   return {
     weapon, shield: shieldOn ? shield : null,
-    attackerReflex: val('cbAtkRef', 20), defenderReflex: val('cbDefRef', 20),
+    attackerReflex: val('cbAtkRef', 20), defenderReflex: val('cbDefRef', 20), body: val('cbBody', 20),
     weaponSkill: val('cbSkill', 8), attackSkill: val('cbAtk', 4), defenceSkill: val('cbDef', 4),
     enchant: 0
   };
 }
+// How many values the attack routine's body roll takes: Random(0, (body - 12)
+// / 4 + 1), the 12, the 4 and the 1 read off 0xE90 and 0x3042, the division
+// the script's, which drops the fraction. Nothing when any of them was not
+// read, and then the figure is the weapon's alone and says nothing of body.
+function combatBodyRoll(body, ar) {
+  if (!ar || !ar.bodyRoll || !ar.scale || !ar.scale.div || !ar.bodyAddVal) return 0;
+  return Math.trunc((body - ar.scale.sub) / ar.scale.div) + ar.bodyAddVal.v;
+}
 // `cb` is combatRules(): the rolls, the damage's added constant and the
 // blow words, all read off the routines.
 function combatSimHtml(p, cb) {
+  let ar = null;
+  try { ar = attackRules(); } catch (e) { quiet(e, 'the attack routine, for the body roll'); }
+  const bodyRoll = combatBodyRoll(p.body, ar);
   const model = {
     // As shipped the resolver's weapon-skill term adds nothing to an armed
     // blow (combatRules().skillOffLoop), and every weapon here is armed.
     attackerReflex: p.attackerReflex, defenderReflex: p.defenderReflex, weaponSkill: cb.skillOffLoop ? 0 : p.weaponSkill,
     attackSkill: p.attackSkill, defenceSkill: p.defenceSkill, enchant: p.enchant || 0,
     damage: p.weapon.damage, shieldBlock: p.shield ? p.shield.block : null, shieldSkill: p.shield ? p.weaponSkill : 0,
-    roll: cb.roll.v, rollDefender: cb.rollDefender.v, dmgAdd: cb.dmgAdd.v
+    roll: cb.roll.v, rollDefender: cb.rollDefender.v, dmgAdd: cb.dmgAdd.v, bodyRoll
   };
   const words = cb.words, top = words.length ? Math.max.apply(null, words.map(w => w.below)) : null;
   const x = mechCombatExact(model, words, cb.last ? cb.last.word : '');
@@ -361,7 +372,8 @@ function combatSimHtml(p, cb) {
       { label: 'misses', value: x.miss, colour: MECH_INK.miss }
     ]),
     'A blow that lands does <b>' + x.meanDamage.toFixed(1) + '</b> points on average, so an exchange is worth <b>' +
-    (x.meanDamage * x.hit).toFixed(1) + '</b>.' + (p.shield ? ' A blow is tested for a miss before it is tested for a parry, so every parry here is a blow the shield took out of the hits.' : '') +
+    (x.meanDamage * x.hit).toFixed(1) + '</b>.' +
+    (bodyRoll > 1 ? ' A body of ' + p.body + ' adds a roll of 0 to ' + (bodyRoll - 1) + ' to the ' + p.weapon.name + '’s ' + p.weapon.damage + ' before the damage is rolled.' : '') + (p.shield ? ' A blow is tested for a miss before it is tested for a parry, so every parry here is a blow the shield took out of the hits.' : '') +
     (cb.skillOffLoop ? ' The weapon’s skill adds nothing to it, as shipped, so the skill moves only the shield’s roll.' : '')) +
   mechFig('The margin, and where it is spent', mechPlot({
     height: 130,
@@ -381,7 +393,7 @@ function combatSimUpdate() {
   try { cb = combatRules(); } catch (e) { cb = null; }
   if (!cb || !cb.roll || !cb.rollDefender || !cb.dmgAdd) return;
   el.innerHTML = combatSimHtml(combatSimParams(), cb);
-  for (const id of ['cbSkill', 'cbAtkRef', 'cbDefRef']) {
+  for (const id of ['cbSkill', 'cbAtkRef', 'cbDefRef', 'cbBody']) {
     const out = document.getElementById(id + 'V'), src = document.getElementById(id);
     if (out && src) out.textContent = src.value;
   }
@@ -395,6 +407,7 @@ function combatSimControls() {
       ws.map(w => '<option value="' + w.pt + '">' + svEsc(w.name) + ' (' + w.damage + ')</option>').join('') + '</select></label>' : '') +
     slider('cbSkill', 'your skill', 0, 15, 8) +
     slider('cbAtkRef', 'your reflex', 5, 40, 20) +
+    slider('cbBody', 'your body', 5, 40, 20) +
     slider('cbDefRef', 'their reflex', 5, 40, 20) +
     (sh.length ? '<label><input type="checkbox" id="cbShield" checked onchange="combatSimUpdate()"> they carry a ' + svEsc(sh[0].name) + '</label>' : '') +
     '</div>';

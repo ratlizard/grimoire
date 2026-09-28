@@ -247,7 +247,22 @@ function mechCombatExact(p, words, last) {
   // separate question the script does not answer -- see the note beside the
   // combat figure in index.html -- so it is a parameter rather than a fact.
   // Random(0, D) is 0..D-1, and a D of nothing answers 0.
-  const dmgRoll = mechShiftDist(mechUniformDist(0, Math.max(0, (p.damage || 0) + (p.weaponSkill || 0) - 1)), p.dmgAdd + (p.enchant || 0));
+  //
+  // The figure is not the weapon's alone. The attack routine (0x3042) hands
+  // the resolver the weapon's damage plus Random(0, bodyRoll), bodyRoll being
+  // (body - 12) / 4 + 1 as the page reads it off 0xE90 and 0x3042, so the
+  // damage is a mixture: one uniform for each value that roll can take, each
+  // as likely as the next. A bodyRoll of 1 or less, or none, is the weapon's
+  // figure as it stands. Left out until 27 September 2026, when 496 blows
+  // counted in the fork printed "crushed very hard" one time in thirteen for
+  // a short sword (15) held by a body of 25, which no roll under 15 can name
+  // (cythera-workbench/doc/combat-arithmetic.md, section 11).
+  const widths = Math.max(1, Math.trunc(p.bodyRoll || 0));
+  const dmgRoll = new Map();
+  for (let r = 0; r < widths; r++) {
+    const one = mechShiftDist(mechUniformDist(0, Math.max(0, (p.damage || 0) + r + (p.weaponSkill || 0) - 1)), p.dmgAdd + (p.enchant || 0));
+    for (const [v, pv] of one) dmgRoll.set(v, (dmgRoll.get(v) || 0) + pv / widths);
+  }
   const ws = (words || []).slice().sort((a, b) => a.below - b.below);
   const named = ws.map(w => ({ word: w.word, below: w.below, p: 0 }));
   named.push({ word: last || '', below: null, p: 0 });

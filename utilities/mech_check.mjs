@@ -82,6 +82,7 @@ function exactly(what, got, want) {
 const SHIPPED = {
   dice: { faces: [6, 6, 6], matchPay: 2, skillFaces: 6 },           // 0x812
   combat: { roll: 30, rollDefender: 30, dmgAdd: 1 },                   // 0xE88, 0xE87
+  body: { sub: 12, div: 4, add: 1 },                                   // 0xE90, 0x3042
   words: [[3, 'grazed'], [6, 'hit'], [9, 'hit hard'], [12, 'very hard'], [16, 'extremely hard'],
           [20, 'crushed'], [25, 'smashed'], [35, 'ground to dust']].map(([below, word]) => ({ below, word })),
   last: 'shredded',
@@ -123,11 +124,24 @@ const FIGHTS = [
   { name: 'an even match, no shield', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 10, attackSkill: 0, defenceSkill: 0, shieldBlock: null, shieldSkill: 0, damage: 30, enchant: 0 } },
   { name: 'an even match behind a shield', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 10, attackSkill: 0, defenceSkill: 0, shieldBlock: 20, shieldSkill: 0, damage: 30, enchant: 0 } },
   { name: 'outmatched', p: { attackerReflex: 8, defenderReflex: 30, weaponSkill: 0, attackSkill: 0, defenceSkill: 8, shieldBlock: 10, shieldSkill: 4, damage: 15, enchant: 0 } },
-  { name: 'a hero with an enchanted blade', p: { attackerReflex: 30, defenderReflex: 14, weaponSkill: 12, attackSkill: 6, defenceSkill: 2, shieldBlock: null, shieldSkill: 0, damage: 30, enchant: 5 } }
+  { name: 'a hero with an enchanted blade', p: { attackerReflex: 30, defenderReflex: 14, weaponSkill: 12, attackSkill: 6, defenceSkill: 2, shieldBlock: null, shieldSkill: 0, damage: 30, enchant: 5 } },
+  // The body roll of the attack routine. The first is the matchup counted in
+  // the fork on 27 September 2026 (a fighter's short sword, body for reflex,
+  // on the hero): the model and the reference have to agree on the words a
+  // body of 25 adds, "crushed" among them, which a figure of 15 alone never
+  // names. The second is under a body of 16, where the roll is always 0 and
+  // the words have to be the weapon's own.
+  { name: 'a short sword and a body of 25', p: { attackerReflex: 25, defenderReflex: 18, weaponSkill: 0, attackSkill: 6, defenceSkill: 0, shieldBlock: null, shieldSkill: 0, damage: 15, enchant: 0, body: 25 } },
+  { name: 'a strong arm behind a shield', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 4, attackSkill: 0, defenceSkill: 0, shieldBlock: 20, shieldSkill: 2, damage: 20, enchant: 2, body: 40 } },
+  { name: 'a body too weak to add anything', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 0, attackSkill: 0, defenceSkill: 0, shieldBlock: null, shieldSkill: 0, damage: 15, enchant: 0, body: 9 } }
 ];
+// What the page hands the model for a body: how many values the roll takes,
+// worked out here from the shipped figures, while the reference works the
+// same rule out from its own transcription of the two scripts.
+const bodyRoll = body => body === undefined ? 0 : Math.trunc((body - SHIPPED.body.sub) / SHIPPED.body.div) + SHIPPED.body.add;
 let seed = 21;
 for (const f of FIGHTS) {
-  const x = ctx.mechCombatExact(Object.assign({}, f.p, SHIPPED.combat), SHIPPED.words, SHIPPED.last);
+  const x = ctx.mechCombatExact(Object.assign({}, f.p, SHIPPED.combat, { bodyRoll: bodyRoll(f.p.body) }), SHIPPED.words, SHIPPED.last);
   const r = ref.refCombat(f.p, TRIALS, ref.mulberry32(seed++));
   near(`combat (${f.name}): miss`, x.miss, r.miss);
   near(`combat (${f.name}): parry`, x.parry, r.parry);
@@ -143,6 +157,19 @@ for (const f of FIGHTS) {
   for (const w of x.words) near(`combat (${f.name}): ${w.word}`, w.p, r.words[w.word] || 0);
   const named = x.words.reduce((s, w) => s + w.p, 0);
   near(`combat (${f.name}): the blow words account for every hit`, named, x.hit, 1e-9);
+}
+// The body roll has to move something, or the fights above could agree by
+// both leaving it out. Against the same blow without a body, a body of 25
+// names "crushed" where none was possible, and a body of 9 changes nothing.
+{
+  const blow = FIGHTS.find(f => f.p.body === 25).p, bare = Object.assign({}, blow, { body: undefined });
+  const words = p => Object.fromEntries(ctx.mechCombatExact(Object.assign({}, p, SHIPPED.combat, { bodyRoll: bodyRoll(p.body) }), SHIPPED.words, SHIPPED.last).words.map(w => [w.word, w.p]));
+  exactly('combat: a figure of 15 alone never names crushed', words(bare).crushed, 0);
+  exactly('combat: a body of 25 does', words(blow).crushed > 0.05, true);
+  const weak = FIGHTS.find(f => f.p.body === 9).p;
+  near('combat: a body of 9 adds nothing', words(weak).crushed, 0, 1e-12);
+  const rWith = ref.refCombat(blow, TRIALS, ref.mulberry32(97)), rWithout = ref.refCombat(bare, TRIALS, ref.mulberry32(97));
+  exactly('combat: the reference names crushed only with the body', rWithout.words.crushed === 0 && rWith.words.crushed > 0.05, true);
 }
 
 // ---- 3. locks --------------------------------------------------------------

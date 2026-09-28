@@ -263,7 +263,7 @@ try {
   // The attack routine (0x3042): every clause the sheet states is a pattern
   // over the listing, so each is required here, and the two throw figures
   // must come off the spear's own class rather than a typed table.
-  else if (!(function () { const ar = ctx.attackRules(); return ar && ar.squared && ar.lessOne && ar.reach && ar.range && ar.launcher && ar.meleeFirst && ar.beyondAdjacent && ar.flies && ar.lodges && ar.drops && ar.bodyRoll && ar.reflexRoll && ar.scale && ar.scale.sub === 12 && ar.scale.div === 4 && ar.ammoSpent; })()) fail('mechanics', 'the attack routine was not read: ' + JSON.stringify(ctx.attackRules()));
+  else if (!(function () { const ar = ctx.attackRules(); return ar && ar.squared && ar.lessOne && ar.reach && ar.range && ar.launcher && ar.meleeFirst && ar.beyondAdjacent && ar.flies && ar.lodges && ar.drops && ar.bodyRoll && ar.reflexRoll && ar.scale && ar.scale.sub === 12 && ar.scale.div === 4 && ar.bodyAddVal && ar.bodyAddVal.v === 1 && ar.ammoSpent; })()) fail('mechanics', 'the attack routine was not read: ' + JSON.stringify(ctx.attackRules()));
   else if (!/knight’s move/.test(html) || !/hits or is parried/.test(html) || !/body less (?:<button[^>]*>)?12(?:<\/button>)? over (?:<button[^>]*>)?4(?:<\/button>)?/.test(html) || !/spends one of its ammunition/.test(html)) fail('mechanics', 'the attack rules are not on the sheet');
   else if (!ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2 && r.thrownDamage === 10 && r.thrownRange === 4) || !ctx.gearTable().some(r => r.name === 'mystic spear' && r.reach === 1 && r.thrownDamage === 25 && r.thrownRange === 8) || !ctx.gearTable().some(r => r.name === 'sword' && r.thrownDamage === null)) fail('mechanics', 'the throw figures were not read off the spear classes');
   else if (ctx.spellRules().spells.length < 35 || !ctx.spellRules().spells.some(x => /Fireball/.test(x.name) && x.level === 5 && x.cost === 20) || !(ctx.spellRules().rule && ctx.spellRules().rule.failure)) fail('mechanics', 'the spells were not read: ' + ctx.spellRules().spells.length);
@@ -313,6 +313,12 @@ try {
     return !(p.weapon && p.weapon.damage > 0 && Math.abs(x.miss + x.parry + x.hit - 1) < 1e-9 && Math.abs(x.words.reduce((s, w) => s + w.p, 0) - x.hit) < 1e-9);
   })()) fail('mechanics', 'the combat model does not account for every exchange: ' + JSON.stringify(ctx.combatSimParams().weapon));
   else if (!/lands/.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules())) || !/grazed|shredded/.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules()))) fail('mechanics', 'the combat figure names neither the outcome nor a blow');
+  // The body roll the attack routine adds to the figure, as the figure works
+  // it out from the three numbers it reads: a body of 25 is a roll of 0 to 3,
+  // four values, and anything under 16 adds nothing. The figure says so for
+  // its default body of 20, a roll of 0 to 2.
+  else if ((function () { const ar = ctx.attackRules(); return !(ctx.combatBodyRoll(25, ar) === 4 && ctx.combatBodyRoll(15, ar) === 1 && ctx.combatBodyRoll(5, ar) <= 1 && ctx.combatBodyRoll(25, null) === 0); })()) fail('mechanics', 'the body roll is not worked out from 0xE90 and 0x3042');
+  else if (!/A body of 20 adds a roll of 0 to 2 to the /.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules()))) fail('mechanics', 'the combat figure does not say what the body roll adds');
   else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${(html.match(/class="mechFig"/g) || []).length} figures drawn; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);
 } catch (e) { fail('mechanics', e); }
 

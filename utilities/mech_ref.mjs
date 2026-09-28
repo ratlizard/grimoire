@@ -230,6 +230,18 @@ export function blowWord(points) {
 // the bound: the skill is added into the damage figure before the roll, so a
 // skilled fighter's blows spread further rather than all landing harder. The
 // enchantment is a flat addend on the damage and also goes on the margin.
+//
+// THE BODY ROLL comes before any of that, in the attack routine (0x3042) that
+// hands the figure over: a weapon's figure is its damage plus Random(0, (body
+// - 12) / 4 + 1), 0x3042 writing the + 1 itself as the resolver does, so a
+// roll of 0 to (body - 12) / 4 with the top included, the division the
+// script's own, which drops the fraction. Below a body of 16 it is always 0.
+// Left out until 27 September 2026, when 496 blows counted in the fork printed
+// "crushed very hard" one time in thirteen for a short sword (15) in the hand
+// of a body of 25, which no roll on 15 alone can print
+// (cythera-workbench/doc/combat-arithmetic.md, section 11). `body` null, the
+// default, is the figure as given, which is how every caller before then
+// called this.
 export function refCombat(params, trials = 200000, rng = mulberry32(2)) {
   const {
     attackerReflex = 0,
@@ -241,6 +253,7 @@ export function refCombat(params, trials = 200000, rng = mulberry32(2)) {
     shieldSkill = 0,
     damage = 0,
     enchant = 0,
+    body = null,
   } = params || {};
 
   let miss = 0, parry = 0, hit = 0, damageTotal = 0;
@@ -248,6 +261,8 @@ export function refCombat(params, trials = 200000, rng = mulberry32(2)) {
   for (const [, word] of BLOW_WORDS) words[word] = 0;
 
   for (let i = 0; i < trials; i++) {
+    // Rolled first, as 0x3042 rolls it before it calls the margin's routine.
+    const figure = damage + (body === null ? 0 : rnd(rng, Math.trunc((body - 12) / 4) + 1));
     const margin =
       attackerReflex + weaponSkill + rnd(rng, 30) -
       (defenderReflex + rnd(rng, 30)) +
@@ -260,7 +275,7 @@ export function refCombat(params, trials = 200000, rng = mulberry32(2)) {
     if (margin <= 0) { miss++; continue; }
     if (margin < blockTotal) { parry++; continue; }
 
-    const points = rnd(rng, damage + weaponSkill) + 1 + enchant;
+    const points = rnd(rng, figure + weaponSkill) + 1 + enchant;
     hit++;
     damageTotal += points;
     words[blowWord(points)]++;
