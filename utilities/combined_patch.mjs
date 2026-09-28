@@ -69,6 +69,10 @@ const CONTROL = process.argv.includes('--control');
 const [htmlPath = 'index.html', dataPath, collDir, outDir] = process.argv.slice(2).filter(a => a !== '--control');
 if (!dataPath || !collDir || !outDir) { console.error('usage: combined_patch.mjs index.html <Cythera Data.data> <collection dir> <out dir>'); process.exit(2); }
 const NAME = 'Cythera All Fixes';
+// A patch's description is a Pascal string of 255 bytes at most, which
+// writeDelverPatch cuts without a word, so a longer one stops the build.
+const DESCRIPTION = 'Every fix in one: Cythera Found Fixes, Cythera Community Fixes, Bryce Schroeder\u2019s unofficial bugfixes, Cythera Further Fixes, Cythera Text Fixes, Cythera Community Text Fixes and Cythera Map Fixes, built in that order and checked against each alone.';
+if (DESCRIPTION.length > 255) throw new Error('the description is ' + DESCRIPTION.length + ' characters, and a patch holds 255');
 const STAGES = [
   { name: 'found', script: 'found_fixes_patch.mjs' },
   { name: 'community', script: 'community_fixes_patch.mjs' },
@@ -125,7 +129,7 @@ const res = vm.runInContext(`(() => {
   const missing = [];
   touched.forEach((s, i) => { for (const id of s) if (!changed.includes(id)) missing.push({ id, stage: i }); });
   const finalSpec = spec(__files.final);
-  const w = writeDelverPatch(finalSpec, changed, { description: ${JSON.stringify('Every fix in one: Cythera Found Fixes, Cythera Community Fixes, Bryce Schroeder\u2019s unofficial bugfixes, Cythera Text Fixes, Cythera Community Text Fixes and Cythera Map Fixes, built in that order and checked against each alone.')}, typeCode: DELV_PATCH_EXPORT_TYPE });
+  const w = writeDelverPatch(finalSpec, changed, { description: ${JSON.stringify(DESCRIPTION)}, typeCode: DELV_PATCH_EXPORT_TYPE });
   const bin = writeMacBinary({ name: ${JSON.stringify(NAME)}, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
   const merged = mergeDelverPatch(__files.shipped, w.bytes);
   const same = !!(merged && merged.bytes && eq(merged.bytes, __files.final));

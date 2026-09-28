@@ -83,6 +83,18 @@
        this one is the transposed north sitting frame; it becomes the
        transposed north standing frame, so he no longer drops into his seat
        whenever he stops walking left.
+   18. Divide Food (0x1AFB) gathers the party's food by prop type alone --
+       69, 231 and 213 -- over RecursiveContainerIterator, which returns a
+       character's skills too: a skill is a record held by the character
+       with flags 28 and the skill's number for its type, and Lock Picking
+       is skill 213, the mushroom steak's type. So the hero's Lock Picking
+       was taken for food, deleted, and dealt out as a type-213 thing at
+       the skill's aspect (16, an aptitude, draws as the strange device; 0
+       as the steak). The gather now also asks that the thing's flags are
+       not 28, the test FindSkill and RecalcSkills use for a skill. Nothing
+       else in the game places or makes a type-213 thing, so with this the
+       mushroom steak cannot be had (the maintainer's choice, 27 September
+       2026).
 
    Left as shipped, at the maintainer's word or by the files: the Wine
    Contract (Ambrosia called it a red herring), Magpie's flag 1 (it guards
@@ -99,7 +111,7 @@ const [htmlPath = 'index.html', dataPath, outDir] = process.argv.slice(2);
 if (!dataPath || !outDir) { console.error('usage: further_fixes_patch.mjs index.html <Cythera Data.data> <out dir>'); process.exit(2); }
 
 const RESIDS = [0x1851, 0x184A, 0x1C2D, 0x183E, 0x1844, 0x0805, 0x1866, 0x186D, 0x1814, 0x1417,
-                0x0808, 0x0807, 0x1036, 0x1824, 0x184E, 0x0812, 0x104B, 0x1A04, 0x1AF2, 0x1878];
+                0x0808, 0x0807, 0x1036, 0x1824, 0x184E, 0x0812, 0x104B, 0x1A04, 0x1AF2, 0x1878, 0x1AFB];
 
 // Every instruction of every function in each resource, at its offset in
 // the resource, read the way patch_build.mjs's own check reads them.
@@ -252,6 +264,12 @@ insert('Deactivate Trap looks inside', 0x1AF2,
     'string(implicit) "^"', 'print', 'local Var08', 'end', 'string(implicit) " destroyed.\\n"',
     'sys Delete', 'local Var08', 'end']));
 
+// 18: the food test gains `and flags != 28`, before its `then`.
+insert('Divide Food leaves skills alone', 0x1AFB,
+  ['if_not', 'local Var04', 'get_field obj_type (0x4)', 'short 0x0045', 'eq', 'local Var04', 'get_field obj_type (0x4)', 'short 0x00E7', 'eq', 'or',
+   'local Var04', 'get_field obj_type (0x4)', 'short 0x00D5', 'eq', 'or', 'then ->'], 15,
+  'local Var04\nget_field flags (0x0)\nbyte 0x1C\nne\nand');
+
 // Edits to one resource go from the highest offset down, so each one's
 // offsets are still where they were found. The fountain's are already in
 // that order and its targets counted for it.
@@ -306,7 +324,12 @@ const textEdits = [
            return { what: 'Sabinate', resid: 0x1878, at: p.at(4) + said.indexOf(line), find: line, replace: line + '*' }; })(),
 ];
 
-const ok = buildPatch({ htmlPath, dataPath, outDir, name: 'Cythera Further Fixes',
-  description: 'Fixes for bugs whose intended behaviour the files or the maintainer settled, built with Grimoire: the Books of Wisdom, Timon twice, Halos, Thoas, Paris, Thuria’s mine task, the Comana brothers, lines that run on or flash past, Demodocus’s song, Glaucus’s vineyard, the Directed Nexus scroll, traps in containers and fine wires, and Magpie walking west.',
+// A patch's description is a Pascal string, 255 bytes at most, and
+// writeDelverPatch cuts a longer one there without a word: this one ran to
+// 400 and the patch said it stopping at "Glaucus’s". So a long one stops
+// the build instead.
+const DESCRIPTION = 'Fixes whose intent the files or the maintainer settled, built with Grimoire: the Books of Wisdom, Timon, Halos, Thoas, Paris, Thuria, the Comana brothers, lines that run on, Demodocus, Glaucus, the Nexus scroll, traps, Magpie walking west, Divide Food.';
+if (DESCRIPTION.length > 255) throw new Error('the description is ' + DESCRIPTION.length + ' characters, and a patch holds 255');
+const ok = buildPatch({ htmlPath, dataPath, outDir, name: 'Cythera Further Fixes', description: DESCRIPTION,
   edits, dataEdits, textEdits });
 process.exit(ok ? 0 : 1);
