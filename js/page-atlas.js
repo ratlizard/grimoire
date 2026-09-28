@@ -320,6 +320,148 @@ function mapIsSurface(resid) {
   return on;
 }
 
+/* A map that is another state of a place the world draws (28 September 2026).
+
+   Tavara's island is two maps. The world's pictogram leads to the
+   fortress, zone 36, which its script titles Stronghold; zone 37 is the
+   island without it, located at the same square by its edge exits and led
+   to by nothing on the world. What joins them is the fortress's own Enter
+   (0x1424): without the hero's flag 28 it prints "As you approach the
+   building, it shimmers and then fades." and sends him to zone 37 instead
+   (the portal's Use, 0x1001, does the same on the way in). By the rule
+   above zone 37 was a mouth on its edge square, a ring like a tunnel's,
+   which the maintainer queried the same day; his call was to draw the
+   fortress, as the world's pictogram does, and offer the island without it
+   from the island's card, drawn in the fortress's place.
+
+   So it is read, not listed: a surface place's zone script whose
+   ChangeZone sends the hero to a map located at the place's own world
+   square, behind a test of one of the hero's flags, makes that map the
+   place's other state. The flag's number is read with where it was read,
+   so the card links it to its line; the game's line about it is the
+   string between the test and the move. */
+function mapStates() {
+  if (DERIVED.MAP_STATES) return DERIVED.MAP_STATES;
+  const out = new Map();                    // either map -> the pair
+  try {
+    const sc = surfaceScene();
+    for (const node of (sc ? sc.nodes : [])) {
+      if (!node.depth) continue;
+      const here = mapWorldAnchor(node.resid);
+      const entry = typeof dvmScriptEntry === 'function' ? dvmScriptEntry(0x1400 + (node.resid & 0xFF)) : null;
+      if (!here || !entry) continue;
+      const ops = dvmOpsOf(entry);
+      for (let i = 0; i + 2 < ops.length; i++) {
+        if (ops[i].text !== 'sys ChangeZone') continue;
+        const zp = dvmNum(ops[i + 2]);
+        const z = zp === null ? null : zoneportInfo(zp);
+        if (!z || z.resid === node.resid || !refExists(z.resid) || mapIsSurface(z.resid)) continue;
+        const there = mapWorldAnchor(z.resid);
+        if (!there || there.x !== here.x || there.y !== here.y) continue;
+        // The flag test before it, in the same function.
+        let flag = null, without = false, says = '';
+        for (let j = i - 1; j >= 0 && ops[j].obj === ops[i].obj; j--) {
+          const str = /^string(?:\(implicit\))? "([\s\S]*)"$/.exec(ops[j].text);
+          if (str && !says) says = str[1].replace(/\\n/g, ' ').trim();
+          if (ops[j].text === 'sys TestFlag' && ops[j + 1] && /^global PlayerCharacter\b/.test(ops[j + 1].text)) {
+            flag = dvmVal(entry.resid, ops[j + 2]);
+            without = !!(ops[j + 3] && ops[j + 3].text === 'end' && ops[j + 4] && ops[j + 4].text === 'not');
+            break;
+          }
+        }
+        if (!flag) continue;
+        const pair = { place: node.resid, other: z.resid, flag, without, says, at: { resid: entry.resid, at: ops[i].at } };
+        out.set(node.resid, pair);
+        out.set(z.resid, pair);
+        break;
+      }
+    }
+  } catch (e) { quiet(e, 'the maps that are another state of a place'); }
+  return (DERIVED.MAP_STATES = out);
+}
+/* What gives the hero a flag while worn: the classes whose Wear sets it,
+   by number or from the item's own Data2, and for the second kind the
+   placed items carrying that number. Names of the item types, for the
+   card; none found is said by saying nothing. */
+function flagGivenByWearing(flag) {
+  const cache = DERIVED.WORN_FLAGS || (DERIVED.WORN_FLAGS = new Map());
+  if (cache.has(flag)) return cache.get(flag);
+  const types = new Set();
+  try {
+    const fromData2 = [];
+    for (let pt = 1; pt < 1024; pt++) {
+      const entry = dvmScriptEntry(0x1000 + pt);
+      if (!entry) continue;
+      const raw = getResourceBytes(ARCHIVE, 0x1000 + pt);
+      const names = raw ? dvmSlotNames(smartDecrypt(raw, 0x1000 + pt).data, 0x1000 + pt) : new Map();
+      let wear = null;
+      for (const [off, n] of names) if (n === 'Wear') wear = off;
+      if (wear === null) continue;
+      const ops = dvmOpsOf(entry).filter(o => o.obj === wear);
+      if (dvmSeqFirst(ops, [/^sys SetFlag$/, /^arg Arg01$/, /^arg Arg00$/, /^get_field data2\b/])) fromData2.push(pt);
+      const lit = dvmSeqFirst(ops, [/^sys SetFlag$/, /^arg Arg01$/, DVM_NUM]);
+      if (lit && dvmNum(lit[2]) === flag) types.add(pt);
+    }
+    if (fromData2.length) {
+      const want = new Set(fromData2);
+      for (let n = 1; n < 0x100; n++) {
+        const raw = getResourceBytes(ARCHIVE, 0x8100 + n);
+        if (!raw) continue;
+        for (const r of parseDelverPropList(smartDecrypt(raw, 0x8100 + n).data))
+          if (want.has(r.proptype) && r.d2 === flag) types.add(r.proptype);
+      }
+    }
+  } catch (e) { quiet(e, 'what gives flag ' + flag + ' while worn'); }
+  const out = Array.from(types).map(pt => propDisplayName(pt)).filter(Boolean);
+  cache.set(flag, out);
+  return out;
+}
+/* Draw a place in its other state, or back. The scene keeps one node per
+   place; it is swapped for a copy that draws the other map through the
+   same transform (the two are the same size, or the pair is not offered),
+   so every cache keyed by map sees a different map and nothing else has
+   to know. */
+function atlasShowState(resid) {
+  const pair = mapStates().get(resid);
+  const sc = DERIVED.ATLAS_SCENE;
+  if (!pair || !sc) return;
+  const i = sc.nodes.findIndex(n => n.resid === pair.place || n.resid === pair.other);
+  if (i < 0) return;
+  const cur = sc.nodes[i];
+  const to = cur.resid === pair.place ? pair.other : pair.place;
+  const base = cur.base || cur;
+  let node = base;
+  if (to !== base.resid) {
+    const e = mapRenderFor(to, true);
+    if (!e || !e.result || e.result.width !== base.w || e.result.height !== base.h) return;
+    node = Object.assign({}, base, { resid: to, gw: Object.assign({}, base.gw, { destResid: to }),
+                                     name: atlasMapName(to) || base.name, ts: e.result.tileSize,
+                                     key: base.key + ':' + to, base, _mouths: undefined });
+    buildThumbsFor(node.gw, [THUMB_LEVELS[0]]);
+  }
+  sc.nodes[i] = node;
+  window.ATLAS_SEL = null;
+  paintAtlas();
+}
+// The card's line for a place with another state, or ''.
+function atlasStateCard(resid) {
+  const pair = mapStates().get(resid);
+  if (!pair) return '';
+  const showing = resid === pair.other, to = showing ? pair.place : pair.other;
+  const toName = atlasMapName(to) || ('map 0x' + to.toString(16));
+  const fname = dvmFlagName(pair.flag.v);
+  const flag = 'flag ' + srcNum(pair.flag) + (fname ? ' (' + svEsc(fname) + ')' : '');
+  const worn = flagGivenByWearing(pair.flag.v);
+  const give = worn.length ? ' ' + svEsc('A ' + worn.join(' or a ') + ' gives the flag while worn.') : '';
+  const has = pair.without ? 'without' : 'with';
+  const text = showing
+    ? 'The game shows this place ' + has + ' ' + flag + ', in place of ' + svEsc(atlasMapName(pair.place) || '') + '.'
+    : (pair.without ? 'Without ' : 'With ') + flag + ' the game puts the hero in ' + svEsc(toName) + ' instead' +
+      (pair.says ? ': ' + svEsc('“' + pair.says + '”') : '.');
+  return '<div class="inspCard"><span class="inspDim">' + text + give + '</span>' +
+         '<div class="inspActs">' + svLink('Show ' + toName, 'atlasShowState(' + resid + ')') + '</div></div>';
+}
+
 /* The surface: the world, and the maps the archive puts on it.
 
    A gateway's pictogram gives both a position and an extent, and those are
@@ -468,6 +610,8 @@ function atlasMouths(node) {
       const resid = 0x8000 | n;
       if (resid === WORLD_MAP_RESID || have.has(resid) || !refExists(resid)) continue;
       if (mapIsSurface(resid)) continue;
+      // Another state of a place drawn here is shown from its card instead.
+      if (mapStates().has(resid)) continue;
       const a = mapWorldAnchor(resid);
       if (!a) continue;
       const e = mapRenderFor(resid, true);
@@ -2254,6 +2398,8 @@ function atlasInspect(px, py) {
         '<div class="inspActs">' + svLink('Open ' + (c.name || ('Character ' + c.index)) + ' in Characters', 'openCharacter(' + c.index + ')') + '</div></div></div>');
     }
   }
+  const state = atlasStateCard(node.resid);
+  if (state) parts.push(state);
   // Everything this renderer does not do lives one click away, where it
   // already worked and still does.
   parts.push('<div class="inspActs">' + svLink('Open ' + node.name + ' in Zones', 'jumpToResource(' + node.resid + ')') + '</div>');

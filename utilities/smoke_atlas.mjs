@@ -377,8 +377,9 @@ try {
        own edge names, on the world; the springs under Catamarca and the
        upstairs of Pnyx as rings inside those towns, since 6 September 2026,
        not out on the world at the square their edge happens to name. */
-    let surface = 0, edgeMouths = 0;
+    let surface = 0, edgeMouths = 0, states = 0;
     const worldMouths = sc.nodes.flatMap(n => peek('atlasMouths')(n));
+    const pairs = peek('mapStates')();
     for (let n = 0; n < 0x100; n++) {
       const rid = 0x8000 | n;
       if (rid === 0x8001 || !ctx.refExists(rid) || !ctx.mapIsLocated(rid)) continue;
@@ -386,6 +387,14 @@ try {
         surface++;
         if (!sc.nodes.some(q => q.resid === rid))
           fail('atlas', `0x${rid.toString(16)} is on the surface by the archive and missing from the scene`);
+      } else if (pairs.has(rid)) {
+        // Another state of a place on the surface is offered from that
+        // place's card, and is no ring (28 September 2026).
+        states++;
+        if (worldMouths.some(m => m.dest.resid === rid))
+          fail('atlas', `0x${rid.toString(16)} is another state of 0x${pairs.get(rid).place.toString(16)} and still a ring`);
+        if (!sc.nodes.some(q => q.resid === pairs.get(rid).place))
+          fail('atlas', `0x${rid.toString(16)} is another state of a place missing from the scene`);
       } else {
         edgeMouths++;
         if (!worldMouths.some(m => m.dest.resid === rid))
@@ -398,7 +407,32 @@ try {
     if (new Set(sc.nodes.map(n => n.key)).size !== sc.nodes.length)
       fail('atlas', 'two nodes share a key');
     else console.log('  atlas: ' + sc.nodes.length + ' nodes — the world and the ' + surface +
-                     ' maps it puts on the surface; ' + edgeMouths + ' located maps are mouths instead, the Temple and the bridge among them');
+                     ' maps it puts on the surface; ' + edgeMouths + ' located maps are mouths instead, the Temple and the bridge among them, and ' + states + ' another state of a place there');
+    /* Tavara's island: the fortress (0x8024) is drawn, and the island
+       without it (0x8025) is its other state, read from the fortress's
+       Enter (0x1424): flag 28, the hero's, and the line the game prints.
+       Its card offers the other, which is drawn in the same place and
+       back again. Putting the ring back on the world fails the loop above. */
+    {
+      const tv = pairs.get(0x8025);
+      const card = peek('atlasStateCard')(0x8024);
+      if (!tv || tv.place !== 0x8024 || !tv.flag || tv.flag.v !== 28 || tv.flag.resid !== 0x1424 || !tv.without || !/shimmers and then fades/.test(tv.says))
+        fail('atlas', 'Tavara No Fortress is not read as the fortress\'s other state: ' + JSON.stringify(tv));
+      else if (!/Show Tavara No Fortress/.test(card) || !/jumpToScriptAt|srcNum/.test(card) || !/ring gives the flag/.test(card))
+        fail('atlas', 'the fortress\'s card does not offer the island without it, link the flag, and say what gives it: ' + card.replace(/<[^>]+>/g, ' '));
+      else {
+        const surf = peek('DERIVED').ATLAS_SCENE;       // the page's own, which the swap edits
+        const before = surf.nodes.find(q => q.resid === 0x8024);
+        peek('atlasShowState')(0x8024);
+        const swapped = surf.nodes.find(q => q.resid === 0x8025);
+        const gone = !surf.nodes.some(q => q.resid === 0x8024);
+        peek('atlasShowState')(0x8025);
+        const back = surf.nodes.find(q => q.resid === 0x8024);
+        if (!swapped || !gone || swapped.s !== before.s || swapped.ox !== before.ox || swapped.oy !== before.oy || back !== before)
+          fail('atlas', 'showing Tavara without its fortress did not draw it in the fortress\'s place and back');
+        else console.log('  atlas: Tavara No Fortress is the fortress\'s other state (flag 28, read from 0x1424), offered from its card and drawn in its place');
+      }
+    }
     // The roofs fade over a band rather than cut at a step.
     const rt = peek('atlasRoofT');
     if (!(rt(200) === 1 && rt(700) === 0 && rt(450) > 0.3 && rt(450) < 0.7 && rt(400) > rt(500)))
