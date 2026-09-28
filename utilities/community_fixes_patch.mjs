@@ -68,7 +68,53 @@
        the first slide, then fade back in; this one never fades in, so
        its four slides are clicked through at black. SpecialView(4) goes
        after the first slide, where Alaric's endings have it; a jump to
-       the loop after it still lands on the loop. */
+       the loop after it still lands on the loop.
+   Added 28 September 2026:
+   22. The strange device left open across a zone change (0x1175). A
+       scripted window's buttons call back with the owner the window had
+       when each was made: the widget constructor copies the window's
+       owner number into its own word at 4, and TWidget::RenumberParent
+       is an empty routine. Moving the party between zones gives every
+       carried thing a new number (ShuffleUpPartyInventory, then the two
+       moves in LoadLevelProps), and RenumberProp moves the window's
+       owner with it but not the buttons' copies, so each click after
+       it worked the storage of whatever thing now held the old number
+       and changed nothing. The routine the three buttons share now
+       checks that it was handed a strange device with its window open
+       (HasWindow, which is the program's ShowWindow) and otherwise
+       walks the party's things for the one that is, as Divide Food
+       walks them; if there is none it does nothing. Four more locals
+       for the two loops.
+   23. The dead turning into other things (0xF008). A creature's unit is
+       ObjToMonst of its map record's prop type, read once, when the
+       creature is made (the TActiveMonster constructors and HatchEgg),
+       and ObjToMonst answers null for a type with no record here; nothing
+       checks. Two types a creature is made in have none: 264, "person
+       sleeping", which the default EveryTurn (0x3020) gives a sleeper in
+       bed, so anyone made while asleep -- a zone entered or a game loaded
+       at night -- is made without a unit; and 229, the Odemia night guard
+       (its class has member 55, so HatchEgg makes a creature of it). Die
+       takes the corpse's type and aspect from the unit's word at 14, so
+       such a death made a thing of whatever type the word at address 14
+       held, with Data1 the dead one's number: the same wrong thing all
+       session, a portal now and then, which is every report on the board.
+       Its stats, flags and alignment came from low memory the same way.
+       Two records go in the table's free slots, 50 and 51: 264 as a copy
+       of the man's (a man's corpse, a person's flags) and 229 as a copy of
+       the guard's. No class script sits at 0x1932 or 0x1933, which a
+       unit's index would name.
+   24. People gone from the zone after a sleep (the sleep helper, 0xE93).
+       A night is PassTime(1024) an hour, and DoTicks schedules an hour
+       passed in more than 100 ticks as instant: RepositionChar then takes
+       anyone whose new post is out of sight off the map, creature and all,
+       and leaves their record hidden (255) rather than an egg (66), which
+       is what the draw loop hatches. They came back only when a later
+       hour, schedule while awake, or a new visit to the zone put them
+       there. The helper now runs Reschedule (0xE0, ScheduleTime for the
+       current hour, not instant) when the night ends, and when an owner
+       kicks the hero out of bed, so the hidden are placed as eggs and
+       hatch as the party comes near: the pass the next waking hour would
+       have run, run at once. */
 import {buildPatch} from './patch_build.mjs';
 const [htmlPath = 'index.html', dataPath, outDir] = process.argv.slice(2);
 if (!dataPath || !outDir) { console.error('usage: community_fixes_patch.mjs index.html <Cythera Data.data> <out dir>'); process.exit(2); }
@@ -110,6 +156,40 @@ const edits = [
     expect: { 0x0109: 'sys SpecialView', 0x010A: 'byte 0x03', 0x010F: 'sys Slideshow', 0x011A: 'end', 0x011B: 'set_local 0x00' },
     code: 'sys SpecialView\nbyte 0x04\nend' },
   { what: 'Eteocles’s "kesh"', resid: 0x1838, at: 0x01ED, replaceOp: true, expect: { 0x01E4: 'conversation_response "kesh"', 0x01ED: 'sys GetState', 0x01EE: 'byte 0x04' }, code: 'sys GetStateFlag' },
+  // The type is tested before HasWindow, since HasWindow brings a found
+  // window to the front and an open sack's should stay where it is.
+  { what: 'the strange device finds itself', resid: 0x1175, at: 0x00C1,
+    expect: { 0x00C1: 'set_local 0x00', 0x00C3: 'arg Arg00', 0x00C4: 'get_field storage', 0x00C6: 'word 256' },
+    code: [
+      'if_not', 'arg Arg00', 'get_field obj_type (0x4)', 'short 0x0175', 'eq', 'then -> search',
+      'if', 'sys HasWindow', 'arg Arg00', 'end', 'then -> found',
+      'search:',
+      'set_local 0x05', 'sys PartyIterator', 'word &Var5', 'byte 0x00', 'word True', 'end', 'end',
+      'party:',
+      'if', 'sys PartyIterator', 'word &Var5', 'byte 0x01', 'end', 'then -> lost',
+      'set_local 0x07', 'sys RecursiveContainerIterator', 'word &Var7', 'byte 0x00', 'local Var05', 'end', 'end',
+      'thing:',
+      'if', 'sys RecursiveContainerIterator', 'word &Var7', 'byte 0x01', 'end', 'then -> nextparty',
+      'if_not', 'local Var07', 'get_field obj_type (0x4)', 'short 0x0175', 'eq', 'then -> nextthing',
+      'if_not', 'sys HasWindow', 'local Var07', 'end', 'then -> nextthing',
+      'set_local 0x30', 'local Var07', 'end',
+      'branch found',
+      'nextthing:',
+      'set_local 0x07', 'sys RecursiveContainerIterator', 'word &Var7', 'byte 0x02', 'end', 'end',
+      'branch thing',
+      'nextparty:',
+      'set_local 0x05', 'sys PartyIterator', 'word &Var5', 'byte 0x02', 'end', 'end',
+      'branch party',
+      'lost:',
+      'return', 'byte 0x00', 'end',
+      'found:'].join('\n') },
+  // The loop's exit lands on the first, and nothing jumps to the second.
+  { what: 'the sleepers rescheduled after a night', resid: 0xE93, at: 0x0160,
+    expect: { 0x0151: 'set_local 0x03', 0x015D: 'branch', 0x0160: 'if_not', 0x0161: 'arg Arg03' },
+    code: 'sys UnknownE0\nend' },
+  { what: 'the sleepers rescheduled after a waking', resid: 0xE93, at: 0x013A,
+    expect: { 0x0113: 'string(implicit) "You get kicked out of bed', 0x013A: 'sys SpecialView', 0x013B: 'byte 0x04' },
+    code: 'sys UnknownE0\nend' },
 ];
 
 const propRec = (b, i) => b.subarray(i * 16, i * 16 + 16);
@@ -154,9 +234,30 @@ const dataEdits = [
       const o = 0x88B * 4; if ((b[o + 3] & 3) !== 1) throw new Error('tile 0x88B has light level ' + (b[o + 3] & 3) + ', not 1');
       b[o + 3] &= ~3; return 'tile 0x88B’s light level 1 cleared';
   } },
+  // The header of 0x00BE, the buttons' routine; its third byte is the
+  // count of locals, and the loops above use locals 5 to 8.
+  { what: 'the strange device’s locals', resid: 0x1175, fn: (b) => {
+      if (b[0xC0] !== 5) throw new Error('0x00BE has ' + b[0xC0] + ' locals, not 5');
+      b[0xC0] = 9; return 'locals 5 to 9';
+  } },
+  { what: 'units for the sleeping and the night guard', resid: 0xF008, fn: (b) => {
+      const key = i => (b[i * 16 + 12] << 8) | b[i * 16 + 13];
+      const word = (i, o) => (b[i * 16 + o] << 8) | b[i * 16 + o + 1];
+      let n = 0; while (n < 128 && key(n)) n++;
+      if (n !== 50) throw new Error('0xF008 has ' + n + ' units, not 50');
+      const at = t => { for (let i = 0; i < n; i++) if (key(i) === t) return i; return -1; };
+      if (at(264) >= 0 || at(229) >= 0) throw new Error('264 or 229 already has a unit');
+      const man = at(48), guard = at(46);
+      if (man < 0 || word(man, 14) !== 0x104E) throw new Error('the man’s unit is not where it was read');
+      if (guard < 0 || word(guard, 14) !== 0x004E) throw new Error('the guard’s unit is not where it was read');
+      for (let i = n * 16; i < (n + 2) * 16; i++) if (b[i]) throw new Error('slots ' + n + ' and ' + (n + 1) + ' are not empty');
+      b.copyWithin(n * 16, man * 16, man * 16 + 16); b[n * 16 + 12] = 264 >> 8; b[n * 16 + 13] = 264 & 0xFF;
+      b.copyWithin((n + 1) * 16, guard * 16, guard * 16 + 16); b[(n + 1) * 16 + 12] = 0; b[(n + 1) * 16 + 13] = 229;
+      return 'units ' + n + ' (264, as the man) and ' + (n + 1) + ' (229, as the guard)';
+  } },
 ];
 
 const ok = buildPatch({ htmlPath, dataPath, outDir, name: 'Cythera Community Fixes',
-  description: 'Twenty-one fixes for bugs the Cythera community reported: training, Hadrian, Aethon, Alaric, Awakening, Niobe, Lindus, keywords, Sabinate, rolling pin, wine urn, carcass, thrown weapons, Eteocles, Pelagon twice, panpipes, kesh, arrows, kilts, staff.',
+  description: '24 fixes for bugs players reported: training, Hadrian, Aethon, Alaric, Awakening, Niobe, Lindus, keywords, Sabinate, rolling pin, wine urn, carcass, thrown weapons, Eteocles, Pelagon, panpipes, kesh, arrows, kilts, staff, strange device, corpses, sleep.',
   edits, dataEdits });
 process.exit(ok ? 0 : 1);
