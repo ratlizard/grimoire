@@ -28,7 +28,15 @@
       there...", having no return after the line; it returns False there,
       as the milk (0xE0B) and wine (0xE0D) helpers do after the same line.
       (27 September 2026, found while reading every UseOn that deletes one
-      of its arguments; 0xE0A is the one helper among them that does.) */
+      of its arguments; 0xE0A is the one helper among them that does.)
+   8. A pitcher dipped in the wine urn (0x10A0): an empty pitcher used on a
+      fountain, a pool or the water urn fills with water, and on anything
+      else but a well or a goat said "The pitcher is empty.", the wine urn
+      (217) included, though the urn used on the pitcher fills it. It fills
+      with wine now, Data1 3, the pitcher's own number for wine, with a
+      line shaped like its water line. The test goes where the goat test's
+      "no" already lands, so the rest of the chain is untouched. (The
+      maintainer's word, 27 September 2026.) */
 import {buildPatch} from './patch_build.mjs';
 const [htmlPath = 'index.html', dataPath, outDir] = process.argv.slice(2);
 if (!dataPath || !outDir) { console.error('usage: found_fixes_patch.mjs index.html <Cythera Data.data> <out dir>'); process.exit(2); }
@@ -47,8 +55,13 @@ const edits = [
   keyword('Sabinate’s "shap"', 0x1878, 0x0975, 'form,shap', '0x0A11'),
   { what: 'water into a full pitcher', resid: 0xE0A, at: 0x00EA, expect: { 0x00CD: 'string(implicit) "The pitcher is already full.', 0x00EA: 'branch 0x0121', 0x00ED: 'string(implicit) "The pitcher is now filled with water' },
     code: 'return\nword False\nend' },
+  { what: 'a pitcher dipped in wine', resid: 0x10A0, at: 0x01FD,
+    expect: { 0x01B9: 'then -> 0x01FD', 0x01FA: 'branch 0x0213', 0x01FD: 'string(implicit) "The pitcher is empty.', 0x0213: 'return' },
+    code: ['if_not', 'arg Arg01', 'get_field obj_type (0x4)', 'short 0x00D9', 'eq', 'then -> empty',
+      'set_field data1 (0x6)', 'arg Arg00', 'end', 'byte 0x03', 'end',
+      'string(implicit) "The pitcher is now full of wine.\\n"', 'branch 0x0213', 'empty:'].join('\n') },
 ];
 const ok = buildPatch({ htmlPath, dataPath, outDir, name: 'Cythera Found Fixes',
-  description: 'Ten fixes for bugs found by reading Cythera’s files with Grimoire: Ake’s To Do line, sleep’s magic bonus, the bartenders’ rumours, eating, the Gate Guard’s speaker, two keywords, water poured into a full pitcher.',
+  description: 'Eleven fixes for bugs found by reading Cythera’s files with Grimoire: Ake’s To Do line, sleep’s magic bonus, the bartenders’ rumours, eating, the Gate Guard’s speaker, two keywords, water into a full pitcher, a pitcher dipped in wine.',
   edits, dataEdits: [] });
 process.exit(ok ? 0 : 1);
