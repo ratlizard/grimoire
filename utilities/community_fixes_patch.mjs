@@ -117,7 +117,25 @@
        current hour, not instant) when the night ends, and when an owner
        kicks the hero out of bed, so the hidden are placed as eggs and
        hatch as the party comes near: the pass the next waking hour would
-       have run, run at once. */
+       have run, run at once.
+   Added 28 September 2026, from the compendium's entries the bug list had
+   not taken in:
+   25. Rune of Warding says nothing (0x10F5). The spell (0x1A16) makes the
+       rune with New(33, x, y, 0, 245, CurrentCharacter, 0), and cbcreateprop
+       stores the sixth argument's low byte as Data1, so a rune's Data1 is
+       its caster's character number: 1 for the hero, 6 for Hector. The
+       rune's UseOn, which what steps on it runs (the default StepOn,
+       0x301F), prints "Something has triggered one of your runes of
+       warding." only when Data1 is 32, which is Ake, so no rune the party
+       casts ever says it; the rune is deleted in silence, and the spell's
+       own description is "signals the caster when something steps on it".
+       No map places a rune and no shipped AI script casts one, so every
+       rune is the party's, and the test goes: the line always prints.
+   26. The Mining Camp's sign cannot be read (0x8118). A sign's Examine
+       (0x10C3) shows entry Data1 of 0x0218 and nothing when Data1 is 0;
+       the camp's sign, record 14, has Data1 0 and Data2 15, and entry 15 is
+       "Iron Mines". It is the only sign of the 27 with anything in Data2;
+       the number moves to Data1. */
 import {buildPatch} from './patch_build.mjs';
 const [htmlPath = 'index.html', dataPath, outDir] = process.argv.slice(2);
 if (!dataPath || !outDir) { console.error('usage: community_fixes_patch.mjs index.html <Cythera Data.data> <out dir>'); process.exit(2); }
@@ -193,6 +211,10 @@ const edits = [
   { what: 'the sleepers rescheduled after a waking', resid: 0xE93, at: 0x013A,
     expect: { 0x0113: 'string(implicit) "You get kicked out of bed', 0x013A: 'sys SpecialView', 0x013B: 'byte 0x04' },
     code: 'sys UnknownE0\nend' },
+  { what: 'the rune of warding signals', resid: 0x10F5, at: 0x0017, to: 0x0022,
+    expect: { 0x0017: 'if_not', 0x0019: 'get_field data1', 0x001B: 'short 0x0020', 0x001E: 'eq', 0x001F: 'then',
+              0x0022: 'string(implicit) "Something has triggered one of your runes of warding' },
+    code: '' },
 ];
 
 const propRec = (b, i) => b.subarray(i * 16, i * 16 + 16);
@@ -258,9 +280,14 @@ const dataEdits = [
       b.copyWithin((n + 1) * 16, guard * 16, guard * 16 + 16); b[(n + 1) * 16 + 12] = 0; b[(n + 1) * 16 + 13] = 229;
       return 'units ' + n + ' (264, as the man) and ' + (n + 1) + ' (229, as the guard)';
   } },
+  { what: 'the Mining Camp’s sign', resid: 0x8118, fn: (b) => {
+      const r = b.subarray(14 * 16, 14 * 16 + 16);
+      if (((r[4] << 8 | r[5]) & 0x3FF) !== 195 || r[6] !== 0 || r[7] !== 15) throw new Error('record 14 is not a sign with 15 in Data2');
+      r[6] = 15; r[7] = 0; return 'record 14’s text number moved to Data1';
+  } },
 ];
 
 const ok = buildPatch({ htmlPath, dataPath, outDir, name: 'Cythera Community Fixes',
-  description: '24 fixes for bugs players reported: training, Hadrian, Aethon, Alaric, Awakening, Niobe, Lindus, keywords, Sabinate, rolling pin, wine urn, carcass, thrown weapons, Eteocles, Pelagon, panpipes, kesh, arrows, kilts, staff, strange device, corpses, sleep.',
+  description: '26 fixes for reported bugs: training, Hadrian, Aethon, Alaric, Awakening, Niobe, Lindus, keywords, Sabinate, rolling pin, wine urn, carcass, throwing, Eteocles, Pelagon, panpipes, kesh, arrows, kilts, staff, strange device, corpses, sleep, runes, sign.',
   edits, dataEdits });
 process.exit(ok ? 0 : 1);
