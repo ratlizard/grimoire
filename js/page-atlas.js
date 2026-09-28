@@ -1366,8 +1366,13 @@ function paintAtlasTiles(ctx, node, r, ppt, TS, vw, vh) {
 // move the clock. Dropped with the other derived tables.
 const atlasFolkCache = new Map();
 const atlasBlockers = derivedMap('atlasBlockers');
+/* The hour the World tab's people stand at. The tab does not walk the day
+   (28 September 2026: the maintainer took the walk and the barks off it,
+   and left them to the Zones view, on its jerk), so a day walking there
+   shows here at the whole hour it has reached, the people at their posts. */
+function atlasHour() { return window.MAP_WALK ? Math.floor(window.MAP_TIME) : window.MAP_HOUR; }
 function atlasFolk(node) {
-  const hour = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
+  const hour = atlasHour();
   const key = node.resid + '@' + hour;
   if (atlasFolkCache.has(key)) return atlasFolkCache.get(key);
   // Safe to give up while the view moves because this returns before the
@@ -1425,7 +1430,6 @@ function atlasPeople(ctx, node, r, ppt) {
                true, per, 0, c.rotated);
   }
   ctx.imageSmoothingEnabled = true;
-  if (window.SHOW_BARKS) drawBarks(ctx, folk, per, r.x, r.y);
 }
 
 /* The ways through, marked where they are.
@@ -1684,21 +1688,18 @@ function atlasLabels(ctx, drawn, vw, vh) {
 
    Seven frames a second, the rate the palette has always cycled at, and only
    while the tab is the one on screen. */
-let atlasAnimTimer = null, atlasWalkTimer = null;
+/* The palette's clock, and nothing else. The tab walked the day too, from
+   23 September 2026, a tick every 35 ms repainting the people's layer, and
+   repainted it again whenever the barks turned over; the maintainer took
+   both off the tab on 28 September, when it was jerky again, and they are
+   the Zones view's (startMapAnimation) alone. Walking cost a third of a
+   processor slowed fourfold at rest inside Cademia; the barks a quarter of
+   a millisecond a frame. */
+let atlasAnimTimer = null;
 function startAtlasAnimation() {
   stopAtlasAnimation();
-  /* A walking day, at the Zones view's own cadence (startMapAnimation): a
-     tick every 35 ms and a quarter of a square each. It repaints the people's
-     layer and nothing else, and it holds still while the view is moving:
-     the scene paints each frame of a gesture, the people with it, and a
-     clock that went on ticking would work out everyone's route again on
-     every one of those frames. */
-  atlasWalkTimer = setInterval(atlasWalkTick, 35);
-  if (atlasWalkTimer && typeof atlasWalkTimer.unref === 'function') atlasWalkTimer.unref();
-  let lastBarks = barkBucket();
   atlasAnimTimer = setInterval(() => {
     if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
-    if (window.SHOW_BARKS && barkBucket() !== lastBarks && !atlasIsBusy()) { lastBarks = barkBucket(); atlasPaintFolk(); }
     if (!window.MAP_ANIM || atlasView.touching) return;
     if (typeof document !== 'undefined' && document.hidden) return;
     mapAnimFrame = (mapAnimFrame + 1) % 8;
@@ -1706,17 +1707,8 @@ function startAtlasAnimation() {
   }, 140);
   if (atlasAnimTimer && typeof atlasAnimTimer.unref === 'function') atlasAnimTimer.unref();
 }
-function atlasWalkTick() {
-  if (!window.MAP_WALK || !window.ATLAS || window.CUR_SUBN !== 'WORLD') return false;
-  if (atlasIsBusy()) return false;
-  if (typeof document !== 'undefined' && document.hidden) return false;
-  advanceMapClock();
-  atlasPaintFolk();
-  return true;
-}
 function stopAtlasAnimation() {
   if (atlasAnimTimer) { clearInterval(atlasAnimTimer); atlasAnimTimer = null; }
-  if (atlasWalkTimer) { clearInterval(atlasWalkTimer); atlasWalkTimer = null; }
 }
 
 /* What is outside the map: the folder it is lying on.
@@ -2582,7 +2574,7 @@ function setupAtlasInteraction() {
 function squareCard(level, e, tx, ty, placeName, asked) {
   let people = [];
   try {
-    const hour = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
+    const hour = atlasHour();
     people = charactersOnLevel(level, hour).filter(c => Math.round(c.x) === tx && Math.round(c.y) === ty);
   } catch (err) { people = []; }
   const props = (e && e.result && e.result.props ? e.result.props : [])

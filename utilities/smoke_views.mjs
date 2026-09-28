@@ -882,12 +882,12 @@ try {
   ctx.drawBarks(g, [{ index: silent, x: 5, y: 5 }], 32, 0, 0);
   const none = said.slice();
   ctx.toggleBarks(false);
-  const off = ['chkBarks', 'atlasChkBarks'].every(id => REGISTRY.get(id) && !REGISTRY.get(id).checked) && !peek('window.SHOW_BARKS');
+  const off = ['chkBarks'].every(id => REGISTRY.get(id) && !REGISTRY.get(id).checked) && !peek('window.SHOW_BARKS');
   ctx.toggleBarks(true);
   if (by.size < 10) fail('barks', 'only ' + by.size + ' characters have lines of their own');
   else if (one.join(' ') !== vendor[1][0]) fail('barks', ctx.characterName(vendor[0]) + ' said ' + JSON.stringify(one) + ', not ' + vendor[1][0]);
   else if (none.length) fail('barks', 'character ' + silent + ', who has no lines, said ' + JSON.stringify(none));
-  else if (!off) fail('barks', 'the Zones and World switches did not turn off together');
+  else if (!off) fail('barks', 'the Zones switch did not turn the barks off');
   else console.log('  barks: ' + by.size + ' characters speak their own lines; ' + ctx.characterName(vendor[0]) + ' says "' + one[0] + '", character ' + silent + ' nothing');
 } catch (e) { fail('barks', e); }
 

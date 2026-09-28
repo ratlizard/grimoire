@@ -855,7 +855,7 @@ function setMapHourLabel(t) {
    a walk started on either is the same walk. Every change goes through the
    setters below, which write both sets, so neither can show a box unticked
    while the day is walking. */
-const MAP_TIME_IDS = { walk: ['chkWalk', 'atlasChkWalk'], speed: ['walkSpeed', 'atlasWalkSpeed'],
+const MAP_TIME_IDS = { walk: ['chkWalk'], speed: ['walkSpeed'],
                        slider: ['mapHourSlider', 'atlasHourSlider'], label: ['mapHourLabel', 'atlasHourLabel'] };
 function syncMapTimeControls() {
   const set = (ids, f) => { for (const id of ids) { const el = document.getElementById(id); if (el) f(el); } };
@@ -2532,7 +2532,7 @@ function barkMillis() { const r = barkRulesRead(); return r && r.ticks ? r.ticks
 function barkBucket() { const ms = barkMillis(); return ms ? Math.floor(Date.now() / ms) : 0; }
 function toggleBarks(on) {
   window.SHOW_BARKS = !!on;
-  for (const id of ['chkBarks', 'atlasChkBarks']) { const el = document.getElementById(id); if (el) el.checked = !!on; }
+  for (const id of ['chkBarks']) { const el = document.getElementById(id); if (el) el.checked = !!on; }
   drawCharacterLayer();
   if (typeof atlasPaintFolk === 'function' && window.CUR_SUBN === 'WORLD') atlasPaintFolk();
 }

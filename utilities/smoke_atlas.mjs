@@ -504,13 +504,13 @@ try {
                        'and the borrowed CUR_MAP put back');
     }
 
-    /* Walk the day on the World tab (23 September 2026). A tick of the clock
-       moves it a quarter of a square's walk, repaints the people's own layer
-       and not the scene, and somebody on Cademia is further along their
-       route after it. The walls they route round are lent in per node and
-       the Zones view's are put back. The control is the same tick with the
-       day not walking: it moves nothing. The two sets of controls tick
-       together whichever one is used. */
+    /* The World tab neither walks the day nor draws barks (28 September
+       2026: the maintainer took both off it, on its jerk, and left them to
+       the Zones view). Its time row has the hour and nothing else; with the
+       day walking in Zones its people stand at the whole hour reached, so a
+       walker is where the same hour shows them with the walk off; and with
+       the barks on, painting its people draws none. Putting the barks back
+       in atlasPeople fails the last, a walk tick back the first. */
     {
       const cadW = peek('atlasScene')().nodes.find(n => n.resid === 0x8008);
       const avW = peek('atlasView');
@@ -521,46 +521,32 @@ try {
       }
       drainRaf();
       ctx.mapRenderFor(0x8008, true);
+      const controls = ['atlasChkWalk', 'atlasWalkSpeed', 'atlasChkBarks'].filter(id => REGISTRY.get(id));
+      const ticker = typeof ctx.atlasWalkTick === 'function';
+      // An hour just before a post, when somebody on Cademia would be on the move.
+      const at = hr => peek('atlasFolk')(cadW).map(c => c.index + '@' + c.fx + ',' + c.fy).sort().join(' ');
       ctx.toggleMapWalk(true);
-      const ticked = ['chkWalk', 'atlasChkWalk'].every(id => REGISTRY.get(id) && REGISTRY.get(id).checked);
-      // An hour at which somebody on Cademia is on the move: a walk ends on
-      // the hour at the next post, so just before one.
-      let hour = null, before = null;
-      for (let h = 1; h <= 24 && hour === null; h++) {
+      let walking = null, still = null;
+      for (let h = 1; h <= 23 && walking === null; h++) {
         ctx.MAP_TIME = h - 0.1;
-        const f = peek('atlasFolk')(cadW).filter(c => c.walking);
-        if (f.length) { hour = ctx.MAP_TIME; before = new Map(f.map(c => [c.index, c.fx + ',' + c.fy])); }
+        const shown = at();
+        ctx.toggleMapWalk(false); ctx.MAP_HOUR = h - 1; const posted = at(); ctx.toggleMapWalk(true);
+        if (shown !== posted) walking = h; else if (still === null) still = h;
       }
-      peek('atlasPaintFolk')();
-      const keepBlock = peek('DERIVED').PROP_BLOCK;
-      const folkCv = REGISTRY.get('atlasFolkCanvas');
-      const fctx = folkCv && folkCv.getContext('2d');
-      let blits = 0, scenes = 0;
-      const realBlit = fctx && fctx.drawImage, realPaint = ctx.paintAtlas;
-      if (fctx) fctx.drawImage = function () { blits++; return realBlit.apply(this, arguments); };
-      ctx.paintAtlas = function () { scenes++; return realPaint.apply(this, arguments); };
-      ctx.__peek('atlasBusyUntil = 0');
-      const t0w = ctx.MAP_TIME;
-      const ran = peek('atlasWalkTick')();
-      const step = ctx.MAP_TIME - t0w;
-      const moved = hour === null ? 0 : peek('atlasFolk')(cadW).filter(c => before.has(c.index) && before.get(c.index) !== c.fx + ',' + c.fy).length;
       ctx.toggleMapWalk(false);
-      const t1w = ctx.MAP_TIME;
-      const ranOff = peek('atlasWalkTick')();
-      const unticked = ['chkWalk', 'atlasChkWalk'].every(id => REGISTRY.get(id) && !REGISTRY.get(id).checked);
-      if (fctx) fctx.drawImage = realBlit;
-      ctx.paintAtlas = realPaint;
-      if (!folkCv) fail('world walk', 'the people have no layer of their own');
-      else if (!ticked || !unticked) fail('world walk', 'the Zones and World walk boxes did not tick and untick together');
-      else if (hour === null) fail('world walk', 'nobody on Cademia walks at any hour');
-      else if (!ran || Math.abs(step - 0.005) > 1e-9) fail('world walk', 'a tick did not move the clock a quarter square: ' + JSON.stringify([ran, step]));
-      else if (scenes) fail('world walk', 'a tick repainted the whole scene ' + scenes + ' times');
-      else if (!blits) fail('world walk', 'a tick drew nobody on the people\'s layer');
-      else if (!moved) fail('world walk', 'nobody walking at ' + hour.toFixed(2) + ' was further along after a tick');
-      else if (peek('DERIVED').PROP_BLOCK !== keepBlock) fail('world walk', 'the lent walls were not put back');
-      else if (ranOff || ctx.MAP_TIME !== t1w) fail('world walk', 'the clock ticked with the day not walking');
-      else console.log('  world walk: a tick moves ' + moved + ' walker(s) on Cademia a quarter square, repainting ' +
-                       blits + ' sprites and not the scene; with the day stopped it moves nothing');
+      let barks = 0;
+      const realBarks = ctx.drawBarks;
+      ctx.drawBarks = function () { barks++; return realBarks.apply(this, arguments); };
+      ctx.toggleBarks(true);
+      peek('atlasPaintFolk')();
+      ctx.drawBarks = realBarks;
+      const drawn = (ctx.ATLAS_DRAWN || []).some(d => d.node.resid === 0x8008);
+      if (controls.length) fail('world walk', 'the World tab still has ' + controls.join(', '));
+      else if (ticker) fail('world walk', 'the World tab still has a walk tick');
+      else if (walking !== null) fail('world walk', 'with the day walking in Zones, Cademia\'s people are not at their posts at ' + (walking - 0.1));
+      else if (!drawn) fail('world walk', 'Cademia was not drawn, so the barks were not tried');
+      else if (barks) fail('world walk', 'painting the World tab\'s people drew barks ' + barks + ' times');
+      else console.log('  world walk: the World tab has the hour alone; a day walking in Zones shows its people at their posts, and no barks are drawn');
     }
 
     /* The panel needs its rules as much as its markup.
