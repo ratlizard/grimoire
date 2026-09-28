@@ -1543,7 +1543,13 @@ function attachMapThumb(canvas, resid) {
 // on screen rather than from a copy checked into the repo.
 function installBackgroundTexture() {
   try {
-    const r = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, 0x8F00), 142);
+    // A saved game has no tiles, nor has a patch; the wallpaper already on
+    // the page stays. Until 28 September 2026 the missing resource went on
+    // to decodeResource, and every save opened on its own left a quiet
+    // failure under Tools.
+    const raw = getResourceBytes(ARCHIVE, 0x8F00);
+    if (!raw) return;
+    const r = decodeResource(ARCHIVE, raw, 142);
     if (!r || !r.W) return;
     const c = document.createElement('canvas');
     drawToCanvas(c, r.W, r.H, r.image, null);

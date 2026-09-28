@@ -21,7 +21,14 @@ if (savePath && !onlyCat) {
     // world link names nothing in a file with no world, so this is the case
     // the landing rule has to win.
     ctx.location.hash = '#c=WORLD';
+    // Opening a save must not fall back quietly. It did on every save until
+    // 28 September 2026: the page's wallpaper is read from the open file's
+    // tiles, a save has none, and the missing resource reached
+    // decodeResource (installBackgroundTexture).
+    const quietBefore = new Set(peek('QUIET_FAILURES').keys());
     if (!ctx.adoptArchive(save, name, {})) throw new Error(peek('lastArchiveError'));
+    const quietNew = [...peek('QUIET_FAILURES').keys()].filter(k => !quietBefore.has(k));
+    if (quietNew.length) fail('saved game', 'opening it fell back quietly: ' + quietNew.join('; ').slice(0, 160));
     const st = REGISTRY.get('sourceStatus').textContent;
     const m = /a saved game \(“([^”]+)”\)/.exec(st);
     if (!m) fail('saved game', 'the status does not call it a saved game: ' + st.slice(0, 100));
