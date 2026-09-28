@@ -1991,6 +1991,125 @@ function gremlinCheck(formError) {
   } catch (e) { out.textContent = e.message + '.'; out.className = 'mechSub patchBad'; }
 }
 
+/* ---- the program's own fixes ----
+   js/delv-appfixes.js says what each changes and js/delv-apppatch.js writes
+   them; this is the section that chooses them and hands out the program.
+   The program is the installer's (APP_DATA and APP_RSRC_RAW, both forks) or
+   a copy the visitor chooses, which has to be in a container that carries
+   both forks, since the fixes change the data fork and the cfrg in the
+   resource fork together. Every fix starts chosen. */
+window.APPFIX_STATE = { off: new Set(), src: null };
+function appFixSource() {
+  const st = window.APPFIX_STATE;
+  if (st.src) return st.src;
+  if (window.APP_DATA && window.APP_RSRC_RAW) return { data: window.APP_DATA, rsrc: window.APP_RSRC_RAW, name: 'the installer', type: 'APPL', creator: 'Delv' };
+  return null;
+}
+function appFixChosen() { return APP_FIXES.filter(f => !window.APPFIX_STATE.off.has(f.id)); }
+function appFixSay(m, bad) {
+  const note = document.getElementById('appFixNote');
+  if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
+}
+function appFixToggle(id, on) {
+  const off = window.APPFIX_STATE.off;
+  if (on) off.delete(id); else off.add(id);
+  renderAppFixMaker();
+}
+function appFixOpenFile(file) {
+  if (!file) return;
+  file.arrayBuffer().then(buf => {
+    const c = sniffMacContainer(new Uint8Array(buf));
+    if (!c || !c.data || !c.data.length || !c.rsrc || !c.rsrc.length) {
+      appFixSay('That file does not carry both of the program\u2019s forks. Choose it in MacBinary or BinHex.', true);
+      return;
+    }
+    window.APPFIX_STATE.src = { data: c.data, rsrc: c.rsrc, name: file.name, type: c.type || 'APPL', creator: c.creator || 'Delv' };
+    renderAppFixMaker();
+    appFixSay('');
+  }).catch(e => appFixSay('That file could not be read: ' + e.message, true));
+}
+// The program with the chosen fixes, or null with the reason said.
+function appFixBuild() {
+  const src = appFixSource();
+  if (!src) { appFixSay('No program is open.', true); return null; }
+  const chosen = appFixChosen();
+  if (!chosen.length) { appFixSay('Nothing is chosen, so there is nothing to write.', true); return null; }
+  try { return Object.assign(applyAppFixes(src, chosen), { src, chosen }); }
+  catch (e) { appFixSay(e.message, true); return null; }
+}
+function appFixDownload(asDisk) {
+  const r = appFixBuild();
+  if (!r) return null;
+  const name = 'Cythera';
+  if (asDisk) {
+    const image = writeHfsImage({ volumeName: 'Cythera Fixed', entries: [{ name, type: r.src.type, creator: r.src.creator, data: r.data, rsrc: r.rsrc }] });
+    dlBlob(new Blob([image], { type: 'application/octet-stream' }), 'Cythera Fixed.dsk');
+  } else {
+    const bin = writeMacBinary({ name, type: r.src.type, creator: r.src.creator, data: r.data, rsrc: r.rsrc });
+    dlBlob(new Blob([bin], { type: 'application/macbinary' }), 'Cythera (fixed).bin');
+  }
+  appFixSay(r.chosen.length + ' fixes written; the code is ' + r.grownBy + ' bytes longer.');
+  return r;
+}
+// The words a fix writes, as the decoder reads them back.
+function appFixListing(a) {
+  return a.words.map(w => (w.at.toString(16).toUpperCase().padStart(5, '0')) + '  ' +
+    (w.was === null ? '        ' : w.was.toString(16).toUpperCase().padStart(8, '0')) + '  ' +
+    w.now.toString(16).toUpperCase().padStart(8, '0') + '  ' + (ppcTextAt(w.now, w.at) || '')).join('\n');
+}
+function renderAppFixMaker() {
+  const host = document.getElementById('appFixMaker');
+  if (!host) return;
+  host.innerHTML = '';
+  const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
+  const src = appFixSource(), st = window.APPFIX_STATE;
+  host.appendChild(el('p', 'mechSub', src ? 'The program from ' + src.name + '.' : 'No program is open. Choose one, or open the installer.'));
+  // A trial run, so each fix can show what it writes and a refusal shows before a download.
+  let trial = null, why = '';
+  if (src) { try { trial = applyAppFixes(src, APP_FIXES); } catch (e) { why = e.message; } }
+  if (why) host.appendChild(el('p', 'mechSub patchBad', why));
+  const kinds = [['fix', 'Bugs'], ['hook', 'Hooks'], ['text', 'Misspellings'], ['menu', 'Menus']];
+  for (const [kind, heading] of kinds) {
+    const list = APP_FIXES.filter(f => f.kind === kind);
+    if (!list.length) continue;
+    host.appendChild(el('div', 'partsTitle', heading));
+    for (const f of list) {
+      const row = el('div', 'appFixRow');
+      const label = el('label', 'mechSub');
+      const box = document.createElement('input');
+      box.type = 'checkbox'; box.checked = !st.off.has(f.id);
+      box.onchange = function () { appFixToggle(f.id, box.checked); };
+      label.appendChild(box);
+      label.appendChild(el('span', '', ' ' + f.title));
+      row.appendChild(label);
+      const a = trial && trial.applied.find(x => x.id === f.id);
+      if (a && a.words.length) {
+        const d = el('details', 'appFixWords');
+        d.appendChild(el('summary', 'mechSub', a.words.length + (a.words.length === 1 ? ' word' : ' words')));
+        d.appendChild(el('pre', 'appFixListing', appFixListing(a)));
+        row.appendChild(d);
+      }
+      host.appendChild(row);
+    }
+  }
+  const bar = el('div', 'mechStats');
+  const btn = (label, fn) => {
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+    b.textContent = label;
+    b.onclick = fn;
+    bar.appendChild(b);
+  };
+  btn('Download for a Mac', function () { appFixDownload(false); });
+  btn('Download as a disk image', function () { appFixDownload(true); });
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.id = 'appFixFile'; inp.accept = '*/*';
+  inp.onchange = function () { appFixOpenFile(inp.files && inp.files[0]); };
+  bar.appendChild(inp);
+  host.appendChild(bar);
+}
+
 /* ---- two archives against each other, and a patch out of the difference ----
    The patches section reads a patch someone else made. This is the other two
    directions: comparing any two archives, and writing a patch out of what
@@ -3547,6 +3666,27 @@ function renderMechanicsSheet(value) {
     sec.appendChild(note);
   }
 
+  // ---- the program's own fixes ----
+  {
+    add('appfixes', 'Fixes to the program', null, '',
+      'Fixes to Cythera itself rather than to its data: bugs in the program, three places where the program asks the scenario what to do, ' +
+      'three misspellings in the program and two in its resources, and the two menus it has and never shows. Choose them and the program is written out with them.',
+      [
+        'They change the PowerPC half of the program, which a PowerPC Mac and SheepShaver run. A 68K Mac runs the other half, which they leave alone. The menus and the two resource strings are read by both.',
+        'Every word a fix replaces is checked first, so any program but 1.0.4, or one fixed already, is refused.',
+        'A hook runs a script the scenario can add: method 241 on where a thing is being put, with the thing (False refuses it, True puts it without weighing it), ' +
+          '242 on a creature as it dies (a number is its corpse, 0 none), 243 on the hero when a game is begun, opened or reverted to. The shipped scenario has none of these, so with it the program does as before.',
+        'The program comes from the installer opened here, or from a copy chosen below in MacBinary or BinHex, which keep both its forks.'
+      ], '');
+    const sec = sections[sections.length - 1].el;
+    const host = document.createElement('div');
+    host.id = 'appFixMaker';
+    sec.appendChild(host);
+    const note = document.createElement('div');
+    note.className = 'mechSub'; note.id = 'appFixNote';
+    sec.appendChild(note);
+  }
+
   // ---- comparing two archives ----
   {
     const edits = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
@@ -3863,6 +4003,7 @@ function renderMechanicsSheet(value) {
   // The hero's colours draw into their host once it is in the document.
   if (document.getElementById('heroSprite')) renderHeroSprite();
   if (document.getElementById('gremlinMaker')) renderGremlinMaker();
+  if (document.getElementById('appFixMaker')) renderAppFixMaker();
 }
 // The cards open when a number on the sheet was followed into its script,
 // so that back from the script finds them open again and setMode's scroll

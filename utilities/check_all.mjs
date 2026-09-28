@@ -408,6 +408,15 @@ const CHECKS = [
   {page: 'viewer', name: 'powerpc decoder', want: [LLVM_MC],
    cmd: ['utilities/ppc_check.mjs', 'js/mac-ppc.js', 'js/mac-pef.js', LLVM_MC, APP_DATA],
    grep: /[\d,]+ words read the same[^;]*/},
+  /* The application patch (js/delv-apppatch.js, js/delv-appfixes.js) and the
+     assembler it writes with (js/mac-ppc-asm.js): every code word the
+     decoder reads written back the same, every line of every fix against
+     llvm-mc when it is there, the program patched with every fix and with
+     each alone and held to the old one outside what the fixes name, and the
+     refusals. Without llvm-mc the lines are held to the decoder alone. */
+  {page: 'viewer', name: 'application patch', want: [APP_DATA, APP_RSRC],
+   cmd: ['utilities/app_patch_check.mjs', APP_DATA, APP_RSRC, LLVM_MC],
+   grep: /[\d,]+ of [\d,]+ code words written back the same/},
   {page: 'viewer', name: 'rule models',
    cmd: ['utilities/mech_check.mjs', 'js/delv-mechanics.js'],
    grep: /\d+ comparisons agree[^\n]*/},

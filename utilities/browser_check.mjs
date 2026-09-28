@@ -308,6 +308,9 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     ['zone', "jumpToResource(0x8003); document.getElementById('charControls').scrollIntoView()"],
     // The dialogue tab, whose cards carry wide tables.
     ['dialogue', "showCategory('23'); document.querySelector('#sheetGrid details').open = true; document.querySelector('#sheetGrid details').scrollIntoView()"],
+    // Data > Patches, at the program's fixes: a list of long titles with
+    // their words folded under each (28 September 2026).
+    ['appfixes', "showCategory('PATCHES'); const d = document.querySelector('[data-mech=\\'appfixes\\']') || document.getElementById('appFixMaker').closest('details'); if (d) d.open = true; document.getElementById('appFixMaker').scrollIntoView()"],
   ];
   const MEASURE = `(() => {
     const w = window.innerWidth, out = {innerWidth: w, scrollWidth: document.documentElement.scrollWidth, over: [], small: 0, buttons: 0};

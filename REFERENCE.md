@@ -210,7 +210,7 @@ belongs.
 
 **Generic classic-Mac formats** — nothing here knows Cythera exists, and that
 is worth keeping true even though only one page loads them now. `index.html`
-loads all twelve, in this order, before the two tiers below:
+loads all thirteen, in this order, before the two tiers below:
 
 | File | Purpose |
 |---|---|
@@ -226,8 +226,9 @@ loads all twelve, in this order, before the two tiers below:
 | `js/mac-zip.js` | `parseZipArchive()` / `zipFork()` — a zip archive's entries, stored or deflated (through `inflateRaw` above) and held to their CRC-32, each joined to the AppleDouble a Mac zips beside it, so an entry carries its resource fork and Finder type and creator. Encrypted entries, Zip64 and other methods are refused by name. Not vendored by the player, whose page defines an async `inflateRaw` of its own |
 | `js/mac-pef.js` | `parsePEF()` — a PowerPC application's data fork: the container's sections, the loader's imported libraries and symbols, its exports; `pefTracebacks()` walks the code section's traceback tables for every routine's offset, length and name; `pefDemangle()` reads CodeWarrior's cfront-style mangling back as far as it goes; `pefLoad()` lays the program out as the loader would (the pattern-initialised data section expanded, the relocations, the TOC) and `pefPointerAt()` says what a relocated word points at. Held to the workbench's independently recovered routine list, and the loader to what a correct load of this program must give, by `pef_check.mjs` |
 | `js/mac-ppc.js` | `ppcDecode(word)` — a PowerPC instruction: mnemonic, operands in LLVM's spelling, and the fields a reader tests. The 32-bit instructions a classic Mac compiler emits; null for the rest. Held to LLVM's disassembler word for word by `ppc_check.mjs` |
+| `js/mac-ppc-asm.js` | `ppcAssemble(line, at, resolve)` — the other way: a line in the decoder's spelling written as the word, with `@0x…` or `@name` for a branch's target; `ppcTextAt` prints a word with its target as an address. Everything the compiler emitted but floating point. Held to the decoder over the whole code section, and every line of the program's fixes to `llvm-mc`, by `app_patch_check.mjs` |
 
-**Cythera's own formats** — loaded after those twelve, by `index.html`:
+**Cythera's own formats** — loaded after those thirteen, by `index.html`:
 
 | File | Purpose |
 |---|---|
@@ -236,6 +237,8 @@ loads all twelve, in this order, before the two tiers below:
 | `js/delv-script.js` | the Delver VM: `dvmWord`, the opcode table, the symbol tables, `dvmDisassemble`, `dvmRender` |
 | `js/delv-asm.js` | the other half: `dvmAssemble` (one instruction a line, in the listing's own words), `dvmOffsetSites` and `dvmRelink`, which splice code into a script resource and move every offset round it. The script page's *Change code* uses them. Held to the archive by `asm_check.mjs` |
 | `js/delv-mechanics.js` | the *rules* as models — the dice game enumerated, the combat margin convolved, the lock and casting odds, the clock's healing and a night's sleep. Numbers to numbers, no DOM and no archive; the figures that draw them are in the page. Cross-checked by `utilities/mech_check.mjs` |
+| `js/delv-appfixes.js` | `APP_FIXES` — every change made to the application itself, as data: the code address, the words there now, the lines that replace them, new code (a *cave*) placed after the code section, text, and resources. The file to edit to add, change or drop a fix; its header says the form, the hooks' calling convention and why a cave is reached unconditionally |
+| `js/delv-apppatch.js` | `applyAppFixes({data, rsrc}, fixes)` — the fixes written into the PowerPC program: each site's words checked, the caves laid out and assembled, the code section grown and everything after it moved (the section header, and `cfrg 0`'s fragment offsets), text written in place, resources rewritten. Anything unexpected refuses the whole patch. `app_patch.mjs` and the Patches tab's *Fixes to the program* call it |
 
 **The page's own furniture** — loaded last, because it is the only tier that
 knows the document exists. Added 13 September 2026, when the maintainer asked
@@ -318,7 +321,7 @@ was more general-purpose than this repository, so its decoders came here and
 the page went. The delv-* three had no duplication at all; they came out
 because a 9,881-line inline script cannot be read, and because the checks had
 nothing to point at. The cost of all of it is the same and is honest: **this is
-a folder now, not a file you can email.** Re-inlining the twelve would be
+a folder now, not a file you can email.** Re-inlining the thirteen would be
 mechanical and no harness would notice.
 
 `canvas.html` does **not** use `js/` — it is self-contained with a single
@@ -400,7 +403,7 @@ from outside the repository.
   `--quick` skips it.
 
 A check whose inputs are genuinely missing is reported as **skip**, not fail.
-A clean run is **44 ok, 0 failed, 0 skipped**. Anything else is a
+A clean run is **45 ok, 0 failed, 0 skipped**. Anything else is a
 regression. **This number has gone stale five times**, always on the day a
 check was added and always silently, so `check_all.mjs` now prints the
 sentence this paragraph should carry: paste it in rather than counting by
@@ -492,6 +495,7 @@ guide carried it*.
 | resource fork write | `resfork_write_check.mjs` | `writeResourceFork` against the two forks Apple's Resource Manager wrote |
 | executable | `pef_check.mjs` | `js/mac-pef.js` against the workbench's routine list; the loader |
 | powerpc decoder | `ppc_check.mjs` | `js/mac-ppc.js` against `llvm-mc`, word for word |
+| application patch | `app_patch_check.mjs` | `js/mac-ppc-asm.js` writes back every code word the decoder reads; every fix line against `llvm-mc`; the program patched with every fix and with each alone, the same outside what the fixes name, its loader, relocations, routines and second fragment where they were; a patched program, a wrong word and two fixes on one word refused |
 | rule models | `mech_check.mjs` + `mech_ref.mjs` | the closed forms against a Monte Carlo written from the same prose, so the two can be wrong together: both left out the attacker's body roll until 28 September 2026. The check against the game is the workbench's `tools/combat-check/`, which counts blows in the fork, and it covers combat only |
 | version | `version_check.mjs` | the number moved when what a visitor receives moved |
 | browser | `browser_check.mjs` | the page in headless Chrome: loads clean, the archive opens over HTTP, `canvas.html` loads; then seven views at 390 px with touch emulated, none wider than the phone, tap targets under 24 px counted, and a screenshot of each in `$TMPDIR/grimoire_shots/` to look at instead of the phone |
@@ -517,6 +521,11 @@ around it rather than by an offset, which is what lets it share scripts
 with the stages before it. `karma_patch.mjs`, `sour_grapes_patch.mjs`
 and `resurrection_patch.mjs` are builders of patches of their own,
 outside the combined build.
+
+`app_patch.mjs` is a builder too: the application with the fixes of
+`js/delv-appfixes.js`, as MacBinary and as its two forks apart, from a
+BinHex or MacBinary copy of the program (`--list`, `--only`, `--without`).
+What it writes is the game's program and belongs in no repository.
 
 `ramp_patch.mjs` is a **builder, not a check**: it writes a Magpie patch that
 puts every tile on the engine's cycling ramps, leans on the page's writers
