@@ -899,8 +899,29 @@ const ATLAS_TILE_RING = IS_IOS_WEBKIT ? 0 : 1;
    Only the squares on screen are repainted, once the view is still. Past
    ATLAS_TILE_ANIM_SQUARES of them, the world at the lower levels, mostly
    sea, the tiles hold the render's resting colours instead and the sea
-   stands still, as the render's always has on this tab. */
+   stands still, as the render's always has on this tab.
+
+   And only tiles of ATLAS_TILE_ANIM_MIN_TS and up. A tile of 12 or 16 px
+   shrinks the 32 px art to three eighths or a half, and Chrome shrinks a
+   blit that a square's clip cuts with different rounding from the same
+   blit drawn whole, so the edges of trees and mountains over water came
+   out a pixel off where the water was repainted, and right again when a
+   tile was made afresh (found round 173,40 on the world, 28 September
+   2026, looking into a flicker the maintainer saw there). At 24 and 32
+   the clipped repaint is the painting pixel for pixel, checked by the
+   workbench's grimoire-world-probe.mjs (MODE=tiles) at eight places.
+   Three ways round
+   the clip were tried and dropped: a scratch canvas a square in size
+   rounds differently again; a scratch the tile's size under its transform
+   is exact, but copying out of a canvas just drawn into makes Chrome
+   finish its drawing first, and even in nine batches that cost a paint at
+   40 px a square some 250 ms with the processor slowed fourfold, against
+   15 for the clip; and building the tile under a clip to itself changes
+   nothing, a clip that cuts nothing being no clip. So those two levels,
+   the island at eight px a square or less on a phone, hold the resting
+   colours. */
 const ATLAS_TILE_ANIM_SQUARES = 1500;
+const ATLAS_TILE_ANIM_MIN_TS = 24;
 const atlasTiles = new Map();
 const atlasTileNone = new Set();       // tiles that could not be made, not asked for again
 let atlasTilePx = 0;
@@ -966,8 +987,10 @@ function atlasTileAnimIndex(res, C) {
 }
 // The squares of a tile that a palette frame changes, each with the blits
 // that touch it in the order they were drawn, from the log of its painting.
-// A square with no blit of its own filling it (a wall the Walls setting
-// hides is a fill, not a blit) is left as painted.
+// A square with no opaque blit of its own filling it is left as painted: a
+// wall the Walls setting hides is a fill, not a blit, and a square that
+// shows a backdrop through its ground has the backdrop's pattern under it,
+// which is not a blit either.
 function atlasTileMoving(log, t) {
   const { x0, y0, x1, y1, TS } = t, W = x1 - x0 + 1, H = y1 - y0 + 1;
   const lists = new Array(W * H), own = new Uint8Array(W * H), moving = new Uint8Array(W * H);
@@ -982,7 +1005,7 @@ function atlasTileMoving(log, t) {
         const i = (sy - y0) * W + (sx - x0);
         (lists[i] || (lists[i] = [])).push(b);
         if (anim) moving[i] = 1;
-        if (px === sx * TS && py === sy * TS && sz === TS) own[i] = 1;
+        if (px === sx * TS && py === sy * TS && sz === TS && !b[3]) own[i] = 1;
       }
   }
   const out = [];
@@ -1010,10 +1033,19 @@ function atlasTileAnimate(t, frame, clip) {
   let whole = true;
   for (const [sx, sy, list] of a) {
     if (clip && (sx < clip.x0 || sx > clip.x1 || sy < clip.y0 || sy > clip.y1)) { whole = false; continue; }
+    // Black first, as paintMapBaseRegion lays it: the ground is drawn
+    // opaque and still leaves the odd pixel of some tiles uncovered.
+    g.fillStyle = '#000';
     // A square nothing else touches is its own blit, which fills it exactly.
-    if (list.length === 1) { const b = list[0]; drawTileAt(g, b[0], b[1], b[2], b[3], b[4], frame, b[5]); continue; }
+    if (list.length === 1) {
+      const b = list[0];
+      g.fillRect(sx * TS, sy * TS, TS, TS);
+      drawTileAt(g, b[0], b[1], b[2], b[3], b[4], frame, b[5]);
+      continue;
+    }
     g.save();
     g.beginPath(); g.rect(sx * TS, sy * TS, TS, TS); g.clip();
+    g.fillRect(sx * TS, sy * TS, TS, TS);
     for (const b of list) drawTileAt(g, b[0], b[1], b[2], b[3], b[4], frame, b[5]);
     g.restore();
   }
@@ -1105,7 +1137,7 @@ function paintAtlasTiles(ctx, node, r, ppt, TS, vw, vh) {
   for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++)
     for (const c of (idx.get(cy * 4096 + cx) || []))
       if (c[0] >= x0 && c[0] <= x1 && c[1] >= y0 && c[1] <= y1) moving++;
-  const animOn = !!window.MAP_ANIM && moving <= ATLAS_TILE_ANIM_SQUARES;
+  const animOn = !!window.MAP_ANIM && TS >= ATLAS_TILE_ANIM_MIN_TS && moving <= ATLAS_TILE_ANIM_SQUARES;
   const frame = animOn ? (mapAnimFrame || 8) : 0;
   const still = atlasSettled();
   const have = [], missing = [];
