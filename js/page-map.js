@@ -1932,14 +1932,36 @@ function drawMapMarks(lensCtx, lensTS) {
       let A = [], B = [];
       try { const raw = getResourceBytes(ARCHIVE, listId); if (raw) A = parseDelverPropList(smartDecrypt(raw, listId).data); } catch (e) { quiet(e, 'the zone list under the save mark'); }
       try { if (sres) B = parseDelverPropList(sres.data); } catch (e) { quiet(e, 'the save’s zone list'); }
+      /* Only what stands on the map is drawn. A record's location word is a
+         square only while the record is on the floor: carried (flags 0x10)
+         or inside another prop (0x08) it is the holder's number, and a
+         deleted record (0xFF) is nowhere (parseDelverPropList's onMap). Until
+         28 September 2026 this compared every record's x and y, and a saved
+         game writes everything its characters hold into the list of the zone
+         they are in, past the scenario's own records; so a save's inventory
+         was washed green as "placed" at squares made of holder numbers,
+         along the map's top rows and off its edge. In the maintainer's own
+         save of August 2001 that was 234 records in the Seldane Maayti
+         Ruins, none of them on the ground. Now a record that left the floor
+         is gone from where it stood, one that reached the floor is placed
+         where it lies, and one off the floor in both files is not drawn and
+         is counted when it differs. A zone the save holds no list of keeps
+         the scenario's, as the legend says, so nothing there differs;
+         before, the empty list read as every record gone. */
+      if (!sres) B = A;
+      const differs = (a, b) => a.flags !== b.flags || a.x !== b.x || a.y !== b.y || a.proptype !== b.proptype ||
+                                a.aspect !== b.aspect || a.d1 !== b.d1 || a.d2 !== b.d2;
       const placed = [], gone = [], moved = [], changed = [];
+      let offMap = 0;
       const n = Math.max(A.length, B.length);
       for (let i = 0; i < n; i++) {
         const a = A[i], b = B[i];
-        if (!a && b) { placed.push([b.x, b.y]); continue; }
-        if (a && !b) { gone.push([a.x, a.y]); continue; }
+        const aOn = !!(a && a.onMap), bOn = !!(b && b.onMap);
+        if (!aOn && !bOn) { if (b && b.flags !== 0xFF && (!a || differs(a, b))) offMap++; continue; }
+        if (!aOn) { placed.push([b.x, b.y]); continue; }
+        if (!bOn) { gone.push([a.x, a.y]); continue; }
         if (a.x !== b.x || a.y !== b.y) moved.push([[a.x, a.y], [b.x, b.y]]);
-        else if (a.proptype !== b.proptype || a.aspect !== b.aspect || a.flags !== b.flags || a.d1 !== b.d1 || a.d2 !== b.d2 || a.container !== b.container) changed.push([a.x, a.y]);
+        else if (differs(a, b)) changed.push([a.x, a.y]);
       }
       const people = [];
       try {
@@ -1963,6 +1985,7 @@ function drawMapMarks(lensCtx, lensTS) {
       if (gone.length) bits.push(gone.length + ' gone');
       if (moved.length) bits.push(moved.length + ' moved');
       if (changed.length) bits.push(changed.length + ' changed where it stands');
+      if (offMap) bits.push(offMap + ' carried or inside something, not drawn');
       if (people.length) bits.push(people.length + (people.length === 1 ? ' character' : ' characters') + ' here');
       if (sb.quest) bits.push('the day drawn is the save’s, ' + sb.quest.flagsSet + ' quest flag' + (sb.quest.flagsSet === 1 ? '' : 's') + ' set and ' + sb.quest.valuesSet + ' value' + (sb.quest.valuesSet === 1 ? '' : 's') + ' nonzero');
       saveLegend = svEsc(sb.name) + (sb.player ? ' (' + svEsc(sb.player) + ')' : '') + ' over this zone: ' + (bits.length ? bits.join(', ') : 'the same records');

@@ -1048,6 +1048,50 @@ try {
   }
 } catch (e) { fail('save comparison', e); }
 
+/* The Save mark draws only what stands on the map (28 September 2026). A
+   saved game writes everything its characters hold into the list of the
+   zone they are in, past the scenario's records, and the mark used to wash
+   each of those green as "placed" at squares made of the holder's number:
+   234 of them in the Ruins of the maintainer's 2001 save, none on the
+   ground. Built here rather than loaded, so it cannot skip: the scenario's
+   own list of the Ruins with two records added, one lying on the floor and
+   one carried by the hero, must read as one placed and one carried; the
+   code before the fix read two placed. And a save with no list for the
+   zone keeps the scenario's, so nothing is gone; before, every record was. */
+try {
+  const listId = 0x810B;
+  const own = ctx.smartDecrypt(ctx.getResourceBytes(A(), listId), listId).data;
+  const recs = ctx.parseDelverPropList(own);
+  const floor = recs.find(r => r.onMap);
+  if (!floor) fail('save mark, off the map', 'the Ruins list has no record on the floor to copy');
+  else {
+    const lying = Uint8Array.from(own.subarray(floor.index * 16, floor.index * 16 + 16));
+    const raw = ((floor.x + 1) << 12) | floor.y;          // one square east of the one copied
+    lying[1] = raw >> 16; lying[2] = (raw >> 8) & 0xFF; lying[3] = raw & 0xFF;
+    const held = Uint8Array.from(lying);
+    held[0] = 0x10; held[1] = 0; held[2] = 0; held[3] = 1;  // carried by character 1, the hero
+    const made = new Uint8Array(own.length + 32);
+    made.set(own); made.set(lying, own.length); made.set(held, own.length + 16);
+    const legendWith = resources => {
+      ctx.SAVE_BESIDE = { name: 'a made save', spec: { resources }, player: 'Made', quest: null };
+      ctx.showCategory('127');
+      ctx.openResource(0x8000 + (listId & 0xFF));
+      ctx.toggleMapMarks('save', true);
+      const text = REGISTRY.get('markLegend').innerHTML.replace(/<[^>]+>/g, '');
+      ctx.toggleMapMarks('save', false);
+      return text;
+    };
+    const both = legendWith([{ resid: listId, data: made }]);
+    const none = legendWith([]);
+    ctx.SAVE_BESIDE = null;
+    if (!/\b1 placed\b/.test(both) || !/\b1 carried or inside something, not drawn/.test(both))
+      fail('save mark, off the map', 'a record on the floor and one carried did not read as one placed and one carried: ' + both.replace(/^.*over this zone: /, '').slice(0, 120));
+    else if (!/scenario’s stands/.test(none) || /\bgone\b/.test(none))
+      fail('save mark, off the map', 'a save with no list for the zone did not keep the scenario’s: ' + none.replace(/^.*over this zone: /, '').slice(0, 120));
+    else console.log('  save mark, off the map: a made save over the Ruins reads one placed and one carried, and a save with no list there changes nothing');
+  }
+} catch (e) { fail('save mark, off the map', e); }
+
 /* The comparison section, and the patch it writes, end to end through the DOM.
 
    The engine is proven in patch_check; what this pins is the part that only
