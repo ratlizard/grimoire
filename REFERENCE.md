@@ -518,9 +518,9 @@ Magpie patch, "Cythera All Fixes", with each stage also run alone and
 compared; its header says why the order is the one it is. Its
 `further_fixes_patch.mjs` stage finds each place by the instructions
 around it rather than by an offset, which is what lets it share scripts
-with the stages before it. `karma_patch.mjs`, `sour_grapes_patch.mjs`
-and `resurrection_patch.mjs` are builders of patches of their own,
-outside the combined build.
+with the stages before it. `karma_patch.mjs`, `sour_grapes_patch.mjs`,
+`resurrection_patch.mjs` and `peirithous_patch.mjs` are builders of
+patches of their own, outside the combined build.
 
 `app_patch.mjs` is a builder too: the application with the fixes of
 `js/delv-appfixes.js`, as MacBinary and as its two forks apart, from a
