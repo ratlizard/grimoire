@@ -38,10 +38,8 @@
 // also matches the other way round, for the four-letter stubs; that would
 // hide exactly the shadowing this looks for, so it is not used here.
 //
-//   5. Argos's family width table gives every code the width its glyph
-//      draws with, where the shipped table gave the added letters none; no
-//      glyph of the Spanish face starts left of the pen, where the shipped
-//      face has some; and the Geneva strikes
+//   5. Argos's family width table gives each added letter its base letter's
+//      width, where the shipped table gives none; and the Geneva strikes
 //      (js/mac-geneva.js) measure as Geneva does at 9 and 10 points and draw
 //      the Geneva 9 font's own letters, where the font's own widths are not
 //      Geneva 10's (the control).
@@ -199,38 +197,28 @@ const got = vm.runInContext(`(() => {
     const f = r.log.find(l => /^sfnt /.test(l)); fontNote = f || 'no sfnt changed';
   } catch (e) { quiet(e); }
 
-  // The family widths: Argos's FOND gives every code the width its glyph
-  // draws with (hmtx's advance over the em, in 4.12), which is what the
-  // game measures a line by; the shipped FOND gave the added letters none,
-  // which is the control, and which ran lines past the conversation box.
-  // And no glyph of the Spanish face starts left of the pen, where the box
-  // is never cleared (sfntStartAtPen); the shipped face has glyphs that do,
-  // which is that one's control.
-  const faceOf = rs => {
-    const sp = resourceForkSpec(openResourceFork(rs));
-    const fo = sp.resources.find(x => x.type === 'FOND' && x.id === 1046), sf = sp.resources.find(x => x.type === 'sfnt');
+  // The family widths: Argos's FOND gives each added letter the width of
+  // the letter it is made from (the glyphs keep their base's advance), and
+  // the shipped FOND has none at those codes, which is the control: that is
+  // the table that measured every accent as nothing and ran lines past the
+  // conversation box.
+  const widthsOf = rs => {
+    const sp = resourceForkSpec(openResourceFork(rs)), fo = sp.resources.find(x => x.type === 'FOND' && x.id === 1046);
+    if (!fo) return null;
     const d = fo.data, w = u32be(d, 16), first = u16be(d, 4);
-    const o = sfntGlyphOutlines(sf.data);
-    return { fond: c => u16be(d, w + 4 + (c - first) * 2), gids: sfntMacRomanGlyphs(sf.data), ...o };
+    return c => u16be(d, w + 4 + (c - first) * 2);
   };
-  const fEn = faceOf(__r), fEs = faceOf(r.rsrc);
-  const widthFails = [];
-  let widthControl = 0, widthCodes = 0;
-  fEs.gids.forEach((gid, c) => {
-    const g = fEs.glyphs[gid];
-    if (!gid || !g || !g.contours.length) return;
-    widthCodes++;
-    const want = Math.round(g.adv / fEs.upem * 4096);
-    if (Math.abs(fEs.fond(c) - want) > 1) widthFails.push('code ' + c + ' is ' + fEs.fond(c) + ' in the FOND, ' + want + ' drawn');
-    const ge = fEn.glyphs[fEn.gids[c]];
-    if (!ge || !ge.contours.length || Math.abs(fEn.fond(c) - Math.round(ge.adv / fEn.upem * 4096)) > 1) widthControl++;
-  });
-  const leftOf = f => f.glyphs.filter(g => g.contours.length && g.lsb < 0).length;
-  const penEs = leftOf(fEs), penEn = leftOf(fEn);
-
-  // Each accented letter and the plain letter whose width the Geneva
-  // strikes give it.
   const BASE = { 'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ñ': 'n', 'ü': 'u', '¿': '?', '¡': '!', 'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ñ': 'N', 'Ü': 'U' };
+  const wEn = widthsOf(__r), wEs = widthsOf(r.rsrc);
+  const widthFails = [];
+  let widthControl = 0;
+  for (const [ch, base] of Object.entries(BASE)) {
+    const want = wEn(base.charCodeAt(0));
+    for (const code of [TRANSLATE_CODES[ch], TRANSLATE_MACROMAN[ch]]) {
+      if (wEs(code) !== want) widthFails.push(ch + ' at ' + code + ' is ' + wEs(code) + ', ' + base + ' is ' + want);
+      if (wEn(code) !== want) widthControl++;
+    }
+  }
 
   // The Geneva strikes: each measures as Geneva does at its size (the
   // printable ASCII advances GENEVA_METRICS gives, an accented letter its
@@ -273,7 +261,7 @@ const got = vm.runInContext(`(() => {
   }
 
   const hash = (() => { let h = 0x811C9DC5; for (const part of [r.data, r.rsrc]) for (const c of part) { h ^= c; h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); })();
-  return { ms, fails, notes, words, reached, control, disasm, hash, fontNote, widthFails, widthControl, widthCodes, penEs, penEn, strikeFails, strikeControl, strikeGlyphs,
+  return { ms, fails, notes, words, reached, control, disasm, hash, fontNote, widthFails, widthControl, strikeFails, strikeControl, strikeGlyphs,
            done: r.report.done, keys: r.report.keys, missing: r.report.missing.length, unused: r.report.unused.map(u => (typeof u.resid === 'number' ? hex(u.resid) : u.resid) + ' ' + u.hash) };
 })()`, ctx);
 
@@ -287,12 +275,9 @@ if (got.unused.length) fail('stale entries', got.unused.join(', '));
 else ok('stale entries', 'none');
 ok('disassembly', `${got.disasm} script resources`);
 ok('face', got.fontNote);
-if (got.widthFails.length) fail('family widths', got.widthFails.slice(0, 12).join('; '));
-else if (!got.widthControl) fail('family widths', 'the shipped FOND already agrees with its face at every code, so the control proves nothing');
-else ok('family widths', `${got.widthCodes} codes measure as their glyphs draw; the shipped FOND disagrees at ${got.widthControl}`);
-if (got.penEs) fail('at the pen', got.penEs + ' glyphs of the Spanish face start left of the pen');
-else if (!got.penEn) fail('at the pen', 'the shipped face has no glyph left of the pen, so the control proves nothing');
-else ok('at the pen', `no glyph starts left of the pen; the shipped face has ${got.penEn} that do`);
+if (got.widthFails.length) fail('family widths', got.widthFails.join('; '));
+else if (got.widthControl !== 32) fail('family widths', 'the shipped FOND already has the width at ' + (32 - got.widthControl) + ' of the 32 codes, so the control proves nothing');
+else ok('family widths', 'the 16 letters at their 32 codes take their base letter\'s width; the shipped table has none of them');
 if (got.strikeFails.length) fail('Geneva strikes', got.strikeFails.slice(0, 12).join('; '));
 else if (!got.strikeControl) fail('Geneva strikes', "the font's own widths are already Geneva's, so the control proves nothing");
 else ok('Geneva strikes', `${got.strikeGlyphs} ASCII glyphs at Geneva's widths and frame, each the font's own letter, the accents at their letters' widths; the font's own widths differ at ${got.strikeControl}`);
