@@ -105,6 +105,26 @@ function buildCorpus(htmlPath) {
     pieces.push({ name: s.name, code: stripComments(s.code), decl: stripJsText(s.code),
                   page: true, product: true });
   }
+  /* A script the page adds itself when it is first wanted, which is not
+     among its <script src> tags: js/delv-es.js, the Spanish table, half a
+     megabyte most visitors never load, which spanishTable in
+     js/page-mechanics.js adds on the Patches section's button (29 September
+     2026). Its table names translateSpanishGlyphs, and nothing else does, so
+     without it here the face the translation draws its accents with reads as
+     dead. A file counts when the page's own code names its path. */
+  const have = new Set(collected.sources.map(s => s.name));
+  const base = dirname(resolve(htmlPath));
+  for (const s of collected.sources) {
+    if (s.external || !s.code) continue;
+    for (const m of s.code.matchAll(/['"](js\/[\w.-]+\.js)['"]/g)) {
+      if (have.has(m[1])) continue;
+      have.add(m[1]);
+      try {
+        const code = readFileSync(join(base, m[1]), 'utf8');
+        pieces.push({ name: m[1] + ' (loaded when wanted)', code: stripComments(code), decl: stripJsText(code), page: true, product: true });
+      } catch { /* a path the page names and the tree lacks is verify_viewer's business */ }
+    }
+  }
   // The markup, with the script bodies taken out so nothing is counted twice.
   // Inline handlers live here and nowhere else.
   pieces.push({
