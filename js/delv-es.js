@@ -78,12 +78,12 @@ const DELV_TRANSLATION_ES = {
   // word they answer; `*` is every resource.
   keys: {
     '*': {
-      name: 'nomb', job: 'trab,ofic,ocup', bye: 'adi,hast,chao', join: 'unir,unet,acomp,ven',
+      name: 'nomb', job: 'trab,ofic', bye: 'adi,hast,chao', join: 'unir,unie,unet,acomp,ven',
       help: 'ayud', trai: 'entr',
     },
     '1802': {
       alar: 'alar', bond: 'lazo,vinc', odem: 'odem', cyth: 'cyth', mate: 'mate,madr', thei: 'thei',
-      stor: 'rela,hist', jour: 'viaj', hist: 'hist', meti: 'mete', seld: 'seld', enes: 'enes',
+      stor: 'rela', jour: 'viaj', hist: 'hist', meti: 'mete', seld: 'seld', enes: 'enes',
       chry: 'chry', moth: 'madr', fath: 'padr', magp: 'magp',
       norm: 'norm', 'very easy': 'muy f', easy: 'faci', hard: 'dific', 'very hard': 'muy d',
     },
@@ -2004,7 +2004,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
 Object.assign(DELV_TRANSLATION_ES.keys, { '180D': { sten: 'sten' }, '1810': { arei: 'arei', laod: 'laod' } });
 // A round of drinks: "... is " + a price + " obol" + "oi" when more than one.
 Object.assign(DELV_TRANSLATION_ES.text['*'], { '86cabb80': '"Una ronda de bebidas cuesta ', 'cd62f935': ' óbolo', '68343ad5': 's', 'c7bc5559': '."*"¿Qué me dices?"' });
-Object.assign(DELV_TRANSLATION_ES.keys['*'], { meat: 'carn', drin: 'bebi,trag,copa', wife: 'espo,muje', marr: 'casa,boda', inte: 'inte', esta: 'esta,loca,nego', chan: 'camb', cook: 'coci', food: 'comi' });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { meat: 'carn', drin: 'bebi,trag,copa', wife: 'espo,muje', marr: 'casa,case,boda', inte: 'inte', esta: 'esta,loca,nego', chan: 'camb', cook: 'coci', food: 'comi' });
 Object.assign(DELV_TRANSLATION_ES.text, {
   // a drunk in a tavern, and the Second Tyrant's tomb
   '1811': {
@@ -2532,7 +2532,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     'b0a0a3d3': 'Ves una cara amable y regordeta, como de abuela, sobre un cuerpo igual de regordete.\n*"Te doy la bienvenida a la Casa de Comidas de Dares: estás en tu casa."',
     'a66bd7a0': '"Soy Diomede, la mujer de Dares."',
     '6a9ab631': '"Ayudo a mi marido en la Casa de Comidas: ¿te @interesa algo?"',
-    '98befe08': '"La Casa de Comidas de Dares: uno de los mejores sitios de Cademia para comer, con su terraza al aire libre."*"¿Quizá te @interesaría probar nuestros platos?"',
+    '98befe08': '"La Casa de Comidas de Dares: uno de los mejores sitios de Cademia para comer, con su terraza al aire libre."*"¿Quizá te @interese probar nuestros platos?"',
     '424260db': '"¿Quieres algo de @comida, o quizá un @banquete entero, o solo una @bebida y una buena conversación?"',
     '681cc592': '"¡Nunca encontrarás mejor marido ni mejor amigo!"',
     '2b13e0de': '"Dares es mi marido: lleva la @Casa de Comidas."',
@@ -2722,7 +2722,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     'dff0b524': '"Una donación de ', '81df3d93': ' óbolos es lo que te va a costar: ¿trato hecho?"',
     '2611a0f2': '"Lo siento: no se fía.  Solo dinero por adelantado."',
     'db39a552': '"¡Bienvenidos al Gremio!  Aquí tienes la llave honoraria de las alcantarillas"',
-    '12932711': '*"Tenemos varias ventajas, como el derecho a @comprar ciertos artículos, y entrenamiento \'especial\'."',
+    '12932711': '*"Tenemos varias ventajas, como el derecho a @comprar ciertos artículos, y @entrenamiento \'especial\'."',
     'e555554a': '"Quizá deberías pensártelo mejor."',
     'c9af9adc': '"Aethon es uno de nuestros miembros con más talento."',
     'faffeef9': '"Lo siento, solo para miembros del Gremio: tienes que @unirte."',
@@ -3289,8 +3289,8 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     '4c0c70a0': '"...y así, aplicando presión, digamos... clase, ¿me disculpáis un momento?"*',
     'a03a2665': '"¡Ah, excelente!  ¡Has encontrado un huevo de arpía!  Te lo agradezco muchísimo..."*',
     'f72282b9': '"Si no te importa, estoy en plena clase."*',
-    '0857de19': '"Soy Pheres, profesor de las @Artes de Curación."',
-    'c20b5f48': '"@Instruyo a los estudiantes en las @Artes de Curación, y no hay nada más noble."',
+    '0857de19': '"Soy Pheres, profesor de las Artes @Curativas."',
+    'c20b5f48': '"@Instruyo a los estudiantes en las Artes @Curativas, y no hay nada más noble."',
     '948688c0': '"La curación consiste en reparar los daños del cuerpo."',
     'c6e4700d': '"Te falta la comprensión básica de la magia necesaria."',
     'b0643946': '"Ya dominas lo básico; no creo que entendieras mucho más."',
@@ -3615,7 +3615,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     '4e99af44': 'Ves a un borracho viejo y maloliente\n*"¿Tienes algo suelto?"',
     '181340a8': '"Gracias, ', '85d31c9b': 'encantadora señora.', 'a48dc0e5': 'amable señor.', 'ccd8c21d': '  Que la @plaga nunca te alcance."',
     '33c8d02b': '"Soy Eumelus, aunque suelo responder a \'Eh, tú\'"',
-    '2135796d': '"Una vez tuve trabajo, pero mi debilidad por la bebida me destruyó, o quizá me @salvó."',
+    '2135796d': '"Una vez tuve trabajo, pero mi debilidad por la bebida me destruyó, o quizá sirvió para @salvarme."',
     'ce5b828a': '"Todavía no he pillado la @plaga, y lo único que me pone malo es el @vino"',
     '30cdd101': '"¡Bah!  Nunca la pruebo.  No te puedes fiar de ella como del @vino."',
     '2e6524bc': '"Era el @agua lo que ponía mala a la gente, ¿verdad?..."',
@@ -3987,7 +3987,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     'dde359a0': '"Creo que una vez escribí una canción sobre eso, pero ahora no son más que ecos del pasado."',
   },
 });
-Object.assign(DELV_TRANSLATION_ES.keys, { '186D': { stra: 'raro,rara', more: 'much,mas', cana: 'cana', hadr: 'hadr', ake: 'ake', lind: 'lind' } });
+Object.assign(DELV_TRANSLATION_ES.keys, { '186D': { inns: 'posa', stra: 'raro,rara', more: 'much,mas', cana: 'cana', hadr: 'hadr', ake: 'ake', lind: 'lind' } });
 Object.assign(DELV_TRANSLATION_ES.text['*'], {
   'eaeb07d5': 'Ves a un estudiante estresado.\n*', 'd855c92a': 'Ves a una estudiante estresada.\n*',
   'b8761e22': '"Soy estudiante: espero estudiar curación."', '8500d5ec': '"Es mi mejor amigo."',
@@ -4150,7 +4150,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
 });
 Object.assign(DELV_TRANSLATION_ES.keys, { '187D': { sout: 'sur', comp: 'bruj,comp', foun: 'fund,pila' } });
 Object.assign(DELV_TRANSLATION_ES.keys, { '187F': {
-  impr: 'ence,pris', sylp: 'silf', undi: 'ondi', war: 'guer', win: 'gana', sens: 'perc,sent', clai: 'recl', trus: 'fiar,conf', betr: 'trai',
+  impr: 'ence,enci,pris', eart: 'tier,terr', sylp: 'silf', undi: 'ondi', war: 'guer', win: 'gana', sens: 'perc,sent', clai: 'recl', trus: 'fiar,conf', betr: 'trai',
   huma: 'huma', peop: 'gent,pueb', die: 'muer', deat: 'muer', mort: 'mort', igna: 'igna', seld: 'seld', east: 'este', west: 'oest',
 } });
 Object.assign(DELV_TRANSLATION_ES.text, {
@@ -4178,7 +4178,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     '8c0c2eda': '"Hace eones, los tres @elementos se unieron para derrocarnos, y nos encerraron aquí."*"Atrapados dentro de la @tierra, rodeados de @fuego, aislados por el @agua, esperamos."*"Y ahora vienes tú a liberarnos, quizá.  Ya no nos importa."',
     'b807905d': '"Todo nuestro pueblo ha caído, y es menos de lo que fuimos."',
     'e3d45eeb': '"Aunque aislados, aún podemos percibir algunas cosas que suceden."*"Sabemos mucho de la @historia que sigue oculto a vuestros más sabios."',
-    '63037296': '"Tanto las Ondinas como los Seldane querrían reclamaros como suyos, y ambos mentirán para lograrlo."*"Nosotros no nos @fiaríamos mucho de lo que diga ninguno de los dos bandos."',
+    '63037296': '"Tanto las Ondinas como los Seldane querrían reclamaros como suyos, y ambos mentirán para lograrlo."*"Nosotros no pondríamos mucha @confianza en lo que diga ninguno de los dos bandos."',
     'db30f1a6': '"Confianza: de quién fiarse.  En otro tiempo nos fiábamos de Ignae, pero Ignae nos traicionó."*"Tú no puedes fiarte de nadie, eso seguro, ni siquiera de nosotros."*"No necesitamos mentirte, puesto que no nos importa, pero puede que tu mente aún no entienda nuestras palabras."',
     '7ca063ad': '"Sabemos de la destrucción de una pequeña colonia, a manos de un traidor, y por el poder de las Ondinas."*"Sabemos cómo ese traidor intentó corromper a los humanos, adorando a dioses falsos."*"Ese todavía cree que algún día podrá vengarse de los Seldane que lo usaron como títere."*"En cambio, se queda sentado en sus fortalezas de las montañas, esperando una muerte que nunca llegará del todo."*"Sabemos lo que sucede.  Sabemos de traidores."',
     '9a1458b3': '"Ignae nos traicionó.  Vosotros, los humanos, cualquiera de vosotros traicionaría a toda su raza."',

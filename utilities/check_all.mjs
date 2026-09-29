@@ -351,6 +351,17 @@ const CHECKS = [
   {page: 'viewer', name: 'game fixes', want: [DATA],
    cmd: ['utilities/data_fix_check.mjs', 'index.html', DATA, COLLECTION],
    grep: /every fix: [^\n]*/, expect: 'every fix: 180 resources changed, patched file 91d784e79e880a7e'},
+  /* Cythera Data in Spanish (js/delv-translate.js with the table
+     js/delv-es.js), both forks: the table covers every piece and has no
+     stale entry, every script still disassembles, the keyword lists are the
+     ones the table asked for, and every highlighted word, clicked, reaches
+     the answer its English word did. The two forks' hash is pinned, so a
+     change to the table or the applier moves it, and the value moves in the
+     same commit. */
+  {page: 'viewer', name: 'spanish', want: [DATA, DATA_RSRC],
+   cmd: ['utilities/translate_check.mjs', 'index.html', DATA, DATA_RSRC],
+   grep: /\d+ of \d+ highlighted words answer as in English[^\n]*/,
+   expect: '509 of 513 highlighted words answer as in English; 0 pieces untranslated; SPANISH 7994162a'},
   /* The two StuffIt compressions this page decompresses, 13 and 15, against
      The Unarchiver's own `unar` -- which is the implementation both are ports
      of, so this is a decoder held to its source rather than to a snapshot.
