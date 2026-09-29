@@ -424,7 +424,7 @@ function translateResourceFork(rsrc, T, report, log) {
       const got = T.font(r.data);
       r.data = got.bytes; changed = true;
       if (got.widths) { widths = got.widths; sfntId = r.id; }
-      log.push('sfnt ' + r.id + ' (' + (r.name || '') + '): ' + got.added + ' glyphs added, ' + got.mapped + ' codes mapped');
+      log.push('sfnt ' + r.id + ' (' + (r.name || '') + '): ' + got.added + ' glyphs added, ' + got.mapped + ' codes mapped' + (got.moved ? ', ' + got.moved + ' moved right of the pen' : ''));
     }
   }
   if (widths) {
@@ -686,9 +686,16 @@ function translateSpanishGlyphs(sfnt) {
   const codes = {};
   order.forEach((ch, i) => { codes[TRANSLATE_CODES[ch]] = i; codes[TRANSLATE_MACROMAN[ch]] = i; });
   const got = sfntWithGlyphs(sfnt, order.map(ch => made[ch]), codes);
+  // No glyph starting left of the pen, where the conversation box is never
+  // cleared (sfntStartAtPen): the shipped P, R, j, Y and g reach back by up
+  // to a twelfth of an em, and eighteen more by a fiftieth or less.
+  const pen = sfntStartAtPen(got.bytes);
   // Each added letter's width as a fraction of the em, at both its codes,
-  // for the family width table (translateFamilyWidths).
-  got.widths = {};
-  order.forEach(ch => { got.widths[TRANSLATE_CODES[ch]] = made[ch].adv / upem; got.widths[TRANSLATE_MACROMAN[ch]] = made[ch].adv / upem; });
-  return got;
+  // and each moved glyph's new width at every code that draws it, for the
+  // family width table (translateFamilyWidths).
+  const widths = {};
+  order.forEach(ch => { widths[TRANSLATE_CODES[ch]] = made[ch].adv / upem; widths[TRANSLATE_MACROMAN[ch]] = made[ch].adv / upem; });
+  const byGid = new Map(pen.moved.map(m => [m.gid, m.adv]));
+  sfntMacRomanGlyphs(pen.bytes).forEach((gid, code) => { if (byGid.has(gid)) widths[code] = byGid.get(gid) / upem; });
+  return { bytes: pen.bytes, added: got.added, mapped: got.mapped, moved: pen.moved.length, widths };
 }

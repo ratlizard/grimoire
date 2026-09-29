@@ -1491,6 +1491,44 @@ function sfntWithGlyphs(data, added, codes){
   return {bytes:rebuildSfnt(data,tables), added:added.length, mapped};
 }
 
+/* A face whose glyphs all start at or right of the pen. A glyph drawn with
+   its outline left of the pen (a swash P reaching back under the letter
+   before it) leaves that ink outside a rectangle cleared from the pen
+   onwards, and Cythera clears its conversation box so, from the text's left
+   edge: a line beginning with such a letter left a sliver there after the
+   next message (29 September 2026). Each such glyph is moved right by its
+   overhang and made as much wider, so it keeps what it had on the right,
+   its kerning into the next letter included; the outline is untouched.
+   The move is made in the horizontal metrics alone: QuickDraw's TrueType
+   scaler places an outline by the left side bearing hmtx gives it (seen on
+   Mac OS 8.5 with the accent proofs of 24 September 2026, whose marks
+   landed on the wrong letter until their bearing was their xMin), so a
+   bearing of 0 puts the outline's left edge on the pen. Every metric is
+   written out in full, one per glyph, and hhea's extremes are recomputed.
+   The answer names each glyph moved, by how much, and its new width. */
+function sfntStartAtPen(data){
+  const t=sfntTablesOf(data), {glyphs}=sfntGlyphOutlines(data);
+  const moved=[];
+  const metrics=glyphs.map((g,i)=>{
+    const pts=[].concat(...g.contours);
+    if(!pts.length) return {adv:g.adv,lsb:g.lsb,w:0};
+    const x0=Math.min(...pts.map(q=>q.x)), x1=Math.max(...pts.map(q=>q.x));
+    if(x0<0){ moved.push({gid:i,by:-x0,adv:g.adv-x0}); return {adv:g.adv-x0,lsb:0,w:x1-x0}; }
+    return {adv:g.adv,lsb:x0,w:x1-x0};
+  });
+  if(!moved.length) return {bytes:data,moved};
+  const hmtx=new Uint8Array(glyphs.length*4), hdv=new DataView(hmtx.buffer);
+  metrics.forEach((m,i)=>{ hdv.setUint16(i*4,m.adv); hdv.setInt16(i*4+2,m.lsb); });
+  const hhea=Uint8Array.from(t.hhea), hhv=new DataView(hhea.buffer), inked=metrics.filter(m=>m.w);
+  hhv.setUint16(10,Math.max(...metrics.map(m=>m.adv)));
+  hhv.setInt16(12,Math.min(...inked.map(m=>m.lsb)));
+  hhv.setInt16(14,Math.min(...inked.map(m=>m.adv-m.lsb-m.w)));
+  hhv.setInt16(16,Math.max(...inked.map(m=>m.lsb+m.w)));
+  hhv.setUint16(34,glyphs.length);
+  const tables=Object.keys(t).map(tag=>({tag,bytes:tag==='hmtx'?hmtx:tag==='hhea'?hhea:Uint8Array.from(t[tag])}));
+  return {bytes:rebuildSfnt(data,tables),moved};
+}
+
 function decodeSfntInfo(data){
   if(data.length<12) throw new Error('sfnt resource too short');
   const numTables=u16be(data,4); const tables=[];
