@@ -1295,6 +1295,14 @@ const DATA_FIX_TEXT = [
   dataFixT('Helen, "Yery"', 0x1858, 'Yery well', 'Very well', 1),
   dataFixT('Helen, "daugther"', 0x1858, 'daugther', 'daughter', 1),
   dataFixT('Alaric, "discoved"', 0x1802, 'discoved', 'discovered', 1),
+  // Five spoken lines break the line inside their closing quote, so the quote
+  // stands alone on the next line of the conversation box. No other spoken
+  // line has a break inside its quotes (they end `."`, the narration with
+  // the break after the text), each of the five is the last thing printed,
+  // and 0x187A's farewell, the same shape, has none: a slip (29 September
+  // 2026, found in the Spanish, whose five lines close the quote too).
+  dataFixT('Alaric, the quote alone on a line', 0x1802, 'how rude of me.\n"', 'how rude of me."', 1),
+  ...[0x1878, 0x187A, 0x187B, 0x187C].map(r => dataFixT('the Seldane’s "Be gone.", the quote alone on a line', r, 'Be gone.\n"', 'Be gone."', 1)),
   dataFixT('Meleager, "disrepest"', 0x1822, 'disrepest', 'disrespect', 1),
   dataFixT('Apis, "oportunity"', 0x182A, 'oportunity', 'opportunity', 1),
   dataFixT('Charax, "elimating"', 0x184F, 'elimating', 'eliminating', 1),
