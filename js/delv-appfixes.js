@@ -177,6 +177,24 @@ const APP_FIXES = [
            'lwz 4, 16(3)          ; its map record', 'lwz 5, -30268(2)', 'lwz 5, 0(5)           ; the prop table', 'sub 4, 4, 5', 'srawi 4, 4, 4',
            'back:', 'lwz 0, 56(1)', 'lwz 5, -30408(2)', 'li 6, 1', 'b @0x99754'] },
 
+  // In TConversation::ShowPortrait. The name is in the frame at 56(1); r28 is
+  // the portrait's GWorld, the current port, whose txSize is the halfword at
+  // 74; r23 is dead once the routine has set its port, and keeps the size to
+  // put back. The imports are called at their glue: TextWidth 0xC2AC0,
+  // TextSize 0xC35B8, CharExtra 0xC3630; 0xB6CE8 is strlen.
+  { id: 'name-fit', kind: 'fix', title: 'A long name under a conversation portrait is drawn smaller until it fits, not squeezed until its letters overlap',
+    bug: 'A long name under a conversation portrait is squeezed until its letters overlap',
+    sites: [
+      { at: 0x3DE90, was: [0x38800054, 0x4BFFDAA1], asm: ['b @fit                ; was li 4, 84', 'nop                   ; was bl FitText'] },
+      { at: 0x3DF68, was: [0x38600000, 0x480856C5, 0x80410014], asm: ['b @restore            ; was li 3, 0', 'nop                   ; was bl CharExtra', 'nop                   ; was lwz 2, 20(1)'] }],
+    cave: ['fit:', 'lha 23, 74(28)        ; the size, to put back after',
+           'measure:', 'addi 3, 1, 56', 'bl @0xB6CE8', 'mr 5, 3', 'addi 3, 1, 56', 'li 4, 0', 'bl @0xC2AC0', 'lwz 2, 20(1)',
+           'extsh 3, 3', 'cmpwi 3, 104', 'ble @fits              ; clear of the other speaker\'s text',
+           'lha 3, 74(28)', 'cmpwi 3, 9', 'ble @squeeze', 'addi 3, 3, -1', 'bl @0xC35B8', 'lwz 2, 20(1)', 'b @measure',
+           'squeeze:', 'addi 3, 1, 56', 'li 4, 104', 'bl @FitText__FPCcs   ; at 9 points and still too wide: the shipped squeeze',
+           'fits:', 'b @0x3DE98',
+           'restore:', 'li 3, 0', 'bl @0xC3630', 'lwz 2, 20(1)', 'mr 3, 23', 'bl @0xC35B8', 'lwz 2, 20(1)', 'b @0x3DF74'] },
+
   // ---- Hooks ----------------------------------------------------------------
   { id: 'hook-take', kind: 'hook', method: 241, title: 'Method 241 on where a thing is being put, with the thing, before it is weighed: False refuses, True puts it unweighed',
     sites: [{ at: 0x541EC, was: [0x5740063F], asm: ['b @cave               ; was clrlwi. 0, 26, 24'] }],
