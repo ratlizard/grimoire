@@ -2124,7 +2124,7 @@ function renderAppFixMaker() {
    that carries a fix already, is refused by the first edit that does not
    find what it expects, and the note names the fix. Apply and Read go
    through the patches section, as the sprite's and the gremlin's do. */
-window.DATAFIX_STATE = { on: new Set() };
+window.DATAFIX_STATE = { on: new Set(), showText: false, textChanges: null };
 function dataFixSay(m, bad) {
   const note = document.getElementById('dataFixNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
@@ -2237,6 +2237,58 @@ function dataFixDownload(asMacBinary) {
   return w;
 }
 
+/* Every change the text makes, under its options, at the maintainer's word
+   (28 September 2026): the text is chosen as one fix, and this is how to
+   read what that one fix is. Worked out by applying the text to the open
+   file with the options chosen (dataFixTextChanges), which is a second or
+   so, so only once the list is opened, and again when an option changes
+   while it is open; the rows are kept for the file and the options they
+   were made for. The text's own box need not be ticked to read it. */
+function dataFixTextIds() {
+  return [...window.DATAFIX_STATE.on].filter(id => { const f = DATA_FIXES.find(x => x.id === id); return f && f.parent === 'text'; }).sort();
+}
+function dataFixTextRows() {
+  const st = window.DATAFIX_STATE, ids = dataFixTextIds(), key = ids.join(',');
+  if (!ARCHIVE || !ARCHIVE.bytes) return { why: 'No game file is open.' };
+  if (st.textChanges && st.textChanges.key === key && st.textChanges.arc === ARCHIVE) return st.textChanges;
+  let got;
+  try { got = { rows: dataFixTextChanges(ARCHIVE.bytes, ids) }; }
+  catch (e) { got = { why: 'The text could not be applied to this file. ' + e.message }; }
+  st.textChanges = Object.assign(got, { key, arc: ARCHIVE });
+  return st.textChanges;
+}
+function dataFixFillChanges(body) {
+  const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
+  const r = dataFixTextRows();
+  body.innerHTML = '';
+  if (r.why) { body.appendChild(el('p', 'mechSub patchBad', r.why)); return; }
+  const place = id => {
+    let name = '';
+    try { name = labelFor(id) || ''; } catch (e) { quiet(e, 'a name for a resource the text changes'); }
+    return name || propWordHex(id);
+  };
+  // What the game's bytes say, shown so a tab and a word taken out are seen.
+  const shown = t => t === '' ? 'nothing' : t.replace(/\t/g, ' (tab) ').replace(/\n/g, ' ');
+  const heading = part => part === 'text' ? 'Misspellings and slips' : part === 'community' ? 'The community\u2019s list'
+    : (DATA_FIXES.find(f => f.id === part) || { title: part }).title;
+  const parts = [];
+  for (const row of r.rows) if (parts.indexOf(row.part) < 0) parts.push(row.part);
+  body.appendChild(el('p', 'mechSub', r.rows.length + ' changes. The words struck through are the game\u2019s, and the words after them what the fix writes.'));
+  for (const part of parts) {
+    const list = r.rows.filter(x => x.part === part);
+    body.appendChild(el('div', 'partsTitle', heading(part) + ' (' + list.length + ')'));
+    for (const row of list) {
+      const line = el('div', 'dataFixChange');
+      // Up to three places are named; more are counted.
+      line.appendChild(el('span', 'dataFixPlace', (row.resids.length <= 3 ? row.resids.map(place).join(', ') : row.resids.length + ' resources') +
+        (row.places > 1 ? ', ' + row.places + ' places' : '')));
+      line.appendChild(el('span', 'dataFixWas', shown(row.find)));
+      line.appendChild(el('span', 'dataFixNow', shown(row.replace)));
+      body.appendChild(line);
+    }
+  }
+}
+
 function renderDataFixMaker() {
   const host = document.getElementById('dataFixMaker');
   if (!host) return;
@@ -2288,6 +2340,20 @@ function renderDataFixMaker() {
         const r = el('div', 'appFixRow');
         r.appendChild(box(on.has(o.id), function (c) { dataFixToggle(o.id, c); }, o.title, off).l);
         sub.appendChild(r);
+      }
+      if (f.id === 'text') {
+        const st = window.DATAFIX_STATE;
+        const d = el('details', 'appFixWords');
+        d.open = !!st.showText;
+        d.appendChild(el('summary', 'mechSub', 'Every change the text makes'));
+        const body = el('div', 'dataFixChanges');
+        d.appendChild(body);
+        // Filled after the list is drawn open, so the page answers the click
+        // before the second or so the text takes.
+        const fill = () => { body.textContent = 'Reading the text\u2026'; setTimeout(function () { dataFixFillChanges(body); }, 0); };
+        d.ontoggle = function () { st.showText = d.open; if (d.open) fill(); };
+        if (d.open) fill();
+        sub.appendChild(d);
       }
       host.appendChild(sub);
     }

@@ -1500,9 +1500,10 @@ const DATA_FIX_TEXT_BRITISH = (() => {
 })();
 
 // The text stage's edits for the options chosen: the list, less the options
-// not chosen. And the spelling stage's, for the spelling chosen.
+// not chosen, each keeping the option it belongs to for the list of changes
+// (dataFixTextChanges). And the spelling stage's, for the spelling chosen.
 function dataFixTextEdits(chosen) {
-  return DATA_FIX_TEXT.filter(e => !e.opt || chosen.has(e.opt)).map(e => { const c = Object.assign({}, e); delete c.opt; return c; });
+  return DATA_FIX_TEXT.filter(e => !e.opt || chosen.has(e.opt)).map(e => Object.assign({}, e));
 }
 function dataFixSpellingEdits(chosen) {
   return chosen.has('spelling-us') ? DATA_FIX_TEXT_AMERICAN.slice() : chosen.has('spelling-uk') ? DATA_FIX_TEXT_BRITISH.slice() : [];

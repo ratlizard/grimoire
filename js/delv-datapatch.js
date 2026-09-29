@@ -77,7 +77,7 @@ function dataPatchSession(bytes) {
   const spec = delverArchiveSpec(bytes);
   const plain = new Map();
   return {
-    bytes, arc, spec, plain, log: [], listings: new Map(),
+    bytes, arc, spec, plain, log: [], listings: new Map(), stage: null, textDone: [],
     bytesOf(resid) { return plain.get(resid) || smartDecrypt(getResourceBytes(arc, resid), resid).data; },
   };
 }
@@ -234,6 +234,9 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
     }
     s.plain.set(e.resid, b);
     log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', ' + hits.length + ' place' + (hits.length === 1 ? '' : 's') + ', ' + moved + ' offsets moved');
+    // What the text now says, edit by edit, for the list of every change
+    // the text makes (dataFixTextChanges).
+    s.textDone.push({ stage: s.stage, opt: e.opt || null, what: e.what, resid: e.resid, find: e.find, replace: e.replace, places: hits.length });
   } catch (err) { throw named(e, err); }
 }
 
@@ -248,7 +251,7 @@ function finishDataPatch(s) {
     r.data = data;
     if (was.length !== data.length || was.some((v, i) => v !== data[i])) changed.push(resid);
   }
-  return { spec: s.spec, changed: changed.sort((a, b) => a - b), log: s.log };
+  return { spec: s.spec, changed: changed.sort((a, b) => a - b), log: s.log, text: s.textDone };
 }
 
 /* The fixes chosen, in DATA_FIX_STAGES order. A fix is chosen by its id; a
@@ -281,6 +284,7 @@ function applyDataFixes(bytes, ids, opts) {
       if (!parts.length) continue;
       // Every plan of a stage reads the file as the stage found it.
       s.listings = new Map();
+      s.stage = stage;
       const all = { edits: [], dataEdits: [], textEdits: [] };
       const tag = (f, list) => (list || []).map(e => Object.assign({}, e, { fixTitle: f.title }));
       for (const { f, p } of parts) {
@@ -304,4 +308,29 @@ function applyDataFixes(bytes, ids, opts) {
     dvmSetResourceSymbols(keepSyms);
     dvmContextResid = keepCtx;
   }
+}
+
+/* Every change the text fix makes to a file, with the text's options
+   chosen in `ids`, as the Patches section lists them under it: the edits
+   applied to the file as a patch would apply them, so the community's list,
+   which is found in the text as the earlier stages leave it, is what the
+   patch would do and not a guess. One row an edit, in the order applied,
+   under the part of the fix it came from ('text', an option's id,
+   'community', or the spelling's id); an edit made in several resources (a
+   word misspelt in seven, a British stem over every script) is one row with
+   the resources it was made in and the places counted. */
+function dataFixTextChanges(bytes, ids) {
+  const chosen = dataFixesChosen(['text'].concat(ids || []));
+  const done = applyDataFixes(bytes, [...chosen], { stages: ['text', 'community-text', 'spelling'] });
+  const spelling = DATA_FIXES.find(f => f.choice === 'spelling' && chosen.has(f.id));
+  const rows = [], byKey = new Map();
+  for (const t of done.text) {
+    const part = t.stage === 'community-text' ? 'community' : t.stage === 'spelling' ? (spelling ? spelling.id : 'spelling') : (t.opt || 'text');
+    const key = part + '\u0000' + t.find + '\u0000' + t.replace;
+    let r = byKey.get(key);
+    if (!r) { r = { part, find: t.find, replace: t.replace, resids: [], places: 0 }; byKey.set(key, r); rows.push(r); }
+    if (r.resids.indexOf(t.resid) < 0) r.resids.push(t.resid);
+    r.places += t.places;
+  }
+  return rows;
 }

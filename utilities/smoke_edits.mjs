@@ -1377,10 +1377,19 @@ try {
   ctx.dataFixSpelling('spelling-uk');
   ctx.dataFixToggle('peirithous', true);
   const desc = peek('dataFixDescription(dataFixChosen())');
+  // The list of every change the text makes, with those options, drawn.
+  const changes = peek(`(() => { const r = dataFixTextRows(); const b = document.createElement('div'); dataFixFillChanges(b);
+    const has = (part, find, replace) => r.rows.some(x => x.part === part && x.find === find && x.replace === replace);
+    return { why: r.why || null, rows: r.rows ? r.rows.length : 0, parts: r.rows ? [...new Set(r.rows.map(x => x.part))] : [],
+             yery: has('text', 'Yery well', 'Very well'), landKing: has('text-land-king', 'LandKing', 'Land King'),
+             british: r.rows ? r.rows.some(x => x.part === 'spelling-uk') : false, community: r.rows ? r.rows.some(x => x.part === 'community') : false,
+             twoTaled: has('text-two-taled', 'Two Tailed Rat', 'Two-Taled Rat') }; })()`);
   const w = peek('dataFixPatch()');
   const text = id => peek(`(() => { const b = smartDecrypt(getResourceBytes(ARCHIVE, ${id}), ${id}).data; let t = ''; for (let i = 0; i < b.length; i++) t += String.fromCharCode(b[i]); return t; })()`);
   if (none !== null || orphan !== null) fail('game fixes', 'a patch was written with nothing chosen, or with an option alone');
   else if (!refusedParis || refusedParis.indexOf(paris) !== 0) fail('game fixes', 'the edited Paris topic was not refused by the fix’s name: ' + refusedParis);
+  else if (changes.why || !changes.yery || !changes.landKing || !changes.british || !changes.community || changes.twoTaled)
+    fail('game fixes', 'the list of the text’s changes is not the options chosen: ' + JSON.stringify(changes));
   else if (!/5 of Bryce Schroeder’s/.test(desc) || !/the text \(British spelling, Land King\)/.test(desc) || !/Peirithous alive/.test(desc))
     fail('game fixes', 'the patch calls itself ' + desc);
   else if (!w || !w.checkValueValid || ![0x1A28, 0x1091, 0x1861, 0xF00B, 0xF009, 0x1801].every(r => w.resids.includes(r)))
@@ -1396,7 +1405,7 @@ try {
     else if (!/won't come free/.test(fetch)) fail('game fixes', 'Fetch’s new lines are not in 0x1A28');
     else if (!peek('window.EDITED_RESIDS').has(0x1A28)) fail('game fixes', 'the fixes are not among the edits');
     else if (!again) fail('game fixes', 'the fixes built again on the file they had fixed');
-    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list refused on the edited Paris topic by the fix's name; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), and refused when built again`);
+    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list refused on the edited Paris topic by the fix's name; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), and refused when built again; the text's ${changes.rows} changes listed under ${changes.parts.length} headings, the option not chosen not among them`);
   }
   ctx.dataFixClear();
   ctx.patchesForget();
