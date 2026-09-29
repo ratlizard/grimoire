@@ -514,8 +514,8 @@ Object.assign(DELV_TRANSLATION_ES.text['021A'], {
   '70b3d38c': 'Para que funcione la reacción del flujo temporal, Charax el Alquimista necesita unas raras algas de las profundidades del mar.',
   'b1fa84f6': 'La matrona Thuria te ha dicho que la mina de la Casa Attis está encantada.  Atymnius, un minero, sabe detalles de primera mano, pero tarde o temprano tendrás que ir a la mina y hablar con el capataz Amphidamas.',
   '9f0a602a': 'La Maga Libre Prusa dejó Kosha, temerosa de una especie de visión relacionada con el mar, que quizá le ha robado la cordura.  Deberías buscarla para ver si su visión profética puede iluminarte.',
-  '0dfb811d': 'Apis, dueño de La Rata de Dos Colas, necesita más harina, y quiere que se la recojas a Periphas, el panadero.',
-  '2e408234': 'Apis, dueño de La Rata de Dos Colas, te ha encargado negociar un contrato de vino abierto, siempre que encuentres un viñedo con existencias de sobra.',
+  '0dfb811d': 'Apis, dueña de La Rata de Dos Colas, necesita más harina, y quiere que se la recojas a Periphas, el panadero.',
+  '2e408234': 'Apis, dueña de La Rata de Dos Colas, te ha encargado negociar un contrato de vino abierto, siempre que encuentres un viñedo con existencias de sobra.',
   '3c27b89e': 'Los diez Libros de Zafiro de la Sabiduría han desaparecido de la biblioteca del Magisterium.  El bibliotecario Selinus necesita que los encuentres, y a cambio te dará las contraseñas de las salas de los grados superiores.',
   'ef9e2095': 'Nueve de los diez Libros de Zafiro de la Sabiduría han desaparecido de la biblioteca del Magisterium.  El bibliotecario Selinus necesita que los encuentres, y a cambio te dará las contraseñas de las salas de los grados superiores.',
   '86161aa4': 'Ocho de los diez Libros de Zafiro de la Sabiduría han desaparecido de la biblioteca del Magisterium.  El bibliotecario Selinus necesita que los encuentres, y a cambio te dará las contraseñas de las salas de los grados superiores.',
@@ -700,7 +700,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   },
   '0805': {
     '29586ab7': '"Mi primo Parium lleva la taberna y posada de La Cabra Verde en Catamarca: un buen sitio."',
-    'ec87c021': '"Mi primo Apis lleva La Rata de Dos Colas en Cademia."',
+    'ec87c021': '"Mi prima Apis lleva La Rata de Dos Colas en Cademia."',
     '8f627842': '"Mi primo Crito lleva La Cabeza del Titán en Odemia."',
     'a07d3e77': '"Mi prima Helen lleva la Sala de Estudio de Pnyx."',
     '9d4c06c0': '"Paris está casado con mi prima Helen."',
@@ -2390,3 +2390,151 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   },
 });
 Object.assign(DELV_TRANSLATION_ES.keys, { '1823': { hebe: 'hebe', crit: 'crit', ante: 'ante' }, '1824': { hebe: 'hebe' } });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { weap: 'arma', impr: 'mejo', lava: 'lava', obsi: 'obsi' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Alastor the tanner, and the gator-skin boots
+  '1825': {
+    '60eb5f8c': 'Ves a un hombre bajo y rechoncho, con las manos y los brazos manchados.',
+    '52c07f81': '"Aún estoy trabajando en la piel de caimán; ¿quizá podrías volver mañana..."',
+    '9f387395': '"Bueno, debo decir que estoy algo decepcionado con el resultado."*"No solo ha llevado más tiempo del previsto, sino que el resultado, aunque cumple lo prometido, no es de lo más cómodo."*"Te agradezco, eso sí, la oportunidad y, como te prometí, aquí tienes las botas.  Que te sirvan bien."*Te entrega un par de rígidas botas de cuero.*',
+    '8394fa77': '.  Soy Alastor, uno de los mejores curtidores de la tierra."*"¿Quizá te interesarían algunos artículos de cuero..."*',
+    '79e5f8b1': '"¡Excelente!  Has traído la piel de caimán.  ¡Me pondré a trabajar en ella enseguida!"',
+    'c24d44b7': '*"Mmm, esto me llevará un par de días.  ¿Quizá podrías volver dentro de un día o dos..."',
+    '654db6da': '¡Los mejores artículos de cuero a la venta!', '1db8e536': 'Honda', '4614a257': 'Coraza', '82f64e1e': 'Yelmo de cuero',
+    'b3a2bb64': '"Si no te importa que te lo pregunte, ',
+    'd8f78cd3': ', pareces de las personas que podrían ayudarme en algo."*"Tengo curiosidad por probar técnicas y materiales nuevos en mi oficio, y tengo una propuesta que quizá te interese."*"¿Te interesaría conseguirme cierto material, a cambio de unos artículos especiales?"',
+    'd87d171c': '"Excelente.  Busco la piel, o el cadáver entero, de un gran caimán de ciénaga."*"Tengo entendido que son muy malos y peligrosos, pero si consiguieras uno, me interesaría mucho."*"A cambio, te haré un par de botas como no has visto otras."*"Si mis teorías son ciertas, no solo serán impermeables, sino también resistentes al calor."',
+    '99f14654': '"Muy bien, entiendo que tienes tus propias tareas.  No volveré a molestarte con esto..."',
+    '147c6fdb': '"Aún estoy trabajando en esa piel de caimán; ¿quizá si pasaras mañana cuando esté en mi tienda..."',
+    'a101207e': '"Ah, veo que tienes el cadáver del caimán.  ¿Podrías traérmelo a la tienda más tarde, cuando esté abierta?"',
+    'ddcd208e': '"Vuelve más tarde, por favor, cuando esté abierto."',
+  },
+  // Eioneus, the Freemage at his lava forge
+  '1827': {
+    '6204ea0c': 'Ves a un hombre sudoroso, sucio y musculoso, con fuego en los ojos.*',
+    '29c4f914': '"¡Te doy la bienvenida!  No recibo muchas visitas aquí: me llamo Eioneus.  ¿Qué puedo hacer por ti?"',
+    'df84ed45': '"Qué bien verte otra vez: da gusto tener visitas de vez en cuando..."',
+    '01d0bfc5': '"Como ya te dije, me llamo Eioneus."',
+    '14e97541': '"Soy un Mago Libre, y estudio cómo mejorar las @armas con magia."',
+    '803202e5': '"Sí, puedo mejorar el filo de un arma, pero tendrás que pasar cuando esté trabajando en mi fragua."',
+    '4ca9a1a3': '"Me está saliendo bastante bien, ahora que uso una combinación del calor de la lava y la obsidiana."*"¿Tienes algún arma que quieras que intente mejorar?  Solo puedo con armas de filo, como las espadas."',
+    '584700c2': 'Sin mejorar', '06aa0b72': 'Mejora menor', 'f3c13879': 'Algo de mejora', '0d7a9eef': 'Mejora',
+    '5c5127f6': 'Mejora importante', '82e3da94': 'Mejora muy importante', 'ae48350e': 'Mejora legendaria',
+    'fb7a7854': '"Lo siento, no tienes nada con lo que pueda trabajar..."*',
+    '5005bf0a': '¿Qué arma quieres mejorar?', 'b85561a8': '|%i|(%s)|-100%d obsidiana',
+    '47030b87': '"Lo siento, pero esto está más allá de mi habilidad."',
+    'c142d5d5': '"Esto requiere ', '4ec6fe08': ' trozos de obsidiana para mejorarlo: ¿te interesa?"',
+    '1af6a4c2': '"Tendrás que reunir más obsidiana antes de que pueda mejorar esta arma."',
+    '2d898e64': 'Eioneus trabaja el arma con sus herramientas de herrero, combinando la obsidiana en la lava.*"Ya está: ¡otro trabajo perfecto!"',
+    '61d1be5f': '"Quizá otra arma..."',
+    'ca880713': '"Bueno, si lo necesitas en el futuro, ya sabes dónde encontrarme."',
+    '83251e61': '"Solo el calor de la lava basta para mejorar un filo con magia."',
+    '5b2419b9': '"La obsidiana es la fuente perfecta de un filo cortante como una navaja, y por sus propiedades alquímicas es un elemento perfecto."',
+    'c84530ad': '"Vuelve cuando tengas la obsidiana."',
+    '36ffcd34': '"Pásate si tienes ocasión, ¡y ten cuidado con ese limo que infesta estas cuevas!"',
+    '5c836944': '"Lo siento, pero me parece que el calor me está afectando..."',
+  },
+});
+// The innkeepers share their trade's lines: a room for the night at a
+// price + " oboloi" [+ " for the lot of you"]; meals at a price + " per person".
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { inn: 'posa,taber', room: 'cuar,habi', dice: 'dado', game: 'jueg,part', meal: 'banq,cena' });
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  '6ac4ba36': '"Lo siento, pero debes de confundirme con otra persona."*',
+  'dcfe4137': '"Y tú debes de ir con este sinvergüenza.  Salda la cuenta o largo de aquí."*',
+  '2e919b47': '"¡Pues largo de aquí!"', '56bde2a0': '"¡Así está mejor!  Y ahora, ¿qué puedo hacer por ti?"',
+  '120dbb71': '"Si ni siquiera llevas tanto encima."*"La puerta está ahí.  Úsala."',
+  '4ec094fe': '"¿Con hambre para esa comida que te prometí?"',
+  'a2227342': '"Llevo esta @posada."',
+  '54da1d5f': '"Una habitación para la noche, con una de mis mejores comidas de regalo, te costará ',
+  'd0215145': ' óbolos', 'c9875a9c': ' para todo el grupo', '7b4359eb': '."*"¿Te interesa?"',
+  '001fbf5d': '"Disfruta de tu estancia.  Puedes tomar tu @banquete ahora o más tarde."',
+  '355f4943': '"Quizá deberías volver a contar tu dinero primero."',
+  'c05acb17': ' por persona', 'f5f293f3': '.  ¿Te interesa?"',
+  '47a99bf0': '¿Qué te interesa?',
+  'fbd6e6ad': '"Es un sinvergüenza, eso seguro."',
+});
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Parium, of the Green Goat in Catamarca
+  '1828': {
+    '0dd2002f': 'Parium te sirve una buena comida de queso, pan y carne.*Comes hasta hartarte.',
+    'ae0ecec4': '"¡Podargus!  ¡Me debes 25 óbolos de tu cuenta!"*',
+    'e8d4277e': '"¡A no ser que haya dos personas tan feas como tú!"*',
+    '255f2b57': '"¿Vas a pagar tú los 25 óbolos que debe tu amigo?"',
+    '83694a84': '"Soy tu humilde anfitrión, Parium."',
+    'd7de0602': '"Sí: ¿te interesa un @cuarto, una partida de @dados, quizá algo de @comida, o quizá un @banquete entero, o solo una @bebida y una buena conversación?"',
+    '59aa9ce4': '"Las comidas cuestan 5 óbolos',
+    '685f1bc9': '"Acaba de terminar de tocar aquí: creo que se iba a Cademia a ver a un amigo."',
+    'c866b065': '"Toca aquí cuando anda por la zona, pero últimamente no lo he visto."',
+  },
+  // Crito, of the Titan's Head in Odemia, who is sweet on Hebe
+  '1829': {
+    '3b78ace8': 'Crito te sirve una buena comida de queso, pan y carne.*Comes hasta hartarte.',
+    '69ef4e58': '"¡Balius!  ¡Me debes 20 óbolos de tu cuenta!"*',
+    '3056033e': '"Yo creo que no."*',
+    '6ee5d0f2': '"¿Vas a pagar tú los 20 óbolos que debe tu amigo?"',
+    'd7726278': '"¿Hablaste con Hebe de mí?"',
+    'ca070c10': '"Sí; por desgracia, todavía siente algo por Antenor."*',
+    '77429c7e': '"Mmm, ya me lo imaginaba, pero pensé que quizá... bueno, gracias por intentarlo."',
+    'cb67b971': '"Todavía no he tenido ocasión."*',
+    '04f9b17d': '"Lo entiendo: debes de tener mucho que hacer."',
+    '5cf4210d': '"Soy tu humilde anfitrión, Crito."',
+    'a90a74c5': '"Sí: ¿te interesa un @cuarto, una partida de @dados, quizá algo de @comida, o quizá un @banquete entero, o solo una @bebida y algo de conversación?"',
+    'dd8c71fb': '"Quizá si le doy algo de espacio pueda aclarar lo que siente..."',
+    'bb307fd4': '"Le preguntarás por mí, ¿verdad?"',
+    'db5bf474': '"Es toda una mujer: ojalá supiera qué siente por mí... ¿quizá podrías preguntárselo?"',
+    '0561165d': '"Las comidas cuestan 4 óbolos',
+    'fcb21f18': '"Acaba de terminar de tocar aquí: dijo algo de ir a Catamarca, seguramente a tocar en La Cabra Verde."',
+    '2306985e': '"No viene mucho por esta zona, pero nos encanta cuando pasa por aquí."',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '1828': { ' pari': 'pari', poda: 'poda' }, '1829': { ' crit': 'crit', bali: 'bali', hebe: 'hebe' } });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { guil: 'grem', ratc: 'rater,caza', eate: 'come', fare: 'plat,come' });
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  '59aa9ce4': '"Las comidas cuestan 5 óbolos', '2d86b9f5': ': ¡pasa, pasa!"', '06d6b33b': 'Buena comida fresca',
+  'afeea054': '"Bueno, gracias de todos modos: tu próximo @banquete corre a cuenta de la casa, por las molestias..."',
+});
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Apis, of the Two-Taled Rat in Cademia, and the wine contract
+  '182A': {
+    'd4029906': 'Apis te sirve una buena comida de queso, pan y carne.*Comes hasta hartarte.',
+    '5b6a4f45': '"¿Ha habido suerte con ese contrato de vino?"',
+    '31adbb9d': '"Mmm, no parece estar firmado; ¿quizá deberías repasarlo otra vez?"',
+    'ebfc9f4c': '"Bueno, sigue con ello si tienes ocasión."',
+    'd967979f': '"¿Pudiste recoger esa harina de Periphas?"',
+    '532a8ed4': '"Sí: aquí la tienes..."', '58a45ac9': '*Le das la harina.',
+    '854449c2': '"Gracias, te lo agradezco; ¿quizá te interesaría una oportunidad de negocio?"',
+    '9087fe1c': '"Aquí tienes mi contrato de vino: por cada barril que consigas que un viñedo se comprometa a darme, te daré 10 óbolos."*Te entrega un papel.',
+    '9cedfbdf': '"No, todavía no."*',
+    '8cd63baa': '"Bueno, cuando tengas ocasión..."',
+    '5325410c': '"Soy tu humilde anfitriona, Apis."',
+    'b08d0945': '"Llevo esta @posada, La Rata de Dos Colas."',
+    '3a105573': '"Sé que tienes cosas que hacer, pero ¿podrías hacerme un favor?"',
+    '6df6e118': '"Periphas, el panadero, aceptó venderme algo de harina: ¿podrías recogérmela?  ¡Gracias!"',
+    'bc3bfd70': '"Lo entiendo: quizá en otra ocasión."',
+    '641f8ef7': '"Sí: ¿te interesa un @cuarto, una partida de @dados, quizá algo de @comida, o quizá un @banquete entero, o solo una @bebida?"',
+    '90594096': '"Las comidas cuestan 3 óbolos',
+    'b2245a90': '"Por desgracia, Demodocus no toca aquí, ni siquiera cuando está por la zona.  Quizá deberías preguntar a su amigo @Bryaxis."',
+    '5b523196': "\"Los del Gremio de Rateros sí que vienen a menudo a 'La Rata de Dos Colas'\"",
+  },
+  // Dares and Diomede, of Dares' Eatery
+  '182D': {
+    'd1a91771': 'Dares te sirve una comida verdaderamente estupenda de queso, pan y carne.*Comes hasta hartarte.',
+    '7c446e74': 'Ves a un hombre mayor, contento pero con cara de estar algo despistado.\n*"',
+    'e4cd02b9': "\"Me llamo Dares, aunque también respondo a 'Eh, tú'.\"",
+    'a30cf34d': '"Llevo este buen establecimiento de comidas: ¿te @interesa algo?"',
+    'af2ee783': '"Sí: ¿te interesa algo de @comida, o quizá un @banquete entero, o solo una @bebida y una buena conversación?"',
+    '684b3df4': '"¡Nunca encontrarás mejor esposa ni mejor amiga!"',
+    'e835aae0': '"La encantadora Diomede es mi mujer y mi socia aquí, en la Casa de Comidas."',
+  },
+  '182E': {
+    '734a0628': 'Diomede te sirve una comida verdaderamente estupenda de queso, pan y carne.*Comes hasta hartarte.',
+    'b0a0a3d3': 'Ves una cara amable y regordeta, como de abuela, sobre un cuerpo igual de regordete.\n*"Te doy la bienvenida a la Casa de Comidas de Dares: estás en tu casa."',
+    'a66bd7a0': '"Soy Diomede, la mujer de Dares."',
+    '6a9ab631': '"Ayudo a mi marido en la Casa de Comidas: ¿te @interesa algo?"',
+    '98befe08': '"La Casa de Comidas de Dares: uno de los mejores sitios de Cademia para comer, con su terraza al aire libre."*"¿Quizá te @interesaría probar nuestros platos?"',
+    '424260db': '"¿Quieres algo de @comida, o quizá un @banquete entero, o solo una @bebida y una buena conversación?"',
+    '681cc592': '"¡Nunca encontrarás mejor marido ni mejor amigo!"',
+    '2b13e0de': '"Dares es mi marido: lleva la @Casa de Comidas."',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '182A': { ' apis': 'apis' }, '182D': { dare: 'dare', diom: 'diom' }, '182E': { diom: 'diom', dare: 'dare', eate: 'casa,come' } });
