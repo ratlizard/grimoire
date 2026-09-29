@@ -303,15 +303,15 @@ const DELV_TRANSLATION_ES = {
       'df5569a2': 'Cuerpo: 16  Reflejos: 18  Mente: 14',
     },
     '0206': {
-      '8fe7859b': 'Ataque[2], Defensa[2], Maná[2], Conjuros[2]',
+      '8fe7859b': 'Ataque[2], Defensa[2], Poder[2], Conjuros[2]',
       '743b3fff': 'Ataque[4], Defensa[4]',
       'ba4460c7': 'Ataque[2], Defensa[2], Espada[2], Escudo[2]',
       '6d54e6be': 'Ataque[6], Sin armas[2]',
-      '3499f42d': 'Maná[4], Conjuros[4]',
-      'a2d93f15': 'Maná[2], Conjuros[6]',
-      'eebe709d': 'Maná[6], Conjuros[2]',
-      'b1c84931': 'Ataque[1], Defensa[2], Proyectiles[1], Persuasión, Regateo',
-      '2038ea8f': 'Ataque[2], Trampas, Percepción, Cerraduras',
+      '3499f42d': 'Poder[4], Conjuros[4]',
+      'a2d93f15': 'Poder[2], Conjuros[6]',
+      'eebe709d': 'Poder[6], Conjuros[2]',
+      'b1c84931': 'Ataque[1], Defensa[2], Proyectiles[1], Labia, Regateo',
+      '2038ea8f': 'Ataque[2], Trampas, Alerta, Abrir cerraduras',
     },
 
     // the zones' names, where they are set as the map window's title
@@ -2298,7 +2298,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     '817453f5': '"Sí, \'Uvas, dos abejas\', decíamos, porque eso era lo que costaban las @uvas."',
     'c58349e5': '"Mmm, uvas... eso me recuerda una historia..."',
     '7f4aa933': '"Eso es: nos atábamos uvas al cinto.  Era la moda, ¿sabes?"*"Mmm, quizá me equivoqué contigo: has tenido la amabilidad de dejar que un viejo te cuente sus historias."*"Has mostrado respeto y todo.  Quizá pueda @instruirte en unas cuantas cosas..."',
-    '90e481ec': 'Regateo', '522116c6': 'Persuasión',
+    '90e481ec': 'Regateo', '522116c6': 'Labia',
     '4c3b19a2': '¿Qué quieres que te enseñe?',
     'ec3058e0': '=',
     'd9d00ea8': '"No te enseñaría ni a atarte las sandalias..."',
@@ -3362,7 +3362,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   },
 });
 Object.assign(DELV_TRANSLATION_ES.keys['*'], { spy: 'espi', ciph: 'cifr,manu' });
-Object.assign(DELV_TRANSLATION_ES.text['*'], { '4078ad2a': 'Maná', '2047d1a2': 'Conjuros' });
+Object.assign(DELV_TRANSLATION_ES.text['*'], { '4078ad2a': 'Poder', '2047d1a2': 'Conjuros' });
 Object.assign(DELV_TRANSLATION_ES.text, {
   // Lindus, Headmaster of the Magisterium
   '1850': {
@@ -4266,4 +4266,94 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     '0599f830': 'La puerta ya no está cerrada con magia.\n', '2f4ee094': 'Ya no está cerrado con magia: ', '2ac0479f': '.\n',
     '6619044e': 'La trampilla ya no está cerrada con magia.\n', '01d5efec': 'No hay ningún cierre mágico en: ',
   },
+});
+// The skills' names are drawn in the character window's small labels, which
+// are Geneva, so they are chosen without accents (Poder for Mana, as the
+// proofs of the opening had it, Labia for Persuasion, Alerta for Awareness).
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  '72845708': 'Esta habilidad indica ', 'a58b0193': 'aptitud', '7b9b7437': 'entrenamiento', '6c37c326': 'pericia',
+  '309e3d29': 'Esta habilidad es la ', 'ceeafd91': 'capacidad', 'c0c72340': 'Esta habilidad ', 'c6736021': 'es una aptitud que lleva',
+  '1f4fcfbd': ' te hace unos ejercicios para ver tu nivel.', '073bc008': ' te enseña unos movimientos y estrategias sencillos.',
+  '79ed065b': ' te enseña unos movimientos y estrategias más complejos.', 'c94f678f': ' te enseña unos movimientos y estrategias aún más complejos.',
+  '4e6f7806': ' te examina, pasando las manos de un lado a otro por delante de ti...',
+  '87c7f3d1': '"Bien, empecemos enseguida..."*Pasas a recibir entrenamiento en lo básico de los caminos del mago...',
+  '68927182': '"Ya dominas lo básico; ahora, aquí tienes unas formulaciones más avanzadas..."',
+  '24e10c38': ' te explica unas formulaciones y unos rituales más complejos.',
+  'cc13e04f': '"Mmm, qué buena madera de estudiante; ahora, aquí tienes unas técnicas avanzadas de verdad..."',
+  'a74c7646': ' te enseña unos atributos y unas propiedades aún más complejos.',
+  '70021308': 'Sin armas', '2b903d23': 'Proyectiles', '01238c83': 'Trampas', 'c7c4ebae': 'Alerta', 'c42eecd5': 'Pesca',
+  '450b1697': 'Cocina', '3a665776': 'Tejido', 'a05d01fc': 'Alquimia', '552b1cd1': 'Magia de runas', 'd884e642': 'Magia curativa',
+});
+Object.assign(DELV_TRANSLATION_ES.text, {
+  '1AC0': {
+    'bf38d2ba': '"Bueno, esto es lo básico del ataque..."',
+    '94bed49c': '"Ya dominas lo básico; ahora, aquí tienes unas técnicas de ataque más avanzadas..."',
+    '84bb527f': '"Mmm, qué buena madera de estudiante; ahora, aquí tienes unas técnicas de ataque avanzadas de verdad..."',
+    'd534b3af': '"Dominas por completo el ataque."',
+    'a3f09ea4': ' en técnicas de combate ofensivo.\n',
+  },
+  '1AC1': {
+    'bf203256': '"Bueno, esto es lo básico de la defensa..."',
+    'fc9dc75a': '"Ya dominas lo básico; ahora, aquí tienes unas técnicas de defensa más avanzadas..."',
+    '917f3fcf': '"Mmm, qué buena madera de estudiante; ahora, aquí tienes unas técnicas de defensa avanzadas de verdad..."',
+    'b173ee0d': '"Dominas por completo la defensa."',
+    '721a201a': ' en técnicas de combate defensivo.\n',
+  },
+  '1AC2': { '906f941c': '"Dominas por completo el Poder."', '8bdfe5c1': ' en las artes mágicas del poder.\n' },
+  '1AC3': { '5130f2f4': '"Dominas por completo los Conjuros."', '3b8fc5c1': ' en las artes mágicas del lanzamiento de conjuros.\n', '373451ed': 'Ahora conoces ', 'b99b5923': ' conjuros posibles.\n' },
+  '1AC4': { 'b5321846': ' de usar una espada en combate.\n' },
+  '1AC5': { 'd9864271': ' de usar un hacha en combate.\n' },
+  '1AC6': { 'f07b033e': ' de usar una maza o un garrote en combate.\n' },
+  '1AC7': { '6ae531b0': ' de luchar sin armas.\n' },
+  '1AC8': { '5ed0075f': ' de lanzar armas arrojadizas con precisión en combate.\n' },
+  '1AC9': { '68ee26e8': ' de usar un escudo con eficacia en combate.\n' },
+  '1ACA': { '45e614ad': ' de detectar y quitar trampas de lugares y recipientes.\n' },
+  '1ACB': { '0d243329': ' de convencer a la gente para que haga cosas que quizá no quiere.\n' },
+  // "This skill " + "is an aptitude for" or "allows" + " the user to ..."
+  '1ACC': { '42abde53': 'lleva', 'f99ecdd7': ' al usuario a regatear mejor al comprar.\n' },
+  '1ACD': { 'ceeafd91': 'lleva', 'b2232ce0': ' a uno a estar más atento a cosas como el tiempo y el espacio, y a ser más perceptivo en general.\n' },
+  '1ACE': {
+    'ec49ca7b': ' te observa un momento, acariciándose la barbilla...', '39d074f9': ' asiente con educación.*',
+    'edf27666': '"Lo que tienes que hacer es conseguirte una caña de pescar, y luego lanzar la mosca en aguas profundas."',
+    '4e26ae33': '"No necesitas mi ayuda: solo tienes que pescar más y hablar menos"',
+    '413a4133': 'Esta habilidad es necesaria para poder usar una caña de pescar y pescar con ella.\n',
+  },
+  '1ACF': {
+    '7801a2b7': ' sonríe, frotándose las manos...', '5f0515f6': ' pasa entonces a explicarte las probabilidades básicas, y un truco sencillo para tirar los dados.',
+    '0f96e598': '"Bueno, hay algunos trucos que tengo que guardarme para mí: te he enseñado todo lo que necesitas."',
+    'dedaaa35': 'Esta habilidad mejora tus probabilidades de ganar en los juegos de azar.\n',
+  },
+  '1AD0': { 'fe1f5a4a': 'Esta habilidad es necesaria para cosas como hornear pan.\n' },
+  '1AD1': {
+    'bd0ae637': ' sonríe, asintiendo con educación.', '4f8a23fb': ' pasa entonces a explicarte cómo usar el telar y la rueca.',
+    '55b4080c': '"Bueno, ya sabes lo básico, pero hacen falta años de práctica para poder ganarse la vida con esto."',
+    '45d7944e': 'Esta habilidad se ocupa de hilar y tejer tu propia tela.\n',
+  },
+  '1AD2': { '27551371': 'Esta habilidad sirve para destilar pociones.\n' },
+  '1AD3': { '88291f61': 'Esta habilidad es la base de varios conjuros de Runas.\n' },
+  '1AD4': { '1c5fab00': 'Esta habilidad es la base de varios conjuros de curación.\n' },
+  '1AD5': { '17fee301': 'Esta habilidad es necesaria para usar una ganzúa y forzar una cerradura.\n', 'c39185bd': '¡A por la cerradura!' },
+  '1AD6': { '93236364': 'Esta habilidad permite \'tomar prestados\' objetos de otra persona (al fin y al cabo, se los devolverás, y de verdad los necesitas)."' },
+});
+// The abilities, buttons of the character window that can take a function key.
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // "> Estimate Time.  It is around " + a part of the day or an hour + ...
+  '1AF1': {
+    '42783b74': 'Calcular la hora', '2bbe07c6': '> Calcular la hora.\nCalculas que la hora es: ',
+    '05ba6b01': 'medianoche', '88ab4733': 'mediodía', '47d04a0f': ' de la mañana', 'cf915df7': ' de la tarde', '8f48fd0f': ' de la noche',
+  },
+  '1AF2': { '30a6698e': 'Desactivar trampa', '970ee2be': ' queda destruida.\n', '1b26ba94': 'Alambre marcado, para poder pasar por encima.\n', 'c3e680dc': 'No había nada que desactivar.\n' },
+  '1AF3': { '01e7c1e7': 'Detectar secretos', 'f45d878d': '> Detectar secretos.\n', '36ce1da6': ' salta a la vista.\n', '7c2b4c30': 'No se detecta nada.\n' },
+  '1AF4': { '190a3797': 'Mirar alrededor', '7cb1d72d': '> Mirar alrededor.\n' },
+  '1AF5': { '30f8c72f': 'Preguntar por', '54e098d6': '¿Sobre qué preguntar a ', 'd176d263': '?\n' },
+  '1AF6': { '26330888': 'Esperaré aquí' },
+  '1AF7': { 'a8b8c02a': 'Atacar objetivo', '4f89d3af': '¿Atacar a qué objetivo?\n', 'd6742ddc': 'Atacar a tu propio grupo no sirve de mucho...\n' },
+  '1AF8': { 'd071269f': 'Forzar cerradura' },
+  '1AF9': { '061b49cc': 'Lanzar...' },
+  '1AFA': { '387f17cb': 'Probar todas las llaves', '81e4ac72': '¿Probar las llaves con qué?\n', 'b7efbb54': 'No tienes llaves que usar...\n', 'c6316cc3': 'No encaja ninguna llave...\n', '5fa88561': 'No está cerrado con llave...\n' },
+  '1AFB': { 'd20c7ec4': 'Repartir comida', '383b3b84': 'En el grupo no hay nadie más que tú...\n', '4f65d8d9': 'Repartiendo la comida...\n', '2e811778': 'No hay comida que repartir...\n' },
+  '1AFC': { '30eded26': 'Repartir dinero', '596f3bbf': 'Repartiendo el dinero...\n' },
+  '1AFD': { '0ddcbd86': 'Juntar dinero', '2b2d60d9': 'Juntando el dinero...\n' },
+  '1AFE': { 'eb42a313': 'Reagrupar' },
+  '1AFF': { 'e25b9d38': 'Pasar' },
 });
