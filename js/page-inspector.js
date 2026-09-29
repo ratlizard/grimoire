@@ -1069,6 +1069,37 @@ function atlasRenderStep(resid) {
   window.ATLAS_RENDER_JOB = { resid, arc: ARCHIVE, walls: !!window.MAP_WALLS, gen: null, mapData: null, wasDecrypted: false, usedFallback: false };
   if (!j) requestAnimationFrame(atlasRenderTick);
 }
+/* The largest place on the surface, rendered before it is asked for
+   (29 September 2026). Cademia is 128 squares a side and every other town
+   64 or less, so its render is four times theirs, and made a slice at a
+   time only once the view had come to rest on it, it was the one wait the
+   maintainer still saw: a tap on Cademia from the world flew in and then
+   sat on the miniature while the render was made. So once the miniatures
+   are made and the view is still, the largest place's render is made in
+   the background, a slice at a time like any other, and kept. Only while
+   no place on screen is using its render: the cache is full from the
+   scene's own building, which renders every town to learn its size, so
+   the prefetch evicts, and evicting a render on screen would have it made
+   again, the two taking turns for ever. What it evicts is a render nobody
+   is looking at. */
+// Whether a place on screen, other than the world, draws from its render:
+// big enough for it (drawAtlasNode's 448 px), for its people, or for tiles.
+function atlasRendersInUse() {
+  return (window.ATLAS_DRAWN || []).some(d => d.node.depth &&
+    (d.r.w >= 448 || d.ppt >= window.ATLAS_TUNE.peopleAt || atlasTileTS(d.node, d.ppt)));
+}
+function atlasPrefetchRender() {
+  if (window.CUR_SUBN !== 'WORLD' || window.ATLAS_RENDER_JOB || atlasRendersInUse()) return;
+  const sc = DERIVED.ATLAS_SCENE;
+  if (!sc) return;
+  let best = null;
+  for (const n of sc.nodes) if (n.depth && (!best || n.w * n.h > best.w * best.h)) best = n;
+  if (!best || zoneMapCache.has(best.resid)) return;
+  atlasWhenStill(() => {
+    if (window.CUR_SUBN === 'WORLD' && !window.ATLAS_RENDER_JOB && !zoneMapCache.has(best.resid) &&
+        !atlasRendersInUse()) atlasRenderStep(best.resid);
+  }, 2000);
+}
 function atlasRenderTick() {
   const j = window.ATLAS_RENDER_JOB;
   if (!j) return;
@@ -1096,6 +1127,7 @@ function atlasRenderTick() {
       if (typeof paintAtlas === 'function') paintAtlas();
       // Another zone may have been asked for by that paint.
       if (window.ATLAS_RENDER_JOB) requestAnimationFrame(atlasRenderTick);
+      else atlasPrefetchRender();
       return;
     }
   } catch (e) { quiet(e, 'a render a slice at a time, 0x' + j.resid.toString(16)); window.ATLAS_RENDER_JOB = null; return; }
@@ -1411,7 +1443,7 @@ function buildWorldThumbs() {
   if (thumbQueue) return;
   const todo = worldGateways().filter(g => !g.sealed &&
     !worldThumbs.has(thumbKey(g.destResid, THUMB_LEVELS[0], true)));
-  if (!todo.length) return;
+  if (!todo.length) { atlasPrefetchRender(); return; }
   const step = () => {
     thumbQueue = null;
     if (window.CUR_SUBN !== 'WORLD') return;
@@ -1419,7 +1451,7 @@ function buildWorldThumbs() {
     if (!gw) return;
     buildThumbsFor(gw, [THUMB_LEVELS[0]]);
     if (window.CUR_SUBN === 'WORLD') paintAtlas();
-    if (todo.length) buildWorldThumbs();
+    if (todo.length) buildWorldThumbs(); else atlasPrefetchRender();
   };
   thumbQueue = 1;
   atlasWhenStill(step, 2000);

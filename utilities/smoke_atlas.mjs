@@ -549,6 +549,47 @@ try {
       else console.log('  world walk: the World tab has the hour alone; a day walking in Zones shows its people at their posts, and no barks are drawn');
     }
 
+    /* The largest place's render is made ahead of the tap (29 September
+       2026): with the whole world in view and Cademia's render not made,
+       the background starts it; with a town on screen that draws from its
+       own render (Odemia here) it starts nothing, since what it would evict
+       is in use.
+       Dropping that guard fails the second half. atlasWhenStill is run at
+       once here, as a still view would. */
+    {
+      const realStill = ctx.atlasWhenStill;
+      ctx.atlasWhenStill = fn => fn();
+      const cache = peek('zoneMapCache');
+      const jobOf = () => ctx.ATLAS_RENDER_JOB && ctx.ATLAS_RENDER_JOB.resid;
+      // Odemia large on screen and drawn from its render, Cademia's not made.
+      const odeP = peek('atlasScene')().nodes.find(n => n.resid === 0x8002), avP = peek('atlasView');
+      ctx.mapRenderFor(0x8002, true);
+      peek('atlasFit')();
+      for (let k = 0; k < 16 && peek('atlasNodePpt')(odeP, avP) < 12; k++) {
+        const rc = peek('atlasRect')(odeP, avP);
+        peek('atlasZoomAround')(avP.Z * 2, rc.x + rc.w / 2, rc.y + rc.h / 2);
+      }
+      drainRaf();
+      cache.delete(0x8008);
+      peek('paintAtlas')();
+      ctx.ATLAS_RENDER_JOB = null;
+      const inUse = peek('atlasRendersInUse')();
+      peek('atlasPrefetchRender')();
+      const whileInUse = jobOf();
+      ctx.ATLAS_RENDER_JOB = null;
+      peek('atlasFit')(); peek('paintAtlas')();
+      const freeNow = !peek('atlasRendersInUse')();
+      peek('atlasPrefetchRender')();
+      const atRest = jobOf();
+      ctx.__peek('atlasMovedAt = 0; atlasBusyUntil = 0');
+      for (let i = 0; i < 50 && ctx.ATLAS_RENDER_JOB; i++) drainRaf();
+      ctx.atlasWhenStill = realStill;
+      if (!inUse || whileInUse) fail('atlas', 'the largest place\'s render was started while a town on screen drew from its own (' + inUse + ', ' + whileInUse + ')');
+      else if (!freeNow || atRest !== 0x8008) fail('atlas', 'with the whole world in view the largest place\'s render was not started: ' + atRest);
+      else if (!cache.has(0x8008)) fail('atlas', 'the largest place\'s render was started and not kept');
+      else console.log('  atlas: Cademia\'s render is made ahead of the tap with the world in view, and not while a town draws from its own');
+    }
+
     /* The panel needs its rules as much as its markup.
 
      A sweep that deleted an old full-bleed CSS block ran from one comment to
