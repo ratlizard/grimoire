@@ -4042,3 +4042,109 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   },
 });
 Object.assign(DELV_TRANSLATION_ES.keys, { '1878': { trou: 'prob,male', son: 'hijo', shap: 'form,camb', ' shap': 'form,camb', enem: 'enem', book: 'libr', sapp: 'zafi' } });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { grie: 'duel,llor', jinr: 'jinr', baho: 'baho', unha: 'unha', door: 'puer' });
+Object.assign(DELV_TRANSLATION_ES.text['*'], { '471f63b2': '"¡Es asombroso!  ¡Es un Seldane vivo!  ¡Nunca pensé que llegaría a conocer a uno!"*', '83311e37': '"Que el viento de la Verdad esté de tu parte."' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Jhiaxus, once Sabinate's son, who grieves for Jinrai
+  '1879': {
+    'eaba55ba': '=',
+    '5a13aa28': '"Somos Jhiaxus: ¿por qué nos molestas?  Estamos de @duelo."',
+    '28e9ceb9': '"¿Has honrado a Jinrai?"',
+    'c8fea832': '"¡Vete, y no vuelvas hasta que lo hayas hecho!"',
+    'a01c3cd0': '"Sí, esto es bueno.  Busca a nuestro @hijo: ese lleva la llave del poste derecho."*"Nuestro trato se cumple."',
+    'ae9cc424': '"Tus palabras no se corresponden con tus actos."',
+    '1da9af46': '"Por favor, estamos de duelo; sé breve."',
+    '89ab6764': '"Honra a Jinrai y luego vuelve."',
+    'ad3d8a4e': '"Estamos de duelo; no nos molestes."',
+    'b6300415': '"Somos Jhiaxus.  Un día fuimos el hijo de Sabinate, pero Sabinate ya no tiene hijo."',
+    'b4d494be': '"Sin @Jinrai, esperamos el fin del mundo."',
+    '8bd1c05f': '"Lloramos a la perdida @Jinrai."',
+    '6cfd2ff7': '"A nuestro hijo lo conoces.  Ese tiene muchos nombres: nosotros lo conocemos como @Bahoudin..."',
+    'cf4d1e5d': '"Nuestro padre no tiene hijo, como nosotros no tenemos padre."',
+    '5f536ca1': '*"Conoces a ese.  Es Magpie."',
+    '528e3037': '*"Esto es imposible, mi señor.  ¡Eso significaría que Magpie no es humano!"*',
+    'e1a947da': '"La Verdad está de nuestra parte."*',
+    '7f1cd1d8': '"¡Bah, no te puedes fiar de esta criatura!"*',
+    'c516895e': '"Bahoudin tiene muchos nombres."',
+    'ea60e732': '"Jinrai era nuestra compañera.  Juntos estábamos solos."*"Como nuestro padre no tiene hijo, aquel padre de Jinrai no tenía hija."*"Nuestra unión fue nuestra destrucción, pero nuestra unión ofrecía la salvación para nuestro pueblo."*"Mucho tiempo estuvimos unidos, solos en lo que vosotros llamaríais Fin de la Tierra."*"Luego vino el pueblo de Jinrai, que destruyó a Jinrai"*"Pero el pueblo de este no tiene poder sobre el pueblo de Jinrai, así que huimos."*"Solos estamos ahora desde hace 120 eternidades, sin nuestro pueblo, sin Jinrai."*"@Honra a Jinrai, o no hablaremos más."',
+    'ed067619': '"Entiendes lo de honrar a Jinrai: nos complace."',
+    '0ccd0c68': '"Debes hacer una ofrenda al Ka de Jinrai."*"Pan ha de ser, hecho con tus propias manos."*"Llévalo al otro lado del Lago de Fuego, y ofréceselo al Ka de Jinrai."*"Solo entonces será honrada Jinrai."',
+    'e01cdbf1': '"Polvo.  Todo será polvo."',
+  },
+  // Unhayt, Doorkeeper of the Ayrit
+  '187A': {
+    'c118995f': '=',
+    '8cc85b62': '"Has detenido el fluir del agua.  Vete.\n"',
+    '55fa9bf8': '"Que la Puerta de la Verdad nunca esté atrancada."',
+    '8fe499ca': '"Somos Unhayt"',
+    '991b59c1': '"Somos la Guardiana de la Puerta del Ayrit."',
+    '370efe1d': '"Atrancamos la Puerta de Maayti cuando la corrupción nos venció, y para nosotros está perdida para siempre."*"Con el poder de la Crolna, el Enemigo nos arrolló y nos expulsó de Maayti."',
+    '031d1939': '"El libro ya te lo hemos dado."',
+    'd701a9f4': '"Te concederemos la posesión del libro que buscas."',
+    'c07bd646': '*Te entrega un libro azul, al parecer salido de la nada.',
+    'f0a9fb3a': 'Te mira fijamente, como intentando entender lo que dices.',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '1879': { son: 'hijo', hono: 'honr' }, '187A': { book: 'libr', sapp: 'zafi' } });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { seqe: 'seqe', watc: 'vigi', uset: 'uset', hera: 'hera', jhai: 'jhai', uniq: 'sing,unic', pill: 'pila', east: 'este', west: 'oest', dest: 'dest', bala: 'equi', axis: 'eje', hunc: 'joro', sold: 'sold', pric: 'prec', noth: 'nada,cero', '0': 'cero' });
+Object.assign(DELV_TRANSLATION_ES.text['*'], { 'eaba55ba': '=', '27ab49d9': 'Te mira fijamente, como intentando entender lo que dices.' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Seqedher and Uset, of the Ayrit
+  '187B': {
+    '3aa7b374': '=',
+    'c1e929c9': '"Tus oídos están cerrados a las palabras de la verdad.  Vete.\n"',
+    '27f23b30': '"Somos Seqedher."',
+    'ab378db7': '"Somos la Vigía del Ayrit."',
+    'bd9573fe': '"Ese está más allá de la Verdad.  Ese ha elegido el camino del @Enemigo."',
+    '72095df8': '"La forma de nuestro enemigo engaña a quienes no son de la Verdad.  Su ropaje es su disfraz."*"Ellos, entre los Mortales, caminan, y no los ven los Mortales."',
+    '9cbd5b6f': '"La Vigía de la Verdad te ve."',
+  },
+  '187C': {
+    '0ad57d92': '"Tu corazón ha sido pesado y hallado falto.  Vete.\n"',
+    'd661781a': '"Somos Uset"',
+    'e98842af': '"Que la Verdad sea proclamada ante ti."',
+    '173c4c8e': '"Hasta la tercera generación está ese perdido para nosotros.  Ese, el hijo de ese, y el hijo del hijo."*"Así sufre el mundo."',
+    '02126c79': '"Somos la Heraldo del Ayrit."',
+  },
+  // Ignae of the South, one of the four pillars of the world
+  '187D': {
+    '1acf043b': 'Ves a un ser hecho de fuego puro, cuyo rostro baila con las llamas.*',
+    '7ffa2ea9': '"¡Saludos, humano!  No es frecuente que uno de los tuyos llegue a conocerme."*"Me llaman Ignae, y tú, tú eres especial, no eres como el resto de los humanos, ¿eh?"',
+    '4d149ca5': '"Esto parece sin duda una especie de demonio: ¡debemos tener cuidado!"*',
+    '659e1363': '"Tranquilo, mortal.  Aunque juegues con lo que llamas magia, no me conoces."*"Tengo tanto en común con lo que llamas demonio como tú con una roca, sí, eso es."',
+    '8eaf808a': '*"También me llaman Ignae del @Sur, porque ese es mi lugar, aunque es evidente que ahora no estoy allí."*"Pero tú, tú eres @singular, ¿no?  No como es singular @Alaric, eso seguro."',
+    '00de969b': '"Como he dicho, soy Ignae del @Sur."',
+    'a99e276d': '"Esa sí que es buena.  ¿Qué trabajo tienen el viento o la marea?  ¡\'Trabajo\', dice!"',
+    'b7dc6902': '"Por muchas veces que lo digas, sigue refiriéndose a mí."',
+    'edb5408c': '"Sí, soy Ignae del Sur.  Hay cuatro @pilares del mundo, y yo soy del Sur."',
+    'e4e2b7c7': '"Como he dicho, soy Ignae del Sur."',
+    '407eb330': '"Como hay cuatro puntos en lo que llamáis brújula, hay cuatro pilares del mundo: el @Norte, el @Este, el @Sur y el @Oeste."',
+    '2538fd3a': '"Creo que en tu mundo lo llamáis brújula, o al menos eso me dicen tus pensamientos."',
+    '7a104288': '"No querrás saber de ese."',
+    'a0805c81': '"Quizá llegues a conocer el Oeste: ¡el Oeste está metido en esto, desde luego!  Intentan @destruir el @equilibrio."',
+    'c80b3013': '"Ya conoces el Este: los de la Tierra son el pilar del Este."',
+    'e7222cc3': '"Sí, conocerás el Este, de eso estoy seguro."',
+    'bfb2394d': '"La Tierra es el pilar del Este."',
+    '015f7033': '"El Fuego es el pilar del Sur."',
+    '868f2ab6': '"El Agua es el pilar del Oeste."',
+    '114860ff': '"El Aire es el pilar del Norte."',
+    '5ab8b52c': '"Eres como el resto de los humanos, pero no has nacido en este mundo, eso seguro."',
+    '632c08b6': '"Alaric es más que humano, como deberías saber, pero ¿cuánto más?  Está en el @equilibrio."',
+    'c7635c93': '"El equilibrio entre el Este y el Oeste."',
+    '47cfc7a6': '"El eje va del Este al Oeste, porque el eje es a la vez el Este y el Oeste."',
+    'a9badc67': '"Tú no eres Magpie, pero él tampoco.  Él es el @equilibrio que no es."',
+    '0c34d851': '"¡Ah!  Ahora te acercas al meollo del asunto: pero por cada jorobado hay un soldado."',
+    '57382f81': '"Jorobado: encorvado y curvo, con aspecto de signo de interrogación, ¿no?"',
+    '2966eddf': '"Soldado: erguido y firme, ¡con aspecto de signo de exclamación!"',
+    '675c0caa': '"Sabinate es lo que es, y nada más."',
+    '5a1f2a5f': '"Jhaixus intentó ir más allá de lo que es, y paga el precio por ello."*"Respeto el intento, pero desprecio la locura."',
+    '9de60951': '"Jinrai fue la perdición de Jhaixus, y de Jinrai, pero ¿quién no pagaría ese precio?"',
+    'ffced5f2': '"El precio por ir más allá de lo que uno es; pero, como os enseñan vuestras matemáticas, +1 más -1 es igual a 0"*"Claro que, en el caso de Jhaixus y Jinrai, cuando intentas combinar el Este y el Oeste, formas el Eje del Equilibrio."',
+    'a00b0102': '"¿Es la nada nada, o lo es todo?  ¿La Nada es?  ¿O la Nada no es?  De la Nada a lo Ilimitado hay un solo paso."',
+    '8230e92b': '"¿Ya te vas?"',
+    'e6fd2f93': '"El equilibrio entre el Norte y el Sur, el Este y el Oeste, siempre ha sido precario, pero siempre fue equilibrio."*"Hasta que el Oeste encontró la forma de que sus poderes trascendieran el eje, y expulsó al Este de sus sedes de poder."*"Todo esto ocurrió, claro está, mucho antes de que llegarais los humanos.  Todavía no sé muy bien cómo pasó eso..."*"Parece que los humanos estáis fuera de los cuatro pilares, o quizá sois una combinación de los cuatro; no estoy seguro."*"Podríais ser un gran aliado para cualquiera de los cuatro pilares, aunque quién sería el amo y quién el esclavo es difícil de determinar."',
+    '36b2c888': '"Esa etiqueta es confusa, como poco: yo pienso en términos de los cuatro pilares..."',
+    '3cd11e50': '"Dices tonterías, de eso estoy seguro."',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '187D': { sout: 'sur', comp: 'bruj,comp', foun: 'fund,pila' } });
