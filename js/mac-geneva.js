@@ -34,8 +34,11 @@
    the fork's compatibility/geneva9-advances.bin is the same 9-point
    advances. Measured against Apple's Geneva on 29 September 2026: all 95
    advances at both sizes equal, the bearings all but i and l (and ^ and y
-   at 10), which moves where a letter's ink sits and never a width. Only
-   the numbers are here; Kurrajong's pixels are not. res/Kurrajong-OFL.txt
+   at 10), which moves where a letter's ink sits and never a width. The
+   10-point bearings place Geneva 10's own, wider letters, so the 10-point
+   strike does not use them as they are: it says only which side of Geneva
+   9's letter an odd pixel of extra width goes (js/delv-translate.js).
+   Only the numbers are here; Kurrajong's pixels are not. res/Kurrajong-OFL.txt
    is the licence. The frame is Geneva's at both sizes, ten pixels above
    the baseline and two below, with one of leading at 10 points; an
    accented letter takes its letter's width, as Apple's do. */

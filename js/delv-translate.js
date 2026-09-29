@@ -504,10 +504,21 @@ function translateGenevaStrike(size) {
   const own = code => { const g = glyphs[map[code]]; return map[code] && g ? { px: sfntPixels(g, unit), adv: Math.round(g.adv / unit) } : null; };
   const out = {};
   for (let c = 0; c < 256; c++) { const g = own(c); if (g) out[c] = g; }
-  // Printable ASCII at Geneva's widths, each letter moved to Geneva's left bearing.
+  // Printable ASCII at Geneva's widths. A letter sits at Geneva 9's left
+  // bearing, and where this size's width differs from Geneva 9's the
+  // difference is shared between its two sides: the letters are drawn for
+  // Geneva 9's spacing, and Geneva 10's own bearings, which place its wider
+  // letters, put all of W's two extra pixels after it ("W elcome", the
+  // maintainer, 29 September 2026). An odd pixel goes to the left where
+  // Geneva 10 moves the letter right of where Geneva 9 has it (the figures
+  // and the straight-stemmed letters), otherwise to the right, so "1.0.3"
+  // keeps its stops against the figures. Where Geneva 10 is the narrower (A,
+  // the colon, the backslash) this gives its own bearing.
+  const M9 = GENEVA_METRICS[9];
   for (let c = 0x20; c < 0x7F; c++) {
-    const g = out[c] || { px: [], adv: 0 }, i = c - 0x20;
-    const x0 = g.px.length ? Math.min(...g.px.map(q => q[0])) : 0, dx = M.lsb[i] - x0;
+    const g = out[c] || { px: [], adv: 0 }, i = c - 0x20, extra = M.adv[i] - M9.adv[i];
+    const left = M.lsb[i] > M9.lsb[i] ? Math.ceil(extra / 2) : Math.floor(extra / 2);
+    const x0 = g.px.length ? Math.min(...g.px.map(q => q[0])) : 0, dx = M9.lsb[i] + left - x0;
     out[c] = { px: g.px.map(([x, y]) => [x + dx, y]), adv: M.adv[i] };
   }
   const mr = ch => TRANSLATE_MACROMAN[ch], at = ch => ch.charCodeAt(0);
@@ -607,7 +618,8 @@ function translateCytheraData(data, rsrc, T) {
    Mac OS 8.5: an acute of the straight quote scaled down was barely visible,
    so it is a drawn wedge; the i loses its dot, the contour that sits
    highest, before it takes the acute; ¿ and ¡ are ? and ! turned half a
-   circle and sunk a fifth of an em. A mark is drawn clockwise, as TrueType
+   circle and sunk a fifth of an em, or less where that would take them
+   below the face's own g. A mark is drawn clockwise, as TrueType
    wants an outer contour, though a mark that overlaps nothing fills either
    way. */
 const TRANSLATE_MACROMAN = { 'á': 0x87, 'é': 0x8E, 'í': 0x92, 'ó': 0x97, 'ú': 0x9C, 'ñ': 0x96, 'ü': 0x9F, '¿': 0xC0,
@@ -658,7 +670,17 @@ function translateSpanishGlyphs(sfnt) {
   made['Ü'] = { contours: above(letter('U').contours, marks.dieresis), adv: letter('U').adv };
   for (const [ch, base] of [['¿', '?'], ['¡', '!']]) {
     const cs = letter(base).contours, b = box(cs);
-    made[ch] = { contours: cs.map(c => c.map(q => ({ x: R(-q.x + b[0] + b[2]), y: R(-q.y + b[1] + b[3] - upem * 0.22), on: q.on }))), adv: letter(base).adv };
+    // Sunk a fifth of an em as the proofs had them, but never below the
+    // lowest the shipped face reaches (its g): the game clears the
+    // conversation box by fixed rectangles that the shipped descenders fit,
+    // and a mark deeper than any of them was the one glyph of ours that
+    // could leave ink below the cleared band (29 September 2026, a stroke
+    // left near the bottom of the box).
+    const floorY = Math.min(...glyphs.filter(g => g.contours.length).map(g => Math.min(...[].concat(...g.contours).map(q => q.y))));
+    const turned = cs.map(c => c.map(q => ({ x: R(-q.x + b[0] + b[2]), y: -q.y + b[1] + b[3] })));
+    const low = Math.min(...[].concat(...turned).map(q => q.y));
+    const dy = Math.max(-upem * 0.22, floorY - low);
+    made[ch] = { contours: turned.map((c, k) => c.map((q, j) => ({ x: q.x, y: R(q.y + dy), on: cs[k][j].on }))), adv: letter(base).adv };
   }
   const order = Object.keys(TRANSLATE_CODES);
   const codes = {};
