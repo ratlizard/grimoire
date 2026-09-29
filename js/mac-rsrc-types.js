@@ -1362,6 +1362,135 @@ function rebuildSfnt(data,tables){
   return out;
 }
 
+/* A TrueType font's glyphs as outlines, and a font with glyphs added.
+
+   sfntGlyphOutlines(data) -> { upem, glyphs: [{ contours, adv, lsb }] }
+     Every glyph as its contours, each a list of { x, y, on }, with its
+     advance and left side bearing. A composite glyph comes back with
+     `composite: true` and no contours: nothing here needs one decomposed
+     yet (Argos A Nouveau has none), and a composite added as contours would
+     be wrong without its components' transforms.
+   sfntWithGlyphs(data, added, codes) -> { bytes, added, mapped }
+     The font with `added` ({ contours, adv }) appended to its glyphs, and
+     its Mac Roman cmap subtable (format 0, platform 1) pointing each code of
+     `codes` ({ byte: index into added }) at one. glyf, loca, hmtx, maxp,
+     hhea and head's bounds are written again; post goes to format 3, which
+     names no glyphs, since a format 2 table would need a name for each new
+     one and the Mac never reads them; the instructions of the old glyphs are
+     kept and the new ones have none. Written 29 September 2026 for the
+     translation's accented letters (js/delv-translate.js), which the proofs
+     of 24 September built with fontTools in Python; this is the same
+     arithmetic in the page, so a visitor's own copy of the font is the one
+     changed. */
+function sfntTablesOf(data){
+  const out={}, n=u16be(data,4);
+  for(let i=0;i<n;i++){ const p=12+i*16; const tag=String.fromCharCode(data[p],data[p+1],data[p+2],data[p+3]);
+    out[tag]=data.subarray(u32be(data,p+8),u32be(data,p+8)+u32be(data,p+12)); }
+  return out;
+}
+function sfntGlyphOutlines(data){
+  const t=sfntTablesOf(data);
+  for(const need of ['head','hhea','hmtx','maxp','glyf','loca']) if(!t[need]) throw new Error('the font has no '+need+' table');
+  const s16=(b,o)=>(u16be(b,o)<<16)>>16;
+  const upem=u16be(t.head,18), longLoca=s16(t.head,50)===1, n=u16be(t.maxp,4), nh=u16be(t.hhea,34);
+  const loca=i=>longLoca?u32be(t.loca,i*4):u16be(t.loca,i*2)*2;
+  const glyphs=[];
+  for(let g=0;g<n;g++){
+    const adv=u16be(t.hmtx,4*Math.min(g,nh-1)), lsb=g<nh?s16(t.hmtx,4*g+2):s16(t.hmtx,4*nh+2*(g-nh));
+    const a=loca(g), z=loca(g+1);
+    if(z<=a){ glyphs.push({contours:[],adv,lsb}); continue; }
+    const b=t.glyf.subarray(a,z), nc=s16(b,0);
+    if(nc<0){ glyphs.push({contours:[],adv,lsb,composite:true}); continue; }
+    const ends=[]; for(let i=0;i<nc;i++) ends.push(u16be(b,10+2*i));
+    const np=nc?ends[nc-1]+1:0;
+    let p=10+2*nc; p+=2+u16be(b,p);
+    const flags=[];
+    while(flags.length<np){ const f=b[p++]; flags.push(f); if(f&8){ let r=b[p++]; while(r--) flags.push(f); } }
+    const xs=[], ys=[];
+    let v=0;
+    for(const f of flags){ if(f&2){ const d=b[p++]; v+=(f&16)?d:-d; } else if(!(f&16)){ v+=s16(b,p); p+=2; } xs.push(v); }
+    v=0;
+    for(const f of flags){ if(f&4){ const d=b[p++]; v+=(f&32)?d:-d; } else if(!(f&32)){ v+=s16(b,p); p+=2; } ys.push(v); }
+    const contours=[]; let k=0;
+    for(const e of ends){ const c=[]; for(;k<=e;k++) c.push({x:xs[k],y:ys[k],on:!!(flags[k]&1)}); contours.push(c); }
+    glyphs.push({contours,adv,lsb});
+  }
+  return {upem,glyphs};
+}
+function sfntEncodeGlyph(contours){
+  const pts=[].concat(...contours);
+  if(!pts.length) return new Uint8Array(0);
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const q of pts){ x0=Math.min(x0,q.x); y0=Math.min(y0,q.y); x1=Math.max(x1,q.x); y1=Math.max(y1,q.y); }
+  const out=new Uint8Array(10+2*contours.length+2+pts.length*5), dv=new DataView(out.buffer);
+  dv.setInt16(0,contours.length); dv.setInt16(2,x0); dv.setInt16(4,y0); dv.setInt16(6,x1); dv.setInt16(8,y1);
+  let p=10, e=-1;
+  for(const c of contours){ e+=c.length; dv.setUint16(p,e); p+=2; }
+  dv.setUint16(p,0); p+=2;
+  for(const q of pts) out[p++]=q.on?1:0;
+  let v=0; for(const q of pts){ dv.setInt16(p,q.x-v); v=q.x; p+=2; }
+  v=0; for(const q of pts){ dv.setInt16(p,q.y-v); v=q.y; p+=2; }
+  return out;
+}
+function sfntWithGlyphs(data, added, codes){
+  const t=sfntTablesOf(data);
+  const {glyphs}=sfntGlyphOutlines(data);
+  const s16=(b,o)=>(u16be(b,o)<<16)>>16;
+  const longLoca=s16(t.head,50)===1;
+  const loca=i=>longLoca?u32be(t.loca,i*4):u16be(t.loca,i*2)*2;
+  const old=glyphs.length, total=old+added.length;
+  if(!t.cmap) throw new Error('the font has no cmap');
+  // The old glyphs' bytes as they are, instructions and all; the new ones after.
+  const bodies=[];
+  for(let g=0;g<old;g++) bodies.push(t.glyf.subarray(loca(g),loca(g+1)));
+  let bx0=s16(t.head,36), by0=s16(t.head,38), bx1=s16(t.head,40), by1=s16(t.head,42);
+  let maxPts=u16be(t.maxp,6), maxCon=u16be(t.maxp,8);
+  const metrics=glyphs.map(g=>[g.adv,g.lsb]);
+  for(const a of added){
+    const body=sfntEncodeGlyph(a.contours);
+    bodies.push(body);
+    const pts=[].concat(...a.contours);
+    const x0=pts.length?Math.min(...pts.map(q=>q.x)):0;
+    metrics.push([a.adv,x0]);
+    if(pts.length){ bx0=Math.min(bx0,x0); by0=Math.min(by0,...pts.map(q=>q.y)); bx1=Math.max(bx1,...pts.map(q=>q.x)); by1=Math.max(by1,...pts.map(q=>q.y)); }
+    maxPts=Math.max(maxPts,pts.length); maxCon=Math.max(maxCon,a.contours.length);
+  }
+  const pad=n=>(n+3)&~3;
+  let glen=0; for(const b of bodies) glen+=pad(b.length);
+  const glyf=new Uint8Array(glen), locaOut=new Uint8Array((total+1)*4), ldv=new DataView(locaOut.buffer);
+  let at=0;
+  bodies.forEach((b,i)=>{ ldv.setUint32(i*4,at); glyf.set(b,at); at+=pad(b.length); });
+  ldv.setUint32(total*4,at);
+  const hmtx=new Uint8Array(total*4), hdv=new DataView(hmtx.buffer);
+  metrics.forEach(([adv,lsb],i)=>{ hdv.setUint16(i*4,adv); hdv.setInt16(i*4+2,lsb); });
+  const head=Uint8Array.from(t.head), headv=new DataView(head.buffer);
+  headv.setInt16(36,bx0); headv.setInt16(38,by0); headv.setInt16(40,bx1); headv.setInt16(42,by1); headv.setInt16(50,1);
+  const hhea=Uint8Array.from(t.hhea), hhv=new DataView(hhea.buffer);
+  hhv.setUint16(34,total);
+  hhv.setUint16(10,Math.max(u16be(t.hhea,10),...added.map(a=>a.adv)));
+  const maxp=Uint8Array.from(t.maxp), mv=new DataView(maxp.buffer);
+  mv.setUint16(4,total);
+  if(maxp.length>=10){ mv.setUint16(6,maxPts); mv.setUint16(8,maxCon); }
+  const post=new Uint8Array(32);
+  if(t.post) post.set(t.post.subarray(0,32));
+  new DataView(post.buffer).setUint32(0,0x00030000);
+  // The Mac Roman subtable, format 0: a glyph index per byte, so every
+  // glyph it names must be below 256.
+  const cmap=Uint8Array.from(t.cmap);
+  let mac=-1;
+  for(let i=0;i<u16be(cmap,2);i++){ const p=4+i*8; if(u16be(cmap,p)===1&&u16be(cmap,p+2)===0) mac=u32be(cmap,p+4); }
+  if(mac<0||u16be(cmap,mac)!==0) throw new Error('the font has no Mac Roman cmap of format 0 to map the new letters in');
+  if(total>256) throw new Error('a format 0 cmap names glyphs below 256, and the font would have '+total);
+  let mapped=0;
+  for(const [code,i] of Object.entries(codes)){ cmap[mac+6+(+code)]=old+i; mapped++; }
+  const tables=[];
+  for(const tag of Object.keys(t)){
+    const bytes=tag==='glyf'?glyf:tag==='loca'?locaOut:tag==='hmtx'?hmtx:tag==='head'?head:tag==='hhea'?hhea:tag==='maxp'?maxp:tag==='post'?post:tag==='cmap'?cmap:Uint8Array.from(t[tag]);
+    tables.push({tag,bytes});
+  }
+  return {bytes:rebuildSfnt(data,tables), added:added.length, mapped};
+}
+
 function decodeSfntInfo(data){
   if(data.length<12) throw new Error('sfnt resource too short');
   const numTables=u16be(data,4); const tables=[];
