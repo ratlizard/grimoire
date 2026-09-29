@@ -1393,3 +1393,359 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   '1071': { '7da1bf9a': '¿Ves que no te tapa la vista?' },
   '1072': { 'b7c36749': 'Hasta la cara te protege.' },
 });
+Object.assign(DELV_TRANSLATION_ES.text['*'], { 'cac79a14': 'La antorcha se apaga.\n', 'c11094ca': 'Tendrás que empuñarla para encenderla.\n' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  '1077': { '9ac949d9': 'Necesitas usar un cubo.\n' },
+  '1078': {
+    '884c9915': '¿Llenar el cubo con qué?\n', '4c52d71d': 'El cubo no tiene cuerda: lo perderías.\n',
+    '8801b09f': 'El cubo está ahora lleno de agua.\n', '9c8e1f36': 'Has ordeñado la cabra.\n',
+    '39bfcd9e': 'Tienes que llenar el cubo en algún sitio con líquido.\n',
+  },
+  '1079': { 'e50cb000': '¿Echar agua sobre qué?\n' },
+  '107A': { '96864aef': '¿Leche?  ¡Quién en su sano juicio bebe leche!', '3270d346': '¿Echar leche sobre qué?\n' },
+  '107B': { 'eed224c9': 'El hogar se pone al rojo vivo un momento.\n', 'e81a981a': 'Sueltas una ráfaga de aire.\n' },
+  '1082': { '4316675c': 'Ah, ¡hubo alguna vez algo tan noble como el dinero!' },
+  '1084': {
+    'a30f9a68': 'Mmm, mantequilla: me recuerda a aquella noche, bueno, esa es una historia para otro momento.',
+    '6644b3c6': '¿Untar mantequilla en qué?\n', '79f0e582': 'Mmm, pan caliente con mantequilla...\n',
+    'd44c74c4': 'Hay comidas que no mejoran con mantequilla...\n', 'afc8b1a7': 'Sería desperdiciar una mantequilla perfectamente buena.',
+  },
+  '1086': { '42ddcc6e': 'Está en blanco.\n' },
+  '1087': {
+    '8337cd28': 'Es un pequeño tintero, con tinta (claro).\n', 'bb796a34': '¿Escribir en qué?\n',
+    '80048959': 'Pintarrajear los libros no es muy cívico.\n',
+    '7339b5a4': '¿Qué quieres escribir?', '15839ae0': 'Escribe algo', '6bbc3209': 'Escribirlo',
+    '7a8a8a5f': "Ahora dice: '",
+    '95c4996b': 'Busca primero una hoja de papel limpia...\n', '9411740d': 'Las pintadas ya son bastante problema...\n',
+  },
+  '108A': { 'e4968981': 'Buen trabajo: no me gustaría explorar sin un par en los pies...', '0802aa6f': '¡Así se mantendrán los pies secos!\n' },
+  '108F': {
+    'cec34cd3': 'La lámpara está vacía.\n', '5d9f7b89': 'A la lámpara casi no le queda.\n', '69c1e42c': 'La lámpara está medio llena.\n',
+    'f3d750c3': 'La lámpara está casi llena.\n', '614bfb7f': 'La lámpara está llena.\n', '198746c4': 'La lámpara se apaga.\n',
+    '706355df': 'La lámpara no tiene combustible.\n', '47fd06dc': 'El combustible de la lámpara se agota al encenderla.\n',
+    '0a255ead': 'Apagas la lámpara antes de prenderte fuego.\n',
+  },
+  '1090': { 'aa767a1e': 'La vela se consume al encenderla.\n', 'f3dcf7d7': 'La vela está gastada.\n' },
+  '1091': {
+    'f826c247': 'Parece una especie de caña de pescar con mosca, pero nunca te has apañado con una caña de mosca tradicional, así que esto parece superarte.\n',
+    'aec9566a': '¿Lanzar la mosca adónde?\n', '81032ecb': 'Tienes que lanzar en aguas profundas.\n', '8cd912db': 'Pescas un rato...\n',
+    'ad715fef': '¡Has pescado algo!\n', 'ca858dba': 'Ni un solo mordisco...\n', '5dee8a1a': 'Mmm, no parece haber peces por aquí...\n',
+  },
+  '1094': { 'd37f7c60': 'Necesitas hilo.\n' },
+  '1096': {
+    '112b049b': '¿Usar el hilo con qué?\n', 'df24aa87': 'Aunque con poco talento, consigues hacer algo de tela con el hilo.\n',
+    '99dfd1a3': 'No te aclaras con el telar.\n', '1e54911c': 'Ahí el hilo no sirve.\n',
+  },
+  '109E': { '0a01a4b8': 'Una herramienta muy práctica...', '6bac64c1': '¿Cavar dónde?\n', 'c4166add': 'Ahí no hay nada que cavar.\n' },
+});
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  '77b45f90': '- ¿Eso es moho?', '18705335': '- No parece de lo más fresco.', '383e17f5': '- ¿Qué es ese olor?',
+  '662e809a': 'Esto es comida de la mejor calidad.', '8fcaf90a': 'Está fresquísimo.', '2a20ee8f': 'Nunca has probado nada mejor.',
+  'ed0b954a': 'Quizá te convenga hornearlo primero...', '9ac949d9': 'Necesitas usar un cubo.\n',
+});
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // a pitcher: "It is " + "Empty" or "filled with ..."; "Pour " + a liquid + " on what?"
+  '10A0': {
+    '4a816eb1': '¡Un gran invento para llenarlo de vino!',
+    'd1571f8e': 'vacía', 'b76deac4': 'llena de agua', '4e46e086': 'llena de leche', '6a8a8180': 'llena de vino', '7d993948': 'Está ',
+    '6bd195ea': '¿Llenar la jarra con qué?\n', '49c69a10': 'agua', '888e7aa2': 'leche', '1314ef74': 'vino',
+    'aa4a0565': '¿Echar ', '29d7c1d1': ' sobre qué?\n',
+    '47de877a': 'La jarra está ahora llena de agua.\n', '333967ce': 'Una jarra no es lo bastante ancha para ordeñar: necesitas un cubo.\n',
+    '8925aaa2': 'La jarra está vacía.\n', '21dffa9f': 'Has pasado el líquido de una jarra a otra.\n', 'b7694e90': 'Esa jarra ya está llena.\n',
+  },
+  '10A2': {
+    '8d0b6ed0': '¿Usar el lino con qué?\n', '2c97ecfb': 'Hilas parte del lino.\n', '84055032': 'Hilas lo que queda del lino.\n',
+    '0870473f': 'No te aclaras con la rueca.\n', '54f11385': 'Ahí el lino no sirve.\n',
+  },
+  '10A3': {
+    '64fb3553': '¡Un rodillo es un arma peligrosa en manos de un ama de casa enfadada!', 'a41f3e50': '¿Aplanar qué?\n',
+    '6ce3cffb': 'Amasas la masa con el rodillo: ya está lista para hornear.\n', '7d1c0a07': 'Acabas amasando la masa hasta que no queda nada.\n',
+  },
+  '10A6': { '6de6f2b8': '¿Esparcir la harina dónde?\n', '19c9d755': 'Esparces un poco de harina.\n' },
+  '10A7': { 'fa2b38b8': 'Juegas con la harina y lo pones todo perdido.\n' },
+  '10A8': { 'b1e8c377': 'Intentas amasar la masa, pero acabas perdiendo el tiempo.\n' },
+  '10A9': {
+    '582daff0': '¿Hornear el pan dónde?\n', '0f24db8d': 'No sabes cuánto tiempo hay que cocerlo...\n',
+    'c7fecbe4': 'Horneas el pan.\n', '79e1f80e': 'Tienes que hornear el pan en un horno.\n',
+  },
+  '10AB': { '0363a33a': 'Eso podría servir de arma en un apuro.' },
+  '10B0': { 'd0efe71f': 'Parece demasiado incómodo para descansar bien una noche.\n' },
+  '10B3': { '9969bb8d': 'Es un gran monolito de piedra, o una especie de pilón.\n' },
+  '10B5': { 'bf49d05c': 'Lo que hubiera escrito se borró hace mucho.\n' },
+  '10B6': { 'd13be11a': 'No se permite profanar tumbas.\n' },
+  '10BC': {
+    '48480d71': 'Un reloj de sol solo funciona cuando se ve el sol, de ahí su nombre.\n', 'c0f0dabb': 'Marca mediodía.\n',
+    '8727c9e2': 'Marca las ', 'd1e7b2c3': ' de la mañana.\n', 'a3b070fb': ' de la tarde.\n',
+  },
+  '10D2': { '80ece537': '¡No puedes meter cosas en el cadáver!\n', '83138c77': 'El cadáver queda destrozado y deja ver:' },
+  '10D5': { 'b30a55bf': 'No muy bueno', 'df38014d': '¡Puaj!', '3a894051': 'No está mal' },
+  '10D8': { '80697244': 'La urna está vacía.\n' },
+  '10D9': { 'f6bbe29f': '¡Esto podría ser el comienzo de una fiesta de las buenas!', '3b1a0f93': 'La urna está llena de vino tinto.\n', 'c04d0f66': '¿Llenar qué con vino?\n' },
+  '10DA': { '9d3c2652': 'La urna está llena de agua.\n', '9fdf7ef8': '¿Llenar qué con agua?\n' },
+  '10DB': { 'b88fa325': '¡Esto podría ser el comienzo de una fiesta MUY de las buenas!', 'd00064aa': 'La urna está llena de aceite de oliva.\n', 'c39bd5d3': '¿Llenar qué con aceite?\n' },
+  '10E2': { 'bc60b5f4': 'El candelabro está encendido.\n', '2ea6a092': 'El candelabro está apagado.\n', '176d6739': 'El candelabro está gastado.\n' },
+  '10E6': { 'ce09683b': '¡Trampa de pinchos!', '521dd907': 'Trampa de pinchos destruida.\n' },
+});
+Object.assign(DELV_TRANSLATION_ES.text['*'], { '27d6d4a8': 'Qué rico', '0c24ef08': 'No sabes cómo usarlo.\n' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // the bread offered to Jinrai's Ka, and her vision; she says "we"
+  '10E7': {
+    'bc02e150': 'pan hecho a mano',
+    '06bd0ef7': 'Sorprendentemente, este pan aún está caliente.\n',
+    '5052dde1': 'Una visión aparece ante ti*"Has honrado nuestra memoria.  Has alimentado nuestro KA.  A cambio, te hablaremos de la verdad."*"La verdad es la percepción que uno tiene de los hechos.  Los hechos son únicos, pero la verdad es múltiple.  A uno pueden contarle los hechos, pero la verdad ha de hacerla uno."*"Jhiaxus y nosotros compartíamos la verdad, y ninguno de nuestros pueblos quería aceptarlo.  La mezcla del Mar y de la Tierra era para ellos una herejía."*"Los nuestros eran el pueblo del Mar.  Los de Jhiaxus, el pueblo de la Tierra.  Nuestro conflicto era eterno."*"Solo aquí, donde los poderes del Fuego eran fuertes, podíamos escondernos, pero, ay, nuestro pueblo nos encontró y nos destruyó."*"Considera los hechos, joven mortal, y que la verdad te haga libre.  Las ruinas que construyeron los Seldane: eso es un hecho."*"Las ruinas que fueron destruidas: eso es un hecho.  Pregúntate cómo, pregúntate por qué, pregúntate quién."*"¿Con qué fin se hizo?  ¿Con qué herramientas se hizo?  ¿Y cómo se usan esas herramientas?"*"Una herramienta no es buena ni mala: no es más que una herramienta.  Es en manos de quien la empuña donde se decide su fin."*"Debes saber quiénes son tus enemigos, y quiénes tus aliados, pero al final solo puedes confiar en ti, pues todos los demás están cegados por su verdad."*"Hay uno en quien puedes confiar, que es nuestro vástago.  Pero al final, no te dejes cegar por una verdad que no es la tuya."*"Esta es, claro está, nuestra verdad.  La tuya, has de hacerla tú."*La visión parece desvanecerse, y despiertas, como de un sueño.',
+    '277fb890': 'Sientes un vacío por dentro.\n',
+  },
+  '10E8': { 'f1bf48c3': 'Fascinante: parece obra de los Seldane.' },
+  '10E9': { '46c0c975': 'Es el objeto principal de la destilación alquímica.', 'dba841ce': 'Tienes que llenarlo de agua.\n' },
+  '10EA': {
+    '96033829': 'Es el objeto principal de la destilación alquímica, y está listo para usarse.',
+    'e70e9f33': '¿Destilar qué elemento?\n',
+    '8d4a7954': 'Te parece oír un grito débil y ahogado, y de pronto el cristal parece distinto.\n',
+    'aeb2e1b6': 'De pronto aparece una visión angustiada de Omen*"¡¡¡¡No!!!!  ¡¡¡Lo has estropeado todo!!!  ¡¡¡Mi amo!!!  ¡¡¡Has destruido a mi amo!!!"*"Humano inmundo, te crees muy inteligente, nos arruinas los planes, y destruyes a mi amo."*"Cómo has podido detectar la esencia de mi amo escondida en la Crolna, no lo sé."*"Pero sabe esto: has visto a través de las sombras de los planes de mi amo, porque te hemos subestimado."*"No volveremos a cometer ese error.  Esto no ha acabado."*"Nuestra batalla con las fuerzas de la Tierra continúa, y saldremos victoriosos."*"Las semillas de la destrucción de esa abominación de Alaric ya están sembradas, y con su destrucción, la Tierra ha de caer."*"Nuestros agentes están por todas partes, con tu mismo aspecto, y no tienes manera de saber quién es de fiar y quién no."*"La batalla de hoy quizá sea tuya, pero nosotros somos el Mar, y el tiempo está a nuestras órdenes."*"Resistiremos, sembraremos el caos y la discordia entre tu gente, y os destruiremos a todos."*Omen desaparece, pero algo te dice que no es la última vez que lo ves...*',
+    'd7b8f8e1': 'Mmm, no parece que haya pasado nada.\n',
+    '0a198e5c': 'Te concentras, pero acabas agotándote sin conseguir nada.\n',
+    '3d0116ef': '¡Ha funcionado!\n',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  '99187a42': 'Ya conoces ese conjuro.\n', '5da24c9f': "Ahora conoces el conjuro '", '796d51bd': "', con lo que tienes ", '0c9dcaee': "No consigues aprender '",
+  'ab6716a6': 'No hay una forma evidente de hacerlo funcionar.\n', '31537459': 'Casi parece lo bastante grande para pasar por ella.\n',
+  'cb90308c': 'Está atascada de escombros.\n', 'ec0dadef': 'Entras en la alcantarilla...\n', 'eee09314': '...y al cabo de un rato sales.\n',
+});
+Object.assign(DELV_TRANSLATION_ES.text, {
+  '10EC': { '5150523b': 'Mediante la destilación alquímica se convierte en una Poción de sustento.' },
+  '10ED': { 'af3c8060': 'Mediante la destilación alquímica se convierte en una Poción de curación.' },
+  '10EE': { 'c04cec4e': 'Mediante la destilación alquímica se convierte en una Poción Amigo del Mago.' },
+  '10EF': { 'b7e7123a': 'Mediante la destilación alquímica se convierte en una Poción de movimiento libre.' },
+  '10F0': { '26f3bba2': 'Mediante la destilación alquímica se convierte en una Poción de antídoto.' },
+  '10F1': { '71024d5b': 'Mediante la destilación alquímica se convierte en una Poción de Mente Clara.' },
+  '10F2': { 'd850fd37': 'Mediante la destilación alquímica se convierte en una Poción Amigo del Herrero.' },
+  '10F3': { 'a443532a': 'Mediante la destilación alquímica se convierte en una Poción de Vista Lejana.' },
+  // Alaric's amulet: "^" + a companion + " has been brought back ..."
+  '10F4': {
+    'd0bd9b17': 'Ese amuleto lleva el símbolo de nuestro señor Alaric.',
+    '3b29abfc': 'El amuleto destella con fuerza.\n', '2b28f6a9': 'El amuleto destella.\n', 'a7d483e8': 'El amuleto destella débilmente.\n',
+    'd5e7c608': 'El amuleto apenas destella.\n', '96dace0e': 'Solo queda en el amuleto la chispa de luz más pequeña.\n',
+    'd387a47a': '¿Usar el amuleto con quién?\n', 'ab9ae0ef': '¡Sigue con vida!\n',
+    '07360d49': ' ha vuelto del umbral de la muerte.\n',
+    '47d0777f': 'El amuleto se deshace en polvo, y te deja con una sensación de gran vulnerabilidad.\n',
+  },
+  '10F5': { 'abdce4ca': 'Algo ha activado una de tus runas de protección.\n' },
+  '1100': { 'f5e9140d': 'Qué raro, parece una perla, pero negra...', 'ff479650': 'Parece una piedrecita negra que se nota ligeramente tibia.\n' },
+  '1105': {
+    '224d2dc4': 'Más de un conjuro se ha aprendido de un tomo como ese.',
+    '26bc04b6': "Es un tomo que enseña el conjuro '",
+    '33eb3eff': 'Ni siquiera has aprendido los fundamentos de la magia: intentar aprender un conjuro te supera.\n',
+    '1900202e': ' conjuros posibles.\nPara lanzarlo, elígelo en la lista de habilidades del personaje.\n',
+  },
+  '1109': {
+    '19c850fa': 'Vaya, para la gente como yo, esto es mejor que cualquier llave.',
+    '48ec0d60': 'No tienes la menor idea de cómo usarla.\n', '8e5b7244': '¿Usar la ganzúa con qué?\n',
+  },
+  '110D': {
+    '231d7fb9': 'Mmm, el suelo parece algo removido aquí.\n', '079d823e': 'Alguien ha cavado aquí.\n',
+    'a9764146': 'Al cavar, parte del suelo se hunde y deja ver un agujero oscuro que lleva hacia abajo.\n',
+    'e6b5a1d9': 'Cavas en el suelo.\n', 'cf34a479': 'Descubres ', '027f5b72': 'No encuentras nada.\n',
+    '875bf72e': 'Cavar más hondo no te llevará a ninguna parte...\n',
+  },
+  '110E': { 'e3b905f5': 'Es un trozo de alga medio seca y rota.\n' },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, {
+  '1110': { fire: 'fueg,llam', soun: 'soni', nois: 'ruid', wate: 'agua', shad: 'somb', hear: 'cora' },
+  '1121': { die: 'muer,mori', deat: 'muer', tava: 'tava', sea: 'mar', mage: 'mago,maga' },
+});
+Object.assign(DELV_TRANSLATION_ES.text['*'], { 'f89e568f': 'Parece ser un interruptor o un botón de alguna clase.\n', '5e37865a': 'Hablar con un cadáver es una conversación de un solo lado.\n', 'ff38d482': 'Siete años de mala suerte, en camino...' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // five riddles, each answered by the stems in keys
+  '1110': {
+    '7d016440': 'Siempre tengo hambre,\nsiempre me han de alimentar,\ny el dedo que lamo\npronto rojo se ha de quedar.',
+    'ea1e5b4e': 'Está en todas partes, pero no se ve,\nse puede atrapar, pero no sostener,\nno tiene garganta, pero se oye.',
+    'aa9f2453': 'Tres vidas tengo yo.\nLo bastante suave para calmar la piel,\nlo bastante ligera para acariciar el cielo,\nlo bastante pequeña para colarse dentro.',
+    '29dc5229': 'Cada mañana aparezco tendida a tus pies,\ntodo el día te sigo por más que corras,\ny sin embargo casi muero bajo el sol del mediodía.',
+    '46e5f4f2': 'Un tambor rojo que suena\nsin que nadie lo toque,\ny que se queda en silencio\ncuando lo tocan.',
+    '83780dcf': 'Una voz parece hablarte en la mente desde el interruptor.*"',
+    '77426573': '"Esta prueba se ha superado."',
+    'a5ccff75': '"Hay que meditar sobre los propios fracasos."',
+  },
+  '1111': { '6c67483a': 'Es un mapa de la tierra.\n' },
+  // a Degree Hall's door: "What is the password to the " + a hall + "?"
+  '1114': {
+    '9a2cf947': 'Una voz parece hablarte en la mente desde la puerta.*',
+    'db213169': 'sala de al lado', '7d040eda': 'Sala del Cuarto Grado', '743af491': 'Sala del Quinto Grado',
+    'ce8c0a08': 'Sala del Sexto Grado', '14c8071d': 'Sala del Séptimo Grado', '5550a6d3': 'Sala del Octavo Grado',
+    '32fe5101': '"¿Cuál es la contraseña de la ',
+    '47fa30b1': 'La puerta se abre.', 'b89d228a': 'La puerta sigue cerrada.', '9c6fa833': 'La puerta no te contesta.\n',
+  },
+  '1119': {
+    'd0fe33f2': 'Eso sí es un arma poderosa, con un filo de aspecto temible, y equilibrada para usarse con una mano.',
+    'e008aa9a': 'Tiene un filo extremadamente afilado, y parece brillar con una luz mágica.',
+  },
+  '111C': { 'fd0d13fe': 'No parece encajar muy bien.\n' },
+  // a ghost who answers only by gestures
+  '1121': {
+    'c593faa1': 'Ves una mirada vacía, llena de tristeza.*',
+    'a1c3ff02': 'La figura gesticula.', 'fafc673c': 'La figura asiente.', 'c271e07f': 'La figura se estremece con violencia.',
+    '7df04bba': 'La figura se aparta un poco.', '34828e5f': 'La figura asiente una vez.', 'aab51d9d': 'La figura baja la mirada al suelo.',
+    'bde516d5': 'La figura te devuelve la mirada con cara de desconcierto.',
+  },
+  '112A': {
+    '271c86cb': 'No sé qué es, pero seguro que es algo asqueroso.',
+    '9d921d2f': 'El frasco parece burbujear, o fluir, despacio, como si estuviera vivo.\n',
+    'c1fdd695': 'Destapas el frasco, pero el olor y una sensación general de que algo va mal te impiden probarlo.\n',
+  },
+  '112D': { 'b3c16776': 'Parece el huevo de alguna criatura, con una cáscara dura y correosa.\n' },
+  // a ring: "You see a" + its kind + " " + its inscription (0x021F)
+  '1133': {
+    '50d31f9d': ' anillo liso', '8796ccb9': ' anillo de diamante', 'd61e6a51': ' anillo de esmeralda', '91d514e3': ' anillo de rubí',
+    'c1f0e944': 'Ves un', 'cd1c91ab': 'Tienes una sensación extraña...\n',
+  },
+  '1135': {
+    '60b5b914': 'Un material fascinante, aunque no parecen muy cómodas...',
+    'f359c46d': 'Se notan algo pesadas y rígidas, y en general bastante incómodas, pero deberían mantenerte los pies secos.\n',
+  },
+  '1136': {
+    'cd7a65a7': 'Parece una especie de artefacto mágico, pero más allá de lo que yo alcanzo a entender.',
+    'b0ea59fe': '¿Usar el báculo con qué?\n', '5a3499f9': 'No pasa nada más.\n',
+    'ed7a37bf': 'Al meter el báculo en la fuente, la esfera de lo alto se llena de agua y empieza a brillar.\n',
+    'adb6f546': 'El agua luminosa del báculo parece envolver el huevo y transformarlo.\n',
+  },
+  '113A': { '15b33865': '¡Orden en la sala!' },
+  '113B': { 'd5cd4363': 'Ya está roto.' },
+  '113C': { 'e9bae8f1': 'Se usa para hacer pociones mágicas y componentes de conjuros.' },
+  '113D': {
+    '9b75d356': 'Tendrás que ponerte delante de la diana si esperas darle...\n',
+    'c076f939': '¡Es fácil dar en el blanco a quemarropa!\n', '7e1d5f45': '¡En el blanco!\n', '630d5e4b': '¡Fallo!\n', '1ba2eced': 'No está mal...\n',
+  },
+  '113E': { '42ad6aa9': 'Sí, podrías usar eso como arma, pero en realidad no se hizo para eso.' },
+  '113F': {
+    '7dfaa81d': 'Ya está encendido.\n',
+    '68d27766': 'No es en el rayo donde se halla el conocimiento, sino en el tortuoso camino de la serpiente que regresa...\n',
+    '9c0116e5': 'Ya está apagado.\n',
+  },
+});
+// A creature's state after a spell: "^" + the creature + " is confused." and
+// the like, which says nothing gendered, the creature being either.
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  'e57f727a': ' no sabe lo que hace.\n', '2ca4bc2b': ' cae en un sueño profundo.\n', '33600b98': ' grita de miedo.\n', 'f57f42ab': ' no puede moverse.\n',
+  '4e1ab80e': 'Te duele la cabeza de tanto mirarla.\n',
+});
+Object.assign(DELV_TRANSLATION_ES.text, {
+  '1141': {
+    '2037207c': 'Es una bola de cristal mágica, bastante rara.  Quien mira en ella puede ver más allá.',
+    '1fff436a': 'Lo ves todo como desde muy arriba...\n', '93f14df9': ' brilla un instante.\n',
+  },
+  '1142': {
+    'f2cee764': 'Esas cosas son algo peligrosas, así que ten cuidado con ellas, no vayan a estallarte en la mano.',
+    '1db7b74a': 'La mecha está encendida...\n', '759b9380': 'La mecha se apaga, pero ahora es un poco más corta...\n',
+  },
+  '1143': { '01c63d3d': 'Las huellas parecen humanas, al menos.\n' },
+  '1145': { '41303c0a': '¡Buen golpe!\n', 'a66271db': 'Por lo menos no se defiende.\n', '006b02d8': 'Parece que ni se inmuta.\n' },
+  '1146': { '1cfad33a': 'Está roto, y no tiene arreglo.\n' },
+  // a scale: "^" + a thing + " weighs " + a number + " grains."
+  '1147': {
+    '92e0ca0b': '¿Pesar qué objeto?\n', 'bf234baf': '¡No puedes pesar la balanza en sí misma!\n',
+    'b2e3fc1f': ' pesa demasiado para la balanza...\n', 'c26e6b4e': ' pesa ', 'ef336a6b': ' granos.\n',
+    '8fcc6051': ' no se puede llevar a la balanza.\n',
+  },
+  // the dice: "You roll the dice, and the " (or "The ") + "first black die is " + a number word ...
+  '1148': {
+    '1250f25f': 'Ah, si alguna vez se inventó una manera mejor de separar a un necio de su dinero, yo no me he enterado.',
+    'a46789e8': 'primer dado negro muestra un ', 'c5266f87': ', el dado blanco un ', 'cfaf63d6': ', y el último dado negro un ',
+    '7adae90d': 'Tiras los dados, y el ', '2f4ee094': 'El ',
+  },
+  '114B': {
+    'd33b63c3': 'Nunca se sabe.  Si tuvieras que bajar por un agujero o algo así, esa cuerda te vendría de perlas.',
+    '6497a2e2': 'Atas la cuerda al saliente de roca y lanzas el extremo libre al abismo.\n',
+    '5e2a747f': 'No está muy claro qué piensas atar aquí...\n',
+  },
+  '114C': {
+    'accc8741': 'El saliente de roca es bastante sólido, y está algo desgastado, como si alguien hubiera atado algo a él.\n',
+    'e68dfcf2': 'La cuerda baja hacia la oscuridad...\n', '3dd8ead5': 'La cuerda sube por la pared de la cueva hacia la oscuridad...\n',
+    '05515e3e': 'Saltar al abismo sería una temeridad, y sin duda mortal...',
+  },
+  '1150': {
+    'a84987c4': 'Ten cuidado: esa cosa suelta unas esporas muy desagradables.',
+    'd5b1a554': 'Es una especie de planta parecida al musgo que brilla débilmente, aunque tiene un aspecto enfermizo.\n',
+    '22920bfd': '¡¡Estalla una nube de esporas!!\n', 'e3b0df11': '¡Cof!  ¡Cof!', 'ed3ca638': 'Musgo destruido.\n',
+  },
+  '1153': { '87b59e09': 'Parece una especie de capa mágica, muy antigua.', '62292296': 'Tienes una sensación de seguridad.\n', '977882a7': 'Te sientes más vulnerable.\n' },
+  '1154': { 'c5825cda': 'Parece una especie de cinturón mágico, muy antiguo.', 'b9589859': 'Tienes una sensación de poder y de fuerza.\n', '8438a8f3': 'Te notas con menos fuerza.\n' },
+  '1155': {
+    '1af26818': 'Parecen una especie de guanteletes mágicos, muy antiguos.',
+    '2e92c9da': 'Aunque la forma de los guanteletes te impide sostener nada, no sientes que te haga falta un arma.\n',
+    'ff6874ff': 'Ahora tienes las manos libres.\n',
+  },
+  '1156': {
+    '86af3d33': '¿Intentar reparar qué?\n', '403e2cd3': 'Has reparado ese tramo del puente.\n',
+    '77455ad5': 'Ese tramo puede estar algo dañado, pero aún se puede usar.\n', 'eec59af5': 'Ese tramo del puente no necesita reparaciones.\n',
+    '5c949d32': 'No puedes reparar ', '938424ee': ' con tablas...',
+  },
+  '1157': {
+    'd643fd3d': 'Es un báculo mágico, bastante raro.  Puede usarse como un arma sencilla, o lanzar algún tipo de conjuro al usarlo.',
+    '685068de': 'Parece que se ha agotado...', 'c7c69a36': '¿Usar el báculo con quién?\n',
+    '937bcc06': 'El cristal del báculo está gris, pero todo él sigue dando una luz resplandeciente al sostenerlo.\n',
+    '8b50dbf1': 'Ves un cristal luminoso montado en el extremo de un báculo de madera, y todo él da luz al sostenerlo.\n',
+    '1724a20d': 'El cristal del extremo del báculo deja de brillar y se vuelve gris.\n',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.text, {
+  '1159': {
+    '76dd55cc': 'Ves un árbol antiguo, al parecer tan viejo como el mundo.',
+    '107d9261': '  De una rama cuelga una sola manzana.\n', '76c2fd1a': '  De las ramas cuelgan dos manzanas.\n', '94255174': '  De las ramas cuelgan tres manzanas.\n',
+    '8383f17a': 'No queda más fruta en el árbol que comer...\n', '23b0fe24': '¿Dar la manzana a quién?\n',
+    '19d32790': 'Te comes la manzana y de pronto sacias el hambre.\n', 'c55d26e2': ' se come la manzana y de pronto sacia el hambre.\n',
+  },
+  '115C': { '40094820': 'Salvo por ser de un naranja vivo y tener seis patas, parece un geco normal.\n' },
+  '1160': { '1b2cb5a0': '¡¡Trampa de veneno!!\n', 'c642c92b': '¡Envenenado!', '06609c8b': 'Trampa de veneno destruida.\n' },
+  '1161': { '49605cd8': '¡¡Trampa explosiva!!\n', '63943fa3': 'Trampa explosiva destruida.\n' },
+  '1162': { '98aa9920': '¡Clic!\n' },
+  '1164': { '5792359e': '¡Atraviesas la pared como si no estuviera!\n' },
+  '1165': { '65794710': '¡Clic!\nHas pisado un alambre fino que cruza el suelo.\n', '5f0c8ce8': 'Pasas con cuidado por encima de un alambre fino que cruza el suelo.\n' },
+  // a remote control, of a kind the hero knows
+  '1174': {
+    '21e094ab': 'Reproducir\n', 'e8a86c9d': 'Detener\n', '98657080': 'Reanudar\n', 'bc27ea65': 'Pausa\n', 'fe535394': 'Expulsar\n',
+    '049d08af': 'Pista anterior\n', '83dd3f6f': 'Pista siguiente\n', '2b16f571': 'Subir volumen\n', '269c9a25': 'Bajar volumen\n',
+    '51738f6e': 'Ves un extraño artilugio en forma de varilla, con unas formas de colores en relieve.\n',
+  },
+  '1175': {
+    '8f7054bd': 'Fascinante.  Es obra seldane, sin duda, pero ¿con qué fin?',
+    '2ad98fd4': 'Ves un disco redondo, con lo que parecen tres botones y ocho agujeros.\n',
+  },
+  '1176': { 'f7bd5ccd': 'Un yelmo de aspecto imponente.' },
+  '1177': { '7eac05ba': 'Esa armadura tiene un aspecto imponente.  La artesanía es asombrosa.' },
+  '1178': { '59473ed9': 'Qué arma más rara: parece una espada, pero sin filo.  De lo más curioso.' },
+  '117A': { '43d0c9e0': 'Parece una especie de mapa, pero reluce y parece cambiar mientras te mueves.\n' },
+  '117F': {
+    'f34db238': 'La artesanía es excelente, pero no reconoces a quién representa.\n',
+    '9f5e4ef2': 'La artesanía no es muy buena, y no reconoces a quién representa.\n',
+    '96c5af8a': 'Es un busto de Alaric.\n',
+    '345b1f99': "Tiene una inscripción:\n'Aquí yace el Gran Tirano'\n'79 D.T.'\n",
+  },
+  '1187': {
+    '7037841c': 'Qué yelmo tan raro: seguramente tampoco es de lo más cómodo.',
+    'dfa462b5': 'Es una especie de yelmo, pero hecho de un material desconocido.\n',
+    'bc73fded': 'Resulta bastante incómodo, y distrae.\n',
+  },
+  // the unguent: "You see a heavy stoneware container " + "full of" or "with" + " some smelly unguent ..."
+  '118A': {
+    '4528ee2c': 'Ves un pesado recipiente de gres ', '150b8945': 'lleno de', '0c4afe69': 'con',
+    '6552d812': ' un ungüento maloliente.\nLe quedan ', '90634b4c': ' dosis.\n',
+    '5e069f22': '¿Aplicar el ungüento a quién?\n',
+    'd4662cde': 'Tus heridas se alivian y notas cómo se extrae el veneno.\n', '160a12c6': 'Tus heridas se alivian.\n',
+    '6303846e': 'Has gastado todo el ungüento.\n', '0a9ee49d': 'Ahora quedan ', '18e0fab4': ' dosis.\n',
+  },
+  '118B': {
+    'a36d1d62': 'Una de las rocas del techo parece suelta.\n', 'c0d15cc2': '¡Cae una roca del techo!\n', '81522481': '¡Ay!',
+    '7fc26c77': 'Unas rocas se desprenden del techo sin peligro.\n',
+  },
+});
+// The zones' names, set as the map window's title when one is entered.
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  '44a7f051': 'Mapa', 'ba1eb285': '=', '88f5a64f': 'Granja abandonada', '15a83c6a': 'Sótano', 'e3311ce6': 'Subterráneo',
+  '150cd8e4': 'Ruinas', '7d84c9fa': 'Mina de hierro', 'b21f8d5d': 'Volcán', '39ef4770': 'Casa de Charax', '29a6a718': 'Casita',
+  '3cfdfaa1': 'Viñedo', '6d9e1ade': 'Sala de la Verdad', 'ec31d236': 'Alcantarillas', '80387159': 'Granja', 'c6f3b3fa': 'Gruta de Kosha',
+  '50d3d3ce': 'Campamento minero', 'b79cb4cb': 'Tumba', '4f22cc5c': 'Templo', '4d819912': 'Cala', '77680e6d': 'Ciudad en ruinas',
+  '7eed15e3': 'Fortaleza', '725b7bbf': 'Campamento', 'f7e85f6d': 'Mazmorra', 'd46e8f51': 'Cuevas', 'd8134330': 'Puente',
+  '2ca18ba3': 'Montañas', 'c45a0685': 'Ciudad subterránea', 'd45ff524': 'Criptas', '175e4a78': 'Cueva',
+  '471c1319': 'Al acercarte al edificio, este reluce y luego se desvanece.\n',
+});
