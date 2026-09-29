@@ -3987,3 +3987,58 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   },
 });
 Object.assign(DELV_TRANSLATION_ES.keys, { '186D': { stra: 'raro,rara', more: 'much,mas', cana: 'cana', hadr: 'hadr', ake: 'ake', lind: 'lind' } });
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  'eaeb07d5': 'Ves a un estudiante estresado.\n*', 'd855c92a': 'Ves a una estudiante estresada.\n*',
+  'b8761e22': '"Soy estudiante: espero estudiar curación."', '8500d5ec': '"Es mi mejor amigo."',
+});
+// the students of the Magisterium
+Object.assign(DELV_TRANSLATION_ES.text, {
+  '186E': { '37f09570': '"Me llamo Thrasymedes."' },
+  '186F': { '048b1c3e': '"Me llamo Protesilaus."' },
+  '1870': { '3147b69b': '"Me llamo Menelaus."', 'f3ff818f': '"Soy estudiante: me especializo en alquimia."' },
+  '1871': { '7a3151cd': '"Me llamo Lycaon."', '2f0b014c': '"Soy estudiante: todavía no he decidido qué quiero estudiar."' },
+  '1872': { '8b86d7c7': '"Me llamo Peleus."', 'e2ed6c93': '"Soy estudiante: espero estudiar magia rúnica."' },
+  '1873': { '7ecf9de2': '"Me llamo Peisander."', 'c2b3e126': '"Solo soy un estudiante: todo esto me supera un poco."' },
+  '1874': { 'ad986fbc': '"Me llamo Danae."', '8fb8d271': '"Soy estudiante, y me especializo en curación."' },
+  '1875': {
+    '27ec5d32': '"Me llamo Semele."',
+    'a4589a96': '"Eioneus es mi hermano mayor: estamos muy orgullosos de él, con su trabajo en las armas mágicas."*"Hace tiempo que no sé nada de él, pero la última vez me dijo que había encontrado una cueva en las montañas que llevaba a un campo de lava."*"Dijo que estaba justo al sudoeste de donde se juntan los dos afluentes del río Styx."*"Si lo ves, dile que le mando saludos."',
+    '00d81e57': '"Soy estudiante: espero llegar a ser investigadora."',
+  },
+  '1876': { '120aa05e': '"Me llamo Alcyone."', 'c6b8d300': '"Soy estudiante."' },
+  '1877': { '2062ef44': '"Me llamo Clytemnestra."', '3433dfc0': '"Soy estudiante: me he estado especializando en Magia Rúnica."' },
+});
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { thra: 'thra', prot: 'prot', mene: 'mene', lyca: 'lyca', pele: 'pele', peis: 'peis', dana: 'dana', seme: 'seme', alcy: 'alcy', clyt: 'clyt', eion: 'eion' });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { heir: 'here', esse: 'esen', form: 'form,camb', corr: 'corr', maay: 'maay', seld: 'seld', jhia: 'jhia' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Sabinate, heir of the Seldane, who says "we"
+  '1878': {
+    '471f63b2': '"¡Es asombroso!  ¡Es un Seldane vivo!  ¡Nunca pensé que llegaría a conocer a uno!"*',
+    '39ef3e85': '"¡Llevas la @esencia de la corrupción!  ¡Cuidado!"*',
+    '4c937b88': '"No: tus caminos no son puros.  Tu misma presencia nos ofende.  Vete.\n"',
+    '3120b144': '"Como nos has ayudado, así te ayudamos.  Mucho hay que saber de los @males de Alaric."',
+    '2e8aa512': '"A su debido tiempo has venido a nosotros.  Somos Sabinate, heredera de los @Seldane."',
+    'ce870a96': '"Somos Sabinate, heredera de los @Seldane."',
+    'e182a768': '"No tenemos hijo."',
+    '820ab17a': '"Esta es nuestra tierra.  Como son sus @males, así son los nuestros."',
+    '40049432': '"El lazo de la tierra es el lazo de los Seldane.  Como la tierra es inmortal, así lo son los Seldane."*"La sangre de los mortales corre por las venas de Alaric.  La sangre mortal es demasiado fina para el lazo de la tierra."*"Como el agua que corre deprisa arrastra la tierra, lo mismo hará el lazo de la tierra."*"Alaric no puede resistir: Alaric solo puede ser arrastrado."*"Como se endereza el arroyo para que el agua fluya, así debe ser con Alaric."*"Pero solo todo el poder de la @Crolna puede lograrlo."*"Solo con todo el poder puede Alaric mantener el lazo de la tierra sin ser arrastrado."*"Una última cosa: recuérdala bien.  Caminar de nuevo, los muertos no pueden."',
+    '3fbe479e': '"Los males de tu Alaric marchan con los nuestros.  Quizá nuestra @ayuda sea tu ayuda."',
+    '4898ae1a': '"Nuestra Enemiga es la Corrupción.  Como nosotros, pero no nosotros, como el Mar lo es para la Tierra."*"Para ellos no sois más que herramientas.  Para nosotros, esto importa poco; para vosotros, mucho."*"No te fíes de tus sentidos, pues ellos cambian de forma con la facilidad con que tú cambias de ropa."*"Cuidado con los muertos que caminan: por eso los conocerás a ellos y a sus aliados."',
+    '38ef0730': '"Ese conocimiento está más allá de ti."',
+    'dd5b671a': '"La esencia de la corrupción mancha la Crolna.  No la uses, no sea que arriesgues destruir todo aquello por lo que has luchado."*"La Crolna debe ser purificada.  Esto no podemos hacerlo nosotros: debe hacerlo un humano, que no esté ligado a la tierra."*',
+    'a74241e6': '"Te hemos dado las esporas de la tierra: más no podemos ayudar."',
+    'ec5656a8': '"Para eliminar el poder del Mar, solo podemos ayudar algo, quizá."*"Toma esto, esporas de la Tierra.  Si puedes romper la mancha, ellas la neutralizarán."*Sabinate te da una seta de forma extraña.\n',
+    '807e38fb': '"Como fluye el Mar, así fluye la forma de los del Mar.  Cambiante, y aun así del Mar."',
+    'fe650a4d': '"El poder es la Crolna.  Nuestro @Enemigo la volvió contra nosotros para nuestra caída."*"Todo el poder de la Crolna resolverá tus problemas, o causará tu caída."*"Peligroso es el poder.  Así es en la Crolna."',
+    'fb954dc8': '"Tú nos ayudarás, nosotros te ayudaremos.  Libera Maayti de la corrupción."',
+    '9b73d5a0': '"¿Nos ayudarías, para así poder ayudarte a ti?"',
+    'e9fa18e3': '"Entonces el fracaso será sin duda tuyo."',
+    '0909c480': '"Durante 120 eternidades nuestra fue @Maayti, ciudad de la Verdad, hasta que nuestro enemigo nos expulsó."*"Un fragmento de @Crolna, como el que llevas, pero mayor, se volvió hacia el mal, y convivir con la corrupción no pudimos."*"Lo sellamos dentro, para que la corrupción no se extendiera.  Las puertas se sellaron con dos llaves."*"Por tu mano has eliminado la corrupción de una parte de la Crolna.  Querríamos que hicieras lo mismo."*"Necesitas aprender nuestra lengua; haremos que así sea."*Los ojos de Sabinate parecen atravesarte el cráneo, y luego el efecto desaparece.*',
+    'd3205081': '"Para abrir las puertas, también necesitas las dos llaves.  Aquí tienes la llave del poste izquierdo."*Sabinate te da un medio disco de aspecto extraño.',
+    'c3c8bad1': '*"Cuando dejamos Maayti, el que era nuestro hijo recibió la otra."*"El que era nuestro hijo ya no es uno de nosotros, y está cerrado para nosotros."*"Ya no vemos a ese: tendrás que usar tus propios ojos para encontrarlo."*',
+    '83311e37': '"Que el viento de la Verdad esté de tu parte."',
+    '2fac1fa1': '"Lo que llamas el Libro de Zafiro del Fundamento está con nosotros."*"La que es Unhayt tiene su posesión."',
+    '73deb195': '"¿Cuál es entonces tu condición?"',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '1878': { trou: 'prob,male', son: 'hijo', shap: 'form,camb', ' shap': 'form,camb', enem: 'enem', book: 'libr', sapp: 'zafi' } });
