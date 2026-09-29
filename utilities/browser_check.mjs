@@ -252,11 +252,22 @@ const SELDANE_ROUND_TRIP = `(async () => { try {
   }
   return { strikes: out };
 } catch (e) { return { error: e.message }; } })()`;
-let opened = 'no archive given', seldane = 'not run';
+/* The Spanish table is not among the page's scripts: the Patches section
+   adds it as a script element when it is first wanted (spanishTable in
+   js/page-mechanics.js), which only a browser does. So here it is loaded
+   that way and the file is written from the archive the page opened, both
+   forks, and the pieces counted. */
+const SPANISH_BUILD = `(async () => { try {
+  const T = await spanishTable();
+  const r = spanishBuild(T);
+  if (!r) return { error: document.getElementById('spanishNote') ? document.getElementById('spanishNote').textContent : 'nothing built' };
+  return { done: r.report.done, missing: r.report.missing.length, keys: r.report.keys };
+} catch (e) { return { error: e.message }; } })()`;
+let opened = 'no archive given', seldane = 'not run', spanish = 'not run';
 if (archive && existsSync(resolve(ROOT, archive))) {
   const r = await load(base + indexPage + '?cache=skip&loud=1&src=' + encodeURIComponent(archive),
     '/^(Title: |Archive error)/.test(document.getElementById("output").textContent) || document.getElementById("sourceStatus").classList.contains("failed")', 90000,
-    { then: ({evaluate}) => evaluate(SELDANE_ROUND_TRIP) });
+    { then: async ({evaluate}) => Object.assign({}, await evaluate(SELDANE_ROUND_TRIP), { spanish: await evaluate(SPANISH_BUILD) }) });
   const errs = errors(r.console), quiet = quietOnes(r.console);
   const title = text((/id="output"[^>]*>([\s\S]*?)<\/pre>/.exec(r.dom) || ['', ''])[1]).trim();
   const status = text((/id="sourceStatus"[^>]*>([\s\S]*?)<\/(?:pre|div|span)>/.exec(r.dom) || ['', ''])[1]).trim();
@@ -271,6 +282,10 @@ if (archive && existsSync(resolve(ROOT, archive))) {
   else {
     seldane = 'both Seldane strikes rewritten from their own TrueType come back whole (' + r.more.strikes.map(t => t.letters + ' letters').join(', ') + ') and the old sizing does not';
     console.log('  ' + seldane);
+    const es = r.more.spanish;
+    if (!es || es.error) fail('spanish', 'the Spanish file was not written in the browser: ' + (es ? es.error : 'no result'));
+    else if (es.missing) fail('spanish', es.missing + ' pieces of the shipped file have no Spanish');
+    else { spanish = `the Spanish table loads on demand and writes ${es.done} pieces and ${es.keys} keyword lists`; console.log('  ' + spanish); }
     opened = `the archive opens over http in ${r.ms} ms (${title.slice(0, 60)}), ${quiet.length} quiet failures on the way`;
     console.log('  ' + opened);
     for (const l of quiet.slice(0, 8)) console.log('    ' + l.text.slice(0, 140));
@@ -298,6 +313,8 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     ['prop', "showCategory('PROPS'); showPropTypeDetail(76)"],
     ['mechanics', "showCategory('MECHANICS')"],
     ['skills', "showCategory('SKILLS')"],
+    // Data > Patches, at the scenario in Spanish.
+    ['spanish', "showCategory('PATCHES'); const d = document.getElementById('spanishMaker').closest('details'); if (d) d.open = true; document.getElementById('spanishMaker').scrollIntoView()"],
     ['tools', "showCategory('TOOLS')"],
     ['dataFork', "showCategory('DATAFORK')"],
     // A script's page: the head, the one row of views and the code, which

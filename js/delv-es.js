@@ -4681,3 +4681,8 @@ Object.assign(DELV_TRANSLATION_ES.strings, {
     '3d3ceaec': '•Citas', '29490f10': '•In memoriam',
   }),
 });
+
+// The page loads this file only when the Patches section asks for it, and
+// finds the table on window, since a top-level const is not a property of
+// the global object.
+window.DELV_TRANSLATION_ES = DELV_TRANSLATION_ES;

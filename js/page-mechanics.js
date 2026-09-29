@@ -2110,6 +2110,85 @@ function renderAppFixMaker() {
   host.appendChild(bar);
 }
 
+/* ---- Cythera Data in Spanish ----
+   js/delv-translate.js writes a translation into both forks and
+   js/delv-es.js is the Spanish, keyed by a hash of each English piece, so
+   the English is read from the visitor's own file and none of it is in this
+   repository. The table is half a megabyte and most visitors never want it,
+   so it is not among the page's scripts: the first button that needs it
+   adds it as a classic script, which a page opened from a USB stick can
+   still load, and later ones find it there. A harness that has already run
+   the table in the page's scope is taken at its word.
+
+   The result is a whole file rather than a patch, since the conversation
+   face with its new letters, the message pane's face and the buttons'
+   labels are in the resource fork, which no patch reaches. It is built
+   from the open file and its fork: a piece the file has changed has no
+   entry and stays in English, and the note says how many. A copy without
+   its resource fork is refused, since the accents would draw as boxes. */
+function spanishTable() {
+  if (window.DELV_TRANSLATION_ES) return Promise.resolve(window.DELV_TRANSLATION_ES);
+  if (!window.SPANISH_LOADING) window.SPANISH_LOADING = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'js/delv-es.js';
+    s.onload = () => window.DELV_TRANSLATION_ES ? resolve(window.DELV_TRANSLATION_ES) : reject(new Error('The Spanish did not load'));
+    s.onerror = () => { window.SPANISH_LOADING = null; reject(new Error('The Spanish could not be fetched')); };
+    document.head.appendChild(s);
+  });
+  return window.SPANISH_LOADING;
+}
+function spanishSay(m, bad) {
+  const note = document.getElementById('spanishNote');
+  if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
+}
+// The file in Spanish, or null with the reason said.
+function spanishBuild(T) {
+  if (!ARCHIVE) { spanishSay('No game file is open.', true); return null; }
+  const rsrc = window.CYTHERA_RSRC_RAW;
+  if (!rsrc || !rsrc.length) { spanishSay('This copy has no resource fork, which holds the face the accents are drawn in. Open the game in MacBinary or BinHex, or the installer.', true); return null; }
+  try { return translateCytheraData(ARCHIVE.bytes, rsrc, T); }
+  catch (e) { spanishSay(e.message, true); return null; }
+}
+function spanishDownload(asDisk) {
+  spanishSay('Writing the file in Spanish.');
+  return spanishTable().then(T => {
+    const r = spanishBuild(T);
+    if (!r) return null;
+    // The game looks for its data by name, so the copy keeps the open
+    // file's Finder name and type, as the disk image of an edited file does.
+    const f = window.ARCHIVE_FINDER || { name: DISK_ARCHIVE_NAME, type: 'DelS', creator: 'Delv' };
+    const name = (f.name || DISK_ARCHIVE_NAME).replace(/\.(hqx|data|bin|dsk)$/i, '') || DISK_ARCHIVE_NAME;
+    const file = { name, type: f.type || 'DelS', creator: f.creator || 'Delv', data: r.data, rsrc: r.rsrc };
+    if (asDisk) dlBlob(new Blob([writeHfsImage({ volumeName: 'Cythera ES', entries: [file] })], { type: 'application/octet-stream' }), 'Cythera Data (es).dsk');
+    else dlBlob(new Blob([writeMacBinary(file)], { type: 'application/macbinary' }), 'Cythera Data (es).bin');
+    const left = r.report.missing.length;
+    spanishSay(r.report.done + ' pieces of text in Spanish' + (left ? '; ' + left + ' this file has changed are left in English.' : '.'), left > 0);
+    return r;
+  }).catch(e => { spanishSay(e.message, true); return null; });
+}
+function renderSpanishMaker() {
+  const host = document.getElementById('spanishMaker');
+  if (!host) return;
+  host.innerHTML = '';
+  const p = document.createElement('p');
+  p.className = 'mechSub';
+  p.textContent = !ARCHIVE ? 'No game file is open.'
+    : (window.CYTHERA_RSRC_RAW && window.CYTHERA_RSRC_RAW.length) ? 'Written from ' + (window.ARCHIVE_SOURCE_NAME || 'the open file') + ', both forks.'
+    : 'This copy has no resource fork. Open the game in MacBinary or BinHex, or the installer.';
+  host.appendChild(p);
+  const bar = document.createElement('div');
+  bar.className = 'mechStats';
+  for (const [label, disk] of [['Download for a Mac', false], ['Download as a disk image', true]]) {
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+    b.textContent = label;
+    b.onclick = function () { spanishDownload(disk); };
+    bar.appendChild(b);
+  }
+  host.appendChild(bar);
+}
+
 /* ---- the scenario's fixes, as a patch ----
    js/delv-datafixes.js says what each changes and js/delv-datapatch.js
    applies them; this is the section that chooses them and hands out the
@@ -4021,6 +4100,27 @@ function renderMechanicsSheet(value) {
     sec.appendChild(note);
   }
 
+  // ---- the scenario in Spanish ----
+  {
+    add('spanish', 'Cythera Data in Spanish', null, '',
+      'The scenario\u2019s text in Spanish: what every character says, the books and signs, the names of things, the To Do list, the spells and skills and the credits. ' +
+      'It is written into a copy of the open file, which replaces Cythera Data in the game\u2019s folder.',
+      [
+        'Both forks change. The text is in the data fork; the conversation face with the accented letters, the face of the message pane and the labels of the conversation buttons are in the resource fork, which a patch cannot reach, so this is a whole file.',
+        'The Spanish is kept in this page and none of the English is: each piece of the English is read from your file and found by a fingerprint of its words. It was written for the scenario of 1.0.3 and 1.0.4, and a piece your file has changed stays in English.',
+        'A highlighted word says its Spanish when it is clicked, and every character answers the Spanish words as well as the English ones. A word typed with an accent is met when the accent comes after its first letters.',
+        'What the program writes itself stays in English: the greeting by the time of day, the Yes and No of a question, the menus and the dialogs.',
+        'The hero is spoken to in words that fit a man or a woman, unless the script asks which.'
+      ], '');
+    const sec = sections[sections.length - 1].el;
+    const host = document.createElement('div');
+    host.id = 'spanishMaker';
+    sec.appendChild(host);
+    const note = document.createElement('div');
+    note.className = 'mechSub'; note.id = 'spanishNote';
+    sec.appendChild(note);
+  }
+
   // ---- comparing two archives ----
   {
     const edits = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
@@ -4339,6 +4439,7 @@ function renderMechanicsSheet(value) {
   if (document.getElementById('gremlinMaker')) renderGremlinMaker();
   if (document.getElementById('dataFixMaker')) renderDataFixMaker();
   if (document.getElementById('appFixMaker')) renderAppFixMaker();
+  if (document.getElementById('spanishMaker')) renderSpanishMaker();
 }
 // The cards open when a number on the sheet was followed into its script,
 // so that back from the script finds them open again and setMode's scroll
