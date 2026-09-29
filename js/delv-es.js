@@ -338,7 +338,7 @@ Object.assign(DELV_TRANSLATION_ES.text, { '*': {
   '5f45f94d': '"¿Sí?"',
   '619066d3': '"¿Perdona?"',
   '9e62d4e5': '"De eso no sé nada."',
-  '33d8285e': '"Adiós, forastero."',
+  '33d8285e': '"Que te vaya bien."',
   'df3d6094': '"En otra ocasión, entonces."',
   '8f1b4536': '"Lo siento, no se fía."',
   'e58978c1': '"Parece que te falta algo de dinero; lo siento, pero no se fía."',
@@ -349,7 +349,7 @@ Object.assign(DELV_TRANSLATION_ES.text, { '*': {
   'e5aeba98': '"Vuelve, por favor."',
   '6ec7aca8': '"Muy bien, pero date prisa..."',
   '4f2182e4': '"Con mucho gusto."',
-  '6348740b': '"¿Sí, amigo mío?"',
+  '6348740b': '"¿Sí?  Dime."',
   'b102103f': '"Adiós, y ten cuidado."',
   '7c8bc76d': '"¡No lo olvides!"',
   '46a071b7': '"Sí, basta con ejecutar el programa Register Cythera: ahí están todos los detalles."',
@@ -366,7 +366,7 @@ Object.assign(DELV_TRANSLATION_ES.text, { '*': {
   'b43d38a0': 'Es una pequeña habitación privada de la posada, con solo una cama y una ventana.\n',
   '350e10c8': 'Ves a un minero fornido.*"¡Ninguno de nosotros va a volver a esa mina con ese fantasma dentro!"',
   'ad3ccf1c': '"Me temo que no puedo ayudarte: esto no corresponde a ninguno de los fonemas que he asignado a las inscripciones."',
-  '0bd501c0': 'Esperar', 'fa2f3260': 'Irse', '8aad7d90': 'Seguir',
+  '0bd501c0': 'Esperar', 'fa2f3260': 'Despedir', '8aad7d90': 'Seguir',
   '737e46e3': 'Costillas', 'e81fffc8': 'Queso', '2fd9d583': 'Pescado', '9cd96b85': 'Pan',
   '3bac8e59': 'Casa Nicander', 'debda84f': 'Casa Strymon',
   'e160b22e': 'Bajo Cademia',
@@ -1749,3 +1749,313 @@ Object.assign(DELV_TRANSLATION_ES.text['*'], {
   '2ca18ba3': 'Montañas', 'c45a0685': 'Ciudad subterránea', 'd45ff524': 'Criptas', '175e4a78': 'Cueva',
   '471c1319': 'Al acercarte al edificio, este reluce y luego se desvanece.\n',
 });
+
+/* ---- the people -------------------------------------------------------------- */
+
+// "stranger" and "friend" as a way of addressing the hero say nothing of
+// the hero's sex in English and would in Spanish (forastero, amigo), so a
+// line that says one is put another way where it can be.
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { guar: 'guar', capt: 'capi', son: 'hijo', shie: 'escu', swor: 'espa', atta: 'ataq', defe: 'defe', andr: 'andr' });
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  'fcbb60f3': 'Defensa', '798a26d0': 'Escudo', '8b2893d9': '¿En qué quieres entrenarte?', '1e127109': 'Entrenar',
+});
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Hadrian, captain of the guard
+  '1804': {
+    '5ea304ca': 'Ves a un guerrero mayor, de porte orgulloso.*',
+    '788bdc10': '"Saludos, y te doy la bienvenida a nuestro mundo.  Soy Hadrian, Capitán de la Guardia de Alaric, y @entrenador."',
+    'c8a60479': '"Te saludo de nuevo',
+    'f7985f46': '"Me llamo Hadrian, Capitán de la Guardia de Alaric."',
+    'fff68d6f': '"Estoy al mando de los guardias que protegen a Alaric y la Sala del Rey de la Tierra."',
+    '1455919d': '"Estoy orgulloso del servicio que Hector te ha prestado."',
+    '911a8b45': '"Te ha servido con honor, ¿verdad?  Estoy muy orgulloso de él."*',
+    'bbd206fe': 'Hector se sonroja...*',
+    'c87d64e2': '"¿Qué tal le va a mi hijo?  ¿Te sirve con honor?"*',
+    '63776f09': '"Sí, deberías estar muy orgulloso."*"Y lo estoy."',
+    '8e30d9a6': '"Lamento decirte que Hector ha muerto a mi servicio.  Lo siento de verdad."*',
+    'cd3f58cc': 'A Hadrian se le hace un nudo en la garganta, y durante un momento no puede hablar.\n*"Gracias por decírmelo.  Todos conocíamos los riesgos."*"Un guerrero no puede tener mejor muerte que morir por una causa recta y justa."*',
+    '0cd0437a': '"Hector es un buen hijo, y te servirá con honor."',
+    'd62f0e51': '"Mi hijo Hector es un buen muchacho: será un gran guerrero y un gran líder, cuando tenga algo más de experiencia."',
+    '07a349c4': '*"Querría tu permiso para que me acompañe en mis viajes."*',
+    '40e33ef9': '"¡Vaya, nada me enorgullecería más!  ¡Te servirá con honor!"*',
+    '20831e4b': '"Puedo @entrenarte en eso, si quieres."',
+    'cf0dc310': '=',
+    '0dc6fdc3': '"Lo recuerdo: un joven mago brillante que trabajaba en mejorar las armas con magia."*"Hace años que no lo veo, me pregunto qué será de él...  Quizá valga la pena buscarlo."*',
+    'd6d8a82d': '"Adiós, y gracias."',
+    '35d8fa15': '*"En realidad, si no te importa, me preguntaba si podrías hacerme un favor."*"Mi madre murió hace poco, pero con mis obligaciones aquí no tengo tiempo de honrarla como es debido."*"¿Podrías poner estas flores en su tumba?  Está enterrada en el cementerio de Catamarca..."',
+    '9b462063': '"Gracias.  Se llamaba Andra, y está enterrada junto a mi padre, Lycus"',
+    'f123a953': '"Bueno, lo entiendo.  Gracias por pensarlo, de todos modos."',
+    'd5de01a7': '"Andra era mi madre."', '9516735e': '"Lycus era mi padre."',
+    'b1b83b50': '"En eso no puedo ayudarte."',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '1804': { hect: 'hect', lycu: 'lycu', eion: 'eion' } });
+Object.assign(DELV_TRANSLATION_ES.keys, { '1805': {
+  husb: 'mari,espo', hadr: 'hadr', worr: 'preo', conc: 'inqu,preo', mour: 'llor,luto,duel', hect: 'hect', perm: 'perm',
+  fool: 'bufo', jour: 'viaj', anyt: 'algo', catc: 'caza', inns: 'posa', cook: 'coci', food: 'comi', brea: 'pan', teac: 'ense,apre',
+} });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Emesa, Alaric's cook and Hadrian's wife
+  '1805': {
+    '1516d8e9': 'Ves a una mujer mayor, algo cansada pero contenta.*',
+    '062d2c31': '"Saludos, y te doy la bienvenida a nuestro mundo.  Soy Emesa, la @cocinera de Alaric."*"Si hay @algo que pueda hacer por ti para ayudarte en tus @viajes, por favor, no tienes más que pedirlo..."',
+    '3458d4f5': '"Te saludo de nuevo.',
+    '68728d9b': '"Soy Emesa, ', '05a2de2e': 'señora."', '9ef3fe35': 'señor."',
+    'e763ae4b': '"Soy la @cocinera de @Alaric: mi especialidad es el pan."',
+    '9526b7d8': '"Sí, mi marido es Hadrian, el capitán de la guardia de aquí..."*"Un padre cariñoso y un hombre fuerte, aunque la mala salud de Alaric lo tiene preocupado."*"Últimamente lo encontrarás casi siempre al lado del Rey de la Tierra...."',
+    'e5e738af': '"Sí, Hadrian es mi amado esposo..."*"Trabaja tanto para proteger y cuidar a Alaric en estos tiempos de conflicto que me @preocupa..."',
+    'fb6b71fe': '"Casi no duerme, y últimamente se ha vuelto muy retraído..."*"Creo que su @inquietud por Alaric está pudiendo con el hombre al que amo; es una carga muy pesada para él."*"Verás, el deber que juró Hadrian es proteger a Alaric y la Sala del Rey de la Tierra, pero ahora que una fuerza invisible aflige a su señor, no puede hacer nada al respecto."',
+    '969be9b2': '"La inquietud de Hadrian por Alaric me ha llevado a mí a inquietarme por mi marido."*"Ni siquiera ha tenido tiempo de @llorar como es debido la muerte de su madre, y menos de ocuparse de la familia que le queda."',
+    '212922de': '"La bondadosa madre de Hadrian murió hace poco en Catamarca."*"Era una anciana muy bondadosa, pero con mucha vida aún por delante."*"Una pena terrible que se la hayan arrebatado."',
+    'd56a5659': '"Yo también estoy preocupada por Alaric..."*"Hago lo que puedo dándole comida nutritiva para aliviar sus huesos cansados y su frente inquieta."*"Corren tiempos difíciles.  Espero de verdad que puedas ayudarle y, con ello, ayudarnos a nosotros y a toda la tierra de Cythera."',
+    '7abb7ec4': '"Hector es nuestro hijo: estamos muy orgullosos de él."',
+    '65477714': '"Eso tendrás que hablarlo con Hadrian."',
+    '6002019f': '"Es un honor cocinar la @comida de Alaric."',
+    '44fa01f9': '"Magpie es todo un bufón, ¿verdad?"',
+    '08adf942': '"Oh, me imagino que pronto viajarás por todas partes.  Ten cuidado, mantén los ojos abiertos, y a ver si consigues que alguien te ayude por el camino."*"No hay nada como tener amigos que te saquen de un apuro..."*"Yo no viajo mucho, así que no sé gran cosa de lo que pasa por ahí, pero mi @marido ha visto mucho mundo."*"¿Quizá él pueda contarte un par de cosas?"',
+    'a4a98170': '"Bueno, puedo ofrecerte algo de @comida si quieres, pero lo que tenemos por aquí no te alimentará mucho tiempo cuando estés de viaje..."*"¿Quién sabe cuánto tardarás en encontrar otro sitio donde @cazar algo para comer?"*"Podrás comer algo en las diversas @posadas, claro, pero pagando."',
+    '4b9ebad1': '"Los animales que andan por las tierras salvajes de Cythera son una buena fuente de carne, pero ten cuidado de no matar animales sin ton ni son en los pueblos."*"Siempre son de alguien, y no les hará ninguna gracia."*"Por favor... si matas animales salvajes para comer, hazlo rápido y con compasión..."',
+    '1fef8b5e': '"Oh, casi todos los pueblos de Cythera tienen una Posada... un sitio donde tomar una comida caliente y dormir bien por la noche."*"No apruebo, eso sí, a mucha de la gente que va por allí a beber..."*"Y, claro, siempre puedes volver aquí, donde te daré algo de comer antes de que te retires a tus aposentos por la noche."',
+    '3ff02e37': '"¿Tienes hambre, y te hace falta comida?"',
+    '95e759ff': '"Deja que te traiga algo de comer."*Te da algo de comida\n',
+    'df0b7f2d': '"Bueno, no dejes de pedírmelo si tienes hambre."',
+    '88dac018': '"¿Necesitas un repaso?  Lo entiendo: tienes cosas más importantes en la cabeza."*',
+    '2d5f742f': '"¿Quieres aprender a hacer pan?"',
+    '9dbad21a': '=',
+    '3c8a0610': '"Hacer pan no es tan difícil: coge un poco de harina y espárcela."*"Coge un poco de agua y añádela a la harina."*"Coge un rodillo y extiende la masa."*"Coge la masa ya hecha y hornéala, ¡y listo!"',
+    'a6abf088': '"Lo siento, pero de eso no sé nada."',
+  },
+});
+// A companion's buttons say their labels, which these stems answer: Despedir,
+// Esperar, Seguir, and Daños by its ñ's code.
+Object.assign(DELV_TRANSLATION_ES.keys['*'], {
+  leav: 'desp,marc,vete,irse', wait: 'espe', foll: 'segu,sigu', dama: 'dano,daño,dest', eart: 'terr',
+  fath: 'padr', moth: 'madr', stra: 'fuer,fora,extr', suff: 'sufr', evil: 'mal', warr: 'guer', hono: 'hono', come: 'ven',
+});
+// "Good " + the program's word for the part of the day, "morning",
+// "afternoon" or "evening": Spanish says the greeting whole ("Buenas
+// tardes"), so the script's piece is the quote alone and the program's three
+// words are to be the three greetings, when the program is translated.
+Object.assign(DELV_TRANSLATION_ES.text['*'], { 'e8f821a8': '"', '2df7d460': 'Daños' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Hector, Hadrian's son
+  '1806': {
+    'f8a8e1fd': '"Servirá como arma, pero solo me han entrenado en armas de filo..."',
+    '725e6d2a': '"Parece que es ',
+    '229c1c8c': 'Ves a un joven guerrero, con fuego en la mirada.*',
+    'c70adf07': '"Ah, tú eres quien convocó Alaric: me llamo Hector, ¡y es un honor conocerte!"',
+    '566da9d8': '"¿Sí, mi líder?  ¿Qué puedo hacer por ti?"',
+    '451d3364': ', ¿en qué puedo servirte?"',
+    'a0c9fff0': '"Esta es nuestra sala de entrenamiento, pero con los daños que causó ese @terremoto, no sé"',
+    '00c9154c': '"En esta zona siempre ha habido pequeños temblores, pero este es el primero que ha causado daños importantes."*"Ahora que lo pienso, aquí hay más temblores desde que Alaric empezó a debilitarse."',
+    '989b63f1': '"Me llamo Hector: nuestras leyendas hablan de un gran @guerrero llamado Hector, y espero seguir sus pasos, y los de mi @padre."*"¿Así que eres la persona de @fuera que Alaric ha convocado para que le ayude?"',
+    '9d361264': '"Soy guerrero, o al menos lo seré, como mi padre."',
+    '9932d3b3': '"Mi padre, Hadrian, es el jefe de la guardia de Alaric: es una profesión muy honorable"',
+    '0561f3b6': '"Bueno, espero que Alaric sepa lo que hace.  Sin ánimo de ofender, pero no me pareces precisamente de madera heroica..."*"Aunque supongo que las apariencias engañan, como dice siempre mi @madre"',
+    'e0e729f7': '"Mi madre suele estar a la vuelta de la esquina, en la cocina."*"Es un alma bondadosa, y me duele verla trabajar en algo tan humilde."*"Creo que está aquí sobre todo para estar cerca de mi @padre, y parece que disfruta con su @labor."',
+    '21cf1494': '"Bueno, prepara todas las comidas de la gente de la Sala del Rey de la Tierra, ¡incluido el mismísimo @Alaric!"*"Oye, apuesto a que si se lo pidieras, estaría encantada de hacerte una comida caliente..."',
+    '4f287faa': '"Alaric es algo más que nuestro soberano: mantiene unida la tierra de algún modo extraño que no entiendo."*"Puede que no sepa exactamente qué pasa, pero sí sé que, al debilitarse Alaric, la tierra también ha @sufrido."',
+    'fb3fdad9': '"En Cythera han pasado muchas cosas que hace solo unos pocos años habrían sido impensables..."*"Es como si la tierra padeciera una enfermedad, y ya no pudiera defenderse de los agentes del @mal,"',
+    '6744851e': '"He oído historias de @criminales que campan a sus anchas y, más extraño aún, de criaturas raras que andan por ahí."',
+    '6a961bf2': '"¡Cómo me gustaría darles a probar su propia medicina!  ¡Cobardes de corazón negro!"*"Cythera debería volver a ser la tierra justa que fue..."',
+    '8329f0b6': '"Sí, espero honrar a mi @padre, y también hacerme un nombre."*"He estado @entrenando y estudiando los caminos del guerrero."',
+    'c5183b07': '"Mi padre me ayudó con eso; es un gran guerrero por derecho propio, y además un maestro paciente."*"Pero creo que ya he pasado el punto en que el entrenamiento por sí solo puede ayudarme..."',
+    '1d244b2b': '"Sin honor, la vida no tiene sentido.  La mayoría de los ciudadanos de Cythera aprecian mucho el honor, pero yo más que la mayoría."',
+    '9aad0167': '"Pero si ya te estoy siguiendo..."',
+    '20aacf15': '"Sería un honor, pero tengo un deber con mi @padre: primero tendrás que pedírselo a él."',
+    'dfd3c3b6': '*"No digas tonterías: ¡sería un honor para mí que permitieras a mi hijo servirte en tu misión!"*',
+    'd209b8c4': '"Muchas gracias, Padre.  Te haré sentir orgulloso."*',
+    'd82118f0': '"¿Mi padre ha dicho que sí?  Es maravilloso.  Es un honor unirme a ti en tu nobilísima misión."',
+    '08345ab5': '"¡Sería el mayor de los honores volver a acompañarte!"',
+    '586ab5c8': '"¿Te he servido mal?"',
+    'd0c947ee': '"¡Ay de mí!  Si me dieras otra oportunidad, te demostraría lo que valgo."',
+    '92fdfe31': '"Muy bien, tienes tu propio destino que seguir: búscame si alguna vez necesitas un compañero."',
+    '356eefe7': '"Dime si hay algo más que pueda hacer por ti..."',
+    '7218bedc': '"Hasta que volvamos a vernos..."',
+    'a981ca8b': '"Tus palabras me confunden."',
+  },
+  '1807': { '5c58c2a1': '"Protejo a Alaric aquí, en la Sala del Rey de la Tierra."', '9b99a64f': '"No soy más que un guardia, y no se me permite hablar de esas cosas."' },
+  '1808': { '5b4af97c': '"Protejo a los ciudadanos de Cademia."' },
+  // the guard at Larisa's dig
+  '1809': {
+    '696ba292': '"Disculpe, ',
+    'f0cc77f5': ', pero de momento no se permite entrar a nadie en el lugar."*',
+    '974cb1a4': '"Puedes volver más tarde, por la mañana, cuando la señora Larisa se haya levantado."',
+    '47152a09': '"Puedes volver mañana, cuando la señora Larisa se haya levantado."',
+    '5c0d18d9': '"Lo siento, pero no se permite la entrada a nadie de fuera en este lugar.  Voy a tener que pedirte que te vayas."*',
+    '3c34056d': '"Disculpe, pero si fuera tan amable de decirle a Larisa que su hermano Timon ha venido a verla."*',
+    '63cd4de2': '"Muy bien, espere aquí mientras voy a preguntar a la señora Larisa."*',
+    'edebf076': '¿Tienes un hermano llamado Timon?', '515fb6a2': 'Muy bien, se lo diré.',
+    'ee527fc4': '"Su hermana Larisa está en esa tienda de allí, al sudoeste.  Tiene muchas ganas de verle."*',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '1806': { hadr: 'hadr', work: 'labo', crim: 'crim', trai: 'entr' } });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { lie: 'mien,ment', dead: 'muer', crys: 'cris', brot: 'herm', kidn: 'secu', note: 'nota' });
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  'dde51ba2': '*Parece que miente, o al menos que no dice la verdad.',
+  '2ec45f4e': 'Una breve pausa le cruza el rostro, y entorna los ojos.*"Si quieres acusarme de algo, tendrás que llevarlo ante un Juez."',
+  '33759704': '"¿Perdona?  Eso no es muy educado: ¡otro hombre con menos temple se sentiría insultado!"',
+  '7218bedc': '"Hasta que volvamos a vernos..."',
+});
+// "hero" + "ine" for a heroine: said with a noun whose gender is not the
+// hero's, and the suffix empty.
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Myus, Elder of House Comana
+  '180A': {
+    '5a8b162b': 'Ves a un joven seguro de sí, con aire de líder.',
+    '074099c4': '"Ah, ¿qué te trae de vuelta por aquí?"',
+    '24f9d46c': '"Ah, tú debes de ser esa misteriosa figura heroica', 'a6e99921': '',
+    'd947426b': ' de la que tanto he oído hablar."*"Y no podrías haber elegido mejor momento para llegar: ¡jamás ha conocido la tierra tantos conflictos!"*"Bandidos que secuestran a damas nobles, una plaga misteriosa, ¡hasta he oído que hay problemas con el vino de este año!"*"Tanto desorden es señal clara de que la paz de Alaric se desvanece, y de que debemos buscar otro liderazgo."*"No importa: te doy la bienvenida a Kosha.  Si necesitas cualquier cosa, no dudes en decírmelo."',
+    '88e51f78': '"Soy Myus."',
+    'b4a60f37': '"Aunque soy el Anciano de la Casa Comana, me veo más bien como un líder de Kosha."',
+    '1d133b9e': '"Hasta que volvamos a vernos."',
+    'f142aae8': '"No pasa un día sin que eche de menos a mi padre."',
+    '391c93ec': '"Sí, lo recuerdo: era amigo de Pelagon, hasta que se dio demasiado al vino, según tengo entendido."*"Es una pena; creo recordar que incluso sufrió una especie de crisis."',
+    '1f7dbfe4': '"Pelagon es mi consejero de más confianza, y lo fue también de mi difunto Padre."',
+    'dd8c7778': '"¿Muerto?  Que yo sepa, no ha muerto nadie últimamente.  Seguramente algún rumor malintencionado."',
+    '32ff126e': '"¿Un cristal verde luminoso, dices?  Quizá deberías buscar a un Mago y preguntarle: eso es más de su terreno."',
+    '20d53055': '"Lo siento, ¿podrías hablar más alto?"',
+  },
+  // Naxos, of House Comana
+  '180B': {
+    '973c61bb': '"Te doy de nuevo la bienvenida', 'a6e99921': '', 'dc624e63': '.  ¿A qué debo este placer?"',
+    '45944675': '"Ah, por fin nos conocemos: ¡tenía tantas ganas de conocerte!"',
+    '60bc6d94': '"Seguro que volveremos a vernos..."',
+    '3ad3248a': '"Naxos, de la Casa @Comana."',
+    '6d730223': '"Represento a la Casa Comana en Cademia, que ahora tiene el mayor apoyo popular de todas las Casas."',
+    '7f508c4b': '"Aunque nací y me crié en Kosha, quiero a Cademia como si fuera de aquí."',
+    '0be501bf': '"Sí, la Casa Comana se ha metido en el negocio del vino: espero que sea bastante lucrativo."',
+    '7afe864a': '"No soy muy aficionado al vino de Glaucus: el del Viñedo de la Costa Norte no me acaba de convencer."',
+    '4a9a8a7e': '"Borus, en cambio, ese sí que es un maestro vinatero como no hay otro..."',
+    'd27a1e05': '"Lo vi todo, y no lo olvidaré nunca.  No sé qué le pasa a @Berossus."*"Lo hizo Halos, y Halos está detenido.  ¡Deberían acabar con esto de una vez!"',
+    'b55133c4': '"Sé lo que vi: ¡y sigo diciendo que vi a Halos matarlo, diga lo que diga ese mocoso!"',
+    '6ae95399': '"Diga lo que diga Berossus sobre que Halos dice la verdad cuando se declara inocente, yo no me lo creo."*"Es un fracaso evidente de la Justicia de los Magos."',
+    '7f34d747': '"No te sigo..."',
+  },
+  // Darius, the youngest of House Comana
+  '180C': {
+    '39b6b9a4': '"¡Pero si es la gran leyenda en persona', 'a6e99921': '',
+    'df9f3261': '"¡Oye, tú debes de ser esa gran leyenda viva', '8e9a6031': ' de la que habla la gente!"*"Encantado de conocerte: soy Darius, el @hermano menor de la Casa @Comana"',
+    '1953819f': '"Darius, de la Casa @Comana."',
+    'd1e2f0d5': '"Estoy de visita en Catamarca, en representación de la Casa Comana."',
+    '358c27f6': '"Hasta ahora he tenido suerte, pero otros no han sido tan afortunados."',
+    '75f5920b': '"De esa nos libramos por poco, ¿eh?"*"Lástima que ni la Casa Strymon ni los Magos pudieran hacer nada..."',
+    '7be85926': '"Sí, me he enterado: algo terrible."',
+    'ca38c3bd': '"No sé muy bien a qué te refieres."',
+    'a171a63f': '"¿Y de qué nota se trata?"*Le enseñas la nota que encontraste en Eudoxus.*"Qué interesante, pero ¿qué estás insinuando?"*"Si vas a falsificar una nota para incriminarme, ¡lo mínimo sería que escribieras mi nombre entero!"',
+    'abf46588': '"No he oído hablar de él en mi vida."',
+    'f504b8ce': '"Tengo dos hermanos: @Naxos y @Myus."',
+    '84da75cb': '"Naxos está ocupado afianzando nuestras propiedades en Cademia."',
+    'feca2fe5': '"Myus, el mayor, gobierna Kosha."',
+    'a051ba22': '"Sí, nuestro querido padre fallecido.  El mundo lo echará de menos."',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '180A': { cana: 'cana', sten: 'sten', pela: 'pela' }, '180B': { glau: 'glau', boru: 'boru', bero: 'bero' }, '180C': { eudo: 'eudo', anti: 'anti', cana: 'cana' } });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { buy: 'comp', buyi: 'comp', sell: 'vend', drow: 'ahog' });
+// ", citizen." and the like after a greeting: dropped, as ciudadano would
+// say the hero is a man.
+Object.assign(DELV_TRANSLATION_ES.text['*'], { '1b8c534b': '."', '34328150': 'Obsidiana', '9c42ba6d': 'Rubí', 'df593b47': 'Diamante', '1f67838a': '"Protejo a los ciudadanos de Kosha."' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Pelagon, Comana's majordomo, and what he is
+  '180D': {
+    '67a2d64e': '"Oh, lo sentimos, te hemos sobrestimado.  El necio está en el espejo, no delante de ti."*Los rasgos de Magpie vacilan ante ti.*',
+    '78f2714e': '"Te has quedado sin protección: ',
+    '9b100c69': '."*"Morirás sin conocer la verdad.  No importa.  La victoria es nuestra, pobre mortal."*',
+    'bef7f2e8': 'Entregaste la única esperanza al enemigo, que te mató.',
+    '24e19cb7': 'Ves a un jorobado vestido de arlequín, de aire afable.\n*"¡Se ha hecho la justicia de Alaric!  La Casa Comana ya no existe: tramaron una traición, y la muerte es su recompensa."*',
+    '2faecd14': 'tendremos que buscar en otra parte los fragmentos de la Crolna que un día llevaste, pero eso ya no te importa',
+    '4527cee9': '"Hemos recuperado el cuarto fragmento de la Crolna; con él podemos curar a Alaric."*"Completarla es peligroso: sería mejor que lo hiciéramos nosotros.  Danos los tres fragmentos que tienes..."',
+    '20ccc88e': '*¿Dar a Magpie los tres fragmentos?',
+    '2d7feb2b': 'has entregado lo único que detenía mi mano, ¡y ahora la Crolna vuelve a estar completa!',
+    'cf6843f6': '"Todo su poder sin duda destruiría el lugar donde estás: sería mejor que nos la dieras."',
+    'e4824f6f': '"¡Por tu propia seguridad, te ordenamos que entregues los fragmentos!"',
+    '9b646d12': '"Te fulminaremos si es necesario: pones en peligro el mundo si sigues con esta obstinación."',
+    '515e3f7e': '*"¿Tendremos que quitártelos por la fuerza?"',
+    '6d28718f': '"Crees que vas de farol.  Muy bien."*"Has superado la prueba final."*Los rasgos de Magpie vacilan ante ti.*',
+    '761f0b80': 'Pelagon se ríe con ganas.*"No sois tan necios como lo eran los de la Casa Comana.  Pero aun así os han tomado el pelo."*"Aunque no he sido yo, sino nuestros enemigos, los Seldane.  Ellos son la causa de la locura de Alaric."*"Sobre todo esa criatura que se hace llamar Magpie.  Los Seldane quieren muerto a Alaric, porque usurpa sus poderes como si fueran suyos."*"La Sala del Rey de la Tierra fue en tiempos un lugar de poder de los Seldane, hasta que los expulsamos de ella, y de otros."*"Ahora quieren recuperar su poder para hacernos la guerra, y vosotros, los humanos, quedaríais atrapados entre los dos bandos."*"Nosotros querríamos evitarlo si es posible, y con ese fin te daremos lo que buscas, el cuarto fragmento de la Crolna."*"Con él puedes curar a Alaric y devolver el equilibrio, pero cuidado con los Seldane, sobre todo con Magpie."*"Puede que aún intenten detenerte, pero mientras conserves el control de la Crolna, no pueden hacerte daño."*Pelagon te entrega el cuarto fragmento, y luego se desvanece como la niebla ante el viento.',
+    'df2fe1eb': 'Ves a un hombre muy pulcro y ordenado.*"¿En qué puedo ayudarte?"',
+    '776b452a': '"Soy Pelagon."', '483f3bbb': '"Soy el mayordomo de la Casa Comana."', '98bf71da': '"Muy bien, entonces."',
+    '66033d4f': '"Stentor y yo éramos buenos amigos.  Es una pena que la bebida pudiera con él."',
+    'e368731e': '"Hace poco hablé con Stentor: ¡me contó una historia según la cual estás muerto!"*',
+    '748fd360': '"Vaya, eso es ridículo: como puedes ver, estoy bastante sano."',
+    '79e68521': '"¿Perdona?  Aquí no ha muerto nadie últimamente."',
+    'f1e74b1f': '"Lo siento, pero en eso no puedo ayudarte."',
+  },
+  '180E': { '9b8f62be': 'Ves a un hombre muy grande y de aspecto muy malencarado.*"Te sugiero que sigas tu camino: me tomo muy en serio mis obligaciones con la Casa Comana."' },
+  // Atreus the gemsmith
+  '1810': {
+    '11b7140b': 'Ves a un hombre astuto, con cara de rata, mirada huidiza pero sonrisa taimada.*',
+    '12e91f11': '"Qué bien volver a verte."',
+    '314dd22c': '"Me llamo Atreus, lo cual está bien, porque ese es mi nombre."',
+    '890fe582': '"Nos vemos..."',
+    '2ec7a024': '"Soy comerciante de gemas.  ', 'c93bcdf3': '¿Te interesaría quizá @comprar o @vender gemas?"',
+    '370a09e7': 'Pásate por mi tienda en horario de trabajo si te interesa."',
+    '46327e22': '¿Te interesan las gemas de la mejor calidad?',
+    'b61912b4': '"Por favor, cuando esté trabajando: no llevo encima la mercancía."',
+    '154b7f83': '¿Tienes gemas de calidad?',
+    '817f95a7': '"Por favor, ahora no es momento de negocios, y de todos modos no llevo dinero encima para pagarte."',
+    '886d2884': 'Sonríe un instante, algo sonrojado.',
+    '7fb368c5': '"Parece un hombre bastante bueno, pero le falta personalidad."',
+    'f09fcce6': '"Me preocupa ella, y su relación con Ariethous.  No creo que sea feliz de verdad."*"Dice que es lo que quiere, pero su voz duda."',
+    '5d37ab92': '"No sé muy bien adónde quieres ir a parar."',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '180D': { sten: 'sten' }, '1810': { arei: 'arei', laod: 'laod' } });
+// A round of drinks: "... is " + a price + " obol" + "oi" when more than one.
+Object.assign(DELV_TRANSLATION_ES.text['*'], { '86cabb80': '"Una ronda de bebidas cuesta ', 'cd62f935': ' óbolo', '68343ad5': 's', 'c7bc5559': '."*"¿Qué me dices?"' });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { meat: 'carn', drin: 'bebi,trag,copa', wife: 'espo,muje', marr: 'casa,boda', inte: 'inte', esta: 'esta,loca,nego', chan: 'camb', cook: 'coci', food: 'comi' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // a drunk in a tavern, and the Second Tyrant's tomb
+  '1811': {
+    'fd7ec15f': 'Ves a un borracho viejo, sucio y maloliente.',
+    '382927a4': '*Parece que ha perdido el conocimiento.',
+    'cf3ddfa9': '"Acércate... así, mejor.  ¿Quiere\' saber un secreto?"',
+    'd1febd06': '"Tú te lo pierde\'."',
+    '1a782ceb': '"¿Has estao alguna ve\' en Cademia?"',
+    'dfcde361': '"¿Sabe\' el castillo ese de allí?"',
+    '69e0b32d': '"Sí, hombre: donde vivían los Tirano\'."',
+    '3edeb771': '"Eso, ese mismo."',
+    '7e42c062': '"Lo construyeron los Tiranos, sí."',
+    '50c27e6e': '*"¡Pues mi bisabuelo ayudó a construirlo!"*"¿Y sabe\' lo que me contó?"',
+    '12368229': '"Ah, pue\' entonce\' nada."',
+    '3ec617fc': '"Me contó dónde estaba escondía la tumba del Segundo Tirano."*"¿Quiere\' saberlo?  Te va a costar..."',
+    '0c1ed2bd': '"Estás tan pelao como yo: no está bien burlarse de un viejo."',
+    '86c92e6a': '¿Cuántos óbolos le das?',
+    '810db3f2': '"Allá tú."',
+    'b80b1c23': "\"'Dos pasos pasado el mediodía', me dijo.  No sé qué quería decir, pero ahí estaba escondía la entrada.\"",
+    'e773d9bc': '*"Como has sío amable con un viejo, tengo algo pa\' ti."*Rebusca entre su ropa mugrienta, tirando trozos de basura de todo tipo.*"¡Aquí está!  Me dio esta llave: ¡dijo que abriría la tumba!"*El viejo te da la llave.',
+    'ce5c0739': '*Después el viejo pierde el conocimiento.\n',
+    'cd3593d3': '"Pue\' entonce\' nunca vas a saber el secreto."',
+  },
+  // Areithous, of the Roasted Haunch in Kosha
+  '1812': {
+    '8a23f9ee': 'Ves a un hombre apuesto pero de aire presumido, con una larga melena suelta.\n*"',
+    '2d86b9f5': ': ¡pasa, pasa!"',
+    '6defca0a': '"Me llamo Areithous, dueño de este magnífico @establecimiento."',
+    'cfa0b487': '"¡Pues El Muslo Asado!  ¡La mejor @carne de toda Cythera!"',
+    '57aca59f': '"Llevo este magnífico @establecimiento: ¿te @interesa algo?"',
+    '7a4a60ff': '"Sí: ¿te interesa algo de @carne, o solo una @bebida y buena conversación?"',
+    'e7af6646': 'Las mejores carnes', '005f8d1c': 'Brocheta', '52455a6a': 'Muslo', 'bc408505': 'Filete',
+    '1e331e5b': '"Es todo lo que he deseado siempre: ¡la compañera perfecta!"*"Hemos tenido nuestros problemas, pero esta vez he cambiado."',
+    '2e2985d9': '"Pronto Laodice será mi mujer."',
+    '738b63ba': '"Stentor era uno de mis mejores clientes: dicen que perdió un poco la cabeza."*"Creo que ahora está en algún lugar de Cademia."',
+    'c0c92ab2': '"No acabo de entenderte."',
+  },
+  // Laodice, Comana's cook
+  '1813': {
+    '3c274cd5': 'Ves a una joven atractiva, que parece cansada pero contenta.',
+    '36a055cb': '"Hola de nuevo, ^',
+    '4eddef63': '"Soy Laodice... ¿y tú eres?"',
+    'fffbfd44': '"Encantada de conocerte, ^',
+    '5d860751': '"Soy la cocinera de la Casa Comana, aunque eso quizá @cambie en el futuro."',
+    'e9cbe989': '"Ser cocinera es lo que siempre he querido, y esa es una de las razones por las que Ariethous y yo estamos hechos el uno para el otro."',
+    '9c7a3dd5': '"Para eso tendrás que ir a la taberna y hablar con Areithous."',
+    '78f5446f': '"Adiós, entonces."',
+    '0e4add57': '"Cuando me @case con @Areithous."',
+    '9567978e': '"Pues sí, @Areithous y yo nos casamos el verano que viene.  Es lo que siempre he querido."',
+    '7117e760': '"Es el hombre de mis sueños."',
+    '288e33ca': '"Atreus es un encanto, y mi amigo de más confianza, pero se preocupa demasiado por mí."',
+    'c03c8a20': '"Me temo que no te entiendo."',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '1812': { laod: 'laod', sten: 'sten', arei: 'arei' }, '1813': { arei: 'arei', atre: 'atre' } });
