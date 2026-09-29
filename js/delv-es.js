@@ -3444,3 +3444,108 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     '833117f7': '"De eso tienes que hablar con Lindus: no se me permite hablar de ello..."',
   },
 });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { elem: 'elem', sour: 'agri,avin', regi: 'regi,insc', asiu: 'asiu', char: 'char' });
+// "young " + "lady" or "man", which Spanish says in one word.
+Object.assign(DELV_TRANSLATION_ES.text['*'], { '6f023d15': 'jovencita', 'e9a2ff6f': 'jovencito', '47998c9c': '"Protejo a los Magos y al resto de la gente de aquí, de Pnyx."' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Palaestra, who teaches Alchemy
+  '1852': {
+    '4d8861f4': 'Ves a una mujer callada de gesto adusto, cuya mirada parece atravesarte.*',
+    '945a6f77': '"¡Por favor!  ¡Estoy intentando dar clase!"*',
+    'bd5cfcab': '"Soy Palaestra, profesora de @Alquimia."',
+    '9e050cd9': '"@Instruyo a mentes jóvenes en cómo funciona la @alquimia, aunque pocas parecen captar sus conceptos superiores."',
+    'a0eb8af8': '"La Alquimia es el proceso de destilar diversos @elementos para extraer sus propiedades básicas."',
+    'bf242bbd': '"¡No sabes ni lo más elemental de la Magia!"',
+    '4af8e366': '"Mmm, supongo que sí, pero solo te daré lo básico: no entenderías mucho más."*"La Alquimia es el proceso de destilación, con un aparato llamado destilador."*"Se llena el destilador de agua, y luego se ponen dentro ciertos elementos."*"Después te concentras, y pasas tu poder al destilador."*"Entonces extrae la esencia vital del elemento, y crea una poción."*"Deberías buscar en la biblioteca: tenemos un libro sobre qué elementos crean qué pociones."',
+    'c0a3f64e': '"Necesitas algo más de experiencia antes de poder aprender alquimia."',
+    'a836026c': '"Lo siento: eso está totalmente descartado.  Quizá si te @inscribieras en un curso."',
+    '92032ec8': '"Charax fue mi mejor alumno: ahora es un Mago Libre que investiga la alquimia."*"Tengo entendido que se ha recluido en el bosque, al norte de aquí y un poco al oeste."',
+    '2357458e': '"Los elementos son la base de las pociones: cosas como las bolsas de veneno de las serpientes."',
+    '03ecb340': '"Sí, muy bien."',
+    '37b4ded0': '"Hacer vino se parece algo a la alquimia."',
+    'e5213ee3': '"¿Podría la Alquimia hacer que se agriara?"*',
+    '4baeb48d': '"Lo dudo, pero quizá quieras preguntarle a @Charax: tengo entendido que incluso hace su propio vino."',
+    '7fa70bed': '"El vino se agria si se echa a perder."',
+    '9f869dbb': '"¿Podría la Alquimia hacer que se echara a perder?"*',
+    '0da9e8dd': '"No sé de qué me hablas."',
+    '8c5b2cb5': '"Mmm, sí, veo que has oído hablar de él.  Bien, mi análisis muestra varias cosas interesantes."*"Parece crear adicción y, probablemente, a la larga, ser mortal."*"También parece alterar el flujo mágico de una persona: hasta qué punto, no lo sabemos."',
+    '7d4c4c75': '"Por favor, habla con sentido."',
+  },
+  // Tros, who teaches Runic Magic; "Yes, young " + "lady" or "man" + "?"
+  '1853': {
+    'b3616a07': 'Ves a un hombre de aspecto muy corriente, sin expresión alguna en el rostro.*',
+    '3b6dcae4': '"Estoy en plena clase, que es muy importante.  Espera fuera, por favor."',
+    'af075164': '"¿Sí, ',
+    '69667a44': '"Soy Tros, instructor de Magia Rúnica."',
+    'cffbb865': '"¿Tienes la cabeza hueca?  Soy Tros."',
+    'd66dcc7d': '"Sí, soy Tros."',
+    '98060e0e': '"Mi trabajo es @instruir a los estudiantes jóvenes en los caminos de la Magia Rúnica."',
+    'f6db7253': '"Pero tú, claro, ya sabes de Magia Rúnica."',
+    'd1427b11': '"Quizá deberías apuntarte a mi clase para que te @instruya en Magia Rúnica."',
+    'a6d580b8': '"No has aprendido ni lo más elemental de la Magia: no estás preparado para material más avanzado."',
+    '0e70f1c7': '"Ya dominas lo básico; no tienes tiempo para aprender mucho más."',
+    'e0b0845c': '"Mmm, supongo que sí, pero solo te daré lo básico: no tienes tiempo para mucho más."*"La magia rúnica puede verse como un lanzamiento de conjuros separado en el tiempo."*"La mitad del conjuro se lanza cuando se inscribe una runa..."*"...y la otra mitad ocurre cuando la runa se activa."*"Esa activación ocurre cuando algo pisa la runa."*"Sin embargo, hay otras runas, como la de Bloqueo, que no siguen este patrón."*Tros parece seguir con su monótono discurso durante lo que se diría una eternidad...',
+    '9e76670c': '"Tu experiencia no basta para obtener este conocimiento."',
+    '47920726': '"Mmm, no lo creo.  Tienes que estar inscrito aquí."',
+    '9e91f492': '"Tu falta de preguntas apropiadas solo puede reflejar una carencia de carácter."',
+  },
+  // Alcestris, the old cook of the Tyrants' castle
+  '1855': {
+    '759f7a48': 'Ves a una anciana, menguada por la edad, pero aún llena de vida.',
+    'cf413f4f': '"Hola otra vez, ',
+    '200b2257': '"Qué modales son esos, ',
+    'a4ac25a4': '"¿Podrías hablar un poco más alto?  Es de mala educación hablar de forma que no te oiga..."',
+    'e3d3df3f': '"Soy Alcestris, ¿y tú?"',
+    '3fa8964b': '"Eh, sí."',
+    '0230fff4': '"Adiós, ',
+    '59659d77': '"Soy la cocinera del castillo, y lo soy desde, eh, antes de que tú nacieras, eso seguro."',
+    'd8b07560': '"He visto ir y venir a muchos jueces: Berossus es uno más."',
+    '9bf5f6f9': '"Un hombrecillo empalagoso, eso es lo que es."',
+    'b24b62e1': '"Un pomposo idiota.  No vale ni la mitad que su padre; ninguno de esos mocosos de Comana la vale."',
+    'b4599d62': '"Conocí a Canachus Comana, y sus hijos no son ningún Canachus Comana."',
+    'a3d7617f': '"¿Eh?  Tendrás que hablar más alto..."',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '1852': { trai: 'inst,entr' }, '1853': { tros: 'tros', trai: 'inst,entr' }, '1855': { bero: 'bero', naxo: 'naxo' } });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { shop: 'tien', stud: 'estu', daug: 'hija', hall: 'sala', hele: 'hele', niob: 'niob' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Asius, Berossus's majordomo; the greeting here is an exclamation
+  '1856': {
+    '986137e2': 'Te saluda un hombre muy menudo, de voz chirriante.',
+    'e8f821a8': '"¡',
+    '4c0a28ac': '"¡Ah!  Tú debes de ser ^', '658f8629': ': soy Asius, el mayordomo de aquí."',
+    '20af9e2a': '"¿Ya lo has olvidado?  Bueno, al fin y al cabo soy un personaje secundario.  Me llamo Asius."',
+    'a1065a48': '"Mayordomo del juez Berossus, un trabajo de lo más honorable."',
+    '3a5cf3ad': '"Adiós, ^',
+    '2d4133ab': '"Para eso tendrás que buscar en otra parte."',
+  },
+  // Paris the provisioner, and Helen of the Study Hall
+  '1857': {
+    'cdf77df1': 'Ves a un hombre rudo pero apuesto, de poco más de treinta años.',
+    '3a9c236d': '"Lo siento: tendrás que volver en horario de trabajo..."',
+    '780fe47e': '"Pero por favor, señor, solo será un minuto."*',
+    '3bb22c89': '"Sí, ¿qué puedo hacer por ti?"',
+    'bb0d96c9': '"Soy Paris, dueño de esta @tienda."',
+    'd9c08bf5': '"Llevo la @tienda de provisiones."',
+    'b09e2e16': '"Vuelve a pasarte, por favor..."',
+    '5bafbc91': '"Es una tiendecita estupenda: pásate en horario de trabajo, por favor."',
+    'b8212203': '¿Qué te interesa?', '68b87017': 'Sandalias', '2b476b5f': 'Saco',
+    '2e9c7691': '"Mi bella esposa, Helen, lleva el café del otro lado del pasillo."',
+    '43880db4': '"¿Has visto alguna vez una niña más bonita?"',
+    '0bde81f4': '"La verdad es que no sé de qué me hablas."',
+  },
+  '1858': {
+    '25aa7ab9': 'Helen te sirve una comida olvidable de queso, pan y carne.*Comes hasta que se te quitan las ganas.',
+    '8912b1d2': 'Ves a una mujer cansada y agotada.\n*"Te doy la bienvenida a la \'Sala de Estudio\': estás en tu casa."',
+    '75becb65': '"Soy Helen, la mujer de Paris."',
+    '973da9e1': '"Llevo la \'@Sala de Estudio\', que atiende sobre todo a los Magos y a los estudiantes."',
+    'cbfcc2ec': '"Algunos son bastante groseros, pero la mayoría al menos dejan buenas propinas."',
+    'fa0b6221': '"Los estudiantes son la mayor parte de mi clientela: son divertidos, pero tacaños."',
+    '609a32c0': '"En la Sala servimos tanto @cenas completas como @bebidas."',
+    'dd7b6c54': '"Mi marido, Paris, lleva la tienda de ultramarinos, justo al otro lado del pasillo."',
+    '39ceb978': '"Mi hija Niobe es un poco callada, pero es muy buena niña, y hasta ayuda en el café a veces."',
+    '8773a443': '"Las comidas cuestan 6 óbolos',
+    'f7ab4512': '"Muy bien, en otra ocasión..."',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '1858': { pari: 'pari', husb: 'mari,espo' } });
