@@ -200,19 +200,24 @@ const APP_FIXES = [
   // across, and the same rectangle, copied to 2136(31) with its bottom set
   // to 80, is the box the text is laid out in from its left edge at 115.
   // Argos's P, R, j, Y and g draw up to a twelfth of an em left of the pen,
-  // about two pixels at the conversation's size, so a line that began with
-  // one left that sliver of ink outside the next clear (seen in the Spanish
-  // on 29 September 2026; the English does it too). The clear now starts
-  // four pixels further left, at 111; the name under a portrait is fitted
-  // to 84 pixels about x 64, so it ends by 107 with its outline and is not
-  // reached. The copy to 2136(31) is written as the constants it always
+  // 1.9 pixels for P in the speech's 22 points (TxSt 134), so a line that
+  // began with one left that sliver of ink outside the next clear (seen in
+  // the Spanish on 29 September 2026; the English does it too). The clear
+  // now starts three pixels further left, at 112, a pixel to spare. The
+  // names under the portraits lie inside the same rectangle: fitted to 84
+  // pixels about x 64 they end by 107 with their outline and are not
+  // reached; drawn up to 104 pixels by the name-fit fix they can reach 116,
+  // and the shipped clear from 115 already took that tip, so the three
+  // pixels more cost such a name what lies between 112 and 115 whenever the
+  // speech is cleared without the portraits being drawn again. The copy to
+  // 2136(31) is written as the constants it always
   // was (top 12, left 115, bottom 80, right 500) in the same eight words,
   // so the text keeps its place; r3 and r4 are the OffsetRect arguments
   // that follow, and r5 and r6 were only the copy's.
   { id: 'speech-clear', kind: 'fix', title: 'The conversation box clears the ink a line’s first letter draws left of the text',
     bug: 'A sliver of a letter is left at the start of a line in the conversation box',
     sites: [
-      { at: 0x3D56C, was: [0x38800067], asm: ['li 4, 99              ; was 103: the clear from 111, once offset'] },
+      { at: 0x3D56C, was: [0x38800067], asm: ['li 4, 100             ; was 103: the clear from 112, once offset'] },
       { at: 0x3D5C8, was: [0x80C1004C, 0x38000050, 0x80A10050, 0x387F0858, 0x38800000, 0x90DF0858, 0x90BF085C, 0xB01F085C],
         asm: ['lis 0, 12              ; top 12', 'ori 0, 0, 115          ; left 115, where the text has always begun', 'stw 0, 2136(31)',
               'lis 0, 80              ; bottom 80', 'ori 0, 0, 500          ; right 500', 'stw 0, 2140(31)',
