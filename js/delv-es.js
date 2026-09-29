@@ -2538,3 +2538,132 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   },
 });
 Object.assign(DELV_TRANSLATION_ES.keys, { '182A': { ' apis': 'apis' }, '182D': { dare: 'dare', diom: 'diom' }, '182E': { diom: 'diom', dare: 'dare', eate: 'casa,come' } });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { frie: 'amig', debt: 'deud', pipe: 'flau', thet: 'thet' });
+Object.assign(DELV_TRANSLATION_ES.text['*'], { 'bbffe162': '"No me dedico a chismorrear con gente de fuera."', '958c4754': '"Volveré a mi trabajo."' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Thetis and Bias, servants of House Attis
+  '1830': {
+    'a4524141': 'Ves a una mujer mayor de gesto adusto.*"¿Sí?"',
+    '360f8a1b': '"Me llamo Thetis."', 'fa5b5a6a': '"Soy criada de la Casa Attis."',
+    'bc46ae4a': '"Trabajo para la matrona Thuria desde que era niña."',
+    'b08a53e8': '"Conocí a Bias trabajando aquí, y me casé con él."',
+    'fee1b6e1': '"Es buena chica, pero algunas de las amistades que tiene..."',
+    '08f140fa': '"Como ese horrible Halos."',
+    'c4c0ddf0': '"El joven Malis será un buen Anciano de la Casa cuando llegue su hora."',
+  },
+  '1831': {
+    '2d410deb': 'Ves a un hombre mayor de gesto adusto.*"¿Sí?"',
+    'ed0dfdbf': '"Me llamo Bias."', 'fafb488b': '"Soy criado de la Casa Attis."',
+    'a7639936': '"Trabajo para la matrona Thuria desde que era un mozo."',
+    '32e6879c': '"Conocí a Thetis trabajando aquí, y me casé con ella."',
+    '1aa9433a': '"De pequeña era un poco revoltosa, pero desde entonces ha madurado..."',
+    '0cbea0c1': '"Me gusta pensar en el joven Malis como en el hijo que nunca tuvimos."',
+  },
+  // Philinus, Elder of House Nicander, Ariadne's husband
+  '1832': {
+    '1a1df8e9': '"¡Ariadne!  ¡Estás a salvo!"',
+    '5a2dfb23': '"Sí, queridísimo Philinus, y es todo gracias a esta persona heroica."*',
+    '181340a8': '"Gracias, ', '26537a40': '.  ¡La Casa @Nicander estará siempre en deuda contigo!"*',
+    '4816116b': '"Sí, gracias otra vez, amable ', '4a957e50': '.  Yo, y mi Casa, estamos en @deuda contigo."*',
+    'c7dc7124': '"¡No!  ¡No puede ser!  ¿Por qué?"*Entregas el cuerpo al hombre desconsolado, que a todas luces es su marido, Philinus.\n*"Por favor, quisiera estar solo."*',
+    '13301ee6': '"Lo siento, estoy demasiado afectado por el secuestro de Ariadne para hablar..."',
+    'c1845dff': '"Por favor, quisiera estar solo."',
+    '1faff760': '"¡Pero si es quien rescató a Ariadne!  Me alegro de volver a verte."',
+    '83c9dc20': '"Pues soy Philinus.  ¿No te acuerdas de que rescataste a mi mujer, @Ariadne?"',
+    '268a13ea': '"Soy el Anciano de la Casa @Nicander y, mientras el pueblo me apoye, fijo la política de Odemia."',
+    '58237a18': '"Gracias a ti, está sana y salva."',
+    'ba26779e': '"La Casa Nicander es la casa gobernante de Odemia, y yo soy su jefe."',
+    '8fca0745': '"Puede que Odemia esté algo apartada, pero aun así es un pueblo agradable."',
+    'c5ac8295': '"Nos ha llegado la noticia: no puedo creer que mi primogénito haya muerto."',
+    '73651d89': '*"¡La Casa Strymon debe pagar por este ultraje!"',
+    '43fa5650': '*"Y algún poder desconocido capaz de cambiar de forma: los poderes de Alaric sin duda se debilitan."',
+    '13e9b63a': '"Opheltius es mi hijo mayor.  Está abajo, en @Cademia, representando allí a la familia."',
+    '53aa69ee': '"Ascalon es mi hijo menor.  Nunca sé en qué anda metido, pero debería de estar por el pueblo: prueba en La Cabeza del Titán."',
+    '196bfdd4': '"Dodona es una Casa noble que en tiempos gobernó @Catamarca, antes de que subiera al poder la Casa @Strymon."',
+    '21b3dde9': '"Attis es una Casa noble que en tiempos gobernó @Cademia."',
+    '6d4583e4': '"Cademia es la ciudad más antigua de Cythera, aunque es demasiado ajetreada para mí.  Mi hijo Opheltius está allí abajo."',
+    'abb69986': '"Catamarca sería una buena ciudad para ir de vacaciones, si no fuera por la Casa @Strymon."',
+    '8ae8ec51': '*"Claro que he oído que allí ha estallado una especie de @plaga..."',
+    'ab928642': '"Son rumores, ojo, pero he oído que ha estallado una plaga en Catamarca."*"Si es cierto, solo cabe esperar que se pueda contener.  ¿Por qué no ha hecho nada el Rey de la Tierra?"',
+    '57f45fd4': '"He oído rumores de que no era una plaga, sino una maldición mágica que levantó un agente del Rey de la Tierra"*"Que algo así pueda pasar me preocupa: ¿dónde golpeará la próxima vez?"',
+    '75f450ea': '"La Casa Strymon es nuestra rival.  La verdad es que no me fío de ninguno de ellos."',
+    '6e035fcc': '"La Casa Atussa es la única otra Casa con presencia aquí, en Odemia."*"Toda precaución es poca con cualquiera aliado de la Casa @Strymon."',
+    '44a4e6dc': '"Adiós, y recuerda: estamos en @deuda contigo..."',
+    '1f569ec1': '"Nos has hecho un favor.  Algún día quizá podamos devolvértelo."',
+    'e6f9b35f': '"Espero que hayas podido dar uso a esa vieja flauta de Pan."',
+    '470a73f7': '"Mmm, tengo una vieja por aquí, en algún sitio."Philinus rebusca un poco.\n*"Ah, aquí la tienes: puedes quedártela, es lo menos que puedo hacer por ti."Philinus te da la flauta de Pan.\n*',
+    '4d95119e': '"Da gusto volver a hablar con él: gracias por reunir a unos viejos amigos."',
+    '4a1608ce': '"Tlepolemus es un buen hombre: hace años íbamos de caza juntos."',
+    'ab0b064e': '"Parece que piensa que has antepuesto tus negocios a vuestra amistad."*',
+    'eb5c66d3': '"Sí, supongo que sí.  He estado demasiado ocupado, y desde luego no estuvo bien.  Dile que lo siento, por favor."*',
+    '1759f13c': '"Mmm, de eso no estoy seguro... quizá sea mejor que preguntes por ahí."',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '1830': { bias: 'bias', cybe: 'cybe', mali: 'mali', thur: 'thur' }, '1831': { cybe: 'cybe', mali: 'mali', thur: 'thur' }, '1832': { aria: 'aria', ophe: 'ophe', asca: 'asca', tlep: 'tlep' } });
+// "friend", "citizen" and "stranger" said to the hero after a comma the
+// script keeps: said with words whose gender is not the hero's.
+Object.assign(DELV_TRANSLATION_ES.text['*'], { 'cba09f8d': 'alma amiga', '0fde0387': 'caminante', 'ba65ebd9': '"Protejo a los ciudadanos de Odemia."' });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { youn: 'meno', capt: 'capt', jail: 'cala,carc,pris' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Opheltius, Philinus's elder son, in Cademia
+  '1833': {
+    '18f961af': 'Ves a un hombre corriente, de aspecto normal.*',
+    '019a00fc': '"Lo siento, pero estoy demasiado afectado por unas noticias de mi familia que he oído hace poco para hablar."',
+    '81f0ff0a': '"No tengo nada que decirte: déjame en paz, por favor."',
+    'cb566bab': 'caminante', '33b9703a': '.  ¿Qué puedo hacer por ti?"',
+    '6f2ba5f2': '"Soy Opheltius, hijo de Philinus."',
+    '469cd64b': '"Represento a la Casa Nicander en Cademia."',
+    '7b2c3c35': '"¿Sí?  Soy yo."',
+    '935951eb': '"Philinus es mi honrado padre, jefe de la Casa Nicander."',
+    '9cd6ab6d': '"Es un gran alivio que nuestra madre haya vuelto sana y salva, y el papel que tuviste en ello."',
+    'dc11cd77': '"¡Espera!  Tú debes de ser la calamidad incompetente que echó a perder el rescate de mi madre."*"¡Le costaste la vida!  Fuera: ¡no quiero saber nada de semejante gentuza!"',
+    '75a0e15a': '"¡Oye, tú debes de ser esa figura heroica', 'a6e99921': '',
+    '64801356': ' que arriesgó la vida para salvar a mi madre!"*"Es un honor saber que por esta tierra, con todos sus problemas, anda gente así."',
+    '556d7de1': '"Adiós, ',
+    '7c4b31ce': '"Sí, Ascalon es mi hermano, aunque a veces me duele admitirlo."',
+    '1d059b2f': '"Mi principal deber en Cademia es mantener buenas relaciones con la Casa Attis."',
+  },
+  // Ascalon, the younger son, in Odemia; "s" + "he" is the hero
+  '1834': {
+    'f9ca0f30': '¡Más vino!', '059b27c7': 'Ya era hora...', '3cf33e40': 'Hmmm...', '98a180fc': '¡La próxima vez, más rápido!',
+    'c189f8d4': '¡Tengo hambre!', '1361e7d8': '¡Comida!', '6d7b6cb1': '¡Tráeme algo de comer!',
+    '897262b3': 'Ves a un joven, con un leve gesto de desdén.*',
+    '5c8048de': '"¡Ah, ahí ', 'f60c4582': '', '3fe88ffd': 'está!"*',
+    '85331a77': '"Oye, ¿no eres tú quien rescató a mi Madre?"',
+    'a185170b': '"Tienes todo mi desprecio, pedazo de inútil."',
+    '77e5002d': '"Encantado de conocerte: ¡he oído que hiciste un trabajo estupendo!"',
+    'e35c2231': '*"Me llamo Ascalon, hijo de Ariadne."',
+    '37488230': '"Oh, debo de haberte confundido con alguien importante.  Da igual."',
+    'a6a8d192': '"Soy Ascalon, el hijo @menor de la Casa @Nicander."',
+    'ba88fd49': '"No necesito trabajo, siendo de la Casa @Nicander."',
+    '6826f84a': '"Nos ha llegado la noticia: no puedo creer que mi hermano haya muerto."',
+    'db719b55': '*"¡Y a manos de ese monstruo!  ¡La Casa Strymon debe pagar!"',
+    '433130cc': '"Mi hermano @Opheltius, como es el mayor, heredará la Casa Nicander algún día, aunque creo que yo estaría mucho más capacitado."',
+    'd9e5de79': '"Mi padre, Philinus, es el hombre más poderoso de Odemia"',
+    '6f0f2654': '"Es un crimen lo que dejaste que le pasara a mi Madre.  No eres mejor que esos bandidos."',
+    '3414b64f': '"Todos estamos contentos de que rescataras a Ariadne',
+    'eae3eef4': '.  Al menos @capturamos a uno de la banda."',
+    '306dfe04': ', pero ¿te has enterado de que el bandido del @calabozo ha muerto?"',
+    'be3376e4': '"¡Capturado!  ¡Ja!"',
+    '84c6ea67': '"El bandido capturado está en el @calabozo."',
+    'e2784cda': '"El bandido capturado ha muerto."',
+    '17973d1a': '"El calabozo es el sitio que te corresponde."',
+    '09777169': '"El calabozo está al sudeste: tendrás que hablar con la guardia de la ciudad."',
+    '04419b8e': '"Quizá tuviste algo que ver con la muerte del calabozo; da igual, era escoria de bandido, seguramente al servicio de @Strymon"',
+    '2b5ccd73': '"¡Nicander es la mejor Casa de toda Cythera!"',
+    'ef8522ea': '"Muy bien.  De todos modos, aquí no se te quiere."',
+    '4bb9b2ea': '"Muy bien, vuelve a visitarme."',
+    '3b1ca5ca': '"¡Bah!  La Casa Strymon: les escupo."',
+    'f7905d86': '"Bueno, son una Casa noble, pero ni de lejos tan buena como @Nicander."',
+    'd081b0e1': ', mmm, no debe de ser importante..."',
+  },
+  // Ariadne, kidnapped
+  '1835': {
+    '85f8ef55': '"¡Por favor!  ¡Sácame de aquí!"',
+    '4ffc6e6f': '"¡Oh, gracias!  ¡Llévame de vuelta a Odemia y tendrás la gratitud eterna de mi familia!"',
+    '6330eff4': '"¡Piénsalo otra vez cuando no haya peligro, por favor!"',
+    '491d0d6f': '"Por favor, llévame de vuelta a Odemia..."',
+    '72b96198': '"¡Gracias por rescatarme!"',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '1833': { ophe: 'ophe', phil: 'phil', aria: 'aria', asca: 'asca' }, '1834': { ophe: 'ophe', phil: 'phil', aria: 'aria' } });

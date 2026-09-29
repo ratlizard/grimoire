@@ -208,8 +208,13 @@ function translatePlaces(b, resid, T, report) {
     // two buttons for "yn" and hands back 'y' or 'n' for the keyword lists
     // after it to match, and any other prompt a button per letter, so the
     // letters are what the script tests (TConversation::mygetch).
-    if (u.kind === 'prompt' || !translateWants(u.text)) continue;
+    if (u.kind === 'prompt') continue;
     const h = translateHash(u.text);
+    // A piece without two letters in a row is punctuation and stays, unless
+    // the resource's own entry names it: "Ah, there " + "s" + "he is!" makes
+    // "she" of a one-letter piece, which Spanish has to empty.
+    const ownEntry = T.text && T.text[resid.toString(16).toUpperCase().padStart(4, '0')];
+    if (!translateWants(u.text) && !(ownEntry && ownEntry[h] !== undefined)) continue;
     const es = translateLookup(T, 'text', resid, h);
     if (es === undefined || es === null) { report.missing.push({ resid, at: u.at, hash: h, kind: u.kind, len: u.len }); continue; }
     report.done++;
