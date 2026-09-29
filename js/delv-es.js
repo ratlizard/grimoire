@@ -3361,3 +3361,86 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     '87fb68f0': '"No puedo ayudarte: por favor, deja de hacerme perder el tiempo."',
   },
 });
+Object.assign(DELV_TRANSLATION_ES.keys['*'], { spy: 'espi', ciph: 'cifr,manu' });
+Object.assign(DELV_TRANSLATION_ES.text['*'], { '4078ad2a': 'Maná', '2047d1a2': 'Conjuros' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Lindus, Headmaster of the Magisterium
+  '1850': {
+    'db7db8e2': '"Te doy la bienvenida.  Alaric dijo que vendrías tarde o temprano.  Soy Lindus, Director del Magisterium."',
+    '4dcd72f7': '"Te doy de nuevo la bienvenida."',
+    'c769bb9c': '"Vienes a aprender los Caminos del Mago, ¿no?"',
+    '9157a3e0': '=',
+    'dd18c806': '*"La posesión más preciada de un Mago es su grimorio, así que tengo el orgullo de entregarte el tuyo..."*"Ya puedes usarlo para aprender conjuros (úsalo con el pergamino)"*',
+    '2faf290f': '"Muy bien, veo que tienes asuntos más urgentes."',
+    'f909c2de': '"Soy Lindus, Director del Magisterium"',
+    'eb7cc99f': '"Soy el Director del Magisterium, el trabajo más ingrato que haya existido."',
+    '805bb7c7': '"Los Metecos son una raza de seres místicos que habitan este mundo."*',
+    '98211bd4': '"La persona con quien hablar es @Timon"',
+    'ddb03347': '"¿Has dado ya con @Timon?  Creo que está en las ruinas del nordeste..."',
+    '31d1d6b5': '"Como sabes, Timon los ha estado estudiando."',
+    '750e56e4': '"Aunque nunca los he visto, existen, desde luego, digan lo que digan otros."',
+    '4558a926': '"Mmm, he oído ese nombre antes, pero no recuerdo muy bien dónde..."',
+    '86fb5372': '"Mmm, sí, es un cristal interesante.  Es igual que el que encontró @Timon."*',
+    'f49120c3': '"Te sugeriría que fueras a hablar con él; quizá pueda arrojar algo de luz sobre el tema."*"Ahora está trabajando en las @ruinas al nordeste de aquí."',
+    'cd32f7a0': '"Si te @registraras, me encargaría de que sacara tiempo de sus muchos estudios para hablar contigo."',
+    '9ad5675b': '"No sé de qué me hablas."',
+    '890704af': '"@Timon sabe más de eso que yo; habla con él."',
+    'bc7d2cfe': '"Ha estado estudiando las @ruinas de los Metecos y un artefacto que encontró, muy parecido a ese @cristal verde luminoso que llevas."*',
+    '4073278c': '"Quizá deberías hablar con él, y ver qué sabe."',
+    'fff63465': '"Ha estado estudiando las @ruinas de los Metecos."',
+    '9ffdfb81': '"¿Todavía no has dado con él?  Seguramente está en las @ruinas del nordeste."',
+    '28f89783': '"Todos estamos muy orgullosos de su trabajo."',
+    'd08cef24': '"Es uno de nuestros Magos Libres, dedicado a la investigación."',
+    '6f6f0091': '"Ah, sí, así que has oído hablar de Eioneus.  Es un Mago Libre que investiga cómo mejorar las armas con magia."*"Bien mirado, podría resultarte muy útil.  Quizá te convenga buscarlo."*"Hace tiempo que no lo veo, pero por lo que recuerdo de su trabajo, necesita una fuente de lava."*"Hay un par de ellas, desde el volcán de Fin de la Tierra hasta varias cuevas de las montañas."*"Su hermana menor, Semele, es estudiante aquí: quizá te convenga hablar con ella."',
+    'a0fa2cbd': '"Hay unas ruinas al nordeste: sigue el río Tirynth corriente arriba y no tienes pérdida."',
+    '17bd9ac5': '"Mi puerta siempre está abierta para un estudiante."',
+    '42f1168f': '"Vuelve, por favor: hay entrenamiento que podemos darte y que te ayudará en tus pruebas."',
+    '0da9e8dd': '"No sé de qué me hablas."',
+    '49ce97f2': '"Sacas está a cargo de investigar eso.  Deberías ir a Odemia e informarle directamente a ella."',
+    '3971141e': '"Sí, me he enterado.  Un espía que usaba ese asqueroso kesh: esto no augura nada bueno."',
+    'a9e3f40b': '"Nuestros poderes mágicos detectarían fácilmente a los espías metidos en cualquier asunto de estado."',
+    '5667b8ff': '"El Manuscrito Cifrado es uno de nuestros mayores secretos.  Hay una traducción en la Sala del Octavo Grado."*"En cuanto a qué significa, y sus implicaciones, ni siquiera yo sé mucho más de lo que puede leerse allí."*"Te ruego que no hables de esto con nadie..."',
+    'ae7d2e9b': '"Obviamente, como Director, estoy más cerca de Alaric que nadie, salvo quizá su servicio personal."*"En público, debo presentar una fachada unida de \'todo va a salir bien\', pero en privado estoy muy preocupado."*"Intentamos hacer planes para cualquier eventualidad, pero la cosa pinta mal, vaya como vaya."',
+    '1d4b58fd': '"A decir verdad, no me fío de él: sé que Alaric recurre a menudo a él en busca de consejo, pero aun así me da una sensación rara."',
+    '3b88f985': '"Seguro que has oído los rumores, sobre tesoros o experimentos fallidos, pero bueno, no son exactamente ciertos."*"Los túneles bajo Pnyx se usaban de almacén, pero por desgracia hay un gólem suelto en ellos."*"Simplemente mantenemos a la gente fuera, por su propia seguridad.  Nada más siniestro que eso."*"Nadie ha bajado allí desde hace siglos; por lo menos no desde que me nombraron Director."*"Los secretos de cómo bajar allí están bien guardados: no queremos que les pase ningún accidente a los estudiantes demasiado curiosos."',
+    '4317ea8f': '"Me temo que no sé de qué me hablas."',
+  },
+});
+Object.assign(DELV_TRANSLATION_ES.keys, { '1851': {
+  seli: 'seli', book: 'libr', sapp: 'zafi', crow: 'coro', wisd: 'sabi', unde: 'ente', merc: 'mise', beau: 'bell', vict: 'vict',
+  sple: 'espl', foun: 'fund', powe: 'pode', king: 'rein', time: 'tiem,fluj', idom: 'idom',
+} });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Selinus the librarian, the Sapphire Books and the Degree Halls'
+  // passwords: "I see you found " + a number word + " Book" + "s" when more
+  // than one, said "de los libros" for any number; "The password to the " +
+  // an ordinal + " Degree Hall is '" + the password + "'."
+  '1851': {
+    'c1994989': 'Ves a un anciano desaliñado, que parece más viejo que el mismo polvo.*"¿Eh?  ¿Qué puedo hacer por ti?"',
+    'deabe185': '"¿Eh?"',
+    '876dd228': '"Me llamo Selinus, ¿y tú?"',
+    '930593dd': '"Lo recordaré, ^',
+    '4ec9af36': '"Soy el Bibliotecario del Magisterium.  ¡Conozco todos los @libros que hay aquí!"',
+    'e46f4acc': '"La verdadera magia de aquí son los libros, sí, los libros."',
+    '5a86584f': '"Tengo libros que cuidar: vuelve a pasarte, eh... ¿cómo decías que te llamabas?"',
+    '96a08124': ', sí, eso es."',
+    'd49f19e8': '"Veo que has encontrado ', '5447bf3a': ' de los libros', 'f60c4582': '', '9d61ef6b': ': esto está bien."',
+    'ecfe12cb': '=', 'aa97baa9': '=', '978c62fe': '=', '83e7fca8': '=', 'debf627b': '=',
+    '91518a91': 'Cuarto', '524f44be': 'Quinto', 'dfa0c79f': 'Sexto', 'd372f302': 'Séptimo', 'baffb3e8': 'Octavo',
+    'add1a827': '*"La contraseña de la Sala del ', '01c52d4f': ' Grado es \'',
+    '020d1fd3': '"Busca los Libros de Zafiro del Conocimiento y devuélvelos aquí, y luego hablaremos..."',
+    '21143633': '"Normalmente las contraseñas de las salas de grados superiores se dan según los años de estudio, pero contigo podemos hacer una excepción."*"En su lugar, puedes prestar un servicio a la Biblioteca.  Con los años, los diez volúmenes de nuestros Libros de @Zafiro de la Sabiduría han ido desapareciendo."*"Por cada dos libros que encuentres y devuelvas, te daré otra contraseña."',
+    'c89c716b': '"Hay diez Libros de Zafiro del Conocimiento: la Corona, la Sabiduría, el Entendimiento, la Misericordia, el Poder, la Belleza, la Victoria, el Esplendor, el Fundamento y el Reino"',
+    '4e4ed22f': '"Creo que el Libro de Zafiro de la Corona lo tiene Alaric."',
+    '64ce7026': '"El Libro de Zafiro de la Sabiduría se perdió cuando destruyeron @Abydos."',
+    'b35a8ce8': '"Creo que hace años un estudiante tenía el Libro de Zafiro del Entendimiento."',
+    'e6cd5ce4': '"No sé muy bien dónde estaba, pero cuando empecé aquí teníamos un ejemplar, así que alguien se lo llevó después..."',
+    '0c3938c8': '"No sé qué fue de ese Libro de Zafiro."',
+    'bb9e305f': '"Lo último que supe es que el Libro de Zafiro del Poder estaba en Cademia."',
+    'c3cf0335': '"El Libro de Zafiro del Reino está en algún lugar del Castillo del Tirano, en Cademia."',
+    'aaa5bb23': '"Mmm, teníamos un ejemplar de eso, pero el Mago Libre @Idomeneus se llevó el único que había, ¡y todavía no lo ha devuelto!"',
+    'de53f62b': '"Deberíamos tener un par de ejemplares de las Profecías de Neleneus en la sala general."*"Bueno, solo de la Primera y la Tercera: la Segunda se perdió hace mucho, y tampoco es que yo les dé mucho crédito."*',
+    'd9960d5a': '"El Mago Libre Idomeneus estudiaba no sé qué tontería.  Lo último que supe es que iba hacia Kosha."',
+    '833117f7': '"De eso tienes que hablar con Lindus: no se me permite hablar de ello..."',
+  },
+});
