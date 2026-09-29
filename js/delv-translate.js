@@ -186,8 +186,13 @@ function translateKeywordList(words, T, resid) {
     for (const stem of String(s).split(',')) if (stem && have.indexOf(stem) < 0 && add.indexOf(stem) < 0) add.push(stem);
   }
   if (!add.length) return null;
-  for (const stem of add) if (!/^[a-z ]+$/.test(stem)) throw new Error('a keyword stem may hold lower-case letters and spaces only, not ' + JSON.stringify(stem));
-  return words + ',' + add.join(',');
+  // A stem may carry a lower-case accent, as its control code: what a click
+  // on a button or a highlighted word says is the script's own text, codes
+  // and all, so "d\x04nd" answers a button labelled "Dónde" where "dond"
+  // would not. It never carries a byte of 0x80 up, which is fatal in a list.
+  const enc = add.map(stem => translateEncode(stem));
+  for (const stem of enc) if (!/^[a-z \x01-\x07]+$/.test(stem)) throw new Error('a keyword stem may hold lower-case letters, their accents and spaces only, not ' + JSON.stringify(stem));
+  return words + ',' + enc.join(',');
 }
 
 /* ---- one script resource --------------------------------------------------- */
