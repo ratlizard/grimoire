@@ -391,7 +391,7 @@ function translateWriteStrList(list) {
 // (a resource-fork string is not script text, so an accent is its own byte
 // there); a TxSt given a new face or size; and the conversation face with
 // the letters the translation needs (T.font says which, and how).
-function translateResourceFork(rsrc, T, report, log, strikes) {
+function translateResourceFork(rsrc, T, report, log) {
   const spec = resourceForkSpec(openResourceFork(rsrc));
   let changed = false, widths = null, sfntId = null;
   for (const r of spec.resources) {
@@ -431,10 +431,7 @@ function translateResourceFork(rsrc, T, report, log, strikes) {
     const n = translateFamilyWidths(spec, sfntId, widths);
     if (n) log.push('FOND ' + n + ': the family widths of the added letters');
   }
-  if (T.strikes) {
-    if (strikes && strikes.length) { translateAddStrikes(spec, strikes, T.strikes, log); changed = true; }
-    else log.push('TxSt ' + T.strikes.styles.join(', ') + ': left in ' + T.strikes.family + ', which was not given, so an accent there draws as the missing symbol');
-  }
+  if (T.strikes) { translateAddStrikes(spec, T.strikes, log); changed = true; }
   return changed ? writeResourceFork(spec) : rsrc;
 }
 
@@ -471,43 +468,93 @@ function translateFamilyWidths(spec, sfntId, widths) {
 
 /* The styles drawn in Geneva, with its accented letters. The message pane
    (TxSt 132 "Text", Geneva 10), the labels and the stats (130 and 131,
-   Geneva 9) name their face, and Geneva has "á" at its Mac Roman byte
-   and nothing at the control code the script text carries it at, so
-   those styles drew a box for every accent. Setting them in Argos, as the
-   first build did, put the conversation face where the game has none
-   (the maintainer: "Argos is being used where it shouldn't be"), and
-   Argos has no ">", which the message line's "> Talk to " begins with.
+   Geneva 9) name their face, and Geneva has no glyph at the control codes
+   the script text carries its accents at, so those styles drew a box for
+   every accent. Setting them in Argos, as the first build did, put the
+   conversation face where the game has none (the maintainer: "Argos is
+   being used where it shouldn't be"), and Argos has no ">", which the
+   message line's "> Talk to " begins with.
 
-   So the family is copied in under a name of its own, from a resource
-   fork holding it that the caller supplies (a font suitcase: Geneva is
-   Apple's and is not in Cythera, nor in this repository), each strike
-   with every accented glyph copied to its code as well
-   (nfntWithCopies), and the styles are set in it at their own sizes.
+   So a family of their own, "Geneva ES", goes into the data file's fork
+   and the styles are set in it at their own sizes. Geneva is Apple's and
+   cannot be here, so its strikes are made from js/mac-geneva.js: the
+   letters of Kelsey Higham's Geneva 9, drawn at both sizes, at the widths
+   of Apple's Geneva 9 and 10 (GENEVA_METRICS, Kurrajong's), so every
+   string measures as it did and nothing the game lays out moves; the
+   10-point strike is Geneva 10's frame and widths with the 9-point
+   letters, the maintainer's choice on 29 September 2026 after a 10-point
+   drawing derived by adding a row was judged illegible. An accented letter
+   is its plain letter with a mark over it, both from the font, and takes
+   its plain letter's width and place, as Apple's do; the font's own
+   accented letters are not used, being drawn on other bodies (its "á" is a
+   single-storey a under the accent). A lowercase mark is what the font
+   draws two rows and more above the x-height in é, ñ and ü, a capital's
+   what it draws above the cap height in É, Ñ and Ü, each kept where it
+   sits against its own letter's centre; í is the i without its dot. Every
+   other code draws what the font draws there, at the font's width.
+
    The Resource Manager finds a font in the data file's fork as it finds
    Argos there. The family's number and its strikes' are ones no font on
    Infinite Mac's System 7.6 or Mac OS 9.0 disk uses, since a font in the
    data file's fork would hide a system font of the same number while the
    game runs. */
-function translateAddStrikes(spec, forkBytes, S, log) {
-  const src = openResourceFork(forkBytes);
-  const fonds = (src.resourcesByType['FOND'] || []).filter(e => e.name === S.family);
-  if (!fonds.length) throw new Error('the font file given has no ' + S.family + ' family');
-  const fond = src.dataOf('FOND', fonds[0]);
-  const n = u16be(fond, 52) + 1, bySize = {};
-  for (let i = 0; i < n; i++) { const size = u16be(fond, 54 + i * 6), style = u16be(fond, 56 + i * 6), id = u16be(fond, 58 + i * 6); if (size && style === 0) bySize[size] = id; }
-  const copies = Object.keys(TRANSLATE_CODES).map(ch => [TRANSLATE_CODES[ch], TRANSLATE_MACROMAN[ch]]);
-  const entries = [];
-  for (const size of Object.keys(S.nfnt).map(Number).sort((a, b) => a - b)) {
-    const id = bySize[size];
-    const e = id !== undefined && ((src.resourcesByType['NFNT'] || []).find(x => x.id === id) || (src.resourcesByType['FONT'] || []).find(x => x.id === id));
-    if (!e) throw new Error('the ' + S.family + ' given has no ' + size + '-point strike');
-    const type = (src.resourcesByType['NFNT'] || []).includes(e) ? 'NFNT' : 'FONT';
-    spec.resources.push({ type: 'NFNT', id: S.nfnt[size], name: null, attrs: e.attrs, data: nfntWithCopies(src.dataOf(type, e), copies) });
-    entries.push([size, 0, S.nfnt[size]]);
+function translateGenevaStrike(size) {
+  const M = GENEVA_METRICS[size], ttf = geneva9Bytes();
+  const { upem, glyphs } = sfntGlyphOutlines(ttf), map = sfntMacRomanGlyphs(ttf), unit = upem / 16;
+  const own = code => { const g = glyphs[map[code]]; return map[code] && g ? { px: sfntPixels(g, unit), adv: Math.round(g.adv / unit) } : null; };
+  const out = {};
+  for (let c = 0; c < 256; c++) { const g = own(c); if (g) out[c] = g; }
+  // Printable ASCII at Geneva's widths, each letter moved to Geneva's left bearing.
+  for (let c = 0x20; c < 0x7F; c++) {
+    const g = out[c] || { px: [], adv: 0 }, i = c - 0x20;
+    const x0 = g.px.length ? Math.min(...g.px.map(q => q[0])) : 0, dx = M.lsb[i] - x0;
+    out[c] = { px: g.px.map(([x, y]) => [x + dx, y]), adv: M.adv[i] };
   }
-  const widths = {}; for (const [to, from] of copies) widths[to] = from;
-  spec.resources.push({ type: 'FOND', id: S.id, name: S.name, attrs: fonds[0].attrs, data: fondForStrikes(fond, S.id, entries, widths) });
-  log.push('FOND ' + S.id + ' (' + S.name + '): ' + S.family + ' at ' + entries.map(e => e[0]).join(' and ') + ' points, the accented letters also at their codes');
+  const mr = ch => TRANSLATE_MACROMAN[ch], at = ch => ch.charCodeAt(0);
+  const mid = px => { const xs = px.map(q => q[0]); return (Math.min(...xs) + Math.max(...xs)) / 2; };
+  // A mark: the pixels at or above `from` in the font's accented letter, with the centre of the rest.
+  const markOf = (ch, from) => {
+    const g = own(mr(ch));
+    if (!g) throw new Error('the Geneva font has no ' + ch);
+    const m = g.px.filter(q => q[1] >= from), body = g.px.filter(q => q[1] < from);
+    return { m, c: mid(body) };
+  };
+  const low = 4, cap = 6;
+  const marks = { acute: markOf('é', low + 2), tilde: markOf('ñ', low + 2), dier: markOf('ü', low + 2),
+                  Acute: markOf('É', cap + 2), Tilde: markOf('Ñ', cap + 2), Dier: markOf('Ü', cap + 2) };
+  const dotless = { px: out[at('i')].px.filter(q => q[1] <= low), adv: out[at('i')].adv };
+  const put = (base, k) => {
+    const mk = marks[k], dx = Math.round(mid(base.px) - mk.c);
+    return { px: base.px.concat(mk.m.map(([x, y]) => [x + dx, y])), adv: base.adv };
+  };
+  const made = { 'á': put(out[at('a')], 'acute'), 'é': put(out[at('e')], 'acute'), 'í': put(dotless, 'acute'),
+    'ó': put(out[at('o')], 'acute'), 'ú': put(out[at('u')], 'acute'), 'ñ': put(out[at('n')], 'tilde'), 'ü': put(out[at('u')], 'dier'),
+    'Á': put(out[at('A')], 'Acute'), 'É': put(out[at('E')], 'Acute'), 'Í': put(out[at('I')], 'Acute'), 'Ó': put(out[at('O')], 'Acute'),
+    'Ú': put(out[at('U')], 'Acute'), 'Ñ': put(out[at('N')], 'Tilde'), 'Ü': put(out[at('U')], 'Dier') };
+  // ¿ and ¡ are the font's own, at the width of ? and ! and moved to their bearing.
+  for (const [ch, base] of [['¿', '?'], ['¡', '!']]) {
+    const g = own(mr(ch)), b = out[at(base)], x0 = Math.min(...g.px.map(q => q[0])), bx = Math.min(...b.px.map(q => q[0]));
+    made[ch] = { px: g.px.map(([x, y]) => [x + bx - x0, y]), adv: b.adv };
+  }
+  for (const ch of Object.keys(TRANSLATE_CODES)) { out[TRANSLATE_CODES[ch]] = made[ch]; out[mr(ch)] = made[ch]; }
+  // The missing symbol: a box as tall as a capital, drawn here.
+  const box = [];
+  for (let y = 0; y <= cap; y++) for (let x = 0; x < 5; x++) if (y === 0 || y === cap || x === 0 || x === 4) box.push([x, y]);
+  const f = { ascent: M.ascent, descent: M.descent, leading: M.leading, glyphs: out, missing: { px: box, adv: 6 } };
+  return { bytes: nfntFromPixels(f), f, widMax: Math.max(...Object.values(out).map(g => g.adv), 6) };
+}
+function translateAddStrikes(spec, S, log) {
+  if (typeof GENEVA9_TTF === 'undefined') throw new Error('the Geneva font (js/mac-geneva.js) is not loaded');
+  const entries = [];
+  let ten = null;
+  for (const size of Object.keys(S.nfnt).map(Number).sort((a, b) => a - b)) {
+    const got = translateGenevaStrike(size);
+    spec.resources.push({ type: 'NFNT', id: S.nfnt[size], name: null, attrs: 0x20, data: got.bytes });
+    entries.push([size, 0, S.nfnt[size]]);
+    if (size === 10 || !ten) ten = { size, ascent: got.f.ascent, descent: got.f.descent, leading: got.f.leading, widMax: got.widMax };
+  }
+  spec.resources.push({ type: 'FOND', id: S.id, name: S.name, attrs: 0x20, data: fondForStrikes(S.id, entries, ten) });
+  log.push('FOND ' + S.id + ' (' + S.name + '): Geneva 9\u2019s letters at ' + entries.map(e => e[0]).join(' and ') + ' points, at Geneva\u2019s widths, the accented letters also at their codes');
   const name = encodeMacRoman(S.name);
   for (const r of spec.resources) {
     if (r.type !== 'TxSt' || !S.styles.includes(r.id)) continue;
@@ -520,8 +567,7 @@ function translateAddStrikes(spec, forkBytes, S, log) {
 
 /* ---- the whole file -------------------------------------------------------- */
 
-function translateCytheraData(data, rsrc, T, opts) {
-  opts = opts || {};
+function translateCytheraData(data, rsrc, T) {
   const report = { done: 0, keys: 0, missing: [], unused: [] };
   const keepSyms = DVM_RESOURCE_SYMBOLS, keepCtx = dvmContextResid;
   try {
@@ -542,7 +588,7 @@ function translateCytheraData(data, rsrc, T, opts) {
     }
     const done = finishDataPatch(s);
     const log = done.log.slice();
-    const outRsrc = rsrc && rsrc.length ? translateResourceFork(rsrc, T, report, log, opts.strikes) : rsrc;
+    const outRsrc = rsrc && rsrc.length ? translateResourceFork(rsrc, T, report, log) : rsrc;
     return { data: writeDelverArchive(done.spec), rsrc: outRsrc, log, report, changed: done.changed };
   } finally {
     dvmSetResourceSymbols(keepSyms);

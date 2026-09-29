@@ -68,12 +68,11 @@ const DELV_TRANSLATION_ES = {
 
   // The styles the game draws in Geneva: the message pane (TxSt 132, 10
   // point), the labels and the stats (130 and 131, 9 point). Geneva has
-  // the accented letters at their Mac Roman bytes and none at the codes the
-  // script text carries them at, so given a Geneva, its strikes are copied
-  // into the data file as a family of their own with each accented letter
-  // at its code as well, and the three styles are set in it; without one
-  // they stay Geneva (js/delv-translate.js, translateAddStrikes).
-  strikes: { family: 'Geneva', name: 'Geneva ES', id: 1047, nfnt: { 9: 25809, 10: 25810 }, styles: [130, 131, 132] },
+  // nothing at the codes the script text carries its accents at, so they
+  // are set in a family of their own made from js/mac-geneva.js, Geneva 9's
+  // letters at Geneva's widths with the accented letters at their codes
+  // (js/delv-translate.js, translateAddStrikes).
+  strikes: { name: 'Geneva ES', id: 1047, nfnt: { 9: 25809, 10: 25810 }, styles: [130, 131, 132] },
 
   // The data file's STR# resources, by the id in four hex digits, as every
   // other section keys a resource, and the hash of each English string.

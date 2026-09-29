@@ -2126,15 +2126,25 @@ function renderAppFixMaker() {
    from the open file and its fork: a piece the file has changed has no
    entry and stays in English, and the note says how many. A copy without
    its resource fork is refused, since the accents would draw as boxes. */
-function spanishTable() {
-  if (window.DELV_TRANSLATION_ES) return Promise.resolve(window.DELV_TRANSLATION_ES);
-  if (!window.SPANISH_LOADING) window.SPANISH_LOADING = new Promise((resolve, reject) => {
+// The Spanish table and the Geneva its strikes are made from, each added as
+// a script element (a page opened from a USB stick can load those), the
+// font first since the table's builder reads it.
+function spanishScript(src, ready) {
+  return new Promise((resolve, reject) => {
+    if (ready()) return resolve();
     const s = document.createElement('script');
-    s.src = 'js/delv-es.js';
-    s.onload = () => window.DELV_TRANSLATION_ES ? resolve(window.DELV_TRANSLATION_ES) : reject(new Error('The Spanish did not load'));
-    s.onerror = () => { window.SPANISH_LOADING = null; reject(new Error('The Spanish could not be fetched')); };
+    s.src = src;
+    s.onload = () => ready() ? resolve() : reject(new Error(src + ' did not load'));
+    s.onerror = () => reject(new Error(src + ' could not be fetched'));
     document.head.appendChild(s);
   });
+}
+function spanishTable() {
+  if (window.DELV_TRANSLATION_ES && typeof GENEVA9_TTF !== 'undefined') return Promise.resolve(window.DELV_TRANSLATION_ES);
+  if (!window.SPANISH_LOADING) window.SPANISH_LOADING = spanishScript('js/mac-geneva.js', () => typeof GENEVA9_TTF !== 'undefined')
+    .then(() => spanishScript('js/delv-es.js', () => !!window.DELV_TRANSLATION_ES))
+    .then(() => window.DELV_TRANSLATION_ES)
+    .catch(e => { window.SPANISH_LOADING = null; throw new Error('The Spanish could not be loaded: ' + e.message); });
   return window.SPANISH_LOADING;
 }
 function spanishSay(m, bad) {

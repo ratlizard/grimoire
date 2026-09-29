@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* A builder, not a check: Cythera Data in Spanish, both forks.
 
-   Usage: node utilities/translate_build.mjs index.html "<Cythera Data.data>" "<Cythera Data.rsrc>" <out dir> [--missing] [--strikes <font fork>]
+   Usage: node utilities/translate_build.mjs index.html "<Cythera Data.data>" "<Cythera Data.rsrc>" <out dir> [--missing]
 
    Runs js/delv-translate.js with the table js/delv-es.js inside the page's
    own sandbox, as utilities/patch_build.mjs does for the fixes, and writes
@@ -12,11 +12,7 @@
    tools/infinite-mac-disk/rebuild.sh --add takes to put it on a disk image.
    It prints a line per resource changed and what the table did not reach,
    by resource; --missing prints every piece left in English by its hash,
-   which is the list a translator works down. --strikes names a resource fork
-   holding the Geneva family (a font suitcase's, such as a System Folder's
-   Fonts/Geneva/..namedfork/rsrc), whose strikes the message pane, the labels
-   and the stats are then set in with the accented letters; without it they
-   stay in Geneva. What it writes is the game's data changed and belongs in
+   which is the list a translator works down. What it writes is the game's data changed and belongs in
    no repository. (29 September 2026.) */
 import {readFileSync, writeFileSync, mkdirSync, existsSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
@@ -24,13 +20,12 @@ import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
 import {pageContext} from './patch_build.mjs';
 
-export function translateData({htmlPath = 'index.html', dataPath, rsrcPath, table = 'js/delv-es.js', strikesPath = null}) {
+export function translateData({htmlPath = 'index.html', dataPath, rsrcPath, table = 'js/delv-es.js'}) {
   const {sandbox, ctx} = pageContext(htmlPath, dataPath);
   sandbox.__r = new Uint8Array(readFileSync(rsrcPath));
-  sandbox.__s = strikesPath ? new Uint8Array(readFileSync(strikesPath)) : null;
-  new vm.Script(readFileSync(new URL('../' + table, import.meta.url), 'utf8'), {filename: table}).runInContext(ctx);
+  for (const f of ['js/mac-geneva.js', table]) new vm.Script(readFileSync(new URL('../' + f, import.meta.url), 'utf8'), {filename: f}).runInContext(ctx);
   return vm.runInContext(`(() => {
-    const r = translateCytheraData(__a, __r, DELV_TRANSLATION_ES, { strikes: __s });
+    const r = translateCytheraData(__a, __r, DELV_TRANSLATION_ES);
     const bin = writeMacBinary({ name: 'Cythera Data', type: 'DelS', creator: 'Delv', data: r.data, rsrc: r.rsrc });
     return { data: Array.from(r.data), rsrc: Array.from(r.rsrc), bin: Array.from(bin), log: r.log,
              report: { done: r.report.done, keys: r.report.keys, missing: r.report.missing, unused: r.report.unused } };
@@ -38,12 +33,10 @@ export function translateData({htmlPath = 'index.html', dataPath, rsrcPath, tabl
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const argv = process.argv.slice(2), si = argv.indexOf('--strikes');
-  const strikesPath = si >= 0 ? argv[si + 1] : null;
-  const args = argv.filter((a, i) => !a.startsWith('--') && !(si >= 0 && i === si + 1));
+  const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
   const [htmlPath = 'index.html', dataPath, rsrcPath, outDir] = args;
-  if (!dataPath || !rsrcPath || !outDir) { console.error('usage: translate_build.mjs index.html <Cythera Data.data> <Cythera Data.rsrc> <out dir> [--missing] [--strikes <font fork>]'); process.exit(2); }
-  const out = translateData({htmlPath, dataPath, rsrcPath, strikesPath});
+  if (!dataPath || !rsrcPath || !outDir) { console.error('usage: translate_build.mjs index.html <Cythera Data.data> <Cythera Data.rsrc> <out dir> [--missing]'); process.exit(2); }
+  const out = translateData({htmlPath, dataPath, rsrcPath});
   mkdirSync(outDir, {recursive: true});
   writeFileSync(outDir + '/Cythera Data.bin', Buffer.from(out.bin));
   writeFileSync(outDir + '/Cythera Data.data', Buffer.from(out.data));

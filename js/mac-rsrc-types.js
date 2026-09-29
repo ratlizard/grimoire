@@ -1918,88 +1918,122 @@ function writeNFNT(f){
   return out;
 }
 
-/* A strike with some codes given another code's glyph: `copies` is a list of
-   [to, from] character codes, and each `to` draws exactly what `from` does,
-   its image, its offset and its width.
-
-   Written for a translation whose text cannot carry a byte of 0x80 up and so
-   puts its accented letters at control codes (js/delv-translate.js): a system
-   font already has "á" at its Mac Roman byte, and copying that glyph to the
-   control code is all the letter needs, drawn by the font's own designer
-   rather than composed here. Nothing is drawn, and nothing but the copied
-   codes changes: the strike is laid out again glyph by glyph, every glyph's
-   columns in code order as the format has them, so a copy widens the image
-   by its own columns and every other glyph keeps its pixels and its width.
-
-   The per-glyph tables after the offset/width table go the same way, the
-   glyph-width table (fontType bit 1) before the image-height table (bit 0),
-   as Inside Macintosh: Text lays them out; Geneva's 9- and 12-point strikes
-   carry the height table. A strike whose offset/width table would sit more
-   than 0xFFFF words from `owTLoc` needs its high word in nDescent, which no
-   strike this is used on comes near, so it is refused rather than written. */
-function nfntWithCopies(data, copies){
-  const f=nfntSpec(data);
-  const n=f.nGlyphs, src=[];
-  for(let g=0;g<n;g++) src.push(g);
-  for(const [to,from] of copies){
-    for(const c of [to,from]) if(c<f.firstChar||c>f.lastChar) throw new Error('the strike has no code '+c+' (it runs from '+f.firstChar+' to '+f.lastChar+')');
-    if(f.ow[from-f.firstChar]===0xFFFF) throw new Error('the strike has no glyph at code '+from);
-    src[to-f.firstChar]=from-f.firstChar;
-  }
-  let cols=0; const loc=[];
-  for(const g of src){ loc.push(cols); cols+=f.loc[g+1]-f.loc[g]; }
-  loc.push(cols);
-  const rowWords=Math.max(1,Math.ceil(cols/16)), rowBytes=rowWords*2, oldRow=f.rowWords*2;
-  const strike=new Uint8Array(rowBytes*f.fRectHeight);
-  src.forEach((g,i)=>{
-    const x0=f.loc[g], w=f.loc[g+1]-x0, nx=loc[i];
-    for(let y=0;y<f.fRectHeight;y++) for(let x=0;x<w;x++){
-      const sx=x0+x;
-      if(f.strike[y*oldRow+(sx>>3)]&(0x80>>(sx&7))){ const dx=nx+x; strike[y*rowBytes+(dx>>3)]|=0x80>>(dx&7); }
+/* A pixel font's outlines as pixels: a glyph drawn in squares on a grid
+   (FontStruct's fonts are, `unit` font units a square) comes back as the
+   squares it was drawn with, [x, y] from the pen origin with y up, the row
+   above the baseline being 0. A square is lit when its centre is inside
+   the outline by non-zero winding, which is exact for outlines that run
+   along the grid. The points are taken as a polygon; an off-curve point
+   would be read as a corner, so a glyph with one is refused rather than
+   guessed at. */
+function sfntPixels(glyph, unit){
+  const cs=glyph.contours;
+  if(!cs.length) return [];
+  for(const c of cs) for(const q of c) if(!q.on) throw new Error('a glyph with a curve is not a pixel glyph');
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const c of cs) for(const q of c){ x0=Math.min(x0,q.x); y0=Math.min(y0,q.y); x1=Math.max(x1,q.x); y1=Math.max(y1,q.y); }
+  const out=[];
+  for(let i=Math.floor(x0/unit);i<Math.ceil(x1/unit);i++) for(let j=Math.floor(y0/unit);j<Math.ceil(y1/unit);j++){
+    const px=(i+0.5)*unit, py=(j+0.5)*unit;
+    let wn=0;
+    for(const c of cs) for(let k=0;k<c.length;k++){
+      const a=c[k], b=c[(k+1)%c.length], cross=(b.x-a.x)*(py-a.y)-(px-a.x)*(b.y-a.y);
+      if(a.y<=py&&py<b.y&&cross>0) wn++;
+      else if(b.y<=py&&py<a.y&&cross<0) wn--;
     }
-  });
-  const strikeBytes=strike.length;
-  const owOff=26+strikeBytes+(n+1)*2, owTLoc=(owOff-16)/2;
-  if(owTLoc>0xFFFF) throw new Error('the strike is too large to lay out again here');
-  const tables=((f.fontType&2)?1:0)+((f.fontType&1)?1:0);
-  if(f.tail.length<tables*n*2) throw new Error('the strike says it has '+tables+' glyph tables after the offset/width table, and they are not there');
-  const tail=new Uint8Array(f.tail.length);
-  tail.set(f.tail);
-  for(let t=0;t<tables;t++) src.forEach((g,i)=>{ tail[t*n*2+i*2]=f.tail[t*n*2+g*2]; tail[t*n*2+i*2+1]=f.tail[t*n*2+g*2+1]; });
-  return writeNFNT(Object.assign({},f,{rowWords,strikeBytes,strike,loc,ow:src.map(g=>f.ow[g]),owTLoc,owOff,tail}));
+    if(wn) out.push([i,j]);
+  }
+  return out;
+}
+// A font's glyph for each Mac Roman code: from its (1, 0) cmap, format 0,
+// when it has one, and otherwise from a Unicode cmap, format 4, each code
+// through its code point (MACROMAN_HIGH above 0x7F). FontStruct's fonts
+// carry only the Unicode ones.
+function sfntMacRomanGlyphs(data){
+  const cmap=sfntTablesOf(data).cmap;
+  if(!cmap) throw new Error('the font has no cmap');
+  const subs=[];
+  for(let i=0;i<u16be(cmap,2);i++){ const p=4+i*8; subs.push({pl:u16be(cmap,p),en:u16be(cmap,p+2),at:u32be(cmap,p+4)}); }
+  const mac=subs.find(t=>t.pl===1&&t.en===0&&u16be(cmap,t.at)===0);
+  if(mac) return Array.from(cmap.subarray(mac.at+6,mac.at+6+256));
+  const uni=subs.find(t=>(t.pl===0||(t.pl===3&&t.en===1))&&u16be(cmap,t.at)===4);
+  if(!uni) throw new Error('the font has neither a Mac Roman nor a Unicode cmap');
+  const at=uni.at, segX2=u16be(cmap,at+6), ends=at+14, starts=ends+segX2+2, deltas=starts+segX2, ranges=deltas+segX2;
+  const lookup=cp=>{
+    for(let k=0;k<segX2/2;k++){
+      if(cp>u16be(cmap,ends+2*k)) continue;
+      const start=u16be(cmap,starts+2*k);
+      if(cp<start) return 0;
+      const delta=u16be(cmap,deltas+2*k), ro=u16be(cmap,ranges+2*k);
+      if(!ro) return (cp+delta)&0xFFFF;
+      const g=u16be(cmap,ranges+2*k+ro+2*(cp-start));
+      return g?(g+delta)&0xFFFF:0;
+    }
+    return 0;
+  };
+  const out=[];
+  for(let c=0;c<256;c++) out.push(lookup(c<0x80?c:MACROMAN_HIGH[c-0x80]));
+  return out;
 }
 
-/* A font family record for strikes of one's own: `template` is a FOND whose
-   family metrics and flags are kept, `famID` the new family's number, and
-   `entries` the [size, style, NFNT id] association table. Its family
-   width table is carried over when it has one, with `widths` ({code: the
-   code whose width it takes}) applied, so a copied glyph's width is the
-   family's too; the kerning and style-mapping tables are left out, the
-   first because a bitmap strike carries its own widths and QuickDraw
-   kerns nothing, the second because it names PostScript faces for a
-   printer, which a strike of a screen font is not sent to. */
-function fondForStrikes(template, famID, entries, widths){
-  const wOff=u32be(template,16), first=u16be(template,4), last=u16be(template,6);
-  let wt=null;
-  if(wOff){
-    const nw=u16be(template,wOff)+1, per=2+(last-first+3)*2;
-    wt=template.slice(wOff,wOff+2+nw*per);
-    for(let k=0;k<nw;k++){
-      const base=2+k*per+2;
-      for(const [to,from] of Object.entries(widths||{})){
-        const t=base+(to-first)*2, s=base+(from-first)*2;
-        wt[t]=template[wOff+s]; wt[t+1]=template[wOff+s+1];
-      }
+/* A strike from pixels: `f` gives the frame (ascent, descent, leading) and
+   `glyphs`, a code's { px: [[x, y]], adv } with x from the pen origin and y
+   up from the baseline, and `missing`, the glyph drawn for a code with
+   none. Every width is the caller's, so a strike can draw one font's
+   letters at another's widths. Written as nfntSpec reads one: a glyph's
+   image is its columns from its leftmost pixel to its rightmost, its
+   offset that leftmost column less kernMax, kernMax the furthest left any
+   glyph starts (never right of the pen), fRectWidth the widest reach from
+   kernMax, nDescent the negated ascent as Apple's own strikes have it,
+   and widMax the widest advance. A pixel outside the frame is refused. */
+function nfntFromPixels(f){
+  const H=f.ascent+f.descent, all=[];
+  for(let c=0;c<256;c++) all.push(f.glyphs[c]||null);
+  all.push(f.missing);
+  let kernMax=0, widMax=0, reach=0, cols=0;
+  const boxes=all.map(g=>{
+    if(!g) return null;
+    widMax=Math.max(widMax,g.adv);
+    if(!g.px.length) return {x0:0,w:0};
+    let x0=Infinity,x1=-Infinity;
+    for(const [x,y] of g.px){
+      if(y>=f.ascent||y<-f.descent) throw new Error('a glyph reaches outside the strike\'s frame');
+      x0=Math.min(x0,x); x1=Math.max(x1,x);
     }
-  }
-  const assocLen=2+entries.length*6;
-  const out=new Uint8Array(52+assocLen+(wt?wt.length:0)), dv=new DataView(out.buffer);
-  out.set(template.subarray(0,52));
-  dv.setUint16(2,famID);
-  dv.setUint32(16,wt?52+assocLen:0); dv.setUint32(20,0); dv.setUint32(24,0);
+    kernMax=Math.min(kernMax,x0);
+    return {x0,w:x1-x0+1};
+  });
+  const loc=[];
+  boxes.forEach(b=>{ loc.push(cols); if(b){ cols+=b.w; reach=Math.max(reach,b.x0+b.w); } });
+  loc.push(cols);
+  const rowWords=Math.max(1,Math.ceil(cols/16)), row=rowWords*2, strike=new Uint8Array(row*H);
+  all.forEach((g,i)=>{
+    if(!g) return;
+    for(const [x,y] of g.px){ const dx=loc[i]+x-boxes[i].x0, dy=f.ascent-1-y; strike[dy*row+(dx>>3)]|=0x80>>(dx&7); }
+  });
+  const n=all.length, owOff=26+strike.length+(n+1)*2;
+  const ow=all.map((g,i)=>g?(((boxes[i].w?boxes[i].x0-kernMax:0)&0xFF)<<8)|(g.adv&0xFF):0xFFFF);
+  return writeNFNT({fontType:0x9000, firstChar:0, lastChar:255, widMax, kernMax, nDescent:-f.ascent,
+    fRectWidth:reach-kernMax, fRectHeight:H, owTLoc:(owOff-16)/2, ascent:f.ascent, descent:f.descent, leading:f.leading,
+    rowWords, strikeBytes:strike.length, strike, loc, ow, owOff, nGlyphs:n, tail:new Uint8Array([0xFF,0xFF])});
+}
+
+/* A font family record for strikes of one's own, written whole: family
+   `famID`, the association table `entries` ([size, style, NFNT id]), and
+   the family's frame as fractions of an em in 4.12 fixed point from the
+   strike given as `m` (its size, ascent, descent, leading, widMax). The
+   flags are 0x7000, as Apple's Geneva has them, which say the family has
+   no fractional widths and the strikes' own integer widths are the ones to
+   use; there is no width table, no kerning and no style table, and every
+   style's extra width is 0, which is also Geneva's. */
+function fondForStrikes(famID, entries, m){
+  const out=new Uint8Array(52+2+entries.length*6), dv=new DataView(out.buffer);
+  const em=v=>Math.round(v/m.size*4096);
+  dv.setUint16(0,0x7000); dv.setUint16(2,famID); dv.setUint16(4,0); dv.setUint16(6,255);
+  dv.setInt16(8,em(m.ascent)); dv.setInt16(10,-em(m.descent)); dv.setInt16(12,em(m.leading)); dv.setInt16(14,em(m.widMax));
+  dv.setUint16(50,2);
   dv.setUint16(52,entries.length-1);
   entries.forEach(([size,style,id],i)=>{ dv.setUint16(54+i*6,size); dv.setUint16(56+i*6,style); dv.setUint16(58+i*6,id); });
-  if(wt) out.set(wt,52+assocLen);
   return out;
 }
 

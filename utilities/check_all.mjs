@@ -363,7 +363,7 @@ const CHECKS = [
   {page: 'viewer', name: 'spanish', want: [DATA, DATA_RSRC],
    cmd: ['utilities/translate_check.mjs', 'index.html', DATA, DATA_RSRC],
    grep: /\d+ of \d+ highlighted words answer as in English[^\n]*/,
-   expect: '509 of 513 highlighted words answer as in English; 0 pieces untranslated; SPANISH acae36da'},
+   expect: '509 of 513 highlighted words answer as in English; 0 pieces untranslated; SPANISH feb9560f'},
   /* The two StuffIt compressions this page decompresses, 13 and 15, against
      The Unarchiver's own `unar` -- which is the implementation both are ports
      of, so this is a decoder held to its source rather than to a snapshot.

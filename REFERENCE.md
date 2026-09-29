@@ -219,6 +219,7 @@ loads all thirteen, in this order, before the two tiers below:
 | `js/mac-resfork.js` | `openResourceFork(bytes)` → a fork object (not globals, so two forks can be open at once), and since 6 September 2026 `writeResourceFork(resources)` / `resourceForkSpec(fork)` the other way — both of the game's forks re-serialize byte for byte |
 | `js/mac-media.js` | decoded pixels/samples → WAV and hand-written indexed PNG (colour-type 3 + PLTE/tRNS, so the CLUT survives byte for byte) |
 | `js/mac-rsrc-types.js` | decoders for what is *inside* a fork: PICT, snd, NFNT, clut, cicn, crsr, ICN#, STR#, vers, DITL, MENU, cfrg, 68K CODE… |
+| `js/mac-geneva.js` | loaded only when a translation is asked for: Kelsey Higham's Geneva 9 (CC BY 3.0) as base64, `geneva9Bytes()`, and `GENEVA_METRICS`, Kurrajong 9's and 10's advances and bearings (OFL), from which the translation's "Geneva ES" strikes are made at Geneva's widths (NOTICE) |
 | `js/mac-export.js` | store-only ZIP writer + browser download helpers |
 | `js/mac-hfs.js` | `writeHfsImage()` — a classic HFS volume with both forks, for the emulator to mount |
 | `js/mac-stuffit.js` | `parseStuffItArchive()` / `stuffItFork()` — the catalog of a StuffIt 5 or classic `SIT!` archive and any fork in it that is stored or compressed with method 13 or 15, Arsenic (`sit13Decompress`, `arsenicDecompress`, both ported from stuffit-rs); any other method is refused by name |

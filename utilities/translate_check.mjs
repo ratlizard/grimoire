@@ -39,10 +39,10 @@
 // hide exactly the shadowing this looks for, so it is not used here.
 //
 //   5. Argos's family width table gives each added letter its base letter's
-//      width, where the shipped table gives none; and a strike's glyph
-//      copied to a control code (nfntWithCopies) draws the source's pixels
-//      with every other glyph unchanged, on the Seldane strike, since
-//      Geneva, the family the Spanish copies that way, is not here.
+//      width, where the shipped table gives none; and the Geneva strikes
+//      (js/mac-geneva.js) measure as Geneva does at 9 and 10 points and draw
+//      the Geneva 9 font's own letters, where the font's own widths are not
+//      Geneva 10's (the control).
 //
 // WHAT IT CANNOT SEE. Which chain is live when a word is clicked inside a
 // follow-up question: a highlight is resolved against the resource's
@@ -67,7 +67,7 @@ if (!rsrcPath || !existsSync(rsrcPath)) skip("no Cythera Data resource fork");
 
 const {sandbox, ctx} = pageContext(htmlPath, dataPath);
 sandbox.__r = new Uint8Array(readFileSync(rsrcPath));
-new vm.Script(readFileSync(new URL('../js/delv-es.js', import.meta.url), 'utf8'), {filename: 'js/delv-es.js'}).runInContext(ctx);
+for (const f of ['js/mac-geneva.js', 'js/delv-es.js']) new vm.Script(readFileSync(new URL('../' + f, import.meta.url), 'utf8'), {filename: f}).runInContext(ctx);
 
 const got = vm.runInContext(`(() => {
   const T = DELV_TRANSLATION_ES;
@@ -220,33 +220,48 @@ const got = vm.runInContext(`(() => {
     }
   }
 
-  // A strike's glyph copied to a control code (nfntWithCopies), on the one
-  // strike family the file carries, Seldane: the code draws the source's
-  // pixels at its width, every other glyph is unchanged, and the shipped
-  // strike's code 1 is not the source's, which is the control. Geneva, the
-  // family the Spanish copies this way, is Apple's and is not here.
-  const glyphsOf = d => {
-    const f = nfntSpec(d), row = f.rowWords * 2, out = [];
-    for (let g = 0; g < f.nGlyphs; g++) {
-      let px = '';
-      for (let y = 0; y < f.fRectHeight; y++) for (let x = f.loc[g]; x < f.loc[g + 1]; x++) px += (f.strike[y * row + (x >> 3)] >> (7 - (x & 7))) & 1;
-      out.push(px + '/' + f.ow[g]);
-    }
-    return { f, out };
-  };
-  const seld = resourceForkSpec(openResourceFork(__r)).resources.find(x => x.type === 'NFNT' && x.id === 25740);
-  // Its glyphs are at codes of their own, so the source is the highest code
-  // that has one and the target code 1.
-  const A = glyphsOf(seld.data), to = 1 - A.f.firstChar;
-  let from = A.f.lastChar - A.f.firstChar; while (from > to && A.f.ow[from] === 0xFFFF) from--;
-  const B = glyphsOf(nfntWithCopies(seld.data, [[1, from + A.f.firstChar]]));
+  // The Geneva strikes: each measures as Geneva does at its size (the
+  // printable ASCII advances GENEVA_METRICS gives, an accented letter its
+  // plain letter's, the frame ten above and two below with the leading),
+  // and draws Geneva 9's own letters, its pixels moved and never changed.
+  // The control is the font's own widths, which are not Geneva 10's, so a
+  // strike that kept them would fail here.
+  const S = T.strikes, outSpec = resourceForkSpec(openResourceFork(r.rsrc));
   const strikeFails = [];
-  const strikeFrom = from + A.f.firstChar;
-  B.out.forEach((g, i) => { const want = A.out[i === to ? from : i]; if (g !== want) strikeFails.push('glyph ' + i); });
-  const strikeControl = A.out[to] !== A.out[from];
+  const ttf = geneva9Bytes(), outl = sfntGlyphOutlines(ttf), gmap = sfntMacRomanGlyphs(ttf), unit = outl.upem / 16;
+  const key = px => { if (!px.length) return ''; const x0 = Math.min(...px.map(q => q[0])); return px.map(([x, y]) => (x - x0) + ',' + y).sort().join(' '); };
+  const drawn = (f, c) => {
+    const px = [], row = f.rowWords * 2, g = c - f.firstChar, off = (f.ow[g] >> 8) + f.kernMax;
+    for (let y = 0; y < f.fRectHeight; y++) for (let x = f.loc[g]; x < f.loc[g + 1]; x++)
+      if ((f.strike[y * row + (x >> 3)] >> (7 - (x & 7))) & 1) px.push([off + x - f.loc[g], f.ascent - 1 - y]);
+    return px;
+  };
+  let strikeControl = 0, strikeGlyphs = 0;
+  for (const size of Object.keys(S.nfnt).map(Number)) {
+    const res = outSpec.resources.find(x => x.type === 'NFNT' && x.id === S.nfnt[size]);
+    if (!res) { strikeFails.push('no NFNT ' + S.nfnt[size]); continue; }
+    const f = nfntSpec(res.data), M = GENEVA_METRICS[size];
+    if (f.ascent !== M.ascent || f.descent !== M.descent || f.leading !== M.leading || f.fRectHeight !== M.ascent + M.descent)
+      strikeFails.push(size + ' pt: the frame is ' + [f.ascent, f.descent, f.leading, f.fRectHeight].join('/'));
+    for (let c = 0x20; c < 0x7F; c++) {
+      const adv = f.ow[c - f.firstChar] & 0xFF, own = Math.round(outl.glyphs[gmap[c]].adv / unit);
+      if (adv !== M.adv[c - 0x20]) strikeFails.push(size + ' pt ' + JSON.stringify(String.fromCharCode(c)) + ' is ' + adv + ' wide, Geneva ' + M.adv[c - 0x20]);
+      if (own !== M.adv[c - 0x20]) strikeControl++;
+      if (key(drawn(f, c)) !== key(sfntPixels(outl.glyphs[gmap[c]], unit))) strikeFails.push(size + ' pt ' + JSON.stringify(String.fromCharCode(c)) + " is not the font's own letter");
+      strikeGlyphs++;
+    }
+    for (const [ch, base] of Object.entries(BASE)) for (const code of [TRANSLATE_CODES[ch], TRANSLATE_MACROMAN[ch]]) {
+      const adv = f.ow[code - f.firstChar] & 0xFF, want = M.adv[base.charCodeAt(0) - 0x20];
+      if (adv !== want) strikeFails.push(size + ' pt ' + ch + ' at ' + code + ' is ' + adv + ' wide, ' + base + ' is ' + want);
+    }
+  }
+  for (const id of S.styles) {
+    const t = outSpec.resources.find(x => x.type === 'TxSt' && x.id === id);
+    if (!t || decodeMacRoman(t.data.subarray(3, 3 + t.data[2])) !== S.name) strikeFails.push('TxSt ' + id + ' is not in ' + S.name);
+  }
 
   const hash = (() => { let h = 0x811C9DC5; for (const part of [r.data, r.rsrc]) for (const c of part) { h ^= c; h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); })();
-  return { ms, fails, notes, words, reached, control, disasm, hash, fontNote, widthFails, widthControl, strikeFails, strikeControl, strikeGlyphs: B.out.length, strikeFrom,
+  return { ms, fails, notes, words, reached, control, disasm, hash, fontNote, widthFails, widthControl, strikeFails, strikeControl, strikeGlyphs,
            done: r.report.done, keys: r.report.keys, missing: r.report.missing.length, unused: r.report.unused.map(u => (typeof u.resid === 'number' ? hex(u.resid) : u.resid) + ' ' + u.hash) };
 })()`, ctx);
 
@@ -263,9 +278,9 @@ ok('face', got.fontNote);
 if (got.widthFails.length) fail('family widths', got.widthFails.join('; '));
 else if (got.widthControl !== 32) fail('family widths', 'the shipped FOND already has the width at ' + (32 - got.widthControl) + ' of the 32 codes, so the control proves nothing');
 else ok('family widths', 'the 16 letters at their 32 codes take their base letter\'s width; the shipped table has none of them');
-if (got.strikeFails.length) fail('strike copy', got.strikeFails.join(', ') + ' differ');
-else if (!got.strikeControl) fail('strike copy', "the shipped strike's code 1 is already the source glyph, so the control proves nothing");
-else ok('strike copy', `Seldane's glyph at ${got.strikeFrom} copied to code 1, the other ${got.strikeGlyphs - 1} glyphs as they were`);
+if (got.strikeFails.length) fail('Geneva strikes', got.strikeFails.slice(0, 12).join('; '));
+else if (!got.strikeControl) fail('Geneva strikes', "the font's own widths are already Geneva's, so the control proves nothing");
+else ok('Geneva strikes', `${got.strikeGlyphs} ASCII glyphs at Geneva's widths and frame, each the font's own letter, the accents at their letters' widths; the font's own widths differ at ${got.strikeControl}`);
 for (const f of got.fails) fail('conversation', f);
 for (const n of got.notes) console.log('  note ' + n);
 if (!got.fails.length) ok('highlights', `${got.reached} of ${got.words} highlighted words reach the English word's answer`);

@@ -80,6 +80,23 @@ function analyze(path) {
     .map(s => s.name).join(' ');
   const js = scripts.join('\n;\n');
   r.stats.jsBytes = js.length;
+  // A script the page adds itself when it is first wanted, named by its path
+  // in the page's code and not among its <script> tags (js/delv-es.js, the
+  // Spanish table, and js/mac-geneva.js, the Geneva its strikes are made
+  // from, which js/page-mechanics.js adds on the Patches section's button):
+  // what it declares counts as declared for 4b, since the page's own code
+  // calls into it once it is loaded. reach_check.mjs follows the same paths.
+  let wantedJs = '';
+  {
+    const have = new Set(scriptNames);
+    const base = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
+    for (const m of js.matchAll(/['"](js\/[\w.-]+\.js)['"]/g)) {
+      if (have.has(m[1])) continue;
+      have.add(m[1]);
+      try { wantedJs += '\n;\n' + readFileSync(base + m[1], 'utf8'); }
+      catch (e) { r.errors.push('the page loads ' + m[1] + ', which is not here'); }
+    }
+  }
   r.stats.htmlBytes = html.length;
   r.stats.lines = html.split('\n').length;
 
@@ -164,7 +181,7 @@ function analyze(path) {
   // is out of scope at the call site, and it does catch the case that actually
   // happened, which is a function that exists nowhere at all.
   {
-    const src = stripJsText(js);
+    const src = stripJsText(js + wantedJs);
     const bound = new Set();
     const add = m => { if (m) bound.add(m); };
     for (const m of src.matchAll(/\bfunction\s*\*?\s*([A-Za-z_$][\w$]*)/g)) add(m[1]);

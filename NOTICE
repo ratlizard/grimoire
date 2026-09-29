@@ -80,6 +80,23 @@ is what Cythera's own data file names for its Labels, Stats and Text styles.
 Geneva itself is Apple's; this is a clone of the bitmap, and Apple's own
 TrueType Geneva is not here.
 
+**`js/mac-geneva.js`** carries two things that are not this repository's.
+`GENEVA9_TTF` is **Geneva 9** by **Kelsey Higham**
+(<https://fontstruct.com/fontstructions/show/349277>), the ancestor of Geneva
+9.1 above, as its TrueType download, unmodified and encoded as base64 so a page
+opened from a file can read it; it is licensed under the **Creative Commons
+Attribution 3.0** licence, and its `license.txt` and the readme FontStruct
+requires to travel with it are beside the fonts as `res/Geneva9-LICENSE.txt`
+and `res/Geneva9-README.txt`. `GENEVA_METRICS` is the advances and left
+bearings of **Kurrajong 9** and **Kurrajong 10**, Copyright (c) 2026 **Ben
+Letchford**, licensed under the **SIL Open Font License 1.1** with the Reserved
+Font Name "Systemless"; the numbers only, none of Kurrajong's pixels, and the
+licence is `res/Kurrajong-OFL.txt`. From the two, the Spanish Cythera Data the
+Patches section writes carries a font of its own, "Geneva ES": Geneva 9's
+letters, with its accented letters made from its plain ones, at Kurrajong's
+widths. That font is written into the visitor's own file and is not in this
+repository.
+
 **`delvmod/`** is a submodule, so this repository stores only a pointer to it.
 It is an independent work by **Bryce Schroeder**
 (<https://github.com/BryceSchroeder/delvmod>), licensed **GPLv3**, and is used
