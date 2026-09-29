@@ -1918,6 +1918,91 @@ function writeNFNT(f){
   return out;
 }
 
+/* A strike with some codes given another code's glyph: `copies` is a list of
+   [to, from] character codes, and each `to` draws exactly what `from` does,
+   its image, its offset and its width.
+
+   Written for a translation whose text cannot carry a byte of 0x80 up and so
+   puts its accented letters at control codes (js/delv-translate.js): a system
+   font already has "á" at its Mac Roman byte, and copying that glyph to the
+   control code is all the letter needs, drawn by the font's own designer
+   rather than composed here. Nothing is drawn, and nothing but the copied
+   codes changes: the strike is laid out again glyph by glyph, every glyph's
+   columns in code order as the format has them, so a copy widens the image
+   by its own columns and every other glyph keeps its pixels and its width.
+
+   The per-glyph tables after the offset/width table go the same way, the
+   glyph-width table (fontType bit 1) before the image-height table (bit 0),
+   as Inside Macintosh: Text lays them out; Geneva's 9- and 12-point strikes
+   carry the height table. A strike whose offset/width table would sit more
+   than 0xFFFF words from `owTLoc` needs its high word in nDescent, which no
+   strike this is used on comes near, so it is refused rather than written. */
+function nfntWithCopies(data, copies){
+  const f=nfntSpec(data);
+  const n=f.nGlyphs, src=[];
+  for(let g=0;g<n;g++) src.push(g);
+  for(const [to,from] of copies){
+    for(const c of [to,from]) if(c<f.firstChar||c>f.lastChar) throw new Error('the strike has no code '+c+' (it runs from '+f.firstChar+' to '+f.lastChar+')');
+    if(f.ow[from-f.firstChar]===0xFFFF) throw new Error('the strike has no glyph at code '+from);
+    src[to-f.firstChar]=from-f.firstChar;
+  }
+  let cols=0; const loc=[];
+  for(const g of src){ loc.push(cols); cols+=f.loc[g+1]-f.loc[g]; }
+  loc.push(cols);
+  const rowWords=Math.max(1,Math.ceil(cols/16)), rowBytes=rowWords*2, oldRow=f.rowWords*2;
+  const strike=new Uint8Array(rowBytes*f.fRectHeight);
+  src.forEach((g,i)=>{
+    const x0=f.loc[g], w=f.loc[g+1]-x0, nx=loc[i];
+    for(let y=0;y<f.fRectHeight;y++) for(let x=0;x<w;x++){
+      const sx=x0+x;
+      if(f.strike[y*oldRow+(sx>>3)]&(0x80>>(sx&7))){ const dx=nx+x; strike[y*rowBytes+(dx>>3)]|=0x80>>(dx&7); }
+    }
+  });
+  const strikeBytes=strike.length;
+  const owOff=26+strikeBytes+(n+1)*2, owTLoc=(owOff-16)/2;
+  if(owTLoc>0xFFFF) throw new Error('the strike is too large to lay out again here');
+  const tables=((f.fontType&2)?1:0)+((f.fontType&1)?1:0);
+  if(f.tail.length<tables*n*2) throw new Error('the strike says it has '+tables+' glyph tables after the offset/width table, and they are not there');
+  const tail=new Uint8Array(f.tail.length);
+  tail.set(f.tail);
+  for(let t=0;t<tables;t++) src.forEach((g,i)=>{ tail[t*n*2+i*2]=f.tail[t*n*2+g*2]; tail[t*n*2+i*2+1]=f.tail[t*n*2+g*2+1]; });
+  return writeNFNT(Object.assign({},f,{rowWords,strikeBytes,strike,loc,ow:src.map(g=>f.ow[g]),owTLoc,owOff,tail}));
+}
+
+/* A font family record for strikes of one's own: `template` is a FOND whose
+   family metrics and flags are kept, `famID` the new family's number, and
+   `entries` the [size, style, NFNT id] association table. Its family
+   width table is carried over when it has one, with `widths` ({code: the
+   code whose width it takes}) applied, so a copied glyph's width is the
+   family's too; the kerning and style-mapping tables are left out, the
+   first because a bitmap strike carries its own widths and QuickDraw
+   kerns nothing, the second because it names PostScript faces for a
+   printer, which a strike of a screen font is not sent to. */
+function fondForStrikes(template, famID, entries, widths){
+  const wOff=u32be(template,16), first=u16be(template,4), last=u16be(template,6);
+  let wt=null;
+  if(wOff){
+    const nw=u16be(template,wOff)+1, per=2+(last-first+3)*2;
+    wt=template.slice(wOff,wOff+2+nw*per);
+    for(let k=0;k<nw;k++){
+      const base=2+k*per+2;
+      for(const [to,from] of Object.entries(widths||{})){
+        const t=base+(to-first)*2, s=base+(from-first)*2;
+        wt[t]=template[wOff+s]; wt[t+1]=template[wOff+s+1];
+      }
+    }
+  }
+  const assocLen=2+entries.length*6;
+  const out=new Uint8Array(52+assocLen+(wt?wt.length:0)), dv=new DataView(out.buffer);
+  out.set(template.subarray(0,52));
+  dv.setUint16(2,famID);
+  dv.setUint32(16,wt?52+assocLen:0); dv.setUint32(20,0); dv.setUint32(24,0);
+  dv.setUint16(52,entries.length-1);
+  entries.forEach(([size,style,id],i)=>{ dv.setUint16(54+i*6,size); dv.setUint16(56+i*6,style); dv.setUint16(58+i*6,id); });
+  if(wt) out.set(wt,52+assocLen);
+  return out;
+}
+
 /* The strike as a TrueType font, so it can leave here.
 
    `writeNFNT` puts a modern face into the game. This is the other direction

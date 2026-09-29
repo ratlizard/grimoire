@@ -45,6 +45,12 @@
      list is fatal, GRIMOIRE-NOTES under grimoire/fixable-bugs-1adxav), so a
      word typed with its accent is met only when the accent comes late
      enough: "adi" answers "adiós" and "adios", "faci" answers "facil" only.
+   - Five English lines break the line before their closing quote
+     (Alaric's name, and the four dismissals of the Seldane in 0x1878 and
+     0x187A to 0x187C), so the quote stands alone on a line of its own; no
+     other spoken line has a break inside its quotes, and the same
+     resource's farewell has none, so it is a slip and the Spanish closes
+     the quote on the line (GRIMOIRE-NOTES, grimoire/spanish-033k7i).
    - Only the characters Argos A Nouveau carries, with the letters this adds:
      a-z, A-Z, 0-9, space and ! " # $ & ' ( ) , - . : ; = ? and á é í ó ú ñ
      ü ¿ ¡ Á É Í Ó Ú Ñ Ü. No % (the menus' format), no *, @ or # in running
@@ -60,10 +66,14 @@ const DELV_TRANSLATION_ES = {
   name: 'Español',
   font: typeof translateSpanishGlyphs === 'function' ? translateSpanishGlyphs : null,
 
-  // The message pane, TxSt 132 "Text", is Geneva 10, which has none of the
-  // letters at the codes the script text carries them at; set in the
-  // conversation face, with its new letters, it draws them.
-  styles: { 132: { font: 'ArgosANouveau', size: 12 } },
+  // The styles the game draws in Geneva: the message pane (TxSt 132, 10
+  // point), the labels and the stats (130 and 131, 9 point). Geneva has
+  // the accented letters at their Mac Roman bytes and none at the codes the
+  // script text carries them at, so given a Geneva, its strikes are copied
+  // into the data file as a family of their own with each accented letter
+  // at its code as well, and the three styles are set in it; without one
+  // they stay Geneva (js/delv-translate.js, translateAddStrikes).
+  strikes: { family: 'Geneva', name: 'Geneva ES', id: 1047, nfnt: { 9: 25809, 10: 25810 }, styles: [130, 131, 132] },
 
   // The data file's STR# resources, by the id in four hex digits, as every
   // other section keys a resource, and the hash of each English string.
@@ -156,7 +166,7 @@ const DELV_TRANSLATION_ES = {
       '0826a603': '"Ah, bien, ya estás en pie.  Temíamos que hubieras sufrido algún daño."*"Supongo que debería explicarte lo ocurrido.  Me llamo Alaric, y estás en la tierra de @Cythera."*"Te trajimos aquí en un último y desesperado intento de salvar a Cythera y a su soberano del caos y la locura."*"Yo soy ese soberano, y tengo un @lazo especial con la tierra y con las gentes de Cythera.  Durante más de doscientos años he usado mi magia para mantenerla próspera."*"Por desgracia, en los últimos años mi poder ha menguado, y con él Cythera ha empezado a hundirse en el caos."*"Es como si ese lazo se estuviera disolviendo, como si la tierra cambiara de algún modo.  No lo entiendo."*"Cuanto más impotente me vuelvo, más me frustra ver cómo todo se me escapa, como al despertar de un sueño..."*"He confiado en que los hados convocaran a un forastero, de la mismísima @Mater Theia, pues solo un forastero podrá ver a través de esta nube que me ciega."*"Tú, por supuesto, eres ese forastero.  No creas que lo hice por capricho: me ha costado casi todo el poder que me quedaba."*"Debo confiar en que me ayudes.  Siento el peligro que esto te supone, pero eres mi última esperanza, y la de Cythera."',
       'b89df01a': 'Ayuda',
       '1e127109': 'Entrenar',
-      'c29c2832': '"Soy Alaric, ¿te lo había dicho ya?  Perdona, qué descortés por mi parte.\n"',
+      'c29c2832': '"Soy Alaric, ¿te lo había dicho ya?  Perdona, qué descortés por mi parte."',
       '9ff3e30e': '"Soy el guardián de la tierra de Cythera,',
       '556486fc': ' gracias a ti."',
       'c017d43e': ' aunque a veces me siento como un extraño."',
@@ -4016,7 +4026,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   '1878': {
     '471f63b2': '"¡Es asombroso!  ¡Es un Seldane vivo!  ¡Nunca pensé que llegaría a conocer a uno!"*',
     '39ef3e85': '"¡Llevas la @esencia de la corrupción!  ¡Cuidado!"*',
-    '4c937b88': '"No: tus caminos no son puros.  Tu misma presencia nos ofende.  Vete.\n"',
+    '4c937b88': '"No: tus caminos no son puros.  Tu misma presencia nos ofende.  Vete."',
     '3120b144': '"Como nos has ayudado, así te ayudamos.  Mucho hay que saber de los @males de Alaric."',
     '2e8aa512': '"A su debido tiempo has venido a nosotros.  Somos Sabinate, heredera de los @Seldane."',
     'ce870a96': '"Somos Sabinate, heredera de los @Seldane."',
@@ -4075,7 +4085,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   // Unhayt, Doorkeeper of the Ayrit
   '187A': {
     'c118995f': '=',
-    '8cc85b62': '"Has detenido el fluir del agua.  Vete.\n"',
+    '8cc85b62': '"Has detenido el fluir del agua.  Vete."',
     '55fa9bf8': '"Que la Puerta de la Verdad nunca esté atrancada."',
     '8fe499ca': '"Somos Unhayt"',
     '991b59c1': '"Somos la Guardiana de la Puerta del Ayrit."',
@@ -4093,7 +4103,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   // Seqedher and Uset, of the Ayrit
   '187B': {
     '3aa7b374': '=',
-    'c1e929c9': '"Tus oídos están cerrados a las palabras de la verdad.  Vete.\n"',
+    'c1e929c9': '"Tus oídos están cerrados a las palabras de la verdad.  Vete."',
     '27f23b30': '"Somos Seqedher."',
     'ab378db7': '"Somos la Vigía del Ayrit."',
     'bd9573fe': '"Ese está más allá de la Verdad.  Ese ha elegido el camino del @Enemigo."',
@@ -4101,7 +4111,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     '9cbd5b6f': '"La Vigía de la Verdad te ve."',
   },
   '187C': {
-    '0ad57d92': '"Tu corazón ha sido pesado y hallado falto.  Vete.\n"',
+    '0ad57d92': '"Tu corazón ha sido pesado y hallado falto.  Vete."',
     'd661781a': '"Somos Uset"',
     'e98842af': '"Que la Verdad sea proclamada ante ti."',
     '173c4c8e': '"Hasta la tercera generación está ese perdido para nosotros.  Ese, el hijo de ese, y el hijo del hijo."*"Así sufre el mundo."',

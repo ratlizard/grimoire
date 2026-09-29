@@ -38,6 +38,12 @@
 // also matches the other way round, for the four-letter stubs; that would
 // hide exactly the shadowing this looks for, so it is not used here.
 //
+//   5. Argos's family width table gives each added letter its base letter's
+//      width, where the shipped table gives none; and a strike's glyph
+//      copied to a control code (nfntWithCopies) draws the source's pixels
+//      with every other glyph unchanged, on the Seldane strike, since
+//      Geneva, the family the Spanish copies that way, is not here.
+//
 // WHAT IT CANNOT SEE. Which chain is live when a word is clicked inside a
 // follow-up question: a highlight is resolved against the resource's
 // top-level chains (those no response holds) and, when it sits inside a
@@ -191,8 +197,56 @@ const got = vm.runInContext(`(() => {
     const f = r.log.find(l => /^sfnt /.test(l)); fontNote = f || 'no sfnt changed';
   } catch (e) { quiet(e); }
 
+  // The family widths: Argos's FOND gives each added letter the width of
+  // the letter it is made from (the glyphs keep their base's advance), and
+  // the shipped FOND has none at those codes, which is the control: that is
+  // the table that measured every accent as nothing and ran lines past the
+  // conversation box.
+  const widthsOf = rs => {
+    const sp = resourceForkSpec(openResourceFork(rs)), fo = sp.resources.find(x => x.type === 'FOND' && x.id === 1046);
+    if (!fo) return null;
+    const d = fo.data, w = u32be(d, 16), first = u16be(d, 4);
+    return c => u16be(d, w + 4 + (c - first) * 2);
+  };
+  const BASE = { 'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ñ': 'n', 'ü': 'u', '¿': '?', '¡': '!', 'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ñ': 'N', 'Ü': 'U' };
+  const wEn = widthsOf(__r), wEs = widthsOf(r.rsrc);
+  const widthFails = [];
+  let widthControl = 0;
+  for (const [ch, base] of Object.entries(BASE)) {
+    const want = wEn(base.charCodeAt(0));
+    for (const code of [TRANSLATE_CODES[ch], TRANSLATE_MACROMAN[ch]]) {
+      if (wEs(code) !== want) widthFails.push(ch + ' at ' + code + ' is ' + wEs(code) + ', ' + base + ' is ' + want);
+      if (wEn(code) !== want) widthControl++;
+    }
+  }
+
+  // A strike's glyph copied to a control code (nfntWithCopies), on the one
+  // strike family the file carries, Seldane: the code draws the source's
+  // pixels at its width, every other glyph is unchanged, and the shipped
+  // strike's code 1 is not the source's, which is the control. Geneva, the
+  // family the Spanish copies this way, is Apple's and is not here.
+  const glyphsOf = d => {
+    const f = nfntSpec(d), row = f.rowWords * 2, out = [];
+    for (let g = 0; g < f.nGlyphs; g++) {
+      let px = '';
+      for (let y = 0; y < f.fRectHeight; y++) for (let x = f.loc[g]; x < f.loc[g + 1]; x++) px += (f.strike[y * row + (x >> 3)] >> (7 - (x & 7))) & 1;
+      out.push(px + '/' + f.ow[g]);
+    }
+    return { f, out };
+  };
+  const seld = resourceForkSpec(openResourceFork(__r)).resources.find(x => x.type === 'NFNT' && x.id === 25740);
+  // Its glyphs are at codes of their own, so the source is the highest code
+  // that has one and the target code 1.
+  const A = glyphsOf(seld.data), to = 1 - A.f.firstChar;
+  let from = A.f.lastChar - A.f.firstChar; while (from > to && A.f.ow[from] === 0xFFFF) from--;
+  const B = glyphsOf(nfntWithCopies(seld.data, [[1, from + A.f.firstChar]]));
+  const strikeFails = [];
+  const strikeFrom = from + A.f.firstChar;
+  B.out.forEach((g, i) => { const want = A.out[i === to ? from : i]; if (g !== want) strikeFails.push('glyph ' + i); });
+  const strikeControl = A.out[to] !== A.out[from];
+
   const hash = (() => { let h = 0x811C9DC5; for (const part of [r.data, r.rsrc]) for (const c of part) { h ^= c; h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); })();
-  return { ms, fails, notes, words, reached, control, disasm, hash, fontNote,
+  return { ms, fails, notes, words, reached, control, disasm, hash, fontNote, widthFails, widthControl, strikeFails, strikeControl, strikeGlyphs: B.out.length, strikeFrom,
            done: r.report.done, keys: r.report.keys, missing: r.report.missing.length, unused: r.report.unused.map(u => (typeof u.resid === 'number' ? hex(u.resid) : u.resid) + ' ' + u.hash) };
 })()`, ctx);
 
@@ -206,6 +260,12 @@ if (got.unused.length) fail('stale entries', got.unused.join(', '));
 else ok('stale entries', 'none');
 ok('disassembly', `${got.disasm} script resources`);
 ok('face', got.fontNote);
+if (got.widthFails.length) fail('family widths', got.widthFails.join('; '));
+else if (got.widthControl !== 32) fail('family widths', 'the shipped FOND already has the width at ' + (32 - got.widthControl) + ' of the 32 codes, so the control proves nothing');
+else ok('family widths', 'the 16 letters at their 32 codes take their base letter\'s width; the shipped table has none of them');
+if (got.strikeFails.length) fail('strike copy', got.strikeFails.join(', ') + ' differ');
+else if (!got.strikeControl) fail('strike copy', "the shipped strike's code 1 is already the source glyph, so the control proves nothing");
+else ok('strike copy', `Seldane's glyph at ${got.strikeFrom} copied to code 1, the other ${got.strikeGlyphs - 1} glyphs as they were`);
 for (const f of got.fails) fail('conversation', f);
 for (const n of got.notes) console.log('  note ' + n);
 if (!got.fails.length) ok('highlights', `${got.reached} of ${got.words} highlighted words reach the English word's answer`);

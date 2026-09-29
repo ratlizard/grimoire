@@ -391,9 +391,9 @@ function translateWriteStrList(list) {
 // (a resource-fork string is not script text, so an accent is its own byte
 // there); a TxSt given a new face or size; and the conversation face with
 // the letters the translation needs (T.font says which, and how).
-function translateResourceFork(rsrc, T, report, log) {
+function translateResourceFork(rsrc, T, report, log, strikes) {
   const spec = resourceForkSpec(openResourceFork(rsrc));
-  let changed = false;
+  let changed = false, widths = null, sfntId = null;
   for (const r of spec.resources) {
     if (r.type === 'STR#') {
       const list = translateReadStrList(r.data);
@@ -423,15 +423,105 @@ function translateResourceFork(rsrc, T, report, log) {
     } else if (r.type === 'sfnt' && T.font) {
       const got = T.font(r.data);
       r.data = got.bytes; changed = true;
+      if (got.widths) { widths = got.widths; sfntId = r.id; }
       log.push('sfnt ' + r.id + ' (' + (r.name || '') + '): ' + got.added + ' glyphs added, ' + got.mapped + ' codes mapped');
     }
+  }
+  if (widths) {
+    const n = translateFamilyWidths(spec, sfntId, widths);
+    if (n) log.push('FOND ' + n + ': the family widths of the added letters');
+  }
+  if (T.strikes) {
+    if (strikes && strikes.length) { translateAddStrikes(spec, strikes, T.strikes, log); changed = true; }
+    else log.push('TxSt ' + T.strikes.styles.join(', ') + ': left in ' + T.strikes.family + ', which was not given, so an accent there draws as the missing symbol');
   }
   return changed ? writeResourceFork(spec) : rsrc;
 }
 
+/* The family width table of the conversation face. Argos A Nouveau's FOND
+   (1046) has one and its flags clear, so the Font Manager takes a
+   character's width from it, and the letters added to the sfnt had none
+   there: every accented letter measured nothing while it drew as wide as
+   its glyph, so a line with accents was measured short and ran past the
+   right edge of the conversation box ("Perdona, qu" under the pause
+   button, the maintainer's screenshot of 29 September 2026). A width is
+   a fraction of an em in 4.12 fixed point; every table the FOND holds
+   (one per style) takes it. */
+function translateFamilyWidths(spec, sfntId, widths) {
+  for (const r of spec.resources) {
+    if (r.type !== 'FOND' || r.data.length < 54) continue;
+    const d = r.data, n = u16be(d, 52) + 1;
+    let ours = false;
+    for (let i = 0; i < n; i++) if (u16be(d, 54 + i * 6) === 0 && u16be(d, 58 + i * 6) === sfntId) ours = true;
+    const wOff = u32be(d, 16);
+    if (!ours || !wOff) continue;
+    const first = u16be(d, 4), last = u16be(d, 6), nw = u16be(d, wOff) + 1, per = 2 + (last - first + 3) * 2;
+    const out = d.slice();
+    for (let k = 0; k < nw; k++)
+      for (const [code, em] of Object.entries(widths)) {
+        if (code < first || code > last) continue;
+        const at = wOff + 2 + k * per + 2 + (code - first) * 2, v = Math.round(em * 4096);
+        out[at] = (v >> 8) & 0xFF; out[at + 1] = v & 0xFF;
+      }
+    r.data = out;
+    return r.id;
+  }
+  return null;
+}
+
+/* The styles drawn in Geneva, with its accented letters. The message pane
+   (TxSt 132 "Text", Geneva 10), the labels and the stats (130 and 131,
+   Geneva 9) name their face, and Geneva has "á" at its Mac Roman byte
+   and nothing at the control code the script text carries it at, so
+   those styles drew a box for every accent. Setting them in Argos, as the
+   first build did, put the conversation face where the game has none
+   (the maintainer: "Argos is being used where it shouldn't be"), and
+   Argos has no ">", which the message line's "> Talk to " begins with.
+
+   So the family is copied in under a name of its own, from a resource
+   fork holding it that the caller supplies (a font suitcase: Geneva is
+   Apple's and is not in Cythera, nor in this repository), each strike
+   with every accented glyph copied to its code as well
+   (nfntWithCopies), and the styles are set in it at their own sizes.
+   The Resource Manager finds a font in the data file's fork as it finds
+   Argos there. The family's number and its strikes' are ones no font on
+   Infinite Mac's System 7.6 or Mac OS 9.0 disk uses, since a font in the
+   data file's fork would hide a system font of the same number while the
+   game runs. */
+function translateAddStrikes(spec, forkBytes, S, log) {
+  const src = openResourceFork(forkBytes);
+  const fonds = (src.resourcesByType['FOND'] || []).filter(e => e.name === S.family);
+  if (!fonds.length) throw new Error('the font file given has no ' + S.family + ' family');
+  const fond = src.dataOf('FOND', fonds[0]);
+  const n = u16be(fond, 52) + 1, bySize = {};
+  for (let i = 0; i < n; i++) { const size = u16be(fond, 54 + i * 6), style = u16be(fond, 56 + i * 6), id = u16be(fond, 58 + i * 6); if (size && style === 0) bySize[size] = id; }
+  const copies = Object.keys(TRANSLATE_CODES).map(ch => [TRANSLATE_CODES[ch], TRANSLATE_MACROMAN[ch]]);
+  const entries = [];
+  for (const size of Object.keys(S.nfnt).map(Number).sort((a, b) => a - b)) {
+    const id = bySize[size];
+    const e = id !== undefined && ((src.resourcesByType['NFNT'] || []).find(x => x.id === id) || (src.resourcesByType['FONT'] || []).find(x => x.id === id));
+    if (!e) throw new Error('the ' + S.family + ' given has no ' + size + '-point strike');
+    const type = (src.resourcesByType['NFNT'] || []).includes(e) ? 'NFNT' : 'FONT';
+    spec.resources.push({ type: 'NFNT', id: S.nfnt[size], name: null, attrs: e.attrs, data: nfntWithCopies(src.dataOf(type, e), copies) });
+    entries.push([size, 0, S.nfnt[size]]);
+  }
+  const widths = {}; for (const [to, from] of copies) widths[to] = from;
+  spec.resources.push({ type: 'FOND', id: S.id, name: S.name, attrs: fonds[0].attrs, data: fondForStrikes(fond, S.id, entries, widths) });
+  log.push('FOND ' + S.id + ' (' + S.name + '): ' + S.family + ' at ' + entries.map(e => e[0]).join(' and ') + ' points, the accented letters also at their codes');
+  const name = encodeMacRoman(S.name);
+  for (const r of spec.resources) {
+    if (r.type !== 'TxSt' || !S.styles.includes(r.id)) continue;
+    const out = new Uint8Array(3 + name.length);
+    out[0] = r.data[0]; out[1] = r.data[1]; out[2] = name.length; out.set(name, 3);
+    r.data = out;
+    log.push('TxSt ' + r.id + ' (' + (r.name || '') + '): ' + S.name + ' ' + out[0]);
+  }
+}
+
 /* ---- the whole file -------------------------------------------------------- */
 
-function translateCytheraData(data, rsrc, T) {
+function translateCytheraData(data, rsrc, T, opts) {
+  opts = opts || {};
   const report = { done: 0, keys: 0, missing: [], unused: [] };
   const keepSyms = DVM_RESOURCE_SYMBOLS, keepCtx = dvmContextResid;
   try {
@@ -452,7 +542,7 @@ function translateCytheraData(data, rsrc, T) {
     }
     const done = finishDataPatch(s);
     const log = done.log.slice();
-    const outRsrc = rsrc && rsrc.length ? translateResourceFork(rsrc, T, report, log) : rsrc;
+    const outRsrc = rsrc && rsrc.length ? translateResourceFork(rsrc, T, report, log, opts.strikes) : rsrc;
     return { data: writeDelverArchive(done.spec), rsrc: outRsrc, log, report, changed: done.changed };
   } finally {
     dvmSetResourceSymbols(keepSyms);
@@ -527,5 +617,10 @@ function translateSpanishGlyphs(sfnt) {
   const order = Object.keys(TRANSLATE_CODES);
   const codes = {};
   order.forEach((ch, i) => { codes[TRANSLATE_CODES[ch]] = i; codes[TRANSLATE_MACROMAN[ch]] = i; });
-  return sfntWithGlyphs(sfnt, order.map(ch => made[ch]), codes);
+  const got = sfntWithGlyphs(sfnt, order.map(ch => made[ch]), codes);
+  // Each added letter's width as a fraction of the em, at both its codes,
+  // for the family width table (translateFamilyWidths).
+  got.widths = {};
+  order.forEach(ch => { got.widths[TRANSLATE_CODES[ch]] = made[ch].adv / upem; got.widths[TRANSLATE_MACROMAN[ch]] = made[ch].adv / upem; });
+  return got;
 }
