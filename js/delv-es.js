@@ -4477,3 +4477,86 @@ Object.assign(DELV_TRANSLATION_ES.text['*'], {
   '7d8e1a8e': 'El olor que notaste en la zona parece salir de este edificio.  Entre el olor y las manchas por todas partes, parece que has encontrado la vivienda de un curtidor.\n',
   '1d60b9ea': 'El olor que sale de esta sala es casi insoportable.  Por algún motivo, una especie de hedor y una humedad asombrosamente alta se combinan en algo casi inaguantable.  Parece que aquí murió algo hace mucho tiempo y no ha dejado de pudrirse desde entonces.\n',
 });
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  'afbbe231': 'Estás en una vivienda pequeña, decorada con gusto, pero la capa de polvo indica que nadie ha estado aquí últimamente.\n',
+  '64735947': '"Aquí es donde vive mi hermana Larisa, cuando no está explorando.  Debe de seguir en las ruinas de la Ciénaga de Khalkis."*',
+  '72be901c': '"Mmm, Larisa ya debería haber vuelto.  Espero que no le haya pasado nada."*',
+  '8ce87e67': 'Estás en una casa sencilla y espartana, aunque se nota un toque de olor a vino rancio y a carne asada.\n',
+  '066e5b6e': 'Estás en el gran salón común de una taberna.  Tras la barra, al norte, se asa carne en un espetón, y al sur se ve una salita privada.\n',
+  'b339f3ab': 'Estás en una pequeña sala del consejo.  Pese a los adornos del cargo, esta sala del Juez apenas se usa, y es evidente que tampoco la han limpiado de polvo últimamente.\n',
+  '6940e80f': 'Estas estrechas habitaciones combinan un pequeño negocio con la vivienda.\n',
+  '4ab2cbf7': 'Estás en un salón impresionante.  Altas columnas sostienen un techo elevado a lo largo del perímetro.  El centro del salón es un suelo hundido, de rico mármol.  Dentro hay un pequeño estanque que refleja la luz, y por toda esa zona hay estatuas repartidas.\n',
+  '1addd0f3': 'Estás en un austero salón con columnas.  Además de los arcos principales al norte y al sur, unos arcos más pequeños llevan al este y al oeste.\n',
+  '94fbfc12': 'Estás ante la verdadera sede del poder de Kosha.  En la mitad norte de la sala, sobre una tarima, hay una mesa enorme, y detrás, una sola silla enorme.\n',
+  '96bc094a': 'Estás en una pequeña sala lateral, a todas luces pensada como una especie de salita o recibidor.\n',
+  'a3de7e79': 'Esta sala son las estrechas habitaciones comunes, probablemente del servicio de la casa.\n',
+  '5aba2222': 'Estás en un comedor informal para todos.\n',
+  'b46fe453': 'Estás en un pequeño almacén, probablemente una especie de armería.\n',
+  'c051be85': 'A través del aire lleno de hollín ves que es una pequeña herrería, muy bien cuidada.\n',
+  '3e705d23': 'Varios telares grandes dominan esta sala, lo que indica un lugar donde se hace tela.\n',
+  '29f16612': 'Esta trastienda tiene una rueca, sin duda el origen del hilo que usan los telares de fuera.\n',
+  '8dff2b5e': 'Un gran almacén medio lleno, sobre todo de víveres y cajas.\n',
+  '28e33b78': 'Está claro que en esta sala se tratan muchos negocios, con varias reuniones importantes en torno a una mesa sencilla con sillas lujosas.\n',
+  '67b22204': 'Un dormitorio sencillo, a todas luces del señor de la Casa, ya que da a la sala de reuniones exterior.\n',
+  'df94e84c': 'Decir espartana es quedarse corto con esta sala, que solo tiene un escritorio sencillo.  Es evidente que no es un lugar para reuniones.\n',
+  '7ef33d80': 'Tan espartana como la sala de fuera, esta es parecida, pero no tanto, pues tiene un espejo sencillo en la pared.\n',
+  'b6cea952': 'Este pasadizo secreto rezuma humedad, y el olor del mar se nota intenso en el aire.\n',
+  '116c33e7': 'Si esta sala sirvió para algo en el pasado, está claro que ahora no, pues no tiene nada salvo una capa de polvo en el suelo y unos cuantos charcos de agua estancada, aunque también se nota el olor del mar.\n',
+  '4f379f43': 'Esta sala tiene tres ventanas que dan a varias direcciones desde la fortaleza, lo que la hace un buen puesto de guardia.  Un arco al norte lleva a lo que a todas luces es el cuartel de la guardia.\n',
+  'ec967842': 'Estás a la entrada de un templo abandonado y en ruinas.  Aparte de los animales, no hay rastro de vida.\n',
+  'a804e306': 'Esta sala tiene una gran estatua en el centro.  Parece un hombre, con una expresión de dicha en el rostro.\n',
+  'a4c23a24': 'Esta sala también tiene una gran estatua, aunque le falta algo de la dicha de la primera; en cambio, parece tener una expresión de sobrecogimiento.\n',
+  '548db8b8': 'Parece que esta sala fue el alojamiento de algunos fieles.  Unas alfombras sencillas y los restos de sus ocupantes es todo lo que se ve.\n',
+  'f7ff4f3f': 'No está claro si esto era una especie de biblioteca o un aula, pero aquí hay tanto pupitres como una estantería con libros.\n',
+  '89c10494': 'Aquí hay filas de mesas y sillas.  Las mesas están manchadas por los años y el uso.\n',
+  'd362b1ad': 'Está claro que esta es la cocina del templo, con una puerta al comedor de al lado.\n',
+  'f16419c7': 'Esta sala es una especie de habitación privada, aunque no queda mucho después de tantos años.\n',
+  '2bd840e2': 'Has entrado en una especie de capilla o lugar de culto, para el poder o el ser que adoraran los habitantes del templo.  Hay una especie de presencia que casi se puede saborear, pero el sabor es amargo, y apesta a algas podridas.\n',
+  '3afa7f71': 'Estás en una especie de santuario interior del templo, con suelo de tierra natural.  Una fuente borbotea en la esquina noroeste, y el aire está lleno de un hedor a agua salada y a podredumbre.\n',
+  '551c491a': 'Estás en una especie de gran caverna.  Está llena del hedor del mar, pero con el techo tan bajo no ves muy lejos, aunque en algún lugar hacia el oeste oyes el chapoteo de las olas.\n',
+  'f6bab78a': 'Estás en una especie de cueva natural, que los mineros abrieron hace poco.\n',
+  '592227f4': '¡Parte de la cueva se derrumba!\n',
+});
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // Omen, at the end of his Test
+  '1CC3': {
+    '6519565e': 'La visión de Omen vuelve...*"Bien hecho, humano.  No ha sido tan difícil, ¿verdad?"*',
+    '6a8d2c1b': '"Y veo que has encontrado tu recompensa: bien hecho.  Que te sirva bien."*"Aun así, quizá ni esto baste, así que tengo otro regalo para ti."*',
+    '011237db': '"Lástima que no encontraras tu recompensa: tu falta de atención no augura nada bueno..."*"Aun así, no carezco de compasión: te prometí ayuda, y ayuda tendrás."*',
+    '0030b97d': '"Te concederé otro favor: este artefacto mágico de cartografía, que te deja ver por dónde has pasado"*',
+    'c00b6caa': '"Recuerda nuestro consejo, y quizá volvamos a vernos: estaré vigilándote a ti y a tus actos."*',
+    '089e9a44': '"Si alguna vez vuelves a mi pequeña \'Prueba\', te contaré un secreto."*"Cuando tiras de la palanca de la primera sala, se abre una pared ilusoria bajo la antorcha, así que puedes atravesar la pared por ahí."*"Desde esa sala secreta, basta con bajar por la escalera a mis aposentos de aquí."*',
+    '79139b32': '"Mientras tanto, te devolveré a tus aposentos: no hables con nadie de este encuentro nuestro."*',
+  },
+});
+
+/* ---- what every creature does by default ----------------------------------- */
+
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // "^" + a person + " is " + what they are doing + "."
+  '3007': {
+    '9ef2f919': ' está ', 'c7f8ce68': 'trabajando', '35572b80': 'durmiendo', 'f1fe9ddb': 'comiendo', '8a340be7': 'labrando el campo',
+    '89ec87af': 'en su asiento', '05fd552b': 'sin moverse', '035356aa': 'cerca',
+    '2b0bbde3': 'El cuerpo de ', '96b200ce': ' está cerca.\n',
+  },
+  // what a search of someone finds: + each thing, or " nothing."
+  '3008': { 'de424b9e': 'Lleva encima:', '372fefa9': 'Al registrar, encuentras:' },
+  '300C': { 'e6a7fc86': 'Te recibe un silencio sepulcral.\n' },
+  // taking what is not the hero's: the buttons keep their keys, and Leave its escape
+  '300F': {
+    '9719c511': 'Notas que alguien te está viendo \'tomar prestado\' eso...', '5f865a94': 'No parece que eso sea tuyo...',
+    '9109d48a': 'Robar/r', 'bef89fb8': 'Coger/c', '7138226d': 'Dejar/d/\x1b',
+    'ecbe742a': 'Llevas un cordón desatado...', '335f46b5': '¿Ese es Alaric?', 'f53579c1': '¡Mira allí!', '3036ceb4': '¿Ese es Elvis?', '9692300b': 'No me hagas caso...',
+  },
+  '301A': { '40de539e': 'No dominas los requisitos previos (' },
+  '301F': { '80280257': '¡Ay!  ¡Algo me ha picado!', '24097042': '¡Ay!  ¡Qué caliente!' },
+  '3020': {
+    '8ab73519': 'Zzzz...', '66a14b8e': '¡Muere, escoria!', 'b890a56e': '¡Toma esa!',
+    '558080b2': 'Me muero de hambre', 'eed3b2ed': '¿Cuándo comemos?', '59d1f87d': 'Tengo hambre', '9ac0c2e2': '¿Tienes algo de comer?',
+    'ec3c007e': '¿No deberías registrarte?', 'a3c5cadd': '¿Te has registrado?', '7332abef': '¡Regístrate, por favor!',
+  },
+  '3039': { 'c4ac964e': '¡Aquí no puedes cavar!\n' },
+  // "-- ^" + a creature + " killed! --" and its wounds, said as nouns
+  '3041': { '3023d279': ' ha muerto --\n', '0ae34e4a': ': herida grave --\n', '89622873': ': herida --\n' },
+});
+Object.assign(DELV_TRANSLATION_ES.text['*'], { '6127ccd4': '¡Argh!' });
