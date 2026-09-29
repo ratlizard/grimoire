@@ -65,12 +65,13 @@ const DELV_TRANSLATION_ES = {
   // conversation face, with its new letters, it draws them.
   styles: { 132: { font: 'ArgosANouveau', size: 12 } },
 
-  // The data file's STR# resources, by id and the hash of each English string.
+  // The data file's STR# resources, by the id in four hex digits, as every
+  // other section keys a resource, and the hash of each English string.
   strings: {
     // A button says its own label when it is clicked, so each label starts
     // with a stem the keyword lists carry: "Indicaciones", since "Dónde"
     // would arrive with its accent as a Mac Roman byte no stem can hold.
-    128: { 'd6f8a003': 'Adiós', '0fe07306': 'Nombre', '42d9307c': 'Trabajo', 'fd838566': 'Indicaciones...' },
+    '0080': { 'd6f8a003': 'Adiós', '0fe07306': 'Nombre', '42d9307c': 'Trabajo', 'fd838566': 'Indicaciones...' },
   },
 
   // Keyword stems added to a list after its English ones, by the English
@@ -4653,4 +4654,30 @@ Object.assign(DELV_TRANSLATION_ES.tiles.F004, {
   'a1989592': 'grietecita', '0ae8a87d': 'árbol antiguo', 'aa9a30d8': 'flecha\s mágica\s', '39bc1d67': 'flecha\s', '60f5c450': 'caverna',
   'a75279fa': 'viga', '7e5441c7': 'muro de troncos', 'fcf2e903': 'montañas', '837ad1db': 'limo', '2d4ca2ca': 'enredaderas', 'f91258ce': 'baldosas',
   '25352abe': 'suelo de la cueva', 'e4640945': 'suelo arenoso',
+});
+
+// The rest of the fork's strings. STR# 900 is what the program shows where
+// the registered name would go. STR# 255 is the credits: the headings are
+// translated, the people's names, the tools' names and the quotes stay as
+// they are, since each is someone's own. STR# 134 and 135 are the editor's
+// category and map lists, which the game never shows, kept as they are so
+// that a reader of the file still finds the maps under the names they were
+// made under.
+Object.assign(DELV_TRANSLATION_ES.strings, {
+  '0384': { 'ba1eb285': '=', '0a4a0796': 'SIN REGISTRAR' },
+  '0086': { 'f9b31712': '=', 'fbdd5f05': '=', '5561fd0b': '=', '8390060e': '=', '266161e6': '=', 'e036382f': '=', '2bfbe892': '=' },
+  '0087': Object.fromEntries(['dd60ed33', '26c851f2', 'b322bb38', '890b616f', '50daf8d0', 'dd29a156', '522e8124', '437e0a7b', 'e3311ce6',
+    'e1ccbb51', 'ce5b4e27', '5b67d272', 'b25d9bdf', 'c74d5269', '7d84c9fa', '9b898449', '39ef4770', '399b8f2b', '6d9e1ade', '97aa5902',
+    '2339281a', '61022296', 'c6f3b3fa', '50d3d3ce', '05eacd03', '479da1f6', '8adf69ae', 'e160b22e', '242bc961', 'ec2912ea', '1ba36f46',
+    '1f99e212', '571c2ff6', '2f954f44', '1cb71d2a', '486de534', 'fe3b9531', '6e9f80a2', '8f520b34', '9f47fcfa', 'd1a38a2b'].map(h => [h, '='])),
+  '00FF': Object.assign(Object.fromEntries(['b98fe665', '60693083', 'a2e2742e', '0749d502', '203bb7cb', '863f13d0', '79b88b10',
+    '384145a7', 'f05a0b7b', '4badbad4', '473c9903', 'dea608c0', '30597fcf', '89e06fde', '451aaa4b', '9dae0ce3', 'a113bc60', 'd1556ebd',
+    '2e8692c6', 'bcc56f20', 'f251a09f', '642e1c13', 'f9e86ded', '2f956a06', '7ac06b5e', 'fcad304a', '8ead72c5', 'b3ae7960', '962f7190',
+    'ddce9586', '7182c72f', '6aef7dd3', 'd1e66f6e', '8cf227f6', 'a2d0225f', '960de604', '470ee077', '4b80dd46', '9393a0a6', '7286ca30',
+    'a477385c', '1a154c8f', '642b22ba', 'c90dacdf', '67e6c223', '4ddd34bb', '874cb52a', '57ce0b3e', '177eeb3f'].map(h => [h, '='])), {
+    'e684a467': 'Motor Delver', '4cedfc2d': 'Escenario de Cythera', '9a194a71': 'Arte de Cythera', '44b3886f': 'Sonidos de Cythera',
+    '75c7c862': 'Música de Cythera', '6ff853e3': '•Probadores alfa', '4b830c48': '•Otros probadores alfa', '6d5bb95f': '•Probadores beta',
+    'd8456095': '•Logística y soporte', 'ca76d479': '•Agradecimientos especiales', '5e8f590b': 'Sam Wang - fuente Argos',
+    '3d3ceaec': '•Citas', '29490f10': '•In memoriam',
+  }),
 });
