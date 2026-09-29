@@ -60,7 +60,7 @@ import {readFileSync, existsSync} from 'node:fs';
 import vm from 'node:vm';
 import {pageContext} from './patch_build.mjs';
 
-const [htmlPath = 'index.html', dataPath, rsrcPath] = process.argv.slice(2);
+const [htmlPath = 'index.html', dataPath, rsrcPath, appDataPath, appRsrcPath] = process.argv.slice(2);
 const skip = why => { console.log(`  skip  ${why}`); process.exit(0); };
 if (!dataPath || !existsSync(dataPath)) skip('no Cythera Data to translate');
 if (!rsrcPath || !existsSync(rsrcPath)) skip("no Cythera Data resource fork");
@@ -265,6 +265,107 @@ const got = vm.runInContext(`(() => {
            done: r.report.done, keys: r.report.keys, missing: r.report.missing.length, unused: r.report.unused.map(u => (typeof u.resid === 'number' ? hex(u.resid) : u.resid) + ' ' + u.hash) };
 })()`, ctx);
 
+// THE PROGRAM, when its forks are given: translateProgram's result held to
+// what it is for. (6) Nothing the table has not decided is left: a string
+// the program pools, or a piece of a menu, dialog, window, string list or
+// TEXT. (7) Every load of every pooled string reaches the text it should:
+// followed through the branch a moved string's load became and the
+// addis/addi (or addic) after it, to the string there, which is the
+// Spanish, or the English where the table keeps it, or the piece of a
+// string whose tail is pointed at; the control is the English program, in
+// which no load reaches the Spanish. (8) The resources keep their shape:
+// each menu its items and their command keys, each dialog its items and
+// their kinds, each dialog's keys as many groups, each string list its
+// count, each TEXT its style runs, ending where the text does. (9) With
+// the program translated the names carry their articles: every name
+// record's singular begins with the article its tiles' class and its
+// gender call for, and no plural carries the no-break space; the control
+// is the data file written alone, whose names have none.
+let prog = null;
+if (appDataPath && existsSync(appDataPath) && appRsrcPath && existsSync(appRsrcPath)) {
+  sandbox.__pd = new Uint8Array(readFileSync(appDataPath));
+  sandbox.__pr = new Uint8Array(readFileSync(appRsrcPath));
+  prog = vm.runInContext(`(() => {
+    const T = DELV_TRANSLATION_ES, P = T.program;
+    const p = translateProgram(__pd, __pr, T);
+    const bin = x => { let s = ''; for (const c of x) s += String.fromCharCode(c); return s; };
+    const fails = [];
+    // (7) the loads
+    const a = pefLoad(__pd), b = pefLoad(p.data), ca = a.contents[0].bytes, cb = b.contents[0].bytes, toc = a.toc.offset;
+    const readAt = (code, at, pascal) => pascal ? code.subarray(at + 1, at + 1 + code[at]) : (() => { let e = at; while (code[e]) e++; return code.subarray(at, e); })();
+    const follow = (img, code, site) => {
+      let w = pefU32(code, site), extra = 0;
+      if ((w & 0xFC000000) === 0x48000000) {
+        const t = site + (((w & 0x03FFFFFC) << 6) >> 6);
+        w = pefU32(code, t);
+        for (let k = t + 4; ; k += 4) { const x = pefU32(code, k), op = x >>> 26; if (op === 15) extra += ((x << 16) >> 16) << 16; else if (op === 14 || op === 12) extra += (x << 16) >> 16; else break; }
+      }
+      if ((w >>> 26) !== 32 || ((w >>> 16) & 31) !== 2) return null;
+      const q = pefPointerAt(img, img.toc.section, toc + ((w << 16) >> 16));
+      return q ? q.offset + extra : null;
+    };
+    const pooled = appPooledStrings(__pd);
+    const want = new Map();       // code address -> { text, pascal }
+    for (const q of pooled) {
+      const en = bin(q.bytes), sec = q.pascal ? P.P : P.C, got = sec && sec[translateHash(en)];
+      const pieces = got === undefined || got === '=' ? null : (Array.isArray(got) ? got : [got]);
+      if (!pieces) { if (!want.has(q.at)) want.set(q.at, { text: en, pascal: q.pascal, es: false }); continue; }
+      const offs = [0].concat(q.inner);
+      pieces.forEach((x, k) => want.set(q.at + offs[k], { text: bin(encodeMacRoman(pieces.slice(k).join(''))), pascal: q.pascal, es: true }));
+    }
+    let loads = 0, spanish = 0, control = 0;
+    for (let site = 0; site + 4 <= ca.length; site += 4) {
+      const w = pefU32(ca, site);
+      if ((w >>> 26) !== 32 || ((w >>> 16) & 31) !== 2) continue;
+      const q = pefPointerAt(a, a.toc.section, toc + ((w << 16) >> 16));
+      if (!q || !want.has(q.offset)) continue;
+      const wnt = want.get(q.offset); loads++;
+      const to = follow(b, cb, site), s = to === null ? null : bin(readAt(cb, to, wnt.pascal));
+      if (s !== wnt.text) fails.push('the load at 0x' + site.toString(16) + ' reaches ' + JSON.stringify(s) + ', not ' + JSON.stringify(wnt.text));
+      else if (wnt.es) spanish++;
+      if (wnt.es && bin(readAt(ca, q.offset, wnt.pascal)) === wnt.text) control++;
+    }
+    // (8) the resources' shapes
+    const specA = resourceForkSpec(openResourceFork(__pr)), specB = resourceForkSpec(openResourceFork(p.rsrc));
+    const res = (spec, t, id) => spec.resources.find(r => r.type === t && r.id === id);
+    const menuShape = d => { const out = []; let o = 14; o += 1 + d[o]; while (o < d.length && d[o]) { o += 1 + d[o]; out.push(d[o + 1]); o += 4; } return out.join(','); };
+    const ditlShape = d => { const n = u16be(d, 0) + 1, out = []; let o = 2; for (let k = 0; k < n; k++) { const L = d[o + 13]; out.push(d[o + 12]); o += 14 + L + (L & 1); } return out.join(','); };
+    let shapes = 0;
+    for (const ra of specA.resources) {
+      const rb = res(specB, ra.type, ra.id); if (!rb) { fails.push(ra.type + ' ' + ra.id + ' is gone'); continue; }
+      let x = null, y = null;
+      if (ra.type === 'MENU') { x = menuShape(ra.data); y = menuShape(rb.data); }
+      else if (ra.type === 'DITL') { x = ditlShape(ra.data); y = ditlShape(rb.data); }
+      else if (ra.type === 'STR#') { x = u16be(ra.data, 0); y = u16be(rb.data, 0); }
+      else if (ra.type === 'DLOG') { const g = d => (bin(d.subarray(21, 21 + d[20])).match(/;/g) || []).length; x = g(ra.data); y = g(rb.data); }
+      else if (ra.type === 'styl') { const t = res(specB, 'TEXT', ra.id), n = u16be(rb.data, 0); x = u16be(ra.data, 0); y = n; if (t && n && pefU32(rb.data, 2 + 20 * (n - 1)) >= t.data.length) fails.push('styl ' + ra.id + ': its last run starts past its text'); }
+      else continue;
+      shapes++;
+      if (x !== y) fails.push(ra.type + ' ' + ra.id + ' was ' + JSON.stringify(x) + ' and is ' + JSON.stringify(y));
+    }
+    // (9) the articles
+    const art = translateCytheraData(__a, __r, T, { articles: true }), bare = translateCytheraData(__a, __r, T);
+    const names = d => { const b = dataPatchSession(d).bytesOf(0xF004), out = []; let i = 0, prev = -1; while (i + 3 <= b.length) { const id = u16be(b, i); let e = i + 2; while (e < b.length && b[e]) e++; if (id < prev) break; out.push({ id, name: String.fromCharCode.apply(null, b.subarray(i + 2, e)) }); prev = id; i = e + 1; } return out; };
+    const attrs = dataPatchSession(__a).bytesOf(0xF002), cls = t => (u32be(attrs, t * 4) >>> 22) & 3;
+    const nb = String.fromCharCode(TRANSLATE_NBSP);
+    let withArt = 0, prev = -1;
+    const enNames = new Map(names(__a).map(r => [r.id, r.name]));
+    const enFor = id => { let best = null; for (const [k, v] of enNames) if (k >= id && (best === null || k < best)) best = k; return enNames.get(best); };
+    for (const r of names(art.data)) {
+      const one = translateSingPlur(r.name, true), more = translateSingPlur(r.name, false);
+      if (more.includes(nb)) fails.push('the plural of tile ' + r.id + ' carries the no-break space');
+      const g = T.tileGenders[translateHash(enFor(r.id))], c = cls(r.id) === 2 ? 1 : cls(r.id);
+      if (!g || !c) { if (one.includes(nb)) fails.push('tile ' + r.id + ' has an article English does not give it'); prev = r.id; continue; }
+      const a2 = TRANSLATE_ARTICLES[c][g] + nb;
+      if (!one.startsWith(a2)) fails.push('tile ' + r.id + ' says ' + JSON.stringify(one) + ', not ' + JSON.stringify(a2) + '...');
+      else withArt++;
+      prev = r.id;
+    }
+    const bareArt = names(bare.data).filter(r => r.name.includes(nb)).length;
+    return { fails, loads, spanish, control, shapes, withArt, bareArt, done: p.report.done, missing: p.report.missing.map(m => m.resid + ' ' + m.hash), moved: p.log.join(' ') };
+  })()`, ctx);
+}
+
 let failures = 0;
 const fail = (what, why) => { failures++; console.error(`FAIL ${what}: ${why}`); };
 const ok = (what, detail) => console.log(`  ok   ${what}${detail ? '  — ' + detail : ''}`);
@@ -289,5 +390,16 @@ if (!got.fails.length) ok('highlights', `${got.reached} of ${got.words} highligh
 if (got.control < got.words / 2) fail('negative control', `only ${got.control} of ${got.words} highlighted words stop reaching their answer without the Spanish stems`);
 else ok('negative control', `${got.control} of ${got.words} miss without the Spanish stems`);
 
-console.log(`\n  ${got.reached} of ${got.words} highlighted words answer as in English; ${got.missing} pieces untranslated; SPANISH ${got.hash}`);
+if (prog) {
+  if (prog.missing.length) fail('program coverage', prog.missing.length + ' pieces of the program have no entry: ' + prog.missing.slice(0, 8).join(', '));
+  else ok('program coverage', prog.done + ' pieces of the program decided');
+  for (const f of prog.fails.slice(0, 20)) fail('program', f);
+  if (!prog.fails.length) ok('program', `${prog.loads} loads of its strings followed, ${prog.spanish} reaching the Spanish; ${prog.shapes} resources keep their shape; ${prog.withArt} names carry their article`);
+  if (prog.control) fail('program control', prog.control + ' loads reach the Spanish in the English program');
+  else if (!prog.spanish) fail('program control', 'no load reaches the Spanish, so the control proves nothing');
+  else ok('program control', 'no load reaches the Spanish in the English program');
+  if (prog.bareArt) fail('articles control', prog.bareArt + ' names carry an article in the data file written alone');
+  else ok('articles control', 'the data file written alone has no article in a name');
+}
+console.log(`\n  ${got.reached} of ${got.words} highlighted words answer as in English; ${got.missing} pieces untranslated; SPANISH ${got.hash}` + (prog ? `; the program ${prog.spanish} loads in Spanish` : ''));
 process.exit(failures ? 1 : 0);

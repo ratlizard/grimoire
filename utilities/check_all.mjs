@@ -356,14 +356,16 @@ const CHECKS = [
      stale entry, every script still disassembles, the keyword lists are the
      ones the table asked for, and every highlighted word, clicked, reaches
      the answer its English word did; Argos's family widths carry the added
-     letters, and a strike's glyph copies to a control code. The two forks'
+     letters, the Geneva strikes measure as Geneva does; and the program in
+     Spanish: every load of its strings reaching the Spanish, its resources'
+     shapes, and the names' articles. The two forks'
      hash is pinned, so a
      change to the table or the applier moves it, and the value moves in the
      same commit. */
-  {page: 'viewer', name: 'spanish', want: [DATA, DATA_RSRC],
-   cmd: ['utilities/translate_check.mjs', 'index.html', DATA, DATA_RSRC],
+  {page: 'viewer', name: 'spanish', want: [DATA, DATA_RSRC, APP_DATA, APP_RSRC],
+   cmd: ['utilities/translate_check.mjs', 'index.html', DATA, DATA_RSRC, APP_DATA, APP_RSRC],
    grep: /\d+ of \d+ highlighted words answer as in English[^\n]*/,
-   expect: '509 of 513 highlighted words answer as in English; 0 pieces untranslated; SPANISH 30cc5978'},
+   expect: '509 of 513 highlighted words answer as in English; 0 pieces untranslated; SPANISH 2ca82cf4; the program 232 loads in Spanish'},
   /* The two StuffIt compressions this page decompresses, 13 and 15, against
      The Unarchiver's own `unar` -- which is the implementation both are ports
      of, so this is a decoder held to its source rather than to a snapshot.

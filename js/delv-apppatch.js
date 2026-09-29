@@ -43,6 +43,38 @@
    6. Rewrites the resources: a string in a STR#, or a whole resource, and
       the cfrg of step 4, through writeResourceFork.
 
+   C STRINGS, AND ONE THAT GROWS (29 September 2026, for the program in
+   another language). A fix's `cstrings` are text in the code section, where
+   CodeWarrior pooled the program's constant strings: each gives the code
+   address, the bytes it expects there up to the NUL (`was`), the bytes that
+   replace them (`now`), and, where the program points into the middle of
+   the string as well (the compiler shares a string's tail with another
+   that ends the same), the offsets of those points in each (`inner`,
+   `nowInner`). One no longer than it was, with its inner points where they
+   were, is written in place and NUL-filled. One that grows is placed after
+   the caves, NUL-terminated, and every load of a pointer to it is sent
+   there: each string the program uses has its own word in the TOC, set by
+   the loader to the string's address and loaded by `lwz rD, d(r2)`, so
+   that one instruction becomes a branch to four new ones, the same `lwz`,
+   `addis` and `addi` adding the distance from the old string to the new
+   (both in the code section, so the distance is the same wherever the
+   loader puts it), and a branch back. The TOC, which the loader's
+   relocations fill and which sits in the data section's packed stream, is
+   not touched. Refused: a string that is not what the fix expects, one
+   that grows while some word of the data section points at it or into it
+   and no instruction loads that word (a table of pointers, which only an
+   edit of the packed stream could change). A load into r0, which `addis`
+   and `addi` would read as 0, adds the distance with `addic` instead, in
+   steps of at most 32767; it sets the carry, which nothing compiled keeps
+   across a load of a pointer.
+
+   A string marked `pascal` is a length byte and its text, with no NUL,
+   often run straight into the next string: `at` is the length byte and
+   `was` and `now` the text. In place it is its new length and text, and
+   the bytes after the new text are left as they were, since they may be
+   the start of the next string; moved, it is the length and the text, and
+   the loads are sent to the length byte.
+
    Nothing here knows which fixes exist: that is js/delv-appfixes.js. The
    assembler is js/mac-ppc-asm.js; the reader of what comes out,
    js/mac-pef.js and js/mac-ppc.js. */
@@ -85,6 +117,40 @@ function appFindBytes(hay, needle) {
   return at;
 }
 
+/* The program's pooled strings: every word of the data section that the
+   loader points into the code section at a string, read as a C string to
+   its NUL or, where the byte pointed at is a length that many bytes of text
+   follow, as a Pascal string; with the places another pointer reaches
+   inside it, and whether an instruction loads any pointer to it (one only a
+   table reaches can change in place alone). For a translation of the
+   program, which reads its English here and writes its `cstrings`. */
+function appPooledStrings(data) {
+  const img = pefLoad(data);
+  if (!img || !img.toc) return [];
+  const pef = img.pef, codeIx = pef.sections.findIndex(s => s.kind === 0), code = img.contents[codeIx].bytes;
+  const tocSec = img.toc.section, tocOff = img.toc.offset, dsec = img.contents[tocSec].bytes;
+  const pointers = new Map(), loaded = new Set();
+  for (const [off, t] of img.relocs.bySection.get(tocSec) || []) if (t.section === codeIx) {
+    const to = pefU32(dsec, off); (pointers.get(to) || pointers.set(to, []).get(to)).push(off);
+  }
+  for (let a = 0; a + 4 <= code.length; a += 4) {
+    const w = pefU32(code, a);
+    if ((w >>> 26) === 32 && ((w >>> 16) & 31) === 2) loaded.add(tocOff + ((w << 16) >> 16));
+  }
+  const text = s => s.length >= 1 && [...s].every(c => c === 9 || c === 10 || c === 13 || (c >= 0x20 && c < 0x7F) || c >= 0x80);
+  const out = [];
+  for (const at of [...pointers.keys()].sort((x, y) => x - y)) {
+    const L = code[at], ps = code.subarray(at + 1, at + 1 + L);
+    let pascal = false, bytes, end;
+    if (L >= 1 && L < 0x20 && text(ps) && /[A-Za-z]/.test(String.fromCharCode(...ps))) { pascal = true; bytes = ps; end = at + 1 + L; }
+    else { let e = at; while (e < code.length && code[e]) e++; bytes = code.subarray(at, e); end = e; if (!bytes.length || !text(bytes)) continue; }
+    const inner = [];
+    if (!pascal) for (let k = at + 1; k < end; k++) if (pointers.has(k)) inner.push(k - at);
+    out.push({ at, pascal, bytes: Uint8Array.from(bytes), inner, loaded: pointers.get(at).some(o => loaded.has(o)) });
+  }
+  return out;
+}
+
 function applyAppFixes(app, fixes, opts) {
   opts = opts || {};
   const T = opts.target || APP_FIXES_TARGET;
@@ -123,6 +189,59 @@ function applyAppFixes(app, fixes, opts) {
     caveAt = a;
     return { fix: f, labels, lines, start, end: a };
   });
+  // 2b. C strings: which are written in place, and for those that grow,
+  // a trampoline for every load of a pointer to them and the bytes after.
+  const codeWord = a => pefU32(data, code.containerOffset + a);
+  const stringPlan = [], r0Steps = 3;
+  if (fixes.some(f => (f.cstrings || []).length)) {
+    const img = pefLoad(data);
+    if (!img || !img.toc) throw appPatchError(null, 'the program has no TOC to find its strings\' pointers by');
+    const tocSec = img.toc.section, tocOff = img.toc.offset, dsec = img.contents[tocSec].bytes;
+    const pointers = new Map(), loads = new Map();
+    for (const [off, t] of img.relocs.bySection.get(tocSec) || []) if (t.section === code.index) {
+      const to = pefU32(dsec, off); (pointers.get(to) || pointers.set(to, []).get(to)).push(off);
+    }
+    for (let a = 0; a + 4 <= code.totalSize; a += 4) {
+      const w = codeWord(a);
+      if ((w >>> 26) === 32 && ((w >>> 16) & 31) === 2) { const o = tocOff + ((w << 16) >> 16); (loads.get(o) || loads.set(o, []).get(o)).push(a); }
+    }
+    for (const p of plan) for (const c of p.fix.cstrings || []) {
+      const f = p.fix, was = Uint8Array.from(c.was), now = Uint8Array.from(c.now);
+      const inner = c.inner || [], nowInner = c.nowInner || [];
+      if (inner.length !== nowInner.length) throw appPatchError(f, 'the string at 0x' + c.at.toString(16) + ' is pointed into at ' + inner.length + ' places and its replacement at ' + nowInner.length);
+      const base = code.containerOffset + c.at + (c.pascal ? 1 : 0);
+      if (c.pascal && (data[code.containerOffset + c.at] !== was.length || now.length > 255))
+        throw appPatchError(f, 'the Pascal string at 0x' + c.at.toString(16).toUpperCase() + ' is not ' + was.length + ' bytes, or its replacement is longer than 255');
+      for (let i = 0; i < was.length; i++) if (data[base + i] !== was[i])
+        throw appPatchError(f, 'the string at 0x' + c.at.toString(16).toUpperCase() + ' is not the one expected: not ' + T.name + ', or changed already');
+      if (!c.pascal && data[base + was.length] !== 0) throw appPatchError(f, 'the string at 0x' + c.at.toString(16).toUpperCase() + ' is longer than the one expected');
+      if (c.pascal && inner.length) throw appPatchError(f, 'the Pascal string at 0x' + c.at.toString(16).toUpperCase() + ' is pointed into');
+      const fits = now.length <= was.length && inner.every((o, k) => o === nowInner[k]);
+      if (fits) { stringPlan.push({ fix: f, c, was, now, place: 'in' }); continue; }
+      const points = [0].concat(inner.map(o => o + (c.pascal ? 1 : 0))).map((o, k) => ({ from: c.at + o, to: k ? nowInner[k - 1] : 0 }));
+      const sites = [];
+      for (const pt of points) {
+        const words = pointers.get(pt.from) || [];
+        if (!words.length) throw appPatchError(f, 'nothing points at 0x' + pt.from.toString(16).toUpperCase() + ', so the string cannot be moved there');
+        for (const o of words) {
+          const ls = loads.get(o) || [];
+          if (!ls.length) throw appPatchError(f, 'a word of the data section points at the string at 0x' + pt.from.toString(16).toUpperCase() + ' and no instruction loads it, so it would keep the old string');
+          for (const at of ls) {
+            sites.push({ at, to: pt.to, from: pt.from });
+          }
+        }
+      }
+      stringPlan.push({ fix: f, c, was, now, place: 'moved', sites });
+    }
+    // Trampolines first, four words a load; then the strings, each on a word.
+    // A load into r0 takes `addic` in steps of up to 32767, since addis and
+    // addi read r0 as 0; the distance is bounded by the strings laid after.
+    for (const sp of stringPlan) if (sp.place === 'moved') for (const st of sp.sites) {
+      st.r0 = ((codeWord(st.at) >>> 21) & 31) === 0;
+      st.tramp = caveAt; caveAt += st.r0 ? 4 * (2 + r0Steps) : 16;
+    }
+    for (const sp of stringPlan) if (sp.place === 'moved') { sp.newAt = caveAt; caveAt += (sp.now.length + 2 + 3) & ~3; }
+  }
   const caveBytes = caveAt - code.totalSize;
   const grow = Math.ceil(caveBytes / 16) * 16;
 
@@ -163,6 +282,44 @@ function applyAppFixes(app, fixes, opts) {
       words.push({ at: l.at, was: null, now: nw, text: l.text });
     }
     applied.push({ id: f.id, words, caveAt: p.lines.length ? p.start : null, caveWords: p.lines.length });
+  }
+
+  // 3b. The strings: in place, or moved and their loads sent after them.
+  for (const sp of stringPlan) {
+    const f = sp.fix, rec = applied.find(x => x.id === f.id), words = rec.words;
+    if (sp.place === 'in' && sp.c.pascal) {
+      newCode[sp.c.at] = sp.now.length; newCode.set(sp.now, sp.c.at + 1);
+    } else if (sp.place === 'in') {
+      for (let i = 0; i < sp.was.length; i++) newCode[sp.c.at + i] = i < sp.now.length ? sp.now[i] : 0;
+    } else {
+      if (sp.c.pascal) { newCode[sp.newAt] = sp.now.length; newCode.set(sp.now, sp.newAt + 1); newCode[sp.newAt + 1 + sp.now.length] = 0; }
+      else { newCode.set(sp.now, sp.newAt); newCode[sp.newAt + sp.now.length] = 0; }
+      for (const st of sp.sites) {
+        if (written.has(st.at)) throw appPatchError(f, 'changes the word at 0x' + st.at.toString(16).toUpperCase() + ', which ' + written.get(st.at) + ' changes too');
+        written.set(st.at, f.id);
+        const lw = codeWord(st.at), rd = (lw >>> 21) & 31, delta = (sp.newAt + st.to) - st.from;
+        let lines;
+        if (st.r0) {
+          const steps = [];
+          for (let left = delta; left; ) { const k = Math.max(-32768, Math.min(32767, left)); steps.push(k); left -= k; }
+          if (steps.length > r0Steps) throw appPatchError(f, 'the string for the load into r0 at 0x' + st.at.toString(16).toUpperCase() + ' is too far off');
+          while (steps.length < r0Steps) steps.push(0);
+          lines = [[st.tramp, lw]].concat(steps.map((k, i) => [st.tramp + 4 + 4 * i, null, 'addic 0, 0, ' + k]), [[st.tramp + 4 + 4 * r0Steps, null, 'b @0x' + (st.at + 4).toString(16)]]);
+        } else {
+          const ha = (delta + 0x8000) >> 16, lo = delta - (ha << 16);
+          lines = [[st.tramp, lw], [st.tramp + 4, null, 'addis ' + rd + ', ' + rd + ', ' + ha], [st.tramp + 8, null, 'addi ' + rd + ', ' + rd + ', ' + lo], [st.tramp + 12, null, 'b @0x' + (st.at + 4).toString(16)]];
+        }
+        for (const [a, w, text] of lines) {
+          let nw = w;
+          if (nw === null) { try { nw = ppcAssemble(text, a, () => undefined); } catch (e) { throw appPatchError(f, e.message); } }
+          put(a, nw); words.push({ at: a, was: null, now: nw, text: text || 'the load, as it was' });
+        }
+        let bw;
+        try { bw = ppcAssemble('b @0x' + st.tramp.toString(16), st.at, () => undefined); } catch (e) { throw appPatchError(f, e.message); }
+        put(st.at, bw); words.push({ at: st.at, was: lw, now: bw, text: 'b to the string moved' });
+      }
+    }
+    (rec.strings = rec.strings || []).push({ at: sp.c.at, place: sp.place, newAt: sp.newAt, loads: sp.sites ? sp.sites.length : 0 });
   }
 
   // 4. The data fork, grown.

@@ -2025,6 +2025,7 @@ function appFixOpenFile(file) {
     }
     window.APPFIX_STATE.src = { data: c.data, rsrc: c.rsrc, name: file.name, type: c.type || 'APPL', creator: c.creator || 'Delv' };
     renderAppFixMaker();
+    if (document.getElementById('spanishMaker')) renderSpanishMaker();
     appFixSay('');
   }).catch(e => appFixSay('That file could not be read: ' + e.message, true));
 }
@@ -2152,23 +2153,26 @@ function spanishSay(m, bad) {
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
 }
 // The file in Spanish, or null with the reason said.
-function spanishBuild(T) {
+function spanishBuild(T, articles) {
   if (!ARCHIVE) { spanishSay('No game file is open.', true); return null; }
   const rsrc = window.CYTHERA_RSRC_RAW;
   if (!rsrc || !rsrc.length) { spanishSay('This copy has no resource fork, which holds the face the accents are drawn in. Open the game in MacBinary or BinHex, or the installer.', true); return null; }
-  try { return translateCytheraData(ARCHIVE.bytes, rsrc, T); }
+  try { return translateCytheraData(ARCHIVE.bytes, rsrc, T, { articles: !!articles }); }
   catch (e) { spanishSay(e.message, true); return null; }
+}
+// The data file in Spanish as a file of the disk: the open file's Finder
+// name and type, since the game looks for its data by name.
+function spanishDataFile(r) {
+  const f = window.ARCHIVE_FINDER || { name: DISK_ARCHIVE_NAME, type: 'DelS', creator: 'Delv' };
+  const name = (f.name || DISK_ARCHIVE_NAME).replace(/\.(hqx|data|bin|dsk)$/i, '') || DISK_ARCHIVE_NAME;
+  return { name, type: f.type || 'DelS', creator: f.creator || 'Delv', data: r.data, rsrc: r.rsrc };
 }
 function spanishDownload(asDisk) {
   spanishSay('Writing the file in Spanish.');
   return spanishTable().then(T => {
     const r = spanishBuild(T);
     if (!r) return null;
-    // The game looks for its data by name, so the copy keeps the open
-    // file's Finder name and type, as the disk image of an edited file does.
-    const f = window.ARCHIVE_FINDER || { name: DISK_ARCHIVE_NAME, type: 'DelS', creator: 'Delv' };
-    const name = (f.name || DISK_ARCHIVE_NAME).replace(/\.(hqx|data|bin|dsk)$/i, '') || DISK_ARCHIVE_NAME;
-    const file = { name, type: f.type || 'DelS', creator: f.creator || 'Delv', data: r.data, rsrc: r.rsrc };
+    const file = spanishDataFile(r);
     if (asDisk) dlBlob(new Blob([writeHfsImage({ volumeName: 'Cythera ES', entries: [file] })], { type: 'application/octet-stream' }), 'Cythera Data (es).dsk');
     else dlBlob(new Blob([writeMacBinary(file)], { type: 'application/macbinary' }), 'Cythera Data (es).bin');
     const left = r.report.missing.length;
@@ -2176,27 +2180,60 @@ function spanishDownload(asDisk) {
     return r;
   }).catch(e => { spanishSay(e.message, true); return null; });
 }
+/* The program in Spanish (translateProgram): its menus, dialogs and
+   strings, from the program the fixes section has (the installer's, or one
+   chosen there or here). It is the PowerPC program that changes; a 68K Mac
+   keeps its English strings. `both` writes one disk image with the program
+   and the data file, the way a Mac or Infinite Mac takes them. */
+function spanishProgramDownload(both) {
+  spanishSay('Writing the program in Spanish.');
+  return spanishTable().then(T => {
+    const src = appFixSource();
+    if (!src) { spanishSay('No program is open. Open the installer, or choose the program in MacBinary or BinHex.', true); return null; }
+    let p;
+    try { p = translateProgram(src.data, src.rsrc, T); } catch (e) { spanishSay(e.message, true); return null; }
+    const prog = { name: 'Cythera', type: src.type || 'APPL', creator: src.creator || 'Delv', data: p.data, rsrc: p.rsrc };
+    if (both) {
+      const r = spanishBuild(T, true);
+      if (!r) return null;
+      dlBlob(new Blob([writeHfsImage({ volumeName: 'Cythera ES', entries: [prog, spanishDataFile(r)] })], { type: 'application/octet-stream' }), 'Cythera (es).dsk');
+    } else dlBlob(new Blob([writeMacBinary(prog)], { type: 'application/macbinary' }), 'Cythera (es).bin');
+    const left = p.report.missing.length;
+    spanishSay(p.report.done + ' pieces of the program in Spanish' + (left ? '; ' + left + ' this program has changed are left in English.' : '.'), left > 0);
+    return p;
+  }).catch(e => { spanishSay(e.message, true); return null; });
+}
 function renderSpanishMaker() {
   const host = document.getElementById('spanishMaker');
   if (!host) return;
   host.innerHTML = '';
-  const p = document.createElement('p');
-  p.className = 'mechSub';
-  p.textContent = !ARCHIVE ? 'No game file is open.'
+  const line = (text) => { const p = document.createElement('p'); p.className = 'mechSub'; p.textContent = text; host.appendChild(p); };
+  const bar = (buttons) => {
+    const d = document.createElement('div');
+    d.className = 'mechStats';
+    for (const [label, fn] of buttons) {
+      const b = document.createElement('button');
+      b.className = 'secondary';
+      b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+      b.textContent = label;
+      b.onclick = fn;
+      d.appendChild(b);
+    }
+    host.appendChild(d);
+    return d;
+  };
+  line(!ARCHIVE ? 'No game file is open.'
     : (window.CYTHERA_RSRC_RAW && window.CYTHERA_RSRC_RAW.length) ? 'Written from ' + (window.ARCHIVE_SOURCE_NAME || 'the open file') + ', both forks.'
-    : 'This copy has no resource fork. Open the game in MacBinary or BinHex, or the installer.';
-  host.appendChild(p);
-  const bar = document.createElement('div');
-  bar.className = 'mechStats';
-  for (const [label, disk] of [['Download for a Mac', false], ['Download as a disk image', true]]) {
-    const b = document.createElement('button');
-    b.className = 'secondary';
-    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
-    b.textContent = label;
-    b.onclick = function () { spanishDownload(disk); };
-    bar.appendChild(b);
-  }
-  host.appendChild(bar);
+    : 'This copy has no resource fork. Open the game in MacBinary or BinHex, or the installer.');
+  bar([['Download for a Mac', function () { spanishDownload(false); }], ['Download as a disk image', function () { spanishDownload(true); }]]);
+  const src = appFixSource();
+  line(src ? 'The program, written from ' + src.name + '. Its menus, dialogs and messages in Spanish, on a PowerPC Mac.'
+           : 'The program: open the installer, or choose the program in MacBinary or BinHex.');
+  const d = bar([['Download the program for a Mac', function () { spanishProgramDownload(false); }], ['Download both as a disk image', function () { spanishProgramDownload(true); }]]);
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.id = 'spanishAppFile'; inp.accept = '*/*';
+  inp.onchange = function () { appFixOpenFile(inp.files && inp.files[0]); };
+  d.appendChild(inp);
 }
 
 /* ---- the scenario's fixes, as a patch ----
@@ -4112,14 +4149,15 @@ function renderMechanicsSheet(value) {
 
   // ---- the scenario in Spanish ----
   {
-    add('spanish', 'Cythera Data in Spanish', null, '',
+    add('spanish', 'Cythera in Spanish', null, '',
       'The scenario\u2019s text in Spanish: what every character says, the books and signs, the names of things, the To Do list, the spells and skills and the credits. ' +
       'It is written into a copy of the open file, which replaces Cythera Data in the game\u2019s folder.',
       [
         'Both forks change. The text is in the data fork; the conversation face with the accented letters, the face of the message pane and the labels of the conversation buttons are in the resource fork, which a patch cannot reach, so this is a whole file.',
         'The Spanish is kept in this page and none of the English is: each piece of the English is read from your file and found by a fingerprint of its words. It was written for the scenario of 1.0.3 and 1.0.4, and a piece your file has changed stays in English.',
         'A highlighted word says its Spanish when it is clicked, and every character answers the Spanish words as well as the English ones. A word typed with an accent is met when the accent comes after its first letters.',
-        'What the program writes itself stays in English: the greeting by the time of day, the Yes and No of a question, the menus and the dialogs.',
+        'The program can be written in Spanish as well, from the installer or from the program itself: its menus, its dialogs and the messages it writes, the greeting by the time of day among them. The program cannot give a name the article its gender wants, so with both on one disk every thing\u2019s name carries its own (\u201cuna espada\u201d, \u201cel rey\u201d); the scenario written alone keeps its names bare, for the English program.',
+        'The program\u2019s messages change on a PowerPC Mac. On a 68K Mac the menus and dialogs are in Spanish and its messages stay in English.',
         'The hero is spoken to in words that fit a man or a woman, unless the script asks which.'
       ], '');
     const sec = sections[sections.length - 1].el;

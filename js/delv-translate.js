@@ -341,32 +341,84 @@ function translateNameTable(b, T, report) {
 // "arrow\s", "obol\s/oi" (delverNameCode), and a translation writes its own
 // in the same notation. Nothing points into the table, so it is written out
 // again with the padding kept.
-function translateTileNames(b, T, report) {
+/* A name's article, where the program is translated too (T.program): the
+   program says a thing with one of four formats its tile's attribute word
+   chooses (bits 22 and 23 of its word in 0xF002: none, "a", "an", "the"),
+   and Spanish needs the noun's gender as well, which the program does not
+   know. So the article goes into the name, and the program's four formats
+   all become "%s" (the maintainer's choice, 29 September 2026). Each name
+   in T.tileGenders (by the hash of its English) is m, f, fa (a feminine
+   noun that takes el and un, as hacha), mp or fp (said in the plural
+   only); the English class of each of its tiles says which article, none,
+   indefinite (a, an) or definite (the). A record names a run of tiles, up
+   to its id, and where the tiles of a run differ in class the run is split
+   into records, one a stretch of one class, so every tile keeps the
+   article English gives it.
+
+   The article is said in the singular only. The program's name code
+   (SingPlur) prints text after a slash for one, after a backslash for more
+   than one, and a space ends either and is printed in both, so the
+   article's space would begin the plural too: it is TRANSLATE_NBSP
+   instead, a code the Spanish faces draw as a space, and the name's first
+   word is spelt out in both forms, "/una\u0014espada\\espadas". */
+const TRANSLATE_NBSP = 0x14;
+const TRANSLATE_ARTICLES = { 1: { m: 'un', f: 'una', fa: 'un', mp: 'unos', fp: 'unas' }, 3: { m: 'el', f: 'la', fa: 'el', mp: 'los', fp: 'las' } };
+function translateSingPlur(word, singular) {
+  let mode = 0, out = '';
+  for (const c of word) {
+    if (c === '/') { mode = 1; continue; }
+    if (c === '\\') { mode = 2; continue; }
+    if (c === ' ') mode = 0;
+    if (mode === 0 || (mode === 1 && singular) || (mode === 2 && !singular)) out += c;
+  }
+  return out;
+}
+function translateWithArticle(encoded, cls, gender) {
+  if (!cls || !gender) return encoded;
+  const art = TRANSLATE_ARTICLES[cls === 2 ? 1 : cls][gender];
+  if (!art) throw new Error('no article for the gender ' + gender);
+  const sp = encoded.indexOf(' '), first = sp < 0 ? encoded : encoded.slice(0, sp), rest = sp < 0 ? '' : encoded.slice(sp);
+  return '/' + art + String.fromCharCode(TRANSLATE_NBSP) + translateSingPlur(first, true) + '\\' + translateSingPlur(first, false) + rest;
+}
+function translateTileNames(b, T, report, attrs) {
   const recs = [];
   let i = 0, prev = -1;
   while (i + 3 <= b.length) {
     const id = u16be(b, i);
     let e = i + 2; while (e < b.length && b[e] !== 0) e++;
     if (id < prev) break;
-    recs.push({ id, name: String.fromCharCode.apply(null, b.subarray(i + 2, e)) });
+    recs.push({ id, from: prev + 1, name: String.fromCharCode.apply(null, b.subarray(i + 2, e)) });
     prev = id; i = e + 1;
   }
   const tail = b.subarray(i);
-  let changed = 0;
-  for (const r of recs) {
-    if (!translateWants(r.name)) continue;
-    const es = translateLookup(T, 'tiles', 0xF004, translateHash(r.name));
-    if (es === undefined) { report.missing.push({ resid: 0xF004, at: r.id, hash: translateHash(r.name), kind: 'tile', len: r.name.length }); continue; }
-    if (es === '=') { report.done++; continue; }
-    const s = translateEncode(es);
-    report.done++;
-    if (s !== r.name) { r.name = s; changed++; }
-  }
-  if (!changed) return null;
+  const articles = !!(T.program && T.tileGenders && attrs);
+  const cls = t => attrs && t * 4 + 4 <= attrs.length ? (u32be(attrs, t * 4) >>> 22) & 3 : 0;
+  let changed = 0, split = 0;
   const out = [];
-  for (const r of recs) { out.push((r.id >> 8) & 0xFF, r.id & 0xFF); for (const c of r.name) out.push(c.charCodeAt(0)); out.push(0); }
-  for (const v of tail) out.push(v);
-  return Uint8Array.from(out);
+  for (const r of recs) {
+    let name = r.name, es;
+    if (translateWants(r.name)) {
+      es = translateLookup(T, 'tiles', 0xF004, translateHash(r.name));
+      if (es === undefined) report.missing.push({ resid: 0xF004, at: r.id, hash: translateHash(r.name), kind: 'tile', len: r.name.length });
+      else report.done++;
+    }
+    if (es === undefined || es === '=') { out.push({ id: r.id, name }); continue; }
+    const enc = translateEncode(es), gender = articles ? T.tileGenders[translateHash(r.name)] : null;
+    if (!gender) { out.push({ id: r.id, name: enc }); if (enc !== r.name) changed++; continue; }
+    // One record for each stretch of the run whose tiles share a class.
+    const runs = [];
+    for (let t = r.from; t <= r.id; t++) { const c = cls(t) === 2 ? 1 : cls(t); if (runs.length && runs[runs.length - 1].c === c) runs[runs.length - 1].to = t; else runs.push({ c, to: t }); }
+    split += runs.length - 1;
+    for (const run of runs) out.push({ id: run.to, name: translateWithArticle(enc, run.c, gender) });
+    changed++;
+  }
+  if (articles) for (const h of Object.keys(T.tileGenders)) if (!recs.some(r => translateHash(r.name) === h)) report.unused.push({ resid: 0xF004, hash: h });
+  if (!changed) return null;
+  const bytes = [];
+  for (const r of out) { bytes.push((r.id >> 8) & 0xFF, r.id & 0xFF); for (const c of r.name) bytes.push(c.charCodeAt(0)); bytes.push(0); }
+  for (const v of tail) bytes.push(v);
+  if (split) report.split = split;
+  return Uint8Array.from(bytes);
 }
 
 /* ---- the resource fork ----------------------------------------------------- */
@@ -548,6 +600,7 @@ function translateGenevaStrike(size) {
     made[ch] = { px: g.px.map(([x, y]) => [x + bx - x0, y]), adv: b.adv };
   }
   for (const ch of Object.keys(TRANSLATE_CODES)) { out[TRANSLATE_CODES[ch]] = made[ch]; out[mr(ch)] = made[ch]; }
+  out[TRANSLATE_NBSP] = { px: [], adv: out[0x20].adv };     // the no-break space the tile names use
   // The missing symbol: a box as tall as a capital, drawn here.
   const box = [];
   for (let y = 0; y <= cap; y++) for (let x = 0; x < 5; x++) if (y === 0 || y === cap || x === 0 || x === 4) box.push([x, y]);
@@ -576,9 +629,161 @@ function translateAddStrikes(spec, S, log) {
   }
 }
 
+/* ---- the program's own text ------------------------------------------------ */
+
+/* The application's resources in another language: its menus, its dialogs'
+   buttons and words, its windows', dialogs' and controls' titles, its
+   string lists, and its TEXT with their style runs. Keyed as the data file
+   is, by the resource and the FNV-1a hash of the English bytes (here the
+   resource's own Mac Roman bytes, so a curly quote hashes as the byte the
+   file holds), in T.program under the resource type and the id in four hex
+   digits: `T.program.MENU['0081'][hash]`. `=` keeps a piece as it is. The
+   Spanish is Mac Roman in the file, so an accent is its own byte: the system
+   fonts the menus and dialogs draw in carry them, and so do the game's own
+   faces, Argos at the bytes and Geneva ES at the bytes and the codes.
+
+   A dialog's title is not shown (the dialogs are drawn by the program's own
+   routine) and is read as its keys, `DelverDialogerRoutine`: groups
+   separated by semicolons, one a dialog item from the first, a key pressing
+   the item whose group holds it. So a dialog's title is translated as the
+   keys of its translated buttons, the English letters kept where they do
+   not clash.
+
+   A TEXT with a `styl` of the same id is written as a list of pieces, one a
+   style run in order, and the runs' offsets are counted again from them; a
+   list of another length is refused. What the table does not reach is
+   reported, save the resources T.program.keep names (the combat-AI
+   language, whose keywords a player's strategy files are written in; the
+   file names the program opens files by; the CD driver's names). */
+function translateProgramResources(rsrc, T, report, log) {
+  const P = T.program || {};
+  const spec = resourceForkSpec(openResourceFork(rsrc));
+  const keep = new Set(P.keep || []);
+  const hex = id => (id & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+  const bin = bytes => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return s; };
+  const look = (type, id, bytes) => {
+    const en = bin(bytes), h = translateHash(en), sec = P[type];
+    const got = sec && ((sec[hex(id)] && sec[hex(id)][h] !== undefined) ? sec[hex(id)][h] : (sec['*'] ? sec['*'][h] : undefined));
+    if (got === undefined) {
+      if (translateWants(en) && !keep.has(type + ' ' + id)) report.missing.push({ resid: type + ' ' + id, hash: h, kind: type, len: bytes.length });
+      return bytes;
+    }
+    report.done++;
+    return got === '=' ? bytes : encodeMacRoman(got);
+  };
+  const pstrAt = (d, o) => d.subarray(o + 1, o + 1 + d[o]);
+  const pstr = b => { if (b.length > 255) throw new Error('a string in the program is longer than 255 bytes'); const o = new Uint8Array(1 + b.length); o[0] = b.length; o.set(b, 1); return o; };
+  const cat = parts => { let n = 0; for (const p of parts) n += p.length; const o = new Uint8Array(n); let at = 0; for (const p of parts) { o.set(p, at); at += p.length; } return o; };
+  const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+  const counts = {};
+  const changed = (r, data) => { if (!same(data, r.data)) { r.data = data; counts[r.type] = (counts[r.type] || 0) + 1; } };
+  const styls = new Map(spec.resources.filter(r => r.type === 'styl').map(r => [r.id, r]));
+  for (const r of spec.resources) {
+    const d = r.data;
+    if (keep.has(r.type + ' ' + r.id)) continue;
+    if (r.type === 'MENU') {
+      // menuID, width, height, procID, filler, enable flags; the title; each
+      // item a string and four bytes (icon, key, mark, style); a zero.
+      const parts = [d.subarray(0, 14)];
+      let o = 14;
+      parts.push(pstr(look('MENU', r.id, pstrAt(d, o)))); o += 1 + d[o];
+      while (o < d.length && d[o]) { parts.push(pstr(look('MENU', r.id, pstrAt(d, o)))); o += 1 + d[o]; parts.push(d.subarray(o, o + 4)); o += 4; }
+      parts.push(d.subarray(o));
+      changed(r, cat(parts));
+    } else if (r.type === 'DITL') {
+      // Each item: a handle placeholder, its rectangle, its type and the
+      // length of its text, the text padded to a word.
+      const n = u16be(d, 0) + 1, parts = [d.subarray(0, 2)];
+      let o = 2;
+      for (let k = 0; k < n; k++) {
+        const type = d[o + 12] & 0x7F, len = d[o + 13], text = d.subarray(o + 14, o + 14 + len);
+        const now = [4, 5, 6, 8, 16].includes(type) ? look('DITL', r.id, text) : text;
+        if (now.length > 255) throw new Error('a dialog item\'s text is longer than 255 bytes');
+        const head = Uint8Array.from(d.subarray(o, o + 14)); head[13] = now.length;
+        parts.push(head, now, new Uint8Array(now.length & 1));
+        o += 14 + len + (len & 1);
+      }
+      parts.push(d.subarray(o));
+      changed(r, cat(parts));
+    } else if (r.type === 'WIND' || r.type === 'DLOG' || r.type === 'CNTL') {
+      const at = { WIND: 18, DLOG: 20, CNTL: 22 }[r.type];
+      if (at >= d.length) continue;
+      const title = pstrAt(d, at);
+      changed(r, cat([d.subarray(0, at), pstr(look(r.type, r.id, title)), d.subarray(at + 1 + d[at])]));
+    } else if (r.type === 'STR#') {
+      const list = translateReadStrList(d);
+      changed(r, translateWriteStrList(list.map(b => look('STR#', r.id, b))));
+    } else if (r.type === 'TEXT') {
+      const en = bin(d), h = translateHash(en), sec = P.TEXT && P.TEXT[hex(r.id)], got = sec && sec[h];
+      if (got === undefined) { if (translateWants(en)) report.missing.push({ resid: 'TEXT ' + r.id, hash: h, kind: 'TEXT', len: d.length }); continue; }
+      report.done++;
+      if (got === '=') continue;
+      const st = styls.get(r.id), pieces = (Array.isArray(got) ? got : [got]).map(encodeMacRoman);
+      if (st) {
+        const runs = u16be(st.data, 0);
+        if (pieces.length !== runs) throw new Error('TEXT ' + r.id + ' has ' + runs + ' style runs and its translation ' + pieces.length + ' pieces');
+        const sd = Uint8Array.from(st.data);
+        let off = 0;
+        pieces.forEach((p, k) => { const q = 2 + 20 * k; sd[q] = off >>> 24; sd[q + 1] = (off >>> 16) & 0xFF; sd[q + 2] = (off >>> 8) & 0xFF; sd[q + 3] = off & 0xFF; off += p.length; });
+        changed(st, sd);
+      } else if (pieces.length !== 1) throw new Error('TEXT ' + r.id + ' has no style runs and its translation ' + pieces.length + ' pieces');
+      changed(r, cat(pieces));
+    }
+  }
+  const said = Object.keys(counts).sort().map(t => counts[t] + ' ' + t).join(', ');
+  if (said) log.push('the program\'s resources: ' + said + ' changed');
+  return writeResourceFork(spec);
+}
+
+/* The program in another language: its resources (above) and the strings
+   pooled in its code, each looked up by the hash of its bytes in
+   T.program.C (a C string) or T.program.P (a Pascal string): the
+   translation, `=` to keep it, or, for a C string the program also points
+   into (a tail it shares with another), a list of pieces, one from each
+   place it is pointed at. What the table does not name is reported, as the
+   data file's pieces are. A C string and its translation carry the same
+   printf conversions in the same order, since the program formats with
+   them; one that does not is refused. The strings are written by the
+   program patcher (applyAppFixes, js/delv-apppatch.js), in place where the
+   translation fits and moved to the end of the code where it does not,
+   PowerPC only: the 68K program keeps its own copies. */
+function translateProgram(data, rsrc, T, fixes) {
+  const report = { done: 0, keys: 0, missing: [], unused: [] }, log = [];
+  const P = T.program || {};
+  const rsrcOut = translateProgramResources(rsrc, T, report, log);
+  const bin = bytes => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return s; };
+  const convs = s => (s.match(/%[-+ #0]*\d*(?:\.\d+)?[a-zA-Z]/g) || []).join(' ');
+  const pooled = appPooledStrings(data);
+  const ranges = pooled.filter(p => !p.pascal && p.inner.length).map(p => [p.at, p.at + p.bytes.length]);
+  const cstrings = [];
+  for (const p of pooled) {
+    if (!p.pascal && ranges.some(([a, b]) => p.at > a && p.at < b)) continue;   // a tail of another: its pieces say it
+    const en = bin(p.bytes), h = translateHash(en), sec = p.pascal ? P.P : P.C, got = sec ? sec[h] : undefined;
+    if (got === undefined) { if (translateWants(en)) report.missing.push({ resid: (p.pascal ? 'Pascal' : 'C') + ' 0x' + p.at.toString(16).toUpperCase(), hash: h, kind: p.pascal ? 'P' : 'C', len: p.bytes.length }); continue; }
+    report.done++;
+    if (got === '=') continue;
+    const pieces = (Array.isArray(got) ? got : [got]).map(encodeMacRoman);
+    if (pieces.length !== p.inner.length + 1) throw new Error('the program\'s string ' + h + ' is pointed at in ' + (p.inner.length + 1) + ' places and its translation has ' + pieces.length + ' pieces');
+    const now = new Uint8Array(pieces.reduce((n, x) => n + x.length, 0));
+    const nowInner = [];
+    let off = 0;
+    pieces.forEach((x, k) => { if (k) nowInner.push(off); now.set(x, off); off += x.length; });
+    if (convs(en) !== convs(bin(now))) throw new Error('the program\'s string ' + h + ' formats "' + convs(en) + '" and its translation "' + convs(bin(now)) + '"');
+    cstrings.push({ at: p.at, pascal: p.pascal, was: Array.from(p.bytes), now: Array.from(now), inner: p.inner, nowInner });
+  }
+  const fix = { id: 'translation-' + (T.lang || 'xx'), kind: 'text', title: 'The program in ' + (T.name || T.lang), cstrings };
+  // Program fixes chosen with it are applied in the same pass, since the
+  // patcher refuses a program it has grown already.
+  const r = applyAppFixes({ data, rsrc: rsrcOut }, [fix].concat(fixes || []));
+  const rec = r.applied[0], moved = (rec.strings || []).filter(x => x.place === 'moved').length;
+  log.push('the program\'s strings: ' + cstrings.length + ' translated, ' + moved + ' of them moved to the end of the code, which grew by ' + r.grownBy + ' bytes');
+  return { data: r.data, rsrc: r.rsrc, log, report };
+}
+
 /* ---- the whole file -------------------------------------------------------- */
 
-function translateCytheraData(data, rsrc, T) {
+function translateCytheraData(data, rsrc, T, opts) {
+  opts = opts || {};
   const report = { done: 0, keys: 0, missing: [], unused: [] };
   const keepSyms = DVM_RESOURCE_SYMBOLS, keepCtx = dvmContextResid;
   try {
@@ -594,7 +799,7 @@ function translateCytheraData(data, rsrc, T) {
     const nt = translateNameTable(s.bytesOf(0x0201), T, report);
     if (nt) { s.plain.set(0x0201, nt); s.relaid.add(0x0201); s.log.push(what + ': 0x0201, the name table laid out again'); }
     if (s.spec.resources.some(r => r.resid === 0xF004)) {
-      const tn = translateTileNames(s.bytesOf(0xF004), T, report);
+      const tn = translateTileNames(s.bytesOf(0xF004), T, report, opts.articles && s.spec.resources.some(r => r.resid === 0xF002) ? s.bytesOf(0xF002) : null);
       if (tn) { s.plain.set(0xF004, tn); s.relaid.add(0xF004); s.log.push(what + ': 0xF004, the tile names written again'); }
     }
     const done = finishDataPatch(s);
@@ -685,10 +890,14 @@ function translateSpanishGlyphs(sfnt) {
   const order = Object.keys(TRANSLATE_CODES);
   const codes = {};
   order.forEach((ch, i) => { codes[TRANSLATE_CODES[ch]] = i; codes[TRANSLATE_MACROMAN[ch]] = i; });
-  const got = sfntWithGlyphs(sfnt, order.map(ch => made[ch]), codes);
+  // The no-break space the tile names join an article to its noun with
+  // (TRANSLATE_NBSP) draws as the font's own space.
+  const space = cmap[mac + 6 + 0x20];
+  const got = sfntWithGlyphs(sfnt, order.map(ch => made[ch]), codes, { [TRANSLATE_NBSP]: space });
   // Each added letter's width as a fraction of the em, at both its codes,
   // for the family width table (translateFamilyWidths).
   got.widths = {};
   order.forEach(ch => { got.widths[TRANSLATE_CODES[ch]] = made[ch].adv / upem; got.widths[TRANSLATE_MACROMAN[ch]] = made[ch].adv / upem; });
+  got.widths[TRANSLATE_NBSP] = glyphs[space].adv / upem;
   return got;
 }

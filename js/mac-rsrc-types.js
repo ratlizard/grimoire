@@ -1432,7 +1432,7 @@ function sfntEncodeGlyph(contours){
   v=0; for(const q of pts){ dv.setInt16(p,q.y-v); v=q.y; p+=2; }
   return out;
 }
-function sfntWithGlyphs(data, added, codes){
+function sfntWithGlyphs(data, added, codes, aliases){
   const t=sfntTablesOf(data);
   const {glyphs}=sfntGlyphOutlines(data);
   const s16=(b,o)=>(u16be(b,o)<<16)>>16;
@@ -1483,6 +1483,8 @@ function sfntWithGlyphs(data, added, codes){
   if(total>256) throw new Error('a format 0 cmap names glyphs below 256, and the font would have '+total);
   let mapped=0;
   for(const [code,i] of Object.entries(codes)){ cmap[mac+6+(+code)]=old+i; mapped++; }
+  // A code drawn with a glyph the font has already (a no-break space as its space).
+  for(const [code,g] of Object.entries(aliases||{})){ if(g>=total) throw new Error('no glyph '+g+' to map '+code+' to'); cmap[mac+6+(+code)]=g; mapped++; }
   const tables=[];
   for(const tag of Object.keys(t)){
     const bytes=tag==='glyf'?glyf:tag==='loca'?locaOut:tag==='hmtx'?hmtx:tag==='head'?head:tag==='hhea'?hhea:tag==='maxp'?maxp:tag==='post'?post:tag==='cmap'?cmap:Uint8Array.from(t[tag]);
