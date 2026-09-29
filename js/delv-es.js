@@ -4148,3 +4148,122 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   },
 });
 Object.assign(DELV_TRANSLATION_ES.keys, { '187D': { sout: 'sur', comp: 'bruj,comp', foun: 'fund,pila' } });
+Object.assign(DELV_TRANSLATION_ES.keys, { '187F': {
+  impr: 'ence,pris', sylp: 'silf', undi: 'ondi', war: 'guer', win: 'gana', sens: 'perc,sent', clai: 'recl', trus: 'fiar,conf', betr: 'trai',
+  huma: 'huma', peop: 'gent,pueb', die: 'muer', deat: 'muer', mort: 'mort', igna: 'igna', seld: 'seld', east: 'este', west: 'oest',
+} });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  // UrSylph, the last great Sylph, imprisoned
+  '187F': {
+    '5af4c8e5': 'Ves una voluta de aire que palpita de luz.*',
+    '439ed030': '"Nuestro @encierro por fin ha terminado, pero no nos importa."*"Hubo un tiempo en que habríamos fulminado a cualquiera que osara acercarse, tan grande era nuestra ira."*"En otro tiempo habríamos recompensado a quien nos liberara con su deseo más desbocado."*"Pero ahora ya no importa.  Todo nuestro pueblo ha caído, y los Seldane y las Ondinas están en guerra."*"Aun encerrados como estábamos, UrSylph sigue sintiendo girar la rueda."*"Y tú, tú debes de ser humano.  Hemos sentido tu llegada y el caos que causa."',
+    'fb8166af': '"¿Por qué nos atormentas aún más?"',
+    'c5ffa83e': '"Somos UrSylph.  El último gran @Silfo"',
+    '46250fc2': '"En otro tiempo guiábamos a un pueblo poderoso, y éramos el más grande de ellos.  Ahora solo quedamos nosotros."',
+    '5a7f1406': '"Adiós, humano.  Sabe que caminas hacia la muerte."',
+    '1d3dfc4a': '"Los mortales mueren.  Ese es el don que los hace mortales."',
+    '585a3cd7': '"Somos silfos, seres del @aire."',
+    'e0b3544e': '"De los cuatro @elementos, el aire es el más noble."',
+    '646266ce': '"La @Tierra al Este, el @Aire al Norte, el @Fuego al Sur, el @Agua al Oeste."',
+    '8548cf8c': '"La Tierra, los @Seldane."',
+    'ec8b3adc': '"El Fuego, los @Ignae."',
+    'b214aaba': '"El Agua, las @Ondinas."',
+    '1415b689': '"En otro tiempo éramos amigos de Ignae, pero se ha vuelto contra nosotros, y ayuda a @encerrarme."',
+    '41c49ad4': '"Seres lastimosos.  Aunque ayudan a encerrarme, aun así se desvanecen en la @guerra."',
+    'a9354727': '"Las Ondinas son astutas, sí.  Han derrocado a los Seldane, y juegan con vosotros, los humanos, como con juguetes."',
+    'ba037927': '"Vosotros, los humanos, sois lo desconocido.  @Percibimos vuestra existencia, y vuestras luchas."*"Cuando llegasteis, el equilibrio entre los Seldane y las Ondinas se descontroló."*"Si cualquiera de los dos bandos puede @reclamaros como suyos, ese bando sin duda ganará."',
+    '53664289': '"Todos los elementos están en guerra entre sí, mientras gira la rueda."*"Norte con sur, este con oeste, pero vosotros, los humanos, podéis ser el centro."',
+    '63fce4dc': '"A ese lo @percibimos: muy singular.  No del todo humano, esa es la verdad."',
+    '8c0c2eda': '"Hace eones, los tres @elementos se unieron para derrocarnos, y nos encerraron aquí."*"Atrapados dentro de la @tierra, rodeados de @fuego, aislados por el @agua, esperamos."*"Y ahora vienes tú a liberarnos, quizá.  Ya no nos importa."',
+    'b807905d': '"Todo nuestro pueblo ha caído, y es menos de lo que fuimos."',
+    'e3d45eeb': '"Aunque aislados, aún podemos percibir algunas cosas que suceden."*"Sabemos mucho de la @historia que sigue oculto a vuestros más sabios."',
+    '63037296': '"Tanto las Ondinas como los Seldane querrían reclamaros como suyos, y ambos mentirán para lograrlo."*"Nosotros no nos @fiaríamos mucho de lo que diga ninguno de los dos bandos."',
+    'db30f1a6': '"Confianza: de quién fiarse.  En otro tiempo nos fiábamos de Ignae, pero Ignae nos traicionó."*"Tú no puedes fiarte de nadie, eso seguro, ni siquiera de nosotros."*"No necesitamos mentirte, puesto que no nos importa, pero puede que tu mente aún no entienda nuestras palabras."',
+    '7ca063ad': '"Sabemos de la destrucción de una pequeña colonia, a manos de un traidor, y por el poder de las Ondinas."*"Sabemos cómo ese traidor intentó corromper a los humanos, adorando a dioses falsos."*"Ese todavía cree que algún día podrá vengarse de los Seldane que lo usaron como títere."*"En cambio, se queda sentado en sus fortalezas de las montañas, esperando una muerte que nunca llegará del todo."*"Sabemos lo que sucede.  Sabemos de traidores."',
+    '9a1458b3': '"Ignae nos traicionó.  Vosotros, los humanos, cualquiera de vosotros traicionaría a toda su raza."',
+    'b227a074': 'La bola de luz palpita una vez, pero no se oye respuesta alguna.',
+  },
+});
+// Pieces said the same way in more than one script, first written for one.
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  '694789ee': 'Director Lindus', '513aa10c': 'Bibliotecario Selinus', 'e373ea8a': 'Maestra Palaestra', 'eea59ba9': 'Maestro Tros', 'e1ca5322': 'Maestro Pheres',
+  '286628ec': 'Casa Comana', '52e77950': 'Casa Attis',
+  'cdc6a8cc': '"Tendrás que buscar en otra parte..."', '1361e7d8': '¡Comida!', 'f2072a8e': '"¿Qué puedo hacer por ti?"',
+  'b0643946': '"Ya dominas lo básico; no creo que entendieras mucho más."',
+  '0c1ed2bd': '"Estás tan pelao como yo: no está bien burlarse de un viejo."', '86c92e6a': '¿Cuántos óbolos le das?', '810db3f2': '"Allá tú."',
+  'a043546e': '"¿Sí?  ¿Qué puedo hacer por ti?"', 'de5adcc5': '¡Crito!', '4316fcd6': 'Lino',
+});
+Object.assign(DELV_TRANSLATION_ES.text, { '191A': { '2185ba6a': 'Algo huele mal.\n' } });
+
+/* ---- spells and skills: a name, what it does, and what casting it asks ---- */
+
+// "Cast '" + a spell + "' on whom?" and the like, shared by every spell.
+Object.assign(DELV_TRANSLATION_ES.text['*'], {
+  '2f927f17': "¿Lanzar '", '1df881e2': "' sobre qué?\n", '7969e1ef': "' sobre quién?\n", 'b62ffd62': "' sobre qué?\n",
+  '43551828': "' dónde?\n", 'ebfd976e': "' contra qué?\n",
+  'd86fda71': '¡Detectas ', 'a2d6fc86': 'No detectas nada.\n',
+});
+Object.assign(DELV_TRANSLATION_ES.text, {
+  '1A00': { 'bb7015ee': 'Nexo dirigido', '1af5dd76': 'Este conjuro abre un portal a un lugar concreto, que te transporta al instante a ti y a tu grupo a su punto de nexo en la Sala del Rey de la Tierra.\n' },
+  '1A01': { 'bfb229c3': 'Visión de la noche', 'bb84ad9b': 'Este conjuro da a quien lo lanza la capacidad de ver las cosas en la oscuridad con la misma claridad que de día.\n' },
+  '1A02': { 'e4bf96f3': 'Iluminación menor', '2b8cc531': 'Este conjuro ilumina la zona como lo haría una vela.\n' },
+  '1A03': { '7ac5c60b': 'Detectar lo oculto', '72af2e85': 'Este conjuro determina si hay objetos ocultos.\n' },
+  '1A04': { 'fd3383b2': 'Detectar trampas', '77953817': 'Este conjuro determina si hay peligros ocultos.\n' },
+  '1A05': { 'dda3e3e0': 'Manipulación a distancia', '27b772a7': 'Este conjuro aprovecha fuerzas místicas para hacer que se use un objeto lejano.\n', 'cdca5e3a': 'Es demasiado complejo para usarlo desde aquí.\n' },
+  '1A06': { '2e7f9abd': 'Golpe mortal', '2efa0ec4': 'Este conjuro causa graves daños a lo que toques.\n' },
+  '1A07': { 'c8a67b76': 'Cercioramiento', '277fa788': 'Este conjuro permite detectar las mentiras durante las conversaciones.\n' },
+  '1A08': { '5453a5f3': 'Alivio', 'e1a47267': 'Este conjuro neutraliza diversas toxinas.\n' },
+  '1A09': { '87039645': 'Curación menor', 'e8642793': 'Este conjuro cura heridas leves.\n' },
+  '1A0A': { '3ee4287b': 'Este conjuro cura diversas heridas.\n' },
+  '1A0B': { 'c0407117': 'Curación mayor', 'd7273bdf': 'Este conjuro cura heridas graves.\n' },
+  '1A0C': { 'dbe0b5a0': 'Iluminación', 'a5aa18ba': 'Este conjuro ilumina la zona como lo haría una antorcha.\n' },
+  '1A0D': { '1bc7eec6': 'Soporiferidad', 'f8092343': 'Este conjuro sume al objetivo en un sueño profundo.\n' },
+  '1A0E': { '9202e654': 'Aterrorización', '7b459987': 'Este conjuro infunde un miedo instantáneo al objetivo.\n' },
+  '1A0F': { 'c0f76f33': 'Enajenación', 'cec32ca7': 'Este conjuro confunde y trastorna al objetivo.\n' },
+  '1A10': { '5ecf015f': 'Iluminación mayor', '69b06ee7': 'Este conjuro ilumina la zona como lo haría una hoguera.\n' },
+  '1A11': { 'd7dc5575': 'Este conjuro da nutrientes al objetivo, como si hubiera comido hace poco.\n' },
+  '1A12': { '62786bd9': 'Este conjuro hace que salga disparado un pequeño rayo de poder místico de quien lo lanza hacia el objetivo.\n' },
+  '1A13': { '6d49b956': 'Despertar', '6445e7b6': 'Este conjuro saca al objetivo de su sueño.\n', 'c6325cc8': ' se despierta.\n', 'c8700f9d': ' se da la vuelta y se vuelve a dormir.' },
+  '1A14': { 'e057e79e': 'Detectar runa', 'c189dc6c': 'Este conjuro encuentra runas ocultas.\n', '6810f75c': 'Descubres ahí una especie de runa.\n', '77b2d790': 'No descubres ninguna runa ahí.\n' },
+  '1A15': { '6ad47846': 'Resistir golpes', 'e43312d4': 'Este conjuro hace que el objetivo resista en parte los golpes dirigidos contra él.\n', '4a3594a1': 'Te sientes más a salvo.\n', 'cc1a64c9': ' se siente más a salvo.\n' },
+  '1A16': { '4b22cb78': 'Runa de protección', 'fa493f8d': 'Este conjuro inscribe una Runa que avisa a quien la lanzó cuando algo la pisa.\n' },
+  '1A17': { '50303241': 'Runa de fuego', 'fbbeb403': 'Este conjuro inscribe una Runa que envuelve en llamas a lo primero que la pisa.\n' },
+  '1A18': { 'f91b1d74': 'Disipar runa', '39a54b58': 'Este conjuro borra una Runa determinada.\n', '5dd73c91': 'Eliminas la runa.\n', 'f5f07746': 'Eso no es una runa.\n' },
+  '1A19': { '2929c53b': 'Este conjuro rompe el efecto del miedo en todo el grupo.\n' },
+  '1A1A': { '05a4572d': 'Runa de bloqueo', '8ae90572': 'Este conjuro inscribe una Runa que impide el paso.\n' },
+  // "The " + a thing + " is now mage locked.": said without the article, which would need the thing's gender
+  '1A1B': {
+    'a145cab6': 'Cierre mágico', '4ba0e3e9': 'Este conjuro cierra con magia una puerta o un cofre.\n',
+    '7e2e4360': 'La puerta está ahora cerrada con magia.\n', '2f4ee094': 'Cerrado con magia: ', '7cd3e9c7': '.\n',
+    '31466903': 'La trampilla está ahora cerrada con magia.\n', 'd8f08eca': 'No se puede cerrar con magia: ',
+  },
+  '1A1C': { 'a8505999': 'Despertar a todos', '0a5e5847': 'Este conjuro saca de su sueño a todo el grupo.\n' },
+  '1A1D': { '6299d5a5': 'Relámpago', 'a1576f86': 'Este conjuro hace que un gran relámpago caiga sobre el objetivo.\n' },
+  '1A1E': { '0e5fc810': 'Cura', 'c1058ed9': 'Este conjuro elimina del objetivo los efectos de diversas toxinas y conjuros.\n' },
+  '1A1F': { 'ec6f6789': 'Resistir el fuego', 'ae6ce28f': 'Este conjuro hace al objetivo inmune al calor por un tiempo.\n' },
+  '1A20': { '538b10e9': 'Abrir', '53af539c': 'Este conjuro abre los objetos cerrados con llave.\n' },
+  '1A21': { '71989ac2': 'Runa de dolor', '0d068d58': 'Este conjuro inscribe una runa que causa un dolor intenso a lo primero que la pisa.\n' },
+  '1A22': { '643f7cd8': 'Bola de fuego', '99c56e2f': 'Este conjuro envuelve en llamas una zona grande, y afecta a todo lo que hay en ella.\n' },
+});
+Object.assign(DELV_TRANSLATION_ES.text['*'], { 'ab9ae0ef': '¡Sigue con vida!\n', '3562eebf': 'Es demasiado grande y pesado.\n' });
+Object.assign(DELV_TRANSLATION_ES.text, {
+  '1A23': { 'f6e4b257': 'Este conjuro impide que el objetivo pueda moverse durante un tiempo.\n' },
+  '1A24': { '003039db': 'Desvalijar', '2948c39f': 'Este conjuro hace que otras personas suelten lo que llevan encima.\n', 'd7bfd05d': ' suelta ' },
+  '1A25': { '29cc3b47': 'Luz del día', 'd475cc9b': 'Este conjuro crea una luz duradera, brillante como el día.\n' },
+  '1A26': { 'c01f431a': 'Aterrorización en masa', '7465dce8': 'Este conjuro llena de terror a todos los enemigos.\n', '8b305701': ' chilla de miedo.\n' },
+  '1A27': { '07df43f0': 'Encantamiento', 'c922fbef': 'Este conjuro hace que otra persona te considere una amistad y una aliada.\n', 'fba4fac8': 'Ya está de tu parte...\n' },
+  '1A28': { '533a3183': 'Atraer', '0ec29dea': 'Este conjuro trae hasta quien lo lanza un objeto pequeño y lejano.\n' },
+  '1A29': { '09e883e6': 'Cura en masa', 'cc7dd6c3': 'Este conjuro cura los males de todo tu grupo.\n' },
+  '1A2A': { '0cf2393b': 'Vista lejana', '7945fafc': 'Este conjuro permite ver de una vez toda la zona de alrededor.\n' },
+  '1A2B': { '10eb57c4': 'Replicar', '6bf08dcc': 'Este conjuro crea un duplicado de un objeto pequeño.\n', '526cf1ab': 'El conjuro es demasiado débil para replicarlo.\n' },
+  '1A2C': { '80551171': 'Confusión en masa', '7b0765b7': 'Este conjuro siembra la confusión entre todos los enemigos.\n' },
+  '1A2D': { 'd7aac95c': 'Temblor', 'ebd9795f': 'Este conjuro sacude el suelo, y causa daño a todos los enemigos.\n' },
+  '1A2E': { '4aafeb5f': 'Restauración', '25e4d478': 'Este conjuro cura y sana a una persona de todos sus males.\n' },
+  '1A2F': { '17a97156': 'Resurrección', '21116211': 'Este conjuro trae a una persona de vuelta del umbral de la muerte.\n' },
+  // "The " + a thing + " is no longer mage locked."
+  '1A30': {
+    '86cbaa3c': 'Quitar cierre mágico', '79a94df9': 'Este conjuro quita un Cierre mágico del lugar donde se puso.\n',
+    '0599f830': 'La puerta ya no está cerrada con magia.\n', '2f4ee094': 'Ya no está cerrado con magia: ', '2ac0479f': '.\n',
+    '6619044e': 'La trampilla ya no está cerrada con magia.\n', '01d5efec': 'No hay ningún cierre mágico en: ',
+  },
+});
