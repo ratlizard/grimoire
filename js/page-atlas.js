@@ -847,6 +847,21 @@ window.ATLAS_NATIVE_AT = (function () {
   try { const m = /[?&]nativeAt=([0-9.]+)/.exec(location.search || ''); const v = m ? parseFloat(m[1]) : NaN; return v > 0 ? v : 1; }
   catch (e) { quiet(e); return 1; }
 })();
+/* And no native art below the art's own size, in device pixels a square
+   (29 September 2026). Tiles made at the size the screen needs from the
+   moment a render was magnified at all meant some thirty small tiles near
+   the screen at a middle zoom, made again after every pause; the
+   maintainer found `?nativeAt=100`, no tiles at all, smooth on his phone
+   where the tiles jerked, and asked for them only to make the closest
+   zoom sharp everywhere. From 32 a square, the art's own, a tile is the
+   32 px art and covers four times the screen area it did at the old
+   first level, so there are a few of them; below it the render is drawn,
+   softer, as with no tiles. `?tileFrom=` moves the floor, for a
+   comparison. */
+window.ATLAS_TILE_FROM = (function () {
+  try { const m = /[?&]tileFrom=([0-9.]+)/.exec(location.search || ''); const v = m ? parseFloat(m[1]) : NaN; return v > 0 ? v : 32; }
+  catch (e) { quiet(e); return 32; }
+})();
 function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
   ctx.globalAlpha = alpha;
   ctx.imageSmoothingEnabled = true;
@@ -1082,7 +1097,7 @@ function atlasRestDpr() { return Math.min((typeof devicePixelRatio !== 'undefine
 // The tile size a node wants at a zoom, or 0 when its render is enough.
 function atlasTileTS(node, ppt) {
   const want = ppt * atlasRestDpr();
-  if (!(want > node.ts * window.ATLAS_NATIVE_AT)) return 0;
+  if (!(want > node.ts * window.ATLAS_NATIVE_AT) || want < window.ATLAS_TILE_FROM) return 0;
   let ts = 0;
   for (const L of ATLAS_TILE_LEVELS) if (L > node.ts) { ts = L; if (L >= want) break; }
   return ts;
