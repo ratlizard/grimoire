@@ -1384,12 +1384,25 @@ try {
              yery: has('text', 'Yery well', 'Very well'), landKing: has('text-land-king', 'LandKing', 'Land King'),
              british: r.rows ? r.rows.some(x => x.part === 'spelling-uk') : false, community: r.rows ? r.rows.some(x => x.part === 'community') : false,
              twoTaled: has('text-two-taled', 'Two Tailed Rat', 'Two-Taled Rat') }; })()`);
+  // Helen's "Yery well" row links to the place in her script that says it,
+  // and following the link opens that script ringed there.
+  const link = peek(`(() => {
+    const row = dataFixTextRows().rows.find(x => x.find === 'Yery well'), loc = row && row.at[0];
+    if (!loc) return null;
+    const b = smartDecrypt(getResourceBytes(ARCHIVE, loc.resid), loc.resid).data;
+    let t = ''; for (let k = 0; k < 9; k++) t += String.fromCharCode(b[loc.at + k]);
+    const opened = jumpToScriptAt(loc.resid, loc.at);
+    return { resid: loc.resid, at: loc.at, t, opened, ringed: !!(window.LISTING_AT && window.LISTING_AT.resid === loc.resid && window.LISTING_AT.at === loc.at) };
+  })()`);
+  ctx.showCategory('PATCHES');
   const w = peek('dataFixPatch()');
   const text = id => peek(`(() => { const b = smartDecrypt(getResourceBytes(ARCHIVE, ${id}), ${id}).data; let t = ''; for (let i = 0; i < b.length; i++) t += String.fromCharCode(b[i]); return t; })()`);
   if (none !== null || orphan !== null) fail('game fixes', 'a patch was written with nothing chosen, or with an option alone');
   else if (!refusedParis || refusedParis.indexOf(paris) !== 0) fail('game fixes', 'the edited Paris topic was not refused by the fix’s name: ' + refusedParis);
   else if (changes.why || !changes.yery || !changes.landKing || !changes.british || !changes.community || changes.twoTaled)
     fail('game fixes', 'the list of the text’s changes is not the options chosen: ' + JSON.stringify(changes));
+  else if (!link || link.resid !== 0x1858 || link.t !== 'Yery well' || !link.opened || !link.ringed)
+    fail('game fixes', 'the list’s link to Helen’s "Yery well" is not where the words are, or did not open there: ' + JSON.stringify(link));
   else if (!/5 of Bryce Schroeder’s/.test(desc) || !/the text \(British spelling, Land King\)/.test(desc) || !/Peirithous alive/.test(desc))
     fail('game fixes', 'the patch calls itself ' + desc);
   else if (!w || !w.checkValueValid || ![0x1A28, 0x1091, 0x1861, 0xF00B, 0xF009, 0x1801].every(r => w.resids.includes(r)))
@@ -1405,7 +1418,7 @@ try {
     else if (!/won't come free/.test(fetch)) fail('game fixes', 'Fetch’s new lines are not in 0x1A28');
     else if (!peek('window.EDITED_RESIDS').has(0x1A28)) fail('game fixes', 'the fixes are not among the edits');
     else if (!again) fail('game fixes', 'the fixes built again on the file they had fixed');
-    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list refused on the edited Paris topic by the fix's name; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), and refused when built again; the text's ${changes.rows} changes listed under ${changes.parts.length} headings, the option not chosen not among them`);
+    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list refused on the edited Paris topic by the fix's name; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), and refused when built again; the text's ${changes.rows} changes listed under ${changes.parts.length} headings, the option not chosen not among them, and Helen's "Yery well" linked to her script at 0x${link.at.toString(16).toUpperCase()}, opened ringed there`);
   }
   ctx.dataFixClear();
   ctx.patchesForget();

@@ -29,6 +29,16 @@
 //    dependencies, which nothing found suggests exist. The suite runs 1, 2
 //    and 4; --full was run when the fixes became choosable, and is to run
 //    whenever a fix is added.
+// 5. THE PLACES THE TEXT'S LIST LINKS TO (29 September 2026): with each
+//    spelling and every option, every place dataFixTextChanges gives a row
+//    must hold the row's words in the shipped file, which is what the link
+//    opens. A place the text changed twice (a British stem inside a word a
+//    fix put there) is counted and named, and must be one this says why.
+// 6. YE OLDE SPELLING LEAVES WHAT IS TYPED: with it, every keyword list in
+//    every script is what the text alone leaves, and the symbols (0x0101)
+//    and the name table (0x0201) are untouched. The control makes "shop"
+//    "shoppe" without the filter, and must be seen changing Thoas's
+//    "shop,buy".
 // 4. THE COMMUNITY'S LIST, DATA_FIX_COMMUNITY_TYPOS, against the collection
 //    it was read out of, when the collection is here: the same pairs, in the
 //    same order. The page cannot read the collection, so the list is written
@@ -84,7 +94,8 @@ for (const f of top) {
   else if (!r.changed) fail('alone: ' + f.id + ' changed nothing');
   else alone++;
 }
-const textRuns = [['text'], ...options.map(o => ['text', o]), ['text', 'spelling-us'], ['text', 'spelling-uk'], ['text', 'spelling-us', ...options], ['text', 'spelling-uk', ...options]];
+const SPELLINGS = FIXES.filter(f => f.choice === 'spelling').map(f => f.id);
+const textRuns = [['text'], ...options.map(o => ['text', o]), ...SPELLINGS.map(sp => ['text', sp]), ...SPELLINGS.map(sp => ['text', sp, ...options])];
 for (const ids of textRuns) {
   const r = build(ids);
   if (!r.ok) fail('text: ' + ids.join(' + ') + ' did not apply: ' + r.why);
@@ -102,7 +113,7 @@ console.log(`  alone: ${top.length} fixes and ${textRuns.length} runs of the tex
 
 // ---- 2. every fix together -------------------------------------------------
 let pinned = null;
-for (const sp of ['us', 'uk']) {
+for (const sp of SPELLINGS.map(id => id.replace('spelling-', ''))) {
   const r = build(every(sp));
   if (!r.ok) { fail('every fix, ' + sp + ' spelling, did not apply: ' + r.why); continue; }
   if (!r.same) fail('every fix, ' + sp + ' spelling: the patch does not merge back');
@@ -139,6 +150,67 @@ if (FULL) {
   const whyText = twice(['text']);
   if (!whyText) fail('control: the text applied twice without a word'); else refused++;
   console.log(`  refusals: ${refused} of 6 fixes applied to a file they had fixed already refuse, naming the fix`);
+}
+
+// ---- 5. the places the text's list links to --------------------------------
+{
+  const r = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+    const arc = openDelverArchive(__a), shipped = {};
+    const bytes = id => shipped[id] || (shipped[id] = smartDecrypt(getResourceBytes(arc, id), id).data);
+    const out = [];
+    for (const sp of [null].concat(${JSON.stringify(SPELLINGS)})) {
+      const rows = dataFixTextChanges(__a, (sp ? [sp] : []).concat(${JSON.stringify(options)}));
+      let places = 0, unmapped = 0, touched = 0; const off = [];
+      for (const row of rows) for (const loc of row.at) {
+        places++;
+        if (loc.at === null) { unmapped++; continue; }
+        const b = bytes(loc.resid);
+        let ok = true; for (let k = 0; k < row.find.length; k++) if (b[loc.at + k] !== row.find.charCodeAt(k)) { ok = false; break; }
+        // A place inside words an earlier edit wrote holds what that edit
+        // replaced, and says so; any other place must hold its own words.
+        if (loc.touched) { touched++; continue; }
+        if (!ok) { let was = ''; for (let k = 0; k < row.find.length + 6; k++) was += String.fromCharCode(b[loc.at + k] || 32); off.push(row.part + ' "' + row.find + '" at 0x' + loc.resid.toString(16) + '+' + loc.at.toString(16) + ' reads "' + was + '"'); }
+      }
+      out.push({ sp, rows: rows.length, places, unmapped, touched, off });
+    }
+    return out;
+  })())`, ctx));
+  for (const x of r) {
+    if (x.unmapped) fail('text list, ' + (x.sp || 'as shipped') + ': ' + x.unmapped + ' places with no offset');
+    if (x.off.length) fail('text list, ' + (x.sp || 'as shipped') + ': ' + x.off.length + ' places do not hold their words: ' + x.off.slice(0, 4).join('; '));
+  }
+  console.log('  text list: ' + r.map(x => (x.sp || 'as shipped') + ' ' + x.rows + ' rows, ' + x.places + ' places (' + x.touched + ' inside words a fix wrote)').join('; ') + '; every other place holds its words in the shipped file');
+}
+
+// ---- 6. ye olde spelling leaves what is typed -------------------------------
+{
+  const r = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+    // Every keyword list of every script resource in a finished session, as text.
+    const lists = done => {
+      const spec = writeDelverArchive(done.spec), s = dataPatchSession(spec), out = [];
+      for (const id of dataPatchScriptResids(s.spec)) {
+        const b = s.bytesOf(id), extra = { blocks: [], keys: [] };
+        dvmOffsetSites(b, id, extra);
+        for (const [a, z] of extra.keys) { let t = ''; for (let k = a + 1; k < z && b[k]; k++) t += String.fromCharCode(b[k]); out.push(id + ':' + t); }
+      }
+      return out;
+    };
+    const plain = (done, id) => Array.from(done.spec.resources.find(x => x.resid === id).data || []);
+    const text = applyDataFixes(__a, ['text']), olde = applyDataFixes(__a, ['text', 'spelling-olde']);
+    const a = lists(text), b = lists(olde);
+    const differ = a.filter((k, i) => k !== b[i]).length + Math.abs(a.length - b.length);
+    const same = id => JSON.stringify(plain(text, id)) === JSON.stringify(plain(olde, id));
+    // The control: "shop" made "shoppe" over every script without the filter.
+    const s = dataPatchSession(writeDelverArchive(text.spec));
+    applyDataEdits(s, { textEdits: [{ what: 'control', resid: null, find: 'shop', replace: 'shoppe' }] });
+    const c = lists(finishDataPatch(s));
+    const seen = a.filter((k, i) => k !== c[i]);
+    return { lists: a.length, differ, symbols: same(0x0101), names: same(0x0201), control: seen.slice(0, 3) };
+  })())`, ctx));
+  if (r.differ) fail('olde spelling: ' + r.differ + ' keyword lists differ from the text alone');
+  if (!r.symbols || !r.names) fail('olde spelling: the symbols or the name table changed');
+  if (!r.control.length) fail('control: "shop" made "shoppe" everywhere changed no keyword list');
+  else console.log('  olde spelling: ' + r.lists + ' keyword lists as the text alone leaves them, the symbols and the name table untouched; the control changed ' + r.control.join(', '));
 }
 
 // ---- 4. the community's list against the collection ------------------------

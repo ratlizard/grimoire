@@ -48,7 +48,13 @@
              NUL-terminated string operand, an array entry, a data block --
              so this is the same edit for all of them. `resid: null` is the
              same edit over every script resource, each allowed to match
-             nothing (the British spellings, which are not tied to a place).
+             nothing (the British spellings, which are not tied to a place),
+             less the resources `except` names. `prose: true` takes a whole
+             word of running text only: not a word's part, not a
+             highlighted word (after an @), and nothing in a keyword list,
+             which a spelling that changed a word's start would stop
+             answering (the olde spelling's "ye" for "the"; 29 September
+             2026).
    Within a stage the code edits go first, then the data edits, then the
    text: a resource laid out afresh by a data edit (the name table) must be
    whole before a text edit looks for a word in it.
@@ -78,8 +84,33 @@ function dataPatchSession(bytes) {
   const plain = new Map();
   return {
     bytes, arc, spec, plain, log: [], listings: new Map(), stage: null, textDone: [],
+    // Every splice made in a resource, in order, so that a place in the
+    // resource as it stands can be taken back to the file the session began
+    // on (dataPatchOrigin); a resource laid out afresh cannot be.
+    splices: new Map(), relaid: new Set(),
     bytesOf(resid) { return plain.get(resid) || smartDecrypt(getResourceBytes(arc, resid), resid).data; },
   };
+}
+
+// A place in a resource as it stands, in the file the session began on: each
+// splice undone, last first; a place inside new bytes goes to where they were
+// put, and is `touched`, since the file there says what the edit replaced (a
+// hyphen put into a word a fix respelt, a "the" in a To Do line a fix wrote
+// afresh). `at` null for a resource laid out afresh.
+function dataPatchOrigin(s, resid, at) {
+  if (s.relaid.has(resid)) return { at: null, touched: true };
+  const list = s.splices.get(resid) || [];
+  let touched = false;
+  for (let k = list.length - 1; k >= 0; k--) {
+    const sp = list[k];
+    if (at >= sp.at + sp.inserted) at -= sp.inserted - sp.removed;
+    else if (at >= sp.at) { at = sp.at; touched = true; }
+  }
+  return { at, touched };
+}
+function dataPatchSplice(s, resid, at, removed, inserted) {
+  if (!s.splices.has(resid)) s.splices.set(resid, []);
+  s.splices.get(resid).push({ at, removed, inserted });
 }
 
 // The instruction at `at` in a resource's bytes, and where the next begins.
@@ -153,19 +184,11 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
     if (e.replaceOp) { const g = dataPatchOpAt(b, e.resid, e.at); if (!g) throw new Error(e.what + ': no instruction at 0x' + e.at.toString(16)); to = g.next; }
     const asm = dvmAssemble(e.code, e.resid);
     const rl = dvmRelink(b, e.resid, e.at, to === undefined ? 0 : to - e.at, asm, e.shiftAt ? { shiftAt: true } : undefined);
+    const removed = to === undefined ? 0 : to - e.at;
+    dataPatchSplice(s, e.resid, e.at, removed, removed + rl.delta);
     s.plain.set(e.resid, rl.bytes);
     log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', ' + (rl.delta >= 0 ? '+' : '') + rl.delta + ' bytes, ' + rl.moved + ' offsets moved');
   } catch (err) { throw named(e, err); }
-  const dataBlocks = (b, resid) => {
-    const out = [];
-    for (const [st, en, kind] of dvmExtents(b, resid)) {
-      if (kind !== 'function') continue;
-      dvmContextResid = resid;
-      let r; try { r = dvmDisassemble(b.subarray(st, en), 3); } catch (e) { quiet(e, 'a data block looked for in a function that does not disassemble'); continue; }
-      for (const op of r.ops) if (op[2] === 'data') { const a = st + op[0]; out.push({ a, size: (b[a + 1] << 8) | b[a + 2] }); }
-    }
-    return out;
-  };
   const toBytes = t => Uint8Array.from(t, c => { const v = c.charCodeAt(0); if (v >= 0x80) throw new Error('text edit has a byte above 0x7F: ' + t); return v; });
   const findAll = (b, needle) => { const out = []; for (let i = 0; i + needle.length <= b.length; i++) { let k = 0; while (k < needle.length && b[i + k] === needle[k]) k++; if (k === needle.length) out.push(i); } return out; };
   // Data edits first: a resource laid out afresh (the name table) must
@@ -177,6 +200,7 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
     // line about the array it edited in place.
     const line = res instanceof Uint8Array ? 'laid out again, ' + b.length + ' to ' + res.length + ' bytes' : res;
     s.plain.set(d.resid, res instanceof Uint8Array ? res : b);
+    if (res instanceof Uint8Array) s.relaid.add(d.resid);
     log.push(d.what + ': 0x' + d.resid.toString(16).toUpperCase() + ', ' + line);
   } catch (err) { throw named(d, err); }
   // resid null: the same edit over every script resource, each allowed
@@ -185,7 +209,7 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
   const scriptResids = dataPatchScriptResids(s.spec);
   for (let k = TEXT.length - 1; k >= 0; k--) if (TEXT[k].resid === null) {
     const e = TEXT[k];
-    TEXT.splice(k, 1, ...scriptResids.map(resid => Object.assign({}, e, { resid, optional: true, quiet: true })));
+    TEXT.splice(k, 1, ...scriptResids.filter(resid => !(e.except && e.except.indexOf(resid) >= 0)).map(resid => Object.assign({}, e, { resid, optional: true, quiet: true })));
   }
   // An edit anchored to an offset ('at', in the resource as the stage found
   // it) is applied after every anchored edit further on in the same
@@ -202,41 +226,67 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
     // to equal the text (a tab is 9, and 0x813 has three of those between
     // bytes that print as '@' and a digit) out.
     const lower = v => v >= 0x61 && v <= 0x7A;
-    const hits = e.at !== undefined ? [e.at] : findAll(b, needle).filter(i => !e.mid || (i > 0 && b[i - 1] === 0x20 && i + needle.length < b.length && lower(b[i + needle.length])));
+    // 'prose': a whole word, not after an @, and outside every keyword list.
+    const letter = v => (v >= 0x41 && v <= 0x5A) || lower(v);
+    const word = i => !(i > 0 && (letter(b[i - 1]) || b[i - 1] === 0x40)) && !(i + needle.length < b.length && letter(b[i + needle.length]));
+    let hits = e.at !== undefined ? [e.at] : findAll(b, needle).filter(i => (!e.mid || (i > 0 && b[i - 1] === 0x20 && i + needle.length < b.length && lower(b[i + needle.length]))) && (!e.prose || word(i)));
+    // Every site in the resource, and on the way its data blocks and its
+    // keyword lists, in one walk; taken only where there is something to
+    // change, since an edit made over every script finds most of them empty.
+    const extra = { blocks: [], keys: [] };
+    const sites = hits.length ? dvmOffsetSites(b, e.resid, extra) : [];
+    if (e.prose) hits = hits.filter(i => !extra.keys.some(([a, z]) => i < z && i + needle.length > a));
     if (!hits.length && e.optional) { if (!e.quiet) log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', 0 places'); continue; }
     if (e.count !== undefined ? hits.length !== e.count : hits.length < 1) throw new Error(e.what + ': "' + e.find + '" found ' + hits.length + ' times in 0x' + e.resid.toString(16) + (e.count !== undefined ? ', not ' + e.count : ''));
-    const blocks = dataBlocks(b, e.resid);
-    let moved = 0;
-    for (const off of hits.reverse()) {
-      // dvmRelink's splice and check, with one step it cannot take put
-      // between them: a data block's size word corrected before the
-      // result is read back, since the block is read by that size and a
-      // stale one throws every site after it off.
-      const delta = repl.length - needle.length, cutEnd = off + needle.length;
-      const sites = dvmOffsetSites(b, e.resid);
-      const out = new Uint8Array(b.length + delta);
-      out.set(b.subarray(0, off), 0); out.set(repl, off); out.set(b.subarray(cutEnd), off + repl.length);
-      if (delta) for (const blk of blocks) if (off >= blk.a + 3 && off < blk.a + 3 + blk.size) { blk.size += delta; out[blk.a + 1] = (blk.size >> 8) & 0xFF; out[blk.a + 2] = blk.size & 0xFF; }
-      const expect = new Map();
-      for (const site of sites) {
-        const p = site.at < off ? site.at : site.at >= cutEnd ? site.at + delta : null;
-        if (p === null) continue;
-        const v = site.value <= off ? site.value : site.value < cutEnd ? null : site.value + delta;
-        if (v === null) throw new Error(e.what + ': 0x' + site.value.toString(16) + ', which a ' + site.kind + ' points at, is inside the text replaced');
-        if (v !== site.value) { dvmWriteSite(out, { at: p, size: site.size }, v); moved++; }
-        expect.set(p, v);
-      }
-      const again = dvmOffsetSites(out, e.resid);
-      const bad = again.filter(site => expect.has(site.at) && expect.get(site.at) !== site.value);
-      const lost = [...expect.keys()].filter(q => !again.some(site => site.at === q));
-      if (bad.length || lost.length) throw new Error(e.what + ' at 0x' + off.toString(16) + ' in 0x' + e.resid.toString(16) + ': the resource does not read back, ' + bad.length + ' offsets wrong, ' + lost.length + ' no longer found');
-      b = out;
+    // Where each place is in the file the session began on, before this
+    // edit's own splices; the list of the text's changes links to it.
+    const origin = hits.map(i => dataPatchOrigin(s, e.resid, i));
+    /* Every place at once: dvmRelink's splice and check, with one step it
+       cannot take put between them, a data block's size word corrected
+       before the result is read back, since the block is read by that size
+       and a stale one throws every site after it off. Until 29 September
+       2026 this took the places one at a time from the right, reading every
+       site again before and after each, which is the same arithmetic and
+       came out the same bytes (compared); the olde spelling's three
+       thousand "the"s took four seconds that way. A site past a place moves
+       by the difference in length once for each place before it; a site
+       pointing into the text replaced is refused; `moved` counts a site
+       once for each place that moved it, as the one-at-a-time loop did. */
+    const len = needle.length, delta = repl.length - len;
+    const asc = hits.slice().sort((x, y) => x - y);
+    for (let k = 1; k < asc.length; k++) if (asc[k] < asc[k - 1] + len) throw new Error(e.what + ': two of its places overlap in 0x' + e.resid.toString(16));
+    const out = new Uint8Array(b.length + delta * asc.length);
+    let from = 0, to = 0;
+    for (const off of asc) { out.set(b.subarray(from, off), to); to += off - from; out.set(repl, to); to += repl.length; from = off + len; }
+    out.set(b.subarray(from), to);
+    const endedBy = p => { let n = 0; for (const off of asc) if (off + len <= p) n++; return n; };
+    if (delta) for (const blk of extra.blocks) {
+      const n = asc.filter(off => off >= blk.a + 3 && off < blk.a + 3 + blk.size).length;
+      if (!n) continue;
+      const size = blk.size + n * delta, at = blk.a + delta * endedBy(blk.a);
+      out[at + 1] = (size >> 8) & 0xFF; out[at + 2] = size & 0xFF;
     }
+    const expect = new Map();
+    let moved = 0;
+    for (const site of sites) {
+      if (asc.some(off => site.at >= off && site.at < off + len)) continue;
+      if (asc.some(off => site.value > off && site.value < off + len)) throw new Error(e.what + ': 0x' + site.value.toString(16) + ', which a ' + site.kind + ' points at, is inside the text replaced');
+      const p = site.at + delta * endedBy(site.at), n = endedBy(site.value), v = site.value + delta * n;
+      if (delta && n) { dvmWriteSite(out, { at: p, size: site.size }, v); moved += n; }
+      expect.set(p, v);
+    }
+    const again = dvmOffsetSites(out, e.resid);
+    const bad = again.filter(site => expect.has(site.at) && expect.get(site.at) !== site.value);
+    const lost = [...expect.keys()].filter(q => !again.some(site => site.at === q));
+    if (bad.length || lost.length) throw new Error(e.what + ' in 0x' + e.resid.toString(16) + ': the resource does not read back, ' + bad.length + ' offsets wrong, ' + lost.length + ' no longer found');
+    // The splices from the right, as they were once made one at a time.
+    for (let k = asc.length - 1; k >= 0; k--) dataPatchSplice(s, e.resid, asc[k], len, repl.length);
+    b = out;
     s.plain.set(e.resid, b);
     log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', ' + hits.length + ' place' + (hits.length === 1 ? '' : 's') + ', ' + moved + ' offsets moved');
     // What the text now says, edit by edit, for the list of every change
     // the text makes (dataFixTextChanges).
-    s.textDone.push({ stage: s.stage, opt: e.opt || null, what: e.what, resid: e.resid, find: e.find, replace: e.replace, places: hits.length });
+    s.textDone.push({ stage: s.stage, opt: e.opt || null, what: e.what, resid: e.resid, find: e.find, replace: e.replace, places: hits.length, at: origin });
   } catch (err) { throw named(e, err); }
 }
 
@@ -318,7 +368,10 @@ function applyDataFixes(bytes, ids, opts) {
    under the part of the fix it came from ('text', an option's id,
    'community', or the spelling's id); an edit made in several resources (a
    word misspelt in seven, a British stem over every script) is one row with
-   the resources it was made in and the places counted. */
+   the resources it was made in and the places counted. Each row carries
+   every place it changes, as offsets in the file given (`at`, null where a
+   resource was laid out afresh; `touched` where an earlier edit wrote the
+   words there), which the Patches section links to. */
 function dataFixTextChanges(bytes, ids) {
   const chosen = dataFixesChosen(['text'].concat(ids || []));
   const done = applyDataFixes(bytes, [...chosen], { stages: ['text', 'community-text', 'spelling'] });
@@ -328,9 +381,11 @@ function dataFixTextChanges(bytes, ids) {
     const part = t.stage === 'community-text' ? 'community' : t.stage === 'spelling' ? (spelling ? spelling.id : 'spelling') : (t.opt || 'text');
     const key = part + '\u0000' + t.find + '\u0000' + t.replace;
     let r = byKey.get(key);
-    if (!r) { r = { part, find: t.find, replace: t.replace, resids: [], places: 0 }; byKey.set(key, r); rows.push(r); }
+    if (!r) { r = { part, find: t.find, replace: t.replace, resids: [], places: 0, at: [] }; byKey.set(key, r); rows.push(r); }
     if (r.resids.indexOf(t.resid) < 0) r.resids.push(t.resid);
     r.places += t.places;
+    // Each place, in the open file, in the order it comes in its resource.
+    for (const a of t.at.slice().sort((x, y) => x.at - y.at)) r.at.push({ resid: t.resid, at: a.at, touched: a.touched });
   }
   return rows;
 }

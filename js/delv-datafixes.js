@@ -61,9 +61,13 @@
    Fixes" came out the same either way. The map stage
    could come anywhere: it changes two maps, 0x8006 and 0x801F, which no
    other stage touches, and it finds its squares by the tiles on them. The
-   last three fixes were patches of their own at the maintainer's word, each
-   touching one resource nothing else does (the kill helper, the spell, the
-   character table), and come after everything.
+   three larger changes were patches of their own at the maintainer's word,
+   each touching one resource no other fix does (the kill helper, the spell,
+   the character table), and came after everything until 29 September 2026;
+   they come before the text now, since the olde spelling's "ye" changes
+   words in the kill helper's and the spell's own lines, which moved the
+   offsets Resurrection's edit is anchored to. No text stage touches their
+   code, so with any other spelling the file is the same either way.
 
    Any subset of the fixes applies, because every edit checks what it
    expects: an edit that depends on another stops the build by name rather
@@ -76,7 +80,7 @@
    reason. The jokes and the recastings (Sour Grapes, the Voices of the Hall,
    the Strine opening), which are builders of their own and no fix. */
 
-const DATA_FIX_STAGES = ['found', 'community', 'bugfix', 'further', 'text', 'community-text', 'spelling', 'map', 'apart'];
+const DATA_FIX_STAGES = ['found', 'community', 'bugfix', 'further', 'apart', 'text', 'community-text', 'spelling', 'map'];
 // The stages whose edits are found in the file, and so are sorted before
 // they are applied (js/delv-datapatch.js).
 const DATA_FIX_STAGE_SORTED = ['further'];
@@ -1099,6 +1103,7 @@ const DATA_FIXES = [
     ] },
   { id: 'spelling-us', parent: 'text', choice: 'spelling', group: 'text', title: 'American spelling throughout, as the Hintbook has it' },
   { id: 'spelling-uk', parent: 'text', choice: 'spelling', group: 'text', title: 'British spelling throughout' },
+  { id: 'spelling-olde', parent: 'text', choice: 'spelling', group: 'text', title: 'Ye olde spelling: ye towne, ye shoppe, magick and musick' },
   { id: 'text-two-taled', parent: 'text', group: 'text', title: 'The inn is the \u201cTwo-Taled Rat\u201d in the directions too, as on its sign' },
   { id: 'text-land-king', parent: 'text', group: 'text', title: '\u201cLandKing\u201d written \u201cLand King\u201d, as in the manuals' },
   { id: 'text-areithous', parent: 'text', group: 'text', title: '\u201cAriethous\u201d written \u201cAreithous\u201d, as in the Hintbook' },
@@ -1499,6 +1504,32 @@ const DATA_FIX_TEXT_BRITISH = (() => {
   return out;
 })();
 
+/* Ye olde spelling, the third choice (29 September 2026, the maintainer
+   asking for "a funny text edit option alternative to US and UK
+   spellings"). "The" as "ye", from the thorn's y-shaped letterform on
+   signs that wanted to look old; "old", "shop" and "town" with the -e the
+   signs add; and -ic words as -ick, the spelling Aleister Crowley kept for
+   "magick", whose books the Aloiphos volumes quote. Whole words of running
+   text only (`prose`): "the" as "ye" changes a word's start, so a keyword
+   list holding it would stop answering, and Thoas's "shop,buy" would stop
+   answering "shop" as "shoppe"; a highlighted word is left too, though the
+   rest only add letters and would still match. Two resources are left
+   whole: 0x0101, the scripts' own symbols, which are no one's text, and
+   0x0201, the name table, whose strings are pointed at with a tag the
+   relinker does not move, so a name of another length would break it. So
+   names keep their spelling, and what is said of them does not. */
+const DATA_FIX_TEXT_OLDE = (() => {
+  const EXCEPT = [0x0101, 0x0201];
+  const cap = t => t[0].toUpperCase() + t.slice(1);
+  const out = [];
+  for (const [a, b] of [['the', 'ye'], ['old', 'olde'], ['shop', 'shoppe'], ['town', 'towne'], ['magic', 'magick'], ['magical', 'magickal'],
+       ['music', 'musick'], ['public', 'publick'], ['basic', 'basick'], ['tragic', 'tragick'], ['comic', 'comick'], ['heroic', 'heroick'],
+       ['rustic', 'rustick'], ['civic', 'civick'], ['exotic', 'exotick'], ['ironic', 'ironick']])
+    for (const [f, r] of [[a, b], [cap(a), cap(b)]])
+      out.push(Object.assign(dataFixT('olde "' + f + '"', null, f, r), { prose: true, except: EXCEPT }));
+  return out;
+})();
+
 // The text stage's edits for the options chosen: the list, less the options
 // not chosen, each keeping the option it belongs to for the list of changes
 // (dataFixTextChanges). And the spelling stage's, for the spelling chosen.
@@ -1506,7 +1537,8 @@ function dataFixTextEdits(chosen) {
   return DATA_FIX_TEXT.filter(e => !e.opt || chosen.has(e.opt)).map(e => Object.assign({}, e));
 }
 function dataFixSpellingEdits(chosen) {
-  return chosen.has('spelling-us') ? DATA_FIX_TEXT_AMERICAN.slice() : chosen.has('spelling-uk') ? DATA_FIX_TEXT_BRITISH.slice() : [];
+  return chosen.has('spelling-us') ? DATA_FIX_TEXT_AMERICAN.slice() : chosen.has('spelling-uk') ? DATA_FIX_TEXT_BRITISH.slice()
+    : chosen.has('spelling-olde') ? DATA_FIX_TEXT_OLDE.slice() : [];
 }
 
 /* ---- The text: the community's list -----------------------------------------

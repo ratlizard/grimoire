@@ -1188,7 +1188,9 @@ function jumpToForkBytes(resid, byte, stride) {
 }
 window.LISTING_AT = null;
 function jumpToScriptAt(resid, at) {
-  if (window.CUR_SUBN === 'MECHANICS' || MECH_GROUP_BY_VALUE[window.CUR_SUBN]) mechKeepPlace();
+  // The Patches tab too, whose list of the text's changes links every place
+  // (29 September 2026), so that back finds the list where it was left.
+  if (window.CUR_SUBN === 'MECHANICS' || MECH_GROUP_BY_VALUE[window.CUR_SUBN] || window.CUR_SUBN === MECH_TOOL_GROUP.value) mechKeepPlace();
   if (!jumpToResource(resid)) return false;
   window.LISTING_AT = { resid, at };
   // A script under Text opens on its words; a jump to a line wants the code.

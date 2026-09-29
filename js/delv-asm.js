@@ -80,7 +80,14 @@ function dvmContainerSites(b, p, end, resid, out, kind, all) {
   }
 }
 
-function dvmOffsetSites(b, resid) {
+/* `extra`, when given, takes two things the walk sees on the way, so a caller
+   that wants them does not disassemble the resource a second time (the text
+   edits of js/delv-datapatch.js, which want every `data` block, whose size
+   word a change of length inside it must correct, and every keyword list,
+   which a spelling must leave alone): extra.blocks gets { a, size } for each
+   `data` instruction, and extra.keys [start, end) for each
+   conversation_response, its words and its target. */
+function dvmOffsetSites(b, resid, extra) {
   const out = [];
   const { tableOffset, kinds } = dvmDiscover(b, resid);
   if (tableOffset === null) return out;
@@ -100,8 +107,10 @@ function dvmOffsetSites(b, resid) {
     if (kind !== 'function') continue;
     let r;
     try { r = dvmDisassemble(b.subarray(st, en), 3); } catch (e) { continue; }
-    for (const op of r.ops) {
-      const a = st + op[0], mn = op[2];
+    for (let i = 0; i < r.ops.length; i++) {
+      const op = r.ops[i], a = st + op[0], mn = op[2];
+      if (extra && mn === 'data') extra.blocks.push({ a, size: u16be(b, a + 1) });
+      if (extra && mn === 'conversation_response') extra.keys.push([a, i + 1 < r.ops.length ? st + r.ops[i + 1][0] : en]);
       if (mn === 'then' || mn === 'branch' || mn === 'call_subroutine' || mn === 'load_near_word' || mn === 'write_near_word') {
         if (a + 3 <= b.length) out.push({ at: a + 1, size: 2, value: u16be(b, a + 1), kind: mn });
       } else if (mn === 'cases') {

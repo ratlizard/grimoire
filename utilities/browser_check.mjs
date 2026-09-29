@@ -317,7 +317,7 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     ['datafixes', "showCategory('PATCHES'); dataFixGroup('bryce', true); dataFixToggle('text', true); dataFixSpelling('spelling-uk'); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; document.getElementById('dataFixMaker').scrollIntoView()"],
     // The same, with the list of every change the text makes open, filled
     // at once rather than after the click as the page does.
-    ['textchanges', "showCategory('PATCHES'); dataFixToggle('text', true); dataFixSpelling('spelling-uk'); DATAFIX_STATE.showText = true; renderDataFixMaker(); const b = document.querySelector('.dataFixChanges'); dataFixFillChanges(b); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; b.scrollIntoView()"],
+    ['textchanges', "showCategory('PATCHES'); dataFixToggle('text', true); dataFixSpelling('spelling-olde'); DATAFIX_STATE.showText = true; renderDataFixMaker(); const b = document.querySelector('.dataFixChanges'); dataFixFillChanges(b); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; b.scrollIntoView()"],
   ];
   const MEASURE = `(() => {
     const w = window.innerWidth, out = {innerWidth: w, scrollWidth: document.documentElement.scrollWidth, over: [], small: 0, buttons: 0};

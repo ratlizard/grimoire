@@ -2169,6 +2169,7 @@ function dataFixDescription(chosen) {
     const opts = [];
     if (chosen.some(f => f.id === 'spelling-us')) opts.push('American spelling');
     if (chosen.some(f => f.id === 'spelling-uk')) opts.push('British spelling');
+    if (chosen.some(f => f.id === 'spelling-olde')) opts.push('ye olde spelling');
     if (chosen.some(f => f.id === 'text-two-taled')) opts.push('Two-Taled');
     if (chosen.some(f => f.id === 'text-land-king')) opts.push('Land King');
     if (chosen.some(f => f.id === 'text-areithous')) opts.push('Areithous');
@@ -2273,17 +2274,42 @@ function dataFixFillChanges(body) {
     : (DATA_FIXES.find(f => f.id === part) || { title: part }).title;
   const parts = [];
   for (const row of r.rows) if (parts.indexOf(row.part) < 0) parts.push(row.part);
-  body.appendChild(el('p', 'mechSub', r.rows.length + ' changes. The words struck through are the game\u2019s, and the words after them what the fix writes.'));
+  body.appendChild(el('p', 'mechSub', r.rows.length + ' changes. The words struck through are the game\u2019s, and the words after them what the fix writes. Each place opens the script at the line that holds it.'));
+  /* The places of a row, each a link to its line: a resource's name for its
+     first place and a number for each after it, since a word misspelt twice
+     in one speech is two places in one script. A row of more than a dozen
+     (a British stem, "ye" for "the") folds them away behind their count. */
+  const links = row => {
+    const wrap = el('span', 'dataFixPlace');
+    const seen = new Map();
+    // Separated by commas, since a resource's name can be several words.
+    row.at.forEach((loc, i) => {
+      const n = (seen.get(loc.resid) || 0) + 1;
+      seen.set(loc.resid, n);
+      const label = n === 1 ? place(loc.resid) : String(n);
+      if (i) wrap.appendChild(document.createTextNode(', '));
+      if (loc.at === null) { wrap.appendChild(el('span', '', label)); return; }
+      const b = el('button', 'svLink srcNum', label);
+      b.title = propWordHex(loc.resid) + ' at ' + propWordHex(loc.at);
+      b.onclick = function () { jumpToScriptAt(loc.resid, loc.at); };
+      wrap.appendChild(b);
+    });
+    if (row.at.length <= 12) return wrap;
+    const d = el('details', 'dataFixMany');
+    d.appendChild(el('summary', 'mechSub', row.at.length + ' places'));
+    d.appendChild(wrap);
+    return d;
+  };
   for (const part of parts) {
     const list = r.rows.filter(x => x.part === part);
     body.appendChild(el('div', 'partsTitle', heading(part) + ' (' + list.length + ')'));
     for (const row of list) {
       const line = el('div', 'dataFixChange');
-      // Up to three places are named; more are counted.
-      line.appendChild(el('span', 'dataFixPlace', (row.resids.length <= 3 ? row.resids.map(place).join(', ') : row.resids.length + ' resources') +
-        (row.places > 1 ? ', ' + row.places + ' places' : '')));
+      const many = row.at.length > 12;
+      if (!many) line.appendChild(links(row));
       line.appendChild(el('span', 'dataFixWas', shown(row.find)));
       line.appendChild(el('span', 'dataFixNow', shown(row.replace)));
+      if (many) line.appendChild(links(row));
       body.appendChild(line);
     }
   }
