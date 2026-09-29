@@ -1349,6 +1349,59 @@ try {
   ctx.patchesForget();
 } catch (e) { fail('gremlin maker', e); }
 
+/* The game's fixes as a patch (28 September 2026): the Patches section's
+   list, chosen as a visitor chooses it. Nothing chosen writes nothing, and
+   an option of the text's chosen without the text is nothing. Bryce's list
+   is chosen whole, and the file open here is not the shipped one: the
+   "change code" block above put four instructions into Paris's name topic
+   at 0x013D, which is where Bryce's Paris fix expects its branch, so the
+   build must refuse and name that fix, which is the negative control.
+   Without it, with the text (British spelling, "Land King") and Peirithous,
+   the patch is read by the patches section, applied, and read back out of
+   the open file: Fetch's new code, a "Land King" where "LandKing" was, a
+   British spelling, and Peirithous's alive bit. Built again on the file it
+   has just fixed, it must refuse. data_fix_check.mjs holds every fix and
+   every combination; this holds the section. */
+try {
+  ctx.showCategory('PATCHES');
+  if (!REGISTRY.get('dataFixMaker')) throw new Error('no host for the section');
+  ctx.dataFixClear();
+  const none = peek('dataFixPatch()');
+  ctx.dataFixToggle('text-land-king', true);
+  const orphan = peek('dataFixPatch()');
+  ctx.dataFixGroup('bryce', true);
+  const refusedParis = peek(`(() => { try { dataFixPatch(); return null; } catch (e) { return e.message; } })()`);
+  const paris = peek(`DATA_FIXES.find(f => f.id === 'paris-diomede-names').title`);
+  ctx.dataFixToggle('paris-diomede-names', false);
+  ctx.dataFixToggle('text', true);
+  ctx.dataFixSpelling('spelling-uk');
+  ctx.dataFixToggle('peirithous', true);
+  const desc = peek('dataFixDescription(dataFixChosen())');
+  const w = peek('dataFixPatch()');
+  const text = id => peek(`(() => { const b = smartDecrypt(getResourceBytes(ARCHIVE, ${id}), ${id}).data; let t = ''; for (let i = 0; i < b.length; i++) t += String.fromCharCode(b[i]); return t; })()`);
+  if (none !== null || orphan !== null) fail('game fixes', 'a patch was written with nothing chosen, or with an option alone');
+  else if (!refusedParis || refusedParis.indexOf(paris) !== 0) fail('game fixes', 'the edited Paris topic was not refused by the fix’s name: ' + refusedParis);
+  else if (!/5 of Bryce Schroeder’s/.test(desc) || !/the text \(British spelling, Land King\)/.test(desc) || !/Peirithous alive/.test(desc))
+    fail('game fixes', 'the patch calls itself ' + desc);
+  else if (!w || !w.checkValueValid || ![0x1A28, 0x1091, 0x1861, 0xF00B, 0xF009, 0x1801].every(r => w.resids.includes(r)))
+    fail('game fixes', 'the patch is not the fixes chosen: ' + JSON.stringify(w && w.resids));
+  else if (!ctx.dataFixShowPatch() || !peek('window.PATCH_REPORT.usable')) fail('game fixes', 'the patches section did not read it as a usable patch');
+  else if (!ctx.dataFixApply()) fail('game fixes', 'the patch would not apply');
+  else {
+    const peir = peek(`smartDecrypt(getResourceBytes(ARCHIVE, 0xF009), 0xF009).data[96 * 32 + 7] & 1`);
+    const alaric = text(0x1801), fetch = text(0x1A28);
+    const again = peek(`(() => { try { dataFixPatch(); return null; } catch (e) { return e.message; } })()`);
+    if (!peir) fail('game fixes', 'Peirithous is not alive in the open file');
+    else if (/LandKing/.test(alaric) || !/Land King/.test(alaric)) fail('game fixes', '"LandKing" is still in 0x1801');
+    else if (!/won't come free/.test(fetch)) fail('game fixes', 'Fetch’s new lines are not in 0x1A28');
+    else if (!peek('window.EDITED_RESIDS').has(0x1A28)) fail('game fixes', 'the fixes are not among the edits');
+    else if (!again) fail('game fixes', 'the fixes built again on the file they had fixed');
+    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list refused on the edited Paris topic by the fix's name; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), and refused when built again`);
+  }
+  ctx.dataFixClear();
+  ctx.patchesForget();
+} catch (e) { fail('game fixes', e); }
+
 // A saved game. The page refused every Cythera player file until September
 // 2026 -- describeDelverArchive wanted eight populated subindexes and a save
 // has six -- so nothing had ever driven the page over one. Opened through

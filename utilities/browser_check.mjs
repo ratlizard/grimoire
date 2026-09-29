@@ -311,6 +311,10 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     // Data > Patches, at the program's fixes: a list of long titles with
     // their words folded under each (28 September 2026).
     ['appfixes', "showCategory('PATCHES'); const d = document.querySelector('[data-mech=\\'appfixes\\']') || document.getElementById('appFixMaker').closest('details'); if (d) d.open = true; document.getElementById('appFixMaker').scrollIntoView()"],
+    // Data > Patches, at the game's fixes, with the text and its options
+    // chosen so the indented options and the buttons are drawn (28
+    // September 2026).
+    ['datafixes', "showCategory('PATCHES'); dataFixGroup('bryce', true); dataFixToggle('text', true); dataFixSpelling('spelling-uk'); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; document.getElementById('dataFixMaker').scrollIntoView()"],
   ];
   const MEASURE = `(() => {
     const w = window.innerWidth, out = {innerWidth: w, scrollWidth: document.documentElement.scrollWidth, over: [], small: 0, buttons: 0};

@@ -239,6 +239,8 @@ loads all thirteen, in this order, before the two tiers below:
 | `js/delv-mechanics.js` | the *rules* as models — the dice game enumerated, the combat margin convolved, the lock and casting odds, the clock's healing and a night's sleep. Numbers to numbers, no DOM and no archive; the figures that draw them are in the page. Cross-checked by `utilities/mech_check.mjs` |
 | `js/delv-appfixes.js` | `APP_FIXES` — every change made to the application itself, as data: the code address, the words there now, the lines that replace them, new code (a *cave*) placed after the code section, text, and resources. The file to edit to add, change or drop a fix; its header says the form, the hooks' calling convention and why a cave is reached unconditionally |
 | `js/delv-apppatch.js` | `applyAppFixes({data, rsrc}, fixes)` — the fixes written into the PowerPC program: each site's words checked, the caves laid out and assembled, the code section grown and everything after it moved (the section header, and `cfrg 0`'s fragment offsets), text written in place, resources rewritten. Anything unexpected refuses the whole patch. `app_patch.mjs` and the Patches tab's *Fixes to the program* call it |
+| `js/delv-datafixes.js` | `DATA_FIXES` — every fix to the scenario, as data, one entry a fix: its edits in `js/delv-datapatch.js`'s three kinds, or a plan that finds them in the file; the stage it is applied in and why the stages are in that order (`DATA_FIX_STAGES`); the lists the Patches tab shows them in; the text's own lists and its options; and `DATA_FIX_COMMUNITY_TYPOS`, the community's typo pairs, written by `community_text_patch.mjs --write-js` and never by hand. The file to edit to add, change or drop a fix |
+| `js/delv-datapatch.js` | `applyDataFixes(bytes, ids)` — the fixes chosen, applied stage by stage to one session of the archive; `applyDataEdits`, one stage's code, data and text edits, each checking what it expects before it writes, which was `patch_build.mjs`'s inside until 28 September 2026. Anything unexpected refuses the whole build, naming the fix. `patch_build.mjs`, the builders and the Patches tab's *Fixes to the game, as a patch* call it |
 
 **The page's own furniture** — loaded last, because it is the only tier that
 knows the document exists. Added 13 September 2026, when the maintainer asked
@@ -495,10 +497,11 @@ guide carried it*.
 | resource fork write | `resfork_write_check.mjs` | `writeResourceFork` against the two forks Apple's Resource Manager wrote |
 | executable | `pef_check.mjs` | `js/mac-pef.js` against the workbench's routine list; the loader |
 | powerpc decoder | `ppc_check.mjs` | `js/mac-ppc.js` against `llvm-mc`, word for word |
+| game fixes | `data_fix_check.mjs` | every fix of `js/delv-datafixes.js` alone on the shipped file, the text with each option and each spelling, every fix together in both spellings with the patched file pinned, a fix applied twice refused by name, and the community's typo list against the collection it was read out of; `--full` adds each fix left out |
 | application patch | `app_patch_check.mjs` | `js/mac-ppc-asm.js` writes back every code word the decoder reads; every fix line against `llvm-mc`; the program patched with every fix and with each alone, the same outside what the fixes name, its loader, relocations, routines and second fragment where they were; a patched program, a wrong word and two fixes on one word refused |
 | rule models | `mech_check.mjs` + `mech_ref.mjs` | the closed forms against a Monte Carlo written from the same prose, so the two can be wrong together: both left out the attacker's body roll until 28 September 2026. The check against the game is the workbench's `tools/combat-check/`, which counts blows in the fork, and it covers combat only |
 | version | `version_check.mjs` | the number moved when what a visitor receives moved |
-| browser | `browser_check.mjs` | the page in headless Chrome: loads clean, the archive opens over HTTP, `canvas.html` loads; then seven views at 390 px with touch emulated, none wider than the phone, tap targets under 24 px counted, and a screenshot of each in `$TMPDIR/grimoire_shots/` to look at instead of the phone |
+| browser | `browser_check.mjs` | the page in headless Chrome: loads clean, the archive opens over HTTP, `canvas.html` loads; then each view in its list at 390 px with touch emulated, none wider than the phone, tap targets under 24 px counted, and a screenshot of each in `$TMPDIR/grimoire_shots/` to look at instead of the phone |
 | smoke, eight rows | `viewer_smoke.mjs` + `smoke_*.mjs` | every category, gallery and resource driven through the stub, and the sections the parts pin: `galleries` (the loop; the maps alone as `galleries-a`, the rest as `galleries-b`), `views`, `atlas`, `rules`, `edits`, `saves`, `installer`, each from a fresh boot (`smoke_boot.mjs`) as its own process; a run with no part named is the whole drive in one process. A new section goes in the part whose open file it needs: the bare archive, the save or the installer |
 | bad input | `fuzz_check.mjs` | every real input corrupted from a fixed seed and handed to its entry point, each case in a worker under a deadline: a decoder may refuse, never hang or crash; a control that loops on purpose must be caught |
 | in the game | `game_check.mjs` | a save edited through the page's own writer is seeded as the player file, the fork runs Cythera headless to open it and save it again, and the file the game wrote must carry the edit; the unedited seed is the control. Needs the playthrough kit, the patched fork binary and the registered licence beside the workspace, and skips without them |
@@ -507,20 +510,28 @@ guide carried it*.
 | resource snapshot | `rsrc_snapshot.mjs` | a hash of the classic-Mac decoders over both forks |
 | disk image | `hfs_check.mjs` | `writeHfsImage` structurally, and through systemless's reader |
 
-`bugfix_patch.mjs` is a builder too: the six fixes of Bryce Schroeder's
-unofficial bugfix patch, written through `js/delv-asm.js` and exported as a
-Magpie patch through `writeDelverPatch`; what it writes belongs in no
-repository either.
+The fix builders are builders too, and since 28 September 2026 each names
+a stage, or a fix, of `js/delv-datafixes.js` and hands it to
+`patch_build.mjs`'s `buildFixes`, which runs `js/delv-datapatch.js` in the
+page's sandbox: `found_fixes_patch.mjs`, `community_fixes_patch.mjs`,
+`bugfix_patch.mjs` (Bryce Schroeder's six), `further_fixes_patch.mjs`,
+`text_fixes_patch.mjs` (`--uk` for British spelling),
+`community_text_patch.mjs` (which reads the community's collection, and
+with `--write-js` writes its pairs into the catalogue), `map_fixes_patch.mjs`,
+and the three of patches of their own, `karma_patch.mjs`,
+`resurrection_patch.mjs` and `peirithous_patch.mjs`. The fixes and their
+reasoning are in the catalogue, not in the builders. What they write belongs
+in no repository.
 
-`combined_patch.mjs` is a builder too: every fix patch here, Bryce's six
-among them, run as stages, each on the one before, and written as one
-Magpie patch, "Cythera All Fixes", with each stage also run alone and
-compared; its header says why the order is the one it is. Its
-`further_fixes_patch.mjs` stage finds each place by the instructions
-around it rather than by an offset, which is what lets it share scripts
-with the stages before it. `karma_patch.mjs`, `sour_grapes_patch.mjs`,
-`resurrection_patch.mjs` and `peirithous_patch.mjs` are builders of
-patches of their own, outside the combined build.
+`combined_patch.mjs` is a builder too: every fix but the three of patches of
+their own, applied as stages in one session and written as one Magpie patch,
+"Cythera All Fixes", with each stage also applied alone and compared; the
+catalogue's header says why the order is the one it is.
+`sour_grapes_patch.mjs`, `voices_patch.mjs`, `rickmorty_patch.mjs` and
+`strine_opening_patch.mjs` are builders of patches of their own with edits of
+their own, through `patch_build.mjs`'s `buildPatch`; the casts and the Strine
+opening take the text fixes first (`text_fixes_patch.mjs`'s
+`textFixEdits`).
 
 `app_patch.mjs` is a builder too: the application with the fixes of
 `js/delv-appfixes.js`, as MacBinary and as its two forks apart, from a

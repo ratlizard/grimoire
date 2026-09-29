@@ -2110,6 +2110,215 @@ function renderAppFixMaker() {
   host.appendChild(bar);
 }
 
+/* ---- the scenario's fixes, as a patch ----
+   js/delv-datafixes.js says what each changes and js/delv-datapatch.js
+   applies them; this is the section that chooses them and hands out the
+   patch (28 September 2026). Nothing starts chosen, at the maintainer's
+   word: every fix is opted into. A list's own box chooses every fix in it,
+   the text's options are chosen one by one under it and count only with
+   it, and the spelling is one of three.
+
+   The patch is built from the open file, on a button, since building every
+   fix is a few hundred edits and a second or two on a phone; nothing is
+   built as boxes are ticked. A file that is not the shipped scenario, or one
+   that carries a fix already, is refused by the first edit that does not
+   find what it expects, and the note names the fix. Apply and Read go
+   through the patches section, as the sprite's and the gremlin's do. */
+window.DATAFIX_STATE = { on: new Set() };
+function dataFixSay(m, bad) {
+  const note = document.getElementById('dataFixNote');
+  if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
+}
+function dataFixToggle(id, on) {
+  const st = window.DATAFIX_STATE.on;
+  if (on) st.add(id); else st.delete(id);
+  renderDataFixMaker();
+}
+// A list's box: every fix in it, the text's options left as they are.
+function dataFixGroup(group, on) {
+  const st = window.DATAFIX_STATE.on;
+  for (const f of DATA_FIXES) if (f.group === group && !f.parent) { if (on) st.add(f.id); else st.delete(f.id); }
+  renderDataFixMaker();
+}
+function dataFixSpelling(id) {
+  const st = window.DATAFIX_STATE.on;
+  for (const f of DATA_FIXES) if (f.choice === 'spelling') st.delete(f.id);
+  if (id) st.add(id);
+  renderDataFixMaker();
+}
+function dataFixClear() {
+  window.DATAFIX_STATE.on = new Set();
+  renderDataFixMaker();
+  dataFixSay('');
+}
+// The fixes in effect: an option only with its fix.
+function dataFixChosen() { return DATA_FIXES.filter(f => dataFixesChosen([...window.DATAFIX_STATE.on]).has(f.id)); }
+
+// What the patch calls itself, which is what Magpie lists it by: how many
+// from each list, and the text with its options. 255 characters at most.
+function dataFixDescription(chosen) {
+  const n = g => chosen.filter(f => f.group === g && !f.parent).length;
+  const bits = [];
+  const count = (g, one, many) => { const k = n(g); if (k) bits.push(k + ' ' + (k === 1 ? one : many)); };
+  count('community', 'reported by players', 'reported by players');
+  count('found', 'found in the files', 'found in the files');
+  count('further', 'further fix', 'further fixes');
+  count('bryce', 'of Bryce Schroeder’s', 'of Bryce Schroeder’s');
+  count('map', 'to the maps', 'to the maps');
+  if (chosen.some(f => f.id === 'text')) {
+    const opts = [];
+    if (chosen.some(f => f.id === 'spelling-us')) opts.push('American spelling');
+    if (chosen.some(f => f.id === 'spelling-uk')) opts.push('British spelling');
+    if (chosen.some(f => f.id === 'text-two-taled')) opts.push('Two-Taled');
+    if (chosen.some(f => f.id === 'text-land-king')) opts.push('Land King');
+    if (chosen.some(f => f.id === 'text-areithous')) opts.push('Areithous');
+    if (chosen.some(f => f.id === 'text-hyphens')) opts.push('hyphens');
+    bits.push('the text' + (opts.length ? ' (' + opts.join(', ') + ')' : ''));
+  }
+  for (const f of chosen) if (f.group === 'apart') bits.push({ karma: 'karma for a kill', resurrection: 'Resurrection', peirithous: 'Peirithous alive' }[f.id] || f.id);
+  const last = bits.length > 1 ? bits.slice(0, -1).join(', ') + ' and ' + bits[bits.length - 1] : bits.join('');
+  let d = 'Fixes to Cythera chosen with Grimoire: ' + last + '.';
+  if (d.length > 255) d = d.slice(0, 254).replace(/\s+\S*$/, '') + '…';
+  return d;
+}
+
+/* The patch, built from the open file with the fixes chosen; null when none
+   are, and an error naming the fix when one does not apply. */
+function dataFixPatch() {
+  if (!ARCHIVE || !ARCHIVE.bytes) throw new Error('No game file is open.');
+  const chosen = dataFixChosen();
+  if (!chosen.some(f => !f.parent)) return null;
+  const done = applyDataFixes(ARCHIVE.bytes, chosen.map(f => f.id));
+  const d = document.getElementById('dataFixDesc');
+  const w = writeDelverPatch(done.spec, done.changed,
+    { description: ((d && d.value) || dataFixDescription(chosen)).slice(0, 255), typeCode: DELV_PATCH_EXPORT_TYPE });
+  w.name = 'Cythera Fixes';
+  w.fixes = chosen.filter(f => !f.parent).length;
+  return w;
+}
+// The patch or null, with the reason said.
+function dataFixBuild(what) {
+  let w;
+  try { w = dataFixPatch(); }
+  catch (e) {
+    const base = patchBaseSpec();
+    const patched = base && delverInstalledPatchIds(base).length;
+    dataFixSay('The patch could not be written. ' + e.message + (patched ? ' This file has patches applied already, which may have made this change.' : ''), true);
+    return null;
+  }
+  if (!w) dataFixSay('Nothing is chosen, so there is nothing to ' + what + '.', true);
+  return w;
+}
+function dataFixApply() {
+  const w = dataFixBuild('apply');
+  if (!w) return false;
+  if (!patchesOpenBytes(w.bytes, w.name)) { dataFixSay('The patch was not accepted.', true); return false; }
+  const ok = patchesApply();
+  if (ok) { renderPatchReport(); dataFixSay('Applied to the copy of the file in this browser. Data › Cythera Data › Changes is where it leaves the page.'); }
+  return ok;
+}
+function dataFixShowPatch() {
+  const w = dataFixBuild('read');
+  if (!w) return false;
+  const ok = patchesOpenBytes(w.bytes, w.name);
+  const host = document.getElementById('patchReport');
+  if (ok && host && host.scrollIntoView) host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return ok;
+}
+function dataFixDownload(asMacBinary) {
+  const w = dataFixBuild('write');
+  if (!w) return null;
+  if (asMacBinary) {
+    const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
+    dlBlob(new Blob([bin], { type: 'application/macbinary' }), w.name + '.bin');
+  } else downloadBlob(w.bytes, w.name);
+  dataFixSay(w.fixes + (w.fixes === 1 ? ' fix, ' : ' fixes, ') + w.resids.length + ' resources, ' + w.bytes.length.toLocaleString() + ' bytes, identity ' + w.uuidText +
+    (w.checkValueValid ? ', and the check value verifies.' : ', and the check value does not verify.'), !w.checkValueValid);
+  return w;
+}
+
+function renderDataFixMaker() {
+  const host = document.getElementById('dataFixMaker');
+  if (!host) return;
+  host.innerHTML = '';
+  const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
+  const on = window.DATAFIX_STATE.on;
+  const box = (checked, onchange, label, disabled, type, name) => {
+    const l = el('label', 'mechSub');
+    const b = document.createElement('input');
+    b.type = type || 'checkbox'; b.checked = checked; b.disabled = !!disabled;
+    if (name) b.name = name;
+    b.onchange = function () { onchange(b.checked, b); };
+    l.appendChild(b);
+    l.appendChild(el('span', '', ' ' + label));
+    return { l, b };
+  };
+  for (const g of DATA_FIX_GROUPS) {
+    const list = DATA_FIXES.filter(f => f.group === g.id && !f.parent);
+    if (!list.length) continue;
+    const head = el('div', 'dataFixHead');
+    const k = list.filter(f => on.has(f.id)).length;
+    const gb = box(k === list.length, function (c) { dataFixGroup(g.id, c); }, g.title);
+    gb.b.indeterminate = k > 0 && k < list.length;
+    gb.l.className = 'partsTitle';
+    head.appendChild(gb.l);
+    host.appendChild(head);
+    for (const f of list) {
+      const row = el('div', 'appFixRow');
+      row.appendChild(box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title).l);
+      host.appendChild(row);
+      const kids = DATA_FIXES.filter(o => o.parent === f.id);
+      if (!kids.length) continue;
+      const sub = el('div', 'dataFixOptions');
+      const off = !on.has(f.id);
+      // The spelling is one of three: as the game has it, or either choice.
+      const choices = kids.filter(o => o.choice === 'spelling');
+      if (choices.length) {
+        const picked = choices.find(o => on.has(o.id));
+        const r0 = el('div', 'appFixRow');
+        r0.appendChild(box(!picked, function (c) { if (c) dataFixSpelling(null); }, 'Spelling as the game has it', off, 'radio', 'dataFixSpelling').l);
+        sub.appendChild(r0);
+        for (const o of choices) {
+          const r = el('div', 'appFixRow');
+          r.appendChild(box(picked === o, function (c) { if (c) dataFixSpelling(o.id); }, o.title, off, 'radio', 'dataFixSpelling').l);
+          sub.appendChild(r);
+        }
+      }
+      for (const o of kids.filter(o => !o.choice)) {
+        const r = el('div', 'appFixRow');
+        r.appendChild(box(on.has(o.id), function (c) { dataFixToggle(o.id, c); }, o.title, off).l);
+        sub.appendChild(r);
+      }
+      host.appendChild(sub);
+    }
+  }
+  const chosen = dataFixChosen(), n = chosen.filter(f => !f.parent).length;
+  host.appendChild(el('p', 'mechSub', n ? n + (n === 1 ? ' fix is chosen.' : ' fixes are chosen.') : 'Nothing is chosen.'));
+  if (!n) return;
+  const desc = document.createElement('input');
+  desc.type = 'text'; desc.id = 'dataFixDesc'; desc.className = 'heroDesc';
+  desc.maxLength = 255;
+  desc.value = dataFixDescription(chosen);
+  desc.setAttribute('aria-label', 'what the patch calls itself');
+  host.appendChild(el('div', 'partsTitle', 'What the patch calls itself'));
+  host.appendChild(desc);
+  const bar = el('div', 'mechStats');
+  const btn = (label, fn) => {
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+    b.textContent = label;
+    b.onclick = fn;
+    bar.appendChild(b);
+  };
+  btn('Apply to the open file', dataFixApply);
+  btn('Read it as a patch', dataFixShowPatch);
+  btn('Download the patch', function () { dataFixDownload(false); });
+  btn('Download for a Mac', function () { dataFixDownload(true); });
+  btn('Choose none', dataFixClear);
+  host.appendChild(bar);
+}
+
 /* ---- two archives against each other, and a patch out of the difference ----
    The patches section reads a patch someone else made. This is the other two
    directions: comparing any two archives, and writing a patch out of what
@@ -3633,6 +3842,27 @@ function renderMechanicsSheet(value) {
     sec.appendChild(report);
   }
 
+  // ---- the scenario's fixes, as a patch ----
+  {
+    add('datafixes', 'Fixes to the game, as a patch', null, '',
+      'Fixes to Cythera\u2019s scenario: bugs players reported, bugs found by reading the files, Bryce Schroeder\u2019s fixes, two faults in the maps, and the text. ' +
+      'Choose the ones you want and they are written as one Magpie patch.',
+      [
+        'Nothing is chosen until you choose it. A list\u2019s own box chooses everything in it.',
+        'The text is one choice: the misspellings, slips and wrong directions, with the typos the community marked in its dialogue collection. Its spelling and the four corrections under it are chosen separately.',
+        'The larger changes each do more than mend a slip, and are for choosing one by one.',
+        'The patch is written from the file that is open, and the fixes were written for the scenario of 1.0.3 and 1.0.4 (the two are the same) as released. Every change checks what it replaces first, so a file that differs where a fix goes is refused and the fix is named.',
+        'The patch is read by this page and by the browser player, and Magpie installs it on a Mac. The program\u2019s own fixes are below, since a patch cannot reach the program.'
+      ], '');
+    const sec = sections[sections.length - 1].el;
+    const host = document.createElement('div');
+    host.id = 'dataFixMaker';
+    sec.appendChild(host);
+    const note = document.createElement('div');
+    note.className = 'mechSub'; note.id = 'dataFixNote';
+    sec.appendChild(note);
+  }
+
   // ---- the hero's colours, as a patch ----
   {
     add('herosprite', 'A sprite or a portrait of your own, as a patch', null, '',
@@ -4015,6 +4245,7 @@ function renderMechanicsSheet(value) {
   // The hero's colours draw into their host once it is in the document.
   if (document.getElementById('heroSprite')) renderHeroSprite();
   if (document.getElementById('gremlinMaker')) renderGremlinMaker();
+  if (document.getElementById('dataFixMaker')) renderDataFixMaker();
   if (document.getElementById('appFixMaker')) renderAppFixMaker();
 }
 // The cards open when a number on the sheet was followed into its script,

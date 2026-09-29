@@ -149,6 +149,10 @@ const CHROME = findChrome();
 // scores the heuristic against the shipped archive, which is the half that
 // matters most.
 const ADDONS = firstExisting('reference/community/addons', 'reference/user_addons');
+// The community's dialogue collection, which the game fixes' typo list was
+// read out of; gitignored, and data_fix_check.mjs compares the two only
+// when it is here.
+const COLLECTION = 'reference/community/guides-site/dialogue/Dialogue';
 // A Cythera saved game, for the smoke test's saved-game section. It is the
 // one complete player file in the add-ons, and addons_check.mjs unpacks it
 // here on its run, which the three checks that read it wait for (`after`);
@@ -336,6 +340,17 @@ const CHECKS = [
   {page: 'viewer', name: 'magpie patch', want: [DATA], after: ['addons + heuristic'],
    cmd: ['utilities/patch_check.mjs', 'index.html', DATA, ADDONS],
    grep: /\d+ of [\d,]+ resources replaced, [\d,]+ bytes out(?:; \d+ tiles of \d+ redrawn across \d+ sheets)?/},
+  /* The game's fixes (js/delv-datafixes.js, js/delv-datapatch.js), which the
+     Patches section offers one by one: every fix alone, the text with each
+     option and each spelling, every fix together in both spellings, a fix
+     applied twice refused by name, and the community's typo list against
+     the collection it was read out of, when the collection is here. The
+     patched file with every fix is pinned: a change to any fix moves it, and
+     the value moves in the same commit. `--full` adds each fix left out,
+     about a minute, and is run when a fix is added. */
+  {page: 'viewer', name: 'game fixes', want: [DATA],
+   cmd: ['utilities/data_fix_check.mjs', 'index.html', DATA, COLLECTION],
+   grep: /every fix: [^\n]*/, expect: 'every fix: 180 resources changed, patched file 91d784e79e880a7e'},
   /* The two StuffIt compressions this page decompresses, 13 and 15, against
      The Unarchiver's own `unar` -- which is the implementation both are ports
      of, so this is a decoder held to its source rather than to a snapshot.
