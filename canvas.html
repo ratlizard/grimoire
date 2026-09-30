@@ -591,8 +591,8 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
 <dialog id="dReg" aria-label="Registers"><div class="dh"><span class="eyebrow">Registers &amp; ramps</span>
   <button type="button" class="btn pri" data-close>Done</button></div>
   <div class="db">
-    <p class="rh">Cythera's own five are the first; the rest cycle here but the game would draw them still.
-      Switching one on takes its colours over from flat paint.</p>
+    <p class="rh">Cythera's own five come first; the rest cycle here, but the game would draw them without moving.
+      Switching one on turns its colours from flat paint into cycling ones.</p>
     <div id="regList"></div>
     <h4>Build a ramp</h4>
     <div id="stops" class="stops"></div>
@@ -618,46 +618,46 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       <button type="button" class="btn pri" id="bApplySize">Resize</button>
     </div>
     <div class="row" id="presets"></div>
-    <p class="rh" style="margin:8px 0 0">Paint keeps its place from the top-left; growing adds space, shrinking crops.</p>
+    <p class="rh" style="margin:8px 0 0">Paint stays anchored to the top-left corner; making the canvas larger adds space, and making it smaller crops it.</p>
   </div></dialog>
 
 <dialog id="dAbout" aria-label="How this works"><div class="dh"><span class="eyebrow">How this works</span>
   <button type="button" class="btn" data-close>Close</button></div>
   <div class="db">
     <p><strong>A stroke stores a position in a ramp, not a colour.</strong> Every pixel holds one
-      palette index. Inside a turning register that index says how far along the ramp the pixel sits,
-      and each frame rotates the ramp by one, so a stroke that writes a falling phase reads as
-      colour travelling that way. Drag down and it falls. Nothing is ever redrawn.</p>
+      palette index. Inside a turning register, that index says how far along the ramp the pixel is,
+      and each frame moves the ramp on by one, so a stroke that writes a falling sequence of positions looks like
+      colour travelling that way. Drag downwards and the colour falls. Nothing is ever redrawn.</p>
     <p><strong>The ink decides what the tools are.</strong> With a ramp loaded the seven are Flow,
       Vortex, Sparkle, Pool, Divert, Select and Melt; with a flat colour the same seven are Paint,
-      Shape, Spray, Fill, Smudge, Select and Pick. <strong>Melt</strong> is picking when the ink is a
-      ramp: drag across a run of colours and they are strung into a new ramp, which then pours back
-      into the pixels it came from so they start turning where they stand.</p>
-    <p><strong>Select confines everything.</strong> A box, a lasso or a region is a mask, and the one
-      place paint is written checks it, so every tool and both creatures work inside it and
+      Shape, Spray, Fill, Smudge, Select and Pick. <strong>Melt</strong> is what Pick becomes when the ink is a
+      ramp: drag across a run of colours and they are joined into a new ramp, which is then written back
+      into the pixels it came from, so they start turning where they are.</p>
+    <p><strong>Select confines everything.</strong> A box, a lasso or a region is a mask, and all
+      painting checks it, so every tool and both creatures work inside it and
       nowhere else. Drag from inside a selection to move what it holds.</p>
     <h4>The creatures</h4>
     <p><strong>Giant Slug</strong> chains every turning register into one long body, so colour
       leaving the end of Fire arrives at the start of Water. Switch it off and every pixel keeps the
-      colour it is showing at that moment: the joins the slug made are broken where they stand, and
+      colour it is showing at that moment: the links the slug made are broken where they are, and
       the registers go back to turning separately from there.</p>
     <p><strong>Hydra Polyp</strong> takes a tool at random once a second and uses it somewhere at
       random. Leave it running and it will paint over everything you own.</p>
     <h4>The knobs</h4>
     <p><strong>Turns</strong> sets which end of the ramp leads, or holds it still; the stroke sets
-      which way the wave travels. <strong>Band spacing</strong> is how many pixels one turn of the
-      ramp covers. <strong>Turbulence</strong> is noise in the stroke's own frame, so it streaks with
-      the flow. <strong>Fold</strong> warps the coordinate the bands are measured along into
-      marbling. <strong>Pool</strong> measures distance through the shape it fills, so bands run
-      square across a channel and close round a lake. <strong>Opacity</strong> is an ordered dither,
-      since an indexed palette has nothing to blend with.</p>
-    <p><strong>The palette is Cythera's</strong>, a 6-bit Mac CLUT widened to 8, and
-      not a limit: set the depth from 1 to 16 bits and everything snaps to that grid, or Direct to
-      keep imported colours exactly. Mixed colours are appended, so the palette can run to thousands;
-      what GIF and PNG care about is the distinct colours on the canvas, which the status bar counts.</p>
+      the direction the wave travels. <strong>Band spacing</strong> is how many pixels one turn of the
+      ramp covers. <strong>Turbulence</strong> adds noise that follows the stroke, so it streaks along with
+      the flow. <strong>Fold</strong> bends the direction the bands are measured along, giving a
+      marbled look. <strong>Pool</strong> measures distance through the shape it fills, so bands run
+      straight across a channel and close in around a lake. <strong>Opacity</strong> uses an ordered dither,
+      because an indexed palette cannot blend colours.</p>
+    <p><strong>The palette is Cythera's</strong>, a 6-bit Mac colour table widened to 8 bits, but
+      it is not a limit: set the depth from 1 to 16 bits and every colour snaps to that grid, or choose Direct to
+      keep imported colours exactly. Mixed colours are added to the end, so the palette can grow to thousands;
+      what matters for GIF and PNG is the number of distinct colours on the canvas, which the status bar counts.</p>
     <p><strong>The GIF is the save file.</strong> Ours carry the whole project in a comment block.
-      Any other cycling GIF is read off its own motion: between two frames every moving colour steps
-      from one slot to another, that is a permutation, and its cycles are the registers.</p>
+      Any other cycling GIF is read from its own motion: between two frames, every moving colour steps
+      from one slot to another, and the cycles those steps form become the registers.</p>
     <p>Cythera and Delver are trademarks of Glenn Andreas and/or Ambrosia Software. Unofficial fan tool.
       The slug and the polyp are the game's own sprites.</p>
   </div></dialog>

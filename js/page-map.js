@@ -1925,7 +1925,7 @@ function drawMapMarks(lensCtx, lensTS) {
   let saveLegend = null;
   if (M.save) {
     const sb = window.SAVE_BESIDE;
-    if (!sb) saveLegend = 'no save beside this file: compare one under Tools';
+    if (!sb) saveLegend = 'no save open alongside this file: compare one under Tools';
     else {
       const listId = 0x8100 + cm.level;
       const sres = sb.spec.resources.find(r => r.resid === listId);
@@ -1980,7 +1980,7 @@ function drawMapMarks(lensCtx, lensTS) {
       }
       ring(people, '#8fb8ff');
       const bits = [];
-      if (!sres) bits.push('no list for this zone in the save, so the scenario’s stands');
+      if (!sres) bits.push('no list for this zone in the save, so the scenario’s list is shown');
       if (placed.length) bits.push(placed.length + ' placed');
       if (gone.length) bits.push(gone.length + ' gone');
       if (moved.length) bits.push(moved.length + ' moved');
@@ -2023,8 +2023,8 @@ function drawMapMarks(lensCtx, lensTS) {
       (edges ? ' + ' + edges + (edges === 1 ? ' open edge' : ' open edges') : ''));
     if (M.path && pathStops) parts.push('<span style="color:' + colours.path + '">' + LINE +
       svEsc(pathName) + ', ' + pathStops + (pathStops === 1 ? ' post' : ' posts') +
-      ' on this map, joined by the route the game would walk, each leg' +
-      ' coloured by the hour it sets out and drawn on its own rail where a' +
+      ' on this map, joined by the route the game would walk; each part of the route is' +
+      ' coloured by the hour it starts, and drawn on its own line where the same' +
       ' way is walked twice</span>');
     if (ropes) parts.push('<span style="color:#fff">' + ROPE + ropes +
       (ropes === 1 ? ' needs a rope' : ' need a rope') + '</span>');
@@ -2032,10 +2032,10 @@ function drawMapMarks(lensCtx, lensTS) {
       svEsc(propDisplayName(spots.pt) || ('0x' + spots.pt.toString(16).toUpperCase())) + '</span>');
     if (saveLegend) parts.push('<span style="color:#a8e06a">' + BOX + 'save: ' + saveLegend + '</span>');
     legend.innerHTML = parts.length
-      ? parts.join(' &nbsp; ') + ' <span style="color:#8c8980">, doors are the classes the game keeps the state of across a reload, ' +
-        'containers the classes with IsContainer, and hidden ways are identified by prop-type name; zone exits are visible passages out (holes, stairs, cave mouths) plus the map header’s ' +
+      ? parts.join(' &nbsp; ') + ' <span style="color:#8c8980">. Doors are the classes whose state the game keeps when a zone is reloaded, ' +
+        'containers are the classes with IsContainer, and hidden ways are identified by prop-type name. Zone exits are visible ways out (holes, stairs, cave mouths) plus the map’s ' +
         'open edges, which you leave by walking off at any row or column; concealed passages are marked as ' +
-        'hidden ways instead</span>'
+        'hidden ways instead.</span>'
       : '';
   }
   if (!lensCtx) scheduleLensPaint();
@@ -2804,8 +2804,8 @@ function seatsOnMap(resid, m) {
           if (tables.length) { face = tables[0][2]; why = 'faces the table beside it'; }
           else if (walls.length === 1) { face = walls[0][2]; why = 'wall behind it'; }
           else { face = SPR_S; why = 'not known, this seat has ' + own +
-                   ' frame' + (own === 1 ? '' : 's') + ', so its aspect is not a four-way facing, ' +
-                   'and nothing stands behind it to say which way it is turned'; }
+                   ' frame' + (own === 1 ? '' : 's') + ', so its aspect does not give one of four directions, ' +
+                   'and nothing behind it shows which way it faces'; }
         }
         // Two chairs on one square (Cademia's Thuria has one of each class
         // under her): the one whose aspect is a facing says which way she

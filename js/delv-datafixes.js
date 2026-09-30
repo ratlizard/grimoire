@@ -415,7 +415,7 @@ const DATA_FIXES = [
   // hidden are placed as eggs and hatch as the party comes near: the pass
   // the next waking hour would have run, run at once. The loop's exit lands
   // on the first, and nothing jumps to the second.
-  { id: 'sleep-reschedule', group: 'community', stage: 'community', title: 'People are back about the zone after a night\u2019s sleep',
+  { id: 'sleep-reschedule', group: 'community', stage: 'community', title: 'People are back around the zone after a night\u2019s sleep',
     edits: [
       { what: 'the sleepers rescheduled after a night', resid: 0xE93, at: 0x0160,
         expect: { 0x0151: 'set_local 0x03', 0x015D: 'branch', 0x0160: 'if_not', 0x0161: 'arg Arg03' },
@@ -1199,7 +1199,7 @@ const DATA_FIXES = [
   // left as shipped at the maintainer's word. The map record wants a fifth
   // local; a function's locals are the third byte of its header, and UseOn's
   // header is at 0xA0.
-  { id: 'resurrection', group: 'apart', stage: 'apart', title: 'Resurrection raises the person where the corpse lay, bags packed, and back in the party',
+  { id: 'resurrection', group: 'apart', stage: 'apart', title: 'Resurrection brings the person back where the corpse lay, with their belongings, and in the party',
     edits: (() => {
       // Hector, Meleager, Ariadne, Timon, Aethon, Dryas.
       const JOINERS = [0x06, 0x22, 0x35, 0x4A, 0x61, 0x62];

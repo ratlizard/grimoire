@@ -518,7 +518,7 @@ function propInspectRows(p) {
     const haveKey = keysForLock(r.d1).length;
     rows.push(['Lock', 'id ' + r.d1 + (haveKey
       ? ', ' + haveKey + ' matching key' + (haveKey === 1 ? '' : 's') + ' in the world'
-      : ', no key item matches: lockpick, magic or a script opens it')]);
+      : '; no key matches it, so the lockpick, magic or a script opens it')]);
   }
   if (r.proptype === KEY_PROPTYPE && r.d1)
     rows.push(['Opens', 'lock id ' + r.d1 + ', ' + locksForKey(r.d1).length + ' lock(s)']);
@@ -734,10 +734,10 @@ function inspectMapSquare(tx, ty) {
           (withView === 32 ? ', nothing darkened' : withView === 0 ? ', solid black' : '') +
           (withView !== alone ? ' <span class="inspDim">(' + alone +
             ' of 32 with nothing in view)</span>' : '') + '</div>') +
-      '<div class="inspDim">That is the base value of every square of the level, not of this ' +
-      'one: anything bright in the eleven-by-eleven view lifts the whole map, and walking it out ' +
-      'of view puts the map back. The game also passes over sources it counts as unseen, which ' +
-      'the file does not record, so every source in the window is counted here.</div></div>');
+      '<div class="inspDim">That is the base value for every square of the level, not just this ' +
+      'one: anything bright in the eleven-by-eleven view lightens the whole map, and moving it out ' +
+      'of view darkens the map again. The game also ignores light sources it treats as unseen, which ' +
+      'the file does not record, so every source in view is counted here.</div></div>');
   }
 
   // A square inside a gateway's footprint says so first, and offers the
@@ -777,8 +777,8 @@ function inspectMapSquare(tx, ty) {
 
   for (const e of exits) {
     parts.push('<div class="inspCard"><b>Zone exit</b> <span class="inspDim">zoneport 0x' +
-      e.idx.toString(16).toUpperCase() + '</span><div class="inspDim">The map graph arrives on this ' +
-      'square from somewhere else, and in play the same square is the way back out.</div></div>');
+      e.idx.toString(16).toUpperCase() + '</span><div class="inspDim">Another place leads to this ' +
+      'square, and in play the same square is the way back out.</div></div>');
   }
 
   const SIDE_WORDS = { N: 'north', E: 'east', S: 'south', W: 'west' };
@@ -795,13 +795,13 @@ function inspectMapSquare(tx, ty) {
   if (needsRope) {
     parts.push('<div class="inspCard"><b>Rope</b> <span class="inspDim">prop type 0x14B on this ' +
       'square</span><div class="inspDim">A rope is fixed here, which is what makes the drop below ' +
-      'passable. There are four in the whole scenario and every one is on a ravine.</div></div>');
+      'passable. There are four in the whole scenario, all of them on ravines.</div></div>');
   }
 
   if (faux) {
     parts.push('<div class="inspCard"><b>' +
       svEsc(propDisplayName(faux.proptype) || ('0x' + faux.proptype.toString(16))) + '</b>' +
-      ' <span class="inspDim">faux prop, drawn by the terrain tile itself (0xF010), ' +
+      ' <span class="inspDim">not a real prop: it is drawn by the terrain tile itself (0xF010), ' +
       'not placed in the prop list</span><div class="inspActs">' +
       '<button class="sv-chip" onclick="showPropTypeDetail(' + faux.proptype + ')">Prop type</button>' +
       '</div></div>');
@@ -943,8 +943,8 @@ function renderMapResource(resid) {
     hideDetailLens(true);
     if (!result) {
       document.getElementById('mapLabel').textContent =
-        '0x' + resid.toString(16).toUpperCase() + (lbl ? ' - ' + lbl : '') + '  |  (could not parse as a valid map header/size)';
-      out.textContent = "Could not render map 0x" + resid.toString(16).toUpperCase() + " -- header failed validation (bad decrypt guess or non-map resource).";
+        '0x' + resid.toString(16).toUpperCase() + (lbl ? ' - ' + lbl : '') + '  |  (could not be read as a valid map)';
+      out.textContent = "Could not render map 0x" + resid.toString(16).toUpperCase() + ": its header is not valid (it was decrypted wrongly, or it is not a map).";
       currentResid = resid;
       return;
     }
@@ -1669,7 +1669,7 @@ function renderAtlasBar() {
     bar.style.display = '';
     bar.innerHTML = '<span class="wbNote">This file has no world map (resource 0x' +
       WORLD_MAP_RESID.toString(16).toUpperCase() + '), so there is no world to draw. ' +
-      'A saved game carries only what changed in play. Data \u203a Data Fork lists what it holds.</span>';
+      'A saved game contains only what has changed in play. Data \u203a Data Fork lists what it contains.</span>';
     return;
   }
   const below = atlasBelowTop();

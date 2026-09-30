@@ -99,7 +99,7 @@ const APP_FIXES = [
       { at: 0x54258, was: [0x28000000, 0x41820010, 0x881E0000, 0x28000008, 0x40820094],
         asm: ['andi. 0, 0, 223       ; the moved bit aside', 'beq @0x5426C', 'cmplwi 0, 8', 'bne @0x542FC', 'nop'] }] },
 
-  { id: 'weight-contents', kind: 'fix', title: 'GetWeight weighs the type alone, not also the load of whatever has the type’s number',
+  { id: 'weight-contents', kind: 'fix', title: 'GetWeight counts the item type’s own weight only, not also the load of whatever thing has the same number as the type',
     bug: 'The scale gives wrong weights',
     sites: [{ at: 0x958A4, was: [0x4BFC01B5], asm: ['li 3, 0               ; was bl GetCurInvEncumb'] }] },
 
@@ -152,7 +152,7 @@ const APP_FIXES = [
       { at: 0x4C464, was: [0x48000058], asm: ['b @0x4C4C8            ; a party member: past the nutrition'] },
       { at: 0x4C4C4, was: [0x38800020, 0x98A6001B], asm: ['stb 5, 27(6)          ; nutrition 30, for the others', 'li 4, 32              ; the party member joins here'] }] },
 
-  { id: 'sleep-hidden', kind: 'fix', title: 'A character not yet drawn, moved in a quick passage of time to a post on the party’s level, waits there as an egg instead of hidden',
+  { id: 'sleep-hidden', kind: 'fix', title: 'A character who has not yet been drawn, and is moved to a post on the party’s level while time passes quickly, waits there as an egg instead of being hidden',
     bug: 'NPCs vanish while the player sleeps',
     sites: [{ at: 0x65F8, was: [0x281C0000, 0x41820018, 0x7F83E378, 0x819C0048, 0x818C0014, 0x480BEADD, 0x80410014, 0x380000FF, 0x981E0000],
       asm: ['li 0, 255', 'clrlwi. 3, 24, 24     ; the post on the party’s level?', 'beq @0x6608', 'li 0, 66', 'stb 0, 0(30)', 'b @0x661C', 'nop', 'nop', 'nop'] }] },

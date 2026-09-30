@@ -1079,7 +1079,7 @@ function dvmOutboundRefs(b, resid) {
 // same discovery pass the disassembler uses.
 function dvmShapeSummary(b, resid) {
   try {
-    if (dvmNamedScript(b)) return 'A named script: Pascal name followed by a non-bytecode body.';
+    if (dvmNamedScript(b)) return 'A named script: a name followed by a body that is not script code.';
     const objs = dvmExtents(b, resid);
     if (!objs.length) return 'No Delver container structure found.';
     const counts = {};

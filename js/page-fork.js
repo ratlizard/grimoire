@@ -74,11 +74,11 @@ function fontSwapPanel() {
   box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Put another font in the game</h3></div>' +
     (target
       ? '<p class="mechLede">The game draws its text with <b>sfnt ' + target.id + '</b>, named ' +
-        svEsc(target.name || 'ArgosANouveau') + ' by the family record. A TrueType font (<b>.ttf</b>) chosen here takes that resource’s place in the copy ' +
-        'of the file in this browser. It is given the table the game looks its letters up in, and the tables an old Mac never reads are left out.</p>' +
+        svEsc(target.name || 'ArgosANouveau') + ' by the font family record. A TrueType font (<b>.ttf</b>) chosen here replaces that resource in the copy ' +
+        'of the file in this browser. It is given the table the game uses to look up its letters, and the tables an old Mac never reads are left out.</p>' +
         '<ul class="ruleList"><li>Nothing is written to disk and nothing on the server changes.</li>' +
-        '<li>To play with it, export <b>Data file › the disk image</b>, which carries the fork, and run the script on it in the emulator.</li>' +
-        '<li>An <b>.otf</b> is refused: those draw with PostScript outlines, which the classic Mac cannot rasterise.</li></ul>' +
+        '<li>To play with it, export <b>Data file › the disk image</b>, which includes the resource fork, and run the game from it in an emulator.</li>' +
+        '<li>An <b>.otf</b> file is refused: those fonts use PostScript outlines, which the classic Mac cannot draw.</li></ul>' +
         '<div class="mechStats"><input type="file" id="fontSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoFontSwap()">Put the game’s own font back</button>' : '') +
         '</div>' +
@@ -86,7 +86,7 @@ function fontSwapPanel() {
               sw.mapped + ' of the characters the game uses were found, in a format ' + sw.format + ' character map, ' +
               (sw.bytes / 1024).toFixed(0) + ' KB of outlines.</blockquote>' : '') +
         '<div id="fontSwapNote" class="mechSub"></div>'
-      : '<p class="mechLede">No font resource is open. Open Cythera Data from a container that carries its resource fork: a .hqx, MacBinary or AppleSingle file.</p>') +
+      : '<p class="mechLede">No font resource is open. Open Cythera Data from a file that includes its resource fork: a .hqx, MacBinary or AppleSingle file.</p>') +
     '</section>';
   setTimeout(() => {
     const f = document.getElementById('fontSwapFile');
@@ -112,7 +112,7 @@ function fontSwapPanel() {
 }
 function undoFontSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The original fork was not kept; re-open the file to get it back.', true); return; }
+  if (!rec) { setStatus('The original resource fork was not kept; open the file again to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.FONT_SWAP = null;
@@ -342,7 +342,7 @@ function swapSeldane(bytes, filename) {
 }
 function undoStrikeSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The original fork was not kept; re-open the file to get it back.', true); return; }
+  if (!rec) { setStatus('The original resource fork was not kept; open the file again to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.STRIKE_SWAP = null;
@@ -376,7 +376,7 @@ function strikeFamilyOf(id) {
 function exportStrikeTrueType(id) {
   const fork = window.CYTHERA_RSRC;
   const e = ((fork && fork.resourcesByType && fork.resourcesByType['NFNT']) || []).find(x => x.id === id);
-  if (!e) { setStatus('That strike is not in this fork.', true); return; }
+  if (!e) { setStatus('That font size is not in this resource fork.', true); return; }
   const family = strikeFamilyOf(id);
   try {
     const spec = nfntSpec(fork.dataOf('NFNT', e));
@@ -387,7 +387,7 @@ function exportStrikeTrueType(id) {
     setStatus(family + '.ttf written: ' + (spec.ascent + spec.descent) + ' pixels to the em, ' +
               'so it draws its own pixels at ' + (spec.ascent + spec.descent) + 'px and at every multiple of it.');
   } catch (err) {
-    setStatus('That strike could not be written as a TrueType: ' + err.message, true);
+    setStatus('That size could not be saved as a TrueType font: ' + err.message, true);
   }
 }
 function strikeSwapPanel() {
@@ -399,24 +399,24 @@ function strikeSwapPanel() {
     (strikes
       ? '<p class="mechLede">Seldane is a bitmap font: ' +
         strikes.map(e => 'NFNT ' + e.id).join(' and ') +
-        ', named by the family record at 12 and 18 point. A TrueType font chosen here is drawn into both strikes, its capitals as tall as the letters they replace, and written into the copy of the file in this browser.</p>' +
+        ', named by the font family record, at 12 and 18 point. A TrueType font chosen here is drawn into both sizes, with its capitals as tall as the letters they replace, and written into the copy of the file in this browser.</p>' +
         '<ul class="ruleList">' +
-        '<li>Only the letters the strike already draws are replaced, and the missing-character box is carried through untouched. ' +
+        '<li>Only the letters the font already has are replaced, and the box for a missing character is left untouched. ' +
         'Seldane draws 24 letters: it has no L and no O at 12 point, and at 18 point it has an entry for each of them one pixel wide and empty.</li>' +
-        '<li>Nothing here can draw in grey, so a light face at 12 point will come out broken up.</li>' +
+        '<li>Nothing here can draw in grey, so a thin font at 12 point will come out broken up.</li>' +
         '<li>Nothing is written to disk and nothing on the server changes.</li></ul>' +
         '<div class="mechStats"><input type="file" id="strikeSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoStrikeSwap()">Put the file’s own script back</button>' : '') +
         '</div>' +
-        '<p class="mechLede">Or take the script out: each strike writes as a TrueType font, ' +
-        'one pixel to 64 font units, so set at its own cell height it draws exactly the pixels above it.</p>' +
+        '<p class="mechLede">Or take the Seldane script out: each size can be saved as a TrueType font, ' +
+        'with one pixel to 64 font units, so at its own height it draws exactly the pixels shown above.</p>' +
         '<div class="mechStats">' +
         strikes.map(e => '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="exportStrikeTrueType(' +
           e.id + ')">Save ' + svEsc(strikeFamilyOf(e.id)) + ' as a TrueType</button>').join('') +
         '</div>' +
-        (sw ? '<blockquote class="mechQuote">' + svEsc(sw.name) + ' is the Seldane script in this copy, in ' + sw.strikes + ' strikes.</blockquote>' : '') +
+        (sw ? '<blockquote class="mechQuote">' + svEsc(sw.name) + ' is the Seldane script in this copy, in ' + sw.strikes + ' sizes.</blockquote>' : '') +
         '<div id="strikeSwapNote" class="mechSub"></div>'
-      : '<p class="mechLede">No bitmap font is open. Open Cythera Data from a container that carries its resource fork.</p>') +
+      : '<p class="mechLede">No bitmap font is open. Open Cythera Data from a file that includes its resource fork.</p>') +
     '</section>';
   setTimeout(() => {
     const f = document.getElementById('strikeSwapFile');
@@ -430,7 +430,7 @@ function strikeSwapPanel() {
         setStatus('That font could not be used: ' + e.message, true);
       };
       file.arrayBuffer().then(buf => swapSeldane(new Uint8Array(buf), file.name)).then(r => {
-        setStatus(file.name + ' is the Seldane script in this copy, in ' + r.strikes + ' strikes.');
+        setStatus(file.name + ' is the Seldane script in this copy, in ' + r.strikes + ' sizes.');
         renderMacRsrcSheet();
       }).catch(fail);
     };
@@ -831,9 +831,9 @@ function renderRsrcSheet() {
 
   const inv = rsrcInventory();
   if (!inv) {
-    out.textContent = 'No resource fork. It comes from the container the file was in, ' +
-      'a .hqx, MacBinary or AppleSingle file carries both forks, a bare data fork does not. ' +
-      'Re-open the file from "Cythera Data.hqx" to get it.';
+    out.textContent = 'No resource fork. It comes from the file Cythera Data was opened from: ' +
+      'a .hqx, MacBinary or AppleSingle file includes both forks, but the data fork alone does not. ' +
+      'Open the file again from "Cythera Data.hqx" to get it.';
     return;
   }
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
@@ -881,9 +881,9 @@ function renderRsrcSheet() {
     box.className = 'mechView';
     box.style.cssText = 'grid-column:1/-1';
     box.innerHTML = '<div class="partsTitle">Displacement filters</div>' +
-      '<p class="mechSub">The game reads these at start (' + pefChip('LoadDisplacementFilters') + ') and runs one over every tile the table 0xF016 names for it (' + pefChip('DisplacementFilterTile') +
-      '): a pixel whose colour is in the filter’s set is fetched from the tile at the offset the frame holds for that pixel, and the frame steps each tick (' + pefChip('AdvanceDisplacementFilters') +
-      '), or every other when the period is 1. So water, shore and seaweed ripple, lava and the void churn, fire shimmers, and trees and crops sway.</p>';
+      '<p class="mechSub">The game reads these when it starts (' + pefChip('LoadDisplacementFilters') + ') and runs one over every tile the table 0xF016 names for it (' + pefChip('DisplacementFilterTile') +
+      '): a pixel whose colour is in the filter’s set is replaced by the pixel of the tile at the offset the current frame gives for it, and the frame moves on every tick (' + pefChip('AdvanceDisplacementFilters') +
+      '), or every other tick when the period is 1. This is how water, shore and seaweed ripple, lava and the void churn, fire shimmers, and trees and crops sway.</p>';
     for (const f of filters) {
       const card = document.createElement('div');
       card.style.cssText = 'margin:8px 0 14px';
@@ -915,7 +915,7 @@ function renderRsrcSheet() {
     fmtBytes(inv.bytes) + '. Showing ' +
     Object.keys(kinds).map(k => kinds[k] + ' ' + RSRC_DELVER_TYPES[k]).join(' and ') +
     (q ? ' matching “' + q + '”' : '') + '. ' +
-    'A stamp is a patch of terrain at the size it declares. A brush is sixteen entries, read here as a four by four table of one terrain meeting another, and the empty cells are the ones the resource leaves at zero; what the rows and columns are named is not recorded in the fork. ' +
+    'A stamp is a patch of terrain at the size it states. A brush is sixteen entries, shown here as a four-by-four table of one terrain meeting another; the empty cells are the ones the resource leaves at zero. The names of the rows and columns are not recorded in the resource fork. ' +
     'Also in the fork, under Data › Cythera Data › Resource Fork: ' +
     inv.other.map(r => r.count + ' ' + r.type.trim()).join(', ') + '.';
 }
@@ -957,8 +957,8 @@ function showRsrcDetail(type, id) {
     type + ' ' + entry.id + ': ' + RSRC_DELVER_TYPES[type] + ', ' + data.length + ' bytes' +
     (pat ? ', ' + pat.tiles.length + ' tiles in a ' + pat.cols + '×' + pat.rows + ' grid' : '') +
     (pat && pat.extraBytes ? '\n' + pat.extraBytes + ' bytes past the end of the grid, unaccounted for' : '') +
-    (pat && pat.guessedShape ? '\nThe grid shape is this viewer’s guess; the file only gives a flat run of tiles.' : '') +
-    '\nEditor-only: the wiki notes that altering or deleting these has no effect on the game.';
+    (pat && pat.guessedShape ? '\nThe grid shape is this page’s guess; the file only gives a list of tiles.' : '') +
+    '\nUsed only by the editor: according to the wiki, changing or deleting these has no effect on the game.';
   head.appendChild(cap);
   grid.appendChild(head);
 
@@ -1131,7 +1131,7 @@ function renderMacRsrcSheet() {
       missing.push(src === 'app'
         ? (window.APP_RSRC_STATE === 'loading' ? 'Loading the program…'
            : window.APP_RSRC_STATE || 'The program’s fork is not loaded yet.')
-        : 'No resource fork came with the file. It comes from the container the file was in, a .hqx, MacBinary or AppleSingle file carries both forks, a bare data fork does not.');
+        : 'No resource fork came with the file. It comes from the file Cythera Data was opened from: a .hqx, MacBinary or AppleSingle file includes both forks, but the data fork alone does not.');
       continue;
     }
     total += fork.total();
@@ -1228,7 +1228,7 @@ function renderMacRsrcSheet() {
   } else {
     out.textContent = forkName(sources[0]) + ' resource fork: ' + total + ' resources in ' +
       typesSeen.size + ' types' + (q ? ', ' + shown + ' shown' : '') +
-      ', grouped by what they are for. A kind that has a place elsewhere on the site says so.';
+      ', grouped by purpose. A kind of resource shown elsewhere on the site says where.';
   }
 }
 
@@ -1323,7 +1323,7 @@ function showMacRsrcDetail(type, id, source) {
 
   out.textContent = arts.length
     ? type + ' ' + entry.id + ': ' + arts.length + ' decoded view' + (arts.length === 1 ? '' : 's') + '.'
-    : type + ' ' + entry.id + ': no decoder for this type; the bytes are below.';
+    : type + ' ' + entry.id + ': this page cannot decode this type; the bytes are below.';
 }
 
 
@@ -1402,7 +1402,7 @@ function renderCharacterSheet() {
     grid.appendChild(cell);
     shown++;
   }
-  out.textContent = 'Characters: ' + shown + ' with records. Tap one for its full dossier.';
+  out.textContent = 'Characters: ' + shown + ' with records. Tap one to see everything about them.';
 }
 
 // Open the character's zone, centre the view on them and flag them so the
@@ -1464,7 +1464,7 @@ function showCharacterDetail(i) {
     g.appendChild(back);
     const note = document.createElement('div');
     note.className = 'sv-warn';
-    note.textContent = 'This file has no character ' + i + '. A saved game carries only what play changed, and a link outlives the file it was made from.';
+    note.textContent = 'This file has no character ' + i + '. A saved game contains only what play has changed, and a link can outlast the file it was made from.';
     g.appendChild(note);
     document.getElementById('output').textContent = 'No character ' + i + ' in this file.';
     return;
@@ -1582,7 +1582,7 @@ function showCharacterDetail(i) {
                ' <span style="color:#8c8980">mode ' + srcNum(sSrc(1, 'the mode'), String(e.mode)) + '</span></div>';
       }).join('');
   } else {
-    sh.innerHTML = '<div style="color:#8c8980;font-size:0.8125rem">No schedule entries, placed directly in a map\u2019s prop list rather than moving on a clock.</div>';
+    sh.innerHTML = '<div style="color:#8c8980;font-size:0.8125rem">No schedule entries: this character is placed directly in a map\u2019s prop list rather than moving by the clock.</div>';
   }
   // Jump to where this character currently stands.
   if (r.zone) {
@@ -1612,9 +1612,9 @@ function heroPortraitCard() {
   const head = '<b style="color:#b5b2a8">Portrait</b> ';
   if (!pc) {
     card.innerHTML = head + (isSave
-      ? 'The one above is this file\u2019s own 0x8800, the portrait chosen when the character was made. '
-      : 'The one above is the scenario\u2019s 0x8800 and is never shown in play. ') +
-      'Which portraits the game offers at creation, and where the chosen one is written, is read out of the program, which is not open.';
+      ? 'The portrait above is this file\u2019s own 0x8800, chosen when the character was made. '
+      : 'The portrait above is the scenario\u2019s 0x8800 and is never shown in play. ') +
+      'Which portraits the game offers when a character is made, and where the chosen one is written, is read from the program, which is not open.';
     return card;
   }
   const hex = v => '0x' + v.toString(16).toUpperCase();
@@ -1622,8 +1622,8 @@ function heroPortraitCard() {
   const slots = [];
   for (let r = first; r < first + 64 && getResourceBytes(ARCHIVE, r); r++) slots.push(r);
   let text = head + (isSave
-    ? 'The one above is this file\u2019s own 0x8800: at creation the game copies the chosen portrait into the player file as ' + srcNum(pc.writes, hex(pc.writes.v)) + '. '
-    : 'The one above is the scenario\u2019s 0x8800 and is never shown in play: at creation the game copies the chosen portrait into the player file as ' + srcNum(pc.writes, hex(pc.writes.v)) + '. ') +
+    ? 'The portrait above is this file\u2019s own 0x8800: when a character is made, the game copies the chosen portrait into the player file as ' + srcNum(pc.writes, hex(pc.writes.v)) + '. '
+    : 'The portrait above is the scenario\u2019s 0x8800 and is never shown in play: when a character is made, the game copies the chosen portrait into the player file as ' + srcNum(pc.writes, hex(pc.writes.v)) + '. ') +
     'The choice is the resource ' + srcNum(pc.first) + ' plus ' + srcNum(pc.perRow) + ' a row plus the column past ' + srcNum(pc.base, hex(pc.base.v));
   if (!slots.length) { card.innerHTML = text + '; this file holds none of them.'; return card; }
   const faces = new Map();
@@ -1687,14 +1687,14 @@ function renderCompositeSheet() {
       if (missing > 0) lblDiv.textContent = missing + '/16 fragments missing';
       okCount++;
     } catch(err) { return; }
-    cell.title = "Click to inspect its source fragments, Shift+click to save PNG";
+    cell.title = "Click to see the tiles it is made from; Shift-click to save a PNG";
     cell.onclick = (ev) => {
       if (ev.shiftKey) { downloadCanvasAsPNG(canvas, tileId); return; }
       showCompositeDetail(tileId, entry, canvas);
     };
     grid.appendChild(cell);
   });
-  out.textContent = "Composite tiles: " + okCount + "/" + entries.length + " rendered (entries with mostly-missing source sheets are hidden). Shift+click to save PNG.";
+  out.textContent = "Composite tiles: " + okCount + "/" + entries.length + " drawn (entries whose source sheets are mostly missing are hidden). Shift-click to save a PNG.";
 }
 
 // setMode and onCategoryChange are the two funnels every view change passes

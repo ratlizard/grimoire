@@ -382,10 +382,10 @@ function renderSkillsSheet() {
   // What a script asks about a skill, above the skills it asks about. This
   // was a section of the Mechanics sheet until 13 September 2026.
   try { box.appendChild(skillsMechSection()); } catch (e) { quiet(e); }
-  const kinds = [['attribute', 'Attributes', 'The four figures every character has a number for.'],
-                 ['weapon', 'Weapon skills', 'One per kind of weapon; the skill goes on the blow’s margin and its damage.'],
-                 ['special', 'Special skills', 'Learned from a teacher and asked about by the scripts that need them.'],
-                 ['command', 'Commands', 'The Do menu, in the same block of the file as the skills. Each is a name and a script, nothing more.']];
+  const kinds = [['attribute', 'Attributes', 'The four figures every character has.'],
+                 ['weapon', 'Weapon skills', 'One for each kind of weapon; the skill is added to a blow’s margin and its damage.'],
+                 ['special', 'Special skills', 'Learned from a teacher, and checked by the scripts that need them.'],
+                 ['command', 'Commands', 'The Do menu, stored in the same part of the file as the skills. Each is just a name and a script.']];
   const propChip = (pt, name) => '<button class="relChip" onclick="showPropTypeDetail(' + pt + ')"><span class="relText"><span class="relMain">' + svEsc(name) + '</span></span></button>';
   let count = 0;
   for (const [kind, title, note] of kinds) {
@@ -526,13 +526,13 @@ function renderSchedulesSheet() {
     lede.className = 'mechLede';
     if (who) {
       const waits = behaviorSetSites(who.waiting.value.v);
-      lede.innerHTML = 'Each hour ' + pefChip('ScheduleTime') + ' walks the character records and schedules everyone but four kinds: a character with bit ' +
+      lede.innerHTML = 'Each hour ' + pefChip('ScheduleTime') + ' goes through the character records and schedules everyone except four kinds: a character with bit ' +
         srcNum(who.partyBit.bit, propWordHex(who.partyBit.bit.v, 2)) + ' of byte ' + srcNum(who.partyBit.byte, String(who.partyBit.byte.v)) + ' set, which JoinParty sets; one with bit ' +
-        srcNum(who.aliveBit.mask, String(who.aliveBit.mask.v)) + ' of the word at byte ' + srcNum(who.aliveBit.byte, String(who.aliveBit.byte.v)) + ' clear, the bit a script tests to ask if a character is alive; one whose behaviour, byte ' +
+        srcNum(who.aliveBit.mask, String(who.aliveBit.mask.v)) + ' of the word at byte ' + srcNum(who.aliveBit.byte, String(who.aliveBit.byte.v)) + ' clear, the bit a script checks to see whether a character is alive; one whose behaviour, byte ' +
         srcNum(who.waiting.byte, String(who.waiting.byte.v)) + ', is ' + srcNum(who.waiting.value, String(who.waiting.value.v)) +
         (waits.length ? ', which ' + waits.map(w => srcNum({ resid: w.resid, at: w.at }, labelFor(w.resid) || propWordHex(w.resid))).join(', ') + (waits.length === 1 ? ' sets' : ' set') + ' when a companion is told to wait, so the hour does not move them' : '') +
         '; and one whose active monster (' + srcNum(who.monsterWord.call, 'TActiveMonster::GetCharacter') + ') has a word at ' + srcNum(who.monsterWord.disp, String(who.monsterWord.disp.v)) + ' set, which is not read here.';
-    } else lede.innerHTML = 'Who is scheduled at all each hour is read out of the application, which is not open; the days below are the file’s.';
+    } else lede.innerHTML = 'Who is scheduled each hour is read from the program, which is not open; the days below come from the file.';
     box.appendChild(lede);
   }
   const ampm = h => h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
@@ -578,7 +578,7 @@ function renderSchedulesSheet() {
   all.innerHTML = svLink('Open all', 'mechOpenAll(true)') + svLink('Close all', 'mechOpenAll(false)');
   box.insertBefore(all, box.firstChild);
   grid.appendChild(box);
-  out.textContent = people.length + ' characters with a day in 0xF00B, ' + entries + ' posts' + (q ? ' matching “' + q + '”' : '') + '. A post holds from its hour until the next; one with a condition is an alternative the game takes when the condition holds, in the order listed; the square opens the zone there.';
+  out.textContent = people.length + ' characters with a day in 0xF00B, ' + entries + ' posts' + (q ? ' matching “' + q + '”' : '') + '. A post applies from its hour until the next one. A post with a condition is an alternative the game uses when the condition is met, checked in the order listed. The square opens the zone at that point.';
 }
 /* A SCHEDULE IS A PROGRAM (read 24 September 2026). ScheduleOne walks a
    character's segments in the file's order and EvalCondition tests each
@@ -635,7 +635,7 @@ function renderSpellsSheet() {
   const box = document.createElement('div');
   box.className = 'mechView';
   const intro = document.createElement('p'); intro.className = 'mechLede';
-  intro.innerHTML = spells.length + ' spells, each cast through one helper with a level and a cost in magic points. A cast ' + (sp.rule && sp.rule.timing ? 'costs ' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level in time and ' : '') + 'fails when two rolls of 0 to the caster’s Casting fall short of a roll of 0 to the level ' + cardLink('spells', 'the rules above') + '.';
+  intro.innerHTML = spells.length + ' spells, each cast through one shared script with a level and a cost in magic points. A cast ' + (sp.rule && sp.rule.timing ? 'costs ' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level in time and ' : '') + 'fails when two rolls of 0 to the caster’s Casting figure add up to less than a roll of 0 to the level ' + cardLink('spells', 'the rules above') + '.';
   box.appendChild(intro);
   // How a cast works, above the spells it works on. This was a section of the
   // Mechanics sheet until 13 September 2026.
@@ -2238,7 +2238,7 @@ function eggDetail(g, allProps, linked) {
        kind-0 egg and nothing here knows what it says. Said out loud rather
        than dropped, because a reader comparing two eggs would otherwise see
        them described identically when the file distinguishes them. */
-    if (g.d1 & 0x08) when.push('with a condition at bit 0x08 that is not read here');
+    if (g.d1 & 0x08) when.push('with a condition at bit 0x08 whose meaning is not worked out here');
     // Bit 0x01 makes the chance certain once it has hatched, which says
     // nothing new where the chance is certain already.
     if ((g.d1 & 0x01) && g.d2 < 99) when.push('on every visit once it has hatched');

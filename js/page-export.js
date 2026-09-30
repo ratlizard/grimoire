@@ -289,7 +289,7 @@ function exePrefResourceType() {
 }
 function cytheraPrefsRecord(opts, layout) {
   const L = layout || cytheraPrefsLayout();
-  if (!L) throw new Error('the preferences record is read out of the program, and it is not open');
+  if (!L) throw new Error('the preferences record is read from the program, which is not open');
   const o = opts || {};
   const b = new Uint8Array(L.bytes);
   for (let i = 0; i < Math.min(4, L.bytes); i++) b[i] = (L.base >>> (24 - 8 * i)) & 255;
@@ -344,7 +344,7 @@ function prefsSummary(o) {
 // new one whatever UniqueID answers, so 130 is only what this file uses.
 function buildCytheraPreferences(opts) {
   const L = cytheraPrefsLayout();
-  if (!L) throw new Error('the preferences record is read out of the program, and it is not open');
+  if (!L) throw new Error('the preferences record is read from the program, which is not open');
   const out = [{ type: L.type, id: 130, name: L.key, data: cytheraPrefsRecord(opts, L) }];
   let id = 131;
   for (const x of cytheraOrdinalsFor(opts, L))
@@ -361,7 +361,7 @@ function prefsInstallScript(opts) {
     '-- folder, replacing whatever is there. Press Run, or Command-R.',
     '--',
     '-- It replaces the file, so any settings already stored are lost with it.',
-    '-- Move the old one aside first if you care about them.',
+    '-- Move the old one somewhere else first if you want to keep them.',
     '--',
     '-- Cheat keys allowed: ' + (o.cheats ? 'ON: type ' + ((cytheraPrefsLayout() || { gate: {} }).gate.word || 'the code') + ' in the map window' : 'off') + '.',
     '-- The file asks for ' + prefsSummary(o) + '.',
@@ -418,7 +418,7 @@ function downloadCytheraPrefs(kind) {
   const bin = writeMacBinary({ name: PREFS_FILE_NAME, type: 'pref', creator: PREFS_CREATOR,
                                data: new Uint8Array(0), rsrc: buildCytheraPreferences(opts) });
   dlBlob(new Blob([bin], { type: 'application/octet-stream' }), PREFS_FILE_NAME + '.bin');
-  setStatus('Wrote ' + PREFS_FILE_NAME + '.bin with ' + how + '. Unwrap it on a real Mac and put it ' +
+  setStatus('Wrote ' + PREFS_FILE_NAME + '.bin with ' + how + '. Decode it on a real Mac and put it ' +
     'in the System Folder’s Preferences folder.');
 }
 
@@ -430,9 +430,9 @@ function buildInstallScript(archiveName, note) {
     '-- Finds the folder holding the Cythera application on any mounted disk,',
     '-- replaces the "' + archiveName + '" in it with the edited one on this',
     '-- disk, and starts the game. Press Run, or Command-R -- or press Install',
-    '-- from the disk itself, so no pointer is needed inside the Mac.',
+    '-- from the disk itself, so nothing needs to be selected inside the Mac.',
     '--',
-    '-- Keep a backup of the original first: the replacement is not undoable.',
+    '-- Keep a backup of the original first: the replacement cannot be undone.',
     '-- By hand instead: drag "' + archiveName + '" into the game\u2019s folder.',
     '--'].concat((note || []).map(line => '-- ' + line)).concat([
     '',
@@ -610,8 +610,8 @@ async function downloadEditedForkZip() {
     setStatus('Wrote a ' + size + ' zip, but ' + built.forkWarning, true);
     return;
   }
-  setStatus('Wrote a ' + size + ' zip, both forks, and less than half the size of the disk ' +
-    'image. Emulators that unpack the Basilisk II layout, infinitemac.org among them, take it as an upload.');
+  setStatus('Wrote a ' + size + ' zip with both forks, less than half the size of the disk ' +
+    'image. Emulators that unpack the Basilisk II layout, including infinitemac.org, accept it as an upload.');
 }
 
 function downloadEditedDiskImage() {
@@ -622,9 +622,9 @@ function downloadEditedDiskImage() {
     setStatus('Wrote a ' + fmtBytes(built.image.length) + ' disk image, but ' + built.forkWarning, true);
     return;
   }
-  setStatus('Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac, ' +
-    'it mounts as \u201c' + DISK_VOLUME_NAME + '\u201d and carries an Install and Play script that replaces the ' +
-    'archive in the game\u2019s folder and starts Cythera.');
+  setStatus('Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac: ' +
+    'it mounts as \u201c' + DISK_VOLUME_NAME + '\u201d and contains an Install and Play script that replaces the ' +
+    'file in the game\u2019s folder and starts Cythera.');
 }
 
 // General MIDI program names (1-128), used to label decoded QTMA parts.
@@ -938,8 +938,8 @@ function usageChips(list, render, limit) {
 function renderArtUsage(resid) {
   const u = buildTileSheetUsage()[resid];
   if (!u || (!u.maps.length && !u.props.length && !u.composites.length))
-    return '<span class="inspDim">Nothing in the file draws from this sheet ' +
-           ', it may be unused, or used by code rather than by data.</span>';
+    return '<span class="inspDim">Nothing in the file draws from this sheet; ' +
+           'it may be unused, or used by the program rather than by data.</span>';
   const rows = [];
   if (u.maps.length) rows.push('<dt>Maps</dt><dd>' + usageChips(u.maps,
     r => svChip(r), 24) + '</dd>');
@@ -1026,7 +1026,7 @@ function buildStripSky(resid) {
   if (sky && !rules) {
     const note = document.createElement('div');
     note.className = 'sv-note';
-    note.textContent = 'Open the program to see this strip over the sky of the hour.';
+    note.textContent = 'Open the program to see this strip against the sky at each hour.';
     wrap.appendChild(note);
     paintStripSky(cv, resid, false, null, 0, 0);
     return wrap;

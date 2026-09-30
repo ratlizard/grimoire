@@ -361,8 +361,8 @@ function adoptArchive(raw, sourceName, opts) {
      which is the only way to look inside a patch before applying it. */
   if (ARCHIVE && delverArchivePatchPeek(found.bytes) &&
       patchesOpenBytes(found.bytes, (found.forks && found.forks.name) || sourceName)) {
-    setStatus('That is a Magpie patch, not a game file, so it has been read against the open one instead of replacing it. ' +
-              'Data \u203a Patches says what it changes, and applies it.');
+    setStatus('That is a Magpie patch, not a game file, so it has been compared with the open file instead of replacing it. ' +
+              'Data \u203a Patches says what it changes and can apply it.');
     return true;
   }
   applyNamesDefault(opts.cached ? opts.source === 'local file' : !opts.url);
@@ -405,7 +405,7 @@ function archiveLoadFailed(failures) {
   const out = document.getElementById('output');
   if (out) out.textContent = 'Tried, in order:\n  ' + failures.join('\n  ') +
     '\n\nThe installer is at ' + REMOTE_ARCHIVE_URLS.join(' and at ') +
-      ', if this page could not fetch it, download it there and drop it here.';
+      '. If this page could not fetch it, download it from there and drop it here.';
 }
 
 async function ingestArchiveFile(f) {

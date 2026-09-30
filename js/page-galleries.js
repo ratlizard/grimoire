@@ -95,7 +95,7 @@ async function exportGallery() {
   }
 
   index.push('', 'Written by index.html. Labels marked in the gallery with † are',
-             'supplied by that tool and are not present in the file.');
+             'supplied by the page and are not in the file.');
   files.push({ name: folder + 'index.txt', bytes: utf8(index.join('\n')) });
 
   const blob = buildZip(files);
@@ -339,7 +339,7 @@ function editStringAt(resid, approxOffset) {
   if (!raw) return;
   const data = smartDecrypt(raw, resid).data;
   const loc = locatePascalString(data, approxOffset);
-  if (!loc) { setStatus('No Pascal string found at that offset, not editable in place.', true); return; }
+  if (!loc) { setStatus('There is no text string at that position, so it cannot be edited in place.', true); return; }
   const oldText = decodeMacRoman(data.subarray(loc.textOffset, loc.textOffset + loc.cap));
   let ov = document.getElementById('textEdit');
   if (ov) ov.remove();
@@ -349,9 +349,9 @@ function editStringAt(resid, approxOffset) {
     '<div class="dtHead">Edit text in 0x' + resid.toString(16).toUpperCase() +
       '<button class="linkbtn" onclick="document.getElementById(\'textEdit\').remove()">close</button></div>' +
     '<textarea id="teText" spellcheck="false"></textarea>' +
-    '<div class="inspDim"><span id="teCount"></span>, the stored slot is fixed at ' + loc.cap +
-      ' bytes: shorter is padded with spaces, and growing a string would move every ' +
-      'byte after it, which is the future script editor’s job. * separates alternate ' +
+    '<div class="inspDim"><span id="teCount"></span>, the stored space is fixed at ' + loc.cap +
+      ' bytes: shorter text is padded with spaces, and longer text would move every ' +
+      'byte after it, which this editor does not do. * separates alternative ' +
       'lines; @word marks a conversation keyword.</div>' +
     '<div><button onclick="applyStringEdit(' + resid + ',' + loc.textOffset + ',' + loc.cap + ')">Apply and rebuild the file</button></div>' +
     '</div>';
@@ -1082,7 +1082,7 @@ function updateSheetSummary() {
     (s.blank ? ', ' + s.blank + ' blank hidden' : '') +
     (pending > 0 ? ', ' + pending + ' still off screen' : '') +
     ' (' + s.total + ' total) in ' + (CATEGORY_NAMES[s.subn] || 'Unknown Category') + '.' +
-    (s.subn === 131 ? ' Each strip is the picture in the status window a script names with SetLandscapeImage, drawn over the sky of the hour, or with no sky where the script gives the number negated. The cell says which zones and rooms name it.' : '');
+    (s.subn === 131 ? ' Each strip is the picture in the status window that a script chooses with SetLandscapeImage, drawn over the sky for the time of day, or with no sky where the script gives a negative number. Each cell says which zones and rooms use it.' : '');
 }
 
 function renderContactSheet() {
@@ -1343,7 +1343,7 @@ function renderContactSheet() {
       if (ev.shiftKey) { downloadCanvasAsPNG(canvas, resid); return; }
       openResource(resid);
     };
-    cell.title = "Click to view full size, Shift+Click to save PNG directly";
+    cell.title = "Click to view full size; Shift-click to save a PNG";
     grid.appendChild(cell);
   }
   // Blank resources are hidden on purpose, but the tally has to admit it: the

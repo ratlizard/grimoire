@@ -58,7 +58,7 @@ const mechTable = (heads, rows, cls) => rows.length
 const mechNum = v => '<td class="num">' + (v === null || v === undefined || v === '' ? '' : svEsc(String(v))) + '</td>';
 const mechStat = (n, what) => '<span class="mechStat"><b>' + svEsc(String(n)) + '</b> ' + svEsc(what) + '</span>';
 const mechSrc = (label, resid) => refExists(resid) ? partChip(label, resid) : '';
-const MECH_NO_APP = 'Open the game from its installer, under Settings, and the program’s figures are read here.';
+const MECH_NO_APP = 'Open the game from its installer, under Settings, to read the program’s figures here.';
 
 /* The sections that belong on another sheet.
 
@@ -88,30 +88,30 @@ function spellsMechSection() {
   const fireball = sp.spells.find(x => /^Fireball$/.test(x.name));
   const fbFx = fireball && fxMap.get(fireball.resid);
   return mechSectionEl('spells', 'Spells', null, mechSrc('the casting', 0xEA1) + mechSrc('a hit', 0xEB8),
-    sp.spells.length ? sp.spells.length + ' spells, each cast through one helper with a level and a cost in magic points, read off the spell’s own call; what each does to health is read off its own script.' : 'No spell in this file casts through the helper.',
+    sp.spells.length ? sp.spells.length + ' spells, each cast through one shared script with a level and a cost in magic points, read from the spell’s own call; what each one does to health is read from its own script.' : 'No spell in this file is cast through the shared script.',
     sp.spells.length ? [
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
       sp.rule && sp.rule.timing ? 'The cost is taken, and the cast costs <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The cost is taken.',
-      sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls under the caster’s Casting figure together fall short of a roll under the level</b>' + (sp.rule.casting ? ' (Casting the skill, else a class figure)' : '') + '. Both are <i>Random</i> calls and so stop one short, which means a <b>level 1 spell can never fail</b>.' : '',
-      'Damage goes through the same helper as a blow: the victim’s resistance takes the type first, and the caster earns experience by the usual rule.',
-      fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn to a radius of five and the script walks everyone inside it, but the damage call runs for the one on the target square alone; the spell’s own description says it engulfs all within.' : '',
-      (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Damage without the magic bit, fire, electric, blunt, edged, is <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike carry the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
-      'A damage call prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, on screen or not (the program’s own way of finding enemies). Tremor shakes the screen and hurts enemies you cannot see.',
+      sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls below the caster’s Casting figure add up to less than a roll below the spell’s level</b>' + (sp.rule.casting ? ' (the Casting skill, or else a figure for the class)' : '') + '. Both use <i>Random</i>, which never reaches its upper limit, so a <b>level 1 spell can never fail</b>.' : '',
+      'Damage goes through the same script as a blow: the victim’s resistance to the damage type is applied first, and the caster earns experience by the usual rule.',
+      fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at.</b> The burst is drawn with a radius of five and the script goes through everyone inside it, but it deals damage only to the one on the target square, although the spell’s own description says it engulfs all within.' : '',
+      (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Damage without the magic bit, whether fire, electric, blunt or edged, does <b>nothing at all</b> to a monster that resists non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike have the bit. This is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
+      'Damage from a spell prints nothing, and <b>every enemy</b> means every character on the loaded map whose alignment is hostile to the caster’s, whether on screen or not (the program’s own way of finding enemies). Tremor shakes the screen and hurts enemies you cannot see.',
       (function () {
         const et = appImage() ? exeEnemyTable() : null;
         if (!et || !et.alignmentByte || !et.enemy) return '';
         const rows = [];
         for (let a = 0; a < et.side; a++) rows.push(a + ': ' + et.table.v.slice(a * et.side, (a + 1) * et.side).join(' '));
-        return 'The enemy iterator looks each character up in the program’s ' + srcNum(et.table, et.side + '×' + et.side) + ' table, the row by the caster’s alignment (byte ' + srcNum(et.alignmentByte) + ' of the record) and the column by the character’s, and takes those whose entry is ' + srcNum(et.enemy) + '. By row: <b>' + rows.join('; ') + '</b>.' +
+        return 'To find enemies, the program looks up each character in its ' + srcNum(et.table, et.side + '×' + et.side) + ' table, choosing the row by the caster’s alignment (byte ' + srcNum(et.alignmentByte) + ' of the record) and the column by the character’s, and counts as enemies those whose entry is ' + srcNum(et.enemy) + '. By row: <b>' + rows.join('; ') + '</b>.' +
           (et.peace ? ' A byte tested first makes every entry ' + srcNum(et.peace) + (et.peaceKey ? '; a cheat key flips it (' + srcNum(et.peaceKey) + ')' : '') + '.' : '');
       })(),
-      'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune, or the map.',
+      'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune or the map.',
       (function () {
         let t = [];
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
         if (!t.length) return '';
         const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: their target must be within reach, which is the eight squares around the caster. The rest reach anywhere the pointer does. ' + mechLink('target', 'What a use can be aimed at') : '';
+        return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: the target has to be within reach, which means the eight squares around the caster. The rest can reach anywhere the pointer can. ' + mechLink('target', 'What a use can be aimed at') : '';
       })()
     ].filter(Boolean) : [],
     mechSpellFigures(sp) +
@@ -121,7 +121,7 @@ function spellsMechSection() {
 function skillsMechSection() {
   const sk = skillConsultations();
   return mechSectionEl('skills', 'What each skill is asked about', null, '',
-    sk.by.size ? 'Where a script asks whether the player has a skill, and which.' + (sk.generic ? ' ' + sk.generic + ' further checks are in helpers that test whichever skill they are handed.' : '') : 'No script in this file asks about a skill by name.',
+    sk.by.size ? 'Where a script checks whether the player has a skill, and which skill.' + (sk.generic ? ' ' + sk.generic + ' further checks are in shared scripts that check whichever skill they are given.' : '') : 'No script in this file asks about a skill by name.',
     [], mechSkillsFigure(sk) + mechTable(['skill', 'asked about by'], [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
       '<tr><td>' + (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16).toUpperCase()), 0x1A00 + id) : 'skill 0x' + id.toString(16).toUpperCase()) +
       '</td><td>' + [...resids].sort((a, b) => a - b).map(r => svChip(r)).join(' ') + '</td></tr>')), '');
@@ -131,11 +131,11 @@ function balloonsMechSection() {
   const barks = buildBarkCatalogue();
   const bark = appImage() ? exeBarkRules() : null;
   return mechSectionEl('balloons', 'Talk balloons', null, '',
-    'The short lines over a character’s head are a place on the character that a script writes words into. ' +
-      (bark && bark.ticks && bark.width ? 'The program draws it in a ' + srcNum(bark.width) + '×' + srcNum(bark.height) + ' rounded balloon with a tail and takes it down <b>' + (bark.ticks.v / 60) + ' seconds</b> later: the routine that puts it up returns the tick count plus ' + srcNum(bark.ticks) + ', a tick being a sixtieth of a second, and the one that shows the balloons each frame removes it once the tick count reaches that.'
-        : 'The program draws it and takes it down again. ' + MECH_NO_APP),
-    ['A line is a literal, or one picked at random from a list.', 'Two tavern helpers take a list of shouts and a list of replies for when the food or wine comes.',
-     barks.length ? barks.length + ' places in this file’s scripts set one, and the words are below.' : 'No script in this file sets one.'],
+    'The short lines over a character’s head are text that a script writes onto the character. ' +
+      (bark && bark.ticks && bark.width ? 'The program draws the text in a ' + srcNum(bark.width) + '×' + srcNum(bark.height) + ' rounded balloon with a tail, and removes it <b>' + (bark.ticks.v / 60) + ' seconds</b> later: the part of the program that shows it returns the time in ticks plus ' + srcNum(bark.ticks) + ' (a tick is a sixtieth of a second), and the part that draws the balloons in each frame removes it once that time is reached.'
+        : 'The program draws the balloon and removes it again. ' + MECH_NO_APP),
+    ['A line is either fixed text or one picked at random from a list.', 'Two shared tavern scripts take a list of shouts, and a list of replies for when the food or wine arrives.',
+     barks.length ? barks.length + ' places in this file’s scripts set a line, and the words are below.' : 'No script in this file sets a line.'],
     mechBalloonFigure(barks, bark),
     bark ? '<span class="partsTitle">In the program</span>' + pefChip('TBark::SetBark') + pefChip('TActiveMonster::ShowBarks') : '');
 }
@@ -153,12 +153,12 @@ function libraryMechSection(lib) {
   const dangling = lib ? lib.reduce((a, d) => a.concat(d.dangling.map(k => ({ d, k }))), []) : [];
   const passages = lib ? lib.reduce((n, d) => n + d.entries.length, 0) : 0;
   return mechSectionEl('library', 'The game’s own writing', null, '',
-    lib ? 'The books on Cythera’s shelves, the prophecies, the scrolls and letters, the signs and the gravestones. Each passage is one entry in a list, and a thing in the world shows it: the class hands the helper the list plus its own Data1, so a bookshelf’s Data1 is which book stands on it. Every pairing below is read off the class that makes it.'
-        : 'No class in this file reads a document.',
+    lib ? 'The books on Cythera’s shelves, the prophecies, the scrolls and letters, the signs and the gravestones. Each passage is one entry in a list, and a thing in the world shows it: its class passes the shared script the list plus the thing’s own Data1, so a bookshelf’s Data1 says which book is on it. Every pairing below is read from the class that makes it.'
+        : 'No class in this file shows a document.',
     lib ? [
       '<b>' + passages + ' passages</b> across <b>' + lib.length + ' arrays</b>, shown by ' + [...new Set(lib.flatMap(d => d.readers.map(r => r.name)))].join(', ') + '.',
-      unshown.length ? '<b>' + unshown.length + ' are shown by nothing</b>: no placed prop and no script points at them. Written, and not readable in play.' : '',
-      dangling.length ? '<b>' + dangling.length + '</b> point the other way: a thing in the world whose Data1 has no passage behind it.' : ''
+      unshown.length ? '<b>' + unshown.length + ' are shown by nothing</b>: no prop in the world and no script points to them. They were written, but cannot be read in play.' : '',
+      dangling.length ? '<b>' + dangling.length + '</b> are the other way round: a thing in the world whose Data1 points to no passage.' : ''
     ].filter(Boolean) : [],
     mechTable(['#passages', 'array', 'shown by', '#shown', '#not shown'], rows) +
     (unshown.length ? '<div class="partsTitle">Written, never shown</div>' +
@@ -187,11 +187,11 @@ function talkMechSection() {
     '<td class="mechSub">' + svEsc(s.who.slice(0, 5).map(c => c.name).join(', ') +
       (s.who.length > 5 ? ', and ' + (s.who.length - 5) + ' more' : '')) + '</td></tr>');
   return mechSectionEl('talk', 'Who answers as whom', null, '',
-    cv.chars.length ? 'A character answers with their own topics and then falls through to a generic set: Naxos answers as 0x804, then as 0x80E, then as 0x801. The chain is read out of the catch-all entry of each conversation, and the groups are the file’s own.'
+    cv.chars.length ? 'A character answers from their own topics first, and then from general sets shared with others: Naxos answers as 0x804, then as 0x80E, then as 0x801. The chain is read from the catch-all entry of each conversation, and the groups are the file’s own.'
                     : 'No conversation in this file.',
     cv.chars.length ? [
       '<b>' + cv.chars.length + ' characters</b> hold <b>' + topics + ' topics</b> between them, of which <b>' + deeper + '</b> open further topics of their own.',
-      '<b>' + real.length + ' groups</b> are inherited. The deepest chains are four long, and most of the cast is a House, then a city, then Human.',
+      '<b>' + real.length + ' groups</b> are shared. The longest chains have four steps, and most characters use a House, then a city, then Human.',
       alone ? '<b>' + alone.who.length + ' answer as nobody but themselves</b>: ' + svEsc(alone.who.map(c => c.name).join(', ')) + '.' : '',
       others.length ? 'Not every 0x8xx resource is a group: ' + others.map(g => groupChip(g, g.kind)).join(' ') : ''
     ].filter(Boolean) : [],
@@ -282,7 +282,7 @@ const MECH_GROUPS = [
     note: 'What a thing does when it is used.',
     ids: ['target', 'locks', 'springs'] },
   { value: 'MECH_PUZZLES', title: 'Puzzles', tile: 0x266,
-    note: 'The ones the file answers outright, a section each.',
+    note: 'The puzzles the file fully explains, one section each.',
     ids: ['braziers', 'buttons', 'riddles', 'tunes', 'thinkadot', 'signals'] },
   { value: 'MECH_COMBAT', title: 'Combat', tile: 0x21E,
     note: 'What a blow does, who swings it, and what it does to a thing.',
@@ -291,7 +291,7 @@ const MECH_GROUPS = [
     note: 'What things cost, and what a wager pays.',
     ids: ['shops', 'dice'] },
   { value: 'HACKERY', title: 'Hackery', tile: 0x207,
-    note: 'The machinery under the scenario, and the places it does not add up.',
+    note: 'How the scenario works underneath, and the places where it does not add up.',
     ids: ['propword', 'charflags', 'classflags', 'eggs', 'palette', 'syscalls', 'leans', 'loose'] },
 ];
 /* The sections that write a file rather than read a rule: a patch opened
@@ -305,7 +305,7 @@ const MECH_GROUPS = [
    Mechanics tab never lists it and the whole-sheet view does not include
    it. */
 const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Patches',
-  note: 'Patches, the game\u2019s fixes chosen one by one, a sprite or a gremlin of your own, the program\u2019s own fixes, the scenario in Spanish, and one file against another.',
+  note: 'Patches: the game\u2019s fixes, chosen one by one; a sprite or a gremlin of your own; the program\u2019s own fixes; the scenario in Spanish; and comparing one file with another.',
   ids: ['patches', 'datafixes', 'herosprite', 'gremlins', 'appfixes', 'spanish', 'compare'] };
 // A group by the category value its tab is selected with.
 const MECH_GROUP_BY_VALUE = {};

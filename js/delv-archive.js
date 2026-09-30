@@ -391,10 +391,10 @@ function extractDelverArchive(bytes, opts) {
     throw new Error(holding +
       (t ? " (type '" + t + "', creator '" + c + "')" : '') +
       (t === 'APPL' && c === 'Delv' ? ', which is the Cythera application, not its data.' : t === 'APPL' ? ', which is an application, not an archive.' : '.') +
-      " The archives this tool reads are “Cythera Data” (type 'DelS', creator 'Delv') and a Cythera saved game (type 'DelP'). [" + notes.join('; ') + ']');
+      " The files this page reads are “Cythera Data” (type 'DelS', creator 'Delv') and Cythera saved games (type 'DelP'). [" + notes.join('; ') + ']');
   }
   throw new Error('Not a Delver archive: ' + notes.join('; ') +
-    '. Expected "Cythera Data" itself, a .hqx / MacBinary / AppleSingle wrapper around it' +
+    '. Expected "Cythera Data" itself, a .hqx, MacBinary or AppleSingle file containing it' +
     (typeof looksLikeZip === 'function' ? ', a .sit or .zip holding it, ' : ', a .sit holding it, ') +
     'or the Cythera installer (.sit or Cythera.bin).');
 }
