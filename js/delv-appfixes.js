@@ -23,6 +23,11 @@
                  below), 'text' (a misspelling), 'menu'
      bug         the entry's title in the workbench's bugs.md, where there
                  is one
+     played      where and how the fix was seen working in the game, the
+                 unpatched program beside it showing the bug; with none the
+                 Patches section marks the fix "(untested)". The maintainer
+                 asked for the mark on 30 September 2026, after a fix that
+                 read right and assembled clean hung the game when played.
      sites       [{ at, was: [words], asm: [lines] }]: a code address, the
                  words there now, and one line for each word that replaces
                  them
@@ -76,10 +81,12 @@ const APP_FIXES_TARGET = {
 const APP_FIXES = [
   // ---- In place ------------------------------------------------------------
   { id: 'option-p', kind: 'fix', title: 'Option-p prints the prop record and stops, without toggling regeneration',
+    played: 'fork, PowerPC, 30 September 2026: the saved record keeps regeneration off',
     bug: 'option-p also toggles regeneration',
     sites: [{ at: 0x4448C, was: [0x60000000], asm: ['b @0x446B4            ; the exit the other cases take'] }] },
 
   { id: 'option-x', kind: 'fix', title: 'Option-x toggles swamp-poison protection on the player, not on character 0',
+    played: 'fork, PowerPC, 30 September 2026: the saved hero has the protection',
     bug: 'option-x does nothing',
     sites: [
       { at: 0x44030,
@@ -89,6 +96,7 @@ const APP_FIXES = [
       { at: 0x4406C, was: [0x38600000], asm: ['lha 3, 0(30)          ; AddAbility, on the player'] }] },
 
   { id: 'drag-northwest', kind: 'fix', title: 'A one-square drag to the north-west slides the thing, as the other seven directions do',
+    played: 'fork, PowerPC, 30 September 2026: the paper slides north-west',
     bug: 'A one-square drag to the north-west does nothing',
     sites: [{ at: 0x28838, was: [0x41820064], asm: ['beq @0x28858          ; cursor 22 slides too'] }] },
 
@@ -165,6 +173,7 @@ const APP_FIXES = [
   // click in the window cannot give, and a copy through 152(1), read
   // nowhere else.
   { id: 'tab-pane', kind: 'fix', title: 'A click on the last pixel of a character window’s tabs opens the right-hand tab, instead of blanking the window',
+    played: 'fork, PowerPC, 30 September 2026: the last pixel opens Abilities',
     bug: 'Clicking one pixel blanks the status window',
     sites: [{ at: 0x2F17C, was: [0x54030FFE, 0x7C001A14, 0x7C000734, 0xB0010098, 0x7FE3FB78, 0xA8810098],
       asm: ['mr 4, 0               ; the pane, h / 73', 'cmpwi 4, 2', 'ble @0x2F18C', 'li 4, 2               ; h 219, past the third', 'mr 3, 31', 'nop'] }] },
@@ -208,42 +217,13 @@ const APP_FIXES = [
     cave: ['lha 3, 8(29)', 'cmpwi 3, 0', 'beq @skip              ; a corpse’s creature: nothing of its own under 0',
            'bl @RemoveAllAbility__8TSpellFXFs', 'skip:', 'b @0x464F8'] },
 
-  // TGameSys::WalkToLocation was shipped empty (li 3, 0; blr). Its six
-  // callers are TDroppableWindow::MouseRoutine's: a Look, Attack, Use or
-  // Talk clicked on something out of reach asks it to bring the current
-  // character there and acts only if it answers true, and a click on the
-  // ground far off calls it and ignores the answer. So a touch spell aimed
-  // at someone not beside the caster, and every command clicked on
-  // something distant, did nothing. It takes one step now and answers
-  // false, the game's one click, one turn: each click brings the character
-  // a square nearer, and once in reach the command acts as it always did.
-  // The step is the one the click's own path finding would take:
-  // TPathFinder::FindPath from the character at TOC -30356 (whom
-  // MoveCommand moves) with no monster, as MouseRoutine calls it, then
-  // FindFirstStep for the first square, turned into MoveCommand's direction
-  // through the table MouseRoutine turns a click's offset into a cursor
-  // with (TOC -3258, five by five, index (dy + 2) * 5 + dx + 2: the ring
-  // about the centre is the directions 0 to 7, north clockwise, the centre
-  // 9). FindPath answers 32767 when the target is more than 15 squares off
-  // or nothing nearer was found, and FindFirstStep would then walk a grid
-  // nobody filled, so that answer takes no step.
-  { id: 'walk-to', kind: 'fix', title: 'A command or touch spell clicked on something out of reach takes a step towards it, instead of doing nothing',
-    bug: 'Touch spells only work on someone next to you',
-    sites: [{ at: 0x50E5C, was: [0x38600000], asm: ['b @cave               ; was li 3, 0 (and blr)'] }],
-    cave: ['mflr 0', 'stw 0, 8(1)', 'stwu 1, -80(1)', 'stw 31, 76(1)', 'mr 31, 3              ; the game',
-           'mr 7, 4', 'mr 8, 5                ; where to',
-           'lwz 3, -30356(2)', 'lha 3, 0(3)           ; the character in control', 'slwi 3, 3, 4',
-           'lwz 6, -30268(2)', 'lwz 6, 0(6)', 'add 6, 6, 3           ; its map record',
-           'lwz 5, 0(6)', 'rlwinm 5, 5, 8, 0, 12', 'srawi 5, 5, 20        ; x',
-           'lha 6, 2(6)', 'rlwinm 6, 6, 20, 0, 12', 'srawi 6, 6, 20        ; y',
-           'li 4, 0', 'lwz 3, -30412(2)      ; the path finder',
-           'bl @FindPath__11TPathFinderFP14TActiveMonsterssss',
-           'extsh 3, 3', 'cmpwi 3, 32767', 'beq @none',
-           'lwz 3, -30412(2)', 'addi 4, 1, 56', 'addi 5, 1, 58', 'bl @FindFirstStep__11TPathFinderFRsRs',
-           'lha 4, 56(1)', 'lha 5, 58(1)', 'addi 5, 5, 2', 'mulli 5, 5, 5', 'add 4, 4, 5', 'addi 4, 4, 2', 'slwi 4, 4, 1',
-           'addi 3, 2, -3258', 'lhax 4, 3, 4          ; the direction', 'cmpwi 4, 7', 'bgt @none',
-           'mr 3, 31', 'bl @MoveCommand__8TGameSysFQ28TGameSys10EDirection',
-           'none:', 'li 3, 0', 'lwz 31, 76(1)', 'addi 1, 1, 80', 'lwz 0, 8(1)', 'mtlr 0', 'blr'] },
+  // walk-to, the step TGameSys::WalkToLocation (shipped as li 3, 0; blr)
+  // never takes, was withdrawn on 30 September 2026 when it was played:
+  // it called TPathFinder::FindFirstStep, whose loop ends only when a byte
+  // read with lbz and extsb equals 255 (cmpwi 0, 255 at 0x5A9AC), which a
+  // sign-extended byte never does, so a command chosen from the Commands
+  // popup on something out of reach hung the game. The workbench's
+  // GRIMOIRE-NOTES.md, under grimoire/fixable-bugs-1adxav, has the trace.
 
   // TJournalList::AppendEntry adds one List Manager row a wrapped line and
   // sets 12 bytes of cell data in it, and the List Manager keeps its cell
@@ -372,6 +352,7 @@ const APP_FIXES = [
   // list of what to draw stops at 4,096 without a throw (SetStage), so a
   // square piled past that draws some of its things and not others.
   { id: 'hood-size', kind: 'fix', title: 'The game holds as many things near the party as it holds in all, instead of ending at 2,048',
+    played: 'fork, PowerPC, 30 September 2026: 4,000 half disks saved',
     bug: 'Buying about 17,000 oboloi of flax quits the game',
     sites: [
       { at: 0x6CB20, was: [0x4BFFFB1D], asm: ['b @init               ; was bl THood::THood'] },
@@ -426,6 +407,7 @@ const APP_FIXES = [
   // put back. The imports are called at their glue: TextWidth 0xC2AC0,
   // TextSize 0xC35B8, CharExtra 0xC3630; 0xB6CE8 is strlen.
   { id: 'name-fit', kind: 'fix', title: 'A long name under a conversation portrait is drawn smaller until it fits, not squeezed until its letters overlap',
+    played: 'Mac OS 8.5 in Infinite Mac, applied alone',
     bug: 'A long name under a conversation portrait is squeezed until its letters overlap',
     sites: [
       { at: 0x3DE90, was: [0x38800054, 0x4BFFDAA1], asm: ['b @fit                ; was li 4, 84', 'nop                   ; was bl FitText'] },
@@ -489,6 +471,7 @@ const APP_FIXES = [
       'number:', 'sth 0, 130(1)', 'b @0x46B7C'] },
 
   { id: 'hook-load', kind: 'hook', method: 243, title: 'Method 243 on the hero each time a game is begun, opened or reverted to',
+    played: 'fork, PowerPC, 28 September 2026: a 0x30F3 script set a flag',
     sites: [{ at: 0x14654, was: [0x80010068], asm: ['b @cave               ; was lwz 0, 104(1)'] }],
     cave: [
       'stwu 1, -64(1)', 'stw 3, 60(1)          ; OpenPlayerFile returns what BeginPlay leaves',
@@ -498,19 +481,24 @@ const APP_FIXES = [
 
   // ---- Text and menus -------------------------------------------------------------
   { id: 'text-wieldable', kind: 'text', title: '"weildable" [sic] reads "wieldable"',
+    played: 'fork, PowerPC, 30 September 2026: the drag verdict',
     data: [{ at: 0xC953C, was: '(Not weildable)', now: '(Not wieldable)' }] },
   { id: 'text-yourself', kind: 'text', title: '"your self" [sic] reads "yourself"',
+    played: 'fork, PowerPC, 30 September 2026: Attack on the hero',
     data: [{ at: 0xC9FF8, was: 'It isn\'t worth killing your self over...\n', now: 'It isn\'t worth killing yourself over...\n' }] },
   { id: 'text-monitor', kind: 'text', title: '"currently monitor" [sic] reads "monitor currently"',
     data: [{ at: 0xC8901, was: 'No suitable currently monitor available', now: 'No suitable monitor currently available' }] },
   { id: 'text-compatible', kind: 'text', title: '"not compatible this scenario" [sic] reads "not compatible with scenario"',
     data: [{ at: 0xC8B9D, was: 'This patch is not compatible this scenario', now: 'This patch is not compatible with scenario' },
            { at: 0xC8C57, was: 'This player is not compatible this scenario', now: 'This player is not compatible with scenario' }] },
-  { id: 'text-berserk', kind: 'text', title: 'The strategy "Beserk" [sic] reads "Berserk"', bug: '"Beserker" [sic] and "Beserk" [sic]',
+  { id: 'text-berserk', kind: 'text', title: 'The strategy "Beserk" [sic] reads "Berserk"',
+    played: 'fork, PowerPC, 30 September 2026: a companion’s Strategy tab',
+    bug: '"Beserker" [sic] and "Beserk" [sic]',
     rsrc: [{ type: 'STR#', id: 502, index: 4, was: 'Beserk', now: 'Berserk' }] },
-  { id: 'text-celestial', kind: 'text', title: '"celstial" [sic] reads "celestial" in the sundial’s help',
+  { id: 'text-celestial', kind: 'text', title: '"celstial" [sic] reads "celestial" in the landscape strip’s balloon help',
     rsrc: [{ type: 'STR#', id: 503, index: 5, was: 'celstial', now: 'celestial' }] },
   { id: 'menus', kind: 'menu', title: 'The Audio and Preferences menus in the menu bar, and with them the frame-rate limit',
+    played: 'fork, PowerPC, 30 September 2026: both menus, a choice saved',
     bug: 'Hidden menus',
     rsrc: [{ type: 'MBAR', id: 128, was: [0x00, 0x02, 0x00, 0x80, 0x00, 0x81], now: [0x00, 0x04, 0x00, 0x80, 0x00, 0x81, 0x00, 0x83, 0x00, 0x88] }] },
 ];

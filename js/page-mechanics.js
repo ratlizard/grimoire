@@ -1925,7 +1925,7 @@ function renderGremlinMaker() {
       whichName = m ? m[1].replace(/\\n/g, ' ').slice(0, 60) : 'no room script of that number';
     }
   }
-  cell(choice('gremlinWhen', [['room', 'the party enters a room'], ['zone', 'a zone is entered, or a save loads'], ['signal', 'a script sends a signal']], st.when, 'when'),
+  cell(choice('gremlinWhen', [['room', 'the party enters a room (untested)'], ['zone', 'a zone is entered, or a save loads'], ['signal', 'a script sends a signal (untested)']], st.when, 'when'),
        text('gremlinWhich', st.which, 'gremlinNum', st.when === 'signal' ? 'number' : 'any', 'which'),
        el('span', 'mechSub', whichName ? ' ' + svEsc(whichName) : ''));
   label('Only if quest flag');
@@ -2005,6 +2005,12 @@ function appFixSource() {
   if (window.APP_DATA && window.APP_RSRC_RAW) return { data: window.APP_DATA, rsrc: window.APP_RSRC_RAW, name: 'the installer', type: 'APPL', creator: 'Delv' };
   return null;
 }
+// A fix nobody has seen working in the game says so after its title. The
+// maintainer's word of 30 September 2026, after walk-to, which read right
+// and assembled clean, hung the game the first time it was played. The
+// mark goes when a fix's entry gains `played` (js/delv-appfixes.js,
+// js/delv-datafixes.js), written when a run has shown it.
+function untestedMark(f) { return f.played ? '' : ' (untested)'; }
 function appFixChosen() { return APP_FIXES.filter(f => !window.APPFIX_STATE.off.has(f.id)); }
 function appFixSay(m, bad) {
   const note = document.getElementById('appFixNote');
@@ -2081,7 +2087,7 @@ function renderAppFixMaker() {
       box.type = 'checkbox'; box.checked = !st.off.has(f.id);
       box.onchange = function () { appFixToggle(f.id, box.checked); };
       label.appendChild(box);
-      label.appendChild(el('span', '', ' ' + f.title));
+      label.appendChild(el('span', '', ' ' + f.title + untestedMark(f)));
       row.appendChild(label);
       const a = trial && trial.applied.find(x => x.id === f.id);
       if (a && a.words.length) {
@@ -2227,7 +2233,7 @@ function renderSpanishMaker() {
     : 'This copy has no resource fork. Open the game in MacBinary or BinHex, or open the installer.');
   bar([['Download for a Mac', function () { spanishDownload(false); }], ['Download as a disk image', function () { spanishDownload(true); }]]);
   const src = appFixSource();
-  line(src ? 'The program, written from ' + src.name + '. Its menus, dialogs and messages in Spanish, on a PowerPC Mac.'
+  line(src ? 'The program, written from ' + src.name + '. Its menus, dialogs and messages in Spanish, on a PowerPC Mac (untested).'
            : 'The program: open the installer, or choose the program in MacBinary or BinHex.');
   const d = bar([['Download the program for a Mac', function () { spanishProgramDownload(false); }], ['Download both as a disk image', function () { spanishProgramDownload(true); }]]);
   const inp = document.createElement('input');
@@ -2469,7 +2475,7 @@ function renderDataFixMaker() {
     host.appendChild(head);
     for (const f of list) {
       const row = el('div', 'appFixRow');
-      row.appendChild(box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title).l);
+      row.appendChild(box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + untestedMark(f)).l);
       host.appendChild(row);
       const kids = DATA_FIXES.filter(o => o.parent === f.id);
       if (!kids.length) continue;
@@ -2484,13 +2490,13 @@ function renderDataFixMaker() {
         sub.appendChild(r0);
         for (const o of choices) {
           const r = el('div', 'appFixRow');
-          r.appendChild(box(picked === o, function (c) { if (c) dataFixSpelling(o.id); }, o.title, off, 'radio', 'dataFixSpelling').l);
+          r.appendChild(box(picked === o, function (c) { if (c) dataFixSpelling(o.id); }, o.title + untestedMark(o), off, 'radio', 'dataFixSpelling').l);
           sub.appendChild(r);
         }
       }
       for (const o of kids.filter(o => !o.choice)) {
         const r = el('div', 'appFixRow');
-        r.appendChild(box(on.has(o.id), function (c) { dataFixToggle(o.id, c); }, o.title, off).l);
+        r.appendChild(box(on.has(o.id), function (c) { dataFixToggle(o.id, c); }, o.title + untestedMark(o), off).l);
         sub.appendChild(r);
       }
       if (f.id === 'text') {
@@ -4082,7 +4088,7 @@ function renderMechanicsSheet(value) {
 
   // ---- the hero's colours, as a patch ----
   {
-    add('herosprite', 'A sprite or a portrait of your own, as a patch', null, '',
+    add('herosprite', 'A sprite or a portrait of your own, as a patch (untested)', null, '',
       'Choose a sprite or a portrait and change its colours, and for the hero or the heroine a body to wear. ' +
       'The art is redrawn from the shipped file and written as a Magpie patch that replaces that one resource.',
       [

@@ -32,6 +32,11 @@
                  stages (the keywords typed with a space)
      parent      an option of another fix, in effect only with it (the text's)
      choice      options sharing a choice exclude each other (the spelling)
+     played      where and how the fix was seen working in the game, the
+                 shipped file beside it showing the bug; with none the
+                 Patches section marks it "(untested)" (the maintainer, 30
+                 September 2026). "In part" leaves the mark off: the text,
+                 some of whose lines he has read in play.
 
    THE STAGES, AND WHY THIS ORDER (combined_patch.mjs's, 25 September 2026).
    A Magpie patch carries whole resources, so two patches that touch one
@@ -631,6 +636,7 @@ const DATA_FIXES = [
   // entry 15 is "Iron Mines". It is the only sign of the 27 with anything in
   // Data2; the number moves to Data1.
   { id: 'mining-camp-sign', group: 'community', stage: 'community', title: 'The Mining Camp\u2019s sign can be read',
+    played: 'fork, 28 September 2026: the sign reads Iron Mines',
     dataEdits: [
       { what: 'the Mining Camp’s sign', resid: 0x8118, fn: (b) => {
           const r = b.subarray(14 * 16, 14 * 16 + 16);
@@ -654,6 +660,7 @@ const DATA_FIXES = [
   // anything else is carried -- flags 0x10, an inventory square, PutInside
   // -- where the shipped spell set flags 9 and lost it.
   { id: 'fetch', group: 'bryce', stage: 'bugfix', title: 'Fetch brings the thing to the caster rather than losing it',
+    played: 'the maintainer, 21 September 2026',
     edits: [
       { what: 'Fetch', resid: 0x1A28, at: 0x00B2, to: 0x00F3,
         expect: { 0x00B2: 'if_not', 0x00C7: 'byte 0x09', 0x00F3: 'return' },
@@ -1136,6 +1143,7 @@ const DATA_FIXES = [
   // else. The square takes the floor tile of the door beside it at (20,18),
   // 210.
   { id: 'stronghold-door', group: 'map', stage: 'map', title: 'The first Stronghold\u2019s kitchen door opens onto floor, not wall',
+    played: 'fork, 26 September 2026: through the door into the kitchen',
     dataEdits: [
       { what: 'the Stronghold’s kitchen door', resid: 0x801F, fn: (b) => {
           const m = parseDelverMap(b); m.raw = b;
@@ -1154,6 +1162,7 @@ const DATA_FIXES = [
   // notch in the embankment. It opens no other way: (25,52) holds a tree,
   // which blocks, so the notch leads only onto the passage.
   { id: 'citadel-passage', group: 'map', stage: 'map', title: 'The secret passage on the shore under the Citadel can be stepped on',
+    played: 'fork, 26 September 2026: a step north reaches the Underground',
     dataEdits: [
       { what: 'the passage under the Citadel', resid: 0x8006, fn: (b) => {
           const m = parseDelverMap(b); m.raw = b;
@@ -1174,6 +1183,7 @@ const DATA_FIXES = [
      fixes (DATA_FIX_TEXT, DATA_FIX_COMMUNITY_TYPOS). */
 
   { id: 'text', group: 'text', title: 'Misspellings, slips and typos in the text, with the community\u2019s list',
+    played: 'in part: the maintainer, some lines in Land King Hall',
     parts: [
       { stage: 'text', plan: (s, ctx) => ({ textEdits: dataFixTextEdits(ctx.chosen) }) },
       { stage: 'community-text', plan: (s, ctx) => ({ textEdits: dataFixCommunityTypoEdits(dataPatchTexts(s), ctx.communityTypos || DATA_FIX_COMMUNITY_TYPOS,
