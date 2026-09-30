@@ -288,7 +288,8 @@ try {
     const wr = peek('atlasRect')(world, av3);
     for (let fy = 0.3; fy <= 0.7 && !spot; fy += 0.05) for (let fx = 0.3; fx <= 0.7 && !spot; fx += 0.05) {
       const x = wr.x + wr.w * fx, y = wr.y + wr.h * fy, hit = peek('atlasAt')(x, y);
-      if (hit && !hit.node.depth && !(peek('window.ATLAS_MOUTHS') || []).some(q => Math.hypot(x - q.x, y - q.y) <= q.rad + 4)) spot = { x, y };
+      if (hit && !hit.node.depth && !peek('atlasTownAt')(x, y) &&
+          !(peek('window.ATLAS_MOUTHS') || []).some(q => Math.hypot(x - q.x, y - q.y) <= q.rad + 4)) spot = { x, y };
     }
     peek('window.ATLAS_SEL = null');
     const tap = (x, y) => { on.pointerdown(ev(1, x, y)); on.pointerup(ev(1, x, y)); return peek('window.ATLAS_SEL'); };
@@ -308,6 +309,57 @@ try {
     else if (!picked || cleared !== null) fail('atlas pinch', 'a one-finger tap did not pick and a second clear, so the pinch check proves nothing: ' + JSON.stringify([picked, cleared]));
     else if (afterPinch !== null) fail('atlas pinch', 'lifting out of a pinch picked a square: ' + JSON.stringify(afterPinch));
     else console.log('  atlas: a tap picks, a second clears, and lifting out of a pinch picks nothing');
+    /* A tap anywhere in a town's circle goes in (29 September 2026), not
+       only inside its map's rectangle: a point in the circle's rim beside
+       the rectangle is tapped, and the town flies in; a point just past the
+       circle does not. Testing the rectangle again (atlasAt) fails it. */
+    {
+      // Near enough that the towns are drawn, each still ringed.
+      peek('atlasFit')();
+      const cadT = sc3.nodes.find(n => n.resid === 0x8008);
+      for (let k = 0; k < 12 && peek('atlasRect')(cadT, av3).w < 100; k++) {
+        const rc = peek('atlasRect')(cadT, av3);
+        peek('atlasZoomAround')(av3.Z * 1.5, rc.x + rc.w / 2, rc.y + rc.h / 2);
+      }
+      // A town is drawn, and ringed, from its miniature, which the stub's
+      // canvas cannot draw; so the list a paint leaves is set as a paint
+      // with Cademia on screen leaves it, and nothing paints before the tap.
+      drainRaf();
+      const cadR = peek('atlasRect')(cadT, av3);
+      ctx.ATLAS_DRAWN = [{ node: cadT, r: cadR, ppt: peek('atlasNodePpt')(cadT, av3), alpha: 1 }];
+      ctx.ATLAS_MOUTHS = [];
+      const vpw = vp.clientWidth || 300, vph = vp.clientHeight || 300;
+      let target = null;
+      for (const { node, r } of (peek('window.ATLAS_DRAWN') || [])) {
+        if (!node.depth || r.w >= 540) continue;
+        const c = peek('atlasTownRing')(r), R = Math.max(c.rad, 11);
+        // Halfway between the rectangle's edge and the circle, on each side;
+        // and for each, a point just past the circle the same way.
+        for (const [ux, uy, half] of [[1, 0, r.w / 2], [-1, 0, r.w / 2], [0, 1, r.h / 2], [0, -1, r.h / 2]]) {
+          const d = (half + R) / 2 + 1, x = c.cx + ux * d, y = c.cy + uy * d;
+          if (x < 0 || x > vpw || y < 0 || y > vph) continue;
+          if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) continue;
+          if (peek('atlasTownAt')(x, y) !== node) continue;
+          target = { node, x, y, ox: c.cx + ux * (R + 3), oy: c.cy + uy * (R + 3) };
+          break;
+        }
+        if (target) break;
+      }
+      let flew = null;
+      const realFly = ctx.atlasZoomIntoTown;
+      ctx.atlasZoomIntoTown = n => { flew = n; };
+      if (target) tap(target.x, target.y);
+      const inCircle = flew;
+      flew = null;
+      if (target && !peek('atlasTownAt')(target.ox, target.oy)) tap(target.ox, target.oy);
+      const pastIt = flew;
+      ctx.atlasZoomIntoTown = realFly;
+      peek('window.ATLAS_SEL = null');
+      if (!target) fail('atlas', 'Cademia\'s circle has no rim beside its rectangle on screen to tap');
+      else if (inCircle !== target.node) fail('atlas', 'a tap in ' + target.node.name + '\'s circle, beside its rectangle, did not go in');
+      else if (pastIt) fail('atlas', 'a tap past ' + target.node.name + '\'s circle went into ' + pastIt.name);
+      else console.log('  atlas: a tap anywhere in a town\'s circle goes in (' + target.node.name + ', beside its rectangle), and one past it does not');
+    }
   }
   const vpA = REGISTRY.get('mapViewport');
   if (!sc) fail('atlas', 'no scene was built');

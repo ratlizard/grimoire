@@ -1656,11 +1656,30 @@ function atlasPaintSelection(ctx, drawn) {
 }
 /* A ring round every town still wearing its roofs: a tap on one goes in
    (atlasZoomIntoTown), and the ring says so the way the mouths' rings do. */
+/* A town at a distance is ringed: a circle round its whole map, drawn
+   while it still wears its roofs. The circle is also what a tap takes
+   (atlasTownAt): until 29 September 2026 a tap went in only inside the
+   map's rectangle, which left the circle's rim outside it, and most of a
+   small town under a finger, doing nothing (the maintainer: tapping
+   anywhere in the circle should take you there). */
+function atlasTownRing(r) { return { cx: r.x + r.w / 2, cy: r.y + r.h / 2, rad: Math.hypot(r.w, r.h) / 2 + 4 }; }
+// The town whose circle a tap falls in, the nearest centre where circles
+// overlap, or null. A small circle takes the same 11 px a ring does.
+function atlasTownAt(px, py) {
+  if (atlasBelowTop()) return null;
+  let hit = null, hitD = Infinity;
+  for (const { node, r } of (window.ATLAS_DRAWN || [])) {
+    if (!node.depth || r.w >= 540) continue;
+    const c = atlasTownRing(r), d = Math.hypot(px - c.cx, py - c.cy);
+    if (d <= Math.max(c.rad, 11) && d < hitD) { hit = node; hitD = d; }
+  }
+  return hit;
+}
 function atlasPaintTowns(ctx, drawn, vw, vh) {
   if (atlasBelowTop()) return;
   for (const { node, r } of drawn) {
     if (!node.depth || r.w >= 540) continue;
-    const cx = r.x + r.w / 2, cy = r.y + r.h / 2, rad = Math.hypot(r.w, r.h) / 2 + 4;
+    const { cx, cy, rad } = atlasTownRing(r);
     if (cx + rad < 0 || cy + rad < 0 || cx - rad > vw || cy - rad > vh) continue;
     ctx.strokeStyle = 'rgba(196,164,100,.85)';
     ctx.lineWidth = 1.5;
@@ -2549,10 +2568,11 @@ function setupAtlasInteraction() {
         if (d <= q.rad && d < hitD) { hit = q; hitD = d; }
       }
       if (hit) { atlasGesture.active = false; atlasTakeMouth(hit.m, hit.node); return; }
-      // A town still wearing its roofs: a tap goes in until they come off,
-      // the way a ring goes into a cave, without the fall to black.
-      const town = atlasAt(p.x, p.y);
-      if (town && town.node.depth && town.r.w < 540 && !atlasBelowTop()) { atlasGesture.active = false; atlasZoomIntoTown(town.node); return; }
+      // A town still wearing its roofs: a tap anywhere in its circle goes
+      // in until they come off, the way a ring goes into a cave, without
+      // the fall to black.
+      const town = atlasTownAt(p.x, p.y);
+      if (town) { atlasGesture.active = false; atlasZoomIntoTown(town); return; }
       atlasInspect(p.x, p.y);
       // A tap is the hover on a touch screen -- see the map panel's
       // clearPointer for the reasoning; this is the same gesture.
