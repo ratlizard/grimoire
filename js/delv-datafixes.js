@@ -133,6 +133,53 @@ function dataFixLocals(s, what, resid, containing, from, to) {
 // A line that waits for a click: a `*` after it.
 function dataFixClick(what, resid, line) { return { what, resid, find: line, replace: line + '*', count: 1 }; }
 
+// The resurrection fix's edits, as the shipped file has them; the fix's
+// plan moves them to where an earlier stage left the code.
+const DATA_FIX_RESURRECTION = {
+  edits: (() => {
+      // Hector, Meleager, Ariadne, Timon, Aethon, Dryas.
+      const JOINERS = [0x06, 0x22, 0x35, 0x4A, 0x61, 0x62];
+      const isJoiner = JOINERS.map((c, k) => ['arg Arg01', 'get_field data1 (0x6)', 'byte 0x' + c.toString(16).toUpperCase().padStart(2, '0'), 'eq'].concat(k ? ['or'] : [])).flat();
+      const setField = (field, target, value) => ['set_field ' + field, target, 'end'].concat(value, ['end']);
+      return [{
+        what: 'the raised stand where the corpse lay, sacks packed, companions back in the party',
+        resid: 0x1A2F, at: 0x0112, to: 0x014B,
+        expect: { 0x0112: 'set_local 0x01', 0x0114: 'sys RecursiveContainerIterator', 0x011C: 'arg Arg01',
+                  0x012C: 'set_field container', 0x0132: 'set_field flags', 0x0136: 'byte 0x10',
+                  0x0145: 'branch', 0x0148: 'sys Delete', 0x0149: 'arg Arg01', 0x014B: 'branch' },
+        code: [
+          // 1: one level of the corpse.
+          'set_local 0x01', 'sys ContainerIterator', 'word &Var1', 'byte 0x00', 'arg Arg01', 'end', 'end',
+          'next:',
+          'if', 'sys ContainerIterator', 'word &Var1', 'byte 0x01', 'end', 'then -> packed',
+          ...setField('container (0xB)', 'local Var01', ['local Var00']),
+          ...setField('flags (0x0)', 'local Var01', ['byte 0x10']),
+          'set_local 0x01', 'sys ContainerIterator', 'word &Var1', 'byte 0x02', 'end', 'end',
+          'branch next',
+          'packed:',
+          // 2: the map record on the corpse's square, waiting to be drawn.
+          'set_local 0x04', 'local Var00', 'cast Prop (0x0)', 'end',
+          ...setField('x (0x1)', 'local Var04', ['arg Arg01', 'get_field x (0x1)']),
+          ...setField('y (0x2)', 'local Var04', ['arg Arg01', 'get_field y (0x2)']),
+          ...setField('flags (0x0)', 'local Var04', ['byte 0x42']),
+          ...setField('x (0x1)', 'local Var00', ['arg Arg01', 'get_field x (0x1)']),
+          ...setField('y (0x2)', 'local Var00', ['arg Arg01', 'get_field y (0x2)']),
+          // 3: a companion who died in the party rejoins it.
+          'if_not', ...isJoiner,
+          'local Var00', 'get_field behavior (0x15)', 'byte 0x01', 'ge', 'and',
+          'local Var00', 'get_field behavior (0x15)', 'byte 0x0D', 'le', 'and',
+          'then -> gone',
+          'sys JoinParty', 'local Var00', 'end',
+          'gone:',
+          'sys Delete', 'arg Arg01', 'end',
+        ].join('\n'),
+      }];
+    })(),
+    dataEdits: [{ what: 'UseOn has a fifth local', resid: 0x1A2F, fn: (b) => {
+      if (b[0xA2] !== 4) throw new Error('UseOn has ' + b[0xA2] + ' locals, not 4');
+      b[0xA2] = 5; return 'locals 4 to 5';
+    } }] };
+
 const DATA_FIXES = [
 
   /* ---- Found in the files (the stage "found"; found_fixes_patch.mjs,
@@ -323,6 +370,31 @@ const DATA_FIXES = [
   // square and PutInside, as Bryce's Fetch fix places a thing, in place of
   // flags 9. The least certain edit here: it follows Fetch's pattern and was
   // not tried in play.
+  // A corpse of nobody raised (0x1A2F, the spell; 0x10F4, the Land King
+  // Amulet; 30 September 2026, the maintainer's word of 28 September). Both
+  // take the corpse's Data1 as the character to raise, and a corpse whose
+  // Data1 is 0 names nobody: every killed creature's (Die writes 0 into the
+  // map record it turns into the corpse), and the Land King Hall spy's body,
+  // which the board took for Aeneas [453@t2023]. Character(0) is character
+  // 0, a real record, so the "Nothing happens." the scripts keep for no
+  // character was never reached: the corpse was deleted, its things handed
+  // to character 0 and character 0 "raised". Now a corpse of Data1 0 says
+  // "Nothing happens." and is left as it lay with its things. The spell's
+  // mana is spent in Use before this runs, as for any other target; the
+  // amulet returns before its charge is taken (a rock still costs one, as
+  // shipped). Kept in "All Fixes" and in "Cythera Resurrection Fix" both,
+  // which is why the resurrection fix finds its place rather than assuming it.
+  { id: 'nobody-corpse', group: 'community', stage: 'community', title: 'Raising a corpse that belongs to nobody does nothing, rather than taking its things away',
+    edits: [
+      { what: 'the spell, a corpse of nobody', resid: 0x1A2F, at: 0x00D5,
+        expect: { 0x00CD: 'set_local 0x00', 0x00D0: 'get_field data1', 0x00D2: 'cast Character', 0x00D5: 'if_not', 0x00D6: 'local Var00', 0x014E: 'string(implicit) "Nothing happens.' },
+        code: ['if', 'arg Arg01', 'get_field data1 (0x6)', 'then -> someone',
+          'string(implicit) "Nothing happens.\\n"', 'return', 'byte 0x00', 'end', 'someone:'].join('\n') },
+      { what: 'the amulet, a corpse of nobody', resid: 0x10F4, at: 0x018F,
+        expect: { 0x0187: 'set_local 0x00', 0x018A: 'get_field data1', 0x018C: 'cast Character', 0x018F: 'if_not', 0x0190: 'local Var00', 0x023C: 'string(implicit) "Nothing happens.' },
+        code: ['if', 'arg Arg01', 'get_field data1 (0x6)', 'then -> someone',
+          'string(implicit) "Nothing happens.\\n"', 'return', 'byte 0x00', 'end', 'someone:'].join('\n') },
+    ] },
   { id: 'thrown-weapon', group: 'community', stage: 'community', title: 'A thrown dagger or spear that kills is not lost',
     edits: [
       { what: 'a thrown weapon, placed', resid: 0x3042, at: 0x0158, expect: { 0x0150: 'set_field container', 0x0158: 'branch' },
@@ -1196,53 +1268,20 @@ const DATA_FIXES = [
   // party, until the hour takes them home. NOT CHANGED: the Land King Amulet
   // used on a corpse (0x10F4), which runs the same code, and the hero's own
   // return to Land King Hall when the amulet is worn at death (0x1801), both
-  // left as shipped at the maintainer's word. The map record wants a fifth
+  // left as shipped at the maintainer's word, but for the corpse of nobody,
+  // which nobody-corpse turns away in both. The map record wants a fifth
   // local; a function's locals are the third byte of its header, and UseOn's
   // header is at 0xA0.
   { id: 'resurrection', group: 'apart', stage: 'apart', title: 'Resurrection brings the person back where the corpse lay, with their belongings, and in the party',
-    edits: (() => {
-      // Hector, Meleager, Ariadne, Timon, Aethon, Dryas.
-      const JOINERS = [0x06, 0x22, 0x35, 0x4A, 0x61, 0x62];
-      const isJoiner = JOINERS.map((c, k) => ['arg Arg01', 'get_field data1 (0x6)', 'byte 0x' + c.toString(16).toUpperCase().padStart(2, '0'), 'eq'].concat(k ? ['or'] : [])).flat();
-      const setField = (field, target, value) => ['set_field ' + field, target, 'end'].concat(value, ['end']);
-      return [{
-        what: 'the raised stand where the corpse lay, sacks packed, companions back in the party',
-        resid: 0x1A2F, at: 0x0112, to: 0x014B,
-        expect: { 0x0112: 'set_local 0x01', 0x0114: 'sys RecursiveContainerIterator', 0x011C: 'arg Arg01',
-                  0x012C: 'set_field container', 0x0132: 'set_field flags', 0x0136: 'byte 0x10',
-                  0x0145: 'branch', 0x0148: 'sys Delete', 0x0149: 'arg Arg01', 0x014B: 'branch' },
-        code: [
-          // 1: one level of the corpse.
-          'set_local 0x01', 'sys ContainerIterator', 'word &Var1', 'byte 0x00', 'arg Arg01', 'end', 'end',
-          'next:',
-          'if', 'sys ContainerIterator', 'word &Var1', 'byte 0x01', 'end', 'then -> packed',
-          ...setField('container (0xB)', 'local Var01', ['local Var00']),
-          ...setField('flags (0x0)', 'local Var01', ['byte 0x10']),
-          'set_local 0x01', 'sys ContainerIterator', 'word &Var1', 'byte 0x02', 'end', 'end',
-          'branch next',
-          'packed:',
-          // 2: the map record on the corpse's square, waiting to be drawn.
-          'set_local 0x04', 'local Var00', 'cast Prop (0x0)', 'end',
-          ...setField('x (0x1)', 'local Var04', ['arg Arg01', 'get_field x (0x1)']),
-          ...setField('y (0x2)', 'local Var04', ['arg Arg01', 'get_field y (0x2)']),
-          ...setField('flags (0x0)', 'local Var04', ['byte 0x42']),
-          ...setField('x (0x1)', 'local Var00', ['arg Arg01', 'get_field x (0x1)']),
-          ...setField('y (0x2)', 'local Var00', ['arg Arg01', 'get_field y (0x2)']),
-          // 3: a companion who died in the party rejoins it.
-          'if_not', ...isJoiner,
-          'local Var00', 'get_field behavior (0x15)', 'byte 0x01', 'ge', 'and',
-          'local Var00', 'get_field behavior (0x15)', 'byte 0x0D', 'le', 'and',
-          'then -> gone',
-          'sys JoinParty', 'local Var00', 'end',
-          'gone:',
-          'sys Delete', 'arg Arg01', 'end',
-        ].join('\n'),
-      }];
-    })(),
-    dataEdits: [{ what: 'UseOn has a fifth local', resid: 0x1A2F, fn: (b) => {
-      if (b[0xA2] !== 4) throw new Error('UseOn has ' + b[0xA2] + ' locals, not 4');
-      b[0xA2] = 5; return 'locals 4 to 5';
-    } }] },
+    // Its offsets are the shipped file's; nobody-corpse, an earlier stage,
+    // inserts before them, so the plan measures where the corpse's things
+    // are now walked and moves every offset by the difference.
+    plan: (s) => {
+      const d = dataPatchPlace(s, 'the corpse\u2019s things', 0x1A2F, ['set_local 0x01', 'sys RecursiveContainerIterator', 'word &Var1', 'byte 0x00']).at(0) - 0x0112;
+      const move = e => Object.assign({}, e, { at: e.at + d, to: e.to + d,
+        expect: Object.fromEntries(Object.entries(e.expect).map(([k, v]) => [+k + d, v])) });
+      return { edits: DATA_FIX_RESURRECTION.edits.map(move), dataEdits: DATA_FIX_RESURRECTION.dataEdits };
+    } },
   // Peirithous, Judge Sacas's majordomo, alive (0xF009; 28 September 2026,
   // "Cythera Peirithous Fix", a separate patch since it puts a person into
   // the game that no release has shown). THE SHIPPED STATE: character 96 is
