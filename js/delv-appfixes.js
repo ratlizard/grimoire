@@ -284,6 +284,39 @@ const APP_FIXES = [
   // later: a null unit is the table's first record (TOC -30376, the base
   // ObjToMonst walks), the hero's. ObjToMonst itself still answers null,
   // since HatchEgg and the scripts' Ctor read that as "no unit".
+  // A sleeper's own unit. The default EveryTurn (0x3020) puts a character
+  // in bed into type 264, "person sleeping", in its map record and in the
+  // word at 4 of its character record (field 0x24), and leaves the word at
+  // 20 (field 0x25) as it was, to put back on waking. A creature is given
+  // its unit once, when it is built, from its map record's type, so one
+  // built while asleep was given 264's, which the shipped table does not
+  // have (the scenario fix sleeping-units gives 264 a copy of the man's,
+  // the one unit a table can give every sleeper). Both places a sleeper is
+  // built know the real type. A named character (below 256) is built by
+  // HatchEgg through the short constructor, and its record's word at 20
+  // holds its own type. A creature from an egg is rebuilt from a saved game
+  // by the stream constructor, which has just read its template's number
+  // (144 of its frame; the template is the egg's record of what it hatches,
+  // and the constructor sets it as the creature's template three words
+  // later), and the template's type is the real one. Where the map record
+  // says 264, each call of ObjToMonst now asks for that type instead, so the
+  // sleeper gets its own corpse, alignment and unit flags (a guard's 0x40,
+  // which the swamp reads as immunity to poison). A creature newly hatched
+  // was never affected: HatchEgg builds it on a record of the template's
+  // type, and the swap comes later. The stream constructor restores the
+  // character record, stats and all, from the save, so a sleeper's stats
+  // never came from the unit on that path.
+  { id: 'sleeper-unit', kind: 'fix', title: 'Someone made while asleep takes their own unit, so they leave their own body, not a man’s or a random thing',
+    bug: 'NPCs killed in one hit or asleep turn into other objects',
+    sites: [
+      { at: 0x44C00, was: [0x4BFFFE61], asm: ['bl @named             ; was bl ObjToMonst'] },
+      { at: 0x46090, was: [0x4BFFE9D1], asm: ['bl @loaded            ; was bl ObjToMonst'] }],
+    cave: ['named:', 'cmpwi 3, 264', 'bne @ask', 'extsh 4, 26            ; the character', 'cmpwi 4, 256', 'bge @ask',
+           'lwz 5, -30352(2)', 'slwi 4, 4, 5', 'add 5, 5, 4', 'lhz 3, 20(5)          ; field 0x25, which sleep leaves alone', 'clrlwi 3, 3, 22',
+           'ask:', 'b @ObjToMonst__Fs',
+           'loaded:', 'cmpwi 3, 264', 'bne @ask', 'lha 5, 144(31)         ; the template, read from the save', 'cmpwi 5, 256', 'blt @ask',
+           'lwz 6, 0(22)', 'slwi 5, 5, 4', 'add 5, 6, 5', 'lhz 3, 4(5)', 'clrlwi 3, 3, 22        ; the template’s type', 'b @ObjToMonst__Fs'] },
+
   { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit is given the first unit, instead of reading its stats and corpse from nowhere',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [

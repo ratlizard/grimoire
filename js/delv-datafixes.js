@@ -595,11 +595,18 @@ const DATA_FIXES = [
   // corpse's type and aspect from the unit's word at 14, so such a death made
   // a thing of whatever type the word at address 14 held, with Data1 the dead
   // one's number: the same wrong thing all session, a portal now and then,
-  // which is every report on the board. Its stats, flags and alignment came
-  // from low memory the same way. Two records go in the table's free slots,
-  // 50 and 51: 264 as a copy of the man's (a man's corpse, a person's flags)
-  // and 229 as a copy of the guard's. No class script sits at 0x1932 or
-  // 0x1933, which a unit's index would name.
+  // which is every report on the board. Its flags and alignment came from
+  // low memory the same way (a creature's stats come from its unit only
+  // when it is built new; a named character keeps its own, and a creature
+  // loaded from a save has its saved record back). Two records go in the
+  // table's free slots, 50 and 51: 264 as a copy of the man's (a man's
+  // corpse, a person's flags) and 229 as a copy of the guard's. No class
+  // script sits at 0x1932 or 0x1933, which a unit's index would name. A
+  // table can give every sleeper only the one unit, so a guard or a woman
+  // made while asleep leaves a man's body and carries a man's flags; the
+  // program fix sleeper-unit (js/delv-appfixes.js) looks up the sleeper's
+  // own type instead, and this record is what is left for anything it
+  // cannot name (30 September 2026).
   { id: 'sleeping-units', group: 'community', stage: 'community', title: 'People killed asleep, and the Odemia night guard, leave a body',
     dataEdits: [
       { what: 'units for the sleeping and the night guard', resid: 0xF008, fn: (b) => {
