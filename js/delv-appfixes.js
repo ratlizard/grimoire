@@ -294,6 +294,31 @@ const APP_FIXES = [
            'loaded:', 'cmplwi 3, 0', 'bne @loaded1', 'lwz 3, -30376(2)', 'lwz 3, 0(3)',
            'loaded1:', 'stw 3, 4(28)', 'b @0x46098'] },
 
+  // cbPickItem, the syscall behind ShowMenu (the "Where Is" lists, and every
+  // menu a script shows), fills one static array of twenty 12-byte item
+  // drawers, whose address is the TOC slot at -25704, built once through
+  // the runtime's array constructor (0xBE3E4, with 12 and 20) behind the
+  // guard byte at TOC -25700, and it stops at the twentieth item
+  // (cmpwi 0, 20 at 0x96924): Pnyx's list holds 31. The menu itself
+  // (TPickMode) draws from the vector it is handed until its box is full
+  // and scrolls, with no count of its own. Now the first call allocates
+  // 64 drawers (operator new, 0xBE7C8, as the routine's own vector does),
+  // puts the address in the TOC slot, where every later call reads it, and
+  // in r24, and builds them; the guard byte keeps the capacity (it only had
+  // to be nonzero) and the loop's test reads it. If the allocation fails the
+  // shipped array is built with its 20, as before. r25 is free until
+  // 0x96AAC sets it.
+  { id: 'menu-items', kind: 'fix', title: 'A menu offered by a script, a "Where Is" list above all, shows up to 64 entries instead of stopping at 20',
+    bug: '"Where Is" lists are cut short',
+    sites: [
+      { at: 0x968A4, was: [0x80828D9C], asm: ['b @init               ; was lwz 4, -29284(2)'] },
+      { at: 0x96924, was: [0x2C000014], asm: ['b @cap                ; was cmpwi 0, 20'] }],
+    cave: ['init:', 'li 3, 768              ; 64 drawers of 12 bytes', 'bl @0xBE7C8', 'li 25, 20', 'cmplwi 3, 0', 'beq @build              ; no memory: the shipped array',
+           'mr 24, 3', 'stw 3, -25704(2)      ; where every later call finds it', 'li 25, 64',
+           'build:', 'lwz 4, -29284(2)', 'mr 3, 24', 'li 5, 0', 'li 6, 12', 'mr 7, 25', 'bl @0xBE3E4',
+           'lwz 3, -25700(2)', 'stb 25, 0(3)          ; built, and how many', 'b @0x968CC',
+           'cap:', 'lwz 3, -25700(2)', 'lbz 3, 0(3)', 'cmpw 0, 3', 'b @0x96928'] },
+
   { id: 'widget-renumber', kind: 'fix', title: 'A scripted window’s buttons follow their owner to its new number on a zone change',
     bug: 'The strange device has to be reopened after changing zones',
     sites: [{ at: 0x87B94, was: [0x4E800020], asm: ['b @cave               ; was a bare blr'] }],
