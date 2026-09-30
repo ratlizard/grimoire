@@ -191,6 +191,92 @@ const APP_FIXES = [
     cave: ['lha 3, 8(29)', 'cmpwi 3, 0', 'beq @skip              ; a corpse’s creature: nothing of its own under 0',
            'bl @RemoveAllAbility__8TSpellFXFs', 'skip:', 'b @0x464F8'] },
 
+  // TGameSys::WalkToLocation was shipped empty (li 3, 0; blr). Its six
+  // callers are TDroppableWindow::MouseRoutine's: a Look, Attack, Use or
+  // Talk clicked on something out of reach asks it to bring the current
+  // character there and acts only if it answers true, and a click on the
+  // ground far off calls it and ignores the answer. So a touch spell aimed
+  // at someone not beside the caster, and every command clicked on
+  // something distant, did nothing. It takes one step now and answers
+  // false, the game's one click, one turn: each click brings the character
+  // a square nearer, and once in reach the command acts as it always did.
+  // The step is the one the click's own path finding would take:
+  // TPathFinder::FindPath from the character at TOC -30356 (whom
+  // MoveCommand moves) with no monster, as MouseRoutine calls it, then
+  // FindFirstStep for the first square, turned into MoveCommand's direction
+  // through the table MouseRoutine turns a click's offset into a cursor
+  // with (TOC -3258, five by five, index (dy + 2) * 5 + dx + 2: the ring
+  // about the centre is the directions 0 to 7, north clockwise, the centre
+  // 9). FindPath answers 32767 when the target is more than 15 squares off
+  // or nothing nearer was found, and FindFirstStep would then walk a grid
+  // nobody filled, so that answer takes no step.
+  { id: 'walk-to', kind: 'fix', title: 'A command or touch spell clicked on something out of reach takes a step towards it, instead of doing nothing',
+    bug: 'Touch spells only work on someone next to you',
+    sites: [{ at: 0x50E5C, was: [0x38600000], asm: ['b @cave               ; was li 3, 0 (and blr)'] }],
+    cave: ['mflr 0', 'stw 0, 8(1)', 'stwu 1, -80(1)', 'stw 31, 76(1)', 'mr 31, 3              ; the game',
+           'mr 7, 4', 'mr 8, 5                ; where to',
+           'lwz 3, -30356(2)', 'lha 3, 0(3)           ; the character in control', 'slwi 3, 3, 4',
+           'lwz 6, -30268(2)', 'lwz 6, 0(6)', 'add 6, 6, 3           ; its map record',
+           'lwz 5, 0(6)', 'rlwinm 5, 5, 8, 0, 12', 'srawi 5, 5, 20        ; x',
+           'lha 6, 2(6)', 'rlwinm 6, 6, 20, 0, 12', 'srawi 6, 6, 20        ; y',
+           'li 4, 0', 'lwz 3, -30412(2)      ; the path finder',
+           'bl @FindPath__11TPathFinderFP14TActiveMonsterssss',
+           'extsh 3, 3', 'cmpwi 3, 32767', 'beq @none',
+           'lwz 3, -30412(2)', 'addi 4, 1, 56', 'addi 5, 1, 58', 'bl @FindFirstStep__11TPathFinderFRsRs',
+           'lha 4, 56(1)', 'lha 5, 58(1)', 'addi 5, 5, 2', 'mulli 5, 5, 5', 'add 4, 4, 5', 'addi 4, 4, 2', 'slwi 4, 4, 1',
+           'addi 3, 2, -3258', 'lhax 4, 3, 4          ; the direction', 'cmpwi 4, 7', 'bgt @none',
+           'mr 3, 31', 'bl @MoveCommand__8TGameSysFQ28TGameSys10EDirection',
+           'none:', 'li 3, 0', 'lwz 31, 76(1)', 'addi 1, 1, 80', 'lwz 0, 8(1)', 'mtlr 0', 'blr'] },
+
+  // TJournalList::AppendEntry adds one List Manager row a wrapped line and
+  // sets 12 bytes of cell data in it, and the List Manager keeps its cell
+  // data at 16-bit offsets: "The List Manager cannot maintain lists that
+  // occupy more than 32 KB of memory" (More Macintosh Toolbox, page 405 of
+  // the PDF), so past about 2,730 rows LSetCell fails and the new lines draw
+  // as blank rows, 453's "lots of big empty spaces". Both of AppendEntry's
+  // LAddRow calls go through a cave now that, with 2,688 rows or more, first
+  // deletes the list's top row, the oldest line, and moves the row about to
+  // be added, and the caller's copy of it at 92(1) (156 from the cave's
+  // frame), up by one. The journal file keeps every entry; only the window
+  // shows the newest 2,688 lines. The call replaced was a glue call, after
+  // which AppendEntry reloads its TOC from 20(1); for the first LAddRow
+  // nothing has stored it there yet, so the cave does, as a glue stub would.
+  // Packing a row into fewer bytes was the other design, and only moves the
+  // limit.
+  { id: 'journal-rows', kind: 'fix', title: 'A long journal keeps its newest lines readable, dropping the oldest from the window, instead of drawing new ones blank',
+    bug: 'The journal breaks when it gets too long',
+    sites: [
+      { at: 0x78684, was: [0x4804A4B5], asm: ['bl @cave              ; was bl LAddRow, the entry’s header'] },
+      { at: 0x78784, was: [0x4804A3B5], asm: ['bl @cave              ; was bl LAddRow, a line of its text'] }],
+    cave: ['stw 2, 20(1)          ; where the caller reloads its TOC from', 'mflr 0', 'stw 0, 8(1)', 'stwu 1, -64(1)',
+           'stw 3, 40(1)', 'stw 4, 44(1)', 'stw 5, 48(1)',
+           'lwz 6, 0(5)', 'lha 6, 76(6)          ; the rows, dataBounds.bottom', 'cmpwi 6, 2688', 'blt @add',
+           'li 3, 1', 'li 4, 0', 'bl @0xC2B20            ; LDelRow(1, 0, list): the oldest line', 'lwz 2, 20(1)',
+           'lwz 4, 44(1)', 'addi 4, 4, -1', 'stw 4, 44(1)',
+           'lha 7, 156(1)         ; the caller’s row', 'addi 7, 7, -1', 'sth 7, 156(1)',
+           'add:', 'lwz 3, 40(1)', 'lwz 4, 44(1)', 'lwz 5, 48(1)', 'bl @0xC2B38            ; LAddRow', 'lwz 2, 20(1)',
+           'addi 1, 1, 64', 'lwz 0, 8(1)', 'mtlr 0', 'blr'] },
+
+  // Both TActiveMonster constructors store ObjToMonst's answer as the new
+  // creature's unit (4 of the object) and nothing checks it; for a prop
+  // type with no entry in 0xF008 the answer is null, and the creature's
+  // stats, flags, alignment and, at its death, its corpse word are then
+  // read from low memory. The scenario gives the two types that happened
+  // units ("Cythera Community Fixes", sleeping-units); this is the
+  // program's own guard, for a scenario without that fix or a type added
+  // later: a null unit is the table's first record (TOC -30376, the base
+  // ObjToMonst walks), the hero's. ObjToMonst itself still answers null,
+  // since HatchEgg and the scripts' Ctor read that as "no unit".
+  { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit is given the first unit, instead of reading its stats and corpse from nowhere',
+    bug: 'NPCs killed in one hit or asleep turn into other objects',
+    sites: [
+      { at: 0x44C08, was: [0x907E0004], asm: ['b @made               ; was stw 3, 4(30)'] },
+      { at: 0x46094, was: [0x907C0004], asm: ['b @loaded             ; was stw 3, 4(28)'] }],
+    cave: ['made:', 'cmplwi 3, 0', 'bne @made1', 'lwz 3, -30376(2)', 'lwz 3, 0(3)            ; the first unit',
+           'made1:', 'stw 3, 4(30)', 'b @0x44C0C',
+           'loaded:', 'cmplwi 3, 0', 'bne @loaded1', 'lwz 3, -30376(2)', 'lwz 3, 0(3)',
+           'loaded1:', 'stw 3, 4(28)', 'b @0x46098'] },
+
   { id: 'widget-renumber', kind: 'fix', title: 'A scripted window’s buttons follow their owner to its new number on a zone change',
     bug: 'The strange device has to be reopened after changing zones',
     sites: [{ at: 0x87B94, was: [0x4E800020], asm: ['b @cave               ; was a bare blr'] }],
