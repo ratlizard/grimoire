@@ -152,6 +152,23 @@ const APP_FIXES = [
       { at: 0x4C464, was: [0x48000058], asm: ['b @0x4C4C8            ; a party member: past the nutrition'] },
       { at: 0x4C4C4, was: [0x38800020, 0x98A6001B], asm: ['stb 5, 27(6)          ; nutrition 30, for the others', 'li 4, 32              ; the party member joins here'] }] },
 
+  // In TCharacterWindow::MouseRoutine. A click below v 272 is on the tab
+  // strip, and the pane chosen is h / 73 (the multiply by 0xE070381D and
+  // shift by 6 before 0x2F17C), with no test: the window (WIND 132) is 220
+  // wide, so h 0 to 218 give the three panes, 0 to 2, and the last column,
+  // h 219, gives 3. ChangePane hides every pane's controls, draws nothing
+  // for 3, and DrawTabsPart draws no tab for it, so the window goes blank
+  // until another tab is clicked: Two Jacks's one pixel at "the upper right
+  // (triangle thing) of the bottom right", the Strategy tab's slanted end.
+  // The pane is held to 2 now, the tab drawn under that column. The words
+  // replaced are the rounding of the division for a negative h, which a
+  // click in the window cannot give, and a copy through 152(1), read
+  // nowhere else.
+  { id: 'tab-pane', kind: 'fix', title: 'A click on the last pixel of a character window’s tabs opens the right-hand tab, instead of blanking the window',
+    bug: 'Clicking one pixel blanks the status window',
+    sites: [{ at: 0x2F17C, was: [0x54030FFE, 0x7C001A14, 0x7C000734, 0xB0010098, 0x7FE3FB78, 0xA8810098],
+      asm: ['mr 4, 0               ; the pane, h / 73', 'cmpwi 4, 2', 'ble @0x2F18C', 'li 4, 2               ; h 219, past the third', 'mr 3, 31', 'nop'] }] },
+
   { id: 'sleep-hidden', kind: 'fix', title: 'A character who has not yet been drawn, and is moved to a post on the party’s level while time passes quickly, waits there as an egg instead of being hidden',
     bug: 'NPCs vanish while the player sleeps',
     sites: [{ at: 0x65F8, was: [0x281C0000, 0x41820018, 0x7F83E378, 0x819C0048, 0x818C0014, 0x480BEADD, 0x80410014, 0x380000FF, 0x981E0000],
