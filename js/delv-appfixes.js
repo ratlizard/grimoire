@@ -190,6 +190,32 @@ const APP_FIXES = [
       { at: 0xACBD0, was: [0x38000054], asm: ['li 0, 76              ; Look: L'] },
       { at: 0xACC00, was: [0x38000041], asm: ['li 0, 84              ; Talk: T'] }] },
 
+  // A menu a script shows (TPickMode, the "Where Is" lists above all) draws
+  // its rows 4 pixels apart: DrawTheList offsets each row by the tallest
+  // item's height at 28 of the mode plus 4. The code that makes the scroll
+  // bar (0x3F9DC on, before its NewControl) counts the rows that fit by the
+  // height alone, the box's bottom less its top of 20 over 20 pixels, so it
+  // takes 11 rows to fit where 9 are drawn and sets the bar's maximum two
+  // short: the last two entries of any list longer than the box are never
+  // shown. That is the board's "the last two" missing from Land King Hall's,
+  // Odemia's and Pnyx's lists, Catamarca's 9 of 10, and Cademia's 18 (its 22
+  // cut to 20 by menu-items' limit, then two). The count is the height plus
+  // 4 now; the top, a constant 20 stored at 72(1), is subtracted as one, so
+  // the word that loaded it takes the height into r4, free until
+  // NewControl's arguments set it. MouseRoutine divides by the same bare
+  // height for a page (0x402C8), so a click in the track moved 10 rows of 9;
+  // the plus 4 goes in there too, in place of an extsh of the quotient that
+  // a row count cannot need, since the halfword store takes the low half.
+  { id: 'menu-scroll', kind: 'fix', title: 'A menu offered by a script, a "Where Is" list above all, scrolls to its last entry instead of stopping two short',
+    played: 'fork, PowerPC, 30 September 2026: Pnyx’s list reaches Kosha, Cademia’s its last; a page’s length read, not seen',
+    bug: '"Where Is" lists are cut short',
+    sites: [
+      { at: 0x3F9DC, was: [0xA81F001C, 0xA8810048, 0xA8630004, 0x833F0014, 0x7C641850],
+        asm: ['lha 4, 28(31)         ; a row’s height', 'addi 0, 4, 4          ; and the gap DrawTheList leaves', 'lha 3, 4(3)',
+              'lwz 25, 20(31)', 'addi 3, 3, -20        ; less the top, 20'] },
+      { at: 0x402C8, was: [0xA87D001C, 0x7C852050, 0x7C641BD6, 0x7C630734],
+        asm: ['lha 3, 28(29)', 'sub 4, 4, 5', 'addi 3, 3, 4          ; the gap', 'divw 3, 4, 3          ; a page'] }] },
+
   // ---- New code ---------------------------------------------------------------
   { id: 'containers-weight', kind: 'fix', title: 'A thing put in a container someone carries is weighed against the one who carries it too',
     bug: 'Containers let you carry any weight',
@@ -368,9 +394,11 @@ const APP_FIXES = [
   // drawers, whose address is the TOC slot at -25704, built once through
   // the runtime's array constructor (0xBE3E4, with 12 and 20) behind the
   // guard byte at TOC -25700, and it stops at the twentieth item
-  // (cmpwi 0, 20 at 0x96924): Pnyx's list holds 31. The menu itself
+  // (cmpwi 0, 20 at 0x96924): Cademia's holds 23, of which 22 can show
+  // (Pnyx's two, upstairs and down, hold 16 and 15). The menu itself
   // (TPickMode) draws from the vector it is handed until its box is full
-  // and scrolls, with no count of its own. Now the first call allocates
+  // and scrolls, with no count of its own (how many rows its scroll bar
+  // takes to fit is menu-scroll's, above). Now the first call allocates
   // 64 drawers (operator new, 0xBE7C8, as the routine's own vector does),
   // puts the address in the TOC slot, where every later call reads it, and
   // in r24, and builds them; the guard byte keeps the capacity (it only had
@@ -378,6 +406,7 @@ const APP_FIXES = [
   // shipped array is built with its 20, as before. r25 is free until
   // 0x96AAC sets it.
   { id: 'menu-items', kind: 'fix', title: 'A menu offered by a script, a "Where Is" list above all, shows up to 64 entries instead of stopping at 20',
+    played: 'fork, PowerPC, 30 September 2026: Antenor offers Cademia’s 21, with menu-scroll',
     bug: '"Where Is" lists are cut short',
     sites: [
       { at: 0x968A4, was: [0x80828D9C], asm: ['b @init               ; was lwz 4, -29284(2)'] },
