@@ -116,6 +116,42 @@ const APP_FIXES = [
             'lha 3, 56(1)', 'li 4, 2', 'bl @Invalidate__16TInventoryWindowFss', 'b @0x953A4',
             'nop', 'nop', 'nop', 'nop'] }] },
 
+  // In cbsetpropowner, TakeItem's handler. It moves the thing whose top
+  // holder is the giver (r27) to the receiver (r29) and redraws those two
+  // windows, not the container the thing sat in, so an open chest kept
+  // drawing a ring handed to Thersites. The holder it leaves is the low
+  // halfword of the record's first word, as GetPropParent reads it for
+  // every contained state; it is read before the record is rewritten and
+  // its window marked first, which is only an invalidation, so the order
+  // does not matter. The nop after each call goes (the calls are local, so
+  // nothing is restored there) and the reload of the first word is the
+  // register already holding it, which makes room for the one call more.
+  { id: 'take-window', kind: 'fix', title: 'TakeItem redraws the window of whatever held the thing it moved',
+    bug: 'A ring handed to Thersites still drawn in an open chest',
+    sites: [{ at: 0x94B0C,
+      was: [0x80DF0000, 0x7FA40734, 0x807F0000, 0x38000010, 0x54C5021E, 0x7CA42378, 0x5083023E, 0x907F0000, 0x7F63DB78, 0x38800002, 0x981F0000,
+            0x4BF9CFF5, 0x60000000, 0x387D0000, 0x38800002, 0x4BF9CFE5, 0x60000000],
+      asm: ['lha 3, 2(31)          ; the holder it leaves: a container, or the giver',
+            'li 4, 2', 'bl @Invalidate__16TInventoryWindowFss',
+            'lwz 6, 0(31)', 'extsh 4, 29', 'li 0, 16', 'rlwinm 5, 6, 0, 8, 15', 'or 4, 5, 4', 'rlwimi 6, 4, 0, 8, 31', 'stw 6, 0(31)', 'stb 0, 0(31)',
+            'mr 3, 27              ; the giver, as before', 'li 4, 2', 'bl @Invalidate__16TInventoryWindowFss',
+            'addi 3, 29, 0         ; the receiver, as before', 'li 4, 2', 'bl @Invalidate__16TInventoryWindowFss'] }] },
+
+  // In TActiveMonster::DoMove, behaviour 113, which the destructor gives to
+  // every character whose combat target has gone. All three branches (a
+  // party member back to following, anyone else to their post or their
+  // schedule) end in one tail that sets nutrition to 30 and the timing
+  // byte to 32, so a companion was fed whenever its target died or the
+  // party left an area mid-fight, and one fed past 30 was cut back. The
+  // tail's two middle words swap places, so the timing store has an entry
+  // of its own, and the party member's branch takes it; the others, and
+  // behaviour 146, which enters the tail at its start, are as before.
+  { id: 'target-hunger', kind: 'fix', title: 'A companion whose target is gone goes back to following without its hunger set to 30',
+    bug: 'Followers\' hunger and poison clear on their own',
+    sites: [
+      { at: 0x4C464, was: [0x48000058], asm: ['b @0x4C4C8            ; a party member: past the nutrition'] },
+      { at: 0x4C4C4, was: [0x38800020, 0x98A6001B], asm: ['stb 5, 27(6)          ; nutrition 30, for the others', 'li 4, 32              ; the party member joins here'] }] },
+
   { id: 'sleep-hidden', kind: 'fix', title: 'A character not yet drawn, moved in a quick passage of time to a post on the party’s level, waits there as an egg instead of hidden',
     bug: 'NPCs vanish while the player sleeps',
     sites: [{ at: 0x65F8, was: [0x281C0000, 0x41820018, 0x7F83E378, 0x819C0048, 0x818C0014, 0x480BEADD, 0x80410014, 0x380000FF, 0x981E0000],
@@ -141,6 +177,19 @@ const APP_FIXES = [
       'lha 3, 186(1)', 'bl @GetCurInvEncumb__Fs', 'extsh 3, 3', 'lha 0, 184(1)', 'add 0, 0, 3', 'sth 0, 184(1)',
       'lha 3, 186(1)', 'bl @GetMaxInvEncumb__Fs', 'extsh 3, 3', 'lha 0, 184(1)', 'cmpw 0, 3', 'bgt @fail',
       'ok:', 'b @0x54254', 'fail:', 'b @0x54240             ; the refusal already there'] },
+
+  // In TActiveMonster::~TActiveMonster. A creature that leaves a corpse has
+  // its number set to 0 by Die, so that the destructor keeps its record as
+  // the corpse, and the destructor then called RemoveAllAbility with that
+  // 0, which removes every timed effect filed under character 0: the light
+  // spells file theirs there, so killing such a creature put the party's
+  // light out. Character 0 is nobody, so nothing of a creature's own is
+  // filed under it; the call is skipped for 0 and made as before otherwise.
+  { id: 'corpse-light', kind: 'fix', title: 'Killing a creature that leaves a corpse no longer ends Embrightenment or Daylight',
+    bug: 'Killing certain creatures ends Embrightenment and Daylight',
+    sites: [{ at: 0x464EC, was: [0xA87D0008], asm: ['b @cave               ; was lha 3, 8(29)'] }],
+    cave: ['lha 3, 8(29)', 'cmpwi 3, 0', 'beq @skip              ; a corpse’s creature: nothing of its own under 0',
+           'bl @RemoveAllAbility__8TSpellFXFs', 'skip:', 'b @0x464F8'] },
 
   { id: 'widget-renumber', kind: 'fix', title: 'A scripted window’s buttons follow their owner to its new number on a zone change',
     bug: 'The strange device has to be reopened after changing zones',
