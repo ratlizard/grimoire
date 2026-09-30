@@ -352,6 +352,39 @@ const APP_FIXES = [
            'lwz 3, -25700(2)', 'stb 25, 0(3)          ; built, and how many', 'b @0x968CC',
            'cap:', 'lwz 3, -25700(2)', 'lbz 3, 0(3)', 'cmpw 0, 3', 'b @0x96928'] },
 
+  // The neighbourhood (THood) is the list of prop records the game ticks
+  // and draws: the whole zone while it holds fewer than 1,536 records, and
+  // past that a window round the party. It is one static object, a flag
+  // byte, three halfwords and 2,048 halfword entries, reached only through
+  // the TOC slot at -30392, and AddToHood and ResetHood each throw "Too
+  // many objects in the neighborhood." once it holds 2,048, which ends the
+  // game. Things carried stand on the party's square, so they are always in
+  // the window, and a trader's stock of flax bought a bale at a time (flax
+  // does not stack) reached it [Theo Nean Donly@t373]. The prop table
+  // itself holds 16,384 records (NewProp throws there), so that is the
+  // size given now: the static initialiser asks NewPtrClear for a
+  // neighbourhood of 16,384 entries, puts its address in the TOC slot,
+  // where every reader loads it from at each use, and marks it in the
+  // constructor's unused byte at 1; the two tests read the mark. If the
+  // memory is not there the shipped object is built and kept, 2,048 and
+  // all. Allocated at startup, before any reader, so the address never
+  // changes under a routine holding it in a register. The viewer's own
+  // list of what to draw stops at 4,096 without a throw (SetStage), so a
+  // square piled past that draws some of its things and not others.
+  { id: 'hood-size', kind: 'fix', title: 'The game holds as many things near the party as it holds in all, instead of ending at 2,048',
+    bug: 'Buying about 17,000 oboloi of flax quits the game',
+    sites: [
+      { at: 0x6CB20, was: [0x4BFFFB1D], asm: ['b @init               ; was bl THood::THood'] },
+      { at: 0x6C9E0, was: [0x2C000800], asm: ['b @add                ; was cmpwi 0, 2048'] },
+      { at: 0x6C930, was: [0x2C000800], asm: ['b @reset              ; was cmpwi 0, 2048'] }],
+    cave: ['init:', 'lis 3, 0', 'ori 3, 3, 32776        ; 8 bytes and 16,384 entries', 'bl @0xC3060            ; NewPtrClear', 'lwz 2, 20(1)',
+           'cmplwi 3, 0', 'beq @shipped', 'stw 3, -30392(2)      ; where every reader finds it', 'li 0, 1', 'stb 0, 1(3)            ; the mark',
+           'shipped:', 'lwz 3, -30392(2)', 'bl @0x6C63C            ; THood::THood', 'b @0x6CB24',
+           'add:', 'mr 3, 31', 'bl @limit', 'b @0x6C9E4',
+           'reset:', 'mr 3, 30', 'bl @limit', 'b @0x6C934',
+           'limit:', 'lbz 3, 1(3)            ; r0 the count, r3 the neighbourhood, free at both', 'cmplwi 3, 0', 'li 3, 2048', 'beq @cmp', 'li 3, 16384',
+           'cmp:', 'cmpw 0, 3', 'blr     ; both routines saved LR on entry'] },
+
   { id: 'widget-renumber', kind: 'fix', title: 'A scripted window’s buttons follow their owner to its new number on a zone change',
     bug: 'The strange device has to be reopened after changing zones',
     sites: [{ at: 0x87B94, was: [0x4E800020], asm: ['b @cave               ; was a bare blr'] }],
