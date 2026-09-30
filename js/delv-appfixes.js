@@ -217,13 +217,69 @@ const APP_FIXES = [
     cave: ['lha 3, 8(29)', 'cmpwi 3, 0', 'beq @skip              ; a corpse’s creature: nothing of its own under 0',
            'bl @RemoveAllAbility__8TSpellFXFs', 'skip:', 'b @0x464F8'] },
 
-  // walk-to, the step TGameSys::WalkToLocation (shipped as li 3, 0; blr)
-  // never takes, was withdrawn on 30 September 2026 when it was played:
-  // it called TPathFinder::FindFirstStep, whose loop ends only when a byte
-  // read with lbz and extsb equals 255 (cmpwi 0, 255 at 0x5A9AC), which a
-  // sign-extended byte never does, so a command chosen from the Commands
-  // popup on something out of reach hung the game. The workbench's
-  // GRIMOIRE-NOTES.md, under grimoire/fixable-bugs-1adxav, has the trace.
+  // TGameSys::WalkToLocation was shipped empty (li 3, 0; blr). Its six
+  // callers are TDroppableWindow::MouseRoutine's, on the branch that takes
+  // a command chosen from the Commands popup (a click held, or a
+  // control-click): a Look, Attack, Use or Take on something out of reach
+  // asks it to bring the current character there and acts only if it
+  // answers true, and a click on the ground far off calls it and ignores
+  // the answer. So a touch spell aimed at someone not beside the caster,
+  // and every command clicked on something distant, did nothing. It takes
+  // one step now and answers false, the game's one click, one turn: each
+  // click brings the character a square nearer, and once in reach the
+  // command acts as it always did.
+  // The step is the one the path finder gives: TPathFinder::FindPath from
+  // the character at TOC -30356 (whom MoveCommand moves) with no monster,
+  // as MouseRoutine calls it, then FindFirstStep for the first square,
+  // turned into MoveCommand's direction through the table MouseRoutine
+  // turns a click's offset into a cursor with (TOC -3258, five by five,
+  // index (dy + 2) * 5 + dx + 2: the ring about the centre is the
+  // directions 0 to 7, north clockwise, the centre 9). FindPath answers
+  // 32767 when the target is more than 15 squares off or nothing nearer
+  // was found, and that answer takes no step.
+  // FINDFIRSTSTEP NEVER RETURNED, and the first design, played on 30
+  // September 2026, hung the game on the first such click. It walks back
+  // from the square FindPath reached to the start, which FindPath marks
+  // with the byte -1 (li 4, -1; stb 4, 15(26)), and stops when the byte it
+  // reads with lbz and extsb equals 255 (cmpwi 0, 255 at 0x5A9AC): a
+  // sign-extended byte never does, so on the start square it walks on for
+  // ever. The compare is made against -1. Its one shipped caller, a branch
+  // of TActiveMonster::DoMove (0x4CD08), would have hung the same way; the
+  // corrected word mends that branch too.
+  // THE HOTKEYS. A command armed by its key (U, G, A, T, L; TOC -29912)
+  // takes MouseRoutine's other branch, where Use (0x272CC) and Take
+  // (0x27348) out of reach go straight to the branch's end at 0x27378 and
+  // no WalkToLocation is called. Each now takes the step there when the
+  // click was on a thing (312(1)), to the square the click named (318(1),
+  // 316(1), which the branch passes to the Attack of a square), and ends
+  // as before, which disarms the command: press the key again to go on.
+  { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach takes a step towards it, instead of doing nothing, and so does a touch spell (untested)',
+    played: 'fork, PowerPC, 30 September 2026: Use from the popup and by U, Take by G; a touch spell not yet',
+    bug: 'Touch spells only work on someone next to you',
+    sites: [{ at: 0x50E5C, was: [0x38600000], asm: ['b @cave               ; was li 3, 0 (and blr)'] },
+            { at: 0x5A9AC, was: [0x2C0000FF], asm: ['cmpwi 0, -1           ; the start square, as FindPath marks it'] },
+            { at: 0x272CC, was: [0x418200AC], asm: ['b @useKey             ; was beq 0x27378'] },
+            { at: 0x27348, was: [0x41820030], asm: ['b @takeKey            ; was beq 0x27378'] }],
+    cave: ['mflr 0', 'stw 0, 8(1)', 'stwu 1, -80(1)', 'stw 31, 76(1)', 'mr 31, 3              ; the game',
+           'mr 7, 4', 'mr 8, 5                ; where to',
+           'lwz 3, -30356(2)', 'lha 3, 0(3)           ; the character in control', 'slwi 3, 3, 4',
+           'lwz 6, -30268(2)', 'lwz 6, 0(6)', 'add 6, 6, 3           ; its map record',
+           'lwz 5, 0(6)', 'rlwinm 5, 5, 8, 0, 12', 'srawi 5, 5, 20        ; x',
+           'lha 6, 2(6)', 'rlwinm 6, 6, 20, 0, 12', 'srawi 6, 6, 20        ; y',
+           'li 4, 0', 'lwz 3, -30412(2)      ; the path finder',
+           'bl @FindPath__11TPathFinderFP14TActiveMonsterssss',
+           'extsh 3, 3', 'cmpwi 3, 32767', 'beq @none',
+           'lwz 3, -30412(2)', 'addi 4, 1, 56', 'addi 5, 1, 58', 'bl @FindFirstStep__11TPathFinderFRsRs',
+           'lha 4, 56(1)', 'lha 5, 58(1)', 'addi 5, 5, 2', 'mulli 5, 5, 5', 'add 4, 4, 5', 'addi 4, 4, 2', 'slwi 4, 4, 1',
+           'addi 3, 2, -3258', 'lhax 4, 3, 4          ; the direction', 'cmpwi 4, 7', 'bgt @none',
+           'mr 3, 31', 'bl @MoveCommand__8TGameSysFQ28TGameSys10EDirection',
+           'none:', 'li 3, 0', 'lwz 31, 76(1)', 'addi 1, 1, 80', 'lwz 0, 8(1)', 'mtlr 0', 'blr',
+           'useKey:', 'beq @keyWalk          ; out of reach', 'b @0x272D0',
+           'takeKey:', 'beq @keyWalk', 'b @0x2734C',
+           'keyWalk:', 'lha 4, 312(1)', 'cmpwi 4, 0', 'beq @keyDone          ; not on a thing',
+           'lwz 3, 0(21)', 'lha 4, 318(1)', 'lha 5, 316(1)', 'li 6, 0',
+           'bl @WalkToLocation__8TGameSysFssUc',
+           'keyDone:', 'b @0x27378'] },
 
   // TJournalList::AppendEntry adds one List Manager row a wrapped line and
   // sets 12 bytes of cell data in it, and the List Manager keeps its cell
