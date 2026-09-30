@@ -60,12 +60,12 @@ try {
       fail('items', 'the rolling pin does not fall back to the outcome routine’s default: ' + JSON.stringify(ctx.weaponSwingFrames(163)));
     else if (orphans.some(o => o.name === 'bread' || o.name === 'lit torch' || o.name === 'closed shutters'))
       fail('items', 'a placed variant or a scripted state is listed as an orphan: ' + orphans.map(o => o.name).join(', '));
-    else if (!/Art no class owns/.test(ihtml) || !/flail/.test(ihtml) || !/in no prop list/.test(ihtml))
+    else if (!/Art no class uses/.test(ihtml) || !/flail/.test(ihtml) || !/in no prop list/.test(ihtml))
       fail('items', 'the Items sheet does not list the art no class owns: ' + REGISTRY.get('output').textContent);
     else {
       ctx.showItemDetail(mace ? mace.pt : 94);
       const dhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-      if (!/0x205E/.test(dhtml) || !/flail/.test(dhtml) || !/prop type in the low ten bits/.test(dhtml)) fail('items', 'the mace’s page does not state the aspect rule with the flail and its word');
+      if (!/0x205E/.test(dhtml) || !/flail/.test(dhtml) || !/prop type in the lowest ten bits/.test(dhtml)) fail('items', 'the mace’s page does not state the aspect rule with the flail and its word');
       else console.log(`  items: ${orphans.length} pictures no class owns, the flail among them at mace 8 / spear 2; the mace’s page says 0x205E`);
       // The prop record block, v1.33.0: the rail's 32 slots, the readout at an
       // aspect, the other classes that reach the tile with the aspect each
@@ -99,8 +99,8 @@ try {
             ctx.showItemDetail(95); ctx.propWordData(1, '3');
             html = walk(REGISTRY.get('sheetGrid'));
             if (!/Examine says “It has an extremely sharp edge\.”/.test(html)) fail('items', 'the dagger at Data1 3 does not quote its Examine line');
-            else if (!/never reads its aspect<\/b>: at any aspect it is the same dagger in every number/.test(html)) fail('items', 'the dagger’s page does not say its class never reads the aspect');
-            else if ((function () { ctx.renderItemSheet(); const h = walk(REGISTRY.get('sheetGrid')); return !/Weapons &amp; armour<\/span><span class="groupNote">The class script has a combat member: Melee Weapon, Thrown Weapon, Armor Value, Ammunition, Ranged Weapon, Shield\./.test(h) || !/Containers<\/span><span class="groupNote">The class script answers Is Container or has Lockable\./.test(h) || !/Carried goods<\/span><span class="groupNote">The rest of what the file treats as an item/.test(h); })()) fail('items', 'the Items dividers do not say what puts an item under each');
+            else if (!/never reads its aspect<\/b>: at any aspect it is the same dagger in every figure/.test(html)) fail('items', 'the dagger’s page does not say its class never reads the aspect');
+            else if ((function () { ctx.renderItemSheet(); const h = walk(REGISTRY.get('sheetGrid')); return !/Weapons &amp; armour<\/span><span class="groupNote">The class script has a combat member: Melee Weapon, Thrown Weapon, Armor Value, Ammunition, Ranged Weapon, Shield\./.test(h) || !/Containers<\/span><span class="groupNote">The class script answers Is Container or has Lockable\./.test(h) || !/Carried goods<\/span><span class="groupNote">Everything else the file treats as an item/.test(h); })()) fail('items', 'the Items dividers do not say what puts an item under each');
             else if ((function () { ctx.showItemDetail(213); ctx.propWordSet(1); const h = walk(REGISTRY.get('sheetGrid')); return !/reads its aspect<\/b> \(2 places\)/.test(h) || !/Eaten, it feeds <b[^>]*>\+8<\/b> and says “Yetch!”/.test(h); })()) fail('items', 'the mushroom steak at aspect 1 does not say its class reads the aspect and what the dried jellyfish feeds and says');
             else if ((function () { ctx.showItemDetail(0x1F); ctx.propWordSet(4); const h = walk(REGISTRY.get('sheetGrid')); return !/Drunk, it is the <b[^>]*>Antidote Potion<\/b>: clears Poisoned/.test(h); })()) fail('items', 'the potion at aspect 4 does not name the Antidote');
             else console.log(`  items: the word block reads the mace at 8 as 0x205E the flail, the spear reaches it at 2; Data1 is the enchantment (${pw.scripts} scripts read the bytes, ${pw.readers.length} classes), one placed sword carries 7`);

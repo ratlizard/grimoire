@@ -177,7 +177,7 @@ try {
   // is pinned on a phrase only the card uses.
   const moved = [
     ['skills', 'What each skill is asked about', skills, 'the Skills sheet'],
-    ['spells', 'read off the spell’s own call', spells, 'the Spells sheet'],
+    ['spells', 'read from the spell’s own call', spells, 'the Spells sheet'],
     ['balloons', 'Talk balloons', barks, 'the Barks sheet'],
   ];
   const gone = moved.filter(([, title, html]) => !html.includes(title));
@@ -1094,7 +1094,7 @@ try {
       fail('save mark, off the map', 'the comparison does not say the carried record is carried: ' + words.replace(/^.*Zones/, '').slice(0, 160));
     else if (!/\b1 placed\b/.test(both) || !/\b1 carried or inside something, not drawn/.test(both))
       fail('save mark, off the map', 'a record on the floor and one carried did not read as one placed and one carried: ' + both.replace(/^.*over this zone: /, '').slice(0, 120));
-    else if (!/scenario’s stands/.test(none) || /\bgone\b/.test(none))
+    else if (!/scenario’s list is shown/.test(none) || /\bgone\b/.test(none))
       fail('save mark, off the map', 'a save with no list for the zone did not keep the scenario’s: ' + none.replace(/^.*over this zone: /, '').slice(0, 120));
     else console.log('  save mark, off the map: a made save over the Ruins reads one placed and one carried, on the map and in the comparison, and a save with no list there changes nothing');
   }

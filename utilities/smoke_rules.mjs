@@ -235,12 +235,12 @@ try {
   // The spells card moved to the Spells sheet on 13 September 2026; sphtml
   // is that sheet, captured above.
   else if (!/resists non-magical weapons: [^<]*lich/.test(sphtml)) fail('mechanics', 'the spells card does not name the monsters immune to non-magical damage')
-  else if (!/Prop records: type, aspect, Data1 and Data2/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/hand it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
+  else if (!/Prop records: type, aspect, Data1 and Data2/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/pass it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
   else if (mechSecs < 15) fail('mechanics', `the sections are missing: ${mechSecs} sections`);
   // No application in this run, so none of its figures: the clock, the
   // balloon and the enemy table say where they come from and state nothing.
   // The installer section below opens the application and requires them.
-  else if (!/the program’s figures are read here/.test(html) || /jumpToExeAt\(/.test(html) || /4096 is one hour|four seconds|one off every game hour|128×32/.test(html)) fail('mechanics', 'with no application open the sheet states a figure of the program, or does not say where the figures come from');
+  else if (!/to read the program’s figures here/.test(html) || /jumpToExeAt\(/.test(html) || /4096 is one hour|four seconds|one off every game hour|128×32/.test(html)) fail('mechanics', 'with no application open the sheet states a figure of the program, or does not say where the figures come from');
   else if (mechFolds < mechSecs || (html.match(/mechOpenAll\(/g) || []).length < 2) fail('mechanics', `the sections do not fold: ${mechFolds} of ${mechSecs} are details, open/close all ${(html.match(/mechOpenAll\(/g) || []).length}`);
   // The dice game's numbers are read off 0x812 with their offsets, v1.31.0:
   // three dice of six, the skill's roll of six, a match paying 2 at 0x0506,
@@ -249,7 +249,7 @@ try {
   else if (!(dice.faces.join() === '6,6,6' && dice.matchPay === 2 && dice.skillFaces === 6 && !dice.skillAlways && !dice.skillFree && dice.bytes.length === 7 &&
              dice.bytes.some(b => b.at === 0x0506 && b.now === 2) && dice.bytes.some(b => b.at === 0x0492 && b.target && b.next === 0x0494) && dice.bytes.some(b => b.at === 0x047C && b.target && b.next === 0x047E) && dice.bytes.some(b => b.at === 0x045E && b.now === 6)))
     fail('mechanics', 'the dice constants were not read off the script with their offsets: ' + JSON.stringify(dice && dice.bytes));
-  else if (!/What to edit/.test(html) || !/0x0506/.test(html) || !/a match pays nothing/.test(html) || !/every game with Gambling is a match/.test(html))
+  else if (!/What to edit/.test(html) || !/0x0506/.test(html) || !/a match pays nothing/.test(html) || !/every game played with the skill is a match/.test(html))
     fail('mechanics', 'the dice section does not say what to edit');
   else if (!ctx.gearTable().some(r => r.name === 'axe' && r.damage === 22 && r.skill === 'Axe') || !ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2) || !ctx.gearTable().some(r => r.name === 'bow' && r.ammoClass === 1 && r.reach === 5)) fail('mechanics', 'the gear table does not name the axe’s damage and skill, the spear’s reach, or the bow’s ammunition and range');
   else if (!(ctx.combatRules() && ctx.combatRules().d30 && ctx.combatRules().parry && ctx.combatRules().words.length >= 8)) fail('mechanics', 'the combat rules were not read: ' + JSON.stringify(ctx.combatRules()));
@@ -264,7 +264,7 @@ try {
   // over the listing, so each is required here, and the two throw figures
   // must come off the spear's own class rather than a typed table.
   else if (!(function () { const ar = ctx.attackRules(); return ar && ar.squared && ar.lessOne && ar.reach && ar.range && ar.launcher && ar.meleeFirst && ar.beyondAdjacent && ar.flies && ar.lodges && ar.drops && ar.bodyRoll && ar.reflexRoll && ar.scale && ar.scale.sub === 12 && ar.scale.div === 4 && ar.bodyAddVal && ar.bodyAddVal.v === 1 && ar.ammoSpent; })()) fail('mechanics', 'the attack routine was not read: ' + JSON.stringify(ctx.attackRules()));
-  else if (!/knight’s move/.test(html) || !/hits or is parried/.test(html) || !/body less (?:<button[^>]*>)?12(?:<\/button>)? over (?:<button[^>]*>)?4(?:<\/button>)?/.test(html) || !/spends one of its ammunition/.test(html)) fail('mechanics', 'the attack rules are not on the sheet');
+  else if (!/knight’s move/.test(html) || !/hits or is parried/.test(html) || !/body less (?:<button[^>]*>)?12(?:<\/button>)? over (?:<button[^>]*>)?4(?:<\/button>)?/.test(html) || !/uses up one piece of ammunition per shot/.test(html)) fail('mechanics', 'the attack rules are not on the sheet');
   else if (!ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2 && r.thrownDamage === 10 && r.thrownRange === 4) || !ctx.gearTable().some(r => r.name === 'mystic spear' && r.reach === 1 && r.thrownDamage === 25 && r.thrownRange === 8) || !ctx.gearTable().some(r => r.name === 'sword' && r.thrownDamage === null)) fail('mechanics', 'the throw figures were not read off the spear classes');
   else if (ctx.spellRules().spells.length < 35 || !ctx.spellRules().spells.some(x => /Fireball/.test(x.name) && x.level === 5 && x.cost === 20) || !(ctx.spellRules().rule && ctx.spellRules().rule.failure)) fail('mechanics', 'the spells were not read: ' + ctx.spellRules().spells.length);
   else if ((function () { const fx = ctx.spellEffects(); const sp = ctx.spellRules().spells; const by = n => fx.get((sp.find(x => x.name === n) || {}).resid); const fb = by('Fireball'), ds = by('Death Strike'), lh = by('Lesser Healing'), tr = by('Tremor'); return !(fb && fb.damage[0] && fb.damage[0].amount.base === 25 && fb.damage[0].amount.rolls[0][1] === 10 && fb.damage[0].type === 8 && /target square/.test(fb.damage[0].who)) || !(ds && ds.damage[0].amount.base === 200) || !(lh && lh.heals[0] && /health \+ 5 \+ a roll of 1 to 4/.test(lh.heals[0].text)) || !(tr && tr.damage[0].amount.rolls.length === 2 && tr.damage[0].who === 'every enemy'); })()) fail('mechanics', 'the spell effects were misread: ' + JSON.stringify([...ctx.spellEffects()].slice(0, 3)))
@@ -563,13 +563,13 @@ try {
   else if (!le.flagReadNeverWritten.includes(2)) fail('loose', 'quest flag 2, which Timon tests and nothing sets, was not found');
   else if (le.flagReadNeverWritten.some(k => k === 254 || k === 255)) fail('loose', 'flags 254 and 255 read as never set: the writes through task 165 are not being counted');
   else if (!/one line shown for two errands/.test(html)) fail('loose', 'line 114, shown by Ake for the Comana errand and by Demodocus for the mine, was not reported');
-  else if (!/a term read off the wrong thing/.test(html)) fail('loose', 'the combat resolver\'s weapon-skill term is not on the loose ends card');
+  else if (!/a value read from the wrong thing/.test(html)) fail('loose', 'the combat resolver\'s weapon-skill term is not on the loose ends card');
   /* The three "use a thing" task scripts send their method to the raw
      argument past an unused cast. Exactly those three: the reader is kept to
      the task range, and a reader over every script also reports Awaken and
      two default methods, where the argument already is a prop. The join to
      Lock Picking is what ties the row to Aethon. */
-  else if (!ctx.sleepRules() || !ctx.sleepRules().magicGuard || !ctx.sleepRules().magicCap || !/a field read in place of another/.test(html)) fail('loose', 'the sleep helper reading full health for magic, in its guard and its cap, was not found and stated');
+  else if (!ctx.sleepRules() || !ctx.sleepRules().magicGuard || !ctx.sleepRules().magicCap || !/a value read in place of another/.test(html)) fail('loose', 'the sleep helper reading full health for magic, in its guard and its cap, was not found and stated');
   /* Character flags tested and never set: exactly the five the reading of
      17 September 2026 found. Two controls ride along. Ascalon's flag 5 is
      set only through the helper 0xC85 he calls, so a reader that lost the
@@ -629,12 +629,12 @@ try {
   else if (!/a light that stays on/.test(html) || !/two people scheduled into one place/.test(html) || !/a name told and not kept/.test(html) || !/answers written for someone never asked/.test(html)) fail('loose', 'a fourth-batch row is missing from the card');
   else if (!/a sprite frame that repeats another pose/.test(html)) fail('loose', 'the repeated sprite frames are not on the card');
   else if (!/a character asking if they are alive/.test(html)) fail('loose', 'the self-alive test is not on the card');
-  else if (!/a test of something only ever false/.test(html)) fail('loose', 'the local only ever set false is not on the card');
+  else if (!/a check of something that is always false/.test(html)) fail('loose', 'the local only ever set false is not on the card');
   else if (!/an answer an earlier one takes/.test(html)) fail('loose', 'the shadowed answers are not on the card');
-  else if (!/a value tested where the flag is meant/.test(html)) fail('loose', 'the value-for-flag slip is not on the card');
+  else if (!/a value checked where the flag is meant/.test(html)) fail('loose', 'the value-for-flag slip is not on the card');
   else if (!/a keyword that needs a space typed first/.test(html)) fail('loose', 'the keywords that need a space are not on the card');
   else if (!/a thing nobody has/.test(html)) fail('loose', 'the kesh vial nobody has is not on the card');
-  else if (!/a character flag tested and never set/.test(html)) fail('loose', 'the character flags tested and never set are not on the card');
+  else if (!/a character flag checked and never set/.test(html)) fail('loose', 'the character flags tested and never set are not on the card');
   else if (!/killing a townsperson raises karma by/.test(html)) fail('karma', 'the karma section does not say what killing an alignment-0 townsperson does, off the character table');
   else if (le.unusedCast.map(u => u.task).sort((a, b) => a - b).join() !== '78,79,80') fail('loose', 'the use, use-on and use-at tasks were not found as exactly three: ' + JSON.stringify(le.unusedCast.map(u => u.task)));
   else if (!le.unusedCast.find(u => u.task === 79).queuedBy.some(s => s.resid === 0x1AD5)) fail('loose', 'task 79 is not joined to Lock Picking, which queues it for Aethon');
@@ -1307,7 +1307,7 @@ try {
     // No application in this run: the keys, the gate and the record are the
     // program's, so none of them is stated, and the sheet says where they
     // come from. The installer section requires them.
-    if (!/the program’s code is read here/.test(html) || rows || /©gra|jumpToExeAt\(/.test(html))
+    if (!/to read the program’s code here/.test(html) || rows || /©gra|jumpToExeAt\(/.test(html))
       fail('cheats', `with no application open the sheet states the keys or the gate (${rows} key rows)`);
     else if (!hero || !/hero/i.test(hero.name))
       fail('cheats', 'class 32 is not in the sprite list as the hero: ' + JSON.stringify(hero));
@@ -1368,7 +1368,7 @@ try {
   else if (onTools) fail('preferences', 'the Tools tab still carries the preferences file');
   else if (!/id="prefCheats"/.test(tools) || !/<select id="prefOrd_Backdrop"/.test(tools))
     fail('preferences', 'with no application open the Preferences tab does not offer the switches');
-  else if (!/releases Ambrosia shipped/.test(tools)) fail('preferences', 'the section does not say the numbers are the shipped releases\u2019');
+  else if (!/releases from Ambrosia agree/.test(tools)) fail('preferences', 'the section does not say the numbers are the shipped releases\u2019');
   else if (names !== 'UI Prefs,Backdrop') fail('preferences', 'the file built with no application open is not the two-resource one: ' + names);
   else console.log(`  preferences: its own tab under Data and gone from Tools; no application, so the shipped layout -- ${L.controls.length + 2} switches, ${L.choices.length + L.ordinals.length} choosers, a ${built.length}-byte fork`);
 } catch (e) { fail('preferences', e); }

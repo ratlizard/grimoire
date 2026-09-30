@@ -231,11 +231,11 @@ if (savePath && !onlyCat) {
       const stream = ctx.saveByteMap().parts.find(p => p.key === 0x400);
       if (bad.length) fail('every byte', bad.slice(0, 6).join(' | '));
       else if (opened < 5) fail('every byte', 'only ' + opened + ' saves were opened');
-      else if (!/Every byte/.test(sheet) || !/every one in a labelled field[,;]/.test(sheet) || / but for \d+ stretches/.test(sheet))
+      else if (!/Every byte/.test(sheet) || !/every byte in a labelled field[,;]/.test(sheet) || / except for \d+ stretches/.test(sheet))
         fail('every byte', 'the Saved Game sheet does not say every byte is labelled');
       else if (!stream || !/the block’s tag<\/td><td>Char</.test(ctx.byteMapTableHTML(stream.fields).replace(/ <span[^>]*>not read<\/span>/g, '')))
         fail('every byte', 'the stream’s first field is not the Char tag');
-      else if (!/whose meaning is read/.test(sheet)) fail('every byte', 'the Saved Game sheet does not say every field is read');
+      else if (!/meaning of every field has been worked out/.test(sheet)) fail('every byte', 'the Saved Game sheet does not say every field is read');
       else console.log('  every byte: ' + opened + ' saves, ' + bytes.toLocaleString('en-US') + ' bytes, each in one labelled field whose meaning is read');
     } catch (e) { fail('every byte', e); }
     // Back to the game archive, and the identity goes back with it. With no
