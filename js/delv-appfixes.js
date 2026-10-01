@@ -391,15 +391,43 @@ const APP_FIXES = [
            'own:', 'lha 4, 8(28)           ; no template: the creature’s number', 'cmpwi 4, 256', 'bge @ask',
            'lwz 5, -30352(2)', 'slwi 4, 4, 5', 'add 5, 5, 4', 'lhz 3, 20(5)          ; a named character’s own type', 'clrlwi 3, 3, 22', 'b @ObjToMonst__Fs'] },
 
-  { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit is given the first unit, instead of reading its stats and corpse from nowhere',
-    played: 'fork, PowerPC, 30 September 2026: Odemia’s night guards hatch with the hero’s unit, its stats, side and body, where they had 1 health and left none',
+  // After both ObjToMonst calls a creature is built from, HatchEgg's
+  // (0x44C00) and the stream constructor's (0x46090): a type with no unit
+  // answered null and nothing checked, so the creature's stats, side and
+  // corpse were read from low memory. In the shipped data that is 264 (the
+  // sleeper, which sleeper-unit names properly where it can) and 229, the
+  // Odemia night guard's type. A null now takes a unit: for 229 the
+  // guard's, found by its key 46 the way ObjToMonst walks the table (16
+  // bytes a unit from the base at TOC -30376, the key at 12, a key of 0
+  // ending it), and for anything else, or a table without 46, the first
+  // unit. Until 30 September 2026 every type took the first, which is the
+  // hero's: played that day, the night guards hatched with the hero's
+  // stats, the party's side (alignment 2) and the hero's corpse, and the
+  // maintainer asked for the guard's. The type is read again from the
+  // creature's record in the level's list (r26 and 0(25) at the first
+  // site, 8(28) and 0(22) at the second, as the code before each call
+  // reads it), in r0 and r12, since r4 is live after the first site. Not
+  // with addi on r0: an addi whose source is register 0 adds to the
+  // constant 0, which the first build of this did and so read record 0,
+  // the night guards keeping the hero's unit until a trace showed r12 at
+  // 0x3FF; add and a displacement load take r0 as the register it is.
+  { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit is given one, the night guard a guard’s, instead of reading its stats and corpse from nowhere',
+    played: 'fork, PowerPC, 30 September 2026: Odemia’s night guards hatch with a guard’s stats and side and leave a guard’s body, where they had 1 health and left none',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [
       { at: 0x44C08, was: [0x907E0004], asm: ['b @made               ; was stw 3, 4(30)'] },
       { at: 0x46094, was: [0x907C0004], asm: ['b @loaded             ; was stw 3, 4(28)'] }],
-    cave: ['made:', 'cmplwi 3, 0', 'bne @made1', 'lwz 3, -30376(2)', 'lwz 3, 0(3)            ; the first unit',
+    cave: ['made:', 'cmplwi 3, 0', 'bne @made1',
+           'extsh 0, 26', 'slwi 0, 0, 4', 'lwz 12, 0(25)', 'add 12, 12, 0', 'lhz 12, 4(12)', 'clrlwi 12, 12, 22     ; the type asked for',
+           'lwz 3, -30376(2)', 'lwz 3, 0(3)            ; the first unit', 'cmpwi 12, 229', 'bne @made1',
+           'made2:', 'lha 0, 12(3)', 'cmpwi 0, 0', 'beq @made3', 'cmpwi 0, 46', 'beq @made1          ; the guard’s', 'addi 3, 3, 16', 'b @made2',
+           'made3:', 'lwz 3, -30376(2)', 'lwz 3, 0(3)',
            'made1:', 'stw 3, 4(30)', 'b @0x44C0C',
-           'loaded:', 'cmplwi 3, 0', 'bne @loaded1', 'lwz 3, -30376(2)', 'lwz 3, 0(3)',
+           'loaded:', 'cmplwi 3, 0', 'bne @loaded1',
+           'lha 0, 8(28)', 'slwi 0, 0, 4', 'lwz 12, 0(22)', 'add 12, 12, 0', 'lhz 12, 4(12)', 'clrlwi 12, 12, 22',
+           'lwz 3, -30376(2)', 'lwz 3, 0(3)', 'cmpwi 12, 229', 'bne @loaded1',
+           'loaded2:', 'lha 0, 12(3)', 'cmpwi 0, 0', 'beq @loaded3', 'cmpwi 0, 46', 'beq @loaded1', 'addi 3, 3, 16', 'b @loaded2',
+           'loaded3:', 'lwz 3, -30376(2)', 'lwz 3, 0(3)',
            'loaded1:', 'stw 3, 4(28)', 'b @0x46098'] },
 
   // cbPickItem, the syscall behind ShowMenu (the "Where Is" lists, and every
