@@ -1756,7 +1756,7 @@ function setModeImpl(m) {
   // clicking a tile is what means "single", and #sheetGrid is reset to grid
   // layout by default (detail views that need a single wide column switch it
   // to block and must switch it back -- see returnToSheet()).
-  document.getElementById('sheetGrid').style.display = '';
+  clearSheetGridLayout();
   if (window.CUR_SUBN === 'CHARACTERS') { renderCharacterSheet(); return; }
   if (window.CUR_SUBN === 'PROPS' || window.CUR_SUBN === 'SCENERY') { renderPropTypeSheet(); return; }
   if (window.CUR_SUBN === 'ITEMS') { renderItemSheet(); return; }

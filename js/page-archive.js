@@ -894,7 +894,7 @@ function onCategoryChangeImpl() {
   // A detail view that wanted one wide column set the grid to block; a
   // change of category comes here without passing setMode, so the grid
   // was staying one cell a row for every gallery after (9 September 2026).
-  document.getElementById('sheetGrid').style.display = '';
+  clearSheetGridLayout();
   // Dropping back to the gallery was not enough: the previously selected
   // resource's panels stayed on screen underneath, so a new category looked
   // like it still had the old resource open. Clear them all up front, for
@@ -1161,6 +1161,19 @@ function navigateResource(delta) {
   sel.value = (parseInt(sel.value) + delta + count) % count;
   renderImage();
   syncDeepLink();
+}
+
+/* What one view leaves on the grid that the next must not inherit: a detail
+   view's display:block, and the code galleries' one-column scriptList and
+   the landscapes' wide cells, which renderContactSheet sets for itself and
+   no other renderer cleared. Leaving Functions for Characters drew one
+   character a row (the maintainer, 1 October 2026), the same symptom the
+   display fix of 9 September cured for detail views. */
+function clearSheetGridLayout() {
+  const grid = document.getElementById('sheetGrid');
+  if (!grid) return;
+  grid.style.display = '';
+  grid.classList.remove('scriptList', 'landscapeGrid');
 }
 
 function returnToSheet() {

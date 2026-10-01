@@ -1780,7 +1780,7 @@ function saveByteMapHTML() {
   const m = saveByteMap();
   if (!m) return '';
   const gaps = m.parts.reduce((n, p) => n + saveByteMapGaps(p).length, 0);
-  return '<h4 class="saveH4">Every byte</h4><div class="saveNote">' + m.files.toLocaleString('en-US') + ' bytes in ' + m.parts.length + ' parts, every byte in a labelled field' +
+  return '<h4 class="saveH4">Every Byte</h4><div class="saveNote">' + m.files.toLocaleString('en-US') + ' bytes in ' + m.parts.length + ' parts, every byte in a labelled field' +
     (gaps ? ' except for ' + gaps + ' stretches (a fault in this page’s reading)' : '') +
     (m.unread ? '; ' + m.unread.toLocaleString('en-US') + ' of them in fields whose meaning has not been worked out, marked <span class="byteUnread">not read</span>.'
               : ', and the meaning of every field has been worked out.') + '</div>' +
@@ -1846,16 +1846,15 @@ function renderSaveSheet() {
   const face = characterFace(1);
   h += '<div class="saveHead">' +
     (face ? '<img class="saveFace" src="' + face.url + '" alt="">' : '') +
-    '<div><h3>' + svEsc(isSave ? ((window.ARCHIVE_FINDER.name || 'A saved game')) : 'Cythera Data’s own character table') + '</h3>' +
+    '<div><h3>Saved Game</h3>' +
     '<div class="mechLede">' +
     (isSave
-      ? 'A Cythera player file: the state of the world as the game left it. ' +
+      ? svEsc(window.ARCHIVE_FINDER.name || 'This saved game') + '. ' +
         (hero && hero.zone
-          ? svEsc(characterName(1)) + ' stands in ' + svEsc(zoneDisplayName(hero.zone)) +
-            ' at (' + hero.x + ', ' + hero.y + '), ' + hero.health + ' of ' + hero.healthMax + ' health.'
-          : 'The hero’s record names no zone.')
-      : 'Where everybody starts, before a game has been played: the same 32-byte records that a ' +
-        'saved game contains.') +
+          ? svEsc(characterName(1)) + ' is in ' + svEsc(zoneDisplayName(hero.zone)) +
+            ' at (' + hero.x + ', ' + hero.y + '), with ' + hero.health + ' of ' + hero.healthMax + ' health.'
+          : 'The hero is in no zone.')
+      : 'This is Cythera Data, not a saved game: these are the characters as a new game starts.') +
     '</div></div></div>';
 
   if (namesAreBorrowed())
@@ -1866,7 +1865,7 @@ function renderSaveSheet() {
   // What the file holds.
   const parts = savedGameParts();
   if (parts.length) {
-    h += '<h4 class="saveH4">What this file holds</h4><div class="tableScroll"><table class="forkTable">' +
+    h += '<h4 class="saveH4">What This File Holds</h4><div class="tableScroll"><table class="forkTable">' +
       '<thead><tr><th>resource</th><th>what it is</th><th>bytes</th></tr></thead><tbody>' +
       parts.map(p => {
         let n = 0; try { n = (getResourceBytes(ARCHIVE, p.rid) || []).length; } catch (e) { quiet(e); }
@@ -1879,7 +1878,7 @@ function renderSaveSheet() {
   const inUse = recs.filter(delverCharacterInUse);
   const marked = recs.filter(r => !delverCharacterInUse(r) && (r.zone || r.raw.some(b => b))).length;
   const shown = window.SAVE_SHOW_ALL ? recs.filter(r => r.zone || r.raw.some(b => b)) : inUse;
-  h += '<h4 class="saveH4">The records</h4>' +
+  h += '<h4 class="saveH4">The Records</h4>' +
     '<div class="saveNote">' + inUse.length + ' of the 512 character slots are in use' +
     (marked ? ', and ' + marked + ' more hold only a zone' : '') +
     '. Slot 0 is the figure called Nothing on the nothing map. ' + actionChip('Cheats', "showCategory('CHEATS')") + ' ' +
@@ -2357,7 +2356,7 @@ function questStateHTML(words) {
       '<td>' + saveSiteList(fw && fw.writes[n]) + '</td><td>' + saveSiteList(fw && fw.reads[n]) + '</td></tr>');
   }
   const head = '<thead><tr><th class="num">no.</th><th>value</th><th>set by</th><th>tested by</th></tr></thead>';
-  let h = '<h4 class="saveH4">Quest values and flags</h4>' +
+  let h = '<h4 class="saveH4">Quest Values and Flags</h4>' +
     '<div class="saveNote">The 32 quest values and 256 quest flags in which the scripts record the story, from the start of 0x0400. ' +
     (words ? 'Listed are the ones a script sets or checks, and any that this save has set; the rest are unchanged. What each one means is not in the files, so they are shown as numbers.'
            : 'No scenario was opened before this save, so which scripts use each one is not known here, and every value is listed.') + '</div>' +
@@ -2408,7 +2407,7 @@ function roomsEnteredHTML(words) {
   for (let n = 0; n < count; n++) if ((b[2 * n + 1] & 1) && !known.has(n)) known.set(n, { n, zones: [], text: '' });
   const rows = [...known.values()].sort((a, c) => a.n - c.n);
   const entered = rows.filter(r => b[2 * r.n + 1] & 1).length;
-  return '<h4 class="saveH4">Rooms entered</h4>' +
+  return '<h4 class="saveH4">Rooms Entered</h4>' +
     '<div class="saveNote">0xF00E has a switch for each room, set the first time the player walks in. A room whose switch is clear shows its description when the player enters it. ' +
     entered + ' of the ' + rows.length + ' rooms listed have been entered.' + (words ? '' : ' No scenario was opened before this save, so only the rooms that have been entered are listed.') + '</div>' +
     '<details><summary>Every room</summary><div class="tableScroll"><table class="forkTable">' +
@@ -2531,7 +2530,7 @@ function todoHTML(words) {
   if (!live) return '';
   const lines = new Map(words ? words.todo.lines : []);
   const lineText = (resid, line) => (words && resid === words.todo.textResid && lines.has(line)) ? lines.get(line) : 'line ' + line + ' of 0x' + resid.toString(16).toUpperCase();
-  let h = '<h4 class="saveH4">The To Do list</h4><div class="saveNote">0x0401 has one entry for each of 256 slots: the line, whether it is struck off, and the day it was added to the list.</div>';
+  let h = '<h4 class="saveH4">The To Do List</h4><div class="saveNote">0x0401 has one entry for each of 256 slots: the line, whether it is struck off, and the day it was added to the list.</div>';
   if (live.length)
     h += '<div class="tableScroll"><table class="forkTable"><thead><tr><th class="num">slot</th><th>line</th><th class="num">day</th><th></th></tr></thead><tbody>' +
       live.map(e => '<tr><td class="num">' + e.slot + '</td><td>' + (e.struck ? '<s>' : '') + svEsc(lineText(e.resid, e.line)) + (e.struck ? '</s>' : '') + '</td>' +

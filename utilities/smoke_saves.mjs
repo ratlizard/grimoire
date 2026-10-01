@@ -113,7 +113,7 @@ if (savePath && !onlyCat) {
         fail('save forms', 'the scenario\u2019s words were not kept when the save replaced it');
       ctx.renderSaveSheet();
       const sh = REGISTRY.get('sheetGrid').innerHTML || '';
-      for (const t of ['Quest values and flags', 'Rooms entered', 'The To Do list', 'Cure Alaric'])
+      for (const t of ['Quest Values and Flags', 'Rooms Entered', 'The To Do List', 'Cure Alaric'])
         if (!sh.includes(t)) fail('save forms', 'the sheet does not show ' + t);
       if (!/id="qf-0" checked/.test(sh)) fail('save forms', 'quest flag 0 is not shown set');
       const qs = () => ctx.saveQuestState(ctx.delverArchiveSpec(peek('ARCHIVE.bytes')));
@@ -231,7 +231,7 @@ if (savePath && !onlyCat) {
       const stream = ctx.saveByteMap().parts.find(p => p.key === 0x400);
       if (bad.length) fail('every byte', bad.slice(0, 6).join(' | '));
       else if (opened < 5) fail('every byte', 'only ' + opened + ' saves were opened');
-      else if (!/Every byte/.test(sheet) || !/every byte in a labelled field[,;]/.test(sheet) || / except for \d+ stretches/.test(sheet))
+      else if (!/Every Byte/.test(sheet) || !/every byte in a labelled field[,;]/.test(sheet) || / except for \d+ stretches/.test(sheet))
         fail('every byte', 'the Saved Game sheet does not say every byte is labelled');
       else if (!stream || !/the block’s tag<\/td><td>Char</.test(ctx.byteMapTableHTML(stream.fields).replace(/ <span[^>]*>not read<\/span>/g, '')))
         fail('every byte', 'the stream’s first field is not the Char tag');

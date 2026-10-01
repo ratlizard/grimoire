@@ -783,6 +783,13 @@ try {
   ctx.showCategory('23');
   if (/scriptList/.test(ctx.document.getElementById('sheetGrid').className))
     fail('script page', 'the conversations under Text lost their tiles for the list');
+  // A code gallery's one-column list must not follow the visitor to a sheet
+  // that is not a gallery: Characters drew one character a row after
+  // Functions until 1 October 2026 (clearSheetGridLayout).
+  ctx.showCategory('8');
+  ctx.showCategory('CHARACTERS');
+  if (/scriptList/.test(ctx.document.getElementById('sheetGrid').className))
+    fail('script page', 'Characters kept the code gallery’s one-column list');
   console.log('  script page: the World gives the panel back, code first under Functions and words under Text, the view kept from one script to the next, rings and links in the structured listing, what names it below the code, the gallery a list');
 } catch (e) { fail('script page', e); }
 
