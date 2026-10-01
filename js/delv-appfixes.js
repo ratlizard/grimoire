@@ -372,6 +372,7 @@ const APP_FIXES = [
   // character record, stats and all, from the save, so a sleeper's stats
   // never came from the unit on that path.
   { id: 'sleeper-unit', kind: 'fix', title: 'Someone made while asleep takes their own unit, so they leave their own body, not a man’s or a random thing',
+    played: 'fork, PowerPC, 30 September 2026: a sleeping guard loaded from a save and killed leaves a guard’s body, where the unpatched game left none',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [
       { at: 0x44C00, was: [0x4BFFFE61], asm: ['bl @named             ; was bl ObjToMonst'] },
