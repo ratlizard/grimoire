@@ -923,7 +923,7 @@ function patchesApply() {
   const what = (rep.descriptor && rep.descriptor.description) || rep.fileName || 'that patch';
   setStatus(merged.replaced.length + ' resource(s) replaced' +
     (merged.added.length ? ' and ' + merged.added.length + ' added' : '') + ' by ' + what +
-    '. The patch is applied to the copy in this browser only, and the galleries and maps now show it. ' +
+    '. This changes only the copy in this browser, and the galleries and maps now show it. ' +
     'To download the changed file, go to Data \u203a Cythera Data \u203a Changes.');
   return true;
 }
@@ -975,7 +975,7 @@ function renderPatchReport() {
   const d = rep.descriptor;
   const who = d && DELV_PATCH_AUTHORS[d.uuidText];
 
-  host.appendChild(el('div', 'partsTitle', 'What this patch says it is'));
+  host.appendChild(el('div', 'partsTitle', 'About this patch'));
   const facts = [];
   facts.push('<tr><td>file</td><td>' + svEsc(rep.fileName || '') +
              (rep.via && rep.via !== 'data fork' ? '<span class="mechSub"> read from its ' + svEsc(rep.via) + '</span>' : '') + '</td></tr>');
@@ -985,42 +985,42 @@ function renderPatchReport() {
   if (d) {
     facts.push('<tr><td>identity</td><td class="patchMono">' + svEsc(d.uuidText) + '</td></tr>');
     facts.push('<tr><td>check value</td><td><span class="patchMono">' + svEsc(d.checkValue) + '</span>' +
-      (d.checkValueValid ? '<span class="mechSub"> verifies, so the descriptor is intact</span>'
-                         : '<span class="patchBad"> does not match, and Magpie would mark this patch unusable</span>') + '</td></tr>');
+      (d.checkValueValid ? '<span class="mechSub"> correct, so the patch is intact</span>'
+                         : '<span class="patchBad"> wrong, so Magpie would not install this patch</span>') + '</td></tr>');
     facts.push('<tr><td>type</td><td>' + (d.typeLabel ? '<b>' + svEsc(d.typeLabel) + '</b>' : 'code ' + d.typeCode) +
-      (d.typeOverwritten ? '<span class="mechSub"> Magpie shows no label for this code; it is the code Magpie writes into a descriptor that fails its check</span>'
-       : d.typeLabel ? '<span class="mechSub"> as Magpie\u2019s own list would show it</span>'
-       : '<span class="mechSub"> a code Magpie draws no label for</span>') + '</td></tr>');
+      (d.typeOverwritten ? '<span class="mechSub"> Magpie gives this code to a patch that fails its check</span>'
+       : d.typeLabel ? '<span class="mechSub"> as Magpie shows it</span>'
+       : '<span class="mechSub"> Magpie shows no name for this code</span>') + '</td></tr>');
   }
   facts.push('<tr><td>scenario</td><td>' + svEsc(rep.scenarioTitle || '') + '</td></tr>');
   facts.push('<tr><td>format</td><td>' + svEsc(rep.format) +
     (rep.format === rep.baseFormat ? '' : '<span class="mechSub"> and this file is ' + svEsc(rep.baseFormat) + '</span>') + '</td></tr>');
   host.appendChild(el('div', '', mechTable(['', ''], facts, 'patchFacts')));
   if (!d) host.appendChild(el('p', 'mechSub',
-    'This file has no descriptor, so Magpie would not list it. It can still be read as a set of resources.'));
+    'This patch does not describe itself, so Magpie would not list it. What it changes is still shown below.'));
   if (who) host.appendChild(el('p', 'mechSub', 'The name is not in the file. It comes from ' + svEsc(who.source) + '.'));
 
-  host.appendChild(el('div', 'partsTitle', 'Against the file that is open'));
+  host.appendChild(el('div', 'partsTitle', 'Against the open file'));
   const verdicts = [];
   verdicts.push(rep.isInstalled
     ? 'This file <b>already lists this patch</b> as applied.'
     : rep.installedIds.length
       ? 'This file lists <b>' + rep.installedIds.length + '</b> applied patch' + (rep.installedIds.length === 1 ? '' : 'es') + ', and this is not one of them.'
       : 'This file lists no applied patches.');
-  if (rep.usable) verdicts.push('Magpie’s three checks pass: the scenario matches, the format is compatible, and the descriptor was written for this file.');
+  if (rep.usable) verdicts.push('Magpie would accept it for this file.');
   else for (const r of rep.reasons) verdicts.push('Magpie would refuse it: ' + svEsc(r) + '.');
   if (rep.willAdd.length) verdicts.push('<b>' + rep.willAdd.length + '</b> resource' + (rep.willAdd.length === 1 ? '' : 's') +
     ' the patch carries ' + (rep.willAdd.length === 1 ? 'is' : 'are') + ' not in this file and would be added.');
-  if (rep.disagreed.length) verdicts.push('<b>' + rep.disagreed.length + '</b> would be refused, because the patch and the file disagree about whether the resource is encrypted.');
+  if (rep.disagreed.length) verdicts.push('<b>' + rep.disagreed.length + '</b> would be refused, because one of the two has the resource encrypted and the other does not.');
   if (rep.unchanged.length) verdicts.push('<b>' + rep.unchanged.length + '</b> are already identical to what this file holds.');
   host.appendChild(el('ul', 'ruleList', verdicts.map(v => '<li>' + v + '</li>').join('')));
 
   const rows = rep.resources.map(r => '<tr>' +
     '<td>' + (r.inBase ? svChip(r.resid, labelFor(r.resid) || '') : '<span class="patchMono">' + propWordHex(r.resid) + '</span>') + '</td>' +
     mechNum(r.baseLength === null ? '' : r.baseLength) + mechNum(r.patchLength) +
-    '<td class="mechSub">' + (!r.inBase ? 'added' : !r.encryptionAgrees ? 'encryption verdicts disagree' :
+    '<td class="mechSub">' + (!r.inBase ? 'added' : !r.encryptionAgrees ? 'encryption differs' :
       r.identical ? 'identical' : 'replaced') + '</td></tr>');
-  host.appendChild(el('div', 'partsTitle', 'The resources it names'));
+  host.appendChild(el('div', 'partsTitle', 'What it changes'));
   host.appendChild(el('div', '', mechTable(['resource', '#in this file', '#in the patch', ''], rows)));
 
   /* The part worth the whole section: the tiles themselves, shipped above
@@ -1062,8 +1062,8 @@ function renderPatchReport() {
     host.appendChild(el('ul', 'ruleList',
       '<li>' + moves.join(' and ') +
       ' in the copy of the file in this browser. <b>Nothing is written to disk.</b></li>' +
-      '<li>Every view is redrawn from the patched file, so the tiles above appear in the galleries and on the maps.</li>' +
-      '<li>The original file is kept, so <b>Two files against each other</b> can then show exactly what changed.</li>'));
+      '<li>The galleries and maps then show the patch.</li>' +
+      '<li>The original file is kept, so <b>Compare Two Files</b> can then show exactly what changed.</li>'));
     const bar = el('div', 'mechStats');
     const b = document.createElement('button');
     b.className = 'secondary';
@@ -1089,9 +1089,9 @@ function renderPatchReport() {
 function scriptDiffSection(host, el, pairs, aName, bName, memo) {
   if (!pairs.length) return;
   host.appendChild(el('div', 'partsTitle', 'The scripts, line by line: ' + pairs.length));
-  host.appendChild(el('p', 'mechSub', 'Each script as its code view shows it: the lines that differ, with two lines either side. ' +
+  host.appendChild(el('p', 'mechSub', 'The lines that differ, with two lines either side. ' +
     '− is ' + svEsc(aName) + ', + is ' + svEsc(bName) + ', and the words that differ are underlined. ' +
-    'Text stored in a script’s data, which the listing shows only as a size, follows its code.'));
+    'Any text a script holds follows its code.'));
   for (const p of pairs) {
     let d = memo && memo.get(p.resid);
     if (d === undefined) {
@@ -1700,7 +1700,7 @@ function renderHeroSprite() {
       ? 'Only these ' + fig.frames + ' frames of the sheet change; the rest of it is kept as it was.'
       : 'Nothing else in the file draws from this sheet.');
   if (fig.kind !== 'portrait' && fig.wearers > 1) facts.push('<b>' + fig.wearers + '</b> characters wear this sprite, and all of them change with it.');
-  if (fig.unknown) facts.push('<b>' + fig.unknown + '</b> pixels use colours the table of parts does not recognise, so this sheet is not the original art, and those pixels are left unchanged.');
+  if (fig.unknown) facts.push('<b>' + fig.unknown + '</b> pixels are in colours the original art does not use, so they are left unchanged.');
   facts.push(rec.moved ? '<b>' + rec.moved.toLocaleString() + '</b> pixels change.' : 'Nothing is chosen, so the frames are unchanged.');
   host.appendChild(el('ul', 'ruleList', facts.map(f => '<li>' + f + '</li>').join('')));
 
@@ -1886,7 +1886,7 @@ function renderGremlinMaker() {
   const st = window.GREMLIN_STATE, base = patchBaseSpec();
   if (!base) { host.appendChild(el('p', 'mechSub', 'No game file is open.')); return; }
   if (base.playerName) {
-    host.appendChild(el('p', 'mechSub', 'This is a saved game. A gremlin is added to Cythera Data, and the saved game’s page switches it on in a save.'));
+    host.appendChild(el('p', 'mechSub', 'This is a saved game. A gremlin is added to Cythera Data, and this save’s page can switch it on.'));
     return;
   }
   const used = gremlinNumbersIn(base), n = gremlinNumber();
@@ -2078,7 +2078,7 @@ function renderAppFixMaker() {
   if (src) { try { trial = applyAppFixes(src, APP_FIXES); } catch (e) { why = e.message; } }
   if (why) host.appendChild(el('p', 'mechSub patchBad', why));
   const kinds = [['fix', 'Bugs'], ['hook', 'Hooks'], ['text', 'Text'], ['menu', 'Menus'], ['change', 'Design changes']];
-  const kindNotes = { change: 'Not bug fixes. Each changes how the game was made to behave, so none is chosen until you choose it.' };
+  const kindNotes = { change: 'These are not bug fixes: each changes how the game was designed to behave. None is chosen until you choose it.' };
   for (const [kind, heading] of kinds) {
     const list = APP_FIXES.filter(f => f.kind === kind);
     if (!list.length) continue;
@@ -2166,7 +2166,7 @@ function spanishSay(m, bad) {
 function spanishBuild(T, articles) {
   if (!ARCHIVE) { spanishSay('No game file is open.', true); return null; }
   const rsrc = window.CYTHERA_RSRC_RAW;
-  if (!rsrc || !rsrc.length) { spanishSay('This copy has no resource fork, which holds the font the accents are drawn in. Open the game in MacBinary or BinHex, or open the installer.', true); return null; }
+  if (!rsrc || !rsrc.length) { spanishSay('This copy is missing the font the accents need. Open the game in MacBinary or BinHex, or open the installer.', true); return null; }
   try { return translateCytheraData(ARCHIVE.bytes, rsrc, T, { articles: !!articles }); }
   catch (e) { spanishSay(e.message, true); return null; }
 }
@@ -2996,13 +2996,10 @@ function renderCompareReport() {
      the resources OUT of, which is the open file -- a patch has to carry the
      bytes you want someone else to end up with, and for a comparison against
      a file you opened those live on the other side. */
-  host.appendChild(el('div', 'partsTitle', 'Export the difference as a patch'));
+  host.appendChild(el('div', 'partsTitle', 'Save the differences as a patch'));
   host.appendChild(el('ul', 'ruleList',
-    '<li>A Delver archive holding only what differs, with a descriptor that names it. ' +
-    'This page can read it, the patches section describes it, and the browser player loads it as an add-on.</li>' +
-    '<li>It carries a <b>check value</b>, the 64-bit number Magpie checks before it will list a patch at all. ' +
-    'Magpie under Mac OS 9 has installed a patch written by this page.</li>' +
-    '<li>The resources come from <b>' + svEsc(rep.bName) + '</b>, which is the version the patch would make somebody else\u2019s file match.</li>' +
+    '<li>The patch holds only what differs, and works in Magpie, on this page and in the browser player.</li>' +
+    '<li>Its contents come from <b>' + svEsc(rep.bName) + '</b>, so applying it makes another file match that one.</li>' +
     /* Established by reading Magpie's imports: of 299 symbols it imports one
        Resource Manager call, GetResource, and none that writes -- no
        AddResource, ChangedResource, WriteResource or UpdateResFile, and no
@@ -3010,12 +3007,9 @@ function renderCompareReport() {
        the flat-file set, FSpOpenDF through FSWrite. So the format cannot carry
        a resource-fork change, and a swapped font is the case that would
        otherwise go missing without a word. */
-    '<li>A patch carries the <b>data fork only</b>, which is the Delver archive. Magpie writes nothing else, ' +
-    'so nothing in the resource fork, including the game\u2019s font, can be included in one.</li>' +
-    '<li>The second button saves the same bytes as <b>MacBinary</b>, with the file type <b>DelP</b> and Magpie\u2019s creator code. ' +
-    'A saved game is also type DelP and differs only in its creator code, so a Mac that decodes the MacBinary file ' +
-    'shows the patch with Magpie\u2019s icon rather than Cythera\u2019s saved-game icon. ' +
-    'Use the plain file when something copies a fork straight into a shared folder.</li>'));
+    '<li>A patch cannot change the game\u2019s font, or anything else in the resource fork.</li>' +
+    '<li>The second button saves it as <b>MacBinary</b>, so a Mac shows it with Magpie\u2019s icon. ' +
+    'Use the plain file if it will be copied straight into a shared folder.</li>'));
   const form = el('div', 'mechStats');
   const desc = document.createElement('input');
   desc.type = 'text'; desc.id = 'patchDesc'; desc.placeholder = 'What this patch does';
@@ -3030,7 +3024,7 @@ function renderCompareReport() {
   const wrapped = document.createElement('button');
   wrapped.className = 'secondary';
   wrapped.style.cssText = 'width:auto;margin:0;padding:6px 12px';
-  wrapped.textContent = 'and as MacBinary, typed for Magpie';
+  wrapped.textContent = 'Export as MacBinary';
   wrapped.onclick = () => compareExportPatch(true);
   form.appendChild(wrapped);
   host.appendChild(form);
@@ -3042,10 +3036,10 @@ function renderCompareReport() {
      all, so a browser on this page blocks it as mixed content before CORS is
      reached -- so a link out is the whole of what can honestly be offered. */
   host.appendChild(el('div', 'mechSub',
-    'A patch is installed by <b>Magpie</b>, which is not here: ' +
+    'To install a patch on a Mac you need <b>Magpie</b>: ' +
     '<a href="http://www.cytheraguides.com/archives/ambrosia_addons/cythera/Miscellaneous/614_MagpiePumpkinPatch.sit.hqx" ' +
-    'target="_blank" rel="noopener">Magpie and the Pumpkin Patch</a>, 167 KB of BinHex, from the Cythera Guides ' +
-    'add-ons archive, over plain HTTP. Drop that file on this page and the patch inside it opens here too.'));
+    'target="_blank" rel="noopener">Magpie and the Pumpkin Patch</a>, from the Cythera Guides ' +
+    'add-ons archive. Drop that file on this page to open the patch inside it here.'));
   renderCompareApp(host, el);
   host.appendChild(el('div', '', svLink('Forget this comparison', 'compareForget()')));
 }
@@ -4126,17 +4120,17 @@ function renderMechanicsSheet(value) {
     const pf = exePatchFiles();
     const nm = x => x && x.name ? srcNum(x.id, x.name) : null;
     const dataName = nm(pf && pf.data), patchName = nm(pf && pf.patch), customName = pf && pf.custom ? srcNum(pf.custom, pf.custom.v) : null;
-    const rules = ['<b>Into Cythera Data.</b> Magpie writes a patch’s resources into the file itself and keeps the ones it replaced in <i>Cythera Unpatch</i> in its Patches folder, so it can take them out again. Apply, below, does the same. Anything in the file can be changed this way.'];
+    const rules = ['<b>Into Cythera Data.</b> Magpie writes the patch into the game file and keeps what it replaced, so it can take the patch out again. Apply, below, does the same. Anything in the file can be changed this way.'];
     if (pf && patchName && pf.list && pf.count)
-      rules.push('<b>A patch file beside the game.</b> At launch the program opens a file called ' + patchName + ' in its own folder, if there is one, and reads a list of file names from it, the string list <span class="patchMono">STR# ' + srcNum(pf.list) + '</span>, up to ' + srcNum(pf.count) + ' of them. Each file of those names in the same folder is loaded over ' + (dataName || 'the game file') + ' without changing it, a later one winning where two replace the same resource. A file made for another version of the engine or another scenario is refused with an alert. Taking a patch out is deleting the files. Glenn Andreas never released a patch this way, and Magpie does not use it.');
+      rules.push('<b>A list of patches beside the game.</b> If the game’s folder has a file called ' + patchName + ', the game reads up to ' + srcNum(pf.count) + ' file names from it when it starts, and loads those files on top of ' + (dataName || 'the game file') + ' without changing it. To remove the patches, delete the files. No official patch used this, and Magpie does not.');
     if (pf && customName)
-      rules.push('<b>' + customName + '.</b> The game’s own file for the combat AIs a player imports, loaded after every patch file and not checked at all, so a patch saved under this name works alone and wins over the rest. Replacing it loses the imported combat AIs.');
+      rules.push('<b>' + customName + '.</b> The file the game keeps imported combat AIs in. The game loads it last and does not check it, so a patch saved under this name works on its own and overrides the others. Saving over it loses your imported combat AIs.');
     if (rules.length > 1) {
-      rules.push('<b>What only the first way can change.</b> The two files beside the game cannot change the map’s tiles, their names and attributes, the schedules, the levels’ maps, the skill icons or what character creation offers, which the program reads from ' + (dataName || 'the game file') + ' alone. Scripts, conversations, pictures, portraits, sounds, music, the journal and combat AI can be changed.');
-      rules.push('<b>What a saved game keeps.</b> A save holds its own copy of each level it has been to, so a change to the things on a level reaches only the levels that save has not visited. On entering a level the game also sets its doors back open or shut as the level had them, and puts things made, dropped or slid there in play back where the level had them, or removes them, corpses among them, when the level had nothing of that kind there, going by ' + (dataName || 'the game file') + ', not from a patch.');
+      rules.push('<b>What only the first way can change.</b> A file beside the game cannot change the map tiles, the schedules, the level maps, the skill icons or character creation, which are only read from ' + (dataName || 'the game file') + '. It can change scripts, conversations, pictures, portraits, sounds, music, the journal and combat AI.');
+      rules.push('<b>Saved games.</b> A save keeps its own copy of every level it has visited, so a change to the things on a level only shows in levels that save has not been to. On entering a level the game also resets its doors, and puts back or removes things made, dropped or moved there in play, going by ' + (dataName || 'the game file') + ' and not by any patch.');
     }
     add('patchkinds', 'Three ways to patch the game', null, '',
-      'A patch can be written into the game’s data file, or left beside it in two kinds of file the game looks for.',
+      'A patch can go into the game file itself, or sit beside it in one of two files the game looks for.',
       pf ? rules : [rules[0]],
       pf ? '' : '<ul class="ruleList"><li>' + MECH_NO_APP + '</li></ul>',
       pf ? '<span class="partsTitle">In the program</span>' + pefChip('TDelverApp::PostInitMac') + pefChip('TDelverApp::OpenScenFile') + pefChip('LoadLevelProps') : '');
@@ -4200,17 +4194,13 @@ function renderMechanicsSheet(value) {
 
   // ---- the hero's colours, as a patch ----
   {
-    add('herosprite', 'A sprite or a portrait of your own, as a patch (untested)', null, '',
-      'Choose a sprite or a portrait and change its colours, and for the hero or the heroine a body to wear. ' +
-      'The art is redrawn from the shipped file and written as a Magpie patch that replaces that one resource.',
+    add('herosprite', 'Recolour a Sprite or Portrait (untested)', null, '',
+      'Pick a sprite or a portrait and change its colours. The hero and the heroine can also be given another character’s body. ' +
+      'This page writes a Magpie patch that replaces just that picture.',
       [
-        'The hero and the heroine can wear any person, or any monster drawn in four or eight frames. A person is laid out as they are; a monster has fewer poses, and its strides stand in for the rest.',
-        'Their hair, skin and clothes are told apart by this page, not read from the file: the art has no such layer. A shade two parts share goes to the part it touches most.',
-        'Colour by colour works on any sprite: the page finds the areas the art is painted in, a ramp of shades that touch each other, and each is changed as a whole. Where one shade draws two things, both change.',
-        'Each colour keeps its shading. New colours are taken from the game’s palette, and never from the ranges the game cycles, so the sprite does not shimmer.',
-        'Only the chosen sprite’s own frames change.',
-        'A portrait is recoloured the same way, colour by colour. A character’s portrait changes wherever the game shows it; the hero’s is copied into the saved game when the character is made, so a recoloured one shows in a game begun after the patch.',
-        'The patch is read by this page and by the browser player, and Magpie installs it on a Mac.'
+        'The hero and the heroine can wear any person, or any monster drawn in four or eight frames. A monster has fewer poses, so some of its frames are reused.',
+        'Each colour keeps its shading. Where the art uses one shade for two things, both change.',
+        'The hero’s portrait is copied into a saved game when the character is made, so a new portrait only shows in a game started after the patch.'
       ], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
@@ -4223,16 +4213,13 @@ function renderMechanicsSheet(value) {
 
   // ---- a gremlin of your own ----
   {
-    add('gremlins', 'A gremlin of your own, as a patch', null, '',
-      'A gremlin is a script the game runs when the party walks into a room, when a zone is entered or a save loads, and when a script sends a signal. ' +
-      'Choose when yours acts and what it does, and it is written as a Magpie patch that adds it to the file.',
+    add('gremlins', 'Make a Gremlin', null, '',
+      'A gremlin is a script the game runs when you walk into a room, enter a zone or load a save, or when another script sends a signal. ' +
+      'Choose when yours runs and what it does, and this page writes a Magpie patch that adds it.',
       [
-        'There are 256 gremlins, numbered 0 to 255, and the shipped game has none.',
-        'A new game switches on every gremlin whose script is in the file. A save keeps the ones it was made with, so a gremlin added later is off in an older save until its sheet switches it on.',
-        'A room and a zone are numbers: a room’s is the one its egg carries, and a zone’s is its map’s. Left empty, any room or any zone will do.',
-        'A signal below 256 is the one the scenario’s own props answer to, the bells and the music locks among them; one of 256 or more reaches the gremlins and no prop.',
-        'The script is shown as it will be written, and can be edited before it is.',
-        'The patch is read by this page and by the browser player, which add a resource the file lacks.'
+        'A room is the number on its egg, and a zone is its map’s number. Leave either empty to match any.',
+        'Signals below 256 are the ones the game’s own props respond to, such as bells and music locks. Signals of 256 or more reach only gremlins.',
+        'A new game switches every gremlin on. In a save made before the patch, a new gremlin is off until you switch it on in the save’s sheet.'
       ], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
@@ -4245,15 +4232,15 @@ function renderMechanicsSheet(value) {
 
   // ---- the program's own fixes ----
   {
-    add('appfixes', 'Fixes to the program', null, '',
-      'Fixes to Cythera itself rather than to its data: bugs in the program, three places where the program asks the scenario what to do, ' +
-      'slips in the program’s text and its resources, and the two menus it has and never shows. Choose them and the program is written out with them.',
+    add('appfixes', 'Generate a Fixed Program', null, '',
+      'Fixes to the Cythera program itself rather than its data file: bugs, slips in its text, three hooks a scenario’s scripts can use, ' +
+      'and two menus the program has but never shows. Choose the ones you want and this page writes out a fixed copy of the program.',
       [
-        'They change the PowerPC half of the program, which a PowerPC Mac and SheepShaver run. A 68K Mac runs the other half, which they leave alone. The menus and the two resource strings are read by both.',
-        'Every word a fix replaces is checked first, so any program but 1.0.4, or one fixed already, is refused.',
-        'A hook runs a script the scenario can add: method 241 on where a thing is being put, with the thing (False refuses it, True puts it without weighing it), ' +
-          '242 on a creature as it dies (a number is its corpse, 0 none), 243 on the hero when a game is begun, opened or reverted to. The shipped scenario has none of these, so with it the program does as before.',
-        'The program comes from the installer opened here, or from a copy chosen below in MacBinary or BinHex, which keep both its forks.'
+        'The fixes are for the PowerPC version, which a PowerPC Mac and SheepShaver run. On a 68K Mac only the menus and two of the text fixes apply.',
+        'Only version 1.0.4 can be fixed, and a copy that is already fixed is refused.',
+        'The hooks run a script the scenario can add: method 241 when a thing is put somewhere (False refuses it), 242 when a creature dies (a number is its corpse), ' +
+          '243 when a game is started, opened or reverted to. The shipped game has none of these scripts, so it plays as before.',
+        'The program comes from the installer opened here, or from a copy in MacBinary or BinHex chosen below.'
       ], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
@@ -4267,15 +4254,14 @@ function renderMechanicsSheet(value) {
   // ---- the scenario in Spanish ----
   {
     add('spanish', 'Cythera in Spanish', null, '',
-      'The scenario\u2019s text in Spanish: what every character says, the books and signs, the names of things, the To Do list, the spells and skills and the credits. ' +
-      'It is written into a copy of the open file, which replaces Cythera Data in the game\u2019s folder.',
+      'Cythera\u2019s text in Spanish: everything the characters say, the books and signs, the names of things, the To Do list, the spells, the skills and the credits. ' +
+      'This page writes a Spanish copy of the open file, to put in place of Cythera Data in the game\u2019s folder.',
       [
-        'Both forks change. The text is in the data fork; the conversation face with the accented letters, the face of the message pane and the labels of the conversation buttons are in the resource fork, which a patch cannot reach, so this is a whole file.',
-        'The Spanish is kept in this page and none of the English is: each piece of the English is read from your file and found by a fingerprint of its words. It was written for the scenario of 1.0.3 and 1.0.4, and a piece your file has changed stays in English.',
-        'A highlighted word says its Spanish when it is clicked, and every character answers the Spanish words as well as the English ones. A word typed with an accent is met when the accent comes after its first letters.',
-        'The program can be written in Spanish as well, from the installer or from the program itself: its menus, its dialogs and the messages it writes, the greeting by the time of day among them. The program cannot give a name the article its gender wants, so with both on one disk every thing\u2019s name carries its own (\u201cuna espada\u201d, \u201cel rey\u201d); the scenario written alone keeps its names bare, for the English program.',
-        'The program\u2019s messages change on a PowerPC Mac. On a 68K Mac the menus and dialogs are in Spanish and its messages stay in English.',
-        'The hero is spoken to in words that fit a man or a woman, unless the script asks which.'
+        'It is a whole file rather than a patch, because the accented letters need changes a patch cannot make.',
+        'It was written for versions 1.0.3 and 1.0.4. Any text your file has changed stays in English.',
+        'Characters answer keywords in Spanish or in English.',
+        'The program can be translated too, from the installer or from the program itself: its menus, dialogs and messages. With both in Spanish, the names of things carry their article (\u201cuna espada\u201d, \u201cel rey\u201d).',
+        'On a 68K Mac the program\u2019s menus and dialogs are in Spanish, and its messages stay in English.'
       ], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
@@ -4289,15 +4275,12 @@ function renderMechanicsSheet(value) {
   // ---- comparing two archives ----
   {
     const edits = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
-    add('compare', 'Two files against each other', null, '',
-      'What differs between two Delver archives, resource by resource. Two releases of the game, ' +
-      'a modded copy against a clean one, or this file against itself as it arrived before you edited it. ' +
-      'The difference can be written out as a patch.',
+    add('compare', 'Compare Two Files', null, '',
+      'See what differs between two game files: two releases of the game, a modded copy against a clean one, ' +
+      'or this file against how it was before you edited it. The differences can be saved as a patch.',
       [
-        'The four installers all open here, so comparing releases is a matter of choosing a file: the data in <b>1.0.3</b> and <b>1.0.4</b> is byte for byte the same, and everything Ambrosia changed after 1.0.1 is between those two.',
-        'It compares the plaintext, not the stored bytes. A resource encrypted in one file and clear in the other has not changed, and a rebuild that re-encrypts everything is not a difference.',
-        'The file you open is the older side, and the file already open here is the newer one, so what you read is what the open file changed.',
-        'A patch written here is read by this page and by the browser player, and it carries the check value Magpie verifies: Magpie under Mac OS 9 installed one on 15 September 2026.'
+        'The file you open here is treated as the older one, and the file already open as the newer.',
+        'All four installers open here. The data in <b>1.0.3</b> and <b>1.0.4</b> is the same, so everything Ambrosia changed after 1.0.1 is between those two.'
       ],
       '<ul class="ruleList"><li>' +
         (edits ? 'You have changed <b>' + edits + '</b> resource' + (edits === 1 ? '' : 's') + ' in this file.'

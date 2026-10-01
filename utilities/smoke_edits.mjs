@@ -103,7 +103,7 @@ try {
   const toolsNow = walk();
   const patchLeaf = peek('TAB_LEAF_FOR').get('PATCHES');
   if (!patchLeaf || patchLeaf.id !== 'patches' || !patchLeaf.parent || patchLeaf.parent.id !== 'data' || patchLeaf.magpie !== 'DelP') strayTab.push('PATCHES is not the Patches tab under Data with Magpie\u2019s DelP icon');
-  for (const t of ['Compare Patches', 'A sprite or a portrait of your own, as a patch', 'Two files against each other']) {
+  for (const t of ['Compare Patches', 'Recolour a Sprite or Portrait', 'Compare Two Files']) {
     if (tools.indexOf(t) < 0) strayTab.push('Patches does not show ' + t);
     if (toolsNow.indexOf(t) >= 0) strayTab.push('Tools still shows ' + t);
     ctx.showCategory('HACKERY');

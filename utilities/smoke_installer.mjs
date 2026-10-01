@@ -98,7 +98,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
                   !inRoutine(p.patch.id, 'TDelverApp::PostInitMac') || !p.list || p.list.v !== 129 || !p.count || p.count.v !== 9 || !inRoutine(p.list, 'TDelverApp::OpenScenFile') ||
                   !p.custom || p.custom.v !== 'User Custom Data' || !inRoutine(p.custom, 'TDelverApp::OpenScenFile'))(ctx.exePatchFiles()))
         fail('program figures', 'the files beside the game were misread: ' + JSON.stringify(ctx.exePatchFiles()));
-      else if ((ctx.showCategory('PATCHES'), (h => !/Three ways to patch the game/.test(h) || !/Cythera Patch/.test(h) || !/User Custom Data/.test(h) || !/STR# /.test(h))(all(REGISTRY.get('sheetGrid')))))
+      else if ((ctx.showCategory('PATCHES'), (h => !/Three ways to patch the game/.test(h) || !/Cythera Patch/.test(h) || !/User Custom Data/.test(h) || !/reads up to /.test(h))(all(REGISTRY.get('sheetGrid')))))
         fail('program figures', 'the Patches tab does not say the three ways a patch reaches the game');
       // A unit's flags as the creature moves (exeUnitMoveRules): CanMove's
       // five rules, unit bits against square bits, and the two tests of the
