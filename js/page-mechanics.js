@@ -3853,7 +3853,7 @@ function renderMechanicsSheet(value) {
         '<b>' + eg.kinds.reduce((n, k) => n + k.n, 0) + ' eggs</b> across <b>' + eg.zones + ' zones</b>, of <b>' + eg.kinds.length + ' kinds</b>.',
         eg.rooms ? 'A room is a kind-8 egg, and its argument is the room number. <b>' + eg.rooms.named + ' of the ' + eg.rooms.total + '</b> rooms numbered this way have a script of their own at 0x1B00 plus the number.' : '',
         'A kind-3 egg plays an <b>ambient sound</b>, sound 0x9100 plus its argument.',
-        'A kind-0 egg hatches the records inside it. The chance is <b>Data2 plus one in a hundred</b>, and Data1 limits it to the day (0x10), the night (0x20) or once only (0x01). <b>Some have bit 0x08 of Data1 set, and what it means is unknown.</b>',
+        'A kind-0 egg hatches the records inside it. The chance is <b>Data2 plus one in a hundred</b>, and Data1 limits it to the day (0x10), the night (0x20) or once only (0x01). Some also have bit 0x08 set, which the program never reads.',
         '<b>A kind-0 egg’s argument says nothing about what hatches</b>: all thirteen of Odemia’s eggs have 0xE4, whether they hold a chicken, a goat or a guard.',
         'Records with flags 0x44 are roofs, not eggs, and there are <b>' + eg.roofs + '</b> of them here.'
       ].filter(Boolean) : [],

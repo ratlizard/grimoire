@@ -446,9 +446,12 @@ function renderSkillsSheet() {
    and a square. The dossier shows one character's day; this sheet shows
    everybody's, a folding card each, and every square opens the zone there.
    The behaviour byte is shown as it is stored: the scripts test it against
-   small numbers (0xEA3 asks for 4, 6 and 7) and most entries carry 0x80 on
-   top of one, and what that bit means is not read here. The script field
-   is nearly always 0; the few that are not name a resource. */
+   small numbers (0xEA3 asks for 4, 6 and 7), and most entries are 128 or
+   more. 0x80 is not a flag on a small number: TActiveMonster::DoMove
+   switches on the whole byte through a table of 171 cases, and 128 to 170
+   have handlers of their own, distinct from 0 to 42 (read 1 October 2026);
+   the Look helper names some of them (144 working, 145 sleeping). The
+   script field is nearly always 0; the few that are not name a resource. */
 /* ---- who ScheduleTime schedules, read off the routine ----------------------
    Each hour ScheduleTime walks the 256 character records, 32 bytes each,
    and runs ScheduleOne for a character unless one of four tests says not
@@ -462,8 +465,12 @@ function renderSkillsSheet() {
    shapes. 112 is the behaviour the Wait command and a companion's "wait"
    answer set and "Follow" lifts (behaviorSetSites), which is why a
    companion told to wait stays where they stood: the hour does not move
-   them. What the active monster's word at 28 is has not been read. Null
-   with no application open or when the shape is not found. */
+   them. The active monster's word at 28 is its current target, a pointer
+   to another TActiveMonster (read 1 October 2026): DoAttack does nothing
+   while it is 0 and otherwise loads the target's record through it, and
+   DoDefend stores the attacker there before striking back; so the hour
+   leaves anyone in a fight where they are. Null with no application open
+   or when the shape is not found. */
 function exeScheduleWho() {
   const ops = exeOpsNamed('ScheduleTime');
   if (!ops.length) return null;
@@ -529,7 +536,7 @@ function renderSchedulesSheet() {
       lede.innerHTML = 'Each hour ' + pefChip('ScheduleTime') + ' sends everyone to their next place except ' + srcNum(who.partyBit.bit, 'the party') + ', ' +
         srcNum(who.aliveBit.mask, 'the dead') + ', companions ' + srcNum(who.waiting.value, 'told to wait') +
         (waits.length ? ' (by ' + waits.map(w => srcNum({ resid: w.resid, at: w.at }, labelFor(w.resid) || propWordHex(w.resid))).join(', ') + ')' : '') +
-        ', and one more kind of character, ' + srcNum(who.monsterWord.disp, 'not yet identified') + '.';
+        ', and anyone ' + srcNum(who.monsterWord.disp, 'in a fight') + '.';
     } else lede.innerHTML = 'The program is not open, so who each hour skips is not shown. The days below come from the file.';
     box.appendChild(lede);
   }
@@ -2230,13 +2237,12 @@ function eggDetail(g, allProps, linked) {
     const when = [];
     if (g.d1 & 0x10) when.push(hrs ? 'only between ' + hour(hrs.dawn) + ' and ' + hour(hrs.dusk) : 'by day');
     if (g.d1 & 0x20) when.push(hrs ? 'only between ' + hour(hrs.dusk) + ' and ' + hour(hrs.dawn) : 'by night');
-    /* Bit 0x08 is set and not decoded. Odemia's five chicken eggs carry d1
-       0x18, its goat 0x0A and its guards 0x14 and 0x24, so the bit appears
-       beside day, beside night and on its own: it is a real condition of the
-       kind-0 egg and nothing here knows what it says. Said out loud rather
-       than dropped, because a reader comparing two eggs would otherwise see
-       them described identically when the file distinguishes them. */
-    if (g.d1 & 0x08) when.push('with a condition at bit 0x08 whose meaning is not worked out here');
+    /* Bit 0x08 is set on some eggs (Odemia's chickens carry 0x18, its goat
+       0x0A) and the program never reads it: TActiveMonster::HatchEgg, the
+       one routine that hatches, tests Data1 for 0x20, 0x10, 0x04 and 0x01
+       only, and DrawRoutine hands the egg to it untested (read 1 October
+       2026). So it is said nowhere; until then the zone page called it a
+       condition not worked out. */
     // Bit 0x01 makes the chance certain once it has hatched, which says
     // nothing new where the chance is certain already.
     if ((g.d1 & 0x01) && g.d2 < 99) when.push('on every visit once it has hatched');
