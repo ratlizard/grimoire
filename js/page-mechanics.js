@@ -2256,7 +2256,9 @@ function renderSpanishMaker() {
    that carries a fix already, is refused by the first edit that does not
    find what it expects, and the note names the fix. Apply and Read go
    through the patches section, as the sprite's and the gremlin's do. */
-window.DATAFIX_STATE = { on: new Set(), skip: new Set(), showText: false, textChanges: null };
+// The text's choices start on their first option, the maintainer's
+// preference (1 October 2026); every other fix starts unchosen.
+window.DATAFIX_STATE = { on: new Set(DATA_FIX_CHOICES.map(c => DATA_FIXES.find(o => o.choice === c.id).id)), skip: new Set(), showText: false, textChanges: null };
 function dataFixSay(m, bad) {
   const note = document.getElementById('dataFixNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
@@ -2266,11 +2268,30 @@ function dataFixToggle(id, on) {
   if (on) st.add(id); else st.delete(id);
   renderDataFixMaker();
 }
-// A list's box: every fix in it, the text's options left as they are.
+// A list's box: every fix in it and, for the text, every change and each
+// choice's first option; unticked, none of them.
 function dataFixGroup(group, on) {
-  const st = window.DATAFIX_STATE.on;
-  for (const f of DATA_FIXES) if (f.group === group && !f.parent) { if (on) st.add(f.id); else st.delete(f.id); }
+  const st = window.DATAFIX_STATE;
+  for (const f of DATA_FIXES) if (f.group === group && !f.choice) { if (on) st.on.add(f.id); else st.on.delete(f.id); }
+  for (const c of DATA_FIX_CHOICES) {
+    const opts = DATA_FIXES.filter(o => o.choice === c.id && o.group === group);
+    if (!opts.length) continue;
+    for (const o of opts) st.on.delete(o.id);
+    if (on) st.on.add(opts[0].id);
+  }
+  st.skip.clear();
   renderDataFixMaker();
+}
+// How much of a list is chosen: a fix counts, a choice counts when one of
+// its options is picked, and the text counts half with a change left out.
+function dataFixGroupState(group) {
+  const st = window.DATAFIX_STATE, items = [];
+  for (const f of DATA_FIXES) if (f.group === group && !f.parent)
+    items.push(!st.on.has(f.id) ? 0 : DATA_FIXES.some(o => o.parent === f.id) && st.skip.size ? 0.5 : 1);
+  for (const c of DATA_FIX_CHOICES) if (DATA_FIXES.some(o => o.choice === c.id && o.group === group))
+    items.push(DATA_FIXES.some(o => o.choice === c.id && st.on.has(o.id)) ? 1 : 0);
+  const sum = items.reduce((a, b) => a + b, 0);
+  return { all: items.length > 0 && sum === items.length, some: sum > 0 };
 }
 // One of a choice's options, or (null) none of them.
 function dataFixChoose(choice, id) {
@@ -2280,10 +2301,56 @@ function dataFixChoose(choice, id) {
   renderDataFixMaker();
 }
 function dataFixSpelling(id) { dataFixChoose('spelling', id); }
-// A row of the text's changes left out of the patch, or put back.
-function dataFixSkipRow(key, skip) {
-  const st = window.DATAFIX_STATE.skip;
-  if (skip) st.add(key); else st.delete(key);
+/* The rows of the text's changes. A row of the corrections themselves
+   (the text's own part, or the community's list) is in the patch when the
+   text is chosen and the row is not left out; a row of a choice's option,
+   when it is not left out, since the option is chosen or the row would not
+   be listed. Ticking a correction with the text unchosen chooses the text
+   with every other correction left out. */
+function dataFixRowBase(row) { return row.part === 'text' || row.part === 'community'; }
+function dataFixRowOn(row) {
+  const st = window.DATAFIX_STATE;
+  return (!dataFixRowBase(row) || st.on.has('text')) && !st.skip.has(row.key);
+}
+function dataFixRowToggle(row, tick) {
+  const st = window.DATAFIX_STATE, had = st.on.has('text');
+  if (tick) {
+    if (dataFixRowBase(row) && !had) {
+      st.on.add('text');
+      for (const x of dataFixTextRows().rows || []) if (dataFixRowBase(x)) st.skip.add(x.key);
+    }
+    st.skip.delete(row.key);
+  } else st.skip.add(row.key);
+  // Drawn again only when the text itself came in, which changes the count
+  // and the buttons; otherwise the boxes that count the rows are set, and
+  // the list stays where it is scrolled.
+  if (st.on.has('text') !== had) { renderDataFixMaker(); return; }
+  const all = document.querySelector('.dataFixAll');
+  if (all) dataFixAllRowsState(all);
+  for (const b of document.querySelectorAll('.dataFixGroupBox')) {
+    const gs = dataFixGroupState(b.getAttribute('data-group'));
+    b.checked = gs.all; b.indeterminate = gs.some && !gs.all;
+  }
+  const desc = document.getElementById('dataFixDesc');
+  if (desc) desc.value = dataFixDescription(dataFixChosen());
+}
+// The list's own box: ticked when every row listed is in, part when some.
+function dataFixAllRowsState(b) {
+  const st = window.DATAFIX_STATE;
+  const r = st.textChanges && st.textChanges.key === dataFixTextIds().join(',') && st.textChanges.arc === ARCHIVE ? st.textChanges : null;
+  let all, some;
+  if (r && r.rows) { const k = r.rows.filter(dataFixRowOn).length; all = k === r.rows.length; some = k > 0; }
+  else { all = st.on.has('text') && !st.skip.size; some = st.on.has('text') || dataFixTextIds().length > 0; }
+  b.checked = all; b.indeterminate = some && !all;
+}
+// Ticked: the text and every change listed. Unticked: none of the text,
+// its choices set to "don't".
+function dataFixAllRows(on) {
+  const st = window.DATAFIX_STATE;
+  if (on) st.on.add('text');
+  else for (const f of DATA_FIXES) if (f.id === 'text' || f.parent === 'text') st.on.delete(f.id);
+  st.skip.clear();
+  renderDataFixMaker();
 }
 function dataFixClear() {
   window.DATAFIX_STATE.on = new Set();
@@ -2305,7 +2372,7 @@ function dataFixDescription(chosen) {
   count('rules', 'to spells, skills and fighting');
   count('items', 'to items');
   count('world', 'to people and places');
-  if (chosen.some(f => f.id === 'text')) {
+  if (chosen.some(f => f.group === 'text')) {
     const opts = [];
     if (chosen.some(f => f.id === 'spelling-us')) opts.push('American spelling');
     if (chosen.some(f => f.id === 'spelling-uk')) opts.push('British spelling');
@@ -2316,7 +2383,6 @@ function dataFixDescription(chosen) {
     if (left) opts.push(left + ' left out');
     bits.push('the text' + (opts.length ? ' (' + opts.join(', ') + ')' : ''));
   }
-  for (const f of chosen) if (f.group === 'apart') bits.push({ karma: 'karma for a kill', resurrection: 'Resurrection', peirithous: 'Peirithous alive' }[f.id] || f.id);
   const last = bits.length > 1 ? bits.slice(0, -1).join(', ') + ' and ' + bits[bits.length - 1] : bits.join('');
   let d = 'Fixes to Cythera chosen with Grimoire: ' + last + '.';
   if (d.length > 255) d = d.slice(0, 254).replace(/\s+\S*$/, '') + '…';
@@ -2328,13 +2394,13 @@ function dataFixDescription(chosen) {
 function dataFixPatch() {
   if (!ARCHIVE || !ARCHIVE.bytes) throw new Error('No game file is open.');
   const chosen = dataFixChosen();
-  if (!chosen.some(f => !f.parent)) return null;
+  if (!chosen.length) return null;
   const done = applyDataFixes(ARCHIVE.bytes, chosen.map(f => f.id), { skip: window.DATAFIX_STATE.skip });
   const d = document.getElementById('dataFixDesc');
   const w = writeDelverPatch(done.spec, done.changed,
     { description: ((d && d.value) || dataFixDescription(chosen)).slice(0, 255), typeCode: DELV_PATCH_EXPORT_TYPE });
   w.name = 'Cythera Fixes';
-  w.fixes = chosen.filter(f => !f.parent).length;
+  w.fixes = chosen.length;
   return w;
 }
 // The patch or null, with the reason said.
@@ -2449,9 +2515,9 @@ function dataFixFillChanges(body) {
          2026). Ticked is the default; the state is kept by the row's key,
          its part and its words, so it survives the list being made again. */
       const keep = document.createElement('input');
-      keep.type = 'checkbox'; keep.checked = !window.DATAFIX_STATE.skip.has(row.key);
+      keep.type = 'checkbox'; keep.checked = dataFixRowOn(row);
       keep.setAttribute('aria-label', 'include this change');
-      keep.onchange = function () { dataFixSkipRow(row.key, !keep.checked); };
+      keep.onchange = function () { dataFixRowToggle(row, keep.checked); };
       line.appendChild(keep);
       const many = row.at.length > 12;
       if (!many) line.appendChild(links(row));
@@ -2480,62 +2546,68 @@ function renderDataFixMaker() {
     return { l, b };
   };
   for (const g of DATA_FIX_GROUPS) {
-    const list = DATA_FIXES.filter(f => f.group === g.id && !f.parent);
-    if (!list.length) continue;
+    /* A fix with options (the text) is not a row of its own: its options
+       are rows of buttons and its own corrections are its list of changes,
+       which has a box for all of them (the maintainer, 1 October 2026). */
+    const owner = DATA_FIXES.find(f => f.group === g.id && !f.parent && DATA_FIXES.some(o => o.parent === f.id));
+    const list = DATA_FIXES.filter(f => f.group === g.id && !f.parent && f !== owner);
+    if (!list.length && !owner) continue;
     const head = el('div', 'dataFixHead');
-    /* A list that is one fix with options (the text, since 1 October 2026,
-       when the maintainer had its own line dropped) has that fix's box for
-       its heading; any other list's heading chooses everything in it. */
-    const lone = list.length === 1 && DATA_FIXES.some(o => o.parent === list[0].id) ? list[0] : null;
-    const k = list.filter(f => on.has(f.id)).length;
-    const gb = lone ? box(on.has(lone.id), function (c) { dataFixToggle(lone.id, c); }, g.title + untestedMark(lone))
-                    : box(k === list.length, function (c) { dataFixGroup(g.id, c); }, g.title);
-    if (!lone) gb.b.indeterminate = k > 0 && k < list.length;
+    const gs = dataFixGroupState(g.id);
+    const gb = box(gs.all, function (c) { dataFixGroup(g.id, c); }, g.title);
+    gb.b.indeterminate = gs.some && !gs.all;
+    gb.b.className = 'dataFixGroupBox';
+    gb.b.setAttribute('data-group', g.id);
     gb.l.className = 'partsTitle';
     head.appendChild(gb.l);
     host.appendChild(head);
     for (const f of list) {
-      if (f !== lone) {
-        const row = el('div', 'appFixRow');
-        row.appendChild(box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + untestedMark(f)).l);
-        host.appendChild(row);
-      }
-      const kids = DATA_FIXES.filter(o => o.parent === f.id);
-      if (!kids.length) continue;
-      const sub = el('div', 'dataFixOptions');
-      const off = !on.has(f.id);
-      /* The options of a choice are boxes that exclude each other, so that
-         none ticked is the text as the game has it (the maintainer, 1 October
-         2026; the spelling was radio buttons with a third for that until
-         then, and the other four went one way only). */
-      for (const o of kids.filter(o => o.choice)) {
-        const r = el('div', 'appFixRow');
-        r.appendChild(box(on.has(o.id), function (c) { dataFixChoose(o.choice, c ? o.id : null); }, o.title + untestedMark(o), off).l);
-        sub.appendChild(r);
-      }
-      for (const o of kids.filter(o => !o.choice)) {
-        const r = el('div', 'appFixRow');
-        r.appendChild(box(on.has(o.id), function (c) { dataFixToggle(o.id, c); }, o.title + untestedMark(o), off).l);
-        sub.appendChild(r);
-      }
-      if (f.id === 'text') {
-        const st = window.DATAFIX_STATE;
-        const d = el('details', 'appFixWords');
-        d.open = !!st.showText;
-        d.appendChild(el('summary', 'mechSub', 'Every change the text makes'));
-        const body = el('div', 'dataFixChanges');
-        d.appendChild(body);
-        // Filled after the list is drawn open, so the page answers the click
-        // before the second or so the text takes.
-        const fill = () => { body.textContent = 'Reading the text\u2026'; setTimeout(function () { dataFixFillChanges(body); }, 0); };
-        d.ontoggle = function () { st.showText = d.open; if (d.open) fill(); };
-        if (d.open) fill();
-        sub.appendChild(d);
-      }
-      host.appendChild(sub);
+      const row = el('div', 'appFixRow');
+      row.appendChild(box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + untestedMark(f)).l);
+      host.appendChild(row);
     }
+    if (!owner) continue;
+    const sub = el('div', 'dataFixOptions');
+    /* Each choice is a row of buttons, its options and "don't", so that one
+       of the three is always picked and the choice is plain to see; the
+       first option, the maintainer's preference, is picked when the page
+       opens (DATAFIX_STATE). */
+    for (const c of DATA_FIX_CHOICES) {
+      const opts = DATA_FIXES.filter(o => o.parent === owner.id && o.choice === c.id);
+      if (!opts.length) continue;
+      const picked = opts.find(o => on.has(o.id));
+      const r = el('div', 'dataFixChoice');
+      r.appendChild(el('div', 'dataFixChoiceName', c.title + untestedMark(opts[0])));
+      for (const o of opts.concat([null])) {
+        const ob = box(o ? picked === o : !picked, function (v) { if (v) dataFixChoose(c.id, o ? o.id : null); },
+          o ? o.short : 'Don\u2019t standardize', false, 'radio', 'dataFixChoice-' + c.id);
+        r.appendChild(ob.l);
+      }
+      sub.appendChild(r);
+    }
+    const st = window.DATAFIX_STATE;
+    const d = el('details', 'appFixWords');
+    d.open = !!st.showText;
+    const sum = el('summary', 'mechSub');
+    const all = document.createElement('input');
+    all.type = 'checkbox'; all.className = 'dataFixAll';
+    all.setAttribute('aria-label', 'every change the text makes');
+    dataFixAllRowsState(all);
+    all.onchange = function () { dataFixAllRows(all.checked); };
+    sum.appendChild(all);
+    sum.appendChild(document.createTextNode(' Every change the text makes' + untestedMark(owner)));
+    d.appendChild(sum);
+    const body = el('div', 'dataFixChanges');
+    d.appendChild(body);
+    // Filled after the list is drawn open, so the page answers the click
+    // before the second or so the text takes.
+    const fill = () => { body.textContent = 'Reading the text\u2026'; setTimeout(function () { dataFixFillChanges(body); dataFixAllRowsState(all); }, 0); };
+    d.ontoggle = function () { st.showText = d.open; if (d.open) fill(); };
+    if (d.open) fill();
+    sub.appendChild(d);
+    host.appendChild(sub);
   }
-  const chosen = dataFixChosen(), n = chosen.filter(f => !f.parent).length;
+  const chosen = dataFixChosen(), n = chosen.length;
   host.appendChild(el('p', 'mechSub', n ? n + (n === 1 ? ' fix is chosen.' : ' fixes are chosen.') : 'Nothing is chosen.'));
   if (!n) return;
   const desc = document.createElement('input');
@@ -4044,14 +4116,13 @@ function renderMechanicsSheet(value) {
     add('patches', 'Compare Patches', null, '',
       'Magpie patches work by replacing specific resources in the original Cythera Data file. Open a patch here to see details and what resources it changes.',
       [],
-      '<ul class="ruleList"><li>' +
-        (!base ? 'No game file is open.'
-          : applied.length
-            ? 'This file records <b>' + applied.length + '</b> patch' + (applied.length === 1 ? '' : 'es') + ' applied to it' +
-              (named.length ? ', among them ' + named.map(n => '<b>' + svEsc(n.title) + '</b>, ' + svEsc(n.name)).join(' and ') : '') +
-              '.<div class="patchMono mechSub">' + applied.map(u => svEsc(u)).join('<br>') + '</div>'
-            : 'This file records no patches applied to it, as an unchanged copy of the game would.') +
-      '</li></ul>');
+      // The patches the open file records, said only when there are some
+      // (the maintainer, 1 October 2026, who had the rest of the prose go).
+      applied.length
+        ? '<ul class="ruleList"><li>This file records <b>' + applied.length + '</b> patch' + (applied.length === 1 ? '' : 'es') + ' applied to it' +
+          (named.length ? ', among them ' + named.map(n => '<b>' + svEsc(n.title) + '</b>, ' + svEsc(n.name)).join(' and ') : '') +
+          '.<div class="patchMono mechSub">' + applied.map(u => svEsc(u)).join('<br>') + '</div></li></ul>'
+        : '');
     /* The three controls are built as ELEMENTS and appended, where every
        other section's body is a string of markup. The difference is not
        taste: an id that only ever exists inside an innerHTML string is

@@ -93,14 +93,25 @@ const DATA_FIX_STAGE_SORTED = ['further'];
 // The Patches section's lists, in its order. By what a fix touches since
 // 1 October 2026, at the maintainer's word; until then they were by who
 // found each fix, which the stages and the comments below still record.
+// The three larger changes (the stage "apart") went into the lists the
+// same day.
 const DATA_FIX_GROUPS = [
   { id: 'talk', title: 'Conversations' },
   { id: 'quests', title: 'Quests and the To Do list' },
   { id: 'rules', title: 'Spells, skills and fighting' },
   { id: 'items', title: 'Items' },
   { id: 'world', title: 'People and places' },
-  { id: 'apart', title: 'Larger changes' },
   { id: 'text', title: 'Text' },
+];
+
+// The text's choices, by the name their options share, as the Patches
+// section labels each row of buttons, in its order.
+const DATA_FIX_CHOICES = [
+  { id: 'spelling', title: 'Spelling' },
+  { id: 'two-taled', title: 'The Two-Taled Rat' },
+  { id: 'land-king', title: 'Land King' },
+  { id: 'areithous', title: 'Areithous' },
+  { id: 'hyphens', title: 'Hyphens' },
 ];
 
 function dataFixKeyword(what, resid, at, kw, target) {
@@ -1199,23 +1210,24 @@ const DATA_FIXES = [
     played: 'in part: the maintainer, some lines in Land King Hall',
     parts: [
       { stage: 'text', plan: (s, ctx) => ({ textEdits: dataFixTextEdits(ctx.chosen) }) },
-      { stage: 'community-text', plan: (s, ctx) => ({ textEdits: dataFixCommunityTypoEdits(dataPatchTexts(s), ctx.communityTypos || DATA_FIX_COMMUNITY_TYPOS,
+      { stage: 'community-text', plan: (s, ctx) => !ctx.chosen.has('text') ? {} : ({ textEdits: dataFixCommunityTypoEdits(dataPatchTexts(s), ctx.communityTypos || DATA_FIX_COMMUNITY_TYPOS,
           ctx.chosen.has('spelling-us') ? 'us' : ctx.chosen.has('spelling-uk') ? 'uk' : null).textEdits }) },
       { stage: 'spelling', plan: (s, ctx) => ({ textEdits: dataFixSpellingEdits(ctx.chosen) }) },
     ] },
-  { id: 'spelling-us', parent: 'text', choice: 'spelling', group: 'text', title: 'Standardize to US spellings' },
-  { id: 'spelling-uk', parent: 'text', choice: 'spelling', group: 'text', title: 'Standardize to UK spellings' },
+  { id: 'spelling-us', parent: 'text', choice: 'spelling', group: 'text', short: 'US spellings', title: 'Standardize to US spellings' },
+  { id: 'spelling-uk', parent: 'text', choice: 'spelling', group: 'text', short: 'UK spellings', title: 'Standardize to UK spellings' },
   /* The four that follow each go one way or the other, or neither (the
-     maintainer, 1 October 2026): a pair shares a choice, so ticking one
-     unticks the other, and neither ticked leaves the game's mixture. */
-  { id: 'text-two-taled', parent: 'text', choice: 'two-taled', group: 'text', title: 'Standardize to \u201cTwo-Taled Rat\u201d, as on its sign' },
-  { id: 'text-two-tailed', parent: 'text', choice: 'two-taled', group: 'text', title: 'Standardize to \u201cTwo-Tailed Rat\u201d' },
-  { id: 'text-land-king', parent: 'text', choice: 'land-king', group: 'text', title: 'Standardize to \u201cLand King\u201d, as in the manuals' },
-  { id: 'text-landking', parent: 'text', choice: 'land-king', group: 'text', title: 'Standardize to \u201cLandKing\u201d' },
-  { id: 'text-areithous', parent: 'text', choice: 'areithous', group: 'text', title: 'Standardize to \u201cAreithous\u201d, as in the Hintbook' },
-  { id: 'text-ariethous', parent: 'text', choice: 'areithous', group: 'text', title: 'Standardize to \u201cAriethous\u201d' },
-  { id: 'text-hyphens', parent: 'text', choice: 'hyphens', group: 'text', title: 'Standardize to hyphenated: \u201ckind-looking\u201d, \u201cdour-faced\u201d and the like' },
-  { id: 'text-no-hyphens', parent: 'text', choice: 'hyphens', group: 'text', title: 'Standardize to unhyphenated: \u201ckind-hearted\u201d, \u201crat-faced\u201d and the like lose theirs' },
+     maintainer, 1 October 2026): a pair shares a choice, drawn as a row of
+     buttons with "don't" as the third, and the first of each pair, the
+     maintainer's preference, is chosen when the page opens. */
+  { id: 'text-two-taled', parent: 'text', choice: 'two-taled', group: 'text', short: '\u201cTwo-Taled Rat\u201d, as on its sign', title: 'Standardize to \u201cTwo-Taled Rat\u201d, as on its sign' },
+  { id: 'text-two-tailed', parent: 'text', choice: 'two-taled', group: 'text', short: '\u201cTwo-Tailed Rat\u201d', title: 'Standardize to \u201cTwo-Tailed Rat\u201d' },
+  { id: 'text-land-king', parent: 'text', choice: 'land-king', group: 'text', short: '\u201cLand King\u201d, as in the manuals', title: 'Standardize to \u201cLand King\u201d, as in the manuals' },
+  { id: 'text-landking', parent: 'text', choice: 'land-king', group: 'text', short: '\u201cLandKing\u201d', title: 'Standardize to \u201cLandKing\u201d' },
+  { id: 'text-areithous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAreithous\u201d, as in the Hintbook', title: 'Standardize to \u201cAreithous\u201d, as in the Hintbook' },
+  { id: 'text-ariethous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAriethous\u201d', title: 'Standardize to \u201cAriethous\u201d' },
+  { id: 'text-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'hyphenated, \u201ckind-looking\u201d', title: 'Standardize to hyphenated: \u201ckind-looking\u201d, \u201cdour-faced\u201d and the like' },
+  { id: 'text-no-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'unhyphenated, \u201ckind hearted\u201d', title: 'Standardize to unhyphenated: \u201ckind-hearted\u201d, \u201crat-faced\u201d and the like lose theirs' },
 
   /* ---- Larger changes (the stage "apart"; karma_patch.mjs,
      resurrection_patch.mjs, peirithous_patch.mjs) --------------------------
@@ -1244,7 +1256,7 @@ const DATA_FIXES = [
   // another path for a tagged word. The victim's type it can read, as the
   // helper already reads its square. So a hatched guard costs karma too,
   // being a person, and a hatched chicken does not.
-  { id: 'karma', group: 'apart', stage: 'apart', title: 'Killing a townsperson now costs one karma, instead of adding one',
+  { id: 'karma', group: 'rules', stage: 'apart', title: 'Killing a townsperson now costs one karma, instead of adding one',
     edits: (() => {
       const NOT_PEOPLE = ['byte 0x59', 'byte 0x5A', 'short 0x00E4', 'short 0x0121', 'short 0x0122', 'short 0x0124'];
       return [{
@@ -1308,7 +1320,7 @@ const DATA_FIXES = [
   // which nobody-corpse turns away in both. The map record wants a fifth
   // local; a function's locals are the third byte of its header, and UseOn's
   // header is at 0xA0.
-  { id: 'resurrection', group: 'apart', stage: 'apart', title: 'Resurrection now brings the person back where the corpse lay, with their belongings and in the party, instead of nowhere until a later hour',
+  { id: 'resurrection', group: 'rules', stage: 'apart', title: 'Resurrection now brings the person back where the corpse lay, with their belongings and in the party, instead of nowhere until a later hour',
     // Its offsets are the shipped file's; nobody-corpse, an earlier stage,
     // inserts before them, so the plan measures where the corpse's things
     // are now walked and moves every offset by the difference.
@@ -1337,7 +1349,7 @@ const DATA_FIXES = [
   // set. Every release from 1.0.1 is the same. THE CHANGE: the one bit, set.
   // A saved game carries its own character table, so this reaches new games
   // only.
-  { id: 'peirithous', group: 'apart', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is now alive in a new game, instead of dead',
+  { id: 'peirithous', group: 'world', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is now alive in a new game, instead of dead',
     dataEdits: [
       { what: 'Peirithous alive', resid: 0xF009, fn: (b) => {
           const p = 96 * 32;
@@ -1619,7 +1631,7 @@ const DATA_FIX_TEXT_BRITISH = (() => {
 // not chosen, each keeping the option it belongs to for the list of changes
 // (dataFixTextChanges). And the spelling stage's, for the spelling chosen.
 function dataFixTextEdits(chosen) {
-  return DATA_FIX_TEXT.filter(e => !e.opt || chosen.has(e.opt)).map(e => Object.assign({}, e));
+  return DATA_FIX_TEXT.filter(e => e.opt ? chosen.has(e.opt) : chosen.has('text')).map(e => Object.assign({}, e));
 }
 function dataFixSpellingEdits(chosen) {
   return chosen.has('spelling-us') ? DATA_FIX_TEXT_AMERICAN.slice() : chosen.has('spelling-uk') ? DATA_FIX_TEXT_BRITISH.slice() : [];

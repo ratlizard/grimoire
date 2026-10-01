@@ -304,9 +304,12 @@ function finishDataPatch(s) {
   return { spec: s.spec, changed: changed.sort((a, b) => a - b), log: s.log, text: s.textDone };
 }
 
-/* The fixes chosen, in DATA_FIX_STAGES order. A fix is chosen by its id; a
-   fix with a `parent` (the text's options) counts only when its parent is
-   chosen too, and of the fixes sharing a `choice` the first chosen wins.
+/* The fixes chosen, in DATA_FIX_STAGES order. A fix is chosen by its id,
+   and of the fixes sharing a `choice` the first chosen wins. A fix with a
+   `parent` (the text's options) counts on its own since 1 October 2026,
+   when the maintainer had the text's own box dropped: its edits are in its
+   parent's stages, which run for it without the parent's own edits (the
+   text's plans ask for 'text' itself).
    opts.stages keeps the parts of those stages only, which is how the
    builders write the patches that were made separately; opts.communityTypos
    stands in for DATA_FIX_COMMUNITY_TYPOS (community_text_patch.mjs hands in
@@ -314,7 +317,7 @@ function finishDataPatch(s) {
 function dataFixesChosen(ids) {
   const want = new Set(ids), out = new Set(), taken = new Set();
   for (const f of DATA_FIXES) {
-    if (!want.has(f.id) || (f.parent && !want.has(f.parent))) continue;
+    if (!want.has(f.id)) continue;
     if (f.choice) { if (taken.has(f.choice)) continue; taken.add(f.choice); }
     out.add(f.id);
   }
@@ -348,7 +351,9 @@ function applyDataFixes(bytes, ids, opts) {
     for (const stage of DATA_FIX_STAGES) {
       if (opts.stages && opts.stages.indexOf(stage) < 0) continue;
       const parts = [];
-      for (const f of DATA_FIXES) if (chosen.has(f.id)) for (const p of (f.parts || [f])) if (p.stage === stage) parts.push({ f, p });
+      // A parent's stages run for an option chosen without it.
+      for (const f of DATA_FIXES) if (chosen.has(f.id) || DATA_FIXES.some(o => o.parent === f.id && chosen.has(o.id)))
+        for (const p of (f.parts || [f])) if (p.stage === stage) parts.push({ f, p });
       if (!parts.length) continue;
       // Every plan of a stage reads the file as the stage found it.
       s.listings = new Map();

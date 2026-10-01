@@ -105,10 +105,11 @@ for (const ids of textRuns) {
   else if (!r.same) fail('text: ' + ids.join(' + ') + '’s patch does not merge back');
   else alone++;
 }
-// An option without its fix is nothing, and the first of two spellings wins.
+// An option counts without its fix (since 1 October 2026), and the first of
+// two spellings wins.
 {
   const chosen = ids => JSON.parse(vm.runInContext(`JSON.stringify([...dataFixesChosen(${JSON.stringify(ids)})])`, ctx));
-  if (chosen(['text-land-king']).length) fail('an option chosen without the text counts');
+  if (!chosen(['text-land-king']).length) fail('one of the text\u2019s choices without the text does not count');
   const both = chosen(['text', 'spelling-uk', 'spelling-us']);
   if (both.includes('spelling-us') === both.includes('spelling-uk')) fail('both spellings count, or neither');
 }
@@ -196,14 +197,17 @@ if (FULL) {
     const less = applyDataFixes(__a, ids, { skip: new Set([kind.key]) });
     // Leaving out "wearly" leaves the hyphen nothing to find in Helen's line.
     const dep = applyDataFixes(__a, ids, { skip: new Set([wearly.key]) });
-    return { control: has(all, 0x184C, 'kind looking'), kept: has(less, 0x184C, 'kind looking'), other: has(less, 0x184C, 'kind-looking') || has(less, 0x1830, 'dour-faced'),
+    const alone = applyDataFixes(__a, ['text-landking']);
+    return { aloneOwn: has(alone, 0x1805, 'LandKing'), aloneTypo: has(alone, 0x021A, 'has be kidnapped'),
+             control: has(all, 0x184C, 'kind looking'), kept: has(less, 0x184C, 'kind looking'), other: has(less, 0x184C, 'kind-looking') || has(less, 0x1830, 'dour-faced'),
              wearly: has(dep, 0x1858, 'wearly looking'), weary: has(dep, 0x1858, 'weary-looking') };
   })())`, ctx));
-  if (r.control) fail('control: "kind looking" is still there with nothing left out');
+  if (!r.aloneOwn || !r.aloneTypo) fail('a choice alone: LandKing ' + (r.aloneOwn ? 'made' : 'not made') + ', the corrections ' + (r.aloneTypo ? 'left' : 'made too'));
+  else if (r.control) fail('control: "kind looking" is still there with nothing left out');
   else if (!r.kept) fail('a row left out was made anyway: "kind looking" is hyphenated');
   else if (!r.other) fail('leaving out one row left out the others');
   else if (!r.wearly || r.weary) fail('with "wearly" left out, Helen\u2019s line was changed after all');
-  else console.log('  rows left out: "kind looking" left as the game has it and the other hyphens made; "wearly" left out takes the hyphen after it along, and the build goes on');
+  else console.log('  a choice alone makes its own changes and none of the corrections; rows left out: "kind looking" left as the game has it and the other hyphens made; "wearly" left out takes the hyphen after it along, and the build goes on');
 }
 
 // ---- 6. (ye olde spelling leaving what is typed; the option was taken off

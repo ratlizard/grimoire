@@ -588,8 +588,10 @@ try {
   ctx.showCategory('PATCHES');
   const walk = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const before = walk();
-  if (before.indexOf('records no patches applied to it') < 0)
-    fail('patches', 'the section does not say the shipped archive records no patches');
+  // The shipped archive records no patches, which the section says nothing
+  // about since 1 October 2026; it must not claim any.
+  if (before.indexOf('patches applied to it') >= 0 || before.indexOf('patch applied to it') >= 0)
+    fail('patches', 'the section says the shipped archive records patches');
   if (!REGISTRY.has('patchFile')) fail('patches', 'no file control on the section');
 
   // Two sheets of the open archive, with a handful of tiles redrawn. Working
@@ -1399,13 +1401,13 @@ try {
   ctx.showCategory('PATCHES');
   const w = peek('dataFixPatch()');
   const text = id => peek(`(() => { const b = smartDecrypt(getResourceBytes(ARCHIVE, ${id}), ${id}).data; let t = ''; for (let i = 0; i < b.length; i++) t += String.fromCharCode(b[i]); return t; })()`);
-  if (none !== null || orphan !== null) fail('game fixes', 'a patch was written with nothing chosen, or with an option alone');
+  if (none !== null || orphan === null) fail('game fixes', 'a patch was written with nothing chosen, or none with one of the text\u2019s choices alone');
   else if (!refusedParis || refusedParis.indexOf(paris) !== 0) fail('game fixes', 'the edited Paris topic was not refused by the fix’s name: ' + refusedParis);
   else if (changes.why || !changes.yery || !changes.landKing || !changes.british || !changes.community || changes.twoTaled)
     fail('game fixes', 'the list of the text’s changes is not the options chosen: ' + JSON.stringify(changes));
   else if (!link || link.resid !== 0x1858 || link.t !== 'Yery well' || !link.opened || !link.ringed)
     fail('game fixes', 'the list’s link to Helen’s "Yery well" is not where the words are, or did not open there: ' + JSON.stringify(link));
-  else if (!/1 to conversations, 3 to spells, skills and fighting, 1 to people and places/.test(desc) || !/the text \(British spelling, Land King\)/.test(desc) || !/Peirithous alive/.test(desc))
+  else if (!/1 to conversations, 3 to spells, skills and fighting, 2 to people and places/.test(desc) || !/the text \(British spelling, Land King\)/.test(desc))
     fail('game fixes', 'the patch calls itself ' + desc);
   else if (!w || !w.checkValueValid || ![0x1A28, 0x1091, 0x1861, 0xF00B, 0xF009, 0x1801].every(r => w.resids.includes(r)))
     fail('game fixes', 'the patch is not the fixes chosen: ' + JSON.stringify(w && w.resids));
