@@ -4233,15 +4233,9 @@ function renderMechanicsSheet(value) {
   // ---- the program's own fixes ----
   {
     add('appfixes', 'Generate a Fixed Program', null, '',
-      'Fixes to the Cythera program itself rather than its data file: bugs, slips in its text, three hooks a scenario’s scripts can use, ' +
-      'and two menus the program has but never shows. Choose the ones you want and this page writes out a fixed copy of the program.',
-      [
-        'The fixes are for the PowerPC version, which a PowerPC Mac and SheepShaver run. On a 68K Mac only the menus and two of the text fixes apply.',
-        'Only version 1.0.4 can be fixed, and a copy that is already fixed is refused.',
-        'The hooks run a script the scenario can add: method 241 when a thing is put somewhere (False refuses it), 242 when a creature dies (a number is its corpse), ' +
-          '243 when a game is started, opened or reverted to. The shipped game has none of these scripts, so it plays as before.',
-        'The program comes from the installer opened here, or from a copy in MacBinary or BinHex chosen below.'
-      ], '');
+      'Choose fixes to the Cythera program itself, and this page writes out a fixed copy of it. ' +
+      'They are for version 1.0.4, on a PowerPC Mac or in SheepShaver.',
+      [], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
     host.id = 'appFixMaker';
