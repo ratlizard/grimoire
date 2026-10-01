@@ -15,7 +15,8 @@
    changed. What it writes is the game's program with our words in it, and
    belongs in no repository.
 
-   Every fix is applied unless --only or --without says otherwise; the
+   Every fix is applied unless --only or --without says otherwise, but a
+   design change (kind 'change', not a bug) only when --only names it; the
    applier refuses a program that is not 1.0.4's, or one patched already,
    and says which fix found what. */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -43,7 +44,7 @@ if (args.length === 3) {
 } else { console.error('usage: app_patch.mjs <Cythera> <out dir> [--only id,id] [--without id,id], or <data> <rsrc> <out dir>, or --list'); process.exit(2); }
 
 for (const id of [...(only || []), ...(without || [])]) if (!FIXES.some(f => f.id === id)) { console.error('no fix is called ' + id + ' (--list names them)'); process.exit(2); }
-const chosen = FIXES.filter(f => (!only || only.includes(f.id)) && !(without || []).includes(f.id));
+const chosen = FIXES.filter(f => (only ? only.includes(f.id) : f.kind !== 'change') && !(without || []).includes(f.id));
 let r;
 try { r = ctx.applyAppFixes({ data, rsrc }, chosen); } catch (e) { console.error(e.message); process.exit(1); }
 

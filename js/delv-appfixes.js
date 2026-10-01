@@ -20,7 +20,10 @@
    AN ENTRY.
      id, title   a name that does not change, and one line of what it does
      kind        'fix' (a bug), 'hook' (a call into Cythera Data's scripts,
-                 below), 'text' (a misspelling), 'menu'
+                 below), 'text' (a misspelling), 'menu', or 'change': not a
+                 bug but a different choice of how the game behaves, like
+                 the karma patch among the data fixes, so the Patches
+                 section and app_patch.mjs leave it out unless it is chosen
      bug         the entry's title in the workbench's bugs.md, where there
                  is one
      played      where and how the fix was seen working in the game, the
@@ -650,4 +653,33 @@ const APP_FIXES = [
     played: 'fork, PowerPC, 30 September 2026: both menus, a choice saved',
     bug: 'Hidden menus',
     rsrc: [{ type: 'MBAR', id: 128, was: [0x00, 0x02, 0x00, 0x80, 0x00, 0x81], now: [0x00, 0x04, 0x00, 0x80, 0x00, 0x81, 0x00, 0x83, 0x00, 0x88] }] },
+
+  // ---- Design changes ------------------------------------------------------
+  // Not bugs: each makes the game behave otherwise than it was made to, the
+  // maintainer's call to offer, and is off unless chosen.
+
+  // Entering a level leaves it as it was left (1 October 2026). THE SHIPPED
+  // RULE: LoadLevelProps, given a level's list from a save or a patch and
+  // its third argument set (TGameViewer::GoToLocation, entering a level in
+  // play, and TDelverApp::NewModel, a new game), streams Cythera Data's own
+  // list beside it and sets two kinds of record back as the scenario has
+  // them: a thing flagged 0x20, made or moved in play (a corpse, what an egg
+  // hatched, a thing dropped or slid that is not of a carried class), when
+  // the scenario has a thing of that type at that index, whole; and a door
+  // of the six ClassFlags 0x200 classes whose aspect differs from the
+  // scenario's, by its method 0, which takes the scenario's aspect. Then
+  // ChainFreeProps, with the same argument, DELETES every record still
+  // flagged 0x20 (flags 0xFF, its storage released by THeapObj::DecRef) and
+  // chains it free. So on entering a level a thing made or moved there in
+  // play is either put back as the scenario has it or removed: corpses,
+  // hatchlings, and things of a non-carried class dropped or slid there. A
+  // run jumping into Land King Hall showed a door left open shut and a slid
+  // chair back in its place; the same save without the jump kept both; and
+  // with only the first site below the chair was deleted. THE CHANGE: both
+  // tests branch past always, so nothing is set back and nothing is removed.
+  // cythera-workbench's doc/engine-patch-list.md has the reading and the runs.
+  { id: 'no-reset', kind: 'change', title: 'Entering a level leaves its doors, and the things made, moved or dropped there, as they were left, instead of setting them back or removing them',
+    played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a door left open stays open and a slid chair stays where it was; the stock program shuts the one and puts back the other',
+    sites: [{ at: 0x7414, was: [0x418202A4], asm: ['b @0x76B8             ; never set the level back from Cythera Data'] },
+            { at: 0x788C, was: [0x41820038], asm: ['b @0x78C4             ; never delete what play made or moved'] }] },
 ];

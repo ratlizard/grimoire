@@ -1998,7 +1998,9 @@ function gremlinCheck(formError) {
    a copy the visitor chooses, which has to be in a container that carries
    both forks, since the fixes change the data fork and the cfrg in the
    resource fork together. Every fix starts chosen. */
-window.APPFIX_STATE = { off: new Set(), src: null };
+// A design change (kind 'change') starts unchosen, as the karma patch is kept
+// out of All Fixes: it is not a bug, and a visitor picks it on purpose.
+window.APPFIX_STATE = { off: new Set(APP_FIXES.filter(f => f.kind === 'change').map(f => f.id)), src: null };
 function appFixSource() {
   const st = window.APPFIX_STATE;
   if (st.src) return st.src;
@@ -2075,11 +2077,13 @@ function renderAppFixMaker() {
   let trial = null, why = '';
   if (src) { try { trial = applyAppFixes(src, APP_FIXES); } catch (e) { why = e.message; } }
   if (why) host.appendChild(el('p', 'mechSub patchBad', why));
-  const kinds = [['fix', 'Bugs'], ['hook', 'Hooks'], ['text', 'Text'], ['menu', 'Menus']];
+  const kinds = [['fix', 'Bugs'], ['hook', 'Hooks'], ['text', 'Text'], ['menu', 'Menus'], ['change', 'Design changes']];
+  const kindNotes = { change: 'Not bug fixes. Each changes how the game was made to behave, so none is chosen until you choose it.' };
   for (const [kind, heading] of kinds) {
     const list = APP_FIXES.filter(f => f.kind === kind);
     if (!list.length) continue;
     host.appendChild(el('div', 'partsTitle', heading));
+    if (kindNotes[kind]) host.appendChild(el('p', 'mechSub', kindNotes[kind]));
     for (const f of list) {
       const row = el('div', 'appFixRow');
       const label = el('label', 'mechSub');
@@ -4129,7 +4133,7 @@ function renderMechanicsSheet(value) {
       rules.push('<b>' + customName + '.</b> The game’s own file for the combat AIs a player imports, loaded after every patch file and not checked at all, so a patch saved under this name works alone and wins over the rest. Replacing it loses the imported combat AIs.');
     if (rules.length > 1) {
       rules.push('<b>What only the first way can change.</b> The two files beside the game cannot change the map’s tiles, their names and attributes, the schedules, the levels’ maps, the skill icons or what character creation offers, which the program reads from ' + (dataName || 'the game file') + ' alone. Scripts, conversations, pictures, portraits, sounds, music, the journal and combat AI can be changed.');
-      rules.push('<b>What a saved game keeps.</b> A save holds its own copy of each level it has been to, so a change to the things on a level reaches only the levels that save has not visited. On entering a level the game also sets its doors back open or shut as the level had them, and puts things dropped or slid there back where the level had them, from ' + (dataName || 'the game file') + ', not from a patch.');
+      rules.push('<b>What a saved game keeps.</b> A save holds its own copy of each level it has been to, so a change to the things on a level reaches only the levels that save has not visited. On entering a level the game also sets its doors back open or shut as the level had them, and puts things made, dropped or slid there in play back where the level had them, or removes them, corpses among them, when the level had nothing of that kind there, going by ' + (dataName || 'the game file') + ', not from a patch.');
     }
     add('patchkinds', 'Three ways to patch the game', null, '',
       'A patch can be written into the game’s data file, or left beside it in two kinds of file the game looks for.',
