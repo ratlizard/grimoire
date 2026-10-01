@@ -328,8 +328,9 @@ const PREF_HELP = {
   switch256: ['startup', 'Asked at startup', 'On a screen set to more than 256 colours, the game switches it to 256 when it starts. Off, it runs in the colours the screen already has.'],
   dontAsk: ['startup', 'Asked at startup', 'The game does not ask about 256 colours when it starts. Off, it asks on a screen set to more than 256 colours, and the answer replaces the switch above.'],
   cheats: ['startup', 'Not in the game', null],
+  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if Command were held, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
 };
-const PREF_GROUPS = [['sound', 'Sound'], ['movement', 'Game control'], ['windows', 'Windows'], ['startup', 'Starting the game'], ['other', 'Other settings']];
+const PREF_GROUPS = [['sound', 'Sound'], ['movement', 'Game control'], ['windows', 'Windows'], ['startup', 'Starting the game'], ['mouse', 'Mouse'], ['other', 'Other settings']];
 function renderPrefsSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -436,6 +437,8 @@ function renderPrefsSheet() {
   (layout.startup || []).forEach((x, i) => { if (PREF_STARTUP_IDS[i]) sw(['switch256', 'dontAsk'][i], PREF_STARTUP_IDS[i], x.text, true); });
   sw('cheats', 'prefCheats', 'Allow the cheat keys', true,
      svEsc('Lets the cheat keys work after you type ' + layout.gate.word + '. Nothing in the game turns this on, so a copy as released cannot enter cheat mode.'));
+  // No label anywhere in the game, so the row's name is the page's own.
+  if (layout.buttons) sw('mouseButtons', 'prefMouseButtons', 'Extra mouse buttons', false);
   for (const [g, title] of PREF_GROUPS) {
     const list = rows.get(g);
     if (!list.length) continue;

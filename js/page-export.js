@@ -146,7 +146,9 @@ const PREF_RAW_LABEL = n => n === 0 ? 'No limit' : 'Limit to ' + Math.round(60 /
    file. It is still only the fallback: with a program open the page reads
    that one, which is what keeps a patched or unknown build right.
    utilities/smoke_installer.mjs holds this to the program across all four
-   releases, so it cannot drift without a check going red. */
+   releases, so it cannot drift without a check going red. The one
+   exception is `buttons`, the multi-button mouse bit, which 1.0.1 does not
+   have: it is 1.0.2's to 1.0.4's, and the check holds that apart. */
 const PREF_SHIPPED = {
   key: "UI Prefs",
   bytes: 4,
@@ -160,6 +162,7 @@ const PREF_SHIPPED = {
   choices: [{"opt": "c0_7_0_1", "options": [{"text": "Smoother Movement", "sets": [{"byte": 0, "lo": 7, "hi": 7, "value": 1}, {"byte": 0, "lo": 1, "hi": 1, "value": 1}]}, {"text": "Faster Movement", "sets": [{"byte": 0, "lo": 7, "hi": 7, "value": 1}, {"byte": 0, "lo": 1, "hi": 1, "value": 0}]}, {"text": "Fastest Movement", "sets": [{"byte": 0, "lo": 7, "hi": 7, "value": 0}, {"byte": 0, "lo": 1, "hi": 1, "value": 0}]}]}, {"opt": "c0_2", "options": [{"text": "Limit to 16 FPS", "sets": [{"byte": 0, "lo": 2, "hi": 5, "value": 4}]}, {"text": "Limit to 10 FPS", "sets": [{"byte": 0, "lo": 2, "hi": 5, "value": 6}]}, {"text": "Limit to 8 FPS", "sets": [{"byte": 0, "lo": 2, "hi": 5, "value": 8}]}]}],
   ordinals: [{"key": "Music", "index": 0, "code": 8, "shipped": 2}, {"key": "Ambient", "index": 0, "code": 1, "shipped": null}, {"key": "Volume", "index": 0, "code": 5, "shipped": 5}, {"key": "Backdrop", "index": 0, "code": 0, "shipped": null}],
   backdrop: {"limit": 2, "graphic": [36608, 36609], "ppat": [128, 129], "pixPat": 127},
+  buttons: {"byte": 1, "bit": 2},
 };
 const PREF_ORDINAL_RANGE = { Volume: { min: -1, max: 8 }, Music: { min: 0, max: 8 }, Ambient: { min: 0, max: 1 } };
 function cytheraPrefsLayout() {
@@ -227,7 +230,13 @@ function cytheraPrefsLayout() {
   const ordinals = exePrefKeys().filter(e => e.kind === 'Ordinal' && e.index && e.dflt)
     .map(e => ({ key: e.key.v, index: e.index.v, code: e.dflt.v | 0, shipped: shipped(e.key.v), writers: e.writers.length }))
     .map(o => Object.assign(o, { dflt: o.shipped === null ? o.code : o.shipped }));
-  return { key: rec.key.v, bytes: rec.len.v, base: defaults.words[0].v >>> 0, controls, smooth, smoothLabel: smooth.length ? PREF_SMOOTH_ITEM : null,
+  /* The switch nothing in the game sets: the bit the event routine tests
+     before asking which mouse button went down and adding a modifier key
+     for buttons two to five (the workbench's cheats.md, *Bit 2 of byte 1*).
+     Found as the one bit TDelverApp::MyGetEvent reads from the record. */
+  const br = acc.reads.find(x => /^TDelverApp::MyGetEvent/.test(x.routine.name) && x.bits.v[0] === x.bits.v[1]);
+  const buttons = br ? { byte: br.byte.v, bit: br.bits.v[0] } : null;
+  return { key: rec.key.v, bytes: rec.len.v, base: defaults.words[0].v >>> 0, controls, smooth, smoothLabel: smooth.length ? PREF_SMOOTH_ITEM : null, buttons,
            startup, startupLabel: startup.length === PREF_STARTUP_ITEMS.length ? startup.map(x => x.text).join(', and ') : null,
            choices, ordinals, backdrop: cytheraBackdropOptions(), from: 'program',
            gate: { byte: kr.gate.byte.v, bit: kr.gate.bit.v, word: kr.gate.word.v }, type: type.v };
@@ -242,7 +251,7 @@ function cytheraShippedLayout() {
   if (!S) return null;
   return { key: S.key, bytes: S.bytes, base: S.base, type: S.type, gate: S.gate,
            controls: S.controls, smooth: S.smooth, smoothLabel: S.smoothLabel,
-           startup: S.startup, startupLabel: S.startup.map(x => x.text).join(', and '),
+           startup: S.startup, startupLabel: S.startup.map(x => x.text).join(', and '), buttons: S.buttons,
            choices: S.choices,
            ordinals: S.ordinals.map(o => Object.assign({}, o, { dflt: o.shipped === null ? o.code : o.shipped, writers: 0 })),
            backdrop: cytheraBackdropList(S.backdrop.limit, S.backdrop.graphic[0], S.backdrop.pixPat, S.backdrop.ppat),
@@ -321,6 +330,7 @@ function cytheraPrefsRecord(opts, layout) {
   if (o.switch256) for (const x of L.startup) put(x.byte, x.bit, x.bit, x.value);
   if (o.startup) for (const x of L.startup) if (o.startup[x.text] !== undefined) put(x.byte, x.bit, x.bit, o.startup[x.text] ? x.value : 0);
   if (o.cheats) put(L.gate.byte, L.gate.bit, L.gate.bit, 1);
+  if (o.mouseButtons !== undefined && L.buttons) put(L.buttons.byte, L.buttons.bit, L.buttons.bit, o.mouseButtons ? 1 : 0);
   return b;
 }
 // The one field a choice writes, when every option writes the same single
@@ -363,6 +373,7 @@ function prefsSummary(o) {
   if (o.motionFilters) parts.push('motion filters');
   if (o.walkAround) parts.push('walking around obstacles');
   if (o.zoomRects === false) parts.push('no zoom rectangles');
+  if (o.mouseButtons) parts.push('extra mouse buttons as modifier keys');
   return parts.join(', ');
 }
 // The id is the file's own choice: the store finds a key by name and gives a
@@ -422,7 +433,7 @@ function prefsOptionsFromUI() {
   // An ordinal that is a flag is drawn as a switch (renderPrefsSheet), so a
   // checkbox answers 1 or 0 where a chooser answers its value.
   const pick = id => { const e = document.getElementById(id); if (!e) return undefined; if (e.type === 'checkbox') return e.checked ? '1' : '0'; return e.value !== '' ? e.value : undefined; };
-  const o = { cheats: on('prefCheats') };
+  const o = { cheats: on('prefCheats'), mouseButtons: on('prefMouseButtons') };
   // The startup question's bits, one switch each, in the order the dialog
   // has them (PREF_STARTUP_IDS).
   const L0 = cytheraPrefsLayout();

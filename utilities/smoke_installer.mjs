@@ -393,7 +393,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     try {
       ctx.showCategory('PREFS');
       const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-      const switches = ['prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects', 'prefSwitch256', 'prefDontAsk'];
+      const switches = ['prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects', 'prefSwitch256', 'prefDontAsk', 'prefMouseButtons'];
       // The settings that are a choice rather than a switch, and the file's
       // other keys. Named by what they say rather than by an element id,
       // since a field's id is its own bit positions.
@@ -416,6 +416,11 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         choices: L.choices.map(c => ({ opt: c.opt, options: c.options.map(o => ({ text: o.text, sets: o.sets })) })),
         ordinals: L.ordinals.map(o => ({ key: o.key, index: o.index, code: o.code, shipped: o.shipped, dflt: o.dflt })),
         backdrop: L.backdrop.map(b => ({ value: b.value, what: b.what, resid: b.resid })) });
+      /* The one part of the layout the four releases do not share: 1.0.1's
+         event routine never tests the multi-button mouse bit, and 1.0.2 to
+         1.0.4 test byte 1 bit 2 (read 1 October 2026). So it is held apart
+         from the drift check: absent on 1.0.1, PREF_SHIPPED's on the rest. */
+      const buttonsSeen = {};
       let shippedDrift = null;
       {
         const want = strip(ctx.cytheraShippedLayout());
@@ -426,6 +431,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
           try {
             if (name !== ctx.INSTALLER.picked) ctx.switchInstaller(name);
             const got = strip(ctx.cytheraPrefsLayout());
+            buttonsSeen[name] = JSON.stringify(ctx.cytheraPrefsLayout().buttons);
             seen++;
             if (got !== want && !shippedDrift) shippedDrift = name + ' reads differently from PREF_SHIPPED';
           } catch (e) { shippedDrift = shippedDrift || (name + ': ' + e.message); }
@@ -451,7 +457,11 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         // The frame-rate field takes any number of ticks, not only the
         // menu's 4, 6 and 8: 0 clears it, 2 is bits 2-5 holding 2.
         rec({ c0_2: 'raw:0' })[0] !== 0x00 || rec({ c0_2: 'raw:2' })[0] !== 0x08 ||
-        rec({ c0_2: 'Limit to 16 FPS' })[0] !== 0x10;
+        rec({ c0_2: 'Limit to 16 FPS' })[0] !== 0x10 ||
+        // The multi-button mouse switch, byte 1 bit 2, which nothing in the
+        // game writes: read off the event routine, held to PREF_SHIPPED by
+        // the drift check above.
+        rec({ mouseButtons: true })[1] !== 0x84;
       // A file that sets one ordinal carries two resources, not one, and an
       // ordinal left at what a fresh install reads is not written at all.
       const forkOf = o => ctx.openResourceFork(ctx.buildCytheraPreferences(o));
@@ -464,6 +474,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (missingChoices.length) fail('preferences', 'the Preferences tab does not offer: ' + missingChoices.join(', '));
       else if (backWrong) fail('preferences', 'the backdrop choices are not the four the program and the two files give: ' + JSON.stringify(back));
       else if (shippedDrift) fail('preferences', 'PREF_SHIPPED does not match the program: ' + shippedDrift);
+      else if (Object.entries(buttonsSeen).some(([n, b]) => b !== (/1\.0\.1/.test(n) ? 'null' : JSON.stringify(ctx.cytheraShippedLayout().buttons))))
+        fail('preferences', 'the multi-button mouse bit is not absent on 1.0.1 and PREF_SHIPPED\u2019s on the rest: ' + JSON.stringify(buttonsSeen));
       else if (ordWrong) fail('preferences', 'an ordinal key is written when it should not be, or with the wrong bytes');
       else if (!/Manually Place Containers/.test(tools) || !/Smoother Movement/.test(tools)) fail('preferences', 'the switches do not wear the game’s own labels');
       else if (bitsWrong) fail('preferences', 'a switch does not land on the bit the program writes for it: ' + JSON.stringify(ctx.cytheraPrefsLayout()));
@@ -475,6 +487,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // people download is not the one the section describes.
       else if (!/id="prefSwitch256" checked/.test(tools)) fail('preferences', 'the 256-colour answer is not ticked by default');
       else if (!/id="prefDontAsk" checked/.test(tools)) fail('preferences', 'the "don\u2019t ask again" switch is not ticked by default');
+      else if (/id="prefMouseButtons" checked/.test(tools)) fail('preferences', 'the extra mouse buttons switch arrives on, though the game never sets it');
       else if (/value="raw:/.test(tools)) fail('preferences', 'the frame-rate chooser offers values the game\u2019s menu does not');
       else if (!/Switch to 256 Colors/.test(tools) || !/Don't Ask Again/.test(tools)) fail('preferences', 'the 256-colour switch does not wear the dialog\u2019s own labels');
       else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
