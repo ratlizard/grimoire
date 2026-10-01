@@ -1045,9 +1045,10 @@ function nightAlpha(hour) {
 // Now that prop types have names, a prop list can be read as a list of THINGS
 // rather than numbers. Three overlays fall straight out of that:
 //   doors     -- the classes carrying ClassFlags 0x200, which is the bit the
-//                level loader tests to carry a placed record's words over
-//                from the list it merges on a reload, so a door's lock and
-//                open state survive leaving the zone: the six doors, drawn
+//                level loader tests to put a door's open or shut aspect back
+//                as the scenario has it when a zone is entered (its lock is
+//                left alone; corrected 1 October 2026, when a run showed a
+//                door left open shut again): the six doors, drawn
 //                with their lock state. A name test until 25 September 2026,
 //                which took the portcullis too; it carries no bit and no
 //                lock, and is opened by its lever
@@ -1134,8 +1135,8 @@ function classifyProp(pt, tileId) {
   const nm = (propTypeName(pt) || '').toLowerCase();
   if (/secret/.test(nm) || PASSAGE_PROPS.test(nm)) return 'secret';
   // A door is a class whose ClassFlags carry 0x200, the file's own word for
-  // it (classCarriesFlag): the loader keeps such a record's state across a
-  // reload. The name test this replaced took a "doorway", the arch a door
+  // it (classCarriesFlag): entering a zone, the loader runs such a door's
+  // method 0, which takes the scenario's aspect back. The name test this replaced took a "doorway", the arch a door
   // hangs in, out by its spelling and the portcullis in by its name.
   if (classCarriesFlag(pt, 0x200)) return 'doors';
   // A container is a class with IsContainer (23), the file's own word for
@@ -2032,7 +2033,7 @@ function drawMapMarks(lensCtx, lensTS) {
       svEsc(propDisplayName(spots.pt) || ('0x' + spots.pt.toString(16).toUpperCase())) + '</span>');
     if (saveLegend) parts.push('<span style="color:#a8e06a">' + BOX + 'save: ' + saveLegend + '</span>');
     legend.innerHTML = parts.length
-      ? parts.join(' &nbsp; ') + ' <span style="color:#8c8980">. Doors are the classes whose state the game keeps when a zone is reloaded, ' +
+      ? parts.join(' &nbsp; ') + ' <span style="color:#8c8980">. Doors are the classes whose open or shut state the game sets back to the zone’s own whenever the zone is entered, ' +
         'containers are the classes with IsContainer, and hidden ways are identified by prop-type name. Zone exits are visible ways out (holes, stairs, cave mouths) plus the map’s ' +
         'open edges, which you leave by walking off at any row or column; concealed passages are marked as ' +
         'hidden ways instead.</span>'

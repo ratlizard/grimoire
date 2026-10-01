@@ -658,6 +658,69 @@ function exePascalAt(op) {
   return { v: decodeMacRoman(b.subarray(p.offset + 1, p.offset + 1 + n)), exe: op.at };
 }
 
+/* THE FILES BESIDE THE GAME, and the two ways besides Magpie that a patch
+   reaches it. Read 1 October 2026 (cythera-workbench's
+   doc/engine-patch-list.md has the whole reading and the runs that showed it
+   in the fork and on Mac OS 8.5); the Patches tab's first section says it.
+
+   - TDelverApp::PostInitMac makes a spec in the application's own folder
+     for the name in one STR resource, and opens it (Cythera Data); then
+     for another, opened as a resource file when it is there (Cythera
+     Patch). Two GetString calls, each after `li 3, id`; the names are those
+     resources of the application's fork.
+   - TDelverApp::OpenScenFile reads a string list with GetIndString (`li 4,
+     id`) in a loop whose index is set by a `li` before it and stopped by a
+     `cmpwi` after, and opens each name it finds in the same folder as a
+     patch archive. The list is in no shipped file, so the resource file of
+     the second name is where it would come from.
+   - Then it makes a spec for a name a TOC slot holds (User Custom Data) and
+     opens it, the last file the game loads, with no check of its header.
+
+   Each part is a figure with the instruction that holds it, or null when the
+   shape is not found, so an edited program drops the sentence rather than
+   stating the shipped one. */
+function exePatchFiles() {
+  return exeMemo('patchFiles', () => {
+    if (!appImage()) return null;
+    const fork = window.APP_RSRC;
+    const str = id => {
+      try {
+        const e = fork && (fork.resourcesByType['STR '] || []).find(x => x.id === id);
+        const b = e ? fork.dataOf('STR ', e) : null;
+        return b && b.length > 1 ? decodeMacRoman(b.subarray(1, 1 + b[0])) : null;
+      } catch (err) { quiet(err, 'reading a STR resource of the program'); return null; }
+    };
+    const named = (val) => val ? { id: val, name: str(val.v) } : null;
+    const init = exeOpsNamed('TDelverApp::PostInitMac');
+    const gets = [];
+    init.forEach((o, i) => { if (exeCalls(o, 'GetString')) gets.push(exeArgOf(init, i, 3)); });
+    const scen = exeOpsNamed('TDelverApp::OpenScenFile');
+    const gi = scen.findIndex(o => exeCalls(o, 'GetIndString'));
+    let list = null, first = null, bound = null, custom = null;
+    if (gi >= 0) {
+      list = exeArgOf(scen, gi, 4);
+      // The index is the register `addi 5, rX, 0` hands GetIndString; the
+      // loop sets it with a `li` before and compares it after.
+      const ai = exeFindBack(scen, gi, 8, d => d.mn === 'addi' && d.rd === 5 && d.imm === 0);
+      const reg = ai >= 0 ? scen[ai].d.ra : null;
+      if (reg !== null) {
+        const li = exeFindBack(scen, ai, 16, d => d.mn === 'li' && d.rd === reg);
+        if (li >= 0) first = exeVal(scen[li], scen[li].d.imm);
+        const cmp = exeFind(scen, gi, 140, (d, o) => d.mn === 'cmpwi' && scen[scen.indexOf(o) - 1] && scen[scen.indexOf(o) - 1].d && scen[scen.indexOf(o) - 1].d.rs === reg);
+        if (cmp >= 0) bound = exeVal(scen[cmp], scen[cmp].d.imm);
+      }
+      // The spec made from a name a TOC slot holds, after the loop.
+      for (let i = gi; i < scen.length && !custom; i++) {
+        if (!exeCalls(scen[i], 'FSMakeFSSpec')) continue;
+        const l = exeFindBack(scen, i, 6, d => d.mn === 'lwz' && d.rt === 5 && d.ra === 2);
+        if (l >= 0) custom = exePascalAt(scen[l]);
+      }
+    }
+    const count = first && bound ? { v: bound.v - first.v, exe: bound.exe } : null;
+    return { data: named(gets[0]), patch: named(gets[1]), list, count, custom };
+  });
+}
+
 /* ---- Data > Cythera (App) > Cheats ---------------------------------------
    Cythera has a cheat mode, and until 5 September 2026 nobody could reach it.
    The Cutting Room Floor lists a "potential cheat mode" and stops there; this

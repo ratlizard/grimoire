@@ -3798,7 +3798,7 @@ function renderMechanicsSheet(value) {
           const names = rd.slice(0, 4).map(r2 => srcNum({ exe: r2.at }, r2.routine.replace(/^.*::/, '')));
           return '<b>' + rd.length + ' parts of the program</b> read that copy while the game runs, among them ' + names.join(', ') + '.';
         })() : '',
-        ic ? 'So the switch worth ' + propWordHex(0x80) + ' is the one read by ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x80) || { cacheBit: { v: 0 } }).cacheBit.v) + ': the doors, the passthrough and the curtain have it, and it is what lets a character walk onto the square. The one worth ' + propWordHex(0x08) + ' is read by ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x08) || { cacheBit: { v: 0 } }).cacheBit.v) + ': the key, the grimoire, the amulet and the other things that cannot be dropped have it. The one worth ' + propWordHex(0x200) + ' is read by ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x200) || { cacheBit: { v: 0 } }).cacheBit.v) + ' alone. For a class that has it, the program keeps the thing’s four values when a zone is reloaded, so a door stays locked or open after you leave the zone. The six doors have it, and the map’s door mark shows that switch.' : MECH_NO_APP,
+        ic ? 'So the switch worth ' + propWordHex(0x80) + ' is the one read by ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x80) || { cacheBit: { v: 0 } }).cacheBit.v) + ': the doors, the passthrough and the curtain have it, and it is what lets a character walk onto the square. The one worth ' + propWordHex(0x08) + ' is read by ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x08) || { cacheBit: { v: 0 } }).cacheBit.v) + ': the key, the grimoire, the amulet and the other things that cannot be dropped have it. The one worth ' + propWordHex(0x200) + ' is read by ' + testedBy((ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === 0x200) || { cacheBit: { v: 0 } }).cacheBit.v) + ' alone. For a class that has it, entering a zone sets a door that was left open or shut back the way the zone has it at the start, by the door’s own script; its lock stays as it is. The six doors have it, and the map’s door mark shows that switch.' : MECH_NO_APP,
         ic ? 'The Chair value is stored, plus one, in one of those tables, and ' + pefChip('TViewer::InteractProps') + ' uses it to seat a character: the last table below says how. The zone maps seat their people by that rule.' : ''
       ].filter(Boolean),
       '<div class="mechSub">The switches</div>' +
@@ -4106,6 +4106,36 @@ function renderMechanicsSheet(value) {
         le.unusedCast.length ? '<b>' + le.unusedCast.length + '</b> of the tasks a character can be given ' + (le.unusedCast.length === 1 ? 'does' : 'do') + ' nothing' + (le.unusedCast.some(u => u.queuedBy.some(q => q.resid === 0x1AD5)) ? ', and Lock Picking queues one of them, which is why a companion told to pick a lock never does.' : '.') : ''
       ].filter(Boolean) : [],
       table(['what', 'which', 'where'], rows));
+  }
+
+  // ---- the three ways a patch reaches the game ----
+  /* Magpie writes a patch into Cythera Data; the program itself also loads
+     patch archives named in a list beside it, and the player's User Custom
+     Data after them (exePatchFiles, js/page-data.js). Both of the program's
+     routes reach only what is read through its set of open files, so the
+     section says what they cannot change: the list is the routines that read
+     Cythera Data's own file, read 1 October 2026 and shown for tiles in the
+     fork (cythera-workbench's doc/engine-patch-list.md). The names and
+     figures are the program's, with their instructions; without the program
+     open the two routes are not described at all. */
+  {
+    const pf = exePatchFiles();
+    const nm = x => x && x.name ? srcNum(x.id, x.name) : null;
+    const dataName = nm(pf && pf.data), patchName = nm(pf && pf.patch), customName = pf && pf.custom ? srcNum(pf.custom, pf.custom.v) : null;
+    const rules = ['<b>Into Cythera Data.</b> Magpie writes a patch’s resources into the file itself and keeps the ones it replaced in <i>Cythera Unpatch</i> in its Patches folder, so it can take them out again. Apply, below, does the same. Anything in the file can be changed this way.'];
+    if (pf && patchName && pf.list && pf.count)
+      rules.push('<b>A patch file beside the game.</b> At launch the program opens a file called ' + patchName + ' in its own folder, if there is one, and reads a list of file names from it, the string list <span class="patchMono">STR# ' + srcNum(pf.list) + '</span>, up to ' + srcNum(pf.count) + ' of them. Each file of those names in the same folder is loaded over ' + (dataName || 'the game file') + ' without changing it, a later one winning where two replace the same resource. A file made for another version of the engine or another scenario is refused with an alert. Taking a patch out is deleting the files. Glenn Andreas never released a patch this way, and Magpie does not use it.');
+    if (pf && customName)
+      rules.push('<b>' + customName + '.</b> The game’s own file for the combat AIs a player imports, loaded after every patch file and not checked at all, so a patch saved under this name works alone and wins over the rest. Replacing it loses the imported combat AIs.');
+    if (rules.length > 1) {
+      rules.push('<b>What only the first way can change.</b> The two files beside the game cannot change the map’s tiles, their names and attributes, the schedules, the levels’ maps, the skill icons or what character creation offers, which the program reads from ' + (dataName || 'the game file') + ' alone. Scripts, conversations, pictures, portraits, sounds, music, the journal and combat AI can be changed.');
+      rules.push('<b>What a saved game keeps.</b> A save holds its own copy of each level it has been to, so a change to the things on a level reaches only the levels that save has not visited. On entering a level the game also sets its doors back open or shut as the level had them, and puts things dropped or slid there back where the level had them, from ' + (dataName || 'the game file') + ', not from a patch.');
+    }
+    add('patchkinds', 'Three ways to patch the game', null, '',
+      'A patch can be written into the game’s data file, or left beside it in two kinds of file the game looks for.',
+      pf ? rules : [rules[0]],
+      pf ? '' : '<ul class="ruleList"><li>' + MECH_NO_APP + '</li></ul>',
+      pf ? '<span class="partsTitle">In the program</span>' + pefChip('TDelverApp::PostInitMac') + pefChip('TDelverApp::OpenScenFile') + pefChip('LoadLevelProps') : '');
   }
 
   // ---- the community's patches ----
