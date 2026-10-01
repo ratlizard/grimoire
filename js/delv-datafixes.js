@@ -613,7 +613,7 @@ const DATA_FIXES = [
   // own type instead, and this record is what is left for anything it
   // cannot name (30 September 2026).
   { id: 'sleeping-units', group: 'community', stage: 'community', title: 'People killed asleep, and the Odemia night guard, leave a body',
-    played: 'fork, PowerPC, 30 September 2026: a sleeping guard killed leaves a man’s body, where the shipped file left none',
+    played: 'fork, PowerPC, 30 September 2026: a sleeping guard killed leaves a man’s body and a night guard a guard’s, where the shipped file left none',
     dataEdits: [
       { what: 'units for the sleeping and the night guard', resid: 0xF008, fn: (b) => {
           const key = i => (b[i * 16 + 12] << 8) | b[i * 16 + 13];

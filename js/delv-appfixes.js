@@ -363,7 +363,13 @@ const APP_FIXES = [
   // by the stream constructor, which has just read its template's number
   // (144 of its frame; the template is the egg's record of what it hatches,
   // and the constructor sets it as the creature's template three words
-  // later), and the template's type is the real one. Where the map record
+  // later), and the template's type is the real one; a named character
+  // rebuilt from a save has no template (144 of the frame is under 256)
+  // and is the number at 8 of the creature, below 256, whose record's word
+  // at 20 is read as above. That case was missed at first: played on 30
+  // September 2026, Lindus saved asleep in Pnyx and loaded went through the
+  // template test to type 264's lookup and died without a body on both
+  // programs, while a hatched guard saved asleep was mended. Where the map record
   // says 264, each call of ObjToMonst now asks for that type instead, so the
   // sleeper gets its own corpse, alignment and unit flags (a guard's 0x40,
   // which the swamp reads as immunity to poison). A creature newly hatched
@@ -372,7 +378,7 @@ const APP_FIXES = [
   // character record, stats and all, from the save, so a sleeper's stats
   // never came from the unit on that path.
   { id: 'sleeper-unit', kind: 'fix', title: 'Someone made while asleep takes their own unit, so they leave their own body, not a man’s or a random thing',
-    played: 'fork, PowerPC, 30 September 2026: a sleeping guard loaded from a save and killed leaves a guard’s body, where the unpatched game left none',
+    played: 'fork, PowerPC, 30 September 2026: a sleeping guard and Lindus asleep, loaded from saves and killed, leave their own bodies, where the unpatched game left none',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [
       { at: 0x44C00, was: [0x4BFFFE61], asm: ['bl @named             ; was bl ObjToMonst'] },
@@ -380,10 +386,13 @@ const APP_FIXES = [
     cave: ['named:', 'cmpwi 3, 264', 'bne @ask', 'extsh 4, 26            ; the character', 'cmpwi 4, 256', 'bge @ask',
            'lwz 5, -30352(2)', 'slwi 4, 4, 5', 'add 5, 5, 4', 'lhz 3, 20(5)          ; field 0x25, which sleep leaves alone', 'clrlwi 3, 3, 22',
            'ask:', 'b @ObjToMonst__Fs',
-           'loaded:', 'cmpwi 3, 264', 'bne @ask', 'lha 5, 144(31)         ; the template, read from the save', 'cmpwi 5, 256', 'blt @ask',
-           'lwz 6, 0(22)', 'slwi 5, 5, 4', 'add 5, 6, 5', 'lhz 3, 4(5)', 'clrlwi 3, 3, 22        ; the template’s type', 'b @ObjToMonst__Fs'] },
+           'loaded:', 'cmpwi 3, 264', 'bne @ask', 'lha 5, 144(31)         ; the template, read from the save', 'cmpwi 5, 256', 'blt @own',
+           'lwz 6, 0(22)', 'slwi 5, 5, 4', 'add 5, 6, 5', 'lhz 3, 4(5)', 'clrlwi 3, 3, 22        ; the template’s type', 'b @ObjToMonst__Fs',
+           'own:', 'lha 4, 8(28)           ; no template: the creature’s number', 'cmpwi 4, 256', 'bge @ask',
+           'lwz 5, -30352(2)', 'slwi 4, 4, 5', 'add 5, 5, 4', 'lhz 3, 20(5)          ; a named character’s own type', 'clrlwi 3, 3, 22', 'b @ObjToMonst__Fs'] },
 
   { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit is given the first unit, instead of reading its stats and corpse from nowhere',
+    played: 'fork, PowerPC, 30 September 2026: Odemia’s night guards hatch with the hero’s unit, its stats, side and body, where they had 1 health and left none',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [
       { at: 0x44C08, was: [0x907E0004], asm: ['b @made               ; was stw 3, 4(30)'] },
