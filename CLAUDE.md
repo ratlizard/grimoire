@@ -326,6 +326,16 @@ maintainer on 7 September 2026; the pass that applied it is v1.24.1 in
 `cythera-workbench/doc/GRIMOIRE-NOTES.md`. Comments are the opposite and stay
 long, as below.
 
+**A section opens by saying what it is for and what to do there, and
+headings are in Title Case.** The maintainer's rule of 1 October 2026, set
+by his own rewrite of Compare Patches: speak to the reader ("Open a patch
+here to see what it changes"), and cut background on formats, on which
+routine or table a figure was read from, and on how the page works, even
+when it is true. A heading that names an action reads as one ("Make a
+Gremlin", "Compare Two Files"). A short grey hint beside a control is
+welcome; a long prelude is not. The pass that applied it is logged under
+`grimoire/prose-pass-he47ij`.
+
 **No em dashes anywhere on the site, and never a `#` in Argos.** The
 maintainer's rule of 9 September 2026: an em dash in UI text becomes a
 comma, a colon, a full stop or parentheses, whichever the sentence wants;

@@ -177,9 +177,9 @@ if (savePath && !onlyCat) {
         // scenario) and the size says what it is with no link (pinned with
         // the application in the installer part's program figures).
         const plain = withoutApp(() => ctx.charEditHTML(1));
-        if (!/a merchant’s price, in tenths of a thing’s worth/.test(f) || /start it at/.test(f))
+        if (!/a merchant’s price, in tenths of a thing’s worth/.test(f) || /shops start at/.test(f))
           fail('record form', 'byte 23 is not the price, or states starting values a save cannot hold');
-        else if (!/health it was made at;/.test(plain) || /jumpToExeAt/.test(plain))
+        else if (!/stats it was made at;/.test(plain) || /jumpToExeAt/.test(plain))
           fail('record form', 'byte 31 is not the size, or links to the program with no application open');
       }
       const before = ctx.loadCharacterTable()[1];
@@ -247,7 +247,7 @@ if (savePath && !onlyCat) {
     // On the scenario the price gives the two shop helpers' starting values,
     // each a link to its line: 0xEA5's for selling to you, 0xEA9's for
     // buying from you.
-    if (!/start it at <button[^>]*jumpToScriptAt\(3749,\d+\)[^>]*>20<\/button> to sell to you and <button[^>]*jumpToScriptAt\(3753,\d+\)[^>]*>10<\/button> to buy from you/.test(ctx.charEditHTML(1)))
+    if (!/shops start at <button[^>]*jumpToScriptAt\(3749,\d+\)[^>]*>20<\/button> to sell to you and <button[^>]*jumpToScriptAt\(3753,\d+\)[^>]*>10<\/button> to buy from you/.test(ctx.charEditHTML(1)))
       fail('record form', 'on the scenario byte 23 does not give the shops’ starting values off their lines');
   } catch (e) { fail('saved game', e); }
 }

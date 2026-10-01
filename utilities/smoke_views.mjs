@@ -65,7 +65,7 @@ try {
     else {
       ctx.showItemDetail(mace ? mace.pt : 94);
       const dhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-      if (!/0x205E/.test(dhtml) || !/flail/.test(dhtml) || !/prop type in the lowest ten bits/.test(dhtml)) fail('items', 'the mace’s page does not state the aspect rule with the flail and its word');
+      if (!/0x205E/.test(dhtml) || !/flail/.test(dhtml) || !/plus 1,024 for each step of aspect/.test(dhtml)) fail('items', 'the mace’s page does not state the aspect rule with the flail and its word');
       else console.log(`  items: ${orphans.length} pictures no class owns, the flail among them at mace 8 / spear 2; the mace’s page says 0x205E`);
       // The prop record block, v1.33.0: the rail's 32 slots, the readout at an
       // aspect, the other classes that reach the tile with the aspect each
@@ -93,7 +93,7 @@ try {
         else {
           ctx.propWordData(1, '7');
           html = walk(REGISTRY.get('sheetGrid'));
-          if (!/Data1 is the enchantment/.test(html) || !/counts as magical/.test(html) || !/then Data1 <b[^>]*>7<\/b> in decimal/.test(html))
+          if (!/Data1 is the enchantment/.test(html) || !/counts as magical/.test(html) || !/then <b[^>]*>7<\/b> for Data1 \(in decimal\)/.test(html))
             fail('items', 'the mace at Data1 7 does not say the byte is its enchantment and what the cheat asks for');
           else {
             ctx.showItemDetail(95); ctx.propWordData(1, '3');

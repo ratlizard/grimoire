@@ -1614,10 +1614,10 @@ function heroPortraitCard() {
   const slots = [];
   for (let r = first; r < first + 64 && getResourceBytes(ARCHIVE, r); r++) slots.push(r);
   let text = head + (isSave
-    ? 'The portrait above is this file\u2019s own 0x8800: when a character is made, the game copies the chosen portrait into the player file as ' + srcNum(pc.writes, hex(pc.writes.v)) + '. '
-    : 'The portrait above is the scenario\u2019s 0x8800 and is never shown in play: when a character is made, the game copies the chosen portrait into the player file as ' + srcNum(pc.writes, hex(pc.writes.v)) + '. ') +
-    'The choice is the resource ' + srcNum(pc.first) + ' plus ' + srcNum(pc.perRow) + ' a row plus the column past ' + srcNum(pc.base, hex(pc.base.v));
-  if (!slots.length) { card.innerHTML = text + '; this file holds none of them.'; return card; }
+    ? 'The portrait above is the one chosen when this character was made, ' + srcNum(pc.writes, 'saved') + ' in this file. '
+    : 'The portrait above is never shown in play: the game uses the one chosen when the character is made, ' + srcNum(pc.writes, 'saved') + ' in the saved game. ') +
+    'The ' + srcNum(pc.first, 'choices') + ' at character creation';
+  if (!slots.length) { card.innerHTML = text + ' are not in this file.'; return card; }
   const faces = new Map();
   const strip = document.createElement('div');
   strip.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:6px';

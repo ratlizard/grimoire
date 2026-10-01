@@ -2008,15 +2008,15 @@ const CHAR_GROUPS = [
   { head: 'Where', items: [
     { id: 'zone', key: 'zone', label: 'zone', off: 0, max: 0xFF,
       what: (r, v) => v ? svEsc(zoneDisplayName(v)) + ', map 0x' + (0x8000 | v).toString(16).toUpperCase() : 'placed in no zone' },
-    { id: 'x', key: 'x', label: 'x', off: 1, width: 3, max: 0xFFF, what: () => 'squares from the left; x is the top twelve bits of the three bytes, y the bottom twelve' },
+    { id: 'x', key: 'x', label: 'x', off: 1, width: 3, max: 0xFFF, what: () => 'squares from the left' },
     { id: 'y', key: 'y', label: 'y', off: 1, width: 3, max: 0xFFF, what: () => 'squares from the top' },
   ]},
   { head: 'Looks', items: [
     { id: 'proptype', key: 'proptype', label: 'sprite class', off: 4, width: 2, fieldNo: 36, max: 0x3FF,
       what: (r, v) => { const n = propDisplayName(v, (getPropTileList()[v] || 0)); return (n ? svEsc(n) + ', ' : '') + 'the prop class they are drawn as'; } },
-    { id: 'aspect', key: 'aspect', label: 'aspect', off: 4, width: 2, fieldNo: 36, max: 0x3F, what: () => 'the frame of that class, the top six bits of the same word' },
+    { id: 'aspect', key: 'aspect', label: 'aspect', off: 4, width: 2, fieldNo: 36, max: 0x3F, what: () => 'the frame of that sprite' },
     { id: 'look2', raw: [20, 2], label: 'second look', base: 16, max: 0xFFFF, fieldNo: 37,
-      what: r => 'a second word laid out like bytes 4 and 5' + (u16raw(r, 20) === u16raw(r, 4) ? ', the same as them here' : ', different from them here') + '; the program makes it available to scripts, but no script uses it' },
+      what: r => 'a second sprite and frame, ' + (u16raw(r, 20) === u16raw(r, 4) ? 'the same as the first here' : 'different from the first here') + '; no script uses it' },
   ]},
   { head: 'Stats', items: [
     { id: 'body', key: 'body', label: 'body', off: 9, max: 0xFF },
@@ -2040,25 +2040,25 @@ const CHAR_GROUPS = [
   { head: 'Behaviour', items: [
     { id: 'behaviour', raw: [22, 1], label: 'behaviour', fieldNo: 21, max: 0xFF,
       what: (r, v) => { let w = null; try { w = ARCHIVE && refExists(0x3007) ? dvmBehaviourWords(ARCHIVE).get(v) : null; } catch (e) { quiet(e); }
-        return (w ? '<b>' + svEsc(w) + '</b>, ' : '') + 'what they do each turn: TActiveMonster::DoMove switches on it, and the hour leaves a character on 112, waiting, where they stand'; } },
+        return (w ? '<b>' + svEsc(w) + '</b>, ' : '') + 'what they do each turn; 112 is waiting where they stand'; } },
     { id: 'behaviour2', raw: [30, 1], label: 'second behaviour', max: 0xFF, what: () => 'a second behaviour the scripts read and set' },
     { id: 'timing', key: 'party', label: 'move countdown', off: 18, max: 0xFF,
-      what: () => 'ticks before their next move: TActiveMonster::DoTick counts it down and moves them at 0, so it changes on every step' },
-    { id: 'submove', raw: [24, 1], label: 'sub-move counter', max: 0xFF, what: () => 'the parts of a move still to take; DoTick takes the next while it runs' },
+      what: () => 'ticks before their next move, so it changes on every step' },
+    { id: 'submove', raw: [24, 1], label: 'sub-move counter', max: 0xFF, what: () => 'the parts of a move still to take' },
     { id: 'alignment', raw: [25, 1], label: 'alignment', max: 0xFF,
       what: (r, v) => { const a = appImage() ? exeAlignmentNames() : null, n = a && a.byValue[v];
-        return (n ? '<b>' + srcNum(n.at, n.name) + '</b>, ' : '') + 'which side they are on: the combat AI groups by it and a character’s enemies are looked up by it'; } },
+        return (n ? '<b>' + srcNum(n.at, n.name) + '</b>, ' : '') + 'which side they are on, which decides who their enemies are'; } },
     { id: 'rating', raw: [29, 1], label: 'defence stand-in', max: 0xFF,
-      what: (r, v) => 'for a character with no Defense skill, the defence figure (0xE82) uses the level worked out from its low two bits (0xE95): ' +
+      what: (r, v) => 'for a character without the Defense skill, their defence is ' +
         ['none', 'half their level', 'their level', 'twice their level'][v & 3] },
     { id: 'b23', raw: [23, 1], label: 'price', max: 0xFF,
       what: () => { const p = shopPriceRule();
-        return 'a merchant’s price, in tenths of a thing’s worth: a thing costs its worth times this over ten, and the merchant pays its worth times ten over this' +
-               (p ? '; the shops start it at ' + srcNum(p.buy, String(p.buy.v)) + ' to sell to you and ' + srcNum(p.sell, String(p.sell.v)) + ' to buy from you, and keep what haggling leaves' : ''); } },
+        return 'a merchant’s price, in tenths of a thing’s worth' +
+               (p ? ': shops start at ' + srcNum(p.buy, String(p.buy.v)) + ' to sell to you and ' + srcNum(p.sell, String(p.sell.v)) + ' to buy from you, and keep what haggling leaves' : ''); } },
     { id: 'b31', raw: [31, 1], label: 'size', max: 0xFF,
       what: () => { const c = exeCreatureSize();
-        return 'for a creature made from a map’s list, the percentage of its unit’s body, reflex, mind and health it was ' + (c ? srcNum({ exe: c.exe }, 'made at') : 'made at') +
-               '; a named character keeps their own stats and does not use it'; } },
+        return 'for a creature made from a map’s list, the percentage of its kind’s stats it was ' + (c ? srcNum({ exe: c.exe }, 'made at') : 'made at') +
+               '; named characters ignore it'; } },
   ]},
 ];
 // Flags 0 to 7 are byte 8, 8 to 23 the halfword at 6, 24 to 31 byte 26:
@@ -3079,9 +3079,8 @@ function renderChangesSheet() {
     const p = document.createElement('div');
     p.className = 'changesNote';
     p.style.margin = '0';
-    p.textContent = 'Open any resource, in any tab, and press Edit bytes; on a map, the ' +
-      'inspector’s Edit button changes one prop record. Edits are kept in memory only, ' +
-      'reloading the page restores the file, and this tab is where you download the result.';
+    p.textContent = 'Edits you make anywhere on the site, with Edit bytes on a resource or Edit on a ' +
+      'map square, are listed here to download. Reloading the page loses them.';
     box.appendChild(head);
     box.appendChild(p);
     grid.appendChild(box);

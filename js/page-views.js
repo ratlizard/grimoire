@@ -1742,11 +1742,9 @@ function monsterDamageSite() {
 }
 function monsterByteNote() {
   const site = monsterDamageSite();
-  if (!site) return 'Damage is byte 4 of the record.';
-  return 'Damage is byte 4. ' +
-    'Nothing in the program reads it, and one script does: ' +
-    srcNum({ resid: site.resid, at: site.at }, 'it asks for field ' + site.field) +
-    ', adds a random amount based on Body, and passes the total to the shared damage script.';
+  if (!site) return 'The damage of the creature’s own blow.';
+  return 'A blow does this damage plus a random amount based on Body (' +
+    srcNum({ resid: site.resid, at: site.at }, 'the script') + ').';
 }
 
 function showMonsterDetail(idx) {
@@ -1780,7 +1778,6 @@ function showMonsterDetail(idx) {
   const mf = appImage() ? exeMonsterFields() : null;
   const fieldAt = off => mf ? mf.fields.find(f => f.offset && f.offset.v === off) : null;
   const stride = mf && mf.stride ? mf.stride.v : 16;
-  const lowHalf = mf ? mf.fields.find(f => f.half === 'low' && f.halfAt) : null, topHalf = mf ? mf.fields.find(f => f.half === 'high' && f.halfAt) : null;
   // The byte it was read from, always; the field that reads it named in
   // the title where the application is open.
   const stat = (off, v) => {
@@ -1806,11 +1803,7 @@ function showMonsterDetail(idx) {
     '<div><b>Special flags</b>' + srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' },
       '0x' + r.flags.toString(16).toUpperCase().padStart(8, '0')) +
       ' <span style="font-size:0.6875rem;color:#b5b2a8">' + monsterFlagsHTML(r.flags) + '</span>' +
-      '<br><span style="font-size:0.6875rem;color:#8c8980">A linked flag opens the line that checks it: in a script, or, for how the creature moves, in the program. The rest are named from what the scripts do with them. The flags are ' +
-      srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' }, 'the word at byte 8') +
-      (lowHalf && topHalf
-        ? ': ' + srcNum({ exe: lowHalf.halfAt.exe }, 'field ' + lowHalf.field) + ' reads its low half and ' + srcNum({ exe: topHalf.halfAt.exe }, 'field ' + topHalf.field) + ' its top half'
-        : mf && fieldAt(8) ? ', which ' + srcNum({ exe: fieldAt(8).at }, 'the field that reads them') + ' takes whole' : '') + '.</span></div>' +
+      '<br><span style="font-size:0.6875rem;color:#8c8980">Click a flag to see the line that checks it.</span></div>' +
     '</div>';
   panel.innerHTML = h;
 
@@ -1829,7 +1822,7 @@ function showMonsterDetail(idx) {
       box.appendChild(holder);
       const how = document.createElement('div');
       how.style.cssText = 'font-size:0.75rem;color:#b5b2a8;line-height:1.5;max-width:380px';
-      const lay = u.layout ? 'Layout ' + srcNum({ resid: u.layout.resid, at: u.layout.at }, String(u.layout.code)) + ' (the first word of its key 55)' : 'No layout word';
+      const lay = u.layout ? 'Layout ' + srcNum({ resid: u.layout.resid, at: u.layout.at }, String(u.layout.code)) : 'No layout';
       const app = appImage();
       if (u.kind === 'octo') how.innerHTML = lay + ': <b>a body with ' + (u.rule ? srcNum(u.rule.arms, u.rule.arms.v + ' arms') : '8 arms') + '</b> of ' +
         (u.arm !== null ? svLink(propDisplayName(u.arm) || ('prop ' + u.arm), 'showMonsterDetail(' + (parseMonsterStats().findIndex(m => m.proptype === u.arm)) + ')') : 'no class') +
@@ -1867,9 +1860,8 @@ function showMonsterDetail(idx) {
     const cSrc = { resid: 0xF008, byte: r.index * 16 + 14, stride: 16, what: 'the corpse word' };
     cd.innerHTML = '<b style="color:#b5b2a8">Leaves behind</b> ' + svEsc(cnm) +
                    ' at aspect ' + srcNum(cSrc, String(r.corpseAspect)) +
-                   ' <span style="font-size:0.6875rem;color:#8c8980">(corpse_type ' +
-                   srcNum(cSrc, '0x' + r.corpseWord.toString(16).toUpperCase().padStart(4, '0')) +
-                   ', packed 6-bit aspect + 10-bit prop type)</span>';
+                   ' <span style="font-size:0.6875rem;color:#8c8980">(' +
+                   srcNum(cSrc, '0x' + r.corpseWord.toString(16).toUpperCase().padStart(4, '0')) + ')</span>';
     const cbase = tiles[r.corpseType];
     if (cbase !== undefined) {
       const spr = drawPropSprite(cbase + r.corpseAspect, 40);

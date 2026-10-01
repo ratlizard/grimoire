@@ -1698,7 +1698,7 @@ function swingFramesHTML(pt) {
     return (u ? '<img class="brandTile" src="' + u + '" alt="" width="20" height="20"> ' : '') +
            srcNum({ resid: sw.resid, at: sw.off }, propWordHex(t)); }).join(', ');
   const where = svLink(sw.own ? 'its class script' : 'the outcome routine’s default', 'jumpToResource(' + sw.resid + ')', propWordHex(sw.resid) + ' at ' + propWordHex(sw.off));
-  return ' The swing in a fight is ' + (sw.own ? 'a list of tiles in ' : 'not the weapon’s own: it has no list, so it plays ') + where + ': ' + tiles + '.';
+  return sw.own ? ' In a fight it swings through ' + tiles + ' (' + where + ').' : ' It has no swing of its own, so in a fight it plays the default (' + where + '): ' + tiles + '.';
 }
 
 // Another class's page, at the aspect that shows the same tile.
@@ -1733,12 +1733,12 @@ function propWordRender() {
   const w = s => '<b style="color:#fff">' + s + '</b>';
   const name = terrainNameFor(tile) || '', own = terrainNameFor(base) || propDisplayName(pt) || '';
   const bits = word.toString(2).padStart(16, '0');
-  let h = '<div class="sv-note" style="margin:0 0 8px">A prop record says what it is with one 16-bit number: <b>the prop type in the lowest ten bits, and the aspect in the five bits above them</b>. This item’s prop type is ' + w(pt) + ', so at aspect 0 the number is ' + w(propWordHex(pt)) + '; each step of aspect adds 1,024. ' +
-    'Aspect <i>n</i> draws the base tile plus <i>n</i>, and takes that tile’s name. ' + propWordAspectSentence(pt) + (swingFramesHTML(pt) || (gearTable().some(r => r.pt === pt && r.melee) ? ' The swing in a fight is the class’s own animation, whatever the aspect.' : ''));
+  let h = '<div class="sv-note" style="margin:0 0 8px">Every placed thing is stored as one number: its prop type, here ' + w(pt) + ' (' + w(propWordHex(pt)) + '), plus 1,024 for each step of aspect. ' +
+    'Aspect <i>n</i> shows the picture <i>n</i> tiles along, with that picture’s name. ' + propWordAspectSentence(pt) + (swingFramesHTML(pt) || (gearTable().some(r => r.pt === pt && r.melee) ? ' The swing in a fight is the class’s own animation, whatever the aspect.' : ''));
   let wear = [];
   try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
-  if (wear.length) h += ' At ' + wear.map(x => 'aspect ' + w(x.aspect) + ' it is a ' + w(svEsc(x.name)) + ' (tile ' + propWordHex(x.tile) + ', the word ' + propWordHex(x.word) + ')').join(', ') +
-    ' with this class’s own figures: a picture that no class uses and that nothing in the file shows.';
+  if (wear.length) h += ' At ' + wear.map(x => 'aspect ' + w(x.aspect) + ' it is a ' + w(svEsc(x.name)) + ' (' + propWordHex(x.word) + ')').join(', ') +
+    ', pictures no other item uses, with this item’s own figures.';
   h += '</div><div class="pwBits">';
   for (let i = 0; i < 16; i++) {
     if (i === 1 || i === 6) h += '<span class="pwGap"></span>';
@@ -1782,9 +1782,9 @@ function propWordRender() {
       if (ex && ex.hiVal && ex.loVal) m += st.d1 > ex.hiVal.v ? ' Examine says “' + svEsc(ex.above2) + '”' : st.d1 > ex.loVal.v ? ' Examine says “' + svEsc(ex.above0) + '”' : ' Examine reports it once it is above ' + srcNum(ex.loVal) + '.';
       if (reader) m += ' The class script also ' + propWordOps(reader.ops) + '.';
     } else if (reader) m = 'The class script ' + propWordOps(reader.ops) + (reader.ops.some(o => /data3/.test(o)) ? ' (Data3 is both bytes read as one value)' : '') + '. What they mean depends on this class.';
-    else m = 'No script on this class reads either byte.';
+    else m = 'This item’s script does not use Data1 or Data2.';
   }
-  m += ' The create-a-prop cheat asks for ' + w(propWordHex(word)) + ', then Data1 ' + w(st.d1) + ' in decimal, then Data2 ' + w(propWordHex(st.d2, 2)) + ' in hex.';
+  m += ' To make it with the create-a-prop cheat, enter ' + w(propWordHex(word)) + ', then ' + w(st.d1) + ' for Data1 (in decimal) and ' + w(propWordHex(st.d2, 2)) + ' for Data2 (in hex).';
   st.meaning.innerHTML = m;
 }
 
@@ -2082,7 +2082,7 @@ function classCacheBlock(pt) {
   const side = cw.tables.map(t => '<tr><td class="num" style="' + cell + '">' + srcNum(t.at, String(t.value)) + '</td><td style="' + cell + ';color:#fff">' + svEsc(itemFieldLabel(t.key)) + (t.plusOne ? ' plus one' : '') + ', ' + (t.width === 1 ? 'a byte' : 'a halfword') + ' a class</td><td style="' + cell + ';color:#8c8980;font-size:0.75rem">' + (t.readBy.length ? t.readBy.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : 'no routine reads it') + '</td></tr>').join('');
   return {
     gist: propWordHex(cw.value) + (cw.bits.length ? ', ' + cw.bits.length + ' bit' + (cw.bits.length === 1 ? '' : 's') : ', no bits') + (cw.tables.length ? ', ' + cw.tables.length + ' side table' + (cw.tables.length === 1 ? '' : 's') : ''),
-    html: '<div class="sv-note" style="margin:0 0 6px">At load ' + pefChip('FillIntfCache') + ' builds one four-byte value for each class from the class table. This class’s value is ' + propWordHex(cw.value) + '; each bit shows where it came from and which parts of the program check it.</div>' +
+    html: '<div class="sv-note" style="margin:0 0 6px">The switches the program keeps for this kind of thing (' + pefChip('FillIntfCache') + '), ' + propWordHex(cw.value) + ', and what checks each one.</div>' +
       (rows ? '<table style="border-collapse:collapse;width:100%">' + rows + '</table>' : '') +
       (side ? '<div class="sv-note" style="margin:8px 0 4px">The side tables, one value a class</div><table style="border-collapse:collapse;width:100%">' + side + '</table>' : '') +
       '<div class="sv-note" style="margin-top:6px">' + mechLink('classflags', 'Mechanics › Class Flags') + '</div>'
