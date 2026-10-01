@@ -256,7 +256,11 @@ const APP_FIXES = [
   // and every command clicked on something distant, did nothing. It takes
   // one step now and answers false, the game's one click, one turn: each
   // click brings the character a square nearer, and once in reach the
-  // command acts as it always did.
+  // command acts as it always did. A touch spell is the exception, played
+  // on 30 September 2026: its magic is spent when it is cast, before the
+  // target is chosen, and the refusal cancels it, so a click on someone out
+  // of reach now steps once and prints [Cancel], where the shipped program
+  // printed [Cancel] without the step; the spell is cast again to go on.
   // The step is the one the path finder gives: TPathFinder::FindPath from
   // the character at TOC -30356 (whom MoveCommand moves) with no monster,
   // as MouseRoutine calls it, then FindFirstStep for the first square,
@@ -282,8 +286,8 @@ const APP_FIXES = [
   // click was on a thing (312(1)), to the square the click named (318(1),
   // 316(1), which the branch passes to the Attack of a square), and ends
   // as before, which disarms the command: press the key again to go on.
-  { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach takes a step towards it, instead of doing nothing, and so does a touch spell (untested)',
-    played: 'fork, PowerPC, 30 September 2026: Use from the popup and by U, Take by G; a touch spell not yet',
+  { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach takes a step towards it, instead of doing nothing; a touch spell takes the step too, and is still cancelled',
+    played: 'fork, PowerPC, 30 September 2026: Use from the popup and by U, Take by G; Paralyze on a student two squares off steps once and cancels, as the unpatched game cancels without the step',
     bug: 'Touch spells only work on someone next to you',
     sites: [{ at: 0x50E5C, was: [0x38600000], asm: ['b @cave               ; was li 3, 0 (and blr)'] },
             { at: 0x5A9AC, was: [0x2C0000FF], asm: ['cmpwi 0, -1           ; the start square, as FindPath marks it'] },
