@@ -112,6 +112,7 @@ const APP_FIXES = [
     sites: [{ at: 0x958A4, was: [0x4BFC01B5], asm: ['li 3, 0               ; was bl GetCurInvEncumb'] }] },
 
   { id: 'books-window', kind: 'fix', title: 'RemoveItem redraws the window of whatever held the thing it took',
+    played: 'fork, PowerPC, 30 September 2026: a book handed to Selinus from an open pouch leaves its window',
     bug: 'Sapphire Books in a container can be handed in again and again',
     sites: [{ at: 0x95344,
       was: [0x7FE3FB78, 0x4BFC0435, 0x60000000, 0x7C630734, 0x7FC00734, 0x7C001800, 0x41800028, 0x7FE3FB78, 0x4BFC0419, 0x60000000, 0x38030000, 0x387D0000,
