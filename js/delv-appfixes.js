@@ -658,28 +658,39 @@ const APP_FIXES = [
   // Not bugs: each makes the game behave otherwise than it was made to, the
   // maintainer's call to offer, and is off unless chosen.
 
-  // Entering a level leaves it as it was left (1 October 2026). THE SHIPPED
-  // RULE: LoadLevelProps, given a level's list from a save or a patch and
-  // its third argument set (TGameViewer::GoToLocation, entering a level in
-  // play, and TDelverApp::NewModel, a new game), streams Cythera Data's own
-  // list beside it and sets two kinds of record back as the scenario has
-  // them: a thing flagged 0x20, made or moved in play (a corpse, what an egg
-  // hatched, a thing dropped or slid that is not of a carried class), when
-  // the scenario has a thing of that type at that index, whole; and a door
-  // of the six ClassFlags 0x200 classes whose aspect differs from the
-  // scenario's, by its method 0, which takes the scenario's aspect. Then
-  // ChainFreeProps, with the same argument, DELETES every record still
-  // flagged 0x20 (flags 0xFF, its storage released by THeapObj::DecRef) and
-  // chains it free. So on entering a level a thing made or moved there in
-  // play is either put back as the scenario has it or removed: corpses,
-  // hatchlings, and things of a non-carried class dropped or slid there. A
-  // run jumping into Land King Hall showed a door left open shut and a slid
-  // chair back in its place; the same save without the jump kept both; and
-  // with only the first site below the chair was deleted. THE CHANGE: both
-  // tests branch past always, so nothing is set back and nothing is removed.
-  // cythera-workbench's doc/engine-patch-list.md has the reading and the runs.
-  { id: 'no-reset', kind: 'change', title: 'Entering a level leaves its doors, and the things made, moved or dropped there, as they were left, instead of setting them back or removing them',
-    played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a door left open stays open and a slid chair stays where it was; the stock program shuts the one and puts back the other',
-    sites: [{ at: 0x7414, was: [0x418202A4], asm: ['b @0x76B8             ; never set the level back from Cythera Data'] },
-            { at: 0x788C, was: [0x41820038], asm: ['b @0x78C4             ; never delete what play made or moved'] }] },
+  // Entering a level tidies it (1 October 2026), and these two turn the
+  // tidying's halves off, each alone or both. THE SHIPPED RULE:
+  // LoadLevelProps, given a level's list from a save or a patch and its
+  // third argument set (TGameViewer::GoToLocation, entering a level in play,
+  // and TDelverApp::NewModel, a new game), streams Cythera Data's own list
+  // beside it. A record flagged 0x20, made or moved in play (a corpse, what
+  // an egg hatched, a thing dropped or slid that is not of a carried class),
+  // is overwritten whole by the scenario's record at that index when that is
+  // a thing of the same type on the map; a door of the six ClassFlags 0x200
+  // classes whose aspect differs from the scenario's has its method 0 run,
+  // which takes the scenario's aspect. Then ChainFreeProps, with the same
+  // argument, DELETES every record still flagged 0x20 (flags 0xFF, its
+  // storage released by THeapObj::DecRef). So a level entered is set back
+  // (doors, things the level began with) and cleared (everything else play
+  // left there). cythera-workbench's doc/executable-fixes.md has the
+  // reading and the runs.
+  //
+  // WHY THE FIRST DOES NOT SIMPLY SKIP THE STREAM. Skipping it leaves the
+  // moved things flagged, and ChainFreeProps then deletes them: a chair slid
+  // a square vanished on entering the level in the run that tried it. So
+  // where the scenario would overwrite a flagged record, the first clears
+  // its 0x20 instead, which leaves it where it is and no longer play's to
+  // clear; and it never takes the door path, branching to the Seek that
+  // keeps the stream in step. The second branches past ChainFreeProps's
+  // deletion, so what is still flagged stays, flag and all.
+  { id: 'level-keep-place', kind: 'change', title: 'Entering a level leaves its doors, and the things it began with that were moved in play, as they were left, instead of setting them back',
+    played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a door left open stays open and a slid chair stays where it was; a rock made in play is still removed, as on the stock program, which also shuts the door and puts the chair back',
+    sites: [
+      { at: 0x7588, was: [0x80610060, 0x80010064, 0x907F0000, 0x901F0004, 0x80610068, 0x8001006C, 0x907F0008, 0x901F000C],
+        asm: ['lbz 3, 0(31)', 'andi. 3, 3, 223       ; clear the moved-in-play flag instead of the copy', 'stb 3, 0(31)',
+              'nop', 'nop', 'nop', 'nop', 'nop'] },
+      { at: 0x75B4, was: [0x408200D4], asm: ['b @0x7688             ; never the door path: skip its record in the stream'] }] },
+  { id: 'level-keep-made', kind: 'change', title: 'Entering a level keeps what play made or left there, corpses among them, instead of removing what the level did not begin with',
+    played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a rock made in play stays where the stock program removes it; the door and the slid chair are set back as on the stock program',
+    sites: [{ at: 0x788C, was: [0x41820038], asm: ['b @0x78C4             ; never delete what play made or moved'] }] },
 ];
