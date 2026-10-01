@@ -239,6 +239,7 @@ const APP_FIXES = [
   // light out. Character 0 is nobody, so nothing of a creature's own is
   // filed under it; the call is skipped for 0 and made as before otherwise.
   { id: 'corpse-light', kind: 'fix', title: 'Killing a creature that leaves a corpse no longer ends Embrightenment or Daylight',
+    played: 'fork, PowerPC, 30 September 2026: a chicken killed with the light on, which the unpatched game put out',
     bug: 'Killing certain creatures ends Embrightenment and Daylight',
     sites: [{ at: 0x464EC, was: [0xA87D0008], asm: ['b @cave               ; was lha 3, 8(29)'] }],
     cave: ['lha 3, 8(29)', 'cmpwi 3, 0', 'beq @skip              ; a corpse’s creature: nothing of its own under 0',
