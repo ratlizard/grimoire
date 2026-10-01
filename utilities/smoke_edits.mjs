@@ -176,9 +176,9 @@ try {
   // sits on: the Spells sheet says "spells" in every other line, so that one
   // is pinned on a phrase only the card uses.
   const moved = [
-    ['skills', 'What each skill is asked about', skills, 'the Skills sheet'],
-    ['spells', 'read from the spell’s own call', spells, 'the Spells sheet'],
-    ['balloons', 'Talk balloons', barks, 'the Barks sheet'],
+    ['skills', 'What Each Skill Is Asked About', skills, 'the Skills sheet'],
+    ['spells', 'its cost in magic points, and what it does to health', spells, 'the Spells sheet'],
+    ['balloons', 'Talk Balloons', barks, 'the Barks sheet'],
   ];
   const gone = moved.filter(([, title, html]) => !html.includes(title));
   const lingering = moved.filter(([, title]) => mech.includes(title));

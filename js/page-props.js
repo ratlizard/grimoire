@@ -1800,14 +1800,14 @@ function isInventoryItem(pt) {
 
 function itemGroup(pt) {
   const cls = parseItemClass(pt);
-  if (cls && ITEM_COMBAT_KEYS.some(k => cls.data.some(f => f.key === k))) return 'Weapons & armour';
+  if (cls && ITEM_COMBAT_KEYS.some(k => cls.data.some(f => f.key === k))) return 'Weapons & Armour';
   // A container is a class that answers IsContainer or is Lockable, and
   // nothing else. It used also to want a prop list to have put something
   // inside one, which is a fact about the shipped scenario rather than about
   // the class: it left the corpse -- which answers IsContainer, opens a
   // window and holds what the body was carrying -- filed under carried goods.
   if (classHasMember(pt, 0x17) || classHasMember(pt, 0x34)) return 'Containers';
-  return 'Carried goods';
+  return 'Carried Goods';
 }
 
 DERIVED.ITEM_LIST = null;
@@ -1829,15 +1829,14 @@ function inventoryItemList() {
   return (DERIVED.ITEM_LIST = list);
 }
 
-const ITEM_GROUP_ORDER = ['Weapons & armour', 'Containers', 'Carried goods'];
+const ITEM_GROUP_ORDER = ['Weapons & Armour', 'Containers', 'Carried Goods'];
 // What puts an item under each divider, said under it: the rule is the
 // class script's members (itemGroup), named here from the file's own symbol
 // table, and the item test is isInventoryItem's.
 function itemGroupNote(group) {
-  const nm = k => itemFieldLabel(k);
-  if (group === 'Weapons & armour') return 'The class script has a combat member: ' + ITEM_COMBAT_KEYS.map(nm).join(', ') + '.';
-  if (group === 'Containers') return 'The class script answers ' + nm(0x17) + ' or has ' + nm(0x34) + '.';
-  return 'Everything else the file treats as an item: a class with a weight, or a prop that some prop list has carried, placed inside a container or marked as takeable, and with no combat figures.';
+  if (group === 'Weapons & Armour') return 'Anything used in a fight: weapons, launchers, ammunition, armour and shields.';
+  if (group === 'Containers') return 'Anything that holds other things or can be locked.';
+  return 'Everything else that can be picked up and carried.';
 }
 
 function renderItemSheet() {
@@ -1905,7 +1904,7 @@ function renderItemSheet() {
   if (orphans.length) {
     const h = document.createElement('div');
     h.className = 'propHead';
-    h.innerHTML = '<span class="groupTitle">Art no class uses</span><span class="groupNote">Named in 0xF004 and drawn, but not the base tile of any class, not a state of any class, and in no prop list. An item shows one at the aspect given, keeping its class’s own figures under that picture and name.</span>';
+    h.innerHTML = '<span class="groupTitle">Unused Art</span><span class="groupNote">Named pictures no item uses. An item placed at one of them takes its picture and name and keeps its own figures.</span>';
     grid.appendChild(h);
     for (const o of orphans) {
       const cell = document.createElement('div');

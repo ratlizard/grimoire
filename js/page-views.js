@@ -266,8 +266,8 @@ function renderAppPefSheet() {
   const ld = pef.loader;
   const code = pef.sections.find(x => x.kind === 0);
   let h = '<div class="changesHead">The program’s data fork: a PEF container, ' + svEsc(pef.arch === 'pwpc' ? 'PowerPC' : pef.arch) + '</div>';
-  h += '<p class="mechLede">' + pef.sections.length + ' sections' + (ld ? ', entry in section ' + ld.mainSection + ' at ' + hex(ld.mainOffset) + ', ' + ld.libraries.length + ' libraries imported for ' + ld.symbols.length + ' symbols, ' + ld.exports.length + ' exported' : '') +
-    (pef.routines.length ? ', and ' + pef.routines.length.toLocaleString() + ' routines, named from the notes the compiler left in the code.' : '.') + '</p>';
+  h += '<p class="mechLede">The program’s PowerPC code' + (pef.routines.length ? ': ' + pef.routines.length.toLocaleString() + ' routines, named from notes the compiler left in it' : '') +
+    (ld ? ', and the ' + ld.symbols.length + ' system calls it uses from ' + ld.libraries.length + ' libraries' : '') + '.</p>';
   h += '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>no.</th><th>section</th><th class="num">unpacked</th><th class="num">packed</th><th class="num">at</th></tr></thead><tbody>' +
     pef.sections.map(x => '<tr>' + num(x.index) + '<td>' + svEsc(x.kindName) + (x.name ? ' ' + svEsc(x.name) : '') + '</td>' + num(x.unpackedSize.toLocaleString()) + num(x.packedSize.toLocaleString()) + num(hex(x.containerOffset)) + '</tr>').join('') + '</tbody></table></div>';
   if (ld) {
@@ -287,7 +287,7 @@ function renderAppPefSheet() {
   if (q) h += rs.length ? table(rs) : '<div class="changesNote">No routine matches.</div>';
   else h += [...byClass.entries()].sort((a, b) => (a[0] || '~').localeCompare(b[0] || '~')).map(([c, list]) =>
     '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(c || 'functions outside a class') + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + list.length + '</b></span></span></summary><div class="mechBody">' + table(list) + '</div></details>').join('');
-  h += '<p class="mechLede" style="margin-top:10px">An address is a position in the program’s code, where a call arrives. The routines are found from the note the compiler leaves after each one, which gives its length and its name in the compiler’s own shorthand. The name is decoded as far as that shorthand allows, and left as written where it cannot be.</p>';
+  h += '<p class="mechLede" style="margin-top:10px">Each name is decoded from the compiler’s shorthand, and left as written where it cannot be.</p>';
   box.innerHTML = h;
   grid.appendChild(box);
   out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '; ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
@@ -363,11 +363,11 @@ function renderPrefsSheet() {
   }
   const sheet = document.createElement('div');
   sheet.className = 'prefSheet';
-  sheet.innerHTML = '<p class="prefLede">' + svEsc('Choose the settings, then download the file. It goes in the Preferences folder of the System Folder, where the game keeps its settings, and replaces any settings already stored. ' +
-      'Each setting starts where a new copy of the game starts, and one left there is not written.') + '</p>' +
+  sheet.innerHTML = '<p class="prefLede">' + svEsc('Choose the settings, then download the file and put it in the Preferences folder of the System Folder, replacing the one there. ' +
+      'Each setting starts as a new copy of the game has it.') + '</p>' +
     '<p class="prefFrom">' + svEsc(layout.from === 'shipped'
-      ? 'The names and the bits they set are the ones all four releases from Ambrosia agree on, so nothing has to be open. Open the game (Data › Installer, or drop the program on the page) and the page reads your own copy instead, which gets a patched version right. The Cheats page lists the record field by field.'
-      : 'The names and the bits they set are read from the program open here. The Cheats page lists the record field by field.') + '</p>';
+      ? 'The settings are the same in all four releases, so nothing needs to be open. Open the game to read them from your own copy instead.'
+      : 'The settings are read from the program open here.') + '</p>';
   /* The two presets (cytheraPrefsPreset): each sets every row, the switches
      by their ids and the choosers by their values. Built with createElement,
      since the smokes' DOM stub does not parse innerHTML into elements. */
@@ -549,9 +549,8 @@ function renderToolsSheet() {
     box.appendChild(d);
     return d;
   };
-  const d = sec('Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette, the undither filter in ' +
-    'reverse. It is on the Portraits gallery because that is where a result can be written ' +
-    'straight into a portrait resource.');
+  const d = sec('Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits ' +
+    'gallery, so a result can go straight into a portrait.');
   const db = document.createElement('button');
   db.className = 'secondary';
   db.textContent = 'Open the ditherizer';

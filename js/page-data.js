@@ -903,12 +903,10 @@ function renderCheatsSheet() {
   const key = k => k ? '<kbd class="cheatKey">' + svEsc(k) + '</kbd>' : '';
   const kr = appImage() ? exeKeyRoutine() : null;
   const noApp = 'Open the game from its installer, under Settings, to read the program’s code here.';
-  let h = '<h3 class="cheatH">Cheat mode</h3>' +
-    '<div class="mechLede">Cythera has a cheat mode, but no released copy can switch it on. Typing four letters in the map window ' +
-    'turns it on, but only when a switch is set in Cythera Preferences, the file the game keeps its settings in, and nothing ' +
-    'in the game ever sets that switch. What each cheat key does, both of those conditions, and the rest of the settings in that file are ' +
-    'read from the game program itself (<code>TMapWindow::KeyRoutine</code>, and every routine that uses the settings) rather ' +
-    'than collected from players, so some of it could never be found by playing.' +
+  let h = '<h3 class="cheatH">Cheat Mode</h3>' +
+    '<div class="mechLede">Cythera has a cheat mode that no released copy can switch on. Typing four letters in the map window ' +
+    'turns it on only when a setting in Cythera Preferences is on, and nothing in the game turns that setting on. ' +
+    'What each cheat key does is read from the program itself.' +
     (kr ? '' : ' ' + noApp) + '</div>' +
     (kr ? '<div class="partsStrip"><span class="partsTitle">In the program</span>' + pefChip('TMapWindow::KeyRoutine') + '</div>' : '');
 
@@ -1003,13 +1001,12 @@ function renderCheatsSheet() {
     const distinct = defaults ? [...new Set(defaults.words.map(w => w.v))] : [];
     const clear = distinct.every(v => !((v >>> (24 - 8 * g.byte.v)) & (1 << g.bit.v)));
     const letters = chars(g.word.v);
-    h += '<div class="mechSec"><h4 class="cheatH4">The gate (how it switches on)</h4><ul class="ruleList">' +
-      '<li>The map window adds each key typed to a running record, ' + srcNum(kr.shift) + ' bits at a time, so the record holds the last four keys. When it is ' +
-      '<b>' + srcNum(g.word, g.word.v) + '</b> (' + letters.map(t => '<b>' + svEsc(t) + '</b>').join(', then ') + ' on a US layout), <i>and</i> ' +
-      '<b>bit ' + srcNum(g.bit) + ' of byte ' + srcNum(g.byte) + '</b> of the ' + (recKey && recKey.len ? srcNum(recKey.len) + '-byte “' + srcNum(recKey.key, recKey.key.v) + '”' : 'preferences') + ' record is set, cheat mode is switched (' + srcNum(g.flip, 'here') + ') and the ' +
+    h += '<div class="mechSec"><h4 class="cheatH4">The Gate (How It Switches On)</h4><ul class="ruleList">' +
+      '<li>Type <b>' + srcNum(g.word, g.word.v) + '</b> (' + letters.map(t => '<b>' + svEsc(t) + '</b>').join(', then ') + ' on a US layout) in the map window. If ' +
+      '<b>bit ' + srcNum(g.bit) + ' of byte ' + srcNum(g.byte) + '</b> of the ' + (recKey && recKey.len ? '“' + srcNum(recKey.key, recKey.key.v) + '”' : 'preferences') + ' record is set, cheat mode ' + srcNum(g.flip, 'switches') + ' and the ' +
       'status window prints ' + (g.on ? '“' + srcNum(g.on, g.on.v.replace(/\n+$/, '')) + '”' : 'that it is on') + '.</li>' +
       (setters.length ? '<li>The bit is written by ' + setters.map(w => srcNum(w.bits, w.routine.name.replace(/\(.*$/, ''))).join(', ') + '.</li>'
-        : '<li><b>Nothing in the game sets that bit.</b> No part of the program writes it' + (defaults ? ', and ' + (clear ? 'the ' + distinct.length + ' records the game stores by processor at first run all have it clear' : 'a record the game stores at first run has it set') : '') + '. So on a copy as released, you can type the code as often as you like and nothing happens.</li>') +
+        : '<li><b>Nothing in the game sets that bit</b>' + (defaults && !clear ? ', though a record the game stores at first run has it set' : '') + ', so on a copy as released typing the code does nothing.</li>') +
       (others.length ? '<li>The bit has ' + (others.length === 1 ? 'one other reader' : others.length + ' other readers') + ': ' + others.map(r2 => srcNum(r2.bits, r2.routine.name.replace(/\(.*$/, ''))).join(', ') +
         (wait ? ', which spins on TickCount for ' + srcNum(wait.ticks) + ' ticks, ' + (wait.ticks.v / 60) + ' seconds, at startup when it is set' : '') + '.</li>' : '') +
       '<li>Typing the letters of the code also switches on targeting modes, so the tab reads ATTACK afterwards until you press <b>M</b>.</li></ul>' +
@@ -1049,10 +1046,9 @@ function renderCheatsSheet() {
     const unused = []; for (let b = 0; b < bytes; b++) if (!fields.some(f => f.byte === b)) unused.push(b);
     const hex8 = v => (v >>> 0).toString(16).toUpperCase().padStart(8, '0');
     const ranges = vals => { const out2 = []; let a = null, b = null; for (const v of vals) { if (a === null) { a = b = v; } else if (v === b + 1) b = v; else { out2.push([a, b]); a = b = v; } } if (a !== null) out2.push([a, b]); return out2.map(([x0, x1]) => x0 === x1 ? String(x0) : x0 + ' to ' + x1).join(', '); };
-    h += '<div class="mechSec"><h4 class="cheatH4">The preferences record (the settings the file holds)</h4>' +
-      '<div class="cheatNote">' + (rec ? srcNum(rec.len || rec.key, bytes + ' bytes') + ', stored under “' + srcNum(rec.key, rec.key.v) + '”. ' : '') +
-      'Every field that some part of the program reads or writes, found by searching the whole program for the record’s address' + (unused.length ? '; byte' + (unused.length > 1 ? 's ' : ' ') + unused.join(' and ') + ' that nothing uses' : '') + '. ' +
-      'A menu or dialog item is named as the program’s own MENU or DITL resource names it.</div>' +
+    h += '<div class="mechSec"><h4 class="cheatH4">The Preferences Record</h4>' +
+      '<div class="cheatNote">' + (rec ? srcNum(rec.len || rec.key, bytes + ' bytes') + ', stored under “' + srcNum(rec.key, rec.key.v) + '”, and' : 'The record’s fields and') +
+      ' what reads and writes each part' + (unused.length ? '. Byte' + (unused.length > 1 ? 's ' : ' ') + unused.join(' and ') + (unused.length > 1 ? ' are' : ' is') + ' unused' : '') + '.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">byte</th><th class="num">bits</th><th>set by</th><th>read by</th></tr></thead><tbody>' +
       fields.map(f => '<tr><td class="num">' + f.byte + '</td><td class="num">' + bitsText(f) + '</td><td>' + (f.writers.length ? setBy(f) : 'nothing') + '</td><td>' + readBy(f) + '</td></tr>').join('') +
       '</tbody></table></div>' +
@@ -1087,10 +1083,10 @@ function renderCheatsSheet() {
   if (kr && kr.cases.length) {
     const gated = kr.cases.filter(c => c.gated), open = kr.cases.filter(c => !c.gated);
     const cd = kr.words.slice(1), vol = kr.volume;
-    h += '<div class="mechSec"><h4 class="cheatH4">With the cheat flag on</h4>' +
+    h += '<div class="mechSec"><h4 class="cheatH4">With the Cheat Flag On</h4>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + gated.map(caseRow).join('') +
       '</tbody></table></div></div>';
-    h += '<div class="mechSec"><h4 class="cheatH4">In the same routine, and working whether cheat mode is on or not</h4>' +
+    h += '<div class="mechSec"><h4 class="cheatH4">Keys That Work Without Cheat Mode</h4>' +
       '<div class="cheatNote">These work in any copy of the game, cheat mode or not.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + open.map(caseRow).join('') +
       (vol.length >= 2 ? '<tr><td class="cheatCombo">' + key(vol.map(v => decodeMacRoman(new Uint8Array([v.key.v]))).join(' ')) + '<span class="cheatCode">' + vol.map(v => srcNum(v.key, '$' + v.key.v.toString(16).toUpperCase())).join(' ') + '</span></td>' +
@@ -1104,9 +1100,8 @@ function renderCheatsSheet() {
   // The numbers the keys ask for, off the file.
   const levels = cheatLevels();
   if (levels.length) {
-    h += '<div class="mechSec"><h4 class="cheatH4">Levels, for option-j</h4>' +
-      '<div class="cheatNote">The level is the map’s number, entered in hex; X and Y are squares. ' +
-      'The name is the one the map’s own script gives, with the editor’s name beside it where the two differ.</div>' +
+    h += '<div class="mechSec"><h4 class="cheatH4">Levels, for Option-J</h4>' +
+      '<div class="cheatNote">Enter the level in hex, and X and Y in squares. Where the editor names a map differently, its name is beside the game’s.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">hex</th><th class="num">dec</th><th>map</th></tr></thead><tbody>' +
       levels.map(l => '<tr><td class="num">' + l.n.toString(16).toUpperCase().padStart(2, '0') + '</td><td class="num">' + l.n + '</td><td>' +
         (l.n === 0 ? svLink(svEsc(l.name), 'jumpToResource(' + l.resid + ')') + ' <span class="cheatDoes">the nothing map, below</span>'
@@ -1118,12 +1113,10 @@ function renderCheatsSheet() {
   if (tp.last) {
     const mapOrder = [...tp.byMap.keys()].sort((a, b) => a - b);
     const mapName = resid => { const l = levels.find(x => x.resid === resid); return l ? l.name : (labelFor(resid) || ('0x' + resid.toString(16).toUpperCase())); };
-    h += '<div class="mechSec"><h4 class="cheatH4">Teleporters, for option-shift-j</h4>' +
-      '<div class="cheatNote">' + tp.last + ' destinations, numbered 1 to ' + tp.last + ' in decimal, each a single square on one map: ' +
-      'the zoneport table, four bytes per entry, giving the map and then the square. The table has ' + tp.total + ' entries and every one above ' + tp.last +
-      ' is map 0 at (0,0), the nothing map, which is where players found that ' + (tp.last + 1).toString(16).toUpperCase() + ' and above take you. ' +
-      'Each number opens the map on its square. ' +
-      'The community’s own list (add-on 620, Zone list.rtf) names the same map for every entry once three names are translated: ' +
+    h += '<div class="mechSec"><h4 class="cheatH4">Teleporters, for Option-Shift-J</h4>' +
+      '<div class="cheatNote">' + tp.last + ' destinations, numbered 1 to ' + tp.last + ' in decimal. Every number above ' + tp.last +
+      ' leads to the nothing map. Click a number to open the map on its square. ' +
+      'The community’s list (add-on 620, Zone list.rtf) names the same maps, three of them differently: ' +
       'Timon Ruins is Headwater Ruins, Swamp Ruins is Seldane Maayti Ruins, and Crypts is Pnyx Upstairs.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">level</th><th>map</th><th class="num">no.</th><th>teleporter, and the square it reaches</th></tr></thead><tbody>' +
       mapOrder.map(resid => {
@@ -1136,28 +1129,23 @@ function renderCheatsSheet() {
   let heap = null;
   try { heap = refExists(0x8000) ? nothingMapHeap(0x8000) : null; } catch (e) { heap = null; }
   if (heap) {
-    h += '<div class="mechSec"><h4 class="cheatH4">Level 0, the nothing map</h4><ul class="ruleList">' +
-      '<li>Map 0 has a header, ' + heap.w + ' by ' + heap.h + ', no roof and no exits, and ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') +
-      '; the editor’s list has no name for it, and the map window’s title reads Untitled there. Every other table organised by zone starts at 1.</li>' +
-      '<li><b>Its grid is not tiles.</b> ' + (heap.high ? heap.high + ' of its ' + heap.words + ' words have a high byte' : 'Every one of its ' + heap.words + ' words has a zero high byte') +
-      ', so the grid is that many bytes of the game’s own memory, each byte spread over two. The lower halves contain <b>' + heap.heads + '</b> headers of the kind the game writes at the start of every piece of memory it sets aside: where it points, what it is, how big it is, and what came before it. ' +
-      'Adding a header’s size to its position lands on the next header <b>' + heap.hits + ' times of ' + heap.heads + '</b>. The same test on a real map finds no headers. ' +
-      'So the map was created and its header written, but the tiles themselves were never filled in, and the file holds whatever that memory last contained.</li>' +
-      '<li>Players reached it long before any of this, arriving by accident from a bed in Cademia and from beneath Pnyx, ' +
-      'and reported a figure with a guard’s sprite standing there called Nothing, or Omen if killed twice. ' +
-      'That figure is character record 0, which in the original table is a single byte of 01 followed by thirty-one zeros, and is the record option-x writes to. ' +
+    h += '<div class="mechSec"><h4 class="cheatH4">Level 0, the Nothing Map</h4><ul class="ruleList">' +
+      '<li>Map 0 is ' + heap.w + ' by ' + heap.h + ', with no roof, no exits, ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') + ' and no name. The map window’s title reads Untitled there.</li>' +
+      '<li><b>Its grid is not tiles.</b> The map was made but never filled in, so it holds leftover bytes of the program’s memory: <b>' + heap.heads + '</b> of the headers the program writes at the start of each block of memory, ' +
+      heap.hits + ' of them leading on to the next as real blocks do. A real map has none.</li>' +
+      '<li>Players have reached it by accident, from a bed in Cademia and from beneath Pnyx, ' +
+      'and found a figure with a guard’s sprite called Nothing, or Omen if killed twice. ' +
+      'That figure is character record 0, which is empty, and is the record option-x writes to. ' +
       actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li></ul></div>';
   }
 
   const sprites = cheatSpriteClasses();
   if (sprites.length) {
-    h += '<div class="mechSec"><h4 class="cheatH4">Be somebody else</h4>' +
-      '<div class="cheatNote">The oldest Cythera cheat uses Pandora’s Box: search the running game for ' +
-      'the number <b>32</b>, the hero’s sprite class, and write another number over it. ' +
-      'The Saved Game page does the same in the file, with the <b>sprite class</b> field on any ' +
-      'record. These are the ' + sprites.length + ' classes that someone in the original ' +
-      'file actually uses, the people from 0xF009 and the monsters from 0xF008, so there is no need to ' +
-      'find them by trying values. ' +
+    h += '<div class="mechSec"><h4 class="cheatH4">Be Somebody Else</h4>' +
+      '<div class="cheatNote">The oldest Cythera cheat: use Pandora’s Box to find ' +
+      'the number <b>32</b>, the hero’s sprite, in the running game and write another number over it. ' +
+      'The Saved Game page does the same with the <b>sprite class</b> field. ' +
+      'These are the ' + sprites.length + ' sprites someone in the game uses. ' +
       actionChip('Saved Game', "showCategory('SAVEGAME')") + '</div>' +
       '<div class="cheatSprites">' + sprites.map(s =>
         '<span class="cheatSprite' + (s.kind === 'monster' ? ' isMonster' : '') + '"><b>' + s.pt +
@@ -1165,9 +1153,8 @@ function renderCheatsSheet() {
       '</div></div>';
   }
 
-  h += '<div class="mechSec"><h4 class="cheatH4">Cheats that need no cheat mode</h4>' +
-    '<div class="cheatNote">What this page can change and give back as a file the game will open. ' +
-    'Each change rebuilds the whole file and shows the result, which is what the download contains.' +
+  h += '<div class="mechSec"><h4 class="cheatH4">Cheats That Need No Cheat Mode</h4>' +
+    '<div class="cheatNote">Changes this page can make to a file the game will open.' +
     '</div><ul class="ruleList">' +
     '<li><b>The party’s records.</b> Where they stand, how strong and how well fed they are, and how many training ' +
     'points they have: 32 bytes each. ' + actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li>' +
@@ -1183,7 +1170,7 @@ function renderCheatsSheet() {
     const fh = find(0xFA);
     if (fh) items.push('<li><b>option-h empties the enemy list.</b> ' + facts(fh).peaceShort() + '</li>');
     if (cl && !c1) items.push('<li><b>The speed limiter is option-l.</b> The program sends $C2 to it (' + srcNum(cl.keys[0], 'the compare') + ') and $C1, option-1, to the default.</li>');
-    if (items.length) h += '<div class="mechSec"><h4 class="cheatH4">Things read from the code</h4><ul class="ruleList">' + items.join('') + '</ul>' +
+    if (items.length) h += '<div class="mechSec"><h4 class="cheatH4">Things Read from the Code</h4><ul class="ruleList">' + items.join('') + '</ul>' +
       '<div class="cheatNote">Where a key’s <i>effect</i> is described rather than its instructions, it is inferred from what the byte it changes is used for.</div></div>';
   }
 
@@ -1893,9 +1880,9 @@ function renderSaveSheet() {
   const marked = recs.filter(r => !delverCharacterInUse(r) && (r.zone || r.raw.some(b => b))).length;
   const shown = window.SAVE_SHOW_ALL ? recs.filter(r => r.zone || r.raw.some(b => b)) : inUse;
   h += '<h4 class="saveH4">The records</h4>' +
-    '<div class="saveNote">' + inUse.length + ' of the 512 slots hold somebody' +
-    (marked ? ', and ' + marked + ' more are marked with a zone and nothing else' : '') +
-    '. Slot 0 is the figure called Nothing on the nothing map, and is the record option-x writes to. ' + actionChip('Cheats', "showCategory('CHEATS')") + ' ' +
+    '<div class="saveNote">' + inUse.length + ' of the 512 character slots are in use' +
+    (marked ? ', and ' + marked + ' more hold only a zone' : '') +
+    '. Slot 0 is the figure called Nothing on the nothing map. ' + actionChip('Cheats', "showCategory('CHEATS')") + ' ' +
     actionChip(window.SAVE_SHOW_ALL ? 'Only the ones in use' : 'Show every marked slot',
                'toggleSaveShowAll()') + '</div>';
   h += '<div class="tableScroll"><table class="forkTable"><thead><tr>' +
@@ -1920,9 +1907,8 @@ function renderSaveSheet() {
   const words = saveWords();
   h += questStateHTML(words) + roomsEnteredHTML(words) + gremlinsHTML(words) + todoHTML(words);
   if (isSave) h += saveByteMapHTML();
-  h += '<div class="saveNote">Every field above is a byte or two of the record. Edit opens all 32 ' +
-    'bytes, grouped, each with what it is and where the program reads it. ' +
-    'Editing rebuilds the whole file in memory; nothing on disk changes. To download the edited file, go to ' +
+  h += '<div class="saveNote">Edit shows all 32 bytes of a record and what each one is. ' +
+    'Edits change only the copy in this browser. To download the edited file, go to ' +
     actionChip('Changes', "showCategory('CHANGES')") + '.</div>';
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
   out.textContent = (isSave ? 'Saved game' : 'Character records') + ': ' +
@@ -3028,15 +3014,13 @@ function renderCombatAISheet(which) {
     for (let i = 0; i < 6; i++) if (refExists(0x901 + i)) tests.push(svChip(0x901 + i));
     for (let i = 0; i < 13; i++) if (refExists(0x981 + i)) actions.push(svChip(0x981 + i));
     const split = (tests.length || actions.length)
-      ? '<div class="changesNote" style="margin-left:0">The Tests list and the two Actions are the program’s own. ' +
-        'The Scenario lists are scripts in this file, one for each word, in the order given' +
+      ? '<div class="changesNote" style="margin-left:0">To use a script in the game, open a companion’s character window, then its Strategy tab, the pop-up menu at the bottom left, Edit User Strategies…, and Import. ' +
+        'It goes into one of 31 user slots, 176 to 206. The same dialog’s Debug button marks a slot, and a companion using a marked slot opens the game’s AI debugger every time the strategy is evaluated.</div>' +
+        '<div class="changesNote" style="margin-left:0">The Tests list and the two Actions lists are the program’s own. The Scenario lists are scripts in this file' +
         (tests.length ? ': the tests ' + tests.join(' ') : '') + (actions.length ? (tests.length ? ', the actions ' : ': the actions ') + actions.join(' ') : '') +
-        '. CastSpell calls HasSpell first, and does not cast a spell the character does not know. ' +
-        'A file written to the AI Scripting Document is compiled into one of 31 user slots, numbers 176 to 206, from a companion’s character window: ' +
-        'its Strategy tab, the pop-up menu at the bottom left, Edit User Strategies…, then Import. The same dialog’s Debug button marks a slot, and a companion using a marked slot opens the game’s own AI debugger, ' +
-        'a listing with Step, Go and Clear Debug, every time the strategy is evaluated. The Debug(#) action only prints its number.</div>'
+        '. CastSpell does not cast a spell the character does not know, and Debug(#) only prints its number.</div>'
       : '';
-    box.innerHTML = '<div class="propHead">The vocabulary, from the program’s resource fork' +
+    box.innerHTML = '<div class="propHead">The Vocabulary' +
       (rows.length ? '' : (app ? '; none of the lists is in this resource fork' :
         (window.APP_RSRC_STATE === 'loading' ? ', loading the program…' :
          ', ' + (window.APP_RSRC_STATE || 'the program’s fork is not loaded')))) + '</div>' +

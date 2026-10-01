@@ -383,9 +383,9 @@ function renderSkillsSheet() {
   // was a section of the Mechanics sheet until 13 September 2026.
   try { box.appendChild(skillsMechSection()); } catch (e) { quiet(e); }
   const kinds = [['attribute', 'Attributes', 'The four figures every character has.'],
-                 ['weapon', 'Weapon skills', 'One for each kind of weapon; the skill is added to a blow’s margin and its damage.'],
-                 ['special', 'Special skills', 'Learned from a teacher, and checked by the scripts that need them.'],
-                 ['command', 'Commands', 'The Do menu, stored in the same part of the file as the skills. Each is just a name and a script.']];
+                 ['weapon', 'Weapon Skills', 'One for each kind of weapon.'],
+                 ['special', 'Special Skills', 'Learned from a teacher.'],
+                 ['command', 'Commands', 'The Do menu. Each command is a name and a script.']];
   const propChip = (pt, name) => '<button class="relChip" onclick="showPropTypeDetail(' + pt + ')"><span class="relText"><span class="relMain">' + svEsc(name) + '</span></span></button>';
   let count = 0;
   for (const [kind, title, note] of kinds) {
@@ -526,13 +526,11 @@ function renderSchedulesSheet() {
     lede.className = 'mechLede';
     if (who) {
       const waits = behaviorSetSites(who.waiting.value.v);
-      lede.innerHTML = 'Each hour ' + pefChip('ScheduleTime') + ' goes through the character records and schedules everyone except four kinds: a character with bit ' +
-        srcNum(who.partyBit.bit, propWordHex(who.partyBit.bit.v, 2)) + ' of byte ' + srcNum(who.partyBit.byte, String(who.partyBit.byte.v)) + ' set, which JoinParty sets; one with bit ' +
-        srcNum(who.aliveBit.mask, String(who.aliveBit.mask.v)) + ' of the word at byte ' + srcNum(who.aliveBit.byte, String(who.aliveBit.byte.v)) + ' clear, the bit a script checks to see whether a character is alive; one whose behaviour, byte ' +
-        srcNum(who.waiting.byte, String(who.waiting.byte.v)) + ', is ' + srcNum(who.waiting.value, String(who.waiting.value.v)) +
-        (waits.length ? ', which ' + waits.map(w => srcNum({ resid: w.resid, at: w.at }, labelFor(w.resid) || propWordHex(w.resid))).join(', ') + (waits.length === 1 ? ' sets' : ' set') + ' when a companion is told to wait, so the hour does not move them' : '') +
-        '; and one whose active monster (' + srcNum(who.monsterWord.call, 'TActiveMonster::GetCharacter') + ') has a word at ' + srcNum(who.monsterWord.disp, String(who.monsterWord.disp.v)) + ' set, which is not read here.';
-    } else lede.innerHTML = 'Who is scheduled each hour is read from the program, which is not open; the days below come from the file.';
+      lede.innerHTML = 'Each hour ' + pefChip('ScheduleTime') + ' sends everyone to their next place except ' + srcNum(who.partyBit.bit, 'the party') + ', ' +
+        srcNum(who.aliveBit.mask, 'the dead') + ', companions ' + srcNum(who.waiting.value, 'told to wait') +
+        (waits.length ? ' (by ' + waits.map(w => srcNum({ resid: w.resid, at: w.at }, labelFor(w.resid) || propWordHex(w.resid))).join(', ') + ')' : '') +
+        ', and one more kind of character, ' + srcNum(who.monsterWord.disp, 'not yet identified') + '.';
+    } else lede.innerHTML = 'The program is not open, so who each hour skips is not shown. The days below come from the file.';
     box.appendChild(lede);
   }
   const ampm = h => h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
@@ -635,7 +633,7 @@ function renderSpellsSheet() {
   const box = document.createElement('div');
   box.className = 'mechView';
   const intro = document.createElement('p'); intro.className = 'mechLede';
-  intro.innerHTML = spells.length + ' spells, each cast through one shared script with a level and a cost in magic points. A cast ' + (sp.rule && sp.rule.timing ? 'costs ' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level in time and ' : '') + 'fails when two rolls of 0 to the caster’s Casting figure add up to less than a roll of 0 to the level ' + cardLink('spells', 'the rules above') + '.';
+  intro.innerHTML = spells.length + ' spells by level, after ' + cardLink('spells', 'the rules for casting') + '.';
   box.appendChild(intro);
   // How a cast works, above the spells it works on. This was a section of the
   // Mechanics sheet until 13 September 2026.

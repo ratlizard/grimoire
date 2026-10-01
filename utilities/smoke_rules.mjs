@@ -234,7 +234,7 @@ try {
   else if (!/win (?:<button[^>]*>)?2(?:<\/button>)? oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
   // The spells card moved to the Spells sheet on 13 September 2026; sphtml
   // is that sheet, captured above.
-  else if (!/resists non-magical weapons: [^<]*lich/.test(sphtml)) fail('mechanics', 'the spells card does not name the monsters immune to non-magical damage')
+  else if (!/resist non-magical weapons: [^<]*lich/.test(sphtml)) fail('mechanics', 'the spells card does not name the monsters immune to non-magical damage')
   else if (!/Prop Records: Type, Aspect, Data1 and Data2/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/pass it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
   else if (mechSecs < 15) fail('mechanics', `the sections are missing: ${mechSecs} sections`);
   // No application in this run, so none of its figures: the clock, the
@@ -542,8 +542,8 @@ try {
   else if (!unshown.length) fail('library', 'nothing is unshown, so the second and third sources are over-counting');
   else if (/Sapphire Book of Mercy|Sapphire Book of Beauty|Sapphire Book of Foundation/.test(said)) fail('library', 'a script-given Sapphire volume is listed as never shown: sys Create is not being counted');
   else if (/Wine Contract/.test(said)) fail('library', 'the Wine Contract is listed as never shown, but Apis hands it over');
-  else if (!/The game’s own writing/.test(libHtml)) fail('library', 'the Writings gallery does not carry the library card');
-  else if (/The game’s own writing/.test(html)) fail('library', 'the library card is still on the Mechanics sheet, so the move is half done');
+  else if (!/The Game’s Own Writing/.test(libHtml)) fail('library', 'the Writings gallery does not carry the library card');
+  else if (/The Game’s Own Writing/.test(html)) fail('library', 'the library card is still on the Mechanics sheet, so the move is half done');
   /* The murder thread's `GetState(3) == 3` was this list's one entry until
      24 September 2026, when dvmDiscover began following call_subroutine:
      Berossus's 0x003A, which sets it, had been read as part of an array. So
@@ -1199,8 +1199,8 @@ try {
     fail('talk', 'Protesilaus now inherits Student; the archive did not give him it, so check what changed');
   else if (!thra || thra.chain.indexOf(0x810) < 0)
     fail('talk', 'Thrasymedes lost the Student group, so the chain reading is wrong');
-  else if (!/Who answers as whom/.test(html)) fail('talk', 'the Dialogue gallery does not carry the chains card');
-  else if (/Who answers as whom/.test(mechHtml)) fail('talk', 'the chains card is still on the Mechanics sheet, so the move is half done');
+  else if (!/Who Answers as Whom/.test(html)) fail('talk', 'the Dialogue gallery does not carry the chains card');
+  else if (/Who Answers as Whom/.test(mechHtml)) fail('talk', 'the chains card is still on the Mechanics sheet, so the move is half done');
   else console.log(`  talk: ${cv.chars.length} characters, ${topics} topics, ${real.length} groups inherited; Human by ${(real.find(g => g.rid === 0x801) || {}).inherited}, Bartender by none but called by ${bartender.called}`);
 } catch (e) { fail('talk', e); }
 
@@ -1332,7 +1332,7 @@ try {
         fail('cheats', 'the nothing map’s heap arithmetic did not come out: ' + JSON.stringify(heap));
       else if (!control || control.heads !== 0)
         fail('cheats', 'the negative control failed: Land King Hall has allocator headers too: ' + JSON.stringify(control));
-      else if (!new RegExp(`${heap.hits} times of ${heap.heads}`).test(html))
+      else if (!new RegExp(`<b>${heap.heads}</b> of the headers[^<]*${heap.hits} of them`).test(html))
         fail('cheats', 'the heap figure on the page is not the computed one');
       else console.log(`  cheats: no application, so no keys stated; ` +
                        `${sprites.length} sprite classes read off the archive with 32 the hero, ` +
@@ -1368,7 +1368,7 @@ try {
   else if (onTools) fail('preferences', 'the Tools tab still carries the preferences file');
   else if (!/id="prefCheats"/.test(tools) || !/<select id="prefOrd_Backdrop"/.test(tools))
     fail('preferences', 'with no application open the Preferences tab does not offer the switches');
-  else if (!/releases from Ambrosia agree/.test(tools)) fail('preferences', 'the section does not say the numbers are the shipped releases\u2019');
+  else if (!/same in all four releases/.test(tools)) fail('preferences', 'the section does not say the numbers are the shipped releases\u2019');
   else if (names !== 'UI Prefs,Backdrop') fail('preferences', 'the file built with no application open is not the two-resource one: ' + names);
   else console.log(`  preferences: its own tab under Data and gone from Tools; no application, so the shipped layout -- ${L.controls.length + 2} switches, ${L.choices.length + L.ordinals.length} choosers, a ${built.length}-byte fork`);
 } catch (e) { fail('preferences', e); }

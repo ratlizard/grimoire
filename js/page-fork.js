@@ -71,14 +71,11 @@ function fontSwapPanel() {
   box.className = 'mechView';
   const target = gameFontResource();
   const sw = window.FONT_SWAP;
-  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Put another font in the game</h3></div>' +
+  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Put Another Font in the Game</h3></div>' +
     (target
-      ? '<p class="mechLede">The game draws its text with <b>sfnt ' + target.id + '</b>, named ' +
-        svEsc(target.name || 'ArgosANouveau') + ' by the font family record. A TrueType font (<b>.ttf</b>) chosen here replaces that resource in the copy ' +
-        'of the file in this browser. It is given the table the game uses to look up its letters, and the tables an old Mac never reads are left out.</p>' +
-        '<ul class="ruleList"><li>Nothing is written to disk and nothing on the server changes.</li>' +
-        '<li>To play with it, export <b>Data file › the disk image</b>, which includes the resource fork, and run the game from it in an emulator.</li>' +
-        '<li>An <b>.otf</b> file is refused: those fonts use PostScript outlines, which the classic Mac cannot draw.</li></ul>' +
+      ? '<p class="mechLede">Choose a TrueType font (<b>.ttf</b>) to replace the game’s own, ' + svEsc(target.name || 'ArgosANouveau') + ' (<b>sfnt ' + target.id + '</b>), in the copy of the file in this browser.</p>' +
+        '<ul class="ruleList"><li>To play with it, export <b>Data file › the disk image</b> and run the game from it in an emulator.</li>' +
+        '<li>An <b>.otf</b> font cannot be used, because a classic Mac cannot draw it.</li></ul>' +
         '<div class="mechStats"><input type="file" id="fontSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoFontSwap()">Put the game’s own font back</button>' : '') +
         '</div>' +
@@ -395,21 +392,16 @@ function strikeSwapPanel() {
   box.className = 'mechView';
   const strikes = seldaneStrikes();
   const sw = window.STRIKE_SWAP;
-  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Rewrite the Seldane script</h3></div>' +
+  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Rewrite the Seldane Script</h3></div>' +
     (strikes
-      ? '<p class="mechLede">Seldane is a bitmap font: ' +
-        strikes.map(e => 'NFNT ' + e.id).join(' and ') +
-        ', named by the font family record, at 12 and 18 point. A TrueType font chosen here is drawn into both sizes, with its capitals as tall as the letters they replace, and written into the copy of the file in this browser.</p>' +
+      ? '<p class="mechLede">Choose a TrueType font to redraw the Seldane script (' + strikes.map(e => 'NFNT ' + e.id).join(' and ') + ') at both its sizes, in the copy of the file in this browser.</p>' +
         '<ul class="ruleList">' +
-        '<li>Only the letters the font already has are replaced, and the box for a missing character is left untouched. ' +
-        'Seldane draws 24 letters: it has no L and no O at 12 point, and at 18 point it has an entry for each of them one pixel wide and empty.</li>' +
-        '<li>Nothing here can draw in grey, so a thin font at 12 point will come out broken up.</li>' +
-        '<li>Nothing is written to disk and nothing on the server changes.</li></ul>' +
+        '<li>Only the 24 letters Seldane has are replaced. It has no L and no O.</li>' +
+        '<li>A thin font may come out broken up at the small size.</li></ul>' +
         '<div class="mechStats"><input type="file" id="strikeSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoStrikeSwap()">Put the file’s own script back</button>' : '') +
         '</div>' +
-        '<p class="mechLede">Or take the Seldane script out: each size can be saved as a TrueType font, ' +
-        'with one pixel to 64 font units, so at its own height it draws exactly the pixels shown above.</p>' +
+        '<p class="mechLede">Or save each size of the Seldane script as a TrueType font, which draws exactly these pixels at its own size.</p>' +
         '<div class="mechStats">' +
         strikes.map(e => '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="exportStrikeTrueType(' +
           e.id + ')">Save ' + svEsc(strikeFamilyOf(e.id)) + ' as a TrueType</button>').join('') +

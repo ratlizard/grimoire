@@ -495,7 +495,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!/Manually Place Containers/.test(tools) || !/Smoother Movement/.test(tools)) fail('preferences', 'the switches do not wear the game’s own labels');
       else if (bitsWrong) fail('preferences', 'a switch does not land on the bit the program writes for it: ' + JSON.stringify(ctx.cytheraPrefsLayout()));
       else if (/never been tried|untried/.test(tools)) fail('preferences', 'the section still calls the file untried');
-      else if (!/replaces any settings already stored/.test(tools)) fail('preferences', 'the section no longer says the file replaces the stored settings');
+      else if (!/replacing the one there/.test(tools)) fail('preferences', 'the section no longer says the file replaces the stored settings');
       else if (!/©gra/.test(tools)) fail('preferences', 'the section does not name the code');
       // The 256-colour answer is the one switch this page turns on that the
       // game's own default leaves off, so it has to arrive ticked or the file
