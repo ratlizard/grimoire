@@ -880,6 +880,16 @@ const DATA_FIXES = [
       dataFixReplaceOp(s, 'the Books of Wisdom struck at ten', 0x1851,
         ['if_not', 'sys GetState', 'byte 0x05', 'end', 'byte 0x05', 'eq', 'then ->', 'sys CompleteQuest', 'byte 0x12'], 4, 'byte 0x0A'),
     ] }) },
+  // The same script's thanks: "I see you found ", the count's word, " Book",
+  // then the "s" only when the count is greater than 2, so two books read
+  // "two Book" [sic]. Seen in the fork on 30 September 2026, handing in two.
+  // The test is greater than 1.
+  { id: 'books-plural', group: 'further', stage: 'further', title: 'Selinus thanks the party for "two Books", not "two Book"',
+    played: 'fork, PowerPC, 30 September 2026: two books handed in',
+    plan: (s) => ({ edits: [
+      dataFixReplaceOp(s, 'the Books of Wisdom counted as more than one', 0x1851,
+        ['string(implicit) " Book"', 'if_not', 'local Var00', 'byte 0x02', 'gt', 'then ->'], 3, 'byte 0x01'),
+    ] }) },
   // Timon on the Seldane (0x184A): "we've met them" tests his own character
   // flag 1 where it tested quest flag 2, which nothing sets. Sabinate sets
   // Timon's flag 1 on meeting him ("It is a living Seldane!"), and Timon's
