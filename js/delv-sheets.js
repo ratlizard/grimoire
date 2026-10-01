@@ -111,7 +111,7 @@ function spellsMechSection() {
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
         if (!t.length) return '';
         const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: the target has to be within reach, which means the eight squares around the caster. The rest can reach anywhere the pointer can. ' + mechLink('target', 'What a use can be aimed at') : '';
+        return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: the target has to be within reach, which means the eight squares around the caster. The rest can reach anywhere the pointer can. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
       })()
     ].filter(Boolean) : [],
     mechSpellFigures(sp) +
@@ -276,13 +276,13 @@ const MECH_GROUPS = [
     note: 'What a character gains, and what it costs to be taught.',
     ids: ['experience', 'karma', 'training', 'todo'] },
   { value: 'MECH_STATUS', title: 'Status', tile: 0x3CE,
-    note: 'The body, the clock, the ground and the light: what feeds, heals, poisons and wears off.',
+    note: 'Food, healing, potions, sleep, time, swamp, lava and light.',
     ids: ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'light'] },
   { value: 'MECH_INTERACT', title: 'Interactions', tile: 0x29D,
     note: 'What a thing does when it is used.',
     ids: ['target', 'locks', 'springs'] },
   { value: 'MECH_PUZZLES', title: 'Puzzles', tile: 0x266,
-    note: 'The puzzles the file fully explains, one section each.',
+    note: 'How each puzzle works.',
     ids: ['braziers', 'buttons', 'riddles', 'tunes', 'thinkadot', 'signals'] },
   { value: 'MECH_COMBAT', title: 'Combat', tile: 0x21E,
     note: 'What a blow does, who swings it, and what it does to a thing.',

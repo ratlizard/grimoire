@@ -415,7 +415,7 @@ function renderSkillsSheet() {
         if (x.askedBy.length) rows.push(['Asked about by', x.askedBy.map(r => svChip(r)).join(' ')]);
         if (x.weapons.length) rows.push(['Swung with it', x.weapons.map(w => propChip(w.pt, w.name)).join(' ')]);
         const rule = SKILL_RULES[x.name];
-        rows.push(['The rule', (rule ? ruleLink(rule) + ' ' : '') + mechLink('training', 'Mechanics › training')]);
+        rows.push(['The rule', (rule ? ruleLink(rule) + ' ' : '') + mechLink('training', 'Mechanics › Training')]);
       }
       if (rows.length) {
         const d = document.createElement('div'); d.className = 'mechBody';

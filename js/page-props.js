@@ -2086,7 +2086,7 @@ function classCacheBlock(pt) {
     html: '<div class="sv-note" style="margin:0 0 6px">At load ' + pefChip('FillIntfCache') + ' builds one four-byte value for each class from the class table. This class’s value is ' + propWordHex(cw.value) + '; each bit shows where it came from and which parts of the program check it.</div>' +
       (rows ? '<table style="border-collapse:collapse;width:100%">' + rows + '</table>' : '') +
       (side ? '<div class="sv-note" style="margin:8px 0 4px">The side tables, one value a class</div><table style="border-collapse:collapse;width:100%">' + side + '</table>' : '') +
-      '<div class="sv-note" style="margin-top:6px">' + mechLink('classflags', 'Mechanics › ClassFlags, and the copy the program keeps') + '</div>'
+      '<div class="sv-note" style="margin-top:6px">' + mechLink('classflags', 'Mechanics › Class Flags') + '</div>'
   };
 }
 
@@ -2246,7 +2246,7 @@ function showItemDetail(pt) {
       fold('struck', 'When struck', plain.charAt(0).toUpperCase() + plain.slice(1),
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">' + words.charAt(0).toUpperCase() + words.slice(1) + '.' +
         (row.says.filter(s => s !== row.spills)[0] ? ' It says “' + svEsc(row.says.filter(s => s !== row.spills)[0]) + '”.' : '') + '</div>' +
-        '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to things') + '</div>');
+        '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to Things') + '</div>');
     }
   }
   // A status this thing gives whoever wears or uses it, and what takes it
@@ -2260,7 +2260,7 @@ function showItemDetail(pt) {
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">' + grants.map(g =>
           'Its <b>' + svEsc(g.method) + '</b> sets ' + srcNum(g.flag, g.flagName || ('flag ' + g.flag.v)) + ' on the character' +
           (g.clearedBy ? ', and its ' + svEsc(g.clearedBy) + ' clears it again' : ', and nothing in the class clears it') + '.').join('<br>') + '</div>' +
-        '<div class="sv-note">' + mechLink('status', 'Mechanics › Status effects') + '</div>');
+        '<div class="sv-note">' + mechLink('status', 'Mechanics › Status Effects') + '</div>');
     }
   }
   // What it asks for when it is used, and what the application requires of
@@ -2273,7 +2273,7 @@ function showItemDetail(pt) {
       fold('aimed', 'Aimed at', words.join(', '),
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It asks “' + svEsc(t.prompt) + '” and answers ' + srcNum(t.val, propWordHex(t.word)) +
         ', which wants <b>' + words.map(svEsc).join(', ') + '</b>.' + ((t.word & 0x8000) ? ' Within reach means the user’s own square and the eight around it.' : '') + '</div>' +
-        '<div class="sv-note">' + mechLink('target', 'Mechanics › What a use can be aimed at') + '</div>');
+        '<div class="sv-note">' + mechLink('target', 'Mechanics › What a Use Can Be Aimed At') + '</div>');
     }
   }
   // The one thing that damages a square rather than a target.
@@ -2285,7 +2285,7 @@ function showItemDetail(pt) {
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It hands ' + srcNum(bl.centre) + ' to everything on its own square, ' +
         srcNum(bl.edge) + ' to the four squares beside it and ' + srcNum(bl.corner) + ' to the four corners, as ' +
         (bl.type ? svEsc(damageTypeName(bl.type.v)) + ' (type ' + srcNum(bl.type) + ')' : 'its own type') + '.</div>' +
-        '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to things') + '</div>');
+        '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to Things') + '</div>');
     }
   }
 

@@ -235,7 +235,7 @@ try {
   // The spells card moved to the Spells sheet on 13 September 2026; sphtml
   // is that sheet, captured above.
   else if (!/resists non-magical weapons: [^<]*lich/.test(sphtml)) fail('mechanics', 'the spells card does not name the monsters immune to non-magical damage')
-  else if (!/Prop records: type, aspect, Data1 and Data2/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/pass it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
+  else if (!/Prop Records: Type, Aspect, Data1 and Data2/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/pass it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
   else if (mechSecs < 15) fail('mechanics', `the sections are missing: ${mechSecs} sections`);
   // No application in this run, so none of its figures: the clock, the
   // balloon and the enemy table say where they come from and state nothing.
@@ -329,8 +329,8 @@ try {
   else if (!(function () { const b = ctx.combatRules().bodyForReflex; return b && b.v === 1 && b.resid === 0xE88; })()) fail('mechanics', 'body for reflex was not read off 0xE88: ' + JSON.stringify(ctx.combatRules().bodyForReflex));
   else if (!(function () { const f = ctx.exeMonsterFields().fields, h = n => (f.find(x => x.field === n) || {}).half; return h(50) === 'low' && h(51) === 'high'; })()) fail('mechanics', 'the two halves of the unit flags were not read off GetField');
   else if (!(function () { const t = ctx.monsterTopFlagSites(), r = b => (t.get(b) || {}).resid; return r(1) === 0xE88 && r(2) === 0x3040 && r(4) === 0x3040 && r(8) === 0xE87 && t.size === 4; })()) fail('mechanics', 'the top half of the unit flags is not found tested where it is: ' + JSON.stringify([...ctx.monsterTopFlagSites()]));
-  else if (ctx.unitsWithTopFlag(1).length !== 21 || !/flagged so(?:<\/button>)? starts from its <b>body<\/b> instead of its reflex\./.test(html) ||
-           !/flagged so(?:<\/button>)? starts from its <b>body<\/b> instead of its reflex \(21 of the \d+ units, not the hero’s\)/.test((function () { ctx.showCategory('MECHANICS'); return (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid')); })()))
+  else if (ctx.unitsWithTopFlag(1).length !== 21 || !/use their <b>(?:<button[^>]*>)?body(?:<\/button>)?<\/b> instead of their reflex\./.test(html) ||
+           !/use their <b>(?:<button[^>]*>)?body(?:<\/button>)?<\/b> instead of their reflex \(21 of the \d+ units, not the hero’s\)/.test((function () { ctx.showCategory('MECHANICS'); return (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid')); })()))
     fail('mechanics', 'the combat section does not say who fights with the body, with the program open, and only then: ' + ctx.unitsWithTopFlag(1).length);
   else if (/unidentified/.test(ctx.monsterFlagsHTML(0x00014004)) || !/fights with its body/.test(ctx.monsterFlagsHTML(0x00014004))) fail('mechanics', 'the fighter\'s flags are not all named: ' + ctx.monsterFlagsHTML(0x00014004));
   else if (!/The margin starts from the body, 25,/.test(ctx.combatSimHtml(Object.assign({}, ctx.combatSimParams(), { body: 25, bodyForReflex: true }), ctx.combatRules()))) fail('mechanics', 'the combat figure does not start the margin from the body when asked');
@@ -359,7 +359,7 @@ try {
   else if (ch.rule !== 'chest' || ch.strength.v !== 10 || cf.strength.v !== 8 || cr.rule !== 'data2' || !cr.data2Default || cr.data2Default.v !== 5) fail('damage', 'the chest, coffer or crate was misread: ' + JSON.stringify([ch.strength, cf.strength, cr.rule, cr.data2Default]));
   else if (!at.onlyType || at.onlyType.v !== 1026 || !at.xp || at.xpWhileBelow.v !== 10) fail('damage', 'the archery target was misread: ' + JSON.stringify([at.onlyType, at.xp, at.xpWhileBelow]));
   else if (!dt.door || dt.door.destroy.factor.v !== 5 || !dt.door.magicOnlyDestroyed || dt.chest.destroy.factor.v !== 3 || dt.door.wear.v !== 2 || dt.door.step.v !== 1) fail('damage', 'the door or chest helper was misread: ' + JSON.stringify([dt.door && dt.door.destroy, dt.chest && dt.chest.destroy]));
-  else if ([/Damage to things/, /The door is now bashed open!/, /It is slightly dented, but still intact\./, /a bare hand/].some(re => !re.test(html))) fail('damage', 'the Mechanics section does not state the door and chest rules in the file’s words: missing ' + [/Damage to things/, /The door is now bashed open!/, /It is slightly dented, but still intact\./, /a bare hand/].filter(re => !re.test(html)).join(' '));
+  else if ([/Damage to Things/, /The door is now bashed open!/, /It is slightly dented, but still intact\./, /a bare hand/].some(re => !re.test(html))) fail('damage', 'the Mechanics section does not state the door and chest rules in the file’s words: missing ' + [/Damage to Things/, /The door is now bashed open!/, /It is slightly dented, but still intact\./, /a bare hand/].filter(re => !re.test(html)).join(' '));
   else if (!new RegExp('jumpToScriptAt\\(' + 0xE49 + ',' + dt.door.destroy.factor.at + '\\)').test(html)) fail('damage', 'the door’s destroying factor is not a link to its line');
   else {
     // Follow the factor's link, as a click would, and read the ring: in the
@@ -414,13 +414,13 @@ try {
   else if (!unguent || unguent.word !== 8) fail('aim', 'the unguent’s prompt was not reached: a script whose Examine returns first is being dropped');
   else if (!reach.length || reach.length === tg.length) fail('aim', 'every target or none wants a neighbour: ' + reach.length + ' of ' + tg.length);
   else if (!link(unguent).test(html) || !link(reach[0]).test(html)) fail('aim', 'a target word is not a link to the line that holds it');
-  else if (!/What a use can be aimed at/.test(html) || !/within reach/.test(html)) fail('aim', 'the Mechanics sheet does not state what a use is aimed at');
+  else if (!/What a Use Can Be Aimed At/.test(html) || !/within reach/.test(html)) fail('aim', 'the Mechanics sheet does not state what a use is aimed at');
   else if (!tn || !tn.swamp || !tn.lava) fail('ground', 'the ground script was misread: ' + JSON.stringify([!!(tn && tn.swamp), !!(tn && tn.lava)]));
   else if (!tn.swamp.flag || tn.swamp.flag.v !== 31 || tn.swamp.flagName !== null || tn.lava.flagName !== 'Lava Proof') fail('ground', 'the flags that protect were misread: ' + JSON.stringify([tn.swamp.flagName, tn.lava.flagName]));
   else if (!new RegExp(String(swampChance)).test(html) || !/Ouch! Something bit me!/.test(html) || !/Ouch! That's hot!/.test(html)) fail('ground', 'the sheet does not state the swamp and the lava in the file’s words');
   else if (!wt || wt.kinds.length < 8 || !mineral) fail('water', 'the fountain kinds were misread: ' + JSON.stringify(wt && wt.kinds.length));
   else if (!wt.gate || !wt.setter || wt.setter.pt !== 0x25) fail('water', 'the state behind the changing water, or what sets it, was misread: ' + JSON.stringify([wt.gate && wt.gate.state.v, wt.setter && wt.setter.name]));
-  else if (!/Springs and fountains/.test(html) || !/heavy taste of/.test(html)) fail('water', 'the sheet does not state the fountains');
+  else if (!/Springs and Fountains/.test(html) || !/heavy taste of/.test(html)) fail('water', 'the sheet does not state the fountains');
   else if (!cures.length || cures[0].hi.v - cures[0].lo.v < 2) fail('cures', 'no cure with a roll behind it was read');
   else if (!grants.some(g => g.pt === 0x135 && g.flagName === 'Lava Proof') || !grants.some(g => g.clearedBy)) fail('grants', 'the worn statuses were misread: ' + JSON.stringify(grants.map(g => g.name + '/' + g.flagName)));
   else if (!bl || !bl.centre || !bl.edge || bl.centre.v <= bl.edge.v) fail('blast', 'the bomb was misread: ' + JSON.stringify(bl && [bl.centre, bl.edge, bl.corner]));
@@ -455,13 +455,13 @@ try {
   else if (!mism.length) fail('todo', 'no line differs from its slot, so the alternates were missed');
   else if (counted.length !== 1) fail('todo', `${counted.length} lines are composed from a quest value, expected one`);
   else if (!never.length) fail('todo', 'every line is struck off somewhere, so the ones that never are were missed');
-  else if (!/The To Do list/.test(html) || !link.test(html)) fail('todo', 'the sheet does not state the list with its lines as links to them');
+  else if (!/The To Do List/.test(html) || !link.test(html)) fail('todo', 'the sheet does not state the list with its lines as links to them');
   else if (/adds a quest|completes a quest/.test(html)) fail('todo', 'the sheet still calls a To Do line a quest');
   else if (!eg) fail('eggs', 'no egg was read off the zone lists');
   else if (eg.kinds.some(k => k.kind > 10)) fail('eggs', 'an egg kind above ten: roofs are being counted as eggs again');
   else if (!eg.roofs) fail('eggs', 'no roof was seen, so the flags 0x44 half of the census is not being reached');
   else if (!rooms || rooms.named < rooms.total * 0.9) fail('eggs', 'kind 8 is not the rooms: ' + JSON.stringify(rooms));
-  else if (!/What an egg does/.test(html) || !/a room/.test(html)) fail('eggs', 'the sheet does not say what an egg does');
+  else if (!/What an Egg Does/.test(html) || !/a room/.test(html)) fail('eggs', 'the sheet does not say what an egg does');
   else console.log(`  to do and eggs: ${td.adds.length} lines added and ${td.dones.length} struck off over ${slots.size} slots, ${mism.length} naming the informant and ${never.length} never struck off; ${eg.kinds.reduce((n, k) => n + k.n, 0)} eggs of ${eg.kinds.length} kinds in ${eg.zones} zones, ${rooms.named} of ${rooms.total} rooms with a script of their own, ${eg.roofs} roofs kept out`);
 } catch (e) { fail('todo', e); }
 
@@ -553,7 +553,7 @@ try {
   else if (!((ctx.buildScriptTextIndex().find(e => e.resid === 0x1848) || {}).text || '').match(/sys SetState\n\s+[0-9A-F]{4}\s+byte 0x03\n\s+[0-9A-F]{4}\s+byte 0x03\n/) ||
            !/Stentor claimed to have seen Pelagon/.test((ctx.buildScriptTextIndex().find(e => e.resid === 0x1848) || {}).text || ''))
     fail('loose', 'Berossus\u2019s subroutine 0x003A, with SetState 3, 3, is not in his listing');
-  else if (!/Loose ends/.test(html)) fail('loose', 'the sheet does not state the loose ends');
+  else if (!/Loose Ends/.test(html)) fail('loose', 'the sheet does not state the loose ends');
   /* Three kinds added 17 September 2026, each a bug the community or the
      workbench had on record and each read off its line. The flag pins carry
      their own control: flags 254 and 255 are set only by queueing task 165,
@@ -1236,7 +1236,7 @@ try {
   else if (!chars || !chars.dead.some(d => d.rid === 0xF06)) fail('leans', 'the character helpers nothing calls are missing from 0xFxx: ' + JSON.stringify(chars && chars.dead.map(d => d.rid)));
   else if (labels.indexOf('0x10xx') >= 0 || labels.indexOf('0x18xx') >= 0 || labels.indexOf('0x1Bxx') >= 0)
     fail('leans', 'a wholly structural range is being listed as uncalled: ' + JSON.stringify(labels));
-  else if (!/What calls what/.test(html)) fail('leans', 'the sheet does not state it');
+  else if (!/What Calls What/.test(html)) fail('leans', 'the sheet does not state it');
   else console.log(`  leans: ${ln.edges} references (${ln.kinds.call} calls, ${ln.kinds.resource} operands), busiest reached by ${top.refs}; ${ln.ranges.length} ranges with something uncalled, ${chars.dead.length} of them in 0xFxx`);
 } catch (e) { fail('leans', e); }
 

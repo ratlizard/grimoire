@@ -413,7 +413,7 @@ function askOneShape(shape, hit) {
       if (!rows.length) return null;
       return askCard(m.sh.id === 'cost' ? 'What ' + m.hit[1].trim() + ' costs' : 'Who sells ' + m.hit[1].trim(),
         'The listed price, before the vendor bargains.',
-        rows, mechLink('shops', 'Mechanics › shops'));
+        rows, mechLink('shops', 'Mechanics › Shops'));
     }
     if (m.sh.id === 'does') {
       const sp = spellRules().spells.find(x => like(x.name));
@@ -442,7 +442,7 @@ function askOneShape(shape, hit) {
       return askCard('What clears ' + name,
         'Every script that takes it off.',
         by.map(r => askRow(selfNameFor(r) || ('0x' + r.toString(16).toUpperCase()), svChip(r))),
-        mechLink('status', 'Mechanics › status effects'));
+        mechLink('status', 'Mechanics › Status Effects'));
     }
     if (m.sh.id === 'says') {
       const hits = buildBarkCatalogue().filter(b => b.words.concat(b.then || []).some(w => askNorm(w).includes(subject)));
@@ -459,7 +459,7 @@ function askOneShape(shape, hit) {
       return askCard('What ' + m.hit[1].trim() + ' resists', 'From the monster record’s flags, as the default resistance script reads them.',
         ms.slice(0, 6).map(r => askRow(N[r.proptype] || ('class ' + r.proptype),
           svEsc(monsterFlagsText(r.flags)) + ' <span class="inspDim">· armour ' + r.armor + ', ' + r.hp + ' health</span>')),
-        mechLink('combat', 'Mechanics › combat'));
+        mechLink('combat', 'Mechanics › Combat'));
     }
     if (m.sh.id === 'where' || m.sh.id === 'who') {
       const tab = loadCharacterTable();

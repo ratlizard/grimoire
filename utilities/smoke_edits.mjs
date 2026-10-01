@@ -78,9 +78,9 @@ try {
   // ids, because a section's id is a property the stub keeps in REGISTRY and
   // never writes into the markup.
   const MARK = {
-    MECH_PROGRESS: 'Experience and levels', MECH_STATUS: 'Status effects', MECH_INTERACT: 'Locks and lockpicks',
-    MECH_PUZZLES: 'The riddles', MECH_COMBAT: 'Damage to things', MECH_ECONOMY: 'The dice game',
-    HACKERY: 'Loose ends',
+    MECH_PROGRESS: 'Experience and Levels', MECH_STATUS: 'Status Effects', MECH_INTERACT: 'Locks and Lockpicks',
+    MECH_PUZZLES: 'The Riddles', MECH_COMBAT: 'Damage to Things', MECH_ECONOMY: 'The Dice Game',
+    HACKERY: 'Loose Ends',
   };
   const strayTab = [];
   for (const g of groups) {
