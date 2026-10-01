@@ -4120,17 +4120,15 @@ function renderMechanicsSheet(value) {
     const pf = exePatchFiles();
     const nm = x => x && x.name ? srcNum(x.id, x.name) : null;
     const dataName = nm(pf && pf.data), patchName = nm(pf && pf.patch), customName = pf && pf.custom ? srcNum(pf.custom, pf.custom.v) : null;
-    const rules = ['<b>Into Cythera Data.</b> Magpie writes the patch into the game file and keeps what it replaced, so it can take the patch out again. Apply, below, does the same. Anything in the file can be changed this way.'];
+    const rules = ['<b>Into Cythera Data.</b> Magpie, or Apply below, writes the patch into the game file. Anything can be changed this way.'];
     if (pf && patchName && pf.list && pf.count)
-      rules.push('<b>A list of patches beside the game.</b> If the game’s folder has a file called ' + patchName + ', the game reads up to ' + srcNum(pf.count) + ' file names from it when it starts, and loads those files on top of ' + (dataName || 'the game file') + ' without changing it. To remove the patches, delete the files. No official patch used this, and Magpie does not.');
+      rules.push('<b>' + patchName + '.</b> A file in the game’s folder listing up to ' + srcNum(pf.count) + ' patch files, which the game loads when it starts.');
     if (pf && customName)
-      rules.push('<b>' + customName + '.</b> The file the game keeps imported combat AIs in. The game loads it last and does not check it, so a patch saved under this name works on its own and overrides the others. Saving over it loses your imported combat AIs.');
-    if (rules.length > 1) {
-      rules.push('<b>What only the first way can change.</b> A file beside the game cannot change the map tiles, the schedules, the level maps, the skill icons or character creation, which are only read from ' + (dataName || 'the game file') + '. It can change scripts, conversations, pictures, portraits, sounds, music, the journal and combat AI.');
-      rules.push('<b>Saved games.</b> A save keeps its own copy of every level it has visited, so a change to the things on a level only shows in levels that save has not been to. On entering a level the game also resets its doors, and puts back or removes things made, dropped or moved there in play, going by ' + (dataName || 'the game file') + ' and not by any patch.');
-    }
-    add('patchkinds', 'Three ways to patch the game', null, '',
-      'A patch can go into the game file itself, or sit beside it in one of two files the game looks for.',
+      rules.push('<b>' + customName + '.</b> One patch file saved under this name. It replaces any combat AIs you imported.');
+    if (rules.length > 1)
+      rules.push('Only a patch in ' + (dataName || 'the game file') + ' can change the map tiles, schedules, level maps, skill icons or character creation.');
+    add('patchkinds', 'Three Ways to Patch the Game', null, '',
+      'A patch can go into the game file, or sit beside it in its folder.',
       pf ? rules : [rules[0]],
       pf ? '' : '<ul class="ruleList"><li>' + MECH_NO_APP + '</li></ul>',
       pf ? '<span class="partsTitle">In the program</span>' + pefChip('TDelverApp::PostInitMac') + pefChip('TDelverApp::OpenScenFile') + pefChip('LoadLevelProps') : '');
@@ -4214,13 +4212,8 @@ function renderMechanicsSheet(value) {
   // ---- a gremlin of your own ----
   {
     add('gremlins', 'Make a Gremlin', null, '',
-      'A gremlin is a script the game runs when you walk into a room, enter a zone or load a save, or when another script sends a signal. ' +
-      'Choose when yours runs and what it does, and this page writes a Magpie patch that adds it.',
-      [
-        'A room is the number on its egg, and a zone is its map’s number. Leave either empty to match any.',
-        'Signals below 256 are the ones the game’s own props respond to, such as bells and music locks. Signals of 256 or more reach only gremlins.',
-        'A new game switches every gremlin on. In a save made before the patch, a new gremlin is off until you switch it on in the save’s sheet.'
-      ], '');
+      'A gremlin is a script the game runs at a moment you choose. Pick when it runs and what it does, and this page writes a Magpie patch that adds it.',
+      [], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
     host.id = 'gremlinMaker';
@@ -4233,8 +4226,7 @@ function renderMechanicsSheet(value) {
   // ---- the program's own fixes ----
   {
     add('appfixes', 'Generate a Fixed Program', null, '',
-      'Choose fixes to the Cythera program itself, and this page writes out a fixed copy of it. ' +
-      'They are for version 1.0.4, on a PowerPC Mac or in SheepShaver.',
+      'Choose fixes to the PowerPC version of Cythera 1.0.4, and this page writes out a fixed copy of the program.',
       [], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
