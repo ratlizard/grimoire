@@ -103,7 +103,7 @@ try {
   const toolsNow = walk();
   const patchLeaf = peek('TAB_LEAF_FOR').get('PATCHES');
   if (!patchLeaf || patchLeaf.id !== 'patches' || !patchLeaf.parent || patchLeaf.parent.id !== 'data' || patchLeaf.magpie !== 'DelP') strayTab.push('PATCHES is not the Patches tab under Data with Magpie\u2019s DelP icon');
-  for (const t of ['The community’s patches', 'A sprite or a portrait of your own, as a patch', 'Two files against each other']) {
+  for (const t of ['Compare Patches', 'A sprite or a portrait of your own, as a patch', 'Two files against each other']) {
     if (tools.indexOf(t) < 0) strayTab.push('Patches does not show ' + t);
     if (toolsNow.indexOf(t) >= 0) strayTab.push('Tools still shows ' + t);
     ctx.showCategory('HACKERY');
@@ -1369,7 +1369,9 @@ try {
   const none = peek('dataFixPatch()');
   ctx.dataFixToggle('text-land-king', true);
   const orphan = peek('dataFixPatch()');
-  ctx.dataFixGroup('bryce', true);
+  // Bryce Schroeder's six, by name: the lists are by category since
+  // 1 October 2026, and his are in three of them.
+  for (const id of ['fetch', 'fishing', 'aethon-locks', 'aethon-ask-about', 'paris-diomede-names', 'green-goat-chair']) ctx.dataFixToggle(id, true);
   const refusedParis = peek(`(() => { try { dataFixPatch(); return null; } catch (e) { return e.message; } })()`);
   const paris = peek(`DATA_FIXES.find(f => f.id === 'paris-diomede-names').title`);
   ctx.dataFixToggle('paris-diomede-names', false);
@@ -1403,7 +1405,7 @@ try {
     fail('game fixes', 'the list of the text’s changes is not the options chosen: ' + JSON.stringify(changes));
   else if (!link || link.resid !== 0x1858 || link.t !== 'Yery well' || !link.opened || !link.ringed)
     fail('game fixes', 'the list’s link to Helen’s "Yery well" is not where the words are, or did not open there: ' + JSON.stringify(link));
-  else if (!/5 of Bryce Schroeder’s/.test(desc) || !/the text \(British spelling, Land King\)/.test(desc) || !/Peirithous alive/.test(desc))
+  else if (!/1 to conversations, 3 to spells, skills and fighting, 1 to people and places/.test(desc) || !/the text \(British spelling, Land King\)/.test(desc) || !/Peirithous alive/.test(desc))
     fail('game fixes', 'the patch calls itself ' + desc);
   else if (!w || !w.checkValueValid || ![0x1A28, 0x1091, 0x1861, 0xF00B, 0xF009, 0x1801].every(r => w.resids.includes(r)))
     fail('game fixes', 'the patch is not the fixes chosen: ' + JSON.stringify(w && w.resids));

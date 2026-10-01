@@ -305,7 +305,7 @@ const MECH_GROUPS = [
    Mechanics tab never lists it and the whole-sheet view does not include
    it. */
 const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Patches',
-  note: 'Patches: the game\u2019s fixes, chosen one by one; a sprite or a gremlin of your own; the program\u2019s own fixes; the scenario in Spanish; and comparing one file with another.',
+  note: 'Cythera\u2019s official add-on system is the PowerPC application Magpie. It was released by Glenn Andreas alongside a sample patch \u201cPumpkin Patch\u201d, but specifications to create new patches were never released. The format has been reverse-engineered to make new patches possible, though Magpie is limited to editing the data fork of the Cythera Data file.',
   ids: ['patches', 'datafixes', 'herosprite', 'gremlins', 'appfixes', 'spanish', 'compare'] };
 // A group by the category value its tab is selected with.
 const MECH_GROUP_BY_VALUE = {};

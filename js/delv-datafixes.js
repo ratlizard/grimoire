@@ -90,15 +90,17 @@ const DATA_FIX_STAGES = ['found', 'community', 'bugfix', 'further', 'apart', 'te
 // they are applied (js/delv-datapatch.js).
 const DATA_FIX_STAGE_SORTED = ['further'];
 
-// The Patches section's lists, in its order.
+// The Patches section's lists, in its order. By what a fix touches since
+// 1 October 2026, at the maintainer's word; until then they were by who
+// found each fix, which the stages and the comments below still record.
 const DATA_FIX_GROUPS = [
-  { id: 'community', title: 'Reported by players' },
-  { id: 'found', title: 'Found in the files' },
-  { id: 'further', title: 'Further fixes' },
-  { id: 'bryce', title: 'Bryce Schroeder\u2019s fixes' },
-  { id: 'map', title: 'Maps' },
-  { id: 'text', title: 'Text' },
+  { id: 'talk', title: 'Conversations' },
+  { id: 'quests', title: 'Quests and the To Do list' },
+  { id: 'rules', title: 'Spells, skills and fighting' },
+  { id: 'items', title: 'Items' },
+  { id: 'world', title: 'People and places' },
   { id: 'apart', title: 'Larger changes' },
+  { id: 'text', title: 'Text' },
 ];
 
 function dataFixKeyword(what, resid, at, kw, target) {
@@ -197,13 +199,13 @@ const DATA_FIXES = [
   // Thuria about Iron Mine"; it adds 113, "Ask Halos about Comana", the line
   // Propontis adds for the same errand. (bugs.md, *Ake's To Do line names
   // the wrong informant*.)
-  { id: 'ake-todo', group: 'found', stage: 'found', title: 'Ake\u2019s errand adds the To Do line that names Halos',
+  { id: 'ake-todo', group: 'quests', stage: 'found', title: 'Ake\u2019s errand now adds the To Do line that names Halos, instead of the one that names Thuria',
     edits: [
       { what: 'Ake’s To Do line', resid: 0x1820, at: 0x0109, replaceOp: true, expect: { 0x0101: 'sys AddQuest', 0x0102: 'byte 0x0A', 0x0109: 'byte 0x72' }, code: 'byte 0x71' },
     ] },
   // Sleep's magic bonus (0xE93): the guard and the cap both read full
   // health where full magic is meant; both now read full magic.
-  { id: 'sleep-magic', group: 'found', stage: 'found', title: 'Sleep restores magic up to full magic, not full health',
+  { id: 'sleep-magic', group: 'rules', stage: 'found', title: 'Sleep now restores magic up to full magic, instead of up to full health',
     edits: [
       { what: 'sleep’s magic cap', resid: 0xE93, at: 0x0248, replaceOp: true, expect: { 0x0248: 'get_field full_health', 0x024E: 'set_field magic' }, code: 'get_field full_magic (0x1F)' },
       { what: 'sleep’s magic guard', resid: 0xE93, at: 0x0219, replaceOp: true, expect: { 0x0216: 'get_field magic', 0x0219: 'get_field full_health', 0x021B: 'lt' }, code: 'get_field full_magic (0x1F)' },
@@ -211,13 +213,13 @@ const DATA_FIXES = [
   // The bartenders' rumours (0x813): the choice between the town's own
   // rumours and the general ones rolled Random(0, 1), which is always 0; it
   // rolls Random(0, 2), so both are heard.
-  { id: 'rumours', group: 'found', stage: 'found', title: 'Bartenders tell the general rumours as well as their town\u2019s',
+  { id: 'rumours', group: 'talk', stage: 'found', title: 'Bartenders now tell the general rumours as well as their town\u2019s, instead of their town\u2019s alone',
     edits: [
       { what: 'the bartenders’ rumours', resid: 0x813, at: 0x02AB, replaceOp: true, expect: { 0x02A8: 'sys Random', 0x02A9: 'byte 0x00', 0x02AB: 'byte 0x01' }, code: 'byte 0x02' },
     ] },
   // Eating (0xE46): the nutrition's jitter, Random(0, 1) - Random(0, 1), was
   // always 0; it rolls Random(0, 2) twice, so it is -1, 0 or 1.
-  { id: 'eating', group: 'found', stage: 'found', title: 'What a meal is worth varies by one either way, as written',
+  { id: 'eating', group: 'items', stage: 'found', title: 'What a meal is worth now varies by one either way, as written, instead of never varying',
     edits: [
       { what: 'eating, second roll', resid: 0xE46, at: 0x0040, replaceOp: true, expect: { 0x003D: 'sys Random', 0x0040: 'byte 0x01' }, code: 'byte 0x02' },
       { what: 'eating, first roll', resid: 0xE46, at: 0x0039, replaceOp: true, expect: { 0x0036: 'sys Random', 0x0039: 'byte 0x01' }, code: 'byte 0x02' },
@@ -225,7 +227,7 @@ const DATA_FIXES = [
   // The Gate Guard's speaker (0x1864): one reply was given to character 54,
   // the Odemia Guard; it is given to himself. The two share a portrait, so
   // nothing changes on screen, but the number is right.
-  { id: 'gate-guard', group: 'found', stage: 'found', title: 'A reply of the Gate Guard\u2019s is spoken by him, not the Odemia Guard',
+  { id: 'gate-guard', group: 'talk', stage: 'found', title: 'A reply of the Gate Guard\u2019s is now spoken by him, instead of by the Odemia Guard',
     edits: [
       { what: 'the Gate Guard speaks', resid: 0x1864, at: 0x058D, replaceOp: true, expect: { 0x058C: 'sys TalkParticipant', 0x058D: 'short 0x0036', 0x0590: 'byte 0x00' }, code: 'arg Arg00' },
     ] },
@@ -235,7 +237,7 @@ const DATA_FIXES = [
   // (0xE0B) and wine (0xE0D) helpers do after the same line. (27 September
   // 2026, found while reading every UseOn that deletes one of its
   // arguments; 0xE0A is the one helper among them that does.)
-  { id: 'water-full-pitcher', group: 'found', stage: 'found', title: 'Water poured into a full pitcher stops at \u201cThe pitcher is already full.\u201d',
+  { id: 'water-full-pitcher', group: 'items', stage: 'found', title: 'Water poured into a full pitcher now stops at \u201cThe pitcher is already full.\u201d, instead of going on to \u201cYou can\u2019t use water there...\u201d',
     edits: [
       { what: 'water into a full pitcher', resid: 0xE0A, at: 0x00EA, expect: { 0x00CD: 'string(implicit) "The pitcher is already full.', 0x00EA: 'branch 0x0121', 0x00ED: 'string(implicit) "The pitcher is now filled with water' },
         code: 'return\nword False\nend' },
@@ -248,7 +250,7 @@ const DATA_FIXES = [
   // its water line. The test goes where the goat test's "no" already lands,
   // so the rest of the chain is untouched. (The maintainer's word, 27
   // September 2026.)
-  { id: 'pitcher-in-wine', group: 'found', stage: 'found', title: 'An empty pitcher dipped in the wine urn fills with wine',
+  { id: 'pitcher-in-wine', group: 'items', stage: 'found', title: 'An empty pitcher dipped in the wine urn now fills with wine, instead of saying \u201cThe pitcher is empty.\u201d',
     edits: [
       { what: 'a pitcher dipped in wine', resid: 0x10A0, at: 0x01FD,
         expect: { 0x01B9: 'then -> 0x01FD', 0x01FA: 'branch 0x0213', 0x01FD: 'string(implicit) "The pitcher is empty.', 0x0213: 'return' },
@@ -267,14 +269,14 @@ const DATA_FIXES = [
   // Sword, Axe and Mace training (0xE87). The melee resolver adds the
   // weapon's skill twice, and both reads take the skill off the shield
   // loop's leftover variable; each now reads it off the weapon (Arg02).
-  { id: 'weapon-skill', group: 'community', stage: 'community', title: 'Sword, Axe and Mace skill counts in a fight',
+  { id: 'weapon-skill', group: 'rules', stage: 'community', title: 'Sword, Axe and Mace skill now counts in a fight, instead of counting for nothing',
     edits: [
       { what: 'weapon skill, damage', resid: 0xE87, at: 0x0096, replaceOp: true, expect: { 0x0096: 'local Var02', 0x0097: 'class_member 0x2A03' }, code: 'arg Arg02' },
       { what: 'weapon skill, margin', resid: 0xE87, at: 0x0088, replaceOp: true, expect: { 0x0088: 'local Var02', 0x0089: 'class_member 0x2A03' }, code: 'arg Arg02' },
     ] },
   // "Indeed I am." was drawn as the hero's (0x1804): the string is split and
   // Hadrian named between the halves.
-  { id: 'hadrian-indeed', group: 'community', stage: 'community', title: '\u201cIndeed I am.\u201d is spoken by Hadrian, not the hero',
+  { id: 'hadrian-indeed', group: 'talk', stage: 'community', title: '\u201cIndeed I am.\u201d is now spoken by Hadrian, instead of by the hero',
     edits: [
       { what: '"Indeed I am." is Hadrian’s', resid: 0x1804, at: 0x02A9, to: 0x02E0,
         expect: { 0x02A9: 'string(implicit) "\\"Yes, you should be quite proud.\\"*\\"Indeed I am.\\""', 0x02D9: 'sys TalkParticipant', 0x02E0: 'branch' },
@@ -282,41 +284,41 @@ const DATA_FIXES = [
     ] },
   // Hadrian asks after Hector (0x1804): his "son" topic tested his own alive
   // bit; it tests Hector's.
-  { id: 'hadrian-hector', group: 'community', stage: 'community', title: 'Hadrian learns that Hector has died',
+  { id: 'hadrian-hector', group: 'talk', stage: 'community', title: 'Hadrian now learns that Hector has died, instead of always speaking of him as alive',
     edits: [
       { what: 'Hadrian tests Hector', resid: 0x1804, at: 0x0299, replaceOp: true, expect: { 0x0299: 'word Character.Hadrian', 0x029F: 'if_not' }, code: 'word Character.Hector' },
     ] },
   // Aethon told to leave (0x1861): "Maybe it is time for me to catch some
   // rats for myself..." is followed by LeaveParty, as Hector's is.
-  { id: 'aethon-leaves', group: 'community', stage: 'community', title: 'Aethon leaves the party when he says he will',
+  { id: 'aethon-leaves', group: 'talk', stage: 'community', title: 'Aethon now leaves the party when he says he will, instead of staying',
     edits: [
       { what: 'Aethon leaves', resid: 0x1861, at: 0x0765, replaceOp: true, expect: { 0x072B: 'string(implicit) "\\"Maybe it is time', 0x0765: 'branch' },
         code: 'sys LeaveParty\narg Arg00\nend\nreturn\nbyte 0x00\nend' },
     ] },
   // Alaric forgets 201 (0x1802): the "hist" topic's test of his flag 2 was
   // the wrong way round; a `not` turns it.
-  { id: 'alaric-201', group: 'community', stage: 'community', title: 'Alaric does not forget 201 straight after recalling it',
+  { id: 'alaric-201', group: 'talk', stage: 'community', title: 'Alaric now remembers 201 after recalling it, instead of forgetting it straight away',
     edits: [
       { what: 'Alaric remembers 201', resid: 0x1802, at: 0x1F3B, expect: { 0x1F34: 'call_resource 0xF02', 0x1F3B: 'then' }, code: 'not' },
     ] },
   // Awakening's blank conversation (0x1A13): the sleeper and the hero are
   // named as speakers before the sleeper's Talk, as the game's own Talk
   // command names them.
-  { id: 'awakening', group: 'community', stage: 'community', title: 'Someone woken by Awakening can be talked to',
+  { id: 'awakening', group: 'rules', stage: 'community', title: 'Someone woken by Awakening can now be talked to, instead of giving a blank conversation',
     edits: [
       { what: 'Awakening names its speakers', resid: 0x1A13, at: 0x00D7, expect: { 0x00D5: 'sys OpenConversation', 0x00D7: 'method Talk' },
         code: dataFixTalk('arg Arg01', 0) + '\n' + dataFixTalk('global PlayerCharacter (0x5)', 2) },
     ] },
   // Niobe's answers drawn as Helen's (0x1859): Niobe is named again after
   // Helen's interruption.
-  { id: 'niobe', group: 'community', stage: 'community', title: 'Niobe\u2019s answers are hers, not Helen\u2019s, after Helen interrupts',
+  { id: 'niobe', group: 'talk', stage: 'community', title: 'Niobe\u2019s answers after Helen interrupts are now drawn as hers, instead of as Helen\u2019s',
     edits: [
       { what: 'Niobe speaks for herself', resid: 0x1859, at: 0x013F, expect: { 0x0127: 'string(implicit) "man with your nonsense', 0x013F: 'exit' }, code: dataFixTalk('arg Arg00', 0) },
     ] },
   // Lindus nags for ever (0x1850): the training route that hands over the
   // grimoire now sets quest flag 1 and strikes the To Do line, as accepting
   // at the first meeting does.
-  { id: 'lindus', group: 'community', stage: 'community', title: 'Lindus stops nagging once he has handed over the grimoire',
+  { id: 'lindus', group: 'quests', stage: 'community', title: 'Lindus now stops nagging once he has handed over the grimoire, instead of nagging for ever',
     edits: [
       { what: 'Lindus’s training route', resid: 0x1850, at: 0x05C9, expect: { 0x05C6: 'then', 0x05C9: 'string(implicit) "*\\"The most prized possession' },
         code: 'sys SetStateFlag\nbyte 0x01\nword True\nend\nsys CompleteQuest\nbyte 0x02\nend' },
@@ -326,7 +328,7 @@ const DATA_FIXES = [
   // first. Five lists the board reported (0x1828, 0x1829, 0x182A, 0x1818,
   // 0x080F), and two this project found (0x186D Demodocus's "fish, tlep",
   // 0x1878 Sabinate's "form, shap"), which were built in the found stage.
-  { id: 'keyword-spaces', group: 'community', title: 'Seven keywords answer without a space typed first',
+  { id: 'keyword-spaces', group: 'talk', title: 'Seven keywords now answer without a space typed first, instead of only after one',
     parts: [
       { stage: 'found', edits: [
         dataFixKeyword('Demodocus’s "tlep"', 0x186D, 0x155F, 'fish,tlep', '0x15E0'),
@@ -342,13 +344,13 @@ const DATA_FIXES = [
     ] },
   // Sabinate's mushroom every time (0x1878): his flag 4 is set when the
   // mushroom is given.
-  { id: 'sabinate-mushroom', group: 'community', stage: 'community', title: 'Sabinate hands over his mushroom once',
+  { id: 'sabinate-mushroom', group: 'quests', stage: 'community', title: 'Sabinate now hands over his mushroom once, instead of every time',
     edits: [
       { what: 'Sabinate remembers the mushroom', resid: 0x1878, at: 0x0966, expect: { 0x0966: 'sys Create', 0x096A: 'short 0x010F' },
         code: 'call_resource SetCharacterFlag (0xF00)\narg Arg00\nbyte 0x04\nend' },
     ] },
   // The rolling pin vanishing (0x10A3): the dough is deleted, not the pin.
-  { id: 'rolling-pin', group: 'community', stage: 'community', title: 'Kneading uses up the dough, not the rolling pin',
+  { id: 'rolling-pin', group: 'items', stage: 'community', title: 'Kneading now uses up the dough, instead of the rolling pin',
     edits: [
       { what: 'the rolling pin', resid: 0x10A3, at: 0x0162, replaceOp: true, expect: { 0x0131: 'string(implicit) "You end up kneading', 0x0161: 'sys Delete', 0x0162: 'arg Arg00' }, code: 'arg Arg01' },
     ] },
@@ -358,7 +360,7 @@ const DATA_FIXES = [
   // tables and in its UseOn, which pours wine through this helper only at 3.
   // This edit set 1 until 27 September 2026, which filled the pitcher with
   // water.
-  { id: 'wine-urn', group: 'community', stage: 'community', title: 'The wine urn fills a pitcher with wine rather than leaving it empty',
+  { id: 'wine-urn', group: 'items', stage: 'community', title: 'The wine urn now fills a pitcher with wine, instead of leaving it empty',
     edits: [
       { what: 'the wine urn', resid: 0xE0D, at: 0x0061, expect: { 0x003C: 'string(implicit) "The pitcher is now filled with wine', 0x0061: 'return' },
         code: 'set_field data1 (0x6)\narg Arg00\nend\nbyte 0x03\nend' },
@@ -367,7 +369,7 @@ const DATA_FIXES = [
   // window asks member 23 of the thing under the cursor each time it checks
   // a drop, and the carcass's answer printed the line; the refusal no longer
   // prints.
-  { id: 'carcass', group: 'community', stage: 'community', title: '\u201cYou can\u2019t stuff the carcass!\u201d is not repeated while dragging',
+  { id: 'carcass', group: 'items', stage: 'community', title: 'Dragging something over a carcass is now quiet, instead of printing \u201cYou can\u2019t stuff the carcass!\u201d at every check',
     edits: [
       { what: 'the carcass', resid: 0x10D2, at: 0x0049, to: 0x0066, expect: { 0x0049: 'string(implicit) "You can\'t stuff the carcass', 0x0066: 'return' }, code: '' },
     ] },
@@ -389,7 +391,7 @@ const DATA_FIXES = [
   // amulet returns before its charge is taken (a rock still costs one, as
   // shipped). Kept in "All Fixes" and in "Cythera Resurrection Fix" both,
   // which is why the resurrection fix finds its place rather than assuming it.
-  { id: 'nobody-corpse', group: 'community', stage: 'community', title: 'Raising a corpse that belongs to nobody does nothing, rather than taking its things away',
+  { id: 'nobody-corpse', group: 'rules', stage: 'community', title: 'Raising a corpse that belongs to nobody now does nothing, instead of taking its things away',
     edits: [
       { what: 'the spell, a corpse of nobody', resid: 0x1A2F, at: 0x00D5,
         expect: { 0x00CD: 'set_local 0x00', 0x00D0: 'get_field data1', 0x00D2: 'cast Character', 0x00D5: 'if_not', 0x00D6: 'local Var00', 0x014E: 'string(implicit) "Nothing happens.' },
@@ -400,7 +402,7 @@ const DATA_FIXES = [
         code: ['if', 'arg Arg01', 'get_field data1 (0x6)', 'then -> someone',
           'string(implicit) "Nothing happens.\\n"', 'return', 'byte 0x00', 'end', 'someone:'].join('\n') },
     ] },
-  { id: 'thrown-weapon', group: 'community', stage: 'community', title: 'A thrown dagger or spear that kills is not lost',
+  { id: 'thrown-weapon', group: 'rules', stage: 'community', title: 'A thrown dagger or spear that kills is now kept, instead of lost',
     edits: [
       { what: 'a thrown weapon, placed', resid: 0x3042, at: 0x0158, expect: { 0x0150: 'set_field container', 0x0158: 'branch' },
         code: 'set_field x (0x1)\nlocal Var03\nend\nbyte 0x00\nend\nset_field y (0x2)\nlocal Var03\nend\nbyte 0x01\nend\nmethod PutInside (0x10)\nlocal Var03\nend' },
@@ -413,7 +415,7 @@ const DATA_FIXES = [
   // four slides are clicked through at black. SpecialView(4) goes after the
   // first slide, where Alaric's endings have it; a jump to the loop after it
   // still lands on the loop.
-  { id: 'pelagon-ending', group: 'community', stage: 'community', title: 'The Pelagon ending fades in rather than playing at black',
+  { id: 'pelagon-ending', group: 'quests', stage: 'community', title: 'The Pelagon ending now fades in, instead of playing at black',
     edits: [
       { what: 'the Pelagon ending fades in', resid: 0x180D, at: 0x011B, shiftAt: true,
         expect: { 0x0109: 'sys SpecialView', 0x010A: 'byte 0x03', 0x010F: 'sys Slideshow', 0x011A: 'end', 0x011B: 'set_local 0x00' },
@@ -422,7 +424,7 @@ const DATA_FIXES = [
   // Eteocles's "kesh" (0x1838): the test reads quest flag 4 (Guild
   // membership), as his other five tests do, not quest value 4, which is
   // where Demodocus is and is never 0.
-  { id: 'eteocles-kesh', group: 'community', stage: 'community', title: 'Eteocles answers \u201ckesh\u201d by whether you are in the Guild',
+  { id: 'eteocles-kesh', group: 'talk', stage: 'community', title: 'Eteocles now answers \u201ckesh\u201d by whether you are in the Guild, instead of always the same way',
     edits: [
       { what: 'Eteocles’s "kesh"', resid: 0x1838, at: 0x01ED, replaceOp: true, expect: { 0x01E4: 'conversation_response "kesh"', 0x01ED: 'sys GetState', 0x01EE: 'byte 0x04' }, code: 'sys GetStateFlag' },
     ] },
@@ -441,7 +443,7 @@ const DATA_FIXES = [
   // there is none it does nothing. Four more locals for the two loops. The
   // type is tested before HasWindow, since HasWindow brings a found window
   // to the front and an open sack's should stay where it is.
-  { id: 'strange-device', group: 'community', stage: 'community', title: 'The strange device\u2019s buttons work after a change of zone',
+  { id: 'strange-device', group: 'items', stage: 'community', title: 'The strange device\u2019s buttons now work after a change of zone, instead of doing nothing',
     edits: [
       { what: 'the strange device finds itself', resid: 0x1175, at: 0x00C1,
         expect: { 0x00C1: 'set_local 0x00', 0x00C3: 'arg Arg00', 0x00C4: 'get_field storage', 0x00C6: 'word 256' },
@@ -492,7 +494,7 @@ const DATA_FIXES = [
   // hidden are placed as eggs and hatch as the party comes near: the pass
   // the next waking hour would have run, run at once. The loop's exit lands
   // on the first, and nothing jumps to the second.
-  { id: 'sleep-reschedule', group: 'community', stage: 'community', title: 'People are back around the zone after a night\u2019s sleep',
+  { id: 'sleep-reschedule', group: 'world', stage: 'community', title: 'People are now back around the zone after a night\u2019s sleep, instead of missing until a later hour',
     edits: [
       { what: 'the sleepers rescheduled after a night', resid: 0xE93, at: 0x0160,
         expect: { 0x0151: 'set_local 0x03', 0x015D: 'branch', 0x0160: 'if_not', 0x0161: 'arg Arg03' },
@@ -512,7 +514,7 @@ const DATA_FIXES = [
   // description is "signals the caster when something steps on it". No map
   // places a rune and no shipped AI script casts one, so every rune is the
   // party's, and the test goes: the line always prints.
-  { id: 'rune-of-warding', group: 'community', stage: 'community', title: 'A rune of warding says when something steps on it',
+  { id: 'rune-of-warding', group: 'rules', stage: 'community', title: 'A rune of warding now says when something steps on it, instead of vanishing in silence',
     edits: [
       { what: 'the rune of warding signals', resid: 0x10F5, at: 0x0017, to: 0x0022,
         expect: { 0x0017: 'if_not', 0x0019: 'get_field data1', 0x001B: 'short 0x0020', 0x001E: 'eq', 0x001F: 'then',
@@ -521,7 +523,7 @@ const DATA_FIXES = [
     ] },
   // Pelagon back in the kesh lab (0xF00B): his schedule's flag-0 pair (off
   // every map) is moved in front of its quest-value pair.
-  { id: 'pelagon-lab', group: 'community', stage: 'community', title: 'Pelagon does not come back to the kesh lab',
+  { id: 'pelagon-lab', group: 'world', stage: 'community', title: 'Pelagon now stays away from the kesh lab, instead of coming back to it',
     dataEdits: [
       { what: 'Pelagon’s schedule', resid: 0xF00B, fn: (b) => {
           const u16 = (b, o) => (b[o] << 8) | b[o + 1];
@@ -537,7 +539,7 @@ const DATA_FIXES = [
     ] },
   // Only Philinus's panpipes work (0x8108): the two placed sets get Data1 1,
   // the set that can play PHJMD.
-  { id: 'panpipes', group: 'community', stage: 'community', title: 'Every set of panpipes can play the tune',
+  { id: 'panpipes', group: 'items', stage: 'community', title: 'Every set of panpipes can now play the tune, instead of Philinus\u2019s alone',
     dataEdits: [
       { what: 'the placed panpipes', resid: 0x8108, fn: (b) => {
           let n = 0;
@@ -547,7 +549,7 @@ const DATA_FIXES = [
     ] },
   // The magic arrow drawn as a stack (0x8103, and two Cademia stacks in
   // 0x8108): the count moves from Data1 to Data2.
-  { id: 'arrow-stacks', group: 'community', stage: 'community', title: 'The magic arrow in Land King Hall and two stacks in Cademia are drawn right',
+  { id: 'arrow-stacks', group: 'items', stage: 'community', title: 'The magic arrow in Land King Hall is now drawn as one arrow, instead of a stack, and two stacks in Cademia are drawn right',
     dataEdits: [
       { what: 'the Cademia arrow stacks', resid: 0x8108, fn: (b) => {
           const want = { 1155: 30, 1174: 20 }; let n = 0;
@@ -562,7 +564,7 @@ const DATA_FIXES = [
     ] },
   // Sacas's kesh on Eudoxus (0x8104): the five vials in the Abandoned
   // Farmhouse coffer get Data1 2, the value his line waits for.
-  { id: 'eudoxus-kesh', group: 'community', stage: 'community', title: 'Sacas can be told of the kesh on Eudoxus',
+  { id: 'eudoxus-kesh', group: 'quests', stage: 'community', title: 'Sacas can now be told of the kesh on Eudoxus, instead of the vials never counting',
     dataEdits: [
       { what: 'Eudoxus’s kesh', resid: 0x8104, fn: (b) => {
           let n = 0;
@@ -572,7 +574,7 @@ const DATA_FIXES = [
     ] },
   // Kilts inside kilts (0x810D): the four kilts inside record 676 go into
   // the dresser, record 673.
-  { id: 'kilts', group: 'community', stage: 'community', title: 'The kilts in a Kosha dresser are not inside a kilt',
+  { id: 'kilts', group: 'items', stage: 'community', title: 'The kilts in a Kosha dresser are now in the dresser, instead of inside a kilt',
     dataEdits: [
       { what: 'the kilts', resid: 0x810D, fn: (b) => {
           let n = 0;
@@ -581,7 +583,7 @@ const DATA_FIXES = [
       } },
     ] },
   // The spent staff's light (0xF002): tile 0x88B's light level goes to 0.
-  { id: 'spent-staff', group: 'community', stage: 'community', title: 'A spent staff gives no light',
+  { id: 'spent-staff', group: 'items', stage: 'community', title: 'A spent staff now gives no light, instead of still giving light',
     dataEdits: [
       { what: 'the spent staff’s tile', resid: 0xF002, fn: (b) => {
           const o = 0x88B * 4; if ((b[o + 3] & 3) !== 1) throw new Error('tile 0x88B has light level ' + (b[o + 3] & 3) + ', not 1');
@@ -612,7 +614,7 @@ const DATA_FIXES = [
   // program fix sleeper-unit (js/delv-appfixes.js) looks up the sleeper's
   // own type instead, and this record is what is left for anything it
   // cannot name (30 September 2026).
-  { id: 'sleeping-units', group: 'community', stage: 'community', title: 'People killed asleep, and the Odemia night guard, leave a body',
+  { id: 'sleeping-units', group: 'world', stage: 'community', title: 'People killed asleep, and the Odemia night guard, now leave a body, instead of turning into some other thing',
     played: 'fork, PowerPC, 30 September 2026: a sleeping guard killed leaves a man’s body and a night guard a guard’s, where the shipped file left none',
     dataEdits: [
       { what: 'units for the sleeping and the night guard', resid: 0xF008, fn: (b) => {
@@ -636,7 +638,7 @@ const DATA_FIXES = [
   // Data1 is 0; the camp's sign, record 14, has Data1 0 and Data2 15, and
   // entry 15 is "Iron Mines". It is the only sign of the 27 with anything in
   // Data2; the number moves to Data1.
-  { id: 'mining-camp-sign', group: 'community', stage: 'community', title: 'The Mining Camp\u2019s sign can be read',
+  { id: 'mining-camp-sign', group: 'world', stage: 'community', title: 'The Mining Camp\u2019s sign can now be read, instead of showing nothing',
     played: 'fork, 28 September 2026: the sign reads Iron Mines',
     dataEdits: [
       { what: 'the Mining Camp’s sign', resid: 0x8118, fn: (b) => {
@@ -660,7 +662,7 @@ const DATA_FIXES = [
   // retrieved, one too heavy for the caster falls at their feet, and
   // anything else is carried -- flags 0x10, an inventory square, PutInside
   // -- where the shipped spell set flags 9 and lost it.
-  { id: 'fetch', group: 'bryce', stage: 'bugfix', title: 'Fetch brings the thing to the caster rather than losing it',
+  { id: 'fetch', group: 'rules', stage: 'bugfix', title: 'Fetch now brings the thing to the caster, instead of losing it',
     played: 'the maintainer, 21 September 2026',
     edits: [
       { what: 'Fetch', resid: 0x1A28, at: 0x00B2, to: 0x00F3,
@@ -763,7 +765,7 @@ const DATA_FIXES = [
   // Fishing (0x1091). His source's one change: the map word the pole reads
   // carries the automap's seen bit, which it masks off (word 0x7FFF,
   // bitwise_and) before testing for deep water.
-  { id: 'fishing', group: 'bryce', stage: 'bugfix', title: 'Fishing finds deep water on squares already seen',
+  { id: 'fishing', group: 'rules', stage: 'bugfix', title: 'Fishing now finds deep water on squares already seen, instead of only on unseen ones',
     edits: [
       { what: 'fishing', resid: 0x1091, at: 0x00C7, expect: { 0x00C3: 'sys GetMapTile', 0x00C7: 'end' },
         code: `word 0x7FFF\nbitwise_and` },
@@ -773,7 +775,7 @@ const DATA_FIXES = [
   // read since: the task scripts cast their item argument into a local and
   // then send the method to the argument, a bare number, which the
   // interpreter ignores. Each sends it to the local.
-  { id: 'aethon-locks', group: 'bryce', stage: 'bugfix', title: 'Aethon picks a lock when told to',
+  { id: 'aethon-locks', group: 'rules', stage: 'bugfix', title: 'Aethon now picks a lock when told to, instead of ignoring the order',
     edits: [[0x0C4E, 'Use'], [0x0C4F, 'UseOn'], [0x0C50, 'UseAt']].map(([resid, m]) => ({
       what: 'lock picking ' + m, resid, at: 0x000B, to: 0x000C,
       expect: { 0x0003: 'set_local 0x00', 0x0009: 'method', 0x000B: 'arg Arg01' },
@@ -782,7 +784,7 @@ const DATA_FIXES = [
   // block Hector's has for a thing asked about is put in front of it,
   // without Hector's weapon remarks: open the talk, both portraits, the
   // AskAbout helper (0xEB6), and "Looks like ..." when it has nothing.
-  { id: 'aethon-ask-about', group: 'bryce', stage: 'bugfix', title: 'Aethon answers when asked about a thing',
+  { id: 'aethon-ask-about', group: 'talk', stage: 'bugfix', title: 'Aethon now answers when asked about a thing, instead of answering only about skills',
     edits: [
       { what: 'Aethon asked about a thing', resid: 0x1861, at: 0x0078,
         expect: { 0x0078: 'if_not', 0x007A: 'is_type Skill' },
@@ -824,7 +826,7 @@ const DATA_FIXES = [
   // Paris's and Diomede's names (0x1857, 0x182E). Their "name" topics set
   // their own character flag 7, as every other character's does, so the
   // scripts that test it use their names.
-  { id: 'paris-diomede-names', group: 'bryce', stage: 'bugfix', title: 'Paris and Diomede are called by name once they have given it',
+  { id: 'paris-diomede-names', group: 'talk', stage: 'bugfix', title: 'Paris and Diomede are now called by name once they have given it, instead of never',
     edits: [
       { what: 'Paris keeps his name', resid: 0x1857, at: 0x013D,
         expect: { 0x0114: 'conversation_response "name"', 0x013D: 'branch' },
@@ -837,7 +839,7 @@ const DATA_FIXES = [
   // Goat's table, (22,16), are moved to the chair on the table's other side,
   // (23,15), which no schedule uses. Two schedule posts, bytes 5 to 7 of each
   // (x << 12 | y).
-  { id: 'green-goat-chair', group: 'bryce', stage: 'bugfix', title: 'Darius and Sardis do not share one chair at the Green Goat',
+  { id: 'green-goat-chair', group: 'world', stage: 'bugfix', title: 'Darius and Sardis now sit in a chair each at the Green Goat, instead of sharing one',
     dataEdits: [
       { what: 'the chair', resid: 0xF00B, fn: (b) => {
           const S = (() => { const t = []; let p = 512; for (let i = 0; i < 256; i++) { const len = u16be(b, i * 2); const segs = []; for (let k = 0; k < len; k++, p += 8) segs.push(p); t.push(segs); } return t; })();
@@ -876,7 +878,7 @@ const DATA_FIXES = [
   // The Books of Wisdom (0x1851): the task is struck at ten books, not five.
   // The eleventh To Do line, the one AddQuest shows at ten, reads "All ten of
   // the Sapphire Books of Wisdom have been retrieved".
-  { id: 'books-of-wisdom', group: 'further', stage: 'further', title: 'The Books of Wisdom task is struck off at ten books, not five',
+  { id: 'books-of-wisdom', group: 'quests', stage: 'further', title: 'The Books of Wisdom task is now struck off at ten books, instead of five',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'the Books of Wisdom struck at ten', 0x1851,
         ['if_not', 'sys GetState', 'byte 0x05', 'end', 'byte 0x05', 'eq', 'then ->', 'sys CompleteQuest', 'byte 0x12'], 4, 'byte 0x0A'),
@@ -885,7 +887,7 @@ const DATA_FIXES = [
   // then the "s" only when the count is greater than 2, so two books read
   // "two Book" [sic]. Seen in the fork on 30 September 2026, handing in two.
   // The test is greater than 1.
-  { id: 'books-plural', group: 'further', stage: 'further', title: 'Selinus thanks the party for "two Books", not "two Book"',
+  { id: 'books-plural', group: 'talk', stage: 'further', title: 'Selinus now thanks the party for \u201ctwo Books\u201d, instead of \u201ctwo Book\u201d',
     played: 'fork, PowerPC, 30 September 2026: two books handed in',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'the Books of Wisdom counted as more than one', 0x1851,
@@ -895,7 +897,7 @@ const DATA_FIXES = [
   // flag 1 where it tested quest flag 2, which nothing sets. Sabinate sets
   // Timon's flag 1 on meeting him ("It is a living Seldane!"), and Timon's
   // own talk with Larisa reads it for "meeting a real Seldane".
-  { id: 'timon-seldane', group: 'further', stage: 'further', title: 'Timon speaks of having met a Seldane once he has',
+  { id: 'timon-seldane', group: 'talk', stage: 'further', title: 'Timon now speaks of having met a Seldane once he has, instead of never',
     plan: (s) => {
       const what = 'Timon has met the Seldane', p = dataPatchPlace(s, what, 0x184A,
         ['if_not', 'sys GetStateFlag', 'byte 0x02', 'end', 'then ->', 'string(implicit) "\\"Of course you all know that']);
@@ -903,34 +905,34 @@ const DATA_FIXES = [
     } },
   // Timon fretting about Larisa (the room, 0x1C2D): the second branch tests
   // his flag 3 and set flag 2, so he fretted on every entry; it sets flag 3.
-  { id: 'timon-frets', group: 'further', stage: 'further', title: 'Timon frets about Larisa once, not every time he comes in',
+  { id: 'timon-frets', group: 'talk', stage: 'further', title: 'Timon now frets about Larisa once, instead of every time he comes in',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Timon frets once', 0x1C2D, ['call_resource SetCharacterFlag', 'short 0x004A', 'byte 0x02', 'end', 'return'], 2, 'byte 0x03'),
     ] }) },
   // Halos's "stop by my office" (0x183E's helper): `behaviour != 144 and
   // behaviour == 138` is redundant as written, and the line fits only away
   // from the office; the second test is `!=`.
-  { id: 'halos-office', group: 'further', stage: 'further', title: 'Halos says \u201cstop by my office\u201d only when he is not in it',
+  { id: 'halos-office', group: 'talk', stage: 'further', title: 'Halos now says \u201cstop by my office\u201d when he is away from it, instead of never',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Halos away from his office', 0x183E,
         ['arg Arg00', 'get_field behavior', 'word 144', 'ne', 'arg Arg00', 'get_field behavior', 'word 138', 'eq', 'and', 'sys GetSkill'], 7, 'ne'),
     ] }) },
   // Thoas's "Please come again" (0x1844): the local it waits on is set once
   // his shop has been opened.
-  { id: 'thoas-farewell', group: 'further', stage: 'further', title: 'Thoas says \u201cPlease come again\u201d after you have shopped',
+  { id: 'thoas-farewell', group: 'talk', stage: 'further', title: 'Thoas now says \u201cPlease come again\u201d after you have shopped, instead of never',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thoas after his shop', 0x1844, ['conversation_response "buy" ->', 'set_field 0x27'], 1, 'set_local 0x00\nword True\nend'),
     ] }) },
   // Paris and Parium (the family group, 0x0805): "pari" took Parium's answer
   // first, so Paris's could not be given; Parium's is keyed "pariu".
-  { id: 'paris-parium', group: 'further', stage: 'further', title: '\u201cParis\u201d gets the answer about Paris, and \u201cParium\u201d about Parium',
+  { id: 'paris-parium', group: 'talk', stage: 'further', title: '\u201cParis\u201d now gets the answer about Paris, instead of the one about Parium',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Parium keyed apart from Paris', 0x0805, 'pari', 'pariu', ['string(implicit) "\\"My cousin Parium']),
     ] }) },
   // Thuria's mine task (0x1814): "You've heard first hand" is said only once
   // she has given the task, so hearing Amphidamas first no longer shuts it
   // out; her report greeting already has a line for that order.
-  { id: 'thuria-mine', group: 'further', stage: 'further', title: 'Thuria still gives the mine task after you have been to the mine',
+  { id: 'thuria-mine', group: 'quests', stage: 'further', title: 'Thuria now still gives the mine task after you have been to the mine, instead of never giving it',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thuria gives the mine task', 0x1814,
         ['conversation_response "rumo" ->', 'if_not', 'call_resource 0xF02', 'short 0x0017', 'byte 0x01', 'end', 'then ->'], 6,
@@ -939,7 +941,7 @@ const DATA_FIXES = [
   // The Comana brothers (Kosha Grotto, 0x1417): the one-time signal that
   // kills them and puts Pelagon in Magpie's figure waits for quest value 3 to
   // be 3, the visit on which Pelagon says "House Comana is no more".
-  { id: 'comana-brothers', group: 'further', stage: 'further', title: 'The Comana brothers are not found dead before their end is told',
+  { id: 'comana-brothers', group: 'quests', stage: 'further', title: 'The Comana brothers are now found dead only once their end is told, instead of before',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'the Comana brothers’ signal', 0x1417,
         ['if_not', 'sys GetStateFlag', 'byte 0x0F', 'end', 'not', 'then ->', 'sys SetStateFlag', 'byte 0x0F'], 5,
@@ -958,7 +960,7 @@ const DATA_FIXES = [
   // bartenders, Ake, Parium, Crito (three), Apis (three), Paris, Niobe
   // (two), Borus and Sabinate; a `*` after the closing quote, as the game's
   // own lines wait ("Yes, I was a bit puzzled."*).
-  { id: 'lines-run-on', group: 'further', stage: 'further', title: 'Answers no longer run into the next one or flash past unread',
+  { id: 'lines-run-on', group: 'talk', stage: 'further', title: 'Answers now wait to be read, instead of running into the next one or flashing past',
     plan: (s) => {
       const edits = [];
       const RETURN_TRUE = 'return\nword True\nend';
@@ -1016,11 +1018,11 @@ const DATA_FIXES = [
   // Demodocus's "Would you like to @hear it?" leads to his song, keyed
   // "song,meti", whose "meti" the question itself takes first; it is keyed
   // "song,hear".
-  { id: 'demodocus-song', group: 'further', stage: 'further', title: 'Demodocus sings when you ask to hear his song',
+  { id: 'demodocus-song', group: 'talk', stage: 'further', title: 'Demodocus now sings when you ask to hear his song, instead of not answering',
     plan: (s) => ({ edits: [dataFixRekey(s, 'Demodocus’s song on "hear"', 0x186D, 'song,meti', 'song,hear')] }) },
   // Glaucus's "North Shore @Vineyard" and the family group's answer are
   // keyed "viny", which "vineyard" can never match; "vine".
-  { id: 'glaucus-vineyard', group: 'further', stage: 'further', title: '\u201cVineyard\u201d gets an answer from Glaucus and his family',
+  { id: 'glaucus-vineyard', group: 'talk', stage: 'further', title: '\u201cVineyard\u201d now gets an answer from Glaucus and his family, instead of none',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Glaucus’s vineyard', 0x1866, 'viny', 'vine'),
       dataFixRekey(s, 'the family group’s vineyard', 0x0805, 'viny', 'vine'),
@@ -1033,7 +1035,7 @@ const DATA_FIXES = [
   // that spell from whoever carries it (RemoveItem, as Selinus takes a
   // book). Directed Nexus is the one spell that changes zone. The scroll's
   // Use, from the cast to its return, and two more locals.
-  { id: 'nexus-scroll', group: 'further', stage: 'further', title: 'A Directed Nexus scroll no longer destroys things in Land King Hall',
+  { id: 'nexus-scroll', group: 'rules', stage: 'further', title: 'A Directed Nexus scroll now leaves Land King Hall\u2019s things alone, instead of destroying two of them',
     plan: (s) => {
       const what = 'the scroll deletes nothing it has left behind', p = dataPatchPlace(s, what, 0x104B,
         ['set_local 0x01', 'method Use (0x9)', 'local Var00', 'end', 'end', 'sys Delete', 'local Var00', 'end',
@@ -1063,7 +1065,7 @@ const DATA_FIXES = [
   // already do. One level inside each thing, in a pair of locals the
   // function did not have (item, then the iterator's own slot), which the
   // header is given.
-  { id: 'traps', group: 'further', stage: 'further', title: 'Detect Traps and Deactivate Trap find traps inside chests, and armed wires',
+  { id: 'traps', group: 'rules', stage: 'further', title: 'Detect Traps and Deactivate Trap now find traps inside chests, and armed wires, instead of missing them',
     plan: (s) => {
       const TRAP_TEST = v => ['short 0x0160', 'short 0x0161', 'short 0x0163', 'short 0x00E6']
         .map((t, k) => ['local ' + v, 'get_field obj_type (0x4)', t, 'eq'].concat(k ? ['or'] : [])).flat();
@@ -1105,7 +1107,7 @@ const DATA_FIXES = [
   // is the transposed north sitting frame; it becomes the transposed north
   // standing frame, so he no longer drops into his seat whenever he stops
   // walking left.
-  { id: 'magpie-west', group: 'further', stage: 'further', title: 'Magpie stands, rather than sits, when he stops walking west',
+  { id: 'magpie-west', group: 'world', stage: 'further', title: 'Magpie now stands when he stops walking west, instead of sitting',
     dataEdits: [
       { what: 'Magpie’s west standing frame', resid: 0x8E72, fn: (b) => {
           const col = decompressDCG(b, 32, 512);
@@ -1132,7 +1134,7 @@ const DATA_FIXES = [
   // FindSkill and RecalcSkills use for a skill. Nothing else in the game
   // places or makes a type-213 thing, so with this the mushroom steak cannot
   // be had (the maintainer's choice, 27 September 2026).
-  { id: 'divide-food', group: 'further', stage: 'further', title: 'Divide Food no longer eats Lock Picking (which was the only way to a mushroom steak)',
+  { id: 'divide-food', group: 'rules', stage: 'further', title: 'Divide Food now leaves Lock Picking alone, instead of eating it (which was the only way to a mushroom steak)',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Divide Food leaves skills alone', 0x1AFB,
         ['if_not', 'local Var04', 'get_field obj_type (0x4)', 'short 0x0045', 'eq', 'local Var04', 'get_field obj_type (0x4)', 'short 0x00E7', 'eq', 'or',
@@ -1153,7 +1155,7 @@ const DATA_FIXES = [
   // the step is refused; the seven squares behind it are reached by nothing
   // else. The square takes the floor tile of the door beside it at (20,18),
   // 210.
-  { id: 'stronghold-door', group: 'map', stage: 'map', title: 'The first Stronghold\u2019s kitchen door opens onto floor, not wall',
+  { id: 'stronghold-door', group: 'world', stage: 'map', title: 'The first Stronghold\u2019s kitchen door now opens onto floor, instead of wall',
     played: 'fork, 26 September 2026: through the door into the kitchen',
     dataEdits: [
       { what: 'the Stronghold’s kitchen door', resid: 0x801F, fn: (b) => {
@@ -1172,7 +1174,7 @@ const DATA_FIXES = [
   // the grass of its neighbour to the north at (25,52), 52. That reads as a
   // notch in the embankment. It opens no other way: (25,52) holds a tree,
   // which blocks, so the notch leads only onto the passage.
-  { id: 'citadel-passage', group: 'map', stage: 'map', title: 'The secret passage on the shore under the Citadel can be stepped on',
+  { id: 'citadel-passage', group: 'world', stage: 'map', title: 'The secret passage on the shore under the Citadel can now be stepped on, instead of blocking',
     played: 'fork, 26 September 2026: a step north reaches the Underground',
     dataEdits: [
       { what: 'the passage under the Citadel', resid: 0x8006, fn: (b) => {
@@ -1201,13 +1203,12 @@ const DATA_FIXES = [
           ctx.chosen.has('spelling-us') ? 'us' : ctx.chosen.has('spelling-uk') ? 'uk' : null).textEdits }) },
       { stage: 'spelling', plan: (s, ctx) => ({ textEdits: dataFixSpellingEdits(ctx.chosen) }) },
     ] },
-  { id: 'spelling-us', parent: 'text', choice: 'spelling', group: 'text', title: 'American spelling throughout, as the Hintbook has it' },
-  { id: 'spelling-uk', parent: 'text', choice: 'spelling', group: 'text', title: 'British spelling throughout' },
-  { id: 'spelling-olde', parent: 'text', choice: 'spelling', group: 'text', title: 'Ye olde spelling: ye towne, ye shoppe, magick and musick' },
-  { id: 'text-two-taled', parent: 'text', group: 'text', title: 'The inn is the \u201cTwo-Taled Rat\u201d in the directions too, as on its sign' },
-  { id: 'text-land-king', parent: 'text', group: 'text', title: '\u201cLandKing\u201d written \u201cLand King\u201d, as in the manuals' },
-  { id: 'text-areithous', parent: 'text', group: 'text', title: '\u201cAriethous\u201d written \u201cAreithous\u201d, as in the Hintbook' },
-  { id: 'text-hyphens', parent: 'text', group: 'text', title: 'Hyphens in \u201ckind-looking\u201d, \u201cdour-faced\u201d and the like' },
+  { id: 'spelling-us', parent: 'text', choice: 'spelling', group: 'text', title: 'Standardize to US spellings' },
+  { id: 'spelling-uk', parent: 'text', choice: 'spelling', group: 'text', title: 'Standardize to UK spellings' },
+  { id: 'text-two-taled', parent: 'text', group: 'text', title: 'The inn is now the \u201cTwo-Taled Rat\u201d in the directions too, as on its sign, instead of the \u201cTwo Tailed Rat\u201d' },
+  { id: 'text-land-king', parent: 'text', group: 'text', title: '\u201cLandKing\u201d is now written \u201cLand King\u201d, as in the manuals' },
+  { id: 'text-areithous', parent: 'text', group: 'text', title: '\u201cAriethous\u201d is now written \u201cAreithous\u201d, as in the Hintbook' },
+  { id: 'text-hyphens', parent: 'text', group: 'text', title: '\u201ckind looking\u201d, \u201cdour faced\u201d and the like now have their hyphens' },
 
   /* ---- Larger changes (the stage "apart"; karma_patch.mjs,
      resurrection_patch.mjs, peirithous_patch.mjs) --------------------------
@@ -1236,7 +1237,7 @@ const DATA_FIXES = [
   // another path for a tagged word. The victim's type it can read, as the
   // helper already reads its square. So a hatched guard costs karma too,
   // being a person, and a hatched chicken does not.
-  { id: 'karma', group: 'apart', stage: 'apart', title: 'Killing a townsperson costs one karma instead of adding one',
+  { id: 'karma', group: 'apart', stage: 'apart', title: 'Killing a townsperson now costs one karma, instead of adding one',
     edits: (() => {
       const NOT_PEOPLE = ['byte 0x59', 'byte 0x5A', 'short 0x00E4', 'short 0x0121', 'short 0x0122', 'short 0x0124'];
       return [{
@@ -1300,7 +1301,7 @@ const DATA_FIXES = [
   // which nobody-corpse turns away in both. The map record wants a fifth
   // local; a function's locals are the third byte of its header, and UseOn's
   // header is at 0xA0.
-  { id: 'resurrection', group: 'apart', stage: 'apart', title: 'Resurrection brings the person back where the corpse lay, with their belongings, and in the party',
+  { id: 'resurrection', group: 'apart', stage: 'apart', title: 'Resurrection now brings the person back where the corpse lay, with their belongings and in the party, instead of nowhere until a later hour',
     // Its offsets are the shipped file's; nobody-corpse, an earlier stage,
     // inserts before them, so the plan measures where the corpse's things
     // are now walked and moves every offset by the difference.
@@ -1329,7 +1330,7 @@ const DATA_FIXES = [
   // set. Every release from 1.0.1 is the same. THE CHANGE: the one bit, set.
   // A saved game carries its own character table, so this reaches new games
   // only.
-  { id: 'peirithous', group: 'apart', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is alive in a new game',
+  { id: 'peirithous', group: 'apart', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is now alive in a new game, instead of dead',
     dataEdits: [
       { what: 'Peirithous alive', resid: 0xF009, fn: (b) => {
           const p = 96 * 32;
@@ -1579,31 +1580,11 @@ const DATA_FIX_TEXT_BRITISH = (() => {
   return out;
 })();
 
-/* Ye olde spelling, the third choice (29 September 2026, the maintainer
-   asking for "a funny text edit option alternative to US and UK
-   spellings"). "The" as "ye", from the thorn's y-shaped letterform on
-   signs that wanted to look old; "old", "shop" and "town" with the -e the
-   signs add; and -ic words as -ick, the spelling Aleister Crowley kept for
-   "magick", whose books the Aloiphos volumes quote. Whole words of running
-   text only (`prose`): "the" as "ye" changes a word's start, so a keyword
-   list holding it would stop answering, and Thoas's "shop,buy" would stop
-   answering "shop" as "shoppe"; a highlighted word is left too, though the
-   rest only add letters and would still match. Two resources are left
-   whole: 0x0101, the scripts' own symbols, which are no one's text, and
-   0x0201, the name table, whose strings are pointed at with a tag the
-   relinker does not move, so a name of another length would break it. So
-   names keep their spelling, and what is said of them does not. */
-const DATA_FIX_TEXT_OLDE = (() => {
-  const EXCEPT = [0x0101, 0x0201];
-  const cap = t => t[0].toUpperCase() + t.slice(1);
-  const out = [];
-  for (const [a, b] of [['the', 'ye'], ['old', 'olde'], ['shop', 'shoppe'], ['town', 'towne'], ['magic', 'magick'], ['magical', 'magickal'],
-       ['music', 'musick'], ['public', 'publick'], ['basic', 'basick'], ['tragic', 'tragick'], ['comic', 'comick'], ['heroic', 'heroick'],
-       ['rustic', 'rustick'], ['civic', 'civick'], ['exotic', 'exotick'], ['ironic', 'ironick']])
-    for (const [f, r] of [[a, b], [cap(a), cap(b)]])
-      out.push(Object.assign(dataFixT('olde "' + f + '"', null, f, r), { prose: true, except: EXCEPT }));
-  return out;
-})();
+/* Ye olde spelling, a third choice from 29 September 2026 ("ye towne, ye
+   shoppe, magick and musick"), was taken off the page on 1 October 2026 at
+   the maintainer's word, as a test rather than a fix; its word list is in
+   the history. The `prose` and `except` filters it needed stay in
+   js/delv-datapatch.js, unused. */
 
 // The text stage's edits for the options chosen: the list, less the options
 // not chosen, each keeping the option it belongs to for the list of changes
@@ -1612,8 +1593,7 @@ function dataFixTextEdits(chosen) {
   return DATA_FIX_TEXT.filter(e => !e.opt || chosen.has(e.opt)).map(e => Object.assign({}, e));
 }
 function dataFixSpellingEdits(chosen) {
-  return chosen.has('spelling-us') ? DATA_FIX_TEXT_AMERICAN.slice() : chosen.has('spelling-uk') ? DATA_FIX_TEXT_BRITISH.slice()
-    : chosen.has('spelling-olde') ? DATA_FIX_TEXT_OLDE.slice() : [];
+  return chosen.has('spelling-us') ? DATA_FIX_TEXT_AMERICAN.slice() : chosen.has('spelling-uk') ? DATA_FIX_TEXT_BRITISH.slice() : [];
 }
 
 /* ---- The text: the community's list -----------------------------------------

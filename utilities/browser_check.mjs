@@ -331,10 +331,10 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     // Data > Patches, at the game's fixes, with the text and its options
     // chosen so the indented options and the buttons are drawn (28
     // September 2026).
-    ['datafixes', "showCategory('PATCHES'); dataFixGroup('bryce', true); dataFixToggle('text', true); dataFixSpelling('spelling-uk'); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; document.getElementById('dataFixMaker').scrollIntoView()"],
+    ['datafixes', "showCategory('PATCHES'); dataFixGroup('rules', true); dataFixToggle('text', true); dataFixSpelling('spelling-uk'); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; document.getElementById('dataFixMaker').scrollIntoView()"],
     // The same, with the list of every change the text makes open, filled
     // at once rather than after the click as the page does.
-    ['textchanges', "showCategory('PATCHES'); dataFixToggle('text', true); dataFixSpelling('spelling-olde'); DATAFIX_STATE.showText = true; renderDataFixMaker(); const b = document.querySelector('.dataFixChanges'); dataFixFillChanges(b); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; b.scrollIntoView()"],
+    ['textchanges', "showCategory('PATCHES'); dataFixToggle('text', true); dataFixSpelling('spelling-uk'); DATAFIX_STATE.showText = true; renderDataFixMaker(); const b = document.querySelector('.dataFixChanges'); dataFixFillChanges(b); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; b.scrollIntoView()"],
   ];
   const MEASURE = `(() => {
     const w = window.innerWidth, out = {innerWidth: w, scrollWidth: document.documentElement.scrollWidth, over: [], small: 0, buttons: 0};

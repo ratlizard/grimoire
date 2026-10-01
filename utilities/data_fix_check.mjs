@@ -34,11 +34,8 @@
 //    must hold the row's words in the shipped file, which is what the link
 //    opens. A place the text changed twice (a British stem inside a word a
 //    fix put there) is counted and named, and must be one this says why.
-// 6. YE OLDE SPELLING LEAVES WHAT IS TYPED: with it, every keyword list in
-//    every script is what the text alone leaves, and the symbols (0x0101)
-//    and the name table (0x0201) are untouched. The control makes "shop"
-//    "shoppe" without the filter, and must be seen changing Thoas's
-//    "shop,buy".
+// 6. (Ye olde spelling leaving what is typed, until 1 October 2026, when the
+//    option was taken off the page.)
 // 4. THE COMMUNITY'S LIST, DATA_FIX_COMMUNITY_TYPOS, against the collection
 //    it was read out of, when the collection is here: the same pairs, in the
 //    same order. The page cannot read the collection, so the list is written
@@ -182,36 +179,8 @@ if (FULL) {
   console.log('  text list: ' + r.map(x => (x.sp || 'as shipped') + ' ' + x.rows + ' rows, ' + x.places + ' places (' + x.touched + ' inside words a fix wrote)').join('; ') + '; every other place holds its words in the shipped file');
 }
 
-// ---- 6. ye olde spelling leaves what is typed -------------------------------
-{
-  const r = JSON.parse(vm.runInContext(`JSON.stringify((() => {
-    // Every keyword list of every script resource in a finished session, as text.
-    const lists = done => {
-      const spec = writeDelverArchive(done.spec), s = dataPatchSession(spec), out = [];
-      for (const id of dataPatchScriptResids(s.spec)) {
-        const b = s.bytesOf(id), extra = { blocks: [], keys: [] };
-        dvmOffsetSites(b, id, extra);
-        for (const [a, z] of extra.keys) { let t = ''; for (let k = a + 1; k < z && b[k]; k++) t += String.fromCharCode(b[k]); out.push(id + ':' + t); }
-      }
-      return out;
-    };
-    const plain = (done, id) => Array.from(done.spec.resources.find(x => x.resid === id).data || []);
-    const text = applyDataFixes(__a, ['text']), olde = applyDataFixes(__a, ['text', 'spelling-olde']);
-    const a = lists(text), b = lists(olde);
-    const differ = a.filter((k, i) => k !== b[i]).length + Math.abs(a.length - b.length);
-    const same = id => JSON.stringify(plain(text, id)) === JSON.stringify(plain(olde, id));
-    // The control: "shop" made "shoppe" over every script without the filter.
-    const s = dataPatchSession(writeDelverArchive(text.spec));
-    applyDataEdits(s, { textEdits: [{ what: 'control', resid: null, find: 'shop', replace: 'shoppe' }] });
-    const c = lists(finishDataPatch(s));
-    const seen = a.filter((k, i) => k !== c[i]);
-    return { lists: a.length, differ, symbols: same(0x0101), names: same(0x0201), control: seen.slice(0, 3) };
-  })())`, ctx));
-  if (r.differ) fail('olde spelling: ' + r.differ + ' keyword lists differ from the text alone');
-  if (!r.symbols || !r.names) fail('olde spelling: the symbols or the name table changed');
-  if (!r.control.length) fail('control: "shop" made "shoppe" everywhere changed no keyword list');
-  else console.log('  olde spelling: ' + r.lists + ' keyword lists as the text alone leaves them, the symbols and the name table untouched; the control changed ' + r.control.join(', '));
-}
+// ---- 6. (ye olde spelling leaving what is typed; the option was taken off
+// the page on 1 October 2026, and its check with it) ---------------------------
 
 // ---- 4. the community's list against the collection ------------------------
 if (collDir && existsSync(collDir)) {

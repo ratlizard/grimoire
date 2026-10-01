@@ -2291,17 +2291,16 @@ function dataFixChosen() { return DATA_FIXES.filter(f => dataFixesChosen([...win
 function dataFixDescription(chosen) {
   const n = g => chosen.filter(f => f.group === g && !f.parent).length;
   const bits = [];
-  const count = (g, one, many) => { const k = n(g); if (k) bits.push(k + ' ' + (k === 1 ? one : many)); };
-  count('community', 'reported by players', 'reported by players');
-  count('found', 'found in the files', 'found in the files');
-  count('further', 'further fix', 'further fixes');
-  count('bryce', 'of Bryce Schroeder’s', 'of Bryce Schroeder’s');
-  count('map', 'to the maps', 'to the maps');
+  const count = (g, what) => { const k = n(g); if (k) bits.push(k + ' ' + what); };
+  count('talk', 'to conversations');
+  count('quests', 'to quests');
+  count('rules', 'to spells, skills and fighting');
+  count('items', 'to items');
+  count('world', 'to people and places');
   if (chosen.some(f => f.id === 'text')) {
     const opts = [];
     if (chosen.some(f => f.id === 'spelling-us')) opts.push('American spelling');
     if (chosen.some(f => f.id === 'spelling-uk')) opts.push('British spelling');
-    if (chosen.some(f => f.id === 'spelling-olde')) opts.push('ye olde spelling');
     if (chosen.some(f => f.id === 'text-two-taled')) opts.push('Two-Taled');
     if (chosen.some(f => f.id === 'text-land-king')) opts.push('Land King');
     if (chosen.some(f => f.id === 'text-areithous')) opts.push('Areithous');
@@ -2467,32 +2466,34 @@ function renderDataFixMaker() {
     const list = DATA_FIXES.filter(f => f.group === g.id && !f.parent);
     if (!list.length) continue;
     const head = el('div', 'dataFixHead');
+    /* A list that is one fix with options (the text, since 1 October 2026,
+       when the maintainer had its own line dropped) has that fix's box for
+       its heading; any other list's heading chooses everything in it. */
+    const lone = list.length === 1 && DATA_FIXES.some(o => o.parent === list[0].id) ? list[0] : null;
     const k = list.filter(f => on.has(f.id)).length;
-    const gb = box(k === list.length, function (c) { dataFixGroup(g.id, c); }, g.title);
-    gb.b.indeterminate = k > 0 && k < list.length;
+    const gb = lone ? box(on.has(lone.id), function (c) { dataFixToggle(lone.id, c); }, g.title + untestedMark(lone))
+                    : box(k === list.length, function (c) { dataFixGroup(g.id, c); }, g.title);
+    if (!lone) gb.b.indeterminate = k > 0 && k < list.length;
     gb.l.className = 'partsTitle';
     head.appendChild(gb.l);
     host.appendChild(head);
     for (const f of list) {
-      const row = el('div', 'appFixRow');
-      row.appendChild(box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + untestedMark(f)).l);
-      host.appendChild(row);
+      if (f !== lone) {
+        const row = el('div', 'appFixRow');
+        row.appendChild(box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + untestedMark(f)).l);
+        host.appendChild(row);
+      }
       const kids = DATA_FIXES.filter(o => o.parent === f.id);
       if (!kids.length) continue;
       const sub = el('div', 'dataFixOptions');
       const off = !on.has(f.id);
-      // The spelling is one of three: as the game has it, or either choice.
-      const choices = kids.filter(o => o.choice === 'spelling');
-      if (choices.length) {
-        const picked = choices.find(o => on.has(o.id));
-        const r0 = el('div', 'appFixRow');
-        r0.appendChild(box(!picked, function (c) { if (c) dataFixSpelling(null); }, 'Spelling as the game has it', off, 'radio', 'dataFixSpelling').l);
-        sub.appendChild(r0);
-        for (const o of choices) {
-          const r = el('div', 'appFixRow');
-          r.appendChild(box(picked === o, function (c) { if (c) dataFixSpelling(o.id); }, o.title + untestedMark(o), off, 'radio', 'dataFixSpelling').l);
-          sub.appendChild(r);
-        }
+      /* The spellings are boxes that exclude each other, so that neither
+         ticked is the spelling as the game has it (the maintainer, 1 October
+         2026; they were radio buttons with a third for that until then). */
+      for (const o of kids.filter(o => o.choice === 'spelling')) {
+        const r = el('div', 'appFixRow');
+        r.appendChild(box(on.has(o.id), function (c) { dataFixSpelling(c ? o.id : null); }, o.title + untestedMark(o), off).l);
+        sub.appendChild(r);
       }
       for (const o of kids.filter(o => !o.choice)) {
         const r = el('div', 'appFixRow');
@@ -4022,18 +4023,9 @@ function renderMechanicsSheet(value) {
     const base = patchBaseSpec();
     const applied = base ? delverInstalledPatchIds(base) : [];
     const named = applied.map(u => DELV_PATCH_AUTHORS[u]).filter(Boolean);
-    add('patches', 'The community’s patches', null, '',
-      'Cythera has one add-on system, and it is not a plug-in folder: the game does not read one. ' +
-      'A Magpie patch is a Delver Archive with the same scenario header as this file, holding only the resources it replaces, ' +
-      'and Magpie merges it into the file on disk. A patch opened here is compared with the file that is open, and can be applied to the copy of that file in this browser.',
-      [
-        'A patch is identified by a <b>UUID</b> and nothing else. The game file records no name, version or order for its patches, which is why Magpie needs every patch file to be present to say what is installed.',
-        'The game file keeps the list of what has been applied to it as resource ' + propWordHex(0xFFFE) + ', and a patch keeps its own description as ' + propWordHex(0xFFFF) + '. The shipped archive has neither.',
-        'Magpie accepts a patch when the scenario matches, the major format number matches, the minor format number is at least the patch’s, and the descriptor gives the position it is stored at.',
-        'Nothing here is written to disk. The report says what applying the patch would change, and its Apply button applies it to the copy of the file in this browser only.',
-      'A patch carries a <b>check value</b> for its descriptor. This page calculates it the same way Magpie does, so it can say whether a patch is intact, not just show the number.',
-      'A patch changes the <b>data fork only</b>. The only Resource Manager call Magpie uses reads, so nothing in the resource fork, including the game\u2019s font, can be changed by a patch.'
-      ],
+    add('patches', 'Compare Patches', null, '',
+      'Magpie patches work by replacing specific resources in the original Cythera Data file. Open a patch here to see details and what resources it changes.',
+      [],
       '<ul class="ruleList"><li>' +
         (!base ? 'No game file is open.'
           : applied.length
@@ -4067,16 +4059,13 @@ function renderMechanicsSheet(value) {
 
   // ---- the scenario's fixes, as a patch ----
   {
-    add('datafixes', 'Fixes to the game, as a patch', null, '',
-      'Fixes to Cythera\u2019s scenario: bugs players reported, bugs found by reading the files, Bryce Schroeder\u2019s fixes, two faults in the maps, and the text. ' +
-      'Choose the ones you want and they are written as one Magpie patch.',
-      [
-        'Nothing is chosen until you choose it. A list\u2019s own box chooses everything in it.',
-        'The text is one choice: the misspellings, slips and wrong directions, with the typos the community marked in its dialogue collection. Its spelling and the four corrections under it are chosen separately.',
-        'The larger changes each do more than mend a slip, and are for choosing one by one.',
-        'The patch is written from the file that is open, and the fixes were written for the scenario of 1.0.3 and 1.0.4 (the two are the same) as released. Every change checks what it replaces first, so a file that differs where a fix goes is refused and the fix is named.',
-        'The patch is read by this page and by the browser player, and Magpie installs it on a Mac. The program\u2019s own fixes are below, since a patch cannot reach the program.'
-      ], '');
+    add('datafixes', 'Generate Bugfix Patches', null, '',
+      'Over time, the community has uncovered a number of apparent bugs and typos that were never addressed by official version updates, and AI analysis has uncovered several more. ' +
+      'Solutions for the below issues have been identified through AI-based tracing and testing in the game itself (though many solutions are still untested). ' +
+      'Select as many of the fixes below as you\u2019d like, and this site can generate a Magpie-compatible patch file with those fixes. ' +
+      'Note it\u2019s best to generate a single patch file with all changes; stacking multiple sometimes will not work. ' +
+      '(If changes are too close to each other in code then a change made by a prior patch can be unintentionally reverted by a new patch.)',
+      [], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
     host.id = 'dataFixMaker';
