@@ -475,7 +475,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // people download is not the one the section describes.
       else if (!/id="prefSwitch256" checked/.test(tools)) fail('preferences', 'the 256-colour answer is not ticked by default');
       else if (!/id="prefDontAsk" checked/.test(tools)) fail('preferences', 'the "don\u2019t ask again" switch is not ticked by default');
-      else if (!/value="raw:0"/.test(tools) || /value="raw:9"/.test(tools)) fail('preferences', 'the frame-rate chooser does not offer no limit through the menu\u2019s slowest, and no further');
+      else if (/value="raw:/.test(tools)) fail('preferences', 'the frame-rate chooser offers values the game\u2019s menu does not');
       else if (!/Switch to 256 Colors/.test(tools) || !/Don't Ask Again/.test(tools)) fail('preferences', 'the 256-colour switch does not wear the dialog\u2019s own labels');
       else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
       else console.log(`  preferences: ${switches.length} switches and ${ctx.cytheraPrefsLayout().choices.length + ctx.cytheraPrefsLayout().ordinals.length} choosers on the Preferences tab with the game's labels, each bit where the program writes it, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);

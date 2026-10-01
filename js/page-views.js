@@ -318,7 +318,7 @@ const PREF_HELP = {
   Music: ['sound', 'Preferences dialog', 'How loud the music is, in eighths of full volume: 8 is full, 0 is silent.'],
   Ambient: ['sound', 'Preferences dialog', 'Background sounds, such as animals and ocean waves.'],
   movement: ['movement', 'Preferences dialog', 'How a step from one square to the next is drawn: in four stages (Smoother), in two (Faster), or as one jump (Fastest). It takes the same game time in all three. The dialog’s Graphics Quality slider sets the same thing.'],
-  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second. Three of these are on the game’s hidden Preferences menu; the rest are written straight into the file. A higher limit plays each step’s animation faster; holding a key still walks at the pace of the Mac’s key repeat.'],
+  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second; these three are the game’s own, from its hidden Preferences menu. The file can hold others, down to no limit at all. A higher limit plays each step’s animation faster; holding a key still walks at the pace of the Mac’s key repeat.'],
   motionFilters: ['movement', 'Preferences dialog', 'Leaves blowing on the trees and waves rippling across the ocean.'],
   walkAround: ['movement', 'Preferences dialog', 'The hero steps around things in the way rather than stopping at them.'],
   liveDrag: ['windows', 'Preferences dialog', 'Lets you drag the game’s windows around the screen.'],
@@ -409,18 +409,12 @@ function renderPrefsSheet() {
   for (const c of layout.choices) {
     const cur = c.options.find(op => op.sets.every(x => field(x.byte, x.lo, x.hi) === x.value));
     const key = c.options.some(o => o.text === layout.smoothLabel) ? 'movement' : layout.choices.length === 2 ? 'frameRate' : null;
-    /* A choice that is one numeric field (the frame-rate cap) offers every
-       value from none up to the menu's slowest, the menu's own wearing its
-       text and the rest named the same way (PREF_RAW_LABEL); values slower
-       than the menu's slowest are left out as of no use. */
-    let opts = c.options.map(o => ({ v: o.text, t: o.text, n: o.sets[0].value }));
-    const f = cytheraChoiceField(c);
-    if (f) {
-      const top = Math.max(...opts.map(o => o.n));
-      for (let n = 0; n < top; n++) if (!opts.some(o => o.n === n)) opts.push({ v: 'raw:' + n, t: PREF_RAW_LABEL(n), n });
-      opts.sort((a, b) => a.n - b.n);
-    }
-    ch(key, 'pref_' + c.opt, affix(c.options.map(o => o.text)) || 'Setting', opts, cur ? cur.text : null);
+    /* The menu's own options only (the maintainer, 1 October 2026: "just use
+       the game's own three options for FPS, but can note that technically
+       others possible"). v1.228.0 offered every frame-rate value from none
+       to the menu's slowest; the record writer still takes them as `raw:n`
+       (cytheraPrefsRecord), and the row's line says they exist. */
+    ch(key, 'pref_' + c.opt, affix(c.options.map(o => o.text)) || 'Setting', c.options.map(o => ({ v: o.text, t: o.text })), cur ? cur.text : null);
   }
   for (const c of layout.controls) sw(c.opt, idOf(c.opt), c.label, !!((layout.base >>> (24 - 8 * c.byte)) & (1 << c.bit)));
   /* The file's other keys. A flag (a range of 0 to 1) is a switch whose
