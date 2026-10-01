@@ -120,6 +120,12 @@ const PREF_SMOOTH_ITEM = 'Smoother Movement';
    256 colours is what the game recommends in its own words, and a file written
    to change a setting should not then stop to ask a question. */
 const PREF_STARTUP_ITEMS = ['Switch to 256 Colors', "Don't Ask Again"];
+// The Preferences tab's switch for each, in the same order.
+const PREF_STARTUP_IDS = ['prefSwitch256', 'prefDontAsk'];
+// A frame-rate value the game's menu does not offer, named as the menu names
+// its own: the field is ticks between frames, and a tick is a sixtieth of a
+// second, so n ticks is 60/n frames a second; 0 is no wait at all.
+const PREF_RAW_LABEL = n => n === 0 ? 'No limit' : 'Limit to ' + Math.round(60 / n) + ' FPS';
 /* The ordinals' ranges, which are the one thing here the program does not
    state. Each is a plain long and the code clamps nothing, so the limit is
    what the Toolbox call at the end of the chain means by "full":
@@ -302,10 +308,27 @@ function cytheraPrefsRecord(opts, layout) {
     const want = o[c.opt];
     const picked = want ? c.options.find(x => x.text === want) : null;
     if (picked) for (const x of picked.sets) put(x.byte, x.lo, x.hi, x.value);
+    // A value the menu does not offer, for a choice that is one numeric
+    // field (the frame-rate cap: every value from 0 up is a number of ticks
+    // between frames, and the menu's three are only three of them).
+    const f = !picked && typeof want === 'string' && /^raw:\d+$/.test(want) ? cytheraChoiceField(c) : null;
+    if (f) put(f.byte, f.lo, f.hi, Math.min(parseInt(want.slice(4), 10), (1 << (f.hi - f.lo + 1)) - 1));
   }
+  // The startup question's two bits together (switch256), or each on its
+  // own by the dialog's text (startup), so that every pairing can be
+  // written: the answer without the "don't ask", or "don't ask" with the
+  // screen left as it is.
   if (o.switch256) for (const x of L.startup) put(x.byte, x.bit, x.bit, x.value);
+  if (o.startup) for (const x of L.startup) if (o.startup[x.text] !== undefined) put(x.byte, x.bit, x.bit, o.startup[x.text] ? x.value : 0);
   if (o.cheats) put(L.gate.byte, L.gate.bit, L.gate.bit, 1);
   return b;
+}
+// The one field a choice writes, when every option writes the same single
+// run of bits; null for a choice spread over several (the movement stops).
+function cytheraChoiceField(c) {
+  const f = c.options[0] && c.options[0].sets.length === 1 ? c.options[0].sets[0] : null;
+  return f && c.options.every(x => x.sets.length === 1 && x.sets[0].byte === f.byte && x.sets[0].lo === f.lo && x.sets[0].hi === f.hi) && f.hi > f.lo
+    ? { byte: f.byte, lo: f.lo, hi: f.hi } : null;
 }
 // One ordinal's resource: (index + 1) longs, the value at its index and the
 // rest zero. Exactly that length, because GetOrdinal answers its caller's
@@ -328,9 +351,11 @@ function prefsSummary(o) {
   const parts = [o.cheats ? 'the cheat keys allowed' : 'no cheat keys'];
   if (o.smooth) parts.unshift('smoother movement');
   if (o.switch256) parts.push('256 colours chosen at startup without asking');
+  if (o.startup) for (const [t, v] of Object.entries(o.startup)) if (v) parts.push('\u201c' + t + '\u201d');
   const L = cytheraPrefsLayout();
   if (L) {
     for (const c of L.choices) if (o[c.opt] && c.options.some(x => x.text === o[c.opt])) parts.push('\u201c' + o[c.opt] + '\u201d');
+    for (const c of L.choices) if (typeof o[c.opt] === 'string' && o[c.opt].startsWith('raw:')) parts.push(PREF_RAW_LABEL(parseInt(o[c.opt].slice(4), 10)));
     for (const x of cytheraOrdinalsFor(o, L)) parts.push(x.key + ' ' + x.value);
   }
   if (o.liveDrag) parts.push('live dragging');
@@ -397,7 +422,14 @@ function prefsOptionsFromUI() {
   // An ordinal that is a flag is drawn as a switch (renderPrefsSheet), so a
   // checkbox answers 1 or 0 where a chooser answers its value.
   const pick = id => { const e = document.getElementById(id); if (!e) return undefined; if (e.type === 'checkbox') return e.checked ? '1' : '0'; return e.value !== '' ? e.value : undefined; };
-  const o = { cheats: on('prefCheats'), switch256: on('prefSwitch256') };
+  const o = { cheats: on('prefCheats') };
+  // The startup question's bits, one switch each, in the order the dialog
+  // has them (PREF_STARTUP_IDS).
+  const L0 = cytheraPrefsLayout();
+  if (L0 && L0.startup) {
+    o.startup = {};
+    L0.startup.forEach((x, i) => { const v = PREF_STARTUP_IDS[i] ? on(PREF_STARTUP_IDS[i]) : undefined; if (v !== undefined) o.startup[x.text] = v; });
+  }
   for (const [opt] of PREF_OPTIONS) o[opt] = on('pref' + opt[0].toUpperCase() + opt.slice(1));
   const L = cytheraPrefsLayout();
   if (L) {

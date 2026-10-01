@@ -317,15 +317,16 @@ const PREF_HELP = {
   Volume: ['sound', 'Preferences dialog', 'How loud the sound effects are, from 0, silent, to 8. At −1 the game leaves the Mac’s own volume alone.'],
   Music: ['sound', 'Preferences dialog', 'How loud the music is, in eighths of full volume: 8 is full, 0 is silent.'],
   Ambient: ['sound', 'Preferences dialog', 'Background sounds, such as animals and ocean waves.'],
-  movement: ['movement', 'Preferences dialog', 'How finely the map moves between squares. Smoother looks best and asks the most of the Mac. The dialog’s Graphics Quality slider sets the same thing.'],
-  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second. Only the game’s hidden Preferences menu changes it.'],
+  movement: ['movement', 'Preferences dialog', 'How a step from one square to the next is drawn: in four stages (Smoother), in two (Faster), or as one jump (Fastest). It takes the same game time in all three. The dialog’s Graphics Quality slider sets the same thing.'],
+  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second. Three of these are on the game’s hidden Preferences menu; the rest are written straight into the file. A higher limit plays each step’s animation faster; holding a key still walks at the pace of the Mac’s key repeat.'],
   motionFilters: ['movement', 'Preferences dialog', 'Leaves blowing on the trees and waves rippling across the ocean.'],
   walkAround: ['movement', 'Preferences dialog', 'The hero steps around things in the way rather than stopping at them.'],
   liveDrag: ['windows', 'Preferences dialog', 'Lets you drag the game’s windows around the screen.'],
   manualContainers: ['windows', 'Preferences dialog', 'Opening a container lets you choose where its window goes. Off, the game places it for you.'],
   zoomRects: ['windows', 'Preferences dialog', 'Windows open with a zooming outline.'],
   Backdrop: ['windows', 'Not in the game', 'The pattern that fills the screen behind every window. Nothing in the game sets it.'],
-  switch256: ['startup', 'Asked at startup', 'On a screen set to more than 256 colours the game asks whether to switch. This answers yes and stops it asking.'],
+  switch256: ['startup', 'Asked at startup', 'On a screen set to more than 256 colours, the game switches it to 256 when it starts. Off, it runs in the colours the screen already has.'],
+  dontAsk: ['startup', 'Asked at startup', 'The game does not ask about 256 colours when it starts. Off, it asks on a screen set to more than 256 colours, and the answer replaces the switch above.'],
   cheats: ['startup', 'Not in the game', null],
 };
 const PREF_GROUPS = [['sound', 'Sound'], ['movement', 'Game control'], ['windows', 'Windows'], ['startup', 'Starting the game'], ['other', 'Other settings']];
@@ -408,7 +409,18 @@ function renderPrefsSheet() {
   for (const c of layout.choices) {
     const cur = c.options.find(op => op.sets.every(x => field(x.byte, x.lo, x.hi) === x.value));
     const key = c.options.some(o => o.text === layout.smoothLabel) ? 'movement' : layout.choices.length === 2 ? 'frameRate' : null;
-    ch(key, 'pref_' + c.opt, affix(c.options.map(o => o.text)) || 'Setting', c.options.map(o => ({ v: o.text, t: o.text })), cur ? cur.text : null);
+    /* A choice that is one numeric field (the frame-rate cap) offers every
+       value from none up to the menu's slowest, the menu's own wearing its
+       text and the rest named the same way (PREF_RAW_LABEL); values slower
+       than the menu's slowest are left out as of no use. */
+    let opts = c.options.map(o => ({ v: o.text, t: o.text, n: o.sets[0].value }));
+    const f = cytheraChoiceField(c);
+    if (f) {
+      const top = Math.max(...opts.map(o => o.n));
+      for (let n = 0; n < top; n++) if (!opts.some(o => o.n === n)) opts.push({ v: 'raw:' + n, t: PREF_RAW_LABEL(n), n });
+      opts.sort((a, b) => a.n - b.n);
+    }
+    ch(key, 'pref_' + c.opt, affix(c.options.map(o => o.text)) || 'Setting', opts, cur ? cur.text : null);
   }
   for (const c of layout.controls) sw(c.opt, idOf(c.opt), c.label, !!((layout.base >>> (24 - 8 * c.byte)) & (1 << c.bit)));
   /* The file's other keys. A flag (a range of 0 to 1) is a switch whose
@@ -424,7 +436,10 @@ function renderPrefsSheet() {
     if (!opts || !opts.some(x => x.v === o.dflt)) continue;
     ch(o.key, id, o.key, opts, o.dflt);
   }
-  if (layout.startupLabel) sw('switch256', 'prefSwitch256', layout.startupLabel, true);
+  // The startup question's answer and its "don't ask" as two switches, each
+  // wearing the dialog's own text, so every pairing can be written. Both
+  // start on: the game's own recommendation, and no question in the way.
+  (layout.startup || []).forEach((x, i) => { if (PREF_STARTUP_IDS[i]) sw(['switch256', 'dontAsk'][i], PREF_STARTUP_IDS[i], x.text, true); });
   sw('cheats', 'prefCheats', 'Allow the cheat keys', true,
      svEsc('Lets the cheat keys work after you type ' + layout.gate.word + '. Nothing in the game turns this on, so a copy as released cannot enter cheat mode.'));
   for (const [g, title] of PREF_GROUPS) {

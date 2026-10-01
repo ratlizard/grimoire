@@ -393,7 +393,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     try {
       ctx.showCategory('PREFS');
       const tools = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-      const switches = ['prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects', 'prefSwitch256'];
+      const switches = ['prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects', 'prefSwitch256', 'prefDontAsk'];
       // The settings that are a choice rather than a switch, and the file's
       // other keys. Named by what they say rather than by an element id,
       // since a field's id is its own bit positions.
@@ -443,7 +443,15 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       const bitsWrong = rec({ liveDrag: true })[0] !== 0x19 || rec({ manualContainers: true })[0] !== 0x58 ||
         rec({ motionFilters: true })[1] !== 0x88 || rec({ walkAround: true })[1] !== 0xC0 || rec({ zoomRects: false })[1] !== 0x00 ||
         rec({ smooth: true, cheats: true }).join() !== [0x9A, 0x80, 0, 1].join() ||
-        rec({ switch256: true })[1] !== 0xB0;
+        rec({ switch256: true })[1] !== 0xB0 ||
+        // Each half of the startup question on its own, so "don't ask, and
+        // keep the screen's colours" can be written (byte 1 bits 5 and 4).
+        rec({ startup: { 'Switch to 256 Colors': true } })[1] !== 0xA0 ||
+        rec({ startup: { "Don't Ask Again": true } })[1] !== 0x90 ||
+        // The frame-rate field takes any number of ticks, not only the
+        // menu's 4, 6 and 8: 0 clears it, 2 is bits 2-5 holding 2.
+        rec({ c0_2: 'raw:0' })[0] !== 0x00 || rec({ c0_2: 'raw:2' })[0] !== 0x08 ||
+        rec({ c0_2: 'Limit to 16 FPS' })[0] !== 0x10;
       // A file that sets one ordinal carries two resources, not one, and an
       // ordinal left at what a fresh install reads is not written at all.
       const forkOf = o => ctx.openResourceFork(ctx.buildCytheraPreferences(o));
@@ -466,6 +474,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // game's own default leaves off, so it has to arrive ticked or the file
       // people download is not the one the section describes.
       else if (!/id="prefSwitch256" checked/.test(tools)) fail('preferences', 'the 256-colour answer is not ticked by default');
+      else if (!/id="prefDontAsk" checked/.test(tools)) fail('preferences', 'the "don\u2019t ask again" switch is not ticked by default');
+      else if (!/value="raw:0"/.test(tools) || /value="raw:9"/.test(tools)) fail('preferences', 'the frame-rate chooser does not offer no limit through the menu\u2019s slowest, and no further');
       else if (!/Switch to 256 Colors/.test(tools) || !/Don't Ask Again/.test(tools)) fail('preferences', 'the 256-colour switch does not wear the dialog\u2019s own labels');
       else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
       else console.log(`  preferences: ${switches.length} switches and ${ctx.cytheraPrefsLayout().choices.length + ctx.cytheraPrefsLayout().ordinals.length} choosers on the Preferences tab with the game's labels, each bit where the program writes it, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);
