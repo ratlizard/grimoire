@@ -320,9 +320,27 @@ function dataFixesChosen(ids) {
   }
   return out;
 }
+/* Which row of the list of the text's changes an edit is (dataFixTextChanges):
+   the part of the fix it came from, and its words before and after. The
+   key is what a row left out is remembered by (opts.skip, below). */
+function dataFixTextPart(stage, e, chosen) {
+  if (stage === 'community-text') return 'community';
+  if (stage === 'spelling') { const sp = DATA_FIXES.find(f => f.choice === 'spelling' && chosen.has(f.id)); return sp ? sp.id : 'spelling'; }
+  return e.opt || 'text';
+}
+function dataFixTextKey(part, find, replace) { return part + '\u0000' + find + '\u0000' + replace; }
+const DATA_FIX_TEXT_STAGES = ['text', 'community-text', 'spelling'];
+
 function applyDataFixes(bytes, ids, opts) {
   opts = opts || {};
   const chosen = dataFixesChosen(ids);
+  /* opts.skip: the keys of rows of the text's changes left out, one by one
+     (the maintainer, 1 October 2026). With any left out, every other text
+     edit may find nothing, since one can follow another's words (Helen's
+     "weary looking" is the hyphen's only after "wearly" is mended): it is
+     then dropped rather than stopping the build. A count that is found and
+     wrong still stops it. */
+  const skip = opts.skip && opts.skip.size ? opts.skip : null;
   const keepSyms = DVM_RESOURCE_SYMBOLS, keepCtx = dvmContextResid;
   try {
     const s = dataPatchSession(bytes);
@@ -345,6 +363,9 @@ function applyDataFixes(bytes, ids, opts) {
         all.dataEdits.push(...tag(f, r.dataEdits));
         all.textEdits.push(...tag(f, r.textEdits));
       }
+      if (skip && DATA_FIX_TEXT_STAGES.indexOf(stage) >= 0)
+        all.textEdits = all.textEdits.filter(e => !skip.has(dataFixTextKey(dataFixTextPart(stage, e, chosen), e.find, e.replace)))
+          .map(e => Object.assign(e, { optional: true }));
       // A stage whose edits are found rather than given sorts them, each
       // resource from the highest offset down, so every one's offsets are
       // still where they were found when it is applied.
@@ -375,13 +396,12 @@ function applyDataFixes(bytes, ids, opts) {
 function dataFixTextChanges(bytes, ids) {
   const chosen = dataFixesChosen(['text'].concat(ids || []));
   const done = applyDataFixes(bytes, [...chosen], { stages: ['text', 'community-text', 'spelling'] });
-  const spelling = DATA_FIXES.find(f => f.choice === 'spelling' && chosen.has(f.id));
   const rows = [], byKey = new Map();
   for (const t of done.text) {
-    const part = t.stage === 'community-text' ? 'community' : t.stage === 'spelling' ? (spelling ? spelling.id : 'spelling') : (t.opt || 'text');
-    const key = part + '\u0000' + t.find + '\u0000' + t.replace;
+    const part = dataFixTextPart(t.stage, t, chosen);
+    const key = dataFixTextKey(part, t.find, t.replace);
     let r = byKey.get(key);
-    if (!r) { r = { part, find: t.find, replace: t.replace, resids: [], places: 0, at: [] }; byKey.set(key, r); rows.push(r); }
+    if (!r) { r = { part, key, find: t.find, replace: t.replace, resids: [], places: 0, at: [] }; byKey.set(key, r); rows.push(r); }
     if (r.resids.indexOf(t.resid) < 0) r.resids.push(t.resid);
     r.places += t.places;
     // Each place, in the open file, in the order it comes in its resource.

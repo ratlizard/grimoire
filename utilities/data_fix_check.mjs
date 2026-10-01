@@ -65,9 +65,9 @@ const fail = m => { failed++; console.log('FAIL ' + m); };
 // A build of the fixes named, inside the page: whether it applied, the
 // patched file's resources changed, and whether the patch merges back.
 sandbox.__build = null;
-vm.runInContext(`__build = (ids) => {
+vm.runInContext(`__build = (ids, skip) => {
   try {
-    const done = applyDataFixes(__a, ids);
+    const done = applyDataFixes(__a, ids, { skip: new Set(skip || []) });
     const patched = writeDelverArchive(done.spec);
     const w = writeDelverPatch(done.spec, done.changed, { description: 'check', typeCode: DELV_PATCH_EXPORT_TYPE });
     const merged = mergeDelverPatch(__a, w.bytes);
@@ -75,10 +75,16 @@ vm.runInContext(`__build = (ids) => {
     return { ok: true, changed: done.changed.length, same, patched };
   } catch (e) { return { ok: false, why: e.message }; }
 }`, ctx);
-const build = ids => sandbox.__build(ids);
+const build = (ids, skip) => sandbox.__build(ids, skip);
 const FIXES = JSON.parse(vm.runInContext('JSON.stringify(DATA_FIXES.map(f => ({ id: f.id, parent: f.parent || null, choice: f.choice || null, title: f.title })))', ctx));
 const top = FIXES.filter(f => !f.parent);
-const options = FIXES.filter(f => f.parent === 'text' && !f.choice).map(f => f.id);
+// The text's options: since 1 October 2026 every one is half of a choice
+// (the spelling, and four that go one way or the other). `options` is the
+// first of each pair but the spelling, the way they went before; `others`
+// the second.
+const pairs = {};
+for (const f of FIXES) if (f.parent === 'text' && f.choice && f.choice !== 'spelling') (pairs[f.choice] = pairs[f.choice] || []).push(f.id);
+const options = Object.values(pairs).map(p => p[0]), others = Object.values(pairs).map(p => p[1]);
 const every = spelling => FIXES.filter(f => f.choice !== 'spelling' || f.id === 'spelling-' + spelling).map(f => f.id);
 const t0 = Date.now();
 
@@ -92,7 +98,7 @@ for (const f of top) {
   else alone++;
 }
 const SPELLINGS = FIXES.filter(f => f.choice === 'spelling').map(f => f.id);
-const textRuns = [['text'], ...options.map(o => ['text', o]), ...SPELLINGS.map(sp => ['text', sp]), ...SPELLINGS.map(sp => ['text', sp, ...options])];
+const textRuns = [['text'], ...options.concat(others).map(o => ['text', o]), ...SPELLINGS.map(sp => ['text', sp]), ...SPELLINGS.map(sp => ['text', sp, ...options]), ...SPELLINGS.map(sp => ['text', sp, ...others])];
 for (const ids of textRuns) {
   const r = build(ids);
   if (!r.ok) fail('text: ' + ids.join(' + ') + ' did not apply: ' + r.why);
@@ -155,8 +161,8 @@ if (FULL) {
     const arc = openDelverArchive(__a), shipped = {};
     const bytes = id => shipped[id] || (shipped[id] = smartDecrypt(getResourceBytes(arc, id), id).data);
     const out = [];
-    for (const sp of [null].concat(${JSON.stringify(SPELLINGS)})) {
-      const rows = dataFixTextChanges(__a, (sp ? [sp] : []).concat(${JSON.stringify(options)}));
+    for (const sp of [null].concat(${JSON.stringify(SPELLINGS)})) for (const opts of [${JSON.stringify(options)}, ${JSON.stringify(others)}]) {
+      const rows = dataFixTextChanges(__a, (sp ? [sp] : []).concat(opts));
       let places = 0, unmapped = 0, touched = 0; const off = [];
       for (const row of rows) for (const loc of row.at) {
         places++;
@@ -177,6 +183,27 @@ if (FULL) {
     if (x.off.length) fail('text list, ' + (x.sp || 'as shipped') + ': ' + x.off.length + ' places do not hold their words: ' + x.off.slice(0, 4).join('; '));
   }
   console.log('  text list: ' + r.map(x => (x.sp || 'as shipped') + ' ' + x.rows + ' rows, ' + x.places + ' places (' + x.touched + ' inside words a fix wrote)').join('; ') + '; every other place holds its words in the shipped file');
+}
+
+// ---- 7. a row of the text's changes left out ------------------------------
+{
+  const r = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+    const has = (done, id, t) => { const d = done.spec.resources.find(x => x.resid === id).data; let s = ''; for (let i = 0; i < d.length; i++) s += String.fromCharCode(d[i]); return s.indexOf(t) >= 0; };
+    const ids = ['text', 'text-hyphens'];
+    const rows = dataFixTextChanges(__a, ['text-hyphens']);
+    const kind = rows.find(x => x.find === 'kind looking'), wearly = rows.find(x => x.find === 'wearly looking');
+    const all = applyDataFixes(__a, ids);
+    const less = applyDataFixes(__a, ids, { skip: new Set([kind.key]) });
+    // Leaving out "wearly" leaves the hyphen nothing to find in Helen's line.
+    const dep = applyDataFixes(__a, ids, { skip: new Set([wearly.key]) });
+    return { control: has(all, 0x184C, 'kind looking'), kept: has(less, 0x184C, 'kind looking'), other: has(less, 0x184C, 'kind-looking') || has(less, 0x1830, 'dour-faced'),
+             wearly: has(dep, 0x1858, 'wearly looking'), weary: has(dep, 0x1858, 'weary-looking') };
+  })())`, ctx));
+  if (r.control) fail('control: "kind looking" is still there with nothing left out');
+  else if (!r.kept) fail('a row left out was made anyway: "kind looking" is hyphenated');
+  else if (!r.other) fail('leaving out one row left out the others');
+  else if (!r.wearly || r.weary) fail('with "wearly" left out, Helen\u2019s line was changed after all');
+  else console.log('  rows left out: "kind looking" left as the game has it and the other hyphens made; "wearly" left out takes the hyphen after it along, and the build goes on');
 }
 
 // ---- 6. (ye olde spelling leaving what is typed; the option was taken off

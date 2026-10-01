@@ -2256,7 +2256,7 @@ function renderSpanishMaker() {
    that carries a fix already, is refused by the first edit that does not
    find what it expects, and the note names the fix. Apply and Read go
    through the patches section, as the sprite's and the gremlin's do. */
-window.DATAFIX_STATE = { on: new Set(), showText: false, textChanges: null };
+window.DATAFIX_STATE = { on: new Set(), skip: new Set(), showText: false, textChanges: null };
 function dataFixSay(m, bad) {
   const note = document.getElementById('dataFixNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
@@ -2272,14 +2272,22 @@ function dataFixGroup(group, on) {
   for (const f of DATA_FIXES) if (f.group === group && !f.parent) { if (on) st.add(f.id); else st.delete(f.id); }
   renderDataFixMaker();
 }
-function dataFixSpelling(id) {
+// One of a choice's options, or (null) none of them.
+function dataFixChoose(choice, id) {
   const st = window.DATAFIX_STATE.on;
-  for (const f of DATA_FIXES) if (f.choice === 'spelling') st.delete(f.id);
+  for (const f of DATA_FIXES) if (f.choice === choice) st.delete(f.id);
   if (id) st.add(id);
   renderDataFixMaker();
 }
+function dataFixSpelling(id) { dataFixChoose('spelling', id); }
+// A row of the text's changes left out of the patch, or put back.
+function dataFixSkipRow(key, skip) {
+  const st = window.DATAFIX_STATE.skip;
+  if (skip) st.add(key); else st.delete(key);
+}
 function dataFixClear() {
   window.DATAFIX_STATE.on = new Set();
+  window.DATAFIX_STATE.skip = new Set();
   renderDataFixMaker();
   dataFixSay('');
 }
@@ -2301,10 +2309,11 @@ function dataFixDescription(chosen) {
     const opts = [];
     if (chosen.some(f => f.id === 'spelling-us')) opts.push('American spelling');
     if (chosen.some(f => f.id === 'spelling-uk')) opts.push('British spelling');
-    if (chosen.some(f => f.id === 'text-two-taled')) opts.push('Two-Taled');
-    if (chosen.some(f => f.id === 'text-land-king')) opts.push('Land King');
-    if (chosen.some(f => f.id === 'text-areithous')) opts.push('Areithous');
-    if (chosen.some(f => f.id === 'text-hyphens')) opts.push('hyphens');
+    const named = { 'text-two-taled': 'Two-Taled', 'text-two-tailed': 'Two-Tailed', 'text-land-king': 'Land King', 'text-landking': 'LandKing',
+                    'text-areithous': 'Areithous', 'text-ariethous': 'Ariethous', 'text-hyphens': 'hyphens', 'text-no-hyphens': 'no hyphens' };
+    for (const f of chosen) if (named[f.id]) opts.push(named[f.id]);
+    const left = window.DATAFIX_STATE.skip.size;
+    if (left) opts.push(left + ' left out');
     bits.push('the text' + (opts.length ? ' (' + opts.join(', ') + ')' : ''));
   }
   for (const f of chosen) if (f.group === 'apart') bits.push({ karma: 'karma for a kill', resurrection: 'Resurrection', peirithous: 'Peirithous alive' }[f.id] || f.id);
@@ -2320,7 +2329,7 @@ function dataFixPatch() {
   if (!ARCHIVE || !ARCHIVE.bytes) throw new Error('No game file is open.');
   const chosen = dataFixChosen();
   if (!chosen.some(f => !f.parent)) return null;
-  const done = applyDataFixes(ARCHIVE.bytes, chosen.map(f => f.id));
+  const done = applyDataFixes(ARCHIVE.bytes, chosen.map(f => f.id), { skip: window.DATAFIX_STATE.skip });
   const d = document.getElementById('dataFixDesc');
   const w = writeDelverPatch(done.spec, done.changed,
     { description: ((d && d.value) || dataFixDescription(chosen)).slice(0, 255), typeCode: DELV_PATCH_EXPORT_TYPE });
@@ -2405,7 +2414,7 @@ function dataFixFillChanges(body) {
     : (DATA_FIXES.find(f => f.id === part) || { title: part }).title;
   const parts = [];
   for (const row of r.rows) if (parts.indexOf(row.part) < 0) parts.push(row.part);
-  body.appendChild(el('p', 'mechSub', r.rows.length + ' changes. The words struck through are the game\u2019s, and the words after them are what the fix writes. Each place opens the script at the line that contains it.'));
+  body.appendChild(el('p', 'mechSub', r.rows.length + ' changes. The words struck through are the game\u2019s, and the words after them are what the fix writes. Each place opens the script at the line that contains it. Untick a change to leave it out of the patch.'));
   /* The places of a row, each a link to its line: a resource's name for its
      first place and a number for each after it, since a word misspelt twice
      in one speech is two places in one script. A row of more than a dozen
@@ -2436,6 +2445,14 @@ function dataFixFillChanges(body) {
     body.appendChild(el('div', 'partsTitle', heading(part) + ' (' + list.length + ')'));
     for (const row of list) {
       const line = el('div', 'dataFixChange');
+      /* Each row can be left out of the patch (the maintainer, 1 October
+         2026). Ticked is the default; the state is kept by the row's key,
+         its part and its words, so it survives the list being made again. */
+      const keep = document.createElement('input');
+      keep.type = 'checkbox'; keep.checked = !window.DATAFIX_STATE.skip.has(row.key);
+      keep.setAttribute('aria-label', 'include this change');
+      keep.onchange = function () { dataFixSkipRow(row.key, !keep.checked); };
+      line.appendChild(keep);
       const many = row.at.length > 12;
       if (!many) line.appendChild(links(row));
       line.appendChild(el('span', 'dataFixWas', shown(row.find)));
@@ -2487,12 +2504,13 @@ function renderDataFixMaker() {
       if (!kids.length) continue;
       const sub = el('div', 'dataFixOptions');
       const off = !on.has(f.id);
-      /* The spellings are boxes that exclude each other, so that neither
-         ticked is the spelling as the game has it (the maintainer, 1 October
-         2026; they were radio buttons with a third for that until then). */
-      for (const o of kids.filter(o => o.choice === 'spelling')) {
+      /* The options of a choice are boxes that exclude each other, so that
+         none ticked is the text as the game has it (the maintainer, 1 October
+         2026; the spelling was radio buttons with a third for that until
+         then, and the other four went one way only). */
+      for (const o of kids.filter(o => o.choice)) {
         const r = el('div', 'appFixRow');
-        r.appendChild(box(on.has(o.id), function (c) { dataFixSpelling(c ? o.id : null); }, o.title + untestedMark(o), off).l);
+        r.appendChild(box(on.has(o.id), function (c) { dataFixChoose(o.choice, c ? o.id : null); }, o.title + untestedMark(o), off).l);
         sub.appendChild(r);
       }
       for (const o of kids.filter(o => !o.choice)) {

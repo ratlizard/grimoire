@@ -1205,10 +1205,17 @@ const DATA_FIXES = [
     ] },
   { id: 'spelling-us', parent: 'text', choice: 'spelling', group: 'text', title: 'Standardize to US spellings' },
   { id: 'spelling-uk', parent: 'text', choice: 'spelling', group: 'text', title: 'Standardize to UK spellings' },
-  { id: 'text-two-taled', parent: 'text', group: 'text', title: 'The inn is now the \u201cTwo-Taled Rat\u201d in the directions too, as on its sign, instead of the \u201cTwo Tailed Rat\u201d' },
-  { id: 'text-land-king', parent: 'text', group: 'text', title: '\u201cLandKing\u201d is now written \u201cLand King\u201d, as in the manuals' },
-  { id: 'text-areithous', parent: 'text', group: 'text', title: '\u201cAriethous\u201d is now written \u201cAreithous\u201d, as in the Hintbook' },
-  { id: 'text-hyphens', parent: 'text', group: 'text', title: '\u201ckind looking\u201d, \u201cdour faced\u201d and the like now have their hyphens' },
+  /* The four that follow each go one way or the other, or neither (the
+     maintainer, 1 October 2026): a pair shares a choice, so ticking one
+     unticks the other, and neither ticked leaves the game's mixture. */
+  { id: 'text-two-taled', parent: 'text', choice: 'two-taled', group: 'text', title: 'Standardize to \u201cTwo-Taled Rat\u201d, as on its sign' },
+  { id: 'text-two-tailed', parent: 'text', choice: 'two-taled', group: 'text', title: 'Standardize to \u201cTwo-Tailed Rat\u201d' },
+  { id: 'text-land-king', parent: 'text', choice: 'land-king', group: 'text', title: 'Standardize to \u201cLand King\u201d, as in the manuals' },
+  { id: 'text-landking', parent: 'text', choice: 'land-king', group: 'text', title: 'Standardize to \u201cLandKing\u201d' },
+  { id: 'text-areithous', parent: 'text', choice: 'areithous', group: 'text', title: 'Standardize to \u201cAreithous\u201d, as in the Hintbook' },
+  { id: 'text-ariethous', parent: 'text', choice: 'areithous', group: 'text', title: 'Standardize to \u201cAriethous\u201d' },
+  { id: 'text-hyphens', parent: 'text', choice: 'hyphens', group: 'text', title: 'Standardize to hyphenated: \u201ckind-looking\u201d, \u201cdour-faced\u201d and the like' },
+  { id: 'text-no-hyphens', parent: 'text', choice: 'hyphens', group: 'text', title: 'Standardize to unhyphenated: \u201ckind-hearted\u201d, \u201crat-faced\u201d and the like lose theirs' },
 
   /* ---- Larger changes (the stage "apart"; karma_patch.mjs,
      resurrection_patch.mjs, peirithous_patch.mjs) --------------------------
@@ -1535,6 +1542,28 @@ const DATA_FIX_TEXT = [
   ...[0x021A, 0x021B, 0x0242, 0x0801, 0x0804, 0x0809, 0x080A, 0x080B, 0x080C, 0x080D, 0x080E, 0x0811,
       0x1801, 0x1802, 0x1803, 0x1804, 0x1807, 0x180D, 0x1846, 0x1A00]
     .map(r => Object.assign(dataFixT('"LandKing"', r, 'LandKing', 'Land King'), { opt: 'text-land-king' })),
+  /* The other way, each of the four (1 October 2026): every place the game
+     has the spelling the options above change away from, found by reading
+     every resource for it on the day. "Two-Tailed" takes both the sign's
+     "Two-Taled" and the directions' "Two Tailed". "LandKing" leaves the
+     LandKing Amulet, a thing's name, as "Land King" does. "Ariethous"
+     takes the four keyword lists that answer to "arei" with it, as
+     Sardis's "attu" follows his spelling above, so a highlighted
+     @Ariethous still answers; the name table has "Ariethous" already.
+     Unhyphenated takes the five compounds the game hyphenated itself,
+     which the hyphenated option leaves. */
+  ...[[0x0218, 1], [0x021A, 3], [0x0805, 1], [0x182A, 2]]
+    .map(([r, n]) => Object.assign(dataFixT('"Two-Taled Rat"', r, 'Two-Taled Rat', 'Two-Tailed Rat', n), { opt: 'text-two-tailed' })),
+  Object.assign(dataFixT('Cademia, "Two Tailed Rat"', 0x080E, 'Two Tailed Rat', 'Two-Tailed Rat', 3), { opt: 'text-two-tailed' }),
+  ...[[0x1403, 1], [0x1805, 2], [0x1806, 1], [0x1832, 2], [0x186D, 2], [0x1B11, 1], [0x1B12, 1]]
+    .map(([r, n]) => Object.assign(dataFixT('"Land King"', r, 'Land King', 'LandKing', n), { opt: 'text-landking' })),
+  Object.assign(dataFixT('"Alaric, Landking"', 0x021B, 'Alaric, Landking', 'Alaric, LandKing', 1), { opt: 'text-landking' }),
+  ...[[0x080D, 1], [0x1812, 1], [0x1813, 3]]
+    .map(([r, n]) => Object.assign(dataFixT('"Areithous"', r, 'Areithous', 'Ariethous', n), { opt: 'text-ariethous' })),
+  ...[0x080D, 0x1810, 0x1812, 0x1813]
+    .map(r => Object.assign(dataFixT('the keyword "arei"', r, 'arei', 'arie', 1), { opt: 'text-ariethous' })),
+  ...[['kind-hearted', 0x1806], ['Dark-hearted', 0x1806], ['rat-faced', 0x1810], ['round-faced', 0x1867], ['wide-eyed', 0x186C]]
+    .map(([w, r]) => Object.assign(dataFixT('"' + w + '"', r, w, w.replace('-', ' '), 1), { opt: 'text-no-hyphens' })),
   // tab bytes
   Object.assign(dataFixT('Tavara’s tabs', 0x1CC3, '\t', '', 10), { mid: true }),
   Object.assign(dataFixT('a rumour’s tab', 0x0813, '\t', '', 1), { mid: true }),
