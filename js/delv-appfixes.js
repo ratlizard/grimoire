@@ -192,6 +192,25 @@ const APP_FIXES = [
       { at: 0xACBD0, was: [0x38000054], asm: ['li 0, 76              ; Look: L'] },
       { at: 0xACC00, was: [0x38000041], asm: ['li 0, 84              ; Talk: T'] }] },
 
+  // The multi-button mouse switch (UI Prefs byte 1 bit 2, which nothing in
+  // the game sets; the workbench's cheats.md, *Bit 2 of byte 1*): with it on,
+  // TDelverApp::MyGetEvent asks which button went down and adds a modifier
+  // to the click, Command for button 2, Control for 3, Option for 4, Shift
+  // for 5. A two-button mouse's right button is button 2, and SheepShaver
+  // sends a right-click as the second button and a middle click as the third
+  // (its SDL front end, ADBMouseDown(1) and (2)), so as shipped a right-click
+  // is a Command-click, which nothing in the game answers, and the contextual
+  // menu is on the middle button. The two constants swapped put Control, the
+  // contextual menu at once, on button 2. Does nothing unless the switch is
+  // on in the preferences file (grimoire's Preferences tab, Extra mouse
+  // buttons), and nothing where the emulator passes one button only, as
+  // Infinite Mac's SheepShaver does; whether Mac OS's own mouse driver hands
+  // the game a second button at all is untried.
+  { id: 'right-click', kind: 'fix', title: 'With Extra mouse buttons on, a right-click opens the contextual menu, as Control-click does, and the middle button clicks with Command',
+    sites: [
+      { at: 0x12D20, was: [0x60000100], asm: ['ori 0, 0, 4096        ; button 2: Control, the contextual menu'] },
+      { at: 0x12D34, was: [0x60001000], asm: ['ori 0, 0, 256         ; button 3: Command'] }] },
+
   // A menu a script shows (TPickMode, the "Where Is" lists above all) draws
   // its rows 4 pixels apart: DrawTheList offsets each row by the tallest
   // item's height at 28 of the mode plus 4. The code that makes the scroll

@@ -1608,6 +1608,9 @@ label.prefRow:hover { background:rgba(155,136,80,.08); }
 .prefCtl input:checked + .prefSwitch::after { transform:translateX(20px); background:var(--gold); }
 .prefCtl input:focus-visible + .prefSwitch { outline:2px solid var(--gold); outline-offset:2px; }
 label.prefRow:hover .prefSwitch { border-color:var(--gold); }
+.prefPresets { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:10px 0 0; }
+.prefPresets button { width:auto !important; margin:0 !important; }
+.prefPresetNote { color:#8c8980; font-size:0.7188rem; line-height:1.45; flex:1 1 220px; }
 .prefSave { display:flex; gap:10px; flex-wrap:wrap; padding:12px 14px; }
 .prefSave button { width:auto !important; margin:0 !important; }
 .prefSaveNote { color:#b5b2a8; font-size:0.7812rem; line-height:1.45; padding:0 14px 12px; }
@@ -2392,7 +2395,7 @@ this page from the delvmod wiki and is not in the file. Turn these names on or o
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.229.0';
+const GRIMOIRE_VERSION = '1.230.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

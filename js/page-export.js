@@ -356,6 +356,36 @@ function cytheraOrdinalsFor(opts, L) {
   return (L.ordinals || []).filter(x => o[x.key] !== undefined && (o[x.key] | 0) !== x.dflt)
                            .map(x => ({ key: x.key, index: x.index, value: o[x.key] | 0 }));
 }
+/* The Preferences tab's two presets, as options cytheraPrefsRecord takes
+   (the maintainer, 1 October 2026). DEFAULT is a new copy of the game: the
+   record the program stores first, no answer to the 256-colour question so
+   the game asks it, no cheat keys, no extra mouse buttons, and every ordinal
+   where a fresh install reads it. OPTIMIZED is the settings of the Infinite
+   Mac disk built for Mac OS 8.5 (the workbench's doc/infinite-mac-disk.md):
+   Smoother Movement, 256 colours without asking and the cheat keys, the
+   rest as DEFAULT. A setting is named by what the layout read, never by a
+   bit typed here, so a patched build gets its own. */
+function cytheraPrefsPreset(name, layout) {
+  const L = layout || cytheraPrefsLayout();
+  if (!L) return null;
+  const bit = (byte, b) => !!((L.base >>> (24 - 8 * byte)) & (1 << b));
+  const field = (byte, lo, hi) => (((L.base >>> (24 - 8 * byte)) & 255) >> lo) & ((1 << (hi - lo + 1)) - 1);
+  const o = { cheats: false, mouseButtons: false, startup: {} };
+  for (const c of L.controls) o[c.opt] = bit(c.byte, c.bit);
+  for (const x of L.startup || []) o.startup[x.text] = false;
+  for (const c of L.choices) {
+    const cur = c.options.find(op => op.sets.every(x => field(x.byte, x.lo, x.hi) === x.value));
+    if (cur) o[c.opt] = cur.text;
+  }
+  for (const x of L.ordinals || []) o[x.key] = x.dflt;
+  if (name === 'optimized') {
+    const mv = L.choices.find(c => c.options.some(op => op.text === L.smoothLabel));
+    if (mv) o[mv.opt] = L.smoothLabel;
+    for (const x of L.startup || []) o.startup[x.text] = true;
+    o.cheats = true;
+  }
+  return o;
+}
 // One line naming what a record asks for, for the status line and the script.
 function prefsSummary(o) {
   const parts = [o.cheats ? 'the cheat keys allowed' : 'no cheat keys'];

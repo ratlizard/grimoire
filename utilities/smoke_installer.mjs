@@ -461,7 +461,11 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         // The multi-button mouse switch, byte 1 bit 2, which nothing in the
         // game writes: read off the event routine, held to PREF_SHIPPED by
         // the drift check above.
-        rec({ mouseButtons: true })[1] !== 0x84;
+        rec({ mouseButtons: true })[1] !== 0x84 ||
+        // The presets: Default is the record a new copy stores first, and
+        // Optimized the Mac OS 8.5 disk's 9A B0 00 01.
+        rec(ctx.cytheraPrefsPreset('default')).join() !== [0x18, 0x80, 0, 0].join() ||
+        rec(ctx.cytheraPrefsPreset('optimized')).join() !== [0x9A, 0xB0, 0, 1].join();
       // A file that sets one ordinal carries two resources, not one, and an
       // ordinal left at what a fresh install reads is not written at all.
       const forkOf = o => ctx.openResourceFork(ctx.buildCytheraPreferences(o));

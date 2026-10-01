@@ -328,7 +328,7 @@ const PREF_HELP = {
   switch256: ['startup', 'Asked at startup', 'On a screen set to more than 256 colours, the game switches it to 256 when it starts. Off, it runs in the colours the screen already has.'],
   dontAsk: ['startup', 'Asked at startup', 'The game does not ask about 256 colours when it starts. Off, it asks on a screen set to more than 256 colours, and the answer replaces the switch above.'],
   cheats: ['startup', 'Not in the game', null],
-  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if Command were held, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
+  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if Command were held, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu; the right-click fix on the Patches tab puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
 };
 const PREF_GROUPS = [['sound', 'Sound'], ['movement', 'Game control'], ['windows', 'Windows'], ['startup', 'Starting the game'], ['mouse', 'Mouse'], ['other', 'Other settings']];
 function renderPrefsSheet() {
@@ -368,6 +368,25 @@ function renderPrefsSheet() {
     '<p class="prefFrom">' + svEsc(layout.from === 'shipped'
       ? 'The names and the bits they set are the ones all four releases from Ambrosia agree on, so nothing has to be open. Open the game (Data › Installer, or drop the program on the page) and the page reads your own copy instead, which gets a patched version right. The Cheats page lists the record field by field.'
       : 'The names and the bits they set are read from the program open here. The Cheats page lists the record field by field.') + '</p>';
+  /* The two presets (cytheraPrefsPreset): each sets every row, the switches
+     by their ids and the choosers by their values. Built with createElement,
+     since the smokes' DOM stub does not parse innerHTML into elements. */
+  const presets = document.createElement('div');
+  presets.className = 'prefPresets';
+  for (const [label, name, title] of [['Default', 'default', 'A new copy of the game'],
+                                      ['Optimized', 'optimized', 'Smoother Movement, 256 colours without asking and the cheat keys']]) {
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.textContent = label;
+    b.title = title;
+    b.onclick = () => applyPrefsPreset(name);
+    presets.appendChild(b);
+  }
+  const presetNote = document.createElement('span');
+  presetNote.className = 'prefPresetNote';
+  presetNote.textContent = 'Default is a new copy of the game. Optimized adds Smoother Movement, 256 colours without asking and the cheat keys.';
+  presets.appendChild(presetNote);
+  sheet.appendChild(presets);
   const rows = new Map(PREF_GROUPS.map(([g]) => [g, []]));
   // Within a group, rows go in PREF_HELP's order, which is the order of the
   // game's own dialog where it has them (Volume, Music, Ambient), not the
@@ -477,6 +496,23 @@ function renderPrefsSheet() {
   box.appendChild(sheet);
   grid.appendChild(box);
   out.textContent = PREFS_FILE_NAME + ', the file the game keeps its settings in.';
+}
+
+// Sets every row of the Preferences tab to a preset's options.
+function applyPrefsPreset(name) {
+  const o = cytheraPrefsPreset(name); if (!o) return;
+  const L = cytheraPrefsLayout();
+  const sw = (id, v) => { const e = document.getElementById(id); if (e && v !== undefined) e.checked = !!v; };
+  const sel = (id, v) => { const e = document.getElementById(id); if (e && v !== undefined) e.value = String(v); };
+  sw('prefCheats', o.cheats); sw('prefMouseButtons', o.mouseButtons);
+  for (const [opt] of PREF_OPTIONS) sw('pref' + opt[0].toUpperCase() + opt.slice(1), o[opt]);
+  (L.startup || []).forEach((x, i) => sw(PREF_STARTUP_IDS[i], o.startup[x.text]));
+  for (const c of L.choices) sel('pref_' + c.opt, o[c.opt]);
+  for (const x of L.ordinals || []) {
+    const e = document.getElementById('prefOrd_' + x.key.replace(/\W/g, ''));
+    if (e && e.type === 'checkbox') e.checked = o[x.key] === 1; else sel('prefOrd_' + x.key.replace(/\W/g, ''), o[x.key]);
+  }
+  setStatus((name === 'optimized' ? 'Optimized' : 'Default') + ' preferences: ' + prefsSummary(o) + '.');
 }
 
 /* Data › Patches: a patch read and applied, a sprite or a gremlin made into
