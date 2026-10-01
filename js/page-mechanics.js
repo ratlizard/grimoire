@@ -1927,7 +1927,10 @@ function renderGremlinMaker() {
   }
   cell(choice('gremlinWhen', [['room', 'the party enters a room (untested)'], ['zone', 'a zone is entered, or a save loads'], ['signal', 'a script sends a signal (untested)']], st.when, 'when'),
        text('gremlinWhich', st.which, 'gremlinNum', st.when === 'signal' ? 'number' : 'any', 'which'),
-       el('span', 'mechSub', whichName ? ' ' + svEsc(whichName) : ''));
+       el('span', 'mechSub', ' ' + (whichName ? svEsc(whichName)
+         : st.when === 'room' ? 'the number on the room’s egg, or empty for any room'
+         : st.when === 'zone' ? 'the zone’s map number, or empty for any zone'
+         : 'use 256 or more, since lower numbers also reach the game’s bells and music locks')));
   label('Only if quest flag');
   cell(text('gremlinFlag', st.flag, 'gremlinNum', 'none', 'flag'),
        choice('gremlinFlagIs', [['set', 'is set'], ['clear', 'is clear']], st.flagIs, 'flagIs'));
@@ -1975,6 +1978,7 @@ function renderGremlinMaker() {
   btn('Download the patch', function () { gremlinDownload(false); });
   btn('Download for a Mac', function () { gremlinDownload(true); });
   host.appendChild(bar);
+  host.appendChild(el('p', 'mechSub', 'A new game switches every gremlin on. In a save made before the patch, switch it on in the save’s page.'));
   gremlinCheck(formError);
 }
 // Whether the listing assembles, said under it as it is typed.
@@ -4110,27 +4114,27 @@ function renderMechanicsSheet(value) {
   /* Magpie writes a patch into Cythera Data; the program itself also loads
      patch archives named in a list beside it, and the player's User Custom
      Data after them (exePatchFiles, js/page-data.js). Both of the program's
-     routes reach only what is read through its set of open files, so the
-     section says what they cannot change: the list is the routines that read
-     Cythera Data's own file, read 1 October 2026 and shown for tiles in the
-     fork (cythera-workbench's doc/engine-patch-list.md). The names and
+     routes reach only what is read through its set of open files: the
+     routines that read Cythera Data's own file, read 1 October 2026 and shown
+     for tiles in the fork (cythera-workbench's doc/engine-patch-list.md). The
+     section said so until the maintainer had that line cut the same day as
+     confusing; it says only how a save keeps its own levels. The names and
      figures are the program's, with their instructions; without the program
      open the two routes are not described at all. */
   {
     const pf = exePatchFiles();
     const nm = x => x && x.name ? srcNum(x.id, x.name) : null;
-    const dataName = nm(pf && pf.data), patchName = nm(pf && pf.patch), customName = pf && pf.custom ? srcNum(pf.custom, pf.custom.v) : null;
+    const patchName = nm(pf && pf.patch), customName = pf && pf.custom ? srcNum(pf.custom, pf.custom.v) : null;
     const rules = ['<b>Into Cythera Data.</b> Magpie, or Apply below, writes the patch into the game file. Anything can be changed this way.'];
     if (pf && patchName && pf.list && pf.count)
       rules.push('<b>' + patchName + '.</b> A file in the game’s folder listing up to ' + srcNum(pf.count) + ' patch files, which the game loads when it starts.');
     if (pf && customName)
       rules.push('<b>' + customName + '.</b> One patch file saved under this name. It replaces any combat AIs you imported.');
-    if (rules.length > 1)
-      rules.push('Only a patch in ' + (dataName || 'the game file') + ' can change the map tiles, schedules, level maps, skill icons or character creation.');
     add('patchkinds', 'Three Ways to Patch the Game', null, '',
       'A patch can go into the game file, or sit beside it in its folder.',
       pf ? rules : [rules[0]],
-      pf ? '' : '<ul class="ruleList"><li>' + MECH_NO_APP + '</li></ul>',
+      (pf ? '' : '<ul class="ruleList"><li>' + MECH_NO_APP + '</li></ul>') +
+        '<p class="mechSub">A saved game keeps its own copy of each level it has visited, so a patch only changes levels that save has not been to.</p>',
       pf ? '<span class="partsTitle">In the program</span>' + pefChip('TDelverApp::PostInitMac') + pefChip('TDelverApp::OpenScenFile') + pefChip('LoadLevelProps') : '');
   }
 
