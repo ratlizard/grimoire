@@ -155,6 +155,7 @@ const APP_FIXES = [
   // of its own, and the party member's branch takes it; the others, and
   // behaviour 146, which enters the tail at its start, are as before.
   { id: 'target-hunger', kind: 'fix', title: 'A companion whose target is gone goes back to following without its hunger set to 30',
+    played: 'fork, PowerPC, 30 September 2026: two companions saved at behaviour 113 follow again with their food as it was',
     bug: 'Followers\' hunger and poison clear on their own',
     sites: [
       { at: 0x4C464, was: [0x48000058], asm: ['b @0x4C4C8            ; a party member: past the nutrition'] },
