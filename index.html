@@ -1573,6 +1573,49 @@ body.atlasFull { overflow:hidden; }
 .cheatH4 { margin:0 0 8px; font-size:0.75rem; letter-spacing:0; color:#b5b2a8; }
 .cheatNote { font-size:0.7188rem; color:#8c8980; line-height:1.55; margin:6px 2px; }
 .cheatNote b { color:#b5b2a8; }
+/* The Preferences tab: one row per setting, in groups, each row the game's
+   own label, where the game itself sets it, a line saying what it does, and
+   its control at the right. It was one paragraph and two rows of controls
+   wrapping into each other (the maintainer, 1 October 2026: "messy"). A
+   switch is the checkbox hidden behind a drawn track whose knob turns gold
+   when on, and the whole row is its label, so a tap anywhere on a phone
+   toggles it; a chooser keeps the page's own select. */
+/* #appShell div caps every div at 100%, which outranks a bare class. */
+#appShell .prefSheet { max-width:820px; margin:0 auto; }
+.prefLede { color:#fff; font-size:0.8438rem; line-height:1.5; margin:4px 0 2px; }
+.prefFrom { color:#8c8980; font-size:0.7188rem; line-height:1.5; margin:2px 0 6px; }
+.prefGroup { margin:16px 0 0; }
+.prefGroup h3 { margin:0 0 6px 2px; font-size:1.0625rem; color:#fff; font-weight:600; }
+.prefRows { border:1px solid rgba(155,136,80,.4); border-radius:10px; background:rgba(20,17,12,.5); overflow:hidden; }
+.prefRow { display:flex; align-items:center; flex-wrap:wrap; gap:8px 18px; padding:11px 14px; border-top:1px solid rgba(155,136,80,.22); }
+.prefRow:first-child { border-top:0; }
+label.prefRow { cursor:pointer; flex-wrap:nowrap; }
+label.prefRow .prefText { flex:1 1 0; }
+label.prefRow:hover { background:rgba(155,136,80,.08); }
+.prefText { flex:1 1 240px; min-width:0; display:block; }
+.prefName { color:#fff; font-size:0.9375rem; }
+.prefWhere { display:inline-block; margin-left:8px; padding:1px 8px; border:1px solid rgba(155,136,80,.45); border-radius:10px;
+  color:#b5b2a8; font-size:0.6562rem; vertical-align:2px; white-space:nowrap; }
+.prefDesc { display:block; color:#b5b2a8; font-size:0.7812rem; line-height:1.45; margin-top:3px; }
+.prefCtl { flex:none; margin-left:auto; position:relative; display:flex; align-items:center; }
+.prefCtl select { width:auto; min-width:12em; margin:0; font-size:0.9375rem; }
+.prefRow .prefCtl input[type=checkbox] { position:absolute; opacity:0; width:1px; height:1px; margin:0; min-height:0; }
+.prefSwitch { display:block; width:44px; height:24px; border-radius:12px; background:#15120d; border:1px solid var(--edge);
+  position:relative; box-shadow:inset 0 1px 3px rgba(0,0,0,.6); transition:background .15s, border-color .15s; }
+.prefSwitch::after { content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%;
+  background:#8c8980; transition:transform .15s, background .15s; }
+.prefCtl input:checked + .prefSwitch { background:rgba(196,164,100,.32); border-color:#c4a464; }
+.prefCtl input:checked + .prefSwitch::after { transform:translateX(20px); background:var(--gold); }
+.prefCtl input:focus-visible + .prefSwitch { outline:2px solid var(--gold); outline-offset:2px; }
+label.prefRow:hover .prefSwitch { border-color:var(--gold); }
+.prefSave { display:flex; gap:10px; flex-wrap:wrap; padding:12px 14px; }
+.prefSave button { width:auto !important; margin:0 !important; }
+.prefSaveNote { color:#b5b2a8; font-size:0.7812rem; line-height:1.45; padding:0 14px 12px; }
+@media (max-width:640px) {
+  .prefRow { padding:10px 12px; }
+  .prefCtl:has(select) { flex:1 1 100%; }
+  .prefCtl select { width:100%; }
+}
 .cheatTable { min-width:0; }
 .cheatTable td { vertical-align:top; }
 .cheatCombo { width:150px; white-space:normal; }
@@ -2349,7 +2392,7 @@ this page from the delvmod wiki and is not in the file. Turn these names on or o
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.226.0';
+const GRIMOIRE_VERSION = '1.227.0';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

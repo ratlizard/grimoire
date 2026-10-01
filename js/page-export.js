@@ -394,7 +394,9 @@ function buildPrefsDiskImage(opts) {
 }
 function prefsOptionsFromUI() {
   const on = id => { const e = document.getElementById(id); return e ? !!e.checked : undefined; };
-  const pick = id => { const e = document.getElementById(id); return e && e.value !== '' ? e.value : undefined; };
+  // An ordinal that is a flag is drawn as a switch (renderPrefsSheet), so a
+  // checkbox answers 1 or 0 where a chooser answers its value.
+  const pick = id => { const e = document.getElementById(id); if (!e) return undefined; if (e.type === 'checkbox') return e.checked ? '1' : '0'; return e.value !== '' ? e.value : undefined; };
   const o = { cheats: on('prefCheats'), switch256: on('prefSwitch256') };
   for (const [opt] of PREF_OPTIONS) o[opt] = on('pref' + opt[0].toUpperCase() + opt.slice(1));
   const L = cytheraPrefsLayout();

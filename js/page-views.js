@@ -300,7 +300,35 @@ function renderAppPefSheet() {
    smooth movement Cythera has always had and gates on a preference, the
    gate on the cheat keys, which nothing in the game ever sets, and the rest
    of the record and the file's other keys. The long comment above
-   buildCytheraPreferences in js/page-export.js says where each came from. */
+   buildCytheraPreferences in js/page-export.js says where each came from.
+
+   One row per setting, in four groups (the maintainer, 1 October 2026: one
+   paragraph above two rows of controls was "messy"). A row's name is the
+   game's own label, read with the layout as before, and the line under it is
+   ours, written from the manual's Preferences page and from what the code
+   that reads each bit does (doc/cheats.md, doc/preferences-file.md in the
+   workbench). PREF_HELP keys a line by the option, key or choice it
+   describes; a setting a patched build adds that PREF_HELP does not know
+   still gets a row, without the line, in the last group. The tag beside a
+   name says where the game itself changes it, which is the question the
+   maintainer could not answer from the labels alone. Element ids are what
+   prefsOptionsFromUI and the smokes read, and are unchanged. */
+const PREF_HELP = {
+  Volume: ['sound', 'Preferences dialog', 'How loud the sound effects are, from 0, silent, to 8. At −1 the game leaves the Mac’s own volume alone.'],
+  Music: ['sound', 'Preferences dialog', 'How loud the music is, in eighths of full volume: 8 is full, 0 is silent.'],
+  Ambient: ['sound', 'Preferences dialog', 'Background sounds, such as animals and ocean waves.'],
+  movement: ['movement', 'Preferences dialog', 'How finely the map moves between squares. Smoother looks best and asks the most of the Mac. The dialog’s Graphics Quality slider sets the same thing.'],
+  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second. Only the game’s hidden Preferences menu changes it.'],
+  motionFilters: ['movement', 'Preferences dialog', 'Leaves blowing on the trees and waves rippling across the ocean.'],
+  walkAround: ['movement', 'Preferences dialog', 'The hero steps around things in the way rather than stopping at them.'],
+  liveDrag: ['windows', 'Preferences dialog', 'Lets you drag the game’s windows around the screen.'],
+  manualContainers: ['windows', 'Preferences dialog', 'Opening a container lets you choose where its window goes. Off, the game places it for you.'],
+  zoomRects: ['windows', 'Preferences dialog', 'Windows open with a zooming outline.'],
+  Backdrop: ['windows', 'Not in the game', 'The pattern that fills the screen behind every window. Nothing in the game sets it.'],
+  switch256: ['startup', 'Asked at startup', 'On a screen set to more than 256 colours the game asks whether to switch. This answers yes and stops it asking.'],
+  cheats: ['startup', 'Not in the game', null],
+};
+const PREF_GROUPS = [['sound', 'Sound'], ['movement', 'Game control'], ['windows', 'Windows'], ['startup', 'Starting the game'], ['other', 'Other settings']];
 function renderPrefsSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -310,20 +338,7 @@ function renderPrefsSheet() {
   document.getElementById('singleControls').style.display = 'none';
   const box = document.createElement('div');
   box.className = 'changesView';
-  const sec = (title, note) => {
-    const d = document.createElement('div');
-    d.className = 'changesGroup';
-    d.innerHTML = '<div class="changesGroupTitle">' + svEsc(title) + '</div>' +
-      (note ? '<div class="changesNote" style="margin-left:0">' + svEsc(note) + '</div>' : '');
-    box.appendChild(d);
-    return d;
-  };
   const layout = cytheraPrefsLayout();
-  const pf = sec('Cythera’s preferences file', '');
-  const pfNote = document.createElement('div');
-  pfNote.className = 'changesNote';
-  pfNote.style.cssText = 'margin-left:0';
-  pf.appendChild(pfNote);
   if (!layout) {
     /* Nothing can be offered here without the application. Every bit position,
        every key and every choice in this section is read out of its code as
@@ -333,86 +348,121 @@ function renderPrefsSheet() {
        sentence that used to carry it put the action last and read as a
        description of a tool that was not there (the maintainer, 23 September
        2026). */
-    pfNote.innerHTML = '<b>' + svEsc('Open the game itself (Data › Installer, or drop the program on the page) and the settings appear here.') + '</b><br>' +
+    const d = document.createElement('div');
+    d.className = 'changesGroup';
+    d.innerHTML = '<div class="changesGroupTitle">' + svEsc('Cythera’s preferences file') + '</div>' +
+      '<div class="changesNote" style="margin-left:0"><b>' + svEsc('Open the game itself (Data › Installer, or drop the program on the page) and the settings appear here.') + '</b><br>' +
       svEsc('This writes Cythera’s preferences file, which holds the settings the game keeps in the Preferences folder of the System Folder, including the switch that makes its cheat keys work. ' +
-            'Every switch in it is read from the program’s own code, so the game has to be open for there to be anything to write.');
-  } else {
-    pfNote.innerHTML = svEsc('The ' + layout.bytes + '-byte ‘' + layout.type + '’ “' + layout.key + '” record, which is kept in the Preferences folder of the System Folder. ' +
-      'The switches are the game’s own: the labels of its Preferences dialog' + (layout.smoothLabel ? ', and “' + layout.smoothLabel + '” from its hidden Preferences menu, which is off in the settings the game first stores' : '') + '. ' +
-      (layout.startupLabel ? 'Then the answer to the one question the game asks by itself, on a screen set to more than 256 colours: this writes “' + layout.startupLabel + '”, so the game switches to 256 colours without asking. ' : '') +
-      'The row below holds the settings that are a choice rather than an on/off switch, and the file’s other settings: the sound and music volumes, the ambient sounds, and the pattern that fills the screen behind every window, which no menu item or dialog in the game ever sets. ' +
-      'Each starts at the value a fresh install would have, and a setting left at that value is not written at all. ' +
-      'The last is the switch that makes the cheat keys work. Nothing in the game ever sets it, so a copy as released cannot enter cheat mode however often you type ' + layout.gate.word + '. ' +
-      'The Cheats page lists the record field by field. ' +
-      (layout.from === 'shipped'
-        ? 'These are the numbers that all four releases from Ambrosia agree on, so the file can be written with nothing open. Open the game (Data \u203a Installer, or drop the program on the page) and the page reads your own copy instead, which gets a patched version right.'
-        : 'Read from the program open here, rather than from the numbers of the original releases.'));
-    const prefsRow = document.createElement('div');
-    prefsRow.style.cssText = 'display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin:8px 0 6px';
-    const prefBox = (id, label, on) => '<label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '> ' + svEsc(label) + '</label>';
-    const prefSel = (id, label, opts, chosen) => '<label style="display:inline-flex;align-items:center;gap:6px">' + svEsc(label) +
-      ' <select id="' + svEsc(id) + '">' + opts.map(o => '<option value="' + svEsc(String(o.v)) + '"' +
-        (o.v === chosen ? ' selected' : '') + '>' + svEsc(o.t) + '</option>').join('') + '</select></label>';
-    const idOf = opt => 'pref' + opt[0].toUpperCase() + opt.slice(1);
-    prefsRow.innerHTML =
-      layout.controls.map(c => prefBox(idOf(c.opt), c.label, !!((layout.base >>> (24 - 8 * c.byte)) & (1 << c.bit)))).join('') +
-      (layout.startupLabel ? prefBox('prefSwitch256', layout.startupLabel, true) : '') +
-      prefBox('prefCheats', 'Allow the cheat keys', true);
-    pf.appendChild(prefsRow);
-    /* The settings that are a choice rather than a switch: the record's own
-       multi-value fields, then the file's other keys. Each wears the game's
-       words -- a field's options are the menu items that write it and its
-       label is what those items say in common, and an ordinal is labelled by
-       the key it is stored under. Every one starts where a fresh install
-       would be, so a row left alone writes nothing but the record. */
-    const choiceRow = document.createElement('div');
-    choiceRow.style.cssText = prefsRow.style.cssText;
-    const field = (byte, lo, hi) => (((layout.base >>> (24 - 8 * byte)) & 255) >> lo) & ((1 << (hi - lo + 1)) - 1);
-    const affix = texts => {
-      const w = texts.map(t => t.split(/\s+/).filter(Boolean)), n = Math.min(...w.map(x => x.length));
-      const tail = [];
-      for (let i = 1; i <= n; i++) { const last = w.map(x => x[x.length - i]); if (last.every(x => x === last[0])) tail.unshift(last[0]); else break; }
-      if (tail.length) return tail.join(' ');
-      const head = [];
-      for (let i = 0; i < n; i++) { const first = w.map(x => x[i]); if (first.every(x => x === first[0])) head.push(first[0]); else break; }
-      return head.join(' ');
-    };
-    let choiceHTML = '';
-    for (const c of layout.choices) {
-      const cur = c.options.find(op => op.sets.every(x => field(x.byte, x.lo, x.hi) === x.value));
-      choiceHTML += prefSel('pref_' + c.opt, affix(c.options.map(o => o.text)) || 'Setting',
-                            c.options.map(o => ({ v: o.text, t: o.text })), cur ? cur.text : null);
-    }
-    for (const o of layout.ordinals) {
-      let opts = null;
-      const r = PREF_ORDINAL_RANGE[o.key];
-      if (r) { opts = []; for (let v = r.min; v <= r.max; v++) opts.push({ v, t: String(v) }); }
-      else if (layout.backdrop) opts = layout.backdrop.map(b => ({ v: b.value, t: b.label }));
-      if (!opts || !opts.some(x => x.v === o.dflt)) continue;
-      choiceHTML += prefSel('prefOrd_' + o.key.replace(/\W/g, ''), o.key, opts, o.dflt);
-    }
-    if (choiceHTML) { choiceRow.innerHTML = choiceHTML; pf.appendChild(choiceRow); }
-    const pbtns = document.createElement('div');
-    pbtns.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
-    for (const [label, kind, title] of [
-      ['Disk image, for an emulator', 'dsk', 'Mounts as “' + PREFS_VOLUME_NAME + '” with an ' + PREFS_SCRIPT_NAME + ' script beside the file'],
-      ['MacBinary, for a real Mac', 'bin', 'Decode it and drag the file into System Folder ▸ Preferences']]) {
-      const btn = document.createElement('button');
-      btn.className = 'secondary';
-      btn.style.cssText = 'width:auto;margin:0';
-      btn.textContent = label;
-      btn.title = title;
-      btn.onclick = () => downloadCytheraPrefs(kind);
-      pbtns.appendChild(btn);
-    }
-    pf.appendChild(pbtns);
-    const pnote = document.createElement('div');
-    pnote.className = 'changesNote';
-    pnote.style.cssText = 'margin-left:0;margin-top:8px';
-    pnote.innerHTML = 'Tested in the game: a file this page wrote was read, and cheat mode activated. ' +
-      'It replaces any settings already stored.';
-    pf.appendChild(pnote);
+            'Every switch in it is read from the program’s own code, so the game has to be open for there to be anything to write.') + '</div>';
+    box.appendChild(d);
+    grid.appendChild(box);
+    out.textContent = PREFS_FILE_NAME + ', the file the game keeps its settings in.';
+    return;
   }
+  const sheet = document.createElement('div');
+  sheet.className = 'prefSheet';
+  sheet.innerHTML = '<p class="prefLede">' + svEsc('Choose the settings, then download the file. It goes in the Preferences folder of the System Folder, where the game keeps its settings, and replaces any settings already stored. ' +
+      'Each setting starts where a new copy of the game starts, and one left there is not written.') + '</p>' +
+    '<p class="prefFrom">' + svEsc(layout.from === 'shipped'
+      ? 'The names and the bits they set are the ones all four releases from Ambrosia agree on, so nothing has to be open. Open the game (Data › Installer, or drop the program on the page) and the page reads your own copy instead, which gets a patched version right. The Cheats page lists the record field by field.'
+      : 'The names and the bits they set are read from the program open here. The Cheats page lists the record field by field.') + '</p>';
+  const rows = new Map(PREF_GROUPS.map(([g]) => [g, []]));
+  // Within a group, rows go in PREF_HELP's order, which is the order of the
+  // game's own dialog where it has them (Volume, Music, Ambient), not the
+  // order the program's keys happen to be read in.
+  const order = Object.keys(PREF_HELP);
+  const help = k => PREF_HELP[k] || ['other', null, null];
+  const text = (name, where, desc) => '<span class="prefName">' + svEsc(name) + '</span>' +
+    (where ? '<span class="prefWhere">' + svEsc(where) + '</span>' : '') +
+    (desc ? '<span class="prefDesc">' + desc + '</span>' : '');
+  // A switch: the row is its label. `checked` straight after the id, which
+  // is the order smoke_installer's pattern for the 256-colour answer reads.
+  const sw = (key, id, name, on, descHTML) => {
+    const [g, where, desc] = help(key);
+    rows.get(g).push([order.indexOf(key), '<label class="prefRow"><span class="prefText">' + text(name, where, descHTML || (desc && svEsc(desc))) + '</span>' +
+      '<span class="prefCtl"><input type="checkbox" id="' + svEsc(id) + '"' + (on ? ' checked' : '') + '><span class="prefSwitch" aria-hidden="true"></span></span></label>']);
+  };
+  // A chooser: the select's id first in its tag, as smoke_rules reads it.
+  const ch = (key, id, name, opts, chosen) => {
+    const [g, where, desc] = help(key);
+    rows.get(g).push([order.indexOf(key), '<div class="prefRow"><label class="prefText" for="' + svEsc(id) + '">' + text(name, where, desc && svEsc(desc)) + '</label>' +
+      '<span class="prefCtl"><select id="' + svEsc(id) + '">' + opts.map(o => '<option value="' + svEsc(String(o.v)) + '"' +
+        (o.v === chosen ? ' selected' : '') + '>' + svEsc(o.t) + '</option>').join('') + '</select></span></div>']);
+  };
+  const idOf = opt => 'pref' + opt[0].toUpperCase() + opt.slice(1);
+  const field = (byte, lo, hi) => (((layout.base >>> (24 - 8 * byte)) & 255) >> lo) & ((1 << (hi - lo + 1)) - 1);
+  // A choice's label is what its options say in common ("Movement", "FPS"),
+  // so it is the game's words as the row of controls had them.
+  const affix = texts => {
+    const w = texts.map(t => t.split(/\s+/).filter(Boolean)), n = Math.min(...w.map(x => x.length));
+    const tail = [];
+    for (let i = 1; i <= n; i++) { const last = w.map(x => x[x.length - i]); if (last.every(x => x === last[0])) tail.unshift(last[0]); else break; }
+    if (tail.length) return tail.join(' ');
+    const head = [];
+    for (let i = 0; i < n; i++) { const first = w.map(x => x[i]); if (first.every(x => x === first[0])) head.push(first[0]); else break; }
+    return head.join(' ');
+  };
+  /* The record's multi-value fields first: the movement stops (the field
+     "Smoother Movement" writes) and the frame-rate cap (the other one). Each
+     option is the menu item that writes it. */
+  for (const c of layout.choices) {
+    const cur = c.options.find(op => op.sets.every(x => field(x.byte, x.lo, x.hi) === x.value));
+    const key = c.options.some(o => o.text === layout.smoothLabel) ? 'movement' : layout.choices.length === 2 ? 'frameRate' : null;
+    ch(key, 'pref_' + c.opt, affix(c.options.map(o => o.text)) || 'Setting', c.options.map(o => ({ v: o.text, t: o.text })), cur ? cur.text : null);
+  }
+  for (const c of layout.controls) sw(c.opt, idOf(c.opt), c.label, !!((layout.base >>> (24 - 8 * c.byte)) & (1 << c.bit)));
+  /* The file's other keys. A flag (a range of 0 to 1) is a switch whose
+     value prefsOptionsFromUI reads as 1 or 0; the volumes are choosers; the
+     backdrop's options are its own list. Each starts at what a fresh
+     install reads, which is what keeps a row left alone out of the file. */
+  for (const o of layout.ordinals) {
+    const r = PREF_ORDINAL_RANGE[o.key], id = 'prefOrd_' + o.key.replace(/\W/g, '');
+    if (r && r.min === 0 && r.max === 1) { sw(o.key, id, o.key, o.dflt === 1); continue; }
+    let opts = null;
+    if (r) { opts = []; for (let v = r.min; v <= r.max; v++) opts.push({ v, t: String(v) }); }
+    else if (layout.backdrop) opts = layout.backdrop.map(b => ({ v: b.value, t: b.label }));
+    if (!opts || !opts.some(x => x.v === o.dflt)) continue;
+    ch(o.key, id, o.key, opts, o.dflt);
+  }
+  if (layout.startupLabel) sw('switch256', 'prefSwitch256', layout.startupLabel, true);
+  sw('cheats', 'prefCheats', 'Allow the cheat keys', true,
+     svEsc('Lets the cheat keys work after you type ' + layout.gate.word + '. Nothing in the game turns this on, so a copy as released cannot enter cheat mode.'));
+  for (const [g, title] of PREF_GROUPS) {
+    const list = rows.get(g);
+    if (!list.length) continue;
+    const sec = document.createElement('div');
+    sec.className = 'prefGroup';
+    const html = list.map((r, i) => [r[0] < 0 ? 1e9 + i : r[0], r[1]]).sort((x, y) => x[0] - y[0]).map(r => r[1]).join('');
+    sec.innerHTML = '<h3>' + svEsc(title) + '</h3><div class="prefRows">' + html + '</div>';
+    sheet.appendChild(sec);
+  }
+  // Built with createElement rather than read back out of innerHTML, which
+  // the smokes' DOM stub does not parse into elements.
+  const save = document.createElement('div');
+  save.className = 'prefGroup';
+  save.innerHTML = '<h3>' + svEsc('Download') + '</h3>';
+  const saveBox = document.createElement('div');
+  saveBox.className = 'prefRows';
+  const pbtns = document.createElement('div');
+  pbtns.className = 'prefSave';
+  const saveNote = document.createElement('div');
+  saveNote.className = 'prefSaveNote';
+  saveNote.textContent = 'Tested in the game: a file this page wrote was read, and cheat mode activated.';
+  saveBox.appendChild(pbtns);
+  saveBox.appendChild(saveNote);
+  save.appendChild(saveBox);
+  for (const [label, kind, title] of [
+    ['Disk image, for an emulator', 'dsk', 'Mounts as “' + PREFS_VOLUME_NAME + '” with an ' + PREFS_SCRIPT_NAME + ' script beside the file'],
+    ['MacBinary, for a real Mac', 'bin', 'Decode it and drag the file into System Folder ▸ Preferences']]) {
+    const btn = document.createElement('button');
+    btn.className = 'secondary';
+    btn.textContent = label;
+    btn.title = title;
+    btn.onclick = () => downloadCytheraPrefs(kind);
+    pbtns.appendChild(btn);
+  }
+  sheet.appendChild(save);
+  box.appendChild(sheet);
   grid.appendChild(box);
   out.textContent = PREFS_FILE_NAME + ', the file the game keeps its settings in.';
 }
