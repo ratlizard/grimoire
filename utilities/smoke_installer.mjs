@@ -108,8 +108,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // application open the same bits left as numbers.
       else if ((r => !r || JSON.stringify(r.map(x => [x.kind, x.unit >>> 0, x.square === undefined ? null : x.square >>> 0])) !==
                   JSON.stringify([['onto', 0x40000008, 0x80000200], ['onto', 0xB, 0x300], ['only', 0x20000000, 0x100], ['off', 0x10000000, 0x40000000],
-                                  ['onto', 0x80, 0x10800], ['steps', 2, null], ['doors', 4, null]]) ||
-                  !r.slice(0, 5).every(x => inRoutine({ exe: x.at }, 'TGameSys::CanMove')) ||
+                                  ['onto', 0x80, 0x10800], ['steps', 2, null], ['doors', 4, null], ['party', 0x80000000, null]]) ||
+                  !r.slice(0, 5).every(x => inRoutine({ exe: x.at }, 'TGameSys::CanMove')) || !inRoutine({ exe: r[7].at }, 'TGameSys::CanMove') ||
                   !inRoutine({ exe: r[5].at }, 'TActiveMonster::HandleMove') || !inRoutine({ exe: r[6].at }, 'TActiveMonster::CanMove'))(ctx.exeUnitMoveRules()))
         fail('program figures', 'the movement rules of a unit’s flags were misread: ' + JSON.stringify(ctx.exeUnitMoveRules()));
       else if ((() => {
@@ -117,7 +117,13 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         const harpy = ctx.monsterFlagsHTML(0x00083042);
         return !/jumpToExeAt\(\d+\)[^>]*>can move onto water or pool</.test(harpy) || !/>sets off nothing it steps on</.test(harpy) || /\bfl(y|ies|ight)\b/.test(harpy) ||
                !/cannot move onto a rope or fence/.test(said(0x10004000)) || !/moves only onto water, shore or pool/.test(said(0x20001001)) ||
-               !/can move onto a mousehole/.test(said(0x40084040)) || !/immune to fire · can move onto lava/.test(said(0x000200F2));
+               !/can move onto a mousehole/.test(said(0x40084040)) || !/immune to fire · can move onto lava/.test(said(0x000200F2)) ||
+               // The king: the party's mark named, and the bits nothing tests said to be so.
+               !/moves as a party member/.test(said(0x800201F4)) || !/\+0x30 \(read by nothing\)/.test(said(0x800201F4)) ||
+               // The death script's 0x2000, linked to its test there.
+               !/jumpToScriptAt\(3725,\d+\)[^>]*>fades away with its parts when it dies</.test(harpy) ||
+               // Over every unit the program and the scripts leave 0x0010, 0x0020 and 0x1000 unread, and nothing else.
+               ctx.parseMonsterStats().filter(u => !u.blank).map(u => /\+0x([0-9A-F]+) \(read by nothing\)/.exec(said(u.flags))).reduce((a, m) => (a | (m ? parseInt(m[1], 16) : 0)) >>> 0, 0) !== 0x1030;
       })())
         fail('program figures', 'a unit’s flags do not say what the program does with them: ' + ctx.monsterFlagsHTML(0x00083042));
       // A record's byte 31, the size a created creature was made at: the
@@ -125,7 +131,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if ((c => !c || c.v !== 31 || !inRoutine(c, 'TActiveMonster::TActiveMonster') ||
                      !new RegExp('stats it was <button[^>]*jumpToExeAt\\(' + c.exe + '\\)[^>]*>made at</button>').test(ctx.charEditHTML(1)))(ctx.exeCreatureSize()))
         fail('program figures', 'byte 31 is not linked to the constructor that stores it: ' + JSON.stringify(ctx.exeCreatureSize()));
-      else if ((h => /water|steps on|jumpToExeAt/.test(h) || !/\+0x83002 \(unidentified\)/.test(h))(withoutApp(() => ctx.monsterFlagsHTML(0x00083042))))
+      else if ((h => /water|steps on|jumpToExeAt|read by nothing/.test(h) || !/\+0x81002 \(unidentified\)/.test(h))(withoutApp(() => ctx.monsterFlagsHTML(0x00083042))))
         fail('program figures', 'with no application open a unit’s flags still name what only the program says: ' + withoutApp(() => ctx.monsterFlagsHTML(0x00083042)));
       // The five 2012 bed measurements, with the program's clock.
       else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]

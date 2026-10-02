@@ -1364,6 +1364,7 @@ const MONSTER_FLAG_NAMES = [
   [0x0200, 'vulnerable to fire'],        // 0x3040: type 0x08 doubled
   [0x0400, 'resists non-blunt weapons'], // 0x3040: types 1 and 2 without 4 halved
   [0x0800, 'resists magic'],             // 0x3040: type 0x40 halved
+  [0x2000, 'fades away with its parts when it dies'], // 0xE8D: each part (MonsterIterator) eroded, then hidden (flag 0x02)
   [0x4000, 'bleeds'],                    // 0xE8D leaves blood (prop type 77)
   [0x8000, 'immune to electricity'],     // 0x3040: type 0x20 returns 0 (Lightning)
 ];
@@ -1391,27 +1392,41 @@ function monsterFlagsText(f) {
     const w = (bit << 16) >>> 0;
     if (tops.has(bit) && (f & w)) { bits.push(name); rest = (rest & ~w) >>> 0; }
   }
-  if (rest) bits.push('+0x' + rest.toString(16).toUpperCase() + ' (unidentified)');
+  if (rest) bits.push('+0x' + rest.toString(16).toUpperCase() + ' (' + monsterRestWord() + ')');
   return bits.length ? bits.join(' · ') : 'none set';
 }
+/* What the bits left over are called. With the program open every bit
+   anything tests has its name, so what is left is read by nothing: the
+   workbench's tools/unitflags_scan.mjs followed the word bit by bit from
+   every load of it through the program and found no other test (two
+   planted tests found, 1 October 2026), and no script reads fields 0x32 or
+   0x33 but through a mask named here. On the shipped units that is 0x0010,
+   0x0020 and 0x1000. Without the program the move rules and the top half
+   are unnamed, so the rest is only unidentified. */
+function monsterRestWord() { return appImage() ? 'read by nothing' : 'unidentified'; }
 
-/* Where the default ResistDamage (0x3040) tests each flag bit: the `word N`
-   that follows a `get_field monster_flags`, with its offset, so a flag on a
-   monster's page opens the line that reads it. Bits 0x3040 does not test
-   are named from what another script does with them (MONSTER_FLAG_NAMES),
-   with no link. */
+/* Where a script tests each flag bit: the `word N` that follows a
+   `get_field monster_flags`, with its offset, so a flag on a monster's page
+   opens the line that reads it. The default ResistDamage (0x3040) first,
+   since most of the names say what it does; then every other script that
+   tests the field, which is where poison (0x301F, 0x3041), bleeding and the
+   parts that fade (0xE8D, the death script) are tested. Until 1 October
+   2026 only 0x3040 was scanned and those three had no link. */
 function monsterFlagSites() {
   if (DERIVED.MONSTER_FLAG_SITES) return DERIVED.MONSTER_FLAG_SITES;
   const out = new Map();
   try {
-    const e = buildScriptTextIndex().find(x => x.resid === 0x3040);
-    const ops = e ? dvmOpsOf(e) : [];
-    for (let i = 0; i + 1 < ops.length; i++) {
-      if (!/^get_field monster_flags\b/.test(ops[i].text)) continue;
-      const m = /^(?:byte|short|word) (-?0x[0-9A-F]+|-?\d+)$/i.exec(ops[i + 1].text);
-      if (!m) continue;
-      const mask = parseInt(m[1]);
-      if (!out.has(mask)) out.set(mask, { resid: 0x3040, at: ops[i + 1].at });
+    const all = buildScriptTextIndex().filter(x => /get_field monster_flags\b/.test(x.text));
+    all.sort((a, b) => (b.resid === 0x3040) - (a.resid === 0x3040));
+    for (const e of all) {
+      const ops = dvmOpsOf(e);
+      for (let i = 0; i + 1 < ops.length; i++) {
+        if (!/^get_field monster_flags\b/.test(ops[i].text)) continue;
+        const m = /^(?:byte|short|word) (-?0x[0-9A-F]+|-?\d+)$/i.exec(ops[i + 1].text);
+        if (!m) continue;
+        const mask = parseInt(m[1]);
+        if (!out.has(mask)) out.set(mask, { resid: e.resid, at: ops[i + 1].at });
+      }
     }
   } catch (e) { quiet(e); }
   return (DERIVED.MONSTER_FLAG_SITES = out);
@@ -1551,6 +1566,17 @@ function exeUnitMoveRules() {
             c.mn === 'rlwinm.' && c.sh === 0 && c.rs === b.rt) out.push({ kind, unit: bits(c.mb, c.me), at: hops[i + 2].at });
       }
     }
+    // The party's mark, 0x80000000, which GetMonstAttrs ORs in for a party
+    // member and the king's unit carries itself. CanMove tests it twice:
+    // first beside the walk-through-walls byte option-w flips with cheats
+    // on, answering 1 at once, then before letting the mover onto a square
+    // whose thing is a character with the party bit (0x40 of its byte 8).
+    // The rule is the last test of the unit's word for that bit alone.
+    if (unitReg !== null) {
+      let last = null;
+      for (let i = 0; i < ops.length; i++) { const t = testAt(i); if (t && t.reg === unitReg && t.mask === 0x80000000) last = t; }
+      if (last) out.push({ kind: 'party', unit: 0x80000000, at: last.at });
+    }
   } catch (e) { quiet(e); }
   return (DERIVED.UNIT_MOVE_RULES = out.length ? out : null);
 }
@@ -1599,6 +1625,7 @@ function monsterMoveNames() {
     let name = null;
     if (r.kind === 'steps') name = 'sets off nothing it steps on';
     else if (r.kind === 'doors') name = 'opens doors';
+    else if (r.kind === 'party') name = 'moves as a party member';
     else {
       const where = tileNamesCarrying(r.square) || (r.only !== undefined ? tileNamesCarrying(r.only) : null);
       if (where) name = (r.kind === 'onto' ? 'can move onto ' : r.kind === 'only' ? 'moves only onto ' : 'cannot move onto ') + where;
@@ -1625,7 +1652,7 @@ function monsterFlagsHTML(f) {
   }
   named.sort((a, b) => a.low - b.low);
   const bits = named.map(x => x.html);
-  if (rest) bits.push('+0x' + rest.toString(16).toUpperCase() + ' (unidentified)');
+  if (rest) bits.push('+0x' + rest.toString(16).toUpperCase() + ' (' + monsterRestWord() + ')');
   return bits.length ? bits.join(' · ') : 'none set';
 }
 
