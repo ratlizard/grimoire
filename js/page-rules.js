@@ -4413,8 +4413,9 @@ function exeBarkRules() {
 
 /* WHERE THE HERO'S PORTRAIT COMES FROM. The scenario's 0x8800 is never
    seen in play. CreatePlayer takes the dialog's pick as a slot number --
-   TCreatePlayerDialog::GetPortrait answers 240 plus six a row plus the
-   column, off the picker item's two shorts -- reads the resource that many
+   TCreatePlayerDialog::GetPortrait answers 240 plus six a column plus the
+   row, off the left and top of the picker list's visible rect (the ListRec's
+   shorts at 22 and 20; exePortraitsOffered below) -- reads the resource that many
    past 0x87FF (addis 4, 27, 1 then addi 4, 4, -30721) and writes its bytes
    into the player file as 0x8800 (lis 4, 1 then addi 4, 4, -30720). So a
    saved game's 0x8800 is one of the shipped 0x88EF.. byte for byte, which
@@ -4432,7 +4433,45 @@ function exePortraitChoice() {
   if (mi < 0 || fi < 0 || bi < 0 || di < 0) return null;
   return { perRow: exeVal(gp[mi], gp[mi].d.imm), first: exeVal(gp[fi], gp[fi].d.imm),
            base: exeVal(cp[bi], (0x10000 + cp[bi].d.imm) & 0xFFFF),
-           writes: exeVal(cp[di], (0x10000 + cp[di].d.imm) & 0xFFFF) };
+           writes: exeVal(cp[di], (0x10000 + cp[di].d.imm) & 0xFFFF),
+           offered: exePortraitsOffered() };
+}
+/* HOW MANY PORTRAITS THE DIALOG OFFERS. The picker is a List Manager list,
+   TPortraitList, and the dialog's constructor builds its data bounds on the
+   stack just before calling that class's constructor with them in r5: a
+   rect whose top and left are copied from a constant beside the TOC and
+   whose bottom and right are then stored from two `li`s, 3 and 2. So the
+   list has three rows and two columns, six cells. TPortraitList::LDEFDraw
+   draws a cell as the resource 0x88EF plus six times its column (the
+   Point's h, `mulli 0, 0, 6`) plus its row, the stride GetPortrait uses too.
+   With three rows a column shows three of each six, so 0x88F2 to 0x88F4 and
+   0x88F8 to 0x88FA, the six copies of one blank face, are never drawn: the
+   maintainer's reading of the card, 1 October 2026, checked here. Null
+   where the shape is not found. */
+function exePortraitsOffered() {
+  const ct = exeOpsNamed('TCreatePlayerDialog::TCreatePlayerDialog');
+  const call = ct.findIndex(o => exeCalls(o, 'TPortraitList::TPortraitList'));
+  const rect = call >= 0 ? exeFindBack(ct, call - 1, 12, d => d.mn === 'addi' && d.rd === 5 && d.ra === 1) : -1;
+  if (rect < 0) return null;
+  const at = ct[rect].d.imm;
+  // A short of the rect: the `sth` that writes it, and the `li` it stores.
+  const half = off => {
+    const s = exeFindBack(ct, call - 1, 48, d => d.mn === 'sth' && d.ra === 1 && d.d === at + off);
+    const l = s >= 0 ? exeFindBack(ct, s - 1, 16, d => d.mn === 'li' && d.rd === ct[s].d.rt) : -1;
+    return l >= 0 ? exeVal(ct[l], ct[l].d.imm) : null;
+  };
+  // Top and left: the first word of the constant the rect is copied from.
+  const src = exeFindBack(ct, call - 1, 48, d => d.mn === 'stw' && d.ra === 1 && d.d === at);
+  const ld = src >= 0 ? exeFindBack(ct, src - 1, 8, d => d.mn === 'lwz' && d.rt === ct[src].d.rt && d.d === 0) : -1;
+  const base = ld >= 0 ? exeFindBack(ct, ld - 1, 8, d => d.mn === 'addi' && d.rd === ct[ld].d.ra && d.ra === 2) : -1;
+  const word = base >= 0 ? exeDataWords(exeTocOffset(ct[base].d.imm), 1) : null;
+  const bottom = half(4), right = half(6);
+  const dr = exeOpsNamed('TPortraitList::LDEFDraw');
+  const mul = dr.findIndex(o => o.d && o.d.mn === 'mulli');
+  if (!word || !bottom || !right || mul < 0) return null;
+  const rows = bottom.v - (word[0] >> 16), cols = right.v - (word[0] << 16 >> 16);
+  if (!(rows > 0 && cols > 0)) return null;
+  return { rows, cols, count: { v: rows * cols, exe: bottom.exe }, stride: exeVal(dr[mul], dr[mul].d.imm) };
 }
 
 /* WHAT A COMMAND COSTS IN TIME. TGameSys::HeartBeat(n) is how a command
@@ -4552,11 +4591,13 @@ function exeAlignmentNames() {
   } catch (err) { quiet(err); }
   return (DERIVED.ALIGN_NAMES = out);
 }
-// The name alone, a link to the comparison that names it, and a space; or
-// nothing without the application.
+// The name in brackets after the number, " (evil)", a link to the
+// comparison that names it; or nothing without the application. The unit
+// page put the name first, "evil 1", until the maintainer asked for
+// "1 (evil)", 1 October 2026.
 function alignmentNameHTML(v) {
   const an = exeAlignmentNames(), hit = an && an.byValue[v];
-  return hit ? srcNum(hit.at, hit.name) + ' ' : '';
+  return hit ? ' (' + srcNum(hit.at, hit.name) + ')' : '';
 }
 // "neutral (0)", a link to the comparison that names it, or the bare number.
 function alignmentHTML(v, src) {

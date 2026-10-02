@@ -1593,9 +1593,12 @@ function showCharacterDetail(i) {
    in js/page-rules.js reads the slot arithmetic and the two ids out of the
    program, so with no application open the card says where the figures
    come from and shows none. What the file holds at those ids is the file's
-   own evidence: twelve in the shipped scenario, six of them one blank face,
-   counted here rather than typed. A saved game holds the chosen one as its
-   0x8800 and none of the twelve. */
+   own evidence: twelve in the shipped scenario. How many the dialog offers
+   is the picker list's rows times its columns, and which it draws is its
+   LDEFDraw's stride (exePortraitsOffered); the rest of the run, six copies
+   of one blank face, are counted off the file as never displayed, and
+   drawn dimmed. A saved game holds the chosen one as its 0x8800 and none
+   of the twelve. */
 function heroPortraitCard() {
   const card = document.createElement('div');
   card.style.cssText = 'font-size:0.8125rem;line-height:1.7;margin:0 0 12px';
@@ -1615,9 +1618,13 @@ function heroPortraitCard() {
   for (let r = first; r < first + 64 && getResourceBytes(ARCHIVE, r); r++) slots.push(r);
   let text = head + (isSave
     ? 'The portrait above is the one chosen when this character was made, ' + srcNum(pc.writes, 'saved') + ' in this file. '
-    : 'The portrait above is never shown in play: the game uses the one chosen when the character is made, ' + srcNum(pc.writes, 'saved') + ' in the saved game. ') +
-    'The ' + srcNum(pc.first, 'choices') + ' at character creation';
-  if (!slots.length) { card.innerHTML = text + ' are not in this file.'; return card; }
+    : 'The portrait above is never shown in play: the game uses the one chosen when the character is made, ' + srcNum(pc.writes, 'saved') + ' in the saved game. ');
+  const choices = 'The ' + srcNum(pc.first, 'choices') + ' at character creation';
+  if (!slots.length) { card.innerHTML = text + choices + ' are not in this file.'; return card; }
+  // Which of the run the list draws: column c, row r is the first plus the
+  // stride times c plus r.
+  const off = pc.offered, shown = new Set();
+  if (off) for (let c = 0; c < off.cols; c++) for (let r = 0; r < off.rows; r++) shown.add(first + off.stride.v * c + r);
   const faces = new Map();
   const strip = document.createElement('div');
   strip.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:6px';
@@ -1629,13 +1636,20 @@ function heroPortraitCard() {
       const k = hashIndices(dec.image);
       faces.set(k, (faces.get(k) || 0) + 1);
     } catch (e) { quiet(e); }
-    c.style.cssText = 'width:48px;height:48px;image-rendering:pixelated;background:#1c1913;border:1px solid #33302a';
+    c.style.cssText = 'width:48px;height:48px;image-rendering:pixelated;background:#1c1913;border:1px solid #33302a' +
+      (off && !shown.has(r) ? ';opacity:0.35' : '');
     imageOpens(c, r, 'portrait');
     strip.appendChild(c);
   }
-  const repeated = [...faces.values()].filter(n => n > 1).reduce((a, b) => a + b, 0);
-  text += ': ' + slots.length + ' here, ' + hex(slots[0]) + ' to ' + hex(slots[slots.length - 1]) +
-    (repeated ? ', ' + repeated + ' of them one face' : '') + '.';
+  const hidden = slots.filter(r => !shown.has(r)).length;
+  if (off && slots.filter(r => shown.has(r)).length === off.count.v)
+    text += 'There are ' + srcNum(off.count, String(off.count.v)) + ' choices at character creation' +
+      (hidden ? ', and ' + srcNum(off.stride, String(hidden)) + ' more here that are not displayed' : '') + '.';
+  else {
+    const repeated = [...faces.values()].filter(n => n > 1).reduce((a, b) => a + b, 0);
+    text += choices + ': ' + slots.length + ' here, ' + hex(slots[0]) + ' to ' + hex(slots[slots.length - 1]) +
+      (repeated ? ', ' + repeated + ' of them one face' : '') + '.';
+  }
   card.innerHTML = text;
   card.appendChild(strip);
   return card;

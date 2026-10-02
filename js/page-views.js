@@ -1794,11 +1794,10 @@ function showMonsterDetail(idx) {
     return c && c.name ? srcNum(c.to, c.name.charAt(0).toUpperCase() + c.name.slice(1)) : dflt;
   }).join(' / ');
   h += '<div class="sv-facts">' +
-    '<div><b>' + statNames + '</b>' + stat(0, r.body) + ' \u00b7 ' + stat(1, r.reflex) + ' \u00b7 ' + stat(2, r.mind) +
-      (copy ? '<br><span style="font-size:0.6875rem;color:#b5b2a8">Each name is the character field the unit\u2019s byte is copied into when the unit is made.</span>' : '') + '</div>' +
+    '<div><b>' + statNames + '</b>' + stat(0, r.body) + ' \u00b7 ' + stat(1, r.reflex) + ' \u00b7 ' + stat(2, r.mind) + '</div>' +
     '<div><b>Health</b>' + stat(5, r.hp) + (r.armor ? ' &nbsp; <b>Armor</b> ' + stat(3, r.armor) : '') +
       (r.damage ? ' &nbsp; <b>Damage</b> ' + stat(4, r.damage) : '') +
-      ' &nbsp; <b>Alignment</b> ' + alignmentNameHTML(r.alignment) + stat(6, r.alignment) +
+      ' &nbsp; <b>Alignment</b> ' + stat(6, r.alignment) + alignmentNameHTML(r.alignment) +
       '<br><span style="font-size:0.6875rem;color:#8c8980">' + monsterByteNote() + '</span></div>' +
     '<div><b>Special flags</b>' + srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' },
       '0x' + r.flags.toString(16).toUpperCase().padStart(8, '0')) +
