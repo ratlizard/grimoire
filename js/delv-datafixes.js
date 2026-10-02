@@ -1274,6 +1274,35 @@ const DATA_FIXES = [
           'done:']).join('\n'),
       }];
     })() },
+  // A curse weakens armour (0xE81; 1 October 2026, the maintainer's ask).
+  // THE SHIPPED GAME: character flag 19 is IsCursed in the program's
+  // ObjectFlags. The character window draws an icon for it
+  // (TCharacterWindow::DrawStatPart's list at TOC-2984 holds 9 13 14 21 19
+  // 20 22), the combat AI can test it and Alaric's help clears it, but no
+  // routine and no script reads it otherwise, and nothing gives it. Its
+  // neighbour 20, IsBlessed, is what Resist Blows gives for 256 clock units
+  // (StatusEffect(target, 20, 256)), and 0xE81, which totals a character's
+  // worn armour, adds 1 + Random(0, 4), so 1 to 4, while it is set. THE
+  // CHANGE: the reverse. After the blessing's test, a cursed character's
+  // total loses 1 + Random(0, 4), and stops at 0. WHY IT STOPS AT 0: the one
+  // caller, 0x3040, takes Random(0, unit armour + this + 1) off the blow, and
+  // a total below the unit's own armour would hand Random a range ending
+  // below where it starts. The blessing's jump (then -> 0x009C) lands on the
+  // new test, which ends in the routine's own return. Nothing gives the
+  // curse yet, so with this alone the game plays as before; a saved game
+  // with flag 19 set on a character shows it.
+  { id: 'curse', group: 'rules', stage: 'apart', title: 'A curse now weakens armour by 1 to 4, the reverse of Resist Blows',
+    edits: [{
+      what: 'a cursed character’s armour counts 1 to 4 less', resid: 0xE81, at: 0x009C, to: 0x009F,
+      expect: { 0x0085: 'if_not', 0x0086: 'sys TestFlag', 0x0087: 'arg Arg00', 0x0088: 'byte 0x14', 0x008B: 'then -> 0x009C',
+                0x009C: 'return', 0x009D: 'local Var00', 0x009E: 'end' },
+      code: ['if_not', 'sys TestFlag', 'arg Arg00', 'byte 0x13', 'end', 'then -> done',
+             'set_local 0x00', 'local Var00', 'byte 0x01', 'sub', 'sys Random', 'byte 0x00', 'byte 0x04', 'end', 'sub', 'end',
+             'if_not', 'local Var00', 'byte 0x00', 'lt', 'then -> done',
+             'set_local 0x00', 'byte 0x00', 'end',
+             'done:',
+             'return', 'local Var00', 'end'].join('\n'),
+    }] },
   // Resurrection (0x1A2F's UseOn; 27 September 2026, "Cythera Resurrection
   // Fix"; bugs.md, *Resurrected characters vanish or reappear at home*).
   // THE SHIPPED SPELL: on a corpse whose Data1 names a character it sets the
