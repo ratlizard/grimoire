@@ -430,12 +430,12 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
     <button type="button" class="btn" id="bSetup" aria-haspopup="true" aria-expanded="false">Setup</button>
     <div class="menu" id="setupMenu" hidden role="menu">
       <button type="button" data-more="regs" role="menuitem">Registers &amp; ramps&hellip;</button>
-      <button type="button" data-more="pal" role="menuitem">Colours &amp; depth&hellip;</button>
+      <button type="button" data-more="pal" role="menuitem">Colors &amp; depth&hellip;</button>
       <button type="button" data-more="size" role="menuitem">Canvas size&hellip;<em id="mSizeNote">192&times;120</em></button>
       <hr>
       <label class="mrow">Look <select id="themeSel" aria-label="Theme"></select></label>
       <button type="button" data-more="adv" id="mAdv" role="menuitemcheckbox" aria-checked="false"
-              title="Frame steps, frame rate, mixing colours, import options">Advanced controls</button>
+              title="Frame steps, frame rate, mixing colors, import options">Advanced controls</button>
     </div>
   </span>
   <button type="button" class="btn sq" id="bAbout" title="How this works" aria-label="How this works">?</button>
@@ -478,7 +478,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       <span>ink <b id="rRamp">Water</b></span>
       <span>frame <b id="rFrame">0</b></span>
       <span><b id="rSize">192&times;120</b></span>
-      <span><b id="rUsed">0</b>/<b id="rPal">256</b> colours</span>
+      <span><b id="rUsed">0</b>/<b id="rPal">256</b> colors</span>
       <span id="say"></span>
       <span id="saveNote"></span>
     </div>
@@ -488,13 +488,13 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
     <div class="ink">
       <div class="seg" id="inkSeg">
         <button type="button" data-ink="ramp" aria-pressed="true" title="Paint with a turning ramp">Ramp</button>
-        <button type="button" data-ink="still" aria-pressed="false" title="Paint with one flat colour">Colour</button>
+        <button type="button" data-ink="still" aria-pressed="false" title="Paint with one flat color">Color</button>
       </div>
       <div id="inkRampBox">
         <div class="inkRow">
           <canvas id="rampPrev" width="32" height="1"></canvas>
           <select id="rampSel" aria-label="Ramp"></select>
-          <button type="button" class="btn sq" id="rampDel" hidden title="Remove this ramp; the pixels keep their colours" aria-label="Remove this ramp">&times;</button>
+          <button type="button" class="btn sq" id="rampDel" hidden title="Remove this ramp; the pixels keep their colors" aria-label="Remove this ramp">&times;</button>
         </div>
         <div class="dirRow">
           <span class="eyebrow">Turns</span>
@@ -506,8 +506,8 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
         </div>
       </div>
       <div id="inkStillBox" hidden>
-        <button type="button" class="swatchBtn" id="bPal" title="Choose a colour">
-          <i id="palChip"></i><span>Colour</span><span class="mono" id="palIdx">222</span>
+        <button type="button" class="swatchBtn" id="bPal" title="Choose a color">
+          <i id="palChip"></i><span>Color</span><span class="mono" id="palIdx">222</span>
         </button>
       </div>
       <button type="button" class="btn sq mobOnly" id="bSheet" aria-pressed="false" aria-label="Options" title="The tool's options">&#8801;</button>
@@ -541,15 +541,15 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
           <button type="button" data-dm="part" aria-pressed="false" title="Forces them open and fills the gap">Part</button>
         </div>
       </div>
-      <label class="fld" data-for="meltsteps"><span>Ramp colours <b id="vMelt">8</b></span>
+      <label class="fld" data-for="meltsteps"><span>Ramp colors <b id="vMelt">8</b></span>
         <input type="range" id="meltN" min="2" max="256" value="8"></label>
-      <div class="fld" data-for="meltpour"><label class="chk" title="The colours you drag across start turning as the new ramp"><input type="checkbox" id="meltPour" checked>
+      <div class="fld" data-for="meltpour"><label class="chk" title="The colors you drag across start turning as the new ramp"><input type="checkbox" id="meltPour" checked>
         Set what you melted turning</label></div>
       <div class="fld" data-for="selmode"><span class="eyebrow lbl">Select by</span>
         <div class="seg" id="selSeg">
           <button type="button" data-sm="box" aria-pressed="true" title="Drag out a rectangle">Box</button>
           <button type="button" data-sm="lasso" aria-pressed="false" title="Draw freehand round it">Lasso</button>
-          <button type="button" data-sm="region" aria-pressed="false" title="Click a joined-up area of one colour">Region</button>
+          <button type="button" data-sm="region" aria-pressed="false" title="Click a joined-up area of one color">Region</button>
         </div>
         <div class="selActs">
           <button type="button" class="btn" id="selCut">Cut</button>
@@ -566,7 +566,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
         <label class="chk"><input type="checkbox" id="ragged" checked> Ragged edge</label>
       </div>
       <div class="advOnly">
-        <label class="chk" title="An opened or placed picture may land on turning colours"><input type="checkbox" id="impCycle" checked> Imports may turn</label>
+        <label class="chk" title="An opened or placed picture may land on turning colors"><input type="checkbox" id="impCycle" checked> Imports may turn</label>
       </div>
       <input type="file" id="fileIn" accept="image/*,.gif" hidden>
     </div>
@@ -574,25 +574,25 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
 </div>
 </div>
 
-<dialog id="dPal" aria-label="Palette"><div class="dh"><span class="eyebrow">Flat colours</span>
+<dialog id="dPal" aria-label="Palette"><div class="dh"><span class="eyebrow">Flat colors</span>
   <button type="button" class="btn" data-close>Done</button></div>
   <div class="db">
     <div class="row fl" style="margin-top:0"><label class="pick"><span class="eyebrow">Depth</span>
-      <select id="depthSel" aria-label="Colour depth"></select></label>
+      <select id="depthSel" aria-label="Color depth"></select></label>
       <span class="mono" id="palCount" style="font-size:0.6875rem; color:var(--muted)"></span></div>
     <p class="rh" id="depthNote" style="margin:6px 0 10px"></p>
     <div class="pal" id="pal"></div>
-    <div class="row advOnly fl"><input type="color" id="mixColour" value="#4a7fb5" aria-label="Mix a colour">
+    <div class="row advOnly fl"><input type="color" id="mixColour" value="#4a7fb5" aria-label="Mix a color">
       <button type="button" class="btn pri" id="mixAdd">Add to palette</button></div>
     <p class="rh" style="margin:10px 0 0">The first swatch is transparent: paint with it to rub out.
-      Struck-out colours belong to a turning register.</p>
+      Struck-out colors belong to a turning register.</p>
   </div></dialog>
 
 <dialog id="dReg" aria-label="Registers"><div class="dh"><span class="eyebrow">Registers &amp; ramps</span>
   <button type="button" class="btn pri" data-close>Done</button></div>
   <div class="db">
     <p class="rh">Cythera's own five come first; the rest cycle here, but the game would draw them without moving.
-      Switching one on turns its colours from flat paint into cycling ones.</p>
+      Switching one on turns its colors from flat paint into cycling ones.</p>
     <div id="regList"></div>
     <h4>Build a ramp</h4>
     <div id="stops" class="stops"></div>
@@ -624,22 +624,22 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
 <dialog id="dAbout" aria-label="How this works"><div class="dh"><span class="eyebrow">How this works</span>
   <button type="button" class="btn" data-close>Close</button></div>
   <div class="db">
-    <p><strong>A stroke stores a position in a ramp, not a colour.</strong> Every pixel holds one
+    <p><strong>A stroke stores a position in a ramp, not a color.</strong> Every pixel holds one
       palette index. Inside a turning register, that index says how far along the ramp the pixel is,
       and each frame moves the ramp on by one, so a stroke that writes a falling sequence of positions looks like
-      colour travelling that way. Drag downwards and the colour falls. Nothing is ever redrawn.</p>
+      color traveling that way. Drag downward and the color falls. Nothing is ever redrawn.</p>
     <p><strong>The ink decides what the tools are.</strong> With a ramp loaded the seven are Flow,
-      Vortex, Sparkle, Pool, Divert, Select and Melt; with a flat colour the same seven are Paint,
+      Vortex, Sparkle, Pool, Divert, Select and Melt; with a flat color the same seven are Paint,
       Shape, Spray, Fill, Smudge, Select and Pick. <strong>Melt</strong> is what Pick becomes when the ink is a
-      ramp: drag across a run of colours and they are joined into a new ramp, which is then written back
+      ramp: drag across a run of colors and they are joined into a new ramp, which is then written back
       into the pixels it came from, so they start turning where they are.</p>
     <p><strong>Select confines everything.</strong> A box, a lasso or a region is a mask, and all
       painting checks it, so every tool and both creatures work inside it and
       nowhere else. Drag from inside a selection to move what it holds.</p>
     <h4>The creatures</h4>
-    <p><strong>Giant Slug</strong> chains every turning register into one long body, so colour
+    <p><strong>Giant Slug</strong> chains every turning register into one long body, so color
       leaving the end of Fire arrives at the start of Water. Switch it off and every pixel keeps the
-      colour it is showing at that moment: the links the slug made are broken where they are, and
+      color it is showing at that moment: the links the slug made are broken where they are, and
       the registers go back to turning separately from there.</p>
     <p><strong>Hydra Polyp</strong> takes a tool at random once a second and uses it somewhere at
       random. Leave it running and it will paint over everything you own.</p>
@@ -650,13 +650,13 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       the flow. <strong>Fold</strong> bends the direction the bands are measured along, giving a
       marbled look. <strong>Pool</strong> measures distance through the shape it fills, so bands run
       straight across a channel and close in around a lake. <strong>Opacity</strong> uses an ordered dither,
-      because an indexed palette cannot blend colours.</p>
-    <p><strong>The palette is Cythera's</strong>, a 6-bit Mac colour table widened to 8 bits, but
-      it is not a limit: set the depth from 1 to 16 bits and every colour snaps to that grid, or choose Direct to
-      keep imported colours exactly. Mixed colours are added to the end, so the palette can grow to thousands;
-      what matters for GIF and PNG is the number of distinct colours on the canvas, which the status bar counts.</p>
+      because an indexed palette cannot blend colors.</p>
+    <p><strong>The palette is Cythera's</strong>, a 6-bit Mac color table widened to 8 bits, but
+      it is not a limit: set the depth from 1 to 16 bits and every color snaps to that grid, or choose Direct to
+      keep imported colors exactly. Mixed colors are added to the end, so the palette can grow to thousands;
+      what matters for GIF and PNG is the number of distinct colors on the canvas, which the status bar counts.</p>
     <p><strong>The GIF is the save file.</strong> Ours carry the whole project in a comment block.
-      Any other cycling GIF is read from its own motion: between two frames, every moving colour steps
+      Any other cycling GIF is read from its own motion: between two frames, every moving color steps
       from one slot to another, and the cycles those steps form become the registers.</p>
     <p>Cythera and Delver are trademarks of Glenn Andreas and/or Ambrosia Software. Unofficial fan tool.
       The slug and the polyp are the game's own sprites.</p>
@@ -1708,7 +1708,7 @@ function meltFinish() {
   var got = meltFlow ? meltPour(r, meltTook) : 0;
   meltStops = []; meltTook = [];
   paintRegs(); paintRamps(); paintPal(); sync(); draw();
-  say('melted a ' + r.len + '-colour ramp' +
+  say('melted a ' + r.len + '-color ramp' +
       (got ? ', ' + got + ' pixels are turning now' : ', it is the ink now'));
 }
 /* Melting is only half done when the ramp exists: what you dragged across is
@@ -2046,9 +2046,9 @@ function begin(x, y) {
       // That index belongs to a turning register, so it cannot hold flat paint.
       // Take the colour it is showing this frame and give it a still slot.
       still = addColour((PAL[frameMap(frame % LOOP)[v]] || [0, 0, 0]).slice());
-      say('that colour is turning, copied it flat as ' + still);
+      say('that color is turning, copied it flat as ' + still);
     } else {
-      still = v; say(v ? 'picked colour ' + v : 'picked transparent');
+      still = v; say(v ? 'picked color ' + v : 'picked transparent');
     }
     setInk('still'); syncStill(); paintPal(); sync(); return;
   }
@@ -2123,7 +2123,7 @@ function extend(x, y) {
 function end() {
   if (tool === 'pick' && inkIsRamp() && stroking) {
     if (meltMoved || meltStops.length >= 2) meltFinish();
-    else say('melt: ' + meltStops.length + ' stop, drag across more colour');
+    else say('melt: ' + meltStops.length + ' stop, drag across more color');
   }
   if (tool === 'select' && stroking) {
     var b = sel && selBounds();
@@ -2147,7 +2147,7 @@ function setDir(dx, dy, isRad) {
 }
 function sync() {
   document.getElementById('rRamp').textContent =
-    inkIsRamp() ? ramp.name : (still ? 'colour ' + still : 'transparent');
+    inkIsRamp() ? ramp.name : (still ? 'color ' + still : 'transparent');
   syncStill();
 }
 function syncStill() {
@@ -2410,26 +2410,26 @@ var EFFECTS = [
    families the picker is split by. */
 var TOOLS = [
   { id: 'flow', cat: 'create',
-    ramp:  { name: 'Flow', icon: 'flow', help: 'Drag; the colour travels the way you drag.' },
+    ramp:  { name: 'Flow', icon: 'flow', help: 'Drag; the color travels the way you drag.' },
     still: { name: 'Paint', icon: 'paint', help: 'An ordinary brush.' } },
   { id: 'burst', cat: 'create',
-    ramp:  { name: 'Vortex', icon: 'vortex', help: 'Press at the centre and drag out: rings, or a spiral with arms.' },
-    still: { name: 'Shape', icon: 'shape', help: 'Press at the centre and drag out a filled shape.' } },
+    ramp:  { name: 'Vortex', icon: 'vortex', help: 'Press at the center and drag out: rings, or a spiral with arms.' },
+    still: { name: 'Shape', icon: 'shape', help: 'Press at the center and drag out a filled shape.' } },
   { id: 'spray', cat: 'create',
     ramp:  { name: 'Sparkle', icon: 'sparkle', help: 'Scatters positions in the ramp, so it twinkles instead of flowing.' },
-    still: { name: 'Spray', icon: 'spray', help: 'An airbrush of the one colour.' } },
+    still: { name: 'Spray', icon: 'spray', help: 'An airbrush of the one color.' } },
   { id: 'divert', cat: 'modify',
     ramp:  { name: 'Divert', icon: 'divert', help: 'Pushes a flow that is already there.' },
     still: { name: 'Smudge', icon: 'smudge', help: 'Drags the pixels that are already there.' } },
   { id: 'pool', cat: 'create',
     ramp:  { name: 'Pool', icon: 'pool', help: 'Floods the region you click with a flow that takes its shape.' },
-    still: { name: 'Fill', icon: 'puddle', help: 'Floods the region you click with the one colour.' } },
+    still: { name: 'Fill', icon: 'puddle', help: 'Floods the region you click with the one color.' } },
   { id: 'select', cat: 'modify',
     ramp:  { name: 'Select', icon: 'select', help: 'Everything works inside the selection and nowhere else. Drag inside it to move it.' },
     still: { name: 'Select', icon: 'select', help: 'Everything works inside the selection and nowhere else. Drag inside it to move it.' } },
   { id: 'pick', cat: 'modify',
-    ramp:  { name: 'Melt', icon: 'melt', help: 'Drag across colours and they are strung into a ramp, which becomes the ink.' },
-    still: { name: 'Pick', icon: 'pick', help: 'Click a pixel to load its colour.' } }
+    ramp:  { name: 'Melt', icon: 'melt', help: 'Drag across colors and they are strung into a ramp, which becomes the ink.' },
+    still: { name: 'Pick', icon: 'pick', help: 'Click a pixel to load its color.' } }
 ];
 function toolDef(id) {
   for (var i = 0; i < TOOLS.length; i++) if (TOOLS[i].id === id) return TOOLS[i];
@@ -2717,7 +2717,7 @@ document.getElementById('rampDel').addEventListener('click', function () {
   relut(); invalidateMap(); paintRegs(); paintRamps(); paintPal();
   if (!ramps().length) setInk('still');
   sync(); draw();
-  say('removed ' + gone.name + '; its colours are flat paint now');
+  say('removed ' + gone.name + '; its colors are flat paint now');
 });
 /* ================= registers + ramp builder ============================= */
 function paintRegs() {
@@ -2789,7 +2789,7 @@ function paintStops() {
     box.appendChild(inp);
     var aim = document.createElement('button');
     aim.type = 'button'; aim.className = 'aim'; aim.textContent = '◉';
-    aim.title = 'Fill this stop from the next colour you pick below';
+    aim.title = 'Fill this stop from the next color you pick below';
     aim.addEventListener('click', function () { stopTarget = i; paintStops(); });
     box.appendChild(aim);
     if (STOPS.length > 2) {
@@ -2867,7 +2867,7 @@ document.getElementById('rbAdd').addEventListener('click', function () {
   var r = makeRamp(builderColours(), name);
   ramp = r; setInk('ramp'); paintRegs(); paintRamps(); paintPal(); sync(); draw();
   document.getElementById('dReg').close();          // straight back to painting with it
-  say('added ' + name + ', palette is now ' + PAL.length + ' colours');
+  say('added ' + name + ', palette is now ' + PAL.length + ' colors');
 });
 
 /* ================= flat palette + colour depth ========================== */
@@ -2901,14 +2901,14 @@ function paintPal() {
   if (n) n.textContent = depth === 'cythera'
     ? "Cythera's own CLUT: a 6-bit Mac palette of 256, with 28 of them turning."
     : depth === 'direct'
-    ? 'No grid: every colour is kept exactly as it arrived. This is what a picture read in from a file lands in, so nothing it brought with it is lost.'
-    : (1 << depth) + ' colours at ' + depth + '-bit' +
+    ? 'No grid: every color is kept exactly as it arrived. This is what a picture read in from a file lands in, so nothing it brought with it is lost.'
+    : (1 << depth) + ' colors at ' + depth + '-bit' +
       (depth > 12 ? ', the grid below is a sample; anything you mix snaps to the full one.' : '.');
 }
 document.getElementById('mixAdd').addEventListener('click', function () {
   var i = addColour(hex2rgb(document.getElementById('mixColour').value));
   still = i; setInk('still'); paintPal(); syncStill();
-  say('index ' + i + ', palette is now ' + PAL.length + ' colours');
+  say('index ' + i + ', palette is now ' + PAL.length + ' colors');
 });
 (function () {
   var sel = document.getElementById('depthSel');
@@ -2920,7 +2920,7 @@ document.getElementById('mixAdd').addEventListener('click', function () {
   for (var b = 1; b <= 16; b++) {
     var x = document.createElement('option');
     x.value = String(b);
-    x.textContent = b + '-bit · ' + (1 << b).toLocaleString() + (b === 1 ? ' (mono)' : b === 2 ? ' (greys)' : '');
+    x.textContent = b + '-bit · ' + (1 << b).toLocaleString() + (b === 1 ? ' (mono)' : b === 2 ? ' (grays)' : '');
     sel.appendChild(x);
   }
   sel.addEventListener('change', function () {
@@ -2928,7 +2928,7 @@ document.getElementById('mixAdd').addEventListener('click', function () {
     setDepth(v);
     paintRegs(); paintRamps(); paintPal(); previewBuilder(); sync(); draw();
     say('palette is now ' + (v === 'cythera' ? "Cythera's CLUT"
-      : v === 'direct' ? 'direct, colours kept exactly as they are' : v + '-bit'));
+      : v === 'direct' ? 'direct, colors kept exactly as they are' : v + '-bit'));
   });
 })();
 
@@ -3525,9 +3525,9 @@ function importByMotion(bytes) {
   var steps = regs.reduce(function (a, r) { return a + r.len; }, 0);
   say(regs.length
     ? 'read ' + regs.length + ' cycling register' + (regs.length === 1 ? '' : 's') +
-      ', ' + steps + ' colours in motion, off ' + g.frames.length + ' frames' +
+      ', ' + steps + ' colors in motion, off ' + g.frames.length + ' frames' +
       (moved ? ' (the pixels move too; this is frame one)' : '')
-    : 'nothing was cycling in that one, ' + tab.length + ' colours, all held still');
+    : 'nothing was cycling in that one, ' + tab.length + ' colors, all held still');
   return true;
 }
 
@@ -3934,7 +3934,7 @@ async function offer(name, bytes) {
   if (downloads) {
     saveNote.textContent = 'confirm the save…';
     try { await downloads.save({ filename: name, data: bytes }); saveNote.textContent = 'saved ' + name + ' (' + Math.round(bytes.length / 1024) + ' KB)'; }
-    catch (e) { saveNote.textContent = (e && e.code === 'declined') ? 'save cancelled' : 'could not save'; }
+    catch (e) { saveNote.textContent = (e && e.code === 'declined') ? 'save canceled' : 'could not save'; }
     return;
   }
   if (inArtifact) return;

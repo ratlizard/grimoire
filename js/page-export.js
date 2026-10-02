@@ -390,7 +390,7 @@ function cytheraPrefsPreset(name, layout) {
 function prefsSummary(o) {
   const parts = [o.cheats ? 'the cheat keys allowed' : 'no cheat keys'];
   if (o.smooth) parts.unshift('smoother movement');
-  if (o.switch256) parts.push('256 colours chosen at startup without asking');
+  if (o.switch256) parts.push('256 colors chosen at startup without asking');
   if (o.startup) for (const [t, v] of Object.entries(o.startup)) if (v) parts.push('\u201c' + t + '\u201d');
   const L = cytheraPrefsLayout();
   if (L) {

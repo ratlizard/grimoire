@@ -469,12 +469,12 @@ function openDitherTool() {
       '<option value="sheet">128×128 tile sheet, sixteen tiles (cover crop)</option>' +
       '<option value="free">original size (up to 512px), a sized graphic</option></select></label>' +
     '<label>Checker <input type="range" id="dtChecker" min="0" max="100" value="60"></label>' +
-    '<label id="dtSubstWrap"><input type="checkbox" id="dtSubst"' + (window.DITHER_SUBST ? ' checked' : '') + '> Automatically substitute out colour-cycling colours</label></div>' +
+    '<label id="dtSubstWrap"><input type="checkbox" id="dtSubst"' + (window.DITHER_SUBST ? ' checked' : '') + '> Automatically substitute out color-cycling colors</label></div>' +
     '<div class="dtRow" id="dtItemsRow" style="display:none">' +
     '<label>Corners <select id="dtCorner">' + ditherItemOptions('axe') + '</select></label>' +
     '<label>Edges <select id="dtEdge">' + ditherItemOptions('sword') + '</select></label></div>' +
     '<div class="dtRow">' +
-    '<label><input type="checkbox" id="dtSeldane"> Seldane colours only <span class="inspDim">(the blues and cyans of portraits 0x8877 to 0x887B, by lightness)</span></label></div>' +
+    '<label><input type="checkbox" id="dtSeldane"> Seldane colors only <span class="inspDim">(the blues and cyans of portraits 0x8877 to 0x887B, by lightness)</span></label></div>' +
     '<div class="dtRow"><canvas id="dtSrc" width="64" height="64"></canvas>' +
     '<canvas id="dtOut" width="64" height="64"></canvas></div>' +
     '<div class="dtRow">' +

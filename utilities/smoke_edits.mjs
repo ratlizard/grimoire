@@ -103,7 +103,7 @@ try {
   const toolsNow = walk();
   const patchLeaf = peek('TAB_LEAF_FOR').get('PATCHES');
   if (!patchLeaf || patchLeaf.id !== 'patches' || !patchLeaf.parent || patchLeaf.parent.id !== 'data' || patchLeaf.magpie !== 'DelP') strayTab.push('PATCHES is not the Patches tab under Data with Magpie\u2019s DelP icon');
-  for (const t of ['Compare Patches', 'Recolour a Sprite or Portrait', 'Compare Two Files']) {
+  for (const t of ['Compare Patches', 'Recolor a Sprite or Portrait', 'Compare Two Files']) {
     if (tools.indexOf(t) < 0) strayTab.push('Patches does not show ' + t);
     if (toolsNow.indexOf(t) >= 0) strayTab.push('Tools still shows ' + t);
     ctx.showCategory('HACKERY');
@@ -907,7 +907,7 @@ try {
       else if (!pr.n || pr.stray || pr.bad) fail('portrait colours', pr.n + ' pixels moved, ' + pr.stray + ' outside the family, ' + pr.bad + ' onto transparency or a cycling ramp');
       else if (pr.n !== pr.moved) fail('portrait colours', 'the count on the page is not the count of pixels that moved');
       else if (pr.resids.length !== 1 || pr.resids[0] !== 0x8801 || !pr.valid) fail('portrait colours', 'the patch carries ' + pr.resids.map(i => '0x' + i.toString(16)).join(' ') + (pr.valid ? '' : ' and does not verify'));
-      else if (!/^The portrait of Alaric, 1 colour changed$/.test(pr.desc) || pr.name !== 'Alaric Portrait Colours') fail('portrait colours', 'named ' + JSON.stringify([pr.desc, pr.name]));
+      else if (!/^The portrait of Alaric, 1 color changed$/.test(pr.desc) || pr.name !== 'Alaric Portrait Colors') fail('portrait colours', 'named ' + JSON.stringify([pr.desc, pr.name]));
       else if (!pr.same) fail('portrait colours', 'the patch does not decode to the recoloured face');
       else {
         const host = REGISTRY.get('heroSprite');
@@ -951,7 +951,7 @@ try {
       const wp = peek('heroSpritePatch()');
       if (!wp || wp.resids.length !== 1 || wp.resids[0] !== cover[0].sheet || !wp.checkValueValid)
         fail('hero bodies', 'the worn body did not write a verifying patch of the hero\'s sheet alone');
-      else if (!/hero, as the demon, \d+ colours? changed/.test(wp.description)) fail('hero bodies', 'the description is ' + JSON.stringify(wp.description));
+      else if (!/hero, as the demon, \d+ colors? changed/.test(wp.description)) fail('hero bodies', 'the description is ' + JSON.stringify(wp.description));
       else console.log(`  hero bodies: ${bodies.length} bodies offered, the gator, the titan and the corpse not; the demon worn stride for facing, turned yellow in ${worn.shades.length} families, and written as one resource`);
     }
   }

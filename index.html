@@ -1866,12 +1866,12 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   <!-- The seven ways an edit leaves the page used to be a stack of buttons
        here. They are the Changes tab now, under Data > Cythera Data, grouped
        by where the file is going (renderChangesSheet). -->
-  <div id="animModeWrap">Colour cycling
+  <div id="animModeWrap">Color cycling
     <label><input type="radio" name="animMode" value="all" onchange="setAnimMode(this.value)"> everything on screen</label>
     <label><input type="radio" name="animMode" value="graphics" onchange="setAnimMode(this.value)"> graphics only, not the maps</label>
     <label><input type="radio" name="animMode" value="tiles" onchange="setAnimMode(this.value)"> tile sheets only</label>
     <label><input type="radio" name="animMode" value="off" onchange="setAnimMode(this.value)"> off</label>
-    <span class="amNote">Water, lava and magic appear to move because the game cycles their colours in the palette, not
+    <span class="amNote">Water, lava and magic appear to move because the game cycles their colors in the palette, not
     because the picture changes. This setting controls that, and the walking and turning of sprites in the galleries.
     Something drawn from several frames, like a fountain, is not palette cycling and is not affected.</span></div>
   <label><input type="checkbox" id="chkBuiltinLabels" onchange="setBuiltinLabels(this.checked)">
@@ -1894,7 +1894,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
     <label><input type="radio" name="unditherScope" value="off" onchange="setUnditherScope(this.value)"> off</label>
     <label><input type="radio" name="unditherScope" value="portraits" onchange="setUnditherScope(this.value)"> portraits</label>
     <label><input type="radio" name="unditherScope" value="all" onchange="setUnditherScope(this.value)"> every graphic</label>
-    <span class="amNote">Cythera’s art is dithered for a 256-colour screen. This smooths the checkerboard patterns
+    <span class="amNote">Cythera’s art is dithered for a 256-color screen. This smooths the checkerboard patterns
     back into continuous shades. The result is an interpretation of the pixels, not the pixels themselves.</span></div>
 </div>
 <div id="creditsCaret" aria-hidden="true"></div>
@@ -1918,10 +1918,10 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
     <li><strong>Duane King</strong>: Chicago Kare</li>
     <li><strong>Kelsey Higham</strong>: Geneva 9.1</li>
     <li><strong>Brian Connors</strong>: Carthage Sans</li>
-    <li><strong>Sam Wang</strong>: Argos, the game’s own face</li>
+    <li><strong>Sam Wang</strong>: Argos A Nouveau</li>
   </ul>
   <p>Grimoire was written with the assistance of Claude, Gemini and Perplexity.</p>
-  <p class="amNote">Cythera™ is copyright ©1993–9 Ambrosia Software, Inc., in the words of its own licence. This is an unofficial fan-made tool.</p>
+  <p class="amNote">Cythera™ is copyright ©1993–9 Ambrosia Software, Inc. (R.I.P.) This is an unofficial fan-made tool.</p>
 </div>
 <div id="searchWrap" role="dialog" aria-label="Search" style="display:none">
   <p class="sv-why" style="margin:0 0 8px">Searches every decoded script at once:
@@ -2395,7 +2395,7 @@ this page from the delvmod wiki and is not in the file. Turn these names on or o
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.236.0';
+const GRIMOIRE_VERSION = '1.236.1';
 { const b = document.getElementById('brand');   // the element precedes the script
   // The grimoire's own tile (prop 76, the book) stands before the name once
   // a file is open to draw it from (the maintainer, 9 September 2026).

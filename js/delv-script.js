@@ -874,7 +874,7 @@ function dvmRender(arc, b, resid) {
         if (delta > 0) ind++;
       }
       lines.push('}');
-      if (r.bad) { lines.push('// ^ decoder desynced (' + r.bad + ' unrecognised bytes) - unreliable'); failed++; }
+      if (r.bad) { lines.push('// ^ decoder desynced (' + r.bad + ' unrecognized bytes) - unreliable'); failed++; }
       else clean++;
     } else if (kind === 'array') {
       const v = dvmArrayContents(seg);

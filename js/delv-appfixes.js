@@ -159,7 +159,7 @@ const APP_FIXES = [
   // of its own, and the party member's branch takes it; the others, and
   // behaviour 146, which enters the tail at its start, are as before.
   { id: 'target-hunger', kind: 'fix', title: 'A companion whose target is gone goes back to following without its hunger set to 30',
-    played: 'fork, PowerPC, 30 September 2026: two companions saved at behaviour 113 follow again with their food as it was',
+    played: 'fork, PowerPC, 30 September 2026: two companions saved at behavior 113 follow again with their food as it was',
     bug: 'Followers\' hunger and poison clear on their own',
     sites: [
       { at: 0x4C464, was: [0x48000058], asm: ['b @0x4C4C8            ; a party member: past the nutrition'] },
@@ -308,7 +308,7 @@ const APP_FIXES = [
   // click was on a thing (312(1)), to the square the click named (318(1),
   // 316(1), which the branch passes to the Attack of a square), and ends
   // as before, which disarms the command: press the key again to go on.
-  { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach takes a step towards it, instead of doing nothing; a touch spell takes the step too, and is still cancelled',
+  { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach takes a step toward it, instead of doing nothing; a touch spell takes the step too, and is still canceled',
     played: 'fork, PowerPC, 30 September 2026: Use from the popup and by U, Take by G; Paralyze on a student two squares off steps once and cancels, as the unpatched game cancels without the step',
     bug: 'Touch spells only work on someone next to you',
     sites: [{ at: 0x50E5C, was: [0x38600000], asm: ['b @cave               ; was li 3, 0 (and blr)'] },
@@ -515,7 +515,7 @@ const APP_FIXES = [
            'shipped:', 'lwz 3, -30392(2)', 'bl @0x6C63C            ; THood::THood', 'b @0x6CB24',
            'add:', 'mr 3, 31', 'bl @limit', 'b @0x6C9E4',
            'reset:', 'mr 3, 30', 'bl @limit', 'b @0x6C934',
-           'limit:', 'lbz 3, 1(3)            ; r0 the count, r3 the neighbourhood, free at both', 'cmplwi 3, 0', 'li 3, 2048', 'beq @cmp', 'li 3, 16384',
+           'limit:', 'lbz 3, 1(3)            ; r0 the count, r3 the neighborhood, free at both', 'cmplwi 3, 0', 'li 3, 2048', 'beq @cmp', 'li 3, 16384',
            'cmp:', 'cmpw 0, 3', 'blr     ; both routines saved LR on entry'] },
 
   { id: 'widget-renumber', kind: 'fix', title: 'A scripted window’s buttons follow their owner to its new number on a zone change',

@@ -1,4 +1,4 @@
-# What the licence covers, and what it does not
+# What the license covers, and what it does not
 
 The work in this repository — `index.html`, `canvas.html`, `js/`,
 `utilities/`, and the documentation alongside them — is copyright (c) 2026
@@ -18,7 +18,7 @@ either in return.
 Inc. and/or Glenn Andreas. "Cythera" and "Delver" are their trademarks. The
 game, its data, its installers, its documentation and everything shipped with
 it are **not** in this repository, are not distributed with it, and never will
-be. Nothing here is derived from a licence to redistribute the game.
+be. Nothing here is derived from a license to redistribute the game.
 
 **What the page fetches, and on whose say-so.** The pages read a copy of the
 game that you supply — dropped on the page, picked from disk, served beside
@@ -29,7 +29,7 @@ That fetch goes from your browser to archive.org; the bytes are not served
 from this repository, are not mirrored by it, and no copy of them is kept here.
 Use a copy you are entitled to use.
 
-**Why it is the whole installer and never one file out of it.** The licence
+**Why it is the whole installer and never one file out of it.** The license
 Ambrosia shipped with the game (`Cythera License.text`, in the installed
 folder's `Documentation ƒ`) says: "Non-profit distribution of the software is
 acceptable without prior written notice, providing that the software is not
@@ -52,7 +52,7 @@ repository's history and are Ambrosia's or their respective authors', not ours.
 **`res/ChicagoKare-Regular.woff2`** is **Chicago Kare** by **Duane King**
 (<https://github.com/kingduane/Chicago-Kare>), a reproduction of the bitmap
 Chicago typeface **Susan Kare** drew for Apple in 1984, licensed **MIT**. The
-licence text is beside it as `res/ChicagoKare-LICENSE.txt` and governs it. It
+license text is beside it as `res/ChicagoKare-LICENSE.txt` and governs it. It
 is the face this page is set in before any game file is open, and it is not
 Ambrosia's.
 
@@ -63,7 +63,7 @@ for its Text and Lang0 styles. The package is dual licensed **SIL Open Font
 License 1.1** and **CC-BY-SA 4.0**, at the user's choice, and its `license.txt`
 is beside it as `res/CarthageSans-LICENSE.txt`. The page uses it for the marks
 Chicago Kare does not carry. Two things to know about the file, neither of them
-a change we made to it: the regular weight's embedded licence field reads
+a change we made to it: the regular weight's embedded license field reads
 "FontStruct Non-Commercial License", where the package's own `license.txt`, the
 author's readme and every other weight in the family say OFL and CC-BY-SA -- the
 string is left as he shipped it; and converting a TrueType to woff2 is a format
@@ -73,7 +73,7 @@ own only because the design is untouched.
 **`res/Geneva9-1-Regular.woff2`** is **Geneva 9.1** by **Kelsey Higham**
 (<https://fontstruct.com/fontstructions/show/1304775>), a pixel-exact clone of
 the 9-point **Geneva** bitmap Susan Kare drew for Apple in 1984, licensed under
-the **SIL Open Font License 1.1**. The licence and the readme FontStruct
+the **SIL Open Font License 1.1**. The license and the readme FontStruct
 requires to travel with it are beside it as `res/Geneva9-1-LICENSE.txt` and
 `res/Geneva9-1-README.txt`. It is the page's text face, because Geneva 9 and 10
 is what Cythera's own data file names for its Labels, Stats and Text styles.
@@ -85,13 +85,13 @@ TrueType Geneva is not here.
 (<https://fontstruct.com/fontstructions/show/349277>), the ancestor of Geneva
 9.1 above, as its TrueType download, unmodified and encoded as base64 so a page
 opened from a file can read it; it is licensed under the **Creative Commons
-Attribution 3.0** licence, and its `license.txt` and the readme FontStruct
+Attribution 3.0** license, and its `license.txt` and the readme FontStruct
 requires to travel with it are beside the fonts as `res/Geneva9-LICENSE.txt`
 and `res/Geneva9-README.txt`. `GENEVA_METRICS` is the advances and left
 bearings of **Kurrajong 9** and **Kurrajong 10**, Copyright (c) 2026 **Ben
 Letchford**, licensed under the **SIL Open Font License 1.1** with the Reserved
 Font Name "Systemless"; the numbers only, none of Kurrajong's pixels, and the
-licence is `res/Kurrajong-OFL.txt`. From the two, the Spanish Cythera Data the
+license is `res/Kurrajong-OFL.txt`. From the two, the Spanish Cythera Data the
 Patches section writes carries a font of its own, "Geneva ES": Geneva 9's
 letters, with its accented letters made from its plain ones, at Kurrajong's
 widths. That font is written into the visitor's own file and is not in this
@@ -100,6 +100,6 @@ repository.
 **`delvmod/`** is a submodule, so this repository stores only a pointer to it.
 It is an independent work by **Bryce Schroeder**
 (<https://github.com/BryceSchroeder/delvmod>), licensed **GPLv3**, and is used
-here for data inspection and as a correctness oracle. Its licence governs it.
+here for data inspection and as a correctness oracle. Its license governs it.
 The submodule points at a fork of it, which carries Python 3 fixes and says so
 in its README; the work is his.

@@ -235,7 +235,7 @@ try {
   // The spells card moved to the Spells sheet on 13 September 2026; sphtml
   // is that sheet, captured above.
   else if (!/resist non-magical weapons: [^<]*lich/.test(sphtml)) fail('mechanics', 'the spells card does not name the monsters immune to non-magical damage')
-  else if (!/Prop Records: Type, Aspect, Data1 and Data2/.test(html) || !/Data1 on a weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/pass it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
+  else if (!/Prop Records: Type, Aspect, Data1 and Data2/.test(html) || !/Data1 on a melee weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/pass it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
   else if (mechSecs < 15) fail('mechanics', `the sections are missing: ${mechSecs} sections`);
   // No application in this run, so none of its figures: the clock, the
   // balloon and the enemy table say where they come from and state nothing.
@@ -281,7 +281,7 @@ try {
   // weapon class reads the field at all.
   else if ((function () { const ar = ctx.aspectReaders(); const reads = [...ar.values()].filter(v => v.reads).length; return !(ar.size > 150 && reads >= 20 && reads < 60 && (ar.get(213) || {}).reads && (ar.get(0x1F) || {}).reads && !(ar.get(100) || {}).reads && !(ar.get(94) || {}).reads && ctx.gearTable().every(r => !(ar.get(r.pt) || {}).reads)); })()) fail('mechanics', 'the aspect readers were not counted as expected: ' + JSON.stringify([...ctx.aspectReaders()].filter(([, v]) => v.reads).map(([pt]) => pt)));
   else if ((function () { const f = ctx.foodRules().foods.find(f => f.pt === 213), b = ctx.foodRules().foods.find(f => f.pt === 69); return !(f && f.saysPer && f.variants.length === 3 && f.variants[1].name === 'dried jellyfish' && f.variants[1].plus === 8 && f.variants[1].says === 'Yetch!' && f.variants[0].says === 'Not very good' && b && !b.saysPer && b.variants.every(v => v.says === 'Tasty')); })()) fail('mechanics', 'the foods’ lines were not read: ' + JSON.stringify(ctx.foodRules().foods.filter(f => f.variants).map(f => [f.pt, f.saysPer, f.variants.map(v => v.says)])));
-  else if (!/of 180<\/b> item class scripts read it/.test(html) || !/No weapon or piece of armour reads it/.test(html) || !/0x0464/.test(html) || !/dried jellyfish<\/b> that feeds \+8 and says “Yetch!”/.test(html) || !/“Not very good”/.test(html)) fail('mechanics', 'the prop record section does not say which classes read their aspect, or the spear and mushroom steak contrast is missing');
+  else if (!/of 180<\/b> item classes also read it/.test(html) || !/No weapon or piece of armor reads it/.test(html) || !/0x0464/.test(html) || !/dried jellyfish<\/b> that feeds \+8 and says “Yetch!”/.test(html) || !/“Not very good”/.test(html)) fail('mechanics', 'the prop record section does not say which classes read their aspect, or the spear and mushroom steak contrast is missing');
   else if (!(ctx.statusRules().applies.get('Sleep') || []).some(a => a.duration === 4096) || !(ctx.statusRules().cures.get('Poisoned') || new Set()).size) fail('mechanics', 'status effects were not read: sleep for 4096, poison cleared');
   else if (!(ctx.lockRules().rule && ctx.lockRules().rule.formula && ctx.lockRules().needsSkill) || !ctx.lockRules().classes.some(c => c.name === 'chest' && c.words[0] === 15)) fail('mechanics', 'the lock rule or the chest’s parameter was not read');
   else if (!ctx.shopRules().shops.some(sp => sp.who === 30 && sp.goods.some(g => g.name === 'Sword' && g.price === 45)) || !ctx.shopRules().haggling) fail('mechanics', 'Milcom’s sword at 45 or the haggling roll was not read');
@@ -1276,7 +1276,7 @@ try {
   const names = peek('PROP_TYPE_NAMES') || {};
   const gone = ['CYTHERA_CHARACTERS', 'ZONES', 'RESOURCE_LABELS', 'TILE_SHEET_HINTS', 'DVM_FLAG_NAMES'].filter(n => peek('typeof ' + n) !== 'undefined');
   if (unlinked.length) fail('file figures', 'not a link to the line that holds it: ' + unlinked.join(', '));
-  else if (!/Haggling<\/b> skill takes a further roll of 0 to (?:<button[^>]*>)?4(?:<\/button>)? off/.test(html)) fail('file figures', 'the haggling roll is not 0 to 4, one short of its operand of 5');
+  else if (!/Haggling<\/b> takes off a further roll of 0 to (?:<button[^>]*>)?4(?:<\/button>)?/.test(html)) fail('file figures', 'the haggling roll is not 0 to 4, one short of its operand of 5');
   else if (/capped at <b>65,535/.test(html) || /plus a roll of 0 to 29<\/b>/.test(html)) fail('file figures', 'a figure is typed into its sentence rather than read');
   else if (Object.keys(names).length || gone.length) fail('names', 'typed name tables are back: ' + JSON.stringify({ props: Object.keys(names), tables: gone }));
   else if (!/^Tile Sheet 35: unlit torch, lit torch/.test(ctx.labelFor(0x8E23) || '') || ctx.labelFor(0x8F0A) !== 'General Graphic 10: chest, coffer')
@@ -1332,8 +1332,11 @@ try {
         fail('cheats', 'the nothing map’s heap arithmetic did not come out: ' + JSON.stringify(heap));
       else if (!control || control.heads !== 0)
         fail('cheats', 'the negative control failed: Land King Hall has allocator headers too: ' + JSON.stringify(control));
-      else if (!new RegExp(`<b>${heap.heads}</b> of the headers[^<]*${heap.hits} of them`).test(html))
-        fail('cheats', 'the heap figure on the page is not the computed one');
+      // The page stopped printing the header counts in the prose pass of
+      // 2 October 2026; the arithmetic is still held above, and the page
+      // must still say what the grid is.
+      else if (!/Its grid is not tiles<\/b> but leftover bytes of the program’s memory/.test(html))
+        fail('cheats', 'the nothing map does not say its grid is leftover memory');
       else console.log(`  cheats: no application, so no keys stated; ` +
                        `${sprites.length} sprite classes read off the archive with 32 the hero, ` +
                        `${levels.length} levels, ${tp.last} teleporters, and the nothing map's ${heap.hits} of ${heap.heads} headers chained`);

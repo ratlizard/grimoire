@@ -1737,7 +1737,7 @@ function heroShadeDef(image, W, frameH, opts) {
   }
   const parts = keep.map(g => {
     const low = Math.min(...g.members);
-    return { key: 'shade' + low.toString(16), label: 'the colours around 0x' + low.toString(16).toUpperCase(),
+    return { key: 'shade' + low.toString(16), label: 'the colors around 0x' + low.toString(16).toUpperCase(),
              sure: g.members.slice().sort((a, b) => a - b), pixels: g.pixels, top: topOf(g) };
   });
   return { key: 'shades', parts: parts.sort((a, b) => b.pixels - a.pixels), shared: [] };

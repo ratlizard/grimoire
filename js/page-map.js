@@ -2025,7 +2025,7 @@ function drawMapMarks(lensCtx, lensTS) {
     if (M.path && pathStops) parts.push('<span style="color:' + colours.path + '">' + LINE +
       svEsc(pathName) + ', ' + pathStops + (pathStops === 1 ? ' post' : ' posts') +
       ' on this map, joined by the route the game would walk; each part of the route is' +
-      ' coloured by the hour it starts, and drawn on its own line where the same' +
+      ' colored by the hour it starts, and drawn on its own line where the same' +
       ' way is walked twice</span>');
     if (ropes) parts.push('<span style="color:#fff">' + ROPE + ropes +
       (ropes === 1 ? ' needs a rope' : ' need a rope') + '</span>');

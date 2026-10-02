@@ -83,7 +83,7 @@ const SUBINDEX_PURPOSE = {
   0:   ['Symbol table', 'One resource, 0x0101, holding names for numbered things. They are the developers’ own names and do not always match the game as released, so they are a hint rather than the truth.'],
   1:   ['Data lists and the game’s writing', 'Lists of things: character names, and the global values the symbol table in subindex 0 names. It is also where Cythera’s own writing lives: the bookshelf histories and bestiaries, the prophecies, the scrolls and letters, the signs, the gravestones and the ring inscriptions. Each passage is one entry in a list, and a thing in the world picks its entry with the number in its Data1. The Mechanics page covers them under The game’s own writing.'],
   2:   ['Global store', '0x301 holds four values that any script can read and write: the quality of each inn. 0x33F is four bytes that nothing uses.'],
-  3:   ['AI combat scripts', 'Named behaviours: Attack Nearest, Defend, Beserk, Healer. Each is stored unencrypted, as a name followed by a body that is not script code like the rest of the file.'],
+  3:   ['AI combat scripts', 'Named behaviors: Attack Nearest, Defend, Beserk, Healer. Each is stored unencrypted, as a name followed by a body that is not script code like the rest of the file.'],
   4:   ['Archetypes', '0x501 is the nine characters a game can start as, in the order 0x203 names them (Explorer, Fighter, Swordsman, Beserker [sic], Mage, Wizard, Mystic, Storyteller, Rogue) and 0x204 describes them. Each holds body, reflex and mind, then the skills it starts with: the skill’s number plus 1,024 for each level of it, where a level of 0 means an aptitude for the skill rather than the skill itself. The dialog that creates a character reads it. 0x500 and 0x540 contain only zeros.'],
   7:   ['Group dialogue', 'Dialogue shared by a faction or a place rather than belonging to one character.'],
   8:   ['Combat AI tests and actions', 'The half of the combat AI’s vocabulary that lives in this file: six tests at 0x901 and thirteen actions at 0x981, in the order the program’s own lists (STR# 9307 and 9308) name them, which this page shows when the game is open. The compiled AI rules that come with the game call them, and four dialogues call two of them directly.'],
@@ -92,7 +92,7 @@ const SUBINDEX_PURPOSE = {
   11:  ['Task helpers', 'Scripts that give a character something to do: the innkeeper’s service lines (0xC80), opening and closing doors (0xC81 to 0xC83), the tavern barks (0xC84, 0xC85), the blacksmith’s work (0xC86), and the spell-cast announcements (0xC4B, 0xC4C).'],
   12:  ['Party and inventory helpers', 'Scripts that go through what the party is carrying: what is held and what it weighs, counting money (0xD04), the reaction to theft (0xD06), and coins spilling when a purse is too heavy (0xD09).'],
   13:  ['Rule helpers', 'The scripts the rules are read from: lock picking (0xE43), combat (0xE84 to 0xE89), experience and levels (0xE86, 0xE8B), spells (0xEA1), shops (0xEA5), training (0xEB1), damage (0xEB8).'],
-  14:  ['Character helpers', 'Twenty-two scripts of one function each, every one acting on a single character: set, clear and test a flag (0xF00 to 0xF02, called from hundreds of lines of dialogue), behaviour, health, poison, attributes, experience, level, karma, and two that make a character.'],
+  14:  ['Character helpers', 'Twenty-two scripts of one function each, every one acting on a single character: set, clear and test a flag (0xF00 to 0xF02, called from hundreds of lines of dialogue), behavior, health, poison, attributes, experience, level, karma, and two that make a character.'],
   15:  ['Item classes', 'What each kind of item is: what it is called, and what happens when you use it.'],
   16:  ['Object classes', 'Objects with data and scripts of their own, and text in them that you can read.'],
   19:  ['Zone entry scripts', 'One for each map. It runs as you enter the zone, and holds the zone names the game shows.'],
@@ -458,7 +458,7 @@ function askOneShape(shape, hit) {
       if (!ms.length) return null;
       return askCard('What ' + m.hit[1].trim() + ' resists', 'From the monster record’s flags, as the default resistance script reads them.',
         ms.slice(0, 6).map(r => askRow(N[r.proptype] || ('class ' + r.proptype),
-          svEsc(monsterFlagsText(r.flags)) + ' <span class="inspDim">· armour ' + r.armor + ', ' + r.hp + ' health</span>')),
+          svEsc(monsterFlagsText(r.flags)) + ' <span class="inspDim">· armor ' + r.armor + ', ' + r.hp + ' health</span>')),
         mechLink('combat', 'Mechanics › Combat'));
     }
     if (m.sh.id === 'where' || m.sh.id === 'who') {

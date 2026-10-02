@@ -554,7 +554,7 @@ function exeBehaviours() {
         return byStart.get(s);
       }) };
     }
-  } catch (e) { quiet(e, 'the behaviours, off DoMove'); }
+  } catch (e) { quiet(e, 'the behaviors, off DoMove'); }
   return (DERIVED.BEHAVIOURS = out);
 }
 // What behaviour v does, in this page's words for the routines its
@@ -576,13 +576,13 @@ function behaviourDoes(v) {
   else if (has('TActiveMonster::DoDefend')) does = 'fights, defending';
   else if (has('TActiveMonster::DoRetreat')) does = 'retreats';
   else if (has('TActiveMonster::DoAttack')) does = fight ? 'fights' : 'attacks its target';
-  else if (has('ScheduleOne')) does = 'goes back to its usual behaviour';
+  else if (has('ScheduleOne')) does = 'goes back to its usual behavior';
   else if (has('TActiveMonster::DoRoam')) does = 'wanders';
   else if (has('TActiveMonster::PaceNS') && c.calls.some(x => /Random/.test(x))) does = 'paces north and south, now and then turning';
   else if (has('TActiveMonster::PaceNS')) does = 'paces north and south';
   else if (has('TActiveMonster::PaceEW')) does = 'paces east and west';
   else if (has('TActiveMonster::SetWaypoint')) does = 'walks to a place';
-  else if (has('TActiveMonster::GoTowards')) does = 'steps towards a thing';
+  else if (has('TActiveMonster::GoTowards')) does = 'steps toward a thing';
   else if (c.face !== null) does = 'stands facing ' + ['north', 'east', 'south', 'west'][c.face];
   else if (c.food) does = 'eats';
   else if (c.wait) does = 'stands still';
@@ -686,7 +686,7 @@ function renderSchedulesSheet() {
         '<td>' + behaviourHTML(e.mode) + '</td></tr>';
     }).join('');
     const d = document.createElement('div'); d.className = 'mechBody';
-    d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">from</th><th>where</th><th>when</th><th>behaviour</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">from</th><th>where</th><th>when</th><th>behavior</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
     sec.appendChild(d);
     box.appendChild(sec);
   }
@@ -773,7 +773,7 @@ function renderSpellsSheet() {
     }
     if (x.status.length) rows.push(['Applies', x.status.join(', ') + ' <span class="inspDim">(clock units' + (unitsNote || '') + ')</span>']);
     if (x.target) rows.push(['Cast on', targetWordWords(x.target.word).map(svEsc).join(', ') + ' ' + srcNum(x.target.val, propWordHex(x.target.word)) +
-      ((x.target.word & 0x8000) ? ' <span class="inspDim">(a neighbour)</span>' : '')]);
+      ((x.target.word & 0x8000) ? ' <span class="inspDim">(a neighbor)</span>' : '')]);
     if (!rows.length) rows.push(['Does', '<span class="inspDim">something other than health: the light, a lock, a rune, the map, or a look</span>']);
     const d = document.createElement('div'); d.className = 'mechBody';
     d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table></div>';
@@ -2196,7 +2196,7 @@ const EGG_KIND_NAMES = [
   { what: 'changes zone', arg: 'zone' },
   { what: 'plays music', arg: 'tune' },
   { what: 'signals the zone’s script from anywhere inside it', arg: 'signal' },
-  { what: 'brings neighbours in when a condition holds' },
+  { what: 'brings neighbors in when a condition holds' },
   { what: 'a room', arg: 'room' },
   { what: 'nothing' },
   { what: 'counts down' }

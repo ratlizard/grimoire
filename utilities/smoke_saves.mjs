@@ -166,7 +166,7 @@ if (savePath && !onlyCat) {
     try {
       {
         const f = ctx.charEditHTML(1);
-        for (const g of ['Where', 'Looks', 'Stats', 'Behaviour', 'Flags'])
+        for (const g of ['Where', 'Looks', 'Stats', 'Behavior', 'Flags'])
           if (!f.includes('charGroupHead">' + g)) fail('record form', 'no ' + g + ' group');
         const boxes = (f.match(/id="ce-1-flag\d+"/g) || []).length;
         if (boxes !== 32) fail('record form', boxes + ' flag boxes, not 32');
@@ -231,7 +231,7 @@ if (savePath && !onlyCat) {
       const stream = ctx.saveByteMap().parts.find(p => p.key === 0x400);
       if (bad.length) fail('every byte', bad.slice(0, 6).join(' | '));
       else if (opened < 5) fail('every byte', 'only ' + opened + ' saves were opened');
-      else if (!/Every Byte/.test(sheet) || !/every byte in a labelled field[,;]/.test(sheet) || / except for \d+ stretches/.test(sheet))
+      else if (!/Every Byte/.test(sheet) || !/every byte in a labeled field[,;]/.test(sheet) || / except for \d+ stretches/.test(sheet))
         fail('every byte', 'the Saved Game sheet does not say every byte is labelled');
       else if (!stream || !/the block’s tag<\/td><td>Char</.test(ctx.byteMapTableHTML(stream.fields).replace(/ <span[^>]*>not read<\/span>/g, '')))
         fail('every byte', 'the stream’s first field is not the Char tag');

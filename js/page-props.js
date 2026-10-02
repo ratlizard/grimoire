@@ -196,7 +196,7 @@ function frameColourWord(tileId) {
         for (const [lim, w] of HUE_WORDS) if (h < lim) { word = w; break; }
       } else if (ink) {
         const mean = lum / ink;
-        word = mean < 70 ? 'dark' : mean > 185 ? 'pale' : 'grey';
+        word = mean < 70 ? 'dark' : mean > 185 ? 'pale' : 'gray';
       }
     }
   } catch (e) { quiet(e); }
@@ -240,7 +240,7 @@ function colourWordFor(rgb) {
   const [r, g, b] = rgb;
   const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
   const lum = (r + g + b) / 3;
-  if (!max || d / max < 0.22) return lum < 60 ? 'black' : lum > 200 ? 'white' : 'grey';
+  if (!max || d / max < 0.22) return lum < 60 ? 'black' : lum > 200 ? 'white' : 'gray';
   let h;
   if (max === r) h = 60 * (((g - b) / d) % 6);
   else if (max === g) h = 60 * ((b - r) / d + 2);
@@ -928,7 +928,7 @@ function showPropTypeDetail(pt) {
       'color:' + (own ? '#cfc4a0' : '#8a8064');
     runHead.textContent = (run.name || 'unnamed in 0xF004') + ' \u00b7 frame' +
       (run.frames.length === 1 ? ' ' + run.frames[0] : 's ' + run.frames[0] + ' to ' + run.frames[run.frames.length-1]) +
-      (own ? '' : ', a neighbour on this sheet, not this prop');
+      (own ? '' : ', a neighbor on this sheet, not this prop');
     panel.appendChild(runHead);
     // A frame saves as a GIF from its own view, beside the PNG; the button
     // that saved a run as an animated GIF went on 16 September 2026 (the
@@ -1049,7 +1049,7 @@ const ITEM_FIELD_INFO = {
   // (ammunition class and range) and the weapon describer 0xEB2 (damage).
   0x2A: { gloss:'Melee: damage, reach in squares, damage type, the skill it is used with, the miss sound, the hit sound, and the hit effect (a reference into this resource).' },
   0x2B: { gloss:'Thrown: damage, range, the effect, the sound.' },
-  0x2C: { scalar:true, gloss:'Points of protection this armour contributes.' },
+  0x2C: { scalar:true, gloss:'Points of protection this armor contributes.' },
   0x2D: { gloss:'Ammunition: the class a launcher must match, damage, damage type.' },
   0x2E: { gloss:'Ranged: the ammunition class it fires, range in squares, then sounds.' },
   0x2F: { gloss:'Shield: how much it blocks, and the skill (Shield) added to the block.' },
@@ -1800,7 +1800,7 @@ function isInventoryItem(pt) {
 
 function itemGroup(pt) {
   const cls = parseItemClass(pt);
-  if (cls && ITEM_COMBAT_KEYS.some(k => cls.data.some(f => f.key === k))) return 'Weapons & Armour';
+  if (cls && ITEM_COMBAT_KEYS.some(k => cls.data.some(f => f.key === k))) return 'Weapons & Armor';
   // A container is a class that answers IsContainer or is Lockable, and
   // nothing else. It used also to want a prop list to have put something
   // inside one, which is a fact about the shipped scenario rather than about
@@ -1829,12 +1829,12 @@ function inventoryItemList() {
   return (DERIVED.ITEM_LIST = list);
 }
 
-const ITEM_GROUP_ORDER = ['Weapons & Armour', 'Containers', 'Carried Goods'];
+const ITEM_GROUP_ORDER = ['Weapons & Armor', 'Containers', 'Carried Goods'];
 // What puts an item under each divider, said under it: the rule is the
 // class script's members (itemGroup), named here from the file's own symbol
 // table, and the item test is isInventoryItem's.
 function itemGroupNote(group) {
-  if (group === 'Weapons & Armour') return 'Anything used in a fight: weapons, launchers, ammunition, armour and shields.';
+  if (group === 'Weapons & Armor') return 'Anything used in a fight: weapons, launchers, ammunition, armor and shields.';
   if (group === 'Containers') return 'Anything that holds other things or can be locked.';
   return 'Everything else that can be picked up and carried.';
 }
@@ -2215,7 +2215,7 @@ function showItemDetail(pt) {
     }
     fold('data', 'Class data', cls.data.length + ' field' + (cls.data.length === 1 ? '' : 's'), '<table style="border-collapse:collapse;width:100%">' + rows + '</table>');
   } else if (cls) {
-    fold('data', 'Class data', 'no data fields', '<div class="sv-note">This class has only behaviour, and no data fields.</div>');
+    fold('data', 'Class data', 'no data fields', '<div class="sv-note">This class has only behavior, and no data fields.</div>');
   }
 
   // The long the application keeps for this class at load, computed from

@@ -325,8 +325,8 @@ const PREF_HELP = {
   manualContainers: ['windows', 'Preferences dialog', 'Opening a container lets you choose where its window goes. Off, the game places it for you.'],
   zoomRects: ['windows', 'Preferences dialog', 'Windows open with a zooming outline.'],
   Backdrop: ['windows', 'Not in the game', 'The pattern that fills the screen behind every window. Nothing in the game sets it.'],
-  switch256: ['startup', 'Asked at startup', 'On a screen set to more than 256 colours, the game switches it to 256 when it starts. Off, it runs in the colours the screen already has.'],
-  dontAsk: ['startup', 'Asked at startup', 'The game does not ask about 256 colours when it starts. Off, it asks on a screen set to more than 256 colours, and the answer replaces the switch above.'],
+  switch256: ['startup', 'Asked at startup', 'On a screen set to more than 256 colors, the game switches it to 256 when it starts. Off, it runs in the colors the screen already has.'],
+  dontAsk: ['startup', 'Asked at startup', 'The game does not ask about 256 colors when it starts. Off, it asks on a screen set to more than 256 colors, and the answer replaces the switch above.'],
   cheats: ['startup', 'Not in the game', null],
   mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if Command were held, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu; the right-click fix on the Patches tab puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
 };
@@ -374,7 +374,7 @@ function renderPrefsSheet() {
   const presets = document.createElement('div');
   presets.className = 'prefPresets';
   for (const [label, name, title] of [['Default', 'default', 'A new copy of the game'],
-                                      ['Optimized', 'optimized', 'Smoother Movement, 256 colours without asking and the cheat keys']]) {
+                                      ['Optimized', 'optimized', 'Smoother Movement, 256 colors without asking and the cheat keys']]) {
     const b = document.createElement('button');
     b.className = 'secondary';
     b.textContent = label;
@@ -384,7 +384,7 @@ function renderPrefsSheet() {
   }
   const presetNote = document.createElement('span');
   presetNote.className = 'prefPresetNote';
-  presetNote.textContent = 'Default is a new copy of the game. Optimized adds Smoother Movement, 256 colours without asking and the cheat keys.';
+  presetNote.textContent = 'Default is a new copy of the game. Optimized adds Smoother Movement, 256 colors without asking and the cheat keys.';
   presets.appendChild(presetNote);
   sheet.appendChild(presets);
   const rows = new Map(PREF_GROUPS.map(([g]) => [g, []]));
@@ -559,7 +559,7 @@ function renderToolsSheet() {
 
   const pages = sec('The other pages', '');
   for (const [href, label, note] of [
-    ['canvas.html', 'Colour-cycling canvas', 'a paint studio for the palette animation Cythera uses for water and fire'],
+    ['canvas.html', 'Color-cycling canvas', 'a paint studio for the palette animation Cythera uses for water and fire'],
     ['https://github.com/ratlizard/grimoire', 'The repository', 'where this page and its tests are kept']]) {
     const b = document.createElement('button');
     b.className = 'secondary';

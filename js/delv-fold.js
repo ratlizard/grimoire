@@ -581,7 +581,7 @@ function dvmFoldRender(arc, b, resid) {
         lines.push('    ' + hex4(abs) + '  ' + text + (ctx.notes.length ? '   // ' + ctx.notes.join('; ') : ''));
       }
       lines.push('}');
-      if (r.bad) { lines.push('// ^ decoder desynced (' + r.bad + ' unrecognised bytes) - unreliable'); partial++; }
+      if (r.bad) { lines.push('// ^ decoder desynced (' + r.bad + ' unrecognized bytes) - unreliable'); partial++; }
       else if (over) { lines.push('// ^ ' + over + ' statement(s) the fold could not balance; read them in the raw listing'); partial++; }
       else folded++;
     } else if (kind === 'array') {
@@ -1719,7 +1719,7 @@ function dvmStructureRender(arc, b, resid, out) {
     }
     // A jump printed as `break` or `continue` is structure, not a goto.
     const left = rec.gotos - loops.exits.size;
-    if (r.bad) lines.push('// ^ decoder desynced (' + r.bad + ' unrecognised bytes) - unreliable');
+    if (r.bad) lines.push('// ^ decoder desynced (' + r.bad + ' unrecognized bytes) - unreliable');
     else if (!stmts.some(s => s.targets.length)) plain++;
     else if (left) { lines.push('// ^ ' + left + ' jump(s) fit no block and are left as goto'); partial++; }
     else whole++;

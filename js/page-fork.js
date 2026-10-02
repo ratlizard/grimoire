@@ -874,7 +874,7 @@ function renderRsrcSheet() {
     box.style.cssText = 'grid-column:1/-1';
     box.innerHTML = '<div class="partsTitle">Displacement filters</div>' +
       '<p class="mechSub">The game reads these when it starts (' + pefChip('LoadDisplacementFilters') + ') and runs one over every tile the table 0xF016 names for it (' + pefChip('DisplacementFilterTile') +
-      '): a pixel whose colour is in the filter’s set is replaced by the pixel of the tile at the offset the current frame gives for it, and the frame moves on every tick (' + pefChip('AdvanceDisplacementFilters') +
+      '): a pixel whose color is in the filter’s set is replaced by the pixel of the tile at the offset the current frame gives for it, and the frame moves on every tick (' + pefChip('AdvanceDisplacementFilters') +
       '), or every other tick when the period is 1. This is how water, shore and seaweed ripple, lava and the void churn, fire shimmers, and trees and crops sway.</p>';
     for (const f of filters) {
       const card = document.createElement('div');
@@ -884,10 +884,10 @@ function renderRsrcSheet() {
       const runs = []; let s = null, prev = null;
       for (const p of f.mask.concat([null])) { if (s === null) { s = prev = p; continue; } if (p !== prev + 1) { runs.push([s, prev]); s = p; } prev = p; }
       card.innerHTML = '<div style="color:#fff">FILT ' + f.entry.id + (f.entry.name ? ' “' + svEsc(f.entry.name) + '”' : '') + ': ' + f.frames + ' frames of 32 by 32 offsets, stepped ' + (f.period ? 'every ' + (f.period + 1) + ' ticks' : 'every tick') +
-        ', over ' + f.mask.length + ' colour' + (f.mask.length === 1 ? '' : 's') + (f.tiles.length ? ', on ' + f.tiles.length + ' tile' + (f.tiles.length === 1 ? '' : 's') + ': ' + svEsc([...names.entries()].map(([k, v]) => k + (v > 1 ? ' ×' + v : '')).join(', ')) : ', on no tile the table names') + '</div>';
+        ', over ' + f.mask.length + ' color' + (f.mask.length === 1 ? '' : 's') + (f.tiles.length ? ', on ' + f.tiles.length + ' tile' + (f.tiles.length === 1 ? '' : 's') + ': ' + svEsc([...names.entries()].map(([k, v]) => k + (v > 1 ? ' ×' + v : '')).join(', ')) : ', on no tile the table names') + '</div>';
       const sw = document.createElement('div');
       sw.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;margin:4px 0';
-      for (const p of f.mask) { const d = document.createElement('span'); const c = PAL_RGB[p] || [0, 0, 0]; d.style.cssText = 'width:10px;height:10px;display:inline-block;background:rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; d.title = 'colour ' + p; sw.appendChild(d); }
+      for (const p of f.mask) { const d = document.createElement('span'); const c = PAL_RGB[p] || [0, 0, 0]; d.style.cssText = 'width:10px;height:10px;display:inline-block;background:rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; d.title = 'color ' + p; sw.appendChild(d); }
       card.appendChild(sw);
       const strip = document.createElement('div');
       strip.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end';
@@ -1571,7 +1571,7 @@ function showCharacterDetail(i) {
         return '<div style="font-size:0.8125rem">' + srcNum(sSrc(0, 'the hour'), ampm.padStart(5)) + ', ' + e.where +
                ' (' + srcNum(sSrc(5, 'the packed level, x and y'), String(e.x)) + ', ' +
                srcNum(sSrc(5, 'the packed level, x and y'), String(e.y)) + ')' +
-               ' <span style="color:#8c8980">behaviour ' + srcNum(sSrc(1, 'the mode'), String(e.mode)) +
+               ' <span style="color:#8c8980">behavior ' + srcNum(sSrc(1, 'the mode'), String(e.mode)) +
                (behaviourWordHTML(e.mode) ? ', ' + behaviourWordHTML(e.mode) : '') + '</span></div>';
       }).join('');
   } else {
