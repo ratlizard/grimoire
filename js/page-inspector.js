@@ -723,7 +723,7 @@ function inspectMapSquare(tx, ty) {
     const tiles = v => (v / 8).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
     parts.push('<div class="inspCard"><b>Light</b>' +
       (ownLvl ? '<div>A light source, level ' + ownLvl + ', ' +
-        ((attr & 0x10000) ? 'flickering' : 'steady') + ' &nbsp;·&nbsp; its own pool is ' +
+        ((attr & 0x10000) ? 'flickering' : 'steady') + ' &nbsp;·&nbsp; its pool is ' +
         ((attr & 0x10000) ? tiles(pair[0]) + ' to ' + tiles(pair[1]) : tiles(pair[0])) +
         ' tiles across</div>' : '') +
       (withView === null

@@ -73,11 +73,11 @@ function fontSwapPanel() {
   const sw = window.FONT_SWAP;
   box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Put Another Font in the Game</h3></div>' +
     (target
-      ? '<p class="mechLede">Choose a TrueType font (<b>.ttf</b>) to replace the game’s own, ' + svEsc(target.name || 'ArgosANouveau') + ' (<b>sfnt ' + target.id + '</b>), in the copy of the file in this browser.</p>' +
+      ? '<p class="mechLede">Choose a TrueType font (<b>.ttf</b>) to replace the game’s font, ' + svEsc(target.name || 'ArgosANouveau') + ' (<b>sfnt ' + target.id + '</b>), in the copy of the file in this browser.</p>' +
         '<ul class="ruleList"><li>To play with it, export <b>Data file › the disk image</b> and run the game from it in an emulator.</li>' +
         '<li>An <b>.otf</b> font cannot be used, because a classic Mac cannot draw it.</li></ul>' +
         '<div class="mechStats"><input type="file" id="fontSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
-        (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoFontSwap()">Put the game’s own font back</button>' : '') +
+        (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoFontSwap()">Restore the game’s font</button>' : '') +
         '</div>' +
         (sw ? '<blockquote class="mechQuote">' + svEsc(sw.name) + ' is in the file as sfnt ' + sw.from + '. ' +
               sw.mapped + ' of the characters the game uses were found, in a format ' + sw.format + ' character map, ' +
@@ -116,7 +116,7 @@ function undoFontSwap() {
   DERIVED.EDITOR_ZONE_NAMES = null;
   try { installGameFont(); } catch (e) { quiet(e); }
   try { installDialogueBox(); } catch (e) { quiet(e); }
-  setStatus('The game’s own font is back.');
+  setStatus('Restored the game’s font.');
   renderMacRsrcSheet();
 }
 
@@ -343,7 +343,7 @@ function undoStrikeSwap() {
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.STRIKE_SWAP = null;
-  setStatus('The Seldane script is the file’s own again.');
+  setStatus('Restored the file’s Seldane script.');
   renderMacRsrcSheet();
 }
 /* The strike, out.
@@ -382,7 +382,7 @@ function exportStrikeTrueType(id) {
             'Cythera is copyright Ambrosia Software, Inc. and Glenn Andreas.' });
     downloadBlob(ttf, family + '.ttf');
     setStatus(family + '.ttf written: ' + (spec.ascent + spec.descent) + ' pixels to the em, ' +
-              'so it draws its own pixels at ' + (spec.ascent + spec.descent) + 'px and at every multiple of it.');
+              'so it draws these pixels at ' + (spec.ascent + spec.descent) + 'px and at every multiple of it.');
   } catch (err) {
     setStatus('That size could not be saved as a TrueType font: ' + err.message, true);
   }
@@ -399,9 +399,9 @@ function strikeSwapPanel() {
         '<li>Only the 24 letters Seldane has are replaced. It has no L and no O.</li>' +
         '<li>A thin font may come out broken up at the small size.</li></ul>' +
         '<div class="mechStats"><input type="file" id="strikeSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
-        (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoStrikeSwap()">Put the file’s own script back</button>' : '') +
+        (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoStrikeSwap()">Restore the file’s script</button>' : '') +
         '</div>' +
-        '<p class="mechLede">Or save each size of the Seldane script as a TrueType font, which draws exactly these pixels at its own size.</p>' +
+        '<p class="mechLede">Or save each size of the Seldane script as a TrueType font, which draws exactly these pixels at that size.</p>' +
         '<div class="mechStats">' +
         strikes.map(e => '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="exportStrikeTrueType(' +
           e.id + ')">Save ' + svEsc(strikeFamilyOf(e.id)) + ' as a TrueType</button>').join('') +
@@ -1608,7 +1608,7 @@ function heroPortraitCard() {
   const head = '<b style="color:#b5b2a8">Portrait</b> ';
   if (!pc) {
     card.innerHTML = head + (isSave
-      ? 'The portrait above is this file\u2019s own 0x8800, chosen when the character was made. '
+      ? 'The portrait above is this file\u2019s 0x8800, chosen when the character was made. '
       : 'The portrait above is the scenario\u2019s 0x8800 and is never shown in play. ') +
       'Which portraits the game offers when a character is made, and where the chosen one is written, is read from the program, which is not open.';
     return card;
@@ -1619,7 +1619,7 @@ function heroPortraitCard() {
   for (let r = first; r < first + 64 && getResourceBytes(ARCHIVE, r); r++) slots.push(r);
   let text = head + (isSave
     ? 'The portrait above is the one chosen when this character was made, ' + srcNum(pc.writes, 'saved') + ' in this file. '
-    : 'The portrait above is never shown in play: the game uses the one chosen when the character is made, ' + srcNum(pc.writes, 'saved') + ' in the saved game. ');
+    : 'The portrait above is never shown in play; the game uses the one chosen when the character is made, which is ' + srcNum(pc.writes, 'saved') + ' in the saved game file. ');
   const choices = 'The ' + srcNum(pc.first, 'choices') + ' at character creation';
   if (!slots.length) { card.innerHTML = text + choices + ' are not in this file.'; return card; }
   // Which of the run the list draws: column c, row r is the first plus the
@@ -1629,7 +1629,12 @@ function heroPortraitCard() {
   const faces = new Map();
   const strip = document.createElement('div');
   strip.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:6px';
+  // Only the ones the dialog offers. The rest of the run is copies of one
+  // blank face that nothing draws, and nothing found suggests they were
+  // meant for anything, so they are left out (the maintainer, 2 October
+  // 2026: omit the extras unless they are slots meant for custom portraits).
   for (const r of slots) {
+    if (off && !shown.has(r)) continue;
     const c = document.createElement('canvas');
     try {
       const dec = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, r), 135, r);
@@ -1637,15 +1642,12 @@ function heroPortraitCard() {
       const k = hashIndices(dec.image);
       faces.set(k, (faces.get(k) || 0) + 1);
     } catch (e) { quiet(e); }
-    c.style.cssText = 'width:48px;height:48px;image-rendering:pixelated;background:#1c1913;border:1px solid #33302a' +
-      (off && !shown.has(r) ? ';opacity:0.35' : '');
+    c.style.cssText = 'width:48px;height:48px;image-rendering:pixelated;background:#1c1913;border:1px solid #33302a';
     imageOpens(c, r, 'portrait');
     strip.appendChild(c);
   }
-  const hidden = slots.filter(r => !shown.has(r)).length;
   if (off && slots.filter(r => shown.has(r)).length === off.count.v)
-    text += 'There are ' + srcNum(off.count, String(off.count.v)) + ' choices at character creation' +
-      (hidden ? ', and ' + srcNum(off.stride, String(hidden)) + ' more here that are not displayed' : '') + '.';
+    text += 'There are ' + srcNum(off.count, String(off.count.v)) + ' choices at character creation.';
   else {
     const repeated = [...faces.values()].filter(n => n > 1).reduce((a, b) => a + b, 0);
     text += choices + ': ' + slots.length + ' here, ' + hex(slots[0]) + ' to ' + hex(slots[slots.length - 1]) +

@@ -520,7 +520,7 @@ function mechSpellFigures(sp) {
     y: { min: 0, max: maxCost * 1.1, ticks: [{ v: maxCost, label: String(maxCost) }, { v: Math.round(maxCost / 2), label: String(Math.round(maxCost / 2)) }, { v: 0, label: '0' }] },
     series: [],
     marks: cost.map(c => ({ x: c.x, y: c.y, dot: true, colour: 'rgba(107,168,191,.85)' }))
-  }), '<b>' + sp.spells.length + '</b> spells. The cost rises with the level, but not by any rule: each spell sets its own.');
+  }), svLink(sp.spells.length + ' spells', 'jumpToResource(0xEA1)') + '. The cost rises with the level, but not by any rule: each spell’s script sets it.');
 }
 
 // The levels double, so the only honest axis is a logarithmic one, and drawn
@@ -3231,7 +3231,7 @@ function renderMechanicsSheet(value) {
           : ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')')) +
         ', <b>less the defender’s reflex' + (cb.rollDefender ? ' plus a roll of 0 to ' + rollTo(cb.rollDefender) : '') + '</b>, plus Attack less Defense. ' +
         (cb.bodyForReflex ? 'Some attackers use their <b>' + srcNum(cb.bodyForReflex, 'body') + '</b> instead of their reflex' + combatBodyUnitsText(cb.bodyForReflex.v) + '.' : 'A monster can be marked to use its body in place of its reflex.'),
-      cb.skillOffLoop ? '<b>A weapon’s own skill adds nothing</b>, because of a bug: the script ' +
+      cb.skillOffLoop ? '<b>A weapon’s skill adds nothing</b>, because of a bug: the script ' +
         srcNum(cb.skillOffLoop[0], 'reads it from the wrong place') + ' and always gets 0, so Sword, Axe and Mace make no difference to an armed blow.' : '',
       'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
         (cb.parry ? 'otherwise the shields get a chance: each blocking item the defender wears rolls <b>0 to its block figure plus the Shield skill</b>, the rolls are added up, and a margin below the total is <b>parried</b>' : 'what is left lands') +
@@ -3263,8 +3263,8 @@ function renderMechanicsSheet(value) {
     const listStrength = rs => rs.map(r => nm(r) + ' ' + srcNum(r.strength)).join(', ');
     const q = s => s ? ' (“' + svEsc(s) + '”)' : '';
     add('damage', 'Damage to Things', null, src('a blow', 0xE87) + src('a door', 0xE49) + src('a chest', 0xE4A),
-      rows.length ? rows.length + ' kinds of thing, doors and chests among them, take damage by rules of their own.'
-                  : 'No item class in this file takes damage by a rule of its own.',
+      rows.length ? rows.length + ' kinds of thing, doors and chests among them, take damage by separate rules.'
+                  : 'No item class in this file takes damage by a separate rule.',
       rows.length ? [
         oneTable ? typed.map(nm).join(', ') + ' take ' +
           typed[0].types.map((t, i, all) => '<b>' + opWord(t) + '</b> from ' + srcNum(t.mask, carriers(all, i) ? svEsc(carriers(all, i)) : 'type ' + t.mask.v)).join('; ') +
@@ -3282,7 +3282,7 @@ function renderMechanicsSheet(value) {
         (function () {
           const bl = blastRules();
           if (!bl || !bl.centre) return '';
-          return 'A <b>bomb</b> is the one thing that damages a square rather than a target: when its fuse runs out it hands <b>' + srcNum(bl.centre) + '</b> to everything on its own square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ', as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '. A locked door whose strength is below a fifth of that is reduced to a strength of 1.';
+          return 'A <b>bomb</b> is the one thing that damages a square rather than a target: when its fuse runs out it hands <b>' + srcNum(bl.centre) + '</b> to everything on its square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ', as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '. A locked door whose strength is below a fifth of that is reduced to a strength of 1.';
         })()
       ].filter(Boolean) : [],
       rows.length ? table(['thing', 'when struck', 'says'], rows.map(r => '<tr><td>' + propChip(r.pt, r.name) + '</td><td>' + damageRowWords(r) + ' ' + srcNum({ resid: r.resid, at: r.at }, 'script') + '</td><td>' +
@@ -3467,7 +3467,7 @@ function renderMechanicsSheet(value) {
       (hg.ceiling !== null ? (function () {
         // An item class script is named for its prop type, a spell for itself.
         const names = hg.ceilingBy.map(r => svLink((r >= 0x1000 && r < 0x1200 ? propDisplayName(r - 0x1000) : labelFor(r)) || ('0x' + r.toString(16).toUpperCase()), 'jumpToResource(' + r + ')'));
-        return names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names[names.length - 1] + ' only fill nutrition up to <b>' + srcNum(hg.ceilingVal) + '</b>. Other food adds its own amount, listed above.';
+        return names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names[names.length - 1] + ' only fill nutrition up to <b>' + srcNum(hg.ceilingVal) + '</b>. Other food adds the amounts listed above.';
       })() : ''),
       model && clk.healthBytes && clk.magicBytes ? 'While nutrition is above ' + srcNum(clk.fedGate, '0') + ', <b>health and magic each rise by 1</b> at a rate set by level: ' +
         Array.from({ length: model.levelCap + 1 }, (_, i) => {
@@ -3504,7 +3504,7 @@ function renderMechanicsSheet(value) {
         const pcSkill = it && /sys GetSkill\s+global PlayerCharacter/.test(strip(it.text));
         return pcReflex || pcSkill ? 'The reflex rolled is <b>the player character’s</b>' + (pcSkill ? ', and the lockpick asks the player character for the skill' : '') + ', whoever is holding the pick.' : '';
       })(),
-      'Each lock in the world has its own difficulty.'
+      'Each lock in the world has a difficulty.'
     ].filter(Boolean) : [], mechLockFigure(lk),
     lk.classes.length ? '<span class="partsTitle">Lock parameter</span>' + lk.classes.map(c => propChip(c.pt, c.name) + ' ' + srcNum(c.src, c.words.join(' '))).join(' ') : '');
 
@@ -3512,7 +3512,7 @@ function renderMechanicsSheet(value) {
   const sh = shopRules();
   add('shops', 'Shops', null, src('the counter', 0xEA5),
     sh.shops.length ? sh.shops.length + ' shops, what each sells, and at what price.' : 'No script in this file opens a shop.',
-    sh.shops.length ? ['Each vendor bargains down from the listed price by their own four figures, under terms' + (sh.haggling ? '; <b>Haggling</b> takes off a further roll of 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
+    sh.shops.length ? ['Each vendor bargains down from the listed price by four figures set for each, under terms' + (sh.haggling ? '; <b>Haggling</b> takes off a further roll of 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
     mechShopFigure(sh) +
     table(['vendor', 'goods, at the listed price in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.who !== null && loadCharacterTable()[spn.who] ? characterChip(spn.who) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
@@ -3670,7 +3670,7 @@ function renderMechanicsSheet(value) {
     add('combatai', 'Combat AI', null, '',
       'Monsters fight by scripts written in a small set of words: tests about the battle, actions to take, and strategies that choose between them.',
       [
-        (tests || acts) ? 'This file adds <b>' + tests + ' tests</b> and <b>' + acts + ' actions</b> of its own.' : '',
+        (tests || acts) ? 'This file adds <b>' + tests + ' tests</b> and <b>' + acts + ' actions</b>.' : '',
         'The scripts and the guide to writing them, the AI Scripting Document, come with the game. Both are under Data › Combat AI when the installer is open.'
       ].filter(Boolean),
       rows.length ? table(['list', 'words'], rows) : '<div class="sv-note">' + (app ? 'None of the lists is in this resource fork.' : 'Open the game from its installer, under Settings, to read the vocabulary from the program.') + '</div>',
@@ -3678,9 +3678,9 @@ function renderMechanicsSheet(value) {
          scenario's tests and actions in 8 are what the engine runs, and the
          .ai text under Data is what they were compiled from. */
       '<span class="partsTitle">In the file</span>' +
-        relChip({ js: "showCategory('3')", main: 'Combat scripts', sub: 'compiled', icon: relIconFor(0x400), title: trailForResid(0x400) }) +
-        relChip({ js: "showCategory('8')", main: 'Tests and actions', sub: 'the scenario’s own', icon: relIconFor(0x900), title: trailForResid(0x900) }) +
-        relChip({ js: "showCategory('AIRULES')", main: 'Combat AI', sub: 'the .ai files', icon: relIconURL({ tile: TAB_BY_ID.get('combatai').tile }), title: 'Data › Combat AI' }));
+        relChip({ js: "showCategory('3')", main: 'Combat scripts', sub: 'compiled', title: trailForResid(0x400) }) +
+        relChip({ js: "showCategory('8')", main: 'Tests and actions', sub: 'from the scenario', title: trailForResid(0x900) }) +
+        relChip({ js: "showCategory('AIRULES')", main: 'Combat AI', sub: 'the .ai files', title: 'Data › Combat AI' }));
   }
 
   // ---- the To Do list ----
@@ -3707,7 +3707,7 @@ function renderMechanicsSheet(value) {
                      : 'No script in this file writes a To Do line.',
       td.adds.length ? [
         '<b>' + td.adds.length + ' lines are added</b> and <b>' + td.dones.length + ' struck off</b>, over <b>' + slots.size + ' slots</b>.',
-        elsewhere.length ? '<b>' + elsewhere.length + ' of them show a different line</b> from their slot’s own: the same errand, in the words of whoever told you about it.' : '',
+        elsewhere.length ? '<b>' + elsewhere.length + ' of them show a different line</b> from the slot’s: the same errand, in the words of whoever told you about it.' : '',
         counted.length ? 'Some lines count what you have found so far: ' + counted.map(a => srcNum(a.state, nameOf(a.resid))).join(', ') + '.' : '',
         never.length ? '<b>' + never.length + (never.length === 1 ? ' line is' : ' lines are') + ' never struck off</b> by any script: ' + never.map(s => (td.lines && td.lines.get(s) ? '“' + svEsc(td.lines.get(s)) + '”' : 'slot ' + s)).join(', ') + '.' : ''
       ].filter(Boolean) : [],
@@ -3764,7 +3764,7 @@ function renderMechanicsSheet(value) {
     const stackRows = ic ? ic.bits.filter(x => x.key !== 39).map(x => '<tr><td>' + keyName(x.key) + (x.tag ? ', not a plain number' : ' bit ' + propWordHex(x.mask.v)) + '</td><td class="num">' + srcNum(x.cacheBit, propWordHex(x.cacheBit.v)) + '</td><td>' + testedBy(x.cacheBit.v) + '</td></tr>') : [];
     const seat = ic ? exeSeatRule() : null;
     const tableRows = ic ? ic.tables.map(t => { const rs = exeTocReaders(t.disp.v).filter((x, i, a) => a.findIndex(y => y.routine === x.routine) === i); return '<tr><td>' + srcNum({ exe: t.keyOp.at }, keyName(t.key)) + (t.plusOne ? ' plus one' : '') + '</td><td>' + (t.width === 1 ? 'one byte' : 'two bytes') + ' for each class, ' + srcNum(t.disp, 'at ' + t.disp.v + ' off the TOC') + '</td><td>' + (rs.length ? rs.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : '') +
-      (t.key === 34 && seat ? '<br><span class="mechSub" style="display:inline">which seats a ' + srcNum(seat.facings, seat.facings.v + '-way') + ' sprite standing on it: a value of 0 uses the seat’s own aspect as the direction faced, and ' + srcNum(seat.ownAspect, 'column three') + ' as the pose; 1 to 4 are frames ' + seat.fixed.map(f => srcNum(f, String(f.v))).join(', ') + ', north, east, south, west</span>' : '') +
+      (t.key === 34 && seat ? '<br><span class="mechSub" style="display:inline">which seats a ' + srcNum(seat.facings, seat.facings.v + '-way') + ' sprite standing on it: a value of 0 uses the seat’s aspect as the direction faced, and ' + srcNum(seat.ownAspect, 'column three') + ' as the pose; 1 to 4 are frames ' + seat.fixed.map(f => srcNum(f, String(f.v))).join(', ') + ', north, east, south, west</span>' : '') +
       (t.key === 55 && seat ? '<br><span class="mechSub" style="display:inline">its first value is the number of directions the sprite can face; the seating check requires ' + srcNum(seat.facings, String(seat.facings.v)) + '</span>' : '') + '</td></tr>'; }) : [];
     add('classflags', 'Class Flags', null, '',
       'On/off switches on a kind of thing, such as a door, a key or a chair, that only the program reads. ' + cb.classes + ' classes carry them; an item’s page shows them under Class data.',
@@ -3800,7 +3800,7 @@ function renderMechanicsSheet(value) {
     }) : [];
     const differ = st ? st.entries.filter(x => { const dv = DVM_SYM.syscall[String(x.op)]; if (!x.name || !dv) return false; const a = x.name.replace(/^cb/i, '').toLowerCase(), b = dv.toLowerCase(); return !(a === b || a.startsWith(b) || b.startsWith(a)); }).length : 0;
     add('syscalls', 'Built-In Calls', null, '',
-      st ? 'The calls a script makes to the program, by the program’s own names and the listings’.'
+      st ? 'The calls a script makes to the program, by the names the program and the listings use.'
          : MECH_NO_APP,
       st ? [
         '<b>' + st.entries.filter(x => x.name).length + ' of the 96 slots</b> point to a named part of the program. ' + (differ ? '<b>' + differ + '</b> have a different name in the listings.' : 'Every name agrees with the listings’.'),
@@ -3834,7 +3834,7 @@ function renderMechanicsSheet(value) {
          : 'No zone list in this file places an egg.',
       eg ? [
         '<b>' + eg.kinds.reduce((n, k) => n + k.n, 0) + ' eggs</b> across <b>' + eg.zones + ' zones</b>, of <b>' + eg.kinds.length + ' kinds</b>.',
-        eg.rooms ? 'A room is a kind-8 egg, its argument the room number. <b>' + eg.rooms.named + ' of the ' + eg.rooms.total + '</b> rooms have a script of their own, 0x1B00 plus the number.' : '',
+        eg.rooms ? 'A room is a kind-8 egg, its argument the room number. <b>' + eg.rooms.named + ' of the ' + eg.rooms.total + '</b> rooms have a script, 0x1B00 plus the number.' : '',
         'A kind-3 egg plays an <b>ambient sound</b>, sound 0x9100 plus its argument.',
         'A kind-0 egg hatches the records inside it. The chance is <b>Data2 plus one in a hundred</b>, and Data1 limits it to the day (0x10), the night (0x20) or once only (0x01).',
         '<b>A kind-0 egg’s argument says nothing about what hatches</b>: all thirteen of Odemia’s eggs have 0xE4, whether they hold a chicken, a goat or a guard.',
@@ -3972,7 +3972,7 @@ function renderMechanicsSheet(value) {
         : lastPart(r.line) + ' ends without a * to wait for a click, and the next line the script can come to, ' + lastPart(r.next) + (r.speaker ? ', said by someone the script has just named to speak,' : '') + ' replaces it as soon as it is drawn.') +
       '</td><td>' + where([r]) + '</td></tr>');
     for (const t of selfToldByGroup()) rows.push('<tr><td>a character told about by their own group</td><td>' + (chipOf(t.who) || svEsc(characterName(t.who))) +
-      ' has no answer of their own to “' + svEsc(t.key) + '”, so the question passes to a dialogue group their script uses, which answers as if about someone else: ' + svEsc(t.said) + '</td><td>' + where([t]) + '</td></tr>');
+      ' has no answer to “' + svEsc(t.key) + '”, so the question passes to a dialogue group their script uses, which answers as if about someone else: ' + svEsc(t.said) + '</td><td>' + where([t]) + '</td></tr>');
     {
       const bySkill = new Map();
       for (const u of containedUnseen()) { if (!bySkill.has(u.resid)) bySkill.set(u.resid, []); bySkill.get(u.resid).push(u); }
@@ -4106,7 +4106,7 @@ function renderMechanicsSheet(value) {
       'A patch can go into the game file, or sit beside it in its folder.',
       pf ? rules : [rules[0]],
       (pf ? '' : '<ul class="ruleList"><li>' + MECH_NO_APP + '</li></ul>') +
-        '<p class="mechSub">A saved game keeps its own copy of each level it has visited, so a patch only changes levels that save has not been to.</p>',
+        '<p class="mechSub">A saved game keeps a copy of each level it has visited, so a patch only changes levels that save has not been to.</p>',
       pf ? '<span class="partsTitle">In the program</span>' + pefChip('TDelverApp::PostInitMac') + pefChip('TDelverApp::OpenScenFile') + pefChip('LoadLevelProps') : '');
   }
 

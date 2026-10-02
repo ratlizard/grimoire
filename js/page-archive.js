@@ -787,6 +787,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     try { installDialogueBox(); } catch (e) { quiet(e); }
     loadDerivedNames();
     installBackgroundTexture();
+    try { drawBrand(); } catch (e) { quiet(e, 'the brand line'); }
     document.getElementById('pickerWrap').style.display = 'block';
     syncInstallerTabs();
     buildTabShell();

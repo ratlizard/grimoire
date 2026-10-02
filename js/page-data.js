@@ -1217,7 +1217,7 @@ function savedGameParts() {
     add(0x8200 | hero.zone, 'what the player has seen of that zone, one switch for each square: width ÷ 8, rounded up, times the height, in bytes (SaveLevelProps)');
   }
   add(0xF306, 'the first 256 prop records, the characters as they stand on that zone (SaveLevelProps)');
-  add(0x8800, 'the player’s own portrait, written when the character was made (CreatePlayer)');
+  add(0x8800, 'the player’s portrait, written when the character was made (CreatePlayer)');
   add(0x0400, 'the live game, five tagged chunks: the quest values and flags, the active monsters with their queued activities, the spell effects in flight, the open windows, and the 256 gremlin frames (SaveToFile)');
   add(0x0401, 'the To Do list (SaveToDo)');
   add(0x0404, 'the twenty macro slots; 0xFF is unassigned (SaveMacros)');
@@ -1351,18 +1351,18 @@ function byteMapPropRecord(p, at, name) {
    index begins with that same pair; then the index's entries, the
    subindexes', and each resource's bytes, which are parts of their own. */
 function byteMapDataFork(arc) {
-  const b = arc.bytes, p = byteMapPart('file', 'the data fork’s own structure: header, indexes and where each resource sits', b);
+  const b = arc.bytes, p = byteMapPart('file', 'the data fork’s structure: header, indexes and where each resource sits', b);
   p.f(0, 32, 'the scenario’s title, a Pascal string', { value: pstring(b, 0) });
   p.f(0x20, 32, 'the player’s name, a Pascal string', { value: pstring(b, 0x20) });
   // Halfwords, not the bytes delvmod keeps: OpenScenFile, CheckPlayerFile,
   // NewGame and InitWorld read them (save-format.md, the header).
   const ver = v => (v >> 8) + '.' + (v & 0xFF);
-  p.f(0x40, 2, 'the Delver file format’s version, major and minor: the program opens a file whose major is its own and whose minor is no higher (SegFileHeader::CompatibleVersions, against 0x1300)', { value: ver(u16be(b, 0x40)) });
+  p.f(0x40, 2, 'the Delver file format’s version, major and minor: the program opens a file whose major version matches the program’s and whose minor is no higher (SegFileHeader::CompatibleVersions, against 0x1300)', { value: ver(u16be(b, 0x40)) });
   p.f(0x42, 2, 'the scenario’s version: a save copies it from its scenario when the game begins, and the program opens the save only with a scenario it is compatible with', { value: ver(u16be(b, 0x42)) });
   p.f(0x48, 2, 'the side, in squares, of the map buffer the program sets aside for a level (CreateGlobals; 1,024 when 0)', { value: String(u16be(b, 0x48)) });
   const mi = delverMasterIndexExtent(b);
   if (mi) {
-    p.f(mi.off, 8, 'the master index’s own offset and length', { value: '0x' + mi.off.toString(16).toUpperCase() + ', ' + mi.len + ' bytes' });
+    p.f(mi.off, 8, 'the offset and length of the master index', { value: '0x' + mi.off.toString(16).toUpperCase() + ', ' + mi.len + ' bytes' });
     for (let i = 0; i < mi.count; i++) {
       const at = mi.first + i * 8, off = u32be(b, at), len = u32be(b, at + 4);
       p.f(at, 8, off ? 'where subindex ' + i + ' (resources 0x' + (i + 1).toString(16).toUpperCase().padStart(2, '0') + 'xx) is, and its length' : 'subindex ' + i + ', empty',
@@ -1372,7 +1372,7 @@ function byteMapDataFork(arc) {
         const e = off + k * 8, roff = u32be(b, e), rlen = u32be(b, e + 4), rid = ((i + 1) << 8) | k;
         p.f(e, 8, roff ? 'where resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ' is, and its length' : 'resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ', none',
             { value: roff ? '0x' + roff.toString(16).toUpperCase() + ', ' + rlen + ' bytes' : '0', empty: !roff });
-        if (roff && rlen) p.f(roff, rlen, 'resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ', a part of its own below', { part: rid });
+        if (roff && rlen) p.f(roff, rlen, 'resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ', listed as a part below', { part: rid });
       }
     }
   }
@@ -1437,7 +1437,7 @@ function byteMapStream(p) {
         let o = 7;
         if (id >= 256) {
           rec.f(o, 2, 'its index in the level’s list', { value: String(u16be(b, q + o)) }); o += 2;
-          const cr = byteMapRecord({ fields: rec.kids, bytes: b }, q + o, 32, 'its own character-shaped record, since it has no 0xF009 row');
+          const cr = byteMapRecord({ fields: rec.kids, bytes: b }, q + o, 32, 'a separate character-shaped record, since it has no 0xF009 row');
           for (const l of charRecordLayout()) cr.f(l.off, l.w, l.name, { value: byteMapHex(b, q + o + l.off, l.w) });
           o += 32;
         }
@@ -2960,7 +2960,7 @@ function renderInstallerSheet() {
     ', ' + arc.entries.length + ' files in ' + arc.dirs.length + ' folders, ' + fmtBytes(total) +
     ' once unpacked' + (c ? ', from a ' + c.kind + ' file (' + fmtBytes(arc.bytes.length) + ' of it the installer)' : '') +
     '. A .bin here is the file itself with both forks, the form a real Mac needs' +
-    (inst.crcOk ? '' : '. The installer’s own checksum for the file did NOT match, so treat the data with suspicion') + '.';
+    (inst.crcOk ? '' : '. The checksum the installer gives for the file did NOT match, so treat the data with suspicion') + '.';
 }
 
 /* ---- Data > Combat AI > Scripts / Rules ----------------------------------
@@ -3002,7 +3002,7 @@ function renderCombatAISheet(which) {
     const split = (tests.length || actions.length)
       ? '<div class="changesNote" style="margin-left:0">To use a script in the game, open a companion’s character window, then its Strategy tab, the pop-up menu at the bottom left, Edit User Strategies…, and Import. ' +
         'It goes into one of 31 user slots, 176 to 206. The same dialog’s Debug button marks a slot, and a companion using a marked slot opens the game’s AI debugger every time the strategy is evaluated.</div>' +
-        '<div class="changesNote" style="margin-left:0">The Tests list and the two Actions lists are the program’s own. The Scenario lists are scripts in this file' +
+        '<div class="changesNote" style="margin-left:0">The Tests list and the two Actions lists come from the program. The Scenario lists are scripts in this file' +
         (tests.length ? ': the tests ' + tests.join(' ') : '') + (actions.length ? (tests.length ? ', the actions ' : ': the actions ') + actions.join(' ') : '') +
         '. CastSpell does not cast a spell the character does not know, and Debug(#) only prints its number.</div>'
       : '';
@@ -3103,12 +3103,12 @@ function renderChangesSheet() {
   const groups = [
     { title: 'to an emulator', routes: [
         { label: 'Download the disk image', fn: () => downloadEditedDiskImage(),
-          note: '.dsk, which mounts in an emulated Mac and includes its own installer; infinitemac.org accepts it by drag and drop' },
+          note: '.dsk, which mounts in an emulated Mac and includes an installer; infinitemac.org accepts it by drag and drop' },
         { label: 'Download the zip', fn: () => downloadEditedForkZip(),
           note: '.zip, with both forks in the layout Basilisk II and infinitemac.org unpack, about half the size of the disk image' } ] },
     { title: 'to a real Mac, or another tool', routes: [
         { label: 'Download as MacBinary', fn: () => downloadEditedMacBinary(),
-          note: '.bin, with both forks and the file’s own Finder type and creator; an emulator would need StuffIt Expander to open it' },
+          note: '.bin, with both forks and the file’s Finder type and creator; an emulator would need StuffIt Expander to open it' },
         { label: 'Download the data fork', fn: () => downloadEditedArchive(),
           note: '.data, the data fork alone; delvmod and this page can read it, but the game also needs the resource fork' } ] }
   ];
@@ -3263,7 +3263,7 @@ function renderRecordsSheet() {
   }
   out.textContent = shown + ' of the tables the scenario is built from' +
     (q ? ' matching “' + q + '”' : '') +
-    '. A figure on a Scenario page opens its own record here, and every record links on to its bytes in the file.';
+    '. A figure on a Scenario page opens its record here, and every record links on to its bytes in the file.';
 }
 
 /* One record, field by field, with the byte a jump asked for ringed. The

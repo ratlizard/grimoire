@@ -387,12 +387,12 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         const titles = []; (function w(el) { if (el.title) titles.push(el.title); (el.children || []).forEach(w); })(grid);
         const opens = titles.filter(t => /^portrait 0x88[0-9A-F]{2}, tap to open$/.test(t));
         const said = html.replace(/<[^>]+>/g, '');
-        if (!new RegExp('jumpToExeAt\\(' + pc.writes.exe + '\\)').test(html) || !/There are 6 choices at character creation, and 6 more here that are not displayed\./.test(said) ||
-            !new RegExp('jumpToExeAt\\(' + pc.offered.count.exe + '\\)').test(html) || !new RegExp('jumpToExeAt\\(' + pc.offered.stride.exe + '\\)').test(html))
+        if (!new RegExp('jumpToExeAt\\(' + pc.writes.exe + '\\)').test(html) || !/There are 6 choices at character creation\./.test(said) || /not displayed/.test(said) ||
+            !new RegExp('jumpToExeAt\\(' + pc.offered.count.exe + '\\)').test(html))
           fail('hero portrait', 'the hero’s page does not state the program’s figures as links: ' + html.replace(/<[^>]+>/g, '').slice(0, 300));
-        else if (opens.length !== 13 || !opens.includes('portrait 0x8800, tap to open') || !opens.includes('portrait 0x88F0, tap to open'))
+        else if (opens.length !== 7 || !opens.includes('portrait 0x8800, tap to open') || !opens.includes('portrait 0x88F0, tap to open'))
           fail('hero portrait', 'the portraits do not open their resources: ' + JSON.stringify(opens));
-        else console.log(`  hero portrait: slot ${pc.first.v} + ${pc.perRow.v} a column past ${pc.base.v.toString(16)}, written as ${pc.writes.v.toString(16)}; ${pc.offered.rows} rows by ${pc.offered.cols} offered; ${opens.length - 1} portraits on the hero’s page, each opening its resource`);
+        else console.log(`  hero portrait: slot ${pc.first.v} + ${pc.perRow.v} a column past ${pc.base.v.toString(16)}, written as ${pc.writes.v.toString(16)}; ${pc.offered.rows} rows by ${pc.offered.cols} offered; ${opens.length - 1} portraits offered on the hero’s page, each opening its resource`);
       }
     } catch (e) { fail('hero portrait', e); }
     /* The Cheats sheet off the program, v1.52.0: the gate, every case of the

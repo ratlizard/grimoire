@@ -182,7 +182,7 @@ function diceGame() {
     }
   }
   if (after) {
-    bytes.push(byte('faces on the skill’s own roll', after.val));
+    bytes.push(byte('faces on the skill’s roll', after.val));
     // `if_not (Random == Var03) then -> T`, then `set_local 0x04`: T equal
     // to the set_local's offset means the fix-up runs whatever was rolled.
     const b = branch(after.i, 8);
@@ -645,10 +645,10 @@ function renderSchedulesSheet() {
     lede.className = 'mechLede';
     if (who) {
       const waits = behaviorSetSites(who.waiting.value.v);
-      lede.innerHTML = 'Each hour ' + pefChip('ScheduleTime') + ' sends everyone to their next place except ' + srcNum(who.partyBit.bit, 'the party') + ', ' +
+      lede.innerHTML = 'Each hour, everyone goes to their next place except ' + srcNum(who.partyBit.bit, 'the party') + ', ' +
         srcNum(who.aliveBit.mask, 'the dead') + ', companions ' + srcNum(who.waiting.value, 'told to wait') +
         (waits.length ? ' (by ' + waits.map(w => srcNum({ resid: w.resid, at: w.at }, labelFor(w.resid) || propWordHex(w.resid))).join(', ') + ')' : '') +
-        ', and anyone ' + srcNum(who.monsterWord.disp, 'in a fight') + '.';
+        ', and anyone ' + srcNum(who.monsterWord.disp, 'in a fight') + '. ' + pefChip('ScheduleTime');
     } else lede.innerHTML = 'The program is not open, so who each hour skips is not shown. The days below come from the file.';
     box.appendChild(lede);
   }
@@ -752,7 +752,10 @@ function renderSpellsSheet() {
   const box = document.createElement('div');
   box.className = 'mechView';
   const intro = document.createElement('p'); intro.className = 'mechLede';
-  intro.innerHTML = spells.length + ' spells by level, after ' + cardLink('spells', 'the rules for casting') + '.';
+  // The count is a link to what it counts: a spell is a script that calls
+  // CastSpell (spellRules), so the number opens that helper, whose callers
+  // are the list (the maintainer, 2 October 2026: a count is linked to data).
+  intro.innerHTML = svLink(spells.length + ' spells', 'jumpToResource(0xEA1)') + ' by level, after ' + cardLink('spells', 'the rules for casting') + '.';
   box.appendChild(intro);
   // How a cast works, above the spells it works on. This was a section of the
   // Mechanics sheet until 13 September 2026.
@@ -1490,7 +1493,7 @@ function damageRowWords(r) {
   if (r.types.length) bits.push('the damage changed by its type');
   if (r.rule === 'door') bits.push('bashed as a door' + (r.strength ? ' of strength ' + srcNum(r.strength) : ''));
   else if (r.rule === 'chest') bits.push('bashed as a chest' + (r.strength ? ' of strength ' + srcNum(r.strength) : ''));
-  else if (r.rule === 'lock') bits.push('a lock of strength ' + srcNum(r.strength) + ' of its own, opened by a blow above what is left' + (r.wear ? ' and worn down by one above what is left ÷ ' + srcNum(r.wear) : '') + (r.deletes ? '; destroyed when struck closed and unlocked' : ''));
+  else if (r.rule === 'lock') bits.push('a lock of strength ' + srcNum(r.strength) + ', opened by a blow above what is left' + (r.wear ? ' and worn down by one above what is left ÷ ' + srcNum(r.wear) : '') + (r.deletes ? '; destroyed when struck closed and unlocked' : ''));
   else if (r.rule === 'data2') bits.push('breaks when a blow is above its Data2' + (r.data2Default ? ', ' + srcNum(r.data2Default) + ' until set' : ''));
   if (r.becomes) bits.push('becomes ' + svEsc(propDisplayName(r.becomes.v) || 'prop type') + ' (prop type ' + srcNum(r.becomes) + ')');
   else if (r.aspects.length && r.rule !== 'lock') bits.push('shows aspect ' + r.aspects.filter((a, i, all) => all.findIndex(b => b.v === a.v) === i).map(a => srcNum(a)).join(' or '));

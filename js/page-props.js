@@ -1606,7 +1606,7 @@ function propWordMount(pt, host) {
   host.innerHTML = '';
   const h4 = document.createElement('h4'); h4.textContent = 'Prop record'; host.appendChild(h4);
   const read = document.createElement('div'); read.className = 'pwReadout'; host.appendChild(read); st.read = read;
-  const sub = document.createElement('div'); sub.className = 'mechSub'; sub.textContent = 'Aspect: the tile each one shows, counted on from the class’s own'; host.appendChild(sub);
+  const sub = document.createElement('div'); sub.className = 'mechSub'; sub.textContent = 'Aspect: the tile each one shows, counted on from the class’s base tile'; host.appendChild(sub);
   const rail = document.createElement('div'); rail.className = 'pwRail';
   for (let n = 0; n < 32; n++) {
     const b = document.createElement('button'); b.type = 'button';
@@ -1698,7 +1698,7 @@ function swingFramesHTML(pt) {
     return (u ? '<img class="brandTile" src="' + u + '" alt="" width="20" height="20"> ' : '') +
            srcNum({ resid: sw.resid, at: sw.off }, propWordHex(t)); }).join(', ');
   const where = svLink(sw.own ? 'its class script' : 'the outcome routine’s default', 'jumpToResource(' + sw.resid + ')', propWordHex(sw.resid) + ' at ' + propWordHex(sw.off));
-  return sw.own ? ' In a fight it swings through ' + tiles + ' (' + where + ').' : ' It has no swing of its own, so in a fight it plays the default (' + where + '): ' + tiles + '.';
+  return sw.own ? ' In a fight it swings through ' + tiles + ' (' + where + ').' : ' It has no swing animation, so in a fight it plays the default (' + where + '): ' + tiles + '.';
 }
 
 // Another class's page, at the aspect that shows the same tile.
@@ -1712,7 +1712,7 @@ function propWordAspectSentence(pt) {
   try { ar = aspectReaders().get(pt) || null; } catch (e) { ar = null; }
   if (!ar) return 'This prop type has no class script, so the aspect changes only the picture and the name.';
   if (ar.reads) return w('This class’s script reads its aspect') + ' (' + ar.reads + (ar.reads === 1 ? ' place' : ' places') + '): what a ' + own + ' does depends on it, not just how it looks.' + (ar.writes ? ' It also changes it, to keep a state.' : '');
-  if (ar.writes) return 'This class’s script ' + w('writes its aspect') + ' to keep a state of its own and never reads it: the pictures after the base tile are what it turns into.';
+  if (ar.writes) return 'This class’s script ' + w('writes its aspect') + ' to keep a state and never reads it: the pictures after the base tile are what it turns into.';
   return w('This class’s script never reads its aspect') + ': at any aspect it is the same ' + own + ' in every figure, with a different picture and name.';
 }
 // What using the item at this aspect does, for the classes that read the
@@ -1734,11 +1734,11 @@ function propWordRender() {
   const name = terrainNameFor(tile) || '', own = terrainNameFor(base) || propDisplayName(pt) || '';
   const bits = word.toString(2).padStart(16, '0');
   let h = '<div class="sv-note" style="margin:0 0 8px">Every placed thing is stored as one number: its prop type, here ' + w(pt) + ' (' + w(propWordHex(pt)) + '), plus 1,024 for each step of aspect. ' +
-    'Aspect <i>n</i> shows the picture <i>n</i> tiles along, with that picture’s name. ' + propWordAspectSentence(pt) + (swingFramesHTML(pt) || (gearTable().some(r => r.pt === pt && r.melee) ? ' The swing in a fight is the class’s own animation, whatever the aspect.' : ''));
+    'Aspect <i>n</i> shows the picture <i>n</i> tiles along, with that picture’s name. ' + propWordAspectSentence(pt) + (swingFramesHTML(pt) || (gearTable().some(r => r.pt === pt && r.melee) ? ' The swing in a fight is the class’s animation, whatever the aspect.' : ''));
   let wear = [];
   try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
   if (wear.length) h += ' At ' + wear.map(x => 'aspect ' + w(x.aspect) + ' it is a ' + w(svEsc(x.name)) + ' (' + propWordHex(x.word) + ')').join(', ') +
-    ', pictures no other item uses, with this item’s own figures.';
+    ', pictures no other item uses, with this item’s figures.';
   h += '</div><div class="pwBits">';
   for (let i = 0; i < 16; i++) {
     if (i === 1 || i === 6) h += '<span class="pwGap"></span>';
@@ -1904,7 +1904,7 @@ function renderItemSheet() {
   if (orphans.length) {
     const h = document.createElement('div');
     h.className = 'propHead';
-    h.innerHTML = '<span class="groupTitle">Unused Art</span><span class="groupNote">Named pictures no item uses. An item placed at one of them takes its picture and name and keeps its own figures.</span>';
+    h.innerHTML = '<span class="groupTitle">Unused Art</span><span class="groupNote">Named pictures no item uses. An item placed at one of them takes its picture and name and keeps its figures.</span>';
     grid.appendChild(h);
     for (const o of orphans) {
       const cell = document.createElement('div');
@@ -2005,7 +2005,7 @@ function placeChip(p, n) {
   if (p.x === undefined) return relChip({ resid: map, main: zoneLabel(p.zone), sub: inside, note, title: trailForResid(map) });
   return relChip({ js: 'showSquareOnMap(' + map + ',' + p.x + ',' + p.y + ')', main: zoneLabel(p.zone),
                    sub: (inside ? inside + ', ' : '') + 'at ' + p.x + ', ' + p.y, note,
-                   icon: relIconFor(map), title: trailForResid(map) });
+                   title: trailForResid(map) });
 }
 
 function itemEachOneHTML(pt) {
@@ -2271,7 +2271,7 @@ function showItemDetail(pt) {
       const words = targetWordWords(t.word);
       fold('aimed', 'Aimed at', words.join(', '),
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It asks “' + svEsc(t.prompt) + '” and answers ' + srcNum(t.val, propWordHex(t.word)) +
-        ', which wants <b>' + words.map(svEsc).join(', ') + '</b>.' + ((t.word & 0x8000) ? ' Within reach means the user’s own square and the eight around it.' : '') + '</div>' +
+        ', which wants <b>' + words.map(svEsc).join(', ') + '</b>.' + ((t.word & 0x8000) ? ' Within reach means the user’s square and the eight around it.' : '') + '</div>' +
         '<div class="sv-note">' + mechLink('target', 'Mechanics › What a Use Can Be Aimed At') + '</div>');
     }
   }
@@ -2280,7 +2280,7 @@ function showItemDetail(pt) {
     let bl = null;
     try { bl = blastRules(); } catch (e) { bl = null; }
     if (bl && bl.centre && bl.resid === (cls && cls.resid)) {
-      fold('blast', 'When it goes off', bl.centre.v + ' on its own square, ' + (bl.edge ? bl.edge.v : '') + ' beside it',
+      fold('blast', 'When it goes off', bl.centre.v + ' on its square, ' + (bl.edge ? bl.edge.v : '') + ' beside it',
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It hands ' + srcNum(bl.centre) + ' to everything on its own square, ' +
         srcNum(bl.edge) + ' to the four squares beside it and ' + srcNum(bl.corner) + ' to the four corners, as ' +
         (bl.type ? svEsc(damageTypeName(bl.type.v)) + ' (type ' + srcNum(bl.type) + ')' : 'its own type') + '.</div>' +

@@ -110,7 +110,7 @@ const APP_FIXES = [
       { at: 0x54258, was: [0x28000000, 0x41820010, 0x881E0000, 0x28000008, 0x40820094],
         asm: ['andi. 0, 0, 223       ; the moved bit aside', 'beq @0x5426C', 'cmplwi 0, 8', 'bne @0x542FC', 'nop'] }] },
 
-  { id: 'weight-contents', kind: 'fix', title: 'GetWeight counts the item type’s own weight only, not also the load of whatever thing has the same number as the type',
+  { id: 'weight-contents', kind: 'fix', title: 'GetWeight counts only the item type’s weight, not also the load of whatever thing has the same number as the type',
     bug: 'The scale gives wrong weights',
     sites: [{ at: 0x958A4, was: [0x4BFC01B5], asm: ['li 3, 0               ; was bl GetCurInvEncumb'] }] },
 
@@ -403,8 +403,8 @@ const APP_FIXES = [
   // type, and the swap comes later. The stream constructor restores the
   // character record, stats and all, from the save, so a sleeper's stats
   // never came from the unit on that path.
-  { id: 'sleeper-unit', kind: 'fix', title: 'Someone made while asleep takes their own unit, so they leave their own body, not a man’s or a random thing',
-    played: 'fork, PowerPC, 30 September 2026: a sleeping guard and Lindus asleep, loaded from saves and killed, leave their own bodies, where the unpatched game left none',
+  { id: 'sleeper-unit', kind: 'fix', title: 'Someone made while asleep keeps their unit, so they leave their body, not a man’s or a random thing',
+    played: 'fork, PowerPC, 30 September 2026: a sleeping guard and Lindus asleep, loaded from saves and killed, leave their bodies, where the unpatched game left none',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [
       { at: 0x44C00, was: [0x4BFFFE61], asm: ['bl @named             ; was bl ObjToMonst'] },

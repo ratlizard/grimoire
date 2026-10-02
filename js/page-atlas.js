@@ -1827,10 +1827,11 @@ function renderAtlasView() {
   renderAtlasBar();
   // The selection bar under the zoom row says so until a square is picked.
   const insp = document.getElementById('atlasInspect');
-  if (insp && !insp.innerHTML) { insp.innerHTML = '<span class="inspDim">Nothing selected. Tap a square to see what is on it.</span>'; insp.style.display = 'block'; }
+  if (insp && !insp.innerHTML) atlasInspectShow('<span class="inspDim">Nothing selected. Tap a square to see what is on it.</span>');
   const start = () => {
     const vp = document.getElementById('atlasViewport');
     if (!vp || vp.clientWidth < 40) { setTimeout(start, 50); return; }
+    atlasSizeViewport();
     atlasFit();
     atlasSyncZoomLabel();
     paintAtlas();
@@ -1841,6 +1842,77 @@ function renderAtlasView() {
 }
 
 function atlasFitAndPaint() { atlasFit(); atlasSyncZoomLabel(); paintAtlas(); }
+
+/* The map and its zoom row fill the screen below the tabs, whatever the
+   screen (the maintainer, 2 October 2026: the whole world and the zoom bar
+   on the screen when the page opens). The sheet's 78vh, and a phone's
+   100svh less a guess at the chrome above, either ran the zoom row off the
+   bottom or left a gap, because what sits above the map differs by screen.
+   So it is measured: the viewport's top in the page, the zoom row's height
+   and the gap between them, taken from the window's height. Set inline,
+   which the stylesheet's heights give way to; full screen is left to the
+   sheet. A change of height alone is not followed, since a phone's address
+   bar coming and going would make the map jump under the finger. */
+let _atlasSizedFor = 0;
+function atlasSizeViewport(force) {
+  const vp = document.getElementById('atlasViewport');
+  const row = document.getElementById('atlasZoomRow');
+  if (!vp || !row || atlasIsFull()) return;
+  // Listened for from the first sizing, not at load, where the harnesses'
+  // window has no addEventListener.
+  if (!atlasSizeViewport.listening) {
+    atlasSizeViewport.listening = true;
+    window.addEventListener('resize', () => {
+      const p = document.getElementById('atlasPanel');
+      if (p && p.style.display !== 'none' && window.innerWidth !== _atlasSizedFor) { atlasSizeViewport(true); schedulePaintAtlas(); }
+    });
+  }
+  if (!force && _atlasSizedFor === window.innerWidth && vp.style.height) return;
+  _atlasSizedFor = window.innerWidth;
+  const top = vp.getBoundingClientRect().top + (window.scrollY || 0);
+  const gap = parseFloat(getComputedStyle(row).marginTop) || 0;
+  const h = Math.floor(window.innerHeight - top - row.offsetHeight - gap - 8);
+  vp.style.height = Math.max(320, h) + 'px';
+  atlasPlaceInspect();
+}
+
+/* The card for a picked square lies over the map rather than under it, so
+   what is on a square and the links to it are on the screen with the map
+   (the maintainer, 2 October 2026). A column at the right on a wide screen,
+   a sheet over the bottom of the map on a narrow one; it scrolls inside
+   itself, and with nothing picked it is not shown at all. Placed against
+   the viewport, whose top moves when the bar above it shows. */
+function atlasPlaceInspect() {
+  const host = document.getElementById('atlasInspect');
+  const vp = document.getElementById('atlasViewport');
+  if (!host || !vp) return;
+  const top = vp.offsetTop, h = vp.clientHeight;
+  if (window.innerWidth >= 700) {
+    host.style.top = (top + 8) + 'px'; host.style.bottom = '';
+    host.style.maxHeight = Math.max(120, h - 16) + 'px';
+  } else {
+    // Hung from the map's bottom edge and no taller than two fifths of it,
+    // so the square picked in the middle stays in sight above it.
+    const panel = host.offsetParent || vp.parentNode;
+    host.style.top = '';
+    host.style.bottom = (panel.clientHeight - (top + h) + 8) + 'px';
+    host.style.maxHeight = Math.max(120, Math.round(h * 0.4)) + 'px';
+  }
+}
+function atlasInspectShow(html, picked) {
+  const host = document.getElementById('atlasInspect');
+  if (!host) return;
+  host.innerHTML = (picked ? '<button class="secondary inspClose" aria-label="Close" onclick="atlasInspectClose()">×</button>' : '') + html;
+  host.classList.toggle('inspOpen', !!picked);
+  host.style.display = '';
+  host.scrollTop = 0;
+  atlasPlaceInspect();
+}
+function atlasInspectClose() {
+  window.ATLAS_SEL = null;
+  atlasInspectShow('<span class="inspDim">Nothing selected. Tap a square to see what is on it.</span>');
+  paintAtlas();
+}
 
 /* The map the whole screen.
 
@@ -2368,15 +2440,15 @@ function atlasInspect(px, py) {
   const host = document.getElementById('atlasInspect');
   const hit = atlasAt(px, py);
   if (!host) return;
-  if (!hit) { window.ATLAS_SEL = null; host.innerHTML = '<span class="inspDim">Nothing here.</span>';
-              host.style.display = 'block'; paintAtlas(); return; }
+  if (!hit) { window.ATLAS_SEL = null; atlasInspectShow('<span class="inspDim">Nothing here.</span>');
+              paintAtlas(); return; }
   const { node, tx, ty } = hit;
   // The same square again clears the pick, as a second tap does on Zones.
   const was = window.ATLAS_SEL;
   if (was && was.resid === node.resid && was.tx === tx && was.ty === ty) {
     window.ATLAS_SEL = null;
-    host.innerHTML = '<span class="inspDim">Nothing selected. Tap a square to see what is on it.</span>';
-    host.style.display = 'block'; paintAtlas(); return;
+    atlasInspectShow('<span class="inspDim">Nothing selected. Tap a square to see what is on it.</span>');
+    paintAtlas(); return;
   }
   window.ATLAS_SEL = { resid: node.resid, tx, ty };
   paintAtlas();
@@ -2429,8 +2501,7 @@ function atlasInspect(px, py) {
   // Everything this renderer does not do lives one click away, where it
   // already worked and still does.
   parts.push('<div class="inspActs">' + svLink('Open ' + node.name + ' in Zones', 'jumpToResource(' + node.resid + ')') + '</div>');
-  host.innerHTML = parts.join('');
-  host.style.display = 'block';
+  atlasInspectShow(parts.join(''), true);
   for (const [slot, rec, contents] of (typeof boxes !== 'undefined' ? boxes : [])) {
     const el = document.getElementById(slot);
     if (el) el.appendChild(buildContainerView(rec, contents));

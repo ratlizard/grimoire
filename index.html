@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Grimoire, Cythera’s data</title>
+<title>Grimoire: A Cythera Experiment</title>
+<link rel="icon" id="favicon" href="data:,">
 <style>
 /* ---- One knob for every size of type ------------------------------------
    Every font-size in this sheet is in rem, so the two rules below are the
@@ -296,8 +297,8 @@ body { padding:0 !important; }
    at the top were fixed to the viewport and the page had to clear them.
    They scroll with the page since 9 September 2026, so the inset is the
    ordinary margin above a heading. */
-#appShell { max-width:900px; margin:0 auto; padding:18px 34px calc(112px + env(safe-area-inset-bottom)); }
-@media (max-width:520px) { #appShell { padding:12px 18px calc(104px + env(safe-area-inset-bottom)); } }
+#appShell { max-width:900px; margin:0 auto; padding:10px 34px calc(112px + env(safe-area-inset-bottom)); }
+@media (max-width:520px) { #appShell { padding:6px 18px calc(104px + env(safe-area-inset-bottom)); } }
 
 /* Never let a control or media element push past its parent. */
 #appShell button, #appShell select, #appShell input, #appShell pre,
@@ -473,9 +474,10 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    text viewer's Decoded/Strings/Hex row already owns `.tab`. */
 #tabShell { margin:6px 0 10px; }
 /* The site's name and version, at the top between the two fixed buttons. */
-#topBar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; position:relative; }
+#topBar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 4px; position:relative; }
 #brand { flex:1 1 auto; text-align:left; margin:0; font-size:0.8125rem; letter-spacing:.04em; color:#b5b2a8; min-width:0; white-space:nowrap; }
 #brand .brandName { color:#fff; font-size:1.0625rem; font-weight:600; }
+#brand .brandVer { font-weight:400; }
 #brand .brandTile { width:20px; height:20px; image-rendering:pixelated; vertical-align:-4px; margin-right:2px; }
 #brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; letter-spacing:.04em; color:#8c8980; }
 /* The row scrolls sideways, so it clips: a tab cannot paint below the row's
@@ -1172,6 +1174,9 @@ summary .mechStat { border-color:rgba(249,248,111,.35); }
 .mechFrom { display:inline-flex; gap:5px; flex-wrap:wrap; margin-left:auto; }
 .mechFrom .relChip { font-size:0.75rem; }
 .mechFrom { gap:4px 12px; }
+/* A folded card's links to its sources wait until it is opened (the
+   maintainer, 2 October 2026): shut, the summary is the name alone. */
+details:not([open]) > summary .mechFrom { display:none; }
 .mechLede { margin:2px 0 6px; color:#fff; font-size:0.8438rem; line-height:1.45; }
 .ruleList { margin:0 0 8px; padding-left:20px; color:#fff; font-size:0.8125rem; line-height:1.5; }
 .ruleList li { margin:2px 0; }
@@ -1428,9 +1433,7 @@ summary .mechStat { border-color:rgba(249,248,111,.35); }
    viewport also keeps a floor of half the screen, so a browser that gives
    the column less than the screen still shows a map. */
 #atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport,
-body.atlasFull #atlasPanel #atlasViewport { flex:1 1 auto; height:auto; min-height:50vh; }
-#atlasPanel:fullscreen #atlasInspect, #atlasPanel:-webkit-full-screen #atlasInspect,
-body.atlasFull #atlasPanel #atlasInspect { max-height:28vh; overflow:auto; }
+body.atlasFull #atlasPanel #atlasViewport { flex:1 1 auto; height:auto !important; min-height:50vh; }
 body.atlasFull { overflow:hidden; }
 /* In full screen the map is the whole thing: the zoom row, the inspector,
    the strip and the tuning rows go, and one small overlay in the corner
@@ -1440,7 +1443,8 @@ body.atlasFull { overflow:hidden; }
 #atlasPanel:fullscreen #atlasInspect, #atlasPanel:-webkit-full-screen #atlasInspect, body.atlasFull #atlasPanel #atlasInspect,
 #atlasPanel:fullscreen #atlasBar, #atlasPanel:-webkit-full-screen #atlasBar, body.atlasFull #atlasPanel #atlasBar { display:none !important; }
 #atlasPanel:fullscreen, #atlasPanel:-webkit-full-screen, body.atlasFull #atlasPanel { padding:0; }
-#atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport, body.atlasFull #atlasPanel #atlasViewport { height:100%; min-height:100%; }
+/* !important over the inline height atlasSizeViewport sets out of full screen. */
+#atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport, body.atlasFull #atlasPanel #atlasViewport { height:100% !important; min-height:100%; }
 #atlasFullOverlay { position:absolute; top:10px; left:10px; z-index:61; align-items:center; gap:8px;
   padding:6px 8px 6px 12px; background:rgba(8,7,5,.74); border:1px solid rgba(155,136,80,.5); border-radius:9px;
   color:#fff; font-size:0.875rem; font-family:var(--face); pointer-events:auto; }
@@ -1471,8 +1475,17 @@ body.atlasFull { overflow:hidden; }
   font-size:0.8125rem; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 #atlasBar .wbWhere { color:#fff; font-weight:600; }
 #atlasBar .wbNote { color:#b5b2a8; font-size:0.75rem; }
-#atlasInspect { margin:6px 0 0; padding:10px 14px; text-align:left;
-  background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:0.8125rem; }
+/* Over the map, placed by atlasPlaceInspect: a column at the right on a
+   wide screen, the lower part of the map on a narrow one. Hidden until a
+   square is picked; the text it holds then is what the smoke reads. */
+#atlasPanel { position:relative; }
+#atlasInspect { position:absolute; right:8px; z-index:8; width:min(360px, calc(100% - 16px)); overflow:auto;
+  padding:10px 14px; text-align:left; box-sizing:border-box;
+  background:rgba(20,18,14,.94); border:1px solid var(--edge); border-radius:8px; font-size:0.8125rem;
+  box-shadow:0 4px 18px rgba(0,0,0,.5); }
+#atlasInspect:not(.inspOpen) { display:none !important; }
+#atlasInspect .inspClose { float:right; width:auto !important; margin:-4px -6px 4px 8px !important; padding:2px 10px !important; min-height:0 !important; }
+@media (max-width:699px) { #atlasInspect { left:8px; width:auto; } }
 #atlasInspect .inspHead { color:#fff; font-weight:600; margin-bottom:8px; }
 #atlasInspect .inspCard { border-top:1px solid rgba(155,136,80,.35); padding:6px 0; }
 #atlasInspect .inspDim { color:#b5b2a8; font-size:0.75rem; }
@@ -1755,6 +1768,11 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
      sideways anyway, so a place keeps its line. */
   .forkTable td.where { white-space:nowrap; }
   #topLinks { gap:16px; }
+  /* The name is four words since 2 October 2026 and ran under the links on a
+     phone: there the subtitle and the version take a second line. */
+  #brand { line-height:1.2; }
+  #brand .brandColon { display:none; }
+  #brand .brandSub { display:block; font-size:0.8125rem; font-weight:400; color:#b5b2a8; margin-top:2px; }
   /* The world on a portrait screen: the viewport was 78vh tall for a square
      map fitted to its width, so two thirds of it was painted sea, and then
      a square, which left half the screen empty below it. It is the height
@@ -1768,7 +1786,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
      hence the !important. */
   #mapViewport { height:auto !important; aspect-ratio:1 / 1; max-height:62vh; }
   #atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport,
-  body.atlasFull #atlasPanel #atlasViewport { height:100%; aspect-ratio:auto; }
+  body.atlasFull #atlasPanel #atlasViewport { height:100% !important; aspect-ratio:auto; }
 }
 
 /* ---- Desktop -----------------------------------------------------------
@@ -1780,7 +1798,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
    is-clickable rule all stand -- only the scale. The !importants match the
    ones on the rules they override; a later rule of equal weight wins. */
 @media (min-width: 900px) {
-  #appShell { max-width:1280px; padding:22px 44px calc(112px + env(safe-area-inset-bottom)); }
+  #appShell { max-width:1280px; padding:10px 44px calc(112px + env(safe-area-inset-bottom)); }
   html { font-size:125%; }
   button, select { font-size:1rem !important; }
   #brand .brandName { font-size:1.25rem; }
@@ -1847,7 +1865,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
      2026, when the maintainer asked for them to stay at the top like the
      name. Each opens a panel under this row. -->
 <div id="topBar">
-  <div id="brand" aria-label="Grimoire"></div>
+  <div id="brand" aria-label="Grimoire: A Cythera Experiment"></div>
   <div id="topLinks">
     <button id="creditsLink" class="topLink" onclick="toggleCredits()" aria-haspopup="dialog" aria-controls="creditsMenu">Credits</button>
     <button id="searchLink" class="topLink" onclick="toggleSearch()" title="Search the scripts">Search</button>
@@ -1875,7 +1893,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
     because the picture changes. This setting controls that, and the walking and turning of sprites in the galleries.
     Something drawn from several frames, like a fountain, is not palette cycling and is not affected.</span></div>
   <label><input type="checkbox" id="chkBuiltinLabels" onchange="setBuiltinLabels(this.checked)">
-    <span>Names from outside the game’s own text
+    <span>Names from outside the game’s text
       <span class="amNote">Hand-identified labels from the delvmod wiki, resource names,
       tile-sheet names and the prop-type list the Items, Props and Monsters galleries draw on; and on
       the World map, one name per place from the editor’s list where the game calls several maps the
@@ -1883,10 +1901,10 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
       Off, every gallery shows only names the file itself contains (0xF004 tile names, zone-entry
       text, resource symbols); where there is none, the cell says so.</span></span></label>
   <div id="faceWrap">The font this page uses
-    <label><input type="radio" name="faceChoice" value="game" onchange="setFaceChoice(this.value)"> the game’s own, from the open file</label>
+    <label><input type="radio" name="faceChoice" value="game" onchange="setFaceChoice(this.value)"> the game’s, from the open file</label>
     <label><input type="radio" name="faceChoice" value="chicago" onchange="setFaceChoice(this.value)"> Chicago</label>
     <label><input type="radio" name="faceChoice" value="system" onchange="setFaceChoice(this.value)"> this device’s</label>
-    <span class="amNote">Cythera uses the font Argos A Nouveau, which is stored in the game’s own resource fork. The page reads it from
+    <span class="amNote">Cythera uses the font Argos A Nouveau, which is stored in the game’s resource fork. The page reads it from
     whatever file you open and uses it unless you choose otherwise here. With no file open there is nothing to read it from, so the
     page uses Chicago, Susan Kare’s 1984 font for the Macintosh, recreated by Duane King. None of the game’s own files is included
     with this page to stand in for it.</span></div>
@@ -2396,13 +2414,33 @@ this page from the delvmod wiki and is not in the file. Turn these names on or o
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.236.2';
-{ const b = document.getElementById('brand');   // the element precedes the script
-  // The grimoire's own tile (prop 76, the book) stands before the name once
-  // a file is open to draw it from (the maintainer, 9 September 2026).
-  let tile = '';
-  try { const u = ARCHIVE ? relIconURL({ tile: getPropTileList()[76] || 0x21F }) : ''; if (u) tile = '<img class="brandTile" src="' + u + '" alt="" width="20" height="20"> '; } catch (e) { tile = ''; }
-  if (b) b.innerHTML = tile + '<span class="brandName">Grimoire</span> <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span>'; }
+const GRIMOIRE_VERSION = '1.237.0';
+/* The name at the top, and the tab's icon. The grimoire's own tile (prop
+   76, the book) stands before the name and is the page's icon once a file
+   is open to draw it from (the maintainer, 9 September and 2 October 2026);
+   nothing of the game's is committed for it, so before a file opens the
+   browser shows its default. Drawn at boot and again by parseArchiveBytes
+   once a file has opened. The empty data: icon above keeps the browser from
+   asking the server for a favicon.ico that is not there. */
+function drawBrand() {
+  const b = document.getElementById('brand');
+  let tile = '', icon = '';
+  try {
+    // Nothing is read before a file is open: the prop table caches what it
+    // finds, and read with no file it cached nothing for the whole session
+    // (the decoder snapshot's chest went null, 2 October 2026).
+    if (ARCHIVE) {
+      const spec = { tile: getPropTileList()[76] || 0x21F };
+      tile = relIconURL(spec);
+      const c = navIconCanvas(spec, 32); icon = c.width ? c.toDataURL('image/png') : '';
+    }
+  } catch (e) { quiet(e, 'the brand tile'); tile = ''; icon = ''; }
+  if (b) b.innerHTML = (tile ? '<img class="brandTile" src="' + tile + '" alt="" width="20" height="20"> ' : '') +
+    '<span class="brandName">Grimoire<span class="brandColon">:</span> <span class="brandSub">A Cythera Experiment <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span></span></span>';
+  const fav = document.getElementById('favicon');
+  if (fav && icon) { fav.type = 'image/png'; fav.href = icon; }
+}
+drawBrand();
 </script>
 </div>
 

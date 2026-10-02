@@ -88,11 +88,13 @@ function spellsMechSection() {
   const fireball = sp.spells.find(x => /^Fireball$/.test(x.name));
   const fbFx = fireball && fxMap.get(fireball.resid);
   return mechSectionEl('spells', 'Spells', null, mechSrc('the casting', 0xEA1) + mechSrc('a hit', 0xEB8),
-    sp.spells.length ? sp.spells.length + ' spells, with each one’s level, its cost in magic points, and what it does to health.' : 'No spell in this file is cast through the shared script.',
+    // The count and the failure roll were the card's opening line until
+    // 2 October 2026; the maintainer had it cut. The sheet's own intro
+    // counts the spells, and the chart below states the roll.
+    sp.spells.length ? '' : 'No spell in this file is cast through the shared script.',
     sp.spells.length ? [
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
       sp.rule && sp.rule.timing ? 'The cost is taken, and the cast costs <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The cost is taken.',
-      sp.rule && sp.rule.failure ? 'The casting <b>fails when two rolls below the caster’s Casting figure add up to less than a roll below the spell’s level</b>' + (sp.rule.casting ? ' (Casting is the skill, or a figure for the class if the caster lacks it)' : '') + '. A <b>level 1 spell never fails</b>.' : '',
       'Spell damage works like a blow’s: the victim’s resistance applies, and the caster earns experience as usual.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at</b>, although its description says it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Non-magical damage, whether fire, electric, blunt or edged, does <b>nothing at all</b> to monsters that resist non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike count as magical, which is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
@@ -187,10 +189,10 @@ function talkMechSection() {
     '<td class="mechSub">' + svEsc(s.who.slice(0, 5).map(c => c.name).join(', ') +
       (s.who.length > 5 ? ', and ' + (s.who.length - 5) + ' more' : '')) + '</td></tr>');
   return mechSectionEl('talk', 'Who Answers as Whom', null, '',
-    cv.chars.length ? 'A character answers from their own topics first, then from topics shared with others: Naxos answers as 0x804, then 0x80E, then 0x801.'
+    cv.chars.length ? 'A character answers from their topics first, then from topics shared with others: Naxos answers as 0x804, then 0x80E, then 0x801.'
                     : 'No conversation in this file.',
     cv.chars.length ? [
-      '<b>' + cv.chars.length + ' characters</b> hold <b>' + topics + ' topics</b> between them, of which <b>' + deeper + '</b> open further topics of their own.',
+      '<b>' + cv.chars.length + ' characters</b> hold <b>' + topics + ' topics</b> between them, of which <b>' + deeper + '</b> open further topics.',
       '<b>' + real.length + ' groups</b> are shared. The longest chains have four steps, and most characters use a House, then a city, then Human.',
       alone ? '<b>' + alone.who.length + ' answer as nobody but themselves</b>: ' + svEsc(alone.who.map(c => c.name).join(', ')) + '.' : '',
       others.length ? 'Not every 0x8xx resource is a group: ' + others.map(g => groupChip(g, g.kind)).join(' ') : ''

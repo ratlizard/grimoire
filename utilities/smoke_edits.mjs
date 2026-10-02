@@ -177,7 +177,7 @@ try {
   // is pinned on a phrase only the card uses.
   const moved = [
     ['skills', 'What Each Skill Is Asked About', skills, 'the Skills sheet'],
-    ['spells', 'its cost in magic points, and what it does to health', spells, 'the Spells sheet'],
+    ['spells', 'A cost above the caster’s magic', spells, 'the Spells sheet'],
     ['balloons', 'Talk Balloons', barks, 'the Barks sheet'],
   ];
   const gone = moved.filter(([, title, html]) => !html.includes(title));

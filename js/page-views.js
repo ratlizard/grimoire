@@ -45,8 +45,7 @@ function openPefRoutine(name) {
 }
 // A chip to a routine of the executable, wherever a sheet cites one.
 function pefChip(name) {
-  const leaf = TAB_BY_ID.get('apppef');
-  return relChip({ js: 'openPefRoutine(\'' + name.replace(/'/g, '\\\'') + '\')', main: name, sub: 'routine', icon: leaf ? relIconURL({ tile: leaf.tile }) : '', title: 'Data › Cythera (App) › Data Fork' });
+  return relChip({ js: 'openPefRoutine(\'' + name.replace(/'/g, '\\\'') + '\')', main: name, sub: 'routine', title: 'Data › Cythera (App) › Data Fork' });
 }
 
 /* ---- a number read off the program, and where ------------------------------
@@ -253,7 +252,7 @@ function renderAppPefSheet() {
     box.innerHTML = '<div class="foldAll" style="justify-content:flex-start">' + svLink('All routines', 'pefBackToList()') + '</div>' +
       '<div class="changesHead">' + svEsc(view.name) + '</div>' +
       '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
-      (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes, and a slot in the program’s own table of addresses shows what is stored there when the game starts.</p>' +
+      (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes, and a slot in the program’s table of addresses shows what is stored there when the game starts.</p>' +
       exeListingHTML(view, window.PEF_VIEW.at);
     grid.appendChild(box);
     out.textContent = view.name + ', ' + (view.length / 4) + ' instructions';
@@ -314,11 +313,11 @@ function renderAppPefSheet() {
    maintainer could not answer from the labels alone. Element ids are what
    prefsOptionsFromUI and the smokes read, and are unchanged. */
 const PREF_HELP = {
-  Volume: ['sound', 'Preferences dialog', 'How loud the sound effects are, from 0, silent, to 8. At −1 the game leaves the Mac’s own volume alone.'],
+  Volume: ['sound', 'Preferences dialog', 'How loud the sound effects are, from 0, silent, to 8. At −1 the game leaves the Mac’s volume alone.'],
   Music: ['sound', 'Preferences dialog', 'How loud the music is, in eighths of full volume: 8 is full, 0 is silent.'],
   Ambient: ['sound', 'Preferences dialog', 'Background sounds, such as animals and ocean waves.'],
   movement: ['movement', 'Preferences dialog', 'How a step from one square to the next is drawn: in four stages (Smoother), in two (Faster), or as one jump (Fastest). It takes the same game time in all three. The dialog’s Graphics Quality slider sets the same thing.'],
-  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second; these three are the game’s own, from its hidden Preferences menu. The file can hold others, down to no limit at all. A higher limit plays each step’s animation faster; holding a key still walks at the pace of the Mac’s key repeat.'],
+  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second; these three come from the game’s hidden Preferences menu. The file can hold others, down to no limit at all. A higher limit plays each step’s animation faster; holding a key still walks at the pace of the Mac’s key repeat.'],
   motionFilters: ['movement', 'Preferences dialog', 'Leaves blowing on the trees and waves rippling across the ocean.'],
   walkAround: ['movement', 'Preferences dialog', 'The hero steps around things in the way rather than stopping at them.'],
   liveDrag: ['windows', 'Preferences dialog', 'Lets you drag the game’s windows around the screen.'],
@@ -355,7 +354,7 @@ function renderPrefsSheet() {
     d.innerHTML = '<div class="changesGroupTitle">' + svEsc('Cythera’s preferences file') + '</div>' +
       '<div class="changesNote" style="margin-left:0"><b>' + svEsc('Open the game itself (Data › Installer, or drop the program on the page) and the settings appear here.') + '</b><br>' +
       svEsc('This writes Cythera’s preferences file, which holds the settings the game keeps in the Preferences folder of the System Folder, including the switch that makes its cheat keys work. ' +
-            'Every switch in it is read from the program’s own code, so the game has to be open for there to be anything to write.') + '</div>';
+            'Every switch in it is read from the program’s code, so the game has to be open for there to be anything to write.') + '</div>';
     box.appendChild(d);
     grid.appendChild(box);
     out.textContent = PREFS_FILE_NAME + ', the file the game keeps its settings in.';
@@ -579,12 +578,12 @@ function renderToolsSheet() {
   fn.textContent = window.FACE_IN_USE === 'game' && window.GAME_FONT
     ? 'Argos A Nouveau, from the open file: ' + window.GAME_FONT + ' in Cythera Data’s resource fork, converted into a TrueType font the browser can use.'
     : window.FACE_IN_USE === 'system'
-      ? 'This device’s own font, chosen under Settings.'
+      ? 'This device’s font, chosen under Settings.'
       : 'Chicago, Susan Kare’s 1984 font for the Macintosh, recreated by Duane King and included with this page. ' +
-        (window.GAME_FONT ? 'The game’s own font is loaded and can be chosen under Settings.'
-          : window.GAME_FONT_STATE === 'loading' ? 'The file’s own is still loading.'
-          : window.GAME_FONT_STATE ? 'The file’s own font could not be used: ' + window.GAME_FONT_STATE + '.'
-          : 'No file is open to read the game’s own font from.');
+        (window.GAME_FONT ? 'The game’s font is loaded and can be chosen under Settings.'
+          : window.GAME_FONT_STATE === 'loading' ? 'The file’s font is still loading.'
+          : window.GAME_FONT_STATE ? 'Could not use the file’s font: ' + window.GAME_FONT_STATE + '.'
+          : 'Open a file to use the game’s font.');
   font.appendChild(fn);
   grid.insertBefore(box, grid.firstChild);
   /* What fell back without saying so. Every optional decode that failed
@@ -777,8 +776,17 @@ window.LINKS_OPEN = false;
 function linksFold(html) {
   if (!html) return '';
   const n = (html.match(/<button/g) || []).length;
+  // Where they lead, when every one leads into the same top tab: each chip's
+  // title is its tab trail, "Components › Items" (the maintainer, 2 October
+  // 2026: "Links to Components" if all components, "Links to Data" if all
+  // data). A chip with no trail (an action chip, "every frame") does not
+  // decide it; two tabs among the rest, or none at all, keep plain "Links".
+  const tops = new Set();
+  html.replace(/<button\b[^>]*>/g, b => { const t = /\btitle="([^"›]+?)\s*(?:›|")/.exec(b); if (t) tops.add(t[1].trim()); return b; });
+  const only = tops.size === 1 ? [...tops][0] : '';
+  const where = only ? ' to ' + only : '';
   return '<details class="linksFold"' + (window.LINKS_OPEN ? ' open' : '') + ' ontoggle="linksFoldToggle(this)">' +
-    '<summary>Links' + (n ? ' (' + n + ')' : '') + '</summary>' + html + '</details>';
+    '<summary>Links' + where + (n ? ' (' + n + ')' : '') + '</summary>' + html + '</details>';
 }
 function linksFoldToggle(el) { window.LINKS_OPEN = !!el.open; }
 
@@ -1068,7 +1076,7 @@ function soundUsageRows(resid, subn) {
     for (const [r, what] of byClass) owners.push(...classOwnerChips(r, what));
     if (owners.length) rows.push(['Sound of', owners, '']);
     const lists = [...new Set(u.lists.get(n) || [])];
-    if (lists.length) rows.push(['Default in', lists.map(r => svChip(r, 'for anyone with no sounds of their own')), '']);
+    if (lists.length) rows.push(['Default in', lists.map(r => svChip(r, 'for anyone with no sounds set')), '']);
     const eggs = u.eggs.get(n) || [];
     if (eggs.length) rows.push(['Heard in', zoneSquareChips(eggs), '']);
     if (!rows.length) rows.push(['Played by', [], 'Nothing plays this sound: no script, class, list or egg in the file names it.']);
@@ -1177,7 +1185,7 @@ function zoneSquareChips(spots) {
     js: 'showSquareOnMap(' + (0x8000 + z) + ',' + list[0].x + ',' + list[0].y + ')',
     main: zoneLabel(z), sub: 'at ' + list[0].x + ', ' + list[0].y,
     note: list.length > 1 ? '×' + list.length : '',
-    icon: relIconFor(0x8000 + z), title: trailForResid(0x8000 + z) }));
+    title: trailForResid(0x8000 + z) }));
 }
 
 // Every egg in the file, by kind and then by its argument (the prop-type
@@ -1242,7 +1250,7 @@ function ownerRows(resid, subn) {
     rows.push(['Room in', eggs.map(e => relChip({
       js: 'showSquareOnMap(' + (0x8000 + e.zone) + ',' + e.x + ',' + e.y + ')',
       main: zoneLabel(e.zone), sub: 'at ' + e.x + ', ' + e.y,
-      icon: relIconFor(0x8000 + e.zone), title: trailForResid(0x8000 + e.zone) })),
+      title: trailForResid(0x8000 + e.zone) })),
       eggs.length ? '' : 'No zone places this room.']);
   }
   if (subn === 131) {
@@ -1256,7 +1264,7 @@ function ownerRows(resid, subn) {
       said.add(key);
       chips.push(relChip({ js: 'jumpToScriptAt(' + st.resid + ',' + st.at + ')',
         main: landscapeSetterName(st.resid), sub: st.sky ? 'over the sky' : 'no sky',
-        icon: relIconFor(st.resid), title: trailForResid(st.resid) }));
+        title: trailForResid(st.resid) }));
     }
     rows.push(['Set by', chips, chips.length ? '' : 'No script sets this landscape.']);
   }
@@ -1773,7 +1781,7 @@ function monsterDamageSite() {
 }
 function monsterByteNote() {
   const site = monsterDamageSite();
-  if (!site) return 'The damage of the creature’s own blow.';
+  if (!site) return 'The damage of the creature’s blow.';
   return 'A blow does this damage plus a random amount based on Body (' +
     srcNum({ resid: site.resid, at: site.at }, 'the script') + ').';
 }
