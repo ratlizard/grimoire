@@ -102,6 +102,9 @@ const DATA_FIX_GROUPS = [
   { id: 'items', title: 'Items' },
   { id: 'world', title: 'People and places' },
   { id: 'text', title: 'Text' },
+  // The larger changes, each a design call rather than a mended slip, in a
+  // list of their own below the rest (the maintainer, 1 October 2026).
+  { id: 'design', title: 'Design Changes', note: 'These are not bug fixes: each changes how the game was designed to behave.' },
 ];
 
 // The text's choices, by the name their options share, as the Patches
@@ -1256,7 +1259,7 @@ const DATA_FIXES = [
   // another path for a tagged word. The victim's type it can read, as the
   // helper already reads its square. So a hatched guard costs karma too,
   // being a person, and a hatched chicken does not.
-  { id: 'karma', group: 'rules', stage: 'apart', title: 'Killing a townsperson now costs one karma, instead of adding one',
+  { id: 'karma', group: 'design', stage: 'apart', title: 'Killing a townsperson now costs one karma, instead of adding one',
     edits: (() => {
       const NOT_PEOPLE = ['byte 0x59', 'byte 0x5A', 'short 0x00E4', 'short 0x0121', 'short 0x0122', 'short 0x0124'];
       return [{
@@ -1291,7 +1294,7 @@ const DATA_FIXES = [
   // new test, which ends in the routine's own return. Nothing gives the
   // curse yet, so with this alone the game plays as before; a saved game
   // with flag 19 set on a character shows it.
-  { id: 'curse', group: 'rules', stage: 'apart', title: 'A curse now weakens armour by 1 to 4, the reverse of Resist Blows',
+  { id: 'curse', group: 'design', stage: 'apart', title: 'A curse now weakens armour by 1 to 4, the reverse of Resist Blows',
     edits: [{
       what: 'a cursed character’s armour counts 1 to 4 less', resid: 0xE81, at: 0x009C, to: 0x009F,
       expect: { 0x0085: 'if_not', 0x0086: 'sys TestFlag', 0x0087: 'arg Arg00', 0x0088: 'byte 0x14', 0x008B: 'then -> 0x009C',
@@ -1349,7 +1352,7 @@ const DATA_FIXES = [
   // which nobody-corpse turns away in both. The map record wants a fifth
   // local; a function's locals are the third byte of its header, and UseOn's
   // header is at 0xA0.
-  { id: 'resurrection', group: 'rules', stage: 'apart', title: 'Resurrection now brings the person back where the corpse lay, with their belongings and in the party, instead of nowhere until a later hour',
+  { id: 'resurrection', group: 'design', stage: 'apart', title: 'Resurrection now brings the person back where the corpse lay, with their belongings and in the party, instead of nowhere until a later hour',
     // Its offsets are the shipped file's; nobody-corpse, an earlier stage,
     // inserts before them, so the plan measures where the corpse's things
     // are now walked and moves every offset by the difference.
@@ -1378,7 +1381,7 @@ const DATA_FIXES = [
   // set. Every release from 1.0.1 is the same. THE CHANGE: the one bit, set.
   // A saved game carries its own character table, so this reaches new games
   // only.
-  { id: 'peirithous', group: 'world', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is now alive in a new game, instead of dead',
+  { id: 'peirithous', group: 'design', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is now alive in a new game, instead of dead',
     dataEdits: [
       { what: 'Peirithous alive', resid: 0xF009, fn: (b) => {
           const p = 96 * 32;

@@ -2380,6 +2380,7 @@ function dataFixDescription(chosen) {
   count('rules', 'to spells, skills and fighting');
   count('items', 'to items');
   count('world', 'to people and places');
+  { const k = n('design'); if (k) bits.push(k + (k === 1 ? ' design change' : ' design changes')); }
   if (chosen.some(f => f.group === 'text')) {
     const opts = [];
     if (chosen.some(f => f.id === 'spelling-us')) opts.push('American spelling');
@@ -2569,6 +2570,7 @@ function renderDataFixMaker() {
     gb.l.className = 'partsTitle';
     head.appendChild(gb.l);
     host.appendChild(head);
+    if (g.note) host.appendChild(el('div', 'mechSub', g.note));
     for (const f of list) {
       const row = el('div', 'appFixRow');
       row.appendChild(box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + untestedMark(f)).l);
