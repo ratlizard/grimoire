@@ -1867,11 +1867,11 @@ function showMonsterDetail(idx) {
         ', the class named by its key 54, with arm <i>i</i> at aspect <i>i</i> \u00d7 ' +
         (u.rule && u.rule.aspectStep ? srcNum(u.rule.aspectStep, String(u.step)) : String(u.step)) +
         ' (the frames for one direction) on the ' + (u.rule ? srcNum(u.rule.dx, 'eight squares') : 'eight squares') + ' around it' +
-        (app ? ', as ' + pefChip('TOctoMonster::TOctoMonster') + ' builds it' : '') + '.';
+        '.' + (app ? ' ' + pefChip('TOctoMonster::TOctoMonster') : '');
       else if (u.kind === 'crawl') how.innerHTML = lay + ': <b>a head with its tail behind it</b>; the tail is a second record at the head’s aspect plus ' + (u.rule ? srcNum(u.rule.tailOffset, '8') : '8') +
-        (app ? ', as ' + pefChip('TCrawlMonster::TCrawlMonster') + ' builds it; ' + pefChip('TActiveMonster::CreateMonster') + ' chooses that kind by the layout' : '') + '.';
+        '. The layout decides which kind it is.' + (app ? ' ' + pefChip('TCrawlMonster::TCrawlMonster') + pefChip('TActiveMonster::CreateMonster') : '');
       else if (u.kind === 'span') how.innerHTML = lay + ': one record, and <b>its tiles span ' + whole.cols + ' by ' + whole.rows + '</b> according to their attributes, as a thing placed in the world does.';
-      else how.innerHTML = lay + ': one record, one tile' + (app ? '; ' + pefChip('TActiveMonster::AdjustAspect') + ' chooses the frame by the layout' : '') + '.';
+      else how.innerHTML = lay + ': one record, one tile; the layout decides the frame.' + (app ? ' ' + pefChip('TActiveMonster::AdjustAspect') : '');
       box.appendChild(how);
       panel.appendChild(box);
     }

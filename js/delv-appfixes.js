@@ -110,11 +110,11 @@ const APP_FIXES = [
       { at: 0x54258, was: [0x28000000, 0x41820010, 0x881E0000, 0x28000008, 0x40820094],
         asm: ['andi. 0, 0, 223       ; the moved bit aside', 'beq @0x5426C', 'cmplwi 0, 8', 'bne @0x542FC', 'nop'] }] },
 
-  { id: 'weight-contents', kind: 'fix', title: 'GetWeight counts only the item type’s weight, not also the load of whatever thing has the same number as the type',
+  { id: 'weight-contents', kind: 'fix', title: 'An item type’s weight counts only that weight, not also the load of whatever thing has the same number as the type (GetWeight)',
     bug: 'The scale gives wrong weights',
     sites: [{ at: 0x958A4, was: [0x4BFC01B5], asm: ['li 3, 0               ; was bl GetCurInvEncumb'] }] },
 
-  { id: 'books-window', kind: 'fix', title: 'RemoveItem redraws the window of whatever held the thing it took',
+  { id: 'books-window', kind: 'fix', title: 'Taking a thing out redraws the window of whatever held it (RemoveItem)',
     played: 'fork, PowerPC, 30 September 2026: a book handed to Selinus from an open pouch leaves its window',
     bug: 'Sapphire Books in a container can be handed in again and again',
     sites: [{ at: 0x95344,
@@ -138,7 +138,7 @@ const APP_FIXES = [
   // does not matter. The nop after each call goes (the calls are local, so
   // nothing is restored there) and the reload of the first word is the
   // register already holding it, which makes room for the one call more.
-  { id: 'take-window', kind: 'fix', title: 'TakeItem redraws the window of whatever held the thing it moved',
+  { id: 'take-window', kind: 'fix', title: 'Moving a thing redraws the window of whatever held it (TakeItem)',
     bug: 'A ring handed to Thersites still drawn in an open chest',
     sites: [{ at: 0x94B0C,
       was: [0x80DF0000, 0x7FA40734, 0x807F0000, 0x38000010, 0x54C5021E, 0x7CA42378, 0x5083023E, 0x907F0000, 0x7F63DB78, 0x38800002, 0x981F0000,

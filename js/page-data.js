@@ -940,7 +940,7 @@ function renderCheatsSheet() {
       clockWords: (name, reg) => { const k = callOf(name), clk = exeClockRules(); return k && k.args[reg] && clk && clk.unitsPerHour ? ', ' + exeClockWords(k.args[reg].v, clk.unitsPerHour.v) : ''; },
       fallsInto: c.fallsInto && caseAt(c.fallsInto) ? comboOf(caseAt(c.fallsInto).keys[0].v) : null,
       walls: () => {
-        const w = exeWallMask(); if (!w) return 'MakeBitMap goes through every square of the level and marks each wall.';
+        const w = exeWallMask(); if (!w) return 'Marks each wall on every square of the level (MakeBitMap).';
         const attrs = getTileAttributes(ARCHIVE), names = new Set(); let n = 0;
         for (let t = 0; t <= w.tiles.v && t < attrs.length; t++) if ((attrs[t] & w.mask.v) === w.mask.v) { n++; const nm = terrainNameFor(t); if (nm) names.add(nm); }
         return 'Shows the walls the room view stops at, until you click: every square of ' + srcNum(w.mask, n + ' kinds of terrain') + ', ' + [...names].map(svEsc).join(', ') + '.';
@@ -1406,8 +1406,8 @@ function byteMapStream(p) {
       leaf(pos + 80, 4, 'the game clock, 4,096 units an hour', { value: String(u32be(b, pos + 80)) });
       leaf(pos + 84, 2, 'the day (the scripts’ GameDay)', { value: String(u16be(b, pos + 84)) });
       leaf(pos + 86, 1, 'whether the automap is on: the byte the scripts’ SetAutomapping call sets (cbEnableAutoMap)', { value: String(b[pos + 86]) });
-      leaf(pos + 87, 4, 'real time played, in seconds: SaveToFile adds the time since it last looked at the Mac’s clock (GetDateTime)', { value: String(u32be(b, pos + 87)) });
-      if (end > pos + 91) leaf(pos + 91, end - (pos + 91), 'zeros SaveToFile writes to fill the block', { value: byteMapAllZero(b, pos + 91, end - pos - 91) ? 'all zero' : byteMapHex(b, pos + 91, end - pos - 91) });
+      leaf(pos + 87, 4, 'real time played, in seconds: each save adds the time since the last look at the Mac’s clock (SaveToFile, GetDateTime)', { value: String(u32be(b, pos + 87)) });
+      if (end > pos + 91) leaf(pos + 91, end - (pos + 91), 'zeros that fill the block (SaveToFile)', { value: byteMapAllZero(b, pos + 91, end - pos - 91) ? 'all zero' : byteMapHex(b, pos + 91, end - pos - 91) });
       q = end;
     } else if (tag === 'Mons') {
       // TActiveMonster::SaveMonsters and ::Save. The first byte is property
@@ -1432,8 +1432,8 @@ function byteMapStream(p) {
         const rec = byteMapRecord({ fields: chunk.kids, bytes: b }, q, n, 'monster ' + m + ': ' + who);
         rec.f(0, 1, 'property 55 of its class: 9 or 10 make it a crawling monster, 11 a dragon, 12 an octo, anything else an ordinary one (0xFF when the class has none)', { value: String(kind) });
         rec.f(1, 2, 'the monster’s object: a character below 256, a prop of the level from 256', { value: String(id) });
-        rec.f(3, 2, 'the frame it is showing (AdjustAspect sets it as it turns and walks)', { value: String(u16be(b, q + 3)) });
-        rec.f(5, 2, 'the way it faces (HandleMove sets it from DxDyToFace)', { value: String(u16be(b, q + 5)) });
+        rec.f(3, 2, 'the frame it is showing, which changes as it turns and walks (AdjustAspect)', { value: String(u16be(b, q + 3)) });
+        rec.f(5, 2, 'the way it faces, set from the direction of each step (HandleMove, DxDyToFace)', { value: String(u16be(b, q + 5)) });
         let o = 7;
         if (id >= 256) {
           rec.f(o, 2, 'its index in the level’s list', { value: String(u16be(b, q + o)) }); o += 2;
@@ -1452,7 +1452,7 @@ function byteMapStream(p) {
           // behaviour; scripts queue them (cbQueueAction, the one caller).
           const beh = b[q + o];
           const said = String(behaviourWordHTML(beh)).replace(/<[^>]+>/g, '');
-          ar.f(0, 1, 'the behavior it carries out before its own: TActiveMonster::DoMove switches on this in place of the character’s byte 22', { value: String(beh) + (said ? ', ' + said : '') });
+          ar.f(0, 1, 'the behavior it carries out first, in place of the one in the character’s byte 22 (TActiveMonster::DoMove)', { value: String(beh) + (said ? ', ' + said : '') });
           ar.f(1, 2, 'the behavior’s first argument', { value: String(u16be(b, q + o + 1)) });
           ar.f(3, 2, 'its second argument', { value: String(u16be(b, q + o + 3)) });
           ar.f(5, 4, 'what it is about: a reference in the scripts’ form (0x5000FFFF is none)', { value: '0x' + u32be(b, q + o + 5).toString(16).toUpperCase().padStart(8, '0') });
@@ -1476,13 +1476,13 @@ function byteMapStream(p) {
         const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 6, 'spell effect ' + e + ': ' + (characterName(who) || 'character ' + who) + ', flag ' + flag);
         r.f(0, 2, 'the character it is on', { value: String(who) });
         r.f(2, 2, 'the character flag it applies: flags below 8 are in byte 8, flags below 24 in the status flags, and the rest in byte 26', { value: String(flag) });
-        r.f(4, 2, 'when it wears off: PassTime removes it once the time passes this, and 0xF000 or more never does', { value: until >= 0xF000 ? 'never (' + until + ')' : String(until) });
+        r.f(4, 2, 'when it wears off: the effect ends once the time passes this, and at 0xF000 or more it never ends (PassTime)', { value: until >= 0xF000 ? 'never (' + until + ')' : String(until) });
       }
     } else if (tag === 'Grem') {
       // TGremlin::SaveGremlins: 256 frames of a state and a heap reference.
       for (let g = 0; g < 256 && q + 4 <= end; g++, q += 4) {
         const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 4, 'gremlin ' + g, { empty: u32be(b, q) === 0x00020000 });
-        r.f(0, 2, 'its state, which a script reads and sets as field 20: 0 hears the party enter and the zone’s signals (OnEnter, OnSignal), 1 and below 0 do not, and 2 is no gremlin, which ClearGremlins sets for every number without a script (all of them in the shipped game)', { value: String((u16be(b, q) << 16) >> 16) });
+        r.f(0, 2, 'its state, which a script reads and sets as field 20: 0 hears the party enter and the zone’s signals (OnEnter, OnSignal), 1 and below 0 do not, and 2 is no gremlin, set for every number without a script, which is all of them in the shipped game (ClearGremlins)', { value: String((u16be(b, q) << 16) >> 16) });
         r.f(2, 2, 'the heap reference of its frame, 0 for none', { value: String(u16be(b, q + 2)) });
       }
     } else if (tag === 'Wind') {
@@ -1609,7 +1609,7 @@ function byteMapHeap(p) {
       }
     } else if (!free && kind === 1 && len >= 4) {
       const n = u16be(b, d);
-      r.f(o, 2, 'the list’s length', { value: String(n) }); r.f(o + 2, 2, 'two bytes GetItem does not read', { value: byteMapHex(b, d + 2, 2) }); o += 4;
+      r.f(o, 2, 'the list’s length', { value: String(n) }); r.f(o + 2, 2, 'two bytes the game does not read (GetItem)', { value: byteMapHex(b, d + 2, 2) }); o += 4;
       for (let k = 0; o + 4 <= 8 + len; k++, o += 4) r.f(o, 4, k < n ? 'item ' + k + ', a script value' : 'room for another item', { value: '0x' + u32be(b, q + o).toString(16).toUpperCase().padStart(8, '0') });
     }
     if (o < step) r.f(o, step - o, free ? 'free space' + (byteMapAllZero(b, q + o, step - o) ? '' : ', holding what a freed block left') : o < 8 + len ? 'the block’s data, not read' : 'rounding to four',
@@ -3004,7 +3004,7 @@ function renderCombatAISheet(which) {
         'It goes into one of 31 user slots, 176 to 206. The same dialog’s Debug button marks a slot, and a companion using a marked slot opens the game’s AI debugger every time the strategy is evaluated.</div>' +
         '<div class="changesNote" style="margin-left:0">The Tests list and the two Actions lists come from the program. The Scenario lists are scripts in this file' +
         (tests.length ? ': the tests ' + tests.join(' ') : '') + (actions.length ? (tests.length ? ', the actions ' : ': the actions ') + actions.join(' ') : '') +
-        '. CastSpell does not cast a spell the character does not know, and Debug(#) only prints its number.</div>'
+        '. Calling CastSpell with a spell the character does not know casts nothing, and Debug(#) only prints its number.</div>'
       : '';
     box.innerHTML = '<div class="propHead">The Vocabulary' +
       (rows.length ? '' : (app ? '; none of the lists is in this resource fork' :

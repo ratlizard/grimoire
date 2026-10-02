@@ -1082,7 +1082,7 @@ function updateSheetSummary() {
     (s.blank ? ', ' + s.blank + ' blank hidden' : '') +
     (pending > 0 ? ', ' + pending + ' still off screen' : '') +
     ' (' + s.total + ' total) in ' + (CATEGORY_NAMES[s.subn] || 'Unknown Category') + '.' +
-    (s.subn === 131 ? ' Each strip is the picture in the status window that a script chooses with SetLandscapeImage, drawn over the sky for the time of day, or with no sky where the script gives a negative number. Each cell says which zones and rooms use it.' : '');
+    (s.subn === 131 ? ' Each strip is a picture a script chooses for the status window (SetLandscapeImage), drawn over the sky for the time of day, or with no sky where the script gives a negative number. Each cell says which zones and rooms use it.' : '');
 }
 
 function renderContactSheet() {

@@ -1035,7 +1035,7 @@ function showPropTypeDetail(pt) {
 // units and the notes are stated here, and only where the wiki or the archive
 // actually establishes them.
 const ITEM_FIELD_INFO = {
-  0x24: { scalar:true, unit:'grains', gloss:'Weight. System.WeightCapacity measures a container against the total of these.' },
+  0x24: { scalar:true, unit:'grains', gloss:'Weight. A container’s capacity is measured against the total of these (System.WeightCapacity).' },
   0x26: { scalar:true, gloss:'Equipment slot this occupies when worn or wielded.' },
   0x27: { scalar:true, hex:true, gloss:'Flags. What each bit means is not documented.' },
   // Read by FillIntfCache as seven flag bits (0x01 to 0x40), not a count:
