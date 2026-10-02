@@ -94,9 +94,9 @@ function spellsMechSection() {
     sp.spells.length ? '' : 'No spell in this file is cast through the shared script.',
     sp.spells.length ? [
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
-      sp.rule && sp.rule.timing ? 'The cost is taken, and the cast costs <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The cost is taken.',
+      sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The caster pays the cost.',
       'Spell damage works like a blow’s: the victim’s resistance applies, and the caster earns experience as usual.',
-      fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it is aimed at</b>, although its description says it engulfs all within.' : '',
+      fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it targets</b>, although its description says it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Non-magical damage, whether fire, electric, blunt or edged, does <b>nothing at all</b> to monsters that resist non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike count as magical, which is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
       'Spell damage prints no message, and <b>every enemy</b> means every hostile character on the loaded map, on screen or not, so Tremor hurts enemies you cannot see.',
       (function () {
@@ -113,7 +113,7 @@ function spellsMechSection() {
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
         if (!t.length) return '';
         const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: the target has to be in one of the eight squares around the caster. The rest can be aimed anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
+        return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: the target has to be in one of the eight squares around the caster. You can aim the rest anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
       })()
     ].filter(Boolean) : [],
     mechSpellFigures(sp) +
@@ -134,7 +134,7 @@ function balloonsMechSection() {
   const bark = appImage() ? exeBarkRules() : null;
   return mechSectionEl('balloons', 'Talk Balloons', null, '',
     'The short lines over a character’s head. ' +
-      (bark && bark.ticks && bark.width ? 'Each is drawn in a ' + srcNum(bark.width) + '×' + srcNum(bark.height) + ' balloon and disappears after <b>' + (bark.ticks.v / 60) + ' seconds</b> (' + srcNum(bark.ticks) + ' ticks of a sixtieth of a second).'
+      (bark && bark.ticks && bark.width ? 'Each appears in a ' + srcNum(bark.width) + '×' + srcNum(bark.height) + ' balloon and disappears after <b>' + (bark.ticks.v / 60) + ' seconds</b> (' + srcNum(bark.ticks) + ' ticks of a sixtieth of a second).'
         : MECH_NO_APP),
     ['A line is either fixed text or one picked at random from a list.', 'Two shared tavern scripts take a list of shouts, and a list of replies for when the food or wine arrives.',
      barks.length ? barks.length + ' places in this file’s scripts set a line, and the words are below.' : 'No script in this file sets a line.'],
@@ -159,7 +159,7 @@ function libraryMechSection(lib) {
         : 'No class in this file shows a document.',
     lib ? [
       '<b>' + passages + ' passages</b> across <b>' + lib.length + ' arrays</b>, shown by ' + [...new Set(lib.flatMap(d => d.readers.map(r => r.name)))].join(', ') + '.',
-      unshown.length ? '<b>' + unshown.length + ' are shown by nothing</b>: no prop in the world and no script points to them. They were written, but cannot be read in play.' : '',
+      unshown.length ? '<b>' + unshown.length + ' appear nowhere in play</b>: no prop in the world and no script points to them. They exist in the file, but you cannot read them.' : '',
       dangling.length ? '<b>' + dangling.length + '</b> are the other way round: a thing in the world whose Data1 points to no passage.' : ''
     ].filter(Boolean) : [],
     mechTable(['#passages', 'array', 'shown by', '#shown', '#not shown'], rows) +
@@ -193,7 +193,7 @@ function talkMechSection() {
                     : 'No conversation in this file.',
     cv.chars.length ? [
       '<b>' + cv.chars.length + ' characters</b> hold <b>' + topics + ' topics</b> between them, of which <b>' + deeper + '</b> open further topics.',
-      '<b>' + real.length + ' groups</b> are shared. The longest chains have four steps, and most characters use a House, then a city, then Human.',
+      '<b>' + real.length + ' groups</b> serve more than one character. The longest chains have four steps, and most characters use a House, then a city, then Human.',
       alone ? '<b>' + alone.who.length + ' answer as nobody but themselves</b>: ' + svEsc(alone.who.map(c => c.name).join(', ')) + '.' : '',
       others.length ? 'Not every 0x8xx resource is a group: ' + others.map(g => groupChip(g, g.kind)).join(' ') : ''
     ].filter(Boolean) : [],

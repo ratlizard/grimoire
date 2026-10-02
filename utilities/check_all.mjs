@@ -514,7 +514,7 @@ const CHECKS = [
    grep: /\d+ of \d+ strikes written as TrueType[^\n]*/},
   {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
-   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT 07b8bdb54554'},   // American spelling in the resource types' descriptions (colour to color), 2 October 2026
+   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT a43e9aac1a08'},   // a DATA and a LINF description out of the passive ("has not been worked out"), 2 October 2026; only those two types moved
 
   // The HFS disk-image writer index.html exports with. Structural on its
   // own; with a systemless checkout beside this one it also round-trips every

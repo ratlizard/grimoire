@@ -1891,7 +1891,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
     <label><input type="radio" name="animMode" value="off" onchange="setAnimMode(this.value)"> off</label>
     <span class="amNote">Water, lava and magic appear to move because the game cycles their colors in the palette, not
     because the picture changes. This setting controls that, and the walking and turning of sprites in the galleries.
-    Something drawn from several frames, like a fountain, is not palette cycling and is not affected.</span></div>
+    It does not affect something drawn from several frames, like a fountain, which is not palette cycling.</span></div>
   <label><input type="checkbox" id="chkBuiltinLabels" onchange="setBuiltinLabels(this.checked)">
     <span>Names from outside the game’s text
       <span class="amNote">Hand-identified labels from the delvmod wiki, resource names,
@@ -1904,15 +1904,15 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
     <label><input type="radio" name="faceChoice" value="game" onchange="setFaceChoice(this.value)"> the game’s, from the open file</label>
     <label><input type="radio" name="faceChoice" value="chicago" onchange="setFaceChoice(this.value)"> Chicago</label>
     <label><input type="radio" name="faceChoice" value="system" onchange="setFaceChoice(this.value)"> this device’s</label>
-    <span class="amNote">Cythera uses the font Argos A Nouveau, which is stored in the game’s resource fork. The page reads it from
+    <span class="amNote">Cythera uses the font Argos A Nouveau, which the game keeps in its resource fork. The page reads it from
     whatever file you open and uses it unless you choose otherwise here. With no file open there is nothing to read it from, so the
-    page uses Chicago, Susan Kare’s 1984 font for the Macintosh, recreated by Duane King. None of the game’s own files is included
-    with this page to stand in for it.</span></div>
+    page uses Chicago, Susan Kare’s 1984 font for the Macintosh, recreated by Duane King. This page includes none of the game’s files
+    to stand in for it.</span></div>
   <div id="unditherWrap">Undither
     <label><input type="radio" name="unditherScope" value="off" onchange="setUnditherScope(this.value)"> off</label>
     <label><input type="radio" name="unditherScope" value="portraits" onchange="setUnditherScope(this.value)"> portraits</label>
     <label><input type="radio" name="unditherScope" value="all" onchange="setUnditherScope(this.value)"> every graphic</label>
-    <span class="amNote">Cythera’s art is dithered for a 256-color screen. This smooths the checkerboard patterns
+    <span class="amNote">Cythera’s art uses dithering for a 256-color screen. This smooths the checkerboard patterns
     back into continuous shades. The result is an interpretation of the pixels, not the pixels themselves.</span></div>
 </div>
 <div id="creditsCaret" aria-hidden="true"></div>
@@ -1945,7 +1945,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
 <div id="searchWrap" role="dialog" aria-label="Search" style="display:none">
   <p class="sv-why" style="margin:0 0 8px">Searches every decoded script at once:
   instruction names, calls to the program and the text the player sees. Use it when a resource is clearly
-  related to something but is not referred to by number, which is true of most of them.</p>
+  related to something but nothing refers to it by number, which is true of most of them.</p>
   <input id="searchBox" type="search" placeholder="fire, TakeDamage, who teaches axe&hellip;" oninput="queueSearch()">
   <div id="searchResults"></div>
   <div id="searchPresets" class="sv-chips" style="justify-content:center;margin-top:8px"></div>
@@ -1979,7 +1979,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
         <option value="RSRC">Editor Stamps &amp; Brushes</option>
         <option value="MACRSRC">Resource Fork (all types)</option>
         <option value="MONSTERS">Monster Stats (0xF008)</option>
-        <option value="RECORDS">Records (the tables the scenario is built from)</option>
+        <option value="RECORDS">Records (the tables that make up the scenario)</option>
         <option value="135">Portraits (64x64)</option>
         <option value="137">Skill & Spell Icons (32×16)</option>
         <option value="24">Monster Class Scripts (0x19xx)</option>
@@ -2248,8 +2248,8 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   <audio id="audioPlayer" controls style="width:100%; margin-bottom:10px;"></audio>
   <button class="secondary" onclick="downloadCurrentWAV()">Save as WAV</button>
 </div>
-<div id="labelLegend" style="display:none"><span class="guessTag">wiki</span>, this name is supplied by
-this page from the delvmod wiki and is not in the file. Turn these names on or off under
+<div id="labelLegend" style="display:none"><span class="guessTag">wiki</span>, this page supplies this name
+from the delvmod wiki; it is not in the file. Turn these names on or off under
 &ldquo;Settings&rdquo;.</div>
 <div id="galleryTools" style="display:none">
   <span id="galleryArrange">
@@ -2414,7 +2414,7 @@ this page from the delvmod wiki and is not in the file. Turn these names on or o
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.237.1';
+const GRIMOIRE_VERSION = '1.237.2';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

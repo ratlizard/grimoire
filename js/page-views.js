@@ -252,7 +252,7 @@ function renderAppPefSheet() {
     box.innerHTML = '<div class="foldAll" style="justify-content:flex-start">' + svLink('All routines', 'pefBackToList()') + '</div>' +
       '<div class="changesHead">' + svEsc(view.name) + '</div>' +
       '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
-      (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes, and a slot in the program’s table of addresses shows what is stored there when the game starts.</p>' +
+      (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes, and a slot in the program’s table of addresses shows what the game stores there when it starts.</p>' +
       exeListingHTML(view, window.PEF_VIEW.at);
     grid.appendChild(box);
     out.textContent = view.name + ', ' + (view.length / 4) + ' instructions';
@@ -286,7 +286,7 @@ function renderAppPefSheet() {
   if (q) h += rs.length ? table(rs) : '<div class="changesNote">No routine matches.</div>';
   else h += [...byClass.entries()].sort((a, b) => (a[0] || '~').localeCompare(b[0] || '~')).map(([c, list]) =>
     '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(c || 'functions outside a class') + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + list.length + '</b></span></span></summary><div class="mechBody">' + table(list) + '</div></details>').join('');
-  h += '<p class="mechLede" style="margin-top:10px">Each name is decoded from the compiler’s shorthand, and left as written where it cannot be.</p>';
+  h += '<p class="mechLede" style="margin-top:10px">The page decodes each name from the compiler’s shorthand, and leaves it as written where it cannot.</p>';
   box.innerHTML = h;
   grid.appendChild(box);
   out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '; ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
@@ -316,7 +316,7 @@ const PREF_HELP = {
   Volume: ['sound', 'Preferences dialog', 'How loud the sound effects are, from 0, silent, to 8. At −1 the game leaves the Mac’s volume alone.'],
   Music: ['sound', 'Preferences dialog', 'How loud the music is, in eighths of full volume: 8 is full, 0 is silent.'],
   Ambient: ['sound', 'Preferences dialog', 'Background sounds, such as animals and ocean waves.'],
-  movement: ['movement', 'Preferences dialog', 'How a step from one square to the next is drawn: in four stages (Smoother), in two (Faster), or as one jump (Fastest). It takes the same game time in all three. The dialog’s Graphics Quality slider sets the same thing.'],
+  movement: ['movement', 'Preferences dialog', 'How the game draws a step from one square to the next: in four stages (Smoother), in two (Faster), or as one jump (Fastest). It takes the same game time in all three. The dialog’s Graphics Quality slider sets the same thing.'],
   frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second; these three come from the game’s hidden Preferences menu. The file can hold others, down to no limit at all. A higher limit plays each step’s animation faster; holding a key still walks at the pace of the Mac’s key repeat.'],
   motionFilters: ['movement', 'Preferences dialog', 'Leaves blowing on the trees and waves rippling across the ocean.'],
   walkAround: ['movement', 'Preferences dialog', 'The hero steps around things in the way rather than stopping at them.'],
@@ -327,7 +327,7 @@ const PREF_HELP = {
   switch256: ['startup', 'Asked at startup', 'On a screen set to more than 256 colors, the game switches it to 256 when it starts. Off, it runs in the colors the screen already has.'],
   dontAsk: ['startup', 'Asked at startup', 'The game does not ask about 256 colors when it starts. Off, it asks on a screen set to more than 256 colors, and the answer replaces the switch above.'],
   cheats: ['startup', 'Not in the game', null],
-  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if Command were held, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu; the right-click fix on the Patches tab puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
+  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if you held Command, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu; the right-click fix on the Patches tab puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
 };
 const PREF_GROUPS = [['sound', 'Sound'], ['movement', 'Game control'], ['windows', 'Windows'], ['startup', 'Starting the game'], ['mouse', 'Mouse'], ['other', 'Other settings']];
 function renderPrefsSheet() {
@@ -354,7 +354,7 @@ function renderPrefsSheet() {
     d.innerHTML = '<div class="changesGroupTitle">' + svEsc('Cythera’s preferences file') + '</div>' +
       '<div class="changesNote" style="margin-left:0"><b>' + svEsc('Open the game itself (Data › Installer, or drop the program on the page) and the settings appear here.') + '</b><br>' +
       svEsc('This writes Cythera’s preferences file, which holds the settings the game keeps in the Preferences folder of the System Folder, including the switch that makes its cheat keys work. ' +
-            'Every switch in it is read from the program’s code, so the game has to be open for there to be anything to write.') + '</div>';
+            'The page reads every switch in it from the program’s code, so the game has to be open for there to be anything to write.') + '</div>';
     box.appendChild(d);
     grid.appendChild(box);
     out.textContent = PREFS_FILE_NAME + ', the file the game keeps its settings in.';
@@ -366,7 +366,7 @@ function renderPrefsSheet() {
       'Each setting starts as a new copy of the game has it.') + '</p>' +
     '<p class="prefFrom">' + svEsc(layout.from === 'shipped'
       ? 'The settings are the same in all four releases, so nothing needs to be open. Open the game to read them from your own copy instead.'
-      : 'The settings are read from the program open here.') + '</p>';
+      : 'The page reads the settings from the program open here.') + '</p>';
   /* The two presets (cytheraPrefsPreset): each sets every row, the switches
      by their ids and the choosers by their values. Built with createElement,
      since the smokes' DOM stub does not parse innerHTML into elements. */
@@ -477,7 +477,7 @@ function renderPrefsSheet() {
   pbtns.className = 'prefSave';
   const saveNote = document.createElement('div');
   saveNote.className = 'prefSaveNote';
-  saveNote.textContent = 'Tested in the game: a file this page wrote was read, and cheat mode activated.';
+  saveNote.textContent = 'Tested in the game: the game read a file this page wrote, and cheat mode activated.';
   saveBox.appendChild(pbtns);
   saveBox.appendChild(saveNote);
   save.appendChild(saveBox);
@@ -559,7 +559,7 @@ function renderToolsSheet() {
   const pages = sec('The other pages', '');
   for (const [href, label, note] of [
     ['canvas.html', 'Color-cycling canvas', 'a paint studio for the palette animation Cythera uses for water and fire'],
-    ['https://github.com/ratlizard/grimoire', 'The repository', 'where this page and its tests are kept']]) {
+    ['https://github.com/ratlizard/grimoire', 'The repository', 'where this page and its tests live']]) {
     const b = document.createElement('button');
     b.className = 'secondary';
     b.style.cssText = 'width:auto;margin:6px 6px 0 0';
@@ -580,7 +580,7 @@ function renderToolsSheet() {
     : window.FACE_IN_USE === 'system'
       ? 'This device’s font, chosen under Settings.'
       : 'Chicago, Susan Kare’s 1984 font for the Macintosh, recreated by Duane King and included with this page. ' +
-        (window.GAME_FONT ? 'The game’s font is loaded and can be chosen under Settings.'
+        (window.GAME_FONT ? 'The game’s font is loaded; choose it under Settings.'
           : window.GAME_FONT_STATE === 'loading' ? 'The file’s font is still loading.'
           : window.GAME_FONT_STATE ? 'Could not use the file’s font: ' + window.GAME_FONT_STATE + '.'
           : 'Open a file to use the game’s font.');
@@ -604,10 +604,10 @@ function renderToolsSheet() {
       // The file and line, not the origin it was served from.
       ul.textContent = [...QUIET_FAILURES].map(([m, v]) => (v.count > 1 ? v.count + '\u00d7 ' : '') + m + (v.where ? '\n    ' + v.where.replace(/https?:\/\/[^/\s]+\//g, '') : '')).join('\n');
       q.appendChild(ul);
-    } else q.innerHTML += '<div class="changesNote" style="margin:6px 0 0">Everything the page has tried to read has worked. Anything that could not be read or drawn would be listed here, one line each, with how many times it happened.</div>';
+    } else q.innerHTML += '<div class="changesNote" style="margin:6px 0 0">Everything the page has tried to read has worked. Anything the page could not read or draw would appear here, one line each, with how many times it happened.</div>';
     box.appendChild(q);
   }
-  out.textContent = 'Settings and links; nothing here is read from the file except the font.';
+  out.textContent = 'Settings and links; nothing here comes from the file except the font.';
 }
 
 /* ---- A tile on a sheet opens on its own ---------------------------------------
@@ -2224,7 +2224,7 @@ function renderText(sameResource) {
     if (isScript) {
       buildScriptView({ resid, subn, byteLength: rlen, readNote: readNote.replace(/\s+/g, ' '), resData });
       content = (scriptText ? scriptText + '\n\n' : '') + content;
-      if (!scriptText && !content.trim()) content = 'Nothing in this resource could be read as Delver script code.';
+      if (!scriptText && !content.trim()) content = 'Nothing in this resource reads as Delver script code.';
     } else if (sv) {
       sv.style.display = 'none'; sv.innerHTML = '';
       const refs = document.getElementById('scriptRefs');
@@ -2721,7 +2721,7 @@ function startResourceEdit() {
   document.getElementById('editBytesNote').textContent =
     'Plaintext bytes of 0x' + currentResid.toString(16).toUpperCase() +
     (dec.wasDecrypted ? ' (stored encrypted; re-encrypted on rebuild)' : '') +
-    '. Spaces are ignored and the length may change; emptying it removes the ' +
+    '. The page ignores spaces and the length may change; emptying it removes the ' +
     'resource from the file.';
   document.getElementById('editBytesWrap').style.display = '';
 }
@@ -2761,7 +2761,7 @@ function startCodeEdit() {
   document.getElementById('editCodeTo').value = '';
   document.getElementById('editCodePreview').textContent = '';
   document.getElementById('editCodeNote').textContent = 'Instructions for 0x' + currentResid.toString(16).toUpperCase() +
-    ', one per line, as the raw listing prints them. They are inserted at the offset given, replacing the instructions up to the second offset if there is one, and every other offset in the resource is adjusted around them. A label is a name followed by a colon on its own line, and a jump to it is written "then -> name" or "branch name".';
+    ', one per line, as the raw listing prints them. The page inserts them at the offset given, replacing the instructions up to the second offset if there is one, and adjusts every other offset in the resource around them. A label is a name followed by a colon on its own line, and a jump to it reads "then -> name" or "branch name".';
   document.getElementById('editCodeWrap').style.display = '';
 }
 function cancelCodeEdit() { document.getElementById('editCodeWrap').style.display = 'none'; }
@@ -2777,7 +2777,7 @@ function previewCodeEdit() {
       const a = fn[0] + o[0], mark = a >= e.at && a < e.at + e.asm.bytes.length ? '+ ' : '  ';
       return mark + a.toString(16).toUpperCase().padStart(4, '0') + '  ' + o[2] + (o[3] ? ' ' + o[3] : '');
     });
-    pre.textContent = (e.rl.delta >= 0 ? '+' : '') + e.rl.delta + ' bytes, ' + e.rl.moved + ' offsets moved. The new lines are marked +.\n\n' + lines.join('\n');
+    pre.textContent = (e.rl.delta >= 0 ? '+' : '') + e.rl.delta + ' bytes, ' + e.rl.moved + ' offsets moved. A + marks the new lines.\n\n' + lines.join('\n');
   } catch (err) { pre.textContent = err.message; }
 }
 function applyCodeEdit() {
@@ -2802,13 +2802,13 @@ function parseHexBytes(text) {
 
 function applyResourceEditFromText() {
   const bytes = parseHexBytes(document.getElementById('editBytesText').value);
-  if (!bytes) { setStatus('That is not hex. Enter pairs of 0–9 and a–f; spaces are ignored, and the count must be even.', true); return; }
+  if (!bytes) { setStatus('That is not hex. Enter pairs of 0–9 and a–f; the page ignores spaces, and the count must be even.', true); return; }
   if (applyResourceEdit(currentResid, bytes)) cancelResourceEdit();
 }
 
 function applyResourceEdit(resid, newData) {
   const spec = delverArchiveSpec(ARCHIVE.bytes);
-  if (!spec) { setStatus('The open file could not be read again after the change, so nothing was changed.', true); return false; }
+  if (!spec) { setStatus('Could not read the open file again after the change, so nothing changed.', true); return false; }
   const entry = spec.resources.find(r => r.resid === resid);
   if (!entry) { setStatus('0x' + resid.toString(16).toUpperCase() + ' is not in the file.', true); return false; }
   if (newData.length) entry.data = newData;
@@ -2825,7 +2825,7 @@ function applyResourceEdit(resid, newData) {
   refreshChangesBadge();
   setStatus('Rebuilt the file with 0x' + resid.toString(16).toUpperCase() +
     (newData.length ? ' edited' : ' removed') + ', ' + dirty.size +
-    ' resource(s) changed this session. Edits are kept in memory only; to download the edited file, go to ' +
+    ' resource(s) changed this session. The page keeps edits in memory only; to download the edited file, go to ' +
     'Data › Cythera Data › Changes.');
   showEditNotice(resid, newData.length ? 'edited' : 'removed', dirty.size);
   return true;
@@ -2880,7 +2880,7 @@ function togglePropEdit(propResid, index) {
     fld('d3 0x', 'd3', rec.d3.toString(16).padStart(4, '0').toUpperCase()) +
     fld('ref 0x', 'storeref', rec.storeref.toString(16).padStart(4, '0').toUpperCase()) +
     '<button class="sv-chip" onclick="applyPropEditForm(' + propResid + ',' + index + ')">Apply</button>' +
-    '<div class="inspDim">x and y are the stored location: for a prop that is carried or inside something, ' +
+    '<div class="inspDim">x and y are the location in the file: for a prop that is carried or inside something, ' +
     'they give the holder, not a square. Apply rebuilds the whole file.</div>';
   host.style.display = '';
 }
@@ -2991,7 +2991,7 @@ const ZIP_FOLDER_NAME = 'Cythera Patch';
    which is why index.html fetches the `.hqx` and not the data fork. */
 function missingForkWarning(rsrc) {
   if (rsrc && rsrc.length) return null;
-  return 'This file was opened without its resource fork, so the disk will not ' +
+  return 'You opened this file without its resource fork, so the disk will not ' +
          'work in the game: Cythera refuses it with “Unable to open RT”. Open the ' +
          '.hqx (or a MacBinary copy) instead of the data fork alone, and export again.';
 }

@@ -80,7 +80,7 @@ function fontSwapPanel() {
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoFontSwap()">Restore the game’s font</button>' : '') +
         '</div>' +
         (sw ? '<blockquote class="mechQuote">' + svEsc(sw.name) + ' is in the file as sfnt ' + sw.from + '. ' +
-              sw.mapped + ' of the characters the game uses were found, in a format ' + sw.format + ' character map, ' +
+              sw.mapped + ' of the characters the game uses are in it, in a format ' + sw.format + ' character map, ' +
               (sw.bytes / 1024).toFixed(0) + ' KB of outlines.</blockquote>' : '') +
         '<div id="fontSwapNote" class="mechSub"></div>'
       : '<p class="mechLede">No font resource is open. Open Cythera Data from a file that includes its resource fork: a .hqx, MacBinary or AppleSingle file.</p>') +
@@ -109,7 +109,7 @@ function fontSwapPanel() {
 }
 function undoFontSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The original resource fork was not kept; open the file again to get it back.', true); return; }
+  if (!rec) { setStatus('The page did not keep the original resource fork; open the file again to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.FONT_SWAP = null;
@@ -339,7 +339,7 @@ function swapSeldane(bytes, filename) {
 }
 function undoStrikeSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The original resource fork was not kept; open the file again to get it back.', true); return; }
+  if (!rec) { setStatus('The page did not keep the original resource fork; open the file again to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.STRIKE_SWAP = null;
@@ -384,7 +384,7 @@ function exportStrikeTrueType(id) {
     setStatus(family + '.ttf written: ' + (spec.ascent + spec.descent) + ' pixels to the em, ' +
               'so it draws these pixels at ' + (spec.ascent + spec.descent) + 'px and at every multiple of it.');
   } catch (err) {
-    setStatus('That size could not be saved as a TrueType font: ' + err.message, true);
+    setStatus('Could not save that size as a TrueType font: ' + err.message, true);
   }
 }
 function strikeSwapPanel() {
@@ -396,7 +396,7 @@ function strikeSwapPanel() {
     (strikes
       ? '<p class="mechLede">Choose a TrueType font to redraw the Seldane script (' + strikes.map(e => 'NFNT ' + e.id).join(' and ') + ') at both its sizes, in the copy of the file in this browser.</p>' +
         '<ul class="ruleList">' +
-        '<li>Only the 24 letters Seldane has are replaced. It has no L and no O.</li>' +
+        '<li>The page replaces only the 24 letters Seldane has. It has no L and no O.</li>' +
         '<li>A thin font may come out broken up at the small size.</li></ul>' +
         '<div class="mechStats"><input type="file" id="strikeSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoStrikeSwap()">Restore the file’s script</button>' : '') +
@@ -637,7 +637,7 @@ function installGameFont() {
   if (!entry) { window.GAME_FONT_STATE = 'the resource fork holds no sfnt'; return; }
   let ttf;
   try { ttf = sfntToTrueType(fork.dataOf('sfnt', entry)); }
-  catch (e) { window.GAME_FONT_STATE = 'sfnt ' + entry.id + ' could not be made into a TrueType file: ' + e.message; return; }
+  catch (e) { window.GAME_FONT_STATE = 'sfnt ' + entry.id + ': could not make a TrueType file of it: ' + e.message; return; }
   window.GAME_FONT_TTF = ttf;
   if (typeof FontFace === 'undefined' || !document.fonts) { window.GAME_FONT_STATE = 'this browser cannot load a font from bytes'; return; }
   try {
@@ -823,7 +823,7 @@ function renderRsrcSheet() {
 
   const inv = rsrcInventory();
   if (!inv) {
-    out.textContent = 'No resource fork. It comes from the file Cythera Data was opened from: ' +
+    out.textContent = 'No resource fork. It comes from the file you opened Cythera Data from: ' +
       'a .hqx, MacBinary or AppleSingle file includes both forks, but the data fork alone does not. ' +
       'Open the file again from "Cythera Data.hqx" to get it.';
     return;
@@ -862,7 +862,7 @@ function renderRsrcSheet() {
       drawTilePattern(canvas, it.pat, 24);
       fitGalleryCell(cell, imgwrap, { canvas, cols: it.pat.cols, rows: it.pat.rows }, 24);
     });
-    cell.title = 'Click for the tiles it is made of';
+    cell.title = 'Click for its tiles';
     cell.onclick = () => showRsrcDetail(it.type, it.entry.id);
     grid.appendChild(cell);
   }
@@ -874,7 +874,7 @@ function renderRsrcSheet() {
     box.style.cssText = 'grid-column:1/-1';
     box.innerHTML = '<div class="partsTitle">Displacement filters</div>' +
       '<p class="mechSub">The game reads these when it starts (' + pefChip('LoadDisplacementFilters') + ') and runs one over every tile the table 0xF016 names for it (' + pefChip('DisplacementFilterTile') +
-      '): a pixel whose color is in the filter’s set is replaced by the pixel of the tile at the offset the current frame gives for it, and the frame moves on every tick (' + pefChip('AdvanceDisplacementFilters') +
+      '): the game replaces a pixel whose color is in the filter’s set with the pixel of the tile at the offset the current frame gives for it, and the frame moves on every tick (' + pefChip('AdvanceDisplacementFilters') +
       '), or every other tick when the period is 1. This is how water, shore and seaweed ripple, lava and the void churn, fire shimmers, and trees and crops sway.</p>';
     for (const f of filters) {
       const card = document.createElement('div');
@@ -907,7 +907,7 @@ function renderRsrcSheet() {
     fmtBytes(inv.bytes) + '. Showing ' +
     Object.keys(kinds).map(k => kinds[k] + ' ' + RSRC_DELVER_TYPES[k]).join(' and ') +
     (q ? ' matching “' + q + '”' : '') + '. ' +
-    'A stamp is a patch of terrain at the size it states. A brush is sixteen entries, shown here as a four-by-four table of one terrain meeting another; the empty cells are the ones the resource leaves at zero. The names of the rows and columns are not recorded in the resource fork. ' +
+    'A stamp is a patch of terrain at the size it states. A brush is sixteen entries, shown here as a four-by-four table of one terrain meeting another; the empty cells are the ones the resource leaves at zero. The resource fork does not record the names of the rows and columns. ' +
     'Also in the fork, under Data › Cythera Data › Resource Fork: ' +
     inv.other.map(r => r.count + ' ' + r.type.trim()).join(', ') + '.';
 }
@@ -1122,8 +1122,8 @@ function renderMacRsrcSheet() {
     if (!fork) {
       missing.push(src === 'app'
         ? (window.APP_RSRC_STATE === 'loading' ? 'Loading the program…'
-           : window.APP_RSRC_STATE || 'The program’s fork is not loaded yet.')
-        : 'No resource fork came with the file. It comes from the file Cythera Data was opened from: a .hqx, MacBinary or AppleSingle file includes both forks, but the data fork alone does not.');
+           : window.APP_RSRC_STATE || 'The program’s fork is not open yet.')
+        : 'No resource fork came with the file. It comes from the file you opened Cythera Data from: a .hqx, MacBinary or AppleSingle file includes both forks, but the data fork alone does not.');
       continue;
     }
     total += fork.total();
@@ -1456,7 +1456,7 @@ function showCharacterDetail(i) {
     g.appendChild(back);
     const note = document.createElement('div');
     note.className = 'sv-warn';
-    note.textContent = 'This file has no character ' + i + '. A saved game contains only what play has changed, and a link can outlast the file it was made from.';
+    note.textContent = 'This file has no character ' + i + '. A saved game contains only what play has changed, and a link can outlast the file it came from.';
     g.appendChild(note);
     document.getElementById('output').textContent = 'No character ' + i + ' in this file.';
     return;
@@ -1575,7 +1575,7 @@ function showCharacterDetail(i) {
                (behaviourWordHTML(e.mode) ? ', ' + behaviourWordHTML(e.mode) : '') + '</span></div>';
       }).join('');
   } else {
-    sh.innerHTML = '<div style="color:#8c8980;font-size:0.8125rem">No schedule entries: this character is placed directly in a map\u2019s prop list rather than moving by the clock.</div>';
+    sh.innerHTML = '<div style="color:#8c8980;font-size:0.8125rem">No schedule entries: this character stands in a map\u2019s prop list rather than moving by the clock.</div>';
   }
   // Jump to where this character currently stands.
   if (r.zone) {
@@ -1608,9 +1608,9 @@ function heroPortraitCard() {
   const head = '<b style="color:#b5b2a8">Portrait</b> ';
   if (!pc) {
     card.innerHTML = head + (isSave
-      ? 'The portrait above is this file\u2019s 0x8800, chosen when the character was made. '
+      ? 'The portrait above is this file\u2019s 0x8800, chosen when you made the character. '
       : 'The portrait above is the scenario\u2019s 0x8800 and is never shown in play. ') +
-      'Which portraits the game offers when a character is made, and where the chosen one is written, is read from the program, which is not open.';
+      'The program says which portraits the game offers when you make a character, and where it writes the chosen one, and the program is not open.';
     return card;
   }
   const hex = v => '0x' + v.toString(16).toUpperCase();
@@ -1618,8 +1618,8 @@ function heroPortraitCard() {
   const slots = [];
   for (let r = first; r < first + 64 && getResourceBytes(ARCHIVE, r); r++) slots.push(r);
   let text = head + (isSave
-    ? 'The portrait above is the one chosen when this character was made, ' + srcNum(pc.writes, 'saved') + ' in this file. '
-    : 'The portrait above is never shown in play; the game uses the one chosen when the character is made, which is ' + srcNum(pc.writes, 'saved') + ' in the saved game file. ');
+    ? 'The portrait above is the one chosen when you made this character, ' + srcNum(pc.writes, 'saved') + ' in this file. '
+    : 'The portrait above is never shown in play; the game uses the one you choose when you make the character, which is ' + srcNum(pc.writes, 'saved') + ' in the saved game file. ');
   const choices = 'The ' + srcNum(pc.first, 'choices') + ' at character creation';
   if (!slots.length) { card.innerHTML = text + choices + ' are not in this file.'; return card; }
   // Which of the run the list draws: column c, row r is the first plus the
@@ -1696,14 +1696,14 @@ function renderCompositeSheet() {
       if (missing > 0) lblDiv.textContent = missing + '/16 fragments missing';
       okCount++;
     } catch(err) { return; }
-    cell.title = "Click to see the tiles it is made from; Shift-click to save a PNG";
+    cell.title = "Click to see its tiles; Shift-click to save a PNG";
     cell.onclick = (ev) => {
       if (ev.shiftKey) { downloadCanvasAsPNG(canvas, tileId); return; }
       showCompositeDetail(tileId, entry, canvas);
     };
     grid.appendChild(cell);
   });
-  out.textContent = "Composite tiles: " + okCount + "/" + entries.length + " drawn (entries whose source sheets are mostly missing are hidden). Shift-click to save a PNG.";
+  out.textContent = "Composite tiles: " + okCount + "/" + entries.length + " drawn (hiding entries whose source sheets are mostly missing). Shift-click to save a PNG.";
 }
 
 // setMode and onCategoryChange are the two funnels every view change passes

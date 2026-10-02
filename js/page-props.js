@@ -867,7 +867,7 @@ function renderPropTypeSheet() {
     grid.appendChild(cell);
   }
   out.textContent = scenery
-    ? entries.length + ' placed things that are neither units nor carried. Each is drawn whole, covering the squares its tiles span; where the scenario puts several of the same class side by side at different aspects, the whole group is drawn as it stands' + (q ? ', matching \u201c' + q + '\u201d' : '') + '.'
+    ? entries.length + ' placed things that are neither units nor carried. The page draws each whole, covering the squares its tiles span; where the scenario puts several of the same class side by side at different aspects, it draws the whole group as it stands' + (q ? ', matching \u201c' + q + '\u201d' : '') + '.'
     : entries.length + ' prop types with artwork' + (q ? ' matching \u201c' + q + '\u201d' : '') + '.';
 }
 
@@ -1035,9 +1035,9 @@ function showPropTypeDetail(pt) {
 // units and the notes are stated here, and only where the wiki or the archive
 // actually establishes them.
 const ITEM_FIELD_INFO = {
-  0x24: { scalar:true, unit:'grains', gloss:'Weight. A container’s capacity is measured against the total of these (System.WeightCapacity).' },
+  0x24: { scalar:true, unit:'grains', gloss:'Weight. The game measures a container’s capacity against the total of these (System.WeightCapacity).' },
   0x26: { scalar:true, gloss:'Equipment slot this occupies when worn or wielded.' },
-  0x27: { scalar:true, hex:true, gloss:'Flags. What each bit means is not documented.' },
+  0x27: { scalar:true, hex:true, gloss:'Flags. Nothing documents what each bit means.' },
   // Read by FillIntfCache as seven flag bits (0x01 to 0x40), not a count:
   // 0x04 is the letter under the picture (itemLetter). The rest are copied
   // into the class flag table and not yet followed to their readers.
@@ -1055,9 +1055,9 @@ const ITEM_FIELD_INFO = {
   0x2F: { gloss:'Shield: how much it blocks, and the skill (Shield) added to the block.' },
   0x30: { scalar:true, gloss:'Reagent number, used by alchemy.' },
   0x32: { gloss:'Light this item casts.' },
-  0x34: { gloss:'Lock settings: what a key or a lockpick is tested against.' },
+  0x34: { gloss:'Lock settings: what the game tests a key or a lockpick against.' },
   0x3B: { gloss:'Sounds. A prop plays the first one where it stands; a creature’s are the sounds of its fights.' },
-  0x3C: { scalar:true, unit:'obols', gloss:'Money value. Only the coin itself has one; shop prices are worked out by script.' }
+  0x3C: { scalar:true, unit:'obols', gloss:'Money value. Only the coin itself has one; scripts work out shop prices.' }
 };
 // Keys that mark an item as gear rather than goods, used only for grouping.
 const ITEM_COMBAT_KEYS = [0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F];
@@ -1733,7 +1733,7 @@ function propWordRender() {
   const w = s => '<b style="color:#fff">' + s + '</b>';
   const name = terrainNameFor(tile) || '', own = terrainNameFor(base) || propDisplayName(pt) || '';
   const bits = word.toString(2).padStart(16, '0');
-  let h = '<div class="sv-note" style="margin:0 0 8px">Every placed thing is stored as one number: its prop type, here ' + w(pt) + ' (' + w(propWordHex(pt)) + '), plus 1,024 for each step of aspect. ' +
+  let h = '<div class="sv-note" style="margin:0 0 8px">The file stores every placed thing as one number: its prop type, here ' + w(pt) + ' (' + w(propWordHex(pt)) + '), plus 1,024 for each step of aspect. ' +
     'Aspect <i>n</i> shows the picture <i>n</i> tiles along, with that picture’s name. ' + propWordAspectSentence(pt) + (swingFramesHTML(pt) || (gearTable().some(r => r.pt === pt && r.melee) ? ' The swing in a fight is the class’s animation, whatever the aspect.' : ''));
   let wear = [];
   try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
@@ -1835,8 +1835,8 @@ const ITEM_GROUP_ORDER = ['Weapons & Armor', 'Containers', 'Carried Goods'];
 // table, and the item test is isInventoryItem's.
 function itemGroupNote(group) {
   if (group === 'Weapons & Armor') return 'Anything used in a fight: weapons, launchers, ammunition, armor and shields.';
-  if (group === 'Containers') return 'Anything that holds other things or can be locked.';
-  return 'Everything else that can be picked up and carried.';
+  if (group === 'Containers') return 'Anything that holds other things or has a lock.';
+  return 'Everything else you can pick up and carry.';
 }
 
 function renderItemSheet() {
@@ -2173,7 +2173,7 @@ function showItemDetail(pt) {
   {
     const host = document.createElement('div');
     fold('word', 'Prop record', propWordHex(pt) + ' at aspect 0, Data1 and Data2', host);
-    try { propWordMount(pt, host); } catch (e) { host.className = 'sv-note'; host.textContent = 'The prop record could not be read: ' + (e && e.message ? e.message : e); }
+    try { propWordMount(pt, host); } catch (e) { host.className = 'sv-note'; host.textContent = 'Could not read the prop record: ' + (e && e.message ? e.message : e); }
   }
   const strangers = runs.filter(r => r.name !== terrainNameFor(base));
   if (strangers.length) {
@@ -2355,7 +2355,7 @@ function showItemDetail(pt) {
     body += itemEachOneHTML(pt);
     fold('world', 'In the world', idx.total + ' placed' + (idx.carried + idx.equipped ? ', ' + (idx.carried + idx.equipped) + ' carried' : '') + (idx.contained ? ', ' + idx.contained + ' in containers' : ''), body);
   } else {
-    fold('world', 'In the world', 'none placed', '<div class="sv-note">None of these is placed in the original scenario, so it is either created by a script or unused.</div>');
+    fold('world', 'In the world', 'none placed', '<div class="sv-note">The original scenario places none of these, so either a script creates it or nothing uses it.</div>');
   }
 
   // The key is one prop type carrying eight different keys, told apart by

@@ -649,7 +649,7 @@ function renderSchedulesSheet() {
         srcNum(who.aliveBit.mask, 'the dead') + ', companions ' + srcNum(who.waiting.value, 'told to wait') +
         (waits.length ? ' (by ' + waits.map(w => srcNum({ resid: w.resid, at: w.at }, labelFor(w.resid) || propWordHex(w.resid))).join(', ') + ')' : '') +
         ', and anyone ' + srcNum(who.monsterWord.disp, 'in a fight') + '. ' + pefChip('ScheduleTime');
-    } else lede.innerHTML = 'The program is not open, so who each hour skips is not shown. The days below come from the file.';
+    } else lede.innerHTML = 'The program is not open, so the page cannot show who each hour skips. The days below come from the file.';
     box.appendChild(lede);
   }
   const ampm = h => h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
@@ -717,11 +717,11 @@ const SCHED_COMPARE = ['is', 'is at least', 'is not', 'is less than'];
 function scheduleCondition(e) {
   const k = e.cond, a = e.arg;
   if (!k) return null;
-  if (k === 1) return { stop: true, text: 'stop if one above was taken' };
+  if (k === 1) return { stop: true, text: 'stop if the schedule took one above' };
   if (k === 2 || k === 3) return { text: 'if quest flag ' + a + (k === 2 ? ' is set' : ' is clear') };
   if (k >= 0x20 && k < 0x40) {
     const n = k & 7, top = n ? (1 << (n + 1)) - 1 : 0;
-    return { text: 'if a roll of 0 to ' + top + ' ' + SCHED_COMPARE[(k >> 3) & 3] + ' ' + a };
+    return { text: 'if a random number from 0 to ' + top + ' ' + SCHED_COMPARE[(k >> 3) & 3] + ' ' + a };
   }
   if (k >= 0x40 && k < 0x80) {
     const f = k & 0x1F, nm = dvmFlagName(f);
@@ -1493,13 +1493,13 @@ function damageRowWords(r) {
   if (r.types.length) bits.push('the damage changed by its type');
   if (r.rule === 'door') bits.push('bashed as a door' + (r.strength ? ' of strength ' + srcNum(r.strength) : ''));
   else if (r.rule === 'chest') bits.push('bashed as a chest' + (r.strength ? ' of strength ' + srcNum(r.strength) : ''));
-  else if (r.rule === 'lock') bits.push('a lock of strength ' + srcNum(r.strength) + ', opened by a blow above what is left' + (r.wear ? ' and worn down by one above what is left ÷ ' + srcNum(r.wear) : '') + (r.deletes ? '; destroyed when struck closed and unlocked' : ''));
+  else if (r.rule === 'lock') bits.push('a lock of strength ' + srcNum(r.strength) + ', which a blow above what is left opens' + (r.wear ? ' and loses one to a blow above what is left ÷ ' + srcNum(r.wear) : '') + (r.deletes ? '; destroyed when struck closed and unlocked' : ''));
   else if (r.rule === 'data2') bits.push('breaks when a blow is above its Data2' + (r.data2Default ? ', ' + srcNum(r.data2Default) + ' until set' : ''));
   if (r.becomes) bits.push('becomes ' + svEsc(propDisplayName(r.becomes.v) || 'prop type') + ' (prop type ' + srcNum(r.becomes) + ')');
   else if (r.aspects.length && r.rule !== 'lock') bits.push('shows aspect ' + r.aspects.filter((a, i, all) => all.findIndex(b => b.v === a.v) === i).map(a => srcNum(a)).join(' or '));
   if (r.deletes && r.rule !== 'lock') bits.push('destroyed');
   if (r.spills !== null) bits.push('drops what it held');
-  if (r.xp) bits.push('rolls for a hit and gives ' + srcNum(r.xp) + ' experience for one' + (r.xpWhileBelow ? ', until its Data1 counts to ' + srcNum(r.xpWhileBelow) : ''));
+  if (r.xp) bits.push('checks for a hit and gives ' + srcNum(r.xp) + ' experience for one' + (r.xpWhileBelow ? ', until its Data1 counts to ' + srcNum(r.xpWhileBelow) : ''));
   return bits.join('; ');
 }
 function damageTakers() {
@@ -5530,7 +5530,7 @@ function dvmAmountExpr(tokens) {
    the one value is printed rather than a backwards range. */
 function rollWords(r) {
   const lo = r[0], hi = r[1] - 1;
-  return hi <= lo ? 'a fixed ' + lo : 'a roll of ' + lo + ' to ' + hi;
+  return hi <= lo ? 'a fixed ' + lo : 'a random number from ' + lo + ' to ' + hi;
 }
 function amountWords(a) {
   if (!a) return '';
@@ -5538,7 +5538,7 @@ function amountWords(a) {
   if (a.base || !a.rolls.length) parts.push(String(a.base));
   const same = a.rolls.length && a.rolls.every(r => r[0] === a.rolls[0][0] && r[1] === a.rolls[0][1]);
   if (a.rolls.length === 1) parts.push(rollWords(a.rolls[0]));
-  else if (a.rolls.length > 1 && same) parts.push(['two', 'three', 'four'][a.rolls.length - 2] + ' ' + rollWords(a.rolls[0]).replace(/^a roll of/, 'rolls of').replace(/^a fixed/, 'times'));
+  else if (a.rolls.length > 1 && same) parts.push(['two', 'three', 'four'][a.rolls.length - 2] + ' ' + rollWords(a.rolls[0]).replace(/^a random number/, 'random numbers').replace(/^a fixed/, 'times'));
   else a.rolls.forEach(r => parts.push(rollWords(r)));
   return parts.join(' + ');
 }

@@ -193,7 +193,7 @@ function mechDiceBytes(dice) {
   if (pay) tries.push('Write <b>00</b> at ' + hex4(pay.at) + ' and a match pays nothing: <b>' + mean({ matchPay: 0 }) + '</b> an obol a game without the skill, <b>' + mean({ matchPay: 0, gambling: true }) + '</b> with it.');
   if (pay) tries.push('Write <b>7F</b> there and a match pays 127: <b>' + mean({ matchPay: 127 }) + '</b> a game.');
   if (fix && fix.next !== null && gate && gate.next !== null && !dice.skillAlways)
-    tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + hex4(fix.at) + ' and the Gambling skill moves your die whatever was rolled, so every game played with the skill is a match: <b>' + mean({ skillAlways: true, gambling: true }) + '</b> a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + hex4(gate.at) + ' as well, and the skill is not needed either.');
+    tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + hex4(fix.at) + ' and the Gambling skill moves your die whatever the roll, so every game you play with the skill is a match: <b>' + mean({ skillAlways: true, gambling: true }) + '</b> a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + hex4(gate.at) + ' as well, and you do not need the skill either.');
   return '<div class="mechSub">What to edit</div>' +
     '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>byte</th><th class="num">at, in 0x812</th><th class="num">now</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     (tries.length ? '<ul class="ruleList">' + tries.map(t => '<li>' + t + '</li>').join('') + '</ul>' : '');
@@ -386,10 +386,10 @@ function combatSimHtml(p, cb) {
     ]),
     'A blow that lands does <b>' + x.meanDamage.toFixed(1) + '</b> points on average, so an exchange is worth <b>' +
     (x.meanDamage * x.hit).toFixed(1) + '</b>.' +
-    (bodyRoll > 1 ? ' A body of ' + p.body + ' adds a roll of 0 to ' + (bodyRoll - 1) + ' to the ' + p.weapon.name + '’s ' + p.weapon.damage + '.' : '') +
+    (bodyRoll > 1 ? ' A body of ' + p.body + ' adds a random number from 0 to ' + (bodyRoll - 1) + ' to the ' + p.weapon.name + '’s ' + p.weapon.damage + '.' : '') +
     (p.bodyForReflex && cb.bodyForReflex ? ' The margin starts from the body, ' + p.body + ', in place of reflex.' : '') +
     (cb.skillOffLoop ? ' Of the skills, only Shield changes the result.' : '')) +
-  mechFig('The margin, and where it is spent', mechPlot({
+  mechFig('The margin, and where it goes', mechPlot({
     height: 130,
     x: { min: lo, max: hi, ticks: [{ v: lo, label: String(lo) }, { v: 0, label: '0' }, { v: hi, label: '+' + hi }] },
     y: { min: 0, max: peak * 1.08, ticks: [{ v: peak, label: (100 * peak).toFixed(1) + '%' }, { v: 0, label: '0' }] },
@@ -491,7 +491,7 @@ function mechGearFigure(gear) {
       ? 'The color is the weapon’s skill, which ' + srcNum(offLoop[1] || offLoop[0], 'adds nothing') + '.'
       : 'The color is the weapon’s skill.') +
     (armour.length ? mechFig('Armor, in points of protection', mechBars(armour)) : '') +
-    (shields.length ? mechFig('Shields, the roll they block', mechBars(shields),
+    (shields.length ? mechFig('What each shield can block', mechBars(shields),
       'A shield does more against a weak attacker than a strong one.') : '');
 }
 
@@ -513,7 +513,7 @@ function mechSpellFigures(sp) {
     height: 150, series,
     x: { min: 0, max: 25, ticks: [{ v: 0, label: '0' }, { v: 5, label: '5' }, { v: 10, label: '10' }, { v: 15, label: '15' }, { v: 20, label: '20' }, { v: 25, label: '25' }] },
     y: { min: 0, max: 100, ticks: [{ v: 100, label: '100%' }, { v: 50, label: '50%' }, { v: 25, label: '25%' }, { v: 0, label: '0' }] }
-  }), 'Two rolls below the caster’s Casting figure are set against one roll below the spell’s level. A <b>level 1 spell never fails</b>, because its roll is <i>Random(0, 1)</i>, which is always 0. The magic points are spent whether the cast works or not, so a high-level spell is expensive twice over.') +
+  }), 'The game adds two random numbers below the caster’s Casting figure, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>: the only number below 1 is 0. The caster spends the magic points whether the cast works or not, so a high-level spell is expensive twice over.') +
   mechFig('What each spell costs, against its level', mechPlot({
     height: 120,
     x: { min: 0, max: Math.max.apply(null, levels) + 1, ticks: levels.map(l => ({ v: l, label: String(l) })) },
@@ -604,7 +604,7 @@ function mechStatusFigure(st, unit) {
   return mechFig(unit ? 'How long a status lasts, against the game hour' : 'How long a status lasts, in clock units',
     mechBars(rows.map(r => ({ label: r.label, value: r.value, colour: MECH_INK.violet,
       text: !unit ? String(r.value) : r.value >= unit ? (r.value / unit).toFixed(r.value % unit ? 1 : 0) + ' h' : Math.round(60 * r.value / unit) + ' min' })), { max: Math.max(unit || 0, rows[0].value) }),
-    'The longest each status lasts. Random durations are left out.');
+    'The longest each status lasts. The chart leaves out random durations.');
 }
 
 // The clock's own arithmetic, over four days: the belly empties in a hundred
@@ -792,7 +792,7 @@ function mechSkillsFigure(sk) {
   if (rows.length < 2) return '';
   rows.sort((a, b) => b.value - a.value);
   return mechFig('How many scripts ask about each skill', mechBars(rows, { colour: MECH_INK.cool }),
-    'Only the checks that name a skill directly' + (sk.generic ? '; <b>' + sk.generic + '</b> more are in shared scripts that check whichever skill they are given' : '') + '.');
+    'Only the checks that name a skill directly' + (sk.generic ? '; <b>' + sk.generic + '</b> more are in shared scripts that check whichever skill their caller passes' : '') + '.');
 }
 
 /* ---- the community's patches, read against the open file -------------------
@@ -845,7 +845,7 @@ function patchesOpenBytes(bytes, name) {
   if (!base) { say('No game file is open to compare the patch with.', true); return false; }
   let got;
   try { got = extractDelverArchive(bytes); }
-  catch (e) { say('That file could not be opened: ' + e.message, true); return false; }
+  catch (e) { say('Could not open that file: ' + e.message, true); return false; }
   const patch = delverArchiveSpec(got.bytes);
   if (!patch) { say('That file is not a Delver Archive, so it is not a Magpie patch.', true); return false; }
   const report = describeDelverPatch(base, patch);
@@ -867,7 +867,7 @@ function patchesOpenFile(file) {
   if (!file) return;
   file.arrayBuffer().then(buf => { const b = new Uint8Array(buf); noteMagpieFrom(b); patchesOpenBytes(b, file.name); }).catch(e => {
     const note = document.getElementById('patchNote');
-    if (note) { note.textContent = 'That file could not be read: ' + e.message; note.className = 'mechSub patchBad'; }
+    if (note) { note.textContent = 'Could not read that file: ' + e.message; note.className = 'mechSub patchBad'; }
   });
 }
 
@@ -906,7 +906,7 @@ function patchesApply() {
   if (!ARCHIVE) { say('No game file is open.', true); return false; }
   let merged;
   try { merged = mergeDelverPatch(ARCHIVE.bytes, bytes); }
-  catch (e) { say('That patch could not be applied: ' + e.message, true); return false; }
+  catch (e) { say('Could not apply that patch: ' + e.message, true); return false; }
   const dirty = new Set(window.EDITED_RESIDS);
   for (const id of merged.replaced.concat(merged.added)) dirty.add(id);
   parseArchiveBytes(merged.bytes, window.ARCHIVE_SOURCE_NAME || 'archive',
@@ -1003,8 +1003,8 @@ function renderPatchReport() {
   if (rep.usable) verdicts.push('Magpie would accept it for this file.');
   else for (const r of rep.reasons) verdicts.push('Magpie would refuse it: ' + svEsc(r) + '.');
   if (rep.willAdd.length) verdicts.push('<b>' + rep.willAdd.length + '</b> resource' + (rep.willAdd.length === 1 ? '' : 's') +
-    ' the patch carries ' + (rep.willAdd.length === 1 ? 'is' : 'are') + ' not in this file and would be added.');
-  if (rep.disagreed.length) verdicts.push('<b>' + rep.disagreed.length + '</b> would be refused, because one of the two has the resource encrypted and the other does not.');
+    ' the patch carries ' + (rep.willAdd.length === 1 ? 'is' : 'are') + ' not in this file, and the patch would add them.');
+  if (rep.disagreed.length) verdicts.push('<b>' + rep.disagreed.length + '</b> the page would refuse, because one of the two has the resource encrypted and the other does not.');
   if (rep.unchanged.length) verdicts.push('<b>' + rep.unchanged.length + '</b> are already identical to what this file holds.');
   host.appendChild(el('ul', 'ruleList', verdicts.map(v => '<li>' + v + '</li>').join('')));
 
@@ -1054,9 +1054,9 @@ function renderPatchReport() {
     host.appendChild(el('div', 'partsTitle', 'Apply it'));
     host.appendChild(el('ul', 'ruleList',
       '<li>' + moves.join(' and ') +
-      ' in the copy of the file in this browser. <b>Nothing is written to disk.</b></li>' +
+      ' in the copy of the file in this browser. <b>Nothing goes to disk.</b></li>' +
       '<li>The galleries and maps then show the patch.</li>' +
-      '<li>The original file is kept, so <b>Compare Two Files</b> can then show exactly what changed.</li>'));
+      '<li>The page keeps the original file, so <b>Compare Two Files</b> can then show exactly what changed.</li>'));
     const bar = el('div', 'mechStats');
     const b = document.createElement('button');
     b.className = 'secondary';
@@ -1083,7 +1083,7 @@ function scriptDiffSection(host, el, pairs, aName, bName, memo) {
   if (!pairs.length) return;
   host.appendChild(el('div', 'partsTitle', 'The scripts, line by line: ' + pairs.length));
   host.appendChild(el('p', 'mechSub', 'The lines that differ, with two lines either side. ' +
-    '− is ' + svEsc(aName) + ', + is ' + svEsc(bName) + ', and the words that differ are underlined. ' +
+    '− is ' + svEsc(aName) + ', + is ' + svEsc(bName) + ', with the words that differ underlined. ' +
     'Any text a script holds follows its code.'));
   for (const p of pairs) {
     let d = memo && memo.get(p.resid);
@@ -1094,7 +1094,7 @@ function scriptDiffSection(host, el, pairs, aName, bName, memo) {
     }
     const det = document.createElement('details');
     det.className = 'sdScript';
-    const counts = !d ? 'could not be read' :
+    const counts = !d ? 'unreadable' :
       (d.removed || d.added ? '−' + d.removed + ' +' + d.added : '') +
       (d.textRemoved || d.textAdded ? (d.removed || d.added ? ', ' : '') + 'text −' + d.textRemoved + ' +' + d.textAdded : '') ||
       'no line differs';
@@ -1114,7 +1114,7 @@ function scriptDiffHTML(p, d) {
     (l.parts ? l.parts.map(([t, c]) => c ? '<b>' + svEsc(t) + '</b>' : svEsc(t)).join('') : svEsc(l.text)) + '</span></div>';
   const hunks = hs => hs.map(h => '<div class="sdHunk">' + h.map(line).join('') + '</div>').join('');
   let h = '<div>' + (p.a || p.b ? svChip(p.resid, labelFor(p.resid) || '') : '') + '</div>';
-  if (!d) return h + '<p class="mechSub">This script could not be read.</p>';
+  if (!d) return h + '<p class="mechSub">Could not read this script.</p>';
   h += hunks(d.hunks);
   if (d.text.length) h += '<div class="mechSub">Text in its data</div>' + hunks(d.text);
   if (!d.hunks.length && !d.text.length)
@@ -1423,9 +1423,9 @@ function heroSay(m, bad) {
    patch" is the button for seeing what the patch is. */
 function heroSpriteApply() {
   let w;
-  try { w = heroSpritePatch(); } catch (e) { heroSay('The patch could not be written: ' + e.message, true); return false; }
-  if (!w) { heroSay('Nothing is chosen, so there is nothing to apply.', true); return false; }
-  if (!patchesOpenBytes(w.bytes, w.name)) { heroSay('The patch was not accepted.', true); return false; }
+  try { w = heroSpritePatch(); } catch (e) { heroSay('Could not write the patch: ' + e.message, true); return false; }
+  if (!w) { heroSay('Choose something to apply first.', true); return false; }
+  if (!patchesOpenBytes(w.bytes, w.name)) { heroSay('The page refused the patch.', true); return false; }
   const ok = patchesApply();
   if (ok) { renderPatchReport(); heroSay('Applied to the copy of the file in this browser. To download the changed file, go to Data › Cythera Data › Changes.'); }
   return ok;
@@ -1433,8 +1433,8 @@ function heroSpriteApply() {
 
 function heroSpriteShowPatch() {
   let w;
-  try { w = heroSpritePatch(); } catch (e) { heroSay('The patch could not be written: ' + e.message, true); return false; }
-  if (!w) { heroSay('Nothing is chosen, so there is nothing to read.', true); return false; }
+  try { w = heroSpritePatch(); } catch (e) { heroSay('Could not write the patch: ' + e.message, true); return false; }
+  if (!w) { heroSay('Choose something to read first.', true); return false; }
   const ok = patchesOpenBytes(w.bytes, w.name);
   const host = document.getElementById('patchReport');
   if (ok && host && host.scrollIntoView) host.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1443,8 +1443,8 @@ function heroSpriteShowPatch() {
 
 function heroSpriteDownload(asMacBinary) {
   let w;
-  try { w = heroSpritePatch(); } catch (e) { heroSay('The patch could not be written: ' + e.message, true); return null; }
-  if (!w) { heroSay('Nothing is chosen, so there is nothing to write.', true); return null; }
+  try { w = heroSpritePatch(); } catch (e) { heroSay('Could not write the patch: ' + e.message, true); return null; }
+  if (!w) { heroSay('Choose something to write first.', true); return null; }
   if (asMacBinary) {
     const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
     dlBlob(new Blob([bin], { type: 'application/macbinary' }), w.name + '.bin');
@@ -1683,18 +1683,18 @@ function renderHeroSprite() {
     facts.push('The patch replaces this one resource, ' + propWordHex(fig.resid) + '.');
   }
   if (fig.kind !== 'portrait' && fig.body) facts.push(fig.body.frames === 16
-    ? 'The ' + svEsc(fig.body.label) + '’s frames are laid out like the ' + svEsc(fig.name) + '’s, and are used as they are.'
+    ? 'The ' + svEsc(fig.body.label) + '’s frames have the same layout as the ' + svEsc(fig.name) + '’s, so the patch uses them as they are.'
     : 'The ' + svEsc(fig.body.label) + ' has ' + fig.body.frames / 4 + (fig.body.frames === 8 ? ' strides' : ' frame') +
       ' a facing where the ' + svEsc(fig.name) + ' has four poses, so ' +
       (fig.body.frames === 8 ? 'the first walking frame is used for standing and sitting too.' : 'that frame is used for all four.'));
   if (fig.kind !== 'portrait') facts.push(fig.others.length
     ? svEsc(fig.others.map(k => k.label).join(', ')) + ' also ' + (fig.others.length === 1 ? 'draws' : 'draw') + ' from these frames and would change with them.'
     : fig.start || fig.frames < 16
-      ? 'Only these ' + fig.frames + ' frames of the sheet change; the rest of it is kept as it was.'
+      ? 'Only these ' + fig.frames + ' frames of the sheet change; the rest of it stays as it was.'
       : 'Nothing else in the file draws from this sheet.');
   if (fig.kind !== 'portrait' && fig.wearers > 1) facts.push('<b>' + fig.wearers + '</b> characters wear this sprite, and all of them change with it.');
-  if (fig.unknown) facts.push('<b>' + fig.unknown + '</b> pixels are in colors the original art does not use, so they are left unchanged.');
-  facts.push(rec.moved ? '<b>' + rec.moved.toLocaleString() + '</b> pixels change.' : 'Nothing is chosen, so the frames are unchanged.');
+  if (fig.unknown) facts.push('<b>' + fig.unknown + '</b> pixels are in colors the original art does not use, so they stay unchanged.');
+  facts.push(rec.moved ? '<b>' + rec.moved.toLocaleString() + '</b> pixels change.' : 'Nothing chosen, so the frames stay unchanged.');
   host.appendChild(el('ul', 'ruleList', facts.map(f => '<li>' + f + '</li>').join('')));
 
   if (!rec.moved) return;
@@ -1832,9 +1832,9 @@ function gremlinSay(m, bad) {
 // Apply goes through the patches section, as the sprite's does.
 function gremlinApply() {
   let w;
-  try { w = gremlinPatch(); } catch (e) { gremlinSay('The gremlin could not be written: ' + e.message, true); return false; }
+  try { w = gremlinPatch(); } catch (e) { gremlinSay('Could not write the gremlin: ' + e.message, true); return false; }
   if (!w) { gremlinSay('No game file is open.', true); return false; }
-  if (!patchesOpenBytes(w.bytes, w.name)) { gremlinSay('The patch was not accepted.', true); return false; }
+  if (!patchesOpenBytes(w.bytes, w.name)) { gremlinSay('The page refused the patch.', true); return false; }
   const ok = patchesApply();
   if (ok) {
     window.GREMLIN_STATE.num = null;
@@ -1846,7 +1846,7 @@ function gremlinApply() {
 }
 function gremlinShowPatch() {
   let w;
-  try { w = gremlinPatch(); } catch (e) { gremlinSay('The gremlin could not be written: ' + e.message, true); return false; }
+  try { w = gremlinPatch(); } catch (e) { gremlinSay('Could not write the gremlin: ' + e.message, true); return false; }
   if (!w) { gremlinSay('No game file is open.', true); return false; }
   const ok = patchesOpenBytes(w.bytes, w.name);
   const host = document.getElementById('patchReport');
@@ -1855,7 +1855,7 @@ function gremlinShowPatch() {
 }
 function gremlinDownload(asMacBinary) {
   let w;
-  try { w = gremlinPatch(); } catch (e) { gremlinSay('The gremlin could not be written: ' + e.message, true); return null; }
+  try { w = gremlinPatch(); } catch (e) { gremlinSay('Could not write the gremlin: ' + e.message, true); return null; }
   if (!w) { gremlinSay('No game file is open.', true); return null; }
   if (asMacBinary) {
     const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
@@ -1879,7 +1879,7 @@ function renderGremlinMaker() {
   const st = window.GREMLIN_STATE, base = patchBaseSpec();
   if (!base) { host.appendChild(el('p', 'mechSub', 'No game file is open.')); return; }
   if (base.playerName) {
-    host.appendChild(el('p', 'mechSub', 'This is a saved game. A gremlin is added to Cythera Data, and this save’s page can switch it on.'));
+    host.appendChild(el('p', 'mechSub', 'This is a saved game. Add a gremlin to Cythera Data, then switch it on from this save’s page.'));
     return;
   }
   const used = gremlinNumbersIn(base), n = gremlinNumber();
@@ -2611,7 +2611,7 @@ function renderDataFixMaker() {
     host.appendChild(sub);
   }
   const chosen = dataFixChosen(), n = chosen.length;
-  host.appendChild(el('p', 'mechSub', n ? n + (n === 1 ? ' fix is chosen.' : ' fixes are chosen.') : 'Nothing is chosen.'));
+  host.appendChild(el('p', 'mechSub', n ? n + (n === 1 ? ' fix chosen.' : ' fixes chosen.') : 'Nothing chosen.'));
   if (!n) return;
   const desc = document.createElement('input');
   desc.type = 'text'; desc.id = 'dataFixDesc'; desc.className = 'heroDesc';
@@ -2673,9 +2673,9 @@ function compareEdits() {
   const say = (m, bad) => { if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
   const pristine = window.PRISTINE_BYTES;
   if (!pristine || !ARCHIVE) { say('No file is open.', true); return false; }
-  if (pristine === ARCHIVE.bytes) { say('Nothing has been edited in this file yet.', true); return false; }
+  if (pristine === ARCHIVE.bytes) { say('You have not edited this file yet.', true); return false; }
   const a = compareSpecOf(pristine), b = compareSpecOf(ARCHIVE.bytes);
-  if (!a || !b) { say('That file could not be read as a Delver Archive.', true); return false; }
+  if (!a || !b) { say('Could not read that file as a Delver Archive.', true); return false; }
   window.COMPARE_REPORT = Object.assign(describeDelverDiff(a, b),
     { aName: 'as it arrived', bName: 'as it stands', bSpec: b, kind: 'edits' });
   say('');
@@ -2693,7 +2693,7 @@ function compareOpenBytes(bytes, name) {
   if (!ARCHIVE) { say('No file is open to compare against.', true); return false; }
   let got;
   try { got = extractDelverArchive(bytes); }
-  catch (e) { say('That file could not be opened: ' + e.message, true); return false; }
+  catch (e) { say('Could not open that file: ' + e.message, true); return false; }
   const other = compareSpecOf(got.bytes);
   if (!other) { say('That file is not a Delver Archive.', true); return false; }
   const mine = compareSpecOf(ARCHIVE.bytes);
@@ -2906,7 +2906,7 @@ function renderCompareReport() {
   if (rep.titleChanged) host.appendChild(el('p', 'mechSub', 'The two files name different scenarios, so their resource ids may not mean the same things.'));
   if (rep.formatChanged) host.appendChild(el('p', 'mechSub', 'The two files have different format versions.'));
   if (rep.encryptionChanged.length) host.appendChild(el('p', 'mechSub',
-    rep.encryptionChanged.length + ' resource(s) are encrypted in one file and not in the other. Either way, the decrypted contents are compared.'));
+    rep.encryptionChanged.length + ' resource(s) are encrypted in one file and not in the other. Either way, the page compares the decrypted contents.'));
 
   host.appendChild(el('div', 'partsTitle', 'Where the differences are'));
   host.appendChild(el('div', '', mechTable(['what', '#changed', '#added', '#removed'],
@@ -3008,7 +3008,7 @@ function renderCompareReport() {
        otherwise go missing without a word. */
     '<li>A patch cannot change the game\u2019s font, or anything else in the resource fork.</li>' +
     '<li>The second button saves it as <b>MacBinary</b>, so a Mac shows it with Magpie\u2019s icon. ' +
-    'Use the plain file if it will be copied straight into a shared folder.</li>'));
+    'Use the plain file if you will copy it straight into a shared folder.</li>'));
   const form = el('div', 'mechStats');
   const desc = document.createElement('input');
   desc.type = 'text'; desc.id = 'patchDesc'; desc.placeholder = 'What this patch does';
@@ -3078,7 +3078,7 @@ function renderCompareApp(host, el) {
     host.appendChild(el('div', '', mechTable(['routine', '', '#in ' + svEsc(app.aName), '#in ' + svEsc(app.bName), '#difference', 'what the compiler emitted'], rows)));
     if (!rows.length) host.appendChild(el('p', 'mechSub', 'Every routine has the same name and the same length in both.'));
   } else {
-    host.appendChild(el('p', 'mechSub', 'Neither program names its routines, so only the resource forks could be compared.'));
+    host.appendChild(el('p', 'mechSub', 'Neither program names its routines, so the page could compare only the resource forks.'));
   }
   const f = app.fork;
   if (f) {
@@ -3139,7 +3139,7 @@ function compareExportPatch(asMacBinary) {
         ' bytes' + (asMacBinary ? ' in a MacBinary typed DelP/' + DELV_PATCH_CREATOR : '') +
         ', identity ' + w.uuidText +
         (w.checkValueValid ? ', check value ' + w.checkValue + ' and it verifies.' : ', and the check value does not verify.'));
-  } catch (e) { say('That patch could not be written: ' + e.message, true); }
+  } catch (e) { say('Could not write that patch: ' + e.message, true); }
 }
 
 function renderMechanicsSheet(value) {
@@ -3193,10 +3193,10 @@ function renderMechanicsSheet(value) {
     dice ? [
       'The innkeeper throws one die and you throw yours. <b>Match it and you win ' + srcNum(dice.vals.matchPay) + ' obol' + (dice.matchPay === 1 ? '' : 'oi') + '.</b>',
       'Otherwise the innkeeper throws the second die. If yours is <b>outside</b> the two black dice, you win the difference to the nearer one; if it is <b>between</b> them, or equal to one, you lose an obol.',
-      'A win of 1 is a draw, and the game is played again.',
+      'A win of 1 is a draw, and the two play again.',
       'Your stake is one obol, so a win pays one less than the innkeeper announces.',
       dice.skillAlways ? '<b>Gambling</b> sets your die to the innkeeper’s first whenever they differed.' + (dice.skillFree ? ' This file has the skill check removed, so it happens without the skill.' : '')
-        : dice.vals.skillFaces ? '<b>Gambling</b> gives your die a one in ' + srcNum(dice.vals.skillFaces) + ' chance of being set to the innkeeper’s first, when they differed.' + (dice.skillFree ? ' This file has the skill check removed, so it happens without the skill.' : '')
+        : dice.vals.skillFaces ? '<b>Gambling</b> gives your die a one in ' + srcNum(dice.vals.skillFaces) + ' chance of changing to the innkeeper’s first, when they differed.' + (dice.skillFree ? ' This file has the skill check removed, so it happens without the skill.' : '')
         : ''
     ].filter(Boolean) : [],
     dice ? '<div class="mechStats">' + stat(dice.wins, 'win') + stat(dice.pushes, 'draw') + stat(dice.losses, 'lose') + '<span class="mechStatNote">of ' + dice.total + ' throws</span>' +
@@ -3216,31 +3216,31 @@ function renderMechanicsSheet(value) {
 
   // ---- combat ----
   const cb = combatRules(), ar = attackRules();
-  const rollFrom = (what) => ar && ar.scale ? 'a roll of 0 to ' + what + ' less ' + srcNum(ar.scale.subVal) + ' over ' + srcNum(ar.scale.divVal) : '';
+  const rollFrom = (what) => ar && ar.scale ? 'a random number from 0 to ' + what + ' less ' + srcNum(ar.scale.subVal) + ' over ' + srcNum(ar.scale.divVal) : '';
   const rollTo = v => v ? srcNum(v, v.v - 1) : '';
   add('combat', 'Combat', null, src('the attack', 0x3042) + src('a blow', 0xE88) + src('a missile', 0xE89) + src('the outcome', 0xE87),
-    cb ? 'How a blow lands, misses or is parried, and how much damage it does.'
+    cb ? 'How a blow lands, misses or meets a parry, and how much damage it does.'
        : 'This file has no combat scripts.',
     cb ? [
       ar && ar.reach && ar.meleeFirst ? 'The attack picks the weapon first: the first thing wielded whose <b>reach</b> covers the distance is swung' +
         (ar.range && ar.beyondAdjacent ? '. If nothing reaches, and the target is not adjacent but is in sight, the first thing with a thrown figure is <b>thrown</b> as a missile' : '') + '.' +
         (ar.squared && ar.lessOne ? ' Reach ' + srcNum(ar.lessOneVal, '1') + ' covers the eight squares around the attacker, and reach 2 covers two squares in a straight line or a knight’s move.' : '') : '',
-      'The margin is the attacker’s <b>reflex</b>' + (cb.roll ? ' <b>plus a roll of 0 to ' + rollTo(cb.roll) + '</b>' : '') +
+      'The margin is the attacker’s <b>reflex</b>' + (cb.roll ? ' <b>plus a random number from 0 to ' + rollTo(cb.roll) + '</b>' : '') +
         (cb.skillOffLoop
-          ? (cb.barehand ? ', plus Barehand when nothing is wielded' : '') + (cb.missileSkill ? ' (Missile for a launcher)' : '')
+          ? (cb.barehand ? ', plus Barehand when the attacker wields nothing' : '') + (cb.missileSkill ? ' (Missile for a launcher)' : '')
           : ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')')) +
-        ', <b>less the defender’s reflex' + (cb.rollDefender ? ' plus a roll of 0 to ' + rollTo(cb.rollDefender) : '') + '</b>, plus Attack less Defense. ' +
-        (cb.bodyForReflex ? 'Some attackers use their <b>' + srcNum(cb.bodyForReflex, 'body') + '</b> instead of their reflex' + combatBodyUnitsText(cb.bodyForReflex.v) + '.' : 'A monster can be marked to use its body in place of its reflex.'),
+        ', <b>less the defender’s reflex' + (cb.rollDefender ? ' plus a random number from 0 to ' + rollTo(cb.rollDefender) : '') + '</b>, plus Attack less Defense. ' +
+        (cb.bodyForReflex ? 'Some attackers use their <b>' + srcNum(cb.bodyForReflex, 'body') + '</b> instead of their reflex' + combatBodyUnitsText(cb.bodyForReflex.v) + '.' : 'A monster’s flags can make it use its body in place of its reflex.'),
       cb.skillOffLoop ? '<b>A weapon’s skill adds nothing</b>, because of a bug: the script ' +
         srcNum(cb.skillOffLoop[0], 'reads it from the wrong place') + ' and always gets 0, so Sword, Axe and Mace make no difference to an armed blow.' : '',
       'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
-        (cb.parry ? 'otherwise the shields get a chance: each blocking item the defender wears rolls <b>0 to its block figure plus the Shield skill</b>, the rolls are added up, and a margin below the total is <b>parried</b>' : 'what is left lands') +
+        (cb.parry ? 'otherwise the shields get a chance: each blocking item the defender wears gives <b>a random number from 0 to its block figure plus the Shield skill</b>, the game adds these up, and the shields <b>parry</b> a margin below the total' : 'what is left lands') +
         '.',
-      cb.dmgAdd ? 'A hit does <b>' + srcNum(cb.dmgAdd) + ' plus a roll below the damage figure, plus the enchantment</b>' + (cb.skillOffLoop ? '' : ', with the skill added to the figure before the roll') + '. The defender’s resistance comes off afterward, so the game’s word for a blow can overstate it.' : '',
+      cb.dmgAdd ? 'A hit does <b>' + srcNum(cb.dmgAdd) + ' plus a random number below the damage figure, plus the enchantment</b>' + (cb.skillOffLoop ? '' : ', with the skill added to the figure first') + '. The defender’s resistance comes off afterward, so the game’s word for a blow can overstate it.' : '',
       ar && ar.bodyRoll && ar.scale ? 'The damage figure of a blow is the weapon’s plus ' + rollFrom('body') + (ar.reflexRoll ? '; a throw’s is its throw entry’s plus ' + rollFrom('reflex') : '') + '.' : '',
       ar && ar.lodges && ar.drops ? (wrongCarryFlags().some(w => w.resid === 0x3042)
-        ? 'A thrown weapon that <b>hits or is parried</b> is lost, because of a bug: it is put inside the target without being marked as carried. One that misses lands on the target’s square.'
-        : 'A thrown weapon that <b>hits or is parried</b> is carried by the target, and is found there when the target dies. One that misses lands on the target’s square. Nothing else brings it back.') + (ar.ammoSpent ? ' A launcher uses up one piece of ammunition per shot.' : '') : '',
+        ? 'A thrown weapon that <b>hits or meets a parry</b> is lost, because of a bug: the game puts it inside the target without marking it as carried. One that misses lands on the target’s square.'
+        : 'The target carries a thrown weapon that <b>hits or meets a parry</b>, and you find it there when the target dies. One that misses lands on the target’s square. Nothing else brings it back.') + (ar.ammoSpent ? ' A launcher uses up one piece of ammunition per shot.' : '') : '',
       cb.words.length ? 'The game describes a blow by how much damage it does: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + srcNum(w.val)).join(', ') + (cb.last ? ', and <i>' + svEsc(cb.last.word) + '</i> above.' : '.') : ''
     ].filter(Boolean) : [],
     cb && cb.roll && cb.rollDefender && cb.dmgAdd ? combatSimControls() + '<div id="combatOut">' + combatSimHtml(combatSimParams(), cb) + '</div>' : '', '');
@@ -3272,17 +3272,17 @@ function renderMechanicsSheet(value) {
         door && door.destroy && doors.length ? 'A locked door’s strength is its lock figure: ' + listStrength(doors) + '. A blow above <b>' + srcNum(door.destroy.factor) + ' times the strength</b> destroys it' + q(door.saysDestroyed) + '.' +
           (door.opens ? ' Below that, a blow greater than what is left of the strength ' + srcNum(door.opens, 'bashes it open') + q(door.saysOpened) : '') +
           (door.wear && door.step ? ', and one above what is left ÷ ' + srcNum(door.wear) + ' wears it down by ' + srcNum(door.step) + q(door.saysWorn) : '') + '.' +
-          (door.magicOnlyDestroyed ? ' A magically locked door can only be destroyed.' : '') + ' A closed, unlocked door that is struck opens; an open door that is struck is unaffected.' : '',
+          (door.magicOnlyDestroyed ? ' Only destroying a magically locked door gets past it.' : '') + ' A blow opens a closed, unlocked door, and does nothing to an open one.' : '',
         chest && chest.destroy && chests.length ? 'A chest’s strength: ' + listStrength(chests) + '. Whatever its state, a blow above <b>' + srcNum(chest.destroy.factor) + ' times the strength</b> destroys it' + (chest.spills ? ' and drops what it held' : '') + '.' +
           (chest.opens ? ' Locked, a blow above what is left ' + srcNum(chest.opens, 'opens it') + q(chest.saysOpened) : '') +
           (chest.wear && chest.step ? ', one above what is left ÷ ' + srcNum(chest.wear) + ' wears it down by ' + srcNum(chest.step) + q(chest.saysWorn) : '') +
           (chest.saysHeld ? ', and a smaller one says “' + svEsc(chest.saysHeld) + '”' + (/[.!?]$/.test(chest.saysHeld) ? '' : '.') : '.') +
-          ' A magically locked chest can only be destroyed; a closed, unlocked chest that is struck opens.' : '',
+          ' Only destroying a magically locked chest gets past it; a blow opens a closed, unlocked chest.' : '',
         (door && door.setsOff) || (chest && chest.setsOff) ? 'Before a blow on a door or chest counts, anything inside it marked with flag 2 is used on the current character and removed.' : '',
         (function () {
           const bl = blastRules();
           if (!bl || !bl.centre) return '';
-          return 'A <b>bomb</b> is the one thing that damages a square rather than a target: when its fuse runs out it hands <b>' + srcNum(bl.centre) + '</b> to everything on its square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ', as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '. A locked door whose strength is below a fifth of that is reduced to a strength of 1.';
+          return 'A <b>bomb</b> is the one thing that damages a square rather than a target: when its fuse runs out it hands <b>' + srcNum(bl.centre) + '</b> to everything on its square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ', as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '. A locked door whose strength is below a fifth of that drops to a strength of 1.';
         })()
       ].filter(Boolean) : [],
       rows.length ? table(['thing', 'when struck', 'says'], rows.map(r => '<tr><td>' + propChip(r.pt, r.name) + '</td><td>' + damageRowWords(r) + ' ' + srcNum({ resid: r.resid, at: r.at }, 'script') + '</td><td>' +
@@ -3296,10 +3296,10 @@ function renderMechanicsSheet(value) {
   add('gear', 'Weapons and Armor', null, src('the classes', 0x1000),
     gear.length ? 'The combat figures of ' + gear.length + ' weapons, launchers, ammunition and armor.' : 'No item in this file has combat figures.',
     gear.length ? [
-      'A blow that lands rolls 1 to the <b>damage</b> figure. <b>Reach</b> and a launcher’s <b>range</b> work as under Combat.',
-      gear.some(r => r.thrownDamage !== null) ? 'A weapon with a <b>thrown</b> figure is thrown for that damage, up to that <b>range</b>, when nothing wielded reaches the target.' : '',
+      'A blow that lands does a random amount from 1 to the <b>damage</b> figure. <b>Reach</b> and a launcher’s <b>range</b> work as under Combat.',
+      gear.some(r => r.thrownDamage !== null) ? 'A character throws a weapon with a <b>thrown</b> figure for that damage, up to that <b>range</b>, when nothing they wield reaches the target.' : '',
       'A launcher fires the arrows or stones of its <b>ammunition class</b>.',
-      'Armor gives <b>protection</b> in points; a shield <b>blocks</b> a roll of 0 to its figure plus the Shield skill.'
+      'Armor gives <b>protection</b> in points; a shield <b>blocks</b> a random amount from 0 to its figure plus the Shield skill.'
     ].filter(Boolean) : [],
     table(['item', '#weight', '#damage', '#reach', '#thrown', '#range', '#type', 'skill', '#ammo class', '#protection', '#block'],
       gear.map(r => {
@@ -3353,7 +3353,7 @@ function renderMechanicsSheet(value) {
     const reach = tg.filter(t => t.word & 0x8000);
     const nameLink = t => srcNum(t.val, t.name);
     add('target', 'What a Use Can Be Aimed At', null, '',
-      tg.length ? 'What each of the ' + tg.length + ' spells and items that ask for a target can be aimed at.'
+      tg.length ? 'What each of the ' + tg.length + ' spells and items that ask for a target can aim at.'
                 : 'No script in this file asks for a target.',
       tg.length ? [
         '<b>' + reach.length + '</b> of these need a target on your square or next to it' + (walk ? '; one further away is ' + srcNum(walk.at, 'refused') : '') + '.'
@@ -3370,14 +3370,14 @@ function renderMechanicsSheet(value) {
   // ---- experience and levels ----
   const xp = experienceRules();
   add('experience', 'Experience and Levels', null, src('every award', 0xE8B) + src('a new level', 0xE86),
-    xp.rule ? 'How experience is earned, and when a character goes up a level.' : 'This file has no experience script.',
+    xp.rule ? 'How a character earns experience, and when they go up a level.' : 'This file has no experience script.',
     xp.rule ? [
-      'Experience is added' + (xp.rule.cap ? ', <b>capped at ' + srcNum(xp.rule.cap, xp.rule.cap.v.toLocaleString('en-US')) + '</b>' : '') +
+      'A character gains experience' + (xp.rule.cap ? ', <b>capped at ' + srcNum(xp.rule.cap, xp.rule.cap.v.toLocaleString('en-US')) + '</b>' : '') +
         (xp.rule.doubling && xp.rule.base ? ', and the level rises by one when it passes <b>' + srcNum(xp.rule.base) + ' × 2 to the power of the level less ' + srcNum(xp.rule.less, xp.rule.less ? xp.rule.less.v : '') + '</b>: above ' +
           [2, 3, 4, 5, 6].map(l => mechLevelThreshold(l - 1, xp.rule.base.v).toLocaleString('en-US') + (l === 2 ? ' for level 2' : l < 5 ? ' for ' + l : '')).join(', ') + ', doubling.' : '.'),
       xp.rule.healthReflexDiv && xp.rule.healthMul && xp.rule.healthDiv ? 'At each new level, full health becomes <b>body + reflex ÷ ' + srcNum(xp.rule.healthReflexDiv) + ' + level, plus Defense × ' + srcNum(xp.rule.healthMul) + ' × reflex ÷ ' + srcNum(xp.rule.healthDiv) + '</b>, and full magic <b>mind + Mana</b>.' : '',
       xp.rule.gapAdd ? 'A blow earns its damage in experience, at most the victim’s lead in levels plus ' + srcNum(xp.rule.gapAdd) + (xp.rule.pastGap ? '; against a lower-level victim, ' + srcNum(xp.rule.pastGap) : '') + '.' : '',
-      'An award to the party is split between its members.'
+      'The party’s members split an award to the party.'
     ].filter(Boolean) : [],
     (xp.rule ? mechExperienceFigure(xp.rule) : '') +
     (xp.awards.length ? '<div class="mechSub">Fixed awards: ' + xp.awards.length + '</div>' + table(['#points', 'occasion', 'where'], xp.awards.map(a => '<tr>' + srcCell(a.val, a.amount) + '<td>' + svEsc(a.note) + '</td><td>' + svChip(a.resid) + '</td></tr>')) : ''), '');
@@ -3388,7 +3388,7 @@ function renderMechanicsSheet(value) {
   add('karma', 'Karma', null, src('a kill', 0xE8D),
     km.writes.length ? 'A number the game raises and lowers as you play, and checks at certain points.' : 'No script in this file changes karma.',
     km.writes.length ? [
-      start ? 'It starts at <b>' + srcNum(start.val, start.set) + '</b> when a character is made.' : '',
+      start ? 'It starts at <b>' + srcNum(start.val, start.set) + '</b> when you make a character.' : '',
       km.byAlignment ? 'A kill changes it by the victim’s alignment: <b>' + srcNum(km.byAlignmentSrc, km.byAlignment.map(v => (v > 0 ? '+' : '') + v).join(', ')) + '</b> for alignments 0 to ' + (km.byAlignment.length - 1) + '.' : '',
       /* Who has which alignment, off the character table (byte 25 of each
          record, the byte the kill table indexes), so the sentence above can
@@ -3410,7 +3410,7 @@ function renderMechanicsSheet(value) {
         return '<b>' + zero.length + ' characters have alignment 0</b>, every townsperson among them' + (others.length ? ', while ' + others.join(' and ') : '') +
           ', so <b>killing a townsperson ' + (delta0 > 0 ? 'raises karma by ' + delta0 : delta0 < 0 ? 'lowers karma by ' + (-delta0) : 'leaves karma unchanged') + '</b>.';
       })() : '',
-      km.reads.length ? 'It is checked <b>' + km.reads.filter((r, i, a) => a.findIndex(x => x.test === r.test) === i).map(r => (r.below ? 'below ' : 'above ') + srcNum(r.val, r.n)).join('</b> and <b>') + '</b>.' : ''
+      km.reads.length ? 'The scripts check it <b>' + km.reads.filter((r, i, a) => a.findIndex(x => x.test === r.test) === i).map(r => (r.below ? 'below ' : 'above ') + srcNum(r.val, r.n)).join('</b> and <b>') + '</b>.' : ''
     ].filter(Boolean) : [],
     mechKarmaFigure(km) +
     table(['#change', 'occasion', 'where'], km.writes.filter(w => w.set === undefined).map(w => '<tr>' + (w.change !== null && w.change !== undefined ? srcCell(w.val, (w.change > 0 ? '+' : '') + w.change) : num(w.why || '')) + '<td>' + svEsc(w.note || '') + '</td><td>' + svChip(w.resid) + '</td></tr>')
@@ -3460,7 +3460,7 @@ function renderMechanicsSheet(value) {
   // the complaint and the ceiling, off the archive.
   const hg = hungerNotes();
   add('hunger', 'Hunger and Healing', null, '',
-    'Each character’s nutrition' + (hg.ceiling !== null ? ' runs from 0 to ' + srcNum(hg.ceilingVal) + '. It' : '') + ' falls as time passes, and a character who is fed slowly heals.' + (model ? '' : ' ' + noApp),
+    'Each character’s nutrition' + (hg.ceiling !== null ? ' runs from 0 to ' + srcNum(hg.ceilingVal) + '. It' : '') + ' falls as time passes, and a fed character slowly heals.' + (model ? '' : ' ' + noApp),
     [
       model ? 'Nutrition falls by ' + srcNum(clk.fall) + ' every ' + period(model.hungerIndex).replace(/^(<button[^>]*>)(an |a )?/, '$1') + ' for every character on the map.' : '',
       (hg.complains !== null ? 'A character complains of hunger below <b>' + srcNum(hg.complainsVal) + '</b>.' : ''),
@@ -3489,7 +3489,7 @@ function renderMechanicsSheet(value) {
       lk.rule.keyFits ? 'A key fits when the lock’s number matches the key’s.' : '',
       lk.rule.formula ? (function () {
         const n = lk.rule.numbers, up = n.addend.v === n.per.v - 1;
-        return 'A pick opens the lock when the picker’s <b>reflex plus a roll of 0 to ' + srcNum(n.pickRoll, n.pickRoll.v - 1) + '</b> is at least <b>' + srcNum(n.base) + ' plus another roll of 0 to ' + srcNum(n.lockRoll, n.lockRoll.v - 1) +
+        return 'A pick opens the lock when the picker’s <b>reflex plus a random number from 0 to ' + srcNum(n.pickRoll, n.pickRoll.v - 1) + '</b> is at least <b>' + srcNum(n.base) + ' plus another random number from 0 to ' + srcNum(n.lockRoll, n.lockRoll.v - 1) +
           ' plus ' + srcNum(n.step) + ' for every ' + srcNum(n.per) + ' of the lock’s difficulty' + (up ? ', rounded up' : ' after adding ' + srcNum(n.addend)) + '</b>' + (lk.rule.breaks ? ', and <b>breaks</b> otherwise.' : '.') +
           (up ? ' So a difficulty of 1 counts as much as a difficulty of ' + n.per.v + '.' : '');
       })() : '',
@@ -3512,7 +3512,7 @@ function renderMechanicsSheet(value) {
   const sh = shopRules();
   add('shops', 'Shops', null, src('the counter', 0xEA5),
     sh.shops.length ? sh.shops.length + ' shops, what each sells, and at what price.' : 'No script in this file opens a shop.',
-    sh.shops.length ? ['Each vendor bargains down from the listed price by four figures set for each, under terms' + (sh.haggling ? '; <b>Haggling</b> takes off a further roll of 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
+    sh.shops.length ? ['Each vendor bargains down from the listed price by four figures set for each, under terms' + (sh.haggling ? '; <b>Haggling</b> takes off a further random amount from 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
     mechShopFigure(sh) +
     table(['vendor', 'goods, at the listed price in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.who !== null && loadCharacterTable()[spn.who] ? characterChip(spn.who) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
@@ -3524,8 +3524,8 @@ function renderMechanicsSheet(value) {
     tr.teachers.length ? tr.teachers.length + ' teachers, and the skills each one teaches.' : 'No script in this file teaches a skill.',
     tr.teachers.length ? [
       'A lesson raises the skill one level' + (tr.points.perLesson !== null ? ' and costs <b>' + srcNum(tr.points.perLessonVal) + ' training point' + (tr.points.perLesson === 1 ? '' : 's') + '</b>' : '') + '.',
-      (tr.points.atStart !== null ? 'A character is made with <b>' + srcNum(tr.points.atStartVal) + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + srcNum(tr.points.perLevel) + ' less the difficulty level</b> with each level' : '') + '.',
-      tr.points.mastery !== null ? 'A skill is mastered at level <b>' + srcNum(tr.points.masteryVal) + '</b>; a teacher marked <i>to mastery</i> can teach beyond the first lessons.' : ''
+      (tr.points.atStart !== null ? 'A new character starts with <b>' + srcNum(tr.points.atStartVal) + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + srcNum(tr.points.perLevel) + ' less the difficulty level</b> with each level' : '') + '.',
+      tr.points.mastery !== null ? 'A character masters a skill at level <b>' + srcNum(tr.points.masteryVal) + '</b>; a teacher marked <i>to mastery</i> can teach beyond the first lessons.' : ''
     ].filter(Boolean) : [],
     mechTrainingFigure(tr) +
     table(['teacher', 'teaches'], tr.teachers.map(t => '<tr><td>' + (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + '</td><td>' +
@@ -3540,10 +3540,10 @@ function renderMechanicsSheet(value) {
     sl ? 'How much a night in each bed heals.' : 'This file has no beds, or no sleep script.',
     sl ? [
       sl.own !== null ? 'Your own bed in Land King Hall has quality <b>' + srcNum(sl.ownVal) + '</b>. An inn’s bed has the quality of the room you paid for, and cannot be used until you pay.' : '',
-      sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (perHour && sl.quarterVal.v * sl.hoursVal.v === perHour ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + (sl.owner ? ', and if the bed’s owner turns up you are thrown out (“Hey! Out of my bed!”)' : '') + '.' : '',
+      sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (perHour && sl.quarterVal.v * sl.hoursVal.v === perHour ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + (sl.owner ? ', and if the bed’s owner turns up they throw you out (“Hey! Out of my bed!”)' : '') + '.' : '',
       sl.half ? 'Above quality 0' + (sl.soundly ? ' (“You sleep soundly”)' : '') + ', the party also gets <b>what they healed overnight times the quality ÷ ' + srcNum(sl.div) + '</b>, in health and magic.' + (sl.own !== null ? ' <b>Quality ' + sl.own + ' is ' + (1 + sl.own / sl.div.v) + ' times the game’s rate.</b>' : '') : '',
       sl.toss ? 'Quality 0 is “You toss and turn”, the usual rate only.' : '',
-      sl.magicGuard || sl.magicCap ? 'Because of a bug the magic bonus is capped at ' + srcNum(sl.magicGuard || sl.magicCap, 'full health') + ', so a character can wake with more magic than their maximum.' : ''
+      sl.magicGuard || sl.magicCap ? 'Because of a bug the game caps the magic bonus at ' + srcNum(sl.magicGuard || sl.magicCap, 'full health') + ', so a character can wake with more magic than their maximum.' : ''
     ].filter(Boolean) : [],
     (sl ? mechSleepFigure(sl, model) : '') +
     (sl && sl.div && sl.inns.length ? table(['bed', 'where', '#quality', 'healing'], [(sl.own !== null ? '<tr><td>your own</td><td>Land King Hall</td>' + srcCell(sl.ownVal) + '<td>× ' + (1 + sl.own / sl.div.v) + '</td></tr>' : '')].concat(
@@ -3567,8 +3567,8 @@ function renderMechanicsSheet(value) {
     };
     const flagWords = (bit) => { const f = clk && clk.statusWord ? exeFlagOfStatusBit(bit, clk.statusWord.v) : null; return f ? ' (flag ' + srcNum(f) + (dvmFlagName(f.v) ? ', ' + svEsc(dvmFlagName(f.v)) : '') + ')' : ''; };
     add('clock', 'The Clock, Poison and Time', null, '',
-      model ? 'The game counts time in units of <b>1/' + srcNum(clk.unitsPerHour) + ' of an hour</b>, and every duration in the game is measured in them.'
-        : 'The game keeps one clock, and every duration in the game is measured in it. ' + noApp,
+      model ? 'The game counts time in units of <b>1/' + srcNum(clk.unitsPerHour) + ' of an hour</b>, and measures every duration in them.'
+        : 'The game keeps one clock, and measures every duration in it. ' + noApp,
       model ? [
         'Things happen every ' + clk.table.v.map((u, i) => srcNum(clk.table, u) + ' <span class="inspDim">(' + exeClockWords(u, perHour) + ')</span>').join(', ') + '.',
         clk.poisonBit && clk.regenBit && clk.deathAt && clk.statusWord ? 'Every ' + period(model.poisonIndex).replace(/^(<button[^>]*>)(an |a )?/, '$1') + ', a <b>poisoned</b> character' + flagWords(clk.poisonBit) + ' loses ' + srcNum(clk.poisonStep) + ' health, and <b>dies</b> once health is ' + srcNum(clk.deathAt) + ' or less. A character with <b>regeneration</b>' + flagWords(clk.regenBit) + ' gains ' + srcNum(clk.regenStep) + '. One with both gets ' + srcNum(clk.coinToss, 'one or the other at random') + '.' : '',
@@ -3593,7 +3593,7 @@ function renderMechanicsSheet(value) {
         swamp ? 'On <b>' + srcNum(swamp.from, 'swamp') + '</b>, one step in ' + srcNum(swamp.chance ? swamp.chance.is : null, swamp.chance ? (swamp.chance.hi.v - swamp.chance.lo.v) : '') +
           ' brings “' + svEsc(swamp.says) + '”, ' + (swamp.poisonName ? svEsc(swamp.poisonName) : 'a status') + ' and ' + srcNum(swamp.damage) + ' ' + srcNum(swamp.type, damageTypeName(swamp.type.v) || 'damage') + (damageTypeName(swamp.type.v) ? ' damage' : '') + '.' +
           (swamp.flag ? ' ' + (wearers(swamp.flag.v) ? 'Wearing ' + wearers(swamp.flag.v) + ' ' + srcNum(swamp.flag, 'stops the bites') : srcNum(swamp.flag, swamp.flagName || 'A flag') + ' stops the bites') + ', and so does a monster’s immunity.' : '') : '',
-        lava ? 'On <b>' + srcNum(lava.code, 'lava') + '</b>, every step brings “' + svEsc(lava.says) + '” and <b>' + srcNum(lava.plus, rollWords([lava.roll.lo.v, lava.roll.hi.v]).replace('a roll of ', '') + ' plus ' + lava.plus.v) + '</b> ' + srcNum(lava.type, damageTypeName(lava.type.v) || 'damage') + (damageTypeName(lava.type.v) ? ' damage' : '') + '.' +
+        lava ? 'On <b>' + srcNum(lava.code, 'lava') + '</b>, every step brings “' + svEsc(lava.says) + '” and <b>' + srcNum(lava.plus, rollWords([lava.roll.lo.v, lava.roll.hi.v]).replace('a random number from ', '') + ' plus ' + lava.plus.v) + '</b> ' + srcNum(lava.type, damageTypeName(lava.type.v) || 'damage') + (damageTypeName(lava.type.v) ? ' damage' : '') + '.' +
           (lava.flag ? ' ' + (wearers(lava.flag.v) ? 'Wearing ' + wearers(lava.flag.v) + ' ' + srcNum(lava.flag, 'protects') : srcNum(lava.flag, lava.flagName || 'A flag') + ' protects') + '.' : '') : '',
         'Armor does not reduce either.'
       ].filter(Boolean) : [], '', '');
@@ -3636,8 +3636,8 @@ function renderMechanicsSheet(value) {
     const kindWords = k => {
       const bits = [];
       if (k.food) bits.push('nutrition ' + srcNum(k.food.plus, '+' + k.food.plus.v) + (k.food.below ? ' below ' + srcNum(k.food.below) : ''));
-      if (k.heal) bits.push('health ' + srcNum(k.heal.lo, rollWords([k.heal.lo.v, k.heal.hi.v]).replace('a roll of ', '+')));
-      if (k.hurt) bits.push(srcNum(k.hurt.plus, rollWords([k.hurt.lo.v, k.hurt.hi.v]).replace('a roll of ', '') + ' plus ' + k.hurt.plus.v) + ' damage');
+      if (k.heal) bits.push('health ' + srcNum(k.heal.lo, rollWords([k.heal.lo.v, k.heal.hi.v]).replace('a random number from ', '+')));
+      if (k.hurt) bits.push(srcNum(k.hurt.plus, rollWords([k.hurt.lo.v, k.hurt.hi.v]).replace('a random number from ', '') + ' plus ' + k.hurt.plus.v) + ' damage');
       for (const s of k.sets) bits.push(srcNum(s.val, s.name || ('flag ' + s.val.v)));
       if (k.clears.length) bits.push('clears ' + k.clears.map(c => srcNum(c.val, c.name || ('flag ' + c.val.v))).join(', '));
       if (k.wish) bits.push('a wish' + (k.chance ? ', one drink in ' + srcNum(k.chance.is, k.chance.hi.v - k.chance.lo.v) : ''));
@@ -3657,7 +3657,7 @@ function renderMechanicsSheet(value) {
           svLink(wt.setter.name, wt.setter.pt !== null ? 'showItemDetail(' + wt.setter.pt + ')' : 'jumpToResource(' + wt.setter.resid + ')') + ', and fresh, sometimes reviving, after that.' : '',
         'A drink affects the character who uses the fountain.'
       ].filter(Boolean) : [],
-      wt ? table(['#kind', 'says', 'does', 'where it is placed'], wt.kinds.map(k => '<tr>' + srcCell(k.val) + '<td>' + (k.says[0] ? '“' + svEsc(k.says[0].replace(/\*/g, ' ').slice(0, 70)) + '”' : '') + '</td><td>' + kindWords(k) + '</td><td>' + where(k.kind) + '</td></tr>')) : '', '');
+      wt ? table(['#kind', 'says', 'does', 'where it stands'], wt.kinds.map(k => '<tr>' + srcCell(k.val) + '<td>' + (k.says[0] ? '“' + svEsc(k.says[0].replace(/\*/g, ' ').slice(0, 70)) + '”' : '') + '</td><td>' + kindWords(k) + '</td><td>' + where(k.kind) + '</td></tr>')) : '', '');
   }
 
   // ---- the combat AI ----
@@ -3703,10 +3703,10 @@ function renderMechanicsSheet(value) {
       return '<tr>' + num(s) + '<td>' + svEsc(line) + '</td><td>' + who + '</td><td>' + (off || '<span class="mechSub">never</span>') + '</td></tr>';
     });
     add('todo', 'The To Do List', null, td.textResid !== null ? src('the lines', td.textResid) : '',
-      td.adds.length ? 'Every line of the To Do window, who adds it and who strikes it off. A line can be struck off before its task is done, or never.'
+      td.adds.length ? 'Every line of the To Do window, who adds it and who strikes it off. A script can strike a line off before you finish its task, or never.'
                      : 'No script in this file writes a To Do line.',
       td.adds.length ? [
-        '<b>' + td.adds.length + ' lines are added</b> and <b>' + td.dones.length + ' struck off</b>, over <b>' + slots.size + ' slots</b>.',
+        '<b>' + td.adds.length + ' lines added</b> and <b>' + td.dones.length + ' struck off</b>, over <b>' + slots.size + ' slots</b>.',
         elsewhere.length ? '<b>' + elsewhere.length + ' of them show a different line</b> from the slot’s: the same errand, in the words of whoever told you about it.' : '',
         counted.length ? 'Some lines count what you have found so far: ' + counted.map(a => srcNum(a.state, nameOf(a.resid))).join(', ') + '.' : '',
         never.length ? '<b>' + never.length + (never.length === 1 ? ' line is' : ' lines are') + ' never struck off</b> by any script: ' + never.map(s => (td.lines && td.lines.get(s) ? '“' + svEsc(td.lines.get(s)) + '”' : 'slot ' + s)).join(', ') + '.' : ''
@@ -3773,7 +3773,7 @@ function renderMechanicsSheet(value) {
           const bitRef = m => (ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === m) || { cacheBit: null }).cacheBit;
           const say = (m, text) => { const b = bitRef(m); return b ? srcNum(b, propWordHex(m)) + ' ' + text : propWordHex(m) + ' ' + text; };
           return say(0x80, 'lets a character walk onto the square (the doors, the passthrough, the curtain).') + ' ' +
-            say(0x08, 'means a thing cannot be dropped (the key, the grimoire, the amulet).') + ' ' +
+            say(0x08, 'means you cannot drop a thing (the key, the grimoire, the amulet).') + ' ' +
             say(0x200, 'puts a door back open or shut as the zone starts it, each time you enter; its lock stays as it is. The map’s door mark shows it.');
         })() : MECH_NO_APP,
         ic ? 'The last table below says how a chair seats a character, and the zone maps seat their people by it.' : ''
@@ -3916,10 +3916,10 @@ function renderMechanicsSheet(value) {
        fact about the file; that setting it changes nothing is the finding,
        and it is what a reader is here for. */
     for (const k of le.writtenNeverRead) rows.push('<tr><td>written and never read</td><td>Quest value ' + k +
-      ' is set, but no script ever checks it, so setting it changes nothing.</td><td>' +
+      ': a script sets it, but no script ever checks it, so setting it changes nothing.</td><td>' +
       where(sitesOf(le.writes.get(k))) + '</td></tr>');
     for (const k of le.readNeverWritten) rows.push('<tr><td>read and never written</td><td>Quest value ' + k +
-      ' is checked, but no script ever sets it, so the check only ever finds 0.</td><td>' +
+      ': a script checks it, but no script ever sets it, so the check only ever finds 0.</td><td>' +
       where(sitesOf(le.reads.get(k))) + '</td></tr>');
     /* Flags, which the reader has collected since the card was new and the
        card never showed. Only the one direction: a flag no script sets,
@@ -3929,11 +3929,11 @@ function renderMechanicsSheet(value) {
        its own account (EvalCondition, for the conditional eggs), so a flag
        no script tests is not thereby unread. */
     for (const k of le.flagReadNeverWritten) rows.push('<tr><td>read and never written</td><td>Quest flag ' + k +
-      ' is checked, but no script sets it, directly or through a queued task, so the check never passes.</td><td>' +
+      ': a script checks it, but no script sets it, directly or through a queued task, so the check never passes.</td><td>' +
       where(sitesOf(le.flagReads.get(k))) + '</td></tr>');
     const lineText = n => (td2.lines && td2.lines.get(n) ? ' (' + svEsc(td2.lines.get(n)) + ')' : '');
     for (const x of le.exactStrikes) rows.push('<tr><td>a line struck off only at an exact count</td><td>slot ' + x.slot.v + lineText(x.slot.v) +
-      ' is struck off only when quest value ' + x.state + ' is exactly ' + srcNum(x.n) +
+      ' comes off the list only when quest value ' + x.state + ' is exactly ' + srcNum(x.n) +
       ', but the scripts count that value upward, so a visit that takes it past ' + x.n.v + ' never strikes the line.</td><td>' +
       where([x.slot]) + '</td></tr>');
     /* One line shown for two different errands. A line that is not its own
@@ -3962,14 +3962,14 @@ function renderMechanicsSheet(value) {
       ' answers “name” but never sets their own character flag 7, which every other name topic sets, so they are still called by what they look like.</td><td>' + where([n]) + '</td></tr>');
     for (const a of askedOfNobody()) rows.push('<tr><td>answers written for someone never asked</td><td>' + a.items.length + ' item classes write an Ask About answer for ' + (chipOf(a.who) || svEsc(characterName(a.who))) +
       ', whose script never passes a question to the shared Ask About script, so none of these answers is ever given.</td><td>' + a.items.slice(0, 6).map(pt => svLink(svEsc(propDisplayName(pt) || ('prop ' + pt)), 'showItemDetail(' + pt + ')')).join(', ') + (a.items.length > 6 ? ' and ' + (a.items.length - 6) + ' more' : '') + '</td></tr>');
-    for (const r of answersThatRunOn()) rows.push('<tr><td>an answer that runs on</td><td>The answer to “' + svEsc(r.list) + '” is not followed by an instruction to stop, so ' +
-      (r.then ? 'the answer to “' + svEsc(r.then.list) + '” further on is given for the same reply straight away, and the first answer is replaced before it can be read.'
+    for (const r of answersThatRunOn()) rows.push('<tr><td>an answer that runs on</td><td>The answer to “' + svEsc(r.list) + '” has no instruction to stop after it, so ' +
+      (r.then ? 'the answer to “' + svEsc(r.then.list) + '” further on follows for the same reply straight away, and replaces the first answer before you can read it.'
         : 'the conversation goes on checking the next keywords, and when none matches, the character’s “don’t understand” line follows it.') + '</td><td>' + where([r]) + '</td></tr>');
     // The last part of a spoken line, after its last click, as the balloon shows it.
     const lastPart = t => svEsc(t.split('*').filter(x => x.trim()).pop() || t);
-    for (const r of linesReplacedAtOnce()) rows.push('<tr><td>a line replaced before it can be read</td><td>' +
-      (r.oneString ? lastPart(r.line) + ' and ' + lastPart(r.next) + ' are back to back in one string, with no * between them to wait for a click, so the first is replaced as soon as it is drawn.'
-        : lastPart(r.line) + ' ends without a * to wait for a click, and the next line the script can come to, ' + lastPart(r.next) + (r.speaker ? ', said by someone the script has just named to speak,' : '') + ' replaces it as soon as it is drawn.') +
+    for (const r of linesReplacedAtOnce()) rows.push('<tr><td>a line replaced before you can read it</td><td>' +
+      (r.oneString ? lastPart(r.line) + ' and ' + lastPart(r.next) + ' are back to back in one string, with no * between them to wait for a click, so the second replaces the first as soon as the game draws it.'
+        : lastPart(r.line) + ' ends without a * to wait for a click, and the next line the script can come to, ' + lastPart(r.next) + (r.speaker ? ', said by someone the script has just named to speak,' : '') + ' replaces it as soon as the game draws it.') +
       '</td><td>' + where([r]) + '</td></tr>');
     for (const t of selfToldByGroup()) rows.push('<tr><td>a character told about by their own group</td><td>' + (chipOf(t.who) || svEsc(characterName(t.who))) +
       ' has no answer to “' + svEsc(t.key) + '”, so the question passes to a dialogue group their script uses, which answers as if about someone else: ' + svEsc(t.said) + '</td><td>' + where([t]) + '</td></tr>');
@@ -3982,27 +3982,27 @@ function renderMechanicsSheet(value) {
     }
     for (const w of stateNoSaveKeeps()) rows.push('<tr><td>a value no saved game keeps</td><td>' + where(w.writers) + ' write' + (w.writers.length === 1 ? 's' : '') +
       ' word 0x' + w.offset.toString(16).toUpperCase() + ' of resource 0x' + w.resource.toString(16).toUpperCase().padStart(4, '0') + ', and ' + w.readers.length + ' place' + (w.readers.length === 1 ? ' reads' : 's read') +
-      ' it back. A saved game does not store script resources, so the value is whatever was last written in any game, not the value belonging to the game that is loaded.</td><td>' + where(w.readers) + '</td></tr>');
+      ' it back. A saved game does not store script resources, so the value is whatever any game last wrote, not the value belonging to the loaded game.</td><td>' + where(w.readers) + '</td></tr>');
     for (const d of deletedAcrossZoneChange()) {
       const item = svEsc(propDisplayName(d.pt) || ('prop ' + d.pt));
       rows.push('<tr><td>a delete after the zone has changed</td><td>Using a ' + item + ' of ' + where([{ resid: d.skill, at: d.skillAt }]) +
-        ' casts a copy of the spell, which moves the party to another zone. Then the ' + item + '’s Use script deletes the copy and the ' + item + ' by their numbers, but those numbers now belong to things in the new zone, so two of its things are destroyed and the ' + item + ' is kept. One lies in ' +
+        ' casts a copy of the spell, which moves the party to another zone. Then the ' + item + '’s Use script deletes the copy and the ' + item + ' by their numbers, but those numbers now belong to things in the new zone, so it destroys two of those things and the ' + item + ' stays. One lies in ' +
         d.zones.map(z => svEsc(labelFor(0x8000 + z) || ('zone ' + z))).join(' and ') + '.</td><td>' + where([d]) + '</td></tr>');
     }
-    for (const h of highlightsUnanswered()) rows.push('<tr><td>a highlighted word nobody answers</td><td>“' + svEsc(h.word) + '” is highlighted to be asked in ' + where([h]) + ', and ' +
+    for (const h of highlightsUnanswered()) rows.push('<tr><td>a highlighted word nobody answers</td><td>“' + svEsc(h.word) + '” is highlighted as a question in ' + where([h]) + ', and ' +
       (h.who.length === 1 ? (chipOf(h.who[0]) || svEsc(characterName(h.who[0]))) + ', who says it, has'
         : 'none of the ' + h.who.length + ' characters who can say it has') + ' an answer that matches it' +
       (h.who.length > 1 ? ': ' + h.who.slice(0, 8).map(n => chipOf(n) || svEsc(characterName(n))).join(', ') + (h.who.length > 8 ? ' and ' + (h.who.length - 8) + ' more' : '') : '') + '.</td><td>' + where([h]) + '</td></tr>');
     for (const r of refusalOnEveryCheck()) rows.push('<tr><td>a refusal said on every check</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) +
-      '’s answer to whether a thing can go inside it prints “' + svEsc(r.said.trim()) + '” before saying no, and the inventory window asks it each time it checks a drop, so the line repeats while a thing is dragged over it.</td><td>' + where([r]) + '</td></tr>');
+      '’s answer to whether a thing can go inside it prints “' + svEsc(r.said.trim()) + '” before saying no, and the inventory window asks it each time it checks a drop, so the line repeats while you drag a thing over it.</td><td>' + where([r]) + '</td></tr>');
     for (const l of leaveNeverLeaves()) rows.push('<tr><td>a companion who agrees to leave and stays</td><td>' + (chipOf(l.who) || svEsc(characterName(l.who))) +
       ' can join the party and answers “leave”, and nothing in the script ever takes them out of it.</td><td>' + where([l]) + '</td></tr>');
     for (const t of tileReadWithSeenBit()) rows.push('<tr><td>a map tile read with its seen bit</td><td>' + where([t]) + ' compares the map’s tile at a square with ' + t.compared.join(' and ') +
       ' without removing the automap’s marker, bit 0x8000, which every square the player has seen carries, so the comparison never matches for a square the player can see.</td><td>' + where([t]) + '</td></tr>');
     for (const w of wrongCarryFlags()) rows.push('<tr><td>a thing given to a character with the wrong flags</td><td>' + where([w]) + ' sets a thing’s flags to ' + srcNum({ v: 9, resid: w.resid, at: w.at }, '9') +
-      ' and its container to ' + svEsc(w.into.replace(/ \(0x[0-9A-F]+\)$/i, '')) + '. A carried thing has flag 0x10; 9 means inside another prop, so the thing ends up inside nothing and is lost.</td><td>' + where([w]) + '</td></tr>');
+      ' and its container to ' + svEsc(w.into.replace(/ \(0x[0-9A-F]+\)$/i, '')) + '. A carried thing has flag 0x10; 9 means inside another prop, so the thing ends up inside nothing and disappears.</td><td>' + where([w]) + '</td></tr>');
     for (const c of speechWithNoSpeaker()) rows.push('<tr><td>a conversation with no one to speak</td><td>' + where([c]) + ' opens a conversation and ' +
-      (c.talk ? 'has the one it is used on talk' : 'has someone speak') + ' without naming a speaker. A conversation starts with no speaker, and quoted words are drawn where the speaker would be, so they appear above the window and are not seen.</td><td>' + where([c]) + '</td></tr>');
+      (c.talk ? 'has the one it is used on talk' : 'has someone speak') + ' without naming a speaker. A conversation starts with no speaker, and the game draws quoted words where the speaker would be, so they appear above the window, out of sight.</td><td>' + where([c]) + '</td></tr>');
     // Character sprite frames that repeat another pose (spriteRepeats).
     for (const r of spriteRepeats()) rows.push('<tr><td>a sprite frame that repeats another pose</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) + '’s ' + r.aName + ' frame and its ' + r.bName + ' frame ' +
       (r.pixels ? 'differ by ' + r.pixels + ' pixel' + (r.pixels === 1 ? '' : 's') : 'are identical') + ', whereas a sheet’s poses otherwise differ by hundreds of pixels.</td><td>' +
@@ -4011,38 +4011,38 @@ function renderMechanicsSheet(value) {
     for (const a of le.selfAlive) rows.push('<tr><td>a character asking if they are alive</td><td>' + (chipOf(a.who) || svEsc(characterName(a.who))) +
       ' checks whether ' + svEsc(characterName(a.who)) + ' is alive, which is always true while they are talking, so the other answer is never given.</td><td>' + where([a]) + '</td></tr>');
     // A local tested for truth and only ever set false.
-    for (const l of le.localOnlyFalse) rows.push('<tr><td>a check of something that is always false</td><td>A local variable is checked for true or false, but it is only ever set to false in its function, so the code for the true case never runs.</td><td>' +
+    for (const l of le.localOnlyFalse) rows.push('<tr><td>a check of something that is always false</td><td>The script checks a local variable for true or false, but its function only ever sets it to false, so the code for the true case never runs.</td><td>' +
       where([l]) + '</td></tr>');
     // Answers an earlier answer in the same list takes first.
     for (const a of le.shadowed) rows.push('<tr><td>an answer an earlier one takes</td><td>“' + svEsc(a.list) +
-      '” is answered earlier in the same list, and the first match is the one used, so this answer is never given.</td><td>' + where([a]) + '</td></tr>');
+      '” has an answer earlier in the same list, and the game uses the first match, so it never gives this answer.</td><td>' + where([a]) + '</td></tr>');
     // A quest value tested where the same-numbered flag is meant.
     for (const v of le.valueForFlag) rows.push('<tr><td>a value checked where the flag is meant</td><td>' + where([v]) + ' checks quest value ' + v.k +
-      ' as true or false where its other checks use quest flag ' + v.k + '. Quest value ' + v.k + ' is given a starting value when it is 0 and is never set back to 0, so the check always passes.</td><td>' +
+      ' as true or false where its other checks use quest flag ' + v.k + '. Quest value ' + v.k + ' gets a starting value when it is 0 and nothing sets it back to 0, so the check always passes.</td><td>' +
       where([v]) + '</td></tr>');
     // Keywords behind a comma and a space, read in looseEnds.
     for (const k of le.spacedKeywords) rows.push('<tr><td>a keyword that needs a space typed first</td><td>“' + svEsc(k.list) + '”: ' +
-      k.spaced.map(w => '“' + svEsc(w) + '”').join(' and ') + ' follow' + (k.spaced.length === 1 ? 's' : '') + ' a comma and a space, and the space is kept as part of the keyword, so it only matches an answer typed with a space in front.</td><td>' +
+      k.spaced.map(w => '“' + svEsc(w) + '”').join(' and ') + ' follow' + (k.spaced.length === 1 ? 's' : '') + ' a comma and a space, and the space stays part of the keyword, so it only matches an answer you type with a space in front.</td><td>' +
       where([k]) + '</td></tr>');
     // A quest value only a thing that does not exist sets, read in looseEnds.
     for (const d of le.dataCaseNoThing) rows.push('<tr><td>a thing nobody has</td><td>' + svEsc(propDisplayName(d.pt) || ('prop ' + d.pt)) +
       ' sets quest value ' + d.state + ' when its Data1 is ' + srcNum(d.v) + ', and no ' + svEsc(propDisplayName(d.pt) || 'such thing') +
-      ' anywhere has that Data1, so quest value ' + d.state + ' is never set. It is read by ' + where(d.readers) + '.</td><td>' + where([d.v]) + '</td></tr>');
+      ' anywhere has that Data1, so quest value ' + d.state + ' never changes. The scripts that read it: ' + where(d.readers) + '.</td><td>' + where([d.v]) + '</td></tr>');
     // Character flags tested and never set, read in looseEnds.
     for (const f of le.charFlagNeverSet) rows.push('<tr><td>a character flag checked and never set</td><td>Flag ' + f.bit + ' of ' +
       (chipOf(f.character) || svEsc(characterName(f.character) || ('character ' + f.character))) +
-      ' is checked, but nothing sets it, whether by a call, a shared script, a queued task or the character table, so the check never passes.</td><td>' +
+      ': a script checks it, but nothing sets it, whether by a call, a shared script, a queued task or the character table, so the check never passes.</td><td>' +
       where(f.sites) + '</td></tr>');
     // The sleep helper's magic half, read in sleepRules.
     const slp = sleepRules();
-    if (slp && slp.magicGuard && slp.magicCap) rows.push('<tr><td>a value read in place of another</td><td>The sleep bonus for magic is given while magic is below full health, and a total above full magic sets magic to full health, so a character whose full health is higher than their full magic wakes with more magic than their maximum.</td><td>' +
+    if (slp && slp.magicGuard && slp.magicCap) rows.push('<tr><td>a value read in place of another</td><td>Sleep adds the magic bonus while magic is below full health, and a total above full magic sets magic to full health, so a character whose full health is higher than their full magic wakes with more magic than their maximum.</td><td>' +
       where([slp.magicGuard, slp.magicCap]) + '</td></tr>');
     // The three "use a thing" task scripts, read in looseEnds (unusedCast).
     for (const u of le.unusedCast) rows.push('<tr><td>a task that does nothing</td><td>Task ' + u.task + ' converts its item to a prop, then sends ' + svEsc(u.method) +
       ' to the unconverted item instead. A queued task’s item arrives as a plain number rather than as the thing itself, and a number cannot respond, so the task never does anything.' +
       (u.queuedBy.length ? ' Queued by ' + where(u.queuedBy) + '.' : ' Nothing queues it.') + '</td><td>' + where([u]) + '</td></tr>');
     for (const list of twoErrands) rows.push('<tr><td>one line shown for two errands</td><td>line ' + list[0].line.v + lineText(list[0].line.v) +
-      ' is shown for ' + [...new Set(list.map(a => a.slot.v))].map(s => 'slot ' + s + lineText(s)).join(' and for ') +
+      ' appears for ' + [...new Set(list.map(a => a.slot.v))].map(s => 'slot ' + s + lineText(s)).join(' and for ') +
       ', and its words can only describe one of them.</td><td>' +
       where(list.map(a => a.line)) + '</td></tr>');
     if (lib2) for (const d of lib2) for (const k of d.dangling)
@@ -4054,7 +4054,7 @@ function renderMechanicsSheet(value) {
     const clut = window.CYTHERA_RSRC && typeof showMacRsrcDetail === 'function' ? svLink('clut 256', "showMacRsrcDetail('clut', 256)") : 'clut 256';
     const ours = PALETTE_CYCLES.map(([s, n]) => propWordHex(s) + ' to ' + propWordHex(s + n - 1)).join(', ');
     add('palette', 'The Palette and Its Ramps', null, '',
-      'Every picture uses one table of 256 colors, ' + clut + '. Water, lava and magic seem to move because a few runs of it are shifted one step on every tick.',
+      'Every picture uses one table of 256 colors, ' + clut + '. Water, lava and magic seem to move because the game shifts a few runs of it one step on every tick.',
       [
         'This page cycles <b>' + ours + '</b>.',
         pr ? (pr.agrees ? 'The game cycles the same runs.' : '<b>The game cycles different runs</b>: ' +
@@ -4066,18 +4066,18 @@ function renderMechanicsSheet(value) {
 
     add('loose', 'Loose Ends', null, '',
       rows.length ? 'Mistakes in the scenario’s scripts, each linked to the line that causes it.'
-                  : 'Nothing of this kind was found in this file.',
+                  : 'This file has nothing of this kind.',
       rows.length ? [
-        never.length ? '<b>' + never.length + '</b> To Do lines are added and never struck off.' : '',
+        never.length ? '<b>' + never.length + '</b> To Do lines go on the list and never come off.' : '',
         le.unreachable.length ? '<b>' + le.unreachable.length + '</b> check a value that nothing ever sets, so what they lead to can never happen.' : '',
         wrongLine.length ? '<b>' + wrongLine.length + '</b> lines show another line’s words, usually on purpose: the errand in the words of whoever told you.' : '',
         twoErrands.length ? '<b>' + twoErrands.length + '</b> of those ' + (twoErrands.length === 1 ? 'is' : 'are') + ' shown for two different errands, so for one of them it is wrong.' : '',
         le.exactStrikes.length ? '<b>' + le.exactStrikes.length + '</b> ' + (le.exactStrikes.length === 1 ? 'line is' : 'lines are') + ' struck off only at an exact count, which a visit can skip past.' : '',
         le.flagReadNeverWritten.length ? '<b>' + le.flagReadNeverWritten.length + '</b> quest ' + (le.flagReadNeverWritten.length === 1 ? 'flag is' : 'flags are') + ' checked and never set.' : '',
         skillOff ? 'The script that settles a blow reads the weapon’s skill from the wrong place, so no armed blow benefits from it.' : '',
-        le.spacedKeywords.length ? '<b>' + le.spacedKeywords.length + '</b> keyword ' + (le.spacedKeywords.length === 1 ? 'list has' : 'lists have') + ' a space after a comma, so the keyword after it only matches if a space is typed first.' : '',
+        le.spacedKeywords.length ? '<b>' + le.spacedKeywords.length + '</b> keyword ' + (le.spacedKeywords.length === 1 ? 'list has' : 'lists have') + ' a space after a comma, so the keyword after it only matches if you type a space first.' : '',
         le.charFlagNeverSet.length ? '<b>' + le.charFlagNeverSet.length + '</b> character ' + (le.charFlagNeverSet.length === 1 ? 'flag is' : 'flags are') + ' checked and never set, so the lines that depend on them are either never said or said every time.' : '',
-        le.unusedCast.length ? '<b>' + le.unusedCast.length + '</b> of the tasks a character can be given ' + (le.unusedCast.length === 1 ? 'does' : 'do') + ' nothing' + (le.unusedCast.some(u => u.queuedBy.some(q => q.resid === 0x1AD5)) ? ', and Lock Picking queues one of them, which is why a companion told to pick a lock never does.' : '.') : ''
+        le.unusedCast.length ? '<b>' + le.unusedCast.length + '</b> of the tasks you can give a character ' + (le.unusedCast.length === 1 ? 'does' : 'do') + ' nothing' + (le.unusedCast.some(u => u.queuedBy.some(q => q.resid === 0x1AD5)) ? ', and Lock Picking queues one of them, which is why a companion told to pick a lock never does.' : '.') : ''
       ].filter(Boolean) : [],
       table(['what', 'which', 'where'], rows));
   }
@@ -4097,7 +4097,7 @@ function renderMechanicsSheet(value) {
     const pf = exePatchFiles();
     const nm = x => x && x.name ? srcNum(x.id, x.name) : null;
     const patchName = nm(pf && pf.patch), customName = pf && pf.custom ? srcNum(pf.custom, pf.custom.v) : null;
-    const rules = ['<b>Into Cythera Data.</b> Magpie, or Apply below, writes the patch into the game file. Anything can be changed this way.'];
+    const rules = ['<b>Into Cythera Data.</b> Magpie, or Apply below, writes the patch into the game file. A patch can change anything this way.'];
     if (pf && patchName && pf.list && pf.count)
       rules.push('<b>' + patchName + '.</b> A file in the game’s folder listing up to ' + srcNum(pf.count) + ' patch files, which the game loads when it starts.');
     if (pf && customName)
@@ -4169,12 +4169,12 @@ function renderMechanicsSheet(value) {
   // ---- the hero's colours, as a patch ----
   {
     add('herosprite', 'Recolor a Sprite or Portrait (untested)', null, '',
-      'Pick a sprite or a portrait and change its colors. The hero and the heroine can also be given another character’s body. ' +
+      'Pick a sprite or a portrait and change its colors. You can also give the hero and the heroine another character’s body. ' +
       'This page writes a Magpie patch that replaces just that picture.',
       [
-        'The hero and the heroine can wear any person, or any monster drawn in four or eight frames. A monster has fewer poses, so some of its frames are reused.',
+        'The hero and the heroine can wear any person, or any monster drawn in four or eight frames. A monster has fewer poses, so the patch reuses some of its frames.',
         'Each color keeps its shading. Where the art uses one shade for two things, both change.',
-        'The hero’s portrait is copied into a saved game when the character is made, so a new portrait only shows in a game started after the patch.'
+        'The game copies the hero’s portrait into a saved game when you make the character, so a new portrait only shows in a game started after the patch.'
       ], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
@@ -4220,9 +4220,9 @@ function renderMechanicsSheet(value) {
       'This page writes a Spanish copy of the open file, to put in place of Cythera Data in the game\u2019s folder.',
       [
         'It is a whole file rather than a patch, because the accented letters need changes a patch cannot make.',
-        'It was written for versions 1.0.3 and 1.0.4. Any text your file has changed stays in English.',
+        'It works on versions 1.0.3 and 1.0.4. Any text your file has changed stays in English.',
         'Characters answer keywords in Spanish or in English.',
-        'The program can be translated too, from the installer or from the program itself: its menus, dialogs and messages. With both in Spanish, the names of things carry their article (\u201cuna espada\u201d, \u201cel rey\u201d).',
+        'You can translate the program too, from the installer or from the program itself: its menus, dialogs and messages. With both in Spanish, the names of things carry their article (\u201cuna espada\u201d, \u201cel rey\u201d).',
         'On a 68K Mac the program\u2019s menus and dialogs are in Spanish, and its messages stay in English.'
       ], '');
     const sec = sections[sections.length - 1].el;
@@ -4239,14 +4239,14 @@ function renderMechanicsSheet(value) {
     const edits = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
     add('compare', 'Compare Two Files', null, '',
       'See what differs between two game files: two releases of the game, a modded copy against a clean one, ' +
-      'or this file against how it was before you edited it. The differences can be saved as a patch.',
+      'or this file against how it was before you edited it. You can save the differences as a patch.',
       [
-        'The file you open here is treated as the older one, and the file already open as the newer.',
+        'The page treats the file you open here as the older one, and the file already open as the newer.',
         'All four installers open here. The data in <b>1.0.3</b> and <b>1.0.4</b> is the same, so everything Ambrosia changed after 1.0.1 is between those two.'
       ],
       '<ul class="ruleList"><li>' +
         (edits ? 'You have changed <b>' + edits + '</b> resource' + (edits === 1 ? '' : 's') + ' in this file.'
-               : 'Nothing has been edited in this file, so there is nothing to compare it with itself.') +
+               : 'You have not edited this file, so there is nothing to compare it with.') +
       '</li></ul>');
     const sec2 = sections[sections.length - 1].el;
     const bar = document.createElement('div');
@@ -4357,7 +4357,7 @@ function renderMechanicsSheet(value) {
        records placed on the map. What a signal opens is not in the archive,
        which is why the tunes name the signal and stop there. */
     if (bz) add('braziers', 'The Braziers', null, src('the braziers', 0x113F),
-      'A row of braziers to be lit in the right order.',
+      'A row of braziers to light in the right order.',
       [], braziersHtml);
     if (bu) add('buttons', 'The Buttons and the Pattern Rooms', null, src('the buttons', 0x1104),
       'Five rooms, each with a pair of lit panels and a door that opens when the panels match.',
@@ -4384,19 +4384,19 @@ function renderMechanicsSheet(value) {
       const presses = ps => { const out = []; for (let i = 0; i < ps.length; ) { let j = i; while (j < ps.length && ps[j] === ps[i]) j++; out.push(side[ps[i]] + (j - i > 1 ? ' ' + (j - i) + ' times' : '')); i = j; } return out.join(', '); };
       const door = d => svLink((propTypeName(d.pt) || 'door') + ' in ' + (zoneDisplayName(d.zone) || ('zone ' + d.zone)), 'atlasOpenSquare(' + (0x8000 + d.zone) + ',' + d.x + ',' + d.y + ')', d.x + ', ' + d.y);
       add('thinkadot', 'The ' + nm, null, src('the ' + nm, 0x1175),
-        'Eight dots and three buttons. A pattern of dots sends a signal, and the signal opens a door in the zone where the pattern is made.',
+        'Eight dots and three buttons. A pattern of dots sends a signal, and the signal opens a door in the zone where you make the pattern.',
         [
           'The dots are in rows of three, two and three, and ' + srcNum({ v: 0, resid: 0x1175, at: td.startAt }, 'start') + ' with ' + lit(td.start).join(', ') + ' lit.' +
             (td.placed.length ? ' The ' + svEsc(nm) + ' is ' + td.placed.map(pl => pl.onMap ? 'in ' + svLink(zoneDisplayName(pl.zone) || ('zone ' + pl.zone), 'atlasOpenSquare(' + (0x8000 + pl.zone) + ',' + pl.x + ',' + pl.y + ')', pl.x + ', ' + pl.y) : 'inside something in ' + svEsc(zoneDisplayName(pl.zone) || ('zone ' + pl.zone))).join(', ') + '.' : ''),
           'A button drops a marble onto dot 0, 1 or 2. The marble flips the dot it lands on and rolls on: from a dot that is now lit it goes ' + at(td.lit.at, moves(td.lit)) + ', from a dot that is now dark ' + at(td.dark.at, moves(td.dark)) + ', and off the board from ' + off.join(', ') + '. The dots keep their state between uses.',
           ...td.patterns.map(p => (lit(p.v).length ? 'Dots ' + lit(p.v).join(', ') + ' lit' : 'Every dot dark').replace(/^Dots 0, 1, 2, 3, 4, 5, 6, 7 lit$/, 'Every dot lit') +
             ' sends signal ' + srcNum(p.sigAt) + (p.doors.length ? ', which opens the ' + p.doors.map(door).join(' and the ') : ', which nothing in the file answers') +
-            (p.presses ? '. From the start: ' + presses(p.presses) + '.' : '. It cannot be reached from the start.'))
+            (p.presses ? '. From the start: ' + presses(p.presses) + '.' : '. No sequence reaches it from the start.'))
         ], '');
     }
     add('signals', 'What a Signal Reaches', null, '',
       sig ? 'What a button, a bell or an instrument sends, and what receives it.'
-          : 'The order a signal travels in is set by the program. ' + MECH_NO_APP,
+          : 'The program sets the order a signal travels in. ' + MECH_NO_APP,
       [], signalsHtml);
   }
 
@@ -4530,7 +4530,7 @@ function renderMechanicsSheet(value) {
       if (!file) return;
       file.arrayBuffer().then(buf => compareOpenBytes(new Uint8Array(buf), file.name)).catch(e => {
         const note = document.getElementById('compareNote');
-        if (note) { note.textContent = 'That file could not be read: ' + e.message; note.className = 'mechSub patchBad'; }
+        if (note) { note.textContent = 'Could not read that file: ' + e.message; note.className = 'mechSub patchBad'; }
       });
     };
     renderCompareReport();

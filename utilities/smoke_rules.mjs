@@ -44,7 +44,7 @@ try {
   }
   ctx.showCategory('SPELLS');
   const sphtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-  if (!/Fireball/.test(sphtml) || !/25 \+ a roll of 0 to 9/.test(sphtml) || !/burst of flame/.test(sphtml) || !/Level 8/.test(sphtml)) fail('spells', 'the Spells sheet does not show Fireball with its damage and description by level');
+  if (!/Fireball/.test(sphtml) || !/25 \+ a random number from 0 to 9/.test(sphtml) || !/burst of flame/.test(sphtml) || !/Level 8/.test(sphtml)) fail('spells', 'the Spells sheet does not show Fireball with its damage and description by level');
   else if ((sphtml.match(/class="skillIcon"/g) || []).length < ctx.spellRules().spells.length) fail('spells', 'not every spell wears its icon: ' + (sphtml.match(/class="skillIcon"/g) || []).length);
   else console.log('  spells: each a folding card, by level, with its icon, damage and description');
   // GIF: a header, the right size, and a frame per palette when the picture cycles.
@@ -249,7 +249,7 @@ try {
   else if (!(dice.faces.join() === '6,6,6' && dice.matchPay === 2 && dice.skillFaces === 6 && !dice.skillAlways && !dice.skillFree && dice.bytes.length === 7 &&
              dice.bytes.some(b => b.at === 0x0506 && b.now === 2) && dice.bytes.some(b => b.at === 0x0492 && b.target && b.next === 0x0494) && dice.bytes.some(b => b.at === 0x047C && b.target && b.next === 0x047E) && dice.bytes.some(b => b.at === 0x045E && b.now === 6)))
     fail('mechanics', 'the dice constants were not read off the script with their offsets: ' + JSON.stringify(dice && dice.bytes));
-  else if (!/What to edit/.test(html) || !/0x0506/.test(html) || !/a match pays nothing/.test(html) || !/every game played with the skill is a match/.test(html))
+  else if (!/What to edit/.test(html) || !/0x0506/.test(html) || !/a match pays nothing/.test(html) || !/every game you play with the skill is a match/.test(html))
     fail('mechanics', 'the dice section does not say what to edit');
   else if (!ctx.gearTable().some(r => r.name === 'axe' && r.damage === 22 && r.skill === 'Axe') || !ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2) || !ctx.gearTable().some(r => r.name === 'bow' && r.ammoClass === 1 && r.reach === 5)) fail('mechanics', 'the gear table does not name the axe’s damage and skill, the spear’s reach, or the bow’s ammunition and range');
   else if (!(ctx.combatRules() && ctx.combatRules().d30 && ctx.combatRules().parry && ctx.combatRules().words.length >= 8)) fail('mechanics', 'the combat rules were not read: ' + JSON.stringify(ctx.combatRules()));
@@ -264,10 +264,10 @@ try {
   // over the listing, so each is required here, and the two throw figures
   // must come off the spear's own class rather than a typed table.
   else if (!(function () { const ar = ctx.attackRules(); return ar && ar.squared && ar.lessOne && ar.reach && ar.range && ar.launcher && ar.meleeFirst && ar.beyondAdjacent && ar.flies && ar.lodges && ar.drops && ar.bodyRoll && ar.reflexRoll && ar.scale && ar.scale.sub === 12 && ar.scale.div === 4 && ar.bodyAddVal && ar.bodyAddVal.v === 1 && ar.ammoSpent; })()) fail('mechanics', 'the attack routine was not read: ' + JSON.stringify(ctx.attackRules()));
-  else if (!/knight’s move/.test(html) || !/hits or is parried/.test(html) || !/body less (?:<button[^>]*>)?12(?:<\/button>)? over (?:<button[^>]*>)?4(?:<\/button>)?/.test(html) || !/uses up one piece of ammunition per shot/.test(html)) fail('mechanics', 'the attack rules are not on the sheet');
+  else if (!/knight’s move/.test(html) || !/hits or meets a parry/.test(html) || !/body less (?:<button[^>]*>)?12(?:<\/button>)? over (?:<button[^>]*>)?4(?:<\/button>)?/.test(html) || !/uses up one piece of ammunition per shot/.test(html)) fail('mechanics', 'the attack rules are not on the sheet');
   else if (!ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2 && r.thrownDamage === 10 && r.thrownRange === 4) || !ctx.gearTable().some(r => r.name === 'mystic spear' && r.reach === 1 && r.thrownDamage === 25 && r.thrownRange === 8) || !ctx.gearTable().some(r => r.name === 'sword' && r.thrownDamage === null)) fail('mechanics', 'the throw figures were not read off the spear classes');
   else if (ctx.spellRules().spells.length < 35 || !ctx.spellRules().spells.some(x => /Fireball/.test(x.name) && x.level === 5 && x.cost === 20) || !(ctx.spellRules().rule && ctx.spellRules().rule.failure)) fail('mechanics', 'the spells were not read: ' + ctx.spellRules().spells.length);
-  else if ((function () { const fx = ctx.spellEffects(); const sp = ctx.spellRules().spells; const by = n => fx.get((sp.find(x => x.name === n) || {}).resid); const fb = by('Fireball'), ds = by('Death Strike'), lh = by('Lesser Healing'), tr = by('Tremor'); return !(fb && fb.damage[0] && fb.damage[0].amount.base === 25 && fb.damage[0].amount.rolls[0][1] === 10 && fb.damage[0].type === 8 && /target square/.test(fb.damage[0].who)) || !(ds && ds.damage[0].amount.base === 200) || !(lh && lh.heals[0] && /health \+ 5 \+ a roll of 1 to 4/.test(lh.heals[0].text)) || !(tr && tr.damage[0].amount.rolls.length === 2 && tr.damage[0].who === 'every enemy'); })()) fail('mechanics', 'the spell effects were misread: ' + JSON.stringify([...ctx.spellEffects()].slice(0, 3)))
+  else if ((function () { const fx = ctx.spellEffects(); const sp = ctx.spellRules().spells; const by = n => fx.get((sp.find(x => x.name === n) || {}).resid); const fb = by('Fireball'), ds = by('Death Strike'), lh = by('Lesser Healing'), tr = by('Tremor'); return !(fb && fb.damage[0] && fb.damage[0].amount.base === 25 && fb.damage[0].amount.rolls[0][1] === 10 && fb.damage[0].type === 8 && /target square/.test(fb.damage[0].who)) || !(ds && ds.damage[0].amount.base === 200) || !(lh && lh.heals[0] && /health \+ 5 \+ a random number from 1 to 4/.test(lh.heals[0].text)) || !(tr && tr.damage[0].amount.rolls.length === 2 && tr.damage[0].who === 'every enemy'); })()) fail('mechanics', 'the spell effects were misread: ' + JSON.stringify([...ctx.spellEffects()].slice(0, 3)))
   else if (!(ctx.sleepRules() && ctx.sleepRules().own === 4 && ctx.sleepRules().half && ctx.sleepRules().quarter && ctx.sleepRules().inns.some(x => x.who === 41 && x.quality === 3) && ctx.sleepRules().inns.length === 3)) fail('mechanics', 'the sleep rule was misread: ' + JSON.stringify(ctx.sleepRules()))
   else if (ctx.hungerNotes().falls || ctx.hungerNotes().complains !== 4) fail('mechanics', 'hunger was misread: ' + JSON.stringify(ctx.hungerNotes()));
   else if (!(ctx.skillConsultations().by.get(0xCF) || new Set()).has(0x812)) fail('mechanics', 'Gambling is not listed as asked about by the dice game');
@@ -318,7 +318,7 @@ try {
   // four values, and anything under 16 adds nothing. The figure says so for
   // its default body of 20, a roll of 0 to 2.
   else if ((function () { const ar = ctx.attackRules(); return !(ctx.combatBodyRoll(25, ar) === 4 && ctx.combatBodyRoll(15, ar) === 1 && ctx.combatBodyRoll(5, ar) <= 1 && ctx.combatBodyRoll(25, null) === 0); })()) fail('mechanics', 'the body roll is not worked out from 0xE90 and 0x3042');
-  else if (!/A body of 20 adds a roll of 0 to 2 to the /.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules()))) fail('mechanics', 'the combat figure does not say what the body roll adds');
+  else if (!/A body of 20 adds a random number from 0 to 2 to the /.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules()))) fail('mechanics', 'the combat figure does not say what the body roll adds');
   // Body for reflex (0xE88), and the unit field it tests: the top half of
   // the flag word, which the program serves as field 51 by shifting the long
   // right sixteen and the low half as field 50 by clearing it. Each of the
@@ -603,7 +603,7 @@ try {
   /* Lines replaced before they can be read: the board's Crito, Borus,
      Niobe (two), Ake and bartender lines, and the rest the same walk finds. */
   else if (ctx.linesReplacedAtOnce().map(r => r.resid.toString(16) + '@' + r.at.toString(16)).sort().join() !== '1820@60e,1828@252,1829@375,1829@440,1829@463,182a@13f,182a@190,182a@f5,1857@52,1859@55,1859@9b,1867@251,1878@181,812@12,812@383') fail('loose', 'the lines replaced at once are not the fifteen known: ' + JSON.stringify(ctx.linesReplacedAtOnce().map(r => r.resid.toString(16) + '@' + r.at.toString(16))));
-  else if (!/a line replaced before it can be read/.test(html)) fail('loose', 'the replaced-line row is missing from the card');
+  else if (!/a line replaced before you can read it/.test(html)) fail('loose', 'the replaced-line row is missing from the card');
   /* The run-on answers. The reader's first form linked the chain through the
      object's start as well as the jump target, which is already a resource
      offset, and so walked no character's chain; the wishing fountain's four
@@ -1276,8 +1276,8 @@ try {
   const names = peek('PROP_TYPE_NAMES') || {};
   const gone = ['CYTHERA_CHARACTERS', 'ZONES', 'RESOURCE_LABELS', 'TILE_SHEET_HINTS', 'DVM_FLAG_NAMES'].filter(n => peek('typeof ' + n) !== 'undefined');
   if (unlinked.length) fail('file figures', 'not a link to the line that holds it: ' + unlinked.join(', '));
-  else if (!/Haggling<\/b> takes off a further roll of 0 to (?:<button[^>]*>)?4(?:<\/button>)?/.test(html)) fail('file figures', 'the haggling roll is not 0 to 4, one short of its operand of 5');
-  else if (/capped at <b>65,535/.test(html) || /plus a roll of 0 to 29<\/b>/.test(html)) fail('file figures', 'a figure is typed into its sentence rather than read');
+  else if (!/Haggling<\/b> takes off a further random amount from 0 to (?:<button[^>]*>)?4(?:<\/button>)?/.test(html)) fail('file figures', 'the haggling roll is not 0 to 4, one short of its operand of 5');
+  else if (/capped at <b>65,535/.test(html) || /plus a random number from 0 to 29<\/b>/.test(html)) fail('file figures', 'a figure is typed into its sentence rather than read');
   else if (Object.keys(names).length || gone.length) fail('names', 'typed name tables are back: ' + JSON.stringify({ props: Object.keys(names), tables: gone }));
   else if (!/^Tile Sheet 35: unlit torch, lit torch/.test(ctx.labelFor(0x8E23) || '') || ctx.labelFor(0x8F0A) !== 'General Graphic 10: chest, coffer')
     fail('names', 'a tile sheet or a picture is not named by the game\u2019s words: ' + JSON.stringify([ctx.labelFor(0x8E23), ctx.labelFor(0x8F0A)]));

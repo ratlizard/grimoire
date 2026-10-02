@@ -608,7 +608,7 @@ function translateGenevaStrike(size) {
   return { bytes: nfntFromPixels(f), f, widMax: Math.max(...Object.values(out).map(g => g.adv), 6) };
 }
 function translateAddStrikes(spec, S, log) {
-  if (typeof GENEVA9_TTF === 'undefined') throw new Error('the Geneva font (js/mac-geneva.js) is not loaded');
+  if (typeof GENEVA9_TTF === 'undefined') throw new Error('the Geneva font (js/mac-geneva.js) is not open');
   const entries = [];
   let ten = null;
   for (const size of Object.keys(S.nfnt).map(Number).sort((a, b) => a - b)) {
@@ -763,7 +763,7 @@ function translateProgram(data, rsrc, T, fixes) {
     report.done++;
     if (got === '=') continue;
     const pieces = (Array.isArray(got) ? got : [got]).map(encodeMacRoman);
-    if (pieces.length !== p.inner.length + 1) throw new Error('the program\'s string ' + h + ' is pointed at in ' + (p.inner.length + 1) + ' places and its translation has ' + pieces.length + ' pieces');
+    if (pieces.length !== p.inner.length + 1) throw new Error('the program\'s string ' + h + ' has pointers into it at ' + (p.inner.length + 1) + ' places and its translation has ' + pieces.length + ' pieces');
     const now = new Uint8Array(pieces.reduce((n, x) => n + x.length, 0));
     const nowInner = [];
     let off = 0;

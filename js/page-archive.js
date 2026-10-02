@@ -159,7 +159,7 @@ function archiveCachePut(rec) { return idbTx('readwrite', s => s.put(rec, ARCHIV
 function archiveCacheClear() {
   return idbTx('readwrite', s => s.delete(ARCHIVE_KEY))
     .then(() => { setStatus('Remembered copy cleared. Reloading…'); location.reload(); })
-    .catch(() => setStatus('Nothing was remembered to clear.'));
+    .catch(() => setStatus('There was nothing remembered to clear.'));
 }
 
 async function fetchWithProgress(url, label) {
@@ -361,7 +361,7 @@ function adoptArchive(raw, sourceName, opts) {
      which is the only way to look inside a patch before applying it. */
   if (ARCHIVE && delverArchivePatchPeek(found.bytes) &&
       patchesOpenBytes(found.bytes, (found.forks && found.forks.name) || sourceName)) {
-    setStatus('That is a Magpie patch, not a game file, so it has been compared with the open file instead of replacing it. ' +
+    setStatus('That is a Magpie patch, not a game file, so the page compared it with the open file instead of replacing it. ' +
               'Data \u203a Patches says what it changes and can apply it.');
     return true;
   }
@@ -821,7 +821,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
       if (row && window.CONTAINED) {
         const label = document.createElement('span');
         label.className = 'amNote';
-        label.textContent = 'This file holds ' + window.CONTAINED.entries.length + ' archives, the open one is marked:';
+        label.textContent = 'This file holds ' + window.CONTAINED.entries.length + ' archives, the open one marked:';
         row.appendChild(label);
         for (const it of window.CONTAINED.entries) {
           const b = document.createElement('button');

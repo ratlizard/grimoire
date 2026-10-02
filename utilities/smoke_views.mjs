@@ -100,7 +100,7 @@ try {
             html = walk(REGISTRY.get('sheetGrid'));
             if (!/Examine says “It has an extremely sharp edge\.”/.test(html)) fail('items', 'the dagger at Data1 3 does not quote its Examine line');
             else if (!/never reads its aspect<\/b>: at any aspect it is the same dagger in every figure/.test(html)) fail('items', 'the dagger’s page does not say its class never reads the aspect');
-            else if ((function () { ctx.renderItemSheet(); const h = walk(REGISTRY.get('sheetGrid')); return !/Weapons &amp; Armor<\/span><span class="groupNote">Anything used in a fight/.test(h) || !/Containers<\/span><span class="groupNote">Anything that holds other things/.test(h) || !/Carried Goods<\/span><span class="groupNote">Everything else that can be picked up/.test(h); })()) fail('items', 'the Items dividers do not say what puts an item under each');
+            else if ((function () { ctx.renderItemSheet(); const h = walk(REGISTRY.get('sheetGrid')); return !/Weapons &amp; Armor<\/span><span class="groupNote">Anything used in a fight/.test(h) || !/Containers<\/span><span class="groupNote">Anything that holds other things/.test(h) || !/Carried Goods<\/span><span class="groupNote">Everything else you can pick up/.test(h); })()) fail('items', 'the Items dividers do not say what puts an item under each');
             else if ((function () { ctx.showItemDetail(213); ctx.propWordSet(1); const h = walk(REGISTRY.get('sheetGrid')); return !/reads its aspect<\/b> \(2 places\)/.test(h) || !/Eaten, it feeds <b[^>]*>\+8<\/b> and says “Yetch!”/.test(h); })()) fail('items', 'the mushroom steak at aspect 1 does not say its class reads the aspect and what the dried jellyfish feeds and says');
             else if ((function () { ctx.showItemDetail(0x1F); ctx.propWordSet(4); const h = walk(REGISTRY.get('sheetGrid')); return !/Drunk, it is the <b[^>]*>Antidote Potion<\/b>: clears Poisoned/.test(h); })()) fail('items', 'the potion at aspect 4 does not name the Antidote');
             else console.log(`  items: the word block reads the mace at 8 as 0x205E the flail, the spear reaches it at 2; Data1 is the enchantment (${pw.scripts} scripts read the bytes, ${pw.readers.length} classes), one placed sword carries 7`);
@@ -958,7 +958,7 @@ try {
   // Helpers read through (0xF02, SetCharacterFlag), a character by its
   // number named from the table, and a state's setters beside its test.
   else if (!/Halos \(62\)\u2019s bit flags has bit 3: \([^)]*0xF02\)/.test(h) || !/Set bit 7 of its bit flags \(SetCharacterFlag\)/.test(h) ||
-           !/to 2 by Berossus\u2019 conversation/.test(h) || !/bit 3 of Halos\u2019 bit flags is set by Halos\u2019 conversation, asked about [A-Z]/.test(h))
+           !/Berossus\u2019 conversation[^;]* sets? (?:it|state 3) to 2/.test(h) || !/Halos\u2019 conversation, asked about [A-Z][^;]*? sets bit 3 of Halos\u2019 bit flags/.test(h))
     fail('read view', 'Aethon\'s helpers, Halos or state 3 are not read through: ' + h.replace(/<[^>]+>/g, ' ').slice(0, 400));
   else if (!/UseOn\(it, the target\)/.test(f) || !/the target as character/.test(f)) fail('read view', 'a UseOn\'s second argument is not the target');
   else console.log('  read view: Aethon\'s conversation read in full under its prompts, and a UseOn\'s second argument is the target');

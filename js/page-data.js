@@ -770,7 +770,7 @@ const CHEAT_KEY_WORDS = {
   0x3C: ['Darken', x => x.via('DarkenLight', 'Darkens') + ' the level’s light a step.'],
   0x3E: ['Brighten', x => x.via('BrightenLight', 'Brightens') + ' the level’s light a step.'],
   0xC3: ['Magic map', x => 'Shows the ' + x.via('MagicMap', 'magic map') + ' around you until you click.'],
-  0xBD: ['Show the room you are in', x => x.via('CopyBits', 'Shows') + ' the ground you can reach from where you stand, until you click. The magic map is built on it.'],
+  0xBD: ['Show the room you are in', x => x.via('CopyBits', 'Shows') + ' the ground you can reach from where you stand, until you click. The magic map starts from it.'],
   0xB5: ['Show the walls', x => x.walls()],
   0xB7: ['Walk through anything', x => 'Nothing blocks you while it is on (' + x.flip() + ').'],
   0xFA: ['Nobody is anybody’s enemy', x => x.peace()],
@@ -1001,7 +1001,7 @@ function renderCheatsSheet() {
       '<li>Type <b>' + srcNum(g.word, g.word.v) + '</b> (' + letters.map(t => '<b>' + svEsc(t) + '</b>').join(', then ') + ' on a US layout) in the map window. With ' +
       srcNum(g.bit, 'the preference') + ' set, cheat mode ' + srcNum(g.flip, 'switches') + ' and the ' +
       'status window prints ' + (g.on ? '“' + srcNum(g.on, g.on.v.replace(/\n+$/, '')) + '”' : 'that it is on') + (g.on && /[.!?]\s*$/.test(g.on.v) ? '' : '.') + '</li>' +
-      (setters.length ? '<li>The bit is written by ' + setters.map(w => srcNum(w.bits, w.routine.name.replace(/\(.*$/, ''))).join(', ') + '.</li>'
+      (setters.length ? '<li>Written by ' + setters.map(w => srcNum(w.bits, w.routine.name.replace(/\(.*$/, ''))).join(', ') + '.</li>'
         : '<li><b>Nothing in the game sets it</b>' + (defaults && !clear ? ', though a record the game stores at first run has it set' : '') + ', so on a copy as released typing the code does nothing.</li>') +
       (others.length && wait ? '<li>The preference also adds a ' + srcNum(wait.ticks, (wait.ticks.v / 60) + '-second') + ' pause at startup.</li>' : '') +
       '<li>Typing the letters of the code also switches on targeting modes, so the tab reads ATTACK afterward until you press <b>M</b>.</li></ul>' +
@@ -1065,7 +1065,7 @@ function renderCheatsSheet() {
       const menuName = m => (m.title ? svEsc(m.title) : 'MENU ' + m.id);
       h += '<div class="cheatNote">' +
         (bars.unlisted.length
-          ? bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are menus that work' : ' is a menu that works') + ' but ' + (bars.unlisted.length > 1 ? 'are' : 'is') + ' in no menu bar, so the Preferences menu and the frame-rate limit cannot be reached. ' +
+          ? bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are menus that work' : ' is a menu that works') + ' but ' + (bars.unlisted.length > 1 ? 'are' : 'is') + ' in no menu bar, so you cannot reach the Preferences menu or the frame-rate limit. ' +
             'Add-on 612, the Cythera menu patch, adds three of them; add-on 613 takes them out again.'
           : 'Every menu the game defines is in its menu bar.') + '</div>';
     }
@@ -1084,7 +1084,7 @@ function renderCheatsSheet() {
       (vol.length >= 2 ? '<tr><td class="cheatCombo">' + key(vol.map(v => decodeMacRoman(new Uint8Array([v.key.v]))).join(' ')) + '<span class="cheatCode">' + vol.map(v => srcNum(v.key, '$' + v.key.v.toString(16).toUpperCase())).join(' ') + '</span></td>' +
         '<td><b>CD volume</b><div class="cheatDoes">' + vol.map(v => (v.step.v < 0 ? 'down' : 'up') + ' by ' + srcNum(v.step, Math.abs(v.step.v)) + (v.bound ? ' and held at ' + srcNum(v.bound) : '')).join('; ') + '.</div></td></tr>' : '') +
       (cd.length ? '<tr><td class="cheatCombo">' + key(cd.map(w => w.v).join(' ')) + '</td>' +
-        '<td><b>CD controls</b><div class="cheatDoes">Typed like the cheat code, when a CD is present: ' + cd.map(w => '“' + srcNum(w, w.v) + '”').join(', ') + '. What each does is guessed from the word.</div></td></tr>' : '') +
+        '<td><b>CD controls</b><div class="cheatDoes">Typed like the cheat code, when a CD is present: ' + cd.map(w => '“' + srcNum(w, w.v) + '”').join(', ') + '. What each does is a guess from the word.</div></td></tr>' : '') +
       '</tbody></table></div></div>';
   }
 
@@ -1120,7 +1120,7 @@ function renderCheatsSheet() {
   if (heap) {
     h += '<div class="mechSec"><h4 class="cheatH4">Level 0, the Nothing Map</h4><ul class="ruleList">' +
       '<li>Map 0 is ' + heap.w + ' by ' + heap.h + ', with no roof, no exits, ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') + ' and no name. The map window’s title reads Untitled there.</li>' +
-      '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory: the map was made and never filled in.</li>' +
+      '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory: the program made the map and never filled it in.</li>' +
       '<li>Players have reached it by accident, from a bed in Cademia and from beneath Pnyx, ' +
       'and found a figure with a guard’s sprite called Nothing, or Omen if killed twice. ' +
       'That figure is character record 0, which is empty, and is the record option-x writes to. ' +
@@ -1210,14 +1210,14 @@ function savedGameParts() {
   const out = [];
   const add = (rid, what) => { if (refExists(rid)) out.push({ rid, what }); };
   add(0xF009, 'the character records, everybody’s position, stats and condition (SaveGlobals)');
-  add(0xF00E, 'two bytes for each of 1,024 rooms; the first switch in them is set once a room has been entered and its description shown (SaveGlobals)');
+  add(0xF00E, 'two bytes for each of 1,024 rooms; the game sets the first switch in them once the party enters a room and sees its description (SaveGlobals)');
   const hero = loadCharacterTable()[1];
   if (hero && hero.zone) {
     add(0x8100 | hero.zone, 'the props of the zone the player stands in, from record 256 up (SaveLevelProps)');
     add(0x8200 | hero.zone, 'what the player has seen of that zone, one switch for each square: width ÷ 8, rounded up, times the height, in bytes (SaveLevelProps)');
   }
   add(0xF306, 'the first 256 prop records, the characters as they stand on that zone (SaveLevelProps)');
-  add(0x8800, 'the player’s portrait, written when the character was made (CreatePlayer)');
+  add(0x8800, 'the player’s portrait, which the game writes when you make the character (CreatePlayer)');
   add(0x0400, 'the live game, five tagged chunks: the quest values and flags, the active monsters with their queued activities, the spell effects in flight, the open windows, and the 256 gremlin frames (SaveToFile)');
   add(0x0401, 'the To Do list (SaveToDo)');
   add(0x0404, 'the twenty macro slots; 0xFF is unassigned (SaveMacros)');
@@ -1337,10 +1337,10 @@ function byteMapPropRecord(p, at, name) {
   rec.f(7, 1, 'Data2', { value: String(b[at + 7]) });
   const s6 = ((b[at + 14] & 0x3F) << 26) >> 26;
   rec.f(8, 2, 'its slot in the frame table (0xF308), where AllocateFrame copies its frame’s reference; field 14', { value: String(u16be(b, at + 8)) });
-  rec.f(10, 2, 'field 15, a spare field a script could read and set; none does, and nothing else in the program was found to use it', { value: String(u16be(b, at + 10)) });
+  rec.f(10, 2, 'field 15, a spare field a script could read and set; none does, and nothing else found in the program uses it', { value: String(u16be(b, at + 10)) });
   rec.f(12, 2, 'the heap reference of its frame, a dict AllocateFrame makes the first time a script stores something on it (has_storage, storage)', { value: String(u16be(b, at + 12)) });
-  rec.f(14, 1, 'how far it is drawn shifted along the diagonal, four pixels a step: the low six bits, signed, which TViewer::Render adds to both draw offsets (field 16); every reader masks off the top two', { value: String(s6) + (b[at + 14] & 0xC0 ? ', top bits ' + (b[at + 14] >> 6) : '') });
-  rec.f(15, 1, 'a spare byte: nothing in the program was found to read or write it', { value: String(b[at + 15]) });
+  rec.f(14, 1, 'how far the game shifts it along the diagonal when drawing it, four pixels a step: the low six bits, signed, which TViewer::Render adds to both draw offsets (field 16); every reader masks off the top two', { value: String(s6) + (b[at + 14] & 0xC0 ? ', top bits ' + (b[at + 14] >> 6) : '') });
+  rec.f(15, 1, 'a spare byte: nothing found in the program reads or writes it', { value: String(b[at + 15]) });
   return rec;
 }
 
@@ -1399,7 +1399,7 @@ function byteMapStream(p) {
     let q = body;
     if (tag === 'Char') {
       const shortNames = ['the party’s karma (the scripts’ global 12, Karma)', 'the languages the party knows (global 14, LanguagesKnown, which the text drawer also reads)',
-                          'the range a created creature’s size is chosen from (2 is 50 to 149 percent)', 'the next number the scripts’ NewUniqueName call hands out (it returns this and adds one)'];
+                          'the range the game picks a created creature’s size from (2 is 50 to 149 percent)', 'the next number the scripts’ NewUniqueName call hands out (it returns this and adds one)'];
       for (let k = 0; k < 4; k++) leaf(body + 2 * k, 2, shortNames[k], { value: String(u16be(b, body + 2 * k)) });
       for (let v = 0; v < 32; v++) leaf(pos + 16 + v, 1, 'quest value ' + v, { value: String(b[pos + 16 + v]) });
       for (let w = 0; w < 8; w++) leaf(pos + 48 + 4 * w, 4, 'quest flags ' + (32 * w) + ' to ' + (32 * w + 31) + ', one bit each, the first in the lowest bit', { value: byteMapHex(b, pos + 48 + 4 * w, 4) });
@@ -1442,7 +1442,7 @@ function byteMapStream(p) {
           o += 32;
         }
         rec.f(o, 1, '1 while it has a waypoint to walk to (SetWaypoint)', { value: String(b[q + o]) }); o += 1;
-        rec.f(o, 4, 'where it is going: x and y (SetWaypoint; 0xA5A5 when it has never been sent anywhere)', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')' }); o += 4;
+        rec.f(o, 4, 'where it is going: x and y (SetWaypoint; 0xA5A5 when nothing has ever sent it anywhere)', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')' }); o += 4;
         rec.f(o, 4, 'the next waypoint on the way there: x and y (TPathFinder::FindWaypoint)', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')' }); o += 4;
         rec.f(o, 2, 'how many activities it has queued', { value: String(cnt) }); o += 2;
         for (let a = 0; a < cnt; a++) {
@@ -1500,7 +1500,7 @@ function byteMapStream(p) {
       }
     }
     // Anything a block holds past what is read above.
-    if (q < end) leaf(q, end - q, tag === 'Wind' ? 'an open window of a class whose record is not read' : 'the rest of the block', { value: byteMapHex(b, q, end - q), unread: true });
+    if (q < end) leaf(q, end - q, tag === 'Wind' ? 'an open window of a class whose record the page does not read' : 'the rest of the block', { value: byteMapHex(b, q, end - q), unread: true });
     pos += 4 + len;
     if (len < 4) break;
   }
@@ -1513,7 +1513,7 @@ function byteMapToDo(p) {
   for (let s = 0; s * 8 + 8 <= b.length; s++) {
     const at = s * 8, ref = u32be(b, at + 4);
     const r = byteMapRecord(p, at, 8, 'slot ' + s, { empty: ref === 0x5000FFFF && !b[at] && !b[at + 1] && !u16be(b, at + 2) });
-    r.f(0, 1, '1 when the line has been struck off (DoneToDo)', { value: String(b[at]) });
+    r.f(0, 1, '1 once a script strikes the line off (DoneToDo)', { value: String(b[at]) });
     r.f(1, 1, 'padding: nothing in the program writes it (AddToDo and DoneToDo write byte 0)', { value: String(b[at + 1]) });
     r.f(2, 2, 'the day the line went on the list', { value: String(u16be(b, at + 2)) });
     r.f(4, 4, 'the line: the To Do text resource in the low half and the line’s number in the high twelve bits, 0x5000FFFF for none', { value: ref === 0x5000FFFF ? 'none' : 'line ' + ((ref >>> 16) & 0xFFF) + ' of 0x' + (ref & 0xFFFF).toString(16).toUpperCase().padStart(4, '0') });
@@ -1536,7 +1536,7 @@ function byteMapRooms(p) {
   const b = p.bytes;
   for (let n = 0; n * 2 + 2 <= b.length; n++) {
     const v = u16be(b, n * 2);
-    p.f(n * 2, 2, 'room ' + n + ': bit 0 is set the first time the party enters it, when its description runs (TGameSys::HeartBeat); nothing in the program or the scripts sets another bit', { value: '0x' + v.toString(16).toUpperCase().padStart(4, '0'), empty: !v, unread: !!(v & 0xFFFE) });
+    p.f(n * 2, 2, 'room ' + n + ': the game sets bit 0 the first time the party enters it, when its description runs (TGameSys::HeartBeat); nothing in the program or the scripts sets another bit', { value: '0x' + v.toString(16).toUpperCase().padStart(4, '0'), empty: !v, unread: !!(v & 0xFFFE) });
   }
 }
 // A zone's map memory (SaveLevelProps): one bit a square, LSB first, rows of
@@ -1693,7 +1693,7 @@ function byteMapResourceFork(raw) {
 function byteMapForkResource(p, type, id, at, len) {
   const b = p.bytes, nm = type + ' ' + id;
   if (type === 'pnot' && len === 12) {
-    p.f(at, 4, nm + ': when the preview was made', { value: String(u32be(b, at)) });
+    p.f(at, 4, nm + ': when the game made the preview', { value: String(u32be(b, at)) });
     p.f(at + 4, 2, nm + ': version', { value: String(u16be(b, at + 4)) });
     p.f(at + 6, 4, nm + ': the preview’s type', { value: String.fromCharCode(b[at + 6], b[at + 7], b[at + 8], b[at + 9]) });
     p.f(at + 10, 2, nm + ': the preview’s id', { value: String(u16be(b, at + 10)) });
@@ -1769,8 +1769,8 @@ function saveByteMapHTML() {
   const gaps = m.parts.reduce((n, p) => n + saveByteMapGaps(p).length, 0);
   return '<h4 class="saveH4">Every Byte</h4><div class="saveNote">' + m.files.toLocaleString('en-US') + ' bytes in ' + m.parts.length + ' parts, every byte in a labeled field' +
     (gaps ? ' except for ' + gaps + ' stretches (a fault in this page’s reading)' : '') +
-    (m.unread ? '; ' + m.unread.toLocaleString('en-US') + ' of them in fields whose meaning has not been worked out, marked <span class="byteUnread">not read</span>.'
-              : ', and the meaning of every field has been worked out.') + '</div>' +
+    (m.unread ? '; ' + m.unread.toLocaleString('en-US') + ' of them in fields nobody has worked out yet, marked <span class="byteUnread">not read</span>.'
+              : ', and every field’s meaning is known.') + '</div>' +
     m.parts.map(p => '<details class="byteMapPart" ontoggle="openSaveBytePart(this, ' + JSON.stringify(String(p.key)).replace(/"/g, '&quot;') + ')"><summary>' +
       svEsc(p.title) + ' <span class="byteMapSize">' + fmtBytes(p.size) + '</span></summary><div class="byteMapBody"></div></details>').join('');
 }
@@ -1999,7 +1999,7 @@ const CHAR_GROUPS = [
   ]},
   { head: 'Looks', items: [
     { id: 'proptype', key: 'proptype', label: 'sprite class', off: 4, width: 2, fieldNo: 36, max: 0x3FF,
-      what: (r, v) => { const n = propDisplayName(v, (getPropTileList()[v] || 0)); return (n ? svEsc(n) + ', ' : '') + 'the prop class they are drawn as'; } },
+      what: (r, v) => { const n = propDisplayName(v, (getPropTileList()[v] || 0)); return (n ? svEsc(n) + ', ' : '') + 'the prop class the game draws them as'; } },
     { id: 'aspect', key: 'aspect', label: 'aspect', off: 4, width: 2, fieldNo: 36, max: 0x3F, what: () => 'the frame of that sprite' },
     { id: 'look2', raw: [20, 2], label: 'second look', base: 16, max: 0xFFFF, fieldNo: 37,
       what: r => 'a second sprite and frame, ' + (u16raw(r, 20) === u16raw(r, 4) ? 'the same as the first here' : 'different from the first here') + '; no script uses it' },
@@ -2094,7 +2094,7 @@ function charEditHTML(index) {
   }
   h += '<div class="charGroup"><div class="charGroupHead">Flags</div><div class="charWhat">The character flags that the scripts set, clear and check by number. ' +
     'Flags 0 to 7 are ' + charWhere(index, 8, 1) + ', 8 to 23 ' + charWhere(index, 6, 2) + ' and 24 to 31 ' + charWhere(index, 26, 1) +
-    '. The names are the program’s' + (appImage() ? '' : ', and are only shown when the program is open') + '.</div><div class="charFlags">';
+    '. The names are the program’s' + (appImage() ? '' : ', and appear only when the program is open') + '.</div><div class="charFlags">';
   for (let f = 0; f < 32; f++) {
     const nm = appImage() ? charFlagName(f) : null;
     h += '<label><input type="checkbox" id="ce-' + index + '-flag' + f + '"' + (charFlagOn(rec, f) ? ' checked' : '') + '> ' + f + (nm ? ' ' + svEsc(nm.replace(/^Is/, '').replace(/([a-z])([A-Z])/g, '$1 $2')) : '') + '</label>';
@@ -2345,8 +2345,8 @@ function questStateHTML(words) {
   const head = '<thead><tr><th class="num">no.</th><th>value</th><th>set by</th><th>tested by</th></tr></thead>';
   let h = '<h4 class="saveH4">Quest Values and Flags</h4>' +
     '<div class="saveNote">The 32 quest values and 256 quest flags in which the scripts record the story, from the start of 0x0400. ' +
-    (words ? 'Listed are the ones a script sets or checks, and any that this save has set; the rest are unchanged. What each one means is not in the files, so they are shown as numbers.'
-           : 'No scenario was opened before this save, so which scripts use each one is not known here, and every value is listed.') + '</div>' +
+    (words ? 'These are the ones a script sets or checks, and any that this save has set; the rest are unchanged. The files do not say what each one means, so they appear as numbers.'
+           : 'No scenario was open before this save, so the page cannot tell which scripts use each one, and lists every value.') + '</div>' +
     '<div class="tableScroll"><table class="forkTable">' + head + '<tbody>' + valueRows.join('') + '</tbody></table></div>' +
     '<div class="tableScroll"><table class="forkTable">' + head.replace('<th>value</th>', '<th>set</th>') + '<tbody>' + flagRows.join('') + '</tbody></table></div>' +
     '<div class="propEdit"><button class="sv-chip" onclick="applyQuestStateForm()">Apply</button>' +
@@ -2396,7 +2396,7 @@ function roomsEnteredHTML(words) {
   const entered = rows.filter(r => b[2 * r.n + 1] & 1).length;
   return '<h4 class="saveH4">Rooms Entered</h4>' +
     '<div class="saveNote">0xF00E has a switch for each room, set the first time the player walks in. A room whose switch is clear shows its description when the player enters it. ' +
-    entered + ' of the ' + rows.length + ' rooms listed have been entered.' + (words ? '' : ' No scenario was opened before this save, so only the rooms that have been entered are listed.') + '</div>' +
+    'The party has entered ' + entered + ' of the ' + rows.length + ' rooms listed.' + (words ? '' : ' No scenario was open before this save, so the list holds only the rooms the party has entered.') + '</div>' +
     '<details><summary>Every room</summary><div class="tableScroll"><table class="forkTable">' +
     '<thead><tr><th class="num">room</th><th>entered</th><th>where</th><th>its description</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td class="num">' + r.n + '</td><td><input type="checkbox" id="rm-' + r.n + '"' + ((b[2 * r.n + 1] & 1) ? ' checked' : '') + '></td>' +
@@ -2440,10 +2440,10 @@ function gremlinsHTML(words) {
     if (st !== 2 || scripted.has(n)) rows.push({ n, st });
   }
   return '<h4 class="saveH4">Gremlins</h4>' +
-    '<div class="saveNote">A gremlin is a script the game runs when the party enters a room or a zone, and when a signal is sent. ' +
-    'A save keeps each gremlin as on, off or none, as it was when the save was made, so a gremlin added to Cythera Data later shows as none here until it is switched on. ' +
+    '<div class="saveNote">A gremlin is a script the game runs when the party enters a room or a zone, and when a script sends a signal. ' +
+    'A save keeps each gremlin as on, off or none, as it was at the moment of saving, so a gremlin added to Cythera Data later shows as none here until you switch it on. ' +
     (words ? (scripted.size ? 'The scenario opened before this save has ' + scripted.size + ' gremlin' + (scripted.size === 1 ? '' : 's') + '.' : 'The scenario opened before this save has no gremlins.')
-           : 'No scenario was opened before this save, so only the gremlins it has on or off are listed.') + '</div>' +
+           : 'No scenario was open before this save, so the list holds only the gremlins it has on or off.') + '</div>' +
     '<div class="tableScroll"><table class="forkTable"><thead><tr><th class="num">gremlin</th><th>state</th><th>in the scenario</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td class="num">' + r.n + '</td><td><select id="grem-' + r.n + '">' + gremlinStateOptions(r.st) + '</select></td><td>' +
       (!words ? '' : scripted.has(r.n) ? 'has a script' : 'no script') + '</td></tr>').join('') +
@@ -2517,7 +2517,7 @@ function todoHTML(words) {
   if (!live) return '';
   const lines = new Map(words ? words.todo.lines : []);
   const lineText = (resid, line) => (words && resid === words.todo.textResid && lines.has(line)) ? lines.get(line) : 'line ' + line + ' of 0x' + resid.toString(16).toUpperCase();
-  let h = '<h4 class="saveH4">The To Do List</h4><div class="saveNote">0x0401 has one entry for each of 256 slots: the line, whether it is struck off, and the day it was added to the list.</div>';
+  let h = '<h4 class="saveH4">The To Do List</h4><div class="saveNote">0x0401 has one entry for each of 256 slots: the line, whether it is struck off, and the day it went on the list.</div>';
   if (live.length)
     h += '<div class="tableScroll"><table class="forkTable"><thead><tr><th class="num">slot</th><th>line</th><th class="num">day</th><th></th></tr></thead><tbody>' +
       live.map(e => '<tr><td class="num">' + e.slot + '</td><td>' + (e.struck ? '<s>' : '') + svEsc(lineText(e.resid, e.line)) + (e.struck ? '</s>' : '') + '</td>' +
@@ -2883,7 +2883,7 @@ function renderInstallerSheet() {
   document.getElementById('singleControls').style.display = 'none';
   const inst = window.INSTALLER;
   if (!inst) {
-    out.textContent = 'The file was not opened from the installer, so there is nothing else here.' + NO_INSTALLER_HINT;
+    out.textContent = 'This file did not come from the installer, so there is nothing else here.' + NO_INSTALLER_HINT;
     return;
   }
   const arc = inst.archive;
@@ -2908,7 +2908,7 @@ function renderInstallerSheet() {
     row.className = 'sv-chips installerVersions';
     const label = document.createElement('span');
     label.className = 'amNote';
-    label.textContent = 'This file holds ' + inst.installers.length + ' releases, the open one is marked:';
+    label.textContent = 'This file holds ' + inst.installers.length + ' releases, the open one marked:';
     row.appendChild(label);
     for (const it of inst.installers) {
       const b = document.createElement('button');
@@ -3001,7 +3001,7 @@ function renderCombatAISheet(which) {
     for (let i = 0; i < 13; i++) if (refExists(0x981 + i)) actions.push(svChip(0x981 + i));
     const split = (tests.length || actions.length)
       ? '<div class="changesNote" style="margin-left:0">To use a script in the game, open a companion’s character window, then its Strategy tab, the pop-up menu at the bottom left, Edit User Strategies…, and Import. ' +
-        'It goes into one of 31 user slots, 176 to 206. The same dialog’s Debug button marks a slot, and a companion using a marked slot opens the game’s AI debugger every time the strategy is evaluated.</div>' +
+        'It goes into one of 31 user slots, 176 to 206. The same dialog’s Debug button marks a slot, and a companion using a marked slot opens the game’s AI debugger every time it evaluates the strategy.</div>' +
         '<div class="changesNote" style="margin-left:0">The Tests list and the two Actions lists come from the program. The Scenario lists are scripts in this file' +
         (tests.length ? ': the tests ' + tests.join(' ') : '') + (actions.length ? (tests.length ? ', the actions ' : ': the actions ') + actions.join(' ') : '') +
         '. Calling CastSpell with a spell the character does not know casts nothing, and Debug(#) only prints its number.</div>'
@@ -3009,7 +3009,7 @@ function renderCombatAISheet(which) {
     box.innerHTML = '<div class="propHead">The Vocabulary' +
       (rows.length ? '' : (app ? '; none of the lists is in this resource fork' :
         (window.APP_RSRC_STATE === 'loading' ? ', loading the program…' :
-         ', ' + (window.APP_RSRC_STATE || 'the program’s fork is not loaded')))) + '</div>' +
+         ', ' + (window.APP_RSRC_STATE || 'the program’s fork is not open')))) + '</div>' +
       (rows.length ? '<div class="tableScroll"><table class="vocabTable">' + rows.join('') + '</table></div>' : '') + split;
     grid.appendChild(box);
   }
@@ -3028,10 +3028,10 @@ function renderCombatAISheet(which) {
   }
   out.textContent = files.length
     ? (which === 'AIRULES'
-        ? 'The words the scripts are written in, from the program’s resource fork, followed by the AI Scripting Document from the installer’s CombatAI folder, which sets out the rules for writing .ai scripts.'
+        ? 'The words of the script language, from the program’s resource fork, followed by the AI Scripting Document from the installer’s CombatAI folder, which sets out the rules for writing .ai scripts.'
         : files.length + ' Combat AI scripts from the installer’s CombatAI folder. The compiled versions the game runs are subindex 3, under Components › Functions › Actions.')
     : (which === 'AIRULES' && !arc)
-      ? 'The words the scripts are written in, from the program’s resource fork. The AI Scripting Document comes with the game as a separate file.' + NO_INSTALLER_HINT
+      ? 'The words of the script language, from the program’s resource fork. The AI Scripting Document comes with the game as a separate file.' + NO_INSTALLER_HINT
       : 'The installer has no ' + (which === 'AIRULES' ? 'AI Scripting Document' : '.ai scripts') + ' in it.';
 }
 
@@ -3066,7 +3066,7 @@ function renderChangesSheet() {
     p.className = 'changesNote';
     p.style.margin = '0';
     p.textContent = 'Edits you make anywhere on the site, with Edit bytes on a resource or Edit on a ' +
-      'map square, are listed here to download. Reloading the page loses them.';
+      'map square, appear here to download. Reloading the page loses them.';
     box.appendChild(head);
     box.appendChild(p);
     grid.appendChild(box);
@@ -3261,7 +3261,7 @@ function renderRecordsSheet() {
     cell.onclick = () => showRecordDetail(t.resid, 0);
     grid.appendChild(cell);
   }
-  out.textContent = shown + ' of the tables the scenario is built from' +
+  out.textContent = shown + ' of the tables that make up the scenario' +
     (q ? ' matching “' + q + '”' : '') +
     '. A figure on a Scenario page opens its record here, and every record links on to its bytes in the file.';
 }

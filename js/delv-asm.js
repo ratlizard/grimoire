@@ -209,7 +209,7 @@ function dvmAsmSym(s, table) {
   if (n !== null) return n;
   const t = dvmAsmMaps()[table];
   if (t && t[s.trim()] !== undefined) return t[s.trim()];
-  throw new Error('no ' + table + ' is called ' + s.trim());
+  throw new Error('no ' + table + ' named ' + s.trim());
 }
 // A resource id as the listing prints one: "PickLock (0xE43)", "0x0E43".
 function dvmAsmResource(s) {
@@ -219,7 +219,7 @@ function dvmAsmResource(s) {
   if (n !== null) return n;
   const r = dvmAsmMaps().resource[s.trim()];
   if (r !== undefined) return r;
-  throw new Error('no resource is called ' + s.trim());
+  throw new Error('no resource named ' + s.trim());
 }
 // dvmWord in reverse.
 function dvmAsmWord(s, resid) {
@@ -236,7 +236,7 @@ function dvmAsmWord(s, resid) {
   if ((m = /^Character\.(.+)$/.exec(s))) {
     const w = m[1], n = dvmAsmNum(w);
     const idx = n !== null ? n : dvmAsmMaps().character[w];
-    if (idx === undefined) throw new Error('no character is called ' + w);
+    if (idx === undefined) throw new Error('no character named ' + w);
     return (0x40000000 | (0x40 << 16) | idx) >>> 0;
   }
   if ((m = /^(0x[0-9a-f]+)@(.+)$/i.exec(s))) {
@@ -296,7 +296,7 @@ function dvmAssemble(text, resid) {
           for (const [k, v] of Object.entries(DVM_SYM.syscall || {}))
             if (dvmSyscallShown(v) === w || 'cb' + dvmSyscallShown(v) === w) { code = +k; break; }
         }
-        if (code === undefined || code < 0xA0) throw new Error('no syscall is called ' + w);
+        if (code === undefined || code < 0xA0) throw new Error('no syscall named ' + w);
         bytes.push(code); continue;
       }
       if ((m = /^data (.*)$/.exec(line))) {

@@ -104,7 +104,7 @@ const DATA_FIX_GROUPS = [
   { id: 'text', title: 'Text' },
   // The larger changes, each a design call rather than a mended slip, in a
   // list of their own below the rest (the maintainer, 1 October 2026).
-  { id: 'design', title: 'Design Changes', note: 'These are not bug fixes: each changes how the game was designed to behave.' },
+  { id: 'design', title: 'Design Changes', note: 'These are not bug fixes: each changes how the game’s design has it behave.' },
 ];
 
 // The text's choices, by the name their options share, as the Patches
@@ -149,7 +149,7 @@ function dataFixLocals(s, what, resid, containing, from, to) {
   const f = dataPatchListing(s, resid).fns.find(f => containing >= f.st && containing < f.en);
   if (!f || f.locals !== from) throw new Error(what + ': the function has ' + (f && f.locals) + ' locals, not ' + from);
   const at = f.st + 2;
-  return { what, resid, fn: (b) => { if (b[at] !== from) throw new Error('the header is not what was read'); b[at] = to; return 'locals ' + from + ' to ' + to; } };
+  return { what, resid, fn: (b) => { if (b[at] !== from) throw new Error('the header is not what the page read'); b[at] = to; return 'locals ' + from + ' to ' + to; } };
 }
 // A line that waits for a click: a `*` after it.
 function dataFixClick(what, resid, line) { return { what, resid, find: line, replace: line + '*', count: 1 }; }
@@ -318,7 +318,7 @@ const DATA_FIXES = [
   // Awakening's blank conversation (0x1A13): the sleeper and the hero are
   // named as speakers before the sleeper's Talk, as the game's own Talk
   // command names them.
-  { id: 'awakening', group: 'rules', stage: 'community', title: 'Someone woken by Awakening can now be talked to, instead of giving a blank conversation',
+  { id: 'awakening', group: 'rules', stage: 'community', title: 'You can now talk to someone woken by Awakening, instead of getting a blank conversation',
     edits: [
       { what: 'Awakening names its speakers', resid: 0x1A13, at: 0x00D7, expect: { 0x00D5: 'sys OpenConversation', 0x00D7: 'method Talk' },
         code: dataFixTalk('arg Arg01', 0) + '\n' + dataFixTalk('global PlayerCharacter (0x5)', 2) },
@@ -563,7 +563,7 @@ const DATA_FIXES = [
     ] },
   // The magic arrow drawn as a stack (0x8103, and two Cademia stacks in
   // 0x8108): the count moves from Data1 to Data2.
-  { id: 'arrow-stacks', group: 'items', stage: 'community', title: 'The magic arrow in Land King Hall is now drawn as one arrow, instead of a stack, and two stacks in Cademia are drawn right',
+  { id: 'arrow-stacks', group: 'items', stage: 'community', title: 'The magic arrow in Land King Hall now looks like one arrow, instead of a stack, and two stacks in Cademia look right',
     dataEdits: [
       { what: 'the Cademia arrow stacks', resid: 0x8108, fn: (b) => {
           const want = { 1155: 30, 1174: 20 }; let n = 0;
@@ -578,7 +578,7 @@ const DATA_FIXES = [
     ] },
   // Sacas's kesh on Eudoxus (0x8104): the five vials in the Abandoned
   // Farmhouse coffer get Data1 2, the value his line waits for.
-  { id: 'eudoxus-kesh', group: 'quests', stage: 'community', title: 'Sacas can now be told of the kesh on Eudoxus, instead of the vials never counting',
+  { id: 'eudoxus-kesh', group: 'quests', stage: 'community', title: 'You can now tell Sacas of the kesh on Eudoxus, instead of the vials never counting',
     dataEdits: [
       { what: 'Eudoxus’s kesh', resid: 0x8104, fn: (b) => {
           let n = 0;
@@ -639,8 +639,8 @@ const DATA_FIXES = [
           const at = t => { for (let i = 0; i < n; i++) if (key(i) === t) return i; return -1; };
           if (at(264) >= 0 || at(229) >= 0) throw new Error('264 or 229 already has a unit');
           const man = at(48), guard = at(46);
-          if (man < 0 || word(man, 14) !== 0x104E) throw new Error('the man’s unit is not where it was read');
-          if (guard < 0 || word(guard, 14) !== 0x004E) throw new Error('the guard’s unit is not where it was read');
+          if (man < 0 || word(man, 14) !== 0x104E) throw new Error('the man’s unit is not where the page read it');
+          if (guard < 0 || word(guard, 14) !== 0x004E) throw new Error('the guard’s unit is not where the page read it');
           for (let i = n * 16; i < (n + 2) * 16; i++) if (b[i]) throw new Error('slots ' + n + ' and ' + (n + 1) + ' are not empty');
           b.copyWithin(n * 16, man * 16, man * 16 + 16); b[n * 16 + 12] = 264 >> 8; b[n * 16 + 13] = 264 & 0xFF;
           b.copyWithin((n + 1) * 16, guard * 16, guard * 16 + 16); b[(n + 1) * 16 + 12] = 0; b[(n + 1) * 16 + 13] = 229;
@@ -652,7 +652,7 @@ const DATA_FIXES = [
   // Data1 is 0; the camp's sign, record 14, has Data1 0 and Data2 15, and
   // entry 15 is "Iron Mines". It is the only sign of the 27 with anything in
   // Data2; the number moves to Data1.
-  { id: 'mining-camp-sign', group: 'world', stage: 'community', title: 'The Mining Camp\u2019s sign can now be read, instead of showing nothing',
+  { id: 'mining-camp-sign', group: 'world', stage: 'community', title: 'You can now read the Mining Camp\u2019s sign, instead of it showing nothing',
     played: 'fork, 28 September 2026: the sign reads Iron Mines',
     dataEdits: [
       { what: 'the Mining Camp’s sign', resid: 0x8118, fn: (b) => {
@@ -955,7 +955,7 @@ const DATA_FIXES = [
   // The Comana brothers (Kosha Grotto, 0x1417): the one-time signal that
   // kills them and puts Pelagon in Magpie's figure waits for quest value 3 to
   // be 3, the visit on which Pelagon says "House Comana is no more".
-  { id: 'comana-brothers', group: 'quests', stage: 'further', title: 'The Comana brothers are now found dead only once their end is told, instead of before',
+  { id: 'comana-brothers', group: 'quests', stage: 'further', title: 'You now find the Comana brothers dead only once someone tells of their end, instead of before',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'the Comana brothers’ signal', 0x1417,
         ['if_not', 'sys GetStateFlag', 'byte 0x0F', 'end', 'not', 'then ->', 'sys SetStateFlag', 'byte 0x0F'], 5,
@@ -974,7 +974,7 @@ const DATA_FIXES = [
   // bartenders, Ake, Parium, Crito (three), Apis (three), Paris, Niobe
   // (two), Borus and Sabinate; a `*` after the closing quote, as the game's
   // own lines wait ("Yes, I was a bit puzzled."*).
-  { id: 'lines-run-on', group: 'talk', stage: 'further', title: 'Answers now wait to be read, instead of running into the next one or flashing past',
+  { id: 'lines-run-on', group: 'talk', stage: 'further', title: 'Answers now wait for you to read them, instead of running into the next one or flashing past',
     plan: (s) => {
       const edits = [];
       const RETURN_TRUE = 'return\nword True\nend';
@@ -1188,7 +1188,7 @@ const DATA_FIXES = [
   // the grass of its neighbour to the north at (25,52), 52. That reads as a
   // notch in the embankment. It opens no other way: (25,52) holds a tree,
   // which blocks, so the notch leads only onto the passage.
-  { id: 'citadel-passage', group: 'world', stage: 'map', title: 'The secret passage on the shore under the Citadel can now be stepped on, instead of blocking',
+  { id: 'citadel-passage', group: 'world', stage: 'map', title: 'You can now step on the secret passage on the shore under the Citadel, instead of it blocking',
     played: 'fork, 26 September 2026: a step north reaches the Underground',
     dataEdits: [
       { what: 'the passage under the Citadel', resid: 0x8006, fn: (b) => {
@@ -1364,7 +1364,7 @@ const DATA_FIXES = [
           // Zone 2 (Odemia), a man (prop type 82) at aspect 9, the status word 0.
           const zone = b[p], look = (b[p + 4] << 8) | b[p + 5];
           if (zone !== 2 || (look & 0x3FF) !== 82 || (look >> 10) !== 9 || b[p + 6] !== 0 || b[p + 7] !== 0)
-            throw new Error('record 96 is not the dead Peirithous in Odemia this was written against');
+            throw new Error('record 96 is not the dead Peirithous in Odemia this fix expects');
           b[p + 7] |= 1;
           return 'record 96, byte 7: the Alive bit set';
       } },

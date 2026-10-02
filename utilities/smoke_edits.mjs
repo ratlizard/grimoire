@@ -298,7 +298,7 @@ try {
   const pc = find(REGISTRY.get('sheetGrid'), 'sched-13');
   const pel = (pc ? (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(pc) : '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   if (cards < 100 || links < 500 || !/Alaric/.test(sh)) fail('schedules', `the sheet shows ${cards} characters and ${links} posts`);
-  else if (!/if quest value 3 is 3[\s\S]*stop if one above was taken[\s\S]*off every map if Pelagon has flag 0/.test(pel))
+  else if (!/if quest value 3 is 3[\s\S]*stop if the schedule took one above[\s\S]*off every map if Pelagon has flag 0/.test(pel))
     fail('schedules', 'Pelagon\u2019s schedule is not read as a program: ' + pel.slice(0, 300));
   // And the map walks the day a new game starts with (scheduleDay): quest
   // value 3 is 0 and Pelagon's flag 0 is clear, so his day is Kosha alone.
@@ -1096,7 +1096,7 @@ try {
       fail('save mark, off the map', 'the comparison does not say the carried record is carried: ' + words.replace(/^.*Zones/, '').slice(0, 160));
     else if (!/\b1 placed\b/.test(both) || !/\b1 carried or inside something, not drawn/.test(both))
       fail('save mark, off the map', 'a record on the floor and one carried did not read as one placed and one carried: ' + both.replace(/^.*over this zone: /, '').slice(0, 120));
-    else if (!/scenario’s list is shown/.test(none) || /\bgone\b/.test(none))
+    else if (!/this is the scenario’s list/.test(none) || /\bgone\b/.test(none))
       fail('save mark, off the map', 'a save with no list for the zone did not keep the scenario’s: ' + none.replace(/^.*over this zone: /, '').slice(0, 120));
     else console.log('  save mark, off the map: a made save over the Ruins reads one placed and one carried, on the map and in the comparison, and a save with no list there changes nothing');
   }

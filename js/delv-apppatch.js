@@ -161,7 +161,7 @@ function applyAppFixes(app, fixes, opts) {
   const code = pef.sections.find(s => s.kind === 0);
   const after = pef.sections.filter(s => s.kind !== 0 && s.containerOffset >= (code ? code.containerOffset : 0) && s.packedSize > 0);
   if (!code || code.containerOffset !== T.codeOffset || code.totalSize !== T.codeSize || code.packedSize !== T.codeSize)
-    throw appPatchError(null, 'this is not ' + T.name + ': its code section is not the one the fixes were read from' +
+    throw appPatchError(null, 'this is not ' + T.name + ': its code section is not the one the fixes came from' +
       (code && code.totalSize !== T.codeSize ? ' (it is ' + code.totalSize + ' bytes, and a patched copy is larger)' : ''));
   const codeEnd = code.containerOffset + code.totalSize;
   if (codeEnd !== T.dataOffset || !after.some(s => s.containerOffset === codeEnd))
@@ -208,21 +208,21 @@ function applyAppFixes(app, fixes, opts) {
     for (const p of plan) for (const c of p.fix.cstrings || []) {
       const f = p.fix, was = Uint8Array.from(c.was), now = Uint8Array.from(c.now);
       const inner = c.inner || [], nowInner = c.nowInner || [];
-      if (inner.length !== nowInner.length) throw appPatchError(f, 'the string at 0x' + c.at.toString(16) + ' is pointed into at ' + inner.length + ' places and its replacement at ' + nowInner.length);
+      if (inner.length !== nowInner.length) throw appPatchError(f, 'the string at 0x' + c.at.toString(16) + ' has pointers into it at ' + inner.length + ' places and its replacement at ' + nowInner.length);
       const base = code.containerOffset + c.at + (c.pascal ? 1 : 0);
       if (c.pascal && (data[code.containerOffset + c.at] !== was.length || now.length > 255))
         throw appPatchError(f, 'the Pascal string at 0x' + c.at.toString(16).toUpperCase() + ' is not ' + was.length + ' bytes, or its replacement is longer than 255');
       for (let i = 0; i < was.length; i++) if (data[base + i] !== was[i])
         throw appPatchError(f, 'the string at 0x' + c.at.toString(16).toUpperCase() + ' is not the one expected: not ' + T.name + ', or changed already');
       if (!c.pascal && data[base + was.length] !== 0) throw appPatchError(f, 'the string at 0x' + c.at.toString(16).toUpperCase() + ' is longer than the one expected');
-      if (c.pascal && inner.length) throw appPatchError(f, 'the Pascal string at 0x' + c.at.toString(16).toUpperCase() + ' is pointed into');
+      if (c.pascal && inner.length) throw appPatchError(f, 'the Pascal string at 0x' + c.at.toString(16).toUpperCase() + ' has pointers into it');
       const fits = now.length <= was.length && inner.every((o, k) => o === nowInner[k]);
       if (fits) { stringPlan.push({ fix: f, c, was, now, place: 'in' }); continue; }
       const points = [0].concat(inner.map(o => o + (c.pascal ? 1 : 0))).map((o, k) => ({ from: c.at + o, to: k ? nowInner[k - 1] : 0 }));
       const sites = [];
       for (const pt of points) {
         const words = pointers.get(pt.from) || [];
-        if (!words.length) throw appPatchError(f, 'nothing points at 0x' + pt.from.toString(16).toUpperCase() + ', so the string cannot be moved there');
+        if (!words.length) throw appPatchError(f, 'nothing points at 0x' + pt.from.toString(16).toUpperCase() + ', so the patch cannot move the string there');
         for (const o of words) {
           const ls = loads.get(o) || [];
           if (!ls.length) throw appPatchError(f, 'a word of the data section points at the string at 0x' + pt.from.toString(16).toUpperCase() + ' and no instruction loads it, so it would keep the old string');
@@ -400,7 +400,7 @@ function applyAppFixes(app, fixes, opts) {
     }
     rsrcOut = writeResourceFork(spec);
     openResourceFork(rsrcOut);                                     // it must read back
-  } else if (grow && !rsrc) throw appPatchError(null, 'no resource fork, so its cfrg cannot be moved with the code');
+  } else if (grow && !rsrc) throw appPatchError(null, 'no resource fork, so the patch cannot move its cfrg with the code');
 
   return { data: out, rsrc: rsrcOut, applied, grownBy: grow, caveAt: code.totalSize, caveBytes };
 }

@@ -304,7 +304,7 @@ function exePrefResourceType() {
 }
 function cytheraPrefsRecord(opts, layout) {
   const L = layout || cytheraPrefsLayout();
-  if (!L) throw new Error('the preferences record is read from the program, which is not open');
+  if (!L) throw new Error('the page reads the preferences record from the program, which is not open');
   const o = opts || {};
   const b = new Uint8Array(L.bytes);
   for (let i = 0; i < Math.min(4, L.bytes); i++) b[i] = (L.base >>> (24 - 8 * i)) & 255;
@@ -410,7 +410,7 @@ function prefsSummary(o) {
 // new one whatever UniqueID answers, so 130 is only what this file uses.
 function buildCytheraPreferences(opts) {
   const L = cytheraPrefsLayout();
-  if (!L) throw new Error('the preferences record is read from the program, which is not open');
+  if (!L) throw new Error('the page reads the preferences record from the program, which is not open');
   const out = [{ type: L.type, id: 130, name: L.key, data: cytheraPrefsRecord(opts, L) }];
   let id = 131;
   for (const x of cytheraOrdinalsFor(opts, L))
@@ -426,7 +426,7 @@ function prefsInstallScript(opts) {
     '-- Puts "' + PREFS_FILE_NAME + '" into the System Folder’s Preferences',
     '-- folder, replacing whatever is there. Press Run, or Command-R.',
     '--',
-    '-- It replaces the file, so any settings already stored are lost with it.',
+    '-- It replaces the file, so you lose any settings already stored.',
     '-- Move the old one somewhere else first if you want to keep them.',
     '--',
     '-- Cheat keys allowed: ' + (o.cheats ? 'ON: type ' + ((cytheraPrefsLayout() || { gate: {} }).gate.word || 'the code') + ' in the map window' : 'off') + '.',
@@ -505,7 +505,7 @@ function buildInstallScript(archiveName, note) {
     '-- Finds the folder holding the Cythera application on any mounted disk,',
     '-- replaces the "' + archiveName + '" in it with the edited one on this',
     '-- disk, and starts the game. Press Run, or Command-R -- or press Install',
-    '-- from the disk itself, so nothing needs to be selected inside the Mac.',
+    '-- from the disk itself, so you need not select anything inside the Mac.',
     '--',
     '-- Keep a backup of the original first: the replacement cannot be undone.',
     '-- By hand instead: drag "' + archiveName + '" into the game\u2019s folder.',
@@ -528,7 +528,7 @@ function buildInstallScript(archiveName, note) {
     '\t\tend repeat',
     '\tend repeat',
     '\tif done is false then',
-    '\t\tdisplay dialog "No folder holding a Cythera application was found ' +
+    '\t\tdisplay dialog "Could not find a folder holding a Cythera application ' +
       'on any mounted disk." buttons {"OK"} default button 1',
     '\tend if',
     'end tell',
@@ -585,7 +585,7 @@ function buildEditedDiskImage() {
      not be raising it in the first place. */
   const note = [
     'Written ' + new Date().toISOString().slice(0, 10) + '. ' +
-    (edited ? edited + ' resource(s) were edited before this disk was made.'
+    (edited ? edited + ' resource(s) edited before making this disk.'
             : 'The file on this disk is unmodified.'),
   ];
   if (forkWarning) note.push('', 'WARNING: ' + forkWarning.replace(/“|”/g, '"'));
@@ -1014,7 +1014,7 @@ function renderArtUsage(resid) {
   const u = buildTileSheetUsage()[resid];
   if (!u || (!u.maps.length && !u.props.length && !u.composites.length))
     return '<span class="inspDim">Nothing in the file draws from this sheet; ' +
-           'it may be unused, or used by the program rather than by data.</span>';
+           'nothing may use it, or the program may use it rather than data.</span>';
   const rows = [];
   if (u.maps.length) rows.push('<dt>Maps</dt><dd>' + usageChips(u.maps,
     r => svChip(r), 24) + '</dd>');

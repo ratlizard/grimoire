@@ -116,7 +116,7 @@ const APP_FIXES = [
 
   { id: 'books-window', kind: 'fix', title: 'Taking a thing out redraws the window of whatever held it (RemoveItem)',
     played: 'fork, PowerPC, 30 September 2026: a book handed to Selinus from an open pouch leaves its window',
-    bug: 'Sapphire Books in a container can be handed in again and again',
+    bug: 'You can hand in Sapphire Books in a container again and again',
     sites: [{ at: 0x95344,
       was: [0x7FE3FB78, 0x4BFC0435, 0x60000000, 0x7C630734, 0x7FC00734, 0x7C001800, 0x41800028, 0x7FE3FB78, 0x4BFC0419, 0x60000000, 0x38030000, 0x387D0000,
             0x7FC0F050, 0x4BF72615, 0x60000000, 0x48000024, 0x7FE3FB78, 0x4BFC03F5, 0x60000000, 0x7C9E1850, 0x387F0000, 0x4BFC0275, 0x60000000, 0x3BC00000],
@@ -183,7 +183,7 @@ const APP_FIXES = [
     sites: [{ at: 0x2F17C, was: [0x54030FFE, 0x7C001A14, 0x7C000734, 0xB0010098, 0x7FE3FB78, 0xA8810098],
       asm: ['mr 4, 0               ; the pane, h / 73', 'cmpwi 4, 2', 'ble @0x2F18C', 'li 4, 2               ; h 219, past the third', 'mr 3, 31', 'nop'] }] },
 
-  { id: 'sleep-hidden', kind: 'fix', title: 'A character who has not yet been drawn, and is moved to a post on the party’s level while time passes quickly, waits there as an egg instead of being hidden',
+  { id: 'sleep-hidden', kind: 'fix', title: 'A character the game has not yet drawn, moving to a post on the party’s level while time passes quickly, waits there as an egg instead of hiding',
     bug: 'NPCs vanish while the player sleeps',
     sites: [{ at: 0x65F8, was: [0x281C0000, 0x41820018, 0x7F83E378, 0x819C0048, 0x818C0014, 0x480BEADD, 0x80410014, 0x380000FF, 0x981E0000],
       asm: ['li 0, 255', 'clrlwi. 3, 24, 24     ; the post on the party’s level?', 'beq @0x6608', 'li 0, 66', 'stb 0, 0(30)', 'b @0x661C', 'nop', 'nop', 'nop'] }] },
@@ -232,7 +232,7 @@ const APP_FIXES = [
   // a row count cannot need, since the halfword store takes the low half.
   { id: 'menu-scroll', kind: 'fix', title: 'A menu offered by a script, a "Where Is" list above all, scrolls to its last entry instead of stopping two short',
     played: 'fork, PowerPC, 30 September 2026: Pnyx’s list reaches Kosha, Cademia’s its last; a page’s length read, not seen',
-    bug: '"Where Is" lists are cut short',
+    bug: '"Where Is" lists stop short',
     sites: [
       { at: 0x3F9DC, was: [0xA81F001C, 0xA8810048, 0xA8630004, 0x833F0014, 0x7C641850],
         asm: ['lha 4, 28(31)         ; a row’s height', 'addi 0, 4, 4          ; and the gap DrawTheList leaves', 'lha 3, 4(3)',
@@ -241,7 +241,7 @@ const APP_FIXES = [
         asm: ['lha 3, 28(29)', 'sub 4, 4, 5', 'addi 3, 3, 4          ; the gap', 'divw 3, 4, 3          ; a page'] }] },
 
   // ---- New code ---------------------------------------------------------------
-  { id: 'containers-weight', kind: 'fix', title: 'A thing put in a container someone carries is weighed against the one who carries it too',
+  { id: 'containers-weight', kind: 'fix', title: 'A thing put in a container someone carries counts against that carrier’s weight too',
     bug: 'Containers let you carry any weight',
     sites: [{ at: 0x5423C, was: [0x40810018], asm: ['b @cave               ; was ble 0x54254'] }],
     cave: [
@@ -437,7 +437,7 @@ const APP_FIXES = [
   // constant 0, which the first build of this did and so read record 0,
   // the night guards keeping the hero's unit until a trace showed r12 at
   // 0x3FF; add and a displacement load take r0 as the register it is.
-  { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit is given one, the night guard a guard’s, instead of reading its stats and corpse from nowhere',
+  { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit gets one, the night guard a guard’s, instead of reading its stats and corpse from nowhere',
     played: 'fork, PowerPC, 30 September 2026: Odemia’s night guards hatch with a guard’s stats and side and leave a guard’s body, where they had 1 health and left none',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [
@@ -474,7 +474,7 @@ const APP_FIXES = [
   // 0x96AAC sets it.
   { id: 'menu-items', kind: 'fix', title: 'A menu offered by a script, a "Where Is" list above all, shows up to 64 entries instead of stopping at 20',
     played: 'fork, PowerPC, 30 September 2026: Antenor offers Cademia’s 21, with menu-scroll',
-    bug: '"Where Is" lists are cut short',
+    bug: '"Where Is" lists stop short',
     sites: [
       { at: 0x968A4, was: [0x80828D9C], asm: ['b @init               ; was lwz 4, -29284(2)'] },
       { at: 0x96924, was: [0x2C000014], asm: ['b @cap                ; was cmpwi 0, 20'] }],
@@ -519,7 +519,7 @@ const APP_FIXES = [
            'cmp:', 'cmpw 0, 3', 'blr     ; both routines saved LR on entry'] },
 
   { id: 'widget-renumber', kind: 'fix', title: 'A scripted window’s buttons follow their owner to its new number on a zone change',
-    bug: 'The strange device has to be reopened after changing zones',
+    bug: 'You have to reopen the strange device after changing zones',
     sites: [{ at: 0x87B94, was: [0x4E800020], asm: ['b @cave               ; was a bare blr'] }],
     cave: ['lwz 6, 4(3)           ; the owner copy', 'clrlwi 7, 6, 16', 'cmpw 7, 4             ; the old number', 'bnelr',
            'rlwimi 6, 5, 0, 16, 31 ; the new one', 'stw 6, 4(3)', 'blr'] },
@@ -534,7 +534,7 @@ const APP_FIXES = [
            'b @0x1AC38            ; the same tune, playing: as before', 'make:', 'b @0x1ABA8'] },
 
   { id: 'hero-square', kind: 'fix', title: 'The hero keeps its square in the creature grid, so a follower on it no longer hides the hero from a drag',
-    bug: 'The player cannot be dragged onto a follower\'s square',
+    bug: 'You cannot drag the player onto a follower\'s square',
     sites: [
       { at: 0x6B14C, was: [0x40820008], asm: ['b @one                ; was bne 0x6B154'] },
       { at: 0x6B020, was: [0x40820010], asm: ['b @four               ; was bne 0x6B030'] }],
@@ -543,7 +543,7 @@ const APP_FIXES = [
            'four:', 'beq @take4', 'lwz 5, -30356(2)', 'lha 5, 0(5)', 'cmpw 4, 5', 'bne @done4',
            'take4:', 'extsh 0, 31', 'slwi 0, 0, 1', 'sthx 4, 30, 0', 'done4:', 'b @0x6B030'] },
 
-  { id: 'spell-glow', kind: 'fix', title: 'A creature’s spell glow is drawn on the creature, not on the thing its entry’s number names',
+  { id: 'spell-glow', kind: 'fix', title: 'The game draws a creature’s spell glow on the creature, not on the thing its entry’s number names',
     bug: 'A lich\'s spell glow and lightning come out of a chair',
     sites: [{ at: 0x99750, was: [0x7C640734], asm: ['b @cave               ; was extsh 4, 3'] }],
     cave: ['extsh 4, 3', 'rlwinm 3, 3, 16, 24, 31 ; the reference\'s type', 'cmpwi 3, 64', 'bne @as', 'cmpwi 4, 256', 'bge @creature',
@@ -558,9 +558,9 @@ const APP_FIXES = [
   // 74; r23 is dead once the routine has set its port, and keeps the size to
   // put back. The imports are called at their glue: TextWidth 0xC2AC0,
   // TextSize 0xC35B8, CharExtra 0xC3630; 0xB6CE8 is strlen.
-  { id: 'name-fit', kind: 'fix', title: 'A long name under a conversation portrait is drawn smaller until it fits, not squeezed until its letters overlap',
+  { id: 'name-fit', kind: 'fix', title: 'A long name under a conversation portrait shrinks until it fits, instead of squeezing until its letters overlap',
     played: 'Mac OS 8.5 in Infinite Mac, applied alone',
-    bug: 'A long name under a conversation portrait is squeezed until its letters overlap',
+    bug: 'A long name under a conversation portrait squeezes until its letters overlap',
     sites: [
       { at: 0x3DE90, was: [0x38800054, 0x4BFFDAA1], asm: ['b @fit                ; was li 4, 84', 'nop                   ; was bl FitText'] },
       { at: 0x3DF68, was: [0x38600000, 0x480856C5, 0x80410014], asm: ['b @restore            ; was li 3, 0', 'nop                   ; was bl CharExtra', 'nop                   ; was lwz 2, 20(1)'] }],
@@ -592,7 +592,7 @@ const APP_FIXES = [
   // so the text keeps its place; r3 and r4 are the OffsetRect arguments
   // that follow, and r5 and r6 were only the copy's.
   { id: 'speech-clear', kind: 'fix', title: 'The conversation box clears the ink a line’s first letter draws left of the text',
-    bug: 'A sliver of a letter is left at the start of a line in the conversation box',
+    bug: 'A sliver of a letter stays at the start of a line in the conversation box',
     sites: [
       { at: 0x3D56C, was: [0x38800067], asm: ['li 4, 100             ; was 103: the clear from 112, once offset'] },
       { at: 0x3D5C8, was: [0x80C1004C, 0x38000050, 0x80A10050, 0x387F0858, 0x38800000, 0x90DF0858, 0x90BF085C, 0xB01F085C],
@@ -601,7 +601,7 @@ const APP_FIXES = [
               'addi 3, 31, 2136       ; OffsetRect(2136(31), 0, ...), as before', 'li 4, 0'] }] },
 
   // ---- Hooks ----------------------------------------------------------------
-  { id: 'hook-take', kind: 'hook', method: 241, title: 'Method 241 on where a thing is being put, with the thing, before it is weighed: False refuses, True puts it unweighed',
+  { id: 'hook-take', kind: 'hook', method: 241, title: 'Method 241 on where a thing is going, with the thing, before the game weighs it: False refuses, True puts it there unweighed',
     sites: [{ at: 0x541EC, was: [0x5740063F], asm: ['b @cave               ; was clrlwi. 0, 26, 24'] }],
     cave: [
       'extsh. 5, 28', 'ble @none             ; nowhere to call', 'stwu 1, -64(1)', 'cmpwi 5, 256', 'bge @prop', 'oris 5, 5, 16448      ; a character, 0x4040', 'b @thing',
@@ -622,7 +622,7 @@ const APP_FIXES = [
       'lwz 3, 4(31)          ; the unit, as NewProp is handed it', 'srwi. 4, 0, 28', 'beq @number', 'b @0x46B74            ; not a number: the unit’s own',
       'number:', 'sth 0, 130(1)', 'b @0x46B7C'] },
 
-  { id: 'hook-load', kind: 'hook', method: 243, title: 'Method 243 on the hero each time a game is begun, opened or reverted to',
+  { id: 'hook-load', kind: 'hook', method: 243, title: 'Method 243 on the hero each time you begin, open or revert to a game',
     played: 'fork, PowerPC, 28 September 2026: a 0x30F3 script set a flag',
     sites: [{ at: 0x14654, was: [0x80010068], asm: ['b @cave               ; was lwz 0, 104(1)'] }],
     cave: [
@@ -683,7 +683,7 @@ const APP_FIXES = [
   // clear; and it never takes the door path, branching to the Seek that
   // keeps the stream in step. The second branches past ChainFreeProps's
   // deletion, so what is still flagged stays, flag and all.
-  { id: 'level-keep-place', kind: 'change', title: 'Entering a level leaves its doors, and the things it began with that were moved in play, as they were left, instead of setting them back',
+  { id: 'level-keep-place', kind: 'change', title: 'Entering a level leaves its doors, and the things it began with that moved in play, as you left them, instead of setting them back',
     played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a door left open stays open and a slid chair stays where it was; a rock made in play is still removed, as on the stock program, which also shuts the door and puts the chair back',
     sites: [
       { at: 0x7588, was: [0x80610060, 0x80010064, 0x907F0000, 0x901F0004, 0x80610068, 0x8001006C, 0x907F0008, 0x901F000C],
@@ -691,6 +691,6 @@ const APP_FIXES = [
               'nop', 'nop', 'nop', 'nop', 'nop'] },
       { at: 0x75B4, was: [0x408200D4], asm: ['b @0x7688             ; never the door path: skip its record in the stream'] }] },
   { id: 'level-keep-made', kind: 'change', title: 'Entering a level keeps what play made or left there, corpses among them, instead of removing what the level did not begin with',
-    played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a rock made in play stays where the stock program removes it; the door and the slid chair are set back as on the stock program',
+    played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a rock made in play stays where the stock program removes it; the patched program sets the door and the slid chair back, as the stock one does',
     sites: [{ at: 0x788C, was: [0x41820038], asm: ['b @0x78C4             ; never delete what play made or moved'] }] },
 ];

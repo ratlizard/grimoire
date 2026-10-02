@@ -317,7 +317,7 @@ function decodeLINF(data){
   const s=[]; for(let i=0;i<12;i+=2) s.push(u16be(data,i));
   const sg=v=>v>0x7fff?v-0x10000:v;
   return `Six shorts: ${s.map(sg).join(', ')}.\n`+
-         `The first two read as a size, ${s[0]} by ${s[1]}. What the record is for has not been worked out.`;
+         `The first two read as a size, ${s[0]} by ${s[1]}. Nobody has worked out what the record is for.`;
 }
 
 /* The colour cycles, as the editor holds them.
@@ -342,7 +342,7 @@ function decodeCycleTable(data){
   if(rows.length<2) return null;
   return rows.length+' color cycles, as (first index, length, flag):\n'+
     rows.map(r=>`  0x${r.start.toString(16).toUpperCase().padStart(2,'0')}  ${r.count} entries  flag ${r.flag}`).join('\n')+
-    '\n\nThe starting indices here are 16 lower than the ones the game animates; why they differ by 16 has not been worked out.';
+    '\n\nThe starting indices here are 16 lower than the ones the game animates; nobody has worked out why they differ by 16.';
 }
 
 // A resource that is entirely zero is read, not unread, and saying which it is

@@ -1721,7 +1721,7 @@ function dvmStructureRender(arc, b, resid, out) {
     const left = rec.gotos - loops.exits.size;
     if (r.bad) lines.push('// ^ decoder desynced (' + r.bad + ' unrecognized bytes) - unreliable');
     else if (!stmts.some(s => s.targets.length)) plain++;
-    else if (left) { lines.push('// ^ ' + left + ' jump(s) fit no block and are left as goto'); partial++; }
+    else if (left) { lines.push('// ^ ' + left + ' jump(s) fit no block and stay as goto'); partial++; }
     else whole++;
   }
   const cls = dvmClassName(resid);
@@ -1967,8 +1967,11 @@ function dvmSayBitNote(ctx, owner, bit) {
       return (w && w[0] ? w[0] : k).toUpperCase();
     }).join(' or ') : ''); };
   const set = row.filter(x => x.how === 'set').map(name), clr = row.filter(x => x.how === 'clear').map(name);
-  dvmFoldNote(ctx, 'bit ' + bit + ' of ' + dvmSayPossessive(who.name) + ' ' + field[1] + ' is set by ' + (set.slice(0, 3).join('; ') || 'nothing') +
-    (set.length > 3 ? ' and ' + (set.length - 3) + ' more' : '') + (clr.length ? '; cleared by ' + clr.slice(0, 3).join('; ') : ''));
+  // Who does it first, then what they do (the maintainer, 2 October 2026:
+  // no passive voice on the site).
+  const many = (list, verb) => list.slice(0, 3).join('; ') + (list.length > 3 ? ' and ' + (list.length - 3) + ' more' : '') + ' ' + verb + (list.length === 1 ? 's' : '');
+  dvmFoldNote(ctx, (set.length ? many(set, 'set') : 'nothing sets') + ' bit ' + bit + ' of ' + dvmSayPossessive(who.name) + ' ' + field[1] +
+    (clr.length ? '; ' + many(clr, 'clear') + ' it' : ''));
 }
 function dvmSayPossessive(nm) { return nm + (/s$/.test(nm) ? '’' : '’s'); }
 // Which character a phrase is: "Name (n)'s ..." by its number, "it" or
@@ -2031,8 +2034,9 @@ function dvmSayStateNote(ctx, name, k) {
     return nm ? dvmSayPossessive(nm) + ' conversation' : dvmFoldResourceName(rid);
   };
   for (const x of row) { if (!byV.has(x.v)) byV.set(x.v, []); byV.get(x.v).push(who(x.resid)); }
-  dvmFoldNote(ctx, (name === 'GetState' ? 'state ' : 'state flag ') + k + ' is set ' +
-    [...byV].sort((a, b) => a[0] - b[0]).map(([v, who]) => 'to ' + v + ' by ' + who.slice(0, 3).join(', ') + (who.length > 3 ? ' and ' + (who.length - 3) + ' more' : '')).join('; '));
+  const what = (name === 'GetState' ? 'state ' : 'state flag ') + k;
+  dvmFoldNote(ctx, [...byV].sort((a, b) => a[0] - b[0]).map(([v, who], i) => who.slice(0, 3).join(', ') + (who.length > 3 ? ' and ' + (who.length - 3) + ' more' : '') +
+    (who.length === 1 ? ' sets ' : ' set ') + (i ? 'it' : what) + ' to ' + v).join('; '));
 }
 /* A behaviour number said with the word the game's own text gives it. The
    game names some behaviours where it describes a person: a script that

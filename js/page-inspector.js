@@ -499,7 +499,7 @@ function propInspectRows(p) {
   rows.push(['Tile', '0x' + p.tileId.toString(16).toUpperCase() +
                      (terrainNameFor(p.tileId) ? ', ' + terrainNameFor(p.tileId) : '')]);
   rows.push(['Flags', '0x' + r.flags.toString(16).padStart(2, '0').toUpperCase() +
-                      (r.takeable ? ' (can be taken)' : '')]);
+                      (r.takeable ? ' (you can take it)' : '')]);
   // What the square is actually being asked about most of the time: how heavy
   // is that thing, and what does its class say about it. Both come out of the
   // prop type's own script resource, which was already parsed for the Items
@@ -737,7 +737,7 @@ function inspectMapSquare(tx, ty) {
       '<div class="inspDim">That is the base value for every square of the level, not just this ' +
       'one: anything bright in the eleven-by-eleven view lightens the whole map, and moving it out ' +
       'of view darkens the map again. The game also ignores light sources it treats as unseen, which ' +
-      'the file does not record, so every source in view is counted here.</div></div>');
+      'the file does not record, so the page counts every source in view.</div></div>');
   }
 
   // A square inside a gateway's footprint says so first, and offers the
@@ -794,14 +794,14 @@ function inspectMapSquare(tx, ty) {
 
   if (needsRope) {
     parts.push('<div class="inspCard"><b>Rope</b> <span class="inspDim">prop type 0x14B on this ' +
-      'square</span><div class="inspDim">A rope is fixed here, which is what makes the drop below ' +
+      'square</span><div class="inspDim">A rope hangs here, which is what makes the drop below ' +
       'passable. There are four in the whole scenario, all of them on ravines.</div></div>');
   }
 
   if (faux) {
     parts.push('<div class="inspCard"><b>' +
       svEsc(propDisplayName(faux.proptype) || ('0x' + faux.proptype.toString(16))) + '</b>' +
-      ' <span class="inspDim">not a real prop: it is drawn by the terrain tile itself (0xF010), ' +
+      ' <span class="inspDim">not a real prop: the terrain tile itself draws it (0xF010), ' +
       'not placed in the prop list</span><div class="inspActs">' +
       '<button class="sv-chip" onclick="showPropTypeDetail(' + faux.proptype + ')">Prop type</button>' +
       '</div></div>');
@@ -943,8 +943,8 @@ function renderMapResource(resid) {
     hideDetailLens(true);
     if (!result) {
       document.getElementById('mapLabel').textContent =
-        '0x' + resid.toString(16).toUpperCase() + (lbl ? ' - ' + lbl : '') + '  |  (could not be read as a valid map)';
-      out.textContent = "Could not render map 0x" + resid.toString(16).toUpperCase() + ": its header is not valid (it was decrypted wrongly, or it is not a map).";
+        '0x' + resid.toString(16).toUpperCase() + (lbl ? ' - ' + lbl : '') + '  |  (not readable as a valid map)';
+      out.textContent = "Could not render map 0x" + resid.toString(16).toUpperCase() + ": its header is not valid (the decryption went wrong, or it is not a map).";
       currentResid = resid;
       return;
     }
