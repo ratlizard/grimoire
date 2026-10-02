@@ -1463,9 +1463,9 @@ function byteMapStream(p) {
           // DoMove switches on the first queued entry's code in place of
           // the character's own behaviour (byte 22), so a code is a
           // behaviour; scripts queue them (cbQueueAction, the one caller).
-          const beh = b[q + o]; let word = null;
-          try { word = refExists(0x3007) ? dvmBehaviourWords(ARCHIVE).get(beh) : null; } catch (e) { quiet(e); }
-          ar.f(0, 1, 'the behaviour it carries out before its own: TActiveMonster::DoMove switches on this in place of the character’s byte 22', { value: String(beh) + (word ? ', ' + word : '') });
+          const beh = b[q + o];
+          const said = String(behaviourWordHTML(beh)).replace(/<[^>]+>/g, '');
+          ar.f(0, 1, 'the behaviour it carries out before its own: TActiveMonster::DoMove switches on this in place of the character’s byte 22', { value: String(beh) + (said ? ', ' + said : '') });
           ar.f(1, 2, 'the behaviour’s first argument', { value: String(u16be(b, q + o + 1)) });
           ar.f(3, 2, 'its second argument', { value: String(u16be(b, q + o + 3)) });
           ar.f(5, 4, 'what it is about: a reference in the scripts’ form (0x5000FFFF is none)', { value: '0x' + u32be(b, q + o + 5).toString(16).toUpperCase().padStart(8, '0') });
@@ -2038,8 +2038,8 @@ const CHAR_GROUPS = [
   ]},
   { head: 'Behaviour', items: [
     { id: 'behaviour', raw: [22, 1], label: 'behaviour', fieldNo: 21, max: 0xFF,
-      what: (r, v) => { let w = null; try { w = ARCHIVE && refExists(0x3007) ? dvmBehaviourWords(ARCHIVE).get(v) : null; } catch (e) { quiet(e); }
-        return (w ? '<b>' + svEsc(w) + '</b>, ' : '') + 'what they do each turn; 112 is waiting where they stand'; } },
+      what: (r, v) => { const w = behaviourWordHTML(v);
+        return (w ? '<b>' + w + '</b>, ' : '') + 'what they do each turn; 112 is waiting where they stand'; } },
     { id: 'behaviour2', raw: [30, 1], label: 'second behaviour', max: 0xFF, what: () => 'a second behaviour the scripts read and set' },
     { id: 'timing', key: 'party', label: 'move countdown', off: 18, max: 0xFF,
       what: () => 'ticks before their next move, so it changes on every step' },

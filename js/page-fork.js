@@ -1571,7 +1571,8 @@ function showCharacterDetail(i) {
         return '<div style="font-size:0.8125rem">' + srcNum(sSrc(0, 'the hour'), ampm.padStart(5)) + ', ' + e.where +
                ' (' + srcNum(sSrc(5, 'the packed level, x and y'), String(e.x)) + ', ' +
                srcNum(sSrc(5, 'the packed level, x and y'), String(e.y)) + ')' +
-               ' <span style="color:#8c8980">mode ' + srcNum(sSrc(1, 'the mode'), String(e.mode)) + '</span></div>';
+               ' <span style="color:#8c8980">behaviour ' + srcNum(sSrc(1, 'the mode'), String(e.mode)) +
+               (behaviourWordHTML(e.mode) ? ', ' + behaviourWordHTML(e.mode) : '') + '</span></div>';
       }).join('');
   } else {
     sh.innerHTML = '<div style="color:#8c8980;font-size:0.8125rem">No schedule entries: this character is placed directly in a map\u2019s prop list rather than moving by the clock.</div>';

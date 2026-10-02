@@ -243,6 +243,34 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         }
       }
     } catch (e) { fail('who is scheduled', e); }
+    /* What each behaviour does, off DoMove (exeBehaviours, 2 October 2026;
+       the workbench's doc/behaviours.md is the reading): the table's 171
+       cases, a handful of them as the reading has them with their waits,
+       each linked inside DoMove; the Schedules sheet saying a behaviour by
+       the game's word with the number linked; and with no application
+       open the game's words alone, no link. */
+    try {
+      const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
+      const b = ctx.exeBehaviours();
+      const want = [[0, 'stands still', 8], [1, 'follows the party leader', null], [3, 'fights, attacking the strongest', null], [7, 'retreats', null],
+                    [138, 'paces north and south', 12], [141, 'paces east and west', 16], [135, 'stands facing east', 20], [144, 'wanders', 20],
+                    [145, 'nothing of its own', null], [147, 'eats', 32], [150, 'comes to the party leader and talks', 8], [200, 'fights by combat program 200', null]];
+      const bad = want.filter(([v, does, wait]) => { const d = ctx.behaviourDoes(v); return !d || d.does !== does || (wait === null ? false : !d.wait || d.wait.v !== wait); });
+      const linked = want.filter(([v]) => { const d = ctx.behaviourDoes(v); return d && d.at; }).every(([v]) => { const r = ctx.exeRoutineAt(ctx.behaviourDoes(v).at.exe); return r && r.name.startsWith('TActiveMonster::DoMove('); });
+      if (!b || b.count !== 171) fail('behaviours', 'DoMove’s table was not read: ' + JSON.stringify(b && b.count));
+      else if (bad.length) fail('behaviours', 'misread: ' + bad.map(([v]) => v + ' ' + JSON.stringify(ctx.behaviourDoes(v))).join('; '));
+      else if (!linked) fail('behaviours', 'a behaviour is linked outside DoMove');
+      else {
+        ctx.showCategory('SCHEDULES');
+        const sh = all(REGISTRY.get('sheetGrid'));
+        const wh = withoutApp(() => { ctx.showCategory('SCHEDULES'); return all(REGISTRY.get('sheetGrid')); });
+        if (!/jumpToExeAt\(\d+\)[^>]*>144<\/button> <span title="wanders, waits 20 between turns">working<\/span>/.test(sh) || !/>145 <span title="nothing of its own">sleeping<\/span>/.test(sh) || !/>comes to the party leader and talks</.test(sh))
+          fail('behaviours', 'the Schedules sheet does not say the behaviours with their links');
+        else if (/comes to the party leader|jumpToExeAt\(\d+\)[^>]*>144</.test(wh) || !/144 <span>working<\/span>/.test(wh))
+          fail('behaviours', 'with no application the Schedules sheet says more than the game’s words, or not them');
+        else console.log(`  behaviours: ${b.count} cases off DoMove, ${want.length} pinned with their waits; the Schedules sheet says them, linked`);
+      }
+    } catch (e) { fail('behaviours', e); }
     /* The sky of the hour, off DrawSky, CalcLocations and gXPos (exeSkyRules).
        The hour table comes out black at midnight, cyan ("white") at noon and
        half and half ("gray") in the sunrise and sunset hours; the sun at noon

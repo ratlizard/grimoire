@@ -493,6 +493,118 @@ function exeScheduleWho() {
   }
   return out.partyBit && out.aliveBit && out.waiting && out.monsterWord ? out : null;
 }
+/* WHAT EACH BEHAVIOUR DOES, off the program (2 October 2026; the whole
+   reading is the workbench's doc/behaviours.md). TActiveMonster::DoMove
+   switches on a character's behaviour, byte 22 of its record (or the kind
+   of the task at the front of its queue), through a jump table beside the
+   TOC whose bound is the larger of the routine's two tables (the other,
+   bounded at 10, is the task kinds 160 to 170). Each case's handler runs to
+   the next handler's address; what it does is read off what it calls, by
+   the routines' own names, and the wait it stores into the record's byte
+   18 (`li`, then `stb` at 18). The words for each routine are this
+   reading's, as the movement rules' kinds are; the routines, the waits and
+   the instructions are the program's. A value past the table, or a case
+   that lands on the default, does nothing of its own, except 176 to 255,
+   which the default hands to PerformAI as a combat program. Null with no
+   application open. */
+function exeBehaviours() {
+  if (!appImage()) return null;
+  if (DERIVED.BEHAVIOURS !== undefined) return DERIVED.BEHAVIOURS;
+  let out = null;
+  try {
+    const ops = exeOpsNamed('TActiveMonster::DoMove'), img = appImage();
+    let jt = null;
+    for (let from = 0, t; (t = exeJumpTable(ops, from)); from = t.at + 1)
+      if (t.bound >= 0 && (!jt || ops[t.bound].d.imm > ops[jt.bound].d.imm)) jt = t;
+    if (jt && ops[jt.bound].d.imm >= 128) {
+      const count = ops[jt.bound].d.imm + 1, off = exeTocOffset(ops[jt.at].d.imm);
+      const after = ops[jt.bound + 1];
+      const dflt = after && after.d && after.d.conditional ? after.to : null;
+      const starts = [];
+      for (let v = 0; v < count; v++) {
+        let p = null;
+        try { p = pefPointerAt(img, img.toc.section, off + 4 * v); } catch (e) { quiet(e); }
+        starts.push(p && p.section === img.codeIndex ? p.offset : null);
+      }
+      const bounds = [...new Set(starts.concat(dflt).filter(s => s !== null))].sort((a, b) => a - b);
+      const index = a => ops.findIndex(o => o.at === a);
+      const read = at => {
+        const i = index(at), next = bounds.find(b => b > at), j = next !== undefined ? index(next) : ops.length;
+        const body = i >= 0 ? ops.slice(i, j < 0 ? ops.length : j) : [];
+        const calls = body.filter(o => o.mn === 'bl').map(o => exeTargetName(o.to).replace(/\(.*$/, ''));
+        const storeOf = disp => {
+          const k = body.findIndex(o => o.d && o.d.mn === 'stb' && o.d.d === disp && o.d.ra !== 1);
+          const l = k >= 0 ? body.slice(0, k).reverse().find(o => o.d && o.d.mn === 'li' && o.d.rd === body[k].d.rt) : null;
+          return l ? exeVal(l, l.d.imm) : null;
+        };
+        // A facing: the direction in r5 for the indirect call (AdjustAspect
+        // through the object's table) that follows it, with 1 in r4.
+        const faceAt = body.findIndex((o, k) => o.d && o.d.mn === 'li' && o.d.rd === 5 && o.d.imm >= 0 && o.d.imm <= 3 &&
+          // the call through r12, the shape of a call through a table
+          body.slice(k + 1, k + 8).some(x => x.d && x.d.mn === 'lwz' && x.d.rt === 12 && x.d.ra === 12) &&
+          body.slice(k + 1, k + 8).some(x => x.mn === 'bl') &&
+          body.slice(Math.max(0, k - 6), k).some(x => x.d && x.d.mn === 'li' && x.d.rd === 4 && x.d.imm === 1));
+        return { at: exeVal(body[0] || null, null), calls, wait: storeOf(18), food: storeOf(27),
+                 face: !calls.some(c => /^TActiveMonster::|^TGameSys::|^TPathFinder::/.test(c)) && faceAt >= 0 ? body[faceAt].d.imm : null };
+      };
+      const byStart = new Map();
+      out = { count, dflt, cases: starts.map(s => {
+        if (s === null || s === dflt) return null;
+        if (!byStart.has(s)) byStart.set(s, read(s));
+        return byStart.get(s);
+      }) };
+    }
+  } catch (e) { quiet(e, 'the behaviours, off DoMove'); }
+  return (DERIVED.BEHAVIOURS = out);
+}
+// What behaviour v does, in this page's words for the routines its
+// handler calls; null where the program is not open.
+function behaviourDoes(v) {
+  const b = exeBehaviours();
+  if (!b) return null;
+  if (v >= 176 && v <= 255) return { does: 'fights by combat program ' + v, at: null };
+  const c = v < b.count ? b.cases[v] : null;
+  if (!c) return { does: 'nothing of its own', at: null };
+  const has = n => c.calls.some(x => x === n);
+  const fight = has('PerformAI__FP14TActiveMonsters') || c.calls.some(x => /PerformAI/.test(x));
+  let does;
+  if (has('TGameSys::TalkCommand')) does = 'comes to the party leader and talks';
+  else if (has('TPathFinder::FindPath') && has('TActiveMonster::GetCharacter')) does = 'follows the party leader';
+  else if (has('TActiveMonster::FindStrongest')) does = 'fights, attacking the strongest';
+  else if (has('TActiveMonster::FindWeakest')) does = 'fights, attacking the weakest';
+  else if (has('TActiveMonster::FindNearest')) does = 'fights, attacking the nearest';
+  else if (has('TActiveMonster::DoDefend')) does = 'fights, defending';
+  else if (has('TActiveMonster::DoRetreat')) does = 'retreats';
+  else if (has('TActiveMonster::DoAttack')) does = fight ? 'fights' : 'attacks its target';
+  else if (has('ScheduleOne')) does = 'goes back to its usual behaviour';
+  else if (has('TActiveMonster::DoRoam')) does = 'wanders';
+  else if (has('TActiveMonster::PaceNS') && c.calls.some(x => /Random/.test(x))) does = 'paces north and south, now and then turning';
+  else if (has('TActiveMonster::PaceNS')) does = 'paces north and south';
+  else if (has('TActiveMonster::PaceEW')) does = 'paces east and west';
+  else if (has('TActiveMonster::SetWaypoint')) does = 'walks to a place';
+  else if (has('TActiveMonster::GoTowards')) does = 'steps towards a thing';
+  else if (c.face !== null) does = 'stands facing ' + ['north', 'east', 'south', 'west'][c.face];
+  else if (c.food) does = 'eats';
+  else if (c.wait) does = 'stands still';
+  else does = 'nothing of its own';
+  return { does, at: c.at, wait: c.wait };
+}
+// A behaviour's words as a sheet shows them: the game's own word for it
+// (dvmBehaviourWords) or else what the handler does; the other, and the
+// wait, in the title. Empty when neither is known.
+function behaviourWordHTML(v) {
+  let word = null;
+  try { word = ARCHIVE && refExists(0x3007) ? dvmBehaviourWords(ARCHIVE).get(v) : null; } catch (e) { quiet(e); }
+  const d = behaviourDoes(v);
+  const shown = word || (d && d.does);
+  const title = [word && d ? d.does : null, d && d.wait ? 'waits ' + d.wait.v + ' between turns' : null].filter(Boolean).join(', ');
+  return shown ? '<span' + (title ? ' title="' + svEsc(title) + '"' : '') + '>' + svEsc(shown) + '</span>' : '';
+}
+// The number too, linked to its handler where the program is open.
+function behaviourHTML(v) {
+  const d = behaviourDoes(v), w = behaviourWordHTML(v);
+  return (d && d.at ? srcNum({ v, exe: d.at.exe }, String(v)) : svEsc(String(v))) + (w ? ' ' + w : '');
+}
 // Every script site that sets a character's behaviour to `value`: a
 // set_field of the behaviour key followed, within its operands, by that
 // number. One site a script, the first.
@@ -571,10 +683,10 @@ function renderSchedulesSheet() {
       const where = e.level === 255 ? '<span class="inspDim">off every map</span>'
         : svLink(zoneDisplayName(e.level) || ('zone ' + e.level), 'atlasOpenSquare(' + (0x8000 + e.level) + ',' + e.x + ',' + e.y + ')', e.x + ', ' + e.y);
       return '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + where + '</td><td>' + (c ? svEsc(c.text) : '') + '</td>' +
-        '<td class="num">0x' + e.mode.toString(16).toUpperCase().padStart(2, '0') + '</td></tr>';
+        '<td>' + behaviourHTML(e.mode) + '</td></tr>';
     }).join('');
     const d = document.createElement('div'); d.className = 'mechBody';
-    d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">from</th><th>where</th><th>when</th><th class="num">behaviour</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">from</th><th>where</th><th>when</th><th>behaviour</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
     sec.appendChild(d);
     box.appendChild(sec);
   }
