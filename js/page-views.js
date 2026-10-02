@@ -1567,10 +1567,14 @@ function exeUnitMoveRules() {
       }
     }
     // The party's mark, 0x80000000, which GetMonstAttrs ORs in for a party
-    // member and the king's unit carries itself. CanMove tests it twice:
-    // first beside the walk-through-walls byte option-w flips with cheats
-    // on, answering 1 at once, then before letting the mover onto a square
-    // whose thing is a character with the party bit (0x40 of its byte 8).
+    // member and the king's unit carries itself (Alaric is drawn with it).
+    // CanMove tests it twice: first beside the walk-through-walls byte
+    // option-w flips with cheats on, answering 1 at once, then, on a square
+    // that blocks, before letting the mover onto it when what blocks it is
+    // a character with the party bit (0x40 of its byte 8). The name says the
+    // second, which is all it does in play; it said "moves as a party
+    // member" for an hour on 1 October 2026, which the maintainer read as
+    // walking through walls, and that needs cheats.
     // The rule is the last test of the unit's word for that bit alone.
     if (unitReg !== null) {
       let last = null;
@@ -1625,7 +1629,7 @@ function monsterMoveNames() {
     let name = null;
     if (r.kind === 'steps') name = 'sets off nothing it steps on';
     else if (r.kind === 'doors') name = 'opens doors';
-    else if (r.kind === 'party') name = 'moves as a party member';
+    else if (r.kind === 'party') name = 'can move onto a party member\u2019s square';
     else {
       const where = tileNamesCarrying(r.square) || (r.only !== undefined ? tileNamesCarrying(r.only) : null);
       if (where) name = (r.kind === 'onto' ? 'can move onto ' : r.kind === 'only' ? 'moves only onto ' : 'cannot move onto ') + where;

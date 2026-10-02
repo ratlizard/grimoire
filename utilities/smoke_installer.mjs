@@ -119,7 +119,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
                !/cannot move onto a rope or fence/.test(said(0x10004000)) || !/moves only onto water, shore or pool/.test(said(0x20001001)) ||
                !/can move onto a mousehole/.test(said(0x40084040)) || !/immune to fire · can move onto lava/.test(said(0x000200F2)) ||
                // The king: the party's mark named, and the bits nothing tests said to be so.
-               !/moves as a party member/.test(said(0x800201F4)) || !/\+0x30 \(read by nothing\)/.test(said(0x800201F4)) ||
+               !/can move onto a party member’s square/.test(said(0x800201F4)) || !/\+0x30 \(read by nothing\)/.test(said(0x800201F4)) ||
                // The death script's 0x2000, linked to its test there.
                !/jumpToScriptAt\(3725,\d+\)[^>]*>fades away with its parts when it dies</.test(harpy) ||
                // Over every unit the program and the scripts leave 0x0010, 0x0020 and 0x1000 unread, and nothing else.
