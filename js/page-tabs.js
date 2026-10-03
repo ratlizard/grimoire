@@ -1385,6 +1385,20 @@ function openSearch() {
   const box = document.getElementById('searchBox');
   if (box) box.focus();
 }
+/* The search opened on a query, from a link elsewhere on the page: a count
+   in a sentence opens the list it counted ("49 spells" is the scripts that
+   call CastSpell). After the click that asked for it, since a click outside
+   the panel closes it, and with the page at the top, where the panel is. */
+function searchFor(q) {
+  setTimeout(() => {
+    closeTopPanels();
+    openSearch();
+    const box = document.getElementById('searchBox');
+    if (box) box.value = q;
+    runSearch();
+    try { window.scrollTo(0, 0); } catch (e) { quiet(e); }
+  }, 0);
+}
 function closeSearch() {
   const w = document.getElementById('searchWrap');
   if (w) w.style.display = 'none';

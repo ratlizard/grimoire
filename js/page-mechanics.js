@@ -520,7 +520,7 @@ function mechSpellFigures(sp) {
     y: { min: 0, max: maxCost * 1.1, ticks: [{ v: maxCost, label: String(maxCost) }, { v: Math.round(maxCost / 2), label: String(Math.round(maxCost / 2)) }, { v: 0, label: '0' }] },
     series: [],
     marks: cost.map(c => ({ x: c.x, y: c.y, dot: true, colour: 'rgba(107,168,191,.85)' }))
-  }), svLink(sp.spells.length + ' spells', 'jumpToResource(0xEA1)') + '. The cost rises with the level, but not by any rule: each spell’s script sets it.');
+  }), svLink(sp.spells.length + ' spells', "searchFor('call_resource CastSpell')") + '. The cost rises with the level, but not by any rule: each spell’s script sets it.');
 }
 
 // The levels double, so the only honest axis is a logarithmic one, and drawn

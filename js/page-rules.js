@@ -753,9 +753,11 @@ function renderSpellsSheet() {
   box.className = 'mechView';
   const intro = document.createElement('p'); intro.className = 'mechLede';
   // The count is a link to what it counts: a spell is a script that calls
-  // CastSpell (spellRules), so the number opens that helper, whose callers
-  // are the list (the maintainer, 2 October 2026: a count is linked to data).
-  intro.innerHTML = svLink(spells.length + ' spells', 'jumpToResource(0xEA1)') + ' by level, after ' + cardLink('spells', 'the rules for casting') + '.';
+  // CastSpell (spellRules), so the number opens the search for those calls,
+  // which lists exactly the same scripts (the maintainer, 2 October 2026: a
+  // count is linked to data; CastSpell's own page held one script, not the
+  // forty-nine).
+  intro.innerHTML = svLink(spells.length + ' spells', "searchFor('call_resource CastSpell')") + ' by level, after ' + cardLink('spells', 'the rules for casting') + '.';
   box.appendChild(intro);
   // How a cast works, above the spells it works on. This was a section of the
   // Mechanics sheet until 13 September 2026.
