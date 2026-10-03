@@ -726,9 +726,16 @@ const GM_NAMES = ("Acoustic Grand Piano,Bright Acoustic Piano,Electric Grand Pia
 /* ============================================================
    QTMA (QuickTime Music Architecture) -> Standard MIDI File
    Bit-field layout taken verbatim from Apple's QuickTimeMusic.h
-   (Universal Interfaces 3.3.1). Durations are in milliseconds;
-   pitch maps directly to MIDI key numbers.
+   (Universal Interfaces 3.3.1). Durations are in the tune's own time
+   scale, which Cythera sets to 600 a second (GMSInit; the fork's
+   music-root-cause.md). They were read as milliseconds until 3 October
+   2026, so every MIDI file the page wrote played 1.67 times too fast: the
+   theme came out at 57.6 seconds where the game, the decoded tune at 600
+   and the 20th Anniversary Soundtrack's recording all give 96. Pitch maps
+   directly to MIDI key numbers.
    ============================================================ */
+// The time scale Cythera's GMSInit gives its tunes.
+const QTMA_UNITS_PER_SECOND = 600;
 const QTMA = {
   RestEventType:0, NoteEventType:1, ControlEventType:2, MarkerEventType:3,
   XNoteEventType:0x9, XControlEventType:0xA, GeneralEventType:0xF,
@@ -844,7 +851,9 @@ function qVlq(n){
 function qBuildMidi(events, noteRequests, ticksPerBeat, tempoUs){
   ticksPerBeat = ticksPerBeat || 480;
   tempoUs = tempoUs || 500000;
-  const msToTicks = ticksPerBeat / (tempoUs/1000);
+  // The events' times are in units of 1/QTMA_UNITS_PER_SECOND; the name
+  // stayed from when they were taken for milliseconds.
+  const msToTicks = ticksPerBeat / (tempoUs / 1e6 * QTMA_UNITS_PER_SECOND);
   const partSet = new Set();
   events.forEach(e => { if (e.k==='note'||e.k==='ctl') partSet.add(e.part); });
   Object.keys(noteRequests).forEach(p => partSet.add(+p));
@@ -933,9 +942,10 @@ function qtmaToMidi(data){
   const noteRequests = Object.assign({}, hdr.noteRequests, seq.noteRequests);
   const built = qBuildMidi(seq.events, noteRequests);
   const notes = seq.events.filter(e=>e.k==='note');
-  const totalMs = seq.events.length ? Math.max(...seq.events.map(e=>e.t)) : 0;
+  // To the last note's end, not its start, in the tune's own units.
+  const total = seq.events.length ? Math.max(...seq.events.map(e => e.t + (e.dur || 0))) : 0;
   return {midi:built.midi, chanOf:built.chanOf, noteRequests,
-          noteCount:notes.length, eventCount:seq.events.length, durationSec:totalMs/1000};
+          noteCount:notes.length, eventCount:seq.events.length, durationSec:total/QTMA_UNITS_PER_SECOND};
 }
 function downloadCurrentMidi(){
   try {
