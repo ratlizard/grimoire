@@ -480,6 +480,12 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 #brand .brandVer { font-weight:400; }
 #brand .brandTile { width:20px; height:20px; image-rendering:pixelated; vertical-align:-4px; margin-right:2px; }
 #brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; letter-spacing:.04em; color:#8c8980; }
+/* The name is four words since 2 October 2026 and ran under the links on a
+   phone, so the subtitle and the version take a second line; on a desktop
+   too since 3 October 2026, at the maintainer's word, so the two agree. */
+#brand { line-height:1.2; }
+#brand .brandColon { display:none; }
+#brand .brandSub { display:block; font-size:0.8125rem; font-weight:400; color:#b5b2a8; margin-top:2px; }
 /* The row scrolls sideways, so it clips: a tab cannot paint below the row's
    own edge, and an open tab hanging a pixel over the folder was clipped to
    nothing, which on a fractional device-pixel ratio left the folder's top
@@ -1792,11 +1798,6 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
      sideways anyway, so a place keeps its line. */
   .forkTable td.where { white-space:nowrap; }
   #topLinks { gap:16px; }
-  /* The name is four words since 2 October 2026 and ran under the links on a
-     phone: there the subtitle and the version take a second line. */
-  #brand { line-height:1.2; }
-  #brand .brandColon { display:none; }
-  #brand .brandSub { display:block; font-size:0.8125rem; font-weight:400; color:#b5b2a8; margin-top:2px; }
   /* The world on a portrait screen: the viewport was 78vh tall for a square
      map fitted to its width, so two thirds of it was painted sea, and then
      a square, which left half the screen empty below it. It is the height
@@ -2437,7 +2438,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.240.0';
+const GRIMOIRE_VERSION = '1.240.1';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);
@@ -2453,15 +2454,42 @@ function drawBrand() {
     // finds, and read with no file it cached nothing for the whole session
     // (the decoder snapshot's chest went null, 2 October 2026).
     if (ARCHIVE) {
-      const spec = { tile: getPropTileList()[76] || 0x21F };
-      tile = relIconURL(spec);
-      const c = navIconCanvas(spec, 32); icon = c.width ? c.toDataURL('image/png') : '';
+      const c = brandTileTrimmed(navIconCanvas({ tile: getPropTileList()[76] || 0x21F }, 32));
+      icon = tile = c ? c.toDataURL('image/png') : '';
     }
   } catch (e) { quiet(e, 'the brand tile'); tile = ''; icon = ''; }
   if (b) b.innerHTML = (tile ? '<img class="brandTile" src="' + tile + '" alt="" width="20" height="20"> ' : '') +
     '<span class="brandName">Grimoire<span class="brandColon">:</span> <span class="brandSub">A Cythera Experiment <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span></span></span>';
   const fav = document.getElementById('favicon');
   if (fav && icon) { fav.type = 'image/png'; fav.href = icon; }
+}
+/* The book fills only part of its 32-pixel tile, so beside the name and as
+   the tab's icon it was a small book in a wide margin (the maintainer,
+   3 October 2026). Cut to the square round its drawn pixels, centred, and
+   scaled by a whole number to at least 64 pixels so the browser shrinks a
+   sharp picture rather than blurring a small one up. Null when the tile drew
+   nothing. */
+function brandTileTrimmed(src) {
+  if (!src || !src.width) return null;
+  const w = src.width, h = src.height;
+  const d = src.getContext('2d').getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!d[(y * w + x) * 4 + 3]) continue;
+    if (x < x0) x0 = x; if (x > x1) x1 = x;
+    if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < 0) return null;
+  const side = Math.max(x1 - x0, y1 - y0) + 1;
+  const k = Math.ceil(64 / side);
+  const c = document.createElement('canvas');
+  c.width = c.height = side * k;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  // Centred on the square: the shorter side's slack split either way.
+  const ox = x0 - Math.floor((side - (x1 - x0 + 1)) / 2), oy = y0 - Math.floor((side - (y1 - y0 + 1)) / 2);
+  g.drawImage(src, ox, oy, side, side, 0, 0, c.width, c.height);
+  return c;
 }
 drawBrand();
 </script>
