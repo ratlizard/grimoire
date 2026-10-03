@@ -1852,7 +1852,7 @@ function renderSaveSheet() {
   // What the file holds.
   const parts = savedGameParts();
   if (parts.length) {
-    h += '<h4 class="saveH4">What This File Holds</h4><div class="tableScroll"><table class="forkTable">' +
+    h += '<h4 class="saveH4">What This File Holds</h4><div class="tableScroll"><table class="forkTable cardTable">' +
       '<thead><tr><th>resource</th><th>what it is</th><th>bytes</th></tr></thead><tbody>' +
       parts.map(p => {
         let n = 0; try { n = (getResourceBytes(ARCHIVE, p.rid) || []).length; } catch (e) { quiet(e); }

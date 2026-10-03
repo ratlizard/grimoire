@@ -41,6 +41,7 @@ const UNSTYLED = new Set([
   'tileFacts',   // the facts under a zoomed tile, styled inline where it is made
   'gated',       // on <body> while the gate stands; the script reads it
   'worldTab',    // on the World tab's button; the script reads it
+  'cardTable',   // opts a .forkTable into cards on a phone (tableCardsLabel reads it)
 ]);
 
 const css = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map(m => m[1]).join('\n').replace(/\/\*[\s\S]*?\*\//g, '');

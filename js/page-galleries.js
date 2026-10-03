@@ -1400,6 +1400,66 @@ function scrollHintWatch(el) {
   scrollHintUpdate(el);
 }
 
+/* A sheet's table reads as cards on a phone. A wide table used to slide
+   sideways, so a bark's line or a rule's note started off the screen and a
+   reader scrolled a row at a time to see what a cell belonged to (the
+   maintainer, 13 and 22 September and 2 October 2026). This gives each cell
+   its column's heading as data-label; the stylesheet, under 641px, sets a
+   row out as a card: the first cell its title, every other cell a line of
+   "heading  value" (table.asCards in index.html). Only the sheets' tables,
+   .mechTable and .vocabTable with a header row, and the Data tab's two of
+   prose (.cheatTable, the preferences record, and .cardTable, what a saved
+   game holds): the Data tab's other byte and record tables (.forkTable) and
+   a table whose columns are mostly figures are read down a column, and keep
+   their grid and the sideways scroll. A
+   table is labelled once and again when its row count changes, since some
+   grow a page at a time. */
+function tableCardsLabel(table) {
+  const rows = table.tBodies.length ? table.tBodies[0].rows : null;
+  if (!rows) return;
+  if (table._cardRows === rows.length) return;
+  table._cardRows = rows.length;
+  if (!table._cardHeads) {
+    const head = table.tHead && table.tHead.rows.length ? table.tHead.rows[table.tHead.rows.length - 1] : null;
+    if (!head) { table._cardHeads = []; return; }
+    const heads = [];
+    for (const th of head.cells) {
+      const t = (th.textContent || '').replace(/\s+/g, ' ').trim();
+      for (let k = 0; k < (th.colSpan || 1); k++) heads.push({ t, num: th.classList.contains('num') });
+    }
+    table._cardHeads = heads;
+    // Mostly figures: a grid, read down its columns.
+    if (heads.length < 2 || heads.filter(h => h.num).length * 2 > heads.length) return;
+    table.classList.add('asCards');
+    if (table.parentElement && table.parentElement.classList.contains('tableScroll')) table.parentElement.classList.add('cardsWrap');
+  }
+  if (!table.classList.contains('asCards')) return;
+  const heads = table._cardHeads;
+  for (const tr of rows) {
+    let col = 0;
+    for (const td of tr.cells) {
+      const span = td.colSpan || 1;
+      const h = heads[col];
+      if (span >= heads.length || !h || !h.t) td.classList.add('cardWide');
+      else if (!(td.textContent || '').trim() && !td.querySelector('img, canvas, svg, input, button')) td.classList.add('cardEmpty');
+      else {
+        td.setAttribute('data-label', h.t);
+        // The value goes in one element, so the heading and it are the
+        // cell's two grid items: left loose, every run of text and every
+        // chip in a cell was an item of its own and they split across the
+        // two columns.
+        if (col > 0 && !(td.childNodes.length === 1 && td.firstChild.classList && td.firstChild.classList.contains('cardVal'))) {
+          const v = document.createElement('span');
+          v.className = 'cardVal';
+          while (td.firstChild) v.appendChild(td.firstChild);
+          td.appendChild(v);
+        }
+      }
+      col += span;
+    }
+  }
+}
+
 function gridColumnCount(grid) {
   const t = getComputedStyle(grid).gridTemplateColumns;
   const n = t && t !== 'none' ? t.trim().split(/\s+/).length : 1;
@@ -1457,12 +1517,17 @@ document.addEventListener('DOMContentLoaded', () => {
   installArchiveDropTarget();
   installKeyboardShortcuts();
   // Every table wrapper a sheet builds gets its edge hint as it lands, and
+  // every sheet's table its card labels (tableCardsLabel), and
   // a resize re-measures everything watched. Coalesced to a frame, since a
   // gallery landing is hundreds of insertions.
   try {
     const grid = document.getElementById('sheetGrid');
     let due = false;
-    const sweep = () => { due = false; for (const el of document.querySelectorAll('.tableScroll, .ftabRow')) scrollHintWatch(el); };
+    const sweep = () => {
+      due = false;
+      for (const t of document.querySelectorAll('table.mechTable, table.vocabTable, table.cheatTable, table.cardTable')) { try { tableCardsLabel(t); } catch (e) { quiet(e, 'labelling a table'); } }
+      for (const el of document.querySelectorAll('.tableScroll, .ftabRow')) scrollHintWatch(el);
+    };
     const queue = () => { if (due) return; due = true; (window.requestAnimationFrame || setTimeout)(sweep); };
     if (grid && typeof MutationObserver === 'function') new MutationObserver(queue).observe(grid, { childList: true, subtree: true });
     window.addEventListener('resize', () => { for (const el of document.querySelectorAll('[data-scroll-hint]')) scrollHintUpdate(el); });
