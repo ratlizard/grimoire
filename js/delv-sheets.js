@@ -77,22 +77,18 @@ const MECH_NO_APP = 'Open the game from its installer, under Settings, to read t
 function spellsMechSection() {
   const sp = spellRules();
   const fxMap = sp.spells.length ? spellEffects() : new Map();
-  const doesCell = x => {
-    const fx = fxMap.get(x.resid);
-    if (!fx) return '';
-    const bits = [];
-    for (const d of fx.damage) bits.push('<b>' + srcNum({ resid: x.resid, at: d.at }, amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) + ' <span class="inspDim">(type ' + d.type + ')</span>' : '') + ' to ' + d.who);
-    for (const hh of fx.heals) bits.push('<b>' + srcNum({ resid: x.resid, at: hh.at }, hh.text) + '</b>');
-    return bits.join('<br>');
-  };
   const fireball = sp.spells.find(x => /^Fireball$/.test(x.name));
   const fbFx = fireball && fxMap.get(fireball.resid);
-  return mechSectionEl('spells', 'Spells', null, mechSrc('the casting', 0xEA1) + mechSrc('a hit', 0xEB8),
+  return mechSectionEl('spells', 'About Spells', null, mechSrc('the casting', 0xEA1) + mechSrc('a hit', 0xEB8),
     // The count and the failure roll were the card's opening line until
     // 2 October 2026; the maintainer had it cut. The sheet's own intro
-    // counts the spells, and the chart below states the roll.
+    // counts the spells. The roll was then stated under the chart of how
+    // often a cast fails; the charts and the table of every spell went on
+    // 3 October 2026, at his word, the spell cards below holding the same
+    // figures, and the roll is the first line here.
     sp.spells.length ? '' : 'No spell in this file is cast through the shared script.',
     sp.spells.length ? [
+      'The game adds two random numbers below the caster’s Casting figure, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>: the only number below 1 is 0. The caster spends the magic points whether the cast works or not.',
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
       sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The caster pays the cost.',
       'Spell damage works like a blow’s: the victim’s resistance applies, and the caster earns experience as usual.',
@@ -116,8 +112,7 @@ function spellsMechSection() {
         return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: the target has to be in one of the eight squares around the caster. You can aim the rest anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
       })()
     ].filter(Boolean) : [],
-    mechSpellFigures(sp) +
-    mechTable(['spell', '#level', '#cost', 'does'], sp.spells.map(x => '<tr><td>' + partChip(x.name, x.resid) + '</td>' + srcCell(x.levelVal) + srcCell(x.costVal) + '<td>' + doesCell(x) + '</td></tr>')), '');
+    '', '');
 }
 
 function skillsMechSection() {
@@ -276,16 +271,16 @@ function mechCardAboveGallery(grid, build) {
    up. */
 const MECH_GROUPS = [
   { value: 'MECH_PROGRESS', title: 'Progress', tile: 0x240,
-    note: 'What a character gains, and what it costs to be taught.',
+    note: 'The payoff from your trials and travails.',
     ids: ['experience', 'karma', 'training', 'todo'] },
   { value: 'MECH_STATUS', title: 'Status', tile: 0x3CE,
     note: 'Food, healing, potions, sleep, time, swamp, lava and light.',
     ids: ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'light'] },
   { value: 'MECH_INTERACT', title: 'Interactions', tile: 0x29D,
-    note: 'What a thing does when it is used.',
+    note: 'Aiming a spell or an item, opening a lock, and drinking from a fountain.',
     ids: ['target', 'locks', 'springs'] },
   { value: 'MECH_PUZZLES', title: 'Puzzles', tile: 0x266,
-    note: 'How each puzzle works.',
+    note: 'The braziers, buttons, riddles, bells and dots, and the doors they open.',
     ids: ['braziers', 'buttons', 'riddles', 'tunes', 'thinkadot', 'signals'] },
   { value: 'MECH_COMBAT', title: 'Combat', tile: 0x21E,
     note: 'What a blow does, who swings it, and what it does to a thing.',

@@ -1165,7 +1165,7 @@ details.mechSec > summary::before { content:''; width:7px; height:7px; flex:none
   border-right:2px solid var(--gold); border-bottom:2px solid var(--gold); transform:rotate(-45deg); transition:transform .12s; }
 details.mechSec[open] > summary::before { transform:rotate(45deg); }
 details.mechSec > summary:hover h3 { color:var(--gold); }
-.skillIcon { width:32px; height:16px; image-rendering:pixelated; flex:none; }
+.skillIcon { display:inline-block; width:32px; height:16px; image-rendering:pixelated; flex:none; }
 .skillIcon.skillIconTile { width:16px; height:16px; }
 .mechHead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 4px; }
 .mechHead canvas { width:22px !important; height:22px !important; image-rendering:pixelated; flex:none; margin:0 !important; }
@@ -1280,6 +1280,10 @@ details:not([open]) > summary .mechFrom { display:none; }
 .heroThumb { width:48px; height:48px; image-rendering:pixelated; display:block; border:1px solid rgba(155,136,80,.35); border-radius:3px; background:#1a1712; }
 .mechTable { width:100%; }
 .mechTable th { border-bottom:1px solid rgba(155,136,80,.45); padding-bottom:4px; }
+/* A heading that sorts its table (mechSortHead): an inline link, gold, its
+   arrow in a system face, which has the triangles. */
+.mechTable th .sortHead { white-space:nowrap; }
+.mechTable th .sortMark { font-family:system-ui,sans-serif; font-size:.75em; }
 .mechTable th.num, .mechTable td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; padding-right:10px; }
 .mechTable tbody tr:nth-child(even) td { background:rgba(255,248,220,.025); }
 .mechTable td { padding:4px 10px 4px 0; }
@@ -2438,7 +2442,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.240.1';
+const GRIMOIRE_VERSION = '1.241.0';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

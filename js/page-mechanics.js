@@ -497,34 +497,6 @@ function mechGearFigure(gear) {
       'A shield does more against a weak attacker than a strong one.') : '');
 }
 
-// The casting rule is two rolls against one, which is not a shape anybody
-// reads off the sentence: the first few points of Casting are worth more
-// than the next ten, and a level-8 spell is a coin toss for a middling
-// caster. One curve per level, over the whole range of the figure.
-function mechSpellFigures(sp) {
-  if (!sp.spells.length) return '';
-  const levels = [...new Set(sp.spells.map(s => s.level))].sort((a, b) => a - b);
-  const shown = levels.filter((l, i) => levels.length <= 5 || i === 0 || i === levels.length - 1 || i % Math.ceil(levels.length / 4) === 0);
-  const series = shown.map((l, i) => ({
-    name: 'level ' + l, colour: MECH_SERIES[i % MECH_SERIES.length],
-    points: Array.from({ length: 26 }, (_, c) => [c, 100 * mechCastFailure(c, l)])
-  }));
-  const cost = sp.spells.map(s => ({ x: s.level, y: s.cost }));
-  const maxCost = Math.max.apply(null, cost.map(c => c.y));
-  return mechFig('How often a cast fails, by the caster’s Casting figure', mechPlot({
-    height: 150, series,
-    x: { min: 0, max: 25, ticks: [{ v: 0, label: '0' }, { v: 5, label: '5' }, { v: 10, label: '10' }, { v: 15, label: '15' }, { v: 20, label: '20' }, { v: 25, label: '25' }] },
-    y: { min: 0, max: 100, ticks: [{ v: 100, label: '100%' }, { v: 50, label: '50%' }, { v: 25, label: '25%' }, { v: 0, label: '0' }] }
-  }), 'The game adds two random numbers below the caster’s Casting figure, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>: the only number below 1 is 0. The caster spends the magic points whether the cast works or not, so a high-level spell is expensive twice over.') +
-  mechFig('What each spell costs, against its level', mechPlot({
-    height: 120,
-    x: { min: 0, max: Math.max.apply(null, levels) + 1, ticks: levels.map(l => ({ v: l, label: String(l) })) },
-    y: { min: 0, max: maxCost * 1.1, ticks: [{ v: maxCost, label: String(maxCost) }, { v: Math.round(maxCost / 2), label: String(Math.round(maxCost / 2)) }, { v: 0, label: '0' }] },
-    series: [],
-    marks: cost.map(c => ({ x: c.x, y: c.y, dot: true, colour: 'rgba(107,168,191,.85)' }))
-  }), svLink(sp.spells.length + ' spells', "searchFor('call_resource CastSpell')") + '. The cost rises with the level, but not by any rule: each spell’s script sets it.');
-}
-
 // The levels double, so the only honest axis is a logarithmic one, and drawn
 // that way the cap becomes visible: experience stops at 65,535 and the
 // twelfth threshold is 102,400, so the eleventh level is the last one.
@@ -576,19 +548,53 @@ function mechKarmaFigure(km) {
       '') : '');
 }
 
-// Nutrition falls one an hour, so a food's figure is also the hours it buys.
-// Saying that in the caption is the whole point of the figure.
-function mechFoodFigure(fd, belly) {
+/* One row a food, by the name the game gives it. The table was a row per
+   class and aspect, under the class's name: the general foodstuff class is
+   "flatbread", so a steak and a pomegranate sat under "flatbread" with an
+   aspect number beside them, and a bar chart under it repeated the
+   nutrition column (the maintainer, 3 October 2026, asked for the chart to
+   go and the table to sort by nutrition instead). Where two foods share a
+   name (two "meat", the class "flatbread" and its first variant) the
+   create-a-prop word tells them apart, quietly. */
+function mechFoodTable(fd) {
   const rows = [];
   for (const f of fd.foods) {
-    if (f.variants) for (const v of f.variants) { if (v.plus) rows.push({ label: v.name || (f.name + ' ' + v.aspect), value: v.plus }); }
-    else if (f.plus) rows.push({ label: f.name, value: f.plus });
+    if (f.variants) for (const v of f.variants) rows.push({ name: v.name || (f.name + ' ' + v.aspect), open: 'propWordOpen(' + f.pt + ',' + v.aspect + ')', word: (v.aspect << 10) | f.pt, plus: v.plus, src: v.src, says: v.says });
+    else rows.push({ name: f.name, open: 'showPropTypeDetail(' + f.pt + ')', word: f.pt, plus: f.plus, src: f.val, says: '' });
   }
   if (!rows.length) return '';
-  rows.sort((a, b) => b.value - a.value);
-  return mechFig('What a meal is worth, in nutrition and so in hours',
-    mechBars(rows.map(r => ({ label: r.label, value: r.value, text: r.value + ' h', colour: MECH_INK.leaf })), belly ? { max: belly } : {}),
-    belly ? 'A full stomach holds <b>' + belly + '</b>, about ' + Math.round(belly / 24) + ' days.' : '');
+  const seen = new Map();
+  for (const r of rows) seen.set(r.name, (seen.get(r.name) || 0) + 1);
+  rows.sort((a, b) => (b.plus === null) - (a.plus === null) || b.plus - a.plus || a.name.localeCompare(b.name));
+  return mechTable([mechSortHead('food', 0), '#' + mechSortHead('nutrition', 1, 'desc'), 'what the eater says'], rows.map(r =>
+    '<tr><td data-sort="' + svEsc(r.name) + '">' + svLink(r.name, r.open) + (seen.get(r.name) > 1 ? ' <span class="inspDim">' + propWordHex(r.word) + '</span>' : '') + '</td>' +
+    (r.plus !== null ? srcCell(r.src, '+' + r.plus).replace('<td class="num">', '<td class="num" data-sort="' + r.plus + '">') : mechNum('an amount the script works out')) +
+    '<td>' + (r.says ? '“' + svEsc(r.says) + '”' : '') + '</td></tr>'));
+}
+
+/* A column heading that sorts its table on a click: the first click puts
+   the largest number (or the last name) first unless `dir` says which way
+   the table already runs, and each click after turns it round. A cell
+   sorts by its data-sort, else by its text. Gold, being a thing to click. */
+function mechSortHead(label, col, dir) {
+  return '<button class="svLink sortHead"' + (dir ? ' data-dir="' + dir + '"' : '') + ' onclick="mechSortBy(this,' + col + ')">' + svEsc(label) +
+    '<span class="sortMark" aria-hidden="true">' + (dir === 'desc' ? ' ▼' : dir === 'asc' ? ' ▲' : '') + '</span></button>';
+}
+function mechSortBy(btn, col) {
+  const table = btn.closest('table'), body = table && table.tBodies[0];
+  if (!body) return;
+  const dir = btn.dataset.dir === 'desc' ? 'asc' : 'desc';
+  table.querySelectorAll('button.sortHead').forEach(b => { delete b.dataset.dir; const m = b.querySelector('.sortMark'); if (m) m.textContent = ''; });
+  btn.dataset.dir = dir;
+  const mark = btn.querySelector('.sortMark'); if (mark) mark.textContent = dir === 'desc' ? ' ▼' : ' ▲';
+  const key = tr => { const c = tr.cells[col]; return c ? (c.dataset.sort !== undefined ? c.dataset.sort : c.textContent.trim()) : ''; };
+  const rows = [...body.rows];
+  rows.sort((a, b) => {
+    const x = key(a), y = key(b), nx = parseFloat(x), ny = parseFloat(y);
+    const c = !isNaN(nx) && !isNaN(ny) ? nx - ny : isNaN(nx) !== isNaN(ny) ? (isNaN(nx) ? 1 : -1) * (dir === 'desc' ? -1 : 1) : x.localeCompare(y);
+    return dir === 'desc' ? -c : c;
+  });
+  for (const r of rows) body.appendChild(r);
 }
 
 // A duration is a number of 4096ths of an hour, which is unreadable as
@@ -3377,7 +3383,7 @@ function renderMechanicsSheet(value) {
   // ---- experience and levels ----
   const xp = experienceRules();
   add('experience', 'Experience and Levels', null, src('every award', 0xE8B) + src('a new level', 0xE86),
-    xp.rule ? 'How a character earns experience, and when they go up a level.' : 'This file has no experience script.',
+    xp.rule ? 'Fighting and the deeds listed below earn experience, and enough of it raises a character’s level and with it their full health.' : 'This file has no experience script.',
     xp.rule ? [
       'A character gains experience' + (xp.rule.cap ? ', <b>capped at ' + srcNum(xp.rule.cap, xp.rule.cap.v.toLocaleString('en-US')) + '</b>' : '') +
         (xp.rule.doubling && xp.rule.base ? ', and the level rises by one when it passes <b>' + srcNum(xp.rule.base) + ' × 2 to the power of the level less ' + srcNum(xp.rule.less, xp.rule.less ? xp.rule.less.v : '') + '</b>: above ' +
@@ -3387,7 +3393,7 @@ function renderMechanicsSheet(value) {
       'The party’s members split an award to the party.'
     ].filter(Boolean) : [],
     (xp.rule ? mechExperienceFigure(xp.rule) : '') +
-    (xp.awards.length ? '<div class="mechSub">Fixed awards: ' + xp.awards.length + '</div>' + table(['#points', 'occasion', 'where'], xp.awards.map(a => '<tr>' + srcCell(a.val, a.amount) + '<td>' + svEsc(a.note) + '</td><td>' + svChip(a.resid) + '</td></tr>')) : ''), '');
+    (xp.awards.length ? '<div class="mechSub">Fixed awards: ' + xp.awards.length + '</div>' + table(['#points', 'what the game says', 'where'], xp.awards.map(a => '<tr>' + srcCell(a.val, a.amount) + '<td>' + (a.note ? svEsc(a.note) : '<span class="inspDim">no message</span>') + '</td><td>' + svChip(a.resid) + '</td></tr>')) : ''), '');
 
   // ---- karma ----
   const km = karmaRules();
@@ -3430,12 +3436,9 @@ function renderMechanicsSheet(value) {
     [],
     (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + p.effects.map(x => srcNum(x.src, x.text)).join('; ') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : ''), '');
   add('food', 'Food', null, '',
-    fd.foods.length ? 'How much nutrition each food gives.' : 'This file has no food.',
-    [],
-    (fd.foods.length ? table(['food', '#aspect', 'variant', '#nutrition', 'says'], fd.foods.flatMap(f => f.variants
-      ? f.variants.map(v => '<tr><td>' + propChip(f.pt, f.name) + '</td>' + num(v.aspect) + '<td>' + svLink(svEsc(v.name || ('variant ' + v.aspect)), 'propWordOpen(' + f.pt + ',' + v.aspect + ')') + '</td>' + srcCell(v.src, '+' + v.plus) + '<td>' + (v.says ? '“' + svEsc(v.says) + '”' : '') + '</td></tr>')
-      : ['<tr><td>' + propChip(f.pt, f.name) + '</td><td></td><td></td>' + (f.plus !== null ? srcCell(f.val, '+' + f.plus) : num('an amount the script works out')) + '<td></td></tr>'])) : '') +
-    mechFoodFigure(fd, hungerNotes().ceiling), '');
+    fd.foods.length ? 'Eating fills a character up, and each food fills by a different amount.' : 'This file has no food.',
+    fd.foods.length && hungerNotes().ceiling ? ['Nutrition falls by one an hour, so a food’s nutrition is the hours it lasts. A full stomach holds <b>' + hungerNotes().ceiling + '</b>, about ' + Math.round(hungerNotes().ceiling / 24) + ' days.'] : [],
+    mechFoodTable(fd), '');
 
   // ---- status effects ----
   const st = statusRules();
@@ -3491,7 +3494,7 @@ function renderMechanicsSheet(value) {
   // ---- locks ----
   const lk = lockRules();
   add('locks', 'Locks and Lockpicks', null, src('a key or a pick', 0xE43) + src('the lockpick', 0x1109),
-    lk.rule ? 'What opens a lock.' : 'This file has no lock script.',
+    lk.rule ? 'A lock opens to its own key, or to a lockpick in skilled hands.' : 'This file has no lock script.',
     lk.rule ? [
       lk.rule.keyFits ? 'A key fits when the lock’s number matches the key’s.' : '',
       lk.rule.formula ? (function () {
@@ -3594,7 +3597,7 @@ function renderMechanicsSheet(value) {
     const grantsOf = flag => { let g = []; try { g = grantRules().filter(x => x.flag && x.flag.v === flag); } catch (e) { g = []; } return g; };
     const wearers = flag => { const g = grantsOf(flag).map(x => svLink(x.name, 'showItemDetail(' + x.pt + ')')); return g.length > 1 ? g.slice(0, -1).join(', ') + ' or ' + g[g.length - 1] : g.join(''); };
     add('ground', 'Swamp and Lava', null, src('the ground', 0x301F),
-      tn ? 'What happens when you walk on swamp or lava.'
+      tn ? 'Swamp bites now and then; lava burns on every step.'
          : 'This file has no ground script.',
       tn ? [
         swamp ? 'On <b>' + srcNum(swamp.from, 'swamp') + '</b>, one step in ' + srcNum(swamp.chance ? swamp.chance.is : null, swamp.chance ? (swamp.chance.hi.v - swamp.chance.lo.v) : '') +
@@ -3664,7 +3667,7 @@ function renderMechanicsSheet(value) {
           svLink(wt.setter.name, wt.setter.pt !== null ? 'showItemDetail(' + wt.setter.pt + ')' : 'jumpToResource(' + wt.setter.resid + ')') + ', and fresh, sometimes reviving, after that.' : '',
         'A drink affects the character who uses the fountain.'
       ].filter(Boolean) : [],
-      wt ? table(['#kind', 'says', 'does', 'where it stands'], wt.kinds.map(k => '<tr>' + srcCell(k.val) + '<td>' + (k.says[0] ? '“' + svEsc(k.says[0].replace(/\*/g, ' ').slice(0, 70)) + '”' : '') + '</td><td>' + kindWords(k) + '</td><td>' + where(k.kind) + '</td></tr>')) : '', '');
+      wt ? table(['#kind', 'says', 'does', 'where it stands'], wt.kinds.map(k => '<tr>' + srcCell(k.val) + '<td>' + (k.says[0] ? '“' + svEsc(k.says[0].replace(/\*/g, ' ')) + '”' : '') + '</td><td>' + kindWords(k) + '</td><td>' + where(k.kind) + '</td></tr>')) : '', '');
   }
 
   // ---- the combat AI ----

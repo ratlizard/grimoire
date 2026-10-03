@@ -1791,8 +1791,14 @@ function propWordRender() {
 // A prop type counts as an item if the archive treats it as one: it has a
 // weight in its class, or instances of it are carried, contained or marked
 // takeable. Nothing here is a hand-written list of item names.
+// A class with a record in the unit table (0xF008) is a creature, not an
+// item: 25 of them, the undead and the harpy among them, were filed under
+// carried goods because the scenario places them inside something, which
+// the contained count took for an item in a box (the maintainer, 3 October
+// 2026). The Scenery gallery already set units apart the same way.
 function isInventoryItem(pt) {
   if (livingPropTypes().has(pt)) return false;
+  try { if (parseMonsterStats().some(m => !m.blank && m.proptype === pt)) return false; } catch (e) { quiet(e); }
   if (itemWeight(pt) !== null) return true;
   const e = buildItemIndex()[pt];
   return !!(e && (e.carried || e.equipped || e.contained || e.takeable));

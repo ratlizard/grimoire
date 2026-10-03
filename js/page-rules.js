@@ -352,8 +352,10 @@ function skillIconHTML(resid, tabId) {
   const url = skillIconURL(resid);
   if (url) return '<img class="skillIcon" src="' + url + '" alt="" width="32" height="16">';
   // No icon where the file has none: the tab's tile stood in until 9
-  // September 2026, and it meant nothing about the skill.
-  return '';
+  // September 2026, and it meant nothing about the skill. The space is kept,
+  // so the names line up down the list; a card without one had its name
+  // standing out to the left of the rest (the maintainer, 3 October 2026).
+  return '<span class="skillIcon" aria-hidden="true"></span>';
 }
 /* A card on the Skills, Spells and Mechanics sheets is a <details>: the
    head is its summary and the rest opens under it. They open closed, a
@@ -379,10 +381,7 @@ function renderSkillsSheet() {
   const shown = all.filter(x => !q || x.name.toLowerCase().includes(q) || x.description.toLowerCase().includes(q));
   const box = document.createElement('div');
   box.className = 'mechView';
-  // What a script asks about a skill, above the skills it asks about. This
-  // was a section of the Mechanics sheet until 13 September 2026.
-  try { box.appendChild(skillsMechSection()); } catch (e) { quiet(e); }
-  const kinds = [['attribute', 'Attributes', 'The four figures every character has.'],
+  const kinds = [['attribute', 'Attributes', 'The four stats every character has.'],
                  ['weapon', 'Weapon Skills', 'One for each kind of weapon.'],
                  ['special', 'Special Skills', 'Learned from a teacher.'],
                  ['command', 'Commands', 'The Do menu. Each command is a name and a script.']];
@@ -438,6 +437,10 @@ function renderSkillsSheet() {
       box.appendChild(sec);
     }
   }
+  // What a script asks about a skill, below the skills it asks about (the
+  // maintainer, 3 October 2026; it was above them, and before 13 September
+  // 2026 a section of the Mechanics sheet).
+  try { box.appendChild(skillsMechSection()); } catch (e) { quiet(e); }
   grid.appendChild(box);
   out.textContent = count + ' of ' + all.length + ' in the file’s skill block' + (q ? ' matching “' + q + '”' : '') + '.';
 }
@@ -903,7 +906,7 @@ function karmaRules() {
     // The occasion: the nearest line the script prints, looking back first
     // (the deed is usually said before its price) and then ahead.
     const near = i => {
-      const grab = j => { const m = /string(?:\(implicit\))? "(.{3,90}?)(?:\\n)?"/.exec(lines[j] || ''); return m ? m[1].replace(/\\"/g, '"').replace(/\*/g, ' ').trim() : ''; };
+      const grab = j => awardNoteOf(lines[j]);   // whole, as the experience awards read it
       for (let j = i - 1; j >= Math.max(0, i - 7); j--) { const t = grab(j); if (t) return t; }
       for (let j = i; j < Math.min(lines.length, i + 8); j++) { const t = grab(j); if (t) return t; }
       return '';
@@ -953,6 +956,27 @@ function karmaRules() {
    0xEB8 awards the attacker the damage dealt, up to the victim's level
    above theirs plus one; a shared award (0xE8E) is split across the party.
    The fixed awards are every GainExp with a constant. */
+/* What the game prints beside an award: a string on a listing line, read
+   whole. It was a lazy match of 3 to 90 characters, which stopped at the
+   first escaped quote and dropped any longer line, so a row read
+   "ine that I've heard so much about!\" or nothing (the maintainer,
+   3 October 2026). A conversation string runs to several pages, split by
+   '*'; the first page is what is said at that moment, kept verbatim. A
+   string with no space in it is a name or a keyword ("Emesa"), not
+   something said, and is passed over. */
+function awardNoteOf(line) {
+  const m = /string(?:\(implicit\))? "/.exec(line || '');
+  if (!m) return '';
+  let t = '';
+  for (let k = m.index + m[0].length; k < line.length; k++) {
+    const ch = line[k];
+    if (ch === '\\') { const nx = line[++k]; t += nx === 'n' ? ' ' : nx === undefined ? '' : nx; continue; }
+    if (ch === '"') break;
+    t += ch;
+  }
+  t = t.split('*')[0].trim();
+  return /\s/.test(t) ? t : '';
+}
 function experienceRules() {
   const idx = buildScriptTextIndex();
   const gain = dvmScriptEntry(0xE8B);
@@ -982,9 +1006,23 @@ function experienceRules() {
       if (!/call_resource GainExp\b/.test(lines[i])) continue;
       const m = /(byte|short|word) (0x[0-9A-F]+|\d+)/i.exec(lines[i + 2] || '');
       if (!m) continue;
+      // Back to the nearest string on the path into the award, then a few
+      // lines on. A branch or a return ends the path: a string above one
+      // is said on another way through ("Nothing happens." above 0x10E7's).
+      // So does a conversation answer, whose text is said for the other
+      // answer ("Perhaps some other time." above 0x1805's bread lesson):
+      // the scan goes on from the question that was put. A string in lower
+      // case carries on the one before it, which the game printed just
+      // before (Demodocus's "great hero", then "ine that I've heard...").
+      const ends = l => /^\s*[0-9A-F]{4}\s+(branch|return)\b/.test(l || '');
+      const lo = Math.max(0, i - 20);
       let note = '';
-      for (let j = i - 1; j >= Math.max(0, i - 8) && !note; j--) { const t = /string(?:\(implicit\))? "(.{3,90}?)(?:\\n)?"/.exec(lines[j]); if (t) note = t[1].replace(/\\"/g, '"').replace(/\*/g, ' ').trim(); }
-      for (let j = i + 3; j < Math.min(lines.length, i + 10) && !note; j++) { const t = /string(?:\(implicit\))? "(.{3,90}?)(?:\\n)?"/.exec(lines[j]); if (t) note = t[1].replace(/\\"/g, '"').replace(/\*/g, ' ').trim(); }
+      for (let j = i - 1; j >= lo && !note && !ends(lines[j]); j--) {
+        if (/conversation_response\b/.test(lines[j])) { while (j > lo && !/conversation_prompt\b/.test(lines[j])) j--; continue; }
+        note = awardNoteOf(lines[j]);
+        if (/^[a-z]/.test(note)) for (let k = j - 1; k >= lo && !ends(lines[k]); k--) { const p = awardNoteOf(lines[k]); if (p) { note = p + note; break; } }
+      }
+      for (let j = i + 3; j < Math.min(lines.length, i + 10) && !note && !ends(lines[j]); j++) note = awardNoteOf(lines[j]);
       awards.push({ resid: e.resid, amount: parseInt(m[2]), note, val: dvmValAtLine(e, i + 2) });
     }
   }
