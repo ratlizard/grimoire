@@ -57,6 +57,25 @@ try {
     else if (!(gif2.length > gif.length && String.fromCharCode(...gif2.slice(0x30D, 0x30D + 3)) === '!\xff\x0b'.replace('\\xff', '\xff'))) fail('gif', 'an eight-frame GIF has no loop block after its global table: ' + gif2.length);
     else console.log('  gif: GIF89a, ' + gif.length + ' bytes for a 4x3, and a looping eight-frame one for a cycling picture');
   }
+  // The puzzles added on 3 October 2026 (passwordRules, leverRules,
+  // teleportMazes). Pinned: five passwords, each a whole word from Selinus
+  // that its door's keyword begins, given after twice its number of books
+  // and with one placed door; the levers' doors are only classes that answer
+  // a signal (the control: a Cademia lever's Data1 equals three beds', which
+  // must not be listed); and the mazes are the two zones whose kind-1 eggs
+  // land in themselves, zone 40 also titled Omen's Test.
+  try {
+    const pw = ctx.passwordRules(), lv = ctx.leverRules(), mz = ctx.teleportMazes();
+    const said = pw ? pw.words.filter(w => w.word) : [];
+    const bed = lv && lv.levers.find(l => l.zone === 8 && l.x === 34 && l.y === 84);
+    if (said.length !== 5 || said.some(w => !w.word.v.toLowerCase().startsWith(w.key) || w.doors.length !== 1 || !w.gate || w.gate.v !== w.n.v) || !pw.every || pw.every.v !== 2)
+      fail('puzzles', 'the passwords are not five words, each with its door and gate: ' + JSON.stringify(said.map(w => [w.key, w.word && w.word.v, w.doors.length, w.gate && w.gate.v])));
+    else if (!lv || lv.levers.length < 30 || !bed || bed.reach.length !== 1 || bed.reach.some(o => ctx.propDisplayName(o.pt) === 'bed'))
+      fail('puzzles', 'the levers are not read, or a bed answers one: ' + JSON.stringify(bed && bed.reach));
+    else if (mz.map(m => m.zone).join() !== '14,40' || !mz[1].titles.some(t => t.v === "Omen's Test"))
+      fail('puzzles', 'the teleporting mazes are not Pnyx and Omen\u2019s Test: ' + JSON.stringify(mz.map(m => [m.zone, m.titles.map(t => t.v)])));
+    else console.log('  puzzles: 5 passwords with their doors, ' + lv.levers.length + ' levers with no bed among what they open, mazes in ' + mz.map(m => m.zone).join(' and '));
+  } catch (e) { fail('puzzles', e); }
   // The ditherizer's frames: a hole with a box inside the picture, and the
   // Seldane ramp. 0x887E's hole kept its braid to ring 9 by a rule of its
   // own until 3 October 2026; it is its family's frame now (Ignae, Omen and

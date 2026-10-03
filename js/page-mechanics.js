@@ -4310,10 +4310,45 @@ function renderMechanicsSheet(value) {
        sections array is ordered by MECH_GROUPS, not by the calls here. The
        bells and the music locks were one section until then, which put the
        Tomb's bells before House Comana. */
+    // The Magisterium's passwords and the levers (passwordRules, leverRules),
+    // the puzzles the compendium has and the sheet had not (3 October 2026).
+    const at = (zone, x, y, text) => svLink(text || ((zoneDisplayName(zone) || ('zone ' + zone)) + ' ' + x + ', ' + y), 'atlasOpenSquare(' + (0x8000 + zone) + ',' + x + ',' + y + ')');
+    const pw = (function () { try { return passwordRules(); } catch (e) { quiet(e); return null; } })();
+    if (pw && pw.words.length) {
+      const said = pw.words.filter(w => w.word);
+      add('passwords', 'The Magisterium Passwords', null, src('Selinus', 0x1851) + src('the door', 0x1114),
+        said.length + ' doors in the Magisterium each ask for a password, which Librarian Selinus gives as you return the Sapphire Books.',
+        [
+          pw.every ? 'Selinus gives the next password for every ' + srcNum(pw.every, pw.every.v === 2 ? 'second' : pw.every.v + 'th') + ' book handed in.' : '',
+          'A door listens for the first four letters, opens only to its own word, and only once Selinus has given that word.',
+          (function () { const g = pw.words.find(w => w.n && w.n.v === 0); return g ? 'One more word, ' + srcNum({ v: 0, resid: 0x1114, at: g.at }, '“' + g.key + '”') + ', opens a door for the ' + svEsc(g.hall ? g.hall.v : 'room beyond') + ' with no condition, and no such door is placed.' : ''; })()
+        ].filter(Boolean),
+        table(['hall', 'password', 'given after', 'the door'], said.map(w => '<tr><td>' + (w.hall ? srcNum(w.hall, w.hall.v) : '') + '</td><td>' + srcNum(w.word, w.word.v) + '</td>' +
+          '<td>' + (w.gate && pw.every ? srcNum(w.gate, (w.gate.v * pw.every.v) + ' books') : '') + '</td><td>' + w.doors.map(d => at(d.zone, d.x, d.y)).join(', ') + '</td></tr>')), '');
+    }
     if (tu && tu.instruments.length) add('musiclocks', 'The Music Locks', null,
       tu.instruments.map(it => src(it.what, it.resid)).join(''),
       'The tune each lock needs, and the signal it sends.',
       [], musicLocksHtml);
+    const lv = (function () { try { return leverRules(); } catch (e) { quiet(e); return null; } })();
+    if (lv && lv.levers.length) {
+      const zones = [...new Set(lv.levers.map(l => l.zone))];
+      add('levers', 'The Levers', null, src('the lever', 0x10BB),
+        'Every lever in the game and what it opens.',
+        [
+          'Pulling a lever sends its Data1 and then its Data2 as signals. A door or a wall in the same zone opens when its own Data1 is that signal.',
+          'A lever whose signals reach nothing on the map may still be answered by its zone’s script.'
+        ],
+        zones.map(z => '<div class="partsTitle">' + svEsc(zoneDisplayName(z) || ('zone ' + z)) + '</div>' +
+          table(['lever', '#signals', 'opens'], lv.levers.filter(l => l.zone === z).map(l => '<tr><td>' + at(l.zone, l.x, l.y, l.x + ', ' + l.y) + '</td>' +
+            mechNum(l.signals.join(', ')) + '<td>' + (l.signals.length ? (l.reach.map(o => at(l.zone, o.x, o.y, (propDisplayName(o.pt) || 'prop ' + o.pt) + ' at ' + o.x + ', ' + o.y)).join(', ') || '<span class="inspDim">nothing on the map</span>') : '<span class="inspDim">sends nothing</span>') + '</td></tr>'))).join(''), '');
+    }
+    const mz = (function () { try { return teleportMazes(); } catch (e) { quiet(e); return []; } })();
+    if (mz.length) add('mazes', 'The Teleporting Mazes', null, '',
+      'Squares that move you elsewhere in the same zone, so the way through is found by stepping.',
+      ['Each is an invisible trigger that sends you to a square of the zone; the map shows both ends.'],
+      mz.map(m => '<div class="partsTitle">' + (m.titles.length ? m.titles.map(t => srcNum(t, t.v)).join(' or ') : svEsc(zoneDisplayName(m.zone) || ('zone ' + m.zone))) + ', ' + m.jumps.length + ' squares</div>' +
+        table(['step on', 'and land on'], m.jumps.map(j => '<tr><td>' + at(m.zone, j.x, j.y, j.x + ', ' + j.y) + '</td><td>' + at(m.zone, j.to.x, j.to.y, j.to.x + ', ' + j.to.y) + '</td></tr>'))).join(''), '');
     if (tu && tu.bells) add('bells', 'The Bells', null, src('the bells', 0x10C1),
       (tu.bells.bells.length ? tu.bells.bells.length + ' bells' : 'Bells') + ', rung in the right order.',
       [], bellsHtml);

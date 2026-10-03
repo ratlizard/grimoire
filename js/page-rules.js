@@ -4000,6 +4000,147 @@ function signalRules() {
   };
 }
 
+/* THE MAGISTERIUM'S PASSWORDS (the maintainer, 3 October 2026, asked for
+   the puzzles grimoire did not cover). The door class 0x1114, the metal
+   door, asks "What is the password to the" and the hall its Data1 names,
+   then answers by keyword: each keyword is a word's first four letters,
+   and opens only a door whose Data1 is that word's number, and only once
+   quest value 6, the passwords Selinus has given, has reached it. Selinus
+   (0x1851) gives the next word on every second Sapphire Book handed in
+   (quest value 5, the books, modulo 2), printing it from a list of whole
+   words that this reads by the keyword's letters. The door's hall names
+   are strings past the code the decoder reaches, read in order from the
+   bytes, so index 0 is the "room beyond" the first keyword opens with no
+   condition at all; no placed door has Data1 0. Nothing here is typed but
+   the shapes. */
+function passwordRules() {
+  const door = dvmScriptEntry(0x1114);
+  if (!door) return null;
+  const ops = dvmOpsOf(door);
+  const words = [];
+  for (let i = 0; i < ops.length; i++) {
+    const m = /^conversation_response "([^"]+)"/.exec(ops[i].text || '');
+    if (!m || m[1] === '*') continue;
+    // The door's number: `get_field data1`, a constant, `eq` after the
+    // response; the gate, `GetState 6`, a constant, `ge`, where there is one.
+    const seq = ops.slice(i, i + 24);
+    const num = dvmSeqFirst(seq, [/^get_field data1/, DVM_NUM, /^eq$/]);
+    const gate = dvmSeqFirst(seq, [/^sys GetState$/, DVM_NUM, /^end$/, DVM_NUM, /^ge$/]);
+    words.push({ key: m[1], at: ops[i].at, n: num ? dvmVal(0x1114, num[1]) : null, gate: gate && dvmNum(gate[1]) === 6 ? dvmVal(0x1114, gate[3]) : null });
+  }
+  // Whole strings in the door's bytes and Selinus's, with their offsets.
+  const strs = resid => {
+    const out = [];
+    try {
+      const d = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data;
+      let s = -1;
+      for (let k = 0; k <= d.length; k++) {
+        const c = k < d.length ? d[k] : 0;
+        if (c >= 0x20 && c < 0x7F) { if (s < 0) s = k; continue; }
+        if (s >= 0 && c === 0 && k - s >= 3) out.push({ v: String.fromCharCode(...d.slice(s, k)), resid, at: s });
+        s = -1;
+      }
+    } catch (e) { quiet(e, 'the password strings'); }
+    return out;
+  };
+  const halls = strs(0x1114).filter(x => / Hall$|^room beyond$/.test(x.v));
+  const selinus = dvmScriptEntry(0x1851) ? strs(0x1851) : [];
+  for (const w of words) {
+    w.word = selinus.find(x => x.v.toLowerCase().startsWith(w.key.toLowerCase()) && /^[a-z]+$/i.test(x.v)) || null;
+    w.hall = w.n && halls[w.n.v] !== undefined ? halls[w.n.v] : null;
+    w.doors = [];
+  }
+  // Where the doors stand, by their Data1.
+  const count = subindexCount(ARCHIVE, 128);
+  for (let z = 0; z < count; z++) {
+    let recs = null;
+    try { const raw = getResourceBytes(ARCHIVE, 0x8100 + z); if (raw) recs = parseDelverPropList(smartDecrypt(raw, 0x8100 + z).data); } catch (e) { quiet(e); }
+    if (!recs) continue;
+    for (const r of recs) if (r.proptype === 0x114 && r.flags !== 0xFF && r.onMap) { const w = words.find(x => x.n && x.n.v === r.d1); if (w) w.doors.push({ zone: z, x: r.x, y: r.y }); }
+  }
+  // Selinus's rule: a book, then every second one prints the next word.
+  const sops = dvmScriptEntry(0x1851) ? dvmOpsOf(dvmScriptEntry(0x1851)) : [];
+  const every = dvmSeqFirst(sops, [/^sys GetState$/, DVM_NUM, /^end$/, DVM_NUM, /^mod$/]);
+  return { words, every: every ? dvmVal(0x1851, every[3]) : null };
+}
+
+/* WHICH LEVER OPENS WHAT. A lever (class 0x10BB) flips its own picture and
+   sends its Data1 and then its Data2 as signals, each when it is not 0.
+   What a signal reaches is signalRules': below 256, every placed prop of
+   the same level whose Data1 is the signal (the flags mask leaves out eggs,
+   roofs and things inside others), and the zone and the room in any case.
+   So a lever's doors are read off the map: the props in its zone, not
+   itself, whose Data1 is one of its signals. The maintainer asked for the
+   levers on 3 October 2026; the compendium's Cademia secret doors and House
+   Comana's are among them. */
+/* THE TELEPORTING MAZES. A kind-1 egg is a way to another place, its
+   argument a zoneport (0xF00C); a zone whose kind-1 eggs land in the zone
+   itself is a maze that moves you about inside it. Two zones have any: the
+   maze under Pnyx, where the strange device is, and Omen's Test (zone 40,
+   whose script sets that title), the last of its four tests by the board's
+   reading (the maintainer, 3 October 2026). Read off the lists, so a zone
+   only counts by what its eggs do. */
+function teleportMazes() {
+  const out = [];
+  const count = subindexCount(ARCHIVE, 128);
+  for (let z = 1; z < count; z++) {
+    let list = null;
+    try { const raw = getResourceBytes(ARCHIVE, 0x8100 + z); if (raw) list = parseDelverPropList(smartDecrypt(raw, 0x8100 + z).data); } catch (e) { quiet(e); }
+    if (!list) continue;
+    const jumps = [];
+    for (const r of list) {
+      if (r.flags !== 0x42 || r.aspect !== 1) continue;
+      const to = zoneportInfo(r.proptype);
+      if (to && (to.resid & 0xFF) === z) jumps.push({ x: r.x, y: r.y, port: r.proptype, to });
+    }
+    // Every title the zone's script gives its map: zone 40 is "Below
+    // Cademia" and, under a condition, "Omen's Test".
+    const titles = [];
+    try {
+      const sops = dvmScriptEntry(0x1400 + z) ? dvmOpsOf(dvmScriptEntry(0x1400 + z)) : [];
+      for (const g of dvmSeqAll(sops, [/^sys SetTitle$/, /^string(?:\(implicit\))? "/])) { const t = dvmOpString(g[1]); if (t && !titles.some(x => x.v === t)) titles.push({ v: t, resid: 0x1400 + z, at: g[1].at }); }
+    } catch (e) { quiet(e); }
+    if (jumps.length) out.push({ zone: z, titles, jumps: jumps.sort((a, b) => a.y - b.y || a.x - b.x) });
+  }
+  return out;
+}
+
+// Whether a class answers a signal: its script has a GetMessage of its own,
+// the test thinkADotRules makes for the strange device's doors. A bed or a
+// bust whose Data1 happens to equal a lever's signal is sent it and does
+// nothing, so without this a lever in Cademia "opened" three beds.
+DERIVED.SIGNAL_LISTENERS = null;
+function classAnswersSignal(pt) {
+  const m = DERIVED.SIGNAL_LISTENERS || (DERIVED.SIGNAL_LISTENERS = new Map());
+  if (!m.has(pt)) {
+    let yes = false;
+    try { const raw = getResourceBytes(ARCHIVE, 0x1000 + pt); if (raw) yes = dvmReadRender(ARCHIVE, smartDecrypt(raw, 0x1000 + pt).data, 0x1000 + pt).some(f => f.name === 'GetMessage'); } catch (err) { quiet(err, 'whether a class answers a signal'); }
+    m.set(pt, yes);
+  }
+  return m.get(pt);
+}
+function leverRules() {
+  const lever = dvmScriptEntry(0x10BB);
+  if (!lever) return null;
+  const ops = dvmOpsOf(lever);
+  const sends = dvmSeqAll(ops, [/^sys EmitSignal$/, /^arg Arg00$/, /^get_field (data1|data2)\b/]).map(g => /data2/.test(g[2].text) ? 'd2' : 'd1');
+  const out = [];
+  const count = subindexCount(ARCHIVE, 128);
+  for (let z = 0; z < count; z++) {
+    let recs = null;
+    try { const raw = getResourceBytes(ARCHIVE, 0x8100 + z); if (raw) recs = parseDelverPropList(smartDecrypt(raw, 0x8100 + z).data); } catch (e) { quiet(e); }
+    if (!recs) continue;
+    for (const r of recs) {
+      if (r.proptype !== 0xBB || r.flags === 0xFF || !r.onMap) continue;
+      const signals = sends.map(k => r[k]).filter(v => v);
+      const reach = recs.filter(o => o !== r && o.flags !== 0xFF && o.onMap && (o.flags & 0x5D) <= 1 && o.proptype !== 0xBB && signals.includes(o.d1) && o.d1 < 256 && classAnswersSignal(o.proptype))
+        .map(o => ({ pt: o.proptype, x: o.x, y: o.y, signal: o.d1 }));
+      out.push({ zone: z, x: r.x, y: r.y, signals, reach });
+    }
+  }
+  return { sends, levers: out };
+}
+
 /* Who hands a prop over. sys Create is (recipient, aspect<<10|proptype,
    data1, data2), a signature delv-script.js records from the board and
    confirms against call sites -- Ennomus's tomb key is Create(you, 3<<10|66,
