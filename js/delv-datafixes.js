@@ -1456,6 +1456,59 @@ const DATA_FIXES = [
           return 'record 96, byte 7: the Alive bit set';
       } },
     ] },
+  // Thread and cloth colours disagree (bugs.md): spinning makes yellow
+  // thread, the loom keeps the thread's aspect and changes its type, and the
+  // cloth tiles after the thread's on sheet 0x8E2B are blue, red and green
+  // where the thread's are yellow, blue and green. The cloth is redrawn to
+  // match the thread (the maintainer, 3 October 2026): the blue cloth's
+  // picture moves to aspect 1, the red cloth's picture, recoloured yellow,
+  // takes aspect 0, and Ake's sale list is renamed to match. Red cloth
+  // leaves the game.
+  { id: 'cloth-colours', group: 'design', stage: 'apart', title: 'Thread is now woven into cloth of its own colour, yellow, blue or green, instead of blue, red or green',
+    dataEdits: [
+      { what: 'the cloth redrawn', resid: 0x8E2B, fn: (b) => {
+          const col = decompressDCG(b, 32, 512), BLUE = 8 * 1024, RED = 9 * 1024;
+          const count = (base, set) => { let n = 0; for (let i = 0; i < 1024; i++) if (set.includes(col[base + i])) n++; return n; };
+          if (count(BLUE, [119, 120, 123]) < 50 || count(RED, [38, 40, 44, 45]) < 50) throw new Error('the cloth tiles are not the blue and red cloth this fix expects; it may be applied already');
+          // The red cloth's reds and oranges, light to dark, to the palette's
+          // yellow run, which the yellow thread is drawn from.
+          const YELLOW = { 34: 51, 35: 53, 38: 54, 40: 55, 4: 56, 43: 57, 44: 58, 45: 59 };
+          for (let i = 0; i < 1024; i++) {
+            const red = col[RED + i];
+            col[RED + i] = col[BLUE + i];
+            col[BLUE + i] = YELLOW[red] !== undefined ? YELLOW[red] : red;
+          }
+          const out = encodeDCGLiterals(col);
+          const back = decompressDCG(out, 32, 512);
+          for (let i = 0; i < col.length; i++) if (back[i] !== col[i]) throw new Error('the sheet does not decode back');
+          return out;
+      } },
+    ],
+    textEdits: [
+      dataFixT('Ake’s first cloth', 0x1820, 'Blue Cloth', 'Yellow Cloth', 1),
+      dataFixT('Ake’s second cloth', 0x1820, 'Red Cloth', 'Blue Cloth', 1),
+    ] },
+  // Demodocus at the Bridge (GRIMOIRE-NOTES.md, 3 October 2026): his
+  // schedule (character 109, 0xF00B) takes the Bridge while quest value 9 is
+  // 2 ahead of his Cademia posts for quest value 4 at 5, and value 9 changes
+  // only when the Bridge is entered again, so a bard met there stays there
+  // whatever the trail says. The Cademia posts now come first. A design
+  // change at the maintainer's word, since the files do not say which was
+  // meant.
+  { id: 'demodocus-bridge', group: 'design', stage: 'apart', title: 'Demodocus now goes to Cademia when his trail ends there, instead of staying at the Bridge until you return to it',
+    dataEdits: [
+      { what: 'Demodocus’s schedule', resid: 0xF00B, fn: (b) => {
+          let p = 512;
+          for (let i = 0; i < 109; i++) p += 8 * u16be(b, i * 2);
+          const n = u16be(b, 109 * 2), seg = k => Array.from(b.subarray(p + 8 * k, p + 8 * k + 8));
+          const conds = [...Array(n)].map((_, k) => b[p + 8 * k + 2] + ':' + b[p + 8 * k + 3]).join(' ');
+          if (conds !== '132:0 1:0 137:2 1:0 132:5 132:5 132:5 132:5 132:5 132:5 132:5 1:0 0:0')
+            throw new Error('Demodocus’s schedule is not the one this fix expects: ' + conds);
+          const order = [0, 1, 4, 5, 6, 7, 8, 9, 10, 11, 2, 3, 12], segs = order.map(seg);
+          segs.forEach((s, k) => b.set(s, p + 8 * k));
+          return 'the Cademia posts moved ahead of the Bridge';
+      } },
+    ] },
 ];
 
 /* ---- The text: this project's list ----------------------------------------
