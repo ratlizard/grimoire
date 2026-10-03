@@ -68,16 +68,17 @@ index.html               Delver archive + resource fork viewer (Grimoire itself)
 canvas.html                 colour-cycling paint studio
 js/                         classic scripts, three tiers (see below)
 utilities/                  the site's Node + Python harnesses and converters
-res/                        the four game-derived files the pages fetch at run time
+res/                        the page's typefaces and their licences
 reference/                  gitignored: the game, and what a person or a model reads while working
 delvmod/                    submodule, the correctness oracle (see below)
 ```
 
-**`res/` and `reference/` are different kinds of thing.** `res/` is the four
-game-derived files a page fetches at run time — the Argos font, the dialogue
-frame, the plank tile — and `NOTICE` lists them. Since 5 September 2026 the
-font is also read out of the open file itself (`installGameFont`), so the
-copy in `res/` is the fallback for the moments before a file is open. Everything else that is
+**`res/` and `reference/` are different kinds of thing.** `res/` is the
+page's own typefaces and their licences, which `NOTICE` lists; nothing of the
+game's has been in it since 17 September 2026, and the game's font is read
+out of the open file (`installGameFont`). What of the game's the repository
+does carry, `canvas.html`'s pictures and the color table, `NOTICE` lists
+under *What of the game's is here*. Everything else that is
 Cythera's — the game, its data, the installers, the community add-ons — lives
 in `reference/`, which is gitignored: none of it is ours to publish, so supply
 your own copy of the game and put it there (a symlink to a copy kept elsewhere
@@ -286,8 +287,8 @@ Read the comment above a constant before correcting it.
 
 `LICENSE` is GPL-3.0-or-later and covers the work here. `NOTICE` says what
 the licence does not cover, and that list is the one to keep accurate:
-Cythera itself (not in this repository at all), the four game-derived files
-in `res/`, and `delvmod/`, which is GPLv3 and referenced as a submodule.
+Cythera itself, the few pieces of it that are here, the typefaces in `res/`,
+and `delvmod/`, which is GPLv3 and referenced as a submodule.
 
 GPL matches the two projects this repository exchanges code with — delvmod
 (GPLv3) and systemless (GPL-3.0-or-later) — so code can flow in both
