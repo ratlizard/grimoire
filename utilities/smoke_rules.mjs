@@ -604,7 +604,11 @@ try {
   else if (le.shadowed.map(a => a.resid.toString(16) + ':' + a.list).sort().join('|') !== '805:pari|80e:brya') fail('loose', 'the shadowed answers are not the Paris and Bryaxis ones (a later answer keeping a keyword of its own must not be listed): ' + JSON.stringify(le.shadowed.map(a => a.resid.toString(16) + ':' + a.list)));
   else if (le.localOnlyFalse.map(l => l.resid.toString(16)).join() !== '1844') fail('loose', 'Thoas\'s farewell local, only ever set false, was not the one finding: ' + JSON.stringify(le.localOnlyFalse.map(l => l.resid.toString(16))));
   else if (le.selfAlive.map(a => a.who).join() !== '4') fail('loose', 'Hadrian testing whether Hadrian is alive, where Hector is meant, was not the one finding: ' + JSON.stringify(le.selfAlive.map(a => a.who)));
-  else if (ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels).join('|') !== '35:west standing/west sitting:1|290:south standing/south right foot:0') fail('loose', 'the repeated sprite frames are not the fool\'s west standing and the fire spirit\'s south standing: ' + JSON.stringify(ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels)));
+  else if (ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels).join('|') !== '35:west standing/west sitting:1') fail('loose', 'the repeated sprite frames are not the fool\'s west standing alone (the fire spirit\'s sheet is four frames, and the two after it are a banner\'s): ' + JSON.stringify(ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels)));
+  /* The schedules read quest values: Meleager's and Demodocus's segments at
+     the Bridge test quest value 9, which the Bridge's zone script sets, so
+     it is neither written-and-never-read nor the only reader a script. */
+  else if (le.writtenNeverRead.length || ![...(le.reads.get(9) || new Map()).values()].some(x => x.resid === 0xF00B)) fail('loose', 'quest value 9 was not found read by the schedules, or a value is still written and never read: ' + JSON.stringify(le.writtenNeverRead));
   /* The fourth batch. The staff's light has its own control in the same
      reader: the torch, the lamp and the candle say they have gone out and
      land on tiles of light 0, so a reader that looked at the wrong tile would

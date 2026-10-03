@@ -2862,6 +2862,19 @@ function looseEnds() {
       else cfWild.add(t.bit);
     }
   }
+  /* The schedules read state too: a segment's condition (scheduleCondition)
+     tests a quest flag, a character's flag or a quest value. Quest value 9
+     was listed as written and never read until 3 October 2026, when the
+     Bridge's zone script turned out to set it for Meleager's and
+     Demodocus's schedules to read, which choose between them at (11,9). */
+  try {
+    loadSchedules().forEach(list => list.forEach(s => {
+      const k = s.cond;
+      if (k === 2 || k === 3) putSite(flagRead, s.arg, 0xF00B, s.at);
+      else if (k >= 0x40 && k < 0x80) putSite(cfTests, s.arg + ':' + (k & 0x1F), 0xF00B, s.at);
+      else if (k >= 0x80) putSite(reads, k & 0x1F, 0xF00B, s.at);
+    }));
+  } catch (err) { quiet(err); }
   // A flag already set in the shipped character table is not "never set".
   try { loadCharacterTable().forEach((c, i) => { if (c && c.raw) for (let b = 0; b < 8; b++) if ((c.raw[8] >> b) & 1) cfSets.add(i + ':' + b); }); } catch (err) { quiet(err); }
   /* A quest value that only a thing with a given Data1 sets, when no such
@@ -3095,6 +3108,11 @@ function spriteRepeats() {
   for (const pt of [...characterProptypes()].sort((a, b) => a - b)) {
     const base = props[pt];
     if (base === undefined) continue;
+    // A sheet shorter than four rows of four (the fire spirits', four
+    // frames) has no walk to compare, and the tiles past its end are the
+    // next sheet's: the fire spirit's "south standing" and "south right
+    // foot" were two middle pieces of a banner (3 October 2026).
+    if (spriteBlockSize(pt) < 16) continue;
     const frames = [];
     for (let k = 0; k < 16; k++) { let im = null; try { im = resolveTileImage(base + k); } catch (e) { im = null; } frames.push(im); }
     if (frames.some(f => !f)) continue;

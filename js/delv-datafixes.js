@@ -946,6 +946,31 @@ const DATA_FIXES = [
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Parium keyed apart from Paris', 0x0805, 'pari', 'pariu', ['string(implicit) "\\"My cousin Parium']),
     ] }) },
+  // Characters answer their own name in the third person (the Loose ends
+  // row "a character told about by their own group"): asked their own
+  // name, eight people had no answer of their own and their dialogue group
+  // spoke of them as of someone else, Helen of "my cousin Helen". Each
+  // name now reaches the answer they give to "name"; no line is new.
+  { id: 'self-names', group: 'talk', stage: 'further', title: 'Eight people asked their own name now answer as themselves, instead of speaking of themselves as someone else',
+    plan: (s) => ({ edits: [
+      ['Milcom', 0x181E, 'name', 'milc', 'I am Milcom'],
+      ['Eioneus', 0x1827, 'name', 'eion', 'As I\'ve mentioned before'],
+      ['Philinus', 0x1832, 'name', 'phil', 'Why I am Philinus'],
+      ['Propontis', 0x183C, 'name', 'prop', 'Propontis, Elder'],
+      ['Halos, accused', 0x183E, 'name', 'halo', 'The late Halos'],
+      ['Halos', 0x183E, 'name', 'halo', 'I am Halos'],
+      ['Charax', 0x184F, 'name', 'char', 'I am Charax'],
+      ['Helen', 0x1858, 'name', 'hele', 'I am Helen'],
+      ['Sabinate', 0x1878, 'name,job,heir', 'sabi', 'We are Sabinate'],
+    ].map(([who, resid, from, add, said]) =>
+      dataFixRekey(s, who + ' answers to the name', resid, from, from + ',' + add, ['string(implicit) "\\"' + said])) }) },
+  // A highlighted word nobody answers (Loose ends): "Magisterium", in the
+  // general group's (0x0801) answers about Pnyx and mages. It now reaches
+  // the answer about mages, "Mages are trained at the Magisterium in Pnyx".
+  { id: 'magisterium', group: 'talk', stage: 'further', title: '“Magisterium” now gets the answer about mages, instead of no answer',
+    plan: (s) => ({ edits: [
+      dataFixRekey(s, 'the mages answer to "Magisterium"', 0x0801, 'mage', 'mage,magi', ['string(implicit) "\\"Mages are trained']),
+    ] }) },
   // Thuria's mine task (0x1814): "You've heard first hand" is said only once
   // she has given the task, so hearing Amphidamas first no longer shuts it
   // out; her report greeting already has a line for that order.
