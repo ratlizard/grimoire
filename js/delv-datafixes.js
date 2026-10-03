@@ -886,8 +886,9 @@ const DATA_FIXES = [
 
      Left as shipped, at the maintainer's word or by the files: the Wine
      Contract (Ambrosia called it a red herring), Magpie's flag 1 (it guards
-     the half disk), the sixth password, thread and cloth, the stairs, the
-     last save's gender, and "Beserker", which the text fixes. */
+     the half disk), the sixth password, thread and cloth, the stairs, and
+     "Beserker", which the text fixes. The last save's gender was in this
+     list until 2 October 2026 and is `gender` below. */
 
   // The Books of Wisdom (0x1851): the task is struck at ten books, not five.
   // The eleventh To Do line, the one AddQuest shows at ten, reads "All ten of
@@ -1155,6 +1156,38 @@ const DATA_FIXES = [
          'local Var04', 'get_field obj_type (0x4)', 'short 0x00D5', 'eq', 'or', 'then ->'], 15,
         'local Var04\nget_field flags (0x0)\nbyte 0x1C\nne\nand'),
     ] }) },
+  // The last save's gender (2 October 2026, the maintainer's word: it was
+  // marked left as shipped on 27 September, which was not his choice).
+  // Creating the hero (0x1801) writes the choice into word 0x10 of resource
+  // 0x0500 with write_far_word, and 25 scripts read it back there wherever
+  // they pick a word by gender ("ma'am" or "sir", "heroine" or "hero"). That
+  // word lands in a file the scenario opening adds, which outlives every
+  // game, and no save holds resource 0x0500, so a loaded game reads whatever
+  // the last hero created wrote (the workbench's executable-fixes.md, *The
+  // last save's gender*). The creation also writes the choice into the
+  // hero's figure, field 0x25: 33 for a heroine, 32 for a hero. The
+  // character record travels with the save. No other script writes field
+  // 0x25: a character asleep in a bed (0x3020) changes 0x24 and the type,
+  // and 0x3020 puts them back from 0x25. So each read becomes
+  // `PlayerCharacter.0x25 == 33`. The fix leaves two places alone: the
+  // creation's write, which nothing reads once this applies, and the
+  // creation's read just after it, which comes before field 0x25 holds
+  // anything.
+  { id: 'gender', group: 'talk', stage: 'further', title: 'People now speak to the hero as the gender chosen for this game, instead of the one chosen for the last hero created',
+    plan: (s) => {
+      const edits = [];
+      for (const resid of dataPatchScriptResids(s.spec)) {
+        const ops = dataPatchListing(s, resid).ops;
+        ops.forEach((op, i) => {
+          if (!op.text.startsWith('load_far_word 0x05000010')) return;
+          if (ops.slice(Math.max(0, i - 4), i).some(o => o.text.startsWith('write_far_word 0x05000010'))) return;
+          edits.push({ what: 'the hero’s gender read off the hero', resid, at: op.at, replaceOp: true,
+            expect: { [op.at]: 'load_far_word 0x05000010' }, code: 'global PlayerCharacter\nget_field 0x25\nbyte 0x21\neq' });
+        });
+      }
+      if (edits.length !== 29) throw new Error('the hero’s gender: ' + edits.length + ' reads of the stored word found, not 29');
+      return { edits };
+    } },
 
   /* ---- Maps (the stage "map"; map_fixes_patch.mjs, "Cythera Map Fixes")
      The two faults in the scenario's maps that the board reported and this
