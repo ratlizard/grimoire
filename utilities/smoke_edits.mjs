@@ -103,7 +103,7 @@ try {
   const toolsNow = walk();
   const patchLeaf = peek('TAB_LEAF_FOR').get('PATCHES');
   if (!patchLeaf || patchLeaf.id !== 'patches' || !patchLeaf.parent || patchLeaf.parent.id !== 'data' || patchLeaf.magpie !== 'DelP') strayTab.push('PATCHES is not the Patches tab under Data with Magpie\u2019s DelP icon');
-  for (const t of ['Compare Patches', 'Recolor a Sprite or Portrait', 'Compare Two Files']) {
+  for (const t of ['Compare Patches', 'Recolor a Sprite', 'Compare Two Files']) {
     if (tools.indexOf(t) < 0) strayTab.push('Patches does not show ' + t);
     if (toolsNow.indexOf(t) >= 0) strayTab.push('Tools still shows ' + t);
     ctx.showCategory('HACKERY');
@@ -878,44 +878,14 @@ try {
   }
   ctx.patchesForget();
 
-  /* A portrait, the same way (24 September 2026): Alaric's, 0x8801, found
-     in the list the file gives, its families found over the one 64 by 64
-     frame with the portrait thresholds, the largest turned yellow, and the
-     patch one resource that decodes to the recoloured face. What is pinned
-     is the mechanism, not the family count, which is the art's. */
+  /* A portrait could be recoloured too until 3 October 2026, when the
+     maintainer had it taken out. The control: no portrait list is drawn,
+     and a portrait's key gives no figure. */
   try {
-    peek(`window.HERO_SPRITE_STATE = { which: 'pr8801', choices: {} }`);
     ctx.renderHeroSprite();
-    const pf = peek(`(() => { const f = heroFigure('pr8801'); return f && { name: f.name, W: f.W, H: f.H, wearer: f.wearer, shades: f.shades.parts.map(p => p.key), n: heroPortraits().length }; })()`);
-    if (!pf) fail('portrait colours', 'no figure for 0x8801');
-    else if (pf.W !== 64 || pf.H !== 64 || pf.n < 100) fail('portrait colours', 'the portrait is ' + pf.W + 'x' + pf.H + ' among ' + pf.n);
-    else if (!pf.wearer || pf.wearer.i !== 2 || !/Alaric/.test(pf.wearer.name || '')) fail('portrait colours', 'the wearer is ' + JSON.stringify(pf.wearer));
-    else if (pf.shades.length < 3) fail('portrait colours', 'only ' + pf.shades.length + ' families on a face');
-    else if (!REGISTRY.get('heroPortrait')) fail('portrait colours', 'no portrait list');
-    else if (peek('heroSpritePatch()') !== null) fail('portrait colours', 'a patch is offered with nothing chosen');
-    else {
-      ctx.heroSpriteShade(pf.shades[0], 'yellow', '#e8c020');
-      const pr = peek(`(() => { const f = heroFigure('pr8801'), r = heroRecoloured(f), w = heroSpritePatch();
-        if (!w) return null;
-        let stray = 0, bad = 0, n = 0;
-        for (let i = 0; i < r.image.length; i++) { if (r.image[i] === f.image[i]) continue; n++; if (f.shadeLabels[i] !== 0) stray++; if (r.image[i] === 0 || r.image[i] >= 0xE0) bad++; }
-        const rr = delverArchiveSpec(w.bytes).resources.find(x => x.resid === 0x8801);
-        const dec = decodeResource(ARCHIVE, rr.data, 135, 0x8801);
-        return { n, stray, bad, moved: r.moved, resids: w.resids, valid: w.checkValueValid, desc: w.description, name: w.name,
-                 same: dec.W === 64 && dec.H === 64 && dec.image.every((v, i) => v === r.image[i]) }; })()`);
-      if (!pr) fail('portrait colours', 'no patch with a colour chosen');
-      else if (!pr.n || pr.stray || pr.bad) fail('portrait colours', pr.n + ' pixels moved, ' + pr.stray + ' outside the family, ' + pr.bad + ' onto transparency or a cycling ramp');
-      else if (pr.n !== pr.moved) fail('portrait colours', 'the count on the page is not the count of pixels that moved');
-      else if (pr.resids.length !== 1 || pr.resids[0] !== 0x8801 || !pr.valid) fail('portrait colours', 'the patch carries ' + pr.resids.map(i => '0x' + i.toString(16)).join(' ') + (pr.valid ? '' : ' and does not verify'));
-      else if (!/^The portrait of Alaric, 1 color changed$/.test(pr.desc) || pr.name !== 'Alaric Portrait Colors') fail('portrait colours', 'named ' + JSON.stringify([pr.desc, pr.name]));
-      else if (!pr.same) fail('portrait colours', 'the patch does not decode to the recoloured face');
-      else {
-        const host = REGISTRY.get('heroSprite');
-        const canvases = countTag(host, 'CANVAS');
-        if (canvases !== 2 + pf.shades.length + 2) fail('portrait colours', canvases + ' canvases, expected 2 figures, ' + pf.shades.length + ' family rows and one pair');
-        else console.log(`  portrait colours: ${pf.n} portraits listed; Alaric's has ${pf.shades.length} families, the largest turned yellow moves ${pr.n} pixels and writes one verifying resource`);
-      }
-    }
+    if (REGISTRY.get('heroPortrait')) fail('portrait colours', 'a portrait list is still drawn');
+    else if (peek(`heroFigure('pr8801')`)) fail('portrait colours', 'a portrait still makes a figure');
+    else console.log('  portrait colours: none offered, as asked');
   } catch (e) { fail('portrait colours', e); }
   ctx.patchesForget();
 

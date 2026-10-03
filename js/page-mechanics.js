@@ -1245,54 +1245,9 @@ function heroSpriteClasses() {
   return out;
 }
 
-/* ---- a portrait, the same way (24 September 2026, at the maintainer's word)
-   Every portrait in the file is a 64 by 64 indexed picture in the same
-   palette, so colour by colour applies to it unchanged: the families are
-   found over the one frame, each recoloured as a whole, and the patch
-   replaces that one resource. A character's portrait shows wherever the
-   game draws it; the hero's is copied into the saved game when the
-   character is made, so a recoloured one shows in a game begun after the
-   patch. The list is the file's: every 0x88xx that decodes to a picture,
-   named as the page names it. */
-// The thresholds a portrait's families are found with (heroShadeDef): see
-// the probe of 24 September 2026 in the notes for what the sprites' gave.
-const HERO_PORTRAIT_JOIN = { hue: 10, chroma: 16, greyL: 25, small: 50 };
-function heroPortraits() {
-  heroSourceSpec();
-  const c = window.HERO_SOURCE_SPEC;
-  if (!c || !c.spec) return [];
-  if (c.portraits) return c.portraits;
-  const out = [];
-  for (const r of c.spec.resources) {
-    if (((r.resid >> 8) - 1) !== 135) continue;
-    let dec = null;
-    try { dec = decodeResource(ARCHIVE, r.data, 135, r.resid); } catch (e) { dec = null; }
-    if (!dec || !dec.W || !dec.H || !dec.image) continue;
-    const name = labelFor(r.resid) || '';
-    out.push({ resid: r.resid, W: dec.W, H: dec.H, name, label: (name || 'portrait') + ' ' + propWordHex(r.resid) });
-  }
-  c.portraits = out;
-  return out;
-}
-function heroPortraitFigure(resid) {
-  const p = heroPortraits().find(x => x.resid === resid);
-  const spec = heroSourceSpec();
-  const res = spec && spec.resources.find(r => r.resid === resid);
-  if (!p || !res) return null;
-  let dec = null;
-  try { dec = decodeResource(ARCHIVE, res.data, 135, resid); } catch (e) { dec = null; }
-  if (!dec) return null;
-  const image = Uint8Array.from(dec.image);
-  const shades = heroShadeDef(image, p.W, p.H, HERO_PORTRAIT_JOIN);
-  const shadeLabels = heroPartMap(image, p.W, p.H, shades);
-  // Whose face it is: the character whose record wears this portrait, by
-  // the numbering the resource view uses (character n wears 0x8800 + n - 1).
-  let wearer = null;
-  try { const i = resid - 0x8800 + 1; if (loadCharacterTable()[i]) wearer = { i, name: characterName(i) }; } catch (e) { quiet(e); }
-  return { key: 'pr' + resid.toString(16), kind: 'portrait', resid, name: 'portrait of ' + (p.name || propWordHex(resid)), label: p.name,
-           W: p.W, H: p.H, frames: 1, shipped: image, image, def: null, labels: null, body: null, cls: null,
-           shades, shadeLabels, wearer, wearers: wearer ? 1 : 0, others: [], unknown: 0 };
-}
+/* A portrait could be recoloured here too from 24 September 2026; the
+   maintainer had it taken out on 3 October 2026, untested and not wanted.
+   heroShadeDef and the families work on any indexed picture still. */
 
 /* What the hero or the heroine can wear: a person's sixteen frames, which
    are laid out as theirs are, or a monster's eight or four, which
@@ -1309,7 +1264,6 @@ function heroBodies(pt) {
    when the open file has no such sprite, which is what a saved game gives.
    `key` is 'hero' or 'heroine', or 'pt' and a class number for any other. */
 function heroFigure(key) {
-  if (/^pr[0-9a-f]+$/i.test(key)) return heroPortraitFigure(parseInt(key.slice(2), 16));
   const def = HERO_SPRITES.find(d => d.key === key) || null;
   const pt = def ? def.proptype : (/^pt\d+$/.test(key) ? parseInt(key.slice(2), 10) : null);
   if (pt === null) return null;
@@ -1396,13 +1350,7 @@ function heroSpritePatch() {
   const rec = heroRecoloured(fig);
   if (!rec.moved) return null;
   let resid, data, name;
-  if (fig.kind === 'portrait') {
-    // A portrait resource is the picture's DCG stream and nothing else,
-    // which is what the ditherizer writes for one too (encodeGraphicResource).
-    resid = fig.resid;
-    data = encodeDCGLiterals(rec.image);
-    name = (fig.label || propWordHex(fig.resid)) + ' Portrait Colors';
-  } else {
+  {
     const sheet = Uint8Array.from(fig.sheetImage);
     sheet.set(rec.image, fig.start * 1024);
     resid = fig.sheet;
@@ -1497,7 +1445,7 @@ function heroSpriteReset() {
 /* The frame a family shows best in, with every pixel outside the family
    put to a dark grey and the outline kept, so the row says what it covers. */
 function heroShadeThumb(fig, pi) {
-  const size = fig.W * (fig.kind === 'portrait' ? fig.H : 32);
+  const size = fig.W * 32;
   let best = 0, most = -1;
   const frames = fig.frames;
   for (let t = 0; t < frames; t++) {
@@ -1510,17 +1458,8 @@ function heroShadeThumb(fig, pi) {
     const v = fig.image[best * size + i];
     img[i] = !v || v === 0xFF || fig.shadeLabels[best * size + i] === pi ? v : 0x1C;
   }
-  if (fig.kind === 'portrait') return heroPortraitCanvas(img, fig.W, fig.H);
   return patchTileCanvas({ image: img, W: 32, H: 32 }, 0, 141);
 }
-// A whole portrait as a canvas, drawn as the portrait gallery draws one.
-function heroPortraitCanvas(image, W, H) {
-  const c = document.createElement('canvas');
-  drawToCanvas(c, W, H, image, transparentIndexFor(135));
-  c.className = 'patchTile';
-  return c;
-}
-
 /* The controls, the frames and the buttons, redrawn whole on every choice.
    A sheet is 16 KB of pixels and the remap is a table lookup, so a redraw is
    well under a frame and nothing is worth keeping between them. */
@@ -1566,23 +1505,6 @@ function renderHeroSprite() {
       sel.appendChild(o);
     }
     sel.onchange = function () { if (sel.value) heroSpritePick('pt' + sel.value); };
-    pick.appendChild(sel);
-  }
-  const portraits = heroPortraits();
-  if (portraits.length) {
-    const sel = document.createElement('select');
-    sel.id = 'heroPortrait'; sel.className = 'heroSelect';
-    sel.setAttribute('aria-label', 'a portrait');
-    const none = document.createElement('option');
-    none.value = ''; none.textContent = 'a portrait';
-    sel.appendChild(none);
-    for (const p of portraits) {
-      const o = document.createElement('option');
-      o.value = String(p.resid); o.textContent = p.label;
-      if (fig.key === 'pr' + p.resid.toString(16)) o.selected = true;
-      sel.appendChild(o);
-    }
-    sel.onchange = function () { if (sel.value) heroSpritePick('pr' + (+sel.value).toString(16)); };
     pick.appendChild(sel);
   }
   host.appendChild(pick);
@@ -1667,13 +1589,7 @@ function renderHeroSprite() {
   // The frames: shipped on the left of each pair, chosen on the right.
   const rec = heroRecoloured(fig);
   const strip = el('div', 'patchStrip');
-  if (fig.kind === 'portrait') {
-    host.appendChild(el('div', 'partsTitle', 'The ' + svEsc(fig.name) + ', ' + propWordHex(fig.resid)));
-    const pair = el('div', 'patchPair');
-    pair.appendChild(heroPortraitCanvas(fig.shipped, fig.W, fig.H));
-    pair.appendChild(heroPortraitCanvas(rec.image, fig.W, fig.H));
-    strip.appendChild(pair);
-  } else {
+  {
     host.appendChild(el('div', 'partsTitle', 'The ' + svEsc(fig.name) + '’s ' + fig.frames + ' frames, from sheet ' + propWordHex(fig.sheet)));
     for (let t = 0; t < fig.frames; t++) {
       const pair = el('div', 'patchPair');
@@ -1685,22 +1601,17 @@ function renderHeroSprite() {
   }
   host.appendChild(strip);
   const facts = [];
-  if (fig.kind === 'portrait') {
-    facts.push(fig.wearer ? 'Character ' + fig.wearer.i + ', ' + svEsc(fig.wearer.name) + ', wears this portrait, and it changes wherever the game shows it.'
-                          : 'No character record wears this portrait.');
-    facts.push('The patch replaces this one resource, ' + propWordHex(fig.resid) + '.');
-  }
-  if (fig.kind !== 'portrait' && fig.body) facts.push(fig.body.frames === 16
+  if (fig.body) facts.push(fig.body.frames === 16
     ? 'The ' + svEsc(fig.body.label) + '’s frames have the same layout as the ' + svEsc(fig.name) + '’s, so the patch uses them as they are.'
     : 'The ' + svEsc(fig.body.label) + ' has ' + fig.body.frames / 4 + (fig.body.frames === 8 ? ' strides' : ' frame') +
       ' a facing where the ' + svEsc(fig.name) + ' has four poses, so ' +
       (fig.body.frames === 8 ? 'the first walking frame is used for standing and sitting too.' : 'that frame is used for all four.'));
-  if (fig.kind !== 'portrait') facts.push(fig.others.length
+  facts.push(fig.others.length
     ? svEsc(fig.others.map(k => k.label).join(', ')) + ' also ' + (fig.others.length === 1 ? 'draws' : 'draw') + ' from these frames and would change with them.'
     : fig.start || fig.frames < 16
       ? 'Only these ' + fig.frames + ' frames of the sheet change; the rest of it stays as it was.'
       : 'Nothing else in the file draws from this sheet.');
-  if (fig.kind !== 'portrait' && fig.wearers > 1) facts.push('<b>' + fig.wearers + '</b> characters wear this sprite, and all of them change with it.');
+  if (fig.wearers > 1) facts.push('<b>' + fig.wearers + '</b> characters wear this sprite, and all of them change with it.');
   if (fig.unknown) facts.push('<b>' + fig.unknown + '</b> pixels are in colors the original art does not use, so they stay unchanged.');
   facts.push(rec.moved ? '<b>' + rec.moved.toLocaleString() + '</b> pixels change.' : 'Nothing chosen, so the frames stay unchanged.');
   host.appendChild(el('ul', 'ruleList', facts.map(f => '<li>' + f + '</li>').join('')));
@@ -4190,13 +4101,12 @@ function renderMechanicsSheet(value) {
 
   // ---- the hero's colours, as a patch ----
   {
-    add('herosprite', 'Recolor a Sprite or Portrait', null, '',
-      'Pick a sprite or a portrait and change its colors. You can also give the hero and the heroine another character’s body. ' +
+    add('herosprite', 'Recolor a Sprite', null, '',
+      'Pick a sprite and change its colors. You can also give the hero and the heroine another character’s body. ' +
       'This page writes a Magpie patch that replaces just that picture.',
       [
-        'The hero and the heroine can wear any person, or any monster drawn in four or eight frames (untested). A monster has fewer poses, so the patch reuses some of its frames.',
-        'Each color keeps its shading. Where the art uses one shade for two things, both change.',
-        'A recolored portrait is untested. The game copies the hero’s portrait into a saved game when you make the character, so a new portrait only shows in a game started after the patch.'
+        'The hero and the heroine can wear any person, or any monster drawn in four or eight frames. A monster has fewer poses, so the patch reuses some of its frames.',
+        'Each color keeps its shading. Where the art uses one shade for two things, both change.'
       ], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
