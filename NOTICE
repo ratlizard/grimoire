@@ -14,8 +14,10 @@ either in return.
 
 ## Not covered
 
-**Cythera itself.** *Cythera: Fate of Alaric* is copyright Ambrosia Software,
-Inc. and/or Glenn Andreas. "Cythera" and "Delver" are their trademarks. The
+**Cythera itself.** *Cythera: Fate of Alaric* is by Glenn Andreas and is
+copyright Ambrosia Software, Inc.: the license shipped with it says
+"Cythera™ is Copyright ©1993-9 by Ambrosia Software, Inc.", and the
+program's version resource says "1.0.4 by Glenn Andreas". The
 game, its data, its installers, its documentation and everything shipped with
 it are **not** in this repository, are not distributed with it, and never will
 be. Nothing here is derived from a license to redistribute the game.

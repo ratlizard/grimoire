@@ -1996,10 +1996,15 @@ function gremlinCheck(formError) {
    The program is the installer's (APP_DATA and APP_RSRC_RAW, both forks) or
    a copy the visitor chooses, which has to be in a container that carries
    both forks, since the fixes change the data fork and the cfrg in the
-   resource fork together. Every fix starts chosen. */
+   resource fork together. A fix starts chosen once it has been played. */
 // A design change (kind 'change') starts unchosen, as the karma patch is kept
-// out of All Fixes: it is not a bug, and a visitor picks it on purpose.
-window.APPFIX_STATE = { off: new Set(APP_FIXES.filter(f => f.kind === 'change').map(f => f.id)), src: null };
+// out of All Fixes: it is not a bug, and a visitor picks it on purpose. So
+// does a fix nobody has seen working in the game (no `played`), at the
+// maintainer's word of 2 October 2026, before the site was first posted:
+// walk-to read right, assembled clean and hung the game the first time it
+// was played, and a visitor who keeps the defaults should get only fixes a
+// run has shown.
+window.APPFIX_STATE = { off: new Set(APP_FIXES.filter(f => f.kind === 'change' || !f.played).map(f => f.id)), src: null };
 function appFixSource() {
   const st = window.APPFIX_STATE;
   if (st.src) return st.src;
