@@ -1370,6 +1370,11 @@ try {
   })()`);
   ctx.showCategory('PATCHES');
   const w = peek('dataFixPatch()');
+  // The fixes built from Bryce Schroeder's published source carry his name;
+  // the four of his patch written here from the causes do not.
+  const credit = peek(`(() => { renderDataFixMaker(); const host = document.getElementById('dataFixMaker'); const rows = [...(host ? host.querySelectorAll('.appFixRow') : [])].map(r => r.textContent);
+    const row = id => rows.find(t => t.indexOf(DATA_FIXES.find(f => f.id === id).title) >= 0) || '';
+    return { fetch: row('fetch'), fishing: row('fishing'), locks: row('aethon-locks') }; })()`);
   const text = id => peek(`(() => { const b = smartDecrypt(getResourceBytes(ARCHIVE, ${id}), ${id}).data; let t = ''; for (let i = 0; i < b.length; i++) t += String.fromCharCode(b[i]); return t; })()`);
   if (none !== null || orphan === null) fail('game fixes', 'a patch was written with nothing chosen, or none with one of the text\u2019s choices alone');
   else if (!refusedParis || refusedParis.indexOf(paris) !== 0) fail('game fixes', 'the edited Paris topic was not refused by the fix’s name: ' + refusedParis);
@@ -1379,6 +1384,8 @@ try {
     fail('game fixes', 'the list’s link to Helen’s "Yery well" is not where the words are, or did not open there: ' + JSON.stringify(link));
   else if (!/1 to conversations, 3 to spells, skills and fighting, 1 to people and places, 1 design change and/.test(desc) || !/the text \(British spelling, Land King\)/.test(desc))
     fail('game fixes', 'the patch calls itself ' + desc);
+  else if (!/Bryce Schroeder/.test(credit.fetch) || !/Bryce Schroeder/.test(credit.fishing) || !credit.locks || /Bryce/.test(credit.locks))
+    fail('game fixes', 'Bryce Schroeder is not credited on Fetch and fishing alone: ' + JSON.stringify(credit));
   else if (!w || !w.checkValueValid || ![0x1A28, 0x1091, 0x1861, 0xF00B, 0xF009, 0x1801].every(r => w.resids.includes(r)))
     fail('game fixes', 'the patch is not the fixes chosen: ' + JSON.stringify(w && w.resids));
   else if (!ctx.dataFixShowPatch() || !peek('window.PATCH_REPORT.usable')) fail('game fixes', 'the patches section did not read it as a usable patch');
@@ -1392,7 +1399,7 @@ try {
     else if (!/won't come free/.test(fetch)) fail('game fixes', 'Fetch’s new lines are not in 0x1A28');
     else if (!peek('window.EDITED_RESIDS').has(0x1A28)) fail('game fixes', 'the fixes are not among the edits');
     else if (!again) fail('game fixes', 'the fixes built again on the file they had fixed');
-    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list refused on the edited Paris topic by the fix's name; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), and refused when built again; the text's ${changes.rows} changes listed under ${changes.parts.length} headings, the option not chosen not among them, and Helen's "Yery well" linked to her script at 0x${link.at.toString(16).toUpperCase()}, opened ringed there`);
+    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list refused on the edited Paris topic by the fix's name; Fetch and fishing credited to him and Aethon's lock picking not; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), and refused when built again; the text's ${changes.rows} changes listed under ${changes.parts.length} headings, the option not chosen not among them, and Helen's "Yery well" linked to her script at 0x${link.at.toString(16).toUpperCase()}, opened ringed there`);
   }
   ctx.dataFixClear();
   ctx.patchesForget();

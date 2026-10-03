@@ -1934,6 +1934,14 @@ function appFixSource() {
 // mark goes when a fix's entry gains `played` (js/delv-appfixes.js,
 // js/delv-datafixes.js), written when a run has shown it.
 function untestedMark(f) { return f.played ? '' : ' (untested)'; }
+/* A fix built from someone else's published work carries their name
+   (`by`): Fetch and fishing, from Bryce Schroeder's patched sources. The
+   other four of his patch were written here from the causes, his sources
+   for them never published (the maintainer, 3 October 2026). */
+function dataFixMark(f) {
+  if (!f.by) return untestedMark(f);
+  return ' (' + f.by + '\u2019s fix' + (f.played ? '' : ', untested') + ')';
+}
 function appFixChosen() { return APP_FIXES.filter(f => !window.APPFIX_STATE.off.has(f.id)); }
 function appFixSay(m, bad) {
   const note = document.getElementById('appFixNote');
@@ -2494,7 +2502,7 @@ function renderDataFixMaker() {
     if (g.note) host.appendChild(el('div', 'mechSub', g.note));
     for (const f of list) {
       const row = el('div', 'appFixRow');
-      row.appendChild(box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + untestedMark(f)).l);
+      row.appendChild(box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + dataFixMark(f)).l);
       host.appendChild(row);
     }
     if (!owner) continue;

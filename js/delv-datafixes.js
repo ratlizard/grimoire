@@ -21,6 +21,7 @@
                  as the player would see it
      group       which list the Patches section shows it in (DATA_FIX_GROUPS)
      stage       when it is applied (DATA_FIX_STAGES, below)
+     by          whose published work the fix is built from, shown beside it
      edits, dataEdits, textEdits
                  js/delv-datapatch.js's three kinds of edit
      plan(s, ctx)
@@ -676,7 +677,7 @@ const DATA_FIXES = [
   // retrieved, one too heavy for the caster falls at their feet, and
   // anything else is carried -- flags 0x10, an inventory square, PutInside
   // -- where the shipped spell set flags 9 and lost it.
-  { id: 'fetch', group: 'rules', stage: 'bugfix', title: 'Fetch now brings the thing to the caster, instead of losing it',
+  { id: 'fetch', group: 'rules', stage: 'bugfix', by: 'Bryce Schroeder', title: 'Fetch now brings the thing to the caster, instead of losing it',
     played: 'the maintainer, 21 September 2026',
     edits: [
       { what: 'Fetch', resid: 0x1A28, at: 0x00B2, to: 0x00F3,
@@ -779,7 +780,7 @@ const DATA_FIXES = [
   // Fishing (0x1091). His source's one change: the map word the pole reads
   // carries the automap's seen bit, which it masks off (word 0x7FFF,
   // bitwise_and) before testing for deep water.
-  { id: 'fishing', group: 'rules', stage: 'bugfix', title: 'Fishing now finds deep water on squares already seen, instead of only on unseen ones',
+  { id: 'fishing', group: 'rules', stage: 'bugfix', by: 'Bryce Schroeder', title: 'Fishing now finds deep water on squares already seen, instead of only on unseen ones',
     edits: [
       { what: 'fishing', resid: 0x1091, at: 0x00C7, expect: { 0x00C3: 'sys GetMapTile', 0x00C7: 'end' },
         code: `word 0x7FFF\nbitwise_and` },
