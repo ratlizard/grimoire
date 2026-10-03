@@ -4299,13 +4299,17 @@ function renderMechanicsSheet(value) {
       'Five riddles, each answered by typing a word.',
       [], riddlesHtml);
     /* The sections run in the order a player meets the puzzles, by the
-       Hintbook's walkthrough (the maintainer, 3 October 2026): the braziers
-       in Land King Hall, where the game starts; the buttons and then the
-       riddles in Maayti, for the third part of the Crolna; the music lock
-       in House Comana, after the fourth; and the bells and the strange
-       device in the Tyrant's Tomb, which the Hintbook leaves to the end.
-       The bells and the music locks were one section until then, which put
-       the Tomb's bells before House Comana. */
+       Hintbook's walkthrough (the maintainer, 3 October 2026): the buttons
+       and then the riddles in Maayti, for the third part of the Crolna; the
+       music locks, the panpipes' in House Comana after the fourth part (the
+       lyre's, in the Cademia sewer, leads only to the Cloak of Herakles);
+       the bells and the strange device in the Tyrant's Tomb and the mystic
+       items' vaults, which the Hintbook leaves to the end; and the braziers
+       last, which the Hintbook never mentions and the board's compendium
+       calls a quirk that gives nothing (an Easter egg, the maintainer). The
+       sections array is ordered by MECH_GROUPS, not by the calls here. The
+       bells and the music locks were one section until then, which put the
+       Tomb's bells before House Comana. */
     if (tu && tu.instruments.length) add('musiclocks', 'The Music Locks', null,
       tu.instruments.map(it => src(it.what, it.resid)).join(''),
       'The tune each lock needs, and the signal it sends.',
