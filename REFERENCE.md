@@ -528,8 +528,8 @@ in no repository.
 their own, applied as stages in one session and written as one Magpie patch,
 "Cythera All Fixes", with each stage also applied alone and compared; the
 catalogue's header says why the order is the one it is.
-`sour_grapes_patch.mjs`, `voices_patch.mjs`, `rickmorty_patch.mjs` and
-`strine_opening_patch.mjs` are builders of patches of their own with edits of
+`sour_grapes_patch.mjs`, `deep_pipes_patch.mjs`, `voices_patch.mjs`,
+`rickmorty_patch.mjs` and `strine_opening_patch.mjs` are builders of patches of their own with edits of
 their own, through `patch_build.mjs`'s `buildPatch`; the casts and the Strine
 opening take the text fixes first (`text_fixes_patch.mjs`'s
 `textFixEdits`).

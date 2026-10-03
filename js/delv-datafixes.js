@@ -83,7 +83,7 @@
    NOT HERE. The program's own fixes (js/delv-appfixes.js), which no Magpie
    patch reaches: Magpie imports one Resource Manager call and it is a read.
    "Beserk", "celstial" and the rest of the program's strings, for the same
-   reason. The jokes and the recastings (Sour Grapes, the Voices of the Hall,
+   reason. The jokes and the recastings (Sour Grapes, the Pipes of the Deep, the Voices of the Hall,
    the Strine opening), which are builders of their own and no fix. */
 
 const DATA_FIX_STAGES = ['found', 'community', 'bugfix', 'further', 'apart', 'text', 'community-text', 'spelling', 'map'];
@@ -964,6 +964,23 @@ const DATA_FIXES = [
       ['Sabinate', 0x1878, 'name,job,heir', 'sabi', 'We are Sabinate'],
     ].map(([who, resid, from, add, said]) =>
       dataFixRekey(s, who + ' answers to the name', resid, from, from + ',' + add, ['string(implicit) "\\"' + said])) }) },
+  // Tlepolemus never sells his old panpipes (bugs.md): he offers them, a
+  // yes gets "Stop by some evening and I'll see if I can find them.", and
+  // no script ever sells them. The offer goes (the maintainer, 3 October
+  // 2026, who had two versions made): his line ends at "stopped a while
+  // back." and the question after it is jumped over, so his "I hope you
+  // enjoyed them", which waits on a sale, stays unsaid as before. The other
+  // version is a joke patch of its own, deep_pipes_patch.mjs, which sells
+  // them; built on a file with this fix, its sale is never reached.
+  { id: 'tlepolemus-pipes', group: 'talk', stage: 'further', title: 'Tlepolemus now says he stopped playing the pan pipes, instead of offering a set he never sells',
+    played: 'fork, 3 October 2026: "pan" to Tlepolemus in Odemia drew "I use to play the pan pipes, but stopped a while back." and no question after it',
+    plan: (s) => {
+      const p = dataPatchPlace(s, 'Tlepolemus\u2019s offer', 0x1837, ['conversation_prompt "yn"', 'conversation_response "y" ->', 'string(implicit) "\\"Stop by some evening', 'conversation_response "n" ->']);
+      return {
+        edits: [{ what: 'the question jumped over', resid: 0x1837, at: p.at(0), replaceOp: true, expect: p.expect, code: 'branch ' + dataFixHex(dataFixTarget(p.text(3))) }],
+        textEdits: [dataFixT('Tlepolemus\u2019s offer', 0x1837, ' - are you interested in buying an old set?', '.', 1)],
+      };
+    } },
   // A highlighted word nobody answers (Loose ends): "Magisterium", in the
   // general group's (0x0801) answers about Pnyx and mages. It now reaches
   // the answer about mages, "Mages are trained at the Magisterium in Pnyx".
