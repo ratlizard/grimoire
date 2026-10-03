@@ -519,7 +519,7 @@ function mechExperienceFigure(rule) {
       { points: [[1, cap], [12, cap]], colour: MECH_INK.warm, dash: '3 3', name: 'the cap, ' + n(cap) }
     ],
     marks: stuck <= 12 ? [{ x: stuck, y: mechLevelThreshold(stuck, base), dot: true, colour: MECH_INK.warm }] : []
-  }), 'Each level costs as much as every level before it put together. The ' + ord(stuck) + ' is the last: it comes past ' + n(mechLevelThreshold(stuck - 1, base)) + ' and the next needs <b>' + n(mechLevelThreshold(stuck, base)) + '</b>, which experience cannot reach.');
+  }), 'Each level costs as much as every level before it put together. The ' + ord(stuck) + ' is the last; it comes past ' + n(mechLevelThreshold(stuck - 1, base)) + ' and the next needs <b>' + n(mechLevelThreshold(stuck, base)) + '</b>, which experience cannot reach.');
 }
 
 // Karma is a line from nothing to a hundred with the player put on it at 55,
@@ -569,7 +569,7 @@ function mechFoodTable(fd) {
   return mechTable([mechSortHead('food', 0), '#' + mechSortHead('nutrition', 1, 'desc'), 'what the eater says'], rows.map(r =>
     '<tr><td data-sort="' + svEsc(r.name) + '">' + svLink(r.name, r.open) + (seen.get(r.name) > 1 ? ' <span class="inspDim">' + propWordHex(r.word) + '</span>' : '') + '</td>' +
     (r.plus !== null ? srcCell(r.src, '+' + r.plus).replace('<td class="num">', '<td class="num" data-sort="' + r.plus + '">') : mechNum('an amount the script works out')) +
-    '<td>' + (r.says ? '“' + svEsc(r.says) + '”' : '') + '</td></tr>'));
+    '<td>' + (r.says ? srcSaid(r.src ? r.src.resid : null, r.says) : '') + '</td></tr>'));
 }
 
 /* A column heading that sorts its table on a click: the first click puts
@@ -2088,7 +2088,7 @@ function renderAppFixMaker() {
   if (src) { try { trial = applyAppFixes(src, APP_FIXES); } catch (e) { why = e.message; } }
   if (why) host.appendChild(el('p', 'mechSub patchBad', why));
   const kinds = [['fix', 'Bugs'], ['hook', 'Hooks'], ['text', 'Text'], ['menu', 'Menus'], ['change', 'Design changes']];
-  const kindNotes = { change: 'These are not bug fixes: each changes how the game was designed to behave. None is chosen until you choose it.' };
+  const kindNotes = { change: 'These are not bug fixes; each changes how the game was designed to behave. None is chosen until you choose it.' };
   for (const [kind, heading] of kinds) {
     const list = APP_FIXES.filter(f => f.kind === kind);
     if (!list.length) continue;
@@ -2259,8 +2259,8 @@ function renderSpanishMaker() {
 /* ---- the scenario's fixes, as a patch ----
    js/delv-datafixes.js says what each changes and js/delv-datapatch.js
    applies them; this is the section that chooses them and hands out the
-   patch (28 September 2026). Nothing starts chosen, at the maintainer's
-   word: every fix is opted into. A list's own box chooses every fix in it,
+   patch (28 September 2026). What starts chosen is what has been played
+   (DATAFIX_STATE, below). A list's own box chooses every fix in it,
    the text's options are chosen one by one under it and count only with
    it, and the spelling is one of three.
 
@@ -2270,9 +2270,13 @@ function renderSpanishMaker() {
    that carries a fix already, is refused by the first edit that does not
    find what it expects, and the note names the fix. Apply and Read go
    through the patches section, as the sprite's and the gremlin's do. */
-// The text's choices start on their first option, the maintainer's
-// preference (1 October 2026); every other fix starts unchosen.
-window.DATAFIX_STATE = { on: new Set(DATA_FIX_CHOICES.map(c => DATA_FIXES.find(o => o.choice === c.id).id)), skip: new Set(), showText: false, textChanges: null };
+// A fix seen working in the game (its `played`) starts ticked and one not
+// yet seen starts unticked, the maintainer's rule of 3 October 2026; the
+// text's choices, all unplayed, start on "Don't standardize". Until then
+// the choices started on their first option, his preference of 1 October,
+// and every other fix unticked. The design changes are not fixes and start
+// unticked whether played or not.
+window.DATAFIX_STATE = { on: new Set(DATA_FIXES.filter(f => f.played && !f.choice && f.group !== 'design').map(f => f.id)), skip: new Set(), showText: false, textChanges: null };
 function dataFixSay(m, bad) {
   const note = document.getElementById('dataFixNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
@@ -2491,7 +2495,7 @@ function dataFixFillChanges(body) {
   };
   // What the game's bytes say, shown so a tab and a word taken out are seen.
   const shown = t => t === '' ? 'nothing' : t.replace(/\t/g, ' (tab) ').replace(/\n/g, ' ');
-  const heading = part => part === 'text' ? 'Misspellings and slips' : part === 'community' ? 'The community\u2019s list'
+  const heading = part => part === 'text' ? 'Misspellings and typos' : part === 'community' ? 'The community\u2019s list'
     : (DATA_FIXES.find(f => f.id === part) || { title: part }).title;
   const parts = [];
   for (const row of r.rows) if (parts.indexOf(row.part) < 0) parts.push(row.part);
@@ -3235,7 +3239,7 @@ function renderMechanicsSheet(value) {
     cb ? 'How a blow lands, misses or meets a parry, and how much damage it does.'
        : 'This file has no combat scripts.',
     cb ? [
-      ar && ar.reach && ar.meleeFirst ? 'The attack picks the weapon first: the first thing wielded whose <b>reach</b> covers the distance is swung' +
+      ar && ar.reach && ar.meleeFirst ? 'The attack picks the weapon first; the first thing wielded whose <b>reach</b> covers the distance is swung' +
         (ar.range && ar.beyondAdjacent ? '. If nothing reaches, and the target is not adjacent but is in sight, the first thing with a thrown figure is <b>thrown</b> as a missile' : '') + '.' +
         (ar.squared && ar.lessOne ? ' Reach ' + srcNum(ar.lessOneVal, '1') + ' covers the eight squares around the attacker, and reach 2 covers two squares in a straight line or a knight’s move.' : '') : '',
       'The margin is the attacker’s <b>reflex</b>' + (cb.roll ? ' <b>plus a random number from 0 to ' + rollTo(cb.roll) + '</b>' : '') +
@@ -3244,15 +3248,15 @@ function renderMechanicsSheet(value) {
           : ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')')) +
         ', <b>less the defender’s reflex' + (cb.rollDefender ? ' plus a random number from 0 to ' + rollTo(cb.rollDefender) : '') + '</b>, plus Attack less Defense. ' +
         (cb.bodyForReflex ? 'Some attackers use their <b>' + srcNum(cb.bodyForReflex, 'body') + '</b> instead of their reflex' + combatBodyUnitsText(cb.bodyForReflex.v) + '.' : 'A monster’s flags can make it use its body in place of its reflex.'),
-      cb.skillOffLoop ? '<b>A weapon’s skill adds nothing</b>, because of a bug: the script ' +
+      cb.skillOffLoop ? '<b>A weapon’s skill adds nothing</b>, because of a bug; the script ' +
         srcNum(cb.skillOffLoop[0], 'reads it from the wrong place') + ' and always gets 0, so Sword, Axe and Mace make no difference to an armed blow.' : '',
       'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
-        (cb.parry ? 'otherwise the shields get a chance: each blocking item the defender wears gives <b>a random number from 0 to its block figure plus the Shield skill</b>, the game adds these up, and the shields <b>parry</b> a margin below the total' : 'what is left lands') +
+        (cb.parry ? 'otherwise the shields get a chance; each blocking item the defender wears gives <b>a random number from 0 to its block figure plus the Shield skill</b>, the game adds these up, and the shields <b>parry</b> a margin below the total' : 'what is left lands') +
         '.',
       cb.dmgAdd ? 'A hit does <b>' + srcNum(cb.dmgAdd) + ' plus a random number below the damage figure, plus the enchantment</b>' + (cb.skillOffLoop ? '' : ', with the skill added to the figure first') + '. The defender’s resistance comes off afterward, so the game’s word for a blow can overstate it.' : '',
       ar && ar.bodyRoll && ar.scale ? 'The damage figure of a blow is the weapon’s plus ' + rollFrom('body') + (ar.reflexRoll ? '; a throw’s is its throw entry’s plus ' + rollFrom('reflex') : '') + '.' : '',
       ar && ar.lodges && ar.drops ? (wrongCarryFlags().some(w => w.resid === 0x3042)
-        ? 'A thrown weapon that <b>hits or meets a parry</b> is lost, because of a bug: the game puts it inside the target without marking it as carried. One that misses lands on the target’s square.'
+        ? 'A thrown weapon that <b>hits or meets a parry</b> is lost, because of a bug; the game puts it inside the target without marking it as carried. One that misses lands on the target’s square.'
         : 'The target carries a thrown weapon that <b>hits or meets a parry</b>, and you find it there when the target dies. One that misses lands on the target’s square. Nothing else brings it back.') + (ar.ammoSpent ? ' A launcher uses up one piece of ammunition per shot.' : '') : '',
       cb.words.length ? 'The game describes a blow by how much damage it does: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + srcNum(w.val)).join(', ') + (cb.last ? ', and <i>' + svEsc(cb.last.word) + '</i> above.' : '.') : ''
     ].filter(Boolean) : [],
@@ -3274,7 +3278,7 @@ function renderMechanicsSheet(value) {
     const opWord = t => (t.op === 'mul' ? '× ' : '÷ ') + srcNum(t.k);
     const doors = rows.filter(r => r.rule === 'door'), chests = rows.filter(r => r.rule === 'chest');
     const listStrength = rs => rs.map(r => nm(r) + ' ' + srcNum(r.strength)).join(', ');
-    const q = s => s ? ' (“' + svEsc(s) + '”)' : '';
+    const q = s => s ? ' (' + srcSaid([0xE49, 0xE4A], s) + ')' : '';
     add('damage', 'Damage to Things', null, src('a blow', 0xE87) + src('a door', 0xE49) + src('a chest', 0xE4A),
       rows.length ? countLink(rows.length + ' kinds of thing', 'The ' + rows.length + ' kinds of thing that take damage by separate rules', rows.map(nm)) + ', doors and chests among them, take damage by separate rules.'
                   : 'No item class in this file takes damage by a separate rule.',
@@ -3289,17 +3293,17 @@ function renderMechanicsSheet(value) {
         chest && chest.destroy && chests.length ? 'A chest’s strength: ' + listStrength(chests) + '. Whatever its state, a blow above <b>' + srcNum(chest.destroy.factor) + ' times the strength</b> destroys it' + (chest.spills ? ' and drops what it held' : '') + '.' +
           (chest.opens ? ' Locked, a blow above what is left ' + srcNum(chest.opens, 'opens it') + q(chest.saysOpened) : '') +
           (chest.wear && chest.step ? ', one above what is left ÷ ' + srcNum(chest.wear) + ' wears it down by ' + srcNum(chest.step) + q(chest.saysWorn) : '') +
-          (chest.saysHeld ? ', and a smaller one says “' + svEsc(chest.saysHeld) + '”' + (/[.!?]$/.test(chest.saysHeld) ? '' : '.') : '.') +
+          (chest.saysHeld ? ', and a smaller one says ' + srcSaid(0xE4A, chest.saysHeld) + (/[.!?]$/.test(chest.saysHeld) ? '' : '.') : '.') +
           ' Only destroying a magically locked chest gets past it; a blow opens a closed, unlocked chest.' : '',
         (door && door.setsOff) || (chest && chest.setsOff) ? 'Before a blow on a door or chest counts, anything inside it marked with flag 2 is used on the current character and removed.' : '',
         (function () {
           const bl = blastRules();
           if (!bl || !bl.centre) return '';
-          return 'A <b>bomb</b> is the one thing that damages a square rather than a target: when its fuse runs out it hands <b>' + srcNum(bl.centre) + '</b> to everything on its square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ', as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '. A locked door whose strength is below a fifth of that drops to a strength of 1.';
+          return 'A <b>bomb</b> is the one thing that damages a square rather than a target; when its fuse runs out it hands <b>' + srcNum(bl.centre) + '</b> to everything on its square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ', as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '. A locked door whose strength is below a fifth of that drops to a strength of 1.';
         })()
       ].filter(Boolean) : [],
       rows.length ? table(['thing', 'when struck', 'says'], rows.map(r => '<tr><td>' + propChip(r.pt, r.name) + '</td><td>' + damageRowWords(r) + ' ' + srcNum({ resid: r.resid, at: r.at }, 'script') + '</td><td>' +
-        (r.says.filter(s => s !== r.spills)[0] ? '“' + svEsc(r.says.filter(s => s !== r.spills)[0]) + '”' : '') + '</td></tr>')) : '', '');
+        (r.says.filter(s => s !== r.spills)[0] ? srcSaid([r.resid, 0xE49, 0xE4A], r.says.filter(s => s !== r.spills)[0]) : '') + '</td></tr>')) : '', '');
   }
 
   // ---- weapons and armour ----
@@ -3550,9 +3554,9 @@ function renderMechanicsSheet(value) {
     sl ? 'How much a night in each bed heals.' : 'This file has no beds, or no sleep script.',
     sl ? [
       sl.own !== null ? 'Your own bed in Land King Hall has quality <b>' + srcNum(sl.ownVal) + '</b>. An inn’s bed has the quality of the room you paid for, and cannot be used until you pay.' : '',
-      sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (perHour && sl.quarterVal.v * sl.hoursVal.v === perHour ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + (sl.owner ? ', and if the bed’s owner turns up they throw you out (“Hey! Out of my bed!”)' : '') + '.' : '',
-      sl.half ? 'Above quality 0' + (sl.soundly ? ' (“You sleep soundly”)' : '') + ', the party also gets <b>what they healed overnight times the quality ÷ ' + srcNum(sl.div) + '</b>, in health and magic.' + (sl.own !== null ? ' <b>Quality ' + sl.own + ' is ' + (1 + sl.own / sl.div.v) + ' times the game’s rate.</b>' : '') : '',
-      sl.toss ? 'Quality 0 is “You toss and turn”, the usual rate only.' : '',
+      sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (perHour && sl.quarterVal.v * sl.hoursVal.v === perHour ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + (sl.owner ? ', and if the bed’s owner turns up they throw you out (' + srcQuote(sl.owner) + ')' : '') + '.' : '',
+      sl.half ? 'Above quality 0' + (sl.soundly ? ' (' + srcQuote(sl.soundly) + ')' : '') + ', the party also gets <b>what they healed overnight times the quality ÷ ' + srcNum(sl.div) + '</b>, in health and magic.' + (sl.own !== null ? ' <b>Quality ' + sl.own + ' is ' + (1 + sl.own / sl.div.v) + ' times the game’s rate.</b>' : '') : '',
+      sl.toss ? 'Quality 0 is ' + srcQuote(sl.toss) + ', the usual rate only.' : '',
       sl.magicGuard || sl.magicCap ? 'Because of a bug the game caps the magic bonus at ' + srcNum(sl.magicGuard || sl.magicCap, 'full health') + ', so a character can wake with more magic than their maximum.' : ''
     ].filter(Boolean) : [],
     (sl ? mechSleepFigure(sl, model) : '') +
@@ -3586,7 +3590,7 @@ function renderMechanicsSheet(value) {
         sp.rule && sp.rule.timing ? 'A spell takes ' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times its level in clock units. Monsters move while that time passes.' : ''
       ].filter(Boolean) : [],
       (costs.length ? '<div class="mechSub">The time each command takes</div>' +
-        table(['#units', 'spent by'], costs.slice().sort((a, b) => (a.cost ? a.cost.v : 1e9) - (b.cost ? b.cost.v : 1e9)).map(c => '<tr>' + (c.cost ? srcCell(c.cost) : '<td class="num"><span class="inspDim">worked out</span></td>') + '<td>' + svLink(nameHalves(c.routine).method, 'jumpToExeAt(' + c.call.exe + ')') + ' <span class="inspDim">' + svEsc(nameHalves(c.routine).cls) + '</span></td></tr>')) : '') +
+        table(['#units', 'spent by'], costs.slice().sort((a, b) => (a.cost ? a.cost.v : 1e9) - (b.cost ? b.cost.v : 1e9)).map(c => '<tr>' + (c.cost ? srcCell(c.cost) : srcCell(c.call, 'varies')) + '<td>' + svLink(nameHalves(c.routine).method, 'jumpToExeAt(' + c.call.exe + ')') + ' <span class="inspDim">' + svEsc(nameHalves(c.routine).cls) + '</span></td></tr>')) : '') +
       mechClockFigure(sp, clk, costs), '');
   }
 
@@ -3601,9 +3605,9 @@ function renderMechanicsSheet(value) {
          : 'This file has no ground script.',
       tn ? [
         swamp ? 'On <b>' + srcNum(swamp.from, 'swamp') + '</b>, one step in ' + srcNum(swamp.chance ? swamp.chance.is : null, swamp.chance ? (swamp.chance.hi.v - swamp.chance.lo.v) : '') +
-          ' brings “' + svEsc(swamp.says) + '”, ' + (swamp.poisonName ? svEsc(swamp.poisonName) : 'a status') + ' and ' + srcNum(swamp.damage) + ' ' + srcNum(swamp.type, damageTypeName(swamp.type.v) || 'damage') + (damageTypeName(swamp.type.v) ? ' damage' : '') + '.' +
+          ' brings ' + srcSaid(0x301F, swamp.says) + ', ' + (swamp.poisonName ? svEsc(swamp.poisonName) : 'a status') + ' and ' + srcNum(swamp.damage) + ' ' + srcNum(swamp.type, damageTypeName(swamp.type.v) || 'damage') + (damageTypeName(swamp.type.v) ? ' damage' : '') + '.' +
           (swamp.flag ? ' ' + (wearers(swamp.flag.v) ? 'Wearing ' + wearers(swamp.flag.v) + ' ' + srcNum(swamp.flag, 'stops the bites') : srcNum(swamp.flag, swamp.flagName || 'A flag') + ' stops the bites') + ', and so does a monster’s immunity.' : '') : '',
-        lava ? 'On <b>' + srcNum(lava.code, 'lava') + '</b>, every step brings “' + svEsc(lava.says) + '” and <b>' + srcNum(lava.plus, rollWords([lava.roll.lo.v, lava.roll.hi.v]).replace('a random number from ', '') + ' plus ' + lava.plus.v) + '</b> ' + srcNum(lava.type, damageTypeName(lava.type.v) || 'damage') + (damageTypeName(lava.type.v) ? ' damage' : '') + '.' +
+        lava ? 'On <b>' + srcNum(lava.code, 'lava') + '</b>, every step brings ' + srcSaid(0x301F, lava.says) + ' and <b>' + srcNum(lava.plus, rollWords([lava.roll.lo.v, lava.roll.hi.v]).replace('a random number from ', '') + ' plus ' + lava.plus.v) + '</b> ' + srcNum(lava.type, damageTypeName(lava.type.v) || 'damage') + (damageTypeName(lava.type.v) ? ' damage' : '') + '.' +
           (lava.flag ? ' ' + (wearers(lava.flag.v) ? 'Wearing ' + wearers(lava.flag.v) + ' ' + srcNum(lava.flag, 'protects') : srcNum(lava.flag, lava.flagName || 'A flag') + ' protects') + '.' : '') : '',
         'Armor does not reduce either.'
       ].filter(Boolean) : [], '', '');
@@ -3622,15 +3626,22 @@ function renderMechanicsSheet(value) {
       if (!ok) continue;
       const lvl = zoneAmbientLevel(resid);
       if (lvl === null) continue;
-      rows.push({ name: zoneNameFor(resid) || editorZoneName(resid) || ('zone ' + n), lvl,
+      rows.push({ resid, name: zoneNameFor(resid) || editorZoneName(resid) || ('zone ' + n), lvl,
                   night: ambientBase(lvl, 0), noon: ambientBase(lvl, 12) });
     }
     rows.sort((a, b) => a.night - b.night || a.lvl - b.lvl || a.name.localeCompare(b.name));
     const fixed = rows.filter(r => r.lvl < 0).length;
-    const body = rows.map(r => '<tr><td>' + svEsc(r.name) + '</td><td class="num">' + r.lvl +
-      '</td><td class="num">' + r.night + '</td><td class="num">' + r.noon + '</td></tr>').join('');
+    // The zone opens its map, the level its line in the entry script, and
+    // the cap the one constant TViewer::AmbientLight loads (the maintainer,
+    // 3 October 2026: the section linked nothing). The base columns are
+    // worked from those two, so they are not links of their own.
+    const at = DERIVED.ZONE_AMBIENT_AT || {};
+    let cap = null;
+    if (appImage()) try { const ao = exeOpsNamed('TViewer::AmbientLight'), ci = exeFind(ao, 0, ao.length, d => d.mn === 'li'); cap = ci >= 0 ? exeVal(ao[ci], ao[ci].d.imm) : null; } catch (e) { quiet(e); }
+    const body = rows.map(r => '<tr><td>' + svLink(r.name, 'jumpToResource(' + r.resid + ')') + '</td>' + srcCell(at[r.resid] || null, r.lvl) +
+      '<td class="num">' + r.night + '</td><td class="num">' + r.noon + '</td></tr>').join('');
     if (rows.length) add('light', 'Light', null, '',
-      'How dark each place is, and how lights brighten it. The level runs from 0, drawn black, to 32, not darkened at all.',
+      'How dark each place is, and how lights brighten it.' + (cap ? ' The level runs from 0, drawn black, to ' + srcNum(cap) + ', not darkened at all.' : ''),
       [
         fixed + ' of the ' + rows.length + ' zones, the indoor ones, are equally dark at every hour; the rest follow the daylight.',
         '<b>Every light within five tiles brightens the whole screen</b>, brighter and nearer ones more, and light passes through walls.',
@@ -3663,11 +3674,11 @@ function renderMechanicsSheet(value) {
       wt ? 'What each kind of water does when you drink it.'
          : 'This file has no fountains.',
       wt ? [
-        wt.gate && wt.setter ? 'One kind changes during the game: it is brackish, sometimes poisonous, until you pick up ' +
+        wt.gate && wt.setter ? 'One kind changes during the game; it is brackish, sometimes poisonous, until you pick up ' +
           svLink(wt.setter.name, wt.setter.pt !== null ? 'showItemDetail(' + wt.setter.pt + ')' : 'jumpToResource(' + wt.setter.resid + ')') + ', and fresh, sometimes reviving, after that.' : '',
         'A drink affects the character who uses the fountain.'
       ].filter(Boolean) : [],
-      wt ? table(['#kind', 'says', 'does', 'where it stands'], wt.kinds.map(k => '<tr>' + srcCell(k.val) + '<td>' + (k.says[0] ? '“' + svEsc(k.says[0].replace(/\*/g, ' ')) + '”' : '') + '</td><td>' + kindWords(k) + '</td><td>' + where(k.kind) + '</td></tr>')) : '', '');
+      wt ? table(['#kind', 'says', 'does', 'where it stands'], wt.kinds.map(k => '<tr>' + srcCell(k.val) + '<td>' + (k.says[0] ? srcSaid(0x1036, k.says[0]) : '') + '</td><td>' + kindWords(k) + '</td><td>' + where(k.kind) + '</td></tr>')) : '', '');
   }
 
   // ---- the combat AI ----
@@ -4179,13 +4190,13 @@ function renderMechanicsSheet(value) {
 
   // ---- the hero's colours, as a patch ----
   {
-    add('herosprite', 'Recolor a Sprite or Portrait (untested)', null, '',
+    add('herosprite', 'Recolor a Sprite or Portrait', null, '',
       'Pick a sprite or a portrait and change its colors. You can also give the hero and the heroine another character’s body. ' +
       'This page writes a Magpie patch that replaces just that picture.',
       [
-        'The hero and the heroine can wear any person, or any monster drawn in four or eight frames. A monster has fewer poses, so the patch reuses some of its frames.',
+        'The hero and the heroine can wear any person, or any monster drawn in four or eight frames (untested). A monster has fewer poses, so the patch reuses some of its frames.',
         'Each color keeps its shading. Where the art uses one shade for two things, both change.',
-        'The game copies the hero’s portrait into a saved game when you make the character, so a new portrait only shows in a game started after the patch.'
+        'A recolored portrait is untested. The game copies the hero’s portrait into a saved game when you make the character, so a new portrait only shows in a game started after the patch.'
       ], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
@@ -4399,7 +4410,7 @@ function renderMechanicsSheet(value) {
         [
           'The dots are in rows of three, two and three, and ' + srcNum({ v: 0, resid: 0x1175, at: td.startAt }, 'start') + ' with ' + lit(td.start).join(', ') + ' lit.' +
             (td.placed.length ? ' The ' + svEsc(nm) + ' is ' + td.placed.map(pl => pl.onMap ? 'in ' + svLink(zoneDisplayName(pl.zone) || ('zone ' + pl.zone), 'atlasOpenSquare(' + (0x8000 + pl.zone) + ',' + pl.x + ',' + pl.y + ')', pl.x + ', ' + pl.y) : 'inside something in ' + svEsc(zoneDisplayName(pl.zone) || ('zone ' + pl.zone))).join(', ') + '.' : ''),
-          'A button drops a marble onto dot 0, 1 or 2. The marble flips the dot it lands on and rolls on: from a dot that is now lit it goes ' + at(td.lit.at, moves(td.lit)) + ', from a dot that is now dark ' + at(td.dark.at, moves(td.dark)) + ', and off the board from ' + off.join(', ') + '. The dots keep their state between uses.',
+          'A button drops a marble onto dot 0, 1 or 2. The marble flips the dot it lands on and rolls on; from a dot that is now lit it goes ' + at(td.lit.at, moves(td.lit)) + ', from a dot that is now dark ' + at(td.dark.at, moves(td.dark)) + ', and off the board from ' + off.join(', ') + '. The dots keep their state between uses.',
           ...td.patterns.map(p => (lit(p.v).length ? 'Dots ' + lit(p.v).join(', ') + ' lit' : 'Every dot dark').replace(/^Dots 0, 1, 2, 3, 4, 5, 6, 7 lit$/, 'Every dot lit') +
             ' sends signal ' + srcNum(p.sigAt) + (p.doors.length ? ', which opens the ' + p.doors.map(door).join(' and the ') : ', which nothing in the file answers') +
             (p.presses ? '. From the start: ' + presses(p.presses) + '.' : '. No sequence reaches it from the start.'))
@@ -4438,7 +4449,7 @@ function renderMechanicsSheet(value) {
         '<b>' + ln.referencing + ' resources</b> use another and <b>' + ln.referenced + '</b> are used, over <b>' + ln.edges + ' uses</b> in all: ' +
           Object.keys(ln.kinds).map(k => '<b>' + ln.kinds[k] + '</b> ' + svEsc(k === 'call' ? 'by calling' : k === 'resource' ? 'by naming' : k === 'dref' ? 'by pointing inside' : k === 'table' ? 'by a table entry' : k)).join(', ') + '.',
         busiest ? 'The busiest is ' + svChip(busiest.rid, labelFor(busiest.rid) || '') + ', used <b>' + busiest.refs + '</b> times; most are used by nothing.' : '',
-        'That is rarely a mistake: the program finds most things by number, such as an item’s script by its type.'
+        'That is rarely a mistake; the program finds most things by number, such as an item’s script by its type.'
       ].filter(Boolean) : [],
       table(['resource', '#references', 'of which'], topRows) +
       (deadRows.length ? '<div class="partsTitle">No script in this file calls these</div>' +

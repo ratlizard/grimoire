@@ -735,7 +735,7 @@ function inspectMapSquare(tx, ty) {
           (withView !== alone ? ' <span class="inspDim">(' + alone +
             ' of 32 with nothing in view)</span>' : '') + '</div>') +
       '<div class="inspDim">That is the base value for every square of the level, not just this ' +
-      'one: anything bright in the eleven-by-eleven view lightens the whole map, and moving it out ' +
+      'one; anything bright in the eleven-by-eleven view lightens the whole map, and moving it out ' +
       'of view darkens the map again. The game also ignores light sources it treats as unseen, which ' +
       'the file does not record, so the page counts every source in view.</div></div>');
   }
@@ -801,7 +801,7 @@ function inspectMapSquare(tx, ty) {
   if (faux) {
     parts.push('<div class="inspCard"><b>' +
       svEsc(propDisplayName(faux.proptype) || ('0x' + faux.proptype.toString(16))) + '</b>' +
-      ' <span class="inspDim">not a real prop: the terrain tile itself draws it (0xF010), ' +
+      ' <span class="inspDim">not a real prop; the terrain tile itself draws it (0xF010), ' +
       'not placed in the prop list</span><div class="inspActs">' +
       '<button class="sv-chip" onclick="showPropTypeDetail(' + faux.proptype + ')">Prop type</button>' +
       '</div></div>');

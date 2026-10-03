@@ -1250,6 +1250,34 @@ function dvmVal(resid, op) {
   const v = dvmNum(op);
   return v === null ? null : { v, resid, at: op.at };
 }
+// A string the script prints, found by a pattern of its words, with the
+// offset of its instruction: what a sheet quotes, so that a quote links to
+// its line the way a figure does and says what the file says, not what was
+// typed beside a test for it (the bed's "Hey! Out of my bed!", until
+// 3 October 2026). The text as the file has it, page breaks and all, less
+// the closing newline; null when no string matches.
+function dvmStringVal(resid, re) {
+  const e = dvmScriptEntry(resid);
+  if (!e) return null;
+  for (const op of dvmOpsOf(e)) {
+    const m = /^string(?:\(implicit\))? "((?:[^"\\]|\\.)*)"/.exec(op.text || '');
+    if (!m) continue;
+    const t = m[1].replace(/\\n$/, '').replace(/\\(.)/g, (x, c) => c === 'n' ? ' ' : c);
+    if (typeof re === 'string' ? t.replace(/\*/g, ' ').includes(re.replace(/\*/g, ' ').trim()) : re.test(t)) return { v: t, resid, at: op.at };
+  }
+  return null;
+}
+// A quote of one: the words in curly quotes, linked to their line.
+function srcQuote(sv) { return sv ? srcNum(sv, '“' + sv.v.replace(/\*/g, ' ').trim() + '”') : ''; }
+// A line a reader already holds, quoted as given and linked to the first
+// string of `resids` (a script or several) that holds it; unlinked when
+// none does, so a reader that rewrote its words still prints them.
+function srcSaid(resids, text) {
+  if (!text) return '';
+  const words = String(text).replace(/\*/g, ' ').trim();
+  for (const r of [].concat(resids)) { const sv = r === null || r === undefined ? null : dvmStringVal(r, words); if (sv) return srcNum(sv, '“' + words + '”'); }
+  return '“' + svEsc(words) + '”';
+}
 // The ops from `i` that match `pat` one for one: each element a RegExp
 // tested against an op's text, or null for any single op. The matched ops,
 // or null.
@@ -1909,9 +1937,13 @@ function attackRules() {
    within-reach test that decides whether an item can be dragged (the three
    by three squares around the character), 0x4000 against
    TViewer::IsStraightAbs, and the low bits against what is under the
-   pointer. Bit 8 is left unnamed on purpose: its four users are the things
-   you hand to a person, and what the application tests for it is a flag on
-   the character whose meaning is not established, so it prints as hex.
+   pointer. Bit 8 is a member of the party: with it set, MouseRoutine
+   (0x276C8) loads byte 8 of the clicked character's record and accepts the
+   click when its bit 0x40 is set, the bit JoinParty sets and the InParty
+   helper tests; without that bit the click falls to the 0x0004 test, so a
+   word of 8 alone refuses anyone outside the party. Its four users are the
+   things you hand to a person. It printed as hex until 3 October 2026,
+   when the maintainer asked what it was and the test was read.
 
    Why it is worth a section: it is the difference between a spell you can
    cast across the room and one that needs a neighbour, which no other part
@@ -1919,6 +1951,7 @@ function attackRules() {
 const TARGET_BIT_NAMES = [
   [0x8000, 'within reach'],
   [0x4000, 'in a straight line'],
+  [0x0008, 'a member of the party'],
   [0x0004, 'a character'],
   [0x0002, 'a square'],
   [0x0001, 'a thing']
@@ -5659,9 +5692,9 @@ function sleepRules() {
   const ownVal = ownG ? dvmVal(0x100E, ownG[5]) : null, quarterVal = qG ? dvmVal(0xE93, qG[1]) : null,
         hoursVal = hG ? dvmVal(0xE93, hG[1]) : null, div = dG ? dvmVal(0xE93, dG[2]) : null;
   const own = ownVal ? ownVal.v : null, quarter = !!quarterVal, hours = !!hoursVal, half = !!div;
-  const owner = /Out of my bed/.test(h);
-  const toss = /toss and turn/.test(h);
-  const soundly = /sleep soundly/.test(h);
+  const owner = dvmStringVal(0xE93, /Out of my bed/);
+  const toss = dvmStringVal(0xE93, /toss and turn/);
+  const soundly = dvmStringVal(0xE93, /sleep soundly/);
   // The inn's quality: the bed reads global resource 0x301's array at a
   // slot the innkeeper's dialogue wrote when the room was paid for.
   const store = dvmScriptEntry(0x301);

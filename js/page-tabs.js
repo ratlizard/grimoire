@@ -102,7 +102,7 @@ const SUBINDEX_PURPOSE = {
   25:  ['Skill & spell classes', 'Descriptions and scripts for spells, skills and actions. Usually several small functions: one gives the name, another the description.'],
   26:  ['Room scripts', 'One for each room, id 0x1B00 plus the room number: the description shown the first time you enter, and for some rooms an Enter that does more. A room is a rectangle marked on the map by an egg, which is a trigger with nothing to see.'],
   27:  ['Room scripts', 'Rooms 256 to 511 are here, in the same form as 0x1Bxx; the file has rooms 301 to 454.'],
-  29:  ['Room scripts', 'Room 800, the one room numbered past 511: entering it changes zone.'],
+  29:  ['Room scripts', 'Room 800, the one room numbered past 511; entering it changes zone.'],
   47:  ['Character actions', 'Scripts that seem to be for things done to a character, ToggleLock among them.'],
   127: ['Maps', 'The grid of tiles that makes up a map, with its size and its four exits, one to each point of the compass.'],
   128: ['Prop lists', 'One for each map: a 16-byte record placing every object, door and container on it.'],

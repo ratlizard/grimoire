@@ -958,7 +958,11 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
 .barkTable td { padding:4px 10px 4px 0; border-bottom:1px solid rgba(155,136,80,.2); }
 .barkTable .inspDim { color:#b5b2a8; font-size:0.7188rem; }
 .forkTable td.icon { width:36px; padding:2px 4px; }
-.forkTable td.icon canvas { width:32px; height:32px; image-rendering:pixelated; display:block; }
+/* An <img> since the installer's rows became one string each; the rule
+   named only the canvas, so the image was left to the table, which squeezed
+   it narrower than tall on a phone (the maintainer, 3 October 2026). */
+.forkTable td.icon { min-width:32px; }
+.forkTable td.icon canvas, .forkTable td.icon img { width:32px; min-width:32px; max-width:none; height:32px; image-rendering:pixelated; display:block; }
 .installerOpen .installerOpenName { color:#fff; font-size:1.0625rem; font-weight:600; }
 .installerText { grid-column:1/-1; text-align:left; white-space:pre-wrap; word-break:break-word;
   font:12px/1.45 ui-monospace,Menlo,Consolas,monospace; color:#d8d0b4; background:rgba(0,0,0,.35);
@@ -967,6 +971,10 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
 /* The combat AI's words are identifiers a rule file is written in, so the
    Rules tab sets them in the code face, not the game's. */
 .vocabTable td { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:0.75rem; letter-spacing:0; }
+/* A script word in a sentence of that tab, in the same face: Argos has no
+   #, and Debug(#) printed a blank where it stood (the maintainer, 3 October
+   2026). */
+.aiWord { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.9em; letter-spacing:0; }
 .changesRow { display:flex; align-items:center; gap:10px; padding:3px 0; flex-wrap:wrap; }
 .changesRow .navChip { margin:0; }
 .changesGroup { margin-top:16px; padding-top:10px; border-top:1px solid rgba(155,136,80,.35); }
@@ -2442,7 +2450,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.241.0';
+const GRIMOIRE_VERSION = '1.242.0';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

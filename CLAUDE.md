@@ -337,6 +337,12 @@ Gremlin", "Compare Two Files"). A short grey hint beside a control is
 welcome; a long prelude is not. The pass that applied it is logged under
 `grimoire/prose-pass-he47ij`.
 
+**A colon does not join two sentences.** The maintainer's rule of
+3 October 2026: "no released copy can switch on: its code works only..."
+takes a semicolon or a full stop. A colon stays where it introduces a
+list or names a field ("Melee: damage, reach..."). The pass that applied
+it is in the log under that date.
+
 **No em dashes anywhere on the site, and never a `#` in Argos.** The
 maintainer's rule of 9 September 2026: an em dash in UI text becomes a
 comma, a colon, a full stop or parentheses, whichever the sentence wants;

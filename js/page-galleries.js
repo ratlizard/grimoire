@@ -350,7 +350,7 @@ function editStringAt(resid, approxOffset) {
       '<button class="linkbtn" onclick="document.getElementById(\'textEdit\').remove()">close</button></div>' +
     '<textarea id="teText" spellcheck="false"></textarea>' +
     '<div class="inspDim"><span id="teCount"></span>, the stored space is fixed at ' + loc.cap +
-      ' bytes: the page pads shorter text with spaces, and longer text would move every ' +
+      ' bytes; the page pads shorter text with spaces, and longer text would move every ' +
       'byte after it, which this editor does not do. * separates alternative ' +
       'lines; @word marks a conversation keyword.</div>' +
     '<div><button onclick="applyStringEdit(' + resid + ',' + loc.textOffset + ',' + loc.cap + ')">Apply and rebuild the file</button></div>' +
@@ -434,14 +434,16 @@ function receiveFromCanvas() {
 }
 if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('storage', e => { if (e.key === 'grimoire.return') receiveFromCanvas(); });
 
-/* Whether a tile sheet keeps off the colour-cycling ramps. Only a tile sheet
-   is offered the choice (a tile is where water and lava are drawn on
-   purpose); every other kind always keeps off them, since a portrait or a
-   strip on a cycling ramp shimmers with the sea. On by default, and the
-   last choice holds for the rest of the visit (the maintainer, 22 September
-   2026). */
+/* Whether a picture keeps off the colour-cycling ramps. Only a tile sheet
+   does, and only by choice (a tile is where water and lava are drawn on
+   purpose); on by default, and the last choice holds for the rest of the
+   visit (the maintainer, 22 September 2026). Every other kind used to keep
+   off them too, on the reasoning that a portrait on a cycling ramp would
+   shimmer with the sea; the maintainer said on 3 October 2026 that only a
+   tile sheet needs to, so a portrait, a strip, an icon or a free graphic
+   has the whole palette. */
 window.DITHER_SUBST = true;
-function ditherAllowAnimated() { return ditherKind() === 'sheet' && !window.DITHER_SUBST; }
+function ditherAllowAnimated() { return ditherKind() !== 'sheet' || !window.DITHER_SUBST; }
 function openDitherTool() {
   let ov = document.getElementById('ditherTool');
   if (ov) ov.remove();
@@ -459,7 +461,6 @@ function openDitherTool() {
     '<input type="file" id="dtFile" accept="image/*">' +
     '<div class="dtRow"><label>Mode <select id="dtMode">' +
       '<option value="portrait">64×64 portrait (cover crop)</option>' +
-      '<option value="frame:887E">64×64 in the frame of 0x887E, its middle cleared</option>' +
       '<option value="frame:88A2">64×64 in the frame of 0x88A2</option>' +
       '<option value="frame:88F2">64×64 in the frame of 0x88F2</option>' +
       ditherSharedFrames().map(f => '<option value="frame:' + f.members[0].toString(16).toUpperCase() + '">64×64 in the frame of ' + svEsc(ditherFrameOwners(f.members)) + '</option>').join('') +
@@ -539,11 +540,11 @@ function ditherItemOptions(pick) {
 
 /* The frames the portraits share, as the ditherizer offers them
    (sharedPortraitFrames in js/delv-graphics.js finds them): every family
-   but the three the list above names with their own rule for the hole
-   (0x887E, 0x88A2, 0x88F2), and not a family whose shared pixels are mostly
+   but the two the list above names with their own rule for the hole
+   (0x88A2, 0x88F2, frames drawn empty), and not a family whose shared pixels are mostly
    index 0, the white field the fountain, the door and two pictures that are
    not faces have in common rather than a frame. */
-const DITHER_OWN_FRAMES = [0x887E, 0x88A2, 0x88F2];
+const DITHER_OWN_FRAMES = [0x88A2, 0x88F2];
 function ditherSharedFrames() {
   return sharedPortraitFrames(ARCHIVE).filter(f => {
     if (f.members.some(r => DITHER_OWN_FRAMES.includes(r))) return false;
@@ -559,15 +560,13 @@ function ditherFrameOwners(members) {
   return names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
 }
 /* A frame from the archive to set a picture in. 0x88A2 and 0x88F2 are
-   frames with a hole: the hole is the run of index 0 (white, the cut-out
-   slot) that does not touch the outside. 0x887E is a framed portrait with
-   something already in it, so its hole is the square inside the frame: the
-   first ring in from the edge that is all the background colour (its most
-   common index) is the frame's inner edge, and everything from there in is
-   the hole. It was a slider defaulting to 6, which cut three rings into
-   the braid, whose inner edge is at 9 (the maintainer, 22 September 2026:
-   not enough of the frame kept). The picture is cover-cropped into the
-   hole's box and the frame painted over it. */
+   frames drawn empty: the hole is the run of index 0 (white, the cut-out
+   slot) that does not touch the outside. 0x887E, Ur-Sylph's framed
+   portrait, had a rule of its own until 3 October 2026, its middle cleared
+   from the first ring of background colour in; it is one of a family with
+   Ignae and Omen, whose shared frame is found by comparing the three like
+   every other family's, which the maintainer asked for. The picture is
+   cover-cropped into the hole's box and the frame painted over it. */
 function ditherFrameMask(resid) {
   // A portrait of a shared family: the family's frame, and the hole all it
   // does not cover.
@@ -584,48 +583,31 @@ function ditherFrameMask(resid) {
   const d = decodeResource(ARCHIVE, b, 135, resid);
   const W = d.W, H = d.H, img = d.image;
   const hole = new Uint8Array(W * H);
-  if (resid === 0x887E) {
-    const count = new Uint32Array(256);
-    for (const v of img) count[v]++;
-    let bg = 0; for (let i = 1; i < 256; i++) if (count[i] > count[bg]) bg = i;
-    let inset = -1;
-    for (let k = 0; k < Math.min(W, H) / 2 && inset < 0; k++) {
-      let clean = true;
-      for (let y = k; y < H - k && clean; y++) for (let x = k; x < W - k; x++) {
-        if (Math.min(x - k, y - k, W - 1 - k - x, H - 1 - k - y) !== 0) continue;
-        if (img[y * W + x] !== bg) { clean = false; break; }
+  // The hole is the largest run of one colour that does not touch the
+  // border: index 0 in 0x88A2, but 0x88F2 fills its window with index 17,
+  // and looking for 0 there found nothing (the maintainer, 9 September
+  // 2026). Every uniform region is flooded once; the biggest inner one wins.
+  const comp = new Int32Array(W * H).fill(-1);
+  let best = -1, bestN = 0, id = 0;
+  const stack = [];
+  for (let s0 = 0; s0 < W * H; s0++) {
+    if (comp[s0] >= 0) continue;
+    const c = img[s0]; let n = 0, edge = false;
+    stack.push(s0); comp[s0] = id;
+    while (stack.length) {
+      const i = stack.pop(); n++;
+      const x = i % W, y = (i - x) / W;
+      if (x === 0 || y === 0 || x === W - 1 || y === H - 1) edge = true;
+      for (const j of [i - 1, i + 1, i - W, i + W]) {
+        if (j < 0 || j >= W * H || comp[j] >= 0 || img[j] !== c) continue;
+        if ((j === i - 1 && x === 0) || (j === i + 1 && x === W - 1)) continue;
+        comp[j] = id; stack.push(j);
       }
-      if (clean) inset = k;
     }
-    if (inset < 0) inset = 6;
-    for (let y = inset; y < H - inset; y++) for (let x = inset; x < W - inset; x++) hole[y * W + x] = 1;
-  } else {
-    // The hole is the largest run of one colour that does not touch the
-    // border: index 0 in 0x88A2, but 0x88F2 fills its window with index 17,
-    // and looking for 0 there found nothing (the maintainer, 9 September
-    // 2026). Every uniform region is flooded once; the biggest inner one wins.
-    const comp = new Int32Array(W * H).fill(-1);
-    let best = -1, bestN = 0, id = 0;
-    const stack = [];
-    for (let s0 = 0; s0 < W * H; s0++) {
-      if (comp[s0] >= 0) continue;
-      const c = img[s0]; let n = 0, edge = false;
-      stack.push(s0); comp[s0] = id;
-      while (stack.length) {
-        const i = stack.pop(); n++;
-        const x = i % W, y = (i - x) / W;
-        if (x === 0 || y === 0 || x === W - 1 || y === H - 1) edge = true;
-        for (const j of [i - 1, i + 1, i - W, i + W]) {
-          if (j < 0 || j >= W * H || comp[j] >= 0 || img[j] !== c) continue;
-          if ((j === i - 1 && x === 0) || (j === i + 1 && x === W - 1)) continue;
-          comp[j] = id; stack.push(j);
-        }
-      }
-      if (!edge && n > bestN && n >= 64) { best = id; bestN = n; }
-      id++;
-    }
-    if (best >= 0) for (let i = 0; i < W * H; i++) if (comp[i] === best) hole[i] = 1;
+    if (!edge && n > bestN && n >= 64) { best = id; bestN = n; }
+    id++;
   }
+  if (best >= 0) for (let i = 0; i < W * H; i++) if (comp[i] === best) hole[i] = 1;
   let x0 = W, y0 = H, x1 = -1, y1 = -1;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (hole[y * W + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   return { W, H, frame: img, hole, box: x1 >= 0 ? { x0, y0, x1, y1 } : null };

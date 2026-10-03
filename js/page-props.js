@@ -1712,7 +1712,7 @@ function propWordAspectSentence(pt) {
   try { ar = aspectReaders().get(pt) || null; } catch (e) { ar = null; }
   if (!ar) return 'This prop type has no class script, so the aspect changes only the picture and the name.';
   if (ar.reads) return w('This class’s script reads its aspect') + ' (' + ar.reads + (ar.reads === 1 ? ' place' : ' places') + '): what a ' + own + ' does depends on it, not just how it looks.' + (ar.writes ? ' It also changes it, to keep a state.' : '');
-  if (ar.writes) return 'This class’s script ' + w('writes its aspect') + ' to keep a state and never reads it: the pictures after the base tile are what it turns into.';
+  if (ar.writes) return 'This class’s script ' + w('writes its aspect') + ' to keep a state and never reads it; the pictures after the base tile are what it turns into.';
   return w('This class’s script never reads its aspect') + ': at any aspect it is the same ' + own + ' in every figure, with a different picture and name.';
 }
 // What using the item at this aspect does, for the classes that read the

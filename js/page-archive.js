@@ -771,7 +771,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   try {
     const title = pstring(bytes, 0);
     const arc = openDelverArchive(bytes);
-    if (!arc) throw new Error('no master index: the (offset,length) pair at 0x80 does not describe one');
+    if (!arc) throw new Error('no master index; the (offset,length) pair at 0x80 does not describe one');
     // The file that was open stays open, whole, until the new one has parsed:
     // a failure above leaves the page on the archive it had. A save replacing
     // the scenario takes the scenario's words for its forms first, while the
@@ -1007,7 +1007,7 @@ function onCategoryChangeImpl() {
   if (subn === 23) {
     const kw = forkStringList(window.CYTHERA_RSRC, 128);
     if (kw && kw.length) out.textContent += ' Every conversation also answers ' +
-      kw.map(w => '“' + w + '”').join(', ') + ', the default keywords, STR# 128 in the resource fork.';
+      kw.map(w => '“' + w + '”').join(', ') + ', the default keywords, string list 128 in the resource fork.';
   }
   document.getElementById('singlePreview').style.display = 'none';
   document.getElementById('zoomControls').style.display = 'none';

@@ -950,7 +950,7 @@ function showRsrcDetail(type, id) {
     (pat ? ', ' + pat.tiles.length + ' tiles in a ' + pat.cols + '×' + pat.rows + ' grid' : '') +
     (pat && pat.extraBytes ? '\n' + pat.extraBytes + ' bytes past the end of the grid, unaccounted for' : '') +
     (pat && pat.guessedShape ? '\nThe grid shape is this page’s guess; the file only gives a list of tiles.' : '') +
-    '\nUsed only by the editor: according to the wiki, changing or deleting these has no effect on the game.';
+    '\nUsed only by the editor; according to the wiki, changing or deleting these has no effect on the game.';
   head.appendChild(cap);
   grid.appendChild(head);
 
@@ -1575,7 +1575,7 @@ function showCharacterDetail(i) {
                (behaviourWordHTML(e.mode) ? ', ' + behaviourWordHTML(e.mode) : '') + '</span></div>';
       }).join('');
   } else {
-    sh.innerHTML = '<div style="color:#8c8980;font-size:0.8125rem">No schedule entries: this character stands in a map\u2019s prop list rather than moving by the clock.</div>';
+    sh.innerHTML = '<div style="color:#8c8980;font-size:0.8125rem">No schedule entries; this character stands in a map\u2019s prop list rather than moving by the clock.</div>';
   }
   // Jump to where this character currently stands.
   if (r.zone) {

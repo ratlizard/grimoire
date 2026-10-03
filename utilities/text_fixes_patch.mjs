@@ -40,7 +40,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const [htmlPath = 'index.html', dataPath, outDir] = process.argv.slice(2).filter(a => a !== '--uk');
   if (!dataPath || !outDir) { console.error('usage: text_fixes_patch.mjs [--uk] index.html <Cythera Data.data> <out dir>'); process.exit(2); }
   const ok = buildFixes({ htmlPath, dataPath, outDir, name: uk ? 'Cythera Text Fixes (UK English)' : 'Cythera Text Fixes',
-    description: 'Misspellings and slips in Cythera’s text, found with Grimoire and reviewed by the maintainer: dialogue, spells, training, books, To Do lines, signs, notes, opening and endings, Where Is answers, tab bytes' + (uk ? '; spelling made British throughout.' : '.'),
+    description: 'Misspellings and typos in Cythera’s text, found with Grimoire and reviewed by the maintainer: dialogue, spells, training, books, To Do lines, signs, notes, opening and endings, Where Is answers, tab bytes' + (uk ? '; spelling made British throughout.' : '.'),
     ids: everyFix(htmlPath, uk ? 'uk' : 'us'), stages: ['text', 'spelling'] });
   process.exit(ok ? 0 : 1);
 }

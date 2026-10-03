@@ -464,8 +464,9 @@ function sharedArtMask(arc, image, W, H){
    AND reaches the picture's edge through such pixels, so a
    coincidence inside the faces is not taken for it; the rest is
    the hole. A frame shared by nobody is no family. Returns
-   [{ members: [resid], image, frame }], image the first member's
-   pixels and frame a 0/1 mask, largest family first.
+   [{ members: [resid], image, frame }], image each pixel's commonest
+   index among the members and frame a 0/1 mask with its gaps filled
+   (offered, below), largest family first.
    ------------------------------------------------------------ */
 const SHARED_LINK_MIN = 300, SHARED_FRAME_MIN = 1200;
 function sharedPortraitFrames(arc){
@@ -517,8 +518,44 @@ function sharedPortraitFrames(arc){
       for (const m of groups[gj]) of[m] = gi;
       groups[gi] = merged; groups[gj] = [];
     }
+    /* The frame as offered: what frameOf finds, with its gaps filled. A
+       pixel where one member's hair or shoulder crosses the border is not
+       alike in all of them, so it fell out of the frame and left a hole
+       in it, the picture showing through the border (the Seldane's, the
+       maintainer, 3 October 2026). The hole proper is the largest region
+       the frame leaves; every smaller one is a gap in the border and is
+       filled, with the colour most members have there, which is also
+       what the frame is painted in everywhere, so no one member's
+       crossing art is carried into it. Grouping above still decides on
+       the strict frame. */
+    const offered = g => {
+      const { frame } = frameOf(g), out = new Uint8Array(frame), img = new Uint8Array(N), seen = new Int32Array(N).fill(-1);
+      const count = new Uint16Array(256);
+      for (let k = 0; k < N; k++) {
+        count.fill(0); let best = ps[g[0]].image[k];
+        for (const m of g) { const v = ps[m].image[k]; if (++count[v] > count[best]) best = v; }
+        img[k] = best;
+      }
+      const regions = [];
+      for (let k0 = 0; k0 < N; k0++) {
+        if (out[k0] || seen[k0] >= 0) continue;
+        const list = [k0], id = regions.length; seen[k0] = id;
+        for (let q = 0; q < list.length; q++) {
+          const k = list[q], x = k % W;
+          for (const j of [k - 1, k + 1, k - W, k + W]) {
+            if (j < 0 || j >= N || out[j] || seen[j] >= 0) continue;
+            if ((j === k - 1 && x === 0) || (j === k + 1 && x === W - 1)) continue;
+            seen[j] = id; list.push(j);
+          }
+        }
+        regions.push(list);
+      }
+      let hole = -1; regions.forEach((r, i) => { if (hole < 0 || r.length > regions[hole].length) hole = i; });
+      regions.forEach((r, i) => { if (i !== hole) for (const k of r) out[k] = 1; });
+      return { image: img, frame: out };
+    };
     return groups.filter(g => g.length > 1)
-      .map(g => { g.sort((x, y) => ps[x].resid - ps[y].resid); return { members: g.map(m => ps[m].resid), image: ps[g[0]].image, frame: frameOf(g).frame }; })
+      .map(g => { g.sort((x, y) => ps[x].resid - ps[y].resid); const o = offered(g); return { members: g.map(m => ps[m].resid), image: o.image, frame: o.frame }; })
       .sort((x, y) => y.members.length - x.members.length || x.members[0] - y.members[0]);
   });
 }

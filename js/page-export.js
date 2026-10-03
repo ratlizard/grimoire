@@ -507,7 +507,7 @@ function buildInstallScript(archiveName, note) {
     '-- disk, and starts the game. Press Run, or Command-R -- or press Install',
     '-- from the disk itself, so you need not select anything inside the Mac.',
     '--',
-    '-- Keep a backup of the original first: the replacement cannot be undone.',
+    '-- Keep a backup of the original first; the replacement cannot be undone.',
     '-- By hand instead: drag "' + archiveName + '" into the game\u2019s folder.',
     '--'].concat((note || []).map(line => '-- ' + line)).concat([
     '',

@@ -537,54 +537,34 @@ function renderToolsSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
-  out.textContent = 'The ditherizer, the other pages, and the font this page uses.';
+  out.textContent = 'The ditherizer and the other pages.';
   const box = document.createElement('div');
   box.className = 'changesView';
-  const sec = (title, note) => {
+  /* One row a tool: its name is the link, and a line says what it is. They
+     were three headed sections, "Ditherizer" over an "Open the ditherizer"
+     button, "The other pages" over two more, and "The font this page uses",
+     which Settings already says; the maintainer had the headings and the
+     font section go, and the name made the link (3 October 2026). */
+  for (const [label, note, go] of [
+    ['Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
+      () => { showCategory('135'); openDitherTool(); }],
+    ['Color-Cycling Canvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener')],
+    ['GitHub Repository', 'Where this page and its tests live.', () => window.open('https://github.com/ratlizard/grimoire', '_blank', 'noopener')]]) {
     const d = document.createElement('div');
     d.className = 'changesGroup';
-    d.innerHTML = '<div class="changesGroupTitle">' + svEsc(title) + '</div>' +
-      (note ? '<div class="changesNote" style="margin-left:0">' + svEsc(note) + '</div>' : '');
-    box.appendChild(d);
-    return d;
-  };
-  const d = sec('Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits ' +
-    'gallery, so a result can go straight into a portrait.');
-  const db = document.createElement('button');
-  db.className = 'secondary';
-  db.textContent = 'Open the ditherizer';
-  db.onclick = () => { showCategory('135'); openDitherTool(); };
-  d.appendChild(db);
-
-  const pages = sec('The other pages', '');
-  for (const [href, label, note] of [
-    ['canvas.html', 'Color-cycling canvas', 'a paint studio for the palette animation Cythera uses for water and fire'],
-    ['https://github.com/ratlizard/grimoire', 'The repository', 'where this page and its tests live']]) {
     const b = document.createElement('button');
     b.className = 'secondary';
-    b.style.cssText = 'width:auto;margin:6px 6px 0 0';
+    b.style.cssText = 'width:auto;margin:0';
     b.textContent = label;
-    b.title = note;
-    b.onclick = () => window.open(href, '_blank', 'noopener');
-    pages.appendChild(b);
+    b.onclick = go;
+    d.appendChild(b);
+    const n = document.createElement('div');
+    n.className = 'changesNote';
+    n.style.marginLeft = '0';
+    n.textContent = note;
+    d.appendChild(n);
+    box.appendChild(d);
   }
-  // Which face the page is actually drawing in: the open file's own sfnt,
-  // Chicago, or this device's. A person can tell in a glance here what no
-  // harness can, which is whether the font on the screen is the one out of
-  // the file. Chosen under Settings; this only reports.
-  const font = sec('The font this page uses', '');
-  const fn = document.createElement('div');
-  fn.className = 'amNote';
-  fn.textContent = window.FACE_IN_USE === 'game' && window.GAME_FONT
-    ? 'Argos A Nouveau, from the open file: ' + window.GAME_FONT + ' in Cythera Data’s resource fork, converted into a TrueType font the browser can use.'
-    : window.FACE_IN_USE === 'system'
-      ? 'This device’s font, chosen under Settings.'
-      : 'Chicago, Susan Kare’s 1984 font for the Macintosh, recreated by Duane King and included with this page. ' +
-        (window.GAME_FONT ? 'The game’s font is loaded; choose it under Settings.'
-          : window.GAME_FONT_STATE === 'loading' ? 'The file’s font is still loading.'
-          : window.GAME_FONT_STATE ? 'The page could not use the file’s font: ' + window.GAME_FONT_STATE + '.'
-          : 'Open a file to use the game’s font.');
-  font.appendChild(fn);
   grid.insertBefore(box, grid.firstChild);
   /* What fell back without saying so. Every optional decode that failed
      since the page loaded, kept by quiet() in js/mac-bytes.js, so a
@@ -1079,7 +1059,7 @@ function soundUsageRows(resid, subn) {
     if (lists.length) rows.push(['Default in', lists.map(r => svChip(r, 'for anyone with no sounds set')), '']);
     const eggs = u.eggs.get(n) || [];
     if (eggs.length) rows.push(['Heard in', zoneSquareChips(eggs), '']);
-    if (!rows.length) rows.push(['Played by', [], 'Nothing plays this sound: no script, class, list or egg in the file names it.']);
+    if (!rows.length) rows.push(['Played by', [], 'Nothing plays this sound; no script, class, list or egg in the file names it.']);
   } else if (subn === 143) {
     const chips = chipsFor(u.music.get(resid - 0x9000));
     rows.push(['Played by', chips, chips.length ? '' :
@@ -2880,7 +2860,7 @@ function togglePropEdit(propResid, index) {
     fld('d3 0x', 'd3', rec.d3.toString(16).padStart(4, '0').toUpperCase()) +
     fld('ref 0x', 'storeref', rec.storeref.toString(16).padStart(4, '0').toUpperCase()) +
     '<button class="sv-chip" onclick="applyPropEditForm(' + propResid + ',' + index + ')">Apply</button>' +
-    '<div class="inspDim">x and y are the location in the file: for a prop that is carried or inside something, ' +
+    '<div class="inspDim">x and y are the location in the file; for a prop that is carried or inside something, ' +
     'they give the holder, not a square. Apply rebuilds the whole file.</div>';
   host.style.display = '';
 }

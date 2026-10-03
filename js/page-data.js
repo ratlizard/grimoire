@@ -903,7 +903,7 @@ function renderCheatsSheet() {
   const kr = appImage() ? exeKeyRoutine() : null;
   const noApp = 'Open the game from its installer, under Settings, to read the program’s code here.';
   let h = '<h3 class="cheatH">Cheat Mode</h3>' +
-    '<div class="mechLede">Cythera has a cheat mode that no released copy can switch on: its code works only with a preference set that nothing in the game sets.' +
+    '<div class="mechLede">Cythera has a cheat mode that no released copy can switch on; its code works only with a preference set that nothing in the game sets.' +
     (kr ? '' : ' ' + noApp) + '</div>';
 
   // The helpers a key's sentence is built with, over one case.
@@ -1120,7 +1120,7 @@ function renderCheatsSheet() {
   if (heap) {
     h += '<div class="mechSec"><h4 class="cheatH4">Level 0, the Nothing Map</h4><ul class="ruleList">' +
       '<li>Map 0 is ' + heap.w + ' by ' + heap.h + ', with no roof, no exits, ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') + ' and no name. The map window’s title reads Untitled there.</li>' +
-      '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory: the program made the map and never filled it in.</li>' +
+      '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory; the program made the map and never filled it in.</li>' +
       '<li>Players have reached it by accident, from a bed in Cademia and from beneath Pnyx, ' +
       'and found a figure with a guard’s sprite called Nothing, or Omen if killed twice. ' +
       'That figure is character record 0, which is empty, and is the record option-x writes to. ' +
@@ -1130,7 +1130,7 @@ function renderCheatsSheet() {
   const sprites = cheatSpriteClasses();
   if (sprites.length) {
     h += '<div class="mechSec"><h4 class="cheatH4">Be Somebody Else</h4>' +
-      '<div class="cheatNote">The oldest Cythera cheat: use Pandora’s Box to find ' +
+      '<div class="cheatNote">The classic Cythera cheat: use Pandora’s Box, a program that edits another program’s memory while it runs, to find ' +
       'the number <b>32</b>, the hero’s sprite, in the running game and write another number over it. ' +
       'The Saved Game page does the same with the <b>sprite class</b> field. ' +
       'These are the ' + sprites.length + ' sprites someone in the game uses. ' +
@@ -1340,7 +1340,7 @@ function byteMapPropRecord(p, at, name) {
   rec.f(10, 2, 'field 15, a spare field a script could read and set; none does, and nothing else found in the program uses it', { value: String(u16be(b, at + 10)) });
   rec.f(12, 2, 'the heap reference of its frame, a dict AllocateFrame makes the first time a script stores something on it (has_storage, storage)', { value: String(u16be(b, at + 12)) });
   rec.f(14, 1, 'how far the game shifts it along the diagonal when drawing it, four pixels a step: the low six bits, signed, which TViewer::Render adds to both draw offsets (field 16); every reader masks off the top two', { value: String(s6) + (b[at + 14] & 0xC0 ? ', top bits ' + (b[at + 14] >> 6) : '') });
-  rec.f(15, 1, 'a spare byte: nothing found in the program reads or writes it', { value: String(b[at + 15]) });
+  rec.f(15, 1, 'a spare byte; nothing found in the program reads or writes it', { value: String(b[at + 15]) });
   return rec;
 }
 
@@ -1357,8 +1357,8 @@ function byteMapDataFork(arc) {
   // Halfwords, not the bytes delvmod keeps: OpenScenFile, CheckPlayerFile,
   // NewGame and InitWorld read them (save-format.md, the header).
   const ver = v => (v >> 8) + '.' + (v & 0xFF);
-  p.f(0x40, 2, 'the Delver file format’s version, major and minor: the program opens a file whose major version matches the program’s and whose minor is no higher (SegFileHeader::CompatibleVersions, against 0x1300)', { value: ver(u16be(b, 0x40)) });
-  p.f(0x42, 2, 'the scenario’s version: a save copies it from its scenario when the game begins, and the program opens the save only with a scenario it is compatible with', { value: ver(u16be(b, 0x42)) });
+  p.f(0x40, 2, 'the Delver file format’s version, major and minor; the program opens a file whose major version matches the program’s and whose minor is no higher (SegFileHeader::CompatibleVersions, against 0x1300)', { value: ver(u16be(b, 0x40)) });
+  p.f(0x42, 2, 'the scenario’s version; a save copies it from its scenario when the game begins, and the program opens the save only with a scenario it is compatible with', { value: ver(u16be(b, 0x42)) });
   p.f(0x48, 2, 'the side, in squares, of the map buffer the program sets aside for a level (CreateGlobals; 1,024 when 0)', { value: String(u16be(b, 0x48)) });
   const mi = delverMasterIndexExtent(b);
   if (mi) {
@@ -1379,7 +1379,7 @@ function byteMapDataFork(arc) {
   // What lies between: the header's other bytes and any space between
   // resources. None of it is read by delvmod.
   byteMapFillGaps(p, 0, 0x80, 'zero, and nothing found reads it');
-  byteMapFillGaps(p, 0x80, b.length, 'free space: no index entry points here');
+  byteMapFillGaps(p, 0x80, b.length, 'free space; no index entry points here');
   p.fields.sort((x, y) => x.at - y.at);
   return p;
 }
@@ -1406,7 +1406,7 @@ function byteMapStream(p) {
       leaf(pos + 80, 4, 'the game clock, 4,096 units an hour', { value: String(u32be(b, pos + 80)) });
       leaf(pos + 84, 2, 'the day (the scripts’ GameDay)', { value: String(u16be(b, pos + 84)) });
       leaf(pos + 86, 1, 'whether the automap is on: the byte the scripts’ SetAutomapping call sets (cbEnableAutoMap)', { value: String(b[pos + 86]) });
-      leaf(pos + 87, 4, 'real time played, in seconds: each save adds the time since the last look at the Mac’s clock (SaveToFile, GetDateTime)', { value: String(u32be(b, pos + 87)) });
+      leaf(pos + 87, 4, 'real time played, in seconds; each save adds the time since the last look at the Mac’s clock (SaveToFile, GetDateTime)', { value: String(u32be(b, pos + 87)) });
       if (end > pos + 91) leaf(pos + 91, end - (pos + 91), 'zeros that fill the block (SaveToFile)', { value: byteMapAllZero(b, pos + 91, end - pos - 91) ? 'all zero' : byteMapHex(b, pos + 91, end - pos - 91) });
       q = end;
     } else if (tag === 'Mons') {
@@ -1475,8 +1475,8 @@ function byteMapStream(p) {
         const who = u16be(b, q), flag = u16be(b, q + 2), until = u16be(b, q + 4);
         const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 6, 'spell effect ' + e + ': ' + (characterName(who) || 'character ' + who) + ', flag ' + flag);
         r.f(0, 2, 'the character it is on', { value: String(who) });
-        r.f(2, 2, 'the character flag it applies: flags below 8 are in byte 8, flags below 24 in the status flags, and the rest in byte 26', { value: String(flag) });
-        r.f(4, 2, 'when it wears off: the effect ends once the time passes this, and at 0xF000 or more it never ends (PassTime)', { value: until >= 0xF000 ? 'never (' + until + ')' : String(until) });
+        r.f(2, 2, 'the character flag it applies; flags below 8 are in byte 8, flags below 24 in the status flags, and the rest in byte 26', { value: String(flag) });
+        r.f(4, 2, 'when it wears off; the effect ends once the time passes this, and at 0xF000 or more it never ends (PassTime)', { value: until >= 0xF000 ? 'never (' + until + ')' : String(until) });
       }
     } else if (tag === 'Grem') {
       // TGremlin::SaveGremlins: 256 frames of a state and a heap reference.
@@ -1514,7 +1514,7 @@ function byteMapToDo(p) {
     const at = s * 8, ref = u32be(b, at + 4);
     const r = byteMapRecord(p, at, 8, 'slot ' + s, { empty: ref === 0x5000FFFF && !b[at] && !b[at + 1] && !u16be(b, at + 2) });
     r.f(0, 1, '1 once a script strikes the line off (DoneToDo)', { value: String(b[at]) });
-    r.f(1, 1, 'padding: nothing in the program writes it (AddToDo and DoneToDo write byte 0)', { value: String(b[at + 1]) });
+    r.f(1, 1, 'padding; nothing in the program writes it (AddToDo and DoneToDo write byte 0)', { value: String(b[at + 1]) });
     r.f(2, 2, 'the day the line went on the list', { value: String(u16be(b, at + 2)) });
     r.f(4, 4, 'the line: the To Do text resource in the low half and the line’s number in the high twelve bits, 0x5000FFFF for none', { value: ref === 0x5000FFFF ? 'none' : 'line ' + ((ref >>> 16) & 0xFFF) + ' of 0x' + (ref & 0xFFFF).toString(16).toUpperCase().padStart(4, '0') });
   }
@@ -1841,7 +1841,7 @@ function renderSaveSheet() {
           ? svEsc(characterName(1)) + ' is in ' + svEsc(zoneDisplayName(hero.zone)) +
             ' at (' + hero.x + ', ' + hero.y + '), with ' + hero.health + ' of ' + hero.healthMax + ' health.'
           : 'The hero is in no zone.')
-      : 'This is Cythera Data, not a saved game: these are the characters as a new game starts.') +
+      : 'This is Cythera Data, not a saved game; these are the characters as a new game starts.') +
     '</div></div></div>';
 
   if (namesAreBorrowed())
@@ -2567,7 +2567,7 @@ function giveListFor(index) {
 }
 function giveFormHTML(index) {
   const rid = giveListFor(index);
-  if (!rid) return '<div class="inspDim">Nothing can be given here: the character is not in a zone whose prop list is in this file.</div>';
+  if (!rid) return '<div class="inspDim">Nothing can be given here; the character is not in a zone whose prop list is in this file.</div>';
   const f = (id, label, val, size) => '<label>' + label + ' <input id="gv-' + index + '-' + id + '" value="' + val + '" size="' + size + '" spellcheck="false"></label>';
   return '<div class="propEdit"><b>Give</b> ' + f('pt', 'prop type', '', 5) + f('aspect', 'aspect', 0, 3) + f('d3', 'data 0x', '0000', 5) +
     '<label>as <select id="gv-' + index + '-kind"><option value="16">a thing carried</option><option value="28">a skill or spell</option></select></label>' +
@@ -2577,7 +2577,7 @@ function giveFormHTML(index) {
 }
 function giveToCharacter(index, fields) {
   const rid = giveListFor(index);
-  if (!rid) { setStatus('Nothing can be given: the character is not in a zone whose prop list is in this file.', true); return false; }
+  if (!rid) { setStatus('Nothing can be given; the character is not in a zone whose prop list is in this file.', true); return false; }
   const records = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, rid), rid).data);
   records.push({ flags: fields.flags, x: 0, y: index, aspect: fields.aspect & 0x1F, rotated: 0, proptype: fields.proptype,
                  d3: fields.d3 || 0, storeref: 0, tail: '000000000000' });
@@ -2874,6 +2874,41 @@ function installerIcon(which) {
   return art;
 }
 
+/* The icon the Finder gives one file of the installer. It comes from the
+   bundle of the program that owns the file, which is the file's creator:
+   Cythera's for Cythera's own files, and for another program (Register
+   Cythera) the bundle in that program's own resource fork. Until 3 October
+   2026 every file took Cythera's icon for its type, so Register Cythera,
+   being an application, wore Cythera's application icon (the maintainer).
+   A file whose program is not in the installer has no icon here, rather
+   than another program's. */
+function installerEntryIcon(e) {
+  if (e.creator === 'Delv') return finderIconFor(e.type);
+  const inst = window.INSTALLER;
+  if (!inst) return null;
+  const cache = DERIVED._INSTALLER_ENTRY_ICONS || (DERIVED._INSTALLER_ENTRY_ICONS = {});
+  const key = e.creator + '/' + e.type;
+  if (key in cache) return cache[key];
+  let art = null;
+  // A folder's Icon file holds the folder's own icon, at -16455.
+  if (/\/Icon\r$/.test(e.path)) {
+    try { const got = viseExtract(inst.archive, e); if (got.rsrc && got.rsrc.length) art = iconFromFork(openResourceFork(got.rsrc), -16455); } catch (err) { quiet(err, 'a folder\u2019s icon'); }
+    return art;
+  }
+  try {
+    const owner = inst.archive.entries.find(x => x.type === 'APPL' && x.creator === e.creator && x.rsrcLen);
+    if (owner) {
+      const got = viseExtract(inst.archive, owner);
+      if (got.rsrc && got.rsrc.length) {
+        const fork = openResourceFork(got.rsrc);
+        const id = bundleIconMap(fork, 'installer:' + e.creator)[e.type];
+        if (id !== undefined) art = iconFromFork(fork, id);
+      }
+    }
+  } catch (err) { quiet(err, 'an installer file\u2019s icon'); }
+  return (cache[key] = art);
+}
+
 function renderInstallerSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -2938,9 +2973,8 @@ function renderInstallerSheet() {
     const acts = [];
     if (installerIsText(e)) acts.push('<button class="navChip" onclick="showInstallerText(' + e.index + ')">Read</button>');
     acts.push('<button class="navChip" onclick="downloadInstallerFile(' + e.index + ')">.bin</button>');
-    // The Finder's icon for the file's type, out of the application's
-    // bundle (finderIconFor); an <img> so the row is one string.
-    const ic = finderIconFor(e.type);
+    // The Finder's icon for the file, an <img> so the row is one string.
+    const ic = installerEntryIcon(e);
     tr.innerHTML = '<td class="icon">' + (ic ? '<img src="' + ic.toDataURL('image/png') + '" alt="" width="32" height="32">' : '') + '</td>' +
       '<td>' + svEsc(e.path).replace(/\r/g, '¬') + role + '</td>' +
       '<td class="num">' + svEsc(e.type.replace(/\0/g, '·')) + '</td><td class="num">' + svEsc(e.creator.replace(/\0/g, '·')) + '</td>' +
@@ -2988,7 +3022,7 @@ function renderCombatAISheet(which) {
     const rows = [];
     for (const [id, what] of lists) {
       const l = forkStringList(app, id);
-      if (l && l.length) rows.push('<tr><th>' + svEsc(what) + ' <span class="amNote">STR# ' + id + '</span></th><td>' +
+      if (l && l.length) rows.push('<tr><th>' + svEsc(what) + ' <span class="amNote aiWord">STR# ' + id + '</span></th><td>' +
         l.map(svEsc).join(', ') + '</td></tr>');
     }
     const box = document.createElement('div');
@@ -3004,7 +3038,7 @@ function renderCombatAISheet(which) {
         'It goes into one of 31 user slots, 176 to 206. The same dialog’s Debug button marks a slot, and a companion using a marked slot opens the game’s AI debugger every time it evaluates the strategy.</div>' +
         '<div class="changesNote" style="margin-left:0">The Tests list and the two Actions lists come from the program. The Scenario lists are scripts in this file' +
         (tests.length ? ': the tests ' + tests.join(' ') : '') + (actions.length ? (tests.length ? ', the actions ' : ': the actions ') + actions.join(' ') : '') +
-        '. Calling CastSpell with a spell the character does not know casts nothing, and Debug(#) only prints its number.</div>'
+        '. Calling <code class="aiWord">CastSpell</code> with a spell the character does not know casts nothing, and <code class="aiWord">Debug(#)</code> only prints its number.</div>'
       : '';
     box.innerHTML = '<div class="propHead">The Vocabulary' +
       (rows.length ? '' : (app ? '; none of the lists is in this resource fork' :

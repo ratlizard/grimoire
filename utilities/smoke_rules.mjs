@@ -58,8 +58,9 @@ try {
     else console.log('  gif: GIF89a, ' + gif.length + ' bytes for a 4x3, and a looping eight-frame one for a cycling picture');
   }
   // The ditherizer's frames: a hole with a box inside the picture, and the
-  // Seldane ramp. 0x887E's hole starts at the braid's inner edge, ring 9,
-  // read off the picture (it was a slider at 6, which cut into the braid).
+  // Seldane ramp. 0x887E's hole kept its braid to ring 9 by a rule of its
+  // own until 3 October 2026; it is its family's frame now (Ignae, Omen and
+  // Ur-Sylph compared), so the hole is one region and stays inside ring 7.
   // The ramp is the portraits' blues and cyans by lightness: a grey
   // gradient drawn on it must climb, never fall, from one end to the other.
   {
@@ -73,10 +74,10 @@ try {
     let falls = 0; for (let x = 1; x < Wg; x++) if (Y(flat[x]) < Y(flat[x - 1])) falls++;
     const used = new Set(flat).size;
     if (!(fm.box && fm.box.x0 > 2 && fm.box.y0 > 2 && fm.box.x1 < 62 && fm.box.y1 < 62 && fm.box.x1 - fm.box.x0 > 30)) fail('dither', 'the frame 0x88A2 has no sensible hole: ' + JSON.stringify(fm.box));
-    else if (!(fm2.box && fm2.box.x0 === 9 && fm2.box.x1 === 54)) fail('dither', 'the hole of 0x887E does not start at the braid’s inner edge: ' + JSON.stringify(fm2.box));
+    else if (!(fm2.box && fm2.box.x0 >= 7 && fm2.box.y0 >= 7 && fm2.box.x1 <= 56 && fm2.box.y1 <= 56 && fm2.hole[32 * 64 + 32])) fail('dither', 'the hole of 0x887E cuts into the braid: ' + JSON.stringify(fm2.box));
     else if (!(tones.includes(3) && tones.includes(11) && tones.includes(255) && !tones.includes(0) && tones.length < 30)) fail('dither', 'the Seldane ramp is not the portraits’ blues and cyans with black: ' + JSON.stringify(tones));
     else if (falls || used !== tones.length) fail('dither', 'a grey gradient on the Seldane ramp does not climb through every step: ' + falls + ' falls, ' + used + ' of ' + tones.length + ' steps');
-    else console.log('  dither: frame 0x88A2 holds a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' picture, 0x887E keeps its braid to ring 9, the Seldane ramp is ' + tones.length + ' steps and a gradient climbs through all of them');
+    else console.log('  dither: frame 0x88A2 holds a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' picture, 0x887E keeps its braid outside ring 7, the Seldane ramp is ' + tones.length + ' steps and a gradient climbs through all of them');
   }
   // The frames the portraits share (sharedPortraitFrames), as the ditherizer
   // offers them: the grape frame is exactly Ariethous's, Dares's and
@@ -96,7 +97,8 @@ try {
     for (let i = 0; i < 4096; i++) if (!fm.hole[i]) { frameN++; if (fm.frame[i] === own[i]) kept++; }
     if (!grapes || grapes.members.join() !== [0x8811, 0x882C, 0x882D].join()) fail('frames', 'the grape frame is not exactly 0x8811, 0x882C and 0x882D: ' + JSON.stringify(grapes && grapes.members));
     else if (!guards || guards.members.length !== 9) fail('frames', 'the guards\u2019 frame is not all nine: ' + JSON.stringify(guards && guards.members));
-    else if (has(0x88BC) || has(0x88A2) || has(0x887E) || has(0x88F2)) fail('frames', 'a white field or a frame with its own rule is offered as a shared frame');
+    else if (has(0x88BC) || has(0x88A2) || has(0x88F2)) fail('frames', 'a white field or a frame with its own rule is offered as a shared frame');
+    else if (!has(0x887E)) fail('frames', 'Ur-Sylph\u2019s family frame is not offered');
     else if (!(fm.box && fm.hole[32 * 64 + 32] && fm.box.x1 - fm.box.x0 > 30 && fm.box.y1 - fm.box.y0 > 30 && frameN >= 1500 && kept === frameN)) fail('frames', 'the grape frame\u2019s hole or frame is wrong: ' + JSON.stringify(fm.box) + ', ' + kept + ' of ' + frameN);
     else console.log('  frames: ' + offered.length + ' shared frames offered, the grapes\u2019 of three portraits and the guards\u2019 of nine, the white field left out; the grape frame keeps ' + frameN + ' pixels round a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' hole');
   }

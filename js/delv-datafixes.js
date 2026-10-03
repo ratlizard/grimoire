@@ -104,7 +104,7 @@ const DATA_FIX_GROUPS = [
   { id: 'text', title: 'Text' },
   // The larger changes, each a design call rather than a mended slip, in a
   // list of their own below the rest (the maintainer, 1 October 2026).
-  { id: 'design', title: 'Design Changes', note: 'These are not bug fixes: each changes how the game’s design has it behave.' },
+  { id: 'design', title: 'Design Changes', note: 'These are not bug fixes; each changes how the game’s design has it behave.' },
 ];
 
 // The text's choices, by the name their options share, as the Patches
@@ -1242,7 +1242,7 @@ const DATA_FIXES = [
      corrections someone could fairly disagree with. The lists are below the
      fixes (DATA_FIX_TEXT, DATA_FIX_COMMUNITY_TYPOS). */
 
-  { id: 'text', group: 'text', title: 'Misspellings, slips and typos in the text, with the community\u2019s list',
+  { id: 'text', group: 'text', title: 'Misspellings and typos in the text, with the community\u2019s list',
     played: 'in part: the maintainer, some lines in Land King Hall',
     parts: [
       { stage: 'text', plan: (s, ctx) => ({ textEdits: dataFixTextEdits(ctx.chosen) }) },
@@ -1361,6 +1361,33 @@ const DATA_FIXES = [
   // which nobody-corpse turns away in both. The map record wants a fifth
   // local; a function's locals are the third byte of its header, and UseOn's
   // header is at 0xA0.
+  // The radio button (tile 0x1AC, sheet 0x8E1A, tile 12 of it): DrawCheck
+  // in the program shows the tile's top-left quarter for a button not
+  // chosen and its top-right for the chosen one, and the art has a dark,
+  // empty socket at the top-left and a lit stone at the top-right. So the
+  // chosen sex in the character maker is the light one, where a Mac's
+  // chosen radio button is the filled, dark one; the maintainer found it
+  // read backwards (3 October 2026). Probably drawn so on purpose, a stone
+  // set in its socket, hence a design change. The two top quarters swap;
+  // the dimmed and pressed quarters below them stay. The check box beside
+  // it (tile 0x1AB) is drawn the usual way round and is left alone.
+  { id: 'radio-buttons', group: 'design', stage: 'apart', title: 'The chosen radio button is now the dark one, as on a Mac, instead of the light one',
+    dataEdits: [
+      { what: 'the radio button’s two top quarters', resid: 0x8E1A, fn: (b) => {
+          const col = decompressDCG(b, 32, 512), base = 12 * 1024;
+          const lum = i => { const c = PALETTE[col[i]] || '000000'; return 0.3 * parseInt(c.slice(0, 2), 16) + 0.59 * parseInt(c.slice(2, 4), 16) + 0.11 * parseInt(c.slice(4, 6), 16); };
+          let left = 0, right = 0;
+          for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { left += lum(base + y * 32 + x); right += lum(base + y * 32 + 16 + x); }
+          if (!(left < right)) throw new Error('the radio button’s top-left quarter is not the darker one; it may be swapped already');
+          for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+            const a = base + y * 32 + x, c = a + 16, t = col[a]; col[a] = col[c]; col[c] = t;
+          }
+          const out = encodeDCGLiterals(col);
+          const back = decompressDCG(out, 32, 512);
+          for (let i = 0; i < col.length; i++) if (back[i] !== col[i]) throw new Error('the sheet does not decode back');
+          return out;
+      } },
+    ] },
   { id: 'resurrection', group: 'design', stage: 'apart', title: 'Resurrection now brings the person back where the corpse lay, with their belongings and in the party, instead of nowhere until a later hour',
     // Its offsets are the shipped file's; nobody-corpse, an earlier stage,
     // inserts before them, so the plan measures where the corpse's things

@@ -981,6 +981,9 @@ function zoneAmbientLevel(resid) {
         const v = dvmNum(ops[i + 1]);
         if (v === null) continue;
         out = v;
+        // Where it was read, for the Light section's link to the line.
+        DERIVED.ZONE_AMBIENT_AT = DERIVED.ZONE_AMBIENT_AT || {};
+        DERIVED.ZONE_AMBIENT_AT[resid] = { v, resid: sid, at: ops[i + 1].at };
         break;
       }
     }
@@ -1926,7 +1929,7 @@ function drawMapMarks(lensCtx, lensTS) {
   let saveLegend = null;
   if (M.save) {
     const sb = window.SAVE_BESIDE;
-    if (!sb) saveLegend = 'no save open alongside this file: compare one under Tools';
+    if (!sb) saveLegend = 'no save open alongside this file; compare one under Tools';
     else {
       const listId = 0x8100 + cm.level;
       const sres = sb.spec.resources.find(r => r.resid === listId);
