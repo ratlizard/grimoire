@@ -2694,7 +2694,7 @@ function showInstallerText(index) {
   }
   let text;
   try { text = installerTextOf(entry); }
-  catch (e) { text = 'Could not read ' + entry.name + ': ' + e.message; }
+  catch (e) { text = 'The page could not read ' + entry.name + ': ' + e.message; }
   pre.textContent = entry.path + '\n' + '─'.repeat(Math.min(entry.path.length, 60)) + '\n' + text.replace(/\r\n?/g, '\n');
   pre.scrollIntoView({ block: 'nearest' });
 }
@@ -2707,7 +2707,7 @@ function switchInstaller(name) {
   if (!inst || !inst.raw || name === inst.picked) return;
   setStatus('Opening ' + name + '…');
   if (!adoptArchive(inst.raw, inst.sourceName, { pick: name, store: true, url: inst.url || undefined }))
-    setStatus('Could not open ' + name + ': ' + lastArchiveError, true);
+    setStatus('The page could not open ' + name + ': ' + lastArchiveError, true);
   else showCategory('INSTALLER');
 }
 /* The icon the Finder shows for a file of this type, from the owning
@@ -3022,7 +3022,7 @@ function renderCombatAISheet(which) {
     const pre = document.createElement('pre');
     pre.className = 'installerText';
     let text;
-    try { text = installerTextOf(e); } catch (err) { text = 'Could not read: ' + err.message; }
+    try { text = installerTextOf(e); } catch (err) { text = 'The page could not read it: ' + err.message; }
     pre.textContent = e.name + '\n' + '─'.repeat(Math.min(e.name.length, 60)) + '\n' + text.replace(/\r\n?/g, '\n');
     grid.appendChild(pre);
   }

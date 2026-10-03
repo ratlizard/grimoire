@@ -944,7 +944,7 @@ function renderMapResource(resid) {
     if (!result) {
       document.getElementById('mapLabel').textContent =
         '0x' + resid.toString(16).toUpperCase() + (lbl ? ' - ' + lbl : '') + '  |  (not readable as a valid map)';
-      out.textContent = "Could not render map 0x" + resid.toString(16).toUpperCase() + ": its header is not valid (the decryption went wrong, or it is not a map).";
+      out.textContent = "The page could not render map 0x" + resid.toString(16).toUpperCase() + ": its header is not valid (the decryption went wrong, or it is not a map).";
       currentResid = resid;
       return;
     }

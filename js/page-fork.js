@@ -384,7 +384,7 @@ function exportStrikeTrueType(id) {
     setStatus(family + '.ttf written: ' + (spec.ascent + spec.descent) + ' pixels to the em, ' +
               'so it draws these pixels at ' + (spec.ascent + spec.descent) + 'px and at every multiple of it.');
   } catch (err) {
-    setStatus('Could not save that size as a TrueType font: ' + err.message, true);
+    setStatus('The page could not save that size as a TrueType font: ' + err.message, true);
   }
 }
 function strikeSwapPanel() {
@@ -1045,7 +1045,7 @@ async function loadApplicationFork() {
       return window.APP_RSRC;
     } catch (e) { lastErr = e.message; }
   }
-  window.APP_RSRC_STATE = 'Could not load the program: ' + lastErr;
+  window.APP_RSRC_STATE = 'The page could not load the program: ' + lastErr;
   rerenderForkView();
   return null;
 }

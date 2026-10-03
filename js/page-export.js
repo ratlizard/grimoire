@@ -439,7 +439,7 @@ function prefsInstallScript(opts) {
     '\t\tdisplay dialog "Put ' + PREFS_FILE_NAME + ' in the Preferences folder. ' +
       'Start Cythera." buttons {"OK"} default button 1',
     '\ton error',
-    '\t\tdisplay dialog "Could not write to the Preferences folder. Drag ' +
+    '\t\tdisplay dialog "This script could not write to the Preferences folder. Drag ' +
       PREFS_FILE_NAME + ' there by hand." buttons {"OK"} default button 1',
     '\tend try',
     'end tell',
@@ -528,7 +528,7 @@ function buildInstallScript(archiveName, note) {
     '\t\tend repeat',
     '\tend repeat',
     '\tif done is false then',
-    '\t\tdisplay dialog "Could not find a folder holding a Cythera application ' +
+    '\t\tdisplay dialog "This script could not find a folder holding a Cythera application ' +
       'on any mounted disk." buttons {"OK"} default button 1',
     '\tend if',
     'end tell',
@@ -603,7 +603,7 @@ function buildEditedDiskImage() {
       ],
     });
   } catch (err) {
-    setStatus('Could not build the disk image: ' + (err && err.message ? err.message : err), true);
+    setStatus('The page could not build the disk image: ' + (err && err.message ? err.message : err), true);
     return null;
   }
   return { image: image, fileName: safeFileName(base + ' (edited)') + '.dsk',

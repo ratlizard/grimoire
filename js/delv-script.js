@@ -1091,7 +1091,7 @@ function dvmShapeSummary(b, resid) {
     if (counts.table) bits.push(plural(counts.table, 'table'));
     if (counts.data) bits.push(plural(counts.data, 'data block'));
     return bits.length ? bits.join(', ') : 'One block of undecoded data.';
-  } catch (e) { return 'Could not work out the structure.'; }
+  } catch (e) { return 'The page could not work out the structure.'; }
 }
 
 /* ---------------------------------------------------------------------------

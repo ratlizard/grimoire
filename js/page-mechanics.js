@@ -845,7 +845,7 @@ function patchesOpenBytes(bytes, name) {
   if (!base) { say('No game file is open to compare the patch with.', true); return false; }
   let got;
   try { got = extractDelverArchive(bytes); }
-  catch (e) { say('Could not open that file: ' + e.message, true); return false; }
+  catch (e) { say('The page could not open that file: ' + e.message, true); return false; }
   const patch = delverArchiveSpec(got.bytes);
   if (!patch) { say('That file is not a Delver Archive, so it is not a Magpie patch.', true); return false; }
   const report = describeDelverPatch(base, patch);
@@ -867,7 +867,7 @@ function patchesOpenFile(file) {
   if (!file) return;
   file.arrayBuffer().then(buf => { const b = new Uint8Array(buf); noteMagpieFrom(b); patchesOpenBytes(b, file.name); }).catch(e => {
     const note = document.getElementById('patchNote');
-    if (note) { note.textContent = 'Could not read that file: ' + e.message; note.className = 'mechSub patchBad'; }
+    if (note) { note.textContent = 'The page could not read that file: ' + e.message; note.className = 'mechSub patchBad'; }
   });
 }
 
@@ -906,7 +906,7 @@ function patchesApply() {
   if (!ARCHIVE) { say('No game file is open.', true); return false; }
   let merged;
   try { merged = mergeDelverPatch(ARCHIVE.bytes, bytes); }
-  catch (e) { say('Could not apply that patch: ' + e.message, true); return false; }
+  catch (e) { say('The page could not apply that patch: ' + e.message, true); return false; }
   const dirty = new Set(window.EDITED_RESIDS);
   for (const id of merged.replaced.concat(merged.added)) dirty.add(id);
   parseArchiveBytes(merged.bytes, window.ARCHIVE_SOURCE_NAME || 'archive',
@@ -1423,7 +1423,7 @@ function heroSay(m, bad) {
    patch" is the button for seeing what the patch is. */
 function heroSpriteApply() {
   let w;
-  try { w = heroSpritePatch(); } catch (e) { heroSay('Could not write the patch: ' + e.message, true); return false; }
+  try { w = heroSpritePatch(); } catch (e) { heroSay('The page could not write the patch: ' + e.message, true); return false; }
   if (!w) { heroSay('Choose something to apply first.', true); return false; }
   if (!patchesOpenBytes(w.bytes, w.name)) { heroSay('The page refused the patch.', true); return false; }
   const ok = patchesApply();
@@ -1433,7 +1433,7 @@ function heroSpriteApply() {
 
 function heroSpriteShowPatch() {
   let w;
-  try { w = heroSpritePatch(); } catch (e) { heroSay('Could not write the patch: ' + e.message, true); return false; }
+  try { w = heroSpritePatch(); } catch (e) { heroSay('The page could not write the patch: ' + e.message, true); return false; }
   if (!w) { heroSay('Choose something to read first.', true); return false; }
   const ok = patchesOpenBytes(w.bytes, w.name);
   const host = document.getElementById('patchReport');
@@ -1443,7 +1443,7 @@ function heroSpriteShowPatch() {
 
 function heroSpriteDownload(asMacBinary) {
   let w;
-  try { w = heroSpritePatch(); } catch (e) { heroSay('Could not write the patch: ' + e.message, true); return null; }
+  try { w = heroSpritePatch(); } catch (e) { heroSay('The page could not write the patch: ' + e.message, true); return null; }
   if (!w) { heroSay('Choose something to write first.', true); return null; }
   if (asMacBinary) {
     const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
@@ -1832,7 +1832,7 @@ function gremlinSay(m, bad) {
 // Apply goes through the patches section, as the sprite's does.
 function gremlinApply() {
   let w;
-  try { w = gremlinPatch(); } catch (e) { gremlinSay('Could not write the gremlin: ' + e.message, true); return false; }
+  try { w = gremlinPatch(); } catch (e) { gremlinSay('The page could not write the gremlin: ' + e.message, true); return false; }
   if (!w) { gremlinSay('No game file is open.', true); return false; }
   if (!patchesOpenBytes(w.bytes, w.name)) { gremlinSay('The page refused the patch.', true); return false; }
   const ok = patchesApply();
@@ -1846,7 +1846,7 @@ function gremlinApply() {
 }
 function gremlinShowPatch() {
   let w;
-  try { w = gremlinPatch(); } catch (e) { gremlinSay('Could not write the gremlin: ' + e.message, true); return false; }
+  try { w = gremlinPatch(); } catch (e) { gremlinSay('The page could not write the gremlin: ' + e.message, true); return false; }
   if (!w) { gremlinSay('No game file is open.', true); return false; }
   const ok = patchesOpenBytes(w.bytes, w.name);
   const host = document.getElementById('patchReport');
@@ -1855,7 +1855,7 @@ function gremlinShowPatch() {
 }
 function gremlinDownload(asMacBinary) {
   let w;
-  try { w = gremlinPatch(); } catch (e) { gremlinSay('Could not write the gremlin: ' + e.message, true); return null; }
+  try { w = gremlinPatch(); } catch (e) { gremlinSay('The page could not write the gremlin: ' + e.message, true); return null; }
   if (!w) { gremlinSay('No game file is open.', true); return null; }
   if (asMacBinary) {
     const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
@@ -2675,7 +2675,7 @@ function compareEdits() {
   if (!pristine || !ARCHIVE) { say('No file is open.', true); return false; }
   if (pristine === ARCHIVE.bytes) { say('You have not edited this file yet.', true); return false; }
   const a = compareSpecOf(pristine), b = compareSpecOf(ARCHIVE.bytes);
-  if (!a || !b) { say('Could not read that file as a Delver Archive.', true); return false; }
+  if (!a || !b) { say('The page could not read that file as a Delver Archive.', true); return false; }
   window.COMPARE_REPORT = Object.assign(describeDelverDiff(a, b),
     { aName: 'as it arrived', bName: 'as it stands', bSpec: b, kind: 'edits' });
   say('');
@@ -2693,7 +2693,7 @@ function compareOpenBytes(bytes, name) {
   if (!ARCHIVE) { say('No file is open to compare against.', true); return false; }
   let got;
   try { got = extractDelverArchive(bytes); }
-  catch (e) { say('Could not open that file: ' + e.message, true); return false; }
+  catch (e) { say('The page could not open that file: ' + e.message, true); return false; }
   const other = compareSpecOf(got.bytes);
   if (!other) { say('That file is not a Delver Archive.', true); return false; }
   const mine = compareSpecOf(ARCHIVE.bytes);
@@ -3139,7 +3139,7 @@ function compareExportPatch(asMacBinary) {
         ' bytes' + (asMacBinary ? ' in a MacBinary typed DelP/' + DELV_PATCH_CREATOR : '') +
         ', identity ' + w.uuidText +
         (w.checkValueValid ? ', check value ' + w.checkValue + ' and it verifies.' : ', and the check value does not verify.'));
-  } catch (e) { say('Could not write that patch: ' + e.message, true); }
+  } catch (e) { say('The page could not write that patch: ' + e.message, true); }
 }
 
 function renderMechanicsSheet(value) {
@@ -4530,7 +4530,7 @@ function renderMechanicsSheet(value) {
       if (!file) return;
       file.arrayBuffer().then(buf => compareOpenBytes(new Uint8Array(buf), file.name)).catch(e => {
         const note = document.getElementById('compareNote');
-        if (note) { note.textContent = 'Could not read that file: ' + e.message; note.className = 'mechSub patchBad'; }
+        if (note) { note.textContent = 'The page could not read that file: ' + e.message; note.className = 'mechSub patchBad'; }
       });
     };
     renderCompareReport();

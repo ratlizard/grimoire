@@ -582,7 +582,7 @@ function renderToolsSheet() {
       : 'Chicago, Susan Kare’s 1984 font for the Macintosh, recreated by Duane King and included with this page. ' +
         (window.GAME_FONT ? 'The game’s font is loaded; choose it under Settings.'
           : window.GAME_FONT_STATE === 'loading' ? 'The file’s font is still loading.'
-          : window.GAME_FONT_STATE ? 'Could not use the file’s font: ' + window.GAME_FONT_STATE + '.'
+          : window.GAME_FONT_STATE ? 'The page could not use the file’s font: ' + window.GAME_FONT_STATE + '.'
           : 'Open a file to use the game’s font.');
   font.appendChild(fn);
   grid.insertBefore(box, grid.firstChild);
@@ -2808,7 +2808,7 @@ function applyResourceEditFromText() {
 
 function applyResourceEdit(resid, newData) {
   const spec = delverArchiveSpec(ARCHIVE.bytes);
-  if (!spec) { setStatus('Could not read the open file again after the change, so nothing changed.', true); return false; }
+  if (!spec) { setStatus('The page could not read the open file again after the change, so nothing changed.', true); return false; }
   const entry = spec.resources.find(r => r.resid === resid);
   if (!entry) { setStatus('0x' + resid.toString(16).toUpperCase() + ' is not in the file.', true); return false; }
   if (newData.length) entry.data = newData;

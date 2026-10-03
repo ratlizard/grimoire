@@ -311,7 +311,7 @@ function switchContained(name) {
   if (!c || !c.raw || name === c.picked) return;
   setStatus('Opening ' + name + '…');
   if (!adoptArchive(c.raw, c.sourceName, { pick: name, store: true, url: c.url || undefined }))
-    setStatus('Could not open ' + name + ': ' + lastArchiveError, true);
+    setStatus('The page could not open ' + name + ': ' + lastArchiveError, true);
 }
 
 function adoptArchive(raw, sourceName, opts) {
@@ -373,7 +373,7 @@ function adoptArchive(raw, sourceName, opts) {
     const app = found.installer.archive.entries.find(e => e.type === 'APPL' && e.creator === 'Delv');
     if (app) {
       try { const both = viseExtract(found.installer.archive, app); window.APP_RSRC = openResourceFork(both.rsrc); window.APP_RSRC_RAW = both.rsrc; window.APP_DATA = both.data && both.data.length ? both.data : null; window.APP_PEF = null; window.APP_RSRC_STATE = ''; }
-      catch (e) { window.APP_RSRC = null; window.APP_RSRC_RAW = null; window.APP_DATA = null; window.APP_PEF = null; window.APP_RSRC_STATE = 'Could not open the program’s fork from the installer: ' + e.message; }
+      catch (e) { window.APP_RSRC = null; window.APP_RSRC_RAW = null; window.APP_DATA = null; window.APP_PEF = null; window.APP_RSRC_STATE = 'The page could not open the program’s fork from the installer: ' + e.message; }
       if (window.CUR_SUBN === 'MACRSRC' && window.RSRC_SOURCE === 'app') renderMacRsrcSheet();
       // The dialogue box's constants are the program's, so it is drawn
       // again now that the application is here.
@@ -877,7 +877,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     // If the hash did not take us back after all, redraw where we already
     // are rather than leaving the previous archive's view on screen.
     if (restoring && !landed) onCategoryChange();
-  } catch(err) { out.textContent = 'Archive error: ' + err.message; setStatus('Could not load archive: ' + err.message, true); }
+  } catch(err) { out.textContent = 'Archive error: ' + err.message; setStatus('The page could not load the archive: ' + err.message, true); }
 }
 
 function onCategoryChangeImpl() {

@@ -2801,7 +2801,7 @@ function downloadMapPNG() {
   // On iOS the full-size file is written a strip at a time instead (above):
   // no whole-map canvas, so no tab torn down, and the native 32 px a square.
   if (IS_IOS_WEBKIT && cm.TS < 32 && typeof CompressionStream !== 'undefined') {
-    downloadMapPNGStreamed(cm, 32, name).catch(e => { setStatus('Could not write the full-size map (' + e.message + '); saving the screen size instead.', true); downloadMapPNG._fallback = true; downloadMapPNG(); });
+    downloadMapPNGStreamed(cm, 32, name).catch(e => { setStatus('The page could not write the full-size map (' + e.message + '); saving the screen size instead.', true); downloadMapPNG._fallback = true; downloadMapPNG(); });
     if (!downloadMapPNG._fallback) return;
     downloadMapPNG._fallback = false;
   }

@@ -411,7 +411,7 @@ function sendToCanvas() {
     const st = document.createElement('canvas'); st.width = canvas.width; st.height = canvas.height;
     st.getContext('2d').drawImage(canvas, 0, 0);
     localStorage.setItem('grimoire.handoff', JSON.stringify({ resid, subn: window.CUR_SUBN, name: labelFor(resid) || ('0x' + resid.toString(16).toUpperCase()), png: st.toDataURL('image/png'), at: Date.now() }));
-  } catch (e) { setStatus('Could not hand the picture over: ' + e.message, true); return; }
+  } catch (e) { setStatus('The page could not hand the picture over: ' + e.message, true); return; }
   window.open('canvas.html', 'colorcyclecanvas');
 }
 function receiveFromCanvas() {

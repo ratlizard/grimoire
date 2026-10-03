@@ -2173,7 +2173,7 @@ function showItemDetail(pt) {
   {
     const host = document.createElement('div');
     fold('word', 'Prop record', propWordHex(pt) + ' at aspect 0, Data1 and Data2', host);
-    try { propWordMount(pt, host); } catch (e) { host.className = 'sv-note'; host.textContent = 'Could not read the prop record: ' + (e && e.message ? e.message : e); }
+    try { propWordMount(pt, host); } catch (e) { host.className = 'sv-note'; host.textContent = 'The page could not read the prop record: ' + (e && e.message ? e.message : e); }
   }
   const strangers = runs.filter(r => r.name !== terrainNameFor(base));
   if (strangers.length) {
