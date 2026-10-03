@@ -18,9 +18,10 @@ either in return.
 copyright Ambrosia Software, Inc.: the license shipped with it says
 "Cythera™ is Copyright ©1993-9 by Ambrosia Software, Inc.", and the
 program's version resource says "1.0.4 by Glenn Andreas". The
-game, its data, its installers, its documentation and everything shipped with
-it are **not** in this repository, are not distributed with it, and never will
-be. Nothing here is derived from a license to redistribute the game.
+game's program, its data file, its installers and its documentation are
+**not** in this repository and are not distributed with it. Nothing here is
+derived from a license to redistribute the game. A few pieces of it are here,
+listed under *What of the game's is here* below.
 
 **What the page fetches, and on whose say-so.** The pages read a copy of the
 game that you supply — dropped on the page, picked from disk, served beside
@@ -42,6 +43,30 @@ installer instead, and says so on the same screen, so that what passes between
 archive.org and your browser is the whole work and not a piece of it. That is
 a condition of Ambrosia's terms as written, not a preference about file
 formats.
+
+**What of the game's is here.** These are Ambrosia's, not ours, and the
+license above does not cover them:
+
+- **`canvas.html`**, the color-cycling canvas, carries five of the game's
+  pictures as indexed pixels, deflated and base64-encoded, so the page can
+  run from a file with no game open: Alaric's portrait (`0x8701`, as
+  `ALARIC_Z`); general graphics `0x8F00` and `0x8F03` (`GFX8F00_Z`,
+  `GFX8F03_Z`), two of its example scenes; the giant slug (prop type 208,
+  eight frames from tile sheet `0x8E58`, `SLUG_Z`); and the hydra polyp
+  (prop type 277, four frames from tile sheet `0x8E7D`, `POLYP_Z`). It also
+  carries the game's 256-color table (`PALETTE`). The cave scene is
+  generated, not taken from the game.
+- **`js/delv-graphics.js`** carries the same 256-color table (`PALETTE`) and
+  the five ranges the game cycles in it (`PALETTE_CYCLES`), which the page
+  draws every picture through.
+- **Short quotations of the game's text**: the lines and words the fixes in
+  `js/delv-datafixes.js` and `js/delv-appfixes.js` look for, and quoted in
+  their titles; and the lines the page's own descriptions quote.
+
+Everything else the pages show is read from the copy of the game you open.
+`js/delv-es.js`, the Spanish, holds Spanish only, keyed by a hash of each
+English line, and the program's routine names are read out of the program
+itself.
 
 **Nothing of the game's is in `res/`.** Until 17 September 2026 the directory
 held three files taken out of the game: a plank tile, a capture of the
