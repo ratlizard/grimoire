@@ -4208,7 +4208,7 @@ function renderMechanicsSheet(value) {
     const pz = puzzleRules();
     const bz = pz.braziers, bu = pz.buttons;
     // One accumulator per section now, where a single `html` held all five.
-    let braziersHtml = '', buttonsHtml = '', riddlesHtml = '', tunesHtml = '', signalsHtml = '';
+    let braziersHtml = '', buttonsHtml = '', riddlesHtml = '', bellsHtml = '', musicLocksHtml = '', signalsHtml = '';
     if (bz) braziersHtml += '<ul class="ruleList">' +
       '<li>Light them in order. A wrong one sends ' + srcNum(bz.state, 'the count') + ' back to the start.</li>' +
       (bz.last ? '<li>Lighting the last, number ' + srcNum(bz.last) + ', prints this line and makes the screen flicker:</li>' : '') +
@@ -4251,7 +4251,7 @@ function renderMechanicsSheet(value) {
     const tu = pz.tunes;
     if (tu && tu.bells) {
       const bl = tu.bells;
-      tunesHtml += '<div class="partsTitle">The bells, and the orders they are rung in</div>' +
+      bellsHtml += '<div class="partsTitle">The bells, and the orders they are rung in</div>' +
         '<ul class="ruleList"><li>' + srcNum(bl.base, 'Only the last four rings count') + ', so after a wrong ring just carry on.</li></ul>' +
         (bl.bells.length ? table(['#bell', 'square'], bl.bells.map(b =>
           '<tr>' + num(b.number) + '<td>' + b.x + ', ' + b.y + '</td></tr>')) : '') +
@@ -4259,7 +4259,7 @@ function renderMechanicsSheet(value) {
           '<tr><td>' + o.rings.join(', ') + '</td>' + srcCell(o.signal) + '</tr>'));
     }
     if (tu && tu.instruments.length) {
-      tunesHtml += '<div class="partsTitle">The music locks</div>' +
+      musicLocksHtml += '<div class="partsTitle">The music locks</div>' +
         table(['instrument', 'can play', 'the tune it takes', '#signals', 'given by'],
           tu.instruments.map(it => '<tr><td>' + svChip(it.resid, it.what) + '</td>' +
             '<td class="mechSub">' + svEsc(it.lists.map(l => l.spelled).join('  and  ')) + '</td>' +
@@ -4298,11 +4298,21 @@ function renderMechanicsSheet(value) {
     if (ri && ri.buttons.length) add('riddles', 'The Riddles', null, src('the riddles', 0x1110),
       'Five riddles, each answered by typing a word.',
       [], riddlesHtml);
-    if (tu && (tu.bells || tu.instruments.length)) add('tunes', 'The Bells and the Music Locks', null,
-      (tu.bells ? src('the bells', 0x10C1) : '') +
-      (tu.instruments.length ? tu.instruments.map(it => src(it.what, it.resid)).join('') : ''),
-      'The tune each one needs, and the signal it sends.',
-      [], tunesHtml);
+    /* The sections run in the order a player meets the puzzles, by the
+       Hintbook's walkthrough (the maintainer, 3 October 2026): the braziers
+       in Land King Hall, where the game starts; the buttons and then the
+       riddles in Maayti, for the third part of the Crolna; the music lock
+       in House Comana, after the fourth; and the bells and the strange
+       device in the Tyrant's Tomb, which the Hintbook leaves to the end.
+       The bells and the music locks were one section until then, which put
+       the Tomb's bells before House Comana. */
+    if (tu && tu.instruments.length) add('musiclocks', 'The Music Locks', null,
+      tu.instruments.map(it => src(it.what, it.resid)).join(''),
+      'The tune each lock needs, and the signal it sends.',
+      [], musicLocksHtml);
+    if (tu && tu.bells) add('bells', 'The Bells', null, src('the bells', 0x10C1),
+      (tu.bells.bells.length ? tu.bells.bells.length + ' bells' : 'Bells') + ', rung in the right order.',
+      [], bellsHtml);
     // The strange device (thinkADotRules): its rule, the three patterns, the
     // doors they open and the fewest presses to each, all read off 0x1175.
     const td = (function () { try { return thinkADotRules(); } catch (e) { quiet(e); return null; } })();
