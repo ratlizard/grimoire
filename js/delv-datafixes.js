@@ -781,6 +781,7 @@ const DATA_FIXES = [
   // carries the automap's seen bit, which it masks off (word 0x7FFF,
   // bitwise_and) before testing for deep water.
   { id: 'fishing', group: 'rules', stage: 'bugfix', by: 'Bryce Schroeder', title: 'Fishing now finds deep water on squares already seen, instead of only on unseen ones',
+    played: 'fork, 3 October 2026: cast at deep water beside (206,40) on the world map, a fish caught, against "You need to cast into deep water." unpatched',
     edits: [
       { what: 'fishing', resid: 0x1091, at: 0x00C7, expect: { 0x00C3: 'sys GetMapTile', 0x00C7: 'end' },
         code: `word 0x7FFF\nbitwise_and` },
