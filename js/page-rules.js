@@ -3571,16 +3571,20 @@ function deletedAcrossZoneChange() {
 }
 
 /* stateNoSaveKeeps: a word a script writes into a script resource with
-   write_far_word, and the scripts that read it back. A saved game holds the
-   To Do list, the macros, the live game, each visited zone's things and map
-   memory, the portrait, the character records and the script heap, and no
-   script resource: two saves made from a new game hold none (checked
-   17 September 2026 against the playthrough kit's). So such a word is
-   whatever the last game to write it wrote. Creating the hero writes the
-   hero's gender to word 0x10 of resource 0x0500, which is the board's "If you
-   start a game as a male, then start another game as a female, and go back
-   to the male-character game, NPCs will refer to you as 'she'"; the inns
-   write the room paid for to word 0x16 of 0x0301, which a bed checks. */
+   write_far_word, and the scripts that read it back, when the write is made
+   before the game has a file of its own. The interpreter writes a script
+   resource it has changed back into the player file (TInterp::DoInterpAt,
+   the only SaveEncryptedSegment caller), so a word written in play is kept:
+   the inns' room paid for, word 0x16 of 0x0301, was listed here from
+   17 September 2026, and on 3 October 2026 a room paid for at Crito's inn
+   in the fork came back with the save (the word 1, and his bed offering
+   sleep, where the same save unpaid answered "You need to pay the innkeeper
+   first."). Creating the hero, the hero's script (0x1801), is the one place
+   a write lands before the game's file exists: the hero's gender, word 0x10
+   of resource 0x0500, which is the board's "If you start a game as a male,
+   then start another game as a female, and go back to the male-character
+   game, NPCs will refer to you as 'she'". So a word is listed when only the
+   hero's script writes it. */
 function stateNoSaveKeeps() {
   const words = new Map();
   for (const e of buildScriptTextIndex()) {
@@ -3593,7 +3597,7 @@ function stateNoSaveKeeps() {
       words.get(w)[m[1].toLowerCase() === 'write' ? 'writers' : 'readers'].push({ resid: e.resid, at: o.at });
     }
   }
-  return [...words.values()].filter(w => w.writers.length && w.readers.length);
+  return [...words.values()].filter(w => w.writers.length && w.readers.length && w.writers.every(x => x.resid === 0x1801));
 }
 
 /* leaveNeverLeaves: a character who can join the party, answers "leave",

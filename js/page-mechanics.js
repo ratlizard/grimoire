@@ -3923,7 +3923,7 @@ function renderMechanicsSheet(value) {
     }
     for (const w of stateNoSaveKeeps()) rows.push('<tr><td>a value no saved game keeps</td><td>' + where(w.writers) + ' write' + (w.writers.length === 1 ? 's' : '') +
       ' word 0x' + w.offset.toString(16).toUpperCase() + ' of resource 0x' + w.resource.toString(16).toUpperCase().padStart(4, '0') + ', and ' + w.readers.length + ' place' + (w.readers.length === 1 ? ' reads' : 's read') +
-      ' it back. A saved game does not store script resources, so the value is whatever any game last wrote, not the value belonging to the loaded game.</td><td>' + where(w.readers) + '</td></tr>');
+      ' it back. It is written while the hero is created, before the game has a saved file, so a saved game does not keep it, and the value is whatever the last hero created wrote.</td><td>' + where(w.readers) + '</td></tr>');
     for (const d of deletedAcrossZoneChange()) {
       const item = svEsc(propDisplayName(d.pt) || ('prop ' + d.pt));
       rows.push('<tr><td>a delete after the zone has changed</td><td>Using a ' + item + ' of ' + where([{ resid: d.skill, at: d.skillAt }]) +
