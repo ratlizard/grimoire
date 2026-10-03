@@ -374,7 +374,12 @@ of its PowerPC code with the address of the instruction (`exeOpsNamed`,
 `exeFind`, `exeVal`), printed with `srcNum`, which then opens the routine
 listed with that instruction ringed (`jumpToExeAt`); a reader matches the
 shape of the instructions, never an address. With no application open the
-section says where its figures come from and states none. A listing
+section says where its figures come from and states none. **A count of things
+links to the things** (the maintainer, 2 October 2026): `searchFor(q)` when
+a search finds exactly them ("49 spells" is `call_resource CastSpell`),
+`countLink(label, title, chips)` otherwise, checked in a browser to list as
+many as it says. A count printed beside the list it counts (a table's
+caption, a fold's gist) needs no link. A listing
 line's offset counts from its object's start, not the resource's, which
 `dvmOpsOf` corrects. The smoke's `file figures` block pins the scripts'
 half and its `program figures` and `program keys` blocks the program's.

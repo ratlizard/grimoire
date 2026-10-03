@@ -123,7 +123,7 @@ function spellsMechSection() {
 function skillsMechSection() {
   const sk = skillConsultations();
   return mechSectionEl('skills', 'What Each Skill Is Asked About', null, '',
-    sk.by.size ? 'Which scripts check for each skill.' + (sk.generic ? ' ' + sk.generic + ' more checks are in shared scripts that work for any skill.' : '') : 'No script in this file asks about a skill by name.',
+    sk.by.size ? 'Which scripts check for each skill.' + (sk.generic ? ' ' + countLink(sk.generic + ' more checks', 'The ' + sk.genericIn.size + ' shared scripts that hold ' + sk.generic + ' checks of whichever skill they are given', resChips(sk.genericIn)) + ' are in shared scripts that work for any skill.' : '') : 'No script in this file asks about a skill by name.',
     [], mechSkillsFigure(sk) + mechTable(['skill', 'asked about by'], [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
       '<tr><td>' + (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16).toUpperCase()), 0x1A00 + id) : 'skill 0x' + id.toString(16).toUpperCase()) +
       '</td><td>' + [...resids].sort((a, b) => a - b).map(r => svChip(r)).join(' ') + '</td></tr>')), '');
@@ -159,7 +159,8 @@ function libraryMechSection(lib) {
         : 'No class in this file shows a document.',
     lib ? [
       '<b>' + passages + ' passages</b> across <b>' + lib.length + ' arrays</b>, shown by ' + [...new Set(lib.flatMap(d => d.readers.map(r => r.name)))].join(', ') + '.',
-      unshown.length ? '<b>' + unshown.length + ' appear nowhere in play</b>: no prop in the world and no script points to them. They exist in the file, but you cannot read them.' : '',
+      unshown.length ? '<b>' + countLink(String(unshown.length), 'The ' + unshown.length + ' passages that appear nowhere in play',
+        unshown.map(u => svLink(String(u.e.str).trim().replace(/\s+/g, ' ').slice(0, 48) + (String(u.e.str).trim().length > 48 ? '…' : ''), 'jumpToResource(' + u.d.resid + ')', '0x' + u.d.resid.toString(16).toUpperCase() + ' ' + u.e.index))) + ' appear nowhere in play</b>: no prop in the world and no script points to them. They exist in the file, but you cannot read them.' : '',
       dangling.length ? '<b>' + dangling.length + '</b> are the other way round: a thing in the world whose Data1 points to no passage.' : ''
     ].filter(Boolean) : [],
     mechTable(['#passages', 'array', 'shown by', '#shown', '#not shown'], rows) +

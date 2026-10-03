@@ -1220,20 +1220,20 @@ function fieldReadersHTML(key, cap) {
 function classFlagBits() {
   const tiles = getPropTileList();
   const bits = new Map();
-  let classes = 0;
+  let classes = 0; const carriers = [];
   for (let pt = 0; pt < tiles.length; pt++) {
     if (tiles[pt] === undefined) continue;
     const cls = parseItemClass(pt);
     const f = cls && cls.data.find(x => x.key === 39);
     if (!f || f.words.length !== 1 || (f.words[0] & 0xF0000000)) continue;
-    classes++;
+    classes++; carriers.push(pt);
     const w = f.words[0] & 0x0FFFFFFF;
     for (let b = 1; b <= 0x8000; b <<= 1) if (w & b) {
       if (!bits.has(b)) bits.set(b, []);
       bits.get(b).push({ pt, resid: cls.resid, at: f.off, word: w });
     }
   }
-  return { classes, bits: [...bits.entries()].sort((a, b) => a[0] - b[0]).map(([bit, who]) => ({ bit, who })) };
+  return { classes, carriers, bits: [...bits.entries()].sort((a, b) => a[0] - b[0]).map(([bit, who]) => ({ bit, who })) };
 }
 
 /* The letter under a key (the maintainer, 23 September 2026: in the game
@@ -1530,9 +1530,9 @@ function propWordRules() {
   // Which class scripts read or write the bytes; which hand Data3 to
   // ChangeZone; and which report Data1 in Examine, with the two lines.
   const readers = [], examines = [], zoneReaders = [];
-  let scripts = 0;
+  let scripts = 0; const scriptIds = [];
   for (const e of idx) {
-    if (/(get|set)_field data[123] /.test(e.text)) scripts++;
+    if (/(get|set)_field data[123] /.test(e.text)) { scripts++; scriptIds.push(e.resid); }
     if (e.resid < 0x1000 || e.resid >= 0x1400) continue;
     const ops = new Set();
     for (const m of e.text.matchAll(/(get|set)_field (data[123]) /g)) ops.add(m[1] + ' ' + m[2]);
@@ -1580,7 +1580,7 @@ function propWordRules() {
   // sentence it feeds is about the enchantment. It was told apart by the
   // number in the inner test, `byte 0x02`, until 11 September 2026.
   const weaponExamines = examines.filter(x => melee.has(x.pt) && x.hiVal && x.loVal);
-  return (DERIVED.PROP_WORD_RULES = { ench, readers, examines: weaponExamines, zoneReaders, scripts, placed, ammo, melee });
+  return (DERIVED.PROP_WORD_RULES = { ench, readers, examines: weaponExamines, zoneReaders, scripts, scriptIds, placed, ammo, melee });
 }
 // The ops of one reader in words: "reads Data1, Data3, writes Data1".
 function propWordOps(ops) {

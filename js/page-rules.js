@@ -872,6 +872,7 @@ function gearTable() {
    script is 0x1A00 + n, which is where its name comes from. */
 function skillConsultations() {
   const by = new Map(); let generic = 0;
+  const genericIn = new Set();   // the scripts those checks are in, for the count's list
   for (const e of buildScriptTextIndex()) {
     const lines = e.text.split('\n');
     for (let i = 0; i < lines.length; i++) {
@@ -880,13 +881,13 @@ function skillConsultations() {
       // and did so in hex before. Matching one alone would quietly stop
       // finding skills the day the other is used.
       const m = /short (?:0x([0-9A-F]{4})|(\d+))\b/i.exec((lines[i + 1] || '') + ' ' + (lines[i + 2] || ''));
-      if (!m) { generic++; continue; }
+      if (!m) { generic++; genericIn.add(e.resid); continue; }
       const id = m[1] !== undefined ? parseInt(m[1], 16) : parseInt(m[2], 10);
       if (!by.has(id)) by.set(id, new Set());
       by.get(id).add(e.resid);
     }
   }
-  return { by, generic };
+  return { by, generic, genericIn };
 }
 
 /* KARMA. A global the scripts add to and subtract from, read here as
@@ -2468,9 +2469,10 @@ function eggKinds() {
   // a room number has a script at 0x1B00 + it. Anything else would mean the
   // kind has been read wrongly, so the sheet says how many resolve.
   const rooms = kinds.get(8);
-  const named = rooms ? [...rooms.args].filter(a => refExists(0x1B00 + a)).length : 0;
+  const scripted = rooms ? [...rooms.args].filter(a => refExists(0x1B00 + a)).map(a => 0x1B00 + a) : [];
+  const named = scripted.length;
   return { kinds: [...kinds.values()].sort((a, b) => a.kind - b.kind), zones, roofs,
-           rooms: rooms ? { total: rooms.args.size, named } : null,
+           rooms: rooms ? { total: rooms.args.size, named, scripted } : null,
            hatch: [...hatch.values()].sort((a, b) => b.n - a.n || a.proptype - b.proptype),
            emptyEggs };
 }

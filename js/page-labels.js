@@ -212,7 +212,7 @@ const RSRC_KINDS = [
     note: 'What the map editor kept in the data file: stamps and brushes (under Composites), three saved game states (MSta), its tile names, the color cycles and the ResEdit templates. The displacement filters (FILT) belong to the game and have their own cards. The game reads none of the rest, so these are guesses: MSta holds quest states (Plague Cured is quest value 2 at 10), DATA 260 is an earlier list of tile names, DATA 261 is the color-cycling ramps, and PORT 0 and 1 have no structure this page could find.',
     view: 'RSRC' },
   { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
-    note: 'What the program reads about itself: the 25 light cones, the Delver engine’s help pages, the preference defaults, the version records and the program’s code. How much memory it asks for is in SIZE.',
+    note: 'What the program reads about itself: the light cones, the Delver engine’s help pages, the preference defaults, the version records and the program’s code. How much memory it asks for is in SIZE.',
     view: null }
 ];
 const RSRC_KIND_OF = new Map();

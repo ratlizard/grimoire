@@ -1399,6 +1399,36 @@ function searchFor(q) {
     try { window.scrollTo(0, 0); } catch (e) { quiet(e); }
   }, 0);
 }
+/* A count in a sentence that opens the things it counted, when no search
+   query finds exactly them ("127 characters have alignment 0"). The caller
+   hands over the chips, one per thing; the link opens the search panel on
+   that list, titled with the sentence's own words. Kept by title and size,
+   so a sheet drawn again reuses its entry rather than adding one. */
+window.COUNT_LISTS = window.COUNT_LISTS || [];
+function countLink(label, title, chips) {
+  if (!chips || !chips.length) return svEsc(label);
+  let id = COUNT_LISTS.findIndex(c => c.title === title && c.chips.length === chips.length);
+  if (id < 0) id = COUNT_LISTS.push({ title, chips }) - 1;
+  else COUNT_LISTS[id].chips = chips;
+  return svLink(label, 'showCountList(' + id + ')');
+}
+// One chip per resource, named as the rest of the site names it.
+function resChips(resids) {
+  return [...resids].sort((a, b) => a - b).map(r => relChip({ resid: r, main: labelFor(r) || selfNameFor(r) || ('0x' + r.toString(16).toUpperCase()), title: trailForResid(r) }));
+}
+function showCountList(id) {
+  const c = COUNT_LISTS[id];
+  if (!c) return;
+  setTimeout(() => {
+    closeTopPanels();
+    openSearch();
+    const box = document.getElementById('searchBox');
+    if (box) box.value = '';
+    const host = document.getElementById('searchResults');
+    if (host) host.innerHTML = '<div class="sv-note">' + svEsc(c.title) + '</div><div class="partsStrip">' + c.chips.join('') + '</div>';
+    try { window.scrollTo(0, 0); } catch (e) { quiet(e); }
+  }, 0);
+}
 function closeSearch() {
   const w = document.getElementById('searchWrap');
   if (w) w.style.display = 'none';

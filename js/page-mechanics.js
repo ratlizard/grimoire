@@ -341,7 +341,9 @@ function combatBodyUnitsText(bit) {
   const all = parseMonsterStats().filter(m => m && !m.blank).length;
   let hero = null;
   try { const c = loadCharacterTable()[1]; hero = c ? parseMonsterStats().find(m => m && !m.blank && m.proptype === c.proptype) : null; } catch (e) { quiet(e, 'the hero’s unit'); }
-  return ' (' + units.length + ' of the ' + all + ' units' + (hero ? (units.includes(hero) ? ', the hero’s among them' : ', not the hero’s') : '') + ')';
+  const ms = parseMonsterStats();
+  const chips = units.map(m => { const k = ms.indexOf(m); return svLink(propDisplayName(m.proptype) || ('unit ' + k), 'showMonsterDetail(' + k + ')'); });
+  return ' (' + countLink(String(units.length), 'The ' + units.length + ' units that fight with their body', chips) + ' of the ' + all + ' units' + (hero ? (units.includes(hero) ? ', the hero’s among them' : ', not the hero’s') : '') + ')';
 }
 // How many values the attack routine's body roll takes: Random(0, (body - 12)
 // / 4 + 1), the 12, the 4 and the 1 read off 0xE90 and 0x3042, the division
@@ -3263,7 +3265,7 @@ function renderMechanicsSheet(value) {
     const listStrength = rs => rs.map(r => nm(r) + ' ' + srcNum(r.strength)).join(', ');
     const q = s => s ? ' (“' + svEsc(s) + '”)' : '';
     add('damage', 'Damage to Things', null, src('a blow', 0xE87) + src('a door', 0xE49) + src('a chest', 0xE4A),
-      rows.length ? rows.length + ' kinds of thing, doors and chests among them, take damage by separate rules.'
+      rows.length ? countLink(rows.length + ' kinds of thing', 'The ' + rows.length + ' kinds of thing that take damage by separate rules', rows.map(nm)) + ', doors and chests among them, take damage by separate rules.'
                   : 'No item class in this file takes damage by a separate rule.',
       rows.length ? [
         oneTable ? typed.map(nm).join(', ') + ' take ' +
@@ -3329,8 +3331,8 @@ function renderMechanicsSheet(value) {
       pw.ench && pw.ench.guarded && pw.ench.added ? '<b>Data1 on a melee weapon is its enchantment</b>, added to the damage of every blow' +
         (pw.ench.magic ? '. <b>Any enchantment makes a blow magical</b>, which gets past monsters that resist ordinary weapons' : '') + '. Arrows and other ammunition ignore it.' : '',
       pwEx && pwEx.hiVal && pwEx.loVal ? 'Examine reports it on ' + pw.examines.map(e => pwName(e.pt)).join(', ') + ': “' + svEsc(pwEx.above2) + '” above ' + srcNum(pwEx.hiVal) + ', “' + svEsc(pwEx.above0) + '” above ' + srcNum(pwEx.loVal) + '.' : '',
-      pw.zoneReaders.length ? '<b>Data3</b> is both bytes read as one value; ' + pw.zoneReaders.length + ' passage classes pass it to ChangeZone as the destination.' : '',
-      pw.scripts ? '<b>' + pw.scripts + ' scripts</b> read or write the bytes, ' + pw.readers.length + ' of them class scripts. What each byte means depends on the class.' : 'No script in this file reads the bytes.'
+      pw.zoneReaders.length ? '<b>Data3</b> is both bytes read as one value; ' + countLink(pw.zoneReaders.length + ' passage classes', 'The ' + pw.zoneReaders.length + ' passage classes that pass Data3 to ChangeZone', pw.zoneReaders.map(pt => svLink(pwName(pt), 'showPropTypeDetail(' + pt + ')'))) + ' pass it to ChangeZone as the destination.' : '',
+      pw.scripts ? '<b>' + countLink(pw.scripts + ' scripts', 'The ' + pw.scripts + ' scripts that read or write Data1, Data2 or Data3', resChips(pw.scriptIds)) + '</b> read or write the bytes, ' + countLink(String(pw.readers.length), 'The ' + pw.readers.length + ' class scripts that read or write Data1, Data2 or Data3', resChips(pw.readers.map(r => r.resid))) + ' of them class scripts. What each byte means depends on the class.' : 'No script in this file reads the bytes.'
     ].filter(Boolean),
     (pw.placed.length ? '<div class="mechSub">Placed with an enchantment</div>' +
       table(['item', 'where', '#aspect', '#Data1'], pw.placed.map(r => '<tr><td>' + svLink(pwName(r.pt), 'showItemDetail(' + r.pt + ')') + '</td><td>' +
@@ -3407,7 +3409,7 @@ function renderMechanicsSheet(value) {
         if (!zero.length || delta0 === undefined) return '';
         const others = [...by.keys()].filter(a => a !== 0).sort((a, b) => a - b)
           .map(a => by.get(a).map(i => chipOf(i) || svEsc(characterName(i))).join(' ') + ' ' + (by.get(a).length === 1 ? 'has' : 'have') + ' ' + a);
-        return '<b>' + zero.length + ' characters have alignment 0</b>, every townsperson among them' + (others.length ? ', while ' + others.join(' and ') : '') +
+        return '<b>' + countLink(zero.length + ' characters', 'The ' + zero.length + ' characters with alignment 0', zero.map(i => chipOf(i) || svLink(characterName(i), 'showCharacterDetail(' + i + ')'))) + ' have alignment 0</b>, every townsperson among them' + (others.length ? ', while ' + others.join(' and ') : '') +
           ', so <b>killing a townsperson ' + (delta0 > 0 ? 'raises karma by ' + delta0 : delta0 < 0 ? 'lowers karma by ' + (-delta0) : 'leaves karma unchanged') + '</b>.';
       })() : '',
       km.reads.length ? 'The scripts check it <b>' + km.reads.filter((r, i, a) => a.findIndex(x => x.test === r.test) === i).map(r => (r.below ? 'below ' : 'above ') + srcNum(r.val, r.n)).join('</b> and <b>') + '</b>.' : ''
@@ -3666,11 +3668,12 @@ function renderMechanicsSheet(value) {
     const lists = [[9304, 'Tests'], [9305, 'Actions'], [9303, 'Modifiers'], [9307, 'Scenario tests'], [9308, 'Scenario actions'], [9320, 'Health states'], [502, 'Strategies']];
     const rows = [];
     if (app) for (const [id, what] of lists) { const l = forkStringList(app, id); if (l && l.length) rows.push('<tr><td>' + svEsc(what) + '</td><td>' + l.map(svEsc).join(', ') + '</td></tr>'); }
-    const tests = buildScriptTextIndex().filter(e => e.resid >= 0x901 && e.resid < 0x981).length, acts = buildScriptTextIndex().filter(e => e.resid >= 0x981 && e.resid < 0xA00).length;
+    const testIds = buildScriptTextIndex().filter(e => e.resid >= 0x901 && e.resid < 0x981).map(e => e.resid), actIds = buildScriptTextIndex().filter(e => e.resid >= 0x981 && e.resid < 0xA00).map(e => e.resid);
+    const tests = testIds.length, acts = actIds.length;
     add('combatai', 'Combat AI', null, '',
       'Monsters fight by scripts written in a small set of words: tests about the battle, actions to take, and strategies that choose between them.',
       [
-        (tests || acts) ? 'This file adds <b>' + tests + ' tests</b> and <b>' + acts + ' actions</b>.' : '',
+        (tests || acts) ? 'This file adds <b>' + countLink(tests + ' tests', 'The ' + tests + ' combat AI tests this file adds', resChips(testIds)) + '</b> and <b>' + countLink(acts + ' actions', 'The ' + acts + ' combat AI actions this file adds', resChips(actIds)) + '</b>.' : '',
         'The scripts and the guide to writing them, the AI Scripting Document, come with the game. Both are under Data › Combat AI when the installer is open.'
       ].filter(Boolean),
       rows.length ? table(['list', 'words'], rows) : '<div class="sv-note">' + (app ? 'None of the lists is in this resource fork.' : 'Open the game from its installer, under Settings, to read the vocabulary from the program.') + '</div>',
@@ -3767,7 +3770,7 @@ function renderMechanicsSheet(value) {
       (t.key === 34 && seat ? '<br><span class="mechSub" style="display:inline">which seats a ' + srcNum(seat.facings, seat.facings.v + '-way') + ' sprite standing on it: a value of 0 uses the seat’s aspect as the direction faced, and ' + srcNum(seat.ownAspect, 'column three') + ' as the pose; 1 to 4 are frames ' + seat.fixed.map(f => srcNum(f, String(f.v))).join(', ') + ', north, east, south, west</span>' : '') +
       (t.key === 55 && seat ? '<br><span class="mechSub" style="display:inline">its first value is the number of directions the sprite can face; the seating check requires ' + srcNum(seat.facings, String(seat.facings.v)) + '</span>' : '') + '</td></tr>'; }) : [];
     add('classflags', 'Class Flags', null, '',
-      'On/off switches on a kind of thing, such as a door, a key or a chair, that only the program reads. ' + cb.classes + ' classes carry them; an item’s page shows them under Class data.',
+      'On/off switches on a kind of thing, such as a door, a key or a chair, that only the program reads. ' + countLink(cb.classes + ' classes', 'The ' + cb.classes + ' classes that carry class flags', cb.carriers.map(pt => svLink(propDisplayName(pt) || ('prop 0x' + pt.toString(16).toUpperCase()), (isInventoryItem(pt) ? 'showItemDetail(' : 'showPropTypeDetail(') + pt + ')'))) + ' carry them; an item’s page shows them under Class data.',
       [
         ic ? (() => {
           const bitRef = m => (ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === m) || { cacheBit: null }).cacheBit;
@@ -3834,7 +3837,7 @@ function renderMechanicsSheet(value) {
          : 'No zone list in this file places an egg.',
       eg ? [
         '<b>' + eg.kinds.reduce((n, k) => n + k.n, 0) + ' eggs</b> across <b>' + eg.zones + ' zones</b>, of <b>' + eg.kinds.length + ' kinds</b>.',
-        eg.rooms ? 'A room is a kind-8 egg, its argument the room number. <b>' + eg.rooms.named + ' of the ' + eg.rooms.total + '</b> rooms have a script, 0x1B00 plus the number.' : '',
+        eg.rooms ? 'A room is a kind-8 egg, its argument the room number. <b>' + countLink(String(eg.rooms.named), 'The ' + eg.rooms.named + ' room scripts', resChips(eg.rooms.scripted)) + ' of the ' + eg.rooms.total + '</b> rooms have a script, 0x1B00 plus the number.' : '',
         'A kind-3 egg plays an <b>ambient sound</b>, sound 0x9100 plus its argument.',
         'A kind-0 egg hatches the records inside it. The chance is <b>Data2 plus one in a hundred</b>, and Data1 limits it to the day (0x10), the night (0x20) or once only (0x01).',
         '<b>A kind-0 egg’s argument says nothing about what hatches</b>: all thirteen of Odemia’s eggs have 0xE4, whether they hold a chicken, a goat or a guard.',
