@@ -1708,7 +1708,11 @@ const DATA_FIX_TEXT = [
   ].map(e => Object.assign(e, { opt: 'text-hyphens' })),
   // Helen's "wearly looking": the misspelling is a fix, the hyphen an option.
   dataFixT('Helen, "wearly"', 0x1858, 'wearly looking', 'weary looking', 1),
-  Object.assign(dataFixT('Helen, "weary looking"', 0x1858, 'weary looking', 'weary-looking', 1), { opt: 'text-hyphens' }),
+  // The hyphen finds "weary looking" only once the text's "wearly" is mended;
+  // chosen without the text it hyphenates the line as the game has it
+  // (3 October 2026: chosen alone it stopped the build, "found 0 times").
+  Object.assign(dataFixT('Helen, "weary looking"', 0x1858, 'weary looking', 'weary-looking', 1), { opt: 'text-hyphens', withText: true }),
+  Object.assign(dataFixT('Helen, "wearly looking"', 0x1858, 'wearly looking', 'wearly-looking', 1), { opt: 'text-hyphens', withText: false }),
   // Two keywords that matched only the misspelling they answered: Sardis's
   // "attu" for House Atussa, Ignae's "jhai" for Jhiaxus. With the words
   // corrected above, the keywords follow them (the same length, so no
@@ -1800,8 +1804,11 @@ const DATA_FIX_TEXT_BRITISH = (() => {
 // The text stage's edits for the options chosen: the list, less the options
 // not chosen, each keeping the option it belongs to for the list of changes
 // (dataFixTextChanges). And the spelling stage's, for the spelling chosen.
+// An option's row may hold only with the text or only without it
+// (`withText`), where the text's own correction comes first in the line.
 function dataFixTextEdits(chosen) {
-  return DATA_FIX_TEXT.filter(e => e.opt ? chosen.has(e.opt) : chosen.has('text')).map(e => Object.assign({}, e));
+  return DATA_FIX_TEXT.filter(e => (e.opt ? chosen.has(e.opt) : chosen.has('text')) && (e.withText === undefined || e.withText === chosen.has('text')))
+    .map(e => { const c = Object.assign({}, e); delete c.withText; return c; });
 }
 function dataFixSpellingEdits(chosen) {
   return chosen.has('spelling-us') ? DATA_FIX_TEXT_AMERICAN.slice() : chosen.has('spelling-uk') ? DATA_FIX_TEXT_BRITISH.slice() : [];

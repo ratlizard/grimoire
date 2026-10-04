@@ -113,7 +113,16 @@ for (const ids of textRuns) {
   const both = chosen(['text', 'spelling-uk', 'spelling-us']);
   if (both.includes('spelling-us') === both.includes('spelling-uk')) fail('both spellings count, or neither');
 }
-console.log(`  alone: ${top.length} fixes and ${textRuns.length} runs of the text's options apply, each merging back to its patched file`);
+// Each of the text's choices without the text, as the Patches section lets
+// a visitor pick it: the hyphens alone stopped the build until 3 October
+// 2026, Helen's hyphen having followed the text's "wearly".
+for (const o of options.concat(others)) {
+  const r = build([o]);
+  if (!r.ok) fail('choice alone: ' + o + ' did not apply: ' + r.why);
+  else if (!r.same) fail('choice alone: ' + o + '’s patch does not merge back');
+  else alone++;
+}
+console.log(`  alone: ${top.length} fixes, ${textRuns.length} runs of the text's options and ${options.length + others.length} of its choices without it apply, each merging back to its patched file`);
 
 // ---- 2. every fix together -------------------------------------------------
 let pinned = null;
