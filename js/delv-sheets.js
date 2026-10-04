@@ -304,7 +304,7 @@ const MECH_GROUPS = [
    it. */
 const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Patches',
   note: 'Cythera\u2019s official add-on system is the PowerPC application Magpie. It was released by Glenn Andreas alongside a sample patch \u201cPumpkin Patch\u201d, but specifications to create new patches were never released. The format has been reverse-engineered to make new patches possible, though Magpie is limited to editing the data fork of the Cythera Data file.',
-  ids: ['patchkinds', 'patches', 'datafixes', 'herosprite', 'gremlins', 'appfixes', 'spanish', 'compare'] };
+  ids: ['patchkinds', 'patches', 'datafixes', 'herosprite', 'gremlins', 'appfixes', 'spanish', 'backstage', 'compare'] };
 // A group by the category value its tab is selected with.
 const MECH_GROUP_BY_VALUE = {};
 for (const g of MECH_GROUPS) MECH_GROUP_BY_VALUE[g.value] = g;

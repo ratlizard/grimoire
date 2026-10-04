@@ -508,6 +508,7 @@ guide carried it*.
 | in the game | `game_check.mjs` | a save edited through the page's own writer is seeded as the player file, the fork runs Cythera headless to open it and save it again, and the file the game wrote must carry the edit; the unedited seed is the control. Needs the playthrough kit, the patched fork binary and the registered licence beside the workspace, and skips without them |
 | zip export | `export_test.mjs` | the exported zips unpack |
 | bitmap font write | `nfnt_write_check.mjs` | the strikes written back byte for byte and as TrueType |
+| behind the scenes | `backstage_check.mjs` | each Behind the Scenes fix written into Cythera Data's resource fork and read back from MacBinary, every other resource unchanged, a second run refused |
 | resource snapshot | `rsrc_snapshot.mjs` | a hash of the classic-Mac decoders over both forks |
 | disk image | `hfs_check.mjs` | `writeHfsImage` structurally, and through systemless's reader |
 

@@ -512,6 +512,11 @@ const CHECKS = [
   {page: 'viewer', name: 'bitmap font write', want: [DATA_RSRC],
    cmd: ['utilities/nfnt_write_check.mjs', 'index.html', DATA_RSRC],
    grep: /\d+ of \d+ strikes written as TrueType[^\n]*/},
+  // Patches > Behind the Scenes: each fix written into the fork, read back
+  // from MacBinary, everything else unchanged, a second run refused.
+  {page: 'viewer', name: 'behind the scenes', want: [DATA_RSRC],
+   cmd: ['utilities/backstage_check.mjs', 'index.html', DATA_RSRC],
+   grep: /\d+ fix, \d+ strings, written and read back[^\n]*/},
   {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
    grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT a43e9aac1a08'},   // a DATA and a LINF description out of the passive ("has not been worked out"), 2 October 2026; only those two types moved

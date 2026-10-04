@@ -2144,6 +2144,57 @@ function spanishProgramDownload(both) {
     return p;
   }).catch(e => { spanishSay(e.message, true); return null; });
 }
+/* Behind the Scenes (DATA_RSRC_FIXES): a fix a line, each ticked to start,
+   and the corrected file for a Mac or as a disk image, written as the
+   Spanish copy is. The ticks are kept for the session. */
+window.BACKSTAGE_CHOSEN = window.BACKSTAGE_CHOSEN || new Set(DATA_RSRC_FIXES.map(f => f.id));
+function backstageSay(m, bad) {
+  const note = document.getElementById('backstageNote');
+  if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
+}
+function backstageDownload(asDisk) {
+  if (!ARCHIVE) { backstageSay('No game file is open.', true); return null; }
+  const ids = [...window.BACKSTAGE_CHOSEN];
+  if (!ids.length) { backstageSay('Choose a fix first.', true); return null; }
+  let r;
+  try { r = applyDataRsrcFixes(window.CYTHERA_RSRC_RAW, ids); } catch (e) { backstageSay(e.message, true); return null; }
+  const file = spanishDataFile({ data: ARCHIVE.bytes, rsrc: r.rsrc });
+  if (asDisk) dlBlob(new Blob([writeHfsImage({ volumeName: 'Cythera', entries: [file] })], { type: 'application/octet-stream' }), 'Cythera Data (fixed).dsk');
+  else dlBlob(new Blob([writeMacBinary(file)], { type: 'application/macbinary' }), 'Cythera Data (fixed).bin');
+  backstageSay(r.log.length + ' change' + (r.log.length === 1 ? '' : 's') + ' written.');
+  return r;
+}
+function renderBackstageMaker() {
+  const host = document.getElementById('backstageMaker');
+  if (!host) return;
+  host.innerHTML = '';
+  for (const fix of DATA_RSRC_FIXES) {
+    const row = document.createElement('label');
+    row.className = 'mechSub';
+    row.style.cssText = 'display:block;margin:6px 0';
+    const box = document.createElement('input');
+    box.type = 'checkbox'; box.checked = window.BACKSTAGE_CHOSEN.has(fix.id);
+    box.onchange = () => { if (box.checked) window.BACKSTAGE_CHOSEN.add(fix.id); else window.BACKSTAGE_CHOSEN.delete(fix.id); };
+    row.appendChild(box);
+    const t = document.createElement('span');
+    t.innerHTML = ' <b>' + svEsc(fix.title) + '</b>. ' + svEsc(fix.note) + ' ' +
+      fix.rsrc.map(e => '“' + svEsc(e.was) + '” to “' + svEsc(e.now) + '”').join(', ') + '.';
+    row.appendChild(t);
+    host.appendChild(row);
+  }
+  const ok = ARCHIVE && window.CYTHERA_RSRC_RAW && window.CYTHERA_RSRC_RAW.length;
+  if (!ok) { const p = document.createElement('p'); p.className = 'mechSub'; p.textContent = !ARCHIVE ? 'No game file is open.' : 'This copy has no resource fork. Open the game in MacBinary or BinHex, or open the installer.'; host.appendChild(p); return; }
+  const d = document.createElement('div');
+  d.className = 'mechStats';
+  for (const [label, fn] of [['Download for a Mac', () => backstageDownload(false)], ['Download as a disk image', () => backstageDownload(true)]]) {
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+    b.textContent = label; b.onclick = fn;
+    d.appendChild(b);
+  }
+  host.appendChild(d);
+}
 function renderSpanishMaker() {
   const host = document.getElementById('spanishMaker');
   if (!host) return;
@@ -4211,6 +4262,20 @@ function renderMechanicsSheet(value) {
     sec.appendChild(note);
   }
 
+  // ---- behind the scenes ----
+  {
+    add('backstage', 'Behind the Scenes', null, '',
+      'Fixes to what the game keeps and no player sees. Choose the fixes, then download a corrected copy of Cythera Data to put in place of the old one.',
+      ['It is a whole file rather than a patch, because these fixes are in the part of the file a patch cannot change.'], '');
+    const sec = sections[sections.length - 1].el;
+    const host = document.createElement('div');
+    host.id = 'backstageMaker';
+    sec.appendChild(host);
+    const note = document.createElement('div');
+    note.className = 'mechSub'; note.id = 'backstageNote';
+    sec.appendChild(note);
+  }
+
   // ---- comparing two archives ----
   {
     const edits = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
@@ -4567,6 +4632,7 @@ function renderMechanicsSheet(value) {
   if (document.getElementById('dataFixMaker')) renderDataFixMaker();
   if (document.getElementById('appFixMaker')) renderAppFixMaker();
   if (document.getElementById('spanishMaker')) renderSpanishMaker();
+  if (document.getElementById('backstageMaker')) renderBackstageMaker();
 }
 // The cards open when a number on the sheet was followed into its script,
 // so that back from the script finds them open again and setMode's scroll

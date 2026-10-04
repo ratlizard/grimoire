@@ -2255,3 +2255,45 @@ const DATA_FIX_COMMUNITY_TYPOS = [
   ["Tros","northwest","northeast","and then","along the"],
 ];
 // @@COMMUNITY-TYPOS-END
+
+/* BEHIND THE SCENES. Fixes to what the game keeps and no player sees, asked
+   for by the maintainer on 4 October 2026 as a section of their own. The
+   first is the map editor's names for the maps, STR# 135 of Cythera Data's
+   resource fork, one per map from map 1 (loadEditorZoneNames): three are
+   misspelt there, and the game's own text has each right -- the sign
+   (0x218) and the innkeepers (0x805, 0x813) say "North Shore Vineyard" and
+   "Southland Vineyard", and map 31 beside it is "Inner Brotherhood Hall".
+   A Magpie patch changes only the data fork, so these are written into a
+   whole copy of the file, as the Spanish one is. Each edit names the
+   string as the file has it, numbered from 1, and the build stops if it
+   says anything else, so a file that has it right already, or another
+   list in that place, is refused rather than overwritten. */
+const DATA_RSRC_FIXES = [
+  { id: 'editor-map-names', title: 'The Map Editor’s Names',
+    note: 'Three of the names the map editor gave the maps are misspelt; the game’s own signs and characters have them right. The game shows its own names, so a player sees no change.',
+    rsrc: [
+      { type: 'STR#', id: 135, index: 18, was: 'North Short Vinyard', now: 'North Shore Vineyard' },
+      { type: 'STR#', id: 135, index: 20, was: 'Southland Vinyard', now: 'Southland Vineyard' },
+      { type: 'STR#', id: 135, index: 33, was: 'Inner Broutherhood Dungeon', now: 'Inner Brotherhood Dungeon' }
+    ] }
+];
+// The resource fork with the chosen fixes applied: { rsrc, log }. Throws,
+// naming the fix and the string, when a string is not what the fix expects.
+function applyDataRsrcFixes(rsrc, ids) {
+  if (!rsrc || !rsrc.length) throw new Error('This copy has no resource fork.');
+  const spec = resourceForkSpec(openResourceFork(rsrc));
+  const log = [];
+  for (const fix of DATA_RSRC_FIXES.filter(f => ids.includes(f.id))) {
+    for (const e of fix.rsrc) {
+      const r = spec.resources.find(x => x.type === e.type && x.id === e.id);
+      if (!r) throw new Error(fix.title + ': this file has no ' + e.type + ' ' + e.id + '.');
+      const list = appStrList(r.data);
+      const got = list[e.index - 1] ? decodeMacRoman(list[e.index - 1]) : null;
+      if (got !== e.was) throw new Error(fix.title + ': ' + e.type + ' ' + e.id + ' string ' + e.index + ' is “' + got + '”, not “' + e.was + '”.');
+      list[e.index - 1] = encodeMacRoman(e.now);
+      r.data = appStrListBytes(list);
+      log.push(e.type + ' ' + e.id + ' string ' + e.index + ': ' + e.was + ' → ' + e.now);
+    }
+  }
+  return { rsrc: log.length ? writeResourceFork(spec) : rsrc, log };
+}
