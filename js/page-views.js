@@ -1783,7 +1783,13 @@ function creatureHatchSites(pt) {
       if (!egg) continue;
       const k = z + ':' + egg.x + ':' + egg.y + ':' + p.d1;
       if (out.has(k)) out.get(k).n++;
-      else out.set(k, { zone: zoneNameFor(0x8000 + z) || ('zone ' + z), map: 0x8000 + z, x: egg.x, y: egg.y, beh: p.d1, n: 1 });
+      else {
+        // The editor's name beside the game's where they differ: two zones
+        // are "Stronghold" in the game and Inner Brotherhood Hall and
+        // Tavara Fortress in the editor's list (STR# 135).
+        const game = zoneNameFor(0x8000 + z), ed = editorZoneName(0x8000 + z);
+        out.set(k, { zone: (game || 'zone ' + z) + (ed && ed !== game ? ', ' + ed : ''), map: 0x8000 + z, x: egg.x, y: egg.y, beh: p.d1, n: 1 });
+      }
     }
   }
   return [...out.values()];
