@@ -998,6 +998,23 @@ function experienceRules() {
     const fh = dvmScriptEntry(0xE82) ? dvmOpsOf(dvmScriptEntry(0xE82)) : [];
     const half = dvmSeqFirst(fh, [/^get_field reflex/, DVM_NUM, /^div$/]);
     const def = dvmSeqFirst(fh, [/^local Var\w+$/, DVM_NUM, /^mul$/, /^arg Arg00$/, /^get_field reflex/, /^mul$/, DVM_NUM, /^div$/]);
+    /* A character with no Defense skill (or no Mana) is given one by
+       0xE95 (0xE96 for Mana), off two bits of the record's dispatch_thing,
+       field 32: nothing, half the level, the level or twice it. Most of the
+       people who join have no skill and grow by this; measured against a
+       player's spreadsheet of every recruit's health and magic by level,
+       it fits all but the values the records start with (the workbench,
+       tools/party-check). Each case is read so the sentence links to it. */
+    const standIn = (rid, of) => {
+      const ops = dvmScriptEntry(rid) ? dvmOpsOf(dvmScriptEntry(rid)) : [];
+      const sw = dvmSeqFirst(ops, [/^switch$/, /^arg Arg00$/, /^get_field dispatch_thing/]);
+      const half = dvmSeqFirst(ops, [/^get_field level/, DVM_NUM, /^div$/]), dbl = dvmSeqFirst(ops, [/^get_field level/, DVM_NUM, /^mul$/]);
+      const same = ops.find((o, i) => /^get_field level/.test(o.text) && ops[i + 1] && /^end$/.test(ops[i + 1].text));
+      const call = dvmSeqFirst(of, [/^set_local 0x0[01]$/, new RegExp('^call_resource (?:\\S+ \\()?0x' + rid.toString(16).toUpperCase() + '\\)?$')]);
+      return sw && half && dbl && same && call ? { call: { resid: of === fh ? 0xE82 : 0xE83, at: call[1].at }, bits: { resid: rid, at: sw[2].at },
+        half: dvmVal(rid, half[1]), same: { resid: rid, at: same.at }, dbl: dvmVal(rid, dbl[1]) } : null;
+    };
+    const mh = dvmScriptEntry(0xE83) ? dvmOpsOf(dvmScriptEntry(0xE83)) : [];
     // What a blow earns, off the damage helper 0xEB8: the level gap plus
     // this, and this for a blow past the gap the other way.
     const eb = dvmScriptEntry(0xEB8) ? dvmOpsOf(dvmScriptEntry(0xEB8)) : [];
@@ -1005,7 +1022,8 @@ function experienceRules() {
     const past = dvmSeqAll(eb, [/^call_resource GainExp\b/, /^local Var\w+$/, DVM_NUM, /^end$/])[0] || null;
     rule = { cap: cap ? dvmVal(0xE8B, cap[1]) : null, doubling: !!dbl, base: dbl ? dvmVal(0xE8B, dbl[6]) : null, less: dbl ? dvmVal(0xE8B, dbl[3]) : null,
              healthReflexDiv: half ? dvmVal(0xE82, half[1]) : null, healthMul: def ? dvmVal(0xE82, def[1]) : null, healthDiv: def ? dvmVal(0xE82, def[6]) : null,
-             gapAdd: gap ? dvmVal(0xEB8, gap[4]) : null, pastGap: past ? dvmVal(0xEB8, past[2]) : null };
+             gapAdd: gap ? dvmVal(0xEB8, gap[4]) : null, pastGap: past ? dvmVal(0xEB8, past[2]) : null,
+             defenseStandIn: standIn(0xE95, fh), manaStandIn: standIn(0xE96, mh) };
   }
   const awards = [];
   for (const e of idx) {

@@ -3318,6 +3318,11 @@ function renderMechanicsSheet(value) {
         (xp.rule.doubling && xp.rule.base ? ', and the level rises by one when it passes <b>' + srcNum(xp.rule.base) + ' × 2 to the power of the level less ' + srcNum(xp.rule.less, xp.rule.less ? xp.rule.less.v : '') + '</b>: above ' +
           [2, 3, 4, 5, 6].map(l => mechLevelThreshold(l - 1, xp.rule.base.v).toLocaleString('en-US') + (l === 2 ? ' for level 2' : l < 5 ? ' for ' + l : '')).join(', ') + ', doubling.' : '.'),
       xp.rule.healthReflexDiv && xp.rule.healthMul && xp.rule.healthDiv ? 'At each new level, full health becomes <b>body + reflex ÷ ' + srcNum(xp.rule.healthReflexDiv) + ' + level, plus Defense × ' + srcNum(xp.rule.healthMul) + ' × reflex ÷ ' + srcNum(xp.rule.healthDiv) + '</b>, and full magic <b>mind + Mana</b>.' : '',
+      xp.rule.defenseStandIn && xp.rule.manaStandIn ? (function () {
+        const d = xp.rule.defenseStandIn, m = xp.rule.manaStandIn;
+        return 'A character ' + srcNum(d.call, 'without Defense') + ' counts it as nothing, ' + srcNum(d.half, 'half their level') + ', ' + srcNum(d.same, 'their level') + ' or ' + srcNum(d.dbl, 'twice their level') +
+          ', by ' + srcNum(d.bits, 'two bits of their record') + '; one ' + srcNum(m.call, 'without Mana') + ' counts it ' + srcNum(m.bits, 'the same way') + '. Most of the people who join have neither skill, so this is how they grow. Full health is kept in one byte, so a total above 255 starts again from 0.';
+      })() : '',
       xp.rule.gapAdd ? 'A blow earns its damage in experience, at most the victim’s lead in levels plus ' + srcNum(xp.rule.gapAdd) + (xp.rule.pastGap ? '; against a lower-level victim, ' + srcNum(xp.rule.pastGap) : '') + '.' : '',
       'The party’s members split an award to the party.'
     ].filter(Boolean) : [],
