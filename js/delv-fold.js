@@ -229,7 +229,10 @@ function dvmFoldValue(n, ctx) {
          (dvmFoldCallNotes). */
       const note = String(n.arg || '').split('  //')[1];
       const neg = note && /^\s*(-\d+)(?:,|$)/.exec(note);
-      return neg ? neg[1] : dvmFoldNumber(bare);
+      /* delvmod's `&Var2` addresses slot 3, Var03 (the raw listing's note,
+         dvmDisasm); this view names the slot, as it does `Arg01`. */
+      const ref = n.mn === 'word' && note && /^\s*(Var[0-9A-F]{2})$/.exec(note);
+      return neg ? neg[1] : ref && /^&Var\d+$/.test(bare) ? '&' + ref[1] : dvmFoldNumber(bare);
     }
     case 'string': case 'string(implicit)': return bare;
     case 'global': return dvmPlainName(bare);
@@ -501,7 +504,7 @@ function dvmFoldStatement(n, ctx) {
          stores it in the frame's locals at that index, and for 48 to 63 in
          its arguments at the operand less 48 (the two arrays `local` and
          `arg` read). So `set_local 0x31` is `Arg01 = ...`. The raw listing
-         keeps delvmod's spelling. */
+         keeps delvmod's spelling, with this name in a note. */
       const lhs = dvmSlotName(bare);
       return (lhs || 'set_local ' + bare) + ' = ' + (g[0] || '');
     }
@@ -1420,10 +1423,10 @@ function dvmCondOperand(e) {
  * The engine's iterators are one syscall called three ways, and the compiler
  * lays a loop over one out the same way every time:
  *
- *     Var01 = EquipmentIterator(&Var1, 0, Arg01)      the first item
- *     while (!(EquipmentIterator(&Var1, 1))) {         not yet finished
+ *     Var01 = EquipmentIterator(&Var02, 0, Arg01)     the first item
+ *     while (!(EquipmentIterator(&Var02, 1))) {        not yet finished
  *         ...
- *         Var01 = EquipmentIterator(&Var1, 2)          the next item
+ *         Var01 = EquipmentIterator(&Var02, 2)         the next item
  *     }
  *
  * which is `for Var01 in EquipmentIterator(Arg01) { ... }`. 152 loops in the
@@ -1432,9 +1435,9 @@ function dvmCondOperand(e) {
  * way of printing a recovered `while`, not a new pattern for the recovery, and
  * the tree the structure check compares is the same tree either way.
  *
- * The state word (`&Var1`) is not printed on the `for` line: it is the
- * iterator's bookkeeping, it names the slot one early (the handoff's item on
- * iterator storage), and the raw and folded listings still show it. The
+ * The state word (`&Var02`, delvmod's `&Var1`) is not printed on the `for`
+ * line: it is the iterator's bookkeeping, in the slot after the loop
+ * variable, and the raw and folded listings still show it. The
  * iterator keeps its name as the listing gives it rather than losing the
  * `Iterator`, so it can be searched for.
  *

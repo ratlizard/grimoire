@@ -574,6 +574,13 @@ function dvmDisassemble(b, start) {
         const note = dvmAnnotateInt(encl, argIdx, wv);
         if (note) arg += '  // ' + note;
       }
+      /* A tag-1 word addresses local slot k, the slot `local` k reads
+         (TInterp::DoExpr's word case, VAddrToPtr), so `&Var2` is Var03: an
+         iterator's position, kept in the slot after its loop variable. The
+         name stays delvmod's, which this listing is compared against, and
+         the note says where it points (grimoire/iterator-slot-v4emzm). */
+      else if ((wv & 0xF0000000) >>> 0 === 0x10000000)
+        arg += '  // Var' + (wv & 0x0FFFFFFF).toString(16).toUpperCase().padStart(2, '0');
     } else if (spec) {
       /* BOTH WIDTHS ARE SIGNED. The interpreter reads a byte literal with
          `extsb` and a short with a signed halfword load, then masks the result
@@ -589,7 +596,14 @@ function dvmDisassemble(b, start) {
       let v = null;
       if (mn === 'byte') v = (b[p] << 24) >> 24;
       else if (mn === 'short') v = (u16be(b, p) << 16) >> 16;
-      arg = '0x' + hex(p, spec); p += spec;
+      /* An operand of 0x30 to 0x3F stores into argument operand - 0x30
+         (TInterp::DoInterpAt, opcode 0x82), which the other views write
+         `Arg01 = ...`; the raw listing keeps delvmod's `set_local 0x31` and
+         says so in a note (grimoire/set-local-sdhb25). */
+      if (mn === 'set_local' && spec === 1 && b[p] >= 0x30 && b[p] <= 0x3F)
+        arg = '0x' + hex(p, spec) + '  // Arg' + (b[p] - 0x30).toString(16).toUpperCase().padStart(2, '0');
+      else arg = '0x' + hex(p, spec);
+      p += spec;
       if (v !== null) {
         const parts = [];
         if (v < 0) parts.push(String(v));
