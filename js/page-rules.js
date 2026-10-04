@@ -5884,3 +5884,35 @@ function sleepRules() {
   const magicCap = capG ? { resid: 0xE93, at: capG[4].at } : null;
   return { own, ownVal, quarter, quarterVal, hours, hoursVal, half, div, owner, toss, soundly, table, inns, magicGuard, magicCap };
 }
+
+/* The party bar's colours, off TStatusWindow::DrawCharStatus (read
+   3 October 2026, workbench GRIMOIRE-NOTES under grimoire/roster-art-fnlojp).
+   A living member's figure is copied into a buffer with every transparent
+   pixel set to one palette index, r25, chosen by the member's state: `li
+   25, n` after a test of one bit of the status halfword at byte 6 of the
+   record (a single-bit `rlwinm.`, so bit b is character flag 8 + b, the
+   ObjectFlags name), or after `TSpellFX::HasAbility(member, 0x7000)`, which
+   for 0x7000 asks no spell effect but whether the nutrition at byte 27 is
+   below a number (its `cmplwi`); `li 25, 0` is the default. The first test
+   that passes wins, in the order read. */
+function exePartyColours() {
+  const ops = exeOpsNamed('TStatusWindow::DrawCharStatus');
+  if (!ops.length) return null;
+  const rows = [];
+  let plain = null;
+  const oneBit = x => /^(rlwinm|clrlwi)\.$/.test(x.mn) && x.sh === 0 && x.mb === x.me;
+  for (let i = 0; i < ops.length; i++) {
+    const d = ops[i].d;
+    if (!d || d.mn !== 'li' || d.rd !== 25) continue;
+    if (d.imm === 0) { plain = exeVal(ops[i], 0); continue; }
+    const t = exeFindBack(ops, i - 1, 3, oneBit);
+    if (t >= 0) { rows.push({ colour: exeVal(ops[i], d.imm), flag: exeVal(ops[t], 8 + 31 - ops[t].d.mb) }); continue; }
+    const a = exeFindBack(ops, i - 1, 14, x => x.mn === 'li' && x.rd === 4 && x.imm === 0x7000);
+    if (a >= 0) rows.push({ colour: exeVal(ops[i], d.imm), hunger: true });
+  }
+  const h = exeOpsNamed('TSpellFX::HasAbility');
+  const c = exeFind(h, 0, 12, x => x.mn === 'cmpwi' && x.imm === 0x7000);
+  const lim = c >= 0 ? exeFind(h, c, 10, x => x.mn === 'cmplwi') : -1;
+  const hungry = lim >= 0 ? exeVal(h[lim], h[lim].d.imm) : null;
+  return rows.length ? { rows, plain, hungry } : null;
+}

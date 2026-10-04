@@ -86,6 +86,14 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // clock constants over the clock's units an hour.
       else if ((h => !h || h.dawn.v !== 6 || h.dusk.v !== 18 || !inRoutine(h.dawn, 'TActiveMonster::HatchEgg'))(ctx.exeHatchHours()))
         fail('program figures', 'the hatching hours were misread: ' + JSON.stringify(ctx.exeHatchHours()));
+      // The party bar's colours (exePartyColours), 3 October 2026: palette
+      // index by state, in the order DrawCharStatus tests them, poison
+      // green 2 to sleep blue 9, then hunger grey 7 below nutrition 4 by
+      // HasAbility's own constant, and white 0 for none; each figure in the
+      // routine that holds it.
+      else if ((p => !p || p.rows.map(r => r.colour.v + ':' + (r.hunger ? 'hunger' : r.flag.v)).join() !== '2:9,6:14,5:21,14:13,13:17,9:22,7:hunger' ||
+                  !p.plain || p.plain.v !== 0 || !p.hungry || p.hungry.v !== 4 || !inRoutine(p.rows[0].colour, 'TStatusWindow::DrawCharStatus') || !inRoutine(p.hungry, 'TSpellFX::HasAbility'))(ctx.exePartyColours()))
+        fail('program figures', 'the party bar\u2019s colours were misread: ' + JSON.stringify(ctx.exePartyColours()));
       // The alignment's names: the AI's groups by the value each compares.
       else if ((a => !a || ['neutral', 'evil', 'good', 'feral'].some((n, v) => !a.byValue[v] || a.byValue[v].name !== n || !inRoutine(a.byValue[v].at, 'SCombatAIEntry::CalculateObject')))(ctx.exeAlignmentNames()))
         fail('program figures', 'the alignments were misnamed: ' + JSON.stringify(ctx.exeAlignmentNames()));

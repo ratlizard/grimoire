@@ -3385,6 +3385,19 @@ function renderMechanicsSheet(value) {
       try { grants = grantRules(); } catch (e) { grants = []; }
       return grants.length ? '<div class="mechSub">Items that give a status</div>' +
         table(['thing', 'status', 'given by', 'taken away by'], grants.map(g => '<tr><td>' + propChip(g.pt, g.name) + '</td><td>' + srcNum(g.flag, g.flagName || ('flag ' + g.flag.v)) + '</td><td>' + svEsc(g.method) + '</td><td>' + (g.clearedBy ? svEsc(g.clearedBy) : '<span class="inspDim">nothing in the class</span>') + '</td></tr>')) : '';
+    })() + (function () {
+      // The party bar's background colours (exePartyColours): one row a
+      // state, in the order the program tests them, the first that holds
+      // winning.
+      let pc = null;
+      try { pc = appImage() ? exePartyColours() : null; } catch (e) { quiet(e, 'reading the party bar\u2019s colours'); }
+      if (!pc) return '';
+      const sw = n => '<span class="stateSwatch" style="background:#' + (PALETTE[n] || '000000') + '"></span>';
+      const rows = pc.rows.map(r => '<tr><td>' + sw(r.colour.v) + ' ' + srcNum(r.colour) + '</td><td>' +
+        (r.hunger ? 'hungry: nutrition below ' + (pc.hungry ? srcNum(pc.hungry) : 'a threshold') : (dvmFlagName(r.flag.v) || 'flag') + ' ' + srcNum(r.flag, 'flag ' + r.flag.v)) + '</td></tr>');
+      if (pc.plain) rows.push('<tr><td>' + sw(0) + ' ' + srcNum(pc.plain) + '</td><td>none of these</td></tr>');
+      return '<div class="mechSub">The Party Bar</div><p>A party member\u2019s figure is drawn on a colour that shows their state. The first of these that holds is the one shown.</p>' +
+        table(['colour', 'when'], rows);
     })(), '');
 
   // ---- hunger, and healing with it ----
@@ -3397,6 +3410,11 @@ function renderMechanicsSheet(value) {
     [
       model ? 'Nutrition falls by ' + srcNum(clk.fall) + ' every ' + period(model.hungerIndex).replace(/^(<button[^>]*>)(an |a )?/, '$1') + ' for every character on the map.' : '',
       (hg.complains !== null ? 'A character complains of hunger below <b>' + srcNum(hg.complainsVal) + '</b>.' : ''),
+      (function () {
+        let pc = null;
+        try { pc = appImage() ? exePartyColours() : null; } catch (e) { quiet(e, 'reading the party bar\u2019s hunger colour'); }
+        return pc && pc.hungry ? 'A party member with nutrition below ' + srcNum(pc.hungry) + ' is drawn on grey in the party bar.' : '';
+      })(),
       (hg.ceiling !== null ? (function () {
         // An item class script is named for its prop type, a spell for itself.
         const names = hg.ceilingBy.map(r => svLink((r >= 0x1000 && r < 0x1200 ? propDisplayName(r - 0x1000) : labelFor(r)) || ('0x' + r.toString(16).toUpperCase()), 'jumpToResource(' + r + ')'));
