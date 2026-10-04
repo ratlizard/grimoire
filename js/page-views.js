@@ -1769,6 +1769,25 @@ function monsterByteNote() {
     srcNum({ resid: site.resid, at: site.at }, 'the script') + ').';
 }
 
+// Every record of prop type `pt` that sits in an egg in a zone's prop
+// list, grouped by zone, the egg's square and the Data1 it hatches with.
+function creatureHatchSites(pt) {
+  const out = new Map();
+  for (let z = 0; z < 256; z++) {
+    const rid = 0x8100 + z;
+    let list = null;
+    try { if (!refExists(rid)) continue; list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, rid), rid).data); } catch (e) { continue; }
+    for (const p of list) {
+      if (!p || p.proptype !== pt || p.onMap || p.container === null || p.container === undefined) continue;
+      const egg = list[p.container];
+      if (!egg) continue;
+      const k = z + ':' + egg.x + ':' + egg.y + ':' + p.d1;
+      if (out.has(k)) out.get(k).n++;
+      else out.set(k, { zone: zoneNameFor(0x8000 + z) || ('zone ' + z), map: 0x8000 + z, x: egg.x, y: egg.y, beh: p.d1, n: 1 });
+    }
+  }
+  return [...out.values()];
+}
 function showMonsterDetail(idx) {
   stopSpriteAnimations();
   markDetailView('monster', idx);
@@ -1826,6 +1845,25 @@ function showMonsterDetail(idx) {
       ' <span style="font-size:0.6875rem;color:#b5b2a8">' + monsterFlagsHTML(r.flags) + '</span>' +
       '<br><span style="font-size:0.6875rem;color:#8c8980">Click a flag to see the line that checks it.</span></div>' +
     '</div>';
+  // Where it hatches: every record of this type inside an egg, by zone, the
+  // egg's square and the behaviour the creature hatches with -- HatchEgg
+  // gives it the contained record's Data1 (doc/behaviours.md, in the
+  // workbench). The lich shows why: of four, the one in Tavara Fortress
+  // hatches standing still and the rest attacking the nearest.
+  const sites = creatureHatchSites(r.proptype);
+  if (sites.length) {
+    h += '<div class="mechSub">Where It Hatches</div><ul class="ruleList">' + sites.map(s =>
+      '<li>' + svLink(s.zone + ' (zone ' + (s.map - 0x8000) + ')', 'jumpToResource(' + s.map + ')') + ' at (' + s.x + ', ' + s.y + ')' + (s.n > 1 ? ', ' + s.n + ' of them' : '') +
+      ', hatching ' + behaviourHTML(s.beh) + '</li>').join('') + '</ul>';
+    /* The lich who stands still is taken for Tavara, the mage who destroyed
+       Abydos; no text names him, and this is the line players read it from,
+       quoted from the file. */
+    const still = sites.filter(s => s.beh === 0);
+    if (r.proptype === 297 && still.length === 1 && sites.length > 1) {
+      const said = srcSaid(0x187F, 'Instead, he just sits in his mountain strongholds, awaiting a death that will never truly come.');
+      if (/<button/.test(said)) h += '<div class="sv-note">The one that stands still is taken for Tavara. Ur-Sylph, of the traitor who destroyed a colony: ' + said + '</div>';
+    }
+  }
   panel.innerHTML = h;
 
   // The unit as the program builds it, then every frame of its own.
