@@ -23,7 +23,10 @@
  * documents. The kit's pristine store carries the unregistered licence,
  * whose notice would swallow the click, so the registered one is put in
  * the scratch copy of the store first. Everything runs in $TMPDIR; the kit
- * is read and never written. Skips when the kit, the binary or the licence
+ * is read and never written. The script is timed for the 68K slice, which
+ * the kit's saves and drive scripts all use; the fork's binary prefers the
+ * PowerPC slice since 3 October 2026, so the run asks for the 68K one with
+ * SYSTEMLESS_PREFER_POWERPC=0. Skips when the kit, the binary or the licence
  * is not on the disk, which a checkout without the workspace beside it is. */
 
 import {readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, cpSync, statSync} from 'node:fs';
@@ -112,7 +115,7 @@ function run(label, dataFork) {
   // The fork writes its account to stderr, so both streams are the log.
   const r0 = spawnSync(BIN, ['--headless', '--max-ticks', '1800', '--tick-input-script', SCRIPT, join(PLAY, 'game/Cythera Installed Folder.sit')],
     {encoding: 'utf8', maxBuffer: 64 << 20, timeout: 180000, killSignal: 'SIGKILL', stdio: ['ignore', 'pipe', 'pipe'],
-     env: {...process.env, SYSTEMLESS_HEADLESS_SCREENSHOT_DIR: shots, SYSTEMLESS_HEADLESS_SCREENSHOT_EVERY: '0', SYSTEMLESS_STANDARD_GET_FILE: 'Cythera 1.0.4 \u0192/Bellerophon'}});
+     env: {...process.env, SYSTEMLESS_HEADLESS_SCREENSHOT_DIR: shots, SYSTEMLESS_HEADLESS_SCREENSHOT_EVERY: '0', SYSTEMLESS_PREFER_POWERPC: '0', SYSTEMLESS_STANDARD_GET_FILE: 'Cythera 1.0.4 \u0192/Bellerophon'}});
   const log = (r0.stdout || '') + (r0.stderr || '');
   if (r0.error || r0.signal) fail(`${label}: the fork did not finish: ` + (r0.error ? r0.error.message : 'killed by ' + r0.signal));
   writeFileSync(join(PLAY, label + '.log'), log);
