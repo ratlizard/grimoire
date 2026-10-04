@@ -177,6 +177,26 @@ const APP_FIXES = [
   // replaced are the rounding of the division for a negative h, which a
   // click in the window cannot give, and a copy through 152(1), read
   // nowhere else.
+  // In TStatusWindow::DrawCharStatus. A living member's figure in the party
+  // bar is the tile of the type in their record's appearance word plus
+  // element 1 of property 55 of the character, read by GetProperty at
+  // 0x34134; a type whose class has no property 55 hands back None
+  // (0x5001FFFF), which the shift pair here, a 28-bit sign extension, made
+  // -1: the tile before the type's sheet. So Aeneas, the corpse type, was
+  // drawn as the golem's last frame, and Omen, type 0, as the 1,024 bytes
+  // before the first tile (a shared spreadsheet's "staticy-mist"). A
+  // number has its top four bits 0, so its word shifted right 23 is 0 and
+  // `slw` leaves it be; None, True and False shift to 160, whose low six
+  // bits are 32, and `slw` by 32 or more gives 0: the first frame of the
+  // sheet, Aeneas's corpse, and for type 0 the blank tile "Nothing". r0 is
+  // free: the clrlwi. before sets cr0 for the branch at 0x34170, and both
+  // ways from it write r0 before reading it (workbench GRIMOIRE-NOTES,
+  // grimoire/roster-art-fnlojp).
+  { id: 'roster-pose', kind: 'fix', title: 'A party member whose type has no figure frame is drawn at its first frame, or blank, instead of the tile before its sheet',
+    played: 'fork, PowerPC, 3 October 2026: Aeneas and Omen forced into the party, Aeneas drawn as his corpse and Omen blank, against a golem and static unpatched',
+    sites: [{ at: 0x34160, was: [0x54632036, 0x7C632670, 0x7C630734],
+      asm: ['srwi 0, 3, 23          ; 0 for a number, 160 for None, True or False', 'slw 3, 3, 0           ; the frame, or 0 when the shift is 32 or more', 'extsh 3, 3'] }] },
+
   { id: 'tab-pane', kind: 'fix', title: 'A click on the last pixel of a character window’s tabs opens the right-hand tab, instead of blanking the window',
     played: 'fork, PowerPC, 30 September 2026: the last pixel opens Abilities',
     bug: 'Clicking one pixel blanks the status window',

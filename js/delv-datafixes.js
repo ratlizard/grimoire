@@ -985,6 +985,21 @@ const DATA_FIXES = [
         textEdits: [dataFixT('Tlepolemus\u2019s offer', 0x1837, ' - are you interested in buying an old set?', '.', 1)],
       };
     } },
+  // The party roster's figure frame (workbench GRIMOIRE-NOTES,
+  // grimoire/roster-art-fnlojp): element 1 of a class's property 55 is the
+  // frame of its sheet the party bar draws, and nothing else reads it (the
+  // world's readers take element 0). The sylph's class asks for frame 4 of
+  // a four-frame sheet, the first tile after it, a short sword, so Ur-Sylph
+  // was drawn as one; the fire spirit's asks for 4 of its four too, which
+  // lands on the other fire spirit's sheet and looks right by luck. Both
+  // now ask for frame 0. Only a party that has forced them in shows it.
+  { id: 'roster-figures', group: 'world', stage: 'further', title: 'Ur-Sylph is drawn in the party roster as herself, instead of as a short sword',
+    played: 'fork, 3 October 2026: Ur-Sylph forced into the party, drawn as her sylph, against a short sword unpatched',
+    dataEdits: [0x1124, 0x1122].map(resid => ({ what: 'the roster frame of 0x' + resid.toString(16).toUpperCase(), resid, fn: (b) => {
+      if (b[2] !== 0x90 || b[3] !== 0x02 || b[8] || b[9] || b[10] || b[11] !== 4) throw new Error('0x' + resid.toString(16) + ' does not open with property 55 asking for frame 4');
+      b[11] = 0;
+      return 'property 55, element 1: 4 to 0';
+    } })) },
   // A highlighted word nobody answers (Loose ends): "Magisterium", in the
   // general group's (0x0801) answers about Pnyx and mages. It now reaches
   // the answer about mages, "Mages are trained at the Magisterium in Pnyx".
