@@ -190,10 +190,10 @@ function mechDiceBytes(dice) {
   const fix = dice.bytes.find(b => /roll matched/.test(b.what));
   const rows = dice.bytes.map(b => '<tr><td>' + svEsc(b.what) + '</td>' + srcCell(b.val, hex4(b.at)) + '<td class="num">' + svEsc(String(b.now)) + '</td></tr>').join('');
   const tries = [];
-  if (pay) tries.push('Write <b>00</b> at ' + hex4(pay.at) + ' and a match pays nothing: <b>' + mean({ matchPay: 0 }) + '</b> an obol a game without the skill, <b>' + mean({ matchPay: 0, gambling: true }) + '</b> with it.');
+  if (pay) tries.push('Write <b>00</b> at ' + srcNum(pay.val, hex4(pay.at)) + ' and a match pays nothing: <b>' + mean({ matchPay: 0 }) + '</b> an obol a game without the skill, <b>' + mean({ matchPay: 0, gambling: true }) + '</b> with it.');
   if (pay) tries.push('Write <b>7F</b> there and a match pays 127: <b>' + mean({ matchPay: 127 }) + '</b> a game.');
   if (fix && fix.next !== null && gate && gate.next !== null && !dice.skillAlways)
-    tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + hex4(fix.at) + ' and the Gambling skill moves your die whatever the roll, so every game you play with the skill is a match: <b>' + mean({ skillAlways: true, gambling: true }) + '</b> a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + hex4(gate.at) + ' as well, and you do not need the skill either.');
+    tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + srcNum(fix.val, hex4(fix.at)) + ' and the Gambling skill moves your die whatever the roll, so every game you play with the skill is a match: <b>' + mean({ skillAlways: true, gambling: true }) + '</b> a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + srcNum(gate.val, hex4(gate.at)) + ' as well, and you do not need the skill either.');
   return '<div class="mechSub">What to edit</div>' +
     '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>byte</th><th class="num">at, in 0x812</th><th class="num">now</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     (tries.length ? '<ul class="ruleList">' + tries.map(t => '<li>' + t + '</li>').join('') + '</ul>' : '');
@@ -448,7 +448,7 @@ function mechAspectReaders() {
   if (!ar.size) return 'no item class script is in this file.';
   let gearRead = [];
   try { gearRead = gearTable().filter(r => (ar.get(r.pt) || {}).reads).map(r => r.pt); } catch (e) { gearRead = []; }
-  return w(reads.length + ' of ' + ar.size) + ' item classes also read it; the rest only change picture and name. ' +
+  return w(countLink(String(reads.length), 'The ' + reads.length + ' item classes that read their aspect', reads.map(nm)) + ' of ' + ar.size) + ' item classes also read it; the rest only change picture and name. ' +
     (gearRead.length ? 'Of the weapons and armor, ' + gearRead.map(nm).join(', ') + ' read' + (gearRead.length === 1 ? 's' : '') + ' it.' : 'No weapon or piece of armor reads it.');
 }
 // One pair from the file that shows the two cases side by side: a weapon
@@ -461,16 +461,17 @@ function mechAspectContrast() {
     const gear = new Set(gearTable().filter(r => r.melee).map(r => r.pt)), ar = aspectReaders();
     for (const o of orphanItemArt()) for (const r of o.reach) if (gear.has(r.pt) && !(ar.get(r.pt) || {}).reads && (!weapon || r.aspect < weapon.aspect)) weapon = { pt: r.pt, aspect: r.aspect, word: r.word, name: o.name };
     const g = weapon ? gearTable().find(r => r.pt === weapon.pt) : null;
-    if (weapon && g) weapon.numbers = [g.damage !== null ? 'damage ' + g.damage : '', g.thrown ? 'thrown ' + g.thrown[0] + ' up to ' + g.thrown[1] + ' squares' : '', g.skill || ''].filter(Boolean).join(', ');
+    // HTML: each figure links to the record byte it was read from.
+    if (weapon && g) weapon.numbers = [g.damage !== null ? 'damage ' + srcNum(g.src.damage, g.damage) : '', g.thrown ? 'thrown ' + srcNum(g.src.thrown, g.thrown[0]) + ' up to ' + srcNum(g.src.thrown, g.thrown[1]) + ' squares' : '', g.skill ? svEsc(g.skill) : ''].filter(Boolean).join(', ');
     const fs = foodRules().foods.filter(f => f.variants && f.variants.length > 1 && f.variants[1].name && f.variants[1].name !== f.variants[0].name);
     const f = fs.find(f => f.saysPer) || fs[0];
     if (f) food = { pt: f.pt, name: f.name, v0: f.variants[0], v1: f.variants[1], word: (1 << 10) | f.pt };
   } catch (e) { return ''; }
   if (!weapon || !food) return '';
   const own = propDisplayName(weapon.pt) || 'weapon';
-  return 'So ' + w(propWordHex(weapon.word)) + ', ' + svLink(svEsc(own), 'propWordOpen(' + weapon.pt + ',' + weapon.aspect + ')') + ' at aspect ' + weapon.aspect + ', is a ' + w(svEsc(weapon.name)) + ' in picture and name and a ' + svEsc(own) + ' in every number' + (weapon.numbers ? ' (' + svEsc(weapon.numbers) + ')' : '') +
-    ', while ' + w(propWordHex(food.word)) + ', ' + svLink(svEsc(food.name), 'propWordOpen(' + food.pt + ',1)') + ' at aspect 1, is a ' + w(svEsc(food.v1.name)) + ' that feeds +' + food.v1.plus + (food.v1.says ? ' and says “' + svEsc(food.v1.says) + '”' : '') +
-    ', against +' + food.v0.plus + (food.v0.says && food.v0.says !== food.v1.says ? ' and “' + svEsc(food.v0.says) + '”' : '') + ' at aspect 0, because that class reads the aspect and the ' + svEsc(own) + '’s does not.';
+  return 'So ' + w(propWordHex(weapon.word)) + ', ' + svLink(svEsc(own), 'propWordOpen(' + weapon.pt + ',' + weapon.aspect + ')') + ' at aspect ' + weapon.aspect + ', is a ' + w(svEsc(weapon.name)) + ' in picture and name and a ' + svEsc(own) + ' in every number' + (weapon.numbers ? ' (' + weapon.numbers + ')' : '') +
+    ', while ' + w(propWordHex(food.word)) + ', ' + svLink(svEsc(food.name), 'propWordOpen(' + food.pt + ',1)') + ' at aspect 1, is a ' + w(svEsc(food.v1.name)) + ' that feeds ' + srcNum(food.v1.src, '+' + food.v1.plus) + (food.v1.says ? ' and says ' + srcNum(food.v1.saysSrc, '“' + food.v1.says + '”') : '') +
+    ', against ' + srcNum(food.v0.src, '+' + food.v0.plus) + (food.v0.says && food.v0.says !== food.v1.says ? ' and ' + srcNum(food.v0.saysSrc, '“' + food.v0.says + '”') : '') + ' at aspect 0, because that class reads the aspect and the ' + svEsc(own) + '’s does not.';
 }
 function mechGearFigure(gear) {
   const hue = {};
@@ -772,6 +773,7 @@ function mechClockFigure(sp, clk, costs) {
   const unit = clk.unitsPerHour.v, m = clk.model;
   const cost = name => { const c = (costs || []).find(x => x.cost && x.routine.name.startsWith('TGameSys::' + name + '(')); return c ? c.cost.v : null; };
   const step = cost('MoveCommand'), take = cost('TakeCommand');
+  const stepVal = step ? costs.find(x => x.cost && x.routine.name.startsWith('TGameSys::MoveCommand(')).cost : null;
   const spell = sp && sp.rule && sp.rule.timing ? sp.rule.timeBase.v + 5 * sp.rule.timeMult.v : null;
   const marks = [
     ...(step ? [{ v: step, label: 'a step', above: true }] : []),
@@ -785,7 +787,7 @@ function mechClockFigure(sp, clk, costs) {
   return mechFig('Everything the clock counts, in units of a ' + unit + 'th of an hour',
     mechNumberLine({ min: 1, max: unit, log: true, marks,
       bands: [{ from: 1, to: most, colour: 'rgba(249,248,111,.22)', label: 'what an action costs' }] }),
-    step ? 'A step is <b>' + step + '</b> unit' + (step === 1 ? '' : 's') + ', so an hour is ' + Math.round(unit / step).toLocaleString() + ' steps.' : '');
+    step ? 'A step is <b>' + srcNum(stepVal, step) + '</b> unit' + (step === 1 ? '' : 's') + ', so an hour is ' + Math.round(unit / step).toLocaleString() + ' steps.' : '');
 }
 
 // How much of the archive's own code asks about each skill: the table names
@@ -3128,16 +3130,17 @@ function renderMechanicsSheet(value) {
          : 'This file has no dice game.',
     dice ? [
       'The innkeeper throws one die and you throw yours. <b>Match it and you win ' + srcNum(dice.vals.matchPay) + ' obol' + (dice.matchPay === 1 ? '' : 'oi') + '.</b>',
-      'Otherwise the innkeeper throws the second die. If yours is <b>outside</b> the two black dice, you win the difference to the nearer one; if it is <b>between</b> them, or equal to one, you lose an obol.',
-      'A win of 1 is a draw, and the two play again.',
-      'Your stake is one obol, so a win pays one less than the innkeeper announces.',
+      'Otherwise the innkeeper throws the second die. If yours is <b>outside</b> the two black dice, you win the difference to the nearer one; if it is <b>between</b> them, or equal to one, you lose ' +
+        (dice.vals.lose ? srcNum(dice.vals.lose) + ' obol' + (dice.vals.lose.v === 1 ? '' : 'oi') : 'your stake') + '.',
+      dice.vals.draw ? 'A win of ' + srcNum(dice.vals.draw) + ' is a draw, and the two play again.' : '',
+      dice.vals.stake ? 'Your stake is ' + srcNum(dice.vals.stake) + ' obol' + (dice.vals.stake.v === 1 ? '' : 'oi') + ', so a win pays that much less than the innkeeper announces.' : '',
       dice.skillAlways ? '<b>Gambling</b> sets your die to the innkeeper’s first whenever they differed.' + (dice.skillFree ? ' This file has the skill check removed, so it happens without the skill.' : '')
         : dice.vals.skillFaces ? '<b>Gambling</b> gives your die a one in ' + srcNum(dice.vals.skillFaces) + ' chance of changing to the innkeeper’s first, when they differed.' + (dice.skillFree ? ' This file has the skill check removed, so it happens without the skill.' : '')
         : ''
     ].filter(Boolean) : [],
     dice ? '<div class="mechStats">' + stat(dice.wins, 'win') + stat(dice.pushes, 'draw') + stat(dice.losses, 'lose') + '<span class="mechStatNote">of ' + dice.total + ' throws</span>' +
            stat((dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3), 'obols a game, without the skill') + stat((dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3), 'with it') + '</div>' +
-           (dice.explain ? '<blockquote class="mechQuote">' + svEsc(dice.explain.replace(/\*/g, ' ')) + '<footer>the innkeeper, in the same script</footer></blockquote>' : '') +
+           (dice.explain ? '<blockquote class="mechQuote">' + srcNum(dice.explainVal, dice.explain.replace(/\*/g, ' ')) + '<footer>the innkeeper, in the same script</footer></blockquote>' : '') +
            mechFig('All ' + dice.total + ' throws: the innkeeper’s first die down the side, the second across, your own ' + dice.faces[1] + ' faces inside each cell',
              mechDiceMatrix(mechDiceExact(dice.opts).cells),
              'Red loses an obol, gray is a draw and green wins, brighter for more.') +
@@ -3214,7 +3217,7 @@ function renderMechanicsSheet(value) {
           (chest.wear && chest.step ? ', one above what is left ÷ ' + srcNum(chest.wear) + ' wears it down by ' + srcNum(chest.step) + q(chest.saysWorn) : '') +
           (chest.saysHeld ? ', and a smaller one says ' + srcSaid(0xE4A, chest.saysHeld) + (/[.!?]$/.test(chest.saysHeld) ? '' : '.') : '.') +
           ' Only destroying a magically locked chest gets past it; a blow opens a closed, unlocked chest.' : '',
-        (door && door.setsOff) || (chest && chest.setsOff) ? 'Before a blow on a door or chest counts, anything inside it marked with flag 2 is used on the current character and removed.' : '',
+        (door && door.setsOff) || (chest && chest.setsOff) ? 'Before a blow on a door or chest counts, anything inside it marked with flag ' + srcNum((door && door.setsOff) || chest.setsOff) + ' is used on the current character and removed.' : '',
         (function () {
           const bl = blastRules();
           if (!bl || !bl.centre) return '';
@@ -3264,7 +3267,7 @@ function renderMechanicsSheet(value) {
       mechAspectContrast(),
       pw.ench && pw.ench.guarded && pw.ench.added ? '<b>Data1 on a melee weapon is its enchantment</b>, added to the damage of every blow' +
         (pw.ench.magic ? '. <b>Any enchantment makes a blow magical</b>, which gets past monsters that resist ordinary weapons' : '') + '. Arrows and other ammunition ignore it.' : '',
-      pwEx && pwEx.hiVal && pwEx.loVal ? 'Examine reports it on ' + pw.examines.map(e => pwName(e.pt)).join(', ') + ': “' + svEsc(pwEx.above2) + '” above ' + srcNum(pwEx.hiVal) + ', “' + svEsc(pwEx.above0) + '” above ' + srcNum(pwEx.loVal) + '.' : '',
+      pwEx && pwEx.hiVal && pwEx.loVal ? 'Examine reports it on ' + pw.examines.map(e => pwName(e.pt)).join(', ') + ': ' + srcSaid(0x1000 + pwEx.pt, pwEx.above2) + ' above ' + srcNum(pwEx.hiVal) + ', ' + srcSaid(0x1000 + pwEx.pt, pwEx.above0) + ' above ' + srcNum(pwEx.loVal) + '.' : '',
       pw.zoneReaders.length ? '<b>Data3</b> is both bytes read as one value; ' + countLink(pw.zoneReaders.length + ' passage classes', 'The ' + pw.zoneReaders.length + ' passage classes that pass Data3 to ChangeZone', pw.zoneReaders.map(pt => svLink(pwName(pt), 'showPropTypeDetail(' + pt + ')'))) + ' pass it to ChangeZone as the destination.' : '',
       pw.scripts ? '<b>' + countLink(pw.scripts + ' scripts', 'The ' + pw.scripts + ' scripts that read or write Data1, Data2 or Data3', resChips(pw.scriptIds)) + '</b> read or write the bytes, ' + countLink(String(pw.readers.length), 'The ' + pw.readers.length + ' class scripts that read or write Data1, Data2 or Data3', resChips(pw.readers.map(r => r.resid))) + ' of them class scripts. What each byte means depends on the class.' : 'No script in this file reads the bytes.'
     ].filter(Boolean),
@@ -3344,7 +3347,7 @@ function renderMechanicsSheet(value) {
         const others = [...by.keys()].filter(a => a !== 0).sort((a, b) => a - b)
           .map(a => by.get(a).map(i => chipOf(i) || svEsc(characterName(i))).join(' ') + ' ' + (by.get(a).length === 1 ? 'has' : 'have') + ' ' + a);
         return '<b>' + countLink(zero.length + ' characters', 'The ' + zero.length + ' characters with alignment 0', zero.map(i => chipOf(i) || svLink(characterName(i), 'showCharacterDetail(' + i + ')'))) + ' have alignment 0</b>, every townsperson among them' + (others.length ? ', while ' + others.join(' and ') : '') +
-          ', so <b>killing a townsperson ' + (delta0 > 0 ? 'raises karma by ' + delta0 : delta0 < 0 ? 'lowers karma by ' + (-delta0) : 'leaves karma unchanged') + '</b>.';
+          ', so <b>killing a townsperson ' + (delta0 > 0 ? 'raises karma by ' + srcNum(km.byAlignmentSrc, delta0) : delta0 < 0 ? 'lowers karma by ' + srcNum(km.byAlignmentSrc, -delta0) : 'leaves karma unchanged') + '</b>.';
       })() : '',
       km.reads.length ? 'The scripts check it <b>' + km.reads.filter((r, i, a) => a.findIndex(x => x.test === r.test) === i).map(r => (r.below ? 'below ' : 'above ') + srcNum(r.val, r.n)).join('</b> and <b>') + '</b>.' : ''
     ].filter(Boolean) : [],
@@ -3357,10 +3360,17 @@ function renderMechanicsSheet(value) {
   add('potions', 'Potions', null, src('the potion', 0x101F),
     fd.potions.length ? 'What each color of potion does.' : 'This file has no potions.',
     [],
-    (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + p.effects.map(x => srcNum(x.src, x.text)).join('; ') + (p.says ? ' <span class="inspDim">“' + svEsc(p.says) + '”</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : ''), '');
+    (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + p.effects.map(x => srcNum(x.src, x.text)).join('; ') + (p.says ? ' <span class="inspDim">' + srcSaid(p.resid, p.says) + '</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : ''), '');
   add('food', 'Food', null, '',
     fd.foods.length ? 'Eating fills a character up, and each food fills by a different amount.' : 'This file has no food.',
-    fd.foods.length && hungerNotes().ceiling ? ['Nutrition falls by one an hour, so a food’s nutrition is the hours it lasts. A full stomach holds <b>' + hungerNotes().ceiling + '</b>, about ' + Math.round(hungerNotes().ceiling / 24) + ' days.'] : [],
+    /* The fall, its period and the ceiling are Hunger's readers, so each
+       figure links to the instruction or line it was read from. */
+    fd.foods.length && hungerNotes().ceiling !== null && model ? (function () {
+      const hn = hungerNotes(), mins = mechPeriodMinutes(model, model.hungerIndex);
+      return ['Nutrition falls by ' + srcNum(clk.fall) + ' every ' + period(model.hungerIndex).replace(/^(<button[^>]*>)(an |a )?/, '$1') +
+        (clk.fall.v === 1 && mins === 60 ? ', so a food’s nutrition is the hours it lasts' : '') + '. A full stomach holds <b>' + srcNum(hn.ceilingVal) + '</b>, about ' +
+        Math.round(hn.ceiling * mins / clk.fall.v / 60 / 24) + ' days.'];
+    })() : [],
     mechFoodTable(fd), '');
 
   // ---- status effects ----
@@ -3580,7 +3590,7 @@ function renderMechanicsSheet(value) {
     if (rows.length) add('light', 'Light', null, '',
       'How dark each place is, and how lights brighten it.' + (cap ? ' The level runs from 0, drawn black, to ' + srcNum(cap) + ', not darkened at all.' : ''),
       [
-        fixed + ' of the ' + rows.length + ' zones, the indoor ones, are equally dark at every hour; the rest follow the daylight.',
+        countLink(String(fixed), 'The ' + fixed + ' zones equally dark at every hour', rows.filter(r => r.lvl < 0).map(r => svLink(r.name, 'jumpToResource(' + r.resid + ')'))) + ' of the ' + rows.length + ' zones, the indoor ones, are equally dark at every hour; the rest follow the daylight.',
         '<b>Every light within five tiles brightens the whole screen</b>, brighter and nearer ones more, and light passes through walls.',
         'The map’s lighting layer shows each zone’s level and each light. Select a square to see how dark it is from where you stand.'
       ],
@@ -3668,7 +3678,7 @@ function renderMechanicsSheet(value) {
         '<b>' + td.adds.length + ' lines added</b> and <b>' + td.dones.length + ' struck off</b>, over <b>' + slots.size + ' slots</b>.',
         elsewhere.length ? '<b>' + elsewhere.length + ' of them show a different line</b> from the slot’s: the same errand, in the words of whoever told you about it.' : '',
         counted.length ? 'Some lines count what you have found so far: ' + counted.map(a => srcNum(a.state, nameOf(a.resid))).join(', ') + '.' : '',
-        never.length ? '<b>' + never.length + (never.length === 1 ? ' line is' : ' lines are') + ' never struck off</b> by any script: ' + never.map(s => (td.lines && td.lines.get(s) ? '“' + svEsc(td.lines.get(s)) + '”' : 'slot ' + s)).join(', ') + '.' : ''
+        never.length ? '<b>' + never.length + (never.length === 1 ? ' line is' : ' lines are') + ' never struck off</b> by any script: ' + never.map(s => srcNum(slots.get(s).adds[0].slot, td.lines && td.lines.get(s) ? '“' + td.lines.get(s) + '”' : 'slot ' + s)).join(', ') + '.' : ''
       ].filter(Boolean) : [],
       table(['#slot', 'line', 'added by', 'struck off by'], rows));
   }
@@ -4238,7 +4248,7 @@ function renderMechanicsSheet(value) {
     if (bz) braziersHtml += '<ul class="ruleList">' +
       '<li>Light them in order. A wrong one sends ' + srcNum(bz.state, 'the count') + ' back to the start.</li>' +
       (bz.last ? '<li>Lighting the last, number ' + srcNum(bz.last) + ', prints this line and makes the screen flicker:</li>' : '') +
-      (bz.say ? '<li>' + svEsc(bz.say.replace(/\s+/g, ' ').trim()) + '</li>' : '') + '</ul>';
+      (bz.say ? '<li>' + srcSaid(0x113F, bz.say.replace(/\s+/g, ' ').trim()) + '</li>' : '') + '</ul>';
     // Which sides of a panel are lit. The aspect's low four bits are the
     // four sides, and the order is the file's: 8 right, 4 bottom, 2 left,
     // 1 top. Read off the records rather than stated here, in that the

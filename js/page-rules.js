@@ -143,9 +143,9 @@ function diceGame() {
   const R = 0x812;
   const e = dvmScriptEntry(R);
   if (!e || !/three dice/.test(e.text)) return null;
-  const m = /string\(implicit\) ("\\"It's very simple[^\n]*)/.exec(e.text);
-  let explain = '';
-  try { explain = m ? JSON.parse(m[1]) : ''; } catch (err) { explain = ''; }
+  // The innkeeper's explanation, with its offset, so the quote links to it.
+  const explainVal = dvmStringVal(R, /^"It's very simple/);
+  const explain = explainVal ? explainVal.v : '';
   const ops = dvmOpsOf(e);
   const hex4 = n => '0x' + n.toString(16).toUpperCase().padStart(4, '0');
   // Every Random(0, n) in the script, with the op that holds the n. A
@@ -200,11 +200,19 @@ function diceGame() {
   if (!pay) return null;
   const matchPay = dvmVal(R, pay[1]);
   bytes.push(byte('what a match pays', matchPay));
+  /* The three ones the rules state: the obol a loss takes (0xD05's
+     argument), the win that is only a draw (`Var06 > n` before the payout)
+     and the stake taken off a win's payout (`Var06 - n`). Each is read so
+     its sentence links to it; one not found leaves its sentence out. */
+  const seqVal = pat => { const g = dvmSeqFirst(ops, pat); return g ? dvmVal(R, g.find(o => DVM_NUM.test(o.text))) : null; };
+  const lose = seqVal([/^call_resource (?:\S+ \()?0xD05\)?$/, DVM_NUM, /^end$/]);
+  const draw = seqVal([/^if_not$/, /^local Var06$/, DVM_NUM, /^gt$/]);
+  const stake = seqVal([/^call_resource (?:\S+ \()?0xD09\)?$/, null, /^local Var06$/, DVM_NUM, /^sub$/]);
   const opts = { faces, matchPay: matchPay.v, skillFaces: after ? after.val.v : null, skillAlways };
   const plain = mechDiceExact(opts), skilled = mechDiceExact(Object.assign({ gambling: true }, opts));
   const total = plain.total;
-  return { explain, faces, matchPay: matchPay.v, skillFaces: opts.skillFaces, skillAlways, skillFree, total, bytes, opts,
-           vals: { faces: before.map(r => r.val), matchPay, skillFaces: after ? after.val : null },
+  return { explain, explainVal, faces, matchPay: matchPay.v, skillFaces: opts.skillFaces, skillAlways, skillFree, total, bytes, opts,
+           vals: { faces: before.map(r => r.val), matchPay, skillFaces: after ? after.val : null, lose, draw, stake },
            fair: plain.mean, skilled: skilled.mean,
            wins: Math.round(plain.wins * total), pushes: Math.round(plain.pushes * total), losses: Math.round(plain.losses * total) };
 }
@@ -1122,7 +1130,11 @@ function foodRules() {
           } catch (err) { saysPer = null; }
         } else if (c) says = c[1];
       }
-      const variants = table ? table.map((v, a) => ({ aspect: a, name: base !== undefined ? (terrainNameFor(base + a) || '') : '', plus: v * mul, src: tableSrc, says: saysPer ? (saysPer[a] || '') : says })) : [];
+      // A line from the table has no instruction of its own, so it links to
+      // the one that shows the balloon.
+      const bop = balloon ? dvmOpsOf(e).find(o => /^set_field talk_balloon/.test(o.text)) : null;
+      const saysSrc = bop ? { resid: e.resid, at: bop.at } : null;
+      const variants = table ? table.map((v, a) => ({ aspect: a, name: base !== undefined ? (terrainNameFor(base + a) || '') : '', plus: v * mul, src: tableSrc, says: saysPer ? (saysPer[a] || '') : says, saysSrc })) : [];
       foods.push({ pt, name, variants, mul, says, saysPer: !!saysPer });
       continue;
     }
@@ -1521,7 +1533,9 @@ function bashRule(resid) {
   const spills = ops.some(o => o.text === 'call_resource 0xE48');
   // Anything inside it flagged 2 is used on the one attacking and removed
   // before the blow is judged.
-  const setsOff = !!dvmSeqFirst(ops, [/^get_field flags/, /^byte (?:0x02|2)$/, /^bitwise_and$/]) && ops.some(o => /^method UseOn/.test(o.text));
+  // The flag test, kept so the sentence's "flag 2" links to it.
+  const setsOffG = dvmSeqFirst(ops, [/^get_field flags/, /^byte (?:0x02|2)$/, /^bitwise_and$/]);
+  const setsOff = setsOffG && ops.some(o => /^method UseOn/.test(o.text)) ? dvmVal(resid, setsOffG[1]) : null;
   // The line each outcome says: the first string with words in it after
   // the test that leads to it, and the one after that for the blow that
   // does nothing. Chosen by where it sits, so an edited line is quoted as
