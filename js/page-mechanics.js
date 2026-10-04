@@ -3690,11 +3690,11 @@ function renderMechanicsSheet(value) {
   {
     const cf = characterFlagSites();
     const link = s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid));
-    const cell = list => {
+    const cell = (list, what) => {
       if (!list.length) return '<td></td>';
       const seen = new Map(); for (const s of list) if (!seen.has(s.resid)) seen.set(s.resid, s);
       const u = [...seen.values()];
-      return '<td>' + u.slice(0, 4).map(link).join(', ') + (u.length > 4 ? ' and ' + (u.length - 4) + ' more' : '') +
+      return '<td>' + u.slice(0, 4).map(link).join(', ') + (u.length > 4 ? ' and ' + countLink((u.length - 4) + ' more', 'The ' + u.length + ' scripts that ' + what, u.map(link)) : '') +
         (list.length > u.length ? ' <span class="mechSub" style="display:inline">(' + list.length + ' sites)</span>' : '') + '</td>';
     };
     const place = f => { const p = characterFlagPlace(f); return p ? srcNum(p.offset, (p.word ? 'halfword' : 'byte') + ' +' + p.offset.v) + ', bit ' + p.bit : ''; };
@@ -3703,7 +3703,7 @@ function renderMechanicsSheet(value) {
     const rows = [...flags].sort((a, b) => a - b).map(f => {
       const s = cf.flags.find(x => x.flag === f) || { set: [], clear: [], test: [], effect: [] };
       return '<tr>' + num(f) + '<td>' + (dvmFlagName(f) ? svEsc(dvmFlagName(f)) : '') + '</td><td>' + place(f) + '</td>' +
-        cell(s.set) + cell(s.clear) + cell(s.test) + cell(s.effect) + '</tr>';
+        cell(s.set, 'set character flag ' + f) + cell(s.clear, 'clear character flag ' + f) + cell(s.test, 'test character flag ' + f) + cell(s.effect, 'give character flag ' + f + ' as a status') + '</tr>';
     });
     add('charflags', 'The Character Flags', null, src('set', 0xF00) + src('clear', 0xF01) + src('test', 0xF02),
       'The on/off flags each character carries, such as poison, sleep and fear, and the scripts that set, clear and check each one.',
@@ -3719,7 +3719,8 @@ function renderMechanicsSheet(value) {
     const cb = classFlagBits();
     const ic = appImage() ? exeIntfCache() : null;
     const readers = ic ? exeTocReaders(ic.cacheDisp.v) : [];
-    const who = list => list.slice(0, 14).map(w => svLink(propDisplayName(w.pt) || ('prop ' + w.pt), 'showPropTypeDetail(' + w.pt + ')')).join(', ') + (list.length > 14 ? ' and ' + (list.length - 14) + ' more' : '');
+    const whoLink = w => svLink(propDisplayName(w.pt) || ('prop ' + w.pt), 'showPropTypeDetail(' + w.pt + ')');
+    const who = (list, bit) => list.slice(0, 14).map(whoLink).join(', ') + (list.length > 14 ? ' and ' + countLink((list.length - 14) + ' more', 'The ' + list.length + ' classes that carry class flag ' + propWordHex(bit), list.map(whoLink)) : '');
     // The routines that test a cache bit, each linked at the instruction.
     const testedBy = bit => {
       const hits = [];
@@ -3729,7 +3730,7 @@ function renderMechanicsSheet(value) {
     const keyName = k => (DVM_SYM.method[String(k)] ? prettyLabel(DVM_SYM.method[String(k)]) : 'key ' + k);
     const rows = cb.bits.map(b => {
       const moved = ic && ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === b.bit);
-      return '<tr><td class="num">' + propWordHex(b.bit) + '</td>' + num(b.who.length) + '<td>' + who(b.who) + '</td>' +
+      return '<tr><td class="num">' + propWordHex(b.bit) + '</td>' + num(b.who.length) + '<td>' + who(b.who, b.bit) + '</td>' +
         (ic ? '<td>' + (moved ? srcNum(moved.cacheBit, propWordHex(moved.cacheBit.v)) : '<span class="mechSub" style="display:inline">not copied</span>') + '</td><td>' + (moved ? testedBy(moved.cacheBit.v) : '') + '</td>' : '') + '</tr>';
     });
     const hasRows = ic ? ic.has.map(h => '<tr><td>' + srcNum({ exe: h.keyOp.at }, keyName(h.key)) + '</td><td class="num">' + srcNum(h.cacheBit, propWordHex(h.cacheBit.v)) + '</td><td>' + testedBy(h.cacheBit.v) + '</td></tr>') : [];
@@ -3933,7 +3934,7 @@ function renderMechanicsSheet(value) {
     for (const n of nameNeverKept()) rows.push('<tr><td>a name told and not kept</td><td>' + (chipOf(n.who) || svEsc(characterName(n.who))) +
       ' answers “name” but never sets their own character flag 7, which every other name topic sets, so they are still called by what they look like.</td><td>' + where([n]) + '</td></tr>');
     for (const a of askedOfNobody()) rows.push('<tr><td>answers written for someone never asked</td><td>' + a.items.length + ' item classes write an Ask About answer for ' + (chipOf(a.who) || svEsc(characterName(a.who))) +
-      ', whose script never passes a question to the shared Ask About script, so none of these answers is ever given.</td><td>' + a.items.slice(0, 6).map(pt => svLink(svEsc(propDisplayName(pt) || ('prop ' + pt)), 'showItemDetail(' + pt + ')')).join(', ') + (a.items.length > 6 ? ' and ' + (a.items.length - 6) + ' more' : '') + '</td></tr>');
+      ', whose script never passes a question to the shared Ask About script, so none of these answers is ever given.</td><td>' + a.items.slice(0, 6).map(pt => svLink(svEsc(propDisplayName(pt) || ('prop ' + pt)), 'showItemDetail(' + pt + ')')).join(', ') + (a.items.length > 6 ? ' and ' + countLink((a.items.length - 6) + ' more', 'The ' + a.items.length + ' item classes with an answer for ' + characterName(a.who), a.items.map(pt => svLink(svEsc(propDisplayName(pt) || ('prop ' + pt)), 'showItemDetail(' + pt + ')'))) : '') + '</td></tr>');
     for (const r of answersThatRunOn()) rows.push('<tr><td>an answer that runs on</td><td>The answer to “' + svEsc(r.list) + '” has no instruction to stop after it, so ' +
       (r.then ? 'the answer to “' + svEsc(r.then.list) + '” further on follows for the same reply straight away, and replaces the first answer before you can read it.'
         : 'the conversation goes on checking the next keywords, and when none matches, the character’s “don’t understand” line follows it.') + '</td><td>' + where([r]) + '</td></tr>');
@@ -3964,7 +3965,7 @@ function renderMechanicsSheet(value) {
     for (const h of highlightsUnanswered()) rows.push('<tr><td>a highlighted word nobody answers</td><td>“' + svEsc(h.word) + '” is highlighted as a question in ' + where([h]) + ', and ' +
       (h.who.length === 1 ? (chipOf(h.who[0]) || svEsc(characterName(h.who[0]))) + ', who says it, has'
         : 'none of the ' + h.who.length + ' characters who can say it has') + ' an answer that matches it' +
-      (h.who.length > 1 ? ': ' + h.who.slice(0, 8).map(n => chipOf(n) || svEsc(characterName(n))).join(', ') + (h.who.length > 8 ? ' and ' + (h.who.length - 8) + ' more' : '') : '') + '.</td><td>' + where([h]) + '</td></tr>');
+      (h.who.length > 1 ? ': ' + h.who.slice(0, 8).map(n => chipOf(n) || svEsc(characterName(n))).join(', ') + (h.who.length > 8 ? ' and ' + countLink((h.who.length - 8) + ' more', 'The ' + h.who.length + ' characters who can say “' + h.word + '”', h.who.map(n => chipOf(n) || svLink(characterName(n), 'showCharacterDetail(' + n + ')'))) : '') : '') + '.</td><td>' + where([h]) + '</td></tr>');
     for (const r of refusalOnEveryCheck()) rows.push('<tr><td>a refusal said on every check</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) +
       '’s answer to whether a thing can go inside it prints “' + svEsc(r.said.trim()) + '” before saying no, and the inventory window asks it each time it checks a drop, so the line repeats while you drag a thing over it.</td><td>' + where([r]) + '</td></tr>');
     for (const l of leaveNeverLeaves()) rows.push('<tr><td>a companion who agrees to leave and stays</td><td>' + (chipOf(l.who) || svEsc(characterName(l.who))) +

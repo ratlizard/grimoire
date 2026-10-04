@@ -250,8 +250,10 @@ function buildScriptView(o) {
   h = '';
   try { h = renderUsage(resid, subn); } catch (e) { quiet(e); }
   if (outs.length)
-    h += partsStrip('Names', shown.map(e => svChip(e.target, e.kind)),
-                    outs.length > shown.length ? 'and ' + (outs.length - shown.length) + ' more' : '');
+    // partsStrip escapes its note, so the "more" that opens the whole list
+    // goes in as the last element of the strip.
+    h += partsStrip('Names', shown.map(e => svChip(e.target, e.kind)).concat(outs.length > shown.length
+      ? ['<span class="partsNote">and ' + countLink((outs.length - shown.length) + ' more', 'The ' + outs.length + ' things 0x' + resid.toString(16).toUpperCase() + ' names', outs.map(e => svChip(e.target, e.kind))) + '</span>'] : []));
   refs.innerHTML = linksFold(h);
   refs.style.display = '';
 }

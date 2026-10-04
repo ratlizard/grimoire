@@ -1208,7 +1208,8 @@ function fieldReadersHTML(key, cap) {
   if (!sites.length) return '';
   const n = cap || 8;
   return sites.slice(0, n).map(s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid))).join(', ') +
-    (sites.length > n ? ' and ' + (sites.length - n) + ' more' : '') +
+    (sites.length > n ? ' and ' + countLink((sites.length - n) + ' more', 'The ' + sites.length + ' scripts that read ' + itemFieldLabel(key),
+      sites.map(s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid)))) : '') +
     ' <span style="color:#8c8980">(' + all.length + ' site' + (all.length === 1 ? '' : 's') + ')</span>';
 }
 

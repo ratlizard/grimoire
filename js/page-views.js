@@ -1285,9 +1285,12 @@ function renderUsage(resid, subn) {
     // A reference made by code opens that script ringed at the line that makes
     // it; one held in an array or a table opens the script, since a listing
     // prints an array as one line with no offset to ring.
-    rows.push(['Referenced by', shown.map(e => svChip(e.from, (refDescription(e.from) || e.via) + (e.count > 1 ? ' ×' + e.count : ''),
-      e.via === 'code' && Number.isFinite(e.at) ? 'jumpToScriptAt(' + e.from + ',' + e.at + ')' : undefined)),
-               ins.length > shown.length ? 'and ' + (ins.length - shown.length) + ' more' : '']);
+    const refChip = e => svChip(e.from, (refDescription(e.from) || e.via) + (e.count > 1 ? ' ×' + e.count : ''),
+      e.via === 'code' && Number.isFinite(e.at) ? 'jumpToScriptAt(' + e.from + ',' + e.at + ')' : undefined);
+    // The note is escaped where it is drawn, so the "more" that opens the
+    // whole list goes in as the strip's last element.
+    rows.push(['Referenced by', shown.map(refChip).concat(ins.length > shown.length
+      ? ['<span class="partsNote">and ' + countLink((ins.length - shown.length) + ' more', 'The ' + ins.length + ' references to 0x' + resid.toString(16).toUpperCase(), ins.map(refChip)) + '</span>'] : []), '']);
   }
   return rows.map(([t, c, n]) => partsStrip(t, c, n)).join('');
 }
