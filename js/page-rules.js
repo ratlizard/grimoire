@@ -1933,9 +1933,14 @@ function attackRules() {
   // number, to know how many values the roll takes.
   const bodyAdd = dvmSeqIn(0x3042, [/^call_resource 0xE90$/, /^arg Arg00$/, /^get_field body\b/, /^end$/, DVM_NUM, /^add$/]);
   const ammoSpent = /set_field quantity \(0x9\)[\s\S]{0,60}byte 0x01[\s\S]{0,500}sys Delete/.test(a);
+  // Where each `member² >= D - 1` test is, so the sheet's statement of the
+  // rule links to it: reach (MeleeWeapon), a thrown range (ThrownWeapon) and
+  // a launcher's (RangedWeapon).
+  const testAt = k => { const g = dvmSeqIn(0x3042, [new RegExp('^class_member 0x' + k + '01$'), /^local Var03$/, new RegExp('^class_member 0x' + k + '01$'), /^mul$/, /^local Var02$/, /^ge$/]); return g ? { resid: 0x3042, at: g[5].at } : null; };
   return { squared, lessOne, reach, range, launcher, meleeFirst, beyondAdjacent, flies, lodges, drops, bodyRoll, reflexRoll,
     scale: scm ? { sub: dvmNum(scm[0]), div: dvmNum(scm[2]), subVal: dvmVal(0xE90, scm[0]), divVal: dvmVal(0xE90, scm[2]) } : null,
-    lessOneVal: one ? dvmVal(0x3042, one[2]) : null, bodyAddVal: bodyAdd ? dvmVal(0x3042, bodyAdd[4]) : null, ammoSpent };
+    lessOneVal: one ? dvmVal(0x3042, one[2]) : null, bodyAddVal: bodyAdd ? dvmVal(0x3042, bodyAdd[4]) : null, ammoSpent,
+    reachAt: testAt('2A'), rangeAt: testAt('2B'), launcherAt: testAt('2E') };
 }
 
 /* WHAT A SPELL OR A USE CAN BE AIMED AT. A script that wants a target says

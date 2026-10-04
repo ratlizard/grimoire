@@ -3163,6 +3163,9 @@ function renderMechanicsSheet(value) {
     cb ? [
       ar && ar.reach && ar.meleeFirst ? 'The attack picks the weapon first; the first thing wielded whose <b>reach</b> covers the distance is swung' +
         (ar.range && ar.beyondAdjacent ? '. If nothing reaches, and the target is not adjacent but is in sight, the first thing with a thrown figure is <b>thrown</b> as a missile' : '') + '.' +
+        (ar.squared && ar.lessOne && ar.reachAt ? ' Something reaches when its ' + srcNum(ar.reachAt, 'reach') +
+          (ar.rangeAt ? ', ' + (ar.launcherAt ? '' : 'or ') + 'its ' + srcNum(ar.rangeAt, 'thrown range') : '') + (ar.launcherAt ? ' or a launcher’s ' + srcNum(ar.launcherAt, 'range') : '') +
+          ', squared, is at least the distance squared (across squared plus down squared) less ' + srcNum(ar.lessOneVal) + '.' : '') +
         (ar.squared && ar.lessOne ? ' Reach ' + srcNum(ar.lessOneVal, '1') + ' covers the eight squares around the attacker, and reach 2 covers two squares in a straight line or a knight’s move.' : '') : '',
       'The margin is the attacker’s <b>reflex</b>' + (cb.roll ? ' <b>plus a random number from 0 to ' + rollTo(cb.roll) + '</b>' : '') +
         (cb.skillOffLoop
