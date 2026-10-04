@@ -482,6 +482,23 @@ function renderSkillsSheet() {
    DoDefend stores the attacker there before striking back; so the hour
    leaves anyone in a fight where they are. Null with no application open
    or when the shape is not found. */
+/* The character window's first test (TCharacterWindow::DrawStatPart):
+   the halfword at byte 6 of the record, its lowest bit. Clear, the window
+   takes the first of its condition words, the one for the dead, and tests
+   nothing further, so a record with that bit clear reads as dead whatever
+   its health (Peirithous, at 21 of 21, and the empty records 187 to 191 a
+   conversation borrows a portrait from). The same bit ScheduleTime tests
+   (exeScheduleWho's aliveBit). The load and the test, as exe values; null
+   with no application open or when the shape is not found. */
+function exeCharWindowAlive() {
+  const ops = exeOpsNamed('TCharacterWindow::DrawStatPart');
+  for (let i = 0; i + 1 < ops.length; i++) {
+    const d = ops[i].d, n = ops[i + 1].d;
+    if (d && n && d.mn === 'lhz' && d.d === 6 && /^clrlwi\.?$/.test(n.mn) && n.mb === 31 && n.rs === d.rt)
+      return { half: exeVal(ops[i], d.d), test: exeVal(ops[i + 1], 1) };
+  }
+  return null;
+}
 function exeScheduleWho() {
   const ops = exeOpsNamed('ScheduleTime');
   if (!ops.length) return null;

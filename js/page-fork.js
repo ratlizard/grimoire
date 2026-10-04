@@ -1526,6 +1526,15 @@ function showCharacterDetail(i) {
     // Byte 25, the alignment, named by the combat AI's own groups
     // (exeAlignmentNames). Zero is a value here, neutral, so it is shown.
     (r.proptype ? '<b>Alignment</b> ' + alignmentHTML(r.raw[25], cSrc(25, 'the alignment')) + '<br>' : '') +
+    /* Dead when the alive bit, the lowest of the status halfword at byte 6,
+       is clear: the character window shows them as dead and the hour never
+       places them, whatever their health (the spreadsheet of recruits
+       hacked into the party found Peirithous and the empty records 187 to
+       191 "Dead"). */
+    (i > 0 && !(r.raw[7] & 1) ? '<b>Status</b> dead: ' + (function () {
+      let w = null; try { w = appImage() ? exeCharWindowAlive() : null; } catch (e) { quiet(e); }
+      return 'the record’s ' + srcNum(cSrc(7, 'status, the alive bit'), 'alive bit') + ' is clear, so a ' + (w ? srcNum(w.test, 'character window') : 'character window') + ' shows them as dead and the schedules never place them';
+    })() + '<br>' : '') +
     (r.zone ? '<b>Home</b> ' + d.homeZone + ' at (' +
       srcNum(cSrc(1, 'the packed level, x and y'), String(r.x)) + ', ' +
       srcNum(cSrc(1, 'the packed level, x and y'), String(r.y)) + ')<br>' : '') +
