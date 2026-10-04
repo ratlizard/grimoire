@@ -843,6 +843,7 @@ const DATA_FIXES = [
   // their own character flag 7, as every other character's does, so the
   // scripts that test it use their names.
   { id: 'paris-diomede-names', group: 'talk', stage: 'bugfix', title: 'Paris and Diomede are now called by name once they have given it, instead of never',
+    played: 'fork, 3 October 2026: after "name", Diomede in Cademia and Paris in Pnyx were labelled by name in the conversation, and unpatched they stayed unnamed',
     edits: [
       { what: 'Paris keeps his name', resid: 0x1857, at: 0x013D,
         expect: { 0x0114: 'conversation_response "name"', 0x013D: 'branch' },
@@ -952,6 +953,7 @@ const DATA_FIXES = [
   // spoke of them as of someone else, Helen of "my cousin Helen". Each
   // name now reaches the answer they give to "name"; no line is new.
   { id: 'self-names', group: 'talk', stage: 'further', title: 'Eight people asked their own name now answer as themselves, instead of speaking of themselves as someone else',
+    played: 'fork, 3 October 2026, in part (Milcom and Halos of the eight): "Milcom" to Milcom drew "I am Milcom, technically head of House Atussa." and "Halos" to Halos "I am Halos", against "Milcom was the head of the former House Atussa." and "Halos represents House Strymon in Cademia." unpatched',
     plan: (s) => ({ edits: [
       ['Milcom', 0x181E, 'name', 'milc', 'I am Milcom'],
       ['Eioneus', 0x1827, 'name', 'eion', 'As I\'ve mentioned before'],
@@ -985,6 +987,7 @@ const DATA_FIXES = [
   // general group's (0x0801) answers about Pnyx and mages. It now reaches
   // the answer about mages, "Mages are trained at the Magisterium in Pnyx".
   { id: 'magisterium', group: 'talk', stage: 'further', title: '“Magisterium” now gets the answer about mages, instead of no answer',
+    played: 'fork, 3 October 2026: "Magisterium" to Milcom drew "Mages are trained at the Magisterium in Pnyx", against "I\u2019m sorry, but I don\u2019t understand." unpatched',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'the mages answer to "Magisterium"', 0x0801, 'mage', 'mage,magi', ['string(implicit) "\\"Mages are trained']),
     ] }) },
