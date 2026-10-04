@@ -792,6 +792,7 @@ const DATA_FIXES = [
   // then send the method to the argument, a bare number, which the
   // interpreter ignores. Each sends it to the local.
   { id: 'aethon-locks', group: 'rules', stage: 'bugfix', title: 'Aethon now picks a lock when told to, instead of ignoring the order',
+    played: 'fork, 3 October 2026: Aethon in the party with his lock picks, Pick Lock from his Do menu on a locked oak door, "Work the Lock!" then "It is now unlocked" and the door saved unlocked, against "Work the Lock!" and the door still locked unpatched',
     edits: [[0x0C4E, 'Use'], [0x0C4F, 'UseOn'], [0x0C50, 'UseAt']].map(([resid, m]) => ({
       what: 'lock picking ' + m, resid, at: 0x000B, to: 0x000C,
       expect: { 0x0003: 'set_local 0x00', 0x0009: 'method', 0x000B: 'arg Arg01' },
@@ -801,6 +802,7 @@ const DATA_FIXES = [
   // without Hector's weapon remarks: open the talk, both portraits, the
   // AskAbout helper (0xEB6), and "Looks like ..." when it has nothing.
   { id: 'aethon-ask-about', group: 'talk', stage: 'bugfix', title: 'Aethon now answers when asked about a thing, instead of answering only about skills',
+    played: 'fork, 3 October 2026: Ask About from Aethon\u2019s Do menu on the hero\u2019s oboloi drew "Ah, was there ever anything as noble as money!", against "Nothing" unpatched',
     edits: [
       { what: 'Aethon asked about a thing', resid: 0x1861, at: 0x0078,
         expect: { 0x0078: 'if_not', 0x007A: 'is_type Skill' },
