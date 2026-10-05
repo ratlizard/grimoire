@@ -2177,8 +2177,14 @@ function renderText(sameResource) {
     hexText = hexDump(resData);
 
     const midiBtn = document.getElementById('midiBtn');
+    const qtPlayBtn = document.getElementById('qtPlayBtn');
     if (midiBtn) midiBtn.style.display = 'none';
+    if (qtPlayBtn) qtPlayBtn.style.display = 'none';
+    const qtPickBtn = document.getElementById('qtPickBtn');
+    if (qtPickBtn) qtPickBtn.style.display = 'none';
     if (subn === 143) {
+      // A tune played a moment ago stays in the sound panel otherwise.
+      document.getElementById('soundPreview').style.display = 'none';
       let head = "--- QTMA TUNE (decoded) ---\n";
       try {
         const info = qtmaToMidi(resDataRaw);
@@ -2189,9 +2195,10 @@ function renderText(sameResource) {
         head += "Notes: " + info.noteCount + "   Events: " + info.eventCount +
                 "   Length: " + info.durationSec.toFixed(1) + "s\n" +
                 "Parts:\n" + (gm || "  (none declared)") + "\n\n" +
-                "Use \"Download as MIDI\" below, then render with any General MIDI\n" +
-                "synth (e.g. fluidsynth -F out.wav SoundFont.sf2 file.mid).\n\n";
+                "\"Play with QuickTime's Instruments\" plays it through the samples QuickTime 3\n" +
+                "shipped, fetched from archive.org (7 MB) the first time.\n\n";
         if (midiBtn) midiBtn.style.display = '';
+        if (qtPlayBtn) qtPlayBtn.style.display = '';
       } catch(e) {
         head += "(could not decode as a QTMA tune: " + e.message + ")\n\n";
       }

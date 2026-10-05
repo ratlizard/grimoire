@@ -787,7 +787,7 @@ function qExtractGmFromNoteReq(bytes){
   return (gm>=0 && gm<=128) ? gm : null;
 }
 function qParseTune(words){
-  const events = [], noteRequests = {};
+  const events = [], noteRequests = {}, tones = {};
   let t = 0, i = 0;
   const n = words.length;
   let guard = 0;
@@ -834,11 +834,15 @@ function qParseTune(words){
         }
         const gm = qExtractGmFromNoteReq(nb);
         if (gm !== null) noteRequests[part] = gm;
+        // The whole request, for playing through QuickTime's own instruments
+        // (js/mac-qtmusic.js), which a kit's 16385 needs and the GM number drops.
+        if (nb.length >= 8+76)
+          tones[part] = {instrument: u32be(nb, 8+68) | 0, gm: u32be(nb, 8+72) | 0};
       }
     }
     i += ln;
   }
-  return {events, noteRequests};
+  return {events, noteRequests, tones};
 }
 function qVlq(n){
   if (n === 0) return [0];
@@ -944,7 +948,8 @@ function qtmaToMidi(data){
   const notes = seq.events.filter(e=>e.k==='note');
   // To the last note's end, not its start, in the tune's own units.
   const total = seq.events.length ? Math.max(...seq.events.map(e => e.t + (e.dur || 0))) : 0;
-  return {midi:built.midi, chanOf:built.chanOf, noteRequests,
+  const tones = Object.assign({}, hdr.tones, seq.tones);
+  return {midi:built.midi, chanOf:built.chanOf, noteRequests, tones, events:seq.events,
           noteCount:notes.length, eventCount:seq.events.length, durationSec:total/QTMA_UNITS_PER_SECOND};
 }
 function downloadCurrentMidi(){
@@ -957,6 +962,100 @@ function downloadCurrentMidi(){
     // say; every other failure in this file reports through #output.
     document.getElementById('output').textContent = 'MIDI conversion failed: ' + e.message;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   A tune played through QuickTime's own instruments
+   ---------------------------------------------------------------------------
+   js/mac-qtmusic.js reads the instruments and renders; this fetches them and
+   puts the result in the sound panel. They come from archive.org's copy of
+   the QuickTime 3 CD, the one copy a page can reach (js/mac-installshield.js
+   says why that one), 7 MB once, and the 2 MB of instruments taken out of it
+   are remembered in a database of their own, so a second tune, or a second
+   visit, fetches nothing. The page's own database is left alone: a new store
+   there means a version bump every remembered archive goes through. Where
+   the fetch fails, a file does as well: the installer, the .qtx, or a Mac
+   QuickTime Musical Instruments file's resource fork.
+--------------------------------------------------------------------------- */
+const QT_INSTALLER_URL = 'https://archive.org/cors/apple-quicktime-3/apple-quicktime-3.iso/QUICKTIM.EXE';
+const QT_DB = 'grimoire-qt-instruments', QT_STORE = 'instruments', QT_KEY = 'quicktime3';
+let QT_LIB = null;
+
+function qtCache(mode, fn) {
+  return new Promise((resolve, reject) => {
+    let req;
+    try { req = indexedDB.open(QT_DB, 1); } catch (e) { reject(e); return; }
+    req.onupgradeneeded = () => req.result.createObjectStore(QT_STORE);
+    req.onerror = () => reject(req.error || new Error('IndexedDB unavailable'));
+    req.onsuccess = () => {
+      const db = req.result, tx = db.transaction(QT_STORE, mode), r = fn(tx.objectStore(QT_STORE));
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+      tx.oncomplete = () => db.close();
+    };
+  });
+}
+
+async function qtLoadInstruments() {
+  if (QT_LIB) return QT_LIB;
+  let fork = null;
+  try { fork = await qtCache('readonly', s => s.get(QT_KEY)); } catch (e) { quiet(e, 'reading the remembered instruments'); }
+  if (fork) {
+    try { QT_LIB = qtInstrumentsFromFile(new Uint8Array(fork)); return QT_LIB; }
+    catch (e) { quiet(e, 'opening the remembered instruments'); }
+  }
+  const bytes = await fetchWithProgress(QT_INSTALLER_URL, "Fetching QuickTime 3's instruments from archive.org");
+  qtAdoptInstruments(qtInstrumentsFromFile(bytes));
+  return QT_LIB;
+}
+function qtAdoptInstruments(lib) {
+  QT_LIB = lib;
+  qtCache('readwrite', s => s.put(lib.forkBytes, QT_KEY)).catch(e => quiet(e, 'remembering the instruments'));
+}
+
+async function playCurrentTune() {
+  const resid = currentResid, raw = window.CUR_RAW_BYTES;
+  const pick = document.getElementById('qtPickBtn');
+  try {
+    setStatus("Loading QuickTime 3's instruments");
+    await qtLoadInstruments();
+  } catch (e) {
+    setStatus("Could not fetch QuickTime 3's instruments (" + e.message + '). Choose QUICKTIM.EXE or QuickTimeMusicalInstruments.qtx instead.', true);
+    if (pick) pick.style.display = '';
+    return;
+  }
+  if (pick) pick.style.display = 'none';
+  setStatus('Playing 0x' + resid.toString(16).toUpperCase() + " through QuickTime 3's instruments");
+  await new Promise(r => setTimeout(r, 30));   // let the status paint before the render holds the page
+  try {
+    const info = qtmaToMidi(raw);
+    const r = qtmaRender(info.events, info.tones, QT_LIB, {unitsPerSecond: QTMA_UNITS_PER_SECOND});
+    const wav = qtmaWav(r);
+    currentWavBlob = new Blob([wav], {type: 'audio/wav'});
+    currentSoundResid = resid;
+    drawWaveform(new Int16Array(wav.buffer, 44, r.left.length * 2).filter((_, i) => !(i & 1)));
+    if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+    const audio = document.getElementById('audioPlayer');
+    audio.src = currentObjectUrl = URL.createObjectURL(currentWavBlob);
+    document.getElementById('soundPreview').style.display = 'block';
+    document.getElementById('soundLabel').textContent = '0x' + resid.toString(16).toUpperCase() +
+      " through QuickTime 3's instruments  |  " + (r.left.length / r.rate).toFixed(1) + 's' +
+      (r.missing.length ? '  |  no instrument for part ' + r.missing.join(', ') : '');
+    setStatus('');
+    audio.play().catch(e => quiet(e, 'starting the tune'));
+  } catch (e) {
+    setStatus('Could not play the tune: ' + e.message, true);
+  }
+}
+function qtInstrumentsPicked(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  f.arrayBuffer().then(buf => {
+    qtAdoptInstruments(qtInstrumentsFromFile(new Uint8Array(buf)));
+    document.getElementById('qtPickBtn').style.display = 'none';
+    playCurrentTune();
+  }).catch(e => setStatus('No instruments in ' + f.name + ': ' + e.message, true));
+  input.value = '';
 }
 
 /* ---------------------------------------------------------------------------

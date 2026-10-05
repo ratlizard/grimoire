@@ -23,7 +23,7 @@
 // before most checks can run, and that is the step most likely to be forgotten.
 
 import {execFile, execFileSync, execSync} from 'node:child_process';
-import {existsSync, mkdirSync, readdirSync} from 'node:fs';
+import {existsSync, mkdirSync, readdirSync, writeFileSync} from 'node:fs';
 import {availableParallelism} from 'node:os';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -160,6 +160,11 @@ const COLLECTION = 'reference/community/guides-site/dialogue/Dialogue';
 // the rest of the smoke test runs as before.
 const SAVE = `${TMP}/cythera_addons/606_CheaterSavedGame/I.M.Cheater`;
 const GFX_REF = `${TMP}/gfx_ref.json`;
+// QuickTime 3's Windows installer, which holds the instruments the tunes
+// were played through: archive.org's copy, through /cors/ like the page
+// fetches it, 7 MB once and cached here (ensureQuickTime).
+const QT_EXE = `${TMP}/QUICKTIM.EXE`;
+const QT_URL = 'https://archive.org/cors/apple-quicktime-3/apple-quicktime-3.iso/QUICKTIM.EXE';
 // The game itself, for game_check.mjs: the playthrough kit beside the
 // workspace (saves reached by play, in no repository), the fork's binary
 // built against the patched m68k crate (the stock crate halts a new game;
@@ -202,6 +207,16 @@ async function ensureForks() {
   const {fetchGame} = await import('./fetch_game.mjs');
   if (!await fetchGame(TMP, say))
     say('  ! could not get the game; some checks will be skipped');
+}
+
+async function ensureQuickTime() {
+  if (existsSync(QT_EXE) || process.env.NO_FETCH) return;
+  say('  fetching QuickTime 3 from archive.org for its instruments …');
+  try {
+    const res = await fetch(QT_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    writeFileSync(QT_EXE, new Uint8Array(await res.arrayBuffer()));
+  } catch (e) { say('  ! could not: ' + e.message + '; the QuickTime check will be skipped'); }
 }
 
 function ensureGraphicsRef() {
@@ -517,6 +532,14 @@ const CHECKS = [
   {page: 'viewer', name: 'behind the scenes', want: [DATA_RSRC],
    cmd: ['utilities/backstage_check.mjs', 'index.html', DATA_RSRC],
    grep: /\d+ fix, \d+ strings, written and read back[^\n]*/},
+  /* QuickTime 3's instruments out of its Windows installer (a zip around
+     InstallShield 3 around PKWARE DCL), held to another implementation's
+     explode, and a tune played through them. TUNE moves with any change to
+     the synthesis: record it here when the change is meant. */
+  {page: 'viewer', name: 'quicktime instruments', want: [QT_EXE, DATA],
+   cmd: ['utilities/qtmusic_check.mjs', 'index.html', QT_EXE, DATA],
+   grep: /QuickTime 3: [^\n]*/,
+   expect: 'QuickTime 3: 21 files unpacked, the controls refused; 235 instruments, 1544 key ranges, every sample found; every part of 11 tunes has an instrument; the theme 98.1 s, TUNE 1521e8e335e3'},
   {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
    grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT a43e9aac1a08'},   // a DATA and a LINF description out of the passive ("has not been worked out"), 2 October 2026; only those two types moved
@@ -534,7 +557,7 @@ const CHECKS = [
 // ---- run -------------------------------------------------------------------
 say(`\n  Cythera checks — ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`);
 await ensureForks();
-if (!only || only === 'viewer') ensureGraphicsRef();
+if (!only || only === 'viewer') { ensureGraphicsRef(); await ensureQuickTime(); }
 mkdirSync(EXPORTS, {recursive: true});
 
 const rows = new Array(CHECKS.length);
