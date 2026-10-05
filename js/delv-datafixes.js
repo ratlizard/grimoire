@@ -86,7 +86,7 @@
    reason. The jokes and the recastings (Sour Grapes, the Pipes of the Deep, the Voices of the Hall,
    the Strine opening), which are builders of their own and no fix. */
 
-const DATA_FIX_STAGES = ['found', 'community', 'bugfix', 'further', 'apart', 'text', 'community-text', 'spelling', 'map'];
+const DATA_FIX_STAGES = ['found', 'community', 'bugfix', 'further', 'apart', 'cost', 'text', 'community-text', 'spelling', 'map'];
 // The stages whose edits are found in the file, and so are sorted before
 // they are applied (js/delv-datapatch.js).
 const DATA_FIX_STAGE_SORTED = ['further'];
@@ -1546,6 +1546,58 @@ const DATA_FIXES = [
           return 'the Cademia posts moved ahead of the Bridge';
       } },
     ] },
+  /* A spell's magic taken once its target is chosen (the maintainer,
+     30 September and 4 October 2026; the workbench's GRIMOIRE-NOTES.md,
+     grimoire/cost-4817rt). Every spell's Use calls CastSpell (0xEA1) first,
+     which refuses a cost above the caster's magic, takes the magic, adds to
+     the timing and rolls the failure; a targeted spell's Use then asks "on
+     whom?" or "where?" and answers its targeting word, and its target
+     method (the class's fourth function: UseOn, or the square method of the
+     runes and Fireball) does the spell. So a cancelled, refused or mistaken
+     target cost the magic. Now Use asks without the call, and the target
+     method begins with it, the same three arguments, returning 0 when it
+     answers false: the "more power" message comes after the target, which
+     is the maintainer's choice of the two (a check that does not take was
+     the other, and wanted a new helper).
+
+     The 33 are found, not listed: every spell (0x1A00 to 0x1A3F) whose Use
+     answers something besides 0. The untargeted spells keep the call where
+     it is. Its own stage, after "apart", since Fetch's edit (stage bugfix)
+     and Resurrection's locals byte (stage apart) are anchored at the
+     shipped offsets of the scripts this shortens and lengthens.
+
+     The computer's casters. 0xC4C, the cast task, calls Use and then UseOn
+     on what Use answered; a monster with SpellsKnown casts free, so most
+     are unchanged. A caster without it who cannot pay, or whose spell
+     fails, now has Use answer and UseOn refuse, so the cast task's
+     method 0x43 on the target runs where it did not; it ran for every
+     cast that succeeded. Not played. */
+  { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'A targeted spell now takes its magic once you choose the target, so a cancelled cast costs nothing, instead of taking it before',
+    plan: (s) => {
+      const edits = [];
+      for (let resid = 0x1A00; resid < 0x1A40; resid++) {
+        if (!getResourceBytes(s.arc, resid)) continue;
+        const L = dataPatchListing(s, resid);
+        const i = L.ops.findIndex(o => o.text.startsWith('call_resource CastSpell'));
+        if (i < 0) continue;
+        const use = L.fns.findIndex(f => L.ops[i].at >= f.st && L.ops[i].at < f.en);
+        const inUse = L.ops.filter(o => o.at >= L.fns[use].st && o.at < L.fns[use].en);
+        const targeted = inUse.some((o, k) => o.text === 'return' && inUse[k + 1].text !== 'byte 0x00');
+        if (!targeted) continue;
+        const name = 'the spell 0x' + resid.toString(16).toUpperCase();
+        const seq = ['if_not', 'call_resource CastSpell', 'arg Arg00', 'get_field container', 'byte ', 'byte ', 'end', 'then ->'];
+        const p = dataPatchPlace(s, name + '\u2019s cost', resid, seq);
+        const target = L.fns[use + 1];
+        if (L.fns.length !== use + 2) throw new Error(name + ': the target method is not the last function');
+        const first = L.ops.find(o => o.at >= target.st);
+        // The target method's first, then Use's: the higher offset first.
+        edits.push({ what: name + ' takes its magic on its target', resid, at: first.at, expect: { [first.at]: first.text },
+          code: ['if', p.text(1), p.text(2), p.text(3), p.text(4), p.text(5), 'end', 'then -> paid', 'return', 'byte 0x00', 'end', 'paid:'].join('\n') });
+        edits.push({ what: name + ' asks for its target without taking its magic', resid, at: p.at(1), to: p.at(7), expect: p.expect, code: 'word True' });
+      }
+      if (edits.length !== 66) throw new Error('the targeted spells are ' + edits.length / 2 + ', not 33');
+      return { edits };
+    } },
 ];
 
 /* ---- The text: this project's list ----------------------------------------

@@ -55,7 +55,7 @@ const {ctx} = pageContext(htmlPath, dataPath);
 const ids = everyFix(htmlPath, 'us').filter(id => !['karma', 'resurrection', 'peirithous'].includes(id));
 const res = vm.runInContext(`(() => {
   const ids = ${JSON.stringify(ids)}, typos = ${JSON.stringify(readCollection(collDir))};
-  const stages = DATA_FIX_STAGES.filter(st => st !== 'apart');
+  const stages = DATA_FIX_STAGES.filter(st => st !== 'apart' && st !== 'cost');
   const chainStages = ${JSON.stringify(CONTROL)} ? stages.filter(st => st !== 'found') : stages;
   const opts = st => ({ stages: st, communityTypos: typos });
   const chain = applyDataFixes(__a, ids, opts(chainStages));

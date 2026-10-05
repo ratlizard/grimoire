@@ -2243,12 +2243,15 @@ function renderSpanishMaker() {
    find what it expects, and the note names the fix. Apply and Read go
    through the patches section, as the sprite's and the gremlin's do. */
 // A fix seen working in the game (its `played`) starts ticked and one not
-// yet seen starts unticked, the maintainer's rule of 3 October 2026; the
-// text's choices, all unplayed, start on "Don't standardize". Until then
-// the choices started on their first option, his preference of 1 October,
-// and every other fix unticked. The design changes are not fixes and start
-// unticked whether played or not.
-window.DATAFIX_STATE = { on: new Set(DATA_FIXES.filter(f => f.played && !f.choice && f.group !== 'design').map(f => f.id)), skip: new Set(), showText: false, textChanges: null };
+// yet seen starts unticked, the maintainer's rule of 3 October 2026. The
+// text's choices start on their first option, his preference, played or
+// not, so that a patch of other fixes carries them (his word of 4 October
+// 2026; from 3 October they started on "Don't standardize", and before
+// that on the first option with every other fix unticked). An option
+// counts without the text's own corrections (js/delv-datapatch.js). The
+// design changes are not fixes and start unticked whether played or not.
+window.DATAFIX_STATE = { on: new Set(DATA_FIXES.filter(f => f.played && !f.choice && f.group !== 'design').map(f => f.id)
+  .concat(DATA_FIX_CHOICES.map(c => (DATA_FIXES.find(f => f.choice === c.id) || {}).id).filter(Boolean))), skip: new Set(), showText: false, textChanges: null };
 function dataFixSay(m, bad) {
   const note = document.getElementById('dataFixNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }

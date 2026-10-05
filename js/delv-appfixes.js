@@ -303,6 +303,11 @@ const APP_FIXES = [
   // target is chosen, and the refusal cancels it, so a click on someone out
   // of reach now steps once and prints [Cancel], where the shipped program
   // printed [Cancel] without the step; the spell is cast again to go on.
+  // With the data fix spell-cost-after-target the cancelled cast costs no
+  // magic. A held click chasing the target was considered and set aside
+  // (the maintainer, 4 October 2026): a held click on a thing already opens
+  // the Commands popup (GetGesture's verdict 3), and one click, one step
+  // stays.
   // The step is the one the path finder gives: TPathFinder::FindPath from
   // the character at TOC -30356 (whom MoveCommand moves) with no monster,
   // as MouseRoutine calls it, then FindFirstStep for the first square,
