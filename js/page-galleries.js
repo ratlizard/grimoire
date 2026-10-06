@@ -300,7 +300,30 @@ function showSpriteZoom(tileId, label) {
   const gif = document.createElement('button');
   gif.className = 'secondary';
   gif.textContent = 'Download GIF';
-  gif.onclick = (e) => { e.stopPropagation(); downloadPropGIF(tileId, [0]); };
+  /* A tile that moves, moving: the eight phases of the map's clock, each
+     the tile's picture for that phase (0xF001's frames, animatedTile) in
+     the palette as it stands then (cycledPalette), on the map's 140 ms.
+     The panel showed and saved the resting picture alone (the maintainer,
+     6 October 2026). The PNG is the phase on screen when it is pressed. */
+  const moves = !!window.PALETTE_ANIM && tileIsAnimated(tileId);
+  const PHASES = [8, 1, 2, 3, 4, 5, 6, 7];
+  if (moves) {
+    let k = 0;
+    const g = c.getContext('2d');
+    const t = setInterval(() => {
+      if (!ov.isConnected) { clearInterval(t); return; }
+      k = (k + 1) % PHASES.length;
+      g.clearRect(0, 0, 32, 32);
+      drawTileAt(g, tileId, 0, 0, false, 32, PHASES[k]);
+    }, 140);
+    spriteTimers.push(t);
+  }
+  gif.onclick = (e) => {
+    e.stopPropagation();
+    if (!moves) { downloadPropGIF(tileId, [0]); return; }
+    const frames = PHASES.map(ph => ({ indexed: resolveTileImage(animatedTile(tileId, ph)), palette: cycledPalette(ph) })).filter(f => f.indexed);
+    if (frames.length) downloadGIF(32, 32, frames, 140, 'cythera_tile_0x' + tileId.toString(16).toUpperCase() + '.gif');
+  };
   const saves = document.createElement('div');
   saves.style.cssText = 'display:flex;gap:8px';
   saves.appendChild(dl); saves.appendChild(gif);
@@ -1451,8 +1474,61 @@ function scrollHintWatch(el) {
   if (!el.dataset.scrollHint) {
     el.dataset.scrollHint = '1';
     el.addEventListener('scroll', () => scrollHintUpdate(el), { passive: true });
+    if (el.classList && el.classList.contains('ftabRow')) tabRowMouseScroll(el);
   }
   scrollHintUpdate(el);
+}
+/* A tab row under a mouse (the maintainer, 6 October 2026). A finger slides
+   a row that is wider than the page and a wheel mostly cannot, so: the row
+   drags, a press that moves more than a few pixels sliding it and not
+   opening the tab it began on; and with no button down the row drifts
+   while the pointer rests on a faded end, faster the nearer the edge,
+   until there is no more that way or the pointer leaves. Mouse only: a
+   touch already scrolls it natively, and pointer events from one would
+   fight that. */
+const TAB_ROW_EDGE = 34, TAB_ROW_DRAG_SLOP = 5;
+function tabRowMouseScroll(el) {
+  let down = null, dragged = false, drift = 0, raf = 0;
+  const step = () => {
+    raf = 0;
+    if (!drift) return;
+    const before = el.scrollLeft;
+    el.scrollLeft = before + drift;
+    if (el.scrollLeft === before) { drift = 0; return; }
+    raf = requestAnimationFrame(step);
+  };
+  const setDrift = v => { drift = v; if (drift && !raf) raf = requestAnimationFrame(step); };
+  el.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    down = { x: e.clientX, left: el.scrollLeft };
+    dragged = false;
+    setDrift(0);
+  });
+  el.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse') return;
+    if (down && (e.buttons & 1)) {
+      const dx = e.clientX - down.x;
+      if (!dragged && Math.abs(dx) < TAB_ROW_DRAG_SLOP) return;
+      if (!dragged) { dragged = true; try { el.setPointerCapture(e.pointerId); } catch (err) { quiet(err); } el.style.cursor = 'grabbing'; }
+      el.scrollLeft = down.left - dx;
+      return;
+    }
+    down = null;
+    const r = el.getBoundingClientRect();
+    const fromLeft = e.clientX - r.left, fromRight = r.right - e.clientX;
+    if (fromRight < TAB_ROW_EDGE && el.classList.contains('moreRight')) setDrift(1 + 5 * (1 - Math.max(0, fromRight) / TAB_ROW_EDGE));
+    else if (fromLeft < TAB_ROW_EDGE && el.classList.contains('moreLeft')) setDrift(-(1 + 5 * (1 - Math.max(0, fromLeft) / TAB_ROW_EDGE)));
+    else setDrift(0);
+  });
+  const end = e => {
+    if (dragged) { try { el.releasePointerCapture(e.pointerId); } catch (err) { quiet(err); } el.style.cursor = ''; }
+    down = null;
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('pointerleave', () => { if (!dragged) setDrift(0); });
+  // The click that ends a drag is the row's, not the tab's it began on.
+  el.addEventListener('click', e => { if (dragged) { dragged = false; e.stopPropagation(); e.preventDefault(); } }, true);
 }
 
 /* A sheet's table reads as cards on a phone. A wide table used to slide
@@ -1600,9 +1676,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (trail.length && trail[trail.length - 1] === arrived) trail.pop();
     else if (_lastHash && _lastHash !== arrived && trail[trail.length - 1] !== _lastHash) trail.push(_lastHash);
     _navBack = true;
+    const left = _lastHash;
     try { applyDeepLink(); } finally { _navBack = false; }
+    viewScrollOnNav(left, arrived, true);
     _lastHash = location.hash;
   });
   window.addEventListener('popstate', () => { _lastHash = _lastHash || location.hash; });
+  try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) { quiet(e); }
   loadDefaultArchive();
 });

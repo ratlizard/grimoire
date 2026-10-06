@@ -633,6 +633,10 @@ function syncDeepLink() {
       window.VIEW_TRAIL.push(location.hash);
     if (window.VIEW_TRAIL.length > 40) window.VIEW_TRAIL.shift();
   }
+  // Not while a back or forward is being applied: the gallery it draws on
+  // the way to a detail page passes through here too, and the listener
+  // that started it does the scrolling once the page is back.
+  if (!_navBack) viewScrollOnNav(location.hash, h, false);
   _hashWrite = true;
   // Every view gets a real HISTORY entry, so the browser's own back and
   // forward buttons walk the interface: popping an entry changes the hash,
@@ -647,6 +651,70 @@ function syncDeepLink() {
   _lastHash = location.hash;
 }
 let _histDepth = 0;
+
+/* Where a page sits on the screen as one view gives way to another (the
+   maintainer, 6 October 2026: "review handling of vertical page offset
+   when moving between pages"). What it was: opening a resource from its
+   gallery went to the top and "All of this gallery" came back to where
+   the gallery was left, and nothing else moved the page, so a link
+   followed from the foot of a dossier opened the next page at that depth,
+   and the browser's back returned to a page at the top or wherever the
+   last one happened to be. The rule now, kept here because every change
+   of view passes through syncDeepLink:
+
+   - the view being left has its offset remembered against its address;
+   - back and forward return to the offset the arriving address was left
+     at;
+   - a detail page going up to its own gallery returns to where the
+     gallery was left;
+   - Previous and Next within a gallery keep the page where it is, so the
+     buttons stay under the pointer;
+   - anything else opens at the top.
+
+   A link that rings a line (jumpToScriptAt, jumpToExeAt, a Mechanics
+   section) scrolls to it some tens of milliseconds later and so still
+   has the last word. Back and forward arrive through the hashchange
+   listener, the address already changed, which calls this itself; and
+   the browser's own restoring of the offset is switched off there, since
+   it restores before the view it restores for has been drawn. */
+const VIEW_SCROLL = new Map();
+/* The offset a view was last seen at, kept as the page scrolls. The view
+   being left cannot be measured when its address changes: a link that
+   crosses tabs has drawn the next gallery by then and the page has
+   already moved. Scroll events arrive a frame later than the scroll, so
+   one caused by the new view's drawing has not been delivered while the
+   navigation that drew it is still running. */
+let _viewScrollLive = { hash: '', y: 0 };
+let _viewScrollNav = 0;
+try {
+  window.addEventListener('scroll', () => { _viewScrollLive = { hash: location.hash, y: window.scrollY || 0 }; }, { passive: true });
+  // A hand on the page ends any return still being attempted.
+  for (const ev of ['wheel', 'touchstart', 'pointerdown', 'keydown']) window.addEventListener(ev, () => { _viewScrollNav++; }, { passive: true, capture: true });
+} catch (e) { quiet(e); }
+function viewScrollOnNav(from, to, back) {
+  if (typeof window.scrollTo !== 'function') return;
+  if (from) {
+    VIEW_SCROLL.set(from, _viewScrollLive.hash === from ? _viewScrollLive.y : (window.scrollY || 0));
+    if (VIEW_SCROLL.size > 80) VIEW_SCROLL.delete(VIEW_SCROLL.keys().next().value);
+  }
+  const part = (h, k) => { const m = new RegExp('[#&]' + k + '=([^&]*)').exec(h || ''); return m ? m[1] : null; };
+  const sameCat = part(from, 'c') === part(to, 'c');
+  let want = 0;
+  if (back) want = VIEW_SCROLL.get(to) || 0;
+  else if (sameCat && part(from, 'r') !== null && part(to, 'r') !== null && part(from, 'd') === part(to, 'd')) return;
+  else if (sameCat && part(to, 'r') === null && part(to, 'd') === null && (part(from, 'r') !== null || part(from, 'd') !== null)) want = VIEW_SCROLL.get(to) || 0;
+  /* After the view has drawn. A gallery is not its full height until its
+     cells have been laid out, and a scroll past the end stops short, so a
+     return to an offset is tried again for up to a second, until it
+     holds, another view opens or the visitor touches the page. */
+  const nav = ++_viewScrollNav;
+  const go = tries => {
+    if (nav !== _viewScrollNav) return;
+    try { window.scrollTo(0, want); } catch (e) { quiet(e); return; }
+    if (want && tries > 0 && Math.abs((window.scrollY || 0) - want) > 2) setTimeout(() => go(tries - 1), 60);
+  };
+  setTimeout(() => go(16), 0);
+}
 
 function parseDeepLink() {
   const h = location.hash.replace(/^#/, '');
@@ -1183,9 +1251,9 @@ function clearSheetGridLayout() {
   grid.classList.remove('scriptList', 'landscapeGrid');
 }
 
+// Where the gallery comes back to is viewScrollOnNav's, by its address.
 function returnToSheet() {
   setMode('sheet');
-  requestAnimationFrame(() => window.scrollTo(0, lastSheetScrollY));
 }
 
 function autoZoom(W, H) {

@@ -363,6 +363,26 @@ function unitNameHTML(pt) {
    and tail through the two aspects a facing has, and everything else its
    own frames, or the spans those frames anchor where it covers more than
    one square. */
+/* The way a unit faces on the Units page and its own page: east. They
+   faced the reader, south, until the maintainer asked for right on
+   6 October 2026. The Sprites gallery's creatures still face south. */
+const UNIT_FACING = SPR_E;
+/* Which edges of its square a tile's art runs off: 1 north, 2 east,
+   4 south, 8 west. An edge counts when the art covers more than half of
+   it: the ooze's joining edges carry 25 to 28 of their 32 pixels, and a
+   blob that only grazes an edge carries 3 to 6. */
+function tileEdgeMask(tile) {
+  const img = resolveTileImage(tile);
+  if (!img) return -1;
+  const n = [0, 0, 0, 0];
+  for (let i = 0; i < 32; i++) {
+    if (img[i]) n[0]++;
+    if (img[i * 32 + 31]) n[1]++;
+    if (img[31 * 32 + i]) n[2]++;
+    if (img[i * 32]) n[3]++;
+  }
+  return (n[0] > 16 ? 1 : 0) | (n[1] > 16 ? 2 : 0) | (n[2] > 16 ? 4 : 0) | (n[3] > 16 ? 8 : 0);
+}
 function unitSteps(pt) {
   const tiles = getPropTileList();
   const base = tiles[pt];
@@ -400,22 +420,58 @@ function unitSteps(pt) {
   if (lay && kinds.crawl.includes(lay.code)) {
     const rule = (appImage() && exeCrawlRule()) || null;
     const tailOnly = rule ? rule.tailOnly.v : CRAWL_DEFAULT.tailOnly, off = rule ? rule.tailOffset.v : CRAWL_DEFAULT.tailOffset;
-    // Facing the reader: the head's aspect is the facing times two plus
-    // the step (AdjustAspect), so south at rest is 4.
-    const head = SPR_S * 2;
+    // The head's aspect is the facing times two plus the step
+    // (AdjustAspect), so east at rest is 2; the tail is the square behind.
+    const head = UNIT_FACING * 2;
+    const behind = [[0, 1], [-1, 0], [0, -1], [1, 0]][UNIT_FACING];
     const steps = [];
     for (let k = 0; k < 2; k++) {
       if (info.present.indexOf(head + k) < 0) continue;
       const ps = [{ tile: base + head + k, dx: 0, dy: 0, what: 'the head' }];
-      if (lay.code === tailOnly && info.present.includes(head + off + k)) ps.push({ tile: base + head + off + k, dx: 0, dy: -1, what: 'the tail' });
+      if (lay.code === tailOnly && info.present.includes(head + off + k)) ps.push({ tile: base + head + off + k, dx: behind[0], dy: behind[1], what: 'the tail' });
       steps.push(ps);
     }
     if (steps.length) return { steps, kind: 'crawl', layout: lay, rule, step: steps.length };
   }
+  /* A creature whose sixteen frames are a joining set, one for each
+     combination of its four edges the art runs off: the ooze. Shown one to
+     a cell it was sixteen blobs in turn, each cut off where it joins a
+     neighbour that was not there. It grows instead over the hydra's nine
+     squares, in the maintainer's order (6 October 2026): alone in the
+     middle, then up, left, down and right, every square wearing the frame
+     that joins the neighbours it has. Which frame joins which edges is
+     read off the art (a frame is open on an edge its pixels reach), so
+     nothing here knows the ooze by name or number. The five stages use
+     twelve of the sixteen; the two straight pieces and the east and west
+     ends are in no stage. */
+  {
+    const joins = info.present.length === 16 ? info.present.map(f => tileEdgeMask(base + f)) : null;
+    if (joins && new Set(joins).size === 16) {
+      const frameFor = m => info.present[joins.indexOf(m)];
+      const cell = n => [(n - 1) % 3 - 1, Math.floor((n - 1) / 3) - 1];
+      const steps = [[5], [2, 5], [1, 2, 4, 5], [1, 2, 4, 5, 7, 8], [1, 2, 3, 4, 5, 6, 7, 8, 9]].map(cells => {
+        const has = (x, y) => cells.some(n => cell(n)[0] === x && cell(n)[1] === y);
+        return cells.map(n => {
+          const [x, y] = cell(n);
+          const m = (has(x, y - 1) ? 1 : 0) | (has(x + 1, y) ? 2 : 0) | (has(x, y + 1) ? 4 : 0) | (has(x - 1, y) ? 8 : 0);
+          return { tile: base + frameFor(m), dx: x, dy: y, what: 'frame ' + frameFor(m) };
+        });
+      });
+      return { steps, kind: 'joined', layout: lay, frame: frameFor(0), step: steps.length };
+    }
+  }
+  /* A creature with one frame a facing has no stride to walk, so it turns
+     through its facings where it stands, north round to west (the
+     maintainer, 6 October 2026, of the small crab and the gecko, which
+     showed one still frame). */
+  if (lay && FRAMES_PER_FACING[lay.code] === 1 && info.present.length === 4 && !STATIC_PROPTYPES.has(pt)) {
+    const steps = [SPR_N, SPR_E, SPR_S, SPR_W].filter(f => info.present.includes(f)).map(f => [{ tile: base + f, dx: 0, dy: 0, what: 'frame ' + f }]);
+    if (steps.length > 1) return { steps, kind: 'single', layout: lay, frame: UNIT_FACING, step: steps.length };
+  }
   // Everything else: its own frames, and the spans they anchor. Same choice
-  // the props gallery makes for a cell, so a creature walks the row that
-  // faces the reader rather than turning on the spot.
-  const pool = galleryFrames({ pt, base, info, alive: true });
+  // the props gallery makes for a cell, so a creature walks one facing's
+  // row rather than turning on the spot; the units face east.
+  const pool = galleryFrames({ pt, base, info, alive: true, facing: UNIT_FACING });
   const steps = pool.map(f => {
     const ps = [{ tile: base + f, dx: 0, dy: 0, what: 'frame ' + f }];
     for (const p of (multiTilePieces(base + f, false) || [])) ps.push({ tile: p.tile, dx: p.dx, dy: p.dy, what: 'a piece' });
@@ -547,8 +603,8 @@ function galleryFrames(e) {
   const anchors = own.filter(f => (attrs[e.base + f] || 0) & 0xC0);
   const pool = anchors.length ? anchors : own;
   if (e.alive) {
-    const south = facingReaderFrames(e.pt, own, pool);
-    if (south) return south;
+    const row = facingReaderFrames(e.pt, own, pool, e.facing);
+    if (row) return row;
   }
   return pool;
 }
@@ -581,14 +637,14 @@ function galleryFrames(e) {
    fourth column being the standing pose; anything else in its order.
    Anchors -- the titan's spans -- are filtered by the same test. */
 const FRAMES_PER_FACING = { 4: 4, 0: 2, 1: 2, 10: 2, 3: 1, 7: 8 };
-function facingReaderFrames(pt, own, pool) {
+function facingReaderFrames(pt, own, pool, facing) {
   if (STATIC_PROPTYPES.has(pt)) return null;
   const n = own.length;
   if (!n || own[0] !== 0 || own[n - 1] !== n - 1) return null;
   const lay = unitLayout(pt);
   const per = lay ? FRAMES_PER_FACING[lay.code] : (n === 16 ? 4 : undefined);
   if (!per) return null;
-  const south = pool.filter(f => Math.floor(f / per) === SPR_S);
+  const south = pool.filter(f => Math.floor(f / per) === (facing === undefined ? SPR_S : facing));
   if (!south.length) return null;
   if (per === 4 && south.length === 4) return WALK_CYCLE.map(c => south[c]);
   return south;

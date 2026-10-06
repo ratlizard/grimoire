@@ -1766,15 +1766,10 @@ function setModeImpl(m) {
   // Coming back from the atlas: the sheet returns and the atlas panel goes.
   if (window.CUR_SUBN !== 'WORLD') leaveAtlas();
   window.DETAIL_VIEW = null;   // a detail view is what we are leaving
-  if (currentMode === 'sheet' && m === 'single') lastSheetScrollY = window.scrollY;
-  // A detail view opens at the top of the page, whichever way it was
-  // reached (a click, a link, the browser's back), and the gallery comes
-  // back to where it was left.
-  const wasSingle = currentMode === 'single';
+  // Where the page sits afterwards is viewScrollOnNav's (js/page-archive.js):
+  // a detail view opens at the top and its gallery comes back to where it
+  // was left, by address, where this kept one offset for every gallery.
   currentMode = m;
-  const go = y => { try { if (typeof window.scrollTo === 'function') window.scrollTo(0, y); } catch (e) { quiet(e); } };
-  if (m === 'single') setTimeout(() => go(0), 0);
-  else if (wasSingle && m === 'sheet') setTimeout(() => go(lastSheetScrollY || 0), 0);
   // Before the early returns below, so a view without a bar (Tools, the
   // Changes tab, a dossier) does not inherit the last gallery's.
   updateUnditherBar();

@@ -273,9 +273,9 @@ button::before, button::after { display:none !important; }
    under the gallery's chips, not four plaques. They were 1.18rem, bold and
    52 px tall, two to a row on a phone, and took more of the screen above a
    listing than the listing's own head (the maintainer, 23 September 2026). */
-#resourceNav { justify-content:center; flex-wrap:wrap; max-width:none !important; gap:2px 18px !important; margin:4px auto 6px; }
+#resourceNav { justify-content:center; flex-wrap:wrap; max-width:none !important; gap:2px 18px !important; margin:0 auto 2px; }
 #resourceNav button { flex:none; width:auto; font-size:0.8125rem !important; font-weight:400 !important;
-  min-height:30px !important; padding:4px 6px !important; margin:0 !important; letter-spacing:0; opacity:.75; white-space:nowrap; }
+  min-height:24px !important; padding:1px 6px !important; margin:0 !important; letter-spacing:0; opacity:.75; white-space:nowrap; }
 #resourceNav button:hover { opacity:1; }
 .resid, .hex, #residSelect { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace !important; letter-spacing:.02em; }
 #residSelect option { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace !important; }
@@ -506,7 +506,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 :root { --card:#e2cf99; --cardDark:#b9a266; --cardHover:#d2bd7e; }
 .ftab { flex:0 0 auto; display:flex !important; align-items:center; gap:6px; cursor:pointer;
   margin:0 0 2px -4px; white-space:nowrap; width:auto; position:relative; z-index:1;
-  padding:6px 13px 5px !important; min-height:0 !important; line-height:1.2 !important;
+  padding:4px 13px 3px !important; min-height:0 !important; line-height:1.2 !important;
   font-family:var(--face); font-size:0.7812rem !important; font-weight:600 !important;
   letter-spacing:0; color:#3a2a0c !important; text-shadow:none !important; text-decoration:none;
   border:1px solid rgba(0,0,0,.28) !important; border-bottom:0 !important; border-radius:9px 9px 0 0 !important;
@@ -515,9 +515,13 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .ftab:hover { color:#000 !important; text-decoration:none; background:var(--cardHover) !important; transform:translateY(-1px); }
 .ftab:focus-visible { outline:2px solid var(--gold); outline-offset:-3px; }
 .ftab canvas { width:18px !important; height:18px !important; image-rendering:pixelated; margin:0; flex:0 0 auto; }
-.ftab.sel, .ftab.sel:hover { padding:9px 15px 8px !important; color:#000 !important; z-index:3; margin-bottom:0;
+.ftab.sel, .ftab.sel:hover { padding:6px 15px 5px !important; color:#000 !important; z-index:3; margin-bottom:0;
   background:var(--card) !important; box-shadow:none !important; transform:none; }
-#tabFolder1 > .ftabRow, #tabFolder2 > .ftabRow { padding-top:4px; }
+/* The three strips were some 250 px of a phone's screen and 170 of a
+   desktop's; the maintainer asked for less on 6 October 2026, and every
+   tab lost about a third of its padding above and below, the rows half
+   the gap over them and the folders a pixel of their edge. */
+#tabFolder1 > .ftabRow, #tabFolder2 > .ftabRow { padding-top:2px; }
 #tabShell[data-depth="0"] .folder { margin-top:0; }
 .ftab.wip { opacity:.45; }
 .ftab.wip.sel { opacity:.78; }
@@ -527,7 +531,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    edge on its top and sides and hangs a pixel over the folder, covering the
    folder's top edge under it, so the outline is one curve. All four
    corners round (the maintainer, 10 September 2026). */
-.folder { padding:5px; border:1px solid rgba(0,0,0,.28); border-radius:5px; box-shadow:0 2px 7px rgba(0,0,0,.5);
+.folder { padding:4px; border:1px solid rgba(0,0,0,.28); border-radius:5px; box-shadow:0 2px 7px rgba(0,0,0,.5);
   background:var(--card); margin-top:-2px; }
 .folder.f2, .folder.f3 { background:var(--card); }
 /* The sheet: the dialogue box itself, and since 10 September 2026 both of
@@ -909,8 +913,8 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
 @media (max-width:640px) {
   /* The rows scroll sideways on a phone rather than wrap: a wrapped row of
      tabs stops reading as the lip of a folder. */
-  .ftab { padding:5px 9px 4px !important; font-size:0.6875rem !important; gap:5px; }
-  .ftab.sel, .ftab.sel:hover { padding:8px 11px 6px !important; }
+  .ftab { padding:4px 9px 3px !important; font-size:0.6875rem !important; gap:5px; }
+  .ftab.sel, .ftab.sel:hover { padding:6px 11px 4px !important; }
   .ftab canvas { width:15px !important; height:15px !important; }
   .tabSheet { padding:8px 4px 12px; }
   #navSub { gap:4px; }
@@ -926,7 +930,7 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
   .sv-chip::before { display:none; }
 }
 @media (max-width:380px) {
-  .ftab { font-size:0.6562rem !important; padding:5px 7px 4px !important; }
+  .ftab { font-size:0.6562rem !important; padding:4px 7px 3px !important; }
 }
 /* The two views under Data that are tables rather than galleries. They span
    the gallery grid, which is what #sheetGrid is. */
@@ -1795,7 +1799,11 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
 .ftabRow::after { content:''; display:none; flex:0 0 34px; margin-left:-34px; align-self:stretch; position:sticky; right:0;
   z-index:4; pointer-events:none; background:linear-gradient(90deg, rgba(0,0,0,0), var(--fadeTo, rgba(20,15,9,.92))); }
 .ftabRow.moreRight::after { display:block; }
-.ftabRow::before { content:''; display:none; flex:0 0 34px; margin-right:-34px; align-self:stretch; position:sticky; left:0;
+/* The left fade starts at the row's own edge. A sticky box is held inside
+   the row's padding, so at left:0 it stood 10 px in, the tab behind it
+   showing whole in the gap and the fade reading as a dark block further
+   along (the maintainer, 6 October 2026: "opacity wrong on left side"). */
+.ftabRow::before { content:''; display:none; flex:0 0 44px; margin-left:-10px; margin-right:-34px; align-self:stretch; position:sticky; left:-10px;
   z-index:4; pointer-events:none; background:linear-gradient(270deg, rgba(0,0,0,0), var(--fadeTo, rgba(20,15,9,.92))); }
 .ftabRow.moreLeft::before { display:block; }
 #tabFolder1 > .ftabRow, #tabFolder2 > .ftabRow { --fadeTo:var(--card); }
@@ -1857,8 +1865,8 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   #archiveMenu .amNote { font-size:0.875rem; color:#c9bd93; }
   #sourceStatus { font-size:0.9375rem; color:#b3a781; opacity:1; }
   #sourceStatus.failed { font-size:1.125rem; }
-  .ftab { font-size:1.0625rem !important; padding:9px 18px 8px !important; gap:9px; }
-  .ftab.sel, .ftab.sel:hover { padding:13px 20px 10px !important; }
+  .ftab { font-size:1.0625rem !important; padding:6px 18px 5px !important; gap:9px; }
+  .ftab.sel, .ftab.sel:hover { padding:9px 20px 7px !important; }
   .ftab canvas { width:26px !important; height:26px !important; }
   .ftab .tabBadge { font-size:0.7812rem; padding:3px 7px; }
   .tabSheet { padding:16px 16px 20px; }
@@ -2175,7 +2183,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
 <div id="artUsage" style="display:none"></div>
 
 <!-- Map Visual Preview (top-down rendered map + props) -->
-<div id="mapPreview" style="display:none; margin-top:12px; padding:14px; background:var(--panel); border:1px solid var(--edge); border-radius:8px; text-align:center;">
+<div id="mapPreview" style="display:none; margin-top:4px; padding:10px 14px 14px; background:var(--panel); border:1px solid var(--edge); border-radius:8px; text-align:center;">
   <div id="mapLabel" style="margin-bottom:8px; font-weight:600;"></div>
   <!-- The zone's landscape strip, as the status window shows it over the
        map (paintZoneStrip). The zone's links, which sat here above the map,

@@ -51,7 +51,6 @@ function derivedMap(name) {
 
 let currentMode = 'sheet';
 let currentResid = null;
-let lastSheetScrollY = 0;
 let currentObjectUrl = null;
 function prettyLabel(s) { return String(s).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2'); }
 
