@@ -150,8 +150,14 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!/<b>4 seconds<\/b>/.test(bh) || !new RegExp('jumpToExeAt\\(' + bark.ticks.exe + '\\)').test(bh))
         fail('program figures', 'the Barks sheet does not state the balloon’s figures as links');
       else {
+        // The listing opens in words (EXE_PLAIN, 6 October 2026): the ringed
+        // line says what the instruction does, and the code view names it.
+        const said = ringOf(bark.ticks.exe);
+        ctx.EXE_PLAIN = false;
         const hit = ringOf(bark.ticks.exe), miss = ringOf(bark.ticks.exe + 4);
-        if (!hit || !/addi 3, 3, 240/.test(hit) || !miss || /240/.test(miss)) fail('program figures', 'following the balloon’s link does not ring its instruction: ' + JSON.stringify([hit, miss]));
+        ctx.EXE_PLAIN = true;
+        if (!said || !/Add 240 to a value\./.test(said) || /addi/.test(said)) fail('program figures', 'the listing in words does not say what the balloon’s instruction does: ' + JSON.stringify(said));
+        else if (!hit || !/addi 3, 3, 240/.test(hit) || !miss || /240/.test(miss)) fail('program figures', 'following the balloon’s link does not ring its instruction: ' + JSON.stringify([hit, miss]));
         else {
           const app = ctx.APP_DATA, img = ctx.appImage();
           const at = img.pef.sections[img.codeIndex].containerOffset + clk.hourShift.exe;

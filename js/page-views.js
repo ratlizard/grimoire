@@ -203,7 +203,7 @@ window.PEF_VIEW = null;
    maintainer called a line of random text (6 October 2026): the ring said
    where and nothing said what. So the listing repeats the link's words
    under the ringed line and says what that instruction does in plain
-   words where exePlainLine can. The words are the ones the click left
+   words (exePlainLines). The words are the ones the click left
    in SRC_CLICKED (srcNum); a jump inside a listing leaves none. */
 function jumpToExeAt(at, why) {
   if (window.CUR_SUBN === 'MECHANICS' || MECH_GROUP_BY_VALUE[window.CUR_SUBN]) mechKeepPlace();
@@ -220,61 +220,139 @@ function jumpToExeAt(at, why) {
 function pefBackToList() { window.PEF_VIEW = null; renderAppPefSheet(); }
 // One routine, instruction by instruction: calls and branches named and
 // followable, TOC slots said as what they hold.
-/* One instruction in plain words, or '' for one it has none for: the
-   shapes a figure's link lands on, which are a constant loaded, a value
-   compared, a bit tested or set, and a field of a record read or written.
-   A mask is written as the page writes a flag, in hex. */
-function exePlainLine(o) {
-  const d = o && o.d;
-  if (!d) return '';
+/* A routine in plain words, a sentence an instruction (6 October 2026).
+
+   A figure's link lands on one PowerPC instruction in a listing of
+   hundreds, which the maintainer called a line of random text, and then
+   asked whether it had to be machine code at all. So the listing opens in
+   words, and the code is the other view (EXE_PLAIN, exeTogglePlain). Each
+   sentence says what its own instruction does and no more: nothing here
+   follows a value from one line to the next, so a sentence says "a value"
+   where a reader of the code would know which. The one thing carried
+   forward is what the last test was, so that a branch can say "if that
+   switch is off" or "if they are equal" rather than name a condition bit:
+   a test of bits (andi., rlwinm.), a comparison, or any other instruction
+   that sets the flags from its result. An instruction with no sentence
+   keeps its code, dimmed. '' entries are those.
+
+   A mask is written as the page writes a flag, in hex; an offset and a
+   count in decimal, as the code view's operands are. */
+function exePlainLines(r) {
+  if (r.plain) return r.plain;
   const hex = v => '0x' + (v >>> 0).toString(16).toUpperCase().padStart(4, '0');
-  const size = { lbz: 'byte', lbzu: 'byte', stb: 'byte', stbu: 'byte', lhz: 'two bytes', lha: 'two bytes', lhzu: 'two bytes', lhau: 'two bytes',
-                 sth: 'two bytes', sthu: 'two bytes', lwz: 'four bytes', lwzu: 'four bytes', stw: 'four bytes', stwu: 'four bytes' }[d.mn];
-  if (size && d.ra === 2) return /^l/.test(d.mn) ? 'It fetches an address from the program\u2019s table of addresses.' : '';
-  if (size && d.ra === 1) return '';
-  if (size) return (/^l/.test(d.mn) ? 'It reads the ' : 'It writes the ') + size + ' at offset ' + d.d + ' of a record.';
-  if (d.mn === 'li') return 'It sets the number ' + d.imm + '.';
-  if (d.mn === 'lis') return 'It sets the number ' + hex(d.imm << 16) + '.';
-  if (d.mn === 'cmpwi' || d.mn === 'cmplwi') return 'It compares a value with ' + d.imm + '.';
-  if (d.mn === 'mulli') return 'It multiplies a value by ' + d.imm + '.';
-  if ((d.mn === 'addi' || d.mn === 'addic' || d.mn === 'addic.') && d.ra !== 2 && d.ra !== 1) return d.imm < 0 ? 'It takes ' + (-d.imm) + ' from a value.' : 'It adds ' + d.imm + ' to a value.';
-  if (d.mn === 'andi.') return 'It checks the switch ' + hex(d.imm) + ' of a value.';
-  if (d.mn === 'andis.') return 'It checks the switch ' + hex(d.imm << 16) + ' of a value.';
-  if (d.mn === 'ori') return 'It turns on the switch ' + hex(d.imm) + ' of a value.';
-  if (d.mn === 'oris') return 'It turns on the switch ' + hex(d.imm << 16) + ' of a value.';
-  if (/^(rlwinm|clrlwi)\.?$/.test(d.mn) && d.sh === 0) {
-    const mask = ((0xFFFFFFFF >>> d.mb) & (0xFFFFFFFF << (31 - d.me))) >>> 0;
-    return (/\.$/.test(d.mn) ? 'It checks the switch ' : 'It keeps only the bits ') + hex(mask) + ' of a value.';
-  }
-  if (/^(rlwinm|srwi|slwi|rlwimi)\.?$/.test(d.mn)) return 'It takes one field out of a packed value.';
-  if (d.branch && d.lk && o.to !== null) return 'It calls ' + exeTargetName(o.to) + '.';
-  return '';
+  const SIZE = { b: 'byte', h: 'two bytes', w: 'four bytes' };
+  let last = '';                       // 'switch', 'cmp', 'value' or ''
+  const out = exeOpsOf(r).map(o => {
+    const d = o.d;
+    if (!d) return '';
+    const mn = d.mn, bare = mn.replace(/\.$/, '');
+    const dot = /\.$/.test(mn);
+    let s = '';
+    const mem = /^(l|st)(b|h|w)(z|a)?(u)?(x)?$/.exec(mn);
+    if (d.branch) {
+      const to = o.to !== null ? '\u0001' : 'a fixed address';
+      if (d.indirect) s = d.lk ? 'Call a routine through an address.' : d.indirect === 'lr' ? (d.conditional || d.bo !== 20 ? 'Return, on a condition.' : 'Return.') : 'Go to one of several places, picked by a number.';
+      else if (d.conditional && /^b[tf]/.test(mn)) {
+        const yes = mn[1] === 't', which = d.bi & 3;
+        const cond = last === 'switch' ? (which === 2 ? (yes ? 'that switch is off' : 'that switch is on') : '')
+          : last === 'cmp' ? [yes ? 'it is less' : 'it is not less', yes ? 'it is more' : 'it is not more', yes ? 'they are equal' : 'they are not equal'][which]
+          : [yes ? 'the value is below zero' : 'the value is not below zero', yes ? 'the value is above zero' : 'the value is not above zero', yes ? 'the value is zero' : 'the value is not zero'][which];
+        s = cond ? 'If ' + cond + ', go to ' + to + '.' : '';
+      } else if (d.conditional) s = /^bdnz/.test(mn) ? 'Count down, and go round again to ' + to + ' until the count runs out.' : '';
+      else s = d.lk ? 'Call ' + to + '.' : 'Go to ' + to + '.';
+    } else if (mn === 'nop') s = 'Do nothing.';
+    else if (mem && d.ra === 2 && !mem[5]) s = mem[1] === 'l' ? 'Fetch an address from the program’s table of addresses.' : '';
+    else if (mem && d.ra === 1 && !mem[5]) s = mn === 'stwu' ? 'Make room for this routine’s working values.' : mem[1] === 'l' ? 'Take back a value set aside earlier.' : 'Set a value aside.';
+    else if (mem && mem[5]) s = (mem[1] === 'l' ? 'Read an entry of a table (' : 'Write an entry of a table (') + SIZE[mem[2]] + ').';
+    else if (mem) s = (mem[1] === 'l' ? 'Read the ' : 'Write the ') + SIZE[mem[2]] + ' at offset ' + d.d + ' of a record.';
+    else if (mn === 'stmw') s = 'Save the values this routine will reuse.';
+    else if (mn === 'lmw') s = 'Put the saved values back.';
+    else if (mn === 'mflr') s = 'Note where to return to.';
+    else if (mn === 'mtlr') s = 'Get ready to return.';
+    else if (mn === 'mtctr') s = 'Get ready to go somewhere through an address.';
+    else if (mn === 'li') s = 'Take the number ' + d.imm + '.';
+    else if (mn === 'lis') s = 'Take the number ' + hex(d.imm << 16) + '.';
+    else if (mn === 'cmpwi' || mn === 'cmplwi') s = 'Compare a value with ' + d.imm + '.';
+    else if (mn === 'cmpw' || mn === 'cmplw') s = 'Compare two values.';
+    else if (mn === 'mulli') s = 'Multiply a value by ' + d.imm + '.';
+    else if (/^addi[sc]?$/.test(bare) && d.ra === 2) s = 'Find a place in the program’s data.';
+    else if (bare === 'addi' && d.ra === 1 && d.rd === 1) s = 'Give back the room for working values.';
+    else if (bare === 'addi' && d.ra === 1) s = 'Find one of this routine’s working values.';
+    else if (bare === 'addi' && d.imm === 0) s = 'Copy a value.';
+    else if (bare === 'addi' || bare === 'addic') s = d.imm < 0 ? 'Take ' + (-d.imm) + ' from a value.' : 'Add ' + d.imm + ' to a value.';
+    else if (bare === 'addis') s = d.imm < 0 ? 'Take ' + hex(-d.imm << 16) + ' from a value.' : 'Add ' + hex(d.imm << 16) + ' to a value.';
+    else if (bare === 'andi') s = 'Check the switch ' + hex(d.imm) + ' of a value.';
+    else if (bare === 'andis') s = 'Check the switch ' + hex(d.imm << 16) + ' of a value.';
+    else if (mn === 'ori') s = 'Turn on the switch ' + hex(d.imm) + ' of a value.';
+    else if (mn === 'oris') s = 'Turn on the switch ' + hex(d.imm << 16) + ' of a value.';
+    else if ((bare === 'rlwinm' || bare === 'clrlwi') && d.sh === 0) {
+      const mask = ((0xFFFFFFFF >>> d.mb) & (0xFFFFFFFF << (31 - d.me))) >>> 0;
+      s = (dot ? 'Check the switch ' : 'Keep only the bits ') + hex(mask) + ' of a value.';
+    } else if (mn === 'slwi') s = 'Multiply a value by ' + Math.pow(2, d.sh) + '.';
+    else if (mn === 'srwi') s = 'Divide a value by ' + Math.pow(2, d.mb) + '.';
+    else if (bare === 'srawi') s = 'Divide a value by ' + Math.pow(2, d.sh) + '.';
+    else if (bare === 'addze') s = 'Round that division towards zero.';
+    else if (bare === 'rlwinm' || bare === 'rlwimi') s = bare === 'rlwimi' ? 'Put one field into a packed value.' : 'Take one field out of a packed value.';
+    else if (bare === 'mr') s = 'Copy a value.';
+    else if (bare === 'extsh') s = 'Read a value as a two-byte number.';
+    else if (bare === 'extsb') s = 'Read a value as a one-byte number.';
+    else if (bare === 'add') s = 'Add two values.';
+    else if (bare === 'sub' || bare === 'subf' || bare === 'subc') s = 'Take one value from another.';
+    else if (bare === 'subfic') s = 'Take a value from ' + d.imm + '.';
+    else if (bare === 'neg') s = 'Turn a value to its negative.';
+    else if (bare === 'mullw') s = 'Multiply two values.';
+    else if (bare === 'divw' || bare === 'divwu') s = 'Divide one value by another.';
+    else if (bare === 'and') s = 'Keep the switches two values share.';
+    else if (bare === 'or') s = 'Join the switches of two values.';
+    else if (bare === 'xor') s = 'Keep the switches on which two values differ.';
+    else if (bare === 'andc') s = 'Turn off, in one value, the switches of another.';
+    else if (bare === 'not') s = 'Flip every switch of a value.';
+    else if (bare === 'cntlzw') s = 'Count the off switches at the top of a value.';
+    // What a branch after this one would be asking about.
+    if (/^cmp/.test(mn)) last = 'cmp';
+    else if (dot) last = /^(andis?|rlwinm|clrlwi|and|andc)$/.test(bare) ? 'switch' : 'value';
+    return s;
+  });
+  return (r.plain = out);
+}
+window.EXE_PLAIN = true;
+function exeTogglePlain() {
+  window.EXE_PLAIN = !window.EXE_PLAIN;
+  renderAppPefSheet();
+  setTimeout(() => { const hit = document.getElementById('listingHit'); if (hit && hit.scrollIntoView) hit.scrollIntoView({ block: 'center' }); }, 40);
 }
 function exeListingHTML(r, ringAt, why) {
   const img = appImage();
   const hex = (n, w) => '0x' + (n >>> 0).toString(16).toUpperCase().padStart(w || 6, '0');
-  const lines = exeOpsOf(r).map(o => {
-    let t = svEsc(o.text);
+  const plainOn = !!window.EXE_PLAIN, plain = exePlainLines(r);
+  const lines = exeOpsOf(r).map((o, i) => {
+    let t = svEsc(o.text), where = '', toc = '';
     const d = o.d;
     if (o.to !== null) {
       const nm = exeTargetName(o.to);
       const inside = o.to >= r.offset && o.to < r.offset + r.length;
-      t += '   ' + (exeRoutineAt(o.to) ? svLink(inside ? '+0x' + (o.to - r.offset).toString(16).toUpperCase() : nm, 'jumpToExeAt(' + o.to + ')') : '<span class="refnote">' + svEsc(nm) + '</span>');
+      where = exeRoutineAt(o.to) ? svLink(inside ? '+0x' + (o.to - r.offset).toString(16).toUpperCase() : nm, 'jumpToExeAt(' + o.to + ')') : '<span class="refnote">' + svEsc(nm) + '</span>';
+      t += '   ' + where;
     }
     if (d && d.ra === 2 && img.toc) {
       if (d.d !== undefined) {
         const p = pefPointerAt(img, img.toc.section, img.toc.offset + d.d);
         const str = p && p.section !== undefined ? exeStringAt(p) : null;
-        t += '   <span class="refnote">; TOC ' + (d.d >= 0 ? '+' : '') + d.d + (p ? (p.name ? ', ' + svEsc(p.name) : str ? ', “' + svEsc(str.replace(/\n/g, ' ')) + '”' : ', ' + (img.pef.sections[p.section] ? img.pef.sections[p.section].kindName : 'section ' + p.section) + ' ' + hex(p.offset)) : '') + '</span>';
-      } else if (d.mn === 'addi') t += '   <span class="refnote">; data ' + hex(img.toc.offset + d.imm) + '</span>';
+        toc = '   <span class="refnote">; TOC ' + (d.d >= 0 ? '+' : '') + d.d + (p ? (p.name ? ', ' + svEsc(p.name) : str ? ', “' + svEsc(str.replace(/\n/g, ' ')) + '”' : ', ' + (img.pef.sections[p.section] ? img.pef.sections[p.section].kindName : 'section ' + p.section) + ' ' + hex(p.offset)) : '') + '</span>';
+      } else if (d.mn === 'addi') toc = '   <span class="refnote">; data ' + hex(img.toc.offset + d.imm) + '</span>';
+      t += toc;
     }
-    const line = hex(o.at) + '  ' + o.word.toString(16).toUpperCase().padStart(8, '0') + '  ' + t;
+    // In words: the place in the routine, as a jump's link names it, then
+    // the sentence, with the jump's link where the sentence says where.
+    const said = plain[i] ? svEsc(plain[i]).replace('\u0001', where) + toc : '<span class="refnote">' + t + '</span>';
+    const line = plainOn ? ('+0x' + (o.at - r.offset).toString(16).toUpperCase()).padEnd(7) + ' ' + said
+      : hex(o.at) + '  ' + o.word.toString(16).toUpperCase().padStart(8, '0') + '  ' + t;
     if (o.at !== ringAt) return line;
-    const plain = exePlainLine(o);
-    const note = [why ? 'You followed \u201c' + svEsc(why) + '\u201d. The program decides it on the line above.' : '', plain].filter(Boolean).join(' ');
+    const note = [why ? 'You followed “' + svEsc(why) + '”. The program decides it on the line above.' : '',
+                  plainOn ? '' : plain[i]].filter(Boolean).join(' ');
     return '<span id="listingHit" class="listingHit">' + line + '</span>' + (note ? '<span class="listingNote">' + note + '</span>' : '');
   });
-  return '<pre class="pane exeListing" style="max-height:none">' + lines.join('\n') + '</pre>';
+  return '<pre class="pane exeListing" style="max-height:none' + (plainOn ? ';white-space:pre-wrap' : '') + '">' + lines.join('\n') + '</pre>';
 }
 function renderAppPefSheet() {
   stopAllViewActivity();
@@ -290,7 +368,8 @@ function renderAppPefSheet() {
     const box = document.createElement('div');
     box.className = 'mechView';
     const hexv = n => '0x' + (n >>> 0).toString(16).toUpperCase();
-    box.innerHTML = '<div class="foldAll" style="justify-content:flex-start">' + svLink('All routines', 'pefBackToList()') + '</div>' +
+    box.innerHTML = '<div class="foldAll" style="justify-content:flex-start">' + svLink('All routines', 'pefBackToList()') + ' ' +
+      svLink(window.EXE_PLAIN ? 'Show the Code' : 'Show Plain Words', 'exeTogglePlain()') + '</div>' +
       '<div class="changesHead">' + svEsc(view.name) + '</div>' +
       '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
       (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes, and a slot in the program’s table of addresses shows what the game stores there when it starts.</p>' +
