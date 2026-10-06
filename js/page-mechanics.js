@@ -3813,13 +3813,20 @@ function renderMechanicsSheet(value) {
                the clock's periods has passed, and sends the thing message
                260 at nothing; the lights use one period and the hourglass
                and the bomb a shorter one. TGameSys::SlideItemCommand sets
-               a slid chair's aspect from the direction of the slide. The
+               a slid chair's aspect from the direction of the slide.
+               TGameSys::DropCommand sends method 25 to a thing dropped
+               more than a square away (dx*dx + dy*dy over 2), and the
                default method 25 (0x3019) deletes a thing whose class has
-               0x10, and what calls 25 is not found. 0x100 is copied
-               nowhere and no script masks it. */
+               0x10. 0x100 is not in the copy: DoTicks asks each placed
+               thing's class for the word itself on the hour and sends
+               message 257 to one that has it, which the lamp post
+               answers by lighting or going out and the easel by changing
+               its picture. */
             say(0x20, 'is a light that burns down as time passes (the torch, the lamp, the candle).') + ' ' +
             say(0x800, 'counts down the same way, faster (the hourglass, the bomb).') + ' ' +
-            say(0x40, 'turns a thing to face the way you push it (the chair).');
+            say(0x40, 'turns a thing to face the way you push it (the chair).') + ' ' +
+            say(0x10, 'breaks a thing dropped more than a square away (the plate, the glass, the bell).') + ' ' +
+            say(0x100, 'tells a thing each time the hour changes (the lamp post, which lights at night, and the easel).');
         })() : MECH_NO_APP,
         ic ? 'The last table below says how a chair seats a character, and the zone maps seat their people by it.' : ''
       ].filter(Boolean),
