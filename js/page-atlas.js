@@ -747,10 +747,9 @@ function paintAtlas() {
   // made (paintAtlasTiles).
   atlasTileSerial++;
   atlasTileWant = [];
-  const drawn = [];
+  const drawn = [], items = [];
   for (const node of sc.nodes) {
     const r = atlasRect(node, atlasView);
-    if (r.x + r.w < -40 || r.y + r.h < -40 || r.x > vw + 40 || r.y > vh + 40) continue;
     const ppt = atlasNodePpt(node, atlasView);
     // Below a couple of pixels a square there is nothing to see and the
     // pictogram the parent draws is the better picture.
@@ -758,11 +757,23 @@ function paintAtlas() {
     const alpha = !node.depth ? 1
       : Math.max(0, Math.min(1, (r.w - window.ATLAS_TUNE.nodeFadeFrom) /
                 (window.ATLAS_TUNE.nodeFadeTo - window.ATLAS_TUNE.nodeFadeFrom)));
-    const border = atlasBorderAlpha(node, r, alpha);
-    if (border) drawAtlasBorder(ctx, node, r, ppt, border, vw, vh);
-    if (drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh)) drawn.push({ node, r, ppt, alpha });
-    if (border) dimAtlasBorder(ctx, node, r, border);
+    // A town's border reaches the screen's edge, so it is wanted while the
+    // town itself is off screen; only the drawing of the town is culled.
+    const border = atlasBorderAlpha(node, r, ppt, alpha);
+    const seen = !(r.x + r.w < -40 || r.y + r.h < -40 || r.x > vw + 40 || r.y > vh + 40);
+    if (seen || border) items.push({ node, r, ppt, alpha, border, seen });
   }
+  // The borders under every place, so one town's ground never covers
+  // another town; the darkening over them all, cut round the other towns.
+  let bordered = false;
+  for (const it of items) {
+    if (it.node.depth && !bordered) {
+      bordered = true;
+      for (const b of items) if (b.border) drawAtlasBorder(ctx, b.node, b.r, b.ppt, b.border, vw, vh);
+    }
+    if (it.seen && drawAtlasNode(ctx, it.node, it.r, it.ppt, it.alpha, vw, vh)) drawn.push({ node: it.node, r: it.r, ppt: it.ppt, alpha: it.alpha });
+  }
+  for (const it of items) if (it.border) dimAtlasBorder(ctx, it.node, it.r, it.border, vw, vh, items);
   const mouths = atlasPaintMouths(ctx, drawn, vw, vh);
   atlasPaintTowns(ctx, drawn, vw, vh);
   atlasPaintSelection(ctx, drawn);
@@ -1010,21 +1021,33 @@ function drawRenderWithMargin(ctx, node, r, canvas, alpha, roofT) {
    on the 0 to 32 scale drawLighting reads as (32 - level) / 32; that is
    dimAtlasBorder, drawn after the town so its own edge row is darkened too.
 
-   The band is drawn ATLAS_BORDER squares deep, the half-width of the game's
-   view (SetStage's loop runs from -15 to 15 about the hero), which is as far
-   past the edge as a player standing on it can see. It fades in with the
-   town's unbuilt margin (drawWithMargin), so it arrives with the rest of the
-   town's own ground. Only a town drawn over the world gets one: a place
-   with gw is an open-edged destination, the kind you walk out of.
+   The band runs to the edge of the screen, as the game's own repeat runs
+   to the edge of its view, so the world is never seen beside a town drawn
+   at its own size (the maintainer's word, 6 October 2026). It is drawn
+   exactly when the town's own unbuilt margin is: from the town's render or
+   its tiles, not its miniature, at what the roofs have given up
+   (drawWithMargin), so it arrives with the rest of the town's ground.
+   Every town's band is drawn before any town, so one town's band never
+   covers another town, and the darkening is cut round the other towns.
+   Only a town drawn over the world gets one: a place with gw is an
+   open-edged destination, the kind you walk out of.
 
    The strips are made once a render and kept, at the render's own tile
    size, and again at the native art's size once tiles are in use and the
-   view is still (atlasWhenStill), so the band sharpens with the town. */
-const ATLAS_BORDER = 15;
+   view is still (atlasWhenStill), so the band sharpens with the town. Each
+   is laid as a repeating pattern, scaled to the zoom and anchored at the
+   map's own edge, which is the game's x & (p - 1) alignment: one fill a
+   side and a corner, however many repeats the screen holds. */
 const ATLAS_BORDER_DIM = 3 / 32;
 const atlasBorders = derivedMap('atlasBorders');
-function atlasBorderAlpha(node, r, alpha) {
-  if (!node.gw || !node.depth) return 0;
+// The opacity a town's border is drawn at, or 0 for none: its margin's,
+// and only while its margin is drawn (drawAtlasNode takes the render or
+// the tiles, not the miniature, once the render is kept).
+function atlasBorderAlpha(node, r, ppt, alpha) {
+  if (!node.gw || !node.depth || !zoneMapCache.has(node.resid)) return 0;
+  if (!(r.w >= 448 || atlasTileTS(node, ppt))) return 0;
+  const e = zoneMapCache.get(node.resid), m = e && e.result && e.result.m;
+  if (!m || !m.horizontalEdgePropagation || !m.verticalEdgePropagation) return 0;
   const a = alpha * (1 - atlasRoofT(r.w));
   return a > 0.02 ? a : 0;
 }
@@ -1062,8 +1085,9 @@ function atlasBorderStrips(node, TS) {
   return out;
 }
 function drawAtlasBorder(ctx, node, r, ppt, alpha, vw, vh) {
-  const per = r.w / node.w, B = ATLAS_BORDER;
-  if (r.x - B * per > vw || r.y - B * per > vh || r.x + r.w + B * per < 0 || r.y + r.h + B * per < 0) return;
+  const Matrix = window.DOMMatrix;
+  if (typeof Matrix !== 'function') return;
+  const per = r.w / node.w;
   // The native art's size when the town's tiles are in use, made once the
   // view is still; until then, and below it, the render's.
   const tileTS = atlasTileTS(node, ppt);
@@ -1074,39 +1098,46 @@ function drawAtlasBorder(ctx, node, r, ppt, alpha, vw, vh) {
     else if (atlasSettled()) atlasWhenStill(() => { if (atlasBorderStrips(node, tileTS)) schedulePaintAtlas(); }, 500);
   }
   if (!s) s = atlasBorderStrips(node, node.ts);
-  if (!s) return;
-  const { p, q, W, H } = s;
+  if (!s || !s.left) return;
+  const { W, H } = s, TS = s.left.width / s.p;
   const dpr = atlasDpr;
   const X = sx => Math.round((r.x + sx * per) * dpr) / dpr, Y = sy => Math.round((r.y + sy * per) * dpr) / dpr;
-  // A strip whose left square is map column sx and top row sy.
-  const put = (cv, sx, sy, w, h) => { if (cv) ctx.drawImage(cv, X(sx), Y(sy), X(sx + w) - X(sx), Y(sy + h) - Y(sy)); };
+  const xs = [0, Math.max(0, Math.min(vw, X(0))), Math.max(0, Math.min(vw, X(W))), vw];
+  const ys = [0, Math.max(0, Math.min(vh, Y(0))), Math.max(0, Math.min(vh, Y(H))), vh];
+  // A strip repeated over one of the eight regions round the map, its
+  // first copy at map square (ox, oy).
+  const lay = (cv, rep, ox, oy, i, j) => {
+    const x0 = xs[i], x1 = xs[i + 1], y0 = ys[j], y1 = ys[j + 1];
+    if (!cv || x1 <= x0 || y1 <= y0) return;
+    const pat = ctx.createPattern(cv, rep);
+    if (!pat) return;
+    const k = per / TS;
+    pat.setTransform(new Matrix([k, 0, 0, k, r.x + ox * per, r.y + oy * per]));
+    ctx.fillStyle = pat;
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  };
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.imageSmoothingEnabled = s.left && s.left.width / p > ppt * dpr;
-  ctx.beginPath();
-  ctx.rect(X(-B), Y(-B), X(W + B) - X(-B), Y(H + B) - Y(-B));
-  ctx.rect(X(0), Y(0), X(W) - X(0), Y(H) - Y(0));
-  ctx.clip('evenodd');
-  for (let k = 1; k * p < B + p; k++) { put(s.left, -k * p, 0, p, H); put(s.right, W + (k - 1) * p, 0, p, H); }
-  for (let k = 1; k * q < B + q; k++) { put(s.top, 0, -k * q, W, q); put(s.bottom, 0, H + (k - 1) * q, W, q); }
-  for (let i = 1; i * p < B + p; i++) for (let j = 1; j * q < B + q; j++) {
-    put(s.tl, -i * p, -j * q, p, q); put(s.tr, W + (i - 1) * p, -j * q, p, q);
-    put(s.bl, -i * p, H + (j - 1) * q, p, q); put(s.br, W + (i - 1) * p, H + (j - 1) * q, p, q);
-  }
+  ctx.imageSmoothingEnabled = TS > ppt * dpr;
+  lay(s.left, 'repeat-x', 0, 0, 0, 1);  lay(s.right, 'repeat-x', W, 0, 2, 1);
+  lay(s.top, 'repeat-y', 0, 0, 1, 0);   lay(s.bottom, 'repeat-y', 0, H, 1, 2);
+  lay(s.tl, 'repeat', 0, 0, 0, 0);      lay(s.tr, 'repeat', W, 0, 2, 0);
+  lay(s.bl, 'repeat', 0, H, 0, 2);      lay(s.br, 'repeat', W, H, 2, 2);
   ctx.restore();
 }
-function dimAtlasBorder(ctx, node, r, alpha) {
-  const e = mapRenderIfCheap(node.resid);
-  if (!e || !e.result || !e.result.m || !e.result.m.horizontalEdgePropagation || !e.result.m.verticalEdgePropagation) return;
-  const per = r.w / node.w, B = ATLAS_BORDER, W = node.w, H = node.h;
+// Off the map and its outermost ring, to the screen's edge, cut round
+// every other place on screen.
+function dimAtlasBorder(ctx, node, r, alpha, vw, vh, items) {
+  const per = r.w / node.w, W = node.w, H = node.h;
   const dpr = atlasDpr;
   const X = sx => Math.round((r.x + sx * per) * dpr) / dpr, Y = sy => Math.round((r.y + sy * per) * dpr) / dpr;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = 'rgba(4,3,14,' + ATLAS_BORDER_DIM + ')';
   ctx.beginPath();
-  ctx.rect(X(-B), Y(-B), X(W + B) - X(-B), Y(H + B) - Y(-B));
+  ctx.rect(-1, -1, vw + 2, vh + 2);
   ctx.rect(X(1), Y(1), X(W - 1) - X(1), Y(H - 1) - Y(1));
+  for (const o of items) if (o.node !== node && o.node.depth && o.seen) ctx.rect(o.r.x, o.r.y, o.r.w, o.r.h);
   ctx.fill('evenodd');
   ctx.restore();
 }
