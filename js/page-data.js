@@ -32,7 +32,10 @@
    touches 0x8F50/0x8F51. The void backdrop below is still keyed on -1 and
    still drawn, because what the game draws through Land King Hall's
    transparent void tiles was not read; the key is a coincidence of the one
-   zone, not the rule it was taken for. */
+   zone, not the rule it was taken for.
+
+   READ, 6 October 2026: zoneBackdrop, below, says what the game draws
+   there, and the key on -1 is gone. */
 function zoneLandscapeArg(level) {
   if (!DERIVED.ZONE_BACKDROPS) DERIVED.ZONE_BACKDROPS = Object.create(null);
   if (level in DERIVED.ZONE_BACKDROPS) return DERIVED.ZONE_BACKDROPS[level];
@@ -116,43 +119,90 @@ function landscapeZones(resid) {
   const n = resid - 0x8400;
   return landscapeSetters().filter(s => s.n === n);
 }
-/* The picture behind Land King Hall's void, one of the pair
-   0x8F50/0x8F51, drawn at a phase of the palette clock. Both are built
-   from the whole water ramp and the whole magic ramp in order, so their
-   motion is the palette's. Until 6 October 2026 the page also swapped the
-   two every eight frames, which nothing read from the game supports and
-   the maintainer reported as wrong; the swap is gone and the first of the
-   pair cycles (the workbench's GRIMOIRE-NOTES.md, grimoire/void-swirls). */
+/* What the game draws through the ethereal void, read from
+   TViewer::Render on 6 October 2026 (the workbench's GRIMOIRE-NOTES.md,
+   under grimoire/void-swirls-o5l0ka, has the instructions).
+
+   Render clears its buffer to the viewer's erase colour, which ChangeZone
+   sets to 255, black, and a script can change (SetFillColor). Then it
+   walks the zone's records from the last to the first, and for each egg
+   (flags 0x42) of kind 10 whose byte 14 holds a negative number in its
+   low six bits it loads the picture 0x8F00 plus the egg's argument and
+   copies it in QuickDraw's transparent mode, centred on the egg's square.
+   Only then does it draw the ground, and a ground tile whose attribute
+   word has 0x10000000 is drawn masked, so the pictures show through it;
+   in the shipped file those are the ethereal void tiles and no others.
+
+   So the two pictures 0x8F50 and 0x8F51 are not frames of one animation
+   and not a pattern: each is a swirl placed by an egg, twelve of them in
+   Land King Hall and twelve more over three other zones. The byte-14
+   number is a depth. The picture's centre is 34 plus twice the depth
+   pixels from the middle of the view for each square the egg is from the
+   party, where the ground moves 32, so a swirl at -1 moves with the
+   floor and one at -11 at three eighths of it. A page that draws a whole
+   map at once has no party to measure from, and draws each swirl where
+   it stands when the party is on its square. A depth of zero or more is
+   drawn after the ground by a second loop; no shipped egg has one.
+
+   Until this was read the page keyed the backdrop on SetLandscapeImage's
+   -1, tiled 0x8F50 across the map as a pattern, and showed it under every
+   tile with a transparent pixel, which was most of Land King Hall's
+   surroundings. */
 function zoneBackdrop(level) {
-  return zoneLandscapeArg(level) === -1 && refExists(0x8F50) ? [0x8F50] : null;
-}
-const _backdropCanvases = derivedMap('_backdropCanvases');
-function backdropPattern(ctx, resid, TS, phase) {
+  const cache = DERIVED.ZONE_SWIRLS || (DERIVED.ZONE_SWIRLS = new Map());
+  if (cache.has(level)) return cache.get(level);
+  const out = [];
   try {
-    const key = resid + ':' + (phase || 0);
-    let c = _backdropCanvases.get(key);
-    if (!c) {
+    const raw = getResourceBytes(ARCHIVE, 0x8100 + level);
+    const recs = raw ? parseDelverPropList(smartDecrypt(raw, 0x8100 + level).data) : [];
+    for (let i = recs.length - 1; i >= 0; i--) {
+      const r = recs[i];
+      if (r.flags !== 0x42 || r.aspect !== 10) continue;
+      const six = parseInt(r.tail.slice(8, 10), 16) & 0x3F;
+      const depth = six & 0x20 ? six - 0x40 : six;
+      const resid = 0x8F00 + (r.proptype & 0x3FF);
+      if (depth < 0 && refExists(resid)) out.push({ resid, x: r.x, y: r.y, depth });
+    }
+  } catch (e) { quiet(e, 'the pictures behind a zone’s void'); }
+  const v = out.length ? out : null;
+  cache.set(level, v);
+  return v;
+}
+// A ground tile the program draws masked, over whatever is behind it.
+function tileShowsBackdrop(t) { return !!((getTileAttributes(ARCHIVE)[t] || 0) & 0x10000000); }
+const _backdropCanvases = derivedMap('_backdropCanvases');
+function backdropCanvas(resid, phase) {
+  const key = resid + ':' + (phase || 0);
+  let c = _backdropCanvases.get(key);
+  if (c === undefined) {
+    c = null;
+    try {
       let d = _backdropCanvases.get('img:' + resid);
       if (!d) { d = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, resid), 142, resid); _backdropCanvases.set('img:' + resid, d); }
       c = document.createElement('canvas');
-      // Index 0 is the transparent slot, and in the game the void behind it
-      // is black; drawn opaque it came out as white with black waves.
+      // Index 0 is the colour transparent mode leaves out.
       drawToCanvas(c, d.W, d.H, d.image, 0, phase ? cycledPalette(phase) : undefined);
-      _backdropCanvases.set(key, c);
-    }
-    const pat = ctx.createPattern(c, 'repeat');
-    const M = window.DOMMatrix;
-    if (pat && pat.setTransform && TS !== 32 && typeof M === 'function') pat.setTransform(new M().scale(TS / 32));
-    return pat;
-  } catch (e) { return null; }
+    } catch (e) { quiet(e, 'a picture behind the void'); c = null; }
+    _backdropCanvases.set(key, c);
+  }
+  return c;
 }
-const _tileClearCache = derivedMap('_tileClearCache');
-function tileHasTransparency(t) {
-  if (_tileClearCache.has(t)) return _tileClearCache.get(t);
-  let clear = false;
-  try { const img = resolveTileImage(t); if (img) for (const v of img) if (!v) { clear = true; break; } } catch (e) { quiet(e); }
-  _tileClearCache.set(t, clear);
-  return clear;
+/* The erase colour and the swirls over squares x0..x1, y0..y1 of a map
+   drawn at TS pixels a square, at a phase of the palette clock. Each
+   picture is cut to the rectangle by its source, so nothing is clipped
+   and nothing spills onto the squares around. */
+function paintBackdrop(ctx, backdrop, TS, phase, x0, y0, x1, y1) {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x0 * TS, y0 * TS, (x1 - x0 + 1) * TS, (y1 - y0 + 1) * TS);
+  const k = TS / 32, L = x0 * 32, T = y0 * 32, R = (x1 + 1) * 32, B = (y1 + 1) * 32;
+  for (const b of backdrop) {
+    const c = backdropCanvas(b.resid, phase);
+    if (!c) continue;
+    const bx = b.x * 32 + 16 - (c.width >> 1), by = b.y * 32 + 16 - (c.height >> 1);
+    const ix0 = Math.max(L, bx), iy0 = Math.max(T, by), ix1 = Math.min(R, bx + c.width), iy1 = Math.min(B, by + c.height);
+    if (ix1 <= ix0 || iy1 <= iy0) continue;
+    ctx.drawImage(c, ix0 - bx, iy0 - by, ix1 - ix0, iy1 - iy0, ix0 * k, iy0 * k, (ix1 - ix0) * k, (iy1 - iy0) * k);
+  }
 }
 
 /* ---- Data > Cythera Data > Data Fork ------------------------------------

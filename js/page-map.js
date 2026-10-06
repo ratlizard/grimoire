@@ -767,16 +767,10 @@ function paintMapAnimFrame(ctx, cm, frame, inWin) {
   // under the transparent squares that show it. The props over those
   // squares are in the replay below, so they come back on top.
   if (cm.backdrop && cm.backdropCells && cm.backdropCells.length) {
-    const pat = backdropPattern(ctx, cm.backdrop[0], TS, frame);
-    if (pat) {
-      for (const [tx, ty, t] of cm.backdropCells) {
-        if (!inWin(tx, ty)) continue;
-        ctx.fillStyle = '#000';
-        ctx.fillRect(tx*TS, ty*TS, TS, TS);   // the pattern has holes; the old frame must not show through them
-        ctx.fillStyle = pat;
-        ctx.fillRect(tx*TS, ty*TS, TS, TS);
-        drawTileAt(ctx, t, tx*TS, ty*TS, true, TS, frame);
-      }
+    for (const [tx, ty, t] of cm.backdropCells) {
+      if (!inWin(tx, ty)) continue;
+      paintBackdrop(ctx, cm.backdrop, TS, frame, tx, ty, tx, ty);
+      drawTileAt(ctx, t, tx*TS, ty*TS, true, TS, frame);
     }
   }
   // Put back whatever was drawn over the water (see animReplay above),
@@ -2986,10 +2980,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
   // that show it are collected so the animation loop can swap its frames.
   const backdrop = zoneBackdrop(resid & 0xFF);
   const backdropCells = [];
-  if (backdrop) {
-    const pat = backdropPattern(ctx, backdrop[0], TS);
-    if (pat) { ctx.fillStyle = pat; ctx.fillRect(0, 0, canvas.width, canvas.height); }
-  }
+  if (backdrop) paintBackdrop(ctx, backdrop, TS, 0, 0, 0, Math.ceil(canvas.width / TS) - 1, Math.ceil(canvas.height / TS) - 1);
 
   // Draw base terrain tiles. Always opaque -- see drawTileAt comment. Each
   // one may carry a faux prop (0xF010), drawn immediately on top of it, which
@@ -3027,7 +3018,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
         suppressed.push([x, y]);
         continue;
       }
-      if (backdrop && tileHasTransparency(tileId)) {
+      if (backdrop && tileShowsBackdrop(tileId)) {
         // Over the backdrop rather than over black, and remembered.
         drawTileAt(ctx, tileId, x*TS, y*TS, true, TS);
         backdropCells.push([x, y, tileId]);
@@ -3524,8 +3515,8 @@ function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, frame) {
   const fauxDrawn = [];
   ctx.fillStyle = '#000';
   ctx.fillRect(x0 * TS, y0 * TS, (x1 - x0 + 1) * TS, (y1 - y0 + 1) * TS);
-  const backdrop = cm.backdrop ? backdropPattern(ctx, cm.backdrop[0], TS, frame || 0) : null;
-  if (backdrop) { ctx.fillStyle = backdrop; ctx.fillRect(x0 * TS, y0 * TS, (x1 - x0 + 1) * TS, (y1 - y0 + 1) * TS); }
+  const backdrop = cm.backdrop || null;
+  if (backdrop) paintBackdrop(ctx, backdrop, TS, frame || 0, x0, y0, x1, y1);
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
       const t = u16be(mapData, m.mapDataOffset + (x + y * m.width) * 2);
@@ -3535,7 +3526,7 @@ function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, frame) {
         suppressed.push([x, y]);
         continue;
       }
-      drawTileAt(ctx, t, x * TS, y * TS, !!(backdrop && tileHasTransparency(t)), TS, frame || 0);
+      drawTileAt(ctx, t, x * TS, y * TS, !!(backdrop && tileShowsBackdrop(t)), TS, frame || 0);
       const fp = faux.get(t);
       if (fp) fauxDrawn.push([x, y, fp]);
     }
@@ -3652,13 +3643,9 @@ function repaintLensAnim(frame) {
   const y1 = Math.min(cm.tilesH - 1, Math.ceil((vh + my - mapView.y) / spt) + 2);
   const faux = getFauxProps(), fauxTiles = getPropTileList();
   // The void's backdrop cycles in the lens as it does on the base.
-  const voidPat = cm.backdrop && cm.backdropCells && cm.backdropCells.length ? backdropPattern(ctx, cm.backdrop[0], LENS_TS, frame) : null;
-  if (voidPat) for (const [tx, ty, t] of cm.backdropCells) {
+  if (cm.backdrop && cm.backdropCells) for (const [tx, ty, t] of cm.backdropCells) {
     if (tx < x0 || tx > x1 || ty < y0 || ty > y1) continue;
-    ctx.fillStyle = '#000';
-    ctx.fillRect(tx * LENS_TS, ty * LENS_TS, LENS_TS, LENS_TS);
-    ctx.fillStyle = voidPat;
-    ctx.fillRect(tx * LENS_TS, ty * LENS_TS, LENS_TS, LENS_TS);
+    paintBackdrop(ctx, cm.backdrop, LENS_TS, frame, tx, ty, tx, ty);
     drawTileAt(ctx, t, tx * LENS_TS, ty * LENS_TS, true, LENS_TS, frame);
   }
   for (const [tx, ty, t] of (cm.animCells || [])) {

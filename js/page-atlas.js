@@ -2232,6 +2232,10 @@ function atlasAt(px, py) {
    Zooming out of an unlocated map also comes back, because that is the one
    gesture worth having in both directions and it costs a line. */
 function atlasDescend(m, node, arriveZ) {
+  // The card and the pick are the map's being left; they stayed up over
+  // the map arrived at.
+  window.ATLAS_SEL = null;
+  try { atlasInspectShow('<span class="inspDim">Nothing selected. Tap a square to see what is on it.</span>'); hideAtlasHover(); } catch (e) { quiet(e); }
   const b = atlasBelowTop();
   DERIVED.ATLAS_BELOW.push({
     resid: m.dest.resid,
@@ -2659,6 +2663,30 @@ function atlasInspect(px, py) {
     // the plain form.
     const egg = atlasEggAt(node, tx, ty, true);
     if (egg) parts.push('<div class="inspCard"><b>egg</b> <span class="inspDim">' + egg + '</span></div>');
+    /* The ways through this square, each with the step that takes it. The
+       rings were the only ways the tab offered: a secret passage's egg, a
+       crack of a ravine or a prop that travels said what it was here and
+       led nowhere, where the Zones view's card has had a Go to (the
+       maintainer, 6 October 2026: "need to be able to go through hidden
+       ways eg. Harpy Abyss rope cracks"). atlasGoWay takes the same step
+       a ring does, or moves the view for a way within the one map. */
+    window.ATLAS_SEL_NODE = node;
+    {
+      const said = new Set();
+      const go = (x, y, name) => { const k = x + ',' + y; if (said.has(k)) return ''; said.add(k); return '<div class="inspActs"><button class="sv-chip" onclick="atlasGoWay(' + node.resid + ',' + x + ',' + y + ')">Go to ' + svEsc(name) + '</button></div>'; };
+      for (const w of mapEggWays(node.resid)) {
+        const q = w.rect;
+        if (tx < q.left || tx > q.right || ty < q.top || ty > q.bottom) continue;
+        const name = w.dest.resid === node.resid ? 'square ' + w.dest.x + ', ' + w.dest.y : (atlasMapName(w.dest.resid) || w.name);
+        parts.push('<div class="inspCard"><b>' + svEsc(w.hidden ? 'A hidden way, ' + w.kind : w.kind === 'way' ? 'A way' : w.kind) + '</b> <span class="inspDim">to ' + svEsc(name) + '</span>' + go(w.x, w.y, name) + '</div>');
+      }
+      const rv = ravineWayAt(node.resid, tx, ty);
+      if (rv) { const name = atlasMapName(rv.dest.resid) || rv.name;
+        parts.push('<div class="inspCard"><b>A ravine</b> <span class="inspDim">the way down is the ' + svEsc(rv.kind) + ' at (' + rv.x + ',' + rv.y + '), with a rope tied to it, to ' + svEsc(name) + '</span>' + go(rv.x, rv.y, name) + '</div>'); }
+      for (const d of mapDescents(node.resid)) if (!d.egg && d.x === tx && d.y === ty) { const name = atlasMapName(d.dest.resid) || d.name;
+        const act = go(d.x, d.y, name);
+        if (act) parts.push('<div class="inspCard"><b>A way</b> <span class="inspDim">the ' + svEsc(d.kind) + ', to ' + svEsc(name) + '</span>' + act + '</div>'); }
+    }
     const hits = (e.result.props || []).filter(p => p.cells.some(c => c[0] === tx && c[1] === ty));
     var boxes = [];
     for (const p of hits.slice(0, 6)) {
@@ -2699,6 +2727,30 @@ function atlasInspect(px, py) {
     const el = document.getElementById(slot);
     if (el) el.appendChild(buildContainerView(rec, contents));
   }
+}
+
+/* The way at a square, taken: a ring's step for a way to another map, the
+   view moved to where it lands for a way within the one map. */
+function atlasGoWay(resid, x, y) {
+  const node = window.ATLAS_SEL_NODE && window.ATLAS_SEL_NODE.resid === resid ? window.ATLAS_SEL_NODE : null;
+  if (!node) return;
+  let m = atlasMouths(node).find(d => d.x === x && d.y === y);
+  if (!m) {
+    const w = mapEggWays(resid).find(d => d.x === x && d.y === y) || mapDescents(resid).find(d => d.x === x && d.y === y);
+    if (w) m = { x: w.x, y: w.y, dest: w.dest, kind: w.kind, name: atlasMapName(w.dest.resid) || w.name, within: w.dest.resid === resid };
+  }
+  if (!m) return;
+  if (m.dest.resid === resid) {
+    const vp = document.getElementById('atlasViewport');
+    if (!vp) return;
+    atlasView.x = vp.clientWidth / 2 - (node.ox + (m.dest.x + 0.5) * node.s) * atlasView.Z;
+    atlasView.y = vp.clientHeight / 2 - (node.oy + (m.dest.y + 0.5) * node.s) * atlasView.Z;
+    window.ATLAS_SEL = { resid, tx: m.dest.x, ty: m.dest.y };
+    atlasInspectShow('<span class="inspDim">' + svEsc(node.name + ', square ' + m.dest.x + ', ' + m.dest.y) + ', where the way lands.</span>', true);
+    paintAtlas();
+    return;
+  }
+  atlasFallInto(m, node);
 }
 
 /* What a sign says: the text a prop's Data1 picks. The sign classes' Examine

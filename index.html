@@ -328,7 +328,14 @@ button, select { white-space:normal; overflow-wrap:break-word; word-break:normal
 select { text-overflow:ellipsis; }
 
 /* Scroll panes get a sane height instead of running off-screen. */
-pre { max-height:52vh !important; overflow:auto; overscroll-behavior:contain; }
+/* Neither this nor the picture's box below keeps a scroll to itself any
+   more. Both had overscroll-behavior:contain, which on a phone made half
+   the screen a place where a drag moved nothing once the box was at its
+   end, or at once where the picture fitted and the box had nothing to
+   scroll (the maintainer, 6 October 2026: "scroll capture in non-obvious
+   subwindow"). A box with more to show still scrolls first and then
+   hands the drag on to the page. */
+pre { max-height:52vh !important; overflow:auto; }
 /* The line under the gallery saying what is open. It is a <pre> because the
    harnesses read its text, but it is a caption, not a console: the text
    face at caption size, grey, and no box. It sat in a black monospace slab
@@ -404,7 +411,10 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 #canvasViewport { max-width:100%; height:52vh; overflow:auto; margin:0 auto 10px;
   background:transparent;
   border:0; border-radius:6px;
-  -webkit-overflow-scrolling:touch; overscroll-behavior:contain; display:flex; }
+  -webkit-overflow-scrolling:touch; display:flex; }
+/* A picture that fits its box leaves the box nothing to scroll, and then
+   it is not a scroller at all: every drag on it is the page's. */
+#canvasViewport:not(.cropped) { overflow:hidden; touch-action:pan-y; }
 #canvasViewport canvas { margin:auto; image-rendering:pixelated; flex:0 0 auto; }
 #canvasViewport.cropped { outline:2px solid var(--gold); outline-offset:-2px; }
 /* Transparent pixels were picking up a grey slab from the panel behind them.
@@ -2482,7 +2492,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.257.0';
+const GRIMOIRE_VERSION = '1.258.0';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

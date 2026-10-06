@@ -1149,6 +1149,29 @@ try {
   else console.log(`  zone landscape: ${strip} zones name a strip and ${engine} one of the engine’s own, all chipped in Made of`);
 } catch (e) { fail('zone landscape', e); }
 
+/* What shows through the ethereal void, 6 October 2026.
+
+   The page tiled one of 0x8F50/0x8F51 as a pattern behind Land King Hall,
+   swapped the two, and showed them under every tile with a transparent
+   pixel. TViewer::Render says otherwise (zoneBackdrop, js/page-data.js):
+   each is a picture an egg of kind 10 places, drawn before the ground and
+   seen through the tiles whose attribute has 0x10000000. Pinned on the
+   hall's twelve, on the two pictures, on a depth being negative, and on
+   which tiles let them through: an ethereal void tile, and not Nothing,
+   whose pixels are all transparent and which the old rule let through.
+   Odemia, which has no such egg, is the control. */
+try {
+  const sw = ctx.zoneBackdrop(3) || [];
+  const pics = [...new Set(sw.map(b => b.resid))].sort().join();
+  if (sw.length !== 12) fail('void pictures', 'Land King Hall has ' + sw.length + ' pictures behind its void, where its list holds 12 eggs of kind 10');
+  else if (pics !== [0x8F50, 0x8F51].join()) fail('void pictures', 'the hall’s pictures are ' + pics + ', not 0x8F50 and 0x8F51');
+  else if (sw.some(b => !(b.depth < 0))) fail('void pictures', 'a picture behind the ground has a depth that is not negative');
+  else if (ctx.zoneBackdrop(2)) fail('void pictures', 'Odemia, which has no egg of kind 10, was given pictures behind its ground');
+  else if (!ctx.tileShowsBackdrop(0xFC)) fail('void pictures', 'the ethereal void tile 0xFC is not drawn masked');
+  else if (ctx.tileShowsBackdrop(0)) fail('void pictures', 'Nothing, tile 0, is drawn masked, where the program copies it whole');
+  else console.log('  void pictures: 12 behind Land King Hall, seen through the ethereal void alone');
+} catch (e) { fail('void pictures', e); }
+
 /* A route belongs to the map it was found through, 13 September 2026.
 
    findPath's cache key was the endpoints and the map's width. Two maps of

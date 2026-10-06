@@ -441,15 +441,17 @@ function unitSteps(pt) {
      middle, then up, left, down and right, every square wearing the frame
      that joins the neighbours it has. Which frame joins which edges is
      read off the art (a frame is open on an edge its pixels reach), so
-     nothing here knows the ooze by name or number. The five stages use
-     twelve of the sixteen; the two straight pieces and the east and west
-     ends are in no stage. */
+     nothing here knows the ooze by name or number. His five stages use
+     twelve of the sixteen, and he asked for all of them the same day, so
+     two more follow the full nine: the middle row, which is the east
+     end, the east-west piece and the west end, and the middle column,
+     which has the north-south piece. */
   {
     const joins = info.present.length === 16 ? info.present.map(f => tileEdgeMask(base + f)) : null;
     if (joins && new Set(joins).size === 16) {
       const frameFor = m => info.present[joins.indexOf(m)];
       const cell = n => [(n - 1) % 3 - 1, Math.floor((n - 1) / 3) - 1];
-      const steps = [[5], [2, 5], [1, 2, 4, 5], [1, 2, 4, 5, 7, 8], [1, 2, 3, 4, 5, 6, 7, 8, 9]].map(cells => {
+      const steps = [[5], [2, 5], [1, 2, 4, 5], [1, 2, 4, 5, 7, 8], [1, 2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6], [2, 5, 8]].map(cells => {
         const has = (x, y) => cells.some(n => cell(n)[0] === x && cell(n)[1] === y);
         return cells.map(n => {
           const [x, y] = cell(n);

@@ -2341,7 +2341,10 @@ const EGG_KIND_NAMES = [
   { what: 'brings neighbors in when a condition holds' },
   { what: 'a room', arg: 'room' },
   { what: 'nothing' },
-  { what: 'counts down' }
+  // Kind 10 was "counts down", from DrawRoutine's handler alone, which takes
+  // one off a nonzero Data1; every shipped one has a Data1 of 0, and what
+  // the kind is for is TViewer::Render's (zoneBackdrop, js/page-data.js).
+  { what: 'a picture drawn behind the ground, seen through the ethereal void', arg: 'picture, 0x8F00 plus it' }
 ];
 
 /* What one egg does, in full. The kind is the aspect and the argument is the
