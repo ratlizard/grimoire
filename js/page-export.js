@@ -360,10 +360,8 @@ function cytheraOrdinalsFor(opts, L) {
    (the maintainer, 1 October 2026). DEFAULT is a new copy of the game: the
    record the program stores first, no answer to the 256-colour question so
    the game asks it, no cheat keys, no extra mouse buttons, and every ordinal
-   where a fresh install reads it. OPTIMIZED is the settings of the Infinite
-   Mac disk built for Mac OS 8.5 (the workbench's doc/infinite-mac-disk.md):
-   Smoother Movement, 256 colours without asking and the cheat keys, the
-   rest as DEFAULT. A setting is named by what the layout read, never by a
+   where a fresh install reads it. EVERYTHING is below, beside its code. A
+   setting is named by what the layout read, never by a
    bit typed here, so a patched build gets its own. */
 function cytheraPrefsPreset(name, layout) {
   const L = layout || cytheraPrefsLayout();
@@ -378,11 +376,23 @@ function cytheraPrefsPreset(name, layout) {
     if (cur) o[c.opt] = cur.text;
   }
   for (const x of L.ordinals || []) o[x.key] = x.dflt;
-  if (name === 'optimized') {
-    const mv = L.choices.find(c => c.options.some(op => op.text === L.smoothLabel));
-    if (mv) o[mv.opt] = L.smoothLabel;
+  /* Enable Everything (the maintainer, 6 October 2026, in place of
+     Optimized, which turned on three things): every switch on, the two the
+     game has no control for among them, Smoother Movement, and the fastest
+     of the menu's frame rates, which is the option that writes the fewest
+     ticks between frames. The volumes and the backdrop are amounts and a
+     picture, not switches, and stay as a new copy has them. */
+  if (name === 'everything') {
+    for (const c of L.controls) o[c.opt] = true;
+    for (const c of L.choices) {
+      if (c.options.some(op => op.text === L.smoothLabel)) { o[c.opt] = L.smoothLabel; continue; }
+      const ticks = op => op.sets.reduce((n, x) => n + x.value, 0);
+      o[c.opt] = c.options.slice().sort((x, y) => ticks(x) - ticks(y))[0].text;
+    }
+    for (const x of L.ordinals || []) { const r = PREF_ORDINAL_RANGE[x.key]; if (r && r.min === 0 && r.max === 1) o[x.key] = 1; }
     for (const x of L.startup || []) o.startup[x.text] = true;
     o.cheats = true;
+    if (L.buttons) o.mouseButtons = true;
   }
   return o;
 }
@@ -1197,6 +1207,36 @@ function paintStripSky(cv, resid, sky, rules, day, quarter) {
   for (let i = 0; i < W * H; i++) { const c = PAL_RGB[idx[i]] || [0, 0, 0]; im.data[i * 4] = c[0]; im.data[i * 4 + 1] = c[1]; im.data[i * 4 + 2] = c[2]; im.data[i * 4 + 3] = 255; }
   g.putImageData(im, 0, 0);
 }
+/* The open zone's strip above its map, at the map's hour (the maintainer,
+   6 October 2026: landscapes "not shown in Zones tab"). The strip and its
+   sky are the entry script's SetLandscapeImage, as zoneLandscapeArg reads
+   it; a click opens the strip's page. Nothing on the World tab, whose
+   panel is another layout, and nothing for a zone whose script names no
+   strip. Without the program a strip over the sky is drawn on the plain
+   fill, as its own page draws it. */
+function paintZoneStrip() {
+  const host = document.getElementById('mapStrip');
+  if (!host) return;
+  let land = null;
+  try { if (window.CUR_MAP && window.CUR_SUBN !== 'WORLD') land = zoneLandscapeArg(window.CUR_MAP.level); } catch (e) { quiet(e); }
+  const resid = land === null ? 0 : 0x8400 + Math.abs(land);
+  if (!resid || !refExists(resid)) { host.innerHTML = ''; return; }
+  let cv = host.firstChild;
+  if (!cv || cv.tagName !== 'CANVAS') { host.innerHTML = ''; cv = document.createElement('canvas'); host.appendChild(cv); }
+  cv.title = (labelFor(resid) || 'Landscape') + ', 0x' + resid.toString(16).toUpperCase() + (land < 0 ? ', no sky' : '');
+  cv.onclick = () => jumpToResource(resid);
+  try {
+    const rules = land >= 0 ? exeSkyRules() : null;
+    const t = (window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR) || 0;
+    const quarter = rules ? Math.floor(t * (rules.quarters.v / 24)) % rules.quarters.v : 0;
+    // The walking day calls this every frame; the sky moves a quarter at a time.
+    const key = resid + ':' + (rules ? quarter : 'plain');
+    if (cv._stripKey === key) return;
+    cv._stripKey = key;
+    if (rules) paintStripSky(cv, resid, true, rules, window.SKY_DAY || 0, quarter);
+    else paintStripSky(cv, resid, false, null, 0, 0);
+  } catch (e) { quiet(e, 'the zone’s landscape strip'); }
+}
 function buildStripSky(resid) {
   let setters = [];
   try { setters = landscapeZones(resid); } catch (e) { quiet(e); }
@@ -1205,7 +1245,7 @@ function buildStripSky(resid) {
   const wrap = document.createElement('div');
   wrap.id = 'stripSky';
   const cv = document.createElement('canvas');
-  cv.style.cssText = 'display:block;width:576px;max-width:100%;image-rendering:pixelated;margin:6px 0';
+  cv.style.cssText = 'display:block;width:576px;max-width:100%;image-rendering:pixelated;margin:6px auto';
   wrap.appendChild(cv);
   if (sky && !rules) {
     const note = document.createElement('div');
@@ -1311,11 +1351,21 @@ function renderImage() {
       const fit = (vp && vp.clientWidth > 40 && vp.clientHeight > 40) ? Math.floor(Math.min(vp.clientWidth / W, vp.clientHeight / H)) : autoZoom(W, H);
       z = Math.max(1, Math.min(16, fit));
       zs.max = z;
+    } else if (subn === 131) {
+      /* A landscape opens as wide as the page lets it, and the slider
+         zooms it and the strip over the sky together (applyZoom). It
+         opened at 1x, a 288-pixel strip in the middle of a box half the
+         screen tall, with the slider below the fold (the maintainer,
+         6 October 2026: "enable zoom on landscapes in their tab"). */
+      const vp = document.getElementById('canvasViewport');
+      zs.max = 8;
+      z = Math.max(1, Math.min(8, vp && vp.clientWidth > 40 ? Math.floor(vp.clientWidth / W) : 2));
     } else { zs.max = 16; z = autoZoom(W, H); }
     zs.value = z;
     applyZoom();
     currentResid = resid;
     updateUsagePanel(resid, subn);
+    if (subn === 131) applyZoom();   // the strip over the sky exists only now
     const lbl = labelFor(resid);
     out.textContent = "Rendered resource 0x" + resid.toString(16).toUpperCase() +
       (lbl ? " (" + lbl + ")" : "") + " - " + W + "x" + H + " (zoom " + z + "x)";

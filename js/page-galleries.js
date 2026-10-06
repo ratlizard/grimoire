@@ -898,6 +898,67 @@ function whenMapSettled(mapResid, fn, tries) {
   if (ready && (window.MAP_SETTLED === mapResid || (tries || 0) >= 18)) { fn(cm, vp); return; }
   if ((tries || 0) < 100) setTimeout(() => whenMapSettled(mapResid, fn, (tries || 0) + 1), 50);
 }
+/* Every 0x number on the page in the monospace face (the maintainer,
+   6 October 2026: "0x8003 should be monospace (here and literally anywhere
+   else a hex address is specified)"). Some four hundred places build such
+   a number into a sentence, a chip or a heading, so it is done once, on
+   what lands in the document: a text node holding 0x and hex digits has
+   each wrapped in span.hex, the class the galleries' ids already wear,
+   with .hexNum to bring the monospace face down to the size of the game's
+   face beside it, which is small for its em.
+   Left alone: anything already monospace by its element (pre, code, the
+   listings' panes), form controls, whose text cannot hold a span, and a
+   node already inside .hex or .resid. textContent reads the same before
+   and after, which is what every check and every filter box reads. The
+   wrap is itself an insertion, and the walk skips it by its class. */
+function installHexSweep() {
+  if (typeof MutationObserver !== 'function' || !document.createTreeWalker || !document.body) return;
+  const SKIP = 'pre, code, textarea, select, option, input, script, style, .hex, .resid, [contenteditable]';
+  const RE = /0x[0-9A-Fa-f]+/g;
+  const pending = new Set();
+  let due = false;
+  const wrap = node => {
+    const text = node.nodeValue;
+    if (!text || text.indexOf('0x') < 0 || !node.parentNode || !node.parentNode.closest || node.parentNode.closest(SKIP)) return;
+    RE.lastIndex = 0;
+    let m, last = 0, frag = null;
+    while ((m = RE.exec(text))) {
+      if (!frag) frag = document.createDocumentFragment();
+      if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+      const sp = document.createElement('span');
+      sp.className = 'hex hexNum';
+      sp.textContent = m[0];
+      frag.appendChild(sp);
+      last = m.index + m[0].length;
+    }
+    if (!frag) return;
+    if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  };
+  const run = () => {
+    due = false;
+    const roots = [...pending];
+    pending.clear();
+    for (const root of roots) {
+      if (!root.isConnected) continue;
+      if (root.nodeType === 3) { wrap(root); continue; }
+      if (root.nodeType !== 1 || (root.closest && root.closest(SKIP))) continue;
+      const w = document.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */);
+      const found = [];
+      for (let n = w.nextNode(); n; n = w.nextNode()) if (n.nodeValue.indexOf('0x') >= 0) found.push(n);
+      for (const n of found) { try { wrap(n); } catch (e) { quiet(e, 'setting a hex number in monospace'); } }
+    }
+  };
+  const obs = new MutationObserver(list => {
+    for (const mu of list) for (const n of mu.addedNodes) pending.add(n);
+    if (pending.size && !due) { due = true; (window.requestAnimationFrame || setTimeout)(run); }
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+  pending.add(document.body);
+  due = true;
+  (window.requestAnimationFrame || setTimeout)(run);
+}
+
 function showSquareOnMap(mapResid, x, y) {
   if (!(window.CUR_MAP && window.CUR_MAP.resid === mapResid && window.MAP_SETTLED === mapResid)) {
     window.MAP_SETTLED = null;
@@ -993,9 +1054,18 @@ function updateGalleryTools() {
   if (sw) sw.style.display = (window.CUR_SUBN === 141 && inGallery) ? 'inline-flex' : 'none';
   const db = document.getElementById('ditherBtn');
   if (db) db.style.display = (window.CUR_SUBN === 135 && inGallery) ? '' : 'none';
-  // Edit bytes goes with any open resource, whatever it is shown as.
+  // Edit bytes goes with any open resource, whatever it is shown as, a
+  // zone's map excepted: its bytes are a grid nobody edits as hex, and the
+  // maintainer took the button off the zone page on 6 October 2026. The
+  // prop list and the scripts the zone links to keep theirs.
+  const isZone = window.CUR_SUBN === 127;
   const eb = document.getElementById('editAnyBtn');
-  if (eb) eb.style.display = (currentMode === 'single' && currentResid != null) ? '' : 'none';
+  if (eb) eb.style.display = (currentMode === 'single' && currentResid != null && !isZone) ? '' : 'none';
+  // The way round says what it goes round, on the zone pages.
+  for (const [id, zone, other] of [['backToSheet', 'All Zones', 'All of this gallery'], ['navPrev', 'Previous Zone', 'Previous'], ['navNext', 'Next Zone', 'Next']]) {
+    const nb = document.getElementById(id);
+    if (nb) nb.textContent = isZone ? zone : other;
+  }
   // Change code goes with a script, which is what it can relink.
   const cb = document.getElementById('editCodeBtn');
   if (cb) cb.style.display = (currentMode === 'single' && currentResid != null && window.LAST_DECODED && window.LAST_DECODED.isScript && window.LAST_DECODED.resid === currentResid) ? '' : 'none';
@@ -1268,20 +1338,23 @@ function renderContactSheet() {
     metaDiv.className = 'listMeta'; metaDiv.textContent = fmtBytes(rlen);
     cell.appendChild(metaDiv);
     // A landscape is chosen at run time: a zone's entry script names its
-    // strip with SetLandscapeImage, and the game draws it behind the map's
-    // edge. The zones that name this one are on the cell.
+    // strip with SetLandscapeImage, and the game draws it in the status
+    // window. The zones that name this one are the cell's label, since the
+    // file gives a strip no name of its own: until 6 October 2026 the label
+    // read "none" with the zones a third line under the id, set like an id
+    // and joined with semicolons, which the maintainer called oddly
+    // labelled. With or without a sky is on the strip's own page.
     if (subn === 131) {
       let zones = [];
       try { zones = landscapeZones(resid); } catch (e) { zones = []; }
-      const z = document.createElement('div');
-      z.className = 'resid';
       const said = new Set(), names = [];
       for (const st of zones) {
-        const nm = landscapeSetterName(st.resid) + (st.sky ? '' : ', no sky');
+        const nm = landscapeSetterName(st.resid);
         if (!said.has(nm)) { said.add(nm); names.push(nm); }
       }
-      z.textContent = names.length ? names.join('; ') : 'set by no script';
-      cell.appendChild(z);
+      lblDiv.className = names.length ? 'lbl' : 'lbl nolabel';
+      lblDiv.textContent = names.length ? names.join(', ') : 'set by no script';
+      lblDiv.classList.remove('placeholder');
     }
     // Decoded when the tile is nearly on screen, not now. A blank resource is
     // still hidden, but it can only be found to be blank by decoding it, so
@@ -1512,6 +1585,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const queue = () => { if (due) return; due = true; (window.requestAnimationFrame || setTimeout)(sweep); };
     if (grid && typeof MutationObserver === 'function') new MutationObserver(queue).observe(grid, { childList: true, subtree: true });
+    installHexSweep();
     window.addEventListener('resize', () => { for (const el of document.querySelectorAll('[data-scroll-hint]')) scrollHintUpdate(el); });
   } catch (e) { quiet(e); }
   try { receiveFromCanvas(); } catch (e) { quiet(e); }

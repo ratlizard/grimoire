@@ -1150,6 +1150,12 @@ function applyZoom() {
   const w = canvas.width * z, h = canvas.height * z;
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
+  // A landscape's box is as tall as the strip, not half the screen, and the
+  // strip over the sky below it takes the same zoom.
+  const strip = window.CUR_SUBN === 131;
+  vp.style.height = strip ? Math.min(h + 4, Math.round((window.innerHeight || 800) * 0.52)) + 'px' : '';
+  const sky = strip ? document.querySelector('#stripSky canvas') : null;
+  if (sky) sky.style.width = (sky.width * z) + 'px';
   vp.scrollLeft = Math.max(0, cx * w - vp.clientWidth / 2);
   vp.scrollTop  = Math.max(0, cy * h - vp.clientHeight / 2);
   // A gold frame says the picture runs past the edges.

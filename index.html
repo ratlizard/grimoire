@@ -1027,7 +1027,12 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
    be, and .tableScroll scrolls it sideways with its fade. */
 td .relChip, td .relText, td .relMain, td .relSub, td .relNote { white-space:nowrap; }
 .partsNote { color:#fff; font-size:0.75rem; flex-basis:100%; line-height:1.4; }
-#mapParts { max-width:720px; margin:0 auto 6px; text-align:left; }
+#mapParts { max-width:720px; margin:8px auto 0; text-align:left; }
+#mapStrip:empty { display:none; }
+#mapStrip canvas { display:block; width:576px; max-width:100%; margin:0 auto 8px; image-rendering:pixelated; cursor:pointer; }
+/* Save and Show on the World side by side: they were two full-width rows. */
+#mapSaveRow .mapSaveBtns { display:flex; gap:8px 18px; justify-content:center; flex-wrap:wrap; }
+#mapSaveRow .mapSaveBtns button { flex:none; width:auto !important; margin:0 !important; }
 #artUsage .partsStrip { margin:4px 0; }
 /* The pill an "Up to" and a view's own "All <this>" wear. The trail's
    "Back to <the last page>" wore it too until 20 September 2026. */
@@ -1078,7 +1083,11 @@ body.dropping::after { content:'Drop the Cythera installer (.sit or .bin) or a C
   display:flex; align-items:center; justify-content:center; }
 
 /* The Tools sheet's log of what fell back: a folded grey line at the foot. */
-.quietLog { margin-top:22px; padding-top:8px; border-top:1px solid rgba(155,136,80,.25); font-size:0.7188rem; color:#8c8980; }
+.hexNum { font-size:.82em; letter-spacing:0; }
+#mapLabel button.hexNum { padding:0 !important; margin:0 !important; min-height:0 !important; display:inline !important; width:auto !important; font-size:.82em !important; }
+.toolRow { margin:4px 0; }
+.toolRow button { display:block; text-align:left; }
+.quietLog { margin-top:22px; padding-top:8px; font-size:0.7188rem; color:#8c8980; }
 .quietLog > summary { color:var(--gold); opacity:.55; }
 .quietLog > summary { cursor:pointer; list-style:none; }
 .quietLog > summary::-webkit-details-marker { display:none; }
@@ -1119,11 +1128,12 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
    62vh of map with a pane beside it would leave neither readable. */
 @media (min-width:900px) {
   #mapPreview.hasInspect { display:grid; grid-template-columns:minmax(0,1fr) 320px;
-    grid-template-areas: 'label label' 'parts parts' 'stage inspect' 'zoom inspect'
-                         'chars inspect' 'legend inspect' 'save inspect';
+    grid-template-areas: 'label label' 'strip strip' 'stage inspect' 'zoom inspect'
+                         'chars inspect' 'legend inspect' 'parts inspect' 'save inspect';
     gap:0 16px; align-items:start; }
   #mapPreview.hasInspect > #mapLabel { grid-area:label; }
   #mapPreview.hasInspect > #mapParts { grid-area:parts; }
+  #mapPreview.hasInspect > #mapStrip { grid-area:strip; }
   #mapPreview.hasInspect > #mapStage { grid-area:stage; max-width:none; }
   /* The zoom row carries the same inline 720px cap and auto margins the
      stage does. Freeing the stage without freeing this left the map wide and
@@ -2119,8 +2129,8 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   </div>
 <div id="resourceNav" style="display:none">
   <button id="backToSheet" class="secondary" onclick="returnToSheet()">All of this gallery</button>
-  <button class="secondary" onclick="navigateResource(-1)">Previous</button>
-  <button class="secondary" onclick="navigateResource(1)">Next</button>
+  <button class="secondary" id="navPrev" onclick="navigateResource(-1)">Previous</button>
+  <button class="secondary" id="navNext" onclick="navigateResource(1)">Next</button>
   <button class="secondary" id="editAnyBtn" style="display:none" onclick="startResourceEdit()">Edit bytes</button>
   <button class="secondary" id="editCodeBtn" style="display:none" onclick="startCodeEdit()">Change code</button>
 </div>
@@ -2167,7 +2177,10 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
 <!-- Map Visual Preview (top-down rendered map + props) -->
 <div id="mapPreview" style="display:none; margin-top:12px; padding:14px; background:var(--panel); border:1px solid var(--edge); border-radius:8px; text-align:center;">
   <div id="mapLabel" style="margin-bottom:8px; font-weight:600;"></div>
-  <div id="mapParts"></div>
+  <!-- The zone's landscape strip, as the status window shows it over the
+       map (paintZoneStrip). The zone's links, which sat here above the map,
+       are above the save row now (the maintainer, 6 October 2026). -->
+  <div id="mapStrip"></div>
   <div id="mapStage" style="position:relative; width:100%; max-width:720px; margin:0 auto 6px; padding:22px;">
 <div id="mapViewport" style="position:relative; width:100%; height:62vh; margin:0; overflow:hidden; border:1px solid var(--edge); background:#222; touch-action:none; cursor:grab; border-radius:6px;">
     <div id="mapCanvasWrap" style="position:absolute; top:0; left:0; transform-origin:0 0; z-index:1;"></div>
@@ -2236,9 +2249,12 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   </div>
   <div id="markLegend" style="font-size:0.75rem; margin-top:6px; min-height:16px;"></div>
   <div id="mapInspect" style="display:none"></div>
+  <div id="mapParts"></div>
   <div id="mapSaveRow" style="margin-top:8px;">
-    <button class="secondary" onclick="downloadMapPNG()">Save Map as PNG</button>
-    <button class="secondary" onclick="showZoneOnWorld()">Show on the world</button>
+    <div class="mapSaveBtns">
+      <button class="secondary" onclick="downloadMapPNG()">Save Map as PNG</button>
+      <button class="secondary" onclick="showZoneOnWorld()">Show on the World</button>
+    </div>
   </div>
 
 </div>
@@ -2458,7 +2474,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.256.0';
+const GRIMOIRE_VERSION = '1.257.0';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

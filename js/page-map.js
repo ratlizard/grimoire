@@ -751,6 +751,46 @@ function animWindow(cm) {
   };
 }
 
+/* One palette frame onto a map's render, over the squares inWin passes:
+   the terrain that cycles or steps, the void's backdrop, then whatever
+   was drawn over them. It was the body of startMapAnimation's tick, and
+   is a function since 6 October 2026 so the World tab can run it on a
+   zone it draws from the zone's own render (atlasAnimateRender), where
+   Land King Hall's water and fountains stood still. */
+function paintMapAnimFrame(ctx, cm, frame, inWin) {
+  const TS = cm.TS;
+  for (const [tx, ty, t] of (cm.animCells || [])) {
+    if (!inWin(tx, ty)) continue;
+    drawTileAt(ctx, t, tx*TS, ty*TS, false, TS, frame);
+  }
+  // The backdrop behind the void, at this palette frame, repainted only
+  // under the transparent squares that show it. The props over those
+  // squares are in the replay below, so they come back on top.
+  if (cm.backdrop && cm.backdropCells && cm.backdropCells.length) {
+    const pat = backdropPattern(ctx, cm.backdrop[0], TS, frame);
+    if (pat) {
+      for (const [tx, ty, t] of cm.backdropCells) {
+        if (!inWin(tx, ty)) continue;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(tx*TS, ty*TS, TS, TS);   // the pattern has holes; the old frame must not show through them
+        ctx.fillStyle = pat;
+        ctx.fillRect(tx*TS, ty*TS, TS, TS);
+        drawTileAt(ctx, t, tx*TS, ty*TS, true, TS, frame);
+      }
+    }
+  }
+  // Put back whatever was drawn over the water (see animReplay above),
+  // at the same palette frame so shore art with animated colours cycles
+  // with the water instead of being erased by it.
+  if (cm.animReplay)
+    for (const [t, px, py, tr, sz, rot] of cm.animReplay) {
+      // These carry base-canvas pixels rather than squares, so the window
+      // is applied to the square they land on.
+      if (!inWin(Math.floor(px / TS), Math.floor(py / TS))) continue;
+      drawTileAt(ctx, t, px, py, tr, sz, frame, rot);
+    }
+}
+
 function startMapAnimation() {
   stopMapAnimation();
   const cm = window.CUR_MAP;
@@ -789,38 +829,7 @@ function startMapAnimation() {
          not the parts of it nobody is looking at. */
       const win = animWindow(cm);
       const inWin = (tx, ty) => !win || (tx >= win.x0 && tx <= win.x1 && ty >= win.y0 && ty <= win.y1);
-      for (const [tx, ty, t] of cm.animCells) {
-        if (!inWin(tx, ty)) continue;
-        drawTileAt(ctx, t, tx*TS, ty*TS, false, TS, mapAnimFrame || 8);
-      }
-      // The backdrop behind the void: two frames of wavy space, swapped
-      // every eight palette frames, repainted only under the transparent
-      // squares that show it. The props over those squares are in the
-      // replay below, so they come back on top.
-      if (cm.backdrop && cm.backdropCells && cm.backdropCells.length && mapAnimFrame === 0) {
-        cm.backdropFrame = ((cm.backdropFrame || 0) + 1) % cm.backdrop.length;
-        const pat = backdropPattern(ctx, cm.backdrop[cm.backdropFrame], TS);
-        if (pat) {
-          for (const [tx, ty, t] of cm.backdropCells) {
-            if (!inWin(tx, ty)) continue;
-            ctx.fillStyle = '#000';
-            ctx.fillRect(tx*TS, ty*TS, TS, TS);   // the pattern has holes; the old frame must not show through them
-            ctx.fillStyle = pat;
-            ctx.fillRect(tx*TS, ty*TS, TS, TS);
-            drawTileAt(ctx, t, tx*TS, ty*TS, true, TS, mapAnimFrame || 8);
-          }
-        }
-      }
-      // Put back whatever was drawn over the water (see animReplay above),
-      // at the same palette frame so shore art with animated colours cycles
-      // with the water instead of being erased by it.
-      if (cm.animReplay)
-        for (const [t, px, py, tr, sz, rot] of cm.animReplay) {
-          // These carry base-canvas pixels rather than squares, so the window
-          // is applied to the square they land on.
-          if (!inWin(Math.floor(px / TS), Math.floor(py / TS))) continue;
-          drawTileAt(ctx, t, px, py, tr, sz, mapAnimFrame || 8, rot);
-        }
+      paintMapAnimFrame(ctx, cm, mapAnimFrame || 8, inWin);
       // The base is what was just repainted, and whenever the detail lens is
       // showing the base is not what anyone is looking at -- so the water
       // stood still until a drag forced the lens to repaint, which is exactly
@@ -849,6 +858,7 @@ function setMapHourLabel(t) {
     const el = document.getElementById(id);
     if (el) el.textContent = ampm + ':' + String(mnt).padStart(2,'0') + (h < 12 ? ' am' : ' pm');
   }
+  paintZoneStrip();   // the sky over the zone's strip keeps the same clock
 }
 /* The clock has two sets of controls, the Zones view's and the World tab's,
    and one clock behind them: the hour carries from one tab to the other, and
@@ -2488,6 +2498,7 @@ function setMapHour(h) {
   syncMapTimeControls();
   drawCharacterLayer();
   drawLighting();
+  paintZoneStrip();
   if (typeof atlasPaintFolk === 'function' && window.CUR_SUBN === 'WORLD') atlasPaintFolk();
 }
 function toggleCharacters(on) { window.SHOW_CHARACTERS = on; drawCharacterLayer(); }
@@ -3513,7 +3524,7 @@ function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, frame) {
   const fauxDrawn = [];
   ctx.fillStyle = '#000';
   ctx.fillRect(x0 * TS, y0 * TS, (x1 - x0 + 1) * TS, (y1 - y0 + 1) * TS);
-  const backdrop = cm.backdrop ? backdropPattern(ctx, cm.backdrop[cm.backdropFrame || 0], TS) : null;
+  const backdrop = cm.backdrop ? backdropPattern(ctx, cm.backdrop[0], TS, frame || 0) : null;
   if (backdrop) { ctx.fillStyle = backdrop; ctx.fillRect(x0 * TS, y0 * TS, (x1 - x0 + 1) * TS, (y1 - y0 + 1) * TS); }
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
@@ -3625,7 +3636,7 @@ function repaintLensAnim(frame) {
   const vp = document.getElementById('mapViewport');
   if (!cm || !cm.m || !lens || !vp || !lens.width) return;
   if (lens.style.display === 'none' || lens.style.transform) return;
-  if (!cm.animCells || !cm.animCells.length) return;
+  if ((!cm.animCells || !cm.animCells.length) && !(cm.backdrop && cm.backdropCells && cm.backdropCells.length)) return;
   const ctx = lens.getContext('2d');
   if (!ctx) return;
   const vw = vp.clientWidth, vh = vp.clientHeight;
@@ -3640,7 +3651,17 @@ function repaintLensAnim(frame) {
   const x1 = Math.min(cm.tilesW - 1, Math.ceil((vw + mx - mapView.x) / spt) + 2);
   const y1 = Math.min(cm.tilesH - 1, Math.ceil((vh + my - mapView.y) / spt) + 2);
   const faux = getFauxProps(), fauxTiles = getPropTileList();
-  for (const [tx, ty, t] of cm.animCells) {
+  // The void's backdrop cycles in the lens as it does on the base.
+  const voidPat = cm.backdrop && cm.backdropCells && cm.backdropCells.length ? backdropPattern(ctx, cm.backdrop[0], LENS_TS, frame) : null;
+  if (voidPat) for (const [tx, ty, t] of cm.backdropCells) {
+    if (tx < x0 || tx > x1 || ty < y0 || ty > y1) continue;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(tx * LENS_TS, ty * LENS_TS, LENS_TS, LENS_TS);
+    ctx.fillStyle = voidPat;
+    ctx.fillRect(tx * LENS_TS, ty * LENS_TS, LENS_TS, LENS_TS);
+    drawTileAt(ctx, t, tx * LENS_TS, ty * LENS_TS, true, LENS_TS, frame);
+  }
+  for (const [tx, ty, t] of (cm.animCells || [])) {
     if (tx < x0 || tx > x1 || ty < y0 || ty > y1) continue;
     drawTileAt(ctx, t, tx * LENS_TS, ty * LENS_TS, false, LENS_TS, frame);
     const fp = faux.get(t);

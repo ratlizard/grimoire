@@ -116,20 +116,29 @@ function landscapeZones(resid) {
   const n = resid - 0x8400;
   return landscapeSetters().filter(s => s.n === n);
 }
+/* The picture behind Land King Hall's void, one of the pair
+   0x8F50/0x8F51, drawn at a phase of the palette clock. Both are built
+   from the whole water ramp and the whole magic ramp in order, so their
+   motion is the palette's. Until 6 October 2026 the page also swapped the
+   two every eight frames, which nothing read from the game supports and
+   the maintainer reported as wrong; the swap is gone and the first of the
+   pair cycles (the workbench's GRIMOIRE-NOTES.md, grimoire/void-swirls). */
 function zoneBackdrop(level) {
-  return zoneLandscapeArg(level) === -1 && refExists(0x8F50) && refExists(0x8F51) ? [0x8F50, 0x8F51] : null;
+  return zoneLandscapeArg(level) === -1 && refExists(0x8F50) ? [0x8F50] : null;
 }
 const _backdropCanvases = derivedMap('_backdropCanvases');
-function backdropPattern(ctx, resid, TS) {
+function backdropPattern(ctx, resid, TS, phase) {
   try {
-    let c = _backdropCanvases.get(resid);
+    const key = resid + ':' + (phase || 0);
+    let c = _backdropCanvases.get(key);
     if (!c) {
-      const d = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, resid), 142, resid);
+      let d = _backdropCanvases.get('img:' + resid);
+      if (!d) { d = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, resid), 142, resid); _backdropCanvases.set('img:' + resid, d); }
       c = document.createElement('canvas');
       // Index 0 is the transparent slot, and in the game the void behind it
       // is black; drawn opaque it came out as white with black waves.
-      drawToCanvas(c, d.W, d.H, d.image, 0);
-      _backdropCanvases.set(resid, c);
+      drawToCanvas(c, d.W, d.H, d.image, 0, phase ? cycledPalette(phase) : undefined);
+      _backdropCanvases.set(key, c);
     }
     const pat = ctx.createPattern(c, 'repeat');
     const M = window.DOMMatrix;

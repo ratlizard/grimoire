@@ -772,7 +772,7 @@ function renderPrefsSheet() {
   const presets = document.createElement('div');
   presets.className = 'prefPresets';
   for (const [label, name, title] of [['Default', 'default', 'A new copy of the game'],
-                                      ['Optimized', 'optimized', 'Smoother Movement, 256 colors without asking and the cheat keys']]) {
+                                      ['Enable Everything', 'everything', 'Every switch on, Smoother Movement and the fastest frame rate']]) {
     const b = document.createElement('button');
     b.className = 'secondary';
     b.textContent = label;
@@ -782,7 +782,7 @@ function renderPrefsSheet() {
   }
   const presetNote = document.createElement('span');
   presetNote.className = 'prefPresetNote';
-  presetNote.textContent = 'Default is a new copy of the game. Optimized adds Smoother Movement, 256 colors without asking and the cheat keys.';
+  presetNote.textContent = 'Default is a new copy of the game. Enable Everything turns every switch on, with Smoother Movement and the fastest frame rate.';
   presets.appendChild(presetNote);
   sheet.appendChild(presets);
   const rows = new Map(PREF_GROUPS.map(([g]) => [g, []]));
@@ -910,7 +910,7 @@ function applyPrefsPreset(name) {
     const e = document.getElementById('prefOrd_' + x.key.replace(/\W/g, ''));
     if (e && e.type === 'checkbox') e.checked = o[x.key] === 1; else sel('prefOrd_' + x.key.replace(/\W/g, ''), o[x.key]);
   }
-  setStatus((name === 'optimized' ? 'Optimized' : 'Default') + ' preferences: ' + prefsSummary(o) + '.');
+  setStatus((name === 'everything' ? 'Enable Everything' : 'Default') + ' preferences: ' + prefsSummary(o) + '.');
 }
 
 /* Data › Patches: a patch read and applied, a sprite or a gremlin made into
@@ -939,29 +939,24 @@ function renderToolsSheet() {
   out.textContent = 'The ditherizer and the other pages.';
   const box = document.createElement('div');
   box.className = 'changesView';
-  /* One row a tool: its name is the link, and a line says what it is. They
-     were three headed sections, "Ditherizer" over an "Open the ditherizer"
-     button, "The other pages" over two more, and "The font this page uses",
-     which Settings already says; the maintainer had the headings and the
-     font section go, and the name made the link (3 October 2026). */
+  /* One row a tool, its name the link. They were three headed sections,
+     then (3 October 2026) a name over a line saying what it is with a rule
+     between each; the maintainer had the lines and the rules go on
+     6 October 2026. The line stays as the button's hover title. */
   for (const [label, note, go] of [
     ['Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
       () => { showCategory('135'); openDitherTool(); }],
     ['Color-Cycling Canvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener')],
     ['GitHub Repository', 'Where this page and its tests live.', () => window.open('https://github.com/ratlizard/grimoire', '_blank', 'noopener')]]) {
     const d = document.createElement('div');
-    d.className = 'changesGroup';
+    d.className = 'toolRow';
     const b = document.createElement('button');
     b.className = 'secondary';
     b.style.cssText = 'width:auto;margin:0';
     b.textContent = label;
+    b.title = note;
     b.onclick = go;
     d.appendChild(b);
-    const n = document.createElement('div');
-    n.className = 'changesNote';
-    n.style.marginLeft = '0';
-    n.textContent = note;
-    d.appendChild(n);
     box.appendChild(d);
   }
   grid.insertBefore(box, grid.firstChild);
@@ -1283,19 +1278,17 @@ function mapParts(resid, propResid) {
   if (propResid && refExists(propResid)) chips.push(partChip('Prop list', propResid));
   if (refExists(0x1400 + level)) chips.push(partChip('Entry script', 0x1400 + level));
   if (refExists(0x1500 + level)) chips.push(partChip('Sub-zone script', 0x1500 + level));
-  /* The backdrop the zone is drawn against is a component like the rest of
-     them, and the page has read it all along without ever showing it: the
-     entry script's one SetLandscapeImage call, which zoneLandscapeArg picks
-     out. Zero and up is a strip at 0x8400 + n. The negatives are the
-     engine's own backdrops and have no resource to chip at -- -1 is the
-     wavy void behind Land King Hall, drawn from the pair 0x8F50/0x8F51 --
-     so those are named rather than linked, because a chip that opens
-     nothing is worse than a word. */
+  /* The strip the status window shows for the zone is a component like the
+     rest of them: the entry script's one SetLandscapeImage call, which
+     zoneLandscapeArg picks out. The strip is 0x8400 plus the number with
+     its sign dropped, and a negative number is the same strip with no sky
+     (landscapeSetters, in js/page-data.js). Until 6 October 2026 a negative
+     number was chipped as "the ethereal void" or "one the engine keeps",
+     from the reading the correction of 22 September replaced, so Land King
+     Hall, the caves and the cellars linked to no strip. */
   try {
     const land = zoneLandscapeArg(level);
-    if (land !== null && land >= 0 && refExists(0x8400 + land)) chips.push(partChip('Landscape', 0x8400 + land));
-    else if (land === -1) chips.push(actionChip('Landscape', "showCategory('142')", 'the ethereal void'));
-    else if (land !== null && land < 0) chips.push(actionChip('Landscape', "showCategory('131')", 'one the engine keeps'));
+    if (land !== null && refExists(0x8400 + Math.abs(land))) chips.push(partChip(land < 0 ? 'Landscape, no sky' : 'Landscape', 0x8400 + Math.abs(land)));
   } catch (e) { quiet(e); }
   return chips;
 }

@@ -536,9 +536,14 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         // the drift check above.
         rec({ mouseButtons: true })[1] !== 0x84 ||
         // The presets: Default is the record a new copy stores first, and
-        // Optimized the Mac OS 8.5 disk's 9A B0 00 01.
+        // Enable Everything every bit the record has a switch for: byte 0
+        // is both movement bits, Manually Place Containers, four ticks a
+        // frame (16 FPS) and Live Dragging; byte 1 is ZoomRects, Walk
+        // around obstacles, both startup answers, Motion Filters and the
+        // mouse buttons; and its Ambient ordinal is on.
         rec(ctx.cytheraPrefsPreset('default')).join() !== [0x18, 0x80, 0, 0].join() ||
-        rec(ctx.cytheraPrefsPreset('optimized')).join() !== [0x9A, 0xB0, 0, 1].join();
+        rec(ctx.cytheraPrefsPreset('everything')).join() !== [0xD3, 0xFC, 0, 1].join() ||
+        ctx.cytheraPrefsPreset('everything').Ambient !== 1;
       // A file that sets one ordinal carries two resources, not one, and an
       // ordinal left at what a fresh install reads is not written at all.
       const forkOf = o => ctx.openResourceFork(ctx.buildCytheraPreferences(o));

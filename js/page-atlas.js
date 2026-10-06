@@ -918,7 +918,7 @@ function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
       // arrives the instant the gesture ends, which is the contract the
       // device-pixel-ratio drop above already relies on.
       const e = mapRenderIfCheap(node.resid);
-      if (e && e.result) { drawRenderWithMargin(ctx, node, r, e.result.canvas, alpha, roofT); ok = true; }
+      if (e && e.result) { atlasAnimateRender(e.result, r, vw, vh); drawRenderWithMargin(ctx, node, r, e.result.canvas, alpha, roofT); ok = true; }
       else if (thumb) { ok = drawTown(ctx, node.gw, atlasCropRect(node, r), alpha, roofT); viaTown = true; }
     }
   }
@@ -991,6 +991,40 @@ function atlasMip(canvas, targetW) {
   let best = levels[0];
   for (const l of levels) if (l.width >= targetW) best = l;
   return best;
+}
+/* A zone drawn from its own render, brought to the palette frame.
+
+   Only the big maps are drawn from tiles, and only tiles were animated
+   (paintAtlasTiles), so a zone whose render is already at the art's size,
+   which is every small interior, stood still on this tab: Land King Hall's
+   pool and void did not cycle and its fountains did not turn (the
+   maintainer, 6 October 2026). The render is the canvas the Zones view
+   animates in place (paintMapAnimFrame), and this does the same to the
+   squares on screen, under the tiles' own limits: the view still, a render
+   of ATLAS_TILE_ANIM_MIN_TS or more a square drawn at half its size or
+   more (below that the scene draws a mip of it, made at whatever frame
+   the render was at), and no more than ATLAS_TILE_ANIM_SQUARES moving. */
+function atlasAnimateRender(res, r, vw, vh) {
+  if (!window.MAP_ANIM || !res || !res.canvas || !res.m || !atlasSettled()) return;
+  const TS = res.tileSize, frame = mapAnimFrame || 8;
+  if (!(TS >= ATLAS_TILE_ANIM_MIN_TS) || r.w < res.canvas.width / 2) return;
+  if (!((res.animCells && res.animCells.length) || (res.backdropCells && res.backdropCells.length))) return;
+  const per = r.w / res.m.width;
+  const x0 = Math.floor(-r.x / per) - 2, y0 = Math.floor(-r.y / per) - 2;
+  const x1 = Math.ceil((vw - r.x) / per) + 2, y1 = Math.ceil((vh - r.y) / per) + 2;
+  const win = x0 + ',' + y0 + ',' + x1 + ',' + y1;
+  if (res._atlasAnimFrame === frame && res._atlasAnimWin === win) return;
+  const inWin = (tx, ty) => tx >= x0 && tx <= x1 && ty >= y0 && ty <= y1;
+  let moving = 0;
+  for (const c of (res.animCells || [])) if (inWin(c[0], c[1])) moving++;
+  for (const c of (res.backdropCells || [])) if (inWin(c[0], c[1])) moving++;
+  if (moving > ATLAS_TILE_ANIM_SQUARES) return;
+  const g = res.canvas.getContext('2d');
+  if (!g) return;
+  try {
+    paintMapAnimFrame(g, { TS, animCells: res.animCells, backdrop: res.backdrop, backdropCells: res.backdropCells, animReplay: res.animReplay }, frame, inWin);
+  } catch (e) { quiet(e, 'a palette frame on a zone’s render'); }
+  res._atlasAnimFrame = frame; res._atlasAnimWin = win;
 }
 function drawRenderWithMargin(ctx, node, r, canvas, alpha, roofT) {
   const src = atlasMip(canvas, r.w);

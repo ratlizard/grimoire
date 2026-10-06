@@ -943,7 +943,7 @@ function renderMapResource(resid) {
     hideDetailLens(true);
     if (!result) {
       document.getElementById('mapLabel').textContent =
-        '0x' + resid.toString(16).toUpperCase() + (lbl ? ' - ' + lbl : '') + '  |  (not readable as a valid map)';
+        '0x' + resid.toString(16).toUpperCase() + (lbl ? ' ' + lbl : '') + '  |  (not readable as a valid map)';
       out.textContent = "The page could not render map 0x" + resid.toString(16).toUpperCase() + ": its header is not valid (the decryption went wrong, or it is not a map).";
       currentResid = resid;
       return;
@@ -976,8 +976,14 @@ function renderMapResource(resid) {
     buildCharacterLayer();
     setupMapViewportInteraction();
     requestAnimationFrame(() => restoreOrFitMap(resid));
-    document.getElementById('mapLabel').textContent =
-      '0x' + resid.toString(16).toUpperCase() + (lbl ? ' - ' + lbl : '') + editorNameSuffix(resid, lbl) +
+    /* The id in monospace, and the editor's name too, as a link to the
+       string list it is read from (STR# 135 of the data file's resource
+       fork), so it shows as the file's word and not the page's (the
+       maintainer, 6 October 2026). editorNameSuffix is the same test. */
+    const ez = editorNameSuffix(resid, lbl) ? editorZoneName(resid) : '';
+    document.getElementById('mapLabel').innerHTML =
+      '<span class="hex hexNum">0x' + resid.toString(16).toUpperCase() + '</span>' + (lbl ? ' ' + svEsc(lbl) : '') +
+      (ez ? ' (<button class="svLink hex hexNum" title="The editor’s name for this zone, STR# 135" onclick="openVia(\'MACRSRC\', function(){ showMacRsrcDetail(\'STR#\', 135, \'data\'); })">' + svEsc(ez) + '</button> in the editor’s list)' : '') +
       '  |  ' + result.width + 'x' + result.height + ' tiles' +
       '  |  ' + result.propCount + ' props drawn' +
       (window.CUR_MAP.roofSections.length
@@ -986,6 +992,7 @@ function renderMapResource(resid) {
       (usedFallback ? '  |  (auto-decrypt guess corrected)' : '');
     const mp = document.getElementById('mapParts');
     if (mp) mp.innerHTML = linksFold(partsStrip('Made of', mapParts(resid, result.propResid)));
+    paintZoneStrip();
     out.textContent = "Rendered map 0x" + resid.toString(16).toUpperCase() +
       (lbl ? " (" + lbl + ")" : "") + " with " + result.propCount + " props";
     currentResid = resid;

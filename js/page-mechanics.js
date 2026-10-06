@@ -3804,8 +3804,23 @@ function renderMechanicsSheet(value) {
         ic ? (() => {
           const bitRef = m => (ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === m) || { cacheBit: null }).cacheBit;
           const say = (m, text) => { const b = bitRef(m); return b ? srcNum(b, propWordHex(m)) + ' ' + text : propWordHex(m) + ' ' + text; };
-          return say(0x80, 'lets a character walk onto the square (the doors, the passthrough, the curtain).') + ' ' +
-            say(0x08, 'means you cannot drop a thing (the key, the grimoire, the amulet).') + ' ' +
+          /* An example is a link to the class it names (the maintainer,
+             6 October 2026). The word is looked up among the classes that
+             carry the bit, by the name the file gives each, so a word the
+             file does not back stays plain text and a patched file links
+             what it has; a word several classes share ("doors") opens the
+             list of them. */
+          const kindLink = pt => (isInventoryItem(pt) ? 'showItemDetail(' : 'showPropTypeDetail(') + pt + ')';
+          const eg = (m, word, match) => {
+            const row = cb.bits.find(x => x.bit === m);
+            const re = new RegExp('\\b' + (match || word) + '\\b', 'i');
+            const hit = row ? row.who.filter(w => re.test(propDisplayName(w.pt) || '')) : [];
+            if (!hit.length) return svEsc(word);
+            if (hit.length === 1) return svLink(word, kindLink(hit[0].pt));
+            return countLink(word, 'The ' + hit.length + ' classes named ' + (match || word) + ' that carry class flag ' + propWordHex(m), hit.map(w => svLink(propDisplayName(w.pt), kindLink(w.pt))));
+          };
+          return say(0x80, 'lets a character walk onto the square (the ' + eg(0x80, 'doors', 'door') + ', the ' + eg(0x80, 'passthrough') + ', the ' + eg(0x80, 'curtain') + ').') + ' ' +
+            say(0x08, 'means you cannot drop a thing (the ' + eg(0x08, 'key') + ', the ' + eg(0x08, 'grimoire') + ', the ' + eg(0x08, 'amulet') + ').') + ' ' +
             say(0x200, 'puts a door back open or shut as the zone starts it, each time you enter; its lock stays as it is. The map’s door mark shows it.') + ' ' +
             /* Read on 6 October 2026, when the maintainer asked what the
                rest do. TGameViewer::DoTicks runs down byte 6 of each
@@ -3822,11 +3837,11 @@ function renderMechanicsSheet(value) {
                message 257 to one that has it, which the lamp post
                answers by lighting or going out and the easel by changing
                its picture. */
-            say(0x20, 'is a light that burns down as time passes (the torch, the lamp, the candle).') + ' ' +
-            say(0x800, 'counts down the same way, faster (the hourglass, the bomb).') + ' ' +
-            say(0x40, 'turns a thing to face the way you push it (the chair).') + ' ' +
-            say(0x10, 'breaks a thing dropped more than a square away (the plate, the glass, the bell).') + ' ' +
-            say(0x100, 'tells a thing each time the hour changes (the lamp post, which lights at night, and the easel).');
+            say(0x20, 'is a light that burns down as time passes (the ' + eg(0x20, 'torch') + ', the ' + eg(0x20, 'lamp') + ', the ' + eg(0x20, 'candle') + ').') + ' ' +
+            say(0x800, 'counts down the same way, faster (the ' + eg(0x800, 'hourglass') + ', the ' + eg(0x800, 'bomb') + ').') + ' ' +
+            say(0x40, 'turns a thing to face the way you push it (the ' + eg(0x40, 'chair') + ').') + ' ' +
+            say(0x10, 'breaks a thing dropped more than a square away (the ' + eg(0x10, 'plate') + ', the ' + eg(0x10, 'glass') + ', the ' + eg(0x10, 'bell') + ').') + ' ' +
+            say(0x100, 'tells a thing each time the hour changes (the ' + eg(0x100, 'lamp post') + ', which lights at night, and the ' + eg(0x100, 'easel') + ').');
         })() : MECH_NO_APP,
         ic ? 'The last table below says how a chair seats a character, and the zone maps seat their people by it.' : ''
       ].filter(Boolean),
@@ -3874,23 +3889,32 @@ function renderMechanicsSheet(value) {
       return '<td>' + srcNum({ exe: h.at }, propWordHex(h.at)) +
         (h.calls.length ? ' <span class="mechSub" style="display:inline">calls ' + h.calls.map(c => srcNum({ exe: c.at }, c.name)).join(', ') + '</span>' : '') + '</td>';
     };
+    // The squares a figure counts, for countLink: a chip a zone, its count
+    // beside it, the first square opening on the map (the maintainer,
+    // 6 October 2026: "numbers such as these need to be linked too").
+    const eggSpots = kind => [...eggsOfKind(kind).values()].flat();
+    const allEggs = eg ? eg.kinds.flatMap(k => eggSpots(k.kind)) : [];
+    const eggTotal = eg ? eg.kinds.reduce((n, k) => n + k.n, 0) : 0;
     const rows = eg ? eg.kinds.map(k => {
       const nm = EGG_KIND_NAMES[k.kind];
       const args = [...k.args].sort((a, b) => a - b);
       return '<tr>' + num(k.kind) + '<td>' + svEsc(nm ? nm.what : 'not known here') + '</td>' +
-        '<td>' + (nm && nm.arg ? svEsc(nm.arg) : '') + '</td>' + (eh ? handlerCell(k.kind) : '') + num(k.n) +
+        '<td>' + (nm && nm.arg ? svEsc(nm.arg) : '') + '</td>' + (eh ? handlerCell(k.kind) : '') +
+        '<td class="num">' + countLink(String(k.n), 'The ' + k.n + ' eggs of kind ' + k.kind + ', by zone', zoneSquareChips(eggSpots(k.kind))) + '</td>' +
         '<td class="mechSub">' + svEsc(args.length > 6 ? args.slice(0, 6).join(', ') + ', …' : args.join(', ')) + '</td></tr>';
     }) : [];
     add('eggs', 'What an Egg Does', null, '',
       eg ? 'An egg is an invisible trigger over a rectangle of a zone’s map. Its kind decides what it does, with one number, its argument.'
          : 'No zone list in this file places an egg.',
       eg ? [
-        '<b>' + eg.kinds.reduce((n, k) => n + k.n, 0) + ' eggs</b> across <b>' + eg.zones + ' zones</b>, of <b>' + eg.kinds.length + ' kinds</b>.',
+        '<b>' + countLink(eggTotal + ' eggs', 'The ' + eggTotal + ' eggs, by zone', zoneSquareChips(allEggs)) + '</b> across <b>' +
+          countLink(eg.zones + ' zones', 'The ' + eg.zones + ' zones that have a list of things', resChips(eg.zoneIds.map(z => refExists(0x8000 + z) ? 0x8000 + z : 0x8100 + z))) +
+          '</b>, of <b>' + eg.kinds.length + ' kinds</b>, each in the table below.',
         eg.rooms ? 'A room is a kind-8 egg, its argument the room number. <b>' + countLink(String(eg.rooms.named), 'The ' + eg.rooms.named + ' room scripts', resChips(eg.rooms.scripted)) + ' of the ' + eg.rooms.total + '</b> rooms have a script, 0x1B00 plus the number.' : '',
         'A kind-3 egg plays an <b>ambient sound</b>, sound 0x9100 plus its argument.',
         'A kind-0 egg hatches the records inside it. The chance is <b>Data2 plus one in a hundred</b>, and Data1 limits it to the day (0x10), the night (0x20) or once only (0x01).',
         '<b>A kind-0 egg’s argument says nothing about what hatches</b>: all thirteen of Odemia’s eggs have 0xE4, whether they hold a chicken, a goat or a guard.',
-        'Records with flags 0x44 are roofs, not eggs, and there are <b>' + eg.roofs + '</b> of them here.'
+        'Records with flags 0x44 are roofs, not eggs, and there are <b>' + countLink(String(eg.roofs), 'The ' + eg.roofs + ' roofs, by zone', zoneSquareChips(eg.roofSpots)) + '</b> of them here.'
       ].filter(Boolean) : [],
       (eh ? '' : '<div class="mechSub">' + MECH_NO_APP + '</div>') +
       table(eh ? ['#kind', 'what it does', 'argument', 'handler', '#here', 'arguments used'] : ['#kind', 'what it does', 'argument', '#here', 'arguments used'], rows) +

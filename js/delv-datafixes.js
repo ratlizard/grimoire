@@ -1185,8 +1185,10 @@ const DATA_FIXES = [
   // frame of his is the north frame transposed, to the pixel, and this one
   // is the transposed north sitting frame; it becomes the transposed north
   // standing frame, so he no longer drops into his seat whenever he stops
-  // walking left.
-  { id: 'magpie-west', group: 'world', stage: 'further', title: 'Magpie now stands when he stops walking west, instead of sitting',
+  // walking left. The title names the pose and not the stop, at the
+  // maintainer's word (6 October 2026): the standing frame is a step of the
+  // walk too.
+  { id: 'magpie-west', group: 'world', stage: 'further', title: 'Magpie now stands when in standing pose facing west, instead of sitting',
     dataEdits: [
       { what: 'Magpie’s west standing frame', resid: 0x8E72, fn: (b) => {
           const col = decompressDCG(b, 32, 512);

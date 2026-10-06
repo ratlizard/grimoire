@@ -2565,6 +2565,9 @@ function eggCovers(g, tx, ty) {
 function eggKinds() {
   const kinds = new Map();
   let zones = 0, roofs = 0;
+  // The zones counted and the roofs' squares, kept so the sheet's figures
+  // can open what they count.
+  const zoneIds = [], roofSpots = [];
   /* What the kind-0 eggs hatch, counted while the lists are open.
      A hatching egg does not name its creatures: they are records in the same
      zone list that name the egg as their container (flags & 0x08, container =
@@ -2580,9 +2583,10 @@ function eggKinds() {
     for (let z = 1; z < 0x100; z++) {
       if (!refExists(0x8100 + z)) continue;
       zones++;
+      zoneIds.push(z);
       const list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data);
       for (const r of list) {
-        if (r.flags === 0x44) { roofs++; continue; }
+        if (r.flags === 0x44) { roofs++; roofSpots.push({ zone: z, x: r.x, y: r.y }); continue; }
         if (r.flags !== 0x42) continue;
         if (!kinds.has(r.aspect)) kinds.set(r.aspect, { kind: r.aspect, n: 0, args: new Set() });
         const k = kinds.get(r.aspect);
@@ -2607,7 +2611,7 @@ function eggKinds() {
   const rooms = kinds.get(8);
   const scripted = rooms ? [...rooms.args].filter(a => refExists(0x1B00 + a)).map(a => 0x1B00 + a) : [];
   const named = scripted.length;
-  return { kinds: [...kinds.values()].sort((a, b) => a.kind - b.kind), zones, roofs,
+  return { kinds: [...kinds.values()].sort((a, b) => a.kind - b.kind), zones, roofs, zoneIds, roofSpots,
            rooms: rooms ? { total: rooms.args.size, named, scripted } : null,
            hatch: [...hatch.values()].sort((a, b) => b.n - a.n || a.proptype - b.proptype),
            emptyEggs };
