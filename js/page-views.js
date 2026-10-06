@@ -225,7 +225,7 @@ function pefBackToList() { window.PEF_VIEW = null; renderAppPefSheet(); }
    A figure's link lands on one PowerPC instruction in a listing of
    hundreds, which the maintainer called a line of random text, and then
    asked whether it had to be machine code at all. So the listing opens in
-   words, and the code is the other view (EXE_PLAIN, exeTogglePlain). Each
+   words, and the code is another view (EXE_VIEW, exeSetView). Each
    sentence says what its own instruction does and no more: nothing here
    follows a value from one line to the next, so a sentence says "a value"
    where a reader of the code would know which. The one thing carried
@@ -315,16 +315,294 @@ function exePlainLines(r) {
   });
   return (r.plain = out);
 }
-window.EXE_PLAIN = true;
-function exeTogglePlain() {
-  window.EXE_PLAIN = !window.EXE_PLAIN;
+// The listing's three views: 'words', 'pseudo' and 'code'.
+window.EXE_VIEW = 'words';
+function exeSetView(v) {
+  window.EXE_VIEW = v;
   renderAppPefSheet();
   setTimeout(() => { const hit = document.getElementById('listingHit'); if (hit && hit.scrollIntoView) hit.scrollIntoView({ block: 'center' }); }, 40);
 }
+/* A routine as pseudo-code (6 October 2026), the third view of a listing.
+
+   The plain-words view says what each instruction does and cannot say to
+   what: "check the switch 0x0080 of a value". This one follows the values.
+   Each register holds an expression, built up as the instructions run, and
+   a line is written only where something happens that outlasts a register:
+   a store to memory, a call, a jump, a return, or a value put in a register
+   the routine keeps (r13 to r31). So `lbz 0, 6(30)`, `rlwinm. 0, 0, 0, 24,
+   24`, `bf 2, ...` is one line, `if ((byte[r30 + 6] & 0x80) != 0) goto ...`.
+
+   What keeps it honest, since a wrong expression reads as well as a right
+   one:
+   - Expressions are followed inside a block only: a stretch with one way in
+     and one way out. At a block's start every register is its own name.
+   - A scratch register (r0, r3 to r12) still wanted after its block ends
+     is written out as `rN = ...` there. "Wanted" is ordinary liveness over
+     the routine's blocks; a call is taken to read r3 to r10, since nothing
+     here knows how many arguments a routine takes, so some of those lines
+     are a value nothing reads.
+   - Before a line changes a register, a stack slot or memory, any pending
+     expression that mentions it is written out first, so no expression is
+     ever printed after what it reads has changed.
+   - A call is printed with the argument registers set in its block since
+     the last call, from r3 up, which is a guess at the count and is right
+     when the arguments are set where the call is made.
+
+   What it leaves as the code has it: registers keep their numbers (r3 to
+   r10 are arg1 to arg8 until the routine moves them), a stack slot is
+   localN by its offset, memory is byte[...], half[...] or word[...] by the
+   width read, and a global is the name the program's table of addresses
+   gives its slot. The sign extensions (extsh, extsb) are dropped: they
+   change no value the routine goes on to use as written. The entry and
+   exit bookkeeping (the link register, stmw, the stack pointer) is left
+   out. An instruction it has no rule for is printed as code, after
+   everything pending is written out. */
+function exePseudo(r) {
+  if (r.pseudo) return r.pseudo;
+  const img = appImage(), ops = exeOpsOf(r), N = ops.length;
+  const idx = at => (at - r.offset) >> 2;
+  const inside = at => at !== null && at >= r.offset && at < r.offset + r.length;
+  const vol = n => n === 0 || (n >= 3 && n <= 12);
+  // ---- what each instruction reads and writes, for the liveness ----
+  const MEM = /^(l|st)(b|h|w|mw)(z|a)?(u)?(x)?$/;
+  const ud = o => {
+    const d = o.d, u = [], w = [];
+    if (!d) return { u, w };
+    const m = MEM.exec(d.mn);
+    if (d.branch) {
+      if (d.lk) { for (let i = 3; i <= 10; i++) u.push(i); w.push(0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12); }
+      else if (d.indirect === 'lr') u.push(3);
+    } else if (m && m[2] !== 'mw') {
+      if (d.ra) u.push(d.ra);
+      if (m[5]) u.push(d.rb);
+      if (m[1] === 'l') w.push(d.rt); else u.push(d.rt);
+    } else if (d.mn === 'li' || d.mn === 'lis' || /^mf/.test(d.mn)) { if (d.rd !== undefined) w.push(d.rd); }
+    else if (/^mt/.test(d.mn)) { if (d.rd !== undefined) u.push(d.rd); }
+    else if (/^cmp/.test(d.mn)) { u.push(d.ra); if (d.rb !== undefined) u.push(d.rb); }
+    else if (d.rs !== undefined) { u.push(d.rs); if (d.rb !== undefined) u.push(d.rb); if (/^rlwimi/.test(d.mn)) u.push(d.ra); w.push(d.ra); }
+    else if (d.rd !== undefined) { if (d.ra !== undefined) u.push(d.ra); if (d.rb !== undefined) u.push(d.rb); w.push(d.rd); }
+    return { u, w };
+  };
+  // ---- blocks ----
+  const leader = new Uint8Array(N + 1), target = new Uint8Array(N + 1);
+  leader[0] = 1;
+  ops.forEach((o, i) => {
+    const d = o.d;
+    if (!d || !d.branch || d.lk) return;
+    leader[i + 1] = 1;
+    if (inside(o.to)) { leader[idx(o.to)] = 1; target[idx(o.to)] = 1; }
+  });
+  const starts = []; for (let i = 0; i < N; i++) if (leader[i]) starts.push(i);
+  const blockOf = new Int32Array(N); starts.forEach((s, b) => { for (let i = s; i < (b + 1 < starts.length ? starts[b + 1] : N); i++) blockOf[i] = b; });
+  const B = starts.map((s, b) => {
+    const e = (b + 1 < starts.length ? starts[b + 1] : N) - 1, o = ops[e], d = o.d;
+    let use = 0, def = 0;
+    for (let i = s; i <= e; i++) { const x = ud(ops[i]); for (const q of x.u) if (!(def >>> q & 1)) use |= 1 << q; for (const q of x.w) def |= 1 << q; }
+    const succ = []; let wild = false;
+    if (d && d.branch && !d.lk) {
+      if (d.indirect) wild = d.indirect === 'ctr';
+      else { if (inside(o.to)) succ.push(blockOf[idx(o.to)]); if (d.conditional && e + 1 < N) succ.push(blockOf[e + 1]); }
+    } else if (e + 1 < N) succ.push(blockOf[e + 1]);
+    return { s, e, use: use >>> 0, def: def >>> 0, succ, wild, out: 0 };
+  });
+  const inOf = b => ((b.out & ~b.def) | b.use) >>> 0;
+  for (let again = true; again;) {
+    again = false;
+    for (let b = B.length - 1; b >= 0; b--) {
+      let out = B[b].wild ? 0x1FF9 : 0;                       // a jump through a table: r0, r3 to r12 all wanted
+      for (const q of B[b].succ) out |= inOf(B[q]);
+      out >>>= 0;
+      if (out !== B[b].out) { B[b].out = out; again = true; }
+    }
+  }
+  // ---- expressions ----
+  const hexOf = v => '0x' + (v >>> 0).toString(16).toUpperCase();
+  const num = (v, hexy) => { v |= 0; return hexy || v > 0xFFFF || v < -0xFFFF ? (hexy && v >= 0 && v < 10 ? String(v) : hexOf(v)) : String(v); };
+  const atom = s => ({ s, p: 0 });
+  const konst = v => ({ s: null, p: 0, k: v | 0 });
+  const str = (e, hexy) => e.k !== undefined ? num(e.k, hexy) : e.s;
+  // Brackets where the operand binds looser, and always where shifts and
+  // the bitwise operators meet, whose order nobody reads unaided.
+  const wrap = (e, p, hexy, same) => e.k === undefined && e.p > 0 && (e.p > p || (e.p === p && !same) || (e.p >= 4 && e.p !== p)) ? '(' + e.s + ')' : str(e, hexy);
+  const bin = (op, a, b, p, hexy) => ({ s: wrap(a, p, hexy, true) + ' ' + op + ' ' + wrap(b, p, hexy, /[&|+*^]/.test(op)), p, mem: a.mem || b.mem });
+  const add = (a, v) => a.k !== undefined ? konst(a.k + v) : v === 0 ? a : v < 0 ? bin('-', a, konst(-v), 3) : bin('+', a, konst(v), 3);
+  const and = (a, m) => a.k !== undefined ? konst(a.k & m) : bin('&', a, konst(m), 5, true);
+  const WIDTH = { b: 'byte', h: 'half', w: 'word' };
+  const tocName = dsp => {
+    const p = img.toc ? pefPointerAt(img, img.toc.section, img.toc.offset + dsp) : null;
+    const s = p && p.section !== undefined ? exeStringAt(p) : null;
+    if (p && p.name) return '&' + p.name.replace(/[^A-Za-z0-9_:~]/g, '_');
+    if (s) return JSON.stringify(s.replace(/\n/g, ' ').slice(0, 40));
+    return '&toc_' + (dsp < 0 ? 'm' + (-dsp) : dsp);
+  };
+  const memOf = (wd, base, dsp) => {
+    const loc = base.k === undefined ? /^&local(-?\d+)$/.exec(base.s) : null;
+    if (loc) return atom('local' + (parseInt(loc[1], 10) + dsp));
+    if (base.k === undefined && base.p === 0 && base.s[0] === '&' && dsp === 0) return { s: base.s.slice(1), p: 0, mem: true };
+    return { s: WIDTH[wd] + '[' + str(add(base, dsp)) + ']', p: 0, mem: true };
+  };
+  const lines = [], stmtOf = new Int32Array(N).fill(-1);
+  for (const blk of B) {
+    const reg = [];
+    for (let i = 0; i < 32; i++) reg.push(atom('r' + i));
+    if (blk.s === 0) for (let i = 3; i <= 10; i++) reg[i] = atom('arg' + (i - 2));
+    const fresh = new Set();
+    let cond = null, at = 0, to = null;
+    const say = (text, link) => lines.push({ at, text, to: link === undefined ? null : link });
+    const name = q => 'r' + q;
+    const settle = q => { if (reg[q].k === undefined && reg[q].s === name(q)) return; say(name(q) + ' = ' + str(reg[q])); reg[q] = atom(name(q)); };
+    // Whether a register's value is read from instruction `from` on: later
+    // in the block before it is replaced, or after the block.
+    const wanted = (q, from) => {
+      for (let j = from; j <= blk.e; j++) { const x = ud(ops[j]); if (x.u.includes(q)) return true; if (x.w.includes(q)) return false; }
+      return !!(blk.out >>> q & 1);
+    };
+    // Write out whatever pending expression reads what is about to change,
+    // if it is still wanted; one that is not is dropped.
+    let now = blk.s;
+    const before = (test, self) => { for (let q = 0; q < 32; q++) if (vol(q) && reg[q].k === undefined && reg[q].s !== name(q) && test(reg[q])) { if (wanted(q, self ? now : now + 1)) settle(q); else reg[q] = atom(name(q)); } };
+    // A test whose operands have since changed is printed as it stood.
+    const stale = test => { if (cond && !cond.old && ((cond.a.k === undefined && test(cond.a)) || (cond.b.k === undefined && test(cond.b)))) cond.old = true; };
+    const mentions = word => e => new RegExp('(^|[^A-Za-z0-9_])' + word + '($|[^A-Za-z0-9_])').test(e.s);
+    const set = (q, e) => {
+      if (q === 1 || q === 2) return;
+      before(mentions(name(q)));
+      stale(mentions(name(q)));
+      // An expression that reads the register it is going into is written at once.
+      if (!vol(q) || (e.k === undefined && (mentions(name(q))(e) || e.s.length > 64))) {
+        if (!(e.k === undefined && e.s === name(q))) say(name(q) + ' = ' + str(e));
+        reg[q] = atom(name(q));
+      } else reg[q] = e;
+      fresh.add(q);
+    };
+    if (target[blk.s]) { at = ops[blk.s].at; say('\u0002'); }
+    for (let i = blk.s; i <= blk.e; i++) {
+      const o = ops[i], d = o.d;
+      at = o.at; now = i;
+      const raw = () => { before(() => true, true); say('\u0003' + o.text); };
+      if (!d) raw();
+      else {
+        const mn = d.mn, bare = mn.replace(/\.$/, ''), dot = bare !== mn;
+        const m = MEM.exec(mn);
+        let res = null, dest = -1;
+        if (d.branch) {
+          if (d.lk) {
+            const args = []; for (let q = 3; q <= 10 && fresh.has(q); q++) args.push(str(reg[q]));
+            const callee = d.indirect ? '(*' + (d.indirect === 'ctr' ? 'address' : 'return address') + ')' : '\u0001';
+            say('r3 = ' + callee + '(' + args.join(', ') + ')', d.indirect ? null : o.to);
+            for (const q of [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) reg[q] = atom(name(q));
+            fresh.clear(); cond = null;
+          } else {
+            for (let q = 0; q < 32; q++) if (vol(q) && (blk.out >>> q & 1) && !(d.indirect === 'lr' && q === 3)) settle(q);
+            // r3 is what a routine hands back; named where the routine ever sets it.
+            if (d.indirect === 'lr') say('return' + (reg[3].k !== undefined || reg[3].s !== 'r3' ? ' ' + str(reg[3]) : B.some(x => x.def >>> 3 & 1) ? ' r3' : ''));
+            else if (d.indirect) say('goto one of several places, by a number');
+            else if (d.conditional && /^b[tf]/.test(mn)) {
+              const yes = mn[1] === 't', which = d.bi & 3;
+              const opn = [yes ? '<' : '>=', yes ? '>' : '<=', yes ? '==' : '!='][which];
+              say('if (' + (cond ? (cond.old ? 'earlier: ' : '') + wrap(cond.a, 3, cond.hexy, true) + ' ' + opn + ' ' + wrap(cond.b, 3, cond.hexy, true) : 'an earlier test ' + opn + ' 0') + ') goto \u0001', o.to);
+            } else if (d.conditional) say('\u0003' + o.text + ' \u0001', o.to);
+            else say('goto \u0001', o.to);
+          }
+        } else if (mn === 'nop' || mn === 'stmw' || mn === 'lmw' || mn === 'mflr' || mn === 'mtlr' || mn === 'mtctr') {
+          if (mn === 'mflr') reg[d.rd] = atom('return address');
+        } else if (m && d.ra === 1 && !m[5]) {
+          // The stack: a slot is a local, and the frame's own bookkeeping is left out.
+          if (mn === 'stwu') { /* the frame */ }
+          // Below the stack pointer the routine saves the registers it must hand back, and restores them.
+          else if (d.d < 0) { if (m[1] === 'l') reg[d.rt] = atom(name(d.rt)); }
+          else if (m[1] === 'l') { dest = d.rt; res = atom('local' + d.d); }
+          else if (reg[d.rt].s !== 'return address') { const v = str(reg[d.rt]); before(mentions('local' + d.d)); stale(mentions('local' + d.d)); say('local' + d.d + ' = ' + v); }
+        } else if (m && d.ra === 2 && !m[5] && m[1] === 'l') { dest = d.rt; res = atom(tocName(d.d)); }
+        else if (m && m[2] !== 'mw') {
+          const base = m[5] ? bin('+', reg[d.ra], reg[d.rb], 3) : reg[d.ra];
+          const cell = memOf(m[2], base, m[5] ? 0 : d.d);
+          if (m[1] === 'l') { dest = d.rt; res = cell; }
+          else { const v = str(reg[d.rt]); before(e => e.mem); stale(e => e.mem); say(cell.s + ' = ' + v); }
+        } else if (mn === 'li') { dest = d.rd; res = konst(d.imm); }
+        else if (mn === 'lis') { dest = d.rd; res = konst(d.imm << 16); }
+        else if (/^addi[cs]?$/.test(bare) && d.ra === 1) { if (d.rd !== 1) { dest = d.rd; res = atom('&local' + d.imm); } }
+        else if (bare === 'addi' && d.ra === 2) { dest = d.rd; res = atom('&data_' + (img.toc.offset + d.imm).toString(16).toUpperCase()); }
+        else if (bare === 'addi' || bare === 'addic') { dest = d.rd; res = add(reg[d.ra], d.imm); }
+        else if (bare === 'addis') { dest = d.rd; res = add(reg[d.ra], d.imm << 16); }
+        else if (bare === 'mulli') { dest = d.rd; res = bin('*', reg[d.ra], konst(d.imm), 2); }
+        else if (bare === 'subfic') { dest = d.rd; res = bin('-', konst(d.imm), reg[d.ra], 3); }
+        else if (bare === 'andi') { dest = d.ra; res = and(reg[d.rs], d.imm); }
+        else if (bare === 'andis') { dest = d.ra; res = and(reg[d.rs], d.imm << 16); }
+        else if (mn === 'ori' || mn === 'oris' || mn === 'xori' || mn === 'xoris') {
+          const v = /s$/.test(mn) ? d.imm << 16 : d.imm, x = reg[d.rs];
+          dest = d.ra; res = x.k !== undefined ? konst(mn[0] === 'o' ? x.k | v : x.k ^ v) : bin(mn[0] === 'o' ? '|' : '^', x, konst(v), 6, true);
+        } else if (/^(rlwinm|clrlwi|slwi|srwi|rotlwi)$/.test(bare)) {
+          const mask = ((0xFFFFFFFF >>> d.mb) & (0xFFFFFFFF << (31 - d.me))) >>> 0, x = reg[d.rs];
+          let e = x;
+          if (d.sh) e = d.me <= 31 - d.sh ? bin('<<', x, konst(d.sh), 4) : d.mb >= 32 - d.sh ? bin('>>', x, konst(32 - d.sh), 4) : { s: 'rotl(' + str(x) + ', ' + d.sh + ')', p: 0, mem: x.mem };
+          const whole = d.sh ? (d.me <= 31 - d.sh ? (0xFFFFFFFF << d.sh) >>> 0 : d.mb >= 32 - d.sh ? 0xFFFFFFFF >>> (32 - d.sh) : 0xFFFFFFFF) : 0xFFFFFFFF;
+          dest = d.ra; res = (mask & whole) >>> 0 === whole ? e : and(e, mask);
+        } else if (bare === 'rlwimi') {
+          const mask = ((0xFFFFFFFF >>> d.mb) & (0xFFFFFFFF << (31 - d.me))) >>> 0, x = reg[d.rs];
+          const e = d.sh ? bin('<<', x, konst(d.sh), 4) : x;
+          dest = d.ra; res = bin('|', and(reg[d.ra], ~mask), and(e, mask), 6, true);
+        } else if (bare === 'srawi') { dest = d.ra; res = d.sh ? bin('/', reg[d.rs], konst(Math.pow(2, d.sh)), 2) : reg[d.rs]; }
+        else if (bare === 'mr' || bare === 'extsh' || bare === 'extsb' || bare === 'addze') { dest = bare === 'addze' ? d.rd : d.ra; res = reg[bare === 'addze' ? d.ra : d.rs]; }
+        else if (bare === 'not') { dest = d.ra; res = { s: '~' + wrap(reg[d.rs], 1), p: 1, mem: reg[d.rs].mem }; }
+        else if (bare === 'neg') { dest = d.rd; res = { s: '-' + wrap(reg[d.ra], 1), p: 1, mem: reg[d.ra].mem }; }
+        else if (bare === 'add') { dest = d.rd; res = bin('+', reg[d.ra], reg[d.rb], 3); }
+        else if (bare === 'sub') { dest = d.rd; res = bin('-', reg[d.rb], reg[d.ra], 3); }
+        else if (bare === 'subf' || bare === 'subc') { dest = d.rd; res = bin('-', reg[d.rb], reg[d.ra], 3); }
+        else if (bare === 'mullw') { dest = d.rd; res = bin('*', reg[d.ra], reg[d.rb], 2); }
+        else if (bare === 'divw' || bare === 'divwu') { dest = d.rd; res = bin('/', reg[d.ra], reg[d.rb], 2); }
+        else if (bare === 'and') { dest = d.ra; res = bin('&', reg[d.rs], reg[d.rb], 5, true); }
+        else if (bare === 'or') { dest = d.ra; res = bin('|', reg[d.rs], reg[d.rb], 6, true); }
+        else if (bare === 'xor') { dest = d.ra; res = bin('^', reg[d.rs], reg[d.rb], 6, true); }
+        else if (bare === 'andc') { dest = d.ra; res = bin('&', reg[d.rs], { s: '~' + wrap(reg[d.rb], 1), p: 1 }, 5, true); }
+        else if (bare === 'slw') { dest = d.ra; res = bin('<<', reg[d.rs], reg[d.rb], 4); }
+        else if (bare === 'srw' || bare === 'sraw') { dest = d.ra; res = bin('>>', reg[d.rs], reg[d.rb], 4); }
+        else if (mn === 'cmpwi' || mn === 'cmplwi') cond = { a: reg[d.ra], b: konst(d.imm) };
+        else if (mn === 'cmpw' || mn === 'cmplw') cond = { a: reg[d.ra], b: reg[d.rb] };
+        else raw();
+        if (dest >= 0 && res) {
+          set(dest, res);
+          // The test is of what the register now holds: its name, if the value was written out.
+          if (dot) cond = { a: reg[dest].k === undefined && reg[dest].s === name(dest) ? reg[dest] : res, b: konst(0), hexy: /&|\|/.test(res.s || '') };
+        }
+      }
+      // A block that runs on into the next: what is still wanted is written out.
+      if (i === blk.e && !(d && d.branch && !d.lk)) for (let q = 0; q < 32; q++) if (vol(q) && (blk.out >>> q & 1)) settle(q);
+    }
+  }
+  // The line an instruction's work ends up on: the first written at or after it.
+  let li = 0;
+  for (let i = 0; i < N; i++) { while (li < lines.length - 1 && lines[li].at < ops[i].at) li++; stmtOf[i] = lines.length ? li : -1; }
+  return (r.pseudo = { lines, stmtOf });
+}
+// A target as a link: a place in this routine by its offset, another routine by name.
+function exeTargetHTML(r, to) {
+  const nm = exeTargetName(to);
+  const inside = to >= r.offset && to < r.offset + r.length;
+  return exeRoutineAt(to) ? svLink(inside ? '+0x' + (to - r.offset).toString(16).toUpperCase() : nm, 'jumpToExeAt(' + to + ')') : '<span class="refnote">' + svEsc(nm) + '</span>';
+}
+function exePseudoHTML(r, ringAt, why) {
+  const ps = exePseudo(r), ops = exeOpsOf(r);
+  const ringLine = ringAt >= r.offset && ringAt < r.offset + r.length ? ps.stmtOf[(ringAt - r.offset) >> 2] : -1;
+  const off = at => ('+0x' + (at - r.offset).toString(16).toUpperCase()).padEnd(7) + ' ';
+  const lines = ps.lines.map((l, i) => {
+    let line;
+    if (l.text === '\u0002') line = '<span class="refnote">' + off(l.at).trim() + ':</span>';
+    else if (l.text[0] === '\u0003') line = off(l.at) + '  <span class="refnote">' + svEsc(l.text.slice(1)).replace('\u0001', l.to !== null ? exeTargetHTML(r, l.to) : '') + '</span>';
+    else line = off(l.at) + '  ' + svEsc(l.text).replace('\u0001', l.to !== null ? exeTargetHTML(r, l.to) : '');
+    if (i !== ringLine) return line;
+    const o = ops[(ringAt - r.offset) >> 2];
+    const note = (why ? 'You followed \u201c' + svEsc(why) + '\u201d. ' : '') + 'The line above holds the instruction at +0x' + (ringAt - r.offset).toString(16).toUpperCase() +
+      (o && exePlainLines(r)[(ringAt - r.offset) >> 2] ? ': ' + svEsc(exePlainLines(r)[(ringAt - r.offset) >> 2]).replace('\u0001', 'there').replace(/^./, c => c.toLowerCase()) : '.');
+    return '<span id="listingHit" class="listingHit">' + line + '</span><span class="listingNote">' + note + '</span>';
+  });
+  return '<pre class="pane exeListing" style="max-height:none;white-space:pre-wrap">' + lines.join('\n') + '</pre>';
+}
 function exeListingHTML(r, ringAt, why) {
+  if (window.EXE_VIEW === 'pseudo') return exePseudoHTML(r, ringAt, why);
   const img = appImage();
   const hex = (n, w) => '0x' + (n >>> 0).toString(16).toUpperCase().padStart(w || 6, '0');
-  const plainOn = !!window.EXE_PLAIN, plain = exePlainLines(r);
+  const plainOn = window.EXE_VIEW !== 'code', plain = exePlainLines(r);
   const lines = exeOpsOf(r).map((o, i) => {
     let t = svEsc(o.text), where = '', toc = '';
     const d = o.d;
@@ -369,7 +647,8 @@ function renderAppPefSheet() {
     box.className = 'mechView';
     const hexv = n => '0x' + (n >>> 0).toString(16).toUpperCase();
     box.innerHTML = '<div class="foldAll" style="justify-content:flex-start">' + svLink('All routines', 'pefBackToList()') + ' ' +
-      svLink(window.EXE_PLAIN ? 'Show the Code' : 'Show Plain Words', 'exeTogglePlain()') + '</div>' +
+      [['words', 'Plain Words'], ['pseudo', 'Pseudo-code'], ['code', 'Code']].map(v => window.EXE_VIEW === v[0]
+        ? '<span class="inspDim">' + v[1] + '</span>' : svLink(v[1], 'exeSetView(\'' + v[0] + '\')')).join(' ') + '</div>' +
       '<div class="changesHead">' + svEsc(view.name) + '</div>' +
       '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
       (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes, and a slot in the program’s table of addresses shows what the game stores there when it starts.</p>' +
