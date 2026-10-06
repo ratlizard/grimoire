@@ -198,9 +198,17 @@ function exeFindBack(ops, from, span, test) {
 /* Open the application's code at an address: the routine that holds it,
    listed, with that instruction ringed. */
 window.PEF_VIEW = null;
-function jumpToExeAt(at) {
+/* `why` is the words of the link that was followed. A figure's link lands
+   on one PowerPC instruction in a listing of hundreds, which the
+   maintainer called a line of random text (6 October 2026): the ring said
+   where and nothing said what. So the listing repeats the link's words
+   under the ringed line and says what that instruction does in plain
+   words where exePlainLine can. The words are the ones the click left
+   in SRC_CLICKED (srcNum); a jump inside a listing leaves none. */
+function jumpToExeAt(at, why) {
   if (window.CUR_SUBN === 'MECHANICS' || MECH_GROUP_BY_VALUE[window.CUR_SUBN]) mechKeepPlace();
-  window.PEF_VIEW = { at };
+  window.PEF_VIEW = { at, why: why || window.SRC_CLICKED || '' };
+  window.SRC_CLICKED = '';
   if (window.CUR_SUBN === 'APPPEF') renderAppPefSheet();
   else openVia('APPPEF', () => {});
   setTimeout(() => {
@@ -212,7 +220,37 @@ function jumpToExeAt(at) {
 function pefBackToList() { window.PEF_VIEW = null; renderAppPefSheet(); }
 // One routine, instruction by instruction: calls and branches named and
 // followable, TOC slots said as what they hold.
-function exeListingHTML(r, ringAt) {
+/* One instruction in plain words, or '' for one it has none for: the
+   shapes a figure's link lands on, which are a constant loaded, a value
+   compared, a bit tested or set, and a field of a record read or written.
+   A mask is written as the page writes a flag, in hex. */
+function exePlainLine(o) {
+  const d = o && o.d;
+  if (!d) return '';
+  const hex = v => '0x' + (v >>> 0).toString(16).toUpperCase().padStart(4, '0');
+  const size = { lbz: 'byte', lbzu: 'byte', stb: 'byte', stbu: 'byte', lhz: 'two bytes', lha: 'two bytes', lhzu: 'two bytes', lhau: 'two bytes',
+                 sth: 'two bytes', sthu: 'two bytes', lwz: 'four bytes', lwzu: 'four bytes', stw: 'four bytes', stwu: 'four bytes' }[d.mn];
+  if (size && d.ra === 2) return /^l/.test(d.mn) ? 'It fetches an address from the program\u2019s table of addresses.' : '';
+  if (size && d.ra === 1) return '';
+  if (size) return (/^l/.test(d.mn) ? 'It reads the ' : 'It writes the ') + size + ' at offset ' + d.d + ' of a record.';
+  if (d.mn === 'li') return 'It sets the number ' + d.imm + '.';
+  if (d.mn === 'lis') return 'It sets the number ' + hex(d.imm << 16) + '.';
+  if (d.mn === 'cmpwi' || d.mn === 'cmplwi') return 'It compares a value with ' + d.imm + '.';
+  if (d.mn === 'mulli') return 'It multiplies a value by ' + d.imm + '.';
+  if ((d.mn === 'addi' || d.mn === 'addic' || d.mn === 'addic.') && d.ra !== 2 && d.ra !== 1) return d.imm < 0 ? 'It takes ' + (-d.imm) + ' from a value.' : 'It adds ' + d.imm + ' to a value.';
+  if (d.mn === 'andi.') return 'It checks the switch ' + hex(d.imm) + ' of a value.';
+  if (d.mn === 'andis.') return 'It checks the switch ' + hex(d.imm << 16) + ' of a value.';
+  if (d.mn === 'ori') return 'It turns on the switch ' + hex(d.imm) + ' of a value.';
+  if (d.mn === 'oris') return 'It turns on the switch ' + hex(d.imm << 16) + ' of a value.';
+  if (/^(rlwinm|clrlwi)\.?$/.test(d.mn) && d.sh === 0) {
+    const mask = ((0xFFFFFFFF >>> d.mb) & (0xFFFFFFFF << (31 - d.me))) >>> 0;
+    return (/\.$/.test(d.mn) ? 'It checks the switch ' : 'It keeps only the bits ') + hex(mask) + ' of a value.';
+  }
+  if (/^(rlwinm|srwi|slwi|rlwimi)\.?$/.test(d.mn)) return 'It takes one field out of a packed value.';
+  if (d.branch && d.lk && o.to !== null) return 'It calls ' + exeTargetName(o.to) + '.';
+  return '';
+}
+function exeListingHTML(r, ringAt, why) {
   const img = appImage();
   const hex = (n, w) => '0x' + (n >>> 0).toString(16).toUpperCase().padStart(w || 6, '0');
   const lines = exeOpsOf(r).map(o => {
@@ -231,7 +269,10 @@ function exeListingHTML(r, ringAt) {
       } else if (d.mn === 'addi') t += '   <span class="refnote">; data ' + hex(img.toc.offset + d.imm) + '</span>';
     }
     const line = hex(o.at) + '  ' + o.word.toString(16).toUpperCase().padStart(8, '0') + '  ' + t;
-    return o.at === ringAt ? '<span id="listingHit" class="listingHit">' + line + '</span>' : line;
+    if (o.at !== ringAt) return line;
+    const plain = exePlainLine(o);
+    const note = [why ? 'You followed \u201c' + svEsc(why) + '\u201d. The program decides it on the line above.' : '', plain].filter(Boolean).join(' ');
+    return '<span id="listingHit" class="listingHit">' + line + '</span>' + (note ? '<span class="listingNote">' + note + '</span>' : '');
   });
   return '<pre class="pane exeListing" style="max-height:none">' + lines.join('\n') + '</pre>';
 }
@@ -253,7 +294,7 @@ function renderAppPefSheet() {
       '<div class="changesHead">' + svEsc(view.name) + '</div>' +
       '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
       (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes, and a slot in the program’s table of addresses shows what the game stores there when it starts.</p>' +
-      exeListingHTML(view, window.PEF_VIEW.at);
+      exeListingHTML(view, window.PEF_VIEW.at, window.PEF_VIEW.why);
     grid.appendChild(box);
     out.textContent = view.name + ', ' + (view.length / 4) + ' instructions';
     return;
@@ -1629,25 +1670,33 @@ function monsterMoveNames() {
   }
   return (DERIVED.MONSTER_MOVE_NAMES = out);
 }
-function monsterFlagsHTML(f) {
+/* `each` puts every flag's own number after its name (the unit's page,
+   6 October 2026: the maintainer read the word printed before the names,
+   0x000009F0 on the demon, as one more flag, when it is all of them added
+   together). */
+function monsterFlagsHTML(f, each) {
   const sites = monsterFlagSites();
   const named = [];
   let rest = f >>> 0;
+  // A bit two rules read (0x0080 is fire and lava) is counted once.
+  let told = 0;
+  const own = v => { if (!each) return ''; const again = (told & v) >>> 0 === v >>> 0; told = (told | v) >>> 0;
+    return ' <span style="color:#8c8980">' + (again ? 'also ' : '') + propWordHex(v >>> 0) + '</span>'; };
   for (const [bit, name] of MONSTER_FLAG_NAMES)
-    if (f & bit) { const s = sites.get(bit); named.push({ low: bit, html: s ? srcNum(s, name) : svEsc(name) }); rest = (rest & ~bit) >>> 0; }
+    if (f & bit) { const s = sites.get(bit); named.push({ low: bit, html: (s ? srcNum(s, name) : svEsc(name)) + own(bit) }); rest = (rest & ~bit) >>> 0; }
   // The program's names only with the program open: without it the bits
   // stay numbers, as a figure that is not read drops its sentence.
   if (appImage())
     for (const m of monsterMoveNames())
-      if (f & m.mask) { named.push({ low: (f & m.mask & -(f & m.mask)) >>> 0, html: srcNum(m.site, m.name) }); rest = (rest & ~m.mask) >>> 0; }
+      if (f & m.mask) { named.push({ low: (f & m.mask & -(f & m.mask)) >>> 0, html: srcNum(m.site, m.name) + own(f & m.mask) }); rest = (rest & ~m.mask) >>> 0; }
   const tops = monsterTopFlagSites();
   for (const [bit, name] of MONSTER_TOP_FLAG_NAMES) {
     const w = (bit << 16) >>> 0, site = tops.get(bit);
-    if (site && (f & w)) { named.push({ low: w, html: srcNum(site, name) }); rest = (rest & ~w) >>> 0; }
+    if (site && (f & w)) { named.push({ low: w, html: srcNum(site, name) + own(w) }); rest = (rest & ~w) >>> 0; }
   }
   named.sort((a, b) => a.low - b.low);
   const bits = named.map(x => x.html);
-  if (rest) bits.push('+0x' + rest.toString(16).toUpperCase() + ' (' + monsterRestWord() + ')');
+  if (rest) bits.push(each ? monsterRestWord() + own(rest) : '+0x' + rest.toString(16).toUpperCase() + ' (' + monsterRestWord() + ')');
   return bits.length ? bits.join(' · ') : 'none set';
 }
 
@@ -1846,10 +1895,11 @@ function showMonsterDetail(idx) {
       (r.damage ? ' &nbsp; <b>Damage</b> ' + stat(4, r.damage) : '') +
       ' &nbsp; <b>Alignment</b> ' + stat(6, r.alignment) + alignmentNameHTML(r.alignment) +
       '<br><span style="font-size:0.6875rem;color:#8c8980">' + monsterByteNote() + '</span></div>' +
-    '<div><b>Special flags</b>' + srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' },
-      '0x' + r.flags.toString(16).toUpperCase().padStart(8, '0')) +
-      ' <span style="font-size:0.6875rem;color:#b5b2a8">' + monsterFlagsHTML(r.flags) + '</span>' +
-      '<br><span style="font-size:0.6875rem;color:#8c8980">Click a flag to see the line that checks it.</span></div>' +
+    '<div><b>Special flags</b>' +
+      ' <span style="font-size:0.6875rem;color:#b5b2a8">' + monsterFlagsHTML(r.flags, true) + '</span>' +
+      '<br><span style="font-size:0.6875rem;color:#8c8980">' + (r.flags ? 'The file stores them added together as one number, ' +
+        srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' }, '0x' + r.flags.toString(16).toUpperCase().padStart(8, '0')) + '. ' : '') +
+      'Click a flag to see the line that checks it.</span></div>' +
     '</div>';
   // Where it hatches: every record of this type inside an egg, by zone, the
   // egg's square and the behaviour the creature hatches with -- HatchEgg

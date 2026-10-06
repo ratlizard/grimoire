@@ -1354,6 +1354,17 @@ function dvmSeqIn(resid, pat) { return dvmSeqFirst(dvmOpsOf(dvmScriptEntry(resid
    what is printed when that is not the operand itself -- "29" for a
    `Random(0, 30)`, "65,535" for `word 65535`. A value that was not read
    prints as plain text, so a sentence never shows a link to nowhere. */
+/* The words of the figure last clicked, for the listing a link into the
+   program opens to repeat under its ringed line (jumpToExeAt). Taken as
+   the click goes down the page, before the link's own handler runs, so
+   the link keeps its one argument, which the smoke's patterns pin; any
+   other click clears it, so a jump inside a listing carries none. */
+window.SRC_CLICKED = '';
+if (typeof document !== 'undefined' && document.addEventListener)
+  document.addEventListener('click', e => {
+    const b = e && e.target && e.target.closest ? e.target.closest('.srcNum') : null;
+    window.SRC_CLICKED = b ? String(b.textContent || '').trim().slice(0, 120) : '';
+  }, true);
 function srcNum(val, text) {
   const shown = text === undefined || text === null ? (val ? String(val.v) : '') : String(text);
   // A figure read out of the application's code opens its routine instead.

@@ -841,6 +841,7 @@ details.sv[open] > summary::before { content:'\25BE '; }
    ringed in the listing. */
 .svLink.srcNum { font-weight:inherit !important; }
 .listingHit { background:rgba(249,248,111,.16); box-shadow:0 0 0 1px rgba(249,248,111,.55); border-radius:2px; }
+.listingNote { display:block; white-space:normal; color:#fff; margin:4px 0 6px; padding:4px 8px; border-left:2px solid rgba(249,248,111,.55); max-width:70ch; }
 /* An item page's sections fold, shut by default, each summary carrying a
    line of what is inside so the shut page still reads. */
 details.itemFold { margin:8px 0 0; padding:7px 10px 6px; }
@@ -2457,7 +2458,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.253.0';
+const GRIMOIRE_VERSION = '1.254.0';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

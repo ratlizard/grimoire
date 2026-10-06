@@ -3806,7 +3806,20 @@ function renderMechanicsSheet(value) {
           const say = (m, text) => { const b = bitRef(m); return b ? srcNum(b, propWordHex(m)) + ' ' + text : propWordHex(m) + ' ' + text; };
           return say(0x80, 'lets a character walk onto the square (the doors, the passthrough, the curtain).') + ' ' +
             say(0x08, 'means you cannot drop a thing (the key, the grimoire, the amulet).') + ' ' +
-            say(0x200, 'puts a door back open or shut as the zone starts it, each time you enter; its lock stays as it is. The map’s door mark shows it.');
+            say(0x200, 'puts a door back open or shut as the zone starts it, each time you enter; its lock stays as it is. The map’s door mark shows it.') + ' ' +
+            /* Read on 6 October 2026, when the maintainer asked what the
+               rest do. TGameViewer::DoTicks runs down byte 6 of each
+               placed record of a class with the bit, by how often one of
+               the clock's periods has passed, and sends the thing message
+               260 at nothing; the lights use one period and the hourglass
+               and the bomb a shorter one. TGameSys::SlideItemCommand sets
+               a slid chair's aspect from the direction of the slide. The
+               default method 25 (0x3019) deletes a thing whose class has
+               0x10, and what calls 25 is not found. 0x100 is copied
+               nowhere and no script masks it. */
+            say(0x20, 'is a light that burns down as time passes (the torch, the lamp, the candle).') + ' ' +
+            say(0x800, 'counts down the same way, faster (the hourglass, the bomb).') + ' ' +
+            say(0x40, 'turns a thing to face the way you push it (the chair).');
         })() : MECH_NO_APP,
         ic ? 'The last table below says how a chair seats a character, and the zone maps seat their people by it.' : ''
       ].filter(Boolean),
