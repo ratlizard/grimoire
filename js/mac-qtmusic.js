@@ -45,11 +45,12 @@
    its transpose, root key, loop and rate; the envelope, as the
    synthesizer builds it (QT_ENV, below); the part's volume, pan, pitch
    bend and sustain pedal. Measured, not read: how a note's velocity
-   becomes its level (QT_VELOCITY_POWER). Not used, and each a place it
-   can differ: the volume and pitch LFOs and the mod wheel that deepens
-   the pitch one (the tunes send it some 3,300 times), exclusion groups,
-   the limit on voices (14 by default), and the output rate and
-   interpolation the Mac used. Reverb is not missing: the synthesizer's
+   becomes its level (QT_VELOCITY_POWER). Also the synthesizer's: a note
+   struck again on its part and key cuts the one before, and with no
+   voice free the one furthest gone is taken (QT_VOICES). Not used, and
+   each a place it can differ: the volume and pitch LFOs and the mod wheel
+   that deepens the pitch one (the tunes send it some 3,300 times),
+   exclusion groups, and the output rate and interpolation the Mac used. Reverb is not missing: the synthesizer's
    Reverb setting is off by default, and a voice goes to the reverb bus
    only when it is on and the part's reverb controller is at its
    threshold or over. Controller 33, aftertouch, which the tunes send some
@@ -96,11 +97,27 @@ const QT_ENV = { span: 1 / 65536, floor: 1 / 65536 };
    level is nearer than the level itself on every tune, by the spectrum,
    the onsets and the loudness contour, with this envelope as with the
    guessed one (the workbench's tools/qtma-fit/). So something ahead of the
-   synthesizer shapes velocity, the note allocator or the tune player,
-   which are 68K code in the same extension and unread; or the recordings
-   were not made by this path. The square is used because it is what the
-   recordings sound like. opts.velExp overrides it. */
+   synthesizer would have to shape velocity, and nothing does: the tune
+   player hands NAPlayNote the event's seven bits and the note allocator
+   hands MusicPlayNote the same number (both 68K, in the same extension,
+   read the same day), and the mixers multiply a sample by the gain and
+   shift. So by its code QuickTime is in straight proportion from the
+   event to the output, and the recordings are not: either they were not
+   made by QuickTime itself (a SoundFont synthesizer playing these same
+   samples squares velocity as a matter of course), or something outside
+   the three components does it. The square is used because it is what
+   the recordings sound like; a capture of the game playing in an
+   emulated Mac would settle it. opts.velExp overrides it. */
 const QT_VELOCITY_POWER = 2;
+/* How many notes sound at once. The synthesizer asks for 14 by default
+   ('SSkn': Requested Polyphony, 1 to 48) and then sets its features by the
+   machine (SetSynthFeaturesByHardware), so what a given Mac had is not in
+   the file. Held to the recordings, a limit of 14 is worse than none on
+   three tunes (Seldane's spectrum 0.984 to 0.957) and 24 is the same as
+   none, so whatever made the recordings had more than 14; 32 leaves the
+   tunes as they are and keeps the rule in play for a denser one. */
+const QT_VOICES = 32;
+const QT_CUT_FRAMES = rate => Math.max(8, Math.round(rate * 0.004));
 
 /* The resource fork of a QuickTime extension. A Mac file's is its own; a
    Windows .qtx is a small PE image with the fork after its last section. */
@@ -330,8 +347,10 @@ function qtmaRender(events, tones, lib, opts) {
   // Pitch bend changes during a note are followed; the rest are taken at its start.
   const bendSteps = (p, t0, t1) => (ctlTimeline[p] || []).filter(e => e.ctl === 32 && e.t > t0 && e.t < t1);
 
-  for (const e of events) {
-    if (e.k !== 'note' || e.vol === 0) continue;
+  const maxVoices = opts.voices || QT_VOICES;
+  let voices = [], stolen = 0;
+  const notes = events.filter(e => e.k === 'note' && e.vol !== 0).map((e, n) => [e, n]).sort((x, y) => x[0].t - y[0].t || x[1] - y[1]).map(x => x[0]);
+  for (const e of notes) {
     const part = partOf(e.part);
     const inst = part.inst;
     if (!inst) continue;
@@ -372,41 +391,87 @@ function qtmaRender(events, tones, lib, opts) {
     const pcm = region.pcm, loopLen = region.loopEnd - region.loopStart + 1;
     // A geometric stage multiplies by a constant each frame, a straight
     // one adds a constant; `stage` is 1 attack, 2 decay, 3 sustain,
-    // 4 release, as the synthesizer numbers them.
+    // 4 release, as the synthesizer numbers them, and 0 once it is over.
     const fall = n => Math.pow(QT_ENV.span, 1 / Math.max(1, n));
     const decayMul = fall(decay), susMul = fall(susTime), relMul = fall(release);
     const decayAdd = (susLevel - 1) / Math.max(1, decay), susAdd = -susLevel / Math.max(1, susTime);
-    let pos = 0, env = (logs & 1) ? QT_ENV.floor : 0, stage = attack >= 1 ? 1 : 2, relAdd = 0;
-    if (stage === 2) env = 1;
     const atkMul = Math.pow(1 / QT_ENV.span, 1 / Math.max(1, attack));
-    for (let i = 0; f0 + i < frames; i++) {
-      if (nextStep < steps.length && i >= steps[nextStep][0]) { bend = steps[nextStep++][1]; step = stepFor(bend); }
-      if (i >= offFrame && stage !== 4) { stage = 4; relAdd = -env / Math.max(1, release); }
-      if (stage === 1) {
-        env = (logs & 1) ? env * atkMul : env + 1 / attack;
-        if (env >= 1) { env = 1; stage = 2; }
-      } else if (stage === 2) {
-        env = (logs & 2) ? env * decayMul : env + decayAdd;
-        if (env <= susLevel) { env = susLevel; stage = 3; }
-      } else if (stage === 3) {
-        if (!susForever) env = (logs & 4) ? env * susMul : env + susAdd;
-      } else env = (logs & 8) ? env * relMul : env + relAdd;
-      if (env <= QT_ENV.floor && stage !== 1) break;
+    let pos = 0, env = (logs & 1) ? QT_ENV.floor : 0, relAdd = 0, i = 0;
+    const v = { part: e.part, pitch: e.pitch, region, born: f0, stage: attack >= 1 ? 1 : 2 };
+    if (v.stage === 2) env = 1;
+    // Play on to frame `upto` of the tune, or to the voice's end.
+    v.run = upto => {
+      for (; v.stage && f0 + i < upto; i++) {
+        if (nextStep < steps.length && i >= steps[nextStep][0]) { bend = steps[nextStep++][1]; step = stepFor(bend); }
+        if (i >= offFrame && v.stage !== 4) { v.stage = 4; relAdd = -env / Math.max(1, release); }
+        if (v.stage === 1) {
+          env = (logs & 1) ? env * atkMul : env + 1 / attack;
+          if (env >= 1) { env = 1; v.stage = 2; }
+        } else if (v.stage === 2) {
+          env = (logs & 2) ? env * decayMul : env + decayAdd;
+          if (env <= susLevel) { env = susLevel; v.stage = 3; }
+        } else if (v.stage === 3) {
+          if (!susForever) env = (logs & 4) ? env * susMul : env + susAdd;
+        } else env = (logs & 8) ? env * relMul : env + relAdd;
+        if (env <= QT_ENV.floor && v.stage !== 1) { v.stage = 0; break; }
+        let ip = pos | 0;
+        if (looped && ip > region.loopEnd) { pos -= loopLen * Math.floor((pos - region.loopStart) / loopLen); ip = pos | 0; }
+        if (ip >= pcm.length - 1 && !looped) { v.stage = 0; break; }
+        const frac = pos - ip;
+        const a = pcm[ip], b = ip + 1 < pcm.length ? pcm[ip + 1] : a;
+        const smp = (a + (b - a) * frac) * env * gain;
+        left[f0 + i] += smp * pl; right[f0 + i] += smp * pr;
+        pos += step;
+      }
+    };
+    // Cut short, as the synthesizer's fast release does within one of its
+    // steps: a few milliseconds' straight fall, so the cut does not click.
+    v.cut = at => {
+      v.run(at);
+      const n = Math.min(QT_CUT_FRAMES(rate), frames - at);
+      const from = env;
+      for (let c = 0; v.stage && c < n; c++) { env = from * (1 - (c + 1) / n); v.runOne(); }
+      v.stage = 0;
+    };
+    v.runOne = () => {
       let ip = pos | 0;
       if (looped && ip > region.loopEnd) { pos -= loopLen * Math.floor((pos - region.loopStart) / loopLen); ip = pos | 0; }
-      if (ip >= pcm.length - 1) { if (!looped) break; }
+      if (ip >= pcm.length - 1 && !looped) { v.stage = 0; return; }
+      if (f0 + i >= frames) { v.stage = 0; return; }
       const frac = pos - ip;
       const a = pcm[ip], b = ip + 1 < pcm.length ? pcm[ip + 1] : a;
-      const s = (a + (b - a) * frac) * env * gain;
-      left[f0 + i] += s * pl; right[f0 + i] += s * pr;
-      pos += step;
+      const smp = (a + (b - a) * frac) * env * gain;
+      left[f0 + i] += smp * pl; right[f0 + i] += smp * pr;
+      pos += step; i++;
+    };
+
+    /* The voices, as StartNoteKeyrange takes one. A note struck again on
+       its part and key while the last still sounds cuts the last. Then a
+       free voice is taken; with none free, the one that scores highest
+       goes: one already being cut, then one in its release, then any,
+       and the oldest among equals. */
+    for (const o of voices) o.run(f0);
+    voices = voices.filter(o => o.stage);
+    for (const o of voices) if (o.part === v.part && o.pitch === v.pitch && o.region === v.region) o.cut(f0);
+    voices = voices.filter(o => o.stage);
+    if (voices.length >= maxVoices) {
+      let best = voices[0];
+      for (const o of voices) {
+        const so = o.stage === 4 ? 1 : 0, sb = best.stage === 4 ? 1 : 0;
+        if (so > sb || (so === sb && o.born < best.born)) best = o;
+      }
+      best.cut(f0);
+      voices = voices.filter(o => o.stage);
+      stolen++;
     }
+    voices.push(v);
   }
+  for (const o of voices) o.run(frames);
 
   let peak = 0;
   for (let i = 0; i < frames; i++) peak = Math.max(peak, Math.abs(left[i]), Math.abs(right[i]));
   if (peak > 0 && !opts.raw) { const g = 0.95 / peak; for (let i = 0; i < frames; i++) { left[i] *= g; right[i] *= g; } }
-  return { left, right, rate, missing };
+  return { left, right, rate, missing, stolen };
 }
 
 /* 16-bit stereo WAV bytes from qtmaRender's result. */
