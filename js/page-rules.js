@@ -4462,7 +4462,7 @@ function leanRules() {
                     what: purpose ? purpose[0] : '' });
     }
   } catch (e) { /* no archive open, and then there are no ranges to show */ }
-  return { edges, kinds, ranked, ranges,
+  return { edges, kinds, ranked, ranges, users: Object.keys(outb).map(Number),
            referencing: Object.keys(outb).length, referenced: Object.keys(inb).length };
 }
 

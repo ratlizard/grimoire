@@ -109,7 +109,7 @@ function spellsMechSection() {
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
         if (!t.length) return '';
         const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + reach.length + ' of the ' + t.length + ' spells that ask for a target must touch it</b>: the target has to be in one of the eight squares around the caster. You can aim the rest anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
+        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that ask for a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>: the target has to be in one of the eight squares around the caster. You can aim the rest anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
       })()
     ].filter(Boolean) : [],
     '', '');
@@ -149,14 +149,20 @@ function libraryMechSection(lib) {
   const unshown = lib ? lib.reduce((a, d) => a.concat(d.unshown.map(e => ({ d, e }))), []) : [];
   const dangling = lib ? lib.reduce((a, d) => a.concat(d.dangling.map(k => ({ d, k }))), []) : [];
   const passages = lib ? lib.reduce((n, d) => n + d.entries.length, 0) : 0;
+  /* Each count in the sentences below opens what it counts (the maintainer,
+     6 October 2026): a passage is a link to its array, noted with the
+     array and the passage's number, as the unshown ones already were. */
+  const passageLink = (d, e) => { const t = String(e.str).trim().replace(/\s+/g, ' '); return svLink((t.slice(0, 48) + (t.length > 48 ? '…' : '')) || 'empty', 'jumpToResource(' + d.resid + ')', '0x' + d.resid.toString(16).toUpperCase() + ' ' + e.index); };
   return mechSectionEl('library', 'The Game’s Own Writing', null, '',
     lib ? 'The books, prophecies, scrolls, letters, signs and gravestones, and the things in the world that show them. A bookshelf’s Data1 says which book is on it.'
         : 'No class in this file shows a document.',
     lib ? [
-      '<b>' + passages + ' passages</b> across <b>' + lib.length + ' arrays</b>, shown by ' + [...new Set(lib.flatMap(d => d.readers.map(r => r.name)))].join(', ') + '.',
+      '<b>' + countLink(passages + ' passages', 'The ' + passages + ' passages', lib.flatMap(d => d.entries.map(e => passageLink(d, e)))) + '</b> across <b>' +
+        countLink(lib.length + ' arrays', 'The ' + lib.length + ' arrays of passages', resChips(lib.map(d => d.resid))) + '</b>, shown by ' + [...new Set(lib.flatMap(d => d.readers.map(r => r.name)))].join(', ') + '.',
       unshown.length ? '<b>' + countLink(String(unshown.length), 'The ' + unshown.length + ' passages that appear nowhere in play',
-        unshown.map(u => svLink(String(u.e.str).trim().replace(/\s+/g, ' ').slice(0, 48) + (String(u.e.str).trim().length > 48 ? '…' : ''), 'jumpToResource(' + u.d.resid + ')', '0x' + u.d.resid.toString(16).toUpperCase() + ' ' + u.e.index))) + ' appear nowhere in play</b>: no prop in the world and no script points to them. They exist in the file, but you cannot read them.' : '',
-      dangling.length ? '<b>' + dangling.length + '</b> are the other way round: a thing in the world whose Data1 points to no passage.' : ''
+        unshown.map(u => passageLink(u.d, u.e))) + ' appear nowhere in play</b>: no prop in the world and no script points to them. They exist in the file, but you cannot read them.' : '',
+      dangling.length ? '<b>' + countLink(String(dangling.length), 'The ' + dangling.length + ' Data1 values that point to no passage',
+        dangling.map(x => svLink('Data1 ' + x.k, 'jumpToResource(' + x.d.resid + ')', '0x' + x.d.resid.toString(16).toUpperCase()))) + '</b> are the other way round: a thing in the world whose Data1 points to no passage.' : ''
     ].filter(Boolean) : [],
     mechTable(['#passages', 'array', 'shown by', '#shown', '#not shown'], rows) +
     (unshown.length ? '<div class="partsTitle">Written, never shown</div>' +
@@ -176,6 +182,7 @@ function talkMechSection() {
      with the resource's label ("group dialogue, shared by 91 resources")
      and put the name last, so each chip ran to four lines in a phone's
      table (the maintainer, 22 September 2026). */
+  const charChip = (c, note) => relChip({ resid: c.rid, main: c.name, note, title: trailForResid(c.rid) });
   const groupChip = (g, note) => relChip({ resid: g.rid, main: g.name || propWordHex(g.rid), note, title: trailForResid(g.rid) });
   const groupRows = real.sort((a, b) => b.inherited - a.inherited).map(g =>
     '<tr><td>' + groupChip(g) + '</td>' + mechNum(g.topics) + mechNum(g.inherited) +
@@ -188,9 +195,11 @@ function talkMechSection() {
     cv.chars.length ? 'A character answers from their topics first, then from topics shared with others: Naxos answers as 0x804, then 0x80E, then 0x801.'
                     : 'No conversation in this file.',
     cv.chars.length ? [
-      '<b>' + cv.chars.length + ' characters</b> hold <b>' + topics + ' topics</b> between them, of which <b>' + deeper + '</b> open further topics.',
-      '<b>' + real.length + ' groups</b> serve more than one character. The longest chains have four steps, and most characters use a House, then a city, then Human.',
-      alone ? '<b>' + alone.who.length + ' answer as nobody but themselves</b>: ' + svEsc(alone.who.map(c => c.name).join(', ')) + '.' : '',
+      '<b>' + countLink(cv.chars.length + ' characters', 'The ' + cv.chars.length + ' characters with topics', cv.chars.map(c => charChip(c))) + '</b> hold <b>' +
+        countLink(topics + ' topics', 'The ' + topics + ' topics, by character', cv.chars.map(c => charChip(c, String(c.topics)))) + '</b> between them, of which <b>' +
+        countLink(String(deeper), 'The ' + deeper + ' topics that open further topics, by character', cv.chars.filter(c => c.deeper).map(c => charChip(c, String(c.deeper)))) + '</b> open further topics.',
+      '<b>' + countLink(real.length + ' groups', 'The ' + real.length + ' groups', real.map(g => groupChip(g))) + '</b> serve more than one character. The longest chains have four steps, and most characters use a House, then a city, then Human.',
+      alone ? '<b>' + alone.who.length + ' answer as nobody but themselves</b>: ' + alone.who.map(c => svLink(c.name, 'jumpToResource(' + c.rid + ')')).join(', ') + '.' : '',
       others.length ? 'Not every 0x8xx resource is a group: ' + others.map(g => groupChip(g, g.kind)).join(' ') : ''
     ].filter(Boolean) : [],
     mechTable(['group', '#topics', '#inherit it', ''], groupRows) +

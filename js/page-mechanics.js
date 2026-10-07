@@ -3352,7 +3352,7 @@ function renderMechanicsSheet(value) {
       tg.length ? 'What each of the ' + tg.length + ' spells and items that ask for a target can aim at.'
                 : 'No script in this file asks for a target.',
       tg.length ? [
-        '<b>' + reach.length + '</b> of these need a target on your square or next to it' + (walk ? '; one further away is ' + srcNum(walk.at, 'refused') : '') + '.'
+        '<b>' + countLink(String(reach.length), 'The ' + reach.length + ' spells and items that need a target on your square or next to it', reach.map(nameLink)) + '</b> of these need a target on your square or next to it' + (walk ? '; one further away is ' + srcNum(walk.at, 'refused') : '') + '.'
       ].filter(Boolean) : [],
       table(['#word', 'wants', 'asked for by'], [...byWord.entries()].sort((a, b) => (b[0] & 0x8000) - (a[0] & 0x8000) || a[0] - b[0]).map(([w, list]) =>
         '<tr><td class="num">' + propWordHex(w) + '</td><td>' + targetWordWords(w).map(svEsc).join(', ') + '</td><td>' +
@@ -3725,6 +3725,8 @@ function renderMechanicsSheet(value) {
     const elsewhere = td.adds.filter(a => !a.state && a.line.v !== a.slot.v);
     const counted = td.adds.filter(a => a.state);
     const never = [...slots.keys()].filter(s => slots.get(s).adds.length && !slots.get(s).dones.length).sort((a, b) => a - b);
+    // A slot by its line's words, for the lists the counts below open.
+    const lineOf = s => td.lines && td.lines.get(s) ? '“' + td.lines.get(s) + '”' : 'slot ' + s;
     const rows = [...slots.keys()].sort((a, b) => a - b).map(s => {
       const g = slots.get(s);
       const line = td.lines ? (td.lines.get(s) || '') : '';
@@ -3737,8 +3739,10 @@ function renderMechanicsSheet(value) {
       td.adds.length ? 'Every line of the To Do window, who adds it and who strikes it off. A script can strike a line off before you finish its task, or never.'
                      : 'No script in this file writes a To Do line.',
       td.adds.length ? [
-        '<b>' + td.adds.length + ' lines added</b> and <b>' + td.dones.length + ' struck off</b>, over <b>' + slots.size + ' slots</b>.',
-        elsewhere.length ? '<b>' + elsewhere.length + ' of them show a different line</b> from the slot’s: the same errand, in the words of whoever told you about it.' : '',
+        '<b>' + countLink(td.adds.length + ' lines added', 'The ' + td.adds.length + ' places a script adds a To Do line', td.adds.map(a => srcNum(a.slot, lineOf(a.slot.v)))) + '</b> and <b>' +
+          countLink(td.dones.length + ' struck off', 'The ' + td.dones.length + ' places a script strikes a To Do line off', td.dones.map(d => srcNum(d.slot, lineOf(d.slot.v)))) + '</b>, over <b>' +
+          countLink(slots.size + ' slots', 'The ' + slots.size + ' To Do slots', [...slots.keys()].sort((a, b) => a - b).map(s => { const g = slots.get(s); return srcNum((g.adds[0] || g.dones[0]).slot, lineOf(s)); })) + '</b>.',
+        elsewhere.length ? '<b>' + countLink(elsewhere.length + ' of them show a different line', 'The ' + elsewhere.length + ' places a slot is added with another line’s words', elsewhere.map(a => srcNum(a.line, lineOf(a.line.v) + ', for slot ' + a.slot.v))) + '</b> from the slot’s: the same errand, in the words of whoever told you about it.' : '',
         counted.length ? 'Some lines count what you have found so far: ' + counted.map(a => srcNum(a.state, nameOf(a.resid))).join(', ') + '.' : '',
         never.length ? '<b>' + never.length + (never.length === 1 ? ' line is' : ' lines are') + ' never struck off</b> by any script: ' + never.map(s => srcNum(slots.get(s).adds[0].slot, td.lines && td.lines.get(s) ? '“' + td.lines.get(s) + '”' : 'slot ' + s)).join(', ') + '.' : ''
       ].filter(Boolean) : [],
@@ -3767,7 +3771,8 @@ function renderMechanicsSheet(value) {
     add('charflags', 'The Character Flags', null, src('set', 0xF00) + src('clear', 0xF01) + src('test', 0xF02),
       'The on/off flags each character carries, such as poison, sleep and fear, and the scripts that set, clear and check each one.',
       [
-        '<b>' + cf.flags.length + ' flags</b> are used by the scripts. A named flag no script uses is one the program sets itself.',
+        '<b>' + countLink(cf.flags.length + ' flags', 'The ' + cf.flags.length + ' character flags the scripts use',
+          cf.flags.slice().sort((a, b) => a.flag - b.flag).map(f => { const s0 = f.set[0] || f.clear[0] || f.test[0] || f.effect[0]; const nm = 'flag ' + f.flag + (dvmFlagName(f.flag) ? ', ' + dvmFlagName(f.flag) : ''); return s0 ? srcNum({ resid: s0.resid, at: s0.at }, nm) : svEsc(nm); })) + '</b> are used by the scripts. A named flag no script uses is one the program sets itself.',
         appImage() ? '' : MECH_NO_APP
       ].filter(Boolean),
       table(['#flag', 'name', 'in the record', 'set by', 'cleared by', 'tested by', 'as an effect'], rows));
@@ -3865,12 +3870,13 @@ function renderMechanicsSheet(value) {
       return '<tr><td class="num">' + propWordHex(x.op) + '</td><td>' + svEsc(dv) + '</td><td>' + (x.name ? pefChip(x.name) : '<span class="mechSub" style="display:inline">no routine</span>') +
         (x.name && dv && !same ? ' <span class="mechSub" style="display:inline">differs</span>' : '') + '</td>' + num(counts.get(dv) || 0) + '</tr>';
     }) : [];
-    const differ = st ? st.entries.filter(x => { const dv = DVM_SYM.syscall[String(x.op)]; if (!x.name || !dv) return false; const a = x.name.replace(/^cb/i, '').toLowerCase(), b = dv.toLowerCase(); return !(a === b || a.startsWith(b) || b.startsWith(a)); }).length : 0;
+    const differ = st ? st.entries.filter(x => { const dv = DVM_SYM.syscall[String(x.op)]; if (!x.name || !dv) return false; const a = x.name.replace(/^cb/i, '').toLowerCase(), b = dv.toLowerCase(); return !(a === b || a.startsWith(b) || b.startsWith(a)); }) : [];
+    const namedCalls = st ? st.entries.filter(x => x.name) : [];
     add('syscalls', 'Built-In Calls', null, '',
       st ? 'The calls a script makes to the program, by the names the program and the listings use.'
          : MECH_NO_APP,
       st ? [
-        '<b>' + st.entries.filter(x => x.name).length + ' of the 96 slots</b> point to a named part of the program. ' + (differ ? '<b>' + differ + '</b> have a different name in the listings.' : 'Every name agrees with the listings’.'),
+        '<b>' + countLink(namedCalls.length + ' of the 96 slots', 'The ' + namedCalls.length + ' built-in calls that point to a named part of the program', namedCalls.map(x => pefChip(x.name))) + '</b> point to a named part of the program. ' + (differ.length ? '<b>' + countLink(String(differ.length), 'The ' + differ.length + ' built-in calls named differently in the listings', differ.map(x => relChip({ js: 'openPefRoutine(\'' + x.name.replace(/'/g, '\\\'') + '\')', main: x.name, sub: DVM_SYM.syscall[String(x.op)], title: 'Data › Cythera (App) › Data Fork' }))) + '</b> have a different name in the listings.' : 'Every name agrees with the listings’.'),
       ] : [],
       table(['#opcode', 'in the listings', 'the program’s routine', '#calls here'], rows));
   }
@@ -4008,6 +4014,8 @@ function renderMechanicsSheet(value) {
       ': a script checks it, but no script sets it, directly or through a queued task, so the check never passes.</td><td>' +
       where(sitesOf(le.flagReads.get(k))) + '</td></tr>');
     const lineText = n => (td2.lines && td2.lines.get(n) ? ' (' + svEsc(td2.lines.get(n)) + ')' : '');
+    // A slot by its line's words, for the lists the counts above the table open.
+    const slotWords = n => td2.lines && td2.lines.get(n) ? '“' + td2.lines.get(n) + '”' : 'slot ' + n;
     for (const x of le.exactStrikes) rows.push('<tr><td>a line struck off only at an exact count</td><td>slot ' + x.slot.v + lineText(x.slot.v) +
       ' comes off the list only when quest value ' + x.state + ' is exactly ' + srcNum(x.n) +
       ', but the scripts count that value upward, so a visit that takes it past ' + x.n.v + ' never strikes the line.</td><td>' +
@@ -4144,16 +4152,16 @@ function renderMechanicsSheet(value) {
       rows.length ? 'Mistakes in the scenario’s scripts, each linked to the line that causes it.'
                   : 'This file has nothing of this kind.',
       rows.length ? [
-        never.length ? '<b>' + never.length + '</b> To Do lines go on the list and never come off.' : '',
-        le.unreachable.length ? '<b>' + le.unreachable.length + '</b> check a value that nothing ever sets, so what they lead to can never happen.' : '',
-        wrongLine.length ? '<b>' + wrongLine.length + '</b> lines show another line’s words, usually on purpose: the errand in the words of whoever told you.' : '',
-        twoErrands.length ? '<b>' + twoErrands.length + '</b> of those ' + (twoErrands.length === 1 ? 'is' : 'are') + ' shown for two different errands, so for one of them it is wrong.' : '',
-        le.exactStrikes.length ? '<b>' + le.exactStrikes.length + '</b> ' + (le.exactStrikes.length === 1 ? 'line is' : 'lines are') + ' struck off only at an exact count, which a visit can skip past.' : '',
-        le.flagReadNeverWritten.length ? '<b>' + le.flagReadNeverWritten.length + '</b> quest ' + (le.flagReadNeverWritten.length === 1 ? 'flag is' : 'flags are') + ' checked and never set.' : '',
+        never.length ? '<b>' + countLink(String(never.length), 'The ' + never.length + ' To Do lines nothing strikes off', never.map(n => srcNum(slots.get(n).adds[0].slot, slotWords(n)))) + '</b> To Do lines go on the list and never come off.' : '',
+        le.unreachable.length ? '<b>' + countLink(String(le.unreachable.length), 'The ' + le.unreachable.length + ' checks of a value nothing sets', le.unreachable.map(u => srcNum(u.want, 'quest value ' + u.state + ' is ' + u.want.v))) + '</b> check a value that nothing ever sets, so what they lead to can never happen.' : '',
+        wrongLine.length ? '<b>' + countLink(String(wrongLine.length), 'The ' + wrongLine.length + ' lines that show another line’s words', wrongLine.map(a => srcNum(a.line, slotWords(a.line.v) + ', for slot ' + a.slot.v))) + '</b> lines show another line’s words, usually on purpose: the errand in the words of whoever told you.' : '',
+        twoErrands.length ? '<b>' + countLink(String(twoErrands.length), 'The ' + twoErrands.length + (twoErrands.length === 1 ? ' line' : ' lines') + ' shown for two errands', twoErrands.map(list => srcNum(list[0].line, slotWords(list[0].line.v)))) + '</b> of those ' + (twoErrands.length === 1 ? 'is' : 'are') + ' shown for two different errands, so for one of them it is wrong.' : '',
+        le.exactStrikes.length ? '<b>' + countLink(String(le.exactStrikes.length), 'The ' + le.exactStrikes.length + (le.exactStrikes.length === 1 ? ' line' : ' lines') + ' struck off only at an exact count', le.exactStrikes.map(x => srcNum(x.slot, slotWords(x.slot.v)))) + '</b> ' + (le.exactStrikes.length === 1 ? 'line is' : 'lines are') + ' struck off only at an exact count, which a visit can skip past.' : '',
+        le.flagReadNeverWritten.length ? '<b>' + countLink(String(le.flagReadNeverWritten.length), 'The ' + le.flagReadNeverWritten.length + ' quest flags checked and never set', le.flagReadNeverWritten.map(k => { const s0 = sitesOf(le.flagReads.get(k))[0]; return s0 ? srcNum(s0, 'quest flag ' + k) : svEsc('quest flag ' + k); })) + '</b> quest ' + (le.flagReadNeverWritten.length === 1 ? 'flag is' : 'flags are') + ' checked and never set.' : '',
         skillOff ? 'The script that settles a blow reads the weapon’s skill from the wrong place, so no armed blow benefits from it.' : '',
-        le.spacedKeywords.length ? '<b>' + le.spacedKeywords.length + '</b> keyword ' + (le.spacedKeywords.length === 1 ? 'list has' : 'lists have') + ' a space after a comma, so the keyword after it only matches if you type a space first.' : '',
-        le.charFlagNeverSet.length ? '<b>' + le.charFlagNeverSet.length + '</b> character ' + (le.charFlagNeverSet.length === 1 ? 'flag is' : 'flags are') + ' checked and never set, so the lines that depend on them are either never said or said every time.' : '',
-        le.unusedCast.length ? '<b>' + le.unusedCast.length + '</b> of the tasks you can give a character ' + (le.unusedCast.length === 1 ? 'does' : 'do') + ' nothing' + (le.unusedCast.some(u => u.queuedBy.some(q => q.resid === 0x1AD5)) ? ', and Lock Picking queues one of them, which is why a companion told to pick a lock never does.' : '.') : ''
+        le.spacedKeywords.length ? '<b>' + countLink(String(le.spacedKeywords.length), 'The ' + le.spacedKeywords.length + ' keyword lists with a space after a comma', le.spacedKeywords.map(k => srcNum(k, '“' + k.list + '”'))) + '</b> keyword ' + (le.spacedKeywords.length === 1 ? 'list has' : 'lists have') + ' a space after a comma, so the keyword after it only matches if you type a space first.' : '',
+        le.charFlagNeverSet.length ? '<b>' + countLink(String(le.charFlagNeverSet.length), 'The ' + le.charFlagNeverSet.length + ' character flags checked and never set', le.charFlagNeverSet.map(f => { const nm = 'flag ' + f.bit + ' of ' + (characterName(f.character) || 'character ' + f.character); return f.sites && f.sites[0] ? srcNum(f.sites[0], nm) : svEsc(nm); })) + '</b> character ' + (le.charFlagNeverSet.length === 1 ? 'flag is' : 'flags are') + ' checked and never set, so the lines that depend on them are either never said or said every time.' : '',
+        le.unusedCast.length ? '<b>' + countLink(String(le.unusedCast.length), 'The ' + le.unusedCast.length + ' tasks that do nothing', le.unusedCast.map(u => srcNum(u, 'task ' + u.task))) + '</b> of the tasks you can give a character ' + (le.unusedCast.length === 1 ? 'does' : 'do') + ' nothing' + (le.unusedCast.some(u => u.queuedBy.some(q => q.resid === 0x1AD5)) ? ', and Lock Picking queues one of them, which is why a companion told to pick a lock never does.' : '.') : ''
       ].filter(Boolean) : [],
       table(['what', 'which', 'where'], rows));
   }
@@ -4562,7 +4570,7 @@ function renderMechanicsSheet(value) {
       ln ? 'Which parts of the file the scripts use, and which nothing uses.'
          : 'No file is open to read this from.',
       ln ? [
-        '<b>' + ln.referencing + ' resources</b> use another and <b>' + ln.referenced + '</b> are used, over <b>' + ln.edges + ' uses</b> in all: ' +
+        '<b>' + countLink(ln.referencing + ' resources', 'The ' + ln.referencing + ' resources that use another', resChips(ln.users)) + '</b> use another and <b>' + countLink(String(ln.referenced), 'The ' + ln.referenced + ' resources another uses', resChips(ln.ranked.map(r => r.rid))) + '</b> are used, over <b>' + ln.edges + ' uses</b> in all: ' +
           Object.keys(ln.kinds).map(k => '<b>' + ln.kinds[k] + '</b> ' + svEsc(k === 'call' ? 'by calling' : k === 'resource' ? 'by naming' : k === 'dref' ? 'by pointing inside' : k === 'table' ? 'by a table entry' : k)).join(', ') + '.',
         busiest ? 'The busiest is ' + svChip(busiest.rid, labelFor(busiest.rid) || '') + ', used <b>' + busiest.refs + '</b> times; most are used by nothing.' : '',
         'That is rarely a mistake; the program finds most things by number, such as an item’s script by its type.'

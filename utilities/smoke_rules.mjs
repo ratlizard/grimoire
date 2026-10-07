@@ -1424,3 +1424,24 @@ try {
   else console.log(`  preferences: its own tab under Data and gone from Tools; no application, so the shipped layout -- ${L.controls.length + 2} switches, ${L.choices.length + L.ordinals.length} choosers, a ${built.length}-byte fork`);
 } catch (e) { fail('preferences', e); }
 
+
+/* A count that opens a list, 7 October 2026. A count in a sentence is a link
+   to the things it counts (countLink, js/page-tabs.js), and the rule is that
+   the list holds as many as the sentence says. Nothing held that: the chips
+   are built beside the number, from the same array when the writer is
+   careful and from a filter of it when not, and a list one short reads as
+   well as a whole one. Every list's title opens "The N ...", so the title's
+   own number is compared with the chips. A list grouped by something else
+   ("by zone", "by character") has a chip a group and is passed over, which
+   is what this cannot see: that a group's chips add up.
+
+   Run last, since the lists are made as the sheets above are drawn. The
+   control is the floor on how many were compared: a run that drew no sheet
+   would compare none and pass. */
+try {
+  const lists = (ctx.COUNT_LISTS || []).filter(c => /^The \d/.test(c.title) && !/, by [a-z]+$/.test(c.title));
+  const off = lists.filter(c => parseInt(c.title.slice(4).replace(/,/g, ''), 10) !== c.chips.length);
+  if (lists.length < 20) fail('count lists', 'only ' + lists.length + ' counted lists were made, so the sheets that make them were not drawn');
+  else if (off.length) fail('count lists', off.map(c => '"' + c.title + '" lists ' + c.chips.length).join('; '));
+  else console.log(`  count lists: ${lists.length} counts each open a list of as many as they say`);
+} catch (e) { fail('count lists', e); }
