@@ -40,36 +40,66 @@
    without a recording to compare; the kits (16385, the Standard Kit) are in
    the set as asked. `qtToneInstrument` is that rule.
 
-   THE SYNTHESIS IS OURS, AND APPROXIMATE. QuickTime's software synthesizer
-   is code in the QuickTime extension, unread; this plays the samples the way
-   the knobs describe and no further. Read and used: each key range's sample
-   and its own knobs over the instrument's, its transpose,
-   root key, loop, rate; attack, decay to the sustain level, release; note
-   velocity, squared (QT_VELOCITY_POWER); the part's volume, pan, pitch bend and sustain pedal. Not used,
-   and each a place it can differ from the original: the decay's key scaling,
-   the volume and pitch LFOs and the mod wheel that deepens them, the
-   velocity curve knobs, exclusion groups, reverb, polyphony limits, and the
-   output rate and interpolation the Mac used. A drum kit's note plays its
-   sample to the end whatever the note's length, as kits do in General MIDI;
-   that too is a reading, not a fact. A recording of the game playing in the
-   emulator is what this is to be held to.
+   THE SYNTHESIS IS OURS, HELD TO QUICKTIME'S WHERE THAT IS READ. Read and
+   used: each key range's sample and its own knobs over the instrument's,
+   its transpose, root key, loop and rate; the envelope, as the
+   synthesizer builds it (QT_ENV, below); the part's volume, pan, pitch
+   bend and sustain pedal. Measured, not read: how a note's velocity
+   becomes its level (QT_VELOCITY_POWER). Not used, and each a place it
+   can differ: the volume and pitch LFOs and the mod wheel that deepens
+   the pitch one (the tunes send it some 3,300 times), exclusion groups,
+   the limit on voices (14 by default), and the output rate and
+   interpolation the Mac used. Reverb is not missing: the synthesizer's
+   Reverb setting is off by default, and a voice goes to the reverb bus
+   only when it is on and the part's reverb controller is at its
+   threshold or over. Controller 33, aftertouch, which the tunes send some
+   4,300 times, is not among the fourteen the synthesizer takes.
 
    Classic script; the page's global scope. */
 
-const QTMS_KNOB = { attack: 1, decay: 2, sustain: 3, release: 6, transpose: 0x12 };
-/* How a note's velocity becomes its level: the square of velocity over 127.
-   It was the plain ratio until 6 October 2026, when the maintainer found
-   the instruments' relative volume wrong. No instrument in the set carries
-   an overall volume knob (0x0C) or a velocity curve (0x0D to 0x11), so the
-   curve is the synthesizer's own and unread; it was measured instead.
-   Each of the eleven tunes was rendered with the exponent at 1, 1.5, 2,
-   2.5 and 3 and held to the soundtrack's "(Classic)" recording of it: the
-   square is nearer than the ratio on all eleven by the spectrum, the
-   onsets and the loudness contour, and best or level with best of the
-   five. The same test of the part volume's curve, of the attack's shape
-   and of how deep the decay falls moved nothing either way, so those stay
-   as they were (opts.volExp, opts.attackPow and opts.floorDb are that
-   test's handles, and the workbench's tools/qtma-fit/ is the test). */
+const QTMS_KNOB = { attack: 1, decay: 2, sustain: 3, keyToDecay: 5, release: 6, transpose: 0x12,
+                    sustainTime: 0x1D, sustainInfinite: 0x1E, logCurves: 0x26, velToAttack: 0x3F };
+/* THE ENVELOPE IS QUICKTIME'S, read on 6 October 2026 from the QuickTime
+   Music extension of QuickTime 4 (the Mac OS 9.0 image; resource 'musk',
+   PowerPC, its routines' names in its traceback tables; the workbench's
+   GRIMOIRE-NOTES.md has the reading under grimoire/qt-instruments-v56peg).
+
+   StartNoteKeyrange copies the key range's knobs into the voice and calls
+   SetADSRStuff with: the attack time times FixPow(knob 0x3F, velocity
+   over 128), which the synthesizer calls "Velocity To Attack Time"; the
+   decay time times FixPow(knob 5, key over 128), "Key To Decay Time"; the
+   sustain level, the sustain time, the release time, and a flag word of
+   knob 0x26, "Log Curves", with knob 0x1E, "Infinite Sustain", above it.
+   A stage whose bit is set in Log Curves (1 attack, 2 decay, 4 sustain,
+   8 release) multiplies the level each step by FixPow(1/65536, step over
+   its time): it crosses a factor of 65,536, 96.3 dB, in its time, and a
+   decay stops where it meets the sustain level. A stage whose bit is
+   clear moves in a straight line. With Infinite Sustain the level holds
+   until the key comes up; without, it falls to nothing over the sustain
+   time. A voice ends when its level is under 1/65,536. Every instrument
+   in the set has Log Curves 14 and Infinite Sustain 1, and a knob an
+   instrument leaves out has the default in the synthesizer's 'SSkn'
+   resource: decay 1,000 ms, sustain a half, sustain time 5,000 ms,
+   release 180 ms, Log Curves 4, both scalings 1.
+
+   Before this the envelope was a guess from the knobs' names: a fall of
+   72 dB in the decay time spread to end on the sustain level, the two
+   scalings unused, and a kit's note played to its sample's end whatever
+   its length. The kit needs no rule of its own: its release is 40 s. */
+const QT_ENV = { span: 1 / 65536, floor: 1 / 65536 };
+/* HOW LOUD A NOTE IS, where the reading and the recordings disagree. The
+   synthesizer takes a note's level as (velocity + 1) / 128 times its
+   velocity sensitivity (StartNoteKeyrange; 100 per cent in every
+   instrument), and multiplies it by the part's volumes and the envelope,
+   all in straight proportion (Serve_This_One). Held to the soundtrack's
+   "(Classic)" recordings of the eleven tunes, though, the square of that
+   level is nearer than the level itself on every tune, by the spectrum,
+   the onsets and the loudness contour, with this envelope as with the
+   guessed one (the workbench's tools/qtma-fit/). So something ahead of the
+   synthesizer shapes velocity, the note allocator or the tune player,
+   which are 68K code in the same extension and unread; or the recordings
+   were not made by this path. The square is used because it is what the
+   recordings sound like. opts.velExp overrides it. */
 const QT_VELOCITY_POWER = 2;
 
 /* The resource fork of a QuickTime extension. A Mac file's is its own; a
@@ -300,8 +330,6 @@ function qtmaRender(events, tones, lib, opts) {
   // Pitch bend changes during a note are followed; the rest are taken at its start.
   const bendSteps = (p, t0, t1) => (ctlTimeline[p] || []).filter(e => e.ctl === 32 && e.t > t0 && e.t < t1);
 
-  const dbToGain = db => Math.pow(10, db / 20);
-  const FLOOR_DB = opts.floorDb || -72;
   for (const e of events) {
     if (e.k !== 'note' || e.vol === 0) continue;
     const part = partOf(e.part);
@@ -311,46 +339,59 @@ function qtmaRender(events, tones, lib, opts) {
       || inst.regions.reduce((b, r) => (!b || Math.abs(r.root - e.pitch) < Math.abs(b.root - e.pitch) ? r : b), null);
     if (!region || !region.pcm.length) continue;
     const st = stateAt(e.part, e.t);
-    const kit = inst.number >= 16384;
     let offUnit = e.t + Math.max(e.dur, 1);
     if (st.sustainOn) offUnit = Math.max(offUnit, st.sustainOffAfter == null ? lastUnit : st.sustainOffAfter);
 
+    /* The envelope, as QuickTime's synthesizer builds it (StartNoteKeyrange
+       and SetADSRStuff; the account is over QT_ENV below). The attack's
+       time is the knob's times "Velocity To Attack Time" raised to the
+       velocity over 128, the decay's the knob's times "Key To Decay Time"
+       raised to the key over 128. "Log Curves" says which stages are
+       geometric, a bit each from the attack up. */
     const k = region.knobs;
+    const knob = (id, dflt) => k[id] === undefined ? dflt : k[id];
     const transpose = (k[QTMS_KNOB.transpose] || 0) / 256;
-    const attack = (k[QTMS_KNOB.attack] || 0) / 1000 * rate;
-    const decay = (k[QTMS_KNOB.decay] || 0) / 1000 * rate;
-    const susLevel = k[QTMS_KNOB.sustain] === undefined ? 1 : k[QTMS_KNOB.sustain] / 65536;
-    const susDb = susLevel > 0 ? Math.max(FLOOR_DB, 20 * Math.log10(susLevel)) : FLOOR_DB;
-    const release = Math.max(1, (k[QTMS_KNOB.release] || 0) / 1000 * rate);
+    const attack = knob(QTMS_KNOB.attack, 0) * Math.pow(knob(QTMS_KNOB.velToAttack, 65536) / 65536, e.vol / 128) / 1000 * rate;
+    const decay = knob(QTMS_KNOB.decay, 1000) * Math.pow(knob(QTMS_KNOB.keyToDecay, 65536) / 65536, e.pitch / 128) / 1000 * rate;
+    const susLevel = knob(QTMS_KNOB.sustain, 32768) / 65536;
+    const susTime = knob(QTMS_KNOB.sustainTime, 5000) / 1000 * rate;
+    const susForever = !!knob(QTMS_KNOB.sustainInfinite, 0);
+    const release = knob(QTMS_KNOB.release, 180) / 1000 * rate;
+    const logs = knob(QTMS_KNOB.logCurves, 4);
     const looped = region.loopEnd > region.loopStart;
 
-    const gain = Math.pow(e.vol / 127, opts.velExp || QT_VELOCITY_POWER) * Math.pow(st.volume, opts.volExp || 1);
+    const gain = Math.pow((e.vol + 1) / 128, opts.velExp || QT_VELOCITY_POWER) * Math.pow(st.volume, opts.volExp || 1);
     const pl = Math.cos(st.pan * Math.PI / 2), pr = Math.sin(st.pan * Math.PI / 2);
     const f0 = Math.round(e.t / ups * rate);
-    const offFrame = kit ? Infinity : Math.round(offUnit / ups * rate) - f0;
+    const offFrame = Math.round(offUnit / ups * rate) - f0;
     const steps = bendSteps(e.part, e.t, offUnit).map(c => [Math.round(c.t / ups * rate) - f0, fixed(c.val)]);
     let bend = st.bend, nextStep = 0;
     const stepFor = b => region.rate / rate * Math.pow(2, (e.pitch - region.root + transpose + b) / 12);
     let step = stepFor(bend);
 
     const pcm = region.pcm, loopLen = region.loopEnd - region.loopStart + 1;
-    // The envelope: attack, then a fall in decibels to the sustain level,
-    // then from note-off a fall from wherever it was to silence. Each fall is
-    // a constant ratio per frame, so it is a multiplication, not a power.
-    const decayMul = decay > 0 ? dbToGain(susDb / decay) : 1;
-    const relMul = dbToGain(FLOOR_DB / release);
-    const held = susLevel > 0 ? susLevel : (decay > 0 ? 0 : 1);
-    let pos = 0, env = 0, releasing = false, relLeft = 0;
+    // A geometric stage multiplies by a constant each frame, a straight
+    // one adds a constant; `stage` is 1 attack, 2 decay, 3 sustain,
+    // 4 release, as the synthesizer numbers them.
+    const fall = n => Math.pow(QT_ENV.span, 1 / Math.max(1, n));
+    const decayMul = fall(decay), susMul = fall(susTime), relMul = fall(release);
+    const decayAdd = (susLevel - 1) / Math.max(1, decay), susAdd = -susLevel / Math.max(1, susTime);
+    let pos = 0, env = (logs & 1) ? QT_ENV.floor : 0, stage = attack >= 1 ? 1 : 2, relAdd = 0;
+    if (stage === 2) env = 1;
+    const atkMul = Math.pow(1 / QT_ENV.span, 1 / Math.max(1, attack));
     for (let i = 0; f0 + i < frames; i++) {
       if (nextStep < steps.length && i >= steps[nextStep][0]) { bend = steps[nextStep++][1]; step = stepFor(bend); }
-      if (i >= offFrame) {
-        if (!releasing) { releasing = true; relLeft = Math.ceil(release); }
-        if (relLeft-- <= 0) break;
-        env *= relMul;
-      } else if (i < attack) env = opts.attackPow ? Math.pow(i / attack, opts.attackPow) : i / attack;
-      else if (i < attack + decay) env = i < attack + 1 ? 1 : env * decayMul;
-      else env = held;
-      if (env <= 0 && i >= attack) break;
+      if (i >= offFrame && stage !== 4) { stage = 4; relAdd = -env / Math.max(1, release); }
+      if (stage === 1) {
+        env = (logs & 1) ? env * atkMul : env + 1 / attack;
+        if (env >= 1) { env = 1; stage = 2; }
+      } else if (stage === 2) {
+        env = (logs & 2) ? env * decayMul : env + decayAdd;
+        if (env <= susLevel) { env = susLevel; stage = 3; }
+      } else if (stage === 3) {
+        if (!susForever) env = (logs & 4) ? env * susMul : env + susAdd;
+      } else env = (logs & 8) ? env * relMul : env + relAdd;
+      if (env <= QT_ENV.floor && stage !== 1) break;
       let ip = pos | 0;
       if (looped && ip > region.loopEnd) { pos -= loopLen * Math.floor((pos - region.loopStart) / loopLen); ip = pos | 0; }
       if (ip >= pcm.length - 1) { if (!looped) break; }

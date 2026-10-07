@@ -539,7 +539,7 @@ const CHECKS = [
   {page: 'viewer', name: 'quicktime instruments', want: [QT_EXE, DATA],
    cmd: ['utilities/qtmusic_check.mjs', 'index.html', QT_EXE, DATA],
    grep: /QuickTime 3: [^\n]*/,
-   expect: 'QuickTime 3: 21 files unpacked, the controls refused; 235 instruments, 1544 key ranges, every sample found; every part of 11 tunes has an instrument; the theme 98.1 s, TUNE 82fcdb6d512f'},
+   expect: 'QuickTime 3: 21 files unpacked, the controls refused; 235 instruments, 1544 key ranges, every sample found; every part of 11 tunes has an instrument; the theme 98.1 s, TUNE 35bf3ed1762c'},
   {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
    grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT a43e9aac1a08'},   // a DATA and a LINF description out of the passive ("has not been worked out"), 2 October 2026; only those two types moved
