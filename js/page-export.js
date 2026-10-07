@@ -87,6 +87,27 @@
    catalog past one leaf node and raises a modal Finder alert that breaks the
    automated install -- see buildEditedDiskImage, where that was paid for. */
 const PREFS_FILE_NAME = 'Cythera Preferences';
+
+/* THE LICENSE FILE, read and never written. `Cythera License` sits beside
+   the preferences file in the Preferences folder, 514 bytes of data fork:
+   the name the game is registered to as a Pascal string at 0, a code as a
+   Pascal string at 256, and a word at 512. That layout is two files looked
+   at, a registered one and the one the game leaves when it is not, and no
+   reading of the program, which the maintainer ruled out for this file
+   ("no reverse engineering", 6 October 2026); so the reader says the name
+   and whether a code is there, and nothing about what the game makes of
+   either. It does not return the code. The page shows a name and makes no
+   licence, and a reader that never hands the code on cannot have it
+   printed by a caller added later.
+
+   A file of another length is refused rather than read loosely: any file
+   at all starts with a byte that passes for a Pascal length. */
+const LICENSE_FILE_NAME = 'Cythera License';
+const LICENSE_FILE_SIZE = 514;
+function cytheraLicenseRead(bytes) {
+  if (!bytes || bytes.length !== LICENSE_FILE_SIZE) return null;
+  return { name: pstring(bytes, 0), hasCode: bytes[256] > 0 };
+}
 // '????', as the real file has and as the game's own FSpCreateResFile call
 // passes: it belongs to no application, and the Finder shows it the generic
 // document icon accordingly.

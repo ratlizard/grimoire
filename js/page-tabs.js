@@ -1085,6 +1085,12 @@ const TAB_TREE = [
       // wears tile 0x1AC now, four round grey knobs, the maintainer's pick
       // (0xF004 names it "pyramid").
       { id: 'prefs', label: 'Preferences', tile: 0x1AC, values: ['PREFS'] },
+      // The registration file, beside the settings file it sits beside on a
+      // Mac (the maintainer's list of 6 October 2026: a stub, with a link to
+      // Decoder Ring). Its type and creator are Ambrosia's, `Alic` and
+      // `Areg`, so Cythera's bundle has no icon for it; it wears the ring,
+      // prop 307, for the name of the thing that makes one.
+      { id: 'license', label: 'License', tile: 0x221, values: ['LICENSE'] },
       // Patches, a tab of their own since 27 September 2026 (they were
       // sections of Tools). A Magpie patch is a DelP file with Magpie's
       // creator, so Cythera's bundle has no icon for one: the icon is

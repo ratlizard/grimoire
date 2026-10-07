@@ -1445,3 +1445,30 @@ try {
   else if (off.length) fail('count lists', off.map(c => '"' + c.title + '" lists ' + c.chips.length).join('; '));
   else console.log(`  count lists: ${lists.length} counts each open a list of as many as they say`);
 } catch (e) { fail('count lists', e); }
+
+/* The License tab, 7 October 2026: a stub under Data beside Preferences.
+   Three things are held. The tab is where the tabs say it is. The reader
+   takes the name out of a file laid out as the two real ones are, made up
+   here so the check needs nothing of the game's and carries no real code.
+   And what the tab says of that file does not contain its code, which is
+   the one thing the page must not print; the control is a file a byte
+   short, which the reader must refuse where a loose one would read a name
+   out of anything. */
+try {
+  const grid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  ctx.showCategory('LICENSE');
+  const sheet = grid();
+  const tab = peek('TAB_LEAF_FOR').get('LICENSE');
+  const file = new Uint8Array(514);
+  const put = (at, s) => { file[at] = s.length; for (let i = 0; i < s.length; i++) file[at + 1 + i] = s.charCodeAt(i); };
+  put(0, 'A Made-Up Name'); put(256, 'ZZQQZZQQ'); file[513] = 1;
+  const lic = ctx.cytheraLicenseRead(file), said = ctx.licenseSaidHTML(file);
+  if (!tab || tab.id !== 'license' || !tab.parent || tab.parent.id !== 'data') fail('license', 'LICENSE is not the License tab under Data');
+  else if (!/Make a License/.test(sheet) || !/macintoshrepository\.org/.test(sheet) || !/id="licenseFile"|licenseFile/.test(sheet + JSON.stringify([...REGISTRY.keys()]))) fail('license', 'the tab does not offer the picker and the link to Decoder Ring');
+  else if (!lic || lic.name !== 'A Made-Up Name' || lic.hasCode !== true) fail('license', 'the reader did not take the name out of a made-up file: ' + JSON.stringify(lic));
+  else if ('code' in lic || /ZZQQZZQQ/.test(JSON.stringify(lic) + said)) fail('license', 'the code reaches the page');
+  else if (!/A Made-Up Name/.test(said)) fail('license', 'the tab does not say the name: ' + said);
+  else if (ctx.cytheraLicenseRead(file.subarray(0, 513)) !== null) fail('license', 'a file a byte short was read as a license');
+  else if (!/not a Cythera License file/.test(ctx.licenseSaidHTML(file.subarray(0, 513)))) fail('license', 'the tab does not refuse a file a byte short');
+  else console.log(`  license: its own tab under Data; the name read from a made-up file and its code kept off the page; a file a byte short refused`);
+} catch (e) { fail('license', e); }

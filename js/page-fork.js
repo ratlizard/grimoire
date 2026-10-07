@@ -1785,6 +1785,7 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'RECORDS') { renderRecordsSheet(); return; }
   if (window.CUR_SUBN === 'SAVEGAME') { renderSaveSheet(); return; }
   if (window.CUR_SUBN === 'PREFS') { renderPrefsSheet(); return; }
+  if (window.CUR_SUBN === 'LICENSE') { renderLicenseSheet(); return; }
   if (window.CUR_SUBN === 'PATCHES') { renderPatchesSheet(); return; }
   if (window.CUR_SUBN === 'CHEATS') { renderCheatsSheet(); return; }
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }

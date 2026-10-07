@@ -728,6 +728,55 @@ const PREF_HELP = {
   cheats: ['startup', 'Not in the game', null],
   mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if you held Command, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu; the right-click fix on the Patches tab puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
 };
+/* The License tab, a stub by the maintainer's word (6 October 2026): what
+   the file is, where it goes, a link to the thing that makes one, and a
+   picker that reads the name out of one. The link is to Macintosh
+   Repository's entry for Decoder Ring, which Andrew Welch, Ambrosia's
+   founder, released on 1 October 2023 for free distribution; the workbench's
+   doc/infinite-mac-disk.md has that looked up, with the release thread. The
+   page fetches nothing from there and makes no licence itself. */
+const DECODER_RING_URL = 'https://www.macintoshrepository.org/63637-ambrosia-software-decoderring';
+function renderLicenseSheet() {
+  stopAllViewActivity();
+  const grid = document.getElementById('sheetGrid');
+  const out = document.getElementById('output');
+  grid.style.display = '';
+  grid.innerHTML = '';
+  document.getElementById('singleControls').style.display = 'none';
+  const box = document.createElement('div');
+  box.className = 'changesView';
+  const about = document.createElement('div');
+  about.className = 'changesGroup';
+  about.innerHTML = '<div class="changesGroupTitle">' + svEsc(LICENSE_FILE_NAME) + '</div>' +
+    '<div class="changesNote" style="margin-left:0">' + svEsc('The game keeps its registration in this file, in the Preferences folder of the System Folder. Choose one to see the name it is registered to.') + '</div>';
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.id = 'licenseFile'; inp.accept = '*/*';
+  about.appendChild(inp);
+  const said = document.createElement('div');
+  said.className = 'changesNote'; said.id = 'licenseSaid';
+  said.style.marginLeft = '0';
+  about.appendChild(said);
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    f.arrayBuffer().then(buf => { said.innerHTML = licenseSaidHTML(new Uint8Array(buf)); }, e => quiet(e, 'reading a license file'));
+  };
+  box.appendChild(about);
+  const make = document.createElement('div');
+  make.className = 'changesGroup';
+  make.innerHTML = '<div class="changesGroupTitle">' + svEsc('Make a License') + '</div>' +
+    '<div class="changesNote" style="margin-left:0"><a href="' + DECODER_RING_URL + '" target="_blank" rel="noopener">Decoder Ring</a>' +
+    svEsc(' makes a license for any Ambrosia game. Andrew Welch, who founded Ambrosia, released it for free distribution.') + '</div>';
+  box.appendChild(make);
+  grid.appendChild(box);
+  out.textContent = LICENSE_FILE_NAME + ', the file the game keeps its registration in.';
+}
+// What the tab says of a chosen file. The name is the file's, verbatim.
+function licenseSaidHTML(bytes) {
+  const lic = cytheraLicenseRead(bytes);
+  if (!lic) return svEsc('This is not a ' + LICENSE_FILE_NAME + ' file. One is ' + LICENSE_FILE_SIZE + ' bytes, and this is ' + bytes.length + '.');
+  return svEsc('The name in this file is ') + '<b>' + svEsc(lic.name) + '</b>' + svEsc(lic.hasCode ? ', with a code.' : ', with no code.');
+}
 const PREF_GROUPS = [['sound', 'Sound'], ['movement', 'Game control'], ['windows', 'Windows'], ['startup', 'Starting the game'], ['mouse', 'Mouse'], ['other', 'Other settings']];
 function renderPrefsSheet() {
   stopAllViewActivity();
