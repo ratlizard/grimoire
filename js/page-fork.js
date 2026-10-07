@@ -1552,20 +1552,15 @@ function showCharacterDetail(i) {
   const parts = document.createElement('div');
   parts.innerHTML = linksFold(partsStrip('Made of', characterParts(i, d)) + characterSays(i));
   panel.appendChild(parts);
-  // What they carry, in the open: it is the character, not a link to
-  // something else, so it is not folded with the parts.
+  /* What they wear and what they carry, as two headed groups of pictures
+     with their names (the maintainer, 6 October 2026: the one Carries row
+     was tiny text, apart from the things it named, and said "equipped" in
+     a grey word after a name). What a carried container holds is listed
+     under it. In the open and not folded with the parts: it is the
+     character, not a link to something else. */
   {
     const held = carriedByCharacter(i);
-    if (held.length) {
-      const c = document.createElement('div');
-      const chips = [];
-      for (const it of held) {
-        chips.push(carriedChip(it));
-        for (const o of it.inside) chips.push(carriedChip(Object.assign({ equipped: false }, o)).replace('class="relChip"', 'class="relChip carriedInside"'));
-      }
-      c.innerHTML = partsStrip('Carries', chips);
-      panel.appendChild(c);
-    }
+    if (held.length) panel.appendChild(carriedPanel(held));
   }
 
   const sh = document.createElement('div');

@@ -1026,9 +1026,13 @@ try {
 try {
   const names = ctx.carriedByCharacter(14).map(it => ctx.propDisplayName(it.pt, ctx.getPropTileList()[it.pt] + it.aspect));
   ctx.showCharacterDetail(14);
-  const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  // The groups are built as elements (carriedPanel), so their words are
+  // text and not markup; both are gathered.
+  const html = (function all(el) { return (el.innerHTML || '') + ' ' + ((el.children || []).length ? '' : (el.textContent || '')) + ' ' + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!names.includes('mace') || !names.includes('round shield')) fail('carries', 'Deiphobus does not carry his mace and shield: ' + JSON.stringify(names));
-  else if (!/Carries/.test(html) || !/mace/.test(html)) fail('carries', 'his dossier does not say what he carries');
+  else if (!/Equipped|Carried/.test(html) || !/mace/.test(html)) fail('carries', 'his dossier does not say what he wears and carries');
+  else if (ctx.carriedByCharacter(14).some(it => it.equipped) !== /Equipped/.test(html)) fail('carries', 'his dossier’s Equipped group does not follow whether he has anything equipped');
+  else if (ctx.carriedByCharacter(14).some(it => !it.equipped) !== /Carried/.test(html)) fail('carries', 'his dossier’s Carried group does not follow whether he carries anything unequipped');
   else if (ctx.carriedByCharacter(2).length) fail('carries', 'Alaric carries something');
   else console.log('  carries: Deiphobus\'s dossier lists ' + names.join(', ') + '; Alaric carries nothing');
 } catch (e) { fail('carries', e); }

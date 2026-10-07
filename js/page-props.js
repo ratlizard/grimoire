@@ -1374,11 +1374,51 @@ function carriedByCharacter(ci) {
   }
   return DERIVED.CARRIED.get(ci) || [];
 }
-// One carried thing as a chip: its own picture, its name, and "equipped".
-function carriedChip(it) {
-  const nm = propDisplayName(it.pt, (getPropTileList()[it.pt] || 0) + it.aspect) || ('prop type ' + it.pt);
-  return relChip({ js: 'openItem(' + it.pt + ',' + it.aspect + ')', main: nm + (it.letter ? ' ' + it.letter : '') + (it.count > 1 ? ' \u00d7' + it.count : ''),
-                   sub: it.equipped ? 'equipped' : '', icon: relIconURL({ icon: it.pt }) });
+// One carried thing as a button: its picture at twice its size, the letter
+// a key wears on it, and its name.
+function carriedTile(it) {
+  const tiles = getPropTileList(), base = tiles[it.pt];
+  const b = document.createElement('button');
+  b.className = 'heldItem';
+  if (base !== undefined) {
+    const c = document.createElement('canvas');
+    try { drawTileToCanvas(c, base + it.aspect, 32); } catch (e) { quiet(e); }
+    b.appendChild(c);
+  }
+  const nm = document.createElement('span');
+  nm.textContent = (propDisplayName(it.pt, (base || 0) + it.aspect) || ('prop type ' + it.pt)) +
+    (it.letter ? ' ' + it.letter : '') + (it.count > 1 ? ' \u00d7' + it.count : '');
+  b.appendChild(nm);
+  b.onclick = () => openItem(it.pt, it.aspect);
+  return b;
+}
+function carriedPanel(held) {
+  const wrap = document.createElement('div');
+  wrap.className = 'heldPanel';
+  for (const [title, list] of [['Equipped', held.filter(it => it.equipped)], ['Carried', held.filter(it => !it.equipped)]]) {
+    if (!list.length) continue;
+    const h = document.createElement('div');
+    h.className = 'heldTitle';
+    h.textContent = title;
+    wrap.appendChild(h);
+    const row = document.createElement('div');
+    row.className = 'heldRow';
+    for (const it of list) {
+      row.appendChild(carriedTile(it));
+      if (it.inside && it.inside.length) {
+        const box = document.createElement('div');
+        box.className = 'heldInside';
+        const cap = document.createElement('span');
+        cap.className = 'heldIn';
+        cap.textContent = 'in the ' + (propDisplayName(it.pt, (getPropTileList()[it.pt] || 0) + it.aspect) || 'container');
+        box.appendChild(cap);
+        for (const o of it.inside) box.appendChild(carriedTile(o));
+        row.appendChild(box);
+      }
+    }
+    wrap.appendChild(row);
+  }
+  return wrap;
 }
 
 /* Where the items actually are. The prop lists are the shipped scenario's
