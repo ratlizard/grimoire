@@ -1908,6 +1908,10 @@ function renderSaveSheet() {
       'session, not from this file. A saved game has no table of names, but a character number ' +
       'means the same person in every Cythera file.</div>';
 
+  // With the scenario open, the maker comes first: it is what a visitor
+  // without a save can do here.
+  if (!isSave) h += saveMakerHTML();
+
   // What the file holds.
   const parts = savedGameParts();
   if (parts.length) {
@@ -2216,6 +2220,80 @@ function fullStomach() {
   return found || window.SCENARIO_FULL_STOMACH;
 }
 
+/* ---- Make a Save (7 October 2026) ----------------------------------------
+   A saved game made from the scenario open here, with no save chosen: the
+   maintainer's "save generator", by which he means a save with the stats,
+   the place and the point in the story chosen. This is the first half, a
+   new game with a hero of the visitor's choosing; the file it makes then
+   becomes the open file, and the forms this sheet already has for a save
+   (a record's fields, the quest values and flags, the rooms, the To Do
+   list, Give) set the rest. buildNewGameSave in js/delv-archive.js writes
+   the file and says what is in it.
+
+   The hero's starting figures are the creation script's
+   (heroCreationRules), and full health is the formula the Mechanics sheet
+   reads off 0xE82 with no skill counted. Three figures are the program's
+   and not the scenario's: the clock a new game starts at, its day, and the
+   fourth short of the Char block. They are what TDelverApp::NewModel
+   leaves, taken from a save the game wrote at a new game and the same in
+   every save on the disk bar the clock; reading them out of NewModel is
+   not done, so they stand here as the shipped program's, as PREF_SHIPPED
+   does for the preferences. */
+const NEW_GAME_SHIPPED = { clock: 0x9000, day: 1, header4: 0x0800 };
+function saveMakerDefaults() {
+  const cr = heroCreationRules();
+  const hero = loadCharacterTable()[1];
+  if (!cr || !hero) return null;
+  const portraits = [];
+  for (let rid = 0x8801; rid <= 0x88FF; rid++) if (refExists(rid)) portraits.push(rid);
+  if (!portraits.length) return null;
+  // Offered first: a portrait the file names for nobody, which is what the
+  // hero's choices are, the cast's each carrying its character's name.
+  const portrait = portraits.find(r => !labelFor(r)) || portraits[0];
+  return { cr, portraits, portrait, body: hero.body, reflex: hero.reflex, mind: hero.mind, level: cr.level.v };
+}
+/* The file, from the choices: { name, sprite (an index into the script's
+   two), portrait (a resource), body, reflex, mind, level }. Null when the
+   open file cannot make one. */
+function newGameSaveBytes(c) {
+  const d = saveMakerDefaults();
+  if (!d || !ARCHIVE) return null;
+  const sprite = (d.cr.sprites[c.sprite | 0] || d.cr.sprites[0]).v;
+  const clamp = (v, dflt) => { const n = parseInt(v, 10); return isNaN(n) ? dflt : Math.max(1, Math.min(255, n)); };
+  const body = clamp(c.body, d.body), reflex = clamp(c.reflex, d.reflex), mind = clamp(c.mind, d.mind), level = clamp(c.level, d.level);
+  let xp = null;
+  try { xp = experienceRules(); } catch (e) { quiet(e, 'the health formula for a made save'); }
+  const div = xp && xp.rule && xp.rule.healthReflexDiv ? xp.rule.healthReflexDiv.v : 0;
+  const health = Math.min(255, body + (div ? Math.floor(reflex / div) : 0) + level);
+  return buildNewGameSave(ARCHIVE, Object.assign({ name: c.name, portrait: c.portrait || d.portrait,
+    proptype: sprite & 0x3FF, aspect: (sprite >> 10) & 0x3F, body, reflex, mind, level, xp: 0,
+    health, healthMax: health, magic: 0, magicMax: 0, training: d.cr.training.v, nutrition: d.cr.nutrition.v,
+    archetype: 0, karma: d.cr.karma.v, difficulty: d.cr.difficulty.v }, NEW_GAME_SHIPPED));
+}
+function saveMakerHTML() {
+  const d = saveMakerDefaults();
+  if (!d) return '';
+  const num = (id, label, v) => '<label class="mkField">' + svEsc(label) + ' <input type="number" id="' + id + '" min="1" max="255" value="' + v + '"></label>';
+  const spriteName = v => propDisplayName(v.v & 0x3FF) || ('sprite ' + propWordHex(v.v & 0x3FF));
+  return '<div class="saveMaker" id="saveMaker"><h3>Make a Save</h3>' +
+    '<div class="mechLede">' + svEsc('Start a new game with a hero you choose. The save opens here, and the forms on this tab then set the place, the story, the To Do list and what the hero carries.') + '</div>' +
+    '<div class="mkRow"><label class="mkField">Name <input type="text" id="mkName" maxlength="31" value="NewGame01"></label>' +
+    '<label class="mkField">Sprite <select id="mkSprite">' + d.cr.sprites.map((s, i) => '<option value="' + i + '">' + svEsc(spriteName(s)) + '</option>').join('') + '</select></label>' +
+    '<label class="mkField">Portrait <select id="mkPortrait">' + d.portraits.map(r => '<option value="' + r + '"' + (r === d.portrait ? ' selected' : '') + '>' + svEsc(labelFor(r) || propWordHex(r)) + '</option>').join('') + '</select></label></div>' +
+    '<div class="mkRow">' + num('mkBody', 'Body', d.body) + num('mkReflex', 'Reflex', d.reflex) + num('mkMind', 'Mind', d.mind) + num('mkLevel', 'Level', d.level) + '</div>' +
+    '<div class="mkRow"><button class="secondary" onclick="makeSaveFromForm()">Make the Save</button>' +
+    '<span class="mechSub" style="display:inline">' + svEsc('The hero starts with ') + srcNum(d.cr.training) + svEsc(' training points and nutrition ') + srcNum(d.cr.nutrition) + svEsc(', as a new game gives.') + '</span></div></div>';
+}
+function makeSaveFromForm() {
+  const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+  const name = String(val('mkName')).trim() || 'NewGame01';
+  const bytes = newGameSaveBytes({ name, sprite: val('mkSprite'), portrait: parseInt(val('mkPortrait'), 10), body: val('mkBody'), reflex: val('mkReflex'), mind: val('mkMind'), level: val('mkLevel') });
+  if (!bytes) { setStatus('The page could not make a save from this file.', true); return false; }
+  parseArchiveBytes(bytes, name, { via: 'made here' });
+  showCategory('SAVEGAME');
+  setStatus('Made a new game for ' + name + '. To download it, go to Data › Cythera Data › Changes.');
+  return true;
+}
 function applyCharacterRecordEdit(index, fields, rawBytes) {
   const raw = getResourceBytes(ARCHIVE, 0xF009);
   if (!raw) { setStatus('This file has no character table.', true); return false; }

@@ -318,6 +318,8 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     ['tools', "showCategory('TOOLS')"],
     // Data > License, a stub: two short sections, a picker and one link out.
     ['license', "showCategory('LICENSE')"],
+    // Data > Saved Game with the scenario open: Make a Save, under the records.
+    ['saveMaker', "showCategory('SAVEGAME'); document.getElementById('saveMaker').scrollIntoView()"],
     ['dataFork', "showCategory('DATAFORK')"],
     // A script's page: the head, the one row of views and the code, which
     // scrolls sideways inside its pane rather than widening the page.

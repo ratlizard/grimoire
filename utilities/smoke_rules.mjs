@@ -1472,3 +1472,30 @@ try {
   else if (!/not a Cythera License file/.test(ctx.licenseSaidHTML(file.subarray(0, 513)))) fail('license', 'the tab does not refuse a file a byte short');
   else console.log(`  license: its own tab under Data; the name read from a made-up file and its code kept off the page; a file a byte short refused`);
 } catch (e) { fail('license', e); }
+
+/* Make a Save, 7 October 2026: a saved game built from the scenario open
+   here (newGameSaveBytes, buildNewGameSave). That the game takes one is
+   game_check.mjs's; this holds the half that needs no game. The creation
+   script's figures are read, not typed, so each must come with its line;
+   the file must read back as a save with the name given, the eleven
+   resources a new game's has, and the hero with the stats asked for and
+   the sprite of the branch chosen. The control is the other sprite: a
+   builder that ignored the choice would give both files the same hero. */
+try {
+  const cr = ctx.heroCreationRules();
+  const a = ctx.newGameSaveBytes({ name: 'NewGame01', sprite: 0, body: 21, reflex: 14, mind: 9, level: 3 });
+  const b = ctx.newGameSaveBytes({ name: 'NewGame01', sprite: 1 });
+  const info = a ? ctx.describeDelverArchive(new Uint8Array(a)) : null;
+  const spec = a ? ctx.delverArchiveSpec(new Uint8Array(a)) : null;
+  const heroOf = bytes => ctx.parseDelverCharacterRecords(ctx.delverArchiveSpec(new Uint8Array(bytes)).resources.find(r => r.resid === 0xF009).data)[1];
+  const ha = a ? heroOf(a) : null, hb = b ? heroOf(b) : null;
+  ctx.showCategory('SAVEGAME');
+  const sheet = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
+  if (!cr || cr.sprites.length !== 2 || [cr.level, cr.training, cr.nutrition, cr.karma, cr.difficulty].some(v => !v || typeof v.at !== 'number')) fail('make a save', 'the creation script was not read with its lines: ' + JSON.stringify(cr));
+  else if (!a || !b || !info || !info.ok || info.player !== 'NewGame01') fail('make a save', 'the file made does not read back as NewGame01’s save: ' + JSON.stringify(info));
+  else if (spec.resources.length !== 11) fail('make a save', 'the file holds ' + spec.resources.length + ' resources, where a new game’s has eleven');
+  else if (ha.body !== 21 || ha.reflex !== 14 || ha.mind !== 9 || ha.level !== 3 || !ha.health || ha.health !== ha.healthMax || ha.training !== cr.training.v) fail('make a save', 'the hero was not made as asked: ' + JSON.stringify(ha));
+  else if (ha.proptype !== (cr.sprites[0].v & 0x3FF) || hb.proptype !== (cr.sprites[1].v & 0x3FF) || ha.proptype === hb.proptype) fail('make a save', 'the sprite chosen did not reach the hero: ' + ha.proptype + ' and ' + hb.proptype);
+  else if (!/Make a Save/.test(sheet) || !/makeSaveFromForm/.test(sheet)) fail('make a save', 'the Saved Game tab does not offer the maker with a scenario open');
+  else console.log(`  make a save: the creation script read with its lines; a new game for NewGame01 in ${spec.resources.length} resources, body ${ha.body}, level ${ha.level}, health ${ha.health}; the two sprites give two heroes`);
+} catch (e) { fail('make a save', e); }

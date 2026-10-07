@@ -1002,6 +1002,33 @@ function awardNoteOf(line) {
   t = t.split('*')[0].trim();
   return /\s/.test(t) ? t : '';
 }
+/* HOW A NEW HERO IS MADE, read off the script that makes one. The program's
+   CreatePlayer runs the dialog, copies the portrait and then calls the
+   first function of the hero's class, 0x1801, with the dialog's answers;
+   every starting figure is in that function, so the Saved Game sheet's
+   maker reads them here and types none. Each is the first number after
+   the instruction that sets its field, with where it was read. The two
+   sprites are the two branches on the function's second argument, in the
+   order the script has them. Null when the file has no such script. */
+function heroCreationRules() {
+  const e = dvmScriptEntry(0x1801);
+  if (!e) return null;
+  const ops = dvmOpsOf(e), first = ops.length ? ops[0].obj : 0;
+  const mine = ops.filter(o => o.obj === first);
+  const numAfter = (re, from) => {
+    for (let i = from || 0; i < mine.length; i++) {
+      if (!re.test(mine[i].text)) continue;
+      for (let k = i + 1; k < Math.min(mine.length, i + 5); k++) if (DVM_NUM.test(mine[k].text)) return { val: dvmVal(0x1801, mine[k]), i: k };
+      return null;
+    }
+    return null;
+  };
+  const s1 = numAfter(/^set_field aspect_and_proptype\b/), s2 = s1 ? numAfter(/^set_field aspect_and_proptype\b/, s1.i) : null;
+  const one = re => { const r = numAfter(re); return r ? r.val : null; };
+  const out = { sprites: [s1, s2].filter(Boolean).map(s => s.val), level: one(/^set_field level\b/), training: one(/^set_field training\b/),
+                nutrition: one(/^set_field nutrition\b/), karma: one(/^set_global Karma\b/), difficulty: one(/^set_global DifficultyLevel\b/) };
+  return out.sprites.length && out.level && out.training && out.nutrition && out.karma && out.difficulty ? out : null;
+}
 function experienceRules() {
   const idx = buildScriptTextIndex();
   const gain = dvmScriptEntry(0xE8B);

@@ -2070,6 +2070,87 @@ function writeDelverCharacterRecords(records) {
   return out;
 }
 
+/* A SAVED GAME MADE FROM THE SCENARIO, with no save to start from
+   (7 October 2026). A new game's save is eleven resources, and all but the
+   hero follow from the scenario file; what each is was measured against a
+   save the game wrote at a new game, and a file built this way was loaded
+   by the game and saved back (the workbench's GRIMOIRE-NOTES.md, under
+   `grimoire/generator-lqv9eo`, has both).
+
+     0x8100+zone  the hero's zone's list, the scenario's byte for byte
+     0x8200+zone  that zone's map memory, a bit a square, none seen
+     0xF009       the scenario's character records, the hero's rewritten
+     0xF306       the characters' prop list: record i is a first byte and
+                  bytes 1 to 5 of character i's record. 0x1C for record 0,
+                  0x42 for one in the hero's zone, 0xFF for one elsewhere
+     0xF00E       no room entered;  0x0401 no To Do line;  0x0404 no macro
+     0xF307       the script heap, one free block: its length less the
+                  header's eight.  0xF308 no frame
+     0x8800       the portrait chosen, a copy of the scenario's
+     0x0400       Char, then Mons, FXQ and Wind empty, and Grem with every
+                  gremlin cleared (state 2, no frame)
+
+   The other characters are left where the scenario has them. The game
+   places the cast by its schedules when the file loads (126 of them moved
+   in the trial), so placing them here would only be a second opinion.
+
+   Every figure of the game's own is an argument: the hero's fields are the
+   creation script's, read by the page (heroCreationRules), and karma,
+   difficulty, the clock and the day arrive in `o`. What is written in
+   here is structure: the lengths the program gives each segment
+   (save-format.md, *The write map*) and the empty patterns. Returns the
+   file, or null when the scenario lacks a piece. */
+function buildNewGameSave(arc, o) {
+  const seg = rid => { const raw = getResourceBytes(arc, rid); return raw ? smartDecrypt(raw, rid).data : null; };
+  const f9src = seg(0xF009);
+  if (!f9src) return null;
+  const records = parseDelverCharacterRecords(f9src);
+  const hero = records[1];
+  if (!hero) return null;
+  if (o.zone !== undefined) hero.zone = o.zone;
+  if (o.x !== undefined) hero.x = o.x;
+  if (o.y !== undefined) hero.y = o.y;
+  const zone = hero.zone, list = seg(0x8100 + zone), map = seg(0x8000 + zone), portrait = seg(o.portrait);
+  if (!list || !map || !portrait) return null;
+  for (const k of ['proptype', 'aspect', 'body', 'reflex', 'mind', 'xp', 'health', 'healthMax', 'magic', 'magicMax', 'level', 'nutrition', 'training'])
+    if (o[k] !== undefined) hero[k] = o[k];
+  // The two fields the creation script sets beside aspect-and-proptype
+  // (0x24 and 0x25) are bytes 20 and 21, and field 0x20 is byte 29.
+  hero.raw[20] = (((hero.aspect & 0x3F) << 10 | (hero.proptype & 0x3FF)) >> 8) & 0xFF;
+  hero.raw[21] = hero.proptype & 0xFF;
+  if (o.archetype !== undefined) hero.raw[29] = o.archetype & 0xFF;
+  records[0].zone = zone;
+  const f9 = writeDelverCharacterRecords(records);
+  const f6 = new Uint8Array(256 * 16);
+  for (let i = 0; i < 256; i++) {
+    const r = f9.subarray(i * DELV_CHAR_RECORD, i * DELV_CHAR_RECORD + 6);
+    f6[i * 16] = i === 0 ? 0x1C : i > 128 ? 0 : r[0] === zone ? 0x42 : 0xFF;
+    if (r[0] || i === 0) f6.set(r.subarray(1, 6), i * 16 + 1);
+  }
+  const todo = new Uint8Array(2048);
+  for (let i = 0; i < 256; i++) todo.set([0, 0, 0, 0, 0x50, 0, 0xFF, 0xFF], i * 8);
+  const heap = new Uint8Array(262144);
+  heap.set([(heap.length - 8) >>> 24, ((heap.length - 8) >> 16) & 0xFF, ((heap.length - 8) >> 8) & 0xFF, (heap.length - 8) & 0xFF]);
+  const m = parseDelverMap(map);
+  // 0x0400: the Char block is 110 bytes after its tag and length.
+  const g = new Uint8Array(118 + 8 * 3 + 8 + 1024);
+  const tag = (at, t, len) => { for (let i = 0; i < 4; i++) g[at + i] = t.charCodeAt(i); g[at + 4] = len >>> 24; g[at + 5] = (len >> 16) & 0xFF; g[at + 6] = (len >> 8) & 0xFF; g[at + 7] = len & 0xFF; };
+  const s16 = (at, v) => { g[at] = (v >> 8) & 0xFF; g[at + 1] = v & 0xFF; };
+  tag(0, 'Char', 114);
+  s16(8, o.karma); s16(12, o.difficulty); s16(14, o.header4);
+  g[80] = (o.clock >>> 24) & 0xFF; g[81] = (o.clock >> 16) & 0xFF; g[82] = (o.clock >> 8) & 0xFF; g[83] = o.clock & 0xFF;
+  s16(84, o.day);
+  tag(118, 'Mons', 4); tag(126, 'FXQ ', 4); tag(134, 'Wind', 4); tag(142, 'Grem', 1028);
+  for (let i = 0; i < 256; i++) g[150 + i * 4 + 1] = 2;
+  const res = [[0x0400, g], [0x0401, todo], [0x0404, new Uint8Array(20).fill(0xFF)], [0x8100 + zone, list],
+    [0x8200 + zone, new Uint8Array(Math.ceil(m.width / 8) * m.height)], [0x8800, portrait], [0xF009, f9],
+    [0xF00E, new Uint8Array(2048)], [0xF306, f6], [0xF307, heap], [0xF308, new Uint8Array(8192)]];
+  const base = delverArchiveSpec(arc.bytes);
+  return writeDelverArchive({ scenarioTitle: base.scenarioTitle, playerName: String(o.name || '').slice(0, 31),
+    formatMajor: base.formatMajor, formatMinor: base.formatMinor, unknown40: base.unknown40, unknown48: base.unknown48,
+    resources: res.map(([resid, data]) => ({ resid, data, encrypted: false })) });
+}
+
 function writeDelverPropList(records) {
   const out = new Uint8Array(records.length * 16);
   for (let i = 0; i < records.length; i++) {

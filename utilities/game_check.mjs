@@ -40,7 +40,7 @@ import {makeSandbox} from './dom_stub.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
-const [htmlPath, kitArg, binArg, licenceArg] = process.argv.slice(2);
+const [htmlPath, kitArg, binArg, licenceArg, scenarioArg] = process.argv.slice(2);
 const KIT = resolve(ROOT, kitArg || '../playthrough-2026-09-08');
 const BIN = resolve(ROOT, binArg || '../m68k-patched/systemless');
 const LICENCE = resolve(ROOT, licenceArg || 'reference/game/installed-folders/Cythera License (registered).data');
@@ -103,7 +103,7 @@ const after = hero(), propAfter = heroProp();
 if (after.y !== 26 || after.training !== wantTraining || propAfter.y !== 26) fail('the edits did not reach the rebuilt file: ' + JSON.stringify({after, propAfter}));
 
 // ---- one run: seed the store, drive the game, read the file it wrote --------
-function run(label, dataFork) {
+function run(label, dataFork, made) {
   rmSync(join(PLAY, 'game/.systemless'), {recursive: true, force: true});
   cpSync(join(PLAY, 'pristine/.systemless'), join(PLAY, 'game/.systemless'), {recursive: true});
   rmSync(STORE, {recursive: true, force: true}); mkdirSync(STORE, {recursive: true});
@@ -126,6 +126,7 @@ function run(label, dataFork) {
   try {
     const arc = ctx.openDelverArchive(written);
     read = ctx.parseDelverCharacterRecords(ctx.smartDecrypt(ctx.getResourceBytes(arc, 0xF009), 0xF009).data)[1];
+    if (made) return {opened, completed, same, read, rest, log: join(PLAY, label + '.log')};   // a made save has no zone 40 to read a gift from
     const seg = rid => ctx.smartDecrypt(ctx.getResourceBytes(arc, rid), rid).data;
     const q = ctx.saveQuestState(ctx.delverArchiveSpec(written)), rooms = seg(0xF00E), todo = seg(0x0401);
     const given = ctx.parseDelverPropList(seg(0x8128)).filter(r => r.flags === 0x10 && r.carriedBy === 1 && r.proptype === 66 && r.d3 === 0x300).length;
@@ -152,5 +153,30 @@ if (trial.rest && JSON.stringify(trial.rest) !== JSON.stringify(WANT))
   fail('edited: the game did not keep the quest value, flag, room, gift and To Do line: ' + JSON.stringify(trial.rest) + ', wanted ' + JSON.stringify(WANT));
 if (!failures) console.log('  and it kept quest value 5 at 3, flag 77, room 4 entered, the thing given and To Do line 114 in slot 10; the control has none of them');
 if (!failures) console.log(`  the game loaded the edited save and saved it back: hero at (${trial.read.x}, ${trial.read.y}) with ${trial.read.training} training points, from (${before.x}, ${before.y}) and ${before.training}; the unedited seed came back as itself`);
+/* A save the page MADE, from the scenario alone (7 October 2026;
+   buildNewGameSave, js/delv-archive.js). The edited run above starts from
+   a file the game wrote, so it cannot say whether the game takes a file it
+   never wrote a byte of. This one is built with no save open, with stats
+   no new game has, and has to come back from the game's own save with the
+   hero where the scenario stands him and those stats intact. The control
+   is the edited run's: the same store and script, which came back with a
+   different hero, so a run that loaded some other file cannot pass. Skips
+   with a line when the scenario's data fork was not handed over. */
+let madeLine = '';
+if (scenarioArg && existsSync(scenarioArg)) {
+  ctx.parseArchiveBytes(new Uint8Array(readFileSync(scenarioArg)), 'Cythera Data', {via: 'data fork'});
+  const made = ctx.newGameSaveBytes({name: 'Bellerophon', sprite: 0, body: 21, reflex: 14, mind: 9, level: 3});
+  if (!made) fail('made: the page could not make a save from the scenario');
+  else {
+    const want = ctx.parseDelverCharacterRecords(ctx.delverArchiveSpec(made).resources.find(r => r.resid === 0xF009).data)[1];
+    const r = run('made', new Uint8Array(made), true);
+    const got = r.read, keys = ['zone', 'x', 'y', 'proptype', 'body', 'reflex', 'mind', 'level', 'health', 'healthMax', 'training'];
+    if (!r.completed || !r.opened || r.same) fail(`made: the game did not open, run and save the made file (${r.log})`);
+    else if (!got || keys.some(k => got[k] !== want[k])) fail('made: the hero came back changed: ' + JSON.stringify(keys.map(k => [k, want[k], got && got[k]]).filter(t => t[1] !== t[2])));
+    else if (want.body !== 21 || want.level !== 3 || !want.health) fail('made: the file was not made with the stats asked for: ' + JSON.stringify(want));
+    else madeLine = `; and a save made from the scenario alone, hero in zone ${got.zone} at (${got.x}, ${got.y}) with body ${got.body}, level ${got.level}, health ${got.health}`;
+    if (madeLine) console.log('  the game loaded' + madeLine.slice(5) + ', and saved it back');
+  }
+} else console.log('  the made save was not tried: no scenario data fork was handed over');
 console.log(failures ? `\nFAIL — ${failures} problem(s)` : `\ngame: the game accepts a save the page edited; hero moved to (${trial.read.x}, ${trial.read.y}), training ${before.training} to ${trial.read.training}, and the control kept (${control.read.x}, ${control.read.y})`);
 process.exit(failures ? 1 : 0);
