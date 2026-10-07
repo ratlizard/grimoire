@@ -31,7 +31,7 @@
 //
 // WHAT IT CANNOT SEE: whether QuickTime plays what is written. The header
 // match is the nearest thing here; the test that counts is the game playing
-// an imported tune.
+// an imported tune, which the maintainer heard it do on 7 October 2026.
 
 import {readFileSync, existsSync} from 'node:fs';
 import vm from 'node:vm';

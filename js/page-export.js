@@ -1072,8 +1072,9 @@ async function playCurrentTune() {
    file has no word for, and the tune goes into the open file as any other
    edit does (applyResourceEdit), so it plays here through QuickTime's
    instruments at once and leaves by Data, Cythera Data, Changes, as the
-   whole file (a disk image for an emulator among its forms). No copy of
-   the game has been seen to play one. An instrument's name is written when the instrument
+   whole file (a disk image for an emulator among its forms). The
+   maintainer heard the game play an imported tune in a local Infinite Mac
+   on 7 October 2026. An instrument's name is written when the instrument
    set is loaded and left empty when it is not. */
 function midiFilePicked(input) {
   const f = input && input.files && input.files[0];
@@ -1092,7 +1093,7 @@ function midiFilePicked(input) {
       const left = Object.entries(made.dropped).map(([why, n]) => n + ' ' + why).join(', ');
       setStatus('Replaced 0x' + resid.toString(16).toUpperCase() + ' with ' + f.name + ': ' + made.parts.length + (made.parts.length === 1 ? ' part, ' : ' parts, ') +
         made.notes + ' notes, ' + made.seconds.toFixed(1) + ' seconds' + (left ? '. Left out: ' + left : '') +
-        '. It plays here; the game playing it is untested. To download the edited file, go to Data › Cythera Data › Changes.');
+        '. To download the edited file, go to Data › Cythera Data › Changes.');
     } catch (e) {
       setStatus('The page could not make ' + f.name + ' into a tune: ' + e.message + '.', true);
     }
