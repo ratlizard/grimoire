@@ -40,26 +40,43 @@
    without a recording to compare; the kits (16385, the Standard Kit) are in
    the set as asked. `qtToneInstrument` is that rule.
 
-   THE SYNTHESIS IS OURS, HELD TO QUICKTIME'S WHERE THAT IS READ. Read and
-   used: each key range's sample and its own knobs over the instrument's,
-   its transpose, root key, loop and rate; the envelope, as the
-   synthesizer builds it (QT_ENV, below); the part's volume, pan, pitch
-   bend and sustain pedal. Measured, not read: how a note's velocity
-   becomes its level (QT_VELOCITY_POWER). Also the synthesizer's: a note
-   struck again on its part and key cuts the one before, and with no
-   voice free the one furthest gone is taken (QT_VOICES). Not used, and
-   each a place it can differ: the volume and pitch LFOs and the mod wheel
-   that deepens the pitch one (the tunes send it some 3,300 times),
-   exclusion groups, and the output rate and interpolation the Mac used. Reverb is not missing: the synthesizer's
+   THE SYNTHESIS IS OURS, HELD TO QUICKTIME'S WHERE THAT IS READ, which
+   since 6 October 2026 is most of it (the QuickTime Music extension of
+   QuickTime 4, whose PowerPC synthesizer names its routines; the
+   workbench's GRIMOIRE-NOTES.md, under grimoire/qt-instruments-v56peg).
+   From its code: each key range's sample and its own knobs over the
+   instrument's; the volume envelope with its two scalings (QT_ENV); the
+   pitch envelope; the volume and pitch LFOs and the mod wheel that
+   deepens them; the velocity window and sensitivity, the pitch
+   sensitivity, the transpose; the part's volume and expression, its pan
+   or the instrument's own with its key scaling, in the synthesizer's
+   straight pan law; the wheel and the sustain pedal; a re-struck note and
+   an exclusion group cutting what sounds, and the taking of a voice when
+   none is free (QT_VOICES). Measured, not read: how a note's velocity
+   becomes its level (QT_VELOCITY_POWER).
+
+   WHAT IS STILL NOT HERE, each for a reason. Reverb: the synthesizer's
    Reverb setting is off by default, and a voice goes to the reverb bus
    only when it is on and the part's reverb controller is at its
-   threshold or over. Controller 33, aftertouch, which the tunes send some
-   4,300 times, is not among the fourteen the synthesizer takes.
+   threshold or over. Portamento and the part and tune transposes: the
+   synthesizer takes them (controllers 5, 65, 40 and 41) and no shipped
+   tune sends them. The "Overall Volume" knob: no instrument in the set
+   carries it. Envelope 1 and the filter: the set's instruments name no
+   use for either. The output: the synthesizer measures the machine as it
+   starts and picks its rate, its interpolation, mono or stereo and 8 or
+   16 bits (MeasureMusicPerformance, TryConfiguration and
+   SetSynthFeaturesByHardware, by their names; not read), so what a given
+   Mac played at is not in the file; this renders at the rate asked for,
+   interpolating, in stereo. Controller 33, aftertouch, which the tunes
+   send some 4,300 times, is not among the fourteen the synthesizer takes.
 
    Classic script; the page's global scope. */
 
 const QTMS_KNOB = { attack: 1, decay: 2, sustain: 3, keyToDecay: 5, release: 6, transpose: 0x12,
-                    sustainTime: 0x1D, sustainInfinite: 0x1E, logCurves: 0x26, velToAttack: 0x3F };
+                    defaultPan: 0x19, panKeyScaling: 0x1A, exclusionGroup: 0x1C,
+                    sustainTime: 0x1D, sustainInfinite: 0x1E, velocityLow: 0x20, velocityHigh: 0x21,
+                    velocitySensitivity: 0x22, pitchSensitivity: 0x23, logCurves: 0x26,
+                    pitchEnvelope: 0x35, pitchEnvelopeDepth: 0x36, velToAttack: 0x3F };
 /* THE ENVELOPE IS QUICKTIME'S, read on 6 October 2026 from the QuickTime
    Music extension of QuickTime 4 (the Mac OS 9.0 image; resource 'musk',
    PowerPC, its routines' names in its traceback tables; the workbench's
@@ -322,14 +339,14 @@ function qtmaRender(events, tones, lib, opts) {
     return parts[p];
   };
 
-  // Controllers and notes in time order; a note's voice is rendered whole
-  // when it starts, reading the part's controllers as they change under it.
+  // Controllers and notes in time order. A voice takes the part's state
+  // as it starts and follows the wheel and the mod wheel while it sounds.
   const ctlTimeline = {};
   for (const e of events) if (e.k === 'ctl') (ctlTimeline[e.part] = ctlTimeline[e.part] || []).push(e);
   const fixed = v => (v >= 0x8000 ? v - 0x10000 : v) / 256;
   const stateAt = (p, t) => {
-    const s = { volume: 1, pan: 0.5, bend: 0, sustainOffAfter: null };
-    let sustainOn = false, susStart = null;
+    const s = { volume: 1, expression: 1, pan: 0, bend: 0, wheel: 0, sustainOffAfter: null };
+    let sustainOn = false;
     for (const e of ctlTimeline[p] || []) {
       if (e.t > t) {
         if (sustainOn && e.ctl === 64 && fixed(e.val) <= 0) { s.sustainOffAfter = e.t; break; }
@@ -337,15 +354,66 @@ function qtmaRender(events, tones, lib, opts) {
       }
       const v = fixed(e.val);
       if (e.ctl === 7) s.volume = Math.max(0, Math.min(127, v)) / 127;
-      else if (e.ctl === 10) s.pan = e.val === 0 ? 0.5 : Math.max(0, Math.min(1, v - 1));
+      else if (e.ctl === 11) s.expression = Math.max(0, Math.min(127, v)) / 127;
+      else if (e.ctl === 10) s.pan = v;
       else if (e.ctl === 32) s.bend = v;
+      else if (e.ctl === 1) s.wheel = Math.max(0, v);
       else if (e.ctl === 64) sustainOn = v > 0;
     }
     s.sustainOn = sustainOn;
     return s;
   };
-  // Pitch bend changes during a note are followed; the rest are taken at its start.
-  const bendSteps = (p, t0, t1) => (ctlTimeline[p] || []).filter(e => e.ctl === 32 && e.t > t0 && e.t < t1);
+  const liveSteps = (p, t0, t1) => (ctlTimeline[p] || []).filter(e => (e.ctl === 32 || e.ctl === 1) && e.t > t0 && e.t < t1);
+
+  /* An envelope, stepped a frame at a time (QT_ENV has the reading): times
+     in frames, `logs` the stage's bit of Log Curves shifted down to 1
+     attack, 2 decay, 4 sustain, 8 release. */
+  const makeEnv = (attack, decay, susLevel, susTime, forever, release, logs) => {
+    const fall = n => Math.pow(QT_ENV.span, 1 / Math.max(1, n));
+    const decayMul = fall(decay), susMul = fall(susTime), relMul = fall(release);
+    const decayAdd = (susLevel - 1) / Math.max(1, decay), susAdd = -susLevel / Math.max(1, susTime);
+    const atkMul = Math.pow(1 / QT_ENV.span, 1 / Math.max(1, attack));
+    const en = { level: (logs & 1) ? QT_ENV.floor : 0, stage: attack >= 1 ? 1 : 2 };
+    if (en.stage === 2) en.level = 1;
+    let relAdd = 0;
+    en.off = () => { if (en.stage && en.stage !== 4) { en.stage = 4; relAdd = -en.level / Math.max(1, release); } };
+    en.tick = () => {
+      if (en.stage === 1) {
+        en.level = (logs & 1) ? en.level * atkMul : en.level + 1 / attack;
+        if (en.level >= 1) { en.level = 1; en.stage = 2; }
+      } else if (en.stage === 2) {
+        en.level = (logs & 2) ? en.level * decayMul : en.level + decayAdd;
+        if (en.level <= susLevel) { en.level = susLevel; en.stage = 3; }
+      } else if (en.stage === 3) {
+        if (!forever) en.level = (logs & 4) ? en.level * susMul : en.level + susAdd;
+      } else if (en.stage === 4) en.level = (logs & 8) ? en.level * relMul : en.level + relAdd;
+      if (en.level <= QT_ENV.floor && en.stage > 1) { en.level = 0; en.stage = 0; }
+    };
+    return en;
+  };
+  /* An LFO's value `ms` into its note (AdvanceLFO): nothing until its
+     delay, then the shape, from -1 to 1 by where the phase is in its
+     period, times the depth, plus the offset, all scaled up from nothing
+     over the ramp. The shapes, in the synthesizer's order from 1: sine,
+     triangle, rising saw, falling saw, a square of 1 and 0, a square of -1
+     and 1, and a random level held for a period. */
+  const lfoAt = (l, ms, depth) => {
+    if (ms < l.delay || !(l.period > 0)) return 0;
+    const ph = (ms / l.period) % 1;
+    let x;
+    switch (l.shape) {
+      case 1: x = Math.sin(2 * Math.PI * ph); break;
+      case 2: x = ph < 0.5 ? 4 * ph - 1 : 3 - 4 * ph; break;
+      case 3: x = 2 * ph - 1; break;
+      case 4: x = 1 - 2 * ph; break;
+      case 5: x = ph > 0.5 ? 0 : 1; break;
+      case 6: x = ph > 0.5 ? 1 : -1; break;
+      case 7: { const n = Math.floor(ms / l.period) + l.seed; const r = Math.sin(n * 12.9898) * 43758.5453; x = 2 * (r - Math.floor(r)) - 1; break; }
+      default: return 0;
+    }
+    const full = x * depth + l.offset;
+    return l.ramp > 0 && ms - l.delay < l.ramp ? full * (ms - l.delay) / l.ramp : full;
+  };
 
   const maxVoices = opts.voices || QT_VOICES;
   let voices = [], stolen = 0;
@@ -357,102 +425,121 @@ function qtmaRender(events, tones, lib, opts) {
     const region = inst.regions.find(r => e.pitch >= r.low && e.pitch <= r.high)
       || inst.regions.reduce((b, r) => (!b || Math.abs(r.root - e.pitch) < Math.abs(b.root - e.pitch) ? r : b), null);
     if (!region || !region.pcm.length) continue;
+    const k = region.knobs;
+    const knob = (id, dflt) => k[id] === undefined ? dflt : k[id];
+    // A key range answers only the velocities between its two knobs.
+    if (e.vol < knob(QTMS_KNOB.velocityLow, 0) || e.vol > knob(QTMS_KNOB.velocityHigh, 127)) continue;
     const st = stateAt(e.part, e.t);
     let offUnit = e.t + Math.max(e.dur, 1);
     if (st.sustainOn) offUnit = Math.max(offUnit, st.sustainOffAfter == null ? lastUnit : st.sustainOffAfter);
 
-    /* The envelope, as QuickTime's synthesizer builds it (StartNoteKeyrange
-       and SetADSRStuff; the account is over QT_ENV below). The attack's
-       time is the knob's times "Velocity To Attack Time" raised to the
-       velocity over 128, the decay's the knob's times "Key To Decay Time"
-       raised to the key over 128. "Log Curves" says which stages are
-       geometric, a bit each from the attack up. */
-    const k = region.knobs;
-    const knob = (id, dflt) => k[id] === undefined ? dflt : k[id];
-    const transpose = (k[QTMS_KNOB.transpose] || 0) / 256;
-    const attack = knob(QTMS_KNOB.attack, 0) * Math.pow(knob(QTMS_KNOB.velToAttack, 65536) / 65536, e.vol / 128) / 1000 * rate;
-    const decay = knob(QTMS_KNOB.decay, 1000) * Math.pow(knob(QTMS_KNOB.keyToDecay, 65536) / 65536, e.pitch / 128) / 1000 * rate;
-    const susLevel = knob(QTMS_KNOB.sustain, 32768) / 65536;
-    const susTime = knob(QTMS_KNOB.sustainTime, 5000) / 1000 * rate;
-    const susForever = !!knob(QTMS_KNOB.sustainInfinite, 0);
-    const release = knob(QTMS_KNOB.release, 180) / 1000 * rate;
-    const logs = knob(QTMS_KNOB.logCurves, 4);
+    /* The envelopes, as StartNoteKeyrange hands them to SetADSRStuff (the
+       account is over QT_ENV). The volume envelope's attack is the knob's
+       time times "Velocity To Attack Time" raised to the velocity over
+       128, its decay the knob's times "Key To Decay Time" raised to the
+       key over 128. Envelope 2 has knobs of its own and no scaling; it is
+       the pitch envelope where knob 0x35 names it, as every instrument in
+       the set does. */
+    const ms = v => v / 1000 * rate;
+    const env = makeEnv(
+      ms(knob(QTMS_KNOB.attack, 0) * Math.pow(knob(QTMS_KNOB.velToAttack, 65536) / 65536, e.vol / 128)),
+      ms(knob(QTMS_KNOB.decay, 1000) * Math.pow(knob(QTMS_KNOB.keyToDecay, 65536) / 65536, e.pitch / 128)),
+      knob(QTMS_KNOB.sustain, 32768) / 65536, ms(knob(QTMS_KNOB.sustainTime, 5000)), !!knob(QTMS_KNOB.sustainInfinite, 0),
+      ms(knob(QTMS_KNOB.release, 180)), knob(QTMS_KNOB.logCurves, 4));
+    const pitchEnvPick = knob(QTMS_KNOB.pitchEnvelope, 0), pitchEnvDepth = knob(QTMS_KNOB.pitchEnvelopeDepth, 0) / 256;
+    const eb = pitchEnvPick === 1 ? 0x27 : 0x2E;   // envelope 1's knobs begin at 0x27, envelope 2's at 0x2E
+    const penv = (pitchEnvPick === 1 || pitchEnvPick === 2) && pitchEnvDepth
+      ? makeEnv(ms(knob(eb, 0)), ms(knob(eb + 1, 1000)), knob(eb + 2, 32768) / 65536, ms(knob(eb + 3, 5000)), !!knob(eb + 4, 0), ms(knob(eb + 5, 180)), knob(eb + 6, 4))
+      : null;
     const looped = region.loopEnd > region.loopStart;
 
-    const gain = Math.pow((e.vol + 1) / 128, opts.velExp || QT_VELOCITY_POWER) * Math.pow(st.volume, opts.volExp || 1);
-    const pl = Math.cos(st.pan * Math.PI / 2), pr = Math.sin(st.pan * Math.PI / 2);
+    /* How loud (Serve_This_One): the note's level, which is velocity plus
+       one over 128 moved about a half by the velocity sensitivity knob,
+       times the part's volume and its expression, the envelope, and one
+       plus the volume LFO. */
+    const vel = Math.max(0, ((e.vol + 1) / 128 - 0.5) * knob(QTMS_KNOB.velocitySensitivity, 100) / 100 + 0.5);
+    const gain = Math.pow(vel, opts.velExp || QT_VELOCITY_POWER) * Math.pow(st.volume * st.expression, opts.volExp || 1);
+    /* Where (the same routine): the part's pan controller, 1 to 2 in 8.8,
+       or the instrument's "Default Pan Position" when the controller is
+       under 1, moved by the key's distance from middle C times "Key
+       Scaling"; then the right channel is the gain times that position
+       from 0 to 2 and the left the gain times 2 less it, a straight law
+       with both at the gain in the middle. */
+    const panRaw = st.pan >= 1 ? st.pan * 256 : knob(QTMS_KNOB.defaultPan, 384);
+    const pan = Math.max(0, Math.min(2, ((panRaw < 256 || panRaw > 512 ? 384 : panRaw) - 256) / 128 + knob(QTMS_KNOB.panKeyScaling, 0) * (e.pitch - 60) / 8192));
+    const pl = 2 - pan, pr = pan;
     const f0 = Math.round(e.t / ups * rate);
     const offFrame = Math.round(offUnit / ups * rate) - f0;
-    const steps = bendSteps(e.part, e.t, offUnit).map(c => [Math.round(c.t / ups * rate) - f0, fixed(c.val)]);
-    let bend = st.bend, nextStep = 0;
-    const stepFor = b => region.rate / rate * Math.pow(2, (e.pitch - region.root + transpose + b) / 12);
-    let step = stepFor(bend);
+    const steps = liveSteps(e.part, e.t, offUnit).map(c => [Math.round(c.t / ups * rate) - f0, c.ctl, fixed(c.val)]);
+    let bend = st.bend, wheel = st.wheel, nextStep = 0;
+    /* The pitch (Handle_PitchStep): the key, scaled about middle C by the
+       pitch sensitivity knob, plus the transpose knob, the wheel, the pitch
+       LFO and the pitch envelope's level times its depth. The mod wheel
+       adds to each LFO's depth its "from wheel" knob for a full wheel. */
+    const key = 60 + (e.pitch - 60) * knob(QTMS_KNOB.pitchSensitivity, 100) / 100;
+    const transpose = knob(QTMS_KNOB.transpose, 0) / 256;
+    const lfoP = { shape: knob(0x16, 1), delay: knob(0x13, 0), ramp: knob(0x14, 50), period: knob(0x15, 250), offset: knob(0x1B, 0) / 256, seed: f0 };
+    const lfoV = { shape: knob(0x0A, 1), delay: knob(0x07, 20), ramp: knob(0x08, 50), period: knob(0x09, 250), offset: 0, seed: f0 + 7 };
+    const depthP = () => (knob(0x17, 0) + wheel * 256 * knob(0x25, 16) / 32768) / 256;
+    const depthV = () => (knob(0x0B, 0) + wheel * 256 * knob(0x24, 49152) / 32768) / 65536;
+    const base = region.rate / rate;
+    const msPerFrame = 1000 / rate;
 
     const pcm = region.pcm, loopLen = region.loopEnd - region.loopStart + 1;
-    // A geometric stage multiplies by a constant each frame, a straight
-    // one adds a constant; `stage` is 1 attack, 2 decay, 3 sustain,
-    // 4 release, as the synthesizer numbers them, and 0 once it is over.
-    const fall = n => Math.pow(QT_ENV.span, 1 / Math.max(1, n));
-    const decayMul = fall(decay), susMul = fall(susTime), relMul = fall(release);
-    const decayAdd = (susLevel - 1) / Math.max(1, decay), susAdd = -susLevel / Math.max(1, susTime);
-    const atkMul = Math.pow(1 / QT_ENV.span, 1 / Math.max(1, attack));
-    let pos = 0, env = (logs & 1) ? QT_ENV.floor : 0, relAdd = 0, i = 0;
-    const v = { part: e.part, pitch: e.pitch, region, born: f0, stage: attack >= 1 ? 1 : 2 };
-    if (v.stage === 2) env = 1;
+    let pos = 0, i = 0, step = 0, trem = 1;
+    const v = { part: e.part, pitch: e.pitch, region, born: f0, group: knob(QTMS_KNOB.exclusionGroup, 0), stage: env.stage };
+    // The pitch and the tremolo are worked out every 32 frames, under a
+    // millisecond, which is finer than the synthesizer's own step.
+    const control = () => {
+      const t = i * msPerFrame;
+      const semis = key - region.root + transpose + bend + lfoAt(lfoP, t, depthP()) + (penv ? penv.level * pitchEnvDepth : 0);
+      step = base * Math.pow(2, semis / 12);
+      trem = Math.max(0, 1 + lfoAt(lfoV, t, depthV()));
+    };
+    const one = () => {
+      let ip = pos | 0;
+      if (looped && ip > region.loopEnd) { pos -= loopLen * Math.floor((pos - region.loopStart) / loopLen); ip = pos | 0; }
+      if (ip >= pcm.length - 1 && !looped) { v.stage = 0; return; }
+      const frac = pos - ip;
+      const a = pcm[ip], b = ip + 1 < pcm.length ? pcm[ip + 1] : a;
+      const smp = (a + (b - a) * frac) * env.level * gain * trem;
+      left[f0 + i] += smp * pl; right[f0 + i] += smp * pr;
+      pos += step;
+    };
     // Play on to frame `upto` of the tune, or to the voice's end.
     v.run = upto => {
       for (; v.stage && f0 + i < upto; i++) {
-        if (nextStep < steps.length && i >= steps[nextStep][0]) { bend = steps[nextStep++][1]; step = stepFor(bend); }
-        if (i >= offFrame && v.stage !== 4) { v.stage = 4; relAdd = -env / Math.max(1, release); }
-        if (v.stage === 1) {
-          env = (logs & 1) ? env * atkMul : env + 1 / attack;
-          if (env >= 1) { env = 1; v.stage = 2; }
-        } else if (v.stage === 2) {
-          env = (logs & 2) ? env * decayMul : env + decayAdd;
-          if (env <= susLevel) { env = susLevel; v.stage = 3; }
-        } else if (v.stage === 3) {
-          if (!susForever) env = (logs & 4) ? env * susMul : env + susAdd;
-        } else env = (logs & 8) ? env * relMul : env + relAdd;
-        if (env <= QT_ENV.floor && v.stage !== 1) { v.stage = 0; break; }
-        let ip = pos | 0;
-        if (looped && ip > region.loopEnd) { pos -= loopLen * Math.floor((pos - region.loopStart) / loopLen); ip = pos | 0; }
-        if (ip >= pcm.length - 1 && !looped) { v.stage = 0; break; }
-        const frac = pos - ip;
-        const a = pcm[ip], b = ip + 1 < pcm.length ? pcm[ip + 1] : a;
-        const smp = (a + (b - a) * frac) * env * gain;
-        left[f0 + i] += smp * pl; right[f0 + i] += smp * pr;
-        pos += step;
+        let moved = (i & 31) === 0;
+        while (nextStep < steps.length && i >= steps[nextStep][0]) { const c = steps[nextStep++]; if (c[1] === 32) bend = c[2]; else wheel = Math.max(0, c[2]); moved = true; }
+        if (i >= offFrame && env.stage !== 4) { env.off(); if (penv) penv.off(); }
+        env.tick();
+        if (penv) penv.tick();
+        v.stage = env.stage;
+        if (!v.stage) break;
+        if (moved) control();
+        one();
       }
     };
     // Cut short, as the synthesizer's fast release does within one of its
     // steps: a few milliseconds' straight fall, so the cut does not click.
     v.cut = at => {
       v.run(at);
-      const n = Math.min(QT_CUT_FRAMES(rate), frames - at);
-      const from = env;
-      for (let c = 0; v.stage && c < n; c++) { env = from * (1 - (c + 1) / n); v.runOne(); }
+      const n = Math.min(QT_CUT_FRAMES(rate), frames - (f0 + i));
+      const from = env.level;
+      for (let c = 0; v.stage && c < n; c++, i++) { env.level = from * (1 - (c + 1) / n); one(); }
       v.stage = 0;
-    };
-    v.runOne = () => {
-      let ip = pos | 0;
-      if (looped && ip > region.loopEnd) { pos -= loopLen * Math.floor((pos - region.loopStart) / loopLen); ip = pos | 0; }
-      if (ip >= pcm.length - 1 && !looped) { v.stage = 0; return; }
-      if (f0 + i >= frames) { v.stage = 0; return; }
-      const frac = pos - ip;
-      const a = pcm[ip], b = ip + 1 < pcm.length ? pcm[ip + 1] : a;
-      const smp = (a + (b - a) * frac) * env * gain;
-      left[f0 + i] += smp * pl; right[f0 + i] += smp * pr;
-      pos += step; i++;
     };
 
     /* The voices, as StartNoteKeyrange takes one. A note struck again on
-       its part and key while the last still sounds cuts the last. Then a
+       its part and key while the last still sounds cuts the last, and so
+       does a note of the same part in the same exclusion group, which is
+       how a kit's closed hat stops its open one. Then a
        free voice is taken; with none free, the one that scores highest
        goes: one already being cut, then one in its release, then any,
        and the oldest among equals. */
     for (const o of voices) o.run(f0);
     voices = voices.filter(o => o.stage);
-    for (const o of voices) if (o.part === v.part && o.pitch === v.pitch && o.region === v.region) o.cut(f0);
+    for (const o of voices) if (o.part === v.part && ((o.pitch === v.pitch && o.region === v.region) || (v.group && o.group === v.group))) o.cut(f0);
     voices = voices.filter(o => o.stage);
     if (voices.length >= maxVoices) {
       let best = voices[0];

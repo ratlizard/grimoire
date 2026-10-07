@@ -539,7 +539,7 @@ const CHECKS = [
   {page: 'viewer', name: 'quicktime instruments', want: [QT_EXE, DATA],
    cmd: ['utilities/qtmusic_check.mjs', 'index.html', QT_EXE, DATA],
    grep: /QuickTime 3: [^\n]*/,
-   expect: 'QuickTime 3: 21 files unpacked, the controls refused; 235 instruments, 1544 key ranges, every sample found; every part of 11 tunes has an instrument; the theme 98.1 s, TUNE d6dc9436432d'},
+   expect: 'QuickTime 3: 21 files unpacked, the controls refused; 235 instruments, 1544 key ranges, every sample found; every part of 11 tunes has an instrument; the theme 98.1 s, TUNE f04b2a97a124'},
   /* A tune written and a MIDI file made into one (qtmaWrite, midiToQtma),
      held to the shipped tunes: their headers rebuilt byte for byte, and
      each back from its own MIDI file. The harness's header has the rest. */
