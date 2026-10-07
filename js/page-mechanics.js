@@ -2679,12 +2679,16 @@ function compareEdits() {
    works as well as a bare data fork: extractDelverArchive walks BinHex,
    StuffIt and Installer VISE to find the Delver archive inside. That is what
    makes comparing two releases a matter of choosing two files. */
-function compareOpenBytes(bytes, name) {
+/* `opts.pick` names one installer in a file holding several, and
+   `opts.newer` says the other file is the later of the two, so the sides
+   swap: both are compareWithRelease's, below. */
+function compareOpenBytes(bytes, name, opts) {
+  opts = opts || {};
   const note = document.getElementById('compareNote');
   const say = (m, bad) => { if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
   if (!ARCHIVE) { say('No file is open to compare against.', true); return false; }
   let got;
-  try { got = extractDelverArchive(bytes); }
+  try { got = extractDelverArchive(bytes, opts.pick ? { pick: opts.pick } : undefined); }
   catch (e) { say('The page could not open that file: ' + e.message, true); return false; }
   const other = compareSpecOf(got.bytes);
   if (!other) { say('That file is not a Delver Archive.', true); return false; }
@@ -2693,14 +2697,15 @@ function compareOpenBytes(bytes, name) {
      against an open 1.0.4 should read as "what 1.0.4 changed", which is the
      way round a reader expects and the opposite of what naming the open file
      first would give. */
-  window.COMPARE_REPORT = Object.assign(describeDelverDiff(other, mine),
-    { aName: name || 'the other file', bName: window.ARCHIVE_SOURCE_NAME || 'the open file',
-      bSpec: mine, kind: 'files', via: got.via });
+  const otherName = name || 'the other file', mineName = opts.mineName || window.ARCHIVE_SOURCE_NAME || 'the open file';
+  window.COMPARE_REPORT = opts.newer
+    ? Object.assign(describeDelverDiff(mine, other), { aName: mineName, bName: otherName, bSpec: other, kind: 'files', via: got.via })
+    : Object.assign(describeDelverDiff(other, mine), { aName: otherName, bName: mineName, bSpec: mine, kind: 'files', via: got.via });
   // A saved game compared is also held beside the open file for the map's
   // Save mark (drawMapMarks), which draws its records over the scenario's
   // list of the zone shown; a player name at 0x20 is what makes it a save.
   window.SAVE_BESIDE = got.info && got.info.player ? { name: name || 'the save', spec: other, player: got.info.player, quest: saveQuestState(other) } : null;
-  compareApplications(bytes, name);
+  compareApplications(bytes, name, opts);
   say('');
   renderCompareReport();
   return true;
@@ -2710,16 +2715,42 @@ function compareOpenBytes(bytes, name) {
    arrives through the installer route (`loadApplicationFork`), so this is
    only offered when a file has been opened that way; without it the section
    compares the scenario data and says nothing about the program. */
-function compareApplications(bytes, name) {
+function compareApplications(bytes, name, opts) {
+  opts = opts || {};
   window.COMPARE_APP = null;
   if (!window.APP_DATA) return;
-  const other = findApplicationIn(bytes);
+  const other = findApplicationIn(bytes, opts.pick);
   if (!other) return;
   const mine = { data: window.APP_DATA, rsrc: window.APP_RSRC_RAW || null };
-  const d = describeApplicationDiff(other, mine);
+  const d = opts.newer ? describeApplicationDiff(mine, other) : describeApplicationDiff(other, mine);
   if (!d || (!d.routines && !d.fork)) return;
-  window.COMPARE_APP = Object.assign(d, { aName: other.name || name || 'the other application',
-                                          bName: 'the open application', via: other.via });
+  // Two releases' applications share a name, so each is said by its release.
+  const otherName = opts.pick ? 'the ' + name + ' application' : other.name || name || 'the other application';
+  const mineName = opts.mineName ? 'the ' + opts.mineName + ' application' : 'the open application';
+  window.COMPARE_APP = Object.assign(d, opts.newer ? { aName: mineName, bName: otherName, via: other.via }
+                                                   : { aName: otherName, bName: mineName, via: other.via });
+}
+
+/* Another release out of the installer file already open. archive.org's
+   "Cythera installers.sit", which the page opens by default, holds all four
+   releases, so a visitor who has chosen nothing already has both sides of
+   every release comparison, and until 7 October 2026 was asked to find and
+   choose a second file to see one (the maintainer's list of 6 October 2026:
+   "version diff without having to upload new file"). The two are put in
+   release order whichever is open, by the same numeric name order
+   sniffViseInstaller sorts them in, so the report always reads as what the
+   later release changed. Returns what compareOpenBytes does. */
+function compareReleases() {
+  const inst = window.INSTALLER;
+  if (!inst || !inst.raw || !inst.installers || inst.installers.length < 2) return [];
+  return inst.installers.filter(it => it.name !== inst.picked);
+}
+function compareWithRelease(name) {
+  const inst = window.INSTALLER;
+  if (!inst || !inst.raw) return false;
+  const short = n => String(n).replace(/ Installer$/, '');
+  return compareOpenBytes(inst.raw, short(name), { pick: name, mineName: short(inst.picked),
+    newer: String(name).localeCompare(String(inst.picked), undefined, { numeric: true }) > 0 });
 }
 
 function compareForget() { window.COMPARE_REPORT = null; window.COMPARE_APP = null; window.SAVE_BESIDE = null; renderCompareReport(); if (window.MAP_MARKS && window.MAP_MARKS.save) drawMapMarks(); }
@@ -2733,10 +2764,10 @@ function compareForget() { window.COMPARE_REPORT = null; window.COMPARE_APP = nu
    archive, or a plain MacBinary-ish wrapper -- and it returns null rather
    than throwing when there is no application, because most files have none
    and that is not an error. */
-function findApplicationIn(bytes) {
+function findApplicationIn(bytes, release) {
   const pick = list => list.find(e => e.type === 'APPL') || null;
   try {
-    const inst = sniffViseInstaller(bytes);
+    const inst = sniffViseInstaller(bytes, release);
     if (inst) {
       const e = pick(inst.archive.entries);
       if (e) { const g = viseExtract(inst.archive, e);
@@ -4360,6 +4391,25 @@ function renderMechanicsSheet(value) {
     inp.type = 'file'; inp.id = 'compareFile'; inp.accept = '*/*';
     bar.appendChild(inp);
     sec2.appendChild(bar);
+    // The other releases in the installer file open, a button each.
+    const others = compareReleases();
+    if (others.length) {
+      const rel = document.createElement('div');
+      rel.className = 'mechStats'; rel.id = 'compareReleases';
+      const lab = document.createElement('span');
+      lab.className = 'mechSub'; lab.style.display = 'inline';
+      lab.textContent = 'Or compare this release with';
+      rel.appendChild(lab);
+      for (const it of others) {
+        const b = document.createElement('button');
+        b.className = 'secondary';
+        b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+        b.textContent = it.name.replace(/ Installer$/, '');
+        b.onclick = () => compareWithRelease(it.name);
+        rel.appendChild(b);
+      }
+      sec2.appendChild(rel);
+    }
     const n2 = document.createElement('div');
     n2.className = 'mechSub'; n2.id = 'compareNote';
     sec2.appendChild(n2);

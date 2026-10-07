@@ -702,7 +702,31 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       const chips = (REGISTRY.get('sheetGrid').children || []).filter(c => c.className && /installerVersions/.test(c.className));
       if (!chips.length) fail('installer versions', 'no version row drawn for a file with ' + ctx.INSTALLER.installers.length + ' installers');
       const before = peek('ARCHIVE.bytes').length;
+      /* One release against another out of the same file, with no second
+         file chosen (compareWithRelease, 7 October 2026). Three things are
+         held, and the third is the one a reader would be misled by: the
+         report puts the earlier release first whichever of the two is
+         open, so 1.0.1 with 1.0.4 is asked for from both ends and must
+         name its sides alike and count the same changes. The control is
+         1.0.3 with 1.0.4, whose data is the same: a `pick` that did not
+         reach the extractor would compare 1.0.4 with itself for every
+         release and report nothing changed for all three, which only a
+         comparison expected to differ can tell from the truth. */
+      const picked0 = ctx.INSTALLER.picked;
+      const relNames = ctx.compareReleases().map(it => it.name);
+      const sides = () => { const r = peek('window.COMPARE_REPORT'); return r ? [r.aName, r.bName, r.changed.length + r.added.length + r.removed.length] : null; };
+      const from104 = ctx.compareWithRelease('Cythera 1.0.1 Installer') ? sides() : null;
+      const same = ctx.compareWithRelease('Cythera 1.0.3 Installer') ? sides() : null;
       ctx.switchInstaller('Cythera 1.0.1 Installer');
+      const from101 = ctx.compareWithRelease('Cythera 1.0.4 Installer') ? sides() : null;
+      ctx.compareForget();
+      if (picked0 !== 'Cythera 1.0.4 Installer') fail('release comparison', 'the file did not open at 1.0.4: ' + picked0);
+      else if (relNames.length !== ctx.INSTALLER.installers.length - 1 || relNames.includes(picked0)) fail('release comparison', 'the releases offered are ' + JSON.stringify(relNames));
+      else if (!from104 || !from101 || !same) fail('release comparison', 'a comparison was refused: ' + JSON.stringify([from104, same, from101]));
+      else if (from104[0] !== 'Cythera 1.0.1' || from104[1] !== 'Cythera 1.0.4' || JSON.stringify(from104) !== JSON.stringify(from101)) fail('release comparison', '1.0.1 with 1.0.4 reads differently from the two ends: ' + JSON.stringify([from104, from101]));
+      else if (!from104[2]) fail('release comparison', '1.0.1 and 1.0.4 compare as the same, so the release asked for was not the one read');
+      else if (same[2]) fail('release comparison', '1.0.3 and 1.0.4 differ in ' + same[2] + ' resources, where their data is the same');
+      else console.log(`  release comparison: ${relNames.length} other releases offered; 1.0.1 with 1.0.4 is ${from104[2]} resources from either end, earlier first; 1.0.3 with 1.0.4 none`);
       const after = peek('ARCHIVE.bytes').length;
       if (ctx.INSTALLER.picked !== 'Cythera 1.0.1 Installer' || after === before)
         fail('installer versions', `switch to 1.0.1 left ${ctx.INSTALLER.picked} open (${before} -> ${after} bytes)`);
