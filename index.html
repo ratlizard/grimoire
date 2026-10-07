@@ -1649,6 +1649,16 @@ body.atlasFull { overflow:hidden; }
    top, and time -- with the notes on their own line underneath. */
 #charControls { margin-top:12px; display:flex; flex-direction:column; gap:6px;
   align-items:stretch; max-width:720px; margin-left:auto; margin-right:auto; }
+/* The same panel as a sheet over the foot of the screen, opened from the
+   Layers button on the map: fixed, so the map stays where it is above it,
+   and no taller than two fifths of the screen, scrolling inside itself.
+   The stage's 22px padding is where the arrows sit; the button stands just
+   inside the map's corner, clear of them. */
+#mapStage #mapLayersBtn { position:absolute; top:28px; right:28px; z-index:5; width:auto; margin:0;
+  min-height:0 !important; padding:4px 10px !important; font-size:0.75rem; }
+#charControls.asSheet { position:fixed; left:8px; right:8px; bottom:8px; z-index:60; margin:0 auto;
+  max-height:40vh; overflow-y:auto; padding:8px; border-radius:9px;
+  background:#1a1712; border:1px solid #c4a464; box-shadow:0 6px 24px rgba(0,0,0,.6); }
 .mapToggleGroup { display:flex; flex-wrap:wrap; gap:4px 14px; align-items:center;
   justify-content:flex-start; padding:7px 12px; font-size:0.8438rem;
   background:rgba(20,18,14,.72); border:1px solid rgba(155,136,80,.45); border-radius:7px; }
@@ -2217,6 +2227,11 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
     <div id="mapCanvasWrap" style="position:absolute; top:0; left:0; transform-origin:0 0; z-index:1;"></div>
     <div id="mapHover"></div>
   </div>
+<!-- The toggles from the map itself (the maintainer, 7 October 2026: they
+     should be reachable without scrolling off the map). The button lifts
+     #charControls, where it stands under the zoom row, into a sheet along
+     the bottom of the screen, and puts it back. -->
+<button class="secondary" id="mapLayersBtn" onclick="toggleMapLayersSheet()" aria-expanded="false">Layers</button>
 <button class="mapArrowBtn" id="mapArrowUp"    onclick="panMapByArrow(0,-1)"  style="position:absolute; top:2px; left:50%; transform:translateX(-50%);" aria-label="Pan up"><span class="chev up"></span></button>
 <button class="mapArrowBtn" id="mapArrowDown"  onclick="panMapByArrow(0,1)"   style="position:absolute; bottom:2px; left:50%; transform:translateX(-50%);" aria-label="Pan down"><span class="chev down"></span></button>
 <button class="mapArrowBtn" id="mapArrowLeft"  onclick="panMapByArrow(-1,0)"  style="position:absolute; left:0; top:50%; transform:translateY(-50%);" aria-label="Pan left"><span class="chev left"></span></button>
@@ -2507,7 +2522,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.265.0';
+const GRIMOIRE_VERSION = '1.265.1';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);
@@ -2515,6 +2530,17 @@ const GRIMOIRE_VERSION = '1.265.0';
    browser shows its default. Drawn at boot and again by parseArchiveBytes
    once a file has opened. The empty data: icon above keeps the browser from
    asking the server for a favicon.ico that is not there. */
+/* The map's toggles as a sheet, from the Layers button on the map. Left
+   open across zones; closed by the button, and by leaving the map, since
+   stopAllViewActivity hides #mapPreview and a fixed child of a hidden box
+   goes with it. */
+function toggleMapLayersSheet(on) {
+  const c = document.getElementById('charControls'), b = document.getElementById('mapLayersBtn');
+  if (!c) return;
+  const open = on === undefined ? !c.classList.contains('asSheet') : !!on;
+  c.classList.toggle('asSheet', open);
+  if (b) { b.textContent = open ? 'Close Layers' : 'Layers'; b.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+}
 function drawBrand() {
   const b = document.getElementById('brand');
   let tile = '', icon = '';
@@ -2528,7 +2554,7 @@ function drawBrand() {
     }
   } catch (e) { quiet(e, 'the brand tile'); tile = ''; icon = ''; }
   if (b) b.innerHTML = (tile ? '<img class="brandTile" src="' + tile + '" alt="" width="20" height="20"> ' : '') +
-    '<span class="brandName">Grimoire<span class="brandColon">:</span> <span class="brandSub">A Cythera Experiment <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span></span></span>';
+    '<span class="brandName">Grimoire <span class="brandVer">v' + svEsc(GRIMOIRE_VERSION) + '</span><span class="brandColon">:</span> <span class="brandSub">A Cythera Experiment</span></span>';
   const fav = document.getElementById('favicon');
   if (fav && icon) { fav.type = 'image/png'; fav.href = icon; }
 }

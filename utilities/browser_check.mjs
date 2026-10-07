@@ -325,6 +325,9 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     // A zone: the map, its toggles and the square panel (22 September 2026,
     // when the toggles moved up under the map).
     ['zone', "jumpToResource(0x8003); document.getElementById('charControls').scrollIntoView()"],
+    // The same zone with the toggles opened over the map from its Layers
+    // button (7 October 2026), the map at the top of the screen.
+    ['zoneLayers', "jumpToResource(0x8003); toggleMapLayersSheet(true); document.getElementById('mapStage').scrollIntoView()"],
     // The dialogue tab, whose cards carry wide tables.
     ['dialogue', "showCategory('23'); document.querySelector('#sheetGrid details').open = true; document.querySelector('#sheetGrid details').scrollIntoView()"],
     // Data > Patches, at the program's fixes: a list of long titles with
