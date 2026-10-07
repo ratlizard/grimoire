@@ -1263,21 +1263,37 @@ function buildStripSky(resid) {
   time.type = 'range'; time.min = '0'; time.max = String(rules.quarters.v - 1); time.value = String(window.SKY_QUARTER);
   time.setAttribute('aria-label', 'Time');
   const lbl = document.createElement('span');
+  /* The day is a slider (the maintainer, 6 October 2026; it was a number
+     box). Its length is the days the moons take to come round together:
+     a moon moves its speed in quarter hours each day round a day's worth
+     of them, so it is back where it began after the day's quarters over
+     their common divisor with its speed, and the sky repeats at the least
+     common multiple of the moons' counts. Past the end is the start. */
+  const gcd = (p, q) => { while (q) { [p, q] = [q, p % q]; } return Math.abs(p) || 1; };
+  let cycle = 1;
+  for (const mo of rules.moons || []) { const n = rules.quarters.v / gcd(mo.speed.v, rules.quarters.v); cycle = cycle / gcd(cycle, n) * n; }
+  if (!(cycle > 1 && cycle <= 4096)) cycle = 366;
   const day = document.createElement('input');
-  day.type = 'number'; day.min = '0'; day.value = String(window.SKY_DAY); day.style.width = '5em';
+  day.type = 'range'; day.min = '0'; day.max = String(cycle - 1); day.value = String(Math.min(cycle - 1, window.SKY_DAY || 0));
   day.setAttribute('aria-label', 'Day');
+  const dayLbl = document.createElement('span');
   const per = rules.quarters.v / 24;
   const draw = () => {
     window.SKY_QUARTER = +time.value; window.SKY_DAY = Math.max(0, Math.floor(+day.value || 0));
     const h = Math.floor(window.SKY_QUARTER / per), m = Math.round((window.SKY_QUARTER % per) * 60 / per);
     lbl.textContent = h + ':' + String(m).padStart(2, '0');
+    dayLbl.textContent = 'Day ' + window.SKY_DAY;
     paintStripSky(cv, resid, true, rules, window.SKY_DAY, window.SKY_QUARTER);
   };
   time.addEventListener('input', draw);
   day.addEventListener('input', draw);
-  const dl = document.createElement('span'); dl.textContent = 'Day';
-  row.appendChild(time); row.appendChild(lbl); row.appendChild(dl); row.appendChild(day);
+  row.appendChild(time); row.appendChild(lbl);
   wrap.appendChild(row);
+  const row2 = document.createElement('div');
+  row2.className = 'zoomrow';
+  dayLbl.style.minWidth = '4.5em';
+  row2.appendChild(day); row2.appendChild(dayLbl);
+  wrap.appendChild(row2);
   const say = document.createElement('div');
   say.className = 'sv-note';
   const hh = v => Math.floor(v.v / (1 << rules.hourUnit.v)) + ':00';

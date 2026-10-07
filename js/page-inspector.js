@@ -669,7 +669,11 @@ function buildContainerView(rec, contents) {
     const goesToItem = isInventoryItem(o.proptype);
     chip.onclick = (ev) => {
       ev.stopPropagation();
-      if (goesToItem) showItemDetail(o.proptype); else showPropTypeDetail(o.proptype);
+      // Through the item's own tab. Called bare, the page was drawn into the
+      // sheet where it stood, which on the World tab is hidden behind the
+      // map, so a click on a thing in a chest there did nothing to see (the
+      // maintainer, 6 October 2026).
+      if (goesToItem) openItem(o.proptype, o.aspect); else openPropType(o.proptype);
     };
     items.appendChild(chip);
   }

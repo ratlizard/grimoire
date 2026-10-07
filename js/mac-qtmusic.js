@@ -45,7 +45,7 @@
    the knobs describe and no further. Read and used: each key range's sample
    and its own knobs over the instrument's, its transpose,
    root key, loop, rate; attack, decay to the sustain level, release; note
-   velocity; the part's volume, pan, pitch bend and sustain pedal. Not used,
+   velocity, squared (QT_VELOCITY_POWER); the part's volume, pan, pitch bend and sustain pedal. Not used,
    and each a place it can differ from the original: the decay's key scaling,
    the volume and pitch LFOs and the mod wheel that deepens them, the
    velocity curve knobs, exclusion groups, reverb, polyphony limits, and the
@@ -57,6 +57,20 @@
    Classic script; the page's global scope. */
 
 const QTMS_KNOB = { attack: 1, decay: 2, sustain: 3, release: 6, transpose: 0x12 };
+/* How a note's velocity becomes its level: the square of velocity over 127.
+   It was the plain ratio until 6 October 2026, when the maintainer found
+   the instruments' relative volume wrong. No instrument in the set carries
+   an overall volume knob (0x0C) or a velocity curve (0x0D to 0x11), so the
+   curve is the synthesizer's own and unread; it was measured instead.
+   Each of the eleven tunes was rendered with the exponent at 1, 1.5, 2,
+   2.5 and 3 and held to the soundtrack's "(Classic)" recording of it: the
+   square is nearer than the ratio on all eleven by the spectrum, the
+   onsets and the loudness contour, and best or level with best of the
+   five. The same test of the part volume's curve, of the attack's shape
+   and of how deep the decay falls moved nothing either way, so those stay
+   as they were (opts.volExp, opts.attackPow and opts.floorDb are that
+   test's handles, and the workbench's tools/qtma-fit/ is the test). */
+const QT_VELOCITY_POWER = 2;
 
 /* The resource fork of a QuickTime extension. A Mac file's is its own; a
    Windows .qtx is a small PE image with the fork after its last section. */
@@ -244,7 +258,9 @@ function qtmaRender(events, tones, lib, opts) {
   opts = opts || {};
   const rate = opts.rate || 44100, ups = opts.unitsPerSecond || 600;
   const tail = 2;   // seconds after the last note for releases to ring out
-  const lastUnit = events.reduce((m, e) => Math.max(m, e.t + (e.dur || 0)), 0);
+  // opts.lastUnit and opts.raw are for rendering one part of a tune on its
+  // own, as long as the whole and at the level it has in the whole.
+  const lastUnit = opts.lastUnit || events.reduce((m, e) => Math.max(m, e.t + (e.dur || 0)), 0);
   const frames = Math.ceil((lastUnit / ups + tail) * rate);
   const left = new Float32Array(frames), right = new Float32Array(frames);
 
@@ -285,7 +301,7 @@ function qtmaRender(events, tones, lib, opts) {
   const bendSteps = (p, t0, t1) => (ctlTimeline[p] || []).filter(e => e.ctl === 32 && e.t > t0 && e.t < t1);
 
   const dbToGain = db => Math.pow(10, db / 20);
-  const FLOOR_DB = -72;
+  const FLOOR_DB = opts.floorDb || -72;
   for (const e of events) {
     if (e.k !== 'note' || e.vol === 0) continue;
     const part = partOf(e.part);
@@ -308,7 +324,7 @@ function qtmaRender(events, tones, lib, opts) {
     const release = Math.max(1, (k[QTMS_KNOB.release] || 0) / 1000 * rate);
     const looped = region.loopEnd > region.loopStart;
 
-    const gain = (e.vol / 127) * st.volume;
+    const gain = Math.pow(e.vol / 127, opts.velExp || QT_VELOCITY_POWER) * Math.pow(st.volume, opts.volExp || 1);
     const pl = Math.cos(st.pan * Math.PI / 2), pr = Math.sin(st.pan * Math.PI / 2);
     const f0 = Math.round(e.t / ups * rate);
     const offFrame = kit ? Infinity : Math.round(offUnit / ups * rate) - f0;
@@ -331,7 +347,7 @@ function qtmaRender(events, tones, lib, opts) {
         if (!releasing) { releasing = true; relLeft = Math.ceil(release); }
         if (relLeft-- <= 0) break;
         env *= relMul;
-      } else if (i < attack) env = i / attack;
+      } else if (i < attack) env = opts.attackPow ? Math.pow(i / attack, opts.attackPow) : i / attack;
       else if (i < attack + decay) env = i < attack + 1 ? 1 : env * decayMul;
       else env = held;
       if (env <= 0 && i >= attack) break;
@@ -348,7 +364,7 @@ function qtmaRender(events, tones, lib, opts) {
 
   let peak = 0;
   for (let i = 0; i < frames; i++) peak = Math.max(peak, Math.abs(left[i]), Math.abs(right[i]));
-  if (peak > 0) { const g = 0.95 / peak; for (let i = 0; i < frames; i++) { left[i] *= g; right[i] *= g; } }
+  if (peak > 0 && !opts.raw) { const g = 0.95 / peak; for (let i = 0; i < frames; i++) { left[i] *= g; right[i] *= g; } }
   return { left, right, rate, missing };
 }
 
