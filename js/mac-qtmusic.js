@@ -474,6 +474,267 @@ function qtmaRender(events, tones, lib, opts) {
   return { left, right, rate, missing, stolen };
 }
 
+/* ===========================================================================
+   A TUNE WRITTEN, and a MIDI file made into one (6 October 2026).
+
+   The page has read QTMA tunes since it began (qParseTune, js/page-export.js)
+   and never written one. This is the other direction, from Apple's
+   QuickTimeMusic.h: every event below is built the way its qtma_Stuff*
+   macros build it.
+
+   WHAT A TUNE RESOURCE IS. A 'musi' sample description, { long size, 'musi',
+   six zero bytes, short 1, long flags }, whose remaining bytes are the tune
+   header: for each part a MIDI channel event (general event 8, one long),
+   a used-notes event (general event 11, four longs, a bit a key from the
+   top bit of the first long down), and a note request (general event 1, a
+   NoteRequestInfo of eight bytes and a ToneDescription of 76: the
+   synthesizer's type and name, the instrument's name, its number and its
+   General MIDI number), then an end marker. After the description comes
+   the sequence: a tempo marker, then rests, notes and controllers, and an
+   end marker. The shipped tunes also carry beat markers and "tune
+   difference" events, which hold the controllers' state for a player that
+   starts part way in; a player that starts at the start needs neither, and
+   they are not written.
+
+   WHAT IS TAKEN FROM THE TUNE BEING REPLACED, since nothing here should
+   know Cythera's files by heart: the sample description's flags, the
+   NoteRequestInfo and the synthesizer's type and name. A part's instrument
+   name is the instrument library's when the page has it and empty
+   otherwise; QuickTime finds an instrument by its number.
+
+   WHAT A MIDI FILE BECOMES. Times go through the file's tempo map to the
+   tune's units, 600 a second in Cythera (QTMA_UNITS_PER_SECOND). Each
+   channel and program that sounds a note is a part, at most 32, the count
+   a short event's part field holds. A program is General MIDI number
+   program + 1; channel 10 is the kit, instrument 16385. Controllers 1, 7,
+   10, 11, 64 and 91, the pitch wheel and channel pressure become QuickTime's
+   (8.8 fixed; pan 1 to 2; the wheel in semitones at the range the file
+   sets, two by default). Everything else is counted and left out, and the
+   count is returned so the page can say so.
+
+   utilities/midi_import_check.mjs holds this to the shipped tunes: each
+   one's header rebuilt from what was read out of it is the shipped header
+   byte for byte, and each tune made into MIDI and back has its notes and
+   controllers where they were. */
+function qtmaWords(longs) {
+  const out = new Uint8Array(longs.length * 4);
+  for (let i = 0; i < longs.length; i++) { const w = longs[i] >>> 0; out[i * 4] = w >>> 24; out[i * 4 + 1] = (w >>> 16) & 255; out[i * 4 + 2] = (w >>> 8) & 255; out[i * 4 + 3] = w & 255; }
+  return out;
+}
+// A general event: its length in longs at both ends, its subtype in the last.
+function qtmaGeneral(part, subtype, bodyLongs) {
+  const n = bodyLongs.length + 2;
+  return [((0xF << 28) | (part << 16) | n) >>> 0, ...bodyLongs, ((3 << 30) | (subtype << 16) | n) >>> 0];
+}
+/* What a tune's header says of each part, and the description's flags: the
+   reading the writer is checked against, and where an import takes what it
+   does not make up. */
+function qtmaHeaderParts(data) {
+  const size = u32be(data, 0);
+  if (fourcc(data, 4) !== 'musi' || size > data.length) throw new Error('not a QTMA tune');
+  const parts = {};
+  let o = 20;
+  while (o + 4 <= size) {
+    const x = u32be(data, o);
+    if ((x >>> 28) !== 0xF) break;
+    const n = x & 0xFFFF, part = (x >>> 16) & 0xFFF, sub = (u32be(data, o + 4 * (n - 1)) >>> 16) & 0x3FFF;
+    const body = data.subarray(o + 4, o + 4 * (n - 1));
+    const p = parts[part] || (parts[part] = { part });
+    if (sub === 8) p.channel = u32be(body, 0);
+    else if (sub === 11) p.used = [0, 1, 2, 3].map(k => u32be(body, 4 * k));
+    else if (sub === 1 && body.length >= 84) {
+      p.info = body.slice(0, 8);
+      p.synthType = body.slice(8, 12);
+      p.synthName = body.slice(12, 44);
+      p.instName = body.slice(44, 76);
+      p.instrument = u32be(body, 76) | 0;
+      p.gm = u32be(body, 80) | 0;
+    }
+    o += 4 * n;
+  }
+  return { flags: u32be(data, 16), parts: Object.values(parts).sort((a, b) => a.part - b.part), size };
+}
+// A Pascal string in a field of 32 bytes, as the ToneDescription holds two.
+function qtmaStr31(text) {
+  const out = new Uint8Array(32);
+  const t = String(text || '').slice(0, 31);
+  out[0] = t.length;
+  for (let i = 0; i < t.length; i++) out[1 + i] = t.charCodeAt(i) & 0xFF;
+  return out;
+}
+/* A tune from its parts and its events. `parts` are qtmaHeaderParts's shape
+   (channel, info, synthType, synthName, instName, instrument, gm; `used` is
+   worked out from the notes); `events` are qParseTune's, times and lengths
+   in the tune's units. */
+function qtmaWrite(parts, events, opts) {
+  opts = opts || {};
+  const longsOf = bytes => { const l = []; for (let i = 0; i < bytes.length; i += 4) l.push(u32be(bytes, i)); return l; };
+  const header = [];
+  for (const p of parts) {
+    const used = [0, 0, 0, 0];
+    for (const e of events) if (e.k === 'note' && e.part === p.part && e.pitch >= 0 && e.pitch < 128) used[e.pitch >> 5] = (used[e.pitch >> 5] | (0x80000000 >>> (e.pitch & 31))) >>> 0;
+    const req = new Uint8Array(84);
+    req.set(p.info, 0); req.set(p.synthType, 8); req.set(p.synthName, 12); req.set(p.instName, 44);
+    req.set(qtmaWords([p.instrument, p.gm]), 76);
+    header.push(...qtmaGeneral(p.part, 8, [p.channel >>> 0]), ...qtmaGeneral(p.part, 11, used), ...qtmaGeneral(p.part, 1, longsOf(req)));
+  }
+  header.push(QTMA.EndMarkerValue, 0);   // the shipped headers end with the marker and a zero long
+  const seq = [((QTMA.MarkerEventType << 29) | (2 << 16)) >>> 0];   // the tempo marker the shipped tunes open with
+  let now = 0;
+  const order = events.map((e, i) => [e, i]).sort((a, b) => a[0].t - b[0].t || a[1] - b[1]).map(x => x[0]);
+  for (const e of order) {
+    let rest = e.t - now;
+    while (rest > 0) { const r = Math.min(rest, 0xFFFFFF); seq.push(r >>> 0); rest -= r; }
+    now = e.t;
+    if (e.k === 'note') {
+      const dur = Math.max(1, e.dur | 0), vol = Math.max(1, Math.min(127, e.vol | 0));
+      if (e.part < 32 && e.pitch >= 32 && e.pitch < 96 && dur < 2048)
+        seq.push(((QTMA.NoteEventType << 29) | (e.part << 24) | ((e.pitch - 32) << 18) | (vol << 11) | dur) >>> 0);
+      else
+        seq.push(((QTMA.XNoteEventType << 28) | (e.part << 16) | (e.pitch & 0xFFFF)) >>> 0,
+                 ((2 << 30) | (vol << 22) | Math.min(dur, 0x3FFFFF)) >>> 0);
+    } else if (e.k === 'ctl') {
+      seq.push(((QTMA.ControlEventType << 29) | (e.part << 24) | ((e.ctl & 0xFF) << 16) | (e.val & 0xFFFF)) >>> 0);
+    }
+  }
+  seq.push(QTMA.EndMarkerValue);
+  const size = 20 + header.length * 4;
+  const out = new Uint8Array(size + seq.length * 4);
+  out.set(qtmaWords([size]), 0);
+  out.set([0x6D, 0x75, 0x73, 0x69], 4);                 // 'musi'
+  out.set([0, 0, 0, 0, 0, 0, 0, 1], 8);                 // reserved, data reference 1
+  out.set(qtmaWords([opts.flags === undefined ? 1 : opts.flags]), 16);
+  out.set(qtmaWords(header), 20);
+  out.set(qtmaWords(seq), size);
+  return out;
+}
+
+/* A Standard MIDI File read: every channel event with its time in seconds,
+   through the file's own tempo map. Formats 0 and 1; a file in SMPTE time
+   is refused by name. */
+function midiRead(bytes) {
+  if (fourcc(bytes, 0) !== 'MThd') throw new Error('not a MIDI file: it does not begin MThd');
+  const format = u16be(bytes, 8), ntrk = u16be(bytes, 10), division = u16be(bytes, 12);
+  if (format > 1) throw new Error('a format ' + format + ' MIDI file, where the page reads 0 and 1');
+  if (division & 0x8000) throw new Error('a MIDI file timed in SMPTE frames, where the page reads beats');
+  const raw = [], tempos = [];
+  let o = 8 + u32be(bytes, 4), order = 0;
+  for (let t = 0; t < ntrk && o + 8 <= bytes.length; t++) {
+    const len = u32be(bytes, o + 4), end = Math.min(bytes.length, o + 8 + len);
+    if (fourcc(bytes, o) !== 'MTrk') { o = end; continue; }
+    let p = o + 8, tick = 0, status = 0;
+    const vlq = () => { let v = 0, b; do { if (p >= end) throw new Error('a MIDI track ends inside a number'); b = bytes[p++]; v = v * 128 + (b & 0x7F); } while (b & 0x80); return v; };
+    while (p < end) {
+      tick += vlq();
+      let b = bytes[p];
+      if (b === 0xFF) {
+        const type = bytes[p + 1]; p += 2;
+        const n = vlq();
+        if (type === 0x51 && n >= 3) tempos.push({ tick, us: (bytes[p] << 16) | (bytes[p + 1] << 8) | bytes[p + 2], order: order++ });
+        p += n;
+        if (type === 0x2F) break;
+        continue;
+      }
+      if (b === 0xF0 || b === 0xF7) { p++; const n = vlq(); p += n; continue; }
+      if (b & 0x80) { status = b; p++; }
+      if (!(status & 0x80)) throw new Error('a MIDI track has data before any status byte');
+      const kind = status & 0xF0, ch = status & 0x0F;
+      const d1 = bytes[p++], d2 = (kind === 0xC0 || kind === 0xD0) ? 0 : bytes[p++];
+      raw.push({ tick, kind, ch, d1, d2, track: t, order: order++ });
+    }
+    o = end;
+  }
+  tempos.sort((a, b) => a.tick - b.tick || a.order - b.order);
+  // Seconds at a tick: the tempo changes before it, each for its stretch.
+  const marks = [{ tick: 0, sec: 0, us: 500000 }];
+  for (const t of tempos) {
+    const m = marks[marks.length - 1];
+    const sec = m.sec + (t.tick - m.tick) * m.us / 1e6 / division;
+    if (t.tick === m.tick) m.us = t.us; else marks.push({ tick: t.tick, sec, us: t.us });
+  }
+  const secAt = tick => { let m = marks[0]; for (const k of marks) { if (k.tick <= tick) m = k; else break; } return m.sec + (tick - m.tick) * m.us / 1e6 / division; };
+  raw.sort((a, b) => a.tick - b.tick || a.order - b.order);
+  for (const e of raw) e.sec = secAt(e.tick);
+  return { format, division, events: raw, tempos: marks };
+}
+
+/* A MIDI file as a tune. opts.like is the tune being replaced (bytes), for
+   the fields a tune carries that a MIDI file has no word for; opts.name is
+   a function from an instrument number to its name, or absent;
+   opts.unitsPerSecond the tune's clock. Returns { data, parts, notes,
+   controllers, seconds, dropped }, dropped a count by reason. */
+function midiToQtma(midiBytes, opts) {
+  opts = opts || {};
+  const ups = opts.unitsPerSecond || QTMA_UNITS_PER_SECOND;
+  const like = opts.like ? qtmaHeaderParts(opts.like) : null;
+  const model = like && like.parts.find(p => p.info) || null;
+  if (!model) throw new Error('a tune to take the synthesizer’s name from is needed, and none was given');
+  const midi = midiRead(midiBytes);
+  const dropped = {};
+  const drop = why => { dropped[why] = (dropped[why] || 0) + 1; };
+  const unit = sec => Math.round(sec * ups);
+  const partOf = new Map(), parts = [], events = [];
+  const chan = Array.from({ length: 16 }, () => ({ program: 0, bendRange: 2, rpn: [127, 127], ctl: {}, part: null }));
+  const partFor = (ch, c) => {
+    const kit = ch === 9, key = kit ? 'kit' : ch + ':' + c.program;
+    if (partOf.has(key)) return partOf.get(key);
+    if (parts.length >= 32) { partOf.set(key, null); return null; }
+    const instrument = kit ? 16385 : c.program + 1;
+    const p = { part: parts.length, channel: parts.length + 1, info: model.info, synthType: model.synthType, synthName: model.synthName,
+                instName: qtmaStr31(opts.name ? opts.name(instrument) : ''), instrument, gm: kit ? 0 : c.program + 1, midiChannel: ch };
+    parts.push(p);
+    partOf.set(key, p);
+    return p;
+  };
+  // A controller reaches the part its channel is sounding; one sent before
+  // the channel's first note is kept and sent as the part begins.
+  const sendCtl = (c, t, ctl, val) => {
+    c.ctl[ctl] = val;
+    if (c.part) events.push({ t, k: 'ctl', part: c.part.part, ctl, val: val & 0xFFFF });
+  };
+  const held = new Map();
+  for (const e of midi.events) {
+    const c = chan[e.ch], t = unit(e.sec);
+    if (e.kind === 0x90 && e.d2 > 0) {
+      const p = partFor(e.ch, c);
+      if (!p) { drop('notes on a 33rd part or later'); continue; }
+      if (c.part !== p) { c.part = p; for (const k in c.ctl) events.push({ t, k: 'ctl', part: p.part, ctl: +k, val: c.ctl[k] & 0xFFFF }); }
+      const key = e.ch + ':' + e.d1;
+      if (!held.has(key)) held.set(key, []);
+      const note = { t, k: 'note', part: p.part, pitch: e.d1, vol: e.d2, dur: 0 };
+      held.get(key).push(note);
+      events.push(note);
+    } else if (e.kind === 0x80 || e.kind === 0x90) {
+      const list = held.get(e.ch + ':' + e.d1);
+      const note = list && list.shift();
+      if (note) note.dur = Math.max(1, t - note.t); else drop('note-offs with no note on');
+    } else if (e.kind === 0xC0) {
+      c.program = e.d1;
+    } else if (e.kind === 0xE0) {
+      const semis = ((e.d1 | (e.d2 << 7)) - 8192) / 8192 * c.bendRange;
+      sendCtl(c, t, QTC.PitchBend, Math.max(-32768, Math.min(32767, Math.round(semis * 256))));
+    } else if (e.kind === 0xD0) {
+      sendCtl(c, t, QTC.AfterTouch, e.d1 << 8);
+    } else if (e.kind === 0xB0) {
+      if (e.d1 === 101) c.rpn[0] = e.d2;
+      else if (e.d1 === 100) c.rpn[1] = e.d2;
+      else if (e.d1 === 6 && c.rpn[0] === 0 && c.rpn[1] === 0) c.bendRange = e.d2;
+      else if (e.d1 === 1 || e.d1 === 7 || e.d1 === 11 || e.d1 === 91) sendCtl(c, t, e.d1, e.d2 << 8);
+      else if (e.d1 === 10) sendCtl(c, t, QTC.Pan, Math.round((1 + e.d2 / 127) * 256));
+      else if (e.d1 === 64) sendCtl(c, t, QTC.Sustain, e.d2 >= 64 ? 0x7F00 : 0);   // on is 127.0 in the shipped tunes
+      else drop('controller ' + e.d1);
+    } else drop(e.kind === 0xA0 ? 'key pressure' : 'other events');
+  }
+  // A note the file never ends is ended with the file.
+  const last = midi.events.length ? unit(midi.events[midi.events.length - 1].sec) : 0;
+  for (const list of held.values()) for (const note of list) { note.dur = Math.max(1, last - note.t); drop('notes never ended, ended with the file'); }
+  if (!parts.length) throw new Error('the MIDI file sounds no note');
+  const data = qtmaWrite(parts, events, { flags: like.flags });
+  const total = events.reduce((m, e) => Math.max(m, e.t + (e.dur || 0)), 0);
+  return { data, parts, notes: events.filter(e => e.k === 'note').length, controllers: events.filter(e => e.k === 'ctl').length,
+           seconds: total / ups, dropped };
+}
+
 /* 16-bit stereo WAV bytes from qtmaRender's result. */
 function qtmaWav(r) {
   const n = r.left.length;

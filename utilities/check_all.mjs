@@ -255,7 +255,7 @@ const CHECKS = [
    grep: /css: [^\n]*/},
   {page: 'viewer', name: 'decoder snapshot', want: [DATA],
    cmd: ['utilities/decoder_snapshot.mjs', 'index.html', DATA], grep: /SNAPSHOT \w+/,
-   expect: 'SNAPSHOT 5c63d0cebd5e3195'},
+   expect: 'SNAPSHOT 8843a9f3d2aeb2be'},
   // Synthetic on purpose: none of Cythera's twenty-one PICTs uses the
   // uncompressed 1-bit opcodes, so no snapshot over the game's resources can
   // notice this path breaking. The viewer opens any resource fork, not only
@@ -540,6 +540,13 @@ const CHECKS = [
    cmd: ['utilities/qtmusic_check.mjs', 'index.html', QT_EXE, DATA],
    grep: /QuickTime 3: [^\n]*/,
    expect: 'QuickTime 3: 21 files unpacked, the controls refused; 235 instruments, 1544 key ranges, every sample found; every part of 11 tunes has an instrument; the theme 98.1 s, TUNE d6dc9436432d'},
+  /* A tune written and a MIDI file made into one (qtmaWrite, midiToQtma),
+     held to the shipped tunes: their headers rebuilt byte for byte, and
+     each back from its own MIDI file. The harness's header has the rest. */
+  {page: 'viewer', name: 'midi import', want: [DATA],
+   cmd: ['utilities/midi_import_check.mjs', 'index.html', DATA],
+   grep: /midi import: [^\n]*/,
+   expect: 'midi import: 11 shipped headers rebuilt byte for byte; 13401 notes and 7835 controllers back from MIDI where they were (a controller\'s value within 89 of 65536); the controls caught'},
   {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
    grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT a43e9aac1a08'},   // a DATA and a LINF description out of the passive ("has not been worked out"), 2 October 2026; only those two types moved

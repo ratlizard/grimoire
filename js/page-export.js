@@ -862,7 +862,7 @@ function qVlq(n){
   for (let i=0;i<out.length-1;i++) out[i] |= 0x80;
   return out;
 }
-function qBuildMidi(events, noteRequests, ticksPerBeat, tempoUs){
+function qBuildMidi(events, noteRequests, ticksPerBeat, tempoUs, kits){
   ticksPerBeat = ticksPerBeat || 480;
   tempoUs = tempoUs || 500000;
   // The events' times are in units of 1/QTMA_UNITS_PER_SECOND; the name
@@ -874,14 +874,21 @@ function qBuildMidi(events, noteRequests, ticksPerBeat, tempoUs){
   const parts = [...partSet].sort((a,b)=>a-b);
   const chanOf = {};
   let nextCh = 0;
+  // A part that asks for a drum kit (instrument 16385 and up) is channel 10,
+  // which is what makes it a kit to whatever plays the file. Until
+  // 6 October 2026 the kit was given the next melodic channel and a program
+  // from its General MIDI number, so an exported tune's drums were a tuned
+  // instrument playing the drum keys; found making a tune back from its
+  // own MIDI file (utilities/midi_import_check.mjs).
   parts.forEach(p => {
+    if (kits && kits.has(p)) { chanOf[p] = 9; return; }
     while (nextCh === 9) nextCh++;      // keep ch10 free for real drums
     if (nextCh > 15) nextCh = 15;
     chanOf[p] = nextCh++;
   });
   const abs = [];
   Object.keys(noteRequests).sort((a,b)=>a-b).forEach(p => {
-    const ch = chanOf[p]; if (ch === undefined) return;
+    const ch = chanOf[p]; if (ch === undefined || ch === 9) return;
     const gm = noteRequests[p];
     const prog = Math.max(0, Math.min(127, gm >= 1 ? gm-1 : 0));
     abs.push([0,0,[0xC0|ch, prog]]);
@@ -954,7 +961,9 @@ function qtmaToMidi(data){
   const hdr = qParseTune(toWords(8, musiLen));
   const seq = qParseTune(toWords(musiLen, data.length));
   const noteRequests = Object.assign({}, hdr.noteRequests, seq.noteRequests);
-  const built = qBuildMidi(seq.events, noteRequests);
+  const tones0 = Object.assign({}, hdr.tones, seq.tones);
+  const kits = new Set(Object.keys(tones0).filter(p => tones0[p].instrument >= 16384).map(Number));
+  const built = qBuildMidi(seq.events, noteRequests, undefined, undefined, kits);
   const notes = seq.events.filter(e=>e.k==='note');
   // To the last note's end, not its start, in the tune's own units.
   const total = seq.events.length ? Math.max(...seq.events.map(e => e.t + (e.dur || 0))) : 0;
@@ -1056,6 +1065,40 @@ async function playCurrentTune() {
   } catch (e) {
     setStatus('Could not play the tune: ' + e.message, true);
   }
+}
+/* A MIDI file in a tune's place (the maintainer, 6 October 2026: "importing
+   MIDI to be playable as QTMA"). The file is made into a tune by midiToQtma
+   (js/mac-qtmusic.js), which takes from the tune being replaced what a MIDI
+   file has no word for, and the tune goes into the open file as any other
+   edit does (applyResourceEdit), so it plays here through QuickTime's
+   instruments at once and leaves by Data, Cythera Data, Changes, as the
+   whole file (a disk image for an emulator among its forms). No copy of
+   the game has been seen to play one. An instrument's name is written when the instrument
+   set is loaded and left empty when it is not. */
+function midiFilePicked(input) {
+  const f = input && input.files && input.files[0];
+  if (!f) return;
+  const resid = currentResid;
+  const reader = new FileReader();
+  reader.onload = () => {
+    input.value = '';
+    try {
+      const like = getResourceBytes(ARCHIVE, resid);
+      const made = midiToQtma(new Uint8Array(reader.result), {
+        like, unitsPerSecond: QTMA_UNITS_PER_SECOND,
+        name: QT_LIB ? (n => { try { return QT_LIB.has(n) ? QT_LIB.get(n).name : ''; } catch (e) { quiet(e); return ''; } }) : null });
+      if (!applyResourceEdit(resid, made.data)) return;
+      jumpToResource(resid);
+      const left = Object.entries(made.dropped).map(([why, n]) => n + ' ' + why).join(', ');
+      setStatus('Replaced 0x' + resid.toString(16).toUpperCase() + ' with ' + f.name + ': ' + made.parts.length + (made.parts.length === 1 ? ' part, ' : ' parts, ') +
+        made.notes + ' notes, ' + made.seconds.toFixed(1) + ' seconds' + (left ? '. Left out: ' + left : '') +
+        '. It plays here; the game playing it is untested. To download the edited file, go to Data › Cythera Data › Changes.');
+    } catch (e) {
+      setStatus('The page could not make ' + f.name + ' into a tune: ' + e.message + '.', true);
+    }
+  };
+  reader.onerror = () => setStatus('The page could not read ' + f.name + '.', true);
+  reader.readAsArrayBuffer(f);
 }
 function qtInstrumentsPicked(input) {
   const f = input.files && input.files[0];

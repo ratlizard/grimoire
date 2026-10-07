@@ -2581,6 +2581,8 @@ function renderText(sameResource) {
     const qtPlayBtn = document.getElementById('qtPlayBtn');
     if (midiBtn) midiBtn.style.display = 'none';
     if (qtPlayBtn) qtPlayBtn.style.display = 'none';
+    const midiInBtn = document.getElementById('midiInBtn');
+    if (midiInBtn) midiInBtn.style.display = 'none';
     const qtPickBtn = document.getElementById('qtPickBtn');
     if (qtPickBtn) qtPickBtn.style.display = 'none';
     if (subn === 143) {
@@ -2600,6 +2602,7 @@ function renderText(sameResource) {
                 "shipped, fetched from archive.org (7 MB) the first time.\n\n";
         if (midiBtn) midiBtn.style.display = '';
         if (qtPlayBtn) qtPlayBtn.style.display = '';
+        if (midiInBtn) midiInBtn.style.display = '';
       } catch(e) {
         head += "(could not decode as a QTMA tune: " + e.message + ")\n\n";
       }
