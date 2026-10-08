@@ -961,7 +961,7 @@ function showRsrcDetail(type, id) {
     for (let i = 0; i < pat.tiles.length; i++) {
       const t = pat.tiles[i];
       const nm = terrainNameFor(t) || compositeTileName(t) || '';
-      rows.push('<tr><td style="color:#b5b2a8;padding:1px 8px">' + i + '</td>' +
+      rows.push('<tr><td style="color:#f0ede4;padding:1px 8px">' + i + '</td>' +
         '<td style="font-family:ui-monospace,Menlo,monospace;padding:1px 8px">0x' +
         t.toString(16).toUpperCase().padStart(4, '0') + '</td>' +
         '<td style="padding:1px 8px">' + svEsc(nm) + '</td></tr>');
@@ -1272,7 +1272,7 @@ function showMacRsrcDetail(type, id, source) {
       box.appendChild(cv);
       if (a.tag) {
         const t = document.createElement('div');
-        t.style.cssText = 'font-size:0.75rem;color:#b5b2a8;margin-top:4px';
+        t.style.cssText = 'font-size:0.75rem;color:#f0ede4;margin-top:4px';
         t.textContent = a.tag;
         box.appendChild(t);
       }
@@ -1511,7 +1511,7 @@ function showCharacterDetail(i) {
   info.style.cssText = 'font-size:0.875rem;line-height:1.7';
   info.innerHTML =
     '<div style="font-size:1.1875rem;color:#fff;margin-bottom:6px">' + d.name +
-      ' <span style="font-size:0.75rem;color:#b5b2a8">character ' +
+      ' <span style="font-size:0.75rem;color:#f0ede4">character ' +
       srcNum(cSrc(0, 'the whole record'), String(i)) + '</span></div>' +
     // A zero in this table nearly always means "no value recorded", not
     // "zero of it" -- printing "XP 0 Training 0 Magic 0/0" for a farmhand
@@ -1575,11 +1575,11 @@ function showCharacterDetail(i) {
         return '<div style="font-size:0.8125rem">' + srcNum(sSrc(0, 'the hour'), ampm.padStart(5)) + ', ' + e.where +
                ' (' + srcNum(sSrc(5, 'the packed level, x and y'), String(e.x)) + ', ' +
                srcNum(sSrc(5, 'the packed level, x and y'), String(e.y)) + ')' +
-               ' <span style="color:#8c8980">behavior ' + srcNum(sSrc(1, 'the mode'), String(e.mode)) +
+               ' <span style="color:#dcd8cc">behavior ' + srcNum(sSrc(1, 'the mode'), String(e.mode)) +
                (behaviourWordHTML(e.mode) ? ', ' + behaviourWordHTML(e.mode) : '') + '</span></div>';
       }).join('');
   } else {
-    sh.innerHTML = '<div style="color:#8c8980;font-size:0.8125rem">No schedule entries; this character stands in a map\u2019s prop list rather than moving by the clock.</div>';
+    sh.innerHTML = '<div style="color:#dcd8cc;font-size:0.8125rem">No schedule entries; this character stands in a map\u2019s prop list rather than moving by the clock.</div>';
   }
   // Jump to where this character currently stands.
   if (r.zone) {
@@ -1609,7 +1609,7 @@ function heroPortraitCard() {
   card.style.cssText = 'font-size:0.8125rem;line-height:1.7;margin:0 0 12px';
   const isSave = (window.ARCHIVE_FINDER || {}).type === 'DelP';
   const pc = (typeof exePortraitChoice === 'function') ? exePortraitChoice() : null;
-  const head = '<b style="color:#b5b2a8">Portrait</b> ';
+  const head = '<b style="color:#f0ede4">Portrait</b> ';
   if (!pc) {
     card.innerHTML = head + (isSave
       ? 'The portrait above is this file\u2019s 0x8800, chosen when you made the character. '

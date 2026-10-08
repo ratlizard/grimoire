@@ -2120,6 +2120,23 @@ function buildNewGameSave(arc, o) {
   hero.raw[21] = hero.proptype & 0xFF;
   if (o.archetype !== undefined) hero.raw[29] = o.archetype & 0xFF;
   records[0].zone = zone;
+  /* Companions (8 October 2026): `party` is [{ index, x, y }]. Each is
+     stood in the hero's zone and given what a party member's record has
+     and the scenario's has not, measured on the three companions of a
+     player's save of 2001 against their shipped records: the bits of
+     byte 8 the hero's own record carries (0xC0, of which 0x40 is "in the
+     party"), behaviour 1 at byte 22, which is the follower's
+     (behaviours.md), and the hero's alignment at byte 25. Their other
+     differences in that save are wear: experience, level, what they
+     hold. A real save also has a Mons entry apiece; the game makes one
+     when it loads a file without (the run in game_check.mjs). */
+  for (const c of o.party || []) {
+    const r = records[c.index];
+    if (!r || c.index < 2 || !delverCharacterInUse(r)) return null;
+    r.zone = zone; r.x = c.x; r.y = c.y;
+    r.state = (r.state | hero.state) & 0xFF;
+    r.raw[22] = 1; r.raw[25] = hero.raw[25];
+  }
   const f9 = writeDelverCharacterRecords(records);
   const f6 = new Uint8Array(256 * 16);
   for (let i = 0; i < 256; i++) {
@@ -2142,6 +2159,9 @@ function buildNewGameSave(arc, o) {
   s16(84, o.day);
   tag(118, 'Mons', 4); tag(126, 'FXQ ', 4); tag(134, 'Wind', 4); tag(142, 'Grem', 1028);
   for (let i = 0; i < 256; i++) g[150 + i * 4 + 1] = 2;
+  // The story so far: `values` is { n: v } over the 32 quest values, a byte
+  // each from +16 of the Char block (save-format.md).
+  for (const [n, v] of Object.entries(o.values || {})) if (+n >= 0 && +n < 32) g[16 + +n] = v & 0xFF;
   const res = [[0x0400, g], [0x0401, todo], [0x0404, new Uint8Array(20).fill(0xFF)], [0x8100 + zone, list],
     [0x8200 + zone, new Uint8Array(Math.ceil(m.width / 8) * m.height)], [0x8800, portrait], [0xF009, f9],
     [0xF00E, new Uint8Array(2048)], [0xF306, f6], [0xF307, heap], [0xF308, new Uint8Array(8192)]];

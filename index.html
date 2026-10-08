@@ -341,7 +341,7 @@ pre { max-height:52vh !important; overflow:auto; }
    face at caption size, grey, and no box. It sat in a black monospace slab
    at 18px, which read as a debugger's readout at the foot of every view. */
 #output { background:none !important; border:0 !important; padding:8px 2px 0; margin:6px 0 0; max-height:none !important;
-  font-family:var(--face-text); font-size:0.75rem; line-height:1.45; color:#b5b2a8; text-align:center; white-space:pre-wrap; }
+  font-family:var(--face-text); font-size:0.75rem; line-height:1.45; color:#f0ede4; text-align:center; white-space:pre-wrap; }
 #textContent { max-height:56vh !important; }
 
 /* The map canvas is deliberately larger than the viewport (it pans/zooms),
@@ -369,21 +369,21 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .dlgWrap { background:var(--panel); border:1px solid var(--edge); border-radius:8px;
   padding:12px 14px; margin-bottom:12px; max-height:52vh; overflow:auto; }
 .dlgLine { margin:0 0 10px; line-height:1.55; color:#fff; overflow-wrap:anywhere; }
-.dlgOff { color:#b5b2a8; font-family:ui-monospace,Menlo,Consolas,monospace;
+.dlgOff { color:#f0ede4; font-family:ui-monospace,Menlo,Consolas,monospace;
   font-size:.78em; margin-right:8px; }
 .dlgKw { color:#fff; font-weight:700; }
-.dlgSep { color:#b5b2a8; }
+.dlgSep { color:#f0ede4; }
 
 /* The conversation view: topics extracted from the script's own
    conversation_response chain, not from the string sweep. */
-.convHead { color:#b5b2a8; font-size:.85em; margin:0 0 10px; }
+.convHead { color:#f0ede4; font-size:.85em; margin:0 0 10px; }
 .convHead .sv-chip { font-size:.9em; }
 .convCard { border-top:1px solid rgba(155,136,80,.35); padding:8px 0 4px; }
 .convCard.convHit { background:rgba(249,248,111,.08); }
 .convKw { display:inline-block; font-family:ui-monospace,Menlo,Consolas,monospace;
   color:#fff; border:1px solid rgba(155,136,80,.5); border-radius:10px;
   padding:0 8px; margin:0 6px 4px 0; font-size:.85em; }
-.convBadge { display:inline-block; color:#b5b2a8; font-size:.78em;
+.convBadge { display:inline-block; color:#f0ede4; font-size:.78em;
   border:1px dashed rgba(155,136,80,.5); border-radius:10px;
   padding:0 7px; margin:0 6px 4px 0; }
 .convSub { margin-left:18px; border-left:1px solid rgba(155,136,80,.3);
@@ -394,11 +394,11 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    what the game stores and matches; a character's portrait and opening line
    at the head; a heading where the topics of a group they answer as begin. */
 .convAsk { display:inline-block; color:#fff; font-weight:700; letter-spacing:.5px; margin:0 6px 4px 0; }
-.convAlso { display:inline-block; color:#b5b2a8; font-size:.8em; margin:0 6px 4px 0; }
+.convAlso { display:inline-block; color:#f0ede4; font-size:.8em; margin:0 6px 4px 0; }
 .convWho { display:flex; gap:12px; align-items:flex-start; margin:0 0 12px; }
 .convWho b { color:#fff; }
 .convFace { width:64px; height:64px; flex:none; image-rendering:pixelated; border:1px solid var(--edge); border-radius:3px; }
-.convAs { color:#b5b2a8; margin:14px 0 4px; padding-top:8px; border-top:2px solid rgba(155,136,80,.55); }
+.convAs { color:#f0ede4; margin:14px 0 4px; padding-top:8px; border-top:2px solid rgba(155,136,80,.55); }
 
 /* Zoom crops inside a fixed viewport instead of stretching the page, so the
    slider stays put instead of being shoved down the screen as you zoom in. */
@@ -460,11 +460,11 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    something was special about the name without ever saying what; a two-letter
    tag says it outright and still fits on one line of a gallery caption. */
 .guessTag, .nameOffTag { display:inline-block; margin-left:5px; padding:0 5px; border-radius:8px;
-  border:1px solid #6a5f3e; background:#241f17; color:#b5b2a8;
+  border:1px solid #6a5f3e; background:#241f17; color:#f0ede4;
   font-family:system-ui, sans-serif; font-size:0.5625rem; font-weight:600; letter-spacing:.6px;
   text-transform:uppercase; vertical-align:2px; }
 .nameOffTag { border-style:dashed; opacity:.7; text-transform:none; letter-spacing:0; font-weight:400; }
-#labelLegend { font-size:0.75rem; color:#b5b2a8; margin:4px 0 2px; text-align:center; }
+#labelLegend { font-size:0.75rem; color:#f0ede4; margin:4px 0 2px; text-align:center; }
 /* ---- The folder tabs ---------------------------------------------------
    Three rows of manila tabs, nested: Entities / Components / Data on top, what
    each holds below it, and a third row where a branch goes deeper. Each row
@@ -485,17 +485,17 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 #tabShell { margin:6px 0 10px; }
 /* The site's name and version, at the top between the two fixed buttons. */
 #topBar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 4px; position:relative; }
-#brand { flex:1 1 auto; text-align:left; margin:0; font-size:0.8125rem; letter-spacing:.04em; color:#b5b2a8; min-width:0; white-space:nowrap; }
+#brand { flex:1 1 auto; text-align:left; margin:0; font-size:0.8125rem; letter-spacing:.04em; color:#f0ede4; min-width:0; white-space:nowrap; }
 #brand .brandName { color:#fff; font-size:1.0625rem; font-weight:600; }
 #brand .brandVer { font-weight:400; }
 #brand .brandTile { width:20px; height:20px; image-rendering:pixelated; vertical-align:-4px; margin-right:2px; }
-#brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; letter-spacing:.04em; color:#8c8980; }
+#brand .brandVer { font-family:ui-monospace,Menlo,monospace; font-size:0.6875rem; letter-spacing:.04em; color:#dcd8cc; }
 /* The name is four words since 2 October 2026 and ran under the links on a
    phone, so the subtitle and the version take a second line; on a desktop
    too since 3 October 2026, at the maintainer's word, so the two agree. */
 #brand { line-height:1.2; }
 #brand .brandColon { display:none; }
-#brand .brandSub { display:block; font-size:0.8125rem; font-weight:400; color:#b5b2a8; margin-top:2px; }
+#brand .brandSub { display:block; font-size:0.8125rem; font-weight:400; color:#f0ede4; margin-top:2px; }
 /* The row scrolls sideways, so it clips: a tab cannot paint below the row's
    own edge, and an open tab hanging a pixel over the folder was clipped to
    nothing, which on a fractional device-pixel ratio left the folder's top
@@ -613,8 +613,8 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
    note grey on its own line. The two were one grey line once the capitals
    went (v1.30.0), and read as one sentence. */
 .propHead .groupTitle { display:block; color:#fff; font-size:0.9375rem; font-weight:600; }
-.propHead .groupNote { display:block; color:#8c8980; font-size:0.75rem; font-weight:400; margin-top:1px; }
-/* What the open section holds. It was #8c8980 at 0.75rem, which on the
+.propHead .groupNote { display:block; color:#dcd8cc; font-size:0.75rem; font-weight:400; margin-top:1px; }
+/* What the open section holds. It was #dcd8cc at 0.75rem, which on the
    purple of the sheet could not be read (the maintainer, 23 September 2026):
    text worth printing is text to read, so it is white at reading size. */
 #navSubNote { text-align:center; color:#fff; font-size:0.875rem; margin:0 auto 10px; max-width:64ch; line-height:1.45; }
@@ -652,8 +652,8 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 /* A chip that is a span is a name, not a link, and wears white. */
 span.navChip { color:#fff; }
 #propFilterWrap { margin:8px 0 2px; }
-#filterNote { font-size:0.75rem; color:#b5b2a8; min-height:15px; padding:2px 2px 0; }
-.propHead { grid-column:1/-1; text-align:left; color:#b5b2a8; font-size:0.6875rem;
+#filterNote { font-size:0.75rem; color:#f0ede4; min-height:15px; padding:2px 2px 0; }
+.propHead { grid-column:1/-1; text-align:left; color:#f0ede4; font-size:0.6875rem;
   letter-spacing:0; margin:12px 0 2px;
   border-bottom:1px solid var(--edge); padding-bottom:4px; }
 .cell.propCell { height:150px; justify-content:flex-start; }
@@ -681,7 +681,7 @@ span.navChip { color:#fff; }
   font-family:var(--face); font-size:1.125rem; line-height:1.35; }
 #searchBox::-webkit-search-decoration, #propFilter::-webkit-search-decoration { -webkit-appearance:none; }
 #searchBox::placeholder, #propFilter::placeholder {
-  color:#8c8980; font-size:0.9375rem; font-style:italic; -webkit-text-fill-color:#8c8980; }
+  color:#dcd8cc; font-size:0.9375rem; font-style:italic; -webkit-text-fill-color:#dcd8cc; }
 #searchResults { margin-top:10px; text-align:left; max-height:56vh; overflow:auto; }
 .sr-item { border-top:1px solid var(--edge); padding:9px 0; }
 .sr-lines { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:0.6875rem;
@@ -747,7 +747,7 @@ pre.pane { background:#090806; color:#fff; padding:12px; overflow:auto; max-heig
 .dlgEdit:hover { opacity:1; }
 .ridLink { color: var(--gold, #d9b64a); text-decoration: underline dotted; cursor: pointer; }
 .dswitch { display:flex; align-items:center; gap:6px; padding:7px 10px; font-size:0.6875rem;
-  color:#8c8980; background:#141210; border:1px solid var(--edge); border-top:0; }
+  color:#dcd8cc; background:#141210; border:1px solid var(--edge); border-top:0; }
 .dswitch button.dsw { background:none; border:1px solid var(--edge); box-shadow:none;
   clip-path:none; border-radius:12px; padding:3px 11px; min-height:0; width:auto; margin:0;
   font-size:0.6875rem; color:var(--gold); opacity:.72; text-shadow:none; font-weight:400; letter-spacing:0; }
@@ -765,15 +765,15 @@ pre.pane { background:#090806; color:#fff; padding:12px; overflow:auto; max-heig
 .readFn { margin:0 0 14px; }
 .readHead { color:#fff; font-weight:700; margin:0 0 4px; }
 .readProse { color:#fff; margin:0 0 10px; }
-.readSum { color:#b5b2a8; font-size:.85em; margin:0 0 6px; }
+.readSum { color:#f0ede4; font-size:.85em; margin:0 0 6px; }
 .readList { margin:0; padding-left:18px; }
 .readList li { color:#fff; margin:2px 0; line-height:1.45; overflow-wrap:anywhere; }
-.readAt { color:#8c8980; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.75em; margin-right:6px; }
+.readAt { color:#dcd8cc; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.75em; margin-right:6px; }
 a.reflink { color:var(--gold); text-decoration:underline; cursor:pointer; }
-span.refnote { color:#b5b2a8; font-style:italic; }
+span.refnote { color:#f0ede4; font-style:italic; }
 b.refname { color:#fff; font-weight:600; }
 span.refdead { color:#e07a5f; }
-span.refself { color:#8c8980; }
+span.refself { color:#dcd8cc; }
 /* Loading a custom archive is a rare, expert action, so it reads as a quiet
    text link -- until the default archive fails to load, at which point it is
    the only way forward and gets promoted to a full button (see .urgent). */
@@ -809,14 +809,14 @@ button.linky:hover { color:var(--gold); filter:none; }
 .sv-why { font-size:0.875rem; line-height:1.55; color:#fff; margin:0 0 12px; }
 .sv-facts { display:grid; gap:8px; margin-bottom:12px; }
 .sv-facts > div { background:#141210; border:1px solid var(--edge); border-radius:6px; padding:8px 10px; font-size:0.8125rem; line-height:1.5; color:#fff; }
-.sv-facts b { display:block; font-size:0.6875rem; letter-spacing:0; color:#b5b2a8; margin-bottom:2px; font-weight:600; }
+.sv-facts b { display:block; font-size:0.6875rem; letter-spacing:0; color:#f0ede4; margin-bottom:2px; font-weight:600; }
 details.sv { margin:0 0 12px; border:1px solid var(--edge); border-radius:6px; background:#141210; }
 details.sv > summary { cursor:pointer; padding:9px 12px; font-size:0.8125rem; color:var(--gold); list-style:none; }
 details.sv > summary::-webkit-details-marker { display:none; }
-details.sv > summary::before { content:'\25B8 '; color:#b5b2a8; }
+details.sv > summary::before { content:'\25B8 '; color:#f0ede4; }
 details.sv[open] > summary::before { content:'\25BE '; }
 .sv-block { margin-bottom:14px; }
-.sv-block h4 { margin:0 0 7px; font-size:0.75rem; letter-spacing:0; color:#b5b2a8; font-weight:600; }
+.sv-block h4 { margin:0 0 7px; font-size:0.75rem; letter-spacing:0; color:#f0ede4; font-weight:600; }
 .sv-chips { display:flex; flex-wrap:wrap; gap:3px 14px; }
 /* A chip was a pill: a box, a border, a monospace face. Since 9 September
    2026 it is a link -- gold text, no box, the face of the text around it,
@@ -837,7 +837,7 @@ details.sv[open] > summary::before { content:'\25BE '; }
 .sv-chip em { font-style:normal; color:var(--gold); opacity:.72; font-size:0.9em; }
 .sv-warn { font-size:0.8125rem; line-height:1.55; color:#d8c98e; background:#1a1610;
            border-left:3px solid var(--gold); padding:9px 11px; border-radius:0 4px 4px 0; }
-.sv-note { font-size:0.75rem; color:#b5b2a8; margin-top:5px; }
+.sv-note { font-size:0.75rem; color:#f0ede4; margin-top:5px; }
 /* A link in running text or a table cell: gold, no box, no icon, the size
    of the text around it, with a quiet note after it. The chips carry an
    icon and a hex and a pill, which is right for a strip of six under
@@ -865,7 +865,7 @@ details.itemFold[open] > summary.mechHead { margin-bottom:8px; }
 .foldTitle { color:#fff; font-size:0.8125rem; font-weight:600; }
 .foldGist { color:var(--gold); opacity:.72; font-size:0.7188rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 details.itemFold > summary:hover .foldTitle { color:var(--gold); }
-.foldAll { display:flex; gap:12px; justify-content:flex-end; margin:6px 0 0; font-size:0.7188rem; color:#8c8980; }
+.foldAll { display:flex; gap:12px; justify-content:flex-end; margin:6px 0 0; font-size:0.7188rem; color:#dcd8cc; }
 /* The prop word on an item's page (v1.33.0): the sixteen bits, the readout,
    the aspect rail and the two data bytes. The aspect cells are outlined and
    the class cells filled so the two fields read as two; a set bit is white,
@@ -874,33 +874,33 @@ details.itemFold > summary:hover .foldTitle { color:var(--gold); }
    change if the strip does not fit. */
 .pwBits { --pwb:22px; display:flex; gap:2px; overflow-x:auto; padding-bottom:2px; }
 .pwBit { width:var(--pwb); height:28px; flex:none; display:grid; place-items:center; font-family:ui-monospace,Menlo,Consolas,monospace;
-  font-size:0.8125rem; border:1px solid #33302a; background:#1c1913; color:#8c8980; }
+  font-size:0.8125rem; border:1px solid #33302a; background:#1c1913; color:#dcd8cc; }
 .pwBit.on { color:#fff; }
-.pwBit.pwAsp { border-color:#b5b2a8; }
+.pwBit.pwAsp { border-color:#f0ede4; }
 .pwBit.pwAsp.on { background:#2b2620; }
 .pwBit.pwCls.on { background:#33302a; }
 .pwBit.pwSpare { border-style:dashed; }
 .pwGap { width:6px; flex:none; }
-.pwKeys { --pwb:22px; display:flex; gap:2px; font-size:0.625rem; color:#8c8980; margin:2px 0 8px; white-space:nowrap; }
+.pwKeys { --pwb:22px; display:flex; gap:2px; font-size:0.625rem; color:#dcd8cc; margin:2px 0 8px; white-space:nowrap; }
 .pwKeys span { flex:none; }
-.pwRead { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; margin:0 0 6px; color:#b5b2a8; font-size:0.75rem; }
+.pwRead { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; margin:0 0 6px; color:#f0ede4; font-size:0.75rem; }
 .pwRead b { color:#fff; font-size:1.375rem; font-family:ui-monospace,Menlo,Consolas,monospace; font-weight:600; }
 .pwRail { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:3px; margin:8px 0 4px; }
 .pwSlot { background:#1c1913 !important; background-image:none !important; border:1px solid #33302a !important; border-radius:4px !important;
-  color:#b5b2a8 !important; padding:3px 2px 4px !important; min-height:0 !important; width:auto; margin:0; display:flex; flex-direction:column;
+  color:#f0ede4 !important; padding:3px 2px 4px !important; min-height:0 !important; width:auto; margin:0; display:flex; flex-direction:column;
   align-items:center; gap:2px; min-width:0; font-family:inherit; font-size:0.625rem !important; letter-spacing:0; font-weight:400 !important;
   clip-path:none !important; box-shadow:none !important; text-shadow:none !important; cursor:pointer; text-decoration:none !important; }
 .pwSlot::before, .pwSlot::after { display:none !important; }
 .pwSlot:hover { border-color:var(--gold) !important; color:var(--gold) !important; text-decoration:none !important; }
 .pwSlot.pwOn { border-color:var(--gold) !important; color:var(--gold) !important; background:#26211a !important; }
-.pwSlot.pwHome { box-shadow:inset 0 2px 0 #b5b2a8 !important; }
+.pwSlot.pwHome { box-shadow:inset 0 2px 0 #f0ede4 !important; }
 .pwSlot.pwEdge { margin-left:3px; }
 .pwSlot .pwN { color:var(--gold); opacity:.72; font-family:ui-monospace,Menlo,Consolas,monospace; }
 .pwSlot.pwOn .pwN { opacity:1; }
 .pwSlot .pwArt { width:24px; height:24px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
 .pwSlot .pwArt canvas { width:20px !important; height:20px !important; image-rendering:pixelated; margin:0 !important; }
 .pwSlot .pwT { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.2; color:var(--gold); }
-.pwData { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin:4px 0 6px; font-size:0.75rem; color:#b5b2a8; }
+.pwData { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin:4px 0 6px; font-size:0.75rem; color:#f0ede4; }
 .pwData label { display:inline-flex; align-items:center; gap:6px; }
 .pwData input { width:64px; font:inherit; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:0.875rem; color:#fff; background:#1c1913;
   border:1px solid #33302a; border-radius:4px; padding:3px 6px; }
@@ -911,7 +911,7 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
 /* The map legend's swatches, in the colour of the chip they sit in. */
 .legendSwatch { display:inline-block; vertical-align:-1px; margin-right:5px; }
 /* The party bar's state colours, one palette index each (Status Effects). */
-.stateSwatch { display:inline-block; width:12px; height:12px; vertical-align:-1px; border:1px solid #8c8980; }
+.stateSwatch { display:inline-block; width:12px; height:12px; vertical-align:-1px; border:1px solid #dcd8cc; }
 .legendSwatch.box { width:9px; height:9px; box-sizing:border-box; border:1.5px solid currentColor; }
 .legendSwatch.line { width:14px; height:0; border-top:2px solid currentColor; vertical-align:3px; }
 
@@ -947,17 +947,17 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
 .forkTable, .changesView { grid-column:1/-1; text-align:left; font-size:0.8125rem; }
 .tableScroll { grid-column:1/-1; overflow-x:auto; max-width:100%; }
 .forkTable { border-collapse:collapse; width:100%; min-width:520px; }
-.forkTable th { text-align:left; color:#b5b2a8; font-size:0.6875rem; 
+.forkTable th { text-align:left; color:#f0ede4; font-size:0.6875rem; 
   letter-spacing:1.2px; padding:4px 6px; border-bottom:1px solid var(--edge); }
 .forkTable td { padding:4px 6px; border-bottom:1px solid rgba(155,136,80,.25); vertical-align:middle; }
 /* A save's every byte (saveByteMapHTML): a part a <details>, a record a
    nested one, and the tag for a field whose meaning is not read. */
 .byteMapPart { margin:6px 0; }
 .byteMapPart > summary, .byteMapRec > summary { cursor:pointer; }
-.byteMapSize { color:#8c8980; font-size:0.6875rem; margin-left:6px; }
+.byteMapSize { color:#dcd8cc; font-size:0.6875rem; margin-left:6px; }
 .byteMapBody { margin-top:4px; }
 .byteMapTable td { vertical-align:top; overflow-wrap:anywhere; }
-.byteUnread { display:inline-block; margin-left:5px; padding:0 5px; border-radius:8px; font-size:0.625rem; color:#b5b2a8; border:1px solid #8c8980; }
+.byteUnread { display:inline-block; margin-left:5px; padding:0 5px; border-radius:8px; font-size:0.625rem; color:#f0ede4; border:1px solid #dcd8cc; }
 .forkTable td.num { text-align:right; font-family:ui-monospace,Menlo,Consolas,monospace; white-space:nowrap; }
 .forkTable .navChip { margin:0; }
 .installerVersions { grid-column:1/-1; justify-content:flex-start; align-items:center; gap:6px; margin:2px 0 8px; }
@@ -973,7 +973,7 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
 .vocabTable th { text-align:left; color:#fff; font-weight:600; padding:2px 10px 2px 0; vertical-align:top; white-space:nowrap; }
 .vocabTable td { padding:2px 0; vertical-align:top; }
 .barkTable td { padding:4px 10px 4px 0; border-bottom:1px solid rgba(155,136,80,.2); }
-.barkTable .inspDim { color:#b5b2a8; font-size:0.7188rem; }
+.barkTable .inspDim { color:#f0ede4; font-size:0.7188rem; }
 .forkTable td.icon { width:36px; padding:2px 4px; }
 /* An <img> since the installer's rows became one string each; the rule
    named only the canvas, so the image was left to the table, which squeezed
@@ -1020,11 +1020,11 @@ pre.sv-code { background:#090806; color:#fff; padding:11px; overflow:auto; max-h
 #sheetGrid button.heldItem:hover { border-color:var(--gold) !important; }
 .heldItem canvas { width:48px; height:48px; image-rendering:pixelated; flex:0 0 auto; }
 .heldInside { display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; padding:3px 6px; border-left:2px solid rgba(255,255,255,.25); }
-.heldIn { color:#b5b2a8; font-size:0.75rem; }
+.heldIn { color:#f0ede4; font-size:0.75rem; }
 .itemWhere { margin:4px 0; display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
 .linksFold > summary { color:var(--gold); cursor:pointer; font-size:0.75rem; }
 .linksFold[open] > summary { margin-bottom:4px; }
-.partsTitle { color:#b5b2a8; font-size:0.6562rem; letter-spacing:0;
+.partsTitle { color:#f0ede4; font-size:0.6562rem; letter-spacing:0;
   margin-right:6px; flex-basis:7.5em; }
 .relChip { display:inline-flex; align-items:center; gap:5px; width:auto; margin:0; min-height:0;
   padding:0; border-radius:0; background:none; border:0;
@@ -1070,11 +1070,11 @@ td .relChip, td .relText, td .relMain, td .relSub, td .relNote { white-space:now
   font-weight:400 !important; letter-spacing:0; font-family:var(--face); }
 .crumbBtn::before, .crumbBtn::after { display:none !important; }
 .crumbBtn:hover { color:var(--gold) !important; border-color:var(--gold) !important; filter:none; }
-.crumbNote { color:#8c8980; font-size:0.7188rem; }
+.crumbNote { color:#dcd8cc; font-size:0.7188rem; }
 @media (max-width:520px) { .crumbNote { display:none; } }
 
 #propFilterWrap { margin:8px 0 2px; }
-.propHead { grid-column:1/-1; text-align:left; color:#b5b2a8; font-size:0.6875rem;
+.propHead { grid-column:1/-1; text-align:left; color:#f0ede4; font-size:0.6875rem;
   letter-spacing:0; margin:12px 0 2px;
   border-bottom:1px solid var(--edge); padding-bottom:4px; }
 .cell.propCell { height:150px; justify-content:flex-start; }
@@ -1113,12 +1113,12 @@ body.dropping::after { content:'Drop the Cythera installer (.sit or .bin) or a C
 #mapLabel button.hexNum { padding:0 !important; margin:0 !important; min-height:0 !important; display:inline !important; width:auto !important; font-size:.82em !important; }
 .toolRow { margin:4px 0; }
 .toolRow button { display:block; text-align:left; }
-.quietLog { margin-top:22px; padding-top:8px; font-size:0.7188rem; color:#8c8980; }
+.quietLog { margin-top:22px; padding-top:8px; font-size:0.7188rem; color:#dcd8cc; }
 .quietLog > summary { color:var(--gold); opacity:.55; }
 .quietLog > summary { cursor:pointer; list-style:none; }
 .quietLog > summary::-webkit-details-marker { display:none; }
 .quietLog > summary::before { content:''; display:inline-block; width:6px; height:6px; margin:0 6px 1px 0;
-  border-right:1.5px solid #8c8980; border-bottom:1.5px solid #8c8980; transform:rotate(-45deg); }
+  border-right:1.5px solid #dcd8cc; border-bottom:1.5px solid #dcd8cc; transform:rotate(-45deg); }
 .quietLog[open] > summary::before { transform:rotate(45deg); }
 .quietLog > summary:hover { opacity:1; }
 /* A label is a control (it focuses or toggles what it wraps), and a cell is
@@ -1181,9 +1181,9 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 .inspCard.person { display:flex; gap:10px; align-items:flex-start; }
 .inspFace { width:48px; height:48px; flex:none; image-rendering:pixelated; border:1px solid var(--edge); border-radius:3px; }
 #atlasHover canvas.hvFace, #mapHover canvas.hvFace { width:44px; height:44px; border:1px solid var(--edge); border-radius:3px; }
-#mapInspect .inspDim { color:#b5b2a8; font-size:0.75rem; }
+#mapInspect .inspDim { color:#f0ede4; font-size:0.75rem; }
 #mapInspect .inspRows { display:grid; grid-template-columns:auto 1fr; gap:2px 12px; margin:6px 0 0; }
-#mapInspect .inspRows dt { color:#b5b2a8; }
+#mapInspect .inspRows dt { color:#f0ede4; }
 #mapInspect .inspRows dd { margin:0; font-family:ui-monospace,Menlo,Consolas,monospace; }
 #mapInspect .inspActs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
 /* The atlas's own panel. No frame of its own: the folder behind it is the
@@ -1238,10 +1238,10 @@ details:not([open]) > summary .mechFrom { display:none; }
 .mechStat { display:inline-block; padding:3px 10px; border:1px solid rgba(155,136,80,.45); border-radius:14px; background:#1a1712;
   color:#fff; font-size:0.75rem; }
 .mechStat b { color:#fff; font-size:0.875rem; margin-right:4px; }
-.mechStatNote { color:#8c8980; font-size:0.7188rem; }
+.mechStatNote { color:#dcd8cc; font-size:0.7188rem; }
 .mechQuote { margin:6px 0 4px; padding:6px 12px; border-left:3px solid rgba(155,136,80,.5); color:#fff; font-size:0.7812rem; font-style:italic; line-height:1.45; }
-.mechQuote footer { font-style:normal; color:#8c8980; font-size:0.6875rem; margin-top:2px; }
-.mechSub { color:#b5b2a8; font-size:0.6875rem; letter-spacing:0; margin:8px 0 2px; }
+.mechQuote footer { font-style:normal; color:#dcd8cc; font-size:0.6875rem; margin-top:2px; }
+.mechSub { color:#f0ede4; font-size:0.6875rem; letter-spacing:0; margin:8px 0 2px; }
 /* The patches section. The tile pairs are the point of it: a shipped tile and
    the patch's beside it, at 2x so a 32-pixel tile is legible without a zoom
    control, and wrapping so a phone gets three or four pairs to a row instead
@@ -1249,14 +1249,14 @@ details:not([open]) > summary .mechFrom { display:none; }
    so they are the only thing here given any size. */
 .patchMono { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:0.6875rem; letter-spacing:0; }
 .patchBad { color:#e6b96a; }
-.patchFacts td:first-child { color:#8c8980; white-space:nowrap; padding-right:14px; vertical-align:top; }
+.patchFacts td:first-child { color:#dcd8cc; white-space:nowrap; padding-right:14px; vertical-align:top; }
 .patchSheetHead { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:10px 0 2px; }
 .patchSheetHead .mechSub { margin:0; }
 .patchStrip { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 6px; }
 .patchPair { position:relative; display:flex; gap:2px; padding:3px 3px 12px; border:1px solid rgba(155,136,80,.35);
   border-radius:3px; background:#1a1712; }
 .patchTile { width:64px; height:64px; image-rendering:pixelated; display:block; }
-.patchTileNo { position:absolute; left:0; right:0; bottom:1px; text-align:center; color:#8c8980; font-size:0.625rem;
+.patchTileNo { position:absolute; left:0; right:0; bottom:1px; text-align:center; color:#dcd8cc; font-size:0.625rem;
   font-variant-numeric:tabular-nums; }
 /* A script's changes, line by line (scriptDiffSection). One fold a script,
    shut until opened; the lines wrap rather than scroll, since a line of
@@ -1265,14 +1265,14 @@ details:not([open]) > summary .mechFrom { display:none; }
    the colours are white and the two greys and nothing else. */
 .sdScript { margin:2px 0; }
 .sdScript > summary { cursor:pointer; color:var(--gold); font-size:0.8125rem; padding:3px 0; }
-.sdCount { color:#8c8980; margin-left:8px; font-variant-numeric:tabular-nums; }
+.sdCount { color:#dcd8cc; margin-left:8px; font-variant-numeric:tabular-nums; }
 .sdBody { margin:2px 0 10px 12px; }
 .sdHunk { margin:6px 0; padding:3px 0 3px 6px; border-left:2px solid rgba(155,136,80,.35); }
 .sdLine { display:flex; font-family:ui-monospace, Menlo, Consolas, monospace; font-size:0.6875rem; line-height:1.45; }
 .sdMark { flex:0 0 1.3em; }
 .sdText { flex:1; min-width:0; white-space:pre-wrap; overflow-wrap:anywhere; }
-.sdSame { color:#8c8980; }
-.sdOld { color:#b5b2a8; }
+.sdSame { color:#dcd8cc; }
+.sdOld { color:#f0ede4; }
 .sdNew { color:#fff; }
 .sdLine b { text-decoration:underline; }
 /* The sprite section. The page's button rule is !important on background,
@@ -1287,7 +1287,7 @@ details:not([open]) > summary .mechFrom { display:none; }
 #sheetGrid button.heroPick.on { outline:2px solid var(--gold); outline-offset:-2px; }
 .heroParts { display:flex; flex-direction:column; gap:6px; margin:0 0 8px; }
 .heroPart { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; }
-.heroPartName { display:flex; align-items:center; gap:6px; color:#b5b2a8; font-size:0.6875rem; min-width:96px; }
+.heroPartName { display:flex; align-items:center; gap:6px; color:#f0ede4; font-size:0.6875rem; min-width:96px; }
 .heroSwatches { display:flex; flex-wrap:wrap; align-items:center; gap:2px; }
 #sheetGrid button.heroSwatch { width:auto; margin:0; padding:3px !important; min-height:0 !important; line-height:0 !important; }
 .heroChip { display:block; width:22px; height:22px; border-radius:3px; border:1px solid rgba(0,0,0,.6); box-sizing:border-box; }
@@ -1315,12 +1315,12 @@ details:not([open]) > summary .mechFrom { display:none; }
 .dataFixChange input[type=checkbox] { margin:0 6px 0 0; vertical-align:middle; }
 .dataFixChoice { margin:8px 0; }
 .dataFixChoice label { display:inline-block; margin:2px 14px 2px 0; }
-.dataFixChoiceName { color:#b5b2a8; font-size:0.8125rem; }
+.dataFixChoiceName { color:#f0ede4; font-size:0.8125rem; }
 .dataFixAll, .dataFixGroupBox { vertical-align:middle; }
 .dataFixPlace { margin-right:6px; }
 .dataFixMany { display:inline-block; margin-left:6px; vertical-align:top; }
 .dataFixMany > summary { color:var(--gold); cursor:pointer; }
-.dataFixWas { color:#b5b2a8; text-decoration:line-through; margin-right:8px; }
+.dataFixWas { color:#f0ede4; text-decoration:line-through; margin-right:8px; }
 .dataFixNow { color:#fff; }
 @media (max-width:560px) { .gremlinForm { grid-template-columns:1fr; } }
 .heroSelect { width:auto; max-width:100%; margin:0; padding:4px 6px; }
@@ -1394,7 +1394,7 @@ details:not([open]) > summary .mechFrom { display:none; }
   table.asCards .cardVal, table.asCards .cardVal * { text-align:left; }
   table.asCards tbody tr:nth-child(even) td { background:none; }
   /* The heading in the left third and the value, one .cardVal, beside it. */
-  table.asCards td::before { content:attr(data-label); color:#b5b2a8; font-size:0.6875rem; line-height:1.5; overflow-wrap:break-word; }
+  table.asCards td::before { content:attr(data-label); color:#f0ede4; font-size:0.6875rem; line-height:1.5; overflow-wrap:break-word; }
   table.asCards td:first-child { display:block; padding:0 0 5px; margin:0 0 3px; border-bottom:1px solid rgba(155,136,80,.22); font-weight:600; }
   table.asCards td:first-child::before, table.asCards td.cardWide::before { content:none; }
   table.asCards td.cardWide { display:block; }
@@ -1417,9 +1417,9 @@ details:not([open]) > summary .mechFrom { display:none; }
    stroke does not stretch with it -- and puts the axis labels, the dots and
    the annotations around it as HTML. */
 .mechFig { margin:10px 0 4px; }
-.mechFig figcaption { color:#8c8980; font-size:0.7188rem; line-height:1.45; margin-top:6px; }
-.mechFig figcaption b { color:#b5b2a8; font-weight:600; }
-.mechFigTitle { color:#b5b2a8; font-size:0.6562rem; letter-spacing:0; margin:0 0 5px; }
+.mechFig figcaption { color:#dcd8cc; font-size:0.7188rem; line-height:1.45; margin-top:6px; }
+.mechFig figcaption b { color:#f0ede4; font-weight:600; }
+.mechFigTitle { color:#f0ede4; font-size:0.6562rem; letter-spacing:0; margin:0 0 5px; }
 .mechBars { display:grid; grid-template-columns:auto 1fr auto; gap:3px 8px; align-items:center; font-size:0.75rem; }
 .mechBars .bLabel { color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:44vw; }
 .mechBars .bTrack { background:rgba(255,248,220,.05); border-radius:2px; height:11px; position:relative; overflow:hidden; }
@@ -1427,7 +1427,7 @@ details:not([open]) > summary .mechFrom { display:none; }
 .mechBars .bVal { color:#fff; font-variant-numeric:tabular-nums; font-size:0.7188rem; white-space:nowrap; }
 .mechStack { display:flex; height:18px; border-radius:3px; overflow:hidden; border:1px solid rgba(155,136,80,.35); }
 .mechStack i { display:block; height:100%; }
-.mechKeys { display:flex; flex-wrap:wrap; gap:3px 12px; margin-top:5px; font-size:0.7188rem; color:#b5b2a8; align-items:center; }
+.mechKeys { display:flex; flex-wrap:wrap; gap:3px 12px; margin-top:5px; font-size:0.7188rem; color:#f0ede4; align-items:center; }
 .mechKeys i { width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:5px; vertical-align:-1px; }
 .mechKeys b { color:#fff; font-weight:600; font-variant-numeric:tabular-nums; }
 /* The columns stretch to the row's height: a flex item sized by its content
@@ -1439,23 +1439,23 @@ details:not([open]) > summary .mechFrom { display:none; }
 .mechCols .cFill { display:block; width:100%; border-radius:2px 2px 0 0; min-height:1px; }
 .mechCols .cMark { position:absolute; left:-1px; right:-1px; height:0; border-top:2px dashed var(--gold); }
 .mechColLabels { display:flex; gap:3px; margin-top:4px; }
-.mechColLabels span { flex:1; text-align:center; font-size:0.6562rem; color:#b5b2a8; }
+.mechColLabels span { flex:1; text-align:center; font-size:0.6562rem; color:#f0ede4; }
 .mechPlot { display:grid; grid-template-columns:auto 1fr; align-items:stretch; }
 .mechPlot .pY { grid-area:1/1; position:relative; width:38px; }
-.mechPlot .pY span { position:absolute; right:5px; transform:translateY(-50%); font-size:0.625rem; color:#8c8980; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.mechPlot .pY span { position:absolute; right:5px; transform:translateY(-50%); font-size:0.625rem; color:#dcd8cc; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .mechPlot .pArea { grid-area:1/2; position:relative; border-left:1px solid rgba(155,136,80,.45); border-bottom:1px solid rgba(155,136,80,.45); }
 .mechPlot .pArea svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
 .mechPlot .pX { grid-area:2/2; position:relative; height:15px; margin-top:3px; }
-.mechPlot .pX span { position:absolute; transform:translateX(-50%); font-size:0.625rem; color:#8c8980; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.mechPlot .pX span { position:absolute; transform:translateX(-50%); font-size:0.625rem; color:#dcd8cc; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .mechPlot .pMark { position:absolute; transform:translate(-50%,-50%); font-size:0.6562rem; color:#fff; white-space:nowrap; pointer-events:none; }
 .mechPlot .pMark.right { transform:translate(-100%,-50%); }
 .mechPlot .pMark.left { transform:translate(0,-50%); }
 .mechPlot .pMark b { font-weight:600; text-shadow:0 0 4px #14120e, 0 0 4px #14120e; }
 .mechPlot .pDot { display:block; width:7px; height:7px; border-radius:50%; margin:0 auto; }
-.mechPlot .pAxisName { grid-area:2/1; font-size:0.625rem; color:#8c8980; text-align:right; padding-right:5px; }
-.mechDice { display:grid; grid-template-columns:auto repeat(6,1fr); gap:3px 6px; font-size:0.625rem; color:#b5b2a8; align-items:center; }
-.mechDice .dHead { text-align:center; color:#8c8980; }
-.mechDice .dSide { text-align:right; padding-right:3px; color:#8c8980; }
+.mechPlot .pAxisName { grid-area:2/1; font-size:0.625rem; color:#dcd8cc; text-align:right; padding-right:5px; }
+.mechDice { display:grid; grid-template-columns:auto repeat(6,1fr); gap:3px 6px; font-size:0.625rem; color:#f0ede4; align-items:center; }
+.mechDice .dHead { text-align:center; color:#dcd8cc; }
+.mechDice .dSide { text-align:right; padding-right:3px; color:#dcd8cc; }
 .mechDice .dCell { display:flex; gap:1px; height:16px; padding:1px; background:rgba(0,0,0,.35); border-radius:2px; }
 .mechDice .dCell i { flex:1; border-radius:1px; }
 .mechDice .dHead svg, .mechDice .dSide svg { display:block; margin:0 auto; }
@@ -1463,10 +1463,10 @@ details:not([open]) > summary .mechFrom { display:none; }
 .mechLine .lRule { position:absolute; left:0; right:0; top:16px; height:1px; background:rgba(155,136,80,.45); }
 .mechLine .lBand { position:absolute; top:11px; height:11px; border-radius:2px; opacity:.55; }
 .mechLine .lTick { position:absolute; top:9px; width:1px; height:15px; background:rgba(155,136,80,.6); }
-.mechLine .lLab { position:absolute; transform:translateX(-50%); font-size:0.625rem; color:#b5b2a8; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.mechLine .lLab { position:absolute; transform:translateX(-50%); font-size:0.625rem; color:#f0ede4; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .mechLine .lLab.below { top:20px; }
 .mechLine .lLab.above { top:0; color:#fff; }
-.mechCtl { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; margin:6px 0 8px; font-size:0.75rem; color:#b5b2a8; }
+.mechCtl { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; margin:6px 0 8px; font-size:0.75rem; color:#f0ede4; }
 .mechCtl label { display:inline-flex; align-items:center; gap:5px; }
 .mechCtl input[type=range] { width:104px; accent-color:#9b8850; }
 .mechCtl select { font-size:0.75rem; padding:2px 4px; max-width:46vw; }
@@ -1487,7 +1487,7 @@ details:not([open]) > summary .mechFrom { display:none; }
 @media (max-width:640px) { .mechBars .bLabel { max-width:38vw; } .mechPlot .pY { width:32px; } }
 .askCard { margin-top:0; }
 .askAnswer .sv-note { margin-top:8px; }
-.skillCard .skillKey { color:#b5b2a8; font-size:0.6875rem; letter-spacing:0; white-space:nowrap; width:1%; padding-right:14px; vertical-align:top; }
+.skillCard .skillKey { color:#f0ede4; font-size:0.6875rem; letter-spacing:0; white-space:nowrap; width:1%; padding-right:14px; vertical-align:top; }
 .lessonList { color:#fff; font-style:italic; }
 #atlasPanel { margin:0; background:#000; }
 /* The gate: one screen before anything is downloaded. */
@@ -1555,7 +1555,7 @@ body.atlasFull { overflow:hidden; }
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px;
   font-size:0.8125rem; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 #atlasBar .wbWhere { color:#fff; font-weight:600; }
-#atlasBar .wbNote { color:#b5b2a8; font-size:0.75rem; }
+#atlasBar .wbNote { color:#f0ede4; font-size:0.75rem; }
 /* Over the map, placed by atlasPlaceInspect: a column at the right on a
    wide screen, the lower part of the map on a narrow one. Hidden until a
    square is picked; the text it holds then is what the smoke reads. */
@@ -1569,7 +1569,7 @@ body.atlasFull { overflow:hidden; }
 @media (max-width:699px) { #atlasInspect { left:8px; width:auto; } }
 #atlasInspect .inspHead { color:#fff; font-weight:600; margin-bottom:8px; }
 #atlasInspect .inspCard { border-top:1px solid rgba(155,136,80,.35); padding:6px 0; }
-#atlasInspect .inspDim { color:#b5b2a8; font-size:0.75rem; }
+#atlasInspect .inspDim { color:#f0ede4; font-size:0.75rem; }
 #atlasInspect .inspActs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
 #atlasHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
@@ -1589,8 +1589,8 @@ body.atlasFull { overflow:hidden; }
 #atlasHover.hvPinned, #mapHover.hvPinned { pointer-events:auto; }
 #atlasHover.hvPinned .svLink, #mapHover.hvPinned .svLink { cursor:pointer; }
 #atlasHover .hvName { color:#fff; font-weight:600; display:block; }
-#atlasHover .hvWhat { color:#b5b2a8; font-size:0.6875rem; display:block; }
-#atlasHover .hvWhere, #mapHover .hvWhere { color:#8c8980; font-size:0.6562rem; display:block; margin-top:2px; }
+#atlasHover .hvWhat { color:#f0ede4; font-size:0.6875rem; display:block; }
+#atlasHover .hvWhere, #mapHover .hvWhere { color:#dcd8cc; font-size:0.6562rem; display:block; margin-top:2px; }
 /* Who that is, under the pointer. */
 #mapHover { position:absolute; z-index:7; pointer-events:none; display:none;
   background:rgba(12,10,7,.94); border:1px solid rgba(196,164,100,.7); border-radius:6px;
@@ -1601,7 +1601,7 @@ body.atlasFull { overflow:hidden; }
 #mapHover canvas { image-rendering:pixelated; width:32px; height:32px; flex:none;
   background:rgba(0,0,0,.35); border-radius:3px; order:-1; }
 #mapHover .hvName { color:#fff; font-weight:600; display:block; }
-#mapHover .hvWhat { color:#b5b2a8; font-size:0.6875rem; display:block; }
+#mapHover .hvWhat { color:#f0ede4; font-size:0.6875rem; display:block; }
 
 /* An opened container, the way the game shows one: the zoomrect graphic for
    that kind of container with what is inside laid out on it. */
@@ -1620,21 +1620,21 @@ body.atlasFull { overflow:hidden; }
   font-weight:400 !important; letter-spacing:0; font-family:var(--face); }
 .zoomRect .zrItem:hover { border-color:var(--gold) !important; color:var(--gold) !important; filter:none; }
 .zoomRect .zrItem::before, .zoomRect .zrItem::after { display:none !important; }
-.zoomRect .zrCap { margin:4px 0 0; font-size:0.6875rem; color:#b5b2a8; text-align:center; }
+.zoomRect .zrCap { margin:4px 0 0; font-size:0.6875rem; color:#f0ede4; text-align:center; }
 
 #artUsage { max-width:720px; margin:10px auto 0; padding:10px 14px; text-align:left;
   background:rgba(20,18,14,.92); border:1px solid var(--edge); border-radius:8px; font-size:0.8125rem; }
 #artUsage .inspRows { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; margin:0; }
-#artUsage .inspRows dt { color:#b5b2a8; }
+#artUsage .inspRows dt { color:#f0ede4; }
 #artUsage .inspRows dd { margin:0; display:flex; gap:5px; flex-wrap:wrap; align-items:baseline; }
-#artUsage .inspDim { color:#b5b2a8; }
+#artUsage .inspDim { color:#f0ede4; }
 #artUsage button.secondary { width:auto; margin:0; }
 
 /* Bulk export lives with the gallery, not with a single resource. */
 #galleryTools { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center;
   justify-content:center; margin:10px 0 0; }
 #galleryTools button { width:auto; margin:0; }
-#exportNote { font-size:0.75rem; color:#b5b2a8; }
+#exportNote { font-size:0.75rem; color:#f0ede4; }
 #galleryArrange { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:0.7812rem; }
 #gallerySortWrap { display:flex; align-items:center; gap:6px; color:var(--gold); }
 #gallerySortSel, #sheetShapeSel { width:auto; margin:0; min-height:32px !important;
@@ -1661,6 +1661,7 @@ body.atlasFull { overflow:hidden; }
 .saveMaker .mkField { display:flex; align-items:center; gap:6px; font-size:0.8125rem; color:#fff; }
 .saveMaker .mkField input[type=number] { width:4.5em; }
 .saveMaker .mkField input, .saveMaker .mkField select { margin:0; width:auto; }
+.saveMaker .mkField input.mkWith { margin:0 2px 0 0; }
 #charControls.asSheet { position:fixed; left:8px; right:8px; bottom:8px; z-index:60; margin:0 auto;
   max-height:40vh; overflow-y:auto; padding:8px; border-radius:9px;
   background:#1a1712; border:1px solid #c4a464; box-shadow:0 6px 24px rgba(0,0,0,.6); }
@@ -1668,7 +1669,7 @@ body.atlasFull { overflow:hidden; }
   justify-content:flex-start; padding:7px 12px; font-size:0.8438rem;
   background:rgba(20,18,14,.72); border:1px solid rgba(155,136,80,.45); border-radius:7px; }
 .mapToggleGroup .mtgLabel { flex:0 0 46px; font-size:0.6562rem; letter-spacing:1.4px;
-  color:#b5b2a8; }
+  color:#f0ede4; }
 .mapToggleGroup label { display:flex; align-items:center; gap:5px; cursor:pointer;
   white-space:nowrap; }
 /* Each switch a pill that lights when it is on, so what is showing reads at
@@ -1679,9 +1680,9 @@ body.atlasFull { overflow:hidden; }
    Two-column tables of key and effect, so the key caps line up down the left
    and the prose wraps under its own heading rather than beside it. */
 .cheatH { margin:2px 0 6px; font-size:1rem; }
-.cheatH4 { margin:0 0 8px; font-size:0.75rem; letter-spacing:0; color:#b5b2a8; }
-.cheatNote { font-size:0.7188rem; color:#8c8980; line-height:1.55; margin:6px 2px; }
-.cheatNote b { color:#b5b2a8; }
+.cheatH4 { margin:0 0 8px; font-size:0.75rem; letter-spacing:0; color:#f0ede4; }
+.cheatNote { font-size:0.7188rem; color:#dcd8cc; line-height:1.55; margin:6px 2px; }
+.cheatNote b { color:#f0ede4; }
 /* The Preferences tab: one row per setting, in groups, each row the game's
    own label, where the game itself sets it, a line saying what it does, and
    its control at the right. It was one paragraph and two rows of controls
@@ -1692,7 +1693,7 @@ body.atlasFull { overflow:hidden; }
 /* #appShell div caps every div at 100%, which outranks a bare class. */
 #appShell .prefSheet { max-width:820px; margin:0 auto; }
 .prefLede { color:#fff; font-size:0.8438rem; line-height:1.5; margin:4px 0 2px; }
-.prefFrom { color:#8c8980; font-size:0.7188rem; line-height:1.5; margin:2px 0 6px; }
+.prefFrom { color:#dcd8cc; font-size:0.7188rem; line-height:1.5; margin:2px 0 6px; }
 .prefGroup { margin:16px 0 0; }
 .prefGroup h3 { margin:0 0 6px 2px; font-size:1.0625rem; color:#fff; font-weight:600; }
 .prefRows { border:1px solid rgba(155,136,80,.4); border-radius:10px; background:rgba(20,17,12,.5); overflow:hidden; }
@@ -1704,25 +1705,25 @@ label.prefRow:hover { background:rgba(155,136,80,.08); }
 .prefText { flex:1 1 240px; min-width:0; display:block; }
 .prefName { color:#fff; font-size:0.9375rem; }
 .prefWhere { display:inline-block; margin-left:8px; padding:1px 8px; border:1px solid rgba(155,136,80,.45); border-radius:10px;
-  color:#b5b2a8; font-size:0.6562rem; vertical-align:2px; white-space:nowrap; }
-.prefDesc { display:block; color:#b5b2a8; font-size:0.7812rem; line-height:1.45; margin-top:3px; }
+  color:#f0ede4; font-size:0.6562rem; vertical-align:2px; white-space:nowrap; }
+.prefDesc { display:block; color:#f0ede4; font-size:0.7812rem; line-height:1.45; margin-top:3px; }
 .prefCtl { flex:none; margin-left:auto; position:relative; display:flex; align-items:center; }
 .prefCtl select { width:auto; min-width:12em; margin:0; font-size:0.9375rem; }
 .prefRow .prefCtl input[type=checkbox] { position:absolute; opacity:0; width:1px; height:1px; margin:0; min-height:0; }
 .prefSwitch { display:block; width:44px; height:24px; border-radius:12px; background:#15120d; border:1px solid var(--edge);
   position:relative; box-shadow:inset 0 1px 3px rgba(0,0,0,.6); transition:background .15s, border-color .15s; }
 .prefSwitch::after { content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%;
-  background:#8c8980; transition:transform .15s, background .15s; }
+  background:#dcd8cc; transition:transform .15s, background .15s; }
 .prefCtl input:checked + .prefSwitch { background:rgba(196,164,100,.32); border-color:#c4a464; }
 .prefCtl input:checked + .prefSwitch::after { transform:translateX(20px); background:var(--gold); }
 .prefCtl input:focus-visible + .prefSwitch { outline:2px solid var(--gold); outline-offset:2px; }
 label.prefRow:hover .prefSwitch { border-color:var(--gold); }
 .prefPresets { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:10px 0 0; }
 .prefPresets button { width:auto !important; margin:0 !important; }
-.prefPresetNote { color:#8c8980; font-size:0.7188rem; line-height:1.45; flex:1 1 220px; }
+.prefPresetNote { color:#dcd8cc; font-size:0.7188rem; line-height:1.45; flex:1 1 220px; }
 .prefSave { display:flex; gap:10px; flex-wrap:wrap; padding:12px 14px; }
 .prefSave button { width:auto !important; margin:0 !important; }
-.prefSaveNote { color:#b5b2a8; font-size:0.7812rem; line-height:1.45; padding:0 14px 12px; }
+.prefSaveNote { color:#f0ede4; font-size:0.7812rem; line-height:1.45; padding:0 14px 12px; }
 @media (max-width:640px) {
   .prefRow { padding:10px 12px; }
   .prefCtl:has(select) { flex:1 1 100%; }
@@ -1736,9 +1737,9 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   background:rgba(20,18,14,.7); color:#fff; }
 .cheatGlyph { color:#fff; font-size:0.875rem; margin-left:4px; }
 .cheatCode { display:block; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:0.6562rem; color:#7f7760; margin-top:3px; }
-.cheatDoes { font-size:0.75rem; color:#b5b2a8; line-height:1.5; margin-top:2px; }
+.cheatDoes { font-size:0.75rem; color:#f0ede4; line-height:1.5; margin-top:2px; }
 .cheatSprites { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
-.cheatSprite { font-size:0.7188rem; color:#b5b2a8; background:rgba(20,18,14,.55);
+.cheatSprite { font-size:0.7188rem; color:#f0ede4; background:rgba(20,18,14,.55);
   border:1px solid rgba(155,136,80,.3); border-radius:4px; padding:2px 7px; }
 .cheatSprite b { color:#fff; font-family:ui-monospace,Menlo,Consolas,monospace; }
 .cheatSprite.isMonster { border-color:rgba(190,120,90,.4); }
@@ -1751,7 +1752,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   border-radius:4px; background:rgba(0,0,0,.35); flex:0 0 auto; }
 .saveHead h3 { margin:0 0 4px; font-size:1rem; }
 .saveH4 { margin:14px 0 6px; font-size:0.875rem; letter-spacing:0; color:#fff; }
-.saveNote { font-size:0.8125rem; color:#b5b2a8; line-height:1.5; margin:6px 2px 8px; }
+.saveNote { font-size:0.8125rem; color:#f0ede4; line-height:1.5; margin:6px 2px 8px; }
 .forkTable tr.saveHero td { background:rgba(249,248,111,.10); }
 /* Ten columns is what fits: body, reflex and mind are in the row's own form
    rather than in the table, since the eleventh column pushed Edit off the
@@ -1770,9 +1771,9 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
 .charRow { padding:4px 0; border-bottom:1px solid rgba(255,255,255,.05); }
 .charRow label { display:inline-flex; align-items:center; gap:6px; min-width:180px; color:#fff; }
 .charRow input { width:auto; }
-.charWhere { font-size:0.6875rem; color:#8c8980; }
-.charName { color:#8c8980; }
-.charWhat { font-size:0.6875rem; color:#b5b2a8; line-height:1.45; margin:2px 0 0; }
+.charWhere { font-size:0.6875rem; color:#dcd8cc; }
+.charName { color:#dcd8cc; }
+.charWhat { font-size:0.6875rem; color:#f0ede4; line-height:1.45; margin:2px 0 0; }
 .charFlags { display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:2px 10px; margin:6px 0 0; font-size:0.75rem; }
 .charFlags label { display:flex; align-items:center; gap:4px; color:#fff; }
 .charFlags input[type=checkbox] { width:auto; min-height:0; margin:0; accent-color:#c4a464; }
@@ -1783,7 +1784,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
 .mapToggleGroup input[type=range] { flex:1 1 120px; min-width:90px; }
 .mapToggleGroup #mapHourLabel { min-width:56px; text-align:right; }
 .mapToggleGroup.mtgNotes { background:none; border:0; padding:2px 12px; font-size:0.75rem;
-  color:#b5b2a8; gap:14px; }
+  color:#f0ede4; gap:14px; }
 .mapToggleGroup.mtgNotes button { margin:0; }
 @media (max-width:520px) {
   .mapToggleGroup { font-size:0.7812rem; gap:4px 10px; }
@@ -1820,7 +1821,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
 #archiveMenu label { display:flex; gap:7px; align-items:flex-start; margin-top:10px;
   padding-top:10px; border-top:1px solid rgba(155,136,80,.35); cursor:pointer; }
 #archiveMenu label input { width:auto; min-height:0; margin:3px 0 0; accent-color:#c4a464; }
-#archiveMenu .amNote { color:#b5b2a8; font-size:0.7188rem; display:block; }
+#archiveMenu .amNote { color:#f0ede4; font-size:0.7188rem; display:block; }
 
 @media (prefers-reduced-motion: reduce) { * { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
 
@@ -2530,7 +2531,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.273.0';
+const GRIMOIRE_VERSION = '1.274.0';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

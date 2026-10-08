@@ -262,7 +262,7 @@ function tileFactsHTML(tileId) {
   if (atAspect.length) rows.push(partsStrip('Drawn by', atAspect.map(chip)));
   let orphan = false;
   try { orphan = orphanItemArt().some(o => o.tile === tileId); } catch (e) { orphan = false; }
-  if (orphan) rows.push('<div class="partsNote" style="color:#b5b2a8">No class owns this picture, and nothing in the file places it.</div>');
+  if (orphan) rows.push('<div class="partsNote" style="color:#f0ede4">No class owns this picture, and nothing in the file places it.</div>');
   return linksFold(rows.join(''));
 }
 

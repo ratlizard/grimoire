@@ -1497,7 +1497,34 @@ try {
   else if (ha.body !== 21 || ha.reflex !== 14 || ha.mind !== 9 || ha.level !== 3 || !ha.health || ha.health !== ha.healthMax || ha.training !== cr.training.v) fail('make a save', 'the hero was not made as asked: ' + JSON.stringify(ha));
   else if (ha.proptype !== (cr.sprites[0].v & 0x3FF) || hb.proptype !== (cr.sprites[1].v & 0x3FF) || ha.proptype === hb.proptype) fail('make a save', 'the sprite chosen did not reach the hero: ' + ha.proptype + ' and ' + hb.proptype);
   else if (!/Make a Save/.test(sheet) || !/makeSaveFromForm/.test(sheet)) fail('make a save', 'the Saved Game tab does not offer the maker with a scenario open');
-  else console.log(`  make a save: the creation script read with its lines; a new game for NewGame01 in ${spec.resources.length} resources, body ${ha.body}, level ${ha.level}, health ${ha.health}; the two sprites give two heroes`);
+  else {
+    console.log(`  make a save: the creation script read with its lines; a new game for NewGame01 in ${spec.resources.length} resources, body ${ha.body}, level ${ha.level}, health ${ha.health}; the two sprites give two heroes`);
+    /* The second half, 8 October 2026: the place, the hour and day, a named
+       state and a companion. The file must carry the list and map memory of
+       the zone asked for and not the hero's own; the hero and the companion
+       must stand in it on different squares, the companion with the hero's
+       party bits, behaviour 1 and his alignment; the Char block must hold
+       the state's value, the hour and the day. The control is the plain
+       save above, which must have none of them, and a square off the map,
+       which must be refused. Without the resource fork there are no named
+       states, and that part says so. */
+    const d = ctx.saveMakerDefaults(), z = d.zones.find(k => k.zone !== d.zone && k.zone > 1).zone, pal = d.companions[0], st = d.stories.find(t => Object.keys(t.values).length);
+    const c = ctx.newGameSaveBytes({ name: 'NewGame01', zone: z, party: pal ? [pal.index] : [], story: st ? st.name : '', hour: 14, day: 3 });
+    const cs = c ? ctx.delverArchiveSpec(new Uint8Array(c)) : null, has = (sp, id) => sp.resources.some(r => r.resid === id);
+    const off = ctx.newGameSaveBytes({ name: 'NewGame01', zone: z, x: 9999, y: 0 });
+    if (!cs || off !== null) fail('make a save', 'the page made no save in zone ' + z + ', or made one with the hero off the map');
+    else {
+      const recs = ctx.parseDelverCharacterRecords(cs.resources.find(r => r.resid === 0xF009).data), h = recs[1], p = pal ? recs[pal.index] : null;
+      const ch = cs.resources.find(r => r.resid === 0x0400).data, plain = spec.resources.find(r => r.resid === 0x0400).data, plainRecs = ctx.parseDelverCharacterRecords(spec.resources.find(r => r.resid === 0xF009).data);
+      const clock = ((ch[80] << 24) | (ch[81] << 16) | (ch[82] << 8) | ch[83]) >>> 0, day = (ch[84] << 8) | ch[85];
+      const [sn, sv] = st ? Object.entries(st.values)[0] : [];
+      if (!has(cs, 0x8100 + z) || !has(cs, 0x8200 + z) || has(cs, 0x8100 + d.zone) || h.zone !== z) fail('make a save', 'the save is not in zone ' + z + ' with that zone’s list and map memory');
+      else if (!d.companions.length || !p || p.zone !== z || (p.x === h.x && p.y === h.y) || (p.state & h.state) !== h.state || p.raw[22] !== 1 || p.raw[25] !== h.raw[25] || (plainRecs[pal.index].state & 0x40)) fail('make a save', 'the companion is not beside the hero as a party member, or is one in the plain save too: ' + JSON.stringify(p && { zone: p.zone, x: p.x, y: p.y, state: p.state, behaviour: p.raw[22] }));
+      else if (clock !== 14 * 0x1000 || day !== 3 || ((plain[84] << 8) | plain[85]) === 3) fail('make a save', 'the hour and the day asked for are not in the Char block: ' + JSON.stringify({ clock, day }));
+      else if (st && (ch[16 + +sn] !== sv || plain[16 + +sn] === sv)) fail('make a save', 'the named state did not set its quest value, or the plain save has it too');
+      else console.log(`  make a save, the second half: zone ${z} with its list; ${pal.name} beside the hero as a party member; two in the afternoon on day 3; ` + (st ? `"${st.name}" sets quest value ${sn} to ${sv}` : 'no resource fork here, so no named state was tried') + `; ${d.zones.length} places, ${d.companions.length} who can join, ${d.stories.length} named states; a square off the map refused`);
+    }
+  }
 } catch (e) { fail('make a save', e); }
 
 /* Make a Scenario, 8 October 2026: the open scenario with its world

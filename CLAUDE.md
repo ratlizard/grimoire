@@ -356,12 +356,14 @@ capitals.** The game's own rule, and the maintainer's on 8 September 2026
 (v1.30.0): `--gold` goes on what responds to a click — buttons, chips, the
 crumb, the keyword pills — and on nothing else; headings, ids, prices, stat
 figures and code panes are white; the quiet labels (`.partsTitle`,
-`.skillKey`, `.mechSub`, the chips' second lines) are a neutral grey,
-`#b5b2a8` or `#8c8980`, so no label is gold-tinted enough to read as a link.
+`.skillKey`, `.mechSub`, the chips' second lines) are a pale near-white,
+`#f0ede4` or `#dcd8cc`, never a mid grey: they were `#b5b2a8` and `#8c8980`
+until 8 October 2026, when the maintainer called grey subtitles on the
+purple "barely legible". A quiet label is quiet by its size, not its colour.
 Every `text-transform:uppercase` in the sheet went the same day — Argos in
 capitals is hard to read — save the two-letter `.guessTag`, which is in a
 system font. Keep to it when adding a rule: a new colour is one of white,
-`--gold` or the two greys.
+`--gold` or the two pale tones.
 
 **A number read off a script is a link to its line, and the code keeps no
 copy of the file.** The maintainer's rule of 11 September 2026 (v1.50.0): a

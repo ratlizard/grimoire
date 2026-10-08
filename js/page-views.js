@@ -1023,7 +1023,7 @@ function renderToolsSheet() {
     q.innerHTML = '<summary>' + line + '</summary>';
     if (n) {
       const ul = document.createElement('div');
-      ul.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:0.75rem;line-height:1.6;color:#b5b2a8;white-space:pre-wrap;margin-top:6px';
+      ul.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:0.75rem;line-height:1.6;color:#f0ede4;white-space:pre-wrap;margin-top:6px';
       // The file and line, not the origin it was served from.
       ul.textContent = [...QUIET_FAILURES].map(([m, v]) => (v.count > 1 ? v.count + '\u00d7 ' : '') + m + (v.where ? '\n    ' + v.where.replace(/https?:\/\/[^/\s]+\//g, '') : '')).join('\n');
       q.appendChild(ul);
@@ -2081,7 +2081,7 @@ function monsterFlagsHTML(f, each) {
   // A bit two rules read (0x0080 is fire and lava) is counted once.
   let told = 0;
   const own = v => { if (!each) return ''; const again = (told & v) >>> 0 === v >>> 0; told = (told | v) >>> 0;
-    return ' <span style="color:#8c8980">' + (again ? 'also ' : '') + propWordHex(v >>> 0) + '</span>'; };
+    return ' <span style="color:#dcd8cc">' + (again ? 'also ' : '') + propWordHex(v >>> 0) + '</span>'; };
   for (const [bit, name] of MONSTER_FLAG_NAMES)
     if (f & bit) { const s = sites.get(bit); named.push({ low: bit, html: (s ? srcNum(s, name) : svEsc(name)) + own(bit) }); rest = (rest & ~bit) >>> 0; }
   // The program's names only with the program open: without it the bits
@@ -2263,7 +2263,7 @@ function showMonsterDetail(idx) {
   panel.style.cssText = 'width:100%;max-width:560px;margin:12px auto;text-align:left';
 
   let h = '<div style="font-size:1.25rem;color:#fff">' + svEsc(nm) +
-          '</div><div style="font-size:0.75rem;color:#b5b2a8;margin-bottom:10px">' +
+          '</div><div style="font-size:0.75rem;color:#f0ede4;margin-bottom:10px">' +
           'record ' + srcNum({ resid: 0xF008, byte: r.index * 16, stride: 16, what: 'the whole record' }, String(r.index)) +
           ' of 0xF008 \u00b7 prop type ' +
           srcNum({ resid: 0xF008, byte: r.index * 16 + 12, stride: 16, what: 'the prop type ObjToMonst searches on' },
@@ -2294,10 +2294,10 @@ function showMonsterDetail(idx) {
     '<div><b>Health</b>' + stat(5, r.hp) + (r.armor ? ' &nbsp; <b>Armor</b> ' + stat(3, r.armor) : '') +
       (r.damage ? ' &nbsp; <b>Damage</b> ' + stat(4, r.damage) : '') +
       ' &nbsp; <b>Alignment</b> ' + stat(6, r.alignment) + alignmentNameHTML(r.alignment) +
-      '<br><span style="font-size:0.6875rem;color:#8c8980">' + monsterByteNote() + '</span></div>' +
+      '<br><span style="font-size:0.6875rem;color:#dcd8cc">' + monsterByteNote() + '</span></div>' +
     '<div><b>Special flags</b>' +
-      ' <span style="font-size:0.6875rem;color:#b5b2a8">' + monsterFlagsHTML(r.flags, true) + '</span>' +
-      '<br><span style="font-size:0.6875rem;color:#8c8980">' + (r.flags ? 'The file stores them added together as one number, ' +
+      ' <span style="font-size:0.6875rem;color:#f0ede4">' + monsterFlagsHTML(r.flags, true) + '</span>' +
+      '<br><span style="font-size:0.6875rem;color:#dcd8cc">' + (r.flags ? 'The file stores them added together as one number, ' +
         srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' }, '0x' + r.flags.toString(16).toUpperCase().padStart(8, '0')) + '. ' : '') +
       'Click a flag to see the line that checks it.</span></div>' +
     '</div>';
@@ -2336,7 +2336,7 @@ function showMonsterDetail(idx) {
       animateUnitSprite(whole);
       box.appendChild(holder);
       const how = document.createElement('div');
-      how.style.cssText = 'font-size:0.75rem;color:#b5b2a8;line-height:1.5;max-width:380px';
+      how.style.cssText = 'font-size:0.75rem;color:#f0ede4;line-height:1.5;max-width:380px';
       const lay = u.layout ? 'Layout ' + srcNum({ resid: u.layout.resid, at: u.layout.at }, String(u.layout.code)) : 'No layout';
       const app = appImage();
       if (u.kind === 'octo') how.innerHTML = lay + ': <b>a body with ' + (u.rule ? srcNum(u.rule.arms, u.rule.arms.v + ' arms') : '8 arms') + '</b> of ' +
@@ -2373,9 +2373,9 @@ function showMonsterDetail(idx) {
   if (r.corpseWord) {
     const cnm = propDisplayName(r.corpseType) || ('0x' + r.corpseType.toString(16).toUpperCase());
     const cSrc = { resid: 0xF008, byte: r.index * 16 + 14, stride: 16, what: 'the corpse word' };
-    cd.innerHTML = '<b style="color:#b5b2a8">Leaves behind</b> ' + svEsc(cnm) +
+    cd.innerHTML = '<b style="color:#f0ede4">Leaves behind</b> ' + svEsc(cnm) +
                    ' at aspect ' + srcNum(cSrc, String(r.corpseAspect)) +
-                   ' <span style="font-size:0.6875rem;color:#8c8980">(' +
+                   ' <span style="font-size:0.6875rem;color:#dcd8cc">(' +
                    srcNum(cSrc, '0x' + r.corpseWord.toString(16).toUpperCase().padStart(4, '0')) + ')</span>';
     const cbase = tiles[r.corpseType];
     if (cbase !== undefined) {
@@ -2383,7 +2383,7 @@ function showMonsterDetail(idx) {
       if (spr) { spr.canvas.style.marginTop = '6px'; imageOpens(spr.canvas, sheetOfTile(cbase + r.corpseAspect), 'sheet'); cd.appendChild(spr.canvas); }
     }
   } else {
-    cd.innerHTML = '<b style="color:#b5b2a8">Leaves behind</b> nothing.';
+    cd.innerHTML = '<b style="color:#f0ede4">Leaves behind</b> nothing.';
   }
   panel.appendChild(cd);
   // The components: its class script, the sheet its sprite is cut from, and
@@ -2411,7 +2411,7 @@ function showMonsterDetail(idx) {
   if (users.length) {
     const u = document.createElement('div');
     u.style.cssText = 'font-size:0.8125rem;line-height:1.9;margin-bottom:10px';
-    u.innerHTML = '<b style="color:#b5b2a8">Characters using this sprite</b><br>' +
+    u.innerHTML = '<b style="color:#f0ede4">Characters using this sprite</b><br>' +
       users.slice(0, 30).map(i => '<button class="sv-chip" onclick="showCharacterDetail(' + i + ')">' +
         svEsc(characterName(i)) + '</button>').join(' ');
     panel.appendChild(u);
@@ -2421,11 +2421,11 @@ function showMonsterDetail(idx) {
   // the table. This is the bottom of the chain: below it there is only the
   // file.
   const raw = document.createElement('div');
-  raw.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:0.6875rem;color:#b5b2a8';
+  raw.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:0.6875rem;color:#f0ede4';
   raw.innerHTML = 'raw: ' + Array.from(r.raw).map((b, k) =>
       srcNum({ resid: 0xF008, byte: r.index * 16 + k, stride: 16, what: 'byte ' + k },
              b.toString(16).padStart(2, '0'))).join(' ') +
-    (r.unknown7 ? '<br><span style="color:#8c8980">byte 7 is ' + r.unknown7 + ', which no field reads</span>' : '');
+    (r.unknown7 ? '<br><span style="color:#dcd8cc">byte 7 is ' + r.unknown7 + ', which no field reads</span>' : '');
   panel.appendChild(raw);
   grid.appendChild(panel);
   document.getElementById('output').textContent = nm + ', record ' + r.index + ' of 0xF008';

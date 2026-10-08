@@ -102,7 +102,7 @@ function propNameHTML(pt, base) {
   const wiki = propTypeNameShown(pt);
   if (wiki) return '<span class="lblText">' + svEsc(wiki) + '</span>' + WIKI_TAG;
   const hidden = PROP_TYPE_NAMES[pt] || null;
-  return '<span class="lblText" style="color:#8c8980">unnamed</span>' +
+  return '<span class="lblText" style="color:#dcd8cc">unnamed</span>' +
     (hidden ? '<span class="nameOffTag" title="The wiki calls this \u201c' + svEsc(hidden) +
       '\u201d. Switch tool-supplied names on under \u201cSettings\u201d to show it.">name hidden</span>' : '');
 }
@@ -951,7 +951,7 @@ function showPropTypeDetail(pt) {
   const scriptResid = 0x1000 + pt;
   head.innerHTML = '<div style="font-size:1.1875rem;color:#fff">' +
     propNameHTML(pt, base) +
-    ' <span style="font-size:0.75rem;color:#b5b2a8">proptype 0x' + pt.toString(16).toUpperCase() + '</span></div>' +
+    ' <span style="font-size:0.75rem;color:#f0ede4">proptype 0x' + pt.toString(16).toUpperCase() + '</span></div>' +
     '<div style="font-size:0.8125rem;color:#fff;margin:4px 0 10px">Sheet ' + residLink(sheetResid) +
       ', base tile ' + srcNum(propTileSrc(pt), '0x' + base.toString(16).toUpperCase()) +
       (info.rows > 1 ? ' \u00b7 ' + info.rows + ' facings' : '') +
@@ -1020,7 +1020,7 @@ function showPropTypeDetail(pt) {
       if (!own) holder.style.opacity = '.5';
       cellw.appendChild(holder);
       const cap = document.createElement('div');
-      cap.style.cssText = 'font-size:0.625rem;color:#b5b2a8;line-height:1.3;margin-top:2px';
+      cap.style.cssText = 'font-size:0.625rem;color:#f0ede4;line-height:1.3;margin-top:2px';
       cap.textContent = col ? (f + ' \u00b7 ' + col) : String(f);
       cellw.appendChild(cap);
       sheet.appendChild(cellw);
@@ -1037,11 +1037,11 @@ function showPropTypeDetail(pt) {
   if (users.length) {
     const u = document.createElement('div');
     u.style.cssText = 'font-size:0.8125rem;line-height:1.8';
-    u.innerHTML = '<b style="color:#b5b2a8">Characters using this sprite</b><br>' +
+    u.innerHTML = '<b style="color:#f0ede4">Characters using this sprite</b><br>' +
       users.slice(0, 40).map(i =>
         '<button class="sv-chip" onclick="showCharacterDetail(' + i + ')">' +
         svEsc(characterName(i)) + '</button>').join(' ') +
-      (users.length > 40 ? ' <span style="color:#8c8980">+' + (users.length - 40) + ' more</span>' : '');
+      (users.length > 40 ? ' <span style="color:#dcd8cc">+' + (users.length - 40) + ' more</span>' : '');
     panel.appendChild(u);
   }
   {
@@ -1055,7 +1055,7 @@ function showPropTypeDetail(pt) {
     if (cw) {
       const d = document.createElement('div');
       d.style.cssText = 'font-size:0.8125rem;line-height:1.6;margin-top:10px';
-      d.innerHTML = '<b style="color:#b5b2a8">In the application</b> <span style="color:#8c8980">' + svEsc(cw.gist) + '</span>' + cw.html;
+      d.innerHTML = '<b style="color:#f0ede4">In the application</b> <span style="color:#dcd8cc">' + svEsc(cw.gist) + '</span>' + cw.html;
       panel.appendChild(d);
     }
   }
@@ -1268,7 +1268,7 @@ function fieldReadersHTML(key, cap) {
   return sites.slice(0, n).map(s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid))).join(', ') +
     (sites.length > n ? ' and ' + countLink((sites.length - n) + ' more', 'The ' + sites.length + ' scripts that read ' + itemFieldLabel(key),
       sites.map(s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid)))) : '') +
-    ' <span style="color:#8c8980">(' + all.length + ' site' + (all.length === 1 ? '' : 's') + ')</span>';
+    ' <span style="color:#dcd8cc">(' + all.length + ' site' + (all.length === 1 ? '' : 's') + ')</span>';
 }
 
 /* The ClassFlags word (key 39), by bit: which classes carry each. The
@@ -2164,7 +2164,7 @@ function itemEachOneHTML(pt) {
       (each.length > 12 ? ' <span class="inspDim">and ' + (each.length - 12) + ' more places</span>' : '');
     return '<tr><td class="skillKey">' + head + '</td><td>' + chips + '</td></tr>';
   });
-  return '<div class="eachOne" style="margin-top:10px"><b style="color:#b5b2a8;font-size:0.6875rem;letter-spacing:0">Each one</b>' +
+  return '<div class="eachOne" style="margin-top:10px"><b style="color:#f0ede4;font-size:0.6875rem;letter-spacing:0">Each one</b>' +
     '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><tbody>' + rows.join('') + '</tbody></table></div>' +
     (all.length > 40 ? '<div class="inspDim">and ' + (all.length - 40) + ' more kinds</div>' : '') + '</div>';
 }
@@ -2183,8 +2183,8 @@ function classCacheBlock(pt) {
     : b.kind === 'tag' ? svEsc(itemFieldLabel(b.key)) + ' is not a plain number'
     : svEsc(itemFieldLabel(b.key)) + ' bit ' + (b.at ? srcNum(b.at, propWordHex(b.mask.v)) : propWordHex(b.mask.v));
   const tested = list => list.length ? list.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : 'no routine tests it';
-  const rows = cw.bits.map(b => '<tr><td class="num" style="' + cell + '">' + srcNum(b.bit, propWordHex(b.bit.v)) + '</td><td style="' + cell + ';color:#fff">' + from(b) + '</td><td style="' + cell + ';color:#8c8980;font-size:0.75rem">' + tested(b.testedBy) + '</td></tr>').join('');
-  const side = cw.tables.map(t => '<tr><td class="num" style="' + cell + '">' + srcNum(t.at, String(t.value)) + '</td><td style="' + cell + ';color:#fff">' + svEsc(itemFieldLabel(t.key)) + (t.plusOne ? ' plus one' : '') + ', ' + (t.width === 1 ? 'a byte' : 'a halfword') + ' a class</td><td style="' + cell + ';color:#8c8980;font-size:0.75rem">' + (t.readBy.length ? t.readBy.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : 'no routine reads it') + '</td></tr>').join('');
+  const rows = cw.bits.map(b => '<tr><td class="num" style="' + cell + '">' + srcNum(b.bit, propWordHex(b.bit.v)) + '</td><td style="' + cell + ';color:#fff">' + from(b) + '</td><td style="' + cell + ';color:#dcd8cc;font-size:0.75rem">' + tested(b.testedBy) + '</td></tr>').join('');
+  const side = cw.tables.map(t => '<tr><td class="num" style="' + cell + '">' + srcNum(t.at, String(t.value)) + '</td><td style="' + cell + ';color:#fff">' + svEsc(itemFieldLabel(t.key)) + (t.plusOne ? ' plus one' : '') + ', ' + (t.width === 1 ? 'a byte' : 'a halfword') + ' a class</td><td style="' + cell + ';color:#dcd8cc;font-size:0.75rem">' + (t.readBy.length ? t.readBy.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : 'no routine reads it') + '</td></tr>').join('');
   return {
     gist: propWordHex(cw.value) + (cw.bits.length ? ', ' + cw.bits.length + ' bit' + (cw.bits.length === 1 ? '' : 's') : ', no bits') + (cw.tables.length ? ', ' + cw.tables.length + ' side table' + (cw.tables.length === 1 ? '' : 's') : ''),
     html: '<div class="sv-note" style="margin:0 0 6px">The switches the program keeps for this kind of thing (' + pefChip('FillIntfCache') + '), ' + propWordHex(cw.value) + ', and what checks each one.</div>' +
@@ -2266,7 +2266,7 @@ function showItemDetail(pt) {
                    (col ? ' \u00b7 ' + col : '');
     cellw.appendChild(holder);
     const cap = document.createElement('div');
-    cap.style.cssText = 'font-size:0.625rem;color:#b5b2a8;line-height:1.3;margin-top:2px';
+    cap.style.cssText = 'font-size:0.625rem;color:#f0ede4;line-height:1.3;margin-top:2px';
     cap.textContent = col ? (f + ' \u00b7 ' + col) : String(f);
     cellw.appendChild(cap);
     sheet.appendChild(cellw);
@@ -2284,7 +2284,7 @@ function showItemDetail(pt) {
   if (strangers.length) {
     const note = document.createElement('div');
     note.className = 'sv-note';
-    note.style.cssText = 'font-size:0.75rem;color:#8c8980;margin:-4px 0 12px';
+    note.style.cssText = 'font-size:0.75rem;color:#dcd8cc;margin:-4px 0 12px';
     // The scythe's block runs on into fourteen other things, so the list is
     // capped -- the point is that the block is not all one item, not to
     // enumerate a sheet.
@@ -2306,17 +2306,17 @@ function showItemDetail(pt) {
       const readers = fieldReadersHTML(f.key, 6);
       rows += '<tr><td style="padding:3px 10px 3px 0;color:#fff;white-space:nowrap">' +
         svEsc(itemFieldLabel(f.key)) +
-        '<span style="color:#8c8980;font-size:0.6875rem"> 0x' + f.key.toString(16).toUpperCase().padStart(4,'0') + '</span></td>' +
+        '<span style="color:#dcd8cc;font-size:0.6875rem"> 0x' + f.key.toString(16).toUpperCase().padStart(4,'0') + '</span></td>' +
         '<td style="padding:3px 0;font-family:ui-monospace,Menlo,Consolas,monospace">' +
         srcNum({ resid: cls.resid, at: f.off }, itemFieldValue(f)) + '</td></tr>' +
-        (meta.gloss ? '<tr><td colspan="2" style="padding:0 0 2px;color:#8c8980;font-size:0.75rem">' +
+        (meta.gloss ? '<tr><td colspan="2" style="padding:0 0 2px;color:#dcd8cc;font-size:0.75rem">' +
           svEsc(meta.gloss) + '</td></tr>'
-        : '<tr><td colspan="2" style="padding:0 0 2px;color:#8c8980;font-size:0.75rem">' +
+        : '<tr><td colspan="2" style="padding:0 0 2px;color:#dcd8cc;font-size:0.75rem">' +
           'No published meaning for this key.</td></tr>') +
         // Who consults it: every script with a has_member, get_field or
         // set_field of this key, the first site in each as a link.
-        (readers ? '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">Read by ' + readers + '</td></tr>'
-                 : '<tr><td colspan="2" style="padding:0 0 6px;color:#8c8980;font-size:0.75rem">No script in this file reads this entry by name.</td></tr>');
+        (readers ? '<tr><td colspan="2" style="padding:0 0 6px;color:#dcd8cc;font-size:0.75rem">Read by ' + readers + '</td></tr>'
+                 : '<tr><td colspan="2" style="padding:0 0 6px;color:#dcd8cc;font-size:0.75rem">No script in this file reads this entry by name.</td></tr>');
     }
     fold('data', 'Class data', cls.data.length + ' field' + (cls.data.length === 1 ? '' : 's'), '<table style="border-collapse:collapse;width:100%">' + rows + '</table>');
   } else if (cls) {
@@ -2426,7 +2426,7 @@ function showItemDetail(pt) {
       return '<div class="itemWhere"><button class="sv-chip" onclick="showItemOnMap(' + (rid - 0x100) + ',' + pt + ')">' +
         (spots.length ? 'Show on the map: ' : '') + zn + ' <em>\u00d7' + idx.zones[rid] + '</em></button>' + (each ? ' ' + each : '') + '</div>';
     }).join('') +
-      (zoneIds.length > 16 ? ' <span style="color:#8c8980">+' + (zoneIds.length - 16) + ' more</span>' : '') +
+      (zoneIds.length > 16 ? ' <span style="color:#dcd8cc">+' + (zoneIds.length - 16) + ' more</span>' : '') +
       '</div>';
 
     if (idx.held.length) {
@@ -2436,7 +2436,7 @@ function showItemDetail(pt) {
         byChar[k] = byChar[k] || { n: 0, equipped: 0 };
         byChar[k].n++; if (h.equipped) byChar[k].equipped++;
       }
-      body += '<div style="margin-top:10px"><b style="color:#b5b2a8;font-size:0.6875rem;letter-spacing:0">Carried by</b><br>' +
+      body += '<div style="margin-top:10px"><b style="color:#f0ede4;font-size:0.6875rem;letter-spacing:0">Carried by</b><br>' +
         Object.keys(byChar).slice(0, 24).map(k =>
           '<button class="sv-chip" onclick="showCharacterDetail(' + k + ')">' +
           svEsc(characterName(+k)) + (byChar[k].equipped ? ' <em>equipped</em>' : '') +
@@ -2450,7 +2450,7 @@ function showItemDetail(pt) {
         const k = h.hostType;
         byHost[k] = (byHost[k] || 0) + 1;
       }
-      body += '<div style="margin-top:10px"><b style="color:#b5b2a8;font-size:0.6875rem;letter-spacing:0">Found inside</b><br>' +
+      body += '<div style="margin-top:10px"><b style="color:#f0ede4;font-size:0.6875rem;letter-spacing:0">Found inside</b><br>' +
         Object.keys(byHost).sort((a, b) => byHost[b] - byHost[a]).slice(0, 16).map(k =>
           '<button class="sv-chip" onclick="showItemDetail(' + k + ')">' +
           svEsc(propDisplayName(+k) || ('0x' + (+k).toString(16).toUpperCase())) +

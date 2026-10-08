@@ -2276,8 +2276,72 @@ function fullStomach() {
    leaves, taken from a save the game wrote at a new game and the same in
    every save on the disk bar the clock; reading them out of NewModel is
    not done, so they stand here as the shipped program's, as PREF_SHIPPED
-   does for the preferences. */
+   does for the preferences.
+
+   THE SECOND HALF (8 October 2026): the place, the hour and the day, the
+   point in the story and who is with the hero, chosen on the form.
+
+   The place is any zone with a map and a list, and a square of it. The
+   square offered is where the scenario stands the hero, in his own zone,
+   and elsewhere the first zoneport of 0xF00C that leads into the zone,
+   which is a square the game itself puts a party on.
+
+   The hour is the Char block's clock at SAVE_CLOCK_HOUR units an hour
+   (save-format.md; the new game's 0x9000 is nine in the morning by it).
+
+   The point in the story is one of the scenario's own named states: the
+   resource fork's MSta, three records of 64 bytes named "Base", "Plague
+   Cured" and "Olpheltius Murdered". Bytes 32 to 63 are the 32 quest
+   values. That is read off the two that are not zero: "Plague Cured" has
+   10 at byte 34 and the only script that sets quest value 2 to 10 is the
+   cure's (0x1025); "Olpheltius Murdered" has 1 at byte 35 and quest
+   value 3 is set to 1 by the world's entry script (0x1401) when its test
+   of who is dead passes. What bytes 0 to 31 are is not read; they are
+   zero in all three. The quest flags and everything finer stay with the
+   forms below.
+
+   Who is with the hero is anyone whose own conversation can call
+   JoinParty. Each stands on a square beside him a walker can cross;
+   buildNewGameSave says what their records are given. */
 const NEW_GAME_SHIPPED = { clock: 0x9000, day: 1, header4: 0x0800 };
+const SAVE_CLOCK_HOUR = 0x1000;
+function saveMakerZones() {
+  const out = [];
+  for (let k = 1; k < subindexCount(ARCHIVE, 127); k++) if (refExists(0x8000 + k) && refExists(0x8100 + k)) out.push({ zone: k, name: zoneDisplayName(k) });
+  return out;
+}
+// The square offered in a zone, and the map it has to lie on.
+function saveMakerArrival(zone) {
+  const raw = getResourceBytes(ARCHIVE, 0x8000 + zone), m = raw ? parseDelverMap(raw) : null;
+  if (!m) return null;
+  const hero = loadCharacterTable()[1];
+  const port = loadZoneports().find((z, i) => i && z.map === (0x8000 | zone) && z.x < m.width && z.y < m.height);
+  const at = hero && hero.zone === zone ? hero : port || { x: m.width >> 1, y: m.height >> 1 };
+  return { x: at.x, y: at.y, map: m, raw };
+}
+function saveMakerCompanions() {
+  const out = [], chars = loadCharacterTable();
+  for (let i = 2; i < 256; i++) {
+    if (!chars[i] || !delverCharacterInUse(chars[i]) || !refExists(0x1800 + i)) continue;
+    let joins = false;
+    try { joins = dvmOpsOf(dvmScriptEntry(0x1800 + i)).some(o => o.text === 'sys JoinParty'); } catch (e) { quiet(e, 'who can join the party'); }
+    if (joins) out.push({ index: i, name: characterName(i) });
+  }
+  return out;
+}
+function saveMakerStories() {
+  const f = window.CYTHERA_RSRC, out = [];
+  try {
+    for (const e of (f && f.resourcesByType && f.resourcesByType.MSta) || []) {
+      const d = f.dataOf('MSta', e), values = {};
+      if (!d || d.length < 64 || !e.name) continue;
+      for (let n = 0; n < 32; n++) if (d[32 + n]) values[n] = d[32 + n];
+      out.push({ name: e.name, values });
+    }
+  } catch (e) { quiet(e, 'the scenario’s named states'); }
+  // The state with nothing set first, which is a new game's.
+  return out.sort((a, b) => Object.keys(a.values).length - Object.keys(b.values).length);
+}
 function saveMakerDefaults() {
   const cr = heroCreationRules();
   const hero = loadCharacterTable()[1];
@@ -2288,11 +2352,13 @@ function saveMakerDefaults() {
   // Offered first: a portrait the file names for nobody, which is what the
   // hero's choices are, the cast's each carrying its character's name.
   const portrait = portraits.find(r => !labelFor(r)) || portraits[0];
-  return { cr, portraits, portrait, body: hero.body, reflex: hero.reflex, mind: hero.mind, level: cr.level.v };
+  return { cr, portraits, portrait, body: hero.body, reflex: hero.reflex, mind: hero.mind, level: cr.level.v,
+           zone: hero.zone, zones: saveMakerZones(), stories: saveMakerStories(), companions: saveMakerCompanions() };
 }
 /* The file, from the choices: { name, sprite (an index into the script's
-   two), portrait (a resource), body, reflex, mind, level }. Null when the
-   open file cannot make one. */
+   two), portrait (a resource), body, reflex, mind, level, zone, x, y,
+   hour, day, story (a named state), party (character numbers) }. Null
+   when the open file cannot make one, or the square is off the map. */
 function newGameSaveBytes(c) {
   const d = saveMakerDefaults();
   if (!d || !ARCHIVE) return null;
@@ -2303,10 +2369,27 @@ function newGameSaveBytes(c) {
   try { xp = experienceRules(); } catch (e) { quiet(e, 'the health formula for a made save'); }
   const div = xp && xp.rule && xp.rule.healthReflexDiv ? xp.rule.healthReflexDiv.v : 0;
   const health = Math.min(255, body + (div ? Math.floor(reflex / div) : 0) + level);
-  return buildNewGameSave(ARCHIVE, Object.assign({ name: c.name, portrait: c.portrait || d.portrait,
+  const num = (v, dflt) => { const n = parseInt(v, 10); return isNaN(n) ? dflt : n; };
+  const zone = num(c.zone, d.zone), at = saveMakerArrival(zone);
+  if (!at) return null;
+  const x = num(c.x, at.x), y = num(c.y, at.y), m = at.map;
+  if (x < 0 || y < 0 || x >= m.width || y >= m.height) return null;
+  // Companions take the squares round the hero in turn, east first, that
+  // lie on the map and a walker can cross.
+  const party = [], free = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1], [2, 0], [-2, 0], [0, 2], [0, -2]]
+    .map(([dx, dy]) => ({ x: x + dx, y: y + dy }))
+    .filter(q => q.x >= 0 && q.y >= 0 && q.x < m.width && q.y < m.height && tilePassable(u16be(at.raw, m.mapDataOffset + (q.y * m.width + q.x) * 2)));
+  for (const i of c.party || []) {
+    if (!d.companions.some(k => k.index === +i) || !free.length) return null;
+    party.push(Object.assign({ index: +i }, free.shift()));
+  }
+  const story = d.stories.find(t => t.name === c.story);
+  const hour = num(c.hour, -1), when = { clock: hour >= 0 && hour < 24 ? hour * SAVE_CLOCK_HOUR : NEW_GAME_SHIPPED.clock,
+    day: Math.max(1, Math.min(0x7FFF, num(c.day, NEW_GAME_SHIPPED.day))), header4: NEW_GAME_SHIPPED.header4 };
+  return buildNewGameSave(ARCHIVE, Object.assign({ zone, x, y, party, values: story ? story.values : null, name: c.name, portrait: c.portrait || d.portrait,
     proptype: sprite & 0x3FF, aspect: (sprite >> 10) & 0x3F, body, reflex, mind, level, xp: 0,
     health, healthMax: health, magic: 0, magicMax: 0, training: d.cr.training.v, nutrition: d.cr.nutrition.v,
-    archetype: 0, karma: d.cr.karma.v, difficulty: d.cr.difficulty.v }, NEW_GAME_SHIPPED));
+    archetype: 0, karma: d.cr.karma.v, difficulty: d.cr.difficulty.v }, when));
 }
 function saveMakerHTML() {
   const d = saveMakerDefaults();
@@ -2314,22 +2397,43 @@ function saveMakerHTML() {
   const num = (id, label, v) => '<label class="mkField">' + svEsc(label) + ' <input type="number" id="' + id + '" min="1" max="255" value="' + v + '"></label>';
   const spriteName = v => propDisplayName(v.v & 0x3FF) || ('sprite ' + propWordHex(v.v & 0x3FF));
   return '<div class="saveMaker" id="saveMaker"><h3>Make a Save</h3>' +
-    '<div class="mechLede">' + svEsc('Start a new game with a hero you choose. The save opens here, and the forms on this tab then set the place, the story, the To Do list and what the hero carries.') + '</div>' +
+    '<div class="mechLede">' + svEsc('Make a saved game: the hero, the place, the hour, a point in the story and who is with you. Make the Save opens it here, where the forms set the rest.') + '</div>' +
     '<div class="mkRow"><label class="mkField">Name <input type="text" id="mkName" maxlength="31" value="NewGame01"></label>' +
     '<label class="mkField">Sprite <select id="mkSprite">' + d.cr.sprites.map((s, i) => '<option value="' + i + '">' + svEsc(spriteName(s)) + '</option>').join('') + '</select></label>' +
     '<label class="mkField">Portrait <select id="mkPortrait">' + d.portraits.map(r => '<option value="' + r + '"' + (r === d.portrait ? ' selected' : '') + '>' + svEsc(labelFor(r) || propWordHex(r)) + '</option>').join('') + '</select></label></div>' +
     '<div class="mkRow">' + num('mkBody', 'Body', d.body) + num('mkReflex', 'Reflex', d.reflex) + num('mkMind', 'Mind', d.mind) + num('mkLevel', 'Level', d.level) + '</div>' +
+    '<div class="mkRow"><label class="mkField">Place <select id="mkZone" onchange="saveMakerPlace()">' + d.zones.map(z => '<option value="' + z.zone + '"' + (z.zone === d.zone ? ' selected' : '') + '>' + svEsc(z.name) + '</option>').join('') + '</select></label>' +
+    (() => { const at = saveMakerArrival(d.zone) || { x: 0, y: 0 }; return '<label class="mkField">at <input type="number" id="mkX" min="0" value="' + at.x + '"> , <input type="number" id="mkY" min="0" value="' + at.y + '"></label>'; })() + '</div>' +
+    '<div class="mkRow"><label class="mkField">Hour <input type="number" id="mkHour" min="0" max="23" value="' + Math.floor(NEW_GAME_SHIPPED.clock / SAVE_CLOCK_HOUR) + '"></label>' +
+    '<label class="mkField">Day <input type="number" id="mkDay" min="1" value="' + NEW_GAME_SHIPPED.day + '"></label>' +
+    (d.stories.length ? '<label class="mkField">Story <select id="mkStory">' + d.stories.map(t => '<option value="' + svEsc(t.name) + '">' + svEsc(t.name) + '</option>').join('') + '</select></label>' : '') + '</div>' +
+    (d.companions.length ? '<div class="mkRow"><span class="mkField">With</span>' + d.companions.map(k => '<label class="mkField"><input type="checkbox" class="mkWith" value="' + k.index + '"> ' + svEsc(k.name) + '</label>').join('') + '</div>' : '') +
     '<div class="mkRow"><button class="secondary" onclick="makeSaveFromForm()">Make the Save</button>' +
+    '<button class="secondary" onclick="makeSaveFromForm(true)">Download It</button>' +
     '<span class="mechSub" style="display:inline">' + svEsc('The hero starts with ') + srcNum(d.cr.training) + svEsc(' training points and nutrition ') + srcNum(d.cr.nutrition) + svEsc(', as a new game gives.') + '</span></div></div>';
 }
-function makeSaveFromForm() {
+// The zone chosen: its arrival square into the two fields.
+function saveMakerPlace() {
+  const z = document.getElementById('mkZone'), at = z ? saveMakerArrival(parseInt(z.value, 10)) : null;
+  if (!at) return;
+  document.getElementById('mkX').value = at.x; document.getElementById('mkY').value = at.y;
+}
+function makeSaveFromForm(download) {
   const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
   const name = String(val('mkName')).trim() || 'NewGame01';
-  const bytes = newGameSaveBytes({ name, sprite: val('mkSprite'), portrait: parseInt(val('mkPortrait'), 10), body: val('mkBody'), reflex: val('mkReflex'), mind: val('mkMind'), level: val('mkLevel') });
-  if (!bytes) { setStatus('The page could not make a save from this file.', true); return false; }
+  const party = [...document.querySelectorAll('.mkWith')].filter(b => b.checked).map(b => parseInt(b.value, 10));
+  const bytes = newGameSaveBytes({ name, sprite: val('mkSprite'), portrait: parseInt(val('mkPortrait'), 10), body: val('mkBody'), reflex: val('mkReflex'), mind: val('mkMind'), level: val('mkLevel'),
+    zone: val('mkZone'), x: val('mkX'), y: val('mkY'), hour: val('mkHour'), day: val('mkDay'), story: val('mkStory'), party });
+  if (!bytes) { setStatus('The page could not make that save. The square has to be on the zone’s map, with room beside it for each companion.', true); return false; }
+  if (download) {
+    // As a save leaves a Mac: MacBinary, the game's type and creator.
+    dlBlob(new Blob([writeMacBinary({ name, type: 'DelP', creator: 'Delv', data: bytes })], { type: 'application/macbinary' }), safeFileName(name) + '.bin');
+    setStatus('Made a save for ' + name + ', ' + bytes.length.toLocaleString() + ' bytes.');
+    return true;
+  }
   parseArchiveBytes(bytes, name, { via: 'made here' });
   showCategory('SAVEGAME');
-  setStatus('Made a new game for ' + name + '. To download it, go to Data › Cythera Data › Changes.');
+  setStatus('Made a save for ' + name + '. The forms here set the rest.');
   return true;
 }
 /* MAKE A SCENARIO (8 October 2026): the open scenario with its world
@@ -3841,7 +3945,7 @@ function showRecordDetail(resid, byte) {
   panel.style.cssText = 'width:100%;max-width:560px;margin:12px auto;text-align:left';
 
   let h = '<div style="font-size:1.25rem;color:#fff">' + svEsc(t.label) + '</div>' +
-    '<div style="font-size:0.75rem;color:#b5b2a8;margin-bottom:10px">record ' + idx + ' of ' + n +
+    '<div style="font-size:0.75rem;color:#f0ede4;margin-bottom:10px">record ' + idx + ' of ' + n +
     ' · ' + propWordHex(resid) + ' · ' + t.stride + ' bytes a record</div>' +
     '<div class="sv-note" style="margin-top:0">' + svEsc(t.note) + '</div>';
   panel.innerHTML = h;
@@ -3879,10 +3983,10 @@ function showRecordDetail(resid, byte) {
     for (let k = 0; k < f.width; k++) bytes.push(hex(f.off + k));
     const hit = byte >= start + f.off && byte < start + f.off + f.width;
     rows += '<tr' + (hit ? ' class="listingHit"' : '') + '><td class="num">' + f.off + '</td>' +
-      '<td>' + (f.name ? svEsc(f.name) : '<span style="color:#8c8980">unnamed</span>') +
-      (f.field !== null && f.field !== undefined ? ' <span style="color:#8c8980;font-size:0.6875rem">field ' +
+      '<td>' + (f.name ? svEsc(f.name) : '<span style="color:#dcd8cc">unnamed</span>') +
+      (f.field !== null && f.field !== undefined ? ' <span style="color:#dcd8cc;font-size:0.6875rem">field ' +
         (f.at ? srcNum({ exe: f.at }, String(f.field)) : f.field) + '</span>' : '') +
-      (f.note ? ' <span style="color:#8c8980;font-size:0.6875rem">' + svEsc(f.note) + '</span>' : '') + '</td>' +
+      (f.note ? ' <span style="color:#dcd8cc;font-size:0.6875rem">' + svEsc(f.note) + '</span>' : '') + '</td>' +
       '<td class="num">' + val(f.off, f.width) + '</td>' +
       '<td class="num" style="font-family:ui-monospace,Menlo,monospace">' +
       srcNum({ resid, byte: start + f.off, stride: t.stride, what: f.name || ('byte ' + f.off) }, bytes.join(' ')) + '</td></tr>';

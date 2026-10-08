@@ -128,7 +128,7 @@ function run(label, dataFork, made) {
   try {
     const arc = ctx.openDelverArchive(written);
     read = ctx.parseDelverCharacterRecords(ctx.smartDecrypt(ctx.getResourceBytes(arc, 0xF009), 0xF009).data)[1];
-    if (made) return {opened, completed, same, read, rest, log: join(PLAY, label + '.log')};   // a made save has no zone 40 to read a gift from
+    if (made) return {opened, completed, same, read, rest, written, log: join(PLAY, label + '.log')};   // a made save has no zone 40 to read a gift from
     const seg = rid => ctx.smartDecrypt(ctx.getResourceBytes(arc, rid), rid).data;
     const q = ctx.saveQuestState(ctx.delverArchiveSpec(written)), rooms = seg(0xF00E), todo = seg(0x0401);
     const given = ctx.parseDelverPropList(seg(0x8128)).filter(r => r.flags === 0x10 && r.carriedBy === 1 && r.proptype === 66 && r.d3 === 0x300).length;
@@ -166,8 +166,18 @@ if (!failures) console.log(`  the game loaded the edited save and saved it back:
    with a line when the scenario's data fork was not handed over. */
 let madeLine = '';
 if (scenarioArg && existsSync(scenarioArg)) {
-  ctx.parseArchiveBytes(new Uint8Array(readFileSync(scenarioArg)), 'Cythera Data', {via: 'data fork'});
-  const made = ctx.newGameSaveBytes({name: 'Bellerophon', sprite: 0, body: 21, reflex: 14, mind: 9, level: 3});
+  /* And the second half (8 October 2026): another zone than the hero's own,
+     at the square the page offers there, the first of the characters who
+     can join standing with him, the first named state that sets anything,
+     two in the afternoon on day 3. The resource fork is opened beside the
+     data, since the named states are in it. What must come back from the
+     game's own save: the place; the companion still in the party, in the
+     zone, following; the state's quest value; the day. */
+  const rsrcPath = scenarioArg.replace(/\.data$/, '.rsrc');
+  ctx.parseArchiveBytes(new Uint8Array(readFileSync(scenarioArg)), 'Cythera Data', existsSync(rsrcPath) ? {via: 'data fork', rsrc: new Uint8Array(readFileSync(rsrcPath))} : {via: 'data fork'});
+  const md = ctx.saveMakerDefaults(), elsewhere = md.zones.find(z => z.zone !== md.zone && z.zone > 1), friend = md.companions[0], story = md.stories.find(t => Object.keys(t.values).length);
+  const made = ctx.newGameSaveBytes({name: 'Bellerophon', sprite: 0, body: 21, reflex: 14, mind: 9, level: 3,
+    zone: elsewhere.zone, party: friend ? [friend.index] : [], story: story ? story.name : '', hour: 14, day: 3});
   if (!made) fail('made: the page could not make a save from the scenario');
   else {
     const want = ctx.parseDelverCharacterRecords(ctx.delverArchiveSpec(made).resources.find(r => r.resid === 0xF009).data)[1];
@@ -176,7 +186,15 @@ if (scenarioArg && existsSync(scenarioArg)) {
     if (!r.completed || !r.opened || r.same) fail(`made: the game did not open, run and save the made file (${r.log})`);
     else if (!got || keys.some(k => got[k] !== want[k])) fail('made: the hero came back changed: ' + JSON.stringify(keys.map(k => [k, want[k], got && got[k]]).filter(t => t[1] !== t[2])));
     else if (want.body !== 21 || want.level !== 3 || !want.health) fail('made: the file was not made with the stats asked for: ' + JSON.stringify(want));
-    else madeLine = `; and a save made from the scenario alone, hero in zone ${got.zone} at (${got.x}, ${got.y}) with body ${got.body}, level ${got.level}, health ${got.health}`;
+    else {
+      const back = ctx.delverArchiveSpec(r.written), q = ctx.saveQuestState(back), pal = friend ? q.chars[friend.index] : null, ch = back.resources.find(x => x.resid === 0x0400).data;
+      const [sn, sv] = story ? Object.entries(story.values)[0] : [];
+      if (got.zone !== elsewhere.zone) fail(`made: the hero is in zone ${got.zone}, not ${elsewhere.zone}`);
+      else if (friend && (!pal || !(pal.state & 0x40) || pal.zone !== got.zone || pal.raw[22] !== 1)) fail('made: the companion is not in the party, in the zone and following: ' + JSON.stringify(pal && {state: pal.state, zone: pal.zone, behaviour: pal.raw[22]}));
+      else if (story && q.values[+sn] !== sv) fail(`made: quest value ${sn} is ${q.values[+sn]}, not the ${sv} of ${story.name}`);
+      else if (((ch[84] << 8) | ch[85]) !== 3) fail('made: the day is not 3: ' + ((ch[84] << 8) | ch[85]));
+      else madeLine = `; and a save made from the scenario alone, hero in zone ${got.zone} at (${got.x}, ${got.y}) with body ${got.body}, level ${got.level}, health ${got.health}` + (friend ? `, character ${friend.index} with him` : '') + (story ? `, in the state ${story.name}` : '') + ', on day 3';
+    }
     if (madeLine) console.log('  the game loaded' + madeLine.slice(5) + ', and saved it back');
   }
 } else console.log('  the made save was not tried: no scenario data fork was handed over');
