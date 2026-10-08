@@ -1589,14 +1589,14 @@ try {
       const mergedSpec = ctx.delverArchiveSpec(ctx.mergeDelverPatch(peek('ARCHIVE.bytes'), pw.bytes).bytes);
       const strays = fspec.resources.filter(r => !same(of(mergedSpec, r.resid), r.data)).length;
       const patchOk = pw.count > 400 && !strays && mergedSpec.resources.length === before.resources.length && !same(of(mergedSpec, 0x8000 + z), of(before, 0x8000 + z));
-      if (!host || buttons.length !== 4) fail('make a scenario', 'Data › Patches does not offer the maker with its four buttons: ' + JSON.stringify(buttons));
+      if (!host || buttons.length !== 5) fail('make a scenario', 'Data › Patches does not offer the maker with its five buttons: ' + JSON.stringify(buttons));
       else if (!patchOk) fail('make a scenario', 'the patch, merged, is not the made file over the open one: ' + JSON.stringify({ count: pw.count, strays, resources: mergedSpec.resources.length }));
       else if (!eggsOk || !sameSide) fail('make a scenario', 'the battle is not six eggs in two columns north of the hero, or one side against itself was not refused: ' + JSON.stringify({ records: recs.length, sameSide }));
       else if (!pics || redrawn !== pics || sized !== pics || others) fail('make a scenario', 'the pictures were not all redrawn at their own sizes with the rest left alone: ' + JSON.stringify({ pics, redrawn, sized, others }));
       else if (!has(255, 255, 255) || !has(0, 0, 0) || !has(220, 0, 0)) fail('make a scenario', 'a portrait has no face drawn on it');
       else if (!heroOk) fail('make a scenario', 'the hero’s ' + heroTiles.length + ' frames are not a black and white figure');
       else console.log(`  make a scenario, battle and art: ${ka.name} against ${kb.name}, three eggs a side; ${ka.name} against ${kc.name} refused; ${pics} pictures redrawn at their own sizes, a face on the portrait, the hero’s ${heroTiles.length} frames black and white, nothing else changed; as a patch, ${pw.count} resources that merge to the same`);
-      if (!host || buttons.length !== 4) { /* said above */ }
+      if (!host || buttons.length !== 5) { /* said above */ }
       else console.log(`  make a scenario: ${before.resources.length} resources to ${spec.resources.length}; zone ${z} alone, 24 by 20 of ${d.tiles[0].name}, the hero alone at (10, 12); the slideshow cut (${cr0.length - cr.length} bytes) and kept when asked; a square outside and a quoted name refused`);
     }
   }
@@ -1625,12 +1625,28 @@ try {
     const talk = made.resources.filter(r => (r.resid >> 8) === 0x18 && r.resid !== 0x1801).map(r => r.resid - 0x1800).sort((a, b) => a - b);
     const list = ctx.parseDelverPropList(made.resources.find(r => r.resid === 0x8100 + z).data);
     let refused = false; try { ctx.manboroughMap(new TextEncoder().encode('{"levels":[]}')); } catch (e) { refused = true; }
-    if (mp.width !== m.width || mp.height !== m.height || words !== m.width * m.height) fail('manborough', `the map read is not the archive's: ${words} of ${m.width * m.height} words agree`);
+    /* The hatcheries (the same day's correction): his number is the unit
+       record's, so a guard's must hatch the prop type unit 7 wears and not
+       prop type 7, which v1.272.0 wrote. And out again (manboroughExport):
+       his map written back must read as the same map, object for object,
+       which is his own text returned; a zone made by the form must come
+       back as its size, its one tile and the hero's square, with the
+       battle named as left out. */
+    const units = ctx.parseMonsterStats(), guard = units[7].proptype;
+    const eggsOk = m.eggs.length && m.eggs.every(e => e.type === guard) && guard !== 7;
+    const outA = ctx.manboroughExport({ map: m }), backA = ctx.manboroughMap(outA.bytes);
+    const j = v => JSON.stringify(v);
+    const roundA = j(backA.source.objects) === j(m.source.objects) && j(backA.source.cells) === j(m.source.cells) && backA.x === m.x && backA.y === m.y && j(Array.from(backA.tiles)) === j(Array.from(m.tiles));
+    const outB = ctx.manboroughExport({ name: 'Empty Field', width: 24, height: 20, x: 10, y: 12, armyA: 47, armyB: 93 }), backB = ctx.manboroughMap(outB.bytes);
+    const roundB = backB.width === 24 && backB.height === 20 && backB.x === 10 && backB.y === 12 && new Set(backB.tiles).size === 1 && !backB.props.length && outB.left.join() === 'the battle' && /^[a-z0-9_]+$/.test(outB.id);
+    if (!eggsOk) fail('manborough', 'a guard hatchery does not hatch the guard: ' + j(m.eggs.slice(0, 2)) + ', unit 7 wears ' + guard);
+    else if (!roundA || !roundB) fail('manborough', 'a map written out does not read back: ' + j({ roundA, roundB, left: outB.left, id: outB.id }));
+    else if (mp.width !== m.width || mp.height !== m.height || words !== m.width * m.height) fail('manborough', `the map read is not the archive's: ${words} of ${m.width * m.height} words agree`);
     else if (!m.props.length || found !== m.props.length) fail('manborough', `${m.props.length - found} of ${m.props.length} things are not where the archive has one of that type`);
     else if (!asked.length || there.join() !== asked.join() || !asked.every(i => talk.includes(i) && cast[i].zone === z)) fail('manborough', 'the people placed are not the ones kept, in the zone, with their conversations: ' + JSON.stringify({ asked, there, talk }));
     else if (list.length !== m.props.length + 2 * m.eggs.length || !m.eggs.length) fail('manborough', `the zone's list is ${list.length} records for ${m.props.length} things and ${m.eggs.length} hatcheries`);
     else if (m.x !== ctx.loadCharacterTable()[1].x || m.y !== ctx.loadCharacterTable()[1].y || !refused) fail('manborough', 'the start square is not the hero\'s, or a file that is no map was taken');
-    else console.log(`  manborough: his Land King Hall read back as the archive's, ${words} map words and ${found} things; ${asked.length} people kept with their conversations, ${m.eggs.length} hatcheries; ${m.skipped.length} objects left out; a file that is no map refused`);
+    else console.log(`  manborough: his Land King Hall read back as the archive's, ${words} map words and ${found} things; ${asked.length} people kept with their conversations, ${m.eggs.length} hatcheries; ${m.skipped.length} objects left out; a file that is no map refused; written out, his map and a made zone both read back`);
   }
 } catch (e) { fail('manborough', e); }
 

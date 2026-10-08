@@ -2451,11 +2451,16 @@ function scenarioBattleEggs(c, width, height, x, y) {
      a bare name (sword)     the prop type the game calls that, singular or
                              plural, by propDisplayName
      cythera_spawn_NNN_who_xC_pP_...
-                             an egg hatching C of prop type NNN, P times
-                             in a hundred, at the behaviour the open
-                             file's eggs give that type (0 where none
-                             does); its day or night condition is not
-                             carried, so it hatches at any hour
+                             an egg hatching C of the creature of unit
+                             record NNN of 0xF008 (1 the ruffian, 7 the
+                             guard, 25 the wolflizard: his number is the
+                             record's, not a prop type's, which v1.272.0
+                             took it for and so hatched his guards as
+                             prop 7, the windowed door), P times in a
+                             hundred, at the behaviour the open file's
+                             eggs give that creature (0 where none does);
+                             its day or night condition is not carried,
+                             so it hatches at any hour
      cythera_npc_NNN_...     character NNN of the open file, stood there
                              with its conversation and no schedule
    A thing's state, what it holds, its document, its lock and whether it
@@ -2485,12 +2490,15 @@ function manboroughMap(bytes) {
   const slug = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
   const byName = new Map(), known = getPropTileList();
   for (let pt = 1; pt < known.length; pt++) { const n = known[pt] !== undefined ? slug(propDisplayName(pt)) : ''; if (n && !byName.has(n)) byName.set(n, pt); }
+  const units = parseMonsterStats();
   const eggBehaviour = type => {
     for (let k = 0; k < subindexCount(ARCHIVE, 128); k++) { const b = getResourceBytes(ARCHIVE, 0x8100 + k); if (!b) continue;
       for (const r of parseDelverPropList(b)) if (r.flags === 0x08 && r.proptype === type) return (r.d3 >> 8) & 0xFF; }
     return 0;
   };
-  const out = { name: String(m.name || '').trim(), width, height, tiles, props: [], eggs: [], cast: [], skipped: [] };
+  // `source` is his own objects and spawns, kept to be written back as
+  // they came (manboroughExport).
+  const out = { name: String(m.name || '').trim(), width, height, tiles, props: [], eggs: [], cast: [], skipped: [], source: { objects: m.objects || [], spawns: m.spawns || [], cells: m.cells } };
   const start = (m.spawns || []).find(s => s && s.name === 'player_start');
   if (start) { out.x = start.x | 0; out.y = start.y | 0; }
   for (const o of m.objects || []) {
@@ -2498,11 +2506,52 @@ function manboroughMap(bytes) {
     let g;
     if ((g = /^cythera_npc_(\d+)/.exec(def))) out.cast.push({ index: +g[1], x, y });
     else if ((g = /^cythera_prop_(\d+)_(.*)$/.exec(def))) { const a = /_a(\d+)$/.exec(g[2]); out.props.push({ x, y, type: +g[1], aspect: a ? +a[1] : 0, rotated: !!o.rotated }); }
-    else if ((g = /^cythera_spawn_(\d+)_.*?_x(\d+)_p(\d+)/.exec(def)) && known[+g[1]] !== undefined) { const type = +g[1]; out.eggs.push({ x, y, type, behaviour: eggBehaviour(type), count: Math.min(255, +g[2]), chance: Math.min(100, +g[3]) }); }
+    else if ((g = /^cythera_spawn_(\d+)_.*?_x(\d+)_p(\d+)/.exec(def)) && units[+g[1]] && !units[+g[1]].blank && units[+g[1]].proptype) { const type = units[+g[1]].proptype; out.eggs.push({ x, y, type, behaviour: eggBehaviour(type), count: Math.min(255, +g[2]), chance: Math.min(100, +g[3]) }); }
     else if (byName.has(def) || byName.has(def.replace(/s$/, ''))) out.props.push({ x, y, type: byName.get(def) || byName.get(def.replace(/s$/, '')), aspect: 0, rotated: !!o.rotated });
     else out.skipped.push(def);
   }
   return out;
+}
+/* AND OUT AGAIN: the made zone as a scenario his editor's "Import
+   Scenario..." takes (the same day). The zip is the three files his own
+   export has: scenario.json with an id of letters, digits and underscores
+   and Cythera as its base, levels.json naming the one map, and the map.
+
+   What can be written is what his format lets a stranger name. The
+   ground is every square's map word. The hero's square is player_start.
+   A zone that came from a map of his gets that map's objects back exactly
+   as they came, cells and all, since they are already in his words. A battle's creatures
+   are NOT written: his hatcheries are 113 fixed definitions, one for each
+   combination the shipped game has (ruffians come four at a time at 100
+   in a hundred, wolflizards never do), and a name outside that list is
+   one his editor has no definition for. The art is his player's, whatever
+   the form's Art says. Returns { bytes, name, id, left: [what was left
+   out] }, or null where the choices make no zone. */
+function manboroughExport(c) {
+  const d = scenarioMakerDefaults();
+  if (!d) return null;
+  const int = (v, dflt) => { const n = parseInt(v, 10); return isNaN(n) ? dflt : n; };
+  const im = c.map || null, width = im ? im.width : int(c.width, d.width), height = im ? im.height : int(c.height, d.height);
+  const x = int(c.x, im && im.x !== undefined ? im.x : Math.min(d.x, width - 1)), y = int(c.y, im && im.y !== undefined ? im.y : Math.min(d.y, height - 1));
+  if (width < 1 || height < 1 || x < 0 || y < 0 || x >= width || y >= height) return null;
+  const title = String(c.name || (im && im.name) || 'New Zone').trim(), tile = int(c.tile, d.tile) & 0xFFFF;
+  const slug = (title.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'zone');
+  const cells = [];
+  // His cells go back as they came, the tiles of things above the ground
+  // included; a zone made here has the one word a square.
+  if (im) cells.push(...im.source.cells);
+  else for (let cy = 0; cy < height; cy++) for (let cx = 0; cx < width; cx++) cells.push({ xy: [cx, cy], t: [tile] });
+  const spawns = (im ? im.source.spawns.filter(s => s && s.name !== 'player_start') : []).concat([{ name: 'player_start', x, y }]);
+  const map = { name: title, width, height, cells, spawns, objects: im ? im.source.objects : [] };
+  const id = slug.toLowerCase(), left = [];
+  if (String(c.armyA || '') !== '' || String(c.armyB || '') !== '') left.push('the battle');
+  if (c.badArt || c.pack) left.push('the art');
+  const text = v => new TextEncoder().encode(JSON.stringify(v, null, 1));
+  const bytes = buildZipBytes([
+    { name: id + '/scenario.json', bytes: text({ formatVersion: 1, id, name: title, contentVersion: '1', base: { id: 'cythera', contentVersion: 'dev' }, content: { levels: 'levels.json' } }) },
+    { name: id + '/levels.json', bytes: text({ levels: [{ name: slug, map: 'maps/' + slug + '.json' }] }) },
+    { name: id + '/maps/' + slug + '.json', bytes: text(map) }]);
+  return { bytes, name: id, id, left };
 }
 /* The file, from the choices: { name (the zone's title), width, height,
    tile, x, y, light (the zone's ambient level), opening (true keeps the

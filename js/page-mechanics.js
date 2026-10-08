@@ -2238,6 +2238,14 @@ function scenarioPatchDownload() {
   scenarioSay(w.bytes.length.toLocaleString() + ' bytes, ' + w.count + ' resources. Choose this file under Patches in the browser player, then start a new game.');
   return w;
 }
+function scenarioManboroughDownload() {
+  let w = null;
+  try { w = manboroughExport(window.SCENARIO_STATE); } catch (e) { scenarioSay(e.message, true); return null; }
+  if (!w) { scenarioSay('The page could not make a zone with these choices. The hero has to stand inside it.', true); return null; }
+  dlBlob(new Blob([w.bytes], { type: 'application/zip' }), w.name + '.zip');
+  scenarioSay(w.bytes.length.toLocaleString() + ' bytes. In Manborough’s editor, Import Scenario, then choose it under Select Scenario.' + (w.left.length ? ' Left out: ' + w.left.join(' and ') + '.' : ''));
+  return w;
+}
 function scenarioOpenHere() {
   const bytes = scenarioMake();
   if (!bytes) return false;
@@ -2348,7 +2356,7 @@ function renderScenarioMaker() {
   if (!(window.CYTHERA_RSRC_RAW && window.CYTHERA_RSRC_RAW.length))
     host.appendChild(el('p', 'mechSub', 'This copy has no resource fork, and the game will not start without one. Open the game in MacBinary or BinHex, or open the installer.'));
   const bar = el('div', 'mechStats');
-  for (const [text, fn] of [['Download for a Mac', () => scenarioDownload(false)], ['Download as a disk image', () => scenarioDownload(true)], ['Download as a patch', () => scenarioPatchDownload()], ['Open It Here', () => scenarioOpenHere()]]) {
+  for (const [text, fn] of [['Download for a Mac', () => scenarioDownload(false)], ['Download as a disk image', () => scenarioDownload(true)], ['Download as a patch', () => scenarioPatchDownload()], ['Download for Manborough\u2019s editor', () => scenarioManboroughDownload()], ['Open It Here', () => scenarioOpenHere()]]) {
     const b = document.createElement('button');
     b.className = 'secondary';
     b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
@@ -4532,6 +4540,7 @@ function renderMechanicsSheet(value) {
         'Put the file in place of Cythera Data in the game\u2019s folder, and start a new game.',
         'To play it in the browser player, download it as a patch and choose that file under Patches there. A patch cannot take anything out, so the rest of the world stays in the file, out of reach.',
         'Every other zone is gone, and every character, schedule and conversation.',
+        'The download for Manborough\u2019s editor carries the ground and the hero\u2019s square, and a map that came from his editor goes back with everything it had. A battle and the art are left out.',
         'A map from Manborough\u2019s editor brings its ground, the things and people placed on it and where the hero starts. What a thing holds, and whether a door is locked or a lamp lit, is not carried.',
         'A battle is two kinds of creature that the game counts as enemies, set beside the hero and left to it.',
         'The pictures changed are the ones in Cythera Data. The program\u2019s own windows and title screen stay as they are.',
