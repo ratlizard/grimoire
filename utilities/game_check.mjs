@@ -176,7 +176,11 @@ if (scenarioArg && existsSync(scenarioArg)) {
   const rsrcPath = scenarioArg.replace(/\.data$/, '.rsrc');
   ctx.parseArchiveBytes(new Uint8Array(readFileSync(scenarioArg)), 'Cythera Data', existsSync(rsrcPath) ? {via: 'data fork', rsrc: new Uint8Array(readFileSync(rsrcPath))} : {via: 'data fork'});
   const md = ctx.saveMakerDefaults(), elsewhere = md.zones.find(z => z.zone !== md.zone && z.zone > 1), friend = md.companions[0], story = md.stories.find(t => Object.keys(t.values).length);
-  const made = ctx.newGameSaveBytes({name: 'Bellerophon', sprite: 0, body: 21, reflex: 14, mind: 9, level: 3,
+  // And an archetype's skills, the same day: the last of the nine, whose
+  // row has skills at level 0 as well as one above it. The game must
+  // write them back as the hero's, a record apiece.
+  const arch = md.archetypes ? md.archetypes.list[md.archetypes.list.length - 1] : null;
+  const made = ctx.newGameSaveBytes({name: 'Bellerophon', sprite: 0, body: 21, reflex: 14, mind: 9, level: 3, archetype: arch ? arch.index : '',
     zone: elsewhere.zone, party: friend ? [friend.index] : [], story: story ? story.name : '', hour: 14, day: 3});
   if (!made) fail('made: the page could not make a save from the scenario');
   else {
@@ -193,7 +197,10 @@ if (scenarioArg && existsSync(scenarioArg)) {
       else if (friend && (!pal || !(pal.state & 0x40) || pal.zone !== got.zone || pal.raw[22] !== 1)) fail('made: the companion is not in the party, in the zone and following: ' + JSON.stringify(pal && {state: pal.state, zone: pal.zone, behaviour: pal.raw[22]}));
       else if (story && q.values[+sn] !== sv) fail(`made: quest value ${sn} is ${q.values[+sn]}, not the ${sv} of ${story.name}`);
       else if (((ch[84] << 8) | ch[85]) !== 3) fail('made: the day is not 3: ' + ((ch[84] << 8) | ch[85]));
-      else madeLine = `; and a save made from the scenario alone, hero in zone ${got.zone} at (${got.x}, ${got.y}) with body ${got.body}, level ${got.level}, health ${got.health}` + (friend ? `, character ${friend.index} with him` : '') + (story ? `, in the state ${story.name}` : '') + ', on day 3';
+      else if (arch && (() => { const list = ctx.parseDelverPropList(back.resources.find(x => x.resid === 0x8100 + got.zone).data);
+        return !arch.skills.every(k => list.some(p => p.flags === md.archetypes.flags.v && p.x === 0 && p.y === 1 && p.proptype === k.type && p.aspect === (k.level | md.archetypes.bit.v))); })())
+        fail('made: the game did not write back the ' + arch.name + '’s skills as the hero’s');
+      else madeLine = `; and a save made from the scenario alone, hero in zone ${got.zone} at (${got.x}, ${got.y}) with body ${got.body}, level ${got.level}, health ${got.health}` + (friend ? `, character ${friend.index} with him` : '') + (story ? `, in the state ${story.name}` : '') + ', on day 3' + (arch ? `, a ${arch.name} with ${arch.skills.length} skills` : '');
     }
     if (madeLine) console.log('  the game loaded' + madeLine.slice(5) + ', and saved it back');
   }

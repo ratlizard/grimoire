@@ -2110,8 +2110,22 @@ function buildNewGameSave(arc, o) {
   if (o.zone !== undefined) hero.zone = o.zone;
   if (o.x !== undefined) hero.x = o.x;
   if (o.y !== undefined) hero.y = o.y;
-  const zone = hero.zone, list = seg(0x8100 + zone), map = seg(0x8000 + zone), portrait = seg(o.portrait);
+  const zone = hero.zone, map = seg(0x8000 + zone), portrait = seg(o.portrait);
+  let list = seg(0x8100 + zone);
   if (!list || !map || !portrait) return null;
+  /* What the hero knows (8 October 2026): `skills` is [{ type, aspect }]
+     and `skillFlags` the first byte of a skill's record, each skill a
+     record at the end of the zone's list that the hero holds (square
+     (0, 1): the low half-word is the holder), its prop type the skill's
+     number and its aspect its level. In the shipped game it is the king's
+     opening conversation that makes these, from the archetype the creation
+     dialog left in the hero's field 0x20, and a save made anywhere else
+     never hears it. */
+  if (o.skills && o.skills.length) {
+    const recs = parseDelverPropList(list);
+    for (const k of o.skills) recs.push({ flags: o.skillFlags, x: 0, y: 1, aspect: k.aspect & 0x1F, rotated: 0, proptype: k.type, d3: 0, storeref: 0, tail: '000000000000' });
+    list = writeDelverPropList(recs);
+  }
   for (const k of ['proptype', 'aspect', 'body', 'reflex', 'mind', 'xp', 'health', 'healthMax', 'magic', 'magicMax', 'level', 'nutrition', 'training'])
     if (o[k] !== undefined) hero[k] = o[k];
   // The two fields the creation script sets beside aspect-and-proptype
@@ -2128,7 +2142,7 @@ function buildNewGameSave(arc, o) {
      party"), behaviour 1 at byte 22, which is the follower's
      (behaviours.md), and the hero's alignment at byte 25. Their other
      differences in that save are wear: experience, level, what they
-     hold. A real save also has a Mons entry apiece; the game makes one
+     hold, and nutrition, which is given here as the hero's. A real save also has a Mons entry apiece; the game makes one
      when it loads a file without (the run in game_check.mjs). */
   for (const c of o.party || []) {
     const r = records[c.index];
@@ -2136,6 +2150,9 @@ function buildNewGameSave(arc, o) {
     r.zone = zone; r.x = c.x; r.y = c.y;
     r.state = (r.state | hero.state) & 0xFF;
     r.raw[22] = 1; r.raw[25] = hero.raw[25];
+    // Fed as the hero is: the shipped records have nutrition 0, and the
+    // first one made stood beside him with no food at all.
+    r.nutrition = hero.nutrition;
   }
   const f9 = writeDelverCharacterRecords(records);
   const f6 = new Uint8Array(256 * 16);

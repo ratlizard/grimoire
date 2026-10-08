@@ -1662,6 +1662,9 @@ body.atlasFull { overflow:hidden; }
 .saveMaker .mkField input[type=number] { width:4.5em; }
 .saveMaker .mkField input, .saveMaker .mkField select { margin:0; width:auto; }
 .saveMaker .mkField input.mkWith { margin:0 2px 0 0; }
+.saveMaker .mkFaces { gap:6px; }
+.saveMaker .mkFace { width:48px; height:48px; image-rendering:pixelated; cursor:pointer; outline:2px solid transparent; border-radius:3px; }
+.saveMaker .mkFace.on { outline-color:var(--gold); }
 #charControls.asSheet { position:fixed; left:8px; right:8px; bottom:8px; z-index:60; margin:0 auto;
   max-height:40vh; overflow-y:auto; padding:8px; border-radius:9px;
   background:#1a1712; border:1px solid #c4a464; box-shadow:0 6px 24px rgba(0,0,0,.6); }
@@ -2531,7 +2534,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.274.0';
+const GRIMOIRE_VERSION = '1.275.0';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

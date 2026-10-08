@@ -1523,6 +1523,37 @@ try {
       else if (clock !== 14 * 0x1000 || day !== 3 || ((plain[84] << 8) | plain[85]) === 3) fail('make a save', 'the hour and the day asked for are not in the Char block: ' + JSON.stringify({ clock, day }));
       else if (st && (ch[16 + +sn] !== sv || plain[16 + +sn] === sv)) fail('make a save', 'the named state did not set its quest value, or the plain save has it too');
       else console.log(`  make a save, the second half: zone ${z} with its list; ${pal.name} beside the hero as a party member; two in the afternoon on day 3; ` + (st ? `"${st.name}" sets quest value ${sn} to ${sv}` : 'no resource fork here, so no named state was tried') + `; ${d.zones.length} places, ${d.companions.length} who can join, ${d.stories.length} named states; a square off the map refused`);
+      /* The archetypes (archetypeRules), the same day. The game says what
+         each is twice: the table the scripts read, and two tables of text
+         the creation dialog shows, 0x0205 ("Body: 18  Reflex: 18  Mind:
+         12") and 0x0206 ("Attack[4], Defense[4]"). The reader takes the
+         first; the text is the oracle. Every stat and every skill with
+         its level must agree, bar the one place the game disagrees with
+         itself: the Beserker [sic], whose table has mind 12 and whose
+         text says 6. A save made as one must end with a record a skill at
+         the end of the zone's list, the hero's, at the level with the
+         conversation's bit; a save made as none must have no such record. */
+      const ar = ctx.archetypeRules(), texts = rid => ctx.parseDelverTextArray(ctx.smartDecrypt(ctx.getResourceBytes(peek('ARCHIVE'), rid), rid).data).map(t => t.str);
+      const statText = texts(0x0205), skillText = texts(0x0206), odd = [];
+      for (const a of (ar ? ar.list : [])) {
+        const m = /Body: (\d+)\s+Reflex: (\d+)\s+Mind: (\d+)/.exec(statText[a.index] || '');
+        if (!m || +m[1] !== a.body || +m[2] !== a.reflex) odd.push(a.name + ' body or reflex');
+        if (m && +m[3] !== a.mind) odd.push(a.name + ' mind ' + a.mind + ' against ' + m[3]);
+        const said = (skillText[a.index] || '').split(',').map(t => t.trim()).filter(Boolean).map(t => { const g = /^(.*?)(?:\[(\d+)\])?$/.exec(t); return g[1].trim() + ':' + (g[2] || 0); });
+        const read = a.skills.map(k => (ctx.selfNameFor(0x1A00 | (k.type & 0xFF)) || '?') + ':' + k.level);
+        const loose = t => t.toLowerCase().replace(/s?:/, ':').replace(/ picking/, '');
+        if (said.map(loose).join() !== read.map(loose).join()) odd.push(a.name + ' skills ' + read.join(' ') + ' against ' + said.join(' '));
+      }
+      const fighter = ar && ar.list.find(a => a.skills.length === 2), fs = fighter ? ctx.delverArchiveSpec(new Uint8Array(ctx.newGameSaveBytes({ name: 'NewGame01', archetype: fighter.index }))) : null;
+      const tail = fs ? ctx.parseDelverPropList(fs.resources.find(r => r.resid === 0x8100 + d.zone).data).slice(-2) : [];
+      const plainList = ctx.parseDelverPropList(spec.resources.find(r => r.resid === 0x8100 + d.zone).data);
+      const fh = fs ? ctx.parseDelverCharacterRecords(fs.resources.find(r => r.resid === 0xF009).data)[1] : null;
+      if (!ar || ar.list.length !== 9 || typeof ar.flags.at !== 'number' || typeof ar.bit.at !== 'number') fail('archetypes', 'the nine archetypes were not read with the lines their giving comes from');
+      else if (odd.length !== 1 || !/mind 12 against 6/.test(odd[0])) fail('archetypes', 'the table and the dialog’s text disagree other than at the one known place: ' + JSON.stringify(odd));
+      else if (!fighter || tail.length !== 2 || !tail.every((r, i) => r.flags === ar.flags.v && r.x === 0 && r.y === 1 && r.proptype === fighter.skills[i].type && r.aspect === (fighter.skills[i].level | ar.bit.v)) || fh.body !== fighter.body || fh.raw[29] !== 0)
+        fail('archetypes', 'a save made as a ' + (fighter && fighter.name) + ' does not end its zone’s list with the two skills, or has not its stats: ' + JSON.stringify(tail.map(r => [r.flags, r.proptype, r.aspect])));
+      else if (plainList.some(r => r.flags === ar.flags.v && r.x === 0 && r.y === 1)) fail('archetypes', 'a save made with no archetype has a skill');
+      else console.log(`  archetypes: nine read from the table, every stat and skill as the dialog’s own text has it but the ${odd[0].split(' ')[0]}’s mind (${/mind (\d+) against (\d+)/.exec(odd[0]).slice(1).join(' in the table, ')} in the text); a ${fighter.name}’s save ends with ${tail.length} skills at their levels, a plain one has none`);
     }
   }
 } catch (e) { fail('make a save', e); }

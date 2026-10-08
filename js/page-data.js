@@ -2305,6 +2305,48 @@ function fullStomach() {
    buildNewGameSave says what their records are given. */
 const NEW_GAME_SHIPPED = { clock: 0x9000, day: 1, header4: 0x0800 };
 const SAVE_CLOCK_HOUR = 0x1000;
+/* THE ARCHETYPES (8 October 2026). The creation dialog's nine are named
+   in 0x0203 and each has a row in a table the creation script reaches by
+   `load_far_word` (0x0501 at 0x110, a word pointing at an array of nine
+   pointers): body, reflex, mind, then a word a skill, the level above bit
+   10 and the skill's prop type below, as an aspect and prop type are
+   packed anywhere. The creation script takes the three stats and leaves
+   the archetype in the hero's field 0x20. The skills come later: the
+   king's conversation (0x1802) walks the row from its fourth word and
+   calls `sys New` for each with a first byte, the hero, the level with a
+   bit set, and the type, then clears field 0x20. A new game saved before
+   he speaks has no skill (the kit's cp0), and after has them (cp1: a
+   Fighter's Attack and Defense, type 192 and 193 at aspect 0x14).
+
+   Read here: the names, the rows, and from the conversation the first
+   byte it gives `sys New` and the bit it sets in the level. A save made
+   with an archetype is given the skills as he would give them and field
+   0x20 left 0, as he leaves it. He also gives the LandKing Amulet, which
+   is the story's and is not given here. Null where the file does not
+   have that shape. */
+function archetypeRules() {
+  if (DERIVED.ARCHETYPES !== undefined) return DERIVED.ARCHETYPES;
+  let out = null;
+  try {
+    const cr = dvmOpsOf(dvmScriptEntry(0x1801)), far = cr.find(o => /^load_far_word 0x[0-9A-F]+$/i.test(o.text) && cr[cr.indexOf(o) + 1] && /^arg /.test(cr[cr.indexOf(o) + 1].text));
+    const w = far ? parseInt(far.text.split(' ')[1], 16) : 0, rid = w >>> 16, raw = rid ? getResourceBytes(ARCHIVE, rid) : null;
+    const plain = raw ? smartDecrypt(raw, rid).data : null;
+    const top = plain ? dvmArrayWords(plain, u32be(plain, w & 0xFFFF) & 0xFFFF) : null;
+    const nraw = getResourceBytes(ARCHIVE, 0x0203), names = nraw ? parseDelverTextArray(smartDecrypt(nraw, 0x0203).data) : null;
+    // sys New, a byte, a byte, PlayerCharacter, the row's word shifted down
+    // and or-ed with a byte: the conversation's giving of a skill.
+    const talk = dvmOpsOf(dvmScriptEntry(0x1802));
+    const g = dvmSeqFirst(talk, [/^sys New$/, DVM_NUM, DVM_NUM, /^global PlayerCharacter\b/, /^local /, /^local /, /^index$/, DVM_NUM, /^right_shift$/, DVM_NUM, /^bitwise_or$/]);
+    if (top && names && g) {
+      const rows = top.map(p => dvmArrayWords(plain, p & 0xFFFF));
+      if (rows.every(r => r && r.length >= 3) && names.length >= rows.length)
+        out = { flags: dvmVal(0x1802, g[1]), shift: dvmNum(g[7]), bit: dvmVal(0x1802, g[9]), table: { v: rows.length, resid: rid, at: w & 0xFFFF },
+          list: rows.map((r, i) => ({ index: i, name: names[i].str, body: r[0], reflex: r[1], mind: r[2],
+            skills: r.slice(3).map(k => ({ type: k & 0x3FF, level: (k & 0xFFFF) >> dvmNum(g[7]) })) })) };
+    }
+  } catch (e) { quiet(e, 'the archetypes'); }
+  return (DERIVED.ARCHETYPES = out);
+}
 function saveMakerZones() {
   const out = [];
   for (let k = 1; k < subindexCount(ARCHIVE, 127); k++) if (refExists(0x8000 + k) && refExists(0x8100 + k)) out.push({ zone: k, name: zoneDisplayName(k) });
@@ -2352,11 +2394,12 @@ function saveMakerDefaults() {
   // Offered first: a portrait the file names for nobody, which is what the
   // hero's choices are, the cast's each carrying its character's name.
   const portrait = portraits.find(r => !labelFor(r)) || portraits[0];
-  return { cr, portraits, portrait, body: hero.body, reflex: hero.reflex, mind: hero.mind, level: cr.level.v,
+  return { cr, portraits, portrait, body: hero.body, reflex: hero.reflex, mind: hero.mind, level: cr.level.v, archetypes: archetypeRules(),
            zone: hero.zone, zones: saveMakerZones(), stories: saveMakerStories(), companions: saveMakerCompanions() };
 }
 /* The file, from the choices: { name, sprite (an index into the script's
-   two), portrait (a resource), body, reflex, mind, level, zone, x, y,
+   two), portrait (a resource), archetype (its number, for its skills, and
+   its stats where none are given), body, reflex, mind, level, zone, x, y,
    hour, day, story (a named state), party (character numbers) }. Null
    when the open file cannot make one, or the square is off the map. */
 function newGameSaveBytes(c) {
@@ -2364,7 +2407,8 @@ function newGameSaveBytes(c) {
   if (!d || !ARCHIVE) return null;
   const sprite = (d.cr.sprites[c.sprite | 0] || d.cr.sprites[0]).v;
   const clamp = (v, dflt) => { const n = parseInt(v, 10); return isNaN(n) ? dflt : Math.max(1, Math.min(255, n)); };
-  const body = clamp(c.body, d.body), reflex = clamp(c.reflex, d.reflex), mind = clamp(c.mind, d.mind), level = clamp(c.level, d.level);
+  const arch = d.archetypes && c.archetype !== undefined && c.archetype !== '' ? d.archetypes.list[parseInt(c.archetype, 10)] : null;
+  const body = clamp(c.body, arch ? arch.body : d.body), reflex = clamp(c.reflex, arch ? arch.reflex : d.reflex), mind = clamp(c.mind, arch ? arch.mind : d.mind), level = clamp(c.level, d.level);
   let xp = null;
   try { xp = experienceRules(); } catch (e) { quiet(e, 'the health formula for a made save'); }
   const div = xp && xp.rule && xp.rule.healthReflexDiv ? xp.rule.healthReflexDiv.v : 0;
@@ -2387,6 +2431,7 @@ function newGameSaveBytes(c) {
   const hour = num(c.hour, -1), when = { clock: hour >= 0 && hour < 24 ? hour * SAVE_CLOCK_HOUR : NEW_GAME_SHIPPED.clock,
     day: Math.max(1, Math.min(0x7FFF, num(c.day, NEW_GAME_SHIPPED.day))), header4: NEW_GAME_SHIPPED.header4 };
   return buildNewGameSave(ARCHIVE, Object.assign({ zone, x, y, party, values: story ? story.values : null, name: c.name, portrait: c.portrait || d.portrait,
+    skills: arch ? arch.skills.map(k => ({ type: k.type, aspect: k.level | d.archetypes.bit.v })) : null, skillFlags: arch ? d.archetypes.flags.v : 0,
     proptype: sprite & 0x3FF, aspect: (sprite >> 10) & 0x3F, body, reflex, mind, level, xp: 0,
     health, healthMax: health, magic: 0, magicMax: 0, training: d.cr.training.v, nutrition: d.cr.nutrition.v,
     archetype: 0, karma: d.cr.karma.v, difficulty: d.cr.difficulty.v }, when));
@@ -2401,6 +2446,9 @@ function saveMakerHTML() {
     '<div class="mkRow"><label class="mkField">Name <input type="text" id="mkName" maxlength="31" value="NewGame01"></label>' +
     '<label class="mkField">Sprite <select id="mkSprite">' + d.cr.sprites.map((s, i) => '<option value="' + i + '">' + svEsc(spriteName(s)) + '</option>').join('') + '</select></label>' +
     '<label class="mkField">Portrait <select id="mkPortrait">' + d.portraits.map(r => '<option value="' + r + '"' + (r === d.portrait ? ' selected' : '') + '>' + svEsc(labelFor(r) || propWordHex(r)) + '</option>').join('') + '</select></label></div>' +
+    (() => { const own = d.portraits.filter(r => !labelFor(r)).slice(0, 24); return own.length ? '<div class="mkRow mkFaces">' + own.map(r => { const f = characterFace(r - 0x8800 + 1); return f && f.url ? '<img class="mkFace" src="' + f.url + '" alt="' + propWordHex(r) + '" title="' + propWordHex(r) + '" onclick="saveMakerFace(' + r + ')">' : ''; }).join('') + '</div>' : ''; })() +
+    (d.archetypes ? '<div class="mkRow"><label class="mkField">Archetype <select id="mkArch" onchange="saveMakerArchetype()"><option value="">None</option>' + d.archetypes.list.map(a => '<option value="' + a.index + '">' + svEsc(a.name) + '</option>').join('') + '</select></label>' +
+      '<span class="mechSub" id="mkArchNote" style="display:inline"></span></div>' : '') +
     '<div class="mkRow">' + num('mkBody', 'Body', d.body) + num('mkReflex', 'Reflex', d.reflex) + num('mkMind', 'Mind', d.mind) + num('mkLevel', 'Level', d.level) + '</div>' +
     '<div class="mkRow"><label class="mkField">Place <select id="mkZone" onchange="saveMakerPlace()">' + d.zones.map(z => '<option value="' + z.zone + '"' + (z.zone === d.zone ? ' selected' : '') + '>' + svEsc(z.name) + '</option>').join('') + '</select></label>' +
     (() => { const at = saveMakerArrival(d.zone) || { x: 0, y: 0 }; return '<label class="mkField">at <input type="number" id="mkX" min="0" value="' + at.x + '"> , <input type="number" id="mkY" min="0" value="' + at.y + '"></label>'; })() + '</div>' +
@@ -2412,6 +2460,20 @@ function saveMakerHTML() {
     '<button class="secondary" onclick="makeSaveFromForm(true)">Download It</button>' +
     '<span class="mechSub" style="display:inline">' + svEsc('The hero starts with ') + srcNum(d.cr.training) + svEsc(' training points and nutrition ') + srcNum(d.cr.nutrition) + svEsc(', as a new game gives.') + '</span></div></div>';
 }
+// A face clicked: the portrait's list follows, and the face is ringed.
+function saveMakerFace(rid) {
+  const sel = document.getElementById('mkPortrait');
+  if (sel) sel.value = String(rid);
+  for (const im of document.querySelectorAll('.mkFace')) im.classList.toggle('on', im.title === propWordHex(rid));
+}
+// The archetype chosen: its three stats into the fields, and its skills said.
+function saveMakerArchetype() {
+  const d = saveMakerDefaults(), sel = document.getElementById('mkArch'), a = d && d.archetypes && sel && sel.value !== '' ? d.archetypes.list[parseInt(sel.value, 10)] : null;
+  const note = document.getElementById('mkArchNote');
+  const put = (id, v) => { const e = document.getElementById(id); if (e) e.value = v; };
+  if (a) { put('mkBody', a.body); put('mkReflex', a.reflex); put('mkMind', a.mind); }
+  if (note) note.textContent = a ? (a.skills.length ? 'Starts with ' + a.skills.map(k => (selfNameFor(0x1A00 | (k.type & 0xFF)) || 'skill ' + k.type) + (k.level ? ' ' + k.level : '')).join(', ') + '.' : 'Starts with no skill.') : '';
+}
 // The zone chosen: its arrival square into the two fields.
 function saveMakerPlace() {
   const z = document.getElementById('mkZone'), at = z ? saveMakerArrival(parseInt(z.value, 10)) : null;
@@ -2422,7 +2484,7 @@ function makeSaveFromForm(download) {
   const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
   const name = String(val('mkName')).trim() || 'NewGame01';
   const party = [...document.querySelectorAll('.mkWith')].filter(b => b.checked).map(b => parseInt(b.value, 10));
-  const bytes = newGameSaveBytes({ name, sprite: val('mkSprite'), portrait: parseInt(val('mkPortrait'), 10), body: val('mkBody'), reflex: val('mkReflex'), mind: val('mkMind'), level: val('mkLevel'),
+  const bytes = newGameSaveBytes({ name, sprite: val('mkSprite'), portrait: parseInt(val('mkPortrait'), 10), archetype: val('mkArch'), body: val('mkBody'), reflex: val('mkReflex'), mind: val('mkMind'), level: val('mkLevel'),
     zone: val('mkZone'), x: val('mkX'), y: val('mkY'), hour: val('mkHour'), day: val('mkDay'), story: val('mkStory'), party });
   if (!bytes) { setStatus('The page could not make that save. The square has to be on the zone’s map, with room beside it for each companion.', true); return false; }
   if (download) {
