@@ -116,6 +116,9 @@ const DATA_FIX_CHOICES = [
   { id: 'land-king', title: 'Land King' },
   { id: 'areithous', title: 'Areithous' },
   { id: 'hyphens', title: 'Hyphens' },
+  // Not a spelling: a figure the creation dialog states and the game does
+  // not give. Its third button says so.
+  { id: 'beserker', title: 'The Berserker\u2019s Mind', none: 'Leave both as they are' },
 ];
 
 function dataFixKeyword(what, resid, at, kw, target) {
@@ -1315,6 +1318,7 @@ const DATA_FIXES = [
       { stage: 'community-text', plan: (s, ctx) => !ctx.chosen.has('text') ? {} : ({ textEdits: dataFixCommunityTypoEdits(dataPatchTexts(s), ctx.communityTypos || DATA_FIX_COMMUNITY_TYPOS,
           ctx.chosen.has('spelling-us') ? 'us' : ctx.chosen.has('spelling-uk') ? 'uk' : null).textEdits }) },
       { stage: 'spelling', plan: (s, ctx) => ({ textEdits: dataFixSpellingEdits(ctx.chosen) }) },
+      { stage: 'text', plan: (s, ctx) => ({ dataEdits: dataFixArchetypeMind(s, ctx.chosen) }) },
     ] },
   { id: 'spelling-us', parent: 'text', choice: 'spelling', group: 'text', short: 'US spellings', title: 'Standardize to US spellings' },
   { id: 'spelling-uk', parent: 'text', choice: 'spelling', group: 'text', short: 'UK spellings', title: 'Standardize to UK spellings' },
@@ -1329,6 +1333,19 @@ const DATA_FIXES = [
   { id: 'text-areithous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAreithous\u201d, as in the Hintbook', title: 'Standardize to \u201cAreithous\u201d, as in the Hintbook' },
   { id: 'text-ariethous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAriethous\u201d', title: 'Standardize to \u201cAriethous\u201d' },
   { id: 'text-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'hyphenated, \u201ckind-looking\u201d', title: 'Standardize to hyphenated: \u201ckind-looking\u201d, \u201cdour-faced\u201d and the like' },
+  /* The Beserker's [sic] mind (8 October 2026; bugs.md, *A figure the
+     creation dialog states and the game does not give*). The dialog's text
+     says 6 and the table the creation script reads says 12. The first
+     option, the maintainer's on asking which made sense, mends the text:
+     every archetype's three figures in the table come to 48, the
+     Beserker's with its 12, and with the text's 6 they would come to 42.
+     The second gives the hero the 6 the screen promises. Both were played
+     in the fork: the dialog reading "Mind: 12", and a hero made with mind
+     6. */
+  { id: 'beserker-text', parent: 'text', choice: 'beserker', group: 'text', short: 'the screen says 12, as the hero gets', title: 'The creation screen gives the Berserker\u2019s mind as 12, which is what the hero gets',
+    played: 'the creation dialog, PowerPC, 8 October 2026' },
+  { id: 'beserker-table', parent: 'text', choice: 'beserker', group: 'text', short: 'the hero gets 6, as the screen says', title: 'A Berserker starts with mind 6, as the creation screen says',
+    played: 'a new game, PowerPC, 8 October 2026' },
   { id: 'text-no-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'unhyphenated, \u201ckind hearted\u201d', title: 'Standardize to unhyphenated: \u201ckind-hearted\u201d, \u201crat-faced\u201d and the like lose theirs' },
 
   /* ---- Larger changes (the stage "apart"; karma_patch.mjs,
@@ -1878,6 +1895,47 @@ const DATA_FIX_TEXT_BRITISH = (() => {
 function dataFixTextEdits(chosen) {
   return DATA_FIX_TEXT.filter(e => (e.opt ? chosen.has(e.opt) : chosen.has('text')) && (e.withText === undefined || e.withText === chosen.has('text')))
     .map(e => { const c = Object.assign({}, e); delete c.withText; return c; });
+}
+/* An archetype's mind where the dialog's text and the table disagree.
+   Nothing is given: the table is found by the creation script's own
+   `load_far_word`, the text by its "Mind: n", and every row whose two
+   figures differ is mended one way or the other, which in the shipped file
+   is the one row. The text is an array of pointers to strings laid end to
+   end, so a figure of another length moves every string after it and its
+   pointer with it; the array comes back laid out afresh. */
+function dataFixArchetypeMind(s, chosen) {
+  const toText = chosen.has('beserker-text'), toTable = chosen.has('beserker-table');
+  if (!toText && !toTable) return [];
+  // The far word the script indexes by its argument, not the one it keeps a
+  // flag in a few lines above.
+  const ops = dataPatchListing(s, 0x1801).ops, far = ops.find((o, i) => /^load_far_word 0x[0-9A-F]+$/i.test(o.text) && ops[i + 1] && /^arg /.test(ops[i + 1].text));
+  const w = far ? parseInt(far.text.split(' ')[1], 16) : 0, rid = w >>> 16;
+  if (!rid) throw new Error('the creation script does not name the archetypes’ table');
+  const table = s.bytesOf(rid), top = dvmArrayWords(table, u32be(table, w & 0xFFFF) & 0xFFFF), text = parseDelverTextArray(s.bytesOf(0x0205));
+  if (!top || !text) throw new Error('the archetypes’ table or the dialog’s text is not there');
+  const odd = [];
+  top.forEach((p, i) => {
+    const at = (p & 0xFFFF) + 2 + 8, row = dvmArrayWords(table, p & 0xFFFF), m = text[i] ? /Mind: (\d+)/.exec(text[i].str) : null;
+    if (row && row.length >= 3 && m && +m[1] !== row[2]) odd.push({ i, at, table: row[2], said: +m[1], digits: text[i].offset + m.index + 6, len: m[1].length });
+  });
+  if (!odd.length) throw new Error('the dialog and the table agree on every archetype’s mind already');
+  if (toTable) return [{ what: 'an archetype’s mind, as the dialog says', resid: rid, fn: b => {
+    for (const o of odd) { b[o.at] = 0; b[o.at + 1] = 0; b[o.at + 2] = (o.said >> 8) & 0xFF; b[o.at + 3] = o.said & 0xFF; }
+    return odd.map(o => 'row ' + o.i + ', ' + o.table + ' to ' + o.said).join('; ');
+  } }];
+  return [{ what: 'an archetype’s mind, as the table gives it', resid: 0x0205, fn: b => {
+    let out = b;
+    // Last first, so an earlier figure's place is still where it was read.
+    for (const o of odd.slice().sort((x, y) => y.digits - x.digits)) {
+      const now = Array.from(String(o.table), c => c.charCodeAt(0)), grown = now.length - o.len;
+      const next = new Uint8Array(out.length + grown);
+      next.set(out.subarray(0, o.digits)); next.set(now, o.digits); next.set(out.subarray(o.digits + o.len), o.digits + now.length);
+      const count = u16be(next, 0) & 0x0FFF;
+      for (let n = 0; n < count; n++) { const p = 2 + n * 4, off = u16be(next, p + 2); if (next[p] >= 0x80 && off > o.digits) { next[p + 2] = ((off + grown) >> 8) & 0xFF; next[p + 3] = (off + grown) & 0xFF; } }
+      out = next;
+    }
+    return out;
+  } }];
 }
 function dataFixSpellingEdits(chosen) {
   return chosen.has('spelling-us') ? DATA_FIX_TEXT_AMERICAN.slice() : chosen.has('spelling-uk') ? DATA_FIX_TEXT_BRITISH.slice() : [];

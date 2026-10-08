@@ -2541,7 +2541,8 @@ function dataFixDescription(chosen) {
     if (chosen.some(f => f.id === 'spelling-us')) opts.push('American spelling');
     if (chosen.some(f => f.id === 'spelling-uk')) opts.push('British spelling');
     const named = { 'text-two-taled': 'Two-Taled', 'text-two-tailed': 'Two-Tailed', 'text-land-king': 'Land King', 'text-landking': 'LandKing',
-                    'text-areithous': 'Areithous', 'text-ariethous': 'Ariethous', 'text-hyphens': 'hyphens', 'text-no-hyphens': 'no hyphens' };
+                    'text-areithous': 'Areithous', 'text-ariethous': 'Ariethous', 'text-hyphens': 'hyphens', 'text-no-hyphens': 'no hyphens',
+                    'beserker-text': 'Berserker shown 12', 'beserker-table': 'Berserker given 6' };
     for (const f of chosen) if (named[f.id]) opts.push(named[f.id]);
     const left = window.DATAFIX_STATE.skip.size;
     if (left) opts.push(left + ' left out');
@@ -2745,7 +2746,7 @@ function renderDataFixMaker() {
       r.appendChild(el('div', 'dataFixChoiceName', c.title + untestedMark(opts[0])));
       for (const o of opts.concat([null])) {
         const ob = box(o ? picked === o : !picked, function (v) { if (v) dataFixChoose(c.id, o ? o.id : null); },
-          o ? o.short : 'Don\u2019t standardize', false, 'radio', 'dataFixChoice-' + c.id);
+          o ? o.short : c.none || 'Don\u2019t standardize', false, 'radio', 'dataFixChoice-' + c.id);
         r.appendChild(ob.l);
       }
       sub.appendChild(r);

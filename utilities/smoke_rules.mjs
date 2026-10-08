@@ -1553,6 +1553,29 @@ try {
       else if (!fighter || tail.length !== 2 || !tail.every((r, i) => r.flags === ar.flags.v && r.x === 0 && r.y === 1 && r.proptype === fighter.skills[i].type && r.aspect === (fighter.skills[i].level | ar.bit.v)) || fh.body !== fighter.body || fh.raw[29] !== 0)
         fail('archetypes', 'a save made as a ' + (fighter && fighter.name) + ' does not end its zone’s list with the two skills, or has not its stats: ' + JSON.stringify(tail.map(r => [r.flags, r.proptype, r.aspect])));
       else if (plainList.some(r => r.flags === ar.flags.v && r.x === 0 && r.y === 1)) fail('archetypes', 'a save made with no archetype has a skill');
+      /* The Berserker's mind as a fix with two ways to go (Data > Patches,
+         the text's choices; 8 October 2026). Either option must change one
+         resource and leave the table and the dialog's text agreeing on all
+         nine; the text's way must keep every other string as it was, the
+         strings after the mended one having moved; the table's way must
+         change the one word. The control is the file as shipped, which
+         disagrees, and the second option run on the first's output, which
+         must be refused as having nothing to mend. */
+      else if ((() => {
+        const base = peek('ARCHIVE.bytes'), before0 = ctx.delverArchiveSpec(base);
+        const minds = sp => { const tb = sp.resources.find(r => r.resid === 0x0501).data, top = ctx.dvmArrayWords(tb, ctx.u32be(tb, 0x110) & 0xFFFF);
+          const tx = ctx.parseDelverTextArray(sp.resources.find(r => r.resid === 0x0205).data).map(t => t.str);
+          return { table: top.map(p => ctx.dvmArrayWords(tb, p & 0xFFFF)[2]), text: tx.map(t => +/Mind: (\d+)/.exec(t)[1]), strings: tx }; };
+        const changed = sp => sp.resources.filter(r => { const o = before0.resources.find(x => x.resid === r.resid); return o.data.length !== r.data.length || o.data.some((v, i) => v !== r.data[i]); }).map(r => r.resid);
+        const a = ctx.applyDataFixes(base, ['beserker-text']).spec, b = ctx.applyDataFixes(base, ['beserker-table']).spec, m0 = minds(before0), ma = minds(a), mb = minds(b);
+        let again = false; try { ctx.applyDataFixes(new Uint8Array(ctx.writeDelverArchive(a)), ['beserker-table']); } catch (e) { again = /agree/.test(e.message); }
+        if (m0.table.join() === m0.text.join()) return fail('berserker', 'the shipped file already agrees, so there is nothing for the fix to be tried on'), true;
+        if (changed(a).join() !== String(0x0205) || ma.table.join() !== ma.text.join() || ma.table.join() !== m0.table.join() || ma.strings.filter((t, i) => t !== m0.strings[i]).length !== 1)
+          return fail('berserker', 'the text’s way did not change the one string of 0x0205 to the table’s figure: ' + JSON.stringify({ changed: changed(a), text: ma.text })), true;
+        if (changed(b).join() !== String(0x0501) || mb.table.join() !== mb.text.join() || mb.text.join() !== m0.text.join()) return fail('berserker', 'the table’s way did not change the one word of 0x0501 to the text’s figure: ' + JSON.stringify({ changed: changed(b), table: mb.table })), true;
+        if (!again) return fail('berserker', 'the second way was not refused on a file the first had mended'), true;
+        console.log(`  berserker: the shipped file has mind ${m0.table[3]} in the table and ${m0.text[3]} on the screen; one way writes ${ma.text[3]} into the text alone, the other ${mb.table[3]} into the table alone, and either leaves all nine agreeing; a mended file refuses the other way`);
+        return false; })()) { /* said */ }
       /* The king's welcome and the hero's faces (the same day). The
          welcome's four pieces must be read with their lines, and a save
          made with it must have the flag, the To Do line, the thing held
