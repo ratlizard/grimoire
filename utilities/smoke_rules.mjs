@@ -1499,3 +1499,26 @@ try {
   else if (!/Make a Save/.test(sheet) || !/makeSaveFromForm/.test(sheet)) fail('make a save', 'the Saved Game tab does not offer the maker with a scenario open');
   else console.log(`  make a save: the creation script read with its lines; a new game for NewGame01 in ${spec.resources.length} resources, body ${ha.body}, level ${ha.level}, health ${ha.health}; the two sprites give two heroes`);
 } catch (e) { fail('make a save', e); }
+
+/* What uses a character flag the program does not name, 8 October 2026
+   (charFlagUses, in a record's Edit form). The mistake to catch is a flag
+   of byte 8 listed with every script that sets flag 0 on anybody, forty
+   characters' private notes under one head: so a character whose script
+   sets its own flag 0 must say so with a link, a character whose script
+   never mentions flag 0 must say nothing, and a flag of byte 26 must name
+   its spell on any record. */
+try {
+  const cf = ctx.characterFlagSites().flags, f0 = cf.find(x => x.flag === 0);
+  const own = f0 ? f0.set.map(s => s.resid - 0x1800).find(i => i > 1 && i < 256 && ctx.loadCharacterTable()[i]) : undefined;
+  const touched = new Set(f0 ? [...f0.set, ...f0.clear, ...f0.test, ...f0.effect].flatMap(s => [s.resid - 0x1800, s.who]) : []);
+  let none = -1; for (let i = 2; i < 256; i++) if (ctx.loadCharacterTable()[i] && !touched.has(i)) { none = i; break; }
+  const withEffect = cf.find(x => x.flag >= 24 && x.effect.length);
+  const mine = own !== undefined ? ctx.charFlagUses(own, 0) : '';
+  const links = (mine.match(/jumpToScriptAt\((\d+)/g) || []).map(m => +m.replace(/\D+/, ''));
+  if (own === undefined || none < 0 || !withEffect) fail('flag uses', 'the file has no character to try: ' + JSON.stringify([own, none, withEffect && withEffect.flag]));
+  else if (!/^set in <button/.test(mine) && !/set in <button/.test(mine)) fail('flag uses', 'character ' + own + '’s flag 0 does not say where its script sets it: ' + mine.slice(0, 200));
+  else if (ctx.charFlagUses(none, 0) !== '') fail('flag uses', 'character ' + none + ', whose script never mentions flag 0, is told of other characters’: ' + ctx.charFlagUses(none, 0).slice(0, 200));
+  else if (!/the effect of /.test(ctx.charFlagUses(none, withEffect.flag))) fail('flag uses', 'flag ' + withEffect.flag + ' does not name the spell it is the effect of');
+  else if (!/The program has no name for these/.test(ctx.charEditHTML(own))) fail('flag uses', 'the record form does not carry the uses');
+  else console.log(`  flag uses: character ${own}'s flag 0 is listed from its own script, character ${none}'s is not listed, and flag ${withEffect.flag} names its spell on any record`);
+} catch (e) { fail('flag uses', e); }

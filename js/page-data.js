@@ -2137,6 +2137,33 @@ function toggleCharEdit(index) {
   if (box && box.clientWidth) host.style.maxWidth = Math.max(240, box.clientWidth - 12) + 'px';
   window.SAVE_EDIT_OPEN = index;
 }
+/* What uses a flag the program has no name for (the maintainer, 8 October
+   2026: "what are character bits 0-5 and 24-31?"). The program names flags
+   6 and 7 and the status flags; the rest mean what the scripts make of
+   them, and for the flags of byte 8 that differs by character, each
+   conversation keeping its own notes there. So a flag under 24 lists the
+   places in this character's own script, 0x1800 plus the number, and
+   wherever another script names this character by number; a flag of byte
+   26 belongs to nobody's conversation and lists every script that touches
+   it. One link a script, to the first place, as Loose Ends does. Empty
+   when nothing uses the flag for this character. */
+function charFlagUses(index, f) {
+  const words = saveWords();
+  const cf = words && words.charFlags ? words.charFlags.find(x => x.flag === f) : null;
+  if (!cf) return '';
+  // A link when the open file has the script, its name alone when not.
+  const linked = refExists(0x1802);
+  const mine = s => f >= 24 || s.resid === 0x1800 + index || s.who === index;
+  const say = (list, verb) => {
+    const seen = new Map();
+    for (const s of list) if (mine(s) && !seen.has(s.resid)) seen.set(s.resid, s);
+    const u = [...seen.values()];
+    if (!u.length) return '';
+    const link = s => linked ? srcNum({ resid: s.resid, at: s.at }, s.name) : svEsc(s.name);
+    return verb + ' ' + u.slice(0, 4).map(link).join(', ') + (u.length > 4 ? ' and ' + countLink((u.length - 4) + ' more', 'The ' + u.length + ' scripts where character flag ' + f + ' is ' + verb.replace(/ (by|in)$/, ''), u.map(link)) : '');
+  };
+  return [say(cf.set, 'set in'), say(cf.clear, 'cleared in'), say(cf.test, 'tested in'), say(cf.effect, 'the effect of')].filter(Boolean).join('; ');
+}
 // The form's markup, apart from where it is put, so the smoke can read it.
 function charEditHTML(index) {
   const rec = loadCharacterTable()[index];
@@ -2162,7 +2189,18 @@ function charEditHTML(index) {
     const nm = appImage() ? charFlagName(f) : null;
     h += '<label><input type="checkbox" id="ce-' + index + '-flag' + f + '"' + (charFlagOn(rec, f) ? ' checked' : '') + '> ' + f + (nm ? ' ' + svEsc(nm.replace(/^Is/, '').replace(/([a-z])([A-Z])/g, '$1 $2')) : '') + '</label>';
   }
-  h += '</div></div>';
+  h += '</div>';
+  {
+    const rows = [];
+    for (let f = 0; f < 32; f++) {
+      if (appImage() && charFlagName(f)) continue;
+      let u = '';
+      try { u = charFlagUses(index, f); } catch (e) { quiet(e, 'what uses a character flag'); }
+      if (u) rows.push('<div class="charWhat"><b>' + f + '</b> ' + u + '</div>');
+    }
+    if (rows.length) h += '<div class="charWhat">The program has no name for these. A flag under 24 is listed where this character’s own script uses it, and a flag from 24 up wherever any script does.</div>' + rows.join('');
+  }
+  h += '</div>';
   return h +
     '<div class="charActions"><button class="sv-chip" onclick="applyCharEditForm(' + index + ')">Apply</button>' +
     (index === 1 ? actionChip('Make them well', 'healCharacterRecord(1)', fullStomach() ? 'health, magic and a full stomach' : 'health and magic') : '') + '</div>' +
@@ -2415,7 +2453,10 @@ function scenarioSaveWords() {
   }
   return { values: { writes: sites(le.writes), reads: sites(le.reads) }, flags: { writes: sites(le.flagWrites), reads: sites(le.flagReads) },
            todo: { textResid: td.textResid, lines: td.lines ? [...td.lines] : [], pairs: [...pairs.values()].sort((a, b) => a.slot - b.slot || a.line - b.line) },
-           rooms, gremlins: Array.from({ length: 256 }, (_, n) => n).filter(n => refExists(0x1F00 + n)) };
+           rooms, gremlins: Array.from({ length: 256 }, (_, n) => n).filter(n => refExists(0x1F00 + n)),
+           // Where the scripts use each character flag (charFlagUses), each
+           // place with its script's name for a save, which has no scripts.
+           charFlags: characterFlagSites().flags.map(x => { const nm = l => l.map(q => ({ resid: q.resid, at: q.at, who: q.who, name: labelFor(q.resid) || propWordHex(q.resid) })); return { flag: x.flag, set: nm(x.set), clear: nm(x.clear), test: nm(x.test), effect: nm(x.effect) }; }) };
 }
 // Called by parseArchiveBytes while the scenario is still the open file and
 // a save is about to replace it.

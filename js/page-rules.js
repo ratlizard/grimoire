@@ -5433,7 +5433,10 @@ function characterFlagSites() {
       if (!lit) { unknown++; continue; }
       const f = parseInt(lit[1]);
       if (!by.has(f)) by.set(f, { flag: f, set: [], clear: [], test: [], effect: [] });
-      by.get(f)[verb].push({ resid: e.resid, at: kids[1].at });
+      // `who` is the character the call names when it names one by number,
+      // which is how a script reaches another character's flag.
+      const whoLit = kids[0] && LIT.exec(kids[0].text);
+      by.get(f)[verb].push({ resid: e.resid, at: kids[1].at, who: whoLit ? parseInt(whoLit[1]) : null });
     }
   }
   return (DERIVED.CHAR_FLAG_SITES = { flags: [...by.values()].sort((a, b) => a.flag - b.flag), unknown });
