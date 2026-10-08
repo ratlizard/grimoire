@@ -1578,7 +1578,11 @@ function badArtPicture(d, subn, resid, ink) {
   }
   return out;
 }
-function redrawDelverArt(bytes, figures) {
+/* `from`, when given, is asked first: from.tile(id, old, figure) for a
+   tile's 1,024 indices and from.portrait(resid, W, H) for a portrait's, null
+   from either leaving the drawing here to do it. It is how an art pack
+   stands in (delv-artpack.js; the page's scenarioPackArt). */
+function redrawDelverArt(bytes, figures, from) {
   const arc = openDelverArchive(bytes), spec = delverArchiveSpec(bytes);
   if (!arc || !spec) return null;
   const ink = { black: badArtIndex(0, 0, 0), white: badArtIndex(255, 255, 255), red: badArtIndex(220, 0, 0), yellow: badArtIndex(252, 220, 0) };
@@ -1596,9 +1600,10 @@ function redrawDelverArt(bytes, figures) {
         image = new Uint8Array(d.image.length);
         for (let t = 0; t < 16; t++) {
           const id = ((r.resid & 0xFF) << 4) + t;
-          image.set(badArtTile(d.image.subarray(t * 1024, t * 1024 + 1024), id, figures && figures[id], ink), t * 1024);
+          const old = d.image.subarray(t * 1024, t * 1024 + 1024), given = from && from.tile ? from.tile(id, old, figures && figures[id]) : null;
+          image.set(given || badArtTile(old, id, figures && figures[id], ink), t * 1024);
         }
-      } else image = badArtPicture(d, subn, r.resid, ink);
+      } else image = (subn === 135 && from && from.portrait && from.portrait(r.resid, d.W, d.H)) || badArtPicture(d, subn, r.resid, ink);
       let data;
       if (UNCOMPRESSED[subn]) data = image;
       else {

@@ -2453,7 +2453,7 @@ function newScenarioBytes(c) {
   const bytes = buildNewScenario(ARCHIVE, { width, height, tile: int(c.tile, d.tile) & 0xFFFF, x, y,
     zoneScript: script, creation: c.opening ? null : scenarioOpeningCut(), eggs: scenarioBattleEggs(c, width, height, x, y) });
   if (!bytes || !c.badArt) return bytes;
-  const art = redrawDelverArt(bytes, scenarioFigureTiles());
+  const art = redrawDelverArt(bytes, scenarioFigureTiles(), c.pack ? scenarioPackArt(c.pack) : null);
   return art ? art.bytes : null;
 }
 /* Which tiles are somebody, for the redrawn art: every frame of every prop
@@ -2462,9 +2462,61 @@ function newScenarioBytes(c) {
    script's two sprites are the hero; a unit of the alignment that is
    everybody's enemy (3, the one whose row of the enemy table has no ally)
    is drawn as a beast; anyone else as a person. */
+/* The art pack's side of the redraw (delv-artpack.js): which file each
+   tile and portrait takes. A figure is asked for by its prop's name, any
+   other tile by the name 0xF004 gives it; a tile with see-through pixels
+   is a thing, one without is ground, floor or wall by whether a walker
+   can cross it. A figure's later frames are the one picture turned round
+   and dropped a pixel, so a step still shows. A portrait is one of the
+   pack's player bodies at twice its size on black, chosen by the
+   resource's number. The pack keeps a player as a bare body with clothes
+   in layers of their own, so the hero and the portraits are dressed from
+   its legs and body drawers, the pick a hash of the name or the number.
+   `pack` is readArtPack's; `report`, when given, is
+   filled with how many names the pack answered. */
+function scenarioPackArt(pack, report) {
+  const black = badArtIndex(0, 0, 0), bodies = pack.files.filter(f => /^player\/base/.test(f.dir));
+  const legs = pack.files.filter(f => f.dir === 'player/legs'), tops = pack.files.filter(f => f.dir === 'player/body');
+  const dressed = (file, key, opts) => {
+    const out = artPackIndexed(pack, file, opts);
+    if (!out) return null;
+    for (const [drawer, salt] of [[legs, 1], [tops, 2]]) {
+      const layer = drawer.length ? artPackIndexed(pack, drawer[badArtHash(key * 4 + salt) % drawer.length], opts) : null;
+      if (layer) for (let i = 0; i < 1024; i++) if (layer[i]) out[i] = layer[i];
+    }
+    return out;
+  };
+  const number = t => [...String(t)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  const tally = (kind, name, c) => { if (!report || !c) return; const k = c.matched ? 'matched' : 'stood in'; (report[k] = report[k] || new Set()).add(kind + ': ' + name); };
+  return {
+    tile(id, old, figure) {
+      if (figure) {
+        // The name's length picks among equal files: it sets "hero" on the
+        // pack's male body and "heroine" on its female one, by luck kept.
+        const c = artPackChoose(pack, figure.kind, figure.name, figure.name.length + 1);
+        tally(figure.kind, figure.name, c);
+        const pose = { flip: (figure.frame >> 2) & 1, drop: figure.frame & 1 };
+        return !c ? null : figure.kind === 'hero' ? dressed(c.file, number(figure.name), pose) : artPackIndexed(pack, c.file, pose);
+      }
+      if (!old.some(v => v)) return null;
+      const name = terrainNameFor(id) || '', thing = old.includes(0), kind = thing ? 'thing' : tilePassable(id) ? 'floor' : 'wall';
+      const c = artPackChoose(pack, kind, name, thing ? 0 : id);
+      tally(kind, name, c);
+      return c ? artPackIndexed(pack, c.file, { solid: !thing }) : null;
+    },
+    portrait(resid, W, H) {
+      if (!bodies.length || W !== 64 || H !== 64) return null;
+      const small = dressed(bodies[badArtHash(resid) % bodies.length], resid);
+      if (!small) return null;
+      const out = new Uint8Array(W * H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) out[y * W + x] = small[(y >> 1) * 32 + (x >> 1)] || black;
+      return out;
+    }
+  };
+}
 function scenarioFigureTiles() {
   const tiles = getPropTileList(), out = {};
-  const put = (pt, kind) => { const base = tiles[pt], n = spriteBlockSize(pt); if (base === undefined || !pt) return; for (let f = 0; f < n; f++) if (!out[base + f] || kind === 'hero') out[base + f] = { kind, frame: f }; };
+  const put = (pt, kind) => { const base = tiles[pt], n = spriteBlockSize(pt), name = propDisplayName(pt) || ''; if (base === undefined || !pt) return; for (let f = 0; f < n; f++) if (!out[base + f] || kind === 'hero') out[base + f] = { kind, frame: f, name }; };
   for (const m of parseMonsterStats()) if (!m.blank && m.proptype) put(m.proptype, m.alignment === 3 ? 'beast' : 'person');
   for (const r of loadCharacterTable()) if (r && r.proptype && delverCharacterInUse(r) && !(tiles[r.proptype] in out)) put(r.proptype, 'person');
   const cr = heroCreationRules();

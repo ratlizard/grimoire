@@ -165,6 +165,8 @@ const GFX_REF = `${TMP}/gfx_ref.json`;
 // fetches it, 7 MB once and cached here (ensureQuickTime).
 const QT_EXE = `${TMP}/QUICKTIM.EXE`;
 const QT_URL = 'https://archive.org/cors/apple-quicktime-3/apple-quicktime-3.iso/QUICKTIM.EXE';
+const ART_PACK = `${TMP}/dungeon-crawl-tiles.zip`;
+const ART_PACK_URL = 'https://opengameart.org/sites/default/files/Dungeon%20Crawl%20Stone%20Soup%20Full_0.zip';
 // The game itself, for game_check.mjs: the playthrough kit beside the
 // workspace (saves reached by play, in no repository), the fork's binary
 // built against the patched m68k crate (the stock crate halts a new game;
@@ -207,6 +209,18 @@ async function ensureForks() {
   const {fetchGame} = await import('./fetch_game.mjs');
   if (!await fetchGame(TMP, say))
     say('  ! could not get the game; some checks will be skipped');
+}
+
+// The Dungeon Crawl Stone Soup tiles, CC0, for artpack_check.mjs: the pack
+// Make a Scenario's art pack choice is written for, 6 MB once and cached.
+async function ensureArtPack() {
+  if (existsSync(ART_PACK) || process.env.NO_FETCH) return;
+  say('  fetching the Dungeon Crawl tiles from opengameart.org …');
+  try {
+    const res = await fetch(ART_PACK_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    writeFileSync(ART_PACK, new Uint8Array(await res.arrayBuffer()));
+  } catch (e) { say('  ! could not: ' + e.message + '; the art pack check will be skipped'); }
 }
 
 async function ensureQuickTime() {
@@ -536,6 +550,11 @@ const CHECKS = [
      InstallShield 3 around PKWARE DCL), held to another implementation's
      explode, and a tune played through them. TUNE moves with any change to
      the synthesis: record it here when the change is meant. */
+  /* Make a Scenario's art pack: its PNG decoder, its matcher from the game's
+     names to the pack's files, and a scenario built with it. */
+  {page: 'viewer', name: 'art pack', want: [ART_PACK, DATA],
+   cmd: ['utilities/artpack_check.mjs', 'index.html', ART_PACK, DATA],
+   grep: /art pack: [^\n]*/},
   {page: 'viewer', name: 'quicktime instruments', want: [QT_EXE, DATA],
    cmd: ['utilities/qtmusic_check.mjs', 'index.html', QT_EXE, DATA],
    grep: /QuickTime 3: [^\n]*/,
@@ -564,7 +583,7 @@ const CHECKS = [
 // ---- run -------------------------------------------------------------------
 say(`\n  Cythera checks — ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`);
 await ensureForks();
-if (!only || only === 'viewer') { ensureGraphicsRef(); await ensureQuickTime(); }
+if (!only || only === 'viewer') { ensureGraphicsRef(); await ensureQuickTime(); await ensureArtPack(); }
 mkdirSync(EXPORTS, {recursive: true});
 
 const rows = new Array(CHECKS.length);
