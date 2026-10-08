@@ -2151,6 +2151,77 @@ function buildNewGameSave(arc, o) {
     resources: res.map(([resid, data]) => ({ resid, data, encrypted: false })) });
 }
 
+/* A SCENARIO WITH AN EMPTY WORLD, made from the one open (8 October 2026):
+   the maintainer's "New scenario, with minimal Cythera Data file". It keeps
+   the rulebook and drops the places and the people.
+
+   What a new game reads was measured first, in the fork on the PowerPC
+   slice with every FSRead of the file logged, from launch to the first
+   save: 490 of the 1,558 resources, a fifth of the bytes (the workbench's
+   GRIMOIRE-NOTES.md, under `grimoire/october-list-kfw205`). In the order
+   read: the sound 0x9000; EVERY class of 0x10xx and 0x11xx, used or not;
+   every tile sheet 0x8Exx, twice; the 0xF0xx tables; the backdrop; the
+   creation dialog's four string tables 0x0203 to 0x0206; the portrait
+   picked; the creation script 0x1801 with its table 0x0501 and helpers;
+   the slideshow's text 0x0240 and pictures 0x8F80 to 0x8F87; the classes
+   0x1AF1 to 0x1AFF; and then the hero's zone alone, its map 0x80zz, list
+   0x81zz and entry script 0x14zz, and the king's conversation. No other
+   zone's resource is touched, which is why the others can go.
+
+   So, of the open scenario:
+
+     gone      every map 0x80xx, list 0x81xx and entry script 0x14xx but the
+               hero's zone's; every conversation 0x18xx but 0x1801, which
+               is the creation script and not a conversation
+     written   0x80zz, `width` by `height` of the one tile word, no roof
+               and no exits; 0x81zz, one record of zeros, since the writer
+               drops an empty resource and the program was not shown to
+               take a zone with no list; 0xF009 with every character but
+               record 0 and the hero zeroed, and the hero stood at (x, y);
+               0xF00B with no schedule for anyone
+     handed in `zoneScript`, the zone's entry script, and `creation`,
+               0x1801 as it is to be written. Both are code, which this
+               file does not write: the page assembles the first and cuts
+               the opening slideshow out of the second (newScenarioBytes)
+     kept      everything else, as it is
+
+   A file made this way started a new game in the fork, and the hero
+   walked and was saved (utilities/game_check.mjs). Kept scripts still name
+   the zones and people that are gone; the run met none, and none was
+   looked for beyond it. Zone 0 cannot be the zone: a character record's zone 0 is "placed
+   nowhere". Returns the file, or null when the scenario lacks a piece. */
+function buildNewScenario(arc, o) {
+  const base = delverArchiveSpec(arc.bytes);
+  if (!base) return null;
+  const f9 = base.resources.find(r => r.resid === 0xF009);
+  if (!f9) return null;
+  const records = parseDelverCharacterRecords(f9.data);
+  const hero = records[1];
+  if (!hero || !hero.zone) return null;
+  const zone = hero.zone, w = o.width | 0, h = o.height | 0;
+  if (w < 1 || h < 1 || w > 4096 || h > 4096 || o.x < 0 || o.y < 0 || o.x >= w || o.y >= h) return null;
+  if (!o.zoneScript || !o.zoneScript.length) return null;
+  hero.x = o.x; hero.y = o.y;
+  const cast = writeDelverCharacterRecords(records);
+  cast.fill(0, 2 * DELV_CHAR_RECORD);
+  const map = new Uint8Array(32 + w * h * 2);
+  map[0] = w >> 8; map[1] = w & 0xFF; map[2] = h >> 8; map[3] = h & 0xFF;
+  for (let i = 0; i < w * h; i++) { map[32 + i * 2] = (o.tile >> 8) & 0xFF; map[33 + i * 2] = o.tile & 0xFF; }
+  const made = new Map([[0x8000 + zone, map], [0x8100 + zone, new Uint8Array(16)], [0x1400 + zone, o.zoneScript],
+    [0xF009, cast], [0xF00B, new Uint8Array(512)]]);
+  if (o.creation) made.set(0x1801, o.creation);
+  const gone = rid => { const k = rid >> 8; return k === 0x80 || k === 0x81 || k === 0x14 || (k === 0x18 && rid !== 0x1801); };
+  const resources = [];
+  for (const r of base.resources) {
+    if (made.has(r.resid)) { resources.push(Object.assign({}, r, { data: made.get(r.resid) })); made.delete(r.resid); }
+    else if (!gone(r.resid)) resources.push(r);
+  }
+  // A piece the scenario did not have takes the encryption its range has:
+  // scripts are stored encrypted by their id, maps and lists plain.
+  for (const [resid, data] of made) resources.push({ resid, data, encrypted: resid < 0x8000 });
+  return writeDelverArchive(Object.assign({}, base, { resources }));
+}
+
 function writeDelverPropList(records) {
   const out = new Uint8Array(records.length * 16);
   for (let i = 0; i < records.length; i++) {

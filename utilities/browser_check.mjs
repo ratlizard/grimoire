@@ -320,6 +320,11 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     ['license', "showCategory('LICENSE')"],
     // Data > Saved Game with the scenario open: Make a Save, under the records.
     ['saveMaker', "showCategory('SAVEGAME'); document.getElementById('saveMaker').scrollIntoView()"],
+    // Data > Patches, at Make a Scenario: the form's six rows and three
+    // buttons. The tab is drawn a moment after it is asked for, so it is
+    // asked for in a view of its own and the section opened in the next.
+    ['patches', "showCategory('PATCHES')"],
+    ['scenarioMaker', "const d = document.getElementById('scenarioMaker').closest('details'); if (d) d.open = true; document.getElementById('scenarioMaker').scrollIntoView()"],
     ['dataFork', "showCategory('DATAFORK')"],
     // A script's page: the head, the one row of views and the code, which
     // scrolls sideways inside its pane rather than widening the page.
@@ -372,7 +377,9 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     {device: {width: 390, height: 844, scale: 2}, then: async page => {
       const views = [];
       for (const [name, drive] of VIEWS) {
-        if (drive) { await page.evaluate(`(() => { try { ${drive}; } catch (e) { return String(e); } return 'ok'; })()`); }
+        // A drive that throws leaves the page where it was, and the shot is
+        // then of the wrong place with nothing said; so it is said.
+        if (drive) { const went = await page.evaluate(`(() => { try { ${drive}; } catch (e) { return String(e); } return 'ok'; })()`); if (went !== 'ok') console.log(`  view ${name}: its drive did not run: ${went}`); }
         await page.evaluate('new Promise(r => setTimeout(r, 400))');
         const m = await page.evaluate(MEASURE);
         const path = await page.shot(join(SHOTS, name + '.png'));

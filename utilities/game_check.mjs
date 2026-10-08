@@ -2,6 +2,7 @@
 /* game_check.mjs -- does the game accept what the site writes?
  *
  *   node utilities/game_check.mjs index.html <kit dir> <systemless binary> <registered licence data fork>
+ *        [<Cythera Data data fork> [<Cythera data fork> <Cythera resource fork>]]
  *
  * Every writer here is proven byte for byte against delvmod, and delvmod
  * is not the game. This is the game: the fork of systemless runs Cythera
@@ -32,6 +33,7 @@
 import {readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, cpSync, statSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
+import {crc32} from 'node:zlib';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
@@ -40,7 +42,7 @@ import {makeSandbox} from './dom_stub.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
-const [htmlPath, kitArg, binArg, licenceArg, scenarioArg] = process.argv.slice(2);
+const [htmlPath, kitArg, binArg, licenceArg, scenarioArg, appDataArg, appRsrcArg] = process.argv.slice(2);
 const KIT = resolve(ROOT, kitArg || '../playthrough-2026-09-08');
 const BIN = resolve(ROOT, binArg || '../m68k-patched/systemless');
 const LICENCE = resolve(ROOT, licenceArg || 'reference/game/installed-folders/Cythera License (registered).data');
@@ -178,5 +180,85 @@ if (scenarioArg && existsSync(scenarioArg)) {
     if (madeLine) console.log('  the game loaded' + madeLine.slice(5) + ', and saved it back');
   }
 } else console.log('  the made save was not tried: no scenario data fork was handed over');
+/* A scenario the page MADE (8 October 2026; newScenarioBytes, Data ›
+   Patches, Make a Scenario): the open scenario with its world emptied to
+   one zone. Nothing above starts a new game, and a new game is the only
+   thing a scenario is for, so this one does: the game arrives as a zip of
+   two MacBinary files, the application and the made Cythera Data (the fork
+   takes both forks of each from one; a store entry named Cythera Data was
+   tried first and the PowerPC slice read the archive's file regardless),
+   New Game is pressed, the player named and the archetype accepted, the
+   hero walked east twice and south once, and the game saved.
+
+   It runs on the PowerPC slice, where the workbench's new-game script was
+   timed (tools/drive-scripts/powerpc/newgame.ticks.txt), and stops that
+   script after the archetype dialog: the made scenario has no opening to
+   page through. The zone is made 24 by 20 with the hero at (10, 12), which
+   no zone of the shipped file is, so the save says which scenario the game
+   read: the hero three steps from (10, 12), and the zone's map memory, a
+   bit a square, 3 bytes by 20. The control is run by hand, since it costs
+   another forty seconds: GAME_CHECK_SHIPPED_SCENARIO=1 puts the shipped
+   file through the same run, where the script leaves the game in its
+   slideshow, the file the Create Player dialog made stays empty, and this
+   fails. Skips with a line when the scenario or the application was not
+   handed over. */
+let scenLine = '';
+if (scenarioArg && existsSync(scenarioArg) && appDataArg && existsSync(appDataArg) && appRsrcArg && existsSync(appRsrcArg) && existsSync(scenarioArg.replace(/\.data$/, '.rsrc'))) {
+  const W = 24, H = 20, X = 10, Y = 12;
+  ctx.parseArchiveBytes(new Uint8Array(readFileSync(scenarioArg)), 'Cythera Data', {via: 'data fork'});
+  let made = null;
+  try { made = ctx.newScenarioBytes({name: 'Empty Field', width: W, height: H, x: X, y: Y}); } catch (e) { fail('scenario: the page could not make one: ' + e.message); }
+  if (made && process.env.GAME_CHECK_SHIPPED_SCENARIO === '1') made = readFileSync(scenarioArg);
+  if (made) {
+    const mspec = ctx.delverArchiveSpec(new Uint8Array(made)), zone = ctx.parseDelverCharacterRecords(mspec.resources.find(r => r.resid === 0xF009).data)[1].zone;
+    const mb = (name, type, data, rsrc) => ctx.writeMacBinary({name, type, creator: 'Delv', data, rsrc});
+    const rd = p => new Uint8Array(readFileSync(p));
+    // A stored zip of the two, written here: the page's buildZip answers a
+    // Blob, which this side of the vm cannot read synchronously.
+    const entries = [
+      ['Cythera 1.0.4 \u0192/Cythera', mb('Cythera', 'APPL', rd(appDataArg), rd(appRsrcArg))],
+      ['Cythera 1.0.4 \u0192/Cythera Data', mb('Cythera Data', 'DelS', new Uint8Array(made), rd(scenarioArg.replace(/\.data$/, '.rsrc')))]];
+    const parts = [], central = [];
+    let at = 0;
+    for (const [n, bytes] of entries) {
+      const name = Buffer.from(n, 'utf8'), data = Buffer.from(bytes), crc = crc32(data);
+      const h = Buffer.alloc(30); h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(20, 4); h.writeUInt16LE(0x0800, 6); h.writeUInt32LE(crc, 14); h.writeUInt32LE(data.length, 18); h.writeUInt32LE(data.length, 22); h.writeUInt16LE(name.length, 26);
+      const c = Buffer.alloc(46); c.writeUInt32LE(0x02014b50, 0); c.writeUInt16LE(20, 4); c.writeUInt16LE(20, 6); c.writeUInt16LE(0x0800, 8); c.writeUInt32LE(crc, 16); c.writeUInt32LE(data.length, 20); c.writeUInt32LE(data.length, 24); c.writeUInt16LE(name.length, 28); c.writeUInt32LE(at, 42);
+      parts.push(h, name, data); central.push(c, name); at += 30 + name.length + data.length;
+    }
+    const dir = Buffer.concat(central), eocd = Buffer.alloc(22);
+    eocd.writeUInt32LE(0x06054b50, 0); eocd.writeUInt16LE(entries.length, 8); eocd.writeUInt16LE(entries.length, 10); eocd.writeUInt32LE(dir.length, 12); eocd.writeUInt32LE(at, 16);
+    const zip = Buffer.concat([...parts, dir, eocd]);
+    const SCEN = join(PLAY, 'scenario');
+    mkdirSync(SCEN, {recursive: true});
+    cpSync(join(PLAY, 'pristine/.systemless'), join(SCEN, '.systemless'), {recursive: true});
+    writeFileSync(join(SCEN, 'Cythera Installed Folder.zip'), zip);
+    // New Game at 950, "NewGame01" typed over the name and Return, OK in the
+    // archetype dialog at 1450; then right, right, down, and Cmd-S.
+    const NEWGAME = join(PLAY, 'new-game.txt');
+    writeFileSync(NEWGAME, '1 mousemove 300 320\n950 click 255 310\n' +
+      [[45, 78], [14, 101], [13, 119], [5, 71], [0, 97], [46, 109], [14, 101], [29, 48], [18, 49], [36, 13]].map(([k, c], i) => `${1100 + i * 10} press ${k} ${c}\n`).join('') +
+      '1450 click 475 494\n1700 press 124 29\n1800 press 124 29\n1900 press 125 31\n2100 keydown 55 0\n2102 press 1 115\n2104 keyup 55 0\n');
+    const r0 = spawnSync(BIN, ['--headless', '--max-ticks', '2500', '--tick-input-script', NEWGAME, join(SCEN, 'Cythera Installed Folder.zip')],
+      {encoding: 'utf8', maxBuffer: 64 << 20, timeout: 300000, killSignal: 'SIGKILL', stdio: ['ignore', 'pipe', 'pipe'],
+       env: {...process.env, SYSTEMLESS_HEADLESS_SCREENSHOT_DIR: join(PLAY, 'shots', 'scenario'), SYSTEMLESS_HEADLESS_SCREENSHOT_EVERY: '0', SYSTEMLESS_PREFER_POWERPC: '1'}});
+    const slog = join(PLAY, 'scenario.log');
+    writeFileSync(slog, (r0.stdout || '') + (r0.stderr || ''));
+    const saved = join(SCEN, '.systemless/saves/Cythera Installed Folder/Cythera 1.0.4 %C6%92/NewGame01/data.fork');
+    if (r0.error || r0.signal) fail('scenario: the fork did not finish: ' + (r0.error ? r0.error.message : 'killed by ' + r0.signal));
+    else if (!existsSync(saved)) fail(`scenario: the game wrote no save, so no new game was reached (${slog})`);
+    else try {
+      const sspec = ctx.delverArchiveSpec(new Uint8Array(readFileSync(saved)));
+      const seg = rid => (sspec.resources.find(r => r.resid === rid) || {}).data;
+      const h = seg(0xF009) ? ctx.parseDelverCharacterRecords(seg(0xF009))[1] : null, seen = seg(0x8200 + zone);
+      if (!seg(0xF009)) fail(`scenario: the save the game wrote holds no game, so no new game was reached (${slog})`);
+      else if (!h || h.zone !== zone || h.x !== X + 2 || h.y !== Y + 1) fail(`scenario: the hero is not three steps from (${X}, ${Y}) in zone ${zone}: ` + JSON.stringify(h && {zone: h.zone, x: h.x, y: h.y}));
+      else if (!seen || seen.length !== Math.ceil(W / 8) * H) fail(`scenario: the zone's map memory is ${seen && seen.length} bytes, not the ${Math.ceil(W / 8) * H} of a ${W} by ${H} zone`);
+      else if (!h.health || h.level !== 1) fail('scenario: the creation script did not set the hero up: ' + JSON.stringify({health: h.health, level: h.level}));
+      else scenLine = `; and a new game on a scenario made here, one zone ${W} by ${H}, the hero walked from (${X}, ${Y}) to (${h.x}, ${h.y})`;
+      if (scenLine) console.log('  the game started a new game' + scenLine.slice(16) + ', and saved it');
+    } catch (e) { fail('scenario: the save the game wrote does not parse: ' + e.message); }
+  }
+} else console.log('  the made scenario was not tried: the scenario or the application was not handed over');
 console.log(failures ? `\nFAIL — ${failures} problem(s)` : `\ngame: the game accepts a save the page edited; hero moved to (${trial.read.x}, ${trial.read.y}), training ${before.training} to ${trial.read.training}, and the control kept (${control.read.x}, ${control.read.y})`);
 process.exit(failures ? 1 : 0);

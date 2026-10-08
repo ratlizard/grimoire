@@ -2332,6 +2332,90 @@ function makeSaveFromForm() {
   setStatus('Made a new game for ' + name + '. To download it, go to Data › Cythera Data › Changes.');
   return true;
 }
+/* MAKE A SCENARIO (8 October 2026): the open scenario with its world
+   emptied, one zone of one tile left for the hero to stand in
+   (buildNewScenario, js/delv-archive.js, whose header says what goes and
+   what stays). This is the half that reads and writes code.
+
+   The opening is cut from the creation script, the maintainer's choice.
+   The first function of 0x1801 sets the hero up and then runs the
+   slideshow, from its first `sys SpecialView` to the `end` of `sys
+   EndSlideshow`, and returns; those instructions are taken out with
+   dvmRelink, which refuses the cut if anything left points into it. A
+   script without that shape is written as it stands.
+
+   The zone's entry script is the editor's blank map's, 0x1400, said again
+   with the name asked for: no landscape and no music. Its light is either
+   0, which leaves the zone to the clock's daylight, or the level furthest
+   from 0 that any zone of the scenario sets, which in Cythera lights every
+   square at every hour. The level of the zone replaced will not do: Land
+   King Hall's -128 on bare grass, with none of the hall's lamps, came out
+   five squares in six black in the fork.
+
+   The tile offered first is the one the scenario's maps place most among
+   those a walker can cross that 0xF004 names. The square the hero stands
+   on in the file is no guide: in Cythera it holds tile 206, which has no
+   name and draws black, and the first file made was a black map. */
+function scenarioTileChoices() {
+  const placed = mapTileCensus(), by = new Map();
+  // From 1: word 0 is a square with no tile, which the file names "Nothing".
+  for (let t = 1; t < placed.length; t++) {
+    if (!placed[t] || !tilePassable(t)) continue;
+    const name = terrainNameFor(t);
+    if (!name) continue;
+    const g = by.get(name) || { name, tile: t, most: 0, count: 0 };
+    if (placed[t] > g.most) { g.most = placed[t]; g.tile = t; }
+    g.count += placed[t];
+    by.set(name, g);
+  }
+  return [...by.values()].sort((a, b) => b.count - a.count);
+}
+function scenarioMakerDefaults() {
+  // A saved game's header names its player at 0x20; a scenario's does not.
+  if (!ARCHIVE || ARCHIVE.bytes[0x20]) return null;
+  const hero = loadCharacterTable()[1];
+  if (!hero || !hero.zone) return null;
+  const raw = getResourceBytes(ARCHIVE, 0x8000 + hero.zone), m = raw ? parseDelverMap(raw) : null;
+  if (!m || hero.x >= m.width || hero.y >= m.height) return null;
+  const tiles = scenarioTileChoices();
+  if (!tiles.length) return null;
+  let lit = 0;
+  for (let k = 0; k < subindexCount(ARCHIVE, 127); k++) {
+    const v = zoneAmbientLevel(0x8000 + k);
+    if (v !== null && Math.abs(v) > Math.abs(lit)) lit = v;
+  }
+  return { zone: hero.zone, width: m.width, height: m.height, x: hero.x, y: hero.y, tiles, tile: tiles[0].tile, lit };
+}
+function scenarioOpeningCut() {
+  const e = dvmScriptEntry(0x1801), raw = getResourceBytes(ARCHIVE, 0x1801);
+  if (!e || !raw) return null;
+  const ops = dvmOpsOf(e), first = ops.length ? ops[0].obj : 0, mine = ops.filter(o => o.obj === first);
+  const from = mine.findIndex(o => /^sys SpecialView\b/.test(o.text));
+  let to = -1;
+  for (let i = mine.length - 1; i > from && to < 0; i--) if (/^sys EndSlideshow\b/.test(mine[i].text)) to = i;
+  if (from < 0 || to < 0 || !mine[to + 2] || !/^end$/.test(mine[to + 1].text) || !/^return\b/.test(mine[to + 2].text)) return null;
+  const plain = smartDecrypt(raw, 0x1801).data;
+  return dvmRelink(plain, 0x1801, mine[from].at, mine[to + 2].at - mine[from].at, new Uint8Array(0)).bytes;
+}
+/* The file, from the choices: { name (the zone's title), width, height,
+   tile, x, y, light (the zone's ambient level), opening (true keeps the
+   slideshow) }. Null when the open file
+   cannot make one; throws what the assembler or the relinker says. */
+function newScenarioBytes(c) {
+  const d = scenarioMakerDefaults();
+  if (!d) return null;
+  const int = (v, dflt) => { const n = parseInt(v, 10); return isNaN(n) ? dflt : n; };
+  const width = int(c.width, d.width), height = int(c.height, d.height);
+  const name = String(c.name || '').trim();
+  if (!/^[\x20-\x7E]+$/.test(name) || /"/.test(name) || /\s\/\//.test(name)) throw new Error('The name takes plain letters, digits and punctuation, and no quotation mark');
+  const script = dvmWriteClass(0x1400 + d.zone, [{ key: 20, text: ['subroutine 0x0100',
+    'sys SetLandscapeImage', 'byte 0', 'end', 'sys SetTitle', 'string ' + JSON.stringify(name), 'end',
+    'sys PlayMusic', 'word None', 'end', 'sys SetAmbientLighting', 'short 0x' + (int(c.light, d.lit) & 0xFFFF).toString(16).toUpperCase().padStart(4, '0'), 'end',
+    'return', 'byte 0', 'end'].join('\n') }]).bytes;
+  return buildNewScenario(ARCHIVE, { width, height, tile: int(c.tile, d.tile) & 0xFFFF,
+    x: int(c.x, Math.min(d.x, width - 1)), y: int(c.y, Math.min(d.y, height - 1)),
+    zoneScript: script, creation: c.opening ? null : scenarioOpeningCut() });
+}
 function applyCharacterRecordEdit(index, fields, rawBytes) {
   const raw = getResourceBytes(ARCHIVE, 0xF009);
   if (!raw) { setStatus('This file has no character table.', true); return false; }

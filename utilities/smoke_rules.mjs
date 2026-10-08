@@ -1500,6 +1500,61 @@ try {
   else console.log(`  make a save: the creation script read with its lines; a new game for NewGame01 in ${spec.resources.length} resources, body ${ha.body}, level ${ha.level}, health ${ha.health}; the two sprites give two heroes`);
 } catch (e) { fail('make a save', e); }
 
+/* Make a Scenario, 8 October 2026: the open scenario with its world
+   emptied to one zone (newScenarioBytes, buildNewScenario). That the game
+   starts a new game on one is game_check.mjs's; this holds the half that
+   needs no game. The file must keep one map, one list and one entry
+   script, all the hero's zone's, and no conversation but the creation
+   script; the map must be the size and the tile asked for; the hero must
+   be the only character and stand where asked; the entry script must carry
+   the name; and the creation script must have lost its slideshow and kept
+   the rest. The control is the same call with the opening kept, which must
+   leave 0x1801 as the scenario has it: a cut that fired whatever was asked
+   would fail there. A hero outside the zone and a name the listing cannot
+   hold must be refused. */
+try {
+  const d = ctx.scenarioMakerDefaults();
+  const ask = { name: 'Empty Field', width: 24, height: 20, x: 10, y: 12 };
+  const made = ctx.newScenarioBytes(ask), kept = ctx.newScenarioBytes(Object.assign({ opening: true }, ask));
+  const before = ctx.delverArchiveSpec(peek('ARCHIVE.bytes'));
+  const spec = made ? ctx.delverArchiveSpec(new Uint8Array(made)) : null, kspec = kept ? ctx.delverArchiveSpec(new Uint8Array(kept)) : null;
+  const of = (sp, rid) => (sp.resources.find(r => r.resid === rid) || {}).data;
+  const fam = k => spec.resources.filter(r => (r.resid >> 8) === k).map(r => r.resid);
+  const same = (x, y) => !!x && !!y && x.length === y.length && x.every((v, i) => v === y[i]);
+  // The first function's listing, a line an instruction, from the bytes alone.
+  const says = (b, re) => {
+    const fn = ctx.dvmExtents(b, 0x1801).find(e => e[2] === 'function');
+    return !!fn && ctx.dvmDisassemble(b.subarray(fn[0], fn[1]), 3).ops.some(op => re.test(op[2] + (op[3] ? ' ' + op[3] : '')));
+  };
+  let refusedSquare = false, refusedName = false;
+  try { refusedSquare = ctx.newScenarioBytes(Object.assign({}, ask, { x: 24 })) === null; } catch (e) { refusedSquare = true; }
+  try { ctx.newScenarioBytes(Object.assign({}, ask, { name: 'A "quoted" name' })); } catch (e) { refusedName = true; }
+  if (!d || !d.tiles.length || !d.lit) fail('make a scenario', 'the open file offered nothing to start from: ' + JSON.stringify(d && { zone: d.zone, tiles: d.tiles.length, lit: d.lit }));
+  else if (!spec || !kspec) fail('make a scenario', 'the page made no file');
+  else {
+    const z = d.zone, map = of(spec, 0x8000 + z), m = map ? ctx.parseDelverMap(map) : null;
+    const cast = ctx.parseDelverCharacterRecords(of(spec, 0xF009)), hero = cast[1];
+    const words = new Set(); if (m) for (let i = 0; i < m.width * m.height; i++) words.add((map[m.mapDataOffset + i * 2] << 8) | map[m.mapDataOffset + i * 2 + 1]);
+    const cr = of(spec, 0x1801), cr0 = of(before, 0x1801);
+    if (fam(0x80).join() !== String(0x8000 + z) || fam(0x81).join() !== String(0x8100 + z) || fam(0x14).join() !== String(0x1400 + z) || fam(0x18).join() !== String(0x1801))
+      fail('make a scenario', 'more than the hero’s zone and the creation script is left: ' + JSON.stringify({ maps: fam(0x80).length, lists: fam(0x81).length, entry: fam(0x14).length, talk: fam(0x18).length }));
+    else if (!m || m.width !== 24 || m.height !== 20 || words.size !== 1 || !words.has(d.tile)) fail('make a scenario', 'the map is not 24 by 20 of the tile offered: ' + JSON.stringify(m && { w: m.width, h: m.height, words: [...words].slice(0, 4) }));
+    else if (hero.zone !== z || hero.x !== 10 || hero.y !== 12 || cast.some((r, i) => i > 1 && (r.zone || ctx.delverCharacterInUse(r)))) fail('make a scenario', 'the hero is not alone at (10, 12): ' + JSON.stringify({ zone: hero.zone, x: hero.x, y: hero.y, others: cast.filter((r, i) => i > 1 && ctx.delverCharacterInUse(r)).length }));
+    else if ((ctx.parseDelverScheduleList(of(spec, 0xF00B)) || [0]).length) fail('make a scenario', 'somebody still has a schedule');
+    else if (!Buffer.from(of(spec, 0x1400 + z)).includes('Empty Field')) fail('make a scenario', 'the entry script does not carry the name');
+    else if (!says(cr0, /Slideshow/) || says(cr, /Slideshow|SpecialView/) || !says(cr, /set_global Karma/) || cr.length >= cr0.length) fail('make a scenario', 'the creation script did not lose its slideshow and keep the rest');
+    else if (!same(of(kspec, 0x1801), cr0)) fail('make a scenario', 'with the opening kept, the creation script is not the scenario’s');
+    else if (!refusedSquare || !refusedName) fail('make a scenario', 'a hero outside the zone or a name with a quotation mark was not refused: ' + JSON.stringify({ refusedSquare, refusedName }));
+    else {
+      ctx.showCategory('PATCHES');
+      const host = REGISTRY.get('scenarioMaker'), html = host ? (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(host) : '';
+      const buttons = host ? (function all(el) { return (el.tagName === 'BUTTON' ? [el.textContent] : []).concat(...(el.children || []).map(all)); })(host) : [];
+      if (!host || buttons.length !== 3) fail('make a scenario', 'Data › Patches does not offer the maker with its three buttons: ' + JSON.stringify(buttons));
+      else console.log(`  make a scenario: ${before.resources.length} resources to ${spec.resources.length}; zone ${z} alone, 24 by 20 of ${d.tiles[0].name}, the hero alone at (10, 12); the slideshow cut (${cr0.length - cr.length} bytes) and kept when asked; a square outside and a quoted name refused`);
+    }
+  }
+} catch (e) { fail('make a scenario', e); }
+
 /* What uses a character flag the program does not name, 8 October 2026
    (charFlagUses, in a record's Edit form). The mistake to catch is a flag
    of byte 8 listed with every script that sets flag 0 on anybody, forty

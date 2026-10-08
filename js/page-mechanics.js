@@ -2195,6 +2195,101 @@ function renderBackstageMaker() {
   }
   host.appendChild(d);
 }
+/* Make a Scenario (newScenarioBytes, js/page-data.js): the form, and the
+   file written as the Spanish copy is, or opened here in place of the one
+   it was made from. The choices are kept for the session; a field left
+   empty takes what the open file offers. */
+window.SCENARIO_STATE = window.SCENARIO_STATE || { name: 'New Zone', width: '', height: '', tile: '', x: '', y: '', light: '', opening: false };
+function scenarioSay(m, bad) {
+  const note = document.getElementById('scenarioNote');
+  if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
+}
+function scenarioMake() {
+  let bytes = null;
+  try { bytes = newScenarioBytes(window.SCENARIO_STATE); } catch (e) { scenarioSay(e.message, true); return null; }
+  if (!bytes) scenarioSay('The page could not make a scenario with these choices. The hero has to stand inside the zone.', true);
+  return bytes;
+}
+function scenarioDownload(asDisk) {
+  const bytes = scenarioMake();
+  if (!bytes) return null;
+  const file = spanishDataFile({ data: bytes, rsrc: window.CYTHERA_RSRC_RAW });
+  if (asDisk) dlBlob(new Blob([writeHfsImage({ volumeName: 'Cythera', entries: [file] })], { type: 'application/octet-stream' }), 'Cythera Data (new).dsk');
+  else dlBlob(new Blob([writeMacBinary(file)], { type: 'application/macbinary' }), 'Cythera Data (new).bin');
+  scenarioSay(bytes.length.toLocaleString() + ' bytes written.');
+  return bytes;
+}
+function scenarioOpenHere() {
+  const bytes = scenarioMake();
+  if (!bytes) return false;
+  // The resource fork and the Finder's name and type ride along, so the
+  // file made here downloads whole from the Changes tab.
+  const f = window.ARCHIVE_FINDER;
+  parseArchiveBytes(bytes, (f && f.name) || DISK_ARCHIVE_NAME, { via: 'made here', rsrc: window.CYTHERA_RSRC_RAW, finder: f || undefined });
+  setStatus('Made a scenario with one zone. To download it, go to Data › Cythera Data › Changes.');
+  return true;
+}
+function renderScenarioMaker() {
+  const host = document.getElementById('scenarioMaker');
+  if (!host) return;
+  host.innerHTML = '';
+  const el = (tag, cls, html) => { const d = document.createElement(tag); if (cls) d.className = cls; if (html !== undefined) d.innerHTML = html; return d; };
+  let d = null;
+  try { d = scenarioMakerDefaults(); } catch (e) { quiet(e, 'what a new scenario starts from'); }
+  if (!d) {
+    host.appendChild(el('p', 'mechSub', !ARCHIVE ? 'No game file is open.' : ARCHIVE.bytes[0x20] ? 'This is a saved game. Open Cythera Data to make a scenario from it.' : 'This file has no hero in a zone to start from.'));
+    return;
+  }
+  const st = window.SCENARIO_STATE;
+  const form = el('div', 'gremlinForm');
+  const label = t => form.appendChild(el('span', '', t));
+  const cell = (...kids) => { const c = el('div', ''); for (const k of kids) c.appendChild(k); form.appendChild(c); return c; };
+  const field = (id, key, type, placeholder) => {
+    const i = document.createElement('input');
+    i.type = type; i.id = id; i.value = st[key]; if (placeholder !== undefined) i.placeholder = String(placeholder);
+    if (type === 'number') { i.min = 0; i.style.width = '5.5em'; }
+    i.onchange = function () { st[key] = i.value; };
+    return i;
+  };
+  const choice = (id, key, options) => {
+    const s = document.createElement('select');
+    s.id = id;
+    for (const [v, t] of options) { const o = document.createElement('option'); o.value = v; o.textContent = t; if (String(v) === String(st[key])) o.selected = true; s.appendChild(o); }
+    s.onchange = function () { st[key] = s.value; };
+    return s;
+  };
+  const name = field('scenName', 'name', 'text');
+  name.maxLength = 40;
+  label('Zone name');
+  cell(name, el('span', 'mechSub', ' in place of ' + svEsc(zoneDisplayName(d.zone))));
+  label('Size');
+  cell(field('scenWidth', 'width', 'number', d.width), el('span', 'mechSub', ' by '), field('scenHeight', 'height', 'number', d.height), el('span', 'mechSub', ' squares'));
+  label('Ground');
+  cell(choice('scenTile', 'tile', d.tiles.map(t => [t.tile, t.name])));
+  label('Hero at');
+  cell(field('scenX', 'x', 'number', d.x), el('span', 'mechSub', ' , '), field('scenY', 'y', 'number', d.y));
+  label('Light');
+  cell(choice('scenLight', 'light', [[d.lit, 'Always lit'], [0, 'Daylight, by the game’s clock']]));
+  const keep = document.createElement('input');
+  keep.type = 'checkbox'; keep.id = 'scenOpening'; keep.checked = !!st.opening;
+  keep.onchange = function () { st.opening = keep.checked; };
+  const keepRow = el('label', 'mechSub');
+  keepRow.appendChild(keep); keepRow.appendChild(document.createTextNode(' Keep the opening story'));
+  label('Opening');
+  cell(keepRow);
+  host.appendChild(form);
+  if (!(window.CYTHERA_RSRC_RAW && window.CYTHERA_RSRC_RAW.length))
+    host.appendChild(el('p', 'mechSub', 'This copy has no resource fork, and the game will not start without one. Open the game in MacBinary or BinHex, or open the installer.'));
+  const bar = el('div', 'mechStats');
+  for (const [text, fn] of [['Download for a Mac', () => scenarioDownload(false)], ['Download as a disk image', () => scenarioDownload(true)], ['Open It Here', () => scenarioOpenHere()]]) {
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+    b.textContent = text; b.onclick = fn;
+    bar.appendChild(b);
+  }
+  host.appendChild(bar);
+}
 function renderSpanishMaker() {
   const host = document.getElementById('spanishMaker');
   if (!host) return;
@@ -4362,6 +4457,24 @@ function renderMechanicsSheet(value) {
     sec.appendChild(note);
   }
 
+  // ---- a scenario of your own ----
+  {
+    add('newscenario', 'Make a Scenario', null, '',
+      'Start a scenario of your own. This page writes a copy of Cythera Data with the world emptied: one zone of one tile with the hero in it, and every rule, thing, creature, picture and sound kept.',
+      [
+        'Put the file in place of Cythera Data in the game\u2019s folder, and start a new game.',
+        'Every other zone is gone, and every character, schedule and conversation.',
+        'The scripts that are kept still name the places and people that are gone.'
+      ], '');
+    const sec = sections[sections.length - 1].el;
+    const host = document.createElement('div');
+    host.id = 'scenarioMaker';
+    sec.appendChild(host);
+    const note = document.createElement('div');
+    note.className = 'mechSub'; note.id = 'scenarioNote';
+    sec.appendChild(note);
+  }
+
   // ---- comparing two archives ----
   {
     const edits = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
@@ -4738,6 +4851,7 @@ function renderMechanicsSheet(value) {
   if (document.getElementById('appFixMaker')) renderAppFixMaker();
   if (document.getElementById('spanishMaker')) renderSpanishMaker();
   if (document.getElementById('backstageMaker')) renderBackstageMaker();
+  if (document.getElementById('scenarioMaker')) renderScenarioMaker();
 }
 // The cards open when a number on the sheet was followed into its script,
 // so that back from the script finds them open again and setMode's scroll

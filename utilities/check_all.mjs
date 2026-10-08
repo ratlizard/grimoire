@@ -505,7 +505,7 @@ const CHECKS = [
      the edit; the unedited seed is the control. The one oracle the writers
      had lacked -- delvmod is not the game. About forty seconds. */
   {page: 'viewer', name: 'in the game', want: [KIT, GAME_BIN, LICENCE], slow: true,
-   cmd: ['utilities/game_check.mjs', 'index.html', KIT, GAME_BIN, LICENCE, DATA],
+   cmd: ['utilities/game_check.mjs', 'index.html', KIT, GAME_BIN, LICENCE, DATA, APP_DATA, APP_RSRC],
    grep: /game: [^\n]*/},
   {page: 'viewer', name: 'zip export', want: [DATA], slow: true,
    cmd: ['utilities/export_test.mjs', 'index.html', DATA, EXPORTS], zips: EXPORTS},
