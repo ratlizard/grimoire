@@ -1592,6 +1592,18 @@ try {
             !gift || gift.proptype !== kw.gift.type || gift.d3 !== kw.gift.d3 || gift.flags !== 0x10 || w.resources.find(r => r.resid === 0x0401).data[5] === 0x00 && w.resources.find(r => r.resid === 0x0401).data[4] !== 0x30)
           return fail('welcome', 'the king’s welcome is not in the save made with it, or is in the plain one: ' + JSON.stringify(kw)), true;
         if (hp && (hp.perSex.v < 1 || faces.some(r => !ctx.refExists(r) || ctx.labelFor(r)))) return fail('welcome', 'the hero’s faces are not portraits the file has and names for nobody: ' + JSON.stringify(hp)), true;
+        /* The To Do list (saveMakerTodo). Lines asked for must be in their
+           slots, the one asked for as done struck off and the other not;
+           the king's first line must still take his slot beside them, and
+           give way when his slot is asked for; a line no script adds must
+           be left out. */
+        const lines = ctx.saveMakerTodo(), la = lines.find(t => t.slot !== kw.todo.slot), lb = lines.find(t => t.slot !== kw.todo.slot && t !== la);
+        const tsave = ask => ctx.delverArchiveSpec(new Uint8Array(ctx.newGameSaveBytes(Object.assign({ name: 'NewGame01', welcomed: true }, ask)))).resources.find(r => r.resid === 0x0401).data;
+        const slot = (b, n) => Buffer.from(b.subarray(n * 8, n * 8 + 8)).toString('hex'), ref = t => (0x30000000 | (t.line << 16) | t.resid).toString(16);
+        const t1 = tsave({ todo: [{ slot: la.slot, line: la.line }, { slot: lb.slot, line: lb.line, done: true }, { slot: 200, line: 99 }] }), t2 = tsave({ todo: [{ slot: kw.todo.slot, line: kw.todo.line, done: true }] });
+        if (lines.length < 10 || slot(t1, la.slot) !== '00000001' + ref(la) || slot(t1, lb.slot) !== '01000001' + ref(lb) || !slot(t1, kw.todo.slot).startsWith('00000001') || slot(t1, 200) !== '000000005000ffff' || !slot(t2, kw.todo.slot).startsWith('01'))
+          return fail('welcome', 'the To Do lines asked for are not in the save as asked: ' + JSON.stringify([slot(t1, la.slot), slot(t1, lb.slot), slot(t1, kw.todo.slot), slot(t1, 200), slot(t2, kw.todo.slot)])), true;
+        console.log(`  the To Do list: ${lines.length} lines offered; "${la.text}" to do and "${lb.text}" done are in their slots beside the king's, his own struck when asked, a line no script adds left out`);
         console.log(`  the king's welcome: quest flag ${kw.flag.v}, his flag ${kw.charFlag.v}, To Do line ${kw.todo.line} in slot ${kw.todo.slot} and thing ${kw.gift.type}, each with its line, in the save made with it and not the plain one; ` + (hp ? `${faces.length} faces from the program` : 'no program here, so no faces'));
         return false; })()) { /* said */ }
       else console.log(`  archetypes: nine read from the table, every stat and skill as the dialog’s own text has it but the ${odd[0].split(' ')[0]}’s mind (${/mind (\d+) against (\d+)/.exec(odd[0]).slice(1).join(' in the table, ')} in the text); a ${fighter.name}’s save ends with ${tail.length} skills at their levels, a plain one has none`);

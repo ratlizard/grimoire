@@ -2100,6 +2100,29 @@ function writeDelverCharacterRecords(records) {
    here is structure: the lengths the program gives each segment
    (save-format.md, *The write map*) and the empty patterns. Returns the
    file, or null when the scenario lacks a piece. */
+/* The characters' prop list, 0xF306, as a save has it for a character
+   table and the hero's zone: record i a first byte and bytes 1 to 5 of
+   character i's record. A function of its own so that the rule can be held
+   to a real save's table and list (utilities/game_check.mjs). */
+function delverCharacterPropList(f9, zone) {
+  const f6 = new Uint8Array(256 * 16);
+  for (let i = 0; i < 256; i++) {
+    const r = f9.subarray(i * DELV_CHAR_RECORD, i * DELV_CHAR_RECORD + 6);
+    // Whether a record is a character at all is its byte 7, as a real new
+    // game's list has it (8 October 2026): 1 in every record the list
+    // gives a first byte, 0 in the rest, one of which carries a zone and
+    // nothing else. The rule had been "below 129", which is where the
+    // shipped table happens to stop. Two characters of the shipped cast
+    // still differ from a real new game's list, 92 and 125, both listed
+    // with no square: where the hour's schedule put them, which the game
+    // works out again when it loads the file.
+    const live = i === 0 || f9[i * DELV_CHAR_RECORD + 7] !== 0;
+    f6[i * 16] = i === 0 ? 0x1C : !live ? 0 : r[0] === zone ? 0x42 : 0xFF;
+    if (live && (r[0] || i === 0)) f6.set(r.subarray(1, 6), i * 16 + 1);
+  }
+  return f6;
+}
+
 function buildNewGameSave(arc, o) {
   const seg = rid => { const raw = getResourceBytes(arc, rid); return raw ? smartDecrypt(raw, rid).data : null; };
   const f9src = seg(0xF009);
@@ -2161,19 +2184,14 @@ function buildNewGameSave(arc, o) {
     r.nutrition = hero.nutrition;
   }
   const f9 = writeDelverCharacterRecords(records);
-  const f6 = new Uint8Array(256 * 16);
-  for (let i = 0; i < 256; i++) {
-    const r = f9.subarray(i * DELV_CHAR_RECORD, i * DELV_CHAR_RECORD + 6);
-    f6[i * 16] = i === 0 ? 0x1C : i > 128 ? 0 : r[0] === zone ? 0x42 : 0xFF;
-    if (r[0] || i === 0) f6.set(r.subarray(1, 6), i * 16 + 1);
-  }
+  const f6 = delverCharacterPropList(f9, zone);
   const todo = new Uint8Array(2048);
   for (let i = 0; i < 256; i++) todo.set([0, 0, 0, 0, 0x50, 0, 0xFF, 0xFF], i * 8);
-  // `todo` lines, [{ slot, line, resid }]: not struck, the day it was
-  // added, and a reference to the line of the text array.
+  // `todo` lines, [{ slot, line, resid, done }]: struck off or not, the day
+  // it was added, and a reference to the line of the text array.
   for (const t of o.todo || []) {
     const ref = (0x30000000 | ((t.line & 0x0FFF) << 16) | (t.resid & 0xFFFF)) >>> 0;
-    todo.set([0, 0, (o.day >> 8) & 0xFF, o.day & 0xFF, ref >>> 24, (ref >> 16) & 0xFF, (ref >> 8) & 0xFF, ref & 0xFF], (t.slot & 0xFF) * 8);
+    todo.set([t.done ? 1 : 0, 0, (o.day >> 8) & 0xFF, o.day & 0xFF, ref >>> 24, (ref >> 16) & 0xFF, (ref >> 8) & 0xFF, ref & 0xFF], (t.slot & 0xFF) * 8);
   }
   const heap = new Uint8Array(262144);
   heap.set([(heap.length - 8) >>> 24, ((heap.length - 8) >> 16) & 0xFF, ((heap.length - 8) >> 8) & 0xFF, (heap.length - 8) & 0xFF]);

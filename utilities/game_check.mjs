@@ -202,6 +202,21 @@ if (scenarioArg && existsSync(scenarioArg)) {
     else if (held(real) !== held(mine) || !held(mine)) fail('welcome: the hero holds ' + held(mine) + ', and in the kit’s save ' + held(real));
     else console.log('  a Fighter made with the king having spoken agrees with the kit’s save after his welcome: the flags, To Do slot 0, his flag, and ' + held(mine).split(' ').length + ' things held');
   } else console.log('  the king’s welcome was not compared: the kit’s save after it, or the reading, is missing');
+  /* The characters' prop list against a real new game's (the same day): the
+     kit's save taken at a new game, its list against the rule run on its own
+     character table (a made save's table is the scenario's, which the game
+     has not yet placed, so the two tables are not to be compared). Two may differ, and only by having no square in the real
+     one: the two characters the hour's schedule keeps off the map, which
+     the game works out again on load. Any other difference is the rule's. */
+  const cp0Path = join(KIT, 'saves/cp0-newgame/data.fork');
+  if (existsSync(cp0Path)) {
+    const cp0 = ctx.delverArchiveSpec(new Uint8Array(readFileSync(cp0Path))), table = cp0.resources.find(r => r.resid === 0xF009).data;
+    const real = cp0.resources.find(r => r.resid === 0xF306).data, mine = ctx.delverCharacterPropList(table, table[32]);
+    const odd = [];
+    for (let i = 0; i < 256; i++) { const a = real.subarray(i * 16, i * 16 + 16), b = mine.subarray(i * 16, i * 16 + 16); if (a.some((v, k) => v !== b[k])) odd.push({i, bare: a[0] === b[0] && a.subarray(1).every(v => !v)}); }
+    if (real.length !== mine.length || odd.length > 2 || odd.some(o => !o.bare)) fail('list: the characters’ prop list differs from a real new game’s other than in a scheduled character’s square: ' + JSON.stringify(odd.slice(0, 8)));
+    else console.log('  the rule for the characters’ prop list gives a real new game’s from its own table, but for the square of characters ' + odd.map(o => o.i).join(' and ') + ', whom the hour keeps off the map');
+  }
   if (!made) fail('made: the page could not make a save from the scenario');
   else {
     const want = ctx.parseDelverCharacterRecords(ctx.delverArchiveSpec(made).resources.find(r => r.resid === 0xF009).data)[1];

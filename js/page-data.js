@@ -2404,6 +2404,29 @@ function saveMakerCompanions() {
   }
   return out;
 }
+/* THE TO DO LIST AS THE STORY (8 October 2026). Past the king's welcome
+   the game keeps no table of how far the story has got: a quest's progress
+   is a number or a flag that the scripts concerned read, 17 of the 32
+   values and 10 of the 256 flags in use, none of them named
+   (quests-and-todo.md). What the game does name is the To Do list, each
+   line a sentence of 0x021A that some script adds to a slot and may later
+   strike off. So the form offers those lines, each to be left off, put on
+   the list, or put on it struck through, which is the story as the player
+   is shown it. It writes the list and nothing behind it: a line struck
+   here does not set the value its quest is judged by, and the forms on
+   the made save are where those are set. One row a slot and line that
+   some script adds, in slot order. */
+function saveMakerTodo() {
+  const t = todoRules(), seen = new Set(), out = [];
+  if (!t || t.textResid === null || !t.lines) return out;
+  for (const a of t.adds) {
+    const line = a.base + a.line.v, key = a.slot.v + ':' + line, text = t.lines.get(line);
+    if (seen.has(key) || !text) continue;
+    seen.add(key);
+    out.push({ slot: a.slot.v, line, resid: t.textResid, text });
+  }
+  return out.sort((x, y) => x.slot - y.slot || x.line - y.line);
+}
 function saveMakerStories() {
   const f = window.CYTHERA_RSRC, out = [];
   try {
@@ -2428,13 +2451,14 @@ function saveMakerDefaults() {
   // hero's choices are, the cast's each carrying its character's name.
   const portrait = portraits.find(r => !labelFor(r)) || portraits[0];
   return { cr, portraits, portrait, body: hero.body, reflex: hero.reflex, mind: hero.mind, level: cr.level.v, archetypes: archetypeRules(), welcome: kingsWelcomeRules(),
-           zone: hero.zone, zones: saveMakerZones(), stories: saveMakerStories(), companions: saveMakerCompanions() };
+           zone: hero.zone, zones: saveMakerZones(), stories: saveMakerStories(), companions: saveMakerCompanions(), todo: saveMakerTodo() };
 }
 /* The file, from the choices: { name, sprite (an index into the script's
    two), portrait (a resource), archetype (its number, for its skills, and
    its stats where none are given), body, reflex, mind, level, zone, x, y,
    hour, day, story (a named state), welcomed (true: the king has spoken),
-   party (character numbers) }. Null
+   todo ([{ slot, line, done }], lines of the To Do list), party (character
+   numbers) }. Null
    when the open file cannot make one, or the square is off the map. */
 function newGameSaveBytes(c) {
   const d = saveMakerDefaults();
@@ -2466,7 +2490,11 @@ function newGameSaveBytes(c) {
     day: Math.max(1, Math.min(0x7FFF, num(c.day, NEW_GAME_SHIPPED.day))), header4: NEW_GAME_SHIPPED.header4 };
   const kw = c.welcomed && d.welcome ? d.welcome : null;
   return buildNewGameSave(ARCHIVE, Object.assign({ zone, x, y, party, values: story ? story.values : null, name: c.name, portrait: c.portrait || d.portrait,
-    flags: kw ? [kw.flag.v] : null, charFlags: kw ? [{ index: kw.who, flag: kw.charFlag.v }] : null, todo: kw ? [kw.todo] : null, things: kw ? [kw.gift] : null,
+    flags: kw ? [kw.flag.v] : null, charFlags: kw ? [{ index: kw.who, flag: kw.charFlag.v }] : null, things: kw ? [kw.gift] : null,
+    // The lines asked for, each one the form offers; the king's own first
+    // line where his slot was not asked for otherwise.
+    todo: (() => { const asked = (c.todo || []).map(t => d.todo.find(k => k.slot === +t.slot && k.line === +t.line) ? { slot: +t.slot, line: +t.line, resid: d.todo[0].resid, done: !!t.done } : null).filter(Boolean);
+      return kw && !asked.some(t => t.slot === kw.todo.slot) ? asked.concat([kw.todo]) : asked; })(),
     skills: arch ? arch.skills.map(k => ({ type: k.type, aspect: k.level | d.archetypes.bit.v })) : null, skillFlags: arch ? d.archetypes.flags.v : 0,
     proptype: sprite & 0x3FF, aspect: (sprite >> 10) & 0x3F, body, reflex, mind, level, xp: 0,
     health, healthMax: health, magic: 0, magicMax: 0, training: d.cr.training.v, nutrition: d.cr.nutrition.v,
@@ -2495,6 +2523,9 @@ function saveMakerHTML() {
     (d.stories.length ? '<label class="mkField">Story <select id="mkStory">' + d.stories.map(t => '<option value="' + svEsc(t.name) + '">' + svEsc(t.name) + '</option>').join('') + '</select></label>' : '') + '</div>' +
     (d.welcome ? '<div class="mkRow"><label class="mkField"><input type="checkbox" class="mkWith" id="mkWelcomed" checked> The king has spoken</label>' +
       '<span class="mechSub" style="display:inline">' + svEsc('His welcome is done, you carry the ' + (propDisplayName(d.welcome.gift.type) || 'thing he gives') + ', and the To Do list has its first line.') + '</span></div>' : '') +
+    (d.todo.length ? '<details class="mkTodo"><summary class="mechSub">' + svEsc('To Do list: ' + d.todo.length + ' lines to choose from') + '</summary>' +
+      d.todo.map(t => '<label class="mkField mkTodoRow"><select class="mkTodoPick" data-slot="' + t.slot + '" data-line="' + t.line + '"><option value="">Off</option><option value="on">To do</option><option value="done">Done</option></select> ' + svEsc(t.text) + '</label>').join('') +
+      '<div class="mechSub">' + svEsc('This sets the list the player reads, not the quests behind it.') + '</div></details>' : '') +
     (d.companions.length ? '<div class="mkRow"><span class="mkField">With</span>' + d.companions.map(k => '<label class="mkField"><input type="checkbox" class="mkWith" value="' + k.index + '"> ' + svEsc(k.name) + '</label>').join('') + '</div>' : '') +
     '<div class="mkRow"><button class="secondary" onclick="makeSaveFromForm()">Make the Save</button>' +
     '<button class="secondary" onclick="makeSaveFromForm(true)">Download It</button>' +
@@ -2525,8 +2556,9 @@ function makeSaveFromForm(download) {
   const name = String(val('mkName')).trim() || 'NewGame01';
   const party = [...document.querySelectorAll('.mkWith')].filter(b => b.checked && b.id !== 'mkWelcomed').map(b => parseInt(b.value, 10));
   const said = document.getElementById('mkWelcomed');
+  const todo = [...document.querySelectorAll('.mkTodoPick')].filter(p => p.value).map(p => ({ slot: +p.dataset.slot, line: +p.dataset.line, done: p.value === 'done' }));
   const bytes = newGameSaveBytes({ name, sprite: val('mkSprite'), portrait: parseInt(val('mkPortrait'), 10), archetype: val('mkArch'), body: val('mkBody'), reflex: val('mkReflex'), mind: val('mkMind'), level: val('mkLevel'),
-    zone: val('mkZone'), x: val('mkX'), y: val('mkY'), hour: val('mkHour'), day: val('mkDay'), story: val('mkStory'), welcomed: !!(said && said.checked), party });
+    zone: val('mkZone'), x: val('mkX'), y: val('mkY'), hour: val('mkHour'), day: val('mkDay'), story: val('mkStory'), welcomed: !!(said && said.checked), todo, party });
   if (!bytes) { setStatus('The page could not make that save. The square has to be on the zone’s map, with room beside it for each companion.', true); return false; }
   if (download) {
     // As a save leaves a Mac: MacBinary, the game's type and creator.
