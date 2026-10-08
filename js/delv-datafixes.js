@@ -256,6 +256,7 @@ const DATA_FIXES = [
   // 2026, found while reading every UseOn that deletes one of its
   // arguments; 0xE0A is the one helper among them that does.)
   { id: 'water-full-pitcher', group: 'items', stage: 'found', title: 'Water poured into a full pitcher now stops at \u201cThe pitcher is already full.\u201d, instead of going on to \u201cYou can\u2019t use water there...\u201d',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a pail of water poured on a full pitcher, "The pitcher is already full." alone, against that line and "You can’t use water there..." unpatched',
     edits: [
       { what: 'water into a full pitcher', resid: 0xE0A, at: 0x00EA, expect: { 0x00CD: 'string(implicit) "The pitcher is already full.', 0x00EA: 'branch 0x0121', 0x00ED: 'string(implicit) "The pitcher is now filled with water' },
         code: 'return\nword False\nend' },
@@ -269,6 +270,7 @@ const DATA_FIXES = [
   // so the rest of the chain is untouched. (The maintainer's word, 27
   // September 2026.)
   { id: 'pitcher-in-wine', group: 'items', stage: 'found', title: 'An empty pitcher dipped in the wine urn now fills with wine, instead of saying \u201cThe pitcher is empty.\u201d',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: an empty pitcher used on the wine urn, "The pitcher is now full of wine." and the pitcher saved holding wine, against "The pitcher is empty." unpatched',
     edits: [
       { what: 'a pitcher dipped in wine', resid: 0x10A0, at: 0x01FD,
         expect: { 0x01B9: 'then -> 0x01FD', 0x01FA: 'branch 0x0213', 0x01FD: 'string(implicit) "The pitcher is empty.', 0x0213: 'return' },
@@ -369,6 +371,7 @@ const DATA_FIXES = [
     ] },
   // The rolling pin vanishing (0x10A3): the dough is deleted, not the pin.
   { id: 'rolling-pin', group: 'items', stage: 'community', title: 'Kneading now uses up the dough, instead of the rolling pin',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the rolling pin used on dough without Cooking, "You end up kneading the dough into nothingness.", the dough gone and the pin kept, against the pin gone and the dough left unpatched',
     edits: [
       { what: 'the rolling pin', resid: 0x10A3, at: 0x0162, replaceOp: true, expect: { 0x0131: 'string(implicit) "You end up kneading', 0x0161: 'sys Delete', 0x0162: 'arg Arg00' }, code: 'arg Arg01' },
     ] },
@@ -379,6 +382,7 @@ const DATA_FIXES = [
   // This edit set 1 until 27 September 2026, which filled the pitcher with
   // water.
   { id: 'wine-urn', group: 'items', stage: 'community', title: 'The wine urn now fills a pitcher with wine, instead of leaving it empty',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the urn used on an empty pitcher, "The pitcher is now filled with wine." and the pitcher saved holding wine, against the same line and the pitcher saved empty unpatched',
     edits: [
       { what: 'the wine urn', resid: 0xE0D, at: 0x0061, expect: { 0x003C: 'string(implicit) "The pitcher is now filled with wine', 0x0061: 'return' },
         code: 'set_field data1 (0x6)\narg Arg00\nend\nbyte 0x03\nend' },
