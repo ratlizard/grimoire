@@ -2206,9 +2206,9 @@ function scenarioSay(m, bad) {
 }
 function scenarioMake() {
   let bytes = null;
-  const st = window.SCENARIO_STATE;
-  if (st.art === 'pack' && !st.pack) { scenarioSay('Choose the art pack\u2019s zip first.', true); return null; }
-  try { bytes = newScenarioBytes(Object.assign({}, st, { badArt: !!st.art, pack: st.art === 'pack' ? st.pack : null })); } catch (e) { scenarioSay(e.message, true); return null; }
+  const c = scenarioChoices();
+  if (!c) return null;
+  try { bytes = newScenarioBytes(c); } catch (e) { scenarioSay(e.message, true); return null; }
   if (!bytes) scenarioSay('The page could not make a scenario with these choices. The hero has to stand inside the zone.', true);
   return bytes;
 }
@@ -2220,6 +2220,23 @@ function scenarioDownload(asDisk) {
   else dlBlob(new Blob([writeMacBinary(file)], { type: 'application/macbinary' }), 'Cythera Data (new).bin');
   scenarioSay(bytes.length.toLocaleString() + ' bytes written.');
   return bytes;
+}
+// The choices as newScenarioBytes takes them, or null with the reason said.
+function scenarioChoices() {
+  const st = window.SCENARIO_STATE;
+  if (st.art === 'pack' && !st.pack) { scenarioSay('Choose the art pack’s zip first.', true); return null; }
+  return Object.assign({}, st, { badArt: !!st.art, pack: st.art === 'pack' ? st.pack : null });
+}
+function scenarioPatchDownload() {
+  const c = scenarioChoices();
+  if (!c) return null;
+  let w = null;
+  try { w = scenarioPatch(c); } catch (e) { scenarioSay(e.message, true); return null; }
+  if (!w) { scenarioSay('The page could not make a scenario with these choices. The hero has to stand inside the zone.', true); return null; }
+  const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
+  dlBlob(new Blob([bin], { type: 'application/macbinary' }), w.name + '.bin');
+  scenarioSay(w.bytes.length.toLocaleString() + ' bytes, ' + w.count + ' resources. Choose this file under Patches in the browser player, then start a new game.');
+  return w;
 }
 function scenarioOpenHere() {
   const bytes = scenarioMake();
@@ -2307,7 +2324,7 @@ function renderScenarioMaker() {
   if (!(window.CYTHERA_RSRC_RAW && window.CYTHERA_RSRC_RAW.length))
     host.appendChild(el('p', 'mechSub', 'This copy has no resource fork, and the game will not start without one. Open the game in MacBinary or BinHex, or open the installer.'));
   const bar = el('div', 'mechStats');
-  for (const [text, fn] of [['Download for a Mac', () => scenarioDownload(false)], ['Download as a disk image', () => scenarioDownload(true)], ['Open It Here', () => scenarioOpenHere()]]) {
+  for (const [text, fn] of [['Download for a Mac', () => scenarioDownload(false)], ['Download as a disk image', () => scenarioDownload(true)], ['Download as a patch', () => scenarioPatchDownload()], ['Open It Here', () => scenarioOpenHere()]]) {
     const b = document.createElement('button');
     b.className = 'secondary';
     b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
@@ -4489,6 +4506,7 @@ function renderMechanicsSheet(value) {
       'Start a scenario of your own. This page writes a copy of Cythera Data with the world emptied: one zone of one tile with the hero in it, and every rule, thing, creature, picture and sound kept.',
       [
         'Put the file in place of Cythera Data in the game\u2019s folder, and start a new game.',
+        'To play it in the browser player, download it as a patch and choose that file under Patches there. A patch cannot take anything out, so the rest of the world stays in the file, out of reach.',
         'Every other zone is gone, and every character, schedule and conversation.',
         'A battle is two kinds of creature that the game counts as enemies, set beside the hero and left to it.',
         'The pictures changed are the ones in Cythera Data. The program\u2019s own windows and title screen stay as they are.',

@@ -2456,6 +2456,27 @@ function newScenarioBytes(c) {
   const art = redrawDelverArt(bytes, scenarioFigureTiles(), c.pack ? scenarioPackArt(c.pack) : null);
   return art ? art.bytes : null;
 }
+/* THE SAME SCENARIO AS A MAGPIE PATCH (8 October 2026), which is how one
+   is played in the browser: the player's Patches panel merges a patch into
+   the game it fetched itself, so nothing of the game need be published or
+   carried. A patch holds whole resources and cannot take one away, so it
+   is every resource of the made file that differs from the open file's or
+   is new to it, and the zones and conversations the made file dropped
+   stay in the patched game, unreached: the hero's zone is replaced, the
+   cast and the schedules are emptied, and nothing leads anywhere else.
+   Returns writeDelverPatch's answer with the resource count, or null. */
+function scenarioPatch(c) {
+  const bytes = newScenarioBytes(c), base = patchBaseSpec();
+  if (!bytes || !base) return null;
+  const made = delverArchiveSpec(bytes), had = new Map(base.resources.map(r => [r.resid, r]));
+  const changed = made.resources.filter(r => { const o = had.get(r.resid); return !o || o.data.length !== r.data.length || o.data.some((v, i) => v !== r.data[i]); });
+  const ids = new Set(changed.map(r => r.resid));
+  const spec = Object.assign({}, base, { resources: base.resources.filter(r => !ids.has(r.resid)).concat(changed) });
+  const w = writeDelverPatch(spec, [...ids], { description: 'Scenario: ' + String(c.name || '').trim(), typeCode: DELV_PATCH_EXPORT_TYPE });
+  w.name = safeFileName('Scenario ' + String(c.name || '').trim());
+  w.count = ids.size;
+  return w;
+}
 /* Which tiles are somebody, for the redrawn art: every frame of every prop
    type that a character record or a unit record wears, by the prop-tile
    table and the run of frames spriteBlockSize gives it. The creation

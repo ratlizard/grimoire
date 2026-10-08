@@ -1580,13 +1580,23 @@ try {
       const fig = ctx.scenarioFigureTiles(), heroTiles = Object.keys(fig).map(Number).filter(t => fig[t].kind === 'hero');
       const bw = new Set([0, ctx.badArtIndex(0, 0, 0), ctx.badArtIndex(255, 255, 255)]);
       const heroOk = heroTiles.length >= 2 && heroTiles.every(t => { const sheet = ctx.decodeResource(farc, of(fspec, 0x8E00 + (t >> 4)), 141, 0x8E00 + (t >> 4)).image, px = sheet.subarray((t & 15) * 1024, (t & 15) * 1024 + 1024); return px.includes(0) && px.some(v => v) && px.every(v => bw.has(v)); });
-      if (!host || buttons.length !== 3) fail('make a scenario', 'Data › Patches does not offer the maker with its three buttons: ' + JSON.stringify(buttons));
+      /* The same as a patch (scenarioPatch): merged into the open file, as
+         the browser player merges one, every resource the made file holds
+         must come out as the made file has it. What the made file dropped
+         stays, which is the difference a patch cannot help; the control is
+         that the merge changes the hero's zone's map at all. */
+      const pw = ctx.scenarioPatch(Object.assign({ armyA: ka.type, armyB: kb.type, armyCount: 3, badArt: true }, ask));
+      const mergedSpec = ctx.delverArchiveSpec(ctx.mergeDelverPatch(peek('ARCHIVE.bytes'), pw.bytes).bytes);
+      const strays = fspec.resources.filter(r => !same(of(mergedSpec, r.resid), r.data)).length;
+      const patchOk = pw.count > 400 && !strays && mergedSpec.resources.length === before.resources.length && !same(of(mergedSpec, 0x8000 + z), of(before, 0x8000 + z));
+      if (!host || buttons.length !== 4) fail('make a scenario', 'Data › Patches does not offer the maker with its four buttons: ' + JSON.stringify(buttons));
+      else if (!patchOk) fail('make a scenario', 'the patch, merged, is not the made file over the open one: ' + JSON.stringify({ count: pw.count, strays, resources: mergedSpec.resources.length }));
       else if (!eggsOk || !sameSide) fail('make a scenario', 'the battle is not six eggs in two columns north of the hero, or one side against itself was not refused: ' + JSON.stringify({ records: recs.length, sameSide }));
       else if (!pics || redrawn !== pics || sized !== pics || others) fail('make a scenario', 'the pictures were not all redrawn at their own sizes with the rest left alone: ' + JSON.stringify({ pics, redrawn, sized, others }));
       else if (!has(255, 255, 255) || !has(0, 0, 0) || !has(220, 0, 0)) fail('make a scenario', 'a portrait has no face drawn on it');
       else if (!heroOk) fail('make a scenario', 'the hero’s ' + heroTiles.length + ' frames are not a black and white figure');
-      else console.log(`  make a scenario, battle and art: ${ka.name} against ${kb.name}, three eggs a side; ${ka.name} against ${kc.name} refused; ${pics} pictures redrawn at their own sizes, a face on the portrait, the hero’s ${heroTiles.length} frames black and white, nothing else changed`);
-      if (!host || buttons.length !== 3) { /* said above */ }
+      else console.log(`  make a scenario, battle and art: ${ka.name} against ${kb.name}, three eggs a side; ${ka.name} against ${kc.name} refused; ${pics} pictures redrawn at their own sizes, a face on the portrait, the hero’s ${heroTiles.length} frames black and white, nothing else changed; as a patch, ${pw.count} resources that merge to the same`);
+      if (!host || buttons.length !== 4) { /* said above */ }
       else console.log(`  make a scenario: ${before.resources.length} resources to ${spec.resources.length}; zone ${z} alone, 24 by 20 of ${d.tiles[0].name}, the hero alone at (10, 12); the slideshow cut (${cr0.length - cr.length} bytes) and kept when asked; a square outside and a quoted name refused`);
     }
   }
