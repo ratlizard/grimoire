@@ -1423,6 +1423,207 @@ function encodeDCGLiterals(indexed) {
   return out.subarray(0, p);
 }
 
+/* Indexed pixels -> Delver Compressed Graphics with runs as well as
+ * literals (8 October 2026): a run of three or more of one index is a Short
+ * Run (0xE0 + length - 3, the index; to 18) or a Long Run (0xF0, length - 3,
+ * the index; to 258), and what lies between runs goes out as
+ * encodeDCGLiterals writes it. No back-copies. It is for pictures made of
+ * flat blocks (redrawDelverArt, below), which literals alone would write
+ * at a byte a pixel: the 59 full pictures would come to several megabytes.
+ * The decoder is the check: redrawDelverArt decodes every stream it writes
+ * and keeps the literal encoding where the two differ. */
+function encodeDCGRuns(indexed) {
+  const out = [];
+  const literals = (from, to) => {
+    let i = from;
+    while (to - i >= 4) {
+      const chunk = Math.min(64, (to - i) & ~3);
+      out.push(0xC0 + (chunk >> 2) - 1);
+      for (let k = 0; k < chunk; k++) out.push(indexed[i + k]);
+      i += chunk;
+    }
+    if (to - i) { out.push(0xD0 | (to - i)); for (; i < to; i++) out.push(indexed[i]); }
+  };
+  let i = 0, lit = 0;
+  while (i < indexed.length) {
+    let n = 1;
+    while (i + n < indexed.length && indexed[i + n] === indexed[i] && n < 258) n++;
+    if (n < 3) { i += n; continue; }
+    literals(lit, i);
+    if (n <= 18) out.push(0xE0 + n - 3, indexed[i]); else out.push(0xF0, n - 3, indexed[i]);
+    i += n; lit = i;
+  }
+  literals(lit, indexed.length);
+  out.push(0xFF);
+  return Uint8Array.from(out);
+}
+
+/* EVERY PICTURE REDRAWN, BADLY (8 October 2026), for a scenario made on the
+   page. The maintainer asked for a version of the game with none of its
+   art, the stand-ins "hilariously bad", and, shown a first try that cut
+   each picture into flat blocks, said what he meant: a complete
+   replacement at full resolution, a black and white stick man for the
+   hero, the look of a Flash game. So nothing of a picture survives here
+   but its size, where it was see-through, and the colour it had most of,
+   which is what keeps grass green and water (a cycling index) moving.
+
+     a figure   a tile the caller names (`figures`: tile id to 'hero',
+                'person' or 'beast', with the frame's place in its run): a
+                stick man in thick black lines with a white head, wearing
+                a shirt of the old tile's colour unless he is the hero; a
+                beast is a bar on four legs. The frame number moves the
+                legs and arms and turns the figure round, so a walk still
+                flickers.
+     a thing    any other tile with see-through pixels: one black-rimmed
+                blob of its colour, filling the box the old art filled
+     ground     a tile with none: its colour flat, and a few strokes of its
+                second colour where the tile's number puts them
+     a portrait a round face on the old background, eyes looking different
+                ways, a mouth and hair that the resource's number chooses
+     a landscape, an icon, a picture: flat colour with a sun, a rim, or a
+                few dots
+
+   Index 0 is see-through in a sheet and is kept exactly where the new
+   drawing leaves a gap. Black, white, red and yellow are found in the
+   palette by nearness, not typed as indices. A picture that does not
+   decode is left as it is. The pictures in the application and in the
+   resource forks are not touched: this is the data fork's art only. Bytes
+   in, bytes out. */
+function badArtIndex(r, g, b) {
+  let best = 1, err = Infinity;
+  for (let i = 1; i < PALETTE_CYCLES[0][0]; i++) {
+    const v = parseInt(PALETTE[i], 16), e = ((v >> 16) - r) ** 2 + (((v >> 8) & 255) - g) ** 2 + ((v & 255) - b) ** 2;
+    if (e < err) { err = e; best = i; }
+  }
+  return best;
+}
+// A canvas of indices with the four things the drawings are made of.
+function badArtCanvas(image, W, H) {
+  const c = { image, W, H };
+  c.px = (x, y, v) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < W && y < H) image[y * W + x] = v; };
+  c.box = (x, y, w, h, v) => { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) c.px(i, j, v); };
+  c.disc = (cx, cy, rx, ry, v) => { for (let j = Math.floor(cy - ry); j <= cy + ry; j++) for (let i = Math.floor(cx - rx); i <= cx + rx; i++) if (((i - cx) / (rx || 1)) ** 2 + ((j - cy) / (ry || 1)) ** 2 <= 1) c.px(i, j, v); };
+  c.line = (x0, y0, x1, y1, v, t) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let k = 0; k <= n; k++) c.box(Math.round(x0 + (x1 - x0) * k / n), Math.round(y0 + (y1 - y0) * k / n), t || 1, t || 1, v); };
+  return c;
+}
+// The two indices a region has most of, see-through left out; null when it has none.
+function badArtColours(image, W, x0, y0, w, h) {
+  const n = new Uint32Array(256);
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) n[image[y * W + x]]++;
+  n[0] = 0;
+  let a = 0, b = 0;
+  for (let i = 1; i < 256; i++) if (n[i] > n[a]) a = i;
+  for (let i = 1; i < 256; i++) if (i !== a && n[i] > n[b]) b = i;
+  return n[a] ? [a, n[b] ? b : a] : null;
+}
+function badArtHash(n) { let v = (n + 0x9E3779B9) >>> 0; v = Math.imul(v ^ (v >>> 15), 0x85EBCA6B); v = Math.imul(v ^ (v >>> 13), 0xC2B2AE35); return (v ^ (v >>> 16)) >>> 0; }
+function badArtTile(old, tileId, figure, ink) {
+  const out = new Uint8Array(1024), c = badArtCanvas(out, 32, 32), cols = badArtColours(old, 32, 0, 0, 32, 32);
+  if (!cols) return out;
+  const [main, second] = cols, h = badArtHash(tileId);
+  if (figure) {
+    const f = figure.frame, flip = (f >> 2) & 1 ? -1 : 1, step = f & 1 ? 5 : 2, arm = (f >> 1) & 1 ? -6 : 3;
+    if (figure.kind === 'beast') {
+      c.line(8, 18, 22, 18, ink.black, 5); c.line(9, 18, 21, 18, main, 3);
+      for (const x of [9, 13, 19, 23]) c.line(x, 22, x + (f & 1 ? 2 : -1), 29, ink.black, 2);
+      c.disc(16 + flip * 11, 15, 4, 4, ink.black); c.disc(16 + flip * 11, 15, 2.5, 2.5, ink.white);
+      c.line(16 - flip * 9, 18, 16 - flip * 13, 12, ink.black, 2);
+    } else {
+      c.line(16, 11, 16, 21, ink.black, 2);
+      if (figure.kind !== 'hero') c.box(13, 12, 8, 8, main);
+      c.line(16, 13, 16 - 7, 13 + arm, ink.black, 2); c.line(16, 13, 16 + 7, 13 - arm + 3, ink.black, 2);
+      c.line(16, 21, 16 - step, 30, ink.black, 2); c.line(16, 21, 16 + step, 30, ink.black, 2);
+      c.disc(16.5, 6, 5, 5, ink.black); c.disc(16.5, 6, 3.5, 3.5, ink.white);
+      c.px(16 + flip * 2, 6, ink.black); c.px(17 + flip * 2, 6, ink.black);
+    }
+    return out;
+  }
+  if (old.includes(0)) {
+    let x0 = 32, y0 = 32, x1 = -1, y1 = -1;
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (old[y * 32 + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rx = Math.max(2, (x1 - x0) / 2), ry = Math.max(2, (y1 - y0) / 2);
+    c.disc(cx, cy, rx, ry, ink.black); c.disc(cx, cy, Math.max(1, rx - 2), Math.max(1, ry - 2), main);
+    if (rx > 5 && ry > 5) c.box(Math.round(cx - rx / 3), Math.round(cy - ry / 3), 2, 2, second === main ? ink.white : second);
+    return out;
+  }
+  out.fill(main);
+  for (let k = 0; k < 4; k++) { const v = badArtHash(h + k), x = 3 + (v % 24), y = 3 + ((v >> 8) % 24); c.line(x, y + 4, x + 3, y, second === main ? ink.black : second, 1); }
+  return out;
+}
+function badArtPicture(d, subn, resid, ink) {
+  const { W, H } = d, cols = badArtColours(d.image, W, 0, 0, W, H);
+  if (!cols) return d.image;
+  const out = new Uint8Array(W * H).fill(cols[0]), c = badArtCanvas(out, W, H), h = badArtHash(resid);
+  if (subn === 135) {
+    const r = Math.min(W, H) * 0.36, cx = W / 2, cy = H / 2 + 2;
+    c.disc(cx, cy, r + 2, r + 2, ink.black); c.disc(cx, cy, r, r, cols[1] === cols[0] ? ink.white : cols[1]);
+    for (let k = 0; k < 5 + (h % 6); k++) { const x = cx - r + (badArtHash(h + k) % Math.round(2 * r)); c.line(x, cy - r - 4 + (k % 3), x + ((h >> k) & 1 ? 4 : -4), cy - r * 0.55, ink.black, 2); }
+    for (const [sx, look] of [[-1, h & 3], [1, (h >> 2) & 3]]) {
+      const ex = cx + sx * r * 0.4, ey = cy - r * 0.2;
+      c.disc(ex, ey, 5, 5, ink.black); c.disc(ex, ey, 3.5, 3.5, ink.white); c.box(Math.round(ex + (look & 1 ? 1 : -2)), Math.round(ey + (look & 2 ? 1 : -2)), 2, 2, ink.black);
+    }
+    const bend = [3, 0, -3][(h >> 4) % 3];
+    c.line(cx - r * 0.45, cy + r * 0.45, cx, cy + r * 0.45 + bend, ink.red, 2); c.line(cx, cy + r * 0.45 + bend, cx + r * 0.45, cy + r * 0.45, ink.red, 2);
+  } else if (subn === 131) {
+    const low = badArtColours(d.image, W, 0, H >> 1, W, H - (H >> 1));
+    if (low) c.box(0, H >> 1, W, H - (H >> 1), low[0]);
+    c.disc(20 + (h % (W - 40)), 8, 6, 6, ink.yellow);
+    for (let k = 0; k < 3; k++) { const x = 30 + (badArtHash(h + k) % (W - 60)); c.line(x, 6, x + 3, 9, ink.black); c.line(x + 3, 9, x + 6, 6, ink.black); }
+  } else if (subn === 137) {
+    for (let x = 0; x < W; x++) { c.px(x, 0, ink.black); c.px(x, H - 1, ink.black); }
+    for (let y = 0; y < H; y++) { c.px(0, y, ink.black); c.px(W - 1, y, ink.black); }
+    c.line(8, H - 4, W - 9, 3, cols[1] === cols[0] ? ink.black : cols[1], 2);
+  } else {
+    for (let k = 0; k < Math.max(4, (W * H) >> 10); k++) { const v = badArtHash(h + k); c.box(v % W, (v >> 10) % H, 2, 2, cols[1]); }
+  }
+  return out;
+}
+function redrawDelverArt(bytes, figures) {
+  const arc = openDelverArchive(bytes), spec = delverArchiveSpec(bytes);
+  if (!arc || !spec) return null;
+  const ink = { black: badArtIndex(0, 0, 0), white: badArtIndex(255, 255, 255), red: badArtIndex(220, 0, 0), yellow: badArtIndex(252, 220, 0) };
+  let drawn = 0;
+  const resources = spec.resources.map(r => {
+    let subn = (r.resid >> 8) - 1;
+    if (!CANONICAL_SIZE[subn]) return r;
+    try {
+      if (subn === 141 && tileSheetIsSized(arc, r.resid, r.data)) subn = 142;
+      const d = decodeResource(arc, r.data, subn, r.resid);
+      let image;
+      if (subn === 141) {
+        // Sixteen tiles of 32 by 32 down a column; the sheet's low byte
+        // times sixteen is its first tile's number.
+        image = new Uint8Array(d.image.length);
+        for (let t = 0; t < 16; t++) {
+          const id = ((r.resid & 0xFF) << 4) + t;
+          image.set(badArtTile(d.image.subarray(t * 1024, t * 1024 + 1024), id, figures && figures[id], ink), t * 1024);
+        }
+      } else image = badArtPicture(d, subn, r.resid, ink);
+      let data;
+      if (UNCOMPRESSED[subn]) data = image;
+      else {
+        // The sized header is decodeResource's read backwards, as the
+        // page's encodeGraphicResource writes it: the stream holds the
+        // width rounded up to four.
+        const flags = HAS_HEADER[subn] ? d.W & 3 : 0, logW = d.W - flags + (flags ? 4 : 0);
+        let buf = image;
+        if (logW !== d.W) { buf = new Uint8Array(logW * d.H); for (let y = 0; y < d.H; y++) buf.set(image.subarray(y * d.W, y * d.W + d.W), y * logW); }
+        let body = encodeDCGRuns(buf);
+        const back = decompressDCG(body, logW, d.H);
+        if (back.length !== buf.length || back.some((v, i) => v !== buf[i])) body = encodeDCGLiterals(buf);
+        if (HAS_HEADER[subn]) {
+          const v = ((((d.W - flags) >> 2) << 18) | (flags << 16) | ((d.H >> 1) << 1) | (d.H & 1)) >>> 0;
+          data = new Uint8Array(4 + body.length);
+          data.set([v >>> 24, (v >>> 16) & 255, (v >>> 8) & 255, v & 255]); data.set(body, 4);
+        } else data = body;
+      }
+      drawn++;
+      return Object.assign({}, r, { data });
+    } catch (e) { quiet(e, 'a picture left as it is'); return r; }
+  });
+  return { bytes: writeDelverArchive(Object.assign({}, spec, { resources })), drawn };
+}
+
 /* ---- recolouring the hero ------------------------------------------------
    The hero and the heroine are prop types 32 and 33, and each is drawn from
    one tile sheet of sixteen 32x32 frames that nothing else in the game points

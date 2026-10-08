@@ -1549,7 +1549,44 @@ try {
       ctx.showCategory('PATCHES');
       const host = REGISTRY.get('scenarioMaker'), html = host ? (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(host) : '';
       const buttons = host ? (function all(el) { return (el.tagName === 'BUTTON' ? [el.textContent] : []).concat(...(el.children || []).map(all)); })(host) : [];
+      /* The battle and the art (the same day). Two enemy kinds must come
+         out as an egg and its creature apiece, in two columns a square
+         either side of the hero; two kinds of one alignment must be
+         refused, which is the control on the side test. Every picture of
+         the five families must come out changed and still decode at its
+         own size (an empty one may come out as it went in), a portrait
+         must carry the three face colours, the hero's frames must be
+         black, white and see-through and nothing else, and the rest of
+         the file must be untouched. */
+      const kinds = ctx.scenarioCreatureChoices(), ka = kinds[0], kb = kinds.find(k => k.alignment !== ka.alignment), kc = kinds.find(k => k !== ka && k.alignment === ka.alignment);
+      const fought = ctx.newScenarioBytes(Object.assign({ armyA: ka.type, armyB: kb.type, armyCount: 3, badArt: true }, ask));
+      let sameSide = false;
+      try { ctx.newScenarioBytes(Object.assign({ armyA: ka.type, armyB: kc.type }, ask)); } catch (e) { sameSide = /same side/.test(e.message); }
+      const fspec = ctx.delverArchiveSpec(new Uint8Array(fought)), farc = ctx.openDelverArchive(new Uint8Array(fought)), marc = ctx.openDelverArchive(new Uint8Array(made));
+      const recs = ctx.parseDelverPropList(of(fspec, 0x8100 + z));
+      const eggsOk = recs.length === 12 && recs.every((r, i) => i % 2 ? r.flags === 0x08 && (r.d3 >> 8) === 8 : r.flags === 0x42 && (r.d3 & 0xFF) === 100 && (r.x === 9 || r.x === 11) && r.y >= 7 && r.y <= 9);
+      let pics = 0, redrawn = 0, sized = 0, others = 0;
+      for (const r of fspec.resources) {
+        const was = of(spec, r.resid), fam = r.resid >> 8;
+        if (![0x84, 0x88, 0x8A, 0x8E, 0x8F].includes(fam)) { if (r.resid !== 0x8100 + z && !same(r.data, was)) others++; continue; }
+        pics++;
+        const da0 = ctx.decodeResource(marc, was, fam - 1, r.resid);
+        // A picture with nothing in it comes out as it went in.
+        if (!same(r.data, was) || !da0.image.some(v => v)) redrawn++;
+        const da = ctx.decodeResource(marc, was, fam - 1, r.resid), db = ctx.decodeResource(farc, r.data, fam - 1, r.resid);
+        if (da.W === db.W && da.H === db.H && db.image.length === da.image.length) sized++;
+      }
+      const face = ctx.decodeResource(farc, of(fspec, 0x8801), 0x87, 0x8801).image, has = (r, g, b) => face.includes(ctx.badArtIndex(r, g, b));
+      const fig = ctx.scenarioFigureTiles(), heroTiles = Object.keys(fig).map(Number).filter(t => fig[t].kind === 'hero');
+      const bw = new Set([0, ctx.badArtIndex(0, 0, 0), ctx.badArtIndex(255, 255, 255)]);
+      const heroOk = heroTiles.length >= 2 && heroTiles.every(t => { const sheet = ctx.decodeResource(farc, of(fspec, 0x8E00 + (t >> 4)), 141, 0x8E00 + (t >> 4)).image, px = sheet.subarray((t & 15) * 1024, (t & 15) * 1024 + 1024); return px.includes(0) && px.some(v => v) && px.every(v => bw.has(v)); });
       if (!host || buttons.length !== 3) fail('make a scenario', 'Data › Patches does not offer the maker with its three buttons: ' + JSON.stringify(buttons));
+      else if (!eggsOk || !sameSide) fail('make a scenario', 'the battle is not six eggs in two columns north of the hero, or one side against itself was not refused: ' + JSON.stringify({ records: recs.length, sameSide }));
+      else if (!pics || redrawn !== pics || sized !== pics || others) fail('make a scenario', 'the pictures were not all redrawn at their own sizes with the rest left alone: ' + JSON.stringify({ pics, redrawn, sized, others }));
+      else if (!has(255, 255, 255) || !has(0, 0, 0) || !has(220, 0, 0)) fail('make a scenario', 'a portrait has no face drawn on it');
+      else if (!heroOk) fail('make a scenario', 'the hero’s ' + heroTiles.length + ' frames are not a black and white figure');
+      else console.log(`  make a scenario, battle and art: ${ka.name} against ${kb.name}, three eggs a side; ${ka.name} against ${kc.name} refused; ${pics} pictures redrawn at their own sizes, a face on the portrait, the hero’s ${heroTiles.length} frames black and white, nothing else changed`);
+      if (!host || buttons.length !== 3) { /* said above */ }
       else console.log(`  make a scenario: ${before.resources.length} resources to ${spec.resources.length}; zone ${z} alone, 24 by 20 of ${d.tiles[0].name}, the hero alone at (10, 12); the slideshow cut (${cr0.length - cr.length} bytes) and kept when asked; a square outside and a quoted name refused`);
     }
   }

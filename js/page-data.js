@@ -2346,16 +2346,21 @@ function makeSaveFromForm() {
 
    The zone's entry script is the editor's blank map's, 0x1400, said again
    with the name asked for: no landscape and no music. Its light is either
-   0, which leaves the zone to the clock's daylight, or the level furthest
-   from 0 that any zone of the scenario sets, which in Cythera lights every
-   square at every hour. The level of the zone replaced will not do: Land
-   King Hall's -128 on bare grass, with none of the hall's lamps, came out
-   five squares in six black in the fork.
+   0, which leaves the zone to the clock's daylight, or SCENARIO_LIT. A
+   level below zero ignores the clock, and AmbientLight leaves every square
+   alone from 160 up (the workbench's GRIMOIRE-NOTES.md, *The ambient
+   plumbing, traced end to end*), so -255 is lit at every hour; it showed
+   bare grass at full brightness in the fork. No level in the file will do.
+   v1.268.0 offered the level furthest from 0 that any zone sets, which in
+   Cythera is Land King Hall's -128, and on grass with none of the hall's
+   lamps that came out five squares in six black: its "Always lit" was
+   dark.
 
    The tile offered first is the one the scenario's maps place most among
    those a walker can cross that 0xF004 names. The square the hero stands
    on in the file is no guide: in Cythera it holds tile 206, which has no
    name and draws black, and the first file made was a black map. */
+const SCENARIO_LIT = -255;
 function scenarioTileChoices() {
   const placed = mapTileCensus(), by = new Map();
   // From 1: word 0 is a square with no tile, which the file names "Nothing".
@@ -2379,11 +2384,7 @@ function scenarioMakerDefaults() {
   if (!m || hero.x >= m.width || hero.y >= m.height) return null;
   const tiles = scenarioTileChoices();
   if (!tiles.length) return null;
-  let lit = 0;
-  for (let k = 0; k < subindexCount(ARCHIVE, 127); k++) {
-    const v = zoneAmbientLevel(0x8000 + k);
-    if (v !== null && Math.abs(v) > Math.abs(lit)) lit = v;
-  }
+  const lit = SCENARIO_LIT;
   return { zone: hero.zone, width: m.width, height: m.height, x: hero.x, y: hero.y, tiles, tile: tiles[0].tile, lit };
 }
 function scenarioOpeningCut() {
@@ -2397,9 +2398,45 @@ function scenarioOpeningCut() {
   const plain = smartDecrypt(raw, 0x1801).data;
   return dvmRelink(plain, 0x1801, mine[from].at, mine[to + 2].at - mine[from].at, new Uint8Array(0)).bytes;
 }
+/* A BATTLE AT THE START (8 October 2026, the maintainer's ask). Two lines
+   of creatures stand a square apart, three squares north of the hero (or
+   south, where the zone has no room north), each creature hatched from an
+   egg of its own as the game opens. Nothing is staged: each starts at
+   behaviour 8, which behaviours.md reads as "attack the nearest enemy",
+   and whether two creatures are enemies is the program's table over their
+   alignments, byte 6 of a creature's 0xF008 record
+   (tremor-and-enemies.md): the same alignment, or 0 on either side, is no
+   fight, and such a pair is refused. Four ruffians against four
+   wolflizards in the fork had "A wolflizard hit a ruffian" in the message
+   pane and corpses in the save within the first minute. The hero is
+   alignment 2 and close by, so a side that is not his may turn on him. */
+const SCENARIO_ATTACK_NEAREST = 8;
+function scenarioCreatureChoices() {
+  const seen = new Map();
+  for (const m of parseMonsterStats()) {
+    if (m.blank || !m.proptype || !m.alignment || seen.has(m.proptype)) continue;
+    const name = propDisplayName(m.proptype);
+    if (name) seen.set(m.proptype, { type: m.proptype, name, alignment: m.alignment });
+  }
+  return [...seen.values()].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+}
+function scenarioBattleEggs(c, width, height, x, y) {
+  const all = scenarioCreatureChoices(), a = all.find(m => m.type === +c.armyA), b = all.find(m => m.type === +c.armyB);
+  if (!a && !b) return [];
+  if (!a || !b) throw new Error('A battle takes two sides');
+  if (a.alignment === b.alignment) throw new Error('The ' + a.name + ' and the ' + b.name + ' are on the same side and will not fight');
+  const n = Math.max(1, Math.min(8, parseInt(c.armyCount, 10) || 4)), dir = y - 2 - n >= 0 ? -1 : 1, eggs = [];
+  for (let i = 0; i < n; i++) {
+    const ey = y + dir * (3 + i);
+    eggs.push({ x: x - 1, y: ey, type: a.type, behaviour: SCENARIO_ATTACK_NEAREST }, { x: x + 1, y: ey, type: b.type, behaviour: SCENARIO_ATTACK_NEAREST });
+  }
+  if (eggs.some(e => e.x < 0 || e.y < 0 || e.x >= width || e.y >= height)) throw new Error('The zone has no room for the battle beside the hero');
+  return eggs;
+}
 /* The file, from the choices: { name (the zone's title), width, height,
    tile, x, y, light (the zone's ambient level), opening (true keeps the
-   slideshow) }. Null when the open file
+   slideshow), armyA and armyB (two creatures' prop types) with armyCount
+   for a battle, badArt (true redraws every picture, redrawDelverArt) }. Null when the open file
    cannot make one; throws what the assembler or the relinker says. */
 function newScenarioBytes(c) {
   const d = scenarioMakerDefaults();
@@ -2412,9 +2449,27 @@ function newScenarioBytes(c) {
     'sys SetLandscapeImage', 'byte 0', 'end', 'sys SetTitle', 'string ' + JSON.stringify(name), 'end',
     'sys PlayMusic', 'word None', 'end', 'sys SetAmbientLighting', 'short 0x' + (int(c.light, d.lit) & 0xFFFF).toString(16).toUpperCase().padStart(4, '0'), 'end',
     'return', 'byte 0', 'end'].join('\n') }]).bytes;
-  return buildNewScenario(ARCHIVE, { width, height, tile: int(c.tile, d.tile) & 0xFFFF,
-    x: int(c.x, Math.min(d.x, width - 1)), y: int(c.y, Math.min(d.y, height - 1)),
-    zoneScript: script, creation: c.opening ? null : scenarioOpeningCut() });
+  const x = int(c.x, Math.min(d.x, width - 1)), y = int(c.y, Math.min(d.y, height - 1));
+  const bytes = buildNewScenario(ARCHIVE, { width, height, tile: int(c.tile, d.tile) & 0xFFFF, x, y,
+    zoneScript: script, creation: c.opening ? null : scenarioOpeningCut(), eggs: scenarioBattleEggs(c, width, height, x, y) });
+  if (!bytes || !c.badArt) return bytes;
+  const art = redrawDelverArt(bytes, scenarioFigureTiles());
+  return art ? art.bytes : null;
+}
+/* Which tiles are somebody, for the redrawn art: every frame of every prop
+   type that a character record or a unit record wears, by the prop-tile
+   table and the run of frames spriteBlockSize gives it. The creation
+   script's two sprites are the hero; a unit of the alignment that is
+   everybody's enemy (3, the one whose row of the enemy table has no ally)
+   is drawn as a beast; anyone else as a person. */
+function scenarioFigureTiles() {
+  const tiles = getPropTileList(), out = {};
+  const put = (pt, kind) => { const base = tiles[pt], n = spriteBlockSize(pt); if (base === undefined || !pt) return; for (let f = 0; f < n; f++) if (!out[base + f] || kind === 'hero') out[base + f] = { kind, frame: f }; };
+  for (const m of parseMonsterStats()) if (!m.blank && m.proptype) put(m.proptype, m.alignment === 3 ? 'beast' : 'person');
+  for (const r of loadCharacterTable()) if (r && r.proptype && delverCharacterInUse(r) && !(tiles[r.proptype] in out)) put(r.proptype, 'person');
+  const cr = heroCreationRules();
+  for (const sp of (cr && cr.sprites) || []) put(sp.v & 0x3FF, 'hero');
+  return out;
 }
 function applyCharacterRecordEdit(index, fields, rawBytes) {
   const raw = getResourceBytes(ARCHIVE, 0xF009);

@@ -2199,7 +2199,7 @@ function renderBackstageMaker() {
    file written as the Spanish copy is, or opened here in place of the one
    it was made from. The choices are kept for the session; a field left
    empty takes what the open file offers. */
-window.SCENARIO_STATE = window.SCENARIO_STATE || { name: 'New Zone', width: '', height: '', tile: '', x: '', y: '', light: '', opening: false };
+window.SCENARIO_STATE = window.SCENARIO_STATE || { name: 'New Zone', width: '', height: '', tile: '', x: '', y: '', light: '', opening: false, armyA: '', armyB: '', armyCount: '', badArt: false };
 function scenarioSay(m, bad) {
   const note = document.getElementById('scenarioNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
@@ -2277,6 +2277,17 @@ function renderScenarioMaker() {
   keepRow.appendChild(keep); keepRow.appendChild(document.createTextNode(' Keep the opening story'));
   label('Opening');
   cell(keepRow);
+  const creatures = [['', 'Nobody']].concat(scenarioCreatureChoices().map(m => [m.type, m.name]));
+  label('Battle');
+  cell(choice('scenArmyA', 'armyA', creatures), el('span', 'mechSub', ' against '), choice('scenArmyB', 'armyB', creatures),
+       el('span', 'mechSub', ' , each side '), field('scenArmyCount', 'armyCount', 'number', 4));
+  const bad = document.createElement('input');
+  bad.type = 'checkbox'; bad.id = 'scenBadArt'; bad.checked = !!st.badArt;
+  bad.onchange = function () { st.badArt = bad.checked; };
+  const badRow = el('label', 'mechSub');
+  badRow.appendChild(bad); badRow.appendChild(document.createTextNode(' Draw every picture again, badly'));
+  label('Art');
+  cell(badRow);
   host.appendChild(form);
   if (!(window.CYTHERA_RSRC_RAW && window.CYTHERA_RSRC_RAW.length))
     host.appendChild(el('p', 'mechSub', 'This copy has no resource fork, and the game will not start without one. Open the game in MacBinary or BinHex, or open the installer.'));
@@ -4464,6 +4475,8 @@ function renderMechanicsSheet(value) {
       [
         'Put the file in place of Cythera Data in the game\u2019s folder, and start a new game.',
         'Every other zone is gone, and every character, schedule and conversation.',
+        'A battle is two kinds of creature that the game counts as enemies, set beside the hero and left to it.',
+        'The redrawn pictures are the ones in Cythera Data. The program\u2019s own windows and title screen stay as they are.',
         'The scripts that are kept still name the places and people that are gone.'
       ], '');
     const sec = sections[sections.length - 1].el;

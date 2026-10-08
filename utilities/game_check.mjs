@@ -207,7 +207,14 @@ if (scenarioArg && existsSync(scenarioArg) && appDataArg && existsSync(appDataAr
   const W = 24, H = 20, X = 10, Y = 12;
   ctx.parseArchiveBytes(new Uint8Array(readFileSync(scenarioArg)), 'Cythera Data', {via: 'data fork'});
   let made = null;
-  try { made = ctx.newScenarioBytes({name: 'Empty Field', width: W, height: H, x: X, y: Y}); } catch (e) { fail('scenario: the page could not make one: ' + e.message); }
+  // With a battle and the redrawn art (the same day): the first two kinds of
+  // creature on different sides, four each, north of the hero, and every
+  // picture drawn afresh. The save must hold more in the zone's list than the
+  // sixteen records written, which is the creatures hatched and what they
+  // dropped; the pictures are only shown to load, since nothing of them
+  // reaches a save.
+  const kinds = ctx.scenarioCreatureChoices(), ka = kinds.find(k => k.name === 'ruffian') || kinds[0], kb = kinds.find(k => k.alignment !== ka.alignment && k.name === 'wolflizard') || kinds.find(k => k.alignment !== ka.alignment);
+  try { made = ctx.newScenarioBytes({name: 'Empty Field', width: W, height: H, x: X, y: Y, armyA: ka.type, armyB: kb.type, armyCount: 4, badArt: true}); } catch (e) { fail('scenario: the page could not make one: ' + e.message); }
   if (made && process.env.GAME_CHECK_SHIPPED_SCENARIO === '1') made = readFileSync(scenarioArg);
   if (made) {
     const mspec = ctx.delverArchiveSpec(new Uint8Array(made)), zone = ctx.parseDelverCharacterRecords(mspec.resources.find(r => r.resid === 0xF009).data)[1].zone;
@@ -255,7 +262,8 @@ if (scenarioArg && existsSync(scenarioArg) && appDataArg && existsSync(appDataAr
       else if (!h || h.zone !== zone || h.x !== X + 2 || h.y !== Y + 1) fail(`scenario: the hero is not three steps from (${X}, ${Y}) in zone ${zone}: ` + JSON.stringify(h && {zone: h.zone, x: h.x, y: h.y}));
       else if (!seen || seen.length !== Math.ceil(W / 8) * H) fail(`scenario: the zone's map memory is ${seen && seen.length} bytes, not the ${Math.ceil(W / 8) * H} of a ${W} by ${H} zone`);
       else if (!h.health || h.level !== 1) fail('scenario: the creation script did not set the hero up: ' + JSON.stringify({health: h.health, level: h.level}));
-      else scenLine = `; and a new game on a scenario made here, one zone ${W} by ${H}, the hero walked from (${X}, ${Y}) to (${h.x}, ${h.y})`;
+      else if (ctx.parseDelverPropList(seg(0x8100 + zone)).length <= 16) fail('scenario: nothing hatched: the zone’s list is the sixteen records written');
+      else scenLine = `; and a new game on a scenario made here, one zone ${W} by ${H} with its pictures redrawn, ${ka.name} and ${kb.name} hatched beside the hero, who walked from (${X}, ${Y}) to (${h.x}, ${h.y})`;
       if (scenLine) console.log('  the game started a new game' + scenLine.slice(16) + ', and saved it');
     } catch (e) { fail('scenario: the save the game wrote does not parse: ' + e.message); }
   }

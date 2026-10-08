@@ -2176,7 +2176,8 @@ function buildNewGameSave(arc, o) {
      written   0x80zz, `width` by `height` of the one tile word, no roof
                and no exits; 0x81zz, one record of zeros, since the writer
                drops an empty resource and the program was not shown to
-               take a zone with no list; 0xF009 with every character but
+               take a zone with no list, or the eggs of `eggs`, each
+               { x, y, type, behaviour }, one creature apiece; 0xF009 with every character but
                record 0 and the hero zeroed, and the hero stood at (x, y);
                0xF00B with no schedule for anyone
      handed in `zoneScript`, the zone's entry script, and `creation`,
@@ -2207,7 +2208,20 @@ function buildNewScenario(arc, o) {
   const map = new Uint8Array(32 + w * h * 2);
   map[0] = w >> 8; map[1] = w & 0xFF; map[2] = h >> 8; map[3] = h & 0xFF;
   for (let i = 0; i < w * h; i++) { map[32 + i * 2] = (o.tile >> 8) & 0xFF; map[33 + i * 2] = o.tile & 0xFF; }
-  const made = new Map([[0x8000 + zone, map], [0x8100 + zone, new Uint8Array(16)], [0x1400 + zone, o.zoneScript],
+  // The creatures asked for, each an egg certain to hatch with one creature
+  // in it, as the shipped hatcheries are written (save-format.md, *Kind 0
+  // is the hatchery*): the egg 0x42 with 100 in Data2, and the record it
+  // holds 0x08, its location's low half-word the egg's index plus 0x100
+  // under a 1, its Data1 the behaviour the creature starts with.
+  const eggs = [];
+  for (const e of o.eggs || []) {
+    if (e.x < 0 || e.y < 0 || e.x >= w || e.y >= h) continue;
+    const hold = 0x10000 | (eggs.length + 0x100), rec = (flags, x, y, d1, d2) =>
+      ({ flags, x, y, aspect: 0, rotated: 0, proptype: e.type, d3: (d1 << 8) | d2, storeref: 0, tail: '000000000000' });
+    eggs.push(rec(0x42, e.x, e.y, 0, 100), rec(0x08, hold >> 12, hold & 0xFFF, e.behaviour, 1));
+  }
+  const list = eggs.length ? writeDelverPropList(eggs) : new Uint8Array(16);
+  const made = new Map([[0x8000 + zone, map], [0x8100 + zone, list], [0x1400 + zone, o.zoneScript],
     [0xF009, cast], [0xF00B, new Uint8Array(512)]]);
   if (o.creation) made.set(0x1801, o.creation);
   const gone = rid => { const k = rid >> 8; return k === 0x80 || k === 0x81 || k === 0x14 || (k === 0x18 && rid !== 0x1801); };
