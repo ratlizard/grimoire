@@ -357,9 +357,8 @@ capitals.** The game's own rule, and the maintainer's on 8 September 2026
 crumb, the keyword pills — and on nothing else; headings, ids, prices, stat
 figures and code panes are white; the quiet labels (`.partsTitle`,
 `.skillKey`, `.mechSub`, the chips' second lines) are a pale near-white,
-`#f0ede4` or `#dcd8cc`, never a mid grey: they were `#b5b2a8` and `#8c8980`
-until 8 October 2026, when the maintainer called grey subtitles on the
-purple "barely legible". A quiet label is quiet by its size, not its colour.
+`#f0ede4` or `#dcd8cc`, never a mid grey: quiet by size, not by colour
+(`REFERENCE.md`, *Per-page notes, in full*, has why).
 Every `text-transform:uppercase` in the sheet went the same day — Argos in
 capitals is hard to read — save the two-letter `.guessTag`, which is in a
 system font. Keep to it when adding a rule: a new colour is one of white,

@@ -697,6 +697,13 @@ implementations have the same bug.** No suite will tell you.
   change there, not here. This file holds only what applies to every
   change.
 
+**The quiet labels were grey until 8 October 2026.** `.partsTitle`,
+`.skillKey`, `.mechSub` and about a hundred other rules were `#b5b2a8` and
+`#8c8980`, so that no label was gold-tinted enough to read as a link; the
+maintainer called grey subtitles on the purple "barely legible", and both
+became near-white (`#f0ede4`, `#dcd8cc`) across `index.html` and `js/`. A
+quiet label is quiet by its size, not its colour.
+
 #### `canvas.html`
 
 - **One page, three columns, no paragraphs.** A toolbox of seven icons on
