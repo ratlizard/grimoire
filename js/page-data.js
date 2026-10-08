@@ -2433,6 +2433,77 @@ function scenarioBattleEggs(c, width, height, x, y) {
   if (eggs.some(e => e.x < 0 || e.y < 0 || e.x >= width || e.y >= height)) throw new Error('The zone has no room for the battle beside the hero');
   return eggs;
 }
+/* A ZONE FROM MANBOROUGH'S EDITOR (8 October 2026; the "Map import from
+   Manborough editor" of the maintainer's October list). Manborough's port
+   of the game has a level editor (https://cythera2.netlify.app/?editor)
+   whose export is a zip of JSON: scenario.json, levels.json naming each
+   map, and a map a file. A map is { name, width, height, cells, spawns,
+   objects }. Read against the archive on 3 October (the workbench's
+   GRIMOIRE-NOTES.md, *Manborough's port read against the game*): a cell's
+   first `t` is the map word exactly, and its other entries are the tiles of
+   props that the objects list also carries, so only the first is taken.
+
+   What an object becomes:
+     cythera_prop_NNNN_...   prop type NNNN on its square, turned when
+                             `rotated`; a name ending _aK is aspect K, any
+                             other ending aspect 0, since his export keeps
+                             no aspect number
+     a bare name (sword)     the prop type the game calls that, singular or
+                             plural, by propDisplayName
+     cythera_spawn_NNN_who_xC_pP_...
+                             an egg hatching C of prop type NNN, P times
+                             in a hundred, at the behaviour the open
+                             file's eggs give that type (0 where none
+                             does); its day or night condition is not
+                             carried, so it hatches at any hour
+     cythera_npc_NNN_...     character NNN of the open file, stood there
+                             with its conversation and no schedule
+   A thing's state, what it holds, its document, its lock and whether it
+   is lit are data words this does not write; zone ports lead to zones that
+   are gone and are dropped. `spawns.player_start` is where the hero
+   stands. Returns { name, width, height, tiles, props, eggs, cast, x, y,
+   skipped: [names] }, or throws saying what the file is not. */
+function manboroughMap(bytes) {
+  let text = null;
+  if (looksLikeZip(bytes)) {
+    const zip = parseZipArchive(bytes), entries = zip.entries || zip;
+    const read = e => new TextDecoder().decode(zipFork(bytes, e, 'data'));
+    const levels = entries.find(e => /(^|\/)levels\.json$/.test(e.path));
+    let want = null;
+    try { const first = levels && JSON.parse(read(levels)).levels[0]; if (first && first.map) want = entries.find(e => e.path.endsWith(first.map)); } catch (e) { quiet(e, 'the export\'s list of levels'); }
+    want = want || entries.find(e => /(^|\/)maps\/[^/]+\.json$/.test(e.path) && !/_objects\.json$/.test(e.path));
+    if (!want) throw new Error('This zip holds no map. An export from Manborough’s editor has one under maps/.');
+    text = read(want);
+  } else text = new TextDecoder().decode(bytes);
+  let m;
+  try { m = JSON.parse(text); } catch (e) { throw new Error('The map is not JSON: ' + e.message); }
+  const width = m.width | 0, height = m.height | 0;
+  if (!Array.isArray(m.cells) || width < 1 || height < 1 || width > 4096 || height > 4096) throw new Error('The file is not a map from Manborough’s editor');
+  const tiles = new Uint16Array(width * height);
+  for (const c of m.cells) if (c && c.xy && c.t && c.xy[0] >= 0 && c.xy[1] >= 0 && c.xy[0] < width && c.xy[1] < height) tiles[c.xy[1] * width + c.xy[0]] = c.t[0] & 0xFFFF;
+  // The game's names for its things and creatures, as his defs spell them.
+  const slug = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const byName = new Map(), known = getPropTileList();
+  for (let pt = 1; pt < known.length; pt++) { const n = known[pt] !== undefined ? slug(propDisplayName(pt)) : ''; if (n && !byName.has(n)) byName.set(n, pt); }
+  const eggBehaviour = type => {
+    for (let k = 0; k < subindexCount(ARCHIVE, 128); k++) { const b = getResourceBytes(ARCHIVE, 0x8100 + k); if (!b) continue;
+      for (const r of parseDelverPropList(b)) if (r.flags === 0x08 && r.proptype === type) return (r.d3 >> 8) & 0xFF; }
+    return 0;
+  };
+  const out = { name: String(m.name || '').trim(), width, height, tiles, props: [], eggs: [], cast: [], skipped: [] };
+  const start = (m.spawns || []).find(s => s && s.name === 'player_start');
+  if (start) { out.x = start.x | 0; out.y = start.y | 0; }
+  for (const o of m.objects || []) {
+    const x = o.x | 0, y = o.y | 0, def = String(o.def || o.npc || '');
+    let g;
+    if ((g = /^cythera_npc_(\d+)/.exec(def))) out.cast.push({ index: +g[1], x, y });
+    else if ((g = /^cythera_prop_(\d+)_(.*)$/.exec(def))) { const a = /_a(\d+)$/.exec(g[2]); out.props.push({ x, y, type: +g[1], aspect: a ? +a[1] : 0, rotated: !!o.rotated }); }
+    else if ((g = /^cythera_spawn_(\d+)_.*?_x(\d+)_p(\d+)/.exec(def)) && known[+g[1]] !== undefined) { const type = +g[1]; out.eggs.push({ x, y, type, behaviour: eggBehaviour(type), count: Math.min(255, +g[2]), chance: Math.min(100, +g[3]) }); }
+    else if (byName.has(def) || byName.has(def.replace(/s$/, ''))) out.props.push({ x, y, type: byName.get(def) || byName.get(def.replace(/s$/, '')), aspect: 0, rotated: !!o.rotated });
+    else out.skipped.push(def);
+  }
+  return out;
+}
 /* The file, from the choices: { name (the zone's title), width, height,
    tile, x, y, light (the zone's ambient level), opening (true keeps the
    slideshow), armyA and armyB (two creatures' prop types) with armyCount
@@ -2442,16 +2513,20 @@ function newScenarioBytes(c) {
   const d = scenarioMakerDefaults();
   if (!d) return null;
   const int = (v, dflt) => { const n = parseInt(v, 10); return isNaN(n) ? dflt : n; };
-  const width = int(c.width, d.width), height = int(c.height, d.height);
-  const name = String(c.name || '').trim();
+  // A map brought in sets the size, the ground, what stands on it and,
+  // where it says, the hero's square; the form's own name still wins.
+  const im = c.map || null;
+  const width = im ? im.width : int(c.width, d.width), height = im ? im.height : int(c.height, d.height);
+  const name = String(c.name || (im && im.name) || '').trim();
   if (!/^[\x20-\x7E]+$/.test(name) || /"/.test(name) || /\s\/\//.test(name)) throw new Error('The name takes plain letters, digits and punctuation, and no quotation mark');
   const script = dvmWriteClass(0x1400 + d.zone, [{ key: 20, text: ['subroutine 0x0100',
     'sys SetLandscapeImage', 'byte 0', 'end', 'sys SetTitle', 'string ' + JSON.stringify(name), 'end',
     'sys PlayMusic', 'word None', 'end', 'sys SetAmbientLighting', 'short 0x' + (int(c.light, d.lit) & 0xFFFF).toString(16).toUpperCase().padStart(4, '0'), 'end',
     'return', 'byte 0', 'end'].join('\n') }]).bytes;
-  const x = int(c.x, Math.min(d.x, width - 1)), y = int(c.y, Math.min(d.y, height - 1));
+  const x = int(c.x, im && im.x !== undefined ? im.x : Math.min(d.x, width - 1)), y = int(c.y, im && im.y !== undefined ? im.y : Math.min(d.y, height - 1));
   const bytes = buildNewScenario(ARCHIVE, { width, height, tile: int(c.tile, d.tile) & 0xFFFF, x, y,
-    zoneScript: script, creation: c.opening ? null : scenarioOpeningCut(), eggs: scenarioBattleEggs(c, width, height, x, y) });
+    zoneScript: script, creation: c.opening ? null : scenarioOpeningCut(),
+    eggs: scenarioBattleEggs(c, width, height, x, y).concat(im ? im.eggs : []), tiles: im ? im.tiles : null, props: im ? im.props : null, cast: im ? im.cast : null });
   if (!bytes || !c.badArt) return bytes;
   const art = redrawDelverArt(bytes, scenarioFigureTiles(), c.pack ? scenarioPackArt(c.pack) : null);
   return art ? art.bytes : null;

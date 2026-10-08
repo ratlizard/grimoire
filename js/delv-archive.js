@@ -2203,28 +2203,44 @@ function buildNewScenario(arc, o) {
   if (w < 1 || h < 1 || w > 4096 || h > 4096 || o.x < 0 || o.y < 0 || o.x >= w || o.y >= h) return null;
   if (!o.zoneScript || !o.zoneScript.length) return null;
   hero.x = o.x; hero.y = o.y;
+  // The cast kept: `cast` is [{ index, x, y }], each a character of the open
+  // scenario stood in the zone as its record has it, with its conversation.
+  const stay = new Map();
+  for (const c of o.cast || []) if (c.index > 1 && records[c.index] && c.x >= 0 && c.y >= 0 && c.x < w && c.y < h) stay.set(c.index, c);
+  for (const [i, c] of stay) { records[i].zone = hero.zone; records[i].x = c.x; records[i].y = c.y; }
   const cast = writeDelverCharacterRecords(records);
-  cast.fill(0, 2 * DELV_CHAR_RECORD);
+  for (let i = 2; i * DELV_CHAR_RECORD < cast.length; i++) if (!stay.has(i)) cast.fill(0, i * DELV_CHAR_RECORD, (i + 1) * DELV_CHAR_RECORD);
+  // `tiles`, a map word a square, row by row, where the zone is somebody's
+  // drawing (a map brought in from another editor); else the one tile.
+  if (o.tiles && o.tiles.length !== w * h) return null;
   const map = new Uint8Array(32 + w * h * 2);
   map[0] = w >> 8; map[1] = w & 0xFF; map[2] = h >> 8; map[3] = h & 0xFF;
-  for (let i = 0; i < w * h; i++) { map[32 + i * 2] = (o.tile >> 8) & 0xFF; map[33 + i * 2] = o.tile & 0xFF; }
+  for (let i = 0; i < w * h; i++) { const t = o.tiles ? o.tiles[i] : o.tile; map[32 + i * 2] = (t >> 8) & 0xFF; map[33 + i * 2] = t & 0xFF; }
+
   // The creatures asked for, each an egg certain to hatch with one creature
   // in it, as the shipped hatcheries are written (save-format.md, *Kind 0
   // is the hatchery*): the egg 0x42 with 100 in Data2, and the record it
   // holds 0x08, its location's low half-word the egg's index plus 0x100
   // under a 1, its Data1 the behaviour the creature starts with.
+  // An egg may ask for a chance under 100 and a stock over 1. Things placed
+  // (`props`, each { x, y, type, aspect, rotated }) come after the eggs, as
+  // plain records on the floor with no data.
   const eggs = [];
   for (const e of o.eggs || []) {
     if (e.x < 0 || e.y < 0 || e.x >= w || e.y >= h) continue;
     const hold = 0x10000 | (eggs.length + 0x100), rec = (flags, x, y, d1, d2) =>
       ({ flags, x, y, aspect: 0, rotated: 0, proptype: e.type, d3: (d1 << 8) | d2, storeref: 0, tail: '000000000000' });
-    eggs.push(rec(0x42, e.x, e.y, 0, 100), rec(0x08, hold >> 12, hold & 0xFFF, e.behaviour, 1));
+    eggs.push(rec(0x42, e.x, e.y, 0, e.chance === undefined ? 100 : e.chance & 0xFF), rec(0x08, hold >> 12, hold & 0xFFF, e.behaviour, e.count === undefined ? 1 : e.count & 0xFF));
+  }
+  for (const p of o.props || []) {
+    if (p.x < 0 || p.y < 0 || p.x >= w || p.y >= h) continue;
+    eggs.push({ flags: 0, x: p.x, y: p.y, aspect: p.aspect & 0x1F, rotated: p.rotated ? 1 : 0, proptype: p.type, d3: 0, storeref: 0, tail: '000000000000' });
   }
   const list = eggs.length ? writeDelverPropList(eggs) : new Uint8Array(16);
   const made = new Map([[0x8000 + zone, map], [0x8100 + zone, list], [0x1400 + zone, o.zoneScript],
     [0xF009, cast], [0xF00B, new Uint8Array(512)]]);
   if (o.creation) made.set(0x1801, o.creation);
-  const gone = rid => { const k = rid >> 8; return k === 0x80 || k === 0x81 || k === 0x14 || (k === 0x18 && rid !== 0x1801); };
+  const gone = rid => { const k = rid >> 8; return k === 0x80 || k === 0x81 || k === 0x14 || (k === 0x18 && rid !== 0x1801 && !stay.has(rid - 0x1800)); };
   const resources = [];
   for (const r of base.resources) {
     if (made.has(r.resid)) { resources.push(Object.assign({}, r, { data: made.get(r.resid) })); made.delete(r.resid); }

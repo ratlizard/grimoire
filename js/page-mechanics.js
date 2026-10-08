@@ -2199,7 +2199,7 @@ function renderBackstageMaker() {
    file written as the Spanish copy is, or opened here in place of the one
    it was made from. The choices are kept for the session; a field left
    empty takes what the open file offers. */
-window.SCENARIO_STATE = window.SCENARIO_STATE || { name: 'New Zone', width: '', height: '', tile: '', x: '', y: '', light: '', opening: false, armyA: '', armyB: '', armyCount: '', art: '', pack: null, packName: '' };
+window.SCENARIO_STATE = window.SCENARIO_STATE || { name: 'New Zone', width: '', height: '', tile: '', x: '', y: '', light: '', opening: false, armyA: '', armyB: '', armyCount: '', art: '', pack: null, packName: '', map: null, mapName: '' };
 function scenarioSay(m, bad) {
   const note = document.getElementById('scenarioNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
@@ -2277,16 +2277,40 @@ function renderScenarioMaker() {
     s.onchange = function () { st[key] = s.value; };
     return s;
   };
+  // A map drawn in Manborough's editor, in place of the size and the ground
+  // (manboroughMap, js/page-data.js). Chosen again, or cleared, it redraws.
+  const mapPick = document.createElement('input');
+  mapPick.type = 'file'; mapPick.id = 'scenMap'; mapPick.accept = '.zip,.json,application/zip,application/json';
+  mapPick.onchange = function () {
+    const f = mapPick.files && mapPick.files[0];
+    if (!f) return;
+    f.arrayBuffer().then(buf => {
+      const m = manboroughMap(new Uint8Array(buf));
+      st.map = m; st.mapName = f.name; st.x = ''; st.y = '';
+      if (m.name) st.name = m.name;
+      renderScenarioMaker();
+      scenarioSay(f.name + ': ' + m.width + ' by ' + m.height + ', ' + m.props.length + ' things, ' + m.eggs.length + ' hatcheries and ' + m.cast.length + ' people placed' +
+        (m.skipped.length ? '; ' + m.skipped.length + ' left out (' + [...new Set(m.skipped)].slice(0, 6).join(', ') + (new Set(m.skipped).size > 6 ? ', and more' : '') + ').' : '.'));
+    }).catch(e => { st.map = null; st.mapName = ''; scenarioSay(e.message, true); });
+  };
+  const mapClear = el('button', 'secondary', 'Clear');
+  mapClear.style.cssText = 'width:auto;margin:0 0 0 8px;padding:2px 10px';
+  mapClear.onclick = function () { st.map = null; st.mapName = ''; renderScenarioMaker(); scenarioSay(''); };
+  label('Map');
+  if (st.map) cell(el('span', 'mechSub', svEsc(st.mapName) + ', ' + st.map.width + ' by ' + st.map.height), mapClear);
+  else cell(mapPick, el('span', 'mechSub', ' an export from Manborough\u2019s editor, or leave empty'));
   const name = field('scenName', 'name', 'text');
   name.maxLength = 40;
   label('Zone name');
   cell(name, el('span', 'mechSub', ' in place of ' + svEsc(zoneDisplayName(d.zone))));
-  label('Size');
-  cell(field('scenWidth', 'width', 'number', d.width), el('span', 'mechSub', ' by '), field('scenHeight', 'height', 'number', d.height), el('span', 'mechSub', ' squares'));
-  label('Ground');
-  cell(choice('scenTile', 'tile', d.tiles.map(t => [t.tile, t.name])));
+  if (!st.map) {
+    label('Size');
+    cell(field('scenWidth', 'width', 'number', d.width), el('span', 'mechSub', ' by '), field('scenHeight', 'height', 'number', d.height), el('span', 'mechSub', ' squares'));
+    label('Ground');
+    cell(choice('scenTile', 'tile', d.tiles.map(t => [t.tile, t.name])));
+  }
   label('Hero at');
-  cell(field('scenX', 'x', 'number', d.x), el('span', 'mechSub', ' , '), field('scenY', 'y', 'number', d.y));
+  cell(field('scenX', 'x', 'number', st.map && st.map.x !== undefined ? st.map.x : d.x), el('span', 'mechSub', ' , '), field('scenY', 'y', 'number', st.map && st.map.y !== undefined ? st.map.y : d.y));
   label('Light');
   cell(choice('scenLight', 'light', [[d.lit, 'Always lit'], [0, 'Daylight, by the game’s clock']]));
   const keep = document.createElement('input');
@@ -4508,6 +4532,7 @@ function renderMechanicsSheet(value) {
         'Put the file in place of Cythera Data in the game\u2019s folder, and start a new game.',
         'To play it in the browser player, download it as a patch and choose that file under Patches there. A patch cannot take anything out, so the rest of the world stays in the file, out of reach.',
         'Every other zone is gone, and every character, schedule and conversation.',
+        'A map from Manborough\u2019s editor brings its ground, the things and people placed on it and where the hero starts. What a thing holds, and whether a door is locked or a lamp lit, is not carried.',
         'A battle is two kinds of creature that the game counts as enemies, set beside the hero and left to it.',
         'The pictures changed are the ones in Cythera Data. The program\u2019s own windows and title screen stay as they are.',
         'An art pack is a zip of 32 by 32 PNG pictures in named folders, matched to the game\u2019s things by name. It is written for the Dungeon Crawl Stone Soup tiles, which are free to use.',

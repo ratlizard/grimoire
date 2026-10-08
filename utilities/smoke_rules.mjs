@@ -1602,6 +1602,38 @@ try {
   }
 } catch (e) { fail('make a scenario', e); }
 
+/* A zone from Manborough's editor, 8 October 2026 (manboroughMap). His
+   sample export in reference/ is Land King Hall as his importer made it
+   from this same archive, which makes the archive the oracle: every map
+   word read from his file must be the archive's, and every thing must sit
+   where the archive has a record of that type. The scenario made from it
+   must keep the people he placed, each in the zone with a conversation,
+   and nobody else. A JSON file that is not a map must be refused. Skips
+   with a line when the sample is not on the disk. */
+try {
+  const sample = 'reference/community/editors/Manborough/mygreatscenario.zip';
+  if (!existsSync(sample)) console.log('  manborough: the sample export is not at ' + sample + ', so the import was not tried');
+  else {
+    const m = ctx.manboroughMap(new Uint8Array(readFileSync(sample))), arc = peek('ARCHIVE'), z = ctx.loadCharacterTable()[1].zone;
+    const raw = ctx.getResourceBytes(arc, 0x8000 + z), mp = ctx.parseDelverMap(raw);
+    let words = 0; for (let i = 0; i < m.width * m.height; i++) if (((raw[mp.mapDataOffset + i * 2] << 8) | raw[mp.mapDataOffset + i * 2 + 1]) === m.tiles[i]) words++;
+    const have = new Set(ctx.parseDelverPropList(ctx.getResourceBytes(arc, 0x8100 + z)).map(r => r.proptype + '@' + r.x + ',' + r.y));
+    const found = m.props.filter(p => have.has(p.type + '@' + p.x + ',' + p.y)).length;
+    const made = ctx.delverArchiveSpec(new Uint8Array(ctx.newScenarioBytes({ map: m })));
+    const cast = ctx.parseDelverCharacterRecords(made.resources.find(r => r.resid === 0xF009).data);
+    const there = cast.map((r, i) => i > 1 && ctx.delverCharacterInUse(r) ? i : 0).filter(Boolean), asked = m.cast.map(c => c.index).sort((a, b) => a - b);
+    const talk = made.resources.filter(r => (r.resid >> 8) === 0x18 && r.resid !== 0x1801).map(r => r.resid - 0x1800).sort((a, b) => a - b);
+    const list = ctx.parseDelverPropList(made.resources.find(r => r.resid === 0x8100 + z).data);
+    let refused = false; try { ctx.manboroughMap(new TextEncoder().encode('{"levels":[]}')); } catch (e) { refused = true; }
+    if (mp.width !== m.width || mp.height !== m.height || words !== m.width * m.height) fail('manborough', `the map read is not the archive's: ${words} of ${m.width * m.height} words agree`);
+    else if (!m.props.length || found !== m.props.length) fail('manborough', `${m.props.length - found} of ${m.props.length} things are not where the archive has one of that type`);
+    else if (!asked.length || there.join() !== asked.join() || !asked.every(i => talk.includes(i) && cast[i].zone === z)) fail('manborough', 'the people placed are not the ones kept, in the zone, with their conversations: ' + JSON.stringify({ asked, there, talk }));
+    else if (list.length !== m.props.length + 2 * m.eggs.length || !m.eggs.length) fail('manborough', `the zone's list is ${list.length} records for ${m.props.length} things and ${m.eggs.length} hatcheries`);
+    else if (m.x !== ctx.loadCharacterTable()[1].x || m.y !== ctx.loadCharacterTable()[1].y || !refused) fail('manborough', 'the start square is not the hero\'s, or a file that is no map was taken');
+    else console.log(`  manborough: his Land King Hall read back as the archive's, ${words} map words and ${found} things; ${asked.length} people kept with their conversations, ${m.eggs.length} hatcheries; ${m.skipped.length} objects left out; a file that is no map refused`);
+  }
+} catch (e) { fail('manborough', e); }
+
 /* What uses a character flag the program does not name, 8 October 2026
    (charFlagUses, in a record's Edit form). The mistake to catch is a flag
    of byte 8 listed with every script that sets flag 0 on anybody, forty
