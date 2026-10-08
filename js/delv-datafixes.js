@@ -562,6 +562,7 @@ const DATA_FIXES = [
   // Only Philinus's panpipes work (0x8108): the two placed sets get Data1 1,
   // the set that can play PHJMD.
   { id: 'panpipes', group: 'items', stage: 'community', title: 'Every set of panpipes can now play the tune, instead of Philinus\u2019s alone',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the set on the table at (62,24) of Cademia, used, shows the notes P M J H D, against P M J G D unpatched; the tune itself was not played',
     dataEdits: [
       { what: 'the placed panpipes', resid: 0x8108, fn: (b) => {
           let n = 0;
@@ -572,6 +573,7 @@ const DATA_FIXES = [
   // The magic arrow drawn as a stack (0x8103, and two Cademia stacks in
   // 0x8108): the count moves from Data1 to Data2.
   { id: 'arrow-stacks', group: 'items', stage: 'community', title: 'The magic arrow in Land King Hall now looks like one arrow, instead of a stack, and two stacks in Cademia look right',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the crate at (103,58) of Cademia, opened, shows its arrows with the count 30, against one arrow and no count unpatched; the Land King Hall arrow and the second Cademia stack were not looked at',
     dataEdits: [
       { what: 'the Cademia arrow stacks', resid: 0x8108, fn: (b) => {
           const want = { 1155: 30, 1174: 20 }; let n = 0;
@@ -594,18 +596,30 @@ const DATA_FIXES = [
           return n + ' vials given Data1 2';
       } },
     ] },
-  // Kilts inside kilts (0x810D): the four kilts inside record 676 go into
-  // the dresser, record 673.
-  { id: 'kilts', group: 'items', stage: 'community', title: 'The kilts in a Kosha dresser are now in the dresser, instead of inside a kilt',
+  // Kilts inside kilts (0x810D): the dresser at (48,17), record 261, holds
+  // one thing, a cape (record 673); the cape holds three tunics (674 to 676)
+  // and the last tunic four kilts (677 to 680). A cape and a tunic are no
+  // containers, and every other tunic and cape in the towns is in a dresser
+  // itself, so all seven go into the dresser. Until 8 October 2026 this moved
+  // the four kilts into record 673, taking it for the dresser: they came out
+  // of the tunic and into the cape, as far from reach as before, which
+  // showed when the fix was first played.
+  { id: 'kilts', group: 'items', stage: 'community', title: 'The tunics and kilts in a Kosha dresser are now in the dresser, instead of inside a cape and a tunic',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the dresser at (48,17) of Kosha, opened, holds a cape, three tunics and four kilts, against the cape alone unpatched',
     dataEdits: [
-      { what: 'the kilts', resid: 0x810D, fn: (b) => {
+      { what: 'the tunics and kilts', resid: 0x810D, fn: (b) => {
+          const rec = i => b.subarray(i * 16, i * 16 + 16), type = r => ((r[4] << 8) | r[5]) & 0x3FF, holder = r => (r[2] << 8) | r[3];
+          const DRESSER = 261, CAPE = 673, TUNIC = 676;
+          if (type(rec(DRESSER)) !== 18 || rec(DRESSER)[0] & 0x18) throw new Error('record ' + DRESSER + ' is not a dresser on the floor');
+          if (type(rec(CAPE)) !== 285 || rec(CAPE)[0] !== 8 || holder(rec(CAPE)) !== DRESSER + 0x100) throw new Error('record ' + CAPE + ' is not a cape inside the dresser');
           let n = 0;
-          for (let i = 677; i <= 680; i++) { const r = b.subarray(i * 16, i * 16 + 16); const raw = (r[1] << 16) | (r[2] << 8) | r[3]; if (((r[4] << 8 | r[5]) & 0x3FF) !== 284 || r[0] !== 8 || (raw & 0xFFFF) !== 932) throw new Error('record ' + i + ' is not a kilt inside record 676'); r[2] = (929 >> 8) & 0xFF; r[3] = 929 & 0xFF; n++; }
-          return n + ' kilts moved into record 673';
+          for (let i = 674; i <= 680; i++) { const r = rec(i), in_ = i <= TUNIC ? CAPE : TUNIC; if (type(r) !== 284 || r[0] !== 8 || holder(r) !== in_ + 0x100) throw new Error('record ' + i + ' is not a tunic or kilt inside record ' + in_); r[2] = ((DRESSER + 0x100) >> 8) & 0xFF; r[3] = (DRESSER + 0x100) & 0xFF; n++; }
+          return n + ' tunics and kilts moved into the dresser, record ' + DRESSER;
       } },
     ] },
   // The spent staff's light (0xF002): tile 0x88B's light level goes to 0.
   { id: 'spent-staff', group: 'items', stage: 'community', title: 'A spent staff now gives no light, instead of still giving light',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a spent staff equipped at midnight in Omen’s Test leaves the room dim, where unpatched it lit the room as a working staff does; a working staff still lights it',
     dataEdits: [
       { what: 'the spent staff’s tile', resid: 0xF002, fn: (b) => {
           const o = 0x88B * 4; if ((b[o + 3] & 3) !== 1) throw new Error('tile 0x88B has light level ' + (b[o + 3] & 3) + ', not 1');
