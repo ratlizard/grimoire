@@ -1592,6 +1592,10 @@ try {
             !gift || gift.proptype !== kw.gift.type || gift.d3 !== kw.gift.d3 || gift.flags !== 0x10 || w.resources.find(r => r.resid === 0x0401).data[5] === 0x00 && w.resources.find(r => r.resid === 0x0401).data[4] !== 0x30)
           return fail('welcome', 'the king’s welcome is not in the save made with it, or is in the plain one: ' + JSON.stringify(kw)), true;
         if (hp && (hp.perSex.v < 1 || faces.some(r => !ctx.refExists(r) || ctx.labelFor(r)))) return fail('welcome', 'the hero’s faces are not portraits the file has and names for nobody: ' + JSON.stringify(hp)), true;
+        // The face a made hero wears when none is picked must be one of the
+        // hero's own: it was the first unnamed portrait, an empty frame.
+        const worn = ctx.saveMakerDefaults().portrait, unnamedAll = ctx.saveMakerDefaults().portraits.filter(r => !ctx.labelFor(r));
+        if (worn === unnamedAll[0] || (hp ? !faces.includes(worn) : worn < unnamedAll[unnamedAll.length - 1] - 20)) return fail('welcome', 'the portrait offered first is 0x' + worn.toString(16) + ', not one of the hero’s faces'), true;
         /* The To Do list (saveMakerTodo). Lines asked for must be in their
            slots, the one asked for as done struck off and the other not;
            the king's first line must still take his slot beside them, and

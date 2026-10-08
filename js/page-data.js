@@ -2447,9 +2447,17 @@ function saveMakerDefaults() {
   const portraits = [];
   for (let rid = 0x8801; rid <= 0x88FF; rid++) if (refExists(rid)) portraits.push(rid);
   if (!portraits.length) return null;
-  // Offered first: a portrait the file names for nobody, which is what the
-  // hero's choices are, the cast's each carrying its character's name.
-  const portrait = portraits.find(r => !labelFor(r)) || portraits[0];
+  // Offered first: one of the hero's own faces. With the program open that
+  // is the first the creation dialog offers (exeHeroPortraits). Without it,
+  // the first of the last unbroken run of portraits the file names for
+  // nobody, which is where the hero's faces sit, after the cast's. It was
+  // the first unnamed portrait of all until 8 October 2026, and that one is
+  // an empty gold frame: every made hero wore it in the game's character
+  // window until a run showed the window.
+  const hp = exeHeroPortraits(), unnamed = portraits.filter(r => !labelFor(r));
+  let run = unnamed.length - 1;
+  while (run > 0 && unnamed[run - 1] === unnamed[run] - 1) run--;
+  const portrait = (hp && refExists(0x87FF + hp.first.v) ? 0x87FF + hp.first.v : unnamed[run]) || portraits[0];
   return { cr, portraits, portrait, body: hero.body, reflex: hero.reflex, mind: hero.mind, level: cr.level.v, archetypes: archetypeRules(), welcome: kingsWelcomeRules(),
            zone: hero.zone, zones: saveMakerZones(), stories: saveMakerStories(), companions: saveMakerCompanions(), todo: saveMakerTodo() };
 }
