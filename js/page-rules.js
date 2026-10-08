@@ -5405,6 +5405,23 @@ function exeMonsterStatCopy() {
   return Object.keys(out).length ? out : null;
 }
 
+/* THE HERO'S FACES (8 October 2026). The creation dialog offers a face by
+   number: TCreatePlayerDialog::GetPortrait returns the sex times a count,
+   plus a first number, plus the place in the dialog's little list (`mulli`
+   by 6, `addi` 240, in the shipped program), and CreatePlayer copies
+   portrait resource 0x87FF plus that number into the save (the kit's new
+   game has 0x88F6 as its 0x8800). So the faces are 0x88EF to 0x88FA, six a
+   sex, the male's first. Read for Make a Save's strip of faces, which
+   before this showed every portrait the file names for nobody, five of
+   which are no face. Null with no application open. */
+function exeHeroPortraits() {
+  if (!appImage()) return null;
+  const ops = exeOpsNamed('TCreatePlayerDialog::GetPortrait');
+  const m = ops.findIndex(o => o.d && o.d.mn === 'mulli'), a = m >= 0 ? exeFind(ops, m + 1, 6, d => d.mn === 'addi' && d.imm > 0) : -1;
+  if (m < 0 || a < 0) return null;
+  return { perSex: exeVal(ops[m], ops[m].d.imm), first: exeVal(ops[a], ops[a].d.imm) };
+}
+
 /* ---- where every character flag is set, cleared and tested -----------------
    A character's flags are two things in the record: bits 0 to 7 in one
    byte and 8 up in a halfword and a further byte, which AddAbility maps

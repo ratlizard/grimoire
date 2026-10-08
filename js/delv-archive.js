@@ -2121,11 +2121,17 @@ function buildNewGameSave(arc, o) {
      opening conversation that makes these, from the archetype the creation
      dialog left in the hero's field 0x20, and a save made anywhere else
      never hears it. */
-  if (o.skills && o.skills.length) {
+  // `things` is [{ type, d3 }], each a thing the hero carries: first byte
+  // 0x10, as the amulet the king gives is in a save written after he has.
+  if ((o.skills && o.skills.length) || (o.things && o.things.length)) {
     const recs = parseDelverPropList(list);
-    for (const k of o.skills) recs.push({ flags: o.skillFlags, x: 0, y: 1, aspect: k.aspect & 0x1F, rotated: 0, proptype: k.type, d3: 0, storeref: 0, tail: '000000000000' });
+    for (const k of o.skills || []) recs.push({ flags: o.skillFlags, x: 0, y: 1, aspect: k.aspect & 0x1F, rotated: 0, proptype: k.type, d3: 0, storeref: 0, tail: '000000000000' });
+    for (const k of o.things || []) recs.push({ flags: 0x10, x: 0, y: 1, aspect: 0, rotated: 0, proptype: k.type, d3: k.d3 & 0xFFFF, storeref: 0, tail: '000000000000' });
     list = writeDelverPropList(recs);
   }
+  // `charFlags` is [{ index, flag }]: a character flag under 8 is a bit of
+  // byte 8 of that character's record.
+  for (const c of o.charFlags || []) if (records[c.index] && c.flag >= 0 && c.flag < 8) records[c.index].state |= 1 << c.flag;
   for (const k of ['proptype', 'aspect', 'body', 'reflex', 'mind', 'xp', 'health', 'healthMax', 'magic', 'magicMax', 'level', 'nutrition', 'training'])
     if (o[k] !== undefined) hero[k] = o[k];
   // The two fields the creation script sets beside aspect-and-proptype
@@ -2163,6 +2169,12 @@ function buildNewGameSave(arc, o) {
   }
   const todo = new Uint8Array(2048);
   for (let i = 0; i < 256; i++) todo.set([0, 0, 0, 0, 0x50, 0, 0xFF, 0xFF], i * 8);
+  // `todo` lines, [{ slot, line, resid }]: not struck, the day it was
+  // added, and a reference to the line of the text array.
+  for (const t of o.todo || []) {
+    const ref = (0x30000000 | ((t.line & 0x0FFF) << 16) | (t.resid & 0xFFFF)) >>> 0;
+    todo.set([0, 0, (o.day >> 8) & 0xFF, o.day & 0xFF, ref >>> 24, (ref >> 16) & 0xFF, (ref >> 8) & 0xFF, ref & 0xFF], (t.slot & 0xFF) * 8);
+  }
   const heap = new Uint8Array(262144);
   heap.set([(heap.length - 8) >>> 24, ((heap.length - 8) >> 16) & 0xFF, ((heap.length - 8) >> 8) & 0xFF, (heap.length - 8) & 0xFF]);
   const m = parseDelverMap(map);
@@ -2179,6 +2191,8 @@ function buildNewGameSave(arc, o) {
   // The story so far: `values` is { n: v } over the 32 quest values, a byte
   // each from +16 of the Char block (save-format.md).
   for (const [n, v] of Object.entries(o.values || {})) if (+n >= 0 && +n < 32) g[16 + +n] = v & 0xFF;
+  // And `flags`, quest flags set: eight big-endian longs from +48.
+  for (const n of o.flags || []) if (n >= 0 && n < 256) g[48 + (n >> 5) * 4 + 3 - ((n & 31) >> 3)] |= 1 << (n & 7);
   const res = [[0x0400, g], [0x0401, todo], [0x0404, new Uint8Array(20).fill(0xFF)], [0x8100 + zone, list],
     [0x8200 + zone, new Uint8Array(Math.ceil(m.width / 8) * m.height)], [0x8800, portrait], [0xF009, f9],
     [0xF00E, new Uint8Array(2048)], [0xF306, f6], [0xF307, heap], [0xF308, new Uint8Array(8192)]];

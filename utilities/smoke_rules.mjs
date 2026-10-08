@@ -1553,6 +1553,24 @@ try {
       else if (!fighter || tail.length !== 2 || !tail.every((r, i) => r.flags === ar.flags.v && r.x === 0 && r.y === 1 && r.proptype === fighter.skills[i].type && r.aspect === (fighter.skills[i].level | ar.bit.v)) || fh.body !== fighter.body || fh.raw[29] !== 0)
         fail('archetypes', 'a save made as a ' + (fighter && fighter.name) + ' does not end its zone’s list with the two skills, or has not its stats: ' + JSON.stringify(tail.map(r => [r.flags, r.proptype, r.aspect])));
       else if (plainList.some(r => r.flags === ar.flags.v && r.x === 0 && r.y === 1)) fail('archetypes', 'a save made with no archetype has a skill');
+      /* The king's welcome and the hero's faces (the same day). The
+         welcome's four pieces must be read with their lines, and a save
+         made with it must have the flag, the To Do line, the thing held
+         and the king's own flag, which the plain save must not. The faces
+         are the program's: with it open, two sexes of as many as it
+         says, every one a portrait the file has and names for nobody;
+         with none open, no strip. */
+      else if ((() => { const kw = ctx.kingsWelcomeRules(), hp = ctx.exeHeroPortraits();
+        const w = kw ? ctx.delverArchiveSpec(new Uint8Array(ctx.newGameSaveBytes({ name: 'NewGame01', welcomed: true }))) : null;
+        const q = w ? ctx.saveQuestState(w) : null, p0 = ctx.saveQuestState(spec);
+        const gift = w ? ctx.parseDelverPropList(w.resources.find(r => r.resid === 0x8100 + d.zone).data).slice(-1)[0] : null;
+        const faces = hp ? Array.from({ length: hp.perSex.v * 2 }, (_, i) => 0x87FF + hp.first.v + i) : [];
+        if (!kw || typeof kw.flag.at !== 'number' || !q || !q.flags[kw.flag.v] || p0.flags[kw.flag.v] || !(q.chars[kw.who].state & (1 << kw.charFlag.v)) || (p0.chars[kw.who].state & (1 << kw.charFlag.v)) ||
+            !gift || gift.proptype !== kw.gift.type || gift.d3 !== kw.gift.d3 || gift.flags !== 0x10 || w.resources.find(r => r.resid === 0x0401).data[5] === 0x00 && w.resources.find(r => r.resid === 0x0401).data[4] !== 0x30)
+          return fail('welcome', 'the king’s welcome is not in the save made with it, or is in the plain one: ' + JSON.stringify(kw)), true;
+        if (hp && (hp.perSex.v < 1 || faces.some(r => !ctx.refExists(r) || ctx.labelFor(r)))) return fail('welcome', 'the hero’s faces are not portraits the file has and names for nobody: ' + JSON.stringify(hp)), true;
+        console.log(`  the king's welcome: quest flag ${kw.flag.v}, his flag ${kw.charFlag.v}, To Do line ${kw.todo.line} in slot ${kw.todo.slot} and thing ${kw.gift.type}, each with its line, in the save made with it and not the plain one; ` + (hp ? `${faces.length} faces from the program` : 'no program here, so no faces'));
+        return false; })()) { /* said */ }
       else console.log(`  archetypes: nine read from the table, every stat and skill as the dialog’s own text has it but the ${odd[0].split(' ')[0]}’s mind (${/mind (\d+) against (\d+)/.exec(odd[0]).slice(1).join(' in the table, ')} in the text); a ${fighter.name}’s save ends with ${tail.length} skills at their levels, a plain one has none`);
     }
   }

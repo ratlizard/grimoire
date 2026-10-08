@@ -2347,6 +2347,39 @@ function archetypeRules() {
   } catch (e) { quiet(e, 'the archetypes'); }
   return (DERIVED.ARCHETYPES = out);
 }
+/* THE KING'S WELCOME (8 October 2026). A save made away from Land King
+   Hall in the scenario's "Base" state is a game in which the king has
+   never spoken, and the maintainer's answer to that was to offer it
+   spoken. What his first conversation leaves, apart from the skills
+   (archetypeRules), is read off the same function of 0x1802, from the
+   skills' loop on: the first quest flag it sets, the character flag it
+   sets on himself, the first line it adds to the To Do list, and the thing
+   it makes for the hero. In Cythera: quest flag 0, his flag 7, line 0 of
+   0x021A in slot 0, and the LandKing Amulet (type 244, data 0x0A00). The
+   kit's save taken after the conversation differs from the one before in
+   those four and the skills, and in what the scene itself moved
+   (game_check.mjs compares). His later lines, which depend on what the
+   hero answers, are not followed. Null where the script has not that
+   shape. */
+function kingsWelcomeRules() {
+  if (DERIVED.KINGS_WELCOME !== undefined) return DERIVED.KINGS_WELCOME;
+  let out = null;
+  try {
+    const talk = dvmOpsOf(dvmScriptEntry(0x1802));
+    const from = talk.findIndex((o, i) => o.text === 'sys New' && talk[i + 3] && /^global PlayerCharacter\b/.test(talk[i + 3].text));
+    if (from >= 0) {
+      const flag = dvmSeqFirst(talk, [/^sys SetStateFlag$/, DVM_NUM, /^word True$/], from);
+      const own = dvmSeqFirst(talk, [/^call_resource SetCharacterFlag\b/, /^arg Arg00$/, DVM_NUM], from);
+      const quest = dvmSeqFirst(talk, [/^sys AddQuest$/, DVM_NUM, /^word 0x[0-9A-F]+\[0\]$/i, DVM_NUM, /^add$/], from);
+      const gift = dvmSeqFirst(talk, [/^sys Create$/, DVM_NUM, DVM_NUM, DVM_NUM, DVM_NUM], from);
+      if (flag && own && quest && gift && dvmNum(gift[1]) === 1)
+        out = { flag: dvmVal(0x1802, flag[1]), who: 2, charFlag: dvmVal(0x1802, own[2]),
+          todo: { slot: dvmNum(quest[1]), resid: parseInt(/0x([0-9A-F]+)/i.exec(quest[2].text)[1], 16), line: dvmNum(quest[3]), at: quest[0].at },
+          gift: { type: dvmNum(gift[2]), d3: ((dvmNum(gift[3]) & 0xFF) << 8) | (dvmNum(gift[4]) & 0xFF), at: gift[0].at } };
+    }
+  } catch (e) { quiet(e, 'the king’s welcome'); }
+  return (DERIVED.KINGS_WELCOME = out);
+}
 function saveMakerZones() {
   const out = [];
   for (let k = 1; k < subindexCount(ARCHIVE, 127); k++) if (refExists(0x8000 + k) && refExists(0x8100 + k)) out.push({ zone: k, name: zoneDisplayName(k) });
@@ -2394,13 +2427,14 @@ function saveMakerDefaults() {
   // Offered first: a portrait the file names for nobody, which is what the
   // hero's choices are, the cast's each carrying its character's name.
   const portrait = portraits.find(r => !labelFor(r)) || portraits[0];
-  return { cr, portraits, portrait, body: hero.body, reflex: hero.reflex, mind: hero.mind, level: cr.level.v, archetypes: archetypeRules(),
+  return { cr, portraits, portrait, body: hero.body, reflex: hero.reflex, mind: hero.mind, level: cr.level.v, archetypes: archetypeRules(), welcome: kingsWelcomeRules(),
            zone: hero.zone, zones: saveMakerZones(), stories: saveMakerStories(), companions: saveMakerCompanions() };
 }
 /* The file, from the choices: { name, sprite (an index into the script's
    two), portrait (a resource), archetype (its number, for its skills, and
    its stats where none are given), body, reflex, mind, level, zone, x, y,
-   hour, day, story (a named state), party (character numbers) }. Null
+   hour, day, story (a named state), welcomed (true: the king has spoken),
+   party (character numbers) }. Null
    when the open file cannot make one, or the square is off the map. */
 function newGameSaveBytes(c) {
   const d = saveMakerDefaults();
@@ -2430,7 +2464,9 @@ function newGameSaveBytes(c) {
   const story = d.stories.find(t => t.name === c.story);
   const hour = num(c.hour, -1), when = { clock: hour >= 0 && hour < 24 ? hour * SAVE_CLOCK_HOUR : NEW_GAME_SHIPPED.clock,
     day: Math.max(1, Math.min(0x7FFF, num(c.day, NEW_GAME_SHIPPED.day))), header4: NEW_GAME_SHIPPED.header4 };
+  const kw = c.welcomed && d.welcome ? d.welcome : null;
   return buildNewGameSave(ARCHIVE, Object.assign({ zone, x, y, party, values: story ? story.values : null, name: c.name, portrait: c.portrait || d.portrait,
+    flags: kw ? [kw.flag.v] : null, charFlags: kw ? [{ index: kw.who, flag: kw.charFlag.v }] : null, todo: kw ? [kw.todo] : null, things: kw ? [kw.gift] : null,
     skills: arch ? arch.skills.map(k => ({ type: k.type, aspect: k.level | d.archetypes.bit.v })) : null, skillFlags: arch ? d.archetypes.flags.v : 0,
     proptype: sprite & 0x3FF, aspect: (sprite >> 10) & 0x3F, body, reflex, mind, level, xp: 0,
     health, healthMax: health, magic: 0, magicMax: 0, training: d.cr.training.v, nutrition: d.cr.nutrition.v,
@@ -2446,7 +2482,9 @@ function saveMakerHTML() {
     '<div class="mkRow"><label class="mkField">Name <input type="text" id="mkName" maxlength="31" value="NewGame01"></label>' +
     '<label class="mkField">Sprite <select id="mkSprite">' + d.cr.sprites.map((s, i) => '<option value="' + i + '">' + svEsc(spriteName(s)) + '</option>').join('') + '</select></label>' +
     '<label class="mkField">Portrait <select id="mkPortrait">' + d.portraits.map(r => '<option value="' + r + '"' + (r === d.portrait ? ' selected' : '') + '>' + svEsc(labelFor(r) || propWordHex(r)) + '</option>').join('') + '</select></label></div>' +
-    (() => { const own = d.portraits.filter(r => !labelFor(r)).slice(0, 24); return own.length ? '<div class="mkRow mkFaces">' + own.map(r => { const f = characterFace(r - 0x8800 + 1); return f && f.url ? '<img class="mkFace" src="' + f.url + '" alt="' + propWordHex(r) + '" title="' + propWordHex(r) + '" onclick="saveMakerFace(' + r + ')">' : ''; }).join('') + '</div>' : ''; })() +
+    // The faces the game's own creation dialog offers, read from the program;
+    // with no application open there is the list alone.
+    (() => { const hp = exeHeroPortraits(), own = hp ? Array.from({ length: hp.perSex.v * 2 }, (_, i) => 0x87FF + hp.first.v + i).filter(r => refExists(r)) : []; return own.length ? '<div class="mkRow mkFaces">' + own.map(r => { const f = characterFace(r - 0x8800 + 1); return f && f.url ? '<img class="mkFace" src="' + f.url + '" alt="' + propWordHex(r) + '" title="' + propWordHex(r) + '" onclick="saveMakerFace(' + r + ')">' : ''; }).join('') + '</div>' : ''; })() +
     (d.archetypes ? '<div class="mkRow"><label class="mkField">Archetype <select id="mkArch" onchange="saveMakerArchetype()"><option value="">None</option>' + d.archetypes.list.map(a => '<option value="' + a.index + '">' + svEsc(a.name) + '</option>').join('') + '</select></label>' +
       '<span class="mechSub" id="mkArchNote" style="display:inline"></span></div>' : '') +
     '<div class="mkRow">' + num('mkBody', 'Body', d.body) + num('mkReflex', 'Reflex', d.reflex) + num('mkMind', 'Mind', d.mind) + num('mkLevel', 'Level', d.level) + '</div>' +
@@ -2455,6 +2493,8 @@ function saveMakerHTML() {
     '<div class="mkRow"><label class="mkField">Hour <input type="number" id="mkHour" min="0" max="23" value="' + Math.floor(NEW_GAME_SHIPPED.clock / SAVE_CLOCK_HOUR) + '"></label>' +
     '<label class="mkField">Day <input type="number" id="mkDay" min="1" value="' + NEW_GAME_SHIPPED.day + '"></label>' +
     (d.stories.length ? '<label class="mkField">Story <select id="mkStory">' + d.stories.map(t => '<option value="' + svEsc(t.name) + '">' + svEsc(t.name) + '</option>').join('') + '</select></label>' : '') + '</div>' +
+    (d.welcome ? '<div class="mkRow"><label class="mkField"><input type="checkbox" class="mkWith" id="mkWelcomed" checked> The king has spoken</label>' +
+      '<span class="mechSub" style="display:inline">' + svEsc('His welcome is done, you carry the ' + (propDisplayName(d.welcome.gift.type) || 'thing he gives') + ', and the To Do list has its first line.') + '</span></div>' : '') +
     (d.companions.length ? '<div class="mkRow"><span class="mkField">With</span>' + d.companions.map(k => '<label class="mkField"><input type="checkbox" class="mkWith" value="' + k.index + '"> ' + svEsc(k.name) + '</label>').join('') + '</div>' : '') +
     '<div class="mkRow"><button class="secondary" onclick="makeSaveFromForm()">Make the Save</button>' +
     '<button class="secondary" onclick="makeSaveFromForm(true)">Download It</button>' +
@@ -2483,9 +2523,10 @@ function saveMakerPlace() {
 function makeSaveFromForm(download) {
   const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
   const name = String(val('mkName')).trim() || 'NewGame01';
-  const party = [...document.querySelectorAll('.mkWith')].filter(b => b.checked).map(b => parseInt(b.value, 10));
+  const party = [...document.querySelectorAll('.mkWith')].filter(b => b.checked && b.id !== 'mkWelcomed').map(b => parseInt(b.value, 10));
+  const said = document.getElementById('mkWelcomed');
   const bytes = newGameSaveBytes({ name, sprite: val('mkSprite'), portrait: parseInt(val('mkPortrait'), 10), archetype: val('mkArch'), body: val('mkBody'), reflex: val('mkReflex'), mind: val('mkMind'), level: val('mkLevel'),
-    zone: val('mkZone'), x: val('mkX'), y: val('mkY'), hour: val('mkHour'), day: val('mkDay'), story: val('mkStory'), party });
+    zone: val('mkZone'), x: val('mkX'), y: val('mkY'), hour: val('mkHour'), day: val('mkDay'), story: val('mkStory'), welcomed: !!(said && said.checked), party });
   if (!bytes) { setStatus('The page could not make that save. The square has to be on the zone’s map, with room beside it for each companion.', true); return false; }
   if (download) {
     // As a save leaves a Mac: MacBinary, the game's type and creator.

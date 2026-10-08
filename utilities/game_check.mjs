@@ -181,7 +181,27 @@ if (scenarioArg && existsSync(scenarioArg)) {
   // write them back as the hero's, a record apiece.
   const arch = md.archetypes ? md.archetypes.list[md.archetypes.list.length - 1] : null;
   const made = ctx.newGameSaveBytes({name: 'Bellerophon', sprite: 0, body: 21, reflex: 14, mind: 9, level: 3, archetype: arch ? arch.index : '',
-    zone: elsewhere.zone, party: friend ? [friend.index] : [], story: story ? story.name : '', hour: 14, day: 3});
+    zone: elsewhere.zone, party: friend ? [friend.index] : [], story: story ? story.name : '', hour: 14, day: 3, welcomed: true});
+  /* The king's welcome against the game's own (the same day). The kit has a
+     save taken at a new game and one taken after the king's first
+     conversation, a Fighter's. A save made here as a Fighter with the king
+     having spoken must agree with the second wherever the first differs
+     from it by his doing: the quest flags, the To Do list's first slot,
+     his own flags, and the hero's skills and the amulet at the end of the
+     hall's list. No run: two files compared. */
+  const cp1Path = join(KIT, 'saves/cp1-intro-done/data.fork');
+  if (existsSync(cp1Path) && md.welcome && md.archetypes) {
+    const real = ctx.delverArchiveSpec(new Uint8Array(readFileSync(cp1Path)));
+    const mine = ctx.delverArchiveSpec(new Uint8Array(ctx.newGameSaveBytes({name: 'Bellerophon', archetype: md.archetypes.list.find(a => a.skills.length === 2).index, welcomed: true})));
+    const seg = (sp, id) => sp.resources.find(r => r.resid === id).data, hex = b => Buffer.from(b).toString('hex');
+    const qa = ctx.saveQuestState(real), qb = ctx.saveQuestState(mine);
+    const held = sp => ctx.parseDelverPropList(seg(sp, 0x8100 + md.zone)).filter(r => (r.flags === 0x1C || r.flags === 0x10) && r.x === 0 && r.y === 1 && r.proptype > 190).map(r => [r.flags, r.proptype, r.aspect, r.d3].join(':')).join(' ');
+    if (qa.flags.join() !== qb.flags.join() || qa.values.join() !== qb.values.join()) fail('welcome: the quest values and flags are not those of the kit’s save after the king');
+    else if (hex(seg(real, 0x0401).subarray(0, 8)) !== hex(seg(mine, 0x0401).subarray(0, 8))) fail('welcome: To Do slot 0 is ' + hex(seg(mine, 0x0401).subarray(0, 8)) + ', the kit’s ' + hex(seg(real, 0x0401).subarray(0, 8)));
+    else if ((qa.chars[md.welcome.who].state & 0x80) !== (qb.chars[md.welcome.who].state & 0x80) || !(qb.chars[md.welcome.who].state & 0x80)) fail('welcome: the king’s own flag is not set as in the kit’s save');
+    else if (held(real) !== held(mine) || !held(mine)) fail('welcome: the hero holds ' + held(mine) + ', and in the kit’s save ' + held(real));
+    else console.log('  a Fighter made with the king having spoken agrees with the kit’s save after his welcome: the flags, To Do slot 0, his flag, and ' + held(mine).split(' ').length + ' things held');
+  } else console.log('  the king’s welcome was not compared: the kit’s save after it, or the reading, is missing');
   if (!made) fail('made: the page could not make a save from the scenario');
   else {
     const want = ctx.parseDelverCharacterRecords(ctx.delverArchiveSpec(made).resources.find(r => r.resid === 0xF009).data)[1];
@@ -196,6 +216,7 @@ if (scenarioArg && existsSync(scenarioArg)) {
       if (got.zone !== elsewhere.zone) fail(`made: the hero is in zone ${got.zone}, not ${elsewhere.zone}`);
       else if (friend && (!pal || !(pal.state & 0x40) || pal.zone !== got.zone || pal.raw[22] !== 1)) fail('made: the companion is not in the party, in the zone and following: ' + JSON.stringify(pal && {state: pal.state, zone: pal.zone, behaviour: pal.raw[22]}));
       else if (story && q.values[+sn] !== sv) fail(`made: quest value ${sn} is ${q.values[+sn]}, not the ${sv} of ${story.name}`);
+      else if (md.welcome && !q.flags[md.welcome.flag.v]) fail('made: the game did not keep the quest flag of the king’s welcome');
       else if (((ch[84] << 8) | ch[85]) !== 3) fail('made: the day is not 3: ' + ((ch[84] << 8) | ch[85]));
       else if (arch && (() => { const list = ctx.parseDelverPropList(back.resources.find(x => x.resid === 0x8100 + got.zone).data);
         return !arch.skills.every(k => list.some(p => p.flags === md.archetypes.flags.v && p.x === 0 && p.y === 1 && p.proptype === k.type && p.aspect === (k.level | md.archetypes.bit.v))); })())
