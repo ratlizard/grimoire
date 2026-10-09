@@ -1139,6 +1139,7 @@ const DATA_FIXES = [
   // book). Directed Nexus is the one spell that changes zone. The scroll's
   // Use, from the cast to its return, and two more locals.
   { id: 'nexus-scroll', group: 'rules', stage: 'further', title: 'A Directed Nexus scroll now leaves Land King Hall\u2019s things alone, instead of destroying two of them',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a Directed Nexus scroll used in Omen’s Test moves the hero to Land King Hall and is used up, the hall’s things untouched, against the scroll kept and a table and a passthrough of the hall deleted unpatched',
     plan: (s) => {
       const what = 'the scroll deletes nothing it has left behind', p = dataPatchPlace(s, what, 0x104B,
         ['set_local 0x01', 'method Use (0x9)', 'local Var00', 'end', 'end', 'sys Delete', 'local Var00', 'end',
