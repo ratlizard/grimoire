@@ -224,6 +224,7 @@ const DATA_FIXES = [
   // Sleep's magic bonus (0xE93): the guard and the cap both read full
   // health where full magic is meant; both now read full magic.
   { id: 'sleep-magic', group: 'rules', stage: 'found', title: 'Sleep now restores magic up to full magic, instead of up to full health',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a hero with 28 health and 30 of 60 magic slept until midnight in the bed of Land King Hall’s room 2, "You sleep soundly.", and woke with 60 magic, against 45 unpatched',
     edits: [
       { what: 'sleep’s magic cap', resid: 0xE93, at: 0x0248, replaceOp: true, expect: { 0x0248: 'get_field full_health', 0x024E: 'set_field magic' }, code: 'get_field full_magic (0x1F)' },
       { what: 'sleep’s magic guard', resid: 0xE93, at: 0x0219, replaceOp: true, expect: { 0x0216: 'get_field magic', 0x0219: 'get_field full_health', 0x021B: 'lt' }, code: 'get_field full_magic (0x1F)' },
@@ -414,6 +415,7 @@ const DATA_FIXES = [
   // shipped). Kept in "All Fixes" and in "Cythera Resurrection Fix" both,
   // which is why the resurrection fix finds its place rather than assuming it.
   { id: 'nobody-corpse', group: 'rules', stage: 'community', title: 'Raising a corpse that belongs to nobody now does nothing, instead of taking its things away',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the Land King Amulet used on a corpse with no owner, "Nothing happens." and the corpse left, against "A cave has been brought back from the brink of death." and the corpse gone unpatched; the spell was not cast',
     edits: [
       { what: 'the spell, a corpse of nobody', resid: 0x1A2F, at: 0x00D5,
         expect: { 0x00CD: 'set_local 0x00', 0x00D0: 'get_field data1', 0x00D2: 'cast Character', 0x00D5: 'if_not', 0x00D6: 'local Var00', 0x014E: 'string(implicit) "Nothing happens.' },
@@ -537,6 +539,7 @@ const DATA_FIXES = [
   // places a rune and no shipped AI script casts one, so every rune is the
   // party's, and the test goes: the line always prints.
   { id: 'rune-of-warding', group: 'rules', stage: 'community', title: 'A rune of warding now says when something steps on it, instead of vanishing in silence',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a rune of the hero’s stepped on, "Something has triggered one of your runes of warding.", against no line unpatched; the rune was placed by an edit, not cast',
     edits: [
       { what: 'the rune of warding signals', resid: 0x10F5, at: 0x0017, to: 0x0022,
         expect: { 0x0017: 'if_not', 0x0019: 'get_field data1', 0x001B: 'short 0x0020', 0x001E: 'eq', 0x001F: 'then',
