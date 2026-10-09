@@ -960,7 +960,7 @@ const DATA_FIXES = [
   // behaviour == 138` is redundant as written, and the line fits only away
   // from the office; the second test is `!=`.
   { id: 'halos-office', group: 'talk', stage: 'further', title: 'Halos now says \u201cstop by my office\u201d when he is away from it, instead of never',
-    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, the person brought to the hero by the in-party bit: "ake" to Halos once Ake has sent the hero drew "Lady Ake sent you?" and then "But now is not a good time to talk - please, stop by my office during working hours.", against no such line unpatched; his behaviour was a companion’s, not his own away from the office',
+    played: 'fork, 68K, 9 October 2026, alone and on “All Fixes”: at eleven, when his schedule has taken him from his desk, "ake" to Halos once Ake has sent the hero drew "Lady Ake sent you?" and then "But now is not a good time to talk - please, stop by my office during working hours.", against "So, you came all this way to talk" and no such line unpatched',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Halos away from his office', 0x183E,
         ['arg Arg00', 'get_field behavior', 'word 144', 'ne', 'arg Arg00', 'get_field behavior', 'word 138', 'eq', 'and', 'sys GetSkill'], 7, 'ne'),
