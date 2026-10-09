@@ -539,7 +539,7 @@ const DATA_FIXES = [
   // places a rune and no shipped AI script casts one, so every rune is the
   // party's, and the test goes: the line always prints.
   { id: 'rune-of-warding', group: 'rules', stage: 'community', title: 'A rune of warding now says when something steps on it, instead of vanishing in silence',
-    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a rune of the hero’s stepped on, "Something has triggered one of your runes of warding.", against no line unpatched; the rune was placed by an edit, not cast',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the hero cast a rune on the next square and stepped on it, "Something has triggered one of your runes of warding.", against no line unpatched',
     edits: [
       { what: 'the rune of warding signals', resid: 0x10F5, at: 0x0017, to: 0x0022,
         expect: { 0x0017: 'if_not', 0x0019: 'get_field data1', 0x001B: 'short 0x0020', 0x001E: 'eq', 0x001F: 'then',
@@ -1170,6 +1170,7 @@ const DATA_FIXES = [
   // function did not have (item, then the iterator's own slot), which the
   // header is given.
   { id: 'traps', group: 'rules', stage: 'further', title: 'Detect Traps and Deactivate Trap now find traps inside chests, and armed wires, instead of missing them',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a crate with a poison trap inside, Detect Traps cast beside it, "You detect poison trap!", against "You fail to detect anything." unpatched, and Deactivate Trap performed on it, "Poison trap destroyed.", against "There was nothing to deactivate."; a blast trap and a fine wire were not tried',
     plan: (s) => {
       const TRAP_TEST = v => ['short 0x0160', 'short 0x0161', 'short 0x0163', 'short 0x00E6']
         .map((t, k) => ['local ' + v, 'get_field obj_type (0x4)', t, 'eq'].concat(k ? ['or'] : [])).flat();
@@ -1241,6 +1242,7 @@ const DATA_FIXES = [
   // places or makes a type-213 thing, so with this the mushroom steak cannot
   // be had (the maintainer's choice, 27 September 2026).
   { id: 'divide-food', group: 'rules', stage: 'further', title: 'Divide Food now leaves Lock Picking alone, instead of eating it (which was the only way to a mushroom steak)',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the hero with Lock Picking and a flatbread, Aethon in the party, Divide Food cast; the hero keeps Lock Picking, where unpatched the skill is deleted and Aethon is dealt a thing of its type',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Divide Food leaves skills alone', 0x1AFB,
         ['if_not', 'local Var04', 'get_field obj_type (0x4)', 'short 0x0045', 'eq', 'local Var04', 'get_field obj_type (0x4)', 'short 0x00E7', 'eq', 'or',
