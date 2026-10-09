@@ -350,6 +350,7 @@ const DATA_FIXES = [
   // 0x080F), and two this project found (0x186D Demodocus's "fish, tlep",
   // 0x1878 Sabinate's "form, shap"), which were built in the found stage.
   { id: 'keyword-spaces', group: 'talk', title: 'Seven keywords now answer without a space typed first, instead of only after one',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, in part (Crito of the seven): "crit" to Crito in Odemia drew his innkeeper’s offer, which opens "Yes - are you interested in a", against "My cousin Crito runs the Titan’s Head in Odemia." unpatched',
     parts: [
       { stage: 'found', edits: [
         dataFixKeyword('Demodocus’s "tlep"', 0x186D, 0x155F, 'fish,tlep', '0x15E0'),
