@@ -312,6 +312,7 @@ const DATA_FIXES = [
   // Aethon told to leave (0x1861): "Maybe it is time for me to catch some
   // rats for myself..." is followed by LeaveParty, as Hector's is.
   { id: 'aethon-leaves', group: 'talk', stage: 'community', title: 'Aethon now leaves the party when he says he will, instead of staying',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: Aethon in the party, "leave", "Maybe it is time for me to catch some rats for myself..." and he is saved out of the party, against the same line and still in it unpatched',
     edits: [
       { what: 'Aethon leaves', resid: 0x1861, at: 0x0765, replaceOp: true, expect: { 0x072B: 'string(implicit) "\\"Maybe it is time', 0x0765: 'branch' },
         code: 'sys LeaveParty\narg Arg00\nend\nreturn\nbyte 0x00\nend' },
@@ -350,7 +351,7 @@ const DATA_FIXES = [
   // 0x080F), and two this project found (0x186D Demodocus's "fish, tlep",
   // 0x1878 Sabinate's "form, shap"), which were built in the found stage.
   { id: 'keyword-spaces', group: 'talk', title: 'Seven keywords now answer without a space typed first, instead of only after one',
-    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, in part (Crito of the seven): "crit" to Crito in Odemia drew his innkeeper’s offer, which opens "Yes - are you interested in a", against "My cousin Crito runs the Titan’s Head in Odemia." unpatched',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, in part (Crito and Apis of the seven): "crit" to Crito in Odemia drew his innkeeper’s offer, which opens "Yes - are you interested in a", against "My cousin Crito runs the Titan’s Head in Odemia." unpatched, and "apis" to Apis in Cademia the innkeeper’s offer there, against "My cousin Apis runs the Two-Taled Rat in Cademia."',
     parts: [
       { stage: 'found', edits: [
         dataFixKeyword('Demodocus’s "tlep"', 0x186D, 0x155F, 'fish,tlep', '0x15E0'),
@@ -450,6 +451,7 @@ const DATA_FIXES = [
   // membership), as his other five tests do, not quest value 4, which is
   // where Demodocus is and is never 0.
   { id: 'eteocles-kesh', group: 'talk', stage: 'community', title: 'Eteocles now answers \u201ckesh\u201d by whether you are in the Guild, instead of always the same way',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, the person brought to the hero by the in-party bit: "kesh" to Eteocles from a hero outside the Guild drew "Youse is awful nosy.", against "Yeah, we heard of da stuff." unpatched; a Guild member’s answer was not tried',
     edits: [
       { what: 'Eteocles’s "kesh"', resid: 0x1838, at: 0x01ED, replaceOp: true, expect: { 0x01E4: 'conversation_response "kesh"', 0x01ED: 'sys GetState', 0x01EE: 'byte 0x04' }, code: 'sys GetStateFlag' },
     ] },
@@ -958,6 +960,7 @@ const DATA_FIXES = [
   // behaviour == 138` is redundant as written, and the line fits only away
   // from the office; the second test is `!=`.
   { id: 'halos-office', group: 'talk', stage: 'further', title: 'Halos now says \u201cstop by my office\u201d when he is away from it, instead of never',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, the person brought to the hero by the in-party bit: "ake" to Halos once Ake has sent the hero drew "Lady Ake sent you?" and then "But now is not a good time to talk - please, stop by my office during working hours.", against no such line unpatched; his behaviour was a companion’s, not his own away from the office',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Halos away from his office', 0x183E,
         ['arg Arg00', 'get_field behavior', 'word 144', 'ne', 'arg Arg00', 'get_field behavior', 'word 138', 'eq', 'and', 'sys GetSkill'], 7, 'ne'),
@@ -971,6 +974,7 @@ const DATA_FIXES = [
   // Paris and Parium (the family group, 0x0805): "pari" took Parium's answer
   // first, so Paris's could not be given; Parium's is keyed "pariu".
   { id: 'paris-parium', group: 'talk', stage: 'further', title: '\u201cParis\u201d now gets the answer about Paris, instead of the one about Parium',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, the person brought to the hero by the in-party bit: "paris" to Apis drew "Paris is married to my cousin Helen.", against "My cousin Parium runs the Green Goat Tavern and Inn in Catamarca - fine place." unpatched',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Parium keyed apart from Paris', 0x0805, 'pari', 'pariu', ['string(implicit) "\\"My cousin Parium']),
     ] }) },
