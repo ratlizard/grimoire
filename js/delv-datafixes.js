@@ -236,13 +236,10 @@ const DATA_FIXES = [
     edits: [
       { what: 'the bartenders’ rumours', resid: 0x813, at: 0x02AB, replaceOp: true, expect: { 0x02A8: 'sys Random', 0x02A9: 'byte 0x00', 0x02AB: 'byte 0x01' }, code: 'byte 0x02' },
     ] },
-  // Eating (0xE46): the nutrition's jitter, Random(0, 1) - Random(0, 1), was
-  // always 0; it rolls Random(0, 2) twice, so it is -1, 0 or 1.
-  { id: 'eating', group: 'items', stage: 'found', title: 'What a meal is worth now varies by one either way, as written, instead of never varying',
-    edits: [
-      { what: 'eating, second roll', resid: 0xE46, at: 0x0040, replaceOp: true, expect: { 0x003D: 'sys Random', 0x0040: 'byte 0x01' }, code: 'byte 0x02' },
-      { what: 'eating, first roll', resid: 0xE46, at: 0x0039, replaceOp: true, expect: { 0x0036: 'sys Random', 0x0039: 'byte 0x01' }, code: 'byte 0x02' },
-    ] },
+  // Eating (0xE46) was a fix here until 9 October 2026: the helper's jitter,
+  // Random(0, 1) - Random(0, 1), always 0. No script of any release calls the
+  // helper, so the fix changed nothing a player could meet; its two edits
+  // are part of the design change `eat-to-heal`, which gives it callers.
   // The Gate Guard's speaker (0x1864): one reply was given to character 54,
   // the Odemia Guard; it is given to himself. The two share a portrait, so
   // nothing changes on screen, but the number is right.
@@ -1620,6 +1617,67 @@ const DATA_FIXES = [
      fails, now has Use answer and UseOn refuse, so the cast task's
      method 0x43 on the target runs where it did not; it ran for every
      cast that succeeded. Not played. */
+  // Eating to heal (9 October 2026, at the maintainer's word). The helper
+  // 0xE46(thing, worth, quality) is an earlier way of eating that no script
+  // of any release calls: the player alone eats, a meal raises health by
+  // its worth and prints one of seven lines by its quality ("That was
+  // amazingly tasty." at 0 down to retching at 6), a quality of 4 is worth
+  // nothing, and at full health it answers "You aren't hungry." and leaves
+  // the food. The shipped foods ask "Feed to whom?" and add to the eater's
+  // nutrition instead. This gives the helper its callers, the minimal way:
+  //   - the three foods' Use eats at once, through their own UseOn with the
+  //     player, and their UseOn calls the helper;
+  //   - the default EveryTurn (0x3020) no longer has a hungry member of the
+  //     party eat from the pack, so companions do not eat (the maintainer's
+  //     choice); they still say they are hungry, and the innkeepers' meals,
+  //     the fountain and Nutrient still raise nutrition as shipped;
+  //   - the helper's jitter rolls Random(0, 2) twice, so a quality varies
+  //     by one either way, which was the fix `eating`.
+  // THE FIGURES are this project's, the helper's callers being gone. Worth
+  // is the food's own figure before the shipped UseOn doubles it into
+  // nutrition: flatbread 3, bread 5, cheese 4, grapes 3, pomegranate 2,
+  // meat pie 8, kabobs 5, fowl 3, meat 6 and 8, fish 5, sausage 7, steak 10
+  // (0x1045's table), hand-baked bread 8 (half its 16), and the mushroom
+  // steak's three 5, 4 and 3. Quality: 1 for a worth of 8 or more and 2
+  // below it, so the jitter stays among the lines 0 to 3 and never reaches
+  // the one step better than 0, which has no line; the mushroom steak's
+  // three take the verdicts their own script gives them as talk balloons,
+  // "Not very good" 3, "Yetch!" 4 and "Not bad" 2.
+  { id: 'eat-to-heal', group: 'design', stage: 'apart', title: 'Food is eaten by the hero at once and restores health, with a line on how it tasted, instead of being fed to someone to stave off hunger; companions no longer eat',
+    played: 'fork, 68K, 9 October 2026, alone and with every other fix: a hero at 10 of 28 health uses a stack of steak, "That was very good." and "That was tasty." and then "You aren\u2019t hungry." at full health with the rest of the stack kept, against "Feed to whom?" unpatched; a pomegranate, hand-baked bread, a mushroom steak and a dried jellyfish ("Yuck, that wasn\u2019t very good.", worth nothing) were eaten the same way; a companion going hungry was not watched',
+    edits: (() => {
+      const eat = (worth, quality) => ['call_resource 0xE46', 'arg Arg00', ...worth, quality, 'end'].join('\n');
+      const use = 'method UseOn (0xA)\narg Arg00\nglobal PlayerCharacter (0x5)\nend';
+      const feed = { 0: 'if_not', 1: 'global IsPlayerTurn', 3: 'then', 6: 'string(implicit) "Feed to whom?' };
+      const at = (base, o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [base + +k, v]));
+      const byAspect = ['local Var00', 'arg Arg00', 'get_field aspect (0x3)', 'index'];
+      return [
+        // The party's hungry no longer eat from the pack.
+        { what: 'nobody eats unasked', resid: 0x3020, at: 0x01EE, to: 0x01FA,
+          expect: { 0x01D3: 'if_not', 0x01D7: 'short 0x0045', 0x01EE: 'method UseOn', 0x01F3: 'return', 0x01FA: 'set_local 0x00' }, code: '' },
+        // The helper's two rolls.
+        { what: 'eating, second roll', resid: 0xE46, at: 0x0040, replaceOp: true, expect: { 0x003D: 'sys Random', 0x0040: 'byte 0x01' }, code: 'byte 0x02' },
+        { what: 'eating, first roll', resid: 0xE46, at: 0x0039, replaceOp: true, expect: { 0x0036: 'sys Random', 0x0039: 'byte 0x01' }, code: 'byte 0x02' },
+        // Flatbread and its twelve kin (0x1045): worth by aspect from the table UseOn keeps in Var00.
+        { what: 'flatbread is eaten', resid: 0x1045, at: 0x013B, to: 0x0179,
+          expect: { 0x00FF: 'set_local 0x00', 0x0101: 'data', 0x013B: 'set_local 0x01', 0x014D: 'set_field nutrition', 0x0179: 'return' },
+          code: ['if_not', ...byAspect, 'byte 0x08', 'ge', 'then -> plain', eat(byAspect, 'byte 0x01'), 'branch done',
+                 'plain:', eat(byAspect, 'byte 0x02'), 'done:'].join('\n') },
+        { what: 'flatbread is used on the hero', resid: 0x1045, at: 0x00E0, to: 0x00F8, expect: { ...at(0x00E0, feed), 0x00F5: 'byte 0x08', 0x00F8: 'return' }, code: use },
+        // Hand-baked bread (0x10E7): 16 of nutrition, so 8.
+        { what: 'hand-baked bread is eaten', resid: 0x10E7, at: 0x007A, to: 0x009A,
+          expect: { 0x007A: 'set_local 0x00', 0x008C: 'set_field nutrition', 0x0093: 'byte 0x10', 0x0097: 'sys Delete', 0x009A: 'return' },
+          code: eat(['byte 0x08'], 'byte 0x01') },
+        { what: 'hand-baked bread is used on the hero', resid: 0x10E7, at: 0x005B, to: 0x0073, expect: { ...at(0x005B, feed), 0x0070: 'byte 0x08', 0x0073: 'return' }, code: use },
+        // The mushroom steak and its two kin (0x10D5): worth from its table, quality from its own verdicts.
+        { what: 'the mushroom steak is eaten', resid: 0x10D5, at: 0x0144, to: 0x0168,
+          expect: { 0x00FF: 'set_local 0x00', 0x0113: 'set_local 0x01', 0x0144: 'set_local 0x02', 0x0154: 'set_field nutrition', 0x0165: 'sys Delete', 0x0168: 'return' },
+          code: ['if_not', 'arg Arg00', 'get_field aspect (0x3)', 'byte 0x01', 'eq', 'then -> notyetch', eat(byAspect, 'byte 0x04'), 'branch done',
+                 'notyetch:', 'if_not', 'arg Arg00', 'get_field aspect (0x3)', 'byte 0x02', 'eq', 'then -> steak', eat(byAspect, 'byte 0x02'), 'branch done',
+                 'steak:', eat(byAspect, 'byte 0x03'), 'done:'].join('\n') },
+        { what: 'the mushroom steak is used on the hero', resid: 0x10D5, at: 0x00E0, to: 0x00F8, expect: { ...at(0x00E0, feed), 0x00F5: 'byte 0x01', 0x00F8: 'return' }, code: use },
+      ];
+    })() },
   { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'A targeted spell now takes its magic once you choose the target, so a cancelled cast costs nothing, instead of taking it before',
     plan: (s) => {
       const edits = [];
