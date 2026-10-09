@@ -718,4 +718,26 @@ const APP_FIXES = [
   { id: 'level-keep-made', kind: 'change', title: 'Entering a level keeps what play made or left there, corpses among them, instead of removing what the level did not begin with',
     played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a rock made in play stays where the stock program removes it; the patched program sets the door and the slid chair back, as the stock one does',
     sites: [{ at: 0x788C, was: [0x41820038], asm: ['b @0x78C4             ; never delete what play made or moved'] }] },
+  // A start of play costs fifteen ticks. TDelverApp::BeginPlay, which a new
+  // game, Open and a revert all come through, ends by handing 15 to
+  // TGameSys::HeartBeat: the hero is busy for fifteen ticks, the clock goes
+  // on fifteen units, and every creature and person moves through them
+  // before a key is taken. So a save opened is not the moment it was saved:
+  // a ruffian three squares off is beside the hero, a shopkeeper has
+  // stepped from his post, and each reload moves the clock on again. The
+  // call stays, since HeartBeat is also what runs MoveAll once and leaves
+  // the turn with the player; it is handed 0. Read and measured 9 October
+  // 2026 (the workbench's log, under grimoire/fixable-bugs-1adxav): the
+  // hero's timing byte is 15 in a save written as the game opens and the
+  // clock is fifteen on in one written a moment later. A choice and not a
+  // fix: the cost is a constant the program was given.
+  // WHAT ELSE IT REACHES (the maintainer's question). BeginPlay has one
+  // caller, OpenPlayerFile, which calls it for the start board (RunStart,
+  // which a new game goes through), Open and a revert, and not for Save As.
+  // Nothing in play comes through it: a change of zone, a sleep, a death and
+  // every command hand HeartBeat their own costs elsewhere. A new game opens
+  // on the king's welcome with it as without (the two frames are the same).
+  { id: 'load-cost', kind: 'change', title: 'Starting or opening a game costs no time, so a game opens on the moment it was saved, instead of fifteen ticks later with everyone moved',
+    played: 'fork, PowerPC, 9 October 2026: a save of Cademia opened and saved again keeps its clock, where the unpatched program writes it fifteen units on; a new game opens on the king\u2019s welcome as before',
+    sites: [{ at: 0x14634, was: [0x3880000F], asm: ['li 4, 0                ; nothing for HeartBeat to spend'] }] },
 ];
