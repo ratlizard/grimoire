@@ -948,6 +948,7 @@ const DATA_FIXES = [
   // Timon's flag 1 on meeting him ("It is a living Seldane!"), and Timon's
   // own talk with Larisa reads it for "meeting a real Seldane".
   { id: 'timon-seldane', group: 'talk', stage: 'further', title: 'Timon now speaks of having met a Seldane once he has, instead of never',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Timon’s flag 1 and quest value 2 set by edits, "meti" to him at the ruins, "Of course you all know that, we’ve met them, haven’t we...", against "I’d really like to find them someday..." unpatched; with his flag clear, that line on both',
     plan: (s) => {
       const what = 'Timon has met the Seldane', p = dataPatchPlace(s, what, 0x184A,
         ['if_not', 'sys GetStateFlag', 'byte 0x02', 'end', 'then ->', 'string(implicit) "\\"Of course you all know that']);
@@ -1138,6 +1139,7 @@ const DATA_FIXES = [
   // Glaucus's "North Shore @Vineyard" and the family group's answer are
   // keyed "viny", which "vineyard" can never match; "vine".
   { id: 'glaucus-vineyard', group: 'talk', stage: 'further', title: '\u201cVineyard\u201d now gets an answer from Glaucus and his family, instead of none',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "vineyard" to Glaucus at his vineyard, "This years crop looks good, but I don’t know if I’ll be able to make...", against "Excuse me?" unpatched',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Glaucus’s vineyard', 0x1866, 'viny', 'vine'),
       dataFixRekey(s, 'the family group’s vineyard', 0x0805, 'viny', 'vine'),
@@ -1367,8 +1369,8 @@ const DATA_FIXES = [
   { id: 'text-two-tailed', parent: 'text', choice: 'two-taled', group: 'text', short: '\u201cTwo-Tailed Rat\u201d', title: 'Standardize to \u201cTwo-Tailed Rat\u201d', played: 'fork, 68K, 10 October 2026, with the text fix: Thoas’s directions, "The Two-Tailed Rat is at the edge of the Maze", against "The Two Tailed Rat" unpatched; Apis’s "job", "the Two-Tailed Rat.", against "Two-Taled"' },
   { id: 'text-land-king', parent: 'text', choice: 'land-king', group: 'text', short: '\u201cLand King\u201d, as in the manuals', title: 'Standardize to \u201cLand King\u201d, as in the manuals', played: 'fork, 68K, 10 October 2026, with the text fix: "alar" to Thoas, "Alaric is the Land King", against "LandKing" unpatched' },
   { id: 'text-landking', parent: 'text', choice: 'land-king', group: 'text', short: '\u201cLandKing\u201d', title: 'Standardize to \u201cLandKing\u201d', played: 'fork, 68K, 10 October 2026, with the text fix: "work" to Hector, "the meals for folks in the LandKing Hall", against "Land King Hall" unpatched' },
-  { id: 'text-areithous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAreithous\u201d, as in the Hintbook', title: 'Standardize to \u201cAreithous\u201d, as in the Hintbook' },
-  { id: 'text-ariethous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAriethous\u201d', title: 'Standardize to \u201cAriethous\u201d' },
+  { id: 'text-areithous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAreithous\u201d, as in the Hintbook', title: 'Standardize to \u201cAreithous\u201d, as in the Hintbook', played: 'fork, 68K, 10 October 2026, with the text fix: "cook" to Laodice, "the reasons Areithous and I are so well suited.", against "Ariethous" unpatched' },
+  { id: 'text-ariethous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAriethous\u201d', title: 'Standardize to \u201cAriethous\u201d', played: 'fork, 68K, 10 October 2026, with the text fix: "name" to the innkeeper of Kosha, "I’m called Ariethous", against "Areithous" unpatched' },
   { id: 'text-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'hyphenated, \u201ckind-looking\u201d', title: 'Standardize to hyphenated: \u201ckind-looking\u201d, \u201cdour-faced\u201d and the like', played: 'fork, 68K, 10 October 2026, with the text fix: Thetis, "You see a dour-faced older woman", against "dour faced" unpatched; Bryaxis, "kind-looking", against "kind looking"' },
   /* The Beserker's [sic] mind (8 October 2026; bugs.md, *A figure the
      creation dialog states and the game does not give*). The dialog's text
@@ -1492,6 +1494,7 @@ const DATA_FIXES = [
   // the dimmed and pressed quarters below them stay. The check box beside
   // it (tile 0x1AB) is drawn the usual way round and is left alone.
   { id: 'radio-buttons', group: 'design', stage: 'apart', title: 'The chosen radio button is now the dark one, as on a Mac, instead of the light one',
+    played: 'fork, PowerPC, 10 October 2026, alone: a new game’s Character Archetype dialog, Male chosen, draws Male dark and Female light, against Male light and Female dark unpatched',
     dataEdits: [
       { what: 'the radio button’s two top quarters', resid: 0x8E1A, fn: (b) => {
           const col = decompressDCG(b, 32, 512), base = 12 * 1024;
@@ -1538,6 +1541,7 @@ const DATA_FIXES = [
   // A saved game carries its own character table, so this reaches new games
   // only.
   { id: 'peirithous', group: 'design', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is now alive in a new game, instead of dead',
+    played: 'fork, 10 October 2026, alone: a new game on the PowerPC slice saves character 96 alive in Odemia at (55,40), against dead at (0,0) unpatched; that record put into a saved Odemia by an edit and placed, on the 68K slice, he stands at his post and answers "I am called Peirithous." and "I am the majordomo of Judge Sacas.". He was not met in the new game itself',
     dataEdits: [
       { what: 'Peirithous alive', resid: 0xF009, fn: (b) => {
           const p = 96 * 32;
@@ -1558,6 +1562,7 @@ const DATA_FIXES = [
   // takes aspect 0, and Ake's sale list is renamed to match. Red cloth
   // leaves the game.
   { id: 'cloth-colours', group: 'design', stage: 'apart', title: 'Thread is now woven into cloth of its own colour, yellow, blue or green, instead of blue, red or green',
+    played: 'in part: fork, 68K, 10 October 2026, alone: cloth of aspects 0, 1 and 2 laid on a floor by an edit draws yellow, blue and green, against blue, red and green unpatched. No thread was woven (the loom wants the skill), and Ake’s sale list was not read',
     dataEdits: [
       { what: 'the cloth redrawn', resid: 0x8E2B, fn: (b) => {
           const col = decompressDCG(b, 32, 512), BLUE = 8 * 1024, RED = 9 * 1024;
