@@ -1644,7 +1644,7 @@ const DATA_FIXES = [
   // three take the verdicts their own script gives them as talk balloons,
   // "Not very good" 3, "Yetch!" 4 and "Not bad" 2.
   { id: 'eat-to-heal', group: 'design', stage: 'apart', title: 'Food is eaten by the hero at once and restores health, with a line on how it tasted, instead of being fed to someone to stave off hunger; companions no longer eat',
-    played: 'fork, 68K, 9 October 2026, alone and with every other fix: a hero at 10 of 28 health uses a stack of steak, "That was very good." and "That was tasty." and then "You aren\u2019t hungry." at full health with the rest of the stack kept, against "Feed to whom?" unpatched; a pomegranate, hand-baked bread, a mushroom steak and a dried jellyfish ("Yuck, that wasn\u2019t very good.", worth nothing) were eaten the same way; a companion going hungry was not watched',
+    played: 'fork, 68K, 9 October 2026, alone and with every other fix: a hero at 10 of 28 health uses a stack of steak, "That was very good." and "That was tasty." and then "You aren\u2019t hungry." at full health with the rest of the stack kept, against "Feed to whom?" unpatched; a pomegranate, hand-baked bread, a mushroom steak and a dried jellyfish ("Yuck, that wasn\u2019t very good.", worth nothing) were eaten the same way; a starving Aethon with five flatbreads ate none in sixty turns, where unpatched he ate one, and five hundred turns at no food cost him no health; the steak run repeated on PowerPC',
     edits: (() => {
       const eat = (worth, quality) => ['call_resource 0xE46', 'arg Arg00', ...worth, quality, 'end'].join('\n');
       const use = 'method UseOn (0xA)\narg Arg00\nglobal PlayerCharacter (0x5)\nend';
