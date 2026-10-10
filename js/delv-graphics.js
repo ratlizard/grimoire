@@ -1579,9 +1579,11 @@ function badArtPicture(d, subn, resid, ink) {
   return out;
 }
 /* `from`, when given, is asked first: from.tile(id, old, figure) for a
-   tile's 1,024 indices and from.portrait(resid, W, H) for a portrait's, null
-   from either leaving the drawing here to do it. It is how an art pack
-   stands in (delv-artpack.js; the page's scenarioPackArt). */
+   tile's 1,024 indices, from.portrait(resid, W, H, d) for a portrait's and
+   from.picture(subn, resid, d) for any other picture's, d the old picture
+   decoded; null from any of them leaves the drawing here to do it. It is
+   how an art pack stands in (delv-artpack.js; the page's scenarioPackArt)
+   and how the careful set does (delv-fineart.js; scenarioFineArt). */
 function redrawDelverArt(bytes, figures, from) {
   const arc = openDelverArchive(bytes), spec = delverArchiveSpec(bytes);
   if (!arc || !spec) return null;
@@ -1603,7 +1605,7 @@ function redrawDelverArt(bytes, figures, from) {
           const old = d.image.subarray(t * 1024, t * 1024 + 1024), given = from && from.tile ? from.tile(id, old, figures && figures[id]) : null;
           image.set(given || badArtTile(old, id, figures && figures[id], ink), t * 1024);
         }
-      } else image = (subn === 135 && from && from.portrait && from.portrait(r.resid, d.W, d.H)) || badArtPicture(d, subn, r.resid, ink);
+      } else image = (subn === 135 && from && from.portrait && from.portrait(r.resid, d.W, d.H, d)) || (subn !== 135 && from && from.picture && from.picture(subn, r.resid, d)) || badArtPicture(d, subn, r.resid, ink);
       let data;
       if (UNCOMPRESSED[subn]) data = image;
       else {

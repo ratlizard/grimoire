@@ -1717,6 +1717,56 @@ try {
   }
 } catch (e) { fail('make a scenario', e); }
 
+/* The careful set, 9 October 2026 (delv-fineart.js). What can go wrong
+   with nothing on the page saying so is a kind of picture quietly left to
+   the stick men, or drawn in colours that were never meant: so every
+   picture of the five families must come out changed at its own size with
+   the rest of the file alone; the hero must be a figure of six colours or
+   more with see-through round him, which the stick man (black and white)
+   is not; the ground offered must be whole and hold no system colour and
+   no cycling one; a water tile must hold a cycling blue, since that is
+   what keeps it moving; a portrait must differ from the bad set's and
+   keep to the ramps; and a tile drawn twice must come out the same, since
+   the drawing is seeded by numbers and not by chance. The control is the
+   bad set under the same tests, which must fail the hero's. */
+try {
+  const ask = { name: 'Fine Field', width: 24, height: 20, x: 10, y: 12 }, d = ctx.scenarioMakerDefaults();
+  const plain = new Uint8Array(ctx.newScenarioBytes(ask)), pspec = ctx.delverArchiveSpec(plain), parc = ctx.openDelverArchive(plain);
+  const fine = new Uint8Array(ctx.newScenarioBytes(Object.assign({ badArt: true, fine: true }, ask))), fspec = ctx.delverArchiveSpec(fine), farc = ctx.openDelverArchive(fine);
+  const bad = new Uint8Array(ctx.newScenarioBytes(Object.assign({ badArt: true }, ask))), bspec = ctx.delverArchiveSpec(bad), barc = ctx.openDelverArchive(bad);
+  const of = (sp, rid) => (sp.resources.find(r => r.resid === rid) || {}).data;
+  const same = (x, y) => !!x && !!y && x.length === y.length && x.every((v, i) => v === y[i]);
+  const tile = (sp, arc, t) => { const rid = 0x8E00 + (t >> 4); return ctx.decodeResource(arc, of(sp, rid), 141, rid).image.slice((t & 15) * 1024, (t & 15) * 1024 + 1024); };
+  let pics = 0, redrawn = 0, sized = 0, others = 0;
+  for (const r of fspec.resources) {
+    const was = of(pspec, r.resid), fam = r.resid >> 8;
+    if (![0x84, 0x88, 0x8A, 0x8E, 0x8F].includes(fam)) { if (!same(r.data, was)) others++; continue; }
+    pics++;
+    let subn = fam - 1; if (subn === 141 && ctx.tileSheetIsSized(parc, r.resid, was)) subn = 142;
+    const da = ctx.decodeResource(parc, was, subn, r.resid), db = ctx.decodeResource(farc, r.data, subn, r.resid);
+    if (!same(r.data, was) || !da.image.some(v => v)) redrawn++;
+    if (da.W === db.W && da.H === db.H && db.image.length === da.image.length) sized++;
+  }
+  const fig = ctx.scenarioFigureTiles(), heroTiles = Object.keys(fig).map(Number).filter(t => fig[t].kind === 'hero');
+  const figure = px => px.includes(0) && new Set(px).size >= 6 && px.every(v => v < 0xE0);
+  const heroOk = heroTiles.length >= 2 && heroTiles.every(t => figure(tile(fspec, farc, t))), control = heroTiles.some(t => figure(tile(bspec, barc, t)));
+  const ground = tile(fspec, farc, d.tile), groundOk = !ground.includes(0) && ground.every(v => v >= 0x10 && v < 0xE0) && new Set(ground).size >= 4;
+  const water = Array.from({ length: 2544 }, (_, t) => t).find(t => ctx.terrainNameFor(t) === 'water' && !tile(pspec, parc, t).includes(0));
+  const wet = water === undefined ? null : tile(fspec, farc, water), waterOk = !!wet && wet.some(v => v >= 0xE8 && v < 0xF0);
+  const face = ctx.decodeResource(farc, of(fspec, 0x8801), 0x87, 0x8801).image, badFace = ctx.decodeResource(barc, of(bspec, 0x8801), 0x87, 0x8801).image;
+  const faceOk = !same(face, badFace) && new Set(face).size >= 10 && face.every(v => !v || (v >= 0x10 && v < 0xE0));
+  const again = ctx.fineArt(() => 'grass'), once = ctx.fineArt(() => 'grass'), ht = heroTiles[0], old = tile(pspec, parc, ht);
+  const steady = same(again.tile(ht, old, fig[ht]), once.tile(ht, old, fig[ht])) && same(again.tile(d.tile, tile(pspec, parc, d.tile), null), ground);
+  if (!pics || redrawn !== pics || sized !== pics || others) fail('the careful set', 'the pictures were not all redrawn at their own sizes with the rest left alone: ' + JSON.stringify({ pics, redrawn, sized, others }));
+  else if (!heroOk) fail('the careful set', 'the hero’s ' + heroTiles.length + ' frames are not figures of six colours with see-through round them');
+  else if (control) fail('the careful set', 'the bad set’s hero passes the same test, so the test cannot tell the two apart');
+  else if (!groundOk) fail('the careful set', 'the ground offered has see-through, a system colour or a cycling one in it, or is one flat colour');
+  else if (!waterOk) fail('the careful set', 'a water tile (' + water + ') holds no cycling blue');
+  else if (!faceOk) fail('the careful set', 'the first portrait is the bad set’s, or leaves the ramps');
+  else if (!steady) fail('the careful set', 'a tile drawn twice came out two ways');
+  else console.log(`  the careful set: ${pics} pictures redrawn at their own sizes, nothing else changed; the hero’s ${heroTiles.length} frames figures in colour (the bad set’s are not); the ground whole and inside the ramps; water tile ${water} still cycling; a portrait of ${new Set(face).size} colours; a tile drawn twice the same`);
+} catch (e) { fail('the careful set', e); }
+
 /* A zone from Manborough's editor, 8 October 2026 (manboroughMap). His
    sample export in reference/ is Land King Hall as his importer made it
    from this same archive, which makes the archive the oracle: every map

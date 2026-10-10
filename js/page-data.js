@@ -2803,7 +2803,8 @@ function manboroughExport(c) {
 /* The file, from the choices: { name (the zone's title), width, height,
    tile, x, y, light (the zone's ambient level), opening (true keeps the
    slideshow), armyA and armyB (two creatures' prop types) with armyCount
-   for a battle, badArt (true redraws every picture, redrawDelverArt) }. Null when the open file
+   for a battle, badArt (true redraws every picture, redrawDelverArt; with
+   fine, as delv-fineart.js draws them, or with pack, from an art pack) }. Null when the open file
    cannot make one; throws what the assembler or the relinker says. */
 function newScenarioBytes(c) {
   const d = scenarioMakerDefaults();
@@ -2824,7 +2825,7 @@ function newScenarioBytes(c) {
     zoneScript: script, creation: c.opening ? null : scenarioOpeningCut(),
     eggs: scenarioBattleEggs(c, width, height, x, y).concat(im ? im.eggs : []), tiles: im ? im.tiles : null, props: im ? im.props : null, cast: im ? im.cast : null });
   if (!bytes || !c.badArt) return bytes;
-  const art = redrawDelverArt(bytes, scenarioFigureTiles(), c.pack ? scenarioPackArt(c.pack) : null);
+  const art = redrawDelverArt(bytes, scenarioFigureTiles(), c.fine ? scenarioFineArt() : c.pack ? scenarioPackArt(c.pack) : null);
   return art ? art.bytes : null;
 }
 /* THE SAME SCENARIO AS A MAGPIE PATCH (8 October 2026), which is how one
@@ -2906,9 +2907,13 @@ function scenarioPackArt(pack, report) {
     }
   };
 }
+// The page's side of the careful redraw (delv-fineart.js): a tile's name.
+function scenarioFineArt() {
+  return fineArt(id => terrainNameFor(id) || '');
+}
 function scenarioFigureTiles() {
   const tiles = getPropTileList(), out = {};
-  const put = (pt, kind) => { const base = tiles[pt], n = spriteBlockSize(pt), name = propDisplayName(pt) || ''; if (base === undefined || !pt) return; for (let f = 0; f < n; f++) if (!out[base + f] || kind === 'hero') out[base + f] = { kind, frame: f, name }; };
+  const put = (pt, kind) => { const base = tiles[pt], n = spriteBlockSize(pt), name = propDisplayName(pt) || ''; if (base === undefined || !pt) return; for (let f = 0; f < n; f++) if (!out[base + f] || kind === 'hero') out[base + f] = { kind, frame: f, name, base, of: n }; };
   for (const m of parseMonsterStats()) if (!m.blank && m.proptype) put(m.proptype, m.alignment === 3 ? 'beast' : 'person');
   for (const r of loadCharacterTable()) if (r && r.proptype && delverCharacterInUse(r) && !(tiles[r.proptype] in out)) put(r.proptype, 'person');
   const cr = heroCreationRules();

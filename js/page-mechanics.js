@@ -2225,7 +2225,7 @@ function scenarioDownload(asDisk) {
 function scenarioChoices() {
   const st = window.SCENARIO_STATE;
   if (st.art === 'pack' && !st.pack) { scenarioSay('Choose the art pack’s zip first.', true); return null; }
-  return Object.assign({}, st, { badArt: !!st.art, pack: st.art === 'pack' ? st.pack : null });
+  return Object.assign({}, st, { badArt: !!st.art, fine: st.art === 'fine', pack: st.art === 'pack' ? st.pack : null });
 }
 function scenarioPatchDownload() {
   const c = scenarioChoices();
@@ -2332,7 +2332,7 @@ function renderScenarioMaker() {
   label('Battle');
   cell(choice('scenArmyA', 'armyA', creatures), el('span', 'mechSub', ' against '), choice('scenArmyB', 'armyB', creatures),
        el('span', 'mechSub', ' , each side '), field('scenArmyCount', 'armyCount', 'number', 4));
-  // Art: as shipped, drawn here, or taken from a pack of 32 by 32 PNGs the
+  // Art: as shipped, drawn here with care (delv-fineart.js) or badly, or taken from a pack of 32 by 32 PNGs the
   // visitor picks (delv-artpack.js). The pack is read once and kept.
   const packPick = document.createElement('input');
   packPick.type = 'file'; packPick.id = 'scenPack'; packPick.accept = '.zip,application/zip';
@@ -2347,7 +2347,7 @@ function renderScenarioMaker() {
       scenarioSay(f.name + ': ' + pack.files.length.toLocaleString() + ' pictures.');
     }).catch(e => { st.pack = null; scenarioSay('The page could not read that zip: ' + e.message, true); });
   };
-  const artPick = choice('scenArt', 'art', [['', 'As it is'], ['bad', 'Drawn again, badly'], ['pack', 'From an art pack']]);
+  const artPick = choice('scenArt', 'art', [['', 'As it is'], ['fine', 'Drawn again, with care'], ['bad', 'Drawn again, badly'], ['pack', 'From an art pack']]);
   const artChange = artPick.onchange;
   artPick.onchange = function () { artChange.call(artPick); packPick.style.display = st.art === 'pack' ? '' : 'none'; };
   label('Art');
