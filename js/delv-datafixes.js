@@ -218,6 +218,7 @@ const DATA_FIXES = [
   // Propontis adds for the same errand. (bugs.md, *Ake's To Do line names
   // the wrong informant*.)
   { id: 'ake-todo', group: 'quests', stage: 'found', title: 'Ake\u2019s errand now adds the To Do line that names Halos, instead of the one that names Thuria',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Ake waiting with her errand (flag 2 and behaviour 151 by an edit), spoken to; the To Do entry saved is line 113, against 114 unpatched',
     edits: [
       { what: 'Ake’s To Do line', resid: 0x1820, at: 0x0109, replaceOp: true, expect: { 0x0101: 'sys AddQuest', 0x0102: 'byte 0x0A', 0x0109: 'byte 0x72' }, code: 'byte 0x71' },
     ] },
@@ -233,6 +234,7 @@ const DATA_FIXES = [
   // rumours and the general ones rolled Random(0, 1), which is always 0; it
   // rolls Random(0, 2), so both are heard.
   { id: 'rumours', group: 'talk', stage: 'found', title: 'Bartenders now tell the general rumours as well as their town\u2019s, instead of their town\u2019s alone',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: eight rounds bought from Apis in Cademia; alone and on “All Fixes” one of them drew a rumour of the general list, "They say that a bunch of those old ruins were found down in a swamp to the south." alone, against the town’s list only unpatched',
     edits: [
       { what: 'the bartenders’ rumours', resid: 0x813, at: 0x02AB, replaceOp: true, expect: { 0x02A8: 'sys Random', 0x02A9: 'byte 0x00', 0x02AB: 'byte 0x01' }, code: 'byte 0x02' },
     ] },
@@ -592,6 +594,7 @@ const DATA_FIXES = [
   // Sacas's kesh on Eudoxus (0x8104): the five vials in the Abandoned
   // Farmhouse coffer get Data1 2, the value his line waits for.
   { id: 'eudoxus-kesh', group: 'quests', stage: 'community', title: 'You can now tell Sacas of the kesh on Eudoxus, instead of the vials never counting',
+    played: 'fork, 68K, 10 October 2026, alone: a vial as the file holds it (Data1 2, against 0 unpatched) put on the floor by an edit and looked at; the save has quest value 13 set, against unset unpatched. Sacas’s line was not played, nor the vial taken from Eudoxus’s coffer',
     dataEdits: [
       { what: 'Eudoxus’s kesh', resid: 0x8104, fn: (b) => {
           let n = 0;
@@ -965,6 +968,7 @@ const DATA_FIXES = [
   // Thoas's "Please come again" (0x1844): the local it waits on is set once
   // his shop has been opened.
   { id: 'thoas-farewell', group: 'talk', stage: 'further', title: 'Thoas now says \u201cPlease come again\u201d after you have shopped, instead of never',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "buy", Done, "bye" to Thoas, "Farewell.  Please come again.", against "Farewell." unpatched; with no "buy", "Farewell." on both',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thoas after his shop', 0x1844, ['conversation_response "buy" ->', 'set_field 0x27'], 1, 'set_local 0x00\nword True\nend'),
     ] }) },
@@ -1038,6 +1042,7 @@ const DATA_FIXES = [
   // she has given the task, so hearing Amphidamas first no longer shuts it
   // out; her report greeting already has a line for that order.
   { id: 'thuria-mine', group: 'quests', stage: 'further', title: 'Thuria now still gives the mine task after you have been to the mine, instead of never giving it',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Amphidamas’s flag 1 set by an edit, "rumo" to Thuria, her offer, Yes, and the task saved in the To Do list, against "You’ve heard first hand of the issues involved at the mine." and no task unpatched',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thuria gives the mine task', 0x1814,
         ['conversation_response "rumo" ->', 'if_not', 'call_resource 0xF02', 'short 0x0017', 'byte 0x01', 'end', 'then ->'], 6,
@@ -1346,19 +1351,19 @@ const DATA_FIXES = [
       { stage: 'spelling', plan: (s, ctx) => ({ textEdits: dataFixSpellingEdits(ctx.chosen) }) },
       { stage: 'text', plan: (s, ctx) => ({ dataEdits: dataFixArchetypeMind(s, ctx.chosen) }) },
     ] },
-  { id: 'spelling-us', parent: 'text', choice: 'spelling', group: 'text', short: 'US spellings', title: 'Standardize to US spellings' },
-  { id: 'spelling-uk', parent: 'text', choice: 'spelling', group: 'text', short: 'UK spellings', title: 'Standardize to UK spellings' },
+  { id: 'spelling-us', parent: 'text', choice: 'spelling', group: 'text', short: 'US spellings', title: 'Standardize to US spellings', played: 'fork, 68K, 10 October 2026, with the text fix: "musi" to Thoas, "the famous traveling bard.", against "travelling" unpatched' },
+  { id: 'spelling-uk', parent: 'text', choice: 'spelling', group: 'text', short: 'UK spellings', title: 'Standardize to UK spellings', played: 'fork, 68K, 10 October 2026, with the text fix: "iron" to Thuria, "despite rumours of troubles", against "rumors" unpatched' },
   /* The four that follow each go one way or the other, or neither (the
      maintainer, 1 October 2026): a pair shares a choice, drawn as a row of
      buttons with "don't" as the third, and the first of each pair, the
      maintainer's preference, is chosen when the page opens. */
-  { id: 'text-two-taled', parent: 'text', choice: 'two-taled', group: 'text', short: '\u201cTwo-Taled Rat\u201d, as on its sign', title: 'Standardize to \u201cTwo-Taled Rat\u201d, as on its sign' },
-  { id: 'text-two-tailed', parent: 'text', choice: 'two-taled', group: 'text', short: '\u201cTwo-Tailed Rat\u201d', title: 'Standardize to \u201cTwo-Tailed Rat\u201d' },
-  { id: 'text-land-king', parent: 'text', choice: 'land-king', group: 'text', short: '\u201cLand King\u201d, as in the manuals', title: 'Standardize to \u201cLand King\u201d, as in the manuals' },
+  { id: 'text-two-taled', parent: 'text', choice: 'two-taled', group: 'text', short: '\u201cTwo-Taled Rat\u201d, as on its sign', title: 'Standardize to \u201cTwo-Taled Rat\u201d, as on its sign', played: 'fork, 68K, 10 October 2026, with the text fix: Thoas’s directions, "The Two-Taled Rat is at the edge of the Maze", against "The Two Tailed Rat" unpatched' },
+  { id: 'text-two-tailed', parent: 'text', choice: 'two-taled', group: 'text', short: '\u201cTwo-Tailed Rat\u201d', title: 'Standardize to \u201cTwo-Tailed Rat\u201d', played: 'fork, 68K, 10 October 2026, with the text fix: Thoas’s directions, "The Two-Tailed Rat is at the edge of the Maze", against "The Two Tailed Rat" unpatched; Apis’s "job", "the Two-Tailed Rat.", against "Two-Taled"' },
+  { id: 'text-land-king', parent: 'text', choice: 'land-king', group: 'text', short: '\u201cLand King\u201d, as in the manuals', title: 'Standardize to \u201cLand King\u201d, as in the manuals', played: 'fork, 68K, 10 October 2026, with the text fix: "alar" to Thoas, "Alaric is the Land King", against "LandKing" unpatched' },
   { id: 'text-landking', parent: 'text', choice: 'land-king', group: 'text', short: '\u201cLandKing\u201d', title: 'Standardize to \u201cLandKing\u201d' },
   { id: 'text-areithous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAreithous\u201d, as in the Hintbook', title: 'Standardize to \u201cAreithous\u201d, as in the Hintbook' },
   { id: 'text-ariethous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAriethous\u201d', title: 'Standardize to \u201cAriethous\u201d' },
-  { id: 'text-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'hyphenated, \u201ckind-looking\u201d', title: 'Standardize to hyphenated: \u201ckind-looking\u201d, \u201cdour-faced\u201d and the like' },
+  { id: 'text-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'hyphenated, \u201ckind-looking\u201d', title: 'Standardize to hyphenated: \u201ckind-looking\u201d, \u201cdour-faced\u201d and the like', played: 'fork, 68K, 10 October 2026, with the text fix: Thetis, "You see a dour-faced older woman", against "dour faced" unpatched; Bryaxis, "kind-looking", against "kind looking"' },
   /* The Beserker's [sic] mind (8 October 2026; bugs.md, *A figure the
      creation dialog states and the game does not give*). The dialog's text
      says 6 and the table the creation script reads says 12. The first
@@ -1372,7 +1377,7 @@ const DATA_FIXES = [
     played: 'the creation dialog, PowerPC, 8 October 2026' },
   { id: 'beserker-table', parent: 'text', choice: 'beserker', group: 'text', short: 'the hero gets 6, as the screen says', title: 'A Berserker starts with mind 6, as the creation screen says',
     played: 'a new game, PowerPC, 8 October 2026' },
-  { id: 'text-no-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'unhyphenated, \u201ckind hearted\u201d', title: 'Standardize to unhyphenated: \u201ckind-hearted\u201d, \u201crat-faced\u201d and the like lose theirs' },
+  { id: 'text-no-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'unhyphenated, \u201ckind hearted\u201d', title: 'Standardize to unhyphenated: \u201ckind-hearted\u201d, \u201crat-faced\u201d and the like lose theirs', played: 'fork, 68K, 10 October 2026, with the text fix: Stentor, "You see a wide eyed man", against "wide-eyed" unpatched' },
 
   /* ---- Larger changes (the stage "apart"; karma_patch.mjs,
      resurrection_patch.mjs, peirithous_patch.mjs) --------------------------
