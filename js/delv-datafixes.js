@@ -290,6 +290,7 @@ const DATA_FIXES = [
   // weapon's skill twice, and both reads take the skill off the shield
   // loop's leftover variable; each now reads it off the weapon (Arg02).
   { id: 'weapon-skill', group: 'rules', stage: 'community', title: 'Sword, Axe and Mace skill now counts in a fight, instead of counting for nothing',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a hero given a sword in hand and Sword skill 15 by an edit, thirty attacks on Apis, her health set to 255; she is dead within nineteen blows, some of them "ground" and "shredded", against alive at 12 of 255 unpatched with none above "smashed". With the skill at a level the game reads as none, the two fight alike',
     edits: [
       { what: 'weapon skill, damage', resid: 0xE87, at: 0x0096, replaceOp: true, expect: { 0x0096: 'local Var02', 0x0097: 'class_member 0x2A03' }, code: 'arg Arg02' },
       { what: 'weapon skill, margin', resid: 0xE87, at: 0x0088, replaceOp: true, expect: { 0x0088: 'local Var02', 0x0089: 'class_member 0x2A03' }, code: 'arg Arg02' },
@@ -337,6 +338,7 @@ const DATA_FIXES = [
   // Niobe's answers drawn as Helen's (0x1859): Niobe is named again after
   // Helen's interruption.
   { id: 'niobe', group: 'talk', stage: 'community', title: 'Niobe\u2019s answers after Helen interrupts are now drawn as hers, instead of as Helen\u2019s',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Helen in the party by an edit, Niobe spoken to at noon in Pnyx, Helen’s "It’s OK, Niobe.", then "name"; "I’m Niobe." is drawn beside Niobe’s portrait, against beside Helen’s unpatched',
     edits: [
       { what: 'Niobe speaks for herself', resid: 0x1859, at: 0x013F, expect: { 0x0127: 'string(implicit) "man with your nonsense', 0x013F: 'exit' }, code: dataFixTalk('arg Arg00', 0) },
     ] },
@@ -344,6 +346,7 @@ const DATA_FIXES = [
   // grimoire now sets quest flag 1 and strikes the To Do line, as accepting
   // at the first meeting does.
   { id: 'lindus', group: 'quests', stage: 'community', title: 'Lindus now stops nagging once he has handed over the grimoire, instead of nagging for ever',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Lindus’s first offer declined, then "trai" and Mana; he hands over the grimoire and parts with "My door is always open to a student.", quest flag 1 saved set, against "Please come back, there is some training that we can give you..." and the flag clear unpatched',
     edits: [
       { what: 'Lindus’s training route', resid: 0x1850, at: 0x05C9, expect: { 0x05C6: 'then', 0x05C9: 'string(implicit) "*\\"The most prized possession' },
         code: 'sys SetStateFlag\nbyte 0x01\nword True\nend\nsys CompleteQuest\nbyte 0x02\nend' },
@@ -432,6 +435,7 @@ const DATA_FIXES = [
           'string(implicit) "Nothing happens.\\n"', 'return', 'byte 0x00', 'end', 'someone:'].join('\n') },
     ] },
   { id: 'thrown-weapon', group: 'rules', stage: 'community', title: 'A thrown dagger or spear that kills is now kept, instead of lost',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a dagger put in the hero’s hand by an edit and thrown at Apis two squares off, her health set to 1; she dies and the dagger is saved in the hero’s pack, against saved inside her, a dead character, unpatched. A spear from three squares was "too far away to attack" on both',
     edits: [
       { what: 'a thrown weapon, placed', resid: 0x3042, at: 0x0158, expect: { 0x0150: 'set_field container', 0x0158: 'branch' },
         code: 'set_field x (0x1)\nlocal Var03\nend\nbyte 0x00\nend\nset_field y (0x2)\nlocal Var03\nend\nbyte 0x01\nend\nmethod PutInside (0x10)\nlocal Var03\nend' },
