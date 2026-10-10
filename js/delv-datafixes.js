@@ -1627,10 +1627,11 @@ const DATA_FIXES = [
   // nutrition instead. This gives the helper its callers, the minimal way:
   //   - the three foods' Use eats at once, through their own UseOn with the
   //     player, and their UseOn calls the helper;
-  //   - the default EveryTurn (0x3020) no longer has a hungry member of the
-  //     party eat from the pack, so companions do not eat (the maintainer's
-  //     choice); they still say they are hungry, and the innkeepers' meals,
-  //     the fountain and Nutrient still raise nutrition as shipped;
+  //   - the default EveryTurn (0x3020) never finds a member of the party
+  //     hungry, so nobody eats from the pack or complains of hunger (the
+  //     maintainer's choice: companions lose eating and hunger with it);
+  //     the program still counts nutrition down and the innkeepers' meals,
+  //     the fountain and Nutrient still raise it, to no effect on the party;
   //   - the helper's jitter rolls Random(0, 2) twice, so a quality varies
   //     by one either way, which was the fix `eating`.
   // THE FIGURES are this project's, the helper's callers being gone. Worth
@@ -1643,8 +1644,8 @@ const DATA_FIXES = [
   // the one step better than 0, which has no line; the mushroom steak's
   // three take the verdicts their own script gives them as talk balloons,
   // "Not very good" 3, "Yetch!" 4 and "Not bad" 2.
-  { id: 'eat-to-heal', group: 'design', stage: 'apart', title: 'Food is eaten by the hero at once and restores health, with a line on how it tasted, instead of being fed to someone to stave off hunger; companions no longer eat',
-    played: 'fork, 68K, 9 October 2026, alone and with every other fix: a hero at 10 of 28 health uses a stack of steak, "That was very good." and "That was tasty." and then "You aren\u2019t hungry." at full health with the rest of the stack kept, against "Feed to whom?" unpatched; a pomegranate, hand-baked bread, a mushroom steak and a dried jellyfish ("Yuck, that wasn\u2019t very good.", worth nothing) were eaten the same way; a starving Aethon with five flatbreads ate none in sixty turns, where unpatched he ate one, and five hundred turns at no food cost him no health; the steak run repeated on PowerPC',
+  { id: 'eat-to-heal', group: 'design', stage: 'apart', title: 'Food is eaten by the hero at once and restores health, with a line on how it tasted, instead of being fed to someone to stave off hunger; nobody in the party goes hungry',
+    played: 'fork, 68K, 9 October 2026, alone and with every other fix: a hero at 10 of 28 health uses a stack of steak, "That was very good." and "That was tasty." and then "You aren\u2019t hungry." at full health with the rest of the stack kept, against "Feed to whom?" unpatched; a pomegranate, hand-baked bread, a mushroom steak and a dried jellyfish ("Yuck, that wasn\u2019t very good.", worth nothing) were eaten the same way; a starving Aethon with five flatbreads ate none and said nothing of hunger in five hundred turns, where unpatched he ate one within sixty; the steak run repeated on PowerPC',
     edits: (() => {
       const eat = (worth, quality) => ['call_resource 0xE46', 'arg Arg00', ...worth, quality, 'end'].join('\n');
       const use = 'method UseOn (0xA)\narg Arg00\nglobal PlayerCharacter (0x5)\nend';
@@ -1652,9 +1653,13 @@ const DATA_FIXES = [
       const at = (base, o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [base + +k, v]));
       const byAspect = ['local Var00', 'arg Arg00', 'get_field aspect (0x3)', 'index'];
       return [
-        // The party's hungry no longer eat from the pack.
-        { what: 'nobody eats unasked', resid: 0x3020, at: 0x01EE, to: 0x01FA,
-          expect: { 0x01D3: 'if_not', 0x01D7: 'short 0x0045', 0x01EE: 'method UseOn', 0x01F3: 'return', 0x01FA: 'set_local 0x00' }, code: '' },
+        // Nobody in the party is hungry: the default EveryTurn's test,
+        // nutrition below 4, under which a member ate from the pack or said
+        // "I'm starving", is made a test for below 0, which is never so.
+        // (Until 9 October 2026, an hour after it shipped, this took out the
+        // eating alone and left the lines; the maintainer had meant both.)
+        { what: 'nobody in the party is hungry', resid: 0x3020, at: 0x01B3, replaceOp: true,
+          expect: { 0x01AF: 'if_not', 0x01B1: 'get_field nutrition', 0x01B3: 'byte 0x04', 0x01B5: 'lt', 0x01EE: 'method UseOn' }, code: 'byte 0x00' },
         // The helper's two rolls.
         { what: 'eating, second roll', resid: 0xE46, at: 0x0040, replaceOp: true, expect: { 0x003D: 'sys Random', 0x0040: 'byte 0x01' }, code: 'byte 0x02' },
         { what: 'eating, first roll', resid: 0xE46, at: 0x0039, replaceOp: true, expect: { 0x0036: 'sys Random', 0x0039: 'byte 0x01' }, code: 'byte 0x02' },
