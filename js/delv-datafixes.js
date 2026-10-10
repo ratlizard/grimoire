@@ -268,7 +268,7 @@ const DATA_FIXES = [
   // so the rest of the chain is untouched. (The maintainer's word, 27
   // September 2026.)
   { id: 'pitcher-in-wine', group: 'items', stage: 'found', title: 'An empty pitcher dipped in the wine urn now fills with wine, instead of saying \u201cThe pitcher is empty.\u201d',
-    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: an empty pitcher used on the wine urn, "The pitcher is now full of wine." and the pitcher saved holding wine, against "The pitcher is empty." unpatched',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: an empty pitcher used on the wine urn, "The pitcher is now full of wine." and the pitcher saved holding wine, against "The pitcher is empty." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "The pitcher is now full of wine.", against "The pitcher is empty." unpatched',
     edits: [
       { what: 'a pitcher dipped in wine', resid: 0x10A0, at: 0x01FD,
         expect: { 0x01B9: 'then -> 0x01FD', 0x01FA: 'branch 0x0213', 0x01FD: 'string(implicit) "The pitcher is empty.', 0x0213: 'return' },
@@ -371,7 +371,7 @@ const DATA_FIXES = [
     ] },
   // The rolling pin vanishing (0x10A3): the dough is deleted, not the pin.
   { id: 'rolling-pin', group: 'items', stage: 'community', title: 'Kneading now uses up the dough, instead of the rolling pin',
-    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the rolling pin used on dough without Cooking, "You end up kneading the dough into nothingness.", the dough gone and the pin kept, against the pin gone and the dough left unpatched',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the rolling pin used on dough without Cooking, "You end up kneading the dough into nothingness.", the dough gone and the pin kept, against the pin gone and the dough left unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the same line, the pin kept and the dough gone, against the pin gone and the dough left unpatched',
     edits: [
       { what: 'the rolling pin', resid: 0x10A3, at: 0x0162, replaceOp: true, expect: { 0x0131: 'string(implicit) "You end up kneading', 0x0161: 'sys Delete', 0x0162: 'arg Arg00' }, code: 'arg Arg01' },
     ] },
@@ -414,7 +414,7 @@ const DATA_FIXES = [
   // shipped). Kept in "All Fixes" and in "Cythera Resurrection Fix" both,
   // which is why the resurrection fix finds its place rather than assuming it.
   { id: 'nobody-corpse', group: 'rules', stage: 'community', title: 'Raising a corpse that belongs to nobody now does nothing, instead of taking its things away',
-    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the Land King Amulet used on a corpse with no owner, "Nothing happens." and the corpse left, against "A cave has been brought back from the brink of death." and the corpse gone unpatched; the spell was not cast',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the Land King Amulet used on a corpse with no owner, "Nothing happens." and the corpse left, against "A cave has been brought back from the brink of death." and the corpse gone unpatched; the spell was not cast; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Nothing happens.", against "A cave has been brought back from the brink of death." unpatched',
     edits: [
       { what: 'the spell, a corpse of nobody', resid: 0x1A2F, at: 0x00D5,
         expect: { 0x00CD: 'set_local 0x00', 0x00D0: 'get_field data1', 0x00D2: 'cast Character', 0x00D5: 'if_not', 0x00D6: 'local Var00', 0x014E: 'string(implicit) "Nothing happens.' },
@@ -539,7 +539,7 @@ const DATA_FIXES = [
   // places a rune and no shipped AI script casts one, so every rune is the
   // party's, and the test goes: the line always prints.
   { id: 'rune-of-warding', group: 'rules', stage: 'community', title: 'A rune of warding now says when something steps on it, instead of vanishing in silence',
-    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the hero cast a rune on the next square and stepped on it, "Something has triggered one of your runes of warding.", against no line unpatched',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the hero cast a rune on the next square and stepped on it, "Something has triggered one of your runes of warding.", against no line unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: a rune put on the next square by an edit and stepped on, the same line, against no line unpatched',
     edits: [
       { what: 'the rune of warding signals', resid: 0x10F5, at: 0x0017, to: 0x0022,
         expect: { 0x0017: 'if_not', 0x0019: 'get_field data1', 0x001B: 'short 0x0020', 0x001E: 'eq', 0x001F: 'then',
@@ -1141,7 +1141,7 @@ const DATA_FIXES = [
   // book). Directed Nexus is the one spell that changes zone. The scroll's
   // Use, from the cast to its return, and two more locals.
   { id: 'nexus-scroll', group: 'rules', stage: 'further', title: 'A Directed Nexus scroll now leaves Land King Hall\u2019s things alone, instead of destroying two of them',
-    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a Directed Nexus scroll used in Omen’s Test moves the hero to Land King Hall and is used up, the hall’s things untouched, against the scroll kept and a table and a passthrough of the hall deleted unpatched',
+    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a Directed Nexus scroll used in Omen’s Test moves the hero to Land King Hall and is used up, the hall’s things untouched, against the scroll kept and a table and a passthrough of the hall deleted unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the hero moved to Land King Hall and the scroll gone from the pack, against the scroll kept unpatched',
     plan: (s) => {
       const what = 'the scroll deletes nothing it has left behind', p = dataPatchPlace(s, what, 0x104B,
         ['set_local 0x01', 'method Use (0x9)', 'local Var00', 'end', 'end', 'sys Delete', 'local Var00', 'end',
