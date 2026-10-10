@@ -529,6 +529,7 @@ const DATA_FIXES = [
   // the next waking hour would have run, run at once. The loop's exit lands
   // on the first, and nothing jumps to the second.
   { id: 'sleep-reschedule', group: 'world', stage: 'community', title: 'People are now back around the zone after a night\u2019s sleep, instead of missing until a later hour',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: the hero slept until midnight in Land King Hall, "You sleep soundly."; Alaric, Magpie and Hector are saved as waiting to appear and Hadrian and Emesa as present, against all five hidden unpatched. Read from the save, not seen on a screen',
     edits: [
       { what: 'the sleepers rescheduled after a night', resid: 0xE93, at: 0x0160,
         expect: { 0x0151: 'set_local 0x03', 0x015D: 'branch', 0x0160: 'if_not', 0x0161: 'arg Arg03' },
@@ -559,6 +560,7 @@ const DATA_FIXES = [
   // Pelagon back in the kesh lab (0xF00B): his schedule's flag-0 pair (off
   // every map) is moved in front of its quest-value pair.
   { id: 'pelagon-lab', group: 'world', stage: 'community', title: 'Pelagon now stays away from the kesh lab, instead of coming back to it',
+    played: 'fork, 68K, 10 October 2026, alone: Pelagon’s flag 0 and quest value 3 at 3 set by edits in a saved Kosha, the clock just before noon so the hour turns as it loads; he is saved off every map, against in the Kosha Grotto at (13,17) unpatched. With his flag clear he is in the Grotto on both. Read from the save, not seen on a screen',
     dataEdits: [
       { what: 'Pelagon’s schedule', resid: 0xF00B, fn: (b) => {
           const u16 = (b, o) => (b[o] << 8) | b[o + 1];
@@ -894,6 +896,7 @@ const DATA_FIXES = [
   // (23,15), which no schedule uses. Two schedule posts, bytes 5 to 7 of each
   // (x << 12 | y).
   { id: 'green-goat-chair', group: 'world', stage: 'bugfix', title: 'Darius and Sardis now sit in a chair each at the Green Goat, instead of sharing one',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: the clock set just before five in a saved Catamarca by an edit, so the hour turns as it loads; Sardis is saved at (23,15) and Darius at (22,16), and the two are drawn in a chair each, against both saved at (22,16) and one figure drawn there unpatched',
     dataEdits: [
       { what: 'the chair', resid: 0xF00B, fn: (b) => {
           const S = (() => { const t = []; let p = 512; for (let i = 0; i < 256; i++) { const len = u16be(b, i * 2); const segs = []; for (let k = 0; k < len; k++, p += 8) segs.push(p); t.push(segs); } return t; })();
@@ -1061,6 +1064,7 @@ const DATA_FIXES = [
   // kills them and puts Pelagon in Magpie's figure waits for quest value 3 to
   // be 3, the visit on which Pelagon says "House Comana is no more".
   { id: 'comana-brothers', group: 'quests', stage: 'further', title: 'You now find the Comana brothers dead only once someone tells of their end, instead of before',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: the hero put in the Kosha Grotto by an edit with quest value 3 at 0; quest flag 15, set as the signal that kills the brothers is sent, is saved clear, against set unpatched; with the value at 3 it is set on both. The brothers themselves were not looked at',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'the Comana brothers’ signal', 0x1417,
         ['if_not', 'sys GetStateFlag', 'byte 0x0F', 'end', 'not', 'then ->', 'sys SetStateFlag', 'byte 0x0F'], 5,
@@ -1600,6 +1604,7 @@ const DATA_FIXES = [
   // change at the maintainer's word, since the files do not say which was
   // meant.
   { id: 'demodocus-bridge', group: 'design', stage: 'apart', title: 'Demodocus now goes to Cademia when his trail ends there, instead of staying at the Bridge until you return to it',
+    played: 'fork, 68K, 10 October 2026, alone: quest value 9 at 2 and value 4 at 5 set by edits in a saved Land King Hall, the clock just before noon so the hour turns as it loads; Demodocus is saved in Cademia at (18,101), against at the Bridge unpatched. With value 4 alone he is in Cademia on both. Read from the save, not seen on a screen',
     dataEdits: [
       { what: 'Demodocus’s schedule', resid: 0xF00B, fn: (b) => {
           let p = 512;
