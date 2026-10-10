@@ -765,116 +765,15 @@ const GM_NAMES = ("Acoustic Grand Piano,Bright Acoustic Piano,Electric Grand Pia
    and the 20th Anniversary Soundtrack's recording all give 96. Pitch maps
    directly to MIDI key numbers.
    ============================================================ */
-// The time scale Cythera's GMSInit gives its tunes.
-const QTMA_UNITS_PER_SECOND = 600;
-const QTMA = {
-  RestEventType:0, NoteEventType:1, ControlEventType:2, MarkerEventType:3,
-  XNoteEventType:0x9, XControlEventType:0xA, GeneralEventType:0xF,
-  EventLengthFieldPos:30, EventLengthFieldWidth:2,
-  EventTypeFieldPos:29, EventTypeFieldWidth:3,
-  XEventTypeFieldPos:28, XEventTypeFieldWidth:4,
-  EventPartFieldPos:24, EventPartFieldWidth:5,
-  XEventPartFieldPos:16, XEventPartFieldWidth:12,
-  RestDurPos:0, RestDurWidth:24,
-  NotePitchPos:18, NotePitchWidth:6, NotePitchOffset:32,
-  NoteVolPos:11, NoteVolWidth:7,
-  NoteDurPos:0, NoteDurWidth:11,
-  XNotePitchPos:0, XNotePitchWidth:16,
-  XNoteDurPos:0, XNoteDurWidth:22,
-  XNoteVolPos:22, XNoteVolWidth:7,
-  CtlControllerPos:16, CtlControllerWidth:8,
-  CtlValuePos:0, CtlValueWidth:16,
-  MarkerSubtypePos:16, MarkerSubtypeWidth:8,
-  MarkerValuePos:0, MarkerValueWidth:16,
-  GeneralSubtypePos:16, GeneralSubtypeWidth:14,
-  GeneralLengthPos:0, GeneralLengthWidth:16,
-  GeneralEventNoteRequest:1,
-  MarkerEventEnd:0,
-  EndMarkerValue:0x60000000
-};
+// The tune's layout and its reader (QTMA, qParseTune, qtmaTune) are in
+// js/mac-qtmusic.js since 9 October 2026, with the synth that plays what
+// they read, so the browser player can take that file as it is.
 // QTMA controller numbers are NOT MIDI CC numbers.
 const QTC = { ModWheel:1, Breath:2, Foot:4, Volume:7, Balance:8, Pan:10,
   Expression:11, PitchBend:32, AfterTouch:33, PartTranspose:40,
   TuneTranspose:41, Sustain:64, Portamento:65, Sostenuto:66, SoftPedal:67,
   Reverb:91, Tremolo:92 };
 
-function qEXT(val, pos, width){ return (val >>> pos) & ((width>=32)?0xFFFFFFFF:((1<<width)-1)); }
-function qEventType(x){
-  const t = qEXT(x, QTMA.EventTypeFieldPos, QTMA.EventTypeFieldWidth);
-  return (t>3) ? qEXT(x, QTMA.XEventTypeFieldPos, QTMA.XEventTypeFieldWidth) : t;
-}
-function qEventLenLongs(words, i){
-  const x = words[i];
-  const ext = qEXT(x, QTMA.EventLengthFieldPos, QTMA.EventLengthFieldWidth);
-  if (ext !== 3) return (ext === 2) ? 2 : 1;
-  return qEXT(x, QTMA.GeneralLengthPos, QTMA.GeneralLengthWidth);
-}
-function qExtractGmFromNoteReq(bytes){
-  // NoteRequest = NoteRequestInfo(8) + ToneDescription(76);
-  // gmNumber is the last long of ToneDescription.
-  if (bytes.length < 8+76) return null;
-  const o = 8+72;
-  const gm = u32be(bytes, o);
-  return (gm>=0 && gm<=128) ? gm : null;
-}
-function qParseTune(words){
-  const events = [], noteRequests = {}, tones = {};
-  let t = 0, i = 0;
-  const n = words.length;
-  let guard = 0;
-  while (i < n && guard++ < 500000) {
-    const x = words[i];
-    if (x === QTMA.EndMarkerValue) break;
-    const ln = qEventLenLongs(words, i);
-    if (ln <= 0 || i + ln > n) break;
-    const et = qEventType(x);
-    if (et === QTMA.RestEventType) {
-      t += qEXT(x, QTMA.RestDurPos, QTMA.RestDurWidth);
-    } else if (et === QTMA.NoteEventType) {
-      events.push({t, k:'note',
-        part: qEXT(x, QTMA.EventPartFieldPos, QTMA.EventPartFieldWidth),
-        pitch: qEXT(x, QTMA.NotePitchPos, QTMA.NotePitchWidth) + QTMA.NotePitchOffset,
-        vol: qEXT(x, QTMA.NoteVolPos, QTMA.NoteVolWidth),
-        dur: qEXT(x, QTMA.NoteDurPos, QTMA.NoteDurWidth)});
-    } else if (et === QTMA.XNoteEventType) {
-      const w1 = words[i], w2 = words[i+1];
-      events.push({t, k:'note',
-        part: qEXT(w1, QTMA.XEventPartFieldPos, QTMA.XEventPartFieldWidth),
-        pitch: qEXT(w1, QTMA.XNotePitchPos, QTMA.XNotePitchWidth),
-        vol: qEXT(w2, QTMA.XNoteVolPos, QTMA.XNoteVolWidth),
-        dur: qEXT(w2, QTMA.XNoteDurPos, QTMA.XNoteDurWidth)});
-    } else if (et === QTMA.ControlEventType) {
-      events.push({t, k:'ctl',
-        part: qEXT(x, QTMA.EventPartFieldPos, QTMA.EventPartFieldWidth),
-        ctl: qEXT(x, QTMA.CtlControllerPos, QTMA.CtlControllerWidth),
-        val: qEXT(x, QTMA.CtlValuePos, QTMA.CtlValueWidth)});
-    } else if (et === QTMA.MarkerEventType) {
-      const sub = qEXT(x, QTMA.MarkerSubtypePos, QTMA.MarkerSubtypeWidth);
-      const val = qEXT(x, QTMA.MarkerValuePos, QTMA.MarkerValueWidth);
-      if (sub === QTMA.MarkerEventEnd && val === 0) break;
-    } else if (et === QTMA.GeneralEventType) {
-      const w1 = words[i], wlast = words[i+ln-1];
-      const part = qEXT(w1, QTMA.XEventPartFieldPos, QTMA.XEventPartFieldWidth);
-      const sub = qEXT(wlast, QTMA.GeneralSubtypePos, QTMA.GeneralSubtypeWidth);
-      if (sub === QTMA.GeneralEventNoteRequest && ln >= 4) {
-        const nb = new Uint8Array((ln-2)*4);
-        for (let k=0;k<ln-2;k++){
-          const w = words[i+1+k];
-          nb[k*4]=(w>>>24)&0xFF; nb[k*4+1]=(w>>>16)&0xFF;
-          nb[k*4+2]=(w>>>8)&0xFF; nb[k*4+3]=w&0xFF;
-        }
-        const gm = qExtractGmFromNoteReq(nb);
-        if (gm !== null) noteRequests[part] = gm;
-        // The whole request, for playing through QuickTime's own instruments
-        // (js/mac-qtmusic.js), which a kit's 16385 needs and the GM number drops.
-        if (nb.length >= 8+76)
-          tones[part] = {instrument: u32be(nb, 8+68) | 0, gm: u32be(nb, 8+72) | 0};
-      }
-    }
-    i += ln;
-  }
-  return {events, noteRequests, tones};
-}
 function qVlq(n){
   if (n === 0) return [0];
   const out = [];
@@ -966,29 +865,13 @@ function qBuildMidi(events, noteRequests, ticksPerBeat, tempoUs, kits){
   return {midi:new Uint8Array(out), chanOf};
 }
 function qtmaToMidi(data){
-  const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  if (data.length < 8) throw new Error('Resource too short to be a QTMA tune.');
-  const musiLen = dv.getUint32(0);
-  const atom = fourcc(data, 4);
-  if (atom !== 'musi')
-    throw new Error("Not a QTMA 'musi' atom (found '" + atom + "').");
-  const toWords = (start, end) => {
-    let len = end - start; len -= len % 4;
-    const w = new Array(len/4);
-    for (let k=0;k<len/4;k++) w[k] = dv.getUint32(start + k*4);
-    return w;
-  };
-  // Tune header holds the NoteRequest general events (per-part instruments).
-  const hdr = qParseTune(toWords(8, musiLen));
-  const seq = qParseTune(toWords(musiLen, data.length));
+  const {hdr, seq, tones} = qtmaTune(data);
   const noteRequests = Object.assign({}, hdr.noteRequests, seq.noteRequests);
-  const tones0 = Object.assign({}, hdr.tones, seq.tones);
-  const kits = new Set(Object.keys(tones0).filter(p => tones0[p].instrument >= 16384).map(Number));
+  const kits = new Set(Object.keys(tones).filter(p => tones[p].instrument >= 16384).map(Number));
   const built = qBuildMidi(seq.events, noteRequests, undefined, undefined, kits);
   const notes = seq.events.filter(e=>e.k==='note');
   // To the last note's end, not its start, in the tune's own units.
   const total = seq.events.length ? Math.max(...seq.events.map(e => e.t + (e.dur || 0))) : 0;
-  const tones = Object.assign({}, hdr.tones, seq.tones);
   return {midi:built.midi, chanOf:built.chanOf, noteRequests, tones, events:seq.events,
           noteCount:notes.length, eventCount:seq.events.length, durationSec:total/QTMA_UNITS_PER_SECOND};
 }
