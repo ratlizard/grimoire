@@ -297,6 +297,7 @@ const DATA_FIXES = [
   // "Indeed I am." was drawn as the hero's (0x1804): the string is split and
   // Hadrian named between the halves.
   { id: 'hadrian-indeed', group: 'talk', stage: 'community', title: '\u201cIndeed I am.\u201d is now spoken by Hadrian, instead of by the hero',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "son" to Hadrian, "Indeed I am." drawn beside his portrait, against beside the hero’s, over the topics, unpatched',
     edits: [
       { what: '"Indeed I am." is Hadrian’s', resid: 0x1804, at: 0x02A9, to: 0x02E0,
         expect: { 0x02A9: 'string(implicit) "\\"Yes, you should be quite proud.\\"*\\"Indeed I am.\\""', 0x02D9: 'sys TalkParticipant', 0x02E0: 'branch' },
@@ -305,6 +306,7 @@ const DATA_FIXES = [
   // Hadrian asks after Hector (0x1804): his "son" topic tested his own alive
   // bit; it tests Hector's.
   { id: 'hadrian-hector', group: 'talk', stage: 'community', title: 'Hadrian now learns that Hector has died, instead of always speaking of him as alive',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Hector’s flag 0 set and his alive bit cleared by an edit, "son" to Hadrian, "I regret to tell you that Hector has died in my service.", against "Yes, you should be quite proud." unpatched; with Hector alive, that line on both',
     edits: [
       { what: 'Hadrian tests Hector', resid: 0x1804, at: 0x0299, replaceOp: true, expect: { 0x0299: 'word Character.Hadrian', 0x029F: 'if_not' }, code: 'word Character.Hector' },
     ] },
@@ -319,6 +321,7 @@ const DATA_FIXES = [
   // Alaric forgets 201 (0x1802): the "hist" topic's test of his flag 2 was
   // the wrong way round; a `not` turns it.
   { id: 'alaric-201', group: 'talk', stage: 'community', title: 'Alaric now remembers 201 after recalling it, instead of forgetting it straight away',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Alaric’s flag 2 set by an edit, "hist", "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched; with the flag clear, the two the other way round',
     edits: [
       { what: 'Alaric remembers 201', resid: 0x1802, at: 0x1F3B, expect: { 0x1F34: 'call_resource 0xF02', 0x1F3B: 'then' }, code: 'not' },
     ] },
@@ -1071,6 +1074,7 @@ const DATA_FIXES = [
   // (two), Borus and Sabinate; a `*` after the closing quote, as the game's
   // own lines wait ("Yes, I was a bit puzzled."*).
   { id: 'lines-run-on', group: 'talk', stage: 'further', title: 'Answers now wait for you to read them, instead of running into the next one or flashing past',
+    played: 'in part: fork, 68K, 10 October 2026, alone and on “All Fixes”: "dice" to Apis with no oboloi, the refusal alone, against the refusal and then "Do you need instructions?" unpatched. The other places are not played',
     plan: (s) => {
       const edits = [];
       const RETURN_TRUE = 'return\nword True\nend';
@@ -1129,6 +1133,7 @@ const DATA_FIXES = [
   // "song,meti", whose "meti" the question itself takes first; it is keyed
   // "song,hear".
   { id: 'demodocus-song', group: 'talk', stage: 'further', title: 'Demodocus now sings when you ask to hear his song, instead of not answering',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "hear" to Demodocus in Land King Hall, "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched; "song" sings on both',
     plan: (s) => ({ edits: [dataFixRekey(s, 'Demodocus’s song on "hear"', 0x186D, 'song,meti', 'song,hear')] }) },
   // Glaucus's "North Shore @Vineyard" and the family group's answer are
   // keyed "viny", which "vineyard" can never match; "vine".
@@ -1274,6 +1279,7 @@ const DATA_FIXES = [
   // creation's read just after it, which comes before field 0x25 holds
   // anything.
   { id: 'gender', group: 'talk', stage: 'further', title: 'People now speak to the hero as the gender chosen for this game, instead of the one chosen for the last hero created',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a heroine (the hero’s figure 33) loaded where no hero had been created, "bye" to Hebe, "Ma’am, one last thing...", against "Sir, one last thing..." unpatched',
     plan: (s) => {
       const edits = [];
       for (const resid of dataPatchScriptResids(s.spec)) {
@@ -1360,7 +1366,7 @@ const DATA_FIXES = [
   { id: 'text-two-taled', parent: 'text', choice: 'two-taled', group: 'text', short: '\u201cTwo-Taled Rat\u201d, as on its sign', title: 'Standardize to \u201cTwo-Taled Rat\u201d, as on its sign', played: 'fork, 68K, 10 October 2026, with the text fix: Thoas’s directions, "The Two-Taled Rat is at the edge of the Maze", against "The Two Tailed Rat" unpatched' },
   { id: 'text-two-tailed', parent: 'text', choice: 'two-taled', group: 'text', short: '\u201cTwo-Tailed Rat\u201d', title: 'Standardize to \u201cTwo-Tailed Rat\u201d', played: 'fork, 68K, 10 October 2026, with the text fix: Thoas’s directions, "The Two-Tailed Rat is at the edge of the Maze", against "The Two Tailed Rat" unpatched; Apis’s "job", "the Two-Tailed Rat.", against "Two-Taled"' },
   { id: 'text-land-king', parent: 'text', choice: 'land-king', group: 'text', short: '\u201cLand King\u201d, as in the manuals', title: 'Standardize to \u201cLand King\u201d, as in the manuals', played: 'fork, 68K, 10 October 2026, with the text fix: "alar" to Thoas, "Alaric is the Land King", against "LandKing" unpatched' },
-  { id: 'text-landking', parent: 'text', choice: 'land-king', group: 'text', short: '\u201cLandKing\u201d', title: 'Standardize to \u201cLandKing\u201d' },
+  { id: 'text-landking', parent: 'text', choice: 'land-king', group: 'text', short: '\u201cLandKing\u201d', title: 'Standardize to \u201cLandKing\u201d', played: 'fork, 68K, 10 October 2026, with the text fix: "work" to Hector, "the meals for folks in the LandKing Hall", against "Land King Hall" unpatched' },
   { id: 'text-areithous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAreithous\u201d, as in the Hintbook', title: 'Standardize to \u201cAreithous\u201d, as in the Hintbook' },
   { id: 'text-ariethous', parent: 'text', choice: 'areithous', group: 'text', short: '\u201cAriethous\u201d', title: 'Standardize to \u201cAriethous\u201d' },
   { id: 'text-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'hyphenated, \u201ckind-looking\u201d', title: 'Standardize to hyphenated: \u201ckind-looking\u201d, \u201cdour-faced\u201d and the like', played: 'fork, 68K, 10 October 2026, with the text fix: Thetis, "You see a dour-faced older woman", against "dour faced" unpatched; Bryaxis, "kind-looking", against "kind looking"' },
