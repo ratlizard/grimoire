@@ -329,6 +329,7 @@ const DATA_FIXES = [
   // named as speakers before the sleeper's Talk, as the game's own Talk
   // command names them.
   { id: 'awakening', group: 'rules', stage: 'community', title: 'You can now talk to someone woken by Awakening, instead of getting a blank conversation',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Awaken, given as an ability by an edit, cast on Theano asleep in Cademia, "A person sleeping is awoken." and the conversation opens with her portrait and the hero’s, against a window with neither unpatched',
     edits: [
       { what: 'Awakening names its speakers', resid: 0x1A13, at: 0x00D7, expect: { 0x00D5: 'sys OpenConversation', 0x00D7: 'method Talk' },
         code: dataFixTalk('arg Arg01', 0) + '\n' + dataFixTalk('global PlayerCharacter (0x5)', 2) },
@@ -1415,6 +1416,7 @@ const DATA_FIXES = [
   // helper already reads its square. So a hatched guard costs karma too,
   // being a person, and a hatched chicken does not.
   { id: 'karma', group: 'design', stage: 'apart', title: 'Killing a townsperson now costs one karma, instead of adding one',
+    played: 'fork, 68K, 10 October 2026, alone: Apis, her health set to 1 by an edit, killed by the hero in Cademia; karma saved as 54 from 55, against 56 unpatched',
     edits: (() => {
       const NOT_PEOPLE = ['byte 0x59', 'byte 0x5A', 'short 0x00E4', 'short 0x0121', 'short 0x0122', 'short 0x0124'];
       return [{
@@ -1700,6 +1702,7 @@ const DATA_FIXES = [
       ];
     })() },
   { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'A targeted spell now takes its magic once you choose the target, so a cancelled cast costs nothing, instead of taking it before',
+    played: 'fork, 68K, 10 October 2026, alone: Awaken, given as an ability by an edit, performed and cancelled with Escape at "Cast ‘Awaken’ on whom?"; the hero’s magic saved as 30 of 60, untouched, against 29 unpatched; cast on its target, 29 on both. One spell of the 33',
     plan: (s) => {
       const edits = [];
       for (let resid = 0x1A00; resid < 0x1A40; resid++) {
