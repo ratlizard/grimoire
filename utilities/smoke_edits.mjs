@@ -103,9 +103,37 @@ try {
   const toolsNow = walk();
   const patchLeaf = peek('TAB_LEAF_FOR').get('PATCHES');
   if (!patchLeaf || patchLeaf.id !== 'patches' || !patchLeaf.parent || patchLeaf.parent.id !== 'data' || patchLeaf.magpie !== 'DelP') strayTab.push('PATCHES is not the Patches tab under Data with Magpie\u2019s DelP icon');
+  /* Tools names every tool on the site and links to it (11 October 2026),
+     so a section's title is on Tools once, as its row's name, and the
+     section itself is still drawn only by Patches. A row that opens a
+     Patches section must wear a title Patches shows, or the link names a
+     thing the visitor will not find there; the control is the count, which
+     is not zero. */
+  const toolNames = [];
+  (function rows(el) { if (el.className === 'toolRow') toolNames.push(el.children[0].textContent); else (el.children || []).forEach(rows); })(REGISTRY.get('sheetGrid'));
+  const patchRows = ['Make a Scenario', 'Make a Gremlin', 'Recolor a Sprite', 'Generate Bugfix Patches', 'Generate a Fixed Program', 'Behind the Scenes', 'Cythera in Spanish', 'Compare Patches', 'Compare Two Files'];
+  if (toolNames.length < 10) strayTab.push('Tools shows ' + toolNames.length + ' rows');
+  for (const t of patchRows) {
+    if (toolNames.indexOf(t) < 0) strayTab.push('Tools has no row for ' + t);
+    if (tools.indexOf(t) < 0) strayTab.push('Tools links to ' + t + ', which Patches does not show');
+  }
+  // Every row that stays on the page leaves Tools for another tab when
+  // clicked; a row whose category the page does not have would stay put.
+  for (const t of toolNames) {
+    // The two that open another window, and the ditherizer, an overlay
+    // whose controls the stub's innerHTML does not make (it was a row here
+    // before this check and smoke_views drives it).
+    if (t === 'Color-Cycling Canvas' || t === 'GitHub Repository' || t === 'Ditherizer') continue;
+    ctx.showCategory('TOOLS');
+    let row = null;
+    (function rows(el) { if (el.className === 'toolRow' && el.children[0].textContent === t) row = el.children[0]; else (el.children || []).forEach(rows); })(REGISTRY.get('sheetGrid'));
+    try { row.onclick(); } catch (e) { strayTab.push('the Tools row ' + t + ' threw: ' + e.message); }
+    if (ctx.CUR_SUBN === 'TOOLS') strayTab.push('the Tools row ' + t + ' goes nowhere');
+  }
+  ctx.showCategory('TOOLS');
   for (const t of ['Compare Patches', 'Recolor a Sprite', 'Compare Two Files']) {
     if (tools.indexOf(t) < 0) strayTab.push('Patches does not show ' + t);
-    if (toolsNow.indexOf(t) >= 0) strayTab.push('Tools still shows ' + t);
+    if (toolsNow.indexOf(t) >= 0 || toolsNow.indexOf('mechSec') >= 0) strayTab.push('Tools still draws ' + t);
     ctx.showCategory('HACKERY');
     if (walk().indexOf(t) >= 0) strayTab.push('Hackery still shows ' + t);
   }

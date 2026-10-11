@@ -970,10 +970,9 @@ function applyPrefsPreset(name) {
 function renderPatchesSheet() { renderMechanicsSheet(MECH_TOOL_GROUP.value); }
 
 /* ---- Tools -------------------------------------------------------------------
-   The page's own switches and its sister pages, which are not part of the
-   archive and so have no place under the other three tabs. The undither
-   switch moved here from every gallery that had one: it is one setting for
-   every image, and the galleries keep only a preview the other way. */
+   Every tool on the site by name, each a link to where it is, and the
+   sister pages, which are not part of the archive and so have no place
+   under the other three tabs. */
 function renderToolsSheet() {
   /* The file tools -- a patch read, a sprite or a gremlin made into one, the
      comparison -- were drawn here through the rules renderer until
@@ -985,17 +984,47 @@ function renderToolsSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
-  out.textContent = 'The ditherizer and the other pages.';
   const box = document.createElement('div');
   box.className = 'changesView';
   /* One row a tool, its name the link. They were three headed sections,
      then (3 October 2026) a name over a line saying what it is with a rule
      between each; the maintainer had the lines and the rules go on
-     6 October 2026. The line stays as the button's hover title. */
+     6 October 2026. The line stays as the button's hover title.
+
+     Since 11 October 2026 the rows are every tool on the site and not only
+     the three that live nowhere else (the maintainer: "link all the various
+     things that could be considered tools"). A tool is what makes or changes
+     a file, or works a figure out from numbers a visitor sets; a row for one
+     that lives on another tab opens that tab at it, and wears the name its
+     own heading does, which smoke_edits holds for the Patches sections. The
+     tools stay where they are: each is drawn beside the reading it shares
+     with its tab, which is why Patches and Preferences left this sheet. */
+  const sec = id => () => { const g = mechGroupOf(id); if (g && showCategory(g.value)) setTimeout(() => mechGo(id), 60); };
+  const at = (cat, id) => () => {
+    if (!showCategory(cat) || !id) return;
+    setTimeout(() => { const el = document.getElementById(id); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+  };
   for (const [label, note, go] of [
     ['Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
       () => { showCategory('135'); openDitherTool(); }],
     ['Color-Cycling Canvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener')],
+    ['Make a Save', 'A saved game made from the scenario open here, with the hero you set.', at('SAVEGAME', 'saveMaker')],
+    ['Make a Scenario', 'A copy of Cythera Data with the world emptied, to start a scenario of your own.', sec('newscenario')],
+    ['Make a Gremlin', 'A script the game runs at a moment you choose, as a patch.', sec('gremlins')],
+    ['Recolor a Sprite', 'A sprite in other colors, as a patch.', sec('herosprite')],
+    ['Put Another Font in the Game', 'A TrueType font in place of the game’s.', at('FONTS', 'fontSwap')],
+    ['Rewrite the Seldane Script', 'A TrueType font redrawn as the Seldane script.', at('FONTS', 'strikeSwap')],
+    ['Replace a Tune with a MIDI File', 'Open a tune under Music, then choose Replace with a MIDI File.', at('143')],
+    ['Generate Bugfix Patches', 'The fixes you select, as a patch.', sec('datafixes')],
+    ['Generate a Fixed Program', 'A copy of the program with the fixes you choose.', sec('appfixes')],
+    ['Behind the Scenes', 'A corrected copy of Cythera Data, with fixes to what no player sees.', sec('backstage')],
+    ['Cythera in Spanish', 'A Spanish copy of the open file.', sec('spanish')],
+    ['Compare Patches', 'Open a patch to see what it changes.', sec('patches')],
+    ['Compare Two Files', 'What differs between two game files.', sec('compare')],
+    ['Combat Calculator', 'What a blow does, for the figures and the weapon you set.', sec('combat')],
+    ['Preferences', 'The game’s settings file, made with the options you choose.', at('PREFS')],
+    ['License', 'Reads the name a registration file holds.', at('LICENSE')],
+    ['Changes', 'What you have changed in the open file, and where to download it.', at('CHANGES')],
     ['GitHub Repository', 'Where this page and its tests live.', () => window.open('https://github.com/ratlizard/grimoire', '_blank', 'noopener')]]) {
     const d = document.createElement('div');
     d.className = 'toolRow';
@@ -1030,7 +1059,7 @@ function renderToolsSheet() {
     } else q.innerHTML += '<div class="changesNote" style="margin:6px 0 0">Everything the page has tried to read has worked. Anything the page could not read or draw would appear here, one line each, with how many times it happened.</div>';
     box.appendChild(q);
   }
-  out.textContent = 'Settings and links; nothing here comes from the file except the font.';
+  out.textContent = 'Everything here that makes or changes a file, and the other pages.';
 }
 
 /* ---- A tile on a sheet opens on its own ---------------------------------------

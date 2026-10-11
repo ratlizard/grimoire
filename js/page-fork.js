@@ -69,6 +69,7 @@ function swapGameFont(bytes, filename) {
 function fontSwapPanel() {
   const box = document.createElement('div');
   box.className = 'mechView';
+  box.id = 'fontSwap';   // the Tools sheet's row scrolls here
   const target = gameFontResource();
   const sw = window.FONT_SWAP;
   box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Put Another Font in the Game</h3></div>' +
@@ -390,6 +391,7 @@ function exportStrikeTrueType(id) {
 function strikeSwapPanel() {
   const box = document.createElement('div');
   box.className = 'mechView';
+  box.id = 'strikeSwap';   // the Tools sheet's row scrolls here
   const strikes = seldaneStrikes();
   const sw = window.STRIKE_SWAP;
   box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Rewrite the Seldane Script</h3></div>' +

@@ -1108,7 +1108,8 @@ const TAB_TREE = [
       { id: 'combatai', label: 'Combat AI', tile: 0x2D1, installed: 'CombatAI', wip: true, children: [
           { id: 'aiscripts', label: 'Scripts', tile: 0x8FC, wip: true, values: ['AISCRIPTS'] },  // the seven arrows, the maintainer's pick, 16 September 2026
           { id: 'airules',   label: 'Rules',   tile: 0x811, wip: true, values: ['AIRULES'] } ] } ] },  // the hay target
-  // Not part of the archive: the page's own switches and its sister pages.
+  // Every tool on the site by name, each a link to where it is, and the
+  // sister pages, which are not part of the archive.
   { id: 'tools', label: 'Tools', tile: 0x2A9, tileOpen: 0x2AD, values: ['TOOLS'] }       // a wheelbarrow, another frame of it when selected: the maintainer's pick, 16 September 2026; it was the anvil (0x2E0)
 ];
 
