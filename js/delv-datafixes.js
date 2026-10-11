@@ -689,6 +689,19 @@ const DATA_FIXES = [
           return 'units ' + n + ' (264, as the man) and ' + (n + 1) + ' (229, as the guard)';
       } },
     ] },
+  // The Odemia night guard's Talk (0x10E5; 11 October 2026). The class of
+  // the guard a night egg hatches (type 229) hands Talk to the Gate Guard
+  // with no TalkParticipant before it, where the day guard's class (0x102E)
+  // names its character in place 0 first. With nobody in that place the
+  // conversation has no second portrait, and every line of the guard's is
+  // drawn at the hero's, over the row of keywords. The call the day guard's
+  // class makes is added. (bugs.md, *The Odemia guards' text overlaps at
+  // midnight*.)
+  { id: 'night-guard-talk', group: 'talk', stage: 'community', title: 'The Odemia night guard\u2019s words now have a place of their own, instead of being drawn over your keywords',
+    played: 'Mac OS 8.5, 11 October 2026, the fix alone and with every fix, each installed by Magpie: at midnight in Odemia, with Ariadne brought home, a night guard greeted, then "job", a word he does not know and "bye"; each line of his is drawn at the top beside a guard\u2019s portrait, against each line drawn over the row of keywords beside the hero\u2019s portrait with no patch installed, the same save and words. The hero, the hour and the quest value were set by an edit. Not played in the fork',
+    edits: [
+      { what: 'the night guard names who speaks', resid: 0x10E5, at: 0x0017, expect: { 0x0011: 'word Character.Gate_Guard', 0x0017: 'method Talk', 0x0019: 'local Var00' }, code: dataFixTalk('local Var00', 0) },
+    ] },
   // The Mining Camp's sign cannot be read (0x8118; 28 September 2026). A
   // sign's Examine (0x10C3) shows entry Data1 of 0x0218 and nothing when
   // Data1 is 0; the camp's sign, record 14, has Data1 0 and Data2 15, and
