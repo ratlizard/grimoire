@@ -322,7 +322,7 @@ const DATA_FIXES = [
   // Alaric forgets 201 (0x1802): the "hist" topic's test of his flag 2 was
   // the wrong way round; a `not` turns it.
   { id: 'alaric-201', group: 'talk', stage: 'community', title: 'Alaric now remembers 201 after recalling it, instead of forgetting it straight away',
-    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Alaric’s flag 2 set by an edit, "hist", "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched; with the flag clear, the two the other way round',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Alaric’s flag 2 set by an edit, "hist", "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched; with the flag clear, the two the other way round; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched',
     edits: [
       { what: 'Alaric remembers 201', resid: 0x1802, at: 0x1F3B, expect: { 0x1F34: 'call_resource 0xF02', 0x1F3B: 'then' }, code: 'not' },
     ] },
@@ -330,7 +330,7 @@ const DATA_FIXES = [
   // named as speakers before the sleeper's Talk, as the game's own Talk
   // command names them.
   { id: 'awakening', group: 'rules', stage: 'community', title: 'You can now talk to someone woken by Awakening, instead of getting a blank conversation',
-    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Awaken, given as an ability by an edit, cast on Theano asleep in Cademia, "A person sleeping is awoken." and the conversation opens with her portrait and the hero’s, against a window with neither unpatched',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Awaken, given as an ability by an edit, cast on Theano asleep in Cademia, "A person sleeping is awoken." and the conversation opens with her portrait and the hero’s, against a window with neither unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "A person sleeping is awoken." and the conversation opens with both portraits, against a window with neither unpatched',
     edits: [
       { what: 'Awakening names its speakers', resid: 0x1A13, at: 0x00D7, expect: { 0x00D5: 'sys OpenConversation', 0x00D7: 'method Talk' },
         code: dataFixTalk('arg Arg01', 0) + '\n' + dataFixTalk('global PlayerCharacter (0x5)', 2) },
@@ -449,6 +449,7 @@ const DATA_FIXES = [
   // first slide, where Alaric's endings have it; a jump to the loop after it
   // still lands on the loop.
   { id: 'pelagon-ending', group: 'quests', stage: 'community', title: 'The Pelagon ending now fades in, instead of playing at black',
+    played: 'Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: Pelagon talked to with quest value 3 set to 3 by an edit, the first slide and its text fade in after the fade to black, against a screen left black through the slides unpatched. The fork’s 68K slice shows the first slide on both, so the fork does not show this fix',
     edits: [
       { what: 'the Pelagon ending fades in', resid: 0x180D, at: 0x011B, shiftAt: true,
         expect: { 0x0109: 'sys SpecialView', 0x010A: 'byte 0x03', 0x010F: 'sys Slideshow', 0x011A: 'end', 0x011B: 'set_local 0x00' },
@@ -478,6 +479,7 @@ const DATA_FIXES = [
   // type is tested before HasWindow, since HasWindow brings a found window
   // to the front and an open sack's should stay where it is.
   { id: 'strange-device', group: 'items', stage: 'community', title: 'The strange device\u2019s buttons now work after a change of zone, instead of doing nothing',
+    played: 'Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the device used on the world map and a button pressed, the hero walked into Cademia, two more buttons pressed and the lights change, against no change after Cademia unpatched. On the fork’s 68K slice no button changes a light on either',
     edits: [
       { what: 'the strange device finds itself', resid: 0x1175, at: 0x00C1,
         expect: { 0x00C1: 'set_local 0x00', 0x00C3: 'arg Arg00', 0x00C4: 'get_field storage', 0x00C6: 'word 256' },
@@ -956,7 +958,7 @@ const DATA_FIXES = [
   // Timon's flag 1 on meeting him ("It is a living Seldane!"), and Timon's
   // own talk with Larisa reads it for "meeting a real Seldane".
   { id: 'timon-seldane', group: 'talk', stage: 'further', title: 'Timon now speaks of having met a Seldane once he has, instead of never',
-    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Timon’s flag 1 and quest value 2 set by edits, "meti" to him at the ruins, "Of course you all know that, we’ve met them, haven’t we...", against "I’d really like to find them someday..." unpatched; with his flag clear, that line on both',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Timon’s flag 1 and quest value 2 set by edits, "meti" to him at the ruins, "Of course you all know that, we’ve met them, haven’t we...", against "I’d really like to find them someday..." unpatched; with his flag clear, that line on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Of course you all know that, we’ve met them, haven’t we..."; the unpatched line was not reached there',
     plan: (s) => {
       const what = 'Timon has met the Seldane', p = dataPatchPlace(s, what, 0x184A,
         ['if_not', 'sys GetStateFlag', 'byte 0x02', 'end', 'then ->', 'string(implicit) "\\"Of course you all know that']);
@@ -980,7 +982,7 @@ const DATA_FIXES = [
   // Thoas's "Please come again" (0x1844): the local it waits on is set once
   // his shop has been opened.
   { id: 'thoas-farewell', group: 'talk', stage: 'further', title: 'Thoas now says \u201cPlease come again\u201d after you have shopped, instead of never',
-    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "buy", Done, "bye" to Thoas, "Farewell.  Please come again.", against "Farewell." unpatched; with no "buy", "Farewell." on both',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "buy", Done, "bye" to Thoas, "Farewell.  Please come again.", against "Farewell." unpatched; with no "buy", "Farewell." on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Farewell.  Please come again." after his shop is closed; the unpatched line was not replayed there',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thoas after his shop', 0x1844, ['conversation_response "buy" ->', 'set_field 0x27'], 1, 'set_local 0x00\nword True\nend'),
     ] }) },
@@ -1054,7 +1056,7 @@ const DATA_FIXES = [
   // she has given the task, so hearing Amphidamas first no longer shuts it
   // out; her report greeting already has a line for that order.
   { id: 'thuria-mine', group: 'quests', stage: 'further', title: 'Thuria now still gives the mine task after you have been to the mine, instead of never giving it',
-    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Amphidamas’s flag 1 set by an edit, "rumo" to Thuria, her offer, Yes, and the task saved in the To Do list, against "You’ve heard first hand of the issues involved at the mine." and no task unpatched',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Amphidamas’s flag 1 set by an edit, "rumo" to Thuria, her offer, Yes, and the task saved in the To Do list, against "You’ve heard first hand of the issues involved at the mine." and no task unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: her offer, "Perhaps you might be interested investigating this matter more?", against "You’ve heard first hand of the issues involved at the mine." unpatched; Yes was not answered',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thuria gives the mine task', 0x1814,
         ['conversation_response "rumo" ->', 'if_not', 'call_resource 0xF02', 'short 0x0017', 'byte 0x01', 'end', 'then ->'], 6,
@@ -1143,12 +1145,12 @@ const DATA_FIXES = [
   // "song,meti", whose "meti" the question itself takes first; it is keyed
   // "song,hear".
   { id: 'demodocus-song', group: 'talk', stage: 'further', title: 'Demodocus now sings when you ask to hear his song, instead of not answering',
-    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "hear" to Demodocus in Land King Hall, "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched; "song" sings on both',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "hear" to Demodocus in Land King Hall, "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched; "song" sings on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched',
     plan: (s) => ({ edits: [dataFixRekey(s, 'Demodocus’s song on "hear"', 0x186D, 'song,meti', 'song,hear')] }) },
   // Glaucus's "North Shore @Vineyard" and the family group's answer are
   // keyed "viny", which "vineyard" can never match; "vine".
   { id: 'glaucus-vineyard', group: 'talk', stage: 'further', title: '\u201cVineyard\u201d now gets an answer from Glaucus and his family, instead of none',
-    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "vineyard" to Glaucus at his vineyard, "This years crop looks good, but I don’t know if I’ll be able to make...", against "Excuse me?" unpatched',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "vineyard" to Glaucus at his vineyard, "This years crop looks good, but I don’t know if I’ll be able to make...", against "Excuse me?" unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "This years crop looks good, but I don’t know if I’ll be able to make wine..."; the unpatched line was not replayed there',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Glaucus’s vineyard', 0x1866, 'viny', 'vine'),
       dataFixRekey(s, 'the family group’s vineyard', 0x0805, 'viny', 'vine'),
@@ -1290,7 +1292,7 @@ const DATA_FIXES = [
   // creation's read just after it, which comes before field 0x25 holds
   // anything.
   { id: 'gender', group: 'talk', stage: 'further', title: 'People now speak to the hero as the gender chosen for this game, instead of the one chosen for the last hero created',
-    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a heroine (the hero’s figure 33) loaded where no hero had been created, "bye" to Hebe, "Ma’am, one last thing...", against "Sir, one last thing..." unpatched',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a heroine (the hero’s figure 33) loaded where no hero had been created, "bye" to Hebe, "Ma’am, one last thing...", against "Sir, one last thing..." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ma’am, one last thing...", against "Sir, one last thing..." unpatched',
     plan: (s) => {
       const edits = [];
       for (const resid of dataPatchScriptResids(s.spec)) {
