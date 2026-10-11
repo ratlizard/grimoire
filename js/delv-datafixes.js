@@ -290,7 +290,7 @@ const DATA_FIXES = [
   // weapon's skill twice, and both reads take the skill off the shield
   // loop's leftover variable; each now reads it off the weapon (Arg02).
   { id: 'weapon-skill', group: 'rules', stage: 'community', title: 'Sword, Axe and Mace skill now counts in a fight, instead of counting for nothing',
-    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a hero given a sword in hand and Sword skill 15 by an edit, thirty attacks on Apis, her health set to 255; she is dead within nineteen blows, some of them "ground" and "shredded", against alive at 12 of 255 unpatched with none above "smashed". With the skill at a level the game reads as none, the two fight alike; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the same hero and sword, Apis dead at the sixteenth attack, two blows "ground a woman to dust"; not run unpatched there',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a hero given a sword in hand and Sword skill 15 by an edit, thirty attacks on Apis, her health set to 255; she is dead within nineteen blows, some of them "ground" and "shredded", against alive at 12 of 255 unpatched with none above "smashed". With the skill at a level the game reads as none, the two fight alike; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the same hero and sword, Apis dead at the sixteenth attack, two blows "ground a woman to dust", against, unpatched there, Apis dead at the twenty-eighth attack and no blow above "smashed"',
     edits: [
       { what: 'weapon skill, damage', resid: 0xE87, at: 0x0096, replaceOp: true, expect: { 0x0096: 'local Var02', 0x0097: 'class_member 0x2A03' }, code: 'arg Arg02' },
       { what: 'weapon skill, margin', resid: 0xE87, at: 0x0088, replaceOp: true, expect: { 0x0088: 'local Var02', 0x0089: 'class_member 0x2A03' }, code: 'arg Arg02' },
@@ -374,6 +374,7 @@ const DATA_FIXES = [
   // Sabinate's mushroom every time (0x1878): his flag 4 is set when the
   // mushroom is given.
   { id: 'sabinate-mushroom', group: 'quests', stage: 'community', title: 'Sabinate now hands over his mushroom once, instead of every time',
+    played: 'Mac OS 8.5, 11 October 2026, the fix alone and “All Fixes”, each installed by Magpie: the hero carrying the Crolna, "esse" to Sabinate twice; the second answer ends "We have given you the spores of the earth - more we can not help.", against the mushroom given again unpatched. Sabinate was made to stand in his hall by an edit. Not played in the fork',
     edits: [
       { what: 'Sabinate remembers the mushroom', resid: 0x1878, at: 0x0966, expect: { 0x0966: 'sys Create', 0x096A: 'short 0x010F' },
         code: 'call_resource SetCharacterFlag (0xF00)\narg Arg00\nbyte 0x04\nend' },
@@ -401,6 +402,7 @@ const DATA_FIXES = [
   // a drop, and the carcass's answer printed the line; the refusal no longer
   // prints.
   { id: 'carcass', group: 'items', stage: 'community', title: 'Dragging something over a carcass is now quiet, instead of printing \u201cYou can\u2019t stuff the carcass!\u201d at every check',
+    played: 'Mac OS 8.5, 11 October 2026, the fix alone and “All Fixes”, each installed by Magpie: a carcass in the pack used, so its window opens, and a dagger dragged from the pack into that window; nothing is printed, against "You can’t stuff the carcass!" five times and more unpatched. Not played in the fork',
     edits: [
       { what: 'the carcass', resid: 0x10D2, at: 0x0049, to: 0x0066, expect: { 0x0049: 'string(implicit) "You can\'t stuff the carcass', 0x0066: 'return' }, code: '' },
     ] },
@@ -435,7 +437,7 @@ const DATA_FIXES = [
           'string(implicit) "Nothing happens.\\n"', 'return', 'byte 0x00', 'end', 'someone:'].join('\n') },
     ] },
   { id: 'thrown-weapon', group: 'rules', stage: 'community', title: 'A thrown dagger or spear that kills is now kept, instead of lost',
-    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a dagger put in the hero’s hand by an edit and thrown at Apis two squares off, her health set to 1; she dies and the dagger is saved in the hero’s pack, against saved inside her, a dead character, unpatched. A spear from three squares was "too far away to attack" on both; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the dagger thrown at Apis two squares off, she dies and the dagger is listed in the hero’s pack; not run unpatched there',
+    played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a dagger put in the hero’s hand by an edit and thrown at Apis two squares off, her health set to 1; she dies and the dagger is saved in the hero’s pack, against saved inside her, a dead character, unpatched. A spear from three squares was "too far away to attack" on both; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the dagger thrown at Apis two squares off, she dies and the dagger is listed in the hero’s pack, against, unpatched there, she dies and the dagger is saved inside her',
     edits: [
       { what: 'a thrown weapon, placed', resid: 0x3042, at: 0x0158, expect: { 0x0150: 'set_field container', 0x0158: 'branch' },
         code: 'set_field x (0x1)\nlocal Var03\nend\nbyte 0x00\nend\nset_field y (0x2)\nlocal Var03\nend\nbyte 0x01\nend\nmethod PutInside (0x10)\nlocal Var03\nend' },
@@ -606,7 +608,7 @@ const DATA_FIXES = [
   // Sacas's kesh on Eudoxus (0x8104): the five vials in the Abandoned
   // Farmhouse coffer get Data1 2, the value his line waits for.
   { id: 'eudoxus-kesh', group: 'quests', stage: 'community', title: 'You can now tell Sacas of the kesh on Eudoxus, instead of the vials never counting',
-    played: 'fork, 68K, 10 October 2026, alone: a vial as the file holds it (Data1 2, against 0 unpatched) put on the floor by an edit and looked at; the save has quest value 13 set, against unset unpatched. Sacas’s line was not played, nor the vial taken from Eudoxus’s coffer',
+    played: 'fork, 68K, 10 October 2026, alone: a vial as the file holds it (Data1 2, against 0 unpatched) put on the floor by an edit and looked at; the save has quest value 13 set, against unset unpatched. Sacas’s line was not played, nor the vial taken from Eudoxus’s coffer; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the Abandoned Farmhouse’s five vials are loaded with Data1 2, against 0 unpatched. Read from a save copied out of the machine; Eudoxus did not appear in the staged save, so no vial was taken',
     dataEdits: [
       { what: 'Eudoxus’s kesh', resid: 0x8104, fn: (b) => {
           let n = 0;
@@ -669,7 +671,7 @@ const DATA_FIXES = [
   // own type instead, and this record is what is left for anything it
   // cannot name (30 September 2026).
   { id: 'sleeping-units', group: 'world', stage: 'community', title: 'People killed asleep, and the Odemia night guard, now leave a body, instead of turning into some other thing',
-    played: 'fork, PowerPC, 30 September 2026: a sleeping guard killed leaves a man’s body and a night guard a guard’s, where the shipped file left none',
+    played: 'fork, PowerPC, 30 September 2026: a sleeping guard killed leaves a man’s body and a night guard a guard’s, where the shipped file left none; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: a sleeper in the Odemia barracks at night, its health set to 1 by an edit, killed; a corpse is left on the bed, against a thing with no name unpatched. Read from a save copied out of the machine. The night guard was not tried there',
     dataEdits: [
       { what: 'units for the sleeping and the night guard', resid: 0xF008, fn: (b) => {
           const key = i => (b[i * 16 + 12] << 8) | b[i * 16 + 13];
@@ -939,6 +941,7 @@ const DATA_FIXES = [
   // The eleventh To Do line, the one AddQuest shows at ten, reads "All ten of
   // the Sapphire Books of Wisdom have been retrieved".
   { id: 'books-of-wisdom', group: 'quests', stage: 'further', title: 'The Books of Wisdom task is now struck off at ten books, instead of five',
+    played: 'Mac OS 8.5, 11 October 2026, the fix alone and “All Fixes”, each installed by Magpie: five Sapphire Books handed to Selinus leave "Retrieve Books of Wisdom (5/10)" unticked, and ten tick it at (10/10), against ticked at (5/10) unpatched. The books were put in the hero’s pack by an edit. Not played in the fork',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'the Books of Wisdom struck at ten', 0x1851,
         ['if_not', 'sys GetState', 'byte 0x05', 'end', 'byte 0x05', 'eq', 'then ->', 'sys CompleteQuest', 'byte 0x12'], 4, 'byte 0x0A'),
@@ -948,7 +951,7 @@ const DATA_FIXES = [
   // "two Book" [sic]. Seen in the fork on 30 September 2026, handing in two.
   // The test is greater than 1.
   { id: 'books-plural', group: 'talk', stage: 'further', title: 'Selinus now thanks the party for \u201ctwo Books\u201d, instead of \u201ctwo Book\u201d',
-    played: 'fork, PowerPC, 30 September 2026: two books handed in',
+    played: 'fork, PowerPC, 30 September 2026: two books handed in; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: two books handed in, "I see you found two Books - this is good.", against "two Book" unpatched',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'the Books of Wisdom counted as more than one', 0x1851,
         ['string(implicit) " Book"', 'if_not', 'local Var00', 'byte 0x02', 'gt', 'then ->'], 3, 'byte 0x01'),
@@ -967,6 +970,7 @@ const DATA_FIXES = [
   // Timon fretting about Larisa (the room, 0x1C2D): the second branch tests
   // his flag 3 and set flag 2, so he fretted on every entry; it sets flag 3.
   { id: 'timon-frets', group: 'talk', stage: 'further', title: 'Timon now frets about Larisa once, instead of every time he comes in',
+    played: 'Mac OS 8.5, 11 October 2026, the fix alone and “All Fixes”, each installed by Magpie: Timon in the party by an edit, quest value 7 at 3, the hero walked into Larisa’s dwelling in Kosha twice; "Hm - Larisa should be back by now." on the first entry only, against on both unpatched. Not played in the fork',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Timon frets once', 0x1C2D, ['call_resource SetCharacterFlag', 'short 0x004A', 'byte 0x02', 'end', 'return'], 2, 'byte 0x03'),
     ] }) },
@@ -1524,7 +1528,7 @@ const DATA_FIXES = [
       } },
     ] },
   { id: 'resurrection', group: 'design', stage: 'apart', title: 'Resurrection now brings the person back where the corpse lay, with their belongings and in the party, instead of nowhere until a later hour',
-    played: 'Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie over “All Fixes”: Hector, dead while in the party, raised from his corpse beside the hero; he is in the party again and stands beside the hero, against saved three squares off and out of the party unpatched. The hero was given Casting 15 by an edit: without it the cast failed about ten times in eleven. His belongings were not looked at',
+    played: 'Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie over “All Fixes”: Hector, dead while in the party, raised from his corpse beside the hero; he is in the party again and stands beside the hero, against saved three squares off and out of the party unpatched. The hero was given Casting 15 by an edit: without it the cast failed about ten times in eleven. His belongings were not looked at; a dagger put inside his corpse is his after the raising, patched and unpatched alike',
     // Its offsets are the shipped file's; nobody-corpse, an earlier stage,
     // inserts before them, so the plan measures where the corpse's things
     // are now walked and moves every offset by the difference.
