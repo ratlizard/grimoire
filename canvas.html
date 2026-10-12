@@ -952,7 +952,7 @@ function buildFooterScene(bare) {
   // How far a pool's pixel is from its nearest bank: the far one, or the shelf.
   function bank(x, y, dep) {
     let d = dep;
-    for (let k=1; k<d && k<=6; k++)
+    for (let k=1; k<d && k<=11; k++)
       if (y >= spitTop(x+k) || y >= spitTop(x-k) || y+k >= spitTop(x)) { d = k; break; }
     return d;
   }
@@ -974,9 +974,14 @@ function buildFooterScene(bare) {
     const lava = x < 194, hx = lava ? LAVA_HIT : CASC_HIT;
     const rd = Math.hypot(x-hx, (dep-HIT_DEP)*2.6) + 3*fbm(x*1.1, dep*3, 9);
     const ring = smooth(74, 26, rd);
-    // At a bank the bands crowd and turn along it, and the liquid breaks.
-    const lap = Math.max(0, 1 - bank(x, y, dep)/5);
-    const ph = -rd*0.58 - lat*0.9 - 0.25*u + 1.2*bay(x,y) + 3.4*lap*lap;
+    // At a bank the wave is thrown back. Phase that falls with distance from
+    // the bank travels away from it, and it starts from what the incoming
+    // wave has there, so the two meet at the bank. Close in it is all the
+    // returning wave; further out the two are dithered through each other,
+    // which is the lapping; and the liquid breaks at the edge.
+    const bd = bank(x, y, dep), lap = Math.max(0, 1 - bd/5);
+    let ph = -rd*0.58 - lat*0.9 - 0.25*u + 1.2*bay(x,y);
+    if (bay(x+2, y+1) < 0.92*smooth(12, 2, bd)) ph -= 1.5*bd;
     if (lava) {
       // Lava: plates of cooled crust with the cycle running in the seams.
       const n = fbm(x*0.7, dep*2.2 + 300, 31);
@@ -1117,23 +1122,20 @@ function buildFooterScene(bare) {
       if (!bare && Math.abs(x-GATE_X) < 3 && y > GATE_Y-GATE_R-GATE_T) v = magic(y*0.6);
       put(x, y, v);
     }
-  // The field: a spiral wound about the gate's centre. Its phase climbs with
-  // radius, so the cycle draws the whole figure inwards, frame after frame.
+  // The field: a spiral wound about the gate's centre. Every pixel of it is
+  // on the magic ramp and one arm is one turn of the ramp, so the cycle turns
+  // the whole figure about the eye. Nothing still marks out an arm: the dark
+  // dithered in thickens towards the rim alike all the way round.
   if (!bare) for (let y=GATE_Y-GATE_R-1; y<SURF+2; y++) for (let x=GATE_X-GATE_R; x<=GATE_X+GATE_R; x++) {
     const dx = x-GATE_X, dy = y-GATE_Y;
     const r = Math.hypot(dx,dy);
     const inside = (dy <= 0 && r < GATE_R) || (dy > 0 && Math.abs(dx) < GATE_R && y < spitTop(x)-1);
     if (!inside) continue;
     const ang = Math.atan2(dy,dx);
-    const rr = dy > 0 ? Math.max(r, Math.abs(dx)) : r;
-    const s = 3*((ang+Math.PI)/(2*Math.PI)) + 0.062*rr + 0.45*fbm(x+200, y, 15);
-    const arm = Math.abs(((s % 1) + 1) % 1 - 0.5);
-    let v;
-    if (arm > 0.28) v = pick(ROCK_VIO, 0.40 - 0.9*(arm-0.28), x, y);
-    else {
-      v = magic(s*4);
-      if (bay(x,y) < 0.22*(rr/GATE_R)) v = pick(ROCK_VIO, 0.5, x, y);
-    }
+    const s = 2*((ang+Math.PI)/(2*Math.PI)) + 1.25*Math.log(1 + r/6) + 0.10*fbm(x+200, y, 15);
+    let v = magic(Math.floor(s*4));
+    if (bay(x+1,y+2) < 0.5*smooth(0.72, 1.25, r/GATE_R)) v = pick(ROCK_VIO, 0.30, x, y);
+    const rr = r;
     if (rr < 5) v = magic(-rr + 2);                                  // the eye of it
     if (hash2(x*3, y*5) > 0.988) v = 208;                            // stars caught in it
     put(x, y, v);
