@@ -993,8 +993,10 @@ function buildFooterScene(bare) {
       }
       if (rnd(x+11, y+3) < 0.5*lap*lap) put(x, y, fire(8*rnd(x+4, y+17)));
     } else if (x > 206) {
-      // The troughs between ripples are still, deep water; the crests cycle.
-      put(x, y, (((ph % 8) + 8) % 8) > 5.6 - 0.6*fbm(x, dep*3, 9) ? pick(DEEP, 0.34 + 0.42*fbm(x, dep*3, 18), x, y) : water(ph));
+      // All of it cycles, and every step of the ramp covers as much water as
+      // any other, so the pool keeps one brightness as it turns. Still paint
+      // in the troughs took two steps out and made it pulse.
+      put(x, y, water(ph));
       if (rnd(x+11, y+3) < 0.6*lap*lap)
         put(x, y, rnd(x+2, y+31) < 0.4 ? pick(STEAM, 0.5 + 0.5*lap, x, y) : water(8*rnd(x+4, y+17)));
     }
@@ -1137,7 +1139,6 @@ function buildFooterScene(bare) {
     if (bay(x+1,y+2) < 0.5*smooth(0.72, 1.25, r/GATE_R)) v = pick(ROCK_VIO, 0.30, x, y);
     const rr = r;
     if (rr < 5) v = magic(-rr + 2);                                  // the eye of it
-    if (hash2(x*3, y*5) > 0.988) v = 208;                            // stars caught in it
     put(x, y, v);
   }
   if (!bare) for (let y=4; y<SURF; y++) for (let x=GATE_X-100; x<GATE_X+100; x++) {
