@@ -690,6 +690,9 @@ function fbm(x, y, s) {
 }
 const BAYER = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5];
 const bay = (x,y) => (BAYER[(y&3)*4 + (x&3)] + 0.5) / 16;
+// A scattered threshold. The ordered one above lays a thin sprinkle out as a
+// lattice of dots, so anything sparse asks this instead.
+const rnd = (x,y) => hash2((x|0)*3 + 7, (y|0)*5 + 11);
 const clamp = (v,a,b) => v<a?a:v>b?b:v;
 const smooth = (e0,e1,x) => { const t = clamp((x-e0)/(e1-e0),0,1); return t*t*(3-2*t); };
 function segDist(px,py,ax,ay,bx,by) {
@@ -713,12 +716,13 @@ const ROCK_WARM = [223,191,190,189,188,187,186,185,184,183,182,181];
 const ROCK_VIO  = [223,159,158,157,156,155,154,153,152];
 const DEEP      = [223,127,126,125,124,123,122,121,120];
 const MOSSD     = [111,110,109,108,107,106];
+const STEAM     = [213,212,211,210];
 
 // ---- geometry -------------------------------------------------------------
 const SURF = 148;
 const GATE_X = 250, GATE_Y = 92, GATE_R = 30, GATE_T = 10;
 const FALL_X = 86, FALL_TOP = 62;
-const CASC_X = 420, CASC_TOP = 26;
+const CASC_X = 420, CASC_TOP = 0;
 
 const STALACS = [
   {x:12,w:9,l:30},{x:33,w:5,l:14},{x:57,w:4,l:9},{x:112,w:11,l:44},
@@ -729,7 +733,7 @@ const STALACS = [
 ];
 function ceilingAt(x) {
   let base = 15 + 8*fbm(x+500, 7, 74) + 4*noise(x+120, 3, 190);
-  base -= 8*Math.exp(-Math.pow((x-CASC_X)/24, 2));   // the rent the cascade falls through
+  base -= 34*Math.exp(-Math.pow((x-CASC_X)/8, 2));   // the rent the cascade falls through
   let c = base;
   for (const s of STALACS) {
     const d = Math.abs(x-s.x);
@@ -738,18 +742,18 @@ function ceilingAt(x) {
   return c;
 }
 function leftWallX(y) {
-  let v = 104 - 42*smooth(54, 82, y)                   // the face steps back at the fissure
+  let v = 104 - 42*smooth(63, 76, y)                   // the face steps back under the lip the lava leaves
           + 14*smooth(122, 172, y)                     // talus piled at its foot
           + 4*Math.sin(y*0.23)*(0.5 + 0.5*Math.sin(y*0.061));   // ledges
   v += 10*fbm(11, y, 26) - 6*fbm(53, y*2.4, 9);
-  v += 10*(hash2(Math.floor(y/6), 5) - 0.5) + 4*(hash2(Math.floor(y/3), 9) - 0.5);
+  v += 10*(noise(5, y, 7) - 0.5) + 4*(noise(9, y, 3) - 0.5);
   return v;
 }
 function rightWallX(y) {
   let v = 452 - 26*smooth(44, 92, y) + 16*smooth(128, 174, y)
           + 4*Math.sin(y*0.19 + 1)*(0.5 + 0.5*Math.sin(y*0.053));
   v -= 10*fbm(29, y+300, 30) + 4 - 5*fbm(71, y*2.2, 9);
-  v -= 10*(hash2(Math.floor(y/7), 13) - 0.5) + 4*(hash2(Math.floor(y/3), 17) - 0.5);
+  v -= 10*(noise(13, y, 8) - 0.5) + 4*(noise(17, y, 3) - 0.5);
   return v;
 }
 // The distant ridge the gate stands against. Silhouette only: it is there to
@@ -768,12 +772,20 @@ function ridgeAt(x) {
 }
 function spitTop(x) {
   const d = Math.abs(x-244)/88;
-  if (d > 1) return 1e9;
+  if (d > 1.2) return 1e9;
+  if (d > 1) return SURF - 2 + 2*fbm(x, 900, 21) + 36*Math.pow((d-1)/0.2, 1.4);   // its ends go under
   return SURF - 2 - 8*Math.pow(1-d, 1.5) + 2*fbm(x, 900, 21);
 }
 
+// Bedded rock: s counts the beds. Each has a lit lip, a face that darkens
+// down to the next, and an undercut in shadow.
+function bed(s) {
+  const f = s - Math.floor(s);
+  return f < 0.12 ? 1 : f > 0.84 ? 0 : 0.66 - 0.56*(f-0.12)/0.72;
+}
+
 function buildFooterScene(bare) {
-  const IMG = new Uint8Array(FS_W*FS_H);
+  const IMG = new Uint8Array(FS_W*FS_H), ROCK = new Uint8Array(FS_W*FS_H);
   const put = (x,y,v) => { x|=0; y|=0; if (x>=0 && x<FS_W && y>=0 && y<FS_H) IMG[y*FS_W+x] = v; };
   const pick = (ramp,t,x,y) => {
     const f = clamp(t,0,1)*(ramp.length-1);
@@ -820,18 +832,21 @@ function buildFooterScene(bare) {
     const lead = Math.max(w, Math.max(c, m));
     const t = clamp(tone*0.56 + 0.34*lead, 0, 0.95);
     let v;
+    // The lit ramp is dithered in over the cool one as the light rises, so a
+    // source's colour fades into the rock and has no edge of its own.
+    // Where two sources meet, each takes its share of the pixels.
+    const k = bay(x+1, y+2), q = rnd(x+13, y+29)*(w+c+m);
     if (bare) v = pick(ROCK_COOL, t*0.66, x, y);
-    else if (lead < 0.14) v = pick(ROCK_COOL, t*0.40, x, y);
-    else if (w >= c && w >= m) v = pick(ROCK_WARM, t, x, y);
-    else if (m >= c)          v = pick(ROCK_VIO, t*0.78, x, y);
-    else                      v = pick(ROCK_COOL, t*0.70, x, y);
+    else if (q < w && k < smooth(0.12, 0.50, w)) v = pick(ROCK_WARM, t, x, y);
+    else if (q >= w+c && k < smooth(0.12, 0.44, m)) v = pick(ROCK_VIO, t*0.78, x, y);
+    else v = pick(ROCK_COOL, t*(0.40 + 0.30*smooth(0.10, 0.36, lead)), x, y);
     const g = grain === undefined ? 1 : grain;
     const spec = 0.45 + 0.55*fbm(x*1.7, y*1.7, 6);          // only the rough facets catch it
-    if (!bare && w > 0.30 && bay(x,y) < (w-0.30)*0.85*g*spec)
+    if (!bare && w > 0.30 && rnd(x,y) < (w-0.30)*0.85*g*spec)
       v = fire(-warmDist(x,y)*0.45 + 5*fbm(x, y, 14));
-    else if (!bare && c > 0.34 && bay(x+2,y) < (c-0.34)*0.75*g*spec)
+    else if (!bare && c > 0.34 && rnd(x+2,y) < (c-0.34)*0.75*g*spec)
       v = water(-coolDist(x,y)*0.55 + 4*fbm(x+40, y, 16));
-    else if (!bare && m > 0.34 && bay(x,y+2) < (m-0.34)*0.70*g*spec)
+    else if (!bare && m > 0.34 && rnd(x,y+2) < (m-0.34)*0.70*g*spec)
       v = magic(Math.hypot(x-GATE_X,y-GATE_Y)*0.32);
     return v;
   }
@@ -845,7 +860,8 @@ function buildFooterScene(bare) {
     let v;
     // Air only takes a colour where a source is genuinely near it. Tinting on
     // the mere sign of w-versus-c turned half the cave maroon.
-    if (bare || lead < 0.34) v = pick(ROCK_COOL, haze*0.86, x, y);
+    const k = bay(x+3, y+1);
+    if (bare || k >= smooth(0.26, 0.70, lead)) v = pick(ROCK_COOL, haze*0.86, x, y);
     else if (m >= w && m >= c) v = pick(ROCK_VIO, haze*0.66, x, y);
     else if (w >= c) v = pick(ROCK_WARM, haze*0.80, x, y);
     else v = pick(ROCK_COOL, haze*0.80, x, y);
@@ -873,7 +889,8 @@ function buildFooterScene(bare) {
     const c = ceilingAt(x);
     for (let y=0; y<c; y++) {
       const edge = smooth(c, c-8, y);
-      const strata = 0.5 + 0.5*Math.sin(y*0.42 + 5*fbm(x, y*0.3, 46));
+      const strata = bed(y*0.11 + 1.1*fbm(x, y*0.3, 46));
+      ROCK[y*FS_W+x] = 1;
       put(x, y, litRock(x, y, 0.10 + 0.34*strata + 0.30*edge + 0.26*fbm(x*2.6, y*2.6, 5)));
     }
   }
@@ -881,12 +898,14 @@ function buildFooterScene(bare) {
     const lw = leftWallX(y), rw = rightWallX(y);
     for (let x=0; x<lw; x++) {
       const face = smooth(lw, lw-15, x);
-      const strata = Math.pow(0.5 + 0.5*Math.sin(y*0.27 - x*0.07 + 4.4*fbm(x*0.4, y, 44)), 1.6);
+      const strata = bed(y*0.085 - x*0.022 + 1.2*fbm(x*0.4, y, 44));
+      ROCK[y*FS_W+x] = 1;
       put(x, y, litRock(x, y, 0.06 + 0.40*strata + 0.36*face + 0.24*fbm(x*2.4, y*2.4, 5)));
     }
     for (let x=Math.ceil(rw); x<FS_W; x++) {
       const face = smooth(rw, rw+15, x);
-      const strata = Math.pow(0.5 + 0.5*Math.sin(y*0.27 + x*0.07 + 4.4*fbm(x*0.4, y+70, 44)), 1.6);
+      const strata = bed(y*0.085 + x*0.022 + 1.2*fbm(x*0.4, y+70, 44));
+      ROCK[y*FS_W+x] = 1;
       put(x, y, litRock(x, y, 0.06 + 0.40*strata + 0.36*face + 0.24*fbm(x*2.4, y*2.4, 5)));
     }
   }
@@ -901,6 +920,7 @@ function buildFooterScene(bare) {
       a += (hash2(i*7+(x0|0), y0|0)-0.5)*spread;
       x += Math.cos(a); y += Math.sin(a);
       if (x<-2||x>FS_W+2||y<-2||y>FS_H+2) return;
+      if (!ROCK[(y|0)*FS_W + (x|0)]) continue;               // a seam is in the rock, not the air
       put(x, y, earth(-i*0.5));
       if ((i&3)===0) put(x + (hash2(i,3)<0.5?1:-1), y, earth(-i*0.5+1));
       if (branch>0 && i>8 && i%17===0 && hash2(i, y0|0)<0.55)
@@ -931,9 +951,8 @@ function buildFooterScene(bare) {
       // The per-column jitter is what stops that reading as horizontal bands --
       // every strand of the sheet starts somewhere else in the ramp.
       const ph = -y*0.55 - t*1.2 + 7*noise(x*9, 3, 6) + 4*fbm(x*2.4, y*0.13, 9);
-      if (t > 0.74 && bay(x,y) > 0.42) continue;
+      if (t > 0.74 && rnd(x,y) < (t-0.74)*3.2) continue;
       put(x, y, fire(ph));
-      if (t < 0.34 && bay(x+1,y+1) < 0.42) put(x, y, fire(ph+2));
     }
     if (hash2(y, 17) < 0.22) put(cx + (hash2(y,3)<0.5?-1:1)*(hw+2+hash2(y,5)*7), y, fire(-y*0.8+3));
   }
@@ -941,15 +960,14 @@ function buildFooterScene(bare) {
   // ---- 6. the cascade: the water ramp -------------------------------------
   for (let y=CASC_TOP; y<SURF+2; y++) {
     const fall = (y-CASC_TOP)/(SURF-CASC_TOP);
-    const cx = CASC_X - 2*fall + 1.8*Math.sin(y*0.06);
-    const hw = 6 + 6*fall;
+    const cx = CASC_X - 3*fall + 2.4*Math.sin(y*0.045 + 2*fbm(7, y, 36));
+    const hw = 3.5 + 8*Math.pow(fall, 0.8);
     for (let x=Math.floor(cx-hw); x<=cx+hw; x++) {
       const t = Math.abs(x-cx)/hw;
       if (t > 1) continue;
       const ph = -y*0.62 - t*1.6 + 6*noise(x*9, 11, 6) + 4*fbm(x*2.2, y*0.12, 9);
-      if (t > 0.76 && bay(x,y) > 0.38) continue;
+      if (t > 0.70 && rnd(x,y) < (t-0.70)*3) continue;
       put(x, y, water(ph));
-      if (t < 0.36 && bay(x+2,y) < 0.44) put(x, y, water(ph+3));
     }
     if (hash2(y, 29) < 0.26) put(cx + (hash2(y,7)<0.5?-1:1)*(hw+1+hash2(y,11)*6), y, water(-y*0.9+2));
   }
@@ -957,7 +975,7 @@ function buildFooterScene(bare) {
     const d = Math.hypot((x-CASC_X)/23, (y-SURF+2)/18);
     if (d > 1) continue;
     const n = fbm(x*1.1, y*1.3, 9);
-    if (n*(1-d) > 0.38 && bay(x,y) < 0.55-0.4*d) put(x, y, water(y*0.7 + 5*n));
+    if (rnd(x,y) < 1.5*n*(1-d)*(1-d)) put(x, y, rnd(x+5,y) < 0.4 ? pick(STEAM, 0.9-d, x, y) : water(y*0.7 + 5*n));
   }
 
   // ---- 7. the two waters --------------------------------------------------
@@ -975,11 +993,12 @@ function buildFooterScene(bare) {
       if (seam || n < 0.40) put(x, y, fire(-u - lat*0.5 + 5*n));
       else {
         put(x, y, pick(ROCK_WARM, 0.34 - 0.24*n + 0.14*bay(x,y), x, y));
-        if (bay(x+1,y) < 0.08 + dep*0.007) put(x, y, fire(-u + 4*n));
+        if (rnd(x+1,y) < 0.08 + dep*0.007) put(x, y, fire(-u + 4*n));
       }
     } else if (x > 206) {
       const ph = -u - lat;
-      put(x, y, bay(x,y+1) < 0.30 ? pick(DEEP, 0.34 + 0.42*fbm(x, dep*3, 18), x, y) : water(ph));
+      // The troughs between ripples are still, deep water; the crests cycle.
+      put(x, y, (((ph % 8) + 8) % 8) > 5.6 - 0.6*fbm(x, dep*3, 9) ? pick(DEEP, 0.34 + 0.42*fbm(x, dep*3, 18), x, y) : water(ph));
       // What the pool carries: the lava on its near lip, the cascade's white
       // water, and the gate hanging upside down in it.
       const rg = Math.max(0, 1 - (x-202)/30);
@@ -994,7 +1013,7 @@ function buildFooterScene(bare) {
 
   }
   // ---- 8. the shelf, its sand and its moss --------------------------------
-  for (let x=150; x<340; x++) {
+  for (let x=136; x<352; x++) {
     const top = spitTop(x);
     if (top > 1e8) continue;
     for (let y=Math.ceil(top); y<FS_H; y++) {
@@ -1018,8 +1037,9 @@ function buildFooterScene(bare) {
     if (d > 1) continue;
     const n = fbm(x*1.3, y*0.9 + 40, 13);
     const dens = (1-d)*(1-h*0.9)*(0.5 + n);
-    if (bay(x,y) < dens*0.7) put(x, y, water(y*0.62 + 5*n));       // phase up = it rises
-    else if (bay(x+2,y+2) < dens*0.26) put(x, y, fire(y*0.62 + 4*n));
+    const wisp = smooth(0.42, 0.62, fbm(x*1.6 + 60, y*0.7, 9));
+    if (rnd(x,y) < dens*wisp*0.85) put(x, y, pick(STEAM, 0.3 + 0.7*dens, x, y));
+    else if (rnd(x+2,y+2) < dens*0.16) put(x, y, water(y*0.62 + 5*n));   // phase up = it rises
   }
 
   }
@@ -1081,7 +1101,7 @@ function buildFooterScene(bare) {
     const up = Math.max(0, -dy)/Math.max(1,r);                  // only the upward fan
     const beam = Math.pow(Math.max(0, Math.sin(a*5 + 1.4)), 7);
     const reach = Math.max(0, 1 - (r-GATE_R-GATE_T)/56);
-    if (bay(x,y) < beam*reach*up*0.20) put(x, y, magic(r*0.3));
+    if (rnd(x,y) < beam*reach*up*0.20) put(x, y, magic(r*0.3));
     else if (hash2(x*7+1, y*11) > 0.9975 - 0.004*reach*reach) put(x, y, magic(r*0.34));
   }
 
@@ -1118,7 +1138,8 @@ function buildFooterScene(bare) {
     for (let k=0, n=1+Math.floor(hash2(i,47)*3); k<n; k++) put(x, by+k, fire(by*0.8 + i - k));
   }
   for (let i=0; i<6; i++) {
-    const s = STALACS[(i*3) % STALACS.length];
+    const wet = STALACS.filter(s => s.x > 270);            // drips fall over the water, clear of the gate
+    const s = wet[(i*3) % wet.length];
     const x = s.x + Math.round((hash2(i,53)-0.5)*4);
     const y0 = ceilingAt(x) + 2 + hash2(i,59)*40;
     for (let k=0, n=2+Math.floor(hash2(i,61)*3); k<n; k++) put(x, y0+k, water(-(y0+k)*0.8));
@@ -1131,7 +1152,7 @@ function buildFooterScene(bare) {
     const y = ceilingAt(x0);
     for (let i=0; i<len; i++) {
       const x = x0 + sway*Math.sin(i*0.11 + seed) + 2*fbm(seed*20, i*3, 14);
-      put(x, y+i, i%4===3 ? pick(MOSSD, 0.42, x, y+i) : leaf(-i*0.55));
+      put(x, y+i, i%3 ? pick(MOSSD, 0.30 + 0.4*hash2(i, seed), x, y+i) : leaf(-i*0.55));
       if (i > 3 && i % 5 === Math.floor(hash2(seed,i)*5)) {
         const s = hash2(i, seed) < 0.5 ? -1 : 1;
         for (let k=1, n=1+Math.floor(hash2(i,seed*3)*2); k<=n; k++)
