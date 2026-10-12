@@ -724,6 +724,7 @@ const GATE_X = 250, GATE_Y = 92, GATE_R = 30, GATE_T = 10;
 const FALL_X = 86, FALL_TOP = 62;
 const CASC_X = 420, CASC_TOP = 0;
 const LAVA_HIT = FALL_X + 13, CASC_HIT = CASC_X - 3;   // where each lands
+const HIT_DEP = 4, FOOT = 7;                           // ... a little way out from the bank
 
 const STALACS = [
   {x:12,w:9,l:30},{x:33,w:5,l:14},{x:57,w:4,l:9},{x:112,w:11,l:44},
@@ -778,11 +779,22 @@ function spitTop(x) {
   return SURF - 2 - 8*Math.pow(1-d, 1.5) + 2*fbm(x, 900, 21);
 }
 
-// Bedded rock: s counts the beds. Each has a lit lip, a face that darkens
-// down to the next, and an undercut in shadow.
-function bed(s) {
-  const f = s - Math.floor(s);
-  return f < 0.12 ? 1 : f > 0.84 ? 0 : 0.66 - 0.56*(f-0.12)/0.72;
+// Broken rock: blocks parted by cracks, each with a tone of its own and lit
+// on the side the light is on. sx is +1 where the cave lies to the right of
+// the rock and -1 where it lies to the left; sy is -1 for light from above.
+function blocks(x, y, sx, sy) {
+  const u = x/21 + 0.45*fbm(x, y, 38), v = y/12 + 0.45*fbm(x+77, y+19, 38);
+  const iu = Math.floor(u), iv = Math.floor(v);
+  let d1 = 9, d2 = 9, cu = 0, cv = 0, id = 0;
+  for (let j=-1; j<=1; j++) for (let i=-1; i<=1; i++) {
+    const gx = iu+i, gy = iv+j;
+    const px = gx + 0.12 + 0.76*hash2(gx*7+1, gy*13+5), py = gy + 0.12 + 0.76*hash2(gx*11+3, gy*5+9);
+    const d = Math.hypot(u-px, v-py);
+    if (d < d1) { d2 = d1; d1 = d; cu = u-px; cv = v-py; id = hash2(gx*3+17, gy*7+29); }
+    else if (d < d2) d2 = d;
+  }
+  const lit = clamp(0.5 + 0.62*sy*cv + 0.46*sx*cu, 0, 1);
+  return smooth(0.0, 0.10, d2-d1) * (0.14 + 0.38*id + 0.48*lit);
 }
 
 function buildFooterScene(bare) {
@@ -800,10 +812,11 @@ function buildFooterScene(bare) {
   // the gate reading as one place rather than three drawings side by side.
   const LIGHTS = [
     {a:[FALL_X+2,FALL_TOP+16], b:[FALL_X+12,SURF], r:44, k:0},
-    {a:[4,SURF+1],  b:[186,SURF+1], r:50, k:0},
+    {a:[4,SURF+1],  b:[162,SURF+1], r:50, k:0},
     {a:[CASC_X,CASC_TOP], b:[CASC_X,SURF], r:44, k:1},
-    {a:[212,SURF+2], b:[508,SURF+2], r:40, k:1},
+    {a:[334,SURF+2], b:[508,SURF+2], r:40, k:1},
     {a:[GATE_X,GATE_Y], b:[GATE_X,GATE_Y+40], r:58, k:2},
+    {a:[GATE_X-32,SURF-3], b:[GATE_X+32,SURF-3], r:36, k:2},
   ];
   function lightAt(x,y) {
     let w=0, c=0, m=0;
@@ -844,11 +857,11 @@ function buildFooterScene(bare) {
     const g = grain === undefined ? 1 : grain;
     const spec = 0.45 + 0.55*fbm(x*1.7, y*1.7, 6);          // only the rough facets catch it
     if (!bare && w > 0.30 && rnd(x,y) < (w-0.30)*0.85*g*spec)
-      v = fire(-warmDist(x,y)*0.45 + 5*fbm(x, y, 14));
+      v = fire(8*rnd(x+5, y+9));
     else if (!bare && c > 0.34 && rnd(x+2,y) < (c-0.34)*0.75*g*spec)
-      v = water(-coolDist(x,y)*0.55 + 4*fbm(x+40, y, 16));
+      v = water(8*rnd(x+9, y+5));
     else if (!bare && m > 0.34 && rnd(x,y+2) < (m-0.34)*0.70*g*spec)
-      v = magic(Math.hypot(x-GATE_X,y-GATE_Y)*0.32);
+      v = magic(-Math.hypot(x-GATE_X,y-GATE_Y)*0.32);      // falling with distance: it leaves the gate
     return v;
   }
 
@@ -890,24 +903,24 @@ function buildFooterScene(bare) {
     const c = ceilingAt(x);
     for (let y=0; y<c; y++) {
       const edge = smooth(c, c-8, y);
-      const strata = bed(y*0.11 + 1.1*fbm(x, y*0.3, 46));
+      const strata = blocks(x+9, y+40, 0, 0.8);
       ROCK[y*FS_W+x] = 1;
-      put(x, y, litRock(x, y, 0.10 + 0.34*strata + 0.30*edge + 0.26*fbm(x*2.6, y*2.6, 5)));
+      put(x, y, litRock(x, y, 0.08 + 0.44*strata + 0.28*edge + 0.18*fbm(x*2.6, y*2.6, 5)));
     }
   }
   for (let y=0; y<FS_H; y++) {
     const lw = leftWallX(y), rw = rightWallX(y);
     for (let x=0; x<lw; x++) {
       const face = smooth(lw, lw-15, x);
-      const strata = bed(y*0.085 - x*0.022 + 1.2*fbm(x*0.4, y, 44));
+      const strata = blocks(x, y, 1, -1);
       ROCK[y*FS_W+x] = 1;
-      put(x, y, litRock(x, y, 0.06 + 0.40*strata + 0.36*face + 0.24*fbm(x*2.4, y*2.4, 5)));
+      put(x, y, litRock(x, y, 0.05 + 0.52*strata + 0.28*face + 0.16*fbm(x*2.4, y*2.4, 5)));
     }
     for (let x=Math.ceil(rw); x<FS_W; x++) {
       const face = smooth(rw, rw+15, x);
-      const strata = bed(y*0.085 + x*0.022 + 1.2*fbm(x*0.4, y+70, 44));
+      const strata = blocks(x, y, -1, -1);
       ROCK[y*FS_W+x] = 1;
-      put(x, y, litRock(x, y, 0.06 + 0.40*strata + 0.36*face + 0.24*fbm(x*2.4, y*2.4, 5)));
+      put(x, y, litRock(x, y, 0.05 + 0.52*strata + 0.28*face + 0.16*fbm(x*2.4, y*2.4, 5)));
     }
   }
 
@@ -936,11 +949,57 @@ function buildFooterScene(bare) {
   vein(140, 3, 1.15, 40, 0.4, 1);
   vein(330, 2, 1.35, 34, 0.45, 1);
 
-  // ---- 5. the lavafall: the fire ramp -------------------------------------
-  for (let y=FALL_TOP; y<SURF+2; y++) {
-    const fall = (y-FALL_TOP)/(SURF-FALL_TOP);
+  // How far a pool's pixel is from its nearest bank: the far one, or the shelf.
+  function bank(x, y, dep) {
+    let d = dep;
+    for (let k=1; k<d && k<=6; k++)
+      if (y >= spitTop(x+k) || y >= spitTop(x-k) || y+k >= spitTop(x)) { d = k; break; }
+    return d;
+  }
+  // ---- 5. the two waters --------------------------------------------------
+  for (let y=SURF-6; y<FS_H; y++) for (let x=0; x<FS_W; x++) {
+    if (y >= spitTop(x)) continue;
+    const surf = SURF + 1.4*Math.sin(x*0.11) + 1.2*fbm(x, 33, 26);
+    if (y < surf) {                                        // it washes a little way up the far bank
+      if (surf-y < 2.6 && (x < 194 || x > 206) && rnd(x+7, y) < 0.42 - 0.15*(surf-y))
+        put(x, y, (x < 194 ? fire : water)(8*rnd(x+1, y+23)));
+      continue;
+    }
+    const dep = y - surf;
+    const u = Math.pow(dep, 1.5)*0.85;                    // ripples widen towards us
+    const lat = 2.2*Math.sin(x*0.09 + dep*0.22) + 3.4*fbm(x*0.6, dep*2, 22);
+    // Rings: phase falls with distance from where a fall lands, so the cycle
+    // carries them outwards. The pool lies flat, so depth counts for more.
+    // The ordered dither breaks each band's edge into the next.
+    const lava = x < 194, hx = lava ? LAVA_HIT : CASC_HIT;
+    const rd = Math.hypot(x-hx, (dep-HIT_DEP)*2.6) + 3*fbm(x*1.1, dep*3, 9);
+    const ring = smooth(74, 26, rd);
+    // At a bank the bands crowd and turn along it, and the liquid breaks.
+    const lap = Math.max(0, 1 - bank(x, y, dep)/5);
+    const ph = -rd*0.58 - lat*0.9 - 0.25*u + 1.2*bay(x,y) + 3.4*lap*lap;
+    if (lava) {
+      // Lava: plates of cooled crust with the cycle running in the seams.
+      const n = fbm(x*0.7, dep*2.2 + 300, 31);
+      const seam = Math.abs(n-0.5) < 0.05 + dep*0.0018;
+      if (seam || n < 0.40 + 0.5*Math.max(ring, lap)) put(x, y, fire(ph + 3*n*(1-ring)));
+      else {
+        put(x, y, pick(ROCK_WARM, 0.34 - 0.24*n + 0.14*bay(x,y), x, y));
+        if (rnd(x+1,y) < 0.08 + dep*0.007) put(x, y, fire(8*rnd(x+3, y+1)));
+      }
+      if (rnd(x+11, y+3) < 0.5*lap*lap) put(x, y, fire(8*rnd(x+4, y+17)));
+    } else if (x > 206) {
+      // The troughs between ripples are still, deep water; the crests cycle.
+      put(x, y, (((ph % 8) + 8) % 8) > 5.6 - 0.6*fbm(x, dep*3, 9) ? pick(DEEP, 0.34 + 0.42*fbm(x, dep*3, 18), x, y) : water(ph));
+      if (rnd(x+11, y+3) < 0.6*lap*lap)
+        put(x, y, rnd(x+2, y+31) < 0.4 ? pick(STEAM, 0.5 + 0.5*lap, x, y) : water(8*rnd(x+4, y+17)));
+    }
+  }
+
+  // ---- 6. the lavafall: the fire ramp -------------------------------------
+  for (let y=FALL_TOP; y<SURF+FOOT; y++) {
+    const fall = Math.min(1, (y-FALL_TOP)/(SURF-FALL_TOP));
     const cx = FALL_X + 3 + 10*fall + 1.6*Math.sin(y*0.055 + 2*fbm(0,y,40));
-    const hw = 4 + 9*Math.pow(fall, 0.8);
+    const hw = 4 + 9*Math.pow(fall, 0.8) + 0.7*Math.max(0, y-SURF+5);
     for (let x=Math.floor(cx-hw); x<=cx+hw; x++) {
       const t = Math.abs(x-cx)/hw;
       if (t > 1) continue;
@@ -949,73 +1008,45 @@ function buildFooterScene(bare) {
       // every strand of the sheet starts somewhere else in the ramp.
       const ph = -y*0.55 - t*1.2 + 7*noise(x*9, 3, 6) + 4*fbm(x*2.4, y*0.13, 9);
       if (t > 0.74 && rnd(x,y) < (t-0.74)*3.2) continue;
+      if (y > SURF && rnd(x+3,y) < (y-SURF)/FOOT) continue;     // it breaks up in the pool
       put(x, y, fire(ph));
     }
     if (hash2(y, 17) < 0.22) put(cx + (hash2(y,3)<0.5?-1:1)*(hw+2+hash2(y,5)*7), y, fire(8*hash2(y,71)));
   }
 
-  // ---- 6. the cascade: the water ramp -------------------------------------
-  for (let y=CASC_TOP; y<SURF+2; y++) {
-    const fall = (y-CASC_TOP)/(SURF-CASC_TOP);
+  // ---- 7. the cascade: the water ramp -------------------------------------
+  for (let y=CASC_TOP; y<SURF+FOOT; y++) {
+    const fall = Math.min(1, (y-CASC_TOP)/(SURF-CASC_TOP));
     const cx = CASC_X - 3*fall + 2.4*Math.sin(y*0.045 + 2*fbm(7, y, 36));
-    const hw = 3.5 + 8*Math.pow(fall, 0.8);
+    const hw = 3.5 + 8*Math.pow(fall, 0.8) + 0.7*Math.max(0, y-SURF+5);
     for (let x=Math.floor(cx-hw); x<=cx+hw; x++) {
       const t = Math.abs(x-cx)/hw;
       if (t > 1) continue;
       const ph = -y*0.62 - t*1.6 + 6*noise(x*9, 11, 6) + 4*fbm(x*2.2, y*0.12, 9);
       if (t > 0.70 && rnd(x,y) < (t-0.70)*3) continue;
+      if (y > SURF && rnd(x+3,y) < (y-SURF)/FOOT) continue;
       put(x, y, water(ph));
     }
     if (hash2(y, 29) < 0.26) put(cx + (hash2(y,7)<0.5?-1:1)*(hw+1+hash2(y,11)*6), y, water(8*hash2(y,73)));
   }
-  // ---- 7. the two waters --------------------------------------------------
-  for (let y=SURF-6; y<FS_H; y++) for (let x=0; x<FS_W; x++) {
-    if (y >= spitTop(x)) continue;
-    const surf = SURF + 1.4*Math.sin(x*0.11) + 1.2*fbm(x, 33, 26);
-    if (y < surf) continue;
-    const dep = y - surf;
-    const u = Math.pow(dep, 1.5)*0.85;                    // ripples widen towards us
-    const lat = 2.2*Math.sin(x*0.09 + dep*0.22) + 3.4*fbm(x*0.6, dep*2, 22);
-    // Rings: phase falls with distance from where a fall lands, so the cycle
-    // carries them outwards. The pool lies flat, so depth counts for more.
-    const hx = x < 200 ? LAVA_HIT : CASC_HIT;
-    const rd = Math.hypot(x-hx, dep*2.6) + 1.5*fbm(x*1.3, dep*3, 8);
-    const ring = smooth(74, 26, rd);
-    if (x < 194) {
-      // Lava: plates of cooled crust with the cycle running in the seams.
-      const n = fbm(x*0.7, dep*2.2 + 300, 31);
-      const seam = Math.abs(n-0.5) < 0.05 + dep*0.0018;
-      if (seam || n < 0.40 + 0.5*ring) put(x, y, fire(-rd*0.62 - lat*0.5 + 3*n*(1-ring)));
-      else {
-        put(x, y, pick(ROCK_WARM, 0.34 - 0.24*n + 0.14*bay(x,y), x, y));
-        if (rnd(x+1,y) < 0.08 + dep*0.007) put(x, y, fire(-u + 4*n));
-      }
-    } else if (x > 206) {
-      const ph = -rd*0.62 - lat*0.7;
-      // The troughs between ripples are still, deep water; the crests cycle.
-      put(x, y, (((ph % 8) + 8) % 8) > 5.6 - 0.6*fbm(x, dep*3, 9) ? pick(DEEP, 0.34 + 0.42*fbm(x, dep*3, 18), x, y) : water(ph));
-      // What the pool carries: the lava on its near lip, the cascade's white
-      // water, and the gate hanging upside down in it.
-      const rg = Math.max(0, 1 - (x-202)/30);
-      if (rg > 0 && bay(x,y) < rg*0.8) put(x, y, fire(-u - lat*0.6 + 4));
-      const dg = Math.abs(x - GATE_X + lat*1.2);
-      if (dg < 22 - dep*0.5 && bay(x,y+2) < 0.60 - dep*0.022)
-        put(x, y, magic(-u*0.6 - dg*0.2));
-    }
-  }
-
   // Where a fall lands: a mound of broken water and drops thrown up from it.
   // Every drop takes its own place in the ramp, so they flicker one by one
   // and no wave runs through them.
   function splash(hx, hw, ramp, seed, pale) {
-    for (let y=SURF-9; y<SURF+4; y++) for (let x=Math.floor(hx-hw-9); x<=hx+hw+9; x++) {
-      const d = Math.hypot((x-hx)/(hw+8), (y-SURF-1)/9);
-      if (d < 1 && rnd(x+seed, y) < 0.9*(1-d)*(1-d) + 0.1*(1-d))
-        put(x, y, pale && rnd(x, y+seed) < 0.3 ? pick(STEAM, 1-d, x, y) : ramp(8*rnd(x+3*seed, y+7)));
+    const my = SURF + HIT_DEP;
+    for (let y=my-11; y<my+6; y++) for (let x=Math.floor(hx-hw-12); x<=hx+hw+12; x++) {
+      const d = Math.hypot((x-hx)/(hw+11), (y-my)/(y < my ? 11 : 5));
+      if (d < 1 && rnd(x+seed, y) < 1.1*(1-d)*(1-d) + 0.12*(1-d))
+        put(x, y, pale && rnd(x, y+seed) < 0.5 ? pick(STEAM, 1.15-d, x, y) : ramp(8*rnd(x+3*seed, y+7)));
     }
-    for (let i=0; i<46; i++) {
-      const a = Math.PI*(0.08 + 0.84*hash2(i, seed)), r = 5 + 21*Math.pow(hash2(i, seed+1), 1.6);
-      const x = hx + Math.cos(a)*(hw*0.6 + r*1.25), y = SURF - Math.sin(a)*r*0.95;
+    if (pale) for (let y=my-34; y<my-4; y++) for (let x=Math.floor(hx-26); x<=hx+26; x++) {   // mist
+      const d = Math.hypot((x-hx)/26, (my-4-y)/30);
+      if (d < 1 && rnd(x+2*seed, y+5) < 0.20*Math.pow(1-d, 1.4)*(0.5 + fbm(x*1.3, y, 9)))
+        put(x, y, pick(STEAM, 0.3 + 0.6*(1-d), x, y));
+    }
+    for (let i=0; i<60; i++) {
+      const a = Math.PI*(0.06 + 0.88*hash2(i, seed)), r = 5 + 22*Math.pow(hash2(i, seed+1), 1.6);
+      const x = hx + Math.cos(a)*(hw*0.6 + r*1.25), y = my - 1 - Math.sin(a)*r*0.95;
       put(x, y, ramp(8*hash2(i, seed+2)));
       if (hash2(i, seed+3) < 0.3) put(x, y+1, ramp(8*hash2(i, seed+4)));
     }
@@ -1033,6 +1064,9 @@ function buildFooterScene(bare) {
       let v = litRock(x, y, 0.26 + 0.24*fbm(x*1.2, y*1.6, 11) - 0.20*smooth(0,14,d), 0.6);
       if (!bare && d < 3 + 2.5*fbm(x, 5, 9) && bay(x,y) < 0.62)
         v = earth(x*0.32 + 3*fbm(x*1.5, y, 7));           // wet sand, on the earth ramp
+      // The gate's light on the ground before it, running outward from its foot.
+      const gr = Math.hypot(x-GATE_X, (y-SURF+4)*2.2);
+      if (!bare && d >= 3 && gr < 62 && rnd(x+3, y+8) < 0.46*Math.pow(1-gr/62, 1.3)) v = magic(-gr*0.35);
       put(x, y, v);
     }
     for (let y=Math.ceil(top)-2; y<top+5; y++) {
@@ -1113,8 +1147,8 @@ function buildFooterScene(bare) {
     const up = Math.max(0, -dy)/Math.max(1,r);                  // only the upward fan
     const beam = Math.pow(Math.max(0, Math.sin(a*5 + 1.4)), 7);
     const reach = Math.max(0, 1 - (r-GATE_R-GATE_T)/56);
-    if (rnd(x,y) < beam*reach*up*0.20) put(x, y, magic(r*0.3));
-    else if (hash2(x*7+1, y*11) > 0.9975 - 0.004*reach*reach) put(x, y, magic(r*0.34));
+    if (rnd(x,y) < beam*reach*up*0.20) put(x, y, magic(-r*0.3));
+    else if (hash2(x*7+1, y*11) > 0.9975 - 0.004*reach*reach) put(x, y, magic(-r*0.34));
   }
 
   function crystal(bx, by, ang, len, wid, ramp) {
@@ -1175,13 +1209,6 @@ function buildFooterScene(bare) {
   vine(150, 34, 4, 1); vine(212, 44, 5, 3); vine(226, 26, 3, 4);
   vine(286, 32, 4, 5); vine(300, 46, 5, 6); vine(374, 38, 4, 8);
   vine(126, 28, 4, 10); vine(356, 18, 3, 12);
-  for (let y=SURF-26; y<SURF+2; y++) {
-    const e = Math.ceil(rightWallX(y));
-    for (let x=e-3; x<e+14 && x<FS_W; x++) {
-      const n = fbm(x*1.4, y*1.6, 10);
-      if (n > 0.60 && bay(x,y) < 0.55) put(x, y, leaf(-y*0.4 + 4*n));
-    }
-  }
   }
   return IMG;
 }
