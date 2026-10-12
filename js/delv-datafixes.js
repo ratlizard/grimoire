@@ -591,6 +591,23 @@ const DATA_FIXES = [
     ] },
   // The magic arrow drawn as a stack (0x8103, and two Cademia stacks in
   // 0x8108): the count moves from Data1 to Data2.
+  // A thing's picture is its type's first tile plus its aspect, and the
+  // chair, the end table and the desk stand side by side in one sheet: the
+  // chair's tiles are 770 to 773, the end table's 774, the desk's 775 and
+  // 776. Three records are chairs (type 12) at aspect 4, so they draw the
+  // end table's tile and are chairs in everything else: a chair has a
+  // weight, which is what lets a thing be taken (TGameSys::IsTakable), and
+  // an end table has none, so these three "end tables" can be picked up
+  // [Buzzzzy@t2023]. One record in Pnyx is an end table (type 13) at aspect
+  // 1, so it draws the desk's tile and has no Use, where a desk's opens it:
+  // the desk beside Paris that "is immovable and unusable". Each is given
+  // the type whose picture it wears, at that type's first aspect.
+  { id: 'furniture-types', group: 'items', stage: 'community', title: 'Three end tables that were chairs underneath can no longer be carried off, and a desk in Pnyx that was an end table underneath now opens',
+    played: 'Mac OS 8.5, 12 October 2026, the fix alone and with every fix, each installed by Magpie, a save that had never held Catamarca or Pnyx: Take on the end table at (26,37) of Catamarca, "You can\u2019t take an end table!" and the record on the floor in the save, against "Your deeds stain your soul." and the record carried, unpatched; Use on the desk at (16,51) of Pnyx opens its drawer, against nothing unpatched. Fork, 68K, the same day and the same two, the stock file, the fix alone and every fix: the same lines, and the desk\u2019s window. A save that already holds a zone keeps its own records, so the end table in Land King Hall stayed a chair in a save made there; the hall\u2019s and the second of Catamarca\u2019s were not played',
+    dataEdits: [[0x8103, 34, 0x100C, 0x000D, 'the end table in Land King Hall'], [0x8106, 46, 0x100C, 0x000D, 'an end table in Catamarca'],
+                [0x8106, 48, 0x100C, 0x000D, 'another end table in Catamarca'], [0x810C, 321, 0x040D, 0x0011, 'the desk in Pnyx']].map(([resid, rec, was, now, what]) => (
+      { what, resid, fn: new Function('b', `const p = ${rec} * 16; if ((b[p + 4] << 8 | b[p + 5]) !== ${was}) throw new Error('record ${rec} is not the type and aspect the page read'); b[p + 4] = ${now >> 8}; b[p + 5] = ${now & 0xFF}; return 'record ${rec} given the type its picture is of';`) })) },
+
   { id: 'arrow-stacks', group: 'items', stage: 'community', title: 'The magic arrow in Land King Hall now looks like one arrow, instead of a stack, and two stacks in Cademia look right',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the crate at (103,58) of Cademia, opened, shows its arrows with the count 30, against one arrow and no count unpatched; the Land King Hall arrow and the second Cademia stack were not looked at; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the crate at (103,58) of Cademia shows its arrows with the count 30',
     dataEdits: [
