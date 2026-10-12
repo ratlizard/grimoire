@@ -1134,8 +1134,8 @@ function buildFooterScene(bare) {
     const inside = (dy <= 0 && r < GATE_R) || (dy > 0 && Math.abs(dx) < GATE_R && y < spitTop(x)-1);
     if (!inside) continue;
     const ang = Math.atan2(dy,dx);
-    const s = 2*((ang+Math.PI)/(2*Math.PI)) + 1.25*Math.log(1 + r/6) + 0.10*fbm(x+200, y, 15);
-    let v = magic(Math.floor(s*4));
+    const s = 3*((ang+Math.PI)/(2*Math.PI)) + 2.5*Math.log(1 + r/5) + 0.10*fbm(x+200, y, 15);
+    let v = magic(Math.floor(s*4 + 0.4*bay(x,y)));
     if (bay(x+1,y+2) < 0.5*smooth(0.72, 1.25, r/GATE_R)) v = pick(ROCK_VIO, 0.30, x, y);
     const rr = r;
     if (rr < 5) v = magic(-rr + 2);                                  // the eye of it
