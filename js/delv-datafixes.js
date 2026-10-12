@@ -591,6 +591,25 @@ const DATA_FIXES = [
     ] },
   // The magic arrow drawn as a stack (0x8103, and two Cademia stacks in
   // 0x8108): the count moves from Data1 to Data2.
+  // Shake Down (0x1A24) counts everything its target holds, rolls for one
+  // and puts it on the target's square with flags 1, a thing on the ground
+  // and free to take. What a character holds includes its skills and
+  // spells, records flagged 0x1C whose type is the skill's number, and the
+  // number of Barehand, 199, is the haystack's as a thing. Meleager is the
+  // one companion who holds a skill record, Barehand, so with little else
+  // on him the roll finds it, the pane says "Meleager drops a haystack."
+  // [Fletcher@t580], a haystack two squares wide lies where he stands and
+  // his Barehand is gone. A pick whose flags carry 0x04, the bit a skill
+  // or spell has and a thing carried or worn does not, now ends as a
+  // failed cast does, "Nothing seems to happen."
+  { id: 'shake-down-skills', group: 'rules', stage: 'community', title: 'Shake Down no longer makes someone drop a skill, which fell as a haystack',
+    played: 'Mac OS 8.5, 12 October 2026, the fix alone and with every fix, each installed by Magpie: a mid-game save with Meleager holding nothing but his Barehand skill, Shake Down cast on him: "Meleager drops a haystack." and a haystack on his square unpatched; "Nothing seems to happen." twice, and no haystack, with the fix alone and with every fix. That line is also a failed cast\u2019s, and two casts were made each time. Not played in the fork',
+    edits: [
+      { what: 'Shake Down leaves a skill where it is', resid: 0x1A24, at: 0x0133,
+        expect: { 0x012C: 'if_not', 0x0133: 'set_field flags', 0x016D: 'string(implicit) "Nothing seems to happen.' },
+        code: ['if_not', 'local Var01', 'get_field flags (0x0)', 'byte 0x04', 'bitwise_and', 'then -> thing', 'branch 0x016D', 'thing:'].join('\n') },
+    ] },
+
   // A thing's picture is its type's first tile plus its aspect, and the
   // chair, the end table and the desk stand side by side in one sheet: the
   // chair's tiles are 770 to 773, the end table's 774, the desk's 775 and
