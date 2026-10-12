@@ -716,6 +716,26 @@ const DATA_FIXES = [
           r[6] = 15; r[7] = 0; return 'record 14’s text number moved to Data1';
       } },
     ] },
+  // The names of `0xF004` are runs: an entry is a tile number and a name,
+  // and names every tile after the entry before it up to that number. The
+  // entry 2007 "polyp" covers 2000 to 2007, which is two creatures: the
+  // hydra's body (type 279, tiles from 2000) and the polyp (type 277,
+  // tiles from 2004). The hydra's arms (type 278, tiles from 1920) are
+  // "hydra", so a hydra is looked at as a polyp ringed by hydras and its
+  // hits are reported as "A polyp hit". An entry 2003 "hydra" goes in
+  // before it; the table is eight bytes longer.
+  { id: 'hydra-name', group: 'world', stage: 'community', title: 'A hydra\u2019s body is now called a hydra, instead of a polyp',
+    played: 'Mac OS 8.5, 11 October 2026, the fix alone and with every fix, each installed by Magpie: the hero on the shore of the Hall of Truth\u2019s pool, Look at the body two squares west, "> Look - you see a hydra.", and with the fix alone "--A hydra missed Bellerophon.--", against "> Look - you see a polyp." unpatched (and "--A polyp hit Bellerophon very hard.--" in an unpatched run the same day). A polyp itself was not looked at with the fix. Not played in the fork',
+    dataEdits: [
+      { what: 'the hydra body’s name', resid: 0xF004, fn: (b) => {
+          const at = 4295, want = [0x07, 0xCF, 0x67, 0x61, 0x74, 0x6F, 0x72, 0, 0x07, 0xD7, 0x70, 0x6F, 0x6C, 0x79, 0x70, 0];
+          if (want.some((v, i) => b[at - 8 + i] !== v)) throw new Error('the entries 1999 "gator" and 2007 "polyp" are not where the page read them');
+          const add = [0x07, 0xD3, 0x68, 0x79, 0x64, 0x72, 0x61, 0];
+          const out = new Uint8Array(b.length + add.length);
+          out.set(b.subarray(0, at)); out.set(add, at); out.set(b.subarray(at), at + add.length);
+          return out;
+      } },
+    ] },
 
   /* ---- Bryce Schroeder's fixes (the stage "bugfix"; bugfix_patch.mjs,
      "Cythera Bugfix Patch") ------------------------------------------------

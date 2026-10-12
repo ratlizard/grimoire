@@ -379,7 +379,7 @@ const CHECKS = [
      about a minute, and is run when a fix is added. */
   {page: 'viewer', name: 'game fixes', want: [DATA],
    cmd: ['utilities/data_fix_check.mjs', 'index.html', DATA, COLLECTION],
-   grep: /every fix: [^\n]*/, expect: 'every fix: 226 resources changed, patched file b862680092f33629'},
+   grep: /every fix: [^\n]*/, expect: 'every fix: 227 resources changed, patched file 86b99619f7c17de3'},
   /* Cythera Data in Spanish (js/delv-translate.js with the table
      js/delv-es.js), both forks: the table covers every piece and has no
      stale entry, every script still disassembles, the keyword lists are the
