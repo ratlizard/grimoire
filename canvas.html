@@ -723,6 +723,7 @@ const SURF = 148;
 const GATE_X = 250, GATE_Y = 92, GATE_R = 30, GATE_T = 10;
 const FALL_X = 86, FALL_TOP = 62;
 const CASC_X = 420, CASC_TOP = 0;
+const LAVA_HIT = FALL_X + 13, CASC_HIT = CASC_X - 3;   // where each lands
 
 const STALACS = [
   {x:12,w:9,l:30},{x:33,w:5,l:14},{x:57,w:4,l:9},{x:112,w:11,l:44},
@@ -798,7 +799,7 @@ function buildFooterScene(bare) {
   // light is doing where it stands, which is what keeps the rock, the water and
   // the gate reading as one place rather than three drawings side by side.
   const LIGHTS = [
-    {a:[FALL_X-2,FALL_TOP], b:[FALL_X+12,SURF], r:44, k:0},
+    {a:[FALL_X+2,FALL_TOP+16], b:[FALL_X+12,SURF], r:44, k:0},
     {a:[4,SURF+1],  b:[186,SURF+1], r:50, k:0},
     {a:[CASC_X,CASC_TOP], b:[CASC_X,SURF], r:44, k:1},
     {a:[212,SURF+2], b:[508,SURF+2], r:40, k:1},
@@ -835,7 +836,7 @@ function buildFooterScene(bare) {
     // The lit ramp is dithered in over the cool one as the light rises, so a
     // source's colour fades into the rock and has no edge of its own.
     // Where two sources meet, each takes its share of the pixels.
-    const k = bay(x+1, y+2), q = rnd(x+13, y+29)*(w+c+m);
+    const k = 0.5*bay(x+1, y+2) + 0.5*rnd(x+41, y+3), q = rnd(x+13, y+29)*(w+c+m);
     if (bare) v = pick(ROCK_COOL, t*0.66, x, y);
     else if (q < w && k < smooth(0.12, 0.50, w)) v = pick(ROCK_WARM, t, x, y);
     else if (q >= w+c && k < smooth(0.12, 0.44, m)) v = pick(ROCK_VIO, t*0.78, x, y);
@@ -936,14 +937,10 @@ function buildFooterScene(bare) {
   vein(330, 2, 1.35, 34, 0.45, 1);
 
   // ---- 5. the lavafall: the fire ramp -------------------------------------
-  for (let y=FALL_TOP-8; y<FALL_TOP+4; y++) for (let x=FALL_X-26; x<FALL_X+14; x++) {
-    const d = Math.abs(y - (FALL_TOP-3) - 1.6*Math.sin(x*0.2)) / (3 - Math.abs(x-FALL_X+8)/18);
-    if (d < 1) put(x, y, d < 0.5 ? fire(-x*0.3 + 4*fbm(x,y,7)) : pick(ROCK_WARM, 0.16, x, y));
-  }
   for (let y=FALL_TOP; y<SURF+2; y++) {
     const fall = (y-FALL_TOP)/(SURF-FALL_TOP);
     const cx = FALL_X + 3 + 10*fall + 1.6*Math.sin(y*0.055 + 2*fbm(0,y,40));
-    const hw = 7 + 6*fall;
+    const hw = 4 + 9*Math.pow(fall, 0.8);
     for (let x=Math.floor(cx-hw); x<=cx+hw; x++) {
       const t = Math.abs(x-cx)/hw;
       if (t > 1) continue;
@@ -954,7 +951,7 @@ function buildFooterScene(bare) {
       if (t > 0.74 && rnd(x,y) < (t-0.74)*3.2) continue;
       put(x, y, fire(ph));
     }
-    if (hash2(y, 17) < 0.22) put(cx + (hash2(y,3)<0.5?-1:1)*(hw+2+hash2(y,5)*7), y, fire(-y*0.8+3));
+    if (hash2(y, 17) < 0.22) put(cx + (hash2(y,3)<0.5?-1:1)*(hw+2+hash2(y,5)*7), y, fire(8*hash2(y,71)));
   }
 
   // ---- 6. the cascade: the water ramp -------------------------------------
@@ -969,15 +966,8 @@ function buildFooterScene(bare) {
       if (t > 0.70 && rnd(x,y) < (t-0.70)*3) continue;
       put(x, y, water(ph));
     }
-    if (hash2(y, 29) < 0.26) put(cx + (hash2(y,7)<0.5?-1:1)*(hw+1+hash2(y,11)*6), y, water(-y*0.9+2));
+    if (hash2(y, 29) < 0.26) put(cx + (hash2(y,7)<0.5?-1:1)*(hw+1+hash2(y,11)*6), y, water(8*hash2(y,73)));
   }
-  for (let y=SURF-20; y<SURF+4; y++) for (let x=CASC_X-26; x<CASC_X+26; x++) {
-    const d = Math.hypot((x-CASC_X)/23, (y-SURF+2)/18);
-    if (d > 1) continue;
-    const n = fbm(x*1.1, y*1.3, 9);
-    if (rnd(x,y) < 1.5*n*(1-d)*(1-d)) put(x, y, rnd(x+5,y) < 0.4 ? pick(STEAM, 0.9-d, x, y) : water(y*0.7 + 5*n));
-  }
-
   // ---- 7. the two waters --------------------------------------------------
   for (let y=SURF-6; y<FS_H; y++) for (let x=0; x<FS_W; x++) {
     if (y >= spitTop(x)) continue;
@@ -986,30 +976,52 @@ function buildFooterScene(bare) {
     const dep = y - surf;
     const u = Math.pow(dep, 1.5)*0.85;                    // ripples widen towards us
     const lat = 2.2*Math.sin(x*0.09 + dep*0.22) + 3.4*fbm(x*0.6, dep*2, 22);
+    // Rings: phase falls with distance from where a fall lands, so the cycle
+    // carries them outwards. The pool lies flat, so depth counts for more.
+    const hx = x < 200 ? LAVA_HIT : CASC_HIT;
+    const rd = Math.hypot(x-hx, dep*2.6) + 1.5*fbm(x*1.3, dep*3, 8);
+    const ring = smooth(74, 26, rd);
     if (x < 194) {
       // Lava: plates of cooled crust with the cycle running in the seams.
       const n = fbm(x*0.7, dep*2.2 + 300, 31);
       const seam = Math.abs(n-0.5) < 0.05 + dep*0.0018;
-      if (seam || n < 0.40) put(x, y, fire(-u - lat*0.5 + 5*n));
+      if (seam || n < 0.40 + 0.5*ring) put(x, y, fire(-rd*0.62 - lat*0.5 + 3*n*(1-ring)));
       else {
         put(x, y, pick(ROCK_WARM, 0.34 - 0.24*n + 0.14*bay(x,y), x, y));
         if (rnd(x+1,y) < 0.08 + dep*0.007) put(x, y, fire(-u + 4*n));
       }
     } else if (x > 206) {
-      const ph = -u - lat;
+      const ph = -rd*0.62 - lat*0.7;
       // The troughs between ripples are still, deep water; the crests cycle.
       put(x, y, (((ph % 8) + 8) % 8) > 5.6 - 0.6*fbm(x, dep*3, 9) ? pick(DEEP, 0.34 + 0.42*fbm(x, dep*3, 18), x, y) : water(ph));
       // What the pool carries: the lava on its near lip, the cascade's white
       // water, and the gate hanging upside down in it.
       const rg = Math.max(0, 1 - (x-202)/30);
       if (rg > 0 && bay(x,y) < rg*0.8) put(x, y, fire(-u - lat*0.6 + 4));
-      const dc = Math.abs(x - CASC_X + lat*0.7);
-      if (dc < 11 - dep*0.16 && bay(x+2,y) < 0.58) put(x, y, water(ph+4));
       const dg = Math.abs(x - GATE_X + lat*1.2);
       if (dg < 22 - dep*0.5 && bay(x,y+2) < 0.60 - dep*0.022)
         put(x, y, magic(-u*0.6 - dg*0.2));
     }
   }
+
+  // Where a fall lands: a mound of broken water and drops thrown up from it.
+  // Every drop takes its own place in the ramp, so they flicker one by one
+  // and no wave runs through them.
+  function splash(hx, hw, ramp, seed, pale) {
+    for (let y=SURF-9; y<SURF+4; y++) for (let x=Math.floor(hx-hw-9); x<=hx+hw+9; x++) {
+      const d = Math.hypot((x-hx)/(hw+8), (y-SURF-1)/9);
+      if (d < 1 && rnd(x+seed, y) < 0.9*(1-d)*(1-d) + 0.1*(1-d))
+        put(x, y, pale && rnd(x, y+seed) < 0.3 ? pick(STEAM, 1-d, x, y) : ramp(8*rnd(x+3*seed, y+7)));
+    }
+    for (let i=0; i<46; i++) {
+      const a = Math.PI*(0.08 + 0.84*hash2(i, seed)), r = 5 + 21*Math.pow(hash2(i, seed+1), 1.6);
+      const x = hx + Math.cos(a)*(hw*0.6 + r*1.25), y = SURF - Math.sin(a)*r*0.95;
+      put(x, y, ramp(8*hash2(i, seed+2)));
+      if (hash2(i, seed+3) < 0.3) put(x, y+1, ramp(8*hash2(i, seed+4)));
+    }
+  }
+  splash(LAVA_HIT, 12, fire, 101, false);
+  splash(CASC_HIT, 11, water, 211, true);
 
   }
   // ---- 8. the shelf, its sand and its moss --------------------------------
