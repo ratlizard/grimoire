@@ -718,18 +718,27 @@ quiet label is quiet by its size, not its colour.
   the ink row and the tool row, and the options open as a sheet over the
   picture (`body.sheet`), which is the arrangement that keeps the canvas
   the same size whatever is opened.
-- **Two creatures, and they are the game's own sprites.** Giant Slug (prop
+- **Four creatures, and they are the game's own sprites.** Giant Slug (prop
   type 208, sheet 0x8E58, eight frames as four facings of two) and Hydra
   Polyp (prop type 277, tile 0x7D4 on sheet 0x8E7D, four frames of the
-  arms waving) travel as their indexed pixels, deflated and base64'd like
-  the example scenes (`SLUG_Z`, `POLYP_Z`), and are drawn through the
+  arms waving), Harpy (prop type 291, the first eight tiles of sheet
+  0x8E5B) and Undead (prop type 288 at tile 0x708, the second eight tiles
+  of sheet 0x8E70; "undead" is the name the file gives that tile, and no
+  file of the game's says "zombie") travel as their indexed pixels, deflated and base64'd like
+  the example scenes (`SLUG_Z`, `POLYP_Z`, `HARPY_Z`, `UNDEAD_Z`), and are drawn through the
   game's CLUT so a depth change never recolours the toolbox. Off, a
   creature is the outline of its silhouette in the muted ink; on, the
   sprite in colour, stepping through its frames on a beat of its own
   (`CREATURES`, `drawCreature`, `paintCreatures`). The six other creatures
   — ratlizard, chicken, crab, crystal ball, ghost, skeleton — are gone, and
   with them every branch they put in `lay()`, `dab()`, `divert()` and
-  `frameMap()`. The pixels were extracted with the viewer's own decoders
+  `frameMap()`. Harpy and Undead, added on 12 October 2026 at the
+  maintainer's asking, keep out of the paint path: Harpy writes the picture
+  from the clock as Hydra Polyp does (`harpyAct`, turning pixels moved one
+  place along their ramp, a selection honoured), and Undead is one offset a
+  register in `frameMap()` (`TEMPO`, `undeadStep`), baked into the pixels
+  when it is switched off as the slug's joins are. On a phone the creatures
+  take a row of their own under the tools, at 40 px. The pixels were extracted with the viewer's own decoders
   driven the way `decoder_snapshot.mjs` drives them; re-extract the same
   way if a frame is ever wrong.
 - **`browser_check.mjs` loads it and requires no console error**, since
