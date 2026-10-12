@@ -111,7 +111,7 @@ try {
      is not zero. */
   const toolNames = [];
   (function rows(el) { if (el.className === 'toolRow') toolNames.push(el.children[0].textContent); else (el.children || []).forEach(rows); })(REGISTRY.get('sheetGrid'));
-  const patchRows = ['Make a Scenario', 'Make a Gremlin', 'Recolor a Sprite', 'Generate Bugfix Patches', 'Generate a Fixed Program', 'Behind the Scenes', 'Cythera in Spanish', 'Compare Patches', 'Compare Two Files'];
+  const patchRows = ['Make a Scenario', 'Make a Gremlin', 'Recolor a Sprite', 'Generate Bugfix Patches', 'Generate a Fixed Program', 'Generate a Fixed Data File', 'Generate a Spanish Translation', 'Compare Patches', 'Compare Two Files'];
   if (toolNames.length < 10) strayTab.push('Tools shows ' + toolNames.length + ' rows');
   for (const t of patchRows) {
     if (toolNames.indexOf(t) < 0) strayTab.push('Tools has no row for ' + t);
@@ -123,7 +123,7 @@ try {
     // The two that open another window, and the ditherizer, an overlay
     // whose controls the stub's innerHTML does not make (it was a row here
     // before this check and smoke_views drives it).
-    if (t === 'Color-Cycling Canvas' || t === 'GitHub Repository' || t === 'Ditherizer') continue;
+    if (t === 'Paint a Color-Cycling Picture' || t === 'View the Source on GitHub' || t === 'Dither an Image') continue;
     ctx.showCategory('TOOLS');
     let row = null;
     (function rows(el) { if (el.className === 'toolRow' && el.children[0].textContent === t) row = el.children[0]; else (el.children || []).forEach(rows); })(REGISTRY.get('sheetGrid'));

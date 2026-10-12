@@ -4500,7 +4500,7 @@ function renderMechanicsSheet(value) {
 
   // ---- the scenario in Spanish ----
   {
-    add('spanish', 'Cythera in Spanish', null, '',
+    add('spanish', 'Generate a Spanish Translation', null, '',
       'Cythera\u2019s text in Spanish: everything the characters say, the books and signs, the names of things, the To Do list, the spells, the skills and the credits. ' +
       'This page writes a Spanish copy of the open file, to put in place of Cythera Data in the game\u2019s folder.',
       [
@@ -4521,7 +4521,7 @@ function renderMechanicsSheet(value) {
 
   // ---- behind the scenes ----
   {
-    add('backstage', 'Behind the Scenes', null, '',
+    add('backstage', 'Generate a Fixed Data File', null, '',
       'Fixes to what the game keeps and no player sees. Choose the fixes, then download a corrected copy of Cythera Data to put in place of the old one.',
       ['It is a whole file rather than a patch, because these fixes are in the part of the file a patch cannot change.'], '');
     const sec = sections[sections.length - 1].el;
