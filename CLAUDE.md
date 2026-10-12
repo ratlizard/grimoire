@@ -332,8 +332,9 @@ headings are in Title Case.** The maintainer's rule of 1 October 2026, set
 by his own rewrite of Compare Patches: speak to the reader ("Open a patch
 here to see what it changes"), and cut background on formats, on which
 routine or table a figure was read from, and on how the page works, even
-when it is true. A heading that names an action reads as one ("Make a
-Gremlin", "Compare Two Files"). A short grey hint beside a control is
+when it is true. A tool's section is headed by the tool's name, a noun, the
+same name its row on Tools wears ("Gremlin Maker", "File Comparison"; the
+maintainer, 11 October 2026). A short grey hint beside a control is
 welcome; a long prelude is not. The pass that applied it is logged under
 `grimoire/prose-pass-he47ij`.
 

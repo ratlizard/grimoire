@@ -2513,7 +2513,7 @@ function saveMakerHTML() {
   if (!d) return '';
   const num = (id, label, v) => '<label class="mkField">' + svEsc(label) + ' <input type="number" id="' + id + '" min="1" max="255" value="' + v + '"></label>';
   const spriteName = v => propDisplayName(v.v & 0x3FF) || ('sprite ' + propWordHex(v.v & 0x3FF));
-  return '<div class="saveMaker" id="saveMaker"><h3>Make a Save</h3>' +
+  return '<div class="saveMaker" id="saveMaker"><h3>Save Maker</h3>' +
     '<div class="mechLede">' + svEsc('Make a saved game: the hero, the place, the hour, a point in the story and who is with you. Make the Save opens it here, where the forms set the rest.') + '</div>' +
     '<div class="mkRow"><label class="mkField">Name <input type="text" id="mkName" maxlength="31" value="NewGame01"></label>' +
     '<label class="mkField">Sprite <select id="mkSprite">' + d.cr.sprites.map((s, i) => '<option value="' + i + '">' + svEsc(spriteName(s)) + '</option>').join('') + '</select></label>' +

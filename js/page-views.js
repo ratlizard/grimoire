@@ -997,10 +997,11 @@ function renderToolsSheet() {
      a file, or works a figure out from numbers a visitor sets; a row for one
      that lives on another tab opens that tab at it. A row is the tool's name,
      a noun ("Ditherizer", "Gremlin Maker", "Combat Calculator"), and the
-     section it opens keeps its heading, which names the action ("Make a
-     Gremlin"). That is the maintainer's choice of 11 October 2026, after a
-     pass that made every row a verb phrase and was put back; smoke_edits
-     holds each Patches row to the heading it opens. The
+     section it opens is headed by the same name. That is the maintainer's
+     choice of 11 October 2026, after a pass that made every row a verb
+     phrase and was put back; it sets aside, for a tool's heading, the rule
+     of 1 October that a heading naming an action reads as one. smoke_edits
+     holds each Patches row to a heading Patches shows. The
      tools stay where they are: each is drawn beside the reading it shares
      with its tab, which is why Patches and Preferences left this sheet. */
   const sec = id => () => { const g = mechGroupOf(id); if (g && showCategory(g.value)) setTimeout(() => mechGo(id), 60); };

@@ -1066,7 +1066,7 @@ function renderPatchReport() {
       '<li>' + moves.join(' and ') +
       ' in the copy of the file in this browser. <b>Nothing goes to disk.</b></li>' +
       '<li>The galleries and maps then show the patch.</li>' +
-      '<li>The page keeps the original file, so <b>Compare Two Files</b> can then show exactly what changed.</li>'));
+      '<li>The page keeps the original file, so <b>File Comparison</b> can then show exactly what changed.</li>'));
     const bar = el('div', 'mechStats');
     const b = document.createElement('button');
     b.className = 'secondary';
@@ -4401,7 +4401,7 @@ function renderMechanicsSheet(value) {
     const base = patchBaseSpec();
     const applied = base ? delverInstalledPatchIds(base) : [];
     const named = applied.map(u => DELV_PATCH_AUTHORS[u]).filter(Boolean);
-    add('patches', 'Compare Patches', null, '',
+    add('patches', 'Patch Comparison', null, '',
       'Magpie patches work by replacing specific resources in the original Cythera Data file. Open a patch here to see details and what resources it changes.',
       [],
       // The patches the open file records, said only when there are some
@@ -4436,7 +4436,7 @@ function renderMechanicsSheet(value) {
 
   // ---- the scenario's fixes, as a patch ----
   {
-    add('datafixes', 'Generate Bugfix Patches', null, '',
+    add('datafixes', 'Bugfix Patch Generator', null, '',
       'Over time, the community has uncovered a number of apparent bugs and typos that were never addressed by official version updates, and AI analysis has uncovered several more. ' +
       'Solutions for the below issues have been identified through AI-based tracing and testing in the game itself (though many solutions are still untested). ' +
       'Select as many of the fixes below as you\u2019d like, and this site can generate a Magpie-compatible patch file with those fixes. ' +
@@ -4454,7 +4454,7 @@ function renderMechanicsSheet(value) {
 
   // ---- the hero's colours, as a patch ----
   {
-    add('herosprite', 'Recolor a Sprite', null, '',
+    add('herosprite', 'Sprite Recolorer', null, '',
       'Pick a sprite and change its colors. You can also give the hero and the heroine another character’s body. ' +
       'This page writes a Magpie patch that replaces just that picture.',
       [
@@ -4472,7 +4472,7 @@ function renderMechanicsSheet(value) {
 
   // ---- a gremlin of your own ----
   {
-    add('gremlins', 'Make a Gremlin', null, '',
+    add('gremlins', 'Gremlin Maker', null, '',
       'A gremlin is a script the game runs at a moment you choose. Pick when it runs and what it does, and this page writes a Magpie patch that adds it.',
       [], '');
     const sec = sections[sections.length - 1].el;
@@ -4486,7 +4486,7 @@ function renderMechanicsSheet(value) {
 
   // ---- the program's own fixes ----
   {
-    add('appfixes', 'Generate a Fixed Program', null, '',
+    add('appfixes', 'Fixed Program Generator', null, '',
       'Choose fixes to the PowerPC version of Cythera 1.0.4, and this page writes out a fixed copy of the program.',
       [], '');
     const sec = sections[sections.length - 1].el;
@@ -4535,7 +4535,7 @@ function renderMechanicsSheet(value) {
 
   // ---- a scenario of your own ----
   {
-    add('newscenario', 'Make a Scenario', null, '',
+    add('newscenario', 'Scenario Maker', null, '',
       'Start a scenario of your own. This page writes a copy of Cythera Data with the world emptied: one zone of one tile with the hero in it, and every rule, thing, creature, picture and sound kept.',
       [
         'Put the file in place of Cythera Data in the game\u2019s folder, and start a new game.',
@@ -4560,7 +4560,7 @@ function renderMechanicsSheet(value) {
   // ---- comparing two archives ----
   {
     const edits = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
-    add('compare', 'Compare Two Files', null, '',
+    add('compare', 'File Comparison', null, '',
       'See what differs between two game files: two releases of the game, a modded copy against a clean one, ' +
       'or this file against how it was before you edited it. You can save the differences as a patch.',
       [

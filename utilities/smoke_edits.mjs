@@ -111,14 +111,10 @@ try {
      is not zero. */
   const toolNames = [];
   (function rows(el) { if (el.className === 'toolRow') toolNames.push(el.children[0].textContent); else (el.children || []).forEach(rows); })(REGISTRY.get('sheetGrid'));
-  // A row is the tool's name and the section keeps its heading, so each
-  // row is held to the heading it opens.
-  const patchRows = [['Scenario Maker', 'Make a Scenario'], ['Gremlin Maker', 'Make a Gremlin'], ['Sprite Recolorer', 'Recolor a Sprite'],
-    ['Bugfix Patch Generator', 'Generate Bugfix Patches'], ['Fixed Program Generator', 'Generate a Fixed Program'], ['Behind the Scenes', 'Behind the Scenes'],
-    ['Cythera in Spanish', 'Cythera in Spanish'], ['Patch Comparison', 'Compare Patches'], ['File Comparison', 'Compare Two Files']];
+  const patchRows = ['Scenario Maker', 'Gremlin Maker', 'Sprite Recolorer', 'Bugfix Patch Generator', 'Fixed Program Generator', 'Behind the Scenes', 'Cythera in Spanish', 'Patch Comparison', 'File Comparison'];
   if (toolNames.length < 10) strayTab.push('Tools shows ' + toolNames.length + ' rows');
-  for (const [row, t] of patchRows) {
-    if (toolNames.indexOf(row) < 0) strayTab.push('Tools has no row for ' + row);
+  for (const t of patchRows) {
+    if (toolNames.indexOf(t) < 0) strayTab.push('Tools has no row for ' + t);
     if (tools.indexOf(t) < 0) strayTab.push('Tools links to ' + t + ', which Patches does not show');
   }
   // Every row that stays on the page leaves Tools for another tab when
@@ -135,7 +131,7 @@ try {
     if (ctx.CUR_SUBN === 'TOOLS') strayTab.push('the Tools row ' + t + ' goes nowhere');
   }
   ctx.showCategory('TOOLS');
-  for (const t of ['Compare Patches', 'Recolor a Sprite', 'Compare Two Files']) {
+  for (const t of ['Patch Comparison', 'Sprite Recolorer', 'File Comparison']) {
     if (tools.indexOf(t) < 0) strayTab.push('Patches does not show ' + t);
     if (toolsNow.indexOf(t) >= 0 || toolsNow.indexOf('mechSec') >= 0) strayTab.push('Tools still draws ' + t);
     ctx.showCategory('HACKERY');
