@@ -995,11 +995,12 @@ function renderToolsSheet() {
      the three that live nowhere else (the maintainer: "link all the various
      things that could be considered tools"). A tool is what makes or changes
      a file, or works a figure out from numbers a visitor sets; a row for one
-     that lives on another tab opens that tab at it, and wears the name its
-     own heading does, which smoke_edits holds for the Patches sections. The
-     names are the maintainer's choice: a pass that made every row a verb
-     phrase ("Dither an Image", "Read a License File") was put back the
-     same day at his word. The
+     that lives on another tab opens that tab at it. A row is the tool's name,
+     a noun ("Ditherizer", "Gremlin Maker", "Combat Calculator"), and the
+     section it opens keeps its heading, which names the action ("Make a
+     Gremlin"). That is the maintainer's choice of 11 October 2026, after a
+     pass that made every row a verb phrase and was put back; smoke_edits
+     holds each Patches row to the heading it opens. The
      tools stay where they are: each is drawn beside the reading it shares
      with its tab, which is why Patches and Preferences left this sheet. */
   const sec = id => () => { const g = mechGroupOf(id); if (g && showCategory(g.value)) setTimeout(() => mechGo(id), 60); };
@@ -1011,19 +1012,19 @@ function renderToolsSheet() {
     ['Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
       () => { showCategory('135'); openDitherTool(); }],
     ['Color-Cycling Canvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener')],
-    ['Make a Save', 'A saved game made from the scenario open here, with the hero you set.', at('SAVEGAME', 'saveMaker')],
-    ['Make a Scenario', 'A copy of Cythera Data with the world emptied, to start a scenario of your own.', sec('newscenario')],
-    ['Make a Gremlin', 'A script the game runs at a moment you choose, as a patch.', sec('gremlins')],
-    ['Recolor a Sprite', 'A sprite in other colors, as a patch.', sec('herosprite')],
-    ['Put Another Font in the Game', 'A TrueType font in place of the game’s.', at('FONTS', 'fontSwap')],
-    ['Rewrite the Seldane Script', 'A TrueType font redrawn as the Seldane script.', at('FONTS', 'strikeSwap')],
-    ['Replace a Tune with a MIDI File', 'Open a tune under Music, then choose Replace with a MIDI File.', at('143')],
-    ['Generate Bugfix Patches', 'The fixes you select, as a patch.', sec('datafixes')],
-    ['Generate a Fixed Program', 'A copy of the program with the fixes you choose.', sec('appfixes')],
+    ['Save Maker', 'A saved game made from the scenario open here, with the hero you set.', at('SAVEGAME', 'saveMaker')],
+    ['Scenario Maker', 'A copy of Cythera Data with the world emptied, to start a scenario of your own.', sec('newscenario')],
+    ['Gremlin Maker', 'A script the game runs at a moment you choose, as a patch.', sec('gremlins')],
+    ['Sprite Recolorer', 'A sprite in other colors, as a patch.', sec('herosprite')],
+    ['Font Replacer', 'A TrueType font in place of the game’s.', at('FONTS', 'fontSwap')],
+    ['Seldane Script Replacer', 'A TrueType font redrawn as the Seldane script.', at('FONTS', 'strikeSwap')],
+    ['MIDI Importer', 'Open a tune under Music, then choose Replace with a MIDI File.', at('143')],
+    ['Bugfix Patch Generator', 'The fixes you select, as a patch.', sec('datafixes')],
+    ['Fixed Program Generator', 'A copy of the program with the fixes you choose.', sec('appfixes')],
     ['Behind the Scenes', 'A corrected copy of Cythera Data, with fixes to what no player sees.', sec('backstage')],
     ['Cythera in Spanish', 'A Spanish copy of the open file.', sec('spanish')],
-    ['Compare Patches', 'Open a patch to see what it changes.', sec('patches')],
-    ['Compare Two Files', 'What differs between two game files.', sec('compare')],
+    ['Patch Comparison', 'Open a patch to see what it changes.', sec('patches')],
+    ['File Comparison', 'What differs between two game files.', sec('compare')],
     ['Combat Calculator', 'What a blow does, for the figures and the weapon you set.', sec('combat')],
     ['Preferences', 'The game’s settings file, made with the options you choose.', at('PREFS')],
     ['License', 'Reads the name a registration file holds.', at('LICENSE')],

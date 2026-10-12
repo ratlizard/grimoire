@@ -111,10 +111,14 @@ try {
      is not zero. */
   const toolNames = [];
   (function rows(el) { if (el.className === 'toolRow') toolNames.push(el.children[0].textContent); else (el.children || []).forEach(rows); })(REGISTRY.get('sheetGrid'));
-  const patchRows = ['Make a Scenario', 'Make a Gremlin', 'Recolor a Sprite', 'Generate Bugfix Patches', 'Generate a Fixed Program', 'Behind the Scenes', 'Cythera in Spanish', 'Compare Patches', 'Compare Two Files'];
+  // A row is the tool's name and the section keeps its heading, so each
+  // row is held to the heading it opens.
+  const patchRows = [['Scenario Maker', 'Make a Scenario'], ['Gremlin Maker', 'Make a Gremlin'], ['Sprite Recolorer', 'Recolor a Sprite'],
+    ['Bugfix Patch Generator', 'Generate Bugfix Patches'], ['Fixed Program Generator', 'Generate a Fixed Program'], ['Behind the Scenes', 'Behind the Scenes'],
+    ['Cythera in Spanish', 'Cythera in Spanish'], ['Patch Comparison', 'Compare Patches'], ['File Comparison', 'Compare Two Files']];
   if (toolNames.length < 10) strayTab.push('Tools shows ' + toolNames.length + ' rows');
-  for (const t of patchRows) {
-    if (toolNames.indexOf(t) < 0) strayTab.push('Tools has no row for ' + t);
+  for (const [row, t] of patchRows) {
+    if (toolNames.indexOf(row) < 0) strayTab.push('Tools has no row for ' + row);
     if (tools.indexOf(t) < 0) strayTab.push('Tools links to ' + t + ', which Patches does not show');
   }
   // Every row that stays on the page leaves Tools for another tab when
