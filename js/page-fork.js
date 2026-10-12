@@ -72,7 +72,7 @@ function fontSwapPanel() {
   box.id = 'fontSwap';   // the Tools sheet's row scrolls here
   const target = gameFontResource();
   const sw = window.FONT_SWAP;
-  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Replace the Game’s Font</h3></div>' +
+  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Put Another Font in the Game</h3></div>' +
     (target
       ? '<p class="mechLede">Choose a TrueType font (<b>.ttf</b>) to replace the game’s font, ' + svEsc(target.name || 'ArgosANouveau') + ' (<b>sfnt ' + target.id + '</b>), in the copy of the file in this browser.</p>' +
         '<ul class="ruleList"><li>To play with it, export <b>Data file › the disk image</b> and run the game from it in an emulator.</li>' +
@@ -394,7 +394,7 @@ function strikeSwapPanel() {
   box.id = 'strikeSwap';   // the Tools sheet's row scrolls here
   const strikes = seldaneStrikes();
   const sw = window.STRIKE_SWAP;
-  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Redraw the Seldane Script</h3></div>' +
+  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Rewrite the Seldane Script</h3></div>' +
     (strikes
       ? '<p class="mechLede">Choose a TrueType font to redraw the Seldane script (' + strikes.map(e => 'NFNT ' + e.id).join(' and ') + ') at both its sizes, in the copy of the file in this browser.</p>' +
         '<ul class="ruleList">' +

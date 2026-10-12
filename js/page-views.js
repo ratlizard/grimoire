@@ -995,11 +995,11 @@ function renderToolsSheet() {
      the three that live nowhere else (the maintainer: "link all the various
      things that could be considered tools"). A tool is what makes or changes
      a file, or works a figure out from numbers a visitor sets; a row for one
-     that lives on another tab opens that tab at it. Every name is an action,
-     verb first (the maintainer, 11 October 2026: "consistent and
-     appropriate"); a row for a headed section wears that heading, which
-     smoke_edits holds for the Patches sections, and a row for a whole tab
-     says what is done there, the tab keeping its label. The
+     that lives on another tab opens that tab at it, and wears the name its
+     own heading does, which smoke_edits holds for the Patches sections. The
+     names are the maintainer's choice: a pass that made every row a verb
+     phrase ("Dither an Image", "Read a License File") was put back the
+     same day at his word. The
      tools stay where they are: each is drawn beside the reading it shares
      with its tab, which is why Patches and Preferences left this sheet. */
   const sec = id => () => { const g = mechGroupOf(id); if (g && showCategory(g.value)) setTimeout(() => mechGo(id), 60); };
@@ -1008,27 +1008,27 @@ function renderToolsSheet() {
     setTimeout(() => { const el = document.getElementById(id); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
   };
   for (const [label, note, go] of [
-    ['Dither an Image', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
+    ['Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
       () => { showCategory('135'); openDitherTool(); }],
-    ['Paint a Color-Cycling Picture', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener')],
+    ['Color-Cycling Canvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener')],
     ['Make a Save', 'A saved game made from the scenario open here, with the hero you set.', at('SAVEGAME', 'saveMaker')],
     ['Make a Scenario', 'A copy of Cythera Data with the world emptied, to start a scenario of your own.', sec('newscenario')],
     ['Make a Gremlin', 'A script the game runs at a moment you choose, as a patch.', sec('gremlins')],
     ['Recolor a Sprite', 'A sprite in other colors, as a patch.', sec('herosprite')],
-    ['Replace the Game’s Font', 'A TrueType font in place of the game’s.', at('FONTS', 'fontSwap')],
-    ['Redraw the Seldane Script', 'A TrueType font redrawn as the Seldane script.', at('FONTS', 'strikeSwap')],
+    ['Put Another Font in the Game', 'A TrueType font in place of the game’s.', at('FONTS', 'fontSwap')],
+    ['Rewrite the Seldane Script', 'A TrueType font redrawn as the Seldane script.', at('FONTS', 'strikeSwap')],
     ['Replace a Tune with a MIDI File', 'Open a tune under Music, then choose Replace with a MIDI File.', at('143')],
     ['Generate Bugfix Patches', 'The fixes you select, as a patch.', sec('datafixes')],
     ['Generate a Fixed Program', 'A copy of the program with the fixes you choose.', sec('appfixes')],
-    ['Generate a Fixed Data File', 'A corrected copy of Cythera Data, with fixes to what no player sees.', sec('backstage')],
-    ['Generate a Spanish Translation', 'A Spanish copy of the open file.', sec('spanish')],
+    ['Behind the Scenes', 'A corrected copy of Cythera Data, with fixes to what no player sees.', sec('backstage')],
+    ['Cythera in Spanish', 'A Spanish copy of the open file.', sec('spanish')],
     ['Compare Patches', 'Open a patch to see what it changes.', sec('patches')],
     ['Compare Two Files', 'What differs between two game files.', sec('compare')],
-    ['Calculate a Blow', 'What a blow does, for the figures and the weapon you set.', sec('combat')],
-    ['Make a Preferences File', 'The game’s settings file, made with the options you choose.', at('PREFS')],
-    ['Read a License File', 'Reads the name a registration file holds.', at('LICENSE')],
-    ['Download Your Changes', 'What you have changed in the open file, and where to download it.', at('CHANGES')],
-    ['View the Source on GitHub', 'Where this page and its tests live.', () => window.open('https://github.com/ratlizard/grimoire', '_blank', 'noopener')]]) {
+    ['Combat Calculator', 'What a blow does, for the figures and the weapon you set.', sec('combat')],
+    ['Preferences', 'The game’s settings file, made with the options you choose.', at('PREFS')],
+    ['License', 'Reads the name a registration file holds.', at('LICENSE')],
+    ['Changes', 'What you have changed in the open file, and where to download it.', at('CHANGES')],
+    ['GitHub Repository', 'Where this page and its tests live.', () => window.open('https://github.com/ratlizard/grimoire', '_blank', 'noopener')]]) {
     const d = document.createElement('div');
     d.className = 'toolRow';
     const b = document.createElement('button');
