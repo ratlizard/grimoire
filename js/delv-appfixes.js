@@ -114,6 +114,27 @@ const APP_FIXES = [
     bug: 'The scale gives wrong weights',
     sites: [{ at: 0x958A4, was: [0x4BFC01B5], asm: ['li 3, 0               ; was bl GetCurInvEncumb'] }] },
 
+  // In SaveLevelProps, which writes a zone's list on leaving it and at a
+  // save: the records after the 256 characters, up to the last in use,
+  // the party's things taken out first on leaving. For a zone with
+  // nothing of its own, which is Tavara's island without the fortress
+  // (zone 37) and no other, that is length 0, and to a segment file a
+  // segment of length 0 is one that is not there: TSegFileIterator steps
+  // over it, so SaveToFile never copies it into the player's file, and
+  // the player's file keeps the list it had. A save made on the island
+  // puts the carried things in that list; after a save anywhere else the
+  // island's list is read from the player's file again, and going back
+  // loads the old things beside the ones in hand. Here a list that would
+  // be empty is written as one free slot (flags 0xFF, what the routine's
+  // own trimming loop takes for unused), 16 bytes, which is copied like
+  // any other and replaces what was there.
+  { id: 'empty-zone-save', kind: 'fix', title: 'A zone left with nothing in it is saved as one free slot, so Tavara\u2019s island no longer doubles what you carry (SaveLevelProps)',
+    bug: 'Saving and reverting around Tavara\u2019s ring duplicates everything carried',
+    played: 'Mac OS 8.5, 11 October 2026, the program with the fix alone and with every fix beside the stock one, the hero given stairs to the fortress and to Land King Hall: a save on the island without the fortress, the hall and a save, the island again, and the save then holds 36 carried records on the stock program, the hero\u2019s six things twice, and 18 with the fix alone and with every fix. The board\u2019s route on foot (the island and a save, the ring on, the Stronghold, the ring off and a save, Revert To Saved, out by the west edge and onto the fortress\u2019s square): 34 carried on the stock program, 17 with the fix alone. Fork, PowerPC, 12 October 2026: after the save in the hall the stock program\u2019s save still holds the island\u2019s list with the 18 carried records and the fixed ones\u2019 do not; the step back to the island did not land there, so the doubled count is not shown in the fork',
+    sites: [{ at: 0x6EF8, was: [0x54062036], asm: ['bl @cave               ; was slwi 6, 0, 4: the length, 16 a record'] }],
+    cave: ['slwi 6, 0, 4', 'cmpwi 6, 0', 'bnelr', 'li 0, 255             ; the first slot after the characters, marked free',
+           'stb 0, 0(5)', 'li 6, 16', 'blr'] },
+
   { id: 'books-window', kind: 'fix', title: 'Taking a thing out redraws the window of whatever held it (RemoveItem)',
     played: 'fork, PowerPC, 30 September 2026: a book handed to Selinus from an open pouch leaves its window',
     bug: 'You can hand in Sapphire Books in a container again and again',
