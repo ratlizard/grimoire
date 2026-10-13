@@ -596,6 +596,32 @@ const DATA_FIXES = [
     ] },
   // The magic arrow drawn as a stack (0x8103, and two Cademia stacks in
   // 0x8108): the count moves from Data1 to Data2.
+  // A click reaches the one thing the viewer keeps for a square, and a
+  // loose thing outranks a door, so with a dagger lying in a doorway Use
+  // finds the dagger, open door or shut, and the door cannot be worked
+  // until the dagger is taken away [453@t2023]. A thing with no Use of its
+  // own runs the default, 0x3009, which did nothing. It now looks over its
+  // own square when it lies on the ground, and hands the Use to a door
+  // there (the six classes whose ClassFlags carry 0x200). A first try, the
+  // door's helper refusing to close on a thing, could never run: the
+  // click does not reach the door.
+  { id: 'door-under-thing', group: 'world', stage: 'community', title: 'Using a thing that lies in a doorway now works the door, instead of doing nothing and leaving the door stuck',
+    played: 'fork, 68K, 12 October 2026, the stock file, the fix alone and every fix: a dagger put by an edit on the square of the oak door at (52,21) of Cademia, the hero south of it, Use on that square three times. Each time the pane says "> Use dagger."; on the stock file the door\u2019s record stays shut, with the fix alone and with every fix it is open after the third. Mac OS 8.5, the same day, the same three, each patch installed by Magpie: unpatched the door stays shut through three Uses; with the fix alone and with every fix it opens, shuts and opens, the room behind it drawn',
+    edits: [
+      { what: 'a thing with no use hands it to a door on its square', resid: 0x3009, at: 0x0003, expect: { 0x0003: 'return' },
+        code: ['if_not', 'arg Arg00', 'get_field flags (0x0)', 'byte 0x18', 'bitwise_and', 'byte 0x00', 'eq', 'then -> out',
+          'set_local 0x00', 'sys LocationIterator', 'word &Var0', 'byte 0x00', 'arg Arg00', 'get_field x (0x1)', 'arg Arg00', 'get_field y (0x2)', 'end', 'end',
+          'look:',
+          'if', 'sys LocationIterator', 'word &Var0', 'byte 0x01', 'end', 'then -> out',
+          'if_not', ...[3, 7, 10, 11, 56, 276].map((t, k) => ['local Var00', 'get_field obj_type (0x4)', 'short 0x' + t.toString(16).toUpperCase().padStart(4, '0'), 'eq'].concat(k ? ['or'] : [])).flat(), 'then -> onward',
+          'set_local 0x03', 'method Use (0x9)', 'local Var00', 'end', 'end',
+          'return', 'byte 0x00', 'end',
+          'onward:',
+          'set_local 0x00', 'sys LocationIterator', 'word &Var0', 'byte 0x02', 'end', 'end',
+          'branch look',
+          'out:'].join('\n') },
+    ],
+    dataEdits: [{ what: 'the default Use has four locals', resid: 0x3009, fn: (b) => { if (b[0] !== 0x81 || b[2] !== 0) throw new Error('the header is not what the page read'); b[2] = 4; return 'locals 0 to 4'; } }] },
   // Shake Down (0x1A24) counts everything its target holds, rolls for one
   // and puts it on the target's square with flags 1, a thing on the ground
   // and free to take. What a character holds includes its skills and
