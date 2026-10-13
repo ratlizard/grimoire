@@ -1291,47 +1291,36 @@ const DATA_FIXES = [
       return { edits, textEdits };
     } },
   // Lines that flash past, the opening descriptions (453). A character's
-  // description is narration, and what he says next replaces it as soon as
-  // it is drawn unless a `*` after it waits for a click, as seventy of the
-  // ninety-three descriptions have. These lacked it: on Mac OS 8.5 the
-  // description of each of the four 453 named was up for about a quarter
-  // of a second (bugs.md, the same title). The mark is a new line and the
-  // `*`, as Magpie's description has it: with the `*` straight after the
-  // full stop, the form most of the seventy use, Mac OS 8.5 drew
-  // Demodocus's description without its full stop. It goes where the
-  // narration ends: after the description; inside the string for the two whose
-  // greeting begins in it (Malis, Alcmena); after either of Polydamas's second
-  // sentences. Left as they are: Cybele,
-  // whose second clause branches into the middle of the string ".*" for
-  // its `*` (a wait put after the clause was a second click, until the
-  // check of 13 October 2026 met the branch); Mantinea
-  // and Itanos, whose description nothing follows, and Oeneus, where the
-  // one line that can follow begins with a `*`; and Ennomus, whose
-  // description the fork showed still on the screen beside his first
-  // question on the shipped file (13 October 2026): a line that goes to its
-  // prompt with no pause leaves the description up, so a `*` before his
-  // words was a click for nothing and is gone.
-  { id: 'descriptions-wait', group: 'talk', stage: 'further', title: 'A character\u2019s description now waits for you to read it, instead of flashing past, for eighteen characters',
-    played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Demodocus, Myus, Thersites and Polydamas met for the first time, each description staying with MORE until a click and the greeting following it, against 234 to 305 ms on screen unpatched from the same saves. The other fourteen are not played on Mac OS; fork, 68K, 13 October 2026, alone and on \u201cAll Fixes\u201d: Demodocus, his description waiting at the tick where the shipped file already shows his greeting',
+  // description is narration, and it is wiped when a `*` comes after the
+  // speech that follows it: TConversation::myprintstr redraws the message
+  // line there before it waits. A first line that goes to its prompt with
+  // no `*` leaves the description up beside it. So a description is lost
+  // only where some first line pauses, which is so for eight of the
+  // twenty-three descriptions with no `*` of their own, the four 453 named
+  // among them: on Mac OS 8.5 each of those four was up for about a quarter
+  // of a second (bugs.md, the same title). These get the mark Magpie's
+  // description has, a new line and the `*`; with the `*` straight after
+  // the full stop Mac OS 8.5 drew Demodocus's description without it
+  // (pause-keeps-letter, below). After either of Polydamas's second
+  // sentences. On a branch of theirs whose first line does not pause
+  // (Paris at his counter, Niobe to a stranger, a second meeting with Myus
+  // or Anisa) the fix adds one click. Left as shipped: the ten whose first
+  // lines never pause, each seen or read to keep its description (Laodice,
+  // Malis, Sardis, Dymas, Alcestris, Antiphus, Dryas, Borus, Briseis,
+  // Alcmena; and Ennomus, seen); Cybele, whose second clause branches into
+  // the string ".*" for its wait; Mantinea and Itanos, whose description
+  // nothing follows; Oeneus, whose one following line begins with a `*`.
+  { id: 'descriptions-wait', group: 'talk', stage: 'further', title: 'A character\u2019s description now waits for you to read it, instead of flashing past, for eight characters',
+    played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Demodocus, Myus, Thersites and Polydamas met for the first time, each description staying with MORE until a click and the greeting following it, against 234 to 305 ms on screen unpatched from the same saves; fork, 68K, the same day, alone and on \u201cAll Fixes\u201d: Demodocus, Alastor and Anisa, each description waiting at the tick where the shipped file shows the greeting alone, and Paris and Niobe on the branch that does not lose it, where the fix adds a click. Not played: the branch of Paris and of Niobe that loses it',
     textEdits: [
       ['Myus', 0x180A, 'with an air of leadership.'],
-      ['Laodice', 0x1813, 'who looks tired, but content.'],
-      ['Malis', 0x1815, 'shy and uncertain.'],
-      ['Sardis', 0x181F, 'You see a slight looking man, dressed impecably.'],
       ['Alastor', 0x1825, 'with stained hands and arms.'],
-      ['Dymas', 0x1845, 'You see a small, outgoing boy.'],
       ['Anisa', 0x184D, 'who seems lost in thought.'],
-      ['Alcestris', 0x1855, 'but still bright with life.'],
       ['Paris', 0x1857, 'man in his early thirties.'],
       ['Niobe', 0x1859, 'with long blond hair and large blue eyes.'],
-      ['Antiphus', 0x185E, 'You see a brigand with a sneer on his face.'],
       ['Polydamas, coughing', 0x185F, '  Coughing spasm wracks his body.'],
       ['Polydamas, full of life', 0x185F, '  Despite that, he seems full of life.'],
-      ['Dryas', 0x1862, 'about 12 years old.'],
       ['Thersites', 0x1865, 'You see a kindly looking, honorable man.'],
-      ['Borus', 0x1867, 'You see a pudgy, round-faced man'],
-      ['Briseis', 0x1868, 'You see a pudgy, round faced woman.'],
-      ['Alcmena', 0x186A, 'but content looking woman.'],
       ['Demodocus', 0x186D, 'with thinning curly hair.'],
     ].map(([who, resid, line]) => ({ what: who + '\u2019s description', resid, find: line, replace: line + '\n*', count: 1 })) },
   // The letter before a pause. TConversation::myprintstr, at a `*`, draws
