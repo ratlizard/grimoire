@@ -1289,6 +1289,48 @@ const DATA_FIXES = [
       ];
       return { edits, textEdits };
     } },
+  // Lines that flash past, the opening descriptions (453). A character's
+  // description is narration, and what he says next replaces it as soon as
+  // it is drawn unless a `*` after it waits for a click, as seventy of the
+  // ninety-three descriptions have. These lacked it: on Mac OS 8.5 the
+  // description of each of the four 453 named was up for about a quarter
+  // of a second (bugs.md, the same title). The mark is a new line and the
+  // `*`, as Magpie's description has it: with the `*` straight after the
+  // full stop, the form most of the seventy use, Mac OS 8.5 drew
+  // Demodocus's description without its full stop. It goes where the
+  // narration ends: after the description; inside the string for the two whose
+  // greeting begins in it (Malis, Alcmena); after Cybele's second clause,
+  // whose other branch has it; after either of Polydamas's second
+  // sentences; and before Ennomus's first words, since his other branch
+  // ("*He appears to be passed out.") waits already and a `*` after the
+  // description would ask for two clicks there. Left as they are: Mantinea
+  // and Itanos, whose description nothing follows, and Oeneus, where the
+  // one line that can follow begins with a `*`.
+  { id: 'descriptions-wait', group: 'talk', stage: 'further', title: 'A character\u2019s description now waits for you to read it, instead of flashing past, for twenty characters',
+    played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Demodocus, Myus, Thersites and Polydamas met for the first time, each description staying with MORE until a click and the greeting following it, against 234 to 305 ms on screen unpatched from the same saves. The other sixteen are not played, and it was not run in the fork',
+    textEdits: [
+      ['Myus', 0x180A, 'with an air of leadership.'],
+      ['Laodice', 0x1813, 'who looks tired, but content.'],
+      ['Malis', 0x1815, 'shy and uncertain.'],
+      ['Cybele', 0x1816, ' with lines of strain showing on her face.'],
+      ['Sardis', 0x181F, 'You see a slight looking man, dressed impecably.'],
+      ['Alastor', 0x1825, 'with stained hands and arms.'],
+      ['Dymas', 0x1845, 'You see a small, outgoing boy.'],
+      ['Anisa', 0x184D, 'who seems lost in thought.'],
+      ['Alcestris', 0x1855, 'but still bright with life.'],
+      ['Paris', 0x1857, 'man in his early thirties.'],
+      ['Niobe', 0x1859, 'with long blond hair and large blue eyes.'],
+      ['Antiphus', 0x185E, 'You see a brigand with a sneer on his face.'],
+      ['Polydamas, coughing', 0x185F, '  Coughing spasm wracks his body.'],
+      ['Polydamas, full of life', 0x185F, '  Despite that, he seems full of life.'],
+      ['Dryas', 0x1862, 'about 12 years old.'],
+      ['Thersites', 0x1865, 'You see a kindly looking, honorable man.'],
+      ['Borus', 0x1867, 'You see a pudgy, round-faced man'],
+      ['Briseis', 0x1868, 'You see a pudgy, round faced woman.'],
+      ['Alcmena', 0x186A, 'but content looking woman.'],
+      ['Demodocus', 0x186D, 'with thinning curly hair.'],
+    ].map(([who, resid, line]) => ({ what: who + '\u2019s description', resid, find: line, replace: line + '\n*', count: 1 }))
+      .concat([{ what: 'Ennomus\u2019s first words', resid: 0x1811, find: '"Come closer - that\'s better.', replace: '*"Come closer - that\'s better.', count: 1 }]) },
   // Demodocus's "Would you like to @hear it?" leads to his song, keyed
   // "song,meti", whose "meti" the question itself takes first; it is keyed
   // "song,hear".
