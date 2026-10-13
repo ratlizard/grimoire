@@ -1301,16 +1301,18 @@ const DATA_FIXES = [
   // Demodocus's description without its full stop. It goes where the
   // narration ends: after the description; inside the string for the two whose
   // greeting begins in it (Malis, Alcmena); after either of Polydamas's second
-  // sentences; and before Ennomus's first words, since his other branch
-  // ("*He appears to be passed out.") waits already and a `*` after the
-  // description would ask for two clicks there. Left as they are: Cybele,
+  // sentences. Left as they are: Cybele,
   // whose second clause branches into the middle of the string ".*" for
   // its `*` (a wait put after the clause was a second click, until the
   // check of 13 October 2026 met the branch); Mantinea
   // and Itanos, whose description nothing follows, and Oeneus, where the
-  // one line that can follow begins with a `*`.
-  { id: 'descriptions-wait', group: 'talk', stage: 'further', title: 'A character\u2019s description now waits for you to read it, instead of flashing past, for nineteen characters',
-    played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Demodocus, Myus, Thersites and Polydamas met for the first time, each description staying with MORE until a click and the greeting following it, against 234 to 305 ms on screen unpatched from the same saves. The other fifteen are not played, and it was not run in the fork',
+  // one line that can follow begins with a `*`; and Ennomus, whose
+  // description the fork showed still on the screen beside his first
+  // question on the shipped file (13 October 2026): a line that goes to its
+  // prompt with no pause leaves the description up, so a `*` before his
+  // words was a click for nothing and is gone.
+  { id: 'descriptions-wait', group: 'talk', stage: 'further', title: 'A character\u2019s description now waits for you to read it, instead of flashing past, for eighteen characters',
+    played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Demodocus, Myus, Thersites and Polydamas met for the first time, each description staying with MORE until a click and the greeting following it, against 234 to 305 ms on screen unpatched from the same saves. The other fourteen are not played on Mac OS; fork, 68K, 13 October 2026, alone and on \u201cAll Fixes\u201d: Demodocus, his description waiting at the tick where the shipped file already shows his greeting',
     textEdits: [
       ['Myus', 0x180A, 'with an air of leadership.'],
       ['Laodice', 0x1813, 'who looks tired, but content.'],
@@ -1331,8 +1333,7 @@ const DATA_FIXES = [
       ['Briseis', 0x1868, 'You see a pudgy, round faced woman.'],
       ['Alcmena', 0x186A, 'but content looking woman.'],
       ['Demodocus', 0x186D, 'with thinning curly hair.'],
-    ].map(([who, resid, line]) => ({ what: who + '\u2019s description', resid, find: line, replace: line + '\n*', count: 1 }))
-      .concat([{ what: 'Ennomus\u2019s first words', resid: 0x1811, find: '"Come closer - that\'s better.', replace: '*"Come closer - that\'s better.', count: 1 }]) },
+    ].map(([who, resid, line]) => ({ what: who + '\u2019s description', resid, find: line, replace: line + '\n*', count: 1 })) },
   // The letter before a pause. TConversation::myprintstr, at a `*`, draws
   // the text up to one character short of it (the length it hands
   // AppendConv or AppendMessage is the `*`'s place less one, less the
@@ -1348,7 +1349,7 @@ const DATA_FIXES = [
   // by as much of the text before it as makes it the only one, or the only
   // ones, in its script.
   { id: 'pause-keeps-letter', group: 'text', stage: 'further', title: 'The full stop or letter before a pause is now drawn, instead of dropped',
-    played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Hadrian met for the first time, "You see an older warrior, with a proud demeanor." with its full stop, against the same line without it unpatched from the same save. One place of 126; not run in the fork',
+    played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Hadrian met for the first time, "You see an older warrior, with a proud demeanor." with its full stop, against the same line without it unpatched from the same save. One place of 126; fork, 68K, 13 October 2026, alone and on \u201cAll Fixes\u201d: the same line, with and without its full stop',
     plan: (s) => {
       const texts = dataPatchTexts(s), textEdits = [];
       const times = (t, f) => { let n = 0; for (let i = t.indexOf(f); i >= 0; i = t.indexOf(f, i + 1)) n++; return n; };
