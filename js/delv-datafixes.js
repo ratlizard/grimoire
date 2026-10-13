@@ -103,6 +103,11 @@ const DATA_FIX_GROUPS = [
   { id: 'items', title: 'Items' },
   { id: 'world', title: 'People and places' },
   { id: 'text', title: 'Text' },
+  // Fixes nobody can see in play: the file is put right and the screen is
+  // the same either way (the maintainer, 12 October 2026, of the Gate
+  // Guard's reply). A list of their own, so that a mark of "untested" there
+  // is read for what it is: there is nothing to see.
+  { id: 'hidden', title: 'Behind the Scenes', note: 'These change nothing you can see in play; each puts right something in the game’s files.' },
   // The larger changes, each a design call rather than a mended slip, in a
   // list of their own below the rest (the maintainer, 1 October 2026).
   { id: 'design', title: 'Design Changes', note: 'These are not bug fixes; each changes how the game’s design has it behave.' },
@@ -245,7 +250,7 @@ const DATA_FIXES = [
   // The Gate Guard's speaker (0x1864): one reply was given to character 54,
   // the Odemia Guard; it is given to himself. The two share a portrait, so
   // nothing changes on screen, but the number is right.
-  { id: 'gate-guard', group: 'talk', stage: 'found', title: 'A reply of the Gate Guard\u2019s is now spoken by him, instead of by the Odemia Guard',
+  { id: 'gate-guard', group: 'hidden', stage: 'found', title: 'A reply of the Gate Guard\u2019s is now spoken by him, instead of by the Odemia Guard',
     edits: [
       { what: 'the Gate Guard speaks', resid: 0x1864, at: 0x058D, replaceOp: true, expect: { 0x058C: 'sys TalkParticipant', 0x058D: 'short 0x0036', 0x0590: 'byte 0x00' }, code: 'arg Arg00' },
     ] },
