@@ -605,9 +605,24 @@ const DATA_FIXES = [
   // there (the six classes whose ClassFlags carry 0x200). A first try, the
   // door's helper refusing to close on a thing, could never run: the
   // click does not reach the door.
-  { id: 'door-under-thing', group: 'world', stage: 'community', title: 'A door no longer closes on a thing lying in its doorway, and a door found shut on one opens when the thing is used, instead of staying stuck',
-    played: 'fork, 68K, and Mac OS 8.5 with each patch installed by Magpie, 12 October 2026, the stock file, the fix alone and every fix: a dagger put by an edit on the square of the oak door at (52,21) of Cademia, the hero south of it, Use on that square three times. Unpatched the pane says "> Use dagger." three times and the door stays shut. With the fix alone and with every fix the first Use opens the door, the room behind it drawn, and the second and third say "Something is in the doorway." and leave it open. In the fork, with no dagger, three Uses open, shut and open the door on all three files',
-    edits: [
+  { id: 'door-under-thing', group: 'world', stage: 'community', title: 'A door comes first: using a thing that lies in a doorway works the door, which opens and will not close on it, instead of staying stuck',
+    played: 'fork, 68K, and Mac OS 8.5 with each patch installed by Magpie, 12 October 2026, the stock file, the fix alone and every fix: a dagger put by an edit on the square of the oak door at (52,21) of Cademia, the hero south of it, Use on that square three times. Unpatched the pane says "> Use dagger." three times and the door stays shut. With the fix alone and with every fix the first Use opens the door, the room behind it drawn, and the second and third say "Something is in the doorway." and leave it open. In the fork, with no dagger, three Uses open, shut and open the door on all three files. A potion on the same square, the same day, the fork and Mac OS 8.5: unpatched "Whom should quaff potion?" and the door shut; with the fix alone and with every fix the door opens and the next two Uses say "Something is in the doorway." A potion on open floor asks whom, on all three files (fork). Nine types are left out, each edited by another fix: the two flatbreads, the fishing pole, the pitcher, the rolling pin, a corpse, the mushroom steak, the LandKing Amulet and the strange device are used as before in a doorway',
+    // With the Use handed on, a door could be shut on the thing and opened
+    // again through it, which is one rule for the player and another for
+    // the doorway (the maintainer, 12 October 2026: "SHOULD the player be
+    // able to close the door with something in the way?"). So the door's
+    // helper, 0x0E40, also looks over its square before closing, and with
+    // anything there that has a weight it says so and stays open. Opening
+    // is never refused, so a door found shut on a thing still opens.
+    // A thing with a Use of its own, a torch, a potion, a chest, never came
+    // to 0x3009, so a door shut on one stayed stuck (the maintainer, 12
+    // October 2026: "can't you have the door use take precedence over the
+    // torch?"). Each class that has a Use and a weight now asks 0x3009
+    // first, which answers True when it has handed the Use to a door, and
+    // only otherwise goes on to its own. So in a doorway the door comes
+    // first, whatever lies there; picked up, the thing is used as before.
+    plan: (s) => {
+      const edits = [
       { what: 'a thing with no use hands it to a door on its square', resid: 0x3009, at: 0x0003, expect: { 0x0003: 'return' },
         code: ['if_not', 'arg Arg00', 'get_field flags (0x0)', 'byte 0x18', 'bitwise_and', 'byte 0x00', 'eq', 'then -> out',
           'set_local 0x00', 'sys LocationIterator', 'word &Var0', 'byte 0x00', 'arg Arg00', 'get_field x (0x1)', 'arg Arg00', 'get_field y (0x2)', 'end', 'end',
@@ -615,7 +630,7 @@ const DATA_FIXES = [
           'if', 'sys LocationIterator', 'word &Var0', 'byte 0x01', 'end', 'then -> out',
           'if_not', ...[3, 7, 10, 11, 56, 276].map((t, k) => ['local Var00', 'get_field obj_type (0x4)', 'short 0x' + t.toString(16).toUpperCase().padStart(4, '0'), 'eq'].concat(k ? ['or'] : [])).flat(), 'then -> onward',
           'set_local 0x03', 'method Use (0x9)', 'local Var00', 'end', 'end',
-          'return', 'byte 0x00', 'end',
+          'return', 'word True', 'end',
           'onward:',
           'set_local 0x00', 'sys LocationIterator', 'word &Var0', 'byte 0x02', 'end', 'end',
           'branch look',
@@ -632,16 +647,31 @@ const DATA_FIXES = [
           'set_local 0x05', 'sys LocationIterator', 'word &Var5', 'byte 0x02', 'end', 'end',
           'branch look',
           'clear:'].join('\n') },
-    ],
-    // With the Use handed on, a door could be shut on the thing and opened
-    // again through it, which is one rule for the player and another for
-    // the doorway (the maintainer, 12 October 2026: "SHOULD the player be
-    // able to close the door with something in the way?"). So the door's
-    // helper, 0x0E40, also looks over its square before closing, and with
-    // anything there that has a weight it says so and stays open. Opening
-    // is never refused, so a door found shut on a thing still opens.
-    dataEdits: [{ what: 'the door helper has three more locals', resid: 0x0E40, fn: (b) => { if (b[0] !== 0x81 || b[2] !== 5) throw new Error('the header is not what the page read'); b[2] = 8; return 'locals 5 to 8'; } },
-      { what: 'the default Use has four locals', resid: 0x3009, fn: (b) => { if (b[0] !== 0x81 || b[2] !== 0) throw new Error('the header is not what the page read'); b[2] = 4; return 'locals 0 to 4'; } }] },
+      ];
+      // Read from the session, not the page's open file: a build has none.
+      // A class another fix edits is left out, so that fix's places stay
+      // where it wrote them; its thing in a doorway is used as before. The
+      // strange device (373) is named because `strange-device` plans its
+      // edits and names no place here.
+      const taken = new Set([0x1000 + 373]);
+      for (const f of DATA_FIXES) if (f.id !== 'door-under-thing')
+        for (const e of [].concat(f.edits || [], f.dataEdits || [], f.textEdits || [])) if (e && e.resid) taken.add(e.resid);
+      for (let pt = 1; pt < 0x400; pt++) {
+        if (taken.has(0x1000 + pt)) continue;
+        const resid = 0x1000 + pt;
+        let b; try { b = s.bytesOf(resid); } catch (e) { continue; }
+        if (!b) continue;
+        const slots = [...dvmSlotNames(b, resid).entries()];
+        const use = slots.find(([, name]) => name === 'Use');
+        if (!use || !slots.some(([, name]) => name === 'Weight')) continue;
+        const fn = dataPatchListing(s, resid).fns.find(f => f.st === use[0]);
+        if (!fn) continue;
+        edits.push({ what: 'a door on its square comes before the Use of prop type ' + pt, resid, at: fn.st + 3,
+          code: ['if_not', 'call_resource 0x3009', 'arg Arg00', 'end', 'then -> own', 'return', 'byte 0x00', 'end', 'own:'].join('\n') });
+      }
+      return { edits, dataEdits: [{ what: 'the door helper has three more locals', resid: 0x0E40, fn: (b) => { if (b[0] !== 0x81 || b[2] !== 5) throw new Error('the header is not what the page read'); b[2] = 8; return 'locals 5 to 8'; } },
+      { what: 'the default Use has four locals', resid: 0x3009, fn: (b) => { if (b[0] !== 0x81 || b[2] !== 0) throw new Error('the header is not what the page read'); b[2] = 4; return 'locals 0 to 4'; } }] };
+    } },
   // Shake Down (0x1A24) counts everything its target holds, rolls for one
   // and puts it on the target's square with flags 1, a thing on the ground
   // and free to take. What a character holds includes its skills and
