@@ -606,7 +606,7 @@ const DATA_FIXES = [
   // door's helper refusing to close on a thing, could never run: the
   // click does not reach the door.
   { id: 'door-under-thing', group: 'world', stage: 'community', title: 'A door comes first: using a thing that lies in a doorway works the door, which opens and will not close on it, instead of staying stuck',
-    played: 'fork, 68K, and Mac OS 8.5 with each patch installed by Magpie, 12 October 2026, the stock file, the fix alone and every fix: a dagger put by an edit on the square of the oak door at (52,21) of Cademia, the hero south of it, Use on that square three times. Unpatched the pane says "> Use dagger." three times and the door stays shut. With the fix alone and with every fix the first Use opens the door, the room behind it drawn, and the second and third say "Something is in the doorway." and leave it open. In the fork, with no dagger, three Uses open, shut and open the door on all three files. A potion on the same square, the same day, the fork and Mac OS 8.5: unpatched "Whom should quaff potion?" and the door shut; with the fix alone and with every fix the door opens and the next two Uses say "Something is in the doorway." A potion on open floor asks whom, on all three files (fork). Nine types are left out, each edited by another fix: the two flatbreads, the fishing pole, the pitcher, the rolling pin, a corpse, the mushroom steak, the LandKing Amulet and the strange device are used as before in a doorway',
+    played: 'fork, 68K, and Mac OS 8.5 with each patch installed by Magpie, 12 October 2026, the stock file, the fix alone and every fix: a dagger put by an edit on the square of the oak door at (52,21) of Cademia, the hero south of it, Use on that square three times. Unpatched the pane says "> Use dagger." three times and the door stays shut. With the fix alone and with every fix the first Use opens the door, the room behind it drawn, and the second and third say "Something is in the doorway." and leave it open. In the fork, with no dagger, three Uses open, shut and open the door on all three files. A potion on the same square, the same day, the fork and Mac OS 8.5: unpatched "Whom should quaff potion?" and the door shut; with the fix alone and with every fix the door opens and the next two Uses say "Something is in the doorway." A potion on open floor asks whom, on all three files (fork). The kinds another fix also edits, 13 October 2026, the fork, the three files: a fishing pole, a pitcher and the strange device in the doorway each do their own thing and leave the door shut unpatched, and open it with the fix alone and with every fix; a fishing pole on open floor says its line on all three. Mac OS 8.5, the same day, the fishing pole in the doorway, each patch installed by Magpie: its line three times and the door shut unpatched; the door opened and "Something is in the doorway." twice with the fix alone and with every fix',
     // With the Use handed on, a door could be shut on the thing and opened
     // again through it, which is one rule for the player and another for
     // the doorway (the maintainer, 12 October 2026: "SHOULD the player be
@@ -649,15 +649,9 @@ const DATA_FIXES = [
           'clear:'].join('\n') },
       ];
       // Read from the session, not the page's open file: a build has none.
-      // A class another fix edits is left out, so that fix's places stay
-      // where it wrote them; its thing in a doorway is used as before. The
-      // strange device (373) is named because `strange-device` plans its
-      // edits and names no place here.
-      const taken = new Set([0x1000 + 373]);
-      for (const f of DATA_FIXES) if (f.id !== 'door-under-thing')
-        for (const e of [].concat(f.edits || [], f.dataEdits || [], f.textEdits || [])) if (e && e.resid) taken.add(e.resid);
+      // Each is a `late` edit: made after the rest of the stage, and carried
+      // past by a later stage's edit that names a place in the same class.
       for (let pt = 1; pt < 0x400; pt++) {
-        if (taken.has(0x1000 + pt)) continue;
         const resid = 0x1000 + pt;
         let b; try { b = s.bytesOf(resid); } catch (e) { continue; }
         if (!b) continue;
@@ -666,7 +660,7 @@ const DATA_FIXES = [
         if (!use || !slots.some(([, name]) => name === 'Weight')) continue;
         const fn = dataPatchListing(s, resid).fns.find(f => f.st === use[0]);
         if (!fn) continue;
-        edits.push({ what: 'a door on its square comes before the Use of prop type ' + pt, resid, at: fn.st + 3,
+        edits.push({ what: 'a door on its square comes before the Use of prop type ' + pt, resid, at: fn.st + 3, late: true,
           code: ['if_not', 'call_resource 0x3009', 'arg Arg00', 'end', 'then -> own', 'return', 'byte 0x00', 'end', 'own:'].join('\n') });
       }
       return { edits, dataEdits: [{ what: 'the door helper has three more locals', resid: 0x0E40, fn: (b) => { if (b[0] !== 0x81 || b[2] !== 5) throw new Error('the header is not what the page read'); b[2] = 8; return 'locals 5 to 8'; } },

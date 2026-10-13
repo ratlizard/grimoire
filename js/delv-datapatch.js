@@ -88,6 +88,12 @@ function dataPatchSession(bytes) {
     // resource as it stands can be taken back to the file the session began
     // on (dataPatchOrigin); a resource laid out afresh cannot be.
     splices: new Map(), relaid: new Set(),
+    // The `late` edits made so far, a resource's in the order made: code a
+    // fix put at the head of a routine after everything else in its stage
+    // (the door before a thing's own Use). A later stage's edit that
+    // names its place by offset was written for the file without them, so
+    // its place is carried past them (applyDataEdits).
+    lates: new Map(),
     bytesOf(resid) { return plain.get(resid) || smartDecrypt(getResourceBytes(arc, resid), resid).data; },
   };
 }
@@ -174,7 +180,25 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
   // An edit a fix brought (applyDataFixes tags it) names the fix when it
   // fails, since its `what` names only the place.
   const named = (e, err) => e.fixTitle ? new Error(e.fixTitle + '. ' + err.message) : err;
-  for (const e of edits) try {
+  /* A `late` edit goes after every other of its stage, its place carried
+     past whatever those spliced in below it in the same resource. An edit
+     of a later stage that gives its place as a number, not from a plan's
+     reading of the file as it stands, is carried past the late edits made
+     before its stage, with its `to` and the places it expects. */
+  const carry = (at, list) => { for (const sp of list) if (at >= sp.at) at += sp.inserted - sp.removed; return at; };
+  const before = new Map();
+  for (const e of edits) if (e.late && !before.has(e.resid)) before.set(e.resid, (s.splices.get(e.resid) || []).length);
+  const ordered = edits.filter(e => !e.late).concat(edits.filter(e => e.late));
+  for (let e of ordered) try {
+    if (e.late) {
+      const made = (s.splices.get(e.resid) || []).slice(before.get(e.resid));
+      e = Object.assign({}, e, { at: carry(e.at, made) });
+    } else if (!e.planned && s.lates.has(e.resid)) {
+      const list = s.lates.get(e.resid), moved = Object.assign({}, e, { at: carry(e.at, list) });
+      if (e.to !== undefined) moved.to = carry(e.to, list);
+      if (e.expect) moved.expect = Object.fromEntries(Object.entries(e.expect).map(([at, want]) => [carry(+at, list), want]));
+      e = moved;
+    }
     const b = s.bytesOf(e.resid);
     for (const [at, want] of Object.entries(e.expect || {})) {
       const got = dataPatchOpAt(b, e.resid, +at);
@@ -186,6 +210,7 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
     const rl = dvmRelink(b, e.resid, e.at, to === undefined ? 0 : to - e.at, asm, e.shiftAt ? { shiftAt: true } : undefined);
     const removed = to === undefined ? 0 : to - e.at;
     dataPatchSplice(s, e.resid, e.at, removed, removed + rl.delta);
+    if (e.late) { if (!s.lates.has(e.resid)) s.lates.set(e.resid, []); s.lates.get(e.resid).push({ at: e.at, removed, inserted: removed + rl.delta }); }
     s.plain.set(e.resid, rl.bytes);
     log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', ' + (rl.delta >= 0 ? '+' : '') + rl.delta + ' bytes, ' + rl.moved + ' offsets moved');
   } catch (err) { throw named(e, err); }
@@ -359,12 +384,12 @@ function applyDataFixes(bytes, ids, opts) {
       s.listings = new Map();
       s.stage = stage;
       const all = { edits: [], dataEdits: [], textEdits: [] };
-      const tag = (f, list) => (list || []).map(e => Object.assign({}, e, { fixTitle: f.title }));
+      const tag = (f, list, planned) => (list || []).map(e => Object.assign({}, e, { fixTitle: f.title }, planned ? { planned: true } : null));
       for (const { f, p } of parts) {
         let r;
         try { r = p.plan ? p.plan(s, ctx) : p; }
         catch (e) { throw new Error(f.title + '. ' + e.message); }
-        all.edits.push(...tag(f, r.edits));
+        all.edits.push(...tag(f, r.edits, !!p.plan));
         all.dataEdits.push(...tag(f, r.dataEdits));
         all.textEdits.push(...tag(f, r.textEdits));
       }
