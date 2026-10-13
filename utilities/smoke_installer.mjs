@@ -68,8 +68,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       const ringOf = at => { ctx.jumpToExeAt(at); const h = /<span id="listingHit" class="listingHit">([^\n]*)<\/span>/.exec(all(REGISTRY.get('sheetGrid'))); return h ? h[1] : null; };
       if (!m || JSON.stringify(m) !== JSON.stringify({ unitsPerHour: 4096, periods: [4096, 2048, 1365, 1024, 819, 409, 16], levelShift: 1, levelCap: 4, hungerIndex: 0, poisonIndex: 5, fall: 1, deathAt: 1, poisonStep: 1, regenStep: 1 }))
         fail('program figures', 'the clock was misread: ' + JSON.stringify(m));
-      else if (!inRoutine(clk.hourShift, 'TGameViewer::DoTicks') || !inRoutine(clk.fall, 'TGameViewer::DoTicks') || !clk.day || clk.day.v !== 98304 || clk.nutritionByte.v !== 27 || clk.levelByte.v !== 19 || clk.healthBytes.map(b => b.v).join() !== '14,15' || clk.magicBytes.map(b => b.v).join() !== '16,17' || clk.statusWord.v !== 6)
-        fail('program figures', 'the tick routine’s bytes or the day were misread: ' + JSON.stringify([clk.day, clk.nutritionByte, clk.levelByte, clk.healthBytes, clk.magicBytes, clk.statusWord]));
+      else if (!inRoutine(clk.hourShift, 'TGameViewer::DoTicks') || !inRoutine(clk.fall, 'TGameViewer::DoTicks') || !clk.day || clk.day.v !== 98304 || clk.nutritionByte.v !== 27 || clk.levelByte.v !== 19 || clk.healthBytes.map(b => b.v).join() !== '14,15' || clk.magicBytes.map(b => b.v).join() !== '16,17' || clk.statusWord.v !== 6 || !clk.healStep || !inRoutine(clk.healStep, 'TGameViewer::DoTicks'))
+        fail('program figures', 'the tick routine’s bytes or the day were misread: ' + JSON.stringify([clk.day, clk.nutritionByte, clk.levelByte, clk.healthBytes, clk.magicBytes, clk.statusWord, clk.healStep]));
       else if ([clk.poisonBit, clk.regenBit].map(b => (ctx.exeFlagOfStatusBit(b, clk.statusWord.v) || {}).v).join() !== '9,12')
         fail('program figures', 'the status bits are not flags 9 and 12 by TSpellFX::AddAbility: ' + JSON.stringify(ctx.exeAbilityMap()));
       else if (!bark || bark.ticks.v !== 240 || bark.width.v !== 128 || bark.height.v !== 32 || !inRoutine(bark.ticks, 'TBark::SetBark'))
@@ -86,6 +86,11 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // clock constants over the clock's units an hour.
       else if ((h => !h || h.dawn.v !== 6 || h.dusk.v !== 18 || !inRoutine(h.dawn, 'TActiveMonster::HatchEgg'))(ctx.exeHatchHours()))
         fail('program figures', 'the hatching hours were misread: ' + JSON.stringify(ctx.exeHatchHours()));
+      // The bands a light's distance falls in (exeLightBands), 13 October
+      // 2026: half from 4 squares and a quarter from 8, by the two compares
+      // of CalcLighting, and the window's walk for "in view".
+      else if ((b => !b || !b.near || b.near.v !== 4 || !b.far || b.far.v !== 8 || !b.view || !inRoutine(b.near, 'TViewer::CalcLighting'))(ctx.exeLightBands()))
+        fail('program figures', 'the light bands were misread: ' + JSON.stringify(ctx.exeLightBands()));
       // The party bar's colours (exePartyColours), 3 October 2026: palette
       // index by state, in the order DrawCharStatus tests them, poison
       // green 2 to sleep blue 9, then hunger grey 7 below nutrition 4 by

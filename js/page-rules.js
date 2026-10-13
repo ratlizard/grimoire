@@ -4632,6 +4632,11 @@ function exeClockRules() {
     const pair = i => i >= 2 && ops[i - 1].d && ops[i - 2].d && ops[i - 1].d.mn === 'lbz' && ops[i - 2].d.mn === 'lbz' ? [val(i - 2, ops[i - 2].d.d), val(i - 1, ops[i - 1].d.d)] : null;
     r.healthBytes = cmp1 >= 0 ? pair(cmp1) : null;
     r.magicBytes = cmp2 >= 0 ? pair(cmp2) : null;
+    // What a period gives: no constant. The health byte takes the number of
+    // periods that have passed (the count, indexed off the stack) in one
+    // add, so it is one point a period, and the sentence links the add.
+    const hs2 = cmp1 >= 0 ? exeFind(ops, cmp1 + 1, 10, d => d.mn === 'add') : -1;
+    r.healStep = hs2 >= 0 && exeFind(ops, cmp1 + 1, hs2 - cmp1, d => d.mn === 'lwzx') >= 0 ? val(hs2, 1) : null;
   }
   // Poison and regeneration: the six-minute loop.
   const rnd = ops.findIndex(o => exeCalls(o, 'Random'));
@@ -5447,6 +5452,27 @@ function characterFlagSites() {
       const kids = [];
       for (let j = i + 1; j < ops.length && ops[j].depth > ops[i].depth; j++) if (ops[j].depth === ops[i].depth + 1) kids.push(ops[j]);
       const lit = kids[1] && LIT.exec(kids[1].text);
+      /* A flag named by the thing's own record. The ring (prop type 0x133)
+         sets, putting it on, the flag whose number is its Data2, and clears
+         it coming off: `SetFlag(Arg01, Arg00.data2)`. No literal is in the
+         script, so until 13 October 2026 these were counted unknown and flag
+         28, which decides whether Tavara's fortress fades, read as set by
+         nothing; one ring in the file carries 28. Each placed thing of the
+         class with a number in that field is a site of that flag, at the
+         script's line. Read only where the script is a class's own and the
+         field is Arg00's, the thing itself. */
+      const viaField = !lit && kids.length === 3 && kids[1].text === 'arg Arg00' && /^get_field data([12]) /.exec(kids[2].text);
+      if (viaField && e.resid >= 0x1000 && e.resid < 0x1800 && (verb === 'set' || verb === 'clear')) {
+        const fld = viaField[1] === '1' ? 'd1' : 'd2', seenF = new Set();
+        for (const p of itemPlaces(e.resid - 0x1000)) {
+          const f = p[fld];
+          if (!f || seenF.has(f)) continue;
+          seenF.add(f);
+          if (!by.has(f)) by.set(f, { flag: f, set: [], clear: [], test: [], effect: [] });
+          by.get(f)[verb].push({ resid: e.resid, at: ops[i].at, who: null, record: { resid: p.resid, at: p.at } });
+        }
+        continue;
+      }
       if (!lit) { unknown++; continue; }
       const f = parseInt(lit[1]);
       if (!by.has(f)) by.set(f, { flag: f, set: [], clear: [], test: [], effect: [] });

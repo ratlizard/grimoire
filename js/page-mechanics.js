@@ -48,6 +48,25 @@ const MECH_INK = {
 // reading a chart is not looking at the game.
 const MECH_SERIES = [MECH_INK.gold, MECH_INK.cool, MECH_INK.warm, MECH_INK.leaf, MECH_INK.violet];
 
+/* A count that opens a sentence, in words as the sentences here are written,
+   counted from the table under it and never typed: "Five rooms" was typed
+   until 13 October 2026 and would have stayed five over a file with four.
+   Past twelve it is the figure. */
+function countWord(n) {
+  return ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'][n] || String(n);
+}
+function exeLightBands() {
+  if (!appImage()) return null;
+  try {
+    const co = exeOpsNamed('TViewer::CalcLighting'), out = {};
+    const ni = exeFind(co, 0, co.length, (d, o) => d.mn === 'cmpwi' && exeFind(co, co.indexOf(o) + 1, 3, e => e.mn === 'li' && e.imm === 0) >= 0);
+    const fi = ni >= 0 ? exeFind(co, ni + 1, 8, d => d.mn === 'cmpwi') : -1;
+    const vi = exeFind(co, 0, co.length, d => d.mn === 'lha' && d.d === 2);
+    if (ni >= 0 && fi >= 0 && co[fi].d.imm > co[ni].d.imm) { out.near = exeVal(co[ni], co[ni].d.imm); out.far = exeVal(co[fi], co[fi].d.imm); }
+    if (vi >= 0) out.view = exeVal(co[vi], 'in view');
+    return out;
+  } catch (e) { quiet(e); return null; }
+}
 function mechFig(title, body, caption) {
   return '<figure class="mechFig">' + (title ? '<div class="mechFigTitle">' + svEsc(title) + '</div>' : '') +
     body + (caption ? '<figcaption>' + caption + '</figcaption>' : '') + '</figure>';
@@ -3694,7 +3713,7 @@ function renderMechanicsSheet(value) {
         const names = hg.ceilingBy.map(r => svLink((r >= 0x1000 && r < 0x1200 ? propDisplayName(r - 0x1000) : labelFor(r)) || ('0x' + r.toString(16).toUpperCase()), 'jumpToResource(' + r + ')'));
         return names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names[names.length - 1] + ' only fill nutrition up to <b>' + srcNum(hg.ceilingVal) + '</b>. Other food adds the amounts listed above.';
       })() : ''),
-      model && clk.healthBytes && clk.magicBytes ? 'While nutrition is above ' + srcNum(clk.fedGate, '0') + ', <b>health and magic each rise by 1</b> at a rate set by level: ' +
+      model && clk.healthBytes && clk.magicBytes && clk.healStep ? 'While nutrition is above ' + srcNum(clk.fedGate, '0') + ', <b>health and magic each rise by ' + srcNum(clk.healStep) + '</b> at a rate set by level: ' +
         Array.from({ length: model.levelCap + 1 }, (_, i) => {
           const lo = i << model.levelShift, hi = ((i + 1) << model.levelShift) - 1;
           return 'every ' + period(i).replace(/^(<button[^>]*>)(an |a )?/, '$1') + (i === model.levelCap ? ' from level ' + lo + ' up' : lo === hi ? ' at level ' + lo : ' at levels ' + lo + ' and ' + hi);
@@ -3849,13 +3868,25 @@ function renderMechanicsSheet(value) {
     const at = DERIVED.ZONE_AMBIENT_AT || {};
     let cap = null;
     if (appImage()) try { const ao = exeOpsNamed('TViewer::AmbientLight'), ci = exeFind(ao, 0, ao.length, d => d.mn === 'li'); cap = ci >= 0 ? exeVal(ao[ci], ao[ci].d.imm) : null; } catch (e) { quiet(e); }
+    /* What a light is worth by its distance, out of TViewer::CalcLighting:
+       two compares in a row, the first followed by a load of 0, sort the
+       distance (rows and columns added) into three bands, and a light's
+       share halves at each. The sentence said "within five tiles" until
+       13 October 2026, typed. That five is half the map window's eleven
+       squares, which the viewer works out from the window's rectangle when
+       it is made and no instruction holds, so the sentence says "in view"
+       and links the loop that walks the window. With no program open it
+       states no figure. */
+    const lb = exeLightBands() || {}, lightView = lb.view || null, lightNear = lb.near || null, lightFar = lb.far || null;
     const body = rows.map(r => '<tr><td>' + svLink(r.name, 'jumpToResource(' + r.resid + ')') + '</td>' + srcCell(at[r.resid] || null, r.lvl) +
       '<td class="num">' + r.night + '</td><td class="num">' + r.noon + '</td></tr>').join('');
     if (rows.length) add('light', 'Light', null, '',
       'How dark each place is, and how lights brighten it.' + (cap ? ' The level runs from 0, drawn black, to ' + srcNum(cap) + ', not darkened at all.' : ''),
       [
         countLink(String(fixed), 'The ' + fixed + ' zones equally dark at every hour', rows.filter(r => r.lvl < 0).map(r => svLink(r.name, 'jumpToResource(' + r.resid + ')'))) + ' of the ' + rows.length + ' zones, the indoor ones, are equally dark at every hour; the rest follow the daylight.',
-        '<b>Every light within five tiles brightens the whole screen</b>, brighter and nearer ones more, and light passes through walls.',
+        '<b>Every light ' + (lightView ? srcNum(lightView) : 'in view') + ' brightens the whole screen</b>, a brighter one more' +
+          (lightNear && lightFar ? '; one ' + srcNum(lightNear) + ' squares away or more, counting along rows and columns, gives half as much, and one ' + srcNum(lightFar) + ' or more a quarter' : ', and a nearer one more') +
+          '. Light passes through walls.',
         'The map’s lighting layer shows each zone’s level and each light. Select a square to see how dark it is from where you stand.'
       ],
       '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>zone</th><th>sets</th><th>base at night</th><th>base at noon</th></tr></thead><tbody>' +
@@ -4702,11 +4733,11 @@ function renderMechanicsSheet(value) {
       'A row of braziers to light in the right order.',
       [], braziersHtml);
     if (bu) add('buttons', 'The Buttons and the Pattern Rooms', null, src('the buttons', 0x1104),
-      'Five rooms, each with a pair of lit panels and a door that opens when the panels match.',
+      (bu.rooms && bu.rooms.length ? countWord(bu.rooms.length) + ' rooms' : 'Rooms') + ', each with a pair of lit panels and a door that opens when the panels match.',
       (bu && bu.arrays) ? ['Each button turns two panels through one of <b>' + bu.arrays.length + ' fixed tables</b>.'] : [],
       buttonsHtml);
     if (ri && ri.buttons.length) add('riddles', 'The Riddles', null, src('the riddles', 0x1110),
-      'Five riddles, each answered by typing a word.',
+      countWord(ri.buttons.length) + ' riddles, each answered by typing a word.',
       [], riddlesHtml);
     /* The sections run in the order a player meets the puzzles, by the
        Hintbook's walkthrough (the maintainer, 3 October 2026): the buttons

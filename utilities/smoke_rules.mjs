@@ -1830,7 +1830,11 @@ try {
   const withEffect = cf.find(x => x.flag >= 24 && x.effect.length);
   const mine = own !== undefined ? ctx.charFlagUses(own, 0) : '';
   const links = (mine.match(/jumpToScriptAt\((\d+)/g) || []).map(m => +m.replace(/\D+/, ''));
-  if (own === undefined || none < 0 || !withEffect) fail('flag uses', 'the file has no character to try: ' + JSON.stringify([own, none, withEffect && withEffect.flag]));
+  // A flag a thing's record names (13 October 2026): the ring sets the flag
+  // in its Data2, and one ring in the file carries 28, which nothing else sets.
+  const f28 = cf.find(x => x.flag === 28);
+  if (!f28 || f28.set.length !== 1 || f28.set[0].resid !== 0x1133 || !f28.set[0].record || f28.clear.length !== 1) fail('flag uses', 'flag 28 is not set by the one ring whose record names it: ' + JSON.stringify(f28));
+  else if (own === undefined || none < 0 || !withEffect) fail('flag uses', 'the file has no character to try: ' + JSON.stringify([own, none, withEffect && withEffect.flag]));
   else if (!/^set in <button/.test(mine) && !/set in <button/.test(mine)) fail('flag uses', 'character ' + own + '’s flag 0 does not say where its script sets it: ' + mine.slice(0, 200));
   else if (ctx.charFlagUses(none, 0) !== '') fail('flag uses', 'character ' + none + ', whose script never mentions flag 0, is told of other characters’: ' + ctx.charFlagUses(none, 0).slice(0, 200));
   else if (!/the effect of /.test(ctx.charFlagUses(none, withEffect.flag))) fail('flag uses', 'flag ' + withEffect.flag + ' does not name the spell it is the effect of');
