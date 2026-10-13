@@ -3573,7 +3573,7 @@ function renderMechanicsSheet(value) {
       tg.length ? 'What each of the ' + tg.length + ' spells and items that ask for a target can aim at.'
                 : 'No script in this file asks for a target.',
       tg.length ? [
-        '<b>' + countLink(String(reach.length), 'The ' + reach.length + ' spells and items that need a target on your square or next to it', reach.map(nameLink)) + '</b> of these need a target on your square or next to it' + (walk ? '; one further away is ' + srcNum(walk.at, 'refused') : '') + '.'
+        '<b>' + countLink(String(reach.length), 'The ' + reach.length + ' spells and items that need a target on your square or next to it', reach.map(nameLink)) + '</b> of these need a target on your square or next to it' + (walk ? '; one further away is ' + srcNum(walk.at, 'refused') + ', though the pointer looks the same over it' : '') + '.'
       ].filter(Boolean) : [],
       table(['#word', 'wants', 'asked for by'], [...byWord.entries()].sort((a, b) => (b[0] & 0x8000) - (a[0] & 0x8000) || a[0] - b[0]).map(([w, list]) =>
         '<tr><td class="num">' + propWordHex(w) + '</td><td>' + targetWordWords(w).map(svEsc).join(', ') + '</td><td>' +
