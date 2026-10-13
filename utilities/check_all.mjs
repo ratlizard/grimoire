@@ -415,6 +415,16 @@ const CHECKS = [
   {page: 'viewer', name: 'stuffit 13 and 15', want: [ADDONS],
    cmd: ['utilities/sit_methods_check.mjs', 'index.html', 'reference'],
    grep: /\d+ of \d+ compressed fork\(s\) in \d+ archive\(s\)[^\n]*/},
+  /* StuffIt X (js/mac-stuffitx.js), a port of The Unarchiver's: every fork
+     of the three add-ons that are StuffIt X against `unar`, which is its
+     source, so the archive's own CRC-32s are what is independent; the
+     English dictionary against the CRC-32 and count XADMaster states; the
+     three saved games opened through extractDelverArchive; and a byte
+     changed and a method not read, refused. Without `unar` or the add-ons
+     the archive parts skip. */
+  {page: 'viewer', name: 'stuffit x',
+   cmd: ['utilities/sitx_check.mjs', 'index.html', 'reference'],
+   grep: /\d+ StuffIt X fork\(s\) read back byte identical/},
   /* The zip reader, which needs nothing: zlib is in Node and the container
      is written by the check itself. Info-ZIP, ditto, unar and the add-on each
      add a comparison when they are here and are skipped by name when not. */

@@ -32,9 +32,9 @@
 //
 // THE NEGATIVE CONTROLS. A byte flipped in a deflated entry must be refused,
 // not handed back; so must an encrypted entry, a method this page does not
-// decompress (named), and a zip with its end record cut off. And the two
-// formats the page names instead of opening -- StuffIt X and Compact Pro --
-// must be named, when the add-ons are here to be named.
+// decompress (named), and a zip with its end record cut off. And the format
+// the page names instead of opening, Compact Pro, must be named, when the
+// add-ons are here to be named (StuffIt X opens since 13 October 2026).
 
 import {readFileSync, writeFileSync, mkdirSync, rmSync, existsSync} from 'node:fs';
 import {join} from 'node:path';
@@ -297,8 +297,8 @@ function expectFiles(label, zipBytes, want) {
     }
   }
 
+  // StuffIt X has opened since 13 October 2026 (js/mac-stuffitx.js, sitx_check.mjs)
   const named = [
-    ['618_Teleporter.sitx', /StuffIt X/],
     ['608_Cythera_Makeover.sea', /Compact Pro self-extracting/],
   ];
   const addons = join(refDir, 'community', 'addons');
@@ -312,7 +312,7 @@ function expectFiles(label, zipBytes, want) {
       if (!want.test(msg) || /Cythera application/.test(msg)) wrong.push(f + ': ' + msg);
     }
     if (wrong.length) fail('the formats named instead of opened', wrong.join('; '));
-    else ok('the formats named instead of opened', present.map(([f]) => f).join(' and '));
+    else ok('the format named instead of opened', present.map(([f]) => f).join(' and '));
   }
 }
 

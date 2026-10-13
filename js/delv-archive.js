@@ -352,12 +352,37 @@ function extractDelverArchive(bytes, opts) {
   const zipped = fromZip(bytes);
   if (zipped) return zipped;
 
-  /* StuffIt X and Compact Pro are the two formats the community's add-ons use
-     that this page does not open. Named, so the refusal says what to do
-     rather than that no title string was found at byte 0. */
+  /* A StuffIt X archive (js/mac-stuffitx.js, since 13 October 2026): three
+     of the community's saved games come as one. Read as a StuffIt archive
+     is -- the first entry whose data fork is a Delver archive wins, a fork
+     that will not decompress is stepped over and named -- and guarded the
+     same way, since the browser player vendors this file without that one,
+     and there the refusal below still names the format. Compact Pro is the
+     one format the add-ons use that this page does not open. */
   const UNPACK_IT = ', which this page does not open. Unpack it with The Unarchiver or StuffIt Expander and open the file inside.';
   const isStuffItX = buf => typeof looksLikeStuffItX === 'function' && looksLikeStuffItX(buf);
-  if (isStuffItX(bytes)) throw new Error('That is a StuffIt X archive (.sitx)' + UNPACK_IT);
+  const fromStuffItX = (buf, wrapper) => {
+    if (!isStuffItX(buf) || typeof parseStuffItXArchive !== 'function') return null;
+    let arc = null;
+    try { arc = parseStuffItXArchive(buf); }
+    catch (e) { notes.push('a StuffIt X archive that will not read: ' + e.message); return null; }
+    const where = 'StuffIt X archive' + (wrapper ? ' in ' + wrapper : '');
+    const refused = [], found = [];
+    for (const e of arc.entries) {
+      if (e.isFolder || !e.dataLen) continue;
+      let data;
+      try { data = stuffItXFork(buf, e, 'data'); }
+      catch (err) { refused.push(e.name + ' (' + err.message.replace(/^StuffIt X: /, '') + ')'); continue; }
+      const d = describeDelverArchive(data);
+      if (!d.ok) { notes.push('"' + e.name + '" in the ' + where + ', ' + d.reason); continue; }
+      found.push({ entry: e, data, info: d, rsrc: () => { try { return stuffItXFork(buf, e, 'rsrc'); } catch (err) { return null; } } });
+    }
+    if (refused.length) notes.push('in the ' + where + ', could not decompress ' + refused.join(', '));
+    return pickContained(found, where, opts.pick);
+  };
+  const sitx = fromStuffItX(bytes, '');
+  if (sitx) return sitx;
+  if (isStuffItX(bytes) && typeof parseStuffItXArchive !== 'function') throw new Error('That is a StuffIt X archive (.sitx)' + UNPACK_IT);
 
   // sniffMacContainer knows the order these have to be tried in, and why.
   const forks = sniffMacContainer(bytes);
@@ -378,12 +403,12 @@ function extractDelverArchive(bytes, opts) {
     for (const which of ['data', 'rsrc']) {
       const buf = forks[which];
       if (!buf || !buf.length) continue;
-      const inner = fromStuffIt(buf, kind);
+      const inner = fromStuffIt(buf, kind) || fromStuffItX(buf, kind);
       if (inner) { inner.forks.outer = forks; return inner; }
     }
     const t = (forks.type || '').trim(), c = (forks.creator || '').trim();
     const holding = 'That is a ' + kind + ' file' + (forks.name ? ' holding "' + forks.name + '"' : '');
-    if (isStuffItX(forks.data)) throw new Error(holding + ', a StuffIt X archive' + UNPACK_IT);
+    if (isStuffItX(forks.data) && typeof parseStuffItXArchive !== 'function') throw new Error(holding + ', a StuffIt X archive' + UNPACK_IT);
     // An application is only the Cythera application when its creator says
     // so. 'EXTR' is Compact Pro's self-extractor, which is what the one .sea
     // among the add-ons is.

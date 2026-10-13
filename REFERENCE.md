@@ -227,6 +227,8 @@ loads all thirteen, in this order, before the two tiers below:
 | `js/mac-hfs.js` | `writeHfsImage()` — a classic HFS volume with both forks, for the emulator to mount |
 | `js/mac-stuffit.js` | `parseStuffItArchive()` / `stuffItFork()` — the catalog of a StuffIt 5 or classic `SIT!` archive and any fork in it that is stored or compressed with method 13 or 15, Arsenic (`sit13Decompress`, `arsenicDecompress`, both ported from stuffit-rs); any other method is refused by name |
 | `js/mac-vise.js` | `parseViseArchive()` / `viseExtract()` — an Installer VISE 3 archive (Cythera's installer), every file with both forks; its own raw DEFLATE inflater. `sniffViseInstaller` finds one bare, in a container, or stored in a StuffIt archive |
+| `js/mac-stuffitx.js` | `parseStuffItXArchive()` / `stuffItXFork()` — a StuffIt X archive's catalog, in `parseStuffItArchive`'s shape, and its forks decompressed: Brimstone (StuffIt's PPMd, variant G), Cyanide and Iron, and the English preprocessing, each stream held to the CRC-32 the archive stores; ported from The Unarchiver's XADMaster (LGPL-2.1), its header says which files. Darkhorse, Deflate, Blend, RC4, x86 and encryption are refused by name |
+| `js/mac-stuffitx-english.js` | `STUFFITX_ENGLISH_WORDS`, the English preprocessing's 100,366 words, unpacked once from XADMaster's dictionary; not in the page's script list, since no Cythera archive needs it, and loaded by a page only for one that does |
 | `js/mac-zip.js` | `parseZipArchive()` / `zipFork()` — a zip archive's entries, stored or deflated (through `inflateRaw` above) and held to their CRC-32, each joined to the AppleDouble a Mac zips beside it, so an entry carries its resource fork and Finder type and creator. Encrypted entries, Zip64 and other methods are refused by name. Not vendored by the player, whose page defines an async `inflateRaw` of its own |
 | `js/mac-pef.js` | `parsePEF()` — a PowerPC application's data fork: the container's sections, the loader's imported libraries and symbols, its exports; `pefTracebacks()` walks the code section's traceback tables for every routine's offset, length and name; `pefDemangle()` reads CodeWarrior's cfront-style mangling back as far as it goes; `pefLoad()` lays the program out as the loader would (the pattern-initialised data section expanded, the relocations, the TOC) and `pefPointerAt()` says what a relocated word points at. Held to the workbench's independently recovered routine list, and the loader to what a correct load of this program must give, by `pef_check.mjs` |
 | `js/mac-ppc.js` | `ppcDecode(word)` — a PowerPC instruction: mnemonic, operands in LLVM's spelling, and the fields a reader tests. The 32-bit instructions a classic Mac compiler emits; null for the rest. Held to LLVM's disassembler word for word by `ppc_check.mjs` |
@@ -499,6 +501,7 @@ guide carried it*.
 | magpie patch | `patch_check.mjs` | `mergeDelverPatch` replaces only what the patch names |
 | spanish | `translate_check.mjs` | the data file and the program in Spanish: every piece translated, the highlighted words answering as in English, the result pinned, and the translated program loading |
 | stuffit 13 and 15 | `sit_methods_check.mjs` | both decompressors against `unar` and against each other |
+| StuffIt X | `sitx_check.mjs` | `js/mac-stuffitx.js` against `unar` (its source, so a port held faithful) and the CRC-32 each stream carries; the dictionary against XADMaster's CRC-32 and word count; the three saves through `extractDelverArchive` |
 | zip archives | `zip_check.mjs` | `js/mac-zip.js` against zlib, its own container, `zip`, `ditto` and `unar` |
 | between releases | `releases_check.mjs` | what changed between the four releases, pinned, and the change history read against it |
 | undither vs truth | `undither_check.mjs` | the undither against a known original, synthetic |
@@ -773,11 +776,13 @@ inside it with no unpacking at all, and so do Pandora's Box, 3D Cursors,
 `606_CheaterSavedGame` and the menu patch and its unpatcher, as well as every
 fork of the installers and the four-in-one bundle. Since 16 September the
 page reads zips too (`js/mac-zip.js`), which opens the Rocky the Flying
-Chicken add-on. **The page does not open the rest**: three StuffIt X archives
-(`.sitx`) and a Compact Pro self-extracting archive (`.sea`), both of which
-it names when refusing. They were judged not worth porting on 16 September
-2026 -- the `.sitx` files hold three saves, the `.sea` a desktop theme with
-no game data -- so `unar` is how those are opened here:
+Chicken add-on, and since 13 October StuffIt X (`js/mac-stuffitx.js`, a
+port of The Unarchiver's, for StarGrimoire's EV Nova plug-ins, 21 of
+which are `.sitx`), which opens the three `.sitx` saves. **The page does
+not open the rest**: a Compact Pro self-extracting archive (`.sea`), which
+it names when refusing. It was judged not worth porting on 16 September
+2026 -- a desktop theme with no game data -- so `unar` is how it is opened
+here:
 `brew install unar`, then `unar` on the file (decode an `.hqx` wrapper with
 `utilities/binhex_decode.py` first where there is one). Two are worth
 knowing about:
@@ -790,8 +795,8 @@ knowing about:
   `616_Rocky_the_Flying_Chicken.zip` holds two, and `618_Teleporter`,
   `619_Tree` and `620_Zone` one each, every one a Delver Archive with a
   player name and a resource fork of its own. The page opens the first of
-  the zip's two; the three in `.sitx` files only `unar` gets out, and
-  `addons_check.mjs` names all six when it runs.
+  the zip's two, and each `.sitx` its one; `addons_check.mjs` names all six
+  when it runs.
 - **The patches** are modded archives, which are the case `smartDecrypt`'s
   heuristic fallback exists for. `utilities/addons_check.mjs` is the check that
   opens them, and it also does the thing worth more: it clears the three
