@@ -36,8 +36,9 @@
      played      where and how the fix was seen working in the game, the
                  shipped file beside it showing the bug; with none the
                  Patches section marks it "(untested)" (the maintainer, 30
-                 September 2026). "In part" leaves the mark off: the text,
-                 some of whose lines he has read in play.
+                 September 2026). One that begins "in part" is marked
+                 "(partially tested)" (13 October 2026): seen working in
+                 some of its places and not the rest.
 
    THE STAGES, AND WHY THIS ORDER (combined_patch.mjs's, 25 September 2026).
    A Magpie patch carries whole resources, so two patches that touch one
@@ -1299,20 +1300,21 @@ const DATA_FIXES = [
   // full stop, the form most of the seventy use, Mac OS 8.5 drew
   // Demodocus's description without its full stop. It goes where the
   // narration ends: after the description; inside the string for the two whose
-  // greeting begins in it (Malis, Alcmena); after Cybele's second clause,
-  // whose other branch has it; after either of Polydamas's second
+  // greeting begins in it (Malis, Alcmena); after either of Polydamas's second
   // sentences; and before Ennomus's first words, since his other branch
   // ("*He appears to be passed out.") waits already and a `*` after the
-  // description would ask for two clicks there. Left as they are: Mantinea
+  // description would ask for two clicks there. Left as they are: Cybele,
+  // whose second clause branches into the middle of the string ".*" for
+  // its `*` (a wait put after the clause was a second click, until the
+  // check of 13 October 2026 met the branch); Mantinea
   // and Itanos, whose description nothing follows, and Oeneus, where the
   // one line that can follow begins with a `*`.
-  { id: 'descriptions-wait', group: 'talk', stage: 'further', title: 'A character\u2019s description now waits for you to read it, instead of flashing past, for twenty characters',
-    played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Demodocus, Myus, Thersites and Polydamas met for the first time, each description staying with MORE until a click and the greeting following it, against 234 to 305 ms on screen unpatched from the same saves. The other sixteen are not played, and it was not run in the fork',
+  { id: 'descriptions-wait', group: 'talk', stage: 'further', title: 'A character\u2019s description now waits for you to read it, instead of flashing past, for nineteen characters',
+    played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Demodocus, Myus, Thersites and Polydamas met for the first time, each description staying with MORE until a click and the greeting following it, against 234 to 305 ms on screen unpatched from the same saves. The other fifteen are not played, and it was not run in the fork',
     textEdits: [
       ['Myus', 0x180A, 'with an air of leadership.'],
       ['Laodice', 0x1813, 'who looks tired, but content.'],
       ['Malis', 0x1815, 'shy and uncertain.'],
-      ['Cybele', 0x1816, ' with lines of strain showing on her face.'],
       ['Sardis', 0x181F, 'You see a slight looking man, dressed impecably.'],
       ['Alastor', 0x1825, 'with stained hands and arms.'],
       ['Dymas', 0x1845, 'You see a small, outgoing boy.'],
@@ -1331,6 +1333,43 @@ const DATA_FIXES = [
       ['Demodocus', 0x186D, 'with thinning curly hair.'],
     ].map(([who, resid, line]) => ({ what: who + '\u2019s description', resid, find: line, replace: line + '\n*', count: 1 }))
       .concat([{ what: 'Ennomus\u2019s first words', resid: 0x1811, find: '"Come closer - that\'s better.', replace: '*"Come closer - that\'s better.', count: 1 }]) },
+  // The letter before a pause. TConversation::myprintstr, at a `*`, draws
+  // the text up to one character short of it (the length it hands
+  // AppendConv or AppendMessage is the `*`'s place less one, less the
+  // start), which is right when that character is the new line the writers
+  // mostly put there and drops a full stop or a letter when it is not:
+  // "A vision appears before yo", "with a proud demeanor", and "..." as
+  // "..". Seen on Mac OS 8.5 (bugs.md, *The character before a pause*). 126
+  // places in the shipped file, found here rather than listed: every `*` in
+  // a string that follows anything but a new line or a quotation mark gets
+  // the new line, but the one string that is ".*" alone (Cybele's), whose
+  // `*` a branch jumps to. A `*` after a closing quote is left: the routine has
+  // drawn the speech by then and takes nothing from it. Each place is found
+  // by as much of the text before it as makes it the only one, or the only
+  // ones, in its script.
+  { id: 'pause-keeps-letter', group: 'text', stage: 'further', title: 'The full stop or letter before a pause is now drawn, instead of dropped',
+    played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Hadrian met for the first time, "You see an older warrior, with a proud demeanor." with its full stop, against the same line without it unpatched from the same save. One place of 126; not run in the fork',
+    plan: (s) => {
+      const texts = dataPatchTexts(s), textEdits = [];
+      const times = (t, f) => { let n = 0; for (let i = t.indexOf(f); i >= 0; i = t.indexOf(f, i + 1)) n++; return n; };
+      for (const resid of dataPatchScriptResids(s.spec)) {
+        const places = [];
+        for (const o of dataPatchListing(s, resid).ops) {
+          if (!o.text.startsWith('string(implicit) "')) continue;
+          let str; try { str = JSON.parse(o.text.slice('string(implicit) '.length)); } catch (e) { continue; }
+          for (let k = 1; k < str.length; k++) if (str[k] === '*' && str[k - 1] !== '\n' && str[k - 1] !== '"' && k >= 2) places.push(str.slice(0, k + 1));
+        }
+        const done = new Set();
+        for (const p of places) {
+          let n = 3, find, want;
+          for (;;) { find = p.slice(-n); want = places.filter(q => q.endsWith(find)).length; if (want === times(texts[resid], find) || n >= p.length) break; n++; }
+          if (done.has(find)) continue;
+          done.add(find);
+          textEdits.push({ what: 'a pause that drops what is before it', resid, find, replace: find.slice(0, -1) + '\n*', count: want });
+        }
+      }
+      return { textEdits };
+    } },
   // Demodocus's "Would you like to @hear it?" leads to his song, keyed
   // "song,meti", whose "meti" the question itself takes first; it is keyed
   // "song,hear".

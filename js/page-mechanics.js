@@ -1954,14 +1954,20 @@ function appFixSource() {
 // and assembled clean, hung the game the first time it was played. The
 // mark goes when a fix's entry gains `played` (js/delv-appfixes.js,
 // js/delv-datafixes.js), written when a run has shown it.
-function untestedMark(f) { return f.played ? '' : ' (untested)'; }
+// A fix seen working in some of its places and not the rest says that
+// instead (the maintainer, 13 October 2026: "you can mark patches partially
+// tested"): its `played` begins "in part", which until then left the mark
+// off and let a fix played for four of its nineteen characters read as
+// played.
+function fixPlayedInPart(f) { return /^in part\b/i.test(f.played || ''); }
+function untestedMark(f) { return !f.played ? ' (untested)' : fixPlayedInPart(f) ? ' (partially tested)' : ''; }
 /* A fix built from someone else's published work carries their name
    (`by`): Fetch and fishing, from Bryce Schroeder's patched sources. The
    other four of his patch were written here from the causes, his sources
    for them never published (the maintainer, 3 October 2026). */
 function dataFixMark(f) {
   if (!f.by) return untestedMark(f);
-  return ' (' + f.by + '\u2019s fix' + (f.played ? '' : ', untested') + ')';
+  return ' (' + f.by + '\u2019s fix' + (!f.played ? ', untested' : fixPlayedInPart(f) ? ', partially tested' : '') + ')';
 }
 function appFixChosen() { return APP_FIXES.filter(f => !window.APPFIX_STATE.off.has(f.id)); }
 function appFixSay(m, bad) {
