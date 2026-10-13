@@ -579,6 +579,24 @@ const APP_FIXES = [
            'same:', 'bne @make              ; another tune: as before', 'cmpwi 26, 0', 'beq @make              ; stopped: make it again and play',
            'b @0x1AC38            ; the same tune, playing: as before', 'make:', 'b @0x1ABA8'] },
 
+  // The tune a zone starts is cache data, a relocatable block, and
+  // GMSPlayAmbient is handed a pointer into it and locks it last: after it
+  // has unlocked the old tune's data, stopped the old tune through three
+  // QuickTime calls, freed its object and allocated the new one. Any of
+  // those can move an unlocked block, and then the new tune is queued from
+  // where its data was, memory the heap goes on to reuse while QuickTime
+  // plays from it. TAudio::PlayMusic, the one caller, holds the data locked
+  // across the call instead: the lock is counted, so GMSPlayAmbient's own
+  // lock and every path through it, music-revert's too, are as before.
+  // Read, not reproduced (no moved block was forced): the board's "wrong instruments, distorted timing"
+  // after long play fits it and nothing here shows it is the cause.
+  { id: 'music-lock', kind: 'fix', title: 'The music a zone starts is held in place before the old tune is let go, so it is never played from memory that has moved',
+    bug: 'Music stops after a revert, and MIDI gets corrupted in long play',
+    sites: [{ at: 0x1BBE4, was: [0x4BFFEF75], asm: ['b @hold               ; was bl GMSPlayAmbient'] }],
+    cave: ['hold:', 'lwz 3, -30396(2)      ; the cache, as GMSPlayAmbient finds it', 'lwz 3, 0(3)', 'lwz 3, 0(3)', 'mr 4, 31              ; the tune\'s data',
+           'bl @0x7CAA0            ; TCache::Lock', 'mr 3, 31', 'bl @0x1AB58            ; GMSPlayAmbient',
+           'lwz 3, -30396(2)', 'lwz 3, 0(3)', 'lwz 3, 0(3)', 'mr 4, 31', 'bl @0x7CB28            ; TCache::Unlock', 'b @0x1BBE8'] },
+
   { id: 'hero-square', kind: 'fix', title: 'The hero keeps its square in the creature grid, so a follower on it no longer hides the hero from a drag',
     bug: 'You cannot drag the player onto a follower\'s square',
     sites: [

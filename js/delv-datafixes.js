@@ -717,6 +717,39 @@ const DATA_FIXES = [
           r[6] = 0; r[7] = 7; return 'record 632’s count moved to Data2';
       } },
     ] },
+  // Things left where nobody can go (0x8103, 0x8109; 13 October 2026). A
+  // flood of every zone from its entrances, schedule posts and open edges,
+  // with every door, gate and passage open and tile 0 closed, leaves
+  // fourteen things on tile 0, the void outside the walls, with no reached
+  // square beside them. Land King Hall: a dresser at (4,16) and a crystal
+  // ball at (4,18), outside the west wall (the board's "white room"). The
+  // Underground: a pedestal at (34,57) between a second mystic armor and a
+  // second mystic spear, north of the helmet's room (the armor a player
+  // finds is in the Caves and the spear in the Cove), and in the north-west
+  // corner four standing stones, four force walls and a pedestal. Each
+  // record is freed, flags 0xFF, as the list's own free records are;
+  // ChainFreeProps links them when the zone is loaded. A game already
+  // begun keeps its own lists. Left: the outcropping at (39,96) of the
+  // Underground, on void too but numbered as the one at (86,115) is.
+  { id: 'castoffs', group: 'hidden', stage: 'community', title: 'Fourteen things left outside the walls of Land King Hall and the Underground are now gone, instead of standing where nobody can go',
+    played: 'fork, 68K, 13 October 2026, alone and on “All Fixes”: the hero put on the void beside each group of the Underground; the pedestal, armor and spear at (34,57) and the standing stones, force walls and pedestal of the north-west corner are drawn unpatched and gone with the fix; fork, PowerPC, the fix alone: a new game saved holds Land King Hall’s dresser and crystal ball as free records, against both on the floor unpatched. Land King Hall was not looked at on “All Fixes”, nor any of it on Mac OS',
+    dataEdits: [
+      { what: 'Land King Hall’s castoffs', resid: 0x8103, fn: (b) => {
+          const want = { 68: [18, 4, 16], 626: [321, 4, 18] }; let n = 0;
+          for (const [i, [t, x, y]] of Object.entries(want)) { const r = b.subarray(i * 16, i * 16 + 16), xy = (r[1] << 16) | (r[2] << 8) | r[3];
+            if (r[0] !== 0 || (((r[4] << 8) | r[5]) & 0x3FF) !== t || (xy >> 12) !== x || (xy & 0xFFF) !== y) throw new Error('record ' + i + ' is not type ' + t + ' on the floor at (' + x + ',' + y + ')');
+            r[0] = 0xFF; n++; }
+          return n + ' records freed';
+      } },
+      { what: 'the Underground’s castoffs', resid: 0x8109, fn: (b) => {
+          const want = { 871: [184, 34, 57, 0], 873: [375, 33, 57, 1], 874: [376, 35, 57, 1], 881: [179, 5, 1, 0], 882: [179, 5, 2, 0], 883: [179, 6, 1, 0], 884: [179, 7, 0, 0],
+                         887: [255, 4, 4, 0], 888: [255, 4, 8, 0], 889: [255, 4, 11, 0], 890: [255, 3, 5, 0], 893: [184, 5, 3, 0] }; let n = 0;
+          for (const [i, [t, x, y, f]] of Object.entries(want)) { const r = b.subarray(i * 16, i * 16 + 16), xy = (r[1] << 16) | (r[2] << 8) | r[3];
+            if (r[0] !== f || (((r[4] << 8) | r[5]) & 0x3FF) !== t || (xy >> 12) !== x || (xy & 0xFFF) !== y) throw new Error('record ' + i + ' is not type ' + t + ' on the floor at (' + x + ',' + y + ')');
+            r[0] = 0xFF; n++; }
+          return n + ' records freed';
+      } },
+    ] },
   // Sacas's kesh on Eudoxus (0x8104): the five vials in the Abandoned
   // Farmhouse coffer get Data1 2, the value his line waits for.
   { id: 'eudoxus-kesh', group: 'quests', stage: 'community', title: 'You can now tell Sacas of the kesh on Eudoxus, instead of the vials never counting',
@@ -1850,6 +1883,20 @@ const DATA_FIXES = [
           segs.forEach((s, k) => b.set(s, p + 8 * k));
           return 'the Cademia posts moved ahead of the Bridge';
       } },
+    ] },
+  // A spell's failure roll (0xEA1, CastSpell): the cast fails when
+  // Random(0, C) + Random(0, C) < Random(0, level), and Random stops one
+  // short of its top, so a level-1 spell rolls Random(0, 1), always 0, and
+  // never fails. The same slip left the bartenders with one list of rumours
+  // (`rumours`) and eating with no jitter (`eat-to-heal`). Whether the
+  // authors meant a first-level spell to be safe is not in the files or the
+  // manual, so this is a design change: the roll's top becomes level + 1,
+  // and it reaches the level at every level. (The maintainer's word, 13
+  // October 2026; bugs.md, *A level-1 spell can never fail*.)
+  { id: 'spell-fail-roll', group: 'design', stage: 'apart', title: 'A spell’s failure roll now reaches the spell’s level, so a level-1 spell can fail, instead of stopping one short',
+    played: 'fork, 68K, 13 October 2026, alone: Minor Embrightenment, level 1, given as an ability by an edit with Casting at 1, performed ten times in Omen’s Test; "You failed to cast the spell." three times with the fix, never unpatched, and 20 magic spent on both. Not played on Mac OS, nor a spell of another level',
+    edits: [
+      { what: 'the failure roll', resid: 0xEA1, at: 0x00DB, replaceOp: true, expect: { 0x00D8: 'sys Random', 0x00D9: 'byte 0x00', 0x00DB: 'arg Arg01', 0x00DD: 'lt' }, code: 'arg Arg01\nbyte 0x01\nadd' },
     ] },
   /* A spell's magic taken once its target is chosen (the maintainer,
      30 September and 4 October 2026; the workbench's GRIMOIRE-NOTES.md,
