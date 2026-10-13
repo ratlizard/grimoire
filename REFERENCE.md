@@ -156,8 +156,11 @@ a failure:
 - **wolflizard's `examples/hfs_dump` is on the `cythera-detailed` branch**,
   not on `master`. `hfs_check.mjs` needs it for the round trip through that
   project's HFS reader, so a checkout sitting on the default branch has the
-  reader (`src/disk_image/hfs.rs`) and no way to call it. The check names the
-  missing file and still runs its structural half, which is most of it.
+  reader (`src/systems/macintosh/disk_image/hfs.rs`, which was
+  `src/disk_image/hfs.rs` until upstream's refactor of 27 September 2026) and
+  no way to call it. The structural half, which is most of it, is the row
+  *disk image* and needs no fork; the round trip is the row *disk image in
+  the fork*, which is skipped by name without the example.
 - **The game is in none of them, and the suite now feeds itself anyway.**
   `reference/` is gitignored, so a session that was handed only the
   repositories has no Cythera in it. `utilities/fetch_game.mjs` pulls the
@@ -486,12 +489,15 @@ guide carried it*.
 | delvmod write | `delv_write_check.mjs` + `delv_write_ref.py` | `writeDelverArchive` byte for byte against `Archive.to_file`; the record writers against their parsers |
 | delvmod disassembly | `delv_dasm_check.mjs` + `delv_dasm_ref.py` | `dvmDisassemble`'s decode events against ddasm over every script, divergences pinned |
 | script writing | `asm_check.mjs` | every instruction assembles back to its bytes; every resource with a header relinks four bytes on and reads back from outside; a relinker made to forget a kind of target is caught |
+| folded listing | `fold_check.mjs` | every function's instructions folded into frames, all balanced, each expanding back to the instructions it came from |
+| recovered structure | `structure_check.mjs` | the blocks, loops and merged conditions recovered from each function's jumps, with control flow identical to the listing's and the gotos left counted |
 | code read aloud | `read_check.mjs` | the Read view says every call, test and string of every function the structure recovery reads |
 | dialogue vs guides | `dialogue_check.mjs` | `dvmConversation` against the archive's structure and the community's transcription |
 | archive loading | `loader_test.mjs` | unwrapping, validation, refusals, deep links and the default path |
 | installer | `vise_check.mjs` | `js/mac-vise.js` against the catalog's own CRCs and the BinHex copies; StuffIt folders |
 | addons + heuristic | `addons_check.mjs` | every add-on opens; the decrypt heuristic scored against the tables |
 | magpie patch | `patch_check.mjs` | `mergeDelverPatch` replaces only what the patch names |
+| spanish | `translate_check.mjs` | the data file and the program in Spanish: every piece translated, the highlighted words answering as in English, the result pinned, and the translated program loading |
 | stuffit 13 and 15 | `sit_methods_check.mjs` | both decompressors against `unar` and against each other |
 | zip archives | `zip_check.mjs` | `js/mac-zip.js` against zlib, its own container, `zip`, `ditto` and `unar` |
 | between releases | `releases_check.mjs` | what changed between the four releases, pinned, and the change history read against it |
@@ -511,8 +517,12 @@ guide carried it*.
 | zip export | `export_test.mjs` | the exported zips unpack |
 | bitmap font write | `nfnt_write_check.mjs` | the strikes written back byte for byte and as TrueType |
 | behind the scenes | `backstage_check.mjs` | each Behind the Scenes fix written into Cythera Data's resource fork and read back from MacBinary, every other resource unchanged, a second run refused |
+| art pack | `artpack_check.mjs` | every picture of the game decoded and pinned; the PNGs the page makes read back and a damaged one caught; the game's names answered by a pack or given stand-ins; the tile sheets rebuilt |
+| quicktime instruments | `qtmusic_check.mjs` | QuickTime 3's instruments unpacked from its installer, every sample found, every part of the game's tunes given an instrument, and the theme's render pinned |
+| midi import | `midi_import_check.mjs` | `qtmaWrite` rebuilding the shipped tunes' headers byte for byte, and each tune back from its own MIDI file through `midiToQtma`, with controls |
 | resource snapshot | `rsrc_snapshot.mjs` | a hash of the classic-Mac decoders over both forks |
-| disk image | `hfs_check.mjs` | `writeHfsImage` structurally, and through systemless's reader |
+| disk image | `hfs_check.mjs` | `writeHfsImage` structurally |
+| disk image in the fork | `hfs_check.mjs` | every volume it writes read back through systemless's reader, forks byte for byte; skipped without the fork's `examples/hfs_dump.rs` |
 
 The fix builders are builders too, and since 28 September 2026 each names
 a stage, or a fix, of `js/delv-datafixes.js` and hands it to

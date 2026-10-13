@@ -366,7 +366,7 @@ const SYSTEMLESS = systemlessPath && existsSync(systemlessPath) ? systemlessPath
 if (!SYSTEMLESS) {
   console.log('  skip round trip — no systemless checkout given');
 } else if (!existsSync(join(SYSTEMLESS, 'examples/hfs_dump.rs'))) {
-  // The reader itself (src/disk_image/hfs.rs) is in every systemless
+  // The reader itself (src/systems/macintosh/disk_image/hfs.rs) is in every systemless
   // checkout; the example that dumps a volume as JSON is not -- it is
   // carried on the fork's cythera-detailed branch, so a checkout sitting on
   // master has the reader and no way to call it. Say which file is missing

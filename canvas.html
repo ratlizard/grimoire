@@ -119,6 +119,9 @@ code{font-family:"DM Mono",monospace; font-size:.92em; color:var(--ink-2)}
 .menu{position:absolute; top:calc(100% + 5px); right:0; z-index:40; min-width:190px; padding:4px;
   background:var(--surface); border:1px solid var(--line); border-radius:4px; box-shadow:var(--shadow)}
 .menu[hidden]{display:none}
+/* The rule below gives a menu's buttons a display of their own, which outranks
+   the hidden attribute: Send back to Grimoire showed with nothing to send. */
+.menu button[hidden]{display:none}
 .menu button{display:flex; justify-content:space-between; gap:12px; width:100%; text-align:left; padding:6px 9px;
   cursor:pointer; background:transparent; border:0; border-radius:3px; font-size:0.7812rem; color:var(--ink)}
 .menu button em{font-style:normal; font-size:0.6875rem; color:var(--muted)}
@@ -263,7 +266,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   .mark{font-size:1rem; flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis}
   .bar .sp{display:none}
   .pick select{min-width:80px}
-  .bar .btn{padding:5px 8px; font-size:0.75rem}
+  .bar .btn{padding:5px 8px; font-size:0.75rem; min-height:40px}
   .main{display:flex; flex-direction:column; min-height:0}
   .pane{order:1; flex:1 1 auto; min-height:0; padding:6px 8px; gap:5px}
   .zoomBox{display:none !important}
@@ -576,7 +579,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
 </div>
 </div>
 
-<dialog id="dPal" aria-label="Palette"><div class="dh"><span class="eyebrow">Flat colors</span>
+<dialog id="dPal" aria-label="Palette"><div class="dh"><span class="eyebrow">Colors &amp; depth</span>
   <button type="button" class="btn" data-close>Done</button></div>
   <div class="db">
     <div class="row fl" style="margin-top:0"><label class="pick"><span class="eyebrow">Depth</span>
@@ -4193,7 +4196,7 @@ function blit(src, sw, sh, ox, oy) {
 
 /* ================= the scenes =========================================== */
 var SCENES = [
-  { id: 'cave', name: 'Cave', w: CAVE.W, h: CAVE.H, note: 'the viewer tailpiece, all five ramps',
+  { id: 'cave', name: 'Cave', w: CAVE.W, h: CAVE.H, note: 'all five ramps',
     run: async function () { idx.set(CAVE.build()); } },
 
   { id: 'cavebare', name: 'Cave, bare', w: CAVE.W, h: CAVE.H, note: 'same rock, nothing moving, paint your own',

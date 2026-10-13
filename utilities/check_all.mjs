@@ -116,7 +116,16 @@ const DELV = firstHolding('delv/archive.py', process.env.DELVMOD, 'delvmod',
 // one rather than in it; $SYSTEMLESS overrides. Without it hfs_check still
 // runs its structural half, which is most of it.
 const PEF_SYMBOLS = firstHolding('cythera_symbols.txt', process.env.WORKBENCH, '../cythera-workbench', 'cythera-workbench') + '/cythera_symbols.txt';
-const SYSLESS = firstHolding('src/disk_image/hfs.rs', process.env.SYSTEMLESS, 'wolflizard', '../wolflizard', 'systemless', '../systemless');
+// The reader was src/disk_image/hfs.rs until upstream's refactor of
+// 27 September 2026 moved it under src/systems/macintosh/. This line looked
+// for the old path alone, so from the fork's next rebase until 13 October the
+// suite found no checkout, hfs_check ran its structural half and said "0
+// round-tripped", and the row read ok: it had no expected line to miss. Both
+// paths are looked for now, and the round trip is a row of its own with an
+// expected line, skipped by name when the fork's example is not there.
+const HFS_READER = ['src/systems/macintosh/disk_image/hfs.rs', 'src/disk_image/hfs.rs'];
+const SYSLESS = [process.env.SYSTEMLESS, 'wolflizard', '../wolflizard', 'systemless', '../systemless']
+  .find(p => p && HFS_READER.some(m => existsSync(resolve(ROOT, p, m)))) || '../systemless';
 // LLVM's PowerPC disassembler, which ppc_check.mjs holds js/mac-ppc.js to.
 // Nothing here installs it: Homebrew's llvm formula has it, as does a Linux
 // distribution's llvm package, and $LLVM_MC overrides. Without it that one
@@ -570,13 +579,21 @@ const CHECKS = [
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
    grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT a43e9aac1a08'},   // a DATA and a LINF description out of the passive ("has not been worked out"), 2 October 2026; only those two types moved
 
-  // The HFS disk-image writer index.html exports with. Structural on its
-  // own; with a systemless checkout beside this one it also round-trips every
-  // volume through that project's reader. Slow only the first time, when it
-  // has to build the reader's example binary.
-  {page: 'viewer', name: 'disk image', slow: true,
+  // The HFS disk-image writer index.html exports with: structural here, and
+  // in the row after it every volume round-tripped through systemless's
+  // reader, which wants the fork's checkout beside this one and is slow only
+  // the first time, when it has to build the reader's example binary. Two
+  // rows so that a missing or unfound fork is a skip the table names; as one
+  // row without an expected line it read ok with nothing round-tripped.
+  {page: 'viewer', name: 'disk image',
+   cmd: ['utilities/hfs_check.mjs', 'index.html'],
+   grep: /\d+ volumes, \d+ structural checks/,
+   expect: '5 volumes, 121 structural checks'},
+  {page: 'viewer', name: 'disk image in the fork', slow: true,
+   want: [resolve(ROOT, SYSLESS, 'examples/hfs_dump.rs')],
    cmd: ['utilities/hfs_check.mjs', 'index.html', SYSLESS],
-   grep: /\d+ volumes, \d+ structural checks[^\n]*/},
+   grep: /\d+ volumes, \d+ structural checks[^\n]*/,
+   expect: '5 volumes, 125 structural checks, 4 round-tripped through systemless'},
 
 ];
 
