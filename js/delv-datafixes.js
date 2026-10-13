@@ -605,8 +605,8 @@ const DATA_FIXES = [
   // there (the six classes whose ClassFlags carry 0x200). A first try, the
   // door's helper refusing to close on a thing, could never run: the
   // click does not reach the door.
-  { id: 'door-under-thing', group: 'world', stage: 'community', title: 'Using a thing that lies in a doorway now works the door, instead of doing nothing and leaving the door stuck',
-    played: 'fork, 68K, 12 October 2026, the stock file, the fix alone and every fix: a dagger put by an edit on the square of the oak door at (52,21) of Cademia, the hero south of it, Use on that square three times. Each time the pane says "> Use dagger."; on the stock file the door\u2019s record stays shut, with the fix alone and with every fix it is open after the third. Mac OS 8.5, the same day, the same three, each patch installed by Magpie: unpatched the door stays shut through three Uses; with the fix alone and with every fix it opens, shuts and opens, the room behind it drawn',
+  { id: 'door-under-thing', group: 'world', stage: 'community', title: 'A door no longer closes on a thing lying in its doorway, and a door found shut on one opens when the thing is used, instead of staying stuck',
+    played: 'fork, 68K, and Mac OS 8.5 with each patch installed by Magpie, 12 October 2026, the stock file, the fix alone and every fix: a dagger put by an edit on the square of the oak door at (52,21) of Cademia, the hero south of it, Use on that square three times. Unpatched the pane says "> Use dagger." three times and the door stays shut. With the fix alone and with every fix the first Use opens the door, the room behind it drawn, and the second and third say "Something is in the doorway." and leave it open. In the fork, with no dagger, three Uses open, shut and open the door on all three files',
     edits: [
       { what: 'a thing with no use hands it to a door on its square', resid: 0x3009, at: 0x0003, expect: { 0x0003: 'return' },
         code: ['if_not', 'arg Arg00', 'get_field flags (0x0)', 'byte 0x18', 'bitwise_and', 'byte 0x00', 'eq', 'then -> out',
@@ -620,8 +620,28 @@ const DATA_FIXES = [
           'set_local 0x00', 'sys LocationIterator', 'word &Var0', 'byte 0x02', 'end', 'end',
           'branch look',
           'out:'].join('\n') },
+      { what: 'a door looks at its doorway before closing', resid: 0x0E40, at: 0x0081,
+        expect: { 0x007E: 'branch 0x00BE', 0x0081: 'if_not', 0x0083: 'arg Arg01', 0x0088: 'set_field aspect', 0x00BE: 'return' },
+        code: ['if_not', 'local Var04', 'arg Arg01', 'eq', 'local Var04', 'arg Arg02', 'eq', 'or', 'then -> clear',   // the two open pictures: only a closing looks
+          'set_local 0x05', 'sys LocationIterator', 'word &Var5', 'byte 0x00', 'arg Arg00', 'get_field x (0x1)', 'arg Arg00', 'get_field y (0x2)', 'end', 'end',
+          'look:',
+          'if', 'sys LocationIterator', 'word &Var5', 'byte 0x01', 'end', 'then -> clear',
+          'if_not', 'local Var05', 'class_member 0x2400', 'byte 0x00', 'gt', 'local Var05', 'class_member 0x2400', 'short 0x7FFF', 'lt', 'and', 'then -> onward',   // the class's Weight, a number and not None
+          'string(implicit) "Something is in the doorway.\\n"', 'branch 0x00BE',
+          'onward:',
+          'set_local 0x05', 'sys LocationIterator', 'word &Var5', 'byte 0x02', 'end', 'end',
+          'branch look',
+          'clear:'].join('\n') },
     ],
-    dataEdits: [{ what: 'the default Use has four locals', resid: 0x3009, fn: (b) => { if (b[0] !== 0x81 || b[2] !== 0) throw new Error('the header is not what the page read'); b[2] = 4; return 'locals 0 to 4'; } }] },
+    // With the Use handed on, a door could be shut on the thing and opened
+    // again through it, which is one rule for the player and another for
+    // the doorway (the maintainer, 12 October 2026: "SHOULD the player be
+    // able to close the door with something in the way?"). So the door's
+    // helper, 0x0E40, also looks over its square before closing, and with
+    // anything there that has a weight it says so and stays open. Opening
+    // is never refused, so a door found shut on a thing still opens.
+    dataEdits: [{ what: 'the door helper has three more locals', resid: 0x0E40, fn: (b) => { if (b[0] !== 0x81 || b[2] !== 5) throw new Error('the header is not what the page read'); b[2] = 8; return 'locals 5 to 8'; } },
+      { what: 'the default Use has four locals', resid: 0x3009, fn: (b) => { if (b[0] !== 0x81 || b[2] !== 0) throw new Error('the header is not what the page read'); b[2] = 4; return 'locals 0 to 4'; } }] },
   // Shake Down (0x1A24) counts everything its target holds, rolls for one
   // and puts it on the target's square with flags 1, a thing on the ground
   // and free to take. What a character holds includes its skills and
@@ -1670,6 +1690,17 @@ const DATA_FIXES = [
           return 'record 96, byte 7: the Alive bit set';
       } },
     ] },
+  // The manuscript on Semius the Golem Hunter (0x021D) has him buying a
+  // lyre and "saying something about the 'key to opening being SGD'". The
+  // lyre's lock (signal 131, the sewer's secret door to the room where his
+  // bones lie in the cloak the manuscript gives him) wants PMG; SGD can be
+  // played and opens nothing [Aventari,Alan Mercury,Croikle@t56]. The
+  // letters are made the door's. A design change, at the maintainer's word
+  // (12 October 2026): the manuscript calls it a rumour and "nonsense", so
+  // the wrong letters may have been meant.
+  { id: 'semius-notes', group: 'design', stage: 'apart', title: 'The manuscript on Semius the Golem Hunter now gives the notes that open the door, PMG, instead of SGD',
+    played: 'Mac OS 8.5, 12 October 2026, the change alone, installed by Magpie: the bookshelf at (22,42) of Catamarca used and the manuscript scrolled to its end, "the \u2018key to opening being PMG\u2019", against "SGD" unpatched. The door was not played with it; PMG opening it is the board\u2019s and the lock\u2019s constant. Not played in the fork, where the scroll\u2019s window did not scroll',
+    textEdits: [dataFixT('the Golem Hunter\u2019s notes', 0x021D, "'key to opening being SGD'", "'key to opening being PMG'", 1)] },
   // Thread and cloth colours disagree (bugs.md): spinning makes yellow
   // thread, the loom keeps the thread's aspect and changes its type, and the
   // cloth tiles after the thread's on sheet 0x8E2B are blue, red and green
