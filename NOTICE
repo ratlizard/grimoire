@@ -135,7 +135,7 @@ The submodule points at a fork of it, which carries Python 3 fixes and says so
 in its README; the work is his.
 
 **`js/mac-*.js`** are copies of **mac-files**
-(<https://github.com/e-z-g/mac-files>), under the same licence, kept
+(<https://github.com/ratlizard/mac-files>), under the same licence, kept
 identical to it by `utilities/copies_check.mjs`; its NOTICE says what in
 them came from elsewhere, as this one does below.
 

@@ -260,7 +260,7 @@ function ensureGraphicsRef() {
 // in a way that looks like a real problem.
 const CHECKS = [
   {page: 'viewer', name: 'static', cmd: ['utilities/verify_viewer.mjs', 'index.html']},
-  /* js/mac-*.js against e-z-g/mac-files, which they are copies of: beside
+  /* js/mac-*.js against ratlizard/mac-files, which they are copies of: beside
      this checkout, at ~/e-z-g-cythera/mac-files, or where MAC_FILES says. */
   {page: 'viewer', name: 'copies', cmd: ['utilities/copies_check.mjs'],
    grep: /\d+ mac-\* files, \d+ identical/},

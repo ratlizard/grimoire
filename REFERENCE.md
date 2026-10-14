@@ -213,7 +213,7 @@ belongs.
 
 **Generic classic-Mac formats** — nothing here knows Cythera exists, and that
 is worth keeping true: since 14 October 2026 they are copies of
-[e-z-g/mac-files](https://github.com/e-z-g/mac-files), which StarGrimoire and
+[ratlizard/mac-files](https://github.com/ratlizard/mac-files), which StarGrimoire and
 SnoidGrimoire copy too, held byte for byte to it by `copies_check.mjs`. A
 change is made there first (its README, *Changing a file*). `index.html`
 loads all thirteen, in this order, before the two tiers below:
@@ -499,7 +499,7 @@ guide carried it*.
 | code read aloud | `read_check.mjs` | the Read view says every call, test and string of every function the structure recovery reads |
 | dialogue vs guides | `dialogue_check.mjs` | `dvmConversation` against the archive's structure and the community's transcription |
 | archive loading | `loader_test.mjs` | unwrapping, validation, refusals, deep links and the default path |
-| copies | `copies_check.mjs` | every `js/mac-*.js` byte for byte e-z-g/mac-files' |
+| copies | `copies_check.mjs` | every `js/mac-*.js` byte for byte ratlizard/mac-files' |
 | installer | `vise_check.mjs` | `js/mac-vise.js` against the catalog's own CRCs and the BinHex copies; StuffIt folders |
 | addons + heuristic | `addons_check.mjs` | every add-on opens; the decrypt heuristic scored against the tables |
 | magpie patch | `patch_check.mjs` | `mergeDelverPatch` replaces only what the patch names |
