@@ -216,7 +216,7 @@ function expectFiles(label, zipBytes, want) {
     ['a byte flipped in a deflated entry', flip, /CRC-32|inflate/],
     ['an encrypted entry', writeZip([stored('secret', a, {flags: 1})]), /encrypted/],
     ['a method this page does not decompress', (() => { const z = writeZip([stored('bz', a)]); z.writeUInt16LE(12, 8); z.writeUInt16LE(12, 30 + 2 + a.length + 10); return z; })(), /method 12 \(bzip2\)/],
-    ['a zip with its end record cut off', writeZip([stored('cut', a)]).subarray(0, 50), /end-of-central-directory/],
+    ['a zip cut off inside its only entry', writeZip([stored('cut', a)]).subarray(0, 40), /end-of-central-directory/],
   ];
   const missed = [];
   for (const [what, bytes, want] of refusals) {
@@ -226,6 +226,33 @@ function expectFiles(label, zipBytes, want) {
   }
   if (missed.length) fail('the negative controls', missed.join('; '));
   else ok('the negative controls', refusals.map(r => r[0]).join(', ') + ': each refused, and for its own reason');
+}
+
+// ---- 2b. a zip in parts -------------------------------------------------------
+// A zip split across files is one zip cut into pieces, the first opening with
+// the split marker and the directory in the last, its end record naming a disk
+// past 0 (rEV_Windows001.zip to 003.zip in archive.org's EV Nova collection,
+// 14 October 2026). With no directory to read, the reader walks the local
+// headers: the parts joined give every entry, a data descriptor's among them,
+// and each part alone the entries it holds whole, those cut by its ends left
+// out. The end record is made to name disk 2, as a split archive's does.
+{
+  const pay = n => Buffer.from(Array.from({length: n}, (_, i) => (i * 131 + (i >> 5)) & 255));
+  const files = [stored('one.rez', pay(3000)), deflated('two.rez', pay(9000)),
+                 deflated('three.rez', pay(5000), {}, {descriptor: true}), stored('four.txt', pay(700))];
+  const whole = Buffer.from(writeZip(files));
+  const end = whole.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  whole.writeUInt16LE(2, end + 4); whole.writeUInt16LE(2, end + 6);
+  const marked = Buffer.concat([Buffer.from([0x50, 0x4b, 0x07, 0x08]), whole]);
+  // cut halfway into two.rez's data and halfway into three.rez's, found by their headers
+  const at = name => marked.indexOf(Buffer.from(name)) + name.length;
+  const c1 = at('two.rez') + (files[1].deflated.length >> 1), c2 = at('three.rez') + (files[2].deflated.length >> 1);
+  const parts = [marked.subarray(0, c1), marked.subarray(c1, c2), marked.subarray(c2)];
+  const want = files.map(f => ({path: f.name.toString(), data: f.data}));
+  const good = expectFiles('a zip in parts, joined', marked, want) &&
+    expectFiles('its first part alone', parts[0], want.slice(0, 1)) &&
+    expectFiles('its last part alone', parts[2], want.slice(3));
+  if (good) ok('a zip in parts', 'joined, every entry and a data descriptor\'s; each part alone, the entries it holds whole');
 }
 
 // ---- 3. Info-ZIP and ditto --------------------------------------------------
