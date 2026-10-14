@@ -260,6 +260,10 @@ function ensureGraphicsRef() {
 // in a way that looks like a real problem.
 const CHECKS = [
   {page: 'viewer', name: 'static', cmd: ['utilities/verify_viewer.mjs', 'index.html']},
+  /* js/mac-*.js against e-z-g/mac-files, which they are copies of: beside
+     this checkout, at ~/e-z-g-cythera/mac-files, or where MAC_FILES says. */
+  {page: 'viewer', name: 'copies', cmd: ['utilities/copies_check.mjs'],
+   grep: /\d+ mac-\* files, \d+ identical/},
   /* Is every function the page declares reached by anything? `static` asks the
      opposite question -- whether every name the JS calls is declared -- and a
      feature shipped on 14 September 2026 that did not run, because its reader

@@ -115,7 +115,8 @@ order matching the dependency order; `utilities/verify_viewer.mjs` and
 
 `js/` has three tiers: **generic classic-Mac formats** (`mac-*.js`, which know
 nothing of Cythera, the PowerPC decoder and assembler among them;
-`mac-bytes.js` first), **Cythera's own formats** (`delv-*.js`: the archive,
+`mac-bytes.js` first; copies of `e-z-g/mac-files`, at
+`~/e-z-g-cythera/mac-files`, which is changed first and copied here), **Cythera's own formats** (`delv-*.js`: the archive,
 graphics, the Delver VM, the assembler, the rule models, the game's fixes and
 the program's, each with the code that writes them in), and **the page's own furniture** (`delv-sheets.js`,
 `delv-mapview.js`, then the fourteen `page-*.js` files in their load order).

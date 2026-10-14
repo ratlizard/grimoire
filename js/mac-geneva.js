@@ -13,7 +13,8 @@
    (SHA-256 abda9418...8626, the same file as the systemless fork's
    fontstruct/geneva-9.ttf), under the Creative Commons Attribution 3.0
    licence; its licence and FontStruct's readme travel with it as
-   res/Geneva9-LICENSE.txt and res/Geneva9-README.txt, and NOTICE says so.
+   licences/Geneva9-LICENSE.txt and licences/Geneva9-README.txt (in
+   grimoire, res/), and NOTICE says so.
    It is outlines on a grid of 64 units a square, sixteen squares an em, so
    drawn at a square a pixel it is the bitmap it was built from. It was
    chosen over its descendant Geneva 9.1 (res/Geneva9-1-Regular.woff2, the
@@ -38,8 +39,8 @@
    10-point bearings place Geneva 10's own, wider letters, so the 10-point
    strike does not use them as they are: it says only which side of Geneva
    9's letter an odd pixel of extra width goes (js/delv-translate.js).
-   Only the numbers are here; Kurrajong's pixels are not. res/Kurrajong-OFL.txt
-   is the licence. The frame is Geneva's at both sizes, ten pixels above
+   Only the numbers are here; Kurrajong's pixels are not. licences/Kurrajong-OFL.txt
+   (in grimoire, res/) is the licence. The frame is Geneva's at both sizes, ten pixels above
    the baseline and two below, with one of leading at 10 points; an
    accented letter takes its letter's width, as Apple's do. */
 const GENEVA9_TTF =

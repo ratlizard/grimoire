@@ -134,6 +134,11 @@ here for data inspection and as a correctness oracle. Its license governs it.
 The submodule points at a fork of it, which carries Python 3 fixes and says so
 in its README; the work is his.
 
+**`js/mac-*.js`** are copies of **mac-files**
+(<https://github.com/e-z-g/mac-files>), under the same licence, kept
+identical to it by `utilities/copies_check.mjs`; its NOTICE says what in
+them came from elsewhere, as this one does below.
+
 **`js/mac-stuffitx.js`** and **`js/mac-compactpro.js`** are ported from
 **XADMaster**, The Unarchiver's library (<https://github.com/MacPaw/XADMaster>,
 "Copyright (c) 2017-present, MacPaw Way Ltd."), licensed **LGPL-2.1-or-later**,
