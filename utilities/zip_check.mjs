@@ -32,9 +32,10 @@
 //
 // THE NEGATIVE CONTROLS. A byte flipped in a deflated entry must be refused,
 // not handed back; so must an encrypted entry, a method this page does not
-// decompress (named), and a zip with its end record cut off. And the format
-// the page names instead of opening, Compact Pro, must be named, when the
-// add-ons are here to be named (StuffIt X opens since 13 October 2026).
+// decompress (named), and a zip with its end record cut off. And the
+// Compact Pro add-on must be named as what it is, when the add-ons are here
+// (StuffIt X opens since 13 October 2026, Compact Pro since 14 October,
+// utilities/cpt_check.mjs).
 
 import {readFileSync, writeFileSync, mkdirSync, rmSync, existsSync} from 'node:fs';
 import {join} from 'node:path';
@@ -255,6 +256,33 @@ function expectFiles(label, zipBytes, want) {
   if (good) ok('a zip in parts', 'joined, every entry and a data descriptor\'s; each part alone, the entries it holds whole');
 }
 
+// ---- 2c. a ZipIt self-extractor ------------------------------------------------
+// ZipIt's self-extracting archive keeps a zip in its data fork after a PowerPC
+// program ('Joy!', a PEF), its offsets counted from the start of the fork, and
+// eight bytes after the end record ('TIPZ' and a version): Mr.T's Paint and
+// More in archive.org's EV Nova collection, 14 October 2026. Read as a zip
+// when the fork opens with 'Joy!' and the directory ends where the end record
+// begins; the same bytes after anything else are not a zip.
+{
+  const pay = n => Buffer.from(Array.from({length: n}, (_, i) => (i * 61 + (i >> 3)) & 255));
+  const files = [stored('Folder/', Buffer.alloc(0)), deflated('Folder/A-team', pay(4000)), stored('Folder/READ ME', pay(150))];
+  const zip = Buffer.from(writeZip(files));
+  const program = Buffer.concat([Buffer.from('Joy!peffpwpc'), pay(500)]);
+  // every offset moved past the program
+  const end = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  for (let p = zip.readUInt32LE(end + 16); p < end; p += 46 + zip.readUInt16LE(p + 28) + zip.readUInt16LE(p + 30) + zip.readUInt16LE(p + 32))
+    zip.writeUInt32LE(zip.readUInt32LE(p + 42) + program.length, p + 42);
+  zip.writeUInt32LE(zip.readUInt32LE(end + 16) + program.length, end + 16);
+  const tail = Buffer.from([0x54, 0x49, 0x50, 0x5a, 1, 0, 0, 0]);
+  const sea = Buffer.concat([program, zip, tail]);
+  const other = Buffer.concat([Buffer.from('Fun!'), sea.subarray(4)]);
+  sandbox.__s = new Uint8Array(sea); sandbox.__o = new Uint8Array(other);
+  const want = files.filter(f => f.data.length || !f.name.toString().endsWith('/')).map(f => ({path: f.name.toString(), data: f.data}));
+  if (!ev('looksLikeZip(__s)')) fail('a ZipIt self-extractor', 'not recognised as a zip');
+  else if (ev('looksLikeZip(__o)')) fail('a ZipIt self-extractor', 'the same bytes after something other than a PEF taken for a zip all the same');
+  else if (expectFiles('a ZipIt self-extractor', sea, want)) ok('a ZipIt self-extractor', 'its zip read after the program, every entry; the same zip after anything else, not taken');
+}
+
 // ---- 3. Info-ZIP and ditto --------------------------------------------------
 {
   const have = cmd => { try { execFileSync('which', [cmd], {stdio: 'ignore'}); return true; } catch (e) { return false; } };
@@ -324,7 +352,7 @@ function expectFiles(label, zipBytes, want) {
     }
   }
 
-  // StuffIt X has opened since 13 October 2026 (js/mac-stuffitx.js, sitx_check.mjs)
+  // StuffIt X has opened since 13 October 2026 (js/mac-stuffitx.js, sitx_check.mjs), Compact Pro since 14 October (cpt_check.mjs)
   const named = [
     ['608_Cythera_Makeover.sea', /Compact Pro self-extracting/],
   ];

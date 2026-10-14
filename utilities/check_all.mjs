@@ -425,6 +425,14 @@ const CHECKS = [
   {page: 'viewer', name: 'stuffit x',
    cmd: ['utilities/sitx_check.mjs', 'index.html', 'reference'],
    grep: /\d+ StuffIt X fork\(s\) read back byte identical/},
+  /* Compact Pro (js/mac-compactpro.js), a port of The Unarchiver's: every
+     fork of the Cythera Makeover kit, the one add-on that is Compact Pro,
+     against `unar`, and the archive's own CRC-32s; extractDelverArchive
+     reading it; a byte changed in a fork and in the catalog, refused.
+     Without `unar` or the add-on the archive parts skip. */
+  {page: 'viewer', name: 'compact pro',
+   cmd: ['utilities/cpt_check.mjs', 'index.html', 'reference'],
+   grep: /\d+ Compact Pro fork\(s\) read back byte identical/},
   /* The zip reader, which needs nothing: zlib is in Node and the container
      is written by the check itself. Info-ZIP, ditto, unar and the add-on each
      add a comparison when they are here and are skipped by name when not. */

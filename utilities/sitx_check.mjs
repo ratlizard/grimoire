@@ -23,6 +23,11 @@
 //    StuffItXEnglishHandle.m states.
 // 3. extractDelverArchive opens the three saved games, each as `unar`
 //    extracts it, data and resource fork.
+// 4. StuffIt X's Deflate, which none of the add-ons uses: RFC 1951 with the
+//    count of distance codes in six bits, not five (XADMaster's
+//    XADStuffItXDeflateVariant). A stream Node's zlib writes, its count
+//    widened by a bit, must inflate to what zlib was given with six bits
+//    and must not with five. StarGrimoire holds a real one to `unar`.
 //
 // THE NEGATIVE CONTROLS. A byte changed in a compressed stream must be
 // refused (the CRC-32, or the decoder itself), not handed back; a
@@ -34,6 +39,7 @@ import {join, basename} from 'node:path';
 import {tmpdir} from 'node:os';
 import {execFileSync} from 'node:child_process';
 import vm from 'node:vm';
+import zlib from 'node:zlib';
 import {makeSandbox} from './dom_stub.mjs';
 import {pageSource} from './page_scripts.mjs';
 
@@ -134,6 +140,28 @@ else {
   const named = ev(`(() => { const a = parseStuffItXArchive(__z); const e = a.entries.find(x => x.dataLen > 100000); const el = e.sitx.elements.get(e.sitx.forks.data.stream); el.alglist[0] = 2; el.decoded = null; try { stuffItXFork(__z, e, 'data'); return 'handed back'; } catch (er) { return er.message; } })()`);
   if (!/Darkhorse/.test(named)) fail('a method not read', named);
   else ok('a method not read', named);
+}
+
+// ---- 4. StuffIt X's Deflate, a count of distance codes in six bits -----------
+{
+  const text = readFileSync(new URL(import.meta.url));
+  const raw = zlib.deflateRawSync(text, {level: 9});
+  const bit = i => (raw[i >> 3] >> (i & 7)) & 1;
+  if (bit(0) !== 1 || bit(1) + 2 * bit(2) !== 2) fail('StuffIt X\'s Deflate', 'zlib did not write one dynamic block to widen');
+  else {
+    // the bits as they are, with a 0 after the five of the distance count (bits 8 to 12): its sixth, high bit
+    const n = raw.length * 8, wide = new Uint8Array(raw.length + 1);
+    for (let i = 0, o = 0; i < n; i++, o++) {
+      if (i === 13) o++;
+      wide[o >> 3] |= bit(i) << (o & 7);
+    }
+    sandbox.__w = wide; sandbox.__n = text.length;
+    const six = ev(`(() => { try { return inflateRaw(__w, __n, 8, 6); } catch (e) { return e.message; } })()`);
+    const five = ev(`(() => { try { return inflateRaw(__w, __n, 8, 5); } catch (e) { return e.message; } })()`);
+    if (typeof six === 'string' || !same(six, text)) fail('StuffIt X\'s Deflate', 'six bits: ' + (typeof six === 'string' ? six : 'not what zlib was given'));
+    else if (typeof five !== 'string' && same(five, text)) fail('StuffIt X\'s Deflate', 'read with five bits all the same: the width is not what is tested');
+    else ok('StuffIt X\'s Deflate', `a zlib stream of ${text.length} bytes, its distance count widened to six bits, inflates with six and not with five`);
+  }
 }
 
 // ---- 3. the saves, through extractDelverArchive ------------------------------

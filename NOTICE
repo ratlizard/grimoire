@@ -133,3 +133,9 @@ It is an independent work by **Bryce Schroeder**
 here for data inspection and as a correctness oracle. Its license governs it.
 The submodule points at a fork of it, which carries Python 3 fixes and says so
 in its README; the work is his.
+
+**`js/mac-stuffitx.js`** and **`js/mac-compactpro.js`** are ported from
+**XADMaster**, The Unarchiver's library (<https://github.com/MacPaw/XADMaster>,
+"Copyright (c) 2017-present, MacPaw Way Ltd."), licensed **LGPL-2.1-or-later**,
+whose section 3 lets it be used under the GPL, as it is here. Each file's
+header names the sources it was ported from and the commit.

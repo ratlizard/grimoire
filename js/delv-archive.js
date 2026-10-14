@@ -357,8 +357,7 @@ function extractDelverArchive(bytes, opts) {
      is -- the first entry whose data fork is a Delver archive wins, a fork
      that will not decompress is stepped over and named -- and guarded the
      same way, since the browser player vendors this file without that one,
-     and there the refusal below still names the format. Compact Pro is the
-     one format the add-ons use that this page does not open. */
+     and there the refusal below still names the format. */
   const UNPACK_IT = ', which this page does not open. Unpack it with The Unarchiver or StuffIt Expander and open the file inside.';
   const isStuffItX = buf => typeof looksLikeStuffItX === 'function' && looksLikeStuffItX(buf);
   const fromStuffItX = (buf, wrapper) => {
@@ -384,6 +383,35 @@ function extractDelverArchive(bytes, opts) {
   if (sitx) return sitx;
   if (isStuffItX(bytes) && typeof parseStuffItXArchive !== 'function') throw new Error('That is a StuffIt X archive (.sitx)' + UNPACK_IT);
 
+  /* A Compact Pro archive (js/mac-compactpro.js, since 14 October 2026), the
+     one format among the add-ons the three above do not cover: the Cythera
+     Makeover kit is a Compact Pro self-extractor, its archive in the data
+     fork of a MacBinary copy. Read as the others are, and guarded the same
+     way. */
+  const isCompactPro = buf => typeof looksLikeCompactPro === 'function' && looksLikeCompactPro(buf);
+  const fromCompactPro = (buf, wrapper) => {
+    if (!isCompactPro(buf)) return null;
+    let arc = null;
+    try { arc = parseCompactProArchive(buf); }
+    catch (e) { notes.push('a Compact Pro archive that will not read: ' + e.message); return null; }
+    const where = 'Compact Pro archive' + (wrapper ? ' in ' + wrapper : '');
+    const refused = [], found = [];
+    for (const e of arc.entries) {
+      if (e.isFolder || !e.dataLen) continue;
+      let data;
+      try { data = e.read('data'); }
+      catch (err) { refused.push(e.name + ' (' + err.message.replace(/^"[^"]*" /, '') + ')'); continue; }
+      const d = describeDelverArchive(data);
+      if (!d.ok) continue;
+      found.push({ entry: e, data, info: d, rsrc: () => { try { return e.read('rsrc'); } catch (err) { return null; } } });
+    }
+    if (refused.length) notes.push('in the ' + where + ', could not decompress ' + refused.join(', '));
+    if (!found.length) notes.push('nothing in the ' + where + ' is a Delver archive');
+    return pickContained(found, where, opts.pick);
+  };
+  const cpt = fromCompactPro(bytes, '');
+  if (cpt) return cpt;
+
   // sniffMacContainer knows the order these have to be tried in, and why.
   const forks = sniffMacContainer(bytes);
   const kind = forks ? forks.kind : '';
@@ -403,7 +431,7 @@ function extractDelverArchive(bytes, opts) {
     for (const which of ['data', 'rsrc']) {
       const buf = forks[which];
       if (!buf || !buf.length) continue;
-      const inner = fromStuffIt(buf, kind) || fromStuffItX(buf, kind);
+      const inner = fromStuffIt(buf, kind) || fromStuffItX(buf, kind) || fromCompactPro(buf, kind);
       if (inner) { inner.forks.outer = forks; return inner; }
     }
     const t = (forks.type || '').trim(), c = (forks.creator || '').trim();
@@ -411,8 +439,12 @@ function extractDelverArchive(bytes, opts) {
     if (isStuffItX(forks.data) && typeof parseStuffItXArchive !== 'function') throw new Error(holding + ', a StuffIt X archive' + UNPACK_IT);
     // An application is only the Cythera application when its creator says
     // so. 'EXTR' is Compact Pro's self-extractor, which is what the one .sea
-    // among the add-ons is.
-    if (t === 'APPL' && c === 'EXTR') throw new Error(holding + ', a Compact Pro self-extracting archive' + UNPACK_IT);
+    // among the add-ons is: read, when mac-compactpro.js is here, and found
+    // to hold neither Cythera Data nor a saved game.
+    if (t === 'APPL' && c === 'EXTR') {
+      if (isCompactPro(forks.data)) throw new Error(holding + ', a Compact Pro self-extracting archive with no Cythera Data or saved game in it. [' + notes.join('; ') + ']');
+      throw new Error(holding + ', a Compact Pro self-extracting archive' + UNPACK_IT);
+    }
     throw new Error(holding +
       (t ? " (type '" + t + "', creator '" + c + "')" : '') +
       (t === 'APPL' && c === 'Delv' ? ', which is the Cythera application, not its data.' : t === 'APPL' ? ', which is an application, not an archive.' : '.') +
