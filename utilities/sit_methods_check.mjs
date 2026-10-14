@@ -230,6 +230,28 @@ else {
           `${r.len.toLocaleString()} bytes, method ${r.method} out of the bundle against stored in the MacBinary installer`);
 }
 
+// ---- the StuffIt 5 walk ----------------------------------------------------
+// StuffIt 5 offsets are plain whatever bit 0x10 of the archive's flags says:
+// all 178 StuffIt 5 archives in archive.org's EV Nova plug-in collection
+// store them plain, 30 of them without the bit, and stuffit-rs (0.1.8 and
+// 0.3.1), which this reader came from, XORs them when the bit is clear and so
+// finds nothing in those 30 (13 October 2026). So the bundle, its flag bit
+// turned over, must list the same entries at the same offsets. The walk also
+// follows each file's own next-entry pointer, as stuffit-rs does not; the
+// lsar comparison over that collection is StarGrimoire's
+// (utilities/unpack_check.mjs), since the collection is EV Nova's.
+if (existsSync(BUNDLE)) {
+  sandbox.__bundle = new Uint8Array(readFileSync(BUNDLE));
+  const r = ev(`(() => {
+    const list = b => parseStuffItArchive(b).entries.map(e => [e.path, e.dataOffset, e.rsrcOffset, e.dataLen, e.rsrcLen].join());
+    const turned = __bundle.slice(); turned[83] ^= 0x10;
+    const a = list(__bundle), b = list(turned);
+    return {n: a.length, flag: __bundle[83] & 0x10, same: a.length === b.length && a.every((x, i) => x === b[i])};
+  })()`);
+  if (!r.same || !r.n) fail('the StuffIt 5 walk', `the bundle lists ${r.n} entries, and differently with its flag bit 0x10 turned over`);
+  else ok('StuffIt 5 offsets read the same with the flag bit turned over', `${r.n} entries in the bundle, which has the bit ${r.flag ? 'set' : 'clear'}`);
+}
+
 console.log(failures ? `\n${failures} failure(s)`
   : `\n  ${matched || forks} of ${forks} compressed fork(s) in ${archives} archive(s)${haveUnar ? ' byte identical to unar' : ' at their stated length'}`);
 process.exit(failures ? 1 : 0);
