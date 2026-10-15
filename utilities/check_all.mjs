@@ -612,12 +612,12 @@ const CHECKS = [
   {page: 'viewer', name: 'disk image',
    cmd: ['utilities/hfs_check.mjs', 'index.html'],
    grep: /\d+ volumes, \d+ structural checks/,
-   expect: '5 volumes, 121 structural checks'},
+   expect: '5 volumes, 131 structural checks'},
   {page: 'viewer', name: 'disk image in the fork', slow: true,
    want: [resolve(ROOT, SYSLESS, 'examples/hfs_dump.rs')],
    cmd: ['utilities/hfs_check.mjs', 'index.html', SYSLESS],
    grep: /\d+ volumes, \d+ structural checks[^\n]*/,
-   expect: '5 volumes, 125 structural checks, 4 round-tripped through systemless'},
+   expect: '5 volumes, 135 structural checks, 4 round-tripped through systemless'},
 
 ];
 

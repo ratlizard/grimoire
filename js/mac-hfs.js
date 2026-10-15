@@ -67,12 +67,14 @@
                                                           be used, because it
                                                           cannot be found."
 
-   So the File Manager is not reading a fixed-width key; it is doing what it
-   does in a leaf, following the length byte to the data. Apple's own HFS
-   writes the middle form -- a full-width key with the length byte to match --
-   and this writes the first, which is the same rule and fits more index
-   records in a node. If a future reader here ever has to walk an index node,
-   that is what it must expect.
+   So in looking a file up the File Manager follows the length byte to the
+   data, as it does in a leaf. Apple's own HFS writes the middle form -- a
+   full-width key with the length byte to match -- and **this writes that
+   form too**, because the first only mounts. Mac OS 7.6 cannot add a file
+   under a variable-length index key: on a volume with three catalog levels
+   the Finder failed to move a file into a folder with error -127, and a game
+   that creates a file beside its save read garbage (15 October 2026).
+   fsck_hfs rejects the variable form as well ("keyLength=27 expected=37").
 
    THE DESKTOP-FILE ALERT IS NOT COSMETIC. KEEP THE CATALOG TO ONE LEAF.
 
@@ -256,10 +258,11 @@ function hfsFileRecord(parent, file, when) {
         hfsPutFourCC(d, 8, file.creator);  // filUsrWds.fdCreator
         hfsPut16(d, 12, file.finderFlags || 0);
         hfsPut32(d, 20, file.cnid);        // filFlNum
-        hfsPut16(d, 24, file.dataStart);   // filStBlk
+        // filStBlk (24) and filRStBlk (34) stay 0, as Apple's HFS leaves
+        // them: fsck_hfs reads them as reserved fields, and the forks are
+        // found through the extent records below.
         hfsPut32(d, 26, file.data.length); // filLgLen
         hfsPut32(d, 30, file.dataPhysical);// filPyLen
-        hfsPut16(d, 34, file.rsrcStart);   // filRStBlk
         hfsPut32(d, 36, file.rsrc.length); // filRLgLen
         hfsPut32(d, 40, file.rsrcPhysical);// filRPyLen
         hfsPut32(d, 44, when);             // filCrDat
@@ -311,15 +314,16 @@ function hfsPackNodes(records) {
     return nodes;
 }
 
-/* An index record: the first key of the node it points at, then that node's
-   number as the record's four bytes of data -- at the next even offset after
-   the key, exactly as a leaf record's data is. See the header for the three
-   volumes that established that. */
-function hfsIndexRecord(key, nodeNumber) {
+/* An index record: the first key of the node it points at, padded to the
+   tree's full key length with the length byte to match, then that node's
+   number at offset 1 + keyLen. This is Apple's form; see the header for why
+   the variable form, which also mounts, is not used. */
+function hfsIndexRecord(key, nodeNumber, keyLen) {
     const packed = hfsCatalogKeyBytes(key.parent, key.name);
-    const rec = new Uint8Array(packed.length + 4);
+    const rec = new Uint8Array(1 + keyLen + 4);
     rec.set(packed, 0);
-    hfsPut32(rec, packed.length, nodeNumber);
+    rec[0] = keyLen;
+    hfsPut32(rec, 1 + keyLen, nodeNumber);
     return rec;
 }
 
@@ -349,7 +353,7 @@ function hfsBuildBTree(records, keyLen, spare) {
         firstNumber += below.length;
         const asRecords = below.map(n => ({
             key: n.firstKey,
-            bytes: hfsIndexRecord(n.firstKey, n.number),
+            bytes: hfsIndexRecord(n.firstKey, n.number, keyLen),
         }));
         const groups = hfsPackNodes(asRecords);
         levels.push(groups.map((group, i) => ({
@@ -472,7 +476,7 @@ function writeHfsImage(options) {
     }
     const rootValence = walk(opts.entries, HFS_ROOT_CNID);
 
-    const extentsFile = hfsEmptyExtentsFile();
+    let extentsFile = hfsEmptyExtentsFile();
 
     /* The catalog cannot be built until the forks have addresses, and the
        forks cannot be placed until the catalog's size is known, because the
@@ -480,7 +484,7 @@ function writeHfsImage(options) {
        with placeholder extents to learn its size, lay everything out, then
        build it again for real. The second build is the same shape as the
        first, so the size cannot change under it. */
-    function buildCatalog() {
+    function buildCatalog(extraNodes) {
         const records = [
             hfsDirRecord(HFS_ROOT_PARENT_CNID, volumeName, HFS_ROOT_CNID, rootValence, when),
             hfsThreadRecord(HFS_ROOT_CNID, HFS_ROOT_PARENT_CNID, volumeName, when),
@@ -491,7 +495,7 @@ function writeHfsImage(options) {
         }
         for (const file of files) records.push(hfsFileRecord(file.parent, file, when));
         records.sort((a, b) => hfsCompareKeys(a.key, b.key));
-        return hfsBuildBTree(records, HFS_CAT_KEY_LEN, HFS_SPARE_NODES);
+        return hfsBuildBTree(records, HFS_CAT_KEY_LEN, HFS_SPARE_NODES + (extraNodes || 0));
     }
     for (const f of files) {
         f.dataStart = 0; f.dataBlocks = 0; f.dataPhysical = 0;
@@ -518,6 +522,12 @@ function writeHfsImage(options) {
     while (blocksNeeded(floor) + files.length * 2 + 8 > 65535) alBlkSize *= 2;
 
     const upBlocks = n => Math.ceil(n / alBlkSize);
+    /* A tree file's logical size must be its whole allocation: Mac OS 7.6
+       extends a B-tree by the clump size from there, and fsck_hfs stops at
+       "Invalid extent file PEOF" otherwise. So each tree takes as many more
+       free nodes as fill its last block; the block counts do not change. */
+    const fillNodes = n => (upBlocks(n) * alBlkSize - n) / HFS_NODE_SIZE;
+    extentsFile = hfsBuildBTree([], HFS_EXT_KEY_LEN, HFS_SPARE_NODES + fillNodes(extentsFile.length));
     let blockCount = upBlocks(extentsFile.length) + upBlocks(catalogSize);
     for (const f of files) blockCount += upBlocks(f.data.length) + upBlocks(f.rsrc.length);
     blockCount = Math.max(blockCount + upBlocks(floor - contentBytes), blockCount + 1);
@@ -551,8 +561,8 @@ function writeHfsImage(options) {
         f.rsrcPhysical = f.rsrc.length ? r.physical : 0;
         if (!f.rsrc.length) { f.rsrcStart = 0; f.rsrcBlocks = 0; }
     }
-    const catalog = buildCatalog();
-    if (catalog.length !== catalogSize)
+    const catalog = buildCatalog(fillNodes(catalogSize));
+    if (catalog.length !== catalogAt.blocks * alBlkSize)
         throw new Error('HFS: the catalog changed size between the two builds');
     image.set(catalog, (alBlSt + catalogAt.start * sectorsPerBlock) * HFS_SECTOR);
     const usedBlocks = nextBlock;

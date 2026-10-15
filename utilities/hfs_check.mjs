@@ -130,6 +130,10 @@ function audit(label, image, expected) {
   say(catSize % NODE === 0 && catSize > 0, 'catalog is a whole number of nodes', catSize + ' bytes');
   say(Math.ceil(catSize / alBlkSize) === catBlocks, 'catalog extent covers the catalog file');
   say(Math.ceil(extSize / alBlkSize) === extBlocks, 'extents extent covers the extents file');
+  // A tree file's logical size is its whole allocation, or fsck_hfs stops at
+  // "Invalid extent file PEOF".
+  say(catSize === catBlocks * alBlkSize && extSize === extBlocks * alBlkSize,
+      'each B-tree file fills its allocation blocks', `${catSize}, ${extSize} bytes in ${alBlkSize}-byte blocks`);
 
   // Every allocated block marked once, and nothing else marked.
   const used = new Set();
@@ -173,6 +177,8 @@ function audit(label, image, expected) {
           type: Array.from(data.subarray(4, 8)).map(c => String.fromCharCode(c)).join(''),
           dataLen: u32(data, 26), dataStart: u16(data, 74), dataBlocks: u16(data, 76),
           rsrcLen: u32(data, 36), rsrcStart: u16(data, 86), rsrcBlocks: u16(data, 88),
+          // filStBlk and filRStBlk, which fsck_hfs reads as reserved.
+          startBlocks: u16(data, 24) | u16(data, 34),
         });
       }
     }
@@ -212,6 +218,14 @@ function audit(label, image, expected) {
       indexRecords++;
       const key = catalogKey(rec);
       const child = u32(rec, key.dataAt);
+      // Apple's form: the key padded to the tree's key length, with the length
+      // byte to match. Mac OS 7.6 mounts the variable form but cannot insert
+      // under it (js/mac-hfs.js says how that was found).
+      if (key.keyLen !== 37) {
+        indexOk = false;
+        fail(`${label}: index key length ${key.keyLen}, expected 37`);
+        break;
+      }
       if (rec.length !== key.dataAt + 4) {
         indexOk = false;
         fail(`${label}: index record is ${rec.length} bytes, expected ${key.dataAt + 4}`);
@@ -234,6 +248,9 @@ function audit(label, image, expected) {
   say(depth === (indexNodes ? 2 : 1) || depth >= 1, 'bthDepth is set', String(depth));
   say(root >= 1 && root < nodeCount, 'bthRoot is a node in the file', String(root));
   say(freeNodes > 0, 'the catalog keeps spare nodes', freeNodes + ' free');
+
+  say([...files.values()].every(f => f.startBlocks === 0),
+      'filStBlk and filRStBlk are 0 in every file record');
 
   // Forks: claim their blocks, and read the bytes back out of the image.
   for (const [name, f] of files) {
