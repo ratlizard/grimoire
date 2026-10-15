@@ -1961,6 +1961,26 @@ function appFixSource() {
 // played.
 function fixPlayedInPart(f) { return /^in part\b/i.test(f.played || ''); }
 function untestedMark(f) { return !f.played ? ' (untested)' : fixPlayedInPart(f) ? ' (partially tested)' : ''; }
+// A program fix has two halves, the PowerPC program and the 68K one
+// (js/delv-app68k.js), played separately: `played` is the PowerPC half's,
+// APP_FIXES_68K.played lists the fixes whose 68K part was shown. A fix seen
+// working on one says which it has not been seen on.
+function appFixMark(f) {
+  if (typeof APP_FIXES_68K === 'undefined' || !app68kNames(f.id)) return untestedMark(f);
+  const on68 = APP_FIXES_68K.played.includes(f.id);
+  if (!f.played) return on68 ? ' (untested on PowerPC)' : ' (untested)';
+  if (!on68) return fixPlayedInPart(f) ? ' (partially tested, untested on 68K)' : ' (untested on 68K)';
+  return untestedMark(f);
+}
+// The 68K changes of a fix, one line each.
+function appFix68kListing(m) {
+  const hx = n => n.toString(16).toUpperCase();
+  return [].concat(
+    m.inPlace.map(e => 'CODE ' + e.seg + ' +' + hx(e.at) + '  ' + e.length + ' bytes in place'),
+    m.caves.map(e => 'CODE ' + e.seg + ' +' + hx(e.site) + '  a branch to ' + e.length + ' bytes of new code at +' + hx(e.at)),
+    m.values.map(e => 'CODE ' + e.seg + ' +' + hx(e.off) + '  a value, now ' + hx(e.now)),
+    m.data0.map(e => 'DATA 0 +' + hx(e.at) + '  ' + e.length + ' bytes of text')).join('\n');
+}
 /* A fix built from someone else's published work carries their name
    (`by`): Fetch and fishing, from Bryce Schroeder's patched sources. The
    other four of his patch were written here from the causes, his sources
@@ -2013,7 +2033,8 @@ function appFixDownload(asDisk) {
     const bin = writeMacBinary({ name, type: r.src.type, creator: r.src.creator, data: r.data, rsrc: r.rsrc });
     dlBlob(new Blob([bin], { type: 'application/macbinary' }), 'Cythera (fixed).bin');
   }
-  appFixSay(r.chosen.length + ' fixes written; the code is ' + r.grownBy + ' bytes longer.');
+  const grown68 = r.applied.reduce((n, a) => n + (a.m68k ? a.m68k.caves.reduce((k, c) => k + c.length, 0) : 0), 0);
+  appFixSay(r.chosen.length + ' fixes written; the PowerPC code is ' + r.grownBy + ' bytes longer and the 68K code ' + grown68 + '.');
   return r;
 }
 // The words a fix writes, as the decoder reads them back.
@@ -2047,13 +2068,19 @@ function renderAppFixMaker() {
       box.type = 'checkbox'; box.checked = !st.off.has(f.id);
       box.onchange = function () { appFixToggle(f.id, box.checked); };
       label.appendChild(box);
-      label.appendChild(el('span', '', ' ' + f.title + untestedMark(f)));
+      label.appendChild(el('span', '', ' ' + f.title + appFixMark(f)));
       row.appendChild(label);
       const a = trial && trial.applied.find(x => x.id === f.id);
       if (a && a.words.length) {
         const d = el('details', 'appFixWords');
         d.appendChild(el('summary', 'mechSub', a.words.length + (a.words.length === 1 ? ' word' : ' words')));
         d.appendChild(el('pre', 'appFixListing', appFixListing(a)));
+        row.appendChild(d);
+      }
+      if (a && a.m68k) {
+        const d = el('details', 'appFixWords');
+        d.appendChild(el('summary', 'mechSub', '68K program'));
+        d.appendChild(el('pre', 'appFixListing', appFix68kListing(a.m68k)));
         row.appendChild(d);
       }
       host.appendChild(row);
@@ -4524,7 +4551,7 @@ function renderMechanicsSheet(value) {
   // ---- the program's own fixes ----
   {
     add('appfixes', 'Fixed Program Generator', null, '',
-      'Choose fixes to the PowerPC version of Cythera 1.0.4, and this page writes out a fixed copy of the program.',
+      'Choose fixes to Cythera 1.0.4, and this page writes out a fixed copy of the program, for PowerPC and 68K Macs alike.',
       [], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');

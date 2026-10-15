@@ -39,8 +39,16 @@
 //
 // 4. THE REFUSALS. A program patched already, a site whose word is not the
 //    one a fix expects, and two fixes that change one word must each
-//    refuse, naming the fix. Each is a negative control too: a check of
+//    refuse, naming the fix; so must a 68K program patched already and a
+//    68K site whose byte is not the one expected. Each is a negative control too: a check of
 //    `was` that could not fail would pass a patch of the wrong program.
+//
+// 5. THE 68K HALF (js/delv-app68k.js) against the workbench's build68k.py:
+//    for every fix alone and for all, CODE 0 to 8 and DATA 0 of the program
+//    patched must hash as js/delv-appfixes68k.js says the workbench's does.
+//    Its negative control, run on 15 October 2026: one byte of walk-to's
+//    cave changed in the data file failed walk-to alone and every fix, and
+//    nothing else.
 //
 // NEGATIVE CONTROLS for 1: the same round trip with every word assembled
 // four bytes from where it sits must change exactly the relative branches,
@@ -51,13 +59,14 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import vm from 'node:vm';
+import { createHash } from 'node:crypto';
 
 const [dataPath, rsrcPath, llvmMc] = process.argv.slice(2);
 if (!dataPath || !rsrcPath) { console.error('usage: app_patch_check.mjs <Cythera.data> <Cythera.rsrc> [llvm-mc]'); process.exit(2); }
 if (!existsSync(dataPath) || !existsSync(rsrcPath)) { console.log('SKIP: no application forks at ' + dataPath); process.exit(3); }
 
 const ctx = vm.createContext({ TextDecoder, TextEncoder });
-for (const f of ['js/mac-bytes.js', 'js/mac-containers.js', 'js/mac-resfork.js', 'js/mac-pef.js', 'js/mac-ppc.js', 'js/mac-ppc-asm.js', 'js/delv-appfixes.js', 'js/delv-apppatch.js'])
+for (const f of ['js/mac-bytes.js', 'js/mac-containers.js', 'js/mac-resfork.js', 'js/mac-pef.js', 'js/mac-ppc.js', 'js/mac-ppc-asm.js', 'js/delv-appfixes.js', 'js/delv-appfixes68k.js', 'js/delv-app68k.js', 'js/delv-apppatch.js'])
   new vm.Script(readFileSync(f, 'utf8'), { filename: f }).runInContext(ctx);
 const FIXES = vm.runInContext('APP_FIXES', ctx);
 const data = new Uint8Array(readFileSync(dataPath)), rsrc = new Uint8Array(readFileSync(rsrcPath));
@@ -162,6 +171,10 @@ function holdPatched(fixes, label) {
   const f1 = ctx.openResourceFork(rsrc), f2 = ctx.openResourceFork(r.rsrc);
   const named = new Set(['cfrg 0']);
   for (const f of fixes) for (const e of f.rsrc || []) named.add(e.type + ' ' + e.id);
+  for (const a of r.applied) if (a.m68k) {
+    for (const e of [].concat(a.m68k.inPlace, a.m68k.caves, a.m68k.values)) named.add('CODE ' + e.seg);
+    if (a.m68k.data0.length) named.add('DATA 0');
+  }
   for (const t of f1.typeList) for (const e of f1.resourcesByType[t.type]) {
     const e2 = (f2.resourcesByType[t.type] || []).find(x => x.id === e.id);
     if (!e2) { fail(label + ': ' + t.type + ' ' + e.id + ' is gone'); continue; }
@@ -181,7 +194,32 @@ function holdPatched(fixes, label) {
   return r;
 }
 const all = holdPatched(FIXES, 'every fix');
-for (const f of FIXES) holdPatched([f], f.id);
+const alone = new Map();
+for (const f of FIXES) alone.set(f.id, holdPatched([f], f.id));
+
+// ---- 5. the 68K half against the workbench's ---------------------------------
+// js/delv-appfixes68k.js is written by the workbench's export_js.py, with a
+// SHA-256 of what its build68k.py writes for each fix alone and for every
+// fix: CODE 0 to 8 and DATA 0, in that order. The page's program must hash
+// the same, so two implementations of the layout (the caves placed, the
+// segments grown, the tables moved, the values and the text) are held to
+// each other byte for byte; neither can be read for the other.
+const T68 = vm.runInContext('APP_FIXES_68K', ctx);
+const hash68 = rf => {
+  const fork = ctx.openResourceFork(rf), h = createHash('sha256');
+  for (let i = 0; i < 9; i++) h.update(fork.dataOf('CODE', fork.resourcesByType.CODE.find(e => e.id === i)));
+  h.update(fork.dataOf('DATA', fork.resourcesByType.DATA.find(e => e.id === 0)));
+  return h.digest('hex');
+};
+const names68 = Object.keys(T68.built).filter(k => k);
+let held68 = 0;
+for (const n of names68) {
+  if (!FIXES.some(f => f.id === n)) { fail('the 68K part ' + n + ' names no fix of js/delv-appfixes.js'); continue; }
+  const r = alone.get(n);
+  if (r && hash68(r.rsrc) !== T68.built[n]) fail(n + ': the 68K program is not the one the workbench builds'); else if (r) held68++;
+}
+if (all && hash68(all.rsrc) !== T68.built['']) fail('every fix: the 68K program is not the one the workbench builds'); else if (all) held68++;
+for (const n of T68.played) if (!T68.built[n]) fail('APP_FIXES_68K.played names ' + n + ', which has no 68K part');
 
 // ---- 2. each line against LLVM ------------------------------------------------
 let llvmLines = 0, llvmNote = 'no llvm-mc';
@@ -255,6 +293,14 @@ const refuses = (label, fn, want) => {
   catch (e) { if (want && !want.test(e.message)) fail(label + ' was refused for another reason: ' + e.message); }
 };
 if (all) refuses('a program patched already', () => ctx.applyAppFixes({ data: all.data, rsrc: all.rsrc }, FIXES), /code section/);
+// The 68K half refuses on its own: its program patched already, and a byte
+// of a site that is not the one a fix expects, each naming the fix.
+const spec68 = rf => ctx.resourceForkSpec(ctx.openResourceFork(rf));
+if (all) refuses('a 68K program patched already', () => ctx.applyApp68kFixes(spec68(all.rsrc), names68), /not what the fix expects|gives an A5 world/);
+const site68 = T68.caves[0], bentR = spec68(rsrc);
+const segR = bentR.resources.find(r => r.type === 'CODE' && r.id === site68.seg);
+segR.data = Uint8Array.from(segR.data); segR.data[site68.site] ^= 1;
+refuses('a 68K site whose byte is not the expected one', () => ctx.applyApp68kFixes(bentR, [site68.fixes[0]]), new RegExp('^' + site68.fixes[0] + ': CODE'));
 const withSite = FIXES.find(f => (f.sites || []).length);
 const bent = Uint8Array.from(data);
 bent[code.containerOffset + withSite.sites[0].at + 3] ^= 1;
@@ -265,5 +311,6 @@ refuses('a fix chosen twice', () => ctx.applyAppFixes({ data, rsrc }, [withSite,
 const hooks = FIXES.filter(f => f.kind === 'hook').map(f => f.method);
 console.log(`${rt.written.toLocaleString()} of ${rt.read.toLocaleString()} code words written back the same (${floats} floating-point words inside routines, and ${rt.outsideRefused} outside, not written); ` +
   `${FIXES.length} fixes applied together and alone${all ? ', the code grown by ' + all.grownBy + ' bytes' : ''}; ${llvmNote}; hooks on methods ${hooks.join(', ')}; ` +
-  `controls: ${moved.differ} branches moved, ${lwzShift.differ} lwz changed, four refusals`);
+  `68K: ${held68} programs the workbench's byte for byte; ` +
+  `controls: ${moved.differ} branches moved, ${lwzShift.differ} lwz changed, six refusals`);
 if (failed) { console.log(failed + ' failure(s)'); process.exit(1); }

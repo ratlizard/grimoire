@@ -62,8 +62,10 @@
    interpreter answers None and the program goes on as it did. A character
    is the object 0x4040nnnn (type 0x40, nnnn its character entry), a thing
    0x4000nnnn. None, True and False are the interpreter's own words, read
-   from the globals `__sinit_THeap_cp` sets (0x5001FFFF, 0x50000001,
-   0x50000000); a number is any word whose top four bits are 0.
+   from the globals `__sinit_THeap_cp` sets (0x5000FFFF, 0x50000001,
+   0x50000000; None was written 0x5001FFFF here until 15 October 2026,
+   a misreading of `lis 0x5001; addi -1`); a number is any word whose top
+   four bits are 0.
 
    A CAVE IS FAR from the code it serves, more than the 32 KB a
    conditional branch reaches, so a site branches to it unconditionally
@@ -202,7 +204,7 @@ const APP_FIXES = [
   // bar is the tile of the type in their record's appearance word plus
   // element 1 of property 55 of the character, read by GetProperty at
   // 0x34134; a type whose class has no property 55 hands back None
-  // (0x5001FFFF), which the shift pair here, a 28-bit sign extension, made
+  // (0x5000FFFF), which the shift pair here, a 28-bit sign extension, made
   // -1: the tile before the type's sheet. So Aeneas, the corpse type, was
   // drawn as the golem's last frame, and Omen, type 0, as the 1,024 bytes
   // before the first tile (a shared spreadsheet's "staticy-mist"). A

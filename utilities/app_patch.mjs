@@ -29,7 +29,7 @@ const listOnly = args.includes('--list');
 const only = flag('--only'), without = flag('--without');
 
 const ctx = vm.createContext({ TextDecoder, TextEncoder });
-for (const f of ['js/mac-bytes.js', 'js/mac-containers.js', 'js/mac-resfork.js', 'js/mac-pef.js', 'js/mac-ppc.js', 'js/mac-ppc-asm.js', 'js/delv-appfixes.js', 'js/delv-apppatch.js'])
+for (const f of ['js/mac-bytes.js', 'js/mac-containers.js', 'js/mac-resfork.js', 'js/mac-pef.js', 'js/mac-ppc.js', 'js/mac-ppc-asm.js', 'js/delv-appfixes.js', 'js/delv-appfixes68k.js', 'js/delv-app68k.js', 'js/delv-apppatch.js'])
   new vm.Script(readFileSync(new URL('../' + f, import.meta.url), 'utf8'), { filename: f }).runInContext(ctx);
 const FIXES = vm.runInContext('APP_FIXES', ctx);
 if (listOnly) { for (const f of FIXES) console.log(f.id.padEnd(20), f.kind.padEnd(5), f.title); process.exit(0); }

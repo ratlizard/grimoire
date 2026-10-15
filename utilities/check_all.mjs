@@ -502,8 +502,10 @@ const CHECKS = [
      assembler it writes with (js/mac-ppc-asm.js): every code word the
      decoder reads written back the same, every line of every fix against
      llvm-mc when it is there, the program patched with every fix and with
-     each alone and held to the old one outside what the fixes name, and the
-     refusals. Without llvm-mc the lines are held to the decoder alone. */
+     each alone and held to the old one outside what the fixes name, the
+     68K half (js/delv-app68k.js) held byte for byte to what the workbench
+     builds, and the refusals. Without llvm-mc the lines are held to the
+     decoder alone. */
   {page: 'viewer', name: 'application patch', want: [APP_DATA, APP_RSRC],
    cmd: ['utilities/app_patch_check.mjs', APP_DATA, APP_RSRC, LLVM_MC],
    grep: /[\d,]+ of [\d,]+ code words written back the same/},

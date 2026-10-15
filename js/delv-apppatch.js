@@ -42,6 +42,11 @@
       exactly the letters changed either way.
    6. Rewrites the resources: a string in a STR#, or a whole resource, and
       the cfrg of step 4, through writeResourceFork.
+   7. The 68K half, in the same resource fork before it is written: the
+      program a 68K Mac runs is CODE 0 to 8 and DATA 0 there, and every fix
+      read again in that code has its part in js/delv-appfixes68k.js, which
+      js/delv-app68k.js applies (it says how). A fix with no 68K part changes
+      nothing there; `applied` gives each fix's 68K changes as `m68k`.
 
    C STRINGS, AND ONE THAT GROWS (29 September 2026, for the program in
    another language). A fix's `cstrings` are text in the code section, where
@@ -350,7 +355,8 @@ function applyAppFixes(app, fixes, opts) {
   // 6. The resources, and the cfrg that says where the fragments are.
   let rsrcOut = rsrc || null;
   const rsrcEdits = fixes.filter(f => (f.rsrc || []).length);
-  if (rsrc && (grow || rsrcEdits.length)) {
+  const has68k = typeof APP_FIXES_68K !== 'undefined' && fixes.some(f => app68kNames(f.id));
+  if (rsrc && (grow || rsrcEdits.length || has68k)) {
     const fork = openResourceFork(rsrc), spec = resourceForkSpec(fork);
     const find = (f, type, id) => {
       const r = spec.resources.find(r => r.type === type && r.id === id);
@@ -397,6 +403,11 @@ function applyAppFixes(app, fixes, opts) {
         p += size;
       }
       r.data = c;
+    }
+    // 7. The 68K program.
+    if (has68k) for (const r68 of applyApp68kFixes(spec, fixes.map(f => f.id))) {
+      const a = applied.find(x => x.id === r68.id);
+      if (a) a.m68k = r68;
     }
     rsrcOut = writeResourceFork(spec);
     openResourceFork(rsrcOut);                                     // it must read back
