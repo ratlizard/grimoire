@@ -111,7 +111,7 @@ try {
      is not zero. */
   const toolNames = [];
   (function rows(el) { if (el.className === 'toolRow') toolNames.push(el.children[0].textContent); else (el.children || []).forEach(rows); })(REGISTRY.get('sheetGrid'));
-  const patchRows = ['Scenario Maker', 'Gremlin Maker', 'Sprite Recolorer', 'Bugfix Patch Generator', 'Fixed Program Generator', 'Behind the Scenes', 'Cythera in Spanish', 'Patch Comparison', 'File Comparison'];
+  const patchRows = ['Scenario Maker', 'Gremlin Maker', 'Sprite Recolorer', 'Bugfix Patch Generator', 'Behind the Scenes', 'Cythera in Spanish', 'Patch Comparison', 'File Comparison'];
   if (toolNames.length < 10) strayTab.push('Tools shows ' + toolNames.length + ' rows');
   for (const t of patchRows) {
     if (toolNames.indexOf(t) < 0) strayTab.push('Tools has no row for ' + t);

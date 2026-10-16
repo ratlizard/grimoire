@@ -339,15 +339,15 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     ['dialogue', "showCategory('23'); document.querySelector('#sheetGrid details').open = true; document.querySelector('#sheetGrid details').scrollIntoView()"],
     // Data > Patches, at the program's fixes: a list of long titles with
     // their words folded under each (28 September 2026).
-    ['appfixes', "showCategory('PATCHES'); const d = document.querySelector('[data-mech=\\'appfixes\\']') || document.getElementById('appFixMaker').closest('details'); if (d) d.open = true; document.getElementById('appFixMaker').scrollIntoView()"],
+    ['appfixes', "showCategory('PATCHES'); APPFIX_STATE.open.add('fix'); renderAppFixMaker(); const d = document.getElementById('appFixMaker').closest('details'); if (d) d.open = true; document.getElementById('appFixMaker').scrollIntoView()"],
     // Data > Patches, at the game's fixes, with the text and its options
     // chosen so the indented options and the buttons are drawn (28
     // September 2026).
-    ['datafixes', "showCategory('PATCHES'); dataFixGroup('rules', true); dataFixToggle('text', true); dataFixSpelling('spelling-uk'); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; document.getElementById('dataFixMaker').scrollIntoView()"],
+    ['datafixes', "showCategory('PATCHES'); DATAFIX_STATE.open.add('rules'); DATAFIX_STATE.open.add('text'); dataFixGroup('rules', true); dataFixToggle('text', true); dataFixSpelling('spelling-uk'); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; document.getElementById('dataFixMaker').scrollIntoView()"],
     // The same, with the list of every change the text makes open, filled
     // at once rather than after the click as the page does.
-    ['textchanges', "showCategory('PATCHES'); dataFixToggle('text', true); dataFixSpelling('spelling-uk'); DATAFIX_STATE.showText = true; renderDataFixMaker(); const b = document.querySelector('.dataFixChanges'); dataFixFillChanges(b); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; b.scrollIntoView()"],
-    ['textchoices', "showCategory('PATCHES'); dataFixClear(); dataFixGroup('text', true); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; document.querySelector('.dataFixChoice').scrollIntoView()"],
+    ['textchanges', "showCategory('PATCHES'); DATAFIX_STATE.open.add('text'); dataFixToggle('text', true); dataFixSpelling('spelling-uk'); DATAFIX_STATE.showText = true; renderDataFixMaker(); const b = document.querySelector('.dataFixChanges'); dataFixFillChanges(b); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; b.scrollIntoView()"],
+    ['textchoices', "showCategory('PATCHES'); DATAFIX_STATE.open.add('text'); dataFixClear(); dataFixGroup('text', true); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; document.querySelector('.dataFixChoice').scrollIntoView()"],
   ];
   const MEASURE = `(() => {
     const w = window.innerWidth, out = {innerWidth: w, scrollWidth: document.documentElement.scrollWidth, over: [], small: 0, buttons: 0};

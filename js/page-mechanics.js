@@ -1942,7 +1942,7 @@ function gremlinCheck(formError) {
 // walk-to read right, assembled clean and hung the game the first time it
 // was played, and a visitor who keeps the defaults should get only fixes a
 // run has shown.
-window.APPFIX_STATE = { off: new Set(APP_FIXES.filter(f => f.kind === 'change' || !f.played).map(f => f.id)), src: null };
+window.APPFIX_STATE = { off: new Set(APP_FIXES.filter(f => f.kind === 'change' || !f.played).map(f => f.id)), src: null, open: new Set() };
 function appFixSource() {
   const st = window.APPFIX_STATE;
   if (st.src) return st.src;
@@ -2043,6 +2043,57 @@ function appFixListing(a) {
     (w.was === null ? '        ' : w.was.toString(16).toUpperCase().padStart(8, '0')) + '  ' +
     w.now.toString(16).toUpperCase().padStart(8, '0') + '  ' + (ppcTextAt(w.now, w.at) || '')).join('\n');
 }
+/* A list of fixes as a fold, shut until opened (the maintainer,
+   16 October 2026: "collapsed by default so as not to overwhelm"). The box
+   that chooses the whole list sits in the summary on its own, with the
+   title beside it as plain text, so a click on the title opens the fold
+   and a click on the box chooses the list; a label round both would have
+   sent every click on the title to the box. The makers redraw on every
+   tick, so which folds are open is kept in `open`, a Set of keys. */
+function fixFold(open, key, title, count) {
+  const d = document.createElement('details');
+  d.className = 'fixFold';
+  d.open = open.has(key);
+  d.ontoggle = function () { if (d.open) open.add(key); else open.delete(key); };
+  const sum = document.createElement('summary');
+  sum.className = 'fixFoldHead';
+  const t = document.createElement('span');
+  t.className = 'fixFoldTitle'; t.textContent = title;
+  const n = document.createElement('span');
+  n.className = 'fixFoldCount'; n.textContent = count;
+  d.appendChild(sum);
+  return { d, sum, t, n };
+}
+/* What a fix writes, shown on demand: a small "changes" at the end of the
+   fix's own line, and the listing under the line once it is clicked. A fold
+   of its own took a row under every fix, which in a list of sixty was most
+   of the list (the maintainer, 16 October 2026). It is a span and not a
+   button because the page's button rule is !important on padding and
+   background, and it stops the click so that the label round it does not
+   tick the box. */
+function fixChangesLink(row, label, text) {
+  const pre = document.createElement('pre');
+  pre.className = 'appFixListing'; pre.textContent = text; pre.hidden = true;
+  const a = document.createElement('span');
+  a.className = 'fixChangesLink'; a.textContent = 'changes';
+  a.setAttribute('role', 'button'); a.tabIndex = 0;
+  const flip = function (e) { e.preventDefault(); e.stopPropagation(); pre.hidden = !pre.hidden; };
+  a.onclick = flip;
+  a.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') flip(e); };
+  const words = label.lastChild;
+  if (words) { words.appendChild(document.createTextNode(' ')); words.appendChild(a); }
+  row.appendChild(pre);
+}
+// A data fix's edits, a line each: the resource, the offset, what goes
+// there and what it is for, as js/delv-datafixes.js gives them. An edit of
+// another shape says only its resource and its purpose.
+function dataFixEditListing(f) {
+  const hx = n => n.toString(16).toUpperCase();
+  return (f.edits || []).map(e => (e.resid !== undefined ? 'resource ' + hx(e.resid) : '') +
+    (e.at !== undefined ? ' +' + hx(e.at).padStart(4, '0') : '') +
+    (typeof e.code === 'string' ? '  ' + e.code : '') +
+    (e.what ? '  (' + e.what + ')' : '')).filter(Boolean).join('\n');
+}
 function renderAppFixMaker() {
   const host = document.getElementById('appFixMaker');
   if (!host) return;
@@ -2054,13 +2105,16 @@ function renderAppFixMaker() {
   let trial = null, why = '';
   if (src) { try { trial = applyAppFixes(src, APP_FIXES); } catch (e) { why = e.message; } }
   if (why) host.appendChild(el('p', 'mechSub patchBad', why));
-  const kinds = [['fix', 'Bugs'], ['hook', 'Hooks'], ['text', 'Text'], ['menu', 'Menus'], ['change', 'Design changes']];
-  const kindNotes = { change: 'These are not bug fixes; each changes how the game was designed to behave. None is chosen until you choose it.' };
+  const kinds = [['fix', 'Bugs'], ['hook', 'Hooks'], ['text', 'Text'], ['menu', 'Menus'], ['change', 'Design Changes']];
+  const kindNotes = { change: 'These are bug fixes for aspects that might actually be intentional, or for which the issue necessitates a creative solution. None is chosen until you choose it.' };
   for (const [kind, heading] of kinds) {
     const list = APP_FIXES.filter(f => f.kind === kind);
     if (!list.length) continue;
-    host.appendChild(el('div', 'partsTitle', heading));
-    if (kindNotes[kind]) host.appendChild(el('p', 'mechSub', kindNotes[kind]));
+    const picked = list.filter(f => !st.off.has(f.id)).length;
+    const fold = fixFold(st.open, kind, heading, picked + ' of ' + list.length);
+    fold.sum.appendChild(fold.t); fold.sum.appendChild(fold.n);
+    host.appendChild(fold.d);
+    if (kindNotes[kind]) fold.d.appendChild(el('p', 'mechSub', kindNotes[kind]));
     for (const f of list) {
       const row = el('div', 'appFixRow');
       const label = el('label', 'mechSub');
@@ -2070,20 +2124,17 @@ function renderAppFixMaker() {
       label.appendChild(box);
       label.appendChild(el('span', '', ' ' + f.title + appFixMark(f)));
       row.appendChild(label);
+      /* What the fix writes, the PowerPC words and the 68K changes in one
+         listing behind the line's "changes". They were two folds a line,
+         "N words" and "68K program", which took a row each and named the
+         machine's unit rather than the change (the maintainer,
+         16 October 2026). */
       const a = trial && trial.applied.find(x => x.id === f.id);
-      if (a && a.words.length) {
-        const d = el('details', 'appFixWords');
-        d.appendChild(el('summary', 'mechSub', a.words.length + (a.words.length === 1 ? ' word' : ' words')));
-        d.appendChild(el('pre', 'appFixListing', appFixListing(a)));
-        row.appendChild(d);
-      }
-      if (a && a.m68k) {
-        const d = el('details', 'appFixWords');
-        d.appendChild(el('summary', 'mechSub', '68K program'));
-        d.appendChild(el('pre', 'appFixListing', appFix68kListing(a.m68k)));
-        row.appendChild(d);
-      }
-      host.appendChild(row);
+      const parts = [];
+      if (a && a.words.length) parts.push('PowerPC\n' + appFixListing(a));
+      if (a && a.m68k) parts.push('68K\n' + appFix68kListing(a.m68k));
+      if (parts.length) fixChangesLink(row, label, parts.join('\n\n'));
+      fold.d.appendChild(row);
     }
   }
   const bar = el('div', 'mechStats');
@@ -2473,7 +2524,7 @@ function renderSpanishMaker() {
 // counts without the text's own corrections (js/delv-datapatch.js). The
 // design changes are not fixes and start unticked whether played or not.
 window.DATAFIX_STATE = { on: new Set(DATA_FIXES.filter(f => f.played && !f.choice && f.group !== 'design').map(f => f.id)
-  .concat(DATA_FIX_CHOICES.map(c => (DATA_FIXES.find(f => f.choice === c.id) || {}).id).filter(Boolean))), skip: new Set(), showText: false, textChanges: null };
+  .concat(DATA_FIX_CHOICES.map(c => (DATA_FIXES.find(f => f.choice === c.id) || {}).id).filter(Boolean))), skip: new Set(), showText: false, textChanges: null, open: new Set() };
 function dataFixSay(m, bad) {
   const note = document.getElementById('dataFixNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
@@ -2769,20 +2820,26 @@ function renderDataFixMaker() {
     const owner = DATA_FIXES.find(f => f.group === g.id && !f.parent && DATA_FIXES.some(o => o.parent === f.id));
     const list = DATA_FIXES.filter(f => f.group === g.id && !f.parent && f !== owner);
     if (!list.length && !owner) continue;
-    const head = el('div', 'dataFixHead');
     const gs = dataFixGroupState(g.id);
-    const gb = box(gs.all, function (c) { dataFixGroup(g.id, c); }, g.title);
-    gb.b.indeterminate = gs.some && !gs.all;
-    gb.b.className = 'dataFixGroupBox';
-    gb.b.setAttribute('data-group', g.id);
-    gb.l.className = 'partsTitle';
-    head.appendChild(gb.l);
-    host.appendChild(head);
-    if (g.note) host.appendChild(el('div', 'mechSub', g.note));
+    const mine = DATA_FIXES.filter(f => f.group === g.id && !f.parent);
+    const fold = fixFold(window.DATAFIX_STATE.open, g.id, g.title, mine.filter(f => on.has(f.id) || DATA_FIXES.some(o => o.parent === f.id && on.has(o.id))).length + ' of ' + mine.length);
+    const gb = document.createElement('input');
+    gb.type = 'checkbox'; gb.checked = gs.all;
+    gb.indeterminate = gs.some && !gs.all;
+    gb.className = 'dataFixGroupBox';
+    gb.setAttribute('data-group', g.id);
+    gb.setAttribute('aria-label', 'every fix under ' + g.title);
+    gb.onchange = function () { dataFixGroup(g.id, gb.checked); };
+    fold.sum.appendChild(gb); fold.sum.appendChild(fold.t); fold.sum.appendChild(fold.n);
+    host.appendChild(fold.d);
+    if (g.note) fold.d.appendChild(el('div', 'mechSub', g.note));
     for (const f of list) {
       const row = el('div', 'appFixRow');
-      row.appendChild(box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + dataFixMark(f)).l);
-      host.appendChild(row);
+      const fb = box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + dataFixMark(f));
+      row.appendChild(fb.l);
+      const said = dataFixEditListing(f);
+      if (said) fixChangesLink(row, fb.l, said);
+      fold.d.appendChild(row);
     }
     if (!owner) continue;
     const sub = el('div', 'dataFixOptions');
@@ -2823,7 +2880,7 @@ function renderDataFixMaker() {
     d.ontoggle = function () { st.showText = d.open; if (d.open) fill(); };
     if (d.open) fill();
     sub.appendChild(d);
-    host.appendChild(sub);
+    fold.d.appendChild(sub);
   }
   const chosen = dataFixChosen(), n = chosen.length;
   host.appendChild(el('p', 'mechSub', n ? n + (n === 1 ? ' fix chosen.' : ' fixes chosen.') : 'Nothing chosen.'));
@@ -4505,15 +4562,36 @@ function renderMechanicsSheet(value) {
       'Solutions for the below issues have been identified through AI-based tracing and testing in the game itself (though many solutions are still untested). ' +
       'Select as many of the fixes below as you\u2019d like, and this site can generate a Magpie-compatible patch file with those fixes. ' +
       'Note it\u2019s best to generate a single patch file with all changes; stacking multiple sometimes will not work. ' +
-      '(If changes are too close to each other in code then a change made by a prior patch can be unintentionally reverted by a new patch.)',
+      '(If changes are too close to each other in code then a change made by a prior patch can be unintentionally reverted by a new patch.) ' +
+      'Fixes to the Cythera program itself cannot go in a patch, so they are listed separately and download as a fixed copy of the program.',
       [], '');
+    /* Two halves, one section (the maintainer, 16 October 2026): the fixes
+       to Cythera Data, which leave as a Magpie patch, and the fixes to the
+       program, which leave as a fixed copy of it. They were two sections,
+       the second called Fixed Program Generator, and a visitor after the
+       game's bugs had to know which file a bug lived in to find it. The
+       hosts and notes keep their ids, so each half renders as it did. */
     const sec = sections[sections.length - 1].el;
-    const host = document.createElement('div');
-    host.id = 'dataFixMaker';
-    sec.appendChild(host);
-    const note = document.createElement('div');
-    note.className = 'mechSub'; note.id = 'dataFixNote';
-    sec.appendChild(note);
+    const half = (title, say) => {
+      const h = document.createElement('div');
+      h.className = 'fixHalf'; h.textContent = title;
+      sec.appendChild(h);
+      const p = document.createElement('div');
+      p.className = 'mechSub'; p.textContent = say;
+      sec.appendChild(p);
+      const host = document.createElement('div');
+      sec.appendChild(host);
+      const note = document.createElement('div');
+      note.className = 'mechSub';
+      sec.appendChild(note);
+      return { host, note };
+    };
+    // The ids are written out where they are set, which is how the static
+    // check finds what the page creates.
+    const data = half('Cythera Data Changes', 'Fixes to the game\u2019s data file, written as a Magpie patch.');
+    data.host.id = 'dataFixMaker'; data.note.id = 'dataFixNote';
+    const app = half('Cythera Program Changes', 'Fixes to Cythera 1.0.4 itself. This page writes out a fixed copy of the program, for PowerPC and 68K Macs alike.');
+    app.host.id = 'appFixMaker'; app.note.id = 'appFixNote';
   }
 
   // ---- the hero's colours, as a patch ----
@@ -4545,20 +4623,6 @@ function renderMechanicsSheet(value) {
     sec.appendChild(host);
     const note = document.createElement('div');
     note.className = 'mechSub'; note.id = 'gremlinNote';
-    sec.appendChild(note);
-  }
-
-  // ---- the program's own fixes ----
-  {
-    add('appfixes', 'Fixed Program Generator', null, '',
-      'Choose fixes to Cythera 1.0.4, and this page writes out a fixed copy of the program, for PowerPC and 68K Macs alike.',
-      [], '');
-    const sec = sections[sections.length - 1].el;
-    const host = document.createElement('div');
-    host.id = 'appFixMaker';
-    sec.appendChild(host);
-    const note = document.createElement('div');
-    note.className = 'mechSub'; note.id = 'appFixNote';
     sec.appendChild(note);
   }
 

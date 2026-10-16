@@ -106,12 +106,12 @@ const DATA_FIX_GROUPS = [
   { id: 'text', title: 'Text' },
   // Fixes nobody can see in play: the file is put right and the screen is
   // the same either way (the maintainer, 12 October 2026, of the Gate
-  // Guard's reply). A list of their own, so that a mark of "untested" there
+  // Guard's reply). Named Hidden Bugs on 16 October 2026, his wording. A list of their own, so that a mark of "untested" there
   // is read for what it is: there is nothing to see.
-  { id: 'hidden', title: 'Behind the Scenes', note: 'These change nothing you can see in play; each puts right something in the game’s files.' },
+  { id: 'hidden', title: 'Hidden Bugs', note: 'These are bugfixes you’d only notice if you made relevant patches to change default gameplay.' },
   // The larger changes, each a design call rather than a mended slip, in a
   // list of their own below the rest (the maintainer, 1 October 2026).
-  { id: 'design', title: 'Design Changes', note: 'These are not bug fixes; each changes how the game’s design has it behave.' },
+  { id: 'design', title: 'Design Changes', note: 'These are bug fixes for aspects that might actually be intentional, or for which the issue necessitates a creative solution.' },
 ];
 
 // The text's choices, by the name their options share, as the Patches
