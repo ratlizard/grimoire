@@ -704,13 +704,31 @@ function renderSchedulesSheet() {
     // A day with no conditions reads by the clock; a program keeps the
     // file's order, which is the order the game tests it in.
     const programmed = p.real.some(e => e.cond);
-    const rows = (programmed ? p.real : p.real.slice().sort((a, b) => a.hour - b.hour)).map(e => {
+    const list = programmed ? p.real : p.real.slice().sort((a, b) => a.hour - b.hour);
+    // Posts at one hour compete, and the LAST that holds wins: ScheduleOne
+    // replaces the post it took with any later passing one once its hour
+    // has come. Read top to bottom, a table of "6pm, always" above "6pm, if
+    // a roll" looked like first-match-wins, so the always row read as the
+    // first choice when it is the fallback (the maintainer, on Alaric's
+    // three 6pm rows, 16 October 2026). So the unconditional row of such an
+    // hour says "otherwise" and a conditional row below one of its own hour
+    // says "instead". The rivals are those up to the next stop: past a stop
+    // the walk only goes on when nothing above it was taken.
+    const sameHour = (k, dir) => {
+      for (let j = k + dir; j >= 0 && j < list.length; j += dir) {
+        const o = list[j];
+        if (o.cond === 1) return false;
+        if (!scheduleIsHead(o) && o.hour === list[k].hour) return true;
+      }
+      return false;
+    };
+    const rows = list.map((e, k) => {
       const c = scheduleCondition(e);
       if (c && c.stop) return '<tr><td></td><td colspan="3" class="inspDim">' + svEsc(c.text) + '</td></tr>';
       if (scheduleIsHead(e)) return '<tr><td></td><td colspan="3">' + svEsc((c ? c.text : 'always') + ', the posts below up to the matching stop; otherwise skip them') + '</td></tr>';
       const where = e.level === 255 ? '<span class="inspDim">off every map</span>'
         : svLink(zoneDisplayName(e.level) || ('zone ' + e.level), 'atlasOpenSquare(' + (0x8000 + e.level) + ',' + e.x + ',' + e.y + ')', e.x + ', ' + e.y);
-      return '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + where + '</td><td>' + (c ? svEsc(c.text) : '') + '</td>' +
+      return '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + where + '</td><td>' + (c ? svEsc((programmed && sameHour(k, -1) ? 'instead, ' : '') + c.text) : programmed && sameHour(k, 1) ? 'otherwise' : '') + '</td>' +
         '<td>' + behaviourHTML(e.mode) + '</td></tr>';
     }).join('');
     const d = document.createElement('div'); d.className = 'mechBody';
@@ -723,7 +741,7 @@ function renderSchedulesSheet() {
   all.innerHTML = svLink('Open all', 'mechOpenAll(true)') + svLink('Close all', 'mechOpenAll(false)');
   box.insertBefore(all, box.firstChild);
   grid.appendChild(box);
-  out.textContent = people.length + ' characters with a day in 0xF00B, ' + entries + ' posts' + (q ? ' matching “' + q + '”' : '') + '. A post applies from its hour until the next one. A post with a condition is an alternative the game uses when the condition is met, checked in the order listed. The square opens the zone at that point.';
+  out.textContent = people.length + ' characters with a day in 0xF00B, ' + entries + ' posts' + (q ? ' matching “' + q + '”' : '') + '. A post applies from its hour until the next one. Where an hour has more than one post, the game takes the last one whose condition is met, or the one marked otherwise when none is. The square opens the zone at that point.';
 }
 /* A SCHEDULE IS A PROGRAM (read 24 September 2026). ScheduleOne walks a
    character's segments in the file's order and EvalCondition tests each
@@ -745,7 +763,7 @@ const SCHED_COMPARE = ['is', 'is at least', 'is not', 'is less than'];
 function scheduleCondition(e) {
   const k = e.cond, a = e.arg;
   if (!k) return null;
-  if (k === 1) return { stop: true, text: 'stop if the schedule took one above' };
+  if (k === 1) return { stop: true, text: 'if a post above applies, none below do' };
   if (k === 2 || k === 3) return { text: 'if quest flag ' + a + (k === 2 ? ' is set' : ' is clear') };
   if (k >= 0x20 && k < 0x40) {
     const n = k & 7, top = n ? (1 << (n + 1)) - 1 : 0;

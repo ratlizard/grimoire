@@ -323,10 +323,14 @@ try {
   // if he has flag 0, a stop, then Kosha. Stripped of markup and taken from
   // his card alone.
   const find = (el, id) => el.id === id ? el : (el.children || []).reduce((f, c) => f || find(c, id), null);
-  const pc = find(REGISTRY.get('sheetGrid'), 'sched-13');
-  const pel = (pc ? (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(pc) : '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const cardText = id => { const c = find(REGISTRY.get('sheetGrid'), id); return (c ? (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(c) : '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '); };
+  const pel = cardText('sched-13');
   if (cards < 100 || links < 500 || !/Alaric/.test(sh)) fail('schedules', `the sheet shows ${cards} characters and ${links} posts`);
-  else if (!/if quest value 3 is 3[\s\S]*stop if the schedule took one above[\s\S]*off every map if Pelagon has flag 0/.test(pel))
+  // Alaric's evening is three posts at 6pm: the always one is the
+  // fallback and says so, the two rolls below it replace it.
+  else if (!/6pm [^\d]+\d+, \d+ otherwise [\s\S]*6pm [^\d]+\d+, \d+ instead, if a random/.test(cardText('sched-2')))
+    fail('schedules', 'Alaric\u2019s 6pm posts do not say which wins: ' + cardText('sched-2').slice(0, 400));
+  else if (!/if quest value 3 is 3[\s\S]*if a post above applies, none below do[\s\S]*off every map if Pelagon has flag 0/.test(pel))
     fail('schedules', 'Pelagon\u2019s schedule is not read as a program: ' + pel.slice(0, 300));
   // And the map walks the day a new game starts with (scheduleDay): quest
   // value 3 is 0 and Pelagon's flag 0 is clear, so his day is Kosha alone.
@@ -337,7 +341,7 @@ try {
   // the Odemia block, seven posts; read segment by segment it came out empty.
   else if (ctx.scheduleDay(50).filter(e => e.mode && e.level === 2).length !== 7)
     fail('schedules', 'Philinus\u2019s block is not walked: ' + JSON.stringify(ctx.scheduleDay(50).map(e => [e.cond, e.level, e.x, e.y])));
-  else console.log(`  schedules: ${cards} characters, ${links} posts, each a link into its zone; conditions read, Pelagon's in order, his day at the start Kosha alone, Philinus's block walked`);
+  else console.log(`  schedules: ${cards} characters, ${links} posts, each a link into its zone; conditions read, Alaric's fallback marked, Pelagon's in order, his day at the start Kosha alone, Philinus's block walked`);
 } catch (e) { fail('schedules', e); }
 
 
