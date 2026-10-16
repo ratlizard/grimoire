@@ -681,6 +681,31 @@ function renderSchedulesSheet() {
     box.appendChild(lede);
   }
   const ampm = h => h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
+  /* A quest flag or value in a condition links to the scripts that set and
+     test it: the files do not say what one means, and those scripts are
+     the only answer the page has (the maintainer, 16 October 2026, unable
+     to follow Alaric's "if quest flag 0 is clear"). The same sites the
+     loose ends table lists (looseEnds), one link per script, at the line. */
+  let le = null;
+  try { le = looseEnds(); } catch (e) { quiet(e, 'which scripts set and test the quest flags'); }
+  const questLink = (kind, n) => {
+    const label = 'quest ' + kind + ' ' + n;
+    if (!le) return svEsc(label);
+    const m = kind === 'flag' ? [le.flagWrites, le.flagReads] : [le.writes, le.reads];
+    const perScript = (map, verb) => {
+      const byRes = new Map();
+      for (const s of (map.get(n) ? map.get(n).values() : [])) if (!byRes.has(s.resid) && s.resid !== 0xF00B) byRes.set(s.resid, s);
+      return [...byRes.values()].map(s => srcNum(s, verb + ' ' + (labelFor(s.resid) || propWordHex(s.resid))));
+    };
+    const sets = perScript(m[0], 'set in'), tests = perScript(m[1], 'tested in');
+    const title = 'Quest ' + kind + ' ' + n + ': ' + (sets.length ? sets.length + (sets.length === 1 ? ' script sets it' : ' scripts set it') : 'no script sets it') +
+      ', ' + (tests.length ? tests.length + (tests.length === 1 ? ' tests it' : ' test it') : 'none tests it') + ' besides the schedules';
+    return countLink(label, title, sets.concat(tests));
+  };
+  const conditionHTML = c => {
+    const q = /quest (flag|value) (\d+)/.exec(c.text);
+    return q ? svEsc(c.text.slice(0, q.index)) + questLink(q[1], +q[2]) + svEsc(c.text.slice(q.index + q[0].length)) : svEsc(c.text);
+  };
   const people = [];
   for (let i = 0; i < scheds.length; i++) {
     // A post with a behaviour, or a segment that is part of the program:
@@ -725,10 +750,10 @@ function renderSchedulesSheet() {
     const rows = list.map((e, k) => {
       const c = scheduleCondition(e);
       if (c && c.stop) return '<tr><td></td><td colspan="3" class="inspDim">' + svEsc(c.text) + '</td></tr>';
-      if (scheduleIsHead(e)) return '<tr><td></td><td colspan="3">' + svEsc((c ? c.text : 'always') + ', the posts below up to the matching stop; otherwise skip them') + '</td></tr>';
+      if (scheduleIsHead(e)) return '<tr><td></td><td colspan="3">' + (c ? conditionHTML(c) : 'always') + ', the posts below up to the matching stop; otherwise skip them</td></tr>';
       const where = e.level === 255 ? '<span class="inspDim">off every map</span>'
         : svLink(zoneDisplayName(e.level) || ('zone ' + e.level), 'atlasOpenSquare(' + (0x8000 + e.level) + ',' + e.x + ',' + e.y + ')', e.x + ', ' + e.y);
-      return '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + where + '</td><td>' + (c ? svEsc((programmed && sameHour(k, -1) ? 'instead, ' : '') + c.text) : programmed && sameHour(k, 1) ? 'otherwise' : '') + '</td>' +
+      return '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + where + '</td><td>' + (c ? (programmed && sameHour(k, -1) ? 'instead, ' : '') + conditionHTML(c) : programmed && sameHour(k, 1) ? 'otherwise' : '') + '</td>' +
         '<td>' + behaviourHTML(e.mode) + '</td></tr>';
     }).join('');
     const d = document.createElement('div'); d.className = 'mechBody';
