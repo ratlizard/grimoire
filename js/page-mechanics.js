@@ -3417,7 +3417,7 @@ function renderMechanicsSheet(value) {
     sections.push({ id, title, el: sec });
   };
   const src = mechSrc;
-  const chipOf = i => loadCharacterTable()[i] ? characterChip(i) : '';
+  const chipOf = i => characterRecord(i) ? characterChip(i) : '';
   // The application's clock, off TGameViewer::DoTicks, for every section
   // that counts time; null with no application open, and then no section
   // states a figure of it.
@@ -3585,7 +3585,7 @@ function renderMechanicsSheet(value) {
     (pw.placed.length ? '<div class="mechSub">Placed with an enchantment</div>' +
       table(['item', 'where', '#aspect', '#Data1'], pw.placed.map(r => '<tr><td>' + svLink(pwName(r.pt), 'showItemDetail(' + r.pt + ')') + '</td><td>' +
         svLink(zoneNameFor(r.resid) || ('0x' + r.resid.toString(16).toUpperCase()), 'showItemOnMap(' + (r.resid - 0x100) + ',' + r.pt + ')') +
-        (r.carriedBy !== null && loadCharacterTable()[r.carriedBy] ? ', carried by ' + svLink(characterName(r.carriedBy), 'showCharacterDetail(' + r.carriedBy + ')') : '') + '</td>' + num(r.aspect) + num(r.d1) + '</tr>'))
+        (r.carriedBy !== null && characterRecord(r.carriedBy) ? ', carried by ' + svLink(characterName(r.carriedBy), 'showCharacterDetail(' + r.carriedBy + ')') : '') + '</td>' + num(r.aspect) + num(r.d1) + '</tr>'))
       : '<div class="mechSub">Placed with an enchantment</div><div class="sv-note" style="margin-top:0">No melee weapon in a prop list carries a Data1.</div>') +
     '<div class="mechSub">Which class scripts read them</div>' +
     table(['byte', 'read by', 'written by'], ['data1', 'data2', 'data3'].map(k => { const b = pwByByte(k); return b.r.length || b.w.length
@@ -3791,7 +3791,7 @@ function renderMechanicsSheet(value) {
     sh.shops.length ? sh.shops.length + ' shops, what each sells, and at what price.' : 'No script in this file opens a shop.',
     sh.shops.length ? ['Each vendor bargains down from the listed price by four figures set for each, under terms' + (sh.haggling ? '; <b>Haggling</b> takes off a further random amount from 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
     mechShopFigure(sh) +
-    table(['vendor', 'goods, at the listed price in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.who !== null && loadCharacterTable()[spn.who] ? characterChip(spn.who) : svChip(spn.resid)) +
+    table(['vendor', 'goods, at the listed price in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.who !== null && characterRecord(spn.who) ? characterChip(spn.who) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
       spn.goods.map(g => svEsc(g.name) + ' <span class="mechPrice">' + srcNum(g.src, g.price) + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') + '</td>' + (spn.terms ? srcCell(spn.termsSrc, spn.terms.join(' ')) : num('')) + '</tr>')), '');
 
@@ -3805,7 +3805,7 @@ function renderMechanicsSheet(value) {
       tr.points.mastery !== null ? 'A character masters a skill at level <b>' + srcNum(tr.points.masteryVal) + '</b>; a teacher marked <i>to mastery</i> can teach beyond the first lessons.' : ''
     ].filter(Boolean) : [],
     mechTrainingFigure(tr) +
-    table(['teacher', 'teaches'], tr.teachers.map(t => '<tr><td>' + (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + '</td><td>' +
+    table(['teacher', 'teaches'], tr.teachers.map(t => '<tr><td>' + (t.who !== null && characterRecord(t.who) ? characterChip(t.who) : svChip(t.resid)) + '</td><td>' +
       [...t.skills.entries()].sort((a, b) => a[0] - b[0]).map(([id, m]) => (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16)), 0x1A00 + id) : 'skill 0x' + id.toString(16)) + (m ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') + '</td></tr>')), '');
 
   // The talk balloons are on the Barks sheet now (balloonsMechSection
@@ -3824,7 +3824,7 @@ function renderMechanicsSheet(value) {
     ].filter(Boolean) : [],
     (sl ? mechSleepFigure(sl, model) : '') +
     (sl && sl.div && sl.inns.length ? table(['bed', 'where', '#quality', 'healing'], [(sl.own !== null ? '<tr><td>your own</td><td>Land King Hall</td>' + srcCell(sl.ownVal) + '<td>× ' + (1 + sl.own / sl.div.v) + '</td></tr>' : '')].concat(
-      sl.inns.map(x => '<tr><td>' + (loadCharacterTable()[x.who] ? characterChip(x.who) : 'character ' + x.who) + '</td><td>' + svEsc((loadCharacterTable()[x.who] && zoneDisplayName(loadCharacterTable()[x.who].zone)) || '') + '</td>' + srcCell(x.qualitySrc, x.quality) + '<td>' + (x.quality !== null ? '× ' + (1 + x.quality / sl.div.v) : '') + '</td></tr>'))) : ''), '');
+      sl.inns.map(x => '<tr><td>' + (characterRecord(x.who) ? characterChip(x.who) : 'character ' + x.who) + '</td><td>' + svEsc((characterRecord(x.who) && zoneDisplayName(characterRecord(x.who).zone)) || '') + '</td>' + srcCell(x.qualitySrc, x.quality) + '<td>' + (x.quality !== null ? '× ' + (1 + x.quality / sl.div.v) : '') + '</td></tr>'))) : ''), '');
 
   // ---- the clock ----
   {

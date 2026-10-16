@@ -367,7 +367,7 @@ function askCard(title, note, rows, chips) {
     (chips ? '<div class="partsStrip">' + chips + '</div>' : '') + '</section>';
 }
 function askCharacterChip(who, fallback) {
-  try { if (who !== null && who !== undefined && loadCharacterTable()[who]) return characterChip(who); } catch (e) { quiet(e); }
+  try { if (who !== null && who !== undefined && characterRecord(who)) return characterChip(who); } catch (e) { quiet(e); }
   return fallback || '';
 }
 /* One question. Returns HTML, or null when the shape was not recognised or
@@ -609,6 +609,7 @@ function namedThingsMatching(re) {
   const chars = [];
   const table = loadCharacterTable();
   for (let i = 1; i < table.length && chars.length < cap; i++) {
+    if (!characterRecord(i)) continue;
     const nm = characterName(i);
     if (nm && re.test(nm)) chars.push(characterChip(i));
   }

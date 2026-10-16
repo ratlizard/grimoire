@@ -899,8 +899,9 @@ function zoneDisplayName(zone) {
   return 'zone ' + zone + ' (unnamed)';
 }
 
+// Null for a number with no character: past the table, or an empty slot.
 function characterDossier(i) {
-  const c = loadCharacterTable()[i];
+  const c = characterRecord(i);
   if (!c) return null;
   const sched = scheduleDay(i).filter(e => e.mode !== 0);
   const zones = loadZoneNames();

@@ -1331,9 +1331,8 @@ function renderCharacterSheet() {
   let shown = 0;
   for (let i = 1; i < chars.length; i++) {
     const d = characterDossier(i);
+    // Null for an empty slot (characterRecord), which is not listed.
     if (!d) continue;
-    // Skip empty slots: no sprite and no name of its own.
-    if (!d.rec.proptype && d.name.startsWith('Character ')) continue;
     const cell = document.createElement('div');
     cell.className = 'cell charCell';
     const wrap = document.createElement('div');
@@ -1402,7 +1401,7 @@ function renderCharacterSheet() {
 // Open the character's zone, centre the view on them and flag them so the
 // map layer can highlight who you came from.
 function showCharacterOnMap(i) {
-  const c = loadCharacterTable()[i];
+  const c = characterRecord(i);
   if (!c || !c.zone) return;
   const resid = 0x8000 | c.zone;
   document.getElementById('categorySelect').value = '127';
@@ -1458,9 +1457,15 @@ function showCharacterDetail(i) {
     g.appendChild(back);
     const note = document.createElement('div');
     note.className = 'sv-warn';
-    note.textContent = 'This file has no character ' + i + '. A saved game contains only what play has changed, and a link can outlast the file it came from.';
+    // A slot the table has and nobody fills is a different answer from a
+    // number past the table: saying "a saved game contains only what play
+    // has changed" of slot 206 sent a reader looking for a person.
+    const slot = loadCharacterTable()[i];
+    note.textContent = slot
+      ? 'Character slot ' + i + ' is empty. No one in this file has that number.'
+      : 'This file has no character ' + i + '. A saved game contains only what play has changed, and a link can outlast the file it came from.';
     g.appendChild(note);
-    document.getElementById('output').textContent = 'No character ' + i + ' in this file.';
+    document.getElementById('output').textContent = slot ? 'Character slot ' + i + ' is empty.' : 'No character ' + i + ' in this file.';
     return;
   }
   const grid = document.getElementById('sheetGrid');

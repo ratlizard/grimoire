@@ -578,7 +578,10 @@ function ditherSharedFrames() {
 }
 // Whose portraits wear a frame, by the names the file gives them.
 function ditherFrameOwners(members) {
-  const names = members.map(r => characterName(r - 0x87FF) || ('0x' + r.toString(16).toUpperCase()));
+  // characterName never comes back empty ("Character 206" for a slot with
+  // no name), so the fallback has to be chosen here: a portrait whose slot
+  // is empty is no one's and goes by its number.
+  const names = members.map(r => characterRecord(r - 0x87FF) ? characterName(r - 0x87FF) : '0x' + r.toString(16).toUpperCase());
   if (names.length > 4) return names.slice(0, 2).join(', ') + ' and ' + (names.length - 2) + ' more';
   return names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
 }

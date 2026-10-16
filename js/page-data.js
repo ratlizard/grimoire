@@ -4104,7 +4104,7 @@ function showRecordDetail(resid, byte) {
     const m = parseMonsterStats()[idx];
     if (m && !m.blank) ways.push(relChip({ js: 'openUnit(' + idx + ')', main: propDisplayName(m.proptype) || ('prop type ' + m.proptype),
       sub: 'the unit this describes', icon: relIconURL({ icon: m.proptype }), title: tabTrail(TAB_LEAF_FOR.get('MONSTERS')) }));
-  } else if (resid === 0xF009) {
+  } else if (resid === 0xF009 && characterRecord(idx)) {
     ways.push(relChip({ js: 'openCharacter(' + idx + ')', main: characterName(idx),
       sub: 'the character this describes', title: tabTrail(TAB_LEAF_FOR.get('CHARACTERS')) }));
   } else if (resid === 0xF000) {

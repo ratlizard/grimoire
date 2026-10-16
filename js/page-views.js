@@ -1738,14 +1738,19 @@ function ownerRows(resid, subn) {
 
 function renderUsage(resid, subn) {
   const rows = [];
+  // A portrait or a conversation belongs to a character by its number alone,
+  // so the number names a slot whether or not anyone is in it; an empty slot
+  // is said to be one rather than offered as a person (characterRecord).
   const chars = loadCharacterTable();
   if (subn === 135) {
     const i = resid - 0x8800 + 1;
-    if (chars[i]) rows.push(['Worn by', [characterChip(i)], '']);
+    if (characterRecord(i)) rows.push(['Worn by', [characterChip(i)], '']);
+    else if (i > 0 && i < chars.length) rows.push(['Worn by', [], 'No one. Character slot ' + i + ' is empty.']);
   }
   if (subn === 23) {
     const i = resid - 0x1800;
-    if (chars[i]) rows.push(['Spoken by', [characterChip(i)], '']);
+    if (characterRecord(i)) rows.push(['Spoken by', [characterChip(i)], '']);
+    else if (i > 0 && i < chars.length) rows.push(['Spoken by', [], 'No one. Character slot ' + i + ' is empty.']);
   }
   if (subn === 19 || subn === 20) {
     const map = 0x8000 + (resid & 0xFF);
@@ -2440,7 +2445,7 @@ function showMonsterDetail(idx) {
   const users = [];
   try {
     const chars = loadCharacterTable();
-    for (let i = 1; i < chars.length; i++) if (chars[i].proptype === r.proptype) users.push(i);
+    for (let i = 1; i < chars.length; i++) if (chars[i].proptype === r.proptype && characterRecord(i)) users.push(i);
   } catch (e) { quiet(e); }
   if (users.length) {
     const u = document.createElement('div');

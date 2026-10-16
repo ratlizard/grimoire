@@ -1032,7 +1032,7 @@ function showPropTypeDetail(pt) {
   const users = [];
   try {
     const chars = loadCharacterTable();
-    for (let i = 1; i < chars.length; i++) if (chars[i].proptype === pt) users.push(i);
+    for (let i = 1; i < chars.length; i++) if (chars[i].proptype === pt && characterRecord(i)) users.push(i);
   } catch (e) { quiet(e); }
   if (users.length) {
     const u = document.createElement('div');
@@ -2104,7 +2104,7 @@ function placeChip(p, n) {
   const note = n > 1 ? '\u00d7' + n : '';
   // A carrier the character table has; one key in Land King Hall is held by
   // a number that is not a character (0xF02F), and says only that it is carried.
-  if (p.carriedBy !== undefined) return loadCharacterTable()[p.carriedBy] ? characterChip(p.carriedBy)
+  if (p.carriedBy !== undefined) return characterRecord(p.carriedBy) ? characterChip(p.carriedBy)
     : relChip({ resid: map, main: zoneLabel(p.zone), sub: 'carried', note, title: trailForResid(map) });
   const inside = p.host !== null ? 'in a ' + (propDisplayName(p.host) || 'container') : '';
   if (p.x === undefined) return relChip({ resid: map, main: zoneLabel(p.zone), sub: inside, note, title: trailForResid(map) });

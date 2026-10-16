@@ -541,6 +541,29 @@ function loadCharacterTable() {
   if (!raw) return (DERIVED.CHAR_TABLE = []);
   return (DERIVED.CHAR_TABLE = parseDelverCharacterRecords(smartDecrypt(raw, 0xF009).data));
 }
+/* The record of character i when there is a character there, else null.
+   Every one of the 512 slots parses, so `loadCharacterTable()[i]` is truthy
+   for an empty slot too, and a guard written as that test let the page name
+   nobody as somebody: portrait 0x88CD, a flowering bush that no character
+   wears, said "Worn by Character 206" because the sum that finds a
+   character's portrait (0x87FF plus the number) runs backwards to slot 206,
+   which is empty. Slots 128 to 255 are never anyone's, and a save stamps the
+   hero's zone into 130 to 255, so a slot holding only a zone is empty as
+   well; delverCharacterInUse is the Saved Game sheet's test of that.
+   That test alone is too strict here: slots 189 and 190 are the Fountain and
+   the Door, whom the hero talks to, with portraits and conversations and a
+   name in 0x0201, and records of zeros because they never stand anywhere as
+   a figure. So a slot is somebody when its record is in use or the file
+   names it. Use this wherever the question is "is this a person", and the
+   bare table only where an empty slot is the point (the byte map, the record
+   editor, the Saved Game sheet's count of slots). */
+function characterRecord(i) {
+  const c = loadCharacterTable()[i];
+  if (!c) return null;
+  if (delverCharacterInUse(c)) return c;
+  const t = nameTable(), nm = t && t[i] ? String(t[i]).trim() : '';
+  return nm && nm !== '???' && nm !== 'x' ? c : null;
+}
 
 function characterName(i) {
   const t = nameTable();

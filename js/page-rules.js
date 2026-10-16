@@ -418,7 +418,7 @@ function renderSkillsSheet() {
       if (x.description) { const p = document.createElement('p'); p.className = 'mechLede'; p.innerHTML = svEsc(x.description); sec.appendChild(p); }
       const rows = [];
       if (kind !== 'command') {
-        rows.push(['Taught by', x.teachers.length ? x.teachers.map(t => (t.who !== null && loadCharacterTable()[t.who] ? characterChip(t.who) : svChip(t.resid)) + (t.mastery ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') : '<span class="inspDim">no teacher in this file</span>']);
+        rows.push(['Taught by', x.teachers.length ? x.teachers.map(t => (t.who !== null && characterRecord(t.who) ? characterChip(t.who) : svChip(t.resid)) + (t.mastery ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') : '<span class="inspDim">no teacher in this file</span>']);
         if (x.askedBy.length) rows.push(['Asked about by', x.askedBy.map(r => svChip(r)).join(' ')]);
         if (x.weapons.length) rows.push(['Swung with it', x.weapons.map(w => propChip(w.pt, w.name)).join(' ')]);
         const rule = SKILL_RULES[x.name];
@@ -836,7 +836,7 @@ function renderBarksSheet() {
     (b.who !== null && characterName(b.who).toLowerCase().includes(q)));
   const rows = [];
   for (const b of shown) {
-    const who = b.who !== null && loadCharacterTable()[b.who] ? characterChip(b.who)
+    const who = b.who !== null && characterRecord(b.who) ? characterChip(b.who)
       : '<span class="inspDim">anyone, </span>' + svChip(b.resid);
     const words = b.words.map(w => '“' + svEsc(w) + '”').join(', ');
     rows.push('<tr><td>' + who + '</td><td>' + (b.how === 'one of' ? '<span class="inspDim">one of</span> ' : '') + words +
