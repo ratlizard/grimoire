@@ -1213,6 +1213,19 @@ function partChip(label, resid) {
   return relChip({ resid, main: label, sub: lbl || '', title: trailForResid(resid) });
 }
 
+/* A thing's own row of a table, as a part of it: the record under
+   Components > Records, which steps on down to the bytes. A dossier's and a
+   unit's chip opened the whole table in the Data Fork until 16 October
+   2026, the one way off a Scenario page that skipped Components (the
+   maintainer's rule of 20 September 2026: Scenario, Components, Data;
+   utilities/link_census.mjs found these two). jumpToTableAt keeps the fork's
+   hex as its fallback for a table the Records sheet does not know. */
+function recordChip(label, resid, index, stride) {
+  const leaf = TAB_LEAF_FOR.get('RECORDS');
+  return relChip({ resid, js: 'jumpToTableAt(' + resid + ',' + index * stride + ',' + stride + ')',
+    main: label, sub: 'record ' + index, title: leaf ? tabTrail(leaf) : '' });
+}
+
 // A link in text: see .svLink.
 function svLink(label, js, note) {
   return '<button class="svLink" onclick="' + js + '">' + svEsc(label) + (note ? ' <i>' + svEsc(note) + '</i>' : '') + '</button>';
@@ -1345,7 +1358,7 @@ function characterParts(i, d) {
   // attributes and skills as text. Character 1 is the hero wherever the
   // scripts address characters by number (see the Creates in page-rules.js).
   if (i === 1) for (const [label, r] of HERO_CLASS_TEXT) if (refExists(r)) chips.push(partChip(label, r));
-  if (refExists(0xF009)) chips.push(partChip('Record', 0xF009));
+  if (refExists(0xF009)) chips.push(recordChip('Record', 0xF009, i, 32));
   // Through the Schedules sheet, not at the raw table: a component is
   // reached by the Components tab that shows it, and the bytes from there.
   if (d.schedule.length) chips.push(actionChip('Schedule', 'openSchedule(' + i + ')', d.notScheduled ? 'not scheduled, ' + d.notScheduled : 'their day'));
@@ -2426,7 +2439,7 @@ function showMonsterDetail(idx) {
   }
   panel.appendChild(cd);
   // The components: its class script, the sheet its sprite is cut from, and
-  // the stats table this record is a row of.
+  // its row of the stats table.
   {
     const chips = [];
     const cls = 0x1000 + r.proptype;
@@ -2434,7 +2447,7 @@ function showMonsterDetail(idx) {
     const base = tiles[r.proptype];
     if (base !== undefined && refExists(0x8E00 + (base >> 4))) chips.push(partChip('Sprite sheet', 0x8E00 + (base >> 4)));
     for (const n of classSounds(0x1900 + r.index)) chips.push(partChip('Sound', 0x9100 + n));
-    if (refExists(0xF008)) chips.push(partChip('Stats table', 0xF008));
+    if (refExists(0xF008)) chips.push(recordChip('Record', 0xF008, r.index, 16));
     chips.push(actionChip('Prop type', 'showPropTypeDetail(' + r.proptype + ')', 'every frame'));
     const made = document.createElement('div');
     made.innerHTML = linksFold(partsStrip('Made of', chips));

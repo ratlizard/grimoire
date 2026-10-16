@@ -4,6 +4,7 @@
 //   node utilities/check_all.mjs
 //   node utilities/check_all.mjs --quick     (skip the slow ones)
 //   node utilities/check_all.mjs viewer      (one page: viewer | browser | mobile)
+//   node utilities/check_all.mjs 'in the game'   (one check by its name, its whole output after the table)
 //   CHECK_JOBS=1 node utilities/check_all.mjs   (one at a time, as it ran until 18 September 2026)
 //
 // The checks run several at a time, up to CHECK_JOBS of them (four unless
@@ -537,6 +538,16 @@ const CHECKS = [
     page: 'viewer', name: 'smoke ' + part, want: [DATA], slow: true, after: ['addons + heuristic'],
     cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL, SAVE, part],
     grep: part.startsWith('galleries') ? /\d+ galleries, [\d,]+ tiles[^\n]*/ : /clean in [\d.]+ s/})),
+  /* Where the Scenario tab's links lead (link_census.mjs): every page of it
+     and every character, unit, item and prop type page, each link followed.
+     Fails on one that goes from a Scenario page straight to the data file's
+     bytes, skipping the component that holds them -- the maintainer's
+     Scenario, Components, Data. Before 16 October 2026 a dossier's Record
+     chip and a unit's Stats table chip did, 253 links; that run is the
+     control. About a minute. */
+  {page: 'viewer', name: 'scenario links', want: [DATA], slow: true,
+   cmd: ['utilities/link_census.mjs', 'index.html', DATA],
+   grep: /scenario links: [^\n]*/},
   /* Bad input: every real input corrupted a fixed number of ways from a
      fixed seed and handed to the page's own entry point, each case in a
      worker under a deadline. A decoder may return or throw; it may not
@@ -551,7 +562,7 @@ const CHECKS = [
      to open it and save it again, and the file the game wrote must carry
      the edit; the unedited seed is the control. The one oracle the writers
      had lacked -- delvmod is not the game. About forty seconds. */
-  {page: 'viewer', name: 'in the game', want: [KIT, GAME_BIN, LICENCE], slow: true,
+  {page: 'viewer', name: 'in the game', want: [KIT, GAME_BIN, LICENCE], slow: true, alone: true,
    cmd: ['utilities/game_check.mjs', 'index.html', KIT, GAME_BIN, LICENCE, DATA, APP_DATA, APP_RSRC],
    grep: /game: [^\n]*/},
   {page: 'viewer', name: 'zip export', want: [DATA], slow: true,
@@ -624,10 +635,25 @@ const CHECKS = [
 // ---- run -------------------------------------------------------------------
 say(`\n  Cythera checks — ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`);
 await ensureForks();
-if (!only || only === 'viewer') { ensureGraphicsRef(); await ensureQuickTime(); await ensureArtPack(); }
+/* The argument names a page or one check. One check by name was added on
+   16 October 2026: "re-run a failing one on its own" was the advice under
+   every failure, and the only way to take it was to copy the check's argument
+   list out of this file by hand, which the game check's eight arguments made
+   a chore. Named alone, the check's whole output is printed under the table,
+   since the row keeps one line of it. */
+const byName = only && CHECKS.some(c => c.name === only);
+const chosen = check => !only || (byName ? check.name === only : check.page === only);
+// A name that matches nothing used to run nothing and print "A clean run is
+// 0 ok", which reads as a pass.
+if (!CHECKS.some(chosen)) {
+  say(`  No page or check is called "${only}". Pages: ${[...new Set(CHECKS.map(c => c.page))].join(', ')}.`);
+  process.exit(1);
+}
+if (CHECKS.some(c => chosen(c) && c.page === 'viewer')) { ensureGraphicsRef(); await ensureQuickTime(); await ensureArtPack(); }
 mkdirSync(EXPORTS, {recursive: true});
 
 const rows = new Array(CHECKS.length);
+const outputs = new Array(CHECKS.length);
 let failed = 0, skipped = 0;
 
 // What one check's run decides: the row, and whether it counts as failed.
@@ -674,7 +700,7 @@ function judge(check, ok, out, secs) {
 }
 
 // One check, in a child process, to a row.
-function runCheck(check) {
+function runCheck(check, i) {
   const t0 = Date.now();
   return new Promise(res => {
     // Fifteen minutes is a hang, not a slow check: the browser check sat
@@ -687,6 +713,7 @@ function runCheck(check) {
         try { execSync(`for z in "${check.zips}"/*.zip; do unzip -t "$z" > /dev/null || exit 1; done`, {stdio: 'ignore'}); }
         catch (e) { ok = false; out += '\nunzip -t rejected an archive'; }
       }
+      outputs[i] = out;
       res(judge(check, ok, out, ((Date.now() - t0) / 1000).toFixed(1)));
     });
   });
@@ -697,11 +724,19 @@ function runCheck(check) {
 // skipped alike). Rows land at the check's own index, so the table reads in
 // the list's order whatever order the processes finished in; one line per
 // finish says which are still running when the table is a while coming.
+//
+// A check marked `alone` starts only when nothing else is running, and
+// nothing else starts while it runs. The game check is the one: it runs the
+// fork headless with a time limit on each launch, and on 15 October 2026,
+// four at a time on this 8 GB machine with its swap nearly full, a launch
+// passed its limit and the check failed after 942 seconds; alone, the same
+// commit passed in 73. It costs the suite about that minute of wall clock,
+// which is cheaper than a red row nobody can trust.
 const done = new Set();
 const pending = [];
 for (let i = 0; i < CHECKS.length; i++) {
   const check = CHECKS[i];
-  if (only && check.page !== only) { rows[i] = null; done.add(check.name); continue; }
+  if (!chosen(check)) { rows[i] = null; done.add(check.name); continue; }
   if (quick && check.slow) { rows[i] = [check.page, check.name, 'skip', '--quick']; skipped++; done.add(check.name); continue; }
   const missing = (check.want || []).filter(p => !existsSync(p));
   if (missing.length) {
@@ -713,14 +748,17 @@ for (let i = 0; i < CHECKS.length; i++) {
 }
 const started = Date.now();
 await new Promise(resolve => {
-  let running = 0;
+  let running = 0, aloneRunning = false;
   const pump = () => {
     if (!pending.length && !running) return resolve();
-    for (let k = 0; k < pending.length && running < JOBS; k++) {
+    for (let k = 0; k < pending.length && running < JOBS && !aloneRunning; k++) {
       const i = pending[k], check = CHECKS[i];
       if ((check.after || []).some(n => !done.has(n))) continue;
+      if (check.alone && running) break;   // wait for the others to finish, and start nothing past it meanwhile
       pending.splice(k, 1); k--; running++;
-      runCheck(check).then(row => {
+      if (check.alone) aloneRunning = true;
+      runCheck(check, i).then(row => {
+        if (check.alone) aloneRunning = false;
         rows[i] = row; done.add(check.name); running--;
         say(`  ${row[2] === 'ok' ? 'ok  ' : 'FAIL'}  ${check.name}  ${row[3].match(/\([\d.]+s\)$/)[0]}`);
         pump();
@@ -748,7 +786,13 @@ say(`\n  ${ran} checks run, ${failed} failed, ${skipped} skipped, ${wall}s wall 
 // instruction in the handoff was to stop correcting the prose and have the
 // suite say the sentence instead. This is that sentence: paste it in when it
 // changes, rather than counting the checks by hand.
-if (!failed && !skipped)
+if (!failed && !skipped && !only)
   say(`  A clean run is ${ran} ok, 0 failed, 0 skipped.`);
-if (failed) say('  Re-run a failing one on its own to see its full output.');
+if (byName) {
+  const i = CHECKS.findIndex(c => c.name === only);
+  if (outputs[i] != null) say('\n' + outputs[i].trimEnd());
+} else if (failed) {
+  say('  Re-run a failing one on its own to see its full output:');
+  for (const r of rows) if (r[2] === 'FAIL') say(`    node utilities/check_all.mjs '${r[1]}'`);
+}
 process.exit(failed ? 1 : 0);
