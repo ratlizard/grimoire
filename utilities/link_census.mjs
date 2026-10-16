@@ -12,7 +12,8 @@
 // it, every detail page reached from one (a character, a unit, an item, a
 // prop type), and every link on each, which it follows and sorts by the top
 // tab it lands on. A link that skips Components for Data is the finding,
-// and a failure: check_all runs this as "scenario links".
+// and a failure: check_all runs this as "scenario links". So is a component
+// page it lands on with no link on down to the bytes.
 //
 // A link is followed by running its onclick in the page, then reading the
 // category the page is showing, which is what the tab strip itself is drawn
@@ -88,6 +89,21 @@ function follow(js) {
    handler and its first argument, and a page's links are all read before
    any is followed, rather than going back to the page after each. */
 const destOf = new Map();
+/* The second half of the chain: the component page a link lands on steps
+   on down to the bytes, a record by jumpToForkBytes and a resource by
+   jumpToForkEntry (since 16 October 2026). Read from the panel that page
+   draws its links in, since the others keep what the last page left. */
+const noStep = new Map();
+/* A tile sheet's panel is filled on a timer the first time (showArtUsage
+   yields so its note paints), and nothing here waits for a timer; so the
+   census it reads is built first, as it is after a reader's first sheet. */
+peek('buildTileSheetUsage()');
+function stepsDown(dest) {
+  const v = dest.value;
+  const n = Number(v);
+  const panel = v === 'RECORDS' ? 'sheetGrid' : Number.isInteger(n) && peek(`SCRIPT_SUBN.has(${n})`) ? 'scriptRefs' : 'artUsage';
+  return /jumpToFork(Entry|Bytes)\(/.test(all(REGISTRY.get(panel) || {children: []}));
+}
 const queued = new Set(queue.map(q => q.go));
 const keyOf = js => (/^\s*(?:return\s+)?([A-Za-z_$][\w$]*\s*\(\s*[^,)]*)/.exec(js) || [, js])[1];
 let pages = 0;
@@ -111,9 +127,11 @@ while (queue.length && pages < 4000) {
     if (!dest) {
       // A detail page is followed when its turn in the queue comes.
       dest = isPage ? {top: 'Scenario', path: 'a page of it', value: ''} : follow(l.js);
+      if (dest && dest.top === 'Components') dest.down = stepsDown(dest);
       if (!isPage) destOf.set(keyOf(l.js), dest);
     }
     if (isPage && fn !== 'showCategory' && !visited.has(l.js) && !queued.has(l.js)) { queued.add(l.js); queue.push({go: l.js, parent: here}); }
+    if (dest.top === 'Components' && !dest.down) { const dk = dest.path + '\t' + keyOf(l.js); if (!noStep.has(dk)) noStep.set(dk, `${go}  "${l.text}"  ${l.js}`); }
     const k = `${kindOf(go)}\t${dest.top}\t${dest.path}\t${fn}`;
     tally.set(k, (tally.get(k) || 0) + 1);
     if (!examples.has(k)) examples.set(k, `${go}  "${l.text}"  ${l.js}`);
@@ -135,7 +153,9 @@ let skipped = 0, links = 0;
 for (const [k, n] of tally) { links += n; if (k.split('\t')[2].startsWith('Data › Cythera Data')) skipped += n; }
 const broken = [...tally].filter(([k]) => k.split('\t')[1] === 'error').reduce((a, [, n]) => a + n, 0);
 if (skipped) tallyFail('scenario links', `${skipped} link(s) go from a Scenario page straight to the data file's bytes`);
+if (noStep.size) tallyFail('scenario links', `${noStep.size} component page(s) reached from Scenario have no step down to Data`);
+if (LIST) for (const [k, e] of noStep) console.log('  no step down: ' + k.split('\t')[0] + '  e.g. ' + e.slice(0, 160));
 if (broken) tallyFail('scenario links', `${broken} link(s) threw when followed`);
-console.log(`scenario links: ${pages} pages, ${links} links followed, ${skipped} straight to the data file's bytes`);
+console.log(`scenario links: ${pages} pages, ${links} links followed, ${skipped} straight to the data file's bytes, ${noStep.size} component pages with no step down`);
 console.log('not run (not navigation): ' + [...unrun].map(([f, n]) => `${f} ${n}`).join(', '));
 finish([]);

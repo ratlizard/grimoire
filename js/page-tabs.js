@@ -129,6 +129,7 @@ function jumpToResource(resid) {
   const cat = document.getElementById('categorySelect');
   if (!cat) return false;
   window.LISTING_AT = null;   // a ring is jumpToScriptAt's, set after this returns
+  window.FORK_AT = null;      // and the Data Fork sheet's is jumpToForkEntry's
   let value = null;
   for (const o of cat.options) if (parseInt(o.value) === subn) { value = o.value; break; }
   if (value === null) return false;

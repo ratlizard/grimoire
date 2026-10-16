@@ -1081,7 +1081,7 @@ function renderArtUsage(resid) {
   const u = buildTileSheetUsage()[resid];
   if (!u || (!u.maps.length && !u.props.length && !u.composites.length))
     return '<span class="inspDim">Nothing in the file draws from this sheet; ' +
-           'nothing may use it, or the program may use it rather than data.</span>';
+           'nothing may use it, or the program may use it rather than data.</span>' + forkEntryStrip(resid);
   const rows = [];
   if (u.maps.length) rows.push('<dt>Maps</dt><dd>' + usageChips(u.maps,
     r => svChip(r), 24) + '</dd>');
@@ -1091,7 +1091,7 @@ function renderArtUsage(resid) {
   if (u.composites.length) rows.push('<dt>Composite tiles</dt><dd><span class="inspDim">' +
     u.composites.length + ' stitched tile' + (u.composites.length === 1 ? '' : 's') +
     ' use fragments from this sheet</span></dd>');
-  return '<dl class="inspRows">' + rows.join('') + '</dl>';
+  return '<dl class="inspRows">' + rows.join('') + '</dl>' + forkEntryStrip(resid);
 }
 
 function showArtUsage(resid) {

@@ -1785,7 +1785,7 @@ function renderUsage(resid, subn) {
     rows.push(['Referenced by', shown.map(refChip).concat(ins.length > shown.length
       ? ['<span class="partsNote">and ' + countLink((ins.length - shown.length) + ' more', 'The ' + ins.length + ' references to 0x' + resid.toString(16).toUpperCase(), ins.map(refChip)) + '</span>'] : []), '']);
   }
-  return rows.map(([t, c, n]) => partsStrip(t, c, n)).join('');
+  return rows.map(([t, c, n]) => partsStrip(t, c, n)).join('') + forkEntryStrip(resid);
 }
 
 // --- Monster stats (0xF008) ------------------------------------------------

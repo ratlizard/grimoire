@@ -3361,6 +3361,48 @@ function applyGiveForm(index) {
   giveToCharacter(index, { proptype: pt, aspect, d3, flags });
 }
 
+/* Where one resource sits in the data fork: its subindex, its entry in that
+   subindex's table, and the byte its payload starts at and its length, read
+   the way renderDataForkSheet counts them. */
+function forkEntryOf(resid) {
+  if (!ARCHIVE || !ARCHIVE.index) return null;
+  const subn = (resid >> 8) - 1, n = resid & 0xFF;
+  const [off, len] = ARCHIVE.index[subn] || [0, 0];
+  if (subn < 0 || !off || n * 8 + 8 > len) return null;
+  const r = new BinReader(ARCHIVE.bytes);
+  r.seek(off + n * 8);
+  const roff = r.u32(), rlen = r.u32();
+  return roff ? { subn, n, off: roff, len: rlen, entryAt: off + n * 8 } : null;
+}
+
+/* The step down from a component to the file (the maintainer's chain,
+   Scenario, Components, Data, of 20 September 2026, asked of every page on
+   16 October 2026). A record already had one, jumpToForkBytes; a script, a
+   picture or a sound had none, its bytes shown only by its own Hex view.
+   This opens the Data Fork sheet with the resource's subindex ringed and a
+   line saying where in the file it is. FORK_AT holds until the next
+   jumpToResource, as LISTING_AT does: the sheet is drawn more than once on
+   the way in, so the first draw cannot be the one to clear it. */
+window.FORK_AT = null;
+function jumpToForkEntry(resid) {
+  if (!forkEntryOf(resid)) return false;
+  window.FORK_AT = resid;
+  if (!showCategory('DATAFORK')) { window.FORK_AT = null; return false; }
+  setTimeout(() => {
+    const hit = document.getElementById('forkHit');
+    if (hit && hit.scrollIntoView) hit.scrollIntoView({ block: 'center' });
+  }, 60);
+  return true;
+}
+// A component page's link down to it, as a strip of one chip.
+function forkEntryStrip(resid) {
+  const fe = forkEntryOf(resid);
+  const leaf = TAB_LEAF_FOR.get('DATAFORK');
+  if (!fe || TAB_LEAF_FOR.get(String(fe.subn)) === leaf) return '';
+  return partsStrip('In the file', [relChip({ js: 'jumpToForkEntry(' + resid + ')', main: 'Data Fork',
+    sub: fmtBytes(fe.len) + ' at byte ' + fe.off.toLocaleString('en-US'), title: leaf ? tabTrail(leaf) : '' })], '');
+}
+
 function renderDataForkSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -3368,6 +3410,16 @@ function renderDataForkSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
+  const at = window.FORK_AT;
+  const fe = at !== null && at !== undefined ? forkEntryOf(at) : null;
+  if (fe) {
+    const lbl = labelFor(at);
+    const where = document.createElement('div');
+    where.className = 'sv-note';
+    where.innerHTML = relChip({ resid: at, main: lbl || propWordHex(at), title: trailForResid(at) }) + ' is entry ' + fe.n +
+      ' of subindex ' + fe.subn + ', ' + fmtBytes(fe.len) + ' at byte ' + fe.off.toLocaleString('en-US') + ' of the file.';
+    grid.appendChild(where);
+  }
   const r = new BinReader(ARCHIVE.bytes);
   const rows = [];
   let total = 0, totalBytes = 0;
@@ -3393,6 +3445,7 @@ function renderDataForkSheet() {
   const tbody = document.createElement('tbody');
   for (const row of rows) {
     const tr = document.createElement('tr');
+    if (fe && fe.subn === row.subn) { tr.id = 'forkHit'; tr.className = 'listingHit'; }
     const v = String(row.subn);
     const leaf = TAB_LEAF_FOR.get(v);
     const idTd = '<td class="num">' + row.subn + '</td>' +

@@ -541,10 +541,12 @@ const CHECKS = [
   /* Where the Scenario tab's links lead (link_census.mjs): every page of it
      and every character, unit, item and prop type page, each link followed.
      Fails on one that goes from a Scenario page straight to the data file's
-     bytes, skipping the component that holds them -- the maintainer's
+     bytes, skipping the component that holds them, and on a component page
+     it lands on with no link on down to the bytes -- the maintainer's
      Scenario, Components, Data. Before 16 October 2026 a dossier's Record
-     chip and a unit's Stats table chip did, 253 links; that run is the
-     control. About a minute. */
+     chip and a unit's Stats table chip did the first, 253 links, and every
+     script, picture and sound page the second; those runs are the controls.
+     About a minute. */
   {page: 'viewer', name: 'scenario links', want: [DATA], slow: true,
    cmd: ['utilities/link_census.mjs', 'index.html', DATA],
    grep: /scenario links: [^\n]*/},
