@@ -228,7 +228,21 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         const pp = all(REGISTRY.get('sheetGrid'));
         if (!/In the application/.test(ph) || ph.indexOf(hexw) < 0 || !/FillIntfCache/.test(ph)) fail('class cache', 'the item page for class ' + doorPt + ' does not show its cache word ' + hexw);
         else if (!/In the application/.test(pp) || pp.indexOf(hexw) < 0) fail('class cache', 'the creatures-and-props page for class ' + doorPt + ' does not show its cache word ' + hexw);
-        else console.log(`  class cache: ${classes} classes, ${listeners} with a GetMessage, ${weighed} with a plain weight and ${tagged} with another kind; class ${doorPt} shows ${hexw}`);
+        // Said, not left out (16 October 2026): a class with nothing noted
+        // says so against what the routine looks for, and a kind with no
+        // class script at all says that, on both pages.
+        else if ((() => {
+          const named = re => { for (let pt = 0; pt < tiles.length; pt++) if (re.test(ctx.propTypeName(pt) || '')) return pt; return -1; };
+          const tree = named(/^ancient tree$/i), fume = named(/^fumerole$/i);
+          if (tree < 0 || fume < 0) { fail('class cache', 'no ancient tree or fumerole by name to check'); return true; }
+          for (const [pt, want] of [[tree, /None of them applies to this kind/], [fume, /This kind has no class script/]]) {
+            ctx.showItemDetail(pt); const a = all(REGISTRY.get('sheetGrid'));
+            ctx.showPropTypeDetail(pt); const b = all(REGISTRY.get('sheetGrid'));
+            if (!want.test(a) || !want.test(b)) { fail('class cache', ctx.propTypeName(pt) + '\u2019s pages do not say ' + want + ' (item page ' + want.test(a) + ', creatures-and-props page ' + want.test(b) + ')'); return true; }
+          }
+          return false;
+        })()) ;
+        else console.log(`  class cache: ${classes} classes, ${listeners} with a GetMessage, ${weighed} with a plain weight and ${tagged} with another kind; class ${doorPt} shows ${hexw}; the ancient tree says nothing applies and the fumerole that it has no class script`);
       }
     } catch (e) { fail('class cache', e); }
 

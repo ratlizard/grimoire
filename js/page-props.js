@@ -2169,28 +2169,56 @@ function itemEachOneHTML(pt) {
     (all.length > 40 ? '<div class="inspDim">and ' + (all.length - 40) + ' more kinds</div>' : '') + '</div>';
 }
 
-/* One class's cache word as a block of html: the word, each bit's source
-   and the routines that test it, the side tables' values. Null with no
-   application open or no class table (classCacheWord). The item page shows
-   it as a fold, the creatures-and-props page as a block; both since
-   24 and 25 September 2026. */
+/* One class's cache word as a block of html: what the program notes about
+   the class at load, each note's source and the routines that test it, and
+   the side tables' values. Null with no application open or no class table
+   (classCacheWord). The item page shows it as a fold, the
+   creatures-and-props page as a block; both since 24 and 25 September 2026.
+   Worded for a reader on 16 October 2026, after the maintainer asked what
+   "In the application 0x0000, no bits ... The switches the program keeps
+   for this kind of thing (FillIntfCache), 0x0000, and what checks each one"
+   meant on the ancient tree: a hex word in the gist and in mid-sentence,
+   and "what checks each one" over nothing. So the gist names what was
+   noted, or says nothing was; the lede says what the routine looks for,
+   by the keys read off it (exeIntfCache), so a class with nothing noted
+   says so against that list ("none applies", not "has none": a class
+   can have Class Flags with none of the copied bits set); and the word itself closes the block, for
+   whoever wants the number. */
 function classCacheBlock(pt) {
   let cw = null;
   try { cw = classCacheWord(pt); } catch (e) { quiet(e, 'the class cache word'); cw = null; }
-  if (!cw) return null;
+  let ic = null;
+  try { ic = appImage() ? exeIntfCache() : null; } catch (e) { quiet(e, 'the keys FillIntfCache looks for'); ic = null; }
+  // A kind with no class script at all (the fumerole, 393, has no 0x1189)
+  // has nothing for the routine to find, and left the block out entirely
+  // until the maintainer asked where it had gone (16 October 2026).
+  if (!cw) {
+    if (!ic || parseClassTable(0x1000 + pt)) return null;
+    return { gist: 'nothing noted',
+      html: '<div class="sv-note" style="margin:0 0 6px">When the game starts, the program notes a few things about each kind of thing from its class script (' + pefChip('FillIntfCache') + '). This kind has no class script, so nothing about it is noted.</div>' +
+        '<div class="sv-note" style="margin-top:6px">' + mechLink('classflags', 'Mechanics › Class Flags') + '</div>' };
+  }
   const cell = 'padding:3px 10px 3px 0;vertical-align:top';
   const from = b => b.kind === 'has' ? 'has ' + svEsc(itemFieldLabel(b.key))
     : b.kind === 'tag' ? svEsc(itemFieldLabel(b.key)) + ' is not a plain number'
     : svEsc(itemFieldLabel(b.key)) + ' bit ' + (b.at ? srcNum(b.at, propWordHex(b.mask.v)) : propWordHex(b.mask.v));
-  const tested = list => list.length ? list.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : 'no routine tests it';
-  const rows = cw.bits.map(b => '<tr><td class="num" style="' + cell + '">' + srcNum(b.bit, propWordHex(b.bit.v)) + '</td><td style="' + cell + ';color:#fff">' + from(b) + '</td><td style="' + cell + ';color:#dcd8cc;font-size:0.75rem">' + tested(b.testedBy) + '</td></tr>').join('');
-  const side = cw.tables.map(t => '<tr><td class="num" style="' + cell + '">' + srcNum(t.at, String(t.value)) + '</td><td style="' + cell + ';color:#fff">' + svEsc(itemFieldLabel(t.key)) + (t.plusOne ? ' plus one' : '') + ', ' + (t.width === 1 ? 'a byte' : 'a halfword') + ' a class</td><td style="' + cell + ';color:#dcd8cc;font-size:0.75rem">' + (t.readBy.length ? t.readBy.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : 'no routine reads it') + '</td></tr>').join('');
+  const tested = list => list.length ? 'checked by ' + list.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : 'no routine checks it';
+  const rows = cw.bits.map(b => '<tr><td style="' + cell + ';color:#fff">' + from(b) + '</td><td style="' + cell + ';color:#dcd8cc;font-size:0.75rem">' + tested(b.testedBy) + '</td><td class="num" style="' + cell + '">' + srcNum(b.bit, propWordHex(b.bit.v)) + '</td></tr>').join('');
+  const side = cw.tables.map(t => '<tr><td style="' + cell + ';color:#fff">' + svEsc(itemFieldLabel(t.key)) + (t.plusOne ? ' plus one' : '') + '</td><td class="num" style="' + cell + '">' + srcNum(t.at, String(t.value)) + '</td><td style="' + cell + ';color:#dcd8cc;font-size:0.75rem">' + (t.readBy.length ? 'read by ' + t.readBy.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : 'no routine reads it') + '</td></tr>').join('');
+  // What the routine looks for, in the order it asks: every key it tests
+  // for a bit or keeps a value of, each once.
+  const looked = ic ? [...new Set(ic.has.map(h => h.key).concat(ic.bits.map(x => x.key), ic.tables.map(t => t.key)))].map(itemFieldLabel) : [];
+  const noted = [...new Set(cw.bits.map(b => b.key).concat(cw.tables.map(t => t.key)))].map(itemFieldLabel);
+  const none = !cw.bits.length && !cw.tables.length;
+  const lede = 'When the game starts, the program notes a few things about each kind of thing, so it need not look them up in the script again (' + pefChip('FillIntfCache') + ')' +
+    (looked.length ? '. It looks for ' + looked.map(svEsc).join(', ') + '.' : '.') +
+    (none ? ' None of them applies to this kind, so nothing about it is noted.' : '');
   return {
-    gist: propWordHex(cw.value) + (cw.bits.length ? ', ' + cw.bits.length + ' bit' + (cw.bits.length === 1 ? '' : 's') : ', no bits') + (cw.tables.length ? ', ' + cw.tables.length + ' side table' + (cw.tables.length === 1 ? '' : 's') : ''),
-    html: '<div class="sv-note" style="margin:0 0 6px">The switches the program keeps for this kind of thing (' + pefChip('FillIntfCache') + '), ' + propWordHex(cw.value) + ', and what checks each one.</div>' +
-      (rows ? '<table style="border-collapse:collapse;width:100%">' + rows + '</table>' : '') +
-      (side ? '<div class="sv-note" style="margin:8px 0 4px">The side tables, one value a class</div><table style="border-collapse:collapse;width:100%">' + side + '</table>' : '') +
-      '<div class="sv-note" style="margin-top:6px">' + mechLink('classflags', 'Mechanics › Class Flags') + '</div>'
+    gist: none ? 'nothing noted' : noted.slice(0, 3).join(', ') + (noted.length > 3 ? ' and ' + (noted.length - 3) + ' more' : ''),
+    html: '<div class="sv-note" style="margin:0 0 6px">' + lede + '</div>' +
+      (rows ? '<div class="sv-note" style="margin:8px 0 4px">Switched on for this kind</div><table style="border-collapse:collapse;width:100%">' + rows + '</table>' : '') +
+      (side ? '<div class="sv-note" style="margin:8px 0 4px">Values kept for this kind</div><table style="border-collapse:collapse;width:100%">' + side + '</table>' : '') +
+      '<div class="sv-note" style="margin-top:6px">' + (cw.bits.length ? 'The switches together: ' + propWordHex(cw.value) + '. ' : '') + mechLink('classflags', 'Mechanics › Class Flags') + '</div>'
   };
 }
 
