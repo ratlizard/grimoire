@@ -602,7 +602,18 @@ function cyclePropCell(spr, frames, px, ms) {
 function galleryFrames(e) {
   const attrs = getTileAttributes(ARCHIVE);
   const own = framesSharingName(e.base, e.info.present);
-  const anchors = own.filter(f => (attrs[e.base + f] || 0) & 0xC0);
+  // Anchors that lie different ways are the same thing turned, not frames
+  // of it: the adobe arch's 1 spans left and its 3 spans up, the arch
+  // across a road and the arch along one, and cycling the two turned the
+  // arch round in its cell where the game sets one aspect and leaves it
+  // (the maintainer, 16 October 2026). The cell keeps the first anchor's
+  // way; a creature keeps them all, for its facings are its own (below).
+  // The bookshelf's 1, 3 and 5 all span left and still cycle, three
+  // shelves of one wall; a full 0xC0 anchor lies neither way and stays.
+  let anchors = own.filter(f => (attrs[e.base + f] || 0) & 0xC0);
+  const lie = f => (attrs[e.base + f] || 0) & 0xC0;
+  const way = anchors.map(lie).find(sp => sp !== 0xC0);
+  if (way && !e.alive) anchors = anchors.filter(f => lie(f) === way || lie(f) === 0xC0);
   const pool = anchors.length ? anchors : own;
   if (e.alive) {
     const row = facingReaderFrames(e.pt, own, pool, e.facing);
