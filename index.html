@@ -1294,7 +1294,6 @@ details:not([open]) > summary .mechFrom { display:none; }
 #sheetGrid button.heroSwatch.on { outline:2px solid var(--gold); outline-offset:-1px; }
 #sheetGrid button.heroShipped { padding:4px 8px !important; line-height:1.2 !important; font-size:0.6875rem !important; }
 .heroAny { width:32px; height:24px; margin:0 0 0 4px; padding:0; border:1px solid rgba(155,136,80,.35); border-radius:3px; background:#1a1712; cursor:pointer; }
-.heroDesc { width:100%; max-width:480px; box-sizing:border-box; margin:0 0 6px; }
 .gremlinForm { display:grid; grid-template-columns:max-content 1fr; gap:6px 10px; align-items:center; margin:6px 0 10px; max-width:640px; }
 .gremlinForm > span { font-size:0.8125rem; }
 .gremlinForm input.gremlinNum, #gremlinNum { width:5em; }
@@ -1311,7 +1310,25 @@ details:not([open]) > summary .mechFrom { display:none; }
    .mechSub's 0.6875rem: at eleven pixels Argos was hard to read on a line
    a visitor has to read to choose it (the maintainer, 16 October 2026).
    .fixFile is the file a fix changes, quiet by size. */
-.fixFile { color:#dcd8cc; font-size:0.6875rem; margin-left:6px; white-space:nowrap; }
+.fixText { display:flex; flex-direction:column; gap:2px; }
+.fixTitle { color:#fff; }
+.fixNote { color:#dcd8cc; font-size:0.75rem; }
+.fixMeta { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; font-size:0.6875rem; }
+.fixFile { color:#dcd8cc; white-space:nowrap; }
+.fixBadge { color:#f0ede4; border:1px solid rgba(155,136,80,.7); border-radius:8px; padding:0 6px; white-space:nowrap; }
+.fixPresets { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 4px; }
+#sheetGrid button.fixChip { width:auto; margin:0; padding:5px 12px !important; border-radius:14px; }
+#sheetGrid button.fixChipOn { outline:2px solid var(--gold); }
+.fixSearch { width:100%; max-width:420px; box-sizing:border-box; margin:6px 0 4px; }
+/* Your patch, pinned to the foot of the Build a Patch tab while it
+   scrolls, so what is in it and its download are always in reach. */
+.patchBar { position:sticky; bottom:0; z-index:5; margin:18px 0 0; padding:10px 12px; background:var(--panel); border:1px solid var(--edge); border-radius:8px; }
+.patchBarItems { display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; margin:0 0 8px; }
+.patchBarTitle { color:#fff; font-family:var(--face); font-size:1rem; margin-right:4px; }
+.patchBarChip { display:inline-flex; align-items:center; gap:4px; color:#fff; font-size:0.8125rem; border:1px solid rgba(155,136,80,.7); border-radius:12px; padding:1px 4px 1px 10px; }
+#sheetGrid button.patchBarX { width:auto; margin:0; padding:0 6px !important; min-width:0; line-height:1.2; }
+.patchBarRow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 4px; }
+.patchBarMore > summary { color:var(--gold); cursor:pointer; font-size:0.75rem; margin:4px 0 0; }
 .fixFold { margin:8px 0; }
 .fixFoldHead { display:flex; gap:8px; align-items:center; cursor:pointer; color:var(--gold); font-size:0.875rem; list-style:none; }
 .fixFoldHead::-webkit-details-marker { display:none; }

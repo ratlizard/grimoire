@@ -1420,7 +1420,7 @@ try {
   // is chosen, so a stand-in fork is passed through untouched.
   peek(`(() => { APPFIX_STATE.off = new Set(APP_FIXES.map(f => f.id)); BACKSTAGE_CHOSEN = new Set();
     const keep = window.CYTHERA_RSRC_RAW; if (!keep || !keep.length) window.CYTHERA_RSRC_RAW = new Uint8Array([1]);
-    window.SMOKE_DISK = fixedGameBuild(); window.SMOKE_DISK_WHY = document.getElementById('dataFixNote').textContent;
+    window.SMOKE_DISK = basketDisk(); window.SMOKE_DISK_WHY = document.getElementById('patchBarNote') ? document.getElementById('patchBarNote').textContent : '';
     window.CYTHERA_RSRC_RAW = keep; })()`);
   // The fixes built from Bryce Schroeder's published source carry his name;
   // the four of his patch written here from the causes do not.

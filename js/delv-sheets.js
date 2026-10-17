@@ -311,7 +311,7 @@ const MECH_GROUPS = [
    drawn only by that tab, so the group is kept apart from MECH_GROUPS: a
    Mechanics tab never lists it and the whole-sheet view does not include
    it. */
-const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Patches',
+const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Build a Patch',
   note: 'Cythera\u2019s official add-on system is the PowerPC application Magpie. It was released by Glenn Andreas alongside a sample patch \u201cPumpkin Patch\u201d, but specifications to create new patches were never released. The format has been reverse-engineered to make new patches possible, though Magpie is limited to editing the data fork of the Cythera Data file.',
   /* Three parts by use (the maintainer, 16 October 2026): the game's
      fixes, the patches that add or change content, and the sections that

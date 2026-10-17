@@ -1103,7 +1103,7 @@ const TAB_TREE = [
       // maintainer's pick; it was the cloth). It is not ours to ship,
       // so it is there once a Magpie archive has been opened on this device
       // (magpieIcon, which remembers it).
-      { id: 'patches', label: 'Patches', tile: 0x29A, magpie: 'DelP', values: ['PATCHES'] },
+      { id: 'patches', label: 'Build a Patch', tile: 0x29A, magpie: 'DelP', values: ['PATCHES'] },
       // The folder's own icon, a folder with an axe across it, drawn in 1999
       // for these files and no others; the rolling pin stands in before a
       // file is open.

@@ -339,6 +339,8 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     ['dialogue', "showCategory('23'); document.querySelector('#sheetGrid details').open = true; document.querySelector('#sheetGrid details').scrollIntoView()"],
     // Data > Patches, at the program's fixes: a list of long titles with
     // their words folded under each (28 September 2026).
+    ['patchbar', "showCategory('PATCHES'); document.getElementById('patchBar').scrollIntoView({ block: 'end' })"],
+    ['fixsearch', "showCategory('PATCHES'); const q = document.getElementById('fixSearch'); q.value = 'aethon'; q.oninput(); q.scrollIntoView()"],
     ['appfixes', "showCategory('PATCHES'); DATAFIX_STATE.open.add('interface'); renderDataFixMaker(); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; document.querySelector('.fixFold[open]').scrollIntoView()"],
     // Data > Patches, at the game's fixes, with the text and its options
     // chosen so the indented options and the buttons are drawn (28
