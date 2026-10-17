@@ -1209,8 +1209,11 @@ const DATA_FIXES = [
   // back." and the question after it is jumped over, so his "I hope you
   // enjoyed them", which waits on a sale, stays unsaid as before. The other
   // version is a joke patch of its own, deep_pipes_patch.mjs, which sells
-  // them; built on a file with this fix, its sale is never reached.
-  { id: 'tlepolemus-pipes', group: 'talk', stage: 'further', title: 'Tlepolemus now says he stopped playing the pan pipes, instead of offering a set he never sells',
+  // them; built on a file with this fix, its sale is never reached. Under
+  // Design Changes since 17 October 2026, at the maintainer's word: Philinus
+  // gives the party a set ("pipe", 0x1832), so the offer may be a path left
+  // when the pipes moved to his old friend rather than a slip.
+  { id: 'tlepolemus-pipes', group: 'design', stage: 'further', title: 'Tlepolemus now says he stopped playing the pan pipes, instead of offering a set he never sells',
     played: 'fork, 3 October 2026: "pan" to Tlepolemus in Odemia drew "I use to play the pan pipes, but stopped a while back." and no question after it; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "pan" to Tlepolemus drew "I use to play the pan pipes, but stopped a while back." and no question',
     plan: (s) => {
       const p = dataPatchPlace(s, 'Tlepolemus\u2019s offer', 0x1837, ['conversation_prompt "yn"', 'conversation_response "y" ->', 'string(implicit) "\\"Stop by some evening', 'conversation_response "n" ->']);
