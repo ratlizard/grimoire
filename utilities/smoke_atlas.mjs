@@ -292,9 +292,16 @@ try {
           !(peek('window.ATLAS_MOUTHS') || []).some(q => Math.hypot(x - q.x, y - q.y) <= q.rad + 4)) spot = { x, y };
     }
     peek('window.ATLAS_SEL = null');
+    // The stub's clock stands at 0, and two taps at one moment are a double
+    // tap (atlasDoubleTapZoom); this clock moves 4 ms a reading, and the
+    // second tap here comes a second after the first.
+    const clock = ctx.performance, stoppedNow = clock.now;
+    let T = 1e6; clock.now = () => (T += 4);
     const tap = (x, y) => { on.pointerdown(ev(1, x, y)); on.pointerup(ev(1, x, y)); return peek('window.ATLAS_SEL'); };
     const picked = spot && tap(spot.x, spot.y);
+    T += 1000;
     const cleared = spot && tap(spot.x, spot.y);
+    T += 1000;
     let afterPinch = 'not run';
     if (spot) {
       on.pointerdown(ev(1, spot.x, spot.y));
@@ -309,6 +316,43 @@ try {
     else if (!picked || cleared !== null) fail('atlas pinch', 'a one-finger tap did not pick and a second clear, so the pinch check proves nothing: ' + JSON.stringify([picked, cleared]));
     else if (afterPinch !== null) fail('atlas pinch', 'lifting out of a pinch picked a square: ' + JSON.stringify(afterPinch));
     else console.log('  atlas: a tap picks, a second clears, and lifting out of a pinch picks nothing');
+    // A double tap on open ground zooms in twice about the point; a drag let
+    // go moving flings on past where the finger stopped, and stops; one let
+    // go still does not (the maintainer, 17 October 2026). Tried: with the
+    // double tap's branch taken out the first fails, and with atlasFling
+    // never called the second.
+    if (spot) {
+      peek('atlasFit')(); peek('window.ATLAS_SEL = null'); T += 1000;
+      ctx.ATLAS_NO_ANIM = true;
+      const z0 = av3.Z;
+      tap(spot.x, spot.y); tap(spot.x, spot.y);
+      const zDouble = av3.Z / z0;
+      ctx.ATLAS_NO_ANIM = false;
+      T += 1000;
+      // A drag at 1 px/ms, to the right, let go moving.
+      const drag = (speed) => {
+        on.pointerdown(ev(1, spot.x, spot.y));
+        let x = spot.x;
+        for (let k = 0; k < 8; k++) { T += 16; x += speed * 16; on.pointermove(ev(1, x, spot.y)); }
+        const before = av3.x;
+        on.pointerup(ev(1, x, spot.y));
+        for (let i = 0; i < 10; i++) { drainRaf(); if (!peek('_atlasFling')) break; }
+        return { carried: av3.x - before, still: !peek('_atlasFling') && !av3.touching };
+      };
+      // Over the middle of the island, so the bounds do not stop it.
+      { const lb = peek('atlasLandBounds')(), vpf = REGISTRY.get('atlasViewport');
+        const Zf = av3.Z * 8, w = (vpf && vpf.clientWidth) || 300, h = (vpf && vpf.clientHeight) || 300;
+        av3.Z = Zf; av3.x = w / 2 - (lb.x0 + lb.x1) / 2 * Zf; av3.y = h / 2 - (lb.y0 + lb.y1) / 2 * Zf; }
+      const fl = drag(1);
+      T += 1000;
+      const fl0 = drag(0.05);
+      peek('atlasFit')(); ctx.paintAtlas();
+      if (Math.abs(zDouble - 2) > 0.01) fail('atlas', 'a double tap on open ground zoomed ' + zDouble.toFixed(2) + 'x, not 2x');
+      else if (!(fl.carried > 20) || !fl.still) fail('atlas', `a drag let go at 1 px/ms carried on ${fl.carried.toFixed(1)} px and ${fl.still ? 'stopped' : 'is still going'}`);
+      else if (Math.abs(fl0.carried) > 0.5) fail('atlas', 'a drag let go slowly carried on ' + fl0.carried.toFixed(1) + ' px');
+      else console.log(`  atlas: a double tap zooms in 2x, a drag let go moving carries on ${fl.carried.toFixed(0)} px and stops, and a slow one does not`);
+    }
+    clock.now = stoppedNow;
     /* A tap anywhere in a town's circle goes in (29 September 2026), not
        only inside its map's rectangle: a point in the circle's rim beside
        the rectangle is tapped, and the town flies in; a point just past the
@@ -883,6 +927,40 @@ try {
       if (worldDrawn || !(borderOn > 0.9) || Math.abs(backZ - cap) > 1e-6)
         fail('atlas', `past the world's art: world drawn ${worldDrawn}, Cademia's border at ${borderOn}, a drag off the town left the zoom at ${backZ} (want false, 1, ${cap})`);
       else console.log(`  atlas: past ${cap} px a square the world is not drawn and Cademia's border is, and a drag off the town backs out to ${cap}`);
+      // The circle hint waits for a circle on the screen (none at the whole
+      // island's zoom), and a tap into a town makes its render on the way
+      // in; the largest place's render is kept whatever else is rendered
+      // (the maintainer, 17 October 2026, Cademia blurred after a tap).
+      // Tried: with the hint shown from the first paint the first part
+      // fails; with atlasRenderTick holding off for the fly-in the second;
+      // and with zoneCachePut evicting Cademia the third.
+      {
+        ctx.__peek('_atlasEnterShown = false');
+        peek('atlasFit')(); peek('paintAtlas')(); drainRaf();
+        const atFit = peek('_atlasEnterShown');
+        const rC2 = peek('atlasRect')(cad2, av2);
+        av2.Z *= 3; { const r3 = peek('atlasRect')(cad2, av2); av2.x += W / 2 - (r3.x + r3.w / 2); av2.y += H / 2 - (r3.y + r3.h / 2); }
+        peek('paintAtlas')(); drainRaf();
+        const nearer = peek('_atlasEnterShown');
+        void rC2;
+        // The render during a fly-in.
+        const cache = peek('zoneMapCache');
+        cache.delete(cad2.resid); ctx.ATLAS_RENDER_JOB = null;
+        ctx._atlasAnimating = true; ctx._atlasFlyTo = cad2.resid;
+        peek('atlasRenderStep')(cad2.resid);
+        for (let i = 0; i < 4000 && !cache.has(cad2.resid); i++) peek('atlasRenderTick')();
+        const madeInFlight = cache.has(cad2.resid);
+        ctx._atlasAnimating = false; ctx._atlasFlyTo = null; ctx.ATLAS_RENDER_JOB = null; drainRaf();
+        // Kept against five other places rendered after it.
+        const others = peek('atlasScene')().nodes.filter(n => n.depth && n.resid !== cad2.resid).slice(0, 5);
+        for (const n of others) peek('mapRenderFor')(n.resid, true);
+        const kept = cache.has(cad2.resid) && cache.has(peek('WORLD_MAP_RESID'));
+        peek('atlasFit')(); peek('paintAtlas')(); drainRaf();
+        if (atFit || !nearer) fail('atlas', `the circle hint at the whole island: ${atFit}; with circles on screen: ${nearer} (want false, true)`);
+        else if (!madeInFlight) fail('atlas', 'a fly-in to Cademia did not make its render on the way');
+        else if (!kept) fail('atlas', 'rendering five other places evicted Cademia\'s render or the world\'s');
+        else console.log('  atlas: the circle hint waits for a circle on the screen; a fly-in makes the town\'s render on the way, and Cademia\'s is kept');
+      }
       Object.assign(av2, was);
       ctx.__peek('atlasMovedAt = 0');
       peek('paintAtlas')(); drainRaf();

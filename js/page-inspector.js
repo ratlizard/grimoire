@@ -1103,8 +1103,8 @@ function atlasPrefetchRender() {
   if (window.CUR_SUBN !== 'WORLD' || window.ATLAS_RENDER_JOB || atlasRendersInUse()) return;
   const sc = DERIVED.ATLAS_SCENE;
   if (!sc) return;
-  let best = null;
-  for (const n of sc.nodes) if (n.depth && (!best || n.w * n.h > best.w * best.h)) best = n;
+  const big = atlasLargestPlace();
+  const best = big === null ? null : sc.nodes.find(n => n.resid === big);
   if (!best || zoneMapCache.has(best.resid)) return;
   atlasWhenStill(() => {
     if (window.CUR_SUBN === 'WORLD' && !window.ATLAS_RENDER_JOB && !zoneMapCache.has(best.resid) &&
@@ -1115,7 +1115,8 @@ function atlasRenderTick() {
   const j = window.ATLAS_RENDER_JOB;
   if (!j) return;
   if (j.arc !== ARCHIVE || j.walls !== !!window.MAP_WALLS || zoneMapCache.has(j.resid)) { window.ATLAS_RENDER_JOB = null; return; }
-  if (atlasInMotion()) { requestAnimationFrame(atlasRenderTick); return; }
+  // A fly-in to this town (atlasZoomIntoTown) is no finger: let it through.
+  if (atlasInMotion() && !(window._atlasFlyTo === j.resid && !atlasView.touching)) { requestAnimationFrame(atlasRenderTick); return; }
   const t0 = performance.now();
   try {
     if (!j.gen) {
@@ -1163,11 +1164,27 @@ function mapRenderFor(resid, cache) {
 // Keep a render, making room the way the cache always has: oldest first,
 // never the world's.
 function zoneCachePut(resid, entry) {
+  // The largest place on the surface is kept as well as the world, outside
+  // iOS, and has a slot of its own (17 October 2026). Cademia's render is
+  // four times any other town's, so it was the one a visitor waited for
+  // after a tap, and on a phone a few other places looked at evicted it
+  // and its prefetch: the maintainer saw it blurred for over a second.
+  const big = IS_IOS_WEBKIT ? null : atlasLargestPlace();
+  const keep = ZONE_CACHE_KEEP + (big !== null && (resid === big || zoneMapCache.has(big)) ? 1 : 0);
   for (const k of zoneMapCache.keys()) {
-    if (zoneMapCache.size < ZONE_CACHE_KEEP) break;
-    if (k !== WORLD_MAP_RESID) zoneMapCache.delete(k);
+    if (zoneMapCache.size < keep) break;
+    if (k !== WORLD_MAP_RESID && k !== big) zoneMapCache.delete(k);
   }
   zoneMapCache.set(resid, entry);
+}
+// The place on the surface with the largest map, or null before the
+// World tab's scene is built.
+function atlasLargestPlace() {
+  const sc = DERIVED.ATLAS_SCENE;
+  if (!sc) return null;
+  let best = null;
+  for (const n of sc.nodes) if (n.depth && (!best || n.w * n.h > best.w * best.h)) best = n;
+  return best ? best.resid : null;
 }
 
 /* A render nobody else holds a reference to.

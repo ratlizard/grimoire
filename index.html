@@ -1586,6 +1586,20 @@ body.atlasFull { overflow:hidden; }
 @keyframes atlasHintDownLeft { 0% { transform:translate(5px, -3.2px); opacity:0; } 25% { opacity:1; }
   100% { transform:translate(-13px, 8.2px); opacity:0; } }
 @media (prefers-reduced-motion: reduce) { #atlasZoomHint.shown .zhArrow { animation:none; } }
+/* The hint that a circle is a way in (atlasEnterHintShow): the pinch
+   hint's bare text at the bottom of the map, after a white ring with a
+   tap's ripple spreading from it. */
+#atlasEnterHint { position:absolute; left:50%; bottom:22px; transform:translateX(-50%); z-index:6;
+  display:flex; align-items:center; gap:10px; color:#fff; font-size:1.0625rem; white-space:nowrap;
+  text-shadow:0 0 3px #000, 0 0 6px #000, 0 1px 2px #000; pointer-events:none;
+  opacity:0; transition:opacity .4s; }
+#atlasEnterHint.shown { opacity:1; }
+#atlasEnterHint .ehRing { position:relative; display:block; width:16px; height:16px; border:2px solid #fff; border-radius:50%;
+  box-shadow:0 0 3px #000, inset 0 0 3px #000; }
+#atlasEnterHint .ehRing::after { content:''; position:absolute; inset:-2px; border:2px solid #fff; border-radius:50%; opacity:0; }
+#atlasEnterHint.shown .ehRing::after { animation:atlasHintRipple 1.4s ease-out infinite; }
+@keyframes atlasHintRipple { 0% { transform:scale(1); opacity:.9; } 100% { transform:scale(2.4); opacity:0; } }
+@media (prefers-reduced-motion: reduce) { #atlasEnterHint.shown .ehRing::after { animation:none; } }
 /* The row under the map sat straight on the planks and its two buttons ran
    off the right of a phone: it wraps now, and has the bar's own dark ground. */
 #atlasZoomRow, #atlasTimeRow { flex-wrap:wrap; row-gap:6px; margin:6px 0 0; padding:6px 10px;
@@ -2476,7 +2490,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
         </div>
         <div id="atlasPanel" style="display:none">
           <div id="atlasBar" style="display:none"></div>
-          <div id="atlasViewport"><div id="atlasHover"></div><div id="atlasFade"></div><div id="atlasZoomHint"></div></div>
+          <div id="atlasViewport"><div id="atlasHover"></div><div id="atlasFade"></div><div id="atlasZoomHint"></div><div id="atlasEnterHint"></div></div>
           <div id="atlasFullOverlay" style="display:none">
             <button class="secondary" id="atlasFullUp" style="display:none;width:auto;margin:0;padding:5px 9px" onclick="atlasRiseOut()">Up</button>
             <span id="atlasFullWhere"></span>
@@ -2590,7 +2604,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.307.0';
+const GRIMOIRE_VERSION = '1.308.0';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

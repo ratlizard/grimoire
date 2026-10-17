@@ -833,7 +833,8 @@ function paintAtlas() {
   }
   for (const it of items) if (it.border) dimAtlasBorder(ctx, it.node, it.r, it.border, vw, vh, items);
   const mouths = atlasPaintMouths(ctx, drawn, vw, vh);
-  atlasPaintTowns(ctx, drawn, vw, vh);
+  const rings = atlasPaintTowns(ctx, drawn, vw, vh);
+  if ((rings || mouths.some(q => q.x >= 0 && q.y >= 0 && q.x <= vw && q.y <= vh)) && !_atlasEnterShown) atlasEnterHintShow();
   atlasPaintSelection(ctx, drawn);
   atlasLabels(ctx, drawn, vw, vh);
   window.ATLAS_DRAWN = drawn;
@@ -1935,16 +1936,20 @@ function atlasTownAt(px, py) {
   }
   return hit;
 }
+// Returns how many rings it drew, for the circle hint.
 function atlasPaintTowns(ctx, drawn, vw, vh) {
-  if (atlasBelowTop()) return;
+  if (atlasBelowTop()) return 0;
+  let n = 0;
   for (const { node, r } of drawn) {
     if (!node.depth || r.w >= 540) continue;
     const { cx, cy, rad } = atlasTownRing(r);
     if (cx + rad < 0 || cy + rad < 0 || cx - rad > vw || cy - rad > vh) continue;
+    n++;
     ctx.strokeStyle = 'rgba(196,164,100,.85)';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.stroke();
   }
+  return n;
 }
 
 /* The names.
@@ -2130,6 +2135,31 @@ function atlasZoomHintShow() {
   hint.classList.add('shown');
   if (_atlasHintTimer) clearTimeout(_atlasHintTimer);
   _atlasHintTimer = setTimeout(atlasZoomHintHide, 8000);
+}
+/* The hint that a circle is a way in (the maintainer, 17 October 2026: a
+   tap or click on a circle to enter, below the island, in the pinch hint's
+   style). The circles are not drawn at the whole island's zoom, where a
+   town is a few pixels across, so the hint waits for the first paint that
+   draws one on the screen (paintAtlas), once a visit. It goes when a
+   circle is taken, and after eight seconds. */
+let _atlasEnterShown = false, _atlasEnterTimer = null;
+function atlasEnterHintShow() {
+  _atlasEnterShown = true;
+  const hint = document.getElementById('atlasEnterHint');
+  if (!hint) return;
+  let touch = false;
+  try { touch = matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) { quiet(e); }
+  hint.innerHTML = '<span class="ehRing"></span><span>' + (touch ? 'Tap' : 'Click') + ' a circle to enter</span>';
+  hint.classList.add('shown');
+  if (_atlasEnterTimer) clearTimeout(_atlasEnterTimer);
+  _atlasEnterTimer = setTimeout(() => atlasEnterHintHide(), 8000);
+}
+// `done`: a circle was taken, so the hint is not wanted this visit.
+function atlasEnterHintHide(done) {
+  if (done) _atlasEnterShown = true;
+  if (_atlasEnterTimer) { clearTimeout(_atlasEnterTimer); _atlasEnterTimer = null; }
+  const hint = document.getElementById('atlasEnterHint');
+  if (hint) hint.classList.remove('shown');
 }
 function atlasZoomHintHide() {
   if (_atlasHintTimer) { clearTimeout(_atlasHintTimer); _atlasHintTimer = null; }
@@ -2501,6 +2531,7 @@ function atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0) {
    of one to the map the ring names. Both are drawn as the fall and the rise. */
 function atlasTakeMouth(m, node) {
   if (window._atlasAnimating) return;
+  atlasEnterHintHide(true);
   if (m.dest.resid === node.resid) atlasCrossWithin(m, node);
   else if (m.up) atlasRiseVia(m, node);
   else atlasFallInto(m, node);
@@ -2630,8 +2661,17 @@ function atlasZoomIntoTown(node) {
   const want = Math.max(600, Math.min(vw, vh) * 0.95);
   const z1 = Math.min(atlasMaxZ(), want / (node.w * node.s));
   if (z1 <= z0 * 1.02) return;
+  atlasEnterHintHide(true);
+  // The town's render is made during the fly-in, not after it (the
+  // maintainer, 17 October 2026: Cademia blurred for over a second after a
+  // tap on Android). atlasRenderTick holds off while the view moves, for a
+  // finger's sake; a fly-in is no finger, so the town it flies to is let
+  // through (window._atlasFlyTo). With Cademia's render dropped, in the
+  // probe at a quarter speed it had landed and then taken 420 ms more.
+  window._atlasFlyTo = node.resid;
+  if (!zoneMapCache.has(node.resid)) atlasRenderStep(node.resid);
   atlasAnimateTo(e => atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0), Math.round(window.ATLAS_TUNE.animMs * 0.7),
-    () => { atlasSyncZoomLabel(); paintAtlas(); });
+    () => { window._atlasFlyTo = null; atlasSyncZoomLabel(); paintAtlas(); });
 }
 function atlasRiseOut() {
   const b = atlasBelowTop();
@@ -2729,6 +2769,58 @@ function atlasClampView() {
   const nx = Math.max(b.x0, Math.min(b.x1, wx)), ny = Math.max(b.y0, Math.min(b.y1, wy));
   if (nx !== wx) atlasView.x = cx - nx * Z;
   if (ny !== wy) atlasView.y = cy - ny * Z;
+}
+
+/* A fling, and a double tap (the maintainer, 17 October 2026).
+
+   A drag let go while still moving carries on and slows, the way a map on
+   a phone does: the speed over the last tenth of a second of the drag,
+   losing 0.4% a millisecond (about a quarter of a second to halve, some
+   250 px of travel from 1 px/ms), through atlasPanBy, so the island's
+   bounds stop it. It counts as a finger on the glass (atlasView.touching)
+   so that tiles and renders wait for it as they wait for a pan. Any new
+   touch, click or wheel stops it, and when it stops the back-out after a
+   drag (atlasSettleZoom) runs.
+
+   A second tap within a third of a second, near the first, zooms in twice
+   about the point, if the first picked a square; after one that took a
+   ring or a town the second is let go, since the first is already going
+   somewhere. */
+let _atlasFling = null;
+function atlasFling(vx, vy) {
+  atlasFlingStop();
+  const f = { vx, vy, t: performance.now() };
+  _atlasFling = f;
+  atlasView.touching = true;
+  const step = () => {
+    if (_atlasFling !== f) return;
+    const now = performance.now();
+    const dt = Math.min(48, Math.max(0, now - f.t)); f.t = now;
+    const x0 = atlasView.x, y0 = atlasView.y;
+    atlasPanBy(f.vx * dt, f.vy * dt);
+    const k = Math.pow(0.996, dt); f.vx *= k; f.vy *= k;
+    const stuck = Math.abs(atlasView.x - x0) + Math.abs(atlasView.y - y0) < 0.1 && dt > 0;
+    if (stuck || Math.hypot(f.vx, f.vy) < 0.03) { atlasFlingStop(); atlasSettleZoom(); return; }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+function atlasFlingStop() {
+  if (!_atlasFling) return;
+  _atlasFling = null;
+  atlasView.touching = false;
+  schedulePaintAtlas();
+}
+function atlasDoubleTapZoom(px, py) {
+  if (window._atlasAnimating) return;
+  const z0 = atlasView.Z, z1 = Math.min(z0 * 2, Math.max(atlasMaxZAt(px, py), z0));
+  if (z1 <= z0 * 1.01) return;
+  _atlasZoomed = true; atlasZoomHintHide();
+  const wx = (px - atlasView.x) / z0, wy = (py - atlasView.y) / z0;
+  atlasAnimateTo(e => {
+    const z = z0 * Math.pow(z1 / z0, e);
+    atlasView.Z = z; atlasView.x = px - wx * z; atlasView.y = py - wy * z;
+  }, 250, () => { atlasClampView(); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
 }
 
 function atlasPanBy(dx, dy) {
@@ -2982,6 +3074,9 @@ function setupAtlasInteraction() {
   // both gestures ask the question a resting mouse asks. Sliding is a pan.
   // The hold neither pans nor opens the inspector; the tap does both.
   let holdTimer = null, peeking = false;
+  // The drag's last positions, for a fling's speed; the last tap, for a
+  // double tap (atlasFling, atlasDoubleTapZoom).
+  let trail = [], lastTap = null;
   const endHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
   const setTouching = on => {
     if (atlasView.touching === on) return;
@@ -2992,7 +3087,8 @@ function setupAtlasInteraction() {
                        return { x: e.clientX - r.left, y: e.clientY - r.top }; };
   vp.addEventListener('pointerdown', e => {
     if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
-    if (!pts.size) { atlasGestureBegin(); moved = 0; multi = false; }
+    atlasFlingStop();
+    if (!pts.size) { atlasGestureBegin(); moved = 0; multi = false; trail = []; }
     pts.set(e.pointerId, local(e));
     if (pts.size > 1) multi = true;
     endHold(); peeking = false;
@@ -3033,6 +3129,8 @@ function setupAtlasInteraction() {
         atlasZoomAround(pinchZ * (d / pinchDist), (p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2);
     } else {
       moved += Math.abs(now.x - prev.x) + Math.abs(now.y - prev.y);
+      trail.push({ t: performance.now(), x: now.x, y: now.y });
+      if (trail.length > 8) trail.shift();
       if (moved >= 6) endHold();
       atlasPanBy(now.x - prev.x, now.y - prev.y);
     }
@@ -3049,6 +3147,13 @@ function setupAtlasInteraction() {
     if (peeking) { peeking = false; return; }
     if (had && moved < 6 && !multi) {
       const p = local(e);
+      const tapT = performance.now();
+      if (lastTap && tapT - lastTap.t < 320 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 30) {
+        const kind = lastTap.kind; lastTap = null;
+        atlasGesture.active = false;
+        if (kind === 'pick') atlasDoubleTapZoom(p.x, p.y);
+        return;
+      }
       // A mouth first: it is a small target drawn over the ground, and a tap
       // on it means the way down rather than the square it sits on.
       // The nearest ring, not the first in the list: rings stand side by
@@ -3059,20 +3164,29 @@ function setupAtlasInteraction() {
         const d = Math.hypot(p.x - q.x, p.y - q.y);
         if (d <= q.rad && d < hitD) { hit = q; hitD = d; }
       }
-      if (hit) { atlasGesture.active = false; atlasTakeMouth(hit.m, hit.node); return; }
+      if (hit) { lastTap = { t: tapT, x: p.x, y: p.y, kind: 'enter' }; atlasGesture.active = false; atlasTakeMouth(hit.m, hit.node); return; }
       // A town still wearing its roofs: a tap anywhere in its circle goes
       // in until they come off, the way a ring goes into a cave, without
       // the fall to black.
       const town = atlasTownAt(p.x, p.y);
-      if (town) { atlasGesture.active = false; atlasZoomIntoTown(town); return; }
+      if (town) { lastTap = { t: tapT, x: p.x, y: p.y, kind: 'enter' }; atlasGesture.active = false; atlasZoomIntoTown(town); return; }
+      lastTap = { t: tapT, x: p.x, y: p.y, kind: 'pick' };
       atlasInspect(p.x, p.y);
       // A tap is the hover on a touch screen -- see the map panel's
       // clearPointer for the reasoning; this is the same gesture.
       if (e.pointerType !== 'mouse') atlasHover(e.clientX, e.clientY, true);
     }
     if (!pts.size) atlasGestureEnd();
-    // A drag that left the place it was zoomed into backs out.
-    if (!pts.size && had && moved >= 6 && !multi) atlasSettleZoom();
+    // A drag let go while moving flings; one let go still, and the fling
+    // when it stops, backs out of a place it left (atlasSettleZoom).
+    if (!pts.size && had && moved >= 6 && !multi) {
+      const tEnd = performance.now(), recent = trail.filter(q => tEnd - q.t <= 100);
+      const a = recent[0], b = recent[recent.length - 1];
+      const dt = a && b ? b.t - a.t : 0;
+      const vx = dt > 0 ? (b.x - a.x) / dt : 0, vy = dt > 0 ? (b.y - a.y) / dt : 0;
+      if (dt >= 16 && tEnd - b.t < 50 && Math.hypot(vx, vy) > 0.35) atlasFling(vx, vy);
+      else atlasSettleZoom();
+    }
   };
   vp.addEventListener('pointerup', up);
   vp.addEventListener('pointercancel', e => { pts.delete(e.pointerId); endHold(); peeking = false; hideAtlasHover(); if (!pts.size) { setTouching(false); atlasGestureEnd(); } });
@@ -3084,6 +3198,7 @@ function setupAtlasInteraction() {
   vp.addEventListener('wheel', e => {
     if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') return;
     e.preventDefault();
+    atlasFlingStop();
     const p = local(e);
     atlasGestureTouch();
     atlasZoomAround(atlasView.Z * (e.deltaY > 0 ? 0.9 : 1.1), p.x, p.y);
