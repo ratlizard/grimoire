@@ -782,3 +782,22 @@ const APP_FIXES = [
     played: 'fork, PowerPC, 9 October 2026: a save of Cademia opened and saved again has the same clock, where the unpatched program writes it fifteen units on; a new game opens on the king\u2019s welcome as before',
     sites: [{ at: 0x14634, was: [0x3880000F], asm: ['li 4, 0                ; nothing for HeartBeat to spend'] }] },
 ];
+
+/* Which of the Patches tab's lists (DATA_FIX_GROUPS, js/delv-datafixes.js)
+   each fix is shown in, by what it does in play, since the program's fixes
+   and Cythera Data's became one list (the maintainer, 16 October 2026).
+   A hook, a text fix, the menus and a design change go by their kind; a
+   fix of kind `fix` is named in APP_FIX_GROUP. The smoke fails on a fix
+   that resolves to no list. */
+const APP_FIX_KIND_GROUP = { hook: 'hidden', text: 'text', menu: 'interface', change: 'design' };
+const APP_FIX_GROUP = {
+  'option-p': 'interface', 'option-x': 'interface', 'drag-northwest': 'interface', 'books-window': 'interface',
+  'take-window': 'interface', 'roster-pose': 'interface', 'tab-pane': 'interface', 'gamepad-keys': 'interface',
+  'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'widget-renumber': 'interface',
+  'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface',
+  'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
+  'target-hunger': 'world', 'sleep-hidden': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
+  'corpse-light': 'rules', 'spell-glow': 'rules',
+  'menu-scroll': 'talk', 'menu-items': 'talk', 'name-fit': 'talk', 'speech-clear': 'talk',
+};
+function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }

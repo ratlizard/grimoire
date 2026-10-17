@@ -102,8 +102,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // The alignment's names: the AI's groups by the value each compares.
       else if ((a => !a || ['neutral', 'evil', 'good', 'feral'].some((n, v) => !a.byValue[v] || a.byValue[v].name !== n || !inRoutine(a.byValue[v].at, 'SCombatAIEntry::CalculateObject')))(ctx.exeAlignmentNames()))
         fail('program figures', 'the alignments were misnamed: ' + JSON.stringify(ctx.exeAlignmentNames()));
-      // The files beside the game (exePatchFiles), which the Patches tab's
-      // first section states: Cythera Data and Cythera Patch by STR 129 and
+      // The files beside the game (exePatchFiles), which Patch Types, on the Patches tab,
+      // states: Cythera Data and Cythera Patch by STR 129 and
       // 130 in PostInitMac, the patch list STR# 129 of nine names and User
       // Custom Data in OpenScenFile, each in the routine that holds it; and
       // the section drawing all three names.
@@ -111,7 +111,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
                   !inRoutine(p.patch.id, 'TDelverApp::PostInitMac') || !p.list || p.list.v !== 129 || !p.count || p.count.v !== 9 || !inRoutine(p.list, 'TDelverApp::OpenScenFile') ||
                   !p.custom || p.custom.v !== 'User Custom Data' || !inRoutine(p.custom, 'TDelverApp::OpenScenFile'))(ctx.exePatchFiles()))
         fail('program figures', 'the files beside the game were misread: ' + JSON.stringify(ctx.exePatchFiles()));
-      else if ((ctx.showCategory('PATCHES'), (h => !/Three Ways to Patch the Game/.test(h) || !/Cythera Patch/.test(h) || !/User Custom Data/.test(h) || !/listing up to /.test(h))(all(REGISTRY.get('sheetGrid')))))
+      else if ((ctx.showCategory('PATCHES'), (h => !/Patch Types/.test(h) || !/Cythera Patch/.test(h) || !/User Custom Data/.test(h) || !/listing up to /.test(h))(all(REGISTRY.get('sheetGrid')))))
         fail('program figures', 'the Patches tab does not say the three ways a patch reaches the game');
       // A unit's flags as the creature moves (exeUnitMoveRules): CanMove's
       // five rules, unit bits against square bits, and the two tests of the

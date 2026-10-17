@@ -1990,14 +1990,15 @@ function dataFixMark(f) {
   return ' (' + f.by + '\u2019s fix' + (!f.played ? ', untested' : fixPlayedInPart(f) ? ', partially tested' : '') + ')';
 }
 function appFixChosen() { return APP_FIXES.filter(f => !window.APPFIX_STATE.off.has(f.id)); }
+// One note under the one list, the data fixes' (dataFixSay).
 function appFixSay(m, bad) {
-  const note = document.getElementById('appFixNote');
+  const note = document.getElementById('dataFixNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
 }
 function appFixToggle(id, on) {
   const off = window.APPFIX_STATE.off;
   if (on) off.delete(id); else off.add(id);
-  renderAppFixMaker();
+  renderDataFixMaker();
 }
 function appFixOpenFile(file) {
   if (!file) return;
@@ -2008,7 +2009,7 @@ function appFixOpenFile(file) {
       return;
     }
     window.APPFIX_STATE.src = { data: c.data, rsrc: c.rsrc, name: file.name, type: c.type || 'APPL', creator: c.creator || 'Delv' };
-    renderAppFixMaker();
+    renderDataFixMaker();
     if (document.getElementById('spanishMaker')) renderSpanishMaker();
     appFixSay('');
   }).catch(e => appFixSay('That file could not be read: ' + e.message, true));
@@ -2021,21 +2022,6 @@ function appFixBuild() {
   if (!chosen.length) { appFixSay('Nothing is chosen, so there is nothing to write.', true); return null; }
   try { return Object.assign(applyAppFixes(src, chosen), { src, chosen }); }
   catch (e) { appFixSay(e.message, true); return null; }
-}
-function appFixDownload(asDisk) {
-  const r = appFixBuild();
-  if (!r) return null;
-  const name = 'Cythera';
-  if (asDisk) {
-    const image = writeHfsImage({ volumeName: 'Cythera Fixed', entries: [{ name, type: r.src.type, creator: r.src.creator, data: r.data, rsrc: r.rsrc }] });
-    dlBlob(new Blob([image], { type: 'application/octet-stream' }), 'Cythera Fixed.dsk');
-  } else {
-    const bin = writeMacBinary({ name, type: r.src.type, creator: r.src.creator, data: r.data, rsrc: r.rsrc });
-    dlBlob(new Blob([bin], { type: 'application/macbinary' }), 'Cythera (fixed).bin');
-  }
-  const grown68 = r.applied.reduce((n, a) => n + (a.m68k ? a.m68k.caves.reduce((k, c) => k + c.length, 0) : 0), 0);
-  appFixSay(r.chosen.length + ' fixes written; the PowerPC code is ' + r.grownBy + ' bytes longer and the 68K code ' + grown68 + '.');
-  return r;
 }
 // The words a fix writes, as the decoder reads them back.
 function appFixListing(a) {
@@ -2094,67 +2080,6 @@ function dataFixEditListing(f) {
     (typeof e.code === 'string' ? '  ' + e.code : '') +
     (e.what ? '  (' + e.what + ')' : '')).filter(Boolean).join('\n');
 }
-function renderAppFixMaker() {
-  const host = document.getElementById('appFixMaker');
-  if (!host) return;
-  host.innerHTML = '';
-  const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
-  const src = appFixSource(), st = window.APPFIX_STATE;
-  host.appendChild(el('p', 'mechSub', src ? 'The program from ' + src.name + '.' : 'No program is open. Choose one, or open the installer.'));
-  // A trial run, so each fix can show what it writes and a refusal shows before a download.
-  let trial = null, why = '';
-  if (src) { try { trial = applyAppFixes(src, APP_FIXES); } catch (e) { why = e.message; } }
-  if (why) host.appendChild(el('p', 'mechSub patchBad', why));
-  const kinds = [['fix', 'Bugs'], ['hook', 'Hooks'], ['text', 'Text'], ['menu', 'Menus'], ['change', 'Design Changes']];
-  const kindNotes = { change: 'These are bug fixes for aspects that might actually be intentional, or for which the issue necessitates a creative solution. None is chosen until you choose it.' };
-  for (const [kind, heading] of kinds) {
-    const list = APP_FIXES.filter(f => f.kind === kind);
-    if (!list.length) continue;
-    const picked = list.filter(f => !st.off.has(f.id)).length;
-    const fold = fixFold(st.open, kind, heading, picked + ' of ' + list.length);
-    fold.sum.appendChild(fold.t); fold.sum.appendChild(fold.n);
-    host.appendChild(fold.d);
-    if (kindNotes[kind]) fold.d.appendChild(el('p', 'mechSub', kindNotes[kind]));
-    for (const f of list) {
-      const row = el('div', 'appFixRow');
-      const label = el('label', 'mechSub');
-      const box = document.createElement('input');
-      box.type = 'checkbox'; box.checked = !st.off.has(f.id);
-      box.onchange = function () { appFixToggle(f.id, box.checked); };
-      label.appendChild(box);
-      label.appendChild(el('span', '', ' ' + f.title + appFixMark(f)));
-      row.appendChild(label);
-      /* What the fix writes, the PowerPC words and the 68K changes in one
-         listing behind the line's "changes". They were two folds a line,
-         "N words" and "68K program", which took a row each and named the
-         machine's unit rather than the change (the maintainer,
-         16 October 2026). */
-      const a = trial && trial.applied.find(x => x.id === f.id);
-      const parts = [];
-      if (a && a.words.length) parts.push('PowerPC\n' + appFixListing(a));
-      if (a && a.m68k) parts.push('68K\n' + appFix68kListing(a.m68k));
-      if (parts.length) fixChangesLink(row, label, parts.join('\n\n'));
-      fold.d.appendChild(row);
-    }
-  }
-  const bar = el('div', 'mechStats');
-  const btn = (label, fn) => {
-    const b = document.createElement('button');
-    b.className = 'secondary';
-    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
-    b.textContent = label;
-    b.onclick = fn;
-    bar.appendChild(b);
-  };
-  btn('Download for a Mac', function () { appFixDownload(false); });
-  btn('Download as a disk image', function () { appFixDownload(true); });
-  const inp = document.createElement('input');
-  inp.type = 'file'; inp.id = 'appFixFile'; inp.accept = '*/*';
-  inp.onchange = function () { appFixOpenFile(inp.files && inp.files[0]); };
-  bar.appendChild(inp);
-  host.appendChild(bar);
-}
-
 /* ---- Cythera Data in Spanish ----
    js/delv-translate.js writes a translation into both forks and
    js/delv-es.js is the Spanish, keyed by a hash of each English piece, so
@@ -2247,56 +2172,14 @@ function spanishProgramDownload(both) {
     return p;
   }).catch(e => { spanishSay(e.message, true); return null; });
 }
-/* Behind the Scenes (DATA_RSRC_FIXES): a fix a line, each ticked to start,
-   and the corrected file for a Mac or as a disk image, written as the
-   Spanish copy is. The ticks are kept for the session. */
+/* The fixes to Cythera Data's resource fork (DATA_RSRC_FIXES), which no
+   patch reaches: in the one list with the rest, each ticked to start, and
+   written by the fixed game's download alone. They were a section of their
+   own, Behind the Scenes, until 16 October 2026. Kept for the session. */
 window.BACKSTAGE_CHOSEN = window.BACKSTAGE_CHOSEN || new Set(DATA_RSRC_FIXES.map(f => f.id));
-function backstageSay(m, bad) {
-  const note = document.getElementById('backstageNote');
-  if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
-}
-function backstageDownload(asDisk) {
-  if (!ARCHIVE) { backstageSay('No game file is open.', true); return null; }
-  const ids = [...window.BACKSTAGE_CHOSEN];
-  if (!ids.length) { backstageSay('Choose a fix first.', true); return null; }
-  let r;
-  try { r = applyDataRsrcFixes(window.CYTHERA_RSRC_RAW, ids); } catch (e) { backstageSay(e.message, true); return null; }
-  const file = spanishDataFile({ data: ARCHIVE.bytes, rsrc: r.rsrc });
-  if (asDisk) dlBlob(new Blob([writeHfsImage({ volumeName: 'Cythera', entries: [file] })], { type: 'application/octet-stream' }), 'Cythera Data (fixed).dsk');
-  else dlBlob(new Blob([writeMacBinary(file)], { type: 'application/macbinary' }), 'Cythera Data (fixed).bin');
-  backstageSay(r.log.length + ' change' + (r.log.length === 1 ? '' : 's') + ' written.');
-  return r;
-}
-function renderBackstageMaker() {
-  const host = document.getElementById('backstageMaker');
-  if (!host) return;
-  host.innerHTML = '';
-  for (const fix of DATA_RSRC_FIXES) {
-    const row = document.createElement('label');
-    row.className = 'mechSub';
-    row.style.cssText = 'display:block;margin:6px 0';
-    const box = document.createElement('input');
-    box.type = 'checkbox'; box.checked = window.BACKSTAGE_CHOSEN.has(fix.id);
-    box.onchange = () => { if (box.checked) window.BACKSTAGE_CHOSEN.add(fix.id); else window.BACKSTAGE_CHOSEN.delete(fix.id); };
-    row.appendChild(box);
-    const t = document.createElement('span');
-    t.innerHTML = ' <b>' + svEsc(fix.title) + '</b>. ' + svEsc(fix.note) + ' ' +
-      fix.rsrc.map(e => '“' + svEsc(e.was) + '” to “' + svEsc(e.now) + '”').join(', ') + '.';
-    row.appendChild(t);
-    host.appendChild(row);
-  }
-  const ok = ARCHIVE && window.CYTHERA_RSRC_RAW && window.CYTHERA_RSRC_RAW.length;
-  if (!ok) { const p = document.createElement('p'); p.className = 'mechSub'; p.textContent = !ARCHIVE ? 'No game file is open.' : 'This copy has no resource fork. Open the game in MacBinary or BinHex, or open the installer.'; host.appendChild(p); return; }
-  const d = document.createElement('div');
-  d.className = 'mechStats';
-  for (const [label, fn] of [['Download for a Mac', () => backstageDownload(false)], ['Download as a disk image', () => backstageDownload(true)]]) {
-    const b = document.createElement('button');
-    b.className = 'secondary';
-    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
-    b.textContent = label; b.onclick = fn;
-    d.appendChild(b);
-  }
-  host.appendChild(d);
+function backstageToggle(id, on) {
+  if (on) window.BACKSTAGE_CHOSEN.add(id); else window.BACKSTAGE_CHOSEN.delete(id);
+  renderDataFixMaker();
 }
 /* Make a Scenario (newScenarioBytes, js/page-data.js): the form, and the
    file written as the Spanish copy is, or opened here in place of the one
@@ -2534,10 +2417,13 @@ function dataFixToggle(id, on) {
   if (on) st.add(id); else st.delete(id);
   renderDataFixMaker();
 }
-// A list's box: every fix in it and, for the text, every change and each
-// choice's first option; unticked, none of them.
+// A list's box: every fix in it, the program's and the resource fork's
+// among them, and for the text every change and each choice's first
+// option; unticked, none of them.
 function dataFixGroup(group, on) {
   const st = window.DATAFIX_STATE;
+  for (const f of APP_FIXES) if (appFixGroup(f) === group) { if (on) window.APPFIX_STATE.off.delete(f.id); else window.APPFIX_STATE.off.add(f.id); }
+  for (const f of DATA_RSRC_FIXES) if (f.group === group) { if (on) window.BACKSTAGE_CHOSEN.add(f.id); else window.BACKSTAGE_CHOSEN.delete(f.id); }
   for (const f of DATA_FIXES) if (f.group === group && !f.choice) { if (on) st.on.add(f.id); else st.on.delete(f.id); }
   for (const c of DATA_FIX_CHOICES) {
     const opts = DATA_FIXES.filter(o => o.choice === c.id && o.group === group);
@@ -2556,6 +2442,8 @@ function dataFixGroupState(group) {
     items.push(!st.on.has(f.id) ? 0 : DATA_FIXES.some(o => o.parent === f.id) && st.skip.size ? 0.5 : 1);
   for (const c of DATA_FIX_CHOICES) if (DATA_FIXES.some(o => o.choice === c.id && o.group === group))
     items.push(DATA_FIXES.some(o => o.choice === c.id && st.on.has(o.id)) ? 1 : 0);
+  for (const f of APP_FIXES) if (appFixGroup(f) === group) items.push(window.APPFIX_STATE.off.has(f.id) ? 0 : 1);
+  for (const f of DATA_RSRC_FIXES) if (f.group === group) items.push(window.BACKSTAGE_CHOSEN.has(f.id) ? 1 : 0);
   const sum = items.reduce((a, b) => a + b, 0);
   return { all: items.length > 0 && sum === items.length, some: sum > 0 };
 }
@@ -2621,6 +2509,8 @@ function dataFixAllRows(on) {
 function dataFixClear() {
   window.DATAFIX_STATE.on = new Set();
   window.DATAFIX_STATE.skip = new Set();
+  window.APPFIX_STATE.off = new Set(APP_FIXES.map(f => f.id));
+  window.BACKSTAGE_CHOSEN = new Set();
   renderDataFixMaker();
   dataFixSay('');
 }
@@ -2802,7 +2692,16 @@ function renderDataFixMaker() {
   if (!host) return;
   host.innerHTML = '';
   const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
-  const on = window.DATAFIX_STATE.on;
+  const on = window.DATAFIX_STATE.on, appSt = window.APPFIX_STATE;
+  /* A trial of every program fix on the program open, so each can show
+     what it writes and a refusal shows before a download. Kept for the
+     program it was made on, since the list is drawn again on every tick. */
+  const src = appFixSource();
+  if (src && (!appSt.trial || appSt.trial.src !== src)) {
+    appSt.trial = { src, trial: null, why: '' };
+    try { appSt.trial.trial = applyAppFixes(src, APP_FIXES); } catch (e) { appSt.trial.why = e.message; }
+  }
+  const trial = src && appSt.trial ? appSt.trial.trial : null;
   const box = (checked, onchange, label, disabled, type, name) => {
     const l = el('label', 'mechSub');
     const b = document.createElement('input');
@@ -2810,8 +2709,9 @@ function renderDataFixMaker() {
     if (name) b.name = name;
     b.onchange = function () { onchange(b.checked, b); };
     l.appendChild(b);
-    l.appendChild(el('span', '', ' ' + label));
-    return { l, b };
+    const words = el('span', '', ' ' + label);
+    l.appendChild(words);
+    return { l, b, words };
   };
   for (const g of DATA_FIX_GROUPS) {
     /* A fix with options (the text) is not a row of its own: its options
@@ -2819,10 +2719,14 @@ function renderDataFixMaker() {
        which has a box for all of them (the maintainer, 1 October 2026). */
     const owner = DATA_FIXES.find(f => f.group === g.id && !f.parent && DATA_FIXES.some(o => o.parent === f.id));
     const list = DATA_FIXES.filter(f => f.group === g.id && !f.parent && f !== owner);
-    if (!list.length && !owner) continue;
+    const apps = APP_FIXES.filter(f => appFixGroup(f) === g.id);
+    const rsrcs = DATA_RSRC_FIXES.filter(f => f.group === g.id);
+    if (!list.length && !owner && !apps.length && !rsrcs.length) continue;
     const gs = dataFixGroupState(g.id);
     const mine = DATA_FIXES.filter(f => f.group === g.id && !f.parent);
-    const fold = fixFold(window.DATAFIX_STATE.open, g.id, g.title, mine.filter(f => on.has(f.id) || DATA_FIXES.some(o => o.parent === f.id && on.has(o.id))).length + ' of ' + mine.length);
+    const picked = mine.filter(f => on.has(f.id) || DATA_FIXES.some(o => o.parent === f.id && on.has(o.id))).length +
+      apps.filter(f => !appSt.off.has(f.id)).length + rsrcs.filter(f => window.BACKSTAGE_CHOSEN.has(f.id)).length;
+    const fold = fixFold(window.DATAFIX_STATE.open, g.id, g.title, picked + ' of ' + (mine.length + apps.length + rsrcs.length));
     const gb = document.createElement('input');
     gb.type = 'checkbox'; gb.checked = gs.all;
     gb.indeterminate = gs.some && !gs.all;
@@ -2833,13 +2737,28 @@ function renderDataFixMaker() {
     fold.sum.appendChild(gb); fold.sum.appendChild(fold.t); fold.sum.appendChild(fold.n);
     host.appendChild(fold.d);
     if (g.note) fold.d.appendChild(el('div', 'mechSub', g.note));
-    for (const f of list) {
-      const row = el('div', 'appFixRow');
-      const fb = box(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + dataFixMark(f));
-      row.appendChild(fb.l);
-      const said = dataFixEditListing(f);
-      if (said) fixChangesLink(row, fb.l, said);
-      fold.d.appendChild(row);
+    // Each fix's line says which file it changes, in a quiet tag before
+    // its "changes", since the downloads treat the three differently.
+    const row = (checked, onchange, title, file, said) => {
+      const r = el('div', 'appFixRow');
+      const fb = box(checked, onchange, title);
+      fb.words.appendChild(el('span', 'fixFile', file));
+      r.appendChild(fb.l);
+      if (said) fixChangesLink(r, fb.l, said);
+      fold.d.appendChild(r);
+    };
+    for (const f of list) row(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f.title + dataFixMark(f), 'Cythera Data', dataFixEditListing(f));
+    for (const f of rsrcs) row(window.BACKSTAGE_CHOSEN.has(f.id), function (c) { backstageToggle(f.id, c); }, f.title + '. ' + f.note, 'Cythera Data',
+      f.rsrc.map(e => e.type + ' ' + e.id + ' string ' + e.index + '  \u201c' + e.was + '\u201d to \u201c' + e.now + '\u201d').join('\n'));
+    for (const f of apps) {
+      /* What the fix writes, the PowerPC words and the 68K changes in one
+         listing behind the line's "changes" (the maintainer,
+         16 October 2026). */
+      const a = trial && trial.applied.find(x => x.id === f.id);
+      const parts = [];
+      if (a && a.words.length) parts.push('PowerPC\n' + appFixListing(a));
+      if (a && a.m68k) parts.push('68K\n' + appFix68kListing(a.m68k));
+      row(!appSt.off.has(f.id), function (c) { appFixToggle(f.id, c); }, f.title + appFixMark(f), 'Cythera program', parts.join('\n\n'));
     }
     if (!owner) continue;
     const sub = el('div', 'dataFixOptions');
@@ -2882,31 +2801,106 @@ function renderDataFixMaker() {
     sub.appendChild(d);
     fold.d.appendChild(sub);
   }
-  const chosen = dataFixChosen(), n = chosen.length;
-  host.appendChild(el('p', 'mechSub', n ? n + (n === 1 ? ' fix chosen.' : ' fixes chosen.') : 'Nothing chosen.'));
+  /* One download (the maintainer, 16 October 2026), where there were
+     seven buttons over three sections: a disk image of the fixed game,
+     which is the only thing that carries every kind of fix, and the Magpie
+     patch beside it for what a patch can carry, naming what it leaves out.
+     Applying to the open file and reading the patch are in a fold. */
+  const chosen = dataFixChosen(), apps = appFixChosen(), rsrcs = DATA_RSRC_FIXES.filter(f => window.BACKSTAGE_CHOSEN.has(f.id));
+  const n = chosen.length + apps.length + rsrcs.length;
+  const count = el('p', 'mechSub', n ? n + (n === 1 ? ' fix chosen. ' : ' fixes chosen. ') : 'Nothing chosen. ');
+  if (n) { const none = el('button', 'svLink', 'Choose none'); none.onclick = dataFixClear; count.appendChild(none); }
+  host.appendChild(count);
+  // The program the program's fixes are written into: the installer's, or
+  // one chosen here by a visitor without it.
+  const prog = el('div', 'mechStats');
+  prog.appendChild(el('span', 'mechSub', src ? 'The program from ' + src.name + '.' : 'No program is open. Choose one, or open the installer.'));
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.id = 'appFixFile'; inp.accept = '*/*';
+  inp.onchange = function () { appFixOpenFile(inp.files && inp.files[0]); };
+  prog.appendChild(inp);
+  host.appendChild(prog);
+  if (src && appSt.trial && appSt.trial.why) host.appendChild(el('p', 'mechSub patchBad', appSt.trial.why));
   if (!n) return;
+  const bar = el('div', 'mechStats');
+  const btn = (where, label, fn, main) => {
+    const b = document.createElement('button');
+    b.className = main ? '' : 'secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+    b.textContent = label;
+    b.onclick = fn;
+    where.appendChild(b);
+  };
+  btn(bar, 'Download the fixed game', fixedGameDownload, true);
+  if (chosen.length) btn(bar, 'Download the patch', function () { dataFixDownload(false); });
+  host.appendChild(bar);
+  // What a patch cannot carry, by name, when any of it is chosen.
+  const left = rsrcs.map(f => f.title).concat(apps.map(f => f.title));
+  if (left.length) {
+    const d = el('details', 'appFixWords');
+    d.appendChild(el('summary', 'mechSub', (chosen.length ? 'The patch leaves out ' : 'A patch cannot carry ') +
+      (left.length === 1 ? 'one chosen fix' : left.length + ' chosen fixes') + ', which only the fixed game has'));
+    const ul = el('ul', 'ruleList');
+    for (const t of left) ul.appendChild(el('li', '', t));
+    d.appendChild(ul);
+    host.appendChild(d);
+  }
+  if (!chosen.length) return;
+  const more = el('details', 'appFixWords');
+  more.appendChild(el('summary', 'mechSub', 'Patch Details'));
   const desc = document.createElement('input');
   desc.type = 'text'; desc.id = 'dataFixDesc'; desc.className = 'heroDesc';
   desc.maxLength = 255;
   desc.value = dataFixDescription(chosen);
   desc.setAttribute('aria-label', 'what the patch calls itself');
-  host.appendChild(el('div', 'partsTitle', 'What the patch calls itself'));
-  host.appendChild(desc);
-  const bar = el('div', 'mechStats');
-  const btn = (label, fn) => {
-    const b = document.createElement('button');
-    b.className = 'secondary';
-    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
-    b.textContent = label;
-    b.onclick = fn;
-    bar.appendChild(b);
-  };
-  btn('Apply to the open file', dataFixApply);
-  btn('Read it as a patch', dataFixShowPatch);
-  btn('Download the patch', function () { dataFixDownload(false); });
-  btn('Download for a Mac', function () { dataFixDownload(true); });
-  btn('Choose none', dataFixClear);
-  host.appendChild(bar);
+  more.appendChild(el('div', 'partsTitle', 'What the patch calls itself'));
+  more.appendChild(desc);
+  const bar2 = el('div', 'mechStats');
+  btn(bar2, 'Download the patch for a Mac', function () { dataFixDownload(true); });
+  btn(bar2, 'Apply to the open file', dataFixApply);
+  btn(bar2, 'Read it as a patch', dataFixShowPatch);
+  more.appendChild(bar2);
+  host.appendChild(more);
+}
+
+/* The fixed game as a disk image: Cythera Data with the data fixes merged
+   in as the patch would put them (mergeDelverPatch) and the resource
+   fork's fixes written, and the program with its fixes when any is
+   chosen. Refused, with the reason said, when a part it needs is missing,
+   rather than written without the fixes that part would carry. */
+function fixedGameBuild() {
+  if (!ARCHIVE || !ARCHIVE.bytes) { dataFixSay('No game file is open.', true); return null; }
+  const rsrc = window.CYTHERA_RSRC_RAW;
+  if (!rsrc || !rsrc.length) { dataFixSay('This copy of Cythera Data has no resource fork. Open the game in MacBinary or BinHex, or open the installer, or download the patch instead.', true); return null; }
+  const chosen = dataFixChosen(), apps = appFixChosen(), rsrcIds = [...window.BACKSTAGE_CHOSEN];
+  if (!chosen.length && !apps.length && !rsrcIds.length) { dataFixSay('Nothing is chosen, so there is nothing to write.', true); return null; }
+  let data = ARCHIVE.bytes;
+  if (chosen.length) {
+    const w = dataFixBuild('write');
+    if (!w) return null;
+    try { data = mergeDelverPatch(ARCHIVE.bytes, w.bytes).bytes; }
+    catch (e) { dataFixSay('The data fixes could not be merged: ' + e.message, true); return null; }
+  }
+  let fork = rsrc;
+  if (rsrcIds.length) {
+    try { fork = applyDataRsrcFixes(rsrc, rsrcIds).rsrc; } catch (e) { dataFixSay(e.message, true); return null; }
+  }
+  const entries = [spanishDataFile({ data, rsrc: fork })];
+  let program = null;
+  if (apps.length) {
+    program = appFixBuild();
+    if (!program) return null;
+    entries.unshift({ name: 'Cythera', type: program.src.type, creator: program.src.creator, data: program.data, rsrc: program.rsrc });
+  }
+  return { entries, data: chosen.length, program: apps.length, rsrc: rsrcIds.length };
+}
+function fixedGameDownload() {
+  const r = fixedGameBuild();
+  if (!r) return null;
+  dlBlob(new Blob([writeHfsImage({ volumeName: 'Cythera Fixed', entries: r.entries })], { type: 'application/octet-stream' }), 'Cythera Fixed.dsk');
+  const n = r.data + r.rsrc;
+  dataFixSay('Written: ' + [n ? n + ' to Cythera Data' : '', r.program ? r.program + ' to the program' : ''].filter(Boolean).join(' and ') + '.');
+  return r;
 }
 
 /* ---- two archives against each other, and a patch out of the difference ----
@@ -4509,7 +4503,7 @@ function renderMechanicsSheet(value) {
       rules.push('<b>' + patchName + '.</b> A file in the game’s folder listing up to ' + srcNum(pf.count) + ' patch files, which the game loads when it starts.');
     if (pf && customName)
       rules.push('<b>' + customName + '.</b> One patch file saved under this name. It replaces any combat AIs you imported.');
-    add('patchkinds', 'Three Ways to Patch the Game', null, '',
+    add('patchkinds', 'Patch Types', null, '',
       'A patch can go into the game file, or sit beside it in its folder.',
       pf ? rules : [rules[0]],
       (pf ? '' : '<ul class="ruleList"><li>' + MECH_NO_APP + '</li></ul>') +
@@ -4563,35 +4557,22 @@ function renderMechanicsSheet(value) {
       'Select as many of the fixes below as you\u2019d like, and this site can generate a Magpie-compatible patch file with those fixes. ' +
       'Note it\u2019s best to generate a single patch file with all changes; stacking multiple sometimes will not work. ' +
       '(If changes are too close to each other in code then a change made by a prior patch can be unintentionally reverted by a new patch.) ' +
-      'Fixes to the Cythera program itself cannot go in a patch, so they are listed separately and download as a fixed copy of the program.',
+      'Fixes to the Cythera program itself cannot go in a patch, so the main download is a disk image of the fixed game, which carries every fix chosen.',
       [], '');
-    /* Two halves, one section (the maintainer, 16 October 2026): the fixes
-       to Cythera Data, which leave as a Magpie patch, and the fixes to the
-       program, which leave as a fixed copy of it. They were two sections,
-       the second called Fixed Program Generator, and a visitor after the
-       game's bugs had to know which file a bug lived in to find it. The
-       hosts and notes keep their ids, so each half renders as it did. */
+    /* One list (the maintainer, 16 October 2026): the fixes to Cythera
+       Data, to the program and to the data file's resource fork, grouped
+       by what each does in play and tagged with the file it changes, so a
+       visitor after the game's bugs need not know which file a bug lives
+       in. Until then the program's fixes were a second list and the
+       resource fork's a section of their own, Behind the Scenes, each with
+       its own downloads. */
     const sec = sections[sections.length - 1].el;
-    const half = (title, say) => {
-      const h = document.createElement('div');
-      h.className = 'fixHalf'; h.textContent = title;
-      sec.appendChild(h);
-      const p = document.createElement('div');
-      p.className = 'mechSub'; p.textContent = say;
-      sec.appendChild(p);
-      const host = document.createElement('div');
-      sec.appendChild(host);
-      const note = document.createElement('div');
-      note.className = 'mechSub';
-      sec.appendChild(note);
-      return { host, note };
-    };
-    // The ids are written out where they are set, which is how the static
-    // check finds what the page creates.
-    const data = half('Cythera Data Changes', 'Fixes to the game\u2019s data file, written as a Magpie patch.');
-    data.host.id = 'dataFixMaker'; data.note.id = 'dataFixNote';
-    const app = half('Cythera Program Changes', 'Fixes to Cythera 1.0.4 itself. This page writes out a fixed copy of the program, for PowerPC and 68K Macs alike.');
-    app.host.id = 'appFixMaker'; app.note.id = 'appFixNote';
+    const host = document.createElement('div');
+    host.id = 'dataFixMaker';
+    sec.appendChild(host);
+    const note = document.createElement('div');
+    note.className = 'mechSub'; note.id = 'dataFixNote';
+    sec.appendChild(note);
   }
 
   // ---- the hero's colours, as a patch ----
@@ -4644,20 +4625,6 @@ function renderMechanicsSheet(value) {
     sec.appendChild(host);
     const note = document.createElement('div');
     note.className = 'mechSub'; note.id = 'spanishNote';
-    sec.appendChild(note);
-  }
-
-  // ---- behind the scenes ----
-  {
-    add('backstage', 'Behind the Scenes', null, '',
-      'Fixes to data the game stores and no player sees. Choose the fixes, then download a corrected copy of Cythera Data to put in place of the old one.',
-      ['It is a whole file rather than a patch, because these fixes are in the part of the file a patch cannot change.'], '');
-    const sec = sections[sections.length - 1].el;
-    const host = document.createElement('div');
-    host.id = 'backstageMaker';
-    sec.appendChild(host);
-    const note = document.createElement('div');
-    note.className = 'mechSub'; note.id = 'backstageNote';
     sec.appendChild(note);
   }
 
@@ -4976,8 +4943,10 @@ function renderMechanicsSheet(value) {
      off the scripts and the reading is the cost, not the placing -- so a tab
      shows its own and leaves the rest unplaced. */
   const only = value ? (value === MECH_TOOL_GROUP.value ? MECH_TOOL_GROUP : MECH_GROUP_BY_VALUE[value]) : null;
-  const showing = only ? [only] : MECH_GROUPS;
+  // The Patches tab is headed by its parts, each a group to this loop.
+  const showing = only ? (only.parts || [only]) : MECH_GROUPS;
   const seen = new Set();
+  let firstShown = true;
   for (const { title, note, ids } of showing) {
     const mine = ids.map(id => sections.find(s => s.id === id)).filter(Boolean);
     if (!mine.length) continue;
@@ -4993,7 +4962,8 @@ function renderMechanicsSheet(value) {
     }
     // A tab opened on its first section rather than on a column of closed
     // headings, unless the visitor has opened sections of their own.
-    if (only && mine[0] && !(window.MECH_OPEN && window.MECH_OPEN.size)) mine[0].el.open = true;
+    if (only && firstShown && mine[0] && !(window.MECH_OPEN && window.MECH_OPEN.size)) mine[0].el.open = true;
+    firstShown = false;
   }
   /* A section no group names still has to be reachable rather than vanish.
      On the whole sheet it went under Other at the end; with a tab each there
@@ -5058,9 +5028,7 @@ function renderMechanicsSheet(value) {
   if (document.getElementById('heroSprite')) renderHeroSprite();
   if (document.getElementById('gremlinMaker')) renderGremlinMaker();
   if (document.getElementById('dataFixMaker')) renderDataFixMaker();
-  if (document.getElementById('appFixMaker')) renderAppFixMaker();
   if (document.getElementById('spanishMaker')) renderSpanishMaker();
-  if (document.getElementById('backstageMaker')) renderBackstageMaker();
   if (document.getElementById('scenarioMaker')) renderScenarioMaker();
 }
 // The cards open when a number on the sheet was followed into its script,

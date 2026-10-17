@@ -313,7 +313,15 @@ const MECH_GROUPS = [
    it. */
 const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Patches',
   note: 'Cythera\u2019s official add-on system is the PowerPC application Magpie. It was released by Glenn Andreas alongside a sample patch \u201cPumpkin Patch\u201d, but specifications to create new patches were never released. The format has been reverse-engineered to make new patches possible, though Magpie is limited to editing the data fork of the Cythera Data file.',
-  ids: ['patchkinds', 'patches', 'datafixes', 'herosprite', 'gremlins', 'spanish', 'backstage', 'newscenario', 'compare'] };
+  /* Three parts by use (the maintainer, 16 October 2026): the game's
+     fixes, the patches that add or change content, and the sections that
+     read a patch or compare two files. Each is headed as a group is on the
+     other tabs; `ids` is all three, which is what mechGroupOf reads. */
+  parts: [
+    { title: 'Bugfixes', ids: ['datafixes'] },
+    { title: 'Content Patches', ids: ['herosprite', 'gremlins', 'newscenario', 'spanish'] },
+    { title: 'Data Comparison', ids: ['patchkinds', 'patches', 'compare'] }] };
+MECH_TOOL_GROUP.ids = [].concat(...MECH_TOOL_GROUP.parts.map(p => p.ids));
 // A group by the category value its tab is selected with.
 const MECH_GROUP_BY_VALUE = {};
 for (const g of MECH_GROUPS) MECH_GROUP_BY_VALUE[g.value] = g;

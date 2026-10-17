@@ -19,7 +19,9 @@
    AN ENTRY.
      id, title   a name that does not change, and one line of what it does,
                  as the player would see it
-     group       which list the Patches section shows it in (DATA_FIX_GROUPS)
+     group       which list the Patches section shows it in (DATA_FIX_GROUPS),
+                 which also places the program's fixes (APP_FIX_GROUP) and
+                 DATA_RSRC_FIXES below
      stage       when it is applied (DATA_FIX_STAGES, below)
      by          whose published work the fix is built from, shown beside it
      edits, dataEdits, textEdits
@@ -103,6 +105,9 @@ const DATA_FIX_GROUPS = [
   { id: 'rules', title: 'Spells, skills and fighting' },
   { id: 'items', title: 'Items' },
   { id: 'world', title: 'People and places' },
+  // Only the program's fixes are here (APP_FIX_GROUP, js/delv-appfixes.js):
+  // keys, the mouse, a gamepad, windows, menus and the music.
+  { id: 'interface', title: 'Controls, windows and music' },
   { id: 'text', title: 'Text' },
   // Fixes nobody can see in play: the file is put right and the screen is
   // the same either way (the maintainer, 12 October 2026, of the Gate
@@ -2781,7 +2786,7 @@ const DATA_FIX_COMMUNITY_TYPOS = [
    says anything else, so a file that has it right already, or another
    list in that place, is refused rather than overwritten. */
 const DATA_RSRC_FIXES = [
-  { id: 'editor-map-names', title: 'The Map Editor’s Names',
+  { id: 'editor-map-names', group: 'hidden', title: 'The Map Editor’s Names',
     note: 'Three of the map editor’s names for the maps are misspelt; the signs and characters in the game have them right. The game never shows the editor’s names, so a player sees no change.',
     rsrc: [
       { type: 'STR#', id: 135, index: 18, was: 'North Short Vinyard', now: 'North Shore Vineyard' },

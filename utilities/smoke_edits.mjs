@@ -111,8 +111,13 @@ try {
      is not zero. */
   const toolNames = [];
   (function rows(el) { if (el.className === 'toolRow') toolNames.push(el.children[0].textContent); else (el.children || []).forEach(rows); })(REGISTRY.get('sheetGrid'));
-  const patchRows = ['Scenario Maker', 'Gremlin Maker', 'Sprite Recolorer', 'Bugfix Patch Generator', 'Behind the Scenes', 'Cythera in Spanish', 'Patch Comparison', 'File Comparison'];
+  const patchRows = ['Scenario Maker', 'Gremlin Maker', 'Sprite Recolorer', 'Bugfix Patch Generator', 'Cythera in Spanish', 'Patch Comparison', 'File Comparison'];
   if (toolNames.length < 10) strayTab.push('Tools shows ' + toolNames.length + ' rows');
+  // Every fix of the program and of the resource fork is in one of the
+  // Bugfixes lists (APP_FIX_GROUP), or the one list would drop it unseen.
+  const ungrouped = peek(`APP_FIXES.filter(f => !DATA_FIX_GROUPS.some(g => g.id === appFixGroup(f))).map(f => f.id)
+    .concat(DATA_RSRC_FIXES.filter(f => !DATA_FIX_GROUPS.some(g => g.id === f.group)).map(f => f.id))`);
+  if (ungrouped.length) strayTab.push('fixes in no Bugfixes list: ' + ungrouped.join(', '));
   for (const t of patchRows) {
     if (toolNames.indexOf(t) < 0) strayTab.push('Tools has no row for ' + t);
     if (tools.indexOf(t) < 0) strayTab.push('Tools links to ' + t + ', which Patches does not show');
@@ -1407,6 +1412,16 @@ try {
   })()`);
   ctx.showCategory('PATCHES');
   const w = peek('dataFixPatch()');
+  // The fixed game's Cythera Data, kept to set beside the open file once
+  // the same patch is applied to it below: the two must be byte for byte
+  // the same, and the disk carries the data file alone with no program
+  // fix chosen.
+  // The smoke's file is the data fork alone; no fix to the resource fork
+  // is chosen, so a stand-in fork is passed through untouched.
+  peek(`(() => { APPFIX_STATE.off = new Set(APP_FIXES.map(f => f.id)); BACKSTAGE_CHOSEN = new Set();
+    const keep = window.CYTHERA_RSRC_RAW; if (!keep || !keep.length) window.CYTHERA_RSRC_RAW = new Uint8Array([1]);
+    window.SMOKE_DISK = fixedGameBuild(); window.SMOKE_DISK_WHY = document.getElementById('dataFixNote').textContent;
+    window.CYTHERA_RSRC_RAW = keep; })()`);
   // The fixes built from Bryce Schroeder's published source carry his name;
   // the four of his patch written here from the causes do not.
   const credit = peek(`(() => { renderDataFixMaker(); const host = document.getElementById('dataFixMaker'); const rows = [...(host ? host.querySelectorAll('.appFixRow') : [])].map(r => r.textContent);
@@ -1435,8 +1450,11 @@ try {
     else if (/LandKing/.test(alaric) || !/Land King/.test(alaric)) fail('game fixes', '"LandKing" is still in 0x1801');
     else if (!/won't come free/.test(fetch)) fail('game fixes', 'Fetch’s new lines are not in 0x1A28');
     else if (!peek('window.EDITED_RESIDS').has(0x1A28)) fail('game fixes', 'the fixes are not among the edits');
+    else if (!peek(`(() => { const d = window.SMOKE_DISK, a = ARCHIVE.bytes, b = d && d.entries.length === 1 && d.entries[0].data;
+        return !!b && b.length === a.length && b.every((x, i) => x === a[i]); })()`))
+      fail('game fixes', 'the fixed game\u2019s Cythera Data is not the file the patch makes: ' + peek(`JSON.stringify(window.SMOKE_DISK ? { n: SMOKE_DISK.entries.length, len: SMOKE_DISK.entries[0].data.length, now: ARCHIVE.bytes.length } : SMOKE_DISK_WHY)`));
     else if (!again) fail('game fixes', 'the fixes built again on the file they had fixed');
-    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list refused on the edited Paris topic by the fix's name; Fetch and fishing credited to him and Aethon's lock picking not; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), and refused when built again; the text's ${changes.rows} changes listed under ${changes.parts.length} headings, the option not chosen not among them, and Helen's "Yery well" linked to her script at 0x${link.at.toString(16).toUpperCase()}, opened ringed there`);
+    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list refused on the edited Paris topic by the fix's name; Fetch and fishing credited to him and Aethon's lock picking not; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), the fixed game's Cythera Data the same file, and refused when built again; the text's ${changes.rows} changes listed under ${changes.parts.length} headings, the option not chosen not among them, and Helen's "Yery well" linked to her script at 0x${link.at.toString(16).toUpperCase()}, opened ringed there`);
   }
   ctx.dataFixClear();
   ctx.patchesForget();

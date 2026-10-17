@@ -1307,11 +1307,11 @@ details:not([open]) > summary .mechFrom { display:none; }
 .appFixWords > summary { color:var(--gold); cursor:pointer; font-size:0.6875rem; margin:0; display:inline-block; }
 .appFixListing { font-family:ui-monospace, Menlo, monospace; font-size:0.75rem; white-space:pre; overflow-x:auto; max-width:100%; margin:4px 0; }
 .dataFixHead { margin:14px 0 4px; }
-/* The two halves of the Bugfix Patch Generator and the folds inside them.
-   A fix line is 0.8125rem, not .mechSub's 0.6875rem: at eleven pixels
-   Argos was hard to read on a line a visitor has to read to choose it
-   (the maintainer, 16 October 2026). */
-.fixHalf { color:#fff; font-family:var(--face); font-size:1rem; margin:22px 0 2px; }
+/* The Bugfix Patch Generator's folds. A fix line is 0.8125rem, not
+   .mechSub's 0.6875rem: at eleven pixels Argos was hard to read on a line
+   a visitor has to read to choose it (the maintainer, 16 October 2026).
+   .fixFile is the file a fix changes, quiet by size. */
+.fixFile { color:#dcd8cc; font-size:0.6875rem; margin-left:6px; white-space:nowrap; }
 .fixFold { margin:8px 0; }
 .fixFoldHead { display:flex; gap:8px; align-items:center; cursor:pointer; color:var(--gold); font-size:0.875rem; list-style:none; }
 .fixFoldHead::-webkit-details-marker { display:none; }
