@@ -856,6 +856,25 @@ try {
       if (!open || Math.abs(openZ - cap) > 1e-6 || !(townZ > cap * 4) || heldZ !== held)
         fail('atlas', `zoom ceiling: open ground stopped at ${openZ}, Cademia at ${townZ}, a pinch off the town past its ceiling ${held} -> ${heldZ} (want ${cap}, past ${cap * 4}, unchanged)`);
       else console.log(`  atlas: the zoom stops at ${cap} px a square over open ground and at ${townZ.toFixed(0)} over Cademia, and is held off the town`);
+      // Past the world's art the world is not drawn, and the town is drawn
+      // with its margin and the game's border round it, not the world's one
+      // square for it blown up (the maintainer, 16 October 2026, the red at
+      // 133 px a square). Then a drag that leaves the town backs out to the
+      // ceiling there. Tried: with the world drawn at any zoom the first
+      // half fails, and with no back-out the second.
+      peek('mapRenderFor')(cad2.resid, true);
+      av2.Z = cap * 2; { const rr = peek('atlasRect')(cad2, av2); av2.x += W / 2 - (rr.x + rr.w / 2); av2.y += H / 2 - (rr.y + rr.h / 2); }
+      peek('paintAtlas')(); drainRaf();
+      const drawnNow = (ctx.ATLAS_DRAWN || []).map(d => d.node);
+      const worldDrawn = drawnNow.some(n => !n.depth);
+      const rC = peek('atlasRect')(cad2, av2);
+      const borderOn = peek('atlasBorderAlpha')(cad2, rC, peek('atlasNodePpt')(cad2, av2), 1);
+      peek('atlasPanBy')(-rC.w * 2, 0);
+      ctx.ATLAS_NO_ANIM = true; peek('atlasSettleZoom')(); ctx.ATLAS_NO_ANIM = false;
+      const backZ = av2.Z;
+      if (worldDrawn || !(borderOn > 0.9) || Math.abs(backZ - cap) > 1e-6)
+        fail('atlas', `past the world's art: world drawn ${worldDrawn}, Cademia's border at ${borderOn}, a drag off the town left the zoom at ${backZ} (want false, 1, ${cap})`);
+      else console.log(`  atlas: past ${cap} px a square the world is not drawn and Cademia's border is, and a drag off the town backs out to ${cap}`);
       Object.assign(av2, was);
       ctx.__peek('atlasMovedAt = 0');
       peek('paintAtlas')(); drainRaf();

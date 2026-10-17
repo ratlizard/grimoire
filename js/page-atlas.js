@@ -718,6 +718,22 @@ function atlasMaxZAt(px, py) {
   }
   return best;
 }
+/* How far the view is past the world's art, 0 to 1: 0 up to maxPpt (64 px
+   a world square), 1 from a quarter past it (80). The zoom gets past 64
+   only over a place (atlasMaxZAt), and there the world would be drawn
+   past its art: its one square for the place, blown up to fill the
+   screen around it, which on a phone was a field of dark red, and, while
+   the render was still on its way, the mountains beside it (the
+   maintainer, 16 October 2026, at Inner Brotherhood Hall at 133 px a
+   square). So as this rises the world fades out (paintAtlas), and the
+   place is drawn whole, from its render with its unbuilt margin and its
+   border, whatever its size on screen (drawAtlasNode, drawWithMargin,
+   atlasBorderAlpha): the place's ground, the game's repeat of its edge
+   past that, and black where a place has neither. */
+function atlasPastArt() {
+  const cap = window.ATLAS_TUNE.maxPpt;
+  return Math.max(0, Math.min(1, (atlasView.Z - cap) / (cap * 0.25)));
+}
 // The slider's top: the ceiling at the middle of the view, or the zoom
 // already reached when that is higher, so the thumb never stands past
 // its end.
@@ -785,7 +801,9 @@ function paintAtlas() {
     // Below a couple of pixels a square there is nothing to see and the
     // pictogram the parent draws is the better picture.
     if (node.depth && r.w < window.ATLAS_TUNE.nodeFadeFrom) continue;
-    const alpha = !node.depth ? 1
+    // Past the world's art the world fades out, and then is not drawn.
+    if (!node.depth && atlasPastArt() >= 1) continue;
+    const alpha = !node.depth ? 1 - atlasPastArt()
       : Math.max(0, Math.min(1, (r.w - window.ATLAS_TUNE.nodeFadeFrom) /
                 (window.ATLAS_TUNE.nodeFadeTo - window.ATLAS_TUNE.nodeFadeFrom)));
     // A town's border reaches the screen's edge, so it is wanted while the
@@ -933,10 +951,11 @@ function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
     // maintainer, 9 September 2026). A town with no miniature yet is
     // left to the world's own pictogram until the builder makes one.
     const thumb = node.gw && worldThumbs.get(thumbKey(node.resid, THUMB_LEVELS[0], true));
-    if (r.w < 448 && thumb) {
+    const past = atlasPastArt() > 0;
+    if (r.w < 448 && thumb && !past) {
       ok = drawTown(ctx, node.gw, atlasCropRect(node, r), alpha, roofT);
       viaTown = true;
-    } else if (r.w >= 448 || !node.gw) {
+    } else if (r.w >= 448 || !node.gw || past) {
       // The same judder, one zoom band up (the maintainer, 12 September 2026).
       // The 448 guard above stopped every node on screen being rendered while
       // the island was in view, but this branch still asked for a full render
@@ -987,6 +1006,8 @@ function drawWithMargin(ctx, node, r, alpha, roofT, draw) {
   // twenty of the island at the zoomed-out view, which the sea fill made
   // visible on 6 September 2026.
   const b = node.depth ? contentBox(node.resid) : null;
+  // Past the world's art the margin comes in whatever the roofs say.
+  roofT = Math.min(roofT, 1 - atlasPastArt());
   if (!b || roofT <= 0.02) { ctx.globalAlpha = alpha; draw(); return; }
   const per = r.w / node.w;
   if (roofT < 0.98) { ctx.globalAlpha = alpha * (1 - roofT); draw(); }
@@ -1110,10 +1131,11 @@ const atlasBorders = derivedMap('atlasBorders');
 // the tiles, not the miniature, once the render is kept).
 function atlasBorderAlpha(node, r, ppt, alpha) {
   if (!node.gw || !node.depth || !zoneMapCache.has(node.resid)) return 0;
-  if (!(r.w >= 448 || atlasTileTS(node, ppt))) return 0;
+  const past = atlasPastArt();
+  if (!(r.w >= 448 || atlasTileTS(node, ppt) || past > 0)) return 0;
   const e = zoneMapCache.get(node.resid), m = e && e.result && e.result.m;
   if (!m || !m.horizontalEdgePropagation || !m.verticalEdgePropagation) return 0;
-  const a = alpha * (1 - atlasRoofT(r.w));
+  const a = alpha * (1 - Math.min(atlasRoofT(r.w), 1 - past));
   return a > 0.02 ? a : 0;
 }
 function atlasBorderStrips(node, TS) {
@@ -2639,6 +2661,26 @@ function atlasZoomAround(newZ, px, py) {
   schedulePaintAtlas();
 }
 
+/* Back out to the ceiling, when a drag has left the place that allowed
+   the zoom (the maintainer, 16 October 2026: zoom out by itself when the
+   view is dragged off the zone, rather than on into filler). Past 64 px
+   a square the view is a place's alone (atlasPastArt); dragged until the
+   middle of the view is off that place's map, the zoom eases back to the
+   ceiling there, about the middle of the view. Only after a drag: a pinch
+   or the wheel near a place's edge is the reader choosing the zoom. */
+function atlasSettleZoom() {
+  const vp = document.getElementById('atlasViewport');
+  if (!vp || vp.clientWidth < 40 || window._atlasAnimating) return;
+  const cx = vp.clientWidth / 2, cy = vp.clientHeight / 2;
+  const z0 = atlasView.Z, z1 = atlasMaxZAt(cx, cy);
+  if (!(z0 > z1 * 1.001)) return;
+  const wx = (cx - atlasView.x) / z0, wy = (cy - atlasView.y) / z0;
+  atlasAnimateTo(e => {
+    const z = z0 * Math.pow(z1 / z0, e);
+    atlasView.Z = z; atlasView.x = cx - wx * z; atlasView.y = cy - wy * z;
+  }, 350, () => { atlasSyncZoomLabel(); paintAtlas(); }, 'out');
+}
+
 function atlasPanBy(dx, dy) {
   atlasMarkBusy();
   if (window._atlasAnimating) return;
@@ -2968,6 +3010,8 @@ function setupAtlasInteraction() {
       if (e.pointerType !== 'mouse') atlasHover(e.clientX, e.clientY, true);
     }
     if (!pts.size) atlasGestureEnd();
+    // A drag that left the place it was zoomed into backs out.
+    if (!pts.size && had && moved >= 6 && !multi) atlasSettleZoom();
   };
   vp.addEventListener('pointerup', up);
   vp.addEventListener('pointercancel', e => { pts.delete(e.pointerId); endHold(); peeking = false; hideAtlasHover(); if (!pts.size) { setTouching(false); atlasGestureEnd(); } });
