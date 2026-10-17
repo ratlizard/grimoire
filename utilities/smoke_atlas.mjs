@@ -867,6 +867,14 @@ try {
       peek('paintAtlas')(); drainRaf();
       const drawnNow = (ctx.ATLAS_DRAWN || []).map(d => d.node);
       const worldDrawn = drawnNow.some(n => !n.depth);
+      // Through a hole the world is drawn at any zoom: the fall into a
+      // cave goes into the mouth's sprite (the maintainer, 17 October 2026:
+      // it turned grey too early). Tried: without the flag this fails.
+      ctx._atlasHole = true; peek('paintAtlas')(); drainRaf();
+      const worldInHole = (ctx.ATLAS_DRAWN || []).some(d => !d.node.depth);
+      ctx._atlasHole = false; peek('paintAtlas')(); drainRaf();
+      if (!worldInHole) fail('atlas', 'through a hole at twice the ceiling the world was not drawn');
+      else console.log(`  atlas: through a hole the world is drawn at ${cap * 2} px a square`);
       const rC = peek('atlasRect')(cad2, av2);
       const borderOn = peek('atlasBorderAlpha')(cad2, rC, peek('atlasNodePpt')(cad2, av2), 1);
       peek('atlasPanBy')(-rC.w * 2, 0);

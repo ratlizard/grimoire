@@ -729,10 +729,19 @@ function atlasMaxZAt(px, py) {
    place is drawn whole, from its render with its unbuilt margin and its
    border, whatever its size on screen (drawAtlasNode, drawWithMargin,
    atlasBorderAlpha): the place's ground, the game's repeat of its edge
-   past that, and black where a place has neither. */
+   past that, and black where a place has neither.
+
+   Over 64 to 128, eased at both ends: from 64 to 80 at first, which the
+   maintainer found jarring the same night. And not at all while the view
+   goes through a hole (atlasHoleAnimateTo): the fall into a cave's mouth
+   and the rise out of one zoom far past the world's art on purpose, into
+   the mouth's own sprite, and with the world faded they turned grey well
+   before it. */
 function atlasPastArt() {
+  if (window._atlasHole) return 0;
   const cap = window.ATLAS_TUNE.maxPpt;
-  return Math.max(0, Math.min(1, (atlasView.Z - cap) / (cap * 0.25)));
+  const t = Math.max(0, Math.min(1, (atlasView.Z - cap) / cap));
+  return t * t * (3 - 2 * t);
 }
 // The slider's top: the ceiling at the middle of the view, or the zoom
 // already reached when that is higher, so the thumb never stands past
@@ -952,6 +961,11 @@ function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
     // left to the world's own pictogram until the builder makes one.
     const thumb = node.gw && worldThumbs.get(thumbKey(node.resid, THUMB_LEVELS[0], true));
     const past = atlasPastArt() > 0;
+    // Nearing the world's art, the render of the place under the middle
+    // of the view is made ahead, so the place is drawn whole from the
+    // start of the fade rather than the miniature first.
+    if (!past && atlasView.Z > window.ATLAS_TUNE.maxPpt * 0.6 && node.gw &&
+        vw / 2 >= r.x && vw / 2 < r.x + r.w && vh / 2 >= r.y && vh / 2 < r.y + r.h) mapRenderIfCheap(node.resid);
     if (r.w < 448 && thumb && !past) {
       ok = drawTown(ctx, node.gw, atlasCropRect(node, r), alpha, roofT);
       viaTown = true;
@@ -2351,7 +2365,7 @@ function atlasDescend(m, node, arriveZ) {
     renderAtlasBar();
     const ms = arriveZ ? window.ATLAS_TUNE.animMs : 0;
     if (ms) atlasFadeTo(1);
-    atlasAnimateTo(e => { atlasZoomOnto(ax, ay, zDot, zEnd, e, vw, vh, sx, sy); if (ms) atlasFadeTo(1 - e); }, ms, () => { atlasFadeTo(0); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
+    atlasHoleAnimateTo(e => { atlasZoomOnto(ax, ay, zDot, zEnd, e, vw, vh, sx, sy); if (ms) atlasFadeTo(1 - e); }, ms, () => { atlasFadeTo(0); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
     return;
   }
   atlasSyncZoomLabel();
@@ -2444,6 +2458,13 @@ function atlasGestureTouch() {
 // curve: 'in' accelerates all the way (the fall, which should still be
 // gathering speed as the black closes over), 'out' starts fast and settles
 // (a place opening from nothing).
+// An animation through a hole: atlasAnimateTo with the world drawn at any
+// zoom while it runs (atlasPastArt). A fall's done starts the rise, which
+// sets the flag again before its first frame.
+function atlasHoleAnimateTo(fn, ms, done, curve) {
+  window._atlasHole = true;
+  atlasAnimateTo(fn, ms, () => { window._atlasHole = false; if (done) done(); }, curve);
+}
 function atlasAnimateTo(fn, ms, done, curve) {
   if (!ms || typeof requestAnimationFrame !== 'function' || window.ATLAS_NO_ANIM) {
     fn(1); paintAtlas(); if (done) done(); return;
@@ -2499,11 +2520,11 @@ function atlasCrossWithin(m, node) {
   const vw = vp.clientWidth, vh = vp.clientHeight;
   const hx = node.ox + (m.x + 0.5) * node.s, hy = node.oy + (m.y + 0.5) * node.s;
   const z1 = Math.max(vw, vh) * 1.15 * (node.ts || 32) / node.s;
-  atlasAnimateTo(e => { atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0); atlasFadeTo(e); },
+  atlasHoleAnimateTo(e => { atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0); atlasFadeTo(e); },
     window.ATLAS_TUNE.animMs, () => {
       atlasView.Z = z1; atlasView.x = vw / 2 - dx * z1; atlasView.y = vh / 2 - dy * z1;
       const sx = atlasView.x, sy = atlasView.y;
-      atlasAnimateTo(e => { atlasZoomOnto(dx, dy, z1, z0, e, vw, vh, sx, sy); atlasFadeTo(1 - e); },
+      atlasHoleAnimateTo(e => { atlasZoomOnto(dx, dy, z1, z0, e, vw, vh, sx, sy); atlasFadeTo(1 - e); },
         window.ATLAS_TUNE.animMs, () => { atlasFadeTo(0); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
     }, 'in');
 }
@@ -2519,7 +2540,7 @@ function atlasRiseVia(m, node) {
   const ax = m.x + 0.5, ay = m.y + 0.5;
   const z0 = atlasView.Z, x0 = atlasView.x, y0 = atlasView.y;
   const zDot = Math.min(z0 / 60, 4 / Math.max(node.w, node.h));
-  atlasAnimateTo(e => { atlasZoomOnto(ax, ay, z0, zDot, e, vw, vh, x0, y0); atlasFadeTo(e); }, window.ATLAS_TUNE.animMs, () => {
+  atlasHoleAnimateTo(e => { atlasZoomOnto(ax, ay, z0, zDot, e, vw, vh, x0, y0); atlasFadeTo(e); }, window.ATLAS_TUNE.animMs, () => {
     const dest = m.dest.resid;
     // Up to the surface: all the way out of the stack. Up to the map you
     // came through: one level.
@@ -2537,7 +2558,7 @@ function atlasRiseVia(m, node) {
     const zEnd = Math.max(fit * (atlasBelowTop() ? 0.6 : 0.9), back ? prev.view.Z / 2 : Math.min(atlasMaxZ(), 12 / dn.s));
     atlasView.Z = zBig; atlasView.x = vw / 2 - hx * zBig; atlasView.y = vh / 2 - hy * zBig;
     const sx = atlasView.x, sy = atlasView.y;
-    atlasAnimateTo(e => { atlasZoomOnto(hx, hy, zBig, zEnd, e, vw, vh, sx, sy); atlasFadeTo(1 - e); }, window.ATLAS_TUNE.animMs, () => { atlasFadeTo(0); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
+    atlasHoleAnimateTo(e => { atlasZoomOnto(hx, hy, zBig, zEnd, e, vw, vh, sx, sy); atlasFadeTo(1 - e); }, window.ATLAS_TUNE.animMs, () => { atlasFadeTo(0); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
   }, 'in');
 }
 function atlasFallInto(m, node) {
@@ -2551,7 +2572,7 @@ function atlasFallInto(m, node) {
   // itself, still gathering speed.
   const hx = node.ox + (m.x + 0.5) * node.s, hy = node.oy + (m.y + 0.5) * node.s;
   const z1 = Math.max(vw, vh) * 1.15 * (node.ts || 32) / node.s;
-  atlasAnimateTo(e => { atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0); atlasFadeTo(e); }, window.ATLAS_TUNE.animMs, () => {
+  atlasHoleAnimateTo(e => { atlasZoomOnto(hx, hy, z0, z1, e, vw, vh, x0, y0); atlasFadeTo(e); }, window.ATLAS_TUNE.animMs, () => {
     atlasView.Z = z0; atlasView.x = x0; atlasView.y = y0;   // the view you left, for coming back
     atlasDescend(m, node, per0 / 2);
   }, 'in');
@@ -2615,7 +2636,7 @@ function atlasRiseOut() {
   const ax = (b.arrive ? b.arrive.x : 0) + 0.5, ay = (b.arrive ? b.arrive.y : 0) + 0.5;   // the below root is at s=1
   const z0 = atlasView.Z, x0 = atlasView.x, y0 = atlasView.y;
   const zDot = Math.min(z0 / 60, 4 / Math.max(atlasScene().root.w, atlasScene().root.h));
-  atlasAnimateTo(e => { atlasZoomOnto(ax, ay, z0, zDot, e, vw, vh, x0, y0); atlasFadeTo(e); }, window.ATLAS_TUNE.animMs, () => {
+  atlasHoleAnimateTo(e => { atlasZoomOnto(ax, ay, z0, zDot, e, vw, vh, x0, y0); atlasFadeTo(e); }, window.ATLAS_TUNE.animMs, () => {
     // shrunk to nothing; now the map above, from the blank middle of the hole
     const prev = DERIVED.ATLAS_BELOW.pop();
     renderAtlasBar();
@@ -2628,7 +2649,7 @@ function atlasRiseOut() {
     const zEnd = Math.max(fit * (atlasBelowTop() ? 0.6 : 0.9), prev.view.Z / 2);
     atlasView.Z = zBig; atlasView.x = vw / 2 - hx * zBig; atlasView.y = vh / 2 - hy * zBig;
     const sx = atlasView.x, sy = atlasView.y;
-    atlasAnimateTo(e => { atlasZoomOnto(hx, hy, zBig, zEnd, e, vw, vh, sx, sy); atlasFadeTo(1 - e); }, window.ATLAS_TUNE.animMs, () => { atlasFadeTo(0); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
+    atlasHoleAnimateTo(e => { atlasZoomOnto(hx, hy, zBig, zEnd, e, vw, vh, sx, sy); atlasFadeTo(1 - e); }, window.ATLAS_TUNE.animMs, () => { atlasFadeTo(0); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
   }, 'in');
 }
 
@@ -2666,7 +2687,8 @@ function atlasZoomAround(newZ, px, py) {
    view is dragged off the zone, rather than on into filler). Past 64 px
    a square the view is a place's alone (atlasPastArt); dragged until the
    middle of the view is off that place's map, the zoom eases back to the
-   ceiling there, about the middle of the view. Only after a drag: a pinch
+   ceiling there, about the middle of the view, over 0.8 s eased at both
+   ends (0.35 s eased out was abrupt, the maintainer found). Only after a drag: a pinch
    or the wheel near a place's edge is the reader choosing the zoom. */
 function atlasSettleZoom() {
   const vp = document.getElementById('atlasViewport');
@@ -2678,7 +2700,7 @@ function atlasSettleZoom() {
   atlasAnimateTo(e => {
     const z = z0 * Math.pow(z1 / z0, e);
     atlasView.Z = z; atlasView.x = cx - wx * z; atlasView.y = cy - wy * z;
-  }, 350, () => { atlasSyncZoomLabel(); paintAtlas(); }, 'out');
+  }, 800, () => { atlasSyncZoomLabel(); paintAtlas(); });
 }
 
 function atlasPanBy(dx, dy) {
