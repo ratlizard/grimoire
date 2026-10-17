@@ -165,9 +165,9 @@ CHECK_JOBS=1 node utilities/check_all.mjs   # one check at a time
 ```
 
 **The suite also runs on GitHub** (`.github/workflows/checks.yml`) on every
-push to `main` or a `front/*` branch: push the front's branch and read the
-run (`gh run watch`) rather than running the whole suite on this 8 GB
-machine, and keep single checks and `--quick` for while working. Three
+push to `main` or a `front/*` branch, and `tools/front.sh land` lands a
+front only once its branch's run is green, so the whole suite need not run
+on this 8 GB machine; keep single checks and `--quick` for while working. Three
 checks skip there for inputs no public repository has. `REFERENCE.md`,
 *The checks*, has what the run fetches and why.
 

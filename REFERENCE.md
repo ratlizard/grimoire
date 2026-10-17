@@ -574,8 +574,9 @@ by name, and what it writes is game-derived and belongs in no repository.
 machines on every push to `main` or to a `front/*` branch, and by hand
 (workflow_dispatch), since 17 October 2026, so that the suite need not run
 on the maintainer's 8 GB Mac before every push; it builds and deploys
-nothing. A push to `main` is checked after it is live, so a front's branch
-is pushed first and landed once its run is green. It checks out grimoire
+nothing. A push to `main` is checked after it is live, so `front.sh land`
+pushes a front's branch first and lands it only once that commit's run is
+green (`await_checks`; `NO_CHECKS=1` skips the wait). It checks out grimoire
 with the delvmod submodule and its whole history (`version_check.mjs`
 compares against `origin/main`), and beside it `ratlizard/wolflizard` on
 `cythera-detailed` (the HFS round trip builds its `hfs_dump` example, with
