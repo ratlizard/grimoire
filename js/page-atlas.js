@@ -2396,7 +2396,7 @@ function atlasAscend() {
    too eager even judged at the end, so now a gesture only moves the view,
    and a ring is taken by tapping it. The bookkeeping stays because it costs
    nothing and a later idea may want it. */
-const atlasGesture = { active: false, z0: null, timer: null };
+const atlasGesture = { active: false, z0: null, timer: null, rise: false };
 // The last moment the reader moved the world. A background render (a
 // miniature, a kept place, the map beside a ring) waits until the world has
 // been still for a little, so it never lands in the middle of a pan.
@@ -2426,12 +2426,17 @@ function atlasWhenStill(fn, ms) {
 function atlasGestureBegin() {
   atlasMarkBusy();
   if (atlasGesture.active) return;
-  atlasGesture.active = true; atlasGesture.z0 = atlasView.Z;
+  atlasGesture.active = true; atlasGesture.z0 = atlasView.Z; atlasGesture.rise = false;
 }
 function atlasGestureEnd() {
   if (!atlasGesture.active) return;
   atlasGesture.active = false;
   atlasGesture.z0 = null;
+  // Below ground, a zoom out that began at the floor and went on out
+  // rises one level, to the map the view came down from (atlasZoomAround
+  // sets rise; the maintainer, 17 October 2026). A zoom in still never
+  // goes through anything.
+  if (atlasGesture.rise) { atlasGesture.rise = false; if (atlasBelowTop()) atlasRiseOut(); }
   // A zoom goes nowhere by itself, since 6 September 2026: the maintainer
   // found that even judged at the end, a zoom that fell through a hole
   // fell through holes he was only looking at. A ring is taken by a tap.
@@ -2673,11 +2678,17 @@ function atlasZoomAround(newZ, px, py) {
     // out is how you leave.
     minZ = fit * (atlasBelowTop() ? 0.6 : 0.9);
   }
+  // Out past the floor below ground, from a gesture that began at the
+  // floor: a tenth past it, which a pinch's jitter does not reach and one
+  // click of the wheel does.
+  if (atlasBelowTop() && atlasGesture.active && atlasGesture.z0 !== null &&
+      atlasGesture.z0 <= minZ * 1.02 && newZ <= minZ * 0.91) atlasGesture.rise = true;
   newZ = Math.max(minZ, Math.min(maxZ, newZ));
   const wx = (px - atlasView.x) / atlasView.Z, wy = (py - atlasView.y) / atlasView.Z;
   atlasView.Z = newZ;
   atlasView.x = px - wx * atlasView.Z;
   atlasView.y = py - wy * atlasView.Z;
+  atlasClampView();
   atlasSyncZoomLabel();
   schedulePaintAtlas();
 }
@@ -2703,10 +2714,28 @@ function atlasSettleZoom() {
   }, 800, () => { atlasSyncZoomLabel(); paintAtlas(); });
 }
 
+/* Where the view may go: its middle stays over the island on the surface
+   (atlasLandBounds, the land with a margin of sea) and over the map below
+   ground, so the map can be dragged to its edge and no further (the
+   maintainer, 17 October 2026). Applied after a pan or a zoom; the
+   animations place the view themselves and are left alone. */
+function atlasClampView() {
+  const vp = document.getElementById('atlasViewport');
+  const sc = atlasScene();
+  if (!vp || !sc || vp.clientWidth < 40) return;
+  const b = (sc.surface && atlasLandBounds()) || { x0: 0, y0: 0, x1: sc.root.w, y1: sc.root.h };
+  const Z = atlasView.Z, cx = vp.clientWidth / 2, cy = vp.clientHeight / 2;
+  const wx = (cx - atlasView.x) / Z, wy = (cy - atlasView.y) / Z;
+  const nx = Math.max(b.x0, Math.min(b.x1, wx)), ny = Math.max(b.y0, Math.min(b.y1, wy));
+  if (nx !== wx) atlasView.x = cx - nx * Z;
+  if (ny !== wy) atlasView.y = cy - ny * Z;
+}
+
 function atlasPanBy(dx, dy) {
   atlasMarkBusy();
   if (window._atlasAnimating) return;
   atlasView.x += dx; atlasView.y += dy;
+  atlasClampView();
   // The slider's range follows what is under the middle of the view.
   atlasSyncZoomLabel();
   schedulePaintAtlas();
@@ -2770,6 +2799,14 @@ function atlasZoomFromSlider() {
    Entities > Regions untouched. The card here says what is on the square and
    offers to open that map there. */
 window.ATLAS_SEL = null;
+// The pick under a finger held down and moving (the maintainer, 17
+// October 2026: on a phone, press and hold moves the selection with it).
+// Only when the square changes, since picking the picked square clears it.
+function atlasPickUnder(px, py) {
+  const hit = atlasAt(px, py), was = window.ATLAS_SEL;
+  if (hit && was && was.resid === hit.node.resid && was.tx === hit.tx && was.ty === hit.ty) return;
+  atlasInspect(px, py);
+}
 function atlasInspect(px, py) {
   const host = document.getElementById('atlasInspect');
   const hit = atlasAt(px, py);
@@ -2969,6 +3006,8 @@ function setupAtlasInteraction() {
           if (pts.size !== 1 || moved >= 6) return;
           peeking = true;
           atlasHover(cx, cy, true);
+          const r0 = vp.getBoundingClientRect();
+          atlasPickUnder(cx - r0.left, cy - r0.top);
         }, 350);
       }
     }
@@ -2986,7 +3025,7 @@ function setupAtlasInteraction() {
     if (!prev) return;
     const now = local(e);
     pts.set(e.pointerId, now);
-    if (peeking) { atlasHover(e.clientX, e.clientY, true); return; }
+    if (peeking) { atlasHover(e.clientX, e.clientY, true); atlasPickUnder(now.x, now.y); return; }
     if (pts.size === 2) {
       const p = Array.from(pts.values());
       const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);

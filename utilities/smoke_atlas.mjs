@@ -1001,8 +1001,47 @@ try {
         if (!top || top.resid !== 0x8009) fail('atlas', 'zooming onto the hole in Land King Hall did not go down: at ' + (top && top.resid.toString(16)) + ', mouths ' + holes.join(' '));
         else if (where !== 'Underground') fail('atlas', 'the full-screen overlay does not say where you are: ' + JSON.stringify(where));
         else console.log('  atlas: the world says Land King Hall, not LKH; a zoom goes nowhere, a tap on a gold ring falls in at half the zoom, a tap on a blue ring rises; full screen names the place');
+        // Below ground, a zoom out that begins at the floor and goes on out
+        // rises one level, to the hall; one that begins above the floor
+        // stops at it (the maintainer, 17 October 2026). Tried: with the
+        // rise taken out of atlasGestureEnd the first half fails, and with
+        // the floor test dropped the second.
+        {
+          const g = peek('atlasGesture'), cxr = vw / 2, cyr = vh / 2;
+          peek('atlasFit')();
+          const floorZ = av.Z * 0.6;
+          ctx.atlasGestureBegin(); peek('atlasZoomAround')(av.Z * 0.7, cxr, cyr); peek('atlasZoomAround')(av.Z * 0.3, cxr, cyr); ctx.atlasGestureEnd();
+          const stayed = peek('atlasBelowTop')();
+          const atFloor = Math.abs(av.Z - floorZ) < floorZ * 0.01;
+          ctx.atlasGestureBegin(); peek('atlasZoomAround')(av.Z * 0.8, cxr, cyr); ctx.atlasGestureEnd();
+          const after = peek('atlasBelowTop')();
+          if (!stayed || stayed.resid !== 0x8009 || !atFloor) fail('atlas', `a zoom out from above the floor below ground left the level or missed the floor: ${stayed && stayed.resid.toString(16)}, Z ${av.Z} against ${floorZ}`);
+          else if (!after || after.resid !== 0x8003) fail('atlas', 'a zoom out past the floor below ground did not rise to the hall: ' + (after ? after.resid.toString(16) : 'the surface'));
+          else console.log('  atlas: below ground a zoom out stops at the floor, and one more rises to the map above');
+          void g;
+        }
         while (peek('atlasBelowTop')()) ctx.atlasAscend();
         ctx.atlasFitAndPaint();
+        // The view's middle stays over the island however far it is dragged,
+        // and a finger held down carries the pick from square to square
+        // without clearing it on the square it starts on.
+        {
+          const land = peek('atlasLandBounds')();
+          peek('atlasPanBy')(1e6, -1e6);
+          const mx = (vw / 2 - av.x) / av.Z, my = (vh / 2 - av.y) / av.Z;
+          const inside = land && mx >= land.x0 - 1e-6 && mx <= land.x1 + 1e-6 && my >= land.y0 - 1e-6 && my <= land.y1 + 1e-6;
+          ctx.atlasFitAndPaint();
+          av.Z = 600; av.x = vw / 2 - 172 * 600; av.y = vh / 2 - 97 * 600; ctx.paintAtlas();
+          ctx.ATLAS_SEL = null;
+          peek('atlasPickUnder')(vw / 2, vh / 2); const s1 = ctx.ATLAS_SEL && { ...ctx.ATLAS_SEL };
+          peek('atlasPickUnder')(vw / 2 + 2, vh / 2); const s2 = ctx.ATLAS_SEL && { ...ctx.ATLAS_SEL };
+          peek('atlasPickUnder')(vw / 2 + 60, vh / 2); const s3 = ctx.ATLAS_SEL && { ...ctx.ATLAS_SEL };
+          ctx.ATLAS_SEL = null; ctx.atlasFitAndPaint();
+          if (!inside) fail('atlas', `a drag took the view's middle off the island: ${mx.toFixed(1)}, ${my.toFixed(1)} against ${JSON.stringify(land)}`);
+          else if (!s1 || !s2 || s2.tx !== s1.tx || s2.ty !== s1.ty || !s3 || (s3.tx === s1.tx && s3.ty === s1.ty))
+            fail('atlas', 'a held finger did not carry the pick: ' + JSON.stringify([s1, s2, s3]));
+          else console.log('  atlas: a drag stops with the view over the island, and a held finger carries the pick');
+        }
       }
     }
     drainRaf();
