@@ -40,6 +40,12 @@ jobs:
           repository: ratlizard/mac-files
           path: mac-files
 
+      # The player calls functions nothing in grimoire does (reach_check.mjs).
+      - uses: actions/checkout@v4
+        with:
+          repository: ratlizard/ratlizard.github.io
+          path: ratlizard.github.io
+
       - uses: actions/setup-node@v4
         with:
           node-version: latest
@@ -50,8 +56,13 @@ jobs:
         with:
           workspaces: wolflizard
 
+      # ppc_check.mjs needs llvm-mc 22 or later (21 reads the code section
+      # differently); Ubuntu's own llvm is older, so apt.llvm.org's.
       - name: Tools the checks compare against
-        run: sudo apt-get update && sudo apt-get install -y llvm unar
+        run: |
+          sudo apt-get update && sudo apt-get install -y unar
+          wget -q https://apt.llvm.org/llvm.sh && sudo bash llvm.sh 22
+          echo "LLVM_MC=$(command -v llvm-mc-22)" >> "$GITHUB_ENV"
 
       # The installer fetch_game.mjs downloads and the art pack, kept between runs.
       - uses: actions/cache@v4
@@ -61,11 +72,21 @@ jobs:
 
       # The table gives one line per check; after a failure each failed check
       # is run again on its own, which prints its whole output to the log.
+      # The page looks for the installer under reference/ before archive.org,
+      # and every miss is a 404 in the console, which browser_check.mjs fails
+      # on. Putting the downloaded archive where the page looks first is what a
+      # local checkout with the game has.
+      - name: The installer, where the page looks first
+        working-directory: grimoire
+        run: |
+          mkdir -p "$TMPDIR" reference/game/installers
+          node utilities/fetch_game.mjs "$TMPDIR"
+          cp "$TMPDIR/Cythera installers (archive.org).sit" reference/game/installers/
+
       - name: check_all
         working-directory: grimoire
         shell: bash
         run: |
-          mkdir -p "$TMPDIR"
           set +e
           node utilities/check_all.mjs | tee "$TMPDIR/table.txt"
           status=${PIPESTATUS[0]}

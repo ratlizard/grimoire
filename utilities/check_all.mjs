@@ -82,6 +82,10 @@ const HQX = firstExisting('reference/game/Cythera Data.hqx',
   'reference/Cythera Data.hqx', 'sources/Cythera Data.hqx');
 const APP_HQX = firstExisting('reference/game/Cythera.hqx',
   'reference/Cythera.hqx', 'sources/Cythera.hqx');
+// With neither .hqx the forks come from the installer, through fetch_game.mjs:
+// a different copy of the same game, which one pinned value tells apart
+// (`expectFetched` below).
+const FETCHED_FORKS = !existsSync(resolve(ROOT, HQX)) && !existsSync(resolve(ROOT, APP_HQX));
 // The 1.0.4 installer as Bryce Schroeder serves it (www.bryce.pw/Cythera.bin),
 // a MacBinary of the Installer VISE application: what index.html now
 // fetches by default, and what vise_check.mjs opens.
@@ -408,7 +412,8 @@ const CHECKS = [
   {page: 'viewer', name: 'spanish', want: [DATA, DATA_RSRC, APP_DATA, APP_RSRC],
    cmd: ['utilities/translate_check.mjs', 'index.html', DATA, DATA_RSRC, APP_DATA, APP_RSRC],
    grep: /\d+ of \d+ highlighted words answer as in English[^\n]*/,
-   expect: '509 of 513 highlighted words answer as in English; 0 pieces untranslated; SPANISH 2ca82cf4; the program 232 loads in Spanish'},
+   expect: '509 of 513 highlighted words answer as in English; 0 pieces untranslated; SPANISH 2ca82cf4; the program 232 loads in Spanish',
+   expectFetched: '509 of 513 highlighted words answer as in English; 0 pieces untranslated; SPANISH a0a34b80; the program 232 loads in Spanish'},
   /* The two StuffIt compressions this page decompresses, 13 and 15, against
      The Unarchiver's own `unar` -- which is the implementation both are ports
      of, so this is a decoder held to its source rather than to a snapshot.
@@ -685,12 +690,18 @@ function judge(check, ok, out, secs) {
    * was untracked and absent from every front -- and a front is where all
    * the work happens, which would have made the guard skip in the one place
    * it is needed. The guide points at this line instead. */
-  if (ok && check.expect && note !== check.expect) {
+  /* The installer's copy of the game, which fetch_game.mjs reads when
+     reference/ has no .hqx, has the same data forks as reference/'s copy and
+     different resource forks (the .hqx files came from an installed copy).
+     A check whose pinned value covers the resource forks whole, as the Spanish
+     translation's hash does, carries a second value for that copy. */
+  const expected = (FETCHED_FORKS && check.expectFetched) || check.expect;
+  if (ok && expected && note !== expected) {
     ok = false;
     /* The row truncates a note at 96 characters, and the half worth reading is
        what to do about it, so the name is left out -- the row already carries
        it -- and both hashes and the instruction fit. */
-    const got = (note || '(nothing)').replace(/^SNAPSHOT /, ''), want = check.expect.replace(/^SNAPSHOT /, '');
+    const got = (note || '(nothing)').replace(/^SNAPSHOT /, ''), want = expected.replace(/^SNAPSHOT /, '');
     out += `\nFAIL: got ${got}, want ${want}; if deliberate, move it in check_all.mjs`;
   }
   if (!ok) {
