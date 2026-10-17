@@ -2030,11 +2030,35 @@ function renderAtlasView() {
     paintAtlas();
     buildWorldThumbs();
     startAtlasAnimation();
+    atlasZoomHintShow();
   };
   start();
 }
 
 function atlasFitAndPaint() { atlasFit(); atlasSyncZoomLabel(); paintAtlas(); }
+
+/* The hint that the map zooms (the maintainer, 16 October 2026: give a
+   hint that the world map zooms, when a visitor sees it). It shows each
+   time the tab opens on the whole world, with the gesture for the
+   visitor's screen: a pinch on a touch screen, the wheel with a mouse.
+   The first zoom puts it away for the rest of the visit, and it fades
+   after a few seconds anyway, so it never sits over the map for long. */
+let _atlasZoomed = false, _atlasHintTimer = null;
+function atlasZoomHintShow() {
+  const hint = document.getElementById('atlasZoomHint');
+  if (!hint || _atlasZoomed || atlasBelowTop()) return;
+  let touch = false;
+  try { touch = matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) { quiet(e); }
+  hint.textContent = touch ? 'Pinch to zoom in' : 'Scroll to zoom in';
+  hint.classList.add('shown');
+  if (_atlasHintTimer) clearTimeout(_atlasHintTimer);
+  _atlasHintTimer = setTimeout(atlasZoomHintHide, 6000);
+}
+function atlasZoomHintHide() {
+  if (_atlasHintTimer) { clearTimeout(_atlasHintTimer); _atlasHintTimer = null; }
+  const hint = document.getElementById('atlasZoomHint');
+  if (hint) hint.classList.remove('shown');
+}
 
 /* The map and its zoom row fill the screen below the tabs, whatever the
    screen (the maintainer, 2 October 2026: the whole world and the zoom bar
@@ -2548,6 +2572,9 @@ function atlasRiseOut() {
 function atlasZoomAround(newZ, px, py) {
   atlasMarkBusy();
   if (window._atlasAnimating) return;
+  // Reached only from a pinch, the wheel and the slider: the visitor has
+  // found the zoom, so the hint goes.
+  _atlasZoomed = true; atlasZoomHintHide();
   const maxZ = atlasMaxZ();
   const sc = atlasScene();
   const vp = document.getElementById('atlasViewport');
