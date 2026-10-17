@@ -341,6 +341,7 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     // their words folded under each (28 September 2026).
     ['patchbar', "showCategory('PATCHES'); fixPreset('tested'); DATAFIX_STATE.open.add('talk'); renderDataFixMaker(); document.getElementById('fixSearch').scrollIntoView()"],
     ['fixsearch', "showCategory('PATCHES'); const q = document.getElementById('fixSearch'); q.value = 'aethon'; q.oninput(); q.scrollIntoView()"],
+    ['fixchanges', "showCategory('PATCHES'); fixPreset('none'); DATAFIX_STATE.q = ''; DATAFIX_STATE.open.add('talk'); DATAFIX_STATE.open.add('interface'); renderDataFixMaker(); const o = [...document.querySelectorAll('.appFixRow')].find(x => /Option-p/.test(x.textContent)); o.querySelector('.fixChangesLink').click(); const r = [...document.querySelectorAll('.appFixRow')].find(x => /Oh yeah/.test(x.textContent)); r.querySelector('.fixChangesLink').click(); r.scrollIntoView()"],
     ['appfixes', "showCategory('PATCHES'); DATAFIX_STATE.open.add('interface'); renderDataFixMaker(); const d = document.getElementById('dataFixMaker').closest('details'); if (d) d.open = true; document.querySelector('.fixFold[open]').scrollIntoView()"],
     // Data > Patches, at the game's fixes, with the text and its options
     // chosen so the indented options and the buttons are drawn (28

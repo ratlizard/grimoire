@@ -1354,6 +1354,10 @@ details:not([open]) > summary .mechFrom { display:none; }
 .fixFoldTitle { color:var(--gold); }
 .fixChangesLink { color:var(--gold); font-size:0.6875rem; cursor:pointer; white-space:nowrap; }
 .appFixRow > .appFixListing { margin:2px 0 6px 22px; }
+.appFixRow > .fixChanges { margin:4px 0 10px 22px; padding:6px 8px; border-left:2px solid var(--edge); }
+.fixChangeItem { margin:4px 0 8px; }
+.fixChanges .sdLine { font-family:var(--face-text); font-size:0.8125rem !important; line-height:1.45; }
+.fixChanges .appFixListing { font-size:0.75rem; }
 .fixFoldCount { color:#f0ede4; font-size:0.75rem; }
 /* A fold's fixes indented past its own box, so they read as under it. */
 .fixFold > :not(summary) { margin-left:2.75rem; }
@@ -2640,7 +2644,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.311.1';
+const GRIMOIRE_VERSION = '1.312.0';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

@@ -2072,27 +2072,132 @@ function fixFold(open, key, title, count) {
    button because the page's button rule is !important on padding and
    background, and it stops the click so that the label round it does not
    tick the box. */
-function fixChangesLink(row, into, text) {
-  const pre = document.createElement('pre');
-  pre.className = 'appFixListing'; pre.textContent = text; pre.hidden = true;
+/* `fill` draws the panel the first time it is opened, since a data fix's
+   is worked out by applying the fix (fixDataChanges). */
+function fixChangesLink(row, into, fill) {
+  const pre = document.createElement('div');
+  pre.className = 'fixChanges'; pre.hidden = true;
+  let drawn = false;
   const a = document.createElement('span');
   a.className = 'fixChangesLink'; a.textContent = 'changes';
   a.setAttribute('role', 'button'); a.tabIndex = 0;
-  const flip = function (e) { e.preventDefault(); e.stopPropagation(); pre.hidden = !pre.hidden; };
+  const flip = function (e) {
+    e.preventDefault(); e.stopPropagation();
+    pre.hidden = !pre.hidden;
+    if (!pre.hidden && !drawn) { drawn = true; pre.textContent = 'Working it out\u2026'; setTimeout(function () { pre.textContent = ''; fill(pre); }, 0); }
+  };
   a.onclick = flip;
   a.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') flip(e); };
   into.appendChild(a);
   row.appendChild(pre);
 }
-// A data fix's edits, a line each: the resource, the offset, what goes
-// there and what it is for, as js/delv-datafixes.js gives them. An edit of
-// another shape says only its resource and its purpose.
-function dataFixEditListing(f) {
-  const hx = n => n.toString(16).toUpperCase();
-  return (f.edits || []).map(e => (e.resid !== undefined ? 'resource ' + hx(e.resid) : '') +
-    (e.at !== undefined ? ' +' + hx(e.at).padStart(4, '0') : '') +
-    (typeof e.code === 'string' ? '  ' + e.code : '') +
-    (e.what ? '  (' + e.what + ')' : '')).filter(Boolean).join('\n');
+/* What a data fix changes, shown as Patch Comparison shows a patch (the
+   maintainer, 17 October 2026: the changes should be "linked and easier to
+   understand", and most fixes had none to show, being worked out against
+   the file rather than listed). The fix is applied alone to the file a
+   patch is built on (basketBase), and each resource it changes is named
+   with a link to it; a script's lines are said in plain words, what was
+   and what will be (dvmScriptDiff). */
+function fixDataChanges(f, host) {
+  const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
+  if (!ARCHIVE || !ARCHIVE.bytes) { host.appendChild(el('p', 'mechSub', 'Open the game to see what this fix changes.')); return; }
+  let base, done;
+  try {
+    base = basketBase();
+    done = applyDataFixes(base, [f.id]);
+  } catch (e) { host.appendChild(el('p', 'mechSub patchBad', 'This fix does not apply to the open file. ' + e.message)); return; }
+  const was = delverArchiveSpec(base);
+  const before = id => { const r = was && was.resources.find(x => x.resid === id); return r ? r.data : null; };
+  const after = id => { const r = done.spec.resources.find(x => x.resid === id); return r ? r.data : null; };
+  const ids = [...new Set(done.changed || [])].sort((x, y) => x - y);
+  const whats = (f.edits || []).map(e => e.what).filter(Boolean);
+  if (whats.length) {
+    const ul = el('ul', 'ruleList');
+    for (const w of [...new Set(whats)]) ul.appendChild(el('li', '', w));
+    host.appendChild(ul);
+  }
+  if (!ids.length) { host.appendChild(el('p', 'mechSub', 'Nothing in the open file changes.')); return; }
+  const scripts = ids.filter(id => SCRIPT_SUBN.has(Math.floor(id / 0x100) - 1));
+  const other = ids.filter(id => scripts.indexOf(id) < 0);
+  for (const id of scripts) {
+    const box = el('div', 'fixChangeItem');
+    box.innerHTML = fixReadDiffHTML(id, before(id), after(id));
+    host.appendChild(box);
+  }
+  if (other.length) {
+    const p = el('div', 'mechSub');
+    p.innerHTML = 'Also changes ' + other.map(id => svChip(id, labelFor(id) || '')).join(' ');
+    host.appendChild(p);
+  }
+}
+/* A script before and after a fix in plain words, the Read view's lines
+   (dvmReadRender) a line each, indented as it indents them; a and b are
+   the resources as a spec holds them, decrypted already. Two lines
+   either side of each change; offsets are left out of the comparison, since
+   a fix that adds an instruction moves every one after it. Text the fix
+   changes in the script's data follows, as Patch Comparison shows it. The
+   script's name is a link to it. Patch Comparison's own diff is of the
+   pseudo-code, which the maintainer found no easier than the bytes. */
+function fixReadDiffHTML(id, a, b) {
+  const lines = d => {
+    const out = [];
+    if (!d) return out;
+    const walk = (cl, depth) => { for (const c of cl || []) { out.push('    '.repeat(depth) + c.text); walk(c.kids, depth + 1); } };
+    try { for (const f of dvmReadRender(ARCHIVE, d, id)) walk(f.clauses, 0); }
+    catch (e) { quiet(e, 'reading script ' + propWordHex(id) + ' in plain words'); }
+    return out;
+  };
+  const key = l => l.replace(/\b0x[0-9A-F]{3,4}\b/g, '0x').trim();
+  const line = l => '<div class="sdLine ' + (l.k === '-' ? 'sdOld' : l.k === '+' ? 'sdNew' : 'sdSame') + '">' +
+    '<span class="sdMark">' + (l.k === '-' ? '\u2212' : l.k === '+' ? '+' : '') + '</span><span class="sdText">' +
+    (l.parts ? l.parts.map(([t, c]) => c ? '<b>' + svEsc(t) + '</b>' : svEsc(t)).join('') : svEsc(cut(l))) + '</span></div>';
+  // A line around a change is there to place it, and can be a whole
+  // speech, so it is cut short; a changed line is shown whole.
+  const cut = l => l.k !== '=' ? l.text : (l.text.length > 90 ? l.text.slice(0, 88).replace(/\s+\S*$/, '') + '\u2026' : l.text);
+  const hunks = hs => hs.map(h => '<div class="sdHunk">' + h.map(line).join('') + '</div>').join('');
+  let h = '<div>' + svChip(id, labelFor(id) || '') + '</div>';
+  let code = null, text = null;
+  try { code = dvmDiffHunks(lines(a), lines(b), key, 2); } catch (e) { quiet(e, 'comparing script ' + propWordHex(id)); }
+  try { text = dvmScriptDiff(ARCHIVE, id, a, b); } catch (e) { quiet(e, 'comparing the text of script ' + propWordHex(id)); }
+  if (code && code.hunks.length) h += hunks(code.hunks);
+  if (text && text.text.length) h += '<div class="mechSub">Its text</div>' + hunks(text.text);
+  if (!(code && code.hunks.length) && !(text && text.text.length)) h += '<p class="mechSub">The script changes, and no line of it reads differently.</p>';
+  return h;
+}
+/* What a program fix changes: each place, by the routine it is in, linked
+   to that routine's listing at the place, and the instructions written
+   there with their comments; the bug it mends, as it was reported, first.
+   The 68K program's changes, which are bytes in its code segments, are in
+   a fold under. */
+function fixAppChanges(f, a, host) {
+  const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
+  if (f.bug) host.appendChild(el('p', 'mechSub', 'The bug: ' + f.bug + '.'));
+  const hx = n => '0x' + n.toString(16).toUpperCase();
+  const where = at => {
+    const r = typeof exeRoutineAt === 'function' ? exeRoutineAt(at) : null;
+    const b = el('button', 'svLink srcNum', r ? r.name.replace(/\(.*$/, '') : hx(at));
+    b.title = hx(at);
+    b.onclick = function () { jumpToExeAt(at, f.title); };
+    return b;
+  };
+  for (const st of f.sites || []) {
+    const head = el('div', 'mechSub');
+    head.appendChild(document.createTextNode('In '));
+    head.appendChild(where(st.at));
+    host.appendChild(head);
+    if (st.asm && st.asm.length) host.appendChild(el('pre', 'appFixListing', st.asm.join('\n')));
+  }
+  if (f.cave && f.cave.length) {
+    host.appendChild(el('div', 'mechSub', 'New code it adds'));
+    host.appendChild(el('pre', 'appFixListing', f.cave.join('\n')));
+  }
+  if (!(f.sites || []).length && !(f.cave || []).length && a && a.words.length) host.appendChild(el('pre', 'appFixListing', appFixListing(a)));
+  if (a && a.m68k) {
+    const d = el('details', 'appFixWords');
+    d.appendChild(el('summary', 'mechSub', '68K program'));
+    d.appendChild(el('pre', 'appFixListing', appFix68kListing(a.m68k)));
+    host.appendChild(d);
+  }
 }
 /* ---- Cythera Data in Spanish ----
    js/delv-translate.js writes a translation into both forks and
@@ -2798,18 +2903,18 @@ function renderDataFixMaker() {
       fold.d.appendChild(r);
     };
     const badgeOf = mark => mark.trim().replace(/^\(|\)$/g, '');
-    for (const f of list) row(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f, badgeOf(untestedMark(f)), 'Cythera Data', dataFixEditListing(f));
-    for (const f of rsrcs) row(window.BACKSTAGE_CHOSEN.has(f.id), function (c) { backstageToggle(f.id, c); }, f, badgeOf(untestedMark(f)), 'Cythera Data',
-      f.rsrc.map(e => e.type + ' ' + e.id + ' string ' + e.index + '  \u201c' + e.was + '\u201d to \u201c' + e.now + '\u201d').join('\n'));
+    for (const f of list) row(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f, badgeOf(untestedMark(f)), 'Cythera Data', function (h) { fixDataChanges(f, h); });
+    for (const f of rsrcs) row(window.BACKSTAGE_CHOSEN.has(f.id), function (c) { backstageToggle(f.id, c); }, f, badgeOf(untestedMark(f)), 'Cythera Data', function (h) {
+      const ul = document.createElement('ul'); ul.className = 'ruleList';
+      for (const e of f.rsrc) { const li = document.createElement('li'); li.textContent = 'The map editor\u2019s name \u201c' + e.was + '\u201d becomes \u201c' + e.now + '\u201d (' + e.type + ' ' + e.id + ', string ' + e.index + ')'; ul.appendChild(li); }
+      h.appendChild(ul);
+    });
     for (const f of apps) {
       /* What the fix writes, the PowerPC words and the 68K changes in one
          listing behind the line's "changes" (the maintainer,
          16 October 2026). */
       const a = trial && trial.applied.find(x => x.id === f.id);
-      const parts = [];
-      if (a && a.words.length) parts.push('PowerPC\n' + appFixListing(a));
-      if (a && a.m68k) parts.push('68K\n' + appFix68kListing(a.m68k));
-      row(!appSt.off.has(f.id), function (c) { appFixToggle(f.id, c); }, f, badgeOf(appFixMark(f)), 'Cythera program', parts.join('\n\n'));
+      row(!appSt.off.has(f.id), function (c) { appFixToggle(f.id, c); }, f, badgeOf(appFixMark(f)), 'Cythera program', function (h) { fixAppChanges(f, a, h); });
     }
     if (!owner) continue;
     const sub = el('div', 'dataFixOptions');
