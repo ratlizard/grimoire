@@ -2103,6 +2103,7 @@ function renderAtlasView() {
     buildWorldThumbs();
     startAtlasAnimation();
     atlasZoomHintShow();
+    atlasEnterHintAtFit();
   };
   start();
 }
@@ -2153,6 +2154,29 @@ function atlasEnterHintShow() {
   hint.classList.add('shown');
   if (_atlasEnterTimer) clearTimeout(_atlasEnterTimer);
   _atlasEnterTimer = setTimeout(() => atlasEnterHintHide(), 8000);
+}
+/* On a phone the island is fitted by its width and leaves sea above and
+   below it, room the maintainer wanted kept for the hints (17 October
+   2026), and asked for the circle hint in the sea below the land from the
+   start rather than at the first circle. So when the tab opens on the
+   whole island with room under the land for a line of text, the hint is
+   shown there, centred in the gap; with no such room, a landscape screen,
+   it waits for a circle as above and sits at the bottom of the map. It
+   stays where it was put while the map moves under it, as the pinch hint
+   does, and goes after the same eight seconds. */
+function atlasEnterHintAtFit() {
+  const hint = document.getElementById('atlasEnterHint');
+  const vp = document.getElementById('atlasViewport');
+  const sc = atlasScene();
+  if (!hint || !vp || !sc || !sc.surface || _atlasEnterShown) return;
+  const b = atlasLandBounds();
+  if (!b) return;
+  const landBottom = atlasView.y + b.y1 * atlasView.Z, gap = vp.clientHeight - landBottom;
+  if (!(gap >= 56)) return;
+  hint.style.top = Math.round(landBottom + gap / 2) + 'px';
+  hint.style.bottom = 'auto';
+  hint.classList.add('inGap');
+  atlasEnterHintShow();
 }
 // `done`: a circle was taken, so the hint is not wanted this visit.
 function atlasEnterHintHide(done) {

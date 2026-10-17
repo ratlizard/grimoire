@@ -961,6 +961,29 @@ try {
         else if (!kept) fail('atlas', 'rendering five other places evicted Cademia\'s render or the world\'s');
         else console.log('  atlas: the circle hint waits for a circle on the screen; a fly-in makes the town\'s render on the way, and Cademia\'s is kept');
       }
+      // On a screen taller than the island, the circle hint is shown from
+      // the start in the sea below the land (the maintainer, 17 October
+      // 2026); on one the island fills, it is not. Tried: with
+      // atlasEnterHintAtFit returning at once the first part fails, and
+      // with its room test dropped the second.
+      {
+        const vpH = REGISTRY.get('atlasViewport'), hint = REGISTRY.get('atlasEnterHint');
+        const atFit = (h) => {
+          Object.defineProperty(vpH, 'clientWidth', { value: 308, configurable: true });
+          Object.defineProperty(vpH, 'clientHeight', { value: h, configurable: true });
+          ctx.__peek('_atlasEnterShown = false'); hint.classList.remove('shown', 'inGap'); hint.style.top = '';
+          peek('atlasFit')(); peek('atlasEnterHintAtFit')();
+          const lb = peek('atlasLandBounds')(), land = av2.y + lb.y1 * av2.Z;
+          const out = { shown: hint.classList.contains('shown'), top: parseFloat(hint.style.top), land };
+          delete vpH.clientWidth; delete vpH.clientHeight;
+          return out;
+        };
+        const tall = atFit(640), square = atFit(308);
+        peek('atlasEnterHintHide')(); hint.classList.remove('inGap'); hint.style.top = ''; hint.style.bottom = '';
+        if (!tall.shown || !(tall.top > tall.land && tall.top < 640) || square.shown)
+          fail('atlas', `the circle hint at the start: on a 308 by 640 map shown ${tall.shown} at ${tall.top} (land ends at ${tall.land}); on a 308 by 308 map shown ${square.shown} (want true below the land, false)`);
+        else console.log(`  atlas: on a 308 by 640 map the circle hint opens at ${tall.top} px, below the land's ${Math.round(tall.land)}; on a square map it waits`);
+      }
       Object.assign(av2, was);
       ctx.__peek('atlasMovedAt = 0');
       peek('paintAtlas')(); drainRaf();

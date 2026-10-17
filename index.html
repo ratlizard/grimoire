@@ -1588,12 +1588,14 @@ body.atlasFull { overflow:hidden; }
 @media (prefers-reduced-motion: reduce) { #atlasZoomHint.shown .zhArrow { animation:none; } }
 /* The hint that a circle is a way in (atlasEnterHintShow): the pinch
    hint's bare text at the bottom of the map, after a white ring with a
-   tap's ripple spreading from it. */
+   tap's ripple spreading from it. .inGap is the hint centred in the sea
+   below the island, its top set by atlasEnterHintAtFit. */
 #atlasEnterHint { position:absolute; left:50%; bottom:22px; transform:translateX(-50%); z-index:6;
   display:flex; align-items:center; gap:10px; color:#fff; font-size:1.0625rem; white-space:nowrap;
   text-shadow:0 0 3px #000, 0 0 6px #000, 0 1px 2px #000; pointer-events:none;
   opacity:0; transition:opacity .4s; }
 #atlasEnterHint.shown { opacity:1; }
+#atlasEnterHint.inGap { transform:translate(-50%, -50%); }
 #atlasEnterHint .ehRing { position:relative; display:block; width:16px; height:16px; border:2px solid #fff; border-radius:50%;
   box-shadow:0 0 3px #000, inset 0 0 3px #000; }
 #atlasEnterHint .ehRing::after { content:''; position:absolute; inset:-2px; border:2px solid #fff; border-radius:50%; opacity:0; }
@@ -2604,7 +2606,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.308.0';
+const GRIMOIRE_VERSION = '1.308.1';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);
