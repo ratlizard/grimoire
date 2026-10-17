@@ -3071,47 +3071,58 @@ function renderPatchBar() {
   const n = dataFixChosen().length + appFixChosen().length + DATA_RSRC_FIXES.filter(f => window.BACKSTAGE_CHOSEN.has(f.id)).length;
   const chip = (label, remove) => {
     const c = el('span', 'patchBarChip', label);
-    const x = el('button', 'patchBarX', '×');
+    // A span, since the page's button rule is !important on padding and
+    // size, which made each chip as tall as a button.
+    const x = el('span', 'patchBarX', '×');
+    x.setAttribute('role', 'button'); x.tabIndex = 0;
     x.setAttribute('aria-label', 'take ' + label + ' out');
     x.onclick = remove;
+    x.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); remove(); } };
     c.appendChild(x);
     items.appendChild(c);
   };
   if (n) chip(n + (n === 1 ? ' fix' : ' fixes'), function () { fixPreset('none'); });
   for (const p of b.parts) chip(p.label, function () { basketRemove(p.key); });
   if (!n && !b.parts.length) items.appendChild(el('span', 'mechSub', 'Nothing yet. Choose fixes, or use Add to Patch below.'));
+  const toggle = el('span', 'patchBarMoreLink', b.more ? 'Less' : 'More');
+  toggle.setAttribute('role', 'button'); toggle.tabIndex = 0;
+  toggle.onclick = function () { b.more = !b.more; renderPatchBar(); };
+  toggle.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle.onclick(); } };
+  items.appendChild(toggle);
   host.appendChild(items);
   const row = el('div', 'patchBarRow');
   const sel = document.createElement('select');
   sel.id = 'patchWhere';
   sel.setAttribute('aria-label', 'where you will play');
-  for (const [v, label] of [['disk', 'Infinite Mac or another emulator'], ['magpie', 'A Mac with Magpie']]) {
+  for (const [v, label] of [['disk', 'For an emulator'], ['magpie', 'For Magpie on a Mac']]) {
     const o = document.createElement('option');
     o.value = v; o.textContent = label; o.selected = b.where === v;
     sel.appendChild(o);
   }
   sel.onchange = function () { b.where = sel.value; renderPatchBar(); };
-  row.appendChild(el('span', 'mechSub', 'Where you will play'));
   row.appendChild(sel);
   const dl = el('button', '', 'Download');
   dl.style.cssText = 'width:auto;margin:0;padding:6px 14px';
   dl.onclick = basketDownload;
   dl.disabled = !n && !b.parts.length;
   row.appendChild(dl);
-  host.appendChild(row);
-  host.appendChild(el('div', 'mechSub', b.where === 'disk' ? 'A disk image with the game’s files, fixed and changed. Put the program and Cythera Data in place of yours.'
+  /* The bar stays two lines high, since it covers the foot of the screen
+     the whole time the tab is open (the maintainer saw it fill a third of
+     his phone): what the download is, what a patch leaves out and the
+     rarer actions are behind More, on the bar's first line. */
+  const more = el('div', 'patchBarMore');
+  more.hidden = !b.more;
+  more.appendChild(el('div', 'mechSub', b.where === 'disk' ? 'A disk image with the game’s files, fixed and changed. Put the program and Cythera Data in place of yours.'
     : 'A patch for Magpie to install into Cythera Data.'));
   const left = b.where === 'magpie' ? basketLeftOut() : [];
   if (left.length) {
-    const d = el('details', 'patchBarMore');
-    d.appendChild(el('summary', 'mechSub', 'A patch leaves out ' + (left.length === 1 ? 'one fix' : left.length + ' fixes') + ' only the disk image has'));
+    more.appendChild(el('div', 'mechSub', 'A patch leaves out ' + (left.length === 1 ? 'one fix' : left.length + ' fixes') + ' only the disk image has:'));
     const ul = el('ul', 'ruleList');
     for (const t of left) ul.appendChild(el('li', '', t));
-    d.appendChild(ul);
-    host.appendChild(d);
+    more.appendChild(ul);
   }
-  const more = el('details', 'patchBarMore');
-  more.appendChild(el('summary', 'mechSub', 'More'));
+  host.appendChild(row);
+  host.appendChild(more);
   const bar2 = el('div', 'mechStats');
   for (const [label, fn] of [['Apply to the open file', basketApply], ['Read it as a patch', basketShowPatch]]) {
     const x = el('button', 'secondary', label);
@@ -3120,7 +3131,6 @@ function renderPatchBar() {
     bar2.appendChild(x);
   }
   more.appendChild(bar2);
-  host.appendChild(more);
   const note = el('div', 'mechSub');
   note.id = 'patchBarNote';
   host.appendChild(note);

@@ -291,7 +291,11 @@ button::before, button::after { display:none !important; }
    past the frame. Everything now lives inside a width-constrained shell
    that clears the frame, and no child is allowed to exceed its container. */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { max-width:100%; overflow-x:hidden; }
+/* clip, not hidden, where the browser has it: hidden makes the body a
+   scroll box of its own, and then nothing can stick to the screen (Your
+   Patch, pinned under Build a Patch, sat at the tab's end until
+   16 October 2026). hidden stays first as the fallback. */
+html, body { max-width:100%; overflow-x:hidden; overflow-x:clip; }
 body { padding:0 !important; }
 /* The top inset was 44px, and 40px on a phone, from when the two controls
    at the top were fixed to the viewport and the page had to clear them.
@@ -1322,13 +1326,17 @@ details:not([open]) > summary .mechFrom { display:none; }
 .fixSearch { width:100%; max-width:420px; box-sizing:border-box; margin:6px 0 4px; }
 /* Your patch, pinned to the foot of the Build a Patch tab while it
    scrolls, so what is in it and its download are always in reach. */
-.patchBar { position:sticky; bottom:0; z-index:5; margin:18px 0 0; padding:10px 12px; background:var(--panel); border:1px solid var(--edge); border-radius:8px; }
-.patchBarItems { display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; margin:0 0 8px; }
-.patchBarTitle { color:#fff; font-family:var(--face); font-size:1rem; margin-right:4px; }
-.patchBarChip { display:inline-flex; align-items:center; gap:4px; color:#fff; font-size:0.8125rem; border:1px solid rgba(155,136,80,.7); border-radius:12px; padding:1px 4px 1px 10px; }
-#sheetGrid button.patchBarX { width:auto; margin:0; padding:0 6px !important; min-width:0; line-height:1.2; }
+.patchBar { position:sticky; bottom:0; z-index:5; margin:18px 0 0; padding:6px 10px; background:#16130e; border:1px solid var(--edge); border-radius:8px; max-height:60vh; overflow-y:auto; }
+.patchBarItems { display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center; margin:0 0 4px; }
+.patchBarTitle { color:#fff; font-size:0.875rem; margin-right:2px; }
+#sheetGrid select#patchWhere { width:auto; flex:1 1 0; min-width:0; min-height:0; margin:0; padding:4px 8px !important; font-size:0.9375rem !important; white-space:nowrap; }
+.patchBarRow { flex-wrap:nowrap; }
+.patchBarRow > button { flex:none; }
+.patchBarMore { margin:6px 0 0; }
+.patchBarChip { display:inline-flex; align-items:center; gap:4px; color:#fff; font-size:0.75rem; border:1px solid rgba(155,136,80,.7); border-radius:12px; padding:1px 4px 1px 10px; }
+.patchBarX { color:var(--gold); cursor:pointer; padding:0 6px; }
+.patchBarMoreLink { color:var(--gold); cursor:pointer; font-size:0.75rem; margin-left:auto; }
 .patchBarRow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 4px; }
-.patchBarMore > summary { color:var(--gold); cursor:pointer; font-size:0.75rem; margin:4px 0 0; }
 .fixFold { margin:8px 0; }
 .fixFoldHead { display:flex; gap:8px; align-items:center; cursor:pointer; color:var(--gold); font-size:0.875rem; list-style:none; }
 .fixFoldHead::-webkit-details-marker { display:none; }
