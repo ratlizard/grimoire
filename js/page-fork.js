@@ -1038,7 +1038,7 @@ async function loadApplicationFork() {
       // say the same things about an application this page never opened.
       window.APP_RSRC_RAW = c.rsrc;
       window.APP_DATA = c.data && c.data.length ? c.data : null; window.APP_PEF = null;
-      window.APP_RSRC_STATE = '';
+      window.APP_RSRC_STATE = ''; window.APP_PRISTINE = null;
       try { installDialogueBox(); } catch (e) { quiet(e); }
       DERIVED.AI_HOOK_NAMES = null;
       syncInstallerTabs();

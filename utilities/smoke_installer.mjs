@@ -605,6 +605,33 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!box.frame || !/border-image-source:url\(data:image\/png;base64,iVBOR/.test(css) || !/border-image-slice:4 8/.test(css)) fail('dialogue box', 'the frame was not built from the tile and bands the program names: ' + css.slice(0, 120));
       else console.log('  dialogue box: blue ' + box.blue.join(',') + ' from clut ' + rd.clut.v + ' at byte ' + rd.offset.v + ', frame from tile 0x' + rd.tile.v.toString(16).toUpperCase() + ' sliced ' + rd.top.v + ' ' + rd.side.v + ', all read off the program');
     }
+    /* Build a Patch's Apply to Site Data with a program fix (17 October
+       2026): the site's program becomes the fixed one, which the program's
+       readers then parse; Replacement Files carries that same program; a
+       second Apply builds again from the program as it arrived, which the
+       fixes need, since they refuse a program that has them; and Apply
+       with no program fix chosen puts the program as it arrived back. */
+    {
+      const r = ctx.__peek(`(() => {
+        const was = APP_DATA;
+        fixPreset('none'); appFixToggle('option-p', true);
+        const first = basketApply(), fixed = APP_DATA;
+        const parsed = !!appPef();
+        const files = basketFiles();
+        const prog = files && files.entries.find(e => e.name === 'Cythera');
+        const same = !!prog && prog.data.length === fixed.length && prog.data.every((x, i) => x === fixed[i]);
+        const second = basketApply();
+        fixPreset('none');
+        const third = basketApply(), back = APP_DATA === was;
+        fixPreset('tested');
+        return { first, changed: !!fixed && fixed !== was && (fixed.length !== was.length || fixed.some((x, i) => x !== was[i])), parsed, same, second, third, back, note: (document.getElementById('patchBarNote') || {}).textContent || '' };
+      })()`);
+      if (!r.first || !r.changed || !r.parsed) fail('apply to site', 'the program was not replaced by the fixed one: ' + JSON.stringify(r));
+      else if (!r.same) fail('apply to site', 'Replacement Files does not carry the program the site has: ' + JSON.stringify(r));
+      else if (!r.second) fail('apply to site', 'a second Apply did not build: ' + JSON.stringify(r));
+      else if (!r.third || !r.back) fail('apply to site', 'Apply with no program fix did not put the program back: ' + JSON.stringify(r));
+      else console.log('  apply to site: option-p applied to the site\u2019s program and parsed, the same program in Replacement Files, applied again, and the program as it arrived put back');
+    }
     ctx.showCategory('AIRULES');
     const rows = (REGISTRY.get('sheetGrid').children || []);
     // The Rules tab has the vocabulary out of the application's fork.

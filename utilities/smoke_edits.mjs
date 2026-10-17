@@ -1420,7 +1420,7 @@ try {
   // is chosen, so a stand-in fork is passed through untouched.
   peek(`(() => { APPFIX_STATE.off = new Set(APP_FIXES.map(f => f.id)); BACKSTAGE_CHOSEN = new Set();
     const keep = window.CYTHERA_RSRC_RAW; if (!keep || !keep.length) window.CYTHERA_RSRC_RAW = new Uint8Array([1]);
-    window.SMOKE_DISK = basketDisk(); window.SMOKE_DISK_WHY = document.getElementById('patchBarNote') ? document.getElementById('patchBarNote').textContent : '';
+    window.SMOKE_DISK = basketFiles(); window.SMOKE_DISK_WHY = document.getElementById('patchBarNote') ? document.getElementById('patchBarNote').textContent : '';
     window.CYTHERA_RSRC_RAW = keep; })()`);
   // The fixes built from Bryce Schroeder's published source carry his name;
   // the four of his patch written here from the causes do not.
@@ -1453,8 +1453,10 @@ try {
     else if (!peek(`(() => { const d = window.SMOKE_DISK, a = ARCHIVE.bytes, b = d && d.entries.length === 1 && d.entries[0].data;
         return !!b && b.length === a.length && b.every((x, i) => x === a[i]); })()`))
       fail('game fixes', 'the fixed game\u2019s Cythera Data is not the file the patch makes: ' + peek(`JSON.stringify(window.SMOKE_DISK ? { n: SMOKE_DISK.entries.length, len: SMOKE_DISK.entries[0].data.length, now: ARCHIVE.bytes.length } : SMOKE_DISK_WHY)`));
-    else if (!again) fail('game fixes', 'the fixes built again on the file they had fixed');
-    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list refused on the edited Paris topic by the fix's name; Fetch and fishing credited to him and Aethon's lock picking not; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), the fixed game's Cythera Data the same file, and refused when built again; the text's ${changes.rows} changes listed under ${changes.parts.length} headings, the option not chosen not among them, and Helen's "Yery well" linked to her script at 0x${link.at.toString(16).toUpperCase()}, opened ringed there`);
+    // Built from the file as it arrived (PRISTINE_BYTES), so applying the
+    // fixes to the site never stops them building again (17 October 2026).
+    else if (again) fail('game fixes', 'the fixes would not build again after being applied: ' + again);
+    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list refused on the edited Paris topic by the fix's name; Fetch and fishing credited to him and Aethon's lock picking not; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), the fixed game's Cythera Data the same file, and built again after being applied; the text's ${changes.rows} changes listed under ${changes.parts.length} headings, the option not chosen not among them, and Helen's "Yery well" linked to her script at 0x${link.at.toString(16).toUpperCase()}, opened ringed there`);
   }
   ctx.dataFixClear();
   ctx.patchesForget();

@@ -1954,9 +1954,15 @@ function gremlinCheck(formError) {
 // was played, and a visitor who keeps the defaults should get only fixes a
 // run has shown.
 window.APPFIX_STATE = { off: new Set(APP_FIXES.filter(f => f.kind === 'change' || !f.played).map(f => f.id)), src: null, open: new Set() };
+/* The program the fixes are written into, as it arrived: once Apply to
+   Site Data has put a fixed program in its place (APP_DATA), the one it
+   replaced is kept in APP_PRISTINE, since the fixes refuse a program that
+   has them already. */
 function appFixSource() {
   const st = window.APPFIX_STATE;
   if (st.src) return st.src;
+  const p = window.APP_PRISTINE;
+  if (p) return { data: p.data, rsrc: p.rsrc, name: 'the installer', type: 'APPL', creator: 'Delv' };
   if (window.APP_DATA && window.APP_RSRC_RAW) return { data: window.APP_DATA, rsrc: window.APP_RSRC_RAW, name: 'the installer', type: 'APPL', creator: 'Delv' };
   return null;
 }
@@ -2562,7 +2568,9 @@ function dataFixPatch() {
   if (!ARCHIVE || !ARCHIVE.bytes) throw new Error('No game file is open.');
   const chosen = dataFixChosen();
   if (!chosen.length) return null;
-  const done = applyDataFixes(ARCHIVE.bytes, chosen.map(f => f.id), { skip: window.DATAFIX_STATE.skip });
+  // From basketBase, so a file the fixes were applied to on this site
+  // still builds them (the maintainer, 17 October 2026).
+  const done = applyDataFixes(basketBase(), chosen.map(f => f.id), { skip: window.DATAFIX_STATE.skip });
   const w = writeDelverPatch(done.spec, done.changed,
     { description: dataFixDescription(chosen).slice(0, 255), typeCode: DELV_PATCH_EXPORT_TYPE });
   w.name = 'Cythera Fixes';
@@ -2587,6 +2595,7 @@ function dataFixApply() {
   if (!w) return false;
   if (!patchesOpenBytes(w.bytes, w.name)) { dataFixSay('The patch was not accepted.', true); return false; }
   const ok = patchesApply();
+  if (ok) basketApplied(w.resids);
   if (ok) { renderPatchReport(); dataFixSay('Applied to the copy of the file in this browser. To download the changed file, go to Data › Cythera Data › Changes.'); }
   return ok;
 }
@@ -2939,7 +2948,7 @@ function fixPreset(key) {
    later one kept. The Spanish copy is not a part: it finds each piece of
    text by the English it replaces, so a text fix ahead of it would be
    left in English, and fixes after it would not find their English. */
-window.PATCH_BASKET = window.PATCH_BASKET || { parts: [], where: 'disk' };
+window.PATCH_BASKET = window.PATCH_BASKET || { parts: [], where: 'files' };
 function basketAdd(key, label, w) {
   const b = window.PATCH_BASKET;
   b.parts = b.parts.filter(p => p.key !== key).concat([{ key, label, w }]);
@@ -2965,6 +2974,26 @@ function basketDescription() {
   if (d.length > 255) d = d.slice(0, 254).replace(/\s+\S*$/, '') + '…';
   return d;
 }
+/* What a patch is built on: the site's file as it stands, with the
+   resources an earlier Apply to Site Data wrote put back as they arrived.
+   As it stands, so that the visitor's own edits are kept and a fix that
+   finds one in its way says so; with Apply's resources put back, so that
+   applying never stops the same patch building again, which the fixes
+   refuse on a file that has them. Resources Apply added are dropped. */
+window.BASKET_APPLIED = window.BASKET_APPLIED || null;
+function basketBase() {
+  const applied = window.BASKET_APPLIED;
+  if (!applied || !applied.size || !window.PRISTINE_BYTES) return ARCHIVE.bytes;
+  const now = delverArchiveSpec(ARCHIVE.bytes), was = delverArchiveSpec(window.PRISTINE_BYTES);
+  if (!now || !was) return ARCHIVE.bytes;
+  const wasBy = new Map(was.resources.map(r => [r.resid, r]));
+  const resources = now.resources.filter(r => !applied.has(r.resid) || wasBy.has(r.resid))
+    .map(r => applied.has(r.resid) ? wasBy.get(r.resid) : r);
+  return writeDelverArchive(Object.assign({}, now, { resources }));
+}
+function basketApplied(resids) {
+  window.BASKET_APPLIED = new Set([...(window.BASKET_APPLIED || []), ...resids]);
+}
 // The open file with every part merged in, or null with the reason said.
 function basketMerged() {
   if (!ARCHIVE || !ARCHIVE.bytes) { basketSay('No game file is open.', true); return null; }
@@ -2975,7 +3004,7 @@ function basketMerged() {
     if (w) layers.push({ label: 'the fixes', w });
   }
   for (const p of window.PATCH_BASKET.parts) layers.push(p);
-  let data = ARCHIVE.bytes;
+  let data = basketBase();
   const by = new Map(), clash = [];
   for (const l of layers) {
     let m;
@@ -2989,25 +3018,36 @@ function basketMerged() {
   }
   return { data, resids: [...by.keys()], layers, clash: [...new Set(clash)] };
 }
-// The disk image: Cythera Data merged, its resource fork's fixes, and the
-// program with its fixes when any is chosen.
-function basketDisk() {
+// The site's resource fork with the chosen fixes it does not have yet, so
+// that the visitor's own changes to it (a font swapped in) are kept; null
+// with the reason said.
+function basketFork() {
   const rsrc = window.CYTHERA_RSRC_RAW;
-  if (!rsrc || !rsrc.length) { basketSay('This copy of Cythera Data has no resource fork. Open the game in MacBinary or BinHex, or open the installer, or choose a Mac with Magpie.', true); return null; }
-  const apps = appFixChosen(), rsrcIds = [...window.BACKSTAGE_CHOSEN];
+  if (!rsrc || !rsrc.length) { basketSay('This copy of Cythera Data has no resource fork. Open the game in MacBinary or BinHex, or open the installer, or choose a Magpie patch.', true); return null; }
+  const ids = [...window.BACKSTAGE_CHOSEN].filter(id => !rsrcFixApplied(rsrc, id));
+  if (!ids.length) return rsrc;
+  try { return applyDataRsrcFixes(rsrc, ids).rsrc; } catch (e) { basketSay(e.message, true); return null; }
+}
+// The program with the chosen fixes, from the program as it arrived, or
+// null with the reason said; `none` when no program fix is chosen.
+function basketProgram() {
+  if (!appFixChosen().length) return 'none';
+  const r = appFixBuild();
+  if (!r) { const n = document.getElementById('dataFixNote'); basketSay(n && n.textContent ? n.textContent : 'The program could not be fixed.', true); return null; }
+  return { name: 'Cythera', type: r.src.type, creator: r.src.creator, data: r.data, rsrc: r.rsrc };
+}
+// The replacement files: Cythera Data merged with its fork's fixes, and
+// the program when a program fix is chosen.
+function basketFiles() {
   const m = basketMerged();
   if (!m) return null;
-  if (!m.layers.length && !apps.length && !rsrcIds.length) { basketSay('Your patch is empty.', true); return null; }
-  let fork = rsrc;
-  if (rsrcIds.length) {
-    try { fork = applyDataRsrcFixes(rsrc, rsrcIds).rsrc; } catch (e) { basketSay(e.message, true); return null; }
-  }
+  if (!m.layers.length && !appFixChosen().length && !window.BACKSTAGE_CHOSEN.size) { basketSay('Your patch is empty.', true); return null; }
+  const fork = basketFork();
+  if (!fork) return null;
+  const prog = basketProgram();
+  if (!prog) return null;
   const entries = [spanishDataFile({ data: m.data, rsrc: fork })];
-  if (apps.length) {
-    const r = appFixBuild();
-    if (!r) { basketSay(document.getElementById('dataFixNote') ? document.getElementById('dataFixNote').textContent : 'The program could not be fixed.', true); return null; }
-    entries.unshift({ name: 'Cythera', type: r.src.type, creator: r.src.creator, data: r.data, rsrc: r.rsrc });
-  }
+  if (prog !== 'none') entries.push(prog);
   return Object.assign(m, { entries });
 }
 // The Magpie patch of everything a patch can carry.
@@ -3026,11 +3066,14 @@ function basketLeftOut() {
 }
 function basketDownload() {
   const where = window.PATCH_BASKET.where;
-  if (where === 'disk') {
-    const r = basketDisk();
+  if (where === 'site') return basketApply();
+  if (where === 'files') {
+    const r = basketFiles();
     if (!r) return null;
-    dlBlob(new Blob([writeHfsImage({ volumeName: 'Cythera', entries: r.entries })], { type: 'application/octet-stream' }), 'Cythera.dsk');
-    basketSay('Cythera.dsk has ' + (r.entries.length === 2 ? 'the program and ' : '') + 'Cythera Data, with everything in your patch.' +
+    // MacBinary, which a Mac and Infinite Mac both take; a browser may ask
+    // once whether to allow the second file.
+    for (const f of r.entries) dlBlob(new Blob([writeMacBinary(f)], { type: 'application/macbinary' }), f.name + '.bin');
+    basketSay(r.entries.map(f => f.name + '.bin').join(' and ') + ', to put in place of yours.' +
       (r.clash.length ? ' ' + r.clash.join(', ') + ' change the same thing, and the later one is kept.' : ''));
     return r;
   }
@@ -3041,14 +3084,60 @@ function basketDownload() {
   basketSay('Install it with Magpie.' + (w.merged.clash.length ? ' ' + w.merged.clash.join(', ') + ' change the same thing, and the later one is kept.' : ''));
   return w;
 }
+/* Apply to Site Data: everything in the patch, into the files the site has
+   open, in this browser only. Cythera Data takes the patch the way any
+   patch is applied here, over whatever else was edited, and a patch
+   replaces whole resources, so applying twice is harmless. The resource
+   fork's fixes go into the fork the site has, skipping one it has already.
+   The program is replaced by the program as it arrived with the fixes
+   chosen, and its readers start again (appPef), so the program's pages
+   show the fixed code. */
 function basketApply() {
-  const w = basketPatch();
-  if (!w) return false;
-  if (!patchesOpenBytes(w.bytes, w.name)) { basketSay('The patch was not accepted.', true); return false; }
-  const ok = patchesApply();
-  if (ok) { renderPatchReport(); basketSay('Applied to the copy of the file in this browser. To download the changed file, go to Data › Cythera Data › Changes.'); }
-  return ok;
+  const said = [];
+  if (dataFixChosen().length || window.PATCH_BASKET.parts.length) {
+    const w = basketPatch();
+    if (!w) return false;
+    if (!patchesOpenBytes(w.bytes, w.name)) { basketSay('The patch was not accepted.', true); return false; }
+    if (!patchesApply()) { basketSay('The patch could not be applied.', true); return false; }
+    basketApplied(w.merged.resids);
+    renderPatchReport();
+    said.push('Cythera Data');
+  }
+  const ids = [...window.BACKSTAGE_CHOSEN].filter(id => !rsrcFixApplied(window.CYTHERA_RSRC_RAW, id));
+  if (ids.length && window.CYTHERA_RSRC_RAW) {
+    try {
+      const raw = applyDataRsrcFixes(window.CYTHERA_RSRC_RAW, ids).rsrc;
+      window.CYTHERA_RSRC_RAW = raw; window.CYTHERA_RSRC = openResourceFork(raw);
+      if (said.indexOf('Cythera Data') < 0) said.push('Cythera Data');
+    } catch (e) { basketSay(e.message, true); return false; }
+  }
+  const src = appFixSource();
+  if (src && !window.APPFIX_STATE.src && (appFixChosen().length || window.APP_PRISTINE)) {
+    const prog = basketProgram();
+    if (!prog) return false;
+    if (!window.APP_PRISTINE) window.APP_PRISTINE = { data: window.APP_DATA, rsrc: window.APP_RSRC_RAW };
+    const p = prog === 'none' ? window.APP_PRISTINE : prog;
+    window.APP_DATA = p.data; window.APP_RSRC_RAW = p.rsrc; window.APP_RSRC = openResourceFork(p.rsrc);
+    window.APP_PEF = null; DERIVED.AI_HOOK_NAMES = null;
+    if (typeof _rsrcArtifactCache !== 'undefined') _rsrcArtifactCache.clear();
+    said.push('the program');
+  }
+  if (!said.length) { basketSay('Your patch is empty.', true); return false; }
+  basketSay('Applied to ' + said.join(' and ') + ' on this site. Download them as replacement files whenever you like.');
+  return true;
 }
+// Whether the site's fork has a resource-fork fix already: every string
+// it writes is there.
+function rsrcFixApplied(raw, id) {
+  const fix = DATA_RSRC_FIXES.find(f => f.id === id);
+  if (!fix || !raw || !raw.length) return false;
+  try {
+    const spec = resourceForkSpec(openResourceFork(raw));
+    return fix.rsrc.every(e => { const r = spec.resources.find(x => x.type === e.type && x.id === e.id); const l = r && appStrList(r.data); return !!l && !!l[e.index - 1] && decodeMacRoman(l[e.index - 1]) === e.now; });
+  } catch (e) { quiet(e, 'whether a resource-fork fix is applied'); return false; }
+}
+// View Comparison: the patch opened in Patch Comparison, which lists what
+// it changes; nothing is changed.
 function basketShowPatch() {
   const w = basketPatch();
   if (!w) return false;
@@ -3093,15 +3182,15 @@ function renderPatchBar() {
   const row = el('div', 'patchBarRow');
   const sel = document.createElement('select');
   sel.id = 'patchWhere';
-  sel.setAttribute('aria-label', 'where you will play');
-  for (const [v, label] of [['disk', 'For an emulator'], ['magpie', 'For Magpie on a Mac']]) {
+  sel.setAttribute('aria-label', 'what to do with your patch');
+  for (const [v, label] of [['files', 'Download as Replacement Files'], ['magpie', 'Download as a Magpie Patch'], ['site', 'Apply to Site Data']]) {
     const o = document.createElement('option');
     o.value = v; o.textContent = label; o.selected = b.where === v;
     sel.appendChild(o);
   }
   sel.onchange = function () { b.where = sel.value; renderPatchBar(); };
   row.appendChild(sel);
-  const dl = el('button', '', 'Download');
+  const dl = el('button', '', b.where === 'site' ? 'Apply' : 'Download');
   dl.style.cssText = 'width:auto;margin:0;padding:6px 14px';
   dl.onclick = basketDownload;
   dl.disabled = !n && !b.parts.length;
@@ -3110,27 +3199,24 @@ function renderPatchBar() {
      the whole time the tab is open (the maintainer saw it fill a third of
      his phone): what the download is, what a patch leaves out and the
      rarer actions are behind More, on the bar's first line. */
+  // What a Magpie patch cannot carry, said whenever it is the choice and
+  // any of it is chosen, since it is easy to miss and costs a fix.
+  const left = b.where === 'magpie' ? basketLeftOut() : [];
+  if (left.length) host.appendChild(el('div', 'mechSub patchBad', 'Not in a Magpie patch: ' + (left.length > 3 ? left.length + ' of your fixes, which change the program or a part of Cythera Data a patch cannot reach.' : left.join('; ') + '.')));
   const more = el('div', 'patchBarMore');
   more.hidden = !b.more;
-  more.appendChild(el('div', 'mechSub', b.where === 'disk' ? 'A disk image with the game’s files, fixed and changed. Put the program and Cythera Data in place of yours.'
-    : 'A patch for Magpie to install into Cythera Data.'));
-  const left = b.where === 'magpie' ? basketLeftOut() : [];
-  if (left.length) {
-    more.appendChild(el('div', 'mechSub', 'A patch leaves out ' + (left.length === 1 ? 'one fix' : left.length + ' fixes') + ' only the disk image has:'));
+  more.appendChild(el('div', 'mechSub', b.where === 'files' ? 'Cythera Data, and the program when a fix to it is chosen, as MacBinary files to put in place of yours.'
+    : b.where === 'magpie' ? 'One patch for Magpie to install into Cythera Data.' : 'Your patch, put into the files this site has open, in this browser only. The rest of the site then shows them changed.'));
+  if (left.length > 3) {
     const ul = el('ul', 'ruleList');
     for (const t of left) ul.appendChild(el('li', '', t));
     more.appendChild(ul);
   }
-  host.appendChild(row);
+  const vc = el('button', 'secondary', 'View Comparison');
+  vc.style.cssText = 'width:auto;margin:4px 0 0;padding:6px 12px';
+  vc.onclick = basketShowPatch;
+  more.appendChild(vc);
   host.appendChild(more);
-  const bar2 = el('div', 'mechStats');
-  for (const [label, fn] of [['Apply to the open file', basketApply], ['Read it as a patch', basketShowPatch]]) {
-    const x = el('button', 'secondary', label);
-    x.style.cssText = 'width:auto;margin:0;padding:6px 12px';
-    x.onclick = fn;
-    bar2.appendChild(x);
-  }
-  more.appendChild(bar2);
   const note = el('div', 'mechSub');
   note.id = 'patchBarNote';
   host.appendChild(note);

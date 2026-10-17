@@ -53,6 +53,7 @@ function resetDerivedCaches() {
   window.APP_RSRC_RAW = null;
   window.APP_DATA = null;
   window.APP_PEF = null;
+  window.APP_PRISTINE = null;
   window.APP_RSRC_STATE = '';
   window.RSRC_SOURCE = 'data';
   window.MAP_VIEW_MEMORY = Object.create(null);
@@ -372,7 +373,7 @@ function adoptArchive(raw, sourceName, opts) {
   if (found.installer) {
     const app = found.installer.archive.entries.find(e => e.type === 'APPL' && e.creator === 'Delv');
     if (app) {
-      try { const both = viseExtract(found.installer.archive, app); window.APP_RSRC = openResourceFork(both.rsrc); window.APP_RSRC_RAW = both.rsrc; window.APP_DATA = both.data && both.data.length ? both.data : null; window.APP_PEF = null; window.APP_RSRC_STATE = ''; }
+      try { const both = viseExtract(found.installer.archive, app); window.APP_RSRC = openResourceFork(both.rsrc); window.APP_RSRC_RAW = both.rsrc; window.APP_DATA = both.data && both.data.length ? both.data : null; window.APP_PEF = null; window.APP_RSRC_STATE = ''; window.APP_PRISTINE = null; }
       catch (e) { window.APP_RSRC = null; window.APP_RSRC_RAW = null; window.APP_DATA = null; window.APP_PEF = null; window.APP_RSRC_STATE = 'The page could not open the program’s fork from the installer: ' + e.message; }
       if (window.CUR_SUBN === 'MACRSRC' && window.RSRC_SOURCE === 'app') renderMacRsrcSheet();
       // The dialogue box's constants are the program's, so it is drawn
@@ -793,6 +794,9 @@ function parseArchiveBytes(bytes, sourceName, meta) {
      12,542 bytes shorter -- so after one edit `ARCHIVE.bytes` no longer agrees
      with anyone's installed copy. Every patch is computed against this. */
   if (meta.via !== 'edit') window.PRISTINE_BYTES = bytes;
+  // What Build a Patch's Apply to Site Data wrote (basketBase) belongs to
+  // the file it was applied to.
+  if (meta.via !== 'edit') window.BASKET_APPLIED = null;
   // Kept for the edit path: a rebuild re-enters here and needs the name to
   // keep calling the file what the user called it, and the fork's raw bytes
   // to hand back as meta.rsrc -- CYTHERA_RSRC is the parsed fork and cannot
