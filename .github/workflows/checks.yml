@@ -59,6 +59,19 @@ jobs:
           path: tmp
           key: grimoire-inputs-v1
 
+      # The table gives one line per check; after a failure each failed check
+      # is run again on its own, which prints its whole output to the log.
       - name: check_all
         working-directory: grimoire
-        run: mkdir -p "$TMPDIR" && node utilities/check_all.mjs
+        shell: bash
+        run: |
+          mkdir -p "$TMPDIR"
+          set +e
+          node utilities/check_all.mjs | tee "$TMPDIR/table.txt"
+          status=${PIPESTATUS[0]}
+          grep -E '^  FAIL  ' "$TMPDIR/table.txt" | sed -E 's/^  FAIL  (.*)  \([0-9.]+s\)$/\1/' | while read -r name; do
+            echo "::group::$name, run alone"
+            node utilities/check_all.mjs "$name" | tail -80
+            echo "::endgroup::"
+          done
+          exit $status
