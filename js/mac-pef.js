@@ -316,7 +316,7 @@ function pefPointerAt(img, sectionIndex, offset) {
    the count then 4 each, has_ctl), name (2 for the length then the bytes,
    name_present), alloca_reg (1, uses_alloca).
 
-   A routine is taken only when the table has how long it is and what it
+   A routine is taken only when the table records how long it is and what it
    is called, its start is at or after the previous routine's end, and the
    name is printable: a zero word followed by plausible flag bytes occurs
    in data too, and those three tests are what keep it out. */
@@ -440,7 +440,7 @@ function pefDemangle(m) {
    and the routine half of the report is then empty while the fork half still
    works. Two routines can share a name -- overloads mangle differently, so in
    practice they do not -- and where they do, the first is taken and the count
-   reports it.
+   shows it.
 
    THE RESOURCE FORK is compared by type and id, which is the identity the
    Resource Manager uses. A resource whose bytes differ is reported; a
@@ -479,7 +479,7 @@ function describeApplicationDiff(a, b) {
        *
        * The census is the multiset of OPCODES, operands ignored. A recompile
        * shuffles registers and operands and leaves the census alone; an edit
-       * moves it, and which opcodes came in shows what kind of edit: a new `bl`
+       * moves it, and the opcodes that appeared show what kind of edit: a new `bl`
        * is a call, `mr.`+`bt` is a null check, `stb` with `ori` is a flag
        * being written.
        *

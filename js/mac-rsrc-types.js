@@ -112,7 +112,7 @@ function decodeLite(data){
    distinct tiles in the archive's sheets, only the two solid black ones match:
    the other fourteen -- banded walls, a lattice frieze, pillars, a starfield,
    grey stone, lava, foliage, panel frames and a pair of arrows -- appear
-   nowhere in Cythera. It is art the executable has and the shipped
+   nowhere in Cythera. It is art the executable contains and the shipped
    scenario never draws. It uses the animated palette slots (0xE8, 0xEC, 0xEE
    in the water cycle, and 0xF1, 0xF8), so whoever drew it was working to the
    engine's conventions.
@@ -178,7 +178,7 @@ function decodeTxCl(data){
     Array.from(data,v=>'0x'+v.toString(16).toUpperCase().padStart(2,'0')).join(', ') };
 }
 
-/* `RMAP` sets that a resource of one type is to be read as another. The single
+/* `RMAP` declares that a resource of one type is to be read as another. The single
    one here, `RMAP` 128, maps `TxSt` 999 onto `TxCl`: a four-char type, a count,
    then that many { id, four-char type } entries. */
 function decodeRMAP(data){
@@ -323,7 +323,7 @@ function decodeLINF(data){
 /* The colour cycles, as the editor stores them.
 
    Five three-byte entries, (first index, length, flag), ending at a pair of
-   zero bytes. The page animates five cycles separately and the two match
+   zero bytes. The page animates five cycles itself and the two match
    entry for entry on the lengths and the order -- 8, 8, 4, 4, 4 -- with every
    starting index in this table exactly 16 below the one the game uses. The
    game's values are the ones observed animating, so the 16 is this
@@ -1028,7 +1028,7 @@ const CFRG_WHERE=['in this file','in a data fork','in memory','(reserved)','in a
 function decodeCfrg(data){
   // CFragResource: 30 bytes of reserved fields, then a UInt16 member count at
   // 30, then the members. Every member is a CFragResourceMember, whose own
-  // memberSize at offset 42 gives where the next one starts -- the name is a
+  // memberSize at offset 42 locates the next one -- the name is a
   // Pascal string at 44 and the record is padded to an even length, so walking
   // by a fixed size does not work.
   if(data.length<32) throw new Error(`cfrg needs 32 bytes of header, got ${data.length}`);
@@ -1070,7 +1070,7 @@ function decodeCfrg(data){
 // 68K executable code: CODE, and the definition procedures that are the same
 // thing under a different name. There is no disassembler here and there should
 // not be one, but "9 resources, no decoder" reported nothing at all -- these
-// have real headers, and CODE 0 in particular is the jump table that sets how
+// have real headers, and CODE 0 in particular is the jump table that records how
 // many entry points the application has.
 const CODE_TYPES={'CODE':'code segment','CDEF':'control definition','WDEF':'window definition',
   'MDEF':'menu definition','LDEF':'list definition','PACK':'package','INIT':'init',
@@ -1212,7 +1212,7 @@ function sfntToTrueType(data){
    So: read whatever Unicode subtable the font has, look up the code point
    each Mac Roman byte stands for (MACROMAN_HIGH again, the same table read
    the other way round), and write a platform-1 subtable of the results. Format
-   0 is the 1984 one every Mac reads and has a byte per glyph, so it
+   0 is the 1984 one every Mac reads, with a byte per glyph, so it
    can only name the first 256 glyphs; a font whose Latin-1 accents live above
    that is given format 6 instead, which is also in the 1990 specification and
    which the Font Manager reads. The Unicode subtable is kept alongside, so the
@@ -2283,8 +2283,8 @@ function nfntToTrueType(f, opts){
   return rebuildSfnt(new Uint8Array([0,1,0,0]), tables);
 }
 
-// FOND: 52-byte family record, then the font association table that sets
-// which NFNT resource has which size and style.
+// FOND: 52-byte family record, then the font association table that maps
+// each size and style to its NFNT resource.
 const FOND_STYLES=[[1,'bold'],[2,'italic'],[4,'underline'],[8,'outline'],[16,'shadow'],[32,'condensed'],[64,'extended']];
 function decodeFOND(data){
   if(data.length<54) throw new Error('FOND too short');

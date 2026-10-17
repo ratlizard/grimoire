@@ -37,7 +37,7 @@
    advances at both sizes equal, the bearings all but i and l (and ^ and y
    at 10), which moves where a letter's ink sits and never a width. The
    10-point bearings place Geneva 10's wider letters, so the 10-point
-   strike does not use them as they are: it sets only which side of Geneva
+   strike does not use them as they are: it is used only for which side of Geneva
    9's letter an odd pixel of extra width goes (js/delv-translate.js).
    Only the numbers are here; Kurrajong's pixels are not. licences/Kurrajong-OFL.txt
    (in grimoire, res/) is the licence. The frame is Geneva's at both sizes, ten pixels above

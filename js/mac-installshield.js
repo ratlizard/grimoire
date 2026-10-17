@@ -39,7 +39,7 @@
    whose length and distance are Huffman coded with fixed tables. Every file
    in QuickTime 3's archive has uncoded literals, so the coded-literal table
    is not included and a stream that uses it throws, by name: a table
-   typed from memory with nothing to check it against would be an approximation.
+   typed from memory with nothing to check it against would be unverified.
 
    Classic script; the page's global scope. */
 

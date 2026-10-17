@@ -36,7 +36,7 @@
        last-1        the alternate master directory block
        last          reserved, zero
 
-   Every fork is laid down in one piece, which is what retains the extents
+   Every fork is laid down in one piece, which is what leaves the extents
    overflow file empty: a fork only needs the overflow tree when it is in more
    than three pieces, and nothing here is ever in more than one. The overflow
    file still exists -- a header node with no records -- because the File
@@ -504,7 +504,7 @@ function writeHfsImage(options) {
     const catalogSize = buildCatalog().length;
 
     // Allocation block size: the smallest power-of-two multiple of 512 that
-    // retains the block count inside the 16 bits drNmAlBlks has.
+    // fits the block count in the 16 bits drNmAlBlks has.
     let contentBytes = extentsFile.length + catalogSize;
     for (const f of files) contentBytes += f.data.length + f.rsrc.length;
     /* Free space is not optional. The Finder builds an invisible Desktop

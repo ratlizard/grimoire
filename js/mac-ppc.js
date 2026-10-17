@@ -13,7 +13,7 @@
    stays up -- and until 11 September 2026 every one of those figures was
    typed into the page from a trace made outside it. A figure typed from a
    trace is a copy of the program's bytes that nobody can follow back, so
-   the page reads the instruction that has each one instead, and links to
+   the page reads the instruction that contains each one instead, and links to
    it. That needs instructions, and this is them.
 
    THE SPELLING IS LLVM'S. `utilities/ppc_check.mjs` hands the same words
@@ -139,13 +139,13 @@ function ppcDecode(word) {
   return null;
 }
 
-/* The conditional branch. BO sets what is tested: bit 0x10 set means the
+/* The conditional branch. BO selects what is tested: bit 0x10 set means the
    condition bit is ignored, bit 0x04 set means the counter is not
    decremented; with both it always branches. bt and bf are the one-bit
    tests with the counter left alone. LLVM reads the two low bits of BO as
    the later architecture's "at" hint, so 6 and 7 are bf- and bf+, 14 and
    15 bt- and bt+, 24 to 27 bdnz-, bdnz+, bdz- and bdz+, and a BO whose
-   hint is the reserved 01 (5, 13, 17...) retains the plain bc. An absolute
+   hint is the reserved 01 (5, 13, 17...) is printed as the plain bc. An absolute
    target is the displacement sign-extended to a full word. */
 const PPC_AT_HINT = { 6: '-', 7: '+', 14: '-', 15: '+', 24: '-', 25: '+', 26: '-', 27: '+' };
 function ppcDecodeBc(w, bo, bi) {

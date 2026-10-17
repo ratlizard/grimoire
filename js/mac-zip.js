@@ -38,7 +38,7 @@
    THE INFLATER is `inflateRaw` in js/mac-vise.js, the one the installer
    reader uses. Not repeated here: two classic scripts share one
    global scope, and a second DEFLATE decoder would be a second thing to be
-   wrong. The browser player defines an async `inflateRaw` separately, so this
+   wrong. The browser player defines a different async `inflateRaw`, so this
    file cannot be vendored there as it stands.
 
    LOAD ORDER: after mac-bytes.js (crc32, decodeMacRoman),

@@ -378,7 +378,7 @@ function sit13Decode(tree, br) {
   }
 }
 
-/* One code table written into the stream, as a separate run-length coding
+/* One code table written into the stream, as a run-length coding
    symbol lengths through the metacode. Verbatim from the Rust, including the
    trailing write after the switch, which is what makes most branches advance
    two entries rather than one. */
@@ -401,7 +401,7 @@ function sit13ParseCode(br, numCodes, metatree) {
 }
 
 /* `packed` is one fork's compressed bytes, `outLen` the length the catalog
-   has for its output. Returns what it managed; the caller checks
+   gives for its output. Returns what it managed; the caller checks
    the length, so a stream that stops early is an error there rather than a
    silently short file here. */
 function sit13Decompress(packed, outLen) {
@@ -556,7 +556,7 @@ function arsDecoder(data) {
     while (n < m.n - 1 && cum + m.freq[n] <= want) { cum += m.freq[n]; n++; }
     const size = m.freq[n], low = step * cum;
     this.code -= low;
-    // The last symbol is given what is left of the range rather than a separate
+    // The last symbol is given what is left of the range rather than its proportional
     // share of it, so that the range never loses a count to the division.
     this.range = (cum + size === m.total) ? this.range - low : size * step;
     while (this.range <= ARS_HALF) { this.range <<= 1; this.code = (this.code << 1) | this.bit(); }
@@ -638,7 +638,7 @@ function arsenicDecompress(packed, outLen) {
       }
       taken++;
       if (same === 4) {
-        // Four of a kind, and this byte gives how many more.
+        // Four of a kind, and this byte is the count of further repeats.
         same = 0;
         if (b === 0) continue;
         run = b - 1;

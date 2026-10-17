@@ -236,7 +236,7 @@ function writeResourceFork(resources, opts) {
   for (const t of types) if (byType.get(t).length > 65536)
     throw new Error("more than 65,536 resources of type '" + t + "'");
 
-  /* The data area is written in `dataOffRel` order when every resource has
+  /* The data area is written in `dataOffRel` order when every resource records
      where it came from -- which is what a rewrite of an existing fork
      supplies -- and in array order otherwise, which is what a fork built from
      nothing needs. The map is written in array order either way. */
@@ -266,7 +266,7 @@ function writeResourceFork(resources, opts) {
   const nameOf = r => (r.name === null || r.name === undefined || r.name === '') ? null : r.name;
   const named = list.filter(r => nameOf(r) !== null);
   const macOf = r => encodeMacRoman(nameOf(r)).slice(0, 255);
-  /* A FOURTH order. Where a resource has which offset its name had, the name
+  /* A FOURTH order. Where a resource records the offset its name had, the name
      goes back there; Cythera Data's name list is not in reference-list order
      and writing it that way moved two `eSTM` names eight bytes and nothing
      else. A fork built from nothing has no such offsets and the names are

@@ -26,7 +26,7 @@
    for it, which is the archive's word, and fails on a byte changed.
 
    READ: Brimstone (StuffIt's PPMd, variant G with StuffIt's
-   allocator), Cyanide and Iron (two block-sorting compressors, each with a separate
+   allocator), Cyanide and Iron (two block-sorting compressors, each with a different
    coder), Deflate (XADDeflateHandle's StuffIt X variant: a byte giving the
    window, then RFC 1951 with the count of distance codes in six bits, read
    by mac-vise.js's inflateRaw), and the English preprocessing, which puts

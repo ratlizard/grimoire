@@ -42,7 +42,7 @@
 
    THE SYNTHESIS IS OURS, HELD TO QUICKTIME'S WHERE THAT IS READ, which
    since 6 October 2026 is most of it (the QuickTime Music extension of
-   QuickTime 4, whose PowerPC synthesizer has its routines named; the
+   QuickTime 4, whose PowerPC synthesizer has named routines; the
    workbench's GRIMOIRE-NOTES.md, under grimoire/qt-instruments-v56peg).
    From its code: each key range's sample and its knobs over the
    instrument's; the volume envelope with its two scalings (QT_ENV); the
@@ -132,7 +132,7 @@ const QT_VELOCITY_POWER = 2;
    the file. Held to the recordings, a limit of 14 is worse than none on
    three tunes (Seldane's spectrum 0.984 to 0.957) and 24 is the same as
    none, so whatever made the recordings had more than 14; 32 leaves the
-   tunes as they are and retains the rule for a denser one. */
+   tunes as they are and leaves the rule in place for a denser one. */
 const QT_VOICES = 32;
 const QT_CUT_FRAMES = rate => Math.max(8, Math.round(rate * 0.004));
 
@@ -268,7 +268,7 @@ function qtmaTune(data) {
   return { hdr, seq, tones: Object.assign({}, hdr.tones, seq.tones) };
 }
 
-/* The resource fork of a QuickTime extension. A Mac file has one; a
+/* The resource fork of a QuickTime extension. A Mac file has it as a fork; a
    Windows .qtx is a small PE image with the fork after its last section. */
 function qtxResourceFork(bytes) {
   if (bytes.length > 0x40 && bytes[0] === 0x4D && bytes[1] === 0x5A) {
@@ -716,7 +716,7 @@ function qtmaRender(events, tones, lib, opts) {
    they are not written.
 
    WHAT IS TAKEN FROM THE TUNE BEING REPLACED, since nothing here should
-   have Cythera's files hard-coded: the sample description's flags, the
+   hard-code Cythera's files: the sample description's flags, the
    NoteRequestInfo and the synthesizer's type and name. A part's instrument
    name is the instrument library's when the page has it and empty
    otherwise; QuickTime finds an instrument by its number.
@@ -724,7 +724,7 @@ function qtmaRender(events, tones, lib, opts) {
    WHAT A MIDI FILE BECOMES. Times go through the file's tempo map to the
    tune's units, 600 a second in Cythera (QTMA_UNITS_PER_SECOND). Each
    channel and program that sounds a note is a part, at most 32, the count
-   a short event's part field has. A program is General MIDI number
+   that fits in a short event's part field. A program is General MIDI number
    program + 1; channel 10 is the kit, instrument 16385. Controllers 1, 7,
    10, 11, 64 and 91, the pitch wheel and channel pressure become QuickTime's
    (8.8 fixed; pan 1 to 2; the wheel in semitones at the range the file

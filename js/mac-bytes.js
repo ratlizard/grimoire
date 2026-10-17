@@ -25,8 +25,8 @@
  * has not got, a fork that is absent, a picture that will not parse, a
  * browser without some API. Each used to fall back with an empty catch --
  * 135 of them on 18 September 2026 -- and nothing anywhere reported it: a
- * visitor got a quieter page and no reason. quiet(e) is what an empty catch
- * does now. The failure is kept, once per distinct message with a count and
+ * visitor got a quieter page and no reason. quiet(e) now stands in for an
+ * empty catch. The failure is kept, once per distinct message with a count and
  * the line it came from, and the Tools sheet shows them (quietFailuresHTML
  * in js/page-views.js); uncaught errors come in here too, from the listeners
  * the page installs at boot. With window.LOUD_QUIET set -- the page's
