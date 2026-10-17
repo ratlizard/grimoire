@@ -2042,7 +2042,7 @@ function atlasFitAndPaint() { atlasFit(); atlasSyncZoomLabel(); paintAtlas(); }
    time the tab opens on the whole world, with the gesture for the
    visitor's screen: a pinch on a touch screen, the wheel with a mouse.
    The first zoom puts it away for the rest of the visit, and it fades
-   after a few seconds anyway, so it never sits over the map for long. */
+   after eight seconds anyway, so it never sits over the map for long. */
 let _atlasZoomed = false, _atlasHintTimer = null;
 function atlasZoomHintShow() {
   const hint = document.getElementById('atlasZoomHint');
@@ -2052,7 +2052,7 @@ function atlasZoomHintShow() {
   hint.textContent = touch ? 'Pinch to zoom in' : 'Scroll to zoom in';
   hint.classList.add('shown');
   if (_atlasHintTimer) clearTimeout(_atlasHintTimer);
-  _atlasHintTimer = setTimeout(atlasZoomHintHide, 6000);
+  _atlasHintTimer = setTimeout(atlasZoomHintHide, 8000);
 }
 function atlasZoomHintHide() {
   if (_atlasHintTimer) { clearTimeout(_atlasHintTimer); _atlasHintTimer = null; }
