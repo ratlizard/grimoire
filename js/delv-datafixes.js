@@ -327,7 +327,7 @@ const DATA_FIXES = [
     ] },
   // Aethon told to leave (0x1861): "Maybe it is time for me to catch some
   // rats for myself..." is followed by LeaveParty, as Hector's is.
-  { id: 'aethon-leaves', group: 'talk', stage: 'community', name: '\u201cStop following me\u201d', title: 'Aethon now actually leaves the party when he says he will',
+  { id: 'aethon-leaves', group: 'talk', stage: 'community', name: 'Stop following me', title: 'Aethon now actually leaves the party when he says he will',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: Aethon in the party, "leave", "Maybe it is time for me to catch some rats for myself..." and he is saved out of the party, against the same line and still in it unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "leave" drew "Maybe it is time for me to catch some rats for myself...", the conversation ended and he was gone from the party',
     edits: [
       { what: 'Aethon leaves', resid: 0x1861, at: 0x0765, replaceOp: true, expect: { 0x072B: 'string(implicit) "\\"Maybe it is time', 0x0765: 'branch' },
@@ -335,7 +335,7 @@ const DATA_FIXES = [
     ] },
   // Alaric forgets 201 (0x1802): the "hist" topic's test of his flag 2 was
   // the wrong way round; a `not` turns it.
-  { id: 'alaric-201', group: 'talk', stage: 'community', name: '\u201cOh yeah, her\u201d', title: 'Alaric now remembers his mother\u2019s death',
+  { id: 'alaric-201', group: 'talk', stage: 'community', name: 'Oh yeah, her', title: 'Alaric now remembers his mother\u2019s death',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Alaric’s flag 2 set by an edit, "hist", "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched; with the flag clear, the two the other way round; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched',
     edits: [
       { what: 'Alaric remembers 201', resid: 0x1802, at: 0x1F3B, expect: { 0x1F34: 'call_resource 0xF02', 0x1F3B: 'then' }, code: 'not' },
