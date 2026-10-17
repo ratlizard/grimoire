@@ -19,6 +19,8 @@
    AN ENTRY.
      id, title   a name that does not change, and one line of what it does,
                  as the player would see it
+     name        a few words in bold before the title, the maintainer's own
+                 (17 October 2026); a fix without one shows its title alone
      group       which list the Patches section shows it in (DATA_FIX_GROUPS),
                  which also places the program's fixes (APP_FIX_GROUP) and
                  DATA_RSRC_FIXES below
@@ -244,7 +246,7 @@ const DATA_FIXES = [
   // The bartenders' rumours (0x813): the choice between the town's own
   // rumours and the general ones rolled Random(0, 1), which is always 0; it
   // rolls Random(0, 2), so both are heard.
-  { id: 'rumours', group: 'talk', stage: 'found', title: 'Bartenders now tell the general rumours as well as their town\u2019s, instead of their town\u2019s alone',
+  { id: 'rumours', group: 'talk', stage: 'found', name: 'Widespread rumors', title: 'Bartenders now tell the general rumours as well as their town\u2019s, instead of their town\u2019s alone',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: eight rounds bought from Apis in Cademia; alone and on “All Fixes” one of them drew a rumour of the general list, "They say that a bunch of those old ruins were found down in a swamp to the south." alone, against the town’s list only unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: eight rounds bought from Apis, among them "They say that a bunch of those old ruins were found down in a swamp to the south." and four more of the general list, against the town’s list only in eight rounds unpatched',
     edits: [
       { what: 'the bartenders’ rumours', resid: 0x813, at: 0x02AB, replaceOp: true, expect: { 0x02A8: 'sys Random', 0x02A9: 'byte 0x00', 0x02AB: 'byte 0x01' }, code: 'byte 0x02' },
@@ -308,7 +310,7 @@ const DATA_FIXES = [
     ] },
   // "Indeed I am." was drawn as the hero's (0x1804): the string is split and
   // Hadrian named between the halves.
-  { id: 'hadrian-indeed', group: 'talk', stage: 'community', title: '\u201cIndeed I am.\u201d is now spoken by Hadrian, instead of by the hero',
+  { id: 'hadrian-indeed', group: 'talk', stage: 'community', name: 'Indeed I am', title: '\u201cIndeed I am.\u201d is now spoken by Hadrian, instead of by the hero',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "son" to Hadrian, "Indeed I am." drawn beside his portrait, against beside the hero’s, over the topics, unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Indeed I am." beside Hadrian’s portrait',
     edits: [
       { what: '"Indeed I am." is Hadrian’s', resid: 0x1804, at: 0x02A9, to: 0x02E0,
@@ -317,14 +319,14 @@ const DATA_FIXES = [
     ] },
   // Hadrian asks after Hector (0x1804): his "son" topic tested his own alive
   // bit; it tests Hector's.
-  { id: 'hadrian-hector', group: 'talk', stage: 'community', title: 'Hadrian now learns that Hector has died, instead of always speaking of him as alive',
+  { id: 'hadrian-hector', group: 'talk', stage: 'community', name: 'Warrior\u2019s death', title: 'Hadrian now learns that Hector has died, instead of always speaking of him as alive',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Hector’s flag 0 set and his alive bit cleared by an edit, "son" to Hadrian, "I regret to tell you that Hector has died in my service.", against "Yes, you should be quite proud." unpatched; with Hector alive, that line on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: with Hector dead, "I regret to tell you that Hector has died in my service."',
     edits: [
       { what: 'Hadrian tests Hector', resid: 0x1804, at: 0x0299, replaceOp: true, expect: { 0x0299: 'word Character.Hadrian', 0x029F: 'if_not' }, code: 'word Character.Hector' },
     ] },
   // Aethon told to leave (0x1861): "Maybe it is time for me to catch some
   // rats for myself..." is followed by LeaveParty, as Hector's is.
-  { id: 'aethon-leaves', group: 'talk', stage: 'community', title: 'Aethon now leaves the party when he says he will, instead of staying',
+  { id: 'aethon-leaves', group: 'talk', stage: 'community', name: '\u201cStop following me\u201d', title: 'Aethon now leaves the party when he says he will, instead of staying',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: Aethon in the party, "leave", "Maybe it is time for me to catch some rats for myself..." and he is saved out of the party, against the same line and still in it unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "leave" drew "Maybe it is time for me to catch some rats for myself...", the conversation ended and he was gone from the party',
     edits: [
       { what: 'Aethon leaves', resid: 0x1861, at: 0x0765, replaceOp: true, expect: { 0x072B: 'string(implicit) "\\"Maybe it is time', 0x0765: 'branch' },
@@ -332,7 +334,7 @@ const DATA_FIXES = [
     ] },
   // Alaric forgets 201 (0x1802): the "hist" topic's test of his flag 2 was
   // the wrong way round; a `not` turns it.
-  { id: 'alaric-201', group: 'talk', stage: 'community', title: 'Alaric now remembers 201 after recalling it, instead of forgetting it straight away',
+  { id: 'alaric-201', group: 'talk', stage: 'community', name: '\u201cOh yeah, her\u201d', title: 'Alaric now remembers his mother\u2019s death',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Alaric’s flag 2 set by an edit, "hist", "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched; with the flag clear, the two the other way round; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched',
     edits: [
       { what: 'Alaric remembers 201', resid: 0x1802, at: 0x1F3B, expect: { 0x1F34: 'call_resource 0xF02', 0x1F3B: 'then' }, code: 'not' },

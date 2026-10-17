@@ -1943,15 +1943,14 @@ function gremlinCheck(formError) {
    The program is the installer's (APP_DATA and APP_RSRC_RAW, both forks) or
    a copy the visitor chooses, which has to be in a container that carries
    both forks, since the fixes change the data fork and the cfrg in the
-   resource fork together. A fix starts chosen once it has been played. */
-// A design change (kind 'change') starts unchosen, as the karma patch is kept
-// out of All Fixes: it is not a bug, and a visitor picks it on purpose. So
-// does a fix nobody has seen working in the game (no `played`), at the
-// maintainer's word of 2 October 2026, before the site was first posted:
-// walk-to read right, assembled clean and hung the game the first time it
-// was played, and a visitor who keeps the defaults should get only fixes a
-// run has shown.
-window.APPFIX_STATE = { off: new Set(APP_FIXES.filter(f => f.kind === 'change' || !f.played).map(f => f.id)), src: null, open: new Set() };
+   resource fork together. */
+// Every fix starts unchosen, the program's, the data's and the resource
+// fork's alike, and the presets choose (fixPreset), at the maintainer's word
+// of 17 October 2026. Until then a played fix started chosen; Tested Fixes
+// is that choice now, design changes and unplayed fixes left out of it as
+// they were (walk-to read right, assembled clean and hung the game the
+// first time it was played).
+window.APPFIX_STATE = { off: new Set(APP_FIXES.map(f => f.id)), src: null, open: new Set() };
 /* The program the fixes are written into, as it arrived: once Apply to
    Site Data has put a fixed program in its place (APP_DATA), the one it
    replaced is kept in APP_PRISTINE, since the fixes refuse a program that
@@ -2191,7 +2190,7 @@ function spanishProgramDownload(both) {
    patch reaches: in the one list with the rest, each ticked to start, and
    written by the fixed game's download alone. They were a section of their
    own, Behind the Scenes, until 16 October 2026. Kept for the session. */
-window.BACKSTAGE_CHOSEN = window.BACKSTAGE_CHOSEN || new Set(DATA_RSRC_FIXES.filter(f => f.played).map(f => f.id));
+window.BACKSTAGE_CHOSEN = window.BACKSTAGE_CHOSEN || new Set();
 function backstageToggle(id, on) {
   if (on) window.BACKSTAGE_CHOSEN.add(id); else window.BACKSTAGE_CHOSEN.delete(id);
   renderDataFixMaker();
@@ -2413,16 +2412,11 @@ function renderSpanishMaker() {
    that carries a fix already, is refused by the first edit that does not
    find what it expects, and the note names the fix. Apply and Read go
    through the patches section, as the sprite's and the gremlin's do. */
-// A fix seen working in the game (its `played`) starts ticked and one not
-// yet seen starts unticked, the maintainer's rule of 3 October 2026. The
-// text's choices start on their first option, his preference, played or
-// not, so that a patch of other fixes carries them (his word of 4 October
-// 2026; from 3 October they started on "Don't standardize", and before
-// that on the first option with every other fix unticked). An option
-// counts without the text's own corrections (js/delv-datapatch.js). The
-// design changes are not fixes and start unticked whether played or not.
-window.DATAFIX_STATE = { on: new Set(DATA_FIXES.filter(f => f.played && !f.choice && f.group !== 'design').map(f => f.id)
-  .concat(DATA_FIX_CHOICES.map(c => (DATA_FIXES.find(f => f.choice === c.id) || {}).id).filter(Boolean))), skip: new Set(), showText: false, textChanges: null, open: new Set() };
+// Nothing starts chosen (17 October 2026; the program's fixes, above, say
+// why). The presets put the text's choices on their first option, his
+// preference (4 October 2026), so that a patch of other fixes carries them.
+// An option counts without the text's own corrections (js/delv-datapatch.js).
+window.DATAFIX_STATE = { on: new Set(), skip: new Set(), showText: false, textChanges: null, open: new Set() };
 function dataFixSay(m, bad) {
   const note = document.getElementById('dataFixNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
@@ -2782,14 +2776,17 @@ function renderDataFixMaker() {
        in the title, since it is part of whose fix it is. */
     const row = (checked, onchange, f, badge, file, said) => {
       const r = el('div', 'appFixRow');
-      r.setAttribute('data-q', (f.title + ' ' + (f.note || '') + ' ' + (f.by || '') + ' ' + g.title).toLowerCase());
+      r.setAttribute('data-q', ((f.name || '') + ' ' + f.title + ' ' + (f.note || '') + ' ' + (f.by || '') + ' ' + g.title).toLowerCase());
       const l = el('label', 'mechSub');
       const b = document.createElement('input');
       b.type = 'checkbox'; b.checked = checked;
       b.onchange = function () { onchange(b.checked); };
       l.appendChild(b);
       const words = el('span', 'fixText');
-      words.appendChild(el('span', 'fixTitle', f.title + (f.by ? ' (' + f.by + '\u2019s fix)' : '')));
+      const t = el('span', 'fixTitle');
+      if (f.name) { t.appendChild(el('b', 'fixName', f.name)); t.appendChild(document.createTextNode(' ')); }
+      t.appendChild(document.createTextNode(f.title + (f.by ? ' (' + f.by + '\u2019s fix)' : '')));
+      words.appendChild(t);
       const meta = el('span', 'fixMeta');
       meta.appendChild(el('span', 'fixFile', file));
       if (badge) meta.appendChild(el('span', 'fixBadge', badge));
@@ -3194,19 +3191,23 @@ function renderPatchBar() {
   const sel = document.createElement('select');
   sel.id = 'patchWhere';
   sel.setAttribute('aria-label', 'what to do with your patch');
-  for (const [v, label] of [['files', 'Download as Replacement Files'], ['magpie', 'Download as a Magpie Patch'], ['site', 'Apply to Site Data']]) {
+  /* The button says the verb and the menu the rest, "Download" and "as
+     Replacement Files", so that the whole reads as the maintainer named it
+     and the menu fits a phone beside the button. */
+  for (const [v, label] of [['files', 'as Replacement Files'], ['magpie', 'as a Magpie Patch'], ['site', 'to Site Data']]) {
     const o = document.createElement('option');
     o.value = v; o.textContent = label; o.selected = b.where === v;
     sel.appendChild(o);
   }
   sel.onchange = function () { b.where = sel.value; renderPatchBar(); };
-  row.appendChild(sel);
   const dl = el('button', '', b.where === 'site' ? 'Apply' : 'Download');
   dl.style.cssText = 'width:auto;margin:0;padding:6px 14px';
   dl.onclick = basketDownload;
   dl.disabled = !n && !b.parts.length;
   row.appendChild(dl);
-  /* The bar stays two lines high, since it covers the foot of the screen
+  row.appendChild(sel);
+  host.appendChild(row);
+  /* The bar stays two lines high, since it covers the top of the screen
      the whole time the tab is open (the maintainer saw it fill a third of
      his phone): what the download is, what a patch leaves out and the
      rarer actions are behind More, on the bar's first line. */
@@ -4880,7 +4881,7 @@ function renderMechanicsSheet(value) {
   {
     add('datafixes', 'Bugfix Patch Generator', null, '',
       'Over time, the community has uncovered a number of apparent bugs and typos that were never addressed by official version updates, and AI analysis has uncovered several more. ' +
-      'Solutions for the below issues have been identified through AI-based tracing and testing in the game itself (though many solutions are still untested). ' +
+      'Solutions for the below issues have been identified through tracing and testing in the game itself (though many solutions are still untested). ' +
       'Select as many of the fixes below as you\u2019d like, and they go into your patch.',
       [], '');
     /* One list (the maintainer, 16 October 2026): the fixes to Cythera
@@ -5311,11 +5312,13 @@ function renderMechanicsSheet(value) {
       box.appendChild(sn.el);
     }
   }
-  // Your patch, pinned under the Build a Patch tab (renderPatchBar).
+  /* Your Patch, first on the Build a Patch tab and pinned to the top of
+     the screen as the tab scrolls (renderPatchBar). It was pinned to the
+     foot, which the maintainer found too easy to miss (17 October 2026). */
   if (only === MECH_TOOL_GROUP) {
     const pb = document.createElement('div');
     pb.id = 'patchBar'; pb.className = 'patchBar';
-    box.appendChild(pb);
+    box.insertBefore(pb, box.firstChild);
   }
   // Open all and Close all, and nothing else over the sections: the
   // contents strip went on 9 September 2026.

@@ -2944,13 +2944,13 @@ function convTextHtml(resid, e) {
     let chain = [];
     for (const l of lines) { if (l.at > t.off) break; chain = l.chain; }
     const said = chain.join(' and ');
-    const lead = said && said !== prev ? '<span class="inspDim">if ' + escHtml(said) + ':</span> ' : '';
+    const lead = said && said !== prev ? '<span class="inspDim">' + chain.map(c => convCondHtml(resid, c)).join(' and ').replace(/ and if /g, ' and ') + ':</span> ' : '';
     prev = said;
     const body = escHtml(t.str)
       .replace(/@([A-Za-z][A-Za-z'-]*)/g,
         '<span class="convLink" onclick="convJumpWord(' + resid + ',\'$1\')">$1</span>');
     html += '<p class="dlgLine">' + lead + body +
-      ' <button class="linkbtn dlgEdit" onclick="editStringAt(' + resid + ',' + t.off + ')">edit</button></p>';
+      (window.DLG_EDIT ? ' <button class="linkbtn dlgEdit" onclick="editStringAt(' + resid + ',' + t.off + ')">edit</button>' : '') + '</p>';
   }
   return html;
 }
@@ -3024,10 +3024,14 @@ function convReadConds(resid) {
   if (DERIVED.CONV_READ_CONDS.has(resid)) return DERIVED.CONV_READ_CONDS.get(resid);
   const out = new Map();
   out.lines = new Map();
+  // A condition's note from the Read view, which says where a flag it tests
+  // is set ("Alaric's conversation, asked about CHRY sets bit 2 ..."), kept
+  // so the card can say it in those words (convCondHtml).
+  out.notes = new Map();
   try {
     const raw = getResourceBytes(ARCHIVE, resid);
     const fns = raw ? dvmReadRender(ARCHIVE, smartDecrypt(raw, resid).data, resid) : [];
-    const cond = t => { const m = /^(?:otherwise )?if (.*?):(?: .*)?$/.exec(t); return m ? m[1] : null; };
+    const cond = t => { const m = /^(?:otherwise )?if (.*?):(?: (.*))?$/.exec(t); if (m && m[2]) out.notes.set(m[1], m[2]); return m ? m[1] : null; };
     // Every clause under a prompt, with the conditions it sits under there:
     // an if's own, and "not (...)" of the if before an "otherwise".
     const inside = (kids, chain, into, lines) => {
@@ -3059,12 +3063,32 @@ function convReadConds(resid) {
   DERIVED.CONV_READ_CONDS.set(resid, out);
   return out;
 }
+/* A condition as the card says it. A test of the character's own flag that
+   the Read view found set by one of their own topics is said as that topic
+   asked before, the word a link to it (the maintainer, 17 October 2026:
+   "201 if its bit flags has bit 2 ... There's no way to tell what this
+   means, no link even"). Any other note is said after the test; a test
+   with none is said as the Read view says it. */
+function convCondHtml(resid, c) {
+  const notes = convReadConds(resid).notes;
+  const neg = /^not \((.*)\)$/.exec(c), k = neg ? neg[1] : c;
+  const note = notes.get(k) || notes.get(c) || '';
+  const who = (typeof characterName === 'function' && resid >= 0x1800 && resid < 0x1900) ? characterName(resid - 0x1800) : null;
+  const m = /^\((.+?)’s conversation, asked about ([A-Z,]+) sets bit (\d+) of (.+?)’s bit flags/.exec(note);
+  const own = /^its bit flags has bit (\d+)/.exec(k);
+  if (m && own && own[1] === m[3] && who && m[1] === who && m[4] === who) {
+    const w = m[2].toLowerCase().split(',')[0];
+    const link = '<span class="convLink" onclick="convJumpWord(' + resid + ',\'' + w + '\')">' + svEsc(w) + '</span>';
+    return 'if ' + (neg ? 'not yet asked about ' + link : 'asked about ' + link + ' before');
+  }
+  return 'if ' + svEsc(c) + (note ? ' <span class="inspDim">' + svEsc(note) + '</span>' : '');
+}
 function convCardHtml(resid, e, depth) {
   const kws = convPromptHtml(e);
   const badges = [];
   const said = e.kw === '*' ? null : convReadConds(resid).get(e.at);
-  if (said) for (const c of said.slice(0, 3)) badges.push('if ' + c);
-  else if (e.conds.length) badges.push('depends on: ' + e.conds.map(dvmSyscallShown).join(', '));
+  const condBadges = said ? said.slice(0, 3).map(c => convCondHtml(resid, c)) : [];
+  if (!said && e.conds.length) badges.push('depends on: ' + e.conds.map(dvmSyscallShown).join(', '));
   // A character helper (0xF00 up) the condition already reads through is
   // not said a second time as a call.
   for (const a of e.actions) {
@@ -3072,7 +3096,8 @@ function convCardHtml(resid, e, depth) {
     const b = convBadgeFor(a); if (b) badges.push(b);
   }
   let html = '<div class="convCard' + (depth ? ' convSub' : '') + '" id="conv-' + resid + '-' + e.at + '">' +
-    kws + badges.map(b => '<span class="convBadge">' + svEsc(b) + '</span>').join('') +
+    kws + condBadges.map(b => '<span class="convBadge">' + b + '</span>').join('') +
+    badges.map(b => '<span class="convBadge">' + svEsc(b) + '</span>').join('') +
     convTextHtml(resid, e);
   for (const s of e.sub) html += convCardHtml(resid, s, depth + 1);
   return html + '</div>';
@@ -3138,7 +3163,7 @@ function renderConversationPane(data, subn, resid) {
     head = conv.entries.length + ' topic' + (conv.entries.length === 1 ? '' : 's') +
       ', read from the code' + (chain ? ' · also answers as: ' + chain : '');
   }
-  let html = '<div class="convHead">' + head + '</div>';
+  let html = '<div class="convHead">' + head + '</div>' + dlgToolsHtml();
   if (subn !== 8) html += convWhoHtml(resid, conv);
   // The catch-all last, whatever order the chain tests it in.
   const ordered = conv.entries.filter(e => e.kw !== '*').concat(conv.entries.filter(e => e.kw === '*'));
@@ -3146,6 +3171,8 @@ function renderConversationPane(data, subn, resid) {
   else html += convEverythingHtml(resid, conv, ordered);
   wrap.innerHTML = html;
   wrap.style.display = '';
+  window.DLG_LAST = [renderConversationPane, data, subn, resid];
+  dlgFilter();
   if (window.PENDING_CONV_WORD) {
     const hit = convFindEntry(conv.entries, window.PENDING_CONV_WORD);
     window.PENDING_CONV_WORD = null;
@@ -3154,6 +3181,40 @@ function renderConversationPane(data, subn, resid) {
   return true;
 }
 
+/* Over a conversation or a script's lines: a filter and Edit Text (the
+   maintainer, 17 October 2026). The filter keeps the lines, and the topics,
+   holding every word typed, and a topic whose follow-up matches stays with
+   it; it works on the drawn pane, so typing never redraws it. The edit
+   links were on every line; they show only while Edit Text is on, which is
+   kept for the session. */
+window.DLG_EDIT = window.DLG_EDIT || false;
+window.DLG_Q = window.DLG_Q || '';
+function dlgToolsHtml() {
+  return '<div class="dlgTools"><input type="search" class="dlgFilter" placeholder="Filter the lines" aria-label="filter the lines" value="' + svEsc(window.DLG_Q) + '" oninput="window.DLG_Q = this.value; dlgFilter()">' +
+    '<button class="linkbtn dlgEditToggle" onclick="dlgEditToggle()">' + (window.DLG_EDIT ? 'Done Editing' : 'Edit Text') + '</button></div>';
+}
+function dlgEditToggle() {
+  window.DLG_EDIT = !window.DLG_EDIT;
+  const last = window.DLG_LAST;
+  if (last) last[0](last[1], last[2], last[3]);
+}
+function dlgFilter() {
+  const wrap = document.getElementById('dlgWrap');
+  if (!wrap || !wrap.querySelectorAll) return;
+  const words = String(window.DLG_Q || '').toLowerCase().split(/\s+/).filter(Boolean);
+  const has = el => { const t = String(el.textContent || '').toLowerCase(); return words.every(w => t.indexOf(w) >= 0); };
+  const cards = [...wrap.querySelectorAll('.convCard')].reverse();
+  for (const c of cards) {
+    if (!words.length) { c.hidden = false; continue; }
+    const kidShown = [...(c.children || [])].some(k => k.classList && k.classList.contains('convCard') && !k.hidden);
+    c.hidden = !(has(c) || kidShown);
+  }
+  // Lines outside a card (a script's strings, the greeting) by their own text.
+  for (const l of wrap.querySelectorAll('.dlgLine')) {
+    if (l.closest && l.closest('.convCard')) { l.hidden = false; continue; }
+    l.hidden = words.length > 0 && !has(l);
+  }
+}
 /* A script's words, into #dlgWrap: the conversation's topic cards for a
    dialogue script, or its strings one to a line with an edit button each.
    Whether they are what is showing is paintDecodedPane's to decide; this only
@@ -3196,13 +3257,15 @@ function renderDialoguePane(data, subn, resid) {
         : '<span class="dlgSep">&#8226; </span>';
       // Whole stored strings are editable in place; the offset carried here
       // is where editStringAt goes looking for the Pascal length byte.
-      const edit = i === 0
+      const edit = i === 0 && window.DLG_EDIT
         ? ' <button class="linkbtn dlgEdit" onclick="editStringAt(' + resid + ',' + ln.offset + ')">edit</button>'
         : '';
       html += '<p class="dlgLine">' + tag + body + edit + '</p>';
     });
   }
-  wrap.innerHTML = html;
+  wrap.innerHTML = dlgToolsHtml() + html;
+  window.DLG_LAST = [renderDialoguePane, data, subn, resid];
+  dlgFilter();
 }
 
 // One pane visible at a time; a tab with nothing behind it is dimmed rather

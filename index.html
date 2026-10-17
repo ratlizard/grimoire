@@ -748,6 +748,9 @@ pre.pane { background:#090806; color:#fff; padding:12px; overflow:auto; max-heig
   font-family:var(--face-text); font-size:0.875rem; line-height:1.5;
   background:rgba(0,0,0,.3); color:#fff; border:1px solid rgba(255,255,255,.25); }
 .dlgEdit { min-height:0; padding:0 6px; font-size:0.6875rem; opacity:.6; }
+.dlgTools { display:flex; gap:10px; align-items:center; margin:0 0 10px; }
+.dlgFilter { flex:1 1 auto; min-width:0; max-width:420px; box-sizing:border-box; }
+.dlgEditToggle { flex:none; }
 .dlgEdit:hover { opacity:1; }
 .ridLink { color: var(--gold, #d9b64a); text-decoration: underline dotted; cursor: pointer; }
 .dswitch { display:flex; align-items:center; gap:6px; padding:7px 10px; font-size:0.6875rem;
@@ -1316,6 +1319,7 @@ details:not([open]) > summary .mechFrom { display:none; }
    .fixFile is the file a fix changes, quiet by size. */
 .fixText { display:flex; flex-direction:column; gap:2px; }
 .fixTitle { color:#fff; }
+.fixName { color:#fff; font-weight:bold; }
 .fixNote { color:#dcd8cc; font-size:0.75rem; }
 .fixMeta { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; font-size:0.6875rem; }
 .fixFile { color:#dcd8cc; white-space:nowrap; }
@@ -1324,11 +1328,12 @@ details:not([open]) > summary .mechFrom { display:none; }
 #sheetGrid button.fixChip { width:auto; margin:0; padding:5px 12px !important; border-radius:14px; }
 #sheetGrid button.fixChipOn { outline:2px solid var(--gold); }
 .fixSearch { width:100%; max-width:420px; box-sizing:border-box; margin:6px 0 4px; }
-/* Your patch, pinned to the foot of the Build a Patch tab while it
-   scrolls, so what is in it and its download are always in reach. */
-.patchBar { position:sticky; bottom:0; z-index:5; margin:18px 0 0; padding:6px 10px; background:#16130e; border:1px solid var(--edge); border-radius:8px; max-height:60vh; overflow-y:auto; }
+/* Your patch, first on the Build a Patch tab and pinned to the top of the
+   screen while it scrolls, so what is in it and its download are always
+   in reach. */
+.patchBar { position:sticky; top:0; z-index:5; margin:0 0 14px; padding:8px 12px; background:#16130e; border:2px solid var(--gold); border-radius:8px; max-height:60vh; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,.5); }
 .patchBarItems { display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center; margin:0 0 4px; }
-.patchBarTitle { color:#fff; font-size:0.875rem; margin-right:2px; }
+.patchBarTitle { color:#fff; font-family:var(--face); font-size:1.125rem; margin-right:4px; }
 #sheetGrid select#patchWhere { width:auto; flex:1 1 0; min-width:0; min-height:0; margin:0; padding:4px 8px !important; font-size:0.9375rem !important; white-space:nowrap; }
 .patchBarRow { flex-wrap:nowrap; }
 .patchBarRow > button { flex:none; }
@@ -2632,7 +2637,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.310.0';
+const GRIMOIRE_VERSION = '1.311.0';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);
