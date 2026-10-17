@@ -3081,7 +3081,10 @@ function convCondHtml(resid, c) {
     const link = '<span class="convLink" onclick="convJumpWord(' + resid + ',\'' + w + '\')">' + svEsc(w) + '</span>';
     return 'if ' + (neg ? 'not yet asked about ' + link : 'asked about ' + link + ' before');
   }
-  return 'if ' + svEsc(c) + (note ? ' <span class="inspDim">' + svEsc(note) + '</span>' : '');
+  // A note that is only the helper's number, "(0xF13)", says nothing the
+  // test has not said.
+  const said = /^\(0x[0-9A-F]+\)$/.test(note) ? '' : note;
+  return 'if ' + svEsc(c) + (said ? ' <span class="inspDim">' + svEsc(said) + '</span>' : '');
 }
 function convCardHtml(resid, e, depth) {
   const kws = convPromptHtml(e);

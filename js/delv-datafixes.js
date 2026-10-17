@@ -311,7 +311,7 @@ const DATA_FIXES = [
     ] },
   // "Indeed I am." was drawn as the hero's (0x1804): the string is split and
   // Hadrian named between the halves.
-  { id: 'hadrian-indeed', group: 'talk', stage: 'community', name: 'Indeed I am', title: 'Line now spoken by Hadrian instead of hero',
+  { id: 'hadrian-indeed', group: 'talk', stage: 'community', name: 'Sign of instability', title: 'Hadrian now says \u201cIndeed I am.\u201d instead of you replying to yourself',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "son" to Hadrian, "Indeed I am." drawn beside his portrait, against beside the hero’s, over the topics, unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Indeed I am." beside Hadrian’s portrait',
     edits: [
       { what: '"Indeed I am." is Hadrian’s', resid: 0x1804, at: 0x02A9, to: 0x02E0,
@@ -320,14 +320,14 @@ const DATA_FIXES = [
     ] },
   // Hadrian asks after Hector (0x1804): his "son" topic tested his own alive
   // bit; it tests Hector's.
-  { id: 'hadrian-hector', group: 'talk', stage: 'community', name: 'Warrior\u2019s death', title: 'Hadrian now able to learn that Hector has died',
+  { id: 'hadrian-hector', group: 'talk', stage: 'community', name: 'Oh yeah, him', title: 'You can now tell Hadrian that his son Hector has died',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Hector’s flag 0 set and his alive bit cleared by an edit, "son" to Hadrian, "I regret to tell you that Hector has died in my service.", against "Yes, you should be quite proud." unpatched; with Hector alive, that line on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: with Hector dead, "I regret to tell you that Hector has died in my service."',
     edits: [
       { what: 'Hadrian tests Hector', resid: 0x1804, at: 0x0299, replaceOp: true, expect: { 0x0299: 'word Character.Hadrian', 0x029F: 'if_not' }, code: 'word Character.Hector' },
     ] },
   // Aethon told to leave (0x1861): "Maybe it is time for me to catch some
   // rats for myself..." is followed by LeaveParty, as Hector's is.
-  { id: 'aethon-leaves', group: 'talk', stage: 'community', name: 'Stop following me', title: 'Aethon now actually leaves the party when he says he will',
+  { id: 'aethon-leaves', group: 'talk', stage: 'community', name: 'Lying rat (catcher)', title: 'Aethon actually leaves the party when he says he will',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: Aethon in the party, "leave", "Maybe it is time for me to catch some rats for myself..." and he is saved out of the party, against the same line and still in it unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "leave" drew "Maybe it is time for me to catch some rats for myself...", the conversation ended and he was gone from the party',
     edits: [
       { what: 'Aethon leaves', resid: 0x1861, at: 0x0765, replaceOp: true, expect: { 0x072B: 'string(implicit) "\\"Maybe it is time', 0x0765: 'branch' },
@@ -335,7 +335,7 @@ const DATA_FIXES = [
     ] },
   // Alaric forgets 201 (0x1802): the "hist" topic's test of his flag 2 was
   // the wrong way round; a `not` turns it.
-  { id: 'alaric-201', group: 'talk', stage: 'community', name: 'Oh yeah, her', title: 'Alaric now remembers his mother\u2019s death',
+  { id: 'alaric-201', group: 'talk', stage: 'community', name: 'Oh yeah, her', title: 'Alaric no longer re-forgets the year his mother died',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Alaric’s flag 2 set by an edit, "hist", "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched; with the flag clear, the two the other way round; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched',
     edits: [
       { what: 'Alaric remembers 201', resid: 0x1802, at: 0x1F3B, expect: { 0x1F34: 'call_resource 0xF02', 0x1F3B: 'then' }, code: 'not' },
@@ -370,7 +370,7 @@ const DATA_FIXES = [
   // first. Five lists the board reported (0x1828, 0x1829, 0x182A, 0x1818,
   // 0x080F), and two this project found (0x186D Demodocus's "fish, tlep",
   // 0x1878 Sabinate's "form, shap"), which were built in the found stage.
-  { id: 'keyword-spaces', group: 'talk', title: 'Seven keywords now answer without a space typed first, instead of only after one',
+  { id: 'keyword-spaces', group: 'talk', name: 'Lost in space', title: 'Seven keywords no longer require a space preceding them to be recognized',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, in part (Crito and Apis of the seven): "crit" to Crito in Odemia drew his innkeeper’s offer, which opens "Yes - are you interested in a", against "My cousin Crito runs the Titan’s Head in Odemia." unpatched, and "apis" to Apis in Cademia the innkeeper’s offer there, against "My cousin Apis runs the Two-Taled Rat in Cademia."; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "crit" to Crito and "apis" to Apis each drew the innkeeper’s offer; the same save and word with no patch installed, 11 October 2026: "crit" drew "My cousin Crito runs the Titan’s Head in Odemia."',
     parts: [
       { stage: 'found', edits: [
@@ -474,7 +474,7 @@ const DATA_FIXES = [
   // Eteocles's "kesh" (0x1838): the test reads quest flag 4 (Guild
   // membership), as his other five tests do, not quest value 4, which is
   // where Demodocus is and is never 0.
-  { id: 'eteocles-kesh', group: 'talk', stage: 'community', title: 'Eteocles now answers \u201ckesh\u201d by whether you are in the Guild, instead of always the same way',
+  { id: 'eteocles-kesh', group: 'talk', stage: 'community', name: 'Guild secrets', title: 'Eteocles now recognizes if you\u2019re in the Guild when you ask about kesh',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, the person brought to the hero by the in-party bit: "kesh" to Eteocles from a hero outside the Guild drew "Youse is awful nosy.", against "Yeah, we heard of da stuff." unpatched; a Guild member’s answer was not tried; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "kesh" to Eteocles, where he stands, drew "Youse is awful nosy."',
     edits: [
       { what: 'Eteocles’s "kesh"', resid: 0x1838, at: 0x01ED, replaceOp: true, expect: { 0x01E4: 'conversation_response "kesh"', 0x01ED: 'sys GetState', 0x01EE: 'byte 0x04' }, code: 'sys GetStateFlag' },
@@ -850,7 +850,7 @@ const DATA_FIXES = [
   // drawn at the hero's, over the row of keywords. The call the day guard's
   // class makes is added. (bugs.md, *The Odemia guards' text overlaps at
   // midnight*.)
-  { id: 'night-guard-talk', group: 'talk', stage: 'community', title: 'The Odemia night guard\u2019s words are now drawn beside his portrait, instead of over your keywords',
+  { id: 'night-guard-talk', group: 'talk', stage: 'community', name: 'Personal space', title: 'The Odemia night guard\u2019s words now appear beside his portrait instead of over the hero\u2019s keywords',
     played: 'Mac OS 8.5, 11 October 2026, the fix alone and with every fix, each installed by Magpie: at midnight in Odemia, with Ariadne brought home, a night guard greeted, then "job", a word he does not know and "bye"; each line of his is drawn at the top beside a guard\u2019s portrait, against each line drawn over the row of keywords beside the hero\u2019s portrait with no patch installed, the same save and words. The hero, the hour and the quest value were set by an edit. Not played in the fork',
     edits: [
       { what: 'the night guard names who speaks', resid: 0x10E5, at: 0x0017, expect: { 0x0011: 'word Character.Gate_Guard', 0x0017: 'method Talk', 0x0019: 'local Var00' }, code: dataFixTalk('local Var00', 0) },
@@ -1028,7 +1028,7 @@ const DATA_FIXES = [
   // block Hector's has for a thing asked about is put in front of it,
   // without Hector's weapon remarks: open the talk, both portraits, the
   // AskAbout helper (0xEB6), and "Looks like ..." when it has nothing.
-  { id: 'aethon-ask-about', group: 'talk', stage: 'bugfix', title: 'Aethon now answers when asked about a thing, instead of answering only about skills',
+  { id: 'aethon-ask-about', group: 'talk', stage: 'bugfix', name: 'Questionable company', title: 'Aethon now answers when you Ask About a thing',
     played: 'fork, 3 October 2026: Ask About from Aethon\u2019s Do menu on the hero\u2019s oboloi drew "Ah, was there ever anything as noble as money!", against "Nothing" unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: Ask About from Aethon’s Do menu on the hero’s oboloi drew "Ah, was there ever anything as noble as money!"',
     edits: [
       { what: 'Aethon asked about a thing', resid: 0x1861, at: 0x0078,
@@ -1071,7 +1071,7 @@ const DATA_FIXES = [
   // Paris's and Diomede's names (0x1857, 0x182E). Their "name" topics set
   // their own character flag 7, as every other character's does, so the
   // scripts that test it use their names.
-  { id: 'paris-diomede-names', group: 'talk', stage: 'bugfix', title: 'Paris and Diomede are now called by name once they have given it, instead of never',
+  { id: 'paris-diomede-names', group: 'talk', stage: 'bugfix', name: 'I think it started with a P, no, D', title: 'Hero now remembers Paris\u2019s and Diomede\u2019s names once they\u2019ve given them',
     played: 'fork, 3 October 2026: after "name", Diomede in Cademia and Paris in Pnyx were labelled by name in the conversation, and unpatched they stayed unnamed; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: Diomede is labelled by name after "name"; Paris was not played there',
     edits: [
       { what: 'Paris keeps his name', resid: 0x1857, at: 0x013D,
@@ -1136,7 +1136,7 @@ const DATA_FIXES = [
   // then the "s" only when the count is greater than 2, so two books read
   // "two Book" [sic]. Seen in the fork on 30 September 2026, handing in two.
   // The test is greater than 1.
-  { id: 'books-plural', group: 'talk', stage: 'further', title: 'Selinus now thanks the party for \u201ctwo Books\u201d, instead of \u201ctwo Book\u201d',
+  { id: 'books-plural', group: 'talk', stage: 'further', name: '1 + 1', title: 'Selinus now thanks the party for \u201ctwo Books\u201d instead of \u201ctwo Book\u201d',
     played: 'fork, PowerPC, 30 September 2026: two books handed in; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: two books handed in, "I see you found two Books - this is good.", against "two Book" unpatched',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'the Books of Wisdom counted as more than one', 0x1851,
@@ -1146,7 +1146,7 @@ const DATA_FIXES = [
   // flag 1 where it tested quest flag 2, which nothing sets. Sabinate sets
   // Timon's flag 1 on meeting him ("It is a living Seldane!"), and Timon's
   // own talk with Larisa reads it for "meeting a real Seldane".
-  { id: 'timon-seldane', group: 'talk', stage: 'further', title: 'Timon now speaks of having met a Seldane once he has, instead of never',
+  { id: 'timon-seldane', group: 'talk', stage: 'further', name: 'Oh yeah, them', title: 'Timon now remembers if he\u2019s met a Seldane',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Timon’s flag 1 and quest value 2 set by edits, "meti" to him at the ruins, "Of course you all know that, we’ve met them, haven’t we...", against "I’d really like to find them someday..." unpatched; with his flag clear, that line on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Of course you all know that, we’ve met them, haven’t we..."; the unpatched line was not reached there',
     plan: (s) => {
       const what = 'Timon has met the Seldane', p = dataPatchPlace(s, what, 0x184A,
@@ -1155,7 +1155,7 @@ const DATA_FIXES = [
     } },
   // Timon fretting about Larisa (the room, 0x1C2D): the second branch tests
   // his flag 3 and set flag 2, so he fretted on every entry; it sets flag 3.
-  { id: 'timon-frets', group: 'talk', stage: 'further', title: 'Timon now frets about Larisa once, instead of every time he comes in',
+  { id: 'timon-frets', group: 'talk', stage: 'further', name: 'I\u2019m sure she\u2019s fine', title: 'Timon now frets about Larisa once instead of every time he comes in',
     played: 'Mac OS 8.5, 11 October 2026, the fix alone and “All Fixes”, each installed by Magpie: Timon in the party by an edit, quest value 7 at 3, the hero walked into Larisa’s dwelling in Kosha twice; "Hm - Larisa should be back by now." on the first entry only, against on both unpatched. Not played in the fork',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Timon frets once', 0x1C2D, ['call_resource SetCharacterFlag', 'short 0x004A', 'byte 0x02', 'end', 'return'], 2, 'byte 0x03'),
@@ -1163,7 +1163,7 @@ const DATA_FIXES = [
   // Halos's "stop by my office" (0x183E's helper): `behaviour != 144 and
   // behaviour == 138` is redundant as written, and the line fits only away
   // from the office; the second test is `!=`.
-  { id: 'halos-office', group: 'talk', stage: 'further', title: 'Halos now says \u201cstop by my office\u201d when he is away from it, instead of never',
+  { id: 'halos-office', group: 'talk', stage: 'further', name: 'Office hours', title: 'Halos tells you to stop by his office when he\u2019s away from it',
     played: 'fork, 68K, 9 October 2026, alone and on “All Fixes”: at eleven, when his schedule has taken him from his desk, "ake" to Halos once Ake has sent the hero drew "Lady Ake sent you?" and then "But now is not a good time to talk - please, stop by my office during working hours.", against "So, you came all this way to talk" and no such line unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "ake" to Halos at eleven drew "But now is not a good time to talk - please, stop by my office during working hours."',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Halos away from his office', 0x183E,
@@ -1171,14 +1171,14 @@ const DATA_FIXES = [
     ] }) },
   // Thoas's "Please come again" (0x1844): the local it waits on is set once
   // his shop has been opened.
-  { id: 'thoas-farewell', group: 'talk', stage: 'further', title: 'Thoas now says \u201cPlease come again\u201d after you have shopped, instead of never',
+  { id: 'thoas-farewell', group: 'talk', stage: 'further', name: 'Please come again', title: 'Thoas now says \u201cPlease come again\u201d after you\u2019ve shopped with him',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "buy", Done, "bye" to Thoas, "Farewell.  Please come again.", against "Farewell." unpatched; with no "buy", "Farewell." on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Farewell.  Please come again." after his shop is closed; the unpatched line was not replayed there',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thoas after his shop', 0x1844, ['conversation_response "buy" ->', 'set_field 0x27'], 1, 'set_local 0x00\nword True\nend'),
     ] }) },
   // Paris and Parium (the family group, 0x0805): "pari" took Parium's answer
   // first, so Paris's could not be given; Parium's is keyed "pariu".
-  { id: 'paris-parium', group: 'talk', stage: 'further', title: '\u201cParis\u201d now brings the answer about Paris, instead of the one about Parium',
+  { id: 'paris-parium', group: 'talk', stage: 'further', name: 'Was it Pari-something?', title: 'Paris no longer mistaken for Parium when asked about in conversation',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, the person brought to the hero by the in-party bit: "paris" to Apis drew "Paris is married to my cousin Helen.", against "My cousin Parium runs the Green Goat Tavern and Inn in Catamarca - fine place." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "paris" to Apis drew "Paris is married to my cousin Helen."',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Parium keyed apart from Paris', 0x0805, 'pari', 'pariu', ['string(implicit) "\\"My cousin Parium']),
@@ -1188,7 +1188,7 @@ const DATA_FIXES = [
   // name, eight people had no answer of their own and their dialogue group
   // spoke of them as of someone else, Helen of "my cousin Helen". Each
   // name now reaches the answer they give to "name"; no line is new.
-  { id: 'self-names', group: 'talk', stage: 'further', title: 'Eight people asked their name now answer as themselves, instead of speaking of themselves as someone else',
+  { id: 'self-names', group: 'talk', stage: 'further', name: 'Oh yeah, me', title: 'Eight people now respond to their name as themselves instead of as someone else',
     played: 'fork, 3 October 2026, in part (Milcom and Halos of the eight): "Milcom" to Milcom drew "I am Milcom, technically head of House Atussa." and "Halos" to Halos "I am Halos", against "Milcom was the head of the former House Atussa." and "Halos represents House Strymon in Cademia." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "milcom" to Milcom drew "I am Milcom, technically head of House Atussa." and "halos" to Halos "I am Halos"',
     plan: (s) => ({ edits: [
       ['Milcom', 0x181E, 'name', 'milc', 'I am Milcom'],
@@ -1240,7 +1240,7 @@ const DATA_FIXES = [
   // A highlighted word nobody answers (Loose ends): "Magisterium", in the
   // general group's (0x0801) answers about Pnyx and mages. It now reaches
   // the answer about mages, "Mages are trained at the Magisterium in Pnyx".
-  { id: 'magisterium', group: 'talk', stage: 'further', title: '“Magisterium” now brings the answer about mages, instead of no answer',
+  { id: 'magisterium', group: 'talk', stage: 'further', name: 'Do I look like I know what a \u201cmagi\u201d is?', title: '\u201cMagisterium\u201d now gets the answer about mages',
     played: 'fork, 3 October 2026: "Magisterium" to Milcom drew "Mages are trained at the Magisterium in Pnyx", against "I\u2019m sorry, but I don\u2019t understand." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "magisterium" to Milcom drew "Mages are trained at the Magisterium in Pnyx"',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'the mages answer to "Magisterium"', 0x0801, 'mage', 'mage,magi', ['string(implicit) "\\"Mages are trained']),
@@ -1278,7 +1278,7 @@ const DATA_FIXES = [
   // bartenders, Ake, Parium, Crito (three), Apis (three), Paris, Niobe
   // (two), Borus and Sabinate; a `*` after the closing quote, as the game's
   // own lines wait ("Yes, I was a bit puzzled."*).
-  { id: 'lines-run-on', group: 'talk', stage: 'further', title: 'Answers now wait for you to read them, instead of running into the next one or flashing past',
+  { id: 'lines-run-on', group: 'talk', stage: 'further', name: 'You haven\u2019t answered my question', title: 'Answers to questions you pose in dialogue no longer disappear too fast to read or run into the next response',
     played: 'in part: fork, 68K, 10 October 2026, alone and on “All Fixes”: "dice" to Apis with no oboloi, the refusal alone, against the refusal and then "Do you need instructions?" unpatched. The other places are not played; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "dice" to Apis with no oboloi drew the refusal alone',
     plan: (s) => {
       const edits = [];
@@ -1354,7 +1354,7 @@ const DATA_FIXES = [
   // Alcmena; and Ennomus, seen); Cybele, whose second clause branches into
   // the string ".*" for its wait; Mantinea and Itanos, whose description
   // nothing follows; Oeneus, whose one following line begins with a `*`.
-  { id: 'descriptions-wait', group: 'talk', stage: 'further', title: 'A character\u2019s description now waits for you to read it, instead of flashing past, for eight characters',
+  { id: 'descriptions-wait', group: 'talk', stage: 'further', name: 'You haven\u2019t even looked at me', title: 'Descriptions for 8 characters no longer disappear too fast to read',
     played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Demodocus, Myus, Thersites and Polydamas met for the first time, each description staying with MORE until a click and the greeting following it, against 234 to 305 ms on screen unpatched from the same saves; fork, 68K, the same day, alone and on \u201cAll Fixes\u201d: Demodocus, Alastor and Anisa, each description waiting at the tick where the shipped file shows the greeting alone, and Paris and Niobe on the branch that does not lose it, where the fix adds a click. Not played: the branch of Paris and of Niobe that loses it',
     textEdits: [
       ['Myus', 0x180A, 'with an air of leadership.'],
@@ -1407,12 +1407,12 @@ const DATA_FIXES = [
   // Demodocus's "Would you like to @hear it?" leads to his song, keyed
   // "song,meti", whose "meti" the question itself takes first; it is keyed
   // "song,hear".
-  { id: 'demodocus-song', group: 'talk', stage: 'further', title: 'Demodocus now sings when you ask to hear his song, instead of not answering',
+  { id: 'demodocus-song', group: 'talk', stage: 'further', name: 'Do your job, bard', title: 'Demodocus now sings you his song if you ask (nicely)',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "hear" to Demodocus in Land King Hall, "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched; "song" sings on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched',
     plan: (s) => ({ edits: [dataFixRekey(s, 'Demodocus’s song on "hear"', 0x186D, 'song,meti', 'song,hear')] }) },
   // Glaucus's "North Shore @Vineyard" and the family group's answer are
   // keyed "viny", which "vineyard" can never match; "vine".
-  { id: 'glaucus-vineyard', group: 'talk', stage: 'further', title: '\u201cVineyard\u201d now brings an answer from Glaucus and his family, instead of none',
+  { id: 'glaucus-vineyard', group: 'talk', stage: 'further', name: 'What is it you\u2019d say you do here', title: 'Glaucus the vintner and his family now answer when asked about \u201cvineyard\u201d',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "vineyard" to Glaucus at his vineyard, "This years crop looks good, but I don’t know if I’ll be able to make...", against "Excuse me?" unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "This years crop looks good, but I don’t know if I’ll be able to make wine..."; the unpatched line was not replayed there',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Glaucus’s vineyard', 0x1866, 'viny', 'vine'),
@@ -1554,7 +1554,7 @@ const DATA_FIXES = [
   // creation's write, which nothing reads once this applies, and the
   // creation's read just after it, which comes before field 0x25 holds
   // anything.
-  { id: 'gender', group: 'talk', stage: 'further', title: 'People now speak to the hero as the gender chosen for this game, instead of the one chosen for the last hero created',
+  { id: 'gender', group: 'talk', stage: 'further', name: 'A boyfriend who looked like a girlfriend', title: 'Characters no longer address you using the gender of the hero you created previously (e.g. in February of last year)',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a heroine (the hero’s figure 33) loaded where no hero had been created, "bye" to Hebe, "Ma’am, one last thing...", against "Sir, one last thing..." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ma’am, one last thing...", against "Sir, one last thing..." unpatched',
     plan: (s) => {
       const edits = [];

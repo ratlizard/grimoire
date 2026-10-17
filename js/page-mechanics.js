@@ -1423,18 +1423,6 @@ function heroSpriteAdd() {
   heroSay(w.name + ' is in your patch.');
   return w;
 }
-function heroSpriteDownload(asMacBinary) {
-  let w;
-  try { w = heroSpritePatch(); } catch (e) { heroSay('The page could not write the patch: ' + e.message, true); return null; }
-  if (!w) { heroSay('Choose something to write first.', true); return null; }
-  if (asMacBinary) {
-    const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
-    dlBlob(new Blob([bin], { type: 'application/macbinary' }), w.name + '.bin');
-  } else downloadBlob(w.bytes, w.name);
-  heroSay(w.bytes.length.toLocaleString() + ' bytes, one resource, identity ' + w.uuidText +
-    (w.checkValueValid ? ', and the check value verifies.' : ', and the check value does not verify.'), !w.checkValueValid);
-  return w;
-}
 
 function heroSpritePick(key) {
   window.HERO_SPRITE_STATE.which = key;
@@ -1804,17 +1792,6 @@ function gremlinAdd() {
   gremlinSay('Gremlin ' + w.gremlin + ' is in your patch.');
   return w;
 }
-function gremlinDownload(asMacBinary) {
-  let w;
-  try { w = gremlinPatch(); } catch (e) { gremlinSay('The page could not write the gremlin: ' + e.message, true); return null; }
-  if (!w) { gremlinSay('No game file is open.', true); return null; }
-  if (asMacBinary) {
-    const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
-    dlBlob(new Blob([bin], { type: 'application/macbinary' }), w.name + '.bin');
-  } else downloadBlob(w.bytes, w.name);
-  gremlinSay(w.bytes.length.toLocaleString() + ' bytes, one resource, identity ' + w.uuidText + '.');
-  return w;
-}
 // One field of the form, set from a control; the listing follows the form again.
 function gremlinSet(key, value) {
   const st = window.GREMLIN_STATE;
@@ -1994,14 +1971,6 @@ function appFix68kListing(m) {
     m.caves.map(e => 'CODE ' + e.seg + ' +' + hx(e.site) + '  a branch to ' + e.length + ' bytes of new code at +' + hx(e.at)),
     m.values.map(e => 'CODE ' + e.seg + ' +' + hx(e.off) + '  a value, now ' + hx(e.now)),
     m.data0.map(e => 'DATA 0 +' + hx(e.at) + '  ' + e.length + ' bytes of text')).join('\n');
-}
-/* A fix built from someone else's published work carries their name
-   (`by`): Fetch and fishing, from Bryce Schroeder's patched sources. The
-   other four of his patch were written here from the causes, his sources
-   for them never published (the maintainer, 3 October 2026). */
-function dataFixMark(f) {
-  if (!f.by) return untestedMark(f);
-  return ' (' + f.by + '\u2019s fix' + (!f.played ? ', untested' : fixPlayedInPart(f) ? ', partially tested' : '') + ')';
 }
 function appFixChosen() { return APP_FIXES.filter(f => !window.APPFIX_STATE.off.has(f.id)); }
 // One note under the one list, the data fixes' (dataFixSay).
@@ -2703,17 +2672,6 @@ function dataFixShowPatch() {
   const host = document.getElementById('patchReport');
   if (ok && host && host.scrollIntoView) host.scrollIntoView({ behavior: 'smooth', block: 'start' });
   return ok;
-}
-function dataFixDownload(asMacBinary) {
-  const w = dataFixBuild('write');
-  if (!w) return null;
-  if (asMacBinary) {
-    const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
-    dlBlob(new Blob([bin], { type: 'application/macbinary' }), w.name + '.bin');
-  } else downloadBlob(w.bytes, w.name);
-  dataFixSay(w.fixes + (w.fixes === 1 ? ' fix, ' : ' fixes, ') + w.resids.length + ' resources, ' + w.bytes.length.toLocaleString() + ' bytes, identity ' + w.uuidText +
-    (w.checkValueValid ? ', and the check value verifies.' : ', and the check value does not verify.'), !w.checkValueValid);
-  return w;
 }
 
 /* Every change the text makes, under its options, at the maintainer's word
