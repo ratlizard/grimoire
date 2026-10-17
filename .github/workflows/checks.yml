@@ -1,0 +1,64 @@
+# Runs utilities/check_all.mjs on GitHub's machines, so the suite need not run
+# on the maintainer's 8 GB Mac before every push. It builds and deploys
+# nothing: Pages still serves the branch exactly as committed.
+#
+# What it cannot have, it skips, and a skip reads like a clean result, so the
+# table's skips are worth reading: the game is fetched from archive.org
+# (fetch_game.mjs), but the community add-ons, the playthrough kit, the
+# registered licence and the workbench's symbol list are in no public
+# repository. The forks are checked out beside this repository, where
+# check_all.mjs looks for them.
+
+name: checks
+
+on:
+  push:
+    branches: [main, 'front/**']
+  workflow_dispatch:
+
+jobs:
+  check_all:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      TMPDIR: ${{ github.workspace }}/tmp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: grimoire
+          submodules: true
+          fetch-depth: 0   # version_check.mjs compares against origin/main
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ratlizard/wolflizard
+          ref: cythera-detailed
+          path: wolflizard
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ratlizard/mac-files
+          path: mac-files
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: latest
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wolflizard
+
+      - name: Tools the checks compare against
+        run: sudo apt-get update && sudo apt-get install -y llvm unar
+
+      # The installer fetch_game.mjs downloads and the art pack, kept between runs.
+      - uses: actions/cache@v4
+        with:
+          path: tmp
+          key: grimoire-inputs-v1
+
+      - name: check_all
+        working-directory: grimoire
+        run: mkdir -p "$TMPDIR" && node utilities/check_all.mjs
