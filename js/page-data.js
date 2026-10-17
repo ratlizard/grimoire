@@ -1180,8 +1180,8 @@ function renderCheatsSheet() {
     h += '<div class="mechSec"><h4 class="cheatH4">Level 0, the Nothing Map</h4><ul class="ruleList">' +
       '<li>Map 0 is ' + heap.w + ' by ' + heap.h + ', with no roof, no exits, ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') + ' and no name. The map window’s title reads Untitled there.</li>' +
       '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory; the program made the map and never filled it in.</li>' +
-      '<li>Players have reached it by accident, from a bed in Cademia and from beneath Pnyx, ' +
-      'and found a figure with a guard’s sprite called Nothing, or Omen if killed twice. ' +
+      '<li>It can be reached by accident, from a bed in Cademia and from beneath Pnyx, ' +
+      'and holds a figure with a guard’s sprite called Nothing, or Omen if killed twice. ' +
       'That figure is character record 0, which is empty, and is the record option-x writes to. ' +
       actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li></ul></div>';
   }

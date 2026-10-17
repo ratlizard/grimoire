@@ -3312,10 +3312,10 @@ function renderPatchBar() {
   row.appendChild(dl);
   row.appendChild(sel);
   host.appendChild(row);
-  /* The bar stays two lines high, since it covers the top of the screen
-     the whole time the tab is open (the maintainer saw it fill a third of
-     his phone): what the download is, what a patch leaves out and the
-     rarer actions are behind More, on the bar's first line. */
+  /* The bar is two lines high (the maintainer saw it fill a third of his
+     phone while it was pinned to the screen): what the download is, what a
+     patch leaves out and the rarer actions are behind More, on the bar's
+     first line. */
   // What a Magpie patch cannot carry, said whenever it is the choice and
   // any of it is chosen, since it is easy to miss and costs a fix.
   const left = b.where === 'magpie' ? basketLeftOut() : [];
@@ -5417,9 +5417,9 @@ function renderMechanicsSheet(value) {
       box.appendChild(sn.el);
     }
   }
-  /* Your Patch, first on the Build a Patch tab and pinned to the top of
-     the screen as the tab scrolls (renderPatchBar). It was pinned to the
-     foot, which the maintainer found too easy to miss (17 October 2026). */
+  /* Your Patch, first on the Build a Patch tab (renderPatchBar). It was
+     pinned to the foot of the screen, which the maintainer found too easy
+     to miss, then to the top, and stays in place since (17 October 2026). */
   if (only === MECH_TOOL_GROUP) {
     const pb = document.createElement('div');
     pb.id = 'patchBar'; pb.className = 'patchBar';
