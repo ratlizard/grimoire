@@ -48,8 +48,10 @@ gitignored and supplied by you; the snapshot and oracle checks read it, and
 fall back to fetching the installer when it is absent.
 
 **The site has no build step.** No `package.json`, no lockfile, no
-`requirements.txt`, no `.github/workflows`. `.nojekyll` at the root disables
-Jekyll processing, so every file is served exactly as committed.
+`requirements.txt`. `.nojekyll` at the root disables Jekyll processing, so
+every file is served exactly as committed. The one workflow,
+`.github/workflows/checks.yml`, runs the checks and builds nothing (*The
+checks on GitHub*, under *The checks*).
 
 **The viewer is `index.html`**, so the site is reached at `/grimoire`. It
 was `explorer.html` until September 2026, and a redirect under the old name
@@ -565,6 +567,48 @@ What it writes is the game's program and belongs in no repository.
 `ramp_patch.mjs` is a **builder, not a check**: it writes a Magpie patch that
 puts every tile on the engine's cycling ramps, leans on the page's writers
 by name, and what it writes is game-derived and belongs in no repository.
+
+#### The checks on GitHub
+
+`.github/workflows/checks.yml` runs `check_all.mjs` on GitHub's Ubuntu
+machines on every push to `main` or to a `front/*` branch, and by hand
+(workflow_dispatch), since 17 October 2026, so that the suite need not run
+on the maintainer's 8 GB Mac before every push; it builds and deploys
+nothing. A push to `main` is checked after it is live, so a front's branch
+is pushed first and landed once its run is green. It checks out grimoire
+with the delvmod submodule and its whole history (`version_check.mjs`
+compares against `origin/main`), and beside it `ratlizard/wolflizard` on
+`cythera-detailed` (the HFS round trip builds its `hfs_dump` example, with
+the Rust build cached), `ratlizard/mac-files` (`copies_check.mjs`) and
+`ratlizard/ratlizard.github.io` (`reach_check.mjs` counts the player's
+calls). It installs `unar` and llvm-mc 22 from apt.llvm.org:
+`ppc_check.mjs` fails with 21 and with Ubuntu's 18, which read the code
+section differently. It runs `fetch_game.mjs` first and copies the
+downloaded archive to `reference/game/installers/`, because the page looks
+there before archive.org and `browser_check.mjs` fails on the 404 of each
+miss. After a failure each failed check is run again alone, which prints its
+whole output into the log.
+
+The installer's copy of the game has the same data forks as the `.hqx`
+files and different resource forks, the `.hqx` files having come from an
+installed copy; `FETCHED_FORKS` in `check_all.mjs` is true when neither
+`.hqx` is in `reference/`, and a check whose pinned value covers the
+resource forks whole carries `expectFetched` for that copy (the Spanish
+translation's hash, `SPANISH a0a34b80` against `2ca82cf4`). Three checks
+skip there: archive loading (the `.hqx` files), StuffIt 13 and 15 (the
+community add-ons) and the game check (the playthrough kit, the patched
+emulator and the registered licence, which stays out of any public
+place). The first green run took about six minutes.
+
+#### History moved out of the guide
+
+`index.html` used to pull its default archive, font and dialogue background
+from the old repository on `raw.githubusercontent.com`; the game left the
+repository, so those URLs would 404 and they are gone. The data archive
+stayed `Cythera Data.Hqx` in git for a while after someone had renamed it, a rename
+of case alone that a case-insensitive filesystem kept from git. Until
+18 September 2026 there were 144 empty catches and a visitor got a quieter
+page and no reason.
 
 ### delvmod is the correctness oracle, in full
 

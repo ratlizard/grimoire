@@ -19,8 +19,8 @@ editing, the data of *Cythera* (Ambrosia Software, 1999) and of classic Mac OS
 files generally, at <https://ratlizard.github.io/grimoire/>. The whole of it is
 `index.html` (the viewer, so the site is reached at `/grimoire`),
 `canvas.html`, `js/` and `utilities/`. **There is no build step**: no
-`package.json`, no lockfile, no workflow; `.nojekyll` serves every file as
-committed.
+`package.json`, no lockfile; `.nojekyll` serves every file as committed, and
+the one workflow runs the checks and builds nothing.
 
 **Pushing to `main` deploys the site**, live within a minute or two, with no
 staging: run the checks below before pushing. The maintainer's rule is to push
@@ -163,6 +163,13 @@ node utilities/check_all.mjs            # everything, one table, about 90 second
 node utilities/check_all.mjs --quick    # skip the slow browser-ish smokes
 CHECK_JOBS=1 node utilities/check_all.mjs   # one check at a time
 ```
+
+**The suite also runs on GitHub** (`.github/workflows/checks.yml`) on every
+push to `main` or a `front/*` branch: push the front's branch and read the
+run (`gh run watch`) rather than running the whole suite on this 8 GB
+machine, and keep single checks and `--quick` for while working. Three
+checks skip there for inputs no public repository has. `REFERENCE.md`,
+*The checks*, has what the run fetches and why.
 
 `check_all.mjs` does the setup (the forks extracted into `$TMPDIR`, the
 delvmod graphics reference built), runs every harness and prints one table and
@@ -417,10 +424,7 @@ them*, says which, and what `utilities/addons_check.mjs` proves with them.
   `grep` + `sed -n` to locate a region rather than reading the whole file, and
   check `js/` first — a Delver format is more likely to be there now.
 - **`index.html` fetches one thing from outside the repository: the
-  installer.** It used to pull its default archive, font and dialogue
-  background from the old repository on `raw.githubusercontent.com`; the
-  game left the repository, so those URLs would 404 and they are gone. The
-  default is now archive.org's copy of the installer through its `/cors/`
+  installer.** The default is archive.org's copy of the installer through its `/cors/`
   path, with Bryce Schroeder's `Cythera.bin` after it (blocked by CORS until
   his server sends the header — see the per-page notes), both tried after
   the relative paths under `reference/` and before giving up. The rest is
@@ -430,8 +434,7 @@ them*, says which, and what `utilities/addons_check.mjs` proves with them.
   both carrying two forks. There is no bare data fork in the repository any
   more; `check_all.mjs` extracts one into `$TMPDIR` because the harnesses want
   bytes, not because anything ships one. A rename that only changes case will
-  not reach git on a case-insensitive filesystem — this file stayed
-  `Cythera Data.Hqx` in git for a while after someone had renamed it.
+  not reach git on a case-insensitive filesystem.
 - `repomix_output.md`, `.DS_Store`, `sources/`, `__pycache__/` and
   `infinite-mac` are gitignored.
 - **A button cannot be coloured by its own background.** `index.html`'s
@@ -448,9 +451,7 @@ them*, says which, and what `utilities/addons_check.mjs` proves with them.
   there too from the listeners installed at boot and reach the status line,
   and `?loud=1` prints each to the console for the browser check. Write
   `catch (e) { quiet(e); }` for a fallback, with a second argument naming
-  what was being tried when the message alone would not say. Until
-  18 September 2026 there were 144 empty catches and a visitor got a quieter
-  page and no reason.
+  what was being tried when the message alone would not say.
 
 ## `REFERENCE.md`, by section
 
