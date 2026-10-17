@@ -686,7 +686,18 @@ function atlasLandBounds() {
 
 /* The most a node is worth magnifying: its own art is 32 pixels a square, so
    past twice that there is nothing further in the file to show. The zoom
-   stops where the deepest thing under the middle of the view runs out. */
+   stops where the deepest thing under the middle of the view runs out.
+
+   atlasMaxZ is the ceiling anywhere in the scene, the deepest place's;
+   the animations into a town use it. atlasMaxZAt is the ceiling at one
+   point of the screen, the deepest node whose map covers it, and is what
+   a pinch, the wheel and the slider stop at. Until 16 October 2026 they
+   stopped at atlasMaxZ, which the comment above never meant: a town is
+   put into the world at a twentieth to a thirtieth of a square, so the
+   scene's ceiling was some 1,700 px a world square, and the zoom went on
+   over open country long after the world's art ran out, through a screen
+   of a mountain's red fringe into a wash of magnified grass (the
+   maintainer, on his phone, past about 95 px a square). */
 function atlasMaxZ() {
   const sc = atlasScene();
   if (!sc) return 64;
@@ -694,6 +705,26 @@ function atlasMaxZ() {
   let best = cap;                                 // the world itself
   for (const n of sc.nodes) if (n.depth) best = Math.max(best, cap / n.s);
   return best;
+}
+function atlasMaxZAt(px, py) {
+  const sc = atlasScene();
+  if (!sc) return 64;
+  const cap = window.ATLAS_TUNE.maxPpt;
+  let best = cap;
+  for (const n of sc.nodes) {
+    if (!n.depth) continue;
+    const r = atlasRect(n, atlasView);
+    if (px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h) best = Math.max(best, cap / n.s);
+  }
+  return best;
+}
+// The slider's top: the ceiling at the middle of the view, or the zoom
+// already reached when that is higher, so the thumb never stands past
+// its end.
+function atlasSliderMaxZ() {
+  const vp = document.getElementById('atlasViewport');
+  const at = vp && vp.clientWidth > 40 ? atlasMaxZAt(vp.clientWidth / 2, vp.clientHeight / 2) : atlasMaxZ();
+  return Math.max(at, atlasView.Z);
 }
 
 /* Draw the scene.
@@ -2585,7 +2616,10 @@ function atlasZoomAround(newZ, px, py) {
   // Reached only from a pinch, the wheel and the slider: the visitor has
   // found the zoom, so the hint goes.
   _atlasZoomed = true; atlasZoomHintHide();
-  const maxZ = atlasMaxZ();
+  // The ceiling where the zoom is centred. A view already past it, as
+  // inside a town with the fingers over its edge, can go out and not in;
+  // it is never pulled back to the ceiling, which would jump the view.
+  const maxZ = Math.max(atlasMaxZAt(px, py), atlasView.Z);
   const sc = atlasScene();
   const vp = document.getElementById('atlasViewport');
   // The floor is the whole world in the panel: there is nothing further out.
@@ -2609,6 +2643,8 @@ function atlasPanBy(dx, dy) {
   atlasMarkBusy();
   if (window._atlasAnimating) return;
   atlasView.x += dx; atlasView.y += dy;
+  // The slider's range follows what is under the middle of the view.
+  atlasSyncZoomLabel();
   schedulePaintAtlas();
 }
 
@@ -2649,7 +2685,7 @@ function atlasSyncZoomLabel() {
   if (lab) lab.textContent = atlasView.Z.toFixed(1) + ' px/sq';
   const sl = document.getElementById('atlasZoomSlider');
   if (sl) {
-    const lo = Math.max(1e-6, atlasFitZ()), hi = Math.max(lo * 1.0001, atlasMaxZ());
+    const lo = Math.max(1e-6, atlasFitZ()), hi = Math.max(lo * 1.0001, atlasSliderMaxZ());
     sl.min = 0; sl.max = 1000;
     sl.value = Math.round(1000 * Math.max(0, Math.min(1, Math.log(atlasView.Z / lo) / Math.log(hi / lo))));
   }
@@ -2659,7 +2695,7 @@ function atlasZoomFromSlider() {
   const vp = document.getElementById('atlasViewport');
   if (!sl || !vp) return;
   atlasGestureTouch();
-  const lo = Math.max(1e-6, atlasFitZ()), hi = Math.max(lo * 1.0001, atlasMaxZ());
+  const lo = Math.max(1e-6, atlasFitZ()), hi = Math.max(lo * 1.0001, atlasSliderMaxZ());
   atlasZoomAround(lo * Math.pow(hi / lo, (+sl.value) / 1000), vp.clientWidth / 2, vp.clientHeight / 2);
 }
 

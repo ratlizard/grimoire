@@ -811,7 +811,7 @@ try {
       peek('atlasFit')();
       const vpw = REGISTRY.get('atlasViewport');
       const cxw = (vpw && vpw.clientWidth || 300) / 2, cyw = (vpw && vpw.clientHeight || 300) / 2;
-      for (let k = 0; k < 24 && av2.Z < peek('atlasMaxZ')() * 0.99; k++) peek('atlasZoomAround')(av2.Z * 2, cxw, cyw);
+      for (let k = 0; k < 24 && av2.Z < peek('atlasMaxZAt')(cxw, cyw) * 0.99; k++) peek('atlasZoomAround')(av2.Z * 2, cxw, cyw);
       ctx.__peek('atlasMovedAt = 0');
       drainRaf();
       const wTS = tileTS(root);
@@ -820,6 +820,42 @@ try {
         fail('atlas', `the world at its closest zoom (${peek('atlasNodePpt')(root, av2).toFixed(1)} px a square) wants tiles of ${wTS} px and has ${worldTiles.length}`);
       else console.log(`  atlas: the world at its closest zoom is ${worldTiles.length} tiles of its native 32 px a square`);
       function onScreenWantedWorld() { return peek('atlasTileWant').filter(w => !w.tile && w.d < 1e6 && w.node === root).length; }
+      Object.assign(av2, was);
+      ctx.__peek('atlasMovedAt = 0');
+      peek('paintAtlas')(); drainRaf();
+    }
+    // Where the zoom stops. Over open ground, the world's ceiling (maxPpt,
+    // 64 px a square); over a town, the town's, far past it. Until
+    // 16 October 2026 every zoom stopped at the deepest town's ceiling,
+    // some 1,700 px a world square, so open country zoomed on into a wash
+    // of magnified grass. A pinch already past the ceiling is held, never
+    // pulled back. Tried against the old ceiling: the first line fails.
+    {
+      const was = { x: av2.x, y: av2.y, Z: av2.Z };
+      const cap = ctx.ATLAS_TUNE.maxPpt;
+      const vpz = REGISTRY.get('atlasViewport');
+      const W = (vpz && vpz.clientWidth) || 300, H = (vpz && vpz.clientHeight) || 300;
+      const climb = (x, y) => { for (let k = 0; k < 40; k++) peek('atlasZoomAround')(av2.Z * 2, x, y); return av2.Z; };
+      // A point of the fitted view no town's map covers.
+      peek('atlasFit')();
+      let open = null;
+      for (let y = H * 0.3; y < H * 0.7 && !open; y += 7) for (let x = W * 0.3; x < W * 0.7; x += 7)
+        if (peek('atlasMaxZAt')(x, y) === cap) { open = { x, y }; break; }
+      const openZ = open ? climb(open.x, open.y) : NaN;
+      // The middle of Cademia, from the fitted view.
+      peek('atlasFit')();
+      const r = peek('atlasRect')(cad2, av2);
+      const townZ = climb(r.x + r.w / 2, r.y + r.h / 2);
+      // Inside the town, past the open ground's ceiling, a pinch centred just
+      // outside the town's map goes no further in and is not pulled back to 64.
+      const r2 = peek('atlasRect')(cad2, av2);
+      const offX = r2.x - 4, offY = r2.y - 4;
+      const held = av2.Z;
+      if (peek('atlasMaxZAt')(offX, offY) === cap) peek('atlasZoomAround')(av2.Z * 1.5, offX, offY);
+      const heldZ = peek('atlasMaxZAt')(offX, offY) === cap ? av2.Z : NaN;
+      if (!open || Math.abs(openZ - cap) > 1e-6 || !(townZ > cap * 4) || heldZ !== held)
+        fail('atlas', `zoom ceiling: open ground stopped at ${openZ}, Cademia at ${townZ}, a pinch off the town past its ceiling ${held} -> ${heldZ} (want ${cap}, past ${cap * 4}, unchanged)`);
+      else console.log(`  atlas: the zoom stops at ${cap} px a square over open ground and at ${townZ.toFixed(0)} over Cademia, and is held off the town`);
       Object.assign(av2, was);
       ctx.__peek('atlasMovedAt = 0');
       peek('paintAtlas')(); drainRaf();
