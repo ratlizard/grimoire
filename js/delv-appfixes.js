@@ -86,7 +86,7 @@ const APP_FIXES_TARGET = {
 const APP_FIXES = [
   // ---- In place ------------------------------------------------------------
   { id: 'option-p', kind: 'fix', title: 'Option-p prints the prop record and stops, without toggling regeneration',
-    played: 'fork, PowerPC, 30 September 2026: the saved record keeps regeneration off',
+    played: 'fork, PowerPC, 30 September 2026: the saved record still has regeneration off',
     bug: 'option-p also toggles regeneration',
     sites: [{ at: 0x4448C, was: [0x60000000], asm: ['b @0x446B4            ; the exit the other cases take'] }] },
 
@@ -132,7 +132,7 @@ const APP_FIXES = [
   // any other and replaces what was there.
   { id: 'empty-zone-save', kind: 'fix', title: 'A zone left with nothing in it is saved as one free slot, so Tavara\u2019s island no longer doubles what you carry (SaveLevelProps)',
     bug: 'Saving and reverting around Tavara\u2019s ring duplicates everything carried',
-    played: 'Mac OS 8.5, 11 October 2026, the program with the fix alone and with every fix beside the stock one, the hero given stairs to the fortress and to Land King Hall: a save on the island without the fortress, the hall and a save, the island again, and the save then holds 36 carried records on the stock program, the hero\u2019s six things twice, and 18 with the fix alone and with every fix. The board\u2019s route on foot (the island and a save, the ring on, the Stronghold, the ring off and a save, Revert To Saved, out by the west edge and onto the fortress\u2019s square): 34 carried on the stock program, 17 with the fix alone. Fork, PowerPC, 12 October 2026: after the save in the hall the stock program\u2019s save still holds the island\u2019s list with the 18 carried records and the fixed ones\u2019 do not; the step back to the island did not land there, so the doubled count is not shown in the fork. Mac OS 8.5, 12 October 2026, ten rounds of the island, a save, the hall, a save: the stock program stops on the tenth return with "Sorry - there has been a fatal error:Out of space for new props!", 288 carried records after four rounds; the program with the fix alone ends the ten with 18',
+    played: 'Mac OS 8.5, 11 October 2026, the program with the fix alone and with every fix beside the stock one, the hero given stairs to the fortress and to Land King Hall: a save on the island without the fortress, the hall and a save, the island again, and the save then has 36 carried records on the stock program, the hero\u2019s six things twice, and 18 with the fix alone and with every fix. The board\u2019s route on foot (the island and a save, the ring on, the Stronghold, the ring off and a save, Revert To Saved, out by the west edge and onto the fortress\u2019s square): 34 carried on the stock program, 17 with the fix alone. Fork, PowerPC, 12 October 2026: after the save in the hall the stock program\u2019s save still holds the island\u2019s list with the 18 carried records and the fixed ones\u2019 do not; the step back to the island did not land there, so the doubled count is not shown in the fork. Mac OS 8.5, 12 October 2026, ten rounds of the island, a save, the hall, a save: the stock program stops on the tenth return with "Sorry - there has been a fatal error:Out of space for new props!", 288 carried records after four rounds; the program with the fix alone ends the ten with 18',
     sites: [{ at: 0x6EF8, was: [0x54062036], asm: ['bl @cave               ; was slwi 6, 0, 4: the length, 16 a record'] }],
     cave: ['slwi 6, 0, 4', 'cmpwi 6, 0', 'bnelr', 'li 0, 255             ; the first slot after the characters, marked free',
            'stb 0, 0(5)', 'li 6, 16', 'blr'] },
@@ -231,7 +231,7 @@ const APP_FIXES = [
     sites: [{ at: 0x65F8, was: [0x281C0000, 0x41820018, 0x7F83E378, 0x819C0048, 0x818C0014, 0x480BEADD, 0x80410014, 0x380000FF, 0x981E0000],
       asm: ['li 0, 255', 'clrlwi. 3, 24, 24     ; the post on the party’s level?', 'beq @0x6608', 'li 0, 66', 'stb 0, 0(30)', 'b @0x661C', 'nop', 'nop', 'nop'] }] },
 
-  { id: 'gamepad-keys', kind: 'fix', title: 'A gamepad’s Use, Attack, Look and Talk send their own keys',
+  { id: 'gamepad-keys', kind: 'fix', title: 'A gamepad’s Use, Attack, Look and Talk buttons each send a separate key',
     sites: [
       { at: 0xACB70, was: [0x3800004C], asm: ['li 0, 85              ; Use: U'] },
       { at: 0xACBA0, was: [0x38000055], asm: ['li 0, 65              ; Attack: A'] },
@@ -289,13 +289,13 @@ const APP_FIXES = [
     sites: [{ at: 0x5423C, was: [0x40810018], asm: ['b @cave               ; was ble 0x54254'] }],
     cave: [
       'bgt @fail              ; over the container’s own limit',
-      'lha 3, 180(1)', 'subf 0, 3, 0          ; the thing and what it holds', 'sth 0, 184(1)',
+      'lha 3, 180(1)', 'subf 0, 3, 0          ; the thing and its contents', 'sth 0, 184(1)',
       'mr 3, 28              ; the destination', 'bl @GetPropUltimateParent__Fs', 'extsh. 3, 3', 'beq @ok                ; a character, or held by nobody',
       'cmpwi 3, 256', 'bge @ok                ; held by a thing', 'sth 3, 186(1)',
       'mr 3, 29              ; the thing', 'bl @GetPropUltimateParent__Fs', 'extsh 3, 3', 'lha 4, 186(1)', 'cmpw 3, 4', 'beq @ok                ; already theirs',
       'lha 3, 186(1)', 'bl @GetCurInvEncumb__Fs', 'extsh 3, 3', 'lha 0, 184(1)', 'add 0, 0, 3', 'sth 0, 184(1)',
       'lha 3, 186(1)', 'bl @GetMaxInvEncumb__Fs', 'extsh 3, 3', 'lha 0, 184(1)', 'cmpw 0, 3', 'bgt @fail',
-      'ok:', 'b @0x54254', 'fail:', 'b @0x54240             ; the refusal already there'] },
+      'ok:', 'b @0x54254', 'fail:', 'b @0x54240             ; the existing rejection'] },
 
   // In TActiveMonster::~TActiveMonster. A creature that leaves a corpse has
   // its number set to 0 by Die, so that the destructor keeps its record as
@@ -308,7 +308,7 @@ const APP_FIXES = [
     played: 'fork, PowerPC, 30 September 2026: a chicken killed with the light on, which the unpatched game put out',
     bug: 'Killing certain creatures ends Embrightenment and Daylight',
     sites: [{ at: 0x464EC, was: [0xA87D0008], asm: ['b @cave               ; was lha 3, 8(29)'] }],
-    cave: ['lha 3, 8(29)', 'cmpwi 3, 0', 'beq @skip              ; a corpse’s creature: nothing of its own under 0',
+    cave: ['lha 3, 8(29)', 'cmpwi 3, 0', 'beq @skip              ; a corpse’s creature: none under 0',
            'bl @RemoveAllAbility__8TSpellFXFs', 'skip:', 'b @0x464F8'] },
 
   // TGameSys::WalkToLocation was shipped empty (li 3, 0; blr). Its six
@@ -356,7 +356,7 @@ const APP_FIXES = [
   // click was on a thing (312(1)), to the square the click named (318(1),
   // 316(1), which the branch passes to the Attack of a square), and ends
   // as before, which disarms the command: press the key again to go on.
-  { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach takes a step toward it, instead of doing nothing; a touch spell takes the step too, and is still canceled',
+  { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach makes the hero step toward it, instead of doing nothing; so does a touch spell, which is still canceled',
     played: 'fork, PowerPC, 30 September 2026: Use from the popup and by U, Take by G; Paralyze on a student two squares off steps once and cancels, as the unpatched game cancels without the step',
     bug: 'Touch spells only work on someone next to you',
     sites: [{ at: 0x50E5C, was: [0x38600000], asm: ['b @cave               ; was li 3, 0 (and blr)'] },
@@ -399,7 +399,7 @@ const APP_FIXES = [
   // nothing has stored it there yet, so the cave does, as a glue stub would.
   // Packing a row into fewer bytes was the other design, and only moves the
   // limit.
-  { id: 'journal-rows', kind: 'fix', title: 'A long journal keeps its newest lines readable, dropping the oldest from the window, instead of drawing new ones blank',
+  { id: 'journal-rows', kind: 'fix', title: 'In a long journal the newest lines stay readable, the oldest dropped from the window, instead of new ones drawn blank',
     bug: 'The journal breaks when it gets too long',
     sites: [
       { at: 0x78684, was: [0x4804A4B5], asm: ['bl @cave              ; was bl LAddRow, the entry’s header'] },
@@ -451,18 +451,18 @@ const APP_FIXES = [
   // type, and the swap comes later. The stream constructor restores the
   // character record, stats and all, from the save, so a sleeper's stats
   // never came from the unit on that path.
-  { id: 'sleeper-unit', kind: 'fix', title: 'Someone made while asleep keeps their unit, so they leave their body, not a man’s or a random thing',
+  { id: 'sleeper-unit', kind: 'fix', title: 'A character made while asleep has the right unit, so they leave their body, not a man’s or a random thing',
     played: 'fork, PowerPC, 30 September 2026: a sleeping guard and Lindus asleep, loaded from saves and killed, leave their bodies, where the unpatched game left none',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [
       { at: 0x44C00, was: [0x4BFFFE61], asm: ['bl @named             ; was bl ObjToMonst'] },
       { at: 0x46090, was: [0x4BFFE9D1], asm: ['bl @loaded            ; was bl ObjToMonst'] }],
-    cave: ['named:', 'cmpwi 3, 264', 'bne @ask', 'extsh 4, 26            ; the character', 'cmpwi 4, 256', 'bge @ask',
+    cave: ['named:', 'cmpwi 3, 264', 'bne @lookup', 'extsh 4, 26            ; the character', 'cmpwi 4, 256', 'bge @lookup',
            'lwz 5, -30352(2)', 'slwi 4, 4, 5', 'add 5, 5, 4', 'lhz 3, 20(5)          ; field 0x25, which sleep leaves alone', 'clrlwi 3, 3, 22',
-           'ask:', 'b @ObjToMonst__Fs',
-           'loaded:', 'cmpwi 3, 264', 'bne @ask', 'lha 5, 144(31)         ; the template, read from the save', 'cmpwi 5, 256', 'blt @own',
+           'lookup:', 'b @ObjToMonst__Fs',
+           'loaded:', 'cmpwi 3, 264', 'bne @lookup', 'lha 5, 144(31)         ; the template, read from the save', 'cmpwi 5, 256', 'blt @own',
            'lwz 6, 0(22)', 'slwi 5, 5, 4', 'add 5, 6, 5', 'lhz 3, 4(5)', 'clrlwi 3, 3, 22        ; the template’s type', 'b @ObjToMonst__Fs',
-           'own:', 'lha 4, 8(28)           ; no template: the creature’s number', 'cmpwi 4, 256', 'bge @ask',
+           'own:', 'lha 4, 8(28)           ; no template: the creature’s number', 'cmpwi 4, 256', 'bge @lookup',
            'lwz 5, -30352(2)', 'slwi 4, 4, 5', 'add 5, 5, 4', 'lhz 3, 20(5)          ; a named character’s own type', 'clrlwi 3, 3, 22', 'b @ObjToMonst__Fs'] },
 
   // After both ObjToMonst calls a creature is built from, HatchEgg's
@@ -485,14 +485,14 @@ const APP_FIXES = [
   // constant 0, which the first build of this did and so read record 0,
   // the night guards keeping the hero's unit until a trace showed r12 at
   // 0x3FF; add and a displacement load take r0 as the register it is.
-  { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit gets one, the night guard a guard’s, instead of reading its stats and corpse from nowhere',
+  { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit is given one, the night guard a guard’s, instead of reading its stats and corpse from nowhere',
     played: 'fork, PowerPC, 30 September 2026: Odemia’s night guards hatch with a guard’s stats and side and leave a guard’s body, where they had 1 health and left none',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [
       { at: 0x44C08, was: [0x907E0004], asm: ['b @made               ; was stw 3, 4(30)'] },
       { at: 0x46094, was: [0x907C0004], asm: ['b @loaded             ; was stw 3, 4(28)'] }],
     cave: ['made:', 'cmplwi 3, 0', 'bne @made1',
-           'extsh 0, 26', 'slwi 0, 0, 4', 'lwz 12, 0(25)', 'add 12, 12, 0', 'lhz 12, 4(12)', 'clrlwi 12, 12, 22     ; the type asked for',
+           'extsh 0, 26', 'slwi 0, 0, 4', 'lwz 12, 0(25)', 'add 12, 12, 0', 'lhz 12, 4(12)', 'clrlwi 12, 12, 22     ; the type requested',
            'lwz 3, -30376(2)', 'lwz 3, 0(3)            ; the first unit', 'cmpwi 12, 229', 'bne @made1',
            'made2:', 'lha 0, 12(3)', 'cmpwi 0, 0', 'beq @made3', 'cmpwi 0, 46', 'beq @made1          ; the guard’s', 'addi 3, 3, 16', 'b @made2',
            'made3:', 'lwz 3, -30376(2)', 'lwz 3, 0(3)',
@@ -551,7 +551,7 @@ const APP_FIXES = [
   // changes under a routine holding it in a register. The viewer's own
   // list of what to draw stops at 4,096 without a throw (SetStage), so a
   // square piled past that draws some of its things and not others.
-  { id: 'hood-size', kind: 'fix', title: 'The game holds as many things near the party as it holds in all, instead of ending at 2,048',
+  { id: 'hood-size', kind: 'fix', title: 'The game can have as many things near the party as in all, instead of stopping at 2,048',
     played: 'fork, PowerPC, 30 September 2026: 4,000 half disks saved',
     bug: 'Buying about 17,000 oboloi of flax quits the game',
     sites: [
@@ -599,7 +599,7 @@ const APP_FIXES = [
            'bl @0x7CAA0            ; TCache::Lock', 'mr 3, 31', 'bl @0x1AB58            ; GMSPlayAmbient',
            'lwz 3, -30396(2)', 'lwz 3, 0(3)', 'lwz 3, 0(3)', 'mr 4, 31', 'bl @0x7CB28            ; TCache::Unlock', 'b @0x1BBE8'] },
 
-  { id: 'hero-square', kind: 'fix', title: 'The hero keeps its square in the creature grid, so a follower on it no longer hides the hero from a drag',
+  { id: 'hero-square', kind: 'fix', title: 'The hero stays on its square in the creature grid, so a follower on it no longer hides the hero from a drag',
     bug: 'You cannot drag the player onto a follower\'s square',
     sites: [
       { at: 0x6B14C, was: [0x40820008], asm: ['b @one                ; was bne 0x6B154'] },
@@ -667,7 +667,7 @@ const APP_FIXES = [
               'addi 3, 31, 2136       ; OffsetRect(2136(31), 0, ...), as before', 'li 4, 0'] }] },
 
   // ---- Hooks ----------------------------------------------------------------
-  { id: 'hook-take', kind: 'hook', method: 241, title: 'Method 241 on where a thing is going, with the thing, before the game weighs it: False refuses, True puts it there unweighed',
+  { id: 'hook-take', kind: 'hook', method: 241, title: 'Method 241 on where a thing is going, with the thing, before the game weighs it: False rejects it, True puts it there unweighed',
     sites: [{ at: 0x541EC, was: [0x5740063F], asm: ['b @cave               ; was clrlwi. 0, 26, 24'] }],
     cave: [
       'extsh. 5, 28', 'ble @none             ; nowhere to call', 'stwu 1, -64(1)', 'cmpwi 5, 256', 'bge @prop', 'oris 5, 5, 16448      ; a character, 0x4040', 'b @thing',
@@ -676,14 +676,14 @@ const APP_FIXES = [
       'lwz 0, 56(1)', 'addi 1, 1, 64',
       'lwz 3, -30416(2)', 'lwz 3, 0(3)', 'cmpw 0, 3', 'beq @none              ; None: as before',
       'lwz 3, -29712(2)', 'lwz 3, 0(3)', 'cmpw 0, 3', 'bne @taken',
-      'b @0x54578            ; False: refused',
+      'b @0x54578            ; False: rejected',
       'taken:', 'b @0x54254            ; anything else: taken, unweighed',
       'none:', 'clrlwi. 0, 26, 24', 'b @0x541F0'] },
 
   { id: 'hook-corpse', kind: 'hook', method: 242, title: 'Method 242 on a dying creature or character: a number is its corpse’s type and aspect word, 0 for none',
     sites: [{ at: 0x46B70, was: [0x807F0004], asm: ['b @cave               ; was lwz 3, 4(31)'] }],
     cave: [
-      'lhz 5, 80(1)          ; its character entry, as Die keeps it', 'stwu 1, -64(1)', 'oris 5, 5, 16448',
+      'lhz 5, 80(1)          ; its character entry, as Die stores it', 'stwu 1, -64(1)', 'oris 5, 5, 16448',
       'addi 3, 1, 56', 'li 4, 242', 'bl @DoInterp__7TInterpFs5VAddr', 'lwz 0, 56(1)', 'addi 1, 1, 64',
       'lwz 3, 4(31)          ; the unit, as NewProp is handed it', 'srwi. 4, 0, 28', 'beq @number', 'b @0x46B74            ; not a number: the unit’s own',
       'number:', 'sth 0, 130(1)', 'b @0x46B7C'] },
@@ -756,7 +756,7 @@ const APP_FIXES = [
         asm: ['lbz 3, 0(31)', 'andi. 3, 3, 223       ; clear the moved-in-play flag instead of the copy', 'stb 3, 0(31)',
               'nop', 'nop', 'nop', 'nop', 'nop'] },
       { at: 0x75B4, was: [0x408200D4], asm: ['b @0x7688             ; never the door path: skip its record in the stream'] }] },
-  { id: 'level-keep-made', kind: 'change', title: 'Entering a level keeps what play made or left there, corpses among them, instead of removing what the level did not begin with',
+  { id: 'level-keep-made', kind: 'change', title: 'Entering a level leaves in place what play made or left there, corpses among them, instead of removing what the level did not begin with',
     played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a rock made in play stays where the stock program removes it; the patched program sets the door and the slid chair back, as the stock one does',
     sites: [{ at: 0x788C, was: [0x41820038], asm: ['b @0x78C4             ; never delete what play made or moved'] }] },
   // A start of play costs fifteen ticks. TDelverApp::BeginPlay, which a new
@@ -779,6 +779,6 @@ const APP_FIXES = [
   // every command hand HeartBeat their own costs elsewhere. A new game opens
   // on the king's welcome with it as without (the two frames are the same).
   { id: 'load-cost', kind: 'change', title: 'Starting or opening a game costs no time, so a game opens on the moment it was saved, instead of fifteen ticks later with everyone moved',
-    played: 'fork, PowerPC, 9 October 2026: a save of Cademia opened and saved again keeps its clock, where the unpatched program writes it fifteen units on; a new game opens on the king\u2019s welcome as before',
+    played: 'fork, PowerPC, 9 October 2026: a save of Cademia opened and saved again has the same clock, where the unpatched program writes it fifteen units on; a new game opens on the king\u2019s welcome as before',
     sites: [{ at: 0x14634, was: [0x3880000F], asm: ['li 4, 0                ; nothing for HeartBeat to spend'] }] },
 ];

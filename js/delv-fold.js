@@ -2229,7 +2229,7 @@ function dvmSaySummary(clauses) {
   const parts = [];
   if (does.length) parts.push(does.join(', '));
   if (rets.length) parts.push('returns ' + rets.map(r => r === '' ? 'nothing' : r).join(' or '));
-  if (tests) parts.push(tests + (tests === 1 ? ' test decides' : ' tests decide') + ' which');
+  if (tests) parts.push(tests + (tests === 1 ? ' test sets' : ' tests set') + ' which');
   return parts.join('; ');
 }
 /* The tree as clauses: { text, kids } with the blocks as kids. `notes` a

@@ -204,7 +204,7 @@ try {
   // sits on: the Spells sheet says "spells" in every other line, so that one
   // is pinned on a phrase only the card uses.
   const moved = [
-    ['skills', 'What Each Skill Is Asked About', skills, 'the Skills sheet'],
+    ['skills', 'Skill Checks', skills, 'the Skills sheet'],
     ['spells', 'A cost above the caster’s magic', spells, 'the Spells sheet'],
     ['balloons', 'Talk Balloons', barks, 'the Barks sheet'],
   ];

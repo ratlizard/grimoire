@@ -817,11 +817,11 @@ const US_OPTION_KEYS = { 0xA9: 'option-g', 0xC6: 'option-j', 0xEF: 'option-shift
 // built from what the case was read to do (`x`, the helpers in
 // renderCheatsSheet). A key the program does not have is not listed.
 const CHEAT_KEY_WORDS = {
-  0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with where you are, asks ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then ' + x.via('GoToLocation', 'takes you there') + ': anywhere in the game.'],
-  0xEF: ['Take teleporter', x => 'Asks ' + x.q(0) + ' ' + x.base() + ', then ' + x.via('TeleportTo', 'sends you') + ' where that teleporter goes.'],
-  0xA7: ['Create a prop', x => 'Asks ' + x.asks() + ', then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
-    'The number is the type plus 1,024 times the aspect: 0x0064 is a spear, and 0x0864 a spear at aspect 2, which takes the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
-  0xB9: ['What prop is this?', x => 'Asks ' + x.q(0) + ' ' + x.base() + ' and prints the record: class, state, position, Data1 and Data2.' +
+  0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with where you are, prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then ' + x.via('GoToLocation', 'takes you there') + ': anywhere in the game.'],
+  0xEF: ['Take teleporter', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ', then ' + x.via('TeleportTo', 'sends you') + ' where that teleporter goes.'],
+  0xA7: ['Create a prop', x => 'Prompts for ' + x.asks() + ', then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
+    'The number is the type plus 1,024 times the aspect: 0x0064 is a spear, and 0x0864 a spear at aspect 2, which has the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
+  0xB9: ['What prop is this?', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ' and prints the record: class, state, position, Data1 and Data2.' +
     (x.fallsInto ? ' Then, because of a missing jump, it carries on into ' + x.fallsInto + '.' : '')],
   0xC0: ['Where am I?', x => 'Prints your x and y as ' + x.q(0) + '.'],
   0xFF: ['What time is it?', x => 'Prints ' + x.q(0) + ', the clock and the day.'],
@@ -994,7 +994,7 @@ function renderCheatsSheet() {
       statusBit: () => {
         const k = callOf('AddAbility'), f = k && k.args[4]; if (!f) return '';
         const m = exeAbilityMap().find(r => r.word && r.below.v > f.v && r.sub.v <= f.v);
-        return m ? ', which ' + srcNum(m.sub, 'AddAbility') + ' keeps as bit ' + (f.v - m.sub.v) + ' of the status word' : '';
+        return m ? ', which ' + srcNum(m.sub, 'AddAbility') + ' stores as bit ' + (f.v - m.sub.v) + ' of the status word' : '';
       },
       clockWords: (name, reg) => { const k = callOf(name), clk = exeClockRules(); return k && k.args[reg] && clk && clk.unitsPerHour ? ', ' + exeClockWords(k.args[reg].v, clk.unitsPerHour.v) : ''; },
       fallsInto: c.fallsInto && caseAt(c.fallsInto) ? comboOf(caseAt(c.fallsInto).keys[0].v) : null,
@@ -1084,7 +1084,7 @@ function renderCheatsSheet() {
           if (w.item && w.item.texts.length && w.item.title) menus.push(w.item.texts.map(quoted).join(', ') + (val ? ' ' + val : ''));
           else if (w.item && w.item.texts.length) dialog.push(w.item.texts.map(quoted).join(', ') + (val ? ' ' + val : ''));
           else if (w.label) { if (!labels.has(w.label.v)) labels.set(w.label.v, []); if (w.chosen && !w.chosen.all && val) labels.get(w.label.v).push('at ' + w.chosen.values.join(', ') + ' ' + val); }
-          else if (val) plain.push(val + (w.chosen && !w.chosen.all ? '' : ' before it asks'));
+          else if (val) plain.push(val + (w.chosen && !w.chosen.all ? '' : ' before the prompt'));
         }
         const parts = [];
         if (plain.length) parts.push(plain.join('; '));
@@ -1113,8 +1113,8 @@ function renderCheatsSheet() {
           if (vals.includes(300)) text = text.replace(/(\d+) to 299$/, '$1 and above');
           return '<b>' + srcNum(w, hex8(w.v)) + '</b>' + (text ? ' at ' + text : '');
         }).join(', ') + '.</div>' : '') +
-      '<div class="cheatNote">Cythera Preferences, in the System Folder’s Preferences folder, keeps each setting as a ‘Pref’ resource under its name.</div>' +
-      '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th>key</th><th>holds</th><th>written by</th><th>read by</th></tr></thead><tbody>' +
+      '<div class="cheatNote">Cythera Preferences, in the System Folder’s Preferences folder, stores each setting as a ‘Pref’ resource under its name.</div>' +
+      '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th>key</th><th>value</th><th>written by</th><th>read by</th></tr></thead><tbody>' +
       prefKeys.map(e => '<tr><td><b>' + srcNum(e.key, e.key.v) + '</b></td><td>' + (e.kind === 'Prefs' ? (e.len ? srcNum(e.len) + ' bytes' : 'bytes') : e.kind === 'File' ? 'a file' : 'a number') + '</td><td>' +
         ([...new Map(e.writers.map(w => [w.routine.name, w])).values()].map(w => srcNum(exeVal({ at: w.exe }, null), name(w.routine))).join(', ') || 'nothing') + '</td><td>' +
         ([...new Map(e.readers.map(w => [w.routine.name, w])).values()].map(w => srcNum(exeVal({ at: w.exe }, null), name(w.routine))).join(', ') || 'nothing') + '</td></tr>').join('') +
@@ -1125,7 +1125,7 @@ function renderCheatsSheet() {
       h += '<div class="cheatNote">' +
         (bars.unlisted.length
           ? bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are menus that work' : ' is a menu that works') + ' but ' + (bars.unlisted.length > 1 ? 'are' : 'is') + ' in no menu bar, so you cannot reach the Preferences menu or the frame-rate limit. ' +
-            'Add-on 612, the Cythera menu patch, adds three of them; add-on 613 takes them out again.'
+            'Add-on 612, the Cythera menu patch, adds three of them; add-on 613 removes them again.'
           : 'Every menu the game defines is in its menu bar.') + '</div>';
     }
     h += '</div>';
@@ -1143,7 +1143,7 @@ function renderCheatsSheet() {
       (vol.length >= 2 ? '<tr><td class="cheatCombo">' + key(vol.map(v => decodeMacRoman(new Uint8Array([v.key.v]))).join(' ')) + '<span class="cheatCode">' + vol.map(v => srcNum(v.key, '$' + v.key.v.toString(16).toUpperCase())).join(' ') + '</span></td>' +
         '<td><b>CD volume</b><div class="cheatDoes">' + vol.map(v => (v.step.v < 0 ? 'down' : 'up') + ' by ' + srcNum(v.step, Math.abs(v.step.v)) + (v.bound ? ' and held at ' + srcNum(v.bound) : '')).join('; ') + '.</div></td></tr>' : '') +
       (cd.length ? '<tr><td class="cheatCombo">' + key(cd.map(w => w.v).join(' ')) + '</td>' +
-        '<td><b>CD controls</b><div class="cheatDoes">Typed like the cheat code, when a CD is present: ' + cd.map(w => '“' + srcNum(w, w.v) + '”').join(', ') + '. What each does is a guess from the word.</div></td></tr>' : '') +
+        '<td><b>CD controls</b><div class="cheatDoes">Typed like the cheat code, when a CD is present: ' + cd.map(w => '“' + srcNum(w, w.v) + '”').join(', ') + '. What each does is inferred from the word.</div></td></tr>' : '') +
       '</tbody></table></div></div>';
   }
 
@@ -1151,7 +1151,7 @@ function renderCheatsSheet() {
   const levels = cheatLevels();
   if (levels.length) {
     h += '<div class="mechSec"><h4 class="cheatH4">Levels, for Option-J</h4>' +
-      '<div class="cheatNote">Enter the level in hex, and X and Y in squares. Where the editor names a map differently, its name is beside the game’s.</div>' +
+      '<div class="cheatNote">Enter the level in hex, and X and Y in squares. Where the editor’s name for a map differs, its name is beside the game’s.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">hex</th><th class="num">dec</th><th>map</th></tr></thead><tbody>' +
       levels.map(l => '<tr><td class="num">' + l.n.toString(16).toUpperCase().padStart(2, '0') + '</td><td class="num">' + l.n + '</td><td>' +
         (l.n === 0 ? svLink(svEsc(l.name), 'jumpToResource(' + l.resid + ')') + ' <span class="cheatDoes">the nothing map, below</span>'
@@ -1213,7 +1213,7 @@ function renderCheatsSheet() {
     const cx = find(0xC5), cp = find(0xB9), cl = find(0xC2), c1 = kr.cases.find(c => c.keys.some(x => x.v === 0xC1));
     const items = [];
     if (cx) items.push('<li><b>option-x is broken.</b> ' + facts(cx).brokenShort() + '</li>');
-    if (cp && cp.fallsInto && caseAt(cp.fallsInto)) items.push('<li><b>option-p carries on</b> into ' + comboOf(caseAt(cp.fallsInto).keys[0].v) + '’s code (' + srcNum(exeVal({ at: cp.fallsInto }, null), 'here') + '): a missing jump means asking what a prop is also switches that setting.</li>');
+    if (cp && cp.fallsInto && caseAt(cp.fallsInto)) items.push('<li><b>option-p carries on</b> into ' + comboOf(caseAt(cp.fallsInto).keys[0].v) + '’s code (' + srcNum(exeVal({ at: cp.fallsInto }, null), 'here') + '): because of a missing jump, “What prop is this?” also switches that setting.</li>');
     const fh = find(0xFA);
     if (fh) items.push('<li><b>option-h empties the enemy list.</b> ' + facts(fh).peaceShort() + '</li>');
     if (cl && !c1) items.push('<li><b>The speed limiter is ' + srcNum(cl.keys[0], 'option-l') + '</b>, not option-1.</li>');
@@ -1389,7 +1389,7 @@ function byteMapPropRecord(p, at, name) {
   const b = p.bytes, rec = byteMapRecord(p, at, 16, name, { empty: byteMapAllZero(b, at, 16) });
   const flags = b[at], loc = (b[at + 1] << 16) | u16be(b, at + 2), aw = u16be(b, at + 4);
   rec.f(0, 1, 'flags: 0x01 may be taken, 0x08 inside another prop, 0x10 carried by a character, 0xFF deleted; an egg is 0x42 armed and 0xC2 tried', { value: '0x' + flags.toString(16).toUpperCase().padStart(2, '0') });
-  rec.f(1, 3, (flags & 0x18) ? 'who or what holds it: the low 16 bits are the holder' : 'where it lies: x in the top twelve bits, y in the bottom twelve',
+  rec.f(1, 3, (flags & 0x18) ? 'who or what has it: the low 16 bits are the holder' : 'where it lies: x in the top twelve bits, y in the bottom twelve',
         { value: (flags & 0x18) ? 'holder ' + (loc & 0xFFFF) : '(' + (loc >> 12) + ', ' + (loc & 0xFFF) + ')' });
   rec.f(4, 2, 'its class and frame: the class in the low ten bits, the aspect above', { value: 'class ' + (aw & 0x3FF) + ', aspect ' + ((aw >> 10) & 0x3F) });
   rec.f(6, 1, 'Data1', { value: String(b[at + 6]) });
@@ -1511,7 +1511,7 @@ function byteMapStream(p) {
           // behaviour; scripts queue them (cbQueueAction, the one caller).
           const beh = b[q + o];
           const said = String(behaviourWordHTML(beh)).replace(/<[^>]+>/g, '');
-          ar.f(0, 1, 'the behavior it carries out first, in place of the one in the character’s byte 22 (TActiveMonster::DoMove)', { value: String(beh) + (said ? ', ' + said : '') });
+          ar.f(0, 1, 'the behavior it performs first, in place of the one in the character’s byte 22 (TActiveMonster::DoMove)', { value: String(beh) + (said ? ', ' + said : '') });
           ar.f(1, 2, 'the behavior’s first argument', { value: String(u16be(b, q + o + 1)) });
           ar.f(3, 2, 'its second argument', { value: String(u16be(b, q + o + 3)) });
           ar.f(5, 4, 'what it is about: a reference in the scripts’ form (0x5000FFFF is none)', { value: '0x' + u32be(b, q + o + 5).toString(16).toUpperCase().padStart(8, '0') });
@@ -1658,7 +1658,7 @@ function byteMapHeap(p) {
     const d = q + 8;
     if (!free && kind === 2 && len >= 4) {
       const n = u16be(b, d), size = u16be(b, d + 2);
-      r.f(o, 2, 'how many entries are in use', { value: String(n) }); r.f(o + 2, 2, 'how many the table holds', { value: String(size) }); o += 4;
+      r.f(o, 2, 'how many entries are in use', { value: String(n) }); r.f(o + 2, 2, 'how many entries fit in the table', { value: String(size) }); o += 4;
       for (let k = 0; k < size && o + 8 <= 8 + len; k++, o += 8) {
         const v = u32be(b, q + o + 4), empty = v === 0x5000FFFE;
         const e = byteMapRecord({ fields: r.kids }, q + o, 8, empty ? 'entry ' + k + ', empty' : 'entry ' + k);
@@ -1763,7 +1763,7 @@ function byteMapForkResource(p, type, id, at, len) {
   } else if (type === 'SCEN' && len >= 6) {
     p.f(at, 4, nm + ': the alias’s user type', { value: byteMapHex(b, at, 4) });
     p.f(at + 4, 2, nm + ': the alias’s length', { value: String(u16be(b, at + 4)) });
-    if (len > 6) p.f(at + 6, len - 6, nm + ': the rest of the alias record, which Apple keeps private; it names the scenario file and its folder', { value: len - 6 + ' bytes' });
+    if (len > 6) p.f(at + 6, len - 6, nm + ': the rest of the alias record, which Apple left undocumented; it has the names of the scenario file and its folder', { value: len - 6 + ' bytes' });
   } else if (len) {
     p.f(at, len, nm + ': a resource no save here has shown', { value: byteMapHex(b, at, len), unread: true });
   }
@@ -1915,7 +1915,7 @@ function renderSaveSheet() {
   // What the file holds.
   const parts = savedGameParts();
   if (parts.length) {
-    h += '<h4 class="saveH4">What This File Holds</h4><div class="tableScroll"><table class="forkTable cardTable">' +
+    h += '<h4 class="saveH4">File Contents</h4><div class="tableScroll"><table class="forkTable cardTable">' +
       '<thead><tr><th>resource</th><th>what it is</th><th>bytes</th></tr></thead><tbody>' +
       parts.map(p => {
         let n = 0; try { n = (getResourceBytes(ARCHIVE, p.rid) || []).length; } catch (e) { quiet(e); }
@@ -2096,7 +2096,7 @@ const CHAR_GROUPS = [
     { id: 'submove', raw: [24, 1], label: 'sub-move counter', max: 0xFF, what: () => 'the parts of a move still to take' },
     { id: 'alignment', raw: [25, 1], label: 'alignment', max: 0xFF,
       what: (r, v) => { const a = appImage() ? exeAlignmentNames() : null, n = a && a.byValue[v];
-        return (n ? '<b>' + srcNum(n.at, n.name) + '</b>, ' : '') + 'which side they are on, which decides who their enemies are'; } },
+        return (n ? '<b>' + srcNum(n.at, n.name) + '</b>, ' : '') + 'which side they are on, and so who their enemies are'; } },
     { id: 'rating', raw: [29, 1], label: 'defense stand-in', max: 0xFF,
       what: (r, v) => 'for a character without the Defense skill, their defense is ' +
         ['none', 'half their level', 'their level', 'twice their level'][v & 3] },
@@ -2724,7 +2724,7 @@ function manboroughMap(bytes) {
     let want = null;
     try { const first = levels && JSON.parse(read(levels)).levels[0]; if (first && first.map) want = entries.find(e => e.path.endsWith(first.map)); } catch (e) { quiet(e, 'the export\'s list of levels'); }
     want = want || entries.find(e => /(^|\/)maps\/[^/]+\.json$/.test(e.path) && !/_objects\.json$/.test(e.path));
-    if (!want) throw new Error('This zip holds no map. An export from Manborough’s editor has one under maps/.');
+    if (!want) throw new Error('This zip has no map in it. An export from Manborough’s editor has one under maps/.');
     text = read(want);
   } else text = new TextDecoder().decode(bytes);
   let m;
@@ -2815,7 +2815,7 @@ function newScenarioBytes(c) {
   const im = c.map || null;
   const width = im ? im.width : int(c.width, d.width), height = im ? im.height : int(c.height, d.height);
   const name = String(c.name || (im && im.name) || '').trim();
-  if (!/^[\x20-\x7E]+$/.test(name) || /"/.test(name) || /\s\/\//.test(name)) throw new Error('The name takes plain letters, digits and punctuation, and no quotation mark');
+  if (!/^[\x20-\x7E]+$/.test(name) || /"/.test(name) || /\s\/\//.test(name)) throw new Error('The name can have only plain letters, digits and punctuation, and no quotation mark');
   const script = dvmWriteClass(0x1400 + d.zone, [{ key: 20, text: ['subroutine 0x0100',
     'sys SetLandscapeImage', 'byte 0', 'end', 'sys SetTitle', 'string ' + JSON.stringify(name), 'end',
     'sys PlayMusic', 'word None', 'end', 'sys SetAmbientLighting', 'short 0x' + (int(c.light, d.lit) & 0xFFFF).toString(16).toUpperCase().padStart(4, '0'), 'end',
@@ -3112,7 +3112,7 @@ function questStateHTML(words) {
   let h = '<h4 class="saveH4">Quest Values and Flags</h4>' +
     '<div class="saveNote">The 32 quest values and 256 quest flags in which the scripts record the story, from the start of 0x0400. ' +
     (words ? 'These are the ones a script sets or checks, and any that this save has set; the rest are unchanged. The files do not say what each one means, so they appear as numbers.'
-           : 'No scenario was open before this save, so the page cannot tell which scripts use each one, and lists every value.') + '</div>' +
+           : 'No scenario was open before this save, so the page cannot find which scripts use each one, and shows every value.') + '</div>' +
     '<div class="tableScroll"><table class="forkTable">' + head + '<tbody>' + valueRows.join('') + '</tbody></table></div>' +
     '<div class="tableScroll"><table class="forkTable">' + head.replace('<th>value</th>', '<th>set</th>') + '<tbody>' + flagRows.join('') + '</tbody></table></div>' +
     '<div class="propEdit"><button class="sv-chip" onclick="applyQuestStateForm()">Apply</button>' +
@@ -3162,7 +3162,7 @@ function roomsEnteredHTML(words) {
   const entered = rows.filter(r => b[2 * r.n + 1] & 1).length;
   return '<h4 class="saveH4">Rooms Entered</h4>' +
     '<div class="saveNote">0xF00E has a switch for each room, set the first time the player walks in. A room whose switch is clear shows its description when the player enters it. ' +
-    'The party has entered ' + entered + ' of the ' + rows.length + ' rooms listed.' + (words ? '' : ' No scenario was open before this save, so the list holds only the rooms the party has entered.') + '</div>' +
+    'The party has entered ' + entered + ' of the ' + rows.length + ' rooms listed.' + (words ? '' : ' No scenario was open before this save, so the list has only the rooms the party has entered.') + '</div>' +
     '<details><summary>Every room</summary><div class="tableScroll"><table class="forkTable">' +
     '<thead><tr><th class="num">room</th><th>entered</th><th>where</th><th>its description</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td class="num">' + r.n + '</td><td><input type="checkbox" id="rm-' + r.n + '"' + ((b[2 * r.n + 1] & 1) ? ' checked' : '') + '></td>' +
@@ -3207,9 +3207,9 @@ function gremlinsHTML(words) {
   }
   return '<h4 class="saveH4">Gremlins</h4>' +
     '<div class="saveNote">A gremlin is a script the game runs when the party enters a room or a zone, and when a script sends a signal. ' +
-    'A save keeps each gremlin as on, off or none, as it was at the moment of saving, so a gremlin added to Cythera Data later shows as none here until you switch it on. ' +
+    'A save records each gremlin as on, off or none, as it was at the moment of saving, so a gremlin added to Cythera Data later shows as none here until you switch it on. ' +
     (words ? (scripted.size ? 'The scenario opened before this save has ' + scripted.size + ' gremlin' + (scripted.size === 1 ? '' : 's') + '.' : 'The scenario opened before this save has no gremlins.')
-           : 'No scenario was open before this save, so the list holds only the gremlins it has on or off.') + '</div>' +
+           : 'No scenario was open before this save, so the list has only the gremlins the save has on or off.') + '</div>' +
     '<div class="tableScroll"><table class="forkTable"><thead><tr><th class="num">gremlin</th><th>state</th><th>in the scenario</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td class="num">' + r.n + '</td><td><select id="grem-' + r.n + '">' + gremlinStateOptions(r.st) + '</select></td><td>' +
       (!words ? '' : scripted.has(r.n) ? 'has a script' : 'no script') + '</td></tr>').join('') +
@@ -3294,7 +3294,7 @@ function todoHTML(words) {
     h += '<div class="propEdit"><label>add <select id="todo-add">' +
       words.todo.pairs.map(p => '<option value="' + p.slot + ':' + p.line + '">' + svEsc('slot ' + p.slot + ': ' + (lines.get(p.line) || 'line ' + p.line)) + '</option>').join('') +
       '</select></label>' + actionChip('Add', 'addTodoFromForm()') + '</div>' +
-      '<div class="inspDim">The lines offered are the ones that some script adds, in the slot it adds them to. A slot that already holds a line takes the new wording and keeps its day and whether it is struck off, as the game does.</div>';
+      '<div class="inspDim">The lines offered are the ones that some script adds, in the slot it adds them to. When a slot already has a line, the new wording replaces it, and the day and whether it is struck off stay, as in the game.</div>';
   }
   return h;
 }
@@ -3631,7 +3631,7 @@ function openFileIsPatch() {
   if (!ARCHIVE) return false;
   if (DERIVED.OPEN_IS_PATCH === undefined) {
     let p = false;
-    try { p = !!delverArchivePatchPeek(ARCHIVE.bytes); } catch (e) { quiet(e, 'asking whether the open file is a patch'); }
+    try { p = !!delverArchivePatchPeek(ARCHIVE.bytes); } catch (e) { quiet(e, 'checking whether the open file is a patch'); }
     DERIVED.OPEN_IS_PATCH = p;
   }
   return DERIVED.OPEN_IS_PATCH;
@@ -3754,7 +3754,7 @@ function renderInstallerSheet() {
     line.className = 'amNote';
     line.style.cssText = 'grid-column:1/-1;text-align:left;margin:0 0 6px';
     line.textContent = (v ? 'Cythera ' + v + ' is the release this page is reading. ' : '') +
-      (inst.installers && inst.installers.length > 1 ? 'The file also holds ' + inst.installers.filter(it => it.name !== inst.picked).map(it => it.name.replace(/ Installer$/, '')).join(', ') + '; choose one below to read it instead.' : 'It is the only release in this file.');
+      (inst.installers && inst.installers.length > 1 ? 'The file also contains ' + inst.installers.filter(it => it.name !== inst.picked).map(it => it.name.replace(/ Installer$/, '')).join(', ') + '; choose one below to read it instead.' : 'It is the only release in this file.');
     grid.appendChild(line);
   }
   if (inst.installers && inst.installers.length > 1) {
@@ -3762,7 +3762,7 @@ function renderInstallerSheet() {
     row.className = 'sv-chips installerVersions';
     const label = document.createElement('span');
     label.className = 'amNote';
-    label.textContent = 'This file holds ' + inst.installers.length + ' releases, the open one marked:';
+    label.textContent = 'This file contains ' + inst.installers.length + ' releases, the open one marked:';
     row.appendChild(label);
     for (const it of inst.installers) {
       const b = document.createElement('button');
@@ -4071,7 +4071,7 @@ function recordFieldMap(resid) {
     { off: 22, width: 5, name: null }, { off: 27, width: 1, name: 'Nutrition' },
     { off: 28, width: 1, name: 'Training' }, { off: 29, width: 3, name: null }];
   if (resid >= 0x8100 && resid < 0x8200) return [
-    { off: 0, width: 1, name: 'Flags' }, { off: 1, width: 3, name: 'x and y, or what holds it' },
+    { off: 0, width: 1, name: 'Flags' }, { off: 1, width: 3, name: 'x and y, or what has it' },
     { off: 4, width: 2, name: 'Aspect and prop type' }, { off: 6, width: 1, name: 'Data1' },
     { off: 7, width: 1, name: 'Data2' }, { off: 8, width: 2, name: 'Store reference' },
     { off: 10, width: 6, name: null }];

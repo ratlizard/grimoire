@@ -227,7 +227,7 @@ function describeDelverArchive(bytes) {
   }
   if (!populated)
     return { ok: false, title, player, populated, reason: 'the master index at 0x' + mi.first.toString(16).toUpperCase() +
-      ' names no subindex at all' };
+      ' points at no subindex at all' };
   return { ok: true, title, player, populated };
 }
 
@@ -1395,7 +1395,7 @@ function mergeDelverPatch(baseBytes, patchBytes) {
   if (patch.scenarioTitle !== base.scenarioTitle)
     throw new Error('that patch is for ' + JSON.stringify(patch.scenarioTitle) +
                     ', and this game is ' + JSON.stringify(base.scenarioTitle));
-  if (!patch.resources.length) throw new Error('that patch holds no resources');
+  if (!patch.resources.length) throw new Error('that patch has no resources');
 
   const byId = new Map(base.resources.map(r => [r.resid, r]));
   const replaced = [], added = [], skipped = [], disagreed = [];
@@ -1746,7 +1746,7 @@ function describeDelverPatch(baseSpec, patchSpec) {
 
   const reasons = [];
   if (patchSpec.playerName)
-    reasons.push('it carries a player name, so it is a saved game rather than a patch');
+    reasons.push('it has a player name, so it is a saved game rather than a patch');
   if (patchSpec.scenarioTitle !== baseSpec.scenarioTitle)
     reasons.push('it is for ' + JSON.stringify(patchSpec.scenarioTitle) +
                  ' and this file is ' + JSON.stringify(baseSpec.scenarioTitle));
@@ -1757,7 +1757,7 @@ function describeDelverPatch(baseSpec, patchSpec) {
     reasons.push('it needs format minor ' + patchSpec.formatMinor +
                  ' and this file is ' + baseSpec.formatMinor);
   if (desc && !desc.lengthAgrees)
-    reasons.push('its descriptor states ' + desc.statedLength + ' bytes and Magpie takes only ' +
+    reasons.push('its descriptor states ' + desc.statedLength + ' bytes and Magpie accepts only ' +
                  DELV_PATCH_DESCRIPTOR_LENGTH);
   if (desc && !desc.selfOffsetAgrees)
     reasons.push('its descriptor was written for another file: it names offset ' +

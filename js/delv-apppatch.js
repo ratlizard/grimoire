@@ -390,7 +390,7 @@ function applyAppFixes(app, fixes, opts) {
     }
     if (grow) {
       const r = spec.resources.find(r => r.type === 'cfrg' && r.id === 0);
-      if (!r) throw appPatchError(null, 'no cfrg 0, so nothing says where the program is in the data fork');
+      if (!r) throw appPatchError(null, 'no cfrg 0, so nothing gives the program’s place in the data fork');
       const c = Uint8Array.from(r.data), count = pefU32(c, 0x1C);
       let p = 0x20;
       for (let i = 0; i < count; i++) {

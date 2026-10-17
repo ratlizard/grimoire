@@ -368,12 +368,12 @@ const APP_FIXES_68K = {
     { fixes: ['sleeper-unit', 'unit-guard'], seg: 7, site: 0x124, was: '3f0161fffffffee4226e000823480004', bodies: {
       'sleeper-unit': [
         '0c410108',                                  // cmpi.w #$108, d1
-        'b66 ask',
+        'b66 lookup',
         '0c450100',                                  // cmpi.w #$100, d5
-        'b6c ask',
+        'b6c lookup',
         '3005',                                      // move.w d5, d0
         '48c0eb8806800004256032350814024103ff',      // ext.l d0; lsl.l #$5, d0; addi.l #$42560, d0; move.w $14(a5, d0.l), d1; andi.w #$3ff, d1
-        ':ask',
+        ':lookup',
         '3f01',                                      // move.w d1, -(a7)
         'bsr.l 0xc',
         ':store',
@@ -381,7 +381,7 @@ const APP_FIXES_68K = {
         'bra.l 0x134',
       ],
       'unit-guard': [
-        ':ask',
+        ':lookup',
         '3f01',                                      // move.w d1, -(a7)
         'bsr.l 0xc',
         '2008',                                      // move.l a0, d0
@@ -405,12 +405,12 @@ const APP_FIXES_68K = {
       ],
       'sleeper-unit+unit-guard': [
         '0c410108',                                  // cmpi.w #$108, d1
-        'b66 ask',
+        'b66 lookup',
         '0c450100',                                  // cmpi.w #$100, d5
-        'b6c ask',
+        'b6c lookup',
         '3005',                                      // move.w d5, d0
         '48c0eb8806800004256032350814024103ff',      // ext.l d0; lsl.l #$5, d0; addi.l #$42560, d0; move.w $14(a5, d0.l), d1; andi.w #$3ff, d1
-        ':ask',
+        ':lookup',
         '3f01',                                      // move.w d1, -(a7)
         'bsr.l 0xc',
         '2008',                                      // move.l a0, d0
@@ -436,17 +436,17 @@ const APP_FIXES_68K = {
     { fixes: ['sleeper-unit', 'unit-guard'], seg: 7, site: 0x1242, was: '3f0161ffffffedc6226e000823480004', bodies: {
       'sleeper-unit': [
         '0c410108',                                  // cmpi.w #$108, d1
-        'b66 ask',
+        'b66 lookup',
         '302effc6',                                  // move.w -$3a(a6), d0
         '0c400100',                                  // cmpi.w #$100, d0
         'b6d own',
         '48c0e988243c00041d582075280032300804024103ff', // ext.l d0; lsl.l #$4, d0; move.l #$41d58, d2; movea.l (a5, d2.l), a0; move.w $4(a0, d0.l), d1; andi.w #$3ff, d1
-        'b60 ask',
+        'b60 lookup',
         ':own',
         '206e0008302800080c400100',                  // movea.l $8(a6), a0; move.w $8(a0), d0; cmpi.w #$100, d0
-        'b6c ask',
+        'b6c lookup',
         '48c0eb8806800004256032350814024103ff',      // ext.l d0; lsl.l #$5, d0; addi.l #$42560, d0; move.w $14(a5, d0.l), d1; andi.w #$3ff, d1
-        ':ask',
+        ':lookup',
         '3f01',                                      // move.w d1, -(a7)
         'bsr.l 0xc',
         ':store',
@@ -454,7 +454,7 @@ const APP_FIXES_68K = {
         'bra.l 0x1252',
       ],
       'unit-guard': [
-        ':ask',
+        ':lookup',
         '3f01',                                      // move.w d1, -(a7)
         'bsr.l 0xc',
         '2008',                                      // move.l a0, d0
@@ -478,17 +478,17 @@ const APP_FIXES_68K = {
       ],
       'sleeper-unit+unit-guard': [
         '0c410108',                                  // cmpi.w #$108, d1
-        'b66 ask',
+        'b66 lookup',
         '302effc6',                                  // move.w -$3a(a6), d0
         '0c400100',                                  // cmpi.w #$100, d0
         'b6d own',
         '48c0e988243c00041d582075280032300804024103ff', // ext.l d0; lsl.l #$4, d0; move.l #$41d58, d2; movea.l (a5, d2.l), a0; move.w $4(a0, d0.l), d1; andi.w #$3ff, d1
-        'b60 ask',
+        'b60 lookup',
         ':own',
         '206e0008302800080c400100',                  // movea.l $8(a6), a0; move.w $8(a0), d0; cmpi.w #$100, d0
-        'b6c ask',
+        'b6c lookup',
         '48c0eb8806800004256032350814024103ff',      // ext.l d0; lsl.l #$5, d0; addi.l #$42560, d0; move.w $14(a5, d0.l), d1; andi.w #$3ff, d1
-        ':ask',
+        ':lookup',
         '3f01',                                      // move.w d1, -(a7)
         'bsr.l 0xc',
         '2008',                                      // move.l a0, d0

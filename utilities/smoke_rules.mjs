@@ -648,14 +648,14 @@ try {
   else if (ctx.refusalOnEveryCheck().map(r => r.pt.toString(16) + ':' + r.said.trim()).join() !== "d2:You can't stuff the carcass!") fail('loose', 'the only container answer that prints is not the carcass\'s: ' + JSON.stringify(ctx.refusalOnEveryCheck()));
   else if (ctx.highlightsUnanswered().map(h => h.resid.toString(16) + '@' + h.at.toString(16) + ':' + h.word + ':' + h.who.length).sort().join() !== '1802@171a:join:1,1820@36c:Hebe:1,1866@ef:Vineyard:1,186d@126e:hear:1,801@424:Magisterium:66,813@19:join:7') fail('loose', 'the highlighted words nobody answers are not the six known: ' + JSON.stringify(ctx.highlightsUnanswered().map(h => h.resid.toString(16) + '@' + h.at.toString(16) + ':' + h.word + ':' + h.who.length)));
   else if (!/a highlighted word nobody answers/.test(html)) fail('loose', 'the highlighted-word row is missing from the card');
-  else if (ctx.stateNoSaveKeeps().map(w => w.resource.toString(16) + ':' + w.offset.toString(16) + ':' + w.writers.map(x => x.resid.toString(16)).join('/')).join() !== '500:10:1801' || !/a value no saved game keeps/.test(html)) fail('loose', 'the word written before the game has a file is not the hero\'s gender alone (the inn room, written in play, is saved), or its row is missing: ' + JSON.stringify(ctx.stateNoSaveKeeps().map(w => [w.resource, w.offset, w.writers.length, w.readers.length])));
+  else if (ctx.stateNoSaveKeeps().map(w => w.resource.toString(16) + ':' + w.offset.toString(16) + ':' + w.writers.map(x => x.resid.toString(16)).join('/')).join() !== '500:10:1801' || !/a value no saved game stores/.test(html)) fail('loose', 'the word written before the game has a file is not the hero\'s gender alone (the inn room, written in play, is saved), or its row is missing: ' + JSON.stringify(ctx.stateNoSaveKeeps().map(w => [w.resource, w.offset, w.writers.length, w.readers.length])));
   else if (ctx.deletedAcrossZoneChange().map(d => d.pt.toString(16) + ':' + d.skill.toString(16) + ':' + d.zones.join('/')).join() !== '4b:1a00:3' || !/a delete after the zone has changed/.test(html)) fail('loose', 'the scroll deleting after Directed Nexus has moved the party is not the one found, or its row is missing: ' + JSON.stringify(ctx.deletedAcrossZoneChange()));
-  else if (!/a character told about by their own group/.test(html) || !/a search that passes over what is inside things/.test(html) || !/a refusal said on every check/.test(html)) fail('loose', 'the own-group, contained-search or refusal row is missing from the card');
+  else if (!/a character told about by their group/.test(html) || !/a search that passes over what is inside things/.test(html) || !/a line repeated on every check/.test(html)) fail('loose', 'the own-group, contained-search or refusal row is missing from the card');
   else if (!/a light that stays on/.test(html) || !/two people scheduled into one place/.test(html) || !/a name told and not kept/.test(html) || !/answers written for someone never asked/.test(html)) fail('loose', 'a fourth-batch row is missing from the card');
   else if (!/a sprite frame that repeats another pose/.test(html)) fail('loose', 'the repeated sprite frames are not on the card');
   else if (!/a character asking if they are alive/.test(html)) fail('loose', 'the self-alive test is not on the card');
   else if (!/a check of something that is always false/.test(html)) fail('loose', 'the local only ever set false is not on the card');
-  else if (!/an answer an earlier one takes/.test(html)) fail('loose', 'the shadowed answers are not on the card');
+  else if (!/an answer hidden by an earlier one/.test(html)) fail('loose', 'the shadowed answers are not on the card');
   else if (!/a value checked where the flag is meant/.test(html)) fail('loose', 'the value-for-flag slip is not on the card');
   else if (!/a keyword that needs a space typed first/.test(html)) fail('loose', 'the keywords that need a space are not on the card');
   else if (!/a thing nobody has/.test(html)) fail('loose', 'the kesh vial nobody has is not on the card');
@@ -1324,7 +1324,7 @@ try {
   const names = peek('PROP_TYPE_NAMES') || {};
   const gone = ['CYTHERA_CHARACTERS', 'ZONES', 'RESOURCE_LABELS', 'TILE_SHEET_HINTS', 'DVM_FLAG_NAMES'].filter(n => peek('typeof ' + n) !== 'undefined');
   if (unlinked.length) fail('file figures', 'not a link to the line that holds it: ' + unlinked.join(', '));
-  else if (!/Haggling<\/b> takes off a further random amount from 0 to (?:<button[^>]*>)?4(?:<\/button>)?/.test(html)) fail('file figures', 'the haggling roll is not 0 to 4, one short of its operand of 5');
+  else if (!/Haggling<\/b> lowers it by a further random amount from 0 to (?:<button[^>]*>)?4(?:<\/button>)?/.test(html)) fail('file figures', 'the haggling roll is not 0 to 4, one short of its operand of 5');
   else if (/capped at <b>65,535/.test(html) || /plus a random number from 0 to 29<\/b>/.test(html)) fail('file figures', 'a figure is typed into its sentence rather than read');
   else if (Object.keys(names).length || gone.length) fail('names', 'typed name tables are back: ' + JSON.stringify({ props: Object.keys(names), tables: gone }));
   else if (!/^Tile Sheet 35: unlit torch, lit torch/.test(ctx.labelFor(0x8E23) || '') || ctx.labelFor(0x8F0A) !== 'General Graphic 10: chest, coffer')
@@ -1568,7 +1568,7 @@ try {
           return { table: top.map(p => ctx.dvmArrayWords(tb, p & 0xFFFF)[2]), text: tx.map(t => +/Mind: (\d+)/.exec(t)[1]), strings: tx }; };
         const changed = sp => sp.resources.filter(r => { const o = before0.resources.find(x => x.resid === r.resid); return o.data.length !== r.data.length || o.data.some((v, i) => v !== r.data[i]); }).map(r => r.resid);
         const a = ctx.applyDataFixes(base, ['beserker-text']).spec, b = ctx.applyDataFixes(base, ['beserker-table']).spec, m0 = minds(before0), ma = minds(a), mb = minds(b);
-        let again = false; try { ctx.applyDataFixes(new Uint8Array(ctx.writeDelverArchive(a)), ['beserker-table']); } catch (e) { again = /agree/.test(e.message); }
+        let again = false; try { ctx.applyDataFixes(new Uint8Array(ctx.writeDelverArchive(a)), ['beserker-table']); } catch (e) { again = /already match/.test(e.message); }
         if (m0.table.join() === m0.text.join()) return fail('berserker', 'the shipped file already agrees, so there is nothing for the fix to be tried on'), true;
         if (changed(a).join() !== String(0x0205) || ma.table.join() !== ma.text.join() || ma.table.join() !== m0.table.join() || ma.strings.filter((t, i) => t !== m0.strings[i]).length !== 1)
           return fail('berserker', 'the text’s way did not change the one string of 0x0205 to the table’s figure: ' + JSON.stringify({ changed: changed(a), text: ma.text })), true;

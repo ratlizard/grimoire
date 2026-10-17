@@ -110,7 +110,7 @@ function fontSwapPanel() {
 }
 function undoFontSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The page did not keep the original resource fork; open the file again to get it back.', true); return; }
+  if (!rec) { setStatus('The original resource fork is no longer in the page; open the file again to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.FONT_SWAP = null;
@@ -340,7 +340,7 @@ function swapSeldane(bytes, filename) {
 }
 function undoStrikeSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The page did not keep the original resource fork; open the file again to get it back.', true); return; }
+  if (!rec) { setStatus('The original resource fork is no longer in the page; open the file again to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.STRIKE_SWAP = null;
@@ -636,7 +636,7 @@ function installGameFont() {
   const fork = window.CYTHERA_RSRC;
   if (!fork) { window.GAME_FONT_STATE = 'no resource fork is open'; return; }
   const entry = gameFontResource();
-  if (!entry) { window.GAME_FONT_STATE = 'the resource fork holds no sfnt'; return; }
+  if (!entry) { window.GAME_FONT_STATE = 'the resource fork has no sfnt'; return; }
   let ttf;
   try { ttf = sfntToTrueType(fork.dataOf('sfnt', entry)); }
   catch (e) { window.GAME_FONT_STATE = 'sfnt ' + entry.id + ': could not make a TrueType file of it: ' + e.message; return; }
@@ -654,7 +654,7 @@ function installGameFont() {
                             // loaded, so the stack is settled here rather
                             // than when the fork was opened.
                             try { setFace(); } catch (e) { quiet(e); } })
-               .catch(e => { window.GAME_FONT_STATE = 'the browser refused sfnt ' + entry.id + ': ' + (e && e.message || e); });
+               .catch(e => { window.GAME_FONT_STATE = 'the browser rejected sfnt ' + entry.id + ': ' + (e && e.message || e); });
   } catch (e) { window.GAME_FONT_STATE = 'FontFace: ' + e.message; }
 }
 
@@ -951,7 +951,7 @@ function showRsrcDetail(type, id) {
     type + ' ' + entry.id + ': ' + RSRC_DELVER_TYPES[type] + ', ' + data.length + ' bytes' +
     (pat ? ', ' + pat.tiles.length + ' tiles in a ' + pat.cols + '×' + pat.rows + ' grid' : '') +
     (pat && pat.extraBytes ? '\n' + pat.extraBytes + ' bytes past the end of the grid, unaccounted for' : '') +
-    (pat && pat.guessedShape ? '\nThe grid shape is this page’s guess; the file only gives a list of tiles.' : '') +
+    (pat && pat.guessedShape ? '\nThe grid shape is inferred; the file has only a list of tiles.' : '') +
     '\nUsed only by the editor; according to the wiki, changing or deleting these has no effect on the game.';
   head.appendChild(cap);
   grid.appendChild(head);
@@ -1222,7 +1222,7 @@ function renderMacRsrcSheet() {
   } else {
     out.textContent = forkName(sources[0]) + ' resource fork: ' + total + ' resources in ' +
       typesSeen.size + ' types' + (q ? ', ' + shown + ' shown' : '') +
-      ', grouped by purpose. A kind of resource shown elsewhere on the site says where.';
+      ', grouped by purpose. A kind of resource shown elsewhere on the site points there.';
   }
 }
 
@@ -1621,7 +1621,7 @@ function heroPortraitCard() {
     card.innerHTML = head + (isSave
       ? 'The portrait above is this file\u2019s 0x8800, chosen when you made the character. '
       : 'The portrait above is the scenario\u2019s 0x8800 and is never shown in play. ') +
-      'The program says which portraits the game offers when you make a character, and where it writes the chosen one, and the program is not open.';
+      'Which portraits the game offers when you make a character, and where it writes the chosen one, are in the program, and the program is not open.';
     return card;
   }
   const hex = v => '0x' + v.toString(16).toUpperCase();

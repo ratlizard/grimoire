@@ -396,7 +396,7 @@ function applyStringEdit(resid, textOffset, cap) {
   if (!ta) return;
   const enc = encodeMacRoman(ta.value);
   if (enc.length > cap) {
-    setStatus('That text is ' + enc.length + ' bytes; the slot holds ' + cap + '. Shorten it.', true);
+    setStatus('That text is ' + enc.length + ' bytes; the slot has room for ' + cap + '. Shorten it.', true);
     return;
   }
   const data = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data;
@@ -1160,7 +1160,7 @@ function updateSheetSummary() {
     (s.blank ? ', ' + s.blank + ' blank hidden' : '') +
     (pending > 0 ? ', ' + pending + ' still off screen' : '') +
     ' (' + s.total + ' total) in ' + (CATEGORY_NAMES[s.subn] || 'Unknown Category') + '.' +
-    (s.subn === 131 ? ' Each strip is a picture a script chooses for the status window (SetLandscapeImage), drawn over the sky for the time of day, or with no sky where the script gives a negative number. Each cell says which zones and rooms use it.' : '');
+    (s.subn === 131 ? ' Each strip is a picture a script chooses for the status window (SetLandscapeImage), drawn over the sky for the time of day, or with no sky where the script gives a negative number. Each cell shows which zones and rooms use it.' : '');
 }
 
 function renderContactSheet() {

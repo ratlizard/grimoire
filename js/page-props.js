@@ -1872,7 +1872,7 @@ function propWordRender() {
   if (wt !== null) kept.push(wt + ' grains');
   h += '<div class="sv-note" style="margin:0 0 4px">' + (a === 0
     ? 'Aspect 0 is the prop type’s base tile, ' + w(svEsc(own || 'unnamed')) + ' (' + propWordHex(base) + ').'
-    : 'Aspect ' + a + ' shows tile ' + propWordHex(tile) + ', ' + w(svEsc(name || 'unnamed')) + ', and takes that name. It is still prop type ' + pt + ', class ' + propWordHex(0x1000 + pt) + (kept.length ? ': ' + kept.join(', ') : '') + '.') + propWordUseSentence(pt, a) + '</div>';
+    : 'Aspect ' + a + ' shows tile ' + propWordHex(tile) + ', ' + w(svEsc(name || 'unnamed')) + ', and has that name. It is still prop type ' + pt + ', class ' + propWordHex(0x1000 + pt) + (kept.length ? ': ' + kept.join(', ') : '') + '.') + propWordUseSentence(pt, a) + '</div>';
   // The other classes whose aspect can land on this tile, and at what.
   let others = [];
   try { others = inventoryItemList().filter(e => e.pt !== pt && (tiles[e.pt] || 0) && (tiles[e.pt] || 0) <= tile && tile < (tiles[e.pt] || 0) + 32)
@@ -1889,7 +1889,7 @@ function propWordRender() {
     const reader = rules.readers.find(r => r.pt === pt), ex = rules.examines.find(e => e.pt === pt);
     if (rules.melee.has(pt) && rules.ench && rules.ench.guarded && rules.ench.added) {
       m = 'Data1 is the enchantment: ' + svLink('the script that settles a blow', 'jumpToResource(0xE87)', '0xE87') + ' reads it from the weapon and adds it to the damage of every blow' + (rules.ench.magic ? ', and a blow with any enchantment counts as magical' : '') + '.';
-      if (ex && ex.hiVal && ex.loVal) m += st.d1 > ex.hiVal.v ? ' Examine says “' + svEsc(ex.above2) + '”' : st.d1 > ex.loVal.v ? ' Examine says “' + svEsc(ex.above0) + '”' : ' Examine reports it once it is above ' + srcNum(ex.loVal) + '.';
+      if (ex && ex.hiVal && ex.loVal) m += st.d1 > ex.hiVal.v ? ' Examine shows “' + svEsc(ex.above2) + '”' : st.d1 > ex.loVal.v ? ' Examine shows “' + svEsc(ex.above0) + '”' : ' Examine reports it once it is above ' + srcNum(ex.loVal) + '.';
       if (reader) m += ' The class script also ' + propWordOps(reader.ops) + '.';
     } else if (reader) m = 'The class script ' + propWordOps(reader.ops) + (reader.ops.some(o => /data3/.test(o)) ? ' (Data3 is both bytes read as one value)' : '') + '. What they mean depends on this class.';
     else m = 'This item’s script does not use Data1 or Data2.';
@@ -1951,7 +1951,7 @@ const ITEM_GROUP_ORDER = ['Weapons & Armor', 'Containers', 'Carried Goods'];
 // table, and the item test is isInventoryItem's.
 function itemGroupNote(group) {
   if (group === 'Weapons & Armor') return 'Anything used in a fight: weapons, launchers, ammunition, armor and shields.';
-  if (group === 'Containers') return 'Anything that holds other things or has a lock.';
+  if (group === 'Containers') return 'Anything that contains other things or has a lock.';
   return 'Everything else you can pick up and carry.';
 }
 
@@ -2020,7 +2020,7 @@ function renderItemSheet() {
   if (orphans.length) {
     const h = document.createElement('div');
     h.className = 'propHead';
-    h.innerHTML = '<span class="groupTitle">Unused Art</span><span class="groupNote">Named pictures no item uses. An item placed at one of them takes its picture and name and keeps its figures.</span>';
+    h.innerHTML = '<span class="groupTitle">Unused Art</span><span class="groupNote">Named pictures no item uses. An item placed at one of them has its picture and name, and its figures stay the same.</span>';
     grid.appendChild(h);
     for (const o of orphans) {
       const cell = document.createElement('div');
@@ -2388,7 +2388,7 @@ function showItemDetail(pt) {
       const plain = words.replace(/<[^>]+>/g, '');
       fold('struck', 'When struck', plain.charAt(0).toUpperCase() + plain.slice(1),
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">' + words.charAt(0).toUpperCase() + words.slice(1) + '.' +
-        (row.says.filter(s => s !== row.spills)[0] ? ' It says “' + svEsc(row.says.filter(s => s !== row.spills)[0]) + '”.' : '') + '</div>' +
+        (row.says.filter(s => s !== row.spills)[0] ? ' It shows “' + svEsc(row.says.filter(s => s !== row.spills)[0]) + '”.' : '') + '</div>' +
         '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to Things') + '</div>');
     }
   }
@@ -2414,8 +2414,8 @@ function showItemDetail(pt) {
     if (t) {
       const words = targetWordWords(t.word);
       fold('aimed', 'Aimed at', words.join(', '),
-        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It asks “' + svEsc(t.prompt) + '” and answers ' + srcNum(t.val, propWordHex(t.word)) +
-        ', which wants <b>' + words.map(svEsc).join(', ') + '</b>.' + ((t.word & 0x8000) ? ' Within reach means the user’s square and the eight around it.' : '') + '</div>' +
+        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">Its prompt is “' + svEsc(t.prompt) + '”, and its answer is ' + srcNum(t.val, propWordHex(t.word)) +
+        ', which accepts <b>' + words.map(svEsc).join(', ') + '</b>.' + ((t.word & 0x8000) ? ' Within reach means the user’s square and the eight around it.' : '') + '</div>' +
         '<div class="sv-note">' + mechLink('target', 'Mechanics › What a Use Can Be Aimed At') + '</div>');
     }
   }
@@ -2425,7 +2425,7 @@ function showItemDetail(pt) {
     try { bl = blastRules(); } catch (e) { bl = null; }
     if (bl && bl.centre && bl.resid === (cls && cls.resid)) {
       fold('blast', 'When it goes off', bl.centre.v + ' on its square, ' + (bl.edge ? bl.edge.v : '') + ' beside it',
-        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It hands ' + srcNum(bl.centre) + ' to everything on its own square, ' +
+        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It hands ' + srcNum(bl.centre) + ' to everything on its square, ' +
         srcNum(bl.edge) + ' to the four squares beside it and ' + srcNum(bl.corner) + ' to the four corners, as ' +
         (bl.type ? svEsc(damageTypeName(bl.type.v)) + ' (type ' + srcNum(bl.type) + ')' : 'its own type') + '.</div>' +
         '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to Things') + '</div>');

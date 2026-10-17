@@ -684,7 +684,7 @@ function buildContainerView(rec, contents) {
   const z = classZoomrect(rec.proptype);
   cap.innerHTML = contents.length + (contents.length === 1 ? ' thing inside' : ' things inside') +
                     (label ? ' \u00b7 shown in the game\u2019s ' + svEsc(label.toLowerCase()) : '') +
-                    (z ? ', which ' + srcNum({ resid: z.classResid, at: z.at }, 'its class asks for') : '');
+                    (z ? ', which ' + srcNum({ resid: z.classResid, at: z.at }, 'its class requests') : '');
   wrap.appendChild(cap);
   return wrap;
 }
@@ -752,7 +752,7 @@ function inspectMapSquare(tx, ty) {
   if (gate) {
     parts.push('<div class="inspCard"><b>' + svEsc(gate.name) + '</b> ' +
       '<span class="inspDim">a way off the world map, ' + svEsc(gate.kind) +
-      ', zoneport ' + gate.port + ', arriving at (' + gate.destX + ',' + gate.destY + ')</span>' +
+      ', zoneport ' + gate.port + ', leading to (' + gate.destX + ',' + gate.destY + ')</span>' +
       '<div class="inspActs"><button class="sv-chip" onclick="enterGatewayByPort(' + gate.port +
       ')">Enter ' + svEsc(gate.name) + '</button></div></div>');
   }
@@ -993,7 +993,7 @@ function renderMapResource(resid) {
       (window.CUR_MAP.roofSections.length
         ? '  |  ' + window.CUR_MAP.roofSections.length + ' roof sections' : '') +
       (wasDecrypted ? '  |  decrypted' : '') +
-      (usedFallback ? '  |  (auto-decrypt guess corrected)' : '');
+      (usedFallback ? '  |  (auto-decrypt choice corrected)' : '');
     const mp = document.getElementById('mapParts');
     if (mp) mp.innerHTML = linksFold(partsStrip('Made of', mapParts(resid, result.propResid)));
     paintZoneStrip();

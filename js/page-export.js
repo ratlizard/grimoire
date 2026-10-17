@@ -421,7 +421,7 @@ function cytheraPrefsPreset(name, layout) {
 function prefsSummary(o) {
   const parts = [o.cheats ? 'the cheat keys allowed' : 'no cheat keys'];
   if (o.smooth) parts.unshift('smoother movement');
-  if (o.switch256) parts.push('256 colors chosen at startup without asking');
+  if (o.switch256) parts.push('256 colors chosen at startup without a prompt');
   if (o.startup) for (const [t, v] of Object.entries(o.startup)) if (v) parts.push('\u201c' + t + '\u201d');
   const L = cytheraPrefsLayout();
   if (L) {
@@ -461,7 +461,7 @@ function prefsInstallScript(opts) {
     '-- Move the old one somewhere else first if you want to keep them.',
     '--',
     '-- Cheat keys allowed: ' + (o.cheats ? 'ON: type ' + ((cytheraPrefsLayout() || { gate: {} }).gate.word || 'the code') + ' in the map window' : 'off') + '.',
-    '-- The file asks for ' + prefsSummary(o) + '.',
+    '-- Settings in the file: ' + prefsSummary(o) + '.',
     '--',
     'tell application "Finder"',
     '\tset src to file "' + PREFS_FILE_NAME + '" of disk "' + PREFS_VOLUME_NAME + '"',
@@ -517,7 +517,7 @@ function downloadCytheraPrefs(kind) {
     const image = buildPrefsDiskImage(opts);
     dlBlob(new Blob([image], { type: 'application/octet-stream' }), PREFS_VOLUME_NAME + '.dsk');
     setStatus('Wrote a ' + fmtBytes(image.length) + ' disk image with ' + how + '. Drop it on an ' +
-      'emulated Mac; it mounts as “' + PREFS_VOLUME_NAME + '” and carries an ' +
+      'emulated Mac; it mounts as “' + PREFS_VOLUME_NAME + '” and has an ' +
       PREFS_SCRIPT_NAME + ' script.');
     return;
   }

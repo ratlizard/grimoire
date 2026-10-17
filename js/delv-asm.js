@@ -301,7 +301,7 @@ function dvmAssemble(text, resid) {
       }
       if ((m = /^data (.*)$/.exec(line))) {
         const hex = m[1].replace(/^<.*>$/, '').replace(/\s+/g, '');
-        if (!/^([0-9a-f]{2})+$/i.test(hex)) throw new Error('data takes its bytes as hex');
+        if (!/^([0-9a-f]{2})+$/i.test(hex)) throw new Error('data needs its bytes in hex');
         const d = hex.match(/../g).map(x => parseInt(x, 16));
         bytes.push(0x45, ...dvmAsmU16(d.length), ...d); continue;
       }

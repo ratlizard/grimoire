@@ -419,7 +419,7 @@ function renderSkillsSheet() {
       const rows = [];
       if (kind !== 'command') {
         rows.push(['Taught by', x.teachers.length ? x.teachers.map(t => (t.who !== null && characterRecord(t.who) ? characterChip(t.who) : svChip(t.resid)) + (t.mastery ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') : '<span class="inspDim">no teacher in this file</span>']);
-        if (x.askedBy.length) rows.push(['Asked about by', x.askedBy.map(r => svChip(r)).join(' ')]);
+        if (x.askedBy.length) rows.push(['Checked by', x.askedBy.map(r => svChip(r)).join(' ')]);
         if (x.weapons.length) rows.push(['Swung with it', x.weapons.map(w => propChip(w.pt, w.name)).join(' ')]);
         const rule = SKILL_RULES[x.name];
         rows.push(['The rule', (rule ? ruleLink(rule) + ' ' : '') + mechLink('training', 'Mechanics › Training')]);
@@ -766,7 +766,7 @@ function renderSchedulesSheet() {
   all.innerHTML = svLink('Open all', 'mechOpenAll(true)') + svLink('Close all', 'mechOpenAll(false)');
   box.insertBefore(all, box.firstChild);
   grid.appendChild(box);
-  out.textContent = people.length + ' characters with a day in 0xF00B, ' + entries + ' posts' + (q ? ' matching “' + q + '”' : '') + '. A post applies from its hour until the next one. Where an hour has more than one post, the game takes the last one whose condition is met, or the one marked otherwise when none is. The square opens the zone at that point.';
+  out.textContent = people.length + ' characters with a day in 0xF00B, ' + entries + ' posts' + (q ? ' matching “' + q + '”' : '') + '. A post applies from its hour until the next one. Where an hour has more than one post, the game uses the last one whose condition is met, or the one marked otherwise when none is. The square opens the zone at that point.';
 }
 /* A SCHEDULE IS A PROGRAM (read 24 September 2026). ScheduleOne walks a
    character's segments in the file's order and EvalCondition tests each
@@ -2408,7 +2408,7 @@ const EGG_KIND_NAMES = [
   { what: 'changes zone', arg: 'zone' },
   { what: 'plays music', arg: 'tune' },
   { what: 'signals the zone’s script from anywhere inside it', arg: 'signal' },
-  { what: 'brings neighbors in when a condition holds' },
+  { what: 'brings neighbors in when a condition is met' },
   { what: 'a room', arg: 'room' },
   { what: 'nothing' },
   // Kind 10 was "counts down", from DrawRoutine's handler alone, which takes

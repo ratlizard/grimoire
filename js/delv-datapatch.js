@@ -202,7 +202,7 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
     const b = s.bytesOf(e.resid);
     for (const [at, want] of Object.entries(e.expect || {})) {
       const got = dataPatchOpAt(b, e.resid, +at);
-      if (!got || !got.text.startsWith(want)) throw new Error(e.what + ': at 0x' + (+at).toString(16) + ' the listing says ' + (got && got.text) + ', not ' + want);
+      if (!got || !got.text.startsWith(want)) throw new Error(e.what + ': at 0x' + (+at).toString(16) + ' the listing has ' + (got && got.text) + ', not ' + want);
     }
     let to = e.to;
     if (e.replaceOp) { const g = dataPatchOpAt(b, e.resid, e.at); if (!g) throw new Error(e.what + ': no instruction at 0x' + e.at.toString(16)); to = g.next; }

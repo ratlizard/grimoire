@@ -92,7 +92,7 @@ function spellsMechSection() {
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
       sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The caster pays the cost.',
       'Spell damage works like a blow’s; the victim’s resistance applies, and the caster earns experience as usual.',
-      fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it targets</b>, although its description says it engulfs all within.' : '',
+      fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it targets</b>, although by its description it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Non-magical damage, whether fire, electric, blunt or edged, does <b>nothing at all</b> to monsters that resist non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike count as magical, which is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
       'Spell damage prints no message, and <b>every enemy</b> means every hostile character on the loaded map, on screen or not, so Tremor hurts enemies you cannot see.',
       (function () {
@@ -109,7 +109,7 @@ function spellsMechSection() {
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
         if (!t.length) return '';
         const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that ask for a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>: the target has to be in one of the eight squares around the caster. You can aim the rest anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
+        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that need a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>: the target has to be in one of the eight squares around the caster. You can aim the rest anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
       })()
     ].filter(Boolean) : [],
     '', '');
@@ -117,9 +117,9 @@ function spellsMechSection() {
 
 function skillsMechSection() {
   const sk = skillConsultations();
-  return mechSectionEl('skills', 'What Each Skill Is Asked About', null, '',
-    sk.by.size ? 'Which scripts check for each skill.' + (sk.generic ? ' ' + countLink(sk.generic + ' more checks', 'The ' + sk.genericIn.size + ' shared scripts that hold ' + sk.generic + ' checks of whichever skill they are given', resChips(sk.genericIn)) + ' are in shared scripts that work for any skill.' : '') : 'No script in this file asks about a skill by name.',
-    [], mechSkillsFigure(sk) + mechTable(['skill', 'asked about by'], [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
+  return mechSectionEl('skills', 'Skill Checks', null, '',
+    sk.by.size ? 'Which scripts check for each skill.' + (sk.generic ? ' ' + countLink(sk.generic + ' more checks', 'The ' + sk.genericIn.size + ' shared scripts that hold ' + sk.generic + ' checks of whichever skill they are given', resChips(sk.genericIn)) + ' are in shared scripts that work for any skill.' : '') : 'No script in this file checks for a skill by name.',
+    [], mechSkillsFigure(sk) + mechTable(['skill', 'checked by'], [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
       '<tr><td>' + (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16).toUpperCase()), 0x1A00 + id) : 'skill 0x' + id.toString(16).toUpperCase()) +
       '</td><td>' + [...resids].sort((a, b) => a - b).map(r => svChip(r)).join(' ') + '</td></tr>')), '');
 }
@@ -154,7 +154,7 @@ function libraryMechSection(lib) {
      array and the passage's number, as the unshown ones already were. */
   const passageLink = (d, e) => { const t = String(e.str).trim().replace(/\s+/g, ' '); return svLink((t.slice(0, 48) + (t.length > 48 ? '…' : '')) || 'empty', 'jumpToResource(' + d.resid + ')', '0x' + d.resid.toString(16).toUpperCase() + ' ' + e.index); };
   return mechSectionEl('library', 'The Game’s Own Writing', null, '',
-    lib ? 'The books, prophecies, scrolls, letters, signs and gravestones, and the things in the world that show them. A bookshelf’s Data1 says which book is on it.'
+    lib ? 'The books, prophecies, scrolls, letters, signs and gravestones, and the things in the world that show them. A bookshelf’s Data1 is the number of the book on it.'
         : 'No class in this file shows a document.',
     lib ? [
       '<b>' + countLink(passages + ' passages', 'The ' + passages + ' passages', lib.flatMap(d => d.entries.map(e => passageLink(d, e)))) + '</b> across <b>' +

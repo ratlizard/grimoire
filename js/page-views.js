@@ -592,7 +592,7 @@ function exePseudoHTML(r, ringAt, why) {
     else line = off(l.at) + '  ' + svEsc(l.text).replace('\u0001', l.to !== null ? exeTargetHTML(r, l.to) : '');
     if (i !== ringLine) return line;
     const o = ops[(ringAt - r.offset) >> 2];
-    const note = (why ? 'You followed \u201c' + svEsc(why) + '\u201d. ' : '') + 'The line above holds the instruction at +0x' + (ringAt - r.offset).toString(16).toUpperCase() +
+    const note = (why ? 'You followed \u201c' + svEsc(why) + '\u201d. ' : '') + 'The line above has the instruction at +0x' + (ringAt - r.offset).toString(16).toUpperCase() +
       (o && exePlainLines(r)[(ringAt - r.offset) >> 2] ? ': ' + svEsc(exePlainLines(r)[(ringAt - r.offset) >> 2]).replace('\u0001', 'there').replace(/^./, c => c.toLowerCase()) : '.');
     return '<span id="listingHit" class="listingHit">' + line + '</span><span class="listingNote">' + note + '</span>';
   });
@@ -626,7 +626,7 @@ function exeListingHTML(r, ringAt, why) {
     const line = plainOn ? ('+0x' + (o.at - r.offset).toString(16).toUpperCase()).padEnd(7) + ' ' + said
       : hex(o.at) + '  ' + o.word.toString(16).toUpperCase().padStart(8, '0') + '  ' + t;
     if (o.at !== ringAt) return line;
-    const note = [why ? 'You followed “' + svEsc(why) + '”. The program decides it on the line above.' : '',
+    const note = [why ? 'You followed “' + svEsc(why) + '”. The program sets it on the line above.' : '',
                   plainOn ? '' : plain[i]].filter(Boolean).join(' ');
     return '<span id="listingHit" class="listingHit">' + line + '</span>' + (note ? '<span class="listingNote">' + note + '</span>' : '');
   });
@@ -723,8 +723,8 @@ const PREF_HELP = {
   manualContainers: ['windows', 'Preferences dialog', 'Opening a container lets you choose where its window goes. Off, the game places it for you.'],
   zoomRects: ['windows', 'Preferences dialog', 'Windows open with a zooming outline.'],
   Backdrop: ['windows', 'Not in the game', 'The pattern that fills the screen behind every window. Nothing in the game sets it.'],
-  switch256: ['startup', 'Asked at startup', 'On a screen set to more than 256 colors, the game switches it to 256 when it starts. Off, it runs in the colors the screen already has.'],
-  dontAsk: ['startup', 'Asked at startup', 'The game does not ask about 256 colors when it starts. Off, it asks on a screen set to more than 256 colors, and the answer replaces the switch above.'],
+  switch256: ['startup', 'Startup prompt', 'On a screen set to more than 256 colors, the game switches it to 256 when it starts. Off, it runs in the colors the screen already has.'],
+  dontAsk: ['startup', 'Startup prompt', 'The game shows no 256-color prompt when it starts. Off, it shows the prompt on a screen set to more than 256 colors, and the answer replaces the switch above.'],
   cheats: ['startup', 'Not in the game', null],
   mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if you held Command, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu; the right-click fix on the Patches tab puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
 };
@@ -748,7 +748,7 @@ function renderLicenseSheet() {
   const about = document.createElement('div');
   about.className = 'changesGroup';
   about.innerHTML = '<div class="changesGroupTitle">' + svEsc(LICENSE_FILE_NAME) + '</div>' +
-    '<div class="changesNote" style="margin-left:0">' + svEsc('The game keeps its registration in this file, in the Preferences folder of the System Folder. Choose one to see the name it is registered to.') + '</div>';
+    '<div class="changesNote" style="margin-left:0">' + svEsc('The game stores its registration in this file, in the Preferences folder of the System Folder. Choose one to see the name it is registered to.') + '</div>';
   const inp = document.createElement('input');
   inp.type = 'file'; inp.id = 'licenseFile'; inp.accept = '*/*';
   about.appendChild(inp);
@@ -769,7 +769,7 @@ function renderLicenseSheet() {
     svEsc(' makes a license for any Ambrosia game. Andrew Welch, who founded Ambrosia, released it for free distribution.') + '</div>';
   box.appendChild(make);
   grid.appendChild(box);
-  out.textContent = LICENSE_FILE_NAME + ', the file the game keeps its registration in.';
+  out.textContent = LICENSE_FILE_NAME + ', the file where the game stores its registration.';
 }
 // What the tab says of a chosen file. The name is the file's, verbatim.
 function licenseSaidHTML(bytes) {
@@ -801,11 +801,11 @@ function renderPrefsSheet() {
     d.className = 'changesGroup';
     d.innerHTML = '<div class="changesGroupTitle">' + svEsc('Cythera’s preferences file') + '</div>' +
       '<div class="changesNote" style="margin-left:0"><b>' + svEsc('Open the game itself (Data › Installer, or drop the program on the page) and the settings appear here.') + '</b><br>' +
-      svEsc('This writes Cythera’s preferences file, which holds the settings the game keeps in the Preferences folder of the System Folder, including the switch that makes its cheat keys work. ' +
+      svEsc('This writes Cythera’s preferences file, with the settings the game stores in the Preferences folder of the System Folder, including the switch that makes its cheat keys work. ' +
             'The page reads every switch in it from the program’s code, so the game has to be open for there to be anything to write.') + '</div>';
     box.appendChild(d);
     grid.appendChild(box);
-    out.textContent = PREFS_FILE_NAME + ', the file the game keeps its settings in.';
+    out.textContent = PREFS_FILE_NAME + ', the file where the game stores its settings.';
     return;
   }
   const sheet = document.createElement('div');
@@ -813,7 +813,7 @@ function renderPrefsSheet() {
   sheet.innerHTML = '<p class="prefLede">' + svEsc('Choose the settings, then download the file and put it in the Preferences folder of the System Folder, replacing the one there. ' +
       'Each setting starts as a new copy of the game has it.') + '</p>' +
     '<p class="prefFrom">' + svEsc(layout.from === 'shipped'
-      ? 'The settings are the same in all four releases, so nothing needs to be open. Open the game to read them from your own copy instead.'
+      ? 'The settings are the same in all four releases, so nothing needs to be open. Open the game to read them from your copy instead.'
       : 'The page reads the settings from the program open here.') + '</p>';
   /* The two presets (cytheraPrefsPreset): each sets every row, the switches
      by their ids and the choosers by their values. Built with createElement,
@@ -942,7 +942,7 @@ function renderPrefsSheet() {
   sheet.appendChild(save);
   box.appendChild(sheet);
   grid.appendChild(box);
-  out.textContent = PREFS_FILE_NAME + ', the file the game keeps its settings in.';
+  out.textContent = PREFS_FILE_NAME + ', the file where the game stores its settings.';
 }
 
 // Sets every row of the Preferences tab to a preset's options.
@@ -1014,7 +1014,7 @@ function renderToolsSheet() {
       () => { showCategory('135'); openDitherTool(); }],
     ['Color-Cycling Canvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener')],
     ['Save Maker', 'A saved game made from the scenario open here, with the hero you set.', at('SAVEGAME', 'saveMaker')],
-    ['Scenario Maker', 'A copy of Cythera Data with the world emptied, to start a scenario of your own.', sec('newscenario')],
+    ['Scenario Maker', 'A copy of Cythera Data with the world emptied, to start a new scenario.', sec('newscenario')],
     ['Gremlin Maker', 'A script the game runs at a moment you choose, as a patch.', sec('gremlins')],
     ['Sprite Recolorer', 'A sprite in other colors, as a patch.', sec('herosprite')],
     ['Font Replacer', 'A TrueType font in place of the game’s.', at('FONTS', 'fontSwap')],
@@ -1027,7 +1027,7 @@ function renderToolsSheet() {
     ['File Comparison', 'What differs between two game files.', sec('compare')],
     ['Combat Calculator', 'What a blow does, for the figures and the weapon you set.', sec('combat')],
     ['Preferences', 'The game’s settings file, made with the options you choose.', at('PREFS')],
-    ['License', 'Reads the name a registration file holds.', at('LICENSE')],
+    ['License', 'Reads the name in a registration file.', at('LICENSE')],
     ['Changes', 'What you have changed in the open file, and where to download it.', at('CHANGES')],
     ['GitHub Repository', 'Where this page and its tests live.', () => window.open('https://github.com/ratlizard/grimoire', '_blank', 'noopener')]]) {
     const d = document.createElement('div');
@@ -1550,7 +1550,7 @@ function soundUsageRows(resid, subn) {
   } else if (subn === 143) {
     const chips = chipsFor(u.music.get(resid - 0x9000));
     rows.push(['Played by', chips, chips.length ? '' :
-      'No script names this music by number; the program starts some music itself.']);
+      'No script refers to this music by number; the program starts some music itself.']);
   }
   return rows;
 }
@@ -2397,9 +2397,9 @@ function showMonsterDetail(idx) {
         ' (the frames for one direction) on the ' + (u.rule ? srcNum(u.rule.dx, 'eight squares') : 'eight squares') + ' around it' +
         '.' + (app ? ' ' + pefChip('TOctoMonster::TOctoMonster') : '');
       else if (u.kind === 'crawl') how.innerHTML = lay + ': <b>a head with its tail behind it</b>; the tail is a second record at the head’s aspect plus ' + (u.rule ? srcNum(u.rule.tailOffset, '8') : '8') +
-        '. The layout decides which kind it is.' + (app ? ' ' + pefChip('TCrawlMonster::TCrawlMonster') + pefChip('TActiveMonster::CreateMonster') : '');
+        '. The layout sets which kind it is.' + (app ? ' ' + pefChip('TCrawlMonster::TCrawlMonster') + pefChip('TActiveMonster::CreateMonster') : '');
       else if (u.kind === 'span') how.innerHTML = lay + ': one record, and <b>its tiles span ' + whole.cols + ' by ' + whole.rows + '</b> according to their attributes, as a thing placed in the world does.';
-      else how.innerHTML = lay + ': one record, one tile; the layout decides the frame.' + (app ? ' ' + pefChip('TActiveMonster::AdjustAspect') : '');
+      else how.innerHTML = lay + ': one record, one tile; the layout sets the frame.' + (app ? ' ' + pefChip('TActiveMonster::AdjustAspect') : '');
       box.appendChild(how);
       panel.appendChild(box);
     }
@@ -3363,7 +3363,7 @@ function applyResourceEdit(resid, newData) {
   refreshChangesBadge();
   setStatus('Rebuilt the file with 0x' + resid.toString(16).toUpperCase() +
     (newData.length ? ' edited' : ' removed') + ', ' + dirty.size +
-    ' resource(s) changed this session. The page keeps edits in memory only; to download the edited file, go to ' +
+    ' resource(s) changed this session. Edits stay in the page’s memory only; to download the edited file, go to ' +
     'Data › Cythera Data › Changes.');
   showEditNotice(resid, newData.length ? 'edited' : 'removed', dirty.size);
   return true;
@@ -3530,6 +3530,6 @@ const ZIP_FOLDER_NAME = 'Cythera Patch';
 function missingForkWarning(rsrc) {
   if (rsrc && rsrc.length) return null;
   return 'You opened this file without its resource fork, so the disk will not ' +
-         'work in the game: Cythera refuses it with “Unable to open RT”. Open the ' +
+         'work in the game: Cythera rejects it with “Unable to open RT”. Open the ' +
          '.hqx (or a MacBinary copy) instead of the data fork alone, and export again.';
 }

@@ -629,18 +629,18 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
 <dialog id="dAbout" aria-label="How this works"><div class="dh"><span class="eyebrow">How this works</span>
   <button type="button" class="btn" data-close>Close</button></div>
   <div class="db">
-    <p><strong>A stroke stores a position in a ramp, not a color.</strong> Every pixel holds one
-      palette index. Inside a turning register, that index says how far along the ramp the pixel is,
+    <p><strong>A stroke stores a position in a ramp, not a color.</strong> Every pixel is one
+      palette index. Inside a turning register, that index is how far along the ramp the pixel is,
       and each frame moves the ramp on by one, so a stroke that writes a falling sequence of positions looks like
       color traveling that way. Drag downward and the color falls. Nothing is ever redrawn.</p>
-    <p><strong>The ink decides what the tools are.</strong> With a ramp loaded the seven are Flow,
+    <p><strong>The ink sets what the tools are.</strong> With a ramp loaded the seven are Flow,
       Vortex, Sparkle, Pool, Divert, Select and Melt; with a flat color the same seven are Paint,
       Shape, Spray, Fill, Smudge, Select and Pick. <strong>Melt</strong> is what Pick becomes when the ink is a
       ramp: drag across a run of colors and they are joined into a new ramp, which is then written back
       into the pixels it came from, so they start turning where they are.</p>
     <p><strong>Select confines everything.</strong> A box, a lasso or a region is a mask, and all
       painting checks it, so every tool and every creature that paints works inside it and
-      nowhere else. Drag from inside a selection to move what it holds.</p>
+      nowhere else. Drag from inside a selection to move what is in it.</p>
     <h4>The creatures</h4>
     <p><strong>Giant Slug</strong> chains every turning register into one long body, so color
       leaving the end of Fire arrives at the start of Water. Switch it off and every pixel keeps the
@@ -665,8 +665,8 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       it is not a limit: set the depth from 1 to 16 bits and every color snaps to that grid, or choose Direct to
       keep imported colors exactly. Mixed colors are added to the end, so the palette can grow to thousands;
       what matters for GIF and PNG is the number of distinct colors on the canvas, which the status bar counts.</p>
-    <p><strong>The GIF is the save file.</strong> Ours carry the whole project in a comment block.
-      Any other cycling GIF is read from its own motion: between two frames, every moving color steps
+    <p><strong>The GIF is the save file.</strong> Ours contain the whole project in a comment block.
+      Any other cycling GIF is read from its motion: between two frames, every moving color steps
       from one slot to another, and the cycles those steps form become the registers.</p>
     <p>Cythera™ is copyright ©1993–9 Ambrosia Software, Inc. This is an unofficial fan-made tool.
       Alaric, the scroll, the texture, the slug, the polyp, the harpy and the undead are the game's own pictures.</p>
@@ -3432,7 +3432,7 @@ async function copyCanvas() {
     var blob = await new Promise(function (r) { art.toBlob(r, 'image/png'); });
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     say('copied this frame to the clipboard');
-  } catch (e) { say('could not copy, the browser refused'); }
+  } catch (e) { say('could not copy, the browser blocked it'); }
 }
 
 /* ================= reading the motion ===================================
@@ -3978,7 +3978,7 @@ var gifWhy = '';
 async function gifOut(delayCs) {
   gifWhy = '';
   var c = compact();
-  if (!c) { gifWhy = 'over 256 distinct indices on the canvas, GIF cannot hold that'; return null; }
+  if (!c) { gifWhy = 'over 256 distinct indices on the canvas, more than a GIF can have'; return null; }
   var data = lzw(c.px, 8);
   // Cycling costs a whole frame each: only the colour table differs, but GIF
   // has nowhere else to put it. Long ramps mean long loops mean big files.
