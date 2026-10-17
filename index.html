@@ -1319,7 +1319,9 @@ details:not([open]) > summary .mechFrom { display:none; }
    .fixFile is the file a fix changes, quiet by size. */
 .fixText { display:flex; flex-direction:column; gap:2px; }
 .fixTitle { color:#fff; }
-.fixName { color:#fff; font-weight:bold; }
+/* A fix's name over its title, set larger: Argos has no bold, so bold
+   did not show (the maintainer, 17 October 2026). */
+.fixName { display:block; color:#fff; font-size:1.0625rem; line-height:1.3; margin:0 0 1px; }
 .fixNote { color:#dcd8cc; font-size:0.75rem; }
 .fixMeta { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; font-size:0.6875rem; }
 .fixFile { color:#dcd8cc; white-space:nowrap; }
@@ -1353,7 +1355,8 @@ details:not([open]) > summary .mechFrom { display:none; }
 .fixChangesLink { color:var(--gold); font-size:0.6875rem; cursor:pointer; white-space:nowrap; }
 .appFixRow > .appFixListing { margin:2px 0 6px 22px; }
 .fixFoldCount { color:#f0ede4; font-size:0.75rem; }
-.fixFold > :not(summary) { margin-left:22px; }
+/* A fold's fixes indented past its own box, so they read as under it. */
+.fixFold > :not(summary) { margin-left:2.75rem; }
 .appFixRow > label.mechSub, .dataFixChoice label.mechSub { font-size:0.8125rem; }
 .dataFixHead > label.partsTitle { display:flex; gap:8px; align-items:center; margin:0; font-size:0.8125rem; }
 .dataFixHead > label > input { flex:none; margin:0; }
@@ -2637,7 +2640,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.311.0';
+const GRIMOIRE_VERSION = '1.311.1';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

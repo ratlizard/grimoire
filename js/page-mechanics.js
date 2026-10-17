@@ -2784,7 +2784,7 @@ function renderDataFixMaker() {
       l.appendChild(b);
       const words = el('span', 'fixText');
       const t = el('span', 'fixTitle');
-      if (f.name) { t.appendChild(el('b', 'fixName', f.name)); t.appendChild(document.createTextNode(' ')); }
+      if (f.name) t.appendChild(el('span', 'fixName', f.name));
       t.appendChild(document.createTextNode(f.title + (f.by ? ' (' + f.by + '\u2019s fix)' : '')));
       words.appendChild(t);
       const meta = el('span', 'fixMeta');
