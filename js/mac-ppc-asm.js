@@ -1,7 +1,7 @@
 /* mac-ppc-asm.js -- PowerPC instructions, written.
 
    The other half of mac-ppc.js: a line of assembly in the spelling
-   ppcDecode prints (LLVM's) becomes the 32-bit word. Nothing here knows
+   ppcDecode prints (LLVM's) becomes the 32-bit word. Nothing here depends on
    Cythera exists; the application patch (js/delv-apppatch.js) is its first
    caller, which is why it exists at all.
 
@@ -20,17 +20,17 @@
    written: nothing a patch here needs uses it.
 
    THE SPELLING IS THE DECODER'S, so that the test of a written word is the
-   decoder: `utilities/app_patch_check.mjs` takes every word of the
+   decoder: `utilities/app_patch_check.mjs` reads every word of the
    application's code section the decoder reads, hands its printed text
-   back here at its own address, and requires the same word -- every word
+   back here at its address, and requires the same word -- every word
    inside a routine but 45 floating-point ones, and none written
    differently. The decoder is held to LLVM (ppc_check.mjs), so that is
    LLVM's reading written back. Every line of every fix is also handed to
    `llvm-mc` itself, which must write the same word, all but a branch's
-   displacement, which LLVM leaves to a fixup and the check holds by
+   displacement, which LLVM leaves to a fixup and the check verifies by
    decoding the word and comparing where it goes.
    Registers are bare numbers, as the decoder prints them (`r3` is accepted
-   too). Beyond the decoder's spelling it takes a few conveniences, each
+   too). Beyond the decoder's spelling it accepts a few conveniences, each
    turned into one of its forms:
 
      - a branch target written `@0x446B4` (a code address) or `@name` (what
@@ -68,7 +68,7 @@ function ppcAssemble(line, at, resolve) {
   const s16 = (v) => { if (v < -32768 || v > 32767) throw ppcAsmError(line, 'signed immediate out of range: ' + v); return v & 0xFFFF; };
   const u16 = (v) => { if (v < 0 || v > 0xFFFF) throw ppcAsmError(line, 'unsigned immediate out of range: ' + v); return v; };
   const u5 = (v) => { if (v < 0 || v > 31) throw ppcAsmError(line, 'field out of range: ' + v); return v; };
-  const need = (n) => { if (ops.length !== n) throw ppcAsmError(line, 'wants ' + n + ' operands'); };
+  const need = (n) => { if (ops.length !== n) throw ppcAsmError(line, 'expected ' + n + ' operands'); };
   const target = (s) => {
     const t = String(s).trim();
     let r;
@@ -109,7 +109,7 @@ function ppcAssemble(line, at, resolve) {
   if (mn === 'nop') { need(0); return 0x60000000; }
   // Compares.
   if (mn === 'cmpwi' || mn === 'cmplwi' || mn === 'cmpw' || mn === 'cmplw') {
-    if (ops.length !== 2 && ops.length !== 3) throw ppcAsmError(line, 'wants 2 or 3 operands');
+    if (ops.length !== 2 && ops.length !== 3) throw ppcAsmError(line, 'expected 2 or 3 operands');
     const crf = ops.length === 3 ? crfield(ops[0]) : 0, a = reg(ops[ops.length - 2]), last = ops[ops.length - 1];
     if (mn === 'cmpwi') return D(11, crf << 2, a, s16(num(last)));
     if (mn === 'cmplwi') return D(10, crf << 2, a, u16(num(last)));
@@ -184,7 +184,7 @@ function ppcAssemble(line, at, resolve) {
   const COND = { lt: [0, true], ge: [0, false], gt: [1, true], le: [1, false], eq: [2, true], ne: [2, false], so: [3, true], ns: [3, false] };
   if ((r = /^b(lt|ge|gt|le|eq|ne|so|ns)(l?)$/.exec(mn))) {
     const [bit, set] = COND[r[1]];
-    if (ops.length !== 1 && ops.length !== 2) throw ppcAsmError(line, 'wants a target, or crN and a target');
+    if (ops.length !== 1 && ops.length !== 2) throw ppcAsmError(line, 'expected a target, or crN and a target');
     const crf = ops.length === 2 ? crfield(ops[0]) : 0;
     return bcw(set ? 12 : 4, crf * 4 + bit, ops[ops.length - 1], r[2] === 'l');
   }
@@ -196,7 +196,7 @@ function ppcAssemble(line, at, resolve) {
   if ((r = /^bc(lr|ctr)(l?)$/.exec(mn))) { need(2); return W((19 << 26) | (u5(num(ops[0])) << 21) | (u5(num(ops[1])) << 16) | ((r[1] === 'lr' ? 16 : 528) << 1) | (r[2] ? 1 : 0)); }
   if ((r = /^b(lt|ge|gt|le|eq|ne|so|ns)(lr|ctr)(l?)$/.exec(mn))) {
     const [bit, set] = COND[r[1]];
-    if (ops.length > 1) throw ppcAsmError(line, 'wants at most crN');
+    if (ops.length > 1) throw ppcAsmError(line, 'expected at most crN');
     const crf = ops.length === 1 ? crfield(ops[0]) : 0;
     return W((19 << 26) | ((set ? 12 : 4) << 21) | ((crf * 4 + bit) << 16) | ((r[2] === 'lr' ? 16 : 528) << 1) | (r[3] ? 1 : 0));
   }

@@ -614,7 +614,7 @@ const CHECKS = [
    expect: 'midi import: 11 shipped headers rebuilt byte for byte; 13401 notes and 7835 controllers back from MIDI where they were (a controller\'s value within 89 of 65536); the controls caught'},
   {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
-   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT a43e9aac1a08'},   // a DATA and a LINF description out of the passive ("has not been worked out"), 2 October 2026; only those two types moved
+   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT b0b89791ac47'},   // 'Page' text for an empty page ("This page has no text."), 16 October 2026; only that type moved
 
   // The HFS disk-image writer index.html exports with: structural here, and
   // in the row after it every volume round-tripped through systemless's

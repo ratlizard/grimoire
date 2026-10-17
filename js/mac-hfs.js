@@ -36,7 +36,7 @@
        last-1        the alternate master directory block
        last          reserved, zero
 
-   Every fork is laid down in one piece, which is what keeps the extents
+   Every fork is laid down in one piece, which is what retains the extents
    overflow file empty: a fork only needs the overflow tree when it is in more
    than three pieces, and nothing here is ever in more than one. The overflow
    file still exists -- a header node with no records -- because the File
@@ -68,7 +68,7 @@
                                                           cannot be found."
 
    So in looking a file up the File Manager follows the length byte to the
-   data, as it does in a leaf. Apple's own HFS writes the middle form -- a
+   data, as it does in a leaf. Apple's HFS writes the middle form -- a
    full-width key with the length byte to match -- and **this writes that
    form too**, because the first only mounts. Mac OS 7.6 cannot add a file
    under a variable-length index key: on a volume with three catalog levels
@@ -85,15 +85,15 @@
        comments from info windows were not preserved.
 
    Everything on the volume is there and readable -- the window lists it all,
-   which is also what says the index nodes above are right -- so this was
-   written down as cosmetic. It is not. **The alert is modal**: it holds the
+   which also shows the index nodes above are right -- so this was
+   written down as cosmetic. It is not. **The alert is modal**: it captures the
    keyboard until someone presses OK, and the mobile shell (now in ratlizard/alchemy)'s Install drives the
    Finder by typing at it, so every keystroke goes into a dialog that ignores
    them and the install silently does nothing. That was found by running the
    thing end to end, and by nothing else: every test until then had used a
    two-file disk, which fits one leaf and raises no alert.
 
-   So the line matters, and it is exactly one catalog leaf: with names this
+   So the line matters, and it is exactly one catalog leaf: with names of this
    length, three files. index.html writes two -- the archive and the script
    -- and its Read Me was folded into the script's comments to stay under it.
    the mobile shell (now in ratlizard/alchemy) sends Return before anything else, which presses the alert's OK
@@ -104,8 +104,8 @@
    **read-only** -- the Finder draws a padlock in the window's header -- and a
    read-only volume with no Desktop DB is one the Finder cannot build one on.
    Volumes under about 2 MB escape it whatever their catalog looks like,
-   because below that size the Finder keeps the older single "Desktop" file
-   and takes a different path.
+   because below that size the Finder uses the older single "Desktop" file
+   and follows a different path.
 
    Three fixes were tried against a real Mac OS 7.6 and none of them helps,
    so do not try them again: leaving free nodes in the catalog B-tree (kept
@@ -241,7 +241,7 @@ function hfsDirRecord(parent, name, cnid, valence, when) {
 }
 
 function hfsThreadRecord(cnid, parent, name, when) {
-    // Keyed on the directory's own CNID with an empty name; it is what lets the
+    // Keyed on the directory's CNID with an empty name; it is what lets the
     // File Manager walk a CNID back up to a path.
     return hfsRecord(cnid, '', 46, d => {
         d[0] = 3;                          // cdrThdRec
@@ -268,7 +268,7 @@ function hfsFileRecord(parent, file, when) {
         hfsPut32(d, 44, when);             // filCrDat
         hfsPut32(d, 48, when);             // filMdDat
         // filExtRec / filRExtRec: one extent each, because every fork here is
-        // laid down contiguously. That is what keeps the overflow tree empty.
+        // laid down contiguously. That is what leaves the overflow tree empty.
         hfsPut16(d, 74, file.dataStart);
         hfsPut16(d, 76, file.dataBlocks);
         hfsPut16(d, 86, file.rsrcStart);
@@ -419,7 +419,7 @@ function hfsBuildBTree(records, keyLen, spare) {
 }
 
 // An extents overflow file with nothing in it: one header node, no leaves, and
-// room to grow if the Finder's own files end up fragmented.
+// room to grow if the Finder's files end up fragmented.
 function hfsEmptyExtentsFile() {
     return hfsBuildBTree([], HFS_EXT_KEY_LEN, HFS_SPARE_NODES);
 }
@@ -504,7 +504,7 @@ function writeHfsImage(options) {
     const catalogSize = buildCatalog().length;
 
     // Allocation block size: the smallest power-of-two multiple of 512 that
-    // keeps the block count inside the 16 bits drNmAlBlks has.
+    // retains the block count inside the 16 bits drNmAlBlks has.
     let contentBytes = extentsFile.length + catalogSize;
     for (const f of files) contentBytes += f.data.length + f.rsrc.length;
     /* Free space is not optional. The Finder builds an invisible Desktop
@@ -514,7 +514,7 @@ function writeHfsImage(options) {
        alarming, appears every single time the image is mounted, and has
        nothing to do with the files. A megabyte is more than the desktop file
        needs and costs nothing: the slack is zeroes, and both the browser and
-       the emulator's own transport compress it away. */
+       the emulator's transport compress it away. */
     const slack = Math.max(1024 * 1024, Math.ceil(contentBytes * 0.05));
     const floor = Math.max(opts.sizeBytes || 0, contentBytes + slack);
     let alBlkSize = HFS_SECTOR;
@@ -524,7 +524,7 @@ function writeHfsImage(options) {
     const upBlocks = n => Math.ceil(n / alBlkSize);
     /* A tree file's logical size must be its whole allocation: Mac OS 7.6
        extends a B-tree by the clump size from there, and fsck_hfs stops at
-       "Invalid extent file PEOF" otherwise. So each tree takes as many more
+       "Invalid extent file PEOF" otherwise. So each tree is given as many more
        free nodes as fill its last block; the block counts do not change. */
     const fillNodes = n => (upBlocks(n) * alBlkSize - n) / HFS_NODE_SIZE;
     extentsFile = hfsBuildBTree([], HFS_EXT_KEY_LEN, HFS_SPARE_NODES + fillNodes(extentsFile.length));
@@ -539,7 +539,7 @@ function writeHfsImage(options) {
     const totalSectors = alBlSt + blockCount * sectorsPerBlock + 2;
     const image = new Uint8Array(totalSectors * HFS_SECTOR);
 
-    // Lay the allocated things down in order and remember where each went.
+    // Lay the allocated things down in order and record where each went.
     let nextBlock = 0;
     const place = bytes => {
         const start = nextBlock;

@@ -4,7 +4,7 @@
    licensed source, so that a strike made from them measures every string
    as Apple's does and no layout in the game moves.
 
-   Loaded only when a translation is asked for (js/page-mechanics.js,
+   Loaded only when a translation is requested (js/page-mechanics.js,
    spanishTable), since nothing else reads it. It is data and one reader;
    js/delv-translate.js (translateAddStrikes) builds the strikes.
 
@@ -14,11 +14,11 @@
    fontstruct/geneva-9.ttf), under the Creative Commons Attribution 3.0
    licence; its licence and FontStruct's readme travel with it as
    licences/Geneva9-LICENSE.txt and licences/Geneva9-README.txt (in
-   grimoire, res/), and NOTICE says so.
+   grimoire, res/), and NOTICE records it.
    It is outlines on a grid of 64 units a square, sixteen squares an em, so
    drawn at a square a pixel it is the bitmap it was built from. It was
    chosen over its descendant Geneva 9.1 (res/Geneva9-1-Regular.woff2, the
-   page's own face) for the fork on 17 September 2026 because it is the
+   page's face) for the fork on 17 September 2026 because it is the
    nearer to Apple's strike (the workbench's SYSTEMLESS-NOTES, "The
    recreations, measured against Apple's strikes"), and chosen again here
    by the maintainer on 29 September 2026 after a 10-point strike derived
@@ -36,13 +36,13 @@
    advances. Measured against Apple's Geneva on 29 September 2026: all 95
    advances at both sizes equal, the bearings all but i and l (and ^ and y
    at 10), which moves where a letter's ink sits and never a width. The
-   10-point bearings place Geneva 10's own, wider letters, so the 10-point
-   strike does not use them as they are: it says only which side of Geneva
+   10-point bearings place Geneva 10's wider letters, so the 10-point
+   strike does not use them as they are: it sets only which side of Geneva
    9's letter an odd pixel of extra width goes (js/delv-translate.js).
    Only the numbers are here; Kurrajong's pixels are not. licences/Kurrajong-OFL.txt
    (in grimoire, res/) is the licence. The frame is Geneva's at both sizes, ten pixels above
    the baseline and two below, with one of leading at 10 points; an
-   accented letter takes its letter's width, as Apple's do. */
+   accented letter has its letter's width, as Apple's do. */
 const GENEVA9_TTF =
   'AAEAAAALAIAAAwAwRFNJRwAAAAEAAHQMAAAACE9TLzJiuGKNAAABOAAAAGBjbWFw35wm0gAABDgAAASUZ2x5Zg5CsogAAAtwAABN' +
   'yGhlYWQulxoIAAAAvAAAADZoaGVhBIICaQAAAPQAAAAkaG10eOdYCIAAAAGYAAACoGxvY2EAGSZ4AAAIzAAAAqRtYXhwALcAOgAA' +
