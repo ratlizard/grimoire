@@ -1321,10 +1321,10 @@ details:not([open]) > summary .mechFrom { display:none; }
 /* A fix's description at 0.9375rem: at 0.8125rem it was too small on a
    phone (the maintainer, 17 October 2026). */
 .appFixRow .fixTitle { color:#fff; font-size:0.9375rem; line-height:1.45; }
-/* A fix's name over its description, a little larger and in a faux bold:
-   the text drawn again a pixel to the right, since Argos has no bold and
-   a synthesised one did not show (the maintainer, 17 October 2026). */
-.fixName { display:block; color:#fff; font-size:1.0625rem; line-height:1.35; margin:0 0 2px; text-shadow:1px 0 0 #fff; letter-spacing:0.02em; }
+/* A fix's name over its description, set apart by size: Argos has no
+   bold, and a faux bold (the text drawn again a pixel over) looked bad
+   (the maintainer, 17 October 2026). */
+.fixName { display:block; color:#fff; font-size:1.1875rem; line-height:1.3; margin:0 0 2px; }
 .fixNote { color:#dcd8cc; font-size:0.75rem; }
 .fixMeta { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; font-size:0.6875rem; }
 .fixFile { color:#dcd8cc; white-space:nowrap; }
@@ -2647,7 +2647,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.312.3';
+const GRIMOIRE_VERSION = '1.312.4';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);
