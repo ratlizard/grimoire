@@ -2042,14 +2042,22 @@ function atlasFitAndPaint() { atlasFit(); atlasSyncZoomLabel(); paintAtlas(); }
    time the tab opens on the whole world, with the gesture for the
    visitor's screen: a pinch on a touch screen, the wheel with a mouse.
    The first zoom puts it away for the rest of the visit, and it fades
-   after eight seconds anyway, so it never sits over the map for long. */
+   after eight seconds anyway, so it never sits over the map for long.
+   It is bare text over the map, not a chip: a bordered chip read as a
+   button that did nothing (the maintainer, 16 October 2026). On a touch
+   screen two arrows run outward from the text, up-left and down-right,
+   the way two fingers part in a pinch. */
+const ATLAS_HINT_ARROW = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 19L6 6M6 6v9M6 6h9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 let _atlasZoomed = false, _atlasHintTimer = null;
 function atlasZoomHintShow() {
   const hint = document.getElementById('atlasZoomHint');
   if (!hint || _atlasZoomed || atlasBelowTop()) return;
   let touch = false;
   try { touch = matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) { quiet(e); }
-  hint.textContent = touch ? 'Pinch to zoom in' : 'Scroll to zoom in';
+  hint.innerHTML = touch
+    ? '<span class="zhArrow zhOut">' + ATLAS_HINT_ARROW + '</span><span>Pinch to zoom in</span>' +
+      '<span class="zhArrow zhIn">' + ATLAS_HINT_ARROW + '</span>'
+    : '<span>Scroll to zoom in</span>';
   hint.classList.add('shown');
   if (_atlasHintTimer) clearTimeout(_atlasHintTimer);
   _atlasHintTimer = setTimeout(atlasZoomHintHide, 8000);
