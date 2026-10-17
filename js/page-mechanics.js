@@ -894,12 +894,28 @@ function patchesOpenBytes(bytes, name) {
    and extractDelverArchive is what already knows the order to try them in. */
 function patchesOpenFile(file) {
   if (!file) return;
-  file.arrayBuffer().then(buf => { const b = new Uint8Array(buf); noteMagpieFrom(b); patchesOpenBytes(b, file.name); }).catch(e => {
+  file.arrayBuffer().then(buf => { const b = new Uint8Array(buf); noteMagpieFrom(b); basketAddFile(b, file.name); }).catch(e => {
     const note = document.getElementById('patchNote');
     if (note) { note.textContent = 'The page could not read that file: ' + e.message; note.className = 'mechSub patchBad'; }
   });
 }
 
+/* A patch file chosen with Add File in Your Patch (the maintainer,
+   17 October 2026): read by Patch Comparison, which opens on its report,
+   and added to Your Patch under its name, so it is downloaded and applied
+   with the rest. Until then the file was chosen in Patch Comparison and
+   applied from its report, on its own. */
+function basketAddFile(bytes, name) {
+  if (!patchesOpenBytes(bytes, name)) {
+    const n = document.getElementById('patchNote');
+    basketSay(n && n.textContent ? n.textContent : 'That file could not be read as a patch.', true);
+    return false;
+  }
+  const label = String(name || 'Patch file').replace(/\.(bin|hqx|sit|patch)$/i, '');
+  basketAdd('file:' + label, label, { bytes: window.PATCH_BYTES });
+  if (typeof mechGo === 'function') mechGo('patches');
+  return true;
+}
 function patchesForget() {
   window.PATCH_REPORT = null;
   window.PATCH_BYTES = null;
@@ -1074,27 +1090,9 @@ function renderPatchReport() {
   }
   scriptDiffSection(host, el, rep.resources.filter(r => !r.identical && SCRIPT_SUBN.has(r.subn))
     .map(r => ({ resid: r.resid, a: r.baseData, b: r.patchData })), 'the open file', 'the patch', rep.scriptDiffs || (rep.scriptDiffs = new Map()));
-  /* Applying is offered only when the merge would do something, and the lines
-     above the button say what will move rather than leaving it to be found. */
-  if (rep.usable && (rep.willReplace || rep.willAdd.length)) {
-    const moves = [];
-    if (rep.willReplace) moves.push('Replaces <b>' + rep.willReplace + '</b> resource' + (rep.willReplace === 1 ? '' : 's'));
-    if (rep.willAdd.length) moves.push((moves.length ? 'adds' : 'Adds') + ' <b>' + rep.willAdd.length + '</b>');
-    host.appendChild(el('div', 'partsTitle', 'Apply it'));
-    host.appendChild(el('ul', 'ruleList',
-      '<li>' + moves.join(' and ') +
-      ' in the copy of the file in this browser. <b>Nothing goes to disk.</b></li>' +
-      '<li>The galleries and maps then show the patch.</li>' +
-      '<li>The original file is kept, so <b>File Comparison</b> can then show exactly what changed.</li>'));
-    const bar = el('div', 'mechStats');
-    const b = document.createElement('button');
-    b.className = 'secondary';
-    b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
-    b.textContent = 'Apply to the open file';
-    b.onclick = function () { if (patchesApply()) renderPatchReport(); };
-    bar.appendChild(b);
-    host.appendChild(bar);
-  }
+  /* The report has no Apply of its own since 17 October 2026: a patch
+     file is added to Your Patch (basketAddFile), and Your Patch's Apply to
+     Site Data applies it with everything else. */
   host.appendChild(el('div', '', svLink('Clear this patch', 'patchesForget()')));
 }
 
@@ -3173,6 +3171,19 @@ function renderPatchBar() {
   if (n) chip(n + (n === 1 ? ' fix' : ' fixes'), function () { fixPreset('none'); });
   for (const p of b.parts) chip(p.label, function () { basketRemove(p.key); });
   if (!n && !b.parts.length) items.appendChild(el('span', 'mechSub', 'Nothing yet. Choose fixes, or use Add to Patch below.'));
+  /* Add File: a patch file joins Your Patch (basketAddFile). The input is
+     hidden behind a link, as a file control is the size of a button. */
+  const input = document.createElement('input');
+  input.type = 'file'; input.id = 'patchFile'; input.accept = '*/*'; input.hidden = true;
+  // The verifier reads "async () =>" as a call to a function named async,
+  // so the read is a promise inside patchesOpenFile rather than an await.
+  input.onchange = function () { patchesOpenFile(input.files && input.files[0]); input.value = ''; };
+  items.appendChild(input);
+  const addFile = el('span', 'patchBarMoreLink patchBarAdd', 'Add File');
+  addFile.setAttribute('role', 'button'); addFile.tabIndex = 0;
+  addFile.onclick = function () { input.click(); };
+  addFile.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } };
+  items.appendChild(addFile);
   const toggle = el('span', 'patchBarMoreLink', b.more ? 'Less' : 'More');
   toggle.setAttribute('role', 'button'); toggle.tabIndex = 0;
   toggle.onclick = function () { b.more = !b.more; renderPatchBar(); };
@@ -4836,7 +4847,7 @@ function renderMechanicsSheet(value) {
     const applied = base ? delverInstalledPatchIds(base) : [];
     const named = applied.map(u => DELV_PATCH_AUTHORS[u]).filter(Boolean);
     add('patches', 'Patch Comparison', null, '',
-      'Magpie patches work by replacing specific resources in the original Cythera Data file. Open a patch here to see details and what resources it changes.',
+      'Magpie patches work by replacing specific resources in the original Cythera Data file. Add a patch file in Your Patch to see its details and what resources it changes here.',
       [],
       // The patches the open file records, said only when there are some
       // (the maintainer, 1 October 2026, who had the rest of the prose go).
@@ -4856,9 +4867,6 @@ function renderMechanicsSheet(value) {
     const sec = sections[sections.length - 1].el;
     const wrap = document.createElement('div');
     wrap.className = 'mechStats';
-    const input = document.createElement('input');
-    input.type = 'file'; input.id = 'patchFile'; input.accept = '*/*';
-    wrap.appendChild(input);
     sec.appendChild(wrap);
     const note = document.createElement('div');
     note.className = 'mechSub'; note.id = 'patchNote';
@@ -5323,17 +5331,11 @@ function renderMechanicsSheet(value) {
   out.textContent = only === MECH_TOOL_GROUP ? MECH_TOOL_GROUP.note :
     (seen.size + rest.length) + ' rules read from this file’s scripts' +
     (only ? ', under ' + only.title : '') + '. Each one shows which script it comes from.';
-  /* The patches section's file control and its report, wired after the
+  /* The patches section's report, drawn after the
      sections are in the document. A patch already open is drawn again rather
      than forgotten, so leaving Hackery and coming back finds it where it was;
      resetDerivedCaches is what drops it, when the archive under it changes. */
-  const pf = document.getElementById('patchFile');
-  if (pf) {
-    // The verifier reads "async () =>" as a call to a function named async,
-    // so the read is a promise inside patchesOpenFile rather than an await.
-    pf.onchange = function () { patchesOpenFile(pf.files && pf.files[0]); };
-    renderPatchReport();
-  }
+  if (document.getElementById('patchReport')) renderPatchReport();
   const cf = document.getElementById('compareFile');
   if (cf) {
     cf.onchange = function () {

@@ -683,7 +683,12 @@ try {
   spec.resources[spec.resources.length - 1].data = mkDesc(landed);
   const patchBytes = ctx.writeDelverArchive(spec);
 
-  if (!ctx.patchesOpenBytes(patchBytes, 'Smoke Patch')) fail('patches', 'the patch was refused');
+  // Opened the way Add File in Your Patch opens one (basketAddFile): read
+  // by the report, and in Your Patch under its name, taken out again so
+  // the blocks after this build without it.
+  if (!ctx.basketAddFile(patchBytes, 'Smoke Patch.bin')) fail('patches', 'the patch was refused');
+  else if (!peek(`PATCH_BASKET.parts.some(p => p.label === 'Smoke Patch')`)) fail('patches', 'the patch file is not in Your Patch');
+  ctx.basketRemove('file:Smoke Patch');
   const rep = peek('window.PATCH_REPORT');
   const after = walk();
   const countTag = (el, tag) => (el.tagName === tag ? 1 : 0) +
