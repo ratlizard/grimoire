@@ -314,7 +314,8 @@ try {
   else if ((html.match(/class="dCell"/g) || []).length !== 36) fail('mechanics', `the dice matrix is not 36 cells: ${(html.match(/class="dCell"/g) || []).length}`);
   else if ((html.match(/class="mechFig"/g) || []).length < 12) fail('mechanics', `only ${(html.match(/class="mechFig"/g) || []).length} figures on the sheet`);
   else if (!/preserveAspectRatio="none"/.test(html) || !/<polyline/.test(html)) fail('mechanics', 'no plotted curve reached the sheet');
-  else if (!/class="mechStack"/.test(html) || !/class="mechBars"/.test(html) || !/class="mechLine"/.test(html)) fail('mechanics', 'a stack, a bar group or a number line is missing');
+  // The stacked bar went with the Combat Calculator (17 October 2026).
+  else if (!/class="mechBars"/.test(html) || !/class="mechLine"/.test(html)) fail('mechanics', 'a bar group or a number line is missing');
   // The models agree with the page's own enumeration of the same game. Two
   // implementations of the dice payout, so a change to either shows here.
   // The model is handed what diceGame() read; it has no numbers of its own.
@@ -327,19 +328,6 @@ try {
   // the difficulty term is (data1 + 19) / 20 * 5, so 1 through 20 are one
   // lock and only a difficulty of nothing is free.
   else if ((function () { const lk = ctx.lockRules().rule.lk, c = (r, d) => ctx.mechLockChance(r, d, lk); return !(lk && c(20, 1) === c(20, 20) && c(20, 1) < c(20, 0) && c(20, 21) < c(20, 20)); })()) fail('mechanics', 'the lock chance is not a staircase rounding up in steps of twenty');
-  // The combat figure over the archive's own weapons: the three outcomes
-  // must account for every exchange and the blow words for every hit.
-  else if ((function () {
-    const p = ctx.combatSimParams(), cb = ctx.combatRules(), x = ctx.mechCombatExact({ attackerReflex: 20, defenderReflex: 20, weaponSkill: 8, attackSkill: 4, defenceSkill: 4, enchant: 0, damage: p.weapon.damage, shieldBlock: p.shield ? p.shield.block : null, shieldSkill: 8, roll: cb.roll.v, rollDefender: cb.rollDefender.v, dmgAdd: cb.dmgAdd.v }, cb.words, cb.last.word);
-    return !(p.weapon && p.weapon.damage > 0 && Math.abs(x.miss + x.parry + x.hit - 1) < 1e-9 && Math.abs(x.words.reduce((s, w) => s + w.p, 0) - x.hit) < 1e-9);
-  })()) fail('mechanics', 'the combat model does not account for every exchange: ' + JSON.stringify(ctx.combatSimParams().weapon));
-  else if (!/lands/.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules())) || !/grazed|shredded/.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules()))) fail('mechanics', 'the combat figure names neither the outcome nor a blow');
-  // The body roll the attack routine adds to the figure, as the figure works
-  // it out from the three numbers it reads: a body of 25 is a roll of 0 to 3,
-  // four values, and anything under 16 adds nothing. The figure says so for
-  // its default body of 20, a roll of 0 to 2.
-  else if ((function () { const ar = ctx.attackRules(); return !(ctx.combatBodyRoll(25, ar) === 4 && ctx.combatBodyRoll(15, ar) === 1 && ctx.combatBodyRoll(5, ar) <= 1 && ctx.combatBodyRoll(25, null) === 0); })()) fail('mechanics', 'the body roll is not worked out from 0xE90 and 0x3042');
-  else if (!/A body of 20 adds a random number from 0 to 2 to the /.test(ctx.combatSimHtml(ctx.combatSimParams(), ctx.combatRules()))) fail('mechanics', 'the combat figure does not say what the body roll adds');
   // Body for reflex (0xE88), and the unit field it tests: the top half of
   // the flag word, which the program serves as field 51 by shifting the long
   // right sixteen and the low half as field 50 by clearing it. Each of the
@@ -354,7 +342,6 @@ try {
            !/use their <b>(?:<button[^>]*>)?body(?:<\/button>)?<\/b> instead of their reflex \((?:<button[^>]*>)?21(?:<\/button>)? of the \d+ units, not the hero’s\)/.test((function () { ctx.showCategory('MECHANICS'); return (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid')); })()))
     fail('mechanics', 'the combat section does not say who fights with the body, with the program open, and only then: ' + ctx.unitsWithTopFlag(1).length);
   else if (/unidentified/.test(ctx.monsterFlagsHTML(0x00014004)) || !/fights with its body/.test(ctx.monsterFlagsHTML(0x00014004))) fail('mechanics', 'the fighter\'s flags are not all named: ' + ctx.monsterFlagsHTML(0x00014004));
-  else if (!/The margin starts from the body, 25,/.test(ctx.combatSimHtml(Object.assign({}, ctx.combatSimParams(), { body: 25, bodyForReflex: true }), ctx.combatRules()))) fail('mechanics', 'the combat figure does not start the margin from the body when asked');
   else if (withoutApp(() => ctx.monsterTopFlagSites().size !== 0 || ctx.recordFieldMap(0xF008).length !== 11 || /fights with its body/.test(ctx.monsterFlagsHTML(0x00014004)))) fail('mechanics', 'the top half of the unit flags is named with no program open');
   else if (ctx.recordFieldMap(0xF008).length !== 12 || !ctx.recordFieldMap(0xF008).some(r => r.off === 8 && r.width === 2 && r.field === 51) || !ctx.recordFieldMap(0xF008).some(r => r.off === 10 && r.width === 2 && r.field === 50)) fail('mechanics', 'the unit record does not split the flags into their two fields');
   else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${(html.match(/class="mechFig"/g) || []).length} figures drawn; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);

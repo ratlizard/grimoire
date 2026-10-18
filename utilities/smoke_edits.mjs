@@ -99,6 +99,10 @@ try {
   // Magpie's patch icon when there is one.
   ctx.showCategory('PATCHES');
   const tools = walk();
+  // The Changes tab is Build a Patch's Patch Generator since 17 October
+  // 2026, and an old link to it lands there.
+  if (!REGISTRY.has('changesHost') || tools.indexOf('Patch Generator') < 0) strayTab.push('Build a Patch has no Patch Generator');
+  if (!ctx.showCategory('CHANGES') || !REGISTRY.has('changesHost')) strayTab.push('a link to Changes does not reach the Patch Generator');
   ctx.showCategory('TOOLS');
   const toolsNow = walk();
   const patchLeaf = peek('TAB_LEAF_FOR').get('PATCHES');
@@ -117,7 +121,9 @@ try {
   const patchRows = ['Build a Patch'];
   for (const t of ['Scenario Maker', 'Gremlin Maker', 'Sprite Recolorer', 'Bugfix Patch Generator', 'Cythera in Spanish', 'Patch Comparison', 'File Comparison'])
     if (toolNames.indexOf(t) >= 0) strayTab.push('Tools still links to ' + t + ', inside Build a Patch');
-  if (toolNames.length < 10) strayTab.push('Tools shows ' + toolNames.length + ' rows');
+  if (toolNames.length < 8) strayTab.push('Tools shows ' + toolNames.length + ' rows');
+  for (const t of ['Combat Calculator', 'License', 'GitHub Repository', 'Changes', 'Preferences'])
+    if (toolNames.indexOf(t) >= 0) strayTab.push('Tools still has a row for ' + t);
   // Every fix of the program and of the resource fork is in one of the
   // Bugfixes lists (APP_FIX_GROUP), or the one list would drop it unseen.
   const ungrouped = peek(`APP_FIXES.filter(f => !DATA_FIX_GROUPS.some(g => g.id === appFixGroup(f))).map(f => f.id)

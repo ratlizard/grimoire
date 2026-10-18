@@ -83,15 +83,6 @@ function mechBars(rows, opts) {
       '%;background:' + (r.colour || opts.colour || MECH_INK.gold) + '"></span></span>' +
     '<span class="bVal">' + svEsc(r.text !== undefined ? r.text : String(r.value)) + '</span>').join('') + '</div>';
 }
-// One bar cut into shares, with a key under it. The shares are drawn in the
-// order given and the key prints each as a percentage.
-function mechStackBar(parts) {
-  const total = parts.reduce((s, p) => s + Math.max(0, p.value), 0) || 1;
-  return '<div class="mechStack">' + parts.map(p =>
-      '<i style="width:' + (100 * Math.max(0, p.value) / total).toFixed(3) + '%;background:' + p.colour + '" title="' + svEsc(p.label) + '"></i>').join('') + '</div>' +
-    '<div class="mechKeys">' + parts.map(p =>
-      '<span><i style="background:' + p.colour + '"></i>' + svEsc(p.label) + ' <b>' + (100 * p.value / total).toFixed(1) + '%</b></span>').join('') + '</div>';
-}
 // Columns, for a distribution. A bin may carry a second value, drawn as a
 // dashed rule across the column: that is how a sampled result is laid over
 // the exact one without a second chart.
@@ -308,48 +299,6 @@ function diceSimHtml() {
   return out;
 }
 
-/* COMBAT, WITH THE NUMBERS TURNED UP AND DOWN. The rule is six terms and two
-   rolls, and no amount of restating it says what a shield is worth or how
-   much of a fight is the weapon. So the terms are controls and the picture
-   answers: the share of blows that miss, are parried and land; the margin's
-   own distribution, which is the triangle two rolls always make, with the
-   parry eating into it from the left; and how often each of the game's eight
-   words for a blow would be printed.
-
-   The weapon list is the archive's own -- gearTable(), the same rows the
-   table under this shows -- so a modded archive tunes the sliders to its own
-   weapons. It is rebuilt on every render of the sheet rather than memoised
-   for the session, and cleared with everything else archive-keyed. */
-function mechWeapons() {
-  if (!DERIVED.MECH_WEAPONS) {
-    try {
-      DERIVED.MECH_WEAPONS = gearTable().filter(g => g.damage !== null && g.damage !== undefined && g.damage > 0)
-        .sort((a, b) => b.damage - a.damage);
-    } catch (e) { DERIVED.MECH_WEAPONS = []; }
-  }
-  return DERIVED.MECH_WEAPONS;
-}
-function mechShields() {
-  try { return gearTable().filter(g => g.block !== null && g.block !== undefined).sort((a, b) => b.block - a.block); }
-  catch (e) { return []; }
-}
-function combatSimParams() {
-  const el = id => document.getElementById(id);
-  const val = (id, dflt) => { const e = el(id); return e && e.value !== undefined && e.value !== '' ? Number(e.value) : dflt; };
-  const ws = mechWeapons();
-  const pt = val('cbWeapon', ws.length ? ws[0].pt : 0);
-  const weapon = ws.find(w => w.pt === pt) || ws[0] || { name: 'a bare hand', damage: 3, skill: 'Barehand' };
-  const shields = mechShields();
-  const shieldOn = (() => { const e = el('cbShield'); return e ? !!e.checked : true; })();
-  const shield = shields.length ? shields[0] : null;
-  return {
-    weapon, shield: shieldOn ? shield : null,
-    attackerReflex: val('cbAtkRef', 20), defenderReflex: val('cbDefRef', 20), body: val('cbBody', 20),
-    bodyForReflex: (() => { const e = el('cbBodyRef'); return e ? !!e.checked : false; })(),
-    weaponSkill: val('cbSkill', 8), attackSkill: val('cbAtk', 4), defenceSkill: val('cbDef', 4),
-    enchant: 0
-  };
-}
 // Who fights with the body: how many units carry the bit 0xE88 tests, and
 // whether the hero's does, the hero being character 1 and its unit the one
 // whose prop type is the hero's. Nothing without the program, which is what
@@ -364,92 +313,6 @@ function combatBodyUnitsText(bit) {
   const chips = units.map(m => { const k = ms.indexOf(m); return svLink(propDisplayName(m.proptype) || ('unit ' + k), 'showMonsterDetail(' + k + ')'); });
   return ' (' + countLink(String(units.length), 'The ' + units.length + ' units that fight with their body', chips) + ' of the ' + all + ' units' + (hero ? (units.includes(hero) ? ', the hero’s among them' : ', not the hero’s') : '') + ')';
 }
-// How many values the attack routine's body roll takes: Random(0, (body - 12)
-// / 4 + 1), the 12, the 4 and the 1 read off 0xE90 and 0x3042, the division
-// the script's, which drops the fraction. Nothing when any of them was not
-// read, and then the figure is the weapon's alone and says nothing of body.
-function combatBodyRoll(body, ar) {
-  if (!ar || !ar.bodyRoll || !ar.scale || !ar.scale.div || !ar.bodyAddVal) return 0;
-  return Math.trunc((body - ar.scale.sub) / ar.scale.div) + ar.bodyAddVal.v;
-}
-// `cb` is combatRules(): the rolls, the damage's added constant and the
-// blow words, all read off the routines.
-function combatSimHtml(p, cb) {
-  let ar = null;
-  try { ar = attackRules(); } catch (e) { quiet(e, 'the attack routine, for the body roll'); }
-  const bodyRoll = combatBodyRoll(p.body, ar);
-  const model = {
-    // As shipped the resolver's weapon-skill term adds nothing to an armed
-    // blow (combatRules().skillOffLoop), and every weapon here is armed.
-    // A unit flagged so starts the margin from its body (cb.bodyForReflex).
-    attackerReflex: p.bodyForReflex && cb.bodyForReflex ? p.body : p.attackerReflex, defenderReflex: p.defenderReflex, weaponSkill: cb.skillOffLoop ? 0 : p.weaponSkill,
-    attackSkill: p.attackSkill, defenceSkill: p.defenceSkill, enchant: p.enchant || 0,
-    damage: p.weapon.damage, shieldBlock: p.shield ? p.shield.block : null, shieldSkill: p.shield ? p.weaponSkill : 0,
-    roll: cb.roll.v, rollDefender: cb.rollDefender.v, dmgAdd: cb.dmgAdd.v, bodyRoll
-  };
-  const words = cb.words, top = words.length ? Math.max.apply(null, words.map(w => w.below)) : null;
-  const x = mechCombatExact(model, words, cb.last ? cb.last.word : '');
-  const pairs = mechDistPairs(x.margin);
-  const lo = pairs[0][0], hi = pairs[pairs.length - 1][0], peak = Math.max.apply(null, pairs.map(q => q[1]));
-  // The bar and the number beside it are the same quantity -- the share of
-  // ALL exchanges, not of the hits. They were not, for one afternoon, and a
-  // bar twice the length of its own label is the sort of thing a reader
-  // notices before the author does.
-  const blows = x.words.filter(w => w.p > 0.0005).map((w, i) => ({
-    label: w.word, value: 100 * w.p, text: (100 * w.p).toFixed(1) + '%',
-    colour: MECH_SERIES[i % MECH_SERIES.length], title: w.word + (w.below ? ', under ' + w.below + ' points' : top !== null ? ', ' + top + ' points or more' : '')
-  }));
-  return mechFig('One exchange: ' + p.weapon.name + (p.shield ? ' against a ' + p.shield.name : ', unshielded'),
-    mechStackBar([
-      { label: 'lands', value: x.hit, colour: MECH_INK.hit },
-      { label: 'parried', value: x.parry, colour: MECH_INK.parry },
-      { label: 'misses', value: x.miss, colour: MECH_INK.miss }
-    ]),
-    'A blow that lands does <b>' + x.meanDamage.toFixed(1) + '</b> points on average, so an exchange is worth <b>' +
-    (x.meanDamage * x.hit).toFixed(1) + '</b>.' +
-    (bodyRoll > 1 ? ' A body of ' + p.body + ' adds a random number from 0 to ' + (bodyRoll - 1) + ' to the ' + p.weapon.name + '’s ' + p.weapon.damage + '.' : '') +
-    (p.bodyForReflex && cb.bodyForReflex ? ' The margin starts from the body, ' + p.body + ', in place of reflex.' : '') +
-    (cb.skillOffLoop ? ' Of the skills, only Shield changes the result.' : '')) +
-  mechFig('The margin, and where it goes', mechPlot({
-    height: 130,
-    x: { min: lo, max: hi, ticks: [{ v: lo, label: String(lo) }, { v: 0, label: '0' }, { v: hi, label: '+' + hi }] },
-    y: { min: 0, max: peak * 1.08, ticks: [{ v: peak, label: (100 * peak).toFixed(1) + '%' }, { v: 0, label: '0' }] },
-    series: [{ points: pairs, colour: MECH_INK.gold, name: 'the margin' }],
-    marks: [{ x: 0, y: peak * 1.02, label: 'nothing or less misses' }]
-  }), 'Centered on <b>' + (x.constant > 0 ? '+' : '') + x.constant + '</b>.') +
-  (blows.length ? mechFig('What the game would print', mechBars(blows),
-    'The blows that land, as a share of all exchanges.') : '');
-}
-function combatSimUpdate() {
-  const el = document.getElementById('combatOut');
-  if (!el) return;
-  let cb = null;
-  try { cb = combatRules(); } catch (e) { cb = null; }
-  if (!cb || !cb.roll || !cb.rollDefender || !cb.dmgAdd) return;
-  el.innerHTML = combatSimHtml(combatSimParams(), cb);
-  for (const id of ['cbSkill', 'cbAtkRef', 'cbDefRef', 'cbBody']) {
-    const out = document.getElementById(id + 'V'), src = document.getElementById(id);
-    if (out && src) out.textContent = src.value;
-  }
-}
-function combatSimControls() {
-  const ws = mechWeapons(), sh = mechShields();
-  let cbRead = null;
-  try { cbRead = combatRules(); } catch (e) { quiet(e, 'the combat rules, for the controls'); }
-  const slider = (id, label, min, max, v) => '<label>' + svEsc(label) +
-    ' <input type="range" id="' + id + '" min="' + min + '" max="' + max + '" value="' + v + '" oninput="combatSimUpdate()"><b id="' + id + 'V">' + v + '</b></label>';
-  return '<div class="mechCtl">' +
-    (ws.length ? '<label>weapon <select id="cbWeapon" onchange="combatSimUpdate()">' +
-      ws.map(w => '<option value="' + w.pt + '">' + svEsc(w.name) + ' (' + w.damage + ')</option>').join('') + '</select></label>' : '') +
-    slider('cbSkill', 'your skill', 0, 15, 8) +
-    slider('cbAtkRef', 'your reflex', 5, 40, 20) +
-    slider('cbBody', 'your body', 5, 40, 20) +
-    (cbRead && cbRead.bodyForReflex ? '<label><input type="checkbox" id="cbBodyRef" onchange="combatSimUpdate()"> body for reflex</label>' : '') +
-    slider('cbDefRef', 'their reflex', 5, 40, 20) +
-    (sh.length ? '<label><input type="checkbox" id="cbShield" checked onchange="combatSimUpdate()"> they carry a ' + svEsc(sh[0].name) + '</label>' : '') +
-    '</div>';
-}
-
 /* The rest of the sheet's figures, one function each, all of the same shape:
    they are handed what the reader functions above have already read out of
    the archive and return markup. None of them reads a resource itself. */
@@ -3938,7 +3801,7 @@ function renderMechanicsSheet(value) {
         : 'A thrown weapon that <b>hits or meets a parry</b> goes into the target’s possessions, and you find it there when the target dies. One that misses lands on the target’s square. Nothing else brings it back.') + (ar.ammoSpent ? ' A launcher uses up one piece of ammunition per shot.' : '') : '',
       cb.words.length ? 'The game describes a blow by how much damage it does: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + srcNum(w.val)).join(', ') + (cb.last ? ', and <i>' + svEsc(cb.last.word) + '</i> above.' : '.') : ''
     ].filter(Boolean) : [],
-    cb && cb.roll && cb.rollDefender && cb.dmgAdd ? combatSimControls() + '<div id="combatOut">' + combatSimHtml(combatSimParams(), cb) + '</div>' : '', '');
+    '', '');
 
   // ---- damage to things ----
   // Every class with a TakeDamage of its own, read off its script
@@ -4963,6 +4826,19 @@ function renderMechanicsSheet(value) {
     sec.appendChild(note);
   }
 
+  // ---- what was edited this session, to download ----
+  {
+    /* The Changes tab until 17 October 2026, at the maintainer's word: "roll
+       the Changes tab into Build a Patch ... rename it Patch Generator". The
+       count of edits it wore is on the Tools tab now (refreshChangesBadge). */
+    add('changes', 'Patch Generator', null, '',
+      'What you have changed in the open file, and where to download it.', [], '');
+    const sec = sections[sections.length - 1].el;
+    const host = document.createElement('div');
+    host.id = 'changesHost';
+    sec.appendChild(host);
+  }
+
   // ---- the hero's colours, as a patch ----
   {
     add('herosprite', 'Sprite Recolorer', null, '',
@@ -5421,6 +5297,7 @@ function renderMechanicsSheet(value) {
   renderPatchBar();
   if (document.getElementById('spanishMaker')) renderSpanishMaker();
   if (document.getElementById('scenarioMaker')) renderScenarioMaker();
+  if (document.getElementById('changesHost')) renderChangesInto(document.getElementById('changesHost'));
 }
 // The cards open when a number on the sheet was followed into its script,
 // so that back from the script finds them open again and setMode's scroll

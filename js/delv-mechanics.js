@@ -77,8 +77,6 @@ function mechNegateDist(d) { const o = new Map(); for (const [v, p] of d) o.set(
 function mechDistMean(d) { let s = 0; for (const [v, p] of d) s += v * p; return s; }
 // The weight a distribution puts on the outcomes a predicate accepts.
 function mechDistWeight(d, pred) { let s = 0; for (const [v, p] of d) if (pred(v)) s += p; return s; }
-// Sorted [value, probability] pairs, which is what a chart wants.
-function mechDistPairs(d) { return [...d.entries()].sort((a, b) => a[0] - b[0]); }
 
 /* ---- the inn dice game --------------------------------------------------
    Three dice: the innkeeper's first (a), yours (b), the innkeeper's second

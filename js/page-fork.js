@@ -1805,7 +1805,8 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'PATCHES') { renderPatchesSheet(); return; }
   if (window.CUR_SUBN === 'CHEATS') { renderCheatsSheet(); return; }
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
-  if (window.CUR_SUBN === 'CHANGES') { renderChangesSheet(); return; }
+  // An old link to the Changes tab opens its section of Build a Patch.
+  if (window.CUR_SUBN === 'CHANGES') { renderPatchesSheet(); setTimeout(() => mechGo('changes'), 60); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
   // One tab per group of the rules sheet, and Hackery, all one renderer.
   if (MECH_GROUP_BY_VALUE[window.CUR_SUBN]) { renderMechanicsSheet(window.CUR_SUBN); return; }

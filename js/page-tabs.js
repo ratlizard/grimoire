@@ -1063,8 +1063,7 @@ const TAB_TREE = [
           // The tables as tables: the master index, the prop lists, the
           // 0xF0xx game data (monster stats among them) and the creation stats.
           { id: 'datafork', label: 'Data Fork',     tile: 0x237, values: ['DATAFORK', '128', '239', '4'] },
-          { id: 'rsrcfork', label: 'Resource Fork', tile: 0x238, values: ['MACRSRC'] },
-          { id: 'changes',  label: 'Changes',       tile: 0x2EE, values: ['CHANGES'] } ] },   // blacksmith's hammer
+          { id: 'rsrcfork', label: 'Resource Fork', tile: 0x238, values: ['MACRSRC'] } ] },
       { id: 'cythera', label: 'Cythera (App)', tile: 0x231, finder: 'APPL', children: [       // the lit torch
           { id: 'apppef',  label: 'Data Fork',     tile: 0x237, crsr: 257, wip: true, values: ['APPPEF'] },
           // The same fork read as what it is for: the menus, the dialogs and
@@ -1108,10 +1107,11 @@ const TAB_TREE = [
   // sister pages, which are not part of the archive.
   // Build a Patch was a tab under Data from 27 September 2026, and is
   // reached from a row of Tools since 17 October 2026, at the maintainer's
-  // word ("move out completely"): its value lights Tools. Its icon, worn by
+  // word ("move out completely"): its value lights Tools, as does CHANGES,
+  // the Changes tab that became its Patch Generator the same day. Its icon, worn by
   // that row (BUILD_A_PATCH_ICON), is Magpie's DelP when a Magpie archive has been opened on this
   // device (magpieIcon) and the fishing pole (0x29A) otherwise.
-  { id: 'tools', label: 'Tools', tile: 0x2A9, tileOpen: 0x2AD, values: ['TOOLS', 'PATCHES'] }       // a wheelbarrow, another frame of it when selected: the maintainer's pick, 16 September 2026; it was the anvil (0x2E0)
+  { id: 'tools', label: 'Tools', tile: 0x2A9, tileOpen: 0x2AD, values: ['TOOLS', 'PATCHES', 'CHANGES'] }       // a wheelbarrow, another frame of it when selected: the maintainer's pick, 16 September 2026; it was the anvil (0x2E0)
 ];
 
 // What the faded tabs with nothing behind them say when opened.
@@ -1272,7 +1272,9 @@ function renderTabRow(row, nodes, selectedId) {
     const t = document.createElement('span');
     t.textContent = n.label;
     b.appendChild(t);
-    if (n.id === 'changes') {
+    // The count of edits, on the tab that holds Build a Patch's Patch
+    // Generator (it was on the Changes tab).
+    if (n.id === 'tools') {
       const k = document.createElement('span');
       k.className = 'tabBadge';
       k.id = 'changesBadge';
@@ -1301,7 +1303,7 @@ function installerVersion() {
   return m ? m[0] : '';
 }
 
-// The count on the Changes tab, when that row is showing.
+// The count of edits on the Tools tab, when that row is showing.
 function refreshChangesBadge() {
   const k = document.getElementById('changesBadge');
   if (!k) return;

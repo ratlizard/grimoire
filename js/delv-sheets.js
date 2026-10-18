@@ -319,7 +319,7 @@ const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Build a Patch',
      other tabs; `ids` is all three, which is what mechGroupOf reads. */
   parts: [
     { title: 'Bugfixes', ids: ['datafixes'] },
-    { title: 'Content Patches', ids: ['herosprite', 'gremlins', 'newscenario', 'spanish'] },
+    { title: 'Content Patches', ids: ['changes', 'herosprite', 'gremlins', 'newscenario', 'spanish'] },
     { title: 'Data Comparison', ids: ['patchkinds', 'patches', 'compare'] }] };
 MECH_TOOL_GROUP.ids = [].concat(...MECH_TOOL_GROUP.parts.map(p => p.ids));
 // A group by the category value its tab is selected with.

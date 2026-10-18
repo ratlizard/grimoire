@@ -1018,11 +1018,7 @@ function renderToolsSheet() {
     ['Seldane Script Replacer', 'A TrueType font redrawn as the Seldane script.', at('FONTS', 'strikeSwap')],
     ['MIDI Importer', 'Open a tune under Music, then choose Replace with a MIDI File.', at('143')],
     ['Build a Patch', 'Bugfixes and the tools that make a patch, in one download.', () => showCategory('PATCHES'), BUILD_A_PATCH_ICON],
-    ['Combat Calculator', 'What a blow does, for the figures and the weapon you set.', sec('combat')],
-    ['Preferences', 'The game’s settings file, made with the options you choose.', at('PREFS')],
-    ['License', 'Reads the name in a registration file.', at('LICENSE')],
-    ['Changes', 'What you have changed in the open file, and where to download it.', at('CHANGES')],
-    ['GitHub Repository', 'Where this page and its tests live.', () => window.open('https://github.com/ratlizard/grimoire', '_blank', 'noopener')]]) {
+    ['Preferences File Generator', 'The game’s settings file, made with the options you choose.', at('PREFS')]]) {
     const d = document.createElement('div');
     d.className = 'toolRow';
     const b = document.createElement('button');
@@ -3441,7 +3437,7 @@ function showEditNotice(resid, what, count) {
   const el = document.getElementById('editNotice');
   if (!el) return;
   el.innerHTML = '0x' + resid.toString(16).toUpperCase() + ' ' + what + ' in memory, ' + count + ' resource' + (count === 1 ? '' : 's') +
-    ' changed this session. ' + svLink('Changes', "showCategory('CHANGES')", 'is where to download an edited file');
+    ' changed this session. ' + svLink('Patch Generator', "showCategory('CHANGES')", 'is where to download an edited file');
   el.style.display = '';
   if (_editNoticeTimer) clearTimeout(_editNoticeTimer);
   _editNoticeTimer = setTimeout(() => { el.style.display = 'none'; }, 15000);

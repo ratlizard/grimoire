@@ -1206,7 +1206,7 @@ function renderCheatsSheet() {
     '<li><b>The party’s records.</b> Where they stand, how strong and how well fed they are, and how many training ' +
     'points they have. ' + actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li>' +
     '<li><b>Any resource, as hex</b>, through Edit Bytes on the resource itself.</li>' +
-    '<li><b>Where to download the changed file.</b> ' + actionChip('Changes', "showCategory('CHANGES')") + '</li></ul></div>';
+    '<li><b>Where to download the changed file.</b> ' + actionChip('Patch Generator', "showCategory('CHANGES')") + '</li></ul></div>';
 
   if (kr && kr.cases.length) {
     const find = k => kr.cases.find(c => c.keys.some(x => x.v === k));
@@ -1958,7 +1958,7 @@ function renderSaveSheet() {
   if (isSave) h += saveByteMapHTML();
   h += '<div class="saveNote">Edit shows all 32 bytes of a record and what each one is. ' +
     'Edits change only the copy in this browser. To download the edited file, go to ' +
-    actionChip('Changes', "showCategory('CHANGES')") + '.</div>';
+    actionChip('Patch Generator', "showCategory('CHANGES')") + '.</div>';
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
   out.textContent = (isSave ? 'Saved game' : 'Character records') + ': ' +
     inUse.length + ' of 512 slots in use' + (hero && hero.zone ? ', the player in ' + zoneDisplayName(hero.zone) : '') + '.';
@@ -3895,7 +3895,7 @@ function renderCombatAISheet(which) {
       : 'The installer has no ' + (which === 'AIRULES' ? 'AI Scripting Document' : '.ai scripts') + ' in it.';
 }
 
-/* ---- Data > Cythera Data > Changes --------------------------------------
+/* ---- Tools > Build a Patch > Patch Generator (the Changes tab until 17 October 2026) ----
    What was edited this session, and the ways it leaves the page, grouped by
    where the file is going rather than by format. Edits live in memory only
    (see applyResourceEdit); this is the one place they are listed.
@@ -3908,13 +3908,8 @@ function renderCombatAISheet(which) {
    missing-resource-fork warning the exports already raise is printed here
    under the file routes, since a disk without the fork installs perfectly and
    then will not open. */
-function renderChangesSheet() {
-  stopAllViewActivity();
-  const grid = document.getElementById('sheetGrid');
-  const out = document.getElementById('output');
-  grid.style.display = '';
-  grid.innerHTML = '';
-  document.getElementById('singleControls').style.display = 'none';
+function renderChangesInto(host) {
+  host.innerHTML = '';
   const box = document.createElement('div');
   box.className = 'changesView';
   const edited = Array.from(window.EDITED_RESIDS || []).sort((a, b) => a - b);
@@ -3929,8 +3924,7 @@ function renderChangesSheet() {
       'map square, appear here to download. Reloading the page loses them.';
     box.appendChild(head);
     box.appendChild(p);
-    grid.appendChild(box);
-    out.textContent = 'No edits this session.';
+    host.appendChild(box);
     return;
   }
   head.textContent = edited.length + ' resource' + (edited.length === 1 ? '' : 's') +
@@ -4000,9 +3994,7 @@ function renderChangesSheet() {
     w.textContent = warn;
     box.appendChild(w);
   }
-  grid.appendChild(box);
-  out.textContent = edited.length + ' edited resource' + (edited.length === 1 ? '' : 's') +
-    '; every download below writes the rebuilt file shown on screen.';
+  host.appendChild(box);
 }
 
 /* ---- Records: the tables the scenario is built from -----------------------
