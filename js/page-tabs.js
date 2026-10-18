@@ -913,6 +913,9 @@ function ringListingAt(at) {
    type out of the application's bundle, `crsr` a colour cursor in its
    resource fork. The half-disk pair above still stands for Cythera Data's two
    forks; the application's two wear crsr 257 and 259, the maintainer's pick. */
+// Build a Patch's icon, worn by its row on Tools now it has no tab (see the
+// Tools entry below).
+const BUILD_A_PATCH_ICON = { tile: 0x29A, magpie: 'DelP' };
 const TAB_TREE = [
   // World is a leaf at the top level, like Tools: it is not a folder of
   // galleries but one view, the 256x256 world map with every way off it
@@ -1093,17 +1096,6 @@ const TAB_TREE = [
       // `Areg`, so Cythera's bundle has no icon for it; it wears the ring,
       // prop 307, for the name of the thing that makes one.
       { id: 'license', label: 'License', tile: 0x221, values: ['LICENSE'] },
-      // Patches, a tab of their own since 27 September 2026 (they were
-      // sections of Tools). A Magpie patch is a DelP file with Magpie's
-      // creator, so Cythera's bundle has no icon for one: the icon is
-      // Magpie's, its bundle's FREF for DelP, the Delver document frame with
-      // a square patched into its corner. The tab wears it when the file open
-      // is a patch rather than Cythera Data (openFileIsPatch), the
-      // maintainer's rule, and the fishing pole otherwise (0x29A, the
-      // maintainer's pick; it was the cloth). It is not ours to ship,
-      // so it is there once a Magpie archive has been opened on this device
-      // (magpieIcon, which remembers it).
-      { id: 'patches', label: 'Build a Patch', tile: 0x29A, magpie: 'DelP', values: ['PATCHES'] },
       // The folder's own icon, a folder with an axe across it, drawn in 1999
       // for these files and no others; the rolling pin stands in before a
       // file is open.
@@ -1112,7 +1104,12 @@ const TAB_TREE = [
           { id: 'airules',   label: 'Rules',   tile: 0x811, wip: true, values: ['AIRULES'] } ] } ] },  // the hay target
   // Every tool on the site by name, each a link to where it is, and the
   // sister pages, which are not part of the archive.
-  { id: 'tools', label: 'Tools', tile: 0x2A9, tileOpen: 0x2AD, values: ['TOOLS'] }       // a wheelbarrow, another frame of it when selected: the maintainer's pick, 16 September 2026; it was the anvil (0x2E0)
+  // Build a Patch was a tab under Data from 27 September 2026, and is
+  // reached from a row of Tools since 17 October 2026, at the maintainer's
+  // word ("move out completely"): its value lights Tools. Its icon, worn by
+  // that row (BUILD_A_PATCH_ICON), is Magpie's DelP when a Magpie archive has been opened on this
+  // device (magpieIcon) and the fishing pole (0x29A) otherwise.
+  { id: 'tools', label: 'Tools', tile: 0x2A9, tileOpen: 0x2AD, values: ['TOOLS', 'PATCHES'] }       // a wheelbarrow, another frame of it when selected: the maintainer's pick, 16 September 2026; it was the anvil (0x2E0)
 ];
 
 // What the faded tabs with nothing behind them say when opened.

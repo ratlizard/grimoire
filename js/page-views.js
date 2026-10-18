@@ -1001,7 +1001,7 @@ function renderToolsSheet() {
      choice of 11 October 2026, after a pass that made every row a verb
      phrase and was put back; it sets aside, for a tool's heading, the rule
      of 1 October that a heading naming an action reads as one. smoke_edits
-     holds each Patches row to a heading Patches shows. The
+     holds the Build a Patch row to that page. The
      tools stay where they are: each is drawn beside the reading it shares
      with its tab, which is why Patches and Preferences left this sheet. */
   const sec = id => () => { const g = mechGroupOf(id); if (g && showCategory(g.value)) setTimeout(() => mechGo(id), 60); };
@@ -1009,7 +1009,7 @@ function renderToolsSheet() {
     if (!showCategory(cat) || !id) return;
     setTimeout(() => { const el = document.getElementById(id); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
   };
-  for (const [label, note, go] of [
+  for (const [label, note, go, icon] of [
     ['Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
       () => { showCategory('135'); openDitherTool(); }],
     ['Color-Cycling Canvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener')],
@@ -1017,13 +1017,7 @@ function renderToolsSheet() {
     ['Font Replacer', 'A TrueType font in place of the game’s.', at('FONTS', 'fontSwap')],
     ['Seldane Script Replacer', 'A TrueType font redrawn as the Seldane script.', at('FONTS', 'strikeSwap')],
     ['MIDI Importer', 'Open a tune under Music, then choose Replace with a MIDI File.', at('143')],
-    ['Bugfix Patch Generator', 'The fixes you choose, in your patch.', sec('datafixes')],
-    ['Sprite Recolorer', 'A sprite in other colors, in your patch.', sec('herosprite')],
-    ['Gremlin Maker', 'A script the game runs at a moment you choose, in your patch.', sec('gremlins')],
-    ['Scenario Maker', 'A copy of Cythera Data with the world emptied, to start a new scenario.', sec('newscenario')],
-    ['Cythera in Spanish', 'A Spanish copy of the open file.', sec('spanish')],
-    ['Patch Comparison', 'Open a patch to see what it changes.', sec('patches')],
-    ['File Comparison', 'What differs between two game files.', sec('compare')],
+    ['Build a Patch', 'Bugfixes and the tools that make a patch, in one download.', () => showCategory('PATCHES'), BUILD_A_PATCH_ICON],
     ['Combat Calculator', 'What a blow does, for the figures and the weapon you set.', sec('combat')],
     ['Preferences', 'The game’s settings file, made with the options you choose.', at('PREFS')],
     ['License', 'Reads the name in a registration file.', at('LICENSE')],
@@ -1034,7 +1028,13 @@ function renderToolsSheet() {
     const b = document.createElement('button');
     b.className = 'secondary';
     b.style.cssText = 'width:auto;margin:0';
+    // A row for a tab that left the tab bar wears that tab's icon.
     b.textContent = label;
+    if (icon) {
+      const c = navIconCanvas(icon, 18);
+      c.style.display = 'inline-block'; c.style.verticalAlign = 'middle'; c.style.margin = '0 6px 0 0';
+      b.insertBefore(c, b.firstChild);
+    }
     b.title = note;
     b.onclick = go;
     d.appendChild(b);

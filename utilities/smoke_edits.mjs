@@ -102,7 +102,10 @@ try {
   ctx.showCategory('TOOLS');
   const toolsNow = walk();
   const patchLeaf = peek('TAB_LEAF_FOR').get('PATCHES');
-  if (!patchLeaf || patchLeaf.id !== 'patches' || !patchLeaf.parent || patchLeaf.parent.id !== 'data' || patchLeaf.magpie !== 'DelP') strayTab.push('PATCHES is not the Patches tab under Data with Magpie\u2019s DelP icon');
+  // Since 17 October 2026 Build a Patch has no tab: its value lights Tools,
+  // and a row there opens it.
+  if (!patchLeaf || patchLeaf.id !== 'tools') strayTab.push('PATCHES does not light the Tools tab');
+  if (peek(`(function find(ns) { return ns.some(n => n.id === 'patches' || (n.children && find(n.children))); })(TAB_TREE)`)) strayTab.push('Build a Patch still has a tab of its own');
   /* Tools names every tool on the site and links to it (11 October 2026),
      so a section's title is on Tools once, as its row's name, and the
      section itself is still drawn only by Patches. A row that opens a
@@ -111,7 +114,9 @@ try {
      is not zero. */
   const toolNames = [];
   (function rows(el) { if (el.className === 'toolRow') toolNames.push(el.children[0].textContent); else (el.children || []).forEach(rows); })(REGISTRY.get('sheetGrid'));
-  const patchRows = ['Scenario Maker', 'Gremlin Maker', 'Sprite Recolorer', 'Bugfix Patch Generator', 'Cythera in Spanish', 'Patch Comparison', 'File Comparison'];
+  const patchRows = ['Build a Patch'];
+  for (const t of ['Scenario Maker', 'Gremlin Maker', 'Sprite Recolorer', 'Bugfix Patch Generator', 'Cythera in Spanish', 'Patch Comparison', 'File Comparison'])
+    if (toolNames.indexOf(t) >= 0) strayTab.push('Tools still links to ' + t + ', inside Build a Patch');
   if (toolNames.length < 10) strayTab.push('Tools shows ' + toolNames.length + ' rows');
   // Every fix of the program and of the resource fork is in one of the
   // Bugfixes lists (APP_FIX_GROUP), or the one list would drop it unseen.
@@ -120,7 +125,7 @@ try {
   if (ungrouped.length) strayTab.push('fixes in no Bugfixes list: ' + ungrouped.join(', '));
   for (const t of patchRows) {
     if (toolNames.indexOf(t) < 0) strayTab.push('Tools has no row for ' + t);
-    if (tools.indexOf(t) < 0) strayTab.push('Tools links to ' + t + ', which Patches does not show');
+    if (t !== 'Build a Patch' && tools.indexOf(t) < 0) strayTab.push('Tools links to ' + t + ', which Patches does not show');
   }
   // Every row that stays on the page leaves Tools for another tab when
   // clicked; a row whose category the page does not have would stay put.
@@ -818,15 +823,15 @@ try {
       // The Patches tab wears it only while a patch is the file open: with
       // Cythera Data open, the cloth; with the Pumpkin Patch itself as the
       // open archive, Magpie's icon.
-      const spec = peek('TAB_LEAF_FOR').get('PATCHES');
+      const spec = peek('BUILD_A_PATCH_ICON');
       const withData = ctx.navIconFromFork(spec);
       sandbox.__pumpkin = ctx.extractDelverArchive(new Uint8Array(readFileSync(MAGPIE))).bytes;
       peek('(window.__keptArc = ARCHIVE, ARCHIVE = openDelverArchive(window.__pumpkin), 0)');
       let withPatch = null;
       try { withPatch = ctx.navIconFromFork(spec); } finally { peek('(ARCHIVE = window.__keptArc, 0)'); }
-      if (withData) fail('patch icon', 'the Patches tab wears a patch icon with Cythera Data open');
-      else if (withPatch !== icon) fail('patch icon', 'with a patch as the open file the Patches tab does not wear Magpie\u2019s icon');
-      else console.log('  patch icon: Magpie\u2019s DelP icon, ' + icon.width + 'x' + icon.height + ', out of the Pumpkin Patch archive and none out of the data file; the Patches tab wears it with the patch open and not with Cythera Data');
+      if (withData) fail('patch icon', 'the Build a Patch row wears a patch icon with Cythera Data open');
+      else if (withPatch !== icon) fail('patch icon', 'with a patch as the open file the Build a Patch row does not wear Magpie\u2019s icon');
+      else console.log('  patch icon: Magpie\u2019s DelP icon, ' + icon.width + 'x' + icon.height + ', out of the Pumpkin Patch archive and none out of the data file; the Build a Patch row wears it with the patch open and not with Cythera Data');
     }
   }
 } catch (e) { fail('patch icon', e); }
