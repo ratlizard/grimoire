@@ -1056,8 +1056,17 @@ async function loadApplicationFork() {
 // gallery, the detail view and the download buttons cannot disagree about
 // which types are decodable.
 const _rsrcArtifactCache = new Map();
+/* Keyed by the fork as well as the resource: the application's fork, the
+   data file's, and any other (the installer's own, Register Cythera's,
+   Magpie's) a number of its own. Until 17 October 2026 every fork but the
+   application's shared 'd:', so Register Cythera's icon 128 came back as
+   the VISE installer's, drawn first under the same key. */
+const _rsrcForkKeys = new WeakMap();
+let _rsrcForkCount = 0;
 function rsrcArtifacts(fork, type, entry) {
-  const key = (fork === window.APP_RSRC ? 'a:' : 'd:') + type + ':' + entry.id;
+  let fk = fork === window.APP_RSRC ? 'a' : fork === window.CYTHERA_RSRC ? 'd' : _rsrcForkKeys.get(fork);
+  if (!fk) { fk = 'f' + (++_rsrcForkCount); _rsrcForkKeys.set(fork, fk); }
+  const key = fk + ':' + type + ':' + entry.id;
   if (_rsrcArtifactCache.has(key)) return _rsrcArtifactCache.get(key);
   let out = [];
   try { out = exportArtifacts(fork, type, entry, fork.dataOf(type, entry)) || []; }

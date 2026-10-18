@@ -708,7 +708,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (lacking.length) fail('data tab icons', 'a Data tab draws no icon from the open application: ' + lacking.join(', '));
       else if (plain.length) fail('data tab icons', 'a tab that names no file icon got one anyway: ' + plain.join(', '));
       else if (sameCursor) fail('data tab icons', 'both application forks resolved to the same cursor, so one of the two ids is wrong');
-      else if (art('license') === art('cythera')) fail('data tab icons', 'the License tab wears Cythera\u2019s icon, not Register Cythera\u2019s');
+      else if (art('license') === art('cythera') || (haveVise && art('license') === art('installer'))) fail('data tab icons', 'the License tab wears another program\u2019s icon, not Register Cythera\u2019s');
       else console.log('  data tab icons: ' + want.length + ' Data tabs drawn from the file itself (' +
         node('apppef').crsr + ' and ' + node('apprsrc').crsr + ' for the application’s two forks, the CombatAI folder, Register Cythera' +
         (haveVise ? ' and the VISE mark' : '') + ' out of the installer), the two TEXT tabs' +
