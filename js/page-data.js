@@ -3675,6 +3675,13 @@ function installerIcon(which) {
         const id = bundleIconMap(fork, 'vise')['APPL'];
         if (id !== undefined) art = iconFromFork(fork, id);
       }
+    } else if (which.startsWith('app:')) {
+      // A program in the installer, by name, wearing the icon the Finder
+      // gives it (installerEntryIcon): "app:Register Cythera", whose icon
+      // the License tab wears (the maintainer, 17 October 2026).
+      const tail = '/' + which.slice(4);
+      const e = inst.archive.entries.find(x => x.type === 'APPL' && x.path.slice(-tail.length) === tail);
+      if (e) art = installerEntryIcon(e);
     } else {
       // The folder's own icon file, by the path the catalog gives it. The
       // name ends in a carriage return, which is what makes it invisible.

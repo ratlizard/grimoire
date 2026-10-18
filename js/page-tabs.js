@@ -1093,9 +1093,11 @@ const TAB_TREE = [
       // The registration file, beside the settings file it sits beside on a
       // Mac (the maintainer's list of 6 October 2026: a stub, with a link to
       // Decoder Ring). Its type and creator are Ambrosia's, `Alic` and
-      // `Areg`, so Cythera's bundle has no icon for it; it wears the ring,
-      // prop 307, for the name of the thing that makes one.
-      { id: 'license', label: 'License', tile: 0x221, values: ['LICENSE'] },
+      // `Areg`, so Cythera's bundle has no icon for it. It wears Register
+      // Cythera's icon, out of the installer, the program that makes one
+      // (the maintainer, 17 October 2026), and the ring, prop 307, before
+      // an installer is open.
+      { id: 'license', label: 'License', tile: 0x221, installed: 'app:Register Cythera', values: ['LICENSE'] },
       // The folder's own icon, a folder with an axe across it, drawn in 1999
       // for these files and no others; the rolling pin stands in before a
       // file is open.

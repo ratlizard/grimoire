@@ -682,7 +682,9 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // Combat AI comes out of the installer rather than the game: the custom
       // icon of the folder, which on a classic Mac is an invisible Icon file
       // inside it, at -16455.
-      const want = ['cytheradata', 'cythera', 'savegame', 'apppef', 'apprsrc', 'combatai'];
+      // License wears Register Cythera's icon, the program in the installer
+      // that makes a license, which must not be Cythera's own.
+      const want = ['cytheradata', 'cythera', 'savegame', 'apppef', 'apprsrc', 'combatai', 'license'];
       /* The VISE mark is in the installer's own resource fork, and whether
          that fork is in hand depends on the container it arrived in. A
          MacBinary carries it; archive.org's four-in-one StuffIt compressed it
@@ -706,8 +708,9 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (lacking.length) fail('data tab icons', 'a Data tab draws no icon from the open application: ' + lacking.join(', '));
       else if (plain.length) fail('data tab icons', 'a tab that names no file icon got one anyway: ' + plain.join(', '));
       else if (sameCursor) fail('data tab icons', 'both application forks resolved to the same cursor, so one of the two ids is wrong');
+      else if (art('license') === art('cythera')) fail('data tab icons', 'the License tab wears Cythera\u2019s icon, not Register Cythera\u2019s');
       else console.log('  data tab icons: ' + want.length + ' Data tabs drawn from the file itself (' +
-        node('apppef').crsr + ' and ' + node('apprsrc').crsr + ' for the application’s two forks, the CombatAI folder' +
+        node('apppef').crsr + ' and ' + node('apprsrc').crsr + ' for the application’s two forks, the CombatAI folder, Register Cythera' +
         (haveVise ? ' and the VISE mark' : '') + ' out of the installer), the two TEXT tabs' +
         (haveVise ? '' : ' and the installer, whose fork this container compressed with Arsenic,') + ' on their tiles');
     }
