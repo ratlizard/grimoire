@@ -2006,6 +2006,7 @@ function fixReadDiffHTML(id, a, b) {
 function fixAppChanges(f, a, host) {
   const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
   if (f.bug) host.appendChild(el('p', 'mechSub', 'The bug: ' + f.bug + '.'));
+  if (f.script) host.appendChild(el('p', 'mechSub', 'For a script: ' + f.script + '.'));
   const hx = n => '0x' + n.toString(16).toUpperCase();
   const where = at => {
     const r = typeof exeRoutineAt === 'function' ? exeRoutineAt(at) : null;

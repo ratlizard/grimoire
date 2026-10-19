@@ -26,6 +26,9 @@
                  section and app_patch.mjs leave it out unless it is chosen
      bug         the entry's title in the workbench's bugs.md, where there
                  is one
+     script      a hook's method and what it is sent, for a script's
+                 writer, shown under the fix; the title says what it lets a
+                 script do (19 October 2026)
      played      where and how the fix was seen working in the game, the
                  unpatched program beside it showing the bug; with none the
                  Patches section marks the fix "(untested)". The maintainer
@@ -112,7 +115,7 @@ const APP_FIXES = [
       { at: 0x54258, was: [0x28000000, 0x41820010, 0x881E0000, 0x28000008, 0x40820094],
         asm: ['andi. 0, 0, 223       ; the moved bit aside', 'beq @0x5426C', 'cmplwi 0, 8', 'bne @0x542FC', 'nop'] }] },
 
-  { id: 'weight-contents', kind: 'fix', title: 'An item type’s weight counts only that weight, not also the load of whatever thing has the same number as the type (GetWeight)',
+  { id: 'weight-contents', kind: 'fix', title: 'An item’s weight is its own, instead of also counting the load of an unrelated thing that shares its number',
     bug: 'The scale gives wrong weights',
     sites: [{ at: 0x958A4, was: [0x4BFC01B5], asm: ['li 3, 0               ; was bl GetCurInvEncumb'] }] },
 
@@ -130,14 +133,14 @@ const APP_FIXES = [
   // be empty is written as one free slot (flags 0xFF, what the routine's
   // own trimming loop takes for unused), 16 bytes, which is copied like
   // any other and replaces what was there.
-  { id: 'empty-zone-save', kind: 'fix', title: 'A zone left with nothing in it is saved as one free slot, so Tavara\u2019s island no longer doubles what you carry (SaveLevelProps)',
+  { id: 'empty-zone-save', kind: 'fix', title: 'A zone left with nothing in it is saved as one free slot, so Tavara\u2019s island no longer doubles what you carry',
     bug: 'Saving and reverting around Tavara\u2019s ring duplicates everything carried',
     played: 'Mac OS 8.5, 11 October 2026, the program with the fix alone and with every fix beside the stock one, the hero given stairs to the fortress and to Land King Hall: a save on the island without the fortress, the hall and a save, the island again, and the save then has 36 carried records on the stock program, the hero\u2019s six things twice, and 18 with the fix alone and with every fix. The board\u2019s route on foot (the island and a save, the ring on, the Stronghold, the ring off and a save, Revert To Saved, out by the west edge and onto the fortress\u2019s square): 34 carried on the stock program, 17 with the fix alone. Fork, PowerPC, 12 October 2026: after the save in the hall the stock program\u2019s save still holds the island\u2019s list with the 18 carried records and the fixed ones\u2019 do not; the step back to the island did not land there, so the doubled count is not shown in the fork. Mac OS 8.5, 12 October 2026, ten rounds of the island, a save, the hall, a save: the stock program stops on the tenth return with "Sorry - there has been a fatal error:Out of space for new props!", 288 carried records after four rounds; the program with the fix alone ends the ten with 18',
     sites: [{ at: 0x6EF8, was: [0x54062036], asm: ['bl @cave               ; was slwi 6, 0, 4: the length, 16 a record'] }],
     cave: ['slwi 6, 0, 4', 'cmpwi 6, 0', 'bnelr', 'li 0, 255             ; the first slot after the characters, marked free',
            'stb 0, 0(5)', 'li 6, 16', 'blr'] },
 
-  { id: 'books-window', kind: 'fix', title: 'Taking a thing out redraws the window of whatever held it (RemoveItem)',
+  { id: 'books-window', kind: 'fix', title: 'Taking a thing out redraws the window of whatever held it',
     played: 'fork, PowerPC, 30 September 2026: a book handed to Selinus from an open pouch leaves its window',
     bug: 'You can hand in Sapphire Books in a container again and again',
     sites: [{ at: 0x95344,
@@ -161,7 +164,7 @@ const APP_FIXES = [
   // does not matter. The nop after each call goes (the calls are local, so
   // nothing is restored there) and the reload of the first word is the
   // register already holding it, which makes room for the one call more.
-  { id: 'take-window', kind: 'fix', title: 'Moving a thing redraws the window of whatever held it (TakeItem)',
+  { id: 'take-window', kind: 'fix', title: 'Moving a thing redraws the window of whatever held it',
     bug: 'A ring handed to Thersites still drawn in an open chest',
     sites: [{ at: 0x94B0C,
       was: [0x80DF0000, 0x7FA40734, 0x807F0000, 0x38000010, 0x54C5021E, 0x7CA42378, 0x5083023E, 0x907F0000, 0x7F63DB78, 0x38800002, 0x981F0000,
@@ -609,7 +612,7 @@ const APP_FIXES = [
            'four:', 'beq @take4', 'lwz 5, -30356(2)', 'lha 5, 0(5)', 'cmpw 4, 5', 'bne @done4',
            'take4:', 'extsh 0, 31', 'slwi 0, 0, 1', 'sthx 4, 30, 0', 'done4:', 'b @0x6B030'] },
 
-  { id: 'spell-glow', kind: 'fix', title: 'The game draws a creature’s spell glow on the creature, not on the thing its entry’s number names',
+  { id: 'spell-glow', kind: 'fix', title: 'The game draws a creature’s spell glow on the creature, not on an unrelated thing that shares its number',
     bug: 'A lich\'s spell glow and lightning come out of a chair',
     sites: [{ at: 0x99750, was: [0x7C640734], asm: ['b @cave               ; was extsh 4, 3'] }],
     cave: ['extsh 4, 3', 'rlwinm 3, 3, 16, 24, 31 ; the reference\'s type', 'cmpwi 3, 64', 'bne @as', 'cmpwi 4, 256', 'bge @creature',
@@ -667,7 +670,8 @@ const APP_FIXES = [
               'addi 3, 31, 2136       ; OffsetRect(2136(31), 0, ...), as before', 'li 4, 0'] }] },
 
   // ---- Hooks ----------------------------------------------------------------
-  { id: 'hook-take', kind: 'hook', method: 241, title: 'Method 241 on where a thing is going, with the thing, before the game weighs it: False rejects it, True puts it there unweighed',
+  { id: 'hook-take', kind: 'hook', method: 241, title: 'Scripts can refuse a thing being moved somewhere, or let it in without weighing it',
+    script: 'Method 241, sent to where a thing is going, with the thing, before the game weighs it: False refuses the move, True lets it in unweighed',
     sites: [{ at: 0x541EC, was: [0x5740063F], asm: ['b @cave               ; was clrlwi. 0, 26, 24'] }],
     cave: [
       'extsh. 5, 28', 'ble @none             ; nowhere to call', 'stwu 1, -64(1)', 'cmpwi 5, 256', 'bge @prop', 'oris 5, 5, 16448      ; a character, 0x4040', 'b @thing',
@@ -680,7 +684,8 @@ const APP_FIXES = [
       'taken:', 'b @0x54254            ; anything else: taken, unweighed',
       'none:', 'clrlwi. 0, 26, 24', 'b @0x541F0'] },
 
-  { id: 'hook-corpse', kind: 'hook', method: 242, title: 'Method 242 on a dying creature or character: a number is its corpse’s type and aspect word, 0 for none',
+  { id: 'hook-corpse', kind: 'hook', method: 242, title: 'Scripts can choose the corpse a creature or character leaves, or leave none',
+    script: 'Method 242, sent to the one dying: a number returned is its corpse’s type and aspect word, 0 for none',
     sites: [{ at: 0x46B70, was: [0x807F0004], asm: ['b @cave               ; was lwz 3, 4(31)'] }],
     cave: [
       'lhz 5, 80(1)          ; its character entry, as Die stores it', 'stwu 1, -64(1)', 'oris 5, 5, 16448',
@@ -688,7 +693,8 @@ const APP_FIXES = [
       'lwz 3, 4(31)          ; the unit, as NewProp is handed it', 'srwi. 4, 0, 28', 'beq @number', 'b @0x46B74            ; not a number: the unit’s own',
       'number:', 'sth 0, 130(1)', 'b @0x46B7C'] },
 
-  { id: 'hook-load', kind: 'hook', method: 243, title: 'Method 243 on the hero each time you begin, open or revert to a game',
+  { id: 'hook-load', kind: 'hook', method: 243, title: 'Scripts can act each time you begin, open or revert to a game',
+    script: 'Method 243, sent to the hero',
     played: 'fork, PowerPC, 28 September 2026: a 0x30F3 script set a flag',
     sites: [{ at: 0x14654, was: [0x80010068], asm: ['b @cave               ; was lwz 0, 104(1)'] }],
     cave: [
