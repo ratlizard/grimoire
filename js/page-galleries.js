@@ -479,7 +479,7 @@ function openDitherTool() {
   }
   ov.innerHTML =
     '<div class="dtPanel">' +
-    '<div class="dtHead">Ditherize an image' +
+    '<div class="dtHead">Graphics Ditherizer' +
       '<button class="linkbtn" onclick="document.getElementById(\'ditherTool\').remove()">close</button></div>' +
     '<input type="file" id="dtFile" accept="image/*">' +
     '<div class="dtRow"><label>Mode <select id="dtMode">' +

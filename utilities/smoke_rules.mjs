@@ -1483,7 +1483,7 @@ try {
   else if (spec.resources.length !== 11) fail('make a save', 'the file holds ' + spec.resources.length + ' resources, where a new game’s has eleven');
   else if (ha.body !== 21 || ha.reflex !== 14 || ha.mind !== 9 || ha.level !== 3 || !ha.health || ha.health !== ha.healthMax || ha.training !== cr.training.v) fail('make a save', 'the hero was not made as asked: ' + JSON.stringify(ha));
   else if (ha.proptype !== (cr.sprites[0].v & 0x3FF) || hb.proptype !== (cr.sprites[1].v & 0x3FF) || ha.proptype === hb.proptype) fail('make a save', 'the sprite chosen did not reach the hero: ' + ha.proptype + ' and ' + hb.proptype);
-  else if (!/Save Maker/.test(sheet) || !/makeSaveFromForm/.test(sheet)) fail('make a save', 'the Saved Game tab does not offer the maker with a scenario open');
+  else if (!/Save File Generator/.test(sheet) || !/makeSaveFromForm/.test(sheet)) fail('make a save', 'the Saved Game tab does not offer the maker with a scenario open');
   else {
     console.log(`  make a save: the creation script read with its lines; a new game for NewGame01 in ${spec.resources.length} resources, body ${ha.body}, level ${ha.level}, health ${ha.health}; the two sprites give two heroes`);
     /* The second half, 8 October 2026: the place, the hour and day, a named

@@ -730,10 +730,12 @@ function patchBaseSpec() {
    checkable: the one real patch on this disk arrives inside a StuffIt archive
    the page cannot decompress, so a check that needed the real file would skip
    on most machines and prove nothing. */
-function patchesOpenBytes(bytes, name) {
+function patchesOpenBytes(bytes, name, baseSpec) {
   const note = document.getElementById('patchNote');
   const say = (msg, bad) => { if (note) { note.textContent = msg; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
-  const base = patchBaseSpec();
+  // What the patch is compared with: the open file, or what the caller
+  // gives (View Comparison gives the file as it arrived).
+  const base = baseSpec || patchBaseSpec();
   if (!base) { say('No game file is open to compare the patch with.', true); return false; }
   let got;
   try { got = extractDelverArchive(bytes); }
@@ -2885,11 +2887,26 @@ function basketSay(m, bad) {
   const note = document.getElementById('patchBarNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
 }
+/* The visitor's own edits, which are in Your Patch whenever there are any
+   (the maintainer, 19 October 2026, when the Patch Generator's section of
+   that name went): a resource changed anywhere on the site (Edit Bytes, a
+   map square, a tune brought in from a MIDI file) and the game's font or
+   the Seldane script swapped in the resource fork. A resource an Apply to
+   Site Data wrote is the patch's own and not an edit. The edits are not a
+   part that can be taken out, since the file the patch is built on already
+   holds them; reloading the page is what drops them. */
+function basketEdits() {
+  const applied = window.BASKET_APPLIED || new Set();
+  const resids = [...(window.EDITED_RESIDS || [])].filter(r => !applied.has(r)).sort((a, b) => a - b);
+  const fonts = [window.FONT_SWAP && 'the swapped font', window.STRIKE_SWAP && 'the redrawn Seldane script'].filter(Boolean);
+  return { resids, fonts, count: resids.length + fonts.length };
+}
 // What the patch calls itself, which is what Magpie lists it by.
 function basketDescription() {
   const bits = [];
   const chosen = dataFixChosen();
   if (chosen.length) bits.push(dataFixDescription(chosen).replace(/^Fixes to Cythera chosen with Grimoire: /, 'fixes: ').replace(/\.$/, ''));
+  if (basketEdits().resids.length) bits.push('your edits');
   for (const p of window.PATCH_BASKET.parts) bits.push(p.label);
   let d = 'Made with Grimoire: ' + bits.join('; ') + '.';
   if (d.length > 255) d = d.slice(0, 254).replace(/\s+\S*$/, '') + '…';
@@ -2927,6 +2944,10 @@ function basketMerged() {
   for (const p of window.PATCH_BASKET.parts) layers.push(p);
   let data = basketBase();
   const by = new Map(), clash = [];
+  // The edits are in the file built on, so they are counted first, and a
+  // part that changes the same resource is said like any other clash.
+  const edits = basketEdits();
+  for (const id of edits.resids) by.set(id, 'your edits');
   for (const l of layers) {
     let m;
     try { m = mergeDelverPatch(data, l.w.bytes); }
@@ -2937,7 +2958,7 @@ function basketMerged() {
     }
     data = m.bytes;
   }
-  return { data, resids: [...by.keys()], layers, clash: [...new Set(clash)] };
+  return { data, resids: [...by.keys()], layers, edits, clash: [...new Set(clash)] };
 }
 // The site's resource fork with the chosen fixes it does not have yet, so
 // that the visitor's own changes to it (a font swapped in) are kept; null
@@ -2962,7 +2983,7 @@ function basketProgram() {
 function basketFiles() {
   const m = basketMerged();
   if (!m) return null;
-  if (!m.layers.length && !appFixChosen().length && !window.BACKSTAGE_CHOSEN.size) { basketSay('Your patch is empty.', true); return null; }
+  if (!m.layers.length && !m.edits.count && !appFixChosen().length && !window.BACKSTAGE_CHOSEN.size) { basketSay('Your patch is empty.', true); return null; }
   const fork = basketFork();
   if (!fork) return null;
   const prog = basketProgram();
@@ -2977,17 +2998,39 @@ function basketPatch() {
   if (!m) return null;
   if (!m.resids.length) { basketSay(m.layers.length ? 'Nothing in your patch changes the file.' : 'Your patch has nothing a Magpie patch can carry.', true); return null; }
   const spec = delverArchiveSpec(m.data);
-  const w = writeDelverPatch(spec, m.resids, { description: basketDescription(), typeCode: DELV_PATCH_EXPORT_TYPE });
+  // A resource an edit removed is not in the merged file, and a patch
+  // cannot remove one.
+  const have = new Set(spec.resources.map(r => r.resid));
+  const resids = m.resids.filter(id => have.has(id));
+  if (!resids.length) { basketSay('Nothing in your patch changes the file.', true); return null; }
+  const w = writeDelverPatch(spec, resids, { description: basketDescription(), typeCode: DELV_PATCH_EXPORT_TYPE });
   w.name = 'Grimoire Patch';
   return Object.assign(w, { merged: m });
 }
-// What a Magpie patch cannot carry, by name.
-function basketLeftOut() {
-  return DATA_RSRC_FIXES.filter(f => window.BACKSTAGE_CHOSEN.has(f.id)).map(f => f.title).concat(appFixChosen().map(f => f.title));
+// What a Magpie patch cannot carry, by name: the resource fork's fixes and
+// fonts, and the program's fixes. The disk holds Cythera Data alone beside
+// its install script, so the program's fixes are not on it either.
+function basketLeftOut(where) {
+  if (where === 'disk') return appFixChosen().map(f => f.title);
+  if (where !== 'magpie') return [];
+  return DATA_RSRC_FIXES.filter(f => window.BACKSTAGE_CHOSEN.has(f.id)).map(f => f.title).concat(basketEdits().fonts, appFixChosen().map(f => f.title));
+}
+/* As a Disk Image: Cythera Data as the replacement files have it, on a
+   disk with the Install and Play script that puts it in the game's folder
+   (buildEditedDiskImage), which is the Patch Generator section's disk image
+   of 17 October 2026 carried over, with the fixes and parts in it now. */
+function basketDisk() {
+  const r = basketFiles();
+  if (!r) return null;
+  const d = downloadEditedDiskImage(r.entries[0], r.resids.length);
+  if (!d) return null;
+  basketSay(d.said + (r.clash.length ? ' ' + r.clash.join(', ') + ' change the same thing, and the later one is kept.' : ''), d.bad);
+  return Object.assign(r, { disk: d.built });
 }
 function basketDownload() {
   const where = window.PATCH_BASKET.where;
   if (where === 'site') return basketApply();
+  if (where === 'disk') return basketDisk();
   if (where === 'files') {
     const r = basketFiles();
     if (!r) return null;
@@ -3043,7 +3086,7 @@ function basketApply() {
     if (typeof _rsrcArtifactCache !== 'undefined') _rsrcArtifactCache.clear();
     said.push('the program');
   }
-  if (!said.length) { basketSay('Your patch is empty.', true); return false; }
+  if (!said.length) { basketSay(basketEdits().count ? 'Your edits are already in the files this site has open.' : 'Your patch is empty.', !basketEdits().count); return !!basketEdits().count; }
   basketSay('Applied to ' + said.join(' and ') + ' on this site. Download them as replacement files whenever you like.');
   return true;
 }
@@ -3058,13 +3101,18 @@ function rsrcFixApplied(raw, id) {
   } catch (e) { quiet(e, 'whether a resource-fork fix is applied'); return false; }
 }
 // View Comparison: the patch opened in Patch Comparison, which lists what
-// it changes; nothing is changed.
+// it changes; nothing is changed. The section is opened, since its report
+// was drawn into a shut fold and the scroll to it went nowhere, so the
+// button seemed to do nothing (found 19 October 2026). It is compared
+// with the file as it arrived, so the visitor's own edits show as changes
+// rather than as what the open file already has.
 function basketShowPatch() {
   const w = basketPatch();
   if (!w) return false;
-  const ok = patchesOpenBytes(w.bytes, w.name);
-  const host = document.getElementById('patchReport');
-  if (ok && host && host.scrollIntoView) host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  let base = null;
+  try { base = window.PRISTINE_BYTES ? delverArchiveSpec(window.PRISTINE_BYTES) : null; } catch (e) { quiet(e, 'the file as it arrived, for View Comparison'); }
+  const ok = patchesOpenBytes(w.bytes, w.name, base);
+  if (ok) mechGo('patches');
   return ok;
 }
 /* The bar: what is in the patch, each part with a cross to take it out;
@@ -3092,8 +3140,17 @@ function renderPatchBar() {
     items.appendChild(c);
   };
   if (n) chip(n + (n === 1 ? ' fix' : ' fixes'), function () { fixPreset('none'); });
+  // The edits have no cross: the file the patch is built on holds them
+  // (basketEdits).
+  const ed = basketEdits();
+  if (ed.count) {
+    const c = el('span', 'patchBarChip', ed.count + (ed.count === 1 ? ' edit' : ' edits'));
+    c.title = 'What you changed on the site: ' + (ed.resids.length ? ed.resids.length + ' resource' + (ed.resids.length === 1 ? '' : 's') : '') +
+      (ed.resids.length && ed.fonts.length ? ', and ' : '') + ed.fonts.join(' and ') + '. Reloading the page drops them.';
+    items.appendChild(c);
+  }
   for (const p of b.parts) chip(p.label, function () { basketRemove(p.key); });
-  if (!n && !b.parts.length) items.appendChild(el('span', 'mechSub', 'Nothing yet. Choose fixes, or use Add to Patch below.'));
+  if (!n && !ed.count && !b.parts.length) items.appendChild(el('span', 'mechSub', 'Nothing yet. Choose fixes, or use Add to Patch below.'));
   /* Add File: a patch file joins Your Patch (basketAddFile). The input is
      hidden behind a link, as a file control is the size of a button. */
   const input = document.createElement('input');
@@ -3120,7 +3177,7 @@ function renderPatchBar() {
   /* The button says the verb and the menu the rest, "Download" and "as
      Replacement Files", so that the whole reads as the maintainer named it
      and the menu fits a phone beside the button. */
-  for (const [v, label] of [['files', 'as Replacement Files'], ['magpie', 'as a Magpie Patch'], ['site', 'to Site Data']]) {
+  for (const [v, label] of [['files', 'as Replacement Files'], ['disk', 'as a Disk Image'], ['magpie', 'as a Magpie Patch'], ['site', 'to Site Data']]) {
     const o = document.createElement('option');
     o.value = v; o.textContent = label; o.selected = b.where === v;
     sel.appendChild(o);
@@ -3129,7 +3186,7 @@ function renderPatchBar() {
   const dl = el('button', '', b.where === 'site' ? 'Apply' : 'Download');
   dl.style.cssText = 'width:auto;margin:0;padding:6px 14px';
   dl.onclick = basketDownload;
-  dl.disabled = !n && !b.parts.length;
+  dl.disabled = !n && !ed.count && !b.parts.length;
   row.appendChild(dl);
   row.appendChild(sel);
   host.appendChild(row);
@@ -3137,13 +3194,15 @@ function renderPatchBar() {
      phone while it was pinned to the screen): what the download is, what a
      patch leaves out and the rarer actions are behind More, on the bar's
      first line. */
-  // What a Magpie patch cannot carry, said whenever it is the choice and
-  // any of it is chosen, since it is easy to miss and costs a fix.
-  const left = b.where === 'magpie' ? basketLeftOut() : [];
-  if (left.length) host.appendChild(el('div', 'mechSub patchBad', 'Not in a Magpie patch: ' + (left.length > 3 ? left.length + ' of your fixes, which change the program or a part of Cythera Data a patch cannot reach.' : left.join('; ') + '.')));
+  // What a Magpie patch or the disk cannot carry, said whenever it is the
+  // choice and any of it is chosen, since it is easy to miss and costs a fix.
+  const left = basketLeftOut(b.where);
+  if (left.length) host.appendChild(el('div', 'mechSub patchBad', (b.where === 'disk' ? 'Not on the disk: ' : 'Not in a Magpie patch: ') +
+    (left.length > 3 ? left.length + (b.where === 'disk' ? ' of your fixes, which change the program. Download as Replacement Files for those.' : ' of your choices, which change the program or a part of Cythera Data a patch cannot reach.') : left.join('; ') + '.')));
   const more = el('div', 'patchBarMore');
   more.hidden = !b.more;
   more.appendChild(el('div', 'mechSub', b.where === 'files' ? 'Cythera Data, and the program when a fix to it is chosen, as MacBinary files to put in place of yours.'
+    : b.where === 'disk' ? 'Cythera Data on a disk to drop on an emulated Mac, such as infinitemac.org, with a script that puts it in the game\u2019s folder and starts the game.'
     : b.where === 'magpie' ? 'One patch for Magpie to install into Cythera Data.' : 'Your patch, put into the files this site has open, in this browser only. The rest of the site then shows them changed.'));
   if (left.length > 3) {
     const ul = el('ul', 'ruleList');
@@ -4826,17 +4885,22 @@ function renderMechanicsSheet(value) {
     sec.appendChild(note);
   }
 
-  // ---- what was edited this session, to download ----
+  // ---- the replacers that live beside what they replace ----
   {
-    /* The Changes tab until 17 October 2026, at the maintainer's word: "roll
-       the Changes tab into Build a Patch ... rename it Patch Generator". The
-       count of edits it wore is on the Tools tab now (refreshChangesBadge). */
-    add('changes', 'Patch Generator', null, '',
-      'What you have changed in the open file, and where to download it.', [], '');
-    const sec = sections[sections.length - 1].el;
-    const host = document.createElement('div');
-    host.id = 'changesHost';
-    sec.appendChild(host);
+    /* The maintainer's ask of 19 October 2026: links here to the font
+       replacers and the MIDI importer, which were rows on Tools. Each stays
+       where it is drawn, beside the font or the tune it replaces; what it
+       changes is an edit to the open file, and the edits go into Your Patch
+       (basketEdits). This section took the place of Patch Generator, the
+       Changes tab rolled in here on 17 October, which listed the edits and
+       downloaded them, and which the maintainer had go as Your Patch's
+       View Comparison does the same. */
+    add('replacers', 'Fonts and Music', null, '',
+      'Replace the game’s fonts or one of its tunes where each is shown. What you change goes into Your Patch.',
+      [], '<ul class="ruleList">' +
+        '<li>' + actionChip('Font Replacer', "toolGoTo('FONTS', 'fontSwap')") + ' A TrueType font in place of the game’s.</li>' +
+        '<li>' + actionChip('Seldane Script Replacer', "toolGoTo('FONTS', 'strikeSwap')") + ' A TrueType font redrawn as the Seldane script.</li>' +
+        '<li>' + actionChip('MIDI Importer', "toolGoTo('143')") + ' Open a tune under Music, then choose Replace with a MIDI File.</li></ul>');
   }
 
   // ---- the hero's colours, as a patch ----
@@ -5297,7 +5361,6 @@ function renderMechanicsSheet(value) {
   renderPatchBar();
   if (document.getElementById('spanishMaker')) renderSpanishMaker();
   if (document.getElementById('scenarioMaker')) renderScenarioMaker();
-  if (document.getElementById('changesHost')) renderChangesInto(document.getElementById('changesHost'));
 }
 // The cards open when a number on the sheet was followed into its script,
 // so that back from the script finds them open again and setMode's scroll

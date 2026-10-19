@@ -133,6 +133,11 @@
 @font-face { font-family: 'ChicagoKare'; src: url('res/ChicagoKare-Regular.woff2') format('woff2'); font-display: swap; }
 @font-face { font-family: 'Carthage'; src: url('res/CarthageSans-Regular.woff2') format('woff2'); font-display: swap; }
 @font-face { font-family: 'Geneva9'; src: url('res/Geneva9-1-Regular.woff2') format('woff2'); font-display: swap; }
+/* The canvas page's wordmark, for its row on Tools: Pixelify Sans SemiBold,
+   which canvas.html takes from Google Fonts, cut down to the eleven letters
+   of "ColorCycleCanvas" (1.1 KB) so that this page still fetches nothing
+   but the installer. NOTICE says whose it is. */
+@font-face { font-family: 'PixelifyMark'; src: url('res/PixelifySans-SemiBold-ColorCycleCanvas.woff2') format('woff2'); font-weight: 600; font-display: swap; }
 :root { --gold: rgb(249,248,111); --panel: rgba(20,18,14,.86); --edge: #9b8850;
   --face: 'ChicagoKare', 'Carthage', -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --face-text: 'Geneva9', 'Carthage', -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif; }
@@ -1120,6 +1125,18 @@ body.dropping::after { content:'Drop the Cythera installer (.sit or .bin) or a C
 #mapLabel button.hexNum { padding:0 !important; margin:0 !important; min-height:0 !important; display:inline !important; width:auto !important; font-size:.82em !important; }
 .toolRow { margin:4px 0; }
 .toolRow button { display:block; text-align:left; }
+/* The canvas page's row is drawn as that page draws its name (.mark in
+   canvas.html, its dark theme): the pixel face in a blue gradient that runs
+   on hover. The maintainer's ask of 19 October 2026, which sets aside for
+   this one row the rule that what is clicked is gold. The gradient is on a
+   span, since the button rule is !important on background. */
+.toolRow .ccMark { font-family:'PixelifyMark', var(--face); font-weight:600; font-size:1.1875rem; line-height:1.05;
+  white-space:nowrap; background-image:linear-gradient(90deg,#60a8fc,#4484fc,#2c5cfc,#4494fc,#7cbcfc,#9cd0fc,#7cbcfc,#60a8fc);
+  background-size:200% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; }
+@media (prefers-reduced-motion:no-preference) {
+  .toolRow button:hover .ccMark, .toolRow button:focus-visible .ccMark { animation:ccMarkCycle 1.1s linear infinite; }
+}
+@keyframes ccMarkCycle { from { background-position:0 0; } to { background-position:-200% 0; } }
 .quietLog { margin-top:22px; padding-top:8px; font-size:0.7188rem; color:#dcd8cc; }
 .quietLog > summary { color:var(--gold); opacity:.55; }
 .quietLog > summary { cursor:pointer; list-style:none; }
@@ -2245,10 +2262,10 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
         <option value="SAVEGAME">Saved game: the party and everyone else</option>
         <option value="PREFS">Cythera Preferences: the game's settings file</option>
         <option value="LICENSE">Cythera License: the game's registration file</option>
-        <option value="PATCHES">Patches: read one, make one, compare two files</option>
+        <option value="PATCHES">Patch Generator</option>
         <option value="CHEATS">Cheat mode: the keys, and how to switch it on</option>
         <option value="DATAFORK">Data fork (every subindex)</option>
-        <option value="CHANGES">Changes this session</option>
+        <option value="CHANGES">Your Patch: this session's changes</option>
         <option value="INSTALLER">The installer: every file in it</option>
         <option value="APPRSRC">Cythera application: resource fork</option>
         <option value="APPPEF">Cythera application: data fork (PEF)</option>
@@ -2648,7 +2665,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.314.0';
+const GRIMOIRE_VERSION = '1.315.0';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

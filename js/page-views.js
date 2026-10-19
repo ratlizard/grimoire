@@ -969,6 +969,14 @@ function applyPrefsPreset(name) {
    than Cythera Data is the file open (openFileIsPatch, magpieIcon). */
 function renderPatchesSheet() { renderMechanicsSheet(MECH_TOOL_GROUP.value); }
 
+/* A tool where it lives: its tab, then the element that holds it, which is
+   drawn a moment after the tab. The Tools rows and the Patch Generator's
+   Fonts and Music section both go this way. */
+function toolGoTo(cat, id) {
+  if (!showCategory(cat) || !id) return;
+  setTimeout(() => { const el = document.getElementById(id); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+}
+
 /* ---- Tools -------------------------------------------------------------------
    Every tool on the site by name, each a link to where it is, and the
    sister pages, which are not part of the archive and so have no place
@@ -996,36 +1004,41 @@ function renderToolsSheet() {
      things that could be considered tools"). A tool is what makes or changes
      a file, or works a figure out from numbers a visitor sets; a row for one
      that lives on another tab opens that tab at it. A row is the tool's name,
-     a noun ("Ditherizer", "Gremlin Maker", "Combat Calculator"), and the
+     a noun ("Graphics Ditherizer", "Save File Generator"), and the
      section it opens is headed by the same name. That is the maintainer's
      choice of 11 October 2026, after a pass that made every row a verb
      phrase and was put back; it sets aside, for a tool's heading, the rule
      of 1 October that a heading naming an action reads as one. smoke_edits
-     holds the Build a Patch row to that page. The
+     holds the Patch Generator row to that page. The
      tools stay where they are: each is drawn beside the reading it shares
      with its tab, which is why Patches and Preferences left this sheet. */
-  const sec = id => () => { const g = mechGroupOf(id); if (g && showCategory(g.value)) setTimeout(() => mechGo(id), 60); };
-  const at = (cat, id) => () => {
-    if (!showCategory(cat) || !id) return;
-    setTimeout(() => { const el = document.getElementById(id); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
-  };
-  for (const [label, note, go, icon] of [
-    ['Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
+  const at = (cat, id) => () => toolGoTo(cat, id);
+  /* Five rows since 19 October 2026, in the maintainer's order: Patch
+     Generator, Save File Generator, Preferences File Generator, Graphics
+     Ditherizer and ColorCycleCanvas. The Font Replacer, the Seldane Script
+     Replacer and the MIDI Importer left for a section of the Patch
+     Generator (Fonts and Music), since what they change goes into Your
+     Patch. The canvas page's row is its name drawn as that page draws it
+     (.ccMark). */
+  for (const [label, note, go, icon, mark] of [
+    ['Patch Generator', 'Bugfixes and the tools that make a patch, in one download.', () => showCategory('PATCHES'), BUILD_A_PATCH_ICON],
+    ['Save File Generator', 'A saved game made from the scenario open here, with the hero you set.', at('SAVEGAME', 'saveMaker')],
+    ['Preferences File Generator', 'The game’s settings file, made with the options you choose.', at('PREFS')],
+    ['Graphics Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
       () => { showCategory('135'); openDitherTool(); }],
-    ['Color-Cycling Canvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener')],
-    ['Save Maker', 'A saved game made from the scenario open here, with the hero you set.', at('SAVEGAME', 'saveMaker')],
-    ['Font Replacer', 'A TrueType font in place of the game’s.', at('FONTS', 'fontSwap')],
-    ['Seldane Script Replacer', 'A TrueType font redrawn as the Seldane script.', at('FONTS', 'strikeSwap')],
-    ['MIDI Importer', 'Open a tune under Music, then choose Replace with a MIDI File.', at('143')],
-    ['Build a Patch', 'Bugfixes and the tools that make a patch, in one download.', () => showCategory('PATCHES'), BUILD_A_PATCH_ICON],
-    ['Preferences File Generator', 'The game’s settings file, made with the options you choose.', at('PREFS')]]) {
+    ['ColorCycleCanvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener'), null, true]]) {
     const d = document.createElement('div');
     d.className = 'toolRow';
     const b = document.createElement('button');
     b.className = 'secondary';
     b.style.cssText = 'width:auto;margin:0';
+    if (mark) {
+      const m = document.createElement('span');
+      m.className = 'ccMark';
+      m.textContent = label;
+      b.appendChild(m);
+    } else b.textContent = label;
     // A row for a tab that left the tab bar wears that tab's icon.
-    b.textContent = label;
     if (icon) {
       const c = navIconCanvas(icon, 18);
       c.style.display = 'inline-block'; c.style.verticalAlign = 'middle'; c.style.margin = '0 6px 0 0';
@@ -3431,24 +3444,18 @@ function applyResourceEdit(resid, newData) {
 }
 /* The status line lives in the Settings panel, so an edit made from a page
    said where it went to nobody. This line under the top row says it on the
-   page, with the Changes tab a link, and goes away on its own. */
+   page, with Your Patch a link (the Changes tab until 17 October 2026, the
+   Patch Generator's section of that name until the 19th), and goes away on
+   its own. */
 let _editNoticeTimer = null;
 function showEditNotice(resid, what, count) {
   const el = document.getElementById('editNotice');
   if (!el) return;
   el.innerHTML = '0x' + resid.toString(16).toUpperCase() + ' ' + what + ' in memory, ' + count + ' resource' + (count === 1 ? '' : 's') +
-    ' changed this session. ' + svLink('Patch Generator', "showCategory('CHANGES')", 'is where to download an edited file');
+    ' changed this session. ' + svLink('Your Patch', "showCategory('CHANGES')", 'is where to download it');
   el.style.display = '';
   if (_editNoticeTimer) clearTimeout(_editNoticeTimer);
   _editNoticeTimer = setTimeout(() => { el.style.display = 'none'; }, 15000);
-}
-
-function downloadEditedArchive() {
-  if (!ARCHIVE) return;
-  const base = (window.ARCHIVE_SOURCE_NAME || 'Cythera Data')
-    .replace(/\.(hqx|data|bin)$/i, '');
-  dlBlob(new Blob([ARCHIVE.bytes], { type: 'application/octet-stream' }),
-         safeFileName(base + ' (edited)') + '.data');
 }
 
 // --- Structured prop editing ------------------------------------------
@@ -3512,25 +3519,6 @@ function applyPropRecordEdit(propResid, index, fields) {
   return applyResourceEdit(propResid, writeDelverPropList(records));
 }
 
-function downloadEditedMacBinary() {
-  if (!ARCHIVE) return;
-  // Both forks in one emulator-ready file: the edited data fork, and the
-  // resource fork exactly as it arrived -- data-fork edits never touch it.
-  // The Finder identity is whatever the container that brought the archive
-  // declared (kept in ARCHIVE_FINDER), so the game recognises its own file.
-  const f = window.ARCHIVE_FINDER || { name: 'Cythera Data', type: 'DelS', creator: 'Delv' };
-  const bin = writeMacBinary({
-    name: f.name, type: f.type, creator: f.creator,
-    data: ARCHIVE.bytes, rsrc: window.CYTHERA_RSRC_RAW || new Uint8Array(0)
-  });
-  const base = (window.ARCHIVE_SOURCE_NAME || f.name || 'Cythera Data')
-    .replace(/\.(hqx|data|bin)$/i, '');
-  dlBlob(new Blob([bin], { type: 'application/macbinary' }),
-         safeFileName(base + ' (edited)') + '.bin');
-  const forkWarning = missingForkWarning(window.CYTHERA_RSRC_RAW);
-  if (forkWarning) setStatus('Wrote the MacBinary copy, but ' + forkWarning, true);
-}
-
 /* The names on the exported disk, and the script that uses them.
    ==========================================================================
 
@@ -3565,13 +3553,6 @@ function downloadEditedMacBinary() {
 const DISK_VOLUME_NAME = 'Cythera Export';
 const DISK_SCRIPT_NAME = 'Install and Play';
 const DISK_ARCHIVE_NAME = 'Cythera Data';
-/* The folder the zip's contents land in inside the emulated Mac. infinite-mac
-   names it after the zip itself (`parentName = file.name.slice(0, -4)`), and
-   the installer this page's sibling types searches every disk for a folder of
-   this name -- so the two have to agree, and
-   utilities/mobile_handoff_check.mjs fails if they drift. */
-const ZIP_FOLDER_NAME = 'Cythera Patch';
-
 /* A Delver scenario without its resource fork is not a scenario the game will
    open, and nothing about the file says so until Cythera refuses it.
 

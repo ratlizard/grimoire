@@ -1206,7 +1206,7 @@ function renderCheatsSheet() {
     '<li><b>The party’s records.</b> Where they stand, how strong and how well fed they are, and how many training ' +
     'points they have. ' + actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li>' +
     '<li><b>Any resource, as hex</b>, through Edit Bytes on the resource itself.</li>' +
-    '<li><b>Where to download the changed file.</b> ' + actionChip('Patch Generator', "showCategory('CHANGES')") + '</li></ul></div>';
+    '<li><b>Where to download the changed file.</b> ' + actionChip('Your Patch', "showCategory('CHANGES')") + '</li></ul></div>';
 
   if (kr && kr.cases.length) {
     const find = k => kr.cases.find(c => c.keys.some(x => x.v === k));
@@ -1957,8 +1957,8 @@ function renderSaveSheet() {
   h += questStateHTML(words) + roomsEnteredHTML(words) + gremlinsHTML(words) + todoHTML(words);
   if (isSave) h += saveByteMapHTML();
   h += '<div class="saveNote">Edit shows all 32 bytes of a record and what each one is. ' +
-    'Edits change only the copy in this browser. To download the edited file, go to ' +
-    actionChip('Patch Generator', "showCategory('CHANGES')") + '.</div>';
+    'Edits change only the copy in this browser. They go into ' +
+    actionChip('Your Patch', "showCategory('CHANGES')") + ' to download.</div>';
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
   out.textContent = (isSave ? 'Saved game' : 'Character records') + ': ' +
     inUse.length + ' of 512 slots in use' + (hero && hero.zone ? ', the player in ' + zoneDisplayName(hero.zone) : '') + '.';
@@ -2513,7 +2513,7 @@ function saveMakerHTML() {
   if (!d) return '';
   const num = (id, label, v) => '<label class="mkField">' + svEsc(label) + ' <input type="number" id="' + id + '" min="1" max="255" value="' + v + '"></label>';
   const spriteName = v => propDisplayName(v.v & 0x3FF) || ('sprite ' + propWordHex(v.v & 0x3FF));
-  return '<div class="saveMaker" id="saveMaker"><h3>Save Maker</h3>' +
+  return '<div class="saveMaker" id="saveMaker"><h3>Save File Generator</h3>' +
     '<div class="mechLede">' + svEsc('Make a saved game: the hero, the place, the hour, a point in the story and who is with you. Make the Save opens it here, where the forms set the rest.') + '</div>' +
     '<div class="mkRow"><label class="mkField">Name <input type="text" id="mkName" maxlength="31" value="NewGame01"></label>' +
     '<label class="mkField">Sprite <select id="mkSprite">' + d.cr.sprites.map((s, i) => '<option value="' + i + '">' + svEsc(spriteName(s)) + '</option>').join('') + '</select></label>' +
@@ -3893,108 +3893,6 @@ function renderCombatAISheet(which) {
     : (which === 'AIRULES' && !arc)
       ? 'The words of the script language, from the program’s resource fork. The AI Scripting Document comes with the game as a separate file.' + NO_INSTALLER_HINT
       : 'The installer has no ' + (which === 'AIRULES' ? 'AI Scripting Document' : '.ai scripts') + ' in it.';
-}
-
-/* ---- Tools > Build a Patch > Patch Generator (the Changes tab until 17 October 2026) ----
-   What was edited this session, and the ways it leaves the page, grouped by
-   where the file is going rather than by format. Edits live in memory only
-   (see applyResourceEdit); this is the one place they are listed.
-
-   The typed patch leads on a phone because it is the only route that works
-   there unassisted -- no picker, no drag, no disk -- and it was offered only
-   while every edit kept its resource the same length, the rule of the
-   byte-run patch writer that a Magpie patch replaced (deleted 25 September
-   2026). On a computer the file routes lead. The
-   missing-resource-fork warning the exports already raise is printed here
-   under the file routes, since a disk without the fork installs perfectly and
-   then will not open. */
-function renderChangesInto(host) {
-  host.innerHTML = '';
-  const box = document.createElement('div');
-  box.className = 'changesView';
-  const edited = Array.from(window.EDITED_RESIDS || []).sort((a, b) => a - b);
-  const head = document.createElement('div');
-  head.className = 'changesHead';
-  if (!edited.length) {
-    head.textContent = 'Nothing changed yet.';
-    const p = document.createElement('div');
-    p.className = 'changesNote';
-    p.style.margin = '0';
-    p.textContent = 'Edits you make anywhere on the site, with Edit bytes on a resource or Edit on a ' +
-      'map square, appear here to download. Reloading the page loses them.';
-    box.appendChild(head);
-    box.appendChild(p);
-    host.appendChild(box);
-    return;
-  }
-  head.textContent = edited.length + ' resource' + (edited.length === 1 ? '' : 's') +
-    ' changed this session · in memory only';
-  box.appendChild(head);
-  let before = null;
-  try {
-    before = new Map(delverArchiveSpec(window.PRISTINE_BYTES).resources.map(x => [x.resid, x.data.length]));
-  } catch (e) { quiet(e); }
-  for (const resid of edited) {
-    const row = document.createElement('div');
-    row.className = 'changesRow';
-    const b = document.createElement('button');
-    b.className = 'navChip';
-    b.textContent = '0x' + resid.toString(16).toUpperCase();
-    b.onclick = () => jumpToResource(resid);
-    row.appendChild(b);
-    const raw = getResourceBytes(ARCHIVE, resid);
-    const was = before && before.has(resid) ? before.get(resid) : null;
-    const lbl = labelFor(resid);
-    const t = document.createElement('span');
-    t.textContent = (lbl ? lbl + ' · ' : '') +
-      (!raw ? 'removed'
-       : was === null ? raw.length + ' bytes'
-       : was === raw.length ? raw.length + ' bytes, same length'
-       : was + ' bytes, now ' + raw.length);
-    row.appendChild(t);
-    box.appendChild(row);
-  }
-  const groups = [
-    { title: 'to an emulator', routes: [
-        { label: 'Download the disk image', fn: () => downloadEditedDiskImage(),
-          note: '.dsk, which mounts in an emulated Mac and includes an installer; infinitemac.org accepts it by drag and drop' },
-        { label: 'Download the zip', fn: () => downloadEditedForkZip(),
-          note: '.zip, with both forks in the layout Basilisk II and infinitemac.org unpack, about half the size of the disk image' } ] },
-    { title: 'to a real Mac, or another tool', routes: [
-        { label: 'Download as MacBinary', fn: () => downloadEditedMacBinary(),
-          note: '.bin, with both forks and the file’s Finder type and creator; an emulator would need StuffIt Expander to open it' },
-        { label: 'Download the data fork', fn: () => downloadEditedArchive(),
-          note: '.data, the data fork alone; delvmod and this page can read it, but the game also needs the resource fork' } ] }
-  ];
-  for (const g of groups) {
-    const sec = document.createElement('div');
-    sec.className = 'changesGroup';
-    const tt = document.createElement('div');
-    tt.className = 'changesGroupTitle';
-    tt.textContent = g.title;
-    sec.appendChild(tt);
-    for (const route of g.routes) {
-      const b = document.createElement('button');
-      b.className = 'secondary';
-      b.textContent = route.label;
-      b.disabled = !!route.off;
-      b.onclick = route.fn;
-      sec.appendChild(b);
-      const n = document.createElement('div');
-      n.className = 'changesNote';
-      n.textContent = route.note;
-      sec.appendChild(n);
-    }
-    box.appendChild(sec);
-  }
-  const warn = missingForkWarning(window.CYTHERA_RSRC_RAW || new Uint8Array(0));
-  if (warn) {
-    const w = document.createElement('div');
-    w.className = 'changesWarn';
-    w.textContent = warn;
-    box.appendChild(w);
-  }
-  host.appendChild(box);
 }
 
 /* ---- Records: the tables the scenario is built from -----------------------

@@ -1108,7 +1108,9 @@ const TAB_TREE = [
   // Build a Patch was a tab under Data from 27 September 2026, and is
   // reached from a row of Tools since 17 October 2026, at the maintainer's
   // word ("move out completely"): its value lights Tools, as does CHANGES,
-  // the Changes tab that became its Patch Generator the same day. Its icon, worn by
+  // the Changes tab that became its Patch Generator the same day. Since
+  // 19 October 2026 the page is named Patch Generator and CHANGES opens its
+  // Your Patch. Its icon, worn by
   // that row (BUILD_A_PATCH_ICON), is Magpie's DelP when a Magpie archive has been opened on this
   // device (magpieIcon) and the fishing pole (0x29A) otherwise.
   { id: 'tools', label: 'Tools', tile: 0x2A9, tileOpen: 0x2AD, values: ['TOOLS', 'PATCHES', 'CHANGES'] }       // a wheelbarrow, another frame of it when selected: the maintainer's pick, 16 September 2026; it was the anvil (0x2E0)
@@ -1339,7 +1341,9 @@ function syncTabsTo(v) {
   refreshChangesBadge();
   const sel = document.getElementById('categorySelect');
   const have = new Set(Array.from(sel.options).map(o => o.value));
-  const vals = leaf ? leaf.values.filter(x => have.has(x)) : [];
+  // CHANGES lights Tools and has no chip: it opens the Patch Generator's
+  // Your Patch, which that page's own chip reaches (19 October 2026).
+  const vals = leaf ? leaf.values.filter(x => have.has(x) && x !== 'CHANGES') : [];
   const sub = document.getElementById('navSub');
   if (sub) {
     /* A chip says the section's name and, smaller, its id range; the whole

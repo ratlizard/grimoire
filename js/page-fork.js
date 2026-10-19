@@ -75,7 +75,7 @@ function fontSwapPanel() {
   box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Font Replacer</h3></div>' +
     (target
       ? '<p class="mechLede">Choose a TrueType font (<b>.ttf</b>) to replace the game’s font, ' + svEsc(target.name || 'ArgosANouveau') + ' (<b>sfnt ' + target.id + '</b>), in the copy of the file in this browser.</p>' +
-        '<ul class="ruleList"><li>To play with it, export <b>Data file › the disk image</b> and run the game from it in an emulator.</li>' +
+        '<ul class="ruleList"><li>To play with it, download <b>Your Patch</b> in the ' + actionChip('Patch Generator', "showCategory('CHANGES')") + ' as a disk image, and run the game from it in an emulator.</li>' +
         '<li>An <b>.otf</b> font cannot be used, because a classic Mac cannot draw it.</li></ul>' +
         '<div class="mechStats"><input type="file" id="fontSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoFontSwap()">Restore the game’s font</button>' : '') +
@@ -1805,8 +1805,9 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'PATCHES') { renderPatchesSheet(); return; }
   if (window.CUR_SUBN === 'CHEATS') { renderCheatsSheet(); return; }
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
-  // An old link to the Changes tab opens its section of Build a Patch.
-  if (window.CUR_SUBN === 'CHANGES') { renderPatchesSheet(); setTimeout(() => mechGo('changes'), 60); return; }
+  // A link to the Changes tab, which was a section of the Patch Generator
+  // from 17 to 19 October 2026, opens Your Patch, which carries the edits.
+  if (window.CUR_SUBN === 'CHANGES') { renderPatchesSheet(); setTimeout(() => { const pb = document.getElementById('patchBar'); if (pb && pb.scrollIntoView) pb.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
   // One tab per group of the rules sheet, and Hackery, all one renderer.
   if (MECH_GROUP_BY_VALUE[window.CUR_SUBN]) { renderMechanicsSheet(window.CUR_SUBN); return; }

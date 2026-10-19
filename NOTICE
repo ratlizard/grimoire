@@ -110,6 +110,15 @@ is what Cythera's own data file names for its Labels, Stats and Text styles.
 Geneva itself is Apple's; this is a clone of the bitmap, and Apple's own
 TrueType Geneva is not here.
 
+**`res/PixelifySans-SemiBold-ColorCycleCanvas.woff2`** is **Pixelify Sans**
+SemiBold, Copyright 2021 **The Pixelify Sans Project Authors**
+(<https://github.com/eifetx/Pixelify-Sans>), licensed under the **SIL Open Font
+License 1.1**, with no Reserved Font Name; the license is beside it as
+`res/PixelifySans-OFL.txt`. It is the subset Google Fonts serves for the eleven
+letters of "ColorCycleCanvas", which is the only text the page sets in it: the
+canvas page's name, on its row under Tools. `canvas.html` takes the whole
+family from Google Fonts and keeps no copy here.
+
 **`js/mac-geneva.js`** carries two things that are not this repository's.
 `GENEVA9_TTF` is **Geneva 9** by **Kelsey Higham**
 (<https://fontstruct.com/fontstructions/show/349277>), the ancestor of Geneva

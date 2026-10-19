@@ -99,17 +99,21 @@ try {
   // Magpie's patch icon when there is one.
   ctx.showCategory('PATCHES');
   const tools = walk();
-  // The Changes tab is Build a Patch's Patch Generator since 17 October
-  // 2026, and an old link to it lands there.
-  if (!REGISTRY.has('changesHost') || tools.indexOf('Patch Generator') < 0) strayTab.push('Build a Patch has no Patch Generator');
-  if (!ctx.showCategory('CHANGES') || !REGISTRY.has('changesHost')) strayTab.push('a link to Changes does not reach the Patch Generator');
+  // The Changes tab was the Patch Generator's section of that name from
+  // 17 to 19 October 2026, and went; a link to it opens Your Patch. The
+  // font replacers and the MIDI importer left Tools for a section here.
+  if (REGISTRY.has('changesHost')) strayTab.push('the Patch Generator still has its section of edits');
+  for (const t of ['Fonts and Music', 'Font Replacer', 'Seldane Script Replacer', 'MIDI Importer'])
+    if (tools.indexOf(t) < 0) strayTab.push('the Patch Generator does not show ' + t);
+  if (!ctx.showCategory('CHANGES') || !REGISTRY.has('patchBar')) strayTab.push('a link to Changes does not reach Your Patch');
   ctx.showCategory('TOOLS');
   const toolsNow = walk();
   const patchLeaf = peek('TAB_LEAF_FOR').get('PATCHES');
-  // Since 17 October 2026 Build a Patch has no tab: its value lights Tools,
+  // Since 17 October 2026 the Patch Generator (Build a Patch until the
+  // 19th) has no tab: its value lights Tools,
   // and a row there opens it.
   if (!patchLeaf || patchLeaf.id !== 'tools') strayTab.push('PATCHES does not light the Tools tab');
-  if (peek(`(function find(ns) { return ns.some(n => n.id === 'patches' || (n.children && find(n.children))); })(TAB_TREE)`)) strayTab.push('Build a Patch still has a tab of its own');
+  if (peek(`(function find(ns) { return ns.some(n => n.id === 'patches' || (n.children && find(n.children))); })(TAB_TREE)`)) strayTab.push('the Patch Generator still has a tab of its own');
   /* Tools names every tool on the site and links to it (11 October 2026),
      so a section's title is on Tools once, as its row's name, and the
      section itself is still drawn only by Patches. A row that opens a
@@ -118,11 +122,13 @@ try {
      is not zero. */
   const toolNames = [];
   (function rows(el) { if (el.className === 'toolRow') toolNames.push(el.children[0].textContent); else (el.children || []).forEach(rows); })(REGISTRY.get('sheetGrid'));
-  const patchRows = ['Build a Patch'];
+  // Five rows in the maintainer's order since 19 October 2026.
+  const patchRows = ['Patch Generator'];
   for (const t of ['Scenario Maker', 'Gremlin Maker', 'Sprite Recolorer', 'Bugfix Patch Generator', 'Cythera in Spanish', 'Patch Comparison', 'File Comparison'])
-    if (toolNames.indexOf(t) >= 0) strayTab.push('Tools still links to ' + t + ', inside Build a Patch');
-  if (toolNames.length < 8) strayTab.push('Tools shows ' + toolNames.length + ' rows');
-  for (const t of ['Combat Calculator', 'License', 'GitHub Repository', 'Changes', 'Preferences'])
+    if (toolNames.indexOf(t) >= 0) strayTab.push('Tools still links to ' + t + ', inside the Patch Generator');
+  const FIVE = ['Patch Generator', 'Save File Generator', 'Preferences File Generator', 'Graphics Ditherizer', 'ColorCycleCanvas'];
+  if (toolNames.join('|') !== FIVE.join('|')) strayTab.push('Tools shows ' + JSON.stringify(toolNames) + ', not the five rows');
+  for (const t of ['Combat Calculator', 'License', 'GitHub Repository', 'Changes', 'Preferences', 'Build a Patch', 'Font Replacer', 'Seldane Script Replacer', 'MIDI Importer'])
     if (toolNames.indexOf(t) >= 0) strayTab.push('Tools still has a row for ' + t);
   // Every fix of the program and of the resource fork is in one of the
   // Bugfixes lists (APP_FIX_GROUP), or the one list would drop it unseen.
@@ -131,15 +137,15 @@ try {
   if (ungrouped.length) strayTab.push('fixes in no Bugfixes list: ' + ungrouped.join(', '));
   for (const t of patchRows) {
     if (toolNames.indexOf(t) < 0) strayTab.push('Tools has no row for ' + t);
-    if (t !== 'Build a Patch' && tools.indexOf(t) < 0) strayTab.push('Tools links to ' + t + ', which Patches does not show');
+    if (t !== 'Patch Generator' && tools.indexOf(t) < 0) strayTab.push('Tools links to ' + t + ', which Patches does not show');
   }
   // Every row that stays on the page leaves Tools for another tab when
   // clicked; a row whose category the page does not have would stay put.
   for (const t of toolNames) {
-    // The two that open another window, and the ditherizer, an overlay
+    // The one that opens another window, and the ditherizer, an overlay
     // whose controls the stub's innerHTML does not make (it was a row here
     // before this check and smoke_views drives it).
-    if (t === 'Color-Cycling Canvas' || t === 'GitHub Repository' || t === 'Ditherizer') continue;
+    if (t === 'ColorCycleCanvas' || t === 'Graphics Ditherizer') continue;
     ctx.showCategory('TOOLS');
     let row = null;
     (function rows(el) { if (el.className === 'toolRow' && el.children[0].textContent === t) row = el.children[0]; else (el.children || []).forEach(rows); })(REGISTRY.get('sheetGrid'));
@@ -301,6 +307,44 @@ try {
     else console.log(`  edit path: 0x${resid.toString(16).toUpperCase()} edited, re-encrypted, and served back from a ${peek('ARCHIVE.bytes').length}-byte rebuild`);
   }
 } catch (e) { fail('edit path', e); }
+
+/* The edit just made is in Your Patch (19 October 2026), since the Patch
+   Generator section that listed and downloaded the edits went then: the
+   Magpie patch carries it, and View Comparison draws the patch's report in
+   Patch Comparison and opens that section, whose report was drawn into a
+   shut fold until then, so the button seemed to do nothing. The control is
+   the same build with the edits set aside, which must refuse as empty. */
+try {
+  ctx.showCategory('PATCHES');
+  const got = peek(`(() => {
+    const keep = window.EDITED_RESIDS;
+    window.EDITED_RESIDS = new Set();
+    const empty = basketPatch(), emptyFiles = basketFiles();
+    window.EDITED_RESIDS = keep;
+    // Nothing chosen, so the patch is the edit alone; put back after.
+    const was = { on: DATAFIX_STATE.on, skip: DATAFIX_STATE.skip, off: APPFIX_STATE.off, rsrc: BACKSTAGE_CHOSEN };
+    fixPreset('none');
+    const ed = basketEdits(), w = basketPatch();
+    renderPatchBar();
+    const chip = [...document.getElementById('patchBar').querySelectorAll('.patchBarChip')].map(c => c.textContent);
+    const sec = document.getElementById('mech-patches');
+    if (sec) sec.open = false;
+    const shown = basketShowPatch();
+    const rep = window.PATCH_REPORT;
+    DATAFIX_STATE.on = was.on; DATAFIX_STATE.skip = was.skip; APPFIX_STATE.off = was.off; BACKSTAGE_CHOSEN = was.rsrc;
+    return { empty: !!empty, emptyFiles: !!emptyFiles, edits: ed.resids, inPatch: w ? w.merged.resids : null, chip,
+             shown, open: !!(sec && sec.open), replaces: rep ? rep.willReplace : null };
+  })()`);
+  const one = got.edits.length;
+  if (got.empty || got.emptyFiles) fail('edits in your patch', 'Your Patch built something with no edit and nothing chosen');
+  else if (!one) fail('edits in your patch', 'the edit is not among Your Patch\u2019s edits');
+  else if (!got.inPatch || got.edits.some(r => got.inPatch.indexOf(r) < 0)) fail('edits in your patch', 'the Magpie patch leaves out the edits: ' + JSON.stringify(got));
+  else if (got.chip.indexOf(one + (one === 1 ? ' edit' : ' edits')) < 0) fail('edits in your patch', 'Your Patch shows no chip for the edits: ' + JSON.stringify(got.chip));
+  else if (!got.shown || !got.open) fail('edits in your patch', 'View Comparison did not open Patch Comparison: ' + JSON.stringify(got));
+  else if (got.replaces !== one) fail('edits in your patch', 'View Comparison reports ' + got.replaces + ' replaced against ' + one + ' edited');
+  else console.log('  edits in your patch: ' + one + ' edit, in the Magpie patch and its chip; View Comparison opens Patch Comparison on it; with no edit the patch refuses as empty');
+  peek('(window.PATCH_REPORT = null, window.PATCH_BYTES = null, 0)');
+} catch (e) { fail('edits in your patch', e); }
 
 // Structured prop editing: move one prop record one square east through
 // applyPropRecordEdit and confirm the rebuilt archive serves the list back
@@ -835,9 +879,9 @@ try {
       peek('(window.__keptArc = ARCHIVE, ARCHIVE = openDelverArchive(window.__pumpkin), 0)');
       let withPatch = null;
       try { withPatch = ctx.navIconFromFork(spec); } finally { peek('(ARCHIVE = window.__keptArc, 0)'); }
-      if (withData) fail('patch icon', 'the Build a Patch row wears a patch icon with Cythera Data open');
-      else if (withPatch !== icon) fail('patch icon', 'with a patch as the open file the Build a Patch row does not wear Magpie\u2019s icon');
-      else console.log('  patch icon: Magpie\u2019s DelP icon, ' + icon.width + 'x' + icon.height + ', out of the Pumpkin Patch archive and none out of the data file; the Build a Patch row wears it with the patch open and not with Cythera Data');
+      if (withData) fail('patch icon', 'the Patch Generator row wears a patch icon with Cythera Data open');
+      else if (withPatch !== icon) fail('patch icon', 'with a patch as the open file the Patch Generator row does not wear Magpie\u2019s icon');
+      else console.log('  patch icon: Magpie\u2019s DelP icon, ' + icon.width + 'x' + icon.height + ', out of the Pumpkin Patch archive and none out of the data file; the Patch Generator row wears it with the patch open and not with Cythera Data');
     }
   }
 } catch (e) { fail('patch icon', e); }

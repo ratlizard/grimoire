@@ -311,7 +311,11 @@ const MECH_GROUPS = [
    drawn only by that tab, so the group is kept apart from MECH_GROUPS: a
    Mechanics tab never lists it and the whole-sheet view does not include
    it. */
-const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Build a Patch',
+/* Build a Patch until 19 October 2026, when the maintainer named it
+   Patch Generator on Tools and the section that had that name, what was
+   edited this session, went: Your Patch carries the edits, and its View
+   Comparison lists them. */
+const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Patch Generator',
   note: 'Cythera\u2019s official add-on system is the PowerPC application Magpie. It was released by Glenn Andreas alongside a sample patch \u201cPumpkin Patch\u201d, but specifications to create new patches were never released. The format has been reverse-engineered to make new patches possible, though Magpie is limited to editing the data fork of the Cythera Data file.',
   /* Three parts by use (the maintainer, 16 October 2026): the game's
      fixes, the patches that add or change content, and the sections that
@@ -319,7 +323,7 @@ const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Build a Patch',
      other tabs; `ids` is all three, which is what mechGroupOf reads. */
   parts: [
     { title: 'Bugfixes', ids: ['datafixes'] },
-    { title: 'Content Patches', ids: ['changes', 'herosprite', 'gremlins', 'newscenario', 'spanish'] },
+    { title: 'Content Patches', ids: ['herosprite', 'gremlins', 'newscenario', 'spanish', 'replacers'] },
     { title: 'Data Comparison', ids: ['patchkinds', 'patches', 'compare'] }] };
 MECH_TOOL_GROUP.ids = [].concat(...MECH_TOOL_GROUP.parts.map(p => p.ids));
 // A group by the category value its tab is selected with.

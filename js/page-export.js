@@ -588,9 +588,15 @@ function buildInstallScript(archiveName, note) {
    there. */
 /* Building the disk and doing something with it are two jobs, and there are
    two things to do with it now -- save it, or hand it to the retired mobile shell. They
-   have to be the same bytes, so the build is here and the callers are thin. */
-function buildEditedDiskImage() {
-  if (!ARCHIVE) return null;
+   have to be the same bytes, so the build is here and the callers are thin.
+
+   `file` is what goes on the disk, { data, rsrc }: since 19 October 2026
+   Your Patch's Cythera Data, the open file with the fixes and the other
+   parts merged in (basketDisk), where until then it was always the open
+   file as edited, offered by the Patch Generator's section of that name.
+   `edited` is the count the script's comment gives. */
+function buildEditedDiskImage(file, edited) {
+  if (!file || !file.data) return null;
   const f = window.ARCHIVE_FINDER || { name: DISK_ARCHIVE_NAME, type: 'DelS', creator: 'Delv' };
   const base = (window.ARCHIVE_SOURCE_NAME || f.name || DISK_ARCHIVE_NAME)
     .replace(/\.(hqx|data|bin|dsk)$/i, '');
@@ -600,8 +606,7 @@ function buildEditedDiskImage() {
   // the same name, so the two cannot drift.
   const archiveName = (f.name || DISK_ARCHIVE_NAME).replace(/\.(hqx|data|bin|dsk)$/i, '')
                       || DISK_ARCHIVE_NAME;
-  const edited = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
-  const rsrc = window.CYTHERA_RSRC_RAW || new Uint8Array(0);
+  const rsrc = file.rsrc || new Uint8Array(0);
   const forkWarning = missingForkWarning(rsrc);
   /* Everything a person needs to know goes in the script's own comments, and
      there is no Read Me file beside it. That is not tidiness, it is the fix
@@ -616,7 +621,7 @@ function buildEditedDiskImage() {
      not be raising it in the first place. */
   const note = [
     'Written ' + new Date().toISOString().slice(0, 10) + '. ' +
-    (edited ? edited + ' resource(s) edited before making this disk.'
+    (edited ? edited + ' resource(s) changed before making this disk.'
             : 'The file on this disk is unmodified.'),
   ];
   if (forkWarning) note.push('', 'WARNING: ' + forkWarning.replace(/“|”/g, '"'));
@@ -626,7 +631,7 @@ function buildEditedDiskImage() {
       volumeName: DISK_VOLUME_NAME,
       entries: [
         { name: archiveName, type: f.type, creator: f.creator,
-          data: ARCHIVE.bytes, rsrc: rsrc },
+          data: file.data, rsrc: rsrc },
         // TEXT with creator ToyS is what makes the Finder open this in Script
         // Editor. See the comment above buildInstallScript.
         { name: DISK_SCRIPT_NAME, type: 'TEXT', creator: 'ToyS',
@@ -641,96 +646,15 @@ function buildEditedDiskImage() {
            forkWarning: forkWarning };
 }
 
-/* The same archive as a zip infinite-mac already knows how to unpack.
-
-   Its `uploadsFromFile` checks two conventions before anything else, and the
-   first is its own: a .zip with `.rsrc/` and `.finf/` directories AT THE ROOT
-   -- Basilisk II's ExtFS layout. The data fork is the plain entry, the
-   resource fork is the same name under `.rsrc/`, and `.finf/` carries 32 bytes
-   of Finder info. Both forks and the file's type and creator survive, which a
-   bare data fork cannot manage and which is the whole reason the disk image
-   exists.
-
-   Why bother when the disk image works: size. Measured on the real forks,
-   6.86 MB of data deflates to 3.62 MB, against 7.9 MB as a disk image -- less
-   than half, which on a phone is the difference between fine and annoying. It
-   also keeps the HFS writer, and its modal desktop-file alert, off this path
-   entirely.
-
-   What it does NOT do is arrive somewhere the Finder can reach in one step:
-   the contents land in The Outside World, under Downloads, in a folder named
-   after the zip. That is why the installer for this route is typed rather than
-   opened -- the retired mobile shell's script searches for the folder instead of
-   navigating to it. */
-function finderInfoBytes(type, creator) {
-  // FInfo is 16 bytes -- type, creator, flags, location, folder -- and FXInfo
-  // is another 16, which the Finder is happy to receive as zeroes.
-  const b = new Uint8Array(32);
-  const put4 = (at, s4) => { for (let i = 0; i < 4; i++) b[at + i] = (s4 || '    ').charCodeAt(i) & 0xFF; };
-  put4(0, type); put4(4, creator);
-  return b;
-}
-
-async function buildForkZip() {
-  if (!ARCHIVE) return null;
-  const f = window.ARCHIVE_FINDER || { name: DISK_ARCHIVE_NAME, type: 'DelS', creator: 'Delv' };
-  const archiveName = (f.name || DISK_ARCHIVE_NAME).replace(/\.(hqx|data|bin|dsk|zip)$/i, '')
-                      || DISK_ARCHIVE_NAME;
-  const rsrc = window.CYTHERA_RSRC_RAW || new Uint8Array(0);
-  const entries = [
-    { name: archiveName, bytes: ARCHIVE.bytes },
-    { name: '.rsrc/' + archiveName, bytes: rsrc },
-    { name: '.finf/' + archiveName, bytes: finderInfoBytes(f.type, f.creator) },
-  ];
-  return { blob: await buildZipDeflated(entries), archiveName: archiveName,
-           forkWarning: missingForkWarning(rsrc) };
-}
-
-/* buildZip in js/mac-export.js is store-only and says why: the galleries it
-   was written for hold PNGs and WAVs, which barely compress. A Delver archive
-   is the opposite -- it halves -- so this one deflates where the browser can,
-   and falls back to the stored zip where it cannot. JSZip, which is what
-   reads this on the other side, takes either. */
-async function buildZipDeflated(entries) {
-  if (typeof CompressionStream === 'undefined') return buildZip(entries);
-  try {
-    const out = [];
-    for (const e of entries) {
-      const cs = new CompressionStream('deflate-raw');
-      const deflated = new Uint8Array(await new Response(
-        new Blob([e.bytes]).stream().pipeThrough(cs)).arrayBuffer());
-      out.push({ name: e.name, bytes: e.bytes, deflated: deflated });
-    }
-    return buildZip(out);
-  } catch (err) {
-    return buildZip(entries);
-  }
-}
-
-async function downloadEditedForkZip() {
-  const built = await buildForkZip();
-  if (!built) return;
-  dlBlob(built.blob, ZIP_FOLDER_NAME + '.zip');
-  const size = fmtBytes(built.blob.size);
-  if (built.forkWarning) {
-    setStatus('Wrote a ' + size + ' zip, but ' + built.forkWarning, true);
-    return;
-  }
-  setStatus('Wrote a ' + size + ' zip with both forks, less than half the size of the disk ' +
-    'image. Emulators that unpack the Basilisk II layout, including infinitemac.org, accept it as an upload.');
-}
-
-function downloadEditedDiskImage() {
-  const built = buildEditedDiskImage();
-  if (!built) return;
+// The disk saved; what to say about it is returned, for Your Patch's note.
+function downloadEditedDiskImage(file, edited) {
+  const built = buildEditedDiskImage(file, edited);
+  if (!built) return null;
   dlBlob(new Blob([built.image], { type: 'application/octet-stream' }), built.fileName);
-  if (built.forkWarning) {
-    setStatus('Wrote a ' + fmtBytes(built.image.length) + ' disk image, but ' + built.forkWarning, true);
-    return;
-  }
-  setStatus('Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac: ' +
+  if (built.forkWarning) return { built, said: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image, but ' + built.forkWarning, bad: true };
+  return { built, said: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac: ' +
     'it mounts as \u201c' + DISK_VOLUME_NAME + '\u201d and contains an Install and Play script that replaces the ' +
-    'file in the game\u2019s folder and starts Cythera.');
+    'file in the game\u2019s folder and starts Cythera.' };
 }
 
 // General MIDI program names (1-128), used to label decoded QTMA parts.
